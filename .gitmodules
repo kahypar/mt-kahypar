@@ -1,0 +1,6 @@
+[submodule "external_tools/googletest"]
+	path = external_tools/googletest
+	url = https://github.com/google/googletest.git
+[submodule "external_tools/kahypar"]
+	path = external_tools/kahypar
+	url = https://github.com/SebastianSchlag/kahypar.git
