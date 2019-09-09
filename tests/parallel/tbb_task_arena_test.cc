@@ -25,7 +25,7 @@
 #include "tbb/parallel_for.h"
 #include "tbb/task_group.h"
 
-#include "tests/parallel/hwloc_util_mock.h"
+#include "tests/parallel/topology_mock.h"
 #include "mt-kahypar/parallel/hardware_topology.h"
 #include "mt-kahypar/parallel/tbb_numa_arena.h"
 
@@ -42,7 +42,7 @@ struct Numa {
 template < typename Numa >
 class ATBBNumaArenaTest : public Test {
  private:
-  class NumaMock : public HwlocUtilityMock {
+  class NumaMock : public TopologyMock {
     public:
       static void initialize(topology_t& topology) {
         topology = new Topology(split_physical_cpus_into_numa_nodes(Numa::NUMA_NODES));
@@ -64,8 +64,8 @@ class ATBBNumaArenaTest : public Test {
     return HwTopology::instance().num_numa_nodes();
   }
 
-  int num_cpu_on_numa_node(int node) const {
-    return HwTopology::instance().num_cpu_on_numa_node(node);
+  int num_cpus_on_numa_node(int node) const {
+    return HwTopology::instance().num_cpus_on_numa_node(node);
   }
 
   std::vector<int> get_cpus_of_numa_node(int node) const {
@@ -101,7 +101,7 @@ TYPED_TEST(ATBBNumaArenaTest, ChecksTBBArenaInitialization) {
   ASSERT_EQ(this->expected_number_of_threads(), this->total_number_of_threads());
   int total_threads = 0;
   for ( int node = 0; node < this->expected_num_numa_nodes(); ++node ) {
-    ASSERT_EQ(this->num_cpu_on_numa_node(node), this->number_of_threads_on_numa_node(node));
+    ASSERT_EQ(this->num_cpus_on_numa_node(node), this->number_of_threads_on_numa_node(node));
     total_threads += this->number_of_threads_on_numa_node(node);
   }
   ASSERT_EQ(this->expected_number_of_threads(), total_threads);

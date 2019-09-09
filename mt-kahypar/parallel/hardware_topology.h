@@ -27,13 +27,21 @@
 
 #include "kahypar/macros.h"
 
-#include "mt-kahypar/parallel/hwloc_util.h"
+#include "mt-kahypar/parallel/hwloc_topology.h"
 
 namespace kahypar {
 namespace parallel {
 
-
-template < typename Utility = HwlocUtility,
+/**
+ * Class represents the hardware topology of the system.
+ * Internally it uses hwloc library to find numa nodes and corresponding
+ * cpus. Furthermore, it implements functionalities to pin logical threads
+ * to cpus of a specific numa node.
+ * 
+ * Template parameters can be replaced in order to mock hardware topology and
+ * simulate a NUMA on a UMA system.
+ */
+template < typename HwTopology = HwlocTopology,
            typename Topology = hwloc_topology_t,
            typename Node = hwloc_obj_t >
 class HardwareTopology {
@@ -81,6 +89,7 @@ class HardwareTopology {
       return _cpuset;
     }
 
+    // ! List of CPUs of NUMA node (only testing)
     std::vector<int> cpus() {
       std::lock_guard<std::mutex> lock(_mutex);
       std::vector<int> cpus;
@@ -94,12 +103,14 @@ class HardwareTopology {
       return _cpus.size();
     }
 
-    int assign_thread_to_cpu() {
+    int pin_thread_to_cpu() {
       std::lock_guard<std::mutex> lock(_mutex);
       Cpu& cpu = _cpus.front();
       int cpu_id = cpu.cpu_id;
       cpu.num_assigned_threads++;
       size_t pos = 0;
+      // Keep cpus sorted in increasing order of their number of assigned logical threads,
+      // such that a thread is always assigned to the cpu with least number of logical threads.
       while ( pos < _cpus.size() - 1 && 
               _cpus[pos].num_assigned_threads > _cpus[pos + 1].num_assigned_threads ) {
         std::swap(_cpus[pos], _cpus[pos + 1]);
@@ -108,9 +119,10 @@ class HardwareTopology {
       return cpu_id;
     }
 
-    void free_thread_from_cpu(int cpu_id) {
+    void unpin_thread_from_cpu(int cpu_id) {
       std::lock_guard<std::mutex> lock(_mutex);
       size_t pos = 0;
+      // Find corresponding cpu
       while ( pos < _cpus.size() ) {
         if ( _cpus[pos].cpu_id == cpu_id ) {
           break;
@@ -120,6 +132,8 @@ class HardwareTopology {
       ASSERT(pos != _cpus.size(), "CPU" << cpu_id << "not found on numa node" << _node_id);
       ASSERT(_cpus[pos].num_assigned_threads > 0, "No thread assigned to cpu" << cpu_id);
       _cpus[pos].num_assigned_threads--;
+      // Keep cpus sorted in increasing order of their number of assigned logical threads,
+      // such that a thread is always assigned to the cpu with least number of logical threads.
       while ( pos > 0 && _cpus[pos - 1].num_assigned_threads > _cpus[pos].num_assigned_threads) {
         std::swap(_cpus[pos - 1], _cpus[pos]);
         --pos;
@@ -141,7 +155,7 @@ class HardwareTopology {
   HardwareTopology& operator= (HardwareTopology&&) = delete;
 
   ~HardwareTopology() {
-    HwlocUtility::destroy_topology(_topology);
+    HwTopology::destroy_topology(_topology);
   }
 
   static HardwareTopology& instance() {
@@ -158,49 +172,54 @@ class HardwareTopology {
     return _numa_nodes.size();
   }
 
-  int num_cpu_on_numa_node(const int numa_node) const {
-    ASSERT(numa_node < (int) _numa_nodes.size());
-    ASSERT(_numa_nodes[numa_node].get_id() == numa_node);
-    return _numa_nodes[numa_node].num_cpus_on_numa_node();
+  // ! Number of CPUs on NUMA node
+  int num_cpus_on_numa_node(const int node) const {
+    ASSERT(node < (int) _numa_nodes.size());
+    ASSERT(_numa_nodes[node].get_id() == node);
+    return _numa_nodes[node].num_cpus_on_numa_node();
   }
 
-  hwloc_cpuset_t get_cpuset_of_numa_node(int numa_node) const {
-    ASSERT(numa_node < (int) _numa_nodes.size());
-    ASSERT(_numa_nodes[numa_node].get_id() == numa_node);
-    return _numa_nodes[numa_node].get_cpuset();
+  // ! CPU bitmap of NUMA node
+  hwloc_cpuset_t get_cpuset_of_numa_node(int node) const {
+    ASSERT(node < (int) _numa_nodes.size());
+    ASSERT(_numa_nodes[node].get_id() == node);
+    return _numa_nodes[node].get_cpuset();
   }
 
-  std::vector<int> get_cpus_of_numa_node(int numa_node) {
-    ASSERT(numa_node < (int) _numa_nodes.size());
-    ASSERT(_numa_nodes[numa_node].get_id() == numa_node);
-    return _numa_nodes[numa_node].cpus();
+  // ! List of CPUs of NUMA node (only testing)
+  std::vector<int> get_cpus_of_numa_node(int node) {
+    ASSERT(node < (int) _numa_nodes.size());
+    ASSERT(_numa_nodes[node].get_id() == node);
+    return _numa_nodes[node].cpus();
   }
 
-  void set_affinity_to_numa_node(const int numa_node) {
-    ASSERT(numa_node < (int) _numa_nodes.size());
-    ASSERT(_numa_nodes[numa_node].get_id() == numa_node);
+  // ! Pins a thread to a NUMA node
+  void pin_thread_to_numa_node(const int node) {
+    ASSERT(node < (int) _numa_nodes.size());
+    ASSERT(_numa_nodes[node].get_id() == node);
 		const size_t size = CPU_ALLOC_SIZE( _num_cpus );
-    int cpu_id = _numa_nodes[numa_node].assign_thread_to_cpu();
+    int cpu_id = _numa_nodes[node].pin_thread_to_cpu();
     cpu_set_t mask;
     CPU_ZERO(&mask);
     CPU_SET(cpu_id, &mask);
     const int err = sched_setaffinity(0, size, &mask);
 
 		if ( err ) {
-			LOG << "Failed to set thread affinity on numa node" << numa_node;
+			LOG << "Failed to set thread affinity on numa node" << node;
 			exit( EXIT_FAILURE );
 		}
     DBG << "Assigned thread with PID" << std::this_thread::get_id()
-        << "to cpu" << cpu_id << "on numa node" << numa_node;
+        << "to cpu" << cpu_id << "on numa node" << node;
   }
 
-  void free_thread_from_numa_node(const int numa_node)  {
-    ASSERT(numa_node < (int) _numa_nodes.size());
-    ASSERT(_numa_nodes[numa_node].get_id() == numa_node);
+  // ! Unpin a thread from a NUMA node
+  void unpin_thread_from_numa_node(const int node)  {
+    ASSERT(node < (int) _numa_nodes.size());
+    ASSERT(_numa_nodes[node].get_id() == node);
     int cpu_id = sched_getcpu();
-    _numa_nodes[numa_node].free_thread_from_cpu(cpu_id);
+    _numa_nodes[node].unpin_thread_from_cpu(cpu_id);
     DBG << "Free thread with PID" << std::this_thread::get_id()
-        << "on cpu" << cpu_id << "from numa node" << numa_node;
+        << "on cpu" << cpu_id << "from numa node" << node;
   }
 
  private:
@@ -208,12 +227,12 @@ class HardwareTopology {
     _num_cpus(std::thread::hardware_concurrency()),
     _topology(),
     _numa_nodes() { 
-    Utility::initialize(_topology);
+    HwTopology::initialize(_topology);
     init_numa_nodes();
   }
 
   void init_numa_nodes() {
-    Node node = Utility::get_first_numa_node(_topology);
+    Node node = HwTopology::get_first_numa_node(_topology);
     while ( node != nullptr ) {
       _numa_nodes.emplace_back(node);
       node = node->next_cousin;
@@ -228,10 +247,10 @@ class HardwareTopology {
   std::vector<NumaNode> _numa_nodes;
 };
 
-template < typename Utility, typename Topology, typename Node >
-HardwareTopology<Utility, Topology, Node>* HardwareTopology<Utility, Topology, Node>::_instance { nullptr };
-template < typename Utility, typename Topology, typename Node >
-std::mutex HardwareTopology<Utility, Topology, Node>::_mutex;
+template < typename HwTopology, typename Topology, typename Node >
+HardwareTopology<HwTopology, Topology, Node>* HardwareTopology<HwTopology, Topology, Node>::_instance { nullptr };
+template < typename HwTopology, typename Topology, typename Node >
+std::mutex HardwareTopology<HwTopology, Topology, Node>::_mutex;
 
 } // namespace parallel
 } // namespace kahypar

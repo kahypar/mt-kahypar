@@ -24,10 +24,10 @@
 #include <algorithm>
 #include <numeric>
 #include <thread>
+#include <hwloc.h>
 
 #include "kahypar/macros.h"
 
-#include "mt-kahypar/parallel/hwloc_util.h"
 
 namespace kahypar {
 namespace parallel {
@@ -121,7 +121,7 @@ static numa_to_cpu_t split_physical_cpus_into_numa_nodes(const int num_numa_node
 using node_t = Node*;
 using topology_t = Topology*;
 
-class HwlocUtilityMock {
+class TopologyMock {
 
  public:
   static node_t get_first_numa_node(topology_t topology) {
@@ -131,7 +131,7 @@ class HwlocUtilityMock {
   static void destroy_topology(topology_t) { }
 
  private:
-  HwlocUtilityMock() { }
+  TopologyMock() { }
 };
 
 } // namespace parallel

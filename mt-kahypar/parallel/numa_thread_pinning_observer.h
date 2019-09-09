@@ -29,13 +29,18 @@
 namespace kahypar {
 namespace parallel {
 
+/**
+ * Pins threads of task arena to a NUMA node. Each time a thread
+ * enters a task arena on_scheduler_entry(...) is called. Each time
+ * a thread leaves a task arena on_scheduler_exit(...) is called.
+ */
 template< typename HwTopology >
-class NumaAffinityObserver : public tbb::task_scheduler_observer {
+class NumaThreadPinningObserver : public tbb::task_scheduler_observer {
   using Base = tbb::task_scheduler_observer;
 
  public:
-  explicit NumaAffinityObserver(tbb::task_arena& arena,
-                                int numa_node) :
+  explicit NumaThreadPinningObserver(tbb::task_arena& arena,
+                                     int numa_node) :
     Base(arena),
     _arena(arena),
     _topology(HwTopology::instance()),
@@ -43,22 +48,22 @@ class NumaAffinityObserver : public tbb::task_scheduler_observer {
     observe(true);
   }
 
-  NumaAffinityObserver(const NumaAffinityObserver&) = delete;
-  NumaAffinityObserver& operator= (const NumaAffinityObserver&) = delete;
+  NumaThreadPinningObserver(const NumaThreadPinningObserver&) = delete;
+  NumaThreadPinningObserver& operator= (const NumaThreadPinningObserver&) = delete;
 
-  NumaAffinityObserver(NumaAffinityObserver&& other) = default;
-  NumaAffinityObserver& operator= (NumaAffinityObserver&&) = delete;
+  NumaThreadPinningObserver(NumaThreadPinningObserver&& other) = default;
+  NumaThreadPinningObserver& operator= (NumaThreadPinningObserver&&) = delete;
 
-  ~NumaAffinityObserver() {
+  ~NumaThreadPinningObserver() {
     observe(false);
   }
 
   void on_scheduler_entry(bool) override {
-    _topology.set_affinity_to_numa_node(_numa_node);
+    _topology.pin_thread_to_numa_node(_numa_node);
   }
 
   void on_scheduler_exit(bool) override {
-    _topology.free_thread_from_numa_node(_numa_node);
+    _topology.unpin_thread_from_numa_node(_numa_node);
   }
 
  private:

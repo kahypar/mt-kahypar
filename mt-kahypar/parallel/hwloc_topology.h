@@ -24,8 +24,12 @@
 namespace kahypar {
 namespace parallel {
 
-
-class HwlocUtility {
+/**
+ * Static class responsible for initializing, destroying and
+ * calling hwloc library. Calls to hwloc library are outsourced
+ * to this class such that hardware topology can be mocked.
+ */
+class HwlocTopology {
 
  public:
   static void initialize(hwloc_topology_t& topology) {
@@ -43,7 +47,7 @@ class HwlocUtility {
   }
 
  private:
-  HwlocUtility() { }
+  HwlocTopology() { }
 };
 
 } // namespace parallel
