@@ -21,11 +21,19 @@
 #include <iostream>
 
 #include "mt-kahypar/definitions.h"
+#include "mt-kahypar/partition/context.h"
+#include "mt-kahypar/application/command_line_options.h"
 
-using namespace kahypar;
 
-int main(/*int argc, char* argv[]*/) {
+int main(int argc, char* argv[]) {
 
+  kahypar::Context context;
+  kahypar::processCommandLineInput(context, argc, argv);
+  kahypar::io::printBanner(context);
+  kahypar::io::printInputInformation(context/*, hypergraph*/);
+
+  // Initialize TBB task arenas
+  kahypar::TBBNumaArena::instance(context.shared_memory.num_threads);
 
   return 0;
 }
