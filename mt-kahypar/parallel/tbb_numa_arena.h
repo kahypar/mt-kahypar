@@ -23,8 +23,10 @@
 
 #include "tbb/task_scheduler_init.h"
 #include "tbb/task_arena.h"
+#include "tbb/task_group.h"
 
 #include "mt-kahypar/parallel/numa_thread_pinning_observer.h"
+#include "mt-kahypar/parallel/global_thread_pinning_observer.h"
 
 #include "kahypar/macros.h"
 
@@ -40,6 +42,7 @@ template< typename HwTopology >
 class TBBNumaArena {
 
  private:
+  using GlobalThreadPinningObserver = kahypar::parallel::GlobalThreadPinningObserver<HwTopology>;
   using NumaThreadPinningObserver = kahypar::parallel::NumaThreadPinningObserver<HwTopology>;
 
  public:
@@ -62,16 +65,26 @@ class TBBNumaArena {
     return _arenas[node].max_concurrency();
   }
 
+  int num_used_numa_nodes() const {
+    return _arenas.size();
+  }
+
   tbb::task_arena& numa_task_arena(const int node) {
     ASSERT(node < (int) _arenas.size());
     return _arenas[node];
   }
 
+  void wait(int node, tbb::task_group& group) {
+    ASSERT(node < (int) _arenas.size());
+    _arenas[node].execute([&] { group.wait(); });
+  }
+
  private:
   explicit TBBNumaArena(const int num_threads) :
     _num_threads(num_threads),
-    _init(),
+    _init(num_threads),
     _arenas(),
+    _global_observer(num_threads),
     _observer() { 
     HwTopology& topology = HwTopology::instance();
     int threads_left = num_threads;
@@ -79,7 +92,7 @@ class TBBNumaArena {
     _arenas.reserve(num_numa_nodes);
     // TODO(heuer): fix copy constructor of observer
     _observer.reserve(num_numa_nodes);
-    for ( int node = 0; node < num_numa_nodes; ++node ) {
+    for ( int node = 0; node < num_numa_nodes && threads_left > 0; ++node ) {
       int num_cpus = std::min(threads_left, topology.num_cpus_on_numa_node(node));
       _arenas.emplace_back(num_cpus);
       _observer.emplace_back(_arenas.back(), node);
@@ -94,6 +107,7 @@ class TBBNumaArena {
   int _num_threads;
   tbb::task_scheduler_init _init;
   std::vector<tbb::task_arena> _arenas;
+  GlobalThreadPinningObserver _global_observer;
   std::vector<NumaThreadPinningObserver> _observer;
 };
 

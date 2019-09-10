@@ -47,7 +47,7 @@ template < typename HwTopology = HwlocTopology,
 class HardwareTopology {
 
  private:
-  static constexpr bool debug = false;
+  static constexpr bool debug = true;
 
   struct Cpu {
     int cpu_id;
@@ -107,6 +107,9 @@ class HardwareTopology {
       std::lock_guard<std::mutex> lock(_mutex);
       Cpu& cpu = _cpus.front();
       int cpu_id = cpu.cpu_id;
+
+      DBG << "Assigned thread with PID" << std::this_thread::get_id()
+          << "to cpu" << cpu_id << "on numa node" << _node_id;
       cpu.num_assigned_threads++;
       size_t pos = 0;
       // Keep cpus sorted in increasing order of their number of assigned logical threads,
@@ -121,6 +124,8 @@ class HardwareTopology {
 
     void unpin_thread_from_cpu(int cpu_id) {
       std::lock_guard<std::mutex> lock(_mutex);
+      DBG << "Free thread with PID" << std::this_thread::get_id()
+          << "on cpu" << cpu_id << "from numa node" << _node_id;
       size_t pos = 0;
       // Find corresponding cpu
       while ( pos < _cpus.size() ) {
@@ -172,6 +177,11 @@ class HardwareTopology {
     return _numa_nodes.size();
   }
 
+  int numa_node_of_cpu(const int cpu_id) const {
+    ASSERT(cpu_id < (int) _cpu_to_numa_node.size());
+    return _cpu_to_numa_node[cpu_id];
+  }
+
   // ! Number of CPUs on NUMA node
   int num_cpus_on_numa_node(const int node) const {
     ASSERT(node < (int) _numa_nodes.size());
@@ -197,19 +207,21 @@ class HardwareTopology {
   void pin_thread_to_numa_node(const int node) {
     ASSERT(node < (int) _numa_nodes.size());
     ASSERT(_numa_nodes[node].get_id() == node);
-		const size_t size = CPU_ALLOC_SIZE( _num_cpus );
     int cpu_id = _numa_nodes[node].pin_thread_to_cpu();
+    pin_thread_to_cpu(cpu_id);
+  }
+
+  void pin_thread_to_cpu(const int cpu_id) {
+		const size_t size = CPU_ALLOC_SIZE( _num_cpus );
     cpu_set_t mask;
     CPU_ZERO(&mask);
     CPU_SET(cpu_id, &mask);
     const int err = sched_setaffinity(0, size, &mask);
 
 		if ( err ) {
-			LOG << "Failed to set thread affinity on numa node" << node;
+			LOG << "Failed to set thread affinity";
 			exit( EXIT_FAILURE );
 		}
-    DBG << "Assigned thread with PID" << std::this_thread::get_id()
-        << "to cpu" << cpu_id << "on numa node" << node;
   }
 
   // ! Unpin a thread from a NUMA node
@@ -218,15 +230,14 @@ class HardwareTopology {
     ASSERT(_numa_nodes[node].get_id() == node);
     int cpu_id = sched_getcpu();
     _numa_nodes[node].unpin_thread_from_cpu(cpu_id);
-    DBG << "Free thread with PID" << std::this_thread::get_id()
-        << "on cpu" << cpu_id << "from numa node" << node;
   }
 
  private:
    HardwareTopology() :
     _num_cpus(std::thread::hardware_concurrency()),
     _topology(),
-    _numa_nodes() { 
+    _numa_nodes(),
+    _cpu_to_numa_node(_num_cpus) { 
     HwTopology::initialize(_topology);
     init_numa_nodes();
   }
@@ -236,6 +247,10 @@ class HardwareTopology {
     while ( node != nullptr ) {
       _numa_nodes.emplace_back(node);
       node = node->next_cousin;
+      for ( const int cpu_id : _numa_nodes.back().cpus() ) {
+        ASSERT(cpu_id < (int) _cpu_to_numa_node.size());
+        _cpu_to_numa_node[cpu_id] = _numa_nodes.back().get_id();
+      }
     }
   }
 
@@ -245,6 +260,7 @@ class HardwareTopology {
   const size_t _num_cpus;
   Topology _topology;
   std::vector<NumaNode> _numa_nodes;
+  std::vector<int> _cpu_to_numa_node;
 };
 
 template < typename HwTopology, typename Topology, typename Node >

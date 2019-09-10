@@ -21,8 +21,19 @@
 
 #include "mt-kahypar/parallel/hardware_topology.h"
 #include "mt-kahypar/parallel/tbb_numa_arena.h"
+#include "mt-kahypar/datastructures/streaming_hypergraph.h"
+
+
+#include "tests/parallel/topology_mock.h"
 
 namespace kahypar {
+
+using TopoMock = kahypar::parallel::TopologyMock<2>;
+using topology_t = kahypar::parallel::topology_t;
+using node_t = kahypar::parallel::node_t;
+using HardwareTopology = kahypar::parallel::HardwareTopology<TopoMock, topology_t, node_t>;
+// using HardwareTopology = kahypar::parallel::HardwareTopology<>;
+using TBBNumaArena = kahypar::parallel::TBBNumaArena<HardwareTopology>;
 
 using HypernodeID = uint32_t;
 using HyperedgeID = uint32_t;
@@ -31,7 +42,12 @@ using HyperedgeWeight = int32_t;
 using PartitionID = int32_t;
 using Gain = HyperedgeWeight;
 
-using HardwareTopology = kahypar::parallel::HardwareTopology<>;
-using TBBNumaArena = kahypar::parallel::TBBNumaArena<HardwareTopology>;
+using StreamingHypergraph = kahypar::ds::StreamingHypergraph<HypernodeID, 
+                                                             HyperedgeID, 
+                                                             HypernodeWeight, 
+                                                             HyperedgeWeight, 
+                                                             PartitionID,
+                                                             HardwareTopology,
+                                                             TBBNumaArena>;
 
 } // namespace kahypar

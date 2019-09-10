@@ -18,26 +18,30 @@
  *
  ******************************************************************************/
 
+#pragma once
+
 #include <iostream>
+#include <string>
+  
+namespace kahypar {
 
-#include "mt-kahypar/definitions.h"
-#include "mt-kahypar/partition/context.h"
-#include "mt-kahypar/application/command_line_options.h"
-#include "mt-kahypar/io/hypergraph_io.h"
+enum class Type : int8_t {
+  Unweighted = 0,
+  EdgeWeights = 1,
+  NodeWeights = 10,
+  EdgeAndNodeWeights = 11,
+};
 
-
-int main(int argc, char* argv[]) {
-
-  kahypar::Context context;
-  kahypar::processCommandLineInput(context, argc, argv);
-  kahypar::io::printBanner(context);
-  kahypar::io::printInputInformation(context/*, hypergraph*/);
-
-  // Initialize TBB task arenas on numa nodes
-  kahypar::TBBNumaArena::instance(context.shared_memory.num_threads);
-
-  kahypar::io::readHypergraphFile<kahypar::HardwareTopology>(
-    context.partition.graph_filename);
-
-  return 0;
+std::ostream& operator<< (std::ostream& os, const Type& type) {
+  switch (type) {
+    case Type::Unweighted: return os << "unweighted";
+    case Type::EdgeWeights: return os << "edge_weights";
+    case Type::NodeWeights: return os << "node_weights";
+    case Type::EdgeAndNodeWeights: return os << "edge_and_node_weights";
+      // omit default case to trigger compiler warning for missing cases
+  }
+  return os << static_cast<uint8_t>(type);
 }
+
+
+} // namesapce kahypar

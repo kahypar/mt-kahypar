@@ -121,9 +121,14 @@ static numa_to_cpu_t split_physical_cpus_into_numa_nodes(const int num_numa_node
 using node_t = Node*;
 using topology_t = Topology*;
 
+template< int NUM_NUMA_NODES >
 class TopologyMock {
 
  public:
+  static void initialize(topology_t& topology) {
+    topology = new Topology(split_physical_cpus_into_numa_nodes(NUM_NUMA_NODES));
+  }
+
   static node_t get_first_numa_node(topology_t topology) {
     return topology->get_node(0);
   }

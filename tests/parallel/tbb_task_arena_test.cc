@@ -42,14 +42,8 @@ struct Numa {
 template < typename Numa >
 class ATBBNumaArenaTest : public Test {
  private:
-  class NumaMock : public TopologyMock {
-    public:
-      static void initialize(topology_t& topology) {
-        topology = new Topology(split_physical_cpus_into_numa_nodes(Numa::NUMA_NODES));
-      }
-  };
-
-  using HwTopology = kahypar::parallel::HardwareTopology<NumaMock, topology_t, node_t>;
+  using TopoMock = kahypar::parallel::TopologyMock<Numa::NUMA_NODES>;
+  using HwTopology = kahypar::parallel::HardwareTopology<TopoMock, topology_t, node_t>;
   using TBBArena = kahypar::parallel::TBBNumaArena<HwTopology>;
 
  public:
