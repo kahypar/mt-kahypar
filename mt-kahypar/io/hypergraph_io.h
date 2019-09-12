@@ -34,7 +34,7 @@
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/context_enum_classes.h"
 
-namespace kahypar {
+namespace mt_kahypar {
 namespace io {
 
 
@@ -54,11 +54,10 @@ static inline void readHGRHeader(std::ifstream& file, HyperedgeID& num_hyperedge
   hypergraph_type = static_cast<kahypar::Type>(i);
 }
 
-template< typename HwTopology >
-static inline void readHyperedges(std::ifstream& file, 
-                                  const HypernodeID num_hypernodes,
-                                  const HyperedgeID num_hyperedges,
-                                  const kahypar::Type type) {
+static inline Hypergraph readHyperedges(std::ifstream& file, 
+                                                    const HypernodeID num_hypernodes,
+                                                    const HyperedgeID num_hyperedges,
+                                                    const kahypar::Type type) {
 
   // Allocate numa hypergraph on their corresponding numa nodes
   int used_numa_nodes = TBBNumaArena::instance().num_used_numa_nodes();
@@ -73,8 +72,7 @@ static inline void readHyperedges(std::ifstream& file,
     TBBNumaArena::instance().wait(node, group);
   }
 
-  // We read file sequential before to 
-  // fully utilize parallel pipeline afterwards
+  // WRead input file line by line
   std::vector<std::string> lines;
   std::string he_line;
   bool has_hyperedge_weights = type == kahypar::Type::EdgeWeights ||
@@ -85,79 +83,67 @@ static inline void readHyperedges(std::ifstream& file,
     lines.push_back(he_line);
   }
 
-  // Parallel Pipeline
-  // 1.) Choose a line containing a hyperedge
-  // 2.) Constructs hyperedge vector
-  // 3.) Streams it into the corresponding numa hypergraph
-  // TODO(heuer): It looks like that this pipeline does not evenly distribute load
-  // across the different numa hypergraphs
-  using WeightedHyperedge = std::pair<std::vector<HypernodeID>, HyperedgeWeight>;
-  size_t num_threads = TBBNumaArena::instance().total_number_of_threads();
-  HwTopology& topology = HwTopology::instance();
-  std::atomic<size_t> idx(0);
-  tbb::parallel_pipeline( 128 * num_threads,
-    tbb::make_filter<void, std::string>(
-      tbb::filter::parallel,
-      [&](tbb::flow_control& fc) -> std::string {
-        size_t current_idx = idx++;
-        if ( current_idx < num_hyperedges ) {
-          return lines[current_idx];
-        } else {
-          fc.stop();
-          return "";
-        }
+  // Parallel for, for reading hyperedges
+  HardwareTopology& topology = HardwareTopology::instance();
+  tbb::parallel_for(tbb::blocked_range<size_t>(0UL, lines.size()),
+    [&](const tbb::blocked_range<size_t> range) {
+    for ( size_t pos = range.begin(); pos < range.end(); ++pos ) {
+      std::istringstream line_stream(lines[pos]);
+
+      // Read weight of hyperedge
+      std::vector<HypernodeID> hyperedge;
+      HyperedgeWeight weight = 1;
+      if (has_hyperedge_weights) {
+        line_stream >> weight;
       }
-    ) &
-    tbb::make_filter<std::string, WeightedHyperedge>(
-      tbb::filter::parallel,
-      [&](std::string& line) {
-        std::istringstream line_stream(line);
-        std::vector<HypernodeID> hyperedge;
-        HyperedgeWeight weight = 1;
-        if (has_hyperedge_weights) {
-          line_stream >> weight;
-        }
-        HypernodeID pin;
-        while ( line_stream >> pin ) {
-          hyperedge.push_back(--pin);
-        }
-        return std::make_pair(hyperedge, weight);
+
+      // Read pins of hyperedges
+      HypernodeID pin;
+      while ( line_stream >> pin ) {
+        hyperedge.push_back(--pin);
       }
-    ) &
-    tbb::make_filter<WeightedHyperedge, void>(
-      tbb::filter::parallel,
-      [&](WeightedHyperedge& hyperedge) {
-        int node = topology.numa_node_of_cpu(sched_getcpu());
-        numa_hypergraphs[node].stream(hyperedge.first, hyperedge.second);
-      }
-    ) );
+
+      // Stream hyperedge into numa hypergraph on which this cpu
+      // is part of
+      int node = topology.numa_node_of_cpu(sched_getcpu());
+      numa_hypergraphs[node].streamHyperedge(hyperedge, weight);
+    }
+  });
 
   // Initialize numa hypergraph
   // Involves to memcpy streamed hyperedges of each cpu into
   // global data structure
   for ( int node = 0; node < used_numa_nodes; ++node ) {
-    TBBNumaArena::instance().numa_task_arena(node).execute([&] {
-      numa_hypergraphs[node].initialize(num_hypernodes);
+    group.run([&, node] {
+      TBBNumaArena::instance().numa_task_arena(node).execute([&] {
+        numa_hypergraphs[node].initializeHyperedges(num_hypernodes);
+      });
     });
   }
+  group.wait();
+
+  Hypergraph hypergraph(num_hypernodes, std::move(numa_hypergraphs));
+  return hypergraph;
 }
 
-template< typename HwTopology >
-static inline void readHypergraphFile(const std::string& filename) {
+static inline Hypergraph readHypergraphFile(const std::string& filename) {
   ASSERT(!filename.empty(), "No filename for hypergraph file specified");
   std::ifstream file(filename);
   HyperedgeID num_hyperedges = 0;
   HypernodeID num_hypernodes = 0;
   kahypar::Type type = kahypar::Type::Unweighted;
+  Hypergraph hypergraph;
   if (file) {
     readHGRHeader(file, num_hyperedges, num_hypernodes, type);
-    readHyperedges<HwTopology>(file, num_hypernodes, num_hyperedges, type);
+    hypergraph = readHyperedges(file, num_hypernodes, num_hyperedges, type);
     file.close();
   } else {
     std::cerr << "Error: File not found: " << std::endl;
+    exit(EXIT_FAILURE);
   }
+  return hypergraph;
 }
 
 
 }
-} // namespace kahypar
+} // namespace mt_kahypar

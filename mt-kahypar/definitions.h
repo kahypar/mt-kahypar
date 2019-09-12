@@ -19,24 +19,30 @@
  ******************************************************************************/
 #pragma once
 
+#define USE_HARDWARE_MOCK true
+
 #include "mt-kahypar/parallel/hardware_topology.h"
 #include "mt-kahypar/parallel/tbb_numa_arena.h"
 #include "mt-kahypar/datastructures/streaming_hypergraph.h"
-
+#include "mt-kahypar/datastructures/hypergraph.h"
 
 #include "tests/parallel/topology_mock.h"
 
-namespace kahypar {
+namespace mt_kahypar {
 
-using TopoMock = kahypar::parallel::TopologyMock<2>;
+#if USE_HARDWARE_MOCK
+static constexpr int NUM_NUMA_NODES = 2;
+using TopoMock = kahypar::parallel::TopologyMock<NUM_NUMA_NODES>;
 using topology_t = kahypar::parallel::topology_t;
 using node_t = kahypar::parallel::node_t;
 using HardwareTopology = kahypar::parallel::HardwareTopology<TopoMock, topology_t, node_t>;
-// using HardwareTopology = kahypar::parallel::HardwareTopology<>;
+#else
+using HardwareTopology = kahypar::parallel::HardwareTopology<>;
+#endif
 using TBBNumaArena = kahypar::parallel::TBBNumaArena<HardwareTopology>;
 
-using HypernodeID = uint32_t;
-using HyperedgeID = uint32_t;
+using HypernodeID = uint64_t;
+using HyperedgeID = uint64_t;
 using HypernodeWeight = int32_t;
 using HyperedgeWeight = int32_t;
 using PartitionID = int32_t;
@@ -50,4 +56,12 @@ using StreamingHypergraph = kahypar::ds::StreamingHypergraph<HypernodeID,
                                                              HardwareTopology,
                                                              TBBNumaArena>;
 
-} // namespace kahypar
+using Hypergraph = kahypar::ds::Hypergraph<HypernodeID, 
+                                           HyperedgeID, 
+                                           HypernodeWeight, 
+                                           HyperedgeWeight, 
+                                           PartitionID,
+                                           HardwareTopology,
+                                           TBBNumaArena>;
+
+} // namespace mt_kahypar

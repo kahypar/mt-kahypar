@@ -81,6 +81,14 @@ class ATBBNumaArenaTest : public Test {
   tbb::task_arena& numa_task_arena(int node) {
     return TBBArena::instance(num_threads).numa_task_arena(node);
   }
+  
+  void wait(const int node, tbb::task_group& group) {
+    TBBArena::instance(num_threads).wait(node, group);
+  }
+
+  void terminate() {
+    TBBArena::instance(num_threads).terminate();
+  }
 
  private:
   int num_threads;
@@ -108,7 +116,8 @@ TYPED_TEST(ATBBNumaArenaTest, ChecksThreadsToNumaNodeAssignment) {
     tbb::task_group group;
     arena.execute([&group, &cpus]() {
       group.run([&cpus]() {
-        tbb::parallel_for(tbb::blocked_range<size_t>(0, 1000000), [&cpus](const tbb::blocked_range<size_t>&) {
+        tbb::parallel_for(tbb::blocked_range<size_t>(0, 1000000), [&cpus]
+          (const tbb::blocked_range<size_t>&) {
           cpus[sched_getcpu()] = true;
         });
       });
@@ -117,7 +126,7 @@ TYPED_TEST(ATBBNumaArenaTest, ChecksThreadsToNumaNodeAssignment) {
     arena.execute( [&] {
       group.wait();
     } );
- 
+
     std::vector<int> expected_cpus = this->get_cpus_of_numa_node(node);
     std::sort(expected_cpus.begin(), expected_cpus.end());
     std::reverse(expected_cpus.begin(), expected_cpus.end());
@@ -132,8 +141,9 @@ TYPED_TEST(ATBBNumaArenaTest, ChecksThreadsToNumaNodeAssignment) {
         num_threads++;
       }
     }
-    ASSERT_GE(num_threads, 0); 
+    ASSERT_GE(num_threads, 1);
   }
+  this->terminate();
 }
 
 } // namespace parallel

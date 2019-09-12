@@ -41,7 +41,10 @@ namespace parallel {
 template< typename HwTopology >
 class TBBNumaArena {
 
+ static constexpr bool debug = false;
+
  private:
+  using GlobalThreadPinning = kahypar::parallel::GlobalThreadPinning<HwTopology>;
   using GlobalThreadPinningObserver = kahypar::parallel::GlobalThreadPinningObserver<HwTopology>;
   using NumaThreadPinningObserver = kahypar::parallel::NumaThreadPinningObserver<HwTopology>;
 
@@ -79,26 +82,45 @@ class TBBNumaArena {
     _arenas[node].execute([&] { group.wait(); });
   }
 
+  void terminate() {
+    for ( NumaThreadPinningObserver& observer : _observer ) {
+      observer.observe(false);
+    }
+    _global_observer.observe(false);
+
+    for ( tbb::task_arena& arena : _arenas ) {
+      arena.terminate();
+    }
+    _init.terminate();
+  }
+
  private:
   explicit TBBNumaArena(const int num_threads) :
     _num_threads(num_threads),
     _init(num_threads),
     _arenas(),
-    _global_observer(num_threads),
+    _global_observer(),
     _observer() { 
     HwTopology& topology = HwTopology::instance();
     int threads_left = num_threads;
     int num_numa_nodes = topology.num_numa_nodes();
+    DBG << "Initialize TBB with" << num_threads << "threads";
     _arenas.reserve(num_numa_nodes);
     // TODO(heuer): fix copy constructor of observer
     _observer.reserve(num_numa_nodes);
     for ( int node = 0; node < num_numa_nodes && threads_left > 0; ++node ) {
       int num_cpus = std::min(threads_left, topology.num_cpus_on_numa_node(node));
-      _arenas.emplace_back(num_cpus);
+      DBG << "Initialize TBB task arena on numa node" << node 
+          << "with" << num_cpus << "threads";
+      _arenas.emplace_back(num_cpus, 0);
       _observer.emplace_back(_arenas.back(), node);
       threads_left -= num_cpus;
     }
     _num_threads -= threads_left;
+    
+    // Initialize Global Thread Pinning
+    GlobalThreadPinning::instance(num_threads);
+    _global_observer.observe(true);
   }
 
   static std::mutex _mutex;

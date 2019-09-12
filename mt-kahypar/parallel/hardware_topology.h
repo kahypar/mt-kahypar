@@ -28,6 +28,7 @@
 #include "kahypar/macros.h"
 
 #include "mt-kahypar/parallel/hwloc_topology.h"
+#include "mt-kahypar/parallel/global_thread_pinning.h"
 
 namespace kahypar {
 namespace parallel {
@@ -47,7 +48,10 @@ template < typename HwTopology = HwlocTopology,
 class HardwareTopology {
 
  private:
-  static constexpr bool debug = true;
+  static constexpr bool debug = false;
+
+  using Self = HardwareTopology<HwTopology, Topology, Node>;
+  using GlobalThreadPinning = kahypar::parallel::GlobalThreadPinning<Self>;
 
   struct Cpu {
     int cpu_id;
@@ -108,8 +112,6 @@ class HardwareTopology {
       Cpu& cpu = _cpus.front();
       int cpu_id = cpu.cpu_id;
 
-      DBG << "Assigned thread with PID" << std::this_thread::get_id()
-          << "to cpu" << cpu_id << "on numa node" << _node_id;
       cpu.num_assigned_threads++;
       size_t pos = 0;
       // Keep cpus sorted in increasing order of their number of assigned logical threads,
@@ -124,8 +126,6 @@ class HardwareTopology {
 
     void unpin_thread_from_cpu(int cpu_id) {
       std::lock_guard<std::mutex> lock(_mutex);
-      DBG << "Free thread with PID" << std::this_thread::get_id()
-          << "on cpu" << cpu_id << "from numa node" << _node_id;
       size_t pos = 0;
       // Find corresponding cpu
       while ( pos < _cpus.size() ) {
@@ -134,7 +134,7 @@ class HardwareTopology {
         }
         ++pos;
       }
-      ASSERT(pos != _cpus.size(), "CPU" << cpu_id << "not found on numa node" << _node_id);
+      ASSERT(pos < _cpus.size(), "CPU" << cpu_id << "not found on numa node" << _node_id);
       ASSERT(_cpus[pos].num_assigned_threads > 0, "No thread assigned to cpu" << cpu_id);
       _cpus[pos].num_assigned_threads--;
       // Keep cpus sorted in increasing order of their number of assigned logical threads,
@@ -208,20 +208,7 @@ class HardwareTopology {
     ASSERT(node < (int) _numa_nodes.size());
     ASSERT(_numa_nodes[node].get_id() == node);
     int cpu_id = _numa_nodes[node].pin_thread_to_cpu();
-    pin_thread_to_cpu(cpu_id);
-  }
-
-  void pin_thread_to_cpu(const int cpu_id) {
-		const size_t size = CPU_ALLOC_SIZE( _num_cpus );
-    cpu_set_t mask;
-    CPU_ZERO(&mask);
-    CPU_SET(cpu_id, &mask);
-    const int err = sched_setaffinity(0, size, &mask);
-
-		if ( err ) {
-			LOG << "Failed to set thread affinity";
-			exit( EXIT_FAILURE );
-		}
+    GlobalThreadPinning::instance().pin_thread_to_numa_node(node, cpu_id);
   }
 
   // ! Unpin a thread from a NUMA node
@@ -230,6 +217,7 @@ class HardwareTopology {
     ASSERT(_numa_nodes[node].get_id() == node);
     int cpu_id = sched_getcpu();
     _numa_nodes[node].unpin_thread_from_cpu(cpu_id);
+    GlobalThreadPinning::instance().unpin_thread_from_numa_node(node);
   }
 
  private:

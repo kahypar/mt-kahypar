@@ -40,7 +40,7 @@ template< typename HwTopology >
 class NumaThreadPinningObserver : public tbb::task_scheduler_observer {
   using Base = tbb::task_scheduler_observer;
 
-  static constexpr bool debug = true;
+  static constexpr bool debug = false;
 
  public:
   explicit NumaThreadPinningObserver(tbb::task_arena& arena,
@@ -48,15 +48,18 @@ class NumaThreadPinningObserver : public tbb::task_scheduler_observer {
     Base(arena),
     _arena(arena),
     _topology(HwTopology::instance()),
-    _numa_node(numa_node),
-    _last_cpu() {
+    _numa_node(numa_node) {
     observe(true);
   }
 
   NumaThreadPinningObserver(const NumaThreadPinningObserver&) = delete;
   NumaThreadPinningObserver& operator= (const NumaThreadPinningObserver&) = delete;
 
-  NumaThreadPinningObserver(NumaThreadPinningObserver&& other) = default;
+  NumaThreadPinningObserver(NumaThreadPinningObserver&& other) :
+   _arena(other._arena),
+   _topology(other._topology),
+   _numa_node(other._numa_node) { }
+
   NumaThreadPinningObserver& operator= (NumaThreadPinningObserver&&) = delete;
 
   ~NumaThreadPinningObserver() {
@@ -64,25 +67,17 @@ class NumaThreadPinningObserver : public tbb::task_scheduler_observer {
   }
 
   void on_scheduler_entry(bool) override {
-    _last_cpu[std::this_thread::get_id()] = sched_getcpu();
     _topology.pin_thread_to_numa_node(_numa_node);
   }
 
   void on_scheduler_exit(bool) override {
     _topology.unpin_thread_from_numa_node(_numa_node);
-    if (_last_cpu.find(std::this_thread::get_id()) != _last_cpu.end()) {
-      _topology.pin_thread_to_cpu(_last_cpu[std::this_thread::get_id()]);
-      DBG << "Assign thread" << std::this_thread::get_id() 
-          << "to its last cpu" << _last_cpu[std::this_thread::get_id()];
-      _last_cpu.erase(std::this_thread::get_id());
-    }
   }
 
  private:
   tbb::task_arena& _arena;
   HwTopology& _topology;
   int _numa_node;
-  std::unordered_map<std::thread::id, int> _last_cpu;
 };
 
 } // namespace parallel

@@ -34,10 +34,12 @@ int main(int argc, char* argv[]) {
   kahypar::io::printInputInformation(context/*, hypergraph*/);
 
   // Initialize TBB task arenas on numa nodes
-  kahypar::TBBNumaArena::instance(context.shared_memory.num_threads);
+  mt_kahypar::TBBNumaArena::instance(context.shared_memory.num_threads);
 
-  kahypar::io::readHypergraphFile<kahypar::HardwareTopology>(
+  mt_kahypar::Hypergraph hypergraph = mt_kahypar::io::readHypergraphFile(
     context.partition.graph_filename);
+
+  mt_kahypar::TBBNumaArena::instance().terminate();
 
   return 0;
 }
