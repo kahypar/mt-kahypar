@@ -42,11 +42,64 @@ class HwlocTopology {
     return hwloc_get_obj_by_depth(topology, numa_depth, 0);
   }
 
+  static std::vector<int> get_cpus_of_numa_node_without_hyperthreads(hwloc_obj_t node) {
+    std::vector<int> cpus;
+
+    auto add_cpu_of_core = [&](hwloc_obj_t node) {
+      ASSERT(node->type == HWLOC_OBJ_CORE);
+      std::vector<int> core_cpus;
+      int cpu_id;
+      hwloc_bitmap_foreach_begin(cpu_id, node->cpuset) {
+        core_cpus.emplace_back(cpu_id);
+      }
+      hwloc_bitmap_foreach_end();
+      // Assume that core consists of two processing units (hyperthreads)
+      ASSERT(core_cpus.size() <= 2);
+      cpus.push_back(core_cpus[0]);
+    };
+    enumerate_all_core_units(node, add_cpu_of_core);
+
+    return cpus;
+  }
+
+  static std::vector<int> get_cpus_of_numa_node_only_hyperthreads(hwloc_obj_t node) {
+    std::vector<int> cpus;
+
+    auto add_cpu_of_core = [&](hwloc_obj_t node) {
+      ASSERT(node->type == HWLOC_OBJ_CORE);
+      std::vector<int> core_cpus;
+      int cpu_id;
+      hwloc_bitmap_foreach_begin(cpu_id, node->cpuset) {
+        core_cpus.emplace_back(cpu_id);
+      }
+      hwloc_bitmap_foreach_end();
+      // Assume that core consists of two processing units (hyperthreads)
+      ASSERT(core_cpus.size() <= 2);
+      cpus.push_back(core_cpus[1]);
+    };
+    enumerate_all_core_units(node, add_cpu_of_core);
+
+    return cpus;
+  }
+
   static void destroy_topology(hwloc_topology_t topology) {
     hwloc_topology_destroy(topology);
   }
 
  private:
+
+  template< class F >
+  static void enumerate_all_core_units(hwloc_obj_t node, F& func) {
+    if ( node->type == HWLOC_OBJ_CORE ) {
+      func(node);
+      return;
+    }
+
+    for ( size_t i = 0; i < node->arity; ++i ) {
+      enumerate_all_core_units(node->children[i], func);
+    }
+  }
+
   HwlocTopology() { }
 };
 

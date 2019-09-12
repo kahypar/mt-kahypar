@@ -102,10 +102,31 @@ class GlobalThreadPinning {
     _num_cpus(std::thread::hardware_concurrency()),
     _num_threads(num_threads),
     _pinning_mutex(),
-    _free_cpus(num_threads),
+    _free_cpus(_num_cpus),
     _pinned_threads(),
     _is_pinned_to_numa_node() { 
     std::iota(_free_cpus.begin(), _free_cpus.end(), 0);
+
+    // Sort cpus in the following order
+    // 1.) Non-hyperthread first
+    // 2.) Increasing order of numa node
+    // 3.) Increasing order of cpu id
+    // ...
+    HwTopology& topology = HwTopology::instance();
+    std::sort(_free_cpus.begin(), _free_cpus.end(), 
+              [&](const int& lhs, const int& rhs) {
+      int node_lhs = topology.numa_node_of_cpu(lhs);
+      int node_rhs = topology.numa_node_of_cpu(rhs);
+      bool is_hyperthread_lhs = topology.is_hyperthread(lhs);
+      bool is_hyperthread_rhs = topology.is_hyperthread(rhs);
+      return is_hyperthread_lhs < is_hyperthread_rhs ||
+        (is_hyperthread_lhs == is_hyperthread_rhs && node_lhs < node_rhs) ||
+        (is_hyperthread_lhs == is_hyperthread_rhs && node_lhs == node_rhs && lhs < rhs);
+    });
+    // ... this ensure that we first pop nodes in hyperthreading
+    while ( (int)_free_cpus.size() > _num_threads ) {
+      _free_cpus.pop_back();
+    }
   }
 
   int register_thread(const std::thread::id thread_id) {

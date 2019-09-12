@@ -261,7 +261,9 @@ class StreamingHypergraph {
   void streamHyperedge(const std::vector<HypernodeID>& hyperedge, const HyperedgeWeight& weight) {
     int cpu_id = sched_getcpu();
     // Make sure calling process is part of correct numa node
-    ASSERT(HardwareTopology::instance().numa_node_of_cpu(cpu_id) == _node);
+    ASSERT(HardwareTopology::instance().numa_node_of_cpu(cpu_id) == _node,
+      "Expected that assigned cpu is on numa node" << _node << ", but was CPU" << cpu_id 
+       << "is on node" << HardwareTopology::instance().numa_node_of_cpu(cpu_id));
     _hyperedge_stream.stream(_pin_stream.size(cpu_id), hyperedge.size(), weight);
     for ( const HypernodeID& pin : hyperedge  ) {
       _pin_stream.stream(pin);

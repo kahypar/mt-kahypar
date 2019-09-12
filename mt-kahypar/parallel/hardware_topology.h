@@ -55,7 +55,7 @@ class HardwareTopology {
 
   struct Cpu {
     int cpu_id;
-    size_t num_assigned_threads;
+    bool is_hyperthread;
   };
 
   class NumaNode {
@@ -64,14 +64,18 @@ class HardwareTopology {
     NumaNode(Node node) :
       _node_id(node->os_index),
       _cpuset(node->cpuset),
+      _free_cpus(0),
       _cpus(),
-      _mutex() { 
-		  // assign CPUs from this node's CPU-set
-      int cpu_id;
-      hwloc_bitmap_foreach_begin(cpu_id, node->cpuset) {
-        _cpus.emplace_back(Cpu { cpu_id, 0 });
+      _mutex(),
+      _num_cores(0) { 
+      for ( const int cpu_id :  HwTopology::get_cpus_of_numa_node_without_hyperthreads(node) ) {
+        _cpus.emplace_back(Cpu { cpu_id, false });
+        _num_cores++;
       }
-      hwloc_bitmap_foreach_end();
+      for ( const int cpu_id :  HwTopology::get_cpus_of_numa_node_only_hyperthreads(node) ) {  
+        _cpus.emplace_back(Cpu { cpu_id, true });
+      }
+      _free_cpus = _cpus.size();
     }
 
     NumaNode(const NumaNode&) = delete;
@@ -80,8 +84,10 @@ class HardwareTopology {
     NumaNode(NumaNode&& other) :
      _node_id(other._node_id),
      _cpuset(std::move(other._cpuset)),
+     _free_cpus(other._free_cpus),
      _cpus(std::move(other._cpus)),
-     _mutex() { }
+     _mutex(),
+     _num_cores(other._num_cores) { }
 
     NumaNode& operator= (NumaNode&&) = default;
 
@@ -103,30 +109,52 @@ class HardwareTopology {
       return cpus;
     }
 
+    size_t num_cores_on_numa_node() const {
+      return _num_cores;
+    }
+
     size_t num_cpus_on_numa_node() const {
       return _cpus.size();
     }
 
+    bool is_hyperthread(const int cpu_id) {
+      std::lock_guard<std::mutex> lock(_mutex);
+      size_t pos = 0;
+      for ( ; pos < _cpus.size(); ++pos) {
+        if ( _cpus[pos].cpu_id == cpu_id ) {
+          break;
+        }
+      }
+      ASSERT(pos < _cpus.size(), "CPU" << cpu_id << "not found on numa node" << _node_id);
+      return _cpus[pos].is_hyperthread;
+    }
+
+    void use_only_num_cpus(const size_t num_cpus) {
+      std::lock_guard<std::mutex> lock(_mutex);
+      // Sort cpus such that hyperthreads are at the end of the list
+      // such that they are removed first
+      std::sort(_cpus.begin(), _cpus.end(), [&](const Cpu& lhs, const Cpu& rhs) {
+        return lhs.is_hyperthread < rhs.is_hyperthread ||
+          ( lhs.is_hyperthread == rhs.is_hyperthread && lhs.cpu_id < rhs.cpu_id );
+      });
+      while ( _cpus.size() > num_cpus ) {
+        _cpus.pop_back();
+      }
+      _free_cpus = _cpus.size();
+    }
+
     int pin_thread_to_cpu() {
       std::lock_guard<std::mutex> lock(_mutex);
+      ASSERT(_free_cpus > 0, "There are no free cpus on numa node" << _node_id);
       Cpu& cpu = _cpus.front();
       int cpu_id = cpu.cpu_id;
-
-      cpu.num_assigned_threads++;
-      size_t pos = 0;
-      // Keep cpus sorted in increasing order of their number of assigned logical threads,
-      // such that a thread is always assigned to the cpu with least number of logical threads.
-      while ( pos < _cpus.size() - 1 && 
-              _cpus[pos].num_assigned_threads > _cpus[pos + 1].num_assigned_threads ) {
-        std::swap(_cpus[pos], _cpus[pos + 1]);
-        ++pos;
-      }
+      std::swap(_cpus[0], _cpus[--_free_cpus]);
       return cpu_id;
     }
 
     void unpin_thread_from_cpu(int cpu_id) {
       std::lock_guard<std::mutex> lock(_mutex);
-      size_t pos = 0;
+      size_t pos = _free_cpus;
       // Find corresponding cpu
       while ( pos < _cpus.size() ) {
         if ( _cpus[pos].cpu_id == cpu_id ) {
@@ -135,21 +163,16 @@ class HardwareTopology {
         ++pos;
       }
       ASSERT(pos < _cpus.size(), "CPU" << cpu_id << "not found on numa node" << _node_id);
-      ASSERT(_cpus[pos].num_assigned_threads > 0, "No thread assigned to cpu" << cpu_id);
-      _cpus[pos].num_assigned_threads--;
-      // Keep cpus sorted in increasing order of their number of assigned logical threads,
-      // such that a thread is always assigned to the cpu with least number of logical threads.
-      while ( pos > 0 && _cpus[pos - 1].num_assigned_threads > _cpus[pos].num_assigned_threads) {
-        std::swap(_cpus[pos - 1], _cpus[pos]);
-        --pos;
-      }
+      std::swap(_cpus[_free_cpus++], _cpus[pos]);
     }
 
    private:
     int _node_id;
     hwloc_cpuset_t _cpuset;
+    size_t _free_cpus;
     std::vector<Cpu> _cpus;
     std::mutex _mutex;
+    size_t _num_cores;
   };
 
  public:
@@ -180,6 +203,25 @@ class HardwareTopology {
   int numa_node_of_cpu(const int cpu_id) const {
     ASSERT(cpu_id < (int) _cpu_to_numa_node.size());
     return _cpu_to_numa_node[cpu_id];
+  }
+
+  bool is_hyperthread(const int cpu_id) {
+    int node = numa_node_of_cpu(cpu_id);
+    return _numa_nodes[node].is_hyperthread(cpu_id);
+  }
+
+  // ! Restrict the number of cpus on numa node
+  void use_only_num_cpus_on_numa_node(const int node, const size_t num_cpus) {
+    ASSERT(node < (int) _numa_nodes.size());
+    ASSERT(_numa_nodes[node].get_id() == node);
+    _numa_nodes[node].use_only_num_cpus(num_cpus);
+  }
+
+  // ! Number of Cores on NUMA node
+  int num_cores_on_numa_node(const int node) const {
+    ASSERT(node < (int) _numa_nodes.size());
+    ASSERT(_numa_nodes[node].get_id() == node);
+    return _numa_nodes[node].num_cores_on_numa_node();
   }
 
   // ! Number of CPUs on NUMA node

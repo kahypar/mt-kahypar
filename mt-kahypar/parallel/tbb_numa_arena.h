@@ -41,7 +41,7 @@ namespace parallel {
 template< typename HwTopology >
 class TBBNumaArena {
 
- static constexpr bool debug = false;
+ static constexpr bool debug = true;
 
  private:
   using GlobalThreadPinning = mt_kahypar::parallel::GlobalThreadPinning<HwTopology>;
@@ -108,18 +108,37 @@ class TBBNumaArena {
     _arenas.reserve(num_numa_nodes);
     // TODO(heuer): fix copy constructor of observer
     _observer.reserve(num_numa_nodes);
+
+    std::vector<int> used_cpus_on_numa_node(num_numa_nodes);
+    // First use cores (to prevent using hyperthreads)
     for ( int node = 0; node < num_numa_nodes && threads_left > 0; ++node ) {
-      int num_cpus = std::min(threads_left, topology.num_cpus_on_numa_node(node));
-      DBG << "Initialize TBB task arena on numa node" << node 
-          << "with" << num_cpus << "threads";
-      _arenas.emplace_back(num_cpus, 0);
-      _observer.emplace_back(_arenas.back(), node);
-      threads_left -= num_cpus;
+      used_cpus_on_numa_node[node] = std::min(threads_left, topology.num_cores_on_numa_node(node));
+      threads_left -= used_cpus_on_numa_node[node];
+    }
+
+    // If there are still thread to assign left we use hyperthreading
+    for ( int node = 0; node < num_numa_nodes && threads_left > 0; ++node ) {
+      int num_hyperthreads = std::min(threads_left, topology.num_cpus_on_numa_node(node) - used_cpus_on_numa_node[node]);
+      used_cpus_on_numa_node[node] += num_hyperthreads;
+      threads_left -= num_hyperthreads;
+    }
+
+    for ( int node = 0; node < num_numa_nodes; ++node ) {
+      if ( used_cpus_on_numa_node[node] > 0 ) {
+        int num_cpus = used_cpus_on_numa_node[node];
+        DBG << "Initialize TBB task arena on numa node" << node 
+            << "with" << num_cpus << "threads";
+        _arenas.emplace_back(num_cpus, 0);
+        _observer.emplace_back(_arenas.back(), node);
+      }
     }
     _num_threads -= threads_left;
-    
+
     // Initialize Global Thread Pinning
     GlobalThreadPinning::instance(num_threads);
+    for ( int node = 0; node < num_numa_nodes; ++node ) {
+      topology.use_only_num_cpus_on_numa_node(node, used_cpus_on_numa_node[node]);
+    }
     _global_observer.observe(true);
   }
 

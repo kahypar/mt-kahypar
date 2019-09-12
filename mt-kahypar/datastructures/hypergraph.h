@@ -146,7 +146,7 @@ class Hypergraph {
 
     ASSERT([&] {
       // Internally verify that incident nets are constructed correctly
-      for ( int node = 0; node < num_streaming_hypergraphs; ++node ) {
+      for ( size_t node = 0; node < num_streaming_hypergraphs; ++node ) {
         if ( !_hypergraphs[node].verify_incident_nets_of_hypergraph(_hypergraphs) ) {
           return false;
         }
