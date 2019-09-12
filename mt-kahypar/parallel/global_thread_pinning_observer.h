@@ -28,7 +28,7 @@
 
 #include "mt-kahypar/parallel/global_thread_pinning.h"
 
-namespace kahypar {
+namespace mt_kahypar {
 namespace parallel {
 
 
@@ -38,7 +38,7 @@ class GlobalThreadPinningObserver : public tbb::task_scheduler_observer {
 
   static constexpr bool debug = false;
 
-  using GlobalThreadPinning = kahypar::parallel::GlobalThreadPinning<HwTopology>;
+  using GlobalThreadPinning = mt_kahypar::parallel::GlobalThreadPinning<HwTopology>;
 
  public:
   explicit GlobalThreadPinningObserver() :
@@ -64,4 +64,4 @@ class GlobalThreadPinningObserver : public tbb::task_scheduler_observer {
 };
 
 } // namespace parallel
-} // namespace kahypar
+} // namespace mt_kahypar

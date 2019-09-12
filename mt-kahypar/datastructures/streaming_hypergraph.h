@@ -37,7 +37,7 @@
 #include "mt-kahypar/datastructures/streaming_map.h"
 
 
-namespace kahypar {
+namespace mt_kahypar {
 namespace ds {
 
 template <typename HypernodeType_ = Mandatory,
@@ -523,4 +523,4 @@ class StreamingHypergraph {
 };
 
 } // namespace ds
-} // namespace kahypar
+} // namespace mt_kahypar

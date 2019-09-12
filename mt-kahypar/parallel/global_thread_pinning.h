@@ -27,7 +27,7 @@
 
 #include "kahypar/macros.h"
 
-namespace kahypar {
+namespace mt_kahypar {
 namespace parallel {
 
 template< typename HwTopology >
@@ -158,4 +158,4 @@ template< typename HwTopology >
 std::mutex GlobalThreadPinning<HwTopology>::_mutex;
 
 } // namespace parallel
-} // namespace kahypar
+} // namespace mt_kahypar

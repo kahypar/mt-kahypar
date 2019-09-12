@@ -21,7 +21,7 @@
 
 #include <hwloc.h>
 
-namespace kahypar {
+namespace mt_kahypar {
 namespace parallel {
 
 /**
@@ -51,4 +51,4 @@ class HwlocTopology {
 };
 
 } // namespace parallel
-} // namespace kahypar
+} // namespace mt_kahypar

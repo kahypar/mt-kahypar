@@ -28,7 +28,7 @@
 
 #include "kahypar/macros.h"
 
-namespace kahypar {
+namespace mt_kahypar {
 namespace parallel {
 
 /**
@@ -81,4 +81,4 @@ class NumaThreadPinningObserver : public tbb::task_scheduler_observer {
 };
 
 } // namespace parallel
-} // namespace kahypar
+} // namespace mt_kahypar

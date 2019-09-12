@@ -28,7 +28,7 @@
 
 #include "mt-kahypar/datastructures/streaming_hypergraph.h"
 
-namespace kahypar {
+namespace mt_kahypar {
 namespace ds {
 
 template <typename HypernodeType_ = Mandatory,
@@ -48,13 +48,13 @@ class Hypergraph {
   using HyperedgeWeight = HyperedgeWeightType_;
   using PartitionID = PartitionIDType_;
 
-  using StreamingHypergraph = kahypar::ds::StreamingHypergraph<HypernodeID, 
-                                                               HyperedgeID, 
-                                                               HypernodeWeight, 
-                                                               HyperedgeWeight, 
-                                                               PartitionID,
-                                                               HardwareTopology,
-                                                               TBBNumaArena>;
+  using StreamingHypergraph = mt_kahypar::ds::StreamingHypergraph<HypernodeID, 
+                                                                  HyperedgeID, 
+                                                                  HypernodeWeight, 
+                                                                  HyperedgeWeight, 
+                                                                  PartitionID,
+                                                                  HardwareTopology,
+                                                                  TBBNumaArena>;
 
  public:
 
@@ -164,4 +164,4 @@ class Hypergraph {
 };
 
 } // namespace ds
-} // namespace kahypar
+} // namespace mt_kahypar

@@ -41,7 +41,7 @@
 
 namespace po = boost::program_options;
 
-namespace kahypar {
+namespace mt_kahypar {
 namespace platform {
 int getTerminalWidth() {
   int columns = 0;
@@ -168,7 +168,7 @@ void processCommandLineInput(Context& context, int argc, char* argv[]) {
   // placing vm.count("help") here prevents required attributes raising an
   // error if only help was supplied
   if (cmd_vm.count("help") != 0 || argc == 1) {
-    kahypar::io::printBanner(context);
+    mt_kahypar::io::printBanner(context);
     LOG << cmd_line_options;
     exit(0);
   }
@@ -203,4 +203,4 @@ void processCommandLineInput(Context& context, int argc, char* argv[]) {
     + ".KaHyPar";
 }
 
-} // namespace kahypar
+} // namespace mt_kahypar

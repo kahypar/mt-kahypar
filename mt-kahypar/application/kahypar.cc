@@ -28,10 +28,10 @@
 
 int main(int argc, char* argv[]) {
 
-  kahypar::Context context;
-  kahypar::processCommandLineInput(context, argc, argv);
-  kahypar::io::printBanner(context);
-  kahypar::io::printInputInformation(context/*, hypergraph*/);
+  mt_kahypar::Context context;
+  mt_kahypar::processCommandLineInput(context, argc, argv);
+  mt_kahypar::io::printBanner(context);
+  mt_kahypar::io::printInputInformation(context/*, hypergraph*/);
 
   // Initialize TBB task arenas on numa nodes
   mt_kahypar::TBBNumaArena::instance(context.shared_memory.num_threads);

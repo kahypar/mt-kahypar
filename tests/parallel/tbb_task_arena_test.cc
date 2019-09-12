@@ -31,7 +31,7 @@
 
 using ::testing::Test;
 
-namespace kahypar {
+namespace mt_kahypar {
 namespace parallel {
 
 template< int NUM_NUMA_NODES >
@@ -42,9 +42,9 @@ struct Numa {
 template < typename Numa >
 class ATBBNumaArenaTest : public Test {
  private:
-  using TopoMock = kahypar::parallel::TopologyMock<Numa::NUMA_NODES>;
-  using HwTopology = kahypar::parallel::HardwareTopology<TopoMock, topology_t, node_t>;
-  using TBBArena = kahypar::parallel::TBBNumaArena<HwTopology>;
+  using TopoMock = mt_kahypar::parallel::TopologyMock<Numa::NUMA_NODES>;
+  using HwTopology = mt_kahypar::parallel::HardwareTopology<TopoMock, topology_t, node_t>;
+  using TBBArena = mt_kahypar::parallel::TBBNumaArena<HwTopology>;
 
  public:
   ATBBNumaArenaTest() :
@@ -147,4 +147,4 @@ TYPED_TEST(ATBBNumaArenaTest, ChecksThreadsToNumaNodeAssignment) {
 }
 
 } // namespace parallel
-} // namespace kahypar
+} // namespace mt_kahypar

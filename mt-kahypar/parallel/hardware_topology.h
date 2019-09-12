@@ -30,7 +30,7 @@
 #include "mt-kahypar/parallel/hwloc_topology.h"
 #include "mt-kahypar/parallel/global_thread_pinning.h"
 
-namespace kahypar {
+namespace mt_kahypar {
 namespace parallel {
 
 /**
@@ -51,7 +51,7 @@ class HardwareTopology {
   static constexpr bool debug = false;
 
   using Self = HardwareTopology<HwTopology, Topology, Node>;
-  using GlobalThreadPinning = kahypar::parallel::GlobalThreadPinning<Self>;
+  using GlobalThreadPinning = mt_kahypar::parallel::GlobalThreadPinning<Self>;
 
   struct Cpu {
     int cpu_id;
@@ -257,4 +257,4 @@ template < typename HwTopology, typename Topology, typename Node >
 std::mutex HardwareTopology<HwTopology, Topology, Node>::_mutex;
 
 } // namespace parallel
-} // namespace kahypar
+} // namespace mt_kahypar

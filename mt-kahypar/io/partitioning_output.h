@@ -22,7 +22,7 @@
 
 #include "mt-kahypar/partition/context.h"
 
-namespace kahypar {
+namespace mt_kahypar {
 namespace io {
 
 static inline void printBanner(const Context& context) {
@@ -55,5 +55,5 @@ static inline void printInputInformation(const Context& context/*, const Hypergr
   }
 }
 
-}
-} // namespace kahypar
+} // namespace io
+} // namespace mt_kahypar

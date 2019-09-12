@@ -32,14 +32,14 @@ namespace mt_kahypar {
 
 #if USE_HARDWARE_MOCK
 static constexpr int NUM_NUMA_NODES = 2;
-using TopoMock = kahypar::parallel::TopologyMock<NUM_NUMA_NODES>;
-using topology_t = kahypar::parallel::topology_t;
-using node_t = kahypar::parallel::node_t;
-using HardwareTopology = kahypar::parallel::HardwareTopology<TopoMock, topology_t, node_t>;
+using TopoMock = mt_kahypar::parallel::TopologyMock<NUM_NUMA_NODES>;
+using topology_t = mt_kahypar::parallel::topology_t;
+using node_t = mt_kahypar::parallel::node_t;
+using HardwareTopology = mt_kahypar::parallel::HardwareTopology<TopoMock, topology_t, node_t>;
 #else
-using HardwareTopology = kahypar::parallel::HardwareTopology<>;
+using HardwareTopology = mt_kahypar::parallel::HardwareTopology<>;
 #endif
-using TBBNumaArena = kahypar::parallel::TBBNumaArena<HardwareTopology>;
+using TBBNumaArena = mt_kahypar::parallel::TBBNumaArena<HardwareTopology>;
 
 using HypernodeID = uint64_t;
 using HyperedgeID = uint64_t;
@@ -48,20 +48,20 @@ using HyperedgeWeight = int32_t;
 using PartitionID = int32_t;
 using Gain = HyperedgeWeight;
 
-using StreamingHypergraph = kahypar::ds::StreamingHypergraph<HypernodeID, 
-                                                             HyperedgeID, 
-                                                             HypernodeWeight, 
-                                                             HyperedgeWeight, 
-                                                             PartitionID,
-                                                             HardwareTopology,
-                                                             TBBNumaArena>;
+using StreamingHypergraph = mt_kahypar::ds::StreamingHypergraph<HypernodeID, 
+                                                                HyperedgeID, 
+                                                                HypernodeWeight, 
+                                                                HyperedgeWeight, 
+                                                                PartitionID,
+                                                                HardwareTopology,
+                                                                TBBNumaArena>;
 
-using Hypergraph = kahypar::ds::Hypergraph<HypernodeID, 
-                                           HyperedgeID, 
-                                           HypernodeWeight, 
-                                           HyperedgeWeight, 
-                                           PartitionID,
-                                           HardwareTopology,
-                                           TBBNumaArena>;
+using Hypergraph = mt_kahypar::ds::Hypergraph<HypernodeID, 
+                                              HyperedgeID, 
+                                              HypernodeWeight, 
+                                              HyperedgeWeight, 
+                                              PartitionID,
+                                              HardwareTopology,
+                                              TBBNumaArena>;
 
 } // namespace mt_kahypar

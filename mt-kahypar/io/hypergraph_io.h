@@ -39,7 +39,7 @@ namespace io {
 
 
 static inline void readHGRHeader(std::ifstream& file, HyperedgeID& num_hyperedges,
-                                 HypernodeID& num_hypernodes, kahypar::Type& hypergraph_type) {
+                                 HypernodeID& num_hypernodes, mt_kahypar::Type& hypergraph_type) {
   std::string line;
   std::getline(file, line);
 
@@ -51,13 +51,13 @@ static inline void readHGRHeader(std::ifstream& file, HyperedgeID& num_hyperedge
   std::istringstream sstream(line);
   int i = 0;
   sstream >> num_hyperedges >> num_hypernodes >> i;
-  hypergraph_type = static_cast<kahypar::Type>(i);
+  hypergraph_type = static_cast<mt_kahypar::Type>(i);
 }
 
 static inline Hypergraph readHyperedges(std::ifstream& file, 
                                                     const HypernodeID num_hypernodes,
                                                     const HyperedgeID num_hyperedges,
-                                                    const kahypar::Type type) {
+                                                    const mt_kahypar::Type type) {
 
   // Allocate numa hypergraph on their corresponding numa nodes
   int used_numa_nodes = TBBNumaArena::instance().num_used_numa_nodes();
@@ -75,8 +75,8 @@ static inline Hypergraph readHyperedges(std::ifstream& file,
   // WRead input file line by line
   std::vector<std::string> lines;
   std::string he_line;
-  bool has_hyperedge_weights = type == kahypar::Type::EdgeWeights ||
-                               type == kahypar::Type::EdgeAndNodeWeights ?
+  bool has_hyperedge_weights = type == mt_kahypar::Type::EdgeWeights ||
+                               type == mt_kahypar::Type::EdgeAndNodeWeights ?
                                true : false;
   while ( lines.size() < num_hyperedges ) {
     std::getline(file, he_line);
@@ -131,7 +131,7 @@ static inline Hypergraph readHypergraphFile(const std::string& filename) {
   std::ifstream file(filename);
   HyperedgeID num_hyperedges = 0;
   HypernodeID num_hypernodes = 0;
-  kahypar::Type type = kahypar::Type::Unweighted;
+  mt_kahypar::Type type = mt_kahypar::Type::Unweighted;
   Hypergraph hypergraph;
   if (file) {
     readHGRHeader(file, num_hyperedges, num_hypernodes, type);

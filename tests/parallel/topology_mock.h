@@ -29,7 +29,7 @@
 #include "kahypar/macros.h"
 
 
-namespace kahypar {
+namespace mt_kahypar {
 namespace parallel {
 
 using numa_to_cpu_t = std::vector<std::vector<int>>;
@@ -140,4 +140,4 @@ class TopologyMock {
 };
 
 } // namespace parallel
-} // namespace kahypar
+} // namespace mt_kahypar

@@ -22,7 +22,7 @@
 #include "kahypar/partition/context_enum_classes.h"
 #include "kahypar/definitions.h"
 
-namespace kahypar {
+namespace mt_kahypar {
 
 using namespace kahypar;
 
@@ -101,4 +101,4 @@ inline std::ostream& operator<< (std::ostream& str, const Context& context) {
   return str;
 }
 
-} // namespace kahypar
+} // namespace mt_kahypar

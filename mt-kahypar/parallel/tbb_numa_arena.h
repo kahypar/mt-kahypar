@@ -30,7 +30,7 @@
 
 #include "kahypar/macros.h"
 
-namespace kahypar {
+namespace mt_kahypar {
 namespace parallel {
 
 /**
@@ -44,9 +44,9 @@ class TBBNumaArena {
  static constexpr bool debug = false;
 
  private:
-  using GlobalThreadPinning = kahypar::parallel::GlobalThreadPinning<HwTopology>;
-  using GlobalThreadPinningObserver = kahypar::parallel::GlobalThreadPinningObserver<HwTopology>;
-  using NumaThreadPinningObserver = kahypar::parallel::NumaThreadPinningObserver<HwTopology>;
+  using GlobalThreadPinning = mt_kahypar::parallel::GlobalThreadPinning<HwTopology>;
+  using GlobalThreadPinningObserver = mt_kahypar::parallel::GlobalThreadPinningObserver<HwTopology>;
+  using NumaThreadPinningObserver = mt_kahypar::parallel::NumaThreadPinningObserver<HwTopology>;
 
  public:
   static TBBNumaArena& instance(const size_t num_threads = 1) {
@@ -139,4 +139,4 @@ template< typename HwTopology >
 std::mutex TBBNumaArena<HwTopology>::_mutex;
 
 } // namespace parallel
-} // namespace kahypar
+} // namespace mt_kahypar

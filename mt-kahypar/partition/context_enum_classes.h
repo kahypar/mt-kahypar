@@ -23,7 +23,7 @@
 #include <iostream>
 #include <string>
   
-namespace kahypar {
+namespace mt_kahypar {
 
 enum class Type : int8_t {
   Unweighted = 0,
@@ -44,4 +44,4 @@ std::ostream& operator<< (std::ostream& os, const Type& type) {
 }
 
 
-} // namesapce kahypar
+} // namesapce mt_kahypar

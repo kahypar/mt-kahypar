@@ -29,7 +29,7 @@
 #include "kahypar/macros.h"
 #include "kahypar/meta/mandatory.h"
 
-namespace kahypar {
+namespace mt_kahypar {
 namespace ds {
 
 /**
@@ -138,4 +138,4 @@ class StreamingVector {
 };
 
 } // namespace ds
-} // namespace kahypar
+} // namespace mt_kahypar
