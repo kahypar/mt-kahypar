@@ -41,7 +41,7 @@ namespace parallel {
 template< typename HwTopology >
 class TBBNumaArena {
 
- static constexpr bool debug = true;
+ static constexpr bool debug = false;
 
  private:
   using GlobalThreadPinning = mt_kahypar::parallel::GlobalThreadPinning<HwTopology>;
@@ -137,7 +137,10 @@ class TBBNumaArena {
     // Initialize Global Thread Pinning
     GlobalThreadPinning::instance(num_threads);
     for ( int node = 0; node < num_numa_nodes; ++node ) {
-      topology.use_only_num_cpus_on_numa_node(node, used_cpus_on_numa_node[node]);
+      // Seems that there is one extra worker threads when num_threads is equal to,
+      // but only one will participate in task scheduling at a time
+      int num_cpus = std::max( used_cpus_on_numa_node[node], 2 );
+      topology.use_only_num_cpus_on_numa_node(node, num_cpus);
     }
     _global_observer.observe(true);
   }
