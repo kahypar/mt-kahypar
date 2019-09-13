@@ -1,0 +1,1 @@
+add_gmock_test(hypergraph_test hypergraph_test.cc)

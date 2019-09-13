@@ -22,6 +22,7 @@
 #include <algorithm>
 #include <thread>
 #include <type_traits>
+#include <atomic>
 
 #include "tbb/task_scheduler_observer.h"
 #include "tbb/task_arena.h"
@@ -39,6 +40,28 @@
 
 namespace mt_kahypar {
 namespace ds {
+
+// forward
+template <typename HypernodeType_,
+          typename HyperedgeType_,
+          typename HypernodeWeightType_,
+          typename HyperedgeWeightType_,
+          typename PartitionIDType_,
+          typename HardwareTopology,
+          typename TBBNumaArena>
+class Hypergraph;
+
+// ! Helper function to allow range-based for loops
+template <typename Iterator>
+Iterator begin(const std::pair<Iterator, Iterator>& x) {
+  return x.first;
+}
+
+// ! Helper function to allow range-based for loops
+template <typename Iterator>
+Iterator end(const std::pair<Iterator, Iterator>& x) {
+  return x.second;
+}
 
 template <typename HypernodeType_ = Mandatory,
           typename HyperedgeType_ = Mandatory,
@@ -64,14 +87,16 @@ class StreamingHypergraph {
 
   using IncidentNets = std::vector<std::vector<HyperedgeID>>;
 
-  static_assert( sizeof(HypernodeID) == 8 );
-  static_assert( std::is_unsigned<HypernodeID>::value );
-  static_assert( sizeof(HyperedgeID) == 8 );
-  static_assert( std::is_unsigned<HyperedgeID>::value );
+  static_assert( sizeof(HypernodeID) == 8, "Hypernode ID must be 8 byte" );
+  static_assert( std::is_unsigned<HypernodeID>::value, "Hypernode ID must be unsigned" );
+  static_assert( sizeof(HyperedgeID) == 8, "Hyperedge ID must be 8 byte" );
+  static_assert( std::is_unsigned<HyperedgeID>::value, "Hyperedge ID must be unsigned" );
 
   class Hypernode {
 
     public:
+      using IDType = HyperedgeID;
+
       Hypernode() :
         _id(0),
         _original_id(0),
@@ -84,10 +109,58 @@ class StreamingHypergraph {
         _id(id),
         _original_id(original_id),
         _weight(weight),
-        _valid(false) { }
+        _valid(true) { }
 
       HypernodeID nodeId() const {
         return _id;
+      }
+
+      HypernodeID originalNodeId() const {
+        return _original_id;
+      }
+
+      // ! Disables the hypernode/hyperedge. Disable hypernodes/hyperedges will be skipped
+      // ! when iterating over the set of all nodes/edges.
+      void disable() {
+        ASSERT(!isDisabled());
+        _valid = false;
+      }
+
+      bool isDisabled() const {
+        return _valid == false;
+      }
+
+      void enable() {
+        ASSERT(isDisabled());
+        _valid = true;
+      }
+
+      IDType size() const {
+        ASSERT(!isDisabled());
+        return _incident_nets.size();
+      }
+
+      HyperedgeWeight weight() const {
+        ASSERT(!isDisabled());
+        return _weight;
+      }
+
+      void setWeight(HyperedgeWeight weight) {
+        ASSERT(!isDisabled());
+        _weight = weight;
+      }
+
+      bool operator== (const Hypernode& rhs) const {
+        return _incident_nets.size() == rhs._incident_nets.size() &&
+              _weight == rhs._weight &&
+              _valid == rhs._valid &&
+              std::is_permutation(_incident_nets.begin(),
+                                  _incident_nets.end(),
+                                  rhs._incident_nets.begin());
+      }
+
+      bool operator!= (const Hypernode& rhs) const {
+        return !operator== (this, rhs);
       }
 
     private:
@@ -101,11 +174,11 @@ class StreamingHypergraph {
       bool _valid;
   };
 
-  static_assert( std::is_trivially_copyable<Hypernode>::value );
-
   class Hyperedge {
 
     public:
+      using IDType = HyperedgeID;
+
       Hyperedge() :
         _begin(0),
         _size(0),
@@ -202,12 +275,122 @@ class StreamingHypergraph {
       bool _valid;
   };
 
-  using CPUHypernodeBuffer = std::vector<std::vector<Hypernode>>;
+  /*!
+   * Iterator for HypergraphElements (Hypernodes/Hyperedges)
+   *
+   * The iterator is used in for-each loops over all hypernodes/hyperedges.
+   * In order to support iteration over coarsened hypergraphs, this iterator
+   * skips over HypergraphElements marked as invalid.
+   * Iterating over the set of vertices \f$V\f$ therefore is linear in the
+   * size \f$|V|\f$ of the original hypergraph - even if it has been coarsened
+   * to much smaller size. The same also holds true for for-each loops over
+   * the set of hyperedges.
+   *
+   * In order to be as generic as possible, the iterator does not expose the
+   * internal Hypernode/Hyperedge representations. Instead only handles to
+   * the respective elements are returned, i.e. the IDs of the corresponding
+   * hypernodes/hyperedges.
+   *
+   */
+  template <typename ElementType>
+  class HypergraphElementIterator :
+    public std::iterator<std::forward_iterator_tag,    // iterator_category
+                         typename ElementType::IDType,   // value_type
+                         std::ptrdiff_t,   // difference_type
+                         const typename ElementType::IDType*,   // pointer
+                         typename ElementType::IDType>{   // reference
+
+   public:
+    using IDType = typename ElementType::IDType;
+
+    HypergraphElementIterator() = default;
+
+    HypergraphElementIterator(const HypergraphElementIterator& other) = default;
+    HypergraphElementIterator& operator= (const HypergraphElementIterator& other) = default;
+
+    HypergraphElementIterator(HypergraphElementIterator&& other) = default;
+    HypergraphElementIterator& operator= (HypergraphElementIterator&& other) = default;
+
+    ~HypergraphElementIterator() = default;
+
+    /*!
+     * Construct a HypergraphElementIterator
+     * See GenericHypergraph::nodes() or GenericHypergraph::edges() for usage.
+     *
+     * If start_element is invalid, the iterator advances to the first valid
+     * element.
+     *
+     * \param start_element A pointer to the starting position
+     * \param id The index of the element the pointer points to
+     * \param max_id The maximum index allowed
+     */
+    HypergraphElementIterator(const ElementType* start_element, IDType id, IDType max_id) :
+      _id(id),
+      _max_id(max_id),
+      _element(start_element) {
+      if (_id != _max_id && _element->isDisabled()) {
+        operator++ ();
+      }
+    }
+
+    // ! Returns the id of the element the iterator currently points to.
+    IDType operator* () const {
+      return _id;
+    }
+
+    // ! Prefix increment. The iterator advances to the next valid element.
+    HypergraphElementIterator& operator++ () {
+      ASSERT(_id < _max_id);
+      do {
+        ++_id;
+        ++_element;
+      } while (_id < _max_id && _element->isDisabled());
+      return *this;
+    }
+
+    // ! Postfix increment. The iterator advances to the next valid element.
+    HypergraphElementIterator operator++ (int) {
+      HypergraphElementIterator copy = *this;
+      operator++ ();
+      return copy;
+    }
+
+    // ! Convenience function for range-based for-loops
+    friend HypergraphElementIterator end<>(const std::pair<HypergraphElementIterator,
+                                                           HypergraphElementIterator>& iter_pair);
+    // ! Convenience function for range-based for-loops
+    friend HypergraphElementIterator begin<>(const std::pair<HypergraphElementIterator,
+                                                             HypergraphElementIterator>& iter_pair);
+
+    bool operator!= (const HypergraphElementIterator& rhs) {
+      return _id != rhs._id;
+    }
+
+    bool operator== (const HypergraphElementIterator& rhs) {
+      return _id == rhs._id;
+    }
+
+   private:
+    // Handle to the HypergraphElement the iterator currently points to
+    IDType _id = 0;
+    // Maximum allowed index
+    const IDType _max_id = 0;
+    // HypergraphElement the iterator currently points to
+    const ElementType* _element = nullptr;
+  };
+
+  // ! Iterator to iterator over the hypernodes
+  using HypernodeIterator = HypergraphElementIterator<const Hypernode>;
+  // ! Iterator to iterator over the hyperedges
+  using HyperedgeIterator = HypergraphElementIterator<const Hyperedge>;
 
  public:
   explicit StreamingHypergraph(const int node) :
     _node(node),
     _arena(TBBNumaArena::instance().numa_task_arena(node)),
+    _num_hypernodes(0),
+    _num_hyperedges(0),
+    _num_pins(0),
     _hypernodes(),
     _incident_nets(),
     _hyperedges(),
@@ -230,6 +413,9 @@ class StreamingHypergraph {
   StreamingHypergraph(StreamingHypergraph&& other) :
     _node(other._node),
     _arena(other._arena),
+    _num_hypernodes(other._num_hypernodes),
+    _num_hyperedges(other._num_hyperedges),
+    _num_pins(other._num_pins),
     _hypernodes(std::move(other._hypernodes)),
     _incident_nets(std::move(other._incident_nets)),
     _hyperedges(std::move(other._hyperedges)),
@@ -244,6 +430,47 @@ class StreamingHypergraph {
   StreamingHypergraph& operator= (StreamingHypergraph&&) = default;
 
   ~StreamingHypergraph() = default;
+
+  HypernodeID initialNumNodes() const {
+    return _num_hypernodes;
+  }
+
+  HyperedgeID initialNumEdges() const {
+    return _num_hyperedges;
+  }
+
+  HypernodeID initialNumPins() const {
+    return _num_pins;
+  }
+
+  HypernodeID originalNodeId(const HypernodeID u) const {
+    ASSERT(!hypernode(u).isDisabled(), "Hypernode" << u << "is disabled");
+    return hypernode(u).originalNodeId();
+  }
+
+  /*!
+   * Returns a for-each iterator-pair to loop over the set of all hypernodes.
+   * Since the iterator just skips over disabled hypernodes, iteration always
+   * iterates over all _num_hypernodes hypernodes.
+   */
+  std::pair<HypernodeIterator, HypernodeIterator> nodes() const {
+    HypernodeID start = get_global_node_id(0);
+    HypernodeID end = get_global_node_id(_num_hypernodes);
+    return std::make_pair(HypernodeIterator(_hypernodes.data(), start, end),
+                          HypernodeIterator((_hypernodes.data() + _num_hypernodes), end, end));
+  }
+
+  /*!
+   * Returns a for-each iterator-pair to loop over the set of all hyperedges.
+   * Since the iterator just skips over disabled hyperedges, iteration always
+   * iterates over all _num_hyperedges hyperedges.
+   */
+  std::pair<HyperedgeIterator, HyperedgeIterator> edges() const {
+    HyperedgeID start = get_global_edge_id(0UL);
+    HyperedgeID end = get_global_edge_id(_num_hyperedges);
+    return std::make_pair(HyperedgeIterator(_hyperedges.data(), start, end),
+                          HyperedgeIterator((_hyperedges.data() + _num_hyperedges), end, end));
+  }
 
   size_t vertexPinCount(const HypernodeID hn) const {
     ASSERT(hn < _vertex_pin_count.size());
@@ -284,6 +511,8 @@ class StreamingHypergraph {
     // Copy streamed data into global vectors
     _incidence_array = _pin_stream.copy(_arena);
     _hyperedges = _hyperedge_stream.copy(_arena);
+    _num_pins = _incidence_array.size();
+    _num_hyperedges = _hyperedges.size();
 
     // Update start position of each hyperedge to correct one in global incidence array
     // Note, start positions are stored relative to the local buffer there are streamed into.
@@ -350,6 +579,7 @@ class StreamingHypergraph {
         << HardwareTopology::instance().numa_node_of_cpu(sched_getcpu()));
 
     _hypernodes = _hypernode_stream.copy(_arena);
+    _num_hypernodes = _hypernodes.size();
 
     // Sort hypernodes in increasing order of their node id and ...
     tbb::task_group group;
@@ -446,6 +676,7 @@ class StreamingHypergraph {
     _incident_net_stream.clear();
   }
 
+  // ! Only for assertion
   bool verify_incident_nets_of_hypergraph(const std::vector<Self>& hypergraphs) const {
     for ( size_t pos = 0; pos < _incident_nets.size(); ++pos ) {
       const HypernodeID& hn = _hypernodes[pos].nodeId();
@@ -466,14 +697,38 @@ class StreamingHypergraph {
     return true;
   }
 
+  // ! Only for testing
+  void disableHypernode(const HypernodeID u) {
+    hypernode(u).disable();
+  }
+
+  // ! Only for testing
+  void disableHyperedge(const HyperedgeID e) {
+    hyperedge(e).disable();
+  }
+
+
  private:
+
+  template <typename NodeType_,
+            typename EdgeType_,
+            typename NodeWeightType_,
+            typename EdgeWeightType_,
+            typename PartitionID_,
+            typename HardwareTopology_,
+            typename TBBNumaArena_>
+  friend class Hypergraph;
 
   HypernodeID get_global_node_id() {
     HypernodeID local_node_id = _next_node_id++;
     return ( ( (HypernodeID) _node ) << NUMA_NODE_INDENTIFIER ) | local_node_id;
   }
 
-  HyperedgeID get_global_edge_id(const size_t edge_pos) {
+  HypernodeID get_global_node_id(const HypernodeID local_id) const {
+    return ( ( (HypernodeID) _node ) << NUMA_NODE_INDENTIFIER ) | local_id;
+  }
+
+  HyperedgeID get_global_edge_id(const size_t edge_pos) const {
     return ( ( (HyperedgeID) _node ) << NUMA_NODE_INDENTIFIER ) | edge_pos;
   }
 
@@ -493,9 +748,43 @@ class StreamingHypergraph {
     return ( (1UL << NUMA_NODE_INDENTIFIER) - 1 ) & e; 
   }
 
+  // ! Accessor for hypernode-related information
+  const Hypernode & hypernode(const HypernodeID u) const {
+    HypernodeID local_id = get_local_node_id_of_vertex(u);
+    ASSERT(get_numa_node_of_vertex(u) == _node, "Hypernode" << u << "is not part of this numa node");
+    ASSERT(local_id < _num_hypernodes, "Hypernode" << u << "does not exist");
+    return _hypernodes[local_id];
+  }
+
+  // ! Accessor for hyperedge-related information
+  const Hyperedge & hyperedge(const HyperedgeID e) const {
+    // <= instead of < because of sentinel
+    HypernodeID local_id = get_local_edge_id_of_hyperedge(e);
+    ASSERT(get_numa_node_of_hyperedge(e) == _node, "Hyperedge" << e << "is not part of this numa node");
+    ASSERT(local_id <= _num_hyperedges, "Hyperedge" << e << "does not exist");
+    return _hyperedges[local_id];
+  }
+
+  // ! To avoid code duplication we implement non-const version in terms of const version
+  Hypernode & hypernode(const HypernodeID u) {
+    return const_cast<Hypernode&>(static_cast<const StreamingHypergraph&>(*this).hypernode(u));
+  }
+
+  // ! To avoid code duplication we implement non-const version in terms of const version
+  Hyperedge & hyperedge(const HyperedgeID e) {
+    return const_cast<Hyperedge&>(static_cast<const StreamingHypergraph&>(*this).hyperedge(e));
+  }
+
   const int _node;
   // ! task arena for numa node
   tbb::task_arena& _arena;
+
+  // ! Number of hypernodes
+  HypernodeID _num_hypernodes;
+  // ! Number of hyperedges
+  HyperedgeID _num_hyperedges;
+  // ! Number of pins
+  HypernodeID _num_pins;
 
   // ! Hypernodes
   std::vector<Hypernode> _hypernodes;

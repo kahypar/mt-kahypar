@@ -19,7 +19,7 @@
  ******************************************************************************/
 #pragma once
 
-#define USE_HARDWARE_MOCK false
+#define USE_HARDWARE_MOCK true
 
 #include "mt-kahypar/parallel/hardware_topology.h"
 #include "mt-kahypar/parallel/tbb_numa_arena.h"

@@ -44,7 +44,7 @@ namespace ds {
 template< typename Value >
 class StreamingVector {
 
-  static_assert( std::is_trivially_copyable<Value>::value );
+  static_assert( std::is_trivially_copyable<Value>::value, "Value must be trivially copyable" );
 
   static constexpr bool debug = false;
 
@@ -99,8 +99,16 @@ class StreamingVector {
     return _cpu_buffer[cpu_id][idx];
   }
 
-  size_t size() const {
+  size_t num_buffers() const {
     return _cpu_buffer.size();
+  }
+
+  size_t size() const {
+    size_t size = 0;
+    for ( size_t i = 0; i < _cpu_buffer.size(); ++i ) {
+      size += _cpu_buffer[i].size();
+    }
+    return size;
   }
 
   size_t size(const size_t cpu_id) const {
