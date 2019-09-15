@@ -384,6 +384,9 @@ class StreamingHypergraph {
   using HypernodeIterator = HypergraphElementIterator<const Hypernode>;
   // ! Iterator to iterator over the hyperedges
   using HyperedgeIterator = HypergraphElementIterator<const Hyperedge>;
+  // ! Iterator to iterate over the set of incident nets of a hypernode
+  // ! or the set of pins of a hyperedge
+  using IncidenceIterator = typename parallel::scalable_vector<HypernodeID>::const_iterator;
 
  public:
   explicit StreamingHypergraph(const int node) :
@@ -447,6 +450,21 @@ class StreamingHypergraph {
   HypernodeID originalNodeId(const HypernodeID u) const {
     ASSERT(!hypernode(u).isDisabled(), "Hypernode" << u << "is disabled");
     return hypernode(u).originalNodeId();
+  }
+
+  // ! Returns a for-each iterator-pair to loop over the set of incident hyperedges of hypernode u.
+  std::pair<IncidenceIterator, IncidenceIterator> incidentEdges(const HypernodeID u) const {
+    ASSERT(!hypernode(u).isDisabled(), "Hypernode" << u << "is disabled");
+    HypernodeID local_id = get_local_node_id_of_vertex(u);
+    return std::make_pair(_incident_nets[local_id].cbegin(),
+                          _incident_nets[local_id].cend());
+  }
+
+  // ! Returns a for-each iterator-pair to loop over the set pins of hyperedge e.
+  std::pair<IncidenceIterator, IncidenceIterator> pins(const HyperedgeID e) const {
+    ASSERT(!hyperedge(e).isDisabled(), "Hyperedge" << e << "is disabled");
+    return std::make_pair(_incidence_array.cbegin() + hyperedge(e).firstEntry(),
+                          _incidence_array.cbegin() + hyperedge(e).firstInvalidEntry());
   }
 
   /*!

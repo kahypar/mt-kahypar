@@ -58,6 +58,7 @@ class Hypergraph {
 
   using HypernodeIterator = typename StreamingHypergraph::HypernodeIterator;
   using HyperedgeIterator = typename StreamingHypergraph::HyperedgeIterator;
+  using IncidenceIterator = typename StreamingHypergraph::IncidenceIterator;
 
   /*!
    * Iterator for HypergraphElements (Hypernodes/Hyperedges)
@@ -220,6 +221,20 @@ class Hypergraph {
     return _num_pins;
   }
 
+  // ! Returns a for-each iterator-pair to loop over the set of incident hyperedges of hypernode u.
+  std::pair<IncidenceIterator, IncidenceIterator> incidentEdges(const HypernodeID u) const {
+    int node = StreamingHypergraph::get_numa_node_of_vertex(u);
+    ASSERT(node < (int) _hypergraphs.size());
+    return _hypergraphs[node].incidentEdges(u);
+  }
+
+  // ! Returns a for-each iterator-pair to loop over the set pins of hyperedge e.
+  std::pair<IncidenceIterator, IncidenceIterator> pins(const HyperedgeID e) const {
+    int node = StreamingHypergraph::get_numa_node_of_hyperedge(e);
+    ASSERT(node < (int) _hypergraphs.size());
+    return _hypergraphs[node].pins(e);
+  }
+
   std::pair<GlobalHypernodeIterator, GlobalHypernodeIterator> nodes() const {
     ASSERT(_hypergraphs.size() > 0);
     std::vector<std::pair<HypernodeIterator, HypernodeIterator>> iterators;
@@ -260,6 +275,11 @@ class Hypergraph {
     int node = StreamingHypergraph::get_numa_node_of_vertex(u);
     ASSERT(node < (int) _hypergraphs.size());
     return _hypergraphs[node].originalNodeId(u);
+  }
+
+  HypernodeID globalNodeID(const HypernodeID u) const {
+    ASSERT(u < _node_mapping.size());
+    return _node_mapping[u];
   }
 
     // ! Only for testing

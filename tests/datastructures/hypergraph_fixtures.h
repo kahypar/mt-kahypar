@@ -33,6 +33,8 @@ using ::testing::Test;
 namespace mt_kahypar {
 namespace ds {
 
+#define GLOBAL_ID(hypergraph, id) hypergraph.globalNodeID(id)
+
 template < int NUM_NUMA_NODES >
 class AHypergraph : public Test {
  private:
