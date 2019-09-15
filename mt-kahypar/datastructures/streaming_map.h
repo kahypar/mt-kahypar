@@ -28,6 +28,8 @@
 #include "kahypar/macros.h"
 #include "kahypar/meta/mandatory.h"
 
+#include "mt-kahypar/parallel/stl/scalable_vector.h"
+
 namespace mt_kahypar {
 namespace ds {
 
@@ -57,6 +59,8 @@ class StreamingMap {
   static constexpr size_t BUCKET_FACTOR = 16;
 
   using KeyValuePair = std::pair<Key, Value>;
+  using Buffer = parallel::scalable_vector<parallel::scalable_vector<KeyValuePair>>;
+  using ValueMap = parallel::scalable_vector<parallel::scalable_vector<Value>>;
 
  public:
   StreamingMap() :
@@ -85,7 +89,7 @@ class StreamingMap {
 
   template < class F >
   void copy(tbb::task_arena& arena,
-            std::vector<std::vector<Value>>& destination,
+            ValueMap& destination,
             F&& key_extractor) {
     tbb::task_group group;
     arena.execute([&] {
@@ -108,7 +112,7 @@ class StreamingMap {
 
   void clear() {
     for ( size_t i = 0; i < _buffer.size(); ++i ) {
-      std::vector<KeyValuePair> tmp_buffer;
+      parallel::scalable_vector<KeyValuePair> tmp_buffer;
       _buffer[i] = std::move(tmp_buffer);
     }
   }
@@ -116,7 +120,7 @@ class StreamingMap {
  private:
   const size_t _size;
   std::vector<std::mutex> _mutex;
-  std::vector<std::vector<KeyValuePair>> _buffer;
+  Buffer _buffer;
 };
 
 } // namespace ds

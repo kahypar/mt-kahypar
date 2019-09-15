@@ -29,6 +29,8 @@
 #include "kahypar/macros.h"
 #include "kahypar/meta/mandatory.h"
 
+#include "mt-kahypar/parallel/stl/scalable_vector.h"
+
 namespace mt_kahypar {
 namespace ds {
 
@@ -47,6 +49,8 @@ class StreamingVector {
   static_assert( std::is_trivially_copyable<Value>::value, "Value must be trivially copyable" );
 
   static constexpr bool debug = false;
+
+  using Buffer = parallel::scalable_vector<parallel::scalable_vector<Value>>;
 
  public:
   StreamingVector() :
@@ -67,8 +71,8 @@ class StreamingVector {
     _cpu_buffer[cpu_id].emplace_back( std::forward<Args>(args)... );
   }
 
-  std::vector<Value> copy(tbb::task_arena& arena) {
-    std::vector<Value> values;
+  parallel::scalable_vector<Value> copy(tbb::task_arena& arena) {
+    parallel::scalable_vector<Value> values;
     
     size_t total_size = 0;
     for ( size_t i = 0; i < _cpu_buffer.size(); ++i) {
@@ -123,7 +127,7 @@ class StreamingVector {
 
   void clear() {
     for ( size_t i = 0; i < _cpu_buffer.size(); ++i ) {
-      std::vector<Value> tmp_value;
+      parallel::scalable_vector<Value> tmp_value;
       _cpu_buffer[i] = std::move(tmp_value);
     }
     _prefix_sum.assign(_cpu_buffer.size(), 0);
@@ -131,7 +135,7 @@ class StreamingVector {
 
  private:
 
-  void memcpy_from_cpu_buffer_to_destination(std::vector<Value>& destination,
+  void memcpy_from_cpu_buffer_to_destination(parallel::scalable_vector<Value>& destination,
                                              const int cpu_id,
                                              const size_t position) {
     DBG << "Copy buffer of cpu" << cpu_id << "of size" << _cpu_buffer[cpu_id].size()
@@ -140,8 +144,8 @@ class StreamingVector {
            _cpu_buffer[cpu_id].size() * sizeof(Value)); 
   }
 
-  std::vector<std::vector<Value>> _cpu_buffer;
-  std::vector<size_t> _prefix_sum;
+  Buffer _cpu_buffer;
+  parallel::scalable_vector<size_t> _prefix_sum;
 
 };
 

@@ -36,6 +36,7 @@
 
 #include "mt-kahypar/datastructures/streaming_vector.h"
 #include "mt-kahypar/datastructures/streaming_map.h"
+#include "mt-kahypar/parallel/stl/scalable_vector.h"
 
 
 namespace mt_kahypar {
@@ -85,7 +86,7 @@ class StreamingHypergraph {
                                    HyperedgeWeight, PartitionID, HardwareTopology,
                                    TBBNumaArena>;
 
-  using IncidentNets = std::vector<std::vector<HyperedgeID>>;
+  using IncidentNets = parallel::scalable_vector<parallel::scalable_vector<HyperedgeID>>;
 
   static_assert( sizeof(HypernodeID) == 8, "Hypernode ID must be 8 byte" );
   static_assert( std::is_unsigned<HypernodeID>::value, "Hypernode ID must be unsigned" );
@@ -787,17 +788,17 @@ class StreamingHypergraph {
   HypernodeID _num_pins;
 
   // ! Hypernodes
-  std::vector<Hypernode> _hypernodes;
+  parallel::scalable_vector<Hypernode> _hypernodes;
   // ! Incident nets of hypernodes
   IncidentNets _incident_nets;
   // ! Hyperedges
-  std::vector<Hyperedge> _hyperedges; 
+  parallel::scalable_vector<Hyperedge> _hyperedges; 
   // ! Pins of hyperedges
-  std::vector<HypernodeID> _incidence_array;
+  parallel::scalable_vector<HypernodeID> _incidence_array;
 
   // ! Contains for each hypernode, how many time it
   // ! occurs as pin in incidence array
-  std::vector<size_t> _vertex_pin_count; 
+  parallel::scalable_vector<size_t> _vertex_pin_count; 
   
   // ! Stream for pins of hyperedges
   StreamingVector<HypernodeID> _pin_stream;
