@@ -33,6 +33,7 @@
 
 #include "kahypar/macros.h"
 #include "kahypar/meta/mandatory.h"
+#include "kahypar/utils/math.h"
 
 #include "mt-kahypar/datastructures/streaming_vector.h"
 #include "mt-kahypar/datastructures/streaming_map.h"
@@ -74,7 +75,9 @@ template <typename HypernodeType_ = Mandatory,
 class StreamingHypergraph {
 
   static constexpr bool debug = false;
-  static constexpr size_t NUMA_NODE_INDENTIFIER = 48;
+  static constexpr size_t NUMA_NODE_INDENTIFIER = 48;  
+  // seed for edge hashes used for parallel net detection
+  static constexpr size_t kEdgeHashSeed = 42;
 
   using HypernodeID = HypernodeType_;
   using HyperedgeID = HyperedgeType_;
@@ -184,6 +187,7 @@ class StreamingHypergraph {
         _begin(0),
         _size(0),
         _weight(1),
+        _hash(kEdgeHashSeed),
         _valid(false) { }
 
       Hyperedge(const size_t begin, 
@@ -192,6 +196,7 @@ class StreamingHypergraph {
         _begin(begin),
         _size(size),
         _weight(weight),
+        _hash(kEdgeHashSeed),
         _valid(true) { }
 
       // ! Disables the hypernode/hyperedge. Disable hypernodes/hyperedges will be skipped
@@ -257,6 +262,14 @@ class StreamingHypergraph {
         _weight = weight;
       }
 
+      size_t & hash() {
+        return _hash;
+      }
+
+      size_t hash() const {
+        return _hash;
+      }
+
       bool operator== (const Hyperedge& rhs) const {
         return _begin == rhs._begin && _size == rhs._size && _weight == rhs._weight;
       }
@@ -270,8 +283,10 @@ class StreamingHypergraph {
       size_t _begin;
       // ! Number of _incidence_array elements
       size_t _size;
-      // ! yperedge weight
+      // ! hyperedge weight
       HyperedgeWeight _weight;
+      // ! Hash of pins
+      size_t _hash;
       // ! Flag indicating whether or not the element is active.
       bool _valid;
   };
@@ -544,7 +559,7 @@ class StreamingHypergraph {
       // Hyperedge e contains both u and v. Thus we don't need to connect u to e and
       // can just cut off the last entry in the edge array of e that now contains v.        
       DBG << V(e) << ": Case 1";
-      // TODO(heuer): Update edge hash
+      hyperedge(e).hash() -= kahypar::math::hash(v);
       hyperedge(e).decrementSize();
       // TODO(heuer): Update pin count in part
     } else {
@@ -552,9 +567,15 @@ class StreamingHypergraph {
       // Hyperedge e does not contain u. Therefore we  have to connect e to the representative u.
       // This reuses the pin slot of v in e's incidence array (i.e. last_pin_slot!)
       DBG << V(e) << ": Case 2";
-      // TODO(heuer): Update edge hash
+      hyperedge(e).hash() -= kahypar::math::hash(v);
+      hyperedge(e).hash() += kahypar::math::hash(u);
       connectHyperedgeToRepresentative(e, u, hypergraph_of_u);
     }
+  }
+
+  size_t edgeHash(const HyperedgeID e) const {
+    ASSERT(!hyperedge(e).isDisabled(), "Hyperedge" << e << "is disabled");
+    return hyperedge(e).hash();
   }
 
   bool nodeIsEnabled(const HypernodeID u) const {
@@ -730,15 +751,17 @@ class StreamingHypergraph {
         tbb::parallel_for(tbb::blocked_range<size_t>(0UL, _hyperedges.size()),
           [&](const tbb::blocked_range<size_t>& range) {
           for ( size_t pos = range.begin(); pos < range.end(); ++pos ) {
-            const Hyperedge& he = _hyperedges[pos];
+            Hyperedge& he = _hyperedges[pos];
             const HyperedgeID he_id = get_global_edge_id(pos);
             for ( size_t incidence_array_pos = he.firstEntry();
                   incidence_array_pos < he.firstEntry() + he.size();
                   ++incidence_array_pos ) {
-              const HypernodeID hn = _incidence_array[incidence_array_pos];
-              const int node = get_numa_node_of_vertex(hn);
+              const HypernodeID pin = _incidence_array[incidence_array_pos];
+              const int node = get_numa_node_of_vertex(pin);
               ASSERT(node < (int) hypergraphs.size());
-              hypergraphs[node].streamIncidentNet(hn, he_id);
+              hypergraphs[node].streamIncidentNet(pin, he_id);
+              // Initialize edge hash
+              he.hash() += kahypar::math::hash(pin);
             }
           }
         });

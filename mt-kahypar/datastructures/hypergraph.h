@@ -358,6 +358,12 @@ class Hypergraph {
     return Memento { u, v };
   }
 
+  size_t edgeHash(const HypernodeID e) const {
+    int node = StreamingHypergraph::get_numa_node_of_hyperedge(e);
+    ASSERT(node < (int) _hypergraphs.size());
+    return _hypergraphs[node].edgeHash(e);
+  }
+
   bool nodeIsEnabled(const HypernodeID u) const {
     int node = StreamingHypergraph::get_numa_node_of_vertex(u);
     ASSERT(node < (int) _hypergraphs.size());

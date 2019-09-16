@@ -59,7 +59,7 @@ void verifyPinIterators(const TestHypergraph& hypergraph,
     const std::set<HypernodeID>& reference = references[i];
     size_t count = 0;
     for ( const HypernodeID& pin : hypergraph.pins(he) ) {
-      ASSERT_TRUE(reference.find(pin) != reference.end()) << V(pin);
+      ASSERT_TRUE(reference.find(pin) != reference.end()) << V(he) << V(pin);
       count++;
     }
     ASSERT_EQ(count, reference.size());
@@ -469,6 +469,131 @@ TEST_F(AHypergraphWithTwoStreamingHypergraphs, ContractsTwoHypernodes6) {
   verifyPinIterators(hypergraph, {0, 1, 281474976710656, 281474976710657},
     { {id[0], id[2]}, {id[0], id[1], id[3], id[4]}, {id[0], id[3], id[4]}, {id[0], id[2], id[5]} } );
 }
+
+TEST_F(AHypergraphWithTwoStreamingHypergraphs, HasEqualHashIfTwoHyperedgesBecomeParallel1) {
+  TestHypergraph hypergraph = construct_test_hypergraph(*this);
+  std::vector<HypernodeID> id = {GLOBAL_ID(hypergraph, 0), GLOBAL_ID(hypergraph, 1), GLOBAL_ID(hypergraph, 2),
+    GLOBAL_ID(hypergraph, 3), GLOBAL_ID(hypergraph, 4), GLOBAL_ID(hypergraph, 5), GLOBAL_ID(hypergraph, 6)};
+  
+  ASSERT_NE(hypergraph.edgeHash(1), hypergraph.edgeHash(281474976710656));
+
+  hypergraph.contract(id[0], id[6]);
+  hypergraph.contract(id[0], id[1]);
+
+  ASSERT_TRUE(hypergraph.nodeIsEnabled(id[0]));
+  ASSERT_FALSE(hypergraph.nodeIsEnabled(id[1]));
+  ASSERT_FALSE(hypergraph.nodeIsEnabled(id[6]));
+  ASSERT_EQ(3, hypergraph.nodeWeight(id[0]));
+
+  verifyIterator<HyperedgeID>({0, 1, 281474976710656, 281474976710657}, [&] {
+    return hypergraph.incidentEdges(id[0]);
+  });
+
+  verifyPinIterators(hypergraph, {0, 1, 281474976710656, 281474976710657},
+    { {id[0], id[2]}, {id[0], id[3], id[4]}, {id[0], id[3], id[4]}, {id[0], id[2], id[5]} } );
+
+  ASSERT_EQ(hypergraph.edgeHash(1), hypergraph.edgeHash(281474976710656));
+}
+
+TEST_F(AHypergraphWithTwoStreamingHypergraphs, HasEqualHashIfTwoHyperedgesBecomeParallel2) {
+  TestHypergraph hypergraph = construct_test_hypergraph(*this);
+  std::vector<HypernodeID> id = {GLOBAL_ID(hypergraph, 0), GLOBAL_ID(hypergraph, 1), GLOBAL_ID(hypergraph, 2),
+    GLOBAL_ID(hypergraph, 3), GLOBAL_ID(hypergraph, 4), GLOBAL_ID(hypergraph, 5), GLOBAL_ID(hypergraph, 6)};
+  
+  ASSERT_NE(hypergraph.edgeHash(0), hypergraph.edgeHash(281474976710657));
+
+  hypergraph.contract(id[0], id[6]);
+  hypergraph.contract(id[2], id[5]);
+
+  ASSERT_TRUE(hypergraph.nodeIsEnabled(id[0]));
+  ASSERT_TRUE(hypergraph.nodeIsEnabled(id[2]));
+  ASSERT_FALSE(hypergraph.nodeIsEnabled(id[5]));
+  ASSERT_FALSE(hypergraph.nodeIsEnabled(id[6]));
+  ASSERT_EQ(2, hypergraph.nodeWeight(id[0]));
+  ASSERT_EQ(2, hypergraph.nodeWeight(id[2]));
+
+  verifyIterator<HyperedgeID>({0, 1, 281474976710656, 281474976710657}, [&] {
+    return hypergraph.incidentEdges(id[0]);
+  });
+
+  verifyIterator<HyperedgeID>({0, 281474976710657}, [&] {
+    return hypergraph.incidentEdges(id[2]);
+  });
+
+  verifyPinIterators(hypergraph, {0, 1, 281474976710656, 281474976710657},
+    { {id[0], id[2]}, {id[0], id[1], id[3], id[4]}, {id[0], id[3], id[4]}, {id[0], id[2]} } );
+
+  ASSERT_EQ(hypergraph.edgeHash(0), hypergraph.edgeHash(281474976710657));
+}
+
+TEST_F(AHypergraphWithTwoStreamingHypergraphs, HasEqualHashIfTwoHyperedgesBecomeParallel3) {
+  TestHypergraph hypergraph = construct_test_hypergraph(*this);
+  std::vector<HypernodeID> id = {GLOBAL_ID(hypergraph, 0), GLOBAL_ID(hypergraph, 1), GLOBAL_ID(hypergraph, 2),
+    GLOBAL_ID(hypergraph, 3), GLOBAL_ID(hypergraph, 4), GLOBAL_ID(hypergraph, 5), GLOBAL_ID(hypergraph, 6)};
+  
+  ASSERT_NE(hypergraph.edgeHash(0), hypergraph.edgeHash(281474976710657));
+  ASSERT_NE(hypergraph.edgeHash(1), hypergraph.edgeHash(281474976710656));
+
+  hypergraph.contract(id[0], id[6]);
+  hypergraph.contract(id[0], id[1]);
+  hypergraph.contract(id[2], id[5]);
+
+  ASSERT_TRUE(hypergraph.nodeIsEnabled(id[0]));
+  ASSERT_TRUE(hypergraph.nodeIsEnabled(id[2]));
+  ASSERT_FALSE(hypergraph.nodeIsEnabled(id[1]));
+  ASSERT_FALSE(hypergraph.nodeIsEnabled(id[5]));
+  ASSERT_FALSE(hypergraph.nodeIsEnabled(id[6]));
+  ASSERT_EQ(3, hypergraph.nodeWeight(id[0]));
+  ASSERT_EQ(2, hypergraph.nodeWeight(id[2]));
+
+  verifyIterator<HyperedgeID>({0, 1, 281474976710656, 281474976710657}, [&] {
+    return hypergraph.incidentEdges(id[0]);
+  });
+
+  verifyIterator<HyperedgeID>({0, 281474976710657}, [&] {
+    return hypergraph.incidentEdges(id[2]);
+  });
+
+  verifyPinIterators(hypergraph, {0, 1, 281474976710656, 281474976710657},
+    { {id[0], id[2]}, {id[0], id[3], id[4]}, {id[0], id[3], id[4]}, {id[0], id[2]} } );
+
+  ASSERT_EQ(hypergraph.edgeHash(0), hypergraph.edgeHash(281474976710657));
+  ASSERT_EQ(hypergraph.edgeHash(1), hypergraph.edgeHash(281474976710656));
+}
+
+TEST_F(AHypergraphWithTwoStreamingHypergraphs, HasEqualHashIfTwoHyperedgesBecomeParallel4) {
+  TestHypergraph hypergraph = construct_test_hypergraph(*this);
+  std::vector<HypernodeID> id = {GLOBAL_ID(hypergraph, 0), GLOBAL_ID(hypergraph, 1), GLOBAL_ID(hypergraph, 2),
+    GLOBAL_ID(hypergraph, 3), GLOBAL_ID(hypergraph, 4), GLOBAL_ID(hypergraph, 5), GLOBAL_ID(hypergraph, 6)};
+  
+  ASSERT_NE(hypergraph.edgeHash(1), hypergraph.edgeHash(281474976710656));
+
+  hypergraph.contract(id[4], id[6]);
+  hypergraph.contract(id[0], id[1]);
+  hypergraph.contract(id[0], id[3]);
+
+  ASSERT_TRUE(hypergraph.nodeIsEnabled(id[0]));
+  ASSERT_TRUE(hypergraph.nodeIsEnabled(id[4]));
+  ASSERT_FALSE(hypergraph.nodeIsEnabled(id[1]));
+  ASSERT_FALSE(hypergraph.nodeIsEnabled(id[3]));
+  ASSERT_FALSE(hypergraph.nodeIsEnabled(id[6]));
+  ASSERT_EQ(3, hypergraph.nodeWeight(id[0]));
+  ASSERT_EQ(2, hypergraph.nodeWeight(id[4]));
+
+  verifyIterator<HyperedgeID>({0, 1, 281474976710656}, [&] {
+    return hypergraph.incidentEdges(id[0]);
+  });
+
+  verifyIterator<HyperedgeID>({1, 281474976710656, 281474976710657}, [&] {
+    return hypergraph.incidentEdges(id[4]);
+  });
+
+  verifyPinIterators(hypergraph, {0, 1, 281474976710656, 281474976710657},
+    { {id[0], id[2]}, {id[0], id[4]}, {id[0], id[4]}, {id[2], id[4], id[5]} } );
+
+  ASSERT_EQ(hypergraph.edgeHash(1), hypergraph.edgeHash(281474976710656));
+}
+
 
 } // namespace ds
 } // namespace mt_kahypar
