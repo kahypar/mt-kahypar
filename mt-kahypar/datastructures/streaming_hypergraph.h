@@ -491,9 +491,78 @@ class StreamingHypergraph {
                           HyperedgeIterator((_hyperedges.data() + _num_hyperedges), end, end));
   }
 
+
+  HypernodeWeight nodeWeight(const HypernodeID u) const {
+    ASSERT(!hypernode(u).isDisabled(), "Hypernode" << u << "is disabled");
+    return hypernode(u).weight();
+  }
+
+  void setNodeWeight(const HypernodeID u, const HypernodeWeight weight) {
+    ASSERT(!hypernode(u).isDisabled(), "Hypernode" << u << "is disabled");
+    hypernode(u).setWeight(weight);
+  }
+
+  HypernodeWeight edgeWeight(const HyperedgeID e) const {
+    ASSERT(!hyperedge(e).isDisabled(), "Hyperedge" << e << "is disabled");
+    return hyperedge(e).weight();
+  }
+
+  void setEdgeWeight(const HyperedgeID e, const HyperedgeWeight weight) {
+    ASSERT(!hyperedge(e).isDisabled(), "Hyperedge" << e << "is disabled");
+    hyperedge(e).setWeight(weight);
+  }
+
   size_t vertexPinCount(const HypernodeID hn) const {
     ASSERT(hn < _vertex_pin_count.size());
     return _vertex_pin_count[hn];
+  }
+
+  void contract(const HypernodeID u, const HypernodeID v, 
+                const HyperedgeID e, Self& hypergraph_of_u) {
+    using std::swap;
+    const HypernodeID pins_begin = hyperedge(e).firstEntry();
+    const HypernodeID pins_end = hyperedge(e).firstInvalidEntry();
+    HypernodeID slot_of_u = pins_end - 1;
+    HypernodeID last_pin_slot = pins_end - 1;
+
+    // Swap contraction partner v to end of the pin list of he and find slot of
+    // representative u.
+    for (HypernodeID pin_iter = pins_begin; pin_iter != last_pin_slot; ++pin_iter) {
+      const HypernodeID pin = _incidence_array[pin_iter];
+      if (pin == v) {
+        swap(_incidence_array[pin_iter], _incidence_array[last_pin_slot]);
+        --pin_iter;
+      } else if (pin == u) {
+        slot_of_u = pin_iter;
+      }
+    }
+    
+    ASSERT(_incidence_array[last_pin_slot] == v, "v is not last entry in incidence array!");
+
+    if ( slot_of_u != last_pin_slot ) {
+      // Case 1:
+      // Hyperedge e contains both u and v. Thus we don't need to connect u to e and
+      // can just cut off the last entry in the edge array of e that now contains v.        
+      DBG << V(e) << ": Case 1";
+      // TODO(heuer): Update edge hash
+      hyperedge(e).decrementSize();
+      // TODO(heuer): Update pin count in part
+    } else {
+      // Case 2:
+      // Hyperedge e does not contain u. Therefore we  have to connect e to the representative u.
+      // This reuses the pin slot of v in e's incidence array (i.e. last_pin_slot!)
+      DBG << V(e) << ": Case 2";
+      // TODO(heuer): Update edge hash
+      connectHyperedgeToRepresentative(e, u, hypergraph_of_u);
+    }
+  }
+
+  bool nodeIsEnabled(const HypernodeID u) const {
+    return !hypernode(u).isDisabled();
+  }
+
+  bool edgeIsEnabled(const HyperedgeID e) const {
+    return !hyperedge(e).isDisabled();
   }
 
   HypernodeID streamHypernode(HypernodeID original_id, HypernodeWeight weight) {
@@ -728,6 +797,25 @@ class StreamingHypergraph {
 
 
  private:
+
+  /*!
+   * Connect hyperedge e to representative hypernode u.
+   */
+  KAHYPAR_ATTRIBUTE_ALWAYS_INLINE void connectHyperedgeToRepresentative(const HyperedgeID e,
+                                                                        const HypernodeID u,
+                                                                        Self& hypergraph_of_u) {
+    ASSERT(hypergraph_of_u.nodeIsEnabled(u), "Hypernode" << u << "is disabled");
+    ASSERT(!hyperedge(e).isDisabled(), "Hyperedge" << e << "is disabled");
+    // Hyperedge e does not contain u. Therefore we use the entry of v (i.e. the last entry
+    // -- this is ensured by the contract method) in e's edge array to store the information
+    // that u is now connected to e and add the edge (u,e) to indicate this conection also from
+    // the hypernode's point of view.
+    _incidence_array[hyperedge(e).firstInvalidEntry() - 1] = u;
+    HypernodeID local_id = get_local_node_id_of_vertex(u);
+    ASSERT(local_id < hypergraph_of_u._incident_nets.size());
+    hypergraph_of_u._incident_nets[local_id].push_back(e);
+  }
+
 
   template <typename NodeType_,
             typename EdgeType_,

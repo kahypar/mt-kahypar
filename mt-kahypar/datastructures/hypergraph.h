@@ -159,6 +159,22 @@ class Hypergraph {
   using GlobalHyperedgeIterator = GlobalHypergraphElementIterator<HyperedgeIterator>;
 
  public:
+  /*!
+  * A memento stores all information necessary to undo the contraction operation
+  * of a vertex pair \f$(u,v)\f$.
+  *
+  * A contraction operations can increase the set \f$I(u)\f$ of nets incident
+  * to \f$u\f$. This in turn leads to changes in _incidence_array. Therefore
+  * the memento stores the initial starting index of \f$u\f$'s incident nets
+  * as well as the old size, i.e. \f$|I(u)|\f$.
+  *
+  */
+  struct Memento {
+    // ! The representative hypernode that remains in the hypergraph
+    HypernodeID u;
+    // ! The contraction partner of u that is removed from the hypergraph after the contraction.
+    HypernodeID v;
+  };
 
   explicit Hypergraph() :
     _num_hypernodes(0),
@@ -282,7 +298,78 @@ class Hypergraph {
     return _node_mapping[u];
   }
 
-    // ! Only for testing
+  HypernodeWeight nodeWeight(const HypernodeID u) const {
+    int node = StreamingHypergraph::get_numa_node_of_vertex(u);
+    ASSERT(node < (int) _hypergraphs.size());
+    return _hypergraphs[node].nodeWeight(u);
+  }
+
+  void setNodeWeight(const HypernodeID u, const HypernodeWeight weight) {
+    int node = StreamingHypergraph::get_numa_node_of_vertex(u);
+    ASSERT(node < (int) _hypergraphs.size());
+    _hypergraphs[node].setNodeWeight(u, weight);
+  }
+
+  HypernodeWeight edgeWeight(const HyperedgeID e) const {
+    int node = StreamingHypergraph::get_numa_node_of_hyperedge(e);
+    ASSERT(node < (int) _hypergraphs.size());
+    return _hypergraphs[node].edgeWeight(e);
+  }
+
+  void setEdgeWeight(const HyperedgeID e, const HyperedgeWeight weight) {
+    int node = StreamingHypergraph::get_numa_node_of_hyperedge(e);
+    ASSERT(node < (int) _hypergraphs.size());
+    _hypergraphs[node].setEdgeWeight(e, weight);
+  }
+
+  /*!
+   * Contracts the vertex pair (u,v). The representative u remains in the hypergraph.
+   * The contraction partner v is removed from the hypergraph.
+   *
+   * For each hyperedge e incident to v, a contraction lead to one of two operations:
+   * 1.) If e contained both u and v, then v is removed from e.
+   * 2.) If e only contained v, than the slot of v in the incidence structure of e
+   *     is reused to store u.
+   *
+   * The returned Memento can be used to undo the contraction via an uncontract operation.
+   *
+   * \param u Representative hypernode that will remain in the hypergraph
+   * \param v Contraction partner that will be removed from the hypergraph
+   *
+   */
+  Memento contract(const HypernodeID u, const HypernodeID v) {
+    ASSERT(nodeIsEnabled(u), "Hypernode" << u << "is disabled");
+    ASSERT(nodeIsEnabled(v), "Hypernode" << v << "is disabled");
+    // TODO(heuer): Assertions verifies that both node have same part id
+
+    DBG << "Contracting (" << u << "," << v << ")";
+    setNodeWeight(u, nodeWeight(u) + nodeWeight(v));
+
+    int node_u = StreamingHypergraph::get_numa_node_of_vertex(u);
+    ASSERT(node_u < (int) _hypergraphs.size());
+    StreamingHypergraph& hypergraph_of_u = _hypergraphs[node_u];
+    for ( const HyperedgeID& he : incidentEdges(v) ) {
+      int node = StreamingHypergraph::get_numa_node_of_hyperedge(he);
+      ASSERT(node < (int) _hypergraphs.size());
+      _hypergraphs[node].contract(u, v, he, hypergraph_of_u);
+    }
+
+    disableHypernode(v);
+    return Memento { u, v };
+  }
+
+  bool nodeIsEnabled(const HypernodeID u) const {
+    int node = StreamingHypergraph::get_numa_node_of_vertex(u);
+    ASSERT(node < (int) _hypergraphs.size());
+    return _hypergraphs[node].nodeIsEnabled(u);
+  }
+
+  bool edgeIsEnabled(const HyperedgeID e) const {
+    int node = StreamingHypergraph::get_numa_node_of_hyperedge(e);
+    ASSERT(node < (int) _hypergraphs.size());
+    return _hypergraphs[node].edgeIsEnabled(e);
+  }
+
   void disableHypernode(const HypernodeID u) {
     int node = StreamingHypergraph::get_numa_node_of_vertex(u);
     ASSERT(node < (int) _hypergraphs.size());
@@ -295,7 +382,6 @@ class Hypergraph {
     ASSERT(node < (int) _hypergraphs.size());
     _hypergraphs[node].disableHyperedge(e);
   }
-
 
  private:
 
