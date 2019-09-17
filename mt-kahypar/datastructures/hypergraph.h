@@ -358,6 +358,37 @@ class Hypergraph {
     return Memento { u, v };
   }
 
+  /*!
+  * Undoes a contraction operation that was remembered by the memento.
+  * This is the default uncontract method.
+  *
+  * \param memento Memento remembering the contraction operation that should be reverted
+  */
+  void uncontract(const Memento& memento) {
+    ASSERT(nodeIsEnabled(memento.u), "Hypernode" << memento.u << "is disabled");
+    ASSERT(!nodeIsEnabled(memento.v), "Hypernode" << memento.v << "is not invalid");
+
+    DBG << "uncontracting (" << memento.u << "," << memento.v << ")";
+    reverseContraction(memento);
+    markAllIncidentNetsOf(memento.v);
+
+    int node_u = StreamingHypergraph::get_numa_node_of_vertex(memento.u);
+    ASSERT(node_u < (int) _hypergraphs.size());
+    const auto& incident_hes_of_u = _hypergraphs[node_u].incidentNets(memento.u);
+    size_t incident_hes_end = incident_hes_of_u.size();
+
+    for (size_t incident_hes_it = 0; incident_hes_it != incident_hes_end; ++incident_hes_it) {
+      const HyperedgeID he = incident_hes_of_u[incident_hes_it];
+      int node = StreamingHypergraph::get_numa_node_of_hyperedge(he);
+      ASSERT(node < (int) _hypergraphs.size());
+      if ( _hypergraphs[node].uncontract(memento.u, memento.v, he, incident_hes_it, _hypergraphs) ) {
+        --incident_hes_it;
+        --incident_hes_end;
+      }
+    }
+    setNodeWeight(memento.u, nodeWeight(memento.u) - nodeWeight(memento.v));
+  }
+
   size_t edgeHash(const HypernodeID e) const {
     int node = StreamingHypergraph::get_numa_node_of_hyperedge(e);
     ASSERT(node < (int) _hypergraphs.size());
@@ -376,6 +407,12 @@ class Hypergraph {
     return _hypergraphs[node].edgeIsEnabled(e);
   }
 
+  void enableHypernode(const HypernodeID u) {
+    int node = StreamingHypergraph::get_numa_node_of_vertex(u);
+    ASSERT(node < (int) _hypergraphs.size());
+    _hypergraphs[node].enableHypernode(u);
+  }
+
   void disableHypernode(const HypernodeID u) {
     int node = StreamingHypergraph::get_numa_node_of_vertex(u);
     ASSERT(node < (int) _hypergraphs.size());
@@ -390,6 +427,17 @@ class Hypergraph {
   }
 
  private:
+
+  KAHYPAR_ATTRIBUTE_ALWAYS_INLINE void reverseContraction(const Memento& memento) {
+    enableHypernode(memento.v);
+    // TODO(heuer): update part id of v
+  }
+
+  KAHYPAR_ATTRIBUTE_ALWAYS_INLINE void markAllIncidentNetsOf(const HypernodeID v) {
+    int node = StreamingHypergraph::get_numa_node_of_vertex(v);
+    ASSERT(node < (int) _hypergraphs.size());
+    _hypergraphs[node].markAllIncidentNetsOf(v, _hypergraphs);
+  }
 
   void computeNodeMapping() {
     size_t num_streaming_hypergraphs = _hypergraphs.size();

@@ -41,9 +41,10 @@ template< typename IDType >
 auto identity = [](const IDType& id) { return id; };
 
 template< typename IDType, typename F, typename K = decltype(identity<IDType>) >
-void verifyIterator(const std::set<IDType>& reference, F&& it_func, K map_func = identity<IDType>) {
+void verifyIterator(const std::set<IDType>& reference, F&& it_func, K map_func = identity<IDType>, bool log = false) {
   size_t count = 0;
   for ( const IDType& id : it_func() ) {
+    if ( log ) LOG << V(id) << V(map_func(id));
     ASSERT_TRUE(reference.find(map_func(id)) != reference.end()) << V(map_func(id));
     count++;
   }
@@ -52,13 +53,15 @@ void verifyIterator(const std::set<IDType>& reference, F&& it_func, K map_func =
 
 void verifyPinIterators(const TestHypergraph& hypergraph,
                         const std::vector<HyperedgeID> hyperedges, 
-                        const std::vector<std::set<HypernodeID>>& references) {
+                        const std::vector<std::set<HypernodeID>>& references,
+                        bool log = false) {
   ASSERT(hyperedges.size() == references.size());
   for ( size_t i = 0; i < hyperedges.size(); ++i ) {
     const HyperedgeID he = hyperedges[i];
     const std::set<HypernodeID>& reference = references[i];
     size_t count = 0;
     for ( const HypernodeID& pin : hypergraph.pins(he) ) {
+      if ( log ) LOG << V(he) << V(pin);
       ASSERT_TRUE(reference.find(pin) != reference.end()) << V(he) << V(pin);
       count++;
     }
@@ -594,6 +597,312 @@ TEST_F(AHypergraphWithTwoStreamingHypergraphs, HasEqualHashIfTwoHyperedgesBecome
   ASSERT_EQ(hypergraph.edgeHash(1), hypergraph.edgeHash(281474976710656));
 }
 
+TEST_F(AHypergraphWithTwoStreamingHypergraphs, UncontractsTwoHypernodes1) {
+  TestHypergraph hypergraph = construct_test_hypergraph(*this);
+  std::vector<HypernodeID> id = {GLOBAL_ID(hypergraph, 0), GLOBAL_ID(hypergraph, 1), GLOBAL_ID(hypergraph, 2),
+    GLOBAL_ID(hypergraph, 3), GLOBAL_ID(hypergraph, 4), GLOBAL_ID(hypergraph, 5), GLOBAL_ID(hypergraph, 6)};
+  HypernodeID u = id[0];
+  HypernodeID v = id[2];
+  auto memento = hypergraph.contract(u, v);
+  hypergraph.uncontract(memento);
+
+  ASSERT_TRUE(hypergraph.nodeIsEnabled(u));
+  ASSERT_TRUE(hypergraph.nodeIsEnabled(v));
+  ASSERT_EQ(1, hypergraph.nodeWeight(u));
+  ASSERT_EQ(1, hypergraph.nodeWeight(v));
+
+  verifyIterator<HyperedgeID>({0, 1}, [&] {
+    return hypergraph.incidentEdges(u);
+  });
+
+  verifyIterator<HyperedgeID>({0, 281474976710657}, [&] {
+    return hypergraph.incidentEdges(v);
+  });
+
+  verifyPinIterators(hypergraph, {0, 1, 281474976710656, 281474976710657},
+   { {id[0], id[2]}, {id[0], id[1], id[3], id[4]}, {id[3], id[4], id[6]}, {id[2], id[5], id[6]} } );
+}
+
+TEST_F(AHypergraphWithTwoStreamingHypergraphs, UncontractsTwoHypernodes2) {
+  TestHypergraph hypergraph = construct_test_hypergraph(*this);
+  std::vector<HypernodeID> id = {GLOBAL_ID(hypergraph, 0), GLOBAL_ID(hypergraph, 1), GLOBAL_ID(hypergraph, 2),
+    GLOBAL_ID(hypergraph, 3), GLOBAL_ID(hypergraph, 4), GLOBAL_ID(hypergraph, 5), GLOBAL_ID(hypergraph, 6)};
+  HypernodeID u = id[3];
+  HypernodeID v = id[4];
+  auto memento = hypergraph.contract(u, v);
+  hypergraph.uncontract(memento);
+
+  ASSERT_TRUE(hypergraph.nodeIsEnabled(u));
+  ASSERT_TRUE(hypergraph.nodeIsEnabled(v));
+  ASSERT_EQ(1, hypergraph.nodeWeight(u));
+  ASSERT_EQ(1, hypergraph.nodeWeight(v));
+
+  verifyIterator<HyperedgeID>({1, 281474976710656}, [&] {
+    return hypergraph.incidentEdges(u);
+  });
+
+  verifyIterator<HyperedgeID>({1, 281474976710656}, [&] {
+    return hypergraph.incidentEdges(v);
+  });
+
+  verifyPinIterators(hypergraph, {0, 1, 281474976710656, 281474976710657},
+   { {id[0], id[2]}, {id[0], id[1], id[3], id[4]}, {id[3], id[4], id[6]}, {id[2], id[5], id[6]} });
+}
+
+TEST_F(AHypergraphWithTwoStreamingHypergraphs, UncontractsTwoHypernodes3) {
+  TestHypergraph hypergraph = construct_test_hypergraph(*this);
+  std::vector<HypernodeID> id = {GLOBAL_ID(hypergraph, 0), GLOBAL_ID(hypergraph, 1), GLOBAL_ID(hypergraph, 2),
+    GLOBAL_ID(hypergraph, 3), GLOBAL_ID(hypergraph, 4), GLOBAL_ID(hypergraph, 5), GLOBAL_ID(hypergraph, 6)};
+  HypernodeID u = id[6];
+  HypernodeID v = id[3];
+  auto memento = hypergraph.contract(u, v);
+  hypergraph.uncontract(memento);
+
+  ASSERT_TRUE(hypergraph.nodeIsEnabled(u));
+  ASSERT_TRUE(hypergraph.nodeIsEnabled(v));
+  ASSERT_EQ(1, hypergraph.nodeWeight(u));
+  ASSERT_EQ(1, hypergraph.nodeWeight(v));
+
+  verifyIterator<HyperedgeID>({281474976710656, 281474976710657}, [&] {
+    return hypergraph.incidentEdges(u);
+  });
+
+  verifyIterator<HyperedgeID>({1, 281474976710656}, [&] {
+    return hypergraph.incidentEdges(v);
+  });
+
+  verifyPinIterators(hypergraph, {0, 1, 281474976710656, 281474976710657},
+   { {id[0], id[2]}, {id[0], id[1], id[3], id[4]}, {id[3], id[4], id[6]}, {id[2], id[5], id[6]} });
+}
+
+TEST_F(AHypergraphWithTwoStreamingHypergraphs, UncontractsTwoHypernodes4) {
+  TestHypergraph hypergraph = construct_test_hypergraph(*this);
+  std::vector<HypernodeID> id = {GLOBAL_ID(hypergraph, 0), GLOBAL_ID(hypergraph, 1), GLOBAL_ID(hypergraph, 2),
+    GLOBAL_ID(hypergraph, 3), GLOBAL_ID(hypergraph, 4), GLOBAL_ID(hypergraph, 5), GLOBAL_ID(hypergraph, 6)};
+  HypernodeID u = id[5];
+  HypernodeID v = id[0];
+  auto memento = hypergraph.contract(u, v);
+  hypergraph.uncontract(memento);
+
+  ASSERT_TRUE(hypergraph.nodeIsEnabled(u));
+  ASSERT_TRUE(hypergraph.nodeIsEnabled(v));
+  ASSERT_EQ(1, hypergraph.nodeWeight(u));
+  ASSERT_EQ(1, hypergraph.nodeWeight(v));
+
+  verifyIterator<HyperedgeID>({281474976710657}, [&] {
+    return hypergraph.incidentEdges(u);
+  });
+
+  verifyIterator<HyperedgeID>({0, 1}, [&] {
+    return hypergraph.incidentEdges(v);
+  });
+
+  verifyPinIterators(hypergraph, {0, 1, 281474976710656, 281474976710657},
+   { {id[0], id[2]}, {id[0], id[1], id[3], id[4]}, {id[3], id[4], id[6]}, {id[2], id[5], id[6]} });
+}
+
+TEST_F(AHypergraphWithTwoStreamingHypergraphs, UncontractsTwoHypernodes5) {
+  TestHypergraph hypergraph = construct_test_hypergraph(*this);
+  std::vector<HypernodeID> id = {GLOBAL_ID(hypergraph, 0), GLOBAL_ID(hypergraph, 1), GLOBAL_ID(hypergraph, 2),
+    GLOBAL_ID(hypergraph, 3), GLOBAL_ID(hypergraph, 4), GLOBAL_ID(hypergraph, 5), GLOBAL_ID(hypergraph, 6)};
+  HypernodeID u = id[4];
+  HypernodeID v = id[1];
+  auto memento = hypergraph.contract(u, v);
+  hypergraph.uncontract(memento);
+
+  ASSERT_TRUE(hypergraph.nodeIsEnabled(u));
+  ASSERT_TRUE(hypergraph.nodeIsEnabled(v));
+  ASSERT_EQ(1, hypergraph.nodeWeight(u));
+  ASSERT_EQ(1, hypergraph.nodeWeight(v));
+
+  verifyIterator<HyperedgeID>({1, 281474976710656}, [&] {
+    return hypergraph.incidentEdges(u);
+  });
+
+  verifyIterator<HyperedgeID>({1}, [&] {
+    return hypergraph.incidentEdges(v);
+  });
+
+  verifyPinIterators(hypergraph, {0, 1, 281474976710656, 281474976710657},
+   { {id[0], id[2]}, {id[0], id[1], id[3], id[4]}, {id[3], id[4], id[6]}, {id[2], id[5], id[6]} });
+}
+
+TEST_F(AHypergraphWithTwoStreamingHypergraphs, UncontractsTwoHypernodes6) {
+  TestHypergraph hypergraph = construct_test_hypergraph(*this);
+  std::vector<HypernodeID> id = {GLOBAL_ID(hypergraph, 0), GLOBAL_ID(hypergraph, 1), GLOBAL_ID(hypergraph, 2),
+    GLOBAL_ID(hypergraph, 3), GLOBAL_ID(hypergraph, 4), GLOBAL_ID(hypergraph, 5), GLOBAL_ID(hypergraph, 6)};
+  HypernodeID u = id[0];
+  HypernodeID v = id[6];
+  auto memento = hypergraph.contract(u, v);
+  hypergraph.uncontract(memento);
+
+  ASSERT_TRUE(hypergraph.nodeIsEnabled(u));
+  ASSERT_TRUE(hypergraph.nodeIsEnabled(v));
+  ASSERT_EQ(1, hypergraph.nodeWeight(u));
+  ASSERT_EQ(1, hypergraph.nodeWeight(v));
+
+  verifyIterator<HyperedgeID>({0, 1}, [&] {
+    return hypergraph.incidentEdges(u);
+  });
+
+  verifyIterator<HyperedgeID>({281474976710656, 281474976710657}, [&] {
+    return hypergraph.incidentEdges(v);
+  });
+
+  verifyPinIterators(hypergraph, {0, 1, 281474976710656, 281474976710657},
+   { {id[0], id[2]}, {id[0], id[1], id[3], id[4]}, {id[3], id[4], id[6]}, {id[2], id[5], id[6]} });
+}
+
+TEST_F(AHypergraphWithTwoStreamingHypergraphs, FullyContractsHypergraphAndThenUncontract) {
+  TestHypergraph hypergraph = construct_test_hypergraph(*this);
+  std::vector<HypernodeID> id = {GLOBAL_ID(hypergraph, 0), GLOBAL_ID(hypergraph, 1), GLOBAL_ID(hypergraph, 2),
+    GLOBAL_ID(hypergraph, 3), GLOBAL_ID(hypergraph, 4), GLOBAL_ID(hypergraph, 5), GLOBAL_ID(hypergraph, 6)};
+  auto memento_1 = hypergraph.contract(id[0], id[2]);
+  auto memento_2 = hypergraph.contract(id[5], id[6]);
+  auto memento_3 = hypergraph.contract(id[3], id[4]);
+  auto memento_4 = hypergraph.contract(id[0], id[1]);
+  auto memento_5 = hypergraph.contract(id[0], id[3]);
+  auto memento_6 = hypergraph.contract(id[0], id[5]);
+
+  // Initial State
+  {
+    ASSERT_TRUE(hypergraph.nodeIsEnabled(id[0]));
+    ASSERT_EQ(7, hypergraph.nodeWeight(id[0]));
+
+    verifyIterator<HyperedgeID>({0, 1, 281474976710656, 281474976710657}, [&] {
+      return hypergraph.incidentEdges(id[0]);
+    });
+
+    verifyPinIterators(hypergraph, {0, 1, 281474976710656, 281474976710657},
+    { {id[0]}, {id[0]}, {id[0]}, {id[0]} });
+  }
+
+  // First Uncontraction
+  {
+    hypergraph.uncontract(memento_6);
+
+    ASSERT_TRUE(hypergraph.nodeIsEnabled(id[0]));
+    ASSERT_TRUE(hypergraph.nodeIsEnabled(id[5]));
+    ASSERT_EQ(5, hypergraph.nodeWeight(id[0]));
+    ASSERT_EQ(2, hypergraph.nodeWeight(id[5]));
+
+    verifyIterator<HyperedgeID>({0, 1, 281474976710656, 281474976710657}, [&] {
+      return hypergraph.incidentEdges(id[0]);
+    });
+
+    verifyIterator<HyperedgeID>({281474976710656, 281474976710657}, [&] {
+      return hypergraph.incidentEdges(id[5]);
+    });
+
+    verifyPinIterators(hypergraph, {0, 1, 281474976710656, 281474976710657},
+    { {id[0]}, {id[0]}, {id[0], id[5]}, {id[0], id[5]} });
+  }
+
+  // Second Uncontraction
+  {
+    hypergraph.uncontract(memento_5);
+
+    ASSERT_TRUE(hypergraph.nodeIsEnabled(id[0]));
+    ASSERT_TRUE(hypergraph.nodeIsEnabled(id[3]));
+    ASSERT_EQ(3, hypergraph.nodeWeight(id[0]));
+    ASSERT_EQ(2, hypergraph.nodeWeight(id[3]));
+
+    verifyIterator<HyperedgeID>({0, 1, 281474976710657}, [&] {
+      return hypergraph.incidentEdges(id[0]);
+    });
+
+    verifyIterator<HyperedgeID>({1, 281474976710656}, [&] {
+      return hypergraph.incidentEdges(id[3]);
+    });
+
+    verifyPinIterators(hypergraph, {0, 1, 281474976710656, 281474976710657},
+    { {id[0]}, {id[0], id[3]}, {id[3], id[5]}, {id[0], id[5]} });
+  }
+
+  // Third Uncontraction
+  {
+    hypergraph.uncontract(memento_4);
+
+    ASSERT_TRUE(hypergraph.nodeIsEnabled(id[0]));
+    ASSERT_TRUE(hypergraph.nodeIsEnabled(id[1]));
+    ASSERT_EQ(2, hypergraph.nodeWeight(id[0]));
+    ASSERT_EQ(1, hypergraph.nodeWeight(id[1]));
+
+    verifyIterator<HyperedgeID>({0, 1, 281474976710657}, [&] {
+      return hypergraph.incidentEdges(id[0]);
+    });
+
+    verifyIterator<HyperedgeID>({1}, [&] {
+      return hypergraph.incidentEdges(id[1]);
+    });
+
+    verifyPinIterators(hypergraph, {0, 1, 281474976710656, 281474976710657},
+    { {id[0]}, {id[0], id[1], id[3]}, {id[3], id[5]}, {id[0], id[5]} });
+  }
+
+  // Fourth Uncontraction
+  {
+    hypergraph.uncontract(memento_3);
+
+    ASSERT_TRUE(hypergraph.nodeIsEnabled(id[3]));
+    ASSERT_TRUE(hypergraph.nodeIsEnabled(id[4]));
+    ASSERT_EQ(1, hypergraph.nodeWeight(id[3]));
+    ASSERT_EQ(1, hypergraph.nodeWeight(id[4]));
+
+    verifyIterator<HyperedgeID>({1, 281474976710656}, [&] {
+      return hypergraph.incidentEdges(id[3]);
+    });
+
+    verifyIterator<HyperedgeID>({1, 281474976710656}, [&] {
+      return hypergraph.incidentEdges(id[4]);
+    });
+
+    verifyPinIterators(hypergraph, {0, 1, 281474976710656, 281474976710657},
+    { {id[0]}, {id[0], id[1], id[3], id[4]}, {id[3], id[4], id[5]}, {id[0], id[5]} });
+  }
+
+  // Fifth Uncontraction
+  {
+    hypergraph.uncontract(memento_2);
+
+    ASSERT_TRUE(hypergraph.nodeIsEnabled(id[5]));
+    ASSERT_TRUE(hypergraph.nodeIsEnabled(id[6]));
+    ASSERT_EQ(1, hypergraph.nodeWeight(id[5]));
+    ASSERT_EQ(1, hypergraph.nodeWeight(id[6]));
+
+    verifyIterator<HyperedgeID>({281474976710657}, [&] {
+      return hypergraph.incidentEdges(id[5]);
+    });
+
+    verifyIterator<HyperedgeID>({281474976710656, 281474976710657}, [&] {
+      return hypergraph.incidentEdges(id[6]);
+    });
+
+    verifyPinIterators(hypergraph, {0, 1, 281474976710656, 281474976710657},
+    { {id[0]}, {id[0], id[1], id[3], id[4]}, {id[3], id[4], id[6]}, {id[0], id[5], id[6]} });
+  }
+
+  // Sixth Uncontraction
+  {
+    hypergraph.uncontract(memento_1);
+
+    ASSERT_TRUE(hypergraph.nodeIsEnabled(id[0]));
+    ASSERT_TRUE(hypergraph.nodeIsEnabled(id[2]));
+    ASSERT_EQ(1, hypergraph.nodeWeight(id[0]));
+    ASSERT_EQ(1, hypergraph.nodeWeight(id[2]));
+
+    verifyIterator<HyperedgeID>({0, 1}, [&] {
+      return hypergraph.incidentEdges(id[0]);
+    });
+
+    verifyIterator<HyperedgeID>({0, 281474976710657}, [&] {
+      return hypergraph.incidentEdges(id[2]);
+    });
+
+    verifyPinIterators(hypergraph, {0, 1, 281474976710656, 281474976710657},
+    { {id[0], id[2]}, {id[0], id[1], id[3], id[4]}, {id[3], id[4], id[6]}, {id[2], id[5], id[6]} });
+  }
+}
 
 } // namespace ds
 } // namespace mt_kahypar
