@@ -237,18 +237,22 @@ class Hypergraph {
     return _num_pins;
   }
 
+  HypernodeWeight totalWeight() const {
+    HypernodeWeight weight = 0;
+    for ( const StreamingHypergraph& hypergraph : _hypergraphs ) {
+      weight += hypergraph.totalWeight();
+    }
+    return weight;
+  }
+
   // ! Returns a for-each iterator-pair to loop over the set of incident hyperedges of hypernode u.
   std::pair<IncidenceIterator, IncidenceIterator> incidentEdges(const HypernodeID u) const {
-    int node = StreamingHypergraph::get_numa_node_of_vertex(u);
-    ASSERT(node < (int) _hypergraphs.size());
-    return _hypergraphs[node].incidentEdges(u);
+    return hypergraph_of_vertex(u).incidentEdges(u);
   }
 
   // ! Returns a for-each iterator-pair to loop over the set pins of hyperedge e.
   std::pair<IncidenceIterator, IncidenceIterator> pins(const HyperedgeID e) const {
-    int node = StreamingHypergraph::get_numa_node_of_hyperedge(e);
-    ASSERT(node < (int) _hypergraphs.size());
-    return _hypergraphs[node].pins(e);
+    return hypergraph_of_edge(e).pins(e);
   }
 
   std::pair<GlobalHypernodeIterator, GlobalHypernodeIterator> nodes() const {
@@ -288,38 +292,12 @@ class Hypergraph {
   }
 
   HypernodeID originalNodeID(const HypernodeID u) const {
-    int node = StreamingHypergraph::get_numa_node_of_vertex(u);
-    ASSERT(node < (int) _hypergraphs.size());
-    return _hypergraphs[node].originalNodeId(u);
+    return hypergraph_of_vertex(u).originalNodeId(u);
   }
 
   HypernodeID globalNodeID(const HypernodeID u) const {
     ASSERT(u < _node_mapping.size());
     return _node_mapping[u];
-  }
-
-  HypernodeWeight nodeWeight(const HypernodeID u) const {
-    int node = StreamingHypergraph::get_numa_node_of_vertex(u);
-    ASSERT(node < (int) _hypergraphs.size());
-    return _hypergraphs[node].nodeWeight(u);
-  }
-
-  void setNodeWeight(const HypernodeID u, const HypernodeWeight weight) {
-    int node = StreamingHypergraph::get_numa_node_of_vertex(u);
-    ASSERT(node < (int) _hypergraphs.size());
-    _hypergraphs[node].setNodeWeight(u, weight);
-  }
-
-  HypernodeWeight edgeWeight(const HyperedgeID e) const {
-    int node = StreamingHypergraph::get_numa_node_of_hyperedge(e);
-    ASSERT(node < (int) _hypergraphs.size());
-    return _hypergraphs[node].edgeWeight(e);
-  }
-
-  void setEdgeWeight(const HyperedgeID e, const HyperedgeWeight weight) {
-    int node = StreamingHypergraph::get_numa_node_of_hyperedge(e);
-    ASSERT(node < (int) _hypergraphs.size());
-    _hypergraphs[node].setEdgeWeight(e, weight);
   }
 
   /*!
@@ -345,13 +323,9 @@ class Hypergraph {
     DBG << "Contracting (" << u << "," << v << ")";
     setNodeWeight(u, nodeWeight(u) + nodeWeight(v));
 
-    int node_u = StreamingHypergraph::get_numa_node_of_vertex(u);
-    ASSERT(node_u < (int) _hypergraphs.size());
-    StreamingHypergraph& hypergraph_of_u = _hypergraphs[node_u];
+    StreamingHypergraph& hypergraph_of_u = hypergraph_of_vertex(u);
     for ( const HyperedgeID& he : incidentEdges(v) ) {
-      int node = StreamingHypergraph::get_numa_node_of_hyperedge(he);
-      ASSERT(node < (int) _hypergraphs.size());
-      _hypergraphs[node].contract(u, v, he, hypergraph_of_u);
+      hypergraph_of_edge(he).contract(u, v, he, hypergraph_of_u);
     }
 
     disableHypernode(v);
@@ -372,16 +346,12 @@ class Hypergraph {
     reverseContraction(memento);
     markAllIncidentNetsOf(memento.v);
 
-    int node_u = StreamingHypergraph::get_numa_node_of_vertex(memento.u);
-    ASSERT(node_u < (int) _hypergraphs.size());
-    const auto& incident_hes_of_u = _hypergraphs[node_u].incidentNets(memento.u);
+    const auto& incident_hes_of_u = hypergraph_of_vertex(memento.u).incidentNets(memento.u);
     size_t incident_hes_end = incident_hes_of_u.size();
 
     for (size_t incident_hes_it = 0; incident_hes_it != incident_hes_end; ++incident_hes_it) {
       const HyperedgeID he = incident_hes_of_u[incident_hes_it];
-      int node = StreamingHypergraph::get_numa_node_of_hyperedge(he);
-      ASSERT(node < (int) _hypergraphs.size());
-      if ( _hypergraphs[node].uncontract(memento.u, memento.v, he, incident_hes_it, _hypergraphs) ) {
+      if ( hypergraph_of_edge(he).uncontract(memento.u, memento.v, he, incident_hes_it, _hypergraphs) ) {
         --incident_hes_it;
         --incident_hes_end;
       }
@@ -392,13 +362,9 @@ class Hypergraph {
   void removeEdge(const HyperedgeID he) {
     ASSERT(edgeIsEnabled(he), "Hyperedge" << he << "is disabled");
     for ( const HypernodeID& pin : pins(he) ) {
-      int node = StreamingHypergraph::get_numa_node_of_vertex(pin);
-      ASSERT(node < (int) _hypergraphs.size());
-      _hypergraphs[node].removeIncidentEdgeFromHypernode(he, pin);
+      hypergraph_of_vertex(pin).removeIncidentEdgeFromHypernode(he, pin);
     }
-    int node = StreamingHypergraph::get_numa_node_of_hyperedge(he);
-    ASSERT(node < (int) _hypergraphs.size());
-    _hypergraphs[node].disableHyperedge(he);
+    hypergraph_of_edge(he).disableHyperedge(he);
     // TODO(heuer): invalidate pin counts of he
   }
 
@@ -407,56 +373,64 @@ class Hypergraph {
     enableHyperedge(he);
     // TODO(heuer): reset partition pin counts of he
     for ( const HypernodeID& pin : pins(he) ) {
-      int node = StreamingHypergraph::get_numa_node_of_vertex(pin);
-      ASSERT(node < (int) _hypergraphs.size());
-      _hypergraphs[node].insertIncidentEdgeToHypernode(he, pin);
+      hypergraph_of_vertex(pin).insertIncidentEdgeToHypernode(he, pin);
     }
   }
 
   // TODO(heuer): restore operation for parallel hyperedges
   // if part ids are integrated
 
-  size_t edgeHash(const HypernodeID e) const {
-    int node = StreamingHypergraph::get_numa_node_of_hyperedge(e);
-    ASSERT(node < (int) _hypergraphs.size());
-    return _hypergraphs[node].edgeHash(e);
+  HypernodeWeight nodeWeight(const HypernodeID u) const {
+    return hypergraph_of_vertex(u).nodeWeight(u);
+  }
+
+  void setNodeWeight(const HypernodeID u, const HypernodeWeight weight) {
+    hypergraph_of_vertex(u).setNodeWeight(u, weight);
+  }
+
+  HypernodeWeight edgeWeight(const HyperedgeID e) const {
+    return hypergraph_of_edge(e).edgeWeight(e);
+  }
+
+  void setEdgeWeight(const HyperedgeID e, const HyperedgeWeight weight) {
+    hypergraph_of_edge(e).setEdgeWeight(e, weight);
+  }
+
+  HyperedgeID nodeDegree(const HypernodeID u) const {
+    return hypergraph_of_vertex(u).nodeDegree();
+  }
+
+  HypernodeID edgeSize(const HyperedgeID e) const {
+    return hypergraph_of_edge(e).edgeSize(e);
+  }
+
+  size_t edgeHash(const HyperedgeID e) const {
+    return hypergraph_of_edge(e).edgeHash(e);
   }
 
   bool nodeIsEnabled(const HypernodeID u) const {
-    int node = StreamingHypergraph::get_numa_node_of_vertex(u);
-    ASSERT(node < (int) _hypergraphs.size());
-    return _hypergraphs[node].nodeIsEnabled(u);
+    return hypergraph_of_vertex(u).nodeIsEnabled(u);
   }
 
   bool edgeIsEnabled(const HyperedgeID e) const {
-    int node = StreamingHypergraph::get_numa_node_of_hyperedge(e);
-    ASSERT(node < (int) _hypergraphs.size());
-    return _hypergraphs[node].edgeIsEnabled(e);
+    return hypergraph_of_edge(e).edgeIsEnabled(e);
   }
 
   void enableHypernode(const HypernodeID u) {
-    int node = StreamingHypergraph::get_numa_node_of_vertex(u);
-    ASSERT(node < (int) _hypergraphs.size());
-    _hypergraphs[node].enableHypernode(u);
+    hypergraph_of_vertex(u).enableHypernode(u);
   }
 
   void disableHypernode(const HypernodeID u) {
-    int node = StreamingHypergraph::get_numa_node_of_vertex(u);
-    ASSERT(node < (int) _hypergraphs.size());
-    _hypergraphs[node].disableHypernode(u);
+    hypergraph_of_vertex(u).disableHypernode(u);
   }
 
   void enableHyperedge(const HyperedgeID e) {
-    int node = StreamingHypergraph::get_numa_node_of_hyperedge(e);
-    ASSERT(node < (int) _hypergraphs.size());
-    _hypergraphs[node].enableHyperedge(e);
+    hypergraph_of_edge(e).enableHyperedge(e);
   }
 
   // ! Only for testing
   void disableHyperedge(const HyperedgeID e) {
-    int node = StreamingHypergraph::get_numa_node_of_hyperedge(e);
-    ASSERT(node < (int) _hypergraphs.size());
-    _hypergraphs[node].disableHyperedge(e);
+    hypergraph_of_edge(e).disableHyperedge(e);
   }
 
  private:
@@ -467,9 +441,7 @@ class Hypergraph {
   }
 
   KAHYPAR_ATTRIBUTE_ALWAYS_INLINE void markAllIncidentNetsOf(const HypernodeID v) {
-    int node = StreamingHypergraph::get_numa_node_of_vertex(v);
-    ASSERT(node < (int) _hypergraphs.size());
-    _hypergraphs[node].markAllIncidentNetsOf(v, _hypergraphs);
+    hypergraph_of_vertex(v).markAllIncidentNetsOf(v, _hypergraphs);
   }
 
   void computeNodeMapping() {
@@ -585,6 +557,26 @@ class Hypergraph {
       _num_hyperedges += _hypergraphs[node].initialNumEdges();
       _num_pins += _hypergraphs[node].initialNumPins();
     }
+  }
+
+  const StreamingHypergraph& hypergraph_of_vertex(const HypernodeID u) const {
+    int node = StreamingHypergraph::get_numa_node_of_vertex(u);
+    ASSERT(node < (int) _hypergraphs.size());
+    return _hypergraphs[node];
+  }
+
+  const StreamingHypergraph& hypergraph_of_edge(const HyperedgeID e) const {
+    int node = StreamingHypergraph::get_numa_node_of_hyperedge(e);
+    ASSERT(node < (int) _hypergraphs.size());
+    return _hypergraphs[node];
+  }
+
+  StreamingHypergraph& hypergraph_of_vertex(const HypernodeID u) {
+    return const_cast<StreamingHypergraph&>(static_cast<const Hypergraph&>(*this).hypergraph_of_vertex(u));
+  }
+
+  StreamingHypergraph& hypergraph_of_edge(const HyperedgeID e) {
+    return const_cast<StreamingHypergraph&>(static_cast<const Hypergraph&>(*this).hypergraph_of_edge(e));
   }
 
   // ! Number of hypernodes

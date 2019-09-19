@@ -136,6 +136,7 @@ static inline Hypergraph readHypergraphFile(const std::string& filename) {
   if (file) {
     readHGRHeader(file, num_hyperedges, num_hypernodes, type);
     hypergraph = readHyperedges(file, num_hypernodes, num_hyperedges, type);
+    // TODO(heuer): Read hypernodes weight
     file.close();
   } else {
     std::cerr << "Error: File not found: " << std::endl;

@@ -74,6 +74,7 @@ TEST_F(AHypergraphWithTwoStreamingHypergraphs, ContainsCorrectNumberofNodesEdges
   ASSERT_EQ(7, hypergraph.initialNumNodes());
   ASSERT_EQ(4, hypergraph.initialNumEdges());
   ASSERT_EQ(12, hypergraph.initialNumPins());
+  ASSERT_EQ(7, hypergraph.totalWeight());
 }
 
 TEST_F(AHypergraphWithTwoStreamingHypergraphs, ChecksLocalNodeIterators1) {
@@ -1213,7 +1214,7 @@ TEST_F(AHypergraphWithTwoStreamingHypergraphs, ContractionsIntermixedWithEdgeRem
   hypergraph.uncontract(memento_2);
   hypergraph.restoreEdge(0);
   hypergraph.uncontract(memento_1);
-  
+
   verifyPinIterators(hypergraph, {0, 1, 281474976710656, 281474976710657},
    { {id[0], id[2]}, {id[0], id[1], id[3], id[4]}, {id[3], id[4], id[6]}, {id[2], id[5], id[6]} });
 }
