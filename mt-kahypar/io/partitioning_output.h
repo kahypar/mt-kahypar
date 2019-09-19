@@ -21,9 +21,85 @@
 #pragma once
 
 #include "mt-kahypar/partition/context.h"
+#include "mt-kahypar/partition/metrics.h"
+#include "mt-kahypar/utils/timer.h"
 
 namespace mt_kahypar {
 namespace io {
+
+namespace internal {
+struct Statistic {
+  uint64_t min = 0;
+  uint64_t q1 = 0;
+  uint64_t med = 0;
+  uint64_t q3 = 0;
+  uint64_t max = 0;
+  double avg = 0.0;
+  double sd = 0.0;
+};
+
+template <typename T>
+Statistic createStats(const std::vector<T>& vec, const double avg, const double stdev) {
+  internal::Statistic stats;
+  if (!vec.empty()) {
+    const auto quartiles = math::firstAndThirdQuartile(vec);
+    stats.min = vec.front();
+    stats.q1 = quartiles.first;
+    stats.med = math::median(vec);
+    stats.q3 = quartiles.second;
+    stats.max = vec.back();
+    stats.avg = avg;
+    stats.sd = stdev;
+  }
+  return stats;
+}
+
+
+void printStats(const Statistic& he_size_stats,
+                const Statistic& he_weight_stats,
+                const Statistic& hn_deg_stats,
+                const Statistic& hn_weight_stats) {
+  // default double precision is 7
+  const uint8_t double_width = 7;
+  const uint8_t he_size_width = std::max(math::digits(he_size_stats.max), double_width) + 4;
+  const uint8_t he_weight_width = std::max(math::digits(he_weight_stats.max), double_width) + 4;
+  const uint8_t hn_deg_width = std::max(math::digits(hn_deg_stats.max), double_width) + 4;
+  const uint8_t hn_weight_width = std::max(math::digits(hn_weight_stats.max), double_width) + 4;
+
+  LOG << "HE size" << std::right << std::setw(he_size_width + 10)
+      << "HE weight" << std::right << std::setw(he_weight_width + 8)
+      << "HN degree" << std::right << std::setw(hn_deg_width + 8)
+      << "HN weight";
+  LOG << "| min=" << std::left << std::setw(he_size_width) << he_size_stats.min
+      << " | min=" << std::left << std::setw(he_weight_width) << he_weight_stats.min
+      << " | min=" << std::left << std::setw(hn_deg_width) << hn_deg_stats.min
+      << " | min=" << std::left << std::setw(hn_weight_width) << hn_weight_stats.min;
+  LOG << "| Q1 =" << std::left << std::setw(he_size_width) << he_size_stats.q1
+      << " | Q1 =" << std::left << std::setw(he_weight_width) << he_weight_stats.q1
+      << " | Q1 =" << std::left << std::setw(hn_deg_width) << hn_deg_stats.q1
+      << " | Q1 =" << std::left << std::setw(hn_weight_width) << hn_weight_stats.q1;
+  LOG << "| med=" << std::left << std::setw(he_size_width) << he_size_stats.med
+      << " | med=" << std::left << std::setw(he_weight_width) << he_weight_stats.med
+      << " | med=" << std::left << std::setw(hn_deg_width) << hn_deg_stats.med
+      << " | med=" << std::left << std::setw(hn_weight_width) << hn_weight_stats.med;
+  LOG << "| Q3 =" << std::left << std::setw(he_size_width) << he_size_stats.q3
+      << " | Q3 =" << std::left << std::setw(he_weight_width) << he_weight_stats.q3
+      << " | Q3 =" << std::left << std::setw(hn_deg_width) << hn_deg_stats.q3
+      << " | Q3 =" << std::left << std::setw(hn_weight_width) << hn_weight_stats.q3;
+  LOG << "| max=" << std::left << std::setw(he_size_width) << he_size_stats.max
+      << " | max=" << std::left << std::setw(he_weight_width) << he_weight_stats.max
+      << " | max=" << std::left << std::setw(hn_deg_width) << hn_deg_stats.max
+      << " | max=" << std::left << std::setw(hn_weight_width) << hn_weight_stats.max;
+  LOG << "| avg=" << std::left << std::setw(he_size_width) << he_size_stats.avg
+      << " | avg=" << std::left << std::setw(he_weight_width) << he_weight_stats.avg
+      << " | avg=" << std::left << std::setw(hn_deg_width) << hn_deg_stats.avg
+      << " | avg=" << std::left << std::setw(hn_weight_width) << hn_weight_stats.avg;
+  LOG << "| sd =" << std::left << std::setw(he_size_width) << he_size_stats.sd
+      << " | sd =" << std::left << std::setw(he_weight_width) << he_weight_stats.sd
+      << " | sd =" << std::left << std::setw(hn_deg_width) << hn_deg_stats.sd
+      << " | sd =" << std::left << std::setw(hn_weight_width) << hn_weight_stats.sd;
+}
+}  // namespace internal
 
 static inline void printBanner(const Context& context) {
   if (!context.partition.quiet_mode) {
@@ -42,16 +118,94 @@ static inline void printBanner(const Context& context) {
   }
 }
 
-static inline void printInputInformation(const Context& context/*, const Hypergraph& hypergraph*/) {
+inline void printHypergraphInfo(const Hypergraph& hypergraph, const std::string& name) {
+  std::vector<HypernodeID> he_sizes;
+  std::vector<HyperedgeWeight> he_weights;
+  std::vector<HyperedgeID> hn_degrees;
+  std::vector<HypernodeWeight> hn_weights;
+  he_sizes.reserve(hypergraph.currentNumEdges());
+  he_weights.reserve(hypergraph.currentNumEdges());
+  hn_degrees.reserve(hypergraph.currentNumNodes());
+  hn_weights.reserve(hypergraph.currentNumNodes());
+
+  const double avg_hn_degree = metrics::avgHypernodeDegree(hypergraph);
+  double stdev_hn_degree = 0.0;
+  for (const auto& hn : hypergraph.nodes()) {
+    hn_degrees.push_back(hypergraph.nodeDegree(hn));
+    hn_weights.push_back(hypergraph.nodeWeight(hn));
+    stdev_hn_degree += (hypergraph.nodeDegree(hn) - avg_hn_degree) *
+                       (hypergraph.nodeDegree(hn) - avg_hn_degree);
+  }
+  stdev_hn_degree = std::sqrt(stdev_hn_degree / (hypergraph.currentNumNodes() - 1));
+
+
+  const double avg_he_size = metrics::avgHyperedgeDegree(hypergraph);
+  double stdev_he_size = 0.0;
+  for (const auto& he : hypergraph.edges()) {
+    he_sizes.push_back(hypergraph.edgeSize(he));
+    he_weights.push_back(hypergraph.edgeWeight(he));
+    stdev_he_size += (hypergraph.edgeSize(he) - avg_he_size) *
+                     (hypergraph.edgeSize(he) - avg_he_size);
+  }
+  stdev_he_size = std::sqrt(stdev_he_size / (hypergraph.currentNumEdges() - 1));
+
+  std::sort(he_sizes.begin(), he_sizes.end());
+  std::sort(he_weights.begin(), he_weights.end());
+  std::sort(hn_degrees.begin(), hn_degrees.end());
+  std::sort(hn_weights.begin(), hn_weights.end());
+
+  const double avg_hn_weight = std::accumulate(hn_weights.begin(), hn_weights.end(), 0.0) /
+                               static_cast<double>(hn_weights.size());
+  const double avg_he_weight = std::accumulate(he_weights.begin(), he_weights.end(), 0.0) /
+                               static_cast<double>(he_weights.size());
+
+  double stdev_hn_weight = 0.0;
+  for (const HypernodeWeight& hn_weight : hn_weights) {
+    stdev_hn_weight += (hn_weight - avg_hn_weight) * (hn_weight - avg_hn_weight);
+  }
+  stdev_hn_weight = std::sqrt(stdev_hn_weight / (hypergraph.currentNumNodes() - 1));
+
+  double stdev_he_weight = 0.0;
+  for (const HyperedgeWeight& he_weight : he_weights) {
+    stdev_he_weight += (he_weight - avg_he_weight) * (he_weight - avg_he_weight);
+  }
+  stdev_he_weight = std::sqrt(stdev_he_weight / (hypergraph.currentNumNodes() - 1));
+
+  LOG << "Hypergraph Information";
+  LOG << "Name :" << name;
+  // LOG << "Type:" << hypergraph.typeAsString();
+  LOG << "# HNs :" << hypergraph.currentNumNodes()
+      << "# HEs :" << hypergraph.currentNumEdges()
+      << "# pins:" << hypergraph.currentNumPins();
+
+  internal::printStats(
+    internal::createStats(he_sizes, avg_he_size, stdev_he_size),
+    internal::createStats(he_weights, avg_he_weight, stdev_he_weight),
+    internal::createStats(hn_degrees, avg_hn_degree, stdev_hn_degree),
+    internal::createStats(hn_weights, avg_hn_weight, stdev_hn_weight));
+}
+
+static inline void printInputInformation(const Context& context, const Hypergraph& hypergraph) {
   if (context.type == ContextType::main && !context.partition.quiet_mode) {
     LOG << context;
-    /*if (context.partition.verbose_output) {
+    if (context.partition.verbose_output) {
       LOG << "\n********************************************************************************";
       LOG << "*                                    Input                                     *";
       LOG << "********************************************************************************";
       io::printHypergraphInfo(hypergraph, context.partition.graph_filename.substr(
                                 context.partition.graph_filename.find_last_of('/') + 1));
-    }*/
+    }
+  }
+}
+
+inline void printPartitioningResults(const Hypergraph& hypergraph,
+                                     const Context& context) {
+  unused(hypergraph);
+  if (!context.partition.quiet_mode) {
+    LOG << "********************************************************************************";
+    LOG << "*                             Partitioning Result                              *";
+    LOG << "********************************************************************************";
+    LOG << utils::Timer::instance();
   }
 }
 

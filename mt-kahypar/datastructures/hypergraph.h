@@ -240,6 +240,21 @@ class Hypergraph {
     return _num_pins;
   }
 
+  // TODO(heuer): Replace with correct counter
+  HypernodeID currentNumNodes() const {
+    return _num_hypernodes;
+  }
+
+  // TODO(heuer): Replace with correct counter
+  HyperedgeID currentNumEdges() const {
+    return _num_hyperedges;
+  }
+
+  // TODO(heuer): Replace with correct counter
+  HypernodeID currentNumPins() const {
+    return _num_pins;
+  }
+
   HypernodeWeight totalWeight() const {
     HypernodeWeight weight = 0;
     for ( const StreamingHypergraph& hypergraph : _hypergraphs ) {
@@ -400,7 +415,7 @@ class Hypergraph {
   }
 
   HyperedgeID nodeDegree(const HypernodeID u) const {
-    return hypergraph_of_vertex(u).nodeDegree();
+    return hypergraph_of_vertex(u).nodeDegree(u);
   }
 
   HypernodeID edgeSize(const HyperedgeID e) const {

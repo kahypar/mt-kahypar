@@ -146,6 +146,7 @@ static inline Hypergraph readHyperedges(std::ifstream& file,
 
 static inline Hypergraph readHypergraphFile(const std::string& filename) {
   ASSERT(!filename.empty(), "No filename for hypergraph file specified");
+  HighResClockTimepoint start = std::chrono::high_resolution_clock::now();
   std::ifstream file(filename);
   HyperedgeID num_hyperedges = 0;
   HypernodeID num_hypernodes = 0;
@@ -160,6 +161,9 @@ static inline Hypergraph readHypergraphFile(const std::string& filename) {
     std::cerr << "Error: File not found: " << std::endl;
     exit(EXIT_FAILURE);
   }
+  HighResClockTimepoint end = std::chrono::high_resolution_clock::now();
+  mt_kahypar::utils::Timer::instance().add_timing("hypergraph_import", "Reading Hypergraph File",
+    "", mt_kahypar::utils::Timer::Type::IMPORT, 0, std::chrono::duration<double>(end - start).count());
   return hypergraph;
 }
 
