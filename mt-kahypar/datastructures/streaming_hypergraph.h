@@ -646,6 +646,10 @@ class StreamingHypergraph {
     hypernode(u).disable();
   }
 
+  void enableHyperedge(const HyperedgeID e) {
+    hyperedge(e).enable();
+  }
+
   HypernodeID streamHypernode(HypernodeID original_id, HypernodeWeight weight) {
     // Make sure calling process is part of correct numa node
     ASSERT(HardwareTopology::instance().numa_node_of_cpu(sched_getcpu()) == _node);
@@ -959,6 +963,37 @@ class StreamingHypergraph {
     _incidence_array[slot_of_u] = v;
   }
 
+  KAHYPAR_ATTRIBUTE_ALWAYS_INLINE void removeIncidentEdgeFromHypernode(const HyperedgeID he,
+                                                                       const HypernodeID hn) {
+    using std::swap;
+    ASSERT(!hypernode(hn).isDisabled(), "Hypernode" << hn << "is disabled");
+    
+    HypernodeID local_id = get_local_node_id_of_vertex(hn);
+    ASSERT(local_id < _incident_nets.size());
+    auto begin = _incident_nets[local_id].begin();
+    ASSERT(_incident_nets[local_id].size() > 0);
+    auto last_entry = _incident_nets[local_id].end() - 1;
+    while (*begin != he) {
+      ++begin;
+    }
+    ASSERT(begin < _incident_nets[local_id].end());
+    swap(*begin, *last_entry);
+    _incident_nets[local_id].pop_back();
+  }
+
+  KAHYPAR_ATTRIBUTE_ALWAYS_INLINE void insertIncidentEdgeToHypernode(const HyperedgeID he,
+                                                                     const HypernodeID hn) {
+    ASSERT(!hypernode(hn).isDisabled(), "Hypernode" << hn << "is disabled");
+    HypernodeID local_id = get_local_node_id_of_vertex(hn);
+    ASSERT(local_id < _incident_nets.size());
+    ASSERT(std::count(_incident_nets[local_id].begin(),
+                      _incident_nets[local_id].end(), he)
+            == 0,
+            "HN" << hn << "is already connected to HE" << he);
+    _incident_nets[local_id].push_back(he);
+    // TODO(heuer): increment pin count in part
+  }
+
   KAHYPAR_ATTRIBUTE_ALWAYS_INLINE HypernodeID get_global_node_id() {
     HypernodeID local_node_id = _next_node_id++;
     return ( ( (HypernodeID) _node ) << NUMA_NODE_INDENTIFIER ) | local_node_id;
@@ -991,7 +1026,7 @@ class StreamingHypergraph {
   // ! Accessor for hypernode-related information
   const Hypernode & hypernode(const HypernodeID u) const {
     HypernodeID local_id = get_local_node_id_of_vertex(u);
-    ASSERT(get_numa_node_of_vertex(u) == _node, "Hypernode" << u << "is not part of this numa node");
+    ASSERT(get_numa_node_of_vertex(u) == _node, "Hypernode" << u << "is not part of numa node" << _node);
     ASSERT(local_id < _num_hypernodes, "Hypernode" << u << "does not exist");
     return _hypernodes[local_id];
   }
@@ -1000,7 +1035,7 @@ class StreamingHypergraph {
   const Hyperedge & hyperedge(const HyperedgeID e) const {
     // <= instead of < because of sentinel
     HypernodeID local_id = get_local_edge_id_of_hyperedge(e);
-    ASSERT(get_numa_node_of_hyperedge(e) == _node, "Hyperedge" << e << "is not part of this numa node");
+    ASSERT(get_numa_node_of_hyperedge(e) == _node, "Hyperedge" << e << "is not part of numa node" << _node);
     ASSERT(local_id <= _num_hyperedges, "Hyperedge" << e << "does not exist");
     return _hyperedges[local_id];
   }

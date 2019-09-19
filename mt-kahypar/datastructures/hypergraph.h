@@ -389,6 +389,33 @@ class Hypergraph {
     setNodeWeight(memento.u, nodeWeight(memento.u) - nodeWeight(memento.v));
   }
 
+  void removeEdge(const HyperedgeID he) {
+    ASSERT(edgeIsEnabled(he), "Hyperedge" << he << "is disabled");
+    for ( const HypernodeID& pin : pins(he) ) {
+      int node = StreamingHypergraph::get_numa_node_of_vertex(pin);
+      ASSERT(node < (int) _hypergraphs.size());
+      _hypergraphs[node].removeIncidentEdgeFromHypernode(he, pin);
+    }
+    int node = StreamingHypergraph::get_numa_node_of_hyperedge(he);
+    ASSERT(node < (int) _hypergraphs.size());
+    _hypergraphs[node].disableHyperedge(he);
+    // TODO(heuer): invalidate pin counts of he
+  }
+
+  void restoreEdge(const HyperedgeID he) {
+    ASSERT(!edgeIsEnabled(he), "Hyperedge" << he << "already enabled");
+    enableHyperedge(he);
+    // TODO(heuer): reset partition pin counts of he
+    for ( const HypernodeID& pin : pins(he) ) {
+      int node = StreamingHypergraph::get_numa_node_of_vertex(pin);
+      ASSERT(node < (int) _hypergraphs.size());
+      _hypergraphs[node].insertIncidentEdgeToHypernode(he, pin);
+    }
+  }
+
+  // TODO(heuer): restore operation for parallel hyperedges
+  // if part ids are integrated
+
   size_t edgeHash(const HypernodeID e) const {
     int node = StreamingHypergraph::get_numa_node_of_hyperedge(e);
     ASSERT(node < (int) _hypergraphs.size());
@@ -417,6 +444,12 @@ class Hypergraph {
     int node = StreamingHypergraph::get_numa_node_of_vertex(u);
     ASSERT(node < (int) _hypergraphs.size());
     _hypergraphs[node].disableHypernode(u);
+  }
+
+  void enableHyperedge(const HyperedgeID e) {
+    int node = StreamingHypergraph::get_numa_node_of_hyperedge(e);
+    ASSERT(node < (int) _hypergraphs.size());
+    _hypergraphs[node].enableHyperedge(e);
   }
 
   // ! Only for testing
