@@ -24,6 +24,7 @@
 #include <type_traits>
 #include <atomic>
 #include <functional>
+#include <chrono>
 
 #include "tbb/task_scheduler_observer.h"
 #include "tbb/task_arena.h"
@@ -41,6 +42,7 @@
 #include "mt-kahypar/datastructures/streaming_vector.h"
 #include "mt-kahypar/datastructures/streaming_map.h"
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
+#include "mt-kahypar/utils/timer.h"
 
 
 namespace mt_kahypar {
@@ -93,6 +95,8 @@ class StreamingHypergraph {
                                    TBBNumaArena>;
 
   using IncidentNets = parallel::scalable_vector<parallel::scalable_vector<HyperedgeID>>;
+
+  using HighResClockTimepoint = std::chrono::time_point<std::chrono::high_resolution_clock>;
 
   static_assert( sizeof(HypernodeID) == 8, "Hypernode ID must be 8 byte" );
   static_assert( std::is_unsigned<HypernodeID>::value, "Hypernode ID must be unsigned" );
@@ -774,6 +778,7 @@ class StreamingHypergraph {
     _num_hypernodes = _hypernodes.size();
 
     // Sort hypernodes in increasing order of their node id and ...
+    HighResClockTimepoint start = std::chrono::high_resolution_clock::now();
     tbb::task_group group;
     _arena.execute([&] {
       group.run([&] {
@@ -798,7 +803,12 @@ class StreamingHypergraph {
       });
     });
     TBBNumaArena::instance().wait(_node, group);
+    HighResClockTimepoint end = std::chrono::high_resolution_clock::now();
+    mt_kahypar::utils::Timer::instance().add_timing("sort_and_remap_node_ids", "Sort and Remap Nodes",
+      "initialize_numa_hypernodes", mt_kahypar::utils::Timer::Type::IMPORT, 0, std::chrono::duration<double>(end - start).count());
 
+    // Compute Total Hypergraph Weight
+    start = std::chrono::high_resolution_clock::now();
     _arena.execute([&] {
       group.run([&] {
         _total_weight = tbb::parallel_reduce(tbb::blocked_range<HypernodeID>(0UL, _num_hypernodes), 0,
@@ -813,6 +823,9 @@ class StreamingHypergraph {
       });
     });
     TBBNumaArena::instance().wait(_node, group);
+    end = std::chrono::high_resolution_clock::now();
+    mt_kahypar::utils::Timer::instance().add_timing("compute_total_weight", "Compute Total Weight",
+      "initialize_numa_hypernodes", mt_kahypar::utils::Timer::Type::IMPORT, 1, std::chrono::duration<double>(end - start).count());
 
     ASSERT([&]{
       for ( size_t i = 0; i < _hypernodes.size(); ++i ) {
@@ -844,6 +857,7 @@ class StreamingHypergraph {
     }(), "Initialization of hypernodes failed");
 
     // Stream incident nets
+    start = std::chrono::high_resolution_clock::now();
     _arena.execute([&] {
       group.run([&] {
         tbb::parallel_for(tbb::blocked_range<size_t>(0UL, _hyperedges.size()),
@@ -866,6 +880,10 @@ class StreamingHypergraph {
       });
     });
     TBBNumaArena::instance().wait(_node, group);
+    end = std::chrono::high_resolution_clock::now();
+    mt_kahypar::utils::Timer::instance().add_timing("stream_incident_nets", "Stream Incident Nets",
+      "initialize_numa_hypernodes", mt_kahypar::utils::Timer::Type::IMPORT, 2, std::chrono::duration<double>(end - start).count());
+
 
     _hypernode_stream.clear();
   }

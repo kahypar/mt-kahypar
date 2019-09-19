@@ -33,6 +33,7 @@
 
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/context_enum_classes.h"
+#include "mt-kahypar/utils/timer.h"
 
 namespace mt_kahypar {
 namespace io {
@@ -72,7 +73,8 @@ static inline Hypergraph readHyperedges(std::ifstream& file,
     TBBNumaArena::instance().wait(node, group);
   }
 
-  // WRead input file line by line
+  // Read input file line by line
+  HighResClockTimepoint start = std::chrono::high_resolution_clock::now();
   std::vector<std::string> lines;
   std::string he_line;
   bool has_hyperedge_weights = type == mt_kahypar::Type::EdgeWeights ||
@@ -82,8 +84,13 @@ static inline Hypergraph readHyperedges(std::ifstream& file,
     std::getline(file, he_line);
     lines.push_back(he_line);
   }
+  HighResClockTimepoint end = std::chrono::high_resolution_clock::now();
+  mt_kahypar::utils::Timer::instance().add_timing("sequential_read", "Sequential Line Reading",
+    "hypergraph_import", mt_kahypar::utils::Timer::Type::IMPORT, 0, std::chrono::duration<double>(end - start).count());
+
 
   // Parallel for, for reading hyperedges
+  start = std::chrono::high_resolution_clock::now();
   HardwareTopology& topology = HardwareTopology::instance();
   tbb::parallel_for(tbb::blocked_range<size_t>(0UL, lines.size()),
     [&](const tbb::blocked_range<size_t> range) {
@@ -109,10 +116,14 @@ static inline Hypergraph readHyperedges(std::ifstream& file,
       numa_hypergraphs[node].streamHyperedge(hyperedge, weight);
     }
   });
+  end = std::chrono::high_resolution_clock::now();
+  mt_kahypar::utils::Timer::instance().add_timing("stream_hyperedges", "Stream hyperedges",
+    "hypergraph_import", mt_kahypar::utils::Timer::Type::IMPORT, 1, std::chrono::duration<double>(end - start).count());
 
   // Initialize numa hypergraph
   // Involves to memcpy streamed hyperedges of each cpu into
   // global data structure
+  start = std::chrono::high_resolution_clock::now();
   for ( int node = 0; node < used_numa_nodes; ++node ) {
     group.run([&, node] {
       TBBNumaArena::instance().numa_task_arena(node).execute([&] {
@@ -121,8 +132,15 @@ static inline Hypergraph readHyperedges(std::ifstream& file,
     });
   }
   group.wait();
+  end = std::chrono::high_resolution_clock::now();
+  mt_kahypar::utils::Timer::instance().add_timing("initialize_hyperedges", "Initialize Hyperedges",
+    "hypergraph_import", mt_kahypar::utils::Timer::Type::IMPORT, 2, std::chrono::duration<double>(end - start).count());
 
+  start = std::chrono::high_resolution_clock::now();
   Hypergraph hypergraph(num_hypernodes, std::move(numa_hypergraphs));
+  end = std::chrono::high_resolution_clock::now();
+  mt_kahypar::utils::Timer::instance().add_timing("initialize_hypernodes", "Initialize Hypernodes",
+    "hypergraph_import", mt_kahypar::utils::Timer::Type::IMPORT, 3, std::chrono::duration<double>(end - start).count());
   return hypergraph;
 }
 
@@ -146,5 +164,5 @@ static inline Hypergraph readHypergraphFile(const std::string& filename) {
 }
 
 
-}
+} // namespace io
 } // namespace mt_kahypar

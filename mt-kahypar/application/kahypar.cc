@@ -25,6 +25,7 @@
 #include "mt-kahypar/application/command_line_options.h"
 #include "mt-kahypar/io/hypergraph_io.h"
 
+#include "mt-kahypar/utils/timer.h"
 
 int main(int argc, char* argv[]) {
 
@@ -36,10 +37,17 @@ int main(int argc, char* argv[]) {
   // Initialize TBB task arenas on numa nodes
   mt_kahypar::TBBNumaArena::instance(context.shared_memory.num_threads);
 
+  mt_kahypar::HighResClockTimepoint start = std::chrono::high_resolution_clock::now();
   mt_kahypar::Hypergraph hypergraph = mt_kahypar::io::readHypergraphFile(
     context.partition.graph_filename);
+  mt_kahypar::HighResClockTimepoint end = std::chrono::high_resolution_clock::now();
+  mt_kahypar::utils::Timer::instance().add_timing("hypergraph_import", "Reading Hypergraph File",
+    "", mt_kahypar::utils::Timer::Type::IMPORT, 0, std::chrono::duration<double>(end - start).count());
 
   mt_kahypar::TBBNumaArena::instance().terminate();
+
+
+  LOG << mt_kahypar::utils::Timer::instance();
 
   return 0;
 }

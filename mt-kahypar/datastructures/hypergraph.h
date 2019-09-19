@@ -27,6 +27,7 @@
 #include "kahypar/meta/mandatory.h"
 
 #include "mt-kahypar/datastructures/streaming_hypergraph.h"
+#include "mt-kahypar/utils/timer.h"
 
 namespace mt_kahypar {
 namespace ds {
@@ -59,6 +60,8 @@ class Hypergraph {
   using HypernodeIterator = typename StreamingHypergraph::HypernodeIterator;
   using HyperedgeIterator = typename StreamingHypergraph::HyperedgeIterator;
   using IncidenceIterator = typename StreamingHypergraph::IncidenceIterator;
+  
+  using HighResClockTimepoint = std::chrono::time_point<std::chrono::high_resolution_clock>;
 
   /*!
    * Iterator for HypergraphElements (Hypernodes/Hyperedges)
@@ -449,6 +452,7 @@ class Hypergraph {
     // Computes mapping for each node to a streaming hypergraph
     // A node is assigned to the streaming hypergraph where it occurs
     // most as pin.
+    HighResClockTimepoint start = std::chrono::high_resolution_clock::now();
     tbb::parallel_for(tbb::blocked_range<HypernodeID>(0UL, _num_hypernodes), 
       [&](const tbb::blocked_range<HypernodeID>& range) {
       for ( HypernodeID hn = range.begin(); hn < range.end(); ++hn ) {
@@ -465,6 +469,9 @@ class Hypergraph {
         _node_mapping[hn] = max_node_id;
       }
     });
+    HighResClockTimepoint end = std::chrono::high_resolution_clock::now();
+    mt_kahypar::utils::Timer::instance().add_timing("compute_node_mapping", "Compute Node Mapping",
+      "initialize_hypernodes", mt_kahypar::utils::Timer::Type::IMPORT, 0, std::chrono::duration<double>(end - start).count());
   }
 
   void initializeHypernodes() {
@@ -481,6 +488,7 @@ class Hypergraph {
       return true;
     }(), "Invalid node mapping");
 
+    HighResClockTimepoint start = std::chrono::high_resolution_clock::now();
     size_t num_streaming_hypergraphs = _hypergraphs.size();
     // Stream hypernodes into corresponding streaming hypergraph, where it
     // is assigned to
@@ -502,10 +510,14 @@ class Hypergraph {
     }
     group.wait();
     _node_mapping = std::move(tmp_node_mapping);
+    HighResClockTimepoint end = std::chrono::high_resolution_clock::now();
+    mt_kahypar::utils::Timer::instance().add_timing("stream_hypernodes", "Stream Hypernodes",
+      "initialize_hypernodes", mt_kahypar::utils::Timer::Type::IMPORT, 1, std::chrono::duration<double>(end - start).count());
 
     // Initialize hypernodes on each streaming hypergraph
     // NOTE, that also involves streaming local incident nets to other
     // streaming hypergraphs
+    start = std::chrono::high_resolution_clock::now();
     for ( size_t node = 0; node < num_streaming_hypergraphs; ++node ) {
       group.run([&, node] {
         TBBNumaArena::instance().numa_task_arena(node).execute([&] {
@@ -514,6 +526,9 @@ class Hypergraph {
       });
     }
     group.wait();
+    end = std::chrono::high_resolution_clock::now();
+    mt_kahypar::utils::Timer::instance().add_timing("initialize_numa_hypernodes", "Initialize Numa Hypernodes",
+      "initialize_hypernodes", mt_kahypar::utils::Timer::Type::IMPORT, 2, std::chrono::duration<double>(end - start).count());
 
     // Verify that number of hypernodes is equal to number of hypernodes
     // in streaming hypergraphs
@@ -534,6 +549,7 @@ class Hypergraph {
     }(), "Invalid number hypernodes in streaming hypergraph");
 
     // Initialize incident nets of hypernodes
+    start = std::chrono::high_resolution_clock::now();
     for ( size_t node = 0; node < num_streaming_hypergraphs; ++node ) {
       group.run([&, node] {
         TBBNumaArena::instance().numa_task_arena(node).execute([&] {
@@ -542,6 +558,10 @@ class Hypergraph {
       });
     }
     group.wait();
+    end = std::chrono::high_resolution_clock::now();
+    mt_kahypar::utils::Timer::instance().add_timing("initialize_incident_nets", "Initialize Incident Nets",
+      "initialize_hypernodes", mt_kahypar::utils::Timer::Type::IMPORT, 3, std::chrono::duration<double>(end - start).count());
+
 
     ASSERT([&] {
       // Internally verify that incident nets are constructed correctly

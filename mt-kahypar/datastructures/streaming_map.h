@@ -56,7 +56,7 @@ template< typename Key, typename Value >
 class StreamingMap {
 
   static constexpr bool debug = false;
-  static constexpr size_t BUCKET_FACTOR = 16;
+  static constexpr size_t BUCKET_FACTOR = 128;
 
   using KeyValuePair = std::pair<Key, Value>;
   using Buffer = parallel::scalable_vector<parallel::scalable_vector<KeyValuePair>>;

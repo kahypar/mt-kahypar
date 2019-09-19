@@ -21,6 +21,8 @@
 
 #define USE_HARDWARE_MOCK true
 
+#include <chrono>
+
 #include "mt-kahypar/parallel/hardware_topology.h"
 #include "mt-kahypar/parallel/tbb_numa_arena.h"
 #include "mt-kahypar/datastructures/streaming_hypergraph.h"
@@ -63,5 +65,7 @@ using Hypergraph = mt_kahypar::ds::Hypergraph<HypernodeID,
                                               PartitionID,
                                               HardwareTopology,
                                               TBBNumaArena>;
+
+using HighResClockTimepoint = std::chrono::time_point<std::chrono::high_resolution_clock>;
 
 } // namespace mt_kahypar
