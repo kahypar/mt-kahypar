@@ -168,5 +168,21 @@ static inline Hypergraph readHypergraphFile(const std::string& filename) {
 }
 
 
+static inline void readPartitionFile(const std::string& filename, std::vector<PartitionID>& partition) {
+  ASSERT(!filename.empty(), "No filename for partition file specified");
+  ASSERT(partition.empty(), "Partition vector is not empty");
+  std::ifstream file(filename);
+  if (file) {
+    int part;
+    while (file >> part) {
+      partition.push_back(part);
+    }
+    file.close();
+  } else {
+    std::cerr << "Error: File not found: " << std::endl;
+  }
+}
+
+
 } // namespace io
 } // namespace mt_kahypar

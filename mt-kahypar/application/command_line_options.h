@@ -203,6 +203,8 @@ void processCommandLineInput(Context& context, int argc, char* argv[]) {
     + ".seed"
     + std::to_string(context.partition.seed)
     + ".KaHyPar";
+  context.partition.graph_community_filename =
+    context.partition.graph_filename + ".community";
 }
 
 } // namespace mt_kahypar

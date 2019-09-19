@@ -20,6 +20,10 @@
 
 #pragma once
 
+#include "tbb/parallel_for.h"
+#include "tbb/blocked_range.h"
+
+#include "mt-kahypar/io/hypergraph_io.h"
 #include "mt-kahypar/io/partitioning_output.h"
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/definitions.h"
@@ -86,7 +90,17 @@ inline void Partitioner::sanitize(Hypergraph& hypergraph, const Context& context
 
 inline void Partitioner::preprocess(Hypergraph& hypergraph, const Context& context) {
   unused(hypergraph);
-  unused(context);
+  std::vector<PartitionID> communities;
+  io::readPartitionFile(context.partition.graph_community_filename, communities);
+  ASSERT(communities.size() == hypergraph.initialNumNodes());
+  
+  // Stream community ids into hypergraph
+  tbb::parallel_for(tbb::blocked_range<HypernodeID>(0UL, hypergraph.initialNumNodes()),
+    [&](const tbb::blocked_range<HypernodeID>& range) {
+    for ( HypernodeID hn = range.begin(); hn < range.end(); ++hn ) {
+      hypergraph.streamCommunityID(hypergraph.globalNodeID(hn), communities[hn]);
+    }
+  });
 }
 
 inline void Partitioner::postprocess(Hypergraph& hypergraph) {

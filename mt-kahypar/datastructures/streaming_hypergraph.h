@@ -90,6 +90,8 @@ class StreamingHypergraph {
   using HyperedgeWeight = HyperedgeWeightType_;
   using PartitionID = PartitionIDType_;
 
+  static constexpr PartitionID kInvalidPartition = -1;
+
   using Self = StreamingHypergraph<HypernodeID, HyperedgeID, HypernodeWeight,
                                    HyperedgeWeight, PartitionID, HardwareTopology,
                                    TBBNumaArena>;
@@ -112,6 +114,7 @@ class StreamingHypergraph {
         _id(0),
         _original_id(0),
         _weight(1),
+        _community_id(kInvalidPartition),
         _valid(false) { }
 
       Hypernode(const HypernodeID id,
@@ -120,6 +123,7 @@ class StreamingHypergraph {
         _id(id),
         _original_id(original_id),
         _weight(weight),
+        _community_id(kInvalidPartition),
         _valid(true) { }
 
       HypernodeID nodeId() const {
@@ -161,6 +165,14 @@ class StreamingHypergraph {
         _weight = weight;
       }
 
+      PartitionID communityID() const {
+        return _community_id;
+      }
+
+      void setCommunityID(const PartitionID community_id) {
+        _community_id = community_id;
+      }
+
       bool operator== (const Hypernode& rhs) const {
         return _incident_nets.size() == rhs._incident_nets.size() &&
               _weight == rhs._weight &&
@@ -181,6 +193,8 @@ class StreamingHypergraph {
       HypernodeID _original_id;
       // ! Hypernode weight
       HyperedgeWeight _weight;
+      // ! Community id
+      PartitionID _community_id;
       // ! Flag indicating whether or not the element is active.
       bool _valid;
   };
@@ -648,6 +662,11 @@ class StreamingHypergraph {
     return hyperedge(e).hash();
   }
 
+  PartitionID communityID(const HypernodeID u) const {
+    ASSERT(!hypernode(u).isDisabled(), "Hypernode" << u << "is disabled");
+    return hypernode(u).communityID();
+  }
+
   bool nodeIsEnabled(const HypernodeID u) const {
     return !hypernode(u).isDisabled();
   }
@@ -691,6 +710,10 @@ class StreamingHypergraph {
   void streamIncidentNet(const HypernodeID hn, const HyperedgeID he) {
     ASSERT(get_numa_node_of_vertex(hn) == _node);
     _incident_net_stream.stream(hn, he);
+  }
+
+  void streamCommunityID(const HypernodeID hn, const PartitionID community_id) {
+    hypernode(hn).setCommunityID(community_id);
   }
 
   void initializeHyperedges(const HypernodeID num_hypernodes) {

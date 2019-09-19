@@ -1219,5 +1219,26 @@ TEST_F(AHypergraphWithTwoStreamingHypergraphs, ContractionsIntermixedWithEdgeRem
    { {id[0], id[2]}, {id[0], id[1], id[3], id[4]}, {id[3], id[4], id[6]}, {id[2], id[5], id[6]} });
 }
 
+TEST_F(AHypergraphWithTwoStreamingHypergraphs, StreamsCommunityIDsInParallelIntoHypergraph) {
+  TestHypergraph hypergraph = construct_test_hypergraph(*this);
+  std::vector<PartitionID> communities = { 0, 0, 0, 1, 1, 2, 2 };
+
+  tbb::parallel_for(tbb::blocked_range<HypernodeID>(0UL, hypergraph.initialNumNodes()),
+    [&](const tbb::blocked_range<HypernodeID>& range) {
+    for ( HypernodeID hn = range.begin(); hn < range.end(); ++hn ) {
+      hypergraph.streamCommunityID(hypergraph.globalNodeID(hn), communities[hn]);
+    }
+  });
+
+  ASSERT_EQ(0, hypergraph.communityID(GLOBAL_ID(hypergraph, 0)));
+  ASSERT_EQ(0, hypergraph.communityID(GLOBAL_ID(hypergraph, 1)));
+  ASSERT_EQ(0, hypergraph.communityID(GLOBAL_ID(hypergraph, 2)));
+  ASSERT_EQ(1, hypergraph.communityID(GLOBAL_ID(hypergraph, 3)));
+  ASSERT_EQ(1, hypergraph.communityID(GLOBAL_ID(hypergraph, 4)));
+  ASSERT_EQ(2, hypergraph.communityID(GLOBAL_ID(hypergraph, 5)));
+  ASSERT_EQ(2, hypergraph.communityID(GLOBAL_ID(hypergraph, 6)));
+}
+
+
 } // namespace ds
 } // namespace mt_kahypar

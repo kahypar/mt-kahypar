@@ -426,6 +426,10 @@ class Hypergraph {
     return hypergraph_of_edge(e).edgeHash(e);
   }
 
+  PartitionID communityID(const HypernodeID u) const {
+    return hypergraph_of_vertex(u).communityID(u);
+  }
+
   bool nodeIsEnabled(const HypernodeID u) const {
     return hypergraph_of_vertex(u).nodeIsEnabled(u);
   }
@@ -444,6 +448,10 @@ class Hypergraph {
 
   void enableHyperedge(const HyperedgeID e) {
     hypergraph_of_edge(e).enableHyperedge(e);
+  }
+
+  void streamCommunityID(const HypernodeID hn, const PartitionID community_id) {
+    hypergraph_of_vertex(hn).streamCommunityID(hn, community_id);
   }
 
   // ! Only for testing

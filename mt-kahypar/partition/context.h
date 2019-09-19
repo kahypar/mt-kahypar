@@ -44,12 +44,14 @@ struct PartitioningParameters {
 
   std::string graph_filename { };
   std::string graph_partition_filename { };
+  std::string graph_community_filename { };
 };
 
 inline std::ostream& operator<< (std::ostream& str, const PartitioningParameters& params) {
   str << "Partitioning Parameters:" << std::endl;
   str << "  Hypergraph:                         " << params.graph_filename << std::endl;
   str << "  Partition File:                     " << params.graph_partition_filename << std::endl;
+  str << "  Community File:                     " << params.graph_community_filename << std::endl;
   str << "  Mode:                               " << params.mode << std::endl;
   str << "  Objective:                          " << params.objective << std::endl;
   str << "  k:                                  " << params.k << std::endl;
