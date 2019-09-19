@@ -209,5 +209,10 @@ inline void printPartitioningResults(const Hypergraph& hypergraph,
   }
 }
 
+static inline void printStripe() {
+  LOG << "--------------------------------------------------------------------------------";
+}
+
+
 } // namespace io
 } // namespace mt_kahypar
