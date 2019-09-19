@@ -38,6 +38,7 @@ struct PartitioningParameters {
 
   bool verbose_output = false;
   bool quiet_mode = false;
+  bool detailed_timings = false;
   bool sp_process_output = false;
   bool write_partition_file = true;
 

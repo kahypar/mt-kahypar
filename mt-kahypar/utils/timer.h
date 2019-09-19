@@ -103,13 +103,14 @@ class Timer {
 
  public:
 
-  static Timer& instance() {
+  static Timer& instance(bool show_detailed_timings = false) {
     if ( _instance == nullptr ) {
       std::lock_guard<std::mutex> _lock(_mutex);
       if ( _instance == nullptr ) {
-        _instance = new Timer();
+        _instance = new Timer(show_detailed_timings);
       }
     }
+    _instance->_show_detailed_timings = show_detailed_timings;
     return *_instance;
   }
 
@@ -129,15 +130,17 @@ class Timer {
   friend std::ostream& operator<<(std::ostream& str, const Timer& timer);
 
  private:
-  explicit Timer() :
+  explicit Timer(const bool show_detailed_timings) :
     _timing_mutex(),
-    _timings() { }
+    _timings(),
+    _show_detailed_timings(show_detailed_timings) { }
 
   static std::mutex _mutex;
   static Timer* _instance;
 
   std::mutex _timing_mutex;
   std::unordered_map<std::string, Timing> _timings;
+  bool _show_detailed_timings;
 };
 
 Timer* Timer::_instance { nullptr };
@@ -177,7 +180,9 @@ std::ostream& operator<<(std::ostream& str, const Timer& timer) {
   for ( const Timer::Timing& timing : timings ) {
     if ( timing.is_root() ) {
       print(str, timing, 0);
-      dfs(str, timing, 1);
+      if ( timer._show_detailed_timings ) {
+        dfs(str, timing, 1);
+      }
     }
   }
 

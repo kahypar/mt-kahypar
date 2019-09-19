@@ -202,10 +202,10 @@ inline void printPartitioningResults(const Hypergraph& hypergraph,
                                      const Context& context) {
   unused(hypergraph);
   if (!context.partition.quiet_mode) {
-    LOG << "********************************************************************************";
+    LOG << "\n********************************************************************************";
     LOG << "*                             Partitioning Result                              *";
     LOG << "********************************************************************************";
-    LOG << utils::Timer::instance();
+    LOG << utils::Timer::instance(context.partition.detailed_timings);
   }
 }
 

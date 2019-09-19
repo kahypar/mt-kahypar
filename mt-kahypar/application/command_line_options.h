@@ -107,6 +107,8 @@ po::options_description createGenericOptionsDescription(Context& context,
     "Verbose main partitioning output")
     ("quiet,q", po::value<bool>(&context.partition.quiet_mode)->value_name("<bool>"),
     "Quiet Mode: Completely suppress console output")
+    ("show-detailed-timings", po::value<bool>(&context.partition.detailed_timings)->value_name("<bool>"),
+    "If true, detailed timings overview is shown")
     ("time-limit", po::value<int>(&context.partition.time_limit)->value_name("<int>"),
     "Time limit in seconds")
     ("sp-process,s", po::value<bool>(&context.partition.sp_process_output)->value_name("<bool>"),
