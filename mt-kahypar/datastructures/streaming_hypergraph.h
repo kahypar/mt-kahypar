@@ -941,6 +941,24 @@ class StreamingHypergraph {
     _incident_net_stream.clear();
   }
 
+  void resetPinsToOriginalNodeIds(const std::vector<Self>& hypergraphs) {
+    tbb::task_group group;
+    _arena.execute([&] {
+      group.run([&] {
+        tbb::parallel_for(tbb::blocked_range<size_t>(0UL, this->_num_pins),
+        [&](const tbb::blocked_range<size_t>& range) {
+          for ( size_t i = range.begin(); i < range.end(); ++i ) {
+            HypernodeID pin = this->_incidence_array[i];
+            int node = get_numa_node_of_vertex(pin);
+            ASSERT(node < (int) hypergraphs.size());
+            this->_incidence_array[i] = hypergraphs[node].hypernode(pin).originalNodeId();
+          }
+        });
+      });
+    });
+    TBBNumaArena::instance().wait(_node, group);
+  }
+
   // ! Only for assertion
   bool verify_incident_nets_of_hypergraph(const std::vector<Self>& hypergraphs) const {
     for ( size_t pos = 0; pos < _incident_nets.size(); ++pos ) {
@@ -967,6 +985,13 @@ class StreamingHypergraph {
     hyperedge(e).disable();
   }
 
+  KAHYPAR_ATTRIBUTE_ALWAYS_INLINE static HyperedgeID get_global_edge_id(const int node, const size_t edge_pos) {
+    return ( ( (HyperedgeID) node ) << NUMA_NODE_INDENTIFIER ) | edge_pos;
+  }
+
+  KAHYPAR_ATTRIBUTE_ALWAYS_INLINE static int get_numa_node_of_vertex(const HypernodeID u) {
+    return (int) (u >> NUMA_NODE_INDENTIFIER); 
+  }
 
  private:
 
@@ -1080,10 +1105,6 @@ class StreamingHypergraph {
 
   KAHYPAR_ATTRIBUTE_ALWAYS_INLINE HyperedgeID get_global_edge_id(const size_t edge_pos) const {
     return ( ( (HyperedgeID) _node ) << NUMA_NODE_INDENTIFIER ) | edge_pos;
-  }
-
-  KAHYPAR_ATTRIBUTE_ALWAYS_INLINE static int get_numa_node_of_vertex(const HypernodeID u) {
-    return (int) (u >> NUMA_NODE_INDENTIFIER); 
   }
 
   KAHYPAR_ATTRIBUTE_ALWAYS_INLINE static HypernodeID get_local_node_id_of_vertex(const HypernodeID u) {

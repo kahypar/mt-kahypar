@@ -75,6 +75,14 @@ TEST_F(AHypergraphWithTwoStreamingHypergraphs, ContainsCorrectNumberofNodesEdges
   ASSERT_EQ(4, hypergraph.initialNumEdges());
   ASSERT_EQ(12, hypergraph.initialNumPins());
   ASSERT_EQ(7, hypergraph.totalWeight());
+
+  ASSERT_EQ(3, hypergraph.initialNumNodes(0));
+  ASSERT_EQ(2, hypergraph.initialNumEdges(0));
+  ASSERT_EQ(6, hypergraph.initialNumPins(0));
+
+  ASSERT_EQ(4, hypergraph.initialNumNodes(1));
+  ASSERT_EQ(2, hypergraph.initialNumEdges(1));
+  ASSERT_EQ(6, hypergraph.initialNumPins(1));
 }
 
 TEST_F(AHypergraphWithTwoStreamingHypergraphs, ChecksLocalNodeIterators1) {
@@ -1239,6 +1247,22 @@ TEST_F(AHypergraphWithTwoStreamingHypergraphs, StreamsCommunityIDsInParallelInto
   ASSERT_EQ(1, hypergraph.communityID(GLOBAL_ID(hypergraph, 4)));
   ASSERT_EQ(2, hypergraph.communityID(GLOBAL_ID(hypergraph, 5)));
   ASSERT_EQ(2, hypergraph.communityID(GLOBAL_ID(hypergraph, 6)));
+
+  ASSERT_EQ(3, hypergraph.initialNumCommunityHypernodes(0));
+  ASSERT_EQ(2, hypergraph.initialNumCommunityHypernodes(1));
+  ASSERT_EQ(2, hypergraph.initialNumCommunityHypernodes(2));
+
+  ASSERT_EQ(5, hypergraph.initialNumCommunityPins(0));
+  ASSERT_EQ(4, hypergraph.initialNumCommunityPins(1));
+  ASSERT_EQ(3, hypergraph.initialNumCommunityPins(2));
+}
+
+TEST_F(AHypergraphWithTwoStreamingHypergraphs, ResetsPinsToOriginalIds) {
+  TestHypergraph hypergraph = construct_test_hypergraph(*this);
+  hypergraph.resetPinsToOriginalNodeIds();
+
+  verifyPinIterators(hypergraph, {0, 1, 281474976710656, 281474976710657},
+   { {0, 2}, {0, 1, 3, 4}, {3, 4, 6}, {2, 5, 6} });
 }
 
 

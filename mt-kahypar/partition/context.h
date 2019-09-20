@@ -20,6 +20,7 @@
 #pragma once
 
 #include "kahypar/partition/context_enum_classes.h"
+#include "mt-kahypar/partition/context_enum_classes.h"
 #include "kahypar/definitions.h"
 
 namespace mt_kahypar {
@@ -64,14 +65,18 @@ inline std::ostream& operator<< (std::ostream& str, const PartitioningParameters
 
 struct SharedMemoryParameters {
   size_t num_threads = 1;
-  bool enable_community_redistribution = false;
+  bool use_community_redistribution = false;
+  CommunityAssignmentObjective assignment_objective = CommunityAssignmentObjective::undefined;
+  CommunityAssignmentStrategy assignment_strategy = CommunityAssignmentStrategy::undefined;
 };
 
 inline std::ostream& operator<< (std::ostream& str, const SharedMemoryParameters& params) {
   str << "Shared Memory Parameters:             " << std::endl;
   str << "  Number of Threads:                  " << params.num_threads << std::endl;
   str << "  Use Community Redistribution:       " << std::boolalpha
-      << params.enable_community_redistribution << std::endl;
+      << params.use_community_redistribution << std::endl;
+  str << "  Community Assignment Objective:     " << params.assignment_objective << std::endl;
+  str << "  Community Assignment Strategy:      " << params.assignment_strategy << std::endl;
   return str;
 }
 

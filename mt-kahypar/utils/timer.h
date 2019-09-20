@@ -45,6 +45,17 @@ class Timer {
   };
 
  private:
+ 
+  using Key = std::pair<std::string, std::string>;
+
+  struct PairHasher {
+    template <class T1, class T2>
+    std::size_t operator() (const std::pair<T1, T2> &pair) const
+    {
+      return std::hash<T1>()(pair.first) ^ std::hash<T2>()(pair.second);
+    }
+  };
+
   class Timing {
 
     public:
@@ -118,13 +129,28 @@ class Timer {
                    const std::string& parent, const Type& type, const int order, 
                    const double timing ) {
     std::lock_guard<std::mutex> lock(_timing_mutex);
-    if ( _timings.find(name) == _timings.end() ) {
+    Key key = std::make_pair(parent, name);
+    if ( _timings.find(key) == _timings.end() ) {
       _timings.emplace(
         std::piecewise_construct,
-        std::forward_as_tuple(name),
+        std::forward_as_tuple(key),
+        std::forward_as_tuple(name, description, parent, type, order));
+        _timings.at(key).add_timing(timing);
+    }
+  }
+
+  void update_timing( const std::string& name, const std::string& description, 
+                      const std::string& parent, const Type& type, const int order, 
+                      const double timing ) {
+    std::lock_guard<std::mutex> lock(_timing_mutex);
+    Key key = std::make_pair(parent, name);
+    if ( _timings.find(key) == _timings.end() ) {
+      _timings.emplace(
+        std::piecewise_construct,
+        std::forward_as_tuple(key),
         std::forward_as_tuple(name, description, parent, type, order));
     }
-    _timings.at(name).add_timing(timing);
+    _timings.at(key).add_timing(timing);
   }
 
   friend std::ostream& operator<<(std::ostream& str, const Timer& timer);
@@ -139,7 +165,7 @@ class Timer {
   static Timer* _instance;
 
   std::mutex _timing_mutex;
-  std::unordered_map<std::string, Timing> _timings;
+  std::unordered_map<Key, Timing, PairHasher> _timings;
   bool _show_detailed_timings;
 };
 

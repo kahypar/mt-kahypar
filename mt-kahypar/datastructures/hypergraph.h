@@ -185,6 +185,8 @@ class Hypergraph {
     _num_hyperedges(0),
     _num_pins(0),
     _num_communities(0),
+    _communities_num_hypernodes(),
+    _communities_num_pins(),
     _hypergraphs(),
     _node_mapping() { }
 
@@ -194,6 +196,8 @@ class Hypergraph {
     _num_hyperedges(0),
     _num_pins(0),
     _num_communities(0),
+    _communities_num_hypernodes(),
+    _communities_num_pins(),
     _hypergraphs(std::move(hypergraphs)),
     _node_mapping(num_hypernodes, 0) { 
     computeNodeMapping();
@@ -207,6 +211,8 @@ class Hypergraph {
     _num_hyperedges(0),
     _num_pins(0),
     _num_communities(0),
+    _communities_num_hypernodes(),
+    _communities_num_pins(),
     _hypergraphs(std::move(hypergraphs)),
     _node_mapping(node_mapping) { 
     initializeHypernodes();
@@ -219,6 +225,8 @@ class Hypergraph {
     _num_hyperedges(0),
     _num_pins(0),
     _num_communities(0),
+    _communities_num_hypernodes(),
+    _communities_num_pins(),
     _hypergraphs(std::move(hypergraphs)),
     _node_mapping(std::move(node_mapping)) { 
     initializeHypernodes();
@@ -245,8 +253,33 @@ class Hypergraph {
     return _num_pins;
   }
 
+  HypernodeID initialNumNodes(const int node) const {
+    ASSERT(node < (int)_hypergraphs.size());
+    return _hypergraphs[node].initialNumNodes();
+  }
+
+  HyperedgeID initialNumEdges(const int node) const {
+    ASSERT(node < (int)_hypergraphs.size());
+    return _hypergraphs[node].initialNumEdges();
+  }
+
+  HypernodeID initialNumPins(const int node) const {
+    ASSERT(node < (int)_hypergraphs.size());
+    return _hypergraphs[node].initialNumPins();
+  }
+
   PartitionID numCommunities() const {
     return _num_communities;
+  }
+
+  HypernodeID initialNumCommunityHypernodes(const PartitionID community) const {
+    ASSERT(community < (PartitionID) _communities_num_hypernodes.size());
+    return _communities_num_hypernodes[community];
+  }
+
+  HypernodeID initialNumCommunityPins(const PartitionID community) const {
+    ASSERT(community < (PartitionID) _communities_num_pins.size());
+    return _communities_num_pins[community];
   }
 
   // TODO(heuer): Replace with correct counter
@@ -480,6 +513,40 @@ class Hypergraph {
     HighResClockTimepoint end = std::chrono::high_resolution_clock::now();
     mt_kahypar::utils::Timer::instance().add_timing("compute_number_of_communities", "Compute Num of Communities",
       "initialize_communities", mt_kahypar::utils::Timer::Type::PREPROCESSING, 0, std::chrono::duration<double>(end - start).count());
+
+    start = std::chrono::high_resolution_clock::now();
+    _communities_num_hypernodes.assign(_num_communities, 0);
+    for ( const HypernodeID& hn : nodes() ) {
+      ASSERT(communityID(hn) < _num_communities);
+      ++_communities_num_hypernodes[communityID(hn)];
+    }
+    end = std::chrono::high_resolution_clock::now();
+    mt_kahypar::utils::Timer::instance().add_timing("compute_num_community_hns", "Compute Num Community HNs",
+      "initialize_communities", mt_kahypar::utils::Timer::Type::PREPROCESSING, 1, std::chrono::duration<double>(end - start).count());
+
+    start = std::chrono::high_resolution_clock::now();
+    _communities_num_pins.assign(_num_communities, 0);
+    for ( const HyperedgeID& he : edges() ) {
+      for ( const HypernodeID& pin : pins(he) ) {
+        ASSERT(communityID(pin) < _num_communities);
+        ++_communities_num_pins[communityID(pin)];
+      }
+    }
+    end = std::chrono::high_resolution_clock::now();
+    mt_kahypar::utils::Timer::instance().add_timing("compute_num_community_pins", "Compute Num Community Pins",
+      "initialize_communities", mt_kahypar::utils::Timer::Type::PREPROCESSING, 2, std::chrono::duration<double>(end - start).count());
+  }
+
+  void resetPinsToOriginalNodeIds() {
+    tbb::task_group group;
+    for ( int node = 0; node < (int)_hypergraphs.size(); ++node ) {
+      TBBNumaArena::instance().numa_task_arena(node).execute([&] {
+        group.run([&, node] {
+          _hypergraphs[node].resetPinsToOriginalNodeIds(_hypergraphs);
+        });
+      });
+    }
+    group.wait();
   }
 
   // ! Only for testing
@@ -658,6 +725,11 @@ class Hypergraph {
   HypernodeID _num_pins;
   // ! Number of communities
   PartitionID _num_communities;
+
+  // ! Number of hypernodes in a community
+  parallel::scalable_vector<HypernodeID> _communities_num_hypernodes;
+  // ! Number of pins in a community
+  parallel::scalable_vector<HypernodeID> _communities_num_pins;
 
   std::vector<StreamingHypergraph> _hypergraphs;
   std::vector<HypernodeID> _node_mapping;

@@ -36,6 +36,7 @@
 #include <vector>
 #include <fstream>
 
+#include "mt-kahypar/mt_kahypar.h"
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/io/partitioning_output.h"
 
@@ -125,8 +126,24 @@ po::options_description createSharedMemoryOptionsDescription(Context& context,
     po::value<size_t>(&context.shared_memory.num_threads)->value_name("<size_t>"),
     "Number of threads used during shared memory hypergraph partitioning\n"
     "(default 1)")
-    ("s-enable-community-redistribution", po::value<bool>(&context.shared_memory.enable_community_redistribution)->value_name("<bool>"),
-    "If true, hypergraph is redistributed based on community detection");
+    ("s-enable-community-redistribution", po::value<bool>(&context.shared_memory.use_community_redistribution)->value_name("<bool>"),
+    "If true, hypergraph is redistributed based on community detection")
+    ("s-community-assignment-objective",
+    po::value<std::string>()->value_name("<string>")->notifier(
+      [&](const std::string& objective) {
+      context.shared_memory.assignment_objective = mt_kahypar::communityAssignmentObjectiveFromString(objective);
+    }),
+    "Objective used during community redistribution of hypergraph: \n"
+    " - vertex_objective \n"
+    " - pin_objective")
+    ("s-community-assignment-strategy",
+    po::value<std::string>()->value_name("<string>")->notifier(
+      [&](const std::string& strategy) {
+      context.shared_memory.assignment_strategy = mt_kahypar::communityAssignmentStrategyFromString(strategy);
+    }),
+    "Strategy used during community redistribution of hypergraph: \n"
+    " - bin_packing");
+
   return shared_memory_options;
 }
 

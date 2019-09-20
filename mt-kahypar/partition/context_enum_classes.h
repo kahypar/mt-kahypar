@@ -23,6 +23,8 @@
 #include <iostream>
 #include <string>
   
+#include "kahypar/macros.h"
+
 namespace mt_kahypar {
 
 enum class Type : int8_t {
@@ -31,6 +33,18 @@ enum class Type : int8_t {
   NodeWeights = 10,
   EdgeAndNodeWeights = 11,
 };
+
+enum class CommunityAssignmentObjective {
+  vertex_objective,
+  pin_objective,
+  undefined
+};
+
+enum class CommunityAssignmentStrategy {
+  bin_packing,
+  undefined
+};
+
 
 std::ostream& operator<< (std::ostream& os, const Type& type) {
   switch (type) {
@@ -43,5 +57,43 @@ std::ostream& operator<< (std::ostream& os, const Type& type) {
   return os << static_cast<uint8_t>(type);
 }
 
+std::ostream& operator<< (std::ostream& os, const CommunityAssignmentObjective& objective) {
+  switch (objective) {
+    case CommunityAssignmentObjective::vertex_objective: return os << "vertex_objective";
+    case CommunityAssignmentObjective::pin_objective: return os << "pin_objective";
+    case CommunityAssignmentObjective::undefined: return os << "undefined";
+      // omit default case to trigger compiler warning for missing cases
+  }
+  return os << static_cast<uint8_t>(objective);
+}
+
+std::ostream& operator<< (std::ostream& os, const CommunityAssignmentStrategy& strategy) {
+  switch (strategy) {
+    case CommunityAssignmentStrategy::bin_packing: return os << "bin_packing";
+    case CommunityAssignmentStrategy::undefined: return os << "undefined";
+      // omit default case to trigger compiler warning for missing cases
+  }
+  return os << static_cast<uint8_t>(strategy);
+}
+
+static CommunityAssignmentObjective communityAssignmentObjectiveFromString(const std::string& objective) {
+  if (objective == "vertex_objective") {
+    return CommunityAssignmentObjective::vertex_objective;
+  } else if (objective == "pin_objective") {
+    return CommunityAssignmentObjective::pin_objective;
+  }
+  LOG << "No valid community assignment objective.";
+  exit(0);
+  return CommunityAssignmentObjective::undefined;
+}
+
+static CommunityAssignmentStrategy communityAssignmentStrategyFromString(const std::string& objective) {
+  if (objective == "bin_packing") {
+    return CommunityAssignmentStrategy::bin_packing;
+  }
+  LOG << "No valid community assignment strategy.";
+  exit(0);
+  return CommunityAssignmentStrategy::undefined;
+}
 
 } // namesapce mt_kahypar

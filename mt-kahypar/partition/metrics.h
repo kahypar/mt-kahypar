@@ -30,6 +30,30 @@
 namespace mt_kahypar {
 namespace metrics {
 
+static inline HyperedgeWeight communicationVolume(const Hypergraph& hypergraph) {
+  int used_numa_nodes = TBBNumaArena::instance().num_used_numa_nodes();
+  HyperedgeWeight communication_volume = 0;
+  for ( const HyperedgeID& he : hypergraph.edges() ) {
+    std::vector<size_t> pin_count_on_node(used_numa_nodes, 0);
+    for ( const HypernodeID& pin : hypergraph.pins(he) ) {
+      int node = StreamingHypergraph::get_numa_node_of_vertex(pin);
+      ASSERT(node < used_numa_nodes);
+      ++pin_count_on_node[node];
+    }
+
+    HyperedgeWeight connectivity = 0;
+    for ( int i = 0; i < used_numa_nodes; ++i ) {
+      if ( pin_count_on_node[i] > 0 ) {
+        ++connectivity;
+      }
+    }
+
+    ASSERT(connectivity > 0);
+    communication_volume += (connectivity - 1) * hypergraph.edgeWeight(he);
+  }
+  return communication_volume;
+}
+
 static inline double avgHyperedgeDegree(const Hypergraph& hypergraph) {
   return static_cast<double>(hypergraph.currentNumPins()) / hypergraph.currentNumEdges();
 }
