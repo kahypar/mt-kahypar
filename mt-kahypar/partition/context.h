@@ -64,11 +64,14 @@ inline std::ostream& operator<< (std::ostream& str, const PartitioningParameters
 
 struct SharedMemoryParameters {
   size_t num_threads = 1;
+  bool enable_community_redistribution = false;
 };
 
 inline std::ostream& operator<< (std::ostream& str, const SharedMemoryParameters& params) {
   str << "Shared Memory Parameters:             " << std::endl;
   str << "  Number of Threads:                  " << params.num_threads << std::endl;
+  str << "  Use Community Redistribution:       " << std::boolalpha
+      << params.enable_community_redistribution << std::endl;
   return str;
 }
 

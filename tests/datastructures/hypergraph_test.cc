@@ -1229,7 +1229,9 @@ TEST_F(AHypergraphWithTwoStreamingHypergraphs, StreamsCommunityIDsInParallelInto
       hypergraph.streamCommunityID(hypergraph.globalNodeID(hn), communities[hn]);
     }
   });
+  hypergraph.initializeCommunities();
 
+  ASSERT_EQ(3, hypergraph.numCommunities());
   ASSERT_EQ(0, hypergraph.communityID(GLOBAL_ID(hypergraph, 0)));
   ASSERT_EQ(0, hypergraph.communityID(GLOBAL_ID(hypergraph, 1)));
   ASSERT_EQ(0, hypergraph.communityID(GLOBAL_ID(hypergraph, 2)));

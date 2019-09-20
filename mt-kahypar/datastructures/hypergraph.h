@@ -22,6 +22,7 @@
 #include <algorithm>
 #include <type_traits>
 #include <chrono>
+#include <functional>
 
 #include "kahypar/macros.h"
 #include "kahypar/meta/mandatory.h"
@@ -183,6 +184,7 @@ class Hypergraph {
     _num_hypernodes(0),
     _num_hyperedges(0),
     _num_pins(0),
+    _num_communities(0),
     _hypergraphs(),
     _node_mapping() { }
 
@@ -191,6 +193,7 @@ class Hypergraph {
     _num_hypernodes(num_hypernodes),
     _num_hyperedges(0),
     _num_pins(0),
+    _num_communities(0),
     _hypergraphs(std::move(hypergraphs)),
     _node_mapping(num_hypernodes, 0) { 
     computeNodeMapping();
@@ -203,6 +206,7 @@ class Hypergraph {
     _num_hypernodes(num_hypernodes),    
     _num_hyperedges(0),
     _num_pins(0),
+    _num_communities(0),
     _hypergraphs(std::move(hypergraphs)),
     _node_mapping(node_mapping) { 
     initializeHypernodes();
@@ -214,6 +218,7 @@ class Hypergraph {
     _num_hypernodes(num_hypernodes),
     _num_hyperedges(0),
     _num_pins(0),
+    _num_communities(0),
     _hypergraphs(std::move(hypergraphs)),
     _node_mapping(std::move(node_mapping)) { 
     initializeHypernodes();
@@ -238,6 +243,10 @@ class Hypergraph {
 
   HypernodeID initialNumPins() const {
     return _num_pins;
+  }
+
+  PartitionID numCommunities() const {
+    return _num_communities;
   }
 
   // TODO(heuer): Replace with correct counter
@@ -454,6 +463,25 @@ class Hypergraph {
     hypergraph_of_vertex(hn).streamCommunityID(hn, community_id);
   }
 
+  void initializeCommunities() {
+    // Compute number of communities
+    HighResClockTimepoint start = std::chrono::high_resolution_clock::now();
+    _num_communities = tbb::parallel_reduce(tbb::blocked_range<HypernodeID>(0UL, _num_hypernodes), 0,
+      [this](const tbb::blocked_range<HypernodeID>& range, PartitionID init) {
+        PartitionID num_communities = init;
+        for ( HypernodeID hn = range.begin(); hn < range.end(); ++hn ) {
+          num_communities = std::max(num_communities, communityID(globalNodeID(hn)) + 1);
+        }
+        return num_communities;
+      },
+      [](const PartitionID lhs, const PartitionID rhs) {
+        return std::max(lhs, rhs);
+      });
+    HighResClockTimepoint end = std::chrono::high_resolution_clock::now();
+    mt_kahypar::utils::Timer::instance().add_timing("compute_number_of_communities", "Compute Num of Communities",
+      "initialize_communities", mt_kahypar::utils::Timer::Type::PREPROCESSING, 0, std::chrono::duration<double>(end - start).count());
+  }
+
   // ! Only for testing
   void disableHyperedge(const HyperedgeID e) {
     hypergraph_of_edge(e).disableHyperedge(e);
@@ -628,6 +656,8 @@ class Hypergraph {
   HyperedgeID _num_hyperedges;
   // ! Number of pins
   HypernodeID _num_pins;
+  // ! Number of communities
+  PartitionID _num_communities;
 
   std::vector<StreamingHypergraph> _hypergraphs;
   std::vector<HypernodeID> _node_mapping;

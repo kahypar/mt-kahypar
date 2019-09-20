@@ -124,7 +124,9 @@ po::options_description createSharedMemoryOptionsDescription(Context& context,
     ("s-num-threads",
     po::value<size_t>(&context.shared_memory.num_threads)->value_name("<size_t>"),
     "Number of threads used during shared memory hypergraph partitioning\n"
-    "(default 1)");
+    "(default 1)")
+    ("s-enable-community-redistribution", po::value<bool>(&context.shared_memory.enable_community_redistribution)->value_name("<bool>"),
+    "If true, hypergraph is redistributed based on community detection");
   return shared_memory_options;
 }
 

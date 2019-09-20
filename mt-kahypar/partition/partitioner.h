@@ -76,6 +76,7 @@ inline void Partitioner::configurePreprocessing(const Hypergraph& hypergraph, Co
 }
 
 inline void Partitioner::sanitize(Hypergraph& hypergraph, const Context& context) {
+  HighResClockTimepoint start = std::chrono::high_resolution_clock::now();
   const auto result = _single_node_he_remover.removeSingleNodeHyperedges(hypergraph);
   if (context.partition.verbose_output && result.num_removed_single_node_hes > 0) {
     LOG << "Performing single-node HE removal:";
@@ -86,21 +87,43 @@ inline void Partitioner::sanitize(Hypergraph& hypergraph, const Context& context
         << "unconnected HNs could have been removed" << "\033[0m";
     io::printStripe();
   }
+  HighResClockTimepoint end = std::chrono::high_resolution_clock::now();
+  mt_kahypar::utils::Timer::instance().add_timing("single_node_hyperedge_removal", "Single Node Hyperedge Removal",
+    "preprocessing", mt_kahypar::utils::Timer::Type::PREPROCESSING, 0, std::chrono::duration<double>(end - start).count());
 }
 
 inline void Partitioner::preprocess(Hypergraph& hypergraph, const Context& context) {
-  unused(hypergraph);
+  HighResClockTimepoint global_start = std::chrono::high_resolution_clock::now();
+  HighResClockTimepoint start = std::chrono::high_resolution_clock::now();
   std::vector<PartitionID> communities;
   io::readPartitionFile(context.partition.graph_community_filename, communities);
   ASSERT(communities.size() == hypergraph.initialNumNodes());
-  
+  HighResClockTimepoint end = std::chrono::high_resolution_clock::now();
+  mt_kahypar::utils::Timer::instance().add_timing("read_community_file", "Read Community File",
+    "community_detection", mt_kahypar::utils::Timer::Type::PREPROCESSING, 0, std::chrono::duration<double>(end - start).count());
+
   // Stream community ids into hypergraph
+  start = std::chrono::high_resolution_clock::now();
   tbb::parallel_for(tbb::blocked_range<HypernodeID>(0UL, hypergraph.initialNumNodes()),
     [&](const tbb::blocked_range<HypernodeID>& range) {
     for ( HypernodeID hn = range.begin(); hn < range.end(); ++hn ) {
       hypergraph.streamCommunityID(hypergraph.globalNodeID(hn), communities[hn]);
     }
-  });
+  });  
+  end = std::chrono::high_resolution_clock::now();
+  mt_kahypar::utils::Timer::instance().add_timing("stream_community_ids", "Stream Community IDs",
+    "community_detection", mt_kahypar::utils::Timer::Type::PREPROCESSING, 1, std::chrono::duration<double>(end - start).count());
+
+  start = std::chrono::high_resolution_clock::now();
+  hypergraph.initializeCommunities();
+  end = std::chrono::high_resolution_clock::now();
+  mt_kahypar::utils::Timer::instance().add_timing("initialize_communities", "Initialize Communities",
+    "community_detection", mt_kahypar::utils::Timer::Type::PREPROCESSING, 2, std::chrono::duration<double>(end - start).count());
+
+
+  HighResClockTimepoint global_end = std::chrono::high_resolution_clock::now();
+  mt_kahypar::utils::Timer::instance().add_timing("community_detection", "Community Detection",
+    "preprocessing", mt_kahypar::utils::Timer::Type::PREPROCESSING, 1, std::chrono::duration<double>(global_end - global_start).count());
 }
 
 inline void Partitioner::postprocess(Hypergraph& hypergraph) {
@@ -113,9 +136,13 @@ inline void Partitioner::partition(Hypergraph& hypergraph, Context& context) {
   setupContext(hypergraph, context);
   io::printInputInformation(context, hypergraph);
 
+  HighResClockTimepoint start = std::chrono::high_resolution_clock::now();
   sanitize(hypergraph, context);
-
   preprocess(hypergraph, context);
+  HighResClockTimepoint end = std::chrono::high_resolution_clock::now();
+  mt_kahypar::utils::Timer::instance().add_timing("preprocessing", "Preprocessing",
+    "", mt_kahypar::utils::Timer::Type::PREPROCESSING, 1, std::chrono::duration<double>(end - start).count());
+
   // partition
   postprocess(hypergraph);
 }
