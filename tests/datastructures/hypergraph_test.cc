@@ -149,6 +149,19 @@ TEST_F(AHypergraphWithTwoStreamingHypergraphs, ChecksGlobalNodeIterator) {
   });
 }
 
+TEST_F(AHypergraphWithTwoStreamingHypergraphs, ChecksGlobalNodeIteratorIfAllNodesAreAssignedToSecondNode) {
+  TestHypergraph hypergraph = this->construct_hypergraph(7, 
+    { {0, 2}, {0, 1, 3, 4}, {3, 4, 6}, {2, 5, 6} },
+    { 1, 1, 1, 1, 1, 1, 1 },
+    { 1, 1, 1, 1 } );
+
+  verifyIterator<HypernodeID>({281474976710656, 281474976710657, 
+    281474976710658, 281474976710659, 281474976710660, 281474976710661,
+    281474976710662}, [&] {
+    return hypergraph.nodes();
+  });
+}
+
 TEST_F(AHypergraphWithTwoStreamingHypergraphs, ChecksGlobalNodeIteratorWithDisabledHypernodes1) {
   TestHypergraph hypergraph = construct_test_hypergraph(*this);
   hypergraph.disableHypernode(2);

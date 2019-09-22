@@ -695,7 +695,7 @@ class StreamingHypergraph {
     return node_id;
   }
 
-  void streamHyperedge(const std::vector<HypernodeID>& hyperedge, const HyperedgeWeight& weight) {
+  void streamHyperedge(const parallel::scalable_vector<HypernodeID>& hyperedge, const HyperedgeWeight& weight) {
     int cpu_id = sched_getcpu();
     // Make sure calling process is part of correct numa node
     ASSERT(HardwareTopology::instance().numa_node_of_cpu(cpu_id) == _node,
@@ -993,6 +993,10 @@ class StreamingHypergraph {
     return (int) (u >> NUMA_NODE_INDENTIFIER); 
   }
 
+  KAHYPAR_ATTRIBUTE_ALWAYS_INLINE static int get_numa_node_of_hyperedge(const HyperedgeID e) {
+    return (int) (e >> NUMA_NODE_INDENTIFIER); 
+  }
+
  private:
 
   template <typename NodeType_,
@@ -1109,10 +1113,6 @@ class StreamingHypergraph {
 
   KAHYPAR_ATTRIBUTE_ALWAYS_INLINE static HypernodeID get_local_node_id_of_vertex(const HypernodeID u) {
     return ( (1UL << NUMA_NODE_INDENTIFIER) - 1 ) & u; 
-  }
-
-  KAHYPAR_ATTRIBUTE_ALWAYS_INLINE static int get_numa_node_of_hyperedge(const HyperedgeID e) {
-    return (int) (e >> NUMA_NODE_INDENTIFIER); 
   }
 
   KAHYPAR_ATTRIBUTE_ALWAYS_INLINE static HypernodeID get_local_edge_id_of_hyperedge(const HyperedgeID e) {

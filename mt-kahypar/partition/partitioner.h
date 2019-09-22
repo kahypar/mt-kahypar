@@ -145,9 +145,9 @@ inline void Partitioner::redistribution(Hypergraph& hypergraph, const Context& c
     RedistributionFactory::getInstance().createObject(
       context.shared_memory.assignment_strategy, hypergraph, context);
 
-  DBG << "Communication Volume Before Redistribution" << metrics::communicationVolume(hypergraph);
+  DBG << "Remote Pin Count Before Redistribution" << metrics::remotePinCount(hypergraph);
   hypergraph = redistributor->redistribute();
-  DBG << "Communication Volume After Redistribution" << metrics::communicationVolume(hypergraph);
+  DBG << "Remote Pin Count After Redistribution" << metrics::remotePinCount(hypergraph);
 
 }
 

@@ -117,6 +117,10 @@ class Hypergraph {
       _iterators(std::move(iterators)),
       _idx(0) { 
       ASSERT(_iterators.size() > 0);
+      while ( _idx < _iterators.size() - 1 && 
+              *_iterators[_idx].first == *_iterators[_idx].second  ) {
+        ++_idx;
+      }
     }
 
     // ! Returns the id of the element the iterator currently points to.

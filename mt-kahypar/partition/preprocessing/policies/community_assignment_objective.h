@@ -29,22 +29,26 @@ namespace mt_kahypar {
 
 class VertexObjectivePolicy final : public kahypar::meta::PolicyBase {
   public:
-    KAHYPAR_ATTRIBUTE_ALWAYS_INLINE static inline HypernodeID objective(const Hypergraph& hypergraph, const PartitionID community) {
+    template< typename HyperGraph >
+    KAHYPAR_ATTRIBUTE_ALWAYS_INLINE static inline HypernodeID objective(const HyperGraph& hypergraph, const PartitionID community) {
       return hypergraph.initialNumCommunityHypernodes(community);
     }
 
-    KAHYPAR_ATTRIBUTE_ALWAYS_INLINE static inline HypernodeID total(const Hypergraph& hypergraph) {
+    template< typename HyperGraph >
+    KAHYPAR_ATTRIBUTE_ALWAYS_INLINE static inline HypernodeID total(const HyperGraph& hypergraph) {
       return hypergraph.initialNumNodes();
     }
 };
 
 class PinObjectivePolicy final : public kahypar::meta::PolicyBase {
   public:
-    KAHYPAR_ATTRIBUTE_ALWAYS_INLINE static inline HypernodeID objective(const Hypergraph& hypergraph, const PartitionID community) {
+    template< typename HyperGraph >
+    KAHYPAR_ATTRIBUTE_ALWAYS_INLINE static inline HypernodeID objective(const HyperGraph& hypergraph, const PartitionID community) {
       return hypergraph.initialNumCommunityPins(community);
     }
 
-    KAHYPAR_ATTRIBUTE_ALWAYS_INLINE static inline HypernodeID total(const Hypergraph& hypergraph) {
+    template< typename HyperGraph >
+    KAHYPAR_ATTRIBUTE_ALWAYS_INLINE static inline HypernodeID total(const HyperGraph& hypergraph) {
       return hypergraph.initialNumPins();
     }
 };

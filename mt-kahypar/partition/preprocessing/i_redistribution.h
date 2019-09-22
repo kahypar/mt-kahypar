@@ -29,22 +29,29 @@
 namespace mt_kahypar {
 namespace preprocessing {
 
-class IRedistribution {
+template< typename TypeTraits >
+class IRedistributionT {
+ private:
+  using HyperGraph = typename TypeTraits::HyperGraph;
+  using StreamingHyperGraph = typename TypeTraits::StreamingHyperGraph;
+  using TBB = typename TypeTraits::TBB;
+  using HwTopology = typename TypeTraits::HwTopology;
+
  public:
-  IRedistribution(const IRedistribution&) = delete;
-  IRedistribution& operator= (const IRedistribution&) = delete;
-  IRedistribution(IRedistribution&&) = delete;
-  IRedistribution& operator= (IRedistribution&&) = delete;
+  IRedistributionT(const IRedistributionT&) = delete;
+  IRedistributionT& operator= (const IRedistributionT&) = delete;
+  IRedistributionT(IRedistributionT&&) = delete;
+  IRedistributionT& operator= (IRedistributionT&&) = delete;
 
-  virtual ~IRedistribution() = default;
+  virtual ~IRedistributionT() = default;
 
-  Hypergraph redistribute() {
+  HyperGraph redistribute() {
     return redistributeImpl();
   }
 
-  Hypergraph createHypergraph(Hypergraph& hg,
+  HyperGraph createHypergraph(HyperGraph& hg,
                               const std::vector<PartitionID>& community_assignment) {
-    int used_numa_nodes = TBBNumaArena::instance().num_used_numa_nodes();
+    int used_numa_nodes = TBB::instance().num_used_numa_nodes();
 
     // Compute Node Mapping
     HighResClockTimepoint start = std::chrono::high_resolution_clock::now();
@@ -65,12 +72,12 @@ class IRedistribution {
     tbb::task_group group;
     for ( int node = 0; node < used_numa_nodes; ++node ) {
       group.run([&, node] {
-        TBBNumaArena::instance().numa_task_arena(node).execute([&] {
+        TBB::instance().numa_task_arena(node).execute([&] {
           hyperedge_mapping[node].assign(hg.initialNumEdges(node), -1);
           tbb::parallel_for(tbb::blocked_range<HyperedgeID>(0UL, hg.initialNumEdges(node)),
             [&](const tbb::blocked_range<HyperedgeID>& range) {
               for ( HyperedgeID local_he = range.begin(); local_he < range.end(); ++local_he ) {
-                const HyperedgeID he = StreamingHypergraph::get_global_edge_id(node, local_he);
+                const HyperedgeID he = StreamingHyperGraph::get_global_edge_id(node, local_he);
 
                 // Compute for each hyperedge the pin count on each node for the new assignment
                 parallel::scalable_vector<size_t> pin_count(used_numa_nodes, 0);
@@ -109,28 +116,28 @@ class IRedistribution {
 
     start = std::chrono::high_resolution_clock::now();
     // Initialize Streaming Hypergraphs
-    std::vector<StreamingHypergraph> numa_hypergraphs;
+    std::vector<StreamingHyperGraph> numa_hypergraphs;
     for ( int node = 0; node < used_numa_nodes; ++node ) {
-      TBBNumaArena::instance().numa_task_arena(node).execute([&] {
+      TBB::instance().numa_task_arena(node).execute([&] {
         group.run([&] {
           numa_hypergraphs.emplace_back(node);
         });
       });
-      TBBNumaArena::instance().wait(node, group);
+      TBB::instance().wait(node, group);
     }
 
     // Stream hyperedges into hypergraphs
     for ( int node = 0; node < used_numa_nodes; ++node ) {
       for ( int streaming_node = 0; streaming_node < used_numa_nodes; ++streaming_node ) {
-        TBBNumaArena::instance().numa_task_arena(streaming_node).execute([&, node, streaming_node] {
+        TBB::instance().numa_task_arena(streaming_node).execute([&, node, streaming_node] {
           group.run([&, node, streaming_node] {
             tbb::parallel_for(tbb::blocked_range<HyperedgeID>(0UL, hg.initialNumEdges(node)), 
             [&, node, streaming_node](const tbb::blocked_range<HyperedgeID>& range) {
               for ( HyperedgeID local_he = range.begin(); local_he < range.end(); ++local_he ) {
-                ASSERT(streaming_node == HardwareTopology::instance().numa_node_of_cpu(sched_getcpu()));
+                ASSERT(streaming_node == HwTopology::instance().numa_node_of_cpu(sched_getcpu()));
                 if ( hyperedge_mapping[node][local_he] == streaming_node ) {
-                  const HyperedgeID he = StreamingHypergraph::get_global_edge_id(node, local_he);
-                  std::vector<HypernodeID> hyperedge;
+                  const HyperedgeID he = StreamingHyperGraph::get_global_edge_id(node, local_he);
+                  parallel::scalable_vector<HypernodeID> hyperedge;
                   for ( const HypernodeID& pin : hg.pins(he) ) {
                     hyperedge.emplace_back(pin);
                   }
@@ -147,7 +154,7 @@ class IRedistribution {
     // Initialize hyperedges in numa hypergraphs
     for ( int node = 0; node < used_numa_nodes; ++node ) {
       group.run([&, node] {
-        TBBNumaArena::instance().numa_task_arena(node).execute([&] {
+        TBB::instance().numa_task_arena(node).execute([&] {
           numa_hypergraphs[node].initializeHyperedges(hg.initialNumNodes());
         });
       });
@@ -159,7 +166,7 @@ class IRedistribution {
 
     // Initialize hypergraph
     start = std::chrono::high_resolution_clock::now();
-    Hypergraph hypergraph(hg.initialNumNodes(), std::move(numa_hypergraphs), std::move(node_mapping));
+    HyperGraph hypergraph(hg.initialNumNodes(), std::move(numa_hypergraphs), std::move(node_mapping));
     ASSERT(hypergraph.initialNumNodes() == hg.initialNumNodes());
     ASSERT(hypergraph.initialNumEdges() == hg.initialNumEdges());
     ASSERT(hypergraph.initialNumPins() == hg.initialNumPins());
@@ -184,7 +191,7 @@ class IRedistribution {
 
     ASSERT([&] {
       for ( const HypernodeID& hn : hypergraph.nodes() ) {
-        int node = StreamingHypergraph::get_numa_node_of_vertex(hn);
+        int node = StreamingHyperGraph::get_numa_node_of_vertex(hn);
         PartitionID community_id = hypergraph.communityID(hn);
         if ( community_assignment[community_id] != node ) {
           LOG << "Hypernode" << hn << "should be on numa node" << community_assignment[community_id]
@@ -199,11 +206,13 @@ class IRedistribution {
   }
 
  protected:
-  IRedistribution() = default;
+  IRedistributionT() = default;
 
  private:
-  virtual Hypergraph redistributeImpl() = 0;
+  virtual HyperGraph redistributeImpl() = 0;
 };
+
+using IRedistribution = IRedistributionT<GlobalTypeTraits>;
 
 } // namespace preprocessing
 } // namespace mt_kahypar

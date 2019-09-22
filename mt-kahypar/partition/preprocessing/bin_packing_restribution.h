@@ -30,34 +30,38 @@
 namespace mt_kahypar {
 namespace preprocessing {
 
-template< typename Objective = Mandatory >
-class BinPackingRedistribution : public IRedistribution {
+template< typename TypeTraits = Mandatory,
+          typename Objective = Mandatory >
+class BinPackingRedistributionT : public IRedistributionT<TypeTraits> {
+ private:
+  using HyperGraph = typename TypeTraits::HyperGraph;
+  using TBB = typename TypeTraits::TBB;
 
- static constexpr bool debug = false;
+  static constexpr bool debug = false;
 
- struct Community {
-   PartitionID community_id;
-   HypernodeID objective;
- };
+  struct Community {
+    PartitionID community_id;
+    HypernodeID objective;
+  };
 
  public:
-  BinPackingRedistribution(Hypergraph& hypergraph, const Context& context) :
+  BinPackingRedistributionT(HyperGraph& hypergraph, const Context& context) :
     _hg(hypergraph),
     _context(context) { }
 
-  BinPackingRedistribution(const BinPackingRedistribution&) = delete;
-  BinPackingRedistribution& operator= (const BinPackingRedistribution&) = delete;
+  BinPackingRedistributionT(const BinPackingRedistributionT&) = delete;
+  BinPackingRedistributionT& operator= (const BinPackingRedistributionT&) = delete;
 
-  BinPackingRedistribution(BinPackingRedistribution&&) = delete;
-  BinPackingRedistribution& operator= (BinPackingRedistribution&&) = delete;
+  BinPackingRedistributionT(BinPackingRedistributionT&&) = delete;
+  BinPackingRedistributionT& operator= (BinPackingRedistributionT&&) = delete;
 
-  ~BinPackingRedistribution() = default;
+  ~BinPackingRedistributionT() = default;
 
  private:
-  Hypergraph redistributeImpl() override {
+  HyperGraph redistributeImpl() override {
     // Compute Bin Capacities
     HighResClockTimepoint start = std::chrono::high_resolution_clock::now();
-    int used_numa_nodes = TBBNumaArena::instance().num_used_numa_nodes();
+    int used_numa_nodes = TBB::instance().num_used_numa_nodes();
     std::vector<HypernodeID> bin_capacities(used_numa_nodes, 0);
     for ( int node = 0; node < used_numa_nodes; ++node ) {
       bin_capacities[node] = bin_capacity(node);
@@ -127,19 +131,22 @@ class BinPackingRedistribution : public IRedistribution {
       "redistribution", mt_kahypar::utils::Timer::Type::PREPROCESSING, 0, std::chrono::duration<double>(end - start).count());
 
     ASSERT(std::count(community_assignment.begin(), community_assignment.end(), -1) == 0, "There are unassigned communities");
-    return createHypergraph(_hg, community_assignment);
+    return this->createHypergraph(_hg, community_assignment);
   }
 
   HypernodeID bin_capacity(const int node) const {
-    ASSERT(node < TBBNumaArena::instance().num_used_numa_nodes());
-    int total_threads = TBBNumaArena::instance().total_number_of_threads();
-    int threads_of_node = TBBNumaArena::instance().number_of_threads_on_numa_node(node);
+    ASSERT(node < TBB::instance().num_used_numa_nodes());
+    int total_threads = TBB::instance().total_number_of_threads();
+    int threads_of_node = TBB::instance().number_of_threads_on_numa_node(node);
     return std::ceil( ( ( (double) threads_of_node ) / total_threads ) * Objective::total(_hg) );
   }
 
-  Hypergraph& _hg;
+  HyperGraph& _hg;
   const Context& _context;
 };
+
+template< typename Objective = Mandatory >
+using BinPackingRedistribution = BinPackingRedistributionT<GlobalTypeTraits, Objective>;
 
 } // namespace preprocessing
 } // namespace mt_kahypar

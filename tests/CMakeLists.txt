@@ -1,2 +1,3 @@
 add_subdirectory(datastructures)
 add_subdirectory(parallel)
+add_subdirectory(partition)

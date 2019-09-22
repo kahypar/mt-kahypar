@@ -66,6 +66,13 @@ using Hypergraph = mt_kahypar::ds::Hypergraph<HypernodeID,
                                               HardwareTopology,
                                               TBBNumaArena>;
 
+struct GlobalTypeTraits {
+  using HyperGraph = Hypergraph;
+  using StreamingHyperGraph = StreamingHypergraph;
+  using TBB = TBBNumaArena;
+  using HwTopology = HardwareTopology;
+};
+
 using HighResClockTimepoint = std::chrono::time_point<std::chrono::high_resolution_clock>;
 
 } // namespace mt_kahypar

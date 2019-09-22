@@ -98,7 +98,7 @@ static inline Hypergraph readHyperedges(std::ifstream& file,
       std::istringstream line_stream(lines[pos]);
 
       // Read weight of hyperedge
-      std::vector<HypernodeID> hyperedge;
+      parallel::scalable_vector<HypernodeID> hyperedge;
       HyperedgeWeight weight = 1;
       if (has_hyperedge_weights) {
         line_stream >> weight;
