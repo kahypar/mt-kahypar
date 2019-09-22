@@ -364,6 +364,10 @@ class Hypergraph {
     return _node_mapping[u];
   }
 
+  HypernodeID communityNodeId(const HypernodeID u) const {
+    return hypergraph_of_vertex(u).communityNodeId(u);
+  }
+
   /*!
    * Contracts the vertex pair (u,v). The representative u remains in the hypergraph.
    * The contraction partner v is removed from the hypergraph.
@@ -521,8 +525,10 @@ class Hypergraph {
     start = std::chrono::high_resolution_clock::now();
     _communities_num_hypernodes.assign(_num_communities, 0);
     for ( const HypernodeID& hn : nodes() ) {
-      ASSERT(communityID(hn) < _num_communities);
-      ++_communities_num_hypernodes[communityID(hn)];
+      PartitionID community_id = communityID(hn);
+      ASSERT(community_id < _num_communities);
+      hypergraph_of_vertex(hn).hypernode(hn).setCommunityNodeId(_communities_num_hypernodes[community_id]);
+      ++_communities_num_hypernodes[community_id];
     }
     end = std::chrono::high_resolution_clock::now();
     mt_kahypar::utils::Timer::instance().add_timing("compute_num_community_hns", "Compute Num Community HNs",

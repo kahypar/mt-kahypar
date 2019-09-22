@@ -91,6 +91,7 @@ class StreamingHypergraph {
   using PartitionID = PartitionIDType_;
 
   static constexpr PartitionID kInvalidPartition = -1;
+  static constexpr HypernodeID kInvalidHypernode = std::numeric_limits<HypernodeID>::max();
 
   using Self = StreamingHypergraph<HypernodeID, HyperedgeID, HypernodeWeight,
                                    HyperedgeWeight, PartitionID, HardwareTopology,
@@ -111,8 +112,9 @@ class StreamingHypergraph {
       using IDType = HyperedgeID;
 
       Hypernode() :
-        _id(0),
-        _original_id(0),
+        _id(kInvalidHypernode),
+        _original_id(kInvalidHypernode),
+        _community_node_id(kInvalidHypernode),
         _weight(1),
         _community_id(kInvalidPartition),
         _valid(false) { }
@@ -122,6 +124,7 @@ class StreamingHypergraph {
                 const HypernodeWeight weight) :
         _id(id),
         _original_id(original_id),
+        _community_node_id(kInvalidHypernode),
         _weight(weight),
         _community_id(kInvalidPartition),
         _valid(true) { }
@@ -132,6 +135,14 @@ class StreamingHypergraph {
 
       HypernodeID originalNodeId() const {
         return _original_id;
+      }
+
+      HypernodeID communityNodeId() const {
+        return _community_node_id;
+      }
+
+      void setCommunityNodeId(const HypernodeID community_node_id) {
+        _community_node_id = community_node_id;
       }
 
       // ! Disables the hypernode/hyperedge. Disable hypernodes/hyperedges will be skipped
@@ -191,6 +202,8 @@ class StreamingHypergraph {
       HypernodeID _id;
       // ! Original hypernode id
       HypernodeID _original_id;
+      // ! Hypernode id within a community
+      HypernodeID _community_node_id;
       // ! Hypernode weight
       HyperedgeWeight _weight;
       // ! Community id
@@ -494,6 +507,11 @@ class StreamingHypergraph {
   HypernodeID originalNodeId(const HypernodeID u) const {
     ASSERT(!hypernode(u).isDisabled(), "Hypernode" << u << "is disabled");
     return hypernode(u).originalNodeId();
+  }
+
+  HypernodeID communityNodeId(const HypernodeID u) const {
+    ASSERT(!hypernode(u).isDisabled(), "Hypernode" << u << "is disabled");
+    return hypernode(u).communityNodeId();
   }
 
   // ! Returns a for-each iterator-pair to loop over the set of incident hyperedges of hypernode u.

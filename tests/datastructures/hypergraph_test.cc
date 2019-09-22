@@ -1261,6 +1261,14 @@ TEST_F(AHypergraphWithTwoStreamingHypergraphs, StreamsCommunityIDsInParallelInto
   ASSERT_EQ(2, hypergraph.communityID(GLOBAL_ID(hypergraph, 5)));
   ASSERT_EQ(2, hypergraph.communityID(GLOBAL_ID(hypergraph, 6)));
 
+  ASSERT_EQ(0, hypergraph.communityNodeId(GLOBAL_ID(hypergraph, 0)));
+  ASSERT_EQ(1, hypergraph.communityNodeId(GLOBAL_ID(hypergraph, 1)));
+  ASSERT_EQ(2, hypergraph.communityNodeId(GLOBAL_ID(hypergraph, 2)));
+  ASSERT_EQ(0, hypergraph.communityNodeId(GLOBAL_ID(hypergraph, 3)));
+  ASSERT_EQ(1, hypergraph.communityNodeId(GLOBAL_ID(hypergraph, 4)));
+  ASSERT_EQ(0, hypergraph.communityNodeId(GLOBAL_ID(hypergraph, 5)));
+  ASSERT_EQ(1, hypergraph.communityNodeId(GLOBAL_ID(hypergraph, 6)));
+
   ASSERT_EQ(3, hypergraph.initialNumCommunityHypernodes(0));
   ASSERT_EQ(2, hypergraph.initialNumCommunityHypernodes(1));
   ASSERT_EQ(2, hypergraph.initialNumCommunityHypernodes(2));
