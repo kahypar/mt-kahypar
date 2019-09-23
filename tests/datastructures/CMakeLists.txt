@@ -1,1 +1,2 @@
 add_gmock_test(hypergraph_test hypergraph_test.cc)
+add_gmock_test(community_hypergraph_test community_hypergraph_test.cc)

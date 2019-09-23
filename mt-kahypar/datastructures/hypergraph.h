@@ -61,6 +61,7 @@ class Hypergraph {
   using HypernodeIterator = typename StreamingHypergraph::HypernodeIterator;
   using HyperedgeIterator = typename StreamingHypergraph::HyperedgeIterator;
   using IncidenceIterator = typename StreamingHypergraph::IncidenceIterator;
+  using Memento = typename StreamingHypergraph::Memento;
   
   using HighResClockTimepoint = std::chrono::time_point<std::chrono::high_resolution_clock>;
 
@@ -167,23 +168,6 @@ class Hypergraph {
   using GlobalHyperedgeIterator = GlobalHypergraphElementIterator<HyperedgeIterator>;
 
  public:
-  /*!
-  * A memento stores all information necessary to undo the contraction operation
-  * of a vertex pair \f$(u,v)\f$.
-  *
-  * A contraction operations can increase the set \f$I(u)\f$ of nets incident
-  * to \f$u\f$. This in turn leads to changes in _incidence_array. Therefore
-  * the memento stores the initial starting index of \f$u\f$'s incident nets
-  * as well as the old size, i.e. \f$|I(u)|\f$.
-  *
-  */
-  struct Memento {
-    // ! The representative hypernode that remains in the hypergraph
-    HypernodeID u;
-    // ! The contraction partner of u that is removed from the hypergraph after the contraction.
-    HypernodeID v;
-  };
-
   explicit Hypergraph() :
     _num_hypernodes(0),
     _num_hyperedges(0),
@@ -309,14 +293,31 @@ class Hypergraph {
     return weight;
   }
 
+  size_t numCommunitiesOfHyperedge(const HyperedgeID e) const {
+    return hypergraph_of_edge(e).numCommunitiesOfHyperedge(e);
+  }
+
   // ! Returns a for-each iterator-pair to loop over the set of incident hyperedges of hypernode u.
   std::pair<IncidenceIterator, IncidenceIterator> incidentEdges(const HypernodeID u) const {
     return hypergraph_of_vertex(u).incidentEdges(u);
   }
 
+  // ! Returns a for-each iterator-pair to loop over the set of incident hyperedges of hypernode u.
+  // ! Note, in contrast to first iterator, this iterator skips all single-pin community hyperedges
+  // ! in incident nets of hypernode u.
+  std::pair<IncidenceIterator, IncidenceIterator> incidentEdges(const HypernodeID u, const PartitionID community_id) const {
+    return hypergraph_of_vertex(u).incidentEdges(u, community_id);
+  }
+
+
   // ! Returns a for-each iterator-pair to loop over the set pins of hyperedge e.
   std::pair<IncidenceIterator, IncidenceIterator> pins(const HyperedgeID e) const {
     return hypergraph_of_edge(e).pins(e);
+  }
+
+  // ! Returns a for-each iterator-pair to loop over the set pins of hyperedge e in a community.
+  std::pair<IncidenceIterator, IncidenceIterator> pins(const HyperedgeID e, const PartitionID community_id) const {
+    return hypergraph_of_edge(e).pins(e, community_id);
   }
 
   std::pair<GlobalHypernodeIterator, GlobalHypernodeIterator> nodes() const {
@@ -401,6 +402,40 @@ class Hypergraph {
   }
 
   /*!
+   * Contracts the vertex pair (u,v). The representative u remains in the hypergraph.
+   * The contraction partner v is removed from the hypergraph.
+   *
+   * For each hyperedge e incident to v, a contraction lead to one of two operations:
+   * 1.) If e contained both u and v, then v is removed from e.
+   * 2.) If e only contained v, than the slot of v in the incidence structure of e
+   *     is reused to store u.
+   *
+   * The returned Memento can be used to undo the contraction via an uncontract operation.
+   *
+   * \param u Representative hypernode that will remain in the hypergraph
+   * \param v Contraction partner that will be removed from the hypergraph
+   *
+   */
+  Memento contract(const HypernodeID u, const HypernodeID v, const PartitionID community_id) {
+    ASSERT(nodeIsEnabled(u), "Hypernode" << u << "is disabled");
+    ASSERT(nodeIsEnabled(v), "Hypernode" << v << "is disabled");
+    ASSERT(communityID(u) == community_id);
+    ASSERT(communityID(v) == community_id);
+    // TODO(heuer): Assertions verifies that both node have same part id
+
+    DBG << "Contracting (" << u << "," << v << ")";
+    setNodeWeight(u, nodeWeight(u) + nodeWeight(v));
+
+    StreamingHypergraph& hypergraph_of_u = hypergraph_of_vertex(u);
+    for ( const HyperedgeID& he : incidentEdges(v) ) {
+      hypergraph_of_edge(he).contract(u, v, he, community_id, hypergraph_of_u);
+    }
+
+    disableHypernode(v);
+    return Memento { u, v };
+  }
+
+  /*!
   * Undoes a contraction operation that was remembered by the memento.
   * This is the default uncontract method.
   *
@@ -431,6 +466,20 @@ class Hypergraph {
     ASSERT(edgeIsEnabled(he), "Hyperedge" << he << "is disabled");
     for ( const HypernodeID& pin : pins(he) ) {
       hypergraph_of_vertex(pin).removeIncidentEdgeFromHypernode(he, pin);
+    }
+    hypergraph_of_edge(he).disableHyperedge(he);
+    // TODO(heuer): invalidate pin counts of he
+  }
+
+  void removeEdge(const HyperedgeID he, const PartitionID community_id) {
+    ASSERT(edgeIsEnabled(he), "Hyperedge" << he << "is disabled");
+    // Note, currently we only allow to remove hyperedges, which contains pins
+    // from only one community. It is unclear how to handle parallel net detection
+    // in shared memory setting. Therefore, we restrict us to the simple case.
+    ASSERT(hypergraph_of_edge(he).numCommunitiesOfHyperedge(he) == 1,
+           "Only allowed to remove hyperedges that contains pins from one community");
+    for ( const HypernodeID& pin : pins(he, community_id) ) {
+      hypergraph_of_vertex(pin).removeIncidentEdgeFromHypernode(he, pin, community_id);
     }
     hypergraph_of_edge(he).disableHyperedge(he);
     // TODO(heuer): invalidate pin counts of he
@@ -470,6 +519,10 @@ class Hypergraph {
 
   HypernodeID edgeSize(const HyperedgeID e) const {
     return hypergraph_of_edge(e).edgeSize(e);
+  }
+
+  HypernodeID edgeSize(const HyperedgeID e, const PartitionID community_id) const {
+    return hypergraph_of_edge(e).edgeSize(e, community_id);
   }
 
   size_t edgeHash(const HyperedgeID e) const {
@@ -545,6 +598,39 @@ class Hypergraph {
     end = std::chrono::high_resolution_clock::now();
     mt_kahypar::utils::Timer::instance().add_timing("compute_num_community_pins", "Compute Num Community Pins",
       "initialize_communities", mt_kahypar::utils::Timer::Type::PREPROCESSING, 2, std::chrono::duration<double>(end - start).count());
+  }
+
+  void initializeCommunityHyperedges() {
+    tbb::task_group group;
+    for ( int node = 0; node < (int)_hypergraphs.size(); ++node ) {
+      TBBNumaArena::instance().numa_task_arena(node).execute([&] {
+        group.run([&, node] {
+          _hypergraphs[node].initializeCommunityHyperedges(_hypergraphs);
+        });
+      });
+    }
+    group.wait();
+
+    for ( int node = 0; node < (int)_hypergraphs.size(); ++node ) {
+      TBBNumaArena::instance().numa_task_arena(node).execute([&] {
+        group.run([&, node] {
+          _hypergraphs[node].initializeCommunityHypernodes(_hypergraphs);
+        });
+      });
+    }
+    group.wait();
+  }
+
+  void resetCommunityHyperedges(const std::vector<Memento>& mementos) {
+    tbb::task_group group;
+    for ( int node = 0; node < (int)_hypergraphs.size(); ++node ) {
+      TBBNumaArena::instance().numa_task_arena(node).execute([&] {
+        group.run([&, node] {
+          _hypergraphs[node].resetCommunityHyperedges(mementos, _num_hypernodes, _hypergraphs);
+        });
+      });
+    }
+    group.wait();
   }
 
   void resetPinsToOriginalNodeIds() {

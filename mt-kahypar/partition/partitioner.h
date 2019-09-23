@@ -169,6 +169,19 @@ inline void Partitioner::partition(Hypergraph& hypergraph, Context& context) {
     "", mt_kahypar::utils::Timer::Type::PREPROCESSING, 1, std::chrono::duration<double>(end - start).count());
 
   // partition
+  start = std::chrono::high_resolution_clock::now();
+  hypergraph.initializeCommunityHyperedges();  
+  end = std::chrono::high_resolution_clock::now();
+  mt_kahypar::utils::Timer::instance().add_timing("initialize_community_hyperedges", "Initialize Community Hyperedges",
+    "preprocessing", mt_kahypar::utils::Timer::Type::PREPROCESSING, 3, std::chrono::duration<double>(end - start).count());
+
+  start = std::chrono::high_resolution_clock::now();
+  hypergraph.resetCommunityHyperedges( {} );
+  end = std::chrono::high_resolution_clock::now();
+  mt_kahypar::utils::Timer::instance().add_timing("reset_community_hyperedges", "Reset Community Hyperedges",
+    "preprocessing", mt_kahypar::utils::Timer::Type::PREPROCESSING, 4, std::chrono::duration<double>(end - start).count());
+
+
   postprocess(hypergraph);
 }
 
