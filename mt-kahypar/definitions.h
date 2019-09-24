@@ -43,6 +43,7 @@ using HardwareTopology = mt_kahypar::parallel::HardwareTopology<>;
 #endif
 using TBBNumaArena = mt_kahypar::parallel::TBBNumaArena<HardwareTopology>;
 
+using RatingType = double;
 using HypernodeID = uint64_t;
 using HyperedgeID = uint64_t;
 using HypernodeWeight = int32_t;
@@ -50,18 +51,18 @@ using HyperedgeWeight = int32_t;
 using PartitionID = int32_t;
 using Gain = HyperedgeWeight;
 
-using StreamingHypergraph = mt_kahypar::ds::StreamingHypergraph<HypernodeID, 
-                                                                HyperedgeID, 
-                                                                HypernodeWeight, 
-                                                                HyperedgeWeight, 
+using StreamingHypergraph = mt_kahypar::ds::StreamingHypergraph<HypernodeID,
+                                                                HyperedgeID,
+                                                                HypernodeWeight,
+                                                                HyperedgeWeight,
                                                                 PartitionID,
                                                                 HardwareTopology,
                                                                 TBBNumaArena>;
 
-using Hypergraph = mt_kahypar::ds::Hypergraph<HypernodeID, 
-                                              HyperedgeID, 
-                                              HypernodeWeight, 
-                                              HyperedgeWeight, 
+using Hypergraph = mt_kahypar::ds::Hypergraph<HypernodeID,
+                                              HyperedgeID,
+                                              HypernodeWeight,
+                                              HyperedgeWeight,
                                               PartitionID,
                                               HardwareTopology,
                                               TBBNumaArena>;

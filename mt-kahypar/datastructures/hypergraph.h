@@ -50,10 +50,10 @@ class Hypergraph {
   using HyperedgeWeight = HyperedgeWeightType_;
   using PartitionID = PartitionIDType_;
 
-  using StreamingHypergraph = mt_kahypar::ds::StreamingHypergraph<HypernodeID, 
-                                                                  HyperedgeID, 
-                                                                  HypernodeWeight, 
-                                                                  HyperedgeWeight, 
+  using StreamingHypergraph = mt_kahypar::ds::StreamingHypergraph<HypernodeID,
+                                                                  HyperedgeID,
+                                                                  HypernodeWeight,
+                                                                  HyperedgeWeight,
                                                                   PartitionID,
                                                                   HardwareTopology,
                                                                   TBBNumaArena>;
@@ -62,7 +62,7 @@ class Hypergraph {
   using HyperedgeIterator = typename StreamingHypergraph::HyperedgeIterator;
   using IncidenceIterator = typename StreamingHypergraph::IncidenceIterator;
   using Memento = typename StreamingHypergraph::Memento;
-  
+
   using HighResClockTimepoint = std::chrono::time_point<std::chrono::high_resolution_clock>;
 
   /*!
@@ -116,9 +116,9 @@ class Hypergraph {
      */
     GlobalHypergraphElementIterator(Iterators&& iterators) :
       _iterators(std::move(iterators)),
-      _idx(0) { 
+      _idx(0) {
       ASSERT(_iterators.size() > 0);
-      while ( _idx < _iterators.size() - 1 && 
+      while ( _idx < _iterators.size() - 1 &&
               *_iterators[_idx].first == *_iterators[_idx].second  ) {
         ++_idx;
       }
@@ -132,7 +132,7 @@ class Hypergraph {
     // ! Prefix increment. The iterator advances to the next valid element.
     GlobalHypergraphElementIterator& operator++ () {
       ++_iterators[_idx].first;
-      while ( *_iterators[_idx].first == *_iterators[_idx].second && 
+      while ( *_iterators[_idx].first == *_iterators[_idx].second &&
               _idx < _iterators.size() - 1 ) {
         ++_idx;
       }
@@ -168,6 +168,9 @@ class Hypergraph {
   using GlobalHyperedgeIterator = GlobalHypergraphElementIterator<HyperedgeIterator>;
 
  public:
+
+  constexpr static size_t kEdgeHashSeed = StreamingHypergraph::kEdgeHashSeed;
+
   explicit Hypergraph() :
     _num_hypernodes(0),
     _num_hyperedges(0),
@@ -187,7 +190,7 @@ class Hypergraph {
     _communities_num_hypernodes(),
     _communities_num_pins(),
     _hypergraphs(std::move(hypergraphs)),
-    _node_mapping(num_hypernodes, 0) { 
+    _node_mapping(num_hypernodes, 0) {
     computeNodeMapping();
     initializeHypernodes();
   }
@@ -195,14 +198,14 @@ class Hypergraph {
   Hypergraph(const HypernodeID num_hypernodes,
              std::vector<StreamingHypergraph>&& hypergraphs,
              const std::vector<HypernodeID>& node_mapping) :
-    _num_hypernodes(num_hypernodes),    
+    _num_hypernodes(num_hypernodes),
     _num_hyperedges(0),
     _num_pins(0),
     _num_communities(0),
     _communities_num_hypernodes(),
     _communities_num_pins(),
     _hypergraphs(std::move(hypergraphs)),
-    _node_mapping(node_mapping) { 
+    _node_mapping(node_mapping) {
     initializeHypernodes();
   }
 
@@ -216,7 +219,7 @@ class Hypergraph {
     _communities_num_hypernodes(),
     _communities_num_pins(),
     _hypergraphs(std::move(hypergraphs)),
-    _node_mapping(std::move(node_mapping)) { 
+    _node_mapping(std::move(node_mapping)) {
     initializeHypernodes();
   }
 
@@ -329,7 +332,7 @@ class Hypergraph {
     }
     size_t last = iterators.size() - 1;
     end.emplace_back(std::make_pair(iterators[last].second, iterators[last].second));
-    return std::make_pair(GlobalHypernodeIterator(std::move(iterators)), 
+    return std::make_pair(GlobalHypernodeIterator(std::move(iterators)),
                           GlobalHypernodeIterator(std::move(end)));
   }
 
@@ -342,7 +345,7 @@ class Hypergraph {
     }
     size_t last = iterators.size() - 1;
     end.emplace_back(std::make_pair(iterators[last].second, iterators[last].second));
-    return std::make_pair(GlobalHyperedgeIterator(std::move(iterators)), 
+    return std::make_pair(GlobalHyperedgeIterator(std::move(iterators)),
                           GlobalHyperedgeIterator(std::move(end)));
   }
 
@@ -667,7 +670,7 @@ class Hypergraph {
     // A node is assigned to the streaming hypergraph where it occurs
     // most as pin.
     HighResClockTimepoint start = std::chrono::high_resolution_clock::now();
-    tbb::parallel_for(tbb::blocked_range<HypernodeID>(0UL, _num_hypernodes), 
+    tbb::parallel_for(tbb::blocked_range<HypernodeID>(0UL, _num_hypernodes),
       [&](const tbb::blocked_range<HypernodeID>& range) {
       for ( HypernodeID hn = range.begin(); hn < range.end(); ++hn ) {
         size_t max_pins = 0;
@@ -711,7 +714,7 @@ class Hypergraph {
     for ( HypernodeID node = 0; node < num_streaming_hypergraphs; ++node ) {
       TBBNumaArena::instance().numa_task_arena(node).execute([&] {
         group.run([&, node] {
-          tbb::parallel_for(tbb::blocked_range<HypernodeID>(0UL, _num_hypernodes), 
+          tbb::parallel_for(tbb::blocked_range<HypernodeID>(0UL, _num_hypernodes),
             [&](const tbb::blocked_range<HypernodeID>& range) {
             for ( HypernodeID hn = range.begin(); hn < range.end(); ++hn ) {
               if ( _node_mapping[hn] == node ) {
@@ -830,7 +833,7 @@ class Hypergraph {
   std::vector<StreamingHypergraph> _hypergraphs;
   std::vector<HypernodeID> _node_mapping;
 
- 
+
 };
 
 } // namespace ds

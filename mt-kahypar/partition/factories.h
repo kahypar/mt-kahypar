@@ -28,6 +28,11 @@
 #include "mt-kahypar/partition/preprocessing/i_redistribution.h"
 #include "mt-kahypar/partition/preprocessing/bin_packing_restribution.h"
 #include "mt-kahypar/partition/preprocessing/policies/community_assignment_objective.h"
+#include "mt-kahypar/partition/coarsening/i_coarsener.h"
+#include "mt-kahypar/partition/coarsening/community_coarsener.h"
+#include "mt-kahypar/partition/coarsening/policies/rating_community_policy.h"
+#include "mt-kahypar/partition/coarsening/policies/rating_heavy_node_penalty_policy.h"
+#include "mt-kahypar/partition/coarsening/policies/rating_acceptance_policy.h"
 
 namespace mt_kahypar {
 
@@ -37,5 +42,15 @@ using RedistributionFactory = kahypar::meta::Factory<CommunityAssignmentStrategy
 using BinPackingRedistributionDispatcher = kahypar::meta::StaticMultiDispatchFactory<preprocessing::BinPackingRedistribution,
                                                                                      preprocessing::IRedistribution,
                                                                                      kahypar::meta::Typelist<ObjectivePolicyClasses>>;
+
+using CoarsenerFactory = kahypar::meta::Factory<CoarseningAlgorithm,
+                                                ICoarsener* (*)(Hypergraph&, const Context&)>;
+
+using CommunityCoarsenerDispatcher = kahypar::meta::StaticMultiDispatchFactory<CommunityCoarsener,
+                                                                               ICoarsener,
+                                                                               kahypar::meta::Typelist<RatingScorePolicies,
+                                                                                                       HeavyNodePenaltyPolicies,
+                                                                                                       AcceptancePolicies>>;
+
 
 } // namespace mt_kahypar

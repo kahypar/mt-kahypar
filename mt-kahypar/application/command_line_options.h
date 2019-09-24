@@ -118,6 +118,53 @@ po::options_description createGenericOptionsDescription(Context& context,
   return generic_options;
 }
 
+po::options_description createCoarseningOptionsDescription(Context& context,
+                                                           const int num_columns) {
+  po::options_description options("Coarsening Options", num_columns);
+  options.add_options()
+    ("c-type",
+    po::value<std::string>()->value_name("<string>")->notifier(
+      [&](const std::string& ctype) {
+      context.coarsening.algorithm = mt_kahypar::coarseningAlgorithmFromString(ctype);
+    }),
+    "Coarsening Algorithm:\n"
+    " - community_coarsener")
+    ("c-s",
+    po::value<double>(&context.coarsening.max_allowed_weight_multiplier)->value_name("<double>"),
+    "The maximum weight of a vertex in the coarsest hypergraph H is:\n"
+    "(s * w(H)) / (t * k)\n")
+    ("c-t",
+    po::value<HypernodeID>(&context.coarsening.contraction_limit_multiplier)->value_name("<int>"),
+    "Coarsening stops when there are no more than t * k hypernodes left")
+    ("c-rating-score",
+    po::value<std::string>()->value_name("<string>")->notifier(
+      [&](const std::string& rating_score) {
+        context.coarsening.rating.rating_function =
+          mt_kahypar::ratingFunctionFromString(rating_score);
+    }), "Rating function used to calculate scores for vertex pairs:\n"
+    "- heavy_edge")
+    ("c-rating-heavy-node-penalty",
+    po::value<std::string>()->value_name("<string>")->notifier(
+      [&](const std::string& penalty) {
+        context.coarsening.rating.heavy_node_penalty_policy =
+          kahypar::heavyNodePenaltyFromString(penalty);
+    }),
+    "Penalty function to discourage heavy vertices:\n"
+    "- multiplicative\n"
+    "- no_penalty\n"
+    "- edge_frequency_penalty")
+    ("c-rating-acceptance-criterion",
+    po::value<std::string>()->value_name("<string>")->notifier(
+      [&](const std::string& crit) {
+        context.coarsening.rating.acceptance_policy =
+          kahypar::acceptanceCriterionFromString(crit);
+    }),
+    "Acceptance/Tiebreaking criterion for contraction partners having the same score:\n"
+    "- best\n"
+    "- best_prefer_unmatched");
+  return options;
+}
+
 po::options_description createSharedMemoryOptionsDescription(Context& context,
                                                              const int num_columns) {
   po::options_description shared_memory_options("Shared Memory Options", num_columns);
@@ -173,6 +220,9 @@ void processCommandLineInput(Context& context, int argc, char* argv[]) {
 
   po::options_description general_options = createGeneralOptionsDescription(context, num_columns);
 
+
+  po::options_description coarsening_options =
+    createCoarseningOptionsDescription(context, num_columns);
   po::options_description shared_memory_options =
     createSharedMemoryOptionsDescription(context, num_columns);
 
@@ -181,6 +231,7 @@ void processCommandLineInput(Context& context, int argc, char* argv[]) {
   .add(required_options)
   .add(preset_options)
   .add(general_options)
+  .add(coarsening_options)
   .add(shared_memory_options);
 
   po::variables_map cmd_vm;
@@ -204,6 +255,7 @@ void processCommandLineInput(Context& context, int argc, char* argv[]) {
 
   po::options_description ini_line_options;
   ini_line_options.add(general_options)
+  .add(coarsening_options)
   .add(shared_memory_options);
 
   po::store(po::parse_config_file(file, ini_line_options, true), cmd_vm);

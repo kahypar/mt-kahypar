@@ -128,9 +128,11 @@ inline void printHypergraphInfo(const Hypergraph& hypergraph, const std::string&
   hn_degrees.reserve(hypergraph.currentNumNodes());
   hn_weights.reserve(hypergraph.currentNumNodes());
 
+  HypernodeID num_hypernodes = 0;
   const double avg_hn_degree = metrics::avgHypernodeDegree(hypergraph);
   double stdev_hn_degree = 0.0;
   for (const auto& hn : hypergraph.nodes()) {
+    ++num_hypernodes;
     hn_degrees.push_back(hypergraph.nodeDegree(hn));
     hn_weights.push_back(hypergraph.nodeWeight(hn));
     stdev_hn_degree += (hypergraph.nodeDegree(hn) - avg_hn_degree) *
@@ -138,10 +140,13 @@ inline void printHypergraphInfo(const Hypergraph& hypergraph, const std::string&
   }
   stdev_hn_degree = std::sqrt(stdev_hn_degree / (hypergraph.currentNumNodes() - 1));
 
-
+  HyperedgeID num_hyperedges = 0;
+  HypernodeID num_pins = 0;
   const double avg_he_size = metrics::avgHyperedgeDegree(hypergraph);
   double stdev_he_size = 0.0;
   for (const auto& he : hypergraph.edges()) {
+    ++num_hyperedges;
+    num_pins += hypergraph.edgeSize(he);
     he_sizes.push_back(hypergraph.edgeSize(he));
     he_weights.push_back(hypergraph.edgeWeight(he));
     stdev_he_size += (hypergraph.edgeSize(he) - avg_he_size) *
@@ -174,9 +179,9 @@ inline void printHypergraphInfo(const Hypergraph& hypergraph, const std::string&
   LOG << "Hypergraph Information";
   LOG << "Name :" << name;
   // LOG << "Type:" << hypergraph.typeAsString();
-  LOG << "# HNs :" << hypergraph.currentNumNodes()
-      << "# HEs :" << hypergraph.currentNumEdges()
-      << "# pins:" << hypergraph.currentNumPins();
+  LOG << "# HNs :" << num_hypernodes
+      << "# HEs :" << num_hyperedges
+      << "# pins:" << num_pins;
 
   internal::printStats(
     internal::createStats(he_sizes, avg_he_size, stdev_he_size),

@@ -24,8 +24,12 @@
 #include "kahypar/meta/policy_registry.h"
 #include "kahypar/meta/registrar.h"
 
+#include "kahypar/partition/context_enum_classes.h"
 #include "mt-kahypar/partition/context_enum_classes.h"
 #include "mt-kahypar/partition/preprocessing/policies/community_assignment_objective.h"
+#include "mt-kahypar/partition/coarsening/policies/rating_score_policy.h"
+#include "mt-kahypar/partition/coarsening/policies/rating_heavy_node_penalty_policy.h"
+#include "mt-kahypar/partition/coarsening/policies/rating_acceptance_policy.h"
 
 #define REGISTER_POLICY(policy, id, policy_class)                                  \
   static meta::Registrar<meta::PolicyRegistry<policy> > register_ ## policy_class( \
@@ -40,5 +44,23 @@ REGISTER_POLICY(CommunityAssignmentObjective, CommunityAssignmentObjective::vert
                 VertexObjectivePolicy);
 REGISTER_POLICY(CommunityAssignmentObjective, CommunityAssignmentObjective::pin_objective,
                 PinObjectivePolicy);
+
+// //////////////////////////////////////////////////////////////////////////////
+//                       Coarsening / Rating Policies
+// //////////////////////////////////////////////////////////////////////////////
+REGISTER_POLICY(RatingFunction, RatingFunction::heavy_edge,
+                HeavyEdgeScore);
+
+REGISTER_POLICY(kahypar::HeavyNodePenaltyPolicy, kahypar::HeavyNodePenaltyPolicy::no_penalty,
+                NoWeightPenalty);
+REGISTER_POLICY(kahypar::HeavyNodePenaltyPolicy, kahypar::HeavyNodePenaltyPolicy::multiplicative_penalty,
+                MultiplicativePenalty);
+REGISTER_POLICY(kahypar::HeavyNodePenaltyPolicy, kahypar::HeavyNodePenaltyPolicy::edge_frequency_penalty,
+                EdgeFrequencyPenalty);
+
+REGISTER_POLICY(kahypar::AcceptancePolicy, kahypar::AcceptancePolicy::best,
+                BestRatingWithTieBreaking);
+REGISTER_POLICY(kahypar::AcceptancePolicy, kahypar::AcceptancePolicy::best_prefer_unmatched,
+                BestRatingPreferringUnmatched);
 
 } // namespace mt_kahypar

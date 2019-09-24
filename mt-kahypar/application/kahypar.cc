@@ -27,12 +27,15 @@
 #include "mt-kahypar/partition/partitioner.h"
 
 #include "mt-kahypar/utils/timer.h"
+#include "mt-kahypar/utils/randomize.h"
 
 int main(int argc, char* argv[]) {
 
   mt_kahypar::Context context;
   mt_kahypar::processCommandLineInput(context, argc, argv);
   mt_kahypar::io::printBanner(context);
+
+  mt_kahypar::utils::Randomize::instance().setSeed(context.partition.seed);
 
   // Initialize TBB task arenas on numa nodes
   mt_kahypar::TBBNumaArena::instance(context.shared_memory.num_threads);

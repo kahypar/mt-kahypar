@@ -72,8 +72,15 @@ class Partitioner {
 };
 
 inline void Partitioner::setupContext(const Hypergraph& hypergraph, Context& context) {
-  unused(hypergraph);
-  unused(context);
+  context.coarsening.contraction_limit =
+    context.coarsening.contraction_limit_multiplier * context.partition.k;
+
+  context.coarsening.hypernode_weight_fraction =
+    context.coarsening.max_allowed_weight_multiplier
+    / context.coarsening.contraction_limit;
+
+  context.coarsening.max_allowed_node_weight = ceil(context.coarsening.hypernode_weight_fraction
+                                                    * hypergraph.totalWeight());
 }
 
 inline void Partitioner::configurePreprocessing(const Hypergraph& hypergraph, Context& context) {
@@ -168,18 +175,16 @@ inline void Partitioner::partition(Hypergraph& hypergraph, Context& context) {
   mt_kahypar::utils::Timer::instance().add_timing("preprocessing", "Preprocessing",
     "", mt_kahypar::utils::Timer::Type::PREPROCESSING, 1, std::chrono::duration<double>(end - start).count());
 
-  // partition
   start = std::chrono::high_resolution_clock::now();
-  hypergraph.initializeCommunityHyperedges();  
+  std::unique_ptr<ICoarsener> coarsener =
+    CoarsenerFactory::getInstance().createObject(
+      context.coarsening.algorithm, hypergraph, context);
+  coarsener->coarsen();
   end = std::chrono::high_resolution_clock::now();
-  mt_kahypar::utils::Timer::instance().add_timing("initialize_community_hyperedges", "Initialize Community Hyperedges",
-    "preprocessing", mt_kahypar::utils::Timer::Type::PREPROCESSING, 3, std::chrono::duration<double>(end - start).count());
+  mt_kahypar::utils::Timer::instance().add_timing("coarsening", "Coarsening",
+    "", mt_kahypar::utils::Timer::Type::COARSENING, 2, std::chrono::duration<double>(end - start).count());
 
-  start = std::chrono::high_resolution_clock::now();
-  hypergraph.resetCommunityHyperedges( {} );
-  end = std::chrono::high_resolution_clock::now();
-  mt_kahypar::utils::Timer::instance().add_timing("reset_community_hyperedges", "Reset Community Hyperedges",
-    "preprocessing", mt_kahypar::utils::Timer::Type::PREPROCESSING, 4, std::chrono::duration<double>(end - start).count());
+  io::printHypergraphInfo(hypergraph, context.partition.graph_filename);
 
 
   postprocess(hypergraph);

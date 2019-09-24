@@ -1,8 +1,7 @@
 /*******************************************************************************
  * This file is part of KaHyPar.
  *
- * Copyright (C) 2018 Sebastian Schlag <sebastian.schlag@kit.edu>
- * Copyright (C) 2019 Tobias Heuer <tobias.heuer@kit.edu>
+ * Copyright (C) 2014 Sebastian Schlag <sebastian.schlag@kit.edu>
  *
  * KaHyPar is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -17,10 +16,38 @@
  * You should have received a copy of the GNU General Public License
  * along with KaHyPar.  If not, see <http://www.gnu.org/licenses/>.
  *
- ******************************************************************************/
+******************************************************************************/
 
 #pragma once
 
-#include "mt-kahypar/partition/registries/register_policies.h"
-#include "mt-kahypar/partition/registries/register_preprocessing_algorithms.h"
-#include "mt-kahypar/partition/registries/register_coarsening_algorithms.h"
+#include <string>
+
+#include "kahypar/macros.h"
+
+namespace mt_kahypar {
+
+class ICoarsener {
+ public:
+  ICoarsener(const ICoarsener&) = delete;
+  ICoarsener(ICoarsener&&) = delete;
+  ICoarsener& operator= (const ICoarsener&) = delete;
+  ICoarsener& operator= (ICoarsener&&) = delete;
+
+  void coarsen() {
+    coarsenImpl();
+  }
+
+  bool uncoarsen() {
+    return uncoarsenImpl();
+  }
+
+  virtual ~ICoarsener() = default;
+
+ protected:
+  ICoarsener() = default;
+
+ private:
+  virtual void coarsenImpl() = 0;
+  virtual bool uncoarsenImpl() = 0;
+};
+}  // namespace kahypar

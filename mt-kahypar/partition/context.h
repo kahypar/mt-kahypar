@@ -32,7 +32,7 @@ struct PartitioningParameters {
   Objective objective = Objective::UNDEFINED;
   double epsilon = std::numeric_limits<double>::max();
   PartitionID k = std::numeric_limits<PartitionID>::max();
-  int seed = 0;  
+  int seed = 0;
 
   int time_limit = 0;
   HyperedgeID hyperedge_size_threshold = std::numeric_limits<HypernodeID>::max();
@@ -63,11 +63,47 @@ inline std::ostream& operator<< (std::ostream& str, const PartitioningParameters
   return str;
 }
 
+struct RatingParameters {
+  RatingFunction rating_function = RatingFunction::UNDEFINED;
+  kahypar::HeavyNodePenaltyPolicy heavy_node_penalty_policy = kahypar::HeavyNodePenaltyPolicy::UNDEFINED;
+  kahypar::AcceptancePolicy acceptance_policy = kahypar::AcceptancePolicy::UNDEFINED;
+};
+
+inline std::ostream& operator<< (std::ostream& str, const RatingParameters& params) {
+  str << "  Rating Parameters:" << std::endl;
+  str << "    Rating Function:                  " << params.rating_function << std::endl;
+  str << "    Heavy Node Penalty:               " << params.heavy_node_penalty_policy << std::endl;
+  str << "    Acceptance Policy:                " << params.acceptance_policy << std::endl;
+  return str;
+}
+
+struct CoarseningParameters {
+  CoarseningAlgorithm algorithm = CoarseningAlgorithm::UNDEFINED;
+  RatingParameters rating = { };
+  HypernodeID contraction_limit_multiplier = std::numeric_limits<HypernodeID>::max();
+  double max_allowed_weight_multiplier = std::numeric_limits<double>::max();
+
+  // Those will be determined dynamically
+  HypernodeWeight max_allowed_node_weight = 0;
+  HypernodeID contraction_limit = 0;
+  double hypernode_weight_fraction = 0.0;
+};
+
+
+inline std::ostream& operator<< (std::ostream& str, const CoarseningParameters& params) {
+  str << "Coarsening Parameters:" << std::endl;
+  str << "  Algorithm:                          " << params.algorithm << std::endl;
+  str << "  max-allowed weight multiplier:      " << params.max_allowed_weight_multiplier << std::endl;
+  str << "  contraction limit multiplier:       " << params.contraction_limit_multiplier << std::endl;
+  str << std::endl << params.rating;
+  return str;
+}
+
 struct SharedMemoryParameters {
   size_t num_threads = 1;
   bool use_community_redistribution = false;
-  CommunityAssignmentObjective assignment_objective = CommunityAssignmentObjective::undefined;
-  CommunityAssignmentStrategy assignment_strategy = CommunityAssignmentStrategy::undefined;
+  CommunityAssignmentObjective assignment_objective = CommunityAssignmentObjective::UNDEFINED;
+  CommunityAssignmentStrategy assignment_strategy = CommunityAssignmentStrategy::UNDEFINED;
 };
 
 inline std::ostream& operator<< (std::ostream& str, const SharedMemoryParameters& params) {
@@ -83,6 +119,7 @@ inline std::ostream& operator<< (std::ostream& str, const SharedMemoryParameters
 class Context {
  public:
   PartitioningParameters partition { };
+  CoarseningParameters coarsening { };
   SharedMemoryParameters shared_memory { };
   ContextType type = ContextType::main;
 
@@ -106,6 +143,8 @@ inline std::ostream& operator<< (std::ostream& str, const Context& context) {
       << "*                            Partitioning Context                             *\n"
       << "*******************************************************************************\n"
       << context.partition
+      << "-------------------------------------------------------------------------------\n"
+      << context.coarsening
       << "-------------------------------------------------------------------------------\n"
       << context.shared_memory
       << "-------------------------------------------------------------------------------";

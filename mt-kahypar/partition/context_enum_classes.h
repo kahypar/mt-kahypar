@@ -22,7 +22,7 @@
 
 #include <iostream>
 #include <string>
-  
+
 #include "kahypar/macros.h"
 
 namespace mt_kahypar {
@@ -34,15 +34,25 @@ enum class Type : int8_t {
   EdgeAndNodeWeights = 11,
 };
 
-enum class CommunityAssignmentObjective {
+enum class CommunityAssignmentObjective : uint8_t {
   vertex_objective,
   pin_objective,
-  undefined
+  UNDEFINED
 };
 
-enum class CommunityAssignmentStrategy {
+enum class CommunityAssignmentStrategy : uint8_t {
   bin_packing,
-  undefined
+  UNDEFINED
+};
+
+enum class CoarseningAlgorithm : uint8_t {
+  community_coarsener,
+  UNDEFINED
+};
+
+enum class RatingFunction : uint8_t {
+  heavy_edge,
+  UNDEFINED
 };
 
 
@@ -61,7 +71,7 @@ std::ostream& operator<< (std::ostream& os, const CommunityAssignmentObjective& 
   switch (objective) {
     case CommunityAssignmentObjective::vertex_objective: return os << "vertex_objective";
     case CommunityAssignmentObjective::pin_objective: return os << "pin_objective";
-    case CommunityAssignmentObjective::undefined: return os << "undefined";
+    case CommunityAssignmentObjective::UNDEFINED: return os << "UNDEFINED";
       // omit default case to trigger compiler warning for missing cases
   }
   return os << static_cast<uint8_t>(objective);
@@ -70,10 +80,28 @@ std::ostream& operator<< (std::ostream& os, const CommunityAssignmentObjective& 
 std::ostream& operator<< (std::ostream& os, const CommunityAssignmentStrategy& strategy) {
   switch (strategy) {
     case CommunityAssignmentStrategy::bin_packing: return os << "bin_packing";
-    case CommunityAssignmentStrategy::undefined: return os << "undefined";
+    case CommunityAssignmentStrategy::UNDEFINED: return os << "UNDEFINED";
       // omit default case to trigger compiler warning for missing cases
   }
   return os << static_cast<uint8_t>(strategy);
+}
+
+std::ostream& operator<< (std::ostream& os, const CoarseningAlgorithm& algo) {
+  switch (algo) {
+    case CoarseningAlgorithm::community_coarsener: return os << "community_coarsener";
+    case CoarseningAlgorithm::UNDEFINED: return os << "UNDEFINED";
+      // omit default case to trigger compiler warning for missing cases
+  }
+  return os << static_cast<uint8_t>(algo);
+}
+
+std::ostream& operator<< (std::ostream& os, const RatingFunction& func) {
+  switch (func) {
+    case RatingFunction::heavy_edge: return os << "heavy_edge";
+    case RatingFunction::UNDEFINED: return os << "UNDEFINED";
+      // omit default case to trigger compiler warning for missing cases
+  }
+  return os << static_cast<uint8_t>(func);
 }
 
 static CommunityAssignmentObjective communityAssignmentObjectiveFromString(const std::string& objective) {
@@ -84,7 +112,7 @@ static CommunityAssignmentObjective communityAssignmentObjectiveFromString(const
   }
   LOG << "No valid community assignment objective.";
   exit(0);
-  return CommunityAssignmentObjective::undefined;
+  return CommunityAssignmentObjective::UNDEFINED;
 }
 
 static CommunityAssignmentStrategy communityAssignmentStrategyFromString(const std::string& objective) {
@@ -93,7 +121,25 @@ static CommunityAssignmentStrategy communityAssignmentStrategyFromString(const s
   }
   LOG << "No valid community assignment strategy.";
   exit(0);
-  return CommunityAssignmentStrategy::undefined;
+  return CommunityAssignmentStrategy::UNDEFINED;
+}
+
+static CoarseningAlgorithm coarseningAlgorithmFromString(const std::string& type) {
+  if (type == "community_coarsener") {
+    return CoarseningAlgorithm::community_coarsener;
+  }
+  LOG << "Illegal option:" << type;
+  exit(0);
+  return CoarseningAlgorithm::UNDEFINED;
+}
+
+static RatingFunction ratingFunctionFromString(const std::string& function) {
+  if (function == "heavy_edge") {
+    return RatingFunction::heavy_edge;
+  }
+  LOG << "No valid rating function for rating.";
+  exit(0);
+  return RatingFunction::UNDEFINED;
 }
 
 } // namesapce mt_kahypar
