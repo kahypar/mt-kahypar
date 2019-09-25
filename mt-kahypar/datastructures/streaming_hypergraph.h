@@ -378,15 +378,12 @@ class StreamingHypergraph {
 
       CommunityHyperedge() :
         _begin(0),
-        _size(0),
-        _community_id(kInvalidPartition){ }
+        _size(0) { }
 
       CommunityHyperedge(const size_t begin,
-                const size_t size,
-                const PartitionID community_id) :
+                const size_t size) :
         _begin(begin),
-        _size(size),
-        _community_id(community_id) { }
+        _size(size) { }
 
       // ! Returns the index of the first element in _incidence_array
       size_t firstEntry() const {
@@ -420,12 +417,8 @@ class StreamingHypergraph {
         --_size;
       }
 
-      PartitionID communityId() const {
-        return _community_id;
-      }
-
       bool operator== (const CommunityHyperedge& rhs) const {
-        return _begin == rhs._begin && _size == rhs._size && _community_id == rhs._community_id;
+        return _begin == rhs._begin && _size == rhs._size;
       }
 
       bool operator!= (const CommunityHyperedge& rhs) const {
@@ -437,8 +430,6 @@ class StreamingHypergraph {
       size_t _begin;
       // ! Number of _incidence_array elements
       size_t _size;
-      // ! Community ID
-      PartitionID _community_id;
   };
 
 
@@ -610,6 +601,7 @@ class StreamingHypergraph {
     _incident_nets(),
     _hyperedges(),
     _incidence_array(),
+    _community_hyperedge_ids(),
     _community_hyperedges(),
     _incident_nets_of_v(),
     _vertex_pin_count(),
@@ -638,6 +630,7 @@ class StreamingHypergraph {
     _incident_nets(std::move(other._incident_nets)),
     _hyperedges(std::move(other._hyperedges)),
     _incidence_array(std::move(other._incidence_array)),
+    _community_hyperedge_ids(std::move(other._community_hyperedge_ids)),
     _community_hyperedges(std::move(other._community_hyperedges)),
     _incident_nets_of_v(std::move(other._incident_nets_of_v)),
     _vertex_pin_count(std::move(other._vertex_pin_count)),
@@ -827,7 +820,7 @@ class StreamingHypergraph {
       DBG << V(e) << ": Case 1";
       hyperedge(e).hash() -= kahypar::math::hash(v);
       community_he.decrementSize();
-      removeSinglePinCommunityHyperedge(e, u, community_id, hypergraph_of_u);
+      // removeSinglePinCommunityHyperedge(e, u, community_id, hypergraph_of_u);
       // TODO(heuer): Update pin count in part
     } else {
       // Case 2:
@@ -1215,12 +1208,14 @@ class StreamingHypergraph {
       if ( community_id != kInvalidPartition ) {
         ASSERT(he < this->_community_hyperedges.size());
         ASSERT(start < end);
-        this->_community_hyperedges[he].emplace_back(start, end - start, community_id);
+        this->_community_hyperedge_ids[he].emplace_back(community_id);
+        this->_community_hyperedges[he].emplace_back(start, end - start);
       }
     };
 
     // Add community hyperedges
     tbb::task_group group;
+    _community_hyperedge_ids.resize(_num_hyperedges);
     _community_hyperedges.resize(_num_hyperedges);
     _arena.execute([&] {
       group.run([&] {
@@ -1736,8 +1731,8 @@ class StreamingHypergraph {
     ASSERT(local_id < _num_hyperedges, "Hyperedge" << e << "does not exist");
 
     size_t pos = 0;
-    for ( ; pos < _community_hyperedges[local_id].size(); ++pos ) {
-      if ( _community_hyperedges[local_id][pos].communityId() == community_id ) {
+    for ( ; pos < _community_hyperedge_ids[local_id].size(); ++pos ) {
+      if ( _community_hyperedge_ids[local_id][pos] == community_id ) {
         break;
       }
     }
@@ -1795,6 +1790,8 @@ class StreamingHypergraph {
   parallel::scalable_vector<Hyperedge> _hyperedges;
   // ! Pins of hyperedges
   parallel::scalable_vector<HypernodeID> _incidence_array;
+  // ! Community Ids of community hyperedges
+  std::vector<parallel::scalable_vector<PartitionID>> _community_hyperedge_ids;
   // ! Community Hyperedges
   CommunityHyperedges _community_hyperedges;
 
