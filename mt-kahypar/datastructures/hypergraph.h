@@ -492,17 +492,24 @@ class Hypergraph {
     // TODO(heuer): invalidate pin counts of he
   }
 
-  void restoreEdge(const HyperedgeID he) {
+  void restoreEdge(const HyperedgeID he, const size_t size) {
     ASSERT(!edgeIsEnabled(he), "Hyperedge" << he << "already enabled");
     enableHyperedge(he);
+    hypergraph_of_edge(he).hyperedge(he).setSize(size);
     // TODO(heuer): reset partition pin counts of he
     for ( const HypernodeID& pin : pins(he) ) {
       hypergraph_of_vertex(pin).insertIncidentEdgeToHypernode(he, pin);
     }
   }
 
-  // TODO(heuer): restore operation for parallel hyperedges
-  // if part ids are integrated
+  void restoreSinglePinHyperedge(const HyperedgeID he) {
+    restoreEdge(he, 1);
+  }
+
+  void restoreParallelHyperedge(const HyperedgeID he,
+                                const HyperedgeID representative) {
+    restoreEdge(he, edgeSize(representative));
+  }
 
   HypernodeWeight nodeWeight(const HypernodeID u) const {
     return hypergraph_of_vertex(u).nodeWeight(u);

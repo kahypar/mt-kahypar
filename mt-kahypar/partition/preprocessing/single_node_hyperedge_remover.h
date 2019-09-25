@@ -60,7 +60,7 @@ class SingleNodeHyperedgeRemover {
 
   void restoreSingleNodeHyperedges(Hypergraph& hypergraph) {
     for (auto he_it = _removed_hes.rbegin(); he_it != _removed_hes.rend(); ++he_it) {
-      hypergraph.restoreEdge(*he_it);
+      hypergraph.restoreSinglePinHyperedge(*he_it);
     }
     _removed_hes.clear();
   }

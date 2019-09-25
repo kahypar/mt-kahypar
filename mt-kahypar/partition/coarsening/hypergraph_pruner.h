@@ -74,8 +74,26 @@ class HypergraphPrunerT {
              "Index out of bounds" << i);
       DBG << "restore single-node HE "
           << _removed_single_node_hyperedges[i];
-      hypergraph.restoreEdge(_removed_single_node_hyperedges[i]);
+      hypergraph.restoreSinglePinHyperedge(_removed_single_node_hyperedges[i]);
       _removed_single_node_hyperedges.pop_back();
+    }
+  }
+
+  void restoreParallelHyperedges(HyperGraph& hypergraph,
+                                 const Memento& memento) {
+    for (int i = memento.parallel_hes_begin + memento.parallel_hes_size - 1;
+         i >= memento.parallel_hes_begin; --i) {
+      ASSERT(i >= 0 && static_cast<size_t>(i) < _removed_parallel_hyperedges.size(),
+             "Index out of bounds:" << i);
+      DBG << "restore HE "
+          << _removed_parallel_hyperedges[i].removed_id << "which is parallel to "
+          << _removed_parallel_hyperedges[i].representative_id;
+      hypergraph.restoreParallelHyperedge(_removed_parallel_hyperedges[i].removed_id,
+                                          _removed_parallel_hyperedges[i].representative_id);
+      hypergraph.setEdgeWeight(_removed_parallel_hyperedges[i].representative_id,
+                               hypergraph.edgeWeight(_removed_parallel_hyperedges[i].representative_id) -
+                               hypergraph.edgeWeight(_removed_parallel_hyperedges[i].removed_id));
+      _removed_parallel_hyperedges.pop_back();
     }
   }
 
