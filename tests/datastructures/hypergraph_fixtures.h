@@ -40,9 +40,9 @@ struct TestTypeTraits {
   using TopoMock = mt_kahypar::parallel::TopologyMock<NUM_NUMA_NODES>;
   using HwTopology = mt_kahypar::parallel::HardwareTopology<TopoMock, parallel::topology_t, parallel::node_t>;
   using TBB = mt_kahypar::parallel::TBBNumaArena<HwTopology>;
-  using HyperGraph = mt_kahypar::ds::Hypergraph<HypernodeID, HyperedgeID, 
+  using HyperGraph = mt_kahypar::ds::Hypergraph<HypernodeID, HyperedgeID,
     HypernodeWeight, HyperedgeWeight, PartitionID, HwTopology, TBB>;
-  using StreamingHyperGraph = mt_kahypar::ds::StreamingHypergraph<HypernodeID, HyperedgeID, 
+  using StreamingHyperGraph = mt_kahypar::ds::StreamingHypergraph<HypernodeID, HyperedgeID,
     HypernodeWeight, HyperedgeWeight, PartitionID, HwTopology, TBB>;
 };
 
@@ -56,7 +56,7 @@ class AHypergraph : public Test {
   using TestStreamingHypergraph = typename TestTypeTraits<NUM_NUMA_NODES>::StreamingHyperGraph;
   using TestHypergraph = typename TestTypeTraits<NUM_NUMA_NODES>::HyperGraph;
 
-  AHypergraph() { 
+  AHypergraph() {
     TBBArena::instance(std::thread::hardware_concurrency());
   }
 
@@ -67,14 +67,14 @@ class AHypergraph : public Test {
                                       const std::vector<PartitionID>& communities = {}) const {
     ASSERT(num_hypernodes == node_mapping.size());
     ASSERT(hyperedges.size() == edge_mapping.size());
-    
+
     // Create hypergraphs
     std::vector<TestStreamingHypergraph> numa_hypergraphs;
     for ( int node = 0; node < NUM_NUMA_NODES; ++node ) {
       TBBArena::instance().numa_task_arena(node).execute([&] {
         numa_hypergraphs.emplace_back(node);
       });
-    }             
+    }
 
     // Stream hyperedges
     for ( HyperedgeID node = 0; node < NUM_NUMA_NODES; ++node ) {
@@ -87,10 +87,10 @@ class AHypergraph : public Test {
         }
         numa_hypergraphs[node].initializeHyperedges(num_hypernodes);
       });
-    }     
+    }
 
     // Create hypergraph (that also initialize hypernodes)
-    TestHypergraph hypergraph(num_hypernodes, std::move(numa_hypergraphs), node_mapping);    
+    TestHypergraph hypergraph(num_hypernodes, std::move(numa_hypergraphs), node_mapping);
 
     if ( communities.size() > 0 ) {
       ASSERT(num_hypernodes == communities.size());
@@ -99,10 +99,9 @@ class AHypergraph : public Test {
       }
       hypergraph.initializeCommunities();
     }
-    
-    return hypergraph; 
-  }
 
+    return hypergraph;
+  }
 };
 
 

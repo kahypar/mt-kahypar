@@ -27,6 +27,7 @@
 #include "tbb/blocked_range.h"
 
 #include "mt-kahypar/definitions.h"
+#include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/partition/coarsening/hypergraph_pruner.h"
 
 namespace mt_kahypar {

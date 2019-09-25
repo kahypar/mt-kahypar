@@ -1,1 +1,2 @@
 add_subdirectory(preprocessing)
+add_subdirectory(coarsening)

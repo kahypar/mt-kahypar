@@ -1,0 +1,1 @@
+add_gmock_test(community_coarsener_test community_coarsener_test.cc)

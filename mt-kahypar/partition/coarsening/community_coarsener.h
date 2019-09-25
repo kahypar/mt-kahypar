@@ -67,7 +67,8 @@ class CommunityCoarsenerT : public ICoarsener,
 
  public:
   CommunityCoarsenerT(HyperGraph& hypergraph, const Context& context) :
-    Base(hypergraph, context) { }
+    Base(hypergraph, context),
+    _enable_randomization(true) { }
 
   CommunityCoarsenerT(const CommunityCoarsenerT&) = delete;
   CommunityCoarsenerT(CommunityCoarsenerT&&) = delete;
@@ -76,6 +77,9 @@ class CommunityCoarsenerT : public ICoarsener,
 
   ~CommunityCoarsenerT() = default;
 
+  void disableRandomization() {
+    _enable_randomization = false;
+  }
 
  private:
   void coarsenImpl() override {
@@ -108,6 +112,8 @@ class CommunityCoarsenerT : public ICoarsener,
       int node = _hg.communityNumaNode(community_id);
       TBB::instance().numa_task_arena(node).execute([&, community_id, i] {
         group.run([&, community_id, i] {
+          // Compute contraction limit for community relative to
+          // community size and original contraction limit
           HypernodeID contraction_limit =
             std::ceil((((double) this->_hg.initialNumCommunityHypernodes(community_id)) /
               this->_hg.totalWeight()) * _context.coarsening.contraction_limit);
@@ -134,6 +140,9 @@ class CommunityCoarsenerT : public ICoarsener,
         << "on numa node" << HwTopology::instance().numa_node_of_cpu(sched_getcpu())
         << "on cpu" << sched_getcpu();
 
+    // Sort community nodes in increasing order of their local community node id
+    // Note, this is required by vertex pair rater that the node ids are sorted
+    // in that order
     std::sort(community_nodes.begin(), community_nodes.end(),
               [&](const HypernodeID& lhs, const HypernodeID& rhs) {
                 return _hg.communityNodeId(lhs) < _hg.communityNodeId(rhs);
@@ -152,7 +161,10 @@ class CommunityCoarsenerT : public ICoarsener,
       rater.resetMatches();
       size_t num_hns_before_pass = current_num_nodes;
       parallel::scalable_vector<HypernodeID> tmp_nodes;
-      utils::Randomize::instance().shuffleVector(nodes, nodes.size(), sched_getcpu());
+
+      if ( _enable_randomization ) {
+        utils::Randomize::instance().shuffleVector(nodes, nodes.size(), sched_getcpu());
+      }
 
       for ( const HypernodeID& hn : nodes ) {
         if ( _hg.nodeIsEnabled(hn) ) {
@@ -188,6 +200,7 @@ class CommunityCoarsenerT : public ICoarsener,
 
   using Base::_hg;
   using Base::_context;
+  bool _enable_randomization;
 };
 
 template< class ScorePolicy = HeavyEdgeScore,

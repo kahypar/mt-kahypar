@@ -21,6 +21,7 @@
 
 #pragma once
 
+#include "kahypar/utils/math.h"
 #include "kahypar/datastructure/fast_reset_flag_array.h"
 
 #include "mt-kahypar/definitions.h"
@@ -214,7 +215,7 @@ class HypergraphPrunerT {
         ASSERT([&]() {
             size_t correct_hash = HyperGraph::kEdgeHashSeed;
             for (const HypernodeID& pin : hypergraph.pins(he, community_id)) {
-              correct_hash += math::hash(pin);
+              correct_hash += kahypar::math::hash(pin);
             }
             if (correct_hash != hypergraph.edgeHash(he)) {
               LOG << V(correct_hash);

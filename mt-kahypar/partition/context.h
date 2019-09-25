@@ -35,7 +35,7 @@ struct PartitioningParameters {
   int seed = 0;
 
   int time_limit = 0;
-  HyperedgeID hyperedge_size_threshold = std::numeric_limits<HypernodeID>::max();
+  HyperedgeID hyperedge_size_threshold = 1000;
 
   bool verbose_output = false;
   bool quiet_mode = false;
