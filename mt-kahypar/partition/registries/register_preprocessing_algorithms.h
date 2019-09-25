@@ -27,7 +27,7 @@
 #include "mt-kahypar/partition/factories.h"
 #include "mt-kahypar/partition/context.h"
 
-#define REGISTER_DISPATCHED_REDISTRIBUTOR(id, dispatcher, ...)             \
+#define REGISTER_DISPATCHED_COMMUNITY_ASSIGNER(id, dispatcher, ...)        \
   static meta::Registrar<RedistributionFactory> register_ ## dispatcher(   \
     id,                                                                    \
     [](Hypergraph& hypergraph, const Context& context) {                   \
@@ -39,9 +39,9 @@
 
 namespace mt_kahypar {
 
-REGISTER_DISPATCHED_REDISTRIBUTOR(CommunityAssignmentStrategy::bin_packing,
-                                  BinPackingRedistributionDispatcher,
-                                  meta::PolicyRegistry<CommunityAssignmentObjective>::getInstance().getPolicy(
-                                    context.shared_memory.assignment_objective));
+REGISTER_DISPATCHED_COMMUNITY_ASSIGNER(CommunityAssignmentStrategy::bin_packing,
+                                       BinPackingCommunityAssignmentDispatcher,
+                                       meta::PolicyRegistry<CommunityAssignmentObjective>::getInstance().getPolicy(
+                                         context.shared_memory.assignment_objective));
 
 } // namespace mt_kahypar

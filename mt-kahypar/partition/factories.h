@@ -25,8 +25,8 @@
 #include "kahypar/meta/typelist.h"
 
 #include "mt-kahypar/partition/context.h"
-#include "mt-kahypar/partition/preprocessing/i_redistribution.h"
-#include "mt-kahypar/partition/preprocessing/bin_packing_restribution.h"
+#include "mt-kahypar/partition/preprocessing/i_community_assignment.h"
+#include "mt-kahypar/partition/preprocessing/bin_packing_community_assignment.h"
 #include "mt-kahypar/partition/preprocessing/policies/community_assignment_objective.h"
 #include "mt-kahypar/partition/coarsening/i_coarsener.h"
 #include "mt-kahypar/partition/coarsening/community_coarsener.h"
@@ -37,11 +37,11 @@
 namespace mt_kahypar {
 
 using RedistributionFactory = kahypar::meta::Factory<CommunityAssignmentStrategy,
-                                                     preprocessing::IRedistribution* (*)(Hypergraph&, const Context&)>;
+                                                     preprocessing::ICommunityAssignment* (*)(Hypergraph&, const Context&)>;
 
-using BinPackingRedistributionDispatcher = kahypar::meta::StaticMultiDispatchFactory<preprocessing::BinPackingRedistribution,
-                                                                                     preprocessing::IRedistribution,
-                                                                                     kahypar::meta::Typelist<ObjectivePolicyClasses>>;
+using BinPackingCommunityAssignmentDispatcher = kahypar::meta::StaticMultiDispatchFactory<preprocessing::BinPackingCommunityAssignment,
+                                                                                          preprocessing::ICommunityAssignment,
+                                                                                          kahypar::meta::Typelist<ObjectivePolicyClasses>>;
 
 using CoarsenerFactory = kahypar::meta::Factory<CoarseningAlgorithm,
                                                 ICoarsener* (*)(Hypergraph&, const Context&)>;

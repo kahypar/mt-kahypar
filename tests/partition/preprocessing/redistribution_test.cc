@@ -23,7 +23,7 @@
 
 #include "tests/datastructures/hypergraph_fixtures.h"
 #include "mt-kahypar/partition/context.h"
-#include "mt-kahypar/partition/preprocessing/bin_packing_restribution.h"
+#include "mt-kahypar/partition/preprocessing/community_redistributor.h"
 #include "mt-kahypar/partition/preprocessing/policies/community_assignment_objective.h"
 
 using ::testing::Test;
@@ -39,6 +39,7 @@ class ARedistributorOnTwoNumaNodes : public AHypergraph<2> {
  public:
   using Base::TestStreamingHypergraph;
   using Base::TestHypergraph;
+  using Redistributor = mt_kahypar::preprocessing::CommunityRedistributorT<TestTypeTraits<2>>;
 
   ARedistributorOnTwoNumaNodes() :
     Base(),
@@ -47,13 +48,10 @@ class ARedistributorOnTwoNumaNodes : public AHypergraph<2> {
       { 0, 1, 0, 1, 0, 1, 0 },
       { 0, 0, 1, 1 },
       { 0, 0, 1, 1, 2, 3, 2 } )),
-    context(),
-    redistributor(hypergraph, context) { }
+    context() { }
 
   TestHypergraph hypergraph;
   Context context;
-  mt_kahypar::preprocessing::BinPackingRedistributionT<
-    TestTypeTraits<2>, mt_kahypar::VertexObjectivePolicy> redistributor;
 };
 
 TEST_F(ARedistributorOnTwoNumaNodes, RedistributesCommunities) {
@@ -65,7 +63,7 @@ TEST_F(ARedistributorOnTwoNumaNodes, RedistributesCommunities) {
   ASSERT_EQ(1, TestStreamingHypergraph::get_numa_node_of_vertex(hypergraph.globalNodeID(5)));
   ASSERT_EQ(0, TestStreamingHypergraph::get_numa_node_of_vertex(hypergraph.globalNodeID(6)));
 
-  TestHypergraph r_hypergraph = redistributor.createHypergraph(hypergraph, {0, 0, 1, 1});
+  TestHypergraph r_hypergraph = Redistributor::redistribute(hypergraph, {0, 0, 1, 1});
 
   ASSERT_EQ(0, TestStreamingHypergraph::get_numa_node_of_vertex(r_hypergraph.globalNodeID(0)));
   ASSERT_EQ(0, TestStreamingHypergraph::get_numa_node_of_vertex(r_hypergraph.globalNodeID(1)));
@@ -84,6 +82,7 @@ class ARedistributorOnFourNumaNodes : public AHypergraph<4> {
  public:
   using Base::TestStreamingHypergraph;
   using Base::TestHypergraph;
+  using Redistributor = mt_kahypar::preprocessing::CommunityRedistributorT<TestTypeTraits<4>>;
 
   ARedistributorOnFourNumaNodes() :
     Base(),
@@ -92,13 +91,10 @@ class ARedistributorOnFourNumaNodes : public AHypergraph<4> {
       { 0, 1, 2, 3, 0, 1, 2 },
       { 0, 1, 2, 3 },
       { 0, 0, 1, 1, 2, 3, 2 } )),
-    context(),
-    redistributor(hypergraph, context) { }
+    context() { }
 
   TestHypergraph hypergraph;
   Context context;
-  mt_kahypar::preprocessing::BinPackingRedistributionT<
-    TestTypeTraits<4>, mt_kahypar::VertexObjectivePolicy> redistributor;
 };
 
 TEST_F(ARedistributorOnFourNumaNodes, RedistributesCommunities) {
@@ -110,7 +106,7 @@ TEST_F(ARedistributorOnFourNumaNodes, RedistributesCommunities) {
   ASSERT_EQ(1, TestStreamingHypergraph::get_numa_node_of_vertex(hypergraph.globalNodeID(5)));
   ASSERT_EQ(2, TestStreamingHypergraph::get_numa_node_of_vertex(hypergraph.globalNodeID(6)));
 
-  TestHypergraph r_hypergraph = redistributor.createHypergraph(hypergraph, {0, 1, 2, 3});
+  TestHypergraph r_hypergraph = Redistributor::redistribute(hypergraph, {0, 1, 2, 3});
 
   ASSERT_EQ(0, TestStreamingHypergraph::get_numa_node_of_vertex(r_hypergraph.globalNodeID(0)));
   ASSERT_EQ(0, TestStreamingHypergraph::get_numa_node_of_vertex(r_hypergraph.globalNodeID(1)));

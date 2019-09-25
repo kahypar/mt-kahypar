@@ -25,14 +25,14 @@
 #include "kahypar/meta/mandatory.h"
 
 #include "mt-kahypar/definitions.h"
-#include "mt-kahypar/partition/preprocessing/i_redistribution.h"
+#include "mt-kahypar/partition/preprocessing/i_community_assignment.h"
 
 namespace mt_kahypar {
 namespace preprocessing {
 
 template< typename TypeTraits = Mandatory,
           typename Objective = Mandatory >
-class BinPackingRedistributionT : public IRedistributionT<TypeTraits> {
+class BinPackingCommunityAssignmentT : public ICommunityAssignment {
  private:
   using HyperGraph = typename TypeTraits::HyperGraph;
   using TBB = typename TypeTraits::TBB;
@@ -45,20 +45,20 @@ class BinPackingRedistributionT : public IRedistributionT<TypeTraits> {
   };
 
  public:
-  BinPackingRedistributionT(HyperGraph& hypergraph, const Context& context) :
+  BinPackingCommunityAssignmentT(HyperGraph& hypergraph, const Context& context) :
     _hg(hypergraph),
     _context(context) { }
 
-  BinPackingRedistributionT(const BinPackingRedistributionT&) = delete;
-  BinPackingRedistributionT& operator= (const BinPackingRedistributionT&) = delete;
+  BinPackingCommunityAssignmentT(const BinPackingCommunityAssignmentT&) = delete;
+  BinPackingCommunityAssignmentT& operator= (const BinPackingCommunityAssignmentT&) = delete;
 
-  BinPackingRedistributionT(BinPackingRedistributionT&&) = delete;
-  BinPackingRedistributionT& operator= (BinPackingRedistributionT&&) = delete;
+  BinPackingCommunityAssignmentT(BinPackingCommunityAssignmentT&&) = delete;
+  BinPackingCommunityAssignmentT& operator= (BinPackingCommunityAssignmentT&&) = delete;
 
-  ~BinPackingRedistributionT() = default;
+  ~BinPackingCommunityAssignmentT() = default;
 
  private:
-  HyperGraph redistributeImpl() override {
+  std::vector<PartitionID> computeAssignmentImpl() {
     // Compute Bin Capacities
     HighResClockTimepoint start = std::chrono::high_resolution_clock::now();
     int used_numa_nodes = TBB::instance().num_used_numa_nodes();
@@ -73,7 +73,7 @@ class BinPackingRedistributionT : public IRedistributionT<TypeTraits> {
     for ( PartitionID community = 0; community < _hg.numCommunities(); ++community ) {
       communities.emplace_back( Community { community, Objective::objective(_hg, community) } );
     }
-    std::sort(communities.begin(), communities.end(), 
+    std::sort(communities.begin(), communities.end(),
       [](const Community& lhs, const Community& rhs) {
         return lhs.objective < rhs.objective;
       });
@@ -85,7 +85,7 @@ class BinPackingRedistributionT : public IRedistributionT<TypeTraits> {
     while ( !communities.empty() ) {
       const Community community = communities.back();
       communities.pop_back();
-      
+
       // Search for bin with enough space to hold current community
       int start_bin = current_bin;
       bool found = false;
@@ -131,7 +131,7 @@ class BinPackingRedistributionT : public IRedistributionT<TypeTraits> {
       "redistribution", mt_kahypar::utils::Timer::Type::PREPROCESSING, 0, std::chrono::duration<double>(end - start).count());
 
     ASSERT(std::count(community_assignment.begin(), community_assignment.end(), -1) == 0, "There are unassigned communities");
-    return this->createHypergraph(_hg, community_assignment);
+    return community_assignment;
   }
 
   HypernodeID bin_capacity(const int node) const {
@@ -146,7 +146,7 @@ class BinPackingRedistributionT : public IRedistributionT<TypeTraits> {
 };
 
 template< typename Objective = Mandatory >
-using BinPackingRedistribution = BinPackingRedistributionT<GlobalTypeTraits, Objective>;
+using BinPackingCommunityAssignment = BinPackingCommunityAssignmentT<GlobalTypeTraits, Objective>;
 
 } // namespace preprocessing
 } // namespace mt_kahypar

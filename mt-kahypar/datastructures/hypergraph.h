@@ -179,7 +179,8 @@ class Hypergraph {
     _communities_num_hypernodes(),
     _communities_num_pins(),
     _hypergraphs(),
-    _node_mapping() { }
+    _node_mapping(),
+    _community_node_mapping() { }
 
   Hypergraph(const HypernodeID num_hypernodes,
              std::vector<StreamingHypergraph>&& hypergraphs) :
@@ -190,7 +191,8 @@ class Hypergraph {
     _communities_num_hypernodes(),
     _communities_num_pins(),
     _hypergraphs(std::move(hypergraphs)),
-    _node_mapping(num_hypernodes, 0) {
+    _node_mapping(num_hypernodes, 0),
+    _community_node_mapping() {
     computeNodeMapping();
     initializeHypernodes();
   }
@@ -205,7 +207,8 @@ class Hypergraph {
     _communities_num_hypernodes(),
     _communities_num_pins(),
     _hypergraphs(std::move(hypergraphs)),
-    _node_mapping(node_mapping) {
+    _node_mapping(node_mapping),
+    _community_node_mapping() {
     initializeHypernodes();
   }
 
@@ -219,7 +222,8 @@ class Hypergraph {
     _communities_num_hypernodes(),
     _communities_num_pins(),
     _hypergraphs(std::move(hypergraphs)),
-    _node_mapping(std::move(node_mapping)) {
+    _node_mapping(std::move(node_mapping)),
+    _community_node_mapping() {
     initializeHypernodes();
   }
 
@@ -536,6 +540,15 @@ class Hypergraph {
     return hypergraph_of_vertex(u).communityID(u);
   }
 
+  PartitionID communityNumaNode(const PartitionID community_id) const {
+    ASSERT(community_id < (PartitionID) _community_node_mapping.size());
+    return _community_node_mapping[community_id];
+  }
+
+  void setCommunityNodeMapping(std::vector<PartitionID>&& community_node_mapping) {
+    _community_node_mapping = std::move(community_node_mapping);
+  }
+
   bool nodeIsEnabled(const HypernodeID u) const {
     return hypergraph_of_vertex(u).nodeIsEnabled(u);
   }
@@ -832,7 +845,7 @@ class Hypergraph {
 
   std::vector<StreamingHypergraph> _hypergraphs;
   std::vector<HypernodeID> _node_mapping;
-
+  std::vector<PartitionID> _community_node_mapping;
 
 };
 

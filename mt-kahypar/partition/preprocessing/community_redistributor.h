@@ -30,7 +30,7 @@ namespace mt_kahypar {
 namespace preprocessing {
 
 template< typename TypeTraits >
-class IRedistributionT {
+class CommunityRedistributorT {
  private:
   using HyperGraph = typename TypeTraits::HyperGraph;
   using StreamingHyperGraph = typename TypeTraits::StreamingHyperGraph;
@@ -38,19 +38,15 @@ class IRedistributionT {
   using HwTopology = typename TypeTraits::HwTopology;
 
  public:
-  IRedistributionT(const IRedistributionT&) = delete;
-  IRedistributionT& operator= (const IRedistributionT&) = delete;
-  IRedistributionT(IRedistributionT&&) = delete;
-  IRedistributionT& operator= (IRedistributionT&&) = delete;
+  CommunityRedistributorT(const CommunityRedistributorT&) = delete;
+  CommunityRedistributorT& operator= (const CommunityRedistributorT&) = delete;
+  CommunityRedistributorT(CommunityRedistributorT&&) = delete;
+  CommunityRedistributorT& operator= (CommunityRedistributorT&&) = delete;
 
-  virtual ~IRedistributionT() = default;
+  ~CommunityRedistributorT() = default;
 
-  HyperGraph redistribute() {
-    return redistributeImpl();
-  }
-
-  HyperGraph createHypergraph(HyperGraph& hg,
-                              const std::vector<PartitionID>& community_assignment) {
+  static HyperGraph redistribute(HyperGraph& hg,
+                                 const std::vector<PartitionID>& community_assignment) {
     int used_numa_nodes = TBB::instance().num_used_numa_nodes();
 
     // Compute Node Mapping
@@ -131,7 +127,7 @@ class IRedistributionT {
       for ( int streaming_node = 0; streaming_node < used_numa_nodes; ++streaming_node ) {
         TBB::instance().numa_task_arena(streaming_node).execute([&, node, streaming_node] {
           group.run([&, node, streaming_node] {
-            tbb::parallel_for(tbb::blocked_range<HyperedgeID>(0UL, hg.initialNumEdges(node)), 
+            tbb::parallel_for(tbb::blocked_range<HyperedgeID>(0UL, hg.initialNumEdges(node)),
             [&, node, streaming_node](const tbb::blocked_range<HyperedgeID>& range) {
               for ( HyperedgeID local_he = range.begin(); local_he < range.end(); ++local_he ) {
                 ASSERT(streaming_node == HwTopology::instance().numa_node_of_cpu(sched_getcpu()));
@@ -206,13 +202,10 @@ class IRedistributionT {
   }
 
  protected:
-  IRedistributionT() = default;
-
- private:
-  virtual HyperGraph redistributeImpl() = 0;
+  CommunityRedistributorT() = default;
 };
 
-using IRedistribution = IRedistributionT<GlobalTypeTraits>;
+using CommunityRedistributor = CommunityRedistributorT<GlobalTypeTraits>;
 
 } // namespace preprocessing
 } // namespace mt_kahypar

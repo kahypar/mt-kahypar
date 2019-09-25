@@ -113,7 +113,7 @@ class CommunityCoarsenerT : public ICoarsener {
       if ( community_hns[i].size() <= 1 ) continue;
 
       PartitionID community_id = _hg.communityID(community_hns[i][0]);
-      int node = StreamingHyperGraph::get_numa_node_of_vertex(community_hns[i][0]);
+      int node = _hg.communityNumaNode(community_id);
       TBB::instance().numa_task_arena(node).execute([&, community_id, i] {
         group.run([&, community_id, i] {
           HypernodeID contraction_limit =

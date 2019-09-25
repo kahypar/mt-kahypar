@@ -796,10 +796,7 @@ class StreamingHypergraph {
   void contract(const HypernodeID u, const HypernodeID v,
                 const HyperedgeID e, const PartitionID community_id,
                 Self& hypergraph_of_u) {
-    ASSERT(get_numa_node_of_vertex(v) == get_numa_node_of_vertex(u));
     ASSERT(get_numa_node_of_hyperedge(e) == _node);
-    ASSERT(hypergraph_of_u.communityID(u) == community_id);
-    ASSERT(hypergraph_of_u.communityID(v) == community_id);
 
     using std::swap;
     const HypernodeID pins_begin = community_hyperedge(e, community_id).firstEntry();

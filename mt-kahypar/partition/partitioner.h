@@ -32,6 +32,7 @@
 #include "mt-kahypar/partition/preprocessing/single_node_hyperedge_remover.h"
 #include "mt-kahypar/partition/factories.h"
 #include "mt-kahypar/partition/metrics.h"
+#include "mt-kahypar/partition/preprocessing/community_redistributor.h"
 
 namespace mt_kahypar {
 namespace partition {
@@ -122,7 +123,7 @@ inline void Partitioner::preprocess(Hypergraph& hypergraph, const Context& conte
     for ( HypernodeID hn = range.begin(); hn < range.end(); ++hn ) {
       hypergraph.streamCommunityID(hypergraph.globalNodeID(hn), communities[hn]);
     }
-  });  
+  });
   end = std::chrono::high_resolution_clock::now();
   mt_kahypar::utils::Timer::instance().add_timing("stream_community_ids", "Stream Community IDs",
     "community_detection", mt_kahypar::utils::Timer::Type::PREPROCESSING, 1, std::chrono::duration<double>(end - start).count());
@@ -137,25 +138,26 @@ inline void Partitioner::preprocess(Hypergraph& hypergraph, const Context& conte
   mt_kahypar::utils::Timer::instance().add_timing("community_detection", "Community Detection",
     "preprocessing", mt_kahypar::utils::Timer::Type::PREPROCESSING, 1, std::chrono::duration<double>(global_end - global_start).count());
 
-  if ( context.shared_memory.use_community_redistribution ) {
-    // Redistribute Hypergraph based on communities
-    start = std::chrono::high_resolution_clock::now();
-    redistribution(hypergraph, context);
-    end = std::chrono::high_resolution_clock::now();
-    mt_kahypar::utils::Timer::instance().add_timing("redistribution", "Redistribution",
-      "preprocessing", mt_kahypar::utils::Timer::Type::PREPROCESSING, 2, std::chrono::duration<double>(end - start).count());
-  }
+  // Redistribute Hypergraph based on communities
+  start = std::chrono::high_resolution_clock::now();
+  redistribution(hypergraph, context);
+  end = std::chrono::high_resolution_clock::now();
+  mt_kahypar::utils::Timer::instance().add_timing("redistribution", "Redistribution",
+    "preprocessing", mt_kahypar::utils::Timer::Type::PREPROCESSING, 2, std::chrono::duration<double>(end - start).count());
 }
 
 inline void Partitioner::redistribution(Hypergraph& hypergraph, const Context& context) {
-  std::unique_ptr<preprocessing::IRedistribution> redistributor =
+  std::unique_ptr<preprocessing::ICommunityAssignment> community_assignment =
     RedistributionFactory::getInstance().createObject(
       context.shared_memory.assignment_strategy, hypergraph, context);
 
   DBG << "Remote Pin Count Before Redistribution" << metrics::remotePinCount(hypergraph);
-  hypergraph = redistributor->redistribute();
+  std::vector<PartitionID> community_node_mapping = community_assignment->computeAssignment();
+  if ( context.shared_memory.use_community_redistribution ) {
+    hypergraph = preprocessing::CommunityRedistributor::redistribute(hypergraph, community_node_mapping);
+  }
+  hypergraph.setCommunityNodeMapping(std::move(community_node_mapping));
   DBG << "Remote Pin Count After Redistribution" << metrics::remotePinCount(hypergraph);
-
 }
 
 inline void Partitioner::postprocess(Hypergraph& hypergraph) {
