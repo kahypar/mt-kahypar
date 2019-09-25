@@ -130,7 +130,6 @@ void reAddsHyperedgesOfSizeOneDuringUncoarsening(Coarsener& coarsener,
   for ( const HyperedgeID& he : single_node_hes ) {
     ASSERT_THAT(hypergraph.edgeIsEnabled(he), Eq(false)) << V(he);
   }
-
   coarsener.uncoarsen();
   for ( const HyperedgeID& he : single_node_hes ) {
     ASSERT_THAT(hypergraph.edgeIsEnabled(he), Eq(true)) << V(he);
@@ -168,7 +167,6 @@ void restoresParallelHyperedgesDuringUncoarsening(Coarsener& coarsener,
   for ( const HyperedgeID& he : parallel_hes ) {
     ASSERT_THAT(hypergraph.edgeIsEnabled(he), Eq(false)) << V(he);
   }
-
   coarsener.uncoarsen();
   for ( const HyperedgeID& he : parallel_hes ) {
     ASSERT_THAT(hypergraph.edgeIsEnabled(he), Eq(true)) << V(he);
