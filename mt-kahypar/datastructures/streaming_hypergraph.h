@@ -717,8 +717,9 @@ class StreamingHypergraph {
   std::pair<IncidenceIterator, IncidenceIterator> pins(const HyperedgeID e, const PartitionID community_id) const {
     ASSERT(!hyperedge(e).isDisabled(), "Hyperedge" << e << "is disabled");
     ASSERT(hyperedge(e).isInitCommunityHyperedges(), "Community hyperedges of HE" << e << "are not initialized");
-    return std::make_pair(_incidence_array.cbegin() + community_hyperedge(e, community_id).firstEntry(),
-                          _incidence_array.cbegin() + community_hyperedge(e, community_id).firstInvalidEntry());
+    const CommunityHyperedge& community_he = community_hyperedge(e, community_id);
+    return std::make_pair(_incidence_array.cbegin() + community_he.firstEntry(),
+                          _incidence_array.cbegin() + community_he.firstInvalidEntry());
   }
 
   /*!
@@ -799,8 +800,9 @@ class StreamingHypergraph {
     ASSERT(get_numa_node_of_hyperedge(e) == _node);
 
     using std::swap;
-    const HypernodeID pins_begin = community_hyperedge(e, community_id).firstEntry();
-    const HypernodeID pins_end = community_hyperedge(e, community_id).firstInvalidEntry();
+    CommunityHyperedge& community_he = community_hyperedge(e, community_id);
+    const HypernodeID pins_begin = community_he.firstEntry();
+    const HypernodeID pins_end = community_he.firstInvalidEntry();
     HypernodeID slot_of_u = pins_end - 1;
     HypernodeID last_pin_slot = pins_end - 1;
 
@@ -824,7 +826,7 @@ class StreamingHypergraph {
       // can just cut off the last entry in the edge array of e that now contains v.
       DBG << V(e) << ": Case 1";
       hyperedge(e).hash() -= kahypar::math::hash(v);
-      community_hyperedge(e, community_id).decrementSize();
+      community_he.decrementSize();
       removeSinglePinCommunityHyperedge(e, u, community_id, hypergraph_of_u);
       // TODO(heuer): Update pin count in part
     } else {
@@ -834,7 +836,7 @@ class StreamingHypergraph {
       DBG << V(e) << ": Case 2";
       hyperedge(e).hash() -= kahypar::math::hash(v);
       hyperedge(e).hash() += kahypar::math::hash(u);
-      connectHyperedgeToRepresentative(e, u, community_id, hypergraph_of_u);
+      connectHyperedgeToRepresentative(e, u, community_id, community_he, hypergraph_of_u);
     }
   }
 
@@ -1508,6 +1510,7 @@ class StreamingHypergraph {
   KAHYPAR_ATTRIBUTE_ALWAYS_INLINE void connectHyperedgeToRepresentative(const HyperedgeID e,
                                                                         const HypernodeID u,
                                                                         const PartitionID community_id,
+                                                                        const CommunityHyperedge& community_he,
                                                                         Self& hypergraph_of_u) {
     ASSERT(hypergraph_of_u.nodeIsEnabled(u), "Hypernode" << u << "is disabled");
     ASSERT(!hyperedge(e).isDisabled(), "Hyperedge" << e << "is disabled");
@@ -1516,7 +1519,7 @@ class StreamingHypergraph {
     // -- this is ensured by the contract method) in e's edge array to store the information
     // that u is now connected to e and add the edge (u,e) to indicate this conection also from
     // the hypernode's point of view.
-    _incidence_array[community_hyperedge(e, community_id).firstInvalidEntry() - 1] = u;
+    _incidence_array[community_he.firstInvalidEntry() - 1] = u;
     hypergraph_of_u.incident_nets(u).push_back(e);
     if ( edgeSize(e, community_id) > 1 ) {
       size_t single_pin_community_nets = hypergraph_of_u.hypernode(u).singlePinCommunityNets();
@@ -1699,7 +1702,7 @@ class StreamingHypergraph {
   }
 
   // ! Accessor for hypernode-related information
-  const Hypernode & hypernode(const HypernodeID u) const {
+  KAHYPAR_ATTRIBUTE_ALWAYS_INLINE const Hypernode & hypernode(const HypernodeID u) const {
     HypernodeID local_id = get_local_node_id_of_vertex(u);
     ASSERT(get_numa_node_of_vertex(u) == _node, "Hypernode" << u << "is not part of numa node" << _node);
     ASSERT(local_id < _num_hypernodes, "Hypernode" << u << "does not exist");
@@ -1707,7 +1710,7 @@ class StreamingHypergraph {
   }
 
   // ! Accessor for hyperedge-related information
-  const Hyperedge & hyperedge(const HyperedgeID e) const {
+  KAHYPAR_ATTRIBUTE_ALWAYS_INLINE const Hyperedge & hyperedge(const HyperedgeID e) const {
     // <= instead of < because of sentinel
     HypernodeID local_id = get_local_edge_id_of_hyperedge(e);
     ASSERT(get_numa_node_of_hyperedge(e) == _node, "Hyperedge" << e << "is not part of numa node" << _node);
@@ -1716,7 +1719,7 @@ class StreamingHypergraph {
   }
 
   // ! Accessor for community hyperedge-related information
-  const CommunityHyperedge & community_hyperedge(const HyperedgeID e, const PartitionID community_id) const {
+  KAHYPAR_ATTRIBUTE_ALWAYS_INLINE const CommunityHyperedge & community_hyperedge(const HyperedgeID e, const PartitionID community_id) const {
     HypernodeID local_id = get_local_edge_id_of_hyperedge(e);
     ASSERT(get_numa_node_of_hyperedge(e) == _node, "Hyperedge" << e << "is not part of numa node" << _node);
     ASSERT(local_id < _num_hyperedges, "Hyperedge" << e << "does not exist");
@@ -1727,7 +1730,7 @@ class StreamingHypergraph {
     return _community_hyperedges[local_id][community_hyperedge_position];
   }
 
-  size_t find_position_of_community_hyperedge(const HyperedgeID e, const PartitionID community_id) const {
+  KAHYPAR_ATTRIBUTE_ALWAYS_INLINE size_t find_position_of_community_hyperedge(const HyperedgeID e, const PartitionID community_id) const {
     HypernodeID local_id = get_local_edge_id_of_hyperedge(e);
     ASSERT(get_numa_node_of_hyperedge(e) == _node, "Hyperedge" << e << "is not part of numa node" << _node);
     ASSERT(local_id < _num_hyperedges, "Hyperedge" << e << "does not exist");
@@ -1744,7 +1747,7 @@ class StreamingHypergraph {
     return pos;
   }
 
-  const parallel::scalable_vector<HyperedgeID>& incident_nets(const HypernodeID u) const {
+  KAHYPAR_ATTRIBUTE_ALWAYS_INLINE const parallel::scalable_vector<HyperedgeID>& incident_nets(const HypernodeID u) const {
     HypernodeID local_id = get_local_node_id_of_vertex(u);
     ASSERT(get_numa_node_of_vertex(u) == _node, "Hypernode" << u << "is not part of numa node" << _node);
     ASSERT(local_id < _num_hypernodes, "Hypernode" << u << "does not exist");
@@ -1752,21 +1755,21 @@ class StreamingHypergraph {
   }
 
   // ! To avoid code duplication we implement non-const version in terms of const version
-  Hypernode & hypernode(const HypernodeID u) {
+  KAHYPAR_ATTRIBUTE_ALWAYS_INLINE Hypernode & hypernode(const HypernodeID u) {
     return const_cast<Hypernode&>(static_cast<const StreamingHypergraph&>(*this).hypernode(u));
   }
 
   // ! To avoid code duplication we implement non-const version in terms of const version
-  CommunityHyperedge & community_hyperedge(const HyperedgeID e, const PartitionID community_id) {
+  KAHYPAR_ATTRIBUTE_ALWAYS_INLINE CommunityHyperedge & community_hyperedge(const HyperedgeID e, const PartitionID community_id) {
     return const_cast<CommunityHyperedge&>(static_cast<const StreamingHypergraph&>(*this).community_hyperedge(e, community_id));
   }
 
   // ! To avoid code duplication we implement non-const version in terms of const version
-  Hyperedge & hyperedge(const HyperedgeID e) {
+  KAHYPAR_ATTRIBUTE_ALWAYS_INLINE Hyperedge & hyperedge(const HyperedgeID e) {
     return const_cast<Hyperedge&>(static_cast<const StreamingHypergraph&>(*this).hyperedge(e));
   }
 
-  parallel::scalable_vector<HyperedgeID>& incident_nets(const HypernodeID u) {
+  KAHYPAR_ATTRIBUTE_ALWAYS_INLINE parallel::scalable_vector<HyperedgeID>& incident_nets(const HypernodeID u) {
     return const_cast<parallel::scalable_vector<HyperedgeID>&>(static_cast<const StreamingHypergraph&>(*this).incident_nets(u));
   }
 
