@@ -24,6 +24,7 @@
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/application/command_line_options.h"
 #include "mt-kahypar/io/hypergraph_io.h"
+#include "mt-kahypar/io/sql_plottools_serializer.h"
 #include "mt-kahypar/partition/partitioner.h"
 
 #include "mt-kahypar/utils/timer.h"
@@ -46,6 +47,7 @@ int main(int argc, char* argv[]) {
   mt_kahypar::partition::Partitioner().partition(hypergraph, context);
 
   mt_kahypar::io::printPartitioningResults(hypergraph, context);
+  mt_kahypar::io::serializer::serialize(hypergraph, context);
 
   mt_kahypar::TBBNumaArena::instance().terminate();
   return 0;

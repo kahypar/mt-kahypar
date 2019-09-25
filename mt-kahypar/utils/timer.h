@@ -45,7 +45,7 @@ class Timer {
   };
 
  private:
- 
+
   using Key = std::pair<std::string, std::string>;
 
   struct PairHasher {
@@ -59,10 +59,10 @@ class Timer {
   class Timing {
 
     public:
-      Timing(const std::string& name, 
-             const std::string& description, 
+      Timing(const std::string& name,
+             const std::string& description,
              const std::string& parent,
-             const Type& type, 
+             const Type& type,
              const int order) :
         _name(name),
         _description(description),
@@ -125,8 +125,8 @@ class Timer {
     return *_instance;
   }
 
-  void add_timing( const std::string& name, const std::string& description, 
-                   const std::string& parent, const Type& type, const int order, 
+  void add_timing( const std::string& name, const std::string& description,
+                   const std::string& parent, const Type& type, const int order,
                    const double timing ) {
     std::lock_guard<std::mutex> lock(_timing_mutex);
     Key key = std::make_pair(parent, name);
@@ -139,8 +139,8 @@ class Timer {
     }
   }
 
-  void update_timing( const std::string& name, const std::string& description, 
-                      const std::string& parent, const Type& type, const int order, 
+  void update_timing( const std::string& name, const std::string& description,
+                      const std::string& parent, const Type& type, const int order,
                       const double timing ) {
     std::lock_guard<std::mutex> lock(_timing_mutex);
     Key key = std::make_pair(parent, name);
@@ -151,6 +151,15 @@ class Timer {
         std::forward_as_tuple(name, description, parent, type, order));
     }
     _timings.at(key).add_timing(timing);
+  }
+
+  void serialize(std::ostream& str) {
+    for ( const auto& timing : _timings ) {
+      const Timing& time_point = timing.second;
+      if ( _show_detailed_timings || time_point.parent() == "" ) {
+        str << " " << time_point.name() << "=" << time_point.timing();
+      }
+    }
   }
 
   friend std::ostream& operator<<(std::ostream& str, const Timer& timer);
@@ -177,10 +186,10 @@ std::ostream& operator<<(std::ostream& str, const Timer& timer) {
   for ( const auto& timing : timer._timings ) {
     timings.emplace_back(timing.second);
   }
-  std::sort(timings.begin(), timings.end(), 
+  std::sort(timings.begin(), timings.end(),
     [&](const Timer::Timing& lhs, const Timer::Timing& rhs) {
       return lhs.type() < rhs.type() || (lhs.type() == rhs.type() && lhs.order() < rhs.order());
-    }); 
+    });
 
   auto print = [&](std::ostream& str, const Timer::Timing& timing, int level) {
     int length = (level > 0 ? 4 : 0) + (level > 1 ? 4 * ( level - 1 ) : 0) + timing.description().size();
@@ -193,7 +202,7 @@ std::ostream& operator<<(std::ostream& str, const Timer& timer) {
     str << " = " << timing.timing() << " s\n";
   };
 
-  std::function<void(std::ostream&,const Timer::Timing&,int)> dfs = 
+  std::function<void(std::ostream&,const Timer::Timing&,int)> dfs =
     [&](std::ostream& str, const Timer::Timing& parent, int level) {
     for ( const Timer::Timing& timing : timings ) {
       if ( timing.parent() == parent.name() ) {

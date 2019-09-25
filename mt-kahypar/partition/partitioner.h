@@ -188,11 +188,11 @@ inline void Partitioner::partition(Hypergraph& hypergraph, Context& context) {
 
   io::printHypergraphInfo(hypergraph, "Coarsened Hypergraph");
 
-  start = std::chrono::high_resolution_clock::now();
+  /*start = std::chrono::high_resolution_clock::now();
   coarsener->uncoarsen();
   end = std::chrono::high_resolution_clock::now();
   mt_kahypar::utils::Timer::instance().add_timing("refinement", "Refinement",
-    "", mt_kahypar::utils::Timer::Type::REFINEMENT, 1, std::chrono::duration<double>(end - start).count());
+    "", mt_kahypar::utils::Timer::Type::REFINEMENT, 1, std::chrono::duration<double>(end - start).count());*/
 
   io::printHypergraphInfo(hypergraph, "Uncoarsened Hypergraph");
 
