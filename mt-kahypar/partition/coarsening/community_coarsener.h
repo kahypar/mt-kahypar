@@ -208,19 +208,48 @@ class CommunityCoarsenerT : public ICoarsener {
   }
 
   std::vector<Memento> mergeContractions(parallel::scalable_vector<parallel::scalable_vector<Memento>>& mementos) {
-    std::vector<Memento> history;
-    std::vector<size_t> pos(mementos.size(), 0);
-    bool found = false;
-    do {
-      found = false;
-      for ( size_t i = 0; i < mementos.size(); ++i ) {
-        if ( pos[i] < mementos[i].size() ) {
-          found = true;
-          history.emplace_back(std::move(mementos[i][pos[i]]));
-          ++pos[i];
+    size_t size = 0;
+    for ( const auto& memento : mementos ) {
+      size += memento.size();
+    }
+    std::sort(mementos.begin(), mementos.end(),
+              [&](const auto& lhs, const auto& rhs) {
+      return lhs.size() > rhs.size();
+    });
+    while ( mementos.back().size() == 0 ) {
+      mementos.pop_back();
+    }
+
+    // Mementos from all communities are written in parallel
+    // to one history vector in round-robin fashion.
+    std::vector<Memento> history(size);
+    tbb::parallel_for(tbb::blocked_range<size_t>(0UL, mementos.size()),
+      [&](const tbb::blocked_range<size_t>& range) {
+      for ( size_t i = range.begin(); i < range.end(); ++i ) {
+        size_t current_pos = i;
+        int64_t k = mementos.size();
+        for ( size_t pos = 0; pos < mementos[i].size(); ++pos ) {
+          while ( pos >= mementos[k - 1].size() ) {
+            --k;
+            ASSERT(k > 0);
+          }
+
+          ASSERT(current_pos < history.size(), V(i) << V(current_pos) << V(history.size()));
+          ASSERT(history[current_pos].u == std::numeric_limits<HypernodeID>::max(), V(current_pos) << V(i) << V(k));
+          history[current_pos] = std::move(mementos[i][pos]);
+          current_pos += k;
         }
       }
-    } while ( found );
+    });
+
+    ASSERT([&] {
+      for ( size_t i = 0; i < history.size(); ++i ) {
+        if ( history[i].u == std::numeric_limits<HypernodeID>::max() ) {
+          return false;
+        }
+      }
+      return true;
+    }(), "Merging contraction hierarchies failed");
 
     return history;
   }
