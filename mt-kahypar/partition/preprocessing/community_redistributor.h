@@ -65,10 +65,9 @@ class CommunityRedistributorT {
     // Compute Hyperedge Mapping
     start = std::chrono::high_resolution_clock::now();
     std::vector<parallel::scalable_vector<PartitionID>> hyperedge_mapping(used_numa_nodes);
-    tbb::task_group group;
     for ( int node = 0; node < used_numa_nodes; ++node ) {
-      group.run([&, node] {
-        TBB::instance().numa_task_arena(node).execute([&] {
+      TBB::instance().numa_task_arena(node).execute([&, node] {
+        TBB::instance().numa_task_group(node).run([&, node] {
           hyperedge_mapping[node].assign(hg.initialNumEdges(node), -1);
           tbb::parallel_for(tbb::blocked_range<HyperedgeID>(0UL, hg.initialNumEdges(node)),
             [&](const tbb::blocked_range<HyperedgeID>& range) {
@@ -98,7 +97,7 @@ class CommunityRedistributorT {
         });
       });
     }
-    group.wait();
+    TBB::instance().wait();
     end = std::chrono::high_resolution_clock::now();
     mt_kahypar::utils::Timer::instance().add_timing("compute_hyperedge_mapping", "Compute Hyperedge Mapping",
       "redistribution", mt_kahypar::utils::Timer::Type::PREPROCESSING, 2, std::chrono::duration<double>(end - start).count());
@@ -113,6 +112,7 @@ class CommunityRedistributorT {
     start = std::chrono::high_resolution_clock::now();
     // Initialize Streaming Hypergraphs
     std::vector<StreamingHyperGraph> numa_hypergraphs;
+    tbb::task_group group;
     for ( int node = 0; node < used_numa_nodes; ++node ) {
       TBB::instance().numa_task_arena(node).execute([&] {
         group.run([&] {
@@ -126,7 +126,7 @@ class CommunityRedistributorT {
     for ( int node = 0; node < used_numa_nodes; ++node ) {
       for ( int streaming_node = 0; streaming_node < used_numa_nodes; ++streaming_node ) {
         TBB::instance().numa_task_arena(streaming_node).execute([&, node, streaming_node] {
-          group.run([&, node, streaming_node] {
+          TBB::instance().numa_task_group(node).run([&, node, streaming_node] {
             tbb::parallel_for(tbb::blocked_range<HyperedgeID>(0UL, hg.initialNumEdges(node)),
             [&, node, streaming_node](const tbb::blocked_range<HyperedgeID>& range) {
               for ( HyperedgeID local_he = range.begin(); local_he < range.end(); ++local_he ) {
@@ -144,18 +144,18 @@ class CommunityRedistributorT {
           });
         });
       }
-      group.wait();
+      TBB::instance().wait();
     }
 
     // Initialize hyperedges in numa hypergraphs
     for ( int node = 0; node < used_numa_nodes; ++node ) {
-      group.run([&, node] {
-        TBB::instance().numa_task_arena(node).execute([&] {
+      TBB::instance().numa_task_arena(node).execute([&] {
+        TBB::instance().numa_task_group(node).run([&, node] {
           numa_hypergraphs[node].initializeHyperedges(hg.initialNumNodes());
         });
       });
     }
-    group.wait();
+    TBB::instance().wait();
     end = std::chrono::high_resolution_clock::now();
     mt_kahypar::utils::Timer::instance().add_timing("stream_hyperedges", "Stream Hyperedges",
       "redistribution", mt_kahypar::utils::Timer::Type::PREPROCESSING, 4, std::chrono::duration<double>(end - start).count());

@@ -624,48 +624,45 @@ class Hypergraph {
   }
 
   void initializeCommunityHyperedges() {
-    tbb::task_group group;
     for ( int node = 0; node < (int)_hypergraphs.size(); ++node ) {
       TBBNumaArena::instance().numa_task_arena(node).execute([&] {
-        group.run([&, node] {
+        TBBNumaArena::instance().numa_task_group(node).run([&, node] {
           _hypergraphs[node].initializeCommunityHyperedges(_hypergraphs);
         });
       });
     }
-    group.wait();
+    TBBNumaArena::instance().wait();
 
     for ( int node = 0; node < (int)_hypergraphs.size(); ++node ) {
       TBBNumaArena::instance().numa_task_arena(node).execute([&] {
-        group.run([&, node] {
+        TBBNumaArena::instance().numa_task_group(node).run([&, node] {
           _hypergraphs[node].initializeCommunityHypernodes(_hypergraphs);
         });
       });
     }
-    group.wait();
+    TBBNumaArena::instance().wait();
   }
 
   void resetCommunityHyperedges(const std::vector<Memento>& mementos) {
-    tbb::task_group group;
     for ( int node = 0; node < (int)_hypergraphs.size(); ++node ) {
       TBBNumaArena::instance().numa_task_arena(node).execute([&] {
-        group.run([&, node] {
+        TBBNumaArena::instance().numa_task_group(node).run([&, node] {
           _hypergraphs[node].resetCommunityHyperedges(mementos, _num_hypernodes, _hypergraphs);
         });
       });
     }
-    group.wait();
+    TBBNumaArena::instance().wait();
   }
 
   void resetPinsToOriginalNodeIds() {
-    tbb::task_group group;
     for ( int node = 0; node < (int)_hypergraphs.size(); ++node ) {
       TBBNumaArena::instance().numa_task_arena(node).execute([&] {
-        group.run([&, node] {
+        TBBNumaArena::instance().numa_task_group(node).run([&, node] {
           _hypergraphs[node].resetPinsToOriginalNodeIds(_hypergraphs);
         });
       });
     }
-    group.wait();
+    TBBNumaArena::instance().wait();
   }
 
   // ! Only for testing
@@ -729,11 +726,10 @@ class Hypergraph {
     size_t num_streaming_hypergraphs = _hypergraphs.size();
     // Stream hypernodes into corresponding streaming hypergraph, where it
     // is assigned to
-    tbb::task_group group;
     std::vector<HypernodeID> tmp_node_mapping(_num_hypernodes);
     for ( HypernodeID node = 0; node < num_streaming_hypergraphs; ++node ) {
       TBBNumaArena::instance().numa_task_arena(node).execute([&] {
-        group.run([&, node] {
+        TBBNumaArena::instance().numa_task_group(node).run([&, node] {
           tbb::parallel_for(tbb::blocked_range<HypernodeID>(0UL, _num_hypernodes),
             [&](const tbb::blocked_range<HypernodeID>& range) {
             for ( HypernodeID hn = range.begin(); hn < range.end(); ++hn ) {
@@ -745,7 +741,7 @@ class Hypergraph {
         });
       });
     }
-    group.wait();
+    TBBNumaArena::instance().wait();
     _node_mapping = std::move(tmp_node_mapping);
     HighResClockTimepoint end = std::chrono::high_resolution_clock::now();
     mt_kahypar::utils::Timer::instance().add_timing("stream_hypernodes", "Stream Hypernodes",
@@ -756,13 +752,13 @@ class Hypergraph {
     // streaming hypergraphs
     start = std::chrono::high_resolution_clock::now();
     for ( size_t node = 0; node < num_streaming_hypergraphs; ++node ) {
-      group.run([&, node] {
-        TBBNumaArena::instance().numa_task_arena(node).execute([&] {
+      TBBNumaArena::instance().numa_task_arena(node).execute([&] {
+        TBBNumaArena::instance().numa_task_group(node).run([&, node] {
           _hypergraphs[node].initializeHypernodes(_hypergraphs, _node_mapping);
         });
       });
     }
-    group.wait();
+    TBBNumaArena::instance().wait();
     end = std::chrono::high_resolution_clock::now();
     mt_kahypar::utils::Timer::instance().add_timing("initialize_numa_hypernodes", "Initialize Numa Hypernodes",
       "initialize_hypernodes", mt_kahypar::utils::Timer::Type::IMPORT, 2, std::chrono::duration<double>(end - start).count());
@@ -788,13 +784,13 @@ class Hypergraph {
     // Initialize incident nets of hypernodes
     start = std::chrono::high_resolution_clock::now();
     for ( size_t node = 0; node < num_streaming_hypergraphs; ++node ) {
-      group.run([&, node] {
-        TBBNumaArena::instance().numa_task_arena(node).execute([&] {
+    TBBNumaArena::instance().numa_task_arena(node).execute([&] {
+      TBBNumaArena::instance().numa_task_group(node).run([&, node] {
           _hypergraphs[node].initializeIncidentNets();
         });
       });
     }
-    group.wait();
+    TBBNumaArena::instance().wait();
     end = std::chrono::high_resolution_clock::now();
     mt_kahypar::utils::Timer::instance().add_timing("initialize_incident_nets", "Initialize Incident Nets",
       "initialize_hypernodes", mt_kahypar::utils::Timer::Type::IMPORT, 3, std::chrono::duration<double>(end - start).count());

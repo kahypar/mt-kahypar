@@ -77,7 +77,19 @@ class TBBNumaArena {
     return _arenas[node];
   }
 
-  void wait(int node, tbb::task_group& group) {
+  tbb::task_group& numa_task_group(const int node) {
+    ASSERT(_arenas.size() <= _groups.size());
+    ASSERT(node < (int) _arenas.size());
+    return _groups[node];
+  }
+
+  void wait() {
+    for ( int node = 0; node < num_used_numa_nodes(); ++node ) {
+      _arenas[node].execute([&, node] { _groups[node].wait(); });
+    }
+  }
+
+  void wait(const int node, tbb::task_group& group) {
     ASSERT(node < (int) _arenas.size());
     _arenas[node].execute([&] { group.wait(); });
   }
@@ -99,8 +111,9 @@ class TBBNumaArena {
     _num_threads(num_threads),
     _init(num_threads),
     _arenas(),
+    _groups(HwTopology::instance().num_numa_nodes()),
     _global_observer(),
-    _observer() { 
+    _observer() {
     HwTopology& topology = HwTopology::instance();
     int threads_left = num_threads;
     int num_numa_nodes = topology.num_numa_nodes();
@@ -126,7 +139,7 @@ class TBBNumaArena {
     for ( int node = 0; node < num_numa_nodes; ++node ) {
       if ( used_cpus_on_numa_node[node] > 0 ) {
         int num_cpus = used_cpus_on_numa_node[node];
-        DBG << "Initialize TBB task arena on numa node" << node 
+        DBG << "Initialize TBB task arena on numa node" << node
             << "with" << num_cpus << "threads";
         _arenas.emplace_back(num_cpus, 0);
         _observer.emplace_back(_arenas.back(), node);
@@ -151,6 +164,7 @@ class TBBNumaArena {
   int _num_threads;
   tbb::task_scheduler_init _init;
   std::vector<tbb::task_arena> _arenas;
+  std::vector<tbb::task_group> _groups;
   GlobalThreadPinningObserver _global_observer;
   std::vector<NumaThreadPinningObserver> _observer;
 };

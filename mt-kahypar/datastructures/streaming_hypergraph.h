@@ -829,7 +829,7 @@ class StreamingHypergraph {
       DBG << V(e) << ": Case 2";
       hyperedge(e).hash() -= kahypar::math::hash(v);
       hyperedge(e).hash() += kahypar::math::hash(u);
-      connectHyperedgeToRepresentative(e, u, community_id, community_he, hypergraph_of_u);
+      connectHyperedgeToRepresentative(e, u, community_he, hypergraph_of_u);
     }
   }
 
@@ -1014,7 +1014,7 @@ class StreamingHypergraph {
         });
       }
     });
-    TBBNumaArena::instance().wait(_node, group);
+    group.wait();
     // Emplace Back Sentinel
     _hyperedges.emplace_back(_incidence_array.size(), 0, 0);
     end = std::chrono::high_resolution_clock::now();
@@ -1087,6 +1087,7 @@ class StreamingHypergraph {
       });
     });
 
+
     // ... parallel to that remap node ids in incidence array to new node ids
     _arena.execute([&] {
       group.run([&] {
@@ -1100,7 +1101,7 @@ class StreamingHypergraph {
         });
       });
     });
-    TBBNumaArena::instance().wait(_node, group);
+    group.wait();
     HighResClockTimepoint end = std::chrono::high_resolution_clock::now();
     mt_kahypar::utils::Timer::instance().add_timing("sort_and_remap_node_ids", "Sort and Remap Nodes",
       "initialize_numa_hypernodes", mt_kahypar::utils::Timer::Type::IMPORT, 0, std::chrono::duration<double>(end - start).count());
@@ -1120,7 +1121,7 @@ class StreamingHypergraph {
           std::plus<HypernodeWeight>());
       });
     });
-    TBBNumaArena::instance().wait(_node, group);
+    group.wait();
     end = std::chrono::high_resolution_clock::now();
     mt_kahypar::utils::Timer::instance().add_timing("compute_total_weight", "Compute Total Weight",
       "initialize_numa_hypernodes", mt_kahypar::utils::Timer::Type::IMPORT, 1, std::chrono::duration<double>(end - start).count());
@@ -1175,11 +1176,10 @@ class StreamingHypergraph {
         });
       });
     });
-    TBBNumaArena::instance().wait(_node, group);
+    group.wait();
     end = std::chrono::high_resolution_clock::now();
     mt_kahypar::utils::Timer::instance().add_timing("stream_incident_nets", "Stream Incident Nets",
       "initialize_numa_hypernodes", mt_kahypar::utils::Timer::Type::IMPORT, 2, std::chrono::duration<double>(end - start).count());
-
 
     _hypernode_stream.clear();
   }
@@ -1195,7 +1195,6 @@ class StreamingHypergraph {
       ASSERT(get_numa_node_of_vertex(u) == _node);
       return get_local_node_id_of_vertex(u);
     });
-
     _incident_net_stream.clear();
   }
 
@@ -1214,9 +1213,9 @@ class StreamingHypergraph {
     };
 
     // Add community hyperedges
-    tbb::task_group group;
     _community_hyperedge_ids.resize(_num_hyperedges);
     _community_hyperedges.resize(_num_hyperedges);
+    tbb::task_group group;
     _arena.execute([&] {
       group.run([&] {
         tbb::parallel_for(tbb::blocked_range<HyperedgeID>(0UL, this->_num_hyperedges),
@@ -1270,7 +1269,7 @@ class StreamingHypergraph {
         });
       });
     });
-    TBBNumaArena::instance().wait(_node, group);
+    group.wait();
   }
 
   void initializeCommunityHypernodes(const std::vector<Self>& hypergraphs) {
@@ -1325,7 +1324,7 @@ class StreamingHypergraph {
         });
       });
     });
-    TBBNumaArena::instance().wait(_node, group);
+    group.wait();
   }
 
   void resetCommunityHyperedges(const std::vector<Memento>& mementos,
@@ -1351,7 +1350,7 @@ class StreamingHypergraph {
         });
       });
     });
-    TBBNumaArena::instance().wait(_node, group);
+    group.wait();
 
     // The incidence array of a hyperedge is constructed as follows: The first part consists
     // of all enabled pins and the remainder of all invalid pins. The invalid pins in the
@@ -1410,7 +1409,7 @@ class StreamingHypergraph {
         });
       });
     });
-    TBBNumaArena::instance().wait(_node, group);
+    group.wait();
 
     CommunityHyperedges community_hyperedges;
     _community_hyperedges = std::move(community_hyperedges);
@@ -1431,7 +1430,7 @@ class StreamingHypergraph {
         });
       });
     });
-    TBBNumaArena::instance().wait(_node, group);
+    group.wait();
   }
 
   // ! Only for assertion
@@ -1504,7 +1503,6 @@ class StreamingHypergraph {
    */
   KAHYPAR_ATTRIBUTE_ALWAYS_INLINE void connectHyperedgeToRepresentative(const HyperedgeID e,
                                                                         const HypernodeID u,
-                                                                        const PartitionID community_id,
                                                                         const CommunityHyperedge& community_he,
                                                                         Self& hypergraph_of_u) {
     ASSERT(hypergraph_of_u.nodeIsEnabled(u), "Hypernode" << u << "is disabled");
@@ -1516,7 +1514,7 @@ class StreamingHypergraph {
     // the hypernode's point of view.
     _incidence_array[community_he.firstInvalidEntry() - 1] = u;
     hypergraph_of_u.incident_nets(u).push_back(e);
-    if ( edgeSize(e, community_id) > 1 ) {
+    if ( community_he.size() > 1 ) {
       size_t single_pin_community_nets = hypergraph_of_u.hypernode(u).singlePinCommunityNets();
       std::swap(hypergraph_of_u.incident_nets(u)[single_pin_community_nets],
                 hypergraph_of_u.incident_nets(u).back());

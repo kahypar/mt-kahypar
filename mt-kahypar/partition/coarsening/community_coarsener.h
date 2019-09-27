@@ -104,14 +104,13 @@ class CommunityCoarsenerT : public ICoarsener,
 
     // Parallel Community Coarsening
     start = std::chrono::high_resolution_clock::now();
-    tbb::task_group group;
     for ( size_t i = 0; i < community_hns.size(); ++i ) {
       if ( community_hns[i].size() <= 1 ) continue;
 
       PartitionID community_id = _hg.communityID(community_hns[i][0]);
       int node = _hg.communityNumaNode(community_id);
       TBB::instance().numa_task_arena(node).execute([&, community_id, i] {
-        group.run([&, community_id, i] {
+        TBB::instance().numa_task_group(node).run([&, community_id, i] {
           // Compute contraction limit for community relative to
           // community size and original contraction limit
           HypernodeID contraction_limit =
@@ -121,7 +120,7 @@ class CommunityCoarsenerT : public ICoarsener,
         });
       });
     }
-    group.wait();
+    TBB::instance().wait();
     end = std::chrono::high_resolution_clock::now();
     mt_kahypar::utils::Timer::instance().add_timing("parallel_community_coarsening", "Parallel Community Coarsening",
       "coarsening", mt_kahypar::utils::Timer::Type::COARSENING, 3, std::chrono::duration<double>(end - start).count());
@@ -134,7 +133,7 @@ class CommunityCoarsenerT : public ICoarsener,
                                    const HypernodeID contraction_limit,
                                    parallel::scalable_vector<HypernodeID>& community_nodes) {
     ASSERT(community_nodes.size() > 1);
-    DBG << "Start coarsening of community" << community_id
+    LOG << "Start coarsening of community" << community_id
         << "with" << _hg.initialNumCommunityHypernodes(community_id) << "vertices"
         << "and contraction limit" << contraction_limit
         << "on numa node" << HwTopology::instance().numa_node_of_cpu(sched_getcpu())

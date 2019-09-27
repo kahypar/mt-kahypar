@@ -34,19 +34,19 @@ namespace mt_kahypar {
 namespace ds {
 
 /**
- * Allows to insert key-value pairs concurrently. Internally, 
+ * Allows to insert key-value pairs concurrently. Internally,
  * the hash of a key is used to map a key-value pair to a bucket.
  * Once the bucket is determined a lock is acquired and the key-value pair
  * is inserted.
  * By using the copy function one can map the key-value pairs to a unique
  * bucket in parallel (see internal implementation).
- * 
+ *
  * For example:
  * Bucket 0: (1, 2), (1, 3), (2, 1), (1, 4)
  * Bucket 1: (3, 5), (4, 1), (3, 2), (4, 2)
- * 
+ *
  * After copy:
- * Bucket 0: 
+ * Bucket 0:
  * Bucket 1: 2 -> 3 -> 4
  * Bucket 2: 1
  * Bucket 3: 5 -> 2

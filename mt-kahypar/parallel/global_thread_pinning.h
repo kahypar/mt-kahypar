@@ -60,7 +60,7 @@ class GlobalThreadPinning {
     std::lock_guard<std::mutex> lock(_pinning_mutex);
     int cpu_id = sched_getcpu();
     std::thread::id thread_id = std::this_thread::get_id();
-    ASSERT(std::find(_free_cpus.begin(), _free_cpus.end(), cpu_id) == _free_cpus.end(), "CPU" << cpu_id << "is not registered");
+    ASSERT(std::find(_free_cpus.begin(), _free_cpus.end(), cpu_id) == _free_cpus.end(), "CPU" << cpu_id << "is already free");
     ASSERT(_pinned_threads.find(thread_id) != _pinned_threads.end(), "Thread wit PID" << thread_id << "is not registered");
     DBG << "Unregister thread with PID" << thread_id << "on cpu" << cpu_id;
     _free_cpus.push_back(cpu_id);
@@ -76,7 +76,7 @@ class GlobalThreadPinning {
       "CPU" << cpu_id << "is not on numa node" << node << ", actually it is on"
         << HwTopology::instance().numa_node_of_cpu(sched_getcpu()));
     _is_pinned_to_numa_node[thread_id] = true;
-    DBG << "Assign thread with PID" << thread_id << "to cpu" << cpu_id 
+    DBG << "Assign thread with PID" << thread_id << "to cpu" << cpu_id
         << "on numa node" << node;
     pin_thread_to_cpu(cpu_id);
   }
@@ -89,11 +89,11 @@ class GlobalThreadPinning {
     ASSERT(HwTopology::instance().numa_node_of_cpu(sched_getcpu()) == node,
       "CPU" << sched_getcpu() << "is not on numa node" << node << ", actually it is on"
         << HwTopology::instance().numa_node_of_cpu(sched_getcpu()));
-    DBG << "Unassign thread with PID" << thread_id << "on cpu" << sched_getcpu() 
+    DBG << "Unassign thread with PID" << thread_id << "on cpu" << sched_getcpu()
         << "from numa node" << node;
     _is_pinned_to_numa_node[thread_id] = false;
     if (is_registered(thread_id)) {
-      pin_thread_to_cpu(_pinned_threads[thread_id]); 
+      pin_thread_to_cpu(_pinned_threads[thread_id]);
     }
   }
 
@@ -104,7 +104,7 @@ class GlobalThreadPinning {
     _pinning_mutex(),
     _free_cpus(_num_cpus),
     _pinned_threads(),
-    _is_pinned_to_numa_node() { 
+    _is_pinned_to_numa_node() {
     std::iota(_free_cpus.begin(), _free_cpus.end(), 0);
 
     // Sort cpus in the following order
@@ -113,7 +113,7 @@ class GlobalThreadPinning {
     // 3.) Increasing order of cpu id
     // ...
     HwTopology& topology = HwTopology::instance();
-    std::sort(_free_cpus.begin(), _free_cpus.end(), 
+    std::sort(_free_cpus.begin(), _free_cpus.end(),
               [&](const int& lhs, const int& rhs) {
       int node_lhs = topology.numa_node_of_cpu(lhs);
       int node_rhs = topology.numa_node_of_cpu(rhs);
@@ -134,7 +134,7 @@ class GlobalThreadPinning {
       ASSERT(!_free_cpus.empty(), "There are more threads than CPUs");
       _pinned_threads[thread_id] = _free_cpus.back();
       _free_cpus.pop_back();
-      DBG << "Thread with PID" << std::this_thread::get_id() 
+      DBG << "Thread with PID" << std::this_thread::get_id()
           << "successfully registered on CPU" << _pinned_threads[thread_id];
     }
     return _pinned_threads[thread_id];
@@ -157,14 +157,14 @@ class GlobalThreadPinning {
 		}
 
     ASSERT(sched_getcpu() == cpu_id);
-    DBG << "Thread with PID" << std::this_thread::get_id() 
+    DBG << "Thread with PID" << std::this_thread::get_id()
         << "successfully pinned to CPU" << cpu_id
         << "( Currently =" << V(sched_getcpu()) << ")";
   }
 
   static std::mutex _mutex;
   static GlobalThreadPinning* _instance;
-  
+
   const int _num_cpus;
   const int _num_threads;
   std::mutex _pinning_mutex;

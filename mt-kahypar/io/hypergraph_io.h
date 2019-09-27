@@ -55,7 +55,7 @@ static inline void readHGRHeader(std::ifstream& file, HyperedgeID& num_hyperedge
   hypergraph_type = static_cast<mt_kahypar::Type>(i);
 }
 
-static inline Hypergraph readHyperedges(std::ifstream& file, 
+static inline Hypergraph readHyperedges(std::ifstream& file,
                                                     const HypernodeID num_hypernodes,
                                                     const HyperedgeID num_hyperedges,
                                                     const mt_kahypar::Type type) {
@@ -125,13 +125,13 @@ static inline Hypergraph readHyperedges(std::ifstream& file,
   // global data structure
   start = std::chrono::high_resolution_clock::now();
   for ( int node = 0; node < used_numa_nodes; ++node ) {
-    group.run([&, node] {
-      TBBNumaArena::instance().numa_task_arena(node).execute([&] {
+  TBBNumaArena::instance().numa_task_arena(node).execute([&] {
+    TBBNumaArena::instance().numa_task_group(node).run([&, node] {
         numa_hypergraphs[node].initializeHyperedges(num_hypernodes);
       });
     });
   }
-  group.wait();
+  TBBNumaArena::instance().wait();
   end = std::chrono::high_resolution_clock::now();
   mt_kahypar::utils::Timer::instance().add_timing("initialize_hyperedges", "Initialize Hyperedges",
     "hypergraph_import", mt_kahypar::utils::Timer::Type::IMPORT, 2, std::chrono::duration<double>(end - start).count());

@@ -60,6 +60,10 @@ class AHypergraph : public Test {
     TBBArena::instance(std::thread::hardware_concurrency());
   }
 
+  ~AHypergraph() {
+    TBBArena::instance().terminate();
+  }
+
   TestHypergraph construct_hypergraph(const HypernodeID num_hypernodes,
                                       const std::vector<HyperedgeVector>& hyperedges,
                                       const std::vector<HypernodeID>& node_mapping,
