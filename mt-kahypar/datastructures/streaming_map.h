@@ -104,10 +104,7 @@ class StreamingMap {
         });
       }
     });
-
-    arena.execute([&] {
-      group.wait();
-    });
+    group.wait();
   }
 
   void clear() {

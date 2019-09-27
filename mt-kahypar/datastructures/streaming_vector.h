@@ -73,7 +73,7 @@ class StreamingVector {
 
   parallel::scalable_vector<Value> copy(tbb::task_arena& arena) {
     parallel::scalable_vector<Value> values;
-    
+
     size_t total_size = 0;
     for ( size_t i = 0; i < _cpu_buffer.size(); ++i) {
       _prefix_sum[i] = total_size;
@@ -89,10 +89,7 @@ class StreamingVector {
         });
       }
     });
-
-    arena.execute([&] {
-      group.wait();
-    });
+    group.wait();
 
     return values;
   }
@@ -140,8 +137,8 @@ class StreamingVector {
                                              const size_t position) {
     DBG << "Copy buffer of cpu" << cpu_id << "of size" << _cpu_buffer[cpu_id].size()
         << "to position" << position << "in dest ( CPU =" << sched_getcpu() << " )";
-    memcpy(destination.data() + position, _cpu_buffer[cpu_id].data(), 
-           _cpu_buffer[cpu_id].size() * sizeof(Value)); 
+    memcpy(destination.data() + position, _cpu_buffer[cpu_id].data(),
+           _cpu_buffer[cpu_id].size() * sizeof(Value));
   }
 
   Buffer _cpu_buffer;
