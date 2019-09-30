@@ -133,7 +133,7 @@ class CommunityCoarsenerT : public ICoarsener,
                                    const HypernodeID contraction_limit,
                                    parallel::scalable_vector<HypernodeID>& community_nodes) {
     ASSERT(community_nodes.size() > 1);
-    LOG << "Start coarsening of community" << community_id
+    DBG << "Start coarsening of community" << community_id
         << "with" << _hg.initialNumCommunityHypernodes(community_id) << "vertices"
         << "and contraction limit" << contraction_limit
         << "on numa node" << HwTopology::instance().numa_node_of_cpu(sched_getcpu())
@@ -166,15 +166,19 @@ class CommunityCoarsenerT : public ICoarsener,
       }
 
       for ( const HypernodeID& hn : nodes ) {
-        if ( _hg.nodeIsEnabled(hn) ) {
+        if ( _hg.nodeIsEnabled(hn) && _hg.nodeDegree(hn) <= _context.coarsening.hypernode_degree_threshold ) {
           Rating rating = rater.rate(hn);
 
           if ( rating.target != kInvalidHypernode ) {
             DBG << "Contract: (" << hn << "," << rating.target << ")";
             rater.markAsMatched(hn);
             rater.markAsMatched(rating.target);
-            this->performContraction(hn, rating.target);
-            tmp_nodes.emplace_back(hn);
+            if ( _hg.nodeDegree(rating.target) < _context.coarsening.hypernode_degree_threshold ) {
+              this->performContraction(hn, rating.target);
+              tmp_nodes.emplace_back(hn);
+            } else {
+              this->performContraction(rating.target, hn);
+            }
             --current_num_nodes;
           }
 

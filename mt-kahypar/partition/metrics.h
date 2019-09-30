@@ -66,5 +66,18 @@ static inline double avgHypernodeDegree(const Hypergraph& hypergraph) {
   return static_cast<double>(hypergraph.currentNumPins()) / hypergraph.currentNumNodes();
 }
 
+static inline HyperedgeID hypernodeDegreeRank(const Hypergraph& hypergraph, const size_t rank) {
+  std::vector<HyperedgeID> hn_degrees;
+  hn_degrees.reserve(hypergraph.currentNumNodes());
+  for (const auto& hn : hypergraph.nodes()) {
+    hn_degrees.push_back(hypergraph.nodeDegree(hn));
+  }
+  ASSERT(!hn_degrees.empty(), "Hypergraph does not contain any hypernodes");
+  std::sort(hn_degrees.begin(), hn_degrees.end());
+
+  ASSERT(rank < hn_degrees.size());
+  return hn_degrees[rank];
+}
+
 } // namespace metrics
 } // namespace mt_kahypar

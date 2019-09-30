@@ -34,6 +34,7 @@
 #include "tbb/parallel_reduce.h"
 #include "tbb/parallel_sort.h"
 #include "tbb/blocked_range.h"
+#include "tbb/queuing_mutex.h"
 
 #include "kahypar/datastructure/fast_reset_flag_array.h"
 #include "kahypar/macros.h"
@@ -590,9 +591,10 @@ class StreamingHypergraph {
     int parallel_hes_size;
   };
 
-  explicit StreamingHypergraph(const int node) :
+  explicit StreamingHypergraph(const int node, const bool remove_single_pin_community_hyperedges = true) :
     _node(node),
     _arena(TBBNumaArena::instance().numa_task_arena(node)),
+    _remove_single_pin_community_hyperedges(remove_single_pin_community_hyperedges),
     _num_hypernodes(0),
     _num_hyperedges(0),
     _num_pins(0),
@@ -622,6 +624,7 @@ class StreamingHypergraph {
   StreamingHypergraph(StreamingHypergraph&& other) :
     _node(other._node),
     _arena(other._arena),
+    _remove_single_pin_community_hyperedges(other._remove_single_pin_community_hyperedges),
     _num_hypernodes(other._num_hypernodes),
     _num_hyperedges(other._num_hyperedges),
     _num_pins(other._num_pins),
@@ -688,8 +691,8 @@ class StreamingHypergraph {
   // ! in incident nets of hypernode u.
   std::pair<IncidenceIterator, IncidenceIterator> incidentEdges(const HypernodeID u, const PartitionID) const {
     ASSERT(!hypernode(u).isDisabled(), "Hypernode" << u << "is disabled");
-    return std::make_pair(incident_nets(u).cbegin(),
-                          incident_nets(u).cbegin() + hypernode(u).singlePinCommunityNets());
+    return std::make_pair(incident_nets(u).cbegin() + hypernode(u).singlePinCommunityNets(),
+                          incident_nets(u).cend());
   }
 
   // ! Returns a const reference to the incident net vector of hypernode u
@@ -820,7 +823,6 @@ class StreamingHypergraph {
       DBG << V(e) << ": Case 1";
       hyperedge(e).hash() -= kahypar::math::hash(v);
       community_he.decrementSize();
-      // removeSinglePinCommunityHyperedge(e, u, community_id, hypergraph_of_u);
       // TODO(heuer): Update pin count in part
     } else {
       // Case 2:
@@ -829,6 +831,7 @@ class StreamingHypergraph {
       DBG << V(e) << ": Case 2";
       hyperedge(e).hash() -= kahypar::math::hash(v);
       hyperedge(e).hash() += kahypar::math::hash(u);
+      _incidence_array[community_he.firstInvalidEntry() - 1] = u;
       connectHyperedgeToRepresentative(e, u, community_he, hypergraph_of_u);
     }
   }
@@ -1284,41 +1287,46 @@ class StreamingHypergraph {
             HypernodeID hn = get_global_node_id(v);
             if ( !this->hypernode(hn).isDisabled() ) {
               PartitionID community_id = this->communityID(hn);
-              int single_pin_community_nets = (int) _incident_nets[v].size();
-              for ( int i = 0; i < single_pin_community_nets; ++i ) {
-                HyperedgeID he = this->_incident_nets[v][i];
-                if ( hypergraph_of_hyperedge(he, hypergraphs).edgeSize(he, community_id) == 1 ) {
-                  std::swap(this->_incident_nets[v][i],
-                            this->_incident_nets[v][single_pin_community_nets - 1]);
-                  --i;
-                  --single_pin_community_nets;
+              int single_pin_community_nets = 0;
+              if ( _remove_single_pin_community_hyperedges ) {
+                for ( int i = 0; i < (int) _incident_nets[v].size(); ++i ) {
+                  HyperedgeID he = this->_incident_nets[v][i];
+                  if ( hypergraph_of_hyperedge(he, hypergraphs).edgeSize(he, community_id) == 1 ) {
+                    std::swap(this->_incident_nets[v][i],
+                              this->_incident_nets[v][single_pin_community_nets]);
+                    ++single_pin_community_nets;
+                  }
                 }
               }
               this->hypernode(hn).setSinglePinCommunityNets(single_pin_community_nets);
 
               ASSERT([&] {
-                size_t single_pin_community_hyperedges = this->hypernode(hn).singlePinCommunityNets();
-                for ( size_t i = 0; i < single_pin_community_hyperedges; ++i ) {
-                  const HyperedgeID he = incident_nets(hn)[i];
-                  if ( hypergraph_of_hyperedge(he, hypergraphs).edgeSize(he, community_id) <= 1 ) {
-                    LOG << "Hyperedge" << he << "is a single-pin commnunity hyperedge";
-                    return false;
-                  }
-                }
-                return true;
-              }(), "There single-pin community hyperedges in non-single-pin part of incident nets");
-
-              ASSERT([&] {
-                size_t single_pin_community_hyperedges = this->hypernode(hn).singlePinCommunityNets();
-                for ( size_t i = single_pin_community_hyperedges; i < incident_nets(hn).size(); ++i ) {
-                  const HyperedgeID he = incident_nets(hn)[i];
-                  if ( hypergraph_of_hyperedge(he, hypergraphs).edgeSize(he, community_id) > 1 ) {
-                    LOG << "Hyperedge" << he << "is a non single-pin commnunity hyperedge";
-                    return false;
+                if ( _remove_single_pin_community_hyperedges ) {
+                  size_t single_pin_community_hyperedges = this->hypernode(hn).singlePinCommunityNets();
+                  for ( size_t i = 0; i < single_pin_community_hyperedges; ++i ) {
+                    const HyperedgeID he = incident_nets(hn)[i];
+                    if ( hypergraph_of_hyperedge(he, hypergraphs).edgeSize(he, community_id) > 1 ) {
+                      LOG << "Hyperedge" << he << "is a non single-pin commnunity hyperedge";
+                      return false;
+                    }
                   }
                 }
                 return true;
               }(), "There non single-pin community hyperedges in single-pin part of incident nets");
+
+              ASSERT([&] {
+                if ( _remove_single_pin_community_hyperedges ) {
+                  size_t single_pin_community_hyperedges = this->hypernode(hn).singlePinCommunityNets();
+                  for ( size_t i = single_pin_community_hyperedges; i < incident_nets(hn).size(); ++i ) {
+                    const HyperedgeID he = incident_nets(hn)[i];
+                    if ( hypergraph_of_hyperedge(he, hypergraphs).edgeSize(he, community_id) <= 1 ) {
+                      LOG << "Hyperedge" << he << "is a single-pin commnunity hyperedge";
+                      return false;
+                    }
+                  }
+                }
+                return true;
+              }(), "There single-pin community hyperedges in non-single-pin part of incident nets");
             }
           }
         });
@@ -1503,7 +1511,7 @@ class StreamingHypergraph {
    */
   KAHYPAR_ATTRIBUTE_ALWAYS_INLINE void connectHyperedgeToRepresentative(const HyperedgeID e,
                                                                         const HypernodeID u,
-                                                                        const CommunityHyperedge& community_he,
+                                                                        CommunityHyperedge& community_he,
                                                                         Self& hypergraph_of_u) {
     ASSERT(hypergraph_of_u.nodeIsEnabled(u), "Hypernode" << u << "is disabled");
     ASSERT(!hyperedge(e).isDisabled(), "Hyperedge" << e << "is disabled");
@@ -1512,37 +1520,12 @@ class StreamingHypergraph {
     // -- this is ensured by the contract method) in e's edge array to store the information
     // that u is now connected to e and add the edge (u,e) to indicate this conection also from
     // the hypernode's point of view.
-    _incidence_array[community_he.firstInvalidEntry() - 1] = u;
     hypergraph_of_u.incident_nets(u).push_back(e);
-    if ( community_he.size() > 1 ) {
+    if ( _remove_single_pin_community_hyperedges && community_he.size() == 1 ) {
       size_t single_pin_community_nets = hypergraph_of_u.hypernode(u).singlePinCommunityNets();
       std::swap(hypergraph_of_u.incident_nets(u)[single_pin_community_nets],
                 hypergraph_of_u.incident_nets(u).back());
       hypergraph_of_u.hypernode(u).incrementSinglePinCommunityNets();
-    }
-  }
-
-  KAHYPAR_ATTRIBUTE_ALWAYS_INLINE void removeSinglePinCommunityHyperedge(const HyperedgeID e,
-                                                                         const HypernodeID u,
-                                                                         const PartitionID community_id,
-                                                                         Self& hypergraph_of_u) {
-    ASSERT(hypergraph_of_u.nodeIsEnabled(u), "Hypernode" << u << "is disabled");
-    ASSERT(!hyperedge(e).isDisabled(), "Hyperedge" << e << "is disabled");
-    ASSERT(_node == get_numa_node_of_hyperedge(e));
-
-    if ( edgeSize(e, community_id) == 1 ) {
-      size_t pos = 0;
-      size_t last = hypergraph_of_u.hypernode(u).singlePinCommunityNets();
-      ASSERT(last > 0);
-      auto& incident_nets = hypergraph_of_u.incident_nets(u);
-      for ( ; pos < last; ++pos ) {
-        if ( incident_nets[pos] == e ) {
-          break;
-        }
-      }
-      ASSERT(pos < last, "Hyperedge" << e << "not found in incident nets of hypernode" << u);
-      std::swap(incident_nets[pos], incident_nets[last - 1]);
-      hypergraph_of_u.hypernode(u).decrementSinglePinCommunityNets();
     }
   }
 
@@ -1769,6 +1752,8 @@ class StreamingHypergraph {
   const int _node;
   // ! task arena for numa node
   tbb::task_arena& _arena;
+  // ! If true, than single-pin community hyperedges are removed
+  bool _remove_single_pin_community_hyperedges;
 
   // ! Number of hypernodes
   HypernodeID _num_hypernodes;

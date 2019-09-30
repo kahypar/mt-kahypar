@@ -49,9 +49,11 @@ static inline void serialize(const Hypergraph& hypergraph, const Context& contex
         << " coarsening_algorithm=" << context.coarsening.algorithm
         << " contraction_limit_multiplier=" << context.coarsening.contraction_limit_multiplier
         << " max_allowed_weight_multiplier=" << context.coarsening.max_allowed_weight_multiplier
+        << " use_hypernode_degree_threshold=" << std::boolalpha << context.coarsening.use_hypernode_degree_threshold
         << " max_allowed_node_weight=" << context.coarsening.max_allowed_node_weight
         << " contraction_limit=" << context.coarsening.contraction_limit
         << " hypernode_weight_fraction=" << context.coarsening.hypernode_weight_fraction
+        << " hypernode_degree_threshold=" << context.coarsening.hypernode_degree_threshold
         << " rating_function=" << context.coarsening.rating.rating_function
         << " rating_heavy_node_penalty_policy=" << context.coarsening.rating.heavy_node_penalty_policy
         << " rating_acceptance_policy=" << context.coarsening.rating.acceptance_policy

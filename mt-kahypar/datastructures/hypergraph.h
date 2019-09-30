@@ -442,6 +442,7 @@ class Hypergraph {
     return Memento { u, v };
   }
 
+
   /*!
   * Undoes a contraction operation that was remembered by the memento.
   * This is the default uncontract method.
@@ -849,7 +850,6 @@ class Hypergraph {
   std::vector<StreamingHypergraph> _hypergraphs;
   std::vector<HypernodeID> _node_mapping;
   std::vector<PartitionID> _community_node_mapping;
-
 };
 
 } // namespace ds

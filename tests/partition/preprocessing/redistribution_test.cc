@@ -41,6 +41,7 @@ class ARedistributorOnTwoNumaNodes : public AHypergraph<2> {
   using Base::TestHypergraph;
   using Redistributor = mt_kahypar::preprocessing::CommunityRedistributorT<TestTypeTraits<2>>;
 
+
   ARedistributorOnTwoNumaNodes() :
     Base(),
     hypergraph(construct_hypergraph( 7,

@@ -82,19 +82,22 @@ struct CoarseningParameters {
   RatingParameters rating = { };
   HypernodeID contraction_limit_multiplier = std::numeric_limits<HypernodeID>::max();
   double max_allowed_weight_multiplier = std::numeric_limits<double>::max();
+  bool use_hypernode_degree_threshold = false;
 
   // Those will be determined dynamically
   HypernodeWeight max_allowed_node_weight = 0;
   HypernodeID contraction_limit = 0;
   double hypernode_weight_fraction = 0.0;
+  HyperedgeID hypernode_degree_threshold = std::numeric_limits<HyperedgeID>::max();
 };
 
 
 inline std::ostream& operator<< (std::ostream& str, const CoarseningParameters& params) {
   str << "Coarsening Parameters:" << std::endl;
   str << "  Algorithm:                          " << params.algorithm << std::endl;
-  str << "  max-allowed weight multiplier:      " << params.max_allowed_weight_multiplier << std::endl;
+  str << "  max allowed weight multiplier:      " << params.max_allowed_weight_multiplier << std::endl;
   str << "  contraction limit multiplier:       " << params.contraction_limit_multiplier << std::endl;
+  str << "  use hypernode degree threshold:     " << std::boolalpha << params.use_hypernode_degree_threshold << std::endl;
   str << std::endl << params.rating;
   return str;
 }

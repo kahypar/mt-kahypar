@@ -145,7 +145,7 @@ TEST_F(ACommunityHypergraph, VerifiesIncidentNetsOfHypernodes) {
     return hypergraph.incidentEdges(id[1], 0);
   });
 
-  verifyIterator<HyperedgeID>({0}, [&] {
+  verifyIterator<HyperedgeID>({0, 281474976710657}, [&] {
     return hypergraph.incidentEdges(id[2], 0);
   });
 
@@ -157,11 +157,11 @@ TEST_F(ACommunityHypergraph, VerifiesIncidentNetsOfHypernodes) {
     return hypergraph.incidentEdges(id[4], 1);
   });
 
-  verifyIterator<HyperedgeID>({}, [&] {
+  verifyIterator<HyperedgeID>({281474976710657}, [&] {
     return hypergraph.incidentEdges(id[5], 0);
   });
 
-  verifyIterator<HyperedgeID>({281474976710656}, [&] {
+  verifyIterator<HyperedgeID>({281474976710656, 281474976710657}, [&] {
     return hypergraph.incidentEdges(id[6], 0);
   });
 }
@@ -198,7 +198,7 @@ TEST_F(ACommunityHypergraph, ContractsTwoHypernodes1) {
   ASSERT_FALSE(hypergraph.nodeIsEnabled(v));
   ASSERT_EQ(2, hypergraph.nodeWeight(u));
 
-  verifyIterator<HyperedgeID>({1}, [&] {
+  verifyIterator<HyperedgeID>({0, 1, 281474976710657}, [&] {
     return hypergraph.incidentEdges(u, 0);
   });
 
@@ -229,7 +229,7 @@ TEST_F(ACommunityHypergraph, ContractsTwoHypernodes2) {
   ASSERT_FALSE(hypergraph.nodeIsEnabled(v));
   ASSERT_EQ(2, hypergraph.nodeWeight(u));
 
-  verifyIterator<HyperedgeID>({0}, [&] {
+  verifyIterator<HyperedgeID>({0, 1}, [&] {
     return hypergraph.incidentEdges(u, 0);
   });
 
@@ -256,7 +256,7 @@ TEST_F(ACommunityHypergraph, ContractsTwoHypernodes3) {
   ASSERT_FALSE(hypergraph.nodeIsEnabled(v));
   ASSERT_EQ(2, hypergraph.nodeWeight(u));
 
-  verifyIterator<HyperedgeID>({0, 1}, [&] {
+  verifyIterator<HyperedgeID>({0, 1, 281474976710657}, [&] {
     return hypergraph.incidentEdges(u, 0);
   });
 
@@ -287,7 +287,7 @@ TEST_F(ACommunityHypergraph, ContractsTwoHypernodes4) {
   ASSERT_FALSE(hypergraph.nodeIsEnabled(v));
   ASSERT_EQ(2, hypergraph.nodeWeight(u));
 
-  verifyIterator<HyperedgeID>({281474976710656}, [&] {
+  verifyIterator<HyperedgeID>({1, 281474976710656}, [&] {
     return hypergraph.incidentEdges(u, 1);
   });
 
@@ -314,7 +314,7 @@ TEST_F(ACommunityHypergraph, ContractsTwoHypernodes5) {
   ASSERT_FALSE(hypergraph.nodeIsEnabled(v));
   ASSERT_EQ(2, hypergraph.nodeWeight(u));
 
-  verifyIterator<HyperedgeID>({1, 281474976710656}, [&] {
+  verifyIterator<HyperedgeID>({1, 281474976710656, 281474976710657}, [&] {
     return hypergraph.incidentEdges(u, 1);
   });
 
@@ -346,7 +346,7 @@ TEST_F(ACommunityHypergraph, ContractsTwoHypernodes6) {
   ASSERT_FALSE(hypergraph.nodeIsEnabled(v));
   ASSERT_EQ(2, hypergraph.nodeWeight(u));
 
-  verifyIterator<HyperedgeID>({1, 281474976710656}, [&] {
+  verifyIterator<HyperedgeID>({1, 281474976710656, 281474976710657}, [&] {
     return hypergraph.incidentEdges(u, 1);
   });
 

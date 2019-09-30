@@ -82,6 +82,22 @@ inline void Partitioner::setupContext(const Hypergraph& hypergraph, Context& con
 
   context.coarsening.max_allowed_node_weight = ceil(context.coarsening.hypernode_weight_fraction
                                                     * hypergraph.totalWeight());
+
+  if ( context.coarsening.use_hypernode_degree_threshold ) {
+    // TODO(heuer): replace this with a nice statistical detection of power law distribution
+    double avg_hypernode_degree = metrics::avgHypernodeDegree(hypergraph);
+    double stdev_hn_degree = 0.0;
+    for (const auto& hn : hypergraph.nodes()) {
+      stdev_hn_degree += (hypergraph.nodeDegree(hn) - avg_hypernode_degree) *
+                        (hypergraph.nodeDegree(hn) - avg_hypernode_degree);
+    }
+    stdev_hn_degree = std::sqrt(stdev_hn_degree / (hypergraph.currentNumNodes() - 1));
+    HyperedgeID rank_hypernode_degree = metrics::hypernodeDegreeRank(hypergraph,
+      hypergraph.initialNumNodes() - std::ceil(0.00166 * hypergraph.initialNumNodes()));
+    if ( avg_hypernode_degree + 5 * stdev_hn_degree < rank_hypernode_degree && rank_hypernode_degree > 250 ) {
+      context.coarsening.hypernode_degree_threshold = rank_hypernode_degree;
+    }
+  }
 }
 
 inline void Partitioner::configurePreprocessing(const Hypergraph& hypergraph, Context& context) {

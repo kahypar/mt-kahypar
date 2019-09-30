@@ -56,11 +56,13 @@ class AHypergraph : public Test {
   using TestStreamingHypergraph = typename TestTypeTraits<NUM_NUMA_NODES>::StreamingHyperGraph;
   using TestHypergraph = typename TestTypeTraits<NUM_NUMA_NODES>::HyperGraph;
 
-  AHypergraph() {
+  AHypergraph() { }
+
+  static void SetUpTestSuite() {
     TBBArena::instance(std::thread::hardware_concurrency());
   }
 
-  ~AHypergraph() {
+  static void TearDownTestSuite() {
     TBBArena::instance().terminate();
   }
 
@@ -76,7 +78,7 @@ class AHypergraph : public Test {
     std::vector<TestStreamingHypergraph> numa_hypergraphs;
     for ( int node = 0; node < NUM_NUMA_NODES; ++node ) {
       TBBArena::instance().numa_task_arena(node).execute([&] {
-        numa_hypergraphs.emplace_back(node);
+        numa_hypergraphs.emplace_back(node, false);
       });
     }
 
