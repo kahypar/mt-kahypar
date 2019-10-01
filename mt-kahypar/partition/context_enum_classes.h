@@ -55,6 +55,18 @@ enum class RatingFunction : uint8_t {
   UNDEFINED
 };
 
+enum class HeavyNodePenaltyPolicy : uint8_t {
+  no_penalty,
+  multiplicative_penalty,
+  edge_frequency_penalty,
+  UNDEFINED
+};
+
+enum class AcceptancePolicy : uint8_t {
+  best,
+  best_prefer_unmatched,
+  UNDEFINED
+};
 
 std::ostream& operator<< (std::ostream& os, const Type& type) {
   switch (type) {
@@ -95,6 +107,26 @@ std::ostream& operator<< (std::ostream& os, const CoarseningAlgorithm& algo) {
   return os << static_cast<uint8_t>(algo);
 }
 
+std::ostream& operator<< (std::ostream& os, const HeavyNodePenaltyPolicy& heavy_hn_policy) {
+  switch (heavy_hn_policy) {
+    case HeavyNodePenaltyPolicy::multiplicative_penalty: return os << "multiplicative";
+    case HeavyNodePenaltyPolicy::no_penalty: return os << "no_penalty";
+    case HeavyNodePenaltyPolicy::edge_frequency_penalty: return os << "edge_frequency_penalty";
+    case HeavyNodePenaltyPolicy::UNDEFINED: return os << "UNDEFINED";
+  }
+  return os << static_cast<uint8_t>(heavy_hn_policy);
+}
+
+std::ostream& operator<< (std::ostream& os, const AcceptancePolicy& acceptance_policy) {
+  switch (acceptance_policy) {
+    case AcceptancePolicy::best: return os << "best";
+    case AcceptancePolicy::best_prefer_unmatched: return os << "best_prefer_unmatched";
+    case AcceptancePolicy::UNDEFINED: return os << "UNDEFINED";
+      // omit default case to trigger compiler warning for missing cases
+  }
+  return os << static_cast<uint8_t>(acceptance_policy);
+}
+
 std::ostream& operator<< (std::ostream& os, const RatingFunction& func) {
   switch (func) {
     case RatingFunction::heavy_edge: return os << "heavy_edge";
@@ -131,6 +163,30 @@ static CoarseningAlgorithm coarseningAlgorithmFromString(const std::string& type
   LOG << "Illegal option:" << type;
   exit(0);
   return CoarseningAlgorithm::UNDEFINED;
+}
+
+static HeavyNodePenaltyPolicy heavyNodePenaltyFromString(const std::string& penalty) {
+  if (penalty == "multiplicative") {
+    return HeavyNodePenaltyPolicy::multiplicative_penalty;
+  } else if (penalty == "no_penalty") {
+    return HeavyNodePenaltyPolicy::no_penalty;
+  } else if (penalty == "edge_frequency_penalty") {
+    return HeavyNodePenaltyPolicy::edge_frequency_penalty;
+    // omit default case to trigger compiler warning for missing cases
+  }
+  LOG << "No valid edge penalty policy for rating.";
+  exit(0);
+  return HeavyNodePenaltyPolicy::multiplicative_penalty;
+}
+
+static AcceptancePolicy acceptanceCriterionFromString(const std::string& crit) {
+  if (crit == "best") {
+    return AcceptancePolicy::best;
+  } else if (crit == "best_prefer_unmatched") {
+    return AcceptancePolicy::best_prefer_unmatched;
+  }
+  LOG << "No valid acceptance criterion for rating.";
+  exit(0);
 }
 
 static RatingFunction ratingFunctionFromString(const std::string& function) {

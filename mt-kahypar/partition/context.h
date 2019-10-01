@@ -65,8 +65,8 @@ inline std::ostream& operator<< (std::ostream& str, const PartitioningParameters
 
 struct RatingParameters {
   RatingFunction rating_function = RatingFunction::UNDEFINED;
-  kahypar::HeavyNodePenaltyPolicy heavy_node_penalty_policy = kahypar::HeavyNodePenaltyPolicy::UNDEFINED;
-  kahypar::AcceptancePolicy acceptance_policy = kahypar::AcceptancePolicy::UNDEFINED;
+  HeavyNodePenaltyPolicy heavy_node_penalty_policy = HeavyNodePenaltyPolicy::UNDEFINED;
+  AcceptancePolicy acceptance_policy = AcceptancePolicy::UNDEFINED;
 };
 
 inline std::ostream& operator<< (std::ostream& str, const RatingParameters& params) {
@@ -102,6 +102,20 @@ inline std::ostream& operator<< (std::ostream& str, const CoarseningParameters& 
   return str;
 }
 
+struct InitialPartitioningParameters {
+  std::string context_file = "";
+  bool call_kahypar_multiple_times = false;
+  size_t runs = 1;
+};
+
+inline std::ostream& operator<< (std::ostream& str, const InitialPartitioningParameters& params) {
+  str << "Initial Partitioning Parameters:" << std::endl;
+  str << "  Initial Partitioning Context:       " << params.context_file << std::endl;
+  str << "  Call KaHyPar Multiple Times:        " << std::boolalpha << params.call_kahypar_multiple_times << std::endl;
+  str << "  Number of Runs:                     " << params.runs << std::endl;
+  return str;
+}
+
 struct SharedMemoryParameters {
   size_t num_threads = 1;
   bool use_community_redistribution = false;
@@ -123,6 +137,7 @@ class Context {
  public:
   PartitioningParameters partition { };
   CoarseningParameters coarsening { };
+  InitialPartitioningParameters initial_partitioning { };
   SharedMemoryParameters shared_memory { };
   ContextType type = ContextType::main;
 
@@ -148,6 +163,8 @@ inline std::ostream& operator<< (std::ostream& str, const Context& context) {
       << context.partition
       << "-------------------------------------------------------------------------------\n"
       << context.coarsening
+      << "-------------------------------------------------------------------------------\n"
+      << context.initial_partitioning
       << "-------------------------------------------------------------------------------\n"
       << context.shared_memory
       << "-------------------------------------------------------------------------------";

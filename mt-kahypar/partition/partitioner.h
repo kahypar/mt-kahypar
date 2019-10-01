@@ -33,13 +33,14 @@
 #include "mt-kahypar/partition/factories.h"
 #include "mt-kahypar/partition/metrics.h"
 #include "mt-kahypar/partition/preprocessing/community_redistributor.h"
+#include "mt-kahypar/partition/initial_partitioning/initial_partitioner.h"
 
 namespace mt_kahypar {
 namespace partition {
 
 class Partitioner {
  private:
-  static constexpr bool debug = true;
+  static constexpr bool debug = false;
 
  public:
   Partitioner() :
@@ -123,6 +124,8 @@ inline void Partitioner::sanitize(Hypergraph& hypergraph, const Context& context
 }
 
 inline void Partitioner::preprocess(Hypergraph& hypergraph, const Context& context) {
+  io::printTopLevelPreprocessingBanner(context);
+
   HighResClockTimepoint global_start = std::chrono::high_resolution_clock::now();
   HighResClockTimepoint start = std::chrono::high_resolution_clock::now();
   std::vector<PartitionID> communities;
@@ -167,13 +170,19 @@ inline void Partitioner::redistribution(Hypergraph& hypergraph, const Context& c
     RedistributionFactory::getInstance().createObject(
       context.shared_memory.assignment_strategy, hypergraph, context);
 
-  DBG << "Remote Pin Count Before Redistribution" << metrics::remotePinCount(hypergraph);
   std::vector<PartitionID> community_node_mapping = community_assignment->computeAssignment();
-  if ( context.shared_memory.use_community_redistribution ) {
+  if ( context.shared_memory.use_community_redistribution && TBBNumaArena::instance().num_used_numa_nodes() > 1 ) {
+    HyperedgeWeight remote_pin_count_before = metrics::remotePinCount(hypergraph);
     hypergraph = preprocessing::CommunityRedistributor::redistribute(hypergraph, community_node_mapping);
+    HyperedgeWeight remote_pin_count_after = metrics::remotePinCount(hypergraph);
+    if ( context.partition.verbose_output ) {
+      LOG << "Hypergraph Redistribution Results:";
+      LOG << " Remote Pin Count Before Redistribution   =" << remote_pin_count_before;
+      LOG << " Remote Pin Count After Redistribution    =" << remote_pin_count_after;
+      io::printStripe();
+    }
   }
   hypergraph.setCommunityNodeMapping(std::move(community_node_mapping));
-  DBG << "Remote Pin Count After Redistribution" << metrics::remotePinCount(hypergraph);
 }
 
 inline void Partitioner::postprocess(Hypergraph& hypergraph) {
@@ -193,6 +202,7 @@ inline void Partitioner::partition(Hypergraph& hypergraph, Context& context) {
   mt_kahypar::utils::Timer::instance().add_timing("preprocessing", "Preprocessing",
     "", mt_kahypar::utils::Timer::Type::PREPROCESSING, 1, std::chrono::duration<double>(end - start).count());
 
+  io::printCoarseningBanner(context);
   start = std::chrono::high_resolution_clock::now();
   std::unique_ptr<ICoarsener> coarsener =
     CoarsenerFactory::getInstance().createObject(
@@ -204,11 +214,20 @@ inline void Partitioner::partition(Hypergraph& hypergraph, Context& context) {
 
   io::printHypergraphInfo(hypergraph, "Coarsened Hypergraph");
 
-  /*start = std::chrono::high_resolution_clock::now();
+  io::printInitialPartitioningBanner(context);
+  start = std::chrono::high_resolution_clock::now();
+  InitialPartitioner initial_partitioner(hypergraph, context);
+  initial_partitioner.initialPartition();
+  end = std::chrono::high_resolution_clock::now();
+  mt_kahypar::utils::Timer::instance().add_timing("initial_partitioning", "Initial Partitioning",
+    "", mt_kahypar::utils::Timer::Type::INITIAL_PARTITIONING, 3, std::chrono::duration<double>(end - start).count());
+
+  io::printLocalSearchBanner(context);
+  start = std::chrono::high_resolution_clock::now();
   coarsener->uncoarsen();
   end = std::chrono::high_resolution_clock::now();
   mt_kahypar::utils::Timer::instance().add_timing("refinement", "Refinement",
-    "", mt_kahypar::utils::Timer::Type::REFINEMENT, 1, std::chrono::duration<double>(end - start).count());*/
+    "", mt_kahypar::utils::Timer::Type::REFINEMENT, 4, std::chrono::duration<double>(end - start).count());
 
   io::printHypergraphInfo(hypergraph, "Uncoarsened Hypergraph");
 

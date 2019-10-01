@@ -203,6 +203,38 @@ static inline void printInputInformation(const Context& context, const Hypergrap
   }
 }
 
+static inline void printTopLevelPreprocessingBanner(const Context& context) {
+  if (context.partition.verbose_output) {
+    LOG << "\n********************************************************************************";
+    LOG << "*                          Top Level Preprocessing..                           *";
+    LOG << "********************************************************************************";
+  }
+}
+
+static inline void printCoarseningBanner(const Context& context) {
+  if (context.partition.verbose_output) {
+    LOG << "********************************************************************************";
+    LOG << "*                                Coarsening...                                 *";
+    LOG << "********************************************************************************";
+  }
+}
+
+static inline void printInitialPartitioningBanner(const Context& context) {
+  if (context.partition.verbose_output) {
+    LOG << "\n********************************************************************************";
+    LOG << "*                           Initial Partitioning...                            *";
+    LOG << "********************************************************************************";
+  }
+}
+
+static inline void printLocalSearchBanner(const Context& context) {
+  if (context.partition.verbose_output) {
+    LOG << "\n********************************************************************************";
+    LOG << "*                               Local Search...                                *";
+    LOG << "********************************************************************************";
+  }
+}
+
 inline void printPartitioningResults(const Hypergraph& hypergraph,
                                      const Context& context) {
   unused(hypergraph);

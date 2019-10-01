@@ -150,7 +150,7 @@ po::options_description createCoarseningOptionsDescription(Context& context,
     po::value<std::string>()->value_name("<string>")->notifier(
       [&](const std::string& penalty) {
         context.coarsening.rating.heavy_node_penalty_policy =
-          kahypar::heavyNodePenaltyFromString(penalty);
+          heavyNodePenaltyFromString(penalty);
     }),
     "Penalty function to discourage heavy vertices:\n"
     "- multiplicative\n"
@@ -160,11 +160,30 @@ po::options_description createCoarseningOptionsDescription(Context& context,
     po::value<std::string>()->value_name("<string>")->notifier(
       [&](const std::string& crit) {
         context.coarsening.rating.acceptance_policy =
-          kahypar::acceptanceCriterionFromString(crit);
+          acceptanceCriterionFromString(crit);
     }),
     "Acceptance/Tiebreaking criterion for contraction partners having the same score:\n"
     "- best\n"
     "- best_prefer_unmatched");
+  return options;
+}
+
+po::options_description createInitialPartitioningOptionsDescription(Context& context, const int num_columns) {
+  po::options_description options("General Options", num_columns);
+  options.add_options()
+    ("i-context-file",
+    po::value<std::string>(&context.initial_partitioning.context_file)->required()->value_name("<string>"),
+    "Context file for initial partitioning call to KaHyPar.")
+    ("i-call-kahypar-multiple-times",
+    po::value<bool>(&context.initial_partitioning.call_kahypar_multiple_times)->value_name("<bool>"),
+    "If true, KaHyPar is called i-runs times during IP (with one call to IP of KaHyPar).\n"
+    "Otherwise, KaHyPar is called s-num-threads times and the IP of KaHyPar is called i-runs times\n"
+    "(splitted over s-num-threads)"
+    "(default: false)")
+    ("i-runs",
+    po::value<size_t>(&context.initial_partitioning.runs)->value_name("<size_t>"),
+    "Number of runs for initial partitioner \n"
+    "(default: 1)");
   return options;
 }
 
@@ -226,6 +245,8 @@ void processCommandLineInput(Context& context, int argc, char* argv[]) {
 
   po::options_description coarsening_options =
     createCoarseningOptionsDescription(context, num_columns);
+  po::options_description initial_paritioning_options =
+    createInitialPartitioningOptionsDescription(context, num_columns);
   po::options_description shared_memory_options =
     createSharedMemoryOptionsDescription(context, num_columns);
 
@@ -235,6 +256,7 @@ void processCommandLineInput(Context& context, int argc, char* argv[]) {
   .add(preset_options)
   .add(general_options)
   .add(coarsening_options)
+  .add(initial_paritioning_options)
   .add(shared_memory_options);
 
   po::variables_map cmd_vm;
@@ -259,6 +281,7 @@ void processCommandLineInput(Context& context, int argc, char* argv[]) {
   po::options_description ini_line_options;
   ini_line_options.add(general_options)
   .add(coarsening_options)
+  .add(initial_paritioning_options)
   .add(shared_memory_options);
 
   po::store(po::parse_config_file(file, ini_line_options, true), cmd_vm);

@@ -57,6 +57,8 @@ static inline void serialize(const Hypergraph& hypergraph, const Context& contex
         << " rating_function=" << context.coarsening.rating.rating_function
         << " rating_heavy_node_penalty_policy=" << context.coarsening.rating.heavy_node_penalty_policy
         << " rating_acceptance_policy=" << context.coarsening.rating.acceptance_policy
+        << " initial_partitioning_context=" << context.initial_partitioning.context_file
+        << " initial_partitioning_runs=" << context.initial_partitioning.runs
         << " num_threads=" << context.shared_memory.num_threads
         << " use_community_redistribution=" << std::boolalpha << context.shared_memory.use_community_redistribution
         << " community_assignment_strategy=" << context.shared_memory.assignment_strategy

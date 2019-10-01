@@ -51,16 +51,16 @@ REGISTER_POLICY(CommunityAssignmentObjective, CommunityAssignmentObjective::pin_
 REGISTER_POLICY(RatingFunction, RatingFunction::heavy_edge,
                 HeavyEdgeScore);
 
-REGISTER_POLICY(kahypar::HeavyNodePenaltyPolicy, kahypar::HeavyNodePenaltyPolicy::no_penalty,
+REGISTER_POLICY(HeavyNodePenaltyPolicy, HeavyNodePenaltyPolicy::no_penalty,
                 NoWeightPenalty);
-REGISTER_POLICY(kahypar::HeavyNodePenaltyPolicy, kahypar::HeavyNodePenaltyPolicy::multiplicative_penalty,
+REGISTER_POLICY(HeavyNodePenaltyPolicy, HeavyNodePenaltyPolicy::multiplicative_penalty,
                 MultiplicativePenalty);
-REGISTER_POLICY(kahypar::HeavyNodePenaltyPolicy, kahypar::HeavyNodePenaltyPolicy::edge_frequency_penalty,
+REGISTER_POLICY(HeavyNodePenaltyPolicy, HeavyNodePenaltyPolicy::edge_frequency_penalty,
                 EdgeFrequencyPenalty);
 
-REGISTER_POLICY(kahypar::AcceptancePolicy, kahypar::AcceptancePolicy::best,
+REGISTER_POLICY(AcceptancePolicy, AcceptancePolicy::best,
                 BestRatingWithTieBreaking);
-REGISTER_POLICY(kahypar::AcceptancePolicy, kahypar::AcceptancePolicy::best_prefer_unmatched,
+REGISTER_POLICY(AcceptancePolicy, AcceptancePolicy::best_prefer_unmatched,
                 BestRatingPreferringUnmatched);
 
 } // namespace mt_kahypar

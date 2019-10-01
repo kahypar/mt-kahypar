@@ -8,7 +8,8 @@
 *.py~
 *.cfg~
 build/*
-rel2/*
+rel2/
+relwithdebinfo/*
 release127/*
 release128/*
 release/*

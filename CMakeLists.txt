@@ -123,6 +123,24 @@ ELSE ()
     MESSAGE(STATUS "WARNING: hwlock library not found.")
 ENDIF ()
 
+# find libkahypar
+
+FIND_PATH(KAHYPAR_INCLUDE_DIR NAME libkahypar.h
+  HINTS "/usr/local/include" )
+
+FIND_LIBRARY(KAHYPAR_LIBRARY NAME libkahypar.so
+  HINTS "/usr/local/lib" )
+
+IF (KAHYPAR_INCLUDE_DIR AND KAHYPAR_LIBRARY)
+    SET(KAHYPAR_FOUND TRUE)
+    MESSAGE(STATUS "Found kahypar library: inc=${KAHYPAR_INCLUDE_DIR}, lib=${KAHYPAR_LIBRARY}")
+    include_directories(${KAHYPAR_INCLUDE_DIR})
+    link_libraries(${KAHYPAR_LIBRARY})
+ELSE ()
+    SET(KAHYPAR_FOUND FALSE)
+    MESSAGE(STATUS "WARNING: kahypar library not found.")
+ENDIF ()
+
 # TODO: Add git revision
 
 if(NOT MSVC)
@@ -157,7 +175,7 @@ if(NOT MSVC)
   set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -g3")
   set(CMAKE_CXX_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -fsanitize=undefined -fsanitize=address -fno-omit-frame-pointer")
   set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -O3 -mtune=native -march=native")
-  set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-O3 -mtune=native -march=native -g3 ") 
+  set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-O3 -mtune=native -march=native -g3 ")
 
   if(ENABLE_PROFILE MATCHES ON)
     message(STATUS "Profiling activated")
