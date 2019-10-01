@@ -119,6 +119,7 @@ class StreamingHypergraph {
         _community_node_id(kInvalidHypernode),
         _weight(1),
         _community_id(kInvalidPartition),
+        _part_id(kInvalidPartition),
         _single_pin_community_nets(0),
         _valid(false) { }
 
@@ -130,6 +131,7 @@ class StreamingHypergraph {
         _community_node_id(kInvalidHypernode),
         _weight(weight),
         _community_id(kInvalidPartition),
+        _part_id(kInvalidPartition),
         _single_pin_community_nets(0),
         _valid(true) { }
 
@@ -190,6 +192,16 @@ class StreamingHypergraph {
         _community_id = community_id;
       }
 
+      PartitionID partID() const {
+        ASSERT(!isDisabled());
+        return _part_id;
+      }
+
+      void setPartID(const PartitionID part_id) {
+        ASSERT(!isDisabled());
+        _part_id = part_id;
+      }
+
       size_t singlePinCommunityNets() const {
         ASSERT(!isDisabled());
         return _single_pin_community_nets;
@@ -234,6 +246,8 @@ class StreamingHypergraph {
       HyperedgeWeight _weight;
       // ! Community id
       PartitionID _community_id;
+      // ! Part Id
+      PartitionID _part_id;
       // ! Pointer to incident indicating that all hyperedges from
       // ! that position have only one pin in its community.
       size_t _single_pin_community_nets;
@@ -928,6 +942,16 @@ class StreamingHypergraph {
   PartitionID communityID(const HypernodeID u) const {
     ASSERT(!hypernode(u).isDisabled(), "Hypernode" << u << "is disabled");
     return hypernode(u).communityID();
+  }
+
+  void setPartInfo(const HypernodeID u, const PartitionID id) {
+    ASSERT(!hypernode(u).isDisabled(), "Hypernode" << u << "is disabled");
+    hypernode(u).setPartID(id);
+  }
+
+  PartitionID partID(const HypernodeID u) const {
+    ASSERT(!hypernode(u).isDisabled(), "Hypernode" << u << "is disabled");
+    return hypernode(u).partID();
   }
 
   bool nodeIsEnabled(const HypernodeID u) const {

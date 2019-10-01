@@ -41,13 +41,22 @@ int main(int argc, char* argv[]) {
   // Initialize TBB task arenas on numa nodes
   mt_kahypar::TBBNumaArena::instance(context.shared_memory.num_threads);
 
+  // Read Hypergraph
   mt_kahypar::Hypergraph hypergraph = mt_kahypar::io::readHypergraphFile(
-    context.partition.graph_filename);
+    context.partition.graph_filename, context.partition.k);
 
+  // Partition Hypergraph
+  mt_kahypar::HighResClockTimepoint start = std::chrono::high_resolution_clock::now();
   mt_kahypar::partition::Partitioner().partition(hypergraph, context);
+  mt_kahypar::HighResClockTimepoint end = std::chrono::high_resolution_clock::now();
 
-  mt_kahypar::io::printPartitioningResults(hypergraph, context);
-  mt_kahypar::io::serializer::serialize(hypergraph, context);
+  // Print Stats
+  std::chrono::duration<double> elapsed_seconds(end - start);
+  mt_kahypar::io::printPartitioningResults(hypergraph, context, elapsed_seconds);
+  mt_kahypar::io::serializer::serialize(hypergraph, context, elapsed_seconds);
+  if ( context.partition.write_partition_file ) {
+    mt_kahypar::io::writePartitionFile(hypergraph, context.partition.graph_partition_filename);
+  }
 
   mt_kahypar::TBBNumaArena::instance().terminate();
   return 0;

@@ -84,6 +84,8 @@ inline void Partitioner::setupContext(const Hypergraph& hypergraph, Context& con
   context.coarsening.max_allowed_node_weight = ceil(context.coarsening.hypernode_weight_fraction
                                                     * hypergraph.totalWeight());
 
+  context.setupPartWeights(hypergraph.totalWeight());
+
   if ( context.coarsening.use_hypernode_degree_threshold ) {
     // TODO(heuer): replace this with a nice statistical detection of power law distribution
     double avg_hypernode_degree = metrics::avgHypernodeDegree(hypergraph);
@@ -173,7 +175,7 @@ inline void Partitioner::redistribution(Hypergraph& hypergraph, const Context& c
   std::vector<PartitionID> community_node_mapping = community_assignment->computeAssignment();
   if ( context.shared_memory.use_community_redistribution && TBBNumaArena::instance().num_used_numa_nodes() > 1 ) {
     HyperedgeWeight remote_pin_count_before = metrics::remotePinCount(hypergraph);
-    hypergraph = preprocessing::CommunityRedistributor::redistribute(hypergraph, community_node_mapping);
+    hypergraph = preprocessing::CommunityRedistributor::redistribute(hypergraph, context.partition.k, community_node_mapping);
     HyperedgeWeight remote_pin_count_after = metrics::remotePinCount(hypergraph);
     if ( context.partition.verbose_output ) {
       LOG << "Hypergraph Redistribution Results:";
@@ -195,6 +197,7 @@ inline void Partitioner::partition(Hypergraph& hypergraph, Context& context) {
   setupContext(hypergraph, context);
   io::printInputInformation(context, hypergraph);
 
+  // ################## PREPROCESSING ##################
   HighResClockTimepoint start = std::chrono::high_resolution_clock::now();
   preprocess(hypergraph, context);
   sanitize(hypergraph, context);
@@ -202,6 +205,7 @@ inline void Partitioner::partition(Hypergraph& hypergraph, Context& context) {
   mt_kahypar::utils::Timer::instance().add_timing("preprocessing", "Preprocessing",
     "", mt_kahypar::utils::Timer::Type::PREPROCESSING, 1, std::chrono::duration<double>(end - start).count());
 
+  // ################## COARSENING ##################
   io::printCoarseningBanner(context);
   start = std::chrono::high_resolution_clock::now();
   std::unique_ptr<ICoarsener> coarsener =
@@ -214,6 +218,7 @@ inline void Partitioner::partition(Hypergraph& hypergraph, Context& context) {
 
   io::printHypergraphInfo(hypergraph, "Coarsened Hypergraph");
 
+  // ################## INITIAL PARTITIONING ##################
   io::printInitialPartitioningBanner(context);
   start = std::chrono::high_resolution_clock::now();
   InitialPartitioner initial_partitioner(hypergraph, context);
@@ -222,6 +227,9 @@ inline void Partitioner::partition(Hypergraph& hypergraph, Context& context) {
   mt_kahypar::utils::Timer::instance().add_timing("initial_partitioning", "Initial Partitioning",
     "", mt_kahypar::utils::Timer::Type::INITIAL_PARTITIONING, 3, std::chrono::duration<double>(end - start).count());
 
+  io::printPartitioningResults(hypergraph, context, "Initial Partitioning Results:");
+
+  // ################## LOCAL SEARCH ##################
   io::printLocalSearchBanner(context);
   start = std::chrono::high_resolution_clock::now();
   coarsener->uncoarsen();
@@ -230,6 +238,8 @@ inline void Partitioner::partition(Hypergraph& hypergraph, Context& context) {
     "", mt_kahypar::utils::Timer::Type::REFINEMENT, 4, std::chrono::duration<double>(end - start).count());
 
   io::printHypergraphInfo(hypergraph, "Uncoarsened Hypergraph");
+  io::printStripe();
+  io::printPartitioningResults(hypergraph, context, "Local Search Results:");
 
   postprocess(hypergraph);
 }

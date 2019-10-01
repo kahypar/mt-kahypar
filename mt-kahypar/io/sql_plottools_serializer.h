@@ -26,12 +26,15 @@
 
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/context.h"
+#include "mt-kahypar/partition/metrics.h"
 #include "mt-kahypar/utils/timer.h"
 
 namespace mt_kahypar {
 namespace io {
 namespace serializer {
-static inline void serialize(const Hypergraph& hypergraph, const Context& context) {
+static inline void serialize(const Hypergraph& hypergraph,
+                             const Context& context,
+                             const std::chrono::duration<double>& elapsed_seconds) {
   if (context.partition.sp_process_output) {
     std::ostringstream oss;
     oss << "RESULT"
@@ -45,6 +48,8 @@ static inline void serialize(const Hypergraph& hypergraph, const Context& contex
         << " epsilon=" << context.partition.epsilon
         << " seed=" << context.partition.seed
         << " he_size_threshold=" << context.partition.hyperedge_size_threshold
+        << " perfect_balanced_part_weight=" << context.partition.perfect_balance_part_weights[0]
+        << " max_part_weight=" << context.partition.max_part_weights[0]
         << " total_graph_weight=" << hypergraph.totalWeight()
         << " coarsening_algorithm=" << context.coarsening.algorithm
         << " contraction_limit_multiplier=" << context.coarsening.contraction_limit_multiplier
@@ -63,6 +68,14 @@ static inline void serialize(const Hypergraph& hypergraph, const Context& contex
         << " use_community_redistribution=" << std::boolalpha << context.shared_memory.use_community_redistribution
         << " community_assignment_strategy=" << context.shared_memory.assignment_strategy
         << " community_assignment_objective=" << context.shared_memory.assignment_objective;
+
+    // Metrics
+    oss << " cut=" << metrics::hyperedgeCut(hypergraph)
+        << " soed=" << metrics::soed(hypergraph)
+        << " km1=" << metrics::km1(hypergraph)
+        << " absorption=" << metrics::absorption(hypergraph)
+        << " imbalance=" << metrics::imbalance(hypergraph, context)
+        << " totalPartitionTime=" << elapsed_seconds.count();
 
     utils::Timer::instance(context.partition.detailed_timings).serialize(oss);
 

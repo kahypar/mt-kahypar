@@ -35,6 +35,10 @@ class Timer {
 
  public:
   static constexpr int MAX_LINE_LENGTH = 40;
+  static constexpr char TOP_LEVEL_PREFIX[] = " + ";
+  static constexpr size_t TOP_LEVEL_PREFIX_LENGTH = 3;
+  static constexpr char SUB_LEVEL_PREFIX[] = " + ";
+  static constexpr size_t SUB_LEVEL_PREFIX_LENGTH = 3;
 
   enum class Type : uint8_t {
     IMPORT = 0,
@@ -180,7 +184,6 @@ class Timer {
 
 Timer* Timer::_instance { nullptr };
 std::mutex Timer::_mutex;
-
 std::ostream& operator<<(std::ostream& str, const Timer& timer) {
   std::vector<Timer::Timing> timings;
   for ( const auto& timing : timer._timings ) {
@@ -192,8 +195,12 @@ std::ostream& operator<<(std::ostream& str, const Timer& timer) {
     });
 
   auto print = [&](std::ostream& str, const Timer::Timing& timing, int level) {
-    int length = (level > 0 ? 4 : 0) + (level > 1 ? 4 * ( level - 1 ) : 0) + timing.description().size();
-    std::string prefix = (level > 1 ? std::string((level - 1) * 4, ' ') : "" ) + (level > 0 ? " └─ " : "");
+    std::string prefix = "";
+    prefix += level == 0 ? std::string(Timer::TOP_LEVEL_PREFIX, Timer::TOP_LEVEL_PREFIX_LENGTH) :
+                           std::string(Timer::TOP_LEVEL_PREFIX_LENGTH, ' ');
+    prefix += level > 0 ? std::string(Timer::SUB_LEVEL_PREFIX_LENGTH * (level - 1), ' ' ) : "";
+    prefix += level > 0 ? std::string(Timer::SUB_LEVEL_PREFIX, Timer::SUB_LEVEL_PREFIX_LENGTH) : "";
+    size_t length = prefix.size() + timing.description().size();
     str << prefix
         << timing.description();
     if ( length < Timer::MAX_LINE_LENGTH ) {

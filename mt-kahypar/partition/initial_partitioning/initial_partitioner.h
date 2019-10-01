@@ -39,6 +39,7 @@ class InitialPartitionerT {
   using HwTopology = typename TypeTraits::HwTopology;
 
   static constexpr bool debug = false;
+  static constexpr PartitionID kInvalidPartition = -1;
   static constexpr HypernodeID kInvalidHypernode = std::numeric_limits<HypernodeID>::max();
 
   struct InitialPartitioningResult {
@@ -49,7 +50,7 @@ class InitialPartitionerT {
 
     explicit InitialPartitioningResult(const kahypar_hypernode_id_t num_vertices) :
       objective(0),
-      partition(num_vertices, -1) { }
+      partition(num_vertices, kInvalidPartition) { }
 
     kahypar_hyperedge_weight_t objective;
     parallel::scalable_vector<kahypar_partition_id_t> partition;
@@ -94,9 +95,11 @@ class InitialPartitionerT {
     // Setup node mapping to a continous range
     HypernodeID num_vertices = 0;
     std::vector<HypernodeID> node_mapping(_hg.initialNumNodes(), kInvalidHypernode);
+    std::vector<HypernodeID> reverse_mapping;
     for ( const HypernodeID& hn : _hg.nodes() ) {
       ASSERT(_hg.originalNodeID(hn) < _hg.initialNumNodes());
       node_mapping[_hg.originalNodeID(hn)] = num_vertices++;
+      reverse_mapping.emplace_back(hn);
     }
 
     // Split calls to initial partitioner evenly across numa nodes
@@ -132,7 +135,15 @@ class InitialPartitionerT {
     }
     DBG << "Partitioning Result" << V(best.objective);
 
-    // TODO(heuer): Apply best partition to hypergraph
+    // Apply partition to hypergraph
+    for ( HypernodeID u = 0; u < best.partition.size(); ++u ) {
+      ASSERT(u < reverse_mapping.size());
+      HypernodeID hn = reverse_mapping[u];
+      ASSERT(node_mapping[_hg.originalNodeID(hn)] != kInvalidHypernode);
+      PartitionID part_id = best.partition[node_mapping[_hg.originalNodeID(hn)]];
+      ASSERT(part_id >= 0 && part_id < _context.partition.k);
+      _hg.setPartInfo(hn, part_id);
+    }
 
     kahypar_context_free(context);
   }
@@ -154,6 +165,7 @@ class InitialPartitionerT {
     context.preprocessing.enable_min_hash_sparsifier = false;
     context.preprocessing.enable_community_detection = false;
     context.partition.verbose_output = debug;
+    // TODO(heuer): configure refiner based on objective
   }
 
   InitialPartitioningResult partitionWithKaHyPar(kahypar_context_t* context,

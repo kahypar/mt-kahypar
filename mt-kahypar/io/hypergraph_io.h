@@ -56,9 +56,10 @@ static inline void readHGRHeader(std::ifstream& file, HyperedgeID& num_hyperedge
 }
 
 static inline Hypergraph readHyperedges(std::ifstream& file,
-                                                    const HypernodeID num_hypernodes,
-                                                    const HyperedgeID num_hyperedges,
-                                                    const mt_kahypar::Type type) {
+                                        const HypernodeID num_hypernodes,
+                                        const HyperedgeID num_hyperedges,
+                                        const mt_kahypar::Type type,
+                                        const PartitionID k) {
 
   // Allocate numa hypergraph on their corresponding numa nodes
   int used_numa_nodes = TBBNumaArena::instance().num_used_numa_nodes();
@@ -137,14 +138,14 @@ static inline Hypergraph readHyperedges(std::ifstream& file,
     "hypergraph_import", mt_kahypar::utils::Timer::Type::IMPORT, 2, std::chrono::duration<double>(end - start).count());
 
   start = std::chrono::high_resolution_clock::now();
-  Hypergraph hypergraph(num_hypernodes, std::move(numa_hypergraphs));
+  Hypergraph hypergraph(num_hypernodes, std::move(numa_hypergraphs), k);
   end = std::chrono::high_resolution_clock::now();
   mt_kahypar::utils::Timer::instance().add_timing("initialize_hypernodes", "Initialize Hypernodes",
     "hypergraph_import", mt_kahypar::utils::Timer::Type::IMPORT, 3, std::chrono::duration<double>(end - start).count());
   return hypergraph;
 }
 
-static inline Hypergraph readHypergraphFile(const std::string& filename) {
+static inline Hypergraph readHypergraphFile(const std::string& filename, const PartitionID k) {
   ASSERT(!filename.empty(), "No filename for hypergraph file specified");
   HighResClockTimepoint start = std::chrono::high_resolution_clock::now();
   std::ifstream file(filename);
@@ -154,7 +155,7 @@ static inline Hypergraph readHypergraphFile(const std::string& filename) {
   Hypergraph hypergraph;
   if (file) {
     readHGRHeader(file, num_hyperedges, num_hypernodes, type);
-    hypergraph = readHyperedges(file, num_hypernodes, num_hyperedges, type);
+    hypergraph = readHyperedges(file, num_hypernodes, num_hyperedges, type, k);
     // TODO(heuer): Read hypernodes weight
     file.close();
   } else {
@@ -180,6 +181,23 @@ static inline void readPartitionFile(const std::string& filename, std::vector<Pa
     file.close();
   } else {
     std::cerr << "Error: File not found: " << std::endl;
+  }
+}
+
+static inline void writePartitionFile(const Hypergraph& hypergraph, const std::string& filename) {
+  if (filename.empty()) {
+    LOG << "No filename for partition file specified";
+  } else {
+    std::ofstream out_stream(filename.c_str());
+    std::vector<PartitionID> partition(hypergraph.initialNumNodes(), -1);
+    for (const HypernodeID& hn : hypergraph.nodes()) {
+      ASSERT(hypergraph.originalNodeID(hn) < partition.size());
+      partition[hypergraph.originalNodeID(hn)] = hypergraph.partID(hn);
+    }
+    for ( const PartitionID& part : partition ) {
+      out_stream << part << std::endl;
+    }
+    out_stream.close();
   }
 }
 

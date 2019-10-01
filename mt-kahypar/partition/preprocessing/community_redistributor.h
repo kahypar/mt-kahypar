@@ -46,6 +46,7 @@ class CommunityRedistributorT {
   ~CommunityRedistributorT() = default;
 
   static HyperGraph redistribute(HyperGraph& hg,
+                                 const PartitionID k,
                                  const std::vector<PartitionID>& community_assignment) {
     int used_numa_nodes = TBB::instance().num_used_numa_nodes();
 
@@ -162,7 +163,7 @@ class CommunityRedistributorT {
 
     // Initialize hypergraph
     start = std::chrono::high_resolution_clock::now();
-    HyperGraph hypergraph(hg.initialNumNodes(), std::move(numa_hypergraphs), std::move(node_mapping));
+    HyperGraph hypergraph(hg.initialNumNodes(), std::move(numa_hypergraphs), std::move(node_mapping), k);
     ASSERT(hypergraph.initialNumNodes() == hg.initialNumNodes());
     ASSERT(hypergraph.initialNumEdges() == hg.initialNumEdges());
     ASSERT(hypergraph.initialNumPins() == hg.initialNumPins());

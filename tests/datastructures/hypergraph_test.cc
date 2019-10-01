@@ -30,11 +30,19 @@ namespace ds {
 
 using AHypergraphWithTwoStreamingHypergraphs = AHypergraph<2>;
 using TestHypergraph = typename AHypergraphWithTwoStreamingHypergraphs::TestHypergraph;
+using TestStreamingHypergraph = typename AHypergraphWithTwoStreamingHypergraphs::TestStreamingHypergraph;
 
 TestHypergraph construct_test_hypergraph(const AHypergraphWithTwoStreamingHypergraphs& test) {
   return test.construct_hypergraph(7, { {0, 2}, {0, 1, 3, 4}, {3, 4, 6}, {2, 5, 6} },
                                       { 0, 0, 0, 1, 1, 1, 1 },
                                       { 0, 0, 1, 1 } );
+}
+
+void assignPartitionIDs(TestHypergraph& hypergraph) {
+  for ( const HypernodeID& hn : hypergraph.nodes() ) {
+    PartitionID part_id = TestStreamingHypergraph::get_numa_node_of_vertex(hn);
+    hypergraph.setPartInfo(hn, part_id);
+  }
 }
 
 template< typename IDType >
@@ -626,6 +634,7 @@ TEST_F(AHypergraphWithTwoStreamingHypergraphs, UncontractsTwoHypernodes1) {
   HypernodeID u = id[0];
   HypernodeID v = id[2];
   auto memento = hypergraph.contract(u, v);
+  assignPartitionIDs(hypergraph);
   hypergraph.uncontract(memento);
 
   ASSERT_TRUE(hypergraph.nodeIsEnabled(u));
@@ -652,6 +661,7 @@ TEST_F(AHypergraphWithTwoStreamingHypergraphs, UncontractsTwoHypernodes2) {
   HypernodeID u = id[3];
   HypernodeID v = id[4];
   auto memento = hypergraph.contract(u, v);
+  assignPartitionIDs(hypergraph);
   hypergraph.uncontract(memento);
 
   ASSERT_TRUE(hypergraph.nodeIsEnabled(u));
@@ -678,6 +688,7 @@ TEST_F(AHypergraphWithTwoStreamingHypergraphs, UncontractsTwoHypernodes3) {
   HypernodeID u = id[6];
   HypernodeID v = id[3];
   auto memento = hypergraph.contract(u, v);
+  assignPartitionIDs(hypergraph);
   hypergraph.uncontract(memento);
 
   ASSERT_TRUE(hypergraph.nodeIsEnabled(u));
@@ -704,6 +715,7 @@ TEST_F(AHypergraphWithTwoStreamingHypergraphs, UncontractsTwoHypernodes4) {
   HypernodeID u = id[5];
   HypernodeID v = id[0];
   auto memento = hypergraph.contract(u, v);
+  assignPartitionIDs(hypergraph);
   hypergraph.uncontract(memento);
 
   ASSERT_TRUE(hypergraph.nodeIsEnabled(u));
@@ -730,6 +742,7 @@ TEST_F(AHypergraphWithTwoStreamingHypergraphs, UncontractsTwoHypernodes5) {
   HypernodeID u = id[4];
   HypernodeID v = id[1];
   auto memento = hypergraph.contract(u, v);
+  assignPartitionIDs(hypergraph);
   hypergraph.uncontract(memento);
 
   ASSERT_TRUE(hypergraph.nodeIsEnabled(u));
@@ -756,6 +769,7 @@ TEST_F(AHypergraphWithTwoStreamingHypergraphs, UncontractsTwoHypernodes6) {
   HypernodeID u = id[0];
   HypernodeID v = id[6];
   auto memento = hypergraph.contract(u, v);
+  assignPartitionIDs(hypergraph);
   hypergraph.uncontract(memento);
 
   ASSERT_TRUE(hypergraph.nodeIsEnabled(u));
@@ -798,6 +812,8 @@ TEST_F(AHypergraphWithTwoStreamingHypergraphs, FullyContractsHypergraphAndThenUn
     verifyPinIterators(hypergraph, {0, 1, 281474976710656, 281474976710657},
     { {id[0]}, {id[0]}, {id[0]}, {id[0]} });
   }
+
+  assignPartitionIDs(hypergraph);
 
   // First Uncontraction
   {
@@ -1230,6 +1246,8 @@ TEST_F(AHypergraphWithTwoStreamingHypergraphs, ContractionsIntermixedWithEdgeRem
   verifyPinIterators(hypergraph, {1, 281474976710657},
    { {id[0], id[3], id[4]}, {id[0], id[5], id[3]} });
 
+  assignPartitionIDs(hypergraph);
+
   hypergraph.restoreEdge(281474976710656, 2);
   hypergraph.uncontract(memento_3);
   hypergraph.uncontract(memento_2);
@@ -1286,6 +1304,185 @@ TEST_F(AHypergraphWithTwoStreamingHypergraphs, ResetsPinsToOriginalIds) {
    { {0, 2}, {0, 1, 3, 4}, {3, 4, 6}, {2, 5, 6} });
 }
 
+TEST_F(AHypergraphWithTwoStreamingHypergraphs, SetPartIdsOfVertex1) {
+  TestHypergraph hypergraph = construct_test_hypergraph(*this);
 
+  hypergraph.setPartInfo(0, 0);
+  ASSERT_EQ(0, hypergraph.partID(0));
+  ASSERT_EQ(1, hypergraph.partWeight(0));
+  ASSERT_EQ(1, hypergraph.partSize(0));
+}
+
+TEST_F(AHypergraphWithTwoStreamingHypergraphs, SetPartIdsOfVertex2) {
+  TestHypergraph hypergraph = construct_test_hypergraph(*this);
+
+  hypergraph.setPartInfo(281474976710656, 1);
+  ASSERT_EQ(1, hypergraph.partID(281474976710656));
+  ASSERT_EQ(1, hypergraph.partWeight(1));
+  ASSERT_EQ(1, hypergraph.partSize(1));
+}
+
+TEST_F(AHypergraphWithTwoStreamingHypergraphs, SetPartIdsOfAllVertices) {
+  TestHypergraph hypergraph = construct_test_hypergraph(*this);
+
+  assignPartitionIDs(hypergraph);
+
+  ASSERT_EQ(0, hypergraph.partID(0));
+  ASSERT_EQ(0, hypergraph.partID(1));
+  ASSERT_EQ(0, hypergraph.partID(2));
+  ASSERT_EQ(1, hypergraph.partID(281474976710656));
+  ASSERT_EQ(1, hypergraph.partID(281474976710657));
+  ASSERT_EQ(1, hypergraph.partID(281474976710658));
+  ASSERT_EQ(1, hypergraph.partID(281474976710659));
+
+  ASSERT_EQ(3, hypergraph.partWeight(0));
+  ASSERT_EQ(3, hypergraph.partSize(0));
+  ASSERT_EQ(4, hypergraph.partWeight(1));
+  ASSERT_EQ(4, hypergraph.partSize(1));
+}
+
+TEST_F(AHypergraphWithTwoStreamingHypergraphs, UpdatePartIdsOfOneVertex) {
+  TestHypergraph hypergraph = construct_test_hypergraph(*this);
+
+  assignPartitionIDs(hypergraph);
+  hypergraph.updatePartInfo(2, 0, 1);
+
+  ASSERT_EQ(1, hypergraph.partID(2));
+  ASSERT_EQ(2, hypergraph.partWeight(0));
+  ASSERT_EQ(2, hypergraph.partSize(0));
+  ASSERT_EQ(5, hypergraph.partWeight(1));
+  ASSERT_EQ(5, hypergraph.partSize(1));
+}
+
+TEST_F(AHypergraphWithTwoStreamingHypergraphs, UpdatePartIdsOfTwoVertices) {
+  TestHypergraph hypergraph = construct_test_hypergraph(*this);
+
+  assignPartitionIDs(hypergraph);
+  hypergraph.updatePartInfo(2, 0, 1);
+  hypergraph.updatePartInfo(281474976710659, 1, 0);
+
+  ASSERT_EQ(0, hypergraph.partID(281474976710659));
+  ASSERT_EQ(3, hypergraph.partWeight(0));
+  ASSERT_EQ(3, hypergraph.partSize(0));
+  ASSERT_EQ(4, hypergraph.partWeight(1));
+  ASSERT_EQ(4, hypergraph.partSize(1));
+}
+
+TEST_F(AHypergraphWithTwoStreamingHypergraphs, UpdatePartIdsOfThreeVertices) {
+  TestHypergraph hypergraph = construct_test_hypergraph(*this);
+
+  assignPartitionIDs(hypergraph);
+  hypergraph.updatePartInfo(2, 0, 1);
+  hypergraph.updatePartInfo(281474976710659, 1, 0);
+  hypergraph.updatePartInfo(281474976710658, 1, 0);
+
+  ASSERT_EQ(0, hypergraph.partID(281474976710658));
+  ASSERT_EQ(4, hypergraph.partWeight(0));
+  ASSERT_EQ(4, hypergraph.partSize(0));
+  ASSERT_EQ(3, hypergraph.partWeight(1));
+  ASSERT_EQ(3, hypergraph.partSize(1));
+}
+
+TEST_F(AHypergraphWithTwoStreamingHypergraphs, ChecksPartIdAssignmentAfterUncontraction1) {
+  TestHypergraph hypergraph = construct_test_hypergraph(*this);
+  std::vector<HypernodeID> id = {GLOBAL_ID(hypergraph, 0), GLOBAL_ID(hypergraph, 1), GLOBAL_ID(hypergraph, 2),
+    GLOBAL_ID(hypergraph, 3), GLOBAL_ID(hypergraph, 4), GLOBAL_ID(hypergraph, 5), GLOBAL_ID(hypergraph, 6)};
+  HypernodeID u = id[0];
+  HypernodeID v = id[2];
+  auto memento = hypergraph.contract(u, v);
+
+  assignPartitionIDs(hypergraph);
+  ASSERT_EQ(3, hypergraph.partWeight(0));
+  ASSERT_EQ(2, hypergraph.partSize(0));
+  ASSERT_EQ(4, hypergraph.partWeight(1));
+  ASSERT_EQ(4, hypergraph.partSize(1));
+
+  hypergraph.uncontract(memento);
+  ASSERT_EQ(0, hypergraph.partID(v));
+  ASSERT_EQ(3, hypergraph.partWeight(0));
+  ASSERT_EQ(3, hypergraph.partSize(0));
+  ASSERT_EQ(4, hypergraph.partWeight(1));
+  ASSERT_EQ(4, hypergraph.partSize(1));
+}
+
+TEST_F(AHypergraphWithTwoStreamingHypergraphs, ChecksPartIdAssignmentAfterUncontraction2) {
+  TestHypergraph hypergraph = construct_test_hypergraph(*this);
+  std::vector<HypernodeID> id = {GLOBAL_ID(hypergraph, 0), GLOBAL_ID(hypergraph, 1), GLOBAL_ID(hypergraph, 2),
+    GLOBAL_ID(hypergraph, 3), GLOBAL_ID(hypergraph, 4), GLOBAL_ID(hypergraph, 5), GLOBAL_ID(hypergraph, 6)};
+  HypernodeID u = id[3];
+  HypernodeID v = id[4];
+  auto memento = hypergraph.contract(u, v);
+
+  assignPartitionIDs(hypergraph);
+  ASSERT_EQ(3, hypergraph.partWeight(0));
+  ASSERT_EQ(3, hypergraph.partSize(0));
+  ASSERT_EQ(4, hypergraph.partWeight(1));
+  ASSERT_EQ(3, hypergraph.partSize(1));
+
+  hypergraph.uncontract(memento);
+  ASSERT_EQ(1, hypergraph.partID(v));
+  ASSERT_EQ(3, hypergraph.partWeight(0));
+  ASSERT_EQ(3, hypergraph.partSize(0));
+  ASSERT_EQ(4, hypergraph.partWeight(1));
+  ASSERT_EQ(4, hypergraph.partSize(1));
+}
+
+TEST_F(AHypergraphWithTwoStreamingHypergraphs, ChecksPartIdAssignmentAfterUncontraction3) {
+  TestHypergraph hypergraph = construct_test_hypergraph(*this);
+  std::vector<HypernodeID> id = {GLOBAL_ID(hypergraph, 0), GLOBAL_ID(hypergraph, 1), GLOBAL_ID(hypergraph, 2),
+    GLOBAL_ID(hypergraph, 3), GLOBAL_ID(hypergraph, 4), GLOBAL_ID(hypergraph, 5), GLOBAL_ID(hypergraph, 6)};
+  HypernodeID u = id[0];
+  HypernodeID v = id[6];
+  auto memento = hypergraph.contract(u, v);
+
+  assignPartitionIDs(hypergraph);
+  ASSERT_EQ(4, hypergraph.partWeight(0));
+  ASSERT_EQ(3, hypergraph.partSize(0));
+  ASSERT_EQ(3, hypergraph.partWeight(1));
+  ASSERT_EQ(3, hypergraph.partSize(1));
+
+  hypergraph.uncontract(memento);
+  ASSERT_EQ(0, hypergraph.partID(v));
+  ASSERT_EQ(4, hypergraph.partWeight(0));
+  ASSERT_EQ(4, hypergraph.partSize(0));
+  ASSERT_EQ(3, hypergraph.partWeight(1));
+  ASSERT_EQ(3, hypergraph.partSize(1));
+}
+
+TEST_F(AHypergraphWithTwoStreamingHypergraphs, ChecksPartIdAssignmentAfterSeveralUncontractions) {
+  TestHypergraph hypergraph = construct_test_hypergraph(*this);
+  std::vector<HypernodeID> id = {GLOBAL_ID(hypergraph, 0), GLOBAL_ID(hypergraph, 1), GLOBAL_ID(hypergraph, 2),
+    GLOBAL_ID(hypergraph, 3), GLOBAL_ID(hypergraph, 4), GLOBAL_ID(hypergraph, 5), GLOBAL_ID(hypergraph, 6)};
+  auto memento_1 = hypergraph.contract(id[0], id[1]);
+  auto memento_2 = hypergraph.contract(id[3], id[4]);
+  auto memento_3 = hypergraph.contract(id[5], id[2]);
+
+  assignPartitionIDs(hypergraph);
+  ASSERT_EQ(2, hypergraph.partWeight(0));
+  ASSERT_EQ(1, hypergraph.partSize(0));
+  ASSERT_EQ(5, hypergraph.partWeight(1));
+  ASSERT_EQ(3, hypergraph.partSize(1));
+
+  hypergraph.uncontract(memento_3);
+  ASSERT_EQ(1, hypergraph.partID(id[2]));
+  ASSERT_EQ(2, hypergraph.partWeight(0));
+  ASSERT_EQ(1, hypergraph.partSize(0));
+  ASSERT_EQ(5, hypergraph.partWeight(1));
+  ASSERT_EQ(4, hypergraph.partSize(1));
+
+  hypergraph.uncontract(memento_2);
+  ASSERT_EQ(1, hypergraph.partID(id[4]));
+  ASSERT_EQ(2, hypergraph.partWeight(0));
+  ASSERT_EQ(1, hypergraph.partSize(0));
+  ASSERT_EQ(5, hypergraph.partWeight(1));
+  ASSERT_EQ(5, hypergraph.partSize(1));
+
+  hypergraph.uncontract(memento_1);
+  ASSERT_EQ(1, hypergraph.partID(id[4]));
+  ASSERT_EQ(2, hypergraph.partWeight(0));
+  ASSERT_EQ(2, hypergraph.partSize(0));
+  ASSERT_EQ(5, hypergraph.partWeight(1));
+  ASSERT_EQ(5, hypergraph.partSize(1));
+}
 } // namespace ds
 } // namespace mt_kahypar

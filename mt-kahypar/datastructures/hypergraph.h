@@ -50,6 +50,8 @@ class Hypergraph {
   using HyperedgeWeight = HyperedgeWeightType_;
   using PartitionID = PartitionIDType_;
 
+  static constexpr PartitionID kInvalidPartition = -1;
+
   using StreamingHypergraph = mt_kahypar::ds::StreamingHypergraph<HypernodeID,
                                                                   HyperedgeID,
                                                                   HypernodeWeight,
@@ -162,6 +164,22 @@ class Hypergraph {
     size_t _idx;
   };
 
+  /*!
+   * For each block \f$V_i\f$ of the \f$k\f$-way partition \f$\mathrm{\Pi} = \{V_1, \dots, V_k\}\f$,
+   * a PartInfo object stores the number of hypernodes currently assigned to block \f$V_i\f$
+   * as well as the sum of their weights and the sum of the weights of the fixed vertices
+   * assigned to that block.
+   */
+  class PartInfo {
+    public:
+      bool operator== (const PartInfo& other) const {
+        return weight == other.weight && size == other.size;
+      }
+
+      HypernodeWeight weight;
+      HypernodeID size;
+  };
+
   // ! Iterator to iterator over the hypernodes
   using GlobalHypernodeIterator = GlobalHypergraphElementIterator<HypernodeIterator>;
   // ! Iterator to iterator over the hyperedges
@@ -176,20 +194,25 @@ class Hypergraph {
     _num_hyperedges(0),
     _num_pins(0),
     _num_communities(0),
+    _k(0),
     _communities_num_hypernodes(),
     _communities_num_pins(),
+    _part_info(),
     _hypergraphs(),
     _node_mapping(),
     _community_node_mapping() { }
 
   Hypergraph(const HypernodeID num_hypernodes,
-             std::vector<StreamingHypergraph>&& hypergraphs) :
+             std::vector<StreamingHypergraph>&& hypergraphs,
+             PartitionID k) :
     _num_hypernodes(num_hypernodes),
     _num_hyperedges(0),
     _num_pins(0),
     _num_communities(0),
+    _k(k),
     _communities_num_hypernodes(),
     _communities_num_pins(),
+    _part_info(k),
     _hypergraphs(std::move(hypergraphs)),
     _node_mapping(num_hypernodes, 0),
     _community_node_mapping() {
@@ -199,13 +222,16 @@ class Hypergraph {
 
   Hypergraph(const HypernodeID num_hypernodes,
              std::vector<StreamingHypergraph>&& hypergraphs,
-             const std::vector<HypernodeID>& node_mapping) :
+             const std::vector<HypernodeID>& node_mapping,
+             PartitionID k) :
     _num_hypernodes(num_hypernodes),
     _num_hyperedges(0),
     _num_pins(0),
     _num_communities(0),
+    _k(k),
     _communities_num_hypernodes(),
     _communities_num_pins(),
+    _part_info(k),
     _hypergraphs(std::move(hypergraphs)),
     _node_mapping(node_mapping),
     _community_node_mapping() {
@@ -214,13 +240,16 @@ class Hypergraph {
 
   Hypergraph(const HypernodeID num_hypernodes,
              std::vector<StreamingHypergraph>&& hypergraphs,
-             std::vector<HypernodeID>&& node_mapping) :
+             std::vector<HypernodeID>&& node_mapping,
+             PartitionID k) :
     _num_hypernodes(num_hypernodes),
     _num_hyperedges(0),
     _num_pins(0),
     _num_communities(0),
+    _k(k),
     _communities_num_hypernodes(),
     _communities_num_pins(),
+    _part_info(k),
     _hypergraphs(std::move(hypergraphs)),
     _node_mapping(std::move(node_mapping)),
     _community_node_mapping() {
@@ -275,6 +304,10 @@ class Hypergraph {
   HypernodeID initialNumCommunityPins(const PartitionID community) const {
     ASSERT(community < (PartitionID) _communities_num_pins.size());
     return _communities_num_pins[community];
+  }
+
+  PartitionID k() const {
+    return _k;
   }
 
   // TODO(heuer): Replace with correct counter
@@ -557,6 +590,42 @@ class Hypergraph {
     _community_node_mapping = std::move(community_node_mapping);
   }
 
+  void setPartInfo(const HypernodeID u, const PartitionID id) {
+    StreamingHypergraph& hypergraph_of_u = hypergraph_of_vertex(u);
+    ASSERT(id < _k && id != kInvalidPartition, "Part ID" << id << "is invalid");
+    ASSERT(hypergraph_of_u.hypernode(u).partID() == kInvalidPartition,
+           "HN" << u << "is already assigned to part" << hypergraph_of_u.hypernode(u).partID());
+    hypergraph_of_u.setPartInfo(u, id);
+    _part_info[id].weight += nodeWeight(u);
+    ++_part_info[id].size;
+  }
+
+  void updatePartInfo(const HypernodeID u, const PartitionID from, const PartitionID to) {
+    StreamingHypergraph& hypergraph_of_u = hypergraph_of_vertex(u);
+    ASSERT(to < _k && to != kInvalidPartition, "Part ID" << to << "is invalid");
+    ASSERT(hypergraph_of_u.hypernode(u).partID() == from,
+           "HN" << u << "is not part of block" << from);
+    hypergraph_of_u.setPartInfo(u, to);
+    _part_info[from].weight -= nodeWeight(u);
+    --_part_info[from].size;
+    _part_info[to].weight += nodeWeight(u);
+    ++_part_info[to].size;
+  }
+
+  PartitionID partID(const HypernodeID u) const {
+    return hypergraph_of_vertex(u).partID(u);
+  }
+
+  HypernodeWeight partWeight(const PartitionID id) const {
+    ASSERT(id < _k && id != kInvalidPartition, "Part ID" << id << "is invalid");
+    return _part_info[id].weight;
+  }
+
+  size_t partSize(const PartitionID id) const {
+    ASSERT(id < _k && id != kInvalidPartition, "Part ID" << id << "is invalid");
+    return _part_info[id].size;
+  }
+
   bool nodeIsEnabled(const HypernodeID u) const {
     return hypergraph_of_vertex(u).nodeIsEnabled(u);
   }
@@ -675,7 +744,10 @@ class Hypergraph {
 
   KAHYPAR_ATTRIBUTE_ALWAYS_INLINE void reverseContraction(const Memento& memento) {
     enableHypernode(memento.v);
-    // TODO(heuer): update part id of v
+    PartitionID part_id = partID(memento.u);
+    ASSERT(part_id != kInvalidPartition);
+    hypergraph_of_vertex(memento.v).setPartInfo(memento.v, part_id);
+    ++_part_info[part_id].size;
   }
 
   KAHYPAR_ATTRIBUTE_ALWAYS_INLINE void markAllIncidentNetsOf(const HypernodeID v) {
@@ -841,11 +913,15 @@ class Hypergraph {
   HypernodeID _num_pins;
   // ! Number of communities
   PartitionID _num_communities;
+  // ! Number of blocks
+  PartitionID _k;
 
   // ! Number of hypernodes in a community
   parallel::scalable_vector<HypernodeID> _communities_num_hypernodes;
   // ! Number of pins in a community
   parallel::scalable_vector<HypernodeID> _communities_num_pins;
+  // ! Weight and size information for all blocks.
+  std::vector<PartInfo> _part_info;
 
   std::vector<StreamingHypergraph> _hypergraphs;
   std::vector<HypernodeID> _node_mapping;

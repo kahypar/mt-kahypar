@@ -64,7 +64,7 @@ TEST_F(ARedistributorOnTwoNumaNodes, RedistributesCommunities) {
   ASSERT_EQ(1, TestStreamingHypergraph::get_numa_node_of_vertex(hypergraph.globalNodeID(5)));
   ASSERT_EQ(0, TestStreamingHypergraph::get_numa_node_of_vertex(hypergraph.globalNodeID(6)));
 
-  TestHypergraph r_hypergraph = Redistributor::redistribute(hypergraph, {0, 0, 1, 1});
+  TestHypergraph r_hypergraph = Redistributor::redistribute(hypergraph, 2, {0, 0, 1, 1});
 
   ASSERT_EQ(0, TestStreamingHypergraph::get_numa_node_of_vertex(r_hypergraph.globalNodeID(0)));
   ASSERT_EQ(0, TestStreamingHypergraph::get_numa_node_of_vertex(r_hypergraph.globalNodeID(1)));
@@ -107,7 +107,7 @@ TEST_F(ARedistributorOnFourNumaNodes, RedistributesCommunities) {
   ASSERT_EQ(1, TestStreamingHypergraph::get_numa_node_of_vertex(hypergraph.globalNodeID(5)));
   ASSERT_EQ(2, TestStreamingHypergraph::get_numa_node_of_vertex(hypergraph.globalNodeID(6)));
 
-  TestHypergraph r_hypergraph = Redistributor::redistribute(hypergraph, {0, 1, 2, 3});
+  TestHypergraph r_hypergraph = Redistributor::redistribute(hypergraph, 2, {0, 1, 2, 3});
 
   ASSERT_EQ(0, TestStreamingHypergraph::get_numa_node_of_vertex(r_hypergraph.globalNodeID(0)));
   ASSERT_EQ(0, TestStreamingHypergraph::get_numa_node_of_vertex(r_hypergraph.globalNodeID(1)));

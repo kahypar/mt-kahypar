@@ -190,6 +190,36 @@ inline void printHypergraphInfo(const Hypergraph& hypergraph, const std::string&
     internal::createStats(hn_weights, avg_hn_weight, stdev_hn_weight));
 }
 
+inline void printPartSizesAndWeights(const Hypergraph& hypergraph) {
+  HypernodeID max_part_size = 0;
+  for (PartitionID i = 0; i != hypergraph.k(); ++i) {
+    max_part_size = std::max(max_part_size, hypergraph.partSize(i));
+  }
+  const uint8_t part_digits = math::digits(max_part_size);
+  const uint8_t k_digits = math::digits(hypergraph.k());
+  for (PartitionID i = 0; i != hypergraph.k(); ++i) {
+    LOG << "|part" << std::right << std::setw(k_digits) << i
+        << std::setw(1) << "| =" << std::right << std::setw(part_digits) << hypergraph.partSize(i)
+        << std::setw(1) << " w(" << std::right << std::setw(k_digits) << i
+        << std::setw(1) << ") =" << std::right << std::setw(part_digits)
+        << hypergraph.partWeight(i);
+  }
+}
+
+static inline void printPartitioningResults(const Hypergraph& hypergraph,
+                                            const Context& context,
+                                            const std::string& description) {
+  if (context.partition.verbose_output) {
+    LOG << description;
+    LOG << context.partition.objective << "      ="
+        << metrics::objective(hypergraph, context.partition.objective);
+    LOG << "imbalance =" << metrics::imbalance(hypergraph, context);
+    LOG << "Part sizes and weights:";
+    io::printPartSizesAndWeights(hypergraph);
+    LOG << "";
+  }
+}
+
 static inline void printInputInformation(const Context& context, const Hypergraph& hypergraph) {
   if (context.type == ContextType::main && !context.partition.quiet_mode) {
     LOG << context;
@@ -206,7 +236,7 @@ static inline void printInputInformation(const Context& context, const Hypergrap
 static inline void printTopLevelPreprocessingBanner(const Context& context) {
   if (context.partition.verbose_output) {
     LOG << "\n********************************************************************************";
-    LOG << "*                          Top Level Preprocessing..                           *";
+    LOG << "*                              Preprocessing...                                *";
     LOG << "********************************************************************************";
   }
 }
@@ -235,13 +265,32 @@ static inline void printLocalSearchBanner(const Context& context) {
   }
 }
 
+inline void printObjectives(const Hypergraph& hypergraph,
+                            const Context& context,
+                            const std::chrono::duration<double>& elapsed_seconds) {
+  LOG << "Objectives:";
+  LOG << " Hyperedge Cut  (minimize) =" << metrics::hyperedgeCut(hypergraph);
+  LOG << " SOED           (minimize) =" << metrics::soed(hypergraph);
+  LOG << " (k-1)          (minimize) =" << metrics::km1(hypergraph);
+  LOG << " Absorption     (maximize) =" << metrics::absorption(hypergraph);
+  LOG << " Imbalance                 =" << metrics::imbalance(hypergraph, context);
+  LOG << " Partitioning Time         =" << elapsed_seconds.count() << "s";
+}
+
 inline void printPartitioningResults(const Hypergraph& hypergraph,
-                                     const Context& context) {
+                                     const Context& context,
+                                     const std::chrono::duration<double>& elapsed_seconds) {
   unused(hypergraph);
   if (!context.partition.quiet_mode) {
     LOG << "\n********************************************************************************";
     LOG << "*                             Partitioning Result                              *";
     LOG << "********************************************************************************";
+    printObjectives(hypergraph, context, elapsed_seconds);
+
+    LOG << "\nPartition sizes and weights: ";
+    printPartSizesAndWeights(hypergraph);
+
+    LOG << "\nTimings:";
     LOG << utils::Timer::instance(context.partition.detailed_timings);
   }
 }

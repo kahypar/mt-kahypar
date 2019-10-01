@@ -41,6 +41,13 @@ TestHypergraph construct_test_hypergraph(const ACommunityHypergraph& test) {
                                       { 0, 0, 0, 1, 1, 2, 1 } );
 }
 
+void assignPartitionIDs(TestHypergraph& hypergraph) {
+  for ( const HypernodeID& hn : hypergraph.nodes() ) {
+    PartitionID part_id = TestStreamingHypergraph::get_numa_node_of_vertex(hn);
+    hypergraph.setPartInfo(hn, part_id);
+  }
+}
+
 template< typename IDType, typename F >
 void verifyIterator(const std::set<IDType>& reference, F&& it_func, bool log = false) {
   size_t count = 0;
@@ -378,6 +385,7 @@ TEST_F(ACommunityHypergraph, ResetCommunityHyperedgesAfterContraction1) {
   verifyPinIterators(hypergraph, {0, 1, 281474976710656, 281474976710657},
    { {id[0] }, {id[0], id[1], id[3], id[4]}, {id[3], id[4], id[6]}, {id[0], id[5], id[6]} });
 
+  assignPartitionIDs(hypergraph);
   hypergraph.uncontract(mementos[0]);
 
   verifyPinIterators(hypergraph, {0, 1, 281474976710656, 281474976710657},
@@ -399,6 +407,7 @@ TEST_F(ACommunityHypergraph, ResetCommunityHyperedgesAfterContraction2) {
   verifyPinIterators(hypergraph, {0, 1, 281474976710656, 281474976710657},
    { {id[0], id[2] }, {id[0], id[3], id[4]}, {id[3], id[4], id[6]}, {id[2], id[5], id[6]} });
 
+  assignPartitionIDs(hypergraph);
   hypergraph.uncontract(mementos[0]);
 
   verifyPinIterators(hypergraph, {0, 1, 281474976710656, 281474976710657},
@@ -420,6 +429,7 @@ TEST_F(ACommunityHypergraph, ResetCommunityHyperedgesAfterContraction3) {
   verifyPinIterators(hypergraph, {0, 1, 281474976710656, 281474976710657},
    { {id[0], id[2] }, {id[0], id[1], id[3]}, {id[3], id[6]}, {id[2], id[5], id[6]} });
 
+  assignPartitionIDs(hypergraph);
   hypergraph.uncontract(mementos[0]);
 
   verifyPinIterators(hypergraph, {0, 1, 281474976710656, 281474976710657},
@@ -441,6 +451,7 @@ TEST_F(ACommunityHypergraph, ResetCommunityHyperedgesAfterContraction4) {
   verifyPinIterators(hypergraph, {0, 1, 281474976710656, 281474976710657},
    { {id[0], id[2] }, {id[0], id[1], id[3], id[4]}, {id[3], id[4]}, {id[2], id[4], id[5]} });
 
+  assignPartitionIDs(hypergraph);
   hypergraph.uncontract(mementos[0]);
 
   verifyPinIterators(hypergraph, {0, 1, 281474976710656, 281474976710657},
@@ -461,6 +472,7 @@ TEST_F(ACommunityHypergraph, ResetCommunityHyperedgesAfterSeveralContractions1) 
   verifyPinIterators(hypergraph, {0, 1, 281474976710656, 281474976710657},
    { {id[0] }, {id[0], id[1], id[3]}, {id[3], id[6]}, {id[0], id[5], id[6]} });
 
+  assignPartitionIDs(hypergraph);
   hypergraph.uncontract(mementos[1]);
   hypergraph.uncontract(mementos[0]);
 
@@ -482,6 +494,7 @@ TEST_F(ACommunityHypergraph, ResetCommunityHyperedgesAfterSeveralContractions2) 
   verifyPinIterators(hypergraph, {0, 1, 281474976710656, 281474976710657},
    { {id[0], id[2] }, {id[0], id[3], id[4]}, {id[3], id[4]}, {id[2], id[3], id[5]} });
 
+  assignPartitionIDs(hypergraph);
   hypergraph.uncontract(mementos[1]);
   hypergraph.uncontract(mementos[0]);
 
@@ -504,6 +517,7 @@ TEST_F(ACommunityHypergraph, ResetCommunityHyperedgesAfterSeveralContractions3) 
   verifyPinIterators(hypergraph, {0, 1, 281474976710656, 281474976710657},
    { {id[0] }, {id[0], id[3], id[4]}, {id[3], id[4]}, {id[0], id[3], id[5]} });
 
+  assignPartitionIDs(hypergraph);
   hypergraph.uncontract(mementos[2]);
   hypergraph.uncontract(mementos[1]);
   hypergraph.uncontract(mementos[0]);
@@ -528,6 +542,7 @@ TEST_F(ACommunityHypergraph, ResetCommunityHyperedgesAfterSeveralContractions4) 
   verifyPinIterators(hypergraph, {0, 1, 281474976710656, 281474976710657},
    { { id[2] }, {id[2], id[4]}, {id[4]}, {id[2], id[4], id[5]} });
 
+  assignPartitionIDs(hypergraph);
   hypergraph.uncontract(mementos[3]);
   hypergraph.uncontract(mementos[2]);
   hypergraph.uncontract(mementos[1]);
@@ -592,6 +607,7 @@ TEST_F(ACommunityHypergraph, DoesParallelContractionsOnHypergraph1) {
   verifyPinIterators(hypergraph, {0, 1, 281474976710656, 281474976710657},
    { { id[2] }, {id[2], id[4]}, {id[4]}, {id[2], id[4], id[5]} });
 
+  assignPartitionIDs(hypergraph);
   hypergraph.uncontract(mementos[3]);
   hypergraph.uncontract(mementos[2]);
   hypergraph.uncontract(mementos[1]);
@@ -620,6 +636,7 @@ TEST_F(ACommunityHypergraph, DoesParallelContractionsOnHypergraph2) {
   verifyPinIterators(hypergraph, {0, 1, 281474976710656, 281474976710657},
    { {id[0] }, {id[0], id[6]}, {id[6]}, {id[0], id[5], id[6]} });
 
+  assignPartitionIDs(hypergraph);
   hypergraph.uncontract(mementos[3]);
   hypergraph.uncontract(mementos[2]);
   hypergraph.uncontract(mementos[1]);
@@ -648,6 +665,7 @@ TEST_F(ACommunityHypergraph, DoesParallelContractionsOnHypergraph3) {
   verifyPinIterators(hypergraph, {0, 1, 281474976710656, 281474976710657},
    { { id[2] }, {id[2], id[6]}, {id[6]}, {id[2], id[5], id[6]} });
 
+  assignPartitionIDs(hypergraph);
   hypergraph.uncontract(mementos[3]);
   hypergraph.uncontract(mementos[2]);
   hypergraph.uncontract(mementos[1]);
@@ -676,6 +694,7 @@ TEST_F(ACommunityHypergraph, DoesParallelContractionsOnHypergraph4) {
   verifyPinIterators(hypergraph, {0, 1, 281474976710656, 281474976710657},
    { {id[1] }, {id[1], id[4]}, {id[4]}, {id[1], id[4], id[5]} });
 
+  assignPartitionIDs(hypergraph);
   hypergraph.uncontract(mementos[3]);
   hypergraph.uncontract(mementos[2]);
   hypergraph.uncontract(mementos[1]);
@@ -704,6 +723,7 @@ TEST_F(ACommunityHypergraph, DoesParallelContractionsOnHypergraphWithEdgeRemoval
   verifyPinIterators(hypergraph, {1, 281474976710656, 281474976710657},
    { {id[1], id[4]}, {id[4]}, {id[1], id[4], id[5]} });
 
+  assignPartitionIDs(hypergraph);
   hypergraph.restoreSinglePinHyperedge(0);
   hypergraph.uncontract(mementos[3]);
   hypergraph.uncontract(mementos[2]);

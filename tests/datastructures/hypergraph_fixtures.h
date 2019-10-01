@@ -96,7 +96,7 @@ class AHypergraph : public Test {
     }
 
     // Create hypergraph (that also initialize hypernodes)
-    TestHypergraph hypergraph(num_hypernodes, std::move(numa_hypergraphs), node_mapping);
+    TestHypergraph hypergraph(num_hypernodes, std::move(numa_hypergraphs), node_mapping, 2);
 
     if ( communities.size() > 0 ) {
       ASSERT(num_hypernodes == communities.size());
