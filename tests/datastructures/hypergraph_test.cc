@@ -93,6 +93,19 @@ TEST_F(AHypergraphWithTwoStreamingHypergraphs, ContainsCorrectNumberofNodesEdges
   ASSERT_EQ(6, hypergraph.initialNumPins(1));
 }
 
+TEST_F(AHypergraphWithTwoStreamingHypergraphs, HasCorrectWeightAfterUpdatingNodeWeights) {
+  TestHypergraph hypergraph = construct_test_hypergraph(*this);
+  ASSERT_EQ(7, hypergraph.totalWeight());
+
+  hypergraph.setNodeWeight(0, 3);
+  hypergraph.setNodeWeight(1, 5);
+  hypergraph.setNodeWeight(281474976710656, 10);
+  hypergraph.setNodeWeight(281474976710658, 5);
+  hypergraph.updateTotalWeight();
+
+  ASSERT_EQ(26, hypergraph.totalWeight());
+}
+
 TEST_F(AHypergraphWithTwoStreamingHypergraphs, ChecksLocalNodeIterators1) {
   TestHypergraph hypergraph = construct_test_hypergraph(*this);
 

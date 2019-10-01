@@ -333,6 +333,17 @@ class Hypergraph {
     return weight;
   }
 
+  void updateTotalWeight() {
+    for ( int node = 0; node < (int) _hypergraphs.size(); ++node ) {
+      TBBNumaArena::instance().numa_task_arena(node).execute([&, node] {
+        TBBNumaArena::instance().numa_task_group(node).run([&, node] {
+          _hypergraphs[node].updateTotalWeight();
+        });
+      });
+    }
+    TBBNumaArena::instance().wait();
+  }
+
   size_t numCommunitiesOfHyperedge(const HyperedgeID e) const {
     return hypergraph_of_edge(e).numCommunitiesOfHyperedge(e);
   }

@@ -1135,20 +1135,7 @@ class StreamingHypergraph {
 
     // Compute Total Hypergraph Weight
     start = std::chrono::high_resolution_clock::now();
-    _arena.execute([&] {
-      group.run([&] {
-        _total_weight = tbb::parallel_reduce(tbb::blocked_range<HypernodeID>(0UL, _num_hypernodes), 0,
-          [this](const tbb::blocked_range<HypernodeID>& range, HypernodeWeight init) {
-            HypernodeWeight weight = init;
-            for ( HypernodeID hn = range.begin(); hn < range.end(); ++hn ) {
-              weight += this->_hypernodes[hn].weight();
-            }
-            return weight;
-          },
-          std::plus<HypernodeWeight>());
-      });
-    });
-    group.wait();
+    updateTotalWeight();
     end = std::chrono::high_resolution_clock::now();
     mt_kahypar::utils::Timer::instance().add_timing("compute_total_weight", "Compute Total Weight",
       "initialize_numa_hypernodes", mt_kahypar::utils::Timer::Type::IMPORT, 1, std::chrono::duration<double>(end - start).count());
@@ -1209,6 +1196,24 @@ class StreamingHypergraph {
       "initialize_numa_hypernodes", mt_kahypar::utils::Timer::Type::IMPORT, 2, std::chrono::duration<double>(end - start).count());
 
     _hypernode_stream.clear();
+  }
+
+  void updateTotalWeight() {
+    tbb::task_group group;
+    _arena.execute([&] {
+      group.run([&] {
+        _total_weight = tbb::parallel_reduce(tbb::blocked_range<HypernodeID>(0UL, _num_hypernodes), 0,
+          [this](const tbb::blocked_range<HypernodeID>& range, HypernodeWeight init) {
+            HypernodeWeight weight = init;
+            for ( HypernodeID hn = range.begin(); hn < range.end(); ++hn ) {
+              weight += this->_hypernodes[hn].weight();
+            }
+            return weight;
+          },
+          std::plus<HypernodeWeight>());
+      });
+    });
+    group.wait();
   }
 
   void initializeIncidentNets() {

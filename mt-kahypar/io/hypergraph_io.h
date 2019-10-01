@@ -145,6 +145,30 @@ static inline Hypergraph readHyperedges(std::ifstream& file,
   return hypergraph;
 }
 
+static inline void readHypernodeWeights(std::ifstream& file,
+                                        Hypergraph& hypergraph,
+                                        const HypernodeID num_hypernodes,
+                                        const mt_kahypar::Type type) {
+  bool has_hypernode_weights = type == mt_kahypar::Type::NodeWeights ||
+                               type == mt_kahypar::Type::EdgeAndNodeWeights ?
+                               true : false;
+  if ( has_hypernode_weights ) {
+    std::string line;
+    for ( HypernodeID hn = 0; hn < num_hypernodes; ++hn ) {
+      std::getline(file, line);
+      // skip any comments
+      while (line[0] == '%') {
+        std::getline(file, line);
+      }
+      std::istringstream line_stream(line);
+      HypernodeWeight weight;
+      line_stream >> weight;
+      hypergraph.setNodeWeight(hypergraph.globalNodeID(hn), weight);
+    }
+    hypergraph.updateTotalWeight();
+  }
+}
+
 static inline Hypergraph readHypergraphFile(const std::string& filename, const PartitionID k) {
   ASSERT(!filename.empty(), "No filename for hypergraph file specified");
   HighResClockTimepoint start = std::chrono::high_resolution_clock::now();
@@ -156,7 +180,7 @@ static inline Hypergraph readHypergraphFile(const std::string& filename, const P
   if (file) {
     readHGRHeader(file, num_hyperedges, num_hypernodes, type);
     hypergraph = readHyperedges(file, num_hypernodes, num_hyperedges, type, k);
-    // TODO(heuer): Read hypernodes weight
+    readHypernodeWeights(file, hypergraph, num_hypernodes, types);
     file.close();
   } else {
     std::cerr << "Error: File not found: " << std::endl;
