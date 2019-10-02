@@ -327,7 +327,7 @@ class InitialPartitionerT {
       best.imbalance = imbalance(best.partition, reverse_mapping);
     }
 
-    DBG << "Finish initial partitioning"
+    DBG << "Finished initial partitioning"
         << "on numa node" << HwTopology::instance().numa_node_of_cpu(sched_getcpu())
         << "on cpu" << sched_getcpu()
         << "with quality" << best.objective

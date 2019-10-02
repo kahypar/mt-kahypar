@@ -9,6 +9,7 @@
 *.cfg~
 build/*
 rel2/
+external_tools/*
 relwithdebinfo/*
 release127/*
 release128/*
