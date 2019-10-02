@@ -42,6 +42,7 @@ template <typename HypernodeType_ = Mandatory,
           typename TBBNumaArena = Mandatory>
 class Hypergraph {
 
+ private:
   static constexpr bool debug = false;
 
   using HypernodeID = HypernodeType_;
@@ -52,6 +53,7 @@ class Hypergraph {
 
   static constexpr PartitionID kInvalidPartition = -1;
 
+ public:
   using StreamingHypergraph = mt_kahypar::ds::StreamingHypergraph<HypernodeID,
                                                                   HyperedgeID,
                                                                   HypernodeWeight,
@@ -60,6 +62,7 @@ class Hypergraph {
                                                                   HardwareTopology,
                                                                   TBBNumaArena>;
 
+ private:
   using HypernodeIterator = typename StreamingHypergraph::HypernodeIterator;
   using HyperedgeIterator = typename StreamingHypergraph::HyperedgeIterator;
   using IncidenceIterator = typename StreamingHypergraph::IncidenceIterator;

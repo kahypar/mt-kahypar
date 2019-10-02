@@ -62,6 +62,15 @@ class ACommunityCoarsener : public ds::AHypergraph<2> {
 };
 
 template< class HyperGraph >
+void assignPartitionIDs(HyperGraph& hypergraph) {
+  using StreamingHyperGraph = typename HyperGraph::StreamingHypergraph;
+  for ( const HypernodeID& hn : hypergraph.nodes() ) {
+    PartitionID part_id = StreamingHyperGraph::get_numa_node_of_vertex(hn);
+    hypergraph.setPartInfo(hn, part_id);
+  }
+}
+
+template< class HyperGraph >
 HypernodeID currentNumNodes( HyperGraph& hypergraph  ) {
   HypernodeID num_nodes = 0;
   for ( const HypernodeID& hn : hypergraph.nodes() ) {
@@ -130,6 +139,7 @@ void reAddsHyperedgesOfSizeOneDuringUncoarsening(Coarsener& coarsener,
   for ( const HyperedgeID& he : single_node_hes ) {
     ASSERT_THAT(hypergraph.edgeIsEnabled(he), Eq(false)) << V(he);
   }
+  assignPartitionIDs(hypergraph);
   coarsener.uncoarsen();
   for ( const HyperedgeID& he : single_node_hes ) {
     ASSERT_THAT(hypergraph.edgeIsEnabled(he), Eq(true)) << V(he);
@@ -167,6 +177,7 @@ void restoresParallelHyperedgesDuringUncoarsening(Coarsener& coarsener,
   for ( const HyperedgeID& he : parallel_hes ) {
     ASSERT_THAT(hypergraph.edgeIsEnabled(he), Eq(false)) << V(he);
   }
+  assignPartitionIDs(hypergraph);
   coarsener.uncoarsen();
   for ( const HyperedgeID& he : parallel_hes ) {
     ASSERT_THAT(hypergraph.edgeIsEnabled(he), Eq(true)) << V(he);
