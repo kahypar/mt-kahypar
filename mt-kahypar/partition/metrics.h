@@ -131,8 +131,8 @@ static inline HyperedgeWeight objective(const Hypergraph& hg, const Objective& o
   }
 }
 
-
-static inline double imbalance(const Hypergraph& hypergraph, const Context& context) {
+template< typename HyperGraph >
+static inline double imbalance(const HyperGraph& hypergraph, const Context& context) {
   ASSERT(context.partition.perfect_balance_part_weights.size() == (size_t) context.partition.k);
 
   double max_balance = (hypergraph.partWeight(0) /

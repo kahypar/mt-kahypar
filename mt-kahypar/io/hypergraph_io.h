@@ -180,7 +180,7 @@ static inline Hypergraph readHypergraphFile(const std::string& filename, const P
   if (file) {
     readHGRHeader(file, num_hyperedges, num_hypernodes, type);
     hypergraph = readHyperedges(file, num_hypernodes, num_hyperedges, type, k);
-    readHypernodeWeights(file, hypergraph, num_hypernodes, types);
+    readHypernodeWeights(file, hypergraph, num_hypernodes, type);
     file.close();
   } else {
     std::cerr << "Error: File not found: " << std::endl;
