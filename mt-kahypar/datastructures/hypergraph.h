@@ -547,7 +547,7 @@ class Hypergraph {
     // uncontraction (see hypergraph pruner). However, in some cases this is not the case.
     // Therefore, we perform an explicit check here if two hyperedges become non-parallel
     // after uncontraction.
-    auto& incident_hes_of_u = hypergraph_of_vertex(memento.u).incident_nets(memento.u);
+    const auto& incident_hes_of_u = hypergraph_of_vertex(memento.u).incidentNets(memento.u);
     size_t incident_hes_start = hypergraph_of_vertex(memento.u).hypernode(memento.u).invalidIncidentNets();
     std::vector<HyperedgeID> disabled_hyperedges;
     for ( size_t incident_hes_it = 0; incident_hes_it != incident_hes_start; ++incident_hes_it ) {
@@ -555,7 +555,7 @@ class Hypergraph {
     }
     // All disabled hyperedges have to be traversed in decreasing order of their edge id
     // when checking if they become non-parallel to one of its representatives.
-    std::sort(incident_hes_of_u.begin(), incident_hes_of_u.begin() + incident_hes_start,
+    std::sort(disabled_hyperedges.begin(), disabled_hyperedges.begin() + incident_hes_start,
               [&](const HyperedgeID& lhs, const HyperedgeID& rhs) {
                 return lhs > rhs;
               });

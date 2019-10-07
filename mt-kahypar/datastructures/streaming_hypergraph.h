@@ -1878,17 +1878,17 @@ class StreamingHypergraph {
                                          const HypernodeID v) {
     ASSERT(!hyperedge(he).isDisabled(), "Hyperedge" << he << "is disabled");
 
-    size_t pins_start = hyperedge(he).firstEntry();
-    size_t pins_end = hyperedge(he).firstInvalidEntry();
-    size_t slot_of_u = pins_end;
+    int64_t pins_start = hyperedge(he).firstEntry();
+    int64_t pins_end = hyperedge(he).firstInvalidEntry();
+    int64_t slot_of_u = pins_end;
 
-    for ( size_t pos = pins_start; pos < pins_end; ++pos ) {
+    for ( int64_t pos = pins_end - 1; pos >= pins_start; --pos ) {
       if ( _incidence_array[pos] == u ) {
         slot_of_u = pos;
         break;
       }
     }
-    ASSERT(slot_of_u < pins_end, "Hypernode" << u << "not found in hyperedge" << he);
+    ASSERT(slot_of_u != pins_end, "Hypernode" << u << "not found in hyperedge" << he);
     ASSERT(_incidence_array[slot_of_u] == u, "Hypernode" << u << "not found in hyperedge" << he);
     _incidence_array[slot_of_u] = v;
   }
@@ -1899,18 +1899,18 @@ class StreamingHypergraph {
                                          const HypernodeID v) {
     ASSERT(hyperedge(he).isDisabled(), "Hyperedge" << he << "is enabled");
 
-    size_t pins_start = hyperedge(he).firstEntry();
-    size_t pins_end = pins_start + size;
-    size_t slot_of_u = pins_end;
+    int64_t pins_start = hyperedge(he).firstEntry();
+    int64_t pins_end = pins_start + size;
+    int64_t slot_of_u = pins_end;
 
-    for ( size_t pos = pins_start; pos < pins_end; ++pos ) {
+    for ( int64_t pos = pins_end - 1; pos >= pins_start; --pos ) {
       if ( _incidence_array[pos] == u ) {
         slot_of_u = pos;
         break;
       }
     }
 
-    ASSERT(slot_of_u < pins_end, "Hypernode" << u << "not found in hyperedge" << he);
+    ASSERT(slot_of_u != pins_end, "Hypernode" << u << "not found in hyperedge" << he);
     ASSERT(_incidence_array[slot_of_u] == u, "Hypernode" << u << "not found in hyperedge" << he);
     _incidence_array[slot_of_u] = v;
   }

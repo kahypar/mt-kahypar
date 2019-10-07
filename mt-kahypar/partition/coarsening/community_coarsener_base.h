@@ -118,7 +118,7 @@ class CommunityCoarsenerBase {
 
     while ( !_history.empty() ) {
       PartitionID community_id = _hg.communityID(_history.back().u);
-      DBG << "Uncontracting: (" << _history.back().u << "," << _history.back().v << ")";
+      DBG << "Uncontracting: (" << _history.back().u << "," << _history.back().v << ")" << V(_history.size());
       _pruner[community_id].restoreParallelHyperedges(_hg, _history.back());
       _pruner[community_id].restoreSingleNodeHyperedges(_hg, _history.back());
       _hg.uncontract(_history.back(), _parallel_he_representative);
