@@ -216,7 +216,9 @@ inline void Partitioner::partition(Hypergraph& hypergraph, Context& context) {
   mt_kahypar::utils::Timer::instance().add_timing("coarsening", "Coarsening",
     "", mt_kahypar::utils::Timer::Type::COARSENING, 2, std::chrono::duration<double>(end - start).count());
 
-  io::printHypergraphInfo(hypergraph, "Coarsened Hypergraph");
+  if ( context.partition.verbose_output ) {
+    io::printHypergraphInfo(hypergraph, "Coarsened Hypergraph");
+  }
 
   // ################## INITIAL PARTITIONING ##################
   io::printInitialPartitioningBanner(context);
@@ -237,11 +239,13 @@ inline void Partitioner::partition(Hypergraph& hypergraph, Context& context) {
   mt_kahypar::utils::Timer::instance().add_timing("refinement", "Refinement",
     "", mt_kahypar::utils::Timer::Type::REFINEMENT, 4, std::chrono::duration<double>(end - start).count());
 
-  io::printHypergraphInfo(hypergraph, "Uncoarsened Hypergraph");
-  io::printStripe();
-  io::printPartitioningResults(hypergraph, context, "Local Search Results:");
-
   postprocess(hypergraph);
+
+  if ( context.partition.verbose_output ) {
+    io::printHypergraphInfo(hypergraph, "Uncoarsened Hypergraph");
+    io::printStripe();
+    io::printPartitioningResults(hypergraph, context, "Local Search Results:");
+  }
 }
 
 

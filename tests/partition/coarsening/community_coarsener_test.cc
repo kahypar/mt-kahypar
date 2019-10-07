@@ -29,17 +29,16 @@ using ::testing::Test;
 namespace mt_kahypar {
 
 using Coarsener = CommunityCoarsenerT<ds::TestTypeTraits<2>, HeavyEdgeScore,
-                                      NoWeightPenalty, BestRatingPreferringUnmatched<> >;
-
+                                      NoWeightPenalty, BestRatingPreferringUnmatched >;
 
 TEST_F(ACommunityCoarsener, DecreasesNumberOfPins) {
   Coarsener coarsener(hypergraph, context);
-  decreasesNumberOfPins(coarsener, hypergraph, 20);
+  decreasesNumberOfPins(coarsener, hypergraph, 14);
 }
 
 TEST_F(ACommunityCoarsener, DecreasesNumberOfHyperedges) {
   Coarsener coarsener(hypergraph, context);
-  decreasesNumberOfHyperedges(coarsener, hypergraph, 10);
+  decreasesNumberOfHyperedges(coarsener, hypergraph, 7);
 }
 
 TEST_F(ACommunityCoarsener, RemovesHyperedgesOfSizeOneDuringCoarsening) {
@@ -57,20 +56,20 @@ TEST_F(ACommunityCoarsener, ReAddsHyperedgesOfSizeOneDuringUncoarsening) {
 TEST_F(ACommunityCoarsener, RemovesParallelHyperedgesDuringCoarsening) {
   Coarsener coarsener(hypergraph, context);
   removesParallelHyperedgesDuringCoarsening(
-    coarsener, hypergraph, { 1, 6, 281474976710657, 281474976710662 } );
+    coarsener, hypergraph, { 2, 4, 7, 9, 281474976710658, 281474976710660, 281474976710663 } );
 }
 
 TEST_F(ACommunityCoarsener, UpdatesEdgeWeightOfRepresentativeHyperedgeOnParallelHyperedgeRemoval) {
   Coarsener coarsener(hypergraph, context);
   updatesEdgeWeightOfRepresentativeHyperedgeOnParallelHyperedgeRemoval(
-    coarsener, hypergraph, { {2, 2 }, { 7, 2 },
-    { 281474976710658, 2 }, { 281474976710663, 2 } } );
+    coarsener, hypergraph, { {1, 2 }, {3, 2}, { 6, 2 }, {8, 2},
+    { 281474976710657, 2 }, { 281474976710659, 2 }, { 281474976710662, 2 } } );
 }
 
 TEST_F(ACommunityCoarsener, RestoresParallelHyperedgesDuringUncoarsening) {
   Coarsener coarsener(hypergraph, context);
   restoresParallelHyperedgesDuringUncoarsening(
-    coarsener, hypergraph, { 1, 6, 281474976710657, 281474976710662 } );
+    coarsener, hypergraph, { 2, 4, 7, 9, 281474976710658, 281474976710660, 281474976710663 } );
 }
 
 TEST_F(ACommunityCoarsener, DoesNotCoarsenUntilCoarseningLimit) {

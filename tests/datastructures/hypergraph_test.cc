@@ -644,11 +644,13 @@ TEST_F(AHypergraphWithTwoStreamingHypergraphs, UncontractsTwoHypernodes1) {
   TestHypergraph hypergraph = construct_test_hypergraph(*this);
   std::vector<HypernodeID> id = {GLOBAL_ID(hypergraph, 0), GLOBAL_ID(hypergraph, 1), GLOBAL_ID(hypergraph, 2),
     GLOBAL_ID(hypergraph, 3), GLOBAL_ID(hypergraph, 4), GLOBAL_ID(hypergraph, 5), GLOBAL_ID(hypergraph, 6)};
+  parallel::scalable_vector<HyperedgeID> parallel_he_representative(hypergraph.initialNumEdges());
+
   HypernodeID u = id[0];
   HypernodeID v = id[2];
   auto memento = hypergraph.contract(u, v);
   assignPartitionIDs(hypergraph);
-  hypergraph.uncontract(memento);
+  hypergraph.uncontract(memento, parallel_he_representative);
 
   ASSERT_TRUE(hypergraph.nodeIsEnabled(u));
   ASSERT_TRUE(hypergraph.nodeIsEnabled(v));
@@ -671,11 +673,13 @@ TEST_F(AHypergraphWithTwoStreamingHypergraphs, UncontractsTwoHypernodes2) {
   TestHypergraph hypergraph = construct_test_hypergraph(*this);
   std::vector<HypernodeID> id = {GLOBAL_ID(hypergraph, 0), GLOBAL_ID(hypergraph, 1), GLOBAL_ID(hypergraph, 2),
     GLOBAL_ID(hypergraph, 3), GLOBAL_ID(hypergraph, 4), GLOBAL_ID(hypergraph, 5), GLOBAL_ID(hypergraph, 6)};
+  parallel::scalable_vector<HyperedgeID> parallel_he_representative(hypergraph.initialNumEdges());
+
   HypernodeID u = id[3];
   HypernodeID v = id[4];
   auto memento = hypergraph.contract(u, v);
   assignPartitionIDs(hypergraph);
-  hypergraph.uncontract(memento);
+  hypergraph.uncontract(memento, parallel_he_representative);
 
   ASSERT_TRUE(hypergraph.nodeIsEnabled(u));
   ASSERT_TRUE(hypergraph.nodeIsEnabled(v));
@@ -698,11 +702,13 @@ TEST_F(AHypergraphWithTwoStreamingHypergraphs, UncontractsTwoHypernodes3) {
   TestHypergraph hypergraph = construct_test_hypergraph(*this);
   std::vector<HypernodeID> id = {GLOBAL_ID(hypergraph, 0), GLOBAL_ID(hypergraph, 1), GLOBAL_ID(hypergraph, 2),
     GLOBAL_ID(hypergraph, 3), GLOBAL_ID(hypergraph, 4), GLOBAL_ID(hypergraph, 5), GLOBAL_ID(hypergraph, 6)};
+  parallel::scalable_vector<HyperedgeID> parallel_he_representative(hypergraph.initialNumEdges());
+
   HypernodeID u = id[6];
   HypernodeID v = id[3];
   auto memento = hypergraph.contract(u, v);
   assignPartitionIDs(hypergraph);
-  hypergraph.uncontract(memento);
+  hypergraph.uncontract(memento, parallel_he_representative);
 
   ASSERT_TRUE(hypergraph.nodeIsEnabled(u));
   ASSERT_TRUE(hypergraph.nodeIsEnabled(v));
@@ -725,11 +731,13 @@ TEST_F(AHypergraphWithTwoStreamingHypergraphs, UncontractsTwoHypernodes4) {
   TestHypergraph hypergraph = construct_test_hypergraph(*this);
   std::vector<HypernodeID> id = {GLOBAL_ID(hypergraph, 0), GLOBAL_ID(hypergraph, 1), GLOBAL_ID(hypergraph, 2),
     GLOBAL_ID(hypergraph, 3), GLOBAL_ID(hypergraph, 4), GLOBAL_ID(hypergraph, 5), GLOBAL_ID(hypergraph, 6)};
+  parallel::scalable_vector<HyperedgeID> parallel_he_representative(hypergraph.initialNumEdges());
+
   HypernodeID u = id[5];
   HypernodeID v = id[0];
   auto memento = hypergraph.contract(u, v);
   assignPartitionIDs(hypergraph);
-  hypergraph.uncontract(memento);
+  hypergraph.uncontract(memento, parallel_he_representative);
 
   ASSERT_TRUE(hypergraph.nodeIsEnabled(u));
   ASSERT_TRUE(hypergraph.nodeIsEnabled(v));
@@ -752,11 +760,13 @@ TEST_F(AHypergraphWithTwoStreamingHypergraphs, UncontractsTwoHypernodes5) {
   TestHypergraph hypergraph = construct_test_hypergraph(*this);
   std::vector<HypernodeID> id = {GLOBAL_ID(hypergraph, 0), GLOBAL_ID(hypergraph, 1), GLOBAL_ID(hypergraph, 2),
     GLOBAL_ID(hypergraph, 3), GLOBAL_ID(hypergraph, 4), GLOBAL_ID(hypergraph, 5), GLOBAL_ID(hypergraph, 6)};
+  parallel::scalable_vector<HyperedgeID> parallel_he_representative(hypergraph.initialNumEdges());
+
   HypernodeID u = id[4];
   HypernodeID v = id[1];
   auto memento = hypergraph.contract(u, v);
   assignPartitionIDs(hypergraph);
-  hypergraph.uncontract(memento);
+  hypergraph.uncontract(memento, parallel_he_representative);
 
   ASSERT_TRUE(hypergraph.nodeIsEnabled(u));
   ASSERT_TRUE(hypergraph.nodeIsEnabled(v));
@@ -779,11 +789,13 @@ TEST_F(AHypergraphWithTwoStreamingHypergraphs, UncontractsTwoHypernodes6) {
   TestHypergraph hypergraph = construct_test_hypergraph(*this);
   std::vector<HypernodeID> id = {GLOBAL_ID(hypergraph, 0), GLOBAL_ID(hypergraph, 1), GLOBAL_ID(hypergraph, 2),
     GLOBAL_ID(hypergraph, 3), GLOBAL_ID(hypergraph, 4), GLOBAL_ID(hypergraph, 5), GLOBAL_ID(hypergraph, 6)};
+  parallel::scalable_vector<HyperedgeID> parallel_he_representative(hypergraph.initialNumEdges());
+
   HypernodeID u = id[0];
   HypernodeID v = id[6];
   auto memento = hypergraph.contract(u, v);
   assignPartitionIDs(hypergraph);
-  hypergraph.uncontract(memento);
+  hypergraph.uncontract(memento, parallel_he_representative);
 
   ASSERT_TRUE(hypergraph.nodeIsEnabled(u));
   ASSERT_TRUE(hypergraph.nodeIsEnabled(v));
@@ -806,6 +818,8 @@ TEST_F(AHypergraphWithTwoStreamingHypergraphs, FullyContractsHypergraphAndThenUn
   TestHypergraph hypergraph = construct_test_hypergraph(*this);
   std::vector<HypernodeID> id = {GLOBAL_ID(hypergraph, 0), GLOBAL_ID(hypergraph, 1), GLOBAL_ID(hypergraph, 2),
     GLOBAL_ID(hypergraph, 3), GLOBAL_ID(hypergraph, 4), GLOBAL_ID(hypergraph, 5), GLOBAL_ID(hypergraph, 6)};
+  parallel::scalable_vector<HyperedgeID> parallel_he_representative(hypergraph.initialNumEdges());
+
   auto memento_1 = hypergraph.contract(id[0], id[2]);
   auto memento_2 = hypergraph.contract(id[5], id[6]);
   auto memento_3 = hypergraph.contract(id[3], id[4]);
@@ -830,7 +844,7 @@ TEST_F(AHypergraphWithTwoStreamingHypergraphs, FullyContractsHypergraphAndThenUn
 
   // First Uncontraction
   {
-    hypergraph.uncontract(memento_6);
+    hypergraph.uncontract(memento_6, parallel_he_representative);
 
     ASSERT_TRUE(hypergraph.nodeIsEnabled(id[0]));
     ASSERT_TRUE(hypergraph.nodeIsEnabled(id[5]));
@@ -851,7 +865,7 @@ TEST_F(AHypergraphWithTwoStreamingHypergraphs, FullyContractsHypergraphAndThenUn
 
   // Second Uncontraction
   {
-    hypergraph.uncontract(memento_5);
+    hypergraph.uncontract(memento_5, parallel_he_representative);
 
     ASSERT_TRUE(hypergraph.nodeIsEnabled(id[0]));
     ASSERT_TRUE(hypergraph.nodeIsEnabled(id[3]));
@@ -872,7 +886,7 @@ TEST_F(AHypergraphWithTwoStreamingHypergraphs, FullyContractsHypergraphAndThenUn
 
   // Third Uncontraction
   {
-    hypergraph.uncontract(memento_4);
+    hypergraph.uncontract(memento_4, parallel_he_representative);
 
     ASSERT_TRUE(hypergraph.nodeIsEnabled(id[0]));
     ASSERT_TRUE(hypergraph.nodeIsEnabled(id[1]));
@@ -893,7 +907,7 @@ TEST_F(AHypergraphWithTwoStreamingHypergraphs, FullyContractsHypergraphAndThenUn
 
   // Fourth Uncontraction
   {
-    hypergraph.uncontract(memento_3);
+    hypergraph.uncontract(memento_3, parallel_he_representative);
 
     ASSERT_TRUE(hypergraph.nodeIsEnabled(id[3]));
     ASSERT_TRUE(hypergraph.nodeIsEnabled(id[4]));
@@ -914,7 +928,7 @@ TEST_F(AHypergraphWithTwoStreamingHypergraphs, FullyContractsHypergraphAndThenUn
 
   // Fifth Uncontraction
   {
-    hypergraph.uncontract(memento_2);
+    hypergraph.uncontract(memento_2, parallel_he_representative);
 
     ASSERT_TRUE(hypergraph.nodeIsEnabled(id[5]));
     ASSERT_TRUE(hypergraph.nodeIsEnabled(id[6]));
@@ -935,7 +949,7 @@ TEST_F(AHypergraphWithTwoStreamingHypergraphs, FullyContractsHypergraphAndThenUn
 
   // Sixth Uncontraction
   {
-    hypergraph.uncontract(memento_1);
+    hypergraph.uncontract(memento_1, parallel_he_representative);
 
     ASSERT_TRUE(hypergraph.nodeIsEnabled(id[0]));
     ASSERT_TRUE(hypergraph.nodeIsEnabled(id[2]));
@@ -1249,6 +1263,7 @@ TEST_F(AHypergraphWithTwoStreamingHypergraphs, ContractionsIntermixedWithEdgeRem
   TestHypergraph hypergraph = construct_test_hypergraph(*this);
   std::vector<HypernodeID> id = {GLOBAL_ID(hypergraph, 0), GLOBAL_ID(hypergraph, 1), GLOBAL_ID(hypergraph, 2),
     GLOBAL_ID(hypergraph, 3), GLOBAL_ID(hypergraph, 4), GLOBAL_ID(hypergraph, 5), GLOBAL_ID(hypergraph, 6)};
+  parallel::scalable_vector<HyperedgeID> parallel_he_representative(hypergraph.initialNumEdges());
 
   auto memento_1 = hypergraph.contract(id[0], id[2]);
   hypergraph.removeEdge(0);
@@ -1262,10 +1277,10 @@ TEST_F(AHypergraphWithTwoStreamingHypergraphs, ContractionsIntermixedWithEdgeRem
   assignPartitionIDs(hypergraph);
 
   hypergraph.restoreEdge(281474976710656, 2);
-  hypergraph.uncontract(memento_3);
-  hypergraph.uncontract(memento_2);
+  hypergraph.uncontract(memento_3, parallel_he_representative);
+  hypergraph.uncontract(memento_2, parallel_he_representative);
   hypergraph.restoreSinglePinHyperedge(0);
-  hypergraph.uncontract(memento_1);
+  hypergraph.uncontract(memento_1, parallel_he_representative);
 
   verifyPinIterators(hypergraph, {0, 1, 281474976710656, 281474976710657},
    { {id[0], id[2]}, {id[0], id[1], id[3], id[4]}, {id[3], id[4], id[6]}, {id[2], id[5], id[6]} });
@@ -1400,6 +1415,8 @@ TEST_F(AHypergraphWithTwoStreamingHypergraphs, ChecksPartIdAssignmentAfterUncont
   TestHypergraph hypergraph = construct_test_hypergraph(*this);
   std::vector<HypernodeID> id = {GLOBAL_ID(hypergraph, 0), GLOBAL_ID(hypergraph, 1), GLOBAL_ID(hypergraph, 2),
     GLOBAL_ID(hypergraph, 3), GLOBAL_ID(hypergraph, 4), GLOBAL_ID(hypergraph, 5), GLOBAL_ID(hypergraph, 6)};
+  parallel::scalable_vector<HyperedgeID> parallel_he_representative(hypergraph.initialNumEdges());
+
   HypernodeID u = id[0];
   HypernodeID v = id[2];
   auto memento = hypergraph.contract(u, v);
@@ -1410,7 +1427,7 @@ TEST_F(AHypergraphWithTwoStreamingHypergraphs, ChecksPartIdAssignmentAfterUncont
   ASSERT_EQ(4, hypergraph.partWeight(1));
   ASSERT_EQ(4, hypergraph.partSize(1));
 
-  hypergraph.uncontract(memento);
+  hypergraph.uncontract(memento, parallel_he_representative);
   ASSERT_EQ(0, hypergraph.partID(v));
   ASSERT_EQ(3, hypergraph.partWeight(0));
   ASSERT_EQ(3, hypergraph.partSize(0));
@@ -1422,6 +1439,8 @@ TEST_F(AHypergraphWithTwoStreamingHypergraphs, ChecksPartIdAssignmentAfterUncont
   TestHypergraph hypergraph = construct_test_hypergraph(*this);
   std::vector<HypernodeID> id = {GLOBAL_ID(hypergraph, 0), GLOBAL_ID(hypergraph, 1), GLOBAL_ID(hypergraph, 2),
     GLOBAL_ID(hypergraph, 3), GLOBAL_ID(hypergraph, 4), GLOBAL_ID(hypergraph, 5), GLOBAL_ID(hypergraph, 6)};
+  parallel::scalable_vector<HyperedgeID> parallel_he_representative(hypergraph.initialNumEdges());
+
   HypernodeID u = id[3];
   HypernodeID v = id[4];
   auto memento = hypergraph.contract(u, v);
@@ -1432,7 +1451,7 @@ TEST_F(AHypergraphWithTwoStreamingHypergraphs, ChecksPartIdAssignmentAfterUncont
   ASSERT_EQ(4, hypergraph.partWeight(1));
   ASSERT_EQ(3, hypergraph.partSize(1));
 
-  hypergraph.uncontract(memento);
+  hypergraph.uncontract(memento, parallel_he_representative);
   ASSERT_EQ(1, hypergraph.partID(v));
   ASSERT_EQ(3, hypergraph.partWeight(0));
   ASSERT_EQ(3, hypergraph.partSize(0));
@@ -1444,6 +1463,8 @@ TEST_F(AHypergraphWithTwoStreamingHypergraphs, ChecksPartIdAssignmentAfterUncont
   TestHypergraph hypergraph = construct_test_hypergraph(*this);
   std::vector<HypernodeID> id = {GLOBAL_ID(hypergraph, 0), GLOBAL_ID(hypergraph, 1), GLOBAL_ID(hypergraph, 2),
     GLOBAL_ID(hypergraph, 3), GLOBAL_ID(hypergraph, 4), GLOBAL_ID(hypergraph, 5), GLOBAL_ID(hypergraph, 6)};
+  parallel::scalable_vector<HyperedgeID> parallel_he_representative(hypergraph.initialNumEdges());
+
   HypernodeID u = id[0];
   HypernodeID v = id[6];
   auto memento = hypergraph.contract(u, v);
@@ -1454,7 +1475,7 @@ TEST_F(AHypergraphWithTwoStreamingHypergraphs, ChecksPartIdAssignmentAfterUncont
   ASSERT_EQ(3, hypergraph.partWeight(1));
   ASSERT_EQ(3, hypergraph.partSize(1));
 
-  hypergraph.uncontract(memento);
+  hypergraph.uncontract(memento, parallel_he_representative);
   ASSERT_EQ(0, hypergraph.partID(v));
   ASSERT_EQ(4, hypergraph.partWeight(0));
   ASSERT_EQ(4, hypergraph.partSize(0));
@@ -1466,6 +1487,8 @@ TEST_F(AHypergraphWithTwoStreamingHypergraphs, ChecksPartIdAssignmentAfterSevera
   TestHypergraph hypergraph = construct_test_hypergraph(*this);
   std::vector<HypernodeID> id = {GLOBAL_ID(hypergraph, 0), GLOBAL_ID(hypergraph, 1), GLOBAL_ID(hypergraph, 2),
     GLOBAL_ID(hypergraph, 3), GLOBAL_ID(hypergraph, 4), GLOBAL_ID(hypergraph, 5), GLOBAL_ID(hypergraph, 6)};
+  parallel::scalable_vector<HyperedgeID> parallel_he_representative(hypergraph.initialNumEdges());
+
   auto memento_1 = hypergraph.contract(id[0], id[1]);
   auto memento_2 = hypergraph.contract(id[3], id[4]);
   auto memento_3 = hypergraph.contract(id[5], id[2]);
@@ -1476,26 +1499,157 @@ TEST_F(AHypergraphWithTwoStreamingHypergraphs, ChecksPartIdAssignmentAfterSevera
   ASSERT_EQ(5, hypergraph.partWeight(1));
   ASSERT_EQ(3, hypergraph.partSize(1));
 
-  hypergraph.uncontract(memento_3);
+  hypergraph.uncontract(memento_3, parallel_he_representative);
   ASSERT_EQ(1, hypergraph.partID(id[2]));
   ASSERT_EQ(2, hypergraph.partWeight(0));
   ASSERT_EQ(1, hypergraph.partSize(0));
   ASSERT_EQ(5, hypergraph.partWeight(1));
   ASSERT_EQ(4, hypergraph.partSize(1));
 
-  hypergraph.uncontract(memento_2);
+  hypergraph.uncontract(memento_2, parallel_he_representative);
   ASSERT_EQ(1, hypergraph.partID(id[4]));
   ASSERT_EQ(2, hypergraph.partWeight(0));
   ASSERT_EQ(1, hypergraph.partSize(0));
   ASSERT_EQ(5, hypergraph.partWeight(1));
   ASSERT_EQ(5, hypergraph.partSize(1));
 
-  hypergraph.uncontract(memento_1);
+  hypergraph.uncontract(memento_1, parallel_he_representative);
   ASSERT_EQ(1, hypergraph.partID(id[4]));
   ASSERT_EQ(2, hypergraph.partWeight(0));
   ASSERT_EQ(2, hypergraph.partSize(0));
   ASSERT_EQ(5, hypergraph.partWeight(1));
   ASSERT_EQ(5, hypergraph.partSize(1));
 }
+
+TEST_F(AHypergraphWithTwoStreamingHypergraphs, RestoresParallelHyperedgeDuringUncontraction1) {
+  TestHypergraph hypergraph = construct_hypergraph(3, { {0, 1, 2}, {1, 2} },
+                                                      { 0, 0, 0 }, { 0, 0 }, {0, 0, 0} );
+  std::vector<HypernodeID> id = {GLOBAL_ID(hypergraph, 0), GLOBAL_ID(hypergraph, 1), GLOBAL_ID(hypergraph, 2)};
+  // Hyperedge 1 becomes parallel to hyperedge 0
+  auto memento = hypergraph.contract(id[0], id[1]);
+  hypergraph.disableHyperedge(1);
+  hypergraph.removeDisabledHyperedgesFromIncidentNets();
+  assignPartitionIDs(hypergraph);
+
+  parallel::scalable_vector<HyperedgeID> parallel_he_representative(
+    hypergraph.initialNumEdges(), std::numeric_limits<HyperedgeID>::max());
+  parallel_he_representative[1] = 0; // Indicating that hyperedge 1 is parallel to 0
+
+  verifyPinIterators(hypergraph, {0},
+   { {id[0], id[2]} });
+
+  // Should restore hyperedge 1
+  hypergraph.uncontract(memento, parallel_he_representative);
+
+  verifyPinIterators(hypergraph, {0, 1},
+   { {id[0], id[1], id[2]}, {id[1], id[2]} });
+}
+
+TEST_F(AHypergraphWithTwoStreamingHypergraphs, RestoresParallelHyperedgeDuringUncontraction2) {
+  TestHypergraph hypergraph = construct_hypergraph(3, { {0, 1, 2}, {1, 2} },
+                                                      { 0, 0, 0 }, { 0, 0 }, {0, 0, 0} );
+  std::vector<HypernodeID> id = {GLOBAL_ID(hypergraph, 0), GLOBAL_ID(hypergraph, 1), GLOBAL_ID(hypergraph, 2)};
+  // Hyperedge 0 becomes parallel to hyperedge 1
+  auto memento = hypergraph.contract(id[0], id[1]);
+  hypergraph.disableHyperedge(0);
+  hypergraph.removeDisabledHyperedgesFromIncidentNets();
+  assignPartitionIDs(hypergraph);
+
+  parallel::scalable_vector<HyperedgeID> parallel_he_representative(
+    hypergraph.initialNumEdges(), std::numeric_limits<HyperedgeID>::max());
+  parallel_he_representative[0] = 1; // Indicating that hyperedge 0 is parallel to 1
+
+  verifyPinIterators(hypergraph, {1},
+   { {id[0], id[2]} });
+
+  // Should restore hyperedge 0
+  hypergraph.uncontract(memento, parallel_he_representative);
+
+  verifyPinIterators(hypergraph, {0, 1},
+   { {id[0], id[1], id[2]}, {id[1], id[2]} });
+}
+
+TEST_F(AHypergraphWithTwoStreamingHypergraphs, RestoresParallelHyperedgeDuringUncontraction3) {
+  TestHypergraph hypergraph = construct_hypergraph(3, { {0, 2}, {1, 2} },
+                                                      { 0, 0, 0 }, { 0, 0 }, {0, 0, 0} );
+  std::vector<HypernodeID> id = {GLOBAL_ID(hypergraph, 0), GLOBAL_ID(hypergraph, 1), GLOBAL_ID(hypergraph, 2)};
+  // Hyperedge 1 becomes parallel to hyperedge 0
+  auto memento = hypergraph.contract(id[0], id[1]);
+  hypergraph.disableHyperedge(1);
+  hypergraph.removeDisabledHyperedgesFromIncidentNets();
+  assignPartitionIDs(hypergraph);
+
+  parallel::scalable_vector<HyperedgeID> parallel_he_representative(
+    hypergraph.initialNumEdges(), std::numeric_limits<HyperedgeID>::max());
+  parallel_he_representative[1] = 0; // Indicating that hyperedge 1 is parallel to 0
+
+  verifyPinIterators(hypergraph, {0},
+   { {id[0], id[2]} });
+
+  // Should restore hyperedge 1
+  hypergraph.uncontract(memento, parallel_he_representative);
+
+  verifyPinIterators(hypergraph, {0, 1},
+   { {id[0], id[2]}, {id[1], id[2]} });
+}
+
+TEST_F(AHypergraphWithTwoStreamingHypergraphs, RestoresParallelHyperedgeDuringUncontraction4) {
+  TestHypergraph hypergraph = construct_hypergraph(3, { {0, 2}, {1, 2} },
+                                                      { 0, 0, 0 }, { 0, 0 }, {0, 0, 0} );
+  std::vector<HypernodeID> id = {GLOBAL_ID(hypergraph, 0), GLOBAL_ID(hypergraph, 1), GLOBAL_ID(hypergraph, 2)};
+  // Hyperedge 0 becomes parallel to hyperedge 1
+  auto memento = hypergraph.contract(id[0], id[1]);
+  hypergraph.disableHyperedge(0);
+  hypergraph.removeDisabledHyperedgesFromIncidentNets();
+  assignPartitionIDs(hypergraph);
+
+  parallel::scalable_vector<HyperedgeID> parallel_he_representative(
+    hypergraph.initialNumEdges(), std::numeric_limits<HyperedgeID>::max());
+  parallel_he_representative[0] = 1; // Indicating that hyperedge 0 is parallel to 1
+
+  verifyPinIterators(hypergraph, {1},
+   { {id[0], id[2]} });
+
+  // Should restore hyperedge 0
+  hypergraph.uncontract(memento, parallel_he_representative);
+
+  verifyPinIterators(hypergraph, {0, 1},
+   { {id[0], id[2]}, {id[1], id[2]} });
+}
+
+TEST_F(AHypergraphWithTwoStreamingHypergraphs, RestoresParallelHyperedgeDuringUncontraction5) {
+  TestHypergraph hypergraph = construct_hypergraph(4, { {1, 2}, {0, 1, 2, 3}, { 2, 3 } },
+                                                      { 0, 0, 0, 0 }, { 0, 0, 0 }, {0, 0, 0, 0} );
+  std::vector<HypernodeID> id = {GLOBAL_ID(hypergraph, 0), GLOBAL_ID(hypergraph, 1), GLOBAL_ID(hypergraph, 2), GLOBAL_ID(hypergraph, 3)};
+  // Hyperedge 2 becomes parallel to hyperedge 0
+  auto memento_1 = hypergraph.contract(id[1], id[3]);
+  // Hyperede 1 becomes parallel to hyperedge 0
+  auto memento_2 = hypergraph.contract(id[0], id[2]);
+  hypergraph.disableHyperedge(1);
+  hypergraph.disableHyperedge(2);
+  hypergraph.removeDisabledHyperedgesFromIncidentNets();
+  assignPartitionIDs(hypergraph);
+
+  parallel::scalable_vector<HyperedgeID> parallel_he_representative(
+    hypergraph.initialNumEdges(), std::numeric_limits<HyperedgeID>::max());
+  parallel_he_representative[1] = 0; // Indicating that hyperedge 1 is parallel to 0
+  parallel_he_representative[2] = 1; // Indicating that hyperedge 2 is parallel to 1
+
+  verifyPinIterators(hypergraph, {0},
+   { {id[0], id[1]} });
+
+  // Should restore hyperedge 1 and 2
+  hypergraph.uncontract(memento_2, parallel_he_representative);
+
+  verifyPinIterators(hypergraph, {0, 1, 2},
+   { {id[1], id[2]}, {id[0], id[1], id[2]}, {id[1], id[2]} });
+
+  hypergraph.uncontract(memento_1, parallel_he_representative);
+
+  verifyPinIterators(hypergraph, {0, 1, 2},
+   { {id[1], id[2]}, {id[0], id[1], id[2], id[3]}, {id[2], id[3]} });
+}
+
+
 } // namespace ds
 } // namespace mt_kahypar

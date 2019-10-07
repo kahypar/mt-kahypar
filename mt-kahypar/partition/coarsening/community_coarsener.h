@@ -43,7 +43,7 @@ namespace mt_kahypar {
 template< typename TypeTraits,
           class ScorePolicy = HeavyEdgeScore,
           class HeavyNodePenaltyPolicy = MultiplicativePenalty,
-          class AcceptancePolicy = BestRatingPreferringUnmatched<> >
+          class AcceptancePolicy = BestRatingPreferringUnmatched >
 class CommunityCoarsenerT : public ICoarsener,
                             private CommunityCoarsenerBase<TypeTraits> {
  private:
@@ -208,7 +208,7 @@ class CommunityCoarsenerT : public ICoarsener,
 
 template< class ScorePolicy = HeavyEdgeScore,
           class HeavyNodePenaltyPolicy = MultiplicativePenalty,
-          class AcceptancePolicy = BestRatingPreferringUnmatched<> >
+          class AcceptancePolicy = BestRatingPreferringUnmatched >
 using CommunityCoarsener = CommunityCoarsenerT<GlobalTypeTraits, ScorePolicy, HeavyNodePenaltyPolicy, AcceptancePolicy>;
 
 }  // namespace mt_kahypar

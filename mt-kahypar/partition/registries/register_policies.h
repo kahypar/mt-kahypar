@@ -24,7 +24,6 @@
 #include "kahypar/meta/policy_registry.h"
 #include "kahypar/meta/registrar.h"
 
-#include "kahypar/partition/context_enum_classes.h"
 #include "mt-kahypar/partition/context_enum_classes.h"
 #include "mt-kahypar/partition/preprocessing/policies/community_assignment_objective.h"
 #include "mt-kahypar/partition/coarsening/policies/rating_score_policy.h"
@@ -57,6 +56,7 @@ REGISTER_POLICY(HeavyNodePenaltyPolicy, HeavyNodePenaltyPolicy::multiplicative_p
                 MultiplicativePenalty);
 REGISTER_POLICY(HeavyNodePenaltyPolicy, HeavyNodePenaltyPolicy::edge_frequency_penalty,
                 EdgeFrequencyPenalty);
+
 
 REGISTER_POLICY(AcceptancePolicy, AcceptancePolicy::best,
                 BestRatingWithTieBreaking);

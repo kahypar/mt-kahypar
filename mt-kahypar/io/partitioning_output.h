@@ -221,7 +221,7 @@ static inline void printPartitioningResults(const Hypergraph& hypergraph,
 }
 
 static inline void printInputInformation(const Context& context, const Hypergraph& hypergraph) {
-  if (context.type == ContextType::main && !context.partition.quiet_mode) {
+  if (context.partition.verbose_output) {
     LOG << context;
     if (context.partition.verbose_output) {
       LOG << "\n********************************************************************************";

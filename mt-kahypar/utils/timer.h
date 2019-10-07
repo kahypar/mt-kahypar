@@ -35,9 +35,9 @@ class Timer {
 
  public:
   static constexpr int MAX_LINE_LENGTH = 40;
-  static constexpr char TOP_LEVEL_PREFIX[] = " + ";
+  static char TOP_LEVEL_PREFIX[];
   static constexpr size_t TOP_LEVEL_PREFIX_LENGTH = 3;
-  static constexpr char SUB_LEVEL_PREFIX[] = " + ";
+  static char SUB_LEVEL_PREFIX[];
   static constexpr size_t SUB_LEVEL_PREFIX_LENGTH = 3;
 
   enum class Type : uint8_t {
@@ -184,6 +184,11 @@ class Timer {
 
 Timer* Timer::_instance { nullptr };
 std::mutex Timer::_mutex;
+
+char Timer::TOP_LEVEL_PREFIX[] = " + ";
+char Timer::SUB_LEVEL_PREFIX[] = " + ";
+
+
 std::ostream& operator<<(std::ostream& str, const Timer& timer) {
   std::vector<Timer::Timing> timings;
   for ( const auto& timing : timer._timings ) {

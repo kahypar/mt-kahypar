@@ -138,7 +138,7 @@ class CommunityRedistributorT {
                   for ( const HypernodeID& pin : hg.pins(he) ) {
                     hyperedge.emplace_back(pin);
                   }
-                  numa_hypergraphs[streaming_node].streamHyperedge(hyperedge, hg.edgeWeight(he));
+                  numa_hypergraphs[streaming_node].streamHyperedge(hyperedge, hg.originalEdgeID(he), hg.edgeWeight(he));
                 }
               }
             });

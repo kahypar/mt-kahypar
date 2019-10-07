@@ -88,7 +88,7 @@ class AHypergraph : public Test {
         for ( size_t i = 0; i < hyperedges.size(); ++i ) {
           ASSERT(edge_mapping[i] < NUM_NUMA_NODES);
           if ( edge_mapping[i] == node ) {
-            numa_hypergraphs[node].streamHyperedge(hyperedges[i], 1);
+            numa_hypergraphs[node].streamHyperedge(hyperedges[i], i, 1);
           }
         }
         numa_hypergraphs[node].initializeHyperedges(num_hypernodes);

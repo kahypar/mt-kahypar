@@ -23,6 +23,7 @@
 #include <type_traits>
 #include <chrono>
 #include <functional>
+#include <set>
 
 #include "kahypar/macros.h"
 #include "kahypar/meta/mandatory.h"
@@ -52,6 +53,8 @@ class Hypergraph {
   using PartitionID = PartitionIDType_;
 
   static constexpr PartitionID kInvalidPartition = -1;
+  static constexpr HyperedgeID kInvalidHyperedge = std::numeric_limits<HyperedgeID>::max();
+
 
  public:
   using StreamingHypergraph = mt_kahypar::ds::StreamingHypergraph<HypernodeID,
@@ -66,6 +69,7 @@ class Hypergraph {
   using HypernodeIterator = typename StreamingHypergraph::HypernodeIterator;
   using HyperedgeIterator = typename StreamingHypergraph::HyperedgeIterator;
   using IncidenceIterator = typename StreamingHypergraph::IncidenceIterator;
+  using CommunityIterator = typename StreamingHypergraph::CommunityIterator;
   using Memento = typename StreamingHypergraph::Memento;
 
   using HighResClockTimepoint = std::chrono::time_point<std::chrono::high_resolution_clock>;
@@ -203,6 +207,7 @@ class Hypergraph {
     _part_info(),
     _hypergraphs(),
     _node_mapping(),
+    _edge_mapping(),
     _community_node_mapping() { }
 
   Hypergraph(const HypernodeID num_hypernodes,
@@ -218,6 +223,7 @@ class Hypergraph {
     _part_info(k),
     _hypergraphs(std::move(hypergraphs)),
     _node_mapping(num_hypernodes, 0),
+    _edge_mapping(),
     _community_node_mapping() {
     computeNodeMapping();
     initializeHypernodes();
@@ -237,6 +243,7 @@ class Hypergraph {
     _part_info(k),
     _hypergraphs(std::move(hypergraphs)),
     _node_mapping(node_mapping),
+    _edge_mapping(),
     _community_node_mapping() {
     initializeHypernodes();
   }
@@ -255,6 +262,7 @@ class Hypergraph {
     _part_info(k),
     _hypergraphs(std::move(hypergraphs)),
     _node_mapping(std::move(node_mapping)),
+    _edge_mapping(),
     _community_node_mapping() {
     initializeHypernodes();
   }
@@ -357,6 +365,13 @@ class Hypergraph {
   }
 
   // ! Returns a for-each iterator-pair to loop over the set of incident hyperedges of hypernode u.
+  // ! Note, in contrast to first iterator, this iterator skips all invalidated
+  // ! community hyperedges in incident nets of hypernode u.
+  std::pair<IncidenceIterator, IncidenceIterator> validIncidentEdges(const HypernodeID u, const PartitionID community_id) const {
+    return hypergraph_of_vertex(u).validIncidentEdges(u, community_id);
+  }
+
+  // ! Returns a for-each iterator-pair to loop over the set of incident hyperedges of hypernode u.
   // ! Note, in contrast to first iterator, this iterator skips all single-pin community hyperedges
   // ! in incident nets of hypernode u.
   std::pair<IncidenceIterator, IncidenceIterator> incidentEdges(const HypernodeID u, const PartitionID community_id) const {
@@ -372,6 +387,10 @@ class Hypergraph {
   // ! Returns a for-each iterator-pair to loop over the set pins of hyperedge e in a community.
   std::pair<IncidenceIterator, IncidenceIterator> pins(const HyperedgeID e, const PartitionID community_id) const {
     return hypergraph_of_edge(e).pins(e, community_id);
+  }
+
+  std::pair<CommunityIterator, CommunityIterator> communities(const HyperedgeID e) const {
+    return hypergraph_of_edge(e).communities(e);
   }
 
   std::pair<GlobalHypernodeIterator, GlobalHypernodeIterator> nodes() const {
@@ -414,9 +433,18 @@ class Hypergraph {
     return hypergraph_of_vertex(u).originalNodeId(u);
   }
 
+  HypernodeID originalEdgeID(const HyperedgeID e) const {
+    return hypergraph_of_edge(e).originalEdgeId(e);
+  }
+
   HypernodeID globalNodeID(const HypernodeID u) const {
     ASSERT(u < _node_mapping.size());
     return _node_mapping[u];
+  }
+
+  HypernodeID globalEdgeID(const HyperedgeID e) const {
+    ASSERT(e < _edge_mapping.size());
+    return _edge_mapping[e];
   }
 
   HypernodeID communityNodeId(const HypernodeID u) const {
@@ -486,7 +514,7 @@ class Hypergraph {
     }
 
     disableHypernode(v);
-    return Memento { u, v };
+    return Memento { u, v, community_id };
   }
 
 
@@ -496,7 +524,8 @@ class Hypergraph {
   *
   * \param memento Memento remembering the contraction operation that should be reverted
   */
-  void uncontract(const Memento& memento) {
+  void uncontract(const Memento& memento,
+                  parallel::scalable_vector<HyperedgeID>& parallel_he_representative) {
     ASSERT(nodeIsEnabled(memento.u), "Hypernode" << memento.u << "is disabled");
     ASSERT(!nodeIsEnabled(memento.v), "Hypernode" << memento.v << "is not invalid");
 
@@ -504,16 +533,117 @@ class Hypergraph {
     reverseContraction(memento);
     markAllIncidentNetsOf(memento.v);
 
-    const auto& incident_hes_of_u = hypergraph_of_vertex(memento.u).incidentNets(memento.u);
-    size_t incident_hes_end = incident_hes_of_u.size();
+    auto find_representative = [&](const HyperedgeID e) {
+      HyperedgeID representative = originalEdgeID(e);
+      ASSERT(representative < parallel_he_representative.size());
+      while( parallel_he_representative[representative] != kInvalidHyperedge ) {
+        representative = parallel_he_representative[representative];
+      }
+      return globalEdgeID(representative);
+    };
 
-    for (size_t incident_hes_it = 0; incident_hes_it != incident_hes_end; ++incident_hes_it) {
+    // Uncontraction starts by checking if a disabled parallel hyperedge becomes non-parallel
+    // to one of its representatives. Usually all parallel hyperedges are enabled before
+    // uncontraction (see hypergraph pruner). However, in some cases this is not the case.
+    // Therefore, we perform an explicit check here if two hyperedges become non-parallel
+    // after uncontraction.
+    auto& incident_hes_of_u = hypergraph_of_vertex(memento.u).incident_nets(memento.u);
+    size_t incident_hes_start = hypergraph_of_vertex(memento.u).hypernode(memento.u).invalidIncidentNets();
+    std::vector<HyperedgeID> disabled_hyperedges;
+    for ( size_t incident_hes_it = 0; incident_hes_it != incident_hes_start; ++incident_hes_it ) {
+      disabled_hyperedges.push_back(incident_hes_of_u[incident_hes_it]);
+    }
+    // All disabled hyperedges have to be traversed in decreasing order of their edge id
+    // when checking if they become non-parallel to one of its representatives.
+    std::sort(incident_hes_of_u.begin(), incident_hes_of_u.begin() + incident_hes_start,
+              [&](const HyperedgeID& lhs, const HyperedgeID& rhs) {
+                return lhs > rhs;
+              });
+
+    // Check if a disabled parallel hyperedges will become non-parallel to
+    // its representative.
+    for ( const HyperedgeID& he : disabled_hyperedges ) {
+      if (!edgeIsEnabled(he)) {
+        const StreamingHypergraph& hypergraph_of_he = hypergraph_of_edge(he);
+        HyperedgeID representative = find_representative(he);
+        const size_t edge_size = edgeSize(find_representative(he));
+        bool becomes_non_parallel = false;
+
+        HyperedgeID last_representative = he;
+        HyperedgeID current_representative = originalEdgeID(he);
+        representative = globalEdgeID(current_representative);
+        // Verify if hyperedge becomes non-parallel to one of its representatives (all hyperedges
+        // on the path to the root in the hyperedge representative tree)
+        while ( !becomes_non_parallel && parallel_he_representative[current_representative] != kInvalidHyperedge ) {
+          last_representative = representative;
+          current_representative = parallel_he_representative[current_representative];
+          representative = globalEdgeID(current_representative);
+
+          const StreamingHypergraph& hypergraph_of_rep = hypergraph_of_edge(representative);
+
+          // In case, both hyperedges fall into different uncontraction cases, than both become
+          // non parallel afterwards.
+          bool is_case_1_rep = hypergraph_of_rep.get_uncontraction_case(representative, edge_size, memento.v) ==
+                              StreamingHypergraph::UncontractionCase::CASE_1;
+          bool is_case_1_he = hypergraph_of_he.get_uncontraction_case(he, edge_size, memento.v) ==
+                              StreamingHypergraph::UncontractionCase::CASE_1;
+
+          // In case, the contraction partner v contains either the disabled hyperedge or
+          // the representative (but not both), than both become non parallel afterwards.
+          becomes_non_parallel = becomes_non_parallel ||
+                                 ( hypergraph_of_he.containsIncidentNet(he) &&
+                                   !hypergraph_of_rep.containsIncidentNet(representative) ) ||
+                                 ( !hypergraph_of_he.containsIncidentNet(he) &&
+                                   hypergraph_of_rep.containsIncidentNet(representative) ) ||
+                                 ( !is_case_1_rep && is_case_1_he ) ||
+                                 ( is_case_1_rep && !is_case_1_he );
+        }
+
+        if ( becomes_non_parallel ) {
+          restoreParallelHyperedge(last_representative, parallel_he_representative);
+          incident_hes_start = hypergraph_of_vertex(memento.u).hypernode(memento.u).invalidIncidentNets();
+        }
+      }
+    }
+
+    // Uncontract all disabled parallel hyperedges
+    #ifndef NDEBUG
+    // In case of debug mode, we uncontract each disabled parallel hyperedge also in order
+    // to check that each hyperedge is parallel to its representative
+    for (size_t incident_hes_it = 0; incident_hes_it != incident_hes_start; ++incident_hes_it) {
+      const HyperedgeID he = incident_hes_of_u[incident_hes_it];
+      const HyperedgeID representative = find_representative(he);
+
+      if ( hypergraph_of_edge(he).uncontract(memento.u, memento.v, he, representative,
+            incident_hes_it, _hypergraphs) ) {
+        --incident_hes_it;
+        --incident_hes_start;
+      }
+    }
+    #endif
+
+    // Uncontract all active hyperedges
+    size_t incident_hes_end = incident_hes_of_u.size();
+    for (size_t incident_hes_it = incident_hes_start; incident_hes_it != incident_hes_end; ++incident_hes_it) {
       const HyperedgeID he = incident_hes_of_u[incident_hes_it];
       if ( hypergraph_of_edge(he).uncontract(memento.u, memento.v, he, incident_hes_it, _hypergraphs) ) {
         --incident_hes_it;
         --incident_hes_end;
       }
     }
+
+    // Remove all previously enabled parallel hyperedges from invalid part of incident nets of v
+    StreamingHypergraph& hypergraph_of_v = hypergraph_of_vertex(memento.v);
+    auto& incident_hes_of_v = hypergraph_of_v.incident_nets(memento.v);
+    incident_hes_start = hypergraph_of_v.hypernode(memento.v).invalidIncidentNets();
+    for (size_t incident_hes_it = 0; incident_hes_it != incident_hes_start; ++incident_hes_it) {
+      const HyperedgeID he = incident_hes_of_v[incident_hes_it];
+      if ( edgeIsEnabled(he) ) {
+        std::swap(incident_hes_of_v[incident_hes_it--], incident_hes_of_v[--incident_hes_start]);
+        hypergraph_of_v.hypernode(memento.v).decrementInvalidIncidentNets();
+      }
+    }
+
     setNodeWeight(memento.u, nodeWeight(memento.u) - nodeWeight(memento.v));
   }
 
@@ -526,18 +656,20 @@ class Hypergraph {
     // TODO(heuer): invalidate pin counts of he
   }
 
-  void removeEdge(const HyperedgeID he, const PartitionID community_id) {
-    ASSERT(edgeIsEnabled(he), "Hyperedge" << he << "is disabled");
-    // Note, currently we only allow to remove hyperedges, which contains pins
-    // from only one community. It is unclear how to handle parallel net detection
-    // in shared memory setting. Therefore, we restrict us to the simple case.
+  void removeSinglePinEdge(const HyperedgeID he, const PartitionID community_id) {
     ASSERT(hypergraph_of_edge(he).numCommunitiesOfHyperedge(he) == 1,
            "Only allowed to remove hyperedges that contains pins from one community");
-    for ( const HypernodeID& pin : pins(he, community_id) ) {
-      hypergraph_of_vertex(pin).removeIncidentEdgeFromHypernode(he, pin, community_id);
-    }
+    ASSERT(hypergraph_of_edge(he).edgeSize(he) == 1, "Hyperedge is not a single-pin hyperedge");
+    removeEdge(he, community_id);
     hypergraph_of_edge(he).disableHyperedge(he);
-    // TODO(heuer): invalidate pin counts of he
+  }
+
+  void removeParallelEdge(const HyperedgeID he, const PartitionID community_id) {
+    if ( numCommunitiesOfHyperedge(he) == 1 ) {
+      removeEdge(he, community_id);
+    } else {
+      invalidateEdge(he, community_id);
+    }
   }
 
   void restoreEdge(const HyperedgeID he, const size_t size) {
@@ -551,12 +683,38 @@ class Hypergraph {
   }
 
   void restoreSinglePinHyperedge(const HyperedgeID he) {
-    restoreEdge(he, 1);
+    ASSERT(!edgeIsEnabled(he), "Hyperedge" << he << "already enabled");
+    enableHyperedge(he);
+    hypergraph_of_edge(he).hyperedge(he).setSize(1);
+    // TODO(heuer): reset partition pin counts of he
+    for ( const HypernodeID& pin : pins(he) ) {
+      hypergraph_of_vertex(pin).insertIncidentEdgeToHypernode(he, pin);
+    }
   }
 
   void restoreParallelHyperedge(const HyperedgeID he,
-                                const HyperedgeID representative) {
-    restoreEdge(he, edgeSize(representative));
+                                parallel::scalable_vector<HyperedgeID>& _parallel_he_representative) {
+    if ( !edgeIsEnabled(he) ) {
+      DBG << "restore parallel HE" << he << "in hypergraph";
+      const HyperedgeID representative = globalEdgeID(_parallel_he_representative[originalEdgeID(he)]);
+      restoreParallelHyperedge(representative, _parallel_he_representative);
+
+      #ifdef NDEBUG
+      // If we are not in debug mode, we copy the content/pins of the representative to
+      // to its parallel hyperedge we want to enable.
+      StreamingHypergraph& hypergraph_of_he = hypergraph_of_edge(he);
+      StreamingHypergraph& hypergraph_of_rep = hypergraph_of_edge(representative);
+      memcpy(hypergraph_of_he._incidence_array.data() + hypergraph_of_he.hyperedge(he).firstEntry(),
+              hypergraph_of_rep._incidence_array.data() + hypergraph_of_rep.hyperedge(representative).firstEntry(),
+              edgeSize(representative) * sizeof(HypernodeID));
+      #endif
+
+      ASSERT(verifyThatHyperedgesAreParallel(representative, he),
+             "HE" << he << "is not parallel to" << representative);
+      restoreEdge(he, edgeSize(representative));
+      setEdgeWeight(representative, edgeWeight(representative) - edgeWeight(he));
+      _parallel_he_representative[originalEdgeID(he)] = kInvalidHyperedge;
+    }
   }
 
   HypernodeWeight nodeWeight(const HypernodeID u) const {
@@ -571,8 +729,16 @@ class Hypergraph {
     return hypergraph_of_edge(e).edgeWeight(e);
   }
 
+  HypernodeWeight edgeWeight(const HyperedgeID e, const PartitionID community_id) const {
+    return hypergraph_of_edge(e).edgeWeight(e, community_id);
+  }
+
   void setEdgeWeight(const HyperedgeID e, const HyperedgeWeight weight) {
     hypergraph_of_edge(e).setEdgeWeight(e, weight);
+  }
+
+  void setEdgeWeight(const HyperedgeID e, const PartitionID community_id, const HyperedgeWeight weight) {
+    hypergraph_of_edge(e).setEdgeWeight(e, community_id, weight);
   }
 
   HyperedgeID nodeDegree(const HypernodeID u) const {
@@ -589,6 +755,10 @@ class Hypergraph {
 
   size_t edgeHash(const HyperedgeID e) const {
     return hypergraph_of_edge(e).edgeHash(e);
+  }
+
+  size_t edgeHash(const HyperedgeID e, const PartitionID community_id) const {
+    return hypergraph_of_edge(e).edgeHash(e, community_id);
   }
 
   PartitionID communityID(const HypernodeID u) const {
@@ -749,12 +919,68 @@ class Hypergraph {
     TBBNumaArena::instance().wait();
   }
 
+  void removeDisabledHyperedgesFromIncidentNets() {
+    for ( int node = 0; node < (int)_hypergraphs.size(); ++node ) {
+      TBBNumaArena::instance().numa_task_arena(node).execute([&] {
+        TBBNumaArena::instance().numa_task_group(node).run([&, node] {
+          _hypergraphs[node].removeDisabledHyperedgesFromIncidentNets(_hypergraphs);
+        });
+      });
+    }
+    TBBNumaArena::instance().wait();
+  }
+
+  // ! Only for debugging
+  bool verifyThatHyperedgesAreParallel(const HyperedgeID representative, const HyperedgeID parallel_he) {
+    if ( !edgeIsEnabled(representative) || edgeIsEnabled(parallel_he) ) {
+      LOG << "HE" << representative << "must be enabled and HE" << parallel_he << "disabled";
+      return false;
+    }
+
+    std::set<HypernodeID> contained_pins;
+    for ( const HypernodeID& pin : pins(representative) ) {
+      contained_pins.insert(pin);
+    }
+
+    size_t edge_size = contained_pins.size();
+    StreamingHypergraph& hypergraph_of_he = hypergraph_of_edge(parallel_he);
+    size_t incidence_array_start = hypergraph_of_he.hyperedge(parallel_he).firstEntry();
+    for ( size_t pos = incidence_array_start; pos < incidence_array_start + edge_size; ++pos ) {
+      const HypernodeID pin = hypergraph_of_he._incidence_array[pos];
+      if ( contained_pins.find(pin) == contained_pins.end() ) {
+        LOG << "Pin" << pin << "of HE" << parallel_he << "is not contained in HE" << representative;
+        hypergraph_of_he.printHyperedgeInfo(parallel_he);
+        hypergraph_of_edge(representative).printHyperedgeInfo(representative);
+        return false;
+      }
+    }
+
+    return true;
+  }
+
   // ! Only for testing
   void disableHyperedge(const HyperedgeID e) {
     hypergraph_of_edge(e).disableHyperedge(e);
   }
 
  private:
+
+  void removeEdge(const HyperedgeID he, const PartitionID community_id) {
+    ASSERT(edgeIsEnabled(he), "Hyperedge" << he << "is disabled");
+    for ( const HypernodeID& pin : pins(he, community_id) ) {
+      hypergraph_of_vertex(pin).removeIncidentEdgeFromHypernode(
+        he, pin, community_id, _hypergraphs);
+    }
+  }
+
+  void invalidateEdge(const HyperedgeID he, const PartitionID community_id) {
+    ASSERT(edgeIsEnabled(he), "Hyperedge" << he << "is disabled");
+    hypergraph_of_edge(he).disableHyperedge(he, community_id);
+    for ( const HypernodeID& pin : pins(he, community_id) ) {
+      hypergraph_of_vertex(pin).removeIncidentEdgeFromHypernode(
+        he, pin, community_id, _hypergraphs, true /* invalidate only */);
+    }
+  }
 
   KAHYPAR_ATTRIBUTE_ALWAYS_INLINE void reverseContraction(const Memento& memento) {
     enableHypernode(memento.v);
@@ -897,6 +1123,17 @@ class Hypergraph {
       _num_hyperedges += _hypergraphs[node].initialNumEdges();
       _num_pins += _hypergraphs[node].initialNumPins();
     }
+
+    start = std::chrono::high_resolution_clock::now();
+    _edge_mapping.resize(_num_hyperedges);
+    for ( const HyperedgeID& he : edges() ) {
+      HyperedgeID original_id = hypergraph_of_edge(he).originalEdgeId(he);
+      ASSERT(original_id < _edge_mapping.size());
+      _edge_mapping[original_id] = he;
+    }
+    end = std::chrono::high_resolution_clock::now();
+    mt_kahypar::utils::Timer::instance().add_timing("initialize_he_mapping", "Initialize HE Mapping",
+      "initialize_hypernodes", mt_kahypar::utils::Timer::Type::IMPORT, 4, std::chrono::duration<double>(end - start).count());
   }
 
   const StreamingHypergraph& hypergraph_of_vertex(const HypernodeID u) const {
@@ -939,6 +1176,7 @@ class Hypergraph {
 
   std::vector<StreamingHypergraph> _hypergraphs;
   std::vector<HypernodeID> _node_mapping;
+  std::vector<HyperedgeID> _edge_mapping;
   std::vector<PartitionID> _community_node_mapping;
 };
 

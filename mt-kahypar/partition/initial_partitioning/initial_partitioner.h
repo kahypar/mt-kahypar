@@ -39,8 +39,8 @@ class InitialPartitionerT {
   using HwTopology = typename TypeTraits::HwTopology;
 
   static constexpr bool debug = false;
-  static constexpr PartitionID kInvalidPartition = -1;
-  static constexpr HypernodeID kInvalidHypernode = std::numeric_limits<HypernodeID>::max();
+  static PartitionID kInvalidPartition;
+  static HypernodeID kInvalidHypernode;
 
   struct InitialPartitioningResult {
 
@@ -355,6 +355,11 @@ class InitialPartitionerT {
   HyperGraph& _hg;
   const Context& _context;
 };
+
+template< typename TypeTraits >
+PartitionID InitialPartitionerT<TypeTraits>::kInvalidPartition = -1;
+template< typename TypeTraits >
+HypernodeID InitialPartitionerT<TypeTraits>::kInvalidHypernode = std::numeric_limits<HypernodeID>::max();
 
 using InitialPartitioner = InitialPartitionerT<GlobalTypeTraits>;
 
