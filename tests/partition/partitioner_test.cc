@@ -127,10 +127,9 @@ void verifyThatHypergraphsAreEquivalent(const Hypergraph& hypergraph,
     }
     ASSERT_EQ(num_pins, pins.size());
   }
-
-
-
 }
+
+
 
 TEST_F(APartitioner, AssignsEachVertexAPartID) {
   partition::Partitioner().partition(hypergraph, context);
@@ -142,6 +141,22 @@ TEST_F(APartitioner, AssignsEachVertexAPartID) {
     ++num_nodes;
   }
   ASSERT_EQ(hypergraph.initialNumNodes(), num_nodes);
+}
+
+TEST_F(APartitioner, ComputesCorrectBlockWeightsAndPartSizes) {
+  partition::Partitioner().partition(hypergraph, context);
+
+  std::vector<HypernodeWeight> weights(hypergraph.k(), 0);
+  std::vector<size_t> sizes(hypergraph.k(), 0);
+  for ( const HypernodeID& hn : hypergraph.nodes() ) {
+    weights[hypergraph.partID(hn)] += hypergraph.nodeWeight(hn);
+    ++sizes[hypergraph.partID(hn)];
+  }
+
+  for ( PartitionID k = 0; k < hypergraph.k(); ++k ) {
+    ASSERT_EQ(weights[k], hypergraph.partWeight(k));
+    ASSERT_EQ(sizes[k], hypergraph.partSize(k));
+  }
 }
 
 TEST_F(APartitioner, IsEqualWithInputHypergraphAfterPartitioning) {

@@ -70,7 +70,8 @@ class AHypergraph : public Test {
                                       const std::vector<HyperedgeVector>& hyperedges,
                                       const std::vector<HypernodeID>& node_mapping,
                                       const std::vector<HyperedgeID>& edge_mapping,
-                                      const std::vector<PartitionID>& communities = {}) const {
+                                      const std::vector<PartitionID>& communities = {},
+                                      const PartitionID k = 2) const {
     ASSERT(num_hypernodes == node_mapping.size());
     ASSERT(hyperedges.size() == edge_mapping.size());
 
@@ -96,7 +97,7 @@ class AHypergraph : public Test {
     }
 
     // Create hypergraph (that also initialize hypernodes)
-    TestHypergraph hypergraph(num_hypernodes, std::move(numa_hypergraphs), node_mapping, 2);
+    TestHypergraph hypergraph(num_hypernodes, std::move(numa_hypergraphs), node_mapping, k);
 
     if ( communities.size() > 0 ) {
       ASSERT(num_hypernodes == communities.size());

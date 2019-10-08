@@ -121,6 +121,7 @@ class CommunityCoarsenerBase {
       _pruner[community_id].restoreParallelHyperedges(_hg, _history.back());
       _pruner[community_id].restoreSingleNodeHyperedges(_hg, _history.back());
       _hg.uncontract(_history.back(), _parallel_he_representative);
+      _hg.updateGlobalPartInfos();
       _history.pop_back();
     }
 

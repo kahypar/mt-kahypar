@@ -25,6 +25,8 @@
 #include <functional>
 #include <set>
 
+#include "tbb/enumerable_thread_specific.h"
+
 #include "kahypar/macros.h"
 #include "kahypar/meta/mandatory.h"
 
@@ -184,8 +186,90 @@ class Hypergraph {
       }
 
       HypernodeWeight weight;
-      HypernodeID size;
+      int64_t size;
   };
+
+
+  /**
+   * Each thread contains its local part weight and size information. If a hypernode changes
+   * its block, the modification to part weights and sizes is first only applied to
+   * the block weights of the thread which made the move. The part weights are stored
+   * relative to initial global block weights as a delta. The global block weights
+   * can be calculated by computing a snapshot of all local block weights (see snapshot(...)).
+   */
+  class ThreadPartInfos {
+
+    public:
+      static ThreadPartInfos construct( const PartitionID k, const std::vector<PartInfo>& global ) {
+        return ThreadPartInfos(k, global);
+      }
+
+      void apply( const PartitionID id, const PartInfo& delta ) {
+        ASSERT(id >= 0 && id < _k);
+        _delta[id].weight += delta.weight;
+        _delta[id].size += delta.size;
+        _current[id].weight += delta.weight;
+        _current[id].size += delta.size;
+      }
+
+      /**
+       * Appliying the deltas of all thread local block weights to current thread.
+       */
+      void snapshot( const tbb::enumerable_thread_specific<ThreadPartInfos>& infos ) {
+        // Reset current block weights
+        for ( PartitionID k = 0; k < _k; ++k ) {
+          _current[k] = _global[k];
+        }
+
+        // Applying deltas of all threads
+        for ( const ThreadPartInfos& thread_info : infos ) {
+          ASSERT(thread_info._delta.size() == (size_t) _k);
+          for ( PartitionID k = 0; k < _k; ++k ) {
+            _current[k].weight += thread_info._delta[k].weight;
+            _current[k].size += thread_info._delta[k].size;
+          }
+        }
+      }
+
+      const std::vector<PartInfo>& delta() const {
+        return _delta;
+      }
+
+      HyperedgeWeight weight(const PartitionID id) const {
+        ASSERT(id >= 0 && id < _k);
+        return _current[id].weight;
+      }
+
+      size_t size(const PartitionID id) const {
+        ASSERT(id >= 0 && id < _k);
+        return _current[id].size;
+      }
+
+      void reset() {
+        for ( PartitionID k = 0; k < _k; ++k ) {
+          _current[k] = _global[k];
+          _delta[k] = PartInfo {0, 0};
+        }
+      }
+
+    private:
+      ThreadPartInfos(const PartitionID k, const std::vector<PartInfo>& global) :
+        _k(k),
+        _global(global),
+        _delta(global.size()),
+        _current(global) { }
+
+      // ! Number of blocks
+      const PartitionID _k;
+      // ! Global part infos
+      const std::vector<PartInfo>& _global;
+      // ! Delta of part info for current thread
+      std::vector<PartInfo> _delta;
+      // ! Represents current part infos of last snapshot
+      std::vector<PartInfo> _current;
+  };
+
+  using ThreadLocalPartInfos = tbb::enumerable_thread_specific<ThreadPartInfos>;
 
   // ! Iterator to iterator over the hypernodes
   using GlobalHypernodeIterator = GlobalHypergraphElementIterator<HypernodeIterator>;
@@ -205,6 +289,7 @@ class Hypergraph {
     _communities_num_hypernodes(),
     _communities_num_pins(),
     _part_info(),
+    _local_part_info([&] { return ThreadPartInfos::construct(_k, _part_info); }),
     _hypergraphs(),
     _node_mapping(),
     _edge_mapping(),
@@ -221,6 +306,7 @@ class Hypergraph {
     _communities_num_hypernodes(),
     _communities_num_pins(),
     _part_info(k),
+    _local_part_info([&] { return ThreadPartInfos::construct(_k, _part_info); }),
     _hypergraphs(std::move(hypergraphs)),
     _node_mapping(num_hypernodes, 0),
     _edge_mapping(),
@@ -241,6 +327,7 @@ class Hypergraph {
     _communities_num_hypernodes(),
     _communities_num_pins(),
     _part_info(k),
+    _local_part_info([&] { return ThreadPartInfos::construct(_k, _part_info); }),
     _hypergraphs(std::move(hypergraphs)),
     _node_mapping(node_mapping),
     _edge_mapping(),
@@ -260,6 +347,7 @@ class Hypergraph {
     _communities_num_hypernodes(),
     _communities_num_pins(),
     _part_info(k),
+    _local_part_info([&] { return ThreadPartInfos::construct(_k, _part_info); }),
     _hypergraphs(std::move(hypergraphs)),
     _node_mapping(std::move(node_mapping)),
     _edge_mapping(),
@@ -774,26 +862,64 @@ class Hypergraph {
     _community_node_mapping = std::move(community_node_mapping);
   }
 
-  void setPartInfo(const HypernodeID u, const PartitionID id) {
+  /**
+   * Set partition information for an unassigned vertex.
+   * Returns true, if CAS operation on part id successfully swaps kInvalidPartition with id
+   */
+  bool setPartInfo(const HypernodeID u, const PartitionID id) {
     StreamingHypergraph& hypergraph_of_u = hypergraph_of_vertex(u);
     ASSERT(id < _k && id != kInvalidPartition, "Part ID" << id << "is invalid");
-    ASSERT(hypergraph_of_u.hypernode(u).partID() == kInvalidPartition,
-           "HN" << u << "is already assigned to part" << hypergraph_of_u.hypernode(u).partID());
-    hypergraph_of_u.setPartInfo(u, id);
-    _part_info[id].weight += nodeWeight(u);
-    ++_part_info[id].size;
+
+    if ( hypergraph_of_u.setPartInfo(u, id) ) {
+      _local_part_info.local().apply(id, PartInfo{ nodeWeight(u), 1 });
+      return true;
+    }
+
+    return false;
   }
 
-  void updatePartInfo(const HypernodeID u, const PartitionID from, const PartitionID to) {
+  /**
+   * Updates partition information for a vertex assigned to block from.
+   * Returns true, if CAS operation on part id successfully swaps from with to
+   */
+  bool updatePartInfo(const HypernodeID u, const PartitionID from, const PartitionID to) {
     StreamingHypergraph& hypergraph_of_u = hypergraph_of_vertex(u);
     ASSERT(to < _k && to != kInvalidPartition, "Part ID" << to << "is invalid");
-    ASSERT(hypergraph_of_u.hypernode(u).partID() == from,
-           "HN" << u << "is not part of block" << from);
-    hypergraph_of_u.setPartInfo(u, to);
-    _part_info[from].weight -= nodeWeight(u);
-    --_part_info[from].size;
-    _part_info[to].weight += nodeWeight(u);
-    ++_part_info[to].size;
+
+    if ( hypergraph_of_u.updatePartInfo(u, from, to) ) {
+      _local_part_info.local().apply(from, PartInfo{ -nodeWeight(u), -1 });
+      _local_part_info.local().apply(to, PartInfo{ nodeWeight(u), 1 });
+      return true;
+    }
+
+    return false;
+  }
+
+  /**
+   * Updates the block weights of the calling thread by applying
+   * the deltas of all threads to the one of the calling thread.
+   */
+  void updateLocalPartInfos() {
+    _local_part_info.local().snapshot(_local_part_info);
+  }
+
+  /**
+   * Updates the global weights by applying the deltas of all threads
+   * to global part info vector.
+   */
+  void updateGlobalPartInfos() {
+    for ( const ThreadPartInfos& thread_part_info : _local_part_info  ) {
+      const std::vector<PartInfo>& delta = thread_part_info.delta();
+      ASSERT(delta.size() == (size_t) _k);
+      for ( PartitionID k = 0; k < _k; ++k ) {
+        _part_info[k].weight += delta[k].weight;
+        _part_info[k].size += delta[k].size;
+      }
+    }
+
+    for ( ThreadPartInfos& thread_part_info : _local_part_info  ) {
+      thread_part_info.reset();
+    }
   }
 
   PartitionID partID(const HypernodeID u) const {
@@ -805,9 +931,19 @@ class Hypergraph {
     return _part_info[id].weight;
   }
 
+  HypernodeWeight localPartWeight(const PartitionID id) {
+    ASSERT(id < _k && id != kInvalidPartition, "Part ID" << id << "is invalid");
+    return _local_part_info.local().weight(id);
+  }
+
   size_t partSize(const PartitionID id) const {
     ASSERT(id < _k && id != kInvalidPartition, "Part ID" << id << "is invalid");
     return _part_info[id].size;
+  }
+
+  size_t localPartSize(const PartitionID id) {
+    ASSERT(id < _k && id != kInvalidPartition, "Part ID" << id << "is invalid");
+    return _local_part_info.local().size(id);
   }
 
   bool nodeIsEnabled(const HypernodeID u) const {
@@ -987,7 +1123,7 @@ class Hypergraph {
     PartitionID part_id = partID(memento.u);
     ASSERT(part_id != kInvalidPartition);
     hypergraph_of_vertex(memento.v).setPartInfo(memento.v, part_id);
-    ++_part_info[part_id].size;
+    _local_part_info.local().apply(part_id, PartInfo { 0, 1 });
   }
 
   KAHYPAR_ATTRIBUTE_ALWAYS_INLINE void markAllIncidentNetsOf(const HypernodeID v) {
@@ -1171,8 +1307,10 @@ class Hypergraph {
   parallel::scalable_vector<HypernodeID> _communities_num_hypernodes;
   // ! Number of pins in a community
   parallel::scalable_vector<HypernodeID> _communities_num_pins;
-  // ! Weight and size information for all blocks.
+  // ! Global weight and size information for all blocks.
   std::vector<PartInfo> _part_info;
+  // ! Thread local weight and size information for all blocks.
+  ThreadLocalPartInfos _local_part_info;
 
   std::vector<StreamingHypergraph> _hypergraphs;
   std::vector<HypernodeID> _node_mapping;

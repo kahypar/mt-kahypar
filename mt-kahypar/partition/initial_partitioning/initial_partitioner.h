@@ -164,6 +164,7 @@ class InitialPartitionerT {
       ASSERT(part_id >= 0 && part_id < _context.partition.k);
       _hg.setPartInfo(hn, part_id);
     }
+    _hg.updateGlobalPartInfos();
 
     kahypar_context_free(context);
   }

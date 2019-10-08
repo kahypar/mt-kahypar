@@ -45,6 +45,7 @@
 #include "mt-kahypar/datastructures/streaming_vector.h"
 #include "mt-kahypar/datastructures/streaming_map.h"
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
+#include "mt-kahypar/parallel/copyable_atomic.h"
 #include "mt-kahypar/utils/timer.h"
 
 
@@ -92,6 +93,7 @@ class StreamingHypergraph {
   using HypernodeWeight = HypernodeWeightType_;
   using HyperedgeWeight = HyperedgeWeightType_;
   using PartitionID = PartitionIDType_;
+  using PartitionAtomic = parallel::CopyableAtomic<PartitionID>;
 
   static constexpr PartitionID kInvalidPartition = -1;
   static constexpr HypernodeID kInvalidHypernode = std::numeric_limits<HypernodeID>::max();
@@ -120,7 +122,6 @@ class StreamingHypergraph {
         _community_node_id(kInvalidHypernode),
         _weight(1),
         _community_id(kInvalidPartition),
-        _part_id(kInvalidPartition),
         _invalid_incident_nets(0),
         _single_pin_community_nets(0),
         _invalid_community_nets(0),
@@ -134,7 +135,6 @@ class StreamingHypergraph {
         _community_node_id(kInvalidHypernode),
         _weight(weight),
         _community_id(kInvalidPartition),
-        _part_id(kInvalidPartition),
         _invalid_incident_nets(0),
         _single_pin_community_nets(0),
         _invalid_community_nets(0),
@@ -195,16 +195,6 @@ class StreamingHypergraph {
       void setCommunityID(const PartitionID community_id) {
         ASSERT(!isDisabled());
         _community_id = community_id;
-      }
-
-      PartitionID partID() const {
-        ASSERT(!isDisabled());
-        return _part_id;
-      }
-
-      void setPartID(const PartitionID part_id) {
-        ASSERT(!isDisabled());
-        _part_id = part_id;
       }
 
       size_t invalidIncidentNets() const {
@@ -287,8 +277,6 @@ class StreamingHypergraph {
       HyperedgeWeight _weight;
       // ! Community id
       PartitionID _community_id;
-      // ! Part Id
-      PartitionID _part_id;
       // ! Pointer to incident nets indicating that all hyperedges up to
       // ! that position are invalid.
       size_t _invalid_incident_nets;
@@ -743,6 +731,7 @@ class StreamingHypergraph {
     _community_hyperedge_ids(),
     _community_hyperedges(),
     _incident_nets_of_v(),
+    _part_ids(),
     _vertex_pin_count(),
     _pin_stream(),
     _hyperedge_stream(),
@@ -773,6 +762,7 @@ class StreamingHypergraph {
     _community_hyperedge_ids(std::move(other._community_hyperedge_ids)),
     _community_hyperedges(std::move(other._community_hyperedges)),
     _incident_nets_of_v(std::move(other._incident_nets_of_v)),
+    _part_ids(std::move(other._part_ids)),
     _vertex_pin_count(std::move(other._vertex_pin_count)),
     _pin_stream(std::move(other._pin_stream)),
     _hyperedge_stream(std::move(other._hyperedge_stream)),
@@ -1169,18 +1159,24 @@ class StreamingHypergraph {
   }
 
   PartitionID communityID(const HypernodeID u) const {
-    //ASSERT(!hypernode(u).isDisabled(), "Hypernode" << u << "is disabled");
+    ASSERT(!hypernode(u).isDisabled(), "Hypernode" << u << "is disabled");
     return hypernode(u).communityID();
   }
 
-  void setPartInfo(const HypernodeID u, const PartitionID id) {
+  bool setPartInfo(const HypernodeID u, PartitionID id) {
     ASSERT(!hypernode(u).isDisabled(), "Hypernode" << u << "is disabled");
-    hypernode(u).setPartID(id);
+    PartitionID invalid_id = kInvalidPartition;
+    return _part_ids[get_local_node_id_of_vertex(u)].compare_and_exchange_strong(invalid_id, id);
+  }
+
+  bool updatePartInfo(const HypernodeID u, PartitionID from, PartitionID to) {
+    ASSERT(!hypernode(u).isDisabled(), "Hypernode" << u << "is disabled");
+    return _part_ids[get_local_node_id_of_vertex(u)].compare_and_exchange_strong(from, to);
   }
 
   PartitionID partID(const HypernodeID u) const {
     ASSERT(!hypernode(u).isDisabled(), "Hypernode" << u << "is disabled");
-    return hypernode(u).partID();
+    return _part_ids[get_local_node_id_of_vertex(u)];
   }
 
   bool nodeIsEnabled(const HypernodeID u) const {
@@ -1340,6 +1336,7 @@ class StreamingHypergraph {
 
     _hypernodes = _hypernode_stream.copy(_arena);
     _num_hypernodes = _hypernodes.size();
+    _part_ids.assign(_num_hypernodes, PartitionAtomic(kInvalidPartition));
 
     // Sort hypernodes in increasing order of their node id and ...
     HighResClockTimepoint start = std::chrono::high_resolution_clock::now();
@@ -2208,6 +2205,8 @@ class StreamingHypergraph {
   // ! Will be used during uncontraction to mark
   // ! all incident nets of contraction partner v
   kahypar::ds::FastResetFlagArray<> _incident_nets_of_v;
+
+  parallel::scalable_vector<PartitionAtomic> _part_ids;
 
   // ! Contains for each hypernode, how many time it
   // ! occurs as pin in incidence array
