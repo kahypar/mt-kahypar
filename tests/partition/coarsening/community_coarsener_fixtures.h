@@ -68,6 +68,7 @@ void assignPartitionIDs(HyperGraph& hypergraph) {
     PartitionID part_id = StreamingHyperGraph::get_numa_node_of_vertex(hn);
     hypergraph.setPartInfo(hn, part_id);
   }
+  hypergraph.updateGlobalPartInfos();
 }
 
 template< class HyperGraph >

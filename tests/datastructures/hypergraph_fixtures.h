@@ -79,7 +79,7 @@ class AHypergraph : public Test {
     std::vector<TestStreamingHypergraph> numa_hypergraphs;
     for ( int node = 0; node < NUM_NUMA_NODES; ++node ) {
       TBBArena::instance().numa_task_arena(node).execute([&] {
-        numa_hypergraphs.emplace_back(node, false);
+        numa_hypergraphs.emplace_back(node, k, false);
       });
     }
 

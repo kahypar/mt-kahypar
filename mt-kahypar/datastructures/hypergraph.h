@@ -205,7 +205,7 @@ class Hypergraph {
       }
 
       void apply( const PartitionID id, const PartInfo& delta ) {
-        ASSERT(id >= 0 && id < _k);
+        ASSERT(id >= 0 && id < _k, V(id) << V(_k));
         _delta[id].weight += delta.weight;
         _delta[id].size += delta.size;
         _current[id].weight += delta.weight;
@@ -358,8 +358,37 @@ class Hypergraph {
   Hypergraph(const Hypergraph&) = delete;
   Hypergraph& operator= (const Hypergraph&) = delete;
 
-  Hypergraph(Hypergraph&& other) = default;
-  Hypergraph& operator= (Hypergraph&&) = default;
+  Hypergraph(Hypergraph&& other) :
+    _num_hypernodes(other._num_hypernodes),
+    _num_hyperedges(other._num_hyperedges),
+    _num_pins(other._num_pins),
+    _num_communities(other._num_communities),
+    _k(other._k),
+    _communities_num_hypernodes(std::move(other._communities_num_hypernodes)),
+    _communities_num_pins(std::move(other._communities_num_pins)),
+    _part_info(std::move(other._part_info)),
+    _local_part_info([&] { return ThreadPartInfos::construct(_k, _part_info); }),
+    _hypergraphs(std::move(other._hypergraphs)),
+    _node_mapping(std::move(other._node_mapping)),
+    _edge_mapping(std::move(other._edge_mapping)),
+    _community_node_mapping(std::move(other._community_node_mapping)) { }
+
+  Hypergraph& operator= (Hypergraph&& other) {
+    _num_hypernodes = other._num_hypernodes;
+    _num_hyperedges = other._num_hyperedges;
+    _num_pins = other._num_pins;
+    _num_communities = other._num_communities;
+    _k = other._k;
+    _communities_num_hypernodes = std::move(other._communities_num_hypernodes);
+    _communities_num_pins = std::move(other._communities_num_hypernodes);
+    _part_info = std::move(other._part_info);
+    _local_part_info = ThreadLocalPartInfos([&] { return ThreadPartInfos::construct(_k, _part_info); });
+    _hypergraphs = std::move(other._hypergraphs);
+    _node_mapping = std::move(other._node_mapping);
+    _edge_mapping = std::move(other._edge_mapping);
+    _community_node_mapping = std::move(other._community_node_mapping);
+    return *this;
+  }
 
   ~Hypergraph() = default;
 

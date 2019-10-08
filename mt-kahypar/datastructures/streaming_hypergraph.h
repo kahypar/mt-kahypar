@@ -93,6 +93,7 @@ class StreamingHypergraph {
   using HypernodeWeight = HypernodeWeightType_;
   using HyperedgeWeight = HyperedgeWeightType_;
   using PartitionID = PartitionIDType_;
+  using HypernodeAtomic = parallel::CopyableAtomic<HypernodeID>;
   using PartitionAtomic = parallel::CopyableAtomic<PartitionID>;
 
   static constexpr PartitionID kInvalidPartition = -1;
@@ -716,8 +717,11 @@ class StreamingHypergraph {
     int parallel_hes_size;
   };
 
-  explicit StreamingHypergraph(const int node, const bool remove_single_pin_community_nets = true) :
+  explicit StreamingHypergraph(const int node,
+                               const PartitionID k,
+                               const bool remove_single_pin_community_nets = true) :
     _node(node),
+    _k(k),
     _arena(TBBNumaArena::instance().numa_task_arena(node)),
     _remove_single_pin_community_nets(remove_single_pin_community_nets),
     _num_hypernodes(0),
@@ -732,6 +736,7 @@ class StreamingHypergraph {
     _community_hyperedges(),
     _incident_nets_of_v(),
     _part_ids(),
+    _pins_in_part(),
     _vertex_pin_count(),
     _pin_stream(),
     _hyperedge_stream(),
@@ -749,6 +754,7 @@ class StreamingHypergraph {
 
   StreamingHypergraph(StreamingHypergraph&& other) :
     _node(other._node),
+    _k(other._k),
     _arena(other._arena),
     _remove_single_pin_community_nets(other._remove_single_pin_community_nets),
     _num_hypernodes(other._num_hypernodes),
@@ -763,6 +769,7 @@ class StreamingHypergraph {
     _community_hyperedges(std::move(other._community_hyperedges)),
     _incident_nets_of_v(std::move(other._incident_nets_of_v)),
     _part_ids(std::move(other._part_ids)),
+    _pins_in_part(std::move(other._pins_in_part)),
     _vertex_pin_count(std::move(other._vertex_pin_count)),
     _pin_stream(std::move(other._pin_stream)),
     _hyperedge_stream(std::move(other._hyperedge_stream)),
@@ -1254,7 +1261,7 @@ class StreamingHypergraph {
     mt_kahypar::utils::Timer::instance().add_timing("copy_incidencce_array_and_he", "Copy Incidence Array and HEs",
       "initialize_hyperedges", mt_kahypar::utils::Timer::Type::IMPORT, 0, std::chrono::duration<double>(end - start).count());
 
-
+    // _pins_in_part.assign(_num_hyperedges * k);
     kahypar::ds::FastResetFlagArray<> tmp_incidence_nets_of_v(_num_hyperedges);
     _incident_nets_of_v = std::move(tmp_incidence_nets_of_v);
 
@@ -2174,6 +2181,8 @@ class StreamingHypergraph {
   }
 
   const int _node;
+  // ! number of blocks
+  const PartitionID _k;
   // ! task arena for numa node
   tbb::task_arena& _arena;
   // ! If true, than single-pin community hyperedges are removed
@@ -2206,7 +2215,10 @@ class StreamingHypergraph {
   // ! all incident nets of contraction partner v
   kahypar::ds::FastResetFlagArray<> _incident_nets_of_v;
 
+  // ! For each hypernode, _part_ids stores the corresponding block of the vertex
   parallel::scalable_vector<PartitionAtomic> _part_ids;
+  // ! For each hyperedge and each block, _pins_in_part stores the number of pins in that block
+  parallel::scalable_vector<HypernodeAtomic> _pins_in_part;
 
   // ! Contains for each hypernode, how many time it
   // ! occurs as pin in incidence array

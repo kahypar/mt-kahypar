@@ -43,6 +43,7 @@ void assignPartitionIDs(TestHypergraph& hypergraph) {
     PartitionID part_id = TestStreamingHypergraph::get_numa_node_of_vertex(hn);
     hypergraph.setPartInfo(hn, part_id);
   }
+  hypergraph.updateGlobalPartInfos();
 }
 
 template< typename IDType >
@@ -1335,19 +1336,19 @@ TEST_F(AHypergraphWithTwoStreamingHypergraphs, ResetsPinsToOriginalIds) {
 TEST_F(AHypergraphWithTwoStreamingHypergraphs, SetPartIdsOfVertex1) {
   TestHypergraph hypergraph = construct_test_hypergraph(*this);
 
-  hypergraph.setPartInfo(0, 0);
+  ASSERT_TRUE( hypergraph.setPartInfo(0, 0) );
   ASSERT_EQ(0, hypergraph.partID(0));
-  ASSERT_EQ(1, hypergraph.partWeight(0));
-  ASSERT_EQ(1, hypergraph.partSize(0));
+  ASSERT_EQ(1, hypergraph.localPartWeight(0));
+  ASSERT_EQ(1, hypergraph.localPartSize(0));
 }
 
 TEST_F(AHypergraphWithTwoStreamingHypergraphs, SetPartIdsOfVertex2) {
   TestHypergraph hypergraph = construct_test_hypergraph(*this);
 
-  hypergraph.setPartInfo(281474976710656, 1);
+  ASSERT_TRUE( hypergraph.setPartInfo(281474976710656, 1) );
   ASSERT_EQ(1, hypergraph.partID(281474976710656));
-  ASSERT_EQ(1, hypergraph.partWeight(1));
-  ASSERT_EQ(1, hypergraph.partSize(1));
+  ASSERT_EQ(1, hypergraph.localPartWeight(1));
+  ASSERT_EQ(1, hypergraph.localPartSize(1));
 }
 
 TEST_F(AHypergraphWithTwoStreamingHypergraphs, SetPartIdsOfAllVertices) {
@@ -1373,42 +1374,42 @@ TEST_F(AHypergraphWithTwoStreamingHypergraphs, UpdatePartIdsOfOneVertex) {
   TestHypergraph hypergraph = construct_test_hypergraph(*this);
 
   assignPartitionIDs(hypergraph);
-  hypergraph.updatePartInfo(2, 0, 1);
+  ASSERT_TRUE( hypergraph.updatePartInfo(2, 0, 1) );
 
   ASSERT_EQ(1, hypergraph.partID(2));
-  ASSERT_EQ(2, hypergraph.partWeight(0));
-  ASSERT_EQ(2, hypergraph.partSize(0));
-  ASSERT_EQ(5, hypergraph.partWeight(1));
-  ASSERT_EQ(5, hypergraph.partSize(1));
+  ASSERT_EQ(2, hypergraph.localPartWeight(0));
+  ASSERT_EQ(2, hypergraph.localPartSize(0));
+  ASSERT_EQ(5, hypergraph.localPartWeight(1));
+  ASSERT_EQ(5, hypergraph.localPartSize(1));
 }
 
 TEST_F(AHypergraphWithTwoStreamingHypergraphs, UpdatePartIdsOfTwoVertices) {
   TestHypergraph hypergraph = construct_test_hypergraph(*this);
 
   assignPartitionIDs(hypergraph);
-  hypergraph.updatePartInfo(2, 0, 1);
-  hypergraph.updatePartInfo(281474976710659, 1, 0);
+  ASSERT_TRUE( hypergraph.updatePartInfo(2, 0, 1) );
+  ASSERT_TRUE( hypergraph.updatePartInfo(281474976710659, 1, 0) );
 
   ASSERT_EQ(0, hypergraph.partID(281474976710659));
-  ASSERT_EQ(3, hypergraph.partWeight(0));
-  ASSERT_EQ(3, hypergraph.partSize(0));
-  ASSERT_EQ(4, hypergraph.partWeight(1));
-  ASSERT_EQ(4, hypergraph.partSize(1));
+  ASSERT_EQ(3, hypergraph.localPartWeight(0));
+  ASSERT_EQ(3, hypergraph.localPartSize(0));
+  ASSERT_EQ(4, hypergraph.localPartWeight(1));
+  ASSERT_EQ(4, hypergraph.localPartSize(1));
 }
 
 TEST_F(AHypergraphWithTwoStreamingHypergraphs, UpdatePartIdsOfThreeVertices) {
   TestHypergraph hypergraph = construct_test_hypergraph(*this);
 
   assignPartitionIDs(hypergraph);
-  hypergraph.updatePartInfo(2, 0, 1);
-  hypergraph.updatePartInfo(281474976710659, 1, 0);
-  hypergraph.updatePartInfo(281474976710658, 1, 0);
+  ASSERT_TRUE( hypergraph.updatePartInfo(2, 0, 1) );
+  ASSERT_TRUE( hypergraph.updatePartInfo(281474976710659, 1, 0) );
+  ASSERT_TRUE( hypergraph.updatePartInfo(281474976710658, 1, 0) );
 
   ASSERT_EQ(0, hypergraph.partID(281474976710658));
-  ASSERT_EQ(4, hypergraph.partWeight(0));
-  ASSERT_EQ(4, hypergraph.partSize(0));
-  ASSERT_EQ(3, hypergraph.partWeight(1));
-  ASSERT_EQ(3, hypergraph.partSize(1));
+  ASSERT_EQ(4, hypergraph.localPartWeight(0));
+  ASSERT_EQ(4, hypergraph.localPartSize(0));
+  ASSERT_EQ(3, hypergraph.localPartWeight(1));
+  ASSERT_EQ(3, hypergraph.localPartSize(1));
 }
 
 TEST_F(AHypergraphWithTwoStreamingHypergraphs, ChecksPartIdAssignmentAfterUncontraction1) {
@@ -1428,6 +1429,7 @@ TEST_F(AHypergraphWithTwoStreamingHypergraphs, ChecksPartIdAssignmentAfterUncont
   ASSERT_EQ(4, hypergraph.partSize(1));
 
   hypergraph.uncontract(memento, parallel_he_representative);
+  hypergraph.updateGlobalPartInfos();
   ASSERT_EQ(0, hypergraph.partID(v));
   ASSERT_EQ(3, hypergraph.partWeight(0));
   ASSERT_EQ(3, hypergraph.partSize(0));
@@ -1452,6 +1454,7 @@ TEST_F(AHypergraphWithTwoStreamingHypergraphs, ChecksPartIdAssignmentAfterUncont
   ASSERT_EQ(3, hypergraph.partSize(1));
 
   hypergraph.uncontract(memento, parallel_he_representative);
+  hypergraph.updateGlobalPartInfos();
   ASSERT_EQ(1, hypergraph.partID(v));
   ASSERT_EQ(3, hypergraph.partWeight(0));
   ASSERT_EQ(3, hypergraph.partSize(0));
@@ -1476,6 +1479,7 @@ TEST_F(AHypergraphWithTwoStreamingHypergraphs, ChecksPartIdAssignmentAfterUncont
   ASSERT_EQ(3, hypergraph.partSize(1));
 
   hypergraph.uncontract(memento, parallel_he_representative);
+  hypergraph.updateGlobalPartInfos();
   ASSERT_EQ(0, hypergraph.partID(v));
   ASSERT_EQ(4, hypergraph.partWeight(0));
   ASSERT_EQ(4, hypergraph.partSize(0));
@@ -1500,6 +1504,7 @@ TEST_F(AHypergraphWithTwoStreamingHypergraphs, ChecksPartIdAssignmentAfterSevera
   ASSERT_EQ(3, hypergraph.partSize(1));
 
   hypergraph.uncontract(memento_3, parallel_he_representative);
+  hypergraph.updateGlobalPartInfos();
   ASSERT_EQ(1, hypergraph.partID(id[2]));
   ASSERT_EQ(2, hypergraph.partWeight(0));
   ASSERT_EQ(1, hypergraph.partSize(0));
@@ -1507,6 +1512,7 @@ TEST_F(AHypergraphWithTwoStreamingHypergraphs, ChecksPartIdAssignmentAfterSevera
   ASSERT_EQ(4, hypergraph.partSize(1));
 
   hypergraph.uncontract(memento_2, parallel_he_representative);
+  hypergraph.updateGlobalPartInfos();
   ASSERT_EQ(1, hypergraph.partID(id[4]));
   ASSERT_EQ(2, hypergraph.partWeight(0));
   ASSERT_EQ(1, hypergraph.partSize(0));
@@ -1514,6 +1520,7 @@ TEST_F(AHypergraphWithTwoStreamingHypergraphs, ChecksPartIdAssignmentAfterSevera
   ASSERT_EQ(5, hypergraph.partSize(1));
 
   hypergraph.uncontract(memento_1, parallel_he_representative);
+  hypergraph.updateGlobalPartInfos();
   ASSERT_EQ(1, hypergraph.partID(id[4]));
   ASSERT_EQ(2, hypergraph.partWeight(0));
   ASSERT_EQ(2, hypergraph.partSize(0));

@@ -61,7 +61,7 @@ static size_t num_threads;
 
     // Shared Memory
     context.shared_memory.num_threads = num_threads;
-    context.shared_memory.use_community_redistribution = true;
+    context.shared_memory.use_community_redistribution = false;
     context.shared_memory.assignment_strategy = CommunityAssignmentStrategy::bin_packing;
     context.shared_memory.assignment_objective = CommunityAssignmentObjective::pin_objective;
 

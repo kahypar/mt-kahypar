@@ -117,7 +117,7 @@ class CommunityRedistributorT {
     for ( int node = 0; node < used_numa_nodes; ++node ) {
       TBB::instance().numa_task_arena(node).execute([&] {
         group.run([&] {
-          numa_hypergraphs.emplace_back(node);
+          numa_hypergraphs.emplace_back(node, k);
         });
       });
       TBB::instance().wait(node, group);
