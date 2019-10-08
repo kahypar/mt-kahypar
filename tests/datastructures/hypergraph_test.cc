@@ -41,7 +41,7 @@ TestHypergraph construct_test_hypergraph(const AHypergraphWithTwoStreamingHyperg
 void assignPartitionIDs(TestHypergraph& hypergraph) {
   for ( const HypernodeID& hn : hypergraph.nodes() ) {
     PartitionID part_id = TestStreamingHypergraph::get_numa_node_of_vertex(hn);
-    hypergraph.setPartInfo(hn, part_id);
+    hypergraph.setNodePart(hn, part_id);
   }
   hypergraph.updateGlobalPartInfos();
 }
@@ -1162,6 +1162,7 @@ TEST_F(AHypergraphWithTwoStreamingHypergraphs, RestoreAnEdgeOfHypergraph1) {
     GLOBAL_ID(hypergraph, 3), GLOBAL_ID(hypergraph, 4), GLOBAL_ID(hypergraph, 5), GLOBAL_ID(hypergraph, 6)};
 
   hypergraph.removeEdge(0);
+  assignPartitionIDs(hypergraph);
   hypergraph.restoreEdge(0, 2);
 
   ASSERT_TRUE(hypergraph.edgeIsEnabled(0));
@@ -1184,6 +1185,7 @@ TEST_F(AHypergraphWithTwoStreamingHypergraphs, RestoreAnEdgeOfHypergraph2) {
     GLOBAL_ID(hypergraph, 3), GLOBAL_ID(hypergraph, 4), GLOBAL_ID(hypergraph, 5), GLOBAL_ID(hypergraph, 6)};
 
   hypergraph.removeEdge(1);
+  assignPartitionIDs(hypergraph);
   hypergraph.restoreEdge(1, 4);
 
   ASSERT_TRUE(hypergraph.edgeIsEnabled(1));
@@ -1214,6 +1216,7 @@ TEST_F(AHypergraphWithTwoStreamingHypergraphs, RestoreAnEdgeOfHypergraph3) {
     GLOBAL_ID(hypergraph, 3), GLOBAL_ID(hypergraph, 4), GLOBAL_ID(hypergraph, 5), GLOBAL_ID(hypergraph, 6)};
 
   hypergraph.removeEdge(281474976710656);
+  assignPartitionIDs(hypergraph);
   hypergraph.restoreEdge(281474976710656, 3);
 
   ASSERT_TRUE(hypergraph.edgeIsEnabled(281474976710656));
@@ -1240,6 +1243,7 @@ TEST_F(AHypergraphWithTwoStreamingHypergraphs, RestoreAnEdgeOfHypergraph4) {
     GLOBAL_ID(hypergraph, 3), GLOBAL_ID(hypergraph, 4), GLOBAL_ID(hypergraph, 5), GLOBAL_ID(hypergraph, 6)};
 
   hypergraph.removeEdge(281474976710657);
+  assignPartitionIDs(hypergraph);
   hypergraph.restoreEdge(281474976710657, 3);
 
   ASSERT_TRUE(hypergraph.edgeIsEnabled(281474976710657));
@@ -1336,7 +1340,7 @@ TEST_F(AHypergraphWithTwoStreamingHypergraphs, ResetsPinsToOriginalIds) {
 TEST_F(AHypergraphWithTwoStreamingHypergraphs, SetPartIdsOfVertex1) {
   TestHypergraph hypergraph = construct_test_hypergraph(*this);
 
-  ASSERT_TRUE( hypergraph.setPartInfo(0, 0) );
+  ASSERT_TRUE( hypergraph.setNodePart(0, 0) );
   ASSERT_EQ(0, hypergraph.partID(0));
   ASSERT_EQ(1, hypergraph.localPartWeight(0));
   ASSERT_EQ(1, hypergraph.localPartSize(0));
@@ -1345,7 +1349,7 @@ TEST_F(AHypergraphWithTwoStreamingHypergraphs, SetPartIdsOfVertex1) {
 TEST_F(AHypergraphWithTwoStreamingHypergraphs, SetPartIdsOfVertex2) {
   TestHypergraph hypergraph = construct_test_hypergraph(*this);
 
-  ASSERT_TRUE( hypergraph.setPartInfo(281474976710656, 1) );
+  ASSERT_TRUE( hypergraph.setNodePart(281474976710656, 1) );
   ASSERT_EQ(1, hypergraph.partID(281474976710656));
   ASSERT_EQ(1, hypergraph.localPartWeight(1));
   ASSERT_EQ(1, hypergraph.localPartSize(1));
@@ -1374,7 +1378,7 @@ TEST_F(AHypergraphWithTwoStreamingHypergraphs, UpdatePartIdsOfOneVertex) {
   TestHypergraph hypergraph = construct_test_hypergraph(*this);
 
   assignPartitionIDs(hypergraph);
-  ASSERT_TRUE( hypergraph.updatePartInfo(2, 0, 1) );
+  ASSERT_TRUE( hypergraph.changeNodePart(2, 0, 1) );
 
   ASSERT_EQ(1, hypergraph.partID(2));
   ASSERT_EQ(2, hypergraph.localPartWeight(0));
@@ -1387,8 +1391,8 @@ TEST_F(AHypergraphWithTwoStreamingHypergraphs, UpdatePartIdsOfTwoVertices) {
   TestHypergraph hypergraph = construct_test_hypergraph(*this);
 
   assignPartitionIDs(hypergraph);
-  ASSERT_TRUE( hypergraph.updatePartInfo(2, 0, 1) );
-  ASSERT_TRUE( hypergraph.updatePartInfo(281474976710659, 1, 0) );
+  ASSERT_TRUE( hypergraph.changeNodePart(2, 0, 1) );
+  ASSERT_TRUE( hypergraph.changeNodePart(281474976710659, 1, 0) );
 
   ASSERT_EQ(0, hypergraph.partID(281474976710659));
   ASSERT_EQ(3, hypergraph.localPartWeight(0));
@@ -1401,9 +1405,9 @@ TEST_F(AHypergraphWithTwoStreamingHypergraphs, UpdatePartIdsOfThreeVertices) {
   TestHypergraph hypergraph = construct_test_hypergraph(*this);
 
   assignPartitionIDs(hypergraph);
-  ASSERT_TRUE( hypergraph.updatePartInfo(2, 0, 1) );
-  ASSERT_TRUE( hypergraph.updatePartInfo(281474976710659, 1, 0) );
-  ASSERT_TRUE( hypergraph.updatePartInfo(281474976710658, 1, 0) );
+  ASSERT_TRUE( hypergraph.changeNodePart(2, 0, 1) );
+  ASSERT_TRUE( hypergraph.changeNodePart(281474976710659, 1, 0) );
+  ASSERT_TRUE( hypergraph.changeNodePart(281474976710658, 1, 0) );
 
   ASSERT_EQ(0, hypergraph.partID(281474976710658));
   ASSERT_EQ(4, hypergraph.localPartWeight(0));

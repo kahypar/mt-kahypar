@@ -61,7 +61,7 @@ static size_t num_threads;
 
     // Shared Memory
     context.shared_memory.num_threads = num_threads;
-    context.shared_memory.use_community_redistribution = false;
+    context.shared_memory.use_community_redistribution = true;
     context.shared_memory.assignment_strategy = CommunityAssignmentStrategy::bin_packing;
     context.shared_memory.assignment_objective = CommunityAssignmentObjective::pin_objective;
 
@@ -156,6 +156,21 @@ TEST_F(APartitioner, ComputesCorrectBlockWeightsAndPartSizes) {
   for ( PartitionID k = 0; k < hypergraph.k(); ++k ) {
     ASSERT_EQ(weights[k], hypergraph.partWeight(k));
     ASSERT_EQ(sizes[k], hypergraph.partSize(k));
+  }
+}
+
+TEST_F(APartitioner, ComputesCorrectPinCountsInPartValues) {
+  partition::Partitioner().partition(hypergraph, context);
+
+  for ( const HyperedgeID& he : hypergraph.edges() ) {
+    std::vector<HypernodeID> pin_count_in_part(context.partition.k, 0);
+    for ( const HypernodeID& pin : hypergraph.pins(he) ) {
+      ++pin_count_in_part[hypergraph.partID(pin)];
+    }
+
+    for ( PartitionID k = 0; k < context.partition.k; ++k ) {
+      ASSERT_EQ(pin_count_in_part[k], hypergraph.pinCountInPart(he, k));
+    }
   }
 }
 

@@ -1008,8 +1008,7 @@ class StreamingHypergraph {
         // Undo case 1 operation (i.e. Pin v was just cut off by decreasing size of HE e)
         DBG << V(e) << " -> case 1";
         hyperedge(e).incrementSize();
-
-        // TODO(heuer): Increment pin count in part
+        incrementPinCountInPart(e, hypergraph_of_vertex(v, hypergraphs).partID(v));
         return false;
       } else {
         // Undo case 2 opeations (i.e. Entry of pin v in HE e was reused to store connection to u):
@@ -1170,13 +1169,13 @@ class StreamingHypergraph {
     return hypernode(u).communityID();
   }
 
-  bool setPartInfo(const HypernodeID u, PartitionID id) {
+  bool setNodePart(const HypernodeID u, PartitionID id) {
     ASSERT(!hypernode(u).isDisabled(), "Hypernode" << u << "is disabled");
     PartitionID invalid_id = kInvalidPartition;
     return _part_ids[get_local_node_id_of_vertex(u)].compare_and_exchange_strong(invalid_id, id);
   }
 
-  bool updatePartInfo(const HypernodeID u, PartitionID from, PartitionID to) {
+  bool changeNodePart(const HypernodeID u, PartitionID from, PartitionID to) {
     ASSERT(!hypernode(u).isDisabled(), "Hypernode" << u << "is disabled");
     return _part_ids[get_local_node_id_of_vertex(u)].compare_and_exchange_strong(from, to);
   }
@@ -1184,6 +1183,13 @@ class StreamingHypergraph {
   PartitionID partID(const HypernodeID u) const {
     ASSERT(!hypernode(u).isDisabled(), "Hypernode" << u << "is disabled");
     return _part_ids[get_local_node_id_of_vertex(u)];
+  }
+
+  HypernodeID pinCountInPart(const HyperedgeID e, const PartitionID id) const {
+    ASSERT(!hyperedge(e).isDisabled(), "Hyperedge" << e << "is disabled");
+    ASSERT(id < _k && id != kInvalidPartition, "Partition ID" << id << "is out of bounds");
+    const HyperedgeID local_id = get_local_edge_id_of_hyperedge(e);
+    return _pins_in_part[static_cast<size_t>(local_id) * _k + id];
   }
 
   bool nodeIsEnabled(const HypernodeID u) const {
@@ -1261,7 +1267,8 @@ class StreamingHypergraph {
     mt_kahypar::utils::Timer::instance().add_timing("copy_incidencce_array_and_he", "Copy Incidence Array and HEs",
       "initialize_hyperedges", mt_kahypar::utils::Timer::Type::IMPORT, 0, std::chrono::duration<double>(end - start).count());
 
-    // _pins_in_part.assign(_num_hyperedges * k);
+    ASSERT(_k > 0);
+    _pins_in_part.assign(_num_hyperedges * _k, HypernodeAtomic(0));
     kahypar::ds::FastResetFlagArray<> tmp_incidence_nets_of_v(_num_hyperedges);
     _incident_nets_of_v = std::move(tmp_incidence_nets_of_v);
 
@@ -2057,6 +2064,34 @@ class StreamingHypergraph {
     } else {
       return UncontractionCase::CASE_2;
     }
+  }
+
+  bool decrementPinCountInPart(const HyperedgeID he, const PartitionID id) {
+    ASSERT(!hyperedge(he).isDisabled(), "Hyperedge" << he << "is disabled");
+    ASSERT(pinCountInPart(he, id) > 0,
+           "HE" << he << ": pin_count[" << id << "]=" << pinCountInPart(he, id)
+                << "edgesize=" << edgeSize(he));
+    ASSERT(id < _k && id != kInvalidPartition, "Part ID" << id << "out of bounds!");
+    const size_t offset = get_local_edge_id_of_hyperedge(he) * _k + id;
+    ASSERT(offset < _pins_in_part.size());
+    const HypernodeID pin_count_after = --_pins_in_part[offset];
+    const bool connectivity_decreased = pin_count_after == 0;
+    // TODO(heuer): update connectivity set in case connectivity decreased
+    return connectivity_decreased;
+  }
+
+  bool incrementPinCountInPart(const HyperedgeID he, const PartitionID id) {
+    ASSERT(!hyperedge(he).isDisabled(), "Hyperedge" << he << "is disabled");
+    ASSERT(pinCountInPart(he, id) <= edgeSize(he),
+           "HE" << he << ": pin_count[" << id << "]=" << pinCountInPart(he, id)
+                << "edgesize=" << edgeSize(he));
+    ASSERT(id < _k && id != kInvalidPartition, "Part ID" << id << "out of bounds!");
+    const size_t offset = get_local_edge_id_of_hyperedge(he) * _k + id;
+    ASSERT(offset < _pins_in_part.size());
+    const HypernodeID pin_count_before = _pins_in_part[offset]++;
+    const bool connectivity_increased = pin_count_before == 0;
+    // TODO(heuer): update connectivity set in case connectivity increased
+    return connectivity_increased;
   }
 
   KAHYPAR_ATTRIBUTE_ALWAYS_INLINE HypernodeID get_global_node_id() {

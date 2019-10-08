@@ -162,7 +162,7 @@ class InitialPartitionerT {
       ASSERT(node_mapping[_hg.originalNodeID(hn)] != kInvalidHypernode);
       PartitionID part_id = best.partition[node_mapping[_hg.originalNodeID(hn)]];
       ASSERT(part_id >= 0 && part_id < _context.partition.k);
-      _hg.setPartInfo(hn, part_id);
+      _hg.setNodePart(hn, part_id);
     }
     _hg.updateGlobalPartInfos();
 

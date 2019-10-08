@@ -44,7 +44,7 @@ TestHypergraph construct_test_hypergraph(const ACommunityHypergraph& test) {
 void assignPartitionIDs(TestHypergraph& hypergraph) {
   for ( const HypernodeID& hn : hypergraph.nodes() ) {
     PartitionID part_id = TestStreamingHypergraph::get_numa_node_of_vertex(hn);
-    hypergraph.setPartInfo(hn, part_id);
+    hypergraph.setNodePart(hn, part_id);
   }
 }
 

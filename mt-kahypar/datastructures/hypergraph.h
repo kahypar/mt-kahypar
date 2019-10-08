@@ -793,20 +793,17 @@ class Hypergraph {
     ASSERT(!edgeIsEnabled(he), "Hyperedge" << he << "already enabled");
     enableHyperedge(he);
     hypergraph_of_edge(he).hyperedge(he).setSize(size);
-    // TODO(heuer): reset partition pin counts of he
+    StreamingHypergraph& hypergraph_of_he = hypergraph_of_edge(he);
     for ( const HypernodeID& pin : pins(he) ) {
       hypergraph_of_vertex(pin).insertIncidentEdgeToHypernode(he, pin);
+      ASSERT(partID(pin) != kInvalidPartition, V(pin) << V(partID(pin)));
+      hypergraph_of_he.incrementPinCountInPart(he, partID(pin));
     }
   }
 
   void restoreSinglePinHyperedge(const HyperedgeID he) {
     ASSERT(!edgeIsEnabled(he), "Hyperedge" << he << "already enabled");
-    enableHyperedge(he);
-    hypergraph_of_edge(he).hyperedge(he).setSize(1);
-    // TODO(heuer): reset partition pin counts of he
-    for ( const HypernodeID& pin : pins(he) ) {
-      hypergraph_of_vertex(pin).insertIncidentEdgeToHypernode(he, pin);
-    }
+    restoreEdge(he, 1);
   }
 
   void restoreParallelHyperedge(const HyperedgeID he,
@@ -895,12 +892,17 @@ class Hypergraph {
    * Set partition information for an unassigned vertex.
    * Returns true, if CAS operation on part id successfully swaps kInvalidPartition with id
    */
-  bool setPartInfo(const HypernodeID u, const PartitionID id) {
+  bool setNodePart(const HypernodeID u, const PartitionID id) {
     StreamingHypergraph& hypergraph_of_u = hypergraph_of_vertex(u);
     ASSERT(id < _k && id != kInvalidPartition, "Part ID" << id << "is invalid");
 
-    if ( hypergraph_of_u.setPartInfo(u, id) ) {
+    if ( hypergraph_of_u.setNodePart(u, id) ) {
       _local_part_info.local().apply(id, PartInfo{ nodeWeight(u), 1 });
+
+      for ( const HyperedgeID& he : incidentEdges(u) ) {
+        hypergraph_of_edge(he).incrementPinCountInPart(he, id);
+      }
+
       return true;
     }
 
@@ -911,13 +913,19 @@ class Hypergraph {
    * Updates partition information for a vertex assigned to block from.
    * Returns true, if CAS operation on part id successfully swaps from with to
    */
-  bool updatePartInfo(const HypernodeID u, const PartitionID from, const PartitionID to) {
+  bool changeNodePart(const HypernodeID u, const PartitionID from, const PartitionID to) {
     StreamingHypergraph& hypergraph_of_u = hypergraph_of_vertex(u);
     ASSERT(to < _k && to != kInvalidPartition, "Part ID" << to << "is invalid");
 
-    if ( hypergraph_of_u.updatePartInfo(u, from, to) ) {
+    if ( hypergraph_of_u.changeNodePart(u, from, to) ) {
       _local_part_info.local().apply(from, PartInfo{ -nodeWeight(u), -1 });
       _local_part_info.local().apply(to, PartInfo{ nodeWeight(u), 1 });
+
+      for ( const HyperedgeID& he : incidentEdges(u) ) {
+        hypergraph_of_edge(he).decrementPinCountInPart(he, from);
+        hypergraph_of_edge(he).incrementPinCountInPart(he, to);
+      }
+
       return true;
     }
 
@@ -953,6 +961,10 @@ class Hypergraph {
 
   PartitionID partID(const HypernodeID u) const {
     return hypergraph_of_vertex(u).partID(u);
+  }
+
+  HypernodeID pinCountInPart(const HyperedgeID e, const PartitionID id) const {
+    return hypergraph_of_edge(e).pinCountInPart(e, id);
   }
 
   HypernodeWeight partWeight(const PartitionID id) const {
@@ -1151,7 +1163,7 @@ class Hypergraph {
     enableHypernode(memento.v);
     PartitionID part_id = partID(memento.u);
     ASSERT(part_id != kInvalidPartition);
-    hypergraph_of_vertex(memento.v).setPartInfo(memento.v, part_id);
+    hypergraph_of_vertex(memento.v).setNodePart(memento.v, part_id);
     _local_part_info.local().apply(part_id, PartInfo { 0, 1 });
   }
 
