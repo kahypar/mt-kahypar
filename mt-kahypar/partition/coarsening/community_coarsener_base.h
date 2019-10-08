@@ -30,7 +30,6 @@
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/partition/coarsening/hypergraph_pruner.h"
-#include "mt-kahypar/datastructures/thread_safe_fast_reset_flag_array.h"
 
 namespace mt_kahypar {
 
@@ -51,7 +50,7 @@ class CommunityCoarsenerBase {
     _hg(hypergraph),
     _context(context),
     _init(false),
-    _contained_hypernodes(std::thread::hardware_concurrency(), hypergraph.initialNumNodes()),
+    _contained_hypernodes(hypergraph.initialNumNodes()),
     _parallel_he_representative(hypergraph.initialNumEdges(), kInvalidHyperedge),
     _pruner(),
     _community_history(_hg.numCommunities()),
@@ -272,7 +271,7 @@ class CommunityCoarsenerBase {
   HyperGraph& _hg;
   const Context& _context;
   bool _init;
-  ds::ThreadSafeFastResetFlagArray<> _contained_hypernodes;
+  ThreadLocalFastResetFlagArray _contained_hypernodes;
   parallel::scalable_vector<HyperedgeID> _parallel_he_representative;
   parallel::scalable_vector<HypergraphPruner> _pruner;
   parallel::scalable_vector<parallel::scalable_vector<Memento>> _community_history;

@@ -87,7 +87,7 @@ inline void Partitioner::setupContext(const Hypergraph& hypergraph, Context& con
   context.setupPartWeights(hypergraph.totalWeight());
 
   if ( context.coarsening.use_hypernode_degree_threshold ) {
-    // TODO(heuer): replace this with a nice statistical detection of power law distribution
+    // TODO(heuer): replace this with a smarter statistical detection of power law distribution
     double avg_hypernode_degree = metrics::avgHypernodeDegree(hypergraph);
     double stdev_hn_degree = 0.0;
     for (const auto& hn : hypergraph.nodes()) {

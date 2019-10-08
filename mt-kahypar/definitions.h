@@ -19,9 +19,13 @@
  ******************************************************************************/
 #pragma once
 
-#define USE_HARDWARE_MOCK false
+#define USE_HARDWARE_MOCK true
 
 #include <chrono>
+
+#include "tbb/enumerable_thread_specific.h"
+
+#include "kahypar/datastructure/fast_reset_flag_array.h"
 
 #include "mt-kahypar/parallel/hardware_topology.h"
 #include "mt-kahypar/parallel/tbb_numa_arena.h"
@@ -42,6 +46,7 @@ using HardwareTopology = mt_kahypar::parallel::HardwareTopology<TopoMock, topolo
 using HardwareTopology = mt_kahypar::parallel::HardwareTopology<>;
 #endif
 using TBBNumaArena = mt_kahypar::parallel::TBBNumaArena<HardwareTopology>;
+using ThreadLocalFastResetFlagArray = tbb::enumerable_thread_specific<kahypar::ds::FastResetFlagArray<>>;
 
 using RatingType = double;
 using HypernodeID = uint64_t;
