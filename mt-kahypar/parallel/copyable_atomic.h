@@ -56,6 +56,7 @@ class CopyableAtomic {
 
   T operator=( T desired ) noexcept {
     _value = desired;
+    return _value;
   }
 
   void store( T desired, std::memory_order order = std::memory_order_seq_cst ) noexcept {

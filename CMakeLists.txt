@@ -126,10 +126,10 @@ ENDIF ()
 # find libkahypar
 
 FIND_PATH(KAHYPAR_INCLUDE_DIR NAME libkahypar.h
-  HINTS "/usr/local/include" )
+  HINTS "/usr/local/include" "${CMAKE_CURRENT_SOURCE_DIR}/external_tools/kahypar/include" )
 
 FIND_LIBRARY(KAHYPAR_LIBRARY NAME libkahypar.so
-  HINTS "/usr/local/lib" )
+  HINTS "/usr/local/lib" "${CMAKE_CURRENT_SOURCE_DIR}/external_tools/kahypar/build/lib" )
 
 IF (KAHYPAR_INCLUDE_DIR AND KAHYPAR_LIBRARY)
     SET(KAHYPAR_FOUND TRUE)

@@ -24,6 +24,18 @@
 namespace mt_kahypar {
 namespace utils {
 
+static constexpr uint8_t bitmask[9] = {
+  0,   // 00000000
+  1,   // 00000001
+  2,   // 00000010
+  4,   // 00000100
+  8,   // 00001000
+  16,  // 00010000
+  32,  // 00100000
+  64,  // 01000000
+  128  // 10000000
+};
+
 // Lookup-Table for the number of set bits in a 8-bit word
 static constexpr PartitionID count[256] =
  { 0, 1, 1, 2, 1, 2, 2, 3, 1, 2, 2, 3, 2, 3,
