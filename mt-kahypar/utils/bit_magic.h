@@ -19,8 +19,6 @@
  ******************************************************************************/
 #pragma once
 
-#include "mt-kahypar/definitions.h"
-
 namespace mt_kahypar {
 namespace utils {
 
@@ -37,7 +35,7 @@ static constexpr uint8_t bitmask[9] = {
 };
 
 // Lookup-Table for the number of set bits in a 8-bit word
-static constexpr PartitionID count[256] =
+static constexpr int32_t count[256] =
  { 0, 1, 1, 2, 1, 2, 2, 3, 1, 2, 2, 3, 2, 3,
    3, 4, 1, 2, 2, 3, 2, 3, 3, 4, 2, 3, 3, 4,
    3, 4, 4, 5, 1, 2, 2, 3, 2, 3, 3, 4, 2, 3,
@@ -61,7 +59,7 @@ static constexpr PartitionID count[256] =
 // Lookup-Table of the i-th one in a 8-bit word
 // Note, in case the i-th one does not exists than
 // the result will be 8
-static constexpr PartitionID select[256][9] =
+static constexpr int32_t select[256][9] =
   { { 8, 8, 8, 8, 8, 8, 8, 8, 8 },
     { 8, 0, 8, 8, 8, 8, 8, 8, 8 },
     { 8, 1, 8, 8, 8, 8, 8, 8, 8 },

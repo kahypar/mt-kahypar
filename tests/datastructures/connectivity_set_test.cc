@@ -30,6 +30,8 @@ using ::testing::Test;
 namespace mt_kahypar {
 namespace ds {
 
+using PartitionID = int32_t;
+
 template< class F, class K >
 void executeConcurrent( F f1, K f2 ) {
   std::atomic<int> cnt(0);

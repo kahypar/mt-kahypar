@@ -159,7 +159,7 @@ TEST_F(APartitioner, ComputesCorrectBlockWeightsAndPartSizes) {
   }
 }
 
-TEST_F(APartitioner, ComputesCorrectPinCountsInPartValues) {
+TEST_F(APartitioner, ComputesCorrectPinCountsInPartValuesAndConnectivitySets) {
   partition::Partitioner().partition(hypergraph, context);
 
   for ( const HyperedgeID& he : hypergraph.edges() ) {
@@ -168,9 +168,21 @@ TEST_F(APartitioner, ComputesCorrectPinCountsInPartValues) {
       ++pin_count_in_part[hypergraph.partID(pin)];
     }
 
+    PartitionID connectivity = 0;
     for ( PartitionID k = 0; k < context.partition.k; ++k ) {
+      if ( pin_count_in_part[k] > 0 ) {
+        ++connectivity;
+      }
       ASSERT_EQ(pin_count_in_part[k], hypergraph.pinCountInPart(he, k));
     }
+
+    ASSERT_EQ(connectivity, hypergraph.connectivity(he));
+    size_t connectivity_2 = 0;
+    for ( const PartitionID& id : hypergraph.connectivitySet(he) ) {
+      ++connectivity_2;
+      ASSERT_GT(pin_count_in_part[id], 0);
+    }
+    ASSERT_EQ(connectivity, connectivity_2);
   }
 }
 

@@ -22,9 +22,10 @@
 #include <atomic>
 #include <type_traits>
 
+#include "kahypar/definitions.h"
 #include "kahypar/macros.h"
+#include "kahypar/meta/mandatory.h"
 
-#include "mt-kahypar/definitions.h"
 #include "mt-kahypar/parallel/copyable_atomic.h"
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
 #include "mt-kahypar/utils/bit_magic.h"
@@ -59,16 +60,17 @@ namespace ds {
  * In fact of that, the connectivity set reflects the real connectivity of a hyperedge if all parallel
  * operations are finished. In a parallel setting, this set can be used as indicator for the real connectivity
  * set with the assumptions that conflicts happens very rarely.
- *
  */
 class ConnectivitySet {
 
   static constexpr bool debug = false;
 
+  using PartitionID = int32_t;
   using ConnectivityAtomic = parallel::CopyableAtomic<PartitionID>;
   using BitsetAtomic = parallel::CopyableAtomic<uint8_t>;
 
 
+ public:
   /**
    * Thread-safe iterator over the set of block ids of the connectivity set.
    * To do so, the iterator makes a copy of the 8-bit word (which has at least one set bit)
@@ -132,11 +134,11 @@ class ConnectivitySet {
     }
 
     // ! Convenience function for range-based for-loops
-    friend ConnectivitySetIterator end<>(const std::pair<ConnectivitySetIterator,
-                                                         ConnectivitySetIterator>& iter_pair);
+    friend ConnectivitySetIterator en(const std::pair<ConnectivitySetIterator,
+                                                      ConnectivitySetIterator>& iter_pair);
     // ! Convenience function for range-based for-loops
-    friend ConnectivitySetIterator begin<>(const std::pair<ConnectivitySetIterator,
-                                                           ConnectivitySetIterator>& iter_pair);
+    friend ConnectivitySetIterator begin(const std::pair<ConnectivitySetIterator,
+                                                         ConnectivitySetIterator>& iter_pair);
 
     bool operator!= (const ConnectivitySetIterator& rhs) {
       return _current_bitset_id != rhs._current_bitset_id ||
@@ -170,8 +172,6 @@ class ConnectivitySet {
     uint8_t _current_bitset;
   };
 
-
- public:
   ConnectivitySet(const PartitionID k) :
     _connectivity(0),
     _bitset() {

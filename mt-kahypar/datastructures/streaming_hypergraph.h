@@ -44,6 +44,7 @@
 
 #include "mt-kahypar/datastructures/streaming_vector.h"
 #include "mt-kahypar/datastructures/streaming_map.h"
+#include "mt-kahypar/datastructures/connectivity_set.h"
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
 #include "mt-kahypar/parallel/copyable_atomic.h"
 #include "mt-kahypar/utils/timer.h"
@@ -652,7 +653,10 @@ class StreamingHypergraph {
   // ! Iterator to iterate over the set of incident nets of a hypernode
   // ! or the set of pins of a hyperedge
   using IncidenceIterator = typename parallel::scalable_vector<HypernodeID>::const_iterator;
+  // ! Iterator over the set of community ids of a hyperedge
   using CommunityIterator = typename parallel::scalable_vector<PartitionID>::const_iterator;
+  // ! Iterator over the connectivity set of a hyperedge
+  using ConnectivitySetIterator = typename ConnectivitySet::ConnectivitySetIterator;
   // ! Community Hyperedges
   using CommunityHyperedges = parallel::scalable_vector<parallel::scalable_vector<CommunityHyperedge>>;
 
@@ -737,6 +741,7 @@ class StreamingHypergraph {
     _incident_nets_of_v(),
     _part_ids(),
     _pins_in_part(),
+    _connectivity_sets(),
     _vertex_pin_count(),
     _pin_stream(),
     _hyperedge_stream(),
@@ -770,6 +775,7 @@ class StreamingHypergraph {
     _incident_nets_of_v(std::move(other._incident_nets_of_v)),
     _part_ids(std::move(other._part_ids)),
     _pins_in_part(std::move(other._pins_in_part)),
+    _connectivity_sets(std::move(other._connectivity_sets)),
     _vertex_pin_count(std::move(other._vertex_pin_count)),
     _pin_stream(std::move(other._pin_stream)),
     _hyperedge_stream(std::move(other._hyperedge_stream)),
@@ -866,6 +872,12 @@ class StreamingHypergraph {
     const CommunityHyperedge& community_he = community_hyperedge(e, community_id);
     return std::make_pair(_incidence_array.cbegin() + community_he.firstEntry(),
                           _incidence_array.cbegin() + community_he.firstInvalidEntry());
+  }
+
+  std::pair<ConnectivitySetIterator, ConnectivitySetIterator> connectivitySet(const HyperedgeID e) const {
+    ASSERT(!hyperedge(e).isDisabled(), "Hyperedge" << e << "is disabled");
+    const HyperedgeID local_id = get_local_edge_id_of_hyperedge(e);
+    return _connectivity_sets[local_id].connectivitySet();
   }
 
   std::pair<CommunityIterator, CommunityIterator> communities(const HyperedgeID e) const {
@@ -1185,6 +1197,12 @@ class StreamingHypergraph {
     return _part_ids[get_local_node_id_of_vertex(u)];
   }
 
+  PartitionID connectivity(const HyperedgeID e) const {
+    ASSERT(!hyperedge(e).isDisabled(), "Hyperedge" << e << "is disabled");
+    const HyperedgeID local_id = get_local_edge_id_of_hyperedge(e);
+    return _connectivity_sets[local_id].size();
+  }
+
   HypernodeID pinCountInPart(const HyperedgeID e, const PartitionID id) const {
     ASSERT(!hyperedge(e).isDisabled(), "Hyperedge" << e << "is disabled");
     ASSERT(id < _k && id != kInvalidPartition, "Partition ID" << id << "is out of bounds");
@@ -1269,6 +1287,10 @@ class StreamingHypergraph {
 
     ASSERT(_k > 0);
     _pins_in_part.assign(_num_hyperedges * _k, HypernodeAtomic(0));
+    ASSERT(_connectivity_sets.size() == 0);
+    for ( HyperedgeID he = 0; he < _num_hyperedges; ++he ) {
+      _connectivity_sets.emplace_back(_k);
+    }
     kahypar::ds::FastResetFlagArray<> tmp_incidence_nets_of_v(_num_hyperedges);
     _incident_nets_of_v = std::move(tmp_incidence_nets_of_v);
 
@@ -2072,11 +2094,14 @@ class StreamingHypergraph {
            "HE" << he << ": pin_count[" << id << "]=" << pinCountInPart(he, id)
                 << "edgesize=" << edgeSize(he));
     ASSERT(id < _k && id != kInvalidPartition, "Part ID" << id << "out of bounds!");
-    const size_t offset = get_local_edge_id_of_hyperedge(he) * _k + id;
+    const HyperedgeID local_id = get_local_edge_id_of_hyperedge(he);
+    const size_t offset = local_id * _k + id;
     ASSERT(offset < _pins_in_part.size());
     const HypernodeID pin_count_after = --_pins_in_part[offset];
     const bool connectivity_decreased = pin_count_after == 0;
-    // TODO(heuer): update connectivity set in case connectivity decreased
+    if ( connectivity_decreased ) {
+      _connectivity_sets[local_id].remove(id);
+    }
     return connectivity_decreased;
   }
 
@@ -2086,11 +2111,14 @@ class StreamingHypergraph {
            "HE" << he << ": pin_count[" << id << "]=" << pinCountInPart(he, id)
                 << "edgesize=" << edgeSize(he));
     ASSERT(id < _k && id != kInvalidPartition, "Part ID" << id << "out of bounds!");
-    const size_t offset = get_local_edge_id_of_hyperedge(he) * _k + id;
+    const HyperedgeID local_id = get_local_edge_id_of_hyperedge(he);
+    const size_t offset = local_id * _k + id;
     ASSERT(offset < _pins_in_part.size());
     const HypernodeID pin_count_before = _pins_in_part[offset]++;
     const bool connectivity_increased = pin_count_before == 0;
-    // TODO(heuer): update connectivity set in case connectivity increased
+    if ( connectivity_increased ) {
+      _connectivity_sets[local_id].add(id);
+    }
     return connectivity_increased;
   }
 
@@ -2254,6 +2282,9 @@ class StreamingHypergraph {
   parallel::scalable_vector<PartitionAtomic> _part_ids;
   // ! For each hyperedge and each block, _pins_in_part stores the number of pins in that block
   parallel::scalable_vector<HypernodeAtomic> _pins_in_part;
+  // ! For each hyperedge, _connectivity_sets stores the connectivity and the set of block ids
+  // ! which the pins of the hyperedge belongs to
+  parallel::scalable_vector<ConnectivitySet> _connectivity_sets;
 
   // ! Contains for each hypernode, how many time it
   // ! occurs as pin in incidence array

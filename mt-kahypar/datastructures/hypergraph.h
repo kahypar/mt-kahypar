@@ -71,6 +71,7 @@ class Hypergraph {
   using HypernodeIterator = typename StreamingHypergraph::HypernodeIterator;
   using HyperedgeIterator = typename StreamingHypergraph::HyperedgeIterator;
   using IncidenceIterator = typename StreamingHypergraph::IncidenceIterator;
+  using ConnectivitySetIterator = typename StreamingHypergraph::ConnectivitySetIterator;
   using CommunityIterator = typename StreamingHypergraph::CommunityIterator;
   using Memento = typename StreamingHypergraph::Memento;
 
@@ -504,6 +505,10 @@ class Hypergraph {
   // ! Returns a for-each iterator-pair to loop over the set pins of hyperedge e in a community.
   std::pair<IncidenceIterator, IncidenceIterator> pins(const HyperedgeID e, const PartitionID community_id) const {
     return hypergraph_of_edge(e).pins(e, community_id);
+  }
+
+  std::pair<ConnectivitySetIterator, ConnectivitySetIterator> connectivitySet(const HyperedgeID e) const {
+    return hypergraph_of_edge(e).connectivitySet(e);
   }
 
   std::pair<CommunityIterator, CommunityIterator> communities(const HyperedgeID e) const {
@@ -961,6 +966,10 @@ class Hypergraph {
 
   PartitionID partID(const HypernodeID u) const {
     return hypergraph_of_vertex(u).partID(u);
+  }
+
+  PartitionID connectivity(const HyperedgeID e) const {
+    return hypergraph_of_edge(e).connectivity(e);
   }
 
   HypernodeID pinCountInPart(const HyperedgeID e, const PartitionID id) const {

@@ -374,5 +374,113 @@ TEST_F(AConcurrentHypergraph, HasCorrectPartitionPinCountsIfAllNodesMovesConcurr
   verifyPartitionPinCounts(hypergraph, hypergraph.globalEdgeID(3), {0, 2, 1});
 }
 
+void verifyConnectivitySet(TestHypergraph& hypergraph,
+                           const HyperedgeID he,
+                           const std::set<PartitionID>& connectivity_set) {
+  ASSERT_EQ(connectivity_set.size(), hypergraph.connectivity(he)) << V(he);
+  PartitionID connectivity = 0;
+  for ( const PartitionID& id : hypergraph.connectivitySet(he) ) {
+    ASSERT_TRUE(connectivity_set.find(id) != connectivity_set.end()) << V(he) << V(id);
+    ++connectivity;
+  }
+  ASSERT_EQ(connectivity_set.size(), connectivity) << V(he);
+}
+
+TEST_F(AConcurrentHypergraph, HasCorrectConnectivitySetIfTwoNodesMovesConcurrent1) {
+  TestHypergraph hypergraph = construct_test_hypergraph(*this);
+
+  executeConcurrent([&] {
+    ASSERT_TRUE( hypergraph.changeNodePart(hypergraph.globalNodeID(6), 2, 0) );
+  }, [&] {
+    ASSERT_TRUE( hypergraph.changeNodePart(hypergraph.globalNodeID(0), 0, 1) );
+  });
+
+  verifyConnectivitySet(hypergraph, hypergraph.globalEdgeID(0), {0, 1});
+  verifyConnectivitySet(hypergraph, hypergraph.globalEdgeID(1), {0, 1});
+  verifyConnectivitySet(hypergraph, hypergraph.globalEdgeID(2), {0, 1});
+  verifyConnectivitySet(hypergraph, hypergraph.globalEdgeID(3), {0, 2});
+}
+
+TEST_F(AConcurrentHypergraph, HasCorrectConnectivitySetIfTwoNodesMovesConcurrent2) {
+  TestHypergraph hypergraph = construct_test_hypergraph(*this);
+
+  executeConcurrent([&] {
+    ASSERT_TRUE( hypergraph.changeNodePart(hypergraph.globalNodeID(5), 2, 0) );
+  }, [&] {
+    ASSERT_TRUE( hypergraph.changeNodePart(hypergraph.globalNodeID(2), 0, 2) );
+  });
+
+  verifyConnectivitySet(hypergraph, hypergraph.globalEdgeID(0), {0, 2});
+  verifyConnectivitySet(hypergraph, hypergraph.globalEdgeID(1), {0, 1});
+  verifyConnectivitySet(hypergraph, hypergraph.globalEdgeID(2), {1, 2});
+  verifyConnectivitySet(hypergraph, hypergraph.globalEdgeID(3), {0, 2});
+}
+
+TEST_F(AConcurrentHypergraph, HasCorrectConnectivitySetIfTwoNodesMovesConcurrent3) {
+  TestHypergraph hypergraph = construct_test_hypergraph(*this);
+
+  executeConcurrent([&] {
+    ASSERT_TRUE( hypergraph.changeNodePart(hypergraph.globalNodeID(0), 0, 1) );
+  }, [&] {
+    ASSERT_TRUE( hypergraph.changeNodePart(hypergraph.globalNodeID(2), 0, 1) );
+  });
+
+  verifyConnectivitySet(hypergraph, hypergraph.globalEdgeID(0), {1});
+  verifyConnectivitySet(hypergraph, hypergraph.globalEdgeID(1), {0, 1});
+  verifyConnectivitySet(hypergraph, hypergraph.globalEdgeID(2), {1, 2});
+  verifyConnectivitySet(hypergraph, hypergraph.globalEdgeID(3), {1, 2});
+}
+
+TEST_F(AConcurrentHypergraph, HasCorrectConnectivitySetIfTwoNodesMovesConcurrent4) {
+  TestHypergraph hypergraph = construct_test_hypergraph(*this);
+
+  executeConcurrent([&] {
+    ASSERT_TRUE( hypergraph.changeNodePart(hypergraph.globalNodeID(4), 1, 0) );
+  }, [&] {
+    ASSERT_TRUE( hypergraph.changeNodePart(hypergraph.globalNodeID(3), 1, 0) );
+  });
+
+  verifyConnectivitySet(hypergraph, hypergraph.globalEdgeID(0), {0});
+  verifyConnectivitySet(hypergraph, hypergraph.globalEdgeID(1), {0});
+  verifyConnectivitySet(hypergraph, hypergraph.globalEdgeID(2), {0, 2});
+  verifyConnectivitySet(hypergraph, hypergraph.globalEdgeID(3), {0, 2});
+}
+
+TEST_F(AConcurrentHypergraph, HasCorrectConnectivitySetIfTwoNodesMovesConcurrent5) {
+  TestHypergraph hypergraph = construct_test_hypergraph(*this);
+
+  executeConcurrent([&] {
+    ASSERT_TRUE( hypergraph.changeNodePart(hypergraph.globalNodeID(1), 0, 2) );
+  }, [&] {
+    ASSERT_TRUE( hypergraph.changeNodePart(hypergraph.globalNodeID(3), 1, 2) );
+  });
+
+  verifyConnectivitySet(hypergraph, hypergraph.globalEdgeID(0), {0});
+  verifyConnectivitySet(hypergraph, hypergraph.globalEdgeID(1), {0, 1, 2});
+  verifyConnectivitySet(hypergraph, hypergraph.globalEdgeID(2), {1, 2});
+  verifyConnectivitySet(hypergraph, hypergraph.globalEdgeID(3), {0, 2});
+}
+
+
+TEST_F(AConcurrentHypergraph, HasCorrectConnectivitySetIfAllNodesMovesConcurrent) {
+  TestHypergraph hypergraph = construct_test_hypergraph(*this);
+
+  executeConcurrent([&] {
+    ASSERT_TRUE( hypergraph.changeNodePart(hypergraph.globalNodeID(0), 0, 1) );
+    ASSERT_TRUE( hypergraph.changeNodePart(hypergraph.globalNodeID(3), 1, 0) );
+    ASSERT_TRUE( hypergraph.changeNodePart(hypergraph.globalNodeID(6), 2, 0) );
+  }, [&] {
+    ASSERT_TRUE( hypergraph.changeNodePart(hypergraph.globalNodeID(1), 0, 2) );
+    ASSERT_TRUE( hypergraph.changeNodePart(hypergraph.globalNodeID(2), 0, 1) );
+    ASSERT_TRUE( hypergraph.changeNodePart(hypergraph.globalNodeID(4), 1, 0) );
+    ASSERT_TRUE( hypergraph.changeNodePart(hypergraph.globalNodeID(5), 2, 1) );
+  });
+
+  verifyConnectivitySet(hypergraph, hypergraph.globalEdgeID(0), {1});
+  verifyConnectivitySet(hypergraph, hypergraph.globalEdgeID(1), {0, 1, 2});
+  verifyConnectivitySet(hypergraph, hypergraph.globalEdgeID(2), {0});
+  verifyConnectivitySet(hypergraph, hypergraph.globalEdgeID(3), {0, 1});
+}
+
 } // namespace ds
 } // namespace mt_kahypar
