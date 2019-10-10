@@ -58,25 +58,11 @@ static inline HyperedgeWeight remotePinCount(const Hypergraph& hypergraph) {
   return remote_pin_count;
 }
 
-// TODO(heuer): Replace this once connectivity is available in hypergraph
-
-static inline PartitionID connectivity(const Hypergraph& hypergraph, const HyperedgeID he) {
-  std::vector<bool> parts(hypergraph.k(), false);
-  PartitionID connectivity = 0;
-  for ( const HypernodeID& pin : hypergraph.pins(he) ) {
-    PartitionID part_id = hypergraph.partID(pin);
-    if ( !parts[part_id] ) {
-      ++connectivity;
-      parts[part_id] = true;
-    }
-  }
-  return connectivity;
-}
 
 static inline HyperedgeWeight hyperedgeCut(const Hypergraph& hypergraph) {
   HyperedgeWeight cut = 0;
   for ( const HyperedgeID& he : hypergraph.edges() ) {
-    if ( connectivity(hypergraph, he) > 1 ) {
+    if ( hypergraph.connectivity(he) > 1 ) {
       cut += hypergraph.edgeWeight(he);
     }
   }
@@ -86,7 +72,7 @@ static inline HyperedgeWeight hyperedgeCut(const Hypergraph& hypergraph) {
 static inline HyperedgeWeight km1(const Hypergraph& hypergraph) {
   HyperedgeWeight km1 = 0;
   for ( const HyperedgeID& he : hypergraph.edges() ) {
-    km1 += std::max(connectivity(hypergraph, he) - 1, 0) * hypergraph.edgeWeight(he);
+    km1 += std::max(hypergraph.connectivity(he) - 1, 0) * hypergraph.edgeWeight(he);
   }
   return km1;
 }
@@ -94,9 +80,9 @@ static inline HyperedgeWeight km1(const Hypergraph& hypergraph) {
 static inline HyperedgeWeight soed(const Hypergraph& hypergraph) {
   HyperedgeWeight soed = 0;
   for ( const HyperedgeID& he : hypergraph.edges() ) {
-    PartitionID conn = connectivity(hypergraph, he);
-    if ( conn > 1 ) {
-      soed += conn * hypergraph.edgeWeight(he);
+    PartitionID connectivity = hypergraph.connectivity(he);
+    if ( connectivity > 1 ) {
+      soed += connectivity * hypergraph.edgeWeight(he);
     }
   }
   return soed;
@@ -106,12 +92,7 @@ static inline double absorption(const Hypergraph& hypergraph) {
   double absorption_val = 0.0;
   for (PartitionID part = 0; part < hypergraph.k(); ++part) {
     for (const HyperedgeID& he : hypergraph.edges()) {
-      HypernodeID pin_count_in_part = 0;
-      for ( const HypernodeID& pin : hypergraph.pins(he) ) {
-        if ( hypergraph.partID(pin) == part ) {
-          ++pin_count_in_part;
-        }
-      }
+      HypernodeID pin_count_in_part = hypergraph.pinCountInPart(he, part);
       if (pin_count_in_part > 0 && hypergraph.edgeSize(he) > 1) {
         absorption_val += static_cast<double>((pin_count_in_part - 1)) / (hypergraph.edgeSize(he) - 1)
                           * hypergraph.edgeWeight(he);
