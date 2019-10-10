@@ -69,6 +69,7 @@ void assignPartitionIDs(HyperGraph& hypergraph) {
     hypergraph.setNodePart(hn, part_id);
   }
   hypergraph.updateGlobalPartInfos();
+  hypergraph.initializeNumCutHyperedges();
 }
 
 template< class HyperGraph >

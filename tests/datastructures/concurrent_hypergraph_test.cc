@@ -43,6 +43,7 @@ void assignPartitionIDs(TestHypergraph& hypergraph) {
   hypergraph.setNodePart(hypergraph.globalNodeID(5), 2);
   hypergraph.setNodePart(hypergraph.globalNodeID(6), 2);
   hypergraph.updateGlobalPartInfos();
+  hypergraph.initializeNumCutHyperedges();
 }
 
 TestHypergraph construct_test_hypergraph(const AConcurrentHypergraph& test) {
@@ -481,6 +482,109 @@ TEST_F(AConcurrentHypergraph, HasCorrectConnectivitySetIfAllNodesMovesConcurrent
   verifyConnectivitySet(hypergraph, hypergraph.globalEdgeID(2), {0});
   verifyConnectivitySet(hypergraph, hypergraph.globalEdgeID(3), {0, 1});
 }
+
+TEST_F(AConcurrentHypergraph, HasCorrectBorderNodes) {
+  TestHypergraph hypergraph = construct_test_hypergraph(*this);
+
+  ASSERT_TRUE( hypergraph.isBorderNode( hypergraph.globalNodeID(0) ) );
+  ASSERT_TRUE( hypergraph.isBorderNode( hypergraph.globalNodeID(1) ) );
+  ASSERT_TRUE( hypergraph.isBorderNode( hypergraph.globalNodeID(2) ) );
+  ASSERT_TRUE( hypergraph.isBorderNode( hypergraph.globalNodeID(3) ) );
+  ASSERT_TRUE( hypergraph.isBorderNode( hypergraph.globalNodeID(4) ) );
+  ASSERT_TRUE( hypergraph.isBorderNode( hypergraph.globalNodeID(5) ) );
+  ASSERT_TRUE( hypergraph.isBorderNode( hypergraph.globalNodeID(6) ) );
+
+  ASSERT_EQ( 1, hypergraph.numIncidentCutHyperedges( hypergraph.globalNodeID(0) ) );
+  ASSERT_EQ( 1, hypergraph.numIncidentCutHyperedges( hypergraph.globalNodeID(1) ) );
+  ASSERT_EQ( 1, hypergraph.numIncidentCutHyperedges( hypergraph.globalNodeID(2) ) );
+  ASSERT_EQ( 2, hypergraph.numIncidentCutHyperedges( hypergraph.globalNodeID(3) ) );
+  ASSERT_EQ( 2, hypergraph.numIncidentCutHyperedges( hypergraph.globalNodeID(4) ) );
+  ASSERT_EQ( 1, hypergraph.numIncidentCutHyperedges( hypergraph.globalNodeID(5) ) );
+  ASSERT_EQ( 2, hypergraph.numIncidentCutHyperedges( hypergraph.globalNodeID(6) ) );
+}
+
+TEST_F(AConcurrentHypergraph, HasCorrectBorderNodesIfNodesAreMovingConcurrently1) {
+  TestHypergraph hypergraph = construct_test_hypergraph(*this);
+
+  executeConcurrent([&] {
+    ASSERT_TRUE( hypergraph.changeNodePart(hypergraph.globalNodeID(3), 1, 0) );
+  }, [&] {
+    ASSERT_TRUE( hypergraph.changeNodePart(hypergraph.globalNodeID(4), 1, 0) );
+  });
+
+  ASSERT_FALSE( hypergraph.isBorderNode( hypergraph.globalNodeID(0) ) );
+  ASSERT_FALSE( hypergraph.isBorderNode( hypergraph.globalNodeID(1) ) );
+  ASSERT_TRUE( hypergraph.isBorderNode( hypergraph.globalNodeID(2) ) );
+  ASSERT_TRUE( hypergraph.isBorderNode( hypergraph.globalNodeID(3) ) );
+  ASSERT_TRUE( hypergraph.isBorderNode( hypergraph.globalNodeID(4) ) );
+  ASSERT_TRUE( hypergraph.isBorderNode( hypergraph.globalNodeID(5) ) );
+  ASSERT_TRUE( hypergraph.isBorderNode( hypergraph.globalNodeID(6) ) );
+
+  ASSERT_EQ( 0, hypergraph.numIncidentCutHyperedges( hypergraph.globalNodeID(0) ) );
+  ASSERT_EQ( 0, hypergraph.numIncidentCutHyperedges( hypergraph.globalNodeID(1) ) );
+  ASSERT_EQ( 1, hypergraph.numIncidentCutHyperedges( hypergraph.globalNodeID(2) ) );
+  ASSERT_EQ( 1, hypergraph.numIncidentCutHyperedges( hypergraph.globalNodeID(3) ) );
+  ASSERT_EQ( 1, hypergraph.numIncidentCutHyperedges( hypergraph.globalNodeID(4) ) );
+  ASSERT_EQ( 1, hypergraph.numIncidentCutHyperedges( hypergraph.globalNodeID(5) ) );
+  ASSERT_EQ( 2, hypergraph.numIncidentCutHyperedges( hypergraph.globalNodeID(6) ) );
+}
+
+TEST_F(AConcurrentHypergraph, HasCorrectBorderNodesIfNodesAreMovingConcurrently2) {
+  TestHypergraph hypergraph = construct_test_hypergraph(*this);
+
+  executeConcurrent([&] {
+    ASSERT_TRUE( hypergraph.changeNodePart(hypergraph.globalNodeID(3), 1, 0) );
+    ASSERT_TRUE( hypergraph.changeNodePart(hypergraph.globalNodeID(1), 0, 1) );
+  }, [&] {
+    ASSERT_TRUE( hypergraph.changeNodePart(hypergraph.globalNodeID(4), 1, 0) );
+    ASSERT_TRUE( hypergraph.changeNodePart(hypergraph.globalNodeID(2), 0, 1) );
+  });
+
+  ASSERT_TRUE( hypergraph.isBorderNode( hypergraph.globalNodeID(0) ) );
+  ASSERT_TRUE( hypergraph.isBorderNode( hypergraph.globalNodeID(1) ) );
+  ASSERT_TRUE( hypergraph.isBorderNode( hypergraph.globalNodeID(2) ) );
+  ASSERT_TRUE( hypergraph.isBorderNode( hypergraph.globalNodeID(3) ) );
+  ASSERT_TRUE( hypergraph.isBorderNode( hypergraph.globalNodeID(4) ) );
+  ASSERT_TRUE( hypergraph.isBorderNode( hypergraph.globalNodeID(5) ) );
+  ASSERT_TRUE( hypergraph.isBorderNode( hypergraph.globalNodeID(6) ) );
+
+  ASSERT_EQ( 2, hypergraph.numIncidentCutHyperedges( hypergraph.globalNodeID(0) ) );
+  ASSERT_EQ( 1, hypergraph.numIncidentCutHyperedges( hypergraph.globalNodeID(1) ) );
+  ASSERT_EQ( 2, hypergraph.numIncidentCutHyperedges( hypergraph.globalNodeID(2) ) );
+  ASSERT_EQ( 2, hypergraph.numIncidentCutHyperedges( hypergraph.globalNodeID(3) ) );
+  ASSERT_EQ( 2, hypergraph.numIncidentCutHyperedges( hypergraph.globalNodeID(4) ) );
+  ASSERT_EQ( 1, hypergraph.numIncidentCutHyperedges( hypergraph.globalNodeID(5) ) );
+  ASSERT_EQ( 2, hypergraph.numIncidentCutHyperedges( hypergraph.globalNodeID(6) ) );
+}
+
+TEST_F(AConcurrentHypergraph, HasCorrectBorderNodesIfNodesAreMovingConcurrently3) {
+  TestHypergraph hypergraph = construct_test_hypergraph(*this);
+
+  executeConcurrent([&] {
+    ASSERT_TRUE( hypergraph.changeNodePart(hypergraph.globalNodeID(6), 2, 0) );
+    ASSERT_TRUE( hypergraph.changeNodePart(hypergraph.globalNodeID(3), 1, 0) );
+  }, [&] {
+    ASSERT_TRUE( hypergraph.changeNodePart(hypergraph.globalNodeID(5), 2, 0) );
+    ASSERT_TRUE( hypergraph.changeNodePart(hypergraph.globalNodeID(4), 1, 0) );
+  });
+
+  ASSERT_FALSE( hypergraph.isBorderNode( hypergraph.globalNodeID(0) ) );
+  ASSERT_FALSE( hypergraph.isBorderNode( hypergraph.globalNodeID(1) ) );
+  ASSERT_FALSE( hypergraph.isBorderNode( hypergraph.globalNodeID(2) ) );
+  ASSERT_FALSE( hypergraph.isBorderNode( hypergraph.globalNodeID(3) ) );
+  ASSERT_FALSE( hypergraph.isBorderNode( hypergraph.globalNodeID(4) ) );
+  ASSERT_FALSE( hypergraph.isBorderNode( hypergraph.globalNodeID(5) ) );
+  ASSERT_FALSE( hypergraph.isBorderNode( hypergraph.globalNodeID(6) ) );
+
+  ASSERT_EQ( 0, hypergraph.numIncidentCutHyperedges( hypergraph.globalNodeID(0) ) );
+  ASSERT_EQ( 0, hypergraph.numIncidentCutHyperedges( hypergraph.globalNodeID(1) ) );
+  ASSERT_EQ( 0, hypergraph.numIncidentCutHyperedges( hypergraph.globalNodeID(2) ) );
+  ASSERT_EQ( 0, hypergraph.numIncidentCutHyperedges( hypergraph.globalNodeID(3) ) );
+  ASSERT_EQ( 0, hypergraph.numIncidentCutHyperedges( hypergraph.globalNodeID(4) ) );
+  ASSERT_EQ( 0, hypergraph.numIncidentCutHyperedges( hypergraph.globalNodeID(5) ) );
+  ASSERT_EQ( 0, hypergraph.numIncidentCutHyperedges( hypergraph.globalNodeID(6) ) );
+}
+
 
 } // namespace ds
 } // namespace mt_kahypar

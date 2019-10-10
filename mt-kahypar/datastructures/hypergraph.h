@@ -767,6 +767,11 @@ class Hypergraph {
     }
 
     setNodeWeight(memento.u, nodeWeight(memento.u) - nodeWeight(memento.v));
+
+    ASSERT( numIncidentCutHyperedges(memento.u) == numIncidentCutHEs(memento.u),
+            V(memento.u) << V(numIncidentCutHyperedges(memento.u)) << V(numIncidentCutHEs(memento.u)) );
+    ASSERT( numIncidentCutHyperedges(memento.v) == numIncidentCutHEs(memento.v),
+            V(memento.v) << V(numIncidentCutHyperedges(memento.v)) << V(numIncidentCutHEs(memento.v)) );
   }
 
   void removeEdge(const HyperedgeID he) {
@@ -775,7 +780,6 @@ class Hypergraph {
       hypergraph_of_vertex(pin).removeIncidentEdgeFromHypernode(he, pin);
     }
     hypergraph_of_edge(he).disableHyperedge(he);
-    // TODO(heuer): invalidate pin counts of he
   }
 
   void removeSinglePinEdge(const HyperedgeID he, const PartitionID community_id) {
@@ -794,15 +798,21 @@ class Hypergraph {
     }
   }
 
-  void restoreEdge(const HyperedgeID he, const size_t size) {
+  void restoreEdge(const HyperedgeID he, const size_t size, const HyperedgeID representative = kInvalidHyperedge) {
     ASSERT(!edgeIsEnabled(he), "Hyperedge" << he << "already enabled");
+    ASSERT(representative == kInvalidHyperedge || edgeIsEnabled(representative),
+           "Hyperedge" << representative << "is disabled");
     enableHyperedge(he);
     hypergraph_of_edge(he).hyperedge(he).setSize(size);
     StreamingHypergraph& hypergraph_of_he = hypergraph_of_edge(he);
+    bool representative_is_cut = representative != kInvalidHyperedge && connectivity(representative) > 1;
     for ( const HypernodeID& pin : pins(he) ) {
       hypergraph_of_vertex(pin).insertIncidentEdgeToHypernode(he, pin);
       ASSERT(partID(pin) != kInvalidPartition, V(pin) << V(partID(pin)));
       hypergraph_of_he.incrementPinCountInPart(he, partID(pin));
+      if ( representative_is_cut ) {
+        hypergraph_of_vertex(pin).incrementIncidentNumCutHyperedges(pin);
+      }
     }
   }
 
@@ -830,7 +840,7 @@ class Hypergraph {
 
       ASSERT(verifyThatHyperedgesAreParallel(representative, he),
              "HE" << he << "is not parallel to" << representative);
-      restoreEdge(he, edgeSize(representative));
+      restoreEdge(he, edgeSize(representative), representative);
       setEdgeWeight(representative, edgeWeight(representative) - edgeWeight(he));
       _parallel_he_representative[originalEdgeID(he)] = kInvalidHyperedge;
     }
@@ -927,8 +937,20 @@ class Hypergraph {
       _local_part_info.local().apply(to, PartInfo{ nodeWeight(u), 1 });
 
       for ( const HyperedgeID& he : incidentEdges(u) ) {
-        hypergraph_of_edge(he).decrementPinCountInPart(he, from);
-        hypergraph_of_edge(he).incrementPinCountInPart(he, to);
+        bool no_pins_left_in_source_part = hypergraph_of_edge(he).decrementPinCountInPart(he, from);
+        bool only_one_pin_in_to_part = hypergraph_of_edge(he).incrementPinCountInPart(he, to);
+
+        if ( no_pins_left_in_source_part && !only_one_pin_in_to_part &&
+             pinCountInPart(he, to) == edgeSize(he) ) {
+          for ( const HypernodeID& pin : pins(he) ) {
+            hypergraph_of_vertex(pin).decrementIncidentNumCutHyperedges(pin);
+          }
+        } else if ( !no_pins_left_in_source_part && only_one_pin_in_to_part &&
+                    pinCountInPart(he, from) == edgeSize(he) - 1 ) {
+          for ( const HypernodeID& pin : pins(he) ) {
+            hypergraph_of_vertex(pin).incrementIncidentNumCutHyperedges(pin);
+          }
+        }
       }
 
       return true;
@@ -966,6 +988,20 @@ class Hypergraph {
 
   PartitionID partID(const HypernodeID u) const {
     return hypergraph_of_vertex(u).partID(u);
+  }
+
+  bool isBorderNode(const HypernodeID u) const {
+    return hypergraph_of_vertex(u).isBorderNode(u);
+  }
+
+  HyperedgeID numIncidentCutHyperedges(const HypernodeID u) const {
+    return hypergraph_of_vertex(u).numIncidentCutHyperedges(u);
+  }
+
+  void initializeNumCutHyperedges() {
+    for ( StreamingHypergraph& hypergraph : _hypergraphs ) {
+      hypergraph.initializeNumCutHyperedges(_hypergraphs);
+    }
   }
 
   PartitionID connectivity(const HyperedgeID e) const {
@@ -1321,6 +1357,21 @@ class Hypergraph {
     mt_kahypar::utils::Timer::instance().add_timing("initialize_he_mapping", "Initialize HE Mapping",
       "initialize_hypernodes", mt_kahypar::utils::Timer::Type::IMPORT, 4, std::chrono::duration<double>(end - start).count());
   }
+
+  /*!
+   * Returns the number of incident hyperedges of a hypernode that connect more than on block.
+   * This method is used internally to verify the consistency of the public isBorderNode method.
+   */
+  HyperedgeID numIncidentCutHEs(const HypernodeID hn) const {
+    HyperedgeID num_cut_hes = 0;
+    for (const HyperedgeID& he : incidentEdges(hn)) {
+      if (connectivity(he) > 1) {
+        ++num_cut_hes;
+      }
+    }
+    return num_cut_hes;
+  }
+
 
   const StreamingHypergraph& hypergraph_of_vertex(const HypernodeID u) const {
     int node = StreamingHypergraph::get_numa_node_of_vertex(u);

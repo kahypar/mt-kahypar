@@ -95,6 +95,7 @@ class StreamingHypergraph {
   using HyperedgeWeight = HyperedgeWeightType_;
   using PartitionID = PartitionIDType_;
   using HypernodeAtomic = parallel::CopyableAtomic<HypernodeID>;
+  using HyperedgeAtomic = parallel::CopyableAtomic<HyperedgeID>;
   using PartitionAtomic = parallel::CopyableAtomic<PartitionID>;
 
   static constexpr PartitionID kInvalidPartition = -1;
@@ -112,6 +113,15 @@ class StreamingHypergraph {
   static_assert( std::is_unsigned<HypernodeID>::value, "Hypernode ID must be unsigned" );
   static_assert( sizeof(HyperedgeID) == 8, "Hyperedge ID must be 8 byte" );
   static_assert( std::is_unsigned<HyperedgeID>::value, "Hyperedge ID must be unsigned" );
+
+  struct AtomicHypernodeData {
+    AtomicHypernodeData() :
+      part_id(kInvalidPartition),
+      num_incident_cut_hes(0) { }
+
+    PartitionAtomic part_id;
+    HyperedgeAtomic num_incident_cut_hes;
+  };
 
   class Hypernode {
 
@@ -190,7 +200,7 @@ class StreamingHypergraph {
       }
 
       PartitionID communityID() const {
-        //ASSERT(!isDisabled());
+        ASSERT(!isDisabled());
         return _community_id;
       }
 
@@ -739,7 +749,7 @@ class StreamingHypergraph {
     _community_hyperedge_ids(),
     _community_hyperedges(),
     _incident_nets_of_v(),
-    _part_ids(),
+    _atomic_hn_data(),
     _pins_in_part(),
     _connectivity_sets(),
     _vertex_pin_count(),
@@ -773,7 +783,7 @@ class StreamingHypergraph {
     _community_hyperedge_ids(std::move(other._community_hyperedge_ids)),
     _community_hyperedges(std::move(other._community_hyperedges)),
     _incident_nets_of_v(std::move(other._incident_nets_of_v)),
-    _part_ids(std::move(other._part_ids)),
+    _atomic_hn_data(std::move(other._atomic_hn_data)),
     _pins_in_part(std::move(other._pins_in_part)),
     _connectivity_sets(std::move(other._connectivity_sets)),
     _vertex_pin_count(std::move(other._vertex_pin_count)),
@@ -1021,6 +1031,11 @@ class StreamingHypergraph {
         DBG << V(e) << " -> case 1";
         hyperedge(e).incrementSize();
         incrementPinCountInPart(e, hypergraph_of_vertex(v, hypergraphs).partID(v));
+
+        if ( connectivity(e) > 1 ) {
+          hypergraph_of_vertex(v, hypergraphs).incrementIncidentNumCutHyperedges(v);
+        }
+
         return false;
       } else {
         // Undo case 2 opeations (i.e. Entry of pin v in HE e was reused to store connection to u):
@@ -1038,7 +1053,11 @@ class StreamingHypergraph {
         DBG << "resetting reused Pinslot of HE" << e << "from" << u << "to" << v;
         resetReusedPinSlotToOriginalValue(e, u, v);
 
-        // TODO(heuer): Increment pin count in part
+        if ( connectivity(e) > 1 ) {
+          hypergraph_of_vertex(u, hypergraphs).decrementIncidentNumCutHyperedges(u);
+          hypergraph_of_vertex(v, hypergraphs).incrementIncidentNumCutHyperedges(v);
+        }
+
         return true;
       }
     }
@@ -1184,17 +1203,27 @@ class StreamingHypergraph {
   bool setNodePart(const HypernodeID u, PartitionID id) {
     ASSERT(!hypernode(u).isDisabled(), "Hypernode" << u << "is disabled");
     PartitionID invalid_id = kInvalidPartition;
-    return _part_ids[get_local_node_id_of_vertex(u)].compare_and_exchange_strong(invalid_id, id);
+    return _atomic_hn_data[get_local_node_id_of_vertex(u)].part_id.compare_and_exchange_strong(invalid_id, id);
   }
 
   bool changeNodePart(const HypernodeID u, PartitionID from, PartitionID to) {
     ASSERT(!hypernode(u).isDisabled(), "Hypernode" << u << "is disabled");
-    return _part_ids[get_local_node_id_of_vertex(u)].compare_and_exchange_strong(from, to);
+    return _atomic_hn_data[get_local_node_id_of_vertex(u)].part_id.compare_and_exchange_strong(from, to);
   }
 
   PartitionID partID(const HypernodeID u) const {
     ASSERT(!hypernode(u).isDisabled(), "Hypernode" << u << "is disabled");
-    return _part_ids[get_local_node_id_of_vertex(u)];
+    return _atomic_hn_data[get_local_node_id_of_vertex(u)].part_id;
+  }
+
+  bool isBorderNode(const HypernodeID u) const {
+    ASSERT(!hypernode(u).isDisabled(), "Hypernode" << u << "is disabled");
+    return _atomic_hn_data[get_local_node_id_of_vertex(u)].num_incident_cut_hes > 0;
+  }
+
+  HyperedgeID numIncidentCutHyperedges(const HypernodeID u) const {
+    ASSERT(!hypernode(u).isDisabled(), "Hypernode" << u << "is disabled");
+    return _atomic_hn_data[get_local_node_id_of_vertex(u)].num_incident_cut_hes;
   }
 
   PartitionID connectivity(const HyperedgeID e) const {
@@ -1372,7 +1401,7 @@ class StreamingHypergraph {
 
     _hypernodes = _hypernode_stream.copy(_arena);
     _num_hypernodes = _hypernodes.size();
-    _part_ids.assign(_num_hypernodes, PartitionAtomic(kInvalidPartition));
+    _atomic_hn_data.resize(_num_hypernodes);
 
     // Sort hypernodes in increasing order of their node id and ...
     HighResClockTimepoint start = std::chrono::high_resolution_clock::now();
@@ -2088,7 +2117,28 @@ class StreamingHypergraph {
     }
   }
 
-  bool decrementPinCountInPart(const HyperedgeID he, const PartitionID id) {
+  void initializeNumCutHyperedges(const std::vector<Self>& hypergraphs) {
+    for ( const HypernodeID& hn : nodes() ) {
+      ASSERT( _atomic_hn_data[get_local_node_id_of_vertex(hn)].num_incident_cut_hes == 0 );
+      for ( const HyperedgeID& he : incidentEdges(hn) ) {
+        if ( hypergraph_of_hyperedge(he, hypergraphs).connectivity(he) > 1 ) {
+          incrementIncidentNumCutHyperedges(hn);
+        }
+      }
+    }
+  }
+
+  KAHYPAR_ATTRIBUTE_ALWAYS_INLINE void decrementIncidentNumCutHyperedges(const HypernodeID u) {
+    ASSERT(!hypernode(u).isDisabled(), "Hypernode" << u << "is disabled");
+    --_atomic_hn_data[get_local_node_id_of_vertex(u)].num_incident_cut_hes;
+  }
+
+  KAHYPAR_ATTRIBUTE_ALWAYS_INLINE void incrementIncidentNumCutHyperedges(const HypernodeID u) {
+    ASSERT(!hypernode(u).isDisabled(), "Hypernode" << u << "is disabled");
+    ++_atomic_hn_data[get_local_node_id_of_vertex(u)].num_incident_cut_hes;
+  }
+
+  KAHYPAR_ATTRIBUTE_ALWAYS_INLINE bool decrementPinCountInPart(const HyperedgeID he, const PartitionID id) {
     ASSERT(!hyperedge(he).isDisabled(), "Hyperedge" << he << "is disabled");
     ASSERT(pinCountInPart(he, id) > 0,
            "HE" << he << ": pin_count[" << id << "]=" << pinCountInPart(he, id)
@@ -2105,7 +2155,7 @@ class StreamingHypergraph {
     return connectivity_decreased;
   }
 
-  bool incrementPinCountInPart(const HyperedgeID he, const PartitionID id) {
+  KAHYPAR_ATTRIBUTE_ALWAYS_INLINE bool incrementPinCountInPart(const HyperedgeID he, const PartitionID id) {
     ASSERT(!hyperedge(he).isDisabled(), "Hyperedge" << he << "is disabled");
     ASSERT(pinCountInPart(he, id) <= edgeSize(he),
            "HE" << he << ": pin_count[" << id << "]=" << pinCountInPart(he, id)
@@ -2278,8 +2328,9 @@ class StreamingHypergraph {
   // ! all incident nets of contraction partner v
   kahypar::ds::FastResetFlagArray<> _incident_nets_of_v;
 
-  // ! For each hypernode, _part_ids stores the corresponding block of the vertex
-  parallel::scalable_vector<PartitionAtomic> _part_ids;
+  // ! For each hypernode, _atomic_hn_data stores the corresponding block of the vertex
+  // ! and the number of incident cut hyperedges
+  parallel::scalable_vector<AtomicHypernodeData> _atomic_hn_data;
   // ! For each hyperedge and each block, _pins_in_part stores the number of pins in that block
   parallel::scalable_vector<HypernodeAtomic> _pins_in_part;
   // ! For each hyperedge, _connectivity_sets stores the connectivity and the set of block ids

@@ -165,6 +165,7 @@ class InitialPartitionerT {
       _hg.setNodePart(hn, part_id);
     }
     _hg.updateGlobalPartInfos();
+    _hg.initializeNumCutHyperedges();
 
     kahypar_context_free(context);
   }

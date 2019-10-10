@@ -55,6 +55,7 @@ class AConcurrentHypergraph : public Test {
       hypergraph.setNodePart(hn, id);
     }
     hypergraph.updateGlobalPartInfos();
+    hypergraph.initializeNumCutHyperedges();
   }
 
   static void SetUpTestSuite() {
@@ -182,13 +183,39 @@ void verifyConnectivitySet(mt_kahypar::Hypergraph& hypergraph,
   }
 }
 
-TYPED_TEST(AConcurrentHypergraph, SmokeTest) {
+void verifyBorderNodes(mt_kahypar::Hypergraph& hypergraph) {
+  for ( const HypernodeID& hn : hypergraph.nodes() ) {
+    bool is_border_node = false;
+    for ( const HyperedgeID& he : hypergraph.incidentEdges(hn) ) {
+      if ( hypergraph.connectivity(he) > 1 ) {
+        is_border_node = true;
+        break;
+      }
+    }
+    ASSERT_EQ(is_border_node, hypergraph.isBorderNode(hn));
+  }
+}
+
+
+TYPED_TEST(AConcurrentHypergraph, VerifyBlockWeightsSmokeTest) {
   moveAllNodesOfHypergraphRandom(this->hypergraph, this->k, this->num_threads, false);
   verifyBlockWeightsAndSizes(this->hypergraph, this->k);
+}
+
+TYPED_TEST(AConcurrentHypergraph, VerifyPinCountsInPartsSmokeTest) {
+  moveAllNodesOfHypergraphRandom(this->hypergraph, this->k, this->num_threads, false);
   verifyPinCountsInParts(this->hypergraph, this->k);
+}
+
+TYPED_TEST(AConcurrentHypergraph, VerifyConnectivitySetSmokeTest) {
+  moveAllNodesOfHypergraphRandom(this->hypergraph, this->k, this->num_threads, false);
   verifyConnectivitySet(this->hypergraph, this->k);
 }
 
+TYPED_TEST(AConcurrentHypergraph, VerifyBorderNodesSmokeTest) {
+  moveAllNodesOfHypergraphRandom(this->hypergraph, this->k, this->num_threads, false);
+  verifyBorderNodes(this->hypergraph);
+}
 
 } // namespace ds
 } // namespace mt_kahypar

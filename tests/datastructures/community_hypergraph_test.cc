@@ -46,6 +46,8 @@ void assignPartitionIDs(TestHypergraph& hypergraph) {
     PartitionID part_id = TestStreamingHypergraph::get_numa_node_of_vertex(hn);
     hypergraph.setNodePart(hn, part_id);
   }
+  hypergraph.updateGlobalPartInfos();
+  hypergraph.initializeNumCutHyperedges();
 }
 
 template< typename IDType, typename F >

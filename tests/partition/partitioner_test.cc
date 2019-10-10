@@ -186,6 +186,21 @@ TEST_F(APartitioner, ComputesCorrectPinCountsInPartValuesAndConnectivitySets) {
   }
 }
 
+TEST_F(APartitioner, ComputesCorrectBorderNodes) {
+  partition::Partitioner().partition(hypergraph, context);
+
+  for ( const HypernodeID& hn : hypergraph.nodes() ) {
+    bool is_border_node = false;
+    for ( const HyperedgeID& he : hypergraph.incidentEdges(hn) ) {
+      if ( hypergraph.connectivity(he) > 1 ) {
+        is_border_node = true;
+        break;
+      }
+    }
+    ASSERT_EQ(is_border_node, hypergraph.isBorderNode(hn)) << V(hn);
+  }
+}
+
 TEST_F(APartitioner, IsEqualWithInputHypergraphAfterPartitioning) {
   Hypergraph reference = io::readHypergraphFile("test_instances/ibm01.hgr", context.partition.k);
   partition::Partitioner().partition(hypergraph, context);

@@ -44,6 +44,7 @@ void assignPartitionIDs(TestHypergraph& hypergraph) {
     hypergraph.setNodePart(hn, part_id);
   }
   hypergraph.updateGlobalPartInfos();
+  hypergraph.initializeNumCutHyperedges();
 }
 
 template< typename IDType >
