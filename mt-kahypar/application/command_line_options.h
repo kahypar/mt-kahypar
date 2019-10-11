@@ -169,7 +169,7 @@ po::options_description createCoarseningOptionsDescription(Context& context,
 }
 
 po::options_description createInitialPartitioningOptionsDescription(Context& context, const int num_columns) {
-  po::options_description options("General Options", num_columns);
+  po::options_description options("Initial Partitioning Options", num_columns);
   options.add_options()
     ("i-context-file",
     po::value<std::string>(&context.initial_partitioning.context_file)->required()->value_name("<string>"),
@@ -184,6 +184,26 @@ po::options_description createInitialPartitioningOptionsDescription(Context& con
     po::value<size_t>(&context.initial_partitioning.runs)->value_name("<size_t>"),
     "Number of runs for initial partitioner \n"
     "(default: 1)");
+  return options;
+}
+
+po::options_description createRefinementOptionsDescription(Context& context, const int num_columns) {
+  po::options_description options("Refinement Options", num_columns);
+  options.add_options()
+    ("r-lp-type",
+    po::value<std::string>()->value_name("<string>")->notifier(
+      [&](const std::string& type) {
+        context.refinement.label_propagation.algorithm =
+          labelPropagationAlgorithmFromString(type);
+    }),
+    "Algorithm used for label propagation:\n"
+    "- label_propagation_km1\n"
+    "- label_propagation_cut\n"
+    "- do_nothing")
+    ("r-lp-maximum-iterations",
+    po::value<size_t>(&context.refinement.label_propagation.maximum_iterations)->value_name("<size_t>"),
+    "Maximum number of iterations over all nodes during label propagation\n"
+    "(default 1)");
   return options;
 }
 
@@ -247,17 +267,20 @@ void processCommandLineInput(Context& context, int argc, char* argv[]) {
     createCoarseningOptionsDescription(context, num_columns);
   po::options_description initial_paritioning_options =
     createInitialPartitioningOptionsDescription(context, num_columns);
+  po::options_description refinement_options =
+    createRefinementOptionsDescription(context, num_columns);
   po::options_description shared_memory_options =
     createSharedMemoryOptionsDescription(context, num_columns);
 
   po::options_description cmd_line_options;
   cmd_line_options.add(generic_options)
-  .add(required_options)
-  .add(preset_options)
-  .add(general_options)
-  .add(coarsening_options)
-  .add(initial_paritioning_options)
-  .add(shared_memory_options);
+                  .add(required_options)
+                  .add(preset_options)
+                  .add(general_options)
+                  .add(coarsening_options)
+                  .add(initial_paritioning_options)
+                  .add(refinement_options)
+                  .add(shared_memory_options);
 
   po::variables_map cmd_vm;
   po::store(po::parse_command_line(argc, argv, cmd_line_options), cmd_vm);
@@ -280,9 +303,10 @@ void processCommandLineInput(Context& context, int argc, char* argv[]) {
 
   po::options_description ini_line_options;
   ini_line_options.add(general_options)
-  .add(coarsening_options)
-  .add(initial_paritioning_options)
-  .add(shared_memory_options);
+                  .add(coarsening_options)
+                  .add(initial_paritioning_options)
+                  .add(refinement_options)
+                  .add(shared_memory_options);
 
   po::store(po::parse_config_file(file, ini_line_options, true), cmd_vm);
   po::notify(cmd_vm);

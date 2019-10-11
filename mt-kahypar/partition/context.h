@@ -113,8 +113,30 @@ struct InitialPartitioningParameters {
 inline std::ostream& operator<< (std::ostream& str, const InitialPartitioningParameters& params) {
   str << "Initial Partitioning Parameters:" << std::endl;
   str << "  Initial Partitioning Context:       " << params.context_file << std::endl;
-  str << "  Call KaHyPar Multiple Times:        " << std::boolalpha << params.call_kahypar_multiple_times << std::endl;
+  str << "  Call KaHyPar multiple times:        " << std::boolalpha << params.call_kahypar_multiple_times << std::endl;
   str << "  Number of Runs:                     " << params.runs << std::endl;
+  return str;
+}
+
+struct LabelPropagationParameters {
+  LabelPropagationAlgorithm algorithm = LabelPropagationAlgorithm::do_nothing;
+  size_t maximum_iterations = 1;
+};
+
+inline std::ostream& operator<< (std::ostream& str, const LabelPropagationParameters& params) {
+  str << "  Label Propagation Parameters:" << std::endl;
+  str << "    Algorithm:                        " << params.algorithm << std::endl;
+  str << "    Maximum Iterations:               " << params.maximum_iterations << std::endl;
+  return str;
+}
+
+struct RefinementParameters {
+  LabelPropagationParameters label_propagation;
+};
+
+inline std::ostream& operator<< (std::ostream& str, const RefinementParameters& params) {
+  str << "Refinement Parameters:" << std::endl;
+  str << params.label_propagation;
   return str;
 }
 
@@ -140,6 +162,7 @@ class Context {
   PartitioningParameters partition { };
   CoarseningParameters coarsening { };
   InitialPartitioningParameters initial_partitioning { };
+  RefinementParameters refinement { };
   SharedMemoryParameters shared_memory { };
   ContextType type = ContextType::main;
 
@@ -184,6 +207,8 @@ inline std::ostream& operator<< (std::ostream& str, const Context& context) {
       << context.coarsening
       << "-------------------------------------------------------------------------------\n"
       << context.initial_partitioning
+      << "-------------------------------------------------------------------------------\n"
+      << context.refinement
       << "-------------------------------------------------------------------------------\n"
       << context.shared_memory
       << "-------------------------------------------------------------------------------";

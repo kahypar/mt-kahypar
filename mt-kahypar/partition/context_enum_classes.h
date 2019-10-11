@@ -68,6 +68,12 @@ enum class AcceptancePolicy : uint8_t {
   UNDEFINED
 };
 
+enum class LabelPropagationAlgorithm : uint8_t {
+  label_propagation_km1,
+  label_propagation_cut,
+  do_nothing
+};
+
 std::ostream& operator<< (std::ostream& os, const Type& type) {
   switch (type) {
     case Type::Unweighted: return os << "unweighted";
@@ -136,6 +142,16 @@ std::ostream& operator<< (std::ostream& os, const RatingFunction& func) {
   return os << static_cast<uint8_t>(func);
 }
 
+std::ostream& operator<< (std::ostream& os, const LabelPropagationAlgorithm& algo) {
+  switch (algo) {
+    case LabelPropagationAlgorithm::label_propagation_km1: return os << "label_propagation_km1";
+    case LabelPropagationAlgorithm::label_propagation_cut: return os << "label_propagation_cut";
+    case LabelPropagationAlgorithm::do_nothing: return os << "do_nothing";
+      // omit default case to trigger compiler warning for missing cases
+  }
+  return os << static_cast<uint8_t>(algo);
+}
+
 static CommunityAssignmentObjective communityAssignmentObjectiveFromString(const std::string& objective) {
   if (objective == "vertex_objective") {
     return CommunityAssignmentObjective::vertex_objective;
@@ -196,6 +212,19 @@ static RatingFunction ratingFunctionFromString(const std::string& function) {
   LOG << "No valid rating function for rating.";
   exit(0);
   return RatingFunction::UNDEFINED;
+}
+
+static LabelPropagationAlgorithm labelPropagationAlgorithmFromString(const std::string& type) {
+  if (type == "label_propagation_km1") {
+    return LabelPropagationAlgorithm::label_propagation_km1;
+  } else if (type == "label_propagation_cut") {
+    return LabelPropagationAlgorithm::label_propagation_cut;
+  } else if (type == "do_nothing") {
+    return LabelPropagationAlgorithm::do_nothing;
+  }
+  LOG << "Illegal option:" << type;
+  exit(0);
+  return LabelPropagationAlgorithm::do_nothing;
 }
 
 } // namesapce mt_kahypar
