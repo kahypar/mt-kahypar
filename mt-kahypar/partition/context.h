@@ -121,12 +121,14 @@ inline std::ostream& operator<< (std::ostream& str, const InitialPartitioningPar
 struct LabelPropagationParameters {
   LabelPropagationAlgorithm algorithm = LabelPropagationAlgorithm::do_nothing;
   size_t maximum_iterations = 1;
+  ExecutionType execution_policy = ExecutionType::UNDEFINED;
 };
 
 inline std::ostream& operator<< (std::ostream& str, const LabelPropagationParameters& params) {
   str << "  Label Propagation Parameters:" << std::endl;
   str << "    Algorithm:                        " << params.algorithm << std::endl;
   str << "    Maximum Iterations:               " << params.maximum_iterations << std::endl;
+  str << "    Execution Policy:                 " << params.execution_policy << std::endl;
   return str;
 }
 

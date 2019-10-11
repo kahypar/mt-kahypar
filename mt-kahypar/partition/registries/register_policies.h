@@ -29,6 +29,7 @@
 #include "mt-kahypar/partition/coarsening/policies/rating_score_policy.h"
 #include "mt-kahypar/partition/coarsening/policies/rating_heavy_node_penalty_policy.h"
 #include "mt-kahypar/partition/coarsening/policies/rating_acceptance_policy.h"
+#include "mt-kahypar/partition/refinement/policies/execution_policy.h"
 
 #define REGISTER_POLICY(policy, id, policy_class)                                  \
   static meta::Registrar<meta::PolicyRegistry<policy> > register_ ## policy_class( \
@@ -62,5 +63,14 @@ REGISTER_POLICY(AcceptancePolicy, AcceptancePolicy::best,
                 BestRatingWithTieBreaking);
 REGISTER_POLICY(AcceptancePolicy, AcceptancePolicy::best_prefer_unmatched,
                 BestRatingPreferringUnmatched);
+
+// //////////////////////////////////////////////////////////////////////////////
+//                              Refinement Policies
+// //////////////////////////////////////////////////////////////////////////////
+
+REGISTER_POLICY(ExecutionType, ExecutionType::exponential,
+                ExponentialExecutionPolicy);
+REGISTER_POLICY(ExecutionType, ExecutionType::multilevel,
+                MultilevelExecutionPolicy);
 
 } // namespace mt_kahypar

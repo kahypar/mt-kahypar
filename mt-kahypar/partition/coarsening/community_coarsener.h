@@ -197,8 +197,8 @@ class CommunityCoarsenerT : public ICoarsener,
     }
   }
 
-  bool uncoarsenImpl() override {
-    return this->doUncoarsen();
+  bool uncoarsenImpl(std::unique_ptr<IRefiner>& label_propagation) override {
+    return this->doUncoarsen(label_propagation);
   }
 
   using Base::_hg;

@@ -74,6 +74,12 @@ enum class LabelPropagationAlgorithm : uint8_t {
   do_nothing
 };
 
+enum class ExecutionType : uint8_t {
+  exponential,
+  multilevel,
+  UNDEFINED
+};
+
 std::ostream& operator<< (std::ostream& os, const Type& type) {
   switch (type) {
     case Type::Unweighted: return os << "unweighted";
@@ -152,6 +158,16 @@ std::ostream& operator<< (std::ostream& os, const LabelPropagationAlgorithm& alg
   return os << static_cast<uint8_t>(algo);
 }
 
+std::ostream& operator<< (std::ostream& os, const ExecutionType& type) {
+  switch (type) {
+    case ExecutionType::exponential: return os << "exponential";
+    case ExecutionType::multilevel: return os << "multilevel";
+    case ExecutionType::UNDEFINED: return os << "UNDEFINED";
+      // omit default case to trigger compiler warning for missing cases
+  }
+  return os << static_cast<uint8_t>(type);
+}
+
 static CommunityAssignmentObjective communityAssignmentObjectiveFromString(const std::string& objective) {
   if (objective == "vertex_objective") {
     return CommunityAssignmentObjective::vertex_objective;
@@ -225,6 +241,17 @@ static LabelPropagationAlgorithm labelPropagationAlgorithmFromString(const std::
   LOG << "Illegal option:" << type;
   exit(0);
   return LabelPropagationAlgorithm::do_nothing;
+}
+
+static ExecutionType executionTypeFromString(const std::string& type) {
+  if (type == "exponential") {
+    return ExecutionType::exponential;
+  } else if (type == "multilevel") {
+    return ExecutionType::multilevel;
+  }
+  LOG << "Illegal option:" << type;
+  exit(0);
+  return ExecutionType::UNDEFINED;
 }
 
 } // namesapce mt_kahypar

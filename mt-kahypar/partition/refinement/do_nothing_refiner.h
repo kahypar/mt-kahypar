@@ -1,8 +1,7 @@
 /*******************************************************************************
  * This file is part of KaHyPar.
  *
- * Copyright (C) 2018 Sebastian Schlag <sebastian.schlag@kit.edu>
- * Copyright (C) 2019 Tobias Heuer <tobias.heuer@kit.edu>
+ * Copyright (C) 2015 Sebastian Schlag <sebastian.schlag@kit.edu>
  *
  * KaHyPar is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -21,7 +20,26 @@
 
 #pragma once
 
-#include "mt-kahypar/partition/registries/register_policies.h"
-#include "mt-kahypar/partition/registries/register_preprocessing_algorithms.h"
-#include "mt-kahypar/partition/registries/register_coarsening_algorithms.h"
-#include "mt-kahypar/partition/registries/register_refinement_algorithms.h"
+#include <array>
+#include <string>
+#include <utility>
+#include <vector>
+
+#include "mt-kahypar/partition/refinement/i_refiner.h"
+
+namespace mt_kahypar {
+class DoNothingRefiner final : public IRefiner {
+ public:
+  template <typename ... Args>
+  explicit DoNothingRefiner(Args&& ...) noexcept { }
+  DoNothingRefiner(const DoNothingRefiner&) = delete;
+  DoNothingRefiner(DoNothingRefiner&&) = delete;
+  DoNothingRefiner& operator= (const DoNothingRefiner&) = delete;
+  DoNothingRefiner& operator= (DoNothingRefiner&&) = delete;
+  ~DoNothingRefiner() override = default;
+
+ private:
+  bool refineImpl(std::vector<HypernodeID>&,
+                  kahypar::Metrics&) override final { return false; }
+};
+}  // namespace kahypar

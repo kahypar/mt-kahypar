@@ -203,7 +203,16 @@ po::options_description createRefinementOptionsDescription(Context& context, con
     ("r-lp-maximum-iterations",
     po::value<size_t>(&context.refinement.label_propagation.maximum_iterations)->value_name("<size_t>"),
     "Maximum number of iterations over all nodes during label propagation\n"
-    "(default 1)");
+    "(default 1)")
+    ("r-lp-execution-policy",
+    po::value<std::string>()->value_name("<string>")->notifier(
+      [&](const std::string& type) {
+        context.refinement.label_propagation.execution_policy =
+          executionTypeFromString(type);
+    }),
+    "Execution policy used for label propagation:\n"
+    "- exponential\n"
+    "- multilevel\n");
   return options;
 }
 

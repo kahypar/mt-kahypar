@@ -418,14 +418,9 @@ class Hypergraph {
 
   // ! Recomputes the total weight of the hypergraph (in parallel)
   void updateTotalWeight() {
-    for ( int node = 0; node < (int) _hypergraphs.size(); ++node ) {
-      TBBNumaArena::instance().numa_task_arena(node).execute([&, node] {
-        TBBNumaArena::instance().numa_task_group(node).run([&, node] {
-          _hypergraphs[node].updateTotalWeight();
-        });
-      });
-    }
-    TBBNumaArena::instance().wait();
+    TBBNumaArena::instance().execute_on_all_numa_nodes([&](const int node) {
+      _hypergraphs[node].updateTotalWeight();
+    });
   }
 
   // ! Number of blocks this hypergraph is partitioned into

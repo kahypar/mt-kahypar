@@ -33,6 +33,9 @@
 #include "mt-kahypar/partition/coarsening/policies/rating_community_policy.h"
 #include "mt-kahypar/partition/coarsening/policies/rating_heavy_node_penalty_policy.h"
 #include "mt-kahypar/partition/coarsening/policies/rating_acceptance_policy.h"
+#include "mt-kahypar/partition/refinement/i_refiner.h"
+#include "mt-kahypar/partition/refinement/label_propagation_refiner.h"
+#include "mt-kahypar/partition/refinement/policies/execution_policy.h"
 
 namespace mt_kahypar {
 
@@ -51,6 +54,16 @@ using CommunityCoarsenerDispatcher = kahypar::meta::StaticMultiDispatchFactory<C
                                                                                kahypar::meta::Typelist<RatingScorePolicies,
                                                                                                        HeavyNodePenaltyPolicies,
                                                                                                        AcceptancePolicies>>;
+
+
+using LabelPropagationFactory = meta::Factory<LabelPropagationAlgorithm,
+                                              IRefiner* (*)(Hypergraph&, const Context&)>;
+
+using LabelPropagationDispatcher = kahypar::meta::StaticMultiDispatchFactory<LabelPropagationRefiner,
+                                                                             IRefiner,
+                                                                             kahypar::meta::Typelist<ExecutionPolicyClasses>>;
+
+
 
 
 } // namespace mt_kahypar

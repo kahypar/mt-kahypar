@@ -27,8 +27,11 @@
 #include "tbb/parallel_for.h"
 #include "tbb/blocked_range.h"
 
+#include "kahypar/partition/metrics.h"
+
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/context.h"
+#include "mt-kahypar/partition/metrics.h"
 #include "mt-kahypar/partition/coarsening/hypergraph_pruner.h"
 
 namespace mt_kahypar {
@@ -112,19 +115,43 @@ class CommunityCoarsenerBase {
     _pruner[community_id].removeParallelHyperedges(_hg, community_id, _community_history[community_id].back());
   }
 
-  bool doUncoarsen() {
+  bool doUncoarsen( std::unique_ptr<IRefiner>& label_propagation ) {
     ASSERT(!_init, "Community coarsener must be finalized before uncoarsening");
 
+    kahypar::Metrics current_metrics = { metrics::hyperedgeCut(_hg),
+                                         metrics::km1(_hg),
+                                         metrics::imbalance(_hg, _context) };
+    std::vector<HypernodeID> refinement_nodes;
+
     while ( !_history.empty() ) {
+      HighResClockTimepoint start = std::chrono::high_resolution_clock::now();
       PartitionID community_id = _hg.communityID(_history.back().u);
       DBG << "Uncontracting: (" << _history.back().u << "," << _history.back().v << ")" << V(_history.size());
       _pruner[community_id].restoreParallelHyperedges(_hg, _history.back());
       _pruner[community_id].restoreSingleNodeHyperedges(_hg, _history.back());
       _hg.uncontract(_history.back(), _parallel_he_representative);
+      refinement_nodes.push_back(_history.back().u);
+      refinement_nodes.push_back(_history.back().v);
       _hg.updateGlobalPartInfos();
+      HighResClockTimepoint end = std::chrono::high_resolution_clock::now();
+      mt_kahypar::utils::Timer::instance().update_timing("uncontraction", "Uncontraction",
+        "refinement", mt_kahypar::utils::Timer::Type::REFINEMENT, 0, std::chrono::duration<double>(end - start).count());
+
+      // Call label propagation refiner
+      start = std::chrono::high_resolution_clock::now();
+      label_propagation->refine(refinement_nodes, current_metrics);
+      end = std::chrono::high_resolution_clock::now();
+      mt_kahypar::utils::Timer::instance().update_timing("label_propagation", "Label Propagation",
+        "refinement", mt_kahypar::utils::Timer::Type::REFINEMENT, 1, std::chrono::duration<double>(end - start).count());
+
+
+      refinement_nodes.clear();
       _history.pop_back();
     }
 
+
+    ASSERT( metrics::objective(_hg, _context.partition.objective) ==
+            current_metrics.getMetric(kahypar::Mode::direct_kway, _context.partition.objective) );
     return true;
   }
 

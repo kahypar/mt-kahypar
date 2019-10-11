@@ -16,39 +16,43 @@
  * You should have received a copy of the GNU General Public License
  * along with KaHyPar.  If not, see <http://www.gnu.org/licenses/>.
  *
-******************************************************************************/
+ ******************************************************************************/
 
 #pragma once
 
+#include <array>
 #include <string>
+#include <utility>
+#include <vector>
 
 #include "kahypar/macros.h"
-#include "mt-kahypar/partition/refinement/i_refiner.h"
+#include "kahypar/partition/metrics.h"
+
+#include "mt-kahypar/definitions.h"
 
 namespace mt_kahypar {
 
-class ICoarsener {
+class IRefiner {
  public:
-  ICoarsener(const ICoarsener&) = delete;
-  ICoarsener(ICoarsener&&) = delete;
-  ICoarsener& operator= (const ICoarsener&) = delete;
-  ICoarsener& operator= (ICoarsener&&) = delete;
+  IRefiner(const IRefiner&) = delete;
+  IRefiner(IRefiner&&) = delete;
+  IRefiner& operator= (const IRefiner&) = delete;
+  IRefiner& operator= (IRefiner&&) = delete;
 
-  void coarsen() {
-    coarsenImpl();
+  virtual ~IRefiner() = default;
+
+  bool refine(std::vector<HypernodeID>& refinement_nodes,
+              kahypar::Metrics& best_metrics) {
+    return refineImpl(refinement_nodes, best_metrics);
   }
 
-  bool uncoarsen(std::unique_ptr<IRefiner>& label_propagation) {
-    return uncoarsenImpl(label_propagation);
-  }
-
-  virtual ~ICoarsener() = default;
 
  protected:
-  ICoarsener() = default;
+  IRefiner() = default;
 
  private:
-  virtual void coarsenImpl() = 0;
-  virtual bool uncoarsenImpl(std::unique_ptr<IRefiner>& label_propagation) = 0;
+  virtual bool refineImpl(std::vector<HypernodeID>& refinement_nodes,
+                          kahypar::Metrics& best_metrics) = 0;
 };
-}  // namespace kahypar
+
+}  // namespace mt_kahypar
