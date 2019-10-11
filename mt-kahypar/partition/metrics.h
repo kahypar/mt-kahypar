@@ -25,6 +25,7 @@
 #include <algorithm>
 #include <vector>
 
+#include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/definitions.h"
 
 namespace mt_kahypar {
@@ -102,10 +103,10 @@ static inline double absorption(const Hypergraph& hypergraph) {
   return absorption_val;
 }
 
-static inline HyperedgeWeight objective(const Hypergraph& hg, const Objective& objective) {
+static inline HyperedgeWeight objective(const Hypergraph& hg, const kahypar::Objective& objective) {
   switch (objective) {
-    case Objective::cut: return hyperedgeCut(hg);
-    case Objective::km1: return km1(hg);
+    case kahypar::Objective::cut: return hyperedgeCut(hg);
+    case kahypar::Objective::km1: return km1(hg);
     default:
       LOG << "Unknown Objective";
       exit(-1);

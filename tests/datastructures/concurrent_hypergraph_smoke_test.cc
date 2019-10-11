@@ -23,20 +23,23 @@
 #include "tbb/task_arena.h"
 #include "tbb/task_group.h"
 #include "tbb/blocked_range.h"
+#include "tbb/enumerable_thread_specific.h"
 
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/io/hypergraph_io.h"
 #include "mt-kahypar/utils/randomize.h"
+#include "mt-kahypar/partition/metrics.h"
 
 using ::testing::Test;
 
 namespace mt_kahypar {
 namespace ds {
 
-template< PartitionID k, size_t num_threads >
+template< PartitionID k, size_t num_threads, kahypar::Objective objective >
 struct TestConfig {
   static constexpr PartitionID K = k;
   static constexpr size_t NUM_THREADS = num_threads;
+  static constexpr kahypar::Objective OBJECTIVE = objective;
 };
 
 template< typename Config >
@@ -46,6 +49,7 @@ class AConcurrentHypergraph : public Test {
   AConcurrentHypergraph() :
     k(Config::K),
     num_threads(Config::NUM_THREADS),
+    objective(Config::OBJECTIVE),
     hypergraph() {
     int cpu_id = sched_getcpu();
     hypergraph =
@@ -65,30 +69,52 @@ class AConcurrentHypergraph : public Test {
 
   PartitionID k;
   size_t num_threads;
+  kahypar::Objective objective;
   mt_kahypar::Hypergraph hypergraph;
 };
 
-typedef ::testing::Types<TestConfig<2,   1>,
-                         TestConfig<2,   2>,
-                         TestConfig<2,   4>,
-                         TestConfig<4,   1>,
-                         TestConfig<4,   2>,
-                         TestConfig<4,   4>,
-                         TestConfig<8,   1>,
-                         TestConfig<8,   2>,
-                         TestConfig<8,   4>,
-                         TestConfig<16,  1>,
-                         TestConfig<16,  2>,
-                         TestConfig<16,  4>,
-                         TestConfig<32,  1>,
-                         TestConfig<32,  2>,
-                         TestConfig<32,  4>,
-                         TestConfig<64,  1>,
-                         TestConfig<64,  2>,
-                         TestConfig<64,  4>,
-                         TestConfig<128, 1>,
-                         TestConfig<128, 2>,
-                         TestConfig<128, 4> > TestConfigs;
+typedef ::testing::Types<TestConfig<2,   1, kahypar::Objective::cut>,
+                         TestConfig<2,   2, kahypar::Objective::cut>,
+                         TestConfig<2,   4, kahypar::Objective::cut>,
+                         TestConfig<4,   1, kahypar::Objective::cut>,
+                         TestConfig<4,   2, kahypar::Objective::cut>,
+                         TestConfig<4,   4, kahypar::Objective::cut>,
+                         TestConfig<8,   1, kahypar::Objective::cut>,
+                         TestConfig<8,   2, kahypar::Objective::cut>,
+                         TestConfig<8,   4, kahypar::Objective::cut>,
+                         TestConfig<16,  1, kahypar::Objective::cut>,
+                         TestConfig<16,  2, kahypar::Objective::cut>,
+                         TestConfig<16,  4, kahypar::Objective::cut>,
+                         TestConfig<32,  1, kahypar::Objective::cut>,
+                         TestConfig<32,  2, kahypar::Objective::cut>,
+                         TestConfig<32,  4, kahypar::Objective::cut>,
+                         TestConfig<64,  1, kahypar::Objective::cut>,
+                         TestConfig<64,  2, kahypar::Objective::cut>,
+                         TestConfig<64,  4, kahypar::Objective::cut>,
+                         TestConfig<128, 1, kahypar::Objective::cut>,
+                         TestConfig<128, 2, kahypar::Objective::cut>,
+                         TestConfig<128, 4, kahypar::Objective::cut>,
+                         TestConfig<2,   1, kahypar::Objective::km1>,
+                         TestConfig<2,   2, kahypar::Objective::km1>,
+                         TestConfig<2,   4, kahypar::Objective::km1>,
+                         TestConfig<4,   1, kahypar::Objective::km1>,
+                         TestConfig<4,   2, kahypar::Objective::km1>,
+                         TestConfig<4,   4, kahypar::Objective::km1>,
+                         TestConfig<8,   1, kahypar::Objective::km1>,
+                         TestConfig<8,   2, kahypar::Objective::km1>,
+                         TestConfig<8,   4, kahypar::Objective::km1>,
+                         TestConfig<16,  1, kahypar::Objective::km1>,
+                         TestConfig<16,  2, kahypar::Objective::km1>,
+                         TestConfig<16,  4, kahypar::Objective::km1>,
+                         TestConfig<32,  1, kahypar::Objective::km1>,
+                         TestConfig<32,  2, kahypar::Objective::km1>,
+                         TestConfig<32,  4, kahypar::Objective::km1>,
+                         TestConfig<64,  1, kahypar::Objective::km1>,
+                         TestConfig<64,  2, kahypar::Objective::km1>,
+                         TestConfig<64,  4, kahypar::Objective::km1>,
+                         TestConfig<128, 1, kahypar::Objective::km1>,
+                         TestConfig<128, 2, kahypar::Objective::km1>,
+                         TestConfig<128, 4, kahypar::Objective::km1> > TestConfigs;
 
 TYPED_TEST_CASE(AConcurrentHypergraph,
                 TestConfigs);
@@ -96,11 +122,31 @@ TYPED_TEST_CASE(AConcurrentHypergraph,
 void moveAllNodesOfHypergraphRandom(mt_kahypar::Hypergraph& hypergraph,
                                     const PartitionID k,
                                     const size_t num_threads,
+                                    const kahypar::Objective objective,
                                     const bool show_timings) {
   tbb::task_arena arena(num_threads, 0);
   tbb::task_group group;
 
+  tbb::enumerable_thread_specific<HyperedgeWeight> deltas;
+
+  auto objective_delta = [&](const HyperedgeWeight edge_weight,
+                             const HypernodeID edge_size,
+                             const HypernodeID pin_count_in_from_part_after,
+                             const HypernodeID pin_count_in_to_part_after) {
+    if ( objective == kahypar::Objective::km1 ) {
+      deltas.local() += mt_kahypar::Hypergraph::km1Delta(
+        edge_weight, edge_size, pin_count_in_from_part_after, pin_count_in_to_part_after);
+    } else if ( objective == kahypar::Objective::cut ) {
+      deltas.local() += mt_kahypar::Hypergraph::cutDelta(
+        edge_weight, edge_size, pin_count_in_from_part_after, pin_count_in_to_part_after);
+    }
+  };
+
+  HyperedgeWeight metric_before = metrics::objective(hypergraph, objective);
+
   HighResClockTimepoint start = std::chrono::high_resolution_clock::now();
+  // TODO(heuer): It seems that sometimes multiple threads are assigned to one cpu here
+  // which causes the test sometimes to fail => Implement a task_scheduler_observer for this
   arena.execute([&] {
     group.run([&] {
       tbb::parallel_for(tbb::blocked_range<HypernodeID>(0UL, hypergraph.initialNumNodes()),
@@ -114,7 +160,7 @@ void moveAllNodesOfHypergraphRandom(mt_kahypar::Hypergraph& hypergraph,
               to = utils::Randomize::instance().getRandomInt(0, k - 1, cpu_id);
             }
             ASSERT( ( to >= 0 && to < k ) && to != from );
-            hypergraph.changeNodePart(hn, from, to);
+            hypergraph.changeNodePart(hn, from, to, objective_delta);
           }
       });
     });
@@ -123,10 +169,19 @@ void moveAllNodesOfHypergraphRandom(mt_kahypar::Hypergraph& hypergraph,
   arena.execute([&] {
     group.wait();
   });
+
   HighResClockTimepoint end = std::chrono::high_resolution_clock::now();
   double timing = std::chrono::duration<double>(end - start).count();
+
+  HyperedgeWeight delta = 0;
+  for ( const HyperedgeWeight& local_delta : deltas ) {
+    delta += local_delta;
+  }
+
+  HyperedgeWeight metric_after = metrics::objective(hypergraph, objective);
+  ASSERT_EQ( metric_after, metric_before + delta ) << V(metric_before) << V(delta);
   if ( show_timings ) {
-    LOG << V(k) << V(num_threads) << V(timing);
+    LOG << V(k) << V(num_threads) << V(objective) << V(metric_before) << V(delta) << V(metric_after) << V(timing);
   }
   hypergraph.updateGlobalPartInfos();
 }
@@ -196,24 +251,23 @@ void verifyBorderNodes(mt_kahypar::Hypergraph& hypergraph) {
   }
 }
 
-
 TYPED_TEST(AConcurrentHypergraph, VerifyBlockWeightsSmokeTest) {
-  moveAllNodesOfHypergraphRandom(this->hypergraph, this->k, this->num_threads, false);
+  moveAllNodesOfHypergraphRandom(this->hypergraph, this->k, this->num_threads, this->objective, false);
   verifyBlockWeightsAndSizes(this->hypergraph, this->k);
 }
 
 TYPED_TEST(AConcurrentHypergraph, VerifyPinCountsInPartsSmokeTest) {
-  moveAllNodesOfHypergraphRandom(this->hypergraph, this->k, this->num_threads, false);
+  moveAllNodesOfHypergraphRandom(this->hypergraph, this->k, this->num_threads, this->objective, false);
   verifyPinCountsInParts(this->hypergraph, this->k);
 }
 
 TYPED_TEST(AConcurrentHypergraph, VerifyConnectivitySetSmokeTest) {
-  moveAllNodesOfHypergraphRandom(this->hypergraph, this->k, this->num_threads, false);
+  moveAllNodesOfHypergraphRandom(this->hypergraph, this->k, this->num_threads, this->objective, false);
   verifyConnectivitySet(this->hypergraph, this->k);
 }
 
 TYPED_TEST(AConcurrentHypergraph, VerifyBorderNodesSmokeTest) {
-  moveAllNodesOfHypergraphRandom(this->hypergraph, this->k, this->num_threads, false);
+  moveAllNodesOfHypergraphRandom(this->hypergraph, this->k, this->num_threads, this->objective, false);
   verifyBorderNodes(this->hypergraph);
 }
 

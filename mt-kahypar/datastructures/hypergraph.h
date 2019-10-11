@@ -75,6 +75,17 @@ class Hypergraph {
   using CommunityIterator = typename StreamingHypergraph::CommunityIterator;
   using Memento = typename StreamingHypergraph::Memento;
 
+  // ! Generic function that will be called if a hypernode v moves from a block from to a block to for
+  // ! each incident net of the moved vertex v.
+  // ! It will be called with the following arguments
+  // !  1.) Hyperedge Weight
+  // !  2.) Hyperedge Size
+  // !  3.) Pin count in block from after move
+  // !  4.) Pin count in block to after move
+  // ! This function can be used to compute e.g. the delta in cut or km1 metric after a move
+  using DeltaFunction = std::function<void(const HyperedgeWeight, const HypernodeID, const HypernodeID, const HypernodeID)>;
+  #define NOOP_FUNC [](const HyperedgeWeight, const HypernodeID, const HypernodeID, const HypernodeID) { }
+
   using HighResClockTimepoint = std::chrono::time_point<std::chrono::high_resolution_clock>;
 
   /*!
@@ -734,6 +745,25 @@ class Hypergraph {
    * of the values 2.) to 5.) have an intermediate view on those. Algorithms that
    * build on top of that have to consider that behavior and resolve or deal with that issue on
    * a higher layer.
+   *
+   * Another feature of changeNodePart is that someone can pass a generic delta function to compute
+   * e.g. the delta in the cut- or km1-metric when moving vertices in parallel. E.g. one
+   * can pass the following function to changeNodePart (as delta_func) to compute the delta
+   * for the cut-metric of the move:
+   *
+   * HyperedgeWeight delta = 0;
+   * auto cut_delta = [&](const HyperedgeWeight edge_weight,
+   *                             const HypernodeID edge_size,
+   *                             const HypernodeID pin_count_in_from_part_after,
+   *                             const HypernodeID pin_count_in_to_part_after) {
+   *   delta += mt_kahypar::Hypergraph::cutDelta(
+   *     edge_weight, edge_size, pin_count_in_from_part_after, pin_count_in_to_part_after);
+   * };
+   * hypergraph.changeNodePart(hn, from, to, cut_delta); // 'delta' will contain afterwards the delta
+   *                                                     // for the cut metric
+   *
+   * Summing up all deltas of all parallel moves will be delta after the parallel execution phase.
+   *
    */
 
   // ! Sets the block id an unassigned vertex u.
@@ -759,7 +789,10 @@ class Hypergraph {
 
   // ! Changes the block id of vertex u from block 'from' to block 'to'
   // ! Returns true, if move of vertex u to corresponding block succeeds.
-  bool changeNodePart(const HypernodeID u, const PartitionID from, const PartitionID to) {
+  bool changeNodePart(const HypernodeID u,
+                      const PartitionID from,
+                      const PartitionID to,
+                      const DeltaFunction& delta_func = NOOP_FUNC) {
     StreamingHypergraph& hypergraph_of_u = hypergraph_of_vertex(u);
     ASSERT(to < _k && to != kInvalidPartition, "Part ID" << to << "is invalid");
 
@@ -775,15 +808,18 @@ class Hypergraph {
         HyperedgeID pin_count_in_to_part_after = hypergraph_of_edge(he).incrementPinCountInPart(he, to);
         bool no_pins_left_in_source_part = pin_count_in_from_part_after == 0;
         bool only_one_pin_in_to_part = pin_count_in_to_part_after == 1;
+        HypernodeID edge_size = edgeSize(he);
+
+        delta_func(edgeWeight(he), edge_size, pin_count_in_from_part_after, pin_count_in_to_part_after);
 
         if ( no_pins_left_in_source_part && !only_one_pin_in_to_part &&
-             pin_count_in_to_part_after == edgeSize(he) ) {
+             pin_count_in_to_part_after == edge_size ) {
           // In that case, hyperedge he becomes an internal hyperedge
           for ( const HypernodeID& pin : pins(he) ) {
             hypergraph_of_vertex(pin).decrementIncidentNumCutHyperedges(pin);
           }
         } else if ( !no_pins_left_in_source_part && only_one_pin_in_to_part &&
-                    pin_count_in_from_part_after == edgeSize(he) - 1 ) {
+                    pin_count_in_from_part_after == edge_size - 1 ) {
           // In that case, hyperedge he becomes an cut hyperede
           for ( const HypernodeID& pin : pins(he) ) {
             hypergraph_of_vertex(pin).incrementIncidentNumCutHyperedges(pin);
@@ -795,6 +831,30 @@ class Hypergraph {
     }
 
     return false;
+  }
+
+  // ! Helper function to compute delta for cut-metric after changeNodePart
+  static HyperedgeWeight cutDelta(const HyperedgeWeight edge_weight,
+                                  const HypernodeID edge_size,
+                                  const HypernodeID pin_count_in_from_part_after,
+                                  const HypernodeID pin_count_in_to_part_after ) {
+    if ( pin_count_in_to_part_after == edge_size ) {
+      return -edge_weight;
+    } else if ( pin_count_in_from_part_after == edge_size - 1 &&
+                pin_count_in_to_part_after == 1 ) {
+      return edge_weight;
+    } else {
+      return 0;
+    }
+  }
+
+  // ! Helper function to compute delta for km1-metric after changeNodePart
+  static HyperedgeWeight km1Delta(const HyperedgeWeight edge_weight,
+                                  const HypernodeID,
+                                  const HypernodeID pin_count_in_from_part_after,
+                                  const HypernodeID pin_count_in_to_part_after ) {
+    return ( pin_count_in_to_part_after == 1 ? edge_weight : 0 ) +
+           ( pin_count_in_from_part_after == 0 ? -edge_weight : 0 );
   }
 
   // ! Block which vertex u belongs to
