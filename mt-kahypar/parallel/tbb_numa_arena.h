@@ -83,6 +83,18 @@ class TBBNumaArena {
     return _groups[node];
   }
 
+  template< typename F >
+  void execute_on_all_numa_nodes(F&& func) {
+    for ( int node = 0; node < num_used_numa_nodes(); ++node ) {
+      numa_task_arena(node).execute([&] {
+        numa_task_group(node).run([&, node] {
+          func(node);
+        });
+      });
+    }
+    wait();
+  }
+
   void wait() {
     for ( int node = 0; node < num_used_numa_nodes(); ++node ) {
       _arenas[node].execute([&, node] { _groups[node].wait(); });

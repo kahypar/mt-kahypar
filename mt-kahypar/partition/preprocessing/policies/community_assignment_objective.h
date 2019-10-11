@@ -31,7 +31,7 @@ class VertexObjectivePolicy final : public kahypar::meta::PolicyBase {
   public:
     template< typename HyperGraph >
     KAHYPAR_ATTRIBUTE_ALWAYS_INLINE static inline HypernodeID objective(const HyperGraph& hypergraph, const PartitionID community) {
-      return hypergraph.initialNumCommunityHypernodes(community);
+      return hypergraph.numCommunityHypernodes(community);
     }
 
     template< typename HyperGraph >
@@ -44,7 +44,7 @@ class PinObjectivePolicy final : public kahypar::meta::PolicyBase {
   public:
     template< typename HyperGraph >
     KAHYPAR_ATTRIBUTE_ALWAYS_INLINE static inline HypernodeID objective(const HyperGraph& hypergraph, const PartitionID community) {
-      return hypergraph.initialNumCommunityPins(community);
+      return hypergraph.numCommunityPins(community);
     }
 
     template< typename HyperGraph >

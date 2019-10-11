@@ -826,7 +826,7 @@ class StreamingHypergraph {
     return hypernode(u).communityNodeId();
   }
 
-  size_t numCommunitiesOfHyperedge(const HyperedgeID e) const {
+  size_t numCommunitiesInHyperedge(const HyperedgeID e) const {
     ASSERT(!hyperedge(e).isDisabled(), "Hyperedge" << e << "is disabled");
     ASSERT(hyperedge(e).isInitCommunityHyperedges(), "Community hyperedges of HE" << e << "are not initialized");
     HyperedgeID local_id = get_local_edge_id_of_hyperedge(e);
@@ -1294,7 +1294,7 @@ class StreamingHypergraph {
     _incident_net_stream.stream(hn, he);
   }
 
-  void streamCommunityID(const HypernodeID hn, const PartitionID community_id) {
+  void setCommunityID(const HypernodeID hn, const PartitionID community_id) {
     hypernode(hn).setCommunityID(community_id);
   }
 
@@ -1675,7 +1675,7 @@ class StreamingHypergraph {
     group.wait();
   }
 
-  void resetCommunityHyperedges(const std::vector<Memento>& mementos,
+  void removeCommunityHyperedges(const std::vector<Memento>& mementos,
                                 const HypernodeID num_hypernodes,
                                 const std::vector<Self>& hypergraphs) {
     // All disabled hypernodes have to follow a specific order in invalid part of the incidence array
@@ -1787,7 +1787,7 @@ class StreamingHypergraph {
    * after coarsening separate. However, the corresponding pins of these hyperedges might contain
    * the disabled hyperedge, which is fixed here.
    */
-  void removeDisabledHyperedgesFromIncidentNets(const std::vector<Self>& hypergraphs) {
+  void invalidateDisabledHyperedgesFromIncidentNets(const std::vector<Self>& hypergraphs) {
     tbb::task_group group;
     _arena.execute([&] {
       group.run([&] {
@@ -1795,7 +1795,7 @@ class StreamingHypergraph {
         [&](const tbb::blocked_range<HypernodeID>& range) {
           for ( HypernodeID id = range.begin(); id < range.end(); ++id ) {
             const HypernodeID hn = get_global_node_id(id);
-            removeDisabledHyperedgesFromIncidentNets(hn, hypergraphs);
+            invalidateDisabledHyperedgesFromIncidentNets(hn, hypergraphs);
           }
         });
       });
@@ -2092,7 +2092,7 @@ class StreamingHypergraph {
     // TODO(heuer): increment pin count in part
   }
 
-  KAHYPAR_ATTRIBUTE_ALWAYS_INLINE void removeDisabledHyperedgesFromIncidentNets(const HypernodeID hn,
+  KAHYPAR_ATTRIBUTE_ALWAYS_INLINE void invalidateDisabledHyperedgesFromIncidentNets(const HypernodeID hn,
                                                                                 const std::vector<Self>& hypergraphs) {
     size_t invalid_incident_nets = 0;
     size_t incident_nets_end = incident_nets(hn).size();
@@ -2138,7 +2138,7 @@ class StreamingHypergraph {
     ++_atomic_hn_data[get_local_node_id_of_vertex(u)].num_incident_cut_hes;
   }
 
-  KAHYPAR_ATTRIBUTE_ALWAYS_INLINE bool decrementPinCountInPart(const HyperedgeID he, const PartitionID id) {
+  KAHYPAR_ATTRIBUTE_ALWAYS_INLINE HypernodeID decrementPinCountInPart(const HyperedgeID he, const PartitionID id) {
     ASSERT(!hyperedge(he).isDisabled(), "Hyperedge" << he << "is disabled");
     ASSERT(pinCountInPart(he, id) > 0,
            "HE" << he << ": pin_count[" << id << "]=" << pinCountInPart(he, id)
@@ -2152,10 +2152,10 @@ class StreamingHypergraph {
     if ( connectivity_decreased ) {
       _connectivity_sets[local_id].remove(id);
     }
-    return connectivity_decreased;
+    return pin_count_after;
   }
 
-  KAHYPAR_ATTRIBUTE_ALWAYS_INLINE bool incrementPinCountInPart(const HyperedgeID he, const PartitionID id) {
+  KAHYPAR_ATTRIBUTE_ALWAYS_INLINE HypernodeID incrementPinCountInPart(const HyperedgeID he, const PartitionID id) {
     ASSERT(!hyperedge(he).isDisabled(), "Hyperedge" << he << "is disabled");
     ASSERT(pinCountInPart(he, id) <= edgeSize(he),
            "HE" << he << ": pin_count[" << id << "]=" << pinCountInPart(he, id)
@@ -2164,12 +2164,12 @@ class StreamingHypergraph {
     const HyperedgeID local_id = get_local_edge_id_of_hyperedge(he);
     const size_t offset = local_id * _k + id;
     ASSERT(offset < _pins_in_part.size());
-    const HypernodeID pin_count_before = _pins_in_part[offset]++;
-    const bool connectivity_increased = pin_count_before == 0;
+    const HypernodeID pin_count_after = ++_pins_in_part[offset];
+    const bool connectivity_increased = pin_count_after == 1;
     if ( connectivity_increased ) {
       _connectivity_sets[local_id].add(id);
     }
-    return connectivity_increased;
+    return pin_count_after;
   }
 
   KAHYPAR_ATTRIBUTE_ALWAYS_INLINE HypernodeID get_global_node_id() {

@@ -123,10 +123,10 @@ inline void printHypergraphInfo(const Hypergraph& hypergraph, const std::string&
   std::vector<HyperedgeWeight> he_weights;
   std::vector<HyperedgeID> hn_degrees;
   std::vector<HypernodeWeight> hn_weights;
-  he_sizes.reserve(hypergraph.currentNumEdges());
-  he_weights.reserve(hypergraph.currentNumEdges());
-  hn_degrees.reserve(hypergraph.currentNumNodes());
-  hn_weights.reserve(hypergraph.currentNumNodes());
+  he_sizes.reserve(hypergraph.initialNumEdges());
+  he_weights.reserve(hypergraph.initialNumEdges());
+  hn_degrees.reserve(hypergraph.initialNumNodes());
+  hn_weights.reserve(hypergraph.initialNumNodes());
 
   HypernodeID num_hypernodes = 0;
   const double avg_hn_degree = metrics::avgHypernodeDegree(hypergraph);
@@ -138,7 +138,7 @@ inline void printHypergraphInfo(const Hypergraph& hypergraph, const std::string&
     stdev_hn_degree += (hypergraph.nodeDegree(hn) - avg_hn_degree) *
                        (hypergraph.nodeDegree(hn) - avg_hn_degree);
   }
-  stdev_hn_degree = std::sqrt(stdev_hn_degree / (hypergraph.currentNumNodes() - 1));
+  stdev_hn_degree = std::sqrt(stdev_hn_degree / (num_hypernodes - 1));
 
   HyperedgeID num_hyperedges = 0;
   HypernodeID num_pins = 0;
@@ -152,7 +152,7 @@ inline void printHypergraphInfo(const Hypergraph& hypergraph, const std::string&
     stdev_he_size += (hypergraph.edgeSize(he) - avg_he_size) *
                      (hypergraph.edgeSize(he) - avg_he_size);
   }
-  stdev_he_size = std::sqrt(stdev_he_size / (hypergraph.currentNumEdges() - 1));
+  stdev_he_size = std::sqrt(stdev_he_size / (num_hyperedges - 1));
 
   std::sort(he_sizes.begin(), he_sizes.end());
   std::sort(he_weights.begin(), he_weights.end());
@@ -168,13 +168,13 @@ inline void printHypergraphInfo(const Hypergraph& hypergraph, const std::string&
   for (const HypernodeWeight& hn_weight : hn_weights) {
     stdev_hn_weight += (hn_weight - avg_hn_weight) * (hn_weight - avg_hn_weight);
   }
-  stdev_hn_weight = std::sqrt(stdev_hn_weight / (hypergraph.currentNumNodes() - 1));
+  stdev_hn_weight = std::sqrt(stdev_hn_weight / (num_hypernodes - 1));
 
   double stdev_he_weight = 0.0;
   for (const HyperedgeWeight& he_weight : he_weights) {
     stdev_he_weight += (he_weight - avg_he_weight) * (he_weight - avg_he_weight);
   }
-  stdev_he_weight = std::sqrt(stdev_he_weight / (hypergraph.currentNumNodes() - 1));
+  stdev_he_weight = std::sqrt(stdev_he_weight / (num_hyperedges - 1));
 
   LOG << "Hypergraph Information";
   LOG << "Name :" << name;

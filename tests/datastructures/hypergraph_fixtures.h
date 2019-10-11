@@ -68,7 +68,7 @@ class AHypergraph : public Test {
 
   TestHypergraph construct_hypergraph(const HypernodeID num_hypernodes,
                                       const std::vector<HyperedgeVector>& hyperedges,
-                                      const std::vector<HypernodeID>& node_mapping,
+                                      std::vector<HypernodeID>&& node_mapping,
                                       const std::vector<HyperedgeID>& edge_mapping,
                                       const std::vector<PartitionID>& communities = {},
                                       const PartitionID k = 2) const {
@@ -97,12 +97,12 @@ class AHypergraph : public Test {
     }
 
     // Create hypergraph (that also initialize hypernodes)
-    TestHypergraph hypergraph(num_hypernodes, std::move(numa_hypergraphs), node_mapping, k);
+    TestHypergraph hypergraph(num_hypernodes, std::move(numa_hypergraphs), std::move(node_mapping), k);
 
     if ( communities.size() > 0 ) {
       ASSERT(num_hypernodes == communities.size());
       for ( HypernodeID hn = 0; hn < num_hypernodes; ++hn ) {
-        hypergraph.streamCommunityID(hypergraph.globalNodeID(hn), communities[hn]);
+        hypergraph.setCommunityID(hypergraph.globalNodeID(hn), communities[hn]);
       }
       hypergraph.initializeCommunities();
     }

@@ -130,16 +130,16 @@ static inline double imbalance(const HyperGraph& hypergraph, const Context& cont
 }
 
 static inline double avgHyperedgeDegree(const Hypergraph& hypergraph) {
-  return static_cast<double>(hypergraph.currentNumPins()) / hypergraph.currentNumEdges();
+  return static_cast<double>(hypergraph.initialNumPins()) / hypergraph.initialNumEdges();
 }
 
 static inline double avgHypernodeDegree(const Hypergraph& hypergraph) {
-  return static_cast<double>(hypergraph.currentNumPins()) / hypergraph.currentNumNodes();
+  return static_cast<double>(hypergraph.initialNumPins()) / hypergraph.initialNumNodes();
 }
 
 static inline HyperedgeID hypernodeDegreeRank(const Hypergraph& hypergraph, const size_t rank) {
   std::vector<HyperedgeID> hn_degrees;
-  hn_degrees.reserve(hypergraph.currentNumNodes());
+  hn_degrees.reserve(hypergraph.initialNumNodes());
   for (const auto& hn : hypergraph.nodes()) {
     hn_degrees.push_back(hypergraph.nodeDegree(hn));
   }

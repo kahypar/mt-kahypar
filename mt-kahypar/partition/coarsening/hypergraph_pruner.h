@@ -97,14 +97,14 @@ class HypergraphPrunerT {
     auto end_it = hypergraph.incidentEdges(memento.u, community_id).second;
     HyperedgeWeight removed_he_weight = 0;
     for (auto he_it = begin_it; he_it != end_it; ++he_it) {
-      if (hypergraph.numCommunitiesOfHyperedge(*he_it) == 1 &&
+      if (hypergraph.numCommunitiesInHyperedge(*he_it) == 1 &&
           hypergraph.edgeSize(*he_it, community_id) == 1) {
         ASSERT(hypergraph.edgeIsEnabled(*he_it));
         _removed_single_node_hyperedges.push_back(*he_it);
         removed_he_weight += hypergraph.edgeWeight(*he_it);
         ++memento.one_pin_hes_size;
         DBG << "removing single-node HE" << *he_it;
-        hypergraph.removeSinglePinEdge(*he_it, community_id);
+        hypergraph.removeSinglePinCommunityEdge(*he_it, community_id);
         --he_it;
         --end_it;
       }
@@ -137,8 +137,8 @@ class HypergraphPrunerT {
           DBG << "Size:" << hypergraph.edgeSize(_fingerprints[i].id) << "=="
               << hypergraph.edgeSize(_fingerprints[j].id);
           if (_fingerprints[j].id != kInvalidID &&
-              hypergraph.numCommunitiesOfHyperedge(_fingerprints[i].id) ==
-              hypergraph.numCommunitiesOfHyperedge(_fingerprints[j].id) &&
+              hypergraph.numCommunitiesInHyperedge(_fingerprints[i].id) ==
+              hypergraph.numCommunitiesInHyperedge(_fingerprints[j].id) &&
               hypergraph.edgeSize(_fingerprints[i].id) ==
               hypergraph.edgeSize(_fingerprints[j].id)) {
             ASSERT(hypergraph.edgeIsEnabled(_fingerprints[j].id), V(_fingerprints[j].id));

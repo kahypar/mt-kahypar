@@ -178,7 +178,7 @@ class CommunityRedistributorT {
       for ( HypernodeID hn = range.begin(); hn < range.end(); ++hn ) {
         HypernodeID old_global_id = hg.globalNodeID(hn);
         HypernodeID new_global_id = hypergraph.globalNodeID(hn);
-        hypergraph.streamCommunityID(new_global_id, hg.communityID(old_global_id));
+        hypergraph.setCommunityID(new_global_id, hg.communityID(old_global_id));
       }
     });
     hypergraph.initializeCommunities();

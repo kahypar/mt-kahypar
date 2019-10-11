@@ -114,7 +114,7 @@ class CommunityCoarsenerT : public ICoarsener,
           // Compute contraction limit for community relative to
           // community size and original contraction limit
           HypernodeID contraction_limit =
-            std::ceil((((double) this->_hg.initialNumCommunityHypernodes(community_id)) /
+            std::ceil((((double) this->_hg.numCommunityHypernodes(community_id)) /
               this->_hg.totalWeight()) * _context.coarsening.contraction_limit);
           parallelCommunityCoarsening(community_id, contraction_limit, community_hns[i]);
         });
@@ -134,7 +134,7 @@ class CommunityCoarsenerT : public ICoarsener,
                                    parallel::scalable_vector<HypernodeID>& community_nodes) {
     ASSERT(community_nodes.size() > 1);
     DBG << "Start coarsening of community" << community_id
-        << "with" << _hg.initialNumCommunityHypernodes(community_id) << "vertices"
+        << "with" << _hg.numCommunityHypernodes(community_id) << "vertices"
         << "and contraction limit" << contraction_limit
         << "on numa node" << HwTopology::instance().numa_node_of_cpu(sched_getcpu())
         << "on cpu" << sched_getcpu();

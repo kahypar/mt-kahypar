@@ -117,14 +117,9 @@ class Hypergraph {
 
     /*!
      * Construct a GlobalHypergraphElementIterator
-     * See GenericHypergraph::nodes() or GenericHypergraph::edges() for usage.
+     * See Hypergraph::nodes() or Hypergraph::edges() for usage.
      *
-     * If start_element is invalid, the iterator advances to the first valid
-     * element.
-     *
-     * \param start_element A pointer to the starting position
-     * \param id The index of the element the pointer points to
-     * \param max_id The maximum index allowed
+     * \param iterators container of iterators (see StreamingHypergraph::HypergraphElementIterator)
      */
     GlobalHypergraphElementIterator(Iterators&& iterators) :
       _iterators(std::move(iterators)),
@@ -177,8 +172,7 @@ class Hypergraph {
   /*!
    * For each block \f$V_i\f$ of the \f$k\f$-way partition \f$\mathrm{\Pi} = \{V_1, \dots, V_k\}\f$,
    * a PartInfo object stores the number of hypernodes currently assigned to block \f$V_i\f$
-   * as well as the sum of their weights and the sum of the weights of the fixed vertices
-   * assigned to that block.
+   * as well as the sum of their weights.
    */
   class PartInfo {
     public:
@@ -193,10 +187,11 @@ class Hypergraph {
 
   /**
    * Each thread contains its local part weight and size information. If a hypernode changes
-   * its block, the modification to part weights and sizes is first only applied to
-   * the block weights of the thread which made the move. The part weights are stored
-   * relative to initial global block weights as a delta. The global block weights
-   * can be calculated by computing a snapshot of all local block weights (see snapshot(...)).
+   * its block, the modification to part weights and sizes are only applied to
+   * the block weights of the calling thread. The part weights are stored
+   * relative to the initial global block weights as a delta. The current block weights
+   * can be calculated by summing up the deltas of all threads (relative to the initial
+   * global block weight).
    */
   class ThreadPartInfos {
 
@@ -214,7 +209,7 @@ class Hypergraph {
       }
 
       /**
-       * Appliying the deltas of all thread local block weights to current thread.
+       * Appliying the deltas of all threads to local block weights and sizes.
        */
       void snapshot( const tbb::enumerable_thread_specific<ThreadPartInfos>& infos ) {
         // Reset current block weights
@@ -262,14 +257,15 @@ class Hypergraph {
 
       // ! Number of blocks
       const PartitionID _k;
-      // ! Global part infos
+      // ! Initial global part infos
       const std::vector<PartInfo>& _global;
-      // ! Delta of part info for current thread
+      // ! Delta relative to initial global part infos (changes performed by local thread)
       std::vector<PartInfo> _delta;
-      // ! Represents current part infos of last snapshot
+      // ! Represents current part infos for local thread
       std::vector<PartInfo> _current;
   };
 
+  // ! TBB Thread Local Storage
   using ThreadLocalPartInfos = tbb::enumerable_thread_specific<ThreadPartInfos>;
 
   // ! Iterator to iterator over the hypernodes
@@ -281,6 +277,7 @@ class Hypergraph {
 
   constexpr static size_t kEdgeHashSeed = StreamingHypergraph::kEdgeHashSeed;
 
+  // ! Empty Hypergraph
   explicit Hypergraph() :
     _num_hypernodes(0),
     _num_hyperedges(0),
@@ -296,6 +293,9 @@ class Hypergraph {
     _edge_mapping(),
     _community_node_mapping() { }
 
+  // ! Constructs a hypergraph based on the given numa hypergraphs
+  // ! and additionaly computes a vertex to numa node mapping
+  // ! based on the current hyperedge distribution
   Hypergraph(const HypernodeID num_hypernodes,
              std::vector<StreamingHypergraph>&& hypergraphs,
              PartitionID k) :
@@ -315,27 +315,8 @@ class Hypergraph {
     computeNodeMapping();
     initializeHypernodes();
   }
-
-  Hypergraph(const HypernodeID num_hypernodes,
-             std::vector<StreamingHypergraph>&& hypergraphs,
-             const std::vector<HypernodeID>& node_mapping,
-             PartitionID k) :
-    _num_hypernodes(num_hypernodes),
-    _num_hyperedges(0),
-    _num_pins(0),
-    _num_communities(0),
-    _k(k),
-    _communities_num_hypernodes(),
-    _communities_num_pins(),
-    _part_info(k),
-    _local_part_info([&] { return ThreadPartInfos::construct(_k, _part_info); }),
-    _hypergraphs(std::move(hypergraphs)),
-    _node_mapping(node_mapping),
-    _edge_mapping(),
-    _community_node_mapping() {
-    initializeHypernodes();
-  }
-
+  // ! Constructs a hypergraph based on the given numa hypergraphs
+  // ! and node mapping
   Hypergraph(const HypernodeID num_hypernodes,
              std::vector<StreamingHypergraph>&& hypergraphs,
              std::vector<HypernodeID>&& node_mapping,
@@ -359,20 +340,7 @@ class Hypergraph {
   Hypergraph(const Hypergraph&) = delete;
   Hypergraph& operator= (const Hypergraph&) = delete;
 
-  Hypergraph(Hypergraph&& other) :
-    _num_hypernodes(other._num_hypernodes),
-    _num_hyperedges(other._num_hyperedges),
-    _num_pins(other._num_pins),
-    _num_communities(other._num_communities),
-    _k(other._k),
-    _communities_num_hypernodes(std::move(other._communities_num_hypernodes)),
-    _communities_num_pins(std::move(other._communities_num_pins)),
-    _part_info(std::move(other._part_info)),
-    _local_part_info([&] { return ThreadPartInfos::construct(_k, _part_info); }),
-    _hypergraphs(std::move(other._hypergraphs)),
-    _node_mapping(std::move(other._node_mapping)),
-    _edge_mapping(std::move(other._edge_mapping)),
-    _community_node_mapping(std::move(other._community_node_mapping)) { }
+  Hypergraph(Hypergraph&&) = default;
 
   Hypergraph& operator= (Hypergraph&& other) {
     _num_hypernodes = other._num_hypernodes;
@@ -393,67 +361,42 @@ class Hypergraph {
 
   ~Hypergraph() = default;
 
+  // ####################### General Hypergraph Stats #######################
 
+  // ! Initial number of hypernodes
   HypernodeID initialNumNodes() const {
     return _num_hypernodes;
   }
 
-  HyperedgeID initialNumEdges() const {
-    return _num_hyperedges;
-  }
-
-  HypernodeID initialNumPins() const {
-    return _num_pins;
-  }
-
+  // ! Initial number of hypernodes on numa node
   HypernodeID initialNumNodes(const int node) const {
     ASSERT(node < (int)_hypergraphs.size());
     return _hypergraphs[node].initialNumNodes();
   }
 
+  // ! Initial number of hyperedges
+  HyperedgeID initialNumEdges() const {
+    return _num_hyperedges;
+  }
+
+  // ! Initial number of hyperedges on numa node
   HyperedgeID initialNumEdges(const int node) const {
     ASSERT(node < (int)_hypergraphs.size());
     return _hypergraphs[node].initialNumEdges();
   }
 
+  // ! Initial number of pins
+  HypernodeID initialNumPins() const {
+    return _num_pins;
+  }
+
+  // ! Initial number of pins on numa node
   HypernodeID initialNumPins(const int node) const {
     ASSERT(node < (int)_hypergraphs.size());
     return _hypergraphs[node].initialNumPins();
   }
 
-  PartitionID numCommunities() const {
-    return _num_communities;
-  }
-
-  HypernodeID initialNumCommunityHypernodes(const PartitionID community) const {
-    ASSERT(community < (PartitionID) _communities_num_hypernodes.size());
-    return _communities_num_hypernodes[community];
-  }
-
-  HypernodeID initialNumCommunityPins(const PartitionID community) const {
-    ASSERT(community < (PartitionID) _communities_num_pins.size());
-    return _communities_num_pins[community];
-  }
-
-  PartitionID k() const {
-    return _k;
-  }
-
-  // TODO(heuer): Replace with correct counter
-  HypernodeID currentNumNodes() const {
-    return _num_hypernodes;
-  }
-
-  // TODO(heuer): Replace with correct counter
-  HyperedgeID currentNumEdges() const {
-    return _num_hyperedges;
-  }
-
-  // TODO(heuer): Replace with correct counter
-  HypernodeID currentNumPins() const {
-    return _num_pins;
-  }
-
+  // ! Total weight of hypergraph
   HypernodeWeight totalWeight() const {
     HypernodeWeight weight = 0;
     for ( const StreamingHypergraph& hypergraph : _hypergraphs ) {
@@ -462,6 +405,7 @@ class Hypergraph {
     return weight;
   }
 
+  // ! Recomputes the total weight of the hypergraph (in parallel)
   void updateTotalWeight() {
     for ( int node = 0; node < (int) _hypergraphs.size(); ++node ) {
       TBBNumaArena::instance().numa_task_arena(node).execute([&, node] {
@@ -473,48 +417,15 @@ class Hypergraph {
     TBBNumaArena::instance().wait();
   }
 
-  size_t numCommunitiesOfHyperedge(const HyperedgeID e) const {
-    return hypergraph_of_edge(e).numCommunitiesOfHyperedge(e);
-  }
-
-  // ! Returns a for-each iterator-pair to loop over the set of incident hyperedges of hypernode u.
-  std::pair<IncidenceIterator, IncidenceIterator> incidentEdges(const HypernodeID u) const {
-    return hypergraph_of_vertex(u).incidentEdges(u);
-  }
-
-  // ! Returns a for-each iterator-pair to loop over the set of incident hyperedges of hypernode u.
-  // ! Note, in contrast to first iterator, this iterator skips all invalidated
-  // ! community hyperedges in incident nets of hypernode u.
-  std::pair<IncidenceIterator, IncidenceIterator> validIncidentEdges(const HypernodeID u, const PartitionID community_id) const {
-    return hypergraph_of_vertex(u).validIncidentEdges(u, community_id);
-  }
-
-  // ! Returns a for-each iterator-pair to loop over the set of incident hyperedges of hypernode u.
-  // ! Note, in contrast to first iterator, this iterator skips all single-pin community hyperedges
-  // ! in incident nets of hypernode u.
-  std::pair<IncidenceIterator, IncidenceIterator> incidentEdges(const HypernodeID u, const PartitionID community_id) const {
-    return hypergraph_of_vertex(u).incidentEdges(u, community_id);
+  // ! Number of blocks this hypergraph is partitioned into
+  PartitionID k() const {
+    return _k;
   }
 
 
-  // ! Returns a for-each iterator-pair to loop over the set pins of hyperedge e.
-  std::pair<IncidenceIterator, IncidenceIterator> pins(const HyperedgeID e) const {
-    return hypergraph_of_edge(e).pins(e);
-  }
+  // ####################### Iterators #######################
 
-  // ! Returns a for-each iterator-pair to loop over the set pins of hyperedge e in a community.
-  std::pair<IncidenceIterator, IncidenceIterator> pins(const HyperedgeID e, const PartitionID community_id) const {
-    return hypergraph_of_edge(e).pins(e, community_id);
-  }
-
-  std::pair<ConnectivitySetIterator, ConnectivitySetIterator> connectivitySet(const HyperedgeID e) const {
-    return hypergraph_of_edge(e).connectivitySet(e);
-  }
-
-  std::pair<CommunityIterator, CommunityIterator> communities(const HyperedgeID e) const {
-    return hypergraph_of_edge(e).communities(e);
-  }
-
+  // ! Returns an iterator over the set of active nodes of the hypergraph
   std::pair<GlobalHypernodeIterator, GlobalHypernodeIterator> nodes() const {
     ASSERT(_hypergraphs.size() > 0);
     std::vector<std::pair<HypernodeIterator, HypernodeIterator>> iterators;
@@ -528,6 +439,13 @@ class Hypergraph {
                           GlobalHypernodeIterator(std::move(end)));
   }
 
+  // ! Returns an iterator over the set of active nodes of the hypergraph on a numa node
+  std::pair<HypernodeIterator, HypernodeIterator>  nodes(const int node) const {
+    ASSERT(node < (int) _hypergraphs.size());
+    return _hypergraphs[node].nodes();
+  }
+
+  // ! Returns an iterator over the set of active edges of the hypergraph
   std::pair<GlobalHyperedgeIterator, GlobalHyperedgeIterator> edges() const {
     ASSERT(_hypergraphs.size() > 0);
     std::vector<std::pair<HyperedgeIterator, HyperedgeIterator>> iterators;
@@ -541,37 +459,438 @@ class Hypergraph {
                           GlobalHyperedgeIterator(std::move(end)));
   }
 
-  std::pair<HypernodeIterator, HypernodeIterator>  nodes(const int node) const {
-    ASSERT(node < (int) _hypergraphs.size());
-    return _hypergraphs[node].nodes();
-  }
-
+  // ! Returns an iterator over the set of active nodes of the hypergraph on a numa node
   std::pair<HyperedgeIterator, HyperedgeIterator> edges(const int node) const {
     ASSERT(node < (int) _hypergraphs.size());
     return _hypergraphs[node].edges();
   }
 
+
+  /*!
+   * Illustration for different incidentEdges iterators:
+   *
+   * Structure of incident nets for a vertex u during community coarsening:
+   *
+   * | <-- single-pin community hyperedges --> | <--   valid hyperedges     --> | <-- invalid hyperedges --> |
+   *
+   *                                            <-- validIncidentEdges(u,c) -->
+   *
+   *  <-------------------------- incidentEdges(u,c) ------------------------->
+   *
+   *  <----------------------------------------- incidentEdges(u) ------------------------------------------>
+   */
+
+
+  // ! Returns a for-each iterator-pair to loop over the set of incident hyperedges of hypernode u.
+  // ! During parallel community coarsening we do not remove parallel hyperedges (which spans more than
+  // ! one community) incident to hypernode u. Instead, we just invalidate those hyperedges
+  // ! (which means swapping them to the end of incident nets and storing a pointer to all
+  // ! invalidated hyperedges). This function returns an iterator over all VALID and INVALID
+  // ! hyperedges incident to vertex u.
+  std::pair<IncidenceIterator, IncidenceIterator> incidentEdges(const HypernodeID u) const {
+    return hypergraph_of_vertex(u).incidentEdges(u);
+  }
+
+  // ! Returns a for-each iterator-pair to loop over the set of incident hyperedges of hypernode u.
+  // ! During parallel community coarsening we do not remove parallel hyperedges (which spans more than
+  // ! one community) incident to hypernode u. Instead, we just invalidate those hyperedges
+  // ! (which means swapping them to the end of incident nets and storing a pointer to all
+  // ! invalidated hyperedges). This function returns an iterator over all VALID hyperedges incident
+  // ! to vertex u.
+  std::pair<IncidenceIterator, IncidenceIterator> validIncidentEdges(const HypernodeID u, const PartitionID community_id) const {
+    return hypergraph_of_vertex(u).validIncidentEdges(u, community_id);
+  }
+
+  // ! Returns a for-each iterator-pair to loop over the set of incident hyperedges of hypernode u.
+  // ! Note, this function returns the same incident edges than validIncidentEdges(u, community_id), but
+  // ! additionally it skips all hyperedges that only contains a single vertex of a community (single-pin
+  // ! community hyperedges)
+  std::pair<IncidenceIterator, IncidenceIterator> incidentEdges(const HypernodeID u, const PartitionID community_id) const {
+    return hypergraph_of_vertex(u).incidentEdges(u, community_id);
+  }
+
+  // ! Returns a for-each iterator-pair to loop over the set pins of hyperedge e.
+  // ! Note, this function fails if community hyperedges are initialized.
+  std::pair<IncidenceIterator, IncidenceIterator> pins(const HyperedgeID e) const {
+    return hypergraph_of_edge(e).pins(e);
+  }
+
+  // ! Returns a for-each iterator-pair to loop over the set pins of hyperedge e that belongs to a certain community.
+  // Note, this function fails if community hyperedges are not initialized.
+  std::pair<IncidenceIterator, IncidenceIterator> pins(const HyperedgeID e, const PartitionID community_id) const {
+    return hypergraph_of_edge(e).pins(e, community_id);
+  }
+
+  // ! Returns a for-each iterator-pair to loop over the set of communities contained in hyperedge e.
+  std::pair<CommunityIterator, CommunityIterator> communities(const HyperedgeID e) const {
+    return hypergraph_of_edge(e).communities(e);
+  }
+
+  // ! Returns a for-each iterator-pair to loop over the set of block ids contained in hyperedge e.
+  std::pair<ConnectivitySetIterator, ConnectivitySetIterator> connectivitySet(const HyperedgeID e) const {
+    return hypergraph_of_edge(e).connectivitySet(e);
+  }
+
+  // ####################### Hypernode Information #######################
+
+  // ! Returns for a vertex of the hypergraph its original vertex id
+  // ! defined in the input file
   HypernodeID originalNodeID(const HypernodeID u) const {
     return hypergraph_of_vertex(u).originalNodeId(u);
   }
 
-  HypernodeID originalEdgeID(const HyperedgeID e) const {
-    return hypergraph_of_edge(e).originalEdgeId(e);
-  }
-
+  // ! Reverse operation of originalNodeID(u)
   HypernodeID globalNodeID(const HypernodeID u) const {
     ASSERT(u < _node_mapping.size());
     return _node_mapping[u];
   }
 
+  // ! Weight of a vertex
+  HypernodeWeight nodeWeight(const HypernodeID u) const {
+    return hypergraph_of_vertex(u).nodeWeight(u);
+  }
+
+  // ! Sets the weight of a vertex
+  void setNodeWeight(const HypernodeID u, const HypernodeWeight weight) {
+    hypergraph_of_vertex(u).setNodeWeight(u, weight);
+  }
+
+  // ! Degree of a hypernode
+  HyperedgeID nodeDegree(const HypernodeID u) const {
+    return hypergraph_of_vertex(u).nodeDegree(u);
+  }
+
+  // ! Returns, whether a hypernode is enabled or not
+  bool nodeIsEnabled(const HypernodeID u) const {
+    return hypergraph_of_vertex(u).nodeIsEnabled(u);
+  }
+
+  // ! Enables a hypernode (must be disabled before)
+  void enableHypernode(const HypernodeID u) {
+    hypergraph_of_vertex(u).enableHypernode(u);
+  }
+
+  // ! Disable a hypernode (must be enabled before)
+  void disableHypernode(const HypernodeID u) {
+    hypergraph_of_vertex(u).disableHypernode(u);
+  }
+
+  // ####################### Hyperedge Information #######################
+
+  // ! Returns for a hyperedge of the hypergraph its original hyperedge id
+  // ! defined in the input file
+  HypernodeID originalEdgeID(const HyperedgeID e) const {
+    return hypergraph_of_edge(e).originalEdgeId(e);
+  }
+
+  // ! Reverse operation of originalEdgeID(e)
   HypernodeID globalEdgeID(const HyperedgeID e) const {
     ASSERT(e < _edge_mapping.size());
     return _edge_mapping[e];
   }
 
+  // ! Weight of a hyperedge
+  HypernodeWeight edgeWeight(const HyperedgeID e) const {
+    return hypergraph_of_edge(e).edgeWeight(e);
+  }
+
+  // ! Sets the weight of a hyperedge
+  void setEdgeWeight(const HyperedgeID e, const HyperedgeWeight weight) {
+    hypergraph_of_edge(e).setEdgeWeight(e, weight);
+  }
+
+  // ! Number of pins of a hyperedge
+  HypernodeID edgeSize(const HyperedgeID e) const {
+    return hypergraph_of_edge(e).edgeSize(e);
+  }
+
+  // ! Hash value defined over the pins of a hyperedge
+  size_t edgeHash(const HyperedgeID e) const {
+    return hypergraph_of_edge(e).edgeHash(e);
+  }
+
+  // ! Returns, whether a hyperedge is enabled or not
+  bool edgeIsEnabled(const HyperedgeID e) const {
+    return hypergraph_of_edge(e).edgeIsEnabled(e);
+  }
+
+  // ! Enables a hyperedge (must be disabled before)
+  void enableHyperedge(const HyperedgeID e) {
+    hypergraph_of_edge(e).enableHyperedge(e);
+  }
+
+  // ! Disabled a hyperedge (must be enabled before)
+  void disableHyperedge(const HyperedgeID e) {
+    hypergraph_of_edge(e).disableHyperedge(e);
+  }
+
+  // ####################### Community Hyperedge Information #######################
+
+  // ! Weight of a community hyperedge
+  HypernodeWeight edgeWeight(const HyperedgeID e, const PartitionID community_id) const {
+    return hypergraph_of_edge(e).edgeWeight(e, community_id);
+  }
+
+  // ! Sets the weight of a community hyperedge
+  void setEdgeWeight(const HyperedgeID e, const PartitionID community_id, const HyperedgeWeight weight) {
+    hypergraph_of_edge(e).setEdgeWeight(e, community_id, weight);
+  }
+
+  // ! Number of pins of a hyperedge that are assigned to a community
+  HypernodeID edgeSize(const HyperedgeID e, const PartitionID community_id) const {
+    return hypergraph_of_edge(e).edgeSize(e, community_id);
+  }
+
+  // ! Hash value defined over the pins of a hyperedge that belongs to a community
+  size_t edgeHash(const HyperedgeID e, const PartitionID community_id) const {
+    return hypergraph_of_edge(e).edgeHash(e, community_id);
+  }
+
+  // ####################### Community Information #######################
+
+  // ! Number of communities
+  PartitionID numCommunities() const {
+    return _num_communities;
+  }
+
+  // ! Community id which hypernode u is assigned to
+  PartitionID communityID(const HypernodeID u) const {
+    return hypergraph_of_vertex(u).communityID(u);
+  }
+
+  // ! Assign a community to a hypernode
+  // ! Note, in order to use all community-related functions, initializeCommunities()
+  // ! have to be called after assigning to each vertex a community id
+  void setCommunityID(const HypernodeID hn, const PartitionID community_id) {
+    hypergraph_of_vertex(hn).setCommunityID(hn, community_id);
+  }
+
+  // ! Consider hypernode u is part of community C = {v_1, ..., v_n},
+  // ! than this function returns a unique id for hypernode u in the
+  // ! range [0,n).
   HypernodeID communityNodeId(const HypernodeID u) const {
     return hypergraph_of_vertex(u).communityNodeId(u);
   }
+
+  // ! Number of hypernodes in community
+  HypernodeID numCommunityHypernodes(const PartitionID community) const {
+    ASSERT(community < (PartitionID) _communities_num_hypernodes.size());
+    return _communities_num_hypernodes[community];
+  }
+
+  // ! Number of pins in community
+  HypernodeID numCommunityPins(const PartitionID community) const {
+    ASSERT(community < (PartitionID) _communities_num_pins.size());
+    return _communities_num_pins[community];
+  }
+
+  // ! Number of communities which pins of hyperedge belongs to
+  size_t numCommunitiesInHyperedge(const HyperedgeID e) const {
+    return hypergraph_of_edge(e).numCommunitiesInHyperedge(e);
+  }
+
+  // ! Numa node to which community is assigned to
+  PartitionID communityNumaNode(const PartitionID community_id) const {
+    ASSERT(community_id < (PartitionID) _community_node_mapping.size());
+    return _community_node_mapping[community_id];
+  }
+
+  // ! Sets the community to numa node mapping
+  void setCommunityNodeMapping(std::vector<PartitionID>&& community_node_mapping) {
+    _community_node_mapping = std::move(community_node_mapping);
+  }
+
+  // ####################### Partition Information #######################
+
+  /**
+   * About moving a vertex:
+   * The functions setNodePart(...) and changeNodePart(...) are implemented thread-safe
+   * and lock-free. All involved data structures are based on atomics. We maintain
+   * the following information when moving a node:
+   *  1.) Block id of a vertex
+   *  2.) Pin count in a block of a hyperedge
+   *  3.) Connectivity of a hyperedge (number of blocks to which the pins of a hyperedge
+   *      belongs to)
+   *  4.) Connectivity set of a hyperedge (blocks to which the pins of a hyperedge belongs
+   *      to)
+   *  5.) Number of incident cut hyperedges of a vertex (number with hyperedges with
+   *      connectivity greater than 1)
+   *  6.) Block weights and sizes.
+   *
+   * In order, to change the block id of a vertex, we start by performing a CAS operation
+   * on the block id of a vertex. This prevents that two threads are moving one vertex to
+   * different blocks concurrently. If the operation succeeds we start updating all involved
+   * data structures. Otherwise, we abort the operation and return false (indicating that
+   * the move of the vertex failed). On succees, we update the local block weights of the
+   * calling thread (see description below) and update 2.) - 5.) by iterating over each
+   * hyperedge and increment or decrement the pin count of a block of a hyperedge. Both
+   * operations return the pin count after the atomic update and based on that we can decide
+   * if the hyperedge is still cut or not.
+   *
+   * It is guaranteed, that if all parallel vertex move operations are finished, the values
+   * for 1.) - 5.) reflects the current state of the hypergraph. However, this is not the case
+   * in a parallel setting. Since the update of all incident edges of the moved vertex is not
+   * performed in a transactional/exclusive fashion, it can happen that threads that read one
+   * of the values 2.) to 5.) have an intermediate view on those. Algorithms that
+   * build on top of that have to consider that behavior and resolve or deal with that issue on
+   * a higher layer.
+   */
+
+  // ! Sets the block id an unassigned vertex u.
+  // ! Returns true, if assignment of unassigned vertex u to block id succeeds.
+  bool setNodePart(const HypernodeID u, const PartitionID id) {
+    StreamingHypergraph& hypergraph_of_u = hypergraph_of_vertex(u);
+    ASSERT(id < _k && id != kInvalidPartition, "Part ID" << id << "is invalid");
+
+    // Sets the node part of vertex u to id. The operation succeeds
+    // if CAS operation on part_id of vertex u succeeds
+    if ( hypergraph_of_u.setNodePart(u, id) ) {
+      // Update local block weights of calling thread
+      _local_part_info.local().apply(id, PartInfo{ nodeWeight(u), 1 });
+
+      for ( const HyperedgeID& he : incidentEdges(u) ) {
+        hypergraph_of_edge(he).incrementPinCountInPart(he, id);
+      }
+      return true;
+    }
+
+    return false;
+  }
+
+  // ! Changes the block id of vertex u from block 'from' to block 'to'
+  // ! Returns true, if move of vertex u to corresponding block succeeds.
+  bool changeNodePart(const HypernodeID u, const PartitionID from, const PartitionID to) {
+    StreamingHypergraph& hypergraph_of_u = hypergraph_of_vertex(u);
+    ASSERT(to < _k && to != kInvalidPartition, "Part ID" << to << "is invalid");
+
+    // Changes the node part of vertex u to id. The operation succeeds
+    // if CAS operation on part_id of vertex u succeeds
+    if ( hypergraph_of_u.changeNodePart(u, from, to) ) {
+      // Update local block weights of calling thread
+      _local_part_info.local().apply(from, PartInfo{ -nodeWeight(u), -1 });
+      _local_part_info.local().apply(to, PartInfo{ nodeWeight(u), 1 });
+
+      for ( const HyperedgeID& he : incidentEdges(u) ) {
+        HyperedgeID pin_count_in_from_part_after = hypergraph_of_edge(he).decrementPinCountInPart(he, from);
+        HyperedgeID pin_count_in_to_part_after = hypergraph_of_edge(he).incrementPinCountInPart(he, to);
+        bool no_pins_left_in_source_part = pin_count_in_from_part_after == 0;
+        bool only_one_pin_in_to_part = pin_count_in_to_part_after == 1;
+
+        if ( no_pins_left_in_source_part && !only_one_pin_in_to_part &&
+             pin_count_in_to_part_after == edgeSize(he) ) {
+          // In that case, hyperedge he becomes an internal hyperedge
+          for ( const HypernodeID& pin : pins(he) ) {
+            hypergraph_of_vertex(pin).decrementIncidentNumCutHyperedges(pin);
+          }
+        } else if ( !no_pins_left_in_source_part && only_one_pin_in_to_part &&
+                    pin_count_in_from_part_after == edgeSize(he) - 1 ) {
+          // In that case, hyperedge he becomes an cut hyperede
+          for ( const HypernodeID& pin : pins(he) ) {
+            hypergraph_of_vertex(pin).incrementIncidentNumCutHyperedges(pin);
+          }
+        }
+      }
+
+      return true;
+    }
+
+    return false;
+  }
+
+  // ! Block which vertex u belongs to
+  PartitionID partID(const HypernodeID u) const {
+    return hypergraph_of_vertex(u).partID(u);
+  }
+
+  // ! Returns, whether hypernode u is adjacent to a least one cut hyperedge.
+  bool isBorderNode(const HypernodeID u) const {
+    return hypergraph_of_vertex(u).isBorderNode(u);
+  }
+
+  // ! Number of incident cut hyperedges of vertex u
+  HyperedgeID numIncidentCutHyperedges(const HypernodeID u) const {
+    return hypergraph_of_vertex(u).numIncidentCutHyperedges(u);
+  }
+
+  // ! Initializes the number of cut hyperedges for each vertex
+  // ! NOTE, this function have to be called after initial partitioning
+  // ! and before local search.
+  void initializeNumCutHyperedges() {
+    for ( StreamingHypergraph& hypergraph : _hypergraphs ) {
+      hypergraph.initializeNumCutHyperedges(_hypergraphs);
+    }
+  }
+
+  // ! Number of blocks which pins of hyperedge e belongs to
+  PartitionID connectivity(const HyperedgeID e) const {
+    return hypergraph_of_edge(e).connectivity(e);
+  }
+
+  // ! Returns the number pins of hyperedge e that are part of block id
+  HypernodeID pinCountInPart(const HyperedgeID e, const PartitionID id) const {
+    return hypergraph_of_edge(e).pinCountInPart(e, id);
+  }
+
+  /**
+   * About Block Weights:
+   * We implement the concept of global and thread local block weights. If a vertex changes
+   * its block, changes are only reflected on the local block weights of the calling thread. The local and
+   * global block weights can be updated with updateLocalPartInfos() resp. updateGlobalPartInfos().
+   * The rationale behind this is, that we want to prevent congestion on the block weights (when implemented
+   * as atomic update), when multiple threads are moving vertices around. We leave it to the algorithm
+   * implemented on top of these primitives to update local and global block weights frequently.
+   */
+
+  // ! Global weight of a block
+  HypernodeWeight partWeight(const PartitionID id) const {
+    ASSERT(id < _k && id != kInvalidPartition, "Part ID" << id << "is invalid");
+    return _part_info[id].weight;
+  }
+
+  // ! Global size of a block
+  size_t partSize(const PartitionID id) const {
+    ASSERT(id < _k && id != kInvalidPartition, "Part ID" << id << "is invalid");
+    return _part_info[id].size;
+  }
+
+  // ! Local weight of a block (of calling thread)
+  HypernodeWeight localPartWeight(const PartitionID id) {
+    ASSERT(id < _k && id != kInvalidPartition, "Part ID" << id << "is invalid");
+    return _local_part_info.local().weight(id);
+  }
+
+  // ! Local size of a block (of calling thread)
+  size_t localPartSize(const PartitionID id) {
+    ASSERT(id < _k && id != kInvalidPartition, "Part ID" << id << "is invalid");
+    return _local_part_info.local().size(id);
+  }
+
+  // ! Updates the local block weights of the calling thread
+  void updateLocalPartInfos() {
+    _local_part_info.local().snapshot(_local_part_info);
+  }
+
+  // ! Updates the global block weights
+  // ! Note, this function is not thread safe and should be only called in
+  // ! a single-threaded setting.
+  void updateGlobalPartInfos() {
+    for ( const ThreadPartInfos& thread_part_info : _local_part_info  ) {
+      // Applying deltas of each local part information to global part information
+      const std::vector<PartInfo>& delta = thread_part_info.delta();
+      ASSERT(delta.size() == (size_t) _k);
+      for ( PartitionID k = 0; k < _k; ++k ) {
+        _part_info[k].weight += delta[k].weight;
+        _part_info[k].size += delta[k].size;
+      }
+    }
+
+    // Reset local block weights
+    for ( ThreadPartInfos& thread_part_info : _local_part_info  ) {
+      thread_part_info.reset();
+    }
+  }
+
+  // ####################### Contract / Uncontract #######################
 
   /*!
    * Contracts the vertex pair (u,v). The representative u remains in the hypergraph.
@@ -584,11 +903,15 @@ class Hypergraph {
    *
    * The returned Memento can be used to undo the contraction via an uncontract operation.
    *
+   * NOTE, this function is not thread-safe and should be only called in a single-threaded
+   * setting.
+   *
    * \param u Representative hypernode that will remain in the hypergraph
    * \param v Contraction partner that will be removed from the hypergraph
    *
    */
-  Memento contract(const HypernodeID u, const HypernodeID v) {
+  Memento contract(const HypernodeID u,
+                   const HypernodeID v) {
     ASSERT(nodeIsEnabled(u), "Hypernode" << u << "is disabled");
     ASSERT(nodeIsEnabled(v), "Hypernode" << v << "is disabled");
     // TODO(heuer): Assertions verifies that both node have same part id
@@ -606,8 +929,9 @@ class Hypergraph {
   }
 
   /*!
-   * Contracts the vertex pair (u,v). The representative u remains in the hypergraph.
-   * The contraction partner v is removed from the hypergraph.
+   * Contracts the vertex pair (u,v) belonging to the same community.
+   * The representative u remains in the hypergraph. The contraction partner
+   * v is removed from the hypergraph.
    *
    * For each hyperedge e incident to v, a contraction lead to one of two operations:
    * 1.) If e contained both u and v, then v is removed from e.
@@ -616,11 +940,17 @@ class Hypergraph {
    *
    * The returned Memento can be used to undo the contraction via an uncontract operation.
    *
+   * NOTE, in order that this function works correct, community hyperedges have to be
+   * initialized beforehand. This function is thread-safe as long as only one thread
+   * performs contractions in one community.
+   *
    * \param u Representative hypernode that will remain in the hypergraph
    * \param v Contraction partner that will be removed from the hypergraph
-   *
+   * \param community_id Community to which u and v belongs to
    */
-  Memento contract(const HypernodeID u, const HypernodeID v, const PartitionID community_id) {
+  Memento contract(const HypernodeID u,
+                   const HypernodeID v,
+                   const PartitionID community_id) {
     ASSERT(nodeIsEnabled(u), "Hypernode" << u << "is disabled");
     ASSERT(nodeIsEnabled(v), "Hypernode" << v << "is disabled");
     ASSERT(communityID(u) == community_id);
@@ -642,9 +972,32 @@ class Hypergraph {
 
   /*!
   * Undoes a contraction operation that was remembered by the memento.
-  * This is the default uncontract method.
+  *
+  * During parallel community coarsening, we detect parallel hyperedges. If a contraction
+  * is performed, we check if some of the incident hyperedges become parallel. Note, that
+  * we perform contractions in parallel (one thread per community). To not interfer with
+  * other threads (community coarsener), we only invalidate (not remove) a parallel hyperedge
+  * for all pins that belongs to the community which detects it. Thus, it can happen that
+  * in some communities a parallel hyperedge is detected and in some not. Parallel hyperedges
+  * that are detected during contraction of two vertices are restored before the call to
+  * the uncontraction function. However, there are still cases that due to an other
+  * uncontraction, that did not detect that a hyperedge is parallel, a parallel hyperedge
+  * becomes non-parallel to its representative. In such cases, the restore operation have to
+  * be handled by the uncontraction function.
+  *
+  * After coarsening we resort the incident nets array such that the first part contains
+  * all invalidated and second all enabled hyperedges. To detect whether a invalidated
+  * hyperedge e' becomes non-parallel to its enabled representative e'', we check the following
+  * cases (u and v are the vertices which are uncontracted):
+  *   1.) v was part of e', but not of e'' before contraction (and vice versa)
+  *   2.) e' was part of I(v), but e'' not before contraction (and vice versa)
+  *
+  * NOTE, this function is not thread-safe and should only be called in a single-threaded
+  * setting.
   *
   * \param memento Memento remembering the contraction operation that should be reverted
+  * \param parallel_he_representative for each disabled hyperedge it contains it
+  *                                   parallel representative.
   */
   void uncontract(const Memento& memento,
                   parallel::scalable_vector<HyperedgeID>& parallel_he_representative) {
@@ -774,6 +1127,15 @@ class Hypergraph {
             V(memento.v) << V(numIncidentCutHyperedges(memento.v)) << V(numIncidentCutHEs(memento.v)) );
   }
 
+  // ####################### Remove / Restore Hyperedges #######################
+
+  /*!
+  * Removes a hyperedge from the hypergraph. This includes the removal of he from all
+  * of its pins and to disable the hyperedge.
+  *
+  * NOTE, this function is not thread-safe and should only be called in a single-threaded
+  * setting.
+  */
   void removeEdge(const HyperedgeID he) {
     ASSERT(edgeIsEnabled(he), "Hyperedge" << he << "is disabled");
     for ( const HypernodeID& pin : pins(he) ) {
@@ -782,23 +1144,43 @@ class Hypergraph {
     hypergraph_of_edge(he).disableHyperedge(he);
   }
 
-  void removeSinglePinEdge(const HyperedgeID he, const PartitionID community_id) {
-    ASSERT(hypergraph_of_edge(he).numCommunitiesOfHyperedge(he) == 1,
+  /*!
+  * Removes a single-pin community hyperedge from the hypergraph.
+  *
+  * NOTE, in order that this function works correct, community hyperedges have to be
+  * initialized beforehand. This function is thread-safe as long as only one thread
+  * performs contractions in one community.
+  */
+  void removeSinglePinCommunityEdge(const HyperedgeID he, const PartitionID community_id) {
+    ASSERT(hypergraph_of_edge(he).numCommunitiesInHyperedge(he) == 1,
            "Only allowed to remove hyperedges that contains pins from one community");
     ASSERT(hypergraph_of_edge(he).edgeSize(he) == 1, "Hyperedge is not a single-pin hyperedge");
     removeEdge(he, community_id);
     hypergraph_of_edge(he).disableHyperedge(he);
   }
 
+  /*!
+  * Removes a parallel hyperedge from the hypergraph.
+  * Note, that in case the pins of the hyperedge belongs only to one community,
+  * the hyperedge is directly removed from the hypergraph. Otherwise, it is only
+  * invalidated (for an explanation of the term "invalidated", see illustration over
+  * function incidentEdges and documentation of function uncontraction(...)).
+  *
+  * NOTE, in order that this function works correct, community hyperedges have to be
+  * initialized beforehand. This function is thread-safe as long as only one thread
+  * performs contractions in one community.
+  */
   void removeParallelEdge(const HyperedgeID he, const PartitionID community_id) {
-    if ( numCommunitiesOfHyperedge(he) == 1 ) {
+    if ( numCommunitiesInHyperedge(he) == 1 ) {
       removeEdge(he, community_id);
     } else {
       invalidateEdge(he, community_id);
     }
   }
 
-  void restoreEdge(const HyperedgeID he, const size_t size, const HyperedgeID representative = kInvalidHyperedge) {
+  // ! Restores an hyperedge of a certain size.
+  void restoreEdge(const HyperedgeID he, const size_t size,
+                   const HyperedgeID representative = kInvalidHyperedge) {
     ASSERT(!edgeIsEnabled(he), "Hyperedge" << he << "already enabled");
     ASSERT(representative == kInvalidHyperedge || edgeIsEnabled(representative),
            "Hyperedge" << representative << "is disabled");
@@ -816,11 +1198,24 @@ class Hypergraph {
     }
   }
 
+  // ! Restores a single-pin hyperedge
   void restoreSinglePinHyperedge(const HyperedgeID he) {
     ASSERT(!edgeIsEnabled(he), "Hyperedge" << he << "already enabled");
     restoreEdge(he, 1);
   }
 
+  /*!
+   * Restores a parallel hyperedge.
+   *
+   * The representative of a parallel hyperedge he is stored in _parallel_he_representative.
+   * However, the representative can also be parallel to an other hyperedge. The array
+   * _parallel_he_representative forms a tree of parallel hyperedges. In order to restore
+   * a parallel hyperedge, we have to restore all parallel hyperedges from he to the root of
+   * the tree recursively.
+   *
+   * @param he parallel hyperedge to restore
+   * @param _parallel_he_representative parallel hyperedge representative tree
+   */
   void restoreParallelHyperedge(const HyperedgeID he,
                                 parallel::scalable_vector<HyperedgeID>& _parallel_he_representative) {
     if ( !edgeIsEnabled(he) ) {
@@ -830,7 +1225,7 @@ class Hypergraph {
 
       #ifdef NDEBUG
       // If we are not in debug mode, we copy the content/pins of the representative to
-      // to its parallel hyperedge we want to enable.
+      // to its parallel hyperedge we want to restore.
       StreamingHypergraph& hypergraph_of_he = hypergraph_of_edge(he);
       StreamingHypergraph& hypergraph_of_rep = hypergraph_of_edge(representative);
       memcpy(hypergraph_of_he._incidence_array.data() + hypergraph_of_he.hyperedge(he).firstEntry(),
@@ -846,216 +1241,58 @@ class Hypergraph {
     }
   }
 
-  HypernodeWeight nodeWeight(const HypernodeID u) const {
-    return hypergraph_of_vertex(u).nodeWeight(u);
-  }
+  // ####################### Initialization / Reset Functions #######################
 
-  void setNodeWeight(const HypernodeID u, const HypernodeWeight weight) {
-    hypergraph_of_vertex(u).setNodeWeight(u, weight);
-  }
-
-  HypernodeWeight edgeWeight(const HyperedgeID e) const {
-    return hypergraph_of_edge(e).edgeWeight(e);
-  }
-
-  HypernodeWeight edgeWeight(const HyperedgeID e, const PartitionID community_id) const {
-    return hypergraph_of_edge(e).edgeWeight(e, community_id);
-  }
-
-  void setEdgeWeight(const HyperedgeID e, const HyperedgeWeight weight) {
-    hypergraph_of_edge(e).setEdgeWeight(e, weight);
-  }
-
-  void setEdgeWeight(const HyperedgeID e, const PartitionID community_id, const HyperedgeWeight weight) {
-    hypergraph_of_edge(e).setEdgeWeight(e, community_id, weight);
-  }
-
-  HyperedgeID nodeDegree(const HypernodeID u) const {
-    return hypergraph_of_vertex(u).nodeDegree(u);
-  }
-
-  HypernodeID edgeSize(const HyperedgeID e) const {
-    return hypergraph_of_edge(e).edgeSize(e);
-  }
-
-  HypernodeID edgeSize(const HyperedgeID e, const PartitionID community_id) const {
-    return hypergraph_of_edge(e).edgeSize(e, community_id);
-  }
-
-  size_t edgeHash(const HyperedgeID e) const {
-    return hypergraph_of_edge(e).edgeHash(e);
-  }
-
-  size_t edgeHash(const HyperedgeID e, const PartitionID community_id) const {
-    return hypergraph_of_edge(e).edgeHash(e, community_id);
-  }
-
-  PartitionID communityID(const HypernodeID u) const {
-    return hypergraph_of_vertex(u).communityID(u);
-  }
-
-  PartitionID communityNumaNode(const PartitionID community_id) const {
-    ASSERT(community_id < (PartitionID) _community_node_mapping.size());
-    return _community_node_mapping[community_id];
-  }
-
-  void setCommunityNodeMapping(std::vector<PartitionID>&& community_node_mapping) {
-    _community_node_mapping = std::move(community_node_mapping);
-  }
-
-  /**
-   * Set partition information for an unassigned vertex.
-   * Returns true, if CAS operation on part id successfully swaps kInvalidPartition with id
+  /*!
+   * Adds community hyperedges to the hypergraphs. Community hyperedges
+   * point to a consecutive range of pins of the original hyperedge that
+   * belongs to the same community. It allows to perform parallel contractions
+   * on the hypergraph within each community.
+   * Additionally the incident nets array of each hypernode is reordered such
+   * that the first part contains all single-pin community hyperedges and second
+   * all others.
+   *
+   * Note, this function have to be called before parallel community coarsening.
    */
-  bool setNodePart(const HypernodeID u, const PartitionID id) {
-    StreamingHypergraph& hypergraph_of_u = hypergraph_of_vertex(u);
-    ASSERT(id < _k && id != kInvalidPartition, "Part ID" << id << "is invalid");
+  void initializeCommunityHyperedges() {
+    TBBNumaArena::instance().execute_on_all_numa_nodes([&](const int node) {
+      _hypergraphs[node].initializeCommunityHyperedges(_hypergraphs);
+    });
 
-    if ( hypergraph_of_u.setNodePart(u, id) ) {
-      _local_part_info.local().apply(id, PartInfo{ nodeWeight(u), 1 });
-
-      for ( const HyperedgeID& he : incidentEdges(u) ) {
-        hypergraph_of_edge(he).incrementPinCountInPart(he, id);
-      }
-
-      return true;
-    }
-
-    return false;
+    TBBNumaArena::instance().execute_on_all_numa_nodes([&](const int node) {
+      _hypergraphs[node].initializeCommunityHypernodes(_hypergraphs);
+    });
   }
 
-  /**
-   * Updates partition information for a vertex assigned to block from.
-   * Returns true, if CAS operation on part id successfully swaps from with to
+  /*!
+   * Removes all community hyperedges from the hypergraph after parallel community
+   * coarsening terminates.
+   *
+   * The pins of the original hyperedge are sorted in decreasing order of their
+   * contraction index. The contraction index of a vertex v is defined as the index
+   * of the contraction (u,v) in the contraction history, where v occurs as contraction
+   * partner. This is done to fullfil the invariants required by the uncontraction method.
+   *
+   * Note this function have to be called after parallel community coarsening such
+   * that uncontractions can be performed correctly.
+   *
+   * @params history contraction history
    */
-  bool changeNodePart(const HypernodeID u, const PartitionID from, const PartitionID to) {
-    StreamingHypergraph& hypergraph_of_u = hypergraph_of_vertex(u);
-    ASSERT(to < _k && to != kInvalidPartition, "Part ID" << to << "is invalid");
-
-    if ( hypergraph_of_u.changeNodePart(u, from, to) ) {
-      _local_part_info.local().apply(from, PartInfo{ -nodeWeight(u), -1 });
-      _local_part_info.local().apply(to, PartInfo{ nodeWeight(u), 1 });
-
-      for ( const HyperedgeID& he : incidentEdges(u) ) {
-        bool no_pins_left_in_source_part = hypergraph_of_edge(he).decrementPinCountInPart(he, from);
-        bool only_one_pin_in_to_part = hypergraph_of_edge(he).incrementPinCountInPart(he, to);
-
-        if ( no_pins_left_in_source_part && !only_one_pin_in_to_part &&
-             pinCountInPart(he, to) == edgeSize(he) ) {
-          for ( const HypernodeID& pin : pins(he) ) {
-            hypergraph_of_vertex(pin).decrementIncidentNumCutHyperedges(pin);
-          }
-        } else if ( !no_pins_left_in_source_part && only_one_pin_in_to_part &&
-                    pinCountInPart(he, from) == edgeSize(he) - 1 ) {
-          for ( const HypernodeID& pin : pins(he) ) {
-            hypergraph_of_vertex(pin).incrementIncidentNumCutHyperedges(pin);
-          }
-        }
-      }
-
-      return true;
-    }
-
-    return false;
+  void removeCommunityHyperedges(const std::vector<Memento>& history) {
+    TBBNumaArena::instance().execute_on_all_numa_nodes([&](const int node) {
+      _hypergraphs[node].removeCommunityHyperedges(history, _num_hypernodes, _hypergraphs);
+    });
   }
 
-  /**
-   * Updates the block weights of the calling thread by applying
-   * the deltas of all threads to the one of the calling thread.
+  /*!
+   * Initializes community-related information after all vertices are assigned to a community.
+   * This includes:
+   *  1.) Number of Communities
+   *  2.) Number of Vertices per Community
+   *  3.) Number of Pins per Community
+   *  4.) For each hypernode v of community C, we compute a unique id within
+   *      that community in the range [0, |C|)
    */
-  void updateLocalPartInfos() {
-    _local_part_info.local().snapshot(_local_part_info);
-  }
-
-  /**
-   * Updates the global weights by applying the deltas of all threads
-   * to global part info vector.
-   */
-  void updateGlobalPartInfos() {
-    for ( const ThreadPartInfos& thread_part_info : _local_part_info  ) {
-      const std::vector<PartInfo>& delta = thread_part_info.delta();
-      ASSERT(delta.size() == (size_t) _k);
-      for ( PartitionID k = 0; k < _k; ++k ) {
-        _part_info[k].weight += delta[k].weight;
-        _part_info[k].size += delta[k].size;
-      }
-    }
-
-    for ( ThreadPartInfos& thread_part_info : _local_part_info  ) {
-      thread_part_info.reset();
-    }
-  }
-
-  PartitionID partID(const HypernodeID u) const {
-    return hypergraph_of_vertex(u).partID(u);
-  }
-
-  bool isBorderNode(const HypernodeID u) const {
-    return hypergraph_of_vertex(u).isBorderNode(u);
-  }
-
-  HyperedgeID numIncidentCutHyperedges(const HypernodeID u) const {
-    return hypergraph_of_vertex(u).numIncidentCutHyperedges(u);
-  }
-
-  void initializeNumCutHyperedges() {
-    for ( StreamingHypergraph& hypergraph : _hypergraphs ) {
-      hypergraph.initializeNumCutHyperedges(_hypergraphs);
-    }
-  }
-
-  PartitionID connectivity(const HyperedgeID e) const {
-    return hypergraph_of_edge(e).connectivity(e);
-  }
-
-  HypernodeID pinCountInPart(const HyperedgeID e, const PartitionID id) const {
-    return hypergraph_of_edge(e).pinCountInPart(e, id);
-  }
-
-  HypernodeWeight partWeight(const PartitionID id) const {
-    ASSERT(id < _k && id != kInvalidPartition, "Part ID" << id << "is invalid");
-    return _part_info[id].weight;
-  }
-
-  HypernodeWeight localPartWeight(const PartitionID id) {
-    ASSERT(id < _k && id != kInvalidPartition, "Part ID" << id << "is invalid");
-    return _local_part_info.local().weight(id);
-  }
-
-  size_t partSize(const PartitionID id) const {
-    ASSERT(id < _k && id != kInvalidPartition, "Part ID" << id << "is invalid");
-    return _part_info[id].size;
-  }
-
-  size_t localPartSize(const PartitionID id) {
-    ASSERT(id < _k && id != kInvalidPartition, "Part ID" << id << "is invalid");
-    return _local_part_info.local().size(id);
-  }
-
-  bool nodeIsEnabled(const HypernodeID u) const {
-    return hypergraph_of_vertex(u).nodeIsEnabled(u);
-  }
-
-  bool edgeIsEnabled(const HyperedgeID e) const {
-    return hypergraph_of_edge(e).edgeIsEnabled(e);
-  }
-
-  void enableHypernode(const HypernodeID u) {
-    hypergraph_of_vertex(u).enableHypernode(u);
-  }
-
-  void disableHypernode(const HypernodeID u) {
-    hypergraph_of_vertex(u).disableHypernode(u);
-  }
-
-  void enableHyperedge(const HyperedgeID e) {
-    hypergraph_of_edge(e).enableHyperedge(e);
-  }
-
-  void streamCommunityID(const HypernodeID hn, const PartitionID community_id) {
-    hypergraph_of_vertex(hn).streamCommunityID(hn, community_id);
-  }
-
   void initializeCommunities() {
     // Compute number of communities
     HighResClockTimepoint start = std::chrono::high_resolution_clock::now();
@@ -1074,6 +1311,8 @@ class Hypergraph {
     mt_kahypar::utils::Timer::instance().add_timing("compute_number_of_communities", "Compute Num of Communities",
       "initialize_communities", mt_kahypar::utils::Timer::Type::PREPROCESSING, 0, std::chrono::duration<double>(end - start).count());
 
+    // Compute number of hypernodes per community and also for each node
+    // a unique node id within each community
     start = std::chrono::high_resolution_clock::now();
     _communities_num_hypernodes.assign(_num_communities, 0);
     for ( const HypernodeID& hn : nodes() ) {
@@ -1086,6 +1325,7 @@ class Hypergraph {
     mt_kahypar::utils::Timer::instance().add_timing("compute_num_community_hns", "Compute Num Community HNs",
       "initialize_communities", mt_kahypar::utils::Timer::Type::PREPROCESSING, 1, std::chrono::duration<double>(end - start).count());
 
+    // Compute number of pins per community
     start = std::chrono::high_resolution_clock::now();
     _communities_num_pins.assign(_num_communities, 0);
     for ( const HyperedgeID& he : edges() ) {
@@ -1099,94 +1339,44 @@ class Hypergraph {
       "initialize_communities", mt_kahypar::utils::Timer::Type::PREPROCESSING, 2, std::chrono::duration<double>(end - start).count());
   }
 
-  void initializeCommunityHyperedges() {
-    for ( int node = 0; node < (int)_hypergraphs.size(); ++node ) {
-      TBBNumaArena::instance().numa_task_arena(node).execute([&] {
-        TBBNumaArena::instance().numa_task_group(node).run([&, node] {
-          _hypergraphs[node].initializeCommunityHyperedges(_hypergraphs);
-        });
-      });
-    }
-    TBBNumaArena::instance().wait();
-
-    for ( int node = 0; node < (int)_hypergraphs.size(); ++node ) {
-      TBBNumaArena::instance().numa_task_arena(node).execute([&] {
-        TBBNumaArena::instance().numa_task_group(node).run([&, node] {
-          _hypergraphs[node].initializeCommunityHypernodes(_hypergraphs);
-        });
-      });
-    }
-    TBBNumaArena::instance().wait();
-  }
-
-  void resetCommunityHyperedges(const std::vector<Memento>& mementos) {
-    for ( int node = 0; node < (int)_hypergraphs.size(); ++node ) {
-      TBBNumaArena::instance().numa_task_arena(node).execute([&] {
-        TBBNumaArena::instance().numa_task_group(node).run([&, node] {
-          _hypergraphs[node].resetCommunityHyperedges(mementos, _num_hypernodes, _hypergraphs);
-        });
-      });
-    }
-    TBBNumaArena::instance().wait();
-  }
-
+  // ! Resets the ids of all pins in the incidence array to its original node id
   void resetPinsToOriginalNodeIds() {
-    for ( int node = 0; node < (int)_hypergraphs.size(); ++node ) {
-      TBBNumaArena::instance().numa_task_arena(node).execute([&] {
-        TBBNumaArena::instance().numa_task_group(node).run([&, node] {
-          _hypergraphs[node].resetPinsToOriginalNodeIds(_hypergraphs);
-        });
-      });
-    }
-    TBBNumaArena::instance().wait();
+    TBBNumaArena::instance().execute_on_all_numa_nodes([&](const int node) {
+      _hypergraphs[node].resetPinsToOriginalNodeIds(_hypergraphs);
+    });
   }
 
-  void removeDisabledHyperedgesFromIncidentNets() {
-    for ( int node = 0; node < (int)_hypergraphs.size(); ++node ) {
-      TBBNumaArena::instance().numa_task_arena(node).execute([&] {
-        TBBNumaArena::instance().numa_task_group(node).run([&, node] {
-          _hypergraphs[node].removeDisabledHyperedgesFromIncidentNets(_hypergraphs);
-        });
-      });
-    }
-    TBBNumaArena::instance().wait();
-  }
-
-  // ! Only for debugging
-  bool verifyThatHyperedgesAreParallel(const HyperedgeID representative, const HyperedgeID parallel_he) {
-    if ( !edgeIsEnabled(representative) || edgeIsEnabled(parallel_he) ) {
-      LOG << "HE" << representative << "must be enabled and HE" << parallel_he << "disabled";
-      return false;
-    }
-
-    std::set<HypernodeID> contained_pins;
-    for ( const HypernodeID& pin : pins(representative) ) {
-      contained_pins.insert(pin);
-    }
-
-    size_t edge_size = contained_pins.size();
-    StreamingHypergraph& hypergraph_of_he = hypergraph_of_edge(parallel_he);
-    size_t incidence_array_start = hypergraph_of_he.hyperedge(parallel_he).firstEntry();
-    for ( size_t pos = incidence_array_start; pos < incidence_array_start + edge_size; ++pos ) {
-      const HypernodeID pin = hypergraph_of_he._incidence_array[pos];
-      if ( contained_pins.find(pin) == contained_pins.end() ) {
-        LOG << "Pin" << pin << "of HE" << parallel_he << "is not contained in HE" << representative;
-        hypergraph_of_he.printHyperedgeInfo(parallel_he);
-        hypergraph_of_edge(representative).printHyperedgeInfo(representative);
-        return false;
-      }
-    }
-
-    return true;
-  }
-
-  // ! Only for testing
-  void disableHyperedge(const HyperedgeID e) {
-    hypergraph_of_edge(e).disableHyperedge(e);
+  // ! Invalidates all disabled hyperedges from the incident nets array of each node
+  // ! For further details please take a look at the documentation of uncontraction(...)
+  void invalidateDisabledHyperedgesFromIncidentNets() {
+    TBBNumaArena::instance().execute_on_all_numa_nodes([&](const int node) {
+      _hypergraphs[node].invalidateDisabledHyperedgesFromIncidentNets(_hypergraphs);
+    });
   }
 
  private:
 
+  // ####################### Uncontraction Functions #######################
+
+  // ! Restores the contraction partner of the contraction
+  KAHYPAR_ATTRIBUTE_ALWAYS_INLINE void reverseContraction(const Memento& memento) {
+    enableHypernode(memento.v);
+    PartitionID part_id = partID(memento.u);
+    ASSERT(part_id != kInvalidPartition);
+    hypergraph_of_vertex(memento.v).setNodePart(memento.v, part_id);
+    _local_part_info.local().apply(part_id, PartInfo { 0, 1 });
+  }
+
+  // ! Mark all incident nets of hypernode v in bit set.
+  // ! Note, during a uncontraction of two vertices u and v only nets
+  // ! that are part of I(u) and I(v) are uncontracted.
+  KAHYPAR_ATTRIBUTE_ALWAYS_INLINE void markAllIncidentNetsOf(const HypernodeID v) {
+    hypergraph_of_vertex(v).markAllIncidentNetsOf(v, _hypergraphs);
+  }
+
+  // ####################### Remove Hyperedges #######################
+
+  // ! Removes a community hyperedge from incident net arrays of all its pins
   void removeEdge(const HyperedgeID he, const PartitionID community_id) {
     ASSERT(edgeIsEnabled(he), "Hyperedge" << he << "is disabled");
     for ( const HypernodeID& pin : pins(he, community_id) ) {
@@ -1195,6 +1385,7 @@ class Hypergraph {
     }
   }
 
+  // ! Invalidates a community hyperedge in all incident net arrays of all its pins
   void invalidateEdge(const HyperedgeID he, const PartitionID community_id) {
     ASSERT(edgeIsEnabled(he), "Hyperedge" << he << "is disabled");
     hypergraph_of_edge(he).disableHyperedge(he, community_id);
@@ -1204,18 +1395,10 @@ class Hypergraph {
     }
   }
 
-  KAHYPAR_ATTRIBUTE_ALWAYS_INLINE void reverseContraction(const Memento& memento) {
-    enableHypernode(memento.v);
-    PartitionID part_id = partID(memento.u);
-    ASSERT(part_id != kInvalidPartition);
-    hypergraph_of_vertex(memento.v).setNodePart(memento.v, part_id);
-    _local_part_info.local().apply(part_id, PartInfo { 0, 1 });
-  }
+  // ####################### Helper Functions #######################
 
-  KAHYPAR_ATTRIBUTE_ALWAYS_INLINE void markAllIncidentNetsOf(const HypernodeID v) {
-    hypergraph_of_vertex(v).markAllIncidentNetsOf(v, _hypergraphs);
-  }
-
+  // ! Computes a mapping from vertex to numa hypernode.
+  // ! A vertex is assigned to the numa node where it occurs most as pin.
   void computeNodeMapping() {
     size_t num_streaming_hypergraphs = _hypergraphs.size();
     // Computes mapping for each node to a streaming hypergraph
@@ -1243,6 +1426,12 @@ class Hypergraph {
       "initialize_hypernodes", mt_kahypar::utils::Timer::Type::IMPORT, 0, std::chrono::duration<double>(end - start).count());
   }
 
+  /*!
+   * Initializes the hypernodes of the hypergraph.
+   * Hypernodes are streamed into its corresponding numa hypergraphs (defined
+   * by the vertex to numa node mapping) and afterwards the incident nets data
+   * structure is initialized.
+   */
   void initializeHypernodes() {
     // Verify that node mapping is valid
     ASSERT([&]() {
@@ -1358,20 +1547,7 @@ class Hypergraph {
       "initialize_hypernodes", mt_kahypar::utils::Timer::Type::IMPORT, 4, std::chrono::duration<double>(end - start).count());
   }
 
-  /*!
-   * Returns the number of incident hyperedges of a hypernode that connect more than on block.
-   * This method is used internally to verify the consistency of the public isBorderNode method.
-   */
-  HyperedgeID numIncidentCutHEs(const HypernodeID hn) const {
-    HyperedgeID num_cut_hes = 0;
-    for (const HyperedgeID& he : incidentEdges(hn)) {
-      if (connectivity(he) > 1) {
-        ++num_cut_hes;
-      }
-    }
-    return num_cut_hes;
-  }
-
+  // ####################### Helper Functions #######################
 
   const StreamingHypergraph& hypergraph_of_vertex(const HypernodeID u) const {
     int node = StreamingHypergraph::get_numa_node_of_vertex(u);
@@ -1391,6 +1567,46 @@ class Hypergraph {
 
   StreamingHypergraph& hypergraph_of_edge(const HyperedgeID e) {
     return const_cast<StreamingHypergraph&>(static_cast<const Hypergraph&>(*this).hypergraph_of_edge(e));
+  }
+
+  // ! Returns the number of incident hyperedges of a hypernode that connect more than on block.
+  // ! This method is used internally to verify the consistency of the public isBorderNode method.
+  HyperedgeID numIncidentCutHEs(const HypernodeID hn) const {
+    HyperedgeID num_cut_hes = 0;
+    for (const HyperedgeID& he : incidentEdges(hn)) {
+      if (connectivity(he) > 1) {
+        ++num_cut_hes;
+      }
+    }
+    return num_cut_hes;
+  }
+
+  // ! Only for debugging
+  bool verifyThatHyperedgesAreParallel(const HyperedgeID representative, const HyperedgeID parallel_he) {
+    if ( !edgeIsEnabled(representative) || edgeIsEnabled(parallel_he) ) {
+      LOG << "HE" << representative << "must be enabled and HE" << parallel_he << "disabled";
+      return false;
+    }
+
+    std::set<HypernodeID> contained_pins;
+    for ( const HypernodeID& pin : pins(representative) ) {
+      contained_pins.insert(pin);
+    }
+
+    size_t edge_size = contained_pins.size();
+    StreamingHypergraph& hypergraph_of_he = hypergraph_of_edge(parallel_he);
+    size_t incidence_array_start = hypergraph_of_he.hyperedge(parallel_he).firstEntry();
+    for ( size_t pos = incidence_array_start; pos < incidence_array_start + edge_size; ++pos ) {
+      const HypernodeID pin = hypergraph_of_he._incidence_array[pos];
+      if ( contained_pins.find(pin) == contained_pins.end() ) {
+        LOG << "Pin" << pin << "of HE" << parallel_he << "is not contained in HE" << representative;
+        hypergraph_of_he.printHyperedgeInfo(parallel_he);
+        hypergraph_of_edge(representative).printHyperedgeInfo(representative);
+        return false;
+      }
+    }
+
+    return true;
   }
 
   // ! Number of hypernodes
@@ -1413,9 +1629,14 @@ class Hypergraph {
   // ! Thread local weight and size information for all blocks.
   ThreadLocalPartInfos _local_part_info;
 
+  // ! Numa Hypergraphs
+  // ! Hypergraph on index i is assigned to numa node i
   std::vector<StreamingHypergraph> _hypergraphs;
+  // ! Mapping from original node id to its hypergraph node id
   std::vector<HypernodeID> _node_mapping;
+  // ! Mapping from original edge id to its hypergraph edge id
   std::vector<HyperedgeID> _edge_mapping;
+  // ! Mapping from community id to numa node
   std::vector<PartitionID> _community_node_mapping;
 };
 

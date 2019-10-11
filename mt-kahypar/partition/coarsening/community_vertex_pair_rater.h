@@ -83,8 +83,8 @@ class CommunityVertexPairRater {
     _context(context),
     _community_id(community_id),
     _community_node_mapping(community_node_mapping),
-    _tmp_ratings(_hg.initialNumCommunityHypernodes(_community_id)),
-    _already_matched(_hg.initialNumCommunityHypernodes(_community_id)) { }
+    _tmp_ratings(_hg.numCommunityHypernodes(_community_id)),
+    _already_matched(_hg.numCommunityHypernodes(_community_id)) { }
 
   CommunityVertexPairRater(const CommunityVertexPairRater&) = delete;
   CommunityVertexPairRater& operator= (const CommunityVertexPairRater&) = delete;

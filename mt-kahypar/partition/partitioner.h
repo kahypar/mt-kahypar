@@ -94,7 +94,7 @@ inline void Partitioner::setupContext(const Hypergraph& hypergraph, Context& con
       stdev_hn_degree += (hypergraph.nodeDegree(hn) - avg_hypernode_degree) *
                         (hypergraph.nodeDegree(hn) - avg_hypernode_degree);
     }
-    stdev_hn_degree = std::sqrt(stdev_hn_degree / (hypergraph.currentNumNodes() - 1));
+    stdev_hn_degree = std::sqrt(stdev_hn_degree / (hypergraph.initialNumNodes() - 1));
     HyperedgeID rank_hypernode_degree = metrics::hypernodeDegreeRank(hypergraph,
       hypergraph.initialNumNodes() - std::ceil(0.00166 * hypergraph.initialNumNodes()));
     if ( avg_hypernode_degree + 5 * stdev_hn_degree < rank_hypernode_degree && rank_hypernode_degree > 250 ) {
@@ -142,7 +142,7 @@ inline void Partitioner::preprocess(Hypergraph& hypergraph, const Context& conte
   tbb::parallel_for(tbb::blocked_range<HypernodeID>(0UL, hypergraph.initialNumNodes()),
     [&](const tbb::blocked_range<HypernodeID>& range) {
     for ( HypernodeID hn = range.begin(); hn < range.end(); ++hn ) {
-      hypergraph.streamCommunityID(hypergraph.globalNodeID(hn), communities[hn]);
+      hypergraph.setCommunityID(hypergraph.globalNodeID(hn), communities[hn]);
     }
   });
   end = std::chrono::high_resolution_clock::now();

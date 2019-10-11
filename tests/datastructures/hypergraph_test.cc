@@ -1299,7 +1299,7 @@ TEST_F(AHypergraphWithTwoStreamingHypergraphs, StreamsCommunityIDsInParallelInto
   tbb::parallel_for(tbb::blocked_range<HypernodeID>(0UL, hypergraph.initialNumNodes()),
     [&](const tbb::blocked_range<HypernodeID>& range) {
     for ( HypernodeID hn = range.begin(); hn < range.end(); ++hn ) {
-      hypergraph.streamCommunityID(hypergraph.globalNodeID(hn), communities[hn]);
+      hypergraph.setCommunityID(hypergraph.globalNodeID(hn), communities[hn]);
     }
   });
   hypergraph.initializeCommunities();
@@ -1321,13 +1321,13 @@ TEST_F(AHypergraphWithTwoStreamingHypergraphs, StreamsCommunityIDsInParallelInto
   ASSERT_EQ(0, hypergraph.communityNodeId(GLOBAL_ID(hypergraph, 5)));
   ASSERT_EQ(1, hypergraph.communityNodeId(GLOBAL_ID(hypergraph, 6)));
 
-  ASSERT_EQ(3, hypergraph.initialNumCommunityHypernodes(0));
-  ASSERT_EQ(2, hypergraph.initialNumCommunityHypernodes(1));
-  ASSERT_EQ(2, hypergraph.initialNumCommunityHypernodes(2));
+  ASSERT_EQ(3, hypergraph.numCommunityHypernodes(0));
+  ASSERT_EQ(2, hypergraph.numCommunityHypernodes(1));
+  ASSERT_EQ(2, hypergraph.numCommunityHypernodes(2));
 
-  ASSERT_EQ(5, hypergraph.initialNumCommunityPins(0));
-  ASSERT_EQ(4, hypergraph.initialNumCommunityPins(1));
-  ASSERT_EQ(3, hypergraph.initialNumCommunityPins(2));
+  ASSERT_EQ(5, hypergraph.numCommunityPins(0));
+  ASSERT_EQ(4, hypergraph.numCommunityPins(1));
+  ASSERT_EQ(3, hypergraph.numCommunityPins(2));
 }
 
 TEST_F(AHypergraphWithTwoStreamingHypergraphs, ResetsPinsToOriginalIds) {
@@ -1540,7 +1540,7 @@ TEST_F(AHypergraphWithTwoStreamingHypergraphs, RestoresParallelHyperedgeDuringUn
   // Hyperedge 1 becomes parallel to hyperedge 0
   auto memento = hypergraph.contract(id[0], id[1]);
   hypergraph.disableHyperedge(1);
-  hypergraph.removeDisabledHyperedgesFromIncidentNets();
+  hypergraph.invalidateDisabledHyperedgesFromIncidentNets();
   assignPartitionIDs(hypergraph);
 
   parallel::scalable_vector<HyperedgeID> parallel_he_representative(
@@ -1564,7 +1564,7 @@ TEST_F(AHypergraphWithTwoStreamingHypergraphs, RestoresParallelHyperedgeDuringUn
   // Hyperedge 0 becomes parallel to hyperedge 1
   auto memento = hypergraph.contract(id[0], id[1]);
   hypergraph.disableHyperedge(0);
-  hypergraph.removeDisabledHyperedgesFromIncidentNets();
+  hypergraph.invalidateDisabledHyperedgesFromIncidentNets();
   assignPartitionIDs(hypergraph);
 
   parallel::scalable_vector<HyperedgeID> parallel_he_representative(
@@ -1588,7 +1588,7 @@ TEST_F(AHypergraphWithTwoStreamingHypergraphs, RestoresParallelHyperedgeDuringUn
   // Hyperedge 1 becomes parallel to hyperedge 0
   auto memento = hypergraph.contract(id[0], id[1]);
   hypergraph.disableHyperedge(1);
-  hypergraph.removeDisabledHyperedgesFromIncidentNets();
+  hypergraph.invalidateDisabledHyperedgesFromIncidentNets();
   assignPartitionIDs(hypergraph);
 
   parallel::scalable_vector<HyperedgeID> parallel_he_representative(
@@ -1612,7 +1612,7 @@ TEST_F(AHypergraphWithTwoStreamingHypergraphs, RestoresParallelHyperedgeDuringUn
   // Hyperedge 0 becomes parallel to hyperedge 1
   auto memento = hypergraph.contract(id[0], id[1]);
   hypergraph.disableHyperedge(0);
-  hypergraph.removeDisabledHyperedgesFromIncidentNets();
+  hypergraph.invalidateDisabledHyperedgesFromIncidentNets();
   assignPartitionIDs(hypergraph);
 
   parallel::scalable_vector<HyperedgeID> parallel_he_representative(
@@ -1639,7 +1639,7 @@ TEST_F(AHypergraphWithTwoStreamingHypergraphs, RestoresParallelHyperedgeDuringUn
   auto memento_2 = hypergraph.contract(id[0], id[2]);
   hypergraph.disableHyperedge(1);
   hypergraph.disableHyperedge(2);
-  hypergraph.removeDisabledHyperedgesFromIncidentNets();
+  hypergraph.invalidateDisabledHyperedgesFromIncidentNets();
   assignPartitionIDs(hypergraph);
 
   parallel::scalable_vector<HyperedgeID> parallel_he_representative(

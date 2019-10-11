@@ -88,7 +88,7 @@ class CommunityCoarsenerBase {
 
     // Reset community hyperedges
     start = std::chrono::high_resolution_clock::now();
-    _hg.resetCommunityHyperedges(_history);
+    _hg.removeCommunityHyperedges(_history);
     end = std::chrono::high_resolution_clock::now();
     mt_kahypar::utils::Timer::instance().add_timing("reset_community_hyperedges", "Reset Community Hyperedges",
       "coarsening", mt_kahypar::utils::Timer::Type::COARSENING, 5, std::chrono::duration<double>(end - start).count());
@@ -262,7 +262,7 @@ class CommunityCoarsenerBase {
 
 
     start = std::chrono::high_resolution_clock::now();
-    _hg.removeDisabledHyperedgesFromIncidentNets();
+    _hg.invalidateDisabledHyperedgesFromIncidentNets();
     end = std::chrono::high_resolution_clock::now();
     mt_kahypar::utils::Timer::instance().add_timing("remove_disabled_hyperedges_from_incident_nets", "Remove Disabled HE from HNs",
       "postprocess_parallel_hyperedges", mt_kahypar::utils::Timer::Type::COARSENING, 2, std::chrono::duration<double>(end - start).count());
