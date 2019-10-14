@@ -43,7 +43,7 @@ namespace mt_kahypar {
 
 template< typename TypeTraits,
           typename ExecutionPolicy,
-          template<typename> typename GainPolicy >
+          template<typename> class GainPolicy >
 class LabelPropagationRefinerT final : public IRefiner {
  private:
   using HyperGraph = typename TypeTraits::HyperGraph;

@@ -139,7 +139,9 @@ class CommunityCoarsenerBase {
 
       // Call label propagation refiner
       start = std::chrono::high_resolution_clock::now();
-      label_propagation->refine(refinement_nodes, current_metrics);
+      if ( label_propagation ) {
+        label_propagation->refine(refinement_nodes, current_metrics);
+      }
       end = std::chrono::high_resolution_clock::now();
       mt_kahypar::utils::Timer::instance().update_timing("label_propagation", "Label Propagation",
         "refinement", mt_kahypar::utils::Timer::Type::REFINEMENT, 1, std::chrono::duration<double>(end - start).count());

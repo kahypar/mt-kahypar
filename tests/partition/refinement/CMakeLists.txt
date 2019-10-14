@@ -1,0 +1,1 @@
+add_gmock_test(gain_policy_test gain_policy_test.cc)

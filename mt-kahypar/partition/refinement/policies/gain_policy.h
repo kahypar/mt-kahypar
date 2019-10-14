@@ -101,8 +101,11 @@ class Km1Policy : public GainPolicy<Km1Policy<HyperGraph>, HyperGraph> {
 using Base = GainPolicy<Km1Policy<HyperGraph>, HyperGraph>;
 
  public:
-  Km1Policy(HyperGraph& hypergraph, const Context& context) :
-    Base(hypergraph, context) { }
+  Km1Policy(HyperGraph& hypergraph,
+            const Context& context,
+            bool disable_randomization = false) :
+    Base(hypergraph, context),
+    _disable_randomization(disable_randomization) { }
 
   Move computeMaxGainMoveImpl(const HypernodeID hn) {
     ASSERT([&] {
@@ -149,6 +152,7 @@ using Base = GainPolicy<Km1Policy<HyperGraph>, HyperGraph>;
       if ( from != to ) {
         bool new_best_gain = ( tmp_scores[to] < best_move.gain ) ||
                             ( tmp_scores[to] == best_move.gain &&
+                              !_disable_randomization &&
                               rand.flipCoin(cpu_id) );
         if ( new_best_gain && _hg.localPartWeight(to) + hn_weight <=
              _context.partition.max_part_weights[to] ) {
@@ -173,6 +177,7 @@ using Base = GainPolicy<Km1Policy<HyperGraph>, HyperGraph>;
   using Base::_context;
   using Base::_deltas;
   using Base::_tmp_scores;
+  bool _disable_randomization;
 };
 
 
@@ -182,8 +187,11 @@ class CutPolicy : public GainPolicy<CutPolicy<HyperGraph>, HyperGraph> {
 using Base = GainPolicy<CutPolicy<HyperGraph>, HyperGraph>;
 
  public:
-  CutPolicy(HyperGraph& hypergraph, const Context& context) :
-    Base(hypergraph, context) { }
+  CutPolicy(HyperGraph& hypergraph,
+            const Context& context,
+            bool disable_randomization = false) :
+    Base(hypergraph, context),
+    _disable_randomization(disable_randomization) { }
 
   Move computeMaxGainMoveImpl(const HypernodeID hn) {
     ASSERT([&] {
@@ -229,6 +237,7 @@ using Base = GainPolicy<CutPolicy<HyperGraph>, HyperGraph>;
         Gain score = tmp_scores[to] + internal_weight;
         bool new_best_gain = ( score < best_move.gain ) ||
                              ( score == best_move.gain &&
+                               !_disable_randomization &&
                                rand.flipCoin(cpu_id) );
         if ( new_best_gain && _hg.localPartWeight(to) + hn_weight <=
              _context.partition.max_part_weights[to] ) {
@@ -253,6 +262,7 @@ using Base = GainPolicy<CutPolicy<HyperGraph>, HyperGraph>;
   using Base::_context;
   using Base::_deltas;
   using Base::_tmp_scores;
+  bool _disable_randomization;
 };
 
 }  // namespace mt_kahypar

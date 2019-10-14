@@ -53,8 +53,11 @@ class ACommunityCoarsener : public ds::AHypergraph<2> {
       { 0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3 } );
     hypergraph.setCommunityNodeMapping( { 0, 0, 1, 1 } );
 
+    context.partition.k = 2;
+    context.partition.objective = kahypar::Objective::km1;
     context.coarsening.max_allowed_node_weight = std::numeric_limits<HypernodeWeight>::max();
     context.coarsening.contraction_limit = 8;
+    context.setupPartWeights(hypergraph.totalWeight());
   }
 
   TestHypergraph hypergraph;
@@ -142,7 +145,8 @@ void reAddsHyperedgesOfSizeOneDuringUncoarsening(Coarsener& coarsener,
     ASSERT_THAT(hypergraph.edgeIsEnabled(he), Eq(false)) << V(he);
   }
   assignPartitionIDs(hypergraph);
-  coarsener.uncoarsen();
+  std::unique_ptr<IRefiner> nullptr_refiner(nullptr);
+  coarsener.uncoarsen(nullptr_refiner);
   for ( const HyperedgeID& he : single_node_hes ) {
     ASSERT_THAT(hypergraph.edgeIsEnabled(he), Eq(true)) << V(he);
   }
@@ -180,7 +184,8 @@ void restoresParallelHyperedgesDuringUncoarsening(Coarsener& coarsener,
     ASSERT_THAT(hypergraph.edgeIsEnabled(he), Eq(false)) << V(he);
   }
   assignPartitionIDs(hypergraph);
-  coarsener.uncoarsen();
+  std::unique_ptr<IRefiner> nullptr_refiner(nullptr);
+  coarsener.uncoarsen(nullptr_refiner);
   for ( const HyperedgeID& he : parallel_hes ) {
     ASSERT_THAT(hypergraph.edgeIsEnabled(he), Eq(true)) << V(he);
   }

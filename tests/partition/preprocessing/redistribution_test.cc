@@ -37,10 +37,10 @@ class ARedistributorOnTwoNumaNodes : public AHypergraph<2> {
   using Base = AHypergraph<2>;
 
  public:
+  using Base::TBBArena;
   using Base::TestStreamingHypergraph;
   using Base::TestHypergraph;
   using Redistributor = mt_kahypar::preprocessing::CommunityRedistributorT<TestTypeTraits<2>>;
-
 
   ARedistributorOnTwoNumaNodes() :
     Base(),
@@ -50,6 +50,10 @@ class ARedistributorOnTwoNumaNodes : public AHypergraph<2> {
       { 0, 0, 1, 1 },
       { 0, 0, 1, 1, 2, 3, 2 } )),
     context() { }
+
+  static void TearDownTestSuite() {
+    TBBArena::instance().terminate();
+  }
 
   TestHypergraph hypergraph;
   Context context;

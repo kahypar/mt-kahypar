@@ -50,9 +50,9 @@ template < int NUM_NUMA_NODES >
 class AHypergraph : public Test {
  private:
   using HyperedgeVector = parallel::scalable_vector<HyperedgeID>;
-  using TBBArena = typename TestTypeTraits<NUM_NUMA_NODES>::TBB;
 
  public:
+  using TBBArena = typename TestTypeTraits<NUM_NUMA_NODES>::TBB;
   using TestStreamingHypergraph = typename TestTypeTraits<NUM_NUMA_NODES>::StreamingHyperGraph;
   using TestHypergraph = typename TestTypeTraits<NUM_NUMA_NODES>::HyperGraph;
 
@@ -60,10 +60,6 @@ class AHypergraph : public Test {
 
   static void SetUpTestSuite() {
     TBBArena::instance(std::thread::hardware_concurrency());
-  }
-
-  static void TearDownTestSuite() {
-    TBBArena::instance().terminate();
   }
 
   TestHypergraph construct_hypergraph(const HypernodeID num_hypernodes,
