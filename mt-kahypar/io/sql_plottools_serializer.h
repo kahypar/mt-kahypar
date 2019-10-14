@@ -69,6 +69,7 @@ static inline void serialize(const Hypergraph& hypergraph,
         << " lp_part_weight_update_frequency=" << context.refinement.label_propagation.part_weight_update_frequency
         << " lp_use_node_degree_ordering=" << std::boolalpha << context.refinement.label_propagation.use_node_degree_ordering
         << " lp_numa_aware=" << std::boolalpha << context.refinement.label_propagation.numa_aware
+        << " lp_rebalancing=" << std::boolalpha << context.refinement.label_propagation.rebalancing
         << " lp_execution_policy=" << context.refinement.label_propagation.execution_policy
         << " num_threads=" << context.shared_memory.num_threads
         << " use_community_redistribution=" << std::boolalpha << context.shared_memory.use_community_redistribution
