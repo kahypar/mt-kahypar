@@ -204,6 +204,14 @@ po::options_description createRefinementOptionsDescription(Context& context, con
     po::value<size_t>(&context.refinement.label_propagation.maximum_iterations)->value_name("<size_t>"),
     "Maximum number of iterations over all nodes during label propagation\n"
     "(default 1)")
+    ("r-lp-part-weight-update-frequency",
+    po::value<size_t>(&context.refinement.label_propagation.part_weight_update_frequency)->value_name("<size_t>"),
+    "Determines after how many iterations the local part weights are updated\n"
+    "(default 100)")
+    ("r-lp-use-node-degree-ordering",
+    po::value<bool>(&context.refinement.label_propagation.use_node_degree_ordering)->value_name("<bool>"),
+    "If true, nodes are sorted in increasing order of their node degree before LP, otherwise they are random shuffled\n"
+    "(default false)")
     ("r-lp-execution-policy",
     po::value<std::string>()->value_name("<string>")->notifier(
       [&](const std::string& type) {

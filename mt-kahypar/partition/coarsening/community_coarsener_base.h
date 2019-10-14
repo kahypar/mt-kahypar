@@ -151,7 +151,9 @@ class CommunityCoarsenerBase {
 
 
     ASSERT( metrics::objective(_hg, _context.partition.objective) ==
-            current_metrics.getMetric(kahypar::Mode::direct_kway, _context.partition.objective) );
+            current_metrics.getMetric(kahypar::Mode::direct_kway, _context.partition.objective),
+            V(current_metrics.getMetric(kahypar::Mode::direct_kway, _context.partition.objective)) <<
+            V(metrics::objective(_hg, _context.partition.objective)) );
     return true;
   }
 

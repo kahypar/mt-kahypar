@@ -49,12 +49,12 @@
 namespace mt_kahypar {
 
 REGISTER_DISPATCHED_LP_REFINER(LabelPropagationAlgorithm::label_propagation_cut,
-                               LabelPropagationDispatcher, Cut,
+                               LabelPropagationCutDispatcher, Cut,
                                meta::PolicyRegistry<ExecutionType>::getInstance().getPolicy(
                                  context.refinement.label_propagation.execution_policy));
 
 REGISTER_DISPATCHED_LP_REFINER(LabelPropagationAlgorithm::label_propagation_km1,
-                               LabelPropagationDispatcher, Km1,
+                               LabelPropagationKm1Dispatcher, Km1,
                                meta::PolicyRegistry<ExecutionType>::getInstance().getPolicy(
                                  context.refinement.label_propagation.execution_policy));
 

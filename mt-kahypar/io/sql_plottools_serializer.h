@@ -66,6 +66,8 @@ static inline void serialize(const Hypergraph& hypergraph,
         << " initial_partitioning_runs=" << context.initial_partitioning.runs
         << " lp_algorithm=" << context.refinement.label_propagation.algorithm
         << " lp_maximum_iterations=" << context.refinement.label_propagation.maximum_iterations
+        << " lp_part_weight_update_frequency=" << context.refinement.label_propagation.part_weight_update_frequency
+        << " lp_use_node_degree_ordering=" << context.refinement.label_propagation.use_node_degree_ordering
         << " lp_execution_policy=" << context.refinement.label_propagation.execution_policy
         << " num_threads=" << context.shared_memory.num_threads
         << " use_community_redistribution=" << std::boolalpha << context.shared_memory.use_community_redistribution

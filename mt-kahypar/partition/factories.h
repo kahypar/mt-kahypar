@@ -59,9 +59,13 @@ using CommunityCoarsenerDispatcher = kahypar::meta::StaticMultiDispatchFactory<C
 using LabelPropagationFactory = meta::Factory<LabelPropagationAlgorithm,
                                               IRefiner* (*)(Hypergraph&, const Context&)>;
 
-using LabelPropagationDispatcher = kahypar::meta::StaticMultiDispatchFactory<LabelPropagationRefiner,
-                                                                             IRefiner,
-                                                                             kahypar::meta::Typelist<ExecutionPolicyClasses>>;
+using LabelPropagationKm1Dispatcher = kahypar::meta::StaticMultiDispatchFactory<LabelPropagationKm1Refiner,
+                                                                                IRefiner,
+                                                                                kahypar::meta::Typelist<ExecutionPolicyClasses>>;
+
+using LabelPropagationCutDispatcher = kahypar::meta::StaticMultiDispatchFactory<LabelPropagationCutRefiner,
+                                                                                IRefiner,
+                                                                                kahypar::meta::Typelist<ExecutionPolicyClasses>>;
 
 
 

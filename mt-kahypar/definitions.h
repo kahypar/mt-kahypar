@@ -56,6 +56,12 @@ using HyperedgeWeight = int32_t;
 using PartitionID = int32_t;
 using Gain = HyperedgeWeight;
 
+struct Move {
+  PartitionID from;
+  PartitionID to;
+  Gain gain;
+};
+
 using StreamingHypergraph = mt_kahypar::ds::StreamingHypergraph<HypernodeID,
                                                                 HyperedgeID,
                                                                 HypernodeWeight,
