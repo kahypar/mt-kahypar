@@ -212,6 +212,14 @@ po::options_description createRefinementOptionsDescription(Context& context, con
     po::value<bool>(&context.refinement.label_propagation.use_node_degree_ordering)->value_name("<bool>"),
     "If true, nodes are sorted in increasing order of their node degree before LP, otherwise they are random shuffled\n"
     "(default false)")
+    ("r-lp-numa-aware",
+    po::value<bool>(&context.refinement.label_propagation.numa_aware)->value_name("<bool>"),
+    "If true, label propagation is executed numa friendly (which means that nodes are processed on its numa nodes)\n"
+    "(default true)")
+    ("r-lp-rebalancing",
+    po::value<bool>(&context.refinement.label_propagation.rebalancing)->value_name("<bool>"),
+    "If true, zero gain moves are used to rebalance solution\n"
+    "(default true)")
     ("r-lp-execution-policy",
     po::value<std::string>()->value_name("<string>")->notifier(
       [&](const std::string& type) {

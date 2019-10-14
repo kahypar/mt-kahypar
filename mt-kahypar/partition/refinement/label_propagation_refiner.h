@@ -86,10 +86,15 @@ class LabelPropagationRefinerT final : public IRefiner {
       return false;
     }
 
-    // Execute label propagation on all numa nodes
-    TBB::instance().execute_on_all_numa_nodes([&](const int node) {
-      labelPropagation(node);
-    });
+    if ( _context.refinement.label_propagation.numa_aware ) {
+      // Execute label propagation on all numa nodes
+      TBB::instance().execute_on_all_numa_nodes([&](const int node) {
+        labelPropagation(node);
+      });
+    } else {
+      // Execute label propagation
+      labelPropagation();
+    }
 
     // Update global part weight and sizes
     _hg.updateGlobalPartInfos();
@@ -115,14 +120,23 @@ class LabelPropagationRefinerT final : public IRefiner {
     _execution_policy.initialize(_hg, current_num_nodes);
   }
 
-  void labelPropagation(int node) {
+  void labelPropagation(int node = -1) {
 
-    // Label propagation is executed on all vertices of a NUMA node
     parallel::scalable_vector<HypernodeID> nodes;
-    for ( const HypernodeID& hn : _hg.nodes(node) ) {
-      nodes.emplace_back(hn);
-      _active[_hg.originalNodeID(hn)] = false;
+    if ( node == -1 ) {
+      // Label propagation is executed on all vertices
+      for ( const HypernodeID& hn : _hg.nodes() ) {
+        nodes.emplace_back(hn);
+        _active[_hg.originalNodeID(hn)] = false;
+      }
+    } else {
+      // Label propagation is executed on all vertices of a NUMA node
+      for ( const HypernodeID& hn : _hg.nodes(node) ) {
+        nodes.emplace_back(hn);
+        _active[_hg.originalNodeID(hn)] = false;
+      }
     }
+
 
     if ( _context.refinement.label_propagation.use_node_degree_ordering ) {
       // Sort vertices in increasing order of their node degree
@@ -168,9 +182,11 @@ class LabelPropagationRefinerT final : public IRefiner {
 
             // We perform a move if it either improves the solution quality or, in case of a
             // zero gain move, the balance of the solution.
-            bool perform_move = best_move.gain < 0 || ( best_move.gain == 0 &&
-                                _hg.localPartWeight(best_move.from) - 1 >
-                                _hg.localPartWeight(best_move.to) + 1 );
+            bool perform_move =   best_move.gain < 0 ||
+                                ( _context.refinement.label_propagation.rebalancing &&
+                                  best_move.gain == 0 &&
+                                  _hg.localPartWeight(best_move.from) - 1 >
+                                  _hg.localPartWeight(best_move.to) + 1 );
             if ( perform_move ) {
               PartitionID from = best_move.from;
               PartitionID to = best_move.to;
@@ -202,7 +218,7 @@ class LabelPropagationRefinerT final : public IRefiner {
                   // In case, the real gain is not equal with the computed gain and
                   // worsen the solution quality we revert the move.
                   ASSERT(_hg.partID(hn) == to);
-                  _hg.changeNodePart(hn, to, from);
+                  _hg.changeNodePart(hn, to, from, objective_delta);
                 }
               }
               _active[original_id] = true;
