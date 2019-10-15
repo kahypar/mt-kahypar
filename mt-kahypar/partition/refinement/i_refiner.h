@@ -41,7 +41,7 @@ class IRefiner {
 
   virtual ~IRefiner() = default;
 
-  bool refine(std::vector<HypernodeID>& refinement_nodes,
+  bool refine(const std::vector<HypernodeID>& refinement_nodes,
               kahypar::Metrics& best_metrics) {
     return refineImpl(refinement_nodes, best_metrics);
   }
@@ -51,7 +51,7 @@ class IRefiner {
   IRefiner() = default;
 
  private:
-  virtual bool refineImpl(std::vector<HypernodeID>& refinement_nodes,
+  virtual bool refineImpl(const std::vector<HypernodeID>& refinement_nodes,
                           kahypar::Metrics& best_metrics) = 0;
 };
 

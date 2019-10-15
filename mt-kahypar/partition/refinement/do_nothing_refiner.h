@@ -39,7 +39,7 @@ class DoNothingRefiner final : public IRefiner {
   ~DoNothingRefiner() override = default;
 
  private:
-  bool refineImpl(std::vector<HypernodeID>&,
+  bool refineImpl(const std::vector<HypernodeID>&,
                   kahypar::Metrics&) override final { return false; }
 };
 }  // namespace kahypar

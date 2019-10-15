@@ -35,7 +35,8 @@ namespace metrics {
  * Counts the number of pins which refers to an other numa node than the numa
  * node which its corresponding hyperedge belongs to
  */
-static inline HyperedgeWeight remotePinCount(const Hypergraph& hypergraph) {
+template< typename HyperGraph >
+static inline HyperedgeWeight remotePinCount(const HyperGraph& hypergraph) {
   int used_numa_nodes = TBBNumaArena::instance().num_used_numa_nodes();
   HyperedgeWeight remote_pin_count = 0;
   for ( const HyperedgeID& he : hypergraph.edges() ) {
@@ -59,8 +60,8 @@ static inline HyperedgeWeight remotePinCount(const Hypergraph& hypergraph) {
   return remote_pin_count;
 }
 
-
-static inline HyperedgeWeight hyperedgeCut(const Hypergraph& hypergraph) {
+template< typename HyperGraph >
+static inline HyperedgeWeight hyperedgeCut(const HyperGraph& hypergraph) {
   HyperedgeWeight cut = 0;
   for ( const HyperedgeID& he : hypergraph.edges() ) {
     if ( hypergraph.connectivity(he) > 1 ) {
@@ -70,7 +71,8 @@ static inline HyperedgeWeight hyperedgeCut(const Hypergraph& hypergraph) {
   return cut;
 }
 
-static inline HyperedgeWeight km1(const Hypergraph& hypergraph) {
+template< typename HyperGraph >
+static inline HyperedgeWeight km1(const HyperGraph& hypergraph) {
   HyperedgeWeight km1 = 0;
   for ( const HyperedgeID& he : hypergraph.edges() ) {
     km1 += std::max(hypergraph.connectivity(he) - 1, 0) * hypergraph.edgeWeight(he);
@@ -78,7 +80,8 @@ static inline HyperedgeWeight km1(const Hypergraph& hypergraph) {
   return km1;
 }
 
-static inline HyperedgeWeight soed(const Hypergraph& hypergraph) {
+template< typename HyperGraph >
+static inline HyperedgeWeight soed(const HyperGraph& hypergraph) {
   HyperedgeWeight soed = 0;
   for ( const HyperedgeID& he : hypergraph.edges() ) {
     PartitionID connectivity = hypergraph.connectivity(he);
@@ -89,7 +92,8 @@ static inline HyperedgeWeight soed(const Hypergraph& hypergraph) {
   return soed;
 }
 
-static inline double absorption(const Hypergraph& hypergraph) {
+template< typename HyperGraph >
+static inline double absorption(const HyperGraph& hypergraph) {
   double absorption_val = 0.0;
   for (PartitionID part = 0; part < hypergraph.k(); ++part) {
     for (const HyperedgeID& he : hypergraph.edges()) {
@@ -103,7 +107,8 @@ static inline double absorption(const Hypergraph& hypergraph) {
   return absorption_val;
 }
 
-static inline HyperedgeWeight objective(const Hypergraph& hg, const kahypar::Objective& objective) {
+template< typename HyperGraph >
+static inline HyperedgeWeight objective(const HyperGraph& hg, const kahypar::Objective& objective) {
   switch (objective) {
     case kahypar::Objective::cut: return hyperedgeCut(hg);
     case kahypar::Objective::km1: return km1(hg);
@@ -130,15 +135,18 @@ static inline double imbalance(const HyperGraph& hypergraph, const Context& cont
   return max_balance - 1.0;
 }
 
-static inline double avgHyperedgeDegree(const Hypergraph& hypergraph) {
+template< typename HyperGraph >
+static inline double avgHyperedgeDegree(const HyperGraph& hypergraph) {
   return static_cast<double>(hypergraph.initialNumPins()) / hypergraph.initialNumEdges();
 }
 
-static inline double avgHypernodeDegree(const Hypergraph& hypergraph) {
+template< typename HyperGraph >
+static inline double avgHypernodeDegree(const HyperGraph& hypergraph) {
   return static_cast<double>(hypergraph.initialNumPins()) / hypergraph.initialNumNodes();
 }
 
-static inline HyperedgeID hypernodeDegreeRank(const Hypergraph& hypergraph, const size_t rank) {
+template< typename HyperGraph >
+static inline HyperedgeID hypernodeDegreeRank(const HyperGraph& hypergraph, const size_t rank) {
   std::vector<HyperedgeID> hn_degrees;
   hn_degrees.reserve(hypergraph.initialNumNodes());
   for (const auto& hn : hypergraph.nodes()) {

@@ -34,6 +34,7 @@
 
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/utils/randomize.h"
+#include "mt-kahypar/partition/metrics.h"
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/partition/refinement/i_refiner.h"
@@ -75,7 +76,7 @@ class LabelPropagationRefinerT final : public IRefiner {
   ~LabelPropagationRefinerT() override = default;
 
  private:
-  bool refineImpl(std::vector<HypernodeID>&,
+  bool refineImpl(const std::vector<HypernodeID>&,
                   kahypar::Metrics& best_metrics) override final {
     _gain.reset();
 

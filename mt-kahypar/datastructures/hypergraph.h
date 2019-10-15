@@ -230,10 +230,14 @@ class Hypergraph {
 
         // Applying deltas of all threads
         for ( const ThreadPartInfos& thread_info : infos ) {
-          ASSERT(thread_info._delta.size() == (size_t) _k);
-          for ( PartitionID k = 0; k < _k; ++k ) {
-            _current[k].weight += thread_info._delta[k].weight;
-            _current[k].size += thread_info._delta[k].size;
+          // It can happen that in some situations (when frequently updating local part
+          // weights) that the current thread info is initialized and therefore iterating
+          // over all k's would fail
+          if (thread_info._delta.size() == (size_t) _k ) {
+            for ( PartitionID k = 0; k < _k; ++k ) {
+              _current[k].weight += thread_info._delta[k].weight;
+              _current[k].size += thread_info._delta[k].size;
+            }
           }
         }
       }
