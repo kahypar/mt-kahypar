@@ -122,7 +122,6 @@ struct LabelPropagationParameters {
   LabelPropagationAlgorithm algorithm = LabelPropagationAlgorithm::do_nothing;
   size_t maximum_iterations = 1;
   size_t part_weight_update_frequency = 100;
-  bool use_node_degree_ordering = false;
   bool numa_aware = false;
   bool rebalancing = true;
   ExecutionType execution_policy = ExecutionType::UNDEFINED;
@@ -133,7 +132,6 @@ inline std::ostream& operator<< (std::ostream& str, const LabelPropagationParame
   str << "    Algorithm:                        " << params.algorithm << std::endl;
   str << "    Maximum Iterations:               " << params.maximum_iterations << std::endl;
   str << "    Part Weight Update Frequency:     " << params.part_weight_update_frequency << std::endl;
-  str << "    Use Node Degree Ordering:         " << std::boolalpha << params.use_node_degree_ordering << std::endl;
   str << "    Numa Aware:                       " << std::boolalpha << params.numa_aware << std::endl;
   str << "    Rebalancing:                      " << std::boolalpha << params.rebalancing << std::endl;
   str << "    Execution Policy:                 " << params.execution_policy << std::endl;

@@ -208,10 +208,6 @@ po::options_description createRefinementOptionsDescription(Context& context, con
     po::value<size_t>(&context.refinement.label_propagation.part_weight_update_frequency)->value_name("<size_t>"),
     "Determines after how many iterations the local part weights are updated\n"
     "(default 100)")
-    ("r-lp-use-node-degree-ordering",
-    po::value<bool>(&context.refinement.label_propagation.use_node_degree_ordering)->value_name("<bool>"),
-    "If true, nodes are sorted in increasing order of their node degree before LP, otherwise they are random shuffled\n"
-    "(default false)")
     ("r-lp-numa-aware",
     po::value<bool>(&context.refinement.label_propagation.numa_aware)->value_name("<bool>"),
     "If true, label propagation is executed numa friendly (which means that nodes are processed on its numa nodes)\n"

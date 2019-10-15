@@ -130,6 +130,9 @@ class CommunityCoarsenerBase {
       _pruner[community_id].restoreParallelHyperedges(_hg, _history.back());
       _pruner[community_id].restoreSingleNodeHyperedges(_hg, _history.back());
       _hg.uncontract(_history.back(), _parallel_he_representative);
+      // NOTE, label propagation refiner relies on the assumption, that on the second position
+      // of the refinement_nodes vector always the contraction partner occurs. Do not change the
+      // order here.
       refinement_nodes.push_back(_history.back().u);
       refinement_nodes.push_back(_history.back().v);
       _hg.updateGlobalPartInfos();
@@ -140,6 +143,8 @@ class CommunityCoarsenerBase {
       // Call label propagation refiner
       start = std::chrono::high_resolution_clock::now();
       if ( label_propagation ) {
+        // NOTE, label propagation refiner relies on the assumption, that it is called after
+        // each uncontraction. Do not move the refiner call out of this loop.
         label_propagation->refine(refinement_nodes, current_metrics);
       }
       end = std::chrono::high_resolution_clock::now();

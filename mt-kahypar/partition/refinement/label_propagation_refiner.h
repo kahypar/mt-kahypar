@@ -60,11 +60,14 @@ class LabelPropagationRefinerT final : public IRefiner {
   explicit LabelPropagationRefinerT(HyperGraph& hypergraph, const Context& context) :
     _hg(hypergraph),
     _context(context),
+    _numa_nodes_indices(),
+    _nodes(),
     _current_level(0),
     _execution_policy(),
     _gain(_hg, _context),
     _active(hypergraph.initialNumNodes(), false) {
     initialize();
+    _nodes.reserve(_hg.initialNumNodes());
   }
 
   LabelPropagationRefinerT(const LabelPropagationRefinerT&) = delete;
@@ -76,9 +79,21 @@ class LabelPropagationRefinerT final : public IRefiner {
   ~LabelPropagationRefinerT() override = default;
 
  private:
-  bool refineImpl(const std::vector<HypernodeID>&,
+  bool refineImpl(const std::vector<HypernodeID>& refinement_nodes,
                   kahypar::Metrics& best_metrics) override final {
     _gain.reset();
+
+    // We collect all contraction partners of the uncontractions in order
+    // to avoid rebuilding and reshuffling the set of enabled nodes each
+    // time from scratch if we execute label propagation.
+    // NOTE, the assumption is that the LP Refiner is called after
+    // each uncontraction and that the contraction partner is on the
+    // second position of vector refinement_nodes.
+    ASSERT(refinement_nodes.size() == 0 /* only for unit tests */ ||
+           refinement_nodes.size() == 2);
+    if ( refinement_nodes.size() == 2 ) {
+      addVertex(refinement_nodes[1]);
+    }
 
     // Label propagation is not executed on all levels of the n-level hierarchy.
     // If LP should be executed on the current level is determined by the execution policy.
@@ -86,6 +101,29 @@ class LabelPropagationRefinerT final : public IRefiner {
     if ( !_execution_policy.execute(_current_level) ) {
       return false;
     }
+
+    ASSERT([&] {
+      // Assertion verifies, that all enabled nodes are contained in _nodes
+      std::vector<HypernodeID> tmp_nodes;
+      tmp_nodes.insert(tmp_nodes.begin(), _nodes.begin(), _nodes.end());
+      for ( int node = 0; node < TBB::instance().num_used_numa_nodes(); ++node ) {
+        size_t pos = _numa_nodes_indices[node];
+        size_t end = _numa_nodes_indices[node + 1];
+        std::sort(tmp_nodes.begin() + pos, tmp_nodes.begin() + end);
+        for ( const HypernodeID& hn : _hg.nodes(node) ) {
+          HypernodeID current_hn = tmp_nodes[pos++];
+          if ( StreamingHyperGraph::get_numa_node_of_vertex(current_hn) != node ) {
+            LOG << "Hypernode" << hn << "is not on numa node" << node;
+            return false;
+          }
+          if ( current_hn != hn ) {
+            LOG << "Hypernode" << hn << "not contained in vertex set";
+            return false;
+          }
+        }
+      }
+      return true;
+    }(), "LP Refiner does not contain all vertices hypergraph");
 
     if ( _context.refinement.label_propagation.numa_aware ) {
       // Execute label propagation on all numa nodes
@@ -115,40 +153,48 @@ class LabelPropagationRefinerT final : public IRefiner {
   void initialize() {
     HypernodeID current_num_nodes = 0;
     for ( const HypernodeID& hn : _hg.nodes() ) {
-      unused(hn);
+      _nodes.emplace_back(hn);
       ++current_num_nodes;
     }
     _execution_policy.initialize(_hg, current_num_nodes);
+
+    // Sort vertices such that all hypernodes belonging to the same
+    // numa node are within a consecutive range in _nodes
+    std::sort(_nodes.begin(), _nodes.end(),
+              [&](const HypernodeID& lhs, const HypernodeID& rhs) {
+                return StreamingHyperGraph::get_numa_node_of_vertex(lhs) <
+                       StreamingHyperGraph::get_numa_node_of_vertex(rhs);
+              });
+
+    // Build up a vector that points to the start position of the vertices
+    // belonging to the same numa node in _nodes
+    int last_node = 0;
+    while ( last_node < TBB::instance().num_used_numa_nodes() &&
+            _hg.initialNumNodes(last_node) == 0 ) {
+      _numa_nodes_indices.push_back(0);
+      ++last_node;
+    }
+    ASSERT(StreamingHyperGraph::get_numa_node_of_vertex(_nodes[0]) == last_node);
+    _numa_nodes_indices.push_back(0);
+    for ( size_t i = 1; i < _nodes.size(); ++i ) {
+      int node = StreamingHyperGraph::get_numa_node_of_vertex(_nodes[i]);
+      if ( node != last_node ) {
+        _numa_nodes_indices.push_back(i);
+        last_node = node;
+      }
+    }
+    _numa_nodes_indices.push_back(_nodes.size());
+
+    // Random shuffle all nodes belonging to the same numa node
+    ASSERT(_numa_nodes_indices.size() - 1 == (size_t) TBB::instance().num_used_numa_nodes());
+    for ( int node = 0; node < TBB::instance().num_used_numa_nodes(); ++node ) {
+      size_t start = _numa_nodes_indices[node];
+      size_t end = _numa_nodes_indices[node + 1];
+      utils::Randomize::instance().shuffleVector(_nodes, start, end, sched_getcpu());
+    }
   }
 
   void labelPropagation(int node = -1) {
-
-    parallel::scalable_vector<HypernodeID> nodes;
-    if ( node == -1 ) {
-      // Label propagation is executed on all vertices
-      for ( const HypernodeID& hn : _hg.nodes() ) {
-        nodes.emplace_back(hn);
-        _active[_hg.originalNodeID(hn)] = false;
-      }
-    } else {
-      // Label propagation is executed on all vertices of a NUMA node
-      for ( const HypernodeID& hn : _hg.nodes(node) ) {
-        nodes.emplace_back(hn);
-        _active[_hg.originalNodeID(hn)] = false;
-      }
-    }
-
-    if ( _context.refinement.label_propagation.use_node_degree_ordering ) {
-      // Sort vertices in increasing order of their node degree
-      tbb::parallel_sort(nodes.begin(), nodes.end(),
-        [&](const HypernodeID& lhs, const HypernodeID& rhs) {
-        return _hg.nodeDegree(lhs) < _hg.nodeDegree(rhs);
-      });
-    } else {
-      // Random shuffle vertices
-      utils::Randomize::instance().shuffleVector(nodes, nodes.size(), sched_getcpu());
-    }
-
     // This function is passed as lambda to the changeNodePart function and used
     // to calculate the "real" delta of a move (in terms of the used objective function).
     auto objective_delta = [&](const HyperedgeWeight edge_weight,
@@ -163,19 +209,24 @@ class LabelPropagationRefinerT final : public IRefiner {
     for ( size_t i = 0; i < _context.refinement.label_propagation.maximum_iterations && !converged; ++i ) {
       DBG << "Starting Label Propagation Round" << i << "on NUMA Node" << node;
 
+      HighResClockTimepoint start_time = std::chrono::high_resolution_clock::now();
       converged = true;
       tbb::enumerable_thread_specific<size_t> iteration_cnt(0);
-      tbb::parallel_for(tbb::blocked_range<size_t>(0UL, nodes.size()),
+      size_t start = node != -1 ? _numa_nodes_indices[node] : 0;
+      size_t end = node != -1 ? _numa_nodes_indices[node + 1] : _nodes.size();
+      tbb::parallel_for(tbb::blocked_range<size_t>(start, end),
         [&](const tbb::blocked_range<size_t>& range) {
         size_t& local_iteration_cnt = iteration_cnt.local();
         for ( size_t j = range.begin(); j < range.end(); ++j ) {
-          const HypernodeID hn = nodes[j];
+          const HypernodeID hn = _nodes[j];
           const HypernodeID original_id = _hg.originalNodeID(hn);
+          ASSERT(node == -1 || StreamingHyperGraph::get_numa_node_of_vertex(hn) == node);
 
           // We only compute the max gain move for a node if we are either in the first round of label
           // propagation or if the vertex is still active. A vertex is active, if it changed its block
           // in the last round or one of its neighbors.
           if ( i == 0 || _active[original_id] ) {
+            _active[original_id] = false;
             Move best_move = _gain.computeMaxGainMove(hn);
 
             // We perform a move if it either improves the solution quality or, in case of a
@@ -220,8 +271,6 @@ class LabelPropagationRefinerT final : public IRefiner {
                 }
               }
               _active[original_id] = true;
-            } else {
-              _active[original_id] = false;
             }
           }
 
@@ -232,11 +281,50 @@ class LabelPropagationRefinerT final : public IRefiner {
           }
         }
       });
+      HighResClockTimepoint end_time = std::chrono::high_resolution_clock::now();
+      mt_kahypar::utils::Timer::instance().update_timing(
+        "lp_round_" + std::to_string(i) + (node != -1 ? "_" + std::to_string(node) : ""),
+        "Label Propagation Round " + std::to_string(i) + (node != -1 ? " - " + std::to_string(node) : ""),
+        "label_propagation", mt_kahypar::utils::Timer::Type::REFINEMENT,
+        i * TBB::instance().num_used_numa_nodes() + std::abs(node),
+        std::chrono::duration<double>(end_time - start_time).count());
     }
+  }
+
+  // ! Adds a hypernode to set of vertices that are
+  // ! considered during label propagation
+  void addVertex( const HypernodeID hn ) {
+    _nodes.emplace_back(hn);
+    // Swap new vertex to the consecutive range of hypernodes
+    // that belong to the same numa node than the new vertex
+    int num_numa_nodes = _numa_nodes_indices.size() - 1;
+    int node = StreamingHyperGraph::get_numa_node_of_vertex(hn);
+    ++_numa_nodes_indices.back();
+    size_t current_position = _nodes.size() - 1;
+    int current_numa_node = num_numa_nodes - 1;
+    while ( node < current_numa_node ) {
+      size_t& numa_node_start = _numa_nodes_indices[current_numa_node--];
+      std::swap( _nodes[current_position], _nodes[numa_node_start] );
+      current_position = numa_node_start++;
+    }
+    // Pseudo-Random Shuffling
+    // Since the nodes are initial shuffled (see initialize()) and the contraction order
+    // gives us also some kind of randomness, we only swap the new vertex to the middle
+    // of the node range of its numa node (avoids expensive call to generate random integers)
+    size_t swap_pos = ( _numa_nodes_indices[node] + _numa_nodes_indices[node + 1] ) / 2;
+    std::swap(_nodes[current_position], _nodes[swap_pos]);
   }
 
   HyperGraph& _hg;
   const Context& _context;
+  // ! Vector that poins to the first vertex of a consecutive range of nodes
+  // ! that belong to the same numa node in _nodes.
+  std::vector<size_t> _numa_nodes_indices;
+  // ! Contains all nodes that are considered during label propagation.
+  // ! The nodes are ordered (increasing) by their numa node which they are assigned to.
+  // ! Inside a consecutive range of nodes, that belongs to the same numa node, the
+  // ! vertices are pseudo-random shuffled.
+  parallel::scalable_vector<HypernodeID> _nodes;
   // ! Incremental counter of calls to LP
   size_t _current_level;
   // ! Indicate whether LP should be executed or not

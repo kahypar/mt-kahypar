@@ -19,7 +19,7 @@
  ******************************************************************************/
 #pragma once
 
-#define USE_HARDWARE_MOCK false
+#define USE_HARDWARE_MOCK true
 
 #include <chrono>
 

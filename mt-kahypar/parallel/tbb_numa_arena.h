@@ -41,7 +41,7 @@ namespace parallel {
 template< typename HwTopology >
 class TBBNumaArena {
 
- static constexpr bool debug = true;
+ static constexpr bool debug = false;
 
  private:
   using GlobalThreadPinning = mt_kahypar::parallel::GlobalThreadPinning<HwTopology>;
