@@ -138,7 +138,6 @@ class LabelPropagationRefinerT final : public IRefiner {
       }
     }
 
-
     if ( _context.refinement.label_propagation.use_node_degree_ordering ) {
       // Sort vertices in increasing order of their node degree
       tbb::parallel_sort(nodes.begin(), nodes.end(),
@@ -168,7 +167,6 @@ class LabelPropagationRefinerT final : public IRefiner {
       tbb::enumerable_thread_specific<size_t> iteration_cnt(0);
       tbb::parallel_for(tbb::blocked_range<size_t>(0UL, nodes.size()),
         [&](const tbb::blocked_range<size_t>& range) {
-
         size_t& local_iteration_cnt = iteration_cnt.local();
         for ( size_t j = range.begin(); j < range.end(); ++j ) {
           const HypernodeID hn = nodes[j];
@@ -178,7 +176,6 @@ class LabelPropagationRefinerT final : public IRefiner {
           // propagation or if the vertex is still active. A vertex is active, if it changed its block
           // in the last round or one of its neighbors.
           if ( i == 0 || _active[original_id] ) {
-
             Move best_move = _gain.computeMaxGainMove(hn);
 
             // We perform a move if it either improves the solution quality or, in case of a
@@ -234,11 +231,8 @@ class LabelPropagationRefinerT final : public IRefiner {
             _hg.updateLocalPartInfos();
           }
         }
-
       });
-
     }
-
   }
 
   HyperGraph& _hg;
