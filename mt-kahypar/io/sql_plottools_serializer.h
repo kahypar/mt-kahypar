@@ -28,6 +28,7 @@
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/partition/metrics.h"
 #include "mt-kahypar/utils/timer.h"
+#include "mt-kahypar/utils/stats.h"
 
 namespace mt_kahypar {
 namespace io {
@@ -83,7 +84,11 @@ static inline void serialize(const Hypergraph& hypergraph,
         << " imbalance=" << metrics::imbalance(hypergraph, context)
         << " totalPartitionTime=" << elapsed_seconds.count();
 
+    // Timings
     utils::Timer::instance(context.partition.detailed_timings).serialize(oss);
+
+    // Stats
+    oss << utils::Stats::instance();
 
     std::cout << oss.str() << std::endl;
   }

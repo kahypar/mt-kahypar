@@ -33,6 +33,7 @@
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/partition/metrics.h"
 #include "mt-kahypar/partition/coarsening/hypergraph_pruner.h"
+#include "mt-kahypar/utils/stats.h"
 
 namespace mt_kahypar {
 
@@ -121,8 +122,11 @@ class CommunityCoarsenerBase {
     kahypar::Metrics current_metrics = { metrics::hyperedgeCut(_hg),
                                          metrics::km1(_hg),
                                          metrics::imbalance(_hg, _context) };
-    std::vector<HypernodeID> refinement_nodes;
+    utils::Stats::instance().add_stat("initial_cut", current_metrics.cut);
+    utils::Stats::instance().add_stat("initial_km1", current_metrics.km1);
+    utils::Stats::instance().add_stat("initial_imbalance", current_metrics.imbalance);
 
+    std::vector<HypernodeID> refinement_nodes;
     while ( !_history.empty() ) {
       HighResClockTimepoint start = std::chrono::high_resolution_clock::now();
       PartitionID community_id = _hg.communityID(_history.back().u);
@@ -256,6 +260,7 @@ class CommunityCoarsenerBase {
 
     // Perform a bottom up traversal of the forest and compute weight
     // of each hyperedge
+    int64_t num_removed_parallel_hyperedges = 0;
     std::vector<HyperedgeWeight> weights(_hg.initialNumEdges(), 0);
     while ( !q.empty() ) {
       HyperedgeID original_he = q.front();
@@ -276,6 +281,7 @@ class CommunityCoarsenerBase {
 
       HyperedgeID representative = _parallel_he_representative[original_he];
       if ( representative != kInvalidHyperedge ) {
+        ++num_removed_parallel_hyperedges;
         ASSERT(representative < weights.size());
         weights[representative] += _hg.edgeWeight(he);
         --in_degree[representative];
@@ -292,6 +298,7 @@ class CommunityCoarsenerBase {
         _hg.disableHyperedge(he);
       }
     }
+    utils::Stats::instance().add_stat("num_removed_parallel_hes", num_removed_parallel_hyperedges);
     HighResClockTimepoint end = std::chrono::high_resolution_clock::now();
     mt_kahypar::utils::Timer::instance().add_timing("determine_he_weights", "Determine HE weights",
       "postprocess_parallel_hyperedges", mt_kahypar::utils::Timer::Type::COARSENING, 1, std::chrono::duration<double>(end - start).count());

@@ -34,6 +34,7 @@
 #include "mt-kahypar/partition/metrics.h"
 #include "mt-kahypar/partition/preprocessing/community_redistributor.h"
 #include "mt-kahypar/partition/initial_partitioning/initial_partitioner.h"
+#include "mt-kahypar/utils/stats.h"
 
 namespace mt_kahypar {
 namespace partition {
@@ -155,6 +156,7 @@ inline void Partitioner::preprocess(Hypergraph& hypergraph, const Context& conte
   end = std::chrono::high_resolution_clock::now();
   mt_kahypar::utils::Timer::instance().add_timing("initialize_communities", "Initialize Communities",
     "community_detection", mt_kahypar::utils::Timer::Type::PREPROCESSING, 2, std::chrono::duration<double>(end - start).count());
+  utils::Stats::instance().add_stat("num_communities", hypergraph.numCommunities());
   HighResClockTimepoint global_end = std::chrono::high_resolution_clock::now();
   mt_kahypar::utils::Timer::instance().add_timing("community_detection", "Community Detection",
     "preprocessing", mt_kahypar::utils::Timer::Type::PREPROCESSING, 1, std::chrono::duration<double>(global_end - global_start).count());
@@ -172,11 +174,30 @@ inline void Partitioner::redistribution(Hypergraph& hypergraph, const Context& c
     RedistributionFactory::getInstance().createObject(
       context.shared_memory.assignment_strategy, hypergraph, context);
 
+  for ( int node = 0; node < TBBNumaArena::instance().num_used_numa_nodes(); ++node) {
+    utils::Stats::instance().add_stat("initial_hns_on_numa_node_" + std::to_string(node),
+      (int64_t) hypergraph.initialNumNodes(node));
+    utils::Stats::instance().add_stat("initial_hes_on_numa_node_" + std::to_string(node),
+      (int64_t) hypergraph.initialNumEdges(node));
+    utils::Stats::instance().add_stat("initial_pins_on_numa_node_" + std::to_string(node),
+      (int64_t) hypergraph.initialNumPins(node));
+  }
+
   std::vector<PartitionID> community_node_mapping = community_assignment->computeAssignment();
   if ( context.shared_memory.use_community_redistribution && TBBNumaArena::instance().num_used_numa_nodes() > 1 ) {
     HyperedgeWeight remote_pin_count_before = metrics::remotePinCount(hypergraph);
     hypergraph = preprocessing::CommunityRedistributor::redistribute(hypergraph, context.partition.k, community_node_mapping);
     HyperedgeWeight remote_pin_count_after = metrics::remotePinCount(hypergraph);
+    utils::Stats::instance().add_stat("remote_pin_count_before", remote_pin_count_before);
+    utils::Stats::instance().add_stat("remote_pin_count_after", remote_pin_count_after);
+    for ( int node = 0; node < TBBNumaArena::instance().num_used_numa_nodes(); ++node) {
+      utils::Stats::instance().add_stat("hns_on_numa_node_" + std::to_string(node) + "_after_redistribution",
+        (int64_t) hypergraph.initialNumNodes(node));
+      utils::Stats::instance().add_stat("hes_on_numa_node_" + std::to_string(node) + "_after_redistribution",
+        (int64_t) hypergraph.initialNumEdges(node));
+      utils::Stats::instance().add_stat("pins_on_numa_node_" + std::to_string(node) + "_after_redistribution",
+        (int64_t) hypergraph.initialNumPins(node));
+    }
     if ( context.partition.verbose_output ) {
       LOG << "Hypergraph Redistribution Results:";
       LOG << " Remote Pin Count Before Redistribution   =" << remote_pin_count_before;

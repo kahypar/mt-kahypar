@@ -30,6 +30,7 @@
 
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/utils/randomize.h"
+#include "mt-kahypar/utils/stats.h"
 #include "mt-kahypar/partition/coarsening/i_coarsener.h"
 #include "mt-kahypar/partition/coarsening/community_coarsener_base.h"
 #include "mt-kahypar/partition/coarsening/hypergraph_pruner.h"
@@ -195,6 +196,8 @@ class CommunityCoarsenerT : public ICoarsener,
       nodes = std::move(tmp_nodes);
       ++pass_nr;
     }
+    utils::Stats::instance().update_stat("num_removed_single_node_hes",
+      (int64_t) _pruner[community_id].removedSingleNodeHyperedges().size());
   }
 
   bool uncoarsenImpl(std::unique_ptr<IRefiner>& label_propagation) override {
@@ -203,6 +206,7 @@ class CommunityCoarsenerT : public ICoarsener,
 
   using Base::_hg;
   using Base::_context;
+  using Base::_pruner;
   bool _enable_randomization;
 };
 
