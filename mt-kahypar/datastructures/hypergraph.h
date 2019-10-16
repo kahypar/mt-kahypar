@@ -496,7 +496,7 @@ class Hypergraph {
   // ! one community) incident to hypernode u. Instead, we just invalidate those hyperedges
   // ! (which means swapping them to the end of incident nets and storing a pointer to all
   // ! invalidated hyperedges). This function returns an iterator over all VALID and INVALID
-  // ! hyperedges incident to vertex u.
+  // ! hyperedges incident of vertex u.
   std::pair<IncidenceIterator, IncidenceIterator> incidentEdges(const HypernodeID u) const {
     return hypergraph_of_vertex(u).incidentEdges(u);
   }
@@ -506,7 +506,7 @@ class Hypergraph {
   // ! one community) incident to hypernode u. Instead, we just invalidate those hyperedges
   // ! (which means swapping them to the end of incident nets and storing a pointer to all
   // ! invalidated hyperedges). This function returns an iterator over all VALID hyperedges incident
-  // ! to vertex u.
+  // ! of vertex u.
   std::pair<IncidenceIterator, IncidenceIterator> validIncidentEdges(const HypernodeID u, const PartitionID community_id) const {
     return hypergraph_of_vertex(u).validIncidentEdges(u, community_id);
   }
@@ -526,7 +526,7 @@ class Hypergraph {
   }
 
   // ! Returns a for-each iterator-pair to loop over the set pins of hyperedge e that belongs to a certain community.
-  // Note, this function fails if community hyperedges are not initialized.
+  // ! Note, this function fails if community hyperedges are not initialized.
   std::pair<IncidenceIterator, IncidenceIterator> pins(const HyperedgeID e, const PartitionID community_id) const {
     return hypergraph_of_edge(e).pins(e, community_id);
   }
@@ -1081,7 +1081,7 @@ class Hypergraph {
     // uncontraction (see hypergraph pruner). However, in some cases this is not the case.
     // Therefore, we perform an explicit check here if two hyperedges become non-parallel
     // after uncontraction.
-    const auto& incident_hes_of_u = hypergraph_of_vertex(memento.u).incidentNets(memento.u);
+    const auto& incident_hes_of_u = hypergraph_of_vertex(memento.u).incident_nets(memento.u);
     size_t incident_hes_start = hypergraph_of_vertex(memento.u).hypernode(memento.u).invalidIncidentNets();
     std::vector<HyperedgeID> disabled_hyperedges;
     for ( size_t incident_hes_it = 0; incident_hes_it != incident_hes_start; ++incident_hes_it ) {
