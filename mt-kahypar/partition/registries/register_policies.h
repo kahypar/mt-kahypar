@@ -72,5 +72,7 @@ REGISTER_POLICY(ExecutionType, ExecutionType::exponential,
                 ExponentialExecutionPolicy);
 REGISTER_POLICY(ExecutionType, ExecutionType::multilevel,
                 MultilevelExecutionPolicy);
+REGISTER_POLICY(ExecutionType, ExecutionType::constant,
+                ConstantExecutionPolicy);
 
 } // namespace mt_kahypar

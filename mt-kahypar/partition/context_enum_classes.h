@@ -77,6 +77,7 @@ enum class LabelPropagationAlgorithm : uint8_t {
 enum class ExecutionType : uint8_t {
   exponential,
   multilevel,
+  constant,
   UNDEFINED
 };
 
@@ -162,6 +163,7 @@ std::ostream& operator<< (std::ostream& os, const ExecutionType& type) {
   switch (type) {
     case ExecutionType::exponential: return os << "exponential";
     case ExecutionType::multilevel: return os << "multilevel";
+    case ExecutionType::constant: return os << "constant";
     case ExecutionType::UNDEFINED: return os << "UNDEFINED";
       // omit default case to trigger compiler warning for missing cases
   }
@@ -248,6 +250,8 @@ static ExecutionType executionTypeFromString(const std::string& type) {
     return ExecutionType::exponential;
   } else if (type == "multilevel") {
     return ExecutionType::multilevel;
+  } else if (type == "constant") {
+    return ExecutionType::constant;
   }
   LOG << "Illegal option:" << type;
   exit(0);

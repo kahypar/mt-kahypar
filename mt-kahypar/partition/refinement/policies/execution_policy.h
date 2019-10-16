@@ -35,7 +35,12 @@ template <class Derived = Mandatory>
 class ExecutionPolicy : public kahypar::meta::PolicyBase {
  public:
   ExecutionPolicy() :
-    _execution_levels() { }
+    _execution_levels(),
+    _alpha(2.0) { }
+
+  ExecutionPolicy(const double alpha) :
+    _execution_levels(),
+    _alpha(alpha) { }
 
   template < typename HyperGraph >
   void initialize(const HyperGraph& hg, const HypernodeID current_num_nodes) {
@@ -57,6 +62,7 @@ class ExecutionPolicy : public kahypar::meta::PolicyBase {
 
  protected:
   std::vector<size_t> _execution_levels;
+  double _alpha;
 };
 
 
@@ -65,15 +71,25 @@ class MultilevelExecutionPolicy : public ExecutionPolicy<MultilevelExecutionPoli
   MultilevelExecutionPolicy() :
     ExecutionPolicy() { }
 
+  MultilevelExecutionPolicy(const double alpha) :
+    ExecutionPolicy(alpha) { }
+
   template < typename HyperGraph >
   void initialize(const HyperGraph& hg, const HypernodeID current_num_nodes) {
-    for (size_t i = 0; hg.initialNumNodes() / std::pow(2, i) >= current_num_nodes; ++i) {
-      _execution_levels.push_back(hg.initialNumNodes() / std::pow(2, i) - current_num_nodes);
+    ASSERT(_alpha >= 1.0);
+    size_t last_level = 0;
+    for (size_t i = 0; hg.initialNumNodes() / std::pow(_alpha, i) >= current_num_nodes; ++i) {
+      size_t next_level = hg.initialNumNodes() / std::pow(_alpha, i) - current_num_nodes;
+      if ( last_level != next_level ) {
+        _execution_levels.push_back(next_level);
+        last_level = next_level;
+      }
     }
   }
 
  private:
   using ExecutionPolicy::_execution_levels;
+  using ExecutionPolicy::_alpha;
 };
 
 class ExponentialExecutionPolicy : public ExecutionPolicy<ExponentialExecutionPolicy>{
@@ -81,10 +97,19 @@ class ExponentialExecutionPolicy : public ExecutionPolicy<ExponentialExecutionPo
   ExponentialExecutionPolicy() :
     ExecutionPolicy() { }
 
+  ExponentialExecutionPolicy(const double alpha) :
+    ExecutionPolicy(alpha) { }
+
   template < typename HyperGraph >
   void initialize(const HyperGraph& hg, const HypernodeID current_num_nodes) {
-    for (size_t i = 0; current_num_nodes + std::pow(2, i) < hg.initialNumNodes(); ++i) {
-      _execution_levels.push_back(std::pow(2, i));
+    ASSERT(_alpha >= 1.0);
+    size_t last_level = 0;
+    for (size_t i = 0; current_num_nodes + std::pow(_alpha, i) < hg.initialNumNodes(); ++i) {
+      size_t next_level = std::pow(_alpha, i);
+      if ( last_level != next_level ) {
+        _execution_levels.push_back(next_level);
+        last_level = next_level;
+      }
     }
     _execution_levels.push_back(hg.initialNumNodes() - current_num_nodes);
     std::reverse(_execution_levels.begin(), _execution_levels.end());
@@ -92,9 +117,38 @@ class ExponentialExecutionPolicy : public ExecutionPolicy<ExponentialExecutionPo
 
  private:
   using ExecutionPolicy::_execution_levels;
+  using ExecutionPolicy::_alpha;
 };
 
+class ConstantExecutionPolicy : public ExecutionPolicy<ConstantExecutionPolicy>{
+ public:
+  ConstantExecutionPolicy() :
+    ExecutionPolicy() { }
 
-using ExecutionPolicyClasses = meta::Typelist<ExponentialExecutionPolicy, MultilevelExecutionPolicy>;
+  ConstantExecutionPolicy(const double alpha) :
+    ExecutionPolicy(alpha) { }
+
+  template < typename HyperGraph >
+  void initialize(const HyperGraph& hg, const HypernodeID current_num_nodes) {
+    ASSERT(_alpha >= 1.0);
+    size_t constant = _alpha;
+    size_t last_level = 0;
+    for (size_t i = 0; current_num_nodes + i * constant < hg.initialNumNodes(); ++i) {
+      size_t next_level = std::max( i * constant, 1UL );
+      if ( last_level != next_level ) {
+        _execution_levels.push_back(next_level);
+        last_level = next_level;
+      }
+    }
+    _execution_levels.push_back(hg.initialNumNodes() - current_num_nodes);
+    std::reverse(_execution_levels.begin(), _execution_levels.end());
+  }
+
+ private:
+  using ExecutionPolicy::_execution_levels;
+  using ExecutionPolicy::_alpha;
+};
+
+using ExecutionPolicyClasses = meta::Typelist<ExponentialExecutionPolicy, MultilevelExecutionPolicy, ConstantExecutionPolicy>;
 
 }  // namespace mt_kahypar

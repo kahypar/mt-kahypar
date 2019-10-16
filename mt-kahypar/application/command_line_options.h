@@ -224,7 +224,13 @@ po::options_description createRefinementOptionsDescription(Context& context, con
     }),
     "Execution policy used for label propagation:\n"
     "- exponential\n"
-    "- multilevel\n");
+    "- multilevel\n"
+    "- constant")
+    ("r-lp-execution-policy-alpha",
+    po::value<double>(&context.refinement.label_propagation.execution_policy_alpha)->value_name("<double>"),
+    "In case of execution policy 'exponential', LP is executed in each level which is a power of alpha\n"
+    "In case of execution policy 'multilevel', LP is executed on each level INITIAL_NUM_NODES / alpha ^ i\n"
+    "In case of execution policy 'constant', LP is executed on each level which is a multiple of alpha");
   return options;
 }
 

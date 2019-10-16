@@ -64,7 +64,7 @@ class LabelPropagationRefinerT final : public IRefiner {
     _numa_nodes_indices(),
     _nodes(),
     _current_level(0),
-    _execution_policy(),
+    _execution_policy(context.refinement.label_propagation.execution_policy_alpha),
     _gain(_hg, _context),
     _active(hypergraph.initialNumNodes(), false) {
     initialize();

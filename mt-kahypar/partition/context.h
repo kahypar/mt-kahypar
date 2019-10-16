@@ -125,6 +125,7 @@ struct LabelPropagationParameters {
   bool numa_aware = false;
   bool rebalancing = true;
   ExecutionType execution_policy = ExecutionType::UNDEFINED;
+  double execution_policy_alpha = 2.0;
 };
 
 inline std::ostream& operator<< (std::ostream& str, const LabelPropagationParameters& params) {
@@ -135,6 +136,7 @@ inline std::ostream& operator<< (std::ostream& str, const LabelPropagationParame
   str << "    Numa Aware:                       " << std::boolalpha << params.numa_aware << std::endl;
   str << "    Rebalancing:                      " << std::boolalpha << params.rebalancing << std::endl;
   str << "    Execution Policy:                 " << params.execution_policy << std::endl;
+  str << "    Execution Policy Alpha:           " << params.execution_policy_alpha << std::endl;
   return str;
 }
 
