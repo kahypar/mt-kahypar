@@ -967,7 +967,6 @@ class Hypergraph {
    *
    * \param u Representative hypernode that will remain in the hypergraph
    * \param v Contraction partner that will be removed from the hypergraph
-   *
    */
   Memento contract(const HypernodeID u,
                    const HypernodeID v) {
