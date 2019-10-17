@@ -38,21 +38,95 @@
 namespace mt_kahypar {
 namespace io {
 
+namespace {
 
-static inline void readHGRHeader(std::ifstream& file, HyperedgeID& num_hyperedges,
-                                 HypernodeID& num_hypernodes, mt_kahypar::Type& hypergraph_type) {
-  std::string line;
-  std::getline(file, line);
+using Hyperedge = std::pair<parallel::scalable_vector<HypernodeID>, HyperedgeWeight>;
 
-  // skip any comments
-  while (line[0] == '%') {
-    std::getline(file, line);
+static inline Hyperedge readStringAsHyperedge(const std::string& hyperedge_line,
+                                              bool has_hyperedge_weights) {
+  std::istringstream line_stream(hyperedge_line);
+
+  // Read weight of hyperedge
+  parallel::scalable_vector<HypernodeID> hyperedge;
+  HyperedgeWeight weight = 1;
+  if (has_hyperedge_weights) {
+    line_stream >> weight;
   }
 
-  std::istringstream sstream(line);
-  int i = 0;
-  sstream >> num_hyperedges >> num_hypernodes >> i;
-  hypergraph_type = static_cast<mt_kahypar::Type>(i);
+  // Read pins of hyperedges
+  HypernodeID pin;
+  while ( line_stream >> pin ) {
+    hyperedge.push_back(--pin);
+  }
+
+  return std::make_pair(hyperedge, weight);
+}
+
+template < typename StreamingHyperGraph = StreamingHypergraph,
+           typename TBB = TBBNumaArena,
+           typename HwTopology = HardwareTopology>
+static inline void streamHyperedgesEquallyIntoNumaHypergraphs(const std::vector<std::string>& hyperedge_lines,
+                                                              std::vector<StreamingHyperGraph>& numa_hypergraphs,
+                                                              const bool has_hyperedge_weights) {
+  // In case of equal hyperedge distribution, we split the range of hyperedges into
+  // equidistant ranges and assign each range to one numa node. We do this by performing
+  // parallel for in the corresponding numa task arena over the resp. range.
+  size_t num_numa_hypergraphs = numa_hypergraphs.size();
+  size_t num_hyperedges_per_hypergraph = hyperedge_lines.size() / num_numa_hypergraphs;
+  TBB::instance().execute_on_all_numa_nodes([&](const int node) {
+    size_t start = node * num_hyperedges_per_hypergraph;
+    size_t end = node != (int) num_numa_hypergraphs - 1 ?
+                 ( node + 1 ) * num_hyperedges_per_hypergraph : hyperedge_lines.size();
+    tbb::parallel_for(tbb::blocked_range<HyperedgeID>(start, end),
+      [&](const tbb::blocked_range<HyperedgeID> range) {
+      for ( HyperedgeID id = range.begin(); id < range.end(); ++id ) {
+        Hyperedge hyperedge = readStringAsHyperedge(hyperedge_lines[id], has_hyperedge_weights);
+        ASSERT(HwTopology::instance().numa_node_of_cpu(sched_getcpu()) == node);
+        numa_hypergraphs[node].streamHyperedge(hyperedge.first, id, hyperedge.second);
+      }
+    });
+  });
+}
+
+template < typename StreamingHyperGraph = StreamingHypergraph,
+           typename TBB = TBBNumaArena,
+           typename HwTopology = HardwareTopology>
+static inline void streamHyperedgesRandomIntoNumaHypergraphs(const std::vector<std::string>& hyperedge_lines,
+                                                             std::vector<StreamingHyperGraph>& numa_hypergraphs,
+                                                             const bool has_hyperedge_weights) {
+  // In case of random hyperedge distribution, we perform
+  // a parallel for on the global thread pool of TBB
+  HwTopology& topology = HwTopology::instance();
+  tbb::parallel_for(tbb::blocked_range<HyperedgeID>(0UL, hyperedge_lines.size()),
+    [&](const tbb::blocked_range<HyperedgeID> range) {
+    for ( HyperedgeID id = range.begin(); id < range.end(); ++id ) {
+      Hyperedge hyperedge = readStringAsHyperedge(hyperedge_lines[id], has_hyperedge_weights);
+      // Stream hyperedge into numa hypergraph on which this cpu
+      // is part of
+      int node = topology.numa_node_of_cpu(sched_getcpu());
+      numa_hypergraphs[node].streamHyperedge(hyperedge.first, id, hyperedge.second);
+    }
+  });
+}
+
+template < typename StreamingHyperGraph = StreamingHypergraph,
+           typename TBB = TBBNumaArena,
+           typename HwTopology = HardwareTopology>
+static inline void streamHyperedgesIntoOneNumaHypergraph(const std::vector<std::string>& hyperedge_lines,
+                                                         std::vector<StreamingHyperGraph>& numa_hypergraphs,
+                                                         const bool has_hyperedge_weights) {
+  // In case all hyperedges should be assigned to one numa node, we perform
+  // a parallel for in the numa task arena of numa node 0.
+  TBB::instance().numa_task_arena(0).execute([&] {
+    tbb::parallel_for(tbb::blocked_range<HyperedgeID>(0UL, hyperedge_lines.size()),
+      [&](const tbb::blocked_range<HyperedgeID> range) {
+      for ( HyperedgeID id = range.begin(); id < range.end(); ++id ) {
+        Hyperedge hyperedge = readStringAsHyperedge(hyperedge_lines[id], has_hyperedge_weights);
+        ASSERT(HwTopology::instance().numa_node_of_cpu(sched_getcpu()) == 0);
+        numa_hypergraphs[0].streamHyperedge(hyperedge.first, id, hyperedge.second);
+      }
+    });
+  });
 }
 
 template < typename HyperGraph = Hypergraph,
@@ -63,6 +137,7 @@ static inline HyperGraph readHyperedges(std::ifstream& file,
                                         const HypernodeID num_hypernodes,
                                         const HyperedgeID num_hyperedges,
                                         const mt_kahypar::Type type,
+                                        const InitialHyperedgeDistribution distribution,
                                         const PartitionID k) {
 
   // Allocate numa hypergraph on their corresponding numa nodes
@@ -96,31 +171,23 @@ static inline HyperGraph readHyperedges(std::ifstream& file,
 
   // Parallel for, for reading hyperedges
   start = std::chrono::high_resolution_clock::now();
-  HwTopology& topology = HwTopology::instance();
-  tbb::parallel_for(tbb::blocked_range<HyperedgeID>(0UL, lines.size()),
-    [&](const tbb::blocked_range<HyperedgeID> range) {
-    for ( HyperedgeID id = range.begin(); id < range.end(); ++id ) {
-      std::istringstream line_stream(lines[id]);
-
-      // Read weight of hyperedge
-      parallel::scalable_vector<HypernodeID> hyperedge;
-      HyperedgeWeight weight = 1;
-      if (has_hyperedge_weights) {
-        line_stream >> weight;
-      }
-
-      // Read pins of hyperedges
-      HypernodeID pin;
-      while ( line_stream >> pin ) {
-        hyperedge.push_back(--pin);
-      }
-
-      // Stream hyperedge into numa hypergraph on which this cpu
-      // is part of
-      int node = topology.numa_node_of_cpu(sched_getcpu());
-      numa_hypergraphs[node].streamHyperedge(hyperedge, id, weight);
-    }
-  });
+  switch ( distribution ) {
+    case InitialHyperedgeDistribution::equally:
+      streamHyperedgesEquallyIntoNumaHypergraphs<StreamingHyperGraph, TBB, HwTopology>(
+        lines, numa_hypergraphs, has_hyperedge_weights);
+      break;
+    case InitialHyperedgeDistribution::random:
+      streamHyperedgesRandomIntoNumaHypergraphs<StreamingHyperGraph, TBB, HwTopology>(
+        lines, numa_hypergraphs, has_hyperedge_weights);
+      break;
+    case InitialHyperedgeDistribution::all_on_one:
+      streamHyperedgesIntoOneNumaHypergraph<StreamingHyperGraph, TBB, HwTopology>(
+        lines, numa_hypergraphs, has_hyperedge_weights);
+      break;
+    default:
+      LOG << "Unknown distribution strategy";
+      exit(0);
+  }
   end = std::chrono::high_resolution_clock::now();
   mt_kahypar::utils::Timer::instance().add_timing("stream_hyperedges", "Stream hyperedges",
     "hypergraph_import", mt_kahypar::utils::Timer::Type::IMPORT, 1, std::chrono::duration<double>(end - start).count());
@@ -174,11 +241,31 @@ static inline void readHypernodeWeights(std::ifstream& file,
   }
 }
 
+static inline void readHGRHeader(std::ifstream& file, HyperedgeID& num_hyperedges,
+                                 HypernodeID& num_hypernodes, mt_kahypar::Type& hypergraph_type) {
+  std::string line;
+  std::getline(file, line);
+
+  // skip any comments
+  while (line[0] == '%') {
+    std::getline(file, line);
+  }
+
+  std::istringstream sstream(line);
+  int i = 0;
+  sstream >> num_hyperedges >> num_hypernodes >> i;
+  hypergraph_type = static_cast<mt_kahypar::Type>(i);
+}
+
+} // namespace
+
 template < typename HyperGraph = Hypergraph,
            typename StreamingHyperGraph = StreamingHypergraph,
            typename TBB = TBBNumaArena,
            typename HwTopology = HardwareTopology >
-static inline HyperGraph readHypergraphFile(const std::string& filename, const PartitionID k) {
+static inline HyperGraph readHypergraphFile(const std::string& filename,
+                                            const PartitionID k,
+                                            const InitialHyperedgeDistribution distribution) {
   ASSERT(!filename.empty(), "No filename for hypergraph file specified");
   HighResClockTimepoint start = std::chrono::high_resolution_clock::now();
   std::ifstream file(filename);
@@ -189,7 +276,7 @@ static inline HyperGraph readHypergraphFile(const std::string& filename, const P
   if (file) {
     readHGRHeader(file, num_hyperedges, num_hypernodes, type);
     hypergraph = readHyperedges<HyperGraph, StreamingHyperGraph, TBB, HwTopology>(
-      file, num_hypernodes, num_hyperedges, type, k);
+      file, num_hypernodes, num_hyperedges, type, distribution, k);
     readHypernodeWeights<HyperGraph>(file, hypergraph, num_hypernodes, type);
     file.close();
   } else {

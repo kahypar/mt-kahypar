@@ -43,7 +43,8 @@ int main(int argc, char* argv[]) {
 
   // Read Hypergraph
   mt_kahypar::Hypergraph hypergraph = mt_kahypar::io::readHypergraphFile(
-    context.partition.graph_filename, context.partition.k);
+    context.partition.graph_filename, context.partition.k,
+    context.shared_memory.initial_distribution);
 
   // Partition Hypergraph
   mt_kahypar::HighResClockTimepoint start = std::chrono::high_resolution_clock::now();

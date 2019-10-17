@@ -34,6 +34,13 @@ enum class Type : int8_t {
   EdgeAndNodeWeights = 11,
 };
 
+enum class InitialHyperedgeDistribution : uint8_t {
+  equally,
+  random,
+  all_on_one,
+  UNDEFINED
+};
+
 enum class CommunityAssignmentObjective : uint8_t {
   vertex_objective,
   pin_objective,
@@ -91,6 +98,18 @@ std::ostream& operator<< (std::ostream& os, const Type& type) {
   }
   return os << static_cast<uint8_t>(type);
 }
+
+std::ostream& operator<< (std::ostream& os, const InitialHyperedgeDistribution& strategy) {
+  switch (strategy) {
+    case InitialHyperedgeDistribution::equally: return os << "equally";
+    case InitialHyperedgeDistribution::random: return os << "random";
+    case InitialHyperedgeDistribution::all_on_one: return os << "all_on_one";
+    case InitialHyperedgeDistribution::UNDEFINED: return os << "UNDEFINED";
+      // omit default case to trigger compiler warning for missing cases
+  }
+  return os << static_cast<uint8_t>(strategy);
+}
+
 
 std::ostream& operator<< (std::ostream& os, const CommunityAssignmentObjective& objective) {
   switch (objective) {
@@ -170,6 +189,19 @@ std::ostream& operator<< (std::ostream& os, const ExecutionType& type) {
   return os << static_cast<uint8_t>(type);
 }
 
+static InitialHyperedgeDistribution initialHyperedgeDistributionFromString(const std::string& strategy) {
+  if (strategy == "equally") {
+    return InitialHyperedgeDistribution::equally;
+  } else if (strategy == "random") {
+    return InitialHyperedgeDistribution::random;
+  } else if (strategy == "all_on_one") {
+    return InitialHyperedgeDistribution::all_on_one;
+  }
+  LOG << "No valid community assignment strategy.";
+  exit(0);
+  return InitialHyperedgeDistribution::UNDEFINED;
+}
+
 static CommunityAssignmentObjective communityAssignmentObjectiveFromString(const std::string& objective) {
   if (objective == "vertex_objective") {
     return CommunityAssignmentObjective::vertex_objective;
@@ -181,8 +213,8 @@ static CommunityAssignmentObjective communityAssignmentObjectiveFromString(const
   return CommunityAssignmentObjective::UNDEFINED;
 }
 
-static CommunityAssignmentStrategy communityAssignmentStrategyFromString(const std::string& objective) {
-  if (objective == "bin_packing") {
+static CommunityAssignmentStrategy communityAssignmentStrategyFromString(const std::string& strategy) {
+  if (strategy == "bin_packing") {
     return CommunityAssignmentStrategy::bin_packing;
   }
   LOG << "No valid community assignment strategy.";

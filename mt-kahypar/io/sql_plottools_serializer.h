@@ -74,6 +74,7 @@ static inline void serialize(const Hypergraph& hypergraph,
         << " lp_execution_policy_alpha=" << context.refinement.label_propagation.execution_policy_alpha
         << " num_threads=" << context.shared_memory.num_threads
         << " use_community_redistribution=" << std::boolalpha << context.shared_memory.use_community_redistribution
+        << " initial_hyperedge_distribution=" << context.shared_memory.initial_distribution
         << " community_assignment_strategy=" << context.shared_memory.assignment_strategy
         << " community_assignment_objective=" << context.shared_memory.assignment_objective;
 

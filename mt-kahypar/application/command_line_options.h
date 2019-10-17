@@ -244,6 +244,15 @@ po::options_description createSharedMemoryOptionsDescription(Context& context,
     "(default 1)")
     ("s-enable-community-redistribution", po::value<bool>(&context.shared_memory.use_community_redistribution)->value_name("<bool>"),
     "If true, hypergraph is redistributed based on community detection")
+    ("s-initial-hyperedge-distribution",
+    po::value<std::string>()->value_name("<string>")->notifier(
+      [&](const std::string& strategy) {
+      context.shared_memory.initial_distribution = mt_kahypar::initialHyperedgeDistributionFromString(strategy);
+    }),
+    "Determines how hyperedges are distributed to numa nodes after reading hypergraph file: \n"
+    " - equally\n"
+    " - random\n"
+    " - all_on_one")
     ("s-community-assignment-objective",
     po::value<std::string>()->value_name("<string>")->notifier(
       [&](const std::string& objective) {

@@ -153,6 +153,7 @@ inline std::ostream& operator<< (std::ostream& str, const RefinementParameters& 
 struct SharedMemoryParameters {
   size_t num_threads = 1;
   bool use_community_redistribution = false;
+  InitialHyperedgeDistribution initial_distribution = InitialHyperedgeDistribution::UNDEFINED;
   CommunityAssignmentObjective assignment_objective = CommunityAssignmentObjective::UNDEFINED;
   CommunityAssignmentStrategy assignment_strategy = CommunityAssignmentStrategy::UNDEFINED;
 };
@@ -160,8 +161,8 @@ struct SharedMemoryParameters {
 inline std::ostream& operator<< (std::ostream& str, const SharedMemoryParameters& params) {
   str << "Shared Memory Parameters:             " << std::endl;
   str << "  Number of Threads:                  " << params.num_threads << std::endl;
-  str << "  Use Community Redistribution:       " << std::boolalpha
-      << params.use_community_redistribution << std::endl;
+  str << "  Use Community Redistribution:       " << std::boolalpha << params.use_community_redistribution << std::endl;
+  str << "  Initial Hyperedge Distribution:     " << params.initial_distribution << std::endl;
   str << "  Community Assignment Objective:     " << params.assignment_objective << std::endl;
   str << "  Community Assignment Strategy:      " << params.assignment_strategy << std::endl;
   return str;
