@@ -53,7 +53,7 @@ class AConcurrentHypergraph : public Test {
     hypergraph() {
     int cpu_id = sched_getcpu();
     hypergraph =
-      io::readHypergraphFile("../partition/test_instances/ibm01.hgr", k);
+      io::readHypergraphFile("../partition/test_instances/ibm01.hgr", k, InitialHyperedgeDistribution::equally);
     for ( const HypernodeID& hn : hypergraph.nodes() ) {
       PartitionID id = utils::Randomize::instance().getRandomInt(0, k - 1, cpu_id);
       hypergraph.setNodePart(hn, id);

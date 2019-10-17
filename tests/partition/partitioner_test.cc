@@ -70,7 +70,8 @@ static size_t num_threads;
     context.shared_memory.assignment_objective = CommunityAssignmentObjective::pin_objective;
 
     // Read hypergraph
-    hypergraph = io::readHypergraphFile("test_instances/ibm01.hgr", context.partition.k);
+    hypergraph = io::readHypergraphFile("test_instances/ibm01.hgr",
+      context.partition.k, InitialHyperedgeDistribution::equally);
   }
 
   static void SetUpTestSuite() {
@@ -206,7 +207,8 @@ TEST_F(APartitioner, ComputesCorrectBorderNodes) {
 }
 
 TEST_F(APartitioner, IsEqualWithInputHypergraphAfterPartitioning) {
-  Hypergraph reference = io::readHypergraphFile("test_instances/ibm01.hgr", context.partition.k);
+  Hypergraph reference = io::readHypergraphFile("test_instances/ibm01.hgr",
+    context.partition.k, InitialHyperedgeDistribution::equally);
   partition::Partitioner().partition(hypergraph, context);
   verifyThatHypergraphsAreEquivalent(hypergraph, reference);
 }

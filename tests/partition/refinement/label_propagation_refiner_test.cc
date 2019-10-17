@@ -99,7 +99,7 @@ static size_t num_threads;
 
     // Read hypergraph
     hypergraph = io::readHypergraphFile<HyperGraph, StreamingHyperGraph, TBB, HwTopology>(
-      "../test_instances/unweighted_ibm01.hgr", context.partition.k);
+      "../test_instances/unweighted_ibm01.hgr", context.partition.k, InitialHyperedgeDistribution::equally);
     context.setupPartWeights(hypergraph.totalWeight());
     initialPartition();
 
