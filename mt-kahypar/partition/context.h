@@ -2,6 +2,7 @@
  * This file is part of KaHyPar.
  *
  * Copyright (C) 2019 Tobias Heuer <tobias.heuer@kit.edu>
+ * Copyright (C) 2019 Lars Gottesbüren <lars.gottesbueren@kit.edu>
  *
  * KaHyPar is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -43,7 +44,7 @@ struct PartitioningParameters {
   bool quiet_mode = false;
   bool detailed_timings = false;
   bool sp_process_output = false;
-  bool write_partition_file = true;
+  bool write_partition_file = false;
 
   std::string graph_filename { };
   std::string graph_partition_filename { };
@@ -78,6 +79,10 @@ inline std::ostream& operator<< (std::ostream& str, const RatingParameters& para
   str << "    Acceptance Policy:                " << params.acceptance_policy << std::endl;
   return str;
 }
+
+struct PreprocessingParameters {
+	CommunityDetectionStarExpansionWeightModification edge_weight_modification = CommunityDetectionStarExpansionWeightModification::hybrid;
+};
 
 struct CoarseningParameters {
   CoarseningAlgorithm algorithm = CoarseningAlgorithm::UNDEFINED;
@@ -171,6 +176,7 @@ inline std::ostream& operator<< (std::ostream& str, const SharedMemoryParameters
 class Context {
  public:
   PartitioningParameters partition { };
+  PreprocessingParameters preprocessing { };
   CoarseningParameters coarsening { };
   InitialPartitioningParameters initial_partitioning { };
   RefinementParameters refinement { };

@@ -2,6 +2,7 @@
  * This file is part of KaHyPar.
  *
  * Copyright (C) 2019 Tobias Heuer <tobias.heuer@kit.edu>
+ * Copyright (C) 2019 Lars Gottesbüren <lars.gottesbueren@kit.edu>
  *
  * KaHyPar is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -20,6 +21,8 @@
 
 #pragma once
 
+#include <mt-kahypar/partition/preprocessing/community_detection/graph.h>
+#include <mt-kahypar/partition/preprocessing/community_detection/parallel_louvain.h>
 #include "tbb/parallel_for.h"
 #include "tbb/blocked_range.h"
 
@@ -105,8 +108,12 @@ inline void Partitioner::setupContext(const Hypergraph& hypergraph, Context& con
 }
 
 inline void Partitioner::configurePreprocessing(const Hypergraph& hypergraph, Context& context) {
-  unused(hypergraph);
-  unused(context);
+  const double density = static_cast<double>(hypergraph.initialNumEdges()) / static_cast<double>(hypergraph.initialNumNodes());
+  if (density < 0.75) {
+    context.preprocessing.edge_weight_modification = CommunityDetectionStarExpansionWeightModification::degree;
+  } else {
+    context.preprocessing.edge_weight_modification = CommunityDetectionStarExpansionWeightModification::uniform;
+  }
 }
 
 inline void Partitioner::sanitize(Hypergraph& hypergraph, const Context& context) {
@@ -131,11 +138,11 @@ inline void Partitioner::preprocess(Hypergraph& hypergraph, const Context& conte
 
   HighResClockTimepoint global_start = std::chrono::high_resolution_clock::now();
   HighResClockTimepoint start = std::chrono::high_resolution_clock::now();
-  std::vector<PartitionID> communities;
-  io::readPartitionFile(context.partition.graph_community_filename, communities);
-  ASSERT(communities.size() == hypergraph.initialNumNodes());
+  AdjListStarExpansion starExpansion(hypergraph, context);
+  Clustering communities = ParallelModularityLouvain::run(starExpansion.G, context.shared_memory.num_threads);   //TODO(lars): give switch for PLM/SLM
+  starExpansion.restrictClusteringToHypernodes(communities);
   HighResClockTimepoint end = std::chrono::high_resolution_clock::now();
-  mt_kahypar::utils::Timer::instance().add_timing("read_community_file", "Read Community File",
+  mt_kahypar::utils::Timer::instance().add_timing("perform_community_detection", "Perform Community Detection",
     "community_detection", mt_kahypar::utils::Timer::Type::PREPROCESSING, 0, std::chrono::duration<double>(end - start).count());
 
   // Stream community ids into hypergraph

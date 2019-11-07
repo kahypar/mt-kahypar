@@ -2,6 +2,7 @@
  * This file is part of KaHyPar.
  *
  * Copyright (C) 2019 Tobias Heuer <tobias.heuer@kit.edu>
+ * Copyright (C) 2019 Lars Gottesbüren <lars.gottesbueren@kit.edu>
  *
  * KaHyPar is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -56,6 +57,16 @@ enum class CoarseningAlgorithm : uint8_t {
   community_coarsener,
   UNDEFINED
 };
+
+
+enum class CommunityDetectionStarExpansionWeightModification : uint8_t {
+  hybrid,
+  uniform,
+  non_uniform,
+  degree,
+  UNDEFINED
+};
+
 
 enum class RatingFunction : uint8_t {
   heavy_edge,

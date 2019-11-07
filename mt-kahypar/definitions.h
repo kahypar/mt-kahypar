@@ -19,7 +19,7 @@
  ******************************************************************************/
 #pragma once
 
-#define USE_HARDWARE_MOCK true
+#define USE_HARDWARE_MOCK false
 
 #include <chrono>
 
@@ -55,6 +55,9 @@ using HypernodeWeight = int32_t;
 using HyperedgeWeight = int32_t;
 using PartitionID = int32_t;
 using Gain = HyperedgeWeight;
+
+// Note(gottesbueren) : why not keep it 32 bits until we are actually ready for those types of instances. Especially for the comparison against sequential KaHyPar?
+using NodeID = uint32_t;
 
 struct Move {
   PartitionID from;
