@@ -126,7 +126,15 @@ class Randomize {
     ASSERT(cpu_id < (int) std::thread::hardware_concurrency());
     std::shuffle(vector.begin(), vector.begin() + num_elements, _rand[cpu_id].getGenerator());
   }
-
+  
+  template <typename T>
+  void shuffleVector(std::vector<T>& vector, int cpu_id= -1) {
+    if (cpu_id == -1)
+      cpu_id = sched_getcpu();
+    ASSERT(cpu_id < (int) std::thread::hardware_concurrency());
+    std::shuffle(vector.begin(), vector.end(), _rand[cpu_id].getGenerator());
+  }
+  
   template <typename T>
   void shuffleVector(parallel::scalable_vector<T>& vector, size_t num_elements, int cpu_id) {
     ASSERT(cpu_id < (int) std::thread::hardware_concurrency());
