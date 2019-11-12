@@ -147,7 +147,7 @@ public:
 				for (HyperedgeID e : hg.incidentEdges(u)) {
 					for (HypernodeID p : hg.pins(e)) {
 						if (p != u)
-							G.addHalfEdge(u, p, hg.edgeWeight(e));
+							G.addHalfEdge(mapHypernode(u), mapHypernode(p), hg.edgeWeight(e));
 					}
 				}
 			}
@@ -195,19 +195,19 @@ public:
 	//TaggedInteger would be great here
 
 	NodeID mapHyperedge(const HyperedgeID e) {
-		return hg.initialNumNodes() + e;
+		return hg.initialNumNodes() + hg.originalEdgeID(e);
 	}
 
 	NodeID mapHypernode(const HypernodeID u) {
-		return u;
+		return hg.originalNodeID(u);
 	}
 
 	HypernodeID mapNodeToHypernode(const NodeID u) const {
-		return u;
+		return hg.globalNodeID(u);
 	}
 
 	HyperedgeID mapNodeToHyperedge(const NodeID u) const {
-		return u - hg.initialNumNodes();
+		return hg.globalEdgeID(u - hg.initialNumNodes());
 	}
 
 	AdjListGraph G;

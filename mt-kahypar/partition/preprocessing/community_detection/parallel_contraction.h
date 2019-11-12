@@ -10,7 +10,7 @@ namespace mt_kahypar {
 
 class ParallelClusteringContractionAdjList {
 private:
-	static constexpr bool debug = true;
+	static constexpr bool debug = false;
 public:
 	using ArcWeight = AdjListGraph::ArcWeight;
 	using IncidentClusterWeights = ClearListMap<PartitionID, ArcWeight>;

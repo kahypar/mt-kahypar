@@ -58,7 +58,7 @@ private:
 	tbb::enumerable_thread_specific<IncidentClusterWeights> ets_incidentClusterWeights;
 
 public:
-	static constexpr bool debug = true;
+	static constexpr bool debug = false;
 
 	TimeReporter tr;
 

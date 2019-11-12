@@ -40,7 +40,7 @@ template< typename HwTopology >
 class NumaThreadPinningObserver : public tbb::task_scheduler_observer {
   using Base = tbb::task_scheduler_observer;
 
-  static constexpr bool debug = true;
+  static constexpr bool debug = false;
 
  public:
   explicit NumaThreadPinningObserver(tbb::task_arena& arena,

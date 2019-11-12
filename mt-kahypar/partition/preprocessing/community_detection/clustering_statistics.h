@@ -59,7 +59,7 @@ inline std::ostream& operator<< (std::ostream& o, TimeReporter& tr) {
 
 class ClusteringStatistics {
 private:
-	static constexpr bool debug = true;
+	static constexpr bool debug = false;
 
 	template<typename T>
 	static T percentile(double fraction, std::vector<T>& elements) {

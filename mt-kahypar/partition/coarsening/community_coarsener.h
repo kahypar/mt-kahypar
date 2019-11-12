@@ -171,7 +171,6 @@ class CommunityCoarsenerT : public ICoarsener,
           Rating rating = rater.rate(hn);
 
           if ( rating.target != kInvalidHypernode ) {
-            DBG << "Contract: (" << hn << "," << rating.target << ")";
             rater.markAsMatched(hn);
             rater.markAsMatched(rating.target);
             if ( _hg.nodeDegree(rating.target) < _context.coarsening.hypernode_degree_threshold ) {

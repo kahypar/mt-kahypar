@@ -11,7 +11,7 @@
 namespace mt_kahypar {
 class ParallelCountingSort {
 public:
-	static constexpr bool debug = true;
+	static constexpr bool debug = false;
 
 	//KeyFunc must be thread safe
 	template<class Range, class KeyFunc>
