@@ -6,9 +6,11 @@
 #include <numeric>
 #include <functional>
 #include <kahypar/macros.h>
-#include "parallel_prefix_sum.h"
+#include "mt-kahypar/parallel/parallel_prefix_sum.h"
 
 namespace mt_kahypar {
+namespace parallel {
+
 class ParallelCountingSort {
 public:
 	static constexpr bool debug = false;
@@ -22,7 +24,7 @@ public:
 		if (numTasks >= 1) {
 			/* thread local counting */
 			auto t_local_counting = tbb::tick_count::now();
-			std::vector<size_t> chunkBorders = Chunking::getChunkBorders(r.size(), numTasks);
+			std::vector<size_t> chunkBorders = parallel::Chunking::getChunkBorders(r.size(), numTasks);
 			std::vector<std::vector<uint32_t>> threadLocalBucketEnds(numTasks);
 			tbb::parallel_for(size_t(0), numTasks, [&](const size_t taskID) {
 				std::vector<uint32_t>& bucketEnds = threadLocalBucketEnds[taskID];
@@ -45,7 +47,7 @@ public:
 			globalBucketBegins.insert(globalBucketBegins.end(), threadLocalBucketEnds.back().begin(), threadLocalBucketEnds.back().end());
 
 			auto t_prefix_sum = tbb::tick_count::now();
-			PrefixSum::parallelTwoPhase(globalBucketBegins.cbegin(), globalBucketBegins.cend(), globalBucketBegins.begin(), std::plus<uint32_t>(), uint32_t(0), numTasks);
+			parallel::PrefixSum::parallelTwoPhase(globalBucketBegins.cbegin(), globalBucketBegins.cend(), globalBucketBegins.begin(), std::plus<uint32_t>(), uint32_t(0), numTasks);
 
 			/* thread local bucket element assignment */
 			auto t_thread_local_bucket_element_assignment = tbb::tick_count::now();
@@ -93,4 +95,6 @@ public:
 
 	}
 };
-}
+
+} // namespace parallel
+} // namespace mt_kahypar

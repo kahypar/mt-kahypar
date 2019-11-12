@@ -1,7 +1,7 @@
 #pragma once
 
-#include "clustering.h"
-#include "graph.h"
+#include "mt-kahypar/datastructures/clustering.h"
+#include "mt-kahypar/datastructures/graph.h"
 #include "plm.h"
 #include "parallel_contraction.h"
 
@@ -10,8 +10,8 @@ class ParallelModularityLouvain {
 private:
 	static constexpr bool debug = false;
 
-	static Clustering localMovingContractRecurse(AdjListGraph& GFine, PLM& mlv, size_t numTasks) {
-		Clustering C(GFine.numNodes());
+	static ds::Clustering localMovingContractRecurse(ds::AdjListGraph& GFine, PLM& mlv, size_t numTasks) {
+		ds::Clustering C(GFine.numNodes());
 
 		DBG << "Start Local Moving";
 		auto t_lm = tbb::tick_count::now();
@@ -30,11 +30,11 @@ private:
 			DBG << "Contract";
 
 			auto t_contract = tbb::tick_count::now();
-			AdjListGraph GCoarse = ParallelClusteringContractionAdjList::contract(GFine, C, numTasks);
+			ds::AdjListGraph GCoarse = ParallelClusteringContractionAdjList::contract(GFine, C, numTasks);
 			mlv.tr.report("Contraction", tbb::tick_count::now() - t_contract);
 
 #ifndef NDEBUG
-			Clustering coarseGraphSingletons(GCoarse.numNodes());
+			ds::Clustering coarseGraphSingletons(GCoarse.numNodes());
 			coarseGraphSingletons.assignSingleton();
 			//assert(PLM::doubleMod(GFine, PLM::intraClusterWeights_And_SumOfSquaredClusterVolumes(GFine, C)) == PLM::integerModularityFromScratch(GCoarse, coarseGraphSingletons));
 #endif
@@ -42,7 +42,7 @@ private:
 			ClusteringStatistics::printLocalMovingStats(GFine, C, mlv.tr);
 
 			//recurse
-			Clustering coarseC = localMovingContractRecurse(GCoarse, mlv, numTasks);
+			ds::Clustering coarseC = localMovingContractRecurse(GCoarse, mlv, numTasks);
 
 			auto t_prolong = tbb::tick_count::now();
 			//prolong clustering
@@ -55,9 +55,9 @@ private:
 		return C;
 	}
 public:
-	static Clustering run(AdjListGraph& graph, size_t numTasks) {
+	static ds::Clustering run(ds::AdjListGraph& graph, size_t numTasks) {
 		PLM mlv(graph.numNodes());
-		Clustering C = localMovingContractRecurse(graph, mlv, numTasks);
+		ds::Clustering C = localMovingContractRecurse(graph, mlv, numTasks);
 		ClusteringStatistics::printLocalMovingStats(graph, C, mlv.tr);
 		return C;
 	}

@@ -3,12 +3,14 @@
 #include <tbb/task_scheduler_init.h>
 #include <cassert>
 #include <execution>
-#include "parallel_prefix_sum.h"
-#include "parallel_counting_sort.h"
+
+#include "mt-kahypar/parallel/parallel_prefix_sum.h"
+#include "mt-kahypar/parallel/parallel_counting_sort.h"
 
 
 
 namespace mt_kahypar {
+
 	void benchPrefixSums(int num_threads) {
 		size_t num_tasks = static_cast<size_t>(num_threads);
 		std::cout << "Bench prefix sums" << std::endl;
@@ -27,12 +29,12 @@ namespace mt_kahypar {
 		tbb::task_scheduler_init task_scheduler(num_threads);
 
 		auto t_parallelTwoPass = tbb::tick_count::now();
-		PrefixSum::parallelTwoPhase(vec.begin(), vec.end(), out.begin(), std::plus<int64_t>(), 0, num_tasks);
+		parallel::PrefixSum::parallelTwoPhase(vec.begin(), vec.end(), out.begin(), std::plus<int64_t>(), 0, num_tasks);
 		std::cout << "parallel two-pass prefix sum " << (tbb::tick_count::now() - t_parallelTwoPass).seconds() << "[s]" << std::endl;
 
 
 		auto t_seq = tbb::tick_count::now();
-		PrefixSum::sequential(vec, out.begin(), 0, std::plus<int64_t>());
+		parallel::PrefixSum::sequential(vec, out.begin(), 0, std::plus<int64_t>());
 		std::cout << "sequential prefix sum " << (tbb::tick_count::now() - t_seq).seconds() << " [s]" << std::endl;
 		//assert(out_parallel == out);
 
@@ -55,7 +57,7 @@ namespace mt_kahypar {
 
 
 		auto t_parallelTBBNative = tbb::tick_count::now();
-		PrefixSum::parallelTBBNative(vec.begin(), vec.end(), out.begin(), std::plus<int64_t>(), 0, num_tasks);
+		parallel::PrefixSum::parallelTBBNative(vec.begin(), vec.end(), out.begin(), std::plus<int64_t>(), 0, num_tasks);
 		std::cout << "parallel TBB Native prefix sum " << (tbb::tick_count::now() - t_parallelTBBNative).seconds() << "[s]" << std::endl;
 		//assert(out_parallel == out);
 
@@ -84,11 +86,11 @@ namespace mt_kahypar {
 
 		auto id = [](const T x) { return x; };
 
-		auto sorted_vec = ParallelCountingSort::sort(vec, num_buckets, id, num_tasks).first;
+		auto sorted_vec = parallel::ParallelCountingSort::sort(vec, num_buckets, id, num_tasks).first;
 		//std::cout << "create side effect " << sorted_vec[0] << std::endl;
 		assert(std::is_sorted(sorted_vec.begin(), sorted_vec.end()));
 
-		sorted_vec = ParallelCountingSort::sort(vec, num_buckets, id, 0).first;
+		sorted_vec = parallel::ParallelCountingSort::sort(vec, num_buckets, id, 0).first;
 		//std::cout << "create side effect " << sorted_vec[0] << std::endl;
 		assert(std::is_sorted(sorted_vec.begin(), sorted_vec.end()));
 

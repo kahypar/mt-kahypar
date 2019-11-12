@@ -21,8 +21,6 @@
 
 #pragma once
 
-#include <mt-kahypar/partition/preprocessing/community_detection/graph.h>
-#include <mt-kahypar/partition/preprocessing/community_detection/parallel_louvain.h>
 #include "tbb/parallel_for.h"
 #include "tbb/blocked_range.h"
 
@@ -32,10 +30,12 @@
 #include "mt-kahypar/io/partitioning_output.h"
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/definitions.h"
-#include "mt-kahypar/partition/preprocessing/single_node_hyperedge_remover.h"
+#include "mt-kahypar/datastructures/graph.h"
 #include "mt-kahypar/partition/factories.h"
 #include "mt-kahypar/partition/metrics.h"
-#include "mt-kahypar/partition/preprocessing/community_redistributor.h"
+#include "mt-kahypar/partition/preprocessing/community_reassignment/single_node_hyperedge_remover.h"
+#include "mt-kahypar/partition/preprocessing/community_reassignment/community_redistributor.h"
+#include "mt-kahypar/partition/preprocessing/community_detection/parallel_louvain.h"
 #include "mt-kahypar/partition/initial_partitioning/initial_partitioner.h"
 #include "mt-kahypar/utils/stats.h"
 
@@ -138,8 +138,8 @@ inline void Partitioner::preprocess(Hypergraph& hypergraph, const Context& conte
 
   HighResClockTimepoint global_start = std::chrono::high_resolution_clock::now();
   HighResClockTimepoint start = std::chrono::high_resolution_clock::now();
-  AdjListStarExpansion starExpansion(hypergraph, context);
-  Clustering communities = ParallelModularityLouvain::run(starExpansion.G, context.shared_memory.num_threads);   //TODO(lars): give switch for PLM/SLM
+  ds::AdjListStarExpansion starExpansion(hypergraph, context);
+  ds::Clustering communities = ParallelModularityLouvain::run(starExpansion.G, context.shared_memory.num_threads);   //TODO(lars): give switch for PLM/SLM
   starExpansion.restrictClusteringToHypernodes(communities);
   HighResClockTimepoint end = std::chrono::high_resolution_clock::now();
   mt_kahypar::utils::Timer::instance().add_timing("perform_community_detection", "Perform Community Detection",

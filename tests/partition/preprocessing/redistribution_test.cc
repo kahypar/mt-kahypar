@@ -23,8 +23,8 @@
 
 #include "tests/datastructures/hypergraph_fixtures.h"
 #include "mt-kahypar/partition/context.h"
-#include "mt-kahypar/partition/preprocessing/community_redistributor.h"
-#include "mt-kahypar/partition/preprocessing/policies/community_assignment_objective.h"
+#include "mt-kahypar/partition/preprocessing/community_reassignment/community_redistributor.h"
+#include "mt-kahypar/partition/preprocessing/community_reassignment/policies/community_assignment_objective.h"
 
 using ::testing::Test;
 
@@ -79,6 +79,10 @@ TEST_F(ARedistributorOnTwoNumaNodes, RedistributesCommunities) {
   ASSERT_EQ(1, TestStreamingHypergraph::get_numa_node_of_vertex(r_hypergraph.globalNodeID(6)));
 }
 
+
+#define SYSTEM_HAS_MORE_THAN_FOUR_CORES false
+
+#if SYSTEM_HAS_NORE_THAN_FOUR_CORES
 class ARedistributorOnFourNumaNodes : public AHypergraph<4> {
 
  private:
@@ -121,6 +125,7 @@ TEST_F(ARedistributorOnFourNumaNodes, RedistributesCommunities) {
   ASSERT_EQ(3, TestStreamingHypergraph::get_numa_node_of_vertex(r_hypergraph.globalNodeID(5)));
   ASSERT_EQ(2, TestStreamingHypergraph::get_numa_node_of_vertex(r_hypergraph.globalNodeID(6)));
 }
+#endif
 
 } // namespace ds
 } // namespace mt_kahypar

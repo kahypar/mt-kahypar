@@ -9,7 +9,9 @@
 #include <tbb/parallel_scan.h>
 
 
-namespace mt_kahypar{
+namespace mt_kahypar {
+namespace parallel {
+
 class Chunking {
 public:
 
@@ -94,7 +96,7 @@ public:
 		if (tasks <= 2 || chunkSize <= 1)    //has to scan twice, so anything with less than three threads is worse than sequential. switch to sequential if less than 2000 entries.
 			return sequential(first, last, d, neutralElement, f);
 
-		std::vector<size_t> chunkEnds = Chunking::getChunkEnds(n, chunks);
+		std::vector<size_t> chunkEnds = parallel::Chunking::getChunkEnds(n, chunks);
 		std::vector<T> chunkEndSums(tasks);    //last chunk doesn't get an end sum
 
 		tbb::task_group tg;
@@ -160,4 +162,5 @@ public:
 
 };
 
-}
+} // namespace parallel
+} // namespace mt_kahypar

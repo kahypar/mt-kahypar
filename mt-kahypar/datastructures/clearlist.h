@@ -5,6 +5,7 @@
 #include <vector>
 
 namespace mt_kahypar {
+namespace ds {
 
 template<class T>
 class ClearListSet {
@@ -103,4 +104,5 @@ private:
 	std::vector<V> map;
 };
 
-}
+} // namespace ds
+} // namespace mt_kahypar

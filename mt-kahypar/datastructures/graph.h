@@ -6,12 +6,13 @@
 #include <functional>
 #include <boost/range/irange.hpp>
 
-#include <mt-kahypar/definitions.h>
-#include <mt-kahypar/partition/context.h>
-#include "clustering.h"
+#include "mt-kahypar/definitions.h"
+#include "mt-kahypar/partition/context.h"
+#include "mt-kahypar/datastructures/clustering.h"
 
 
 namespace mt_kahypar {
+namespace ds {
 
 class AdjListGraph {
 public:
@@ -129,9 +130,9 @@ private:
 class AdjListStarExpansion {
 private:
 	using ArcWeight = AdjListGraph::ArcWeight;
-	const Hypergraph& hg;
+	const mt_kahypar::Hypergraph& hg;
 public:
-	AdjListStarExpansion(const Hypergraph& hg, const Context& context) : hg(hg), G(hg.initialNumNodes() + hg.initialNumEdges()) {
+	AdjListStarExpansion(const mt_kahypar::Hypergraph& hg, const Context& context) : hg(hg), G(hg.initialNumNodes() + hg.initialNumEdges()) {
 
 		bool isGraph = true;
 		for (const HyperedgeID he : hg.edges()) {
@@ -252,4 +253,5 @@ class CSRGraph {
 	//since contraction is super fast, we might even screw the parallelization there if the benefit to local moving justifies it
 };
 
-}
+} // namespace ds
+} // namespace mt_kahypar

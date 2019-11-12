@@ -107,7 +107,7 @@ static size_t num_threads;
   }
 
   static void SetUpTestSuite() {
-    TBBNumaArena::instance(num_threads);
+    TBB::instance(num_threads);
   }
 
   void initialPartition() {

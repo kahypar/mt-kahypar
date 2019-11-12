@@ -25,7 +25,7 @@
 #include "kahypar/meta/registrar.h"
 
 #include "mt-kahypar/partition/context_enum_classes.h"
-#include "mt-kahypar/partition/preprocessing/policies/community_assignment_objective.h"
+#include "mt-kahypar/partition/preprocessing/community_reassignment/policies/community_assignment_objective.h"
 #include "mt-kahypar/partition/coarsening/policies/rating_score_policy.h"
 #include "mt-kahypar/partition/coarsening/policies/rating_heavy_node_penalty_policy.h"
 #include "mt-kahypar/partition/coarsening/policies/rating_acceptance_policy.h"

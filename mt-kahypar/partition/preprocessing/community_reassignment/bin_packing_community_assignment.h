@@ -25,7 +25,7 @@
 #include "kahypar/meta/mandatory.h"
 
 #include "mt-kahypar/definitions.h"
-#include "mt-kahypar/partition/preprocessing/i_community_assignment.h"
+#include "mt-kahypar/partition/preprocessing/community_reassignment/i_community_assignment.h"
 
 namespace mt_kahypar {
 namespace preprocessing {

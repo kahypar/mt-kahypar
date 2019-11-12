@@ -38,7 +38,7 @@ namespace parallel {
  * Internally it uses hwloc library to find numa nodes and corresponding
  * cpus. Furthermore, it implements functionalities to pin logical threads
  * to cpus of a specific numa node.
- * 
+ *
  * Template parameters can be replaced in order to mock hardware topology and
  * simulate a NUMA on a UMA system.
  */
@@ -67,12 +67,12 @@ class HardwareTopology {
       _free_cpus(0),
       _cpus(),
       _mutex(),
-      _num_cores(0) { 
+      _num_cores(0) {
       for ( const int cpu_id :  HwTopology::get_cpus_of_numa_node_without_hyperthreads(node) ) {
         _cpus.emplace_back(Cpu { cpu_id, false });
         _num_cores++;
       }
-      for ( const int cpu_id :  HwTopology::get_cpus_of_numa_node_only_hyperthreads(node) ) {  
+      for ( const int cpu_id :  HwTopology::get_cpus_of_numa_node_only_hyperthreads(node) ) {
         _cpus.emplace_back(Cpu { cpu_id, true });
       }
       _free_cpus = _cpus.size();
@@ -267,7 +267,7 @@ class HardwareTopology {
     _num_cpus(std::thread::hardware_concurrency()),
     _topology(),
     _numa_nodes(),
-    _cpu_to_numa_node(_num_cpus) { 
+    _cpu_to_numa_node(_num_cpus) {
     HwTopology::initialize(_topology);
     init_numa_nodes();
   }

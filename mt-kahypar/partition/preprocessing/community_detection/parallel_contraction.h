@@ -1,9 +1,9 @@
 #pragma once
 
-#include "graph.h"
-#include "clustering.h"
-#include "clearlist.h"
-#include "parallel_counting_sort.h"
+#include "mt-kahypar/datastructures/graph.h"
+#include "mt-kahypar/datastructures/clustering.h"
+#include "mt-kahypar/datastructures/clearlist.h"
+#include "mt-kahypar/parallel/parallel_counting_sort.h"
 #include <tbb/enumerable_thread_specific.h>
 
 namespace mt_kahypar {
@@ -12,17 +12,17 @@ class ParallelClusteringContractionAdjList {
 private:
 	static constexpr bool debug = false;
 public:
-	using ArcWeight = AdjListGraph::ArcWeight;
-	using IncidentClusterWeights = ClearListMap<PartitionID, ArcWeight>;
+	using ArcWeight = ds::AdjListGraph::ArcWeight;
+	using IncidentClusterWeights = ds::ClearListMap<PartitionID, ArcWeight>;
 
-	static AdjListGraph contract(const AdjListGraph &GFine, Clustering &C, size_t numTasks) {
+	static ds::AdjListGraph contract(const ds::AdjListGraph &GFine, ds::Clustering &C, size_t numTasks) {
 		auto t_compactify = tbb::tick_count::now();
 		size_t numClusters = C.compactify();
 		DBG << "compactify" << (tbb::tick_count::now() - t_compactify).seconds() << "[s]";
 
 		auto t_bucket_assignment = tbb::tick_count::now();
 		auto nodes = boost::irange(NodeID(0), static_cast<NodeID>(GFine.numNodes()));
-		auto [nodesSortedByCluster, clusterBegin] = ParallelCountingSort::sort(nodes, numClusters, C, numTasks);
+		auto [nodesSortedByCluster, clusterBegin] = parallel::ParallelCountingSort::sort(nodes, numClusters, C, numTasks);
 		DBG << "bucket assignment" << (tbb::tick_count::now() - t_bucket_assignment).seconds() << "[s]";
 
 		auto t_edge_accumulation = tbb::tick_count::now();
@@ -34,7 +34,7 @@ public:
 		tbb::enumerable_thread_specific<size_t> ts_deg(0);
 
 
-		AdjListGraph GCoarse(numClusters);
+		ds::AdjListGraph GCoarse(numClusters);
 		tbb::parallel_for_each(GCoarse.nodes(), [&](const NodeID coarseNode) {
 			//std::for_each(GCoarse.nodes().begin(), GCoarse.nodes().end(), [&](const NodeID coarseNode) {
 			//if calls to .local() are too expensive, we could implement range-based ourselves. or use task_arena::thread_id() and OMP style allocation. I think .local() hashes thread IDs for some reason

@@ -2,14 +2,14 @@
 
 #include <atomic>
 #include <mt-kahypar/utils/randomize.h>
-#include "clustering.h"
-#include "graph.h"
-#include "clearlist.h"
+#include "mt-kahypar/datastructures/clustering.h"
+#include "mt-kahypar/datastructures/graph.h"
+#include "mt-kahypar/datastructures/clearlist.h"
 #include "clustering_statistics.h"
 
 #include <tbb/enumerable_thread_specific.h>
 
-#include "custom_atomics.h"
+#include "mt-kahypar/parallel/atomics_util.h"
 
 namespace mt_kahypar {
 
@@ -18,10 +18,10 @@ class PLM {
 private:
 	static constexpr bool advancedGainAdjustment = false;
 
-	using Graph = AdjListGraph;
-	using ArcWeight = AdjListGraph::ArcWeight;
+	using Graph = ds::AdjListGraph;
+	using ArcWeight = ds::AdjListGraph::ArcWeight;
 	using AtomicArcWeight = AtomicWrapper<ArcWeight>;
-	using Arc = AdjListGraph::Arc;
+	using Arc = ds::AdjListGraph::Arc;
 
 /*
 	inline int64_t integerModGain(const ArcWeight weightFrom, const ArcWeight weightTo, const ArcWeight volFrom, const ArcWeight volTo, const ArcWeight volNode) {
@@ -54,7 +54,7 @@ private:
 	double volMultiplierDivByNodeVol = 0.0;
 	std::vector<AtomicArcWeight> clusterVolumes;
 
-	using IncidentClusterWeights = ClearListMap<PartitionID, ArcWeight>;
+	using IncidentClusterWeights = ds::ClearListMap<PartitionID, ArcWeight>;
 	tbb::enumerable_thread_specific<IncidentClusterWeights> ets_incidentClusterWeights;
 
 public:
@@ -68,7 +68,7 @@ public:
 
 	explicit PLM(size_t numNodes) : clusterVolumes(numNodes), ets_incidentClusterWeights(numNodes, 0), tr() { }
 
-	bool localMoving(Graph& G, Clustering& C) {
+	bool localMoving(Graph& G, ds::Clustering& C) {
 		reciprocalTotalVolume = 1.0 / G.totalVolume;
 		totalVolume = G.totalVolume;
 		volMultiplierDivByNodeVol = reciprocalTotalVolume;		// * resolutionGamma;
@@ -91,7 +91,7 @@ public:
 		bool clusteringChanged = false;
 		size_t nodesMovedThisRound = G.numNodes();
 		for (int currentRound = 0; nodesMovedThisRound >= 0.01 * G.numNodes() && currentRound < 16; currentRound++) {
-			
+
 			// parallel shuffle starts becoming competitive with sequential shuffle at four cores... :(
 			// TODO implement block-based weak shuffling or use the pseudo-random online permutation approach
 			auto t_shuffle = tbb::tick_count::now();
@@ -184,7 +184,7 @@ public:
 		return clusteringChanged;
 	}
 
-	bool verifyGain(const Graph& G, Clustering& C, const NodeID u, const PartitionID to, double gain, const IncidentClusterWeights& icw) {
+	bool verifyGain(const Graph& G, ds::Clustering& C, const NodeID u, const PartitionID to, double gain, const IncidentClusterWeights& icw) {
 		(void) icw;
 #ifndef NDEBUG
 		const PartitionID from = C[u];
@@ -252,7 +252,7 @@ public:
 	}
 
 
-	static std::pair<ArcWeight, ArcWeight> intraClusterWeights_And_SumOfSquaredClusterVolumes(const Graph& G, const Clustering& C) {
+	static std::pair<ArcWeight, ArcWeight> intraClusterWeights_And_SumOfSquaredClusterVolumes(const Graph& G, const ds::Clustering& C) {
 		ArcWeight intraClusterWeights = 0;
 		ArcWeight sumOfSquaredClusterVolumes = 0;
 		std::vector<ArcWeight> clusterVolumes(G.numNodes(), 0);

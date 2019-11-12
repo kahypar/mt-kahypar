@@ -81,7 +81,7 @@ class ATBBNumaArenaTest : public Test {
   tbb::task_arena& numa_task_arena(int node) {
     return TBBArena::instance(num_threads).numa_task_arena(node);
   }
-  
+
   void wait(const int node, tbb::task_group& group) {
     TBBArena::instance(num_threads).wait(node, group);
   }
@@ -94,7 +94,13 @@ class ATBBNumaArenaTest : public Test {
   int num_threads;
 };
 
-typedef ::testing::Types<Numa<1>, Numa<2>, Numa<3>, Numa<4>> NumaNodesTemplate;
+
+#define SYSTEM_HAS_MORE_THAN_FOUR_CORES false
+typedef ::testing::Types<Numa<1>, Numa<2>
+                         #if SYSTEM_HAS_MORE_THAN_FOUR_CORES
+                         ,Numa<3>, Numa<4>
+                         #endif
+                         > NumaNodesTemplate;
 
 TYPED_TEST_CASE(ATBBNumaArenaTest, NumaNodesTemplate);
 

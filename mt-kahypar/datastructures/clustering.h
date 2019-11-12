@@ -2,12 +2,13 @@
 
 
 #include <tbb/parallel_for.h>
-#include "parallel_prefix_sum.h"
+#include "mt-kahypar/parallel/parallel_prefix_sum.h"
 #include <functional>
 #include <cassert>
 #include <mt-kahypar/definitions.h>
 
 namespace mt_kahypar {
+namespace ds {
 
 class Clustering : public std::vector<PartitionID> {
 public:
@@ -60,7 +61,7 @@ private:
 			mapping[c] = 1;
 		});
 
-		PrefixSum::parallelTwoPhase(mapping.begin(), mapping.end(), mapping.begin(), std::plus<PartitionID>(), PartitionID(0), numTasks);
+		parallel::PrefixSum::parallelTwoPhase(mapping.begin(), mapping.end(), mapping.begin(), std::plus<PartitionID>(), PartitionID(0), numTasks);
 		//PrefixSum::parallelTBBNative(mapping.begin(), mapping.end(), mapping.begin(), std::plus<PartitionID>(), PartitionID(0), numTasks);
 		//NOTE Benchmark!
 
@@ -76,4 +77,6 @@ private:
 		return mapping.back();
 	}
 };
-}
+
+} // namespace ds
+} // namespace mt_kahypar

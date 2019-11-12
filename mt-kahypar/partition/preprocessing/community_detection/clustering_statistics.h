@@ -1,7 +1,7 @@
 #pragma once
 
-#include "graph.h"
-#include "clustering.h"
+#include "mt-kahypar/datastructures/graph.h"
+#include "mt-kahypar/datastructures/clustering.h"
 #include <tbb/tick_count.h>
 
 namespace mt_kahypar {
@@ -77,7 +77,7 @@ private:
 	}
 
 public:
-	static void printLocalMovingStats(const AdjListGraph& G, Clustering& C, TimeReporter& tr) {
+	static void printLocalMovingStats(const ds::AdjListGraph& G, ds::Clustering& C, TimeReporter& tr) {
 		std::vector<size_t> sizeOfCluster(G.numNodes());
 		PartitionID maxClusterID = 0;
 		for (const PartitionID& c : C) {

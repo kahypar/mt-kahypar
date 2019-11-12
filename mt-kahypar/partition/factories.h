@@ -25,9 +25,9 @@
 #include "kahypar/meta/typelist.h"
 
 #include "mt-kahypar/partition/context.h"
-#include "mt-kahypar/partition/preprocessing/i_community_assignment.h"
-#include "mt-kahypar/partition/preprocessing/bin_packing_community_assignment.h"
-#include "mt-kahypar/partition/preprocessing/policies/community_assignment_objective.h"
+#include "mt-kahypar/partition/preprocessing/community_reassignment/i_community_assignment.h"
+#include "mt-kahypar/partition/preprocessing/community_reassignment/bin_packing_community_assignment.h"
+#include "mt-kahypar/partition/preprocessing/community_reassignment/policies/community_assignment_objective.h"
 #include "mt-kahypar/partition/coarsening/i_coarsener.h"
 #include "mt-kahypar/partition/coarsening/community_coarsener.h"
 #include "mt-kahypar/partition/coarsening/policies/rating_community_policy.h"
