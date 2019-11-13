@@ -109,7 +109,7 @@ public:
 		for (K& k : keys())
 			remove(k);
 		contained_keys.clear();
-		assert( std::all_of( map.begin(), map.end(), [&](const V& v) { return v == defaultValue; } ) );
+		// assert( std::all_of( map.begin(), map.end(), [&](const V& v) { return v == defaultValue; } ) );
 	}
 
 	void merge(ClearListMap<K,V>& other) {

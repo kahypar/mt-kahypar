@@ -25,10 +25,9 @@
 #include "tbb/task_arena.h"
 #include "tbb/task_group.h"
 
+#include "mt-kahypar/macros.h"
 #include "mt-kahypar/parallel/numa_thread_pinning_observer.h"
 #include "mt-kahypar/parallel/global_thread_pinning_observer.h"
-
-#include "kahypar/macros.h"
 
 namespace mt_kahypar {
 namespace parallel {

@@ -108,7 +108,7 @@ using Base = GainPolicy<Km1Policy<HyperGraph>, HyperGraph>;
     _disable_randomization(disable_randomization) { }
 
   Move computeMaxGainMoveImpl(const HypernodeID hn) {
-    ASSERT([&] {
+    HEAVY_REFINEMENT_ASSERT([&] {
       for (PartitionID k = 0; k < _context.partition.k; ++k) {
         if ( _tmp_scores.local()[k] != 0 ) {
           return false;
@@ -194,7 +194,7 @@ using Base = GainPolicy<CutPolicy<HyperGraph>, HyperGraph>;
     _disable_randomization(disable_randomization) { }
 
   Move computeMaxGainMoveImpl(const HypernodeID hn) {
-    ASSERT([&] {
+    HEAVY_REFINEMENT_ASSERT([&] {
       for (PartitionID k = 0; k < _context.partition.k; ++k) {
         if ( _tmp_scores.local()[k] != 0 ) {
           return false;

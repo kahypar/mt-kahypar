@@ -25,7 +25,7 @@
 #include <mutex>
 #include <thread>
 
-#include "kahypar/macros.h"
+#include "mt-kahypar/macros.h"
 
 #include "mt-kahypar/parallel/hwloc_topology.h"
 #include "mt-kahypar/parallel/global_thread_pinning.h"

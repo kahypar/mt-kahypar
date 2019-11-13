@@ -186,7 +186,7 @@ class CommunityRedistributorT {
     mt_kahypar::utils::Timer::instance().add_timing("initialize_communities", "Initialize Communities",
       "redistribution", mt_kahypar::utils::Timer::Type::PREPROCESSING, 6, std::chrono::duration<double>(end - start).count());
 
-    ASSERT([&] {
+    HEAVY_PREPROCESSING_ASSERT([&] {
       for ( const HypernodeID& hn : hypergraph.nodes() ) {
         int node = StreamingHyperGraph::get_numa_node_of_vertex(hn);
         PartitionID community_id = hypergraph.communityID(hn);

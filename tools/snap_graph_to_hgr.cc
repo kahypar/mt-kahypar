@@ -24,7 +24,7 @@
 #include <iostream>
 #include <string>
 
-#include "kahypar/macros.h"
+#include "mt-kahypar/macros.h"
 
 namespace po = boost::program_options;
 

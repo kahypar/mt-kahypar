@@ -25,9 +25,9 @@
 #include <utility>
 #include <vector>
 
-#include "kahypar/macros.h"
 #include "kahypar/partition/metrics.h"
 
+#include "mt-kahypar/macros.h"
 #include "mt-kahypar/definitions.h"
 
 namespace mt_kahypar {

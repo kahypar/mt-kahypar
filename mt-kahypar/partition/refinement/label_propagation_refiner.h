@@ -103,7 +103,7 @@ class LabelPropagationRefinerT final : public IRefiner {
       return false;
     }
 
-    ASSERT([&] {
+    HEAVY_REFINEMENT_ASSERT([&] {
       // Assertion verifies, that all enabled nodes are contained in _nodes
       std::vector<HypernodeID> tmp_nodes;
       tmp_nodes.insert(tmp_nodes.begin(), _nodes.begin(), _nodes.end());

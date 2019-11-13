@@ -27,9 +27,9 @@
 
 #include "tbb/enumerable_thread_specific.h"
 
-#include "kahypar/macros.h"
 #include "kahypar/meta/mandatory.h"
 
+#include "mt-kahypar/macros.h"
 #include "mt-kahypar/datastructures/streaming_hypergraph.h"
 #include "mt-kahypar/utils/timer.h"
 
@@ -1179,10 +1179,10 @@ class Hypergraph {
 
     setNodeWeight(memento.u, nodeWeight(memento.u) - nodeWeight(memento.v));
 
-    ASSERT( numIncidentCutHyperedges(memento.u) == numIncidentCutHEs(memento.u),
-            V(memento.u) << V(numIncidentCutHyperedges(memento.u)) << V(numIncidentCutHEs(memento.u)) );
-    ASSERT( numIncidentCutHyperedges(memento.v) == numIncidentCutHEs(memento.v),
-            V(memento.v) << V(numIncidentCutHyperedges(memento.v)) << V(numIncidentCutHEs(memento.v)) );
+    HEAVY_REFINEMENT_ASSERT( numIncidentCutHyperedges(memento.u) == numIncidentCutHEs(memento.u),
+      V(memento.u) << V(numIncidentCutHyperedges(memento.u)) << V(numIncidentCutHEs(memento.u)) );
+    HEAVY_REFINEMENT_ASSERT( numIncidentCutHyperedges(memento.v) == numIncidentCutHEs(memento.v),
+      V(memento.v) << V(numIncidentCutHyperedges(memento.v)) << V(numIncidentCutHEs(memento.v)) );
   }
 
   // ####################### Remove / Restore Hyperedges #######################
@@ -1291,8 +1291,8 @@ class Hypergraph {
               edgeSize(representative) * sizeof(HypernodeID));
       #endif
 
-      ASSERT(verifyThatHyperedgesAreParallel(representative, he),
-             "HE" << he << "is not parallel to" << representative);
+      HEAVY_REFINEMENT_ASSERT(verifyThatHyperedgesAreParallel(representative, he),
+                              "HE" << he << "is not parallel to" << representative);
       restoreEdge(he, edgeSize(representative), representative);
       setEdgeWeight(representative, edgeWeight(representative) - edgeWeight(he));
       _parallel_he_representative[originalEdgeID(he)] = kInvalidHyperedge;

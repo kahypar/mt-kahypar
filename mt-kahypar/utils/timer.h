@@ -24,7 +24,7 @@
 #include <unordered_map>
 #include <functional>
 
-#include "kahypar/macros.h"
+#include "mt-kahypar/macros.h"
 
 namespace mt_kahypar {
 namespace utils {

@@ -26,8 +26,8 @@
 #include <numeric>
 #include <functional>
 
-#include "kahypar/macros.h"
 
+#include "mt-kahypar/macros.h"
 #include "mt-kahypar/parallel/parallel_prefix_sum.h"
 
 namespace mt_kahypar {

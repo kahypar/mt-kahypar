@@ -24,6 +24,7 @@
 
 #include <tbb/enumerable_thread_specific.h>
 
+#include "mt-kahypar/macros.h"
 #include "mt-kahypar/utils/randomize.h"
 #include "mt-kahypar/parallel/atomics_util.h"
 #include "mt-kahypar/datastructures/clustering.h"
@@ -160,7 +161,7 @@ public:
 				}
 
 
-				assert(verifyGain(G, C, u, bestCluster, bestGain, incidentClusterWeights));
+				HEAVY_PREPROCESSING_ASSERT(verifyGain(G, C, u, bestCluster, bestGain, incidentClusterWeights));
 
 				incidentClusterWeights.clear();
 
@@ -176,6 +177,7 @@ public:
 			};
 
 			auto t_move = tbb::tick_count::now();
+
 #ifndef NDEBUG
 			std::for_each(nodes.begin(), nodes.end(), moveNode);
 #else
@@ -220,7 +222,7 @@ public:
 			adjustedGain = 0.0L;
 		}
 
-		assert(adjustedGain == adjustedGainRecomputed);
+		ASSERT(adjustedGain == adjustedGainRecomputed);
 
 		auto eq = [&](const long double x, const long double y) {
 			static constexpr double eps = 1e-8;
@@ -257,7 +259,7 @@ public:
 			LOG << "---------------------------";
 		}
 
-		assert(comp);
+		ASSERT(comp);
 
 		//revert move
 		C[u] = from;
@@ -286,7 +288,7 @@ public:
 			}
 
 			ArcWeight selfLoopWeight = G.nodeVolume(u) - arcVol;	//already accounted for as twice!
-			assert(selfLoopWeight >= 0.0);
+			ASSERT(selfLoopWeight >= 0.0);
 			intraClusterWeights += selfLoopWeight;
 			clusterVolumes[C[u]] += G.nodeVolume(u);
 		}

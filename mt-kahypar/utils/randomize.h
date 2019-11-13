@@ -25,8 +25,7 @@
 #include <random>
 #include <limits>
 
-#include "kahypar/macros.h"
-
+#include "mt-kahypar/macros.h"
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
 
 namespace mt_kahypar {
@@ -47,7 +46,7 @@ class Randomize {
       _precomputed_flip_coins(PRECOMPUTED_FLIP_COINS),
       _int_dist(0, std::numeric_limits<int>::max()),
       _float_dist(0, 1),
-      _norm_dist(0, 1) { 
+      _norm_dist(0, 1) {
       precompute_flip_coins();
     }
 
@@ -71,8 +70,8 @@ class Randomize {
     // returns uniformly random float from the interval [low, high)
     float getRandomFloat(float low, float high) {
       return _float_dist(_gen, std::uniform_real_distribution<float>::param_type(low, high));
-    }  
-    
+    }
+
     float getNormalDistributedFloat(float mean, float std_dev) {
       return _norm_dist(_gen, std::normal_distribution<float>::param_type(mean, std_dev));
     }
@@ -126,7 +125,7 @@ class Randomize {
     ASSERT(cpu_id < (int) std::thread::hardware_concurrency());
     std::shuffle(vector.begin(), vector.begin() + num_elements, _rand[cpu_id].getGenerator());
   }
-  
+
   template <typename T>
   void shuffleVector(std::vector<T>& vector, int cpu_id= -1) {
     if (cpu_id == -1)
@@ -134,7 +133,7 @@ class Randomize {
     ASSERT(cpu_id < (int) std::thread::hardware_concurrency());
     std::shuffle(vector.begin(), vector.end(), _rand[cpu_id].getGenerator());
   }
-  
+
   template <typename T>
   void shuffleVector(parallel::scalable_vector<T>& vector, size_t num_elements, int cpu_id) {
     ASSERT(cpu_id < (int) std::thread::hardware_concurrency());
@@ -171,7 +170,7 @@ class Randomize {
   }
 
  private:
-  explicit Randomize() : 
+  explicit Randomize() :
     _rand(std::thread::hardware_concurrency()) { }
 
   static std::mutex _mutex;

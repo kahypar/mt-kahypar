@@ -25,9 +25,9 @@
 #include "tbb/task_arena.h"
 #include "tbb/task_group.h"
 
-#include "kahypar/macros.h"
 #include "kahypar/meta/mandatory.h"
 
+#include "mt-kahypar/macros.h"
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
 
 namespace mt_kahypar {

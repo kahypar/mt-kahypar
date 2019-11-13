@@ -23,9 +23,9 @@
 #include <type_traits>
 
 #include "kahypar/definitions.h"
-#include "kahypar/macros.h"
 #include "kahypar/meta/mandatory.h"
 
+#include "mt-kahypar/macros.h"
 #include "mt-kahypar/parallel/copyable_atomic.h"
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
 #include "mt-kahypar/utils/bit_magic.h"

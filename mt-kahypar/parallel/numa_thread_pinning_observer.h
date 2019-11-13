@@ -26,7 +26,7 @@
 #include "tbb/task_scheduler_observer.h"
 #undef __TBB_ARENA_OBSERVER
 
-#include "kahypar/macros.h"
+#include "mt-kahypar/macros.h"
 
 namespace mt_kahypar {
 namespace parallel {

@@ -24,8 +24,7 @@
 
 #include "tbb/task_scheduler_observer.h"
 
-#include "kahypar/macros.h"
-
+#include "mt-kahypar/macros.h"
 #include "mt-kahypar/parallel/global_thread_pinning.h"
 
 namespace mt_kahypar {

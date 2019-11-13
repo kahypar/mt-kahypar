@@ -26,8 +26,7 @@
 #include <thread>
 #include <hwloc.h>
 
-#include "kahypar/macros.h"
-
+#include "mt-kahypar/macros.h"
 
 namespace mt_kahypar {
 namespace parallel {
@@ -45,7 +44,7 @@ struct Node {
     os_index(node),
     cpuset(),
     next_cousin(),
-    cpus() { 
+    cpus() {
     cpuset = hwloc_bitmap_alloc();
   }
 
@@ -89,7 +88,7 @@ struct Node {
 class Topology {
  public:
   explicit Topology(const numa_to_cpu_t& numa_to_cpu) :
-    _nodes() { 
+    _nodes() {
     init(numa_to_cpu);
   }
 

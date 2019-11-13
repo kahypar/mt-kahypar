@@ -22,7 +22,7 @@
 
 #include <string>
 
-#include "kahypar/macros.h"
+#include "mt-kahypar/macros.h"
 #include "mt-kahypar/partition/refinement/i_refiner.h"
 
 namespace mt_kahypar {

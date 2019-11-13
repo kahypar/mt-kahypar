@@ -38,10 +38,10 @@
 #include "tbb/queuing_mutex.h"
 
 #include "kahypar/datastructure/fast_reset_flag_array.h"
-#include "kahypar/macros.h"
 #include "kahypar/meta/mandatory.h"
 #include "kahypar/utils/math.h"
 
+#include "mt-kahypar/macros.h"
 #include "mt-kahypar/datastructures/streaming_vector.h"
 #include "mt-kahypar/datastructures/streaming_map.h"
 #include "mt-kahypar/datastructures/connectivity_set.h"
@@ -1768,7 +1768,7 @@ class StreamingHypergraph {
               add_community_hyperedge(he, last_community_id, last_community_start, incidence_array_end, e.weight());
               e.initializeCommunityHyperedges();
 
-              ASSERT([&] {
+              HEAVY_COARSENING_ASSERT([&] {
                 if ( e.firstEntry() != _community_hyperedges[he][0].firstEntry() ) {
                   return false;
                 }
@@ -1827,7 +1827,7 @@ class StreamingHypergraph {
               this->hypernode(hn).setSinglePinCommunityNets(single_pin_community_nets);
               this->hypernode(hn).setInvalidCommunityNets(_incident_nets[v].size());
 
-              ASSERT([&] {
+              HEAVY_COARSENING_ASSERT([&] {
                 if ( _remove_single_pin_community_nets ) {
                   size_t single_pin_community_hyperedges = this->hypernode(hn).singlePinCommunityNets();
                   for ( size_t i = 0; i < single_pin_community_hyperedges; ++i ) {
@@ -1841,7 +1841,7 @@ class StreamingHypergraph {
                 return true;
               }(), "There non single-pin community hyperedges in single-pin part of incident nets");
 
-              ASSERT([&] {
+              HEAVY_COARSENING_ASSERT([&] {
                 if ( _remove_single_pin_community_nets ) {
                   size_t single_pin_community_hyperedges = this->hypernode(hn).singlePinCommunityNets();
                   for ( size_t i = single_pin_community_hyperedges; i < incident_nets(hn).size(); ++i ) {
@@ -1934,7 +1934,7 @@ class StreamingHypergraph {
 
               e.deinitializeCommunityHyperedges();
 
-              ASSERT([&] {
+              HEAVY_COARSENING_ASSERT([&] {
                 for ( size_t i = e.firstEntry(); i < e.firstInvalidEntry(); ++i ) {
                   const HypernodeID& pin = this->_incidence_array[i];
                   if ( !hypergraph_of_vertex(pin, hypergraphs).nodeIsEnabled(pin) ) {
@@ -1945,7 +1945,7 @@ class StreamingHypergraph {
                 return true;
               }(), "There are disabled hypernodes in valid part of hyperedge");
 
-              ASSERT([&] {
+              HEAVY_COARSENING_ASSERT([&] {
                 for ( size_t i = e.firstInvalidEntry(); i < _hyperedges[he + 1].firstEntry(); ++i ) {
                   const HypernodeID& pin = this->_incidence_array[i];
                   if ( hypergraph_of_vertex(pin, hypergraphs).nodeIsEnabled(pin) ) {
@@ -2270,7 +2270,7 @@ class StreamingHypergraph {
       ASSERT(hypergraph_of_hyperedge(he, hypergraphs).community_hyperedge(he, community_id).isDisabled());
     }
 
-    ASSERT([&] {
+    HEAVY_COARSENING_ASSERT([&] {
       size_t invalid_community_nets = hypernode(hn).invalidCommunityNets();
       for ( size_t i = 0; i < invalid_community_nets; ++i) {
         const HyperedgeID he = incident_nets_of_hn[i];
@@ -2282,7 +2282,7 @@ class StreamingHypergraph {
       return true;
     }(), "There is an invalidated community hyperedge in valid part of incident nets");
 
-    ASSERT([&] {
+    HEAVY_COARSENING_ASSERT([&] {
       size_t invalid_community_nets = hypernode(hn).invalidCommunityNets();
       for ( size_t i = invalid_community_nets; i < incident_nets_of_hn.size(); ++i) {
         const HyperedgeID he = incident_nets_of_hn[i];
@@ -2299,10 +2299,9 @@ class StreamingHypergraph {
   KAHYPAR_ATTRIBUTE_ALWAYS_INLINE void insertIncidentEdgeToHypernode(const HyperedgeID he,
                                                                      const HypernodeID hn) {
     size_t invalid_incident_nets = hypernode(hn).invalidIncidentNets();
-    ASSERT(std::count(incident_nets(hn).begin() + invalid_incident_nets,
-                      incident_nets(hn).end(), he)
-            == 0,
-            "HN" << hn << "is already connected to HE" << he);
+    HEAVY_REFINEMENT_ASSERT(std::count(incident_nets(hn).begin() + invalid_incident_nets,
+                            incident_nets(hn).end(), he) == 0,
+                            "HN" << hn << "is already connected to HE" << he);
 
     auto& incident_nets_of_hn = incident_nets(hn);
     size_t slot_of_he = invalid_incident_nets;

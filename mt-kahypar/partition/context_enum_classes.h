@@ -24,7 +24,7 @@
 #include <iostream>
 #include <string>
 
-#include "kahypar/macros.h"
+#include "mt-kahypar/macros.h"
 
 namespace mt_kahypar {
 

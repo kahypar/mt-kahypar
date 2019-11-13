@@ -23,7 +23,7 @@
 #include <string>
 #include <unordered_map>
 
-#include "kahypar/macros.h"
+#include "mt-kahypar/macros.h"
 
 namespace mt_kahypar {
 namespace utils {
