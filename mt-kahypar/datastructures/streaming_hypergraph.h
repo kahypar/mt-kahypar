@@ -592,16 +592,6 @@ class StreamingHypergraph {
    public:
     using IDType = typename ElementType::IDType;
 
-    HypergraphElementIterator() = default;
-
-    HypergraphElementIterator(const HypergraphElementIterator& other) = default;
-    HypergraphElementIterator& operator= (const HypergraphElementIterator& other) = default;
-
-    HypergraphElementIterator(HypergraphElementIterator&& other) = default;
-    HypergraphElementIterator& operator= (HypergraphElementIterator&& other) = default;
-
-    ~HypergraphElementIterator() = default;
-
     /*!
      * Construct a HypergraphElementIterator
      * See GenericHypergraph::nodes() or GenericHypergraph::edges() for usage.
@@ -805,9 +795,6 @@ class StreamingHypergraph {
     _hypernode_stream(std::move(other._hypernode_stream)),
     _incident_net_stream(std::move(other._incident_net_stream)) { }
 
-  StreamingHypergraph& operator= (StreamingHypergraph&&) = default;
-
-  ~StreamingHypergraph() = default;
 
   // ####################### General Hypergraph Stats #######################
 

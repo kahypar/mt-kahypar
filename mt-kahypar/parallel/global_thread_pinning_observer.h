@@ -46,7 +46,6 @@ class GlobalThreadPinningObserver : public tbb::task_scheduler_observer {
   GlobalThreadPinningObserver(const GlobalThreadPinningObserver&) = delete;
   GlobalThreadPinningObserver& operator= (const GlobalThreadPinningObserver&) = delete;
 
-  GlobalThreadPinningObserver(GlobalThreadPinningObserver&& other) = default;
   GlobalThreadPinningObserver& operator= (GlobalThreadPinningObserver&&) = delete;
 
   ~GlobalThreadPinningObserver() {

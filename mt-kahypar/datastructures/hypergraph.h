@@ -116,16 +116,6 @@ class Hypergraph {
     using Iterators = std::vector<std::pair<Iterator, Iterator>>;
 
    public:
-    GlobalHypergraphElementIterator() = default;
-
-    GlobalHypergraphElementIterator(const GlobalHypergraphElementIterator& other) = default;
-    GlobalHypergraphElementIterator& operator= (const GlobalHypergraphElementIterator& other) = default;
-
-    GlobalHypergraphElementIterator(GlobalHypergraphElementIterator&& other) = default;
-    GlobalHypergraphElementIterator& operator= (GlobalHypergraphElementIterator&& other) = default;
-
-    ~GlobalHypergraphElementIterator() = default;
-
     /*!
      * Construct a GlobalHypergraphElementIterator
      * See Hypergraph::nodes() or Hypergraph::edges() for usage.
@@ -373,8 +363,6 @@ class Hypergraph {
     _community_node_mapping = std::move(other._community_node_mapping);
     return *this;
   }
-
-  ~Hypergraph() = default;
 
   // ####################### General Hypergraph Stats #######################
 

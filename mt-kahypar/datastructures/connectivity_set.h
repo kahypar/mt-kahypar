@@ -86,18 +86,6 @@ class ConnectivitySet {
                          PartitionID> {              // reference
 
    public:
-
-    ConnectivitySetIterator() = default;
-
-    ConnectivitySetIterator(const ConnectivitySetIterator& other) = default;
-    ConnectivitySetIterator& operator= (const ConnectivitySetIterator& other) = default;
-
-    ConnectivitySetIterator(ConnectivitySetIterator&& other) = default;
-    ConnectivitySetIterator& operator= (ConnectivitySetIterator&& other) = default;
-
-    ~ConnectivitySetIterator() = default;
-
-
     ConnectivitySetIterator(const parallel::scalable_vector<BitsetAtomic>& bitset) :
       _bitset(bitset),
       _current_id(-1),
@@ -178,14 +166,6 @@ class ConnectivitySet {
     size_t num_entries = k / 8 + ( k % 8 > 0 ? 1 : 0 );
     _bitset.assign(num_entries, BitsetAtomic(0));
   }
-
-  ConnectivitySet(const ConnectivitySet&) = delete;
-  ConnectivitySet& operator= (const ConnectivitySet&) = delete;
-
-  ConnectivitySet(ConnectivitySet&& other) = default;
-  ConnectivitySet& operator= (ConnectivitySet&&) = default;
-
-  ~ConnectivitySet() = default;
 
   std::pair<ConnectivitySetIterator, ConnectivitySetIterator> connectivitySet() const {
     return std::make_pair( ConnectivitySetIterator(_bitset),

@@ -77,8 +77,6 @@ class LabelPropagationRefinerT final : public IRefiner {
   LabelPropagationRefinerT& operator= (const LabelPropagationRefinerT&) = delete;
   LabelPropagationRefinerT& operator= (LabelPropagationRefinerT&&) = delete;
 
-  ~LabelPropagationRefinerT() override = default;
-
  private:
   bool refineImpl(const std::vector<HypernodeID>& refinement_nodes,
                   kahypar::Metrics& best_metrics) override final {

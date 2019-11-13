@@ -43,8 +43,6 @@ class CommunityRedistributorT {
   CommunityRedistributorT(CommunityRedistributorT&&) = delete;
   CommunityRedistributorT& operator= (CommunityRedistributorT&&) = delete;
 
-  ~CommunityRedistributorT() = default;
-
   static HyperGraph redistribute(HyperGraph& hg,
                                  const PartitionID k,
                                  const std::vector<PartitionID>& community_assignment) {

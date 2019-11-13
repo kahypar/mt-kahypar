@@ -185,8 +185,6 @@ class Context {
 
   Context() { }
 
-  ~Context() = default;
-
   Context(const Context& other) :
     partition(other.partition),
     type(other.type) { }

@@ -55,8 +55,6 @@ class BinPackingCommunityAssignmentT : public ICommunityAssignment {
   BinPackingCommunityAssignmentT(BinPackingCommunityAssignmentT&&) = delete;
   BinPackingCommunityAssignmentT& operator= (BinPackingCommunityAssignmentT&&) = delete;
 
-  ~BinPackingCommunityAssignmentT() = default;
-
  private:
   std::vector<PartitionID> computeAssignmentImpl() {
     // Compute Bin Capacities

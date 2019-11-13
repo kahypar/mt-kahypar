@@ -89,8 +89,6 @@ class HardwareTopology {
      _mutex(),
      _num_cores(other._num_cores) { }
 
-    NumaNode& operator= (NumaNode&&) = default;
-
     int get_id() const {
       return _node_id;
     }

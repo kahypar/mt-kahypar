@@ -63,8 +63,6 @@ class StreamingVector {
   StreamingVector(StreamingVector&& other) = default;
   StreamingVector& operator= (StreamingVector&&) = default;
 
-  ~StreamingVector() = default;
-
   template< class... Args >
   void stream( Args&&... args ) {
     int cpu_id = sched_getcpu();

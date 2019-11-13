@@ -76,10 +76,6 @@ class StreamingMap {
     _mutex(_size),
     _buffer(std::move(other._buffer)) { }
 
-  StreamingMap& operator= (StreamingMap&&) = default;
-
-  ~StreamingMap() = default;
-
   void stream(const Key& key, const Value& value) {
     size_t bucket = std::hash<Key>()(key) % _size;
     ASSERT(bucket < _size);

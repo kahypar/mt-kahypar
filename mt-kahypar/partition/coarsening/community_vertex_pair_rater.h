@@ -64,8 +64,6 @@ class CommunityVertexPairRater {
     VertexPairRating(VertexPairRating&&) = default;
     VertexPairRating& operator= (VertexPairRating&&) = delete;
 
-    ~VertexPairRating() = default;
-
     HypernodeID target;
     RatingType value;
     bool valid;
@@ -91,8 +89,6 @@ class CommunityVertexPairRater {
 
   CommunityVertexPairRater(CommunityVertexPairRater&&) = delete;
   CommunityVertexPairRater& operator= (CommunityVertexPairRater&&) = delete;
-
-  ~CommunityVertexPairRater() = default;
 
   VertexPairRating rate(const HypernodeID u) {
     ASSERT(_hg.communityID(u) == _community_id);

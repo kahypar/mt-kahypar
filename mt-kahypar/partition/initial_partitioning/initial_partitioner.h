@@ -84,8 +84,6 @@ class InitialPartitionerT {
   InitialPartitionerT& operator= (const InitialPartitionerT&) = delete;
   InitialPartitionerT& operator= (InitialPartitionerT&&) = delete;
 
-  ~InitialPartitionerT() = default;
-
   void initialPartition() {
     kahypar_context_t* context = readContext(_context.initial_partitioning.context_file);
     setupContext(*reinterpret_cast<kahypar::Context*>(context));

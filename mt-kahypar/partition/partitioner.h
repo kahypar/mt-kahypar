@@ -56,8 +56,6 @@ class Partitioner {
   Partitioner(Partitioner&&) = delete;
   Partitioner& operator= (Partitioner&&) = delete;
 
-  ~Partitioner() = default;
-
   inline void partition(Hypergraph& hypergraph, Context& context);
 
  private:
