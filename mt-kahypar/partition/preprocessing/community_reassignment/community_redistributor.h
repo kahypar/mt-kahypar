@@ -37,6 +37,8 @@ class CommunityRedistributorT {
   using TBB = typename TypeTraits::TBB;
   using HwTopology = typename TypeTraits::HwTopology;
 
+  static constexpr bool enable_heavy_assert = false;
+
  public:
   CommunityRedistributorT(const CommunityRedistributorT&) = delete;
   CommunityRedistributorT& operator= (const CommunityRedistributorT&) = delete;

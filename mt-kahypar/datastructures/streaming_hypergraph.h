@@ -85,6 +85,7 @@ template <typename HypernodeType_ = Mandatory,
 class StreamingHypergraph {
 
   static constexpr bool debug = false;
+  static constexpr bool enable_heavy_assert = false;
   static constexpr size_t NUMA_NODE_INDENTIFIER = 48;
   // seed for edge hashes used for parallel net detection
   static constexpr size_t kEdgeHashSeed = 42;

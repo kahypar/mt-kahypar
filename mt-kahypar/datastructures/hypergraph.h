@@ -47,6 +47,7 @@ class Hypergraph {
 
  private:
   static constexpr bool debug = false;
+  static constexpr bool enable_heavy_assert = false;
 
   using HypernodeID = HypernodeType_;
   using HyperedgeID = HyperedgeType_;

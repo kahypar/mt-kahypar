@@ -80,6 +80,7 @@ private:
 
 public:
 	static constexpr bool debug = false;
+  static constexpr bool enable_heavy_assert = false;
 
 	TimeReporter tr;
 

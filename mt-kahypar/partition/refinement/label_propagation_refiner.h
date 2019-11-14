@@ -55,6 +55,7 @@ class LabelPropagationRefinerT final : public IRefiner {
   using GainCalculator = GainPolicy<HyperGraph>;
 
   static constexpr bool debug = false;
+  static constexpr bool enable_heavy_assert = false;
 
  public:
 

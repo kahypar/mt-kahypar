@@ -100,6 +100,8 @@ class Km1Policy : public GainPolicy<Km1Policy<HyperGraph>, HyperGraph> {
 
 using Base = GainPolicy<Km1Policy<HyperGraph>, HyperGraph>;
 
+static constexpr bool enable_heavy_assert = false;
+
  public:
   Km1Policy(HyperGraph& hypergraph,
             const Context& context,
@@ -185,6 +187,8 @@ template <class HyperGraph = Mandatory>
 class CutPolicy : public GainPolicy<CutPolicy<HyperGraph>, HyperGraph> {
 
 using Base = GainPolicy<CutPolicy<HyperGraph>, HyperGraph>;
+
+static constexpr bool enable_heavy_assert = false;
 
  public:
   CutPolicy(HyperGraph& hypergraph,
