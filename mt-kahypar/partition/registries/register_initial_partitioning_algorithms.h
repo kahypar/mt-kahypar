@@ -1,7 +1,6 @@
 /*******************************************************************************
  * This file is part of KaHyPar.
  *
- * Copyright (C) 2018 Sebastian Schlag <sebastian.schlag@kit.edu>
  * Copyright (C) 2019 Tobias Heuer <tobias.heuer@kit.edu>
  *
  * KaHyPar is free software: you can redistribute it and/or modify
@@ -21,8 +20,22 @@
 
 #pragma once
 
-#include "mt-kahypar/partition/registries/register_policies.h"
-#include "mt-kahypar/partition/registries/register_preprocessing_algorithms.h"
-#include "mt-kahypar/partition/registries/register_coarsening_algorithms.h"
-#include "mt-kahypar/partition/registries/register_initial_partitioning_algorithms.h"
-#include "mt-kahypar/partition/registries/register_refinement_algorithms.h"
+
+#include "kahypar/meta/registrar.h"
+
+#include "mt-kahypar/partition/factories.h"
+#include "mt-kahypar/partition/context.h"
+
+#define REGISTER_INITIAL_PARTITIONER(id, partitioner)                            \
+  static meta::Registrar<InitialPartitionerFactory> register_ ## partitioner(    \
+    id,                                                                          \
+    [](Hypergraph& hypergraph, const Context& context) -> IInitialPartitioner* { \
+    return new partitioner(hypergraph, context);                                 \
+  })
+
+namespace mt_kahypar {
+
+REGISTER_INITIAL_PARTITIONER(InitialPartitioningMode::direct, DirectInitialPartitioner);
+REGISTER_INITIAL_PARTITIONER(InitialPartitioningMode::recursive, RecursiveInitialPartitioner);
+
+} // namespace mt_kahypar

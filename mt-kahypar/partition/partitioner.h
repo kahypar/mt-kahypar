@@ -36,7 +36,7 @@
 #include "mt-kahypar/partition/preprocessing/community_reassignment/single_node_hyperedge_remover.h"
 #include "mt-kahypar/partition/preprocessing/community_reassignment/community_redistributor.h"
 #include "mt-kahypar/partition/preprocessing/community_detection/parallel_louvain.h"
-#include "mt-kahypar/partition/initial_partitioning/initial_partitioner.h"
+#include "mt-kahypar/partition/initial_partitioning/direct_initial_partitioner.h"
 #include "mt-kahypar/utils/stats.h"
 
 namespace mt_kahypar {
@@ -249,8 +249,10 @@ inline void Partitioner::partition(Hypergraph& hypergraph, Context& context) {
   // ################## INITIAL PARTITIONING ##################
   io::printInitialPartitioningBanner(context);
   start = std::chrono::high_resolution_clock::now();
-  InitialPartitioner initial_partitioner(hypergraph, context);
-  initial_partitioner.initialPartition();
+  std::unique_ptr<IInitialPartitioner> initial_partitioner =
+    InitialPartitionerFactory::getInstance().createObject(
+      context.initial_partitioning.mode, hypergraph, context);
+  initial_partitioner->initialPartition();
   end = std::chrono::high_resolution_clock::now();
   mt_kahypar::utils::Timer::instance().add_timing("initial_partitioning", "Initial Partitioning",
     "", mt_kahypar::utils::Timer::Type::INITIAL_PARTITIONING, 3, std::chrono::duration<double>(end - start).count());

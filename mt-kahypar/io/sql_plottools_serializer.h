@@ -64,6 +64,7 @@ static inline void serialize(const Hypergraph& hypergraph,
         << " rating_heavy_node_penalty_policy=" << context.coarsening.rating.heavy_node_penalty_policy
         << " rating_acceptance_policy=" << context.coarsening.rating.acceptance_policy
         << " initial_partitioning_context=" << context.initial_partitioning.context_file
+        << " initial_partitioning_mode=" << context.initial_partitioning.mode
         << " initial_partitioning_runs=" << context.initial_partitioning.runs
         << " lp_algorithm=" << context.refinement.label_propagation.algorithm
         << " lp_maximum_iterations=" << context.refinement.label_propagation.maximum_iterations

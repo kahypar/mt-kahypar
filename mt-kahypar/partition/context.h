@@ -111,6 +111,7 @@ inline std::ostream& operator<< (std::ostream& str, const CoarseningParameters& 
 
 struct InitialPartitioningParameters {
   std::string context_file = "";
+  InitialPartitioningMode mode = InitialPartitioningMode::UNDEFINED;
   bool call_kahypar_multiple_times = false;
   size_t runs = 1;
 };
@@ -118,6 +119,7 @@ struct InitialPartitioningParameters {
 inline std::ostream& operator<< (std::ostream& str, const InitialPartitioningParameters& params) {
   str << "Initial Partitioning Parameters:" << std::endl;
   str << "  Initial Partitioning Context:       " << params.context_file << std::endl;
+  str << "  Initial Partitioning Mode:          " << params.mode << std::endl;
   str << "  Call KaHyPar multiple times:        " << std::boolalpha << params.call_kahypar_multiple_times << std::endl;
   str << "  Number of Runs:                     " << params.runs << std::endl;
   return str;

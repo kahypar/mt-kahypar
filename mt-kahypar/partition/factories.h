@@ -33,6 +33,9 @@
 #include "mt-kahypar/partition/coarsening/policies/rating_community_policy.h"
 #include "mt-kahypar/partition/coarsening/policies/rating_heavy_node_penalty_policy.h"
 #include "mt-kahypar/partition/coarsening/policies/rating_acceptance_policy.h"
+#include "mt-kahypar/partition/initial_partitioning/i_initial_partitioner.h"
+#include "mt-kahypar/partition/initial_partitioning/direct_initial_partitioner.h"
+#include "mt-kahypar/partition/initial_partitioning/recursive_initial_partitioner.h"
 #include "mt-kahypar/partition/refinement/i_refiner.h"
 #include "mt-kahypar/partition/refinement/label_propagation_refiner.h"
 #include "mt-kahypar/partition/refinement/policies/execution_policy.h"
@@ -55,9 +58,12 @@ using CommunityCoarsenerDispatcher = kahypar::meta::StaticMultiDispatchFactory<C
                                                                                                        HeavyNodePenaltyPolicies,
                                                                                                        AcceptancePolicies>>;
 
+using InitialPartitionerFactory = meta::Factory<InitialPartitioningMode,
+                                                IInitialPartitioner* (*)(Hypergraph&, const Context&)>;
 
 using LabelPropagationFactory = meta::Factory<LabelPropagationAlgorithm,
                                               IRefiner* (*)(Hypergraph&, const Context&)>;
+
 
 using LabelPropagationKm1Dispatcher = kahypar::meta::StaticMultiDispatchFactory<LabelPropagationKm1Refiner,
                                                                                 IRefiner,

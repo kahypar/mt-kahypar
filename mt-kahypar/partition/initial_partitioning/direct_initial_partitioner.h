@@ -27,13 +27,14 @@
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/partition/metrics.h"
+#include "mt-kahypar/partition/initial_partitioning/i_initial_partitioner.h"
 #include "mt-kahypar/partition/initial_partitioning/kahypar.h"
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
 
 namespace mt_kahypar {
 
 template< typename TypeTraits >
-class InitialPartitionerT {
+class DirectInitialPartitionerT : public IInitialPartitioner {
  private:
   using HyperGraph = typename TypeTraits::HyperGraph;
   using StreamingHyperGraph = typename TypeTraits::StreamingHyperGraph;
@@ -44,31 +45,18 @@ class InitialPartitionerT {
   static PartitionID kInvalidPartition;
   static HypernodeID kInvalidHypernode;
 
-  class FakeHypergraph {
-    public:
-      explicit FakeHypergraph(parallel::scalable_vector<HypernodeWeight>&& part_weights) :
-        _part_weights(std::move(part_weights)) { }
-
-      HypernodeWeight partWeight(const PartitionID id) const {
-        ASSERT(id < (PartitionID) _part_weights.size());
-        return _part_weights[id];
-      }
-
-    private:
-      parallel::scalable_vector<HypernodeWeight> _part_weights;
-  };
-
  public:
-  InitialPartitionerT(HyperGraph& hypergraph, const Context& context) :
+  DirectInitialPartitionerT(HyperGraph& hypergraph, const Context& context) :
     _hg(hypergraph),
     _context(context) { }
 
-  InitialPartitionerT(const InitialPartitionerT&) = delete;
-  InitialPartitionerT(InitialPartitionerT&&) = delete;
-  InitialPartitionerT& operator= (const InitialPartitionerT&) = delete;
-  InitialPartitionerT& operator= (InitialPartitionerT&&) = delete;
+  DirectInitialPartitionerT(const DirectInitialPartitionerT&) = delete;
+  DirectInitialPartitionerT(DirectInitialPartitionerT&&) = delete;
+  DirectInitialPartitionerT& operator= (const DirectInitialPartitionerT&) = delete;
+  DirectInitialPartitionerT& operator= (DirectInitialPartitionerT&&) = delete;
 
-  void initialPartition() {
+ private:
+  void initialPartitionImpl() override final {
     kahypar_context_t* context = readContext(_context.initial_partitioning.context_file);
     setupContext(*reinterpret_cast<kahypar::Context*>(context));
 
@@ -170,10 +158,10 @@ class InitialPartitionerT {
   }
 
   KaHyParParitioningResult partitionWithKaHyPar(kahypar_context_t* context,
-                                                 const std::vector<HypernodeID>& node_mapping,
-                                                 const std::vector<HypernodeID>& reverse_mapping,
-                                                 const size_t runs,
-                                                 const size_t seed) {
+                                                const std::vector<HypernodeID>& node_mapping,
+                                                const std::vector<HypernodeID>& reverse_mapping,
+                                                const size_t runs,
+                                                const size_t seed) {
     DBG << "Start initial partitioning with" << runs << "initial partitioning runs"
         << "on numa node" << HwTopology::instance().numa_node_of_cpu(sched_getcpu())
         << "on cpu" << sched_getcpu();
@@ -227,10 +215,10 @@ class InitialPartitionerT {
 };
 
 template< typename TypeTraits >
-PartitionID InitialPartitionerT<TypeTraits>::kInvalidPartition = -1;
+PartitionID DirectInitialPartitionerT<TypeTraits>::kInvalidPartition = -1;
 template< typename TypeTraits >
-HypernodeID InitialPartitionerT<TypeTraits>::kInvalidHypernode = std::numeric_limits<HypernodeID>::max();
+HypernodeID DirectInitialPartitionerT<TypeTraits>::kInvalidHypernode = std::numeric_limits<HypernodeID>::max();
 
-using InitialPartitioner = InitialPartitionerT<GlobalTypeTraits>;
+using DirectInitialPartitioner = DirectInitialPartitionerT<GlobalTypeTraits>;
 
 }  // namespace mt_kahypar
