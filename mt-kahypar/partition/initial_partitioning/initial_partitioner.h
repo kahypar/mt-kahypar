@@ -27,6 +27,7 @@
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/partition/metrics.h"
+#include "mt-kahypar/partition/initial_partitioning/kahypar.h"
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
 
 namespace mt_kahypar {
@@ -42,23 +43,6 @@ class InitialPartitionerT {
   static constexpr bool debug = false;
   static PartitionID kInvalidPartition;
   static HypernodeID kInvalidHypernode;
-
-  struct InitialPartitioningResult {
-
-    InitialPartitioningResult() :
-      objective(0),
-      imbalance(1.0),
-      partition() { }
-
-    explicit InitialPartitioningResult(const kahypar_hypernode_id_t num_vertices) :
-      objective(0),
-      imbalance(1.0),
-      partition(num_vertices, kInvalidPartition) { }
-
-    kahypar_hyperedge_weight_t objective;
-    double imbalance;
-    parallel::scalable_vector<kahypar_partition_id_t> partition;
-  };
 
   class FakeHypergraph {
     public:
@@ -120,7 +104,7 @@ class InitialPartitionerT {
 
     // Split calls to initial partitioner evenly across numa nodes
     size_t num_ip_calls = ip_runs.size();
-    std::vector<InitialPartitioningResult> results(num_ip_calls);
+    std::vector<KaHyParParitioningResult> results(num_ip_calls);
     size_t used_numa_nodes = TBB::instance().num_used_numa_nodes();
     size_t current_node = 0;
     std::vector<int> used_threads(used_numa_nodes, 0);
@@ -141,7 +125,7 @@ class InitialPartitionerT {
     }
     TBB::instance().wait();
 
-    InitialPartitioningResult best;
+    KaHyParParitioningResult best;
     best.objective = std::numeric_limits<kahypar_hyperedge_weight_t>::max();
     for ( size_t i = 0; i < num_ip_calls; ++i ) {
       bool improved_metric_within_balance = ( results[i].imbalance <= _context.partition.epsilon ) &&
@@ -173,12 +157,6 @@ class InitialPartitionerT {
 
  private:
 
-  kahypar_context_t* readContext(const std::string& context_file) {
-    kahypar_context_t* context = kahypar_context_new();
-    kahypar_configure_context_from_file(context, context_file.c_str());
-    return context;
-  }
-
   void setupContext(kahypar::Context& context) {
     context.partition.objective = _context.partition.objective;
     context.partition.epsilon = _context.partition.epsilon;
@@ -188,72 +166,10 @@ class InitialPartitionerT {
     context.preprocessing.enable_min_hash_sparsifier = false;
     context.preprocessing.enable_community_detection = false;
     context.partition.verbose_output = debug;
-    if ( _context.partition.objective == kahypar::Objective::km1 ) {
-      chooseCorrectKm1Refiner(context);
-    } else {
-      chooseCorrectCutRefiner(context);
-    }
+    sanitizeCheck(context);
   }
 
-  void chooseCorrectKm1Refiner(kahypar::Context& context) {
-    switch(context.local_search.algorithm) {
-      case kahypar::RefinementAlgorithm::kway_fm:
-        context.local_search.algorithm = kahypar::RefinementAlgorithm::kway_fm_km1;
-          break;
-      case kahypar::RefinementAlgorithm::kway_fm_flow:
-        context.local_search.algorithm = kahypar::RefinementAlgorithm::kway_fm_flow_km1;
-          break;
-      default:
-        break;
-    }
-
-    if ( context.partition.k > 2 ) {
-      switch(context.local_search.algorithm) {
-        case kahypar::RefinementAlgorithm::twoway_flow:
-          context.local_search.algorithm = kahypar::RefinementAlgorithm::kway_flow;
-          break;
-        case kahypar::RefinementAlgorithm::twoway_fm:
-          context.local_search.algorithm = kahypar::RefinementAlgorithm::kway_fm_km1;
-          break;
-        case kahypar::RefinementAlgorithm::twoway_fm_flow:
-          context.local_search.algorithm = kahypar::RefinementAlgorithm::kway_fm_flow_km1;
-          break;
-        default:
-          break;
-      }
-    }
-  }
-
-  void chooseCorrectCutRefiner(kahypar::Context& context) {
-    switch(context.local_search.algorithm) {
-      case kahypar::RefinementAlgorithm::kway_fm_km1:
-        context.local_search.algorithm = kahypar::RefinementAlgorithm::kway_fm;
-          break;
-      case kahypar::RefinementAlgorithm::kway_fm_flow_km1:
-        context.local_search.algorithm = kahypar::RefinementAlgorithm::kway_fm_flow;
-          break;
-      default:
-        break;
-    }
-
-    if ( context.partition.k > 2 ) {
-      switch(context.local_search.algorithm) {
-        case kahypar::RefinementAlgorithm::twoway_flow:
-          context.local_search.algorithm = kahypar::RefinementAlgorithm::kway_flow;
-          break;
-        case kahypar::RefinementAlgorithm::twoway_fm:
-          context.local_search.algorithm = kahypar::RefinementAlgorithm::kway_fm;
-          break;
-        case kahypar::RefinementAlgorithm::twoway_fm_flow:
-          context.local_search.algorithm = kahypar::RefinementAlgorithm::kway_fm_flow;
-          break;
-        default:
-          break;
-      }
-    }
-  }
-
-  InitialPartitioningResult partitionWithKaHyPar(kahypar_context_t* context,
+  KaHyParParitioningResult partitionWithKaHyPar(kahypar_context_t* context,
                                                  const std::vector<HypernodeID>& node_mapping,
                                                  const std::vector<HypernodeID>& reverse_mapping,
                                                  const size_t runs,
@@ -262,32 +178,8 @@ class InitialPartitionerT {
         << "on numa node" << HwTopology::instance().numa_node_of_cpu(sched_getcpu())
         << "on cpu" << sched_getcpu();
 
-    // Setup hypernodes
-    kahypar_hypernode_id_t num_vertices = 0;
-    parallel::scalable_vector<kahypar_hypernode_weight_t> vertex_weights;
-    for ( const HypernodeID& hn : _hg.nodes() ) {
-      ASSERT(_hg.originalNodeID(hn) < _hg.initialNumNodes());
-      ++num_vertices;
-      vertex_weights.emplace_back(_hg.nodeWeight(hn));
-    }
-
-    // Setup hyperedges
-    kahypar_hyperedge_id_t num_hyperedges = 0;
-    parallel::scalable_vector<size_t> hyperedge_indices(1, 0);
-    parallel::scalable_vector<kahypar_hyperedge_id_t> hyperedges;
-    parallel::scalable_vector<kahypar_hyperedge_weight_t> hyperedge_weights;
-    for ( const HyperedgeID& he : _hg.edges() ) {
-      ++num_hyperedges;
-      for ( const HypernodeID& hn : _hg.pins(he) ) {
-        ASSERT(_hg.originalNodeID(hn) < _hg.initialNumNodes());
-        ASSERT( node_mapping[_hg.originalNodeID(hn)] != kInvalidHypernode );
-        hyperedges.emplace_back(node_mapping[_hg.originalNodeID(hn)]);
-      }
-      hyperedge_indices.emplace_back(hyperedges.size());
-      hyperedge_weights.emplace_back(_hg.edgeWeight(he));
-    }
-
-    InitialPartitioningResult best(num_vertices);
+    KaHyParHypergraph kahypar_hypergraph = convertToKaHyParHypergraph(_hg, node_mapping);
+    KaHyParParitioningResult best(kahypar_hypergraph.num_vertices);
     best.objective = std::numeric_limits<kahypar_hyperedge_weight_t>::max();
     if ( _context.initial_partitioning.call_kahypar_multiple_times ) {
       // We call KaHyPar exactly runs times with one call to the initial partitioner of KaHyPar
@@ -298,13 +190,9 @@ class InitialPartitionerT {
         initial_partitioning_context.partition.seed = seed + i;
 
         // Call KaHyPar
-        InitialPartitioningResult result(num_vertices);
-        kahypar_partition(num_vertices, num_hyperedges, _context.partition.epsilon,
-          _context.partition.k, vertex_weights.data(), hyperedge_weights.data(),
-          hyperedge_indices.data(), hyperedges.data(), &result.objective,
-          reinterpret_cast<kahypar_context_t*>(&initial_partitioning_context),
-          result.partition.data());
-        result.imbalance = imbalance(result.partition, reverse_mapping);
+        KaHyParParitioningResult result(kahypar_hypergraph.num_vertices);
+        kahypar_partition(kahypar_hypergraph, initial_partitioning_context, result);
+        result.imbalance = imbalance(_hg, _context, result.partition, reverse_mapping);
 
         bool improved_metric_within_balance = ( result.imbalance <= _context.partition.epsilon ) &&
                                               ( result.objective < best.objective );
@@ -322,12 +210,8 @@ class InitialPartitionerT {
       initial_partitioning_context.partition.seed = seed;
 
       // Call KaHyPar
-      kahypar_partition(num_vertices, num_hyperedges, _context.partition.epsilon,
-        _context.partition.k, vertex_weights.data(), hyperedge_weights.data(),
-        hyperedge_indices.data(), hyperedges.data(), &best.objective,
-        reinterpret_cast<kahypar_context_t*>(&initial_partitioning_context),
-        best.partition.data());
-      best.imbalance = imbalance(best.partition, reverse_mapping);
+      kahypar_partition(kahypar_hypergraph, initial_partitioning_context, best);
+      best.imbalance = imbalance(_hg, _context, best.partition, reverse_mapping);
     }
 
     DBG << "Finished initial partitioning"
@@ -336,23 +220,6 @@ class InitialPartitionerT {
         << "with quality" << best.objective
         << "and imbalance" << best.imbalance;
     return best;
-  }
-
-  double imbalance( const parallel::scalable_vector<kahypar_partition_id_t>& partition,
-                    const std::vector<HypernodeID>& reverse_mapping ) {
-    // Compute weight of each part
-    parallel::scalable_vector<HypernodeWeight> part_weights(_context.partition.k, 0);
-    for ( HypernodeID u = 0; u < partition.size(); ++u ) {
-      ASSERT(u < reverse_mapping.size());
-      const HypernodeID hn = reverse_mapping[u];
-      const PartitionID part_id = partition[u];
-      ASSERT(part_id < (PartitionID) part_weights.size());
-      part_weights[part_id] += _hg.nodeWeight(hn);
-    }
-
-    // Compute imbalance
-    FakeHypergraph hypergraph(std::move(part_weights));
-    return metrics::imbalance(hypergraph, _context);
   }
 
   HyperGraph& _hg;
