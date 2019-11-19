@@ -29,8 +29,9 @@
 #define REGISTER_INITIAL_PARTITIONER(id, partitioner)                            \
   static meta::Registrar<InitialPartitionerFactory> register_ ## partitioner(    \
     id,                                                                          \
-    [](Hypergraph& hypergraph, const Context& context) -> IInitialPartitioner* { \
-    return new partitioner(hypergraph, context);                                 \
+    [](Hypergraph& hypergraph, const Context& context, const bool top_level)     \
+      -> IInitialPartitioner* {                                                  \
+    return new partitioner(hypergraph, context, top_level);                      \
   })
 
 namespace mt_kahypar {

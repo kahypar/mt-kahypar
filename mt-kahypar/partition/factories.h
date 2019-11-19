@@ -59,7 +59,7 @@ using CommunityCoarsenerDispatcher = kahypar::meta::StaticMultiDispatchFactory<C
                                                                                                        AcceptancePolicies>>;
 
 using InitialPartitionerFactory = meta::Factory<InitialPartitioningMode,
-                                                IInitialPartitioner* (*)(Hypergraph&, const Context&)>;
+                                                IInitialPartitioner* (*)(Hypergraph&, const Context&, const bool)>;
 
 using LabelPropagationFactory = meta::Factory<LabelPropagationAlgorithm,
                                               IRefiner* (*)(Hypergraph&, const Context&)>;

@@ -46,7 +46,7 @@ class DirectInitialPartitionerT : public IInitialPartitioner {
   static HypernodeID kInvalidHypernode;
 
  public:
-  DirectInitialPartitionerT(HyperGraph& hypergraph, const Context& context) :
+  DirectInitialPartitionerT(HyperGraph& hypergraph, const Context& context, const bool) :
     _hg(hypergraph),
     _context(context) { }
 

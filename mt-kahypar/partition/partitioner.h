@@ -239,7 +239,7 @@ inline void Partitioner::partition(Hypergraph& hypergraph, Context& context) {
     "", mt_kahypar::utils::Timer::Type::PREPROCESSING, 1, std::chrono::duration<double>(end - start).count());
 
   // ################## MULTILEVEL ##################
-  multilevel::partition(hypergraph, context);
+  multilevel::partition(hypergraph, context, true);
 
   postprocess(hypergraph);
 

@@ -28,7 +28,7 @@
 namespace mt_kahypar {
 namespace multilevel {
 
-static inline void partition(Hypergraph& hypergraph, const Context& context) {
+static inline void partition(Hypergraph& hypergraph, const Context& context, const bool top_level) {
 
   // ################## COARSENING ##################
   mt_kahypar::io::printCoarseningBanner(context);
@@ -50,7 +50,7 @@ static inline void partition(Hypergraph& hypergraph, const Context& context) {
   start = std::chrono::high_resolution_clock::now();
   std::unique_ptr<IInitialPartitioner> initial_partitioner =
     InitialPartitionerFactory::getInstance().createObject(
-      context.initial_partitioning.mode, hypergraph, context);
+      context.initial_partitioning.mode, hypergraph, context, top_level);
   initial_partitioner->initialPartition();
   end = std::chrono::high_resolution_clock::now();
   mt_kahypar::utils::Timer::instance().add_timing("initial_partitioning", "Initial Partitioning",
