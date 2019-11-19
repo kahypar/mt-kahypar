@@ -90,9 +90,11 @@ class CommunityCoarsenerT : public ICoarsener,
     // Compute execution order
     HighResClockTimepoint start = std::chrono::high_resolution_clock::now();
     std::vector<parallel::scalable_vector<HypernodeID>> community_hns(_hg.numCommunities());
+    std::vector<HypernodeWeight> community_weights(_hg.numCommunities(), 0);
     for ( const HypernodeID& hn : _hg.nodes() ) {
       ASSERT(_hg.communityID(hn) < _hg.numCommunities());
       community_hns[_hg.communityID(hn)].emplace_back(hn);
+      community_weights[_hg.communityID(hn)] += _hg.nodeWeight(hn);
     }
     // Execute coarsening in decreasing order of their community sizes
     std::sort(community_hns.begin(), community_hns.end(),
@@ -115,7 +117,7 @@ class CommunityCoarsenerT : public ICoarsener,
           // Compute contraction limit for community relative to
           // community size and original contraction limit
           HypernodeID contraction_limit =
-            std::ceil((((double) this->_hg.numCommunityHypernodes(community_id)) /
+            std::ceil((((double) community_weights[i]) /
               this->_hg.totalWeight()) * _context.coarsening.contraction_limit);
           parallelCommunityCoarsening(community_id, contraction_limit, community_hns[i]);
         });
@@ -195,6 +197,7 @@ class CommunityCoarsenerT : public ICoarsener,
       nodes = std::move(tmp_nodes);
       ++pass_nr;
     }
+
     utils::Stats::instance().update_stat("num_removed_single_node_hes",
       (int64_t) _pruner[community_id].removedSingleNodeHyperedges().size());
   }

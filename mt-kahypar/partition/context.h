@@ -187,12 +187,6 @@ class Context {
 
   Context() { }
 
-  Context(const Context& other) :
-    partition(other.partition),
-    type(other.type) { }
-
-  Context& operator= (const Context&) = delete;
-
   bool isMainRecursiveBisection() const {
     return partition.mode == Mode::recursive_bisection && type == ContextType::main;
   }

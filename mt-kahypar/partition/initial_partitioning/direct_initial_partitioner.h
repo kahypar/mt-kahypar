@@ -57,8 +57,7 @@ class DirectInitialPartitionerT : public IInitialPartitioner {
 
  private:
   void initialPartitionImpl() override final {
-    kahypar_context_t* context = readContext(_context.initial_partitioning.context_file);
-    setupContext(*reinterpret_cast<kahypar::Context*>(context));
+    kahypar_context_t* context = setupContext(_context, debug);
 
     // Setup number of runs per thread
     std::vector<size_t> ip_runs;
@@ -144,18 +143,6 @@ class DirectInitialPartitionerT : public IInitialPartitioner {
   }
 
  private:
-
-  void setupContext(kahypar::Context& context) {
-    context.partition.objective = _context.partition.objective;
-    context.partition.epsilon = _context.partition.epsilon;
-    context.partition.k = _context.partition.k;
-    context.partition.seed = _context.partition.seed;
-    context.preprocessing.enable_deduplication = true;
-    context.preprocessing.enable_min_hash_sparsifier = false;
-    context.preprocessing.enable_community_detection = false;
-    context.partition.verbose_output = debug;
-    sanitizeCheck(context);
-  }
 
   KaHyParParitioningResult partitionWithKaHyPar(kahypar_context_t* context,
                                                 const std::vector<HypernodeID>& node_mapping,

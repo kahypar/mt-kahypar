@@ -103,6 +103,10 @@ class Timer {
       return _timing;
     }
 
+    void set_timing(const double timing) {
+      _timing = timing;
+    }
+
     void add_timing(const double timing) {
       _timing += timing;
     }
@@ -131,7 +135,7 @@ class Timer {
 
   void add_timing( const std::string& name, const std::string& description,
                    const std::string& parent, const Type& type, const int order,
-                   const double timing ) {
+                   const double timing, const bool override = false ) {
     std::lock_guard<std::mutex> lock(_timing_mutex);
     Key key = std::make_pair(parent, name);
     if ( _timings.find(key) == _timings.end() ) {
@@ -140,6 +144,8 @@ class Timer {
         std::forward_as_tuple(key),
         std::forward_as_tuple(name, description, parent, type, order));
         _timings.at(key).add_timing(timing);
+    } else if ( override ) {
+      _timings.at(key).set_timing(timing);
     }
   }
 

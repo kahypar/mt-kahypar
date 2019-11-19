@@ -106,7 +106,7 @@ static KaHyParHypergraph convertToKaHyParHypergraph(const HyperGraph& hypergraph
     ++kahypar_hypergraph.num_hyperedges;
     for ( const HypernodeID& hn : hypergraph.pins(he) ) {
       ASSERT(hypergraph.originalNodeID(hn) < hypergraph.initialNumNodes());
-      ASSERT( node_mapping[hypergraph.originalNodeID(hn)] != kInvalidHypernode );
+      ASSERT( node_mapping[hypergraph.originalNodeID(hn)] != std::numeric_limits<HypernodeID>::max() );
       kahypar_hypergraph.hyperedges.emplace_back(node_mapping[hypergraph.originalNodeID(hn)]);
     }
     kahypar_hypergraph.hyperedge_indices.emplace_back(kahypar_hypergraph.hyperedges.size());
@@ -140,14 +140,14 @@ static KaHyParHypergraph extractBlockAsKaHyParHypergraph(const HyperGraph& hyper
   // Setup hyperedges
   kahypar_hypergraph.hyperedge_indices.emplace_back(0);
   for ( const HyperedgeID& he : hypergraph.edges() ) {
-    if ( hypergraph.pinCountInPart(he, block) > 0 /* connectivity optimization */ &&
-         ( hypergraph.connectivity(he) == 1 || cut_net_splitting ) /* cut net optimization */ ) {
+    if ( hypergraph.pinCountInPart(he, block) > 0 &&
+         ( hypergraph.connectivity(he) == 1 || cut_net_splitting ) ) {
       ++kahypar_hypergraph.num_hyperedges;
       for ( const HypernodeID& hn : hypergraph.pins(he) ) {
-        ASSERT(hypergraph.originalNodeID(hn) < hypergraph.initialNumNodes());
-        ASSERT( node_mapping[hypergraph.originalNodeID(hn)] != kInvalidHypernode );
-        ASSERT(hypergraph.partID(hn) != -1);
         if ( hypergraph.partID(hn) == block ) {
+          ASSERT( hypergraph.originalNodeID(hn) < hypergraph.initialNumNodes() );
+          ASSERT( node_mapping[hypergraph.originalNodeID(hn)] != std::numeric_limits<HypernodeID>::max() );
+          ASSERT( hypergraph.partID(hn) != -1 );
           kahypar_hypergraph.hyperedges.emplace_back(node_mapping[hypergraph.originalNodeID(hn)]);
         }
       }
@@ -157,13 +157,6 @@ static KaHyParHypergraph extractBlockAsKaHyParHypergraph(const HyperGraph& hyper
   }
 
   return kahypar_hypergraph;
-}
-
-// ! Reads a KaHyPar context file
-static kahypar_context_t* readContext(const std::string& context_file) {
-  kahypar_context_t* context = kahypar_context_new();
-  kahypar_configure_context_from_file(context, context_file.c_str());
-  return context;
 }
 
 static void kahypar_partition(const KaHyParHypergraph& hypergraph,
@@ -259,6 +252,28 @@ static void sanitizeCheck(kahypar::Context& context) {
       }
     }
   }
+}
+
+// ! Reads a KaHyPar context file
+static kahypar_context_t* readContext(const std::string& context_file) {
+  kahypar_context_t* context = kahypar_context_new();
+  kahypar_configure_context_from_file(context, context_file.c_str());
+  return context;
+}
+
+static kahypar_context_t* setupContext(const Context& context, const bool debug) {
+  kahypar_context_t* kahypar_c = readContext(context.initial_partitioning.context_file);
+  kahypar::Context& kahypar_context = *reinterpret_cast<kahypar::Context*>(kahypar_c);
+  kahypar_context.partition.objective = context.partition.objective;
+  kahypar_context.partition.epsilon = context.partition.epsilon;
+  kahypar_context.partition.k = context.partition.k;
+  kahypar_context.partition.seed = context.partition.seed;
+  kahypar_context.preprocessing.enable_deduplication = true;
+  kahypar_context.preprocessing.enable_min_hash_sparsifier = false;
+  kahypar_context.preprocessing.enable_community_detection = false;
+  kahypar_context.partition.verbose_output = debug;
+  sanitizeCheck(kahypar_context);
+  return kahypar_c;
 }
 
 }  // namespace mt_kahypar
