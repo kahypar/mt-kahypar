@@ -279,6 +279,14 @@ class RecursiveInitialPartitionerT : public IInitialPartitioner {
     std::vector<HypernodeWeight> max_part_weights;
     max_part_weights.emplace_back(_context.partition.max_part_weights[2 * k]);
     max_part_weights.emplace_back(_context.partition.max_part_weights[2 * k + 1]);
+    // Special case, if balance constraint will be violated with this bisection
+    // => will cause KaHyPar to exit with failure
+    if ( max_part_weights[0] + max_part_weights[1] < _hg.partWeight(k) ) {
+      HypernodeWeight delta = _hg.partWeight(k) - ( max_part_weights[0] + max_part_weights[1] );
+      max_part_weights[0] += ( (double) delta ) / 2.0;
+      max_part_weights[1] += ( (double) delta ) / 2.0;
+    }
+    ASSERT(max_part_weights[0] + max_part_weights[1] >= _hg.partWeight(k));
     kahypar_set_custom_target_block_weights(2, max_part_weights.data(), kahypar_context);
 
     // Build KaHyPar Hypergraph Data Structure
