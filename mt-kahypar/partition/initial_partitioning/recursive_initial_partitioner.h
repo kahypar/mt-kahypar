@@ -51,7 +51,7 @@ class RecursiveInitialPartitionerT : public IInitialPartitioner {
   using TBB = typename TypeTraits::TBB;
   using HwTopology = typename TypeTraits::HwTopology;
 
-  static constexpr bool debug = true;
+  static constexpr bool debug = false;
   static constexpr bool kahypar_debug = false;
   static constexpr bool enable_heavy_assert = false;
 
@@ -109,14 +109,16 @@ class RecursiveInitialPartitionerT : public IInitialPartitioner {
     RecursivePartitionResult r2;
     if ( do_parallel_recursion ) {
       // Perform parallel recursion
-      std::future<RecursivePartitionResult> f1 = std::async(std::launch::async, [&] { return recursivePartition(do_parallel_recursion); } );
-      std::future<RecursivePartitionResult> f2 = std::async(std::launch::async, [&] { return recursivePartition(do_parallel_recursion); } );
+      size_t num_threads_1 = std::ceil( ( (double) _context.shared_memory.num_threads ) / 2.0 );
+      size_t num_threads_2 = std::floor( ( (double) _context.shared_memory.num_threads ) / 2.0 );
+      std::future<RecursivePartitionResult> f1 = std::async(std::launch::async, [&] { return recursivePartition(num_threads_1); } );
+      std::future<RecursivePartitionResult> f2 = std::async(std::launch::async, [&] { return recursivePartition(num_threads_2); } );
       r1 = f1.get();
       r2 = f2.get();
-      /*r1 = recursivePartition(do_parallel_recursion);
-      r2 = recursivePartition(do_parallel_recursion);*/
+      /*r1 = recursivePartition(num_threads_1);
+      r2 = recursivePartition(num_threads_2);*/
     } else {
-      r1 = recursivePartition(do_parallel_recursion);
+      r1 = recursivePartition(_context.shared_memory.num_threads);
       r2.objective = std::numeric_limits<HyperedgeWeight>::max();
       r2.imbalance = std::numeric_limits<double>::max();
     }
@@ -200,8 +202,8 @@ class RecursiveInitialPartitionerT : public IInitialPartitioner {
     _hg.updateGlobalPartInfos();
   }
 
-  RecursivePartitionResult recursivePartition(const bool do_parallel_recursion) {
-    RecursivePartitionResult result(setupRecursiveContext(do_parallel_recursion));
+  RecursivePartitionResult recursivePartition(const size_t num_threads) {
+    RecursivePartitionResult result(setupRecursiveContext(num_threads));
 
     // Copy hypergraph
     auto copy = _hg.copy(result.context.partition.k);
@@ -276,22 +278,26 @@ class RecursiveInitialPartitionerT : public IInitialPartitioner {
     kahypar_context_free(kahypar_context);
   }
 
-  Context setupRecursiveContext(const bool do_parallel_recursion) {
+  Context setupRecursiveContext(const size_t num_threads) {
+    ASSERT(num_threads >= 1);
     Context context(_context);
+    context.shared_memory.num_threads = num_threads;
 
     bool reduce_k = !_top_level && _context.shared_memory.num_threads < (size_t) _context.partition.k;
     context.partition.k = std::max(context.partition.k / ( reduce_k ? 2 : 1 ), 2);
     context.partition.verbose_output = debug;
-    context.shared_memory.num_threads = std::max(context.shared_memory.num_threads /
-                                        ( do_parallel_recursion ? 2 : 1 ) , 1UL);
 
-    context.coarsening.contraction_limit /= 2;
+    context.coarsening.contraction_limit = std::max( context.partition.k * context.coarsening.contraction_limit_multiplier,
+                                                     2 * context.shared_memory.num_threads * context.coarsening.contraction_limit_multiplier );
     context.coarsening.hypernode_weight_fraction = context.coarsening.max_allowed_weight_multiplier /
                                                    context.coarsening.contraction_limit;
     context.coarsening.max_allowed_node_weight = ceil(context.coarsening.hypernode_weight_fraction * _hg.totalWeight());
 
     context.setupPartWeights(_hg.totalWeight());
-    context.initial_partitioning.runs = std::max( context.initial_partitioning.runs / ( do_parallel_recursion ? 2 : 1 ), 1UL );
+
+    bool is_parallel_recursion = _context.shared_memory.num_threads != context.shared_memory.num_threads;
+    context.initial_partitioning.runs = std::max( context.initial_partitioning.runs / ( is_parallel_recursion ? 2 : 1 ), 1UL );
+
     return context;
   }
 
