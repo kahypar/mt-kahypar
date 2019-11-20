@@ -32,6 +32,8 @@
 #include "mt-kahypar/macros.h"
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/utils/randomize.h"
+#include "mt-kahypar/utils/stats.h"
+#include "mt-kahypar/utils/timer.h"
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/partition/initial_partitioning/i_initial_partitioner.h"
 #include "mt-kahypar/partition/initial_partitioning/kahypar.h"
@@ -101,6 +103,8 @@ class RecursiveInitialPartitionerT : public IInitialPartitioner {
       return;
     }
 
+    // We do parallel recursion, if the contract limit is equal to 2 * p * t
+    // ( where p is the number of threads and t the contract limit multiplier )
     bool do_parallel_recursion = _context.coarsening.contraction_limit /
                                  ( 2 * _context.coarsening.contraction_limit_multiplier ) ==
                                  _context.shared_memory.num_threads;
@@ -111,14 +115,12 @@ class RecursiveInitialPartitionerT : public IInitialPartitioner {
       // Perform parallel recursion
       size_t num_threads_1 = std::ceil( ( (double) _context.shared_memory.num_threads ) / 2.0 );
       size_t num_threads_2 = std::floor( ( (double) _context.shared_memory.num_threads ) / 2.0 );
-      std::future<RecursivePartitionResult> f1 = std::async(std::launch::async, [&] { return recursivePartition(num_threads_1); } );
-      std::future<RecursivePartitionResult> f2 = std::async(std::launch::async, [&] { return recursivePartition(num_threads_2); } );
+      std::future<RecursivePartitionResult> f1 = std::async(std::launch::async, [&] { return recursivePartition(num_threads_1, 0); } );
+      std::future<RecursivePartitionResult> f2 = std::async(std::launch::async, [&] { return recursivePartition(num_threads_2, 1); } );
       r1 = f1.get();
       r2 = f2.get();
-      /*r1 = recursivePartition(num_threads_1);
-      r2 = recursivePartition(num_threads_2);*/
     } else {
-      r1 = recursivePartition(_context.shared_memory.num_threads);
+      r1 = recursivePartition(_context.shared_memory.num_threads, 0);
       r2.objective = std::numeric_limits<HyperedgeWeight>::max();
       r2.imbalance = std::numeric_limits<double>::max();
     }
@@ -152,7 +154,8 @@ class RecursiveInitialPartitionerT : public IInitialPartitioner {
 
     HEAVY_INITIAL_PARTITIONING_ASSERT(best.objective == metrics::objective(_hg, _context.partition.objective));
 
-    // Bisect all blocks of best partition
+    // Bisect all blocks of best partition, if we are not on the top level of recursive initial partitioning
+    // and the number of threads is small than k
     bool perform_bisections = !_top_level && _context.shared_memory.num_threads < (size_t) _context.partition.k;
     if ( perform_bisections ) {
       std::vector<HypernodeID> node_mapping(_hg.initialNumNodes(), kInvalidHypernode);
@@ -209,13 +212,20 @@ class RecursiveInitialPartitionerT : public IInitialPartitioner {
     _hg.updateGlobalPartInfos();
   }
 
-  RecursivePartitionResult recursivePartition(const size_t num_threads) {
+  RecursivePartitionResult recursivePartition(const size_t num_threads, const size_t recursion_number) {
     RecursivePartitionResult result(setupRecursiveContext(num_threads));
 
     // Copy hypergraph
+    HighResClockTimepoint start = std::chrono::high_resolution_clock::now();
     auto copy = _hg.copy(result.context.partition.k);
     result.hypergraph = std::move(copy.first);
     result.mapping = std::move(copy.second);
+    HighResClockTimepoint end = std::chrono::high_resolution_clock::now();
+    utils::Timer::instance().add_timing("top_level_hypergraph_copy_" + std::to_string(recursion_number),
+      "Top Level Hypergraph Copy " + std::to_string(recursion_number),
+      "initial_partitioning", mt_kahypar::utils::Timer::Type::INITIAL_PARTITIONING, 2 * recursion_number,
+      std::chrono::duration<double>(end - start).count(), _top_level);
+
 
     // Call multilevel partitioner recursively
     DBG << "Perform recursive multilevel partitioner call with"
@@ -223,14 +233,29 @@ class RecursiveInitialPartitionerT : public IInitialPartitioner {
         << "p =" << result.context.shared_memory.num_threads << ","
         << "c =" << result.context.coarsening.contraction_limit << "and"
         << "rep =" << result.context.initial_partitioning.runs;
+
+    if ( _top_level ) {
+      utils::Timer::instance().set_context_type(kahypar::ContextType::initial_partitioning);
+      utils::Stats::instance().set_context_type(kahypar::ContextType::initial_partitioning);
+    }
+
+    start = std::chrono::high_resolution_clock::now();
     multilevel::partition(result.hypergraph, result.context, false);
+    end = std::chrono::high_resolution_clock::now();
+    utils::Timer::instance().add_timing("top_level_multilevel_recursion_" + std::to_string(recursion_number),
+      "Top Level Multilevel Recursion " + std::to_string(recursion_number),
+      "initial_partitioning", mt_kahypar::utils::Timer::Type::INITIAL_PARTITIONING, 1 + 2 * recursion_number,
+      std::chrono::duration<double>(end - start).count(), _top_level);
+
+    if ( _top_level ) {
+      utils::Timer::instance().set_context_type(kahypar::ContextType::main);
+      utils::Stats::instance().set_context_type(kahypar::ContextType::main);
+    }
 
     result.objective = metrics::objective(result.hypergraph, result.context.partition.objective);
     result.imbalance = metrics::imbalance(result.hypergraph, result.context);
     return result;
   }
-
-
 
   void initialBisection() {
     ASSERT(_context.partition.k == 2);
@@ -271,27 +296,27 @@ class RecursiveInitialPartitionerT : public IInitialPartitioner {
     kahypar_context_free(kahypar_context);
   }
 
-  void bisectPartition(const PartitionID k,
+  void bisectPartition(const PartitionID block,
                        KaHyParParitioningResult& result,
                        std::vector<HypernodeID>& node_mapping) {
 
     kahypar_context_t* kahypar_context = setupKaHyParContext();
     std::vector<HypernodeWeight> max_part_weights;
-    max_part_weights.emplace_back(_context.partition.max_part_weights[2 * k]);
-    max_part_weights.emplace_back(_context.partition.max_part_weights[2 * k + 1]);
+    max_part_weights.emplace_back(_context.partition.max_part_weights[2 * block]);
+    max_part_weights.emplace_back(_context.partition.max_part_weights[2 * block + 1]);
     // Special case, if balance constraint will be violated with this bisection
-    // => will cause KaHyPar to exit with failure
-    if ( max_part_weights[0] + max_part_weights[1] < _hg.partWeight(k) ) {
-      HypernodeWeight delta = _hg.partWeight(k) - ( max_part_weights[0] + max_part_weights[1] );
-      max_part_weights[0] += ( (double) delta ) / 2.0;
-      max_part_weights[1] += ( (double) delta ) / 2.0;
+    // => would cause KaHyPar to exit with failure
+    if ( max_part_weights[0] + max_part_weights[1] < _hg.partWeight(block) ) {
+      HypernodeWeight delta = _hg.partWeight(block) - ( max_part_weights[0] + max_part_weights[1] );
+      max_part_weights[0] += std::ceil( ( (double) delta ) / 2.0 );
+      max_part_weights[1] += std::ceil( ( (double) delta ) / 2.0 );
     }
-    ASSERT(max_part_weights[0] + max_part_weights[1] >= _hg.partWeight(k));
+    ASSERT(max_part_weights[0] + max_part_weights[1] >= _hg.partWeight(block));
     kahypar_set_custom_target_block_weights(2, max_part_weights.data(), kahypar_context);
 
     // Build KaHyPar Hypergraph Data Structure
     bool cut_net_splitting = _context.partition.objective == kahypar::Objective::km1;
-    KaHyParHypergraph kahypar_hypergraph = extractBlockAsKaHyParHypergraph(_hg, k, node_mapping, cut_net_splitting);
+    KaHyParHypergraph kahypar_hypergraph = extractBlockAsKaHyParHypergraph(_hg, block, node_mapping, cut_net_splitting);
 
     // Bisect KaHyPar Hypergraph
     kahypar_partition(kahypar_hypergraph, *reinterpret_cast<kahypar::Context*>(kahypar_context), result);
@@ -302,39 +327,34 @@ class RecursiveInitialPartitionerT : public IInitialPartitioner {
   Context setupRecursiveContext(const size_t num_threads) {
     ASSERT(num_threads >= 1);
     Context context(_context);
+
+    // Shared Memory Parameters
     context.shared_memory.num_threads = num_threads;
 
+    // Partitioning Parameters
     bool reduce_k = !_top_level && _context.shared_memory.num_threads < (size_t) _context.partition.k && _context.partition.k > 2;
     if ( reduce_k ) {
       context.partition.k = std::ceil( ( (double) context.partition.k ) / 2.0 );
-
-      context.partition.perfect_balance_part_weights.clear();
-      context.partition.max_part_weights.clear();
-      for ( PartitionID part = 0; part < _context.partition.k / 2; ++part ) {
-        context.partition.perfect_balance_part_weights.emplace_back(
-          _context.partition.perfect_balance_part_weights[2 * part] +
-          _context.partition.perfect_balance_part_weights[2 * part + 1]);
-        context.partition.max_part_weights.emplace_back(
-          _context.partition.max_part_weights[2 * part] +
-          _context.partition.max_part_weights[2 * part + 1]);
+      context.partition.perfect_balance_part_weights.assign(context.partition.k, 0);
+      context.partition.max_part_weights.assign(context.partition.k, 0);
+      for ( PartitionID part = 0; part < _context.partition.k; ++part ) {
+        context.partition.perfect_balance_part_weights[part / 2] +=
+          _context.partition.perfect_balance_part_weights[part];
+        context.partition.max_part_weights[part / 2] +=
+          _context.partition.max_part_weights[part];
       }
-      if ( _context.partition.k % 2 == 1 ) {
-        context.partition.perfect_balance_part_weights.emplace_back(
-          _context.partition.perfect_balance_part_weights.back());
-        context.partition.max_part_weights.emplace_back(
-          _context.partition.max_part_weights.back());
-      }
-      ASSERT(context.partition.perfect_balance_part_weights.size() == (size_t) context.partition.k);
-      ASSERT(context.partition.max_part_weights.size() == (size_t) context.partition.k);
     }
     context.partition.verbose_output = debug;
+    context.type = kahypar::ContextType::initial_partitioning;
 
+    // Coarsening Parameters
     context.coarsening.contraction_limit = std::max( context.partition.k * context.coarsening.contraction_limit_multiplier,
                                                      2 * context.shared_memory.num_threads * context.coarsening.contraction_limit_multiplier );
     context.coarsening.hypernode_weight_fraction = context.coarsening.max_allowed_weight_multiplier /
                                                    context.coarsening.contraction_limit;
     context.coarsening.max_allowed_node_weight = ceil(context.coarsening.hypernode_weight_fraction * _hg.totalWeight());
 
+    // Initial Partitioning Parameters
     bool is_parallel_recursion = _context.shared_memory.num_threads != context.shared_memory.num_threads;
     context.initial_partitioning.runs = std::max( context.initial_partitioning.runs / ( is_parallel_recursion ? 2 : 1 ), 1UL );
 

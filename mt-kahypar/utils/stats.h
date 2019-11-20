@@ -132,27 +132,35 @@ class Stats {
     return *_instance;
   }
 
+  void set_context_type(kahypar::ContextType type) {
+    _type = type;
+  }
+
   template< typename T >
   void add_stat( const std::string& key, const T value ) {
     std::lock_guard<std::mutex> lock(_stat_mutex);
-    if ( _stats.find(key) == _stats.end() ) {
-      _stats.emplace(
-        std::piecewise_construct,
-        std::forward_as_tuple(key),
-        std::forward_as_tuple(value));
+    if ( _type == kahypar::ContextType::main ) {
+      if ( _stats.find(key) == _stats.end() ) {
+        _stats.emplace(
+          std::piecewise_construct,
+          std::forward_as_tuple(key),
+          std::forward_as_tuple(value));
+      }
     }
   }
 
   template< typename T >
   void update_stat( const std::string& key, const T delta ) {
     std::lock_guard<std::mutex> lock(_stat_mutex);
-    if ( _stats.find(key) == _stats.end() ) {
-      _stats.emplace(
-        std::piecewise_construct,
-        std::forward_as_tuple(key),
-        std::forward_as_tuple(delta));
-    } else {
-      _stats.at(key).update(delta);
+    if ( _type == kahypar::ContextType::main ) {
+      if ( _stats.find(key) == _stats.end() ) {
+        _stats.emplace(
+          std::piecewise_construct,
+          std::forward_as_tuple(key),
+          std::forward_as_tuple(delta));
+      } else {
+        _stats.at(key).update(delta);
+      }
     }
   }
 
@@ -161,13 +169,15 @@ class Stats {
  private:
   explicit Stats() :
     _stat_mutex(),
-    _stats() { }
+    _stats(),
+    _type(kahypar::ContextType::main) { }
 
   static std::mutex _mutex;
   static Stats* _instance;
 
   std::mutex _stat_mutex;
   std::unordered_map<std::string, Stat> _stats;
+  kahypar::ContextType _type;
 };
 
 Stats* Stats::_instance { nullptr };
