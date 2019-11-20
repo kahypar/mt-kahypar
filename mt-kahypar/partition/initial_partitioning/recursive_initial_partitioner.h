@@ -173,11 +173,18 @@ class RecursiveInitialPartitionerT : public IInitialPartitioner {
       arena.execute([&] { group.wait(); });
 
       // Apply all bisections to current hypergraph
+      PartitionID unbisected_block = ( _context.partition.k % 2 == 1 ? (PartitionID) results.size() : kInvalidPartition );
       for ( const HypernodeID& hn : _hg.nodes() ) {
         PartitionID from = _hg.partID(hn);
-        ASSERT(from != kInvalidPartition && from < (PartitionID) results.size());
-        ASSERT(node_mapping[_hg.originalNodeID(hn)] < results[from].partition.size());
-        PartitionID to = results[from].partition[node_mapping[_hg.originalNodeID(hn)]] == 0 ? 2 * from : 2 * from + 1;
+        PartitionID to = kInvalidPartition;
+        if ( from != unbisected_block ) {
+          ASSERT(from != kInvalidPartition && from < (PartitionID) results.size());
+          ASSERT(node_mapping[_hg.originalNodeID(hn)] < results[from].partition.size());
+          to = results[from].partition[node_mapping[_hg.originalNodeID(hn)]] == 0 ? 2 * from : 2 * from + 1;
+        } else {
+          to = _context.partition.k - 1;
+        }
+
         ASSERT(to != kInvalidPartition && to < _hg.k());
         if ( from != to ) {
           _hg.changeNodePart(hn, from, to);
@@ -227,9 +234,11 @@ class RecursiveInitialPartitionerT : public IInitialPartitioner {
 
   void initialBisection() {
     ASSERT(_context.partition.k == 2);
+    ASSERT(_context.partition.max_part_weights.size() == 2);
     ASSERT(_context.shared_memory.num_threads == 1);
 
     kahypar_context_t* kahypar_context = setupKaHyParContext();
+    kahypar_set_custom_target_block_weights(2, _context.partition.max_part_weights.data(), kahypar_context);
 
     // Compute node mapping that maps all hypernodes of the coarsened hypergraph
     // to a consecutive range of node ids
@@ -267,6 +276,10 @@ class RecursiveInitialPartitionerT : public IInitialPartitioner {
                        std::vector<HypernodeID>& node_mapping) {
 
     kahypar_context_t* kahypar_context = setupKaHyParContext();
+    std::vector<HypernodeWeight> max_part_weights;
+    max_part_weights.emplace_back(_context.partition.max_part_weights[2 * k]);
+    max_part_weights.emplace_back(_context.partition.max_part_weights[2 * k + 1]);
+    kahypar_set_custom_target_block_weights(2, max_part_weights.data(), kahypar_context);
 
     // Build KaHyPar Hypergraph Data Structure
     bool cut_net_splitting = _context.partition.objective == kahypar::Objective::km1;
@@ -283,8 +296,29 @@ class RecursiveInitialPartitionerT : public IInitialPartitioner {
     Context context(_context);
     context.shared_memory.num_threads = num_threads;
 
-    bool reduce_k = !_top_level && _context.shared_memory.num_threads < (size_t) _context.partition.k;
-    context.partition.k = std::max(context.partition.k / ( reduce_k ? 2 : 1 ), 2);
+    bool reduce_k = !_top_level && _context.shared_memory.num_threads < (size_t) _context.partition.k && _context.partition.k > 2;
+    if ( reduce_k ) {
+      context.partition.k = std::ceil( ( (double) context.partition.k ) / 2.0 );
+
+      context.partition.perfect_balance_part_weights.clear();
+      context.partition.max_part_weights.clear();
+      for ( PartitionID part = 0; part < _context.partition.k / 2; ++part ) {
+        context.partition.perfect_balance_part_weights.emplace_back(
+          _context.partition.perfect_balance_part_weights[2 * part] +
+          _context.partition.perfect_balance_part_weights[2 * part + 1]);
+        context.partition.max_part_weights.emplace_back(
+          _context.partition.max_part_weights[2 * part] +
+          _context.partition.max_part_weights[2 * part + 1]);
+      }
+      if ( _context.partition.k % 2 == 1 ) {
+        context.partition.perfect_balance_part_weights.emplace_back(
+          _context.partition.perfect_balance_part_weights.back());
+        context.partition.max_part_weights.emplace_back(
+          _context.partition.max_part_weights.back());
+      }
+      ASSERT(context.partition.perfect_balance_part_weights.size() == (size_t) context.partition.k);
+      ASSERT(context.partition.max_part_weights.size() == (size_t) context.partition.k);
+    }
     context.partition.verbose_output = debug;
 
     context.coarsening.contraction_limit = std::max( context.partition.k * context.coarsening.contraction_limit_multiplier,
@@ -292,8 +326,6 @@ class RecursiveInitialPartitionerT : public IInitialPartitioner {
     context.coarsening.hypernode_weight_fraction = context.coarsening.max_allowed_weight_multiplier /
                                                    context.coarsening.contraction_limit;
     context.coarsening.max_allowed_node_weight = ceil(context.coarsening.hypernode_weight_fraction * _hg.totalWeight());
-
-    context.setupPartWeights(_hg.totalWeight());
 
     bool is_parallel_recursion = _context.shared_memory.num_threads != context.shared_memory.num_threads;
     context.initial_partitioning.runs = std::max( context.initial_partitioning.runs / ( is_parallel_recursion ? 2 : 1 ), 1UL );
