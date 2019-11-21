@@ -72,7 +72,7 @@ class HypergraphPrunerT {
       DBG << "restore single-node HE "
           << _removed_single_node_hyperedges[i];
       hypergraph.restoreSinglePinHyperedge(_removed_single_node_hyperedges[i]);
-      _removed_single_node_hyperedges.pop_back();
+      // _removed_single_node_hyperedges.pop_back();
     }
   }
 
@@ -85,7 +85,7 @@ class HypergraphPrunerT {
       const HyperedgeID restore_parallel_edge = _removed_parallel_hyperedges[i];
       DBG << "restore parallel HE" << restore_parallel_edge;
       hypergraph.restoreParallelHyperedge(restore_parallel_edge, _parallel_he_representative);
-      _removed_parallel_hyperedges.pop_back();
+      // _removed_parallel_hyperedges.pop_back();
     }
   }
 

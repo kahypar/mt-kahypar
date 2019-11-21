@@ -1086,7 +1086,7 @@ class Hypergraph {
     // its representative.
     for ( const HyperedgeID& he : disabled_hyperedges ) {
       if (!edgeIsEnabled(he)) {
-        const StreamingHypergraph& hypergraph_of_he = hypergraph_of_edge(he);
+        StreamingHypergraph& hypergraph_of_he = hypergraph_of_edge(he);
         HyperedgeID representative = find_representative(he);
         const size_t edge_size = edgeSize(find_representative(he));
         bool becomes_non_parallel = false;
@@ -1101,7 +1101,7 @@ class Hypergraph {
           current_representative = parallel_he_representative[current_representative];
           representative = globalEdgeID(current_representative);
 
-          const StreamingHypergraph& hypergraph_of_rep = hypergraph_of_edge(representative);
+          StreamingHypergraph& hypergraph_of_rep = hypergraph_of_edge(representative);
 
           // In case, both hyperedges fall into different uncontraction cases, than both become
           // non parallel afterwards.

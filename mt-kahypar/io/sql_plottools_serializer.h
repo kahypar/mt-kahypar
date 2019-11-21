@@ -65,6 +65,8 @@ static inline void serialize(const Hypergraph& hypergraph,
         << " rating_acceptance_policy=" << context.coarsening.rating.acceptance_policy
         << " initial_partitioning_context=" << context.initial_partitioning.context_file
         << " initial_partitioning_runs=" << context.initial_partitioning.runs
+        << " use_batch_uncontractions=" << std::boolalpha << context.refinement.use_batch_uncontractions
+        << " batch_size=" << context.refinement.batch_size
         << " lp_algorithm=" << context.refinement.label_propagation.algorithm
         << " lp_maximum_iterations=" << context.refinement.label_propagation.maximum_iterations
         << " lp_part_weight_update_frequency=" << context.refinement.label_propagation.part_weight_update_frequency

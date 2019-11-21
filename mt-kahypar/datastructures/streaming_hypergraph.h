@@ -107,6 +107,8 @@ class StreamingHypergraph {
                                    TBBNumaArena>;
 
   using IncidentNets = parallel::scalable_vector<parallel::scalable_vector<HyperedgeID>>;
+  using ThreadLocalFastResetFlagArray = tbb::enumerable_thread_specific<kahypar::ds::FastResetFlagArray<>>;
+
 
   using HighResClockTimepoint = std::chrono::time_point<std::chrono::high_resolution_clock>;
 
@@ -1602,7 +1604,7 @@ class StreamingHypergraph {
     for ( HyperedgeID he = 0; he < _num_hyperedges; ++he ) {
       _connectivity_sets.emplace_back(_k);
     }
-    kahypar::ds::FastResetFlagArray<> tmp_incidence_nets_of_v(_num_hyperedges);
+    ThreadLocalFastResetFlagArray tmp_incidence_nets_of_v(_num_hyperedges);
     _incident_nets_of_v = std::move(tmp_incidence_nets_of_v);
 
     // Update start position of each hyperedge to correct one in global incidence array
@@ -2159,25 +2161,26 @@ class StreamingHypergraph {
                                                              std::vector<Self>& hypergraphs) {
     // Reset incident nets on each node
     for ( size_t node = 0; node < hypergraphs.size(); ++node ) {
-      hypergraphs[node]._incident_nets_of_v.reset();
+      hypergraphs[node]._incident_nets_of_v.local().reset();
     }
 
     for ( const HyperedgeID& he : incident_nets(v) ) {
       Self& hypergraph_of_he = hypergraph_of_hyperedge(he, hypergraphs);
       HyperedgeID local_he_id = get_local_edge_id_of_hyperedge(he);
       ASSERT(local_he_id < hypergraph_of_he._num_hyperedges);
-      hypergraph_of_he._incident_nets_of_v.set(local_he_id, true);
+      hypergraph_of_he._incident_nets_of_v.local().set(local_he_id, true);
     }
   }
 
   // ! Checks whether hyperedge e is incident to hypernode v
   // ! Note, in order that function works correctly, markAllIncidentNetsOf(v) have to
   // ! called before
-  KAHYPAR_ATTRIBUTE_ALWAYS_INLINE bool containsIncidentNet(const HyperedgeID e) const {
+  KAHYPAR_ATTRIBUTE_ALWAYS_INLINE bool containsIncidentNet(const HyperedgeID e) {
     HypernodeID local_id = get_local_edge_id_of_hyperedge(e);
     ASSERT(get_numa_node_of_hyperedge(e) == _node, "Hyperedge" << e << "is not part of this numa node");
     ASSERT(local_id <= _num_hyperedges, "Hyperedge" << e << "does not exist");
-    return _incident_nets_of_v[local_id];
+    kahypar::ds::FastResetFlagArray<>& local_incident_nets_of_v = _incident_nets_of_v.local();
+    return local_incident_nets_of_v[local_id];
   }
 
   KAHYPAR_ATTRIBUTE_ALWAYS_INLINE UncontractionCase get_uncontraction_case(const HyperedgeID he,
@@ -2537,7 +2540,7 @@ class StreamingHypergraph {
 
   // ! Will be used during uncontraction to mark
   // ! all incident nets of contraction partner v
-  kahypar::ds::FastResetFlagArray<> _incident_nets_of_v;
+  ThreadLocalFastResetFlagArray _incident_nets_of_v;
 
   // ! For each hypernode, _atomic_hn_data stores the corresponding block of the vertex
   // ! and the number of incident cut hyperedges

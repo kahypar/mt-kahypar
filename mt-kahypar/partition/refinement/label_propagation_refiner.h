@@ -89,15 +89,14 @@ class LabelPropagationRefinerT final : public IRefiner {
     // NOTE, the assumption is that the LP Refiner is called after
     // each uncontraction and that the contraction partner is on the
     // second position of vector refinement_nodes.
-    ASSERT(refinement_nodes.size() == 0 /* only for unit tests */ ||
-           refinement_nodes.size() == 2);
-    if ( refinement_nodes.size() == 2 ) {
-      addVertex(refinement_nodes[1]);
+    ASSERT(refinement_nodes.size() % 2 == 0);
+    for ( size_t i = 0; i < refinement_nodes.size() / 2; ++i ) {
+      addVertex(refinement_nodes[ 2 * i + 1 ]); // add all contraction partners
+      ++_current_level;
     }
 
     // Label propagation is not executed on all levels of the n-level hierarchy.
     // If LP should be executed on the current level is determined by the execution policy.
-    ++_current_level;
     if ( !_execution_policy.execute(_current_level) ) {
       return false;
     }

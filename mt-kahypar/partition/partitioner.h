@@ -137,8 +137,11 @@ inline void Partitioner::preprocess(Hypergraph& hypergraph, const Context& conte
   HighResClockTimepoint global_start = std::chrono::high_resolution_clock::now();
   HighResClockTimepoint start = std::chrono::high_resolution_clock::now();
   ds::AdjListStarExpansion starExpansion(hypergraph, context);
-  ds::Clustering communities = ParallelModularityLouvain::run(starExpansion.G, context.shared_memory.num_threads);   //TODO(lars): give switch for PLM/SLM
-  starExpansion.restrictClusteringToHypernodes(communities);
+  /*ds::Clustering communities = ParallelModularityLouvain::run(starExpansion.G, context.shared_memory.num_threads);   //TODO(lars): give switch for PLM/SLM
+  starExpansion.restrictClusteringToHypernodes(communities);*/
+  std::vector<PartitionID> communities;
+  io::readPartitionFile(context.partition.graph_community_filename, communities);
+  ASSERT(communities.size() == hypergraph.initialNumNodes());
   HighResClockTimepoint end = std::chrono::high_resolution_clock::now();
   mt_kahypar::utils::Timer::instance().add_timing("perform_community_detection", "Perform Community Detection",
     "community_detection", mt_kahypar::utils::Timer::Type::PREPROCESSING, 0, std::chrono::duration<double>(end - start).count());

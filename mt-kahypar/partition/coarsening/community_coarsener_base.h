@@ -55,6 +55,10 @@ class CommunityCoarsenerBase {
     _context(context),
     _init(false),
     _contained_hypernodes(hypergraph.initialNumNodes()),
+    _batch_hyperedges(hypergraph.initialNumEdges()),
+    _incident_nets_of_v(hypergraph.initialNumEdges()),
+    _batch_arena(_context.shared_memory.num_threads, 0),
+    _batch_group(),
     _parallel_he_representative(hypergraph.initialNumEdges(), kInvalidHyperedge),
     _pruner(),
     _community_history(_hg.numCommunities()),
@@ -69,7 +73,7 @@ class CommunityCoarsenerBase {
   CommunityCoarsenerBase& operator= (const CommunityCoarsenerBase&) = delete;
   CommunityCoarsenerBase& operator= (CommunityCoarsenerBase&&) = delete;
 
-  virtual ~CommunityCoarsenerBase() = default;
+  virtual ~CommunityCoarsenerBase() throw() { }
 
  protected:
   void init() {
@@ -127,18 +131,15 @@ class CommunityCoarsenerBase {
     utils::Stats::instance().add_stat("initial_imbalance", current_metrics.imbalance);
 
     std::vector<HypernodeID> refinement_nodes;
+    size_t max_batch_size = _context.refinement.use_batch_uncontractions ? _context.refinement.batch_size : 1;
     while ( !_history.empty() ) {
       HighResClockTimepoint start = std::chrono::high_resolution_clock::now();
-      PartitionID community_id = _hg.communityID(_history.back().u);
-      DBG << "Uncontracting: (" << _history.back().u << "," << _history.back().v << ")" << V(_history.size());
-      _pruner[community_id].restoreParallelHyperedges(_hg, _history.back());
-      _pruner[community_id].restoreSingleNodeHyperedges(_hg, _history.back());
-      _hg.uncontract(_history.back(), _parallel_he_representative);
-      // NOTE, label propagation refiner relies on the assumption, that on the second position
-      // of the refinement_nodes vector always the contraction partner occurs. Do not change the
-      // order here.
-      refinement_nodes.push_back(_history.back().u);
-      refinement_nodes.push_back(_history.back().v);
+      std::vector<Memento> batch;
+      while ( !_history.empty() && batch.size() < max_batch_size ) {
+        batch.emplace_back(_history.back());
+        _history.pop_back();
+      }
+      batchUncontraction(batch, refinement_nodes);
       _hg.updateGlobalPartInfos();
       HighResClockTimepoint end = std::chrono::high_resolution_clock::now();
       mt_kahypar::utils::Timer::instance().update_timing("uncontraction", "Uncontraction",
@@ -155,9 +156,7 @@ class CommunityCoarsenerBase {
       mt_kahypar::utils::Timer::instance().update_timing("label_propagation", "Label Propagation",
         "refinement", mt_kahypar::utils::Timer::Type::REFINEMENT, 1, std::chrono::duration<double>(end - start).count());
 
-
       refinement_nodes.clear();
-      _history.pop_back();
     }
 
 
@@ -169,6 +168,112 @@ class CommunityCoarsenerBase {
   }
 
  private:
+  void batchUncontraction(const std::vector<Memento>& batch,
+                          std::vector<HypernodeID>& refinement_nodes) {
+    ASSERT(!batch.empty());
+    if ( batch.size() == 1 ) {
+      uncontract(batch[0]);
+      // NOTE, label propagation refiner relies on the assumption, that on the second position
+      // of the refinement_nodes vector always the contraction partner occurs. Do not change the
+      // order here.
+      refinement_nodes.push_back(batch[0].u);
+      refinement_nodes.push_back(batch[0].v);
+      return;
+    }
+
+    kahypar::ds::FastResetFlagArray<>& batch_hypernodes = _contained_hypernodes.local();
+    size_t last_batch_idx = 0;
+    while ( last_batch_idx < batch.size() ) {
+      batch_hypernodes.reset();
+      _batch_hyperedges.reset();
+      size_t current_batch_idx = last_batch_idx;
+      for ( ; current_batch_idx < batch.size(); ++current_batch_idx ) {
+        _incident_nets_of_v.reset();
+        const Memento& current_memento = batch[current_batch_idx];
+        bool found_conflict = false;
+
+        const HypernodeID original_u_id = _hg.originalNodeID(current_memento.u);
+        const HypernodeID original_v_id = _hg.originalNodeID(current_memento.v);
+        if ( batch_hypernodes[original_u_id] || batch_hypernodes[original_v_id] ) {
+          found_conflict = true;
+          break;
+        }
+        batch_hypernodes.set(original_u_id, true);
+        batch_hypernodes.set(original_v_id, true);
+
+        ASSERT(!_hg.nodeIsEnabled(current_memento.v));
+        _hg.enableHypernode(current_memento.v);
+        for ( const HyperedgeID& he : _hg.incidentEdges(current_memento.v) ) {
+          const HyperedgeID original_id = _hg.originalEdgeID(he);
+          if ( _batch_hyperedges[original_id] ) {
+            found_conflict = true;
+            break;
+          }
+          _incident_nets_of_v.set(original_id, true);
+          _batch_hyperedges.set(original_id, true);
+        }
+        _hg.disableHypernode(current_memento.v);
+
+        if ( found_conflict ) {
+          break;
+        }
+
+        ASSERT(_hg.nodeIsEnabled(current_memento.u));
+        for ( const HyperedgeID& he : _hg.incidentEdges(current_memento.u) ) {
+          const HyperedgeID original_id = _hg.originalEdgeID(he);
+          if ( !_incident_nets_of_v[original_id] && _batch_hyperedges[original_id] ) {
+            found_conflict = true;
+            break;
+          }
+          _batch_hyperedges.set(original_id, true);
+        }
+
+        if ( found_conflict ) {
+          break;
+        }
+
+        refinement_nodes.push_back(current_memento.u);
+        refinement_nodes.push_back(current_memento.v);
+      }
+
+      size_t batch_size = current_batch_idx - last_batch_idx;
+      size_t num_threads = std::min( std::max( batch_size / 20, 1UL ), _context.shared_memory.num_threads );
+      if ( num_threads == 1 ) {
+        parallelBatchUncontract(batch, 1, last_batch_idx, current_batch_idx);
+      } else {
+        LOG << V(batch_size) << V(num_threads);
+        for ( size_t i = 0; i < num_threads; ++i ) {
+          _batch_arena.execute([&, i] {
+            _batch_group.run([&, i] {
+              parallelBatchUncontract(batch, num_threads, last_batch_idx + i, current_batch_idx);
+            });
+          });
+        }
+        _batch_arena.execute([&] { _batch_group.wait(); });
+      }
+      last_batch_idx = current_batch_idx;
+    }
+  }
+
+  void parallelBatchUncontract( const std::vector<Memento>& batch,
+                                const size_t num_threads,
+                                const size_t start_idx,
+                                const size_t end_idx ) {
+    ASSERT(start_idx <= end_idx);
+    ASSERT(end_idx <= batch.size());
+    for ( size_t i = start_idx; i < end_idx; i += num_threads ) {
+      uncontract(batch[i]);
+    }
+  }
+
+  void uncontract(const Memento& memento) {
+    PartitionID community_id = _hg.communityID(memento.u);
+    DBG << "Uncontracting: (" << memento.u << "," << memento.v << ")";
+    _pruner[community_id].restoreParallelHyperedges(_hg, memento);
+    _pruner[community_id].restoreSingleNodeHyperedges(_hg, memento);
+    _hg.uncontract(memento, _parallel_he_representative);
+  }
+
   void mergeCommunityContractions() {
     size_t size = 0;
     for ( const auto& community_mementos : _community_history ) {
@@ -316,6 +421,10 @@ class CommunityCoarsenerBase {
   const Context& _context;
   bool _init;
   ThreadLocalFastResetFlagArray _contained_hypernodes;
+  kahypar::ds::FastResetFlagArray<> _batch_hyperedges;
+  kahypar::ds::FastResetFlagArray<> _incident_nets_of_v;
+  tbb::task_arena _batch_arena;
+  tbb::task_group _batch_group;
   parallel::scalable_vector<HyperedgeID> _parallel_he_representative;
   parallel::scalable_vector<HypergraphPruner> _pruner;
   parallel::scalable_vector<parallel::scalable_vector<Memento>> _community_history;
