@@ -83,7 +83,19 @@ class TBBNumaArena {
   }
 
   template< typename F >
-  void execute_on_all_numa_nodes(F&& func) {
+  void execute_sequential_on_all_numa_nodes(F&& func) {
+    for ( int node = 0; node < num_used_numa_nodes(); ++node ) {
+      numa_task_arena(node).execute([&] {
+        numa_task_group(node).run([&, node] {
+          func(node);
+        });
+      });
+      wait(node, numa_task_group(node));
+    }
+  }
+
+  template< typename F >
+  void execute_parallel_on_all_numa_nodes(F&& func) {
     for ( int node = 0; node < num_used_numa_nodes(); ++node ) {
       numa_task_arena(node).execute([&] {
         numa_task_group(node).run([&, node] {

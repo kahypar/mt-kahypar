@@ -174,6 +174,14 @@ po::options_description createInitialPartitioningOptionsDescription(Context& con
     ("i-context-file",
     po::value<std::string>(&context.initial_partitioning.context_file)->required()->value_name("<string>"),
     "Context file for initial partitioning call to KaHyPar.")
+    ("i-mode",
+    po::value<std::string>()->value_name("<string>")->notifier(
+      [&](const std::string& mode) {
+        context.initial_partitioning.mode = initialPartitioningModeFromString(mode);
+    }),
+    "Mode of initial partitioning:\n"
+    "- direct\n"
+    "- recursive")
     ("i-call-kahypar-multiple-times",
     po::value<bool>(&context.initial_partitioning.call_kahypar_multiple_times)->value_name("<bool>"),
     "If true, KaHyPar is called i-runs times during IP (with one call to IP of KaHyPar).\n"

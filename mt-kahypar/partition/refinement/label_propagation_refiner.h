@@ -127,7 +127,7 @@ class LabelPropagationRefinerT final : public IRefiner {
 
     if ( _context.refinement.label_propagation.numa_aware ) {
       // Execute label propagation on all numa nodes
-      TBB::instance().execute_on_all_numa_nodes([&](const int node) {
+      TBB::instance().execute_parallel_on_all_numa_nodes([&](const int node) {
         labelPropagation(node);
       });
     } else {
@@ -143,8 +143,8 @@ class LabelPropagationRefinerT final : public IRefiner {
     HyperedgeWeight current_metric = best_metrics.getMetric(kahypar::Mode::direct_kway, _context.partition.objective);
     Gain delta = _gain.delta();
     ASSERT(delta <= 0, "LP refiner worsen solution quality");
-    ASSERT( current_metric + delta == metrics::objective(_hg, _context.partition.objective),
-            V(current_metric) << V(delta) << V(metrics::objective(_hg, _context.partition.objective)) );
+    HEAVY_REFINEMENT_ASSERT( current_metric + delta == metrics::objective(_hg, _context.partition.objective),
+                             V(current_metric) << V(delta) << V(metrics::objective(_hg, _context.partition.objective)) );
     best_metrics.updateMetric(current_metric + delta, kahypar::Mode::direct_kway, _context.partition.objective);
     utils::Stats::instance().update_stat("lp_improvement", std::abs(delta));
     return delta < 0;

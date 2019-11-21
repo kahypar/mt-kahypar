@@ -113,15 +113,9 @@ class CommunityRedistributorT {
     start = std::chrono::high_resolution_clock::now();
     // Initialize Streaming Hypergraphs
     std::vector<StreamingHyperGraph> numa_hypergraphs;
-    tbb::task_group group;
-    for ( int node = 0; node < used_numa_nodes; ++node ) {
-      TBB::instance().numa_task_arena(node).execute([&] {
-        group.run([&] {
-          numa_hypergraphs.emplace_back(node, k);
-        });
-      });
-      TBB::instance().wait(node, group);
-    }
+    TBB::instance().execute_sequential_on_all_numa_nodes([&](const int node) {
+      numa_hypergraphs.emplace_back(node, k);
+    });
 
     // Stream hyperedges into hypergraphs
     for ( int node = 0; node < used_numa_nodes; ++node ) {

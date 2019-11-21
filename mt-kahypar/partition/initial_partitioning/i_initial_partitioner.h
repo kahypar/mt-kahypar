@@ -1,7 +1,6 @@
 /*******************************************************************************
  * This file is part of KaHyPar.
  *
- * Copyright (C) 2018 Sebastian Schlag <sebastian.schlag@kit.edu>
  * Copyright (C) 2019 Tobias Heuer <tobias.heuer@kit.edu>
  *
  * KaHyPar is free software: you can redistribute it and/or modify
@@ -21,8 +20,26 @@
 
 #pragma once
 
-#include "mt-kahypar/partition/registries/register_policies.h"
-#include "mt-kahypar/partition/registries/register_preprocessing_algorithms.h"
-#include "mt-kahypar/partition/registries/register_coarsening_algorithms.h"
-#include "mt-kahypar/partition/registries/register_initial_partitioning_algorithms.h"
-#include "mt-kahypar/partition/registries/register_refinement_algorithms.h"
+namespace mt_kahypar {
+
+class IInitialPartitioner {
+ public:
+  IInitialPartitioner(const IInitialPartitioner&) = delete;
+  IInitialPartitioner(IInitialPartitioner&&) = delete;
+  IInitialPartitioner& operator= (const IInitialPartitioner&) = delete;
+  IInitialPartitioner& operator= (IInitialPartitioner&&) = delete;
+
+  void initialPartition() {
+    initialPartitionImpl();
+  }
+
+  virtual ~IInitialPartitioner() = default;
+
+ protected:
+  IInitialPartitioner() = default;
+
+ private:
+  virtual void initialPartitionImpl() = 0;
+};
+
+}  // namespace mt_kahypar

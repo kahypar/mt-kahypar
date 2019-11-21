@@ -1662,6 +1662,178 @@ TEST_F(AHypergraphWithTwoStreamingHypergraphs, RestoresParallelHyperedgeDuringUn
    { {id[1], id[2]}, {id[0], id[1], id[2], id[3]}, {id[2], id[3]} });
 }
 
+TEST_F(AHypergraphWithTwoStreamingHypergraphs, CopiesItselfWhereAllVerticesAOnOneNumaNode) {
+  TestHypergraph hypergraph = construct_hypergraph(4, { {1, 2}, {0, 1, 2, 3}, { 2, 3 } },
+                                                      { 0, 0, 0, 0 }, { 0, 0, 0 }, {0, 0, 0, 0} );
+  std::vector<HypernodeID> id = {GLOBAL_ID(hypergraph, 0), GLOBAL_ID(hypergraph, 1), GLOBAL_ID(hypergraph, 2), GLOBAL_ID(hypergraph, 3)};
+  auto copy = hypergraph.copy(2);
+  TestHypergraph& copy_hg = copy.first;
+  auto& mapping = copy.second;
+  std::vector<HypernodeID> copy_id = {GLOBAL_ID(copy_hg, mapping[hypergraph.originalNodeID(id[0])]),
+                                      GLOBAL_ID(copy_hg, mapping[hypergraph.originalNodeID(id[1])]),
+                                      GLOBAL_ID(copy_hg, mapping[hypergraph.originalNodeID(id[2])]),
+                                      GLOBAL_ID(copy_hg, mapping[hypergraph.originalNodeID(id[3])])};
+
+  verifyPinIterators(copy_hg, {copy_hg.globalEdgeID(0), copy_hg.globalEdgeID(1), copy_hg.globalEdgeID(2)},
+   { { copy_id[1], copy_id[2] }, { copy_id[0], copy_id[1], copy_id[2], copy_id[3] },
+     { copy_id[2], copy_id[3] } });
+}
+
+TEST_F(AHypergraphWithTwoStreamingHypergraphs, CopiesItselfWhereVerticesAreOnDifferentNumaNodes) {
+  TestHypergraph hypergraph = construct_hypergraph(4, { {1, 2}, {0, 1, 2, 3}, { 2, 3 } },
+                                                      { 0, 0, 1, 1 }, { 0, 1, 0 }, {0, 0, 0, 0} );
+  std::vector<HypernodeID> id = {GLOBAL_ID(hypergraph, 0), GLOBAL_ID(hypergraph, 1), GLOBAL_ID(hypergraph, 2), GLOBAL_ID(hypergraph, 3)};
+  auto copy = hypergraph.copy(2);
+  TestHypergraph& copy_hg = copy.first;
+  auto& mapping = copy.second;
+  std::vector<HypernodeID> copy_id = {GLOBAL_ID(copy_hg, mapping[hypergraph.originalNodeID(id[0])]),
+                                      GLOBAL_ID(copy_hg, mapping[hypergraph.originalNodeID(id[1])]),
+                                      GLOBAL_ID(copy_hg, mapping[hypergraph.originalNodeID(id[2])]),
+                                      GLOBAL_ID(copy_hg, mapping[hypergraph.originalNodeID(id[3])])};
+
+  ASSERT_EQ(0, TestStreamingHypergraph::get_numa_node_of_vertex(copy_id[0]));
+  ASSERT_EQ(0, TestStreamingHypergraph::get_numa_node_of_vertex(copy_id[1]));
+  ASSERT_EQ(1, TestStreamingHypergraph::get_numa_node_of_vertex(copy_id[2]));
+  ASSERT_EQ(1, TestStreamingHypergraph::get_numa_node_of_vertex(copy_id[3]));
+
+  verifyPinIterators(copy_hg, {copy_hg.globalEdgeID(0), copy_hg.globalEdgeID(1), copy_hg.globalEdgeID(2)},
+   { { copy_id[1], copy_id[2] }, { copy_id[2], copy_id[3] },
+     { copy_id[0], copy_id[1], copy_id[2], copy_id[3] } });
+}
+
+TEST_F(AHypergraphWithTwoStreamingHypergraphs, CopiesItselfAfterOneContraction) {
+  TestHypergraph hypergraph = construct_hypergraph(4, { {1, 2}, {0, 1, 2, 3}, { 2, 3 } },
+                                                      { 0, 0, 1, 1 }, { 0, 1, 0 }, {0, 0, 0, 0} );
+  std::vector<HypernodeID> id = {GLOBAL_ID(hypergraph, 0), GLOBAL_ID(hypergraph, 1), GLOBAL_ID(hypergraph, 2), GLOBAL_ID(hypergraph, 3)};
+  hypergraph.contract(id[1], id[2]);
+
+  auto copy = hypergraph.copy(2);
+  TestHypergraph& copy_hg = copy.first;
+  auto& mapping = copy.second;
+  std::vector<HypernodeID> copy_id = {GLOBAL_ID(copy_hg, mapping[hypergraph.originalNodeID(id[0])]),
+                                      GLOBAL_ID(copy_hg, mapping[hypergraph.originalNodeID(id[1])]),
+                                      0,
+                                      GLOBAL_ID(copy_hg, mapping[hypergraph.originalNodeID(id[3])])};
+
+  ASSERT_EQ(1, copy_hg.nodeWeight(copy_id[0]));
+  ASSERT_EQ(2, copy_hg.nodeWeight(copy_id[1]));
+  ASSERT_EQ(1, copy_hg.nodeWeight(copy_id[3]));
+
+  verifyPinIterators(copy_hg, {copy_hg.globalEdgeID(0), copy_hg.globalEdgeID(1), copy_hg.globalEdgeID(2)},
+   { { copy_id[1] }, { copy_id[1], copy_id[3] }, { copy_id[0], copy_id[1], copy_id[3] } });
+}
+
+TEST_F(AHypergraphWithTwoStreamingHypergraphs, CopiesItselfAfterTwoContractions) {
+  TestHypergraph hypergraph = construct_hypergraph(4, { {1, 2}, {0, 1, 2, 3}, { 2, 3 } },
+                                                      { 0, 0, 1, 1 }, { 0, 1, 0 }, {0, 0, 0, 0} );
+  std::vector<HypernodeID> id = {GLOBAL_ID(hypergraph, 0), GLOBAL_ID(hypergraph, 1), GLOBAL_ID(hypergraph, 2), GLOBAL_ID(hypergraph, 3)};
+  hypergraph.contract(id[1], id[2]);
+  hypergraph.contract(id[1], id[3]);
+
+  auto copy = hypergraph.copy(2);
+  TestHypergraph& copy_hg = copy.first;
+  auto& mapping = copy.second;
+  std::vector<HypernodeID> copy_id = {GLOBAL_ID(copy_hg, mapping[hypergraph.originalNodeID(id[0])]),
+                                      GLOBAL_ID(copy_hg, mapping[hypergraph.originalNodeID(id[1])]),
+                                      0, 0};
+
+  ASSERT_EQ(1, copy_hg.nodeWeight(copy_id[0]));
+  ASSERT_EQ(3, copy_hg.nodeWeight(copy_id[1]));
+
+  verifyPinIterators(copy_hg, {copy_hg.globalEdgeID(0), copy_hg.globalEdgeID(1), copy_hg.globalEdgeID(2)},
+   { { copy_id[1] }, { copy_id[1] }, { copy_id[0], copy_id[1] } });
+}
+
+TEST_F(AHypergraphWithTwoStreamingHypergraphs, CopiesItselfAfterTwoContractionsWithDisabledHyperedge) {
+  TestHypergraph hypergraph = construct_hypergraph(4, { {1, 2}, {0, 1, 2, 3}, { 2, 3 } },
+                                                      { 0, 0, 1, 1 }, { 0, 1, 0 }, {0, 0, 0, 0} );
+  std::vector<HypernodeID> id = {GLOBAL_ID(hypergraph, 0), GLOBAL_ID(hypergraph, 1), GLOBAL_ID(hypergraph, 2), GLOBAL_ID(hypergraph, 3)};
+  hypergraph.contract(id[1], id[2]);
+  hypergraph.contract(id[1], id[3]);
+  hypergraph.removeEdge(hypergraph.globalEdgeID(2));
+  hypergraph.setEdgeWeight(hypergraph.globalEdgeID(0), 2);
+
+  auto copy = hypergraph.copy(2);
+  TestHypergraph& copy_hg = copy.first;
+  auto& mapping = copy.second;
+  std::vector<HypernodeID> copy_id = {GLOBAL_ID(copy_hg, mapping[hypergraph.originalNodeID(id[0])]),
+                                      GLOBAL_ID(copy_hg, mapping[hypergraph.originalNodeID(id[1])]),
+                                      0, 0};
+
+  ASSERT_EQ(1, copy_hg.nodeWeight(copy_id[0]));
+  ASSERT_EQ(3, copy_hg.nodeWeight(copy_id[1]));
+  ASSERT_EQ(2, copy_hg.edgeWeight(copy_hg.globalEdgeID(0)));
+
+  verifyPinIterators(copy_hg, {copy_hg.globalEdgeID(0), copy_hg.globalEdgeID(1)},
+   { { copy_id[1] }, { copy_id[0], copy_id[1] } });
+}
+
+TEST_F(AHypergraphWithTwoStreamingHypergraphs, CopiesItselfWithCommunities) {
+  TestHypergraph hypergraph = construct_hypergraph(4, { {1, 2}, {0, 1, 2, 3}, { 2, 3 } },
+                                                      { 0, 0, 1, 1 }, { 0, 1, 0 }, {0, 1, 2, 2} );
+  std::vector<HypernodeID> id = {GLOBAL_ID(hypergraph, 0), GLOBAL_ID(hypergraph, 1), GLOBAL_ID(hypergraph, 2), GLOBAL_ID(hypergraph, 3)};
+  auto copy = hypergraph.copy(2);
+  TestHypergraph& copy_hg = copy.first;
+  auto& mapping = copy.second;
+  std::vector<HypernodeID> copy_id = {GLOBAL_ID(copy_hg, mapping[hypergraph.originalNodeID(id[0])]),
+                                      GLOBAL_ID(copy_hg, mapping[hypergraph.originalNodeID(id[1])]),
+                                      GLOBAL_ID(copy_hg, mapping[hypergraph.originalNodeID(id[2])]),
+                                      GLOBAL_ID(copy_hg, mapping[hypergraph.originalNodeID(id[3])])};
+
+  ASSERT_EQ(0, copy_hg.communityID(copy_id[0]));
+  ASSERT_EQ(1, copy_hg.communityID(copy_id[1]));
+  ASSERT_EQ(2, copy_hg.communityID(copy_id[2]));
+  ASSERT_EQ(2, copy_hg.communityID(copy_id[3]));
+
+  verifyPinIterators(copy_hg, {copy_hg.globalEdgeID(0), copy_hg.globalEdgeID(1), copy_hg.globalEdgeID(2)},
+   { { copy_id[1], copy_id[2] }, { copy_id[2], copy_id[3] },
+     { copy_id[0], copy_id[1], copy_id[2], copy_id[3] } });
+}
+
+TEST_F(AHypergraphWithTwoStreamingHypergraphs, CopiesItselfWithCommunitiesAfterOneContraction) {
+  TestHypergraph hypergraph = construct_hypergraph(4, { {1, 2}, {0, 1, 2, 3}, { 2, 3 } },
+                                                      { 0, 0, 1, 1 }, { 0, 1, 0 }, {0, 1, 2, 2} );
+  std::vector<HypernodeID> id = {GLOBAL_ID(hypergraph, 0), GLOBAL_ID(hypergraph, 1), GLOBAL_ID(hypergraph, 2), GLOBAL_ID(hypergraph, 3)};
+  hypergraph.contract(id[1], id[2]);
+
+  auto copy = hypergraph.copy(2);
+  TestHypergraph& copy_hg = copy.first;
+  auto& mapping = copy.second;
+  std::vector<HypernodeID> copy_id = {GLOBAL_ID(copy_hg, mapping[hypergraph.originalNodeID(id[0])]),
+                                      GLOBAL_ID(copy_hg, mapping[hypergraph.originalNodeID(id[1])]),
+                                      0,
+                                      GLOBAL_ID(copy_hg, mapping[hypergraph.originalNodeID(id[3])])};
+
+  ASSERT_EQ(0, copy_hg.communityID(copy_id[0]));
+  ASSERT_EQ(1, copy_hg.communityID(copy_id[1]));
+  ASSERT_EQ(2, copy_hg.communityID(copy_id[3]));
+
+  verifyPinIterators(copy_hg, {copy_hg.globalEdgeID(0), copy_hg.globalEdgeID(1), copy_hg.globalEdgeID(2)},
+   { { copy_id[1] }, { copy_id[1], copy_id[3] }, { copy_id[0], copy_id[1], copy_id[3] } });
+}
+
+TEST_F(AHypergraphWithTwoStreamingHypergraphs, CopiesItselfWithCommunitiesAfterTwoContractions) {
+  TestHypergraph hypergraph = construct_hypergraph(4, { {1, 2}, {0, 1, 2, 3}, { 2, 3 } },
+                                                      { 0, 0, 1, 1 }, { 0, 1, 0 }, {0, 1, 2, 2} );
+  std::vector<HypernodeID> id = {GLOBAL_ID(hypergraph, 0), GLOBAL_ID(hypergraph, 1), GLOBAL_ID(hypergraph, 2), GLOBAL_ID(hypergraph, 3)};
+  hypergraph.contract(id[1], id[2]);
+  hypergraph.contract(id[1], id[3]);
+
+  auto copy = hypergraph.copy(2);
+  TestHypergraph& copy_hg = copy.first;
+  auto& mapping = copy.second;
+  std::vector<HypernodeID> copy_id = {GLOBAL_ID(copy_hg, mapping[hypergraph.originalNodeID(id[0])]),
+                                      GLOBAL_ID(copy_hg, mapping[hypergraph.originalNodeID(id[1])]),
+                                      0, 0};
+
+  ASSERT_EQ(0, copy_hg.communityID(copy_id[0]));
+  ASSERT_EQ(1, copy_hg.communityID(copy_id[1]));
+
+  verifyPinIterators(copy_hg, {copy_hg.globalEdgeID(0), copy_hg.globalEdgeID(1), copy_hg.globalEdgeID(2)},
+   { { copy_id[1] }, { copy_id[1] }, { copy_id[0], copy_id[1] } });
+}
+
+
 
 } // namespace ds
 } // namespace mt_kahypar

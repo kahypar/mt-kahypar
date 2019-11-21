@@ -24,7 +24,7 @@
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/io/hypergraph_io.h"
-#include "mt-kahypar/partition/initial_partitioning/initial_partitioner.h"
+#include "mt-kahypar/partition/initial_partitioning/direct_initial_partitioner.h"
 #include "mt-kahypar/partition/refinement/policies/execution_policy.h"
 #include "mt-kahypar/partition/refinement/policies/gain_policy.h"
 #include "mt-kahypar/partition/refinement/label_propagation_refiner.h"
@@ -89,6 +89,7 @@ static size_t num_threads;
     context.shared_memory.assignment_objective = CommunityAssignmentObjective::pin_objective;
 
     // Initial Partitioning
+    context.initial_partitioning.mode = InitialPartitioningMode::recursive;
     context.initial_partitioning.runs = 1;
     context.initial_partitioning.context_file = "../test_instances/fast_initial_partitioning.ini";
 
@@ -111,7 +112,7 @@ static size_t num_threads;
   }
 
   void initialPartition() {
-    InitialPartitionerT<TypeTraits> initial_partitioner(hypergraph, context);
+    DirectInitialPartitionerT<TypeTraits> initial_partitioner(hypergraph, context, true);
     initial_partitioner.initialPartition();
     metrics.km1 = metrics::km1(hypergraph);
     metrics.cut = metrics::hyperedgeCut(hypergraph);

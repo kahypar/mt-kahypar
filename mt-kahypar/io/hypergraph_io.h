@@ -73,7 +73,7 @@ static inline void streamHyperedgesEquallyIntoNumaHypergraphs(const std::vector<
   // parallel for in the corresponding numa task arena over the resp. range.
   size_t num_numa_hypergraphs = numa_hypergraphs.size();
   size_t num_hyperedges_per_hypergraph = hyperedge_lines.size() / num_numa_hypergraphs;
-  TBB::instance().execute_on_all_numa_nodes([&](const int node) {
+  TBB::instance().execute_parallel_on_all_numa_nodes([&](const int node) {
     size_t start = node * num_hyperedges_per_hypergraph;
     size_t end = node != (int) num_numa_hypergraphs - 1 ?
                  ( node + 1 ) * num_hyperedges_per_hypergraph : hyperedge_lines.size();
@@ -143,15 +143,9 @@ static inline HyperGraph readHyperedges(std::ifstream& file,
   // Allocate numa hypergraph on their corresponding numa nodes
   int used_numa_nodes = TBB::instance().num_used_numa_nodes();
   std::vector<StreamingHyperGraph> numa_hypergraphs;
-  tbb::task_group group;
-  for ( int node = 0; node < used_numa_nodes; ++node ) {
-    TBB::instance().numa_task_arena(node).execute([&] {
-      group.run([&] {
-        numa_hypergraphs.emplace_back(node, k);
-      });
-    });
-    TBB::instance().wait(node, group);
-  }
+  TBB::instance().execute_sequential_on_all_numa_nodes([&](const int node) {
+    numa_hypergraphs.emplace_back(node, k);
+  });
 
   // Read input file line by line
   HighResClockTimepoint start = std::chrono::high_resolution_clock::now();

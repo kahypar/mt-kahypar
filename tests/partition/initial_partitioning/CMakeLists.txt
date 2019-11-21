@@ -1,0 +1,1 @@
+add_gmock_test(kahypar_test kahypar_test.cc)

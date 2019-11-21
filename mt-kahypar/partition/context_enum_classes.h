@@ -58,7 +58,6 @@ enum class CoarseningAlgorithm : uint8_t {
   UNDEFINED
 };
 
-
 enum class CommunityDetectionStarExpansionWeightModification : uint8_t {
   hybrid,
   uniform,
@@ -66,7 +65,6 @@ enum class CommunityDetectionStarExpansionWeightModification : uint8_t {
   degree,
   UNDEFINED
 };
-
 
 enum class RatingFunction : uint8_t {
   heavy_edge,
@@ -83,6 +81,12 @@ enum class HeavyNodePenaltyPolicy : uint8_t {
 enum class AcceptancePolicy : uint8_t {
   best,
   best_prefer_unmatched,
+  UNDEFINED
+};
+
+enum class InitialPartitioningMode : uint8_t {
+  direct,
+  recursive,
   UNDEFINED
 };
 
@@ -179,6 +183,16 @@ std::ostream& operator<< (std::ostream& os, const RatingFunction& func) {
   return os << static_cast<uint8_t>(func);
 }
 
+std::ostream& operator<< (std::ostream& os, const InitialPartitioningMode& mode) {
+  switch (mode) {
+    case InitialPartitioningMode::direct: return os << "direct";
+    case InitialPartitioningMode::recursive: return os << "recursive";
+    case InitialPartitioningMode::UNDEFINED: return os << "UNDEFINED";
+      // omit default case to trigger compiler warning for missing cases
+  }
+  return os << static_cast<uint8_t>(mode);
+}
+
 std::ostream& operator<< (std::ostream& os, const LabelPropagationAlgorithm& algo) {
   switch (algo) {
     case LabelPropagationAlgorithm::label_propagation_km1: return os << "label_propagation_km1";
@@ -273,6 +287,17 @@ static RatingFunction ratingFunctionFromString(const std::string& function) {
   LOG << "No valid rating function for rating.";
   exit(0);
   return RatingFunction::UNDEFINED;
+}
+
+static InitialPartitioningMode initialPartitioningModeFromString(const std::string& mode) {
+  if (mode == "direct") {
+    return InitialPartitioningMode::direct;
+  } else if (mode == "recursive") {
+    return InitialPartitioningMode::recursive;
+  }
+  LOG << "Illegal option:" << mode;
+  exit(0);
+  return InitialPartitioningMode::UNDEFINED;
 }
 
 static LabelPropagationAlgorithm labelPropagationAlgorithmFromString(const std::string& type) {

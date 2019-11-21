@@ -55,8 +55,11 @@ class Hypergraph {
   using HyperedgeWeight = HyperedgeWeightType_;
   using PartitionID = PartitionIDType_;
 
+  using Self = Hypergraph<HypernodeID, HyperedgeID, HypernodeWeight, HyperedgeWeight,
+                          PartitionID, HardwareTopology, TBBNumaArena>;
+
   static constexpr PartitionID kInvalidPartition = -1;
-  static constexpr HyperedgeID kInvalidHyperedge = std::numeric_limits<HyperedgeID>::max();
+  static HyperedgeID kInvalidHyperedge;
 
 
  public:
@@ -321,6 +324,7 @@ class Hypergraph {
     computeNodeMapping();
     initializeHypernodes();
   }
+
   // ! Constructs a hypergraph based on the given numa hypergraphs
   // ! and node mapping
   Hypergraph(const HypernodeID num_hypernodes,
@@ -346,7 +350,20 @@ class Hypergraph {
   Hypergraph(const Hypergraph&) = delete;
   Hypergraph& operator= (const Hypergraph&) = delete;
 
-  Hypergraph(Hypergraph&&) = default;
+  Hypergraph(Hypergraph&& other) :
+    _num_hypernodes(other._num_hypernodes),
+    _num_hyperedges(other._num_hyperedges),
+    _num_pins(other._num_pins),
+    _num_communities(other._num_communities),
+    _k(other._k),
+    _communities_num_hypernodes(std::move(other._communities_num_hypernodes)),
+    _communities_num_pins(std::move(other._communities_num_pins)),
+    _part_info(std::move(other._part_info)),
+    _local_part_info([&] { return ThreadPartInfos::construct(_k, _part_info); }),
+    _hypergraphs(std::move(other._hypergraphs)),
+    _node_mapping(std::move(other._node_mapping)),
+    _edge_mapping(std::move(other._edge_mapping)),
+    _community_node_mapping(std::move(other._community_node_mapping)) { }
 
   Hypergraph& operator= (Hypergraph&& other) {
     _num_hypernodes = other._num_hypernodes;
@@ -411,7 +428,7 @@ class Hypergraph {
 
   // ! Recomputes the total weight of the hypergraph (in parallel)
   void updateTotalWeight() {
-    TBBNumaArena::instance().execute_on_all_numa_nodes([&](const int node) {
+    TBBNumaArena::instance().execute_parallel_on_all_numa_nodes([&](const int node) {
       _hypergraphs[node].updateTotalWeight();
     });
   }
@@ -1302,11 +1319,11 @@ class Hypergraph {
    * Note, this function have to be called before parallel community coarsening.
    */
   void initializeCommunityHyperedges() {
-    TBBNumaArena::instance().execute_on_all_numa_nodes([&](const int node) {
+    TBBNumaArena::instance().execute_parallel_on_all_numa_nodes([&](const int node) {
       _hypergraphs[node].initializeCommunityHyperedges(_hypergraphs);
     });
 
-    TBBNumaArena::instance().execute_on_all_numa_nodes([&](const int node) {
+    TBBNumaArena::instance().execute_parallel_on_all_numa_nodes([&](const int node) {
       _hypergraphs[node].initializeCommunityHypernodes(_hypergraphs);
     });
   }
@@ -1326,7 +1343,7 @@ class Hypergraph {
    * @params history contraction history
    */
   void removeCommunityHyperedges(const std::vector<Memento>& history) {
-    TBBNumaArena::instance().execute_on_all_numa_nodes([&](const int node) {
+    TBBNumaArena::instance().execute_parallel_on_all_numa_nodes([&](const int node) {
       _hypergraphs[node].removeCommunityHyperedges(history, _num_hypernodes, _hypergraphs);
     });
   }
@@ -1388,7 +1405,7 @@ class Hypergraph {
 
   // ! Resets the ids of all pins in the incidence array to its original node id
   void resetPinsToOriginalNodeIds() {
-    TBBNumaArena::instance().execute_on_all_numa_nodes([&](const int node) {
+    TBBNumaArena::instance().execute_parallel_on_all_numa_nodes([&](const int node) {
       _hypergraphs[node].resetPinsToOriginalNodeIds(_hypergraphs);
     });
   }
@@ -1396,10 +1413,98 @@ class Hypergraph {
   // ! Invalidates all disabled hyperedges from the incident nets array of each node
   // ! For further details please take a look at the documentation of uncontraction(...)
   void invalidateDisabledHyperedgesFromIncidentNets() {
-    TBBNumaArena::instance().execute_on_all_numa_nodes([&](const int node) {
+    TBBNumaArena::instance().execute_parallel_on_all_numa_nodes([&](const int node) {
       _hypergraphs[node].invalidateDisabledHyperedgesFromIncidentNets(_hypergraphs);
     });
   }
+
+
+  // ####################### Copy #######################
+
+  // ! Makes a copy of the current state of the hypergraph (without partition info).
+  // ! The vertex and edge to numa node mapping is maintained. Note, if the hypergraph
+  // ! is already coarsened, than only enabled nodes will be part of the copy. The copy
+  // ! can be not used than to uncontract the hypergraph. The original node ids of the
+  // ! original hypergraph are compactified to a consecutive range of node ids.
+  // ! To map between the original and the copied hypergraph a mapping is returned
+  // ! that contains a mapping from the original node ids of the original hypergraph to
+  // ! original node ids of the copied hypergraph.
+  std::pair<Self, parallel::scalable_vector<HypernodeID>> copy(const PartitionID k) {
+
+    // Allocate numa hypergraph on their corresponding numa nodes
+    std::vector<StreamingHypergraph> numa_hypergraphs;
+    TBBNumaArena::instance().execute_sequential_on_all_numa_nodes([&](const int node) {
+      numa_hypergraphs.emplace_back(node, k);
+    });
+
+    // Compactify vertex ids
+    parallel::scalable_vector<HypernodeID> hn_mapping(_num_hypernodes, kInvalidHyperedge);
+    parallel::scalable_vector<HypernodeWeight> hn_weights;
+    parallel::scalable_vector<PartitionID> community_ids;
+    std::vector<HypernodeID> hn_to_numa_node;
+    HypernodeID num_hypernodes = 0;
+    for ( const HypernodeID& hn : nodes() ) {
+      ASSERT(originalNodeID(hn) < _num_hypernodes);
+      ASSERT(communityID(hn) != kInvalidPartition);
+      hn_mapping[originalNodeID(hn)] = num_hypernodes++;
+      hn_weights.emplace_back(nodeWeight(hn));
+      community_ids.emplace_back(communityID(hn));
+      hn_to_numa_node.emplace_back(StreamingHypergraph::get_numa_node_of_vertex(hn));
+    }
+
+    // Compactify hyperedge ids
+    parallel::scalable_vector<HypernodeID> he_mapping(_num_hyperedges, kInvalidHyperedge);
+    HypernodeID num_hyperedges = 0;
+    for ( const HyperedgeID& he : edges() ) {
+      ASSERT(originalEdgeID(he) < _num_hyperedges);
+      he_mapping[originalEdgeID(he)] = num_hyperedges++;
+    }
+
+    // Copy Hyperedges
+    TBBNumaArena::instance().execute_parallel_on_all_numa_nodes([&](const int node) {
+      tbb::parallel_for(tbb::blocked_range<HyperedgeID>(0UL, _num_hyperedges),
+      [&](const tbb::blocked_range<HyperedgeID>& range) {
+        for ( HyperedgeID id = range.begin(); id < range.end(); ++id ) {
+          const HyperedgeID he = globalEdgeID(id);
+          if ( edgeIsEnabled(he) && StreamingHypergraph::get_numa_node_of_hyperedge(he) == node ) {
+            parallel::scalable_vector<HypernodeID> hyperedge;
+            for ( const HypernodeID& pin : pins(he) ) {
+              hyperedge.emplace_back(hn_mapping[originalNodeID(pin)]);
+            }
+            numa_hypergraphs[node].streamHyperedge(
+              hyperedge, he_mapping[originalEdgeID(he)], edgeWeight(he));
+          }
+        }
+      });
+    });
+
+    // Initialize Hyperedges
+    TBBNumaArena::instance().execute_parallel_on_all_numa_nodes([&](const int node) {
+      numa_hypergraphs[node].initializeHyperedges(num_hypernodes);
+    });
+
+    // Initialize Hypergraph
+    Self copy_hypergraph(num_hypernodes, std::move(numa_hypergraphs),
+                         std::move(hn_to_numa_node), k);
+
+    // Initialize node weights and community ids
+    tbb::parallel_for(tbb::blocked_range<HyperedgeID>(0UL, num_hypernodes),
+    [&](const tbb::blocked_range<HypernodeID>& range) {
+      for ( HypernodeID id = range.begin(); id < range.end(); ++id ) {
+        copy_hypergraph.setNodeWeight(copy_hypergraph.globalNodeID(id), hn_weights[id]);
+        copy_hypergraph.setCommunityID(copy_hypergraph.globalNodeID(id), community_ids[id]);
+      }
+    });
+    copy_hypergraph.updateTotalWeight();
+    copy_hypergraph.initializeCommunities();
+
+    // Initialize community to numa node mapping
+    std::vector<PartitionID> community_node_mapping(_community_node_mapping);
+    copy_hypergraph.setCommunityNodeMapping(std::move(community_node_mapping));
+
+    return std::make_pair(std::move(copy_hypergraph), std::move(hn_mapping));
+  }
+
 
  private:
 
@@ -1686,6 +1791,19 @@ class Hypergraph {
   // ! Mapping from community id to numa node
   std::vector<PartitionID> _community_node_mapping;
 };
+
+template <typename HypernodeType_,
+          typename HyperedgeType_,
+          typename HypernodeWeightType_,
+          typename HyperedgeWeightType_,
+          typename PartitionIDType_,
+          typename HardwareTopology,
+          typename TBBNumaArena>
+HyperedgeType_ Hypergraph<HypernodeType_, HyperedgeType_,
+                          HypernodeWeightType_, HyperedgeWeightType_,
+                          PartitionIDType_, HardwareTopology,
+                          TBBNumaArena>::kInvalidHyperedge = std::numeric_limits<HyperedgeType_>::max();
+
 
 } // namespace ds
 } // namespace mt_kahypar

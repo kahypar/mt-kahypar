@@ -56,6 +56,7 @@ static size_t num_threads;
     context.coarsening.rating.acceptance_policy = AcceptancePolicy::best_prefer_unmatched;
 
     // Initial Partitioning
+    context.initial_partitioning.mode = InitialPartitioningMode::recursive;
     context.initial_partitioning.runs = 1;
     context.initial_partitioning.context_file = "test_instances/fast_initial_partitioning.ini";
 
