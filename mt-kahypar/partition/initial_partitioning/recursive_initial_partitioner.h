@@ -106,34 +106,32 @@ class RecursiveInitialPartitionerT : public IInitialPartitioner {
                                  ( 2 * _context.coarsening.contraction_limit_multiplier ) ==
                                  _context.shared_memory.num_threads;
 
-    RecursivePartitionResult r1;
-    RecursivePartitionResult r2;
+    RecursivePartitionResult best;
     if ( do_parallel_recursion ) {
       // Perform parallel recursion
       size_t num_threads_1 = std::ceil( ( (double) _context.shared_memory.num_threads ) / 2.0 );
       size_t num_threads_2 = std::floor( ( (double) _context.shared_memory.num_threads ) / 2.0 );
+      RecursivePartitionResult r1;
+      RecursivePartitionResult r2;
       tbb::parallel_invoke([&] {
         r1 = recursivePartition(num_threads_1, 0);
       }, [&] {
         r2 = recursivePartition(num_threads_2, 1);
       });
-    } else {
-      r1 = recursivePartition(_context.shared_memory.num_threads, 0);
-      r2.objective = std::numeric_limits<HyperedgeWeight>::max();
-      r2.imbalance = std::numeric_limits<double>::max();
-    }
 
-    // Choose best partition of both parallel recursion
-    RecursivePartitionResult best;
-    bool r1_has_better_quality = r1.objective < r2.objective;
-    bool r1_is_balanced = r1.imbalance < r1.context.partition.epsilon;
-    bool r2_is_balanced = r2.imbalance < r2.context.partition.epsilon;
-    if ( ( r1_has_better_quality && r1_is_balanced ) ||
-         ( r1_is_balanced && !r2_is_balanced ) ||
-         ( r1_has_better_quality && !r1_is_balanced && !r2_is_balanced ) ) {
-      best = std::move(r1);
+      // Choose best partition of both parallel recursion
+      bool r1_has_better_quality = r1.objective < r2.objective;
+      bool r1_is_balanced = r1.imbalance < r1.context.partition.epsilon;
+      bool r2_is_balanced = r2.imbalance < r2.context.partition.epsilon;
+      if ( ( r1_has_better_quality && r1_is_balanced ) ||
+          ( r1_is_balanced && !r2_is_balanced ) ||
+          ( r1_has_better_quality && !r1_is_balanced && !r2_is_balanced ) ) {
+        best = std::move(r1);
+      } else {
+        best = std::move(r2);
+      }
     } else {
-      best = std::move(r2);
+      best = recursivePartition(_context.shared_memory.num_threads, 0);
     }
 
     HEAVY_INITIAL_PARTITIONING_ASSERT(best.objective == metrics::objective(best.hypergraph, _context.partition.objective));
@@ -142,6 +140,13 @@ class RecursiveInitialPartitionerT : public IInitialPartitioner {
     for ( const HypernodeID& hn : _hg.nodes() ) {
       const HypernodeID original_id = _hg.originalNodeID(hn);
       ASSERT(original_id < best.mapping.size());
+      // The partID function of the hypergraph takes a global node id and
+      // returns the partition id of the vertex.
+      // The mapping function of RecursivePartitionResult object (best.mapping) stores a mapping from
+      // the original node id of hypergraph _hg to the original node ids of the copied hypergraph
+      // (best.hypergraph).
+      // Note, original node ids are the node ids of the input hypergraph and the global node ids are
+      // the internal node ids of the hypergraph.
       PartitionID part_id = best.hypergraph.partID(best.hypergraph.globalNodeID(best.mapping[original_id]));
       ASSERT(part_id != kInvalidPartition && part_id < _hg.k());
       _hg.setNodePart(hn, part_id);
@@ -149,6 +154,9 @@ class RecursiveInitialPartitionerT : public IInitialPartitioner {
     _hg.initializeNumCutHyperedges();
     _hg.updateGlobalPartInfos();
 
+    // The hypergraph is now partitioned into the number of blocks of the recursive context (best.context.partition.k).
+    // Based on wheter we reduced k in recursion, we have to bisect the blocks of the partition
+    // in the desired number of blocks of the current context (_context.partition.k).
 
     HEAVY_INITIAL_PARTITIONING_ASSERT(best.objective == metrics::objective(_hg, _context.partition.objective));
 
@@ -157,7 +165,7 @@ class RecursiveInitialPartitionerT : public IInitialPartitioner {
     bool perform_bisections = !_top_level && _context.shared_memory.num_threads < (size_t) _context.partition.k;
     if ( perform_bisections ) {
       std::vector<HypernodeID> node_mapping(_hg.initialNumNodes(), kInvalidHypernode);
-      std::vector<KaHyParParitioningResult> results;
+      std::vector<KaHyParPartitioningResult> results;
       results.reserve(_context.partition.k / 2);
 
       // Bisect all blocks of the current partition in parallel
@@ -260,7 +268,7 @@ class RecursiveInitialPartitionerT : public IInitialPartitioner {
     ASSERT(_context.partition.max_part_weights.size() == 2);
     ASSERT(_context.shared_memory.num_threads == 1);
 
-    kahypar_context_t* kahypar_context = setupKaHyParContext();
+    kahypar_context_t* kahypar_context = setupKaHyParBisectionContext();
     kahypar_set_custom_target_block_weights(2, _context.partition.max_part_weights.data(), kahypar_context);
 
     // Compute node mapping that maps all hypernodes of the coarsened hypergraph
@@ -274,7 +282,7 @@ class RecursiveInitialPartitionerT : public IInitialPartitioner {
 
     // Build KaHyPar Hypergraph Data Structure
     const KaHyParHypergraph kahypar_hypergraph = convertToKaHyParHypergraph(_hg, node_mapping);
-    KaHyParParitioningResult result(num_vertices);
+    KaHyParPartitioningResult result(num_vertices);
 
     // Bisect KaHyPar Hypergraph
     kahypar_partition(kahypar_hypergraph, *reinterpret_cast<kahypar::Context*>(kahypar_context), result);
@@ -295,10 +303,10 @@ class RecursiveInitialPartitionerT : public IInitialPartitioner {
   }
 
   void bisectPartition(const PartitionID block,
-                       KaHyParParitioningResult& result,
+                       KaHyParPartitioningResult& result,
                        std::vector<HypernodeID>& node_mapping) {
 
-    kahypar_context_t* kahypar_context = setupKaHyParContext();
+    kahypar_context_t* kahypar_context = setupKaHyParBisectionContext();
     std::vector<HypernodeWeight> max_part_weights;
     max_part_weights.emplace_back(_context.partition.max_part_weights[2 * block]);
     max_part_weights.emplace_back(_context.partition.max_part_weights[2 * block + 1]);
@@ -359,7 +367,7 @@ class RecursiveInitialPartitionerT : public IInitialPartitioner {
     return context;
   }
 
-  kahypar_context_t* setupKaHyParContext() {
+  kahypar_context_t* setupKaHyParBisectionContext() {
     kahypar_context_t* kahypar_c = mt_kahypar::setupContext(_context, kahypar_debug);
     kahypar::Context& kahypar_context = *reinterpret_cast<kahypar::Context*>(kahypar_c);
     kahypar_context.partition.k = 2;

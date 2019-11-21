@@ -91,7 +91,7 @@ class DirectInitialPartitionerT : public IInitialPartitioner {
 
     // Split calls to initial partitioner evenly across numa nodes
     size_t num_ip_calls = ip_runs.size();
-    std::vector<KaHyParParitioningResult> results(num_ip_calls);
+    std::vector<KaHyParPartitioningResult> results(num_ip_calls);
     size_t used_numa_nodes = TBB::instance().num_used_numa_nodes();
     size_t current_node = 0;
     std::vector<int> used_threads(used_numa_nodes, 0);
@@ -103,7 +103,7 @@ class DirectInitialPartitionerT : public IInitialPartitioner {
       TBB::instance().numa_task_arena(current_node).execute([&, i] {
         TBB::instance().numa_task_group(current_node).run([&, i] {
           size_t seed = _context.partition.seed + i * _context.initial_partitioning.runs;
-          results[i] = partitionWithKaHyPar(context, node_mapping, reverse_mapping, ip_runs[i], seed);
+          results[i] = partitionWithKaHyPar(context, node_mapping, ip_runs[i], seed);
         });
       });
 
@@ -112,7 +112,7 @@ class DirectInitialPartitionerT : public IInitialPartitioner {
     }
     TBB::instance().wait();
 
-    KaHyParParitioningResult best;
+    KaHyParPartitioningResult best;
     best.objective = std::numeric_limits<kahypar_hyperedge_weight_t>::max();
     for ( size_t i = 0; i < num_ip_calls; ++i ) {
       bool improved_metric_within_balance = ( results[i].imbalance <= _context.partition.epsilon ) &&
@@ -144,9 +144,8 @@ class DirectInitialPartitionerT : public IInitialPartitioner {
 
  private:
 
-  KaHyParParitioningResult partitionWithKaHyPar(kahypar_context_t* context,
+  KaHyParPartitioningResult partitionWithKaHyPar(kahypar_context_t* context,
                                                 const std::vector<HypernodeID>& node_mapping,
-                                                const std::vector<HypernodeID>& reverse_mapping,
                                                 const size_t runs,
                                                 const size_t seed) {
     DBG << "Start initial partitioning with" << runs << "initial partitioning runs"
@@ -154,7 +153,7 @@ class DirectInitialPartitionerT : public IInitialPartitioner {
         << "on cpu" << sched_getcpu();
 
     KaHyParHypergraph kahypar_hypergraph = convertToKaHyParHypergraph(_hg, node_mapping);
-    KaHyParParitioningResult best(kahypar_hypergraph.num_vertices);
+    KaHyParPartitioningResult best(kahypar_hypergraph.num_vertices);
     best.objective = std::numeric_limits<kahypar_hyperedge_weight_t>::max();
     if ( _context.initial_partitioning.call_kahypar_multiple_times ) {
       // We call KaHyPar exactly runs times with one call to the initial partitioner of KaHyPar
@@ -165,9 +164,9 @@ class DirectInitialPartitionerT : public IInitialPartitioner {
         initial_partitioning_context.partition.seed = seed + i;
 
         // Call KaHyPar
-        KaHyParParitioningResult result(kahypar_hypergraph.num_vertices);
+        KaHyParPartitioningResult result(kahypar_hypergraph.num_vertices);
         kahypar_partition(kahypar_hypergraph, initial_partitioning_context, result);
-        result.imbalance = imbalance(_hg, _context, result.partition, reverse_mapping);
+        result.imbalance = imbalance(kahypar_hypergraph, _context, result);
 
         bool improved_metric_within_balance = ( result.imbalance <= _context.partition.epsilon ) &&
                                               ( result.objective < best.objective );
@@ -186,7 +185,7 @@ class DirectInitialPartitionerT : public IInitialPartitioner {
 
       // Call KaHyPar
       kahypar_partition(kahypar_hypergraph, initial_partitioning_context, best);
-      best.imbalance = imbalance(_hg, _context, best.partition, reverse_mapping);
+      best.imbalance = imbalance(kahypar_hypergraph, _context, best);
     }
 
     DBG << "Finished initial partitioning"

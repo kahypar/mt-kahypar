@@ -127,7 +127,7 @@ class LabelPropagationRefinerT final : public IRefiner {
 
     if ( _context.refinement.label_propagation.numa_aware ) {
       // Execute label propagation on all numa nodes
-      TBB::instance().execute_on_all_numa_nodes([&](const int node) {
+      TBB::instance().execute_parallel_on_all_numa_nodes([&](const int node) {
         labelPropagation(node);
       });
     } else {

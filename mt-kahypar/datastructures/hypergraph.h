@@ -428,7 +428,7 @@ class Hypergraph {
 
   // ! Recomputes the total weight of the hypergraph (in parallel)
   void updateTotalWeight() {
-    TBBNumaArena::instance().execute_on_all_numa_nodes([&](const int node) {
+    TBBNumaArena::instance().execute_parallel_on_all_numa_nodes([&](const int node) {
       _hypergraphs[node].updateTotalWeight();
     });
   }
@@ -1319,11 +1319,11 @@ class Hypergraph {
    * Note, this function have to be called before parallel community coarsening.
    */
   void initializeCommunityHyperedges() {
-    TBBNumaArena::instance().execute_on_all_numa_nodes([&](const int node) {
+    TBBNumaArena::instance().execute_parallel_on_all_numa_nodes([&](const int node) {
       _hypergraphs[node].initializeCommunityHyperedges(_hypergraphs);
     });
 
-    TBBNumaArena::instance().execute_on_all_numa_nodes([&](const int node) {
+    TBBNumaArena::instance().execute_parallel_on_all_numa_nodes([&](const int node) {
       _hypergraphs[node].initializeCommunityHypernodes(_hypergraphs);
     });
   }
@@ -1343,7 +1343,7 @@ class Hypergraph {
    * @params history contraction history
    */
   void removeCommunityHyperedges(const std::vector<Memento>& history) {
-    TBBNumaArena::instance().execute_on_all_numa_nodes([&](const int node) {
+    TBBNumaArena::instance().execute_parallel_on_all_numa_nodes([&](const int node) {
       _hypergraphs[node].removeCommunityHyperedges(history, _num_hypernodes, _hypergraphs);
     });
   }
@@ -1405,7 +1405,7 @@ class Hypergraph {
 
   // ! Resets the ids of all pins in the incidence array to its original node id
   void resetPinsToOriginalNodeIds() {
-    TBBNumaArena::instance().execute_on_all_numa_nodes([&](const int node) {
+    TBBNumaArena::instance().execute_parallel_on_all_numa_nodes([&](const int node) {
       _hypergraphs[node].resetPinsToOriginalNodeIds(_hypergraphs);
     });
   }
@@ -1413,7 +1413,7 @@ class Hypergraph {
   // ! Invalidates all disabled hyperedges from the incident nets array of each node
   // ! For further details please take a look at the documentation of uncontraction(...)
   void invalidateDisabledHyperedgesFromIncidentNets() {
-    TBBNumaArena::instance().execute_on_all_numa_nodes([&](const int node) {
+    TBBNumaArena::instance().execute_parallel_on_all_numa_nodes([&](const int node) {
       _hypergraphs[node].invalidateDisabledHyperedgesFromIncidentNets(_hypergraphs);
     });
   }
@@ -1432,17 +1432,10 @@ class Hypergraph {
   std::pair<Self, parallel::scalable_vector<HypernodeID>> copy(const PartitionID k) {
 
     // Allocate numa hypergraph on their corresponding numa nodes
-    int used_numa_nodes = _hypergraphs.size();
     std::vector<StreamingHypergraph> numa_hypergraphs;
-    tbb::task_group group;
-    for ( int node = 0; node < used_numa_nodes; ++node ) {
-      TBBNumaArena::instance().numa_task_arena(node).execute([&] {
-        group.run([&] {
-          numa_hypergraphs.emplace_back(node, k);
-        });
-      });
-      TBBNumaArena::instance().wait(node, group);
-    }
+    TBBNumaArena::instance().execute_sequential_on_all_numa_nodes([&](const int node) {
+      numa_hypergraphs.emplace_back(node, k);
+    });
 
     // Compactify vertex ids
     parallel::scalable_vector<HypernodeID> hn_mapping(_num_hypernodes, kInvalidHyperedge);
@@ -1468,7 +1461,7 @@ class Hypergraph {
     }
 
     // Copy Hyperedges
-    TBBNumaArena::instance().execute_on_all_numa_nodes([&](const int node) {
+    TBBNumaArena::instance().execute_parallel_on_all_numa_nodes([&](const int node) {
       tbb::parallel_for(tbb::blocked_range<HyperedgeID>(0UL, _num_hyperedges),
       [&](const tbb::blocked_range<HyperedgeID>& range) {
         for ( HyperedgeID id = range.begin(); id < range.end(); ++id ) {
@@ -1486,7 +1479,7 @@ class Hypergraph {
     });
 
     // Initialize Hyperedges
-    TBBNumaArena::instance().execute_on_all_numa_nodes([&](const int node) {
+    TBBNumaArena::instance().execute_parallel_on_all_numa_nodes([&](const int node) {
       numa_hypergraphs[node].initializeHyperedges(num_hypernodes);
     });
 

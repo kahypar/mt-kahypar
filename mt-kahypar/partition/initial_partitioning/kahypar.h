@@ -30,23 +30,22 @@
 
 namespace mt_kahypar {
 
-namespace {
+struct KaHyParPartitioningResult {
 
-class FakeHypergraph {
-  public:
-    explicit FakeHypergraph(parallel::scalable_vector<HypernodeWeight>&& part_weights) :
-      _part_weights(std::move(part_weights)) { }
+  KaHyParPartitioningResult() :
+    objective(0),
+    imbalance(1.0),
+    partition() { }
 
-    HypernodeWeight partWeight(const PartitionID id) const {
-      ASSERT(id < (PartitionID) _part_weights.size());
-      return _part_weights[id];
-    }
+  explicit KaHyParPartitioningResult(const kahypar_hypernode_id_t num_vertices) :
+    objective(0),
+    imbalance(1.0),
+    partition(num_vertices, -1) { }
 
-  private:
-    parallel::scalable_vector<HypernodeWeight> _part_weights;
+  kahypar_hyperedge_weight_t objective;
+  double imbalance;
+  parallel::scalable_vector<kahypar_partition_id_t> partition;
 };
-
-} // namespace
 
 struct KaHyParHypergraph {
 
@@ -57,7 +56,24 @@ struct KaHyParHypergraph {
    hyperedges(),
    vertex_weights(),
    hyperedge_weights(),
-   reverse_mapping() { }
+   reverse_mapping(),
+   part_weights() { }
+
+  void computePartWeights(const PartitionID k,
+                          const parallel::scalable_vector<kahypar_partition_id_t>& partition) {
+    ASSERT(partition.size() == vertex_weights.size());
+    part_weights.assign(k, 0);
+    for ( HypernodeID hn = 0; hn < partition.size(); ++hn ) {
+      PartitionID part = partition[hn];
+      ASSERT(part != -1 && part < k);
+      part_weights[part] += vertex_weights[hn];
+    }
+  }
+
+  HypernodeWeight partWeight(const PartitionID id) const {
+    ASSERT(id < (PartitionID) part_weights.size());
+    return part_weights[id];
+  }
 
   kahypar_hypernode_id_t num_vertices;
   kahypar_hyperedge_id_t num_hyperedges;
@@ -66,23 +82,7 @@ struct KaHyParHypergraph {
   parallel::scalable_vector<kahypar_hypernode_weight_t> vertex_weights;
   parallel::scalable_vector<kahypar_hyperedge_weight_t> hyperedge_weights;
   parallel::scalable_vector<HypernodeID> reverse_mapping;
-};
-
-struct KaHyParParitioningResult {
-
-  KaHyParParitioningResult() :
-    objective(0),
-    imbalance(1.0),
-    partition() { }
-
-  explicit KaHyParParitioningResult(const kahypar_hypernode_id_t num_vertices) :
-    objective(0),
-    imbalance(1.0),
-    partition(num_vertices, -1) { }
-
-  kahypar_hyperedge_weight_t objective;
-  double imbalance;
-  parallel::scalable_vector<kahypar_partition_id_t> partition;
+  parallel::scalable_vector<HypernodeWeight> part_weights;
 };
 
 // ! Converts the MT-KaHyPar Hypergraph into raw hypergraph data format taken
@@ -161,7 +161,7 @@ static KaHyParHypergraph extractBlockAsKaHyParHypergraph(const HyperGraph& hyper
 
 static void kahypar_partition(const KaHyParHypergraph& hypergraph,
                               kahypar::Context& context,
-                              KaHyParParitioningResult& partition ) {
+                              KaHyParPartitioningResult& partition ) {
   kahypar_partition(hypergraph.num_vertices,
                     hypergraph.num_hyperedges,
                     context.partition.epsilon,
@@ -176,24 +176,11 @@ static void kahypar_partition(const KaHyParHypergraph& hypergraph,
 }
 
 // ! Computes the imbalance of a partition without applying it to the hypergraph.
-template< typename HyperGraph >
-static double imbalance( const HyperGraph& hg,
+static double imbalance( KaHyParHypergraph& kahypar_hypergraph,
                          const Context& context,
-                         const parallel::scalable_vector<kahypar_partition_id_t>& partition,
-                         const std::vector<HypernodeID>& reverse_mapping ) {
-  // Compute weight of each part
-  parallel::scalable_vector<HypernodeWeight> part_weights(context.partition.k, 0);
-  for ( HypernodeID u = 0; u < partition.size(); ++u ) {
-    ASSERT(u < reverse_mapping.size());
-    const HypernodeID hn = reverse_mapping[u];
-    const PartitionID part_id = partition[u];
-    ASSERT(part_id < (PartitionID) part_weights.size());
-    part_weights[part_id] += hg.nodeWeight(hn);
-  }
-
-  // Compute imbalance
-  FakeHypergraph hypergraph(std::move(part_weights));
-  return metrics::imbalance(hypergraph, context);
+                         const KaHyParPartitioningResult& kahypar_result) {
+  kahypar_hypergraph.computePartWeights(context.partition.k, kahypar_result.partition);
+  return metrics::imbalance(kahypar_hypergraph, context);
 }
 
 static void sanitizeCheck(kahypar::Context& context) {
