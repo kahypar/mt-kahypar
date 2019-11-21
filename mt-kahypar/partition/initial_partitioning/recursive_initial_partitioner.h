@@ -20,12 +20,9 @@
 
 #pragma once
 
-#include <future>
-
 #include "tbb/task_arena.h"
 #include "tbb/task_group.h"
-#include "tbb/parallel_for.h"
-#include "tbb/blocked_range.h"
+#include "tbb/parallel_invoke.h"
 
 #include <libkahypar.h>
 
@@ -115,10 +112,11 @@ class RecursiveInitialPartitionerT : public IInitialPartitioner {
       // Perform parallel recursion
       size_t num_threads_1 = std::ceil( ( (double) _context.shared_memory.num_threads ) / 2.0 );
       size_t num_threads_2 = std::floor( ( (double) _context.shared_memory.num_threads ) / 2.0 );
-      std::future<RecursivePartitionResult> f1 = std::async(std::launch::async, [&] { return recursivePartition(num_threads_1, 0); } );
-      std::future<RecursivePartitionResult> f2 = std::async(std::launch::async, [&] { return recursivePartition(num_threads_2, 1); } );
-      r1 = f1.get();
-      r2 = f2.get();
+      tbb::parallel_invoke([&] {
+        r1 = recursivePartition(num_threads_1, 0);
+      }, [&] {
+        r2 = recursivePartition(num_threads_2, 1);
+      });
     } else {
       r1 = recursivePartition(_context.shared_memory.num_threads, 0);
       r2.objective = std::numeric_limits<HyperedgeWeight>::max();
