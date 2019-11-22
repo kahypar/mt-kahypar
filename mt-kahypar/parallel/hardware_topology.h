@@ -185,13 +185,8 @@ class HardwareTopology {
   }
 
   static HardwareTopology& instance() {
-    if ( _instance == nullptr ) {
-      std::lock_guard<std::mutex> _lock(_mutex);
-      if ( _instance == nullptr ) {
-        _instance = new HardwareTopology();
-      }
-    }
-    return *_instance;
+    static HardwareTopology instance;
+    return instance;
   }
 
   size_t num_numa_nodes() const {
@@ -283,7 +278,6 @@ class HardwareTopology {
   }
 
   static std::mutex _mutex;
-  static HardwareTopology* _instance;
 
   const size_t _num_cpus;
   Topology _topology;
@@ -291,8 +285,6 @@ class HardwareTopology {
   std::vector<int> _cpu_to_numa_node;
 };
 
-template < typename HwTopology, typename Topology, typename Node >
-HardwareTopology<HwTopology, Topology, Node>* HardwareTopology<HwTopology, Topology, Node>::_instance { nullptr };
 template < typename HwTopology, typename Topology, typename Node >
 std::mutex HardwareTopology<HwTopology, Topology, Node>::_mutex;
 

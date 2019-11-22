@@ -123,14 +123,8 @@ class Timer {
  public:
 
   static Timer& instance(bool show_detailed_timings = false) {
-    if ( _instance == nullptr ) {
-      std::lock_guard<std::mutex> _lock(_mutex);
-      if ( _instance == nullptr ) {
-        _instance = new Timer(show_detailed_timings);
-      }
-    }
-    _instance->_show_detailed_timings = show_detailed_timings;
-    return *_instance;
+    static Timer instance(show_detailed_timings);
+    return instance;
   }
 
   void set_context_type(kahypar::ContextType type) {
@@ -188,7 +182,6 @@ class Timer {
     _show_detailed_timings(show_detailed_timings) { }
 
   static std::mutex _mutex;
-  static Timer* _instance;
 
   std::mutex _timing_mutex;
   std::unordered_map<Key, Timing, PairHasher> _timings;
@@ -196,7 +189,6 @@ class Timer {
   bool _show_detailed_timings;
 };
 
-Timer* Timer::_instance { nullptr };
 std::mutex Timer::_mutex;
 
 char Timer::TOP_LEVEL_PREFIX[] = " + ";

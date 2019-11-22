@@ -49,13 +49,8 @@ class TBBNumaArena {
 
  public:
   static TBBNumaArena& instance(const size_t num_threads = 1) {
-    if ( _instance == nullptr ) {
-      std::lock_guard<std::mutex> _lock(_mutex);
-      if ( _instance == nullptr ) {
-        _instance = new TBBNumaArena(num_threads);
-      }
-    }
-    return *_instance;
+    static TBBNumaArena instance(num_threads);
+    return instance;
   }
 
   int total_number_of_threads() const {
@@ -182,7 +177,6 @@ class TBBNumaArena {
   }
 
   static std::mutex _mutex;
-  static TBBNumaArena* _instance;
 
   int _num_threads;
   tbb::task_scheduler_init _init;
@@ -192,8 +186,6 @@ class TBBNumaArena {
   std::vector<NumaThreadPinningObserver> _observer;
 };
 
-template< typename HwTopology >
-TBBNumaArena<HwTopology>* TBBNumaArena<HwTopology>::_instance { nullptr };
 template< typename HwTopology >
 std::mutex TBBNumaArena<HwTopology>::_mutex;
 
