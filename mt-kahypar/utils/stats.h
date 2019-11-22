@@ -172,7 +172,6 @@ class Stats {
   kahypar::ContextType _type;
 };
 
-
 std::ostream & operator<< (std::ostream& str, const Stats::Stat& stat) {
   switch (stat._type) {
     case Stats::Type::BOOLEAN:

@@ -18,7 +18,6 @@
  *
  ******************************************************************************/
 
-
 #include "gmock/gmock.h"
 
 #include "mt-kahypar/partition/initial_partitioning/kahypar.h"
@@ -61,7 +60,6 @@ bool isEqual(const parallel::scalable_vector<T>& v1,
   return (v1.size() == v2.size() &&
           std::equal(v1.begin(), v1.end(), v2.begin()));
 }
-
 
 template <class HyperGraph>
 void assignPartitionIDs(HyperGraph& hypergraph) {

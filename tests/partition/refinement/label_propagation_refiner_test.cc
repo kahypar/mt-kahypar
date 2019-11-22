@@ -18,7 +18,6 @@
  *
  ******************************************************************************/
 
-
 #include "gmock/gmock.h"
 
 #include "mt-kahypar/definitions.h"
@@ -136,7 +135,6 @@ typedef ::testing::Types<TestConfig<2, kahypar::Objective::cut>,
                          TestConfig<8, kahypar::Objective::km1> > TestConfigs;
 
 TYPED_TEST_CASE(ALabelPropagationRefiner, TestConfigs);
-
 
 TYPED_TEST(ALabelPropagationRefiner, UpdatesImbalanceCorrectly) {
   this->refiner->refine({ }, this->metrics);

@@ -19,7 +19,6 @@
  *
  ******************************************************************************/
 
-
 #pragma once
 
 #include <vector>
@@ -63,7 +62,6 @@ class ExecutionPolicy : public kahypar::meta::PolicyBase {
   std::vector<size_t> _execution_levels;
   double _alpha;
 };
-
 
 class MultilevelExecutionPolicy : public ExecutionPolicy<MultilevelExecutionPolicy> {
  public:

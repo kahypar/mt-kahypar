@@ -19,7 +19,6 @@
  *
  ******************************************************************************/
 
-
 #pragma once
 
 #include <vector>
@@ -177,7 +176,6 @@ class Km1Policy : public GainPolicy<Km1Policy<HyperGraph>, HyperGraph> {
   using Base::_tmp_scores;
   bool _disable_randomization;
 };
-
 
 template <class HyperGraph = Mandatory>
 class CutPolicy : public GainPolicy<CutPolicy<HyperGraph>, HyperGraph> {

@@ -18,7 +18,6 @@
  *
  ******************************************************************************/
 
-
 #include "gmock/gmock.h"
 
 #include "mt-kahypar/definitions.h"

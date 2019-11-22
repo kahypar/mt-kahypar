@@ -159,7 +159,6 @@ static inline HyperGraph readHyperedges(std::ifstream& file,
   mt_kahypar::utils::Timer::instance().add_timing("sequential_read", "Sequential Line Reading",
                                                   "hypergraph_import", mt_kahypar::utils::Timer::Type::IMPORT, 0, std::chrono::duration<double>(end - start).count());
 
-
   // Parallel for, for reading hyperedges
   start = std::chrono::high_resolution_clock::now();
   switch (distribution) {
@@ -278,7 +277,6 @@ static inline HyperGraph readHypergraphFile(const std::string& filename,
                                                   "", mt_kahypar::utils::Timer::Type::IMPORT, 0, std::chrono::duration<double>(end - start).count());
   return hypergraph;
 }
-
 
 static inline void readPartitionFile(const std::string& filename, std::vector<PartitionID>& partition) {
   ASSERT(!filename.empty(), "No filename for partition file specified");

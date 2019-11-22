@@ -33,7 +33,6 @@
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
 #include "mt-kahypar/partition/context.h"
 
-
 namespace mt_kahypar {
 template <typename TypeTraits = Mandatory,
           typename ScorePolicy = Mandatory,

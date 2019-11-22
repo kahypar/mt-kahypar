@@ -18,7 +18,6 @@
  *
  ******************************************************************************/
 
-
 #include "gmock/gmock.h"
 
 #include "mt-kahypar/partition/context.h"
@@ -76,7 +75,6 @@ TEST_F(ARedistributorOnTwoNumaNodes, RedistributesCommunities) {
   ASSERT_EQ(1, TestStreamingHypergraph::get_numa_node_of_vertex(r_hypergraph.globalNodeID(5)));
   ASSERT_EQ(1, TestStreamingHypergraph::get_numa_node_of_vertex(r_hypergraph.globalNodeID(6)));
 }
-
 
 #define SYSTEM_HAS_MORE_THAN_FOUR_CORES false
 

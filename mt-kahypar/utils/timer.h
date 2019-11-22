@@ -191,7 +191,6 @@ class Timer {
 char Timer::TOP_LEVEL_PREFIX[] = " + ";
 char Timer::SUB_LEVEL_PREFIX[] = " + ";
 
-
 std::ostream & operator<< (std::ostream& str, const Timer& timer) {
   std::vector<Timer::Timing> timings;
   for (const auto& timing : timer._timings) {
@@ -210,7 +209,7 @@ std::ostream & operator<< (std::ostream& str, const Timer& timer) {
                  prefix += level > 0 ? std::string(Timer::SUB_LEVEL_PREFIX, Timer::SUB_LEVEL_PREFIX_LENGTH) : "";
                  size_t length = prefix.size() + timing.description().size();
                  str << prefix
-                     << timing.description();
+                 << timing.description();
                  if (length < Timer::MAX_LINE_LENGTH) {
                    str << std::string(Timer::MAX_LINE_LENGTH - length, ' ');
                  }

@@ -61,7 +61,6 @@ class CommunityCoarsenerT : public ICoarsener,
                                          AcceptancePolicy>;
   using Rating = typename Rater::Rating;
 
-
   static constexpr bool debug = false;
   static constexpr HypernodeID kInvalidHypernode = std::numeric_limits<HypernodeID>::max();
 
@@ -136,10 +135,10 @@ class CommunityCoarsenerT : public ICoarsener,
                                    parallel::scalable_vector<HypernodeID>& community_nodes) {
     ASSERT(community_nodes.size() > 1);
     DBG << "Start coarsening of community" << community_id
-        << "with" << _hg.numCommunityHypernodes(community_id) << "vertices"
-        << "and contraction limit" << contraction_limit
-        << "on numa node" << HwTopology::instance().numa_node_of_cpu(sched_getcpu())
-        << "on cpu" << sched_getcpu();
+    << "with" << _hg.numCommunityHypernodes(community_id) << "vertices"
+    << "and contraction limit" << contraction_limit
+    << "on numa node" << HwTopology::instance().numa_node_of_cpu(sched_getcpu())
+    << "on cpu" << sched_getcpu();
 
     // Sort community nodes in increasing order of their local community node id
     // Note, this is required by vertex pair rater that the node ids are sorted

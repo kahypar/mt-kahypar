@@ -44,7 +44,6 @@ namespace multilevel {
 static inline void partition(Hypergraph& hypergraph, const Context& context, const bool top_level);
 }  // namespace multilevel
 
-
 template <typename TypeTraits>
 class RecursiveInitialPartitionerT : public IInitialPartitioner {
  private:
@@ -181,7 +180,9 @@ class RecursiveInitialPartitionerT : public IInitialPartitioner {
             });
           });
       }
-      arena.execute([&] { group.wait(); });
+      arena.execute([&] {
+          group.wait();
+        });
 
       // Apply all bisections to current hypergraph
       PartitionID unbisected_block = (_context.partition.k % 2 == 1 ? (PartitionID)results.size() : kInvalidPartition);
@@ -234,13 +235,12 @@ class RecursiveInitialPartitionerT : public IInitialPartitioner {
                                         "initial_partitioning", mt_kahypar::utils::Timer::Type::INITIAL_PARTITIONING, 2 * recursion_number,
                                         std::chrono::duration<double>(end - start).count(), _top_level);
 
-
     // Call multilevel partitioner recursively
     DBG << "Perform recursive multilevel partitioner call with"
-        << "k =" << result.context.partition.k << ","
-        << "p =" << result.context.shared_memory.num_threads << ","
-        << "c =" << result.context.coarsening.contraction_limit << "and"
-        << "rep =" << result.context.initial_partitioning.runs;
+    << "k =" << result.context.partition.k << ","
+    << "p =" << result.context.shared_memory.num_threads << ","
+    << "c =" << result.context.coarsening.contraction_limit << "and"
+    << "rep =" << result.context.initial_partitioning.runs;
 
     if (_top_level) {
       utils::Timer::instance().set_context_type(kahypar::ContextType::initial_partitioning);
@@ -389,7 +389,6 @@ template <typename TypeTraits>
 PartitionID RecursiveInitialPartitionerT<TypeTraits>::kInvalidPartition = -1;
 template <typename TypeTraits>
 HypernodeID RecursiveInitialPartitionerT<TypeTraits>::kInvalidHypernode = std::numeric_limits<HypernodeID>::max();
-
 
 using RecursiveInitialPartitioner = RecursiveInitialPartitionerT<GlobalTypeTraits>;
 }  // namespace mt_kahypar

@@ -28,7 +28,6 @@
 #include <tbb/task_group.h>
 #include <tbb/tick_count.h>
 
-
 namespace mt_kahypar {
 namespace parallel {
 class Chunking {
@@ -64,7 +63,6 @@ class Chunking {
     }
   }
 };
-
 
 class PrefixSum {
  public:
@@ -140,7 +138,6 @@ class PrefixSum {
     }
     tg.wait();
   }
-
 
   /*
    * As above. Requirement for f and neutralElement is: f(neutralElement, x) = x

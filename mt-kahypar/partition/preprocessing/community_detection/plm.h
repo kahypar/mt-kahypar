@@ -179,7 +179,6 @@ class PLM {
             }
           }
 
-
           HEAVY_PREPROCESSING_ASSERT(verifyGain(G, C, u, bestCluster, bestGain, incidentClusterWeights));
 
           incidentClusterWeights.clear();
@@ -202,7 +201,6 @@ class PLM {
 #else
       tbb::parallel_for_each(nodes, moveNode);
 #endif
-
 
       nodesMovedThisRound = ets_nodesMovedThisRound.combine(std::plus<size_t>());
       clusteringChanged |= nodesMovedThisRound > 0;
@@ -294,7 +292,6 @@ class PLM {
     return true;
 #endif
   }
-
 
   static std::pair<ArcWeight, ArcWeight> intraClusterWeights_And_SumOfSquaredClusterVolumes(const Graph& G, const ds::Clustering& C) {
     ArcWeight intraClusterWeights = 0;

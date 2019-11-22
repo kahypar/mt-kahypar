@@ -69,7 +69,7 @@ class HypergraphPrunerT {
       ASSERT(i >= 0 && static_cast<size_t>(i) < _removed_single_node_hyperedges.size(),
              "Index out of bounds" << i);
       DBG << "restore single-node HE "
-          << _removed_single_node_hyperedges[i];
+      << _removed_single_node_hyperedges[i];
       hypergraph.restoreSinglePinHyperedge(_removed_single_node_hyperedges[i]);
       _removed_single_node_hyperedges.pop_back();
     }
@@ -135,7 +135,7 @@ class HypergraphPrunerT {
           // _fingerprints[j].id.
           DBG << _fingerprints[i].hash << "==" << _fingerprints[j].hash;
           DBG << "Size:" << hypergraph.edgeSize(_fingerprints[i].id) << "=="
-              << hypergraph.edgeSize(_fingerprints[j].id);
+          << hypergraph.edgeSize(_fingerprints[j].id);
           if (_fingerprints[j].id != kInvalidID &&
               hypergraph.numCommunitiesInHyperedge(_fingerprints[i].id) ==
               hypergraph.numCommunitiesInHyperedge(_fingerprints[j].id) &&
@@ -176,7 +176,7 @@ class HypergraphPrunerT {
     _fingerprints.clear();
     for (const HyperedgeID& he : hypergraph.validIncidentEdges(u, community_id)) {
       DBG << "Fingerprint for HE" << he << "= {" << he << "," << hypergraph.edgeHash(he)
-          << "," << hypergraph.edgeSize(he) << "}";
+      << "," << hypergraph.edgeSize(he) << "}";
       _fingerprints.emplace_back(Fingerprint { he, hypergraph.edgeHash(he) });
     }
   }
@@ -191,7 +191,6 @@ class HypergraphPrunerT {
       }
     }
   }
-
 
   bool isParallelHyperedge(HyperGraph& hypergraph, const HyperedgeID he) const {
     kahypar::ds::FastResetFlagArray<>& contained_hypernodes = _contained_hypernodes.local();

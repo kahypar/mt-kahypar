@@ -26,7 +26,6 @@
 #include <numeric>
 #include <vector>
 
-
 #include "mt-kahypar/macros.h"
 #include "mt-kahypar/parallel/parallel_prefix_sum.h"
 

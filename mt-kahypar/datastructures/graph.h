@@ -31,7 +31,6 @@
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/context.h"
 
-
 namespace mt_kahypar {
 namespace ds {
 class AdjListGraph {
@@ -50,7 +49,8 @@ class AdjListGraph {
 
   explicit AdjListGraph(const size_t numNodes) :
     adj(numNodes),
-    volume(numNodes, 0)  /* , selfLoopWeight(numNodes, 0) */ { }
+    volume(numNodes, 0) {  /* , selfLoopWeight(numNodes, 0) */
+  }
 
   void addArc(const NodeID u, const NodeID v, const ArcWeight weight) {
     assert(u != v);
@@ -72,13 +72,21 @@ class AdjListGraph {
 
   // ArcWeight getSelfLoopWeight(const NodeID u) const { return selfLoopWeight[u]; }
 
-  const AdjList& arcsOf(const NodeID u) const { return adj[u]; }
+  const AdjList& arcsOf(const NodeID u) const {
+    return adj[u];
+  }
 
-  AdjList& arcsOf(const NodeID u) { return adj[u]; }
+  AdjList& arcsOf(const NodeID u) {
+    return adj[u];
+  }
 
-  size_t degree(const NodeID u) const { return adj[u].size(); }
+  size_t degree(const NodeID u) const {
+    return adj[u].size();
+  }
 
-  ArcWeight nodeVolume(const NodeID u) const { return volume[u]; }
+  ArcWeight nodeVolume(const NodeID u) const {
+    return volume[u];
+  }
 
   ArcWeight computeNodeVolume(const NodeID u) {
     for (Arc& arc : arcsOf(u))
@@ -90,14 +98,23 @@ class AdjListGraph {
     volume[u] = vol;
   }
 
-  size_t numNodes() const { return adj.size(); }
+  size_t numNodes() const {
+    return adj.size();
+  }
 
-  void setNumNodes(const size_t n) { adj.resize(n); volume.resize(n); }
+  void setNumNodes(const size_t n) {
+    adj.resize(n);
+    volume.resize(n);
+  }
 
-  auto nodes() const { return boost::irange<NodeID>(0, static_cast<NodeID>(numNodes())); }
+  auto nodes() const {
+    return boost::irange<NodeID>(0, static_cast<NodeID>(numNodes()));
+  }
 
   static constexpr size_t coarseGrainsize = 20000;
-  auto nodesParallelCoarseChunking() const { return tbb::blocked_range<NodeID>(0, static_cast<NodeID>(numNodes()), coarseGrainsize); }
+  auto nodesParallelCoarseChunking() const {
+    return tbb::blocked_range<NodeID>(0, static_cast<NodeID>(numNodes()), coarseGrainsize);
+  }
 
   size_t numArcs = 0;
 
@@ -147,7 +164,6 @@ class AdjListGraph {
   // std::vector<ArcWeight> selfLoopWeight;
 };
 
-
 // Ben Style template everything and do ID mapping on-the-fly in case copying stuff becomes a bottleneck
 class AdjListStarExpansion {
  private:
@@ -189,10 +205,14 @@ class AdjListStarExpansion {
           });
         break;
       case LouvainEdgeWeight::non_uniform:
-        fill([&](const HyperedgeID he, const HypernodeID) -> AdjListGraph::ArcWeight { return static_cast<ArcWeight>(hg.edgeWeight(he)) / static_cast<ArcWeight>(hg.edgeSize(he)); });
+        fill([&](const HyperedgeID he, const HypernodeID) -> AdjListGraph::ArcWeight {
+            return static_cast<ArcWeight>(hg.edgeWeight(he)) / static_cast<ArcWeight>(hg.edgeSize(he));
+          });
         break;
       case LouvainEdgeWeight::uniform:
-        fill([&](const HyperedgeID he, const HypernodeID) -> AdjListGraph::ArcWeight { return static_cast<ArcWeight>(hg.edgeWeight(he)); });
+        fill([&](const HyperedgeID he, const HypernodeID) -> AdjListGraph::ArcWeight {
+            return static_cast<ArcWeight>(hg.edgeWeight(he));
+          });
         break;
       case LouvainEdgeWeight::hybrid:
         LOG << "Only uniform/non-uniform/degree edge weight is allowed at graph construction.";

@@ -460,7 +460,6 @@ TEST_F(AConcurrentHypergraph, HasCorrectConnectivitySetIfTwoNodesMovesConcurrent
   verifyConnectivitySet(hypergraph, hypergraph.globalEdgeID(3), { 0, 2 });
 }
 
-
 TEST_F(AConcurrentHypergraph, HasCorrectConnectivitySetIfAllNodesMovesConcurrent) {
   TestHypergraph hypergraph = construct_test_hypergraph(*this);
 

@@ -128,10 +128,10 @@ inline void Partitioner::sanitize(Hypergraph& hypergraph, const Context& context
   if (context.partition.verbose_output && result.num_removed_single_node_hes > 0) {
     LOG << "Performing single-node HE removal:";
     LOG << "\033[1m\033[31m" << " # removed hyperedges with |e|=1 = "
-        << result.num_removed_single_node_hes
-        << "\033[0m";
+    << result.num_removed_single_node_hes
+    << "\033[0m";
     LOG << "\033[1m\033[31m" << " ===>" << result.num_unconnected_hns
-        << "unconnected HNs could have been removed" << "\033[0m";
+    << "unconnected HNs could have been removed" << "\033[0m";
     io::printStripe();
   }
   HighResClockTimepoint end = std::chrono::high_resolution_clock::now();

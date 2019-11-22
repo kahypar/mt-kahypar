@@ -321,7 +321,6 @@ TEST_F(ACommunityHypergraph, ContractsTwoHypernodes5) {
       });
 }
 
-
 TEST_F(ACommunityHypergraph, ContractsTwoHypernodes6) {
   TestHypergraph hypergraph = construct_test_hypergraph(*this);
   std::vector<HypernodeID> id = { GLOBAL_ID(hypergraph, 0), GLOBAL_ID(hypergraph, 1), GLOBAL_ID(hypergraph, 2),

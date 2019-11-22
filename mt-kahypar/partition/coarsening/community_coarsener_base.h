@@ -155,11 +155,9 @@ class CommunityCoarsenerBase {
       mt_kahypar::utils::Timer::instance().update_timing("label_propagation", "Label Propagation",
                                                          "refinement", mt_kahypar::utils::Timer::Type::REFINEMENT, 1, std::chrono::duration<double>(end - start).count());
 
-
       refinement_nodes.clear();
       _history.pop_back();
     }
-
 
     ASSERT(metrics::objective(_hg, _context.partition.objective) ==
            current_metrics.getMetric(kahypar::Mode::direct_kway, _context.partition.objective),
@@ -302,7 +300,6 @@ class CommunityCoarsenerBase {
     HighResClockTimepoint end = std::chrono::high_resolution_clock::now();
     mt_kahypar::utils::Timer::instance().add_timing("determine_he_weights", "Determine HE weights",
                                                     "postprocess_parallel_hyperedges", mt_kahypar::utils::Timer::Type::COARSENING, 1, std::chrono::duration<double>(end - start).count());
-
 
     start = std::chrono::high_resolution_clock::now();
     _hg.invalidateDisabledHyperedgesFromIncidentNets();

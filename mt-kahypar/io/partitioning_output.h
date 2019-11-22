@@ -53,7 +53,6 @@ Statistic createStats(const std::vector<T>& vec, const double avg, const double 
   return stats;
 }
 
-
 void printStats(const Statistic& he_size_stats,
                 const Statistic& he_weight_stats,
                 const Statistic& hn_deg_stats,
@@ -66,37 +65,37 @@ void printStats(const Statistic& he_size_stats,
   const uint8_t hn_weight_width = std::max(kahypar::math::digits(hn_weight_stats.max), double_width) + 4;
 
   LOG << "HE size" << std::right << std::setw(he_size_width + 10)
-      << "HE weight" << std::right << std::setw(he_weight_width + 8)
-      << "HN degree" << std::right << std::setw(hn_deg_width + 8)
-      << "HN weight";
+  << "HE weight" << std::right << std::setw(he_weight_width + 8)
+  << "HN degree" << std::right << std::setw(hn_deg_width + 8)
+  << "HN weight";
   LOG << "| min=" << std::left << std::setw(he_size_width) << he_size_stats.min
-      << " | min=" << std::left << std::setw(he_weight_width) << he_weight_stats.min
-      << " | min=" << std::left << std::setw(hn_deg_width) << hn_deg_stats.min
-      << " | min=" << std::left << std::setw(hn_weight_width) << hn_weight_stats.min;
+  << " | min=" << std::left << std::setw(he_weight_width) << he_weight_stats.min
+  << " | min=" << std::left << std::setw(hn_deg_width) << hn_deg_stats.min
+  << " | min=" << std::left << std::setw(hn_weight_width) << hn_weight_stats.min;
   LOG << "| Q1 =" << std::left << std::setw(he_size_width) << he_size_stats.q1
-      << " | Q1 =" << std::left << std::setw(he_weight_width) << he_weight_stats.q1
-      << " | Q1 =" << std::left << std::setw(hn_deg_width) << hn_deg_stats.q1
-      << " | Q1 =" << std::left << std::setw(hn_weight_width) << hn_weight_stats.q1;
+  << " | Q1 =" << std::left << std::setw(he_weight_width) << he_weight_stats.q1
+  << " | Q1 =" << std::left << std::setw(hn_deg_width) << hn_deg_stats.q1
+  << " | Q1 =" << std::left << std::setw(hn_weight_width) << hn_weight_stats.q1;
   LOG << "| med=" << std::left << std::setw(he_size_width) << he_size_stats.med
-      << " | med=" << std::left << std::setw(he_weight_width) << he_weight_stats.med
-      << " | med=" << std::left << std::setw(hn_deg_width) << hn_deg_stats.med
-      << " | med=" << std::left << std::setw(hn_weight_width) << hn_weight_stats.med;
+  << " | med=" << std::left << std::setw(he_weight_width) << he_weight_stats.med
+  << " | med=" << std::left << std::setw(hn_deg_width) << hn_deg_stats.med
+  << " | med=" << std::left << std::setw(hn_weight_width) << hn_weight_stats.med;
   LOG << "| Q3 =" << std::left << std::setw(he_size_width) << he_size_stats.q3
-      << " | Q3 =" << std::left << std::setw(he_weight_width) << he_weight_stats.q3
-      << " | Q3 =" << std::left << std::setw(hn_deg_width) << hn_deg_stats.q3
-      << " | Q3 =" << std::left << std::setw(hn_weight_width) << hn_weight_stats.q3;
+  << " | Q3 =" << std::left << std::setw(he_weight_width) << he_weight_stats.q3
+  << " | Q3 =" << std::left << std::setw(hn_deg_width) << hn_deg_stats.q3
+  << " | Q3 =" << std::left << std::setw(hn_weight_width) << hn_weight_stats.q3;
   LOG << "| max=" << std::left << std::setw(he_size_width) << he_size_stats.max
-      << " | max=" << std::left << std::setw(he_weight_width) << he_weight_stats.max
-      << " | max=" << std::left << std::setw(hn_deg_width) << hn_deg_stats.max
-      << " | max=" << std::left << std::setw(hn_weight_width) << hn_weight_stats.max;
+  << " | max=" << std::left << std::setw(he_weight_width) << he_weight_stats.max
+  << " | max=" << std::left << std::setw(hn_deg_width) << hn_deg_stats.max
+  << " | max=" << std::left << std::setw(hn_weight_width) << hn_weight_stats.max;
   LOG << "| avg=" << std::left << std::setw(he_size_width) << he_size_stats.avg
-      << " | avg=" << std::left << std::setw(he_weight_width) << he_weight_stats.avg
-      << " | avg=" << std::left << std::setw(hn_deg_width) << hn_deg_stats.avg
-      << " | avg=" << std::left << std::setw(hn_weight_width) << hn_weight_stats.avg;
+  << " | avg=" << std::left << std::setw(he_weight_width) << he_weight_stats.avg
+  << " | avg=" << std::left << std::setw(hn_deg_width) << hn_deg_stats.avg
+  << " | avg=" << std::left << std::setw(hn_weight_width) << hn_weight_stats.avg;
   LOG << "| sd =" << std::left << std::setw(he_size_width) << he_size_stats.sd
-      << " | sd =" << std::left << std::setw(he_weight_width) << he_weight_stats.sd
-      << " | sd =" << std::left << std::setw(hn_deg_width) << hn_deg_stats.sd
-      << " | sd =" << std::left << std::setw(hn_weight_width) << hn_weight_stats.sd;
+  << " | sd =" << std::left << std::setw(he_weight_width) << he_weight_stats.sd
+  << " | sd =" << std::left << std::setw(hn_deg_width) << hn_deg_stats.sd
+  << " | sd =" << std::left << std::setw(hn_weight_width) << hn_weight_stats.sd;
 }
 }  // namespace internal
 
@@ -178,8 +177,8 @@ inline void printHypergraphInfo(const Hypergraph& hypergraph, const std::string&
   LOG << "Name :" << name;
   // LOG << "Type:" << hypergraph.typeAsString();
   LOG << "# HNs :" << num_hypernodes
-      << "# HEs :" << num_hyperedges
-      << "# pins:" << num_pins;
+  << "# HEs :" << num_hyperedges
+  << "# pins:" << num_pins;
 
   internal::printStats(
     internal::createStats(he_sizes, avg_he_size, stdev_he_size),
@@ -197,10 +196,10 @@ inline void printPartSizesAndWeights(const Hypergraph& hypergraph) {
   const uint8_t k_digits = kahypar::math::digits(hypergraph.k());
   for (PartitionID i = 0; i != hypergraph.k(); ++i) {
     LOG << "|part" << std::right << std::setw(k_digits) << i
-        << std::setw(1) << "| =" << std::right << std::setw(part_digits) << hypergraph.partSize(i)
-        << std::setw(1) << " w(" << std::right << std::setw(k_digits) << i
-        << std::setw(1) << ") =" << std::right << std::setw(part_digits)
-        << hypergraph.partWeight(i);
+    << std::setw(1) << "| =" << std::right << std::setw(part_digits) << hypergraph.partSize(i)
+    << std::setw(1) << " w(" << std::right << std::setw(k_digits) << i
+    << std::setw(1) << ") =" << std::right << std::setw(part_digits)
+    << hypergraph.partWeight(i);
   }
 }
 
@@ -210,7 +209,7 @@ static inline void printPartitioningResults(const Hypergraph& hypergraph,
   if (context.partition.verbose_output) {
     LOG << description;
     LOG << context.partition.objective << "      ="
-        << metrics::objective(hypergraph, context.partition.objective);
+    << metrics::objective(hypergraph, context.partition.objective);
     LOG << "imbalance =" << metrics::imbalance(hypergraph, context);
     LOG << "Part sizes and weights:";
     io::printPartSizesAndWeights(hypergraph);

@@ -38,12 +38,18 @@ class Clustering : public std::vector<PartitionID> {
     Base(n) { }
 
   // make Clustering a callable, so we don't need to wrap it in other callables.
-  const PartitionID & operator() (const size_t x) const { return operator[] (x); }
-  PartitionID & operator() (const size_t x) { return operator[] (x); }
+  const PartitionID & operator() (const size_t x) const {
+    return operator[] (x);
+  }
+  PartitionID & operator() (const size_t x) {
+    return operator[] (x);
+  }
 
   void assignSingleton(bool parallel = false) {
     if (parallel) {
-      tbb::parallel_for(PartitionID(0), static_cast<PartitionID>(size()), [&](PartitionID i) { (*this)[i] = i; });
+      tbb::parallel_for(PartitionID(0), static_cast<PartitionID>(size()), [&](PartitionID i) {
+            (*this)[i] = i;
+          });
     } else {
       std::iota(begin(), end(), 0);
     }

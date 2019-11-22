@@ -185,7 +185,7 @@ class CommunityRedistributorT {
             PartitionID community_id = hypergraph.communityID(hn);
             if (community_assignment[community_id] != node) {
               LOG << "Hypernode" << hn << "should be on numa node" << community_assignment[community_id]
-                  << "but is on node" << node;
+              << "but is on node" << node;
               return false;
             }
           }

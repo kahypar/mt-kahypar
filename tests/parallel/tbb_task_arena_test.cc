@@ -18,7 +18,6 @@
  *
  ******************************************************************************/
 
-
 #include "gmock/gmock.h"
 
 #include "tbb/blocked_range.h"
@@ -92,7 +91,6 @@ class ATBBNumaArenaTest : public Test {
  private:
   int num_threads;
 };
-
 
 #define SYSTEM_HAS_MORE_THAN_FOUR_CORES false
 typedef ::testing::Types<Numa<1>, Numa<2>

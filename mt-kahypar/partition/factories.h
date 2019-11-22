@@ -63,7 +63,6 @@ using InitialPartitionerFactory = kahypar::meta::Factory<InitialPartitioningMode
 using LabelPropagationFactory = kahypar::meta::Factory<LabelPropagationAlgorithm,
                                                        IRefiner* (*)(Hypergraph&, const Context&)>;
 
-
 using LabelPropagationKm1Dispatcher = kahypar::meta::StaticMultiDispatchFactory<LabelPropagationKm1Refiner,
                                                                                 IRefiner,
                                                                                 kahypar::meta::Typelist<ExecutionPolicyClasses> >;

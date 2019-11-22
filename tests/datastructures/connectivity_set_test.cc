@@ -240,7 +240,6 @@ TEST(AConnectivitySet, AddSeveralPartitionsAndRemoveSeveral3) {
   verify(conn_set, 32, added);
 }
 
-
 TEST(AConnectivitySet, AddConcurrentTwoPartitions1) {
   ConnectivitySet conn_set(32);
   std::set<PartitionID> added = { 7, 16 };
@@ -284,7 +283,6 @@ TEST(AConnectivitySet, AddConcurrentTwoPartitions4) {
       });
   verify(conn_set, 32, added);
 }
-
 
 TEST(AConnectivitySet, AddConcurrentSeveralPartitions1) {
   ConnectivitySet conn_set(32);

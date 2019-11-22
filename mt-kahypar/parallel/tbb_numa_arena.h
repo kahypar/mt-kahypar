@@ -107,13 +107,17 @@ class TBBNumaArena {
 
   void wait() {
     for (int node = 0; node < num_used_numa_nodes(); ++node) {
-      _arenas[node].execute([&, node] { _groups[node].wait(); });
+      _arenas[node].execute([&, node] {
+            _groups[node].wait();
+          });
     }
   }
 
   void wait(const int node, tbb::task_group& group) {
     ASSERT(node < (int)_arenas.size());
-    _arenas[node].execute([&] { group.wait(); });
+    _arenas[node].execute([&] {
+          group.wait();
+        });
   }
 
   void terminate() {
@@ -162,7 +166,7 @@ class TBBNumaArena {
       if (used_cpus_on_numa_node[node] > 0) {
         int num_cpus = used_cpus_on_numa_node[node];
         DBG << "Initialize TBB task arena on numa node" << node
-            << "with" << num_cpus << "threads";
+        << "with" << num_cpus << "threads";
         _arenas.emplace_back(num_cpus, _num_threads == 1 ? 1 : 0);
         _observer.emplace_back(_arenas.back(), node);
       }

@@ -39,6 +39,8 @@ class DoNothingRefiner final : public IRefiner {
 
  private:
   bool refineImpl(const std::vector<HypernodeID>&,
-                  kahypar::Metrics &) override final { return false; }
+                  kahypar::Metrics &) override final {
+    return false;
+  }
 };
 }  // namespace kahypar

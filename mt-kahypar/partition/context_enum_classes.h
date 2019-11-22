@@ -129,7 +129,6 @@ std::ostream & operator<< (std::ostream& os, const InitialHyperedgeDistribution&
   return os << static_cast<uint8_t>(strategy);
 }
 
-
 std::ostream & operator<< (std::ostream& os, const CommunityAssignmentObjective& objective) {
   switch (objective) {
     case CommunityAssignmentObjective::vertex_objective: return os << "vertex_objective";

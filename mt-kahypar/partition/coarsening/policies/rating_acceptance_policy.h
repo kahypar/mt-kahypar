@@ -40,7 +40,6 @@ class BestRatingWithTieBreaking final : public kahypar::meta::PolicyBase {
   }
 };
 
-
 class BestRatingPreferringUnmatched final : public kahypar::meta::PolicyBase {
  public:
   KAHYPAR_ATTRIBUTE_ALWAYS_INLINE static inline bool acceptRating(const RatingType tmp,

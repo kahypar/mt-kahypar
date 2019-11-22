@@ -147,8 +147,8 @@ class DirectInitialPartitionerT : public IInitialPartitioner {
                                                  const size_t runs,
                                                  const size_t seed) {
     DBG << "Start initial partitioning with" << runs << "initial partitioning runs"
-        << "on numa node" << HwTopology::instance().numa_node_of_cpu(sched_getcpu())
-        << "on cpu" << sched_getcpu();
+    << "on numa node" << HwTopology::instance().numa_node_of_cpu(sched_getcpu())
+    << "on cpu" << sched_getcpu();
 
     KaHyParHypergraph kahypar_hypergraph = convertToKaHyParHypergraph(_hg, node_mapping);
     KaHyParPartitioningResult best(kahypar_hypergraph.num_vertices);
@@ -187,10 +187,10 @@ class DirectInitialPartitionerT : public IInitialPartitioner {
     }
 
     DBG << "Finished initial partitioning"
-        << "on numa node" << HwTopology::instance().numa_node_of_cpu(sched_getcpu())
-        << "on cpu" << sched_getcpu()
-        << "with quality" << best.objective
-        << "and imbalance" << best.imbalance;
+    << "on numa node" << HwTopology::instance().numa_node_of_cpu(sched_getcpu())
+    << "on cpu" << sched_getcpu()
+    << "with quality" << best.objective
+    << "and imbalance" << best.imbalance;
     return best;
   }
 

@@ -187,7 +187,6 @@ class Hypergraph {
     int64_t size;
   };
 
-
   /**
    * Each thread contains its local part weight and size information. If a hypernode changes
    * its block, the modification to part weights and sizes are only applied to
@@ -292,7 +291,9 @@ class Hypergraph {
     _communities_num_hypernodes(),
     _communities_num_pins(),
     _part_info(),
-    _local_part_info([&] { return ThreadPartInfos::construct(_k, _part_info); }),
+    _local_part_info([&] {
+        return ThreadPartInfos::construct(_k, _part_info);
+      }),
     _hypergraphs(),
     _node_mapping(),
     _edge_mapping(),
@@ -312,7 +313,9 @@ class Hypergraph {
     _communities_num_hypernodes(),
     _communities_num_pins(),
     _part_info(k),
-    _local_part_info([&] { return ThreadPartInfos::construct(_k, _part_info); }),
+    _local_part_info([&] {
+        return ThreadPartInfos::construct(_k, _part_info);
+      }),
     _hypergraphs(std::move(hypergraphs)),
     _node_mapping(num_hypernodes, 0),
     _edge_mapping(),
@@ -335,7 +338,9 @@ class Hypergraph {
     _communities_num_hypernodes(),
     _communities_num_pins(),
     _part_info(k),
-    _local_part_info([&] { return ThreadPartInfos::construct(_k, _part_info); }),
+    _local_part_info([&] {
+        return ThreadPartInfos::construct(_k, _part_info);
+      }),
     _hypergraphs(std::move(hypergraphs)),
     _node_mapping(std::move(node_mapping)),
     _edge_mapping(),
@@ -355,7 +360,9 @@ class Hypergraph {
     _communities_num_hypernodes(std::move(other._communities_num_hypernodes)),
     _communities_num_pins(std::move(other._communities_num_pins)),
     _part_info(std::move(other._part_info)),
-    _local_part_info([&] { return ThreadPartInfos::construct(_k, _part_info); }),
+    _local_part_info([&] {
+        return ThreadPartInfos::construct(_k, _part_info);
+      }),
     _hypergraphs(std::move(other._hypergraphs)),
     _node_mapping(std::move(other._node_mapping)),
     _edge_mapping(std::move(other._edge_mapping)),
@@ -370,7 +377,9 @@ class Hypergraph {
     _communities_num_hypernodes = std::move(other._communities_num_hypernodes);
     _communities_num_pins = std::move(other._communities_num_hypernodes);
     _part_info = std::move(other._part_info);
-    _local_part_info = ThreadLocalPartInfos([&] { return ThreadPartInfos::construct(_k, _part_info); });
+    _local_part_info = ThreadLocalPartInfos([&] {
+          return ThreadPartInfos::construct(_k, _part_info);
+        });
     _hypergraphs = std::move(other._hypergraphs);
     _node_mapping = std::move(other._node_mapping);
     _edge_mapping = std::move(other._edge_mapping);
@@ -434,7 +443,6 @@ class Hypergraph {
     return _k;
   }
 
-
   // ####################### Iterators #######################
 
   // ! Returns an iterator over the set of active nodes of the hypergraph
@@ -477,7 +485,6 @@ class Hypergraph {
     return _hypergraphs[node].edges();
   }
 
-
   /*!
    * Illustration for different incidentEdges iterators:
    *
@@ -491,7 +498,6 @@ class Hypergraph {
    *
    *  <----------------------------------------- incidentEdges(u) ------------------------------------------>
    */
-
 
   // ! Returns a for-each iterator-pair to loop over the set of incident hyperedges of hypernode u.
   // ! During parallel community coarsening we do not remove parallel hyperedges (which spans more than
@@ -1029,7 +1035,6 @@ class Hypergraph {
     return Memento { u, v, community_id };
   }
 
-
   /*!
   * Undoes a contraction operation that was remembered by the memento.
   *
@@ -1414,7 +1419,6 @@ class Hypergraph {
         });
   }
 
-
   // ####################### Copy #######################
 
   // ! Makes a copy of the current state of the hypergraph (without partition info).
@@ -1583,8 +1587,8 @@ class Hypergraph {
           for (HypernodeID hn = 0; hn < _num_hypernodes; ++hn) {
             if (_node_mapping[hn] >= _hypergraphs.size()) {
               LOG << "Hypernode" << hn << "should be mapped to hypergraph on node"
-                  << _node_mapping[hn] << ", but there are only" << _hypergraphs.size()
-                  << "nodes";
+              << _node_mapping[hn] << ", but there are only" << _hypergraphs.size()
+              << "nodes";
               return false;
             }
           }
@@ -1663,7 +1667,6 @@ class Hypergraph {
     end = std::chrono::high_resolution_clock::now();
     mt_kahypar::utils::Timer::instance().add_timing("initialize_incident_nets", "Initialize Incident Nets",
                                                     "initialize_hypernodes", mt_kahypar::utils::Timer::Type::IMPORT, 3, std::chrono::duration<double>(end - start).count());
-
 
     ASSERT([&] {
           // Internally verify that incident nets are constructed correctly

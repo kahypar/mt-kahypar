@@ -54,7 +54,6 @@ class ParallelClusteringContractionAdjList {
     tbb::enumerable_thread_specific<tbb::tick_count::interval_t> ts_runtime(0.0);
     tbb::enumerable_thread_specific<size_t> ts_deg(0);
 
-
     ds::AdjListGraph GCoarse(numClusters);
     tbb::parallel_for_each(GCoarse.nodes(), [&](const NodeID coarseNode) {
         // std::for_each(GCoarse.nodes().begin(), GCoarse.nodes().end(), [&](const NodeID coarseNode) {

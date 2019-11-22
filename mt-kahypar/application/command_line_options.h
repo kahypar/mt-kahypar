@@ -18,7 +18,6 @@
  *
  ******************************************************************************/
 
-
 #pragma once
 
 #include <boost/program_options.hpp>
@@ -392,7 +391,6 @@ void processCommandLineInput(Context& context, int argc, char* argv[]) {
 
   po::store(po::parse_config_file(file, ini_line_options, true), cmd_vm);
   po::notify(cmd_vm);
-
 
   std::string epsilon_str = std::to_string(context.partition.epsilon);
   epsilon_str.erase(epsilon_str.find_last_not_of('0') + 1, std::string::npos);

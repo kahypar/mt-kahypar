@@ -100,7 +100,7 @@ class BinPackingCommunityAssignmentT : public ICommunityAssignment {
         current_capacity[current_bin] += community.objective;
         community_assignment[community.community_id] = current_bin;
         DBG << "Assign community" << community.community_id << "of size" << community.objective << "to node" << current_bin
-            << "(Remaining Capacity =" << (bin_capacities[current_bin] - current_capacity[current_bin]) << ")";
+        << "(Remaining Capacity =" << (bin_capacities[current_bin] - current_capacity[current_bin]) << ")";
       } else {
         // If there is no remaining space to assign community to a node,
         // we assign the community to the node where the overflow is minimal
@@ -118,7 +118,7 @@ class BinPackingCommunityAssignmentT : public ICommunityAssignment {
         current_capacity[assigned_bin] += community.objective;
         community_assignment[community.community_id] = assigned_bin;
         DBG << "Assign community" << community.community_id << "of size" << community.objective << "to node" << assigned_bin
-            << "(Overflow Capacity =" << (current_capacity[assigned_bin] - bin_capacities[assigned_bin]) << ")";
+        << "(Overflow Capacity =" << (current_capacity[assigned_bin] - bin_capacities[assigned_bin]) << ")";
       }
 
       current_bin = (current_bin + 1) % used_numa_nodes;

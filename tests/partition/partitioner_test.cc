@@ -18,7 +18,6 @@
  *
  ******************************************************************************/
 
-
 #include "gmock/gmock.h"
 
 #include "mt-kahypar/definitions.h"
@@ -136,7 +135,6 @@ void verifyThatHypergraphsAreEquivalent(const Hypergraph& hypergraph,
     ASSERT_EQ(num_pins, pins.size());
   }
 }
-
 
 TEST_F(APartitioner, AssignsEachVertexAPartID) {
   partition::Partitioner().partition(hypergraph, context);

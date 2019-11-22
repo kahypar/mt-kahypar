@@ -47,8 +47,12 @@ class ClearListSet {
     return set[e];
   }
 
-  const std::vector<T>& keys() const { return contained_keys; }
-  std::vector<T>& keys() { return contained_keys; }
+  const std::vector<T>& keys() const {
+    return contained_keys;
+  }
+  std::vector<T>& keys() {
+    return contained_keys;
+  }
 
   template <typename F>
   void forKeys(F f) {
@@ -67,7 +71,6 @@ class ClearListSet {
   std::vector<T> contained_keys;
   boost::dynamic_bitset<> set;
 };
-
 
 template <class K, class V>
 class ClearListMap {
@@ -97,12 +100,20 @@ class ClearListMap {
     return map[k] != defaultValue;
   }
 
-  const V & operator[] (const K k) const { return map[k]; }
+  const V & operator[] (const K k) const {
+    return map[k];
+  }
 
-  V & operator[] (const K k) { return map[k]; }
+  V & operator[] (const K k) {
+    return map[k];
+  }
 
-  const std::vector<K>& keys() const { return contained_keys; }
-  std::vector<K>& keys() { return contained_keys; }
+  const std::vector<K>& keys() const {
+    return contained_keys;
+  }
+  std::vector<K>& keys() {
+    return contained_keys;
+  }
 
   template <typename F>
   void forKeyValuePairs(F f) {

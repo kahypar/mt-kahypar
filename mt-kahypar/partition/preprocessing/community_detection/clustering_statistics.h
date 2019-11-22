@@ -78,7 +78,6 @@ inline std::ostream & operator<< (std::ostream& o, TimeReporter& tr) {
   return o;
 }
 
-
 class ClusteringStatistics {
  private:
   static constexpr bool debug = false;
@@ -87,8 +86,12 @@ class ClusteringStatistics {
   static T percentile(double fraction, std::vector<T>& elements) {
     fraction = std::max(fraction, 0.0);
     long ind = std::lround(elements.size() * fraction);
-    if (ind < 0) { ind = 0; }
-    if (static_cast<size_t>(ind) >= elements.size()) { ind = elements.size() - 1; }
+    if (ind < 0) {
+      ind = 0;
+    }
+    if (static_cast<size_t>(ind) >= elements.size()) {
+      ind = elements.size() - 1;
+    }
     return elements[ind];
   }
 
@@ -130,7 +133,6 @@ class ClusteringStatistics {
     DBG << os.str();
   }
 };
-
 
 class HypergraphCommunityAssignmentStatistics {
  public:

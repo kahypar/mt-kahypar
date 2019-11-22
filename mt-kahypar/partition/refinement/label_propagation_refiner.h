@@ -249,7 +249,7 @@ class LabelPropagationRefinerT final : public IRefiner {
                   bool accept_move = (move_delta == best_move.gain || move_delta <= 0);
                   if (accept_move) {
                     DBG << "Move hypernode" << hn << "from block" << from << "to block" << to
-                        << "with gain" << best_move.gain << "( Real Gain: " << move_delta << ")";
+                    << "with gain" << best_move.gain << "( Real Gain: " << move_delta << ")";
 
                     // Set all neighbors of the vertex to active
                     for (const HyperedgeID& he : _hg.incidentEdges(hn)) {
@@ -260,7 +260,7 @@ class LabelPropagationRefinerT final : public IRefiner {
                     converged = false;
                   } else {
                     DBG << "Revert move of hypernode" << hn << "from block" << from << "to block" << to
-                        << "( Expected Gain:" << best_move.gain << ", Real Gain:" << move_delta << ")";
+                    << "( Expected Gain:" << best_move.gain << ", Real Gain:" << move_delta << ")";
                     // In case, the real gain is not equal with the computed gain and
                     // worsen the solution quality we revert the move.
                     ASSERT(_hg.partID(hn) == to);

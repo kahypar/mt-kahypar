@@ -131,7 +131,7 @@ class StreamingVector {
                                              const int cpu_id,
                                              const size_t position) {
     DBG << "Copy buffer of cpu" << cpu_id << "of size" << _cpu_buffer[cpu_id].size()
-        << "to position" << position << "in dest ( CPU =" << sched_getcpu() << " )";
+    << "to position" << position << "in dest ( CPU =" << sched_getcpu() << " )";
     memcpy(destination.data() + position, _cpu_buffer[cpu_id].data(),
            _cpu_buffer[cpu_id].size() * sizeof(Value));
   }

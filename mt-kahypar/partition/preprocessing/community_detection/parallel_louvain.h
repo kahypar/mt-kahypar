@@ -39,7 +39,6 @@ class ParallelModularityLouvain {
     bool clustering_changed = mlv.localMoving(GFine, C);
     mlv.tr.report("Local Moving", tbb::tick_count::now() - t_lm);
 
-
 /*
 
         DBG << "Exiting so we only test local moving";
