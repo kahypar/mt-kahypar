@@ -182,8 +182,6 @@ class TBBNumaArena {
     _global_observer.observe(true);
   }
 
-  static std::mutex _mutex;
-
   int _num_threads;
   tbb::task_scheduler_init _init;
   std::vector<tbb::task_arena> _arenas;
@@ -191,9 +189,6 @@ class TBBNumaArena {
   GlobalThreadPinningObserver _global_observer;
   std::vector<NumaThreadPinningObserver> _observer;
 };
-
-template< typename HwTopology >
-std::mutex TBBNumaArena<HwTopology>::_mutex;
 
 } // namespace parallel
 } // namespace mt_kahypar

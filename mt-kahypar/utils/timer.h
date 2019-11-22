@@ -128,7 +128,8 @@ class Timer {
   Timer& operator= (Timer&&) = delete;
 
   static Timer& instance(bool show_detailed_timings = false) {
-    static Timer instance(show_detailed_timings);
+    static Timer instance;
+    instance._show_detailed_timings = show_detailed_timings;
     return instance;
   }
 
@@ -180,21 +181,17 @@ class Timer {
   friend std::ostream& operator<<(std::ostream& str, const Timer& timer);
 
  private:
-  explicit Timer(const bool show_detailed_timings) :
+  explicit Timer() :
     _timing_mutex(),
     _timings(),
     _type(kahypar::ContextType::main),
-    _show_detailed_timings(show_detailed_timings) { }
-
-  static std::mutex _mutex;
+    _show_detailed_timings(false) { }
 
   std::mutex _timing_mutex;
   std::unordered_map<Key, Timing, PairHasher> _timings;
   kahypar::ContextType _type;
   bool _show_detailed_timings;
 };
-
-std::mutex Timer::_mutex;
 
 char Timer::TOP_LEVEL_PREFIX[] = " + ";
 char Timer::SUB_LEVEL_PREFIX[] = " + ";

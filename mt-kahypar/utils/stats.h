@@ -172,14 +172,10 @@ class Stats {
     _stats(),
     _type(kahypar::ContextType::main) { }
 
-  static std::mutex _mutex;
-
   std::mutex _stat_mutex;
   std::unordered_map<std::string, Stat> _stats;
   kahypar::ContextType _type;
 };
-
-std::mutex Stats::_mutex;
 
 
 std::ostream& operator<<(std::ostream& str, const Stats::Stat& stat) {

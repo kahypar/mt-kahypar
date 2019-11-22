@@ -163,8 +163,6 @@ class GlobalThreadPinning {
         << "( Currently =" << V(sched_getcpu()) << ")";
   }
 
-  static std::mutex _mutex;
-
   const int _num_cpus;
   const int _num_threads;
   std::mutex _pinning_mutex;
@@ -172,9 +170,6 @@ class GlobalThreadPinning {
   std::unordered_map<std::thread::id, int> _pinned_threads;
   std::unordered_map<std::thread::id, bool> _is_pinned_to_numa_node;
 };
-
-template< typename HwTopology >
-std::mutex GlobalThreadPinning<HwTopology>::_mutex;
 
 } // namespace parallel
 } // namespace mt_kahypar
