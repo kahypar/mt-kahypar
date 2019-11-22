@@ -66,6 +66,36 @@ inline std::ostream& operator<< (std::ostream& str, const PartitioningParameters
   return str;
 }
 
+struct CommunityDetectionParameters {
+  CommunityLoadBalancingStrategy load_balancing_strategy = CommunityLoadBalancingStrategy::none;
+  size_t size_constraint_factor = 0;
+	LouvainEdgeWeight edge_weight_function = LouvainEdgeWeight::UNDEFINED;
+  uint32_t max_pass_iterations = std::numeric_limits<uint32_t>::max();
+  long double min_eps_improvement = std::numeric_limits<long double>::max();
+};
+
+inline std::ostream& operator<< (std::ostream& str, const CommunityDetectionParameters& params) {
+  str << "  Community Detection Parameters:" << std::endl;
+  str << "    Load Balancing Strategy:          " << params.load_balancing_strategy << std::endl;
+  if ( params.load_balancing_strategy == CommunityLoadBalancingStrategy::size_constraint ) {
+    str << "    Size Constraint Factor:           " << params.size_constraint_factor << std::endl;
+  }
+  str << "    Edge Weight Function:             " << params.edge_weight_function << std::endl;
+  str << "    Maximum Louvain-Pass Iterations:  " << params.max_pass_iterations << std::endl;
+  str << "    Minimum Quality Improvement:      " << params.min_eps_improvement << std::endl;
+  return str;
+}
+
+struct PreprocessingParameters {
+  CommunityDetectionParameters community_detection = { };
+};
+
+inline std::ostream& operator<< (std::ostream& str, const PreprocessingParameters& params) {
+  str << "Preprocessing Parameters:" << std::endl;
+  str << std::endl << params.community_detection;
+  return str;
+}
+
 struct RatingParameters {
   RatingFunction rating_function = RatingFunction::UNDEFINED;
   HeavyNodePenaltyPolicy heavy_node_penalty_policy = HeavyNodePenaltyPolicy::UNDEFINED;
@@ -79,10 +109,6 @@ inline std::ostream& operator<< (std::ostream& str, const RatingParameters& para
   str << "    Acceptance Policy:                " << params.acceptance_policy << std::endl;
   return str;
 }
-
-struct PreprocessingParameters {
-	CommunityDetectionStarExpansionWeightModification edge_weight_modification = CommunityDetectionStarExpansionWeightModification::hybrid;
-};
 
 struct CoarseningParameters {
   CoarseningAlgorithm algorithm = CoarseningAlgorithm::UNDEFINED;
@@ -153,7 +179,7 @@ struct RefinementParameters {
 
 inline std::ostream& operator<< (std::ostream& str, const RefinementParameters& params) {
   str << "Refinement Parameters:" << std::endl;
-  str << params.label_propagation;
+  str << std::endl << params.label_propagation;
   return str;
 }
 
@@ -214,6 +240,8 @@ inline std::ostream& operator<< (std::ostream& str, const Context& context) {
       << "*                            Partitioning Context                             *\n"
       << "*******************************************************************************\n"
       << context.partition
+      << "-------------------------------------------------------------------------------\n"
+      << context.preprocessing
       << "-------------------------------------------------------------------------------\n"
       << context.coarsening
       << "-------------------------------------------------------------------------------\n"

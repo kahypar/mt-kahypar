@@ -52,6 +52,11 @@ static inline void serialize(const Hypergraph& hypergraph,
         << " perfect_balanced_part_weight=" << context.partition.perfect_balance_part_weights[0]
         << " max_part_weight=" << context.partition.max_part_weights[0]
         << " total_graph_weight=" << hypergraph.totalWeight()
+        << " community_load_balancing_strategy=" << context.preprocessing.community_detection.load_balancing_strategy
+        << " community_size_constraint_factor=" << context.preprocessing.community_detection.size_constraint_factor
+        << " louvain_edge_weight_function=" << context.preprocessing.community_detection.edge_weight_function
+        << " louvain_max_pass_iterations=" << context.preprocessing.community_detection.max_pass_iterations
+        << " louvain_min_eps_improvement=" << context.preprocessing.community_detection.min_eps_improvement
         << " coarsening_algorithm=" << context.coarsening.algorithm
         << " contraction_limit_multiplier=" << context.coarsening.contraction_limit_multiplier
         << " max_allowed_weight_multiplier=" << context.coarsening.max_allowed_weight_multiplier

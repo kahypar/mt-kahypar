@@ -113,11 +113,14 @@ inline void Partitioner::setupContext(const Hypergraph& hypergraph, Context& con
 }
 
 inline void Partitioner::configurePreprocessing(const Hypergraph& hypergraph, Context& context) {
-  const double density = static_cast<double>(hypergraph.initialNumEdges()) / static_cast<double>(hypergraph.initialNumNodes());
-  if (density < 0.75) {
-    context.preprocessing.edge_weight_modification = CommunityDetectionStarExpansionWeightModification::degree;
-  } else {
-    context.preprocessing.edge_weight_modification = CommunityDetectionStarExpansionWeightModification::uniform;
+  const double density = static_cast<double>(hypergraph.initialNumEdges()) /
+                          static_cast<double>(hypergraph.initialNumNodes());
+  if ( context.preprocessing.community_detection.edge_weight_function == LouvainEdgeWeight::hybrid ) {
+    if (density < 0.75) {
+      context.preprocessing.community_detection.edge_weight_function = LouvainEdgeWeight::degree;
+    } else {
+      context.preprocessing.community_detection.edge_weight_function = LouvainEdgeWeight::uniform;
+    }
   }
 }
 
@@ -144,7 +147,7 @@ inline void Partitioner::preprocess(Hypergraph& hypergraph, const Context& conte
   HighResClockTimepoint global_start = std::chrono::high_resolution_clock::now();
   HighResClockTimepoint start = std::chrono::high_resolution_clock::now();
   ds::AdjListStarExpansion starExpansion(hypergraph, context);
-  ds::Clustering communities = ParallelModularityLouvain::run(starExpansion.G, context.shared_memory.num_threads);   //TODO(lars): give switch for PLM/SLM
+  ds::Clustering communities = ParallelModularityLouvain::run(starExpansion.G, context);   //TODO(lars): give switch for PLM/SLM
   starExpansion.restrictClusteringToHypernodes(communities);
   HighResClockTimepoint end = std::chrono::high_resolution_clock::now();
   mt_kahypar::utils::Timer::instance().add_timing("perform_community_detection", "Perform Community Detection",

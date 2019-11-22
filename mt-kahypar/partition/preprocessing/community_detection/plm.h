@@ -24,6 +24,7 @@
 
 #include <tbb/enumerable_thread_specific.h>
 
+#include "mt-kahypar/definitions.h"
 #include "mt-kahypar/macros.h"
 #include "mt-kahypar/utils/randomize.h"
 #include "mt-kahypar/parallel/atomics_util.h"
@@ -70,6 +71,7 @@ private:
 		return 2.0L * reciprocalTotalVolume * (gain - weightFrom + reciprocalTotalVolume * volNode * (volFrom - volNode));
 	}
 
+	const Context& _context;
 	ArcWeight totalVolume = 0;
 	double reciprocalTotalVolume = 0.0;
 	double volMultiplierDivByNodeVol = 0.0;
@@ -88,12 +90,24 @@ public:
 	//static constexpr double resolutionGamma = 1.0;
 	//static constexpr int resolutionGamma = 1;
 
-	explicit PLM(size_t numNodes) : clusterVolumes(numNodes), ets_incidentClusterWeights(numNodes, 0), tr() { }
+	explicit PLM(const Context& context, size_t numNodes) :
+		_context(context),
+		clusterVolumes(numNodes),
+		ets_incidentClusterWeights(numNodes, 0),
+		tr() { }
 
 	bool localMoving(Graph& G, ds::Clustering& C) {
 		reciprocalTotalVolume = 1.0 / G.totalVolume;
 		totalVolume = G.totalVolume;
 		volMultiplierDivByNodeVol = reciprocalTotalVolume;		// * resolutionGamma;
+
+		ArcWeight maxAllowedClusterVolume = totalVolume;
+		if ( _context.preprocessing.community_detection.load_balancing_strategy ==
+				 CommunityLoadBalancingStrategy::size_constraint ) {
+			maxAllowedClusterVolume = std::ceil( maxAllowedClusterVolume /
+				( (double) ( _context.preprocessing.community_detection.size_constraint_factor *
+										 _context.shared_memory.num_threads ) ) );
+		}
 
 		std::vector<NodeID> nodes(G.numNodes());
 		for (NodeID u : G.nodes()) {
@@ -112,7 +126,9 @@ public:
 		//local moving
 		bool clusteringChanged = false;
 		size_t nodesMovedThisRound = G.numNodes();
-		for (int currentRound = 0; nodesMovedThisRound >= 0.01 * G.numNodes() && currentRound < 16; currentRound++) {
+		for (size_t currentRound = 0;
+				 nodesMovedThisRound >= _context.preprocessing.community_detection.min_eps_improvement * G.numNodes() &&
+				 currentRound < _context.preprocessing.community_detection.max_pass_iterations; currentRound++) {
 
 			// parallel shuffle starts becoming competitive with sequential shuffle at four cores... :(
 			// TODO implement block-based weak shuffling or use the pseudo-random online permutation approach
@@ -151,6 +167,10 @@ public:
 
 					const ArcWeight volTo = clusterVolumes[to],
 									weightTo = incidentClusterWeights[to];
+
+					if ( volU + volTo > maxAllowedClusterVolume ) {
+						continue;
+					}
 
 					//double gain = modularityGain(weightFrom, weightTo, volFrom, volTo, volU);
 					double gain = modularityGain(weightTo, volTo, volMultiplier);
