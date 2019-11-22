@@ -63,7 +63,6 @@ enum class LouvainEdgeWeight : uint8_t {
 
 enum class CommunityLoadBalancingStrategy : uint8_t {
   size_constraint,
-  label_propagation,
   none
 };
 
@@ -166,7 +165,6 @@ std::ostream& operator<< (std::ostream& os, const LouvainEdgeWeight& type) {
 std::ostream& operator<< (std::ostream& os, const CommunityLoadBalancingStrategy& strategy) {
   switch (strategy) {
     case CommunityLoadBalancingStrategy::size_constraint: return os << "size_constraint";
-    case CommunityLoadBalancingStrategy::label_propagation: return os << "label_propagation";
     case CommunityLoadBalancingStrategy::none: return os << "none";
       // omit default case to trigger compiler warning for missing cases
   }
@@ -293,8 +291,6 @@ static LouvainEdgeWeight louvainEdgeWeightFromString(const std::string& type) {
 static CommunityLoadBalancingStrategy communityLoadBalancingStrategyFromString(const std::string& strategy) {
   if (strategy == "size_constraint") {
     return CommunityLoadBalancingStrategy::size_constraint;
-  } else if (strategy == "label_propagation") {
-    return CommunityLoadBalancingStrategy::label_propagation;
   } else if (strategy == "none") {
     return CommunityLoadBalancingStrategy::none;
   }
