@@ -48,6 +48,12 @@ class TBBNumaArena {
   using NumaThreadPinningObserver = mt_kahypar::parallel::NumaThreadPinningObserver<HwTopology>;
 
  public:
+  TBBNumaArena(const TBBNumaArena&) = delete;
+  TBBNumaArena& operator= (const TBBNumaArena&) = delete;
+
+  TBBNumaArena(TBBNumaArena&&) = delete;
+  TBBNumaArena& operator= (TBBNumaArena&&) = delete;
+
   static TBBNumaArena& instance(const size_t num_threads = 1) {
     static TBBNumaArena instance(num_threads);
     return instance;

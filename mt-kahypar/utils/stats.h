@@ -121,6 +121,11 @@ class Stats {
   };
 
  public:
+  Stats(const Stats&) = delete;
+  Stats& operator= (const Stats&) = delete;
+
+  Stats(Stats&&) = delete;
+  Stats& operator= (Stats&&) = delete;
 
   static Stats& instance() {
     static Stats instance;

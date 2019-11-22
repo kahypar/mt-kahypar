@@ -36,6 +36,12 @@ class GlobalThreadPinning {
   static constexpr bool debug = false;
 
  public:
+  GlobalThreadPinning(const GlobalThreadPinning&) = delete;
+  GlobalThreadPinning& operator= (const GlobalThreadPinning&) = delete;
+
+  GlobalThreadPinning(GlobalThreadPinning&&) = delete;
+  GlobalThreadPinning& operator= (GlobalThreadPinning&&) = delete;
+
   static GlobalThreadPinning& instance(const int num_threads = std::thread::hardware_concurrency()) {
     static GlobalThreadPinning instance(num_threads);
     return instance;

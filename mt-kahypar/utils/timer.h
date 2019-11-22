@@ -121,6 +121,11 @@ class Timer {
   };
 
  public:
+  Timer(const Timer&) = delete;
+  Timer& operator= (const Timer&) = delete;
+
+  Timer(Timer&&) = delete;
+  Timer& operator= (Timer&&) = delete;
 
   static Timer& instance(bool show_detailed_timings = false) {
     static Timer instance(show_detailed_timings);
