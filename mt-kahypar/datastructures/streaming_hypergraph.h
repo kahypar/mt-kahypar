@@ -754,7 +754,7 @@ class StreamingHypergraph {
     // Make sure constructor is called on corresponding numa node
     ASSERT(HardwareTopology::instance().numa_node_of_cpu(sched_getcpu()) == _node,
            "Only allowed to allocate numa hypergraph on node" << _node << ", but it is"
-           << HardwareTopology::instance().numa_node_of_cpu(sched_getcpu()));
+                                                              << HardwareTopology::instance().numa_node_of_cpu(sched_getcpu()));
   }
 
   StreamingHypergraph(const StreamingHypergraph&) = delete;
@@ -1430,7 +1430,7 @@ class StreamingHypergraph {
     // Make sure calling thread is part of correct numa node
     ASSERT(HardwareTopology::instance().numa_node_of_cpu(cpu_id) == _node,
            "Expected that assigned cpu is on numa node" << _node << ", but was CPU" << cpu_id
-           << "is on node" << HardwareTopology::instance().numa_node_of_cpu(cpu_id));
+                                                        << "is on node" << HardwareTopology::instance().numa_node_of_cpu(cpu_id));
     _hyperedge_stream.stream(_pin_stream.size(cpu_id), hyperedge.size(), original_id, weight);
     for (const HypernodeID& pin : hyperedge) {
       _pin_stream.stream(pin);
@@ -1460,7 +1460,7 @@ class StreamingHypergraph {
     // Make sure calling thread is part of correct numa node
     ASSERT(HardwareTopology::instance().numa_node_of_cpu(sched_getcpu()) == _node,
            "Expected that assigned cpu is on numa node" << _node << ", but was on node"
-           << HardwareTopology::instance().numa_node_of_cpu(sched_getcpu()));
+                                                        << HardwareTopology::instance().numa_node_of_cpu(sched_getcpu()));
 
     _hypernodes = _hypernode_stream.copy(_arena);
     _num_hypernodes = _hypernodes.size();
@@ -1510,7 +1510,7 @@ class StreamingHypergraph {
             const HypernodeID local_id = get_local_node_id_of_vertex(hn.nodeId());
             if (node != _node) {
               LOG << "Hypernode" << hn.nodeId() << "should be on numa node" << node
-              << ", but is on numa node" << _node;
+                  << ", but is on numa node" << _node;
               return false;
             } else if (i != local_id) {
               LOG << "Hypernode" << local_id << "should have local id" << i;
@@ -1571,7 +1571,7 @@ class StreamingHypergraph {
     // Make sure calling thread is part of correct numa node
     ASSERT(HardwareTopology::instance().numa_node_of_cpu(sched_getcpu()) == _node,
            "Expected that assigned cpu is on numa node" << _node << ", but was on node"
-           << HardwareTopology::instance().numa_node_of_cpu(sched_getcpu()));
+                                                        << HardwareTopology::instance().numa_node_of_cpu(sched_getcpu()));
 
     // Copy streamed data into global vectors
     HighResClockTimepoint start = std::chrono::high_resolution_clock::now();
@@ -1631,7 +1631,7 @@ class StreamingHypergraph {
               for (size_t pos = stream_he.firstEntry(); pos < stream_he.firstEntry() + stream_he.size(); ++pos) {
                 if (_incidence_array[global_pos] != _pin_stream.value(cpu_id, pos)) {
                   LOG << "Pins in stream and global incidence array are not equal"
-                  << V(_incidence_array[global_pos]) << V(_pin_stream.value(cpu_id, pos));
+                      << V(_incidence_array[global_pos]) << V(_pin_stream.value(cpu_id, pos));
                   return false;
                 }
                 ++global_pos;
@@ -1664,7 +1664,7 @@ class StreamingHypergraph {
     // Make sure calling thread is part of correct numa node
     ASSERT(HardwareTopology::instance().numa_node_of_cpu(sched_getcpu()) == _node,
            "Expected that assigned cpu is on numa node" << _node << ", but was on node"
-           << HardwareTopology::instance().numa_node_of_cpu(sched_getcpu()));
+                                                        << HardwareTopology::instance().numa_node_of_cpu(sched_getcpu()));
 
     _incident_nets.resize(_hypernodes.size());
     _incident_net_stream.copy(_arena, _incident_nets, [&](const HypernodeID& u) {
@@ -2324,7 +2324,7 @@ class StreamingHypergraph {
     ASSERT(!hyperedge(he).isDisabled(), "Hyperedge" << he << "is disabled");
     ASSERT(pinCountInPart(he, id) > 0,
            "HE" << he << ": pin_count[" << id << "]=" << pinCountInPart(he, id)
-           << "edgesize=" << edgeSize(he));
+                << "edgesize=" << edgeSize(he));
     ASSERT(id < _k && id != kInvalidPartition, "Part ID" << id << "out of bounds!");
     const HyperedgeID local_id = get_local_edge_id_of_hyperedge(he);
     const size_t offset = local_id * _k + id;
@@ -2342,7 +2342,7 @@ class StreamingHypergraph {
     ASSERT(!hyperedge(he).isDisabled(), "Hyperedge" << he << "is disabled");
     ASSERT(pinCountInPart(he, id) <= edgeSize(he),
            "HE" << he << ": pin_count[" << id << "]=" << pinCountInPart(he, id)
-           << "edgesize=" << edgeSize(he));
+                << "edgesize=" << edgeSize(he));
     ASSERT(id < _k && id != kInvalidPartition, "Part ID" << id << "out of bounds!");
     const HyperedgeID local_id = get_local_edge_id_of_hyperedge(he);
     const size_t offset = local_id * _k + id;

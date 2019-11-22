@@ -1587,8 +1587,8 @@ class Hypergraph {
           for (HypernodeID hn = 0; hn < _num_hypernodes; ++hn) {
             if (_node_mapping[hn] >= _hypergraphs.size()) {
               LOG << "Hypernode" << hn << "should be mapped to hypergraph on node"
-              << _node_mapping[hn] << ", but there are only" << _hypergraphs.size()
-              << "nodes";
+                  << _node_mapping[hn] << ", but there are only" << _hypergraphs.size()
+                  << "nodes";
               return false;
             }
           }

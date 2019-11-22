@@ -73,10 +73,10 @@ class GlobalThreadPinning {
     ASSERT(!_is_pinned_to_numa_node[thread_id], "Thread already pinned to a numa node");
     ASSERT(HwTopology::instance().numa_node_of_cpu(cpu_id) == node,
            "CPU" << cpu_id << "is not on numa node" << node << ", actually it is on"
-           << HwTopology::instance().numa_node_of_cpu(sched_getcpu()));
+                 << HwTopology::instance().numa_node_of_cpu(sched_getcpu()));
     _is_pinned_to_numa_node[thread_id] = true;
     DBG << "Assign thread with PID" << thread_id << "to cpu" << cpu_id
-    << "on numa node" << node;
+        << "on numa node" << node;
     pin_thread_to_cpu(cpu_id);
   }
 
@@ -87,9 +87,9 @@ class GlobalThreadPinning {
     ASSERT(_is_pinned_to_numa_node[thread_id], "Thread was not pinned to a numa node");
     ASSERT(HwTopology::instance().numa_node_of_cpu(sched_getcpu()) == node,
            "CPU" << sched_getcpu() << "is not on numa node" << node << ", actually it is on"
-           << HwTopology::instance().numa_node_of_cpu(sched_getcpu()));
+                 << HwTopology::instance().numa_node_of_cpu(sched_getcpu()));
     DBG << "Unassign thread with PID" << thread_id << "on cpu" << sched_getcpu()
-    << "from numa node" << node;
+        << "from numa node" << node;
     _is_pinned_to_numa_node[thread_id] = false;
     if (is_registered(thread_id)) {
       pin_thread_to_cpu(_pinned_threads[thread_id]);
@@ -134,7 +134,7 @@ class GlobalThreadPinning {
       _pinned_threads[thread_id] = _free_cpus.back();
       _free_cpus.pop_back();
       DBG << "Thread with PID" << std::this_thread::get_id()
-      << "successfully registered on CPU" << _pinned_threads[thread_id];
+          << "successfully registered on CPU" << _pinned_threads[thread_id];
     }
     return _pinned_threads[thread_id];
   }
@@ -157,8 +157,8 @@ class GlobalThreadPinning {
 
     ASSERT(sched_getcpu() == cpu_id);
     DBG << "Thread with PID" << std::this_thread::get_id()
-    << "successfully pinned to CPU" << cpu_id
-    << "( Currently =" << V(sched_getcpu()) << ")";
+        << "successfully pinned to CPU" << cpu_id
+        << "( Currently =" << V(sched_getcpu()) << ")";
   }
 
   const int _num_cpus;

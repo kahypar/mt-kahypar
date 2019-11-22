@@ -237,10 +237,10 @@ class RecursiveInitialPartitionerT : public IInitialPartitioner {
 
     // Call multilevel partitioner recursively
     DBG << "Perform recursive multilevel partitioner call with"
-    << "k =" << result.context.partition.k << ","
-    << "p =" << result.context.shared_memory.num_threads << ","
-    << "c =" << result.context.coarsening.contraction_limit << "and"
-    << "rep =" << result.context.initial_partitioning.runs;
+        << "k =" << result.context.partition.k << ","
+        << "p =" << result.context.shared_memory.num_threads << ","
+        << "c =" << result.context.coarsening.contraction_limit << "and"
+        << "rep =" << result.context.initial_partitioning.runs;
 
     if (_top_level) {
       utils::Timer::instance().set_context_type(kahypar::ContextType::initial_partitioning);

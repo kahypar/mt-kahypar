@@ -166,7 +166,7 @@ class TBBNumaArena {
       if (used_cpus_on_numa_node[node] > 0) {
         int num_cpus = used_cpus_on_numa_node[node];
         DBG << "Initialize TBB task arena on numa node" << node
-        << "with" << num_cpus << "threads";
+            << "with" << num_cpus << "threads";
         _arenas.emplace_back(num_cpus, _num_threads == 1 ? 1 : 0);
         _observer.emplace_back(_arenas.back(), node);
       }
