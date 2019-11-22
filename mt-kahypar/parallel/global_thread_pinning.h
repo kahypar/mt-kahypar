@@ -36,14 +36,15 @@ class GlobalThreadPinning {
   static constexpr bool debug = false;
 
  public:
+  GlobalThreadPinning(const GlobalThreadPinning&) = delete;
+  GlobalThreadPinning& operator= (const GlobalThreadPinning&) = delete;
+
+  GlobalThreadPinning(GlobalThreadPinning&&) = delete;
+  GlobalThreadPinning& operator= (GlobalThreadPinning&&) = delete;
+
   static GlobalThreadPinning& instance(const int num_threads = std::thread::hardware_concurrency()) {
-    if ( _instance == nullptr ) {
-      std::lock_guard<std::mutex> _lock(_mutex);
-      if ( _instance == nullptr ) {
-        _instance = new GlobalThreadPinning(num_threads);
-      }
-    }
-    return *_instance;
+    static GlobalThreadPinning instance(num_threads);
+    return instance;
   }
 
   void pin_thread() {
@@ -162,9 +163,6 @@ class GlobalThreadPinning {
         << "( Currently =" << V(sched_getcpu()) << ")";
   }
 
-  static std::mutex _mutex;
-  static GlobalThreadPinning* _instance;
-
   const int _num_cpus;
   const int _num_threads;
   std::mutex _pinning_mutex;
@@ -172,11 +170,6 @@ class GlobalThreadPinning {
   std::unordered_map<std::thread::id, int> _pinned_threads;
   std::unordered_map<std::thread::id, bool> _is_pinned_to_numa_node;
 };
-
-template< typename HwTopology >
-GlobalThreadPinning<HwTopology>* GlobalThreadPinning<HwTopology>::_instance { nullptr };
-template< typename HwTopology >
-std::mutex GlobalThreadPinning<HwTopology>::_mutex;
 
 } // namespace parallel
 } // namespace mt_kahypar

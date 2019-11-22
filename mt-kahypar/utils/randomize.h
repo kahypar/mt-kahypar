@@ -100,13 +100,8 @@ class Randomize {
  public:
 
   static Randomize& instance() {
-    if ( _instance == nullptr ) {
-      std::lock_guard<std::mutex> _lock(_mutex);
-      if ( _instance == nullptr ) {
-        _instance = new Randomize();
-      }
-    }
-    return *_instance;
+    static Randomize instance;
+    return instance;
   }
 
   void setSeed(int seed) {
@@ -173,14 +168,8 @@ class Randomize {
   explicit Randomize() :
     _rand(std::thread::hardware_concurrency()) { }
 
-  static std::mutex _mutex;
-  static Randomize* _instance;
-
   std::vector<RandomFunctions> _rand;
 };
-
-Randomize* Randomize::_instance { nullptr };
-std::mutex Randomize::_mutex;
 
 } // namespace utils
 } // namespace mt_kahypar

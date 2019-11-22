@@ -121,16 +121,16 @@ class Timer {
   };
 
  public:
+  Timer(const Timer&) = delete;
+  Timer& operator= (const Timer&) = delete;
+
+  Timer(Timer&&) = delete;
+  Timer& operator= (Timer&&) = delete;
 
   static Timer& instance(bool show_detailed_timings = false) {
-    if ( _instance == nullptr ) {
-      std::lock_guard<std::mutex> _lock(_mutex);
-      if ( _instance == nullptr ) {
-        _instance = new Timer(show_detailed_timings);
-      }
-    }
-    _instance->_show_detailed_timings = show_detailed_timings;
-    return *_instance;
+    static Timer instance;
+    instance._show_detailed_timings = show_detailed_timings;
+    return instance;
   }
 
   void set_context_type(kahypar::ContextType type) {
@@ -181,23 +181,17 @@ class Timer {
   friend std::ostream& operator<<(std::ostream& str, const Timer& timer);
 
  private:
-  explicit Timer(const bool show_detailed_timings) :
+  explicit Timer() :
     _timing_mutex(),
     _timings(),
     _type(kahypar::ContextType::main),
-    _show_detailed_timings(show_detailed_timings) { }
-
-  static std::mutex _mutex;
-  static Timer* _instance;
+    _show_detailed_timings(false) { }
 
   std::mutex _timing_mutex;
   std::unordered_map<Key, Timing, PairHasher> _timings;
   kahypar::ContextType _type;
   bool _show_detailed_timings;
 };
-
-Timer* Timer::_instance { nullptr };
-std::mutex Timer::_mutex;
 
 char Timer::TOP_LEVEL_PREFIX[] = " + ";
 char Timer::SUB_LEVEL_PREFIX[] = " + ";

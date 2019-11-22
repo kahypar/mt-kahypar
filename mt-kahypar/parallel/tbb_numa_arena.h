@@ -48,14 +48,15 @@ class TBBNumaArena {
   using NumaThreadPinningObserver = mt_kahypar::parallel::NumaThreadPinningObserver<HwTopology>;
 
  public:
+  TBBNumaArena(const TBBNumaArena&) = delete;
+  TBBNumaArena& operator= (const TBBNumaArena&) = delete;
+
+  TBBNumaArena(TBBNumaArena&&) = delete;
+  TBBNumaArena& operator= (TBBNumaArena&&) = delete;
+
   static TBBNumaArena& instance(const size_t num_threads = 1) {
-    if ( _instance == nullptr ) {
-      std::lock_guard<std::mutex> _lock(_mutex);
-      if ( _instance == nullptr ) {
-        _instance = new TBBNumaArena(num_threads);
-      }
-    }
-    return *_instance;
+    static TBBNumaArena instance(num_threads);
+    return instance;
   }
 
   int total_number_of_threads() const {
@@ -181,9 +182,6 @@ class TBBNumaArena {
     _global_observer.observe(true);
   }
 
-  static std::mutex _mutex;
-  static TBBNumaArena* _instance;
-
   int _num_threads;
   tbb::task_scheduler_init _init;
   std::vector<tbb::task_arena> _arenas;
@@ -191,11 +189,6 @@ class TBBNumaArena {
   GlobalThreadPinningObserver _global_observer;
   std::vector<NumaThreadPinningObserver> _observer;
 };
-
-template< typename HwTopology >
-TBBNumaArena<HwTopology>* TBBNumaArena<HwTopology>::_instance { nullptr };
-template< typename HwTopology >
-std::mutex TBBNumaArena<HwTopology>::_mutex;
 
 } // namespace parallel
 } // namespace mt_kahypar

@@ -121,15 +121,15 @@ class Stats {
   };
 
  public:
+  Stats(const Stats&) = delete;
+  Stats& operator= (const Stats&) = delete;
+
+  Stats(Stats&&) = delete;
+  Stats& operator= (Stats&&) = delete;
 
   static Stats& instance() {
-    if ( _instance == nullptr ) {
-      std::lock_guard<std::mutex> _lock(_mutex);
-      if ( _instance == nullptr ) {
-        _instance = new Stats();
-      }
-    }
-    return *_instance;
+    static Stats instance;
+    return instance;
   }
 
   void set_context_type(kahypar::ContextType type) {
@@ -172,16 +172,10 @@ class Stats {
     _stats(),
     _type(kahypar::ContextType::main) { }
 
-  static std::mutex _mutex;
-  static Stats* _instance;
-
   std::mutex _stat_mutex;
   std::unordered_map<std::string, Stat> _stats;
   kahypar::ContextType _type;
 };
-
-Stats* Stats::_instance { nullptr };
-std::mutex Stats::_mutex;
 
 
 std::ostream& operator<<(std::ostream& str, const Stats::Stat& stat) {
