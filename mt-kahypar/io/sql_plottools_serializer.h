@@ -27,8 +27,8 @@
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/partition/metrics.h"
-#include "mt-kahypar/utils/timer.h"
 #include "mt-kahypar/utils/stats.h"
+#include "mt-kahypar/utils/timer.h"
 
 namespace mt_kahypar {
 namespace io {
@@ -40,7 +40,7 @@ static inline void serialize(const Hypergraph& hypergraph,
     std::ostringstream oss;
     oss << "RESULT"
         << " graph=" << context.partition.graph_filename.substr(
-        context.partition.graph_filename.find_last_of('/') + 1)
+      context.partition.graph_filename.find_last_of('/') + 1)
         << " numHNs=" << hypergraph.initialNumNodes()
         << " numHEs=" << hypergraph.initialNumEdges()
         << " mode=" << context.partition.mode

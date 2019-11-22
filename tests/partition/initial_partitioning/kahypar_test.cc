@@ -21,15 +21,13 @@
 
 #include "gmock/gmock.h"
 
-#include "tests/datastructures/hypergraph_fixtures.h"
 #include "mt-kahypar/partition/initial_partitioning/kahypar.h"
+#include "tests/datastructures/hypergraph_fixtures.h"
 
 using ::testing::Test;
 
 namespace mt_kahypar {
-
 class AKahyparPartitioner : public ds::AHypergraph<2> {
-
  private:
   using Base = ds::AHypergraph<2>;
 
@@ -40,13 +38,13 @@ class AKahyparPartitioner : public ds::AHypergraph<2> {
 
   AKahyparPartitioner() :
     Base(),
-    hypergraph(construct_hypergraph( 7,
-      { {0, 2}, {0, 1, 3, 4}, {3, 4, 6}, {2, 5, 6} },
-      { 0, 0, 0, 1, 1, 1, 1 },
-      { 0, 0, 1, 1 },
-      { 0, 0, 1, 1, 2, 3, 2 } )),
-    node_mapping({0, 1, 2, 3, 4, 5, 6}),
-    reverse_mapping({0, 1, 2, 3, 4, 5, 6}) { }
+    hypergraph(construct_hypergraph(7,
+                                    { { 0, 2 }, { 0, 1, 3, 4 }, { 3, 4, 6 }, { 2, 5, 6 } },
+                                    { 0, 0, 0, 1, 1, 1, 1 },
+                                    { 0, 0, 1, 1 },
+                                    { 0, 0, 1, 1, 2, 3, 2 })),
+    node_mapping({ 0, 1, 2, 3, 4, 5, 6 }),
+    reverse_mapping({ 0, 1, 2, 3, 4, 5, 6 }) { }
 
   static void TearDownTestSuite() {
     TBBArena::instance().terminate();
@@ -57,19 +55,18 @@ class AKahyparPartitioner : public ds::AHypergraph<2> {
   std::vector<HypernodeID> reverse_mapping;
 };
 
-template<typename T>
+template <typename T>
 bool isEqual(const parallel::scalable_vector<T>& v1,
-             const parallel::scalable_vector<T>& v2)
-{
+             const parallel::scalable_vector<T>& v2) {
   return (v1.size() == v2.size() &&
           std::equal(v1.begin(), v1.end(), v2.begin()));
 }
 
 
-template< class HyperGraph >
+template <class HyperGraph>
 void assignPartitionIDs(HyperGraph& hypergraph) {
   using StreamingHyperGraph = typename HyperGraph::StreamingHypergraph;
-  for ( const HypernodeID& hn : hypergraph.nodes() ) {
+  for (const HypernodeID& hn : hypergraph.nodes()) {
     PartitionID part_id = StreamingHyperGraph::get_numa_node_of_vertex(hn);
     hypergraph.setNodePart(hn, part_id);
   }
@@ -89,12 +86,12 @@ TEST_F(AKahyparPartitioner, ConvertsHypergraphWithCorrectNumberOfHyperedges) {
 
 TEST_F(AKahyparPartitioner, ConvertsHypergraphWithCorrectHyperedgeIndices) {
   KaHyParHypergraph kahypar_hg = convertToKaHyParHypergraph(hypergraph, node_mapping);
-  ASSERT_TRUE(isEqual(kahypar_hg.hyperedge_indices, {0, 2, 6, 9, 12}));
+  ASSERT_TRUE(isEqual(kahypar_hg.hyperedge_indices, { 0, 2, 6, 9, 12 }));
 }
 
 TEST_F(AKahyparPartitioner, ConvertsHypergraphWithCorrectHyperedges) {
   KaHyParHypergraph kahypar_hg = convertToKaHyParHypergraph(hypergraph, node_mapping);
-  ASSERT_TRUE(isEqual(kahypar_hg.hyperedges, {0, 2, 0, 1, 3, 4, 3, 4, 6, 2, 5, 6}));
+  ASSERT_TRUE(isEqual(kahypar_hg.hyperedges, { 0, 2, 0, 1, 3, 4, 3, 4, 6, 2, 5, 6 }));
 }
 
 TEST_F(AKahyparPartitioner, ExtractsBlock0WithCorrectNumberOfVertices) {
@@ -124,25 +121,24 @@ TEST_F(AKahyparPartitioner, ExtractsBlock1WithCorrectNumberOfHyperedges) {
 TEST_F(AKahyparPartitioner, ExtractsBlock0WithCorrectHyperedgeIndices) {
   assignPartitionIDs(hypergraph);
   KaHyParHypergraph kahypar_hg = extractBlockAsKaHyParHypergraph(hypergraph, 0, node_mapping);
-  ASSERT_TRUE(isEqual(kahypar_hg.hyperedge_indices, {0, 2, 4, 5}));
+  ASSERT_TRUE(isEqual(kahypar_hg.hyperedge_indices, { 0, 2, 4, 5 }));
 }
 
 TEST_F(AKahyparPartitioner, ExtractsBlock1WithCorrectHyperedgeIndices) {
   assignPartitionIDs(hypergraph);
   KaHyParHypergraph kahypar_hg = extractBlockAsKaHyParHypergraph(hypergraph, 1, node_mapping);
-  ASSERT_TRUE(isEqual(kahypar_hg.hyperedge_indices, {0, 2, 5, 7}));
+  ASSERT_TRUE(isEqual(kahypar_hg.hyperedge_indices, { 0, 2, 5, 7 }));
 }
 
 TEST_F(AKahyparPartitioner, ExtractsBlock0WithCorrectHyperedges) {
   assignPartitionIDs(hypergraph);
   KaHyParHypergraph kahypar_hg = extractBlockAsKaHyParHypergraph(hypergraph, 0, node_mapping);
-  ASSERT_TRUE(isEqual(kahypar_hg.hyperedges, {0, 2, 0, 1, 2}));
+  ASSERT_TRUE(isEqual(kahypar_hg.hyperedges, { 0, 2, 0, 1, 2 }));
 }
 
 TEST_F(AKahyparPartitioner, ExtractsBlock1WithCorrectHyperedges) {
   assignPartitionIDs(hypergraph);
   KaHyParHypergraph kahypar_hg = extractBlockAsKaHyParHypergraph(hypergraph, 1, node_mapping);
-  ASSERT_TRUE(isEqual(kahypar_hg.hyperedges, {0, 1, 0, 1, 3, 2, 3}));
+  ASSERT_TRUE(isEqual(kahypar_hg.hyperedges, { 0, 1, 0, 1, 3, 2, 3 }));
 }
-
-} // namespace mt_kahypar
+}  // namespace mt_kahypar

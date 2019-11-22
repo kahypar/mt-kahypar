@@ -27,17 +27,16 @@
 
 #include "kahypar/partition/metrics.h"
 
-#include "mt-kahypar/macros.h"
 #include "mt-kahypar/definitions.h"
+#include "mt-kahypar/macros.h"
 
 namespace mt_kahypar {
-
 class IRefiner {
  public:
   IRefiner(const IRefiner&) = delete;
   IRefiner(IRefiner&&) = delete;
-  IRefiner& operator= (const IRefiner&) = delete;
-  IRefiner& operator= (IRefiner&&) = delete;
+  IRefiner & operator= (const IRefiner &) = delete;
+  IRefiner & operator= (IRefiner &&) = delete;
 
   virtual ~IRefiner() = default;
 
@@ -46,7 +45,6 @@ class IRefiner {
     return refineImpl(refinement_nodes, best_metrics);
   }
 
-
  protected:
   IRefiner() = default;
 
@@ -54,5 +52,4 @@ class IRefiner {
   virtual bool refineImpl(const std::vector<HypernodeID>& refinement_nodes,
                           kahypar::Metrics& best_metrics) = 0;
 };
-
 }  // namespace mt_kahypar

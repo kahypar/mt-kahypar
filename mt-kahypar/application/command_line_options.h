@@ -24,21 +24,21 @@
 #include <boost/program_options.hpp>
 
 #if defined(_MSC_VER)
-#include <Windows.h>
 #include <process.h>
+#include <Windows.h>
 #else
 #include <sys/ioctl.h>
 #endif
 
 #include <cctype>
+#include <fstream>
 #include <limits>
 #include <string>
 #include <vector>
-#include <fstream>
 
+#include "mt-kahypar/io/partitioning_output.h"
 #include "mt-kahypar/mt_kahypar.h"
 #include "mt-kahypar/partition/context.h"
-#include "mt-kahypar/io/partitioning_output.h"
 
 namespace po = boost::program_options;
 
@@ -75,14 +75,14 @@ po::options_description createGeneralOptionsDescription(Context& context, const 
     "Seed for random number generator \n"
     "(default: -1)")
     ("cmaxnet",
-    po::value<HyperedgeID>(&context.partition.hyperedge_size_threshold)->value_name("<uint32_t>"),
+    po::value<HyperedgeID>(&context.partition.hyperedge_size_threshold)->value_name("<uint64_t>"),
     "Hyperedges larger than cmaxnet are ignored during partitioning process.")
     ("objective,o",
     po::value<std::string>()->value_name("<string>")->required()->notifier([&](const std::string& s) {
       if (s == "cut") {
-        context.partition.objective = Objective::cut;
+        context.partition.objective = kahypar::Objective::cut;
       } else if (s == "km1") {
-        context.partition.objective = Objective::km1;
+        context.partition.objective = kahypar::Objective::km1;
       }
     }),
     "Objective: \n"
@@ -124,7 +124,7 @@ po::options_description createPreprocessingOptionsDescription(Context& context, 
     ("p-community-load-balancing-strategy",
     po::value<std::string>()->value_name("<string>")->notifier(
       [&](const std::string& strategy) {
-        context.preprocessing.community_detection.load_balancing_strategy = communityLoadBalancingStrategyFromString(strategy);
+      context.preprocessing.community_detection.load_balancing_strategy = communityLoadBalancingStrategyFromString(strategy);
     }),
     "Community load balancing strategies:\n"
     "- size_constraint\n"
@@ -137,7 +137,7 @@ po::options_description createPreprocessingOptionsDescription(Context& context, 
     ("p-louvain-edge-weight-function",
     po::value<std::string>()->value_name("<string>")->notifier(
       [&](const std::string& type) {
-        context.preprocessing.community_detection.edge_weight_function = louvainEdgeWeightFromString(type);
+      context.preprocessing.community_detection.edge_weight_function = louvainEdgeWeightFromString(type);
     }),
     "Louvain edge weight functions:\n"
     "- hybrid\n"
@@ -177,15 +177,15 @@ po::options_description createCoarseningOptionsDescription(Context& context,
     ("c-rating-score",
     po::value<std::string>()->value_name("<string>")->notifier(
       [&](const std::string& rating_score) {
-        context.coarsening.rating.rating_function =
-          mt_kahypar::ratingFunctionFromString(rating_score);
+      context.coarsening.rating.rating_function =
+        mt_kahypar::ratingFunctionFromString(rating_score);
     }), "Rating function used to calculate scores for vertex pairs:\n"
-    "- heavy_edge")
+        "- heavy_edge")
     ("c-rating-heavy-node-penalty",
     po::value<std::string>()->value_name("<string>")->notifier(
       [&](const std::string& penalty) {
-        context.coarsening.rating.heavy_node_penalty_policy =
-          heavyNodePenaltyFromString(penalty);
+      context.coarsening.rating.heavy_node_penalty_policy =
+        heavyNodePenaltyFromString(penalty);
     }),
     "Penalty function to discourage heavy vertices:\n"
     "- multiplicative\n"
@@ -194,8 +194,8 @@ po::options_description createCoarseningOptionsDescription(Context& context,
     ("c-rating-acceptance-criterion",
     po::value<std::string>()->value_name("<string>")->notifier(
       [&](const std::string& crit) {
-        context.coarsening.rating.acceptance_policy =
-          acceptanceCriterionFromString(crit);
+      context.coarsening.rating.acceptance_policy =
+        acceptanceCriterionFromString(crit);
     }),
     "Acceptance/Tiebreaking criterion for contraction partners having the same score:\n"
     "- best\n"
@@ -212,7 +212,7 @@ po::options_description createInitialPartitioningOptionsDescription(Context& con
     ("i-mode",
     po::value<std::string>()->value_name("<string>")->notifier(
       [&](const std::string& mode) {
-        context.initial_partitioning.mode = initialPartitioningModeFromString(mode);
+      context.initial_partitioning.mode = initialPartitioningModeFromString(mode);
     }),
     "Mode of initial partitioning:\n"
     "- direct\n"
@@ -236,8 +236,8 @@ po::options_description createRefinementOptionsDescription(Context& context, con
     ("r-lp-type",
     po::value<std::string>()->value_name("<string>")->notifier(
       [&](const std::string& type) {
-        context.refinement.label_propagation.algorithm =
-          labelPropagationAlgorithmFromString(type);
+      context.refinement.label_propagation.algorithm =
+        labelPropagationAlgorithmFromString(type);
     }),
     "Algorithm used for label propagation:\n"
     "- label_propagation_km1\n"
@@ -262,8 +262,8 @@ po::options_description createRefinementOptionsDescription(Context& context, con
     ("r-lp-execution-policy",
     po::value<std::string>()->value_name("<string>")->notifier(
       [&](const std::string& type) {
-        context.refinement.label_propagation.execution_policy =
-          executionTypeFromString(type);
+      context.refinement.label_propagation.execution_policy =
+        executionTypeFromString(type);
     }),
     "Execution policy used for label propagation:\n"
     "- exponential\n"
@@ -354,14 +354,14 @@ void processCommandLineInput(Context& context, int argc, char* argv[]) {
 
   po::options_description cmd_line_options;
   cmd_line_options.add(generic_options)
-                  .add(required_options)
-                  .add(preset_options)
-                  .add(general_options)
-                  .add(preprocessing_options)
-                  .add(coarsening_options)
-                  .add(initial_paritioning_options)
-                  .add(refinement_options)
-                  .add(shared_memory_options);
+  .add(required_options)
+  .add(preset_options)
+  .add(general_options)
+  .add(preprocessing_options)
+  .add(coarsening_options)
+  .add(initial_paritioning_options)
+  .add(refinement_options)
+  .add(shared_memory_options);
 
   po::variables_map cmd_vm;
   po::store(po::parse_command_line(argc, argv, cmd_line_options), cmd_vm);
@@ -384,11 +384,11 @@ void processCommandLineInput(Context& context, int argc, char* argv[]) {
 
   po::options_description ini_line_options;
   ini_line_options.add(general_options)
-                  .add(preprocessing_options)
-                  .add(coarsening_options)
-                  .add(initial_paritioning_options)
-                  .add(refinement_options)
-                  .add(shared_memory_options);
+  .add(preprocessing_options)
+  .add(coarsening_options)
+  .add(initial_paritioning_options)
+  .add(refinement_options)
+  .add(shared_memory_options);
 
   po::store(po::parse_config_file(file, ini_line_options, true), cmd_vm);
   po::notify(cmd_vm);
@@ -409,5 +409,4 @@ void processCommandLineInput(Context& context, int argc, char* argv[]) {
   context.partition.graph_community_filename =
     context.partition.graph_filename + ".community";
 }
-
-} // namespace mt_kahypar
+}  // namespace mt_kahypar

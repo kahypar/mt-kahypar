@@ -29,9 +29,7 @@ using ::testing::Eq;
 using ::testing::Le;
 
 namespace mt_kahypar {
-
 class ACommunityCoarsener : public ds::AHypergraph<2> {
-
  private:
   using Base = ds::AHypergraph<2>;
 
@@ -43,15 +41,15 @@ class ACommunityCoarsener : public ds::AHypergraph<2> {
     Base(),
     hypergraph(),
     context() {
-    hypergraph = construct_hypergraph( 16,
-      { {0, 1}, {0, 1, 3}, {1, 2, 3}, {2, 3, 4}, {2, 4},
-        {4, 5}, {4, 5, 7}, {5, 6, 7}, {6, 7, 8}, {6, 8},
-        {8, 9}, {8, 9, 11}, {9, 10, 11}, {10, 11, 12}, {10, 12},
-        {12, 13}, {12, 13, 15}, {13, 14, 15} },
-      { 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1 },
-      { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1 },
-      { 0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3 } );
-    hypergraph.setCommunityNodeMapping( { 0, 0, 1, 1 } );
+    hypergraph = construct_hypergraph(16,
+                                      { { 0, 1 }, { 0, 1, 3 }, { 1, 2, 3 }, { 2, 3, 4 }, { 2, 4 },
+                                        { 4, 5 }, { 4, 5, 7 }, { 5, 6, 7 }, { 6, 7, 8 }, { 6, 8 },
+                                        { 8, 9 }, { 8, 9, 11 }, { 9, 10, 11 }, { 10, 11, 12 }, { 10, 12 },
+                                        { 12, 13 }, { 12, 13, 15 }, { 13, 14, 15 } },
+                                      { 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1 },
+                                      { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1 },
+                                      { 0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3 });
+    hypergraph.setCommunityNodeMapping({ 0, 0, 1, 1 });
 
     context.partition.k = 2;
     context.partition.objective = kahypar::Objective::km1;
@@ -64,10 +62,10 @@ class ACommunityCoarsener : public ds::AHypergraph<2> {
   Context context;
 };
 
-template< class HyperGraph >
+template <class HyperGraph>
 void assignPartitionIDs(HyperGraph& hypergraph) {
   using StreamingHyperGraph = typename HyperGraph::StreamingHypergraph;
-  for ( const HypernodeID& hn : hypergraph.nodes() ) {
+  for (const HypernodeID& hn : hypergraph.nodes()) {
     PartitionID part_id = StreamingHyperGraph::get_numa_node_of_vertex(hn);
     hypergraph.setNodePart(hn, part_id);
   }
@@ -75,30 +73,30 @@ void assignPartitionIDs(HyperGraph& hypergraph) {
   hypergraph.initializeNumCutHyperedges();
 }
 
-template< class HyperGraph >
-HypernodeID currentNumNodes( HyperGraph& hypergraph  ) {
+template <class HyperGraph>
+HypernodeID currentNumNodes(HyperGraph& hypergraph) {
   HypernodeID num_nodes = 0;
-  for ( const HypernodeID& hn : hypergraph.nodes() ) {
+  for (const HypernodeID& hn : hypergraph.nodes()) {
     unused(hn);
     ++num_nodes;
   }
   return num_nodes;
 }
 
-template< class HyperGraph >
-HyperedgeID currentNumEdges( HyperGraph& hypergraph  ) {
+template <class HyperGraph>
+HyperedgeID currentNumEdges(HyperGraph& hypergraph) {
   HyperedgeID num_edges = 0;
-  for ( const HyperedgeID& he : hypergraph.edges() ) {
+  for (const HyperedgeID& he : hypergraph.edges()) {
     unused(he);
     ++num_edges;
   }
   return num_edges;
 }
 
-template< class HyperGraph >
-HypernodeID currentNumPins( HyperGraph& hypergraph  ) {
+template <class HyperGraph>
+HypernodeID currentNumPins(HyperGraph& hypergraph) {
   HypernodeID num_pins = 0;
-  for ( const HypernodeID& he : hypergraph.edges() ) {
+  for (const HypernodeID& he : hypergraph.edges()) {
     num_pins += hypergraph.edgeSize(he);
   }
   return num_pins;
@@ -131,7 +129,7 @@ void removesHyperedgesOfSizeOneDuringCoarsening(Coarsener& coarsener,
                                                 HyperGraph& hypergraph,
                                                 const std::vector<HyperedgeID>& single_node_hes) {
   doCoarsening(coarsener);
-  for ( const HyperedgeID& he : single_node_hes ) {
+  for (const HyperedgeID& he : single_node_hes) {
     ASSERT_THAT(hypergraph.edgeIsEnabled(he), Eq(false)) << V(he);
   }
 }
@@ -141,13 +139,13 @@ void reAddsHyperedgesOfSizeOneDuringUncoarsening(Coarsener& coarsener,
                                                  HyperGraph& hypergraph,
                                                  const std::vector<HyperedgeID>& single_node_hes) {
   doCoarsening(coarsener);
-  for ( const HyperedgeID& he : single_node_hes ) {
+  for (const HyperedgeID& he : single_node_hes) {
     ASSERT_THAT(hypergraph.edgeIsEnabled(he), Eq(false)) << V(he);
   }
   assignPartitionIDs(hypergraph);
   std::unique_ptr<IRefiner> nullptr_refiner(nullptr);
   coarsener.uncoarsen(nullptr_refiner);
-  for ( const HyperedgeID& he : single_node_hes ) {
+  for (const HyperedgeID& he : single_node_hes) {
     ASSERT_THAT(hypergraph.edgeIsEnabled(he), Eq(true)) << V(he);
   }
 }
@@ -157,7 +155,7 @@ void removesParallelHyperedgesDuringCoarsening(Coarsener& coarsener,
                                                HyperGraph& hypergraph,
                                                const std::vector<HyperedgeID>& parallel_hes) {
   doCoarsening(coarsener);
-  for ( const HyperedgeID& he : parallel_hes ) {
+  for (const HyperedgeID& he : parallel_hes) {
     ASSERT_THAT(hypergraph.edgeIsEnabled(he), Eq(false)) << V(he);
   }
 }
@@ -165,9 +163,9 @@ void removesParallelHyperedgesDuringCoarsening(Coarsener& coarsener,
 template <class Coarsener, class HyperGraph>
 void updatesEdgeWeightOfRepresentativeHyperedgeOnParallelHyperedgeRemoval(Coarsener& coarsener,
                                                                           HyperGraph& hypergraph,
-                                                                          const std::vector<std::pair<HyperedgeID, HyperedgeWeight>>& he_weights) {
+                                                                          const std::vector<std::pair<HyperedgeID, HyperedgeWeight> >& he_weights) {
   doCoarsening(coarsener);
-  for ( const auto& he_weight : he_weights ) {
+  for (const auto& he_weight : he_weights) {
     HyperedgeID he = he_weight.first;
     HyperedgeWeight weight = he_weight.second;
     ASSERT_THAT(hypergraph.edgeIsEnabled(he), Eq(true)) << V(he);
@@ -180,13 +178,13 @@ void restoresParallelHyperedgesDuringUncoarsening(Coarsener& coarsener,
                                                   HyperGraph& hypergraph,
                                                   const std::vector<HyperedgeID>& parallel_hes) {
   doCoarsening(coarsener);
-  for ( const HyperedgeID& he : parallel_hes ) {
+  for (const HyperedgeID& he : parallel_hes) {
     ASSERT_THAT(hypergraph.edgeIsEnabled(he), Eq(false)) << V(he);
   }
   assignPartitionIDs(hypergraph);
   std::unique_ptr<IRefiner> nullptr_refiner(nullptr);
   coarsener.uncoarsen(nullptr_refiner);
-  for ( const HyperedgeID& he : parallel_hes ) {
+  for (const HyperedgeID& he : parallel_hes) {
     ASSERT_THAT(hypergraph.edgeIsEnabled(he), Eq(true)) << V(he);
   }
 }
@@ -206,5 +204,4 @@ void doesNotCoarsenUntilCoarseningLimit(Coarsener& coarsener,
   }
   ASSERT_THAT(currentNumNodes(hypergraph), Eq(expected_num_nodes));
 }
-
-} // namespace mt_kahypar
+}  // namespace mt_kahypar

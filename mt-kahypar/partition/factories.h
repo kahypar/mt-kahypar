@@ -24,30 +24,29 @@
 #include "kahypar/meta/static_multi_dispatch_factory.h"
 #include "kahypar/meta/typelist.h"
 
-#include "mt-kahypar/partition/context.h"
-#include "mt-kahypar/partition/preprocessing/community_reassignment/i_community_assignment.h"
-#include "mt-kahypar/partition/preprocessing/community_reassignment/bin_packing_community_assignment.h"
-#include "mt-kahypar/partition/preprocessing/community_reassignment/policies/community_assignment_objective.h"
-#include "mt-kahypar/partition/coarsening/i_coarsener.h"
 #include "mt-kahypar/partition/coarsening/community_coarsener.h"
+#include "mt-kahypar/partition/coarsening/i_coarsener.h"
+#include "mt-kahypar/partition/coarsening/policies/rating_acceptance_policy.h"
 #include "mt-kahypar/partition/coarsening/policies/rating_community_policy.h"
 #include "mt-kahypar/partition/coarsening/policies/rating_heavy_node_penalty_policy.h"
-#include "mt-kahypar/partition/coarsening/policies/rating_acceptance_policy.h"
-#include "mt-kahypar/partition/initial_partitioning/i_initial_partitioner.h"
+#include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/partition/initial_partitioning/direct_initial_partitioner.h"
+#include "mt-kahypar/partition/initial_partitioning/i_initial_partitioner.h"
 #include "mt-kahypar/partition/initial_partitioning/recursive_initial_partitioner.h"
+#include "mt-kahypar/partition/preprocessing/community_reassignment/bin_packing_community_assignment.h"
+#include "mt-kahypar/partition/preprocessing/community_reassignment/i_community_assignment.h"
+#include "mt-kahypar/partition/preprocessing/community_reassignment/policies/community_assignment_objective.h"
 #include "mt-kahypar/partition/refinement/i_refiner.h"
 #include "mt-kahypar/partition/refinement/label_propagation_refiner.h"
 #include "mt-kahypar/partition/refinement/policies/execution_policy.h"
 
 namespace mt_kahypar {
-
 using RedistributionFactory = kahypar::meta::Factory<CommunityAssignmentStrategy,
                                                      preprocessing::ICommunityAssignment* (*)(Hypergraph&, const Context&)>;
 
 using BinPackingCommunityAssignmentDispatcher = kahypar::meta::StaticMultiDispatchFactory<preprocessing::BinPackingCommunityAssignment,
                                                                                           preprocessing::ICommunityAssignment,
-                                                                                          kahypar::meta::Typelist<ObjectivePolicyClasses>>;
+                                                                                          kahypar::meta::Typelist<ObjectivePolicyClasses> >;
 
 using CoarsenerFactory = kahypar::meta::Factory<CoarseningAlgorithm,
                                                 ICoarsener* (*)(Hypergraph&, const Context&)>;
@@ -56,24 +55,20 @@ using CommunityCoarsenerDispatcher = kahypar::meta::StaticMultiDispatchFactory<C
                                                                                ICoarsener,
                                                                                kahypar::meta::Typelist<RatingScorePolicies,
                                                                                                        HeavyNodePenaltyPolicies,
-                                                                                                       AcceptancePolicies>>;
+                                                                                                       AcceptancePolicies> >;
 
-using InitialPartitionerFactory = meta::Factory<InitialPartitioningMode,
-                                                IInitialPartitioner* (*)(Hypergraph&, const Context&, const bool)>;
+using InitialPartitionerFactory = kahypar::meta::Factory<InitialPartitioningMode,
+                                                         IInitialPartitioner* (*)(Hypergraph&, const Context&, const bool)>;
 
-using LabelPropagationFactory = meta::Factory<LabelPropagationAlgorithm,
-                                              IRefiner* (*)(Hypergraph&, const Context&)>;
+using LabelPropagationFactory = kahypar::meta::Factory<LabelPropagationAlgorithm,
+                                                       IRefiner* (*)(Hypergraph&, const Context&)>;
 
 
 using LabelPropagationKm1Dispatcher = kahypar::meta::StaticMultiDispatchFactory<LabelPropagationKm1Refiner,
                                                                                 IRefiner,
-                                                                                kahypar::meta::Typelist<ExecutionPolicyClasses>>;
+                                                                                kahypar::meta::Typelist<ExecutionPolicyClasses> >;
 
 using LabelPropagationCutDispatcher = kahypar::meta::StaticMultiDispatchFactory<LabelPropagationCutRefiner,
                                                                                 IRefiner,
-                                                                                kahypar::meta::Typelist<ExecutionPolicyClasses>>;
-
-
-
-
-} // namespace mt_kahypar
+                                                                                kahypar::meta::Typelist<ExecutionPolicyClasses> >;
+}  // namespace mt_kahypar

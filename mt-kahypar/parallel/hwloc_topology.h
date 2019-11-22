@@ -23,14 +23,12 @@
 
 namespace mt_kahypar {
 namespace parallel {
-
 /**
  * Static class responsible for initializing, destroying and
  * calling hwloc library. Calls to hwloc library are outsourced
  * to this class such that hardware topology can be mocked.
  */
 class HwlocTopology {
-
  public:
   static void initialize(hwloc_topology_t& topology) {
     hwloc_topology_init(&topology);
@@ -46,17 +44,17 @@ class HwlocTopology {
     std::vector<int> cpus;
 
     auto add_cpu_of_core = [&](hwloc_obj_t node) {
-      ASSERT(node->type == HWLOC_OBJ_CORE);
-      std::vector<int> core_cpus;
-      int cpu_id;
-      hwloc_bitmap_foreach_begin(cpu_id, node->cpuset) {
-        core_cpus.emplace_back(cpu_id);
-      }
-      hwloc_bitmap_foreach_end();
-      // Assume that core consists of two processing units (hyperthreads)
-      ASSERT(core_cpus.size() <= 2);
-      cpus.push_back(core_cpus[0]);
-    };
+                             ASSERT(node->type == HWLOC_OBJ_CORE);
+                             std::vector<int> core_cpus;
+                             int cpu_id;
+                             hwloc_bitmap_foreach_begin(cpu_id, node->cpuset) {
+                               core_cpus.emplace_back(cpu_id);
+                             }
+                             hwloc_bitmap_foreach_end();
+                             // Assume that core consists of two processing units (hyperthreads)
+                             ASSERT(core_cpus.size() <= 2);
+                             cpus.push_back(core_cpus[0]);
+                           };
     enumerate_all_core_units(node, add_cpu_of_core);
 
     return cpus;
@@ -66,17 +64,17 @@ class HwlocTopology {
     std::vector<int> cpus;
 
     auto add_cpu_of_core = [&](hwloc_obj_t node) {
-      ASSERT(node->type == HWLOC_OBJ_CORE);
-      std::vector<int> core_cpus;
-      int cpu_id;
-      hwloc_bitmap_foreach_begin(cpu_id, node->cpuset) {
-        core_cpus.emplace_back(cpu_id);
-      }
-      hwloc_bitmap_foreach_end();
-      // Assume that core consists of two processing units (hyperthreads)
-      ASSERT(core_cpus.size() <= 2);
-      cpus.push_back(core_cpus[1]);
-    };
+                             ASSERT(node->type == HWLOC_OBJ_CORE);
+                             std::vector<int> core_cpus;
+                             int cpu_id;
+                             hwloc_bitmap_foreach_begin(cpu_id, node->cpuset) {
+                               core_cpus.emplace_back(cpu_id);
+                             }
+                             hwloc_bitmap_foreach_end();
+                             // Assume that core consists of two processing units (hyperthreads)
+                             ASSERT(core_cpus.size() <= 2);
+                             cpus.push_back(core_cpus[1]);
+                           };
     enumerate_all_core_units(node, add_cpu_of_core);
 
     return cpus;
@@ -87,21 +85,19 @@ class HwlocTopology {
   }
 
  private:
-
-  template< class F >
+  template <class F>
   static void enumerate_all_core_units(hwloc_obj_t node, F& func) {
-    if ( node->type == HWLOC_OBJ_CORE ) {
+    if (node->type == HWLOC_OBJ_CORE) {
       func(node);
       return;
     }
 
-    for ( size_t i = 0; i < node->arity; ++i ) {
+    for (size_t i = 0; i < node->arity; ++i) {
       enumerate_all_core_units(node->children[i], func);
     }
   }
 
   HwlocTopology() { }
 };
-
-} // namespace parallel
-} // namespace mt_kahypar
+}  // namespace parallel
+}  // namespace mt_kahypar

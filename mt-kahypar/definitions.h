@@ -27,15 +27,14 @@
 
 #include "kahypar/datastructure/fast_reset_flag_array.h"
 
+#include "mt-kahypar/datastructures/hypergraph.h"
+#include "mt-kahypar/datastructures/streaming_hypergraph.h"
 #include "mt-kahypar/parallel/hardware_topology.h"
 #include "mt-kahypar/parallel/tbb_numa_arena.h"
-#include "mt-kahypar/datastructures/streaming_hypergraph.h"
-#include "mt-kahypar/datastructures/hypergraph.h"
 
 #include "tests/parallel/topology_mock.h"
 
 namespace mt_kahypar {
-
 #if USE_HARDWARE_MOCK
 static constexpr int NUM_NUMA_NODES = 2;
 using TopoMock = mt_kahypar::parallel::TopologyMock<NUM_NUMA_NODES>;
@@ -46,7 +45,7 @@ using HardwareTopology = mt_kahypar::parallel::HardwareTopology<TopoMock, topolo
 using HardwareTopology = mt_kahypar::parallel::HardwareTopology<>;
 #endif
 using TBBNumaArena = mt_kahypar::parallel::TBBNumaArena<HardwareTopology>;
-using ThreadLocalFastResetFlagArray = tbb::enumerable_thread_specific<kahypar::ds::FastResetFlagArray<>>;
+using ThreadLocalFastResetFlagArray = tbb::enumerable_thread_specific<kahypar::ds::FastResetFlagArray<> >;
 
 using RatingType = double;
 using HypernodeID = uint64_t;
@@ -89,5 +88,4 @@ struct GlobalTypeTraits {
 };
 
 using HighResClockTimepoint = std::chrono::time_point<std::chrono::high_resolution_clock>;
-
-} // namespace mt_kahypar
+}  // namespace mt_kahypar

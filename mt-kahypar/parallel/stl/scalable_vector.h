@@ -26,10 +26,7 @@
 
 namespace mt_kahypar {
 namespace parallel {
-
-template < typename T >
-using scalable_vector = std::vector< T, tbb::scalable_allocator<T> >;
-
-
-} // namespace parallel
-} // namespace mt_kahypar
+template <typename T>
+using scalable_vector = std::vector<T, tbb::scalable_allocator<T> >;
+}  // namespace parallel
+}  // namespace mt_kahypar

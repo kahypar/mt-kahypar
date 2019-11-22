@@ -25,13 +25,11 @@
 #include "kahypar/partition/context.h"
 
 #include "mt-kahypar/definitions.h"
-#include "mt-kahypar/partition/metrics.h"
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
+#include "mt-kahypar/partition/metrics.h"
 
 namespace mt_kahypar {
-
 struct KaHyParPartitioningResult {
-
   KaHyParPartitioningResult() :
     objective(0),
     imbalance(1.0),
@@ -48,22 +46,21 @@ struct KaHyParPartitioningResult {
 };
 
 struct KaHyParHypergraph {
-
   KaHyParHypergraph() :
-   num_vertices(0),
-   num_hyperedges(0),
-   hyperedge_indices(),
-   hyperedges(),
-   vertex_weights(),
-   hyperedge_weights(),
-   reverse_mapping(),
-   part_weights() { }
+    num_vertices(0),
+    num_hyperedges(0),
+    hyperedge_indices(),
+    hyperedges(),
+    vertex_weights(),
+    hyperedge_weights(),
+    reverse_mapping(),
+    part_weights() { }
 
   void computePartWeights(const PartitionID k,
                           const parallel::scalable_vector<kahypar_partition_id_t>& partition) {
     ASSERT(partition.size() == vertex_weights.size());
     part_weights.assign(k, 0);
-    for ( HypernodeID hn = 0; hn < partition.size(); ++hn ) {
+    for (HypernodeID hn = 0; hn < partition.size(); ++hn) {
       PartitionID part = partition[hn];
       ASSERT(part != -1 && part < k);
       part_weights[part] += vertex_weights[hn];
@@ -71,7 +68,7 @@ struct KaHyParHypergraph {
   }
 
   HypernodeWeight partWeight(const PartitionID id) const {
-    ASSERT(id < (PartitionID) part_weights.size());
+    ASSERT(id < (PartitionID)part_weights.size());
     return part_weights[id];
   }
 
@@ -87,14 +84,14 @@ struct KaHyParHypergraph {
 
 // ! Converts the MT-KaHyPar Hypergraph into raw hypergraph data format taken
 // ! by the KaHyPar-Library Interface.
-template< typename HyperGraph >
+template <typename HyperGraph>
 static KaHyParHypergraph convertToKaHyParHypergraph(const HyperGraph& hypergraph,
                                                     const std::vector<HypernodeID>& node_mapping) {
   ASSERT(hypergraph.initialNumNodes() == node_mapping.size());
   KaHyParHypergraph kahypar_hypergraph;
 
   // Setup hypernodes
-  for ( const HypernodeID& hn : hypergraph.nodes() ) {
+  for (const HypernodeID& hn : hypergraph.nodes()) {
     kahypar_hypergraph.reverse_mapping.emplace_back(hn);
     kahypar_hypergraph.vertex_weights.emplace_back(hypergraph.nodeWeight(hn));
     ++kahypar_hypergraph.num_vertices;
@@ -102,11 +99,11 @@ static KaHyParHypergraph convertToKaHyParHypergraph(const HyperGraph& hypergraph
 
   // Setup hyperedges
   kahypar_hypergraph.hyperedge_indices.emplace_back(0);
-  for ( const HyperedgeID& he : hypergraph.edges() ) {
+  for (const HyperedgeID& he : hypergraph.edges()) {
     ++kahypar_hypergraph.num_hyperedges;
-    for ( const HypernodeID& hn : hypergraph.pins(he) ) {
+    for (const HypernodeID& hn : hypergraph.pins(he)) {
       ASSERT(hypergraph.originalNodeID(hn) < hypergraph.initialNumNodes());
-      ASSERT( node_mapping[hypergraph.originalNodeID(hn)] != std::numeric_limits<HypernodeID>::max() );
+      ASSERT(node_mapping[hypergraph.originalNodeID(hn)] != std::numeric_limits<HypernodeID>::max());
       kahypar_hypergraph.hyperedges.emplace_back(node_mapping[hypergraph.originalNodeID(hn)]);
     }
     kahypar_hypergraph.hyperedge_indices.emplace_back(kahypar_hypergraph.hyperedges.size());
@@ -118,7 +115,7 @@ static KaHyParHypergraph convertToKaHyParHypergraph(const HyperGraph& hypergraph
 
 // ! Extracts a block of a MT-KaHyPar Hypergraph as a raw hypergraph data format taken
 // ! by the KaHyPar-Library Interface.
-template< typename HyperGraph >
+template <typename HyperGraph>
 static KaHyParHypergraph extractBlockAsKaHyParHypergraph(const HyperGraph& hypergraph,
                                                          const PartitionID block,
                                                          std::vector<HypernodeID>& node_mapping,
@@ -128,9 +125,9 @@ static KaHyParHypergraph extractBlockAsKaHyParHypergraph(const HyperGraph& hyper
   KaHyParHypergraph kahypar_hypergraph;
 
   // Setup hypernodes
-  for ( const HypernodeID& hn : hypergraph.nodes() ) {
+  for (const HypernodeID& hn : hypergraph.nodes()) {
     ASSERT(hypergraph.partID(hn) != -1);
-    if ( hypergraph.partID(hn) == block ) {
+    if (hypergraph.partID(hn) == block) {
       node_mapping[hypergraph.originalNodeID(hn)] = kahypar_hypergraph.num_vertices++;
       kahypar_hypergraph.reverse_mapping.emplace_back(hn);
       kahypar_hypergraph.vertex_weights.emplace_back(hypergraph.nodeWeight(hn));
@@ -139,15 +136,15 @@ static KaHyParHypergraph extractBlockAsKaHyParHypergraph(const HyperGraph& hyper
 
   // Setup hyperedges
   kahypar_hypergraph.hyperedge_indices.emplace_back(0);
-  for ( const HyperedgeID& he : hypergraph.edges() ) {
-    if ( hypergraph.pinCountInPart(he, block) > 0 &&
-         ( hypergraph.connectivity(he) == 1 || cut_net_splitting ) ) {
+  for (const HyperedgeID& he : hypergraph.edges()) {
+    if (hypergraph.pinCountInPart(he, block) > 0 &&
+        (hypergraph.connectivity(he) == 1 || cut_net_splitting)) {
       ++kahypar_hypergraph.num_hyperedges;
-      for ( const HypernodeID& hn : hypergraph.pins(he) ) {
-        if ( hypergraph.partID(hn) == block ) {
-          ASSERT( hypergraph.originalNodeID(hn) < hypergraph.initialNumNodes() );
-          ASSERT( node_mapping[hypergraph.originalNodeID(hn)] != std::numeric_limits<HypernodeID>::max() );
-          ASSERT( hypergraph.partID(hn) != -1 );
+      for (const HypernodeID& hn : hypergraph.pins(he)) {
+        if (hypergraph.partID(hn) == block) {
+          ASSERT(hypergraph.originalNodeID(hn) < hypergraph.initialNumNodes());
+          ASSERT(node_mapping[hypergraph.originalNodeID(hn)] != std::numeric_limits<HypernodeID>::max());
+          ASSERT(hypergraph.partID(hn) != -1);
           kahypar_hypergraph.hyperedges.emplace_back(node_mapping[hypergraph.originalNodeID(hn)]);
         }
       }
@@ -161,7 +158,7 @@ static KaHyParHypergraph extractBlockAsKaHyParHypergraph(const HyperGraph& hyper
 
 static void kahypar_partition(const KaHyParHypergraph& hypergraph,
                               kahypar::Context& context,
-                              KaHyParPartitioningResult& partition ) {
+                              KaHyParPartitioningResult& partition) {
   kahypar_partition(hypergraph.num_vertices,
                     hypergraph.num_hyperedges,
                     context.partition.epsilon,
@@ -176,28 +173,28 @@ static void kahypar_partition(const KaHyParHypergraph& hypergraph,
 }
 
 // ! Computes the imbalance of a partition without applying it to the hypergraph.
-static double imbalance( KaHyParHypergraph& kahypar_hypergraph,
-                         const Context& context,
-                         const KaHyParPartitioningResult& kahypar_result) {
+static double imbalance(KaHyParHypergraph& kahypar_hypergraph,
+                        const Context& context,
+                        const KaHyParPartitioningResult& kahypar_result) {
   kahypar_hypergraph.computePartWeights(context.partition.k, kahypar_result.partition);
   return metrics::imbalance(kahypar_hypergraph, context);
 }
 
 static void sanitizeCheck(kahypar::Context& context) {
-  if ( context.partition.objective == kahypar::Objective::km1 ) {
-    switch(context.local_search.algorithm) {
+  if (context.partition.objective == kahypar::Objective::km1) {
+    switch (context.local_search.algorithm) {
       case kahypar::RefinementAlgorithm::kway_fm:
         context.local_search.algorithm = kahypar::RefinementAlgorithm::kway_fm_km1;
-          break;
+        break;
       case kahypar::RefinementAlgorithm::kway_fm_flow:
         context.local_search.algorithm = kahypar::RefinementAlgorithm::kway_fm_flow_km1;
-          break;
+        break;
       default:
         break;
     }
 
-    if ( context.partition.k > 2 ) {
-      switch(context.local_search.algorithm) {
+    if (context.partition.k > 2) {
+      switch (context.local_search.algorithm) {
         case kahypar::RefinementAlgorithm::twoway_flow:
           context.local_search.algorithm = kahypar::RefinementAlgorithm::kway_flow;
           break;
@@ -212,19 +209,19 @@ static void sanitizeCheck(kahypar::Context& context) {
       }
     }
   } else {
-    switch(context.local_search.algorithm) {
+    switch (context.local_search.algorithm) {
       case kahypar::RefinementAlgorithm::kway_fm_km1:
         context.local_search.algorithm = kahypar::RefinementAlgorithm::kway_fm;
-          break;
+        break;
       case kahypar::RefinementAlgorithm::kway_fm_flow_km1:
         context.local_search.algorithm = kahypar::RefinementAlgorithm::kway_fm_flow;
-          break;
+        break;
       default:
         break;
     }
 
-    if ( context.partition.k > 2 ) {
-      switch(context.local_search.algorithm) {
+    if (context.partition.k > 2) {
+      switch (context.local_search.algorithm) {
         case kahypar::RefinementAlgorithm::twoway_flow:
           context.local_search.algorithm = kahypar::RefinementAlgorithm::kway_flow;
           break;
@@ -262,5 +259,4 @@ static kahypar_context_t* setupContext(const Context& context, const bool debug)
   sanitizeCheck(kahypar_context);
   return kahypar_c;
 }
-
 }  // namespace mt_kahypar

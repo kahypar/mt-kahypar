@@ -27,12 +27,10 @@
 
 namespace mt_kahypar {
 namespace parallel {
-
-template< typename T >
+template <typename T>
 class CopyableAtomic {
-
- static_assert( std::is_integral<T>::value, "Value must be of integral type" );
- // static_assert( std::atomic<T>::is_always_lock_free, "Atomic must be lock free" );
+  static_assert(std::is_integral<T>::value, "Value must be of integral type");
+  // static_assert( std::atomic<T>::is_always_lock_free, "Atomic must be lock free" );
 
  public:
   explicit CopyableAtomic(const T value) :
@@ -41,7 +39,7 @@ class CopyableAtomic {
   CopyableAtomic(const CopyableAtomic& other) :
     _value(other._value.load()) { }
 
-  CopyableAtomic& operator= (const CopyableAtomic& other) {
+  CopyableAtomic & operator= (const CopyableAtomic& other) {
     _value = other._value.load();
     return *this;
   }
@@ -49,102 +47,100 @@ class CopyableAtomic {
   CopyableAtomic(CopyableAtomic&& other) :
     _value(other._value.load()) { }
 
-  CopyableAtomic& operator= (CopyableAtomic&& other) {
+  CopyableAtomic & operator= (CopyableAtomic&& other) {
     _value = other._value.load();
     return *this;
   }
 
-  T operator=( T desired ) noexcept {
+  T operator= (T desired) noexcept {
     _value = desired;
     return _value;
   }
 
-  void store( T desired, std::memory_order order = std::memory_order_seq_cst ) noexcept {
+  void store(T desired, std::memory_order order = std::memory_order_seq_cst) noexcept {
     _value.store(desired, order);
   }
 
-  T load( std::memory_order order = std::memory_order_seq_cst ) noexcept {
+  T load(std::memory_order order = std::memory_order_seq_cst) noexcept {
     return _value.load(order);
   }
 
-  operator T() const noexcept {
+  operator T () const noexcept {
     return _value.load();
   }
 
-  T exchange( T desired, std::memory_order order = std::memory_order_seq_cst ) noexcept {
+  T exchange(T desired, std::memory_order order = std::memory_order_seq_cst) noexcept {
     return _value.exchange(desired, order);
   }
 
-  bool compare_and_exchange_weak( T& expected, T& desired, std::memory_order order = std::memory_order_seq_cst ) noexcept {
+  bool compare_and_exchange_weak(T& expected, T& desired, std::memory_order order = std::memory_order_seq_cst) noexcept {
     return _value.compare_exchange_weak(expected, desired, order);
   }
 
-  bool compare_and_exchange_strong( T& expected, T& desired, std::memory_order order = std::memory_order_seq_cst ) noexcept {
+  bool compare_and_exchange_strong(T& expected, T& desired, std::memory_order order = std::memory_order_seq_cst) noexcept {
     return _value.compare_exchange_strong(expected, desired, order);
   }
 
-  T fetch_add( T arg, std::memory_order order = std::memory_order_seq_cst ) noexcept {
+  T fetch_add(T arg, std::memory_order order = std::memory_order_seq_cst) noexcept {
     return _value.fetch_add(arg, order);
   }
 
-  T fetch_sub( T arg, std::memory_order order = std::memory_order_seq_cst ) noexcept {
+  T fetch_sub(T arg, std::memory_order order = std::memory_order_seq_cst) noexcept {
     return _value.fetch_sub(arg, order);
   }
 
-  T fetch_and( T arg, std::memory_order order = std::memory_order_seq_cst ) noexcept {
+  T fetch_and(T arg, std::memory_order order = std::memory_order_seq_cst) noexcept {
     return _value.fetch_and(arg, order);
   }
 
-  T fetch_or( T arg, std::memory_order order = std::memory_order_seq_cst ) noexcept {
+  T fetch_or(T arg, std::memory_order order = std::memory_order_seq_cst) noexcept {
     return _value.fetch_or(arg, order);
   }
 
-  T fetch_xor( T arg, std::memory_order order = std::memory_order_seq_cst ) noexcept {
+  T fetch_xor(T arg, std::memory_order order = std::memory_order_seq_cst) noexcept {
     return _value.fetch_xor(arg, order);
   }
 
-  T operator++() noexcept {
+  T operator++ () noexcept {
     return ++_value;
   }
 
-  T operator++(int) noexcept {
+  T operator++ (int) noexcept {
     return _value++;
   }
 
-  T operator--() noexcept {
+  T operator-- () noexcept {
     return --_value;
   }
 
-  T operator--(int) noexcept {
+  T operator-- (int) noexcept {
     return _value++;
   }
 
-  T operator+=( T arg ) noexcept {
+  T operator+= (T arg) noexcept {
     return _value.fetch_add(arg) + arg;
   }
 
-  T operator-=( T arg ) noexcept {
+  T operator-= (T arg) noexcept {
     return _value.fetch_sub(arg) - arg;
   }
 
-  T operator&=( T arg ) noexcept {
+  T operator&= (T arg) noexcept {
     return _value.fetch_and(arg) & arg;
   }
 
-  T operator|=( T arg ) noexcept {
+  T operator|= (T arg) noexcept {
     return _value.fetch_or(arg) | arg;
   }
 
-  T operator^=( T arg ) noexcept {
+  T operator^= (T arg) noexcept {
     return _value.fetch_xor(arg) ^ arg;
   }
 
  private:
   std::atomic<T> _value;
-
 };
 
 #pragma GCC diagnostic pop
-
-} // namespace parallel
-} // namespace mt_kahypar
+}  // namespace parallel
+}  // namespace mt_kahypar

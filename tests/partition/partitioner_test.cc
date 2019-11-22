@@ -22,18 +22,16 @@
 #include "gmock/gmock.h"
 
 #include "mt-kahypar/definitions.h"
-#include "mt-kahypar/partition/context.h"
-#include "mt-kahypar/mt_kahypar.h"
 #include "mt-kahypar/io/hypergraph_io.h"
+#include "mt-kahypar/mt_kahypar.h"
+#include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/partition/partitioner.h"
 
 using ::testing::Test;
 
 namespace mt_kahypar {
-
 class APartitioner : public Test {
-
-static size_t num_threads;
+  static size_t num_threads;
 
  public:
   APartitioner() :
@@ -41,11 +39,16 @@ static size_t num_threads;
     context() {
     context.partition.graph_filename = "test_instances/ibm01.hgr";
     context.partition.graph_community_filename = "test_instances/ibm01.hgr.community";
-    context.partition.mode = Mode::direct_kway;
-    context.partition.objective = Objective::km1;
+    context.partition.mode = kahypar::Mode::direct_kway;
+    context.partition.objective = kahypar::Objective::km1;
     context.partition.epsilon = 0.03;
     context.partition.k = 2;
     context.partition.verbose_output = false;
+
+    // Preprocessing
+    context.preprocessing.community_detection.edge_weight_function = LouvainEdgeWeight::hybrid;
+    context.preprocessing.community_detection.max_pass_iterations = 20;
+    context.preprocessing.community_detection.min_eps_improvement = 0.01;
 
     // Coarsening
     context.coarsening.algorithm = CoarseningAlgorithm::community_coarsener;
@@ -72,7 +75,7 @@ static size_t num_threads;
 
     // Read hypergraph
     hypergraph = io::readHypergraphFile("test_instances/ibm01.hgr",
-      context.partition.k, InitialHyperedgeDistribution::equally);
+                                        context.partition.k, InitialHyperedgeDistribution::equally);
   }
 
   static void SetUpTestSuite() {
@@ -91,21 +94,20 @@ size_t APartitioner::num_threads = std::thread::hardware_concurrency();
 
 void verifyThatHypergraphsAreEquivalent(const Hypergraph& hypergraph,
                                         const Hypergraph& reference) {
-
   // Verify equivallence of hypernodes and incident nets
-  for ( const HypernodeID& hn : reference.nodes() ) {
+  for (const HypernodeID& hn : reference.nodes()) {
     const HypernodeID original_id = reference.originalNodeID(hn);
     const HypernodeID u = hypergraph.globalNodeID(original_id);
     ASSERT_TRUE(hypergraph.nodeIsEnabled(u));
 
     std::set<HyperedgeID> incident_nets;
-    for ( const HyperedgeID& he : reference.incidentEdges(hn) ) {
+    for (const HyperedgeID& he : reference.incidentEdges(hn)) {
       const HyperedgeID original_edge_id = reference.originalEdgeID(he);
       incident_nets.insert(original_edge_id);
     }
 
     size_t num_incident_nets = 0;
-    for ( const HyperedgeID& he : hypergraph.incidentEdges(u) ) {
+    for (const HyperedgeID& he : hypergraph.incidentEdges(u)) {
       const HyperedgeID original_edge_id = hypergraph.originalEdgeID(he);
       ASSERT_TRUE(incident_nets.find(original_edge_id) != incident_nets.end()) << V(u) << V(original_edge_id);
       ++num_incident_nets;
@@ -114,19 +116,19 @@ void verifyThatHypergraphsAreEquivalent(const Hypergraph& hypergraph,
   }
 
   // Verify equivallence of hyperedges and pins
-  for ( const HyperedgeID& he : reference.edges() ) {
+  for (const HyperedgeID& he : reference.edges()) {
     const HyperedgeID original_id = reference.originalEdgeID(he);
     const HyperedgeID e = hypergraph.globalEdgeID(original_id);
     ASSERT_TRUE(hypergraph.edgeIsEnabled(e));
 
     std::set<HypernodeID> pins;
-    for ( const HypernodeID& pin : reference.pins(he) ) {
+    for (const HypernodeID& pin : reference.pins(he)) {
       const HypernodeID original_pin_id = reference.originalNodeID(pin);
       pins.insert(original_pin_id);
     }
 
     size_t num_pins = 0;
-    for ( const HypernodeID& pin : hypergraph.pins(e) ) {
+    for (const HypernodeID& pin : hypergraph.pins(e)) {
       const HypernodeID original_pin_id = hypergraph.originalNodeID(pin);
       ASSERT_TRUE(pins.find(original_pin_id) != pins.end()) << V(e) << V(original_pin_id);
       ++num_pins;
@@ -136,12 +138,11 @@ void verifyThatHypergraphsAreEquivalent(const Hypergraph& hypergraph,
 }
 
 
-
 TEST_F(APartitioner, AssignsEachVertexAPartID) {
   partition::Partitioner().partition(hypergraph, context);
 
   size_t num_nodes = 0;
-  for ( const HypernodeID& hn : hypergraph.nodes() ) {
+  for (const HypernodeID& hn : hypergraph.nodes()) {
     ASSERT_NE(-1, hypergraph.partID(hn));
     ASSERT_LE(hypergraph.partID(hn), context.partition.k);
     ++num_nodes;
@@ -154,12 +155,12 @@ TEST_F(APartitioner, ComputesCorrectBlockWeightsAndPartSizes) {
 
   std::vector<HypernodeWeight> weights(hypergraph.k(), 0);
   std::vector<size_t> sizes(hypergraph.k(), 0);
-  for ( const HypernodeID& hn : hypergraph.nodes() ) {
+  for (const HypernodeID& hn : hypergraph.nodes()) {
     weights[hypergraph.partID(hn)] += hypergraph.nodeWeight(hn);
     ++sizes[hypergraph.partID(hn)];
   }
 
-  for ( PartitionID k = 0; k < hypergraph.k(); ++k ) {
+  for (PartitionID k = 0; k < hypergraph.k(); ++k) {
     ASSERT_EQ(weights[k], hypergraph.partWeight(k));
     ASSERT_EQ(sizes[k], hypergraph.partSize(k));
   }
@@ -168,15 +169,15 @@ TEST_F(APartitioner, ComputesCorrectBlockWeightsAndPartSizes) {
 TEST_F(APartitioner, ComputesCorrectPinCountsInPartValuesAndConnectivitySets) {
   partition::Partitioner().partition(hypergraph, context);
 
-  for ( const HyperedgeID& he : hypergraph.edges() ) {
+  for (const HyperedgeID& he : hypergraph.edges()) {
     std::vector<HypernodeID> pin_count_in_part(context.partition.k, 0);
-    for ( const HypernodeID& pin : hypergraph.pins(he) ) {
+    for (const HypernodeID& pin : hypergraph.pins(he)) {
       ++pin_count_in_part[hypergraph.partID(pin)];
     }
 
     PartitionID connectivity = 0;
-    for ( PartitionID k = 0; k < context.partition.k; ++k ) {
-      if ( pin_count_in_part[k] > 0 ) {
+    for (PartitionID k = 0; k < context.partition.k; ++k) {
+      if (pin_count_in_part[k] > 0) {
         ++connectivity;
       }
       ASSERT_EQ(pin_count_in_part[k], hypergraph.pinCountInPart(he, k));
@@ -184,7 +185,7 @@ TEST_F(APartitioner, ComputesCorrectPinCountsInPartValuesAndConnectivitySets) {
 
     ASSERT_EQ(connectivity, hypergraph.connectivity(he));
     size_t connectivity_2 = 0;
-    for ( const PartitionID& id : hypergraph.connectivitySet(he) ) {
+    for (const PartitionID& id : hypergraph.connectivitySet(he)) {
       ++connectivity_2;
       ASSERT_GT(pin_count_in_part[id], 0);
     }
@@ -195,10 +196,10 @@ TEST_F(APartitioner, ComputesCorrectPinCountsInPartValuesAndConnectivitySets) {
 TEST_F(APartitioner, ComputesCorrectBorderNodes) {
   partition::Partitioner().partition(hypergraph, context);
 
-  for ( const HypernodeID& hn : hypergraph.nodes() ) {
+  for (const HypernodeID& hn : hypergraph.nodes()) {
     bool is_border_node = false;
-    for ( const HyperedgeID& he : hypergraph.incidentEdges(hn) ) {
-      if ( hypergraph.connectivity(he) > 1 ) {
+    for (const HyperedgeID& he : hypergraph.incidentEdges(hn)) {
+      if (hypergraph.connectivity(he) > 1) {
         is_border_node = true;
         break;
       }
@@ -209,9 +210,8 @@ TEST_F(APartitioner, ComputesCorrectBorderNodes) {
 
 TEST_F(APartitioner, IsEqualWithInputHypergraphAfterPartitioning) {
   Hypergraph reference = io::readHypergraphFile("test_instances/ibm01.hgr",
-    context.partition.k, InitialHyperedgeDistribution::equally);
+                                                context.partition.k, InitialHyperedgeDistribution::equally);
   partition::Partitioner().partition(hypergraph, context);
   verifyThatHypergraphsAreEquivalent(hypergraph, reference);
 }
-
-} // namespace mt_kahypar
+}  // namespace mt_kahypar

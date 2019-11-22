@@ -26,33 +26,31 @@
 #include "mt-kahypar/definitions.h"
 
 namespace mt_kahypar {
-
 class VertexObjectivePolicy final : public kahypar::meta::PolicyBase {
-  public:
-    template< typename HyperGraph >
-    KAHYPAR_ATTRIBUTE_ALWAYS_INLINE static inline HypernodeID objective(const HyperGraph& hypergraph, const PartitionID community) {
-      return hypergraph.numCommunityHypernodes(community);
-    }
+ public:
+  template <typename HyperGraph>
+  KAHYPAR_ATTRIBUTE_ALWAYS_INLINE static inline HypernodeID objective(const HyperGraph& hypergraph, const PartitionID community) {
+    return hypergraph.numCommunityHypernodes(community);
+  }
 
-    template< typename HyperGraph >
-    KAHYPAR_ATTRIBUTE_ALWAYS_INLINE static inline HypernodeID total(const HyperGraph& hypergraph) {
-      return hypergraph.initialNumNodes();
-    }
+  template <typename HyperGraph>
+  KAHYPAR_ATTRIBUTE_ALWAYS_INLINE static inline HypernodeID total(const HyperGraph& hypergraph) {
+    return hypergraph.initialNumNodes();
+  }
 };
 
 class PinObjectivePolicy final : public kahypar::meta::PolicyBase {
-  public:
-    template< typename HyperGraph >
-    KAHYPAR_ATTRIBUTE_ALWAYS_INLINE static inline HypernodeID objective(const HyperGraph& hypergraph, const PartitionID community) {
-      return hypergraph.numCommunityPins(community);
-    }
+ public:
+  template <typename HyperGraph>
+  KAHYPAR_ATTRIBUTE_ALWAYS_INLINE static inline HypernodeID objective(const HyperGraph& hypergraph, const PartitionID community) {
+    return hypergraph.numCommunityPins(community);
+  }
 
-    template< typename HyperGraph >
-    KAHYPAR_ATTRIBUTE_ALWAYS_INLINE static inline HypernodeID total(const HyperGraph& hypergraph) {
-      return hypergraph.initialNumPins();
-    }
+  template <typename HyperGraph>
+  KAHYPAR_ATTRIBUTE_ALWAYS_INLINE static inline HypernodeID total(const HyperGraph& hypergraph) {
+    return hypergraph.initialNumPins();
+  }
 };
 
-using ObjectivePolicyClasses = meta::Typelist<VertexObjectivePolicy, PinObjectivePolicy>;
-
-} // namespace mt_kahypar
+using ObjectivePolicyClasses = kahypar::meta::Typelist<VertexObjectivePolicy, PinObjectivePolicy>;
+}  // namespace mt_kahypar

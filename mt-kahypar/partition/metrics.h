@@ -25,32 +25,31 @@
 #include <algorithm>
 #include <vector>
 
-#include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/definitions.h"
+#include "mt-kahypar/partition/context.h"
 
 namespace mt_kahypar {
 namespace metrics {
-
 /**
  * Counts the number of pins which refers to an other numa node than the numa
  * node which its corresponding hyperedge belongs to
  */
-template< typename HyperGraph >
+template <typename HyperGraph>
 static inline HyperedgeWeight remotePinCount(const HyperGraph& hypergraph) {
   int used_numa_nodes = TBBNumaArena::instance().num_used_numa_nodes();
   HyperedgeWeight remote_pin_count = 0;
-  for ( const HyperedgeID& he : hypergraph.edges() ) {
+  for (const HyperedgeID& he : hypergraph.edges()) {
     int he_node = StreamingHypergraph::get_numa_node_of_hyperedge(he);
     std::vector<size_t> pin_count_on_node(used_numa_nodes, 0);
-    for ( const HypernodeID& pin : hypergraph.pins(he) ) {
+    for (const HypernodeID& pin : hypergraph.pins(he)) {
       int hn_node = StreamingHypergraph::get_numa_node_of_vertex(pin);
       ASSERT(hn_node < used_numa_nodes);
       ++pin_count_on_node[hn_node];
     }
 
     HyperedgeWeight he_remote_pin_count = 0;
-    for ( int node = 0; node < used_numa_nodes; ++node ) {
-      if ( he_node != node ) {
+    for (int node = 0; node < used_numa_nodes; ++node) {
+      if (he_node != node) {
         he_remote_pin_count += pin_count_on_node[node];
       }
     }
@@ -60,39 +59,39 @@ static inline HyperedgeWeight remotePinCount(const HyperGraph& hypergraph) {
   return remote_pin_count;
 }
 
-template< typename HyperGraph >
+template <typename HyperGraph>
 static inline HyperedgeWeight hyperedgeCut(const HyperGraph& hypergraph) {
   HyperedgeWeight cut = 0;
-  for ( const HyperedgeID& he : hypergraph.edges() ) {
-    if ( hypergraph.connectivity(he) > 1 ) {
+  for (const HyperedgeID& he : hypergraph.edges()) {
+    if (hypergraph.connectivity(he) > 1) {
       cut += hypergraph.edgeWeight(he);
     }
   }
   return cut;
 }
 
-template< typename HyperGraph >
+template <typename HyperGraph>
 static inline HyperedgeWeight km1(const HyperGraph& hypergraph) {
   HyperedgeWeight km1 = 0;
-  for ( const HyperedgeID& he : hypergraph.edges() ) {
+  for (const HyperedgeID& he : hypergraph.edges()) {
     km1 += std::max(hypergraph.connectivity(he) - 1, 0) * hypergraph.edgeWeight(he);
   }
   return km1;
 }
 
-template< typename HyperGraph >
+template <typename HyperGraph>
 static inline HyperedgeWeight soed(const HyperGraph& hypergraph) {
   HyperedgeWeight soed = 0;
-  for ( const HyperedgeID& he : hypergraph.edges() ) {
+  for (const HyperedgeID& he : hypergraph.edges()) {
     PartitionID connectivity = hypergraph.connectivity(he);
-    if ( connectivity > 1 ) {
+    if (connectivity > 1) {
       soed += connectivity * hypergraph.edgeWeight(he);
     }
   }
   return soed;
 }
 
-template< typename HyperGraph >
+template <typename HyperGraph>
 static inline double absorption(const HyperGraph& hypergraph) {
   double absorption_val = 0.0;
   for (PartitionID part = 0; part < hypergraph.k(); ++part) {
@@ -107,7 +106,7 @@ static inline double absorption(const HyperGraph& hypergraph) {
   return absorption_val;
 }
 
-template< typename HyperGraph >
+template <typename HyperGraph>
 static inline HyperedgeWeight objective(const HyperGraph& hg, const kahypar::Objective& objective) {
   switch (objective) {
     case kahypar::Objective::cut: return hyperedgeCut(hg);
@@ -118,9 +117,9 @@ static inline HyperedgeWeight objective(const HyperGraph& hg, const kahypar::Obj
   }
 }
 
-template< typename HyperGraph >
+template <typename HyperGraph>
 static inline double imbalance(const HyperGraph& hypergraph, const Context& context) {
-  ASSERT(context.partition.perfect_balance_part_weights.size() == (size_t) context.partition.k);
+  ASSERT(context.partition.perfect_balance_part_weights.size() == (size_t)context.partition.k);
 
   double max_balance = (hypergraph.partWeight(0) /
                         static_cast<double>(context.partition.perfect_balance_part_weights[0]));
@@ -135,17 +134,17 @@ static inline double imbalance(const HyperGraph& hypergraph, const Context& cont
   return max_balance - 1.0;
 }
 
-template< typename HyperGraph >
+template <typename HyperGraph>
 static inline double avgHyperedgeDegree(const HyperGraph& hypergraph) {
   return static_cast<double>(hypergraph.initialNumPins()) / hypergraph.initialNumEdges();
 }
 
-template< typename HyperGraph >
+template <typename HyperGraph>
 static inline double avgHypernodeDegree(const HyperGraph& hypergraph) {
   return static_cast<double>(hypergraph.initialNumPins()) / hypergraph.initialNumNodes();
 }
 
-template< typename HyperGraph >
+template <typename HyperGraph>
 static inline HyperedgeID hypernodeDegreeRank(const HyperGraph& hypergraph, const size_t rank) {
   std::vector<HyperedgeID> hn_degrees;
   hn_degrees.reserve(hypergraph.initialNumNodes());
@@ -158,6 +157,5 @@ static inline HyperedgeID hypernodeDegreeRank(const HyperGraph& hypergraph, cons
   ASSERT(rank < hn_degrees.size());
   return hn_degrees[rank];
 }
-
-} // namespace metrics
-} // namespace mt_kahypar
+}  // namespace metrics
+}  // namespace mt_kahypar

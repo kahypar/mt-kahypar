@@ -26,13 +26,12 @@
 #include "mt-kahypar/partition/refinement/i_refiner.h"
 
 namespace mt_kahypar {
-
 class ICoarsener {
  public:
   ICoarsener(const ICoarsener&) = delete;
   ICoarsener(ICoarsener&&) = delete;
-  ICoarsener& operator= (const ICoarsener&) = delete;
-  ICoarsener& operator= (ICoarsener&&) = delete;
+  ICoarsener & operator= (const ICoarsener &) = delete;
+  ICoarsener & operator= (ICoarsener &&) = delete;
 
   void coarsen() {
     coarsenImpl();

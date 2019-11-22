@@ -24,28 +24,26 @@
 
 #include "kahypar/meta/registrar.h"
 
-#include "mt-kahypar/partition/factories.h"
 #include "mt-kahypar/partition/context.h"
+#include "mt-kahypar/partition/factories.h"
 
-#define REGISTER_DISPATCHED_COARSENER(id, dispatcher, ...)                 \
-  static meta::Registrar<CoarsenerFactory> register_ ## dispatcher(        \
-    id,                                                                    \
-    [](Hypergraph& hypergraph, const Context& context) {                   \
-    return dispatcher::create(                                             \
-      std::forward_as_tuple(hypergraph, context),                          \
-      __VA_ARGS__                                                          \
-      );                                                                   \
+#define REGISTER_DISPATCHED_COARSENER(id, dispatcher, ...)                   \
+  static kahypar::meta::Registrar<CoarsenerFactory> register_ ## dispatcher( \
+    id,                                                                      \
+    [](Hypergraph& hypergraph, const Context& context) {                     \
+    return dispatcher::create(                                               \
+      std::forward_as_tuple(hypergraph, context),                            \
+      __VA_ARGS__                                                            \
+      );                                                                     \
   })
 
 namespace mt_kahypar {
-
 REGISTER_DISPATCHED_COARSENER(CoarseningAlgorithm::community_coarsener,
                               CommunityCoarsenerDispatcher,
-                              meta::PolicyRegistry<RatingFunction>::getInstance().getPolicy(
+                              kahypar::meta::PolicyRegistry<RatingFunction>::getInstance().getPolicy(
                                 context.coarsening.rating.rating_function),
-                              meta::PolicyRegistry<HeavyNodePenaltyPolicy>::getInstance().getPolicy(
+                              kahypar::meta::PolicyRegistry<HeavyNodePenaltyPolicy>::getInstance().getPolicy(
                                 context.coarsening.rating.heavy_node_penalty_policy),
-                              meta::PolicyRegistry<AcceptancePolicy>::getInstance().getPolicy(
+                              kahypar::meta::PolicyRegistry<AcceptancePolicy>::getInstance().getPolicy(
                                 context.coarsening.rating.acceptance_policy));
-
-} // namespace mt_kahypar
+}  // namespace mt_kahypar

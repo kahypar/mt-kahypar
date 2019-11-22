@@ -29,9 +29,7 @@
 
 namespace mt_kahypar {
 namespace parallel {
-
-
-template< typename HwTopology >
+template <typename HwTopology>
 class GlobalThreadPinningObserver : public tbb::task_scheduler_observer {
   using Base = tbb::task_scheduler_observer;
 
@@ -44,9 +42,9 @@ class GlobalThreadPinningObserver : public tbb::task_scheduler_observer {
     Base(true) { }
 
   GlobalThreadPinningObserver(const GlobalThreadPinningObserver&) = delete;
-  GlobalThreadPinningObserver& operator= (const GlobalThreadPinningObserver&) = delete;
+  GlobalThreadPinningObserver & operator= (const GlobalThreadPinningObserver &) = delete;
 
-  GlobalThreadPinningObserver& operator= (GlobalThreadPinningObserver&&) = delete;
+  GlobalThreadPinningObserver & operator= (GlobalThreadPinningObserver &&) = delete;
 
   ~GlobalThreadPinningObserver() {
     observe(false);
@@ -60,6 +58,5 @@ class GlobalThreadPinningObserver : public tbb::task_scheduler_observer {
     GlobalThreadPinning::instance().unregister_thread();
   }
 };
-
-} // namespace parallel
-} // namespace mt_kahypar
+}  // namespace parallel
+}  // namespace mt_kahypar

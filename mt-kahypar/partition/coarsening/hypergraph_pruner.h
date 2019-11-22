@@ -27,8 +27,7 @@
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
 
 namespace mt_kahypar {
-
-template< typename TypeTraits >
+template <typename TypeTraits>
 class HypergraphPrunerT {
   using HyperGraph = typename TypeTraits::HyperGraph;
   using StreamingHyperGraph = typename TypeTraits::StreamingHyperGraph;
@@ -56,10 +55,10 @@ class HypergraphPrunerT {
     _parallel_he_representative(parallel_he_representative) { }
 
   HypergraphPrunerT(const HypergraphPrunerT&) = delete;
-  HypergraphPrunerT& operator= (const HypergraphPrunerT&) = delete;
+  HypergraphPrunerT & operator= (const HypergraphPrunerT &) = delete;
 
   HypergraphPrunerT(HypergraphPrunerT&& other) = default;
-  HypergraphPrunerT& operator= (HypergraphPrunerT&&) = default;
+  HypergraphPrunerT & operator= (HypergraphPrunerT &&) = default;
 
   virtual ~HypergraphPrunerT() = default;
 
@@ -113,14 +112,15 @@ class HypergraphPrunerT {
   }
 
   HyperedgeWeight removeParallelHyperedges(HyperGraph& hypergraph,
-                                             const PartitionID community_id,
+                                           const PartitionID community_id,
                                            Memento& memento) {
     memento.parallel_hes_begin = _removed_parallel_hyperedges.size();
 
     createFingerprints(hypergraph, memento.u, community_id);
     std::sort(_fingerprints.begin(), _fingerprints.end(),
               [](const Fingerprint& a, const Fingerprint& b) {
-                return a.hash < b.hash || (a.hash == b.hash && a.id < b.id); });
+        return a.hash < b.hash || (a.hash == b.hash && a.id < b.id);
+      });
 
     HyperedgeWeight removed_parallel_hes = 0;
     size_t i = 0;
@@ -163,16 +163,15 @@ class HypergraphPrunerT {
     return removed_parallel_hes;
   }
 
-  const parallel::scalable_vector<HyperedgeID> & removedSingleNodeHyperedges() const {
+  const parallel::scalable_vector<HyperedgeID>& removedSingleNodeHyperedges() const {
     return _removed_single_node_hyperedges;
   }
 
-  const parallel::scalable_vector<HyperedgeID> & removedParallelHyperedges() const {
+  const parallel::scalable_vector<HyperedgeID>& removedParallelHyperedges() const {
     return _removed_parallel_hyperedges;
   }
 
  private:
-
   void createFingerprints(HyperGraph& hypergraph, const HypernodeID u, const PartitionID community_id) {
     _fingerprints.clear();
     for (const HyperedgeID& he : hypergraph.validIncidentEdges(u, community_id)) {
@@ -186,7 +185,7 @@ class HypergraphPrunerT {
     kahypar::ds::FastResetFlagArray<>& contained_hypernodes = _contained_hypernodes.local();
     contained_hypernodes.reset();
     DBG << "Filling Bitprobe Set for HE" << he;
-    for ( const PartitionID& community_id : hypergraph.communities(he) ) {
+    for (const PartitionID& community_id : hypergraph.communities(he)) {
       for (const HypernodeID& pin : hypergraph.pins(he, community_id)) {
         contained_hypernodes.set(hypergraph.originalNodeID(pin), true);
       }
@@ -197,14 +196,14 @@ class HypergraphPrunerT {
   bool isParallelHyperedge(HyperGraph& hypergraph, const HyperedgeID he) const {
     kahypar::ds::FastResetFlagArray<>& contained_hypernodes = _contained_hypernodes.local();
     bool is_parallel = true;
-    for ( const PartitionID& community_id : hypergraph.communities(he) ) {
+    for (const PartitionID& community_id : hypergraph.communities(he)) {
       for (const HypernodeID& pin : hypergraph.pins(he, community_id)) {
         if (!contained_hypernodes[hypergraph.originalNodeID(pin)]) {
           is_parallel = false;
           break;
         }
       }
-      if ( !is_parallel ) {
+      if (!is_parallel) {
         break;
       }
     }
@@ -232,5 +231,4 @@ class HypergraphPrunerT {
   ThreadLocalFastResetFlagArray& _contained_hypernodes;
   parallel::scalable_vector<HyperedgeID>& _parallel_he_representative;
 };
-
-} // namespace mt_kahypar
+}  // namespace mt_kahypar

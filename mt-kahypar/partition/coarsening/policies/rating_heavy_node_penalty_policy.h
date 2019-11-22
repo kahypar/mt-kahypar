@@ -26,7 +26,6 @@
 #include "mt-kahypar/definitions.h"
 
 namespace mt_kahypar {
-
 class MultiplicativePenalty final : public kahypar::meta::PolicyBase {
  public:
   KAHYPAR_ATTRIBUTE_ALWAYS_INLINE static inline HypernodeWeight penalty(const HypernodeWeight weight_u, const HypernodeWeight weight_v) {

@@ -26,7 +26,6 @@
 #include "mt-kahypar/definitions.h"
 
 namespace mt_kahypar {
-
 class HeavyEdgeScore final : public kahypar::meta::PolicyBase {
  public:
   template <typename HyperGraph>
@@ -38,5 +37,4 @@ class HeavyEdgeScore final : public kahypar::meta::PolicyBase {
 };
 
 using RatingScorePolicies = kahypar::meta::Typelist<HeavyEdgeScore>;
-
 }  // namespace mt_kahypar

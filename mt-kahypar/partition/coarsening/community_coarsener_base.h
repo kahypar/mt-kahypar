@@ -20,24 +20,24 @@
 
 #pragma once
 
-#include <string>
 #include <queue>
+#include <string>
 
-#include "tbb/task_group.h"
-#include "tbb/parallel_for.h"
 #include "tbb/blocked_range.h"
+#include "tbb/parallel_for.h"
+#include "tbb/task_group.h"
 
 #include "kahypar/partition/metrics.h"
 
 #include "mt-kahypar/definitions.h"
+#include "mt-kahypar/partition/coarsening/hypergraph_pruner.h"
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/partition/metrics.h"
-#include "mt-kahypar/partition/coarsening/hypergraph_pruner.h"
+#include "mt-kahypar/partition/refinement/i_refiner.h"
 #include "mt-kahypar/utils/stats.h"
 
 namespace mt_kahypar {
-
-template< typename TypeTraits >
+template <typename TypeTraits>
 class CommunityCoarsenerBase {
  private:
   using HyperGraph = typename TypeTraits::HyperGraph;
@@ -59,15 +59,15 @@ class CommunityCoarsenerBase {
     _pruner(),
     _community_history(_hg.numCommunities()),
     _history() {
-    for ( PartitionID community_id = 0; community_id < _hg.numCommunities(); ++community_id ) {
+    for (PartitionID community_id = 0; community_id < _hg.numCommunities(); ++community_id) {
       _pruner.emplace_back(_contained_hypernodes, _parallel_he_representative);
     }
   }
 
   CommunityCoarsenerBase(const CommunityCoarsenerBase&) = delete;
   CommunityCoarsenerBase(CommunityCoarsenerBase&&) = delete;
-  CommunityCoarsenerBase& operator= (const CommunityCoarsenerBase&) = delete;
-  CommunityCoarsenerBase& operator= (CommunityCoarsenerBase&&) = delete;
+  CommunityCoarsenerBase & operator= (const CommunityCoarsenerBase &) = delete;
+  CommunityCoarsenerBase & operator= (CommunityCoarsenerBase &&) = delete;
 
   virtual ~CommunityCoarsenerBase() = default;
 
@@ -79,7 +79,7 @@ class CommunityCoarsenerBase {
     _init = true;
     HighResClockTimepoint end = std::chrono::high_resolution_clock::now();
     mt_kahypar::utils::Timer::instance().add_timing("initialize_community_hyperedges", "Initialize Community Hyperedges",
-      "coarsening", mt_kahypar::utils::Timer::Type::COARSENING, 1, std::chrono::duration<double>(end - start).count());
+                                                    "coarsening", mt_kahypar::utils::Timer::Type::COARSENING, 1, std::chrono::duration<double>(end - start).count());
   }
 
   void finalize() {
@@ -88,20 +88,20 @@ class CommunityCoarsenerBase {
     mergeCommunityContractions();
     HighResClockTimepoint end = std::chrono::high_resolution_clock::now();
     mt_kahypar::utils::Timer::instance().add_timing("merge_contractions", "Merge Contractions",
-      "coarsening", mt_kahypar::utils::Timer::Type::COARSENING, 4, std::chrono::duration<double>(end - start).count());
+                                                    "coarsening", mt_kahypar::utils::Timer::Type::COARSENING, 4, std::chrono::duration<double>(end - start).count());
 
     // Reset community hyperedges
     start = std::chrono::high_resolution_clock::now();
     _hg.removeCommunityHyperedges(_history);
     end = std::chrono::high_resolution_clock::now();
     mt_kahypar::utils::Timer::instance().add_timing("reset_community_hyperedges", "Reset Community Hyperedges",
-      "coarsening", mt_kahypar::utils::Timer::Type::COARSENING, 5, std::chrono::duration<double>(end - start).count());
+                                                    "coarsening", mt_kahypar::utils::Timer::Type::COARSENING, 5, std::chrono::duration<double>(end - start).count());
 
     start = std::chrono::high_resolution_clock::now();
     postprocessParallelHyperedges();
     end = std::chrono::high_resolution_clock::now();
     mt_kahypar::utils::Timer::instance().add_timing("postprocess_parallel_hyperedges", "Postprocess Parallel Hyperedges",
-      "coarsening", mt_kahypar::utils::Timer::Type::COARSENING, 6, std::chrono::duration<double>(end - start).count());
+                                                    "coarsening", mt_kahypar::utils::Timer::Type::COARSENING, 6, std::chrono::duration<double>(end - start).count());
 
     _init = false;
   }
@@ -116,7 +116,7 @@ class CommunityCoarsenerBase {
     _pruner[community_id].removeParallelHyperedges(_hg, community_id, _community_history[community_id].back());
   }
 
-  bool doUncoarsen( std::unique_ptr<IRefiner>& label_propagation ) {
+  bool doUncoarsen(std::unique_ptr<IRefiner>& label_propagation) {
     ASSERT(!_init, "Community coarsener must be finalized before uncoarsening");
 
     kahypar::Metrics current_metrics = { metrics::hyperedgeCut(_hg),
@@ -127,7 +127,7 @@ class CommunityCoarsenerBase {
     utils::Stats::instance().add_stat("initial_imbalance", current_metrics.imbalance);
 
     std::vector<HypernodeID> refinement_nodes;
-    while ( !_history.empty() ) {
+    while (!_history.empty()) {
       HighResClockTimepoint start = std::chrono::high_resolution_clock::now();
       PartitionID community_id = _hg.communityID(_history.back().u);
       DBG << "Uncontracting: (" << _history.back().u << "," << _history.back().v << ")" << V(_history.size());
@@ -142,18 +142,18 @@ class CommunityCoarsenerBase {
       _hg.updateGlobalPartInfos();
       HighResClockTimepoint end = std::chrono::high_resolution_clock::now();
       mt_kahypar::utils::Timer::instance().update_timing("uncontraction", "Uncontraction",
-        "refinement", mt_kahypar::utils::Timer::Type::REFINEMENT, 0, std::chrono::duration<double>(end - start).count());
+                                                         "refinement", mt_kahypar::utils::Timer::Type::REFINEMENT, 0, std::chrono::duration<double>(end - start).count());
 
       // Call label propagation refiner
       start = std::chrono::high_resolution_clock::now();
-      if ( label_propagation ) {
+      if (label_propagation) {
         // NOTE, label propagation refiner relies on the assumption, that it is called after
         // each uncontraction. Do not move the refiner call out of this loop.
         label_propagation->refine(refinement_nodes, current_metrics);
       }
       end = std::chrono::high_resolution_clock::now();
       mt_kahypar::utils::Timer::instance().update_timing("label_propagation", "Label Propagation",
-        "refinement", mt_kahypar::utils::Timer::Type::REFINEMENT, 1, std::chrono::duration<double>(end - start).count());
+                                                         "refinement", mt_kahypar::utils::Timer::Type::REFINEMENT, 1, std::chrono::duration<double>(end - start).count());
 
 
       refinement_nodes.clear();
@@ -161,24 +161,24 @@ class CommunityCoarsenerBase {
     }
 
 
-    ASSERT( metrics::objective(_hg, _context.partition.objective) ==
-            current_metrics.getMetric(kahypar::Mode::direct_kway, _context.partition.objective),
-            V(current_metrics.getMetric(kahypar::Mode::direct_kway, _context.partition.objective)) <<
-            V(metrics::objective(_hg, _context.partition.objective)) );
+    ASSERT(metrics::objective(_hg, _context.partition.objective) ==
+           current_metrics.getMetric(kahypar::Mode::direct_kway, _context.partition.objective),
+           V(current_metrics.getMetric(kahypar::Mode::direct_kway, _context.partition.objective)) <<
+           V(metrics::objective(_hg, _context.partition.objective)));
     return true;
   }
 
  private:
   void mergeCommunityContractions() {
     size_t size = 0;
-    for ( const auto& community_mementos : _community_history ) {
+    for (const auto& community_mementos : _community_history) {
       size += community_mementos.size();
     }
     std::sort(_community_history.begin(), _community_history.end(),
               [&](const auto& lhs, const auto& rhs) {
-      return lhs.size() > rhs.size();
-    });
-    while ( _community_history.back().size() == 0 ) {
+        return lhs.size() > rhs.size();
+      });
+    while (_community_history.back().size() == 0) {
       _community_history.pop_back();
     }
 
@@ -186,38 +186,38 @@ class CommunityCoarsenerBase {
     // to one history vector in round-robin fashion.
     _history.resize(size);
     tbb::parallel_for(tbb::blocked_range<size_t>(0UL, _community_history.size()),
-      [&](const tbb::blocked_range<size_t>& range) {
-      for ( size_t i = range.begin(); i < range.end(); ++i ) {
-        size_t current_pos = i;
-        int64_t k = _community_history.size();
-        for ( size_t pos = 0; pos < _community_history[i].size(); ++pos ) {
-          while ( pos >= _community_history[k - 1].size() ) {
-            --k;
-            ASSERT(k > 0);
-          }
+                      [&](const tbb::blocked_range<size_t>& range) {
+        for (size_t i = range.begin(); i < range.end(); ++i) {
+          size_t current_pos = i;
+          int64_t k = _community_history.size();
+          for (size_t pos = 0; pos < _community_history[i].size(); ++pos) {
+            while (pos >= _community_history[k - 1].size()) {
+              --k;
+              ASSERT(k > 0);
+            }
 
-          ASSERT(current_pos < _history.size(), V(i) << V(current_pos) << V(_history.size()));
-          ASSERT(_history[current_pos].u == std::numeric_limits<HypernodeID>::max(), V(current_pos) << V(i) << V(k));
-          _history[current_pos] = std::move(_community_history[i][pos]);
-          current_pos += k;
+            ASSERT(current_pos < _history.size(), V(i) << V(current_pos) << V(_history.size()));
+            ASSERT(_history[current_pos].u == std::numeric_limits<HypernodeID>::max(), V(current_pos) << V(i) << V(k));
+            _history[current_pos] = std::move(_community_history[i][pos]);
+            current_pos += k;
+          }
         }
-      }
-    });
+      });
 
     // Release memory of community histories
-    for ( auto& community_mementos : _community_history ) {
+    for (auto& community_mementos : _community_history) {
       parallel::scalable_vector<Memento> tmp;
       community_mementos = std::move(tmp);
     }
 
     ASSERT([&] {
-      for ( size_t i = 0; i < _history.size(); ++i ) {
-        if ( _history[i].u == std::numeric_limits<HypernodeID>::max() ) {
-          return false;
+        for (size_t i = 0; i < _history.size(); ++i) {
+          if (_history[i].u == std::numeric_limits<HypernodeID>::max()) {
+            return false;
+          }
         }
-      }
-      return true;
-    }(), "Merging contraction hierarchies failed");
+        return true;
+      } (), "Merging contraction hierarchies failed");
   }
 
   void postprocessParallelHyperedges() {
@@ -242,9 +242,9 @@ class CommunityCoarsenerBase {
     // Determine the in degree of all tree nodes
     HighResClockTimepoint start = std::chrono::high_resolution_clock::now();
     std::vector<HyperedgeID> in_degree(_hg.initialNumEdges(), 0);
-    for ( HyperedgeID he = 0; he < _hg.initialNumEdges(); ++he ) {
+    for (HyperedgeID he = 0; he < _hg.initialNumEdges(); ++he) {
       HyperedgeID representative = _parallel_he_representative[he];
-      if ( representative != kInvalidHyperedge ) {
+      if (representative != kInvalidHyperedge) {
         ASSERT(representative < in_degree.size());
         ++in_degree[representative];
       }
@@ -252,8 +252,8 @@ class CommunityCoarsenerBase {
 
     // Push all leaves into a queue
     std::queue<HyperedgeID> q;
-    for ( HyperedgeID he = 0; he < _hg.initialNumEdges(); ++he ) {
-      if ( in_degree[he] == 0 && _parallel_he_representative[he] != kInvalidHyperedge ) {
+    for (HyperedgeID he = 0; he < _hg.initialNumEdges(); ++he) {
+      if (in_degree[he] == 0 && _parallel_he_representative[he] != kInvalidHyperedge) {
         q.push(he);
       }
     }
@@ -262,12 +262,12 @@ class CommunityCoarsenerBase {
     // of each hyperedge
     int64_t num_removed_parallel_hyperedges = 0;
     std::vector<HyperedgeWeight> weights(_hg.initialNumEdges(), 0);
-    while ( !q.empty() ) {
+    while (!q.empty()) {
       HyperedgeID original_he = q.front();
       HyperedgeID he = _hg.globalEdgeID(original_he);
 
       bool was_enabled = false;
-      if ( !_hg.edgeIsEnabled(he) ) {
+      if (!_hg.edgeIsEnabled(he)) {
         // Only roots are allowed to be disabled, because of single-pin hyperedge removal.
         ASSERT(_parallel_he_representative[original_he] == kInvalidHyperedge);
         // We temporary enable the hyperedge in order to set the edge weight
@@ -280,12 +280,12 @@ class CommunityCoarsenerBase {
       q.pop();
 
       HyperedgeID representative = _parallel_he_representative[original_he];
-      if ( representative != kInvalidHyperedge ) {
+      if (representative != kInvalidHyperedge) {
         ++num_removed_parallel_hyperedges;
         ASSERT(representative < weights.size());
         weights[representative] += _hg.edgeWeight(he);
         --in_degree[representative];
-        if ( in_degree[representative] == 0 ) {
+        if (in_degree[representative] == 0) {
           q.push(representative);
         }
       }
@@ -293,7 +293,7 @@ class CommunityCoarsenerBase {
       // If the hyperedge was temporary enabled (to set edge weight) or
       // the hyperedge is an inner node of the parallel hyperedge forest
       // we disable the hyperedge
-      if ( was_enabled || representative != kInvalidHyperedge ) {
+      if (was_enabled || representative != kInvalidHyperedge) {
         ASSERT(_hg.edgeIsEnabled(he));
         _hg.disableHyperedge(he);
       }
@@ -301,14 +301,14 @@ class CommunityCoarsenerBase {
     utils::Stats::instance().add_stat("num_removed_parallel_hes", num_removed_parallel_hyperedges);
     HighResClockTimepoint end = std::chrono::high_resolution_clock::now();
     mt_kahypar::utils::Timer::instance().add_timing("determine_he_weights", "Determine HE weights",
-      "postprocess_parallel_hyperedges", mt_kahypar::utils::Timer::Type::COARSENING, 1, std::chrono::duration<double>(end - start).count());
+                                                    "postprocess_parallel_hyperedges", mt_kahypar::utils::Timer::Type::COARSENING, 1, std::chrono::duration<double>(end - start).count());
 
 
     start = std::chrono::high_resolution_clock::now();
     _hg.invalidateDisabledHyperedgesFromIncidentNets();
     end = std::chrono::high_resolution_clock::now();
     mt_kahypar::utils::Timer::instance().add_timing("remove_disabled_hyperedges_from_incident_nets", "Remove Disabled HE from HNs",
-      "postprocess_parallel_hyperedges", mt_kahypar::utils::Timer::Type::COARSENING, 2, std::chrono::duration<double>(end - start).count());
+                                                    "postprocess_parallel_hyperedges", mt_kahypar::utils::Timer::Type::COARSENING, 2, std::chrono::duration<double>(end - start).count());
   }
 
  protected:
@@ -318,12 +318,10 @@ class CommunityCoarsenerBase {
   ThreadLocalFastResetFlagArray _contained_hypernodes;
   parallel::scalable_vector<HyperedgeID> _parallel_he_representative;
   parallel::scalable_vector<HypergraphPruner> _pruner;
-  parallel::scalable_vector<parallel::scalable_vector<Memento>> _community_history;
+  parallel::scalable_vector<parallel::scalable_vector<Memento> > _community_history;
   std::vector<Memento> _history;
 };
 
-template< typename TypeTraits >
+template <typename TypeTraits>
 HyperedgeID CommunityCoarsenerBase<TypeTraits>::kInvalidHyperedge = std::numeric_limits<HyperedgeID>::max();
-
-
 }  // namespace mt_kahypar

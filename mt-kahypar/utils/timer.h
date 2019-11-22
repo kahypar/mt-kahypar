@@ -19,19 +19,17 @@
  ******************************************************************************/
 #pragma once
 
+#include <functional>
 #include <mutex>
 #include <string>
 #include <unordered_map>
-#include <functional>
 
 #include "mt-kahypar/macros.h"
 
 namespace mt_kahypar {
 namespace utils {
-
 class Timer {
-
- static constexpr bool debug = false;
+  static constexpr bool debug = false;
 
  public:
   static constexpr int MAX_LINE_LENGTH = 40;
@@ -49,31 +47,28 @@ class Timer {
   };
 
  private:
-
   using Key = std::pair<std::string, std::string>;
 
   struct PairHasher {
     template <class T1, class T2>
-    std::size_t operator() (const std::pair<T1, T2> &pair) const
-    {
+    std::size_t operator() (const std::pair<T1, T2>& pair) const {
       return std::hash<T1>()(pair.first) ^ std::hash<T2>()(pair.second);
     }
   };
 
   class Timing {
-
-    public:
-      Timing(const std::string& name,
-             const std::string& description,
-             const std::string& parent,
-             const Type& type,
-             const int order) :
-        _name(name),
-        _description(description),
-        _parent(parent),
-        _type(type),
-        _order(order),
-        _timing(0.0) { }
+   public:
+    Timing(const std::string& name,
+           const std::string& description,
+           const std::string& parent,
+           const Type& type,
+           const int order) :
+      _name(name),
+      _description(description),
+      _parent(parent),
+      _type(type),
+      _order(order),
+      _timing(0.0) { }
 
     std::string name() const {
       return _name;
@@ -111,21 +106,21 @@ class Timer {
       _timing += timing;
     }
 
-    private:
-      std::string _name;
-      std::string _description;
-      std::string _parent;
-      Type _type;
-      int _order;
-      double _timing;
+   private:
+    std::string _name;
+    std::string _description;
+    std::string _parent;
+    Type _type;
+    int _order;
+    double _timing;
   };
 
  public:
   Timer(const Timer&) = delete;
-  Timer& operator= (const Timer&) = delete;
+  Timer & operator= (const Timer &) = delete;
 
   Timer(Timer&&) = delete;
-  Timer& operator= (Timer&&) = delete;
+  Timer & operator= (Timer &&) = delete;
 
   static Timer& instance(bool show_detailed_timings = false) {
     static Timer instance;
@@ -137,29 +132,29 @@ class Timer {
     _type = type;
   }
 
-  void add_timing( const std::string& name, const std::string& description,
-                   const std::string& parent, const Type& type, const int order,
-                   const double timing, bool write_initial_partitioning = false ) {
+  void add_timing(const std::string& name, const std::string& description,
+                  const std::string& parent, const Type& type, const int order,
+                  const double timing, bool write_initial_partitioning = false) {
     std::lock_guard<std::mutex> lock(_timing_mutex);
-    if ( _type == kahypar::ContextType::main || write_initial_partitioning ) {
+    if (_type == kahypar::ContextType::main || write_initial_partitioning) {
       Key key = std::make_pair(parent, name);
-      if ( _timings.find(key) == _timings.end() ) {
+      if (_timings.find(key) == _timings.end()) {
         _timings.emplace(
           std::piecewise_construct,
           std::forward_as_tuple(key),
           std::forward_as_tuple(name, description, parent, type, order));
-          _timings.at(key).add_timing(timing);
+        _timings.at(key).add_timing(timing);
       }
     }
   }
 
-  void update_timing( const std::string& name, const std::string& description,
-                      const std::string& parent, const Type& type, const int order,
-                      const double timing, bool write_initial_partitioning = false ) {
+  void update_timing(const std::string& name, const std::string& description,
+                     const std::string& parent, const Type& type, const int order,
+                     const double timing, bool write_initial_partitioning = false) {
     std::lock_guard<std::mutex> lock(_timing_mutex);
-    if ( _type == kahypar::ContextType::main || write_initial_partitioning) {
+    if (_type == kahypar::ContextType::main || write_initial_partitioning) {
       Key key = std::make_pair(parent, name);
-      if ( _timings.find(key) == _timings.end() ) {
+      if (_timings.find(key) == _timings.end()) {
         _timings.emplace(
           std::piecewise_construct,
           std::forward_as_tuple(key),
@@ -170,15 +165,15 @@ class Timer {
   }
 
   void serialize(std::ostream& str) {
-    for ( const auto& timing : _timings ) {
+    for (const auto& timing : _timings) {
       const Timing& time_point = timing.second;
-      if ( _show_detailed_timings || time_point.parent() == "" ) {
+      if (_show_detailed_timings || time_point.parent() == "") {
         str << " " << time_point.name() << "=" << time_point.timing();
       }
     }
   }
 
-  friend std::ostream& operator<<(std::ostream& str, const Timer& timer);
+  friend std::ostream & operator<< (std::ostream& str, const Timer& timer);
 
  private:
   explicit Timer() :
@@ -197,45 +192,45 @@ char Timer::TOP_LEVEL_PREFIX[] = " + ";
 char Timer::SUB_LEVEL_PREFIX[] = " + ";
 
 
-std::ostream& operator<<(std::ostream& str, const Timer& timer) {
+std::ostream & operator<< (std::ostream& str, const Timer& timer) {
   std::vector<Timer::Timing> timings;
-  for ( const auto& timing : timer._timings ) {
+  for (const auto& timing : timer._timings) {
     timings.emplace_back(timing.second);
   }
   std::sort(timings.begin(), timings.end(),
-    [&](const Timer::Timing& lhs, const Timer::Timing& rhs) {
-      return lhs.type() < rhs.type() || (lhs.type() == rhs.type() && lhs.order() < rhs.order());
-    });
+            [&](const Timer::Timing& lhs, const Timer::Timing& rhs) {
+        return lhs.type() < rhs.type() || (lhs.type() == rhs.type() && lhs.order() < rhs.order());
+      });
 
   auto print = [&](std::ostream& str, const Timer::Timing& timing, int level) {
-    std::string prefix = "";
-    prefix += level == 0 ? std::string(Timer::TOP_LEVEL_PREFIX, Timer::TOP_LEVEL_PREFIX_LENGTH) :
+                 std::string prefix = "";
+                 prefix += level == 0 ? std::string(Timer::TOP_LEVEL_PREFIX, Timer::TOP_LEVEL_PREFIX_LENGTH) :
                            std::string(Timer::TOP_LEVEL_PREFIX_LENGTH, ' ');
-    prefix += level > 0 ? std::string(Timer::SUB_LEVEL_PREFIX_LENGTH * (level - 1), ' ' ) : "";
-    prefix += level > 0 ? std::string(Timer::SUB_LEVEL_PREFIX, Timer::SUB_LEVEL_PREFIX_LENGTH) : "";
-    size_t length = prefix.size() + timing.description().size();
-    str << prefix
-        << timing.description();
-    if ( length < Timer::MAX_LINE_LENGTH ) {
-      str << std::string(Timer::MAX_LINE_LENGTH - length, ' ');
-    }
-    str << " = " << timing.timing() << " s\n";
-  };
+                 prefix += level > 0 ? std::string(Timer::SUB_LEVEL_PREFIX_LENGTH * (level - 1), ' ') : "";
+                 prefix += level > 0 ? std::string(Timer::SUB_LEVEL_PREFIX, Timer::SUB_LEVEL_PREFIX_LENGTH) : "";
+                 size_t length = prefix.size() + timing.description().size();
+                 str << prefix
+                     << timing.description();
+                 if (length < Timer::MAX_LINE_LENGTH) {
+                   str << std::string(Timer::MAX_LINE_LENGTH - length, ' ');
+                 }
+                 str << " = " << timing.timing() << " s\n";
+               };
 
-  std::function<void(std::ostream&,const Timer::Timing&,int)> dfs =
+  std::function<void(std::ostream&, const Timer::Timing&, int)> dfs =
     [&](std::ostream& str, const Timer::Timing& parent, int level) {
-    for ( const Timer::Timing& timing : timings ) {
-      if ( timing.parent() == parent.name() ) {
-        print(str, timing, level);
-        dfs(str, timing, level + 1);
+      for (const Timer::Timing& timing : timings) {
+        if (timing.parent() == parent.name()) {
+          print(str, timing, level);
+          dfs(str, timing, level + 1);
+        }
       }
-    }
-  };
+    };
 
-  for ( const Timer::Timing& timing : timings ) {
-    if ( timing.is_root() ) {
+  for (const Timer::Timing& timing : timings) {
+    if (timing.is_root()) {
       print(str, timing, 0);
-      if ( timer._show_detailed_timings ) {
+      if (timer._show_detailed_timings) {
         dfs(str, timing, 1);
       }
     }
@@ -243,6 +238,5 @@ std::ostream& operator<<(std::ostream& str, const Timer& timer) {
 
   return str;
 }
-
-} // namespace utils
-} // namespace mt_kahypar
+}  // namespace utils
+}  // namespace mt_kahypar

@@ -21,13 +21,12 @@
 #pragma once
 
 namespace mt_kahypar {
-
 class IInitialPartitioner {
  public:
   IInitialPartitioner(const IInitialPartitioner&) = delete;
   IInitialPartitioner(IInitialPartitioner&&) = delete;
-  IInitialPartitioner& operator= (const IInitialPartitioner&) = delete;
-  IInitialPartitioner& operator= (IInitialPartitioner&&) = delete;
+  IInitialPartitioner & operator= (const IInitialPartitioner &) = delete;
+  IInitialPartitioner & operator= (IInitialPartitioner &&) = delete;
 
   void initialPartition() {
     initialPartitionImpl();
@@ -41,5 +40,4 @@ class IInitialPartitioner {
  private:
   virtual void initialPartitionImpl() = 0;
 };
-
 }  // namespace mt_kahypar

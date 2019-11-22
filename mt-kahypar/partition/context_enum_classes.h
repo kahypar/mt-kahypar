@@ -27,7 +27,6 @@
 #include "mt-kahypar/macros.h"
 
 namespace mt_kahypar {
-
 enum class Type : int8_t {
   Unweighted = 0,
   EdgeWeights = 1,
@@ -108,7 +107,7 @@ enum class ExecutionType : uint8_t {
   UNDEFINED
 };
 
-std::ostream& operator<< (std::ostream& os, const Type& type) {
+std::ostream & operator<< (std::ostream& os, const Type& type) {
   switch (type) {
     case Type::Unweighted: return os << "unweighted";
     case Type::EdgeWeights: return os << "edge_weights";
@@ -119,7 +118,7 @@ std::ostream& operator<< (std::ostream& os, const Type& type) {
   return os << static_cast<uint8_t>(type);
 }
 
-std::ostream& operator<< (std::ostream& os, const InitialHyperedgeDistribution& strategy) {
+std::ostream & operator<< (std::ostream& os, const InitialHyperedgeDistribution& strategy) {
   switch (strategy) {
     case InitialHyperedgeDistribution::equally: return os << "equally";
     case InitialHyperedgeDistribution::random: return os << "random";
@@ -131,7 +130,7 @@ std::ostream& operator<< (std::ostream& os, const InitialHyperedgeDistribution& 
 }
 
 
-std::ostream& operator<< (std::ostream& os, const CommunityAssignmentObjective& objective) {
+std::ostream & operator<< (std::ostream& os, const CommunityAssignmentObjective& objective) {
   switch (objective) {
     case CommunityAssignmentObjective::vertex_objective: return os << "vertex_objective";
     case CommunityAssignmentObjective::pin_objective: return os << "pin_objective";
@@ -141,7 +140,7 @@ std::ostream& operator<< (std::ostream& os, const CommunityAssignmentObjective& 
   return os << static_cast<uint8_t>(objective);
 }
 
-std::ostream& operator<< (std::ostream& os, const CommunityAssignmentStrategy& strategy) {
+std::ostream & operator<< (std::ostream& os, const CommunityAssignmentStrategy& strategy) {
   switch (strategy) {
     case CommunityAssignmentStrategy::bin_packing: return os << "bin_packing";
     case CommunityAssignmentStrategy::UNDEFINED: return os << "UNDEFINED";
@@ -150,7 +149,7 @@ std::ostream& operator<< (std::ostream& os, const CommunityAssignmentStrategy& s
   return os << static_cast<uint8_t>(strategy);
 }
 
-std::ostream& operator<< (std::ostream& os, const LouvainEdgeWeight& type) {
+std::ostream & operator<< (std::ostream& os, const LouvainEdgeWeight& type) {
   switch (type) {
     case LouvainEdgeWeight::hybrid: return os << "hybrid";
     case LouvainEdgeWeight::uniform: return os << "uniform";
@@ -162,7 +161,7 @@ std::ostream& operator<< (std::ostream& os, const LouvainEdgeWeight& type) {
   return os << static_cast<uint8_t>(type);
 }
 
-std::ostream& operator<< (std::ostream& os, const CommunityLoadBalancingStrategy& strategy) {
+std::ostream & operator<< (std::ostream& os, const CommunityLoadBalancingStrategy& strategy) {
   switch (strategy) {
     case CommunityLoadBalancingStrategy::size_constraint: return os << "size_constraint";
     case CommunityLoadBalancingStrategy::none: return os << "none";
@@ -171,7 +170,7 @@ std::ostream& operator<< (std::ostream& os, const CommunityLoadBalancingStrategy
   return os << static_cast<uint8_t>(strategy);
 }
 
-std::ostream& operator<< (std::ostream& os, const CoarseningAlgorithm& algo) {
+std::ostream & operator<< (std::ostream& os, const CoarseningAlgorithm& algo) {
   switch (algo) {
     case CoarseningAlgorithm::community_coarsener: return os << "community_coarsener";
     case CoarseningAlgorithm::UNDEFINED: return os << "UNDEFINED";
@@ -180,7 +179,7 @@ std::ostream& operator<< (std::ostream& os, const CoarseningAlgorithm& algo) {
   return os << static_cast<uint8_t>(algo);
 }
 
-std::ostream& operator<< (std::ostream& os, const HeavyNodePenaltyPolicy& heavy_hn_policy) {
+std::ostream & operator<< (std::ostream& os, const HeavyNodePenaltyPolicy& heavy_hn_policy) {
   switch (heavy_hn_policy) {
     case HeavyNodePenaltyPolicy::multiplicative_penalty: return os << "multiplicative";
     case HeavyNodePenaltyPolicy::no_penalty: return os << "no_penalty";
@@ -190,7 +189,7 @@ std::ostream& operator<< (std::ostream& os, const HeavyNodePenaltyPolicy& heavy_
   return os << static_cast<uint8_t>(heavy_hn_policy);
 }
 
-std::ostream& operator<< (std::ostream& os, const AcceptancePolicy& acceptance_policy) {
+std::ostream & operator<< (std::ostream& os, const AcceptancePolicy& acceptance_policy) {
   switch (acceptance_policy) {
     case AcceptancePolicy::best: return os << "best";
     case AcceptancePolicy::best_prefer_unmatched: return os << "best_prefer_unmatched";
@@ -200,7 +199,7 @@ std::ostream& operator<< (std::ostream& os, const AcceptancePolicy& acceptance_p
   return os << static_cast<uint8_t>(acceptance_policy);
 }
 
-std::ostream& operator<< (std::ostream& os, const RatingFunction& func) {
+std::ostream & operator<< (std::ostream& os, const RatingFunction& func) {
   switch (func) {
     case RatingFunction::heavy_edge: return os << "heavy_edge";
     case RatingFunction::UNDEFINED: return os << "UNDEFINED";
@@ -209,7 +208,7 @@ std::ostream& operator<< (std::ostream& os, const RatingFunction& func) {
   return os << static_cast<uint8_t>(func);
 }
 
-std::ostream& operator<< (std::ostream& os, const InitialPartitioningMode& mode) {
+std::ostream & operator<< (std::ostream& os, const InitialPartitioningMode& mode) {
   switch (mode) {
     case InitialPartitioningMode::direct: return os << "direct";
     case InitialPartitioningMode::recursive: return os << "recursive";
@@ -219,7 +218,7 @@ std::ostream& operator<< (std::ostream& os, const InitialPartitioningMode& mode)
   return os << static_cast<uint8_t>(mode);
 }
 
-std::ostream& operator<< (std::ostream& os, const LabelPropagationAlgorithm& algo) {
+std::ostream & operator<< (std::ostream& os, const LabelPropagationAlgorithm& algo) {
   switch (algo) {
     case LabelPropagationAlgorithm::label_propagation_km1: return os << "label_propagation_km1";
     case LabelPropagationAlgorithm::label_propagation_cut: return os << "label_propagation_cut";
@@ -229,7 +228,7 @@ std::ostream& operator<< (std::ostream& os, const LabelPropagationAlgorithm& alg
   return os << static_cast<uint8_t>(algo);
 }
 
-std::ostream& operator<< (std::ostream& os, const ExecutionType& type) {
+std::ostream & operator<< (std::ostream& os, const ExecutionType& type) {
   switch (type) {
     case ExecutionType::exponential: return os << "exponential";
     case ExecutionType::multilevel: return os << "multilevel";
@@ -377,5 +376,4 @@ static ExecutionType executionTypeFromString(const std::string& type) {
   exit(0);
   return ExecutionType::UNDEFINED;
 }
-
-} // namesapce mt_kahypar
+}  // namesapce mt_kahypar

@@ -23,20 +23,18 @@
 
 #include "kahypar/meta/registrar.h"
 
-#include "mt-kahypar/partition/factories.h"
 #include "mt-kahypar/partition/context.h"
+#include "mt-kahypar/partition/factories.h"
 
-#define REGISTER_INITIAL_PARTITIONER(id, partitioner)                            \
-  static meta::Registrar<InitialPartitionerFactory> register_ ## partitioner(    \
-    id,                                                                          \
-    [](Hypergraph& hypergraph, const Context& context, const bool top_level)     \
-      -> IInitialPartitioner* {                                                  \
-    return new partitioner(hypergraph, context, top_level);                      \
+#define REGISTER_INITIAL_PARTITIONER(id, partitioner)                                  \
+  static kahypar::meta::Registrar<InitialPartitionerFactory> register_ ## partitioner( \
+    id,                                                                                \
+    [](Hypergraph& hypergraph, const Context& context, const bool top_level)           \
+    -> IInitialPartitioner* {                                                          \
+    return new partitioner(hypergraph, context, top_level);                            \
   })
 
 namespace mt_kahypar {
-
 REGISTER_INITIAL_PARTITIONER(InitialPartitioningMode::direct, DirectInitialPartitioner);
 REGISTER_INITIAL_PARTITIONER(InitialPartitioningMode::recursive, RecursiveInitialPartitioner);
-
-} // namespace mt_kahypar
+}  // namespace mt_kahypar

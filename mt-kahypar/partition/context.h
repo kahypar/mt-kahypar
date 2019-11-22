@@ -20,17 +20,15 @@
  ******************************************************************************/
 #pragma once
 
-#include "kahypar/partition/context_enum_classes.h"
-#include "mt-kahypar/partition/context_enum_classes.h"
 #include "kahypar/definitions.h"
+#include "kahypar/partition/context_enum_classes.h"
+#include "mt-kahypar/definitions.h"
+#include "mt-kahypar/partition/context_enum_classes.h"
 
 namespace mt_kahypar {
-
-using namespace kahypar;
-
 struct PartitioningParameters {
-  Mode mode = Mode::UNDEFINED;
-  Objective objective = Objective::UNDEFINED;
+  kahypar::Mode mode = kahypar::Mode::UNDEFINED;
+  kahypar::Objective objective = kahypar::Objective::UNDEFINED;
   double epsilon = std::numeric_limits<double>::max();
   PartitionID k = std::numeric_limits<PartitionID>::max();
   int seed = 0;
@@ -51,7 +49,7 @@ struct PartitioningParameters {
   std::string graph_community_filename { };
 };
 
-inline std::ostream& operator<< (std::ostream& str, const PartitioningParameters& params) {
+inline std::ostream & operator<< (std::ostream& str, const PartitioningParameters& params) {
   str << "Partitioning Parameters:" << std::endl;
   str << "  Hypergraph:                         " << params.graph_filename << std::endl;
   str << "  Partition File:                     " << params.graph_partition_filename << std::endl;
@@ -69,15 +67,15 @@ inline std::ostream& operator<< (std::ostream& str, const PartitioningParameters
 struct CommunityDetectionParameters {
   CommunityLoadBalancingStrategy load_balancing_strategy = CommunityLoadBalancingStrategy::none;
   size_t size_constraint_factor = 0;
-	LouvainEdgeWeight edge_weight_function = LouvainEdgeWeight::UNDEFINED;
+  LouvainEdgeWeight edge_weight_function = LouvainEdgeWeight::UNDEFINED;
   uint32_t max_pass_iterations = std::numeric_limits<uint32_t>::max();
   long double min_eps_improvement = std::numeric_limits<long double>::max();
 };
 
-inline std::ostream& operator<< (std::ostream& str, const CommunityDetectionParameters& params) {
+inline std::ostream & operator<< (std::ostream& str, const CommunityDetectionParameters& params) {
   str << "  Community Detection Parameters:" << std::endl;
   str << "    Load Balancing Strategy:          " << params.load_balancing_strategy << std::endl;
-  if ( params.load_balancing_strategy == CommunityLoadBalancingStrategy::size_constraint ) {
+  if (params.load_balancing_strategy == CommunityLoadBalancingStrategy::size_constraint) {
     str << "    Size Constraint Factor:           " << params.size_constraint_factor << std::endl;
   }
   str << "    Edge Weight Function:             " << params.edge_weight_function << std::endl;
@@ -90,7 +88,7 @@ struct PreprocessingParameters {
   CommunityDetectionParameters community_detection = { };
 };
 
-inline std::ostream& operator<< (std::ostream& str, const PreprocessingParameters& params) {
+inline std::ostream & operator<< (std::ostream& str, const PreprocessingParameters& params) {
   str << "Preprocessing Parameters:" << std::endl;
   str << std::endl << params.community_detection;
   return str;
@@ -102,7 +100,7 @@ struct RatingParameters {
   AcceptancePolicy acceptance_policy = AcceptancePolicy::UNDEFINED;
 };
 
-inline std::ostream& operator<< (std::ostream& str, const RatingParameters& params) {
+inline std::ostream & operator<< (std::ostream& str, const RatingParameters& params) {
   str << "  Rating Parameters:" << std::endl;
   str << "    Rating Function:                  " << params.rating_function << std::endl;
   str << "    Heavy Node Penalty:               " << params.heavy_node_penalty_policy << std::endl;
@@ -125,7 +123,7 @@ struct CoarseningParameters {
 };
 
 
-inline std::ostream& operator<< (std::ostream& str, const CoarseningParameters& params) {
+inline std::ostream & operator<< (std::ostream& str, const CoarseningParameters& params) {
   str << "Coarsening Parameters:" << std::endl;
   str << "  Algorithm:                          " << params.algorithm << std::endl;
   str << "  max allowed weight multiplier:      " << params.max_allowed_weight_multiplier << std::endl;
@@ -142,7 +140,7 @@ struct InitialPartitioningParameters {
   size_t runs = 1;
 };
 
-inline std::ostream& operator<< (std::ostream& str, const InitialPartitioningParameters& params) {
+inline std::ostream & operator<< (std::ostream& str, const InitialPartitioningParameters& params) {
   str << "Initial Partitioning Parameters:" << std::endl;
   str << "  Initial Partitioning Context:       " << params.context_file << std::endl;
   str << "  Initial Partitioning Mode:          " << params.mode << std::endl;
@@ -161,7 +159,7 @@ struct LabelPropagationParameters {
   double execution_policy_alpha = 2.0;
 };
 
-inline std::ostream& operator<< (std::ostream& str, const LabelPropagationParameters& params) {
+inline std::ostream & operator<< (std::ostream& str, const LabelPropagationParameters& params) {
   str << "  Label Propagation Parameters:" << std::endl;
   str << "    Algorithm:                        " << params.algorithm << std::endl;
   str << "    Maximum Iterations:               " << params.maximum_iterations << std::endl;
@@ -177,7 +175,7 @@ struct RefinementParameters {
   LabelPropagationParameters label_propagation;
 };
 
-inline std::ostream& operator<< (std::ostream& str, const RefinementParameters& params) {
+inline std::ostream & operator<< (std::ostream& str, const RefinementParameters& params) {
   str << "Refinement Parameters:" << std::endl;
   str << std::endl << params.label_propagation;
   return str;
@@ -191,7 +189,7 @@ struct SharedMemoryParameters {
   CommunityAssignmentStrategy assignment_strategy = CommunityAssignmentStrategy::UNDEFINED;
 };
 
-inline std::ostream& operator<< (std::ostream& str, const SharedMemoryParameters& params) {
+inline std::ostream & operator<< (std::ostream& str, const SharedMemoryParameters& params) {
   str << "Shared Memory Parameters:             " << std::endl;
   str << "  Number of Threads:                  " << params.num_threads << std::endl;
   str << "  Use Community Redistribution:       " << std::boolalpha << params.use_community_redistribution << std::endl;
@@ -209,33 +207,34 @@ class Context {
   InitialPartitioningParameters initial_partitioning { };
   RefinementParameters refinement { };
   SharedMemoryParameters shared_memory { };
-  ContextType type = ContextType::main;
+  kahypar::ContextType type = kahypar::ContextType::main;
 
   Context() { }
 
   bool isMainRecursiveBisection() const {
-    return partition.mode == Mode::recursive_bisection && type == ContextType::main;
+    return partition.mode == kahypar::Mode::recursive_bisection &&
+           type == kahypar::ContextType::main;
   }
 
   void setupPartWeights(const HypernodeWeight total_hypergraph_weight) {
     partition.perfect_balance_part_weights.clear();
     partition.perfect_balance_part_weights.push_back(ceil(
-                                                        total_hypergraph_weight
-                                                        / static_cast<double>(partition.k)));
+                                                       total_hypergraph_weight
+                                                       / static_cast<double>(partition.k)));
     for (PartitionID part = 1; part != partition.k; ++part) {
       partition.perfect_balance_part_weights.push_back(
         partition.perfect_balance_part_weights[0]);
     }
     partition.max_part_weights.clear();
     partition.max_part_weights.push_back((1 + partition.epsilon)
-                                          * partition.perfect_balance_part_weights[0]);
+                                         * partition.perfect_balance_part_weights[0]);
     for (PartitionID part = 1; part != partition.k; ++part) {
       partition.max_part_weights.push_back(partition.max_part_weights[0]);
     }
   }
 };
 
-inline std::ostream& operator<< (std::ostream& str, const Context& context) {
+inline std::ostream & operator<< (std::ostream& str, const Context& context) {
   str << "*******************************************************************************\n"
       << "*                            Partitioning Context                             *\n"
       << "*******************************************************************************\n"
@@ -253,5 +252,4 @@ inline std::ostream& operator<< (std::ostream& str, const Context& context) {
       << "-------------------------------------------------------------------------------";
   return str;
 }
-
-} // namespace mt_kahypar
+}  // namespace mt_kahypar

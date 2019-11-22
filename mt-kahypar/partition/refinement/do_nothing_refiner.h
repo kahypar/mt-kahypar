@@ -34,11 +34,11 @@ class DoNothingRefiner final : public IRefiner {
   explicit DoNothingRefiner(Args&& ...) noexcept { }
   DoNothingRefiner(const DoNothingRefiner&) = delete;
   DoNothingRefiner(DoNothingRefiner&&) = delete;
-  DoNothingRefiner& operator= (const DoNothingRefiner&) = delete;
-  DoNothingRefiner& operator= (DoNothingRefiner&&) = delete;
+  DoNothingRefiner & operator= (const DoNothingRefiner &) = delete;
+  DoNothingRefiner & operator= (DoNothingRefiner &&) = delete;
 
  private:
   bool refineImpl(const std::vector<HypernodeID>&,
-                  kahypar::Metrics&) override final { return false; }
+                  kahypar::Metrics &) override final { return false; }
 };
 }  // namespace kahypar

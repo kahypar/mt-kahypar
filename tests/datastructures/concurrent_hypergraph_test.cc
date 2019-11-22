@@ -29,7 +29,6 @@ using ::testing::Test;
 
 namespace mt_kahypar {
 namespace ds {
-
 using AConcurrentHypergraph = AHypergraph<2>;
 using TestHypergraph = typename AConcurrentHypergraph::TestHypergraph;
 using TestStreamingHypergraph = typename AConcurrentHypergraph::TestStreamingHypergraph;
@@ -48,30 +47,30 @@ void assignPartitionIDs(TestHypergraph& hypergraph) {
 
 TestHypergraph construct_test_hypergraph(const AConcurrentHypergraph& test) {
   TestHypergraph hypergraph = test.construct_hypergraph(7,
-                                { {0, 2}, {0, 1, 3, 4}, {3, 4, 6}, {2, 5, 6} },
-                                { 0, 0, 0, 1, 1, 1, 1 },
-                                { 0, 0, 1, 1 },
-                                { 0, 0, 0, 1, 1, 2, 1 }, 3 );
+                                                        { { 0, 2 }, { 0, 1, 3, 4 }, { 3, 4, 6 }, { 2, 5, 6 } },
+                                                        { 0, 0, 0, 1, 1, 1, 1 },
+                                                        { 0, 0, 1, 1 },
+                                                        { 0, 0, 0, 1, 1, 2, 1 }, 3);
   assignPartitionIDs(hypergraph);
   return hypergraph;
 }
 
-template< class F, class K >
-void executeConcurrent( F f1, K f2 ) {
+template <class F, class K>
+void executeConcurrent(F f1, K f2) {
   std::atomic<int> cnt(0);
   tbb::task_group group;
 
   group.run([&] {
-    cnt++;
-    while ( cnt < 2 ) { }
-    f1();
-  });
+        cnt++;
+        while (cnt < 2) { }
+        f1();
+      });
 
   group.run([&] {
-    cnt++;
-    while ( cnt < 2 ) { }
-    f2();
-  });
+        cnt++;
+        while (cnt < 2) { }
+        f2();
+      });
 
   group.wait();
 }
@@ -80,20 +79,20 @@ TEST_F(AConcurrentHypergraph, HasCorrectLocalPartWeights) {
   TestHypergraph hypergraph = construct_test_hypergraph(*this);
 
   executeConcurrent([&] {
-    ASSERT_EQ(3, hypergraph.localPartWeight(0));
-    ASSERT_EQ(3, hypergraph.localPartSize(0));
-    ASSERT_EQ(2, hypergraph.localPartWeight(1));
-    ASSERT_EQ(2, hypergraph.localPartSize(1));
-    ASSERT_EQ(2, hypergraph.localPartWeight(2));
-    ASSERT_EQ(2, hypergraph.localPartSize(2));
-  }, [&] {
-    ASSERT_EQ(3, hypergraph.localPartWeight(0));
-    ASSERT_EQ(3, hypergraph.localPartSize(0));
-    ASSERT_EQ(2, hypergraph.localPartWeight(1));
-    ASSERT_EQ(2, hypergraph.localPartSize(1));
-    ASSERT_EQ(2, hypergraph.localPartWeight(2));
-    ASSERT_EQ(2, hypergraph.localPartSize(2));
-  });
+        ASSERT_EQ(3, hypergraph.localPartWeight(0));
+        ASSERT_EQ(3, hypergraph.localPartSize(0));
+        ASSERT_EQ(2, hypergraph.localPartWeight(1));
+        ASSERT_EQ(2, hypergraph.localPartSize(1));
+        ASSERT_EQ(2, hypergraph.localPartWeight(2));
+        ASSERT_EQ(2, hypergraph.localPartSize(2));
+      }, [&] {
+        ASSERT_EQ(3, hypergraph.localPartWeight(0));
+        ASSERT_EQ(3, hypergraph.localPartSize(0));
+        ASSERT_EQ(2, hypergraph.localPartWeight(1));
+        ASSERT_EQ(2, hypergraph.localPartSize(1));
+        ASSERT_EQ(2, hypergraph.localPartWeight(2));
+        ASSERT_EQ(2, hypergraph.localPartSize(2));
+      });
 }
 
 TEST_F(AConcurrentHypergraph, HasCorrectLocalPartWeightsIfOnlyOneThreadPerformsModificationsBefore) {
@@ -103,20 +102,20 @@ TEST_F(AConcurrentHypergraph, HasCorrectLocalPartWeightsIfOnlyOneThreadPerformsM
   hypergraph.updateGlobalPartInfos();
 
   executeConcurrent([&] {
-    ASSERT_EQ(2, hypergraph.localPartWeight(0));
-    ASSERT_EQ(2, hypergraph.localPartSize(0));
-    ASSERT_EQ(3, hypergraph.localPartWeight(1));
-    ASSERT_EQ(3, hypergraph.localPartSize(1));
-    ASSERT_EQ(2, hypergraph.localPartWeight(2));
-    ASSERT_EQ(2, hypergraph.localPartSize(2));
-  }, [&] {
-    ASSERT_EQ(2, hypergraph.localPartWeight(0));
-    ASSERT_EQ(2, hypergraph.localPartSize(0));
-    ASSERT_EQ(3, hypergraph.localPartWeight(1));
-    ASSERT_EQ(3, hypergraph.localPartSize(1));
-    ASSERT_EQ(2, hypergraph.localPartWeight(2));
-    ASSERT_EQ(2, hypergraph.localPartSize(2));
-  });
+        ASSERT_EQ(2, hypergraph.localPartWeight(0));
+        ASSERT_EQ(2, hypergraph.localPartSize(0));
+        ASSERT_EQ(3, hypergraph.localPartWeight(1));
+        ASSERT_EQ(3, hypergraph.localPartSize(1));
+        ASSERT_EQ(2, hypergraph.localPartWeight(2));
+        ASSERT_EQ(2, hypergraph.localPartSize(2));
+      }, [&] {
+        ASSERT_EQ(2, hypergraph.localPartWeight(0));
+        ASSERT_EQ(2, hypergraph.localPartSize(0));
+        ASSERT_EQ(3, hypergraph.localPartWeight(1));
+        ASSERT_EQ(3, hypergraph.localPartSize(1));
+        ASSERT_EQ(2, hypergraph.localPartWeight(2));
+        ASSERT_EQ(2, hypergraph.localPartSize(2));
+      });
 }
 
 TEST_F(AConcurrentHypergraph, PerformsTwoConcurrentMovesWhereOnlyOneSucceeds) {
@@ -124,32 +123,31 @@ TEST_F(AConcurrentHypergraph, PerformsTwoConcurrentMovesWhereOnlyOneSucceeds) {
 
   std::array<bool, 2> success;
   executeConcurrent([&] {
-    success[0] = hypergraph.changeNodePart(0, 0, 1);
+        success[0] = hypergraph.changeNodePart(0, 0, 1);
 
-    if ( success[0] ) {
-      ASSERT_EQ(2, hypergraph.localPartWeight(0));
-      ASSERT_EQ(2, hypergraph.localPartSize(0));
-      ASSERT_EQ(3, hypergraph.localPartWeight(1));
-      ASSERT_EQ(3, hypergraph.localPartSize(1));
-    }
+        if (success[0]) {
+          ASSERT_EQ(2, hypergraph.localPartWeight(0));
+          ASSERT_EQ(2, hypergraph.localPartSize(0));
+          ASSERT_EQ(3, hypergraph.localPartWeight(1));
+          ASSERT_EQ(3, hypergraph.localPartSize(1));
+        }
+      }, [&] {
+        success[1] = hypergraph.changeNodePart(0, 0, 2);
 
-  }, [&] {
-    success[1] = hypergraph.changeNodePart(0, 0, 2);
+        if (success[1]) {
+          ASSERT_EQ(2, hypergraph.localPartWeight(0));
+          ASSERT_EQ(2, hypergraph.localPartSize(0));
+          ASSERT_EQ(3, hypergraph.localPartWeight(2));
+          ASSERT_EQ(3, hypergraph.localPartSize(2));
+        }
+      });
 
-    if ( success[1] ) {
-      ASSERT_EQ(2, hypergraph.localPartWeight(0));
-      ASSERT_EQ(2, hypergraph.localPartSize(0));
-      ASSERT_EQ(3, hypergraph.localPartWeight(2));
-      ASSERT_EQ(3, hypergraph.localPartSize(2));
-    }
-  });
-
-  ASSERT_TRUE( ( success[0] && !success[1] ) || ( !success[0] && success[1] ) );
+  ASSERT_TRUE((success[0] && !success[1]) || (!success[0] && success[1]));
 
   hypergraph.updateGlobalPartInfos();
   ASSERT_EQ(2, hypergraph.partWeight(0));
   ASSERT_EQ(2, hypergraph.partSize(0));
-  if ( success[0] ) {
+  if (success[0]) {
     ASSERT_EQ(3, hypergraph.partWeight(1));
     ASSERT_EQ(3, hypergraph.partSize(1));
     ASSERT_EQ(2, hypergraph.partWeight(2));
@@ -166,28 +164,28 @@ TEST_F(AConcurrentHypergraph, PerformsConcurrentMovesWhereAllSucceed) {
   TestHypergraph hypergraph = construct_test_hypergraph(*this);
 
   executeConcurrent([&] {
-    ASSERT_TRUE( hypergraph.changeNodePart(hypergraph.globalNodeID(0), 0, 1) );
-    ASSERT_TRUE( hypergraph.changeNodePart(hypergraph.globalNodeID(3), 1, 2) );
-    ASSERT_TRUE( hypergraph.changeNodePart(hypergraph.globalNodeID(2), 0, 2) );
+        ASSERT_TRUE(hypergraph.changeNodePart(hypergraph.globalNodeID(0), 0, 1));
+        ASSERT_TRUE(hypergraph.changeNodePart(hypergraph.globalNodeID(3), 1, 2));
+        ASSERT_TRUE(hypergraph.changeNodePart(hypergraph.globalNodeID(2), 0, 2));
 
-    ASSERT_EQ(1, hypergraph.localPartWeight(0));
-    ASSERT_EQ(1, hypergraph.localPartSize(0));
-    ASSERT_EQ(2, hypergraph.localPartWeight(1));
-    ASSERT_EQ(2, hypergraph.localPartSize(1));
-    ASSERT_EQ(4, hypergraph.localPartWeight(2));
-    ASSERT_EQ(4, hypergraph.localPartSize(2));
-  }, [&] {
-    ASSERT_TRUE( hypergraph.changeNodePart(hypergraph.globalNodeID(5), 2, 1) );
-    ASSERT_TRUE( hypergraph.changeNodePart(hypergraph.globalNodeID(6), 2, 0) );
-    ASSERT_TRUE( hypergraph.changeNodePart(hypergraph.globalNodeID(4), 1, 2) );
+        ASSERT_EQ(1, hypergraph.localPartWeight(0));
+        ASSERT_EQ(1, hypergraph.localPartSize(0));
+        ASSERT_EQ(2, hypergraph.localPartWeight(1));
+        ASSERT_EQ(2, hypergraph.localPartSize(1));
+        ASSERT_EQ(4, hypergraph.localPartWeight(2));
+        ASSERT_EQ(4, hypergraph.localPartSize(2));
+      }, [&] {
+        ASSERT_TRUE(hypergraph.changeNodePart(hypergraph.globalNodeID(5), 2, 1));
+        ASSERT_TRUE(hypergraph.changeNodePart(hypergraph.globalNodeID(6), 2, 0));
+        ASSERT_TRUE(hypergraph.changeNodePart(hypergraph.globalNodeID(4), 1, 2));
 
-    ASSERT_EQ(4, hypergraph.localPartWeight(0));
-    ASSERT_EQ(4, hypergraph.localPartSize(0));
-    ASSERT_EQ(2, hypergraph.localPartWeight(1));
-    ASSERT_EQ(2, hypergraph.localPartSize(1));
-    ASSERT_EQ(1, hypergraph.localPartWeight(2));
-    ASSERT_EQ(1, hypergraph.localPartSize(2));
-  });
+        ASSERT_EQ(4, hypergraph.localPartWeight(0));
+        ASSERT_EQ(4, hypergraph.localPartSize(0));
+        ASSERT_EQ(2, hypergraph.localPartWeight(1));
+        ASSERT_EQ(2, hypergraph.localPartSize(1));
+        ASSERT_EQ(1, hypergraph.localPartWeight(2));
+        ASSERT_EQ(1, hypergraph.localPartSize(2));
+      });
 
   hypergraph.updateGlobalPartInfos();
   ASSERT_EQ(2, hypergraph.partWeight(0));
@@ -203,55 +201,55 @@ TEST_F(AConcurrentHypergraph, PerformsConcurrentMovesAndUpdatesLocalPartInfos) {
 
   std::atomic<size_t> cnt(0);
   executeConcurrent([&] {
-    ASSERT_TRUE( hypergraph.changeNodePart(hypergraph.globalNodeID(0), 0, 1) ); // Move 1
+        ASSERT_TRUE(hypergraph.changeNodePart(hypergraph.globalNodeID(0), 0, 1));  // Move 1
 
-    cnt++;
-    while( cnt < 3 ) { }
+        cnt++;
+        while (cnt < 3) { }
 
-    ASSERT_TRUE( hypergraph.changeNodePart(hypergraph.globalNodeID(3), 1, 2) ); // Move 5
+        ASSERT_TRUE(hypergraph.changeNodePart(hypergraph.globalNodeID(3), 1, 2));  // Move 5
 
-    hypergraph.updateLocalPartInfos(); // Move 1, 2, 3, 4, 5 are applied
-    ASSERT_EQ(3, hypergraph.localPartWeight(0));
-    ASSERT_EQ(3, hypergraph.localPartSize(0));
-    ASSERT_EQ(2, hypergraph.localPartWeight(1));
-    ASSERT_EQ(2, hypergraph.localPartSize(1));
-    ASSERT_EQ(2, hypergraph.localPartWeight(2));
-    ASSERT_EQ(2, hypergraph.localPartSize(2));
+        hypergraph.updateLocalPartInfos();  // Move 1, 2, 3, 4, 5 are applied
+        ASSERT_EQ(3, hypergraph.localPartWeight(0));
+        ASSERT_EQ(3, hypergraph.localPartSize(0));
+        ASSERT_EQ(2, hypergraph.localPartWeight(1));
+        ASSERT_EQ(2, hypergraph.localPartSize(1));
+        ASSERT_EQ(2, hypergraph.localPartWeight(2));
+        ASSERT_EQ(2, hypergraph.localPartSize(2));
 
-    ASSERT_TRUE( hypergraph.changeNodePart(hypergraph.globalNodeID(2), 0, 2) ); // Move 6
+        ASSERT_TRUE(hypergraph.changeNodePart(hypergraph.globalNodeID(2), 0, 2));  // Move 6
 
-    ASSERT_EQ(2, hypergraph.localPartWeight(0));
-    ASSERT_EQ(2, hypergraph.localPartSize(0));
-    ASSERT_EQ(2, hypergraph.localPartWeight(1));
-    ASSERT_EQ(2, hypergraph.localPartSize(1));
-    ASSERT_EQ(3, hypergraph.localPartWeight(2));
-    ASSERT_EQ(3, hypergraph.localPartSize(2));
-  }, [&] {
-    ASSERT_TRUE( hypergraph.changeNodePart(hypergraph.globalNodeID(5), 2, 1) ); // Move 2
-    ASSERT_TRUE( hypergraph.changeNodePart(hypergraph.globalNodeID(6), 2, 0) ); // Move 3
+        ASSERT_EQ(2, hypergraph.localPartWeight(0));
+        ASSERT_EQ(2, hypergraph.localPartSize(0));
+        ASSERT_EQ(2, hypergraph.localPartWeight(1));
+        ASSERT_EQ(2, hypergraph.localPartSize(1));
+        ASSERT_EQ(3, hypergraph.localPartWeight(2));
+        ASSERT_EQ(3, hypergraph.localPartSize(2));
+      }, [&] {
+        ASSERT_TRUE(hypergraph.changeNodePart(hypergraph.globalNodeID(5), 2, 1));  // Move 2
+        ASSERT_TRUE(hypergraph.changeNodePart(hypergraph.globalNodeID(6), 2, 0));  // Move 3
 
-    cnt++;
-    while ( cnt < 2 ) { }
+        cnt++;
+        while (cnt < 2) { }
 
-    hypergraph.updateLocalPartInfos(); // Move 1, 2, 3 are applied
-    ASSERT_EQ(3, hypergraph.localPartWeight(0));
-    ASSERT_EQ(3, hypergraph.localPartSize(0));
-    ASSERT_EQ(4, hypergraph.localPartWeight(1));
-    ASSERT_EQ(4, hypergraph.localPartSize(1));
-    ASSERT_EQ(0, hypergraph.localPartWeight(2));
-    ASSERT_EQ(0, hypergraph.localPartSize(2));
+        hypergraph.updateLocalPartInfos();  // Move 1, 2, 3 are applied
+        ASSERT_EQ(3, hypergraph.localPartWeight(0));
+        ASSERT_EQ(3, hypergraph.localPartSize(0));
+        ASSERT_EQ(4, hypergraph.localPartWeight(1));
+        ASSERT_EQ(4, hypergraph.localPartSize(1));
+        ASSERT_EQ(0, hypergraph.localPartWeight(2));
+        ASSERT_EQ(0, hypergraph.localPartSize(2));
 
-    ASSERT_TRUE( hypergraph.changeNodePart(hypergraph.globalNodeID(4), 1, 2) ); // Move 4
+        ASSERT_TRUE(hypergraph.changeNodePart(hypergraph.globalNodeID(4), 1, 2));  // Move 4
 
-    cnt++;
+        cnt++;
 
-    ASSERT_EQ(3, hypergraph.localPartWeight(0));
-    ASSERT_EQ(3, hypergraph.localPartSize(0));
-    ASSERT_EQ(3, hypergraph.localPartWeight(1));
-    ASSERT_EQ(3, hypergraph.localPartSize(1));
-    ASSERT_EQ(1, hypergraph.localPartWeight(2));
-    ASSERT_EQ(1, hypergraph.localPartSize(2));
-  });
+        ASSERT_EQ(3, hypergraph.localPartWeight(0));
+        ASSERT_EQ(3, hypergraph.localPartSize(0));
+        ASSERT_EQ(3, hypergraph.localPartWeight(1));
+        ASSERT_EQ(3, hypergraph.localPartSize(1));
+        ASSERT_EQ(1, hypergraph.localPartWeight(2));
+        ASSERT_EQ(1, hypergraph.localPartSize(2));
+      });
 
   hypergraph.updateGlobalPartInfos();
   ASSERT_EQ(2, hypergraph.partWeight(0));
@@ -266,7 +264,7 @@ void verifyPartitionPinCounts(TestHypergraph& hypergraph,
                               const HyperedgeID he,
                               const std::vector<HypernodeID>& expected_pin_counts) {
   ASSERT(expected_pin_counts.size() == 3);
-  for ( PartitionID k = 0; k < 3; ++k ) {
+  for (PartitionID k = 0; k < 3; ++k) {
     ASSERT_EQ(expected_pin_counts[k], hypergraph.pinCountInPart(he, k)) << V(he) << V(k);
   }
 }
@@ -274,105 +272,105 @@ void verifyPartitionPinCounts(TestHypergraph& hypergraph,
 TEST_F(AConcurrentHypergraph, HasCorrectPartitionPinCounts) {
   TestHypergraph hypergraph = construct_test_hypergraph(*this);
 
-  verifyPartitionPinCounts(hypergraph, hypergraph.globalEdgeID(0), {2, 0, 0});
-  verifyPartitionPinCounts(hypergraph, hypergraph.globalEdgeID(1), {2, 2, 0});
-  verifyPartitionPinCounts(hypergraph, hypergraph.globalEdgeID(2), {0, 2, 1});
-  verifyPartitionPinCounts(hypergraph, hypergraph.globalEdgeID(3), {1, 0, 2});
+  verifyPartitionPinCounts(hypergraph, hypergraph.globalEdgeID(0), { 2, 0, 0 });
+  verifyPartitionPinCounts(hypergraph, hypergraph.globalEdgeID(1), { 2, 2, 0 });
+  verifyPartitionPinCounts(hypergraph, hypergraph.globalEdgeID(2), { 0, 2, 1 });
+  verifyPartitionPinCounts(hypergraph, hypergraph.globalEdgeID(3), { 1, 0, 2 });
 }
 
 TEST_F(AConcurrentHypergraph, HasCorrectPartitionPinCountsIfTwoNodesMovesConcurrent1) {
   TestHypergraph hypergraph = construct_test_hypergraph(*this);
 
   executeConcurrent([&] {
-    ASSERT_TRUE( hypergraph.changeNodePart(hypergraph.globalNodeID(0), 0, 1) );
-  }, [&] {
-    ASSERT_TRUE( hypergraph.changeNodePart(hypergraph.globalNodeID(1), 0, 2) );
-  });
+        ASSERT_TRUE(hypergraph.changeNodePart(hypergraph.globalNodeID(0), 0, 1));
+      }, [&] {
+        ASSERT_TRUE(hypergraph.changeNodePart(hypergraph.globalNodeID(1), 0, 2));
+      });
 
-  verifyPartitionPinCounts(hypergraph, hypergraph.globalEdgeID(0), {1, 1, 0});
-  verifyPartitionPinCounts(hypergraph, hypergraph.globalEdgeID(1), {0, 3, 1});
-  verifyPartitionPinCounts(hypergraph, hypergraph.globalEdgeID(2), {0, 2, 1});
-  verifyPartitionPinCounts(hypergraph, hypergraph.globalEdgeID(3), {1, 0, 2});
+  verifyPartitionPinCounts(hypergraph, hypergraph.globalEdgeID(0), { 1, 1, 0 });
+  verifyPartitionPinCounts(hypergraph, hypergraph.globalEdgeID(1), { 0, 3, 1 });
+  verifyPartitionPinCounts(hypergraph, hypergraph.globalEdgeID(2), { 0, 2, 1 });
+  verifyPartitionPinCounts(hypergraph, hypergraph.globalEdgeID(3), { 1, 0, 2 });
 }
 
 TEST_F(AConcurrentHypergraph, HasCorrectPartitionPinCountsIfTwoNodesMovesConcurrent2) {
   TestHypergraph hypergraph = construct_test_hypergraph(*this);
 
   executeConcurrent([&] {
-    ASSERT_TRUE( hypergraph.changeNodePart(hypergraph.globalNodeID(3), 1, 2) );
-  }, [&] {
-    ASSERT_TRUE( hypergraph.changeNodePart(hypergraph.globalNodeID(6), 2, 0) );
-  });
+        ASSERT_TRUE(hypergraph.changeNodePart(hypergraph.globalNodeID(3), 1, 2));
+      }, [&] {
+        ASSERT_TRUE(hypergraph.changeNodePart(hypergraph.globalNodeID(6), 2, 0));
+      });
 
-  verifyPartitionPinCounts(hypergraph, hypergraph.globalEdgeID(0), {2, 0, 0});
-  verifyPartitionPinCounts(hypergraph, hypergraph.globalEdgeID(1), {2, 1, 1});
-  verifyPartitionPinCounts(hypergraph, hypergraph.globalEdgeID(2), {1, 1, 1});
-  verifyPartitionPinCounts(hypergraph, hypergraph.globalEdgeID(3), {2, 0, 1});
+  verifyPartitionPinCounts(hypergraph, hypergraph.globalEdgeID(0), { 2, 0, 0 });
+  verifyPartitionPinCounts(hypergraph, hypergraph.globalEdgeID(1), { 2, 1, 1 });
+  verifyPartitionPinCounts(hypergraph, hypergraph.globalEdgeID(2), { 1, 1, 1 });
+  verifyPartitionPinCounts(hypergraph, hypergraph.globalEdgeID(3), { 2, 0, 1 });
 }
 
 TEST_F(AConcurrentHypergraph, HasCorrectPartitionPinCountsIfTwoNodesMovesConcurrent3) {
   TestHypergraph hypergraph = construct_test_hypergraph(*this);
 
   executeConcurrent([&] {
-    ASSERT_TRUE( hypergraph.changeNodePart(hypergraph.globalNodeID(3), 1, 2) );
-  }, [&] {
-    ASSERT_TRUE( hypergraph.changeNodePart(hypergraph.globalNodeID(4), 1, 2) );
-  });
+        ASSERT_TRUE(hypergraph.changeNodePart(hypergraph.globalNodeID(3), 1, 2));
+      }, [&] {
+        ASSERT_TRUE(hypergraph.changeNodePart(hypergraph.globalNodeID(4), 1, 2));
+      });
 
-  verifyPartitionPinCounts(hypergraph, hypergraph.globalEdgeID(0), {2, 0, 0});
-  verifyPartitionPinCounts(hypergraph, hypergraph.globalEdgeID(1), {2, 0, 2});
-  verifyPartitionPinCounts(hypergraph, hypergraph.globalEdgeID(2), {0, 0, 3});
-  verifyPartitionPinCounts(hypergraph, hypergraph.globalEdgeID(3), {1, 0, 2});
+  verifyPartitionPinCounts(hypergraph, hypergraph.globalEdgeID(0), { 2, 0, 0 });
+  verifyPartitionPinCounts(hypergraph, hypergraph.globalEdgeID(1), { 2, 0, 2 });
+  verifyPartitionPinCounts(hypergraph, hypergraph.globalEdgeID(2), { 0, 0, 3 });
+  verifyPartitionPinCounts(hypergraph, hypergraph.globalEdgeID(3), { 1, 0, 2 });
 }
 
 TEST_F(AConcurrentHypergraph, HasCorrectPartitionPinCountsIfTwoNodesMovesConcurrent4) {
   TestHypergraph hypergraph = construct_test_hypergraph(*this);
 
   executeConcurrent([&] {
-    ASSERT_TRUE( hypergraph.changeNodePart(hypergraph.globalNodeID(2), 0, 2) );
-  }, [&] {
-    ASSERT_TRUE( hypergraph.changeNodePart(hypergraph.globalNodeID(5), 2, 0) );
-  });
+        ASSERT_TRUE(hypergraph.changeNodePart(hypergraph.globalNodeID(2), 0, 2));
+      }, [&] {
+        ASSERT_TRUE(hypergraph.changeNodePart(hypergraph.globalNodeID(5), 2, 0));
+      });
 
-  verifyPartitionPinCounts(hypergraph, hypergraph.globalEdgeID(0), {1, 0, 1});
-  verifyPartitionPinCounts(hypergraph, hypergraph.globalEdgeID(1), {2, 2, 0});
-  verifyPartitionPinCounts(hypergraph, hypergraph.globalEdgeID(2), {0, 2, 1});
-  verifyPartitionPinCounts(hypergraph, hypergraph.globalEdgeID(3), {1, 0, 2});
+  verifyPartitionPinCounts(hypergraph, hypergraph.globalEdgeID(0), { 1, 0, 1 });
+  verifyPartitionPinCounts(hypergraph, hypergraph.globalEdgeID(1), { 2, 2, 0 });
+  verifyPartitionPinCounts(hypergraph, hypergraph.globalEdgeID(2), { 0, 2, 1 });
+  verifyPartitionPinCounts(hypergraph, hypergraph.globalEdgeID(3), { 1, 0, 2 });
 }
 
 TEST_F(AConcurrentHypergraph, HasCorrectPartitionPinCountsIfTwoNodesMovesConcurrent5) {
   TestHypergraph hypergraph = construct_test_hypergraph(*this);
 
   executeConcurrent([&] {
-    ASSERT_TRUE( hypergraph.changeNodePart(hypergraph.globalNodeID(0), 0, 1) );
-  }, [&] {
-    ASSERT_TRUE( hypergraph.changeNodePart(hypergraph.globalNodeID(6), 2, 1) );
-  });
+        ASSERT_TRUE(hypergraph.changeNodePart(hypergraph.globalNodeID(0), 0, 1));
+      }, [&] {
+        ASSERT_TRUE(hypergraph.changeNodePart(hypergraph.globalNodeID(6), 2, 1));
+      });
 
-  verifyPartitionPinCounts(hypergraph, hypergraph.globalEdgeID(0), {1, 1, 0});
-  verifyPartitionPinCounts(hypergraph, hypergraph.globalEdgeID(1), {1, 3, 0});
-  verifyPartitionPinCounts(hypergraph, hypergraph.globalEdgeID(2), {0, 3, 0});
-  verifyPartitionPinCounts(hypergraph, hypergraph.globalEdgeID(3), {1, 1, 1});
+  verifyPartitionPinCounts(hypergraph, hypergraph.globalEdgeID(0), { 1, 1, 0 });
+  verifyPartitionPinCounts(hypergraph, hypergraph.globalEdgeID(1), { 1, 3, 0 });
+  verifyPartitionPinCounts(hypergraph, hypergraph.globalEdgeID(2), { 0, 3, 0 });
+  verifyPartitionPinCounts(hypergraph, hypergraph.globalEdgeID(3), { 1, 1, 1 });
 }
 
 TEST_F(AConcurrentHypergraph, HasCorrectPartitionPinCountsIfAllNodesMovesConcurrent) {
   TestHypergraph hypergraph = construct_test_hypergraph(*this);
 
   executeConcurrent([&] {
-    ASSERT_TRUE( hypergraph.changeNodePart(hypergraph.globalNodeID(0), 0, 1) );
-    ASSERT_TRUE( hypergraph.changeNodePart(hypergraph.globalNodeID(2), 0, 2) );
-    ASSERT_TRUE( hypergraph.changeNodePart(hypergraph.globalNodeID(4), 1, 0) );
-    ASSERT_TRUE( hypergraph.changeNodePart(hypergraph.globalNodeID(6), 2, 1) );
-  }, [&] {
-    ASSERT_TRUE( hypergraph.changeNodePart(hypergraph.globalNodeID(1), 0, 2) );
-    ASSERT_TRUE( hypergraph.changeNodePart(hypergraph.globalNodeID(3), 1, 0) );
-    ASSERT_TRUE( hypergraph.changeNodePart(hypergraph.globalNodeID(5), 2, 1) );
-  });
+        ASSERT_TRUE(hypergraph.changeNodePart(hypergraph.globalNodeID(0), 0, 1));
+        ASSERT_TRUE(hypergraph.changeNodePart(hypergraph.globalNodeID(2), 0, 2));
+        ASSERT_TRUE(hypergraph.changeNodePart(hypergraph.globalNodeID(4), 1, 0));
+        ASSERT_TRUE(hypergraph.changeNodePart(hypergraph.globalNodeID(6), 2, 1));
+      }, [&] {
+        ASSERT_TRUE(hypergraph.changeNodePart(hypergraph.globalNodeID(1), 0, 2));
+        ASSERT_TRUE(hypergraph.changeNodePart(hypergraph.globalNodeID(3), 1, 0));
+        ASSERT_TRUE(hypergraph.changeNodePart(hypergraph.globalNodeID(5), 2, 1));
+      });
 
-  verifyPartitionPinCounts(hypergraph, hypergraph.globalEdgeID(0), {0, 1, 1});
-  verifyPartitionPinCounts(hypergraph, hypergraph.globalEdgeID(1), {2, 1, 1});
-  verifyPartitionPinCounts(hypergraph, hypergraph.globalEdgeID(2), {2, 1, 0});
-  verifyPartitionPinCounts(hypergraph, hypergraph.globalEdgeID(3), {0, 2, 1});
+  verifyPartitionPinCounts(hypergraph, hypergraph.globalEdgeID(0), { 0, 1, 1 });
+  verifyPartitionPinCounts(hypergraph, hypergraph.globalEdgeID(1), { 2, 1, 1 });
+  verifyPartitionPinCounts(hypergraph, hypergraph.globalEdgeID(2), { 2, 1, 0 });
+  verifyPartitionPinCounts(hypergraph, hypergraph.globalEdgeID(3), { 0, 2, 1 });
 }
 
 void verifyConnectivitySet(TestHypergraph& hypergraph,
@@ -380,7 +378,7 @@ void verifyConnectivitySet(TestHypergraph& hypergraph,
                            const std::set<PartitionID>& connectivity_set) {
   ASSERT_EQ(connectivity_set.size(), hypergraph.connectivity(he)) << V(he);
   PartitionID connectivity = 0;
-  for ( const PartitionID& id : hypergraph.connectivitySet(he) ) {
+  for (const PartitionID& id : hypergraph.connectivitySet(he)) {
     ASSERT_TRUE(connectivity_set.find(id) != connectivity_set.end()) << V(he) << V(id);
     ++connectivity;
   }
@@ -391,75 +389,75 @@ TEST_F(AConcurrentHypergraph, HasCorrectConnectivitySetIfTwoNodesMovesConcurrent
   TestHypergraph hypergraph = construct_test_hypergraph(*this);
 
   executeConcurrent([&] {
-    ASSERT_TRUE( hypergraph.changeNodePart(hypergraph.globalNodeID(6), 2, 0) );
-  }, [&] {
-    ASSERT_TRUE( hypergraph.changeNodePart(hypergraph.globalNodeID(0), 0, 1) );
-  });
+        ASSERT_TRUE(hypergraph.changeNodePart(hypergraph.globalNodeID(6), 2, 0));
+      }, [&] {
+        ASSERT_TRUE(hypergraph.changeNodePart(hypergraph.globalNodeID(0), 0, 1));
+      });
 
-  verifyConnectivitySet(hypergraph, hypergraph.globalEdgeID(0), {0, 1});
-  verifyConnectivitySet(hypergraph, hypergraph.globalEdgeID(1), {0, 1});
-  verifyConnectivitySet(hypergraph, hypergraph.globalEdgeID(2), {0, 1});
-  verifyConnectivitySet(hypergraph, hypergraph.globalEdgeID(3), {0, 2});
+  verifyConnectivitySet(hypergraph, hypergraph.globalEdgeID(0), { 0, 1 });
+  verifyConnectivitySet(hypergraph, hypergraph.globalEdgeID(1), { 0, 1 });
+  verifyConnectivitySet(hypergraph, hypergraph.globalEdgeID(2), { 0, 1 });
+  verifyConnectivitySet(hypergraph, hypergraph.globalEdgeID(3), { 0, 2 });
 }
 
 TEST_F(AConcurrentHypergraph, HasCorrectConnectivitySetIfTwoNodesMovesConcurrent2) {
   TestHypergraph hypergraph = construct_test_hypergraph(*this);
 
   executeConcurrent([&] {
-    ASSERT_TRUE( hypergraph.changeNodePart(hypergraph.globalNodeID(5), 2, 0) );
-  }, [&] {
-    ASSERT_TRUE( hypergraph.changeNodePart(hypergraph.globalNodeID(2), 0, 2) );
-  });
+        ASSERT_TRUE(hypergraph.changeNodePart(hypergraph.globalNodeID(5), 2, 0));
+      }, [&] {
+        ASSERT_TRUE(hypergraph.changeNodePart(hypergraph.globalNodeID(2), 0, 2));
+      });
 
-  verifyConnectivitySet(hypergraph, hypergraph.globalEdgeID(0), {0, 2});
-  verifyConnectivitySet(hypergraph, hypergraph.globalEdgeID(1), {0, 1});
-  verifyConnectivitySet(hypergraph, hypergraph.globalEdgeID(2), {1, 2});
-  verifyConnectivitySet(hypergraph, hypergraph.globalEdgeID(3), {0, 2});
+  verifyConnectivitySet(hypergraph, hypergraph.globalEdgeID(0), { 0, 2 });
+  verifyConnectivitySet(hypergraph, hypergraph.globalEdgeID(1), { 0, 1 });
+  verifyConnectivitySet(hypergraph, hypergraph.globalEdgeID(2), { 1, 2 });
+  verifyConnectivitySet(hypergraph, hypergraph.globalEdgeID(3), { 0, 2 });
 }
 
 TEST_F(AConcurrentHypergraph, HasCorrectConnectivitySetIfTwoNodesMovesConcurrent3) {
   TestHypergraph hypergraph = construct_test_hypergraph(*this);
 
   executeConcurrent([&] {
-    ASSERT_TRUE( hypergraph.changeNodePart(hypergraph.globalNodeID(0), 0, 1) );
-  }, [&] {
-    ASSERT_TRUE( hypergraph.changeNodePart(hypergraph.globalNodeID(2), 0, 1) );
-  });
+        ASSERT_TRUE(hypergraph.changeNodePart(hypergraph.globalNodeID(0), 0, 1));
+      }, [&] {
+        ASSERT_TRUE(hypergraph.changeNodePart(hypergraph.globalNodeID(2), 0, 1));
+      });
 
-  verifyConnectivitySet(hypergraph, hypergraph.globalEdgeID(0), {1});
-  verifyConnectivitySet(hypergraph, hypergraph.globalEdgeID(1), {0, 1});
-  verifyConnectivitySet(hypergraph, hypergraph.globalEdgeID(2), {1, 2});
-  verifyConnectivitySet(hypergraph, hypergraph.globalEdgeID(3), {1, 2});
+  verifyConnectivitySet(hypergraph, hypergraph.globalEdgeID(0), { 1 });
+  verifyConnectivitySet(hypergraph, hypergraph.globalEdgeID(1), { 0, 1 });
+  verifyConnectivitySet(hypergraph, hypergraph.globalEdgeID(2), { 1, 2 });
+  verifyConnectivitySet(hypergraph, hypergraph.globalEdgeID(3), { 1, 2 });
 }
 
 TEST_F(AConcurrentHypergraph, HasCorrectConnectivitySetIfTwoNodesMovesConcurrent4) {
   TestHypergraph hypergraph = construct_test_hypergraph(*this);
 
   executeConcurrent([&] {
-    ASSERT_TRUE( hypergraph.changeNodePart(hypergraph.globalNodeID(4), 1, 0) );
-  }, [&] {
-    ASSERT_TRUE( hypergraph.changeNodePart(hypergraph.globalNodeID(3), 1, 0) );
-  });
+        ASSERT_TRUE(hypergraph.changeNodePart(hypergraph.globalNodeID(4), 1, 0));
+      }, [&] {
+        ASSERT_TRUE(hypergraph.changeNodePart(hypergraph.globalNodeID(3), 1, 0));
+      });
 
-  verifyConnectivitySet(hypergraph, hypergraph.globalEdgeID(0), {0});
-  verifyConnectivitySet(hypergraph, hypergraph.globalEdgeID(1), {0});
-  verifyConnectivitySet(hypergraph, hypergraph.globalEdgeID(2), {0, 2});
-  verifyConnectivitySet(hypergraph, hypergraph.globalEdgeID(3), {0, 2});
+  verifyConnectivitySet(hypergraph, hypergraph.globalEdgeID(0), { 0 });
+  verifyConnectivitySet(hypergraph, hypergraph.globalEdgeID(1), { 0 });
+  verifyConnectivitySet(hypergraph, hypergraph.globalEdgeID(2), { 0, 2 });
+  verifyConnectivitySet(hypergraph, hypergraph.globalEdgeID(3), { 0, 2 });
 }
 
 TEST_F(AConcurrentHypergraph, HasCorrectConnectivitySetIfTwoNodesMovesConcurrent5) {
   TestHypergraph hypergraph = construct_test_hypergraph(*this);
 
   executeConcurrent([&] {
-    ASSERT_TRUE( hypergraph.changeNodePart(hypergraph.globalNodeID(1), 0, 2) );
-  }, [&] {
-    ASSERT_TRUE( hypergraph.changeNodePart(hypergraph.globalNodeID(3), 1, 2) );
-  });
+        ASSERT_TRUE(hypergraph.changeNodePart(hypergraph.globalNodeID(1), 0, 2));
+      }, [&] {
+        ASSERT_TRUE(hypergraph.changeNodePart(hypergraph.globalNodeID(3), 1, 2));
+      });
 
-  verifyConnectivitySet(hypergraph, hypergraph.globalEdgeID(0), {0});
-  verifyConnectivitySet(hypergraph, hypergraph.globalEdgeID(1), {0, 1, 2});
-  verifyConnectivitySet(hypergraph, hypergraph.globalEdgeID(2), {1, 2});
-  verifyConnectivitySet(hypergraph, hypergraph.globalEdgeID(3), {0, 2});
+  verifyConnectivitySet(hypergraph, hypergraph.globalEdgeID(0), { 0 });
+  verifyConnectivitySet(hypergraph, hypergraph.globalEdgeID(1), { 0, 1, 2 });
+  verifyConnectivitySet(hypergraph, hypergraph.globalEdgeID(2), { 1, 2 });
+  verifyConnectivitySet(hypergraph, hypergraph.globalEdgeID(3), { 0, 2 });
 }
 
 
@@ -467,124 +465,122 @@ TEST_F(AConcurrentHypergraph, HasCorrectConnectivitySetIfAllNodesMovesConcurrent
   TestHypergraph hypergraph = construct_test_hypergraph(*this);
 
   executeConcurrent([&] {
-    ASSERT_TRUE( hypergraph.changeNodePart(hypergraph.globalNodeID(0), 0, 1) );
-    ASSERT_TRUE( hypergraph.changeNodePart(hypergraph.globalNodeID(3), 1, 0) );
-    ASSERT_TRUE( hypergraph.changeNodePart(hypergraph.globalNodeID(6), 2, 0) );
-  }, [&] {
-    ASSERT_TRUE( hypergraph.changeNodePart(hypergraph.globalNodeID(1), 0, 2) );
-    ASSERT_TRUE( hypergraph.changeNodePart(hypergraph.globalNodeID(2), 0, 1) );
-    ASSERT_TRUE( hypergraph.changeNodePart(hypergraph.globalNodeID(4), 1, 0) );
-    ASSERT_TRUE( hypergraph.changeNodePart(hypergraph.globalNodeID(5), 2, 1) );
-  });
+        ASSERT_TRUE(hypergraph.changeNodePart(hypergraph.globalNodeID(0), 0, 1));
+        ASSERT_TRUE(hypergraph.changeNodePart(hypergraph.globalNodeID(3), 1, 0));
+        ASSERT_TRUE(hypergraph.changeNodePart(hypergraph.globalNodeID(6), 2, 0));
+      }, [&] {
+        ASSERT_TRUE(hypergraph.changeNodePart(hypergraph.globalNodeID(1), 0, 2));
+        ASSERT_TRUE(hypergraph.changeNodePart(hypergraph.globalNodeID(2), 0, 1));
+        ASSERT_TRUE(hypergraph.changeNodePart(hypergraph.globalNodeID(4), 1, 0));
+        ASSERT_TRUE(hypergraph.changeNodePart(hypergraph.globalNodeID(5), 2, 1));
+      });
 
-  verifyConnectivitySet(hypergraph, hypergraph.globalEdgeID(0), {1});
-  verifyConnectivitySet(hypergraph, hypergraph.globalEdgeID(1), {0, 1, 2});
-  verifyConnectivitySet(hypergraph, hypergraph.globalEdgeID(2), {0});
-  verifyConnectivitySet(hypergraph, hypergraph.globalEdgeID(3), {0, 1});
+  verifyConnectivitySet(hypergraph, hypergraph.globalEdgeID(0), { 1 });
+  verifyConnectivitySet(hypergraph, hypergraph.globalEdgeID(1), { 0, 1, 2 });
+  verifyConnectivitySet(hypergraph, hypergraph.globalEdgeID(2), { 0 });
+  verifyConnectivitySet(hypergraph, hypergraph.globalEdgeID(3), { 0, 1 });
 }
 
 TEST_F(AConcurrentHypergraph, HasCorrectBorderNodes) {
   TestHypergraph hypergraph = construct_test_hypergraph(*this);
 
-  ASSERT_TRUE( hypergraph.isBorderNode( hypergraph.globalNodeID(0) ) );
-  ASSERT_TRUE( hypergraph.isBorderNode( hypergraph.globalNodeID(1) ) );
-  ASSERT_TRUE( hypergraph.isBorderNode( hypergraph.globalNodeID(2) ) );
-  ASSERT_TRUE( hypergraph.isBorderNode( hypergraph.globalNodeID(3) ) );
-  ASSERT_TRUE( hypergraph.isBorderNode( hypergraph.globalNodeID(4) ) );
-  ASSERT_TRUE( hypergraph.isBorderNode( hypergraph.globalNodeID(5) ) );
-  ASSERT_TRUE( hypergraph.isBorderNode( hypergraph.globalNodeID(6) ) );
+  ASSERT_TRUE(hypergraph.isBorderNode(hypergraph.globalNodeID(0)));
+  ASSERT_TRUE(hypergraph.isBorderNode(hypergraph.globalNodeID(1)));
+  ASSERT_TRUE(hypergraph.isBorderNode(hypergraph.globalNodeID(2)));
+  ASSERT_TRUE(hypergraph.isBorderNode(hypergraph.globalNodeID(3)));
+  ASSERT_TRUE(hypergraph.isBorderNode(hypergraph.globalNodeID(4)));
+  ASSERT_TRUE(hypergraph.isBorderNode(hypergraph.globalNodeID(5)));
+  ASSERT_TRUE(hypergraph.isBorderNode(hypergraph.globalNodeID(6)));
 
-  ASSERT_EQ( 1, hypergraph.numIncidentCutHyperedges( hypergraph.globalNodeID(0) ) );
-  ASSERT_EQ( 1, hypergraph.numIncidentCutHyperedges( hypergraph.globalNodeID(1) ) );
-  ASSERT_EQ( 1, hypergraph.numIncidentCutHyperedges( hypergraph.globalNodeID(2) ) );
-  ASSERT_EQ( 2, hypergraph.numIncidentCutHyperedges( hypergraph.globalNodeID(3) ) );
-  ASSERT_EQ( 2, hypergraph.numIncidentCutHyperedges( hypergraph.globalNodeID(4) ) );
-  ASSERT_EQ( 1, hypergraph.numIncidentCutHyperedges( hypergraph.globalNodeID(5) ) );
-  ASSERT_EQ( 2, hypergraph.numIncidentCutHyperedges( hypergraph.globalNodeID(6) ) );
+  ASSERT_EQ(1, hypergraph.numIncidentCutHyperedges(hypergraph.globalNodeID(0)));
+  ASSERT_EQ(1, hypergraph.numIncidentCutHyperedges(hypergraph.globalNodeID(1)));
+  ASSERT_EQ(1, hypergraph.numIncidentCutHyperedges(hypergraph.globalNodeID(2)));
+  ASSERT_EQ(2, hypergraph.numIncidentCutHyperedges(hypergraph.globalNodeID(3)));
+  ASSERT_EQ(2, hypergraph.numIncidentCutHyperedges(hypergraph.globalNodeID(4)));
+  ASSERT_EQ(1, hypergraph.numIncidentCutHyperedges(hypergraph.globalNodeID(5)));
+  ASSERT_EQ(2, hypergraph.numIncidentCutHyperedges(hypergraph.globalNodeID(6)));
 }
 
 TEST_F(AConcurrentHypergraph, HasCorrectBorderNodesIfNodesAreMovingConcurrently1) {
   TestHypergraph hypergraph = construct_test_hypergraph(*this);
 
   executeConcurrent([&] {
-    ASSERT_TRUE( hypergraph.changeNodePart(hypergraph.globalNodeID(3), 1, 0) );
-  }, [&] {
-    ASSERT_TRUE( hypergraph.changeNodePart(hypergraph.globalNodeID(4), 1, 0) );
-  });
+        ASSERT_TRUE(hypergraph.changeNodePart(hypergraph.globalNodeID(3), 1, 0));
+      }, [&] {
+        ASSERT_TRUE(hypergraph.changeNodePart(hypergraph.globalNodeID(4), 1, 0));
+      });
 
-  ASSERT_FALSE( hypergraph.isBorderNode( hypergraph.globalNodeID(0) ) );
-  ASSERT_FALSE( hypergraph.isBorderNode( hypergraph.globalNodeID(1) ) );
-  ASSERT_TRUE( hypergraph.isBorderNode( hypergraph.globalNodeID(2) ) );
-  ASSERT_TRUE( hypergraph.isBorderNode( hypergraph.globalNodeID(3) ) );
-  ASSERT_TRUE( hypergraph.isBorderNode( hypergraph.globalNodeID(4) ) );
-  ASSERT_TRUE( hypergraph.isBorderNode( hypergraph.globalNodeID(5) ) );
-  ASSERT_TRUE( hypergraph.isBorderNode( hypergraph.globalNodeID(6) ) );
+  ASSERT_FALSE(hypergraph.isBorderNode(hypergraph.globalNodeID(0)));
+  ASSERT_FALSE(hypergraph.isBorderNode(hypergraph.globalNodeID(1)));
+  ASSERT_TRUE(hypergraph.isBorderNode(hypergraph.globalNodeID(2)));
+  ASSERT_TRUE(hypergraph.isBorderNode(hypergraph.globalNodeID(3)));
+  ASSERT_TRUE(hypergraph.isBorderNode(hypergraph.globalNodeID(4)));
+  ASSERT_TRUE(hypergraph.isBorderNode(hypergraph.globalNodeID(5)));
+  ASSERT_TRUE(hypergraph.isBorderNode(hypergraph.globalNodeID(6)));
 
-  ASSERT_EQ( 0, hypergraph.numIncidentCutHyperedges( hypergraph.globalNodeID(0) ) );
-  ASSERT_EQ( 0, hypergraph.numIncidentCutHyperedges( hypergraph.globalNodeID(1) ) );
-  ASSERT_EQ( 1, hypergraph.numIncidentCutHyperedges( hypergraph.globalNodeID(2) ) );
-  ASSERT_EQ( 1, hypergraph.numIncidentCutHyperedges( hypergraph.globalNodeID(3) ) );
-  ASSERT_EQ( 1, hypergraph.numIncidentCutHyperedges( hypergraph.globalNodeID(4) ) );
-  ASSERT_EQ( 1, hypergraph.numIncidentCutHyperedges( hypergraph.globalNodeID(5) ) );
-  ASSERT_EQ( 2, hypergraph.numIncidentCutHyperedges( hypergraph.globalNodeID(6) ) );
+  ASSERT_EQ(0, hypergraph.numIncidentCutHyperedges(hypergraph.globalNodeID(0)));
+  ASSERT_EQ(0, hypergraph.numIncidentCutHyperedges(hypergraph.globalNodeID(1)));
+  ASSERT_EQ(1, hypergraph.numIncidentCutHyperedges(hypergraph.globalNodeID(2)));
+  ASSERT_EQ(1, hypergraph.numIncidentCutHyperedges(hypergraph.globalNodeID(3)));
+  ASSERT_EQ(1, hypergraph.numIncidentCutHyperedges(hypergraph.globalNodeID(4)));
+  ASSERT_EQ(1, hypergraph.numIncidentCutHyperedges(hypergraph.globalNodeID(5)));
+  ASSERT_EQ(2, hypergraph.numIncidentCutHyperedges(hypergraph.globalNodeID(6)));
 }
 
 TEST_F(AConcurrentHypergraph, HasCorrectBorderNodesIfNodesAreMovingConcurrently2) {
   TestHypergraph hypergraph = construct_test_hypergraph(*this);
 
   executeConcurrent([&] {
-    ASSERT_TRUE( hypergraph.changeNodePart(hypergraph.globalNodeID(3), 1, 0) );
-    ASSERT_TRUE( hypergraph.changeNodePart(hypergraph.globalNodeID(1), 0, 1) );
-  }, [&] {
-    ASSERT_TRUE( hypergraph.changeNodePart(hypergraph.globalNodeID(4), 1, 0) );
-    ASSERT_TRUE( hypergraph.changeNodePart(hypergraph.globalNodeID(2), 0, 1) );
-  });
+        ASSERT_TRUE(hypergraph.changeNodePart(hypergraph.globalNodeID(3), 1, 0));
+        ASSERT_TRUE(hypergraph.changeNodePart(hypergraph.globalNodeID(1), 0, 1));
+      }, [&] {
+        ASSERT_TRUE(hypergraph.changeNodePart(hypergraph.globalNodeID(4), 1, 0));
+        ASSERT_TRUE(hypergraph.changeNodePart(hypergraph.globalNodeID(2), 0, 1));
+      });
 
-  ASSERT_TRUE( hypergraph.isBorderNode( hypergraph.globalNodeID(0) ) );
-  ASSERT_TRUE( hypergraph.isBorderNode( hypergraph.globalNodeID(1) ) );
-  ASSERT_TRUE( hypergraph.isBorderNode( hypergraph.globalNodeID(2) ) );
-  ASSERT_TRUE( hypergraph.isBorderNode( hypergraph.globalNodeID(3) ) );
-  ASSERT_TRUE( hypergraph.isBorderNode( hypergraph.globalNodeID(4) ) );
-  ASSERT_TRUE( hypergraph.isBorderNode( hypergraph.globalNodeID(5) ) );
-  ASSERT_TRUE( hypergraph.isBorderNode( hypergraph.globalNodeID(6) ) );
+  ASSERT_TRUE(hypergraph.isBorderNode(hypergraph.globalNodeID(0)));
+  ASSERT_TRUE(hypergraph.isBorderNode(hypergraph.globalNodeID(1)));
+  ASSERT_TRUE(hypergraph.isBorderNode(hypergraph.globalNodeID(2)));
+  ASSERT_TRUE(hypergraph.isBorderNode(hypergraph.globalNodeID(3)));
+  ASSERT_TRUE(hypergraph.isBorderNode(hypergraph.globalNodeID(4)));
+  ASSERT_TRUE(hypergraph.isBorderNode(hypergraph.globalNodeID(5)));
+  ASSERT_TRUE(hypergraph.isBorderNode(hypergraph.globalNodeID(6)));
 
-  ASSERT_EQ( 2, hypergraph.numIncidentCutHyperedges( hypergraph.globalNodeID(0) ) );
-  ASSERT_EQ( 1, hypergraph.numIncidentCutHyperedges( hypergraph.globalNodeID(1) ) );
-  ASSERT_EQ( 2, hypergraph.numIncidentCutHyperedges( hypergraph.globalNodeID(2) ) );
-  ASSERT_EQ( 2, hypergraph.numIncidentCutHyperedges( hypergraph.globalNodeID(3) ) );
-  ASSERT_EQ( 2, hypergraph.numIncidentCutHyperedges( hypergraph.globalNodeID(4) ) );
-  ASSERT_EQ( 1, hypergraph.numIncidentCutHyperedges( hypergraph.globalNodeID(5) ) );
-  ASSERT_EQ( 2, hypergraph.numIncidentCutHyperedges( hypergraph.globalNodeID(6) ) );
+  ASSERT_EQ(2, hypergraph.numIncidentCutHyperedges(hypergraph.globalNodeID(0)));
+  ASSERT_EQ(1, hypergraph.numIncidentCutHyperedges(hypergraph.globalNodeID(1)));
+  ASSERT_EQ(2, hypergraph.numIncidentCutHyperedges(hypergraph.globalNodeID(2)));
+  ASSERT_EQ(2, hypergraph.numIncidentCutHyperedges(hypergraph.globalNodeID(3)));
+  ASSERT_EQ(2, hypergraph.numIncidentCutHyperedges(hypergraph.globalNodeID(4)));
+  ASSERT_EQ(1, hypergraph.numIncidentCutHyperedges(hypergraph.globalNodeID(5)));
+  ASSERT_EQ(2, hypergraph.numIncidentCutHyperedges(hypergraph.globalNodeID(6)));
 }
 
 TEST_F(AConcurrentHypergraph, HasCorrectBorderNodesIfNodesAreMovingConcurrently3) {
   TestHypergraph hypergraph = construct_test_hypergraph(*this);
 
   executeConcurrent([&] {
-    ASSERT_TRUE( hypergraph.changeNodePart(hypergraph.globalNodeID(6), 2, 0) );
-    ASSERT_TRUE( hypergraph.changeNodePart(hypergraph.globalNodeID(3), 1, 0) );
-  }, [&] {
-    ASSERT_TRUE( hypergraph.changeNodePart(hypergraph.globalNodeID(5), 2, 0) );
-    ASSERT_TRUE( hypergraph.changeNodePart(hypergraph.globalNodeID(4), 1, 0) );
-  });
+        ASSERT_TRUE(hypergraph.changeNodePart(hypergraph.globalNodeID(6), 2, 0));
+        ASSERT_TRUE(hypergraph.changeNodePart(hypergraph.globalNodeID(3), 1, 0));
+      }, [&] {
+        ASSERT_TRUE(hypergraph.changeNodePart(hypergraph.globalNodeID(5), 2, 0));
+        ASSERT_TRUE(hypergraph.changeNodePart(hypergraph.globalNodeID(4), 1, 0));
+      });
 
-  ASSERT_FALSE( hypergraph.isBorderNode( hypergraph.globalNodeID(0) ) );
-  ASSERT_FALSE( hypergraph.isBorderNode( hypergraph.globalNodeID(1) ) );
-  ASSERT_FALSE( hypergraph.isBorderNode( hypergraph.globalNodeID(2) ) );
-  ASSERT_FALSE( hypergraph.isBorderNode( hypergraph.globalNodeID(3) ) );
-  ASSERT_FALSE( hypergraph.isBorderNode( hypergraph.globalNodeID(4) ) );
-  ASSERT_FALSE( hypergraph.isBorderNode( hypergraph.globalNodeID(5) ) );
-  ASSERT_FALSE( hypergraph.isBorderNode( hypergraph.globalNodeID(6) ) );
+  ASSERT_FALSE(hypergraph.isBorderNode(hypergraph.globalNodeID(0)));
+  ASSERT_FALSE(hypergraph.isBorderNode(hypergraph.globalNodeID(1)));
+  ASSERT_FALSE(hypergraph.isBorderNode(hypergraph.globalNodeID(2)));
+  ASSERT_FALSE(hypergraph.isBorderNode(hypergraph.globalNodeID(3)));
+  ASSERT_FALSE(hypergraph.isBorderNode(hypergraph.globalNodeID(4)));
+  ASSERT_FALSE(hypergraph.isBorderNode(hypergraph.globalNodeID(5)));
+  ASSERT_FALSE(hypergraph.isBorderNode(hypergraph.globalNodeID(6)));
 
-  ASSERT_EQ( 0, hypergraph.numIncidentCutHyperedges( hypergraph.globalNodeID(0) ) );
-  ASSERT_EQ( 0, hypergraph.numIncidentCutHyperedges( hypergraph.globalNodeID(1) ) );
-  ASSERT_EQ( 0, hypergraph.numIncidentCutHyperedges( hypergraph.globalNodeID(2) ) );
-  ASSERT_EQ( 0, hypergraph.numIncidentCutHyperedges( hypergraph.globalNodeID(3) ) );
-  ASSERT_EQ( 0, hypergraph.numIncidentCutHyperedges( hypergraph.globalNodeID(4) ) );
-  ASSERT_EQ( 0, hypergraph.numIncidentCutHyperedges( hypergraph.globalNodeID(5) ) );
-  ASSERT_EQ( 0, hypergraph.numIncidentCutHyperedges( hypergraph.globalNodeID(6) ) );
+  ASSERT_EQ(0, hypergraph.numIncidentCutHyperedges(hypergraph.globalNodeID(0)));
+  ASSERT_EQ(0, hypergraph.numIncidentCutHyperedges(hypergraph.globalNodeID(1)));
+  ASSERT_EQ(0, hypergraph.numIncidentCutHyperedges(hypergraph.globalNodeID(2)));
+  ASSERT_EQ(0, hypergraph.numIncidentCutHyperedges(hypergraph.globalNodeID(3)));
+  ASSERT_EQ(0, hypergraph.numIncidentCutHyperedges(hypergraph.globalNodeID(4)));
+  ASSERT_EQ(0, hypergraph.numIncidentCutHyperedges(hypergraph.globalNodeID(5)));
+  ASSERT_EQ(0, hypergraph.numIncidentCutHyperedges(hypergraph.globalNodeID(6)));
 }
-
-
-} // namespace ds
-} // namespace mt_kahypar
+}  // namespace ds
+}  // namespace mt_kahypar
