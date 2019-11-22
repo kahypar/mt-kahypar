@@ -130,6 +130,10 @@ po::options_description createPreprocessingOptionsDescription(Context& context, 
     "- size_constraint\n"
     "- label_propagation\n"
     "- none")
+    ("p-community-size-constraint-factor",
+    po::value<size_t>(&context.preprocessing.community_detection.size_constraint_factor)->value_name("<size_t>"),
+    "If load balancing strategy is 'size_constraint', than a community is not allowed to have an volume\n"
+    "greater than total_volume / ( size_constraint_factor * num_threads )")
     ("p-louvain-edge-weight-function",
     po::value<std::string>()->value_name("<string>")->notifier(
       [&](const std::string& type) {

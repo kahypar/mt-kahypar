@@ -101,6 +101,14 @@ public:
 		totalVolume = G.totalVolume;
 		volMultiplierDivByNodeVol = reciprocalTotalVolume;		// * resolutionGamma;
 
+		ArcWeight maxAllowedClusterVolume = totalVolume;
+		if ( _context.preprocessing.community_detection.load_balancing_strategy ==
+				 CommunityLoadBalancingStrategy::size_constraint ) {
+			maxAllowedClusterVolume = std::ceil( maxAllowedClusterVolume /
+				( (double) ( _context.preprocessing.community_detection.size_constraint_factor *
+										 _context.shared_memory.num_threads ) ) );
+		}
+
 		std::vector<NodeID> nodes(G.numNodes());
 		for (NodeID u : G.nodes()) {
 			nodes[u] = u;
@@ -159,6 +167,10 @@ public:
 
 					const ArcWeight volTo = clusterVolumes[to],
 									weightTo = incidentClusterWeights[to];
+
+					if ( volU + volTo > maxAllowedClusterVolume ) {
+						continue;
+					}
 
 					//double gain = modularityGain(weightFrom, weightTo, volFrom, volTo, volU);
 					double gain = modularityGain(weightTo, volTo, volMultiplier);
