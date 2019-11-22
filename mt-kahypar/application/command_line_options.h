@@ -118,6 +118,37 @@ po::options_description createGenericOptionsDescription(Context& context,
   return generic_options;
 }
 
+po::options_description createPreprocessingOptionsDescription(Context& context, const int num_columns) {
+  po::options_description options("Preprocessing Options", num_columns);
+  options.add_options()
+    ("p-community-load-balancing-strategy",
+    po::value<std::string>()->value_name("<string>")->notifier(
+      [&](const std::string& strategy) {
+        context.preprocessing.community_detection.load_balancing_strategy = communityLoadBalancingStrategyFromString(strategy);
+    }),
+    "Community load balancing strategies:\n"
+    "- size_constraint\n"
+    "- label_propagation\n"
+    "- none")
+    ("p-louvain-edge-weight-function",
+    po::value<std::string>()->value_name("<string>")->notifier(
+      [&](const std::string& type) {
+        context.preprocessing.community_detection.edge_weight_function = louvainEdgeWeightFromString(type);
+    }),
+    "Louvain edge weight functions:\n"
+    "- hybrid\n"
+    "- uniform\n"
+    "- non_uniform\n"
+    "- degree")
+    ("p-max-louvain-pass-iterations",
+    po::value<uint32_t>(&context.preprocessing.community_detection.max_pass_iterations)->value_name("<uint32_t>"),
+    "Maximum number of iterations over all nodes of one louvain pass")
+    ("p-louvain-min-eps-improvement",
+    po::value<long double>(&context.preprocessing.community_detection.min_eps_improvement)->value_name("<long double>"),
+    "Minimum improvement of quality during a louvain pass which leads to further passes");
+  return options;
+}
+
 po::options_description createCoarseningOptionsDescription(Context& context,
                                                            const int num_columns) {
   po::options_description options("Coarsening Options", num_columns);
@@ -306,7 +337,8 @@ void processCommandLineInput(Context& context, int argc, char* argv[]) {
 
   po::options_description general_options = createGeneralOptionsDescription(context, num_columns);
 
-
+  po::options_description preprocessing_options =
+    createPreprocessingOptionsDescription(context, num_columns);
   po::options_description coarsening_options =
     createCoarseningOptionsDescription(context, num_columns);
   po::options_description initial_paritioning_options =
@@ -321,6 +353,7 @@ void processCommandLineInput(Context& context, int argc, char* argv[]) {
                   .add(required_options)
                   .add(preset_options)
                   .add(general_options)
+                  .add(preprocessing_options)
                   .add(coarsening_options)
                   .add(initial_paritioning_options)
                   .add(refinement_options)
@@ -347,6 +380,7 @@ void processCommandLineInput(Context& context, int argc, char* argv[]) {
 
   po::options_description ini_line_options;
   ini_line_options.add(general_options)
+                  .add(preprocessing_options)
                   .add(coarsening_options)
                   .add(initial_paritioning_options)
                   .add(refinement_options)

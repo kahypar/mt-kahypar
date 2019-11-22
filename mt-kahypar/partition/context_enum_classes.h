@@ -53,16 +53,22 @@ enum class CommunityAssignmentStrategy : uint8_t {
   UNDEFINED
 };
 
-enum class CoarseningAlgorithm : uint8_t {
-  community_coarsener,
-  UNDEFINED
-};
-
-enum class CommunityDetectionStarExpansionWeightModification : uint8_t {
+enum class LouvainEdgeWeight : uint8_t {
   hybrid,
   uniform,
   non_uniform,
   degree,
+  UNDEFINED
+};
+
+enum class CommunityLoadBalancingStrategy : uint8_t {
+  size_constraint,
+  label_propagation,
+  none
+};
+
+enum class CoarseningAlgorithm : uint8_t {
+  community_coarsener,
   UNDEFINED
 };
 
@@ -140,6 +146,28 @@ std::ostream& operator<< (std::ostream& os, const CommunityAssignmentStrategy& s
   switch (strategy) {
     case CommunityAssignmentStrategy::bin_packing: return os << "bin_packing";
     case CommunityAssignmentStrategy::UNDEFINED: return os << "UNDEFINED";
+      // omit default case to trigger compiler warning for missing cases
+  }
+  return os << static_cast<uint8_t>(strategy);
+}
+
+std::ostream& operator<< (std::ostream& os, const LouvainEdgeWeight& type) {
+  switch (type) {
+    case LouvainEdgeWeight::hybrid: return os << "hybrid";
+    case LouvainEdgeWeight::uniform: return os << "uniform";
+    case LouvainEdgeWeight::non_uniform: return os << "non_uniform";
+    case LouvainEdgeWeight::degree: return os << "degree";
+    case LouvainEdgeWeight::UNDEFINED: return os << "UNDEFINED";
+      // omit default case to trigger compiler warning for missing cases
+  }
+  return os << static_cast<uint8_t>(type);
+}
+
+std::ostream& operator<< (std::ostream& os, const CommunityLoadBalancingStrategy& strategy) {
+  switch (strategy) {
+    case CommunityLoadBalancingStrategy::size_constraint: return os << "size_constraint";
+    case CommunityLoadBalancingStrategy::label_propagation: return os << "label_propagation";
+    case CommunityLoadBalancingStrategy::none: return os << "none";
       // omit default case to trigger compiler warning for missing cases
   }
   return os << static_cast<uint8_t>(strategy);
@@ -247,6 +275,34 @@ static CommunityAssignmentStrategy communityAssignmentStrategyFromString(const s
   return CommunityAssignmentStrategy::UNDEFINED;
 }
 
+static LouvainEdgeWeight louvainEdgeWeightFromString(const std::string& type) {
+  if (type == "hybrid") {
+    return LouvainEdgeWeight::hybrid;
+  } else if (type == "uniform") {
+    return LouvainEdgeWeight::uniform;
+  } else if (type == "non_uniform") {
+    return LouvainEdgeWeight::non_uniform;
+  } else if (type == "degree") {
+    return LouvainEdgeWeight::degree;
+  }
+  LOG << "No valid louvain edge weight.";
+  exit(0);
+  return LouvainEdgeWeight::UNDEFINED;
+}
+
+static CommunityLoadBalancingStrategy communityLoadBalancingStrategyFromString(const std::string& strategy) {
+  if (strategy == "size_constraint") {
+    return CommunityLoadBalancingStrategy::size_constraint;
+  } else if (strategy == "label_propagation") {
+    return CommunityLoadBalancingStrategy::label_propagation;
+  } else if (strategy == "none") {
+    return CommunityLoadBalancingStrategy::none;
+  }
+  LOG << "No valid louvain edge weight.";
+  exit(0);
+  return CommunityLoadBalancingStrategy::none;
+}
+
 static CoarseningAlgorithm coarseningAlgorithmFromString(const std::string& type) {
   if (type == "community_coarsener") {
     return CoarseningAlgorithm::community_coarsener;
@@ -267,7 +323,7 @@ static HeavyNodePenaltyPolicy heavyNodePenaltyFromString(const std::string& pena
   }
   LOG << "No valid edge penalty policy for rating.";
   exit(0);
-  return HeavyNodePenaltyPolicy::multiplicative_penalty;
+  return HeavyNodePenaltyPolicy::UNDEFINED;
 }
 
 static AcceptancePolicy acceptanceCriterionFromString(const std::string& crit) {

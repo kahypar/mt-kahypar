@@ -179,19 +179,19 @@ public:
 		}
 
 		//This is literally disgusting
-		switch (context.preprocessing.edge_weight_modification) {
-			case CommunityDetectionStarExpansionWeightModification::degree:
+		switch (context.preprocessing.community_detection.edge_weight_function) {
+			case LouvainEdgeWeight::degree:
 				fill([&](const HyperedgeID he,const HypernodeID hn) -> AdjListGraph::ArcWeight {
 					return static_cast<ArcWeight>(hg.edgeWeight(he)) * static_cast<ArcWeight>(hg.nodeDegree(hn)) / static_cast<ArcWeight>(hg.edgeSize(he));
 				});
 				break;
-			case CommunityDetectionStarExpansionWeightModification::non_uniform:
+			case LouvainEdgeWeight::non_uniform:
 				fill([&](const HyperedgeID he, const HypernodeID) -> AdjListGraph::ArcWeight { return static_cast<ArcWeight>(hg.edgeWeight(he)) / static_cast<ArcWeight>(hg.edgeSize(he)); });
 				break;
-			case CommunityDetectionStarExpansionWeightModification::uniform:
+			case LouvainEdgeWeight::uniform:
 				fill([&](const HyperedgeID he, const HypernodeID) -> AdjListGraph::ArcWeight { return static_cast<ArcWeight>(hg.edgeWeight(he)); });
 				break;
-			case CommunityDetectionStarExpansionWeightModification::hybrid:
+			case LouvainEdgeWeight::hybrid:
 				LOG << "Only uniform/non-uniform/degree edge weight is allowed at graph construction.";
 				std::exit(-1);
 			default:

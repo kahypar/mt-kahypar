@@ -20,6 +20,7 @@
 
 #pragma once
 
+#include "mt-kahypar/definitions.h"
 #include "mt-kahypar/datastructures/clustering.h"
 #include "mt-kahypar/datastructures/graph.h"
 #include "mt-kahypar/partition/preprocessing/community_detection/plm.h"
@@ -75,9 +76,9 @@ private:
 		return C;
 	}
 public:
-	static ds::Clustering run(ds::AdjListGraph& graph, size_t numTasks) {
-		PLM mlv(graph.numNodes());
-		ds::Clustering C = localMovingContractRecurse(graph, mlv, numTasks);
+	static ds::Clustering run(ds::AdjListGraph& graph, const Context& context) {
+		PLM mlv(context, graph.numNodes());
+		ds::Clustering C = localMovingContractRecurse(graph, mlv, context.shared_memory.num_threads);
 		ClusteringStatistics::printLocalMovingStats(graph, C, mlv.tr);
 		return C;
 	}
