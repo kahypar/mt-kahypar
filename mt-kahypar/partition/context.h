@@ -84,13 +84,29 @@ inline std::ostream & operator<< (std::ostream& str, const CommunityDetectionPar
   return str;
 }
 
+struct CommunityRedistributionParameters {
+  bool use_community_redistribution = false;
+  CommunityAssignmentObjective assignment_objective = CommunityAssignmentObjective::UNDEFINED;
+  CommunityAssignmentStrategy assignment_strategy = CommunityAssignmentStrategy::UNDEFINED;
+};
+
+inline std::ostream & operator<< (std::ostream& str, const CommunityRedistributionParameters& params) {
+  str << "  Community Detection Parameters:" << std::endl;
+  str << "    Use Community Redistribution:     " << std::boolalpha << params.use_community_redistribution << std::endl;
+  str << "    Community Assignment Objective:   " << params.assignment_objective << std::endl;
+  str << "    Community Assignment Strategy:    " << params.assignment_strategy << std::endl;
+  return str;
+}
+
 struct PreprocessingParameters {
   CommunityDetectionParameters community_detection = { };
+  CommunityRedistributionParameters community_redistribution = { };
 };
 
 inline std::ostream & operator<< (std::ostream& str, const PreprocessingParameters& params) {
   str << "Preprocessing Parameters:" << std::endl;
   str << std::endl << params.community_detection;
+  str << std::endl << params.community_redistribution;
   return str;
 }
 
@@ -182,19 +198,13 @@ inline std::ostream & operator<< (std::ostream& str, const RefinementParameters&
 
 struct SharedMemoryParameters {
   size_t num_threads = 1;
-  bool use_community_redistribution = false;
   InitialHyperedgeDistribution initial_distribution = InitialHyperedgeDistribution::UNDEFINED;
-  CommunityAssignmentObjective assignment_objective = CommunityAssignmentObjective::UNDEFINED;
-  CommunityAssignmentStrategy assignment_strategy = CommunityAssignmentStrategy::UNDEFINED;
 };
 
 inline std::ostream & operator<< (std::ostream& str, const SharedMemoryParameters& params) {
   str << "Shared Memory Parameters:             " << std::endl;
   str << "  Number of Threads:                  " << params.num_threads << std::endl;
-  str << "  Use Community Redistribution:       " << std::boolalpha << params.use_community_redistribution << std::endl;
   str << "  Initial Hyperedge Distribution:     " << params.initial_distribution << std::endl;
-  str << "  Community Assignment Objective:     " << params.assignment_objective << std::endl;
-  str << "  Community Assignment Strategy:      " << params.assignment_strategy << std::endl;
   return str;
 }
 

@@ -148,7 +148,25 @@ po::options_description createPreprocessingOptionsDescription(Context& context, 
     "Maximum number of iterations over all nodes of one louvain pass")
     ("p-louvain-min-eps-improvement",
     po::value<long double>(&context.preprocessing.community_detection.min_eps_improvement)->value_name("<long double>"),
-    "Minimum improvement of quality during a louvain pass which leads to further passes");
+    "Minimum improvement of quality during a louvain pass which leads to further passes")
+    ("p-enable-community-redistribution",
+    po::value<bool>(&context.preprocessing.community_redistribution.use_community_redistribution)->value_name("<bool>"),
+    "If true, hypergraph is redistributed based on community detection")
+    ("p-community-redistribution-objective",
+    po::value<std::string>()->value_name("<string>")->notifier(
+      [&](const std::string& objective) {
+      context.preprocessing.community_redistribution.assignment_objective = mt_kahypar::communityAssignmentObjectiveFromString(objective);
+    }),
+    "Objective used during community redistribution of hypergraph: \n"
+    " - vertex_objective \n"
+    " - pin_objective")
+    ("p-community-redistribution-strategy",
+    po::value<std::string>()->value_name("<string>")->notifier(
+      [&](const std::string& strategy) {
+      context.preprocessing.community_redistribution.assignment_strategy = mt_kahypar::communityAssignmentStrategyFromString(strategy);
+    }),
+    "Strategy used during community redistribution of hypergraph: \n"
+    " - bin_packing");
   return options;
 }
 
@@ -284,8 +302,6 @@ po::options_description createSharedMemoryOptionsDescription(Context& context,
     po::value<size_t>(&context.shared_memory.num_threads)->value_name("<size_t>"),
     "Number of threads used during shared memory hypergraph partitioning\n"
     "(default 1)")
-    ("s-enable-community-redistribution", po::value<bool>(&context.shared_memory.use_community_redistribution)->value_name("<bool>"),
-    "If true, hypergraph is redistributed based on community detection")
     ("s-initial-hyperedge-distribution",
     po::value<std::string>()->value_name("<string>")->notifier(
       [&](const std::string& strategy) {
@@ -294,22 +310,7 @@ po::options_description createSharedMemoryOptionsDescription(Context& context,
     "Determines how hyperedges are distributed to numa nodes after reading hypergraph file: \n"
     " - equally\n"
     " - random\n"
-    " - all_on_one")
-    ("s-community-assignment-objective",
-    po::value<std::string>()->value_name("<string>")->notifier(
-      [&](const std::string& objective) {
-      context.shared_memory.assignment_objective = mt_kahypar::communityAssignmentObjectiveFromString(objective);
-    }),
-    "Objective used during community redistribution of hypergraph: \n"
-    " - vertex_objective \n"
-    " - pin_objective")
-    ("s-community-assignment-strategy",
-    po::value<std::string>()->value_name("<string>")->notifier(
-      [&](const std::string& strategy) {
-      context.shared_memory.assignment_strategy = mt_kahypar::communityAssignmentStrategyFromString(strategy);
-    }),
-    "Strategy used during community redistribution of hypergraph: \n"
-    " - bin_packing");
+    " - all_on_one");
 
   return shared_memory_options;
 }

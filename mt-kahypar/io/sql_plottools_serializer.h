@@ -57,6 +57,9 @@ static inline void serialize(const Hypergraph& hypergraph,
         << " louvain_edge_weight_function=" << context.preprocessing.community_detection.edge_weight_function
         << " louvain_max_pass_iterations=" << context.preprocessing.community_detection.max_pass_iterations
         << " louvain_min_eps_improvement=" << context.preprocessing.community_detection.min_eps_improvement
+        << " use_community_redistribution=" << std::boolalpha << context.preprocessing.community_redistribution.use_community_redistribution
+        << " community_redistribution_assignment_strategy=" << context.preprocessing.community_redistribution.assignment_strategy
+        << " community_redistribution_assignment_objective=" << context.preprocessing.community_redistribution.assignment_objective
         << " coarsening_algorithm=" << context.coarsening.algorithm
         << " contraction_limit_multiplier=" << context.coarsening.contraction_limit_multiplier
         << " max_allowed_weight_multiplier=" << context.coarsening.max_allowed_weight_multiplier
@@ -79,10 +82,7 @@ static inline void serialize(const Hypergraph& hypergraph,
         << " lp_execution_policy=" << context.refinement.label_propagation.execution_policy
         << " lp_execution_policy_alpha=" << context.refinement.label_propagation.execution_policy_alpha
         << " num_threads=" << context.shared_memory.num_threads
-        << " use_community_redistribution=" << std::boolalpha << context.shared_memory.use_community_redistribution
-        << " initial_hyperedge_distribution=" << context.shared_memory.initial_distribution
-        << " community_assignment_strategy=" << context.shared_memory.assignment_strategy
-        << " community_assignment_objective=" << context.shared_memory.assignment_objective;
+        << " initial_hyperedge_distribution=" << context.shared_memory.initial_distribution;
 
     // Metrics
     oss << " cut=" << metrics::hyperedgeCut(hypergraph)

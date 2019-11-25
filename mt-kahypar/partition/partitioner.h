@@ -193,7 +193,7 @@ inline void Partitioner::preprocess(Hypergraph& hypergraph, const Context& conte
 inline void Partitioner::redistribution(Hypergraph& hypergraph, const Context& context) {
   std::unique_ptr<preprocessing::ICommunityAssignment> community_assignment =
     RedistributionFactory::getInstance().createObject(
-      context.shared_memory.assignment_strategy, hypergraph, context);
+      context.preprocessing.community_redistribution.assignment_strategy, hypergraph, context);
 
   for (int node = 0; node < TBBNumaArena::instance().num_used_numa_nodes(); ++node) {
     utils::Stats::instance().add_stat("initial_hns_on_numa_node_" + std::to_string(node),
@@ -205,7 +205,8 @@ inline void Partitioner::redistribution(Hypergraph& hypergraph, const Context& c
   }
 
   std::vector<PartitionID> community_node_mapping = community_assignment->computeAssignment();
-  if (context.shared_memory.use_community_redistribution && TBBNumaArena::instance().num_used_numa_nodes() > 1) {
+  if (context.preprocessing.community_redistribution.use_community_redistribution &&
+      TBBNumaArena::instance().num_used_numa_nodes() > 1) {
     HyperedgeWeight remote_pin_count_before = metrics::remotePinCount(hypergraph);
     hypergraph = preprocessing::CommunityRedistributor::redistribute(hypergraph, context.partition.k, community_node_mapping);
     HyperedgeWeight remote_pin_count_after = metrics::remotePinCount(hypergraph);

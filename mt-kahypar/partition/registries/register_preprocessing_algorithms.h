@@ -40,5 +40,5 @@ namespace mt_kahypar {
 REGISTER_DISPATCHED_COMMUNITY_ASSIGNER(CommunityAssignmentStrategy::bin_packing,
                                        BinPackingCommunityAssignmentDispatcher,
                                        kahypar::meta::PolicyRegistry<CommunityAssignmentObjective>::getInstance().getPolicy(
-                                         context.shared_memory.assignment_objective));
+                                         context.preprocessing.community_redistribution.assignment_objective));
 }  // namespace mt_kahypar

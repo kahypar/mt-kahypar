@@ -48,6 +48,9 @@ class APartitioner : public Test {
     context.preprocessing.community_detection.edge_weight_function = LouvainEdgeWeight::hybrid;
     context.preprocessing.community_detection.max_pass_iterations = 20;
     context.preprocessing.community_detection.min_eps_improvement = 0.01;
+    context.preprocessing.community_redistribution.use_community_redistribution = true;
+    context.preprocessing.community_redistribution.assignment_strategy = CommunityAssignmentStrategy::bin_packing;
+    context.preprocessing.community_redistribution.assignment_objective = CommunityAssignmentObjective::pin_objective;
 
     // Coarsening
     context.coarsening.algorithm = CoarseningAlgorithm::community_coarsener;
@@ -68,9 +71,6 @@ class APartitioner : public Test {
 
     // Shared Memory
     context.shared_memory.num_threads = num_threads;
-    context.shared_memory.use_community_redistribution = true;
-    context.shared_memory.assignment_strategy = CommunityAssignmentStrategy::bin_packing;
-    context.shared_memory.assignment_objective = CommunityAssignmentObjective::pin_objective;
 
     // Read hypergraph
     hypergraph = io::readHypergraphFile("test_instances/ibm01.hgr",

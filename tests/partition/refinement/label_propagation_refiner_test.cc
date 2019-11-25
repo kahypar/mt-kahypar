@@ -79,11 +79,13 @@ class ALabelPropagationRefiner : public Test {
     context.partition.k = Config::K;
     context.partition.verbose_output = false;
 
+    // Preprocessing
+    context.preprocessing.community_redistribution.use_community_redistribution = true;
+    context.preprocessing.community_redistribution.assignment_strategy = CommunityAssignmentStrategy::bin_packing;
+    context.preprocessing.community_redistribution.assignment_objective = CommunityAssignmentObjective::pin_objective;
+
     // Shared Memory
     context.shared_memory.num_threads = num_threads;
-    context.shared_memory.use_community_redistribution = true;
-    context.shared_memory.assignment_strategy = CommunityAssignmentStrategy::bin_packing;
-    context.shared_memory.assignment_objective = CommunityAssignmentObjective::pin_objective;
 
     // Initial Partitioning
     context.initial_partitioning.mode = InitialPartitioningMode::recursive;
