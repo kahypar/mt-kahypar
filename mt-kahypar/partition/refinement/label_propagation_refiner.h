@@ -25,7 +25,6 @@
 #include <utility>
 #include <vector>
 
-#include "tbb/blocked_range.h"
 #include "tbb/enumerable_thread_specific.h"
 #include "tbb/parallel_for.h"
 #include "tbb/parallel_sort.h"
@@ -212,70 +211,67 @@ class LabelPropagationRefinerT final : public IRefiner {
       tbb::enumerable_thread_specific<size_t> iteration_cnt(0);
       size_t start = node != -1 ? _numa_nodes_indices[node] : 0;
       size_t end = node != -1 ? _numa_nodes_indices[node + 1] : _nodes.size();
-      tbb::parallel_for(tbb::blocked_range<size_t>(start, end),
-                        [&](const tbb::blocked_range<size_t>& range) {
+      tbb::parallel_for(start, end, [&](const size_t& j) {
           size_t& local_iteration_cnt = iteration_cnt.local();
-          for (size_t j = range.begin(); j < range.end(); ++j) {
-            const HypernodeID hn = _nodes[j];
-            const HypernodeID original_id = _hg.originalNodeID(hn);
-            ASSERT(node == -1 || StreamingHyperGraph::get_numa_node_of_vertex(hn) == node);
+          const HypernodeID hn = _nodes[j];
+          const HypernodeID original_id = _hg.originalNodeID(hn);
+          ASSERT(node == -1 || StreamingHyperGraph::get_numa_node_of_vertex(hn) == node);
 
-            // We only compute the max gain move for a node if we are either in the first round of label
-            // propagation or if the vertex is still active. A vertex is active, if it changed its block
-            // in the last round or one of its neighbors.
-            if (i == 0 || _active[original_id]) {
-              _active[original_id] = false;
-              Move best_move = _gain.computeMaxGainMove(hn);
+          // We only compute the max gain move for a node if we are either in the first round of label
+          // propagation or if the vertex is still active. A vertex is active, if it changed its block
+          // in the last round or one of its neighbors.
+          if (i == 0 || _active[original_id]) {
+            _active[original_id] = false;
+            Move best_move = _gain.computeMaxGainMove(hn);
 
-              // We perform a move if it either improves the solution quality or, in case of a
-              // zero gain move, the balance of the solution.
-              bool perform_move = best_move.gain < 0 ||
-                                  (_context.refinement.label_propagation.rebalancing &&
-                                   best_move.gain == 0 &&
-                                   _hg.localPartWeight(best_move.from) - 1 >
-                                   _hg.localPartWeight(best_move.to) + 1);
-              if (perform_move) {
-                PartitionID from = best_move.from;
-                PartitionID to = best_move.to;
-                ASSERT(from != to);
-                ASSERT(_hg.localPartWeight(to) + _hg.nodeWeight(hn) <= _context.partition.max_part_weights[to]);
+            // We perform a move if it either improves the solution quality or, in case of a
+            // zero gain move, the balance of the solution.
+            bool perform_move = best_move.gain < 0 ||
+                                (_context.refinement.label_propagation.rebalancing &&
+                                  best_move.gain == 0 &&
+                                  _hg.localPartWeight(best_move.from) - 1 >
+                                  _hg.localPartWeight(best_move.to) + 1);
+            if (perform_move) {
+              PartitionID from = best_move.from;
+              PartitionID to = best_move.to;
+              ASSERT(from != to);
+              ASSERT(_hg.localPartWeight(to) + _hg.nodeWeight(hn) <= _context.partition.max_part_weights[to]);
 
-                Gain delta_before = _gain.localDelta();
-                if (_hg.changeNodePart(hn, from, to, objective_delta)) {
-                  // In case the move to block 'to' was successful, we verify that the "real" gain
-                  // of the move is either equal to our computed gain or if not, still improves
-                  // the solution quality.
-                  Gain move_delta = _gain.localDelta() - delta_before;
-                  bool accept_move = (move_delta == best_move.gain || move_delta <= 0);
-                  if (accept_move) {
-                    DBG << "Move hypernode" << hn << "from block" << from << "to block" << to
-                        << "with gain" << best_move.gain << "( Real Gain: " << move_delta << ")";
+              Gain delta_before = _gain.localDelta();
+              if (_hg.changeNodePart(hn, from, to, objective_delta)) {
+                // In case the move to block 'to' was successful, we verify that the "real" gain
+                // of the move is either equal to our computed gain or if not, still improves
+                // the solution quality.
+                Gain move_delta = _gain.localDelta() - delta_before;
+                bool accept_move = (move_delta == best_move.gain || move_delta <= 0);
+                if (accept_move) {
+                  DBG << "Move hypernode" << hn << "from block" << from << "to block" << to
+                      << "with gain" << best_move.gain << "( Real Gain: " << move_delta << ")";
 
-                    // Set all neighbors of the vertex to active
-                    for (const HyperedgeID& he : _hg.incidentEdges(hn)) {
-                      for (const HypernodeID& pins : _hg.pins(he)) {
-                        _active[_hg.originalNodeID(pins)] = true;
-                      }
+                  // Set all neighbors of the vertex to active
+                  for (const HyperedgeID& he : _hg.incidentEdges(hn)) {
+                    for (const HypernodeID& pins : _hg.pins(he)) {
+                      _active[_hg.originalNodeID(pins)] = true;
                     }
-                    converged = false;
-                  } else {
-                    DBG << "Revert move of hypernode" << hn << "from block" << from << "to block" << to
-                        << "( Expected Gain:" << best_move.gain << ", Real Gain:" << move_delta << ")";
-                    // In case, the real gain is not equal with the computed gain and
-                    // worsen the solution quality we revert the move.
-                    ASSERT(_hg.partID(hn) == to);
-                    _hg.changeNodePart(hn, to, from, objective_delta);
                   }
+                  converged = false;
+                } else {
+                  DBG << "Revert move of hypernode" << hn << "from block" << from << "to block" << to
+                      << "( Expected Gain:" << best_move.gain << ", Real Gain:" << move_delta << ")";
+                  // In case, the real gain is not equal with the computed gain and
+                  // worsen the solution quality we revert the move.
+                  ASSERT(_hg.partID(hn) == to);
+                  _hg.changeNodePart(hn, to, from, objective_delta);
                 }
-                _active[original_id] = true;
               }
+              _active[original_id] = true;
             }
+          }
 
-            ++local_iteration_cnt;
-            if (local_iteration_cnt % _context.refinement.label_propagation.part_weight_update_frequency == 0) {
-              // We frequently update the local block weights of the current threads
-              _hg.updateLocalPartInfos();
-            }
+          ++local_iteration_cnt;
+          if (local_iteration_cnt % _context.refinement.label_propagation.part_weight_update_frequency == 0) {
+            // We frequently update the local block weights of the current threads
+            _hg.updateLocalPartInfos();
           }
         });
       HighResClockTimepoint end_time = std::chrono::high_resolution_clock::now();

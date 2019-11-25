@@ -119,8 +119,7 @@ TYPED_TEST(ATBBNumaArenaTest, ChecksThreadsToNumaNodeAssignment) {
     tbb::task_group group;
     arena.execute([&group, &cpus]() {
           group.run([&cpus]() {
-            tbb::parallel_for(tbb::blocked_range<size_t>(0, 1000000), [&cpus]
-                                (const tbb::blocked_range<size_t>&) {
+            tbb::parallel_for(0, 1000000, [&cpus](const size_t&) {
               cpus[sched_getcpu()] = true;
             });
           });

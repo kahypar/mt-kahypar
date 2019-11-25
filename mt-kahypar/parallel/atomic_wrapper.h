@@ -55,7 +55,7 @@ class AtomicWrapper : public std::atomic<T> {
 template <typename T>
 class IntegralAtomicWrapper {
   static_assert(std::is_integral<T>::value, "Value must be of integral type");
-  static_assert( std::atomic<T>::is_always_lock_free, "Atomic must be lock free" );
+  // static_assert( std::atomic<T>::is_always_lock_free, "Atomic must be lock free" );
 
  public:
   explicit IntegralAtomicWrapper(const T value) :

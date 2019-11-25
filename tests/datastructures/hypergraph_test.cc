@@ -1296,11 +1296,8 @@ TEST_F(AHypergraphWithTwoStreamingHypergraphs, StreamsCommunityIDsInParallelInto
   TestHypergraph hypergraph = construct_test_hypergraph(*this);
   std::vector<PartitionID> communities = { 0, 0, 0, 1, 1, 2, 2 };
 
-  tbb::parallel_for(tbb::blocked_range<HypernodeID>(0UL, hypergraph.initialNumNodes()),
-                    [&](const tbb::blocked_range<HypernodeID>& range) {
-        for (HypernodeID hn = range.begin(); hn < range.end(); ++hn) {
-          hypergraph.setCommunityID(hypergraph.globalNodeID(hn), communities[hn]);
-        }
+  tbb::parallel_for(0UL, hypergraph.initialNumNodes(), [&](const HypernodeID& hn) {
+        hypergraph.setCommunityID(hypergraph.globalNodeID(hn), communities[hn]);
       });
   hypergraph.initializeCommunities();
 

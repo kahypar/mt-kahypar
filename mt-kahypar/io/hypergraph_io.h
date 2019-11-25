@@ -29,8 +29,6 @@
 #include <unordered_map>
 #include <vector>
 
-#include "tbb/pipeline.h"
-
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/context_enum_classes.h"
 #include "mt-kahypar/utils/timer.h"
@@ -75,13 +73,10 @@ static inline void streamHyperedgesEquallyIntoNumaHypergraphs(const std::vector<
           size_t start = node * num_hyperedges_per_hypergraph;
           size_t end = node != (int)num_numa_hypergraphs - 1 ?
                        (node + 1) * num_hyperedges_per_hypergraph : hyperedge_lines.size();
-          tbb::parallel_for(tbb::blocked_range<HyperedgeID>(start, end),
-                            [&](const tbb::blocked_range<HyperedgeID> range) {
-            for (HyperedgeID id = range.begin(); id < range.end(); ++id) {
-              Hyperedge hyperedge = readStringAsHyperedge(hyperedge_lines[id], has_hyperedge_weights);
-              ASSERT(HwTopology::instance().numa_node_of_cpu(sched_getcpu()) == node);
-              numa_hypergraphs[node].streamHyperedge(hyperedge.first, id, hyperedge.second);
-            }
+          tbb::parallel_for(start, end, [&](const HyperedgeID& id) {
+            Hyperedge hyperedge = readStringAsHyperedge(hyperedge_lines[id], has_hyperedge_weights);
+            ASSERT(HwTopology::instance().numa_node_of_cpu(sched_getcpu()) == node);
+            numa_hypergraphs[node].streamHyperedge(hyperedge.first, id, hyperedge.second);
           });
         });
 }
@@ -95,15 +90,12 @@ static inline void streamHyperedgesRandomIntoNumaHypergraphs(const std::vector<s
   // In case of random hyperedge distribution, we perform
   // a parallel for on the global thread pool of TBB
   HwTopology& topology = HwTopology::instance();
-  tbb::parallel_for(tbb::blocked_range<HyperedgeID>(0UL, hyperedge_lines.size()),
-                    [&](const tbb::blocked_range<HyperedgeID> range) {
-          for (HyperedgeID id = range.begin(); id < range.end(); ++id) {
-            Hyperedge hyperedge = readStringAsHyperedge(hyperedge_lines[id], has_hyperedge_weights);
-            // Stream hyperedge into numa hypergraph on which this cpu
-            // is part of
-            int node = topology.numa_node_of_cpu(sched_getcpu());
-            numa_hypergraphs[node].streamHyperedge(hyperedge.first, id, hyperedge.second);
-          }
+  tbb::parallel_for(0UL, hyperedge_lines.size(), [&](const HyperedgeID& id) {
+          Hyperedge hyperedge = readStringAsHyperedge(hyperedge_lines[id], has_hyperedge_weights);
+          // Stream hyperedge into numa hypergraph on which this cpu
+          // is part of
+          int node = topology.numa_node_of_cpu(sched_getcpu());
+          numa_hypergraphs[node].streamHyperedge(hyperedge.first, id, hyperedge.second);
         });
 }
 
@@ -116,13 +108,10 @@ static inline void streamHyperedgesIntoOneNumaHypergraph(const std::vector<std::
   // In case all hyperedges should be assigned to one numa node, we perform
   // a parallel for in the numa task arena of numa node 0.
   TBB::instance().numa_task_arena(0).execute([&] {
-          tbb::parallel_for(tbb::blocked_range<HyperedgeID>(0UL, hyperedge_lines.size()),
-                            [&](const tbb::blocked_range<HyperedgeID> range) {
-            for (HyperedgeID id = range.begin(); id < range.end(); ++id) {
-              Hyperedge hyperedge = readStringAsHyperedge(hyperedge_lines[id], has_hyperedge_weights);
-              ASSERT(HwTopology::instance().numa_node_of_cpu(sched_getcpu()) == 0);
-              numa_hypergraphs[0].streamHyperedge(hyperedge.first, id, hyperedge.second);
-            }
+          tbb::parallel_for(0UL, hyperedge_lines.size(), [&](const HyperedgeID& id) {
+            Hyperedge hyperedge = readStringAsHyperedge(hyperedge_lines[id], has_hyperedge_weights);
+            ASSERT(HwTopology::instance().numa_node_of_cpu(sched_getcpu()) == 0);
+            numa_hypergraphs[0].streamHyperedge(hyperedge.first, id, hyperedge.second);
           });
         });
 }

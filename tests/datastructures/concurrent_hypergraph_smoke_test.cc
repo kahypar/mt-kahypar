@@ -147,19 +147,16 @@ void moveAllNodesOfHypergraphRandom(mt_kahypar::Hypergraph& hypergraph,
   // which causes the test sometimes to fail => Implement a task_scheduler_observer for this
   arena.execute([&] {
         group.run([&] {
-          tbb::parallel_for(tbb::blocked_range<HypernodeID>(0UL, hypergraph.initialNumNodes()),
-                            [&](const tbb::blocked_range<HypernodeID>& range) {
+          tbb::parallel_for(0UL, hypergraph.initialNumNodes(), [&](const HypernodeID& node) {
             int cpu_id = sched_getcpu();
-            for (HypernodeID node = range.begin(); node < range.end(); ++node) {
-              const HypernodeID hn = hypergraph.globalNodeID(node);
-              const PartitionID from = hypergraph.partID(hn);
-              PartitionID to = -1;
-              while (to == -1 || to == from) {
-                to = utils::Randomize::instance().getRandomInt(0, k - 1, cpu_id);
-              }
-              ASSERT((to >= 0 && to < k) && to != from);
-              hypergraph.changeNodePart(hn, from, to, objective_delta);
+            const HypernodeID hn = hypergraph.globalNodeID(node);
+            const PartitionID from = hypergraph.partID(hn);
+            PartitionID to = -1;
+            while (to == -1 || to == from) {
+              to = utils::Randomize::instance().getRandomInt(0, k - 1, cpu_id);
             }
+            ASSERT((to >= 0 && to < k) && to != from);
+            hypergraph.changeNodePart(hn, from, to, objective_delta);
           });
         });
       });

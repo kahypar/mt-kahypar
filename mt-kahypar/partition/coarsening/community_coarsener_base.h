@@ -23,7 +23,6 @@
 #include <queue>
 #include <string>
 
-#include "tbb/blocked_range.h"
 #include "tbb/parallel_for.h"
 #include "tbb/task_group.h"
 
@@ -189,22 +188,19 @@ class CommunityCoarsenerBase {
     // Mementos from all communities are written in parallel
     // to one history vector in round-robin fashion.
     _history.resize(size);
-    tbb::parallel_for(tbb::blocked_range<size_t>(0UL, _community_history.size()),
-                      [&](const tbb::blocked_range<size_t>& range) {
-        for (size_t i = range.begin(); i < range.end(); ++i) {
-          size_t current_pos = i;
-          int64_t k = _community_history.size();
-          for (size_t pos = 0; pos < _community_history[i].size(); ++pos) {
-            while (pos >= _community_history[k - 1].size()) {
-              --k;
-              ASSERT(k > 0);
-            }
-
-            ASSERT(current_pos < _history.size(), V(i) << V(current_pos) << V(_history.size()));
-            ASSERT(_history[current_pos].u == std::numeric_limits<HypernodeID>::max(), V(current_pos) << V(i) << V(k));
-            _history[current_pos] = std::move(_community_history[i][pos]);
-            current_pos += k;
+    tbb::parallel_for(0UL, _community_history.size(), [&](const size_t& i) {
+        size_t current_pos = i;
+        int64_t k = _community_history.size();
+        for (size_t pos = 0; pos < _community_history[i].size(); ++pos) {
+          while (pos >= _community_history[k - 1].size()) {
+            --k;
+            ASSERT(k > 0);
           }
+
+          ASSERT(current_pos < _history.size(), V(i) << V(current_pos) << V(_history.size()));
+          ASSERT(_history[current_pos].u == std::numeric_limits<HypernodeID>::max(), V(current_pos) << V(i) << V(k));
+          _history[current_pos] = std::move(_community_history[i][pos]);
+          current_pos += k;
         }
       });
 

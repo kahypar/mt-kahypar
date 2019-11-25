@@ -20,7 +20,6 @@
 
 #pragma once
 
-#include "tbb/blocked_range.h"
 #include "tbb/parallel_for.h"
 #include "tbb/task_group.h"
 
@@ -52,11 +51,8 @@ class CommunityRedistributorT {
     // Compute Node Mapping
     HighResClockTimepoint start = std::chrono::high_resolution_clock::now();
     std::vector<HypernodeID> node_mapping(hg.initialNumNodes(), -1);
-    tbb::parallel_for(tbb::blocked_range<HypernodeID>(0UL, hg.initialNumNodes()),
-                      [&](const tbb::blocked_range<HypernodeID>& range) {
-          for (HypernodeID hn = range.begin(); hn < range.end(); ++hn) {
-            node_mapping[hn] = community_assignment[hg.communityID(hg.globalNodeID(hn))];
-          }
+    tbb::parallel_for(0UL, hg.initialNumNodes(), [&](const HypernodeID& hn) {
+          node_mapping[hn] = community_assignment[hg.communityID(hg.globalNodeID(hn))];
         });
     HighResClockTimepoint end = std::chrono::high_resolution_clock::now();
     mt_kahypar::utils::Timer::instance().add_timing("compute_node_mapping", "Compute Node Mapping",
@@ -70,30 +66,27 @@ class CommunityRedistributorT {
       TBB::instance().numa_task_arena(node).execute([&, node] {
             TBB::instance().numa_task_group(node).run([&, node] {
               hyperedge_mapping[node].assign(hg.initialNumEdges(node), -1);
-              tbb::parallel_for(tbb::blocked_range<HyperedgeID>(0UL, hg.initialNumEdges(node)),
-                                [&](const tbb::blocked_range<HyperedgeID>& range) {
-                for (HyperedgeID local_he = range.begin(); local_he < range.end(); ++local_he) {
-                  const HyperedgeID he = StreamingHyperGraph::get_global_edge_id(node, local_he);
+              tbb::parallel_for(0UL, hg.initialNumEdges(node), [&](const HyperedgeID& local_he) {
+                const HyperedgeID he = StreamingHyperGraph::get_global_edge_id(node, local_he);
 
-                  // Compute for each hyperedge the pin count on each node for the new assignment
-                  parallel::scalable_vector<size_t> pin_count(used_numa_nodes, 0);
-                  for (const HypernodeID& pin : hg.pins(he)) {
-                    ASSERT(hg.communityID(pin) < (PartitionID)community_assignment.size());
-                    ++pin_count[community_assignment[hg.communityID(pin)]];
-                  }
-
-                  // Compute assignment based maximum pin count
-                  size_t max_pin_count = 0;
-                  PartitionID assigned_node = -1;
-                  for (PartitionID current_node = 0; current_node < used_numa_nodes; ++current_node) {
-                    if (pin_count[current_node] >= max_pin_count) {
-                      max_pin_count = pin_count[current_node];
-                      assigned_node = current_node;
-                    }
-                  }
-                  ASSERT(assigned_node != -1);
-                  hyperedge_mapping[node][local_he] = assigned_node;
+                // Compute for each hyperedge the pin count on each node for the new assignment
+                parallel::scalable_vector<size_t> pin_count(used_numa_nodes, 0);
+                for (const HypernodeID& pin : hg.pins(he)) {
+                  ASSERT(hg.communityID(pin) < (PartitionID)community_assignment.size());
+                  ++pin_count[community_assignment[hg.communityID(pin)]];
                 }
+
+                // Compute assignment based maximum pin count
+                size_t max_pin_count = 0;
+                PartitionID assigned_node = -1;
+                for (PartitionID current_node = 0; current_node < used_numa_nodes; ++current_node) {
+                  if (pin_count[current_node] >= max_pin_count) {
+                    max_pin_count = pin_count[current_node];
+                    assigned_node = current_node;
+                  }
+                }
+                ASSERT(assigned_node != -1);
+                hyperedge_mapping[node][local_he] = assigned_node;
               });
             });
           });
@@ -124,18 +117,15 @@ class CommunityRedistributorT {
       for (int streaming_node = 0; streaming_node < used_numa_nodes; ++streaming_node) {
         TBB::instance().numa_task_arena(streaming_node).execute([&, node, streaming_node] {
               TBB::instance().numa_task_group(node).run([&, node, streaming_node] {
-                tbb::parallel_for(tbb::blocked_range<HyperedgeID>(0UL, hg.initialNumEdges(node)),
-                                  [&, node, streaming_node](const tbb::blocked_range<HyperedgeID>& range) {
-                  for (HyperedgeID local_he = range.begin(); local_he < range.end(); ++local_he) {
-                    ASSERT(streaming_node == HwTopology::instance().numa_node_of_cpu(sched_getcpu()));
-                    if (hyperedge_mapping[node][local_he] == streaming_node) {
-                      const HyperedgeID he = StreamingHyperGraph::get_global_edge_id(node, local_he);
-                      parallel::scalable_vector<HypernodeID> hyperedge;
-                      for (const HypernodeID& pin : hg.pins(he)) {
-                        hyperedge.emplace_back(pin);
-                      }
-                      numa_hypergraphs[streaming_node].streamHyperedge(hyperedge, hg.originalEdgeID(he), hg.edgeWeight(he));
+                tbb::parallel_for(0UL, hg.initialNumEdges(node), [&, node, streaming_node](const HyperedgeID& local_he) {
+                  ASSERT(streaming_node == HwTopology::instance().numa_node_of_cpu(sched_getcpu()));
+                  if (hyperedge_mapping[node][local_he] == streaming_node) {
+                    const HyperedgeID he = StreamingHyperGraph::get_global_edge_id(node, local_he);
+                    parallel::scalable_vector<HypernodeID> hyperedge;
+                    for (const HypernodeID& pin : hg.pins(he)) {
+                      hyperedge.emplace_back(pin);
                     }
+                    numa_hypergraphs[streaming_node].streamHyperedge(hyperedge, hg.originalEdgeID(he), hg.edgeWeight(he));
                   }
                 });
               });
@@ -171,13 +161,10 @@ class CommunityRedistributorT {
 
     // Initialize Communities
     start = std::chrono::high_resolution_clock::now();
-    tbb::parallel_for(tbb::blocked_range<HypernodeID>(0UL, hypergraph.initialNumNodes()),
-                      [&](const tbb::blocked_range<HypernodeID>& range) {
-          for (HypernodeID hn = range.begin(); hn < range.end(); ++hn) {
-            HypernodeID old_global_id = hg.globalNodeID(hn);
-            HypernodeID new_global_id = hypergraph.globalNodeID(hn);
-            hypergraph.setCommunityID(new_global_id, hg.communityID(old_global_id));
-          }
+    tbb::parallel_for(0UL, hypergraph.initialNumNodes(), [&](const HypernodeID& hn) {
+          HypernodeID old_global_id = hg.globalNodeID(hn);
+          HypernodeID new_global_id = hypergraph.globalNodeID(hn);
+          hypergraph.setCommunityID(new_global_id, hg.communityID(old_global_id));
         });
     hypergraph.initializeCommunities();
     end = std::chrono::high_resolution_clock::now();

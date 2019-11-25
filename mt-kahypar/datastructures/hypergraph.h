@@ -1464,18 +1464,15 @@ class Hypergraph {
 
     // Copy Hyperedges
     TBBNumaArena::instance().execute_parallel_on_all_numa_nodes([&](const int node) {
-          tbb::parallel_for(tbb::blocked_range<HyperedgeID>(0UL, _num_hyperedges),
-                            [&](const tbb::blocked_range<HyperedgeID>& range) {
-            for (HyperedgeID id = range.begin(); id < range.end(); ++id) {
-              const HyperedgeID he = globalEdgeID(id);
-              if (edgeIsEnabled(he) && StreamingHypergraph::get_numa_node_of_hyperedge(he) == node) {
-                parallel::scalable_vector<HypernodeID> hyperedge;
-                for (const HypernodeID& pin : pins(he)) {
-                  hyperedge.emplace_back(hn_mapping[originalNodeID(pin)]);
-                }
-                numa_hypergraphs[node].streamHyperedge(
-                  hyperedge, he_mapping[originalEdgeID(he)], edgeWeight(he));
+          tbb::parallel_for(0UL, _num_hyperedges, [&](const HyperedgeID& id) {
+            const HyperedgeID he = globalEdgeID(id);
+            if (edgeIsEnabled(he) && StreamingHypergraph::get_numa_node_of_hyperedge(he) == node) {
+              parallel::scalable_vector<HypernodeID> hyperedge;
+              for (const HypernodeID& pin : pins(he)) {
+                hyperedge.emplace_back(hn_mapping[originalNodeID(pin)]);
               }
+              numa_hypergraphs[node].streamHyperedge(
+                hyperedge, he_mapping[originalEdgeID(he)], edgeWeight(he));
             }
           });
         });
@@ -1490,12 +1487,9 @@ class Hypergraph {
                          std::move(hn_to_numa_node), k);
 
     // Initialize node weights and community ids
-    tbb::parallel_for(tbb::blocked_range<HyperedgeID>(0UL, num_hypernodes),
-                      [&](const tbb::blocked_range<HypernodeID>& range) {
-          for (HypernodeID id = range.begin(); id < range.end(); ++id) {
-            copy_hypergraph.setNodeWeight(copy_hypergraph.globalNodeID(id), hn_weights[id]);
-            copy_hypergraph.setCommunityID(copy_hypergraph.globalNodeID(id), community_ids[id]);
-          }
+    tbb::parallel_for(0UL, num_hypernodes, [&](const HypernodeID& id) {
+          copy_hypergraph.setNodeWeight(copy_hypergraph.globalNodeID(id), hn_weights[id]);
+          copy_hypergraph.setCommunityID(copy_hypergraph.globalNodeID(id), community_ids[id]);
         });
     copy_hypergraph.updateTotalWeight();
     copy_hypergraph.initializeCommunities();
@@ -1557,21 +1551,18 @@ class Hypergraph {
     // A node is assigned to the streaming hypergraph where it occurs
     // most as pin.
     HighResClockTimepoint start = std::chrono::high_resolution_clock::now();
-    tbb::parallel_for(tbb::blocked_range<HypernodeID>(0UL, _num_hypernodes),
-                      [&](const tbb::blocked_range<HypernodeID>& range) {
-          for (HypernodeID hn = range.begin(); hn < range.end(); ++hn) {
-            size_t max_pins = 0;
-            HypernodeID max_node_id = 0;
-            for (HypernodeID node = 1; node < num_streaming_hypergraphs; ++node) {
-              size_t num_pins = _hypergraphs[node].vertexPinCount(hn);
-              if (num_pins > max_pins) {
-                max_pins = num_pins;
-                max_node_id = node;
-              }
+    tbb::parallel_for(0UL, _num_hypernodes, [&](const HypernodeID& hn) {
+          size_t max_pins = 0;
+          HypernodeID max_node_id = 0;
+          for (HypernodeID node = 1; node < num_streaming_hypergraphs; ++node) {
+            size_t num_pins = _hypergraphs[node].vertexPinCount(hn);
+            if (num_pins > max_pins) {
+              max_pins = num_pins;
+              max_node_id = node;
             }
-            ASSERT(max_node_id < _hypergraphs.size());
-            _node_mapping[hn] = max_node_id;
           }
+          ASSERT(max_node_id < _hypergraphs.size());
+          _node_mapping[hn] = max_node_id;
         });
     HighResClockTimepoint end = std::chrono::high_resolution_clock::now();
     mt_kahypar::utils::Timer::instance().add_timing("compute_node_mapping", "Compute Node Mapping",
@@ -1607,12 +1598,9 @@ class Hypergraph {
     for (HypernodeID node = 0; node < num_streaming_hypergraphs; ++node) {
       TBBNumaArena::instance().numa_task_arena(node).execute([&] {
             TBBNumaArena::instance().numa_task_group(node).run([&, node] {
-              tbb::parallel_for(tbb::blocked_range<HypernodeID>(0UL, _num_hypernodes),
-                                [&](const tbb::blocked_range<HypernodeID>& range) {
-                for (HypernodeID hn = range.begin(); hn < range.end(); ++hn) {
-                  if (_node_mapping[hn] == node) {
-                    tmp_node_mapping[hn] = _hypergraphs[node].streamHypernode(hn, 1);
-                  }
+              tbb::parallel_for(0UL, _num_hypernodes, [&](const HypernodeID& hn) {
+                if (_node_mapping[hn] == node) {
+                  tmp_node_mapping[hn] = _hypergraphs[node].streamHypernode(hn, 1);
                 }
               });
             });
