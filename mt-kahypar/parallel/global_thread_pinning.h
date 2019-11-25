@@ -151,8 +151,7 @@ class GlobalThreadPinning {
     const int err = sched_setaffinity(0, size, &mask);
 
     if (err) {
-      LOG << "Failed to set thread affinity";
-      exit(EXIT_FAILURE);
+      ERROR("Failed to set thread affinity");
     }
 
     ASSERT(sched_getcpu() == cpu_id);

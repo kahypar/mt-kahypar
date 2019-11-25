@@ -232,11 +232,9 @@ class AdjListStarExpansion {
           });
         break;
       case LouvainEdgeWeight::hybrid:
-        LOG << "Only uniform/non-uniform/degree edge weight is allowed at graph construction.";
-        std::exit(-1);
+        ERROR("Only uniform/non-uniform/degree edge weight is allowed at graph construction.");
       default:
-        LOG << "Unknown edge weight for bipartite graph.";
-        std::exit(-1);
+        ERROR("Unknown edge weight for bipartite graph.");
     }
 
     return graph;

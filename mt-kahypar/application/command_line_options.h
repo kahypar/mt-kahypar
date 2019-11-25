@@ -377,8 +377,7 @@ void processCommandLineInput(Context& context, int argc, char* argv[]) {
 
   std::ifstream file(context_path.c_str());
   if (!file) {
-    std::cerr << "Could not load context file at: " << context_path << std::endl;
-    std::exit(-1);
+    ERROR("Could not load context file at: " + context_path);
   }
 
   po::options_description ini_line_options;

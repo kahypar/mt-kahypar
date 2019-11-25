@@ -108,6 +108,8 @@ inline void Partitioner::setupContext(const Hypergraph& hypergraph, Context& con
       context.coarsening.hypernode_degree_threshold = rank_hypernode_degree;
     }
   }
+
+  context.sanityCheck();
 }
 
 inline void Partitioner::configurePreprocessing(const Hypergraph& hypergraph, Context& context) {

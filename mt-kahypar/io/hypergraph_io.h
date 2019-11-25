@@ -176,8 +176,7 @@ static inline HyperGraph readHyperedges(std::ifstream& file,
         lines, numa_hypergraphs, has_hyperedge_weights);
       break;
     default:
-      LOG << "Unknown distribution strategy";
-      exit(0);
+      ERROR("Unknown distribution strategy");
   }
   end = std::chrono::high_resolution_clock::now();
   mt_kahypar::utils::Timer::instance().add_timing("stream_hyperedges", "Stream hyperedges",
@@ -273,8 +272,7 @@ static inline HyperGraph readHypergraphFile(const std::string& filename,
     readHypernodeWeights<HyperGraph>(file, hypergraph, num_hypernodes, type);
     file.close();
   } else {
-    std::cerr << "Error: File not found: " << std::endl;
-    exit(EXIT_FAILURE);
+    ERROR("Error: File not found: " + filename);
   }
   HighResClockTimepoint end = std::chrono::high_resolution_clock::now();
   mt_kahypar::utils::Timer::instance().add_timing("hypergraph_import", "Reading Hypergraph File",

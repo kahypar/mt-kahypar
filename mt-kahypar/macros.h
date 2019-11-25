@@ -75,3 +75,23 @@
 #define HEAVY_COARSENING_ASSERT(...) EXPAND(HEAVY_ASSERT_EVAL(COARSENING, EXPAND(NARG(__VA_ARGS__)))(__VA_ARGS__))
 #define HEAVY_INITIAL_PARTITIONING_ASSERT(...) EXPAND(HEAVY_ASSERT_EVAL(INITIAL_PARTITIONING, EXPAND(NARG(__VA_ARGS__)))(__VA_ARGS__))
 #define HEAVY_REFINEMENT_ASSERT(...) EXPAND(HEAVY_ASSERT_EVAL(REFINEMENT, EXPAND(NARG(__VA_ARGS__)))(__VA_ARGS__))
+
+// Info, Warning and Error Output Macros
+#define CYAN "\033[1;96m"
+#define YELLOW "\033[1;93m"
+#define RED "\033[1;91m"
+#define END "\033[0m"
+#define INFO(msg) LOG << CYAN << "[INFO]" << END << msg
+#define WARNING(msg) LOG << YELLOW << "[WARNING]" << END << msg
+#define ERROR(msg) LOG << RED << "[ERROR]" << END << msg; std::exit(-1)
+
+#define ALGO_SWITCH(warning_msg, error_msg, context_variable, alternative_value) \
+  WARNING(warning_msg);                                                          \
+  char answer = 'N';                                                             \
+  std::cin >> answer;                                                            \
+  answer = std::toupper(answer);                                                 \
+  if ( answer == 'Y' ) {                                                         \
+    context_variable = alternative_value;                                        \
+  } else {                                                                       \
+    ERROR(error_msg);                                                            \
+  }

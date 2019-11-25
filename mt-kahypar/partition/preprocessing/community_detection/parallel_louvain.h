@@ -46,8 +46,7 @@ class ParallelModularityLouvain {
 
 /*
 
-        DBG << "Exiting so we only test local moving";
-        std::exit(-1);
+        ERROR("Exiting so we only test local moving");
 */
 
     if (clustering_changed) {

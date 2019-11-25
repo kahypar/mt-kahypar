@@ -246,8 +246,7 @@ static InitialHyperedgeDistribution initialHyperedgeDistributionFromString(const
   } else if (strategy == "all_on_one") {
     return InitialHyperedgeDistribution::all_on_one;
   }
-  LOG << "No valid community assignment strategy.";
-  exit(0);
+  ERROR("No valid community assignment strategy.");
   return InitialHyperedgeDistribution::UNDEFINED;
 }
 
@@ -257,8 +256,7 @@ static CommunityAssignmentObjective communityAssignmentObjectiveFromString(const
   } else if (objective == "pin_objective") {
     return CommunityAssignmentObjective::pin_objective;
   }
-  LOG << "No valid community assignment objective.";
-  exit(0);
+  ERROR("No valid community assignment objective.");
   return CommunityAssignmentObjective::UNDEFINED;
 }
 
@@ -266,8 +264,7 @@ static CommunityAssignmentStrategy communityAssignmentStrategyFromString(const s
   if (strategy == "bin_packing") {
     return CommunityAssignmentStrategy::bin_packing;
   }
-  LOG << "No valid community assignment strategy.";
-  exit(0);
+  ERROR("No valid community assignment strategy.");
   return CommunityAssignmentStrategy::UNDEFINED;
 }
 
@@ -281,8 +278,7 @@ static LouvainEdgeWeight louvainEdgeWeightFromString(const std::string& type) {
   } else if (type == "degree") {
     return LouvainEdgeWeight::degree;
   }
-  LOG << "No valid louvain edge weight.";
-  exit(0);
+  ERROR("No valid louvain edge weight.");
   return LouvainEdgeWeight::UNDEFINED;
 }
 
@@ -292,8 +288,7 @@ static CommunityLoadBalancingStrategy communityLoadBalancingStrategyFromString(c
   } else if (strategy == "none") {
     return CommunityLoadBalancingStrategy::none;
   }
-  LOG << "No valid louvain edge weight.";
-  exit(0);
+  ERROR("No valid louvain edge weight.");
   return CommunityLoadBalancingStrategy::none;
 }
 
@@ -301,8 +296,7 @@ static CoarseningAlgorithm coarseningAlgorithmFromString(const std::string& type
   if (type == "community_coarsener") {
     return CoarseningAlgorithm::community_coarsener;
   }
-  LOG << "Illegal option:" << type;
-  exit(0);
+  ERROR("Illegal option: " + type);
   return CoarseningAlgorithm::UNDEFINED;
 }
 
@@ -315,8 +309,7 @@ static HeavyNodePenaltyPolicy heavyNodePenaltyFromString(const std::string& pena
     return HeavyNodePenaltyPolicy::edge_frequency_penalty;
     // omit default case to trigger compiler warning for missing cases
   }
-  LOG << "No valid edge penalty policy for rating.";
-  exit(0);
+  ERROR("No valid edge penalty policy for rating.");
   return HeavyNodePenaltyPolicy::UNDEFINED;
 }
 
@@ -326,16 +319,14 @@ static AcceptancePolicy acceptanceCriterionFromString(const std::string& crit) {
   } else if (crit == "best_prefer_unmatched") {
     return AcceptancePolicy::best_prefer_unmatched;
   }
-  LOG << "No valid acceptance criterion for rating.";
-  exit(0);
+  ERROR("No valid acceptance criterion for rating.");
 }
 
 static RatingFunction ratingFunctionFromString(const std::string& function) {
   if (function == "heavy_edge") {
     return RatingFunction::heavy_edge;
   }
-  LOG << "No valid rating function for rating.";
-  exit(0);
+  ERROR("No valid rating function for rating.");
   return RatingFunction::UNDEFINED;
 }
 
@@ -345,8 +336,7 @@ static InitialPartitioningMode initialPartitioningModeFromString(const std::stri
   } else if (mode == "recursive") {
     return InitialPartitioningMode::recursive;
   }
-  LOG << "Illegal option:" << mode;
-  exit(0);
+  ERROR("Illegal option: " + mode);
   return InitialPartitioningMode::UNDEFINED;
 }
 
@@ -358,8 +348,7 @@ static LabelPropagationAlgorithm labelPropagationAlgorithmFromString(const std::
   } else if (type == "do_nothing") {
     return LabelPropagationAlgorithm::do_nothing;
   }
-  LOG << "Illegal option:" << type;
-  exit(0);
+  ERROR("Illegal option: " + type);
   return LabelPropagationAlgorithm::do_nothing;
 }
 
@@ -371,8 +360,7 @@ static ExecutionType executionTypeFromString(const std::string& type) {
   } else if (type == "constant") {
     return ExecutionType::constant;
   }
-  LOG << "Illegal option:" << type;
-  exit(0);
+  ERROR("Illegal option: " + type);
   return ExecutionType::UNDEFINED;
 }
 }  // namesapce mt_kahypar

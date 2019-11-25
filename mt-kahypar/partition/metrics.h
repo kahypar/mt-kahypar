@@ -112,8 +112,7 @@ static inline HyperedgeWeight objective(const HyperGraph& hg, const kahypar::Obj
     case kahypar::Objective::cut: return hyperedgeCut(hg);
     case kahypar::Objective::km1: return km1(hg);
     default:
-      LOG << "Unknown Objective";
-      exit(-1);
+      ERROR("Unknown Objective");
   }
 }
 

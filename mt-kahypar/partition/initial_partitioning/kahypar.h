@@ -185,9 +185,11 @@ static void sanitizeCheck(kahypar::Context& context) {
     switch (context.local_search.algorithm) {
       case kahypar::RefinementAlgorithm::kway_fm:
         context.local_search.algorithm = kahypar::RefinementAlgorithm::kway_fm_km1;
+        WARNING("Auto switch refinement algorithm from kway_fm to kway_fm_km1 (KaHyPar IP)");
         break;
       case kahypar::RefinementAlgorithm::kway_fm_flow:
         context.local_search.algorithm = kahypar::RefinementAlgorithm::kway_fm_flow_km1;
+        WARNING("Auto switch refinement algorithm from kway_fm_flow to kway_fm_flow_km1 (KaHyPar IP)");
         break;
       default:
         break;
@@ -197,12 +199,15 @@ static void sanitizeCheck(kahypar::Context& context) {
       switch (context.local_search.algorithm) {
         case kahypar::RefinementAlgorithm::twoway_flow:
           context.local_search.algorithm = kahypar::RefinementAlgorithm::kway_flow;
+          WARNING("Auto switch refinement algorithm from twoway_flow to kway_flow (KaHyPar IP)");
           break;
         case kahypar::RefinementAlgorithm::twoway_fm:
           context.local_search.algorithm = kahypar::RefinementAlgorithm::kway_fm_km1;
+          WARNING("Auto switch refinement algorithm from twoway_fm to kway_fm_km1 (KaHyPar IP)");
           break;
         case kahypar::RefinementAlgorithm::twoway_fm_flow:
           context.local_search.algorithm = kahypar::RefinementAlgorithm::kway_fm_flow_km1;
+          WARNING("Auto switch refinement algorithm from twoway_fm_flow to kway_fm_flow_km1 (KaHyPar IP)");
           break;
         default:
           break;
@@ -212,9 +217,11 @@ static void sanitizeCheck(kahypar::Context& context) {
     switch (context.local_search.algorithm) {
       case kahypar::RefinementAlgorithm::kway_fm_km1:
         context.local_search.algorithm = kahypar::RefinementAlgorithm::kway_fm;
+        WARNING("Auto switch refinement algorithm from kway_fm_km1 to kway_fm (KaHyPar IP)");
         break;
       case kahypar::RefinementAlgorithm::kway_fm_flow_km1:
         context.local_search.algorithm = kahypar::RefinementAlgorithm::kway_fm_flow;
+        WARNING("Auto switch refinement algorithm from kway_fm_flow_km1 to kway_fm_flow (KaHyPar IP)");
         break;
       default:
         break;
@@ -224,12 +231,15 @@ static void sanitizeCheck(kahypar::Context& context) {
       switch (context.local_search.algorithm) {
         case kahypar::RefinementAlgorithm::twoway_flow:
           context.local_search.algorithm = kahypar::RefinementAlgorithm::kway_flow;
+          WARNING("Auto switch refinement algorithm from twoway_flow to kway_flow (KaHyPar IP)");
           break;
         case kahypar::RefinementAlgorithm::twoway_fm:
           context.local_search.algorithm = kahypar::RefinementAlgorithm::kway_fm;
+          WARNING("Auto switch refinement algorithm from twoway_fm to kway_fm (KaHyPar IP)");
           break;
         case kahypar::RefinementAlgorithm::twoway_fm_flow:
           context.local_search.algorithm = kahypar::RefinementAlgorithm::kway_fm_flow;
+          WARNING("Auto switch refinement algorithm from twoway_fm_flow to kway_fm_flow (KaHyPar IP)");
           break;
         default:
           break;

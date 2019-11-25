@@ -231,6 +231,26 @@ class Context {
       partition.max_part_weights.push_back(partition.max_part_weights[0]);
     }
   }
+
+  void sanityCheck() {
+    if ( partition.objective == kahypar::Objective::cut &&
+         refinement.label_propagation.algorithm == LabelPropagationAlgorithm::label_propagation_km1 ) {
+      ALGO_SWITCH("Refinement algorithm" << refinement.label_propagation.algorithm << "only works for km1 metric."
+            << "Do you want to use the cut version of the label propagation refiner (Y/N)?",
+            "Partitioning with" << refinement.label_propagation.algorithm
+            << "refiner in combination with cut metric is not possible!",
+            refinement.label_propagation.algorithm,
+            LabelPropagationAlgorithm::label_propagation_cut);
+    } else if ( partition.objective == kahypar::Objective::km1 &&
+         refinement.label_propagation.algorithm == LabelPropagationAlgorithm::label_propagation_cut ) {
+      ALGO_SWITCH("Refinement algorithm" << refinement.label_propagation.algorithm << "only works for cut metric."
+            << "Do you want to use the km1 version of the label propagation refiner (Y/N)?",
+            "Partitioning with" << refinement.label_propagation.algorithm
+            << "refiner in combination with km1 metric is not possible!",
+            refinement.label_propagation.algorithm,
+            LabelPropagationAlgorithm::label_propagation_km1);
+    }
+  }
 };
 
 inline std::ostream & operator<< (std::ostream& str, const Context& context) {
