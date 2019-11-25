@@ -131,7 +131,7 @@ class PLM {
               continue;
 
             const ArcWeight volTo = clusterVolumes[to],
-              weightTo = incidentClusterWeights[to];
+              weightTo = incidentClusterWeights.get(to);
 
             if (volU + volTo > maxAllowedClusterVolume) {
               continue;
@@ -195,15 +195,14 @@ class PLM {
   }
 
   bool verifyGain(const Graph& G, ds::Clustering& C, const NodeID u, const PartitionID to, double gain, const IncidentClusterWeights& icw) {
-    (void)icw;
 #ifdef KAHYPAR_ENABLE_HEAVY_PREPROCESSING_ASSERTIONS
     const PartitionID from = C[u];
 
     // long double adjustedGain = adjustBasicModGain(gain);
-    // long double adjustedGainRecomputed = adjustBasicModGain(modularityGain(icw[from], icw[to], clusterVolumes[from], clusterVolumes[to], G.nodeVolume(u)));
-    long double adjustedGain = adjustAdvancedModGain(gain, icw[from], clusterVolumes[from], G.nodeVolume(u));
+    // long double adjustedGainRecomputed = adjustBasicModGain(modularityGain(icw.get(from), icw.get(to), clusterVolumes[from], clusterVolumes[to], G.nodeVolume(u)));
+    long double adjustedGain = adjustAdvancedModGain(gain, icw.get(from), clusterVolumes[from], G.nodeVolume(u));
     const double volMultiplier = volMultiplierDivByNodeVol * G.nodeVolume(u);
-    long double adjustedGainRecomputed = adjustAdvancedModGain(modularityGain(icw[to], clusterVolumes[to], volMultiplier), icw[from], clusterVolumes[from], G.nodeVolume(u));
+    long double adjustedGainRecomputed = adjustAdvancedModGain(modularityGain(icw.get(to), clusterVolumes[to], volMultiplier), icw.get(from), clusterVolumes[from], G.nodeVolume(u));
 
     if (from == to) {
       adjustedGainRecomputed = 0.0L;

@@ -71,7 +71,7 @@ class ParallelClusteringContractionAdjList {
           const NodeID fineNode = nodesSortedByCluster[i];
           fineDegree += GFine.degree(fineNode);
           for (auto& arc : GFine.arcsOf(fineNode)) {
-            incidentClusterWeights.add(C[arc.head], arc.weight);
+            incidentClusterWeights[C[arc.head]] += arc.weight;
           }
           coarseNodeVolume += GFine.nodeVolume(fineNode);
         }
