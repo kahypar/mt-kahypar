@@ -39,6 +39,19 @@ class VertexObjectivePolicy final : public kahypar::meta::PolicyBase {
   }
 };
 
+class VertexDegreeObjectivePolicy final : public kahypar::meta::PolicyBase {
+ public:
+  template <typename HyperGraph>
+  KAHYPAR_ATTRIBUTE_ALWAYS_INLINE static inline HypernodeID objective(const HyperGraph& hypergraph, const PartitionID community) {
+    return hypergraph.communityDegree(community);
+  }
+
+  template <typename HyperGraph>
+  KAHYPAR_ATTRIBUTE_ALWAYS_INLINE static inline HypernodeID total(const HyperGraph& hypergraph) {
+    return hypergraph.initialNumPins();
+  }
+};
+
 class PinObjectivePolicy final : public kahypar::meta::PolicyBase {
  public:
   template <typename HyperGraph>
@@ -52,5 +65,5 @@ class PinObjectivePolicy final : public kahypar::meta::PolicyBase {
   }
 };
 
-using ObjectivePolicyClasses = kahypar::meta::Typelist<VertexObjectivePolicy, PinObjectivePolicy>;
+using ObjectivePolicyClasses = kahypar::meta::Typelist<VertexObjectivePolicy, VertexDegreeObjectivePolicy, PinObjectivePolicy>;
 }  // namespace mt_kahypar

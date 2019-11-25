@@ -290,6 +290,7 @@ class Hypergraph {
     _k(0),
     _communities_num_hypernodes(),
     _communities_num_pins(),
+    _community_degree(),
     _part_info(),
     _local_part_info([&] {
         return ThreadPartInfos::construct(_k, _part_info);
@@ -312,6 +313,7 @@ class Hypergraph {
     _k(k),
     _communities_num_hypernodes(),
     _communities_num_pins(),
+    _community_degree(),
     _part_info(k),
     _local_part_info([&] {
         return ThreadPartInfos::construct(_k, _part_info);
@@ -337,6 +339,7 @@ class Hypergraph {
     _k(k),
     _communities_num_hypernodes(),
     _communities_num_pins(),
+    _community_degree(),
     _part_info(k),
     _local_part_info([&] {
         return ThreadPartInfos::construct(_k, _part_info);
@@ -359,6 +362,7 @@ class Hypergraph {
     _k(other._k),
     _communities_num_hypernodes(std::move(other._communities_num_hypernodes)),
     _communities_num_pins(std::move(other._communities_num_pins)),
+    _community_degree(std::move(other._community_degree)),
     _part_info(std::move(other._part_info)),
     _local_part_info([&] {
         return ThreadPartInfos::construct(_k, _part_info);
@@ -376,6 +380,7 @@ class Hypergraph {
     _k = other._k;
     _communities_num_hypernodes = std::move(other._communities_num_hypernodes);
     _communities_num_pins = std::move(other._communities_num_hypernodes);
+    _community_degree = std::move(other._community_degree);
     _part_info = std::move(other._part_info);
     _local_part_info = ThreadLocalPartInfos([&] {
           return ThreadPartInfos::construct(_k, _part_info);
@@ -700,6 +705,11 @@ class Hypergraph {
   HypernodeID numCommunityPins(const PartitionID community) const {
     ASSERT(community < (PartitionID)_communities_num_pins.size());
     return _communities_num_pins[community];
+  }
+
+  HyperedgeID communityDegree(const PartitionID community) const {
+    ASSERT(community < (PartitionID)_community_degree.size());
+    return _community_degree[community];
   }
 
   // ! Number of communities which pins of hyperedge belongs to
@@ -1381,11 +1391,13 @@ class Hypergraph {
     // a unique node id within each community
     start = std::chrono::high_resolution_clock::now();
     _communities_num_hypernodes.assign(_num_communities, 0);
+    _community_degree.assign(_num_communities, 0);
     for (const HypernodeID& hn : nodes()) {
       PartitionID community_id = communityID(hn);
       ASSERT(community_id < _num_communities);
       hypergraph_of_vertex(hn).hypernode(hn).setCommunityNodeId(_communities_num_hypernodes[community_id]);
       ++_communities_num_hypernodes[community_id];
+      _community_degree[community_id] += nodeDegree(hn);
     }
     end = std::chrono::high_resolution_clock::now();
     mt_kahypar::utils::Timer::instance().add_timing("compute_num_community_hns", "Compute Num Community HNs",
@@ -1768,6 +1780,8 @@ class Hypergraph {
   parallel::scalable_vector<HypernodeID> _communities_num_hypernodes;
   // ! Number of pins in a community
   parallel::scalable_vector<HypernodeID> _communities_num_pins;
+  // ! Total degree of a community
+  parallel::scalable_vector<HyperedgeID> _community_degree;
   // ! Global weight and size information for all blocks.
   std::vector<PartInfo> _part_info;
   // ! Thread local weight and size information for all blocks.

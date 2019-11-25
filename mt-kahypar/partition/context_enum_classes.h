@@ -43,6 +43,7 @@ enum class InitialHyperedgeDistribution : uint8_t {
 
 enum class CommunityAssignmentObjective : uint8_t {
   vertex_objective,
+  vertex_degree_objective,
   pin_objective,
   UNDEFINED
 };
@@ -132,6 +133,7 @@ std::ostream & operator<< (std::ostream& os, const InitialHyperedgeDistribution&
 std::ostream & operator<< (std::ostream& os, const CommunityAssignmentObjective& objective) {
   switch (objective) {
     case CommunityAssignmentObjective::vertex_objective: return os << "vertex_objective";
+    case CommunityAssignmentObjective::vertex_degree_objective: return os << "vertex_degree_objective";
     case CommunityAssignmentObjective::pin_objective: return os << "pin_objective";
     case CommunityAssignmentObjective::UNDEFINED: return os << "UNDEFINED";
       // omit default case to trigger compiler warning for missing cases
@@ -253,6 +255,8 @@ static InitialHyperedgeDistribution initialHyperedgeDistributionFromString(const
 static CommunityAssignmentObjective communityAssignmentObjectiveFromString(const std::string& objective) {
   if (objective == "vertex_objective") {
     return CommunityAssignmentObjective::vertex_objective;
+  } else if (objective == "vertex_degree_objective") {
+    return CommunityAssignmentObjective::vertex_degree_objective;
   } else if (objective == "pin_objective") {
     return CommunityAssignmentObjective::pin_objective;
   }

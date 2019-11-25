@@ -41,6 +41,8 @@ namespace mt_kahypar {
 // //////////////////////////////////////////////////////////////////////////////
 REGISTER_POLICY(CommunityAssignmentObjective, CommunityAssignmentObjective::vertex_objective,
                 VertexObjectivePolicy);
+REGISTER_POLICY(CommunityAssignmentObjective, CommunityAssignmentObjective::vertex_degree_objective,
+                VertexDegreeObjectivePolicy);
 REGISTER_POLICY(CommunityAssignmentObjective, CommunityAssignmentObjective::pin_objective,
                 PinObjectivePolicy);
 
