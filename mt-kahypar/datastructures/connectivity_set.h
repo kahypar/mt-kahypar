@@ -26,7 +26,7 @@
 #include "kahypar/meta/mandatory.h"
 
 #include "mt-kahypar/macros.h"
-#include "mt-kahypar/parallel/copyable_atomic.h"
+#include "mt-kahypar/parallel/atomic_wrapper.h"
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
 #include "mt-kahypar/utils/bit_magic.h"
 
@@ -64,8 +64,8 @@ class ConnectivitySet {
   static constexpr bool debug = false;
 
   using PartitionID = int32_t;
-  using ConnectivityAtomic = parallel::CopyableAtomic<PartitionID>;
-  using BitsetAtomic = parallel::CopyableAtomic<uint8_t>;
+  using ConnectivityAtomic = parallel::IntegralAtomicWrapper<PartitionID>;
+  using BitsetAtomic = parallel::IntegralAtomicWrapper<uint8_t>;
 
  public:
   /**

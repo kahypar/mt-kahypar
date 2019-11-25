@@ -27,27 +27,52 @@
 
 namespace mt_kahypar {
 namespace parallel {
+
 template <typename T>
-class CopyableAtomic {
+void fetch_add(std::atomic<T>& x, T y) {
+  T cur_x = x.load();
+  while (!x.compare_exchange_weak(cur_x, cur_x + y, std::memory_order_relaxed));
+}
+
+template <typename T>
+void fetch_sub(std::atomic<T>& x, T y) {
+  T cur_x = x.load();
+  while (!x.compare_exchange_weak(cur_x, cur_x - y, std::memory_order_relaxed));
+}
+
+template <class T>
+class AtomicWrapper : public std::atomic<T> {
+ public:
+  void operator+= (T other) {
+    fetch_add(*this, other);
+  }
+
+  void operator-= (T other) {
+    fetch_sub(*this, other);
+  }
+};
+
+template <typename T>
+class IntegralAtomicWrapper {
   static_assert(std::is_integral<T>::value, "Value must be of integral type");
-  // static_assert( std::atomic<T>::is_always_lock_free, "Atomic must be lock free" );
+  static_assert( std::atomic<T>::is_always_lock_free, "Atomic must be lock free" );
 
  public:
-  explicit CopyableAtomic(const T value) :
+  explicit IntegralAtomicWrapper(const T value) :
     _value(value) { }
 
-  CopyableAtomic(const CopyableAtomic& other) :
+  IntegralAtomicWrapper(const IntegralAtomicWrapper& other) :
     _value(other._value.load()) { }
 
-  CopyableAtomic & operator= (const CopyableAtomic& other) {
+  IntegralAtomicWrapper & operator= (const IntegralAtomicWrapper& other) {
     _value = other._value.load();
     return *this;
   }
 
-  CopyableAtomic(CopyableAtomic&& other) :
+  IntegralAtomicWrapper(IntegralAtomicWrapper&& other) :
     _value(other._value.load()) { }
 
-  CopyableAtomic & operator= (CopyableAtomic&& other) {
+  IntegralAtomicWrapper & operator= (IntegralAtomicWrapper&& other) {
     _value = other._value.load();
     return *this;
   }

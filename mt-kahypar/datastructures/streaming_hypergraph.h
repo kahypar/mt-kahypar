@@ -45,7 +45,7 @@
 #include "mt-kahypar/datastructures/streaming_map.h"
 #include "mt-kahypar/datastructures/streaming_vector.h"
 #include "mt-kahypar/macros.h"
-#include "mt-kahypar/parallel/copyable_atomic.h"
+#include "mt-kahypar/parallel/atomic_wrapper.h"
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
 #include "mt-kahypar/utils/timer.h"
 
@@ -92,9 +92,9 @@ class StreamingHypergraph {
   using HypernodeWeight = HypernodeWeightType_;
   using HyperedgeWeight = HyperedgeWeightType_;
   using PartitionID = PartitionIDType_;
-  using HypernodeAtomic = parallel::CopyableAtomic<HypernodeID>;
-  using HyperedgeAtomic = parallel::CopyableAtomic<HyperedgeID>;
-  using PartitionAtomic = parallel::CopyableAtomic<PartitionID>;
+  using HypernodeAtomic = parallel::IntegralAtomicWrapper<HypernodeID>;
+  using HyperedgeAtomic = parallel::IntegralAtomicWrapper<HyperedgeID>;
+  using PartitionAtomic = parallel::IntegralAtomicWrapper<PartitionID>;
 
   static constexpr PartitionID kInvalidPartition = -1;
   static constexpr HypernodeID kInvalidHypernode = std::numeric_limits<HypernodeID>::max();

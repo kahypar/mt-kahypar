@@ -29,7 +29,7 @@
 #include "mt-kahypar/datastructures/graph.h"
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/macros.h"
-#include "mt-kahypar/parallel/atomics_util.h"
+#include "mt-kahypar/parallel/atomic_wrapper.h"
 #include "mt-kahypar/partition/preprocessing/community_detection/clustering_statistics.h"
 #include "mt-kahypar/utils/randomize.h"
 
@@ -40,7 +40,7 @@ class PLM {
 
   using Graph = ds::AdjListGraph;
   using ArcWeight = ds::AdjListGraph::ArcWeight;
-  using AtomicArcWeight = AtomicWrapper<ArcWeight>;
+  using AtomicArcWeight = parallel::AtomicWrapper<ArcWeight>;
   using Arc = ds::AdjListGraph::Arc;
   using IncidentClusterWeights = ds::ClearListMap<PartitionID, ArcWeight>;
 
