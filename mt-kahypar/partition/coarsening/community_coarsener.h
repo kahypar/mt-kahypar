@@ -101,7 +101,8 @@ class CommunityCoarsenerT : public ICoarsener,
       });
     HighResClockTimepoint end = std::chrono::high_resolution_clock::now();
     mt_kahypar::utils::Timer::instance().add_timing("compute_execution_order", "Compute Execution Order",
-                                                    "coarsening", mt_kahypar::utils::Timer::Type::COARSENING, 2, std::chrono::duration<double>(end - start).count());
+                                                    "coarsening", mt_kahypar::utils::Timer::Type::COARSENING,
+                                                    std::chrono::duration<double>(end - start).count());
 
     // Parallel Community Coarsening
     start = std::chrono::high_resolution_clock::now();
@@ -124,7 +125,8 @@ class CommunityCoarsenerT : public ICoarsener,
     TBB::instance().wait();
     end = std::chrono::high_resolution_clock::now();
     mt_kahypar::utils::Timer::instance().add_timing("parallel_community_coarsening", "Parallel Community Coarsening",
-                                                    "coarsening", mt_kahypar::utils::Timer::Type::COARSENING, 3, std::chrono::duration<double>(end - start).count());
+                                                    "coarsening", mt_kahypar::utils::Timer::Type::COARSENING,
+                                                    std::chrono::duration<double>(end - start).count());
 
     // Finalize community coarsening
     this->finalize();

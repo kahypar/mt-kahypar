@@ -42,47 +42,11 @@ class PLM {
   using ArcWeight = ds::AdjListGraph::ArcWeight;
   using AtomicArcWeight = AtomicWrapper<ArcWeight>;
   using Arc = ds::AdjListGraph::Arc;
-
-/*
-    inline int64_t integerModGain(const ArcWeight weightFrom, const ArcWeight weightTo, const ArcWeight volFrom, const ArcWeight volTo, const ArcWeight volNode) {
-        return 2 * (totalVolume * (weightTo - weightFrom) + resolutionGamma * volNode * (volFrom - volNode - volTo));
-    }
-*/
-
-  inline double modularityGain(const ArcWeight weightFrom, const ArcWeight weightTo, const ArcWeight volFrom, const ArcWeight volTo, const ArcWeight volNode) {
-    return weightTo - weightFrom + volNode * (volFrom - volNode - volTo) / totalVolume;
-  }
-
-  // gain computed by the above function would be adjusted by gain = gain / totalVolume
-  inline long double adjustBasicModGain(double gain) {
-    return 2.0L * gain / totalVolume;
-  }
-
-  // ~factor 3 on human_gene
-  // multiplier = reciprocalTotalVolume * resolutionGamma * volNode
-  inline double modularityGain(const ArcWeight weightTo, const ArcWeight volTo, const double multiplier) {
-    return weightTo - multiplier * volTo;
-  }
-
-  // gain of the above function is adjusted by gain = gain / totalVolume after applying gain = gain (-weightFrom + resolutionGamma * reciprocalTotalVolume * volNode * (volFrom - volNode))
-  inline long double adjustAdvancedModGain(double gain, const ArcWeight weightFrom, const ArcWeight volFrom, const ArcWeight volNode) {
-    return 2.0L * reciprocalTotalVolume * (gain - weightFrom + reciprocalTotalVolume * volNode * (volFrom - volNode));
-  }
-
-  const Context& _context;
-  ArcWeight totalVolume = 0;
-  double reciprocalTotalVolume = 0.0;
-  double volMultiplierDivByNodeVol = 0.0;
-  std::vector<AtomicArcWeight> clusterVolumes;
-
   using IncidentClusterWeights = ds::ClearListMap<PartitionID, ArcWeight>;
-  tbb::enumerable_thread_specific<IncidentClusterWeights> ets_incidentClusterWeights;
 
  public:
   static constexpr bool debug = false;
   static constexpr bool enable_heavy_assert = false;
-
-  TimeReporter tr;
 
   // multiply with expected coverage part
   // static constexpr double resolutionGamma = 1.0;
@@ -91,8 +55,7 @@ class PLM {
   explicit PLM(const Context& context, size_t numNodes) :
     _context(context),
     clusterVolumes(numNodes),
-    ets_incidentClusterWeights(numNodes, 0),
-    tr() { }
+    ets_incidentClusterWeights(numNodes, 0) { }
 
   bool localMoving(Graph& G, ds::Clustering& C) {
     reciprocalTotalVolume = 1.0 / G.totalVolume;
@@ -129,10 +92,12 @@ class PLM {
          currentRound < _context.preprocessing.community_detection.max_pass_iterations; currentRound++) {
       // parallel shuffle starts becoming competitive with sequential shuffle at four cores... :(
       // TODO implement block-based weak shuffling or use the pseudo-random online permutation approach
-      auto t_shuffle = tbb::tick_count::now();
+      HighResClockTimepoint start = std::chrono::high_resolution_clock::now();
       utils::Randomize::instance().shuffleVector(nodes);
-      tr.report("Shuffle", tbb::tick_count::now() - t_shuffle);
-      DBG << "Shuffle " << (tbb::tick_count::now() - t_shuffle).seconds() << "[s]";
+      HighResClockTimepoint end = std::chrono::high_resolution_clock::now();
+      mt_kahypar::utils::Timer::instance().update_timing("random_shuffle", "Random Shuffle",
+                                                        "local_moving", mt_kahypar::utils::Timer::Type::PREPROCESSING,
+                                                        std::chrono::duration<double>(end - start).count());
 
       tbb::enumerable_thread_specific<size_t> ets_nodesMovedThisRound(0);
 
@@ -194,7 +159,7 @@ class PLM {
           ts_runtime.local() += (tbb::tick_count::now() - t_node_move);
         };
 
-      auto t_move = tbb::tick_count::now();
+      start = std::chrono::high_resolution_clock::now();
 
 #ifndef NDEBUG
       std::for_each(nodes.begin(), nodes.end(), moveNode);
@@ -215,8 +180,12 @@ class PLM {
 
       DBG << os.str();
 
-      tr.report("Local Moving Round", tbb::tick_count::now() - t_move);
-      DBG << V(currentRound) << V(nodesMovedThisRound) << (tbb::tick_count::now() - t_move).seconds() << "[s]";
+      end = std::chrono::high_resolution_clock::now();
+      mt_kahypar::utils::Timer::instance().update_timing("local_moving_round", "Local Moving Round",
+                                                         "local_moving", mt_kahypar::utils::Timer::Type::PREPROCESSING,
+                                                         std::chrono::duration<double>(end - start).count());
+
+      DBG << V(currentRound) << V(nodesMovedThisRound) << std::chrono::duration<double>(end - start).count() << "[s]";
     }
     return clusteringChanged;
   }
@@ -323,5 +292,39 @@ class PLM {
     long double expectedCoverage = static_cast<long double>(icwAndSoscv.second) / (static_cast<long double>(G.totalVolume) * static_cast<long double>(G.totalVolume));
     return coverage - expectedCoverage;
   }
+
+ private:
+/*
+    inline int64_t integerModGain(const ArcWeight weightFrom, const ArcWeight weightTo, const ArcWeight volFrom, const ArcWeight volTo, const ArcWeight volNode) {
+        return 2 * (totalVolume * (weightTo - weightFrom) + resolutionGamma * volNode * (volFrom - volNode - volTo));
+    }
+*/
+
+  inline double modularityGain(const ArcWeight weightFrom, const ArcWeight weightTo, const ArcWeight volFrom, const ArcWeight volTo, const ArcWeight volNode) {
+    return weightTo - weightFrom + volNode * (volFrom - volNode - volTo) / totalVolume;
+  }
+
+  // gain computed by the above function would be adjusted by gain = gain / totalVolume
+  inline long double adjustBasicModGain(double gain) {
+    return 2.0L * gain / totalVolume;
+  }
+
+  // ~factor 3 on human_gene
+  // multiplier = reciprocalTotalVolume * resolutionGamma * volNode
+  inline double modularityGain(const ArcWeight weightTo, const ArcWeight volTo, const double multiplier) {
+    return weightTo - multiplier * volTo;
+  }
+
+  // gain of the above function is adjusted by gain = gain / totalVolume after applying gain = gain (-weightFrom + resolutionGamma * reciprocalTotalVolume * volNode * (volFrom - volNode))
+  inline long double adjustAdvancedModGain(double gain, const ArcWeight weightFrom, const ArcWeight volFrom, const ArcWeight volNode) {
+    return 2.0L * reciprocalTotalVolume * (gain - weightFrom + reciprocalTotalVolume * volNode * (volFrom - volNode));
+  }
+
+  const Context& _context;
+  ArcWeight totalVolume = 0;
+  double reciprocalTotalVolume = 0.0;
+  double volMultiplierDivByNodeVol = 0.0;
+  std::vector<AtomicArcWeight> clusterVolumes;
+  tbb::enumerable_thread_specific<IncidentClusterWeights> ets_incidentClusterWeights;
 };
 }

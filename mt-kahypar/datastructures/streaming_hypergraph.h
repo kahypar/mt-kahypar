@@ -1494,14 +1494,16 @@ class StreamingHypergraph {
     group.wait();
     HighResClockTimepoint end = std::chrono::high_resolution_clock::now();
     mt_kahypar::utils::Timer::instance().add_timing("sort_and_remap_node_ids", "Sort and Remap Nodes",
-                                                    "initialize_numa_hypernodes", mt_kahypar::utils::Timer::Type::IMPORT, 0, std::chrono::duration<double>(end - start).count());
+                                                    "initialize_numa_hypernodes", mt_kahypar::utils::Timer::Type::IMPORT,
+                                                    std::chrono::duration<double>(end - start).count());
 
     // Compute Total Hypergraph Weight
     start = std::chrono::high_resolution_clock::now();
     updateTotalWeight();
     end = std::chrono::high_resolution_clock::now();
     mt_kahypar::utils::Timer::instance().add_timing("compute_total_weight", "Compute Total Weight",
-                                                    "initialize_numa_hypernodes", mt_kahypar::utils::Timer::Type::IMPORT, 1, std::chrono::duration<double>(end - start).count());
+                                                    "initialize_numa_hypernodes", mt_kahypar::utils::Timer::Type::IMPORT,
+                                                    std::chrono::duration<double>(end - start).count());
 
     ASSERT([&] {
           for (size_t i = 0; i < _hypernodes.size(); ++i) {
@@ -1556,7 +1558,8 @@ class StreamingHypergraph {
     group.wait();
     end = std::chrono::high_resolution_clock::now();
     mt_kahypar::utils::Timer::instance().add_timing("stream_incident_nets", "Stream Incident Nets",
-                                                    "initialize_numa_hypernodes", mt_kahypar::utils::Timer::Type::IMPORT, 2, std::chrono::duration<double>(end - start).count());
+                                                    "initialize_numa_hypernodes", mt_kahypar::utils::Timer::Type::IMPORT,
+                                                    std::chrono::duration<double>(end - start).count());
 
     _hypernode_stream.clear();
   }
@@ -1581,7 +1584,8 @@ class StreamingHypergraph {
     _num_hyperedges = _hyperedges.size();
     HighResClockTimepoint end = std::chrono::high_resolution_clock::now();
     mt_kahypar::utils::Timer::instance().add_timing("copy_incidencce_array_and_he", "Copy Incidence Array and HEs",
-                                                    "initialize_hyperedges", mt_kahypar::utils::Timer::Type::IMPORT, 0, std::chrono::duration<double>(end - start).count());
+                                                    "initialize_hyperedges", mt_kahypar::utils::Timer::Type::IMPORT,
+                                                    std::chrono::duration<double>(end - start).count());
 
     ASSERT(_k > 0);
     _pins_in_part.assign(_num_hyperedges * _k, HypernodeAtomic(0));
@@ -1615,7 +1619,8 @@ class StreamingHypergraph {
     _hyperedges.emplace_back(_incidence_array.size(), 0, 0UL, 0);
     end = std::chrono::high_resolution_clock::now();
     mt_kahypar::utils::Timer::instance().add_timing("update_start_position", "Update Start Positions of HEs",
-                                                    "initialize_hyperedges", mt_kahypar::utils::Timer::Type::IMPORT, 1, std::chrono::duration<double>(end - start).count());
+                                                    "initialize_hyperedges", mt_kahypar::utils::Timer::Type::IMPORT,
+                                                    std::chrono::duration<double>(end - start).count());
 
     ASSERT([&] {
           for (size_t cpu_id = 0; cpu_id < std::thread::hardware_concurrency(); ++cpu_id) {
@@ -1653,7 +1658,8 @@ class StreamingHypergraph {
     }
     end = std::chrono::high_resolution_clock::now();
     mt_kahypar::utils::Timer::instance().add_timing("compute_vertex_pin_count", "Compute Vertex Pin Counts",
-                                                    "initialize_hyperedges", mt_kahypar::utils::Timer::Type::IMPORT, 2, std::chrono::duration<double>(end - start).count());
+                                                    "initialize_hyperedges", mt_kahypar::utils::Timer::Type::IMPORT,
+                                                    std::chrono::duration<double>(end - start).count());
 
     _pin_stream.clear();
     _hyperedge_stream.clear();

@@ -37,7 +37,8 @@ static inline void partition(Hypergraph& hypergraph, const Context& context, con
   coarsener->coarsen();
   HighResClockTimepoint end = std::chrono::high_resolution_clock::now();
   mt_kahypar::utils::Timer::instance().add_timing("coarsening", "Coarsening",
-                                                  "", mt_kahypar::utils::Timer::Type::COARSENING, 2, std::chrono::duration<double>(end - start).count());
+                                                  "", mt_kahypar::utils::Timer::Type::COARSENING,
+                                                  std::chrono::duration<double>(end - start).count());
 
   if (context.partition.verbose_output) {
     mt_kahypar::io::printHypergraphInfo(hypergraph, "Coarsened Hypergraph");
@@ -52,7 +53,8 @@ static inline void partition(Hypergraph& hypergraph, const Context& context, con
   initial_partitioner->initialPartition();
   end = std::chrono::high_resolution_clock::now();
   mt_kahypar::utils::Timer::instance().add_timing("initial_partitioning", "Initial Partitioning",
-                                                  "", mt_kahypar::utils::Timer::Type::INITIAL_PARTITIONING, 3, std::chrono::duration<double>(end - start).count());
+                                                  "", mt_kahypar::utils::Timer::Type::INITIAL_PARTITIONING,
+                                                  std::chrono::duration<double>(end - start).count());
 
   io::printPartitioningResults(hypergraph, context, "Initial Partitioning Results:");
 
@@ -66,7 +68,8 @@ static inline void partition(Hypergraph& hypergraph, const Context& context, con
   coarsener->uncoarsen(label_propagation);
   end = std::chrono::high_resolution_clock::now();
   mt_kahypar::utils::Timer::instance().add_timing("refinement", "Refinement",
-                                                  "", mt_kahypar::utils::Timer::Type::REFINEMENT, 4, std::chrono::duration<double>(end - start).count());
+                                                  "", mt_kahypar::utils::Timer::Type::REFINEMENT,
+                                                  std::chrono::duration<double>(end - start).count());
 
   io::printPartitioningResults(hypergraph, context, "Local Search Results:");
 }

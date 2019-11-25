@@ -125,7 +125,8 @@ class BinPackingCommunityAssignmentT : public ICommunityAssignment {
     }
     HighResClockTimepoint end = std::chrono::high_resolution_clock::now();
     mt_kahypar::utils::Timer::instance().add_timing("compute_community_mapping", "Compute Community Mapping",
-                                                    "redistribution", mt_kahypar::utils::Timer::Type::PREPROCESSING, 0, std::chrono::duration<double>(end - start).count());
+                                                    "redistribution", mt_kahypar::utils::Timer::Type::PREPROCESSING,
+                                                    std::chrono::duration<double>(end - start).count());
 
     ASSERT(std::count(community_assignment.begin(), community_assignment.end(), -1) == 0, "There are unassigned communities");
     return community_assignment;

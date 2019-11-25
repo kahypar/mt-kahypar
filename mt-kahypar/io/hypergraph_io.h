@@ -157,7 +157,8 @@ static inline HyperGraph readHyperedges(std::ifstream& file,
   }
   HighResClockTimepoint end = std::chrono::high_resolution_clock::now();
   mt_kahypar::utils::Timer::instance().add_timing("sequential_read", "Sequential Line Reading",
-                                                  "hypergraph_import", mt_kahypar::utils::Timer::Type::IMPORT, 0, std::chrono::duration<double>(end - start).count());
+                                                  "hypergraph_import", mt_kahypar::utils::Timer::Type::IMPORT,
+                                                  std::chrono::duration<double>(end - start).count());
 
   // Parallel for, for reading hyperedges
   start = std::chrono::high_resolution_clock::now();
@@ -180,7 +181,8 @@ static inline HyperGraph readHyperedges(std::ifstream& file,
   }
   end = std::chrono::high_resolution_clock::now();
   mt_kahypar::utils::Timer::instance().add_timing("stream_hyperedges", "Stream hyperedges",
-                                                  "hypergraph_import", mt_kahypar::utils::Timer::Type::IMPORT, 1, std::chrono::duration<double>(end - start).count());
+                                                  "hypergraph_import", mt_kahypar::utils::Timer::Type::IMPORT,
+                                                  std::chrono::duration<double>(end - start).count());
 
   // Initialize numa hypergraph
   // Involves to memcpy streamed hyperedges of each cpu into
@@ -196,13 +198,15 @@ static inline HyperGraph readHyperedges(std::ifstream& file,
   TBB::instance().wait();
   end = std::chrono::high_resolution_clock::now();
   mt_kahypar::utils::Timer::instance().add_timing("initialize_hyperedges", "Initialize Hyperedges",
-                                                  "hypergraph_import", mt_kahypar::utils::Timer::Type::IMPORT, 2, std::chrono::duration<double>(end - start).count());
+                                                  "hypergraph_import", mt_kahypar::utils::Timer::Type::IMPORT,
+                                                  std::chrono::duration<double>(end - start).count());
 
   start = std::chrono::high_resolution_clock::now();
   HyperGraph hypergraph(num_hypernodes, std::move(numa_hypergraphs), k);
   end = std::chrono::high_resolution_clock::now();
   mt_kahypar::utils::Timer::instance().add_timing("initialize_hypernodes", "Initialize Hypernodes",
-                                                  "hypergraph_import", mt_kahypar::utils::Timer::Type::IMPORT, 3, std::chrono::duration<double>(end - start).count());
+                                                  "hypergraph_import", mt_kahypar::utils::Timer::Type::IMPORT,
+                                                  std::chrono::duration<double>(end - start).count());
   return hypergraph;
 }
 
@@ -274,7 +278,8 @@ static inline HyperGraph readHypergraphFile(const std::string& filename,
   }
   HighResClockTimepoint end = std::chrono::high_resolution_clock::now();
   mt_kahypar::utils::Timer::instance().add_timing("hypergraph_import", "Reading Hypergraph File",
-                                                  "", mt_kahypar::utils::Timer::Type::IMPORT, 0, std::chrono::duration<double>(end - start).count());
+                                                  "", mt_kahypar::utils::Timer::Type::IMPORT,
+                                                  std::chrono::duration<double>(end - start).count());
   return hypergraph;
 }
 

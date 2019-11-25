@@ -26,57 +26,6 @@
 #include "mt-kahypar/datastructures/graph.h"
 
 namespace mt_kahypar {
-class TimeReporter {
- public:
-  TimeReporter() :
-    times() { }
-
-  using Interval = tbb::tick_count::interval_t;
-
-  void report(const std::string& category, Interval elapsed_time) {
-    times[category].push_back(elapsed_time);
-  }
-
-  Interval aggregate(const std::string& category) {
-    Interval res(0.0);
-    for (Interval& t : times[category])
-      res += t;
-    return res;
-  }
-
-  void displayAllAggregates(std::ostream& o) {
-    for (const auto& entry : times) {
-      o << "Running time of " << entry.first << " : " << aggregate(entry.first).seconds() << " [s]" << std::endl;
-    }
-  }
-
-  void displayAllEntries(std::ostream& o, const std::string& category) {
-    o << "-------------\n" << "Running times of " << category << " in [s]" << "\n [";
-    size_t counter = 0;
-    for (const Interval& t : times[category]) {
-      o << t.seconds() << " , ";
-      counter++;
-      if (counter > 20) {
-        o << "\n ";
-        counter = 0;
-      }
-    }
-    o << " ]" << std::endl;
-  }
-
-  void displayAllEntries(std::ostream& o) {
-    for (const auto& entry : times)
-      displayAllEntries(o, entry.first);
-  }
-
- private:
-  std::unordered_map<std::string, std::vector<Interval> > times;
-};
-
-inline std::ostream & operator<< (std::ostream& o, TimeReporter& tr) {
-  tr.displayAllAggregates(o);
-  return o;
-}
 
 class ClusteringStatistics {
  private:
@@ -102,7 +51,7 @@ class ClusteringStatistics {
   }
 
  public:
-  static void printLocalMovingStats(const ds::AdjListGraph& G, ds::Clustering& C, TimeReporter& tr) {
+  static void printLocalMovingStats(const ds::AdjListGraph& G, ds::Clustering& C) {
     std::vector<size_t> sizeOfCluster(G.numNodes());
     PartitionID maxClusterID = 0;
     for (const PartitionID& c : C) {
@@ -128,9 +77,6 @@ class ClusteringStatistics {
     }
     ss << std::endl;
     DBG << ss.str();
-    std::stringstream os;
-    tr.displayAllAggregates(os);
-    DBG << os.str();
   }
 };
 

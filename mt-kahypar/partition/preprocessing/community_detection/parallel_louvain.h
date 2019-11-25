@@ -25,6 +25,7 @@
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/preprocessing/community_detection/parallel_contraction.h"
 #include "mt-kahypar/partition/preprocessing/community_detection/plm.h"
+#include "mt-kahypar/utils/timer.h"
 
 namespace mt_kahypar {
 class ParallelModularityLouvain {
@@ -35,9 +36,13 @@ class ParallelModularityLouvain {
     ds::Clustering C(GFine.numNodes());
 
     DBG << "Start Local Moving";
-    auto t_lm = tbb::tick_count::now();
+    HighResClockTimepoint start = std::chrono::high_resolution_clock::now();
     bool clustering_changed = mlv.localMoving(GFine, C);
-    mlv.tr.report("Local Moving", tbb::tick_count::now() - t_lm);
+    HighResClockTimepoint end = std::chrono::high_resolution_clock::now();
+    mt_kahypar::utils::Timer::instance().update_timing("local_moving", "Local Moving",
+                                                       "perform_community_detection", mt_kahypar::utils::Timer::Type::PREPROCESSING,
+                                                       std::chrono::duration<double>(end - start).count());
+
 
 /*
 
@@ -49,9 +54,13 @@ class ParallelModularityLouvain {
       // contract
       DBG << "Contract";
 
-      auto t_contract = tbb::tick_count::now();
+      start = std::chrono::high_resolution_clock::now();
       ds::AdjListGraph GCoarse = ParallelClusteringContractionAdjList::contract(GFine, C, numTasks);
-      mlv.tr.report("Contraction", tbb::tick_count::now() - t_contract);
+      end = std::chrono::high_resolution_clock::now();
+      mt_kahypar::utils::Timer::instance().update_timing("contraction", "Contraction",
+                                                         "perform_community_detection", mt_kahypar::utils::Timer::Type::PREPROCESSING,
+                                                         std::chrono::duration<double>(end - start).count());
+
 
 #ifndef NDEBUG
       ds::Clustering coarseGraphSingletons(GCoarse.numNodes());
@@ -59,16 +68,19 @@ class ParallelModularityLouvain {
       // assert(PLM::doubleMod(GFine, PLM::intraClusterWeights_And_SumOfSquaredClusterVolumes(GFine, C)) == PLM::integerModularityFromScratch(GCoarse, coarseGraphSingletons));
 #endif
 
-      ClusteringStatistics::printLocalMovingStats(GFine, C, mlv.tr);
+      ClusteringStatistics::printLocalMovingStats(GFine, C);
 
       // recurse
       ds::Clustering coarseC = localMovingContractRecurse(GCoarse, mlv, numTasks);
 
-      auto t_prolong = tbb::tick_count::now();
+      start = std::chrono::high_resolution_clock::now();
       // prolong clustering
       for (NodeID u : GFine.nodes()) // parallelize
         C[u] = coarseC[C[u]];
-      mlv.tr.report("Prolong", tbb::tick_count::now() - t_prolong);
+      end = std::chrono::high_resolution_clock::now();
+      mt_kahypar::utils::Timer::instance().update_timing("prolong", "Prolong",
+                                                         "perform_community_detection", mt_kahypar::utils::Timer::Type::PREPROCESSING,
+                                                         std::chrono::duration<double>(end - start).count());
       // assert(PLM::integerModularityFromScratch(GFine, C) == PLM::integerModularityFromScratch(GCoarse, coarseC));
     }
 
@@ -79,7 +91,7 @@ class ParallelModularityLouvain {
   static ds::Clustering run(ds::AdjListGraph& graph, const Context& context) {
     PLM mlv(context, graph.numNodes());
     ds::Clustering C = localMovingContractRecurse(graph, mlv, context.shared_memory.num_threads);
-    ClusteringStatistics::printLocalMovingStats(graph, C, mlv.tr);
+    ClusteringStatistics::printLocalMovingStats(graph, C);
     return C;
   }
 };

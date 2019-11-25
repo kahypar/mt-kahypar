@@ -136,7 +136,8 @@ inline void Partitioner::sanitize(Hypergraph& hypergraph, const Context& context
   }
   HighResClockTimepoint end = std::chrono::high_resolution_clock::now();
   mt_kahypar::utils::Timer::instance().add_timing("single_node_hyperedge_removal", "Single Node Hyperedge Removal",
-                                                  "preprocessing", mt_kahypar::utils::Timer::Type::PREPROCESSING, 0, std::chrono::duration<double>(end - start).count());
+                                                  "preprocessing", mt_kahypar::utils::Timer::Type::PREPROCESSING,
+                                                  std::chrono::duration<double>(end - start).count());
 }
 
 inline void Partitioner::preprocess(Hypergraph& hypergraph, const Context& context) {
@@ -149,7 +150,8 @@ inline void Partitioner::preprocess(Hypergraph& hypergraph, const Context& conte
   starExpansion.restrictClusteringToHypernodes(communities);
   HighResClockTimepoint end = std::chrono::high_resolution_clock::now();
   mt_kahypar::utils::Timer::instance().add_timing("perform_community_detection", "Perform Community Detection",
-                                                  "community_detection", mt_kahypar::utils::Timer::Type::PREPROCESSING, 0, std::chrono::duration<double>(end - start).count());
+                                                  "community_detection", mt_kahypar::utils::Timer::Type::PREPROCESSING,
+                                                  std::chrono::duration<double>(end - start).count());
 
   // Stream community ids into hypergraph
   start = std::chrono::high_resolution_clock::now();
@@ -161,25 +163,29 @@ inline void Partitioner::preprocess(Hypergraph& hypergraph, const Context& conte
       });
   end = std::chrono::high_resolution_clock::now();
   mt_kahypar::utils::Timer::instance().add_timing("stream_community_ids", "Stream Community IDs",
-                                                  "community_detection", mt_kahypar::utils::Timer::Type::PREPROCESSING, 1, std::chrono::duration<double>(end - start).count());
+                                                  "community_detection", mt_kahypar::utils::Timer::Type::PREPROCESSING,
+                                                  std::chrono::duration<double>(end - start).count());
 
   // Initialize Communities
   start = std::chrono::high_resolution_clock::now();
   hypergraph.initializeCommunities();
   end = std::chrono::high_resolution_clock::now();
   mt_kahypar::utils::Timer::instance().add_timing("initialize_communities", "Initialize Communities",
-                                                  "community_detection", mt_kahypar::utils::Timer::Type::PREPROCESSING, 2, std::chrono::duration<double>(end - start).count());
+                                                  "community_detection", mt_kahypar::utils::Timer::Type::PREPROCESSING,
+                                                  std::chrono::duration<double>(end - start).count());
   utils::Stats::instance().add_stat("num_communities", hypergraph.numCommunities());
   HighResClockTimepoint global_end = std::chrono::high_resolution_clock::now();
   mt_kahypar::utils::Timer::instance().add_timing("community_detection", "Community Detection",
-                                                  "preprocessing", mt_kahypar::utils::Timer::Type::PREPROCESSING, 1, std::chrono::duration<double>(global_end - global_start).count());
+                                                  "preprocessing", mt_kahypar::utils::Timer::Type::PREPROCESSING,
+                                                  std::chrono::duration<double>(global_end - global_start).count());
 
   // Redistribute Hypergraph based on communities
   start = std::chrono::high_resolution_clock::now();
   redistribution(hypergraph, context);
   end = std::chrono::high_resolution_clock::now();
   mt_kahypar::utils::Timer::instance().add_timing("redistribution", "Redistribution",
-                                                  "preprocessing", mt_kahypar::utils::Timer::Type::PREPROCESSING, 2, std::chrono::duration<double>(end - start).count());
+                                                  "preprocessing", mt_kahypar::utils::Timer::Type::PREPROCESSING,
+                                                  std::chrono::duration<double>(end - start).count());
 }
 
 inline void Partitioner::redistribution(Hypergraph& hypergraph, const Context& context) {
@@ -237,7 +243,8 @@ inline void Partitioner::partition(Hypergraph& hypergraph, Context& context) {
   sanitize(hypergraph, context);
   HighResClockTimepoint end = std::chrono::high_resolution_clock::now();
   mt_kahypar::utils::Timer::instance().add_timing("preprocessing", "Preprocessing",
-                                                  "", mt_kahypar::utils::Timer::Type::PREPROCESSING, 1, std::chrono::duration<double>(end - start).count());
+                                                  "", mt_kahypar::utils::Timer::Type::PREPROCESSING,
+                                                  std::chrono::duration<double>(end - start).count());
 
   // ################## MULTILEVEL ##################
   multilevel::partition(hypergraph, context, true);

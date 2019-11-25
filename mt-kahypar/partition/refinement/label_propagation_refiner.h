@@ -283,7 +283,6 @@ class LabelPropagationRefinerT final : public IRefiner {
         "lp_round_" + std::to_string(i) + (node != -1 ? "_" + std::to_string(node) : ""),
         "Label Propagation Round " + std::to_string(i) + (node != -1 ? " - " + std::to_string(node) : ""),
         "label_propagation", mt_kahypar::utils::Timer::Type::REFINEMENT,
-        i * TBB::instance().num_used_numa_nodes() + std::abs(node),
         std::chrono::duration<double>(end_time - start_time).count());
     }
   }

@@ -232,7 +232,7 @@ class RecursiveInitialPartitionerT : public IInitialPartitioner {
     HighResClockTimepoint end = std::chrono::high_resolution_clock::now();
     utils::Timer::instance().add_timing("top_level_hypergraph_copy_" + std::to_string(recursion_number),
                                         "Top Level Hypergraph Copy " + std::to_string(recursion_number),
-                                        "initial_partitioning", mt_kahypar::utils::Timer::Type::INITIAL_PARTITIONING, 2 * recursion_number,
+                                        "initial_partitioning", mt_kahypar::utils::Timer::Type::INITIAL_PARTITIONING,
                                         std::chrono::duration<double>(end - start).count(), _top_level);
 
     // Call multilevel partitioner recursively
@@ -252,7 +252,7 @@ class RecursiveInitialPartitionerT : public IInitialPartitioner {
     end = std::chrono::high_resolution_clock::now();
     utils::Timer::instance().add_timing("top_level_multilevel_recursion_" + std::to_string(recursion_number),
                                         "Top Level Multilevel Recursion " + std::to_string(recursion_number),
-                                        "initial_partitioning", mt_kahypar::utils::Timer::Type::INITIAL_PARTITIONING, 1 + 2 * recursion_number,
+                                        "initial_partitioning", mt_kahypar::utils::Timer::Type::INITIAL_PARTITIONING,
                                         std::chrono::duration<double>(end - start).count(), _top_level);
 
     if (_top_level) {

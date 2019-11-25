@@ -60,7 +60,8 @@ class CommunityRedistributorT {
         });
     HighResClockTimepoint end = std::chrono::high_resolution_clock::now();
     mt_kahypar::utils::Timer::instance().add_timing("compute_node_mapping", "Compute Node Mapping",
-                                                    "redistribution", mt_kahypar::utils::Timer::Type::PREPROCESSING, 1, std::chrono::duration<double>(end - start).count());
+                                                    "redistribution", mt_kahypar::utils::Timer::Type::PREPROCESSING,
+                                                    std::chrono::duration<double>(end - start).count());
 
     // Compute Hyperedge Mapping
     start = std::chrono::high_resolution_clock::now();
@@ -100,14 +101,16 @@ class CommunityRedistributorT {
     TBB::instance().wait();
     end = std::chrono::high_resolution_clock::now();
     mt_kahypar::utils::Timer::instance().add_timing("compute_hyperedge_mapping", "Compute Hyperedge Mapping",
-                                                    "redistribution", mt_kahypar::utils::Timer::Type::PREPROCESSING, 2, std::chrono::duration<double>(end - start).count());
+                                                    "redistribution", mt_kahypar::utils::Timer::Type::PREPROCESSING,
+                                                    std::chrono::duration<double>(end - start).count());
 
     // Reset Pins to original node ids
     start = std::chrono::high_resolution_clock::now();
     hg.resetPinsToOriginalNodeIds();
     end = std::chrono::high_resolution_clock::now();
     mt_kahypar::utils::Timer::instance().add_timing("reset_pins_to_original_ids", "Reset Pins to original IDs",
-                                                    "redistribution", mt_kahypar::utils::Timer::Type::PREPROCESSING, 3, std::chrono::duration<double>(end - start).count());
+                                                    "redistribution", mt_kahypar::utils::Timer::Type::PREPROCESSING,
+                                                    std::chrono::duration<double>(end - start).count());
 
     start = std::chrono::high_resolution_clock::now();
     // Initialize Streaming Hypergraphs
@@ -152,7 +155,8 @@ class CommunityRedistributorT {
     TBB::instance().wait();
     end = std::chrono::high_resolution_clock::now();
     mt_kahypar::utils::Timer::instance().add_timing("stream_hyperedges", "Stream Hyperedges",
-                                                    "redistribution", mt_kahypar::utils::Timer::Type::PREPROCESSING, 4, std::chrono::duration<double>(end - start).count());
+                                                    "redistribution", mt_kahypar::utils::Timer::Type::PREPROCESSING,
+                                                    std::chrono::duration<double>(end - start).count());
 
     // Initialize hypergraph
     start = std::chrono::high_resolution_clock::now();
@@ -162,7 +166,8 @@ class CommunityRedistributorT {
     ASSERT(hypergraph.initialNumPins() == hg.initialNumPins());
     end = std::chrono::high_resolution_clock::now();
     mt_kahypar::utils::Timer::instance().add_timing("initialize hypergraph", "Initialize Hypergraph",
-                                                    "redistribution", mt_kahypar::utils::Timer::Type::PREPROCESSING, 5, std::chrono::duration<double>(end - start).count());
+                                                    "redistribution", mt_kahypar::utils::Timer::Type::PREPROCESSING,
+                                                    std::chrono::duration<double>(end - start).count());
 
     // Initialize Communities
     start = std::chrono::high_resolution_clock::now();
@@ -177,7 +182,8 @@ class CommunityRedistributorT {
     hypergraph.initializeCommunities();
     end = std::chrono::high_resolution_clock::now();
     mt_kahypar::utils::Timer::instance().add_timing("initialize_communities", "Initialize Communities",
-                                                    "redistribution", mt_kahypar::utils::Timer::Type::PREPROCESSING, 6, std::chrono::duration<double>(end - start).count());
+                                                    "redistribution", mt_kahypar::utils::Timer::Type::PREPROCESSING,
+                                                    std::chrono::duration<double>(end - start).count());
 
     HEAVY_PREPROCESSING_ASSERT([&] {
           for (const HypernodeID& hn : hypergraph.nodes()) {

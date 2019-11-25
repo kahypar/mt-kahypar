@@ -133,7 +133,7 @@ class Timer {
   }
 
   void add_timing(const std::string& name, const std::string& description,
-                  const std::string& parent, const Type& type, const int order,
+                  const std::string& parent, const Type& type,
                   const double timing, bool write_initial_partitioning = false) {
     std::lock_guard<std::mutex> lock(_timing_mutex);
     if (_type == kahypar::ContextType::main || write_initial_partitioning) {
@@ -142,14 +142,14 @@ class Timer {
         _timings.emplace(
           std::piecewise_construct,
           std::forward_as_tuple(key),
-          std::forward_as_tuple(name, description, parent, type, order));
+          std::forward_as_tuple(name, description, parent, type, _index++));
         _timings.at(key).add_timing(timing);
       }
     }
   }
 
   void update_timing(const std::string& name, const std::string& description,
-                     const std::string& parent, const Type& type, const int order,
+                     const std::string& parent, const Type& type,
                      const double timing, bool write_initial_partitioning = false) {
     std::lock_guard<std::mutex> lock(_timing_mutex);
     if (_type == kahypar::ContextType::main || write_initial_partitioning) {
@@ -158,7 +158,7 @@ class Timer {
         _timings.emplace(
           std::piecewise_construct,
           std::forward_as_tuple(key),
-          std::forward_as_tuple(name, description, parent, type, order));
+          std::forward_as_tuple(name, description, parent, type, _index++));
       }
       _timings.at(key).add_timing(timing);
     }
@@ -179,11 +179,13 @@ class Timer {
   explicit Timer() :
     _timing_mutex(),
     _timings(),
+    _index(0),
     _type(kahypar::ContextType::main),
     _show_detailed_timings(false) { }
 
   std::mutex _timing_mutex;
   std::unordered_map<Key, Timing, PairHasher> _timings;
+  std::atomic<int> _index;
   kahypar::ContextType _type;
   bool _show_detailed_timings;
 };
