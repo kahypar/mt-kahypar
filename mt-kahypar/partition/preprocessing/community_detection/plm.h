@@ -58,8 +58,8 @@ class PLM {
     ets_incidentClusterWeights(numNodes, 0) { }
 
   bool localMoving(Graph& G, ds::Clustering& C) {
-    reciprocalTotalVolume = 1.0 / G.totalVolume;
-    totalVolume = G.totalVolume;
+    reciprocalTotalVolume = 1.0 / G.totalVolume();
+    totalVolume = G.totalVolume();
     volMultiplierDivByNodeVol = reciprocalTotalVolume;          // * resolutionGamma;
 
     ArcWeight maxAllowedClusterVolume = totalVolume;
@@ -219,10 +219,10 @@ class PLM {
                 return std::abs(diff) < eps;
               };
 
-    long double dTotalVolumeSquared = static_cast<long double>(G.totalVolume) * static_cast<long double>(G.totalVolume);
+    long double dTotalVolumeSquared = static_cast<long double>(G.totalVolume()) * static_cast<long double>(G.totalVolume());
 
     auto accBeforeMove = intraClusterWeights_And_SumOfSquaredClusterVolumes(G, C);
-    long double coverageBeforeMove = static_cast<long double>(accBeforeMove.first) / G.totalVolume;
+    long double coverageBeforeMove = static_cast<long double>(accBeforeMove.first) / G.totalVolume();
     long double expectedCoverageBeforeMove = accBeforeMove.second / dTotalVolumeSquared;
     long double modBeforeMove = coverageBeforeMove - expectedCoverageBeforeMove;
 
@@ -232,7 +232,7 @@ class PLM {
     clusterVolumes[from] -= G.nodeVolume(u);
 
     auto accAfterMove = intraClusterWeights_And_SumOfSquaredClusterVolumes(G, C);
-    long double coverageAfterMove = static_cast<long double>(accAfterMove.first) / G.totalVolume;
+    long double coverageAfterMove = static_cast<long double>(accAfterMove.first) / G.totalVolume();
     long double expectedCoverageAfterMove = accAfterMove.second / dTotalVolumeSquared;
     long double modAfterMove = coverageAfterMove - expectedCoverageAfterMove;
 
@@ -285,8 +285,8 @@ class PLM {
   }
 
   long double doubleMod(const Graph& G, std::pair<int64_t, int64_t>& icwAndSoscv) {
-    long double coverage = static_cast<long double>(icwAndSoscv.first) / static_cast<long double>(G.totalVolume);
-    long double expectedCoverage = static_cast<long double>(icwAndSoscv.second) / (static_cast<long double>(G.totalVolume) * static_cast<long double>(G.totalVolume));
+    long double coverage = static_cast<long double>(icwAndSoscv.first) / static_cast<long double>(G.totalVolume());
+    long double expectedCoverage = static_cast<long double>(icwAndSoscv.second) / (static_cast<long double>(G.totalVolume()) * static_cast<long double>(G.totalVolume()));
     return coverage - expectedCoverage;
   }
 

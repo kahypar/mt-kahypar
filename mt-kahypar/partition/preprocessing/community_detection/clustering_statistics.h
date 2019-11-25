@@ -68,7 +68,7 @@ class ClusteringStatistics {
     std::vector<double> percentiles = { 0.0, 0.05, 0.2, 0.5, 0.8, 0.95, 1.0 };
 
     DBG << "Local Moving Done";
-    DBG << V(G.numNodes()) << V(G.numArcs) << V(numClusters);
+    DBG << V(G.numNodes()) << V(G.numArcs()) << V(numClusters);
     DBG << "Avg Cluster Size " << avg(clusterSizes);
     std::stringstream ss;
     ss << "Percentile cluster sizes : ";
