@@ -77,7 +77,7 @@ class Clustering : public std::vector<PartitionID> {
   PartitionID parallelCompactify(PartitionID upperIDBound, size_t numTasks) {
     // TODO implement RoutingKit style rank bitvector and parallelize
 
-#ifndef NDEBUG
+#ifdef KAHYPAR_ENABLE_HEAVY_PREPROCESSING_ASSERTIONS
     Clustering seq = *this;
     PartitionID numClustersFromSeq = seq.sequentialCompactify(upperIDBound);
 #endif
@@ -95,7 +95,7 @@ class Clustering : public std::vector<PartitionID> {
           c = mapping[c];
         });
 
-#ifndef NDEBUG
+#ifdef KAHYPAR_ENABLE_HEAVY_PREPROCESSING_ASSERTIONS
     assert(numClustersFromSeq == mapping.back());
     for (size_t i = 0; i < size(); ++i)
       assert((*this)[i] == seq[i]);

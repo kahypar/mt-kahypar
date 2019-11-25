@@ -62,7 +62,7 @@ class ParallelModularityLouvain {
                                                          std::chrono::duration<double>(end - start).count());
 
 
-#ifndef NDEBUG
+#ifdef KAHYPAR_ENABLE_HEAVY_PREPROCESSING_ASSERTIONS
       ds::Clustering coarseGraphSingletons(GCoarse.numNodes());
       coarseGraphSingletons.assignSingleton();
       // assert(PLM::doubleMod(GFine, PLM::intraClusterWeights_And_SumOfSquaredClusterVolumes(GFine, C)) == PLM::integerModularityFromScratch(GCoarse, coarseGraphSingletons));

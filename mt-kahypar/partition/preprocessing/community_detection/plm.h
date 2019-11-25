@@ -161,7 +161,7 @@ class PLM {
 
       start = std::chrono::high_resolution_clock::now();
 
-#ifndef NDEBUG
+#ifdef KAHYPAR_ENABLE_HEAVY_PREPROCESSING_ASSERTIONS
       std::for_each(nodes.begin(), nodes.end(), moveNode);
 #else
       tbb::parallel_for_each(nodes, moveNode);
@@ -170,15 +170,17 @@ class PLM {
       nodesMovedThisRound = ets_nodesMovedThisRound.combine(std::plus<size_t>());
       clusteringChanged |= nodesMovedThisRound > 0;
 
-      std::stringstream os;
-      os << "thread local runtime : ";
-      for (auto& t : ts_runtime)
-        os << t.seconds() << " ";
-      os << std::endl << "thread local degree sum: ";
-      for (auto& d : ts_deg)
-        os << d << " ";
-
-      DBG << os.str();
+      if ( debug ) {
+        std::stringstream os;
+        os << "Thread Local Runtime : ";
+        for (auto& t : ts_runtime) {
+          os << t.seconds() << " ";
+        }
+        os << std::endl << "Thread Local Degree Sum: ";
+        for (auto& d : ts_deg)
+          os << d << " ";
+        DBG << os.str();
+      }
 
       end = std::chrono::high_resolution_clock::now();
       mt_kahypar::utils::Timer::instance().update_timing("local_moving_round", "Local Moving Round",
@@ -192,7 +194,7 @@ class PLM {
 
   bool verifyGain(const Graph& G, ds::Clustering& C, const NodeID u, const PartitionID to, double gain, const IncidentClusterWeights& icw) {
     (void)icw;
-#ifndef NDEBUG
+#ifdef KAHYPAR_ENABLE_HEAVY_PREPROCESSING_ASSERTIONS
     const PartitionID from = C[u];
 
     // long double adjustedGain = adjustBasicModGain(gain);
@@ -235,15 +237,10 @@ class PLM {
     long double modAfterMove = coverageAfterMove - expectedCoverageAfterMove;
 
     bool comp = eq(modBeforeMove + adjustedGain, modAfterMove);
-    if (!comp) {
-      LOG << V(modBeforeMove + adjustedGain) << V(modAfterMove);
-      LOG << V(gain) << V(adjustedGain);
-      LOG << V(coverageBeforeMove) << V(expectedCoverageBeforeMove) << V(modBeforeMove);
-      LOG << V(coverageAfterMove) << V(expectedCoverageAfterMove) << V(modAfterMove);
-      LOG << "---------------------------";
-    }
-
-    ASSERT(comp);
+    ASSERT(comp,
+           V(modBeforeMove + adjustedGain) << V(modAfterMove) << V(gain) << V(adjustedGain)
+           << V(coverageBeforeMove) << V(expectedCoverageBeforeMove) << V(modBeforeMove)
+           << V(coverageAfterMove) << V(expectedCoverageAfterMove) << V(modAfterMove));
 
     // revert move
     C[u] = from;
