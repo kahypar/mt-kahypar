@@ -22,7 +22,8 @@
 
 #include <tbb/enumerable_thread_specific.h>
 
-#include "mt-kahypar/datastructures/clearlist.h"
+#include "kahypar/datastructure/sparse_map.h"
+
 #include "mt-kahypar/datastructures/clustering.h"
 #include "mt-kahypar/datastructures/graph.h"
 #include "mt-kahypar/parallel/parallel_counting_sort.h"
@@ -34,7 +35,7 @@ class ParallelClusteringContractionAdjList {
 
  public:
   using ArcWeight = ds::AdjListGraph::ArcWeight;
-  using IncidentClusterWeights = ds::ClearListMap<PartitionID, ArcWeight>;
+  using IncidentClusterWeights = kahypar::ds::SparseMap<PartitionID, ArcWeight>;
 
   static ds::AdjListGraph contract(const ds::AdjListGraph& GFine, ds::Clustering& C, size_t numTasks) {
     auto t_compactify = tbb::tick_count::now();
@@ -74,14 +75,15 @@ class ParallelClusteringContractionAdjList {
           }
           coarseNodeVolume += GFine.nodeVolume(fineNode);
         }
-        for (PartitionID coarseNeighbor : incidentClusterWeights.keys())
-          if (static_cast<NodeID>(coarseNeighbor) != coarseNode)
-            GCoarse.addHalfEdge(coarseNode, static_cast<NodeID>(coarseNeighbor), incidentClusterWeights[coarseNeighbor]);
-
+        for (auto& coarseNeighbor : incidentClusterWeights) {
+          PartitionID communityID = coarseNeighbor.key;
+          if (static_cast<NodeID>(communityID) != coarseNode)
+            GCoarse.addHalfEdge(coarseNode, static_cast<NodeID>(communityID), incidentClusterWeights[communityID]);
+        }
         GCoarse.setNodeVolume(coarseNode, coarseNodeVolume);
 
         size_t& nArcs = ets_nArcs.local();
-        nArcs += incidentClusterWeights.keys().size();
+        nArcs += incidentClusterWeights.size();
         if (incidentClusterWeights.contains(static_cast<PartitionID>(coarseNode)))
           nArcs -= 1;
 

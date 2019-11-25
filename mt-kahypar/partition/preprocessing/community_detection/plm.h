@@ -24,7 +24,8 @@
 
 #include <tbb/enumerable_thread_specific.h>
 
-#include "mt-kahypar/datastructures/clearlist.h"
+#include "kahypar/datastructure/sparse_map.h"
+
 #include "mt-kahypar/datastructures/clustering.h"
 #include "mt-kahypar/datastructures/graph.h"
 #include "mt-kahypar/definitions.h"
@@ -42,7 +43,7 @@ class PLM {
   using ArcWeight = ds::AdjListGraph::ArcWeight;
   using AtomicArcWeight = parallel::AtomicWrapper<ArcWeight>;
   using Arc = ds::AdjListGraph::Arc;
-  using IncidentClusterWeights = ds::ClearListMap<PartitionID, ArcWeight>;
+  using IncidentClusterWeights = kahypar::ds::SparseMap<PartitionID, ArcWeight>;
 
  public:
   static constexpr bool debug = false;
@@ -124,7 +125,8 @@ class PLM {
           // double bestGain = 0.0;												//basic gain adjustment
           double bestGain = weightFrom + volMultiplier * (volFrom - volU);                // advanced gain adjustment
 
-          for (PartitionID to : incidentClusterWeights.keys()) {
+          for (const auto& clusterWeight : incidentClusterWeights) {
+            PartitionID to = clusterWeight.key;
             if (from == to) // if from == to, we would have to remove volU from volTo as well. just skip it. it has (adjusted) gain zero.
               continue;
 
