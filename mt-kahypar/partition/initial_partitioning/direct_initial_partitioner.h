@@ -41,6 +41,7 @@ class DirectInitialPartitionerT : public IInitialPartitioner {
   using HwTopology = typename TypeTraits::HwTopology;
 
   static constexpr bool debug = false;
+  static constexpr bool kahypar_debug = false;
   static PartitionID kInvalidPartition;
   static HypernodeID kInvalidHypernode;
 
@@ -56,20 +57,24 @@ class DirectInitialPartitionerT : public IInitialPartitioner {
 
  private:
   void initialPartitionImpl() override final {
-    kahypar_context_t* context = setupContext(_context, debug);
+    kahypar_context_t* context = setupContext(_context, kahypar_debug);
 
     // Setup number of runs per thread
     std::vector<size_t> ip_runs;
-    if (_context.initial_partitioning.runs <= _context.shared_memory.num_threads) {
+    if (_context.initial_partitioning.runs <= _context.shared_memory.num_threads ||
+        _context.initial_partitioning.call_kahypar_multiple_times) {
+      // In case of call_kahypar_multiple_times is true, we make runs calls to KaHyPar
+      // and call the initial partitioner of KaHyPar only ONE time ...
       ip_runs.assign(_context.initial_partitioning.runs, 1);
     } else {
+      // otherwise, we call KaHyPar num_threads times and split the initial partitioning runs of
+      // KaHyPar evenly among the threads.
       size_t runs_per_thread = _context.initial_partitioning.runs / _context.shared_memory.num_threads;
       ip_runs.assign(_context.shared_memory.num_threads, runs_per_thread);
       for (size_t i = 0; i < _context.initial_partitioning.runs % _context.shared_memory.num_threads; ++i) {
         ++ip_runs[i];
       }
     }
-    ASSERT(ip_runs.size() <= _context.shared_memory.num_threads);
     ASSERT([&] {
         size_t runs = 0;
         for (const size_t& n : ip_runs) {
@@ -91,26 +96,42 @@ class DirectInitialPartitionerT : public IInitialPartitioner {
     // Split calls to initial partitioner evenly across numa nodes
     size_t num_ip_calls = ip_runs.size();
     std::vector<KaHyParPartitioningResult> results(num_ip_calls);
-    size_t used_numa_nodes = TBB::instance().num_used_numa_nodes();
-    size_t current_node = 0;
-    std::vector<int> used_threads(used_numa_nodes, 0);
-    for (size_t i = 0; i < num_ip_calls; ++i) {
-      while (used_threads[current_node] >= TBB::instance().number_of_threads_on_numa_node(current_node)) {
-        current_node = (current_node + 1) % used_numa_nodes;
-      }
+    KaHyParHypergraph kahypar_hypergraph = convertToKaHyParHypergraph(_hg, node_mapping);
 
-      TBB::instance().numa_task_arena(current_node).execute([&, i] {
-          TBB::instance().numa_task_group(current_node).run([&, i] {
+    size_t used_numa_nodes = TBB::instance().num_used_numa_nodes();
+    std::vector<int> numa_cpus_prefix_sum(used_numa_nodes + 1, 0);
+    for ( size_t i = 1; i <= used_numa_nodes; ++i ) {
+      numa_cpus_prefix_sum[i] = numa_cpus_prefix_sum[i - 1] +
+        TBB::instance().number_of_threads_on_numa_node(i - 1);
+    }
+    // Returns a numa node with probability of the number of active threads on that
+    // numa node divided by the total number of active threads
+    // => this ensures that the initial partitioning runs are evenly scattered across
+    //    the numa nodes
+    auto get_numa_node_for_execution = [&]() {
+      int numa_node = utils::Randomize::instance().getRandomInt(0,
+        numa_cpus_prefix_sum[used_numa_nodes - 1], sched_getcpu());
+      for ( size_t j = 0; j < used_numa_nodes; ++j ) {
+        if ( numa_cpus_prefix_sum[j] <= numa_node && numa_node < numa_cpus_prefix_sum[j + 1] ) {
+          numa_node = j;
+        }
+      }
+      ASSERT(numa_node < (int) used_numa_nodes);
+      return numa_node;
+    };
+
+    for (size_t i = 0; i < num_ip_calls; ++i) {
+      int numa_node = get_numa_node_for_execution();
+      TBB::instance().numa_task_arena(numa_node).execute([&, i] {
+          TBB::instance().numa_task_group(numa_node).run([&, i] {
             size_t seed = _context.partition.seed + i * _context.initial_partitioning.runs;
-            results[i] = partitionWithKaHyPar(context, node_mapping, ip_runs[i], seed);
+            results[i] = partitionWithKaHyPar(kahypar_hypergraph, context, ip_runs[i], seed);
           });
         });
-
-      ++used_threads[current_node];
-      current_node = (current_node + 1) % used_numa_nodes;
     }
     TBB::instance().wait();
 
+    // Select best partition
     KaHyParPartitioningResult best;
     best.objective = std::numeric_limits<kahypar_hyperedge_weight_t>::max();
     for (size_t i = 0; i < num_ip_calls; ++i) {
@@ -142,56 +163,33 @@ class DirectInitialPartitionerT : public IInitialPartitioner {
   }
 
  private:
-  KaHyParPartitioningResult partitionWithKaHyPar(kahypar_context_t* context,
-                                                 const std::vector<HypernodeID>& node_mapping,
+  KaHyParPartitioningResult partitionWithKaHyPar(KaHyParHypergraph& kahypar_hypergraph,
+                                                 kahypar_context_t* context,
                                                  const size_t runs,
                                                  const size_t seed) {
     DBG << "Start initial partitioning with" << runs << "initial partitioning runs"
         << "on numa node" << HwTopology::instance().numa_node_of_cpu(sched_getcpu())
         << "on cpu" << sched_getcpu();
 
-    KaHyParHypergraph kahypar_hypergraph = convertToKaHyParHypergraph(_hg, node_mapping);
-    KaHyParPartitioningResult best(kahypar_hypergraph.num_vertices);
-    best.objective = std::numeric_limits<kahypar_hyperedge_weight_t>::max();
-    if (_context.initial_partitioning.call_kahypar_multiple_times) {
-      // We call KaHyPar exactly runs times with one call to the initial partitioner of KaHyPar
-      for (size_t i = 0; i < runs; ++i) {
-        // Setup initial partitioning runs
-        kahypar::Context initial_partitioning_context(*reinterpret_cast<kahypar::Context*>(context));
-        initial_partitioning_context.initial_partitioning.nruns = 1;
-        initial_partitioning_context.partition.seed = seed + i;
+    KaHyParPartitioningResult result(kahypar_hypergraph.num_vertices);
+    result.objective = std::numeric_limits<kahypar_hyperedge_weight_t>::max();
 
-        // Call KaHyPar
-        KaHyParPartitioningResult result(kahypar_hypergraph.num_vertices);
-        kahypar_partition(kahypar_hypergraph, initial_partitioning_context, result);
-        result.imbalance = imbalance(kahypar_hypergraph, _context, result);
+    // We call KaHyPar exactly one time with runs calls to the initial partitioner of KaHyPar
+    // Setup initial partitioning runs
+    kahypar::Context initial_partitioning_context(*reinterpret_cast<kahypar::Context*>(context));
+    initial_partitioning_context.initial_partitioning.nruns = runs;
+    initial_partitioning_context.partition.seed = seed;
 
-        bool improved_metric_within_balance = (result.imbalance <= _context.partition.epsilon) &&
-                                              (result.objective < best.objective);
-        bool improved_balance_with_less_equal_metric = (result.imbalance < best.imbalance) &&
-                                                       (result.objective <= best.objective);
-        if (improved_metric_within_balance || improved_balance_with_less_equal_metric) {
-          best = std::move(result);
-        }
-      }
-    } else {
-      // We call KaHyPar exactly one time with runs calls to the initial partitioner of KaHyPar
-      // Setup initial partitioning runs
-      kahypar::Context initial_partitioning_context(*reinterpret_cast<kahypar::Context*>(context));
-      initial_partitioning_context.initial_partitioning.nruns = runs;
-      initial_partitioning_context.partition.seed = seed;
-
-      // Call KaHyPar
-      kahypar_partition(kahypar_hypergraph, initial_partitioning_context, best);
-      best.imbalance = imbalance(kahypar_hypergraph, _context, best);
-    }
+    // Call KaHyPar
+    kahypar_partition(kahypar_hypergraph, initial_partitioning_context, result);
+    result.imbalance = imbalance(kahypar_hypergraph, _context, result);
 
     DBG << "Finished initial partitioning"
         << "on numa node" << HwTopology::instance().numa_node_of_cpu(sched_getcpu())
         << "on cpu" << sched_getcpu()
-        << "with quality" << best.objective
-        << "and imbalance" << best.imbalance;
-    return best;
+        << "with quality" << result.objective
+        << "and imbalance" << result.imbalance;
+    return result;
   }
 
   HyperGraph& _hg;
