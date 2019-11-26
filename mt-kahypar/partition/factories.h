@@ -55,7 +55,8 @@ using CommunityCoarsenerDispatcher = kahypar::meta::StaticMultiDispatchFactory<C
                                                                                ICoarsener,
                                                                                kahypar::meta::Typelist<RatingScorePolicies,
                                                                                                        HeavyNodePenaltyPolicies,
-                                                                                                       AcceptancePolicies> >;
+                                                                                                       AcceptancePolicies,
+                                                                                                       ObjectivePolicyClasses> >;
 
 using InitialPartitionerFactory = kahypar::meta::Factory<InitialPartitioningMode,
                                                          IInitialPartitioner* (*)(Hypergraph&, const Context&, const bool)>;

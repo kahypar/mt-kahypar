@@ -379,7 +379,7 @@ class Hypergraph {
     _num_communities = other._num_communities;
     _k = other._k;
     _communities_num_hypernodes = std::move(other._communities_num_hypernodes);
-    _communities_num_pins = std::move(other._communities_num_hypernodes);
+    _communities_num_pins = std::move(other._communities_num_pins);
     _community_degree = std::move(other._community_degree);
     _part_info = std::move(other._part_info);
     _local_part_info = ThreadLocalPartInfos([&] {
@@ -1372,14 +1372,14 @@ class Hypergraph {
     // Compute number of communities
     HighResClockTimepoint start = std::chrono::high_resolution_clock::now();
     _num_communities = tbb::parallel_reduce(tbb::blocked_range<HypernodeID>(0UL, _num_hypernodes), 0,
-                                            [this](const tbb::blocked_range<HypernodeID>& range, PartitionID init) {
+        [this](const tbb::blocked_range<HypernodeID>& range, PartitionID init) {
           PartitionID num_communities = init;
           for (HypernodeID hn = range.begin(); hn < range.end(); ++hn) {
             num_communities = std::max(num_communities, communityID(globalNodeID(hn)) + 1);
           }
           return num_communities;
         },
-                                            [](const PartitionID lhs, const PartitionID rhs) {
+        [](const PartitionID lhs, const PartitionID rhs) {
           return std::max(lhs, rhs);
         });
     HighResClockTimepoint end = std::chrono::high_resolution_clock::now();

@@ -44,5 +44,7 @@ REGISTER_DISPATCHED_COARSENER(CoarseningAlgorithm::community_coarsener,
                               kahypar::meta::PolicyRegistry<HeavyNodePenaltyPolicy>::getInstance().getPolicy(
                                 context.coarsening.rating.heavy_node_penalty_policy),
                               kahypar::meta::PolicyRegistry<AcceptancePolicy>::getInstance().getPolicy(
-                                context.coarsening.rating.acceptance_policy));
+                                context.coarsening.rating.acceptance_policy),
+                              kahypar::meta::PolicyRegistry<CommunityAssignmentObjective>::getInstance().getPolicy(
+                                context.preprocessing.community_redistribution.assignment_objective));
 }  // namespace mt_kahypar

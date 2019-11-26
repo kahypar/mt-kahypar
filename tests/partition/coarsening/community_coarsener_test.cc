@@ -27,7 +27,8 @@ using ::testing::Test;
 
 namespace mt_kahypar {
 using Coarsener = CommunityCoarsenerT<ds::TestTypeTraits<2>, HeavyEdgeScore,
-                                      NoWeightPenalty, BestRatingPreferringUnmatched>;
+                                      NoWeightPenalty, BestRatingPreferringUnmatched,
+                                      PinObjectivePolicy>;
 
 TEST_F(ACommunityCoarsener, DecreasesNumberOfPins) {
   Coarsener coarsener(hypergraph, context);
