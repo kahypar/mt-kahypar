@@ -73,38 +73,26 @@ class CommunityCoarsenerBase {
  protected:
   void init() {
     // Initialize community hyperedges such that parallel contractions in each community are possible
-    HighResClockTimepoint start = std::chrono::high_resolution_clock::now();
+    utils::Timer::instance().start_timer("initialize_community_hyperedges", "Initialize Community Hyperedges");
     _hg.initializeCommunityHyperedges();
     _init = true;
-    HighResClockTimepoint end = std::chrono::high_resolution_clock::now();
-    mt_kahypar::utils::Timer::instance().add_timing("initialize_community_hyperedges", "Initialize Community Hyperedges",
-                                                    "coarsening", mt_kahypar::utils::Timer::Type::COARSENING,
-                                                    std::chrono::duration<double>(end - start).count());
+    utils::Timer::instance().stop_timer("initialize_community_hyperedges");
   }
 
   void finalize() {
     // Merge Coarsening Mementos
-    HighResClockTimepoint start = std::chrono::high_resolution_clock::now();
+    utils::Timer::instance().start_timer("merge_contractions", "Merge Contractions");
     mergeCommunityContractions();
-    HighResClockTimepoint end = std::chrono::high_resolution_clock::now();
-    mt_kahypar::utils::Timer::instance().add_timing("merge_contractions", "Merge Contractions",
-                                                    "coarsening", mt_kahypar::utils::Timer::Type::COARSENING,
-                                                    std::chrono::duration<double>(end - start).count());
+    utils::Timer::instance().stop_timer("merge_contractions");
 
     // Reset community hyperedges
-    start = std::chrono::high_resolution_clock::now();
+    utils::Timer::instance().start_timer("reset_community_hyperedges", "Reset Community Hyperedges");
     _hg.removeCommunityHyperedges(_history);
-    end = std::chrono::high_resolution_clock::now();
-    mt_kahypar::utils::Timer::instance().add_timing("reset_community_hyperedges", "Reset Community Hyperedges",
-                                                    "coarsening", mt_kahypar::utils::Timer::Type::COARSENING,
-                                                    std::chrono::duration<double>(end - start).count());
+    utils::Timer::instance().stop_timer("reset_community_hyperedges");
 
-    start = std::chrono::high_resolution_clock::now();
+    utils::Timer::instance().start_timer("postprocess_parallel_hyperedges", "Postprocess Parallel Hyperedges");
     postprocessParallelHyperedges();
-    end = std::chrono::high_resolution_clock::now();
-    mt_kahypar::utils::Timer::instance().add_timing("postprocess_parallel_hyperedges", "Postprocess Parallel Hyperedges",
-                                                    "coarsening", mt_kahypar::utils::Timer::Type::COARSENING,
-                                                    std::chrono::duration<double>(end - start).count());
+    utils::Timer::instance().stop_timer("postprocess_parallel_hyperedges");
 
     _init = false;
   }
@@ -131,7 +119,7 @@ class CommunityCoarsenerBase {
 
     std::vector<HypernodeID> refinement_nodes;
     while (!_history.empty()) {
-      HighResClockTimepoint start = std::chrono::high_resolution_clock::now();
+      utils::Timer::instance().start_timer("uncontraction", "Uncontraction");
       PartitionID community_id = _hg.communityID(_history.back().u);
       DBG << "Uncontracting: (" << _history.back().u << "," << _history.back().v << ")" << V(_history.size());
       _pruner[community_id].restoreParallelHyperedges(_hg, _history.back());
@@ -143,22 +131,16 @@ class CommunityCoarsenerBase {
       refinement_nodes.push_back(_history.back().u);
       refinement_nodes.push_back(_history.back().v);
       _hg.updateGlobalPartInfos();
-      HighResClockTimepoint end = std::chrono::high_resolution_clock::now();
-      mt_kahypar::utils::Timer::instance().update_timing("uncontraction", "Uncontraction",
-                                                         "refinement", mt_kahypar::utils::Timer::Type::REFINEMENT,
-                                                         std::chrono::duration<double>(end - start).count());
+      utils::Timer::instance().stop_timer("uncontraction");
 
       // Call label propagation refiner
-      start = std::chrono::high_resolution_clock::now();
+      utils::Timer::instance().start_timer("label_propagation", "Label Propagation");
       if (label_propagation) {
         // NOTE, label propagation refiner relies on the assumption, that it is called after
         // each uncontraction. Do not move the refiner call out of this loop.
         label_propagation->refine(refinement_nodes, current_metrics);
       }
-      end = std::chrono::high_resolution_clock::now();
-      mt_kahypar::utils::Timer::instance().update_timing("label_propagation", "Label Propagation",
-                                                         "refinement", mt_kahypar::utils::Timer::Type::REFINEMENT,
-                                                         std::chrono::duration<double>(end - start).count());
+      utils::Timer::instance().stop_timer("label_propagation");
 
       refinement_nodes.clear();
       _history.pop_back();
@@ -240,7 +222,7 @@ class CommunityCoarsenerBase {
     // of its childs. All hyperedges except the roots are disabled.
 
     // Determine the in degree of all tree nodes
-    HighResClockTimepoint start = std::chrono::high_resolution_clock::now();
+    utils::Timer::instance().start_timer("determine_he_weights", "Determine HE weights");
     std::vector<HyperedgeID> in_degree(_hg.initialNumEdges(), 0);
     for (HyperedgeID he = 0; he < _hg.initialNumEdges(); ++he) {
       HyperedgeID representative = _parallel_he_representative[he];
@@ -298,18 +280,11 @@ class CommunityCoarsenerBase {
         _hg.disableHyperedge(he);
       }
     }
-    utils::Stats::instance().add_stat("num_removed_parallel_hes", num_removed_parallel_hyperedges);
-    HighResClockTimepoint end = std::chrono::high_resolution_clock::now();
-    mt_kahypar::utils::Timer::instance().add_timing("determine_he_weights", "Determine HE weights",
-                                                    "postprocess_parallel_hyperedges", mt_kahypar::utils::Timer::Type::COARSENING,
-                                                    std::chrono::duration<double>(end - start).count());
+    utils::Timer::instance().stop_timer("determine_he_weights");
 
-    start = std::chrono::high_resolution_clock::now();
+    utils::Timer::instance().start_timer("remove_disabled_hyperedges_from_incident_nets", "Remove Disabled HE from HNs");
     _hg.invalidateDisabledHyperedgesFromIncidentNets();
-    end = std::chrono::high_resolution_clock::now();
-    mt_kahypar::utils::Timer::instance().add_timing("remove_disabled_hyperedges_from_incident_nets", "Remove Disabled HE from HNs",
-                                                    "postprocess_parallel_hyperedges", mt_kahypar::utils::Timer::Type::COARSENING,
-                                                    std::chrono::duration<double>(end - start).count());
+    utils::Timer::instance().stop_timer("remove_disabled_hyperedges_from_incident_nets");
   }
 
  protected:

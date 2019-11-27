@@ -20,9 +20,13 @@
 #pragma once
 
 #include <functional>
+#include <atomic>
 #include <mutex>
 #include <string>
 #include <unordered_map>
+#include <chrono>
+
+#include <tbb/enumerable_thread_specific.h>
 
 #include "mt-kahypar/macros.h"
 
@@ -31,6 +35,8 @@ namespace utils {
 class Timer {
   static constexpr bool debug = false;
 
+  using HighResClockTimepoint = std::chrono::time_point<std::chrono::high_resolution_clock>;
+
  public:
   static constexpr int MAX_LINE_LENGTH = 40;
   static char TOP_LEVEL_PREFIX[];
@@ -38,40 +44,71 @@ class Timer {
   static char SUB_LEVEL_PREFIX[];
   static constexpr size_t SUB_LEVEL_PREFIX_LENGTH = 3;
 
-  enum class Type : uint8_t {
-    IMPORT = 0,
-    PREPROCESSING = 1,
-    COARSENING = 2,
-    INITIAL_PARTITIONING = 3,
-    REFINEMENT = 4
+ private:
+
+  struct Key {
+    std::string parent;
+    std::string key;
   };
 
- private:
-  using Key = std::pair<std::string, std::string>;
-
-  struct PairHasher {
-    template <class T1, class T2>
-    std::size_t operator() (const std::pair<T1, T2>& pair) const {
-      return std::hash<T1>()(pair.first) ^ std::hash<T2>()(pair.second);
+  struct KeyHasher {
+    std::size_t operator() (const Key& key) const {
+      return std::hash<std::string>()(key.parent) ^ std::hash<std::string>()(key.key);
     }
+  };
+
+  struct KeyEqual {
+    bool operator()(const Key& lhs, const Key& rhs) const {
+      return lhs.parent == rhs.parent && lhs.key == rhs.key;
+    }
+  };
+
+  class ActiveTiming {
+   public:
+    ActiveTiming() :
+      _key(""),
+      _description(""),
+      _start() { }
+
+    ActiveTiming(const std::string& key,
+                 const std::string& description,
+                 const HighResClockTimepoint& start) :
+      _key(key),
+      _description(description),
+      _start(start) { }
+
+    std::string key() const {
+      return _key;
+    }
+
+    std::string description() const {
+      return _description;
+    }
+
+    HighResClockTimepoint start() const {
+      return _start;
+    }
+
+   private:
+    std::string _key;
+    std::string _description;
+    HighResClockTimepoint _start;
   };
 
   class Timing {
    public:
-    Timing(const std::string& name,
+    Timing(const std::string& key,
            const std::string& description,
            const std::string& parent,
-           const Type& type,
            const int order) :
-      _name(name),
+      _key(key),
       _description(description),
       _parent(parent),
-      _type(type),
       _order(order),
       _timing(0.0) { }
 
-    std::string name() const {
-      return _name;
+    std::string key() const {
+      return _key;
     }
 
     std::string description() const {
@@ -80,10 +117,6 @@ class Timer {
 
     std::string parent() const {
       return _parent;
-    }
-
-    Type type() const {
-      return _type;
     }
 
     int order() const {
@@ -98,22 +131,20 @@ class Timer {
       return _timing;
     }
 
-    void set_timing(const double timing) {
-      _timing = timing;
-    }
-
     void add_timing(const double timing) {
       _timing += timing;
     }
 
    private:
-    std::string _name;
+    std::string _key;
     std::string _description;
     std::string _parent;
-    Type _type;
     int _order;
     double _timing;
   };
+
+  using ActiveTimingStack = std::vector<ActiveTiming>;
+  using LocalActiveTimingStack = tbb::enumerable_thread_specific<ActiveTimingStack>;
 
  public:
   Timer(const Timer&) = delete;
@@ -128,48 +159,110 @@ class Timer {
     return instance;
   }
 
-  void set_context_type(kahypar::ContextType type) {
-    _type = type;
+  void enable() {
+    std::lock_guard<std::mutex> lock(_timing_mutex);
+    _enable = true;
   }
 
-  void add_timing(const std::string& name, const std::string& description,
-                  const std::string& parent, const Type& type,
-                  const double timing, bool write_initial_partitioning = false) {
+  void disable() {
     std::lock_guard<std::mutex> lock(_timing_mutex);
-    if (_type == kahypar::ContextType::main || write_initial_partitioning) {
-      Key key = std::make_pair(parent, name);
-      if (_timings.find(key) == _timings.end()) {
-        _timings.emplace(
-          std::piecewise_construct,
-          std::forward_as_tuple(key),
-          std::forward_as_tuple(name, description, parent, type, _index++));
-        _timings.at(key).add_timing(timing);
+    _enable = false;
+  }
+
+  void start_timer(const std::string& key,
+                   const std::string& description,
+                   bool is_parallel_context = false,
+                   bool force = false) {
+    std::lock_guard<std::mutex> lock(_timing_mutex);
+    if ( _enable || force ) {
+      if (force || is_parallel_context) {
+        _local_active_timings.local().emplace_back(key, description, std::chrono::high_resolution_clock::now());
+      } else {
+        _active_timings.emplace_back(key, description, std::chrono::high_resolution_clock::now());
       }
     }
   }
 
-  void update_timing(const std::string& name, const std::string& description,
-                     const std::string& parent, const Type& type,
-                     const double timing, bool write_initial_partitioning = false) {
+  void stop_timer(const std::string& key, bool force = false) {
+    unused(key);
+    HighResClockTimepoint end = std::chrono::high_resolution_clock::now();
     std::lock_guard<std::mutex> lock(_timing_mutex);
-    if (_type == kahypar::ContextType::main || write_initial_partitioning) {
-      Key key = std::make_pair(parent, name);
-      if (_timings.find(key) == _timings.end()) {
-        _timings.emplace(
-          std::piecewise_construct,
-          std::forward_as_tuple(key),
-          std::forward_as_tuple(name, description, parent, type, _index++));
+
+    if ( _enable || force ) {
+      ASSERT(!force || !_local_active_timings.local().empty());
+      ActiveTiming current_timing;
+      // First check if there are some active timings on the local stack
+      // (in that case we are in a parallel context) and if there are
+      // no active timings we pop from global stack
+      if ( !_local_active_timings.local().empty() ) {
+        ASSERT(_local_active_timings.local().back().key() == key);
+        current_timing = _local_active_timings.local().back();
+        _local_active_timings.local().pop_back();
+      } else {
+        ASSERT(!_active_timings.empty());
+        ASSERT(_active_timings.back().key() == key);
+        current_timing = _active_timings.back();
+        _active_timings.pop_back();
       }
-      _timings.at(key).add_timing(timing);
+
+      // Parent is either the last element on the local stack and
+      // if there are no timings on the local stack the parent is
+      // on the global stack. If there are no elements on the global
+      // stack the timing represents a root.
+      std::string parent = "";
+      if ( !_local_active_timings.local().empty() ) {
+        parent = _local_active_timings.local().back().key();
+      } else if ( !_active_timings.empty() ) {
+        parent = _active_timings.back().key();
+      }
+
+      Key timing_key { parent, current_timing.key() };
+      if ( _timings.find(timing_key) == _timings.end() ) {
+          _timings.emplace(
+            std::piecewise_construct,
+            std::forward_as_tuple(timing_key),
+            std::forward_as_tuple(current_timing.key(),
+              current_timing.description(), parent, _index++));
+      }
+      double time =  std::chrono::duration<double>(end - current_timing.start()).count();
+      _timings.at(timing_key).add_timing(time);
     }
   }
 
   void serialize(std::ostream& str) {
+    std::vector<Timing> timings;
     for (const auto& timing : _timings) {
-      const Timing& time_point = timing.second;
-      if (_show_detailed_timings || time_point.parent() == "") {
-        str << " " << time_point.name() << "=" << time_point.timing();
+      timings.emplace_back(timing.second);
+    }
+    std::sort(timings.begin(), timings.end(),
+              [&](const Timing& lhs, const Timing& rhs) {
+                return lhs.key() < rhs.key();
+              });
+
+    if ( !timings.empty() ) {
+      auto print = [&](const std::string& key, const double time, const bool is_root) {
+        if ( _show_detailed_timings || is_root ) {
+          str << " " << key << "=" << time;
+        }
+      };
+
+      // We aggregate timings in case there multiple timings with same key
+      // but different parent
+      std::string last_key = timings[0].key();
+      double time = timings[0].timing();
+      bool is_root = timings[0].is_root();
+      for ( size_t i = 1; i < timings.size(); ++i ) {
+        if ( last_key == timings[i].key() ) {
+          time += timings[i].timing();
+          is_root |= timings[i].is_root();
+        } else {
+          print(last_key, time, is_root);
+          last_key = timings[i].key();
+          time = timings[i].timing();
+          is_root = timings[i].is_root();
+        }
       }
+      print(last_key, time, is_root);
     }
   }
 
@@ -179,14 +272,24 @@ class Timer {
   explicit Timer() :
     _timing_mutex(),
     _timings(),
+    _active_timings(),
+    _local_active_timings(),
     _index(0),
-    _type(kahypar::ContextType::main),
+    _enable(true),
     _show_detailed_timings(false) { }
 
   std::mutex _timing_mutex;
-  std::unordered_map<Key, Timing, PairHasher> _timings;
+  std::unordered_map<Key, Timing, KeyHasher, KeyEqual> _timings;
+  // Global Active Timing Stack
+  // Timings are pushed to the global stack
+  // if we are in a sequential context
+  ActiveTimingStack _active_timings;
+  // Thread Local Timing Stack
+  // Timings are pushed to the thread local stack
+  // if we are in a parallel context
+  LocalActiveTimingStack _local_active_timings;
   std::atomic<int> _index;
-  kahypar::ContextType _type;
+  bool _enable;
   bool _show_detailed_timings;
 };
 
@@ -200,7 +303,7 @@ std::ostream & operator<< (std::ostream& str, const Timer& timer) {
   }
   std::sort(timings.begin(), timings.end(),
             [&](const Timer::Timing& lhs, const Timer::Timing& rhs) {
-        return lhs.type() < rhs.type() || (lhs.type() == rhs.type() && lhs.order() < rhs.order());
+        return lhs.order() < rhs.order();
       });
 
   auto print = [&](std::ostream& str, const Timer::Timing& timing, int level) {
@@ -221,7 +324,7 @@ std::ostream & operator<< (std::ostream& str, const Timer& timer) {
   std::function<void(std::ostream&, const Timer::Timing&, int)> dfs =
     [&](std::ostream& str, const Timer::Timing& parent, int level) {
       for (const Timer::Timing& timing : timings) {
-        if (timing.parent() == parent.name()) {
+        if (timing.parent() == parent.key()) {
           print(str, timing, level);
           dfs(str, timing, level + 1);
         }
@@ -239,5 +342,6 @@ std::ostream & operator<< (std::ostream& str, const Timer& timer) {
 
   return str;
 }
+
 }  // namespace utils
 }  // namespace mt_kahypar

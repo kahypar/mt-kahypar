@@ -30,15 +30,12 @@ namespace multilevel {
 static inline void partition(Hypergraph& hypergraph, const Context& context, const bool top_level) {
   // ################## COARSENING ##################
   mt_kahypar::io::printCoarseningBanner(context);
-  HighResClockTimepoint start = std::chrono::high_resolution_clock::now();
+  utils::Timer::instance().start_timer("coarsening", "Coarsening");
   std::unique_ptr<ICoarsener> coarsener =
     CoarsenerFactory::getInstance().createObject(
       context.coarsening.algorithm, hypergraph, context);
   coarsener->coarsen();
-  HighResClockTimepoint end = std::chrono::high_resolution_clock::now();
-  mt_kahypar::utils::Timer::instance().add_timing("coarsening", "Coarsening",
-                                                  "", mt_kahypar::utils::Timer::Type::COARSENING,
-                                                  std::chrono::duration<double>(end - start).count());
+  utils::Timer::instance().stop_timer("coarsening");
 
   if (context.partition.verbose_output) {
     mt_kahypar::io::printHypergraphInfo(hypergraph, "Coarsened Hypergraph");
@@ -46,30 +43,24 @@ static inline void partition(Hypergraph& hypergraph, const Context& context, con
 
   // ################## INITIAL PARTITIONING ##################
   io::printInitialPartitioningBanner(context);
-  start = std::chrono::high_resolution_clock::now();
+  utils::Timer::instance().start_timer("initial_partitioning", "Initial Partitioning");
   std::unique_ptr<IInitialPartitioner> initial_partitioner =
     InitialPartitionerFactory::getInstance().createObject(
       context.initial_partitioning.mode, hypergraph, context, top_level);
   initial_partitioner->initialPartition();
-  end = std::chrono::high_resolution_clock::now();
-  mt_kahypar::utils::Timer::instance().add_timing("initial_partitioning", "Initial Partitioning",
-                                                  "", mt_kahypar::utils::Timer::Type::INITIAL_PARTITIONING,
-                                                  std::chrono::duration<double>(end - start).count());
+  utils::Timer::instance().stop_timer("initial_partitioning");
 
   io::printPartitioningResults(hypergraph, context, "Initial Partitioning Results:");
 
   // ################## LOCAL SEARCH ##################
   io::printLocalSearchBanner(context);
-  start = std::chrono::high_resolution_clock::now();
+  utils::Timer::instance().start_timer("refinement", "Refinement");
   std::unique_ptr<IRefiner> label_propagation =
     LabelPropagationFactory::getInstance().createObject(
       context.refinement.label_propagation.algorithm, hypergraph, context);
 
   coarsener->uncoarsen(label_propagation);
-  end = std::chrono::high_resolution_clock::now();
-  mt_kahypar::utils::Timer::instance().add_timing("refinement", "Refinement",
-                                                  "", mt_kahypar::utils::Timer::Type::REFINEMENT,
-                                                  std::chrono::duration<double>(end - start).count());
+  utils::Timer::instance().stop_timer("refinement");
 
   io::printPartitioningResults(hypergraph, context, "Local Search Results:");
 }

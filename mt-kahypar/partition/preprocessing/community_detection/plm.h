@@ -93,12 +93,9 @@ class PLM {
          currentRound < _context.preprocessing.community_detection.max_pass_iterations; currentRound++) {
       // parallel shuffle starts becoming competitive with sequential shuffle at four cores... :(
       // TODO implement block-based weak shuffling or use the pseudo-random online permutation approach
-      HighResClockTimepoint start = std::chrono::high_resolution_clock::now();
+      utils::Timer::instance().start_timer("random_shuffle", "Random Shuffle");
       utils::Randomize::instance().shuffleVector(nodes);
-      HighResClockTimepoint end = std::chrono::high_resolution_clock::now();
-      mt_kahypar::utils::Timer::instance().update_timing("random_shuffle", "Random Shuffle",
-                                                        "local_moving", mt_kahypar::utils::Timer::Type::PREPROCESSING,
-                                                        std::chrono::duration<double>(end - start).count());
+      utils::Timer::instance().stop_timer("random_shuffle");
 
       tbb::enumerable_thread_specific<size_t> ets_nodesMovedThisRound(0);
 
@@ -161,7 +158,7 @@ class PLM {
           ts_runtime.local() += (tbb::tick_count::now() - t_node_move);
         };
 
-      start = std::chrono::high_resolution_clock::now();
+      utils::Timer::instance().start_timer("local_moving_round", "Local Moving Round");
 
 #ifdef KAHYPAR_ENABLE_HEAVY_PREPROCESSING_ASSERTIONS
       std::for_each(nodes.begin(), nodes.end(), moveNode);
@@ -184,12 +181,9 @@ class PLM {
         DBG << os.str();
       }
 
-      end = std::chrono::high_resolution_clock::now();
-      mt_kahypar::utils::Timer::instance().update_timing("local_moving_round", "Local Moving Round",
-                                                         "local_moving", mt_kahypar::utils::Timer::Type::PREPROCESSING,
-                                                         std::chrono::duration<double>(end - start).count());
+      utils::Timer::instance().stop_timer("local_moving_round");
 
-      DBG << V(currentRound) << V(nodesMovedThisRound) << std::chrono::duration<double>(end - start).count() << "[s]";
+      DBG << V(currentRound) << V(nodesMovedThisRound);
     }
     return clusteringChanged;
   }

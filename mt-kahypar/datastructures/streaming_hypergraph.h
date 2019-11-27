@@ -1466,7 +1466,7 @@ class StreamingHypergraph {
     _atomic_hn_data.resize(_num_hypernodes);
 
     // Sort hypernodes in increasing order of their node id and ...
-    HighResClockTimepoint start = std::chrono::high_resolution_clock::now();
+    utils::Timer::instance().start_timer("sort_and_remap_node_ids", "Sort and Remap Nodes", true);
     tbb::task_group group;
     _arena.execute([&] {
           group.run([&] {
@@ -1488,18 +1488,12 @@ class StreamingHypergraph {
           });
         });
     group.wait();
-    HighResClockTimepoint end = std::chrono::high_resolution_clock::now();
-    mt_kahypar::utils::Timer::instance().add_timing("sort_and_remap_node_ids", "Sort and Remap Nodes",
-                                                    "initialize_numa_hypernodes", mt_kahypar::utils::Timer::Type::IMPORT,
-                                                    std::chrono::duration<double>(end - start).count());
+    utils::Timer::instance().stop_timer("sort_and_remap_node_ids");
 
     // Compute Total Hypergraph Weight
-    start = std::chrono::high_resolution_clock::now();
+    utils::Timer::instance().start_timer("compute_total_weight", "Compute Total Weight", true);
     updateTotalWeight();
-    end = std::chrono::high_resolution_clock::now();
-    mt_kahypar::utils::Timer::instance().add_timing("compute_total_weight", "Compute Total Weight",
-                                                    "initialize_numa_hypernodes", mt_kahypar::utils::Timer::Type::IMPORT,
-                                                    std::chrono::duration<double>(end - start).count());
+    utils::Timer::instance().stop_timer("compute_total_weight");
 
     ASSERT([&] {
           for (size_t i = 0; i < _hypernodes.size(); ++i) {
@@ -1531,7 +1525,7 @@ class StreamingHypergraph {
         } (), "Initialization of hypernodes failed");
 
     // Stream incident nets
-    start = std::chrono::high_resolution_clock::now();
+    utils::Timer::instance().start_timer("stream_incident_nets", "Stream Incident Nets", true);
     _arena.execute([&] {
           group.run([&] {
             tbb::parallel_for(0UL, _hyperedges.size(), [&](const size_t& pos) {
@@ -1549,10 +1543,7 @@ class StreamingHypergraph {
           });
         });
     group.wait();
-    end = std::chrono::high_resolution_clock::now();
-    mt_kahypar::utils::Timer::instance().add_timing("stream_incident_nets", "Stream Incident Nets",
-                                                    "initialize_numa_hypernodes", mt_kahypar::utils::Timer::Type::IMPORT,
-                                                    std::chrono::duration<double>(end - start).count());
+    utils::Timer::instance().stop_timer("stream_incident_nets");
 
     _hypernode_stream.clear();
   }
@@ -1570,15 +1561,12 @@ class StreamingHypergraph {
                                                         << HardwareTopology::instance().numa_node_of_cpu(sched_getcpu()));
 
     // Copy streamed data into global vectors
-    HighResClockTimepoint start = std::chrono::high_resolution_clock::now();
+    utils::Timer::instance().start_timer("copy_incidence_array_and_he", "Copy Incidence Array and HEs", true);
     _incidence_array = _pin_stream.copy(_arena);
     _hyperedges = _hyperedge_stream.copy(_arena);
     _num_pins = _incidence_array.size();
     _num_hyperedges = _hyperedges.size();
-    HighResClockTimepoint end = std::chrono::high_resolution_clock::now();
-    mt_kahypar::utils::Timer::instance().add_timing("copy_incidencce_array_and_he", "Copy Incidence Array and HEs",
-                                                    "initialize_hyperedges", mt_kahypar::utils::Timer::Type::IMPORT,
-                                                    std::chrono::duration<double>(end - start).count());
+    utils::Timer::instance().stop_timer("copy_incidence_array_and_he");
 
     ASSERT(_k > 0);
     _pins_in_part.assign(_num_hyperedges * _k, HypernodeAtomic(0));
@@ -1592,7 +1580,7 @@ class StreamingHypergraph {
     // Update start position of each hyperedge to correct one in global incidence array
     // Note, start positions are stored relative to the local buffer there are streamed into.
     // However, memcpy does hyperedges invalidates those local positions.
-    start = std::chrono::high_resolution_clock::now();
+    utils::Timer::instance().start_timer("update_start_position", "Update Start Positions of HEs", true);
     tbb::task_group group;
     _arena.execute([&] {
           for (size_t cpu_id = 0; cpu_id < std::thread::hardware_concurrency(); ++cpu_id) {
@@ -1610,10 +1598,7 @@ class StreamingHypergraph {
     group.wait();
     // Emplace Back Sentinel
     _hyperedges.emplace_back(_incidence_array.size(), 0, 0UL, 0);
-    end = std::chrono::high_resolution_clock::now();
-    mt_kahypar::utils::Timer::instance().add_timing("update_start_position", "Update Start Positions of HEs",
-                                                    "initialize_hyperedges", mt_kahypar::utils::Timer::Type::IMPORT,
-                                                    std::chrono::duration<double>(end - start).count());
+    utils::Timer::instance().stop_timer("update_start_position");
 
     ASSERT([&] {
           for (size_t cpu_id = 0; cpu_id < std::thread::hardware_concurrency(); ++cpu_id) {
@@ -1642,17 +1627,14 @@ class StreamingHypergraph {
     // Compute how many times a hypernode occurs on this node
     // as pin. Will be later important to compute node assignment.
     // TODO(heuer): Think how to parallelize this
-    start = std::chrono::high_resolution_clock::now();
+    utils::Timer::instance().start_timer("compute_vertex_pin_count", "Compute Vertex Pin Counts", true);
     _vertex_pin_count.resize(num_hypernodes);
     for (size_t i = 0; i < _incidence_array.size(); ++i) {
       const HypernodeID& pin = _incidence_array[i];
       ASSERT(pin < _vertex_pin_count.size());
       _vertex_pin_count[pin]++;
     }
-    end = std::chrono::high_resolution_clock::now();
-    mt_kahypar::utils::Timer::instance().add_timing("compute_vertex_pin_count", "Compute Vertex Pin Counts",
-                                                    "initialize_hyperedges", mt_kahypar::utils::Timer::Type::IMPORT,
-                                                    std::chrono::duration<double>(end - start).count());
+    utils::Timer::instance().stop_timer("compute_vertex_pin_count");
 
     _pin_stream.clear();
     _hyperedge_stream.clear();

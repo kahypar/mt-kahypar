@@ -127,14 +127,19 @@ class Stats {
     return instance;
   }
 
-  void set_context_type(kahypar::ContextType type) {
-    _type = type;
+void enable() {
+    std::lock_guard<std::mutex> lock(_stat_mutex);
+    _enable = true;
   }
 
+  void disable() {
+    std::lock_guard<std::mutex> lock(_stat_mutex);
+    _enable = false;
+  }
   template <typename T>
   void add_stat(const std::string& key, const T value) {
     std::lock_guard<std::mutex> lock(_stat_mutex);
-    if (_type == kahypar::ContextType::main) {
+    if (_enable) {
       if (_stats.find(key) == _stats.end()) {
         _stats.emplace(
           std::piecewise_construct,
@@ -147,7 +152,7 @@ class Stats {
   template <typename T>
   void update_stat(const std::string& key, const T delta) {
     std::lock_guard<std::mutex> lock(_stat_mutex);
-    if (_type == kahypar::ContextType::main) {
+    if (_enable) {
       if (_stats.find(key) == _stats.end()) {
         _stats.emplace(
           std::piecewise_construct,
@@ -165,11 +170,11 @@ class Stats {
   explicit Stats() :
     _stat_mutex(),
     _stats(),
-    _type(kahypar::ContextType::main) { }
+    _enable(true) { }
 
   std::mutex _stat_mutex;
   std::unordered_map<std::string, Stat> _stats;
-  kahypar::ContextType _type;
+  bool _enable;
 };
 
 std::ostream & operator<< (std::ostream& str, const Stats::Stat& stat) {

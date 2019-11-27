@@ -36,12 +36,9 @@ class ParallelModularityLouvain {
     ds::Clustering C(GFine.numNodes());
 
     DBG << "Start Local Moving";
-    HighResClockTimepoint start = std::chrono::high_resolution_clock::now();
+    utils::Timer::instance().start_timer("local_moving", "Local Moving");
     bool clustering_changed = mlv.localMoving(GFine, C);
-    HighResClockTimepoint end = std::chrono::high_resolution_clock::now();
-    mt_kahypar::utils::Timer::instance().update_timing("local_moving", "Local Moving",
-                                                       "perform_community_detection", mt_kahypar::utils::Timer::Type::PREPROCESSING,
-                                                       std::chrono::duration<double>(end - start).count());
+    utils::Timer::instance().stop_timer("local_moving");
 
 
 /*
@@ -53,12 +50,9 @@ class ParallelModularityLouvain {
       // contract
       DBG << "Contract";
 
-      start = std::chrono::high_resolution_clock::now();
+      utils::Timer::instance().start_timer("contraction", "Contraction");
       ds::AdjListGraph GCoarse = ParallelClusteringContractionAdjList::contract(GFine, C, numTasks);
-      end = std::chrono::high_resolution_clock::now();
-      mt_kahypar::utils::Timer::instance().update_timing("contraction", "Contraction",
-                                                         "perform_community_detection", mt_kahypar::utils::Timer::Type::PREPROCESSING,
-                                                         std::chrono::duration<double>(end - start).count());
+      utils::Timer::instance().stop_timer("contraction");
 
 
 #ifdef KAHYPAR_ENABLE_HEAVY_PREPROCESSING_ASSERTIONS
@@ -72,14 +66,11 @@ class ParallelModularityLouvain {
       // recurse
       ds::Clustering coarseC = localMovingContractRecurse(GCoarse, mlv, numTasks);
 
-      start = std::chrono::high_resolution_clock::now();
+      utils::Timer::instance().start_timer("prolong", "Prolong");
       // prolong clustering
       for (NodeID u : GFine.nodes()) // parallelize
         C[u] = coarseC[C[u]];
-      end = std::chrono::high_resolution_clock::now();
-      mt_kahypar::utils::Timer::instance().update_timing("prolong", "Prolong",
-                                                         "perform_community_detection", mt_kahypar::utils::Timer::Type::PREPROCESSING,
-                                                         std::chrono::duration<double>(end - start).count());
+      utils::Timer::instance().stop_timer("prolong");
       // assert(PLM::integerModularityFromScratch(GFine, C) == PLM::integerModularityFromScratch(GCoarse, coarseC));
     }
 

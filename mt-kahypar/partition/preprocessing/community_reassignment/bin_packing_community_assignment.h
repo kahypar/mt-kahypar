@@ -57,7 +57,7 @@ class BinPackingCommunityAssignmentT : public ICommunityAssignment {
  private:
   std::vector<PartitionID> computeAssignmentImpl() {
     // Compute Bin Capacities
-    HighResClockTimepoint start = std::chrono::high_resolution_clock::now();
+    utils::Timer::instance().start_timer("compute_community_mapping", "Compute Community Mapping");
     int used_numa_nodes = TBB::instance().num_used_numa_nodes();
     std::vector<HypernodeID> bin_capacities(used_numa_nodes, 0);
     for (int node = 0; node < used_numa_nodes; ++node) {
@@ -123,10 +123,7 @@ class BinPackingCommunityAssignmentT : public ICommunityAssignment {
 
       current_bin = (current_bin + 1) % used_numa_nodes;
     }
-    HighResClockTimepoint end = std::chrono::high_resolution_clock::now();
-    mt_kahypar::utils::Timer::instance().add_timing("compute_community_mapping", "Compute Community Mapping",
-                                                    "redistribution", mt_kahypar::utils::Timer::Type::PREPROCESSING,
-                                                    std::chrono::duration<double>(end - start).count());
+    utils::Timer::instance().stop_timer("compute_community_mapping");
 
     ASSERT(std::count(community_assignment.begin(), community_assignment.end(), -1) == 0, "There are unassigned communities");
     return community_assignment;

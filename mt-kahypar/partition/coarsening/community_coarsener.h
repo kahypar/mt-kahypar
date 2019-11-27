@@ -87,7 +87,7 @@ class CommunityCoarsenerT : public ICoarsener,
     this->init();
 
     // Compute execution order
-    HighResClockTimepoint start = std::chrono::high_resolution_clock::now();
+    utils::Timer::instance().start_timer("compute_execution_order", "Compute Execution Order");
     std::vector<parallel::scalable_vector<HypernodeID> > community_hns(_hg.numCommunities());
     std::vector<HypernodeWeight> community_weights(_hg.numCommunities(), 0);
     for (const HypernodeID& hn : _hg.nodes()) {
@@ -111,16 +111,13 @@ class CommunityCoarsenerT : public ICoarsener,
       ASSERT(node < used_numa_nodes);
       community_queues[node].push(community_id);
     }
-    HighResClockTimepoint end = std::chrono::high_resolution_clock::now();
-    mt_kahypar::utils::Timer::instance().add_timing("compute_execution_order", "Compute Execution Order",
-                                                    "coarsening", mt_kahypar::utils::Timer::Type::COARSENING,
-                                                    std::chrono::duration<double>(end - start).count());
+    utils::Timer::instance().stop_timer("compute_execution_order");
 
     // Parallel Community Coarsening
     // We schedule exactly number of available threads tasks. Each task
     // polls from the tbb::concurrent_queue (responsible for the numa node
     // where the task is executed) a community and executes the contractions
-    start = std::chrono::high_resolution_clock::now();
+    utils::Timer::instance().start_timer("parallel_community_coarsening", "Parallel Community Coarsening");
     for ( int node = 0; node < used_numa_nodes; ++node ) {
       int num_threads = TBB::instance().number_of_threads_on_numa_node(node);
       for ( int i = 0; i < num_threads; ++i ) {
@@ -133,7 +130,7 @@ class CommunityCoarsenerT : public ICoarsener,
                 if ( success ) {
                   ASSERT(community_id >= 0);
                   ASSERT(community_id < _hg.numCommunities());
-                  if ( community_hns.size() <= 1 ) {
+                  if ( community_hns[community_id].size() <= 1 ) {
                     continue;
                   }
                   // Compute contraction limit for community relative to
@@ -149,10 +146,7 @@ class CommunityCoarsenerT : public ICoarsener,
       }
     }
     TBB::instance().wait();
-    end = std::chrono::high_resolution_clock::now();
-    mt_kahypar::utils::Timer::instance().add_timing("parallel_community_coarsening", "Parallel Community Coarsening",
-                                                    "coarsening", mt_kahypar::utils::Timer::Type::COARSENING,
-                                                    std::chrono::duration<double>(end - start).count());
+    utils::Timer::instance().stop_timer("parallel_community_coarsening");
 
     // Finalize community coarsening
     this->finalize();

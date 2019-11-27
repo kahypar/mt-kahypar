@@ -134,7 +134,7 @@ static inline HyperGraph readHyperedges(std::ifstream& file,
         });
 
   // Read input file line by line
-  HighResClockTimepoint start = std::chrono::high_resolution_clock::now();
+  utils::Timer::instance().start_timer("sequential_read", "Sequential Line Reading");
   std::vector<std::string> lines;
   std::string he_line;
   bool has_hyperedge_weights = type == mt_kahypar::Type::EdgeWeights ||
@@ -144,13 +144,10 @@ static inline HyperGraph readHyperedges(std::ifstream& file,
     std::getline(file, he_line);
     lines.push_back(he_line);
   }
-  HighResClockTimepoint end = std::chrono::high_resolution_clock::now();
-  mt_kahypar::utils::Timer::instance().add_timing("sequential_read", "Sequential Line Reading",
-                                                  "hypergraph_import", mt_kahypar::utils::Timer::Type::IMPORT,
-                                                  std::chrono::duration<double>(end - start).count());
+  utils::Timer::instance().stop_timer("sequential_read");
 
   // Parallel for, for reading hyperedges
-  start = std::chrono::high_resolution_clock::now();
+  utils::Timer::instance().start_timer("stream_hyperedges", "Stream hyperedges");
   switch (distribution) {
     case InitialHyperedgeDistribution::equally:
       streamHyperedgesEquallyIntoNumaHypergraphs<StreamingHyperGraph, TBB, HwTopology>(
@@ -167,15 +164,12 @@ static inline HyperGraph readHyperedges(std::ifstream& file,
     default:
       ERROR("Unknown distribution strategy");
   }
-  end = std::chrono::high_resolution_clock::now();
-  mt_kahypar::utils::Timer::instance().add_timing("stream_hyperedges", "Stream hyperedges",
-                                                  "hypergraph_import", mt_kahypar::utils::Timer::Type::IMPORT,
-                                                  std::chrono::duration<double>(end - start).count());
+  utils::Timer::instance().stop_timer("stream_hyperedges");
 
   // Initialize numa hypergraph
   // Involves to memcpy streamed hyperedges of each cpu into
   // global data structure
-  start = std::chrono::high_resolution_clock::now();
+  utils::Timer::instance().start_timer("initialize_hyperedges", "Initialize Hyperedges");
   for (int node = 0; node < used_numa_nodes; ++node) {
     TBB::instance().numa_task_arena(node).execute([&] {
             TBB::instance().numa_task_group(node).run([&, node] {
@@ -184,17 +178,11 @@ static inline HyperGraph readHyperedges(std::ifstream& file,
           });
   }
   TBB::instance().wait();
-  end = std::chrono::high_resolution_clock::now();
-  mt_kahypar::utils::Timer::instance().add_timing("initialize_hyperedges", "Initialize Hyperedges",
-                                                  "hypergraph_import", mt_kahypar::utils::Timer::Type::IMPORT,
-                                                  std::chrono::duration<double>(end - start).count());
+  utils::Timer::instance().stop_timer("initialize_hyperedges");
 
-  start = std::chrono::high_resolution_clock::now();
+  utils::Timer::instance().start_timer("initialize_hypernodes", "Initialize Hypernodes");
   HyperGraph hypergraph(num_hypernodes, std::move(numa_hypergraphs), k);
-  end = std::chrono::high_resolution_clock::now();
-  mt_kahypar::utils::Timer::instance().add_timing("initialize_hypernodes", "Initialize Hypernodes",
-                                                  "hypergraph_import", mt_kahypar::utils::Timer::Type::IMPORT,
-                                                  std::chrono::duration<double>(end - start).count());
+  utils::Timer::instance().stop_timer("initialize_hypernodes");
   return hypergraph;
 }
 
@@ -248,7 +236,7 @@ static inline HyperGraph readHypergraphFile(const std::string& filename,
                                             const PartitionID k,
                                             const InitialHyperedgeDistribution distribution) {
   ASSERT(!filename.empty(), "No filename for hypergraph file specified");
-  HighResClockTimepoint start = std::chrono::high_resolution_clock::now();
+  utils::Timer::instance().start_timer("hypergraph_import", "Reading Hypergraph File");
   std::ifstream file(filename);
   HyperedgeID num_hyperedges = 0;
   HypernodeID num_hypernodes = 0;
@@ -263,10 +251,7 @@ static inline HyperGraph readHypergraphFile(const std::string& filename,
   } else {
     ERROR("Error: File not found: " + filename);
   }
-  HighResClockTimepoint end = std::chrono::high_resolution_clock::now();
-  mt_kahypar::utils::Timer::instance().add_timing("hypergraph_import", "Reading Hypergraph File",
-                                                  "", mt_kahypar::utils::Timer::Type::IMPORT,
-                                                  std::chrono::duration<double>(end - start).count());
+  utils::Timer::instance().stop_timer("hypergraph_import");
   return hypergraph;
 }
 

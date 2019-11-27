@@ -206,7 +206,9 @@ class LabelPropagationRefinerT final : public IRefiner {
     for (size_t i = 0; i < _context.refinement.label_propagation.maximum_iterations && !converged; ++i) {
       DBG << "Starting Label Propagation Round" << i << "on NUMA Node" << node;
 
-      HighResClockTimepoint start_time = std::chrono::high_resolution_clock::now();
+      utils::Timer::instance().start_timer(
+        "lp_round_" + std::to_string(i) + (node != -1 ? "_" + std::to_string(node) : ""),
+        "Label Propagation Round " + std::to_string(i) + (node != -1 ? " - " + std::to_string(node) : ""), true);
       converged = true;
       tbb::enumerable_thread_specific<size_t> iteration_cnt(0);
       size_t start = node != -1 ? _numa_nodes_indices[node] : 0;
@@ -274,12 +276,8 @@ class LabelPropagationRefinerT final : public IRefiner {
             _hg.updateLocalPartInfos();
           }
         });
-      HighResClockTimepoint end_time = std::chrono::high_resolution_clock::now();
-      mt_kahypar::utils::Timer::instance().update_timing(
-        "lp_round_" + std::to_string(i) + (node != -1 ? "_" + std::to_string(node) : ""),
-        "Label Propagation Round " + std::to_string(i) + (node != -1 ? " - " + std::to_string(node) : ""),
-        "label_propagation", mt_kahypar::utils::Timer::Type::REFINEMENT,
-        std::chrono::duration<double>(end_time - start_time).count());
+      utils::Timer::instance().stop_timer(
+        "lp_round_" + std::to_string(i) + (node != -1 ? "_" + std::to_string(node) : ""));
     }
   }
 

@@ -49,18 +49,15 @@ class CommunityRedistributorT {
     int used_numa_nodes = TBB::instance().num_used_numa_nodes();
 
     // Compute Node Mapping
-    HighResClockTimepoint start = std::chrono::high_resolution_clock::now();
+    utils::Timer::instance().start_timer("compute_node_mapping", "Compute Node Mapping");
     std::vector<HypernodeID> node_mapping(hg.initialNumNodes(), -1);
     tbb::parallel_for(0UL, hg.initialNumNodes(), [&](const HypernodeID& hn) {
           node_mapping[hn] = community_assignment[hg.communityID(hg.globalNodeID(hn))];
         });
-    HighResClockTimepoint end = std::chrono::high_resolution_clock::now();
-    mt_kahypar::utils::Timer::instance().add_timing("compute_node_mapping", "Compute Node Mapping",
-                                                    "redistribution", mt_kahypar::utils::Timer::Type::PREPROCESSING,
-                                                    std::chrono::duration<double>(end - start).count());
+    utils::Timer::instance().stop_timer("compute_node_mapping");
 
     // Compute Hyperedge Mapping
-    start = std::chrono::high_resolution_clock::now();
+    utils::Timer::instance().start_timer("compute_hyperedge_mapping", "Compute Hyperedge Mapping");
     std::vector<parallel::scalable_vector<PartitionID> > hyperedge_mapping(used_numa_nodes);
     for (int node = 0; node < used_numa_nodes; ++node) {
       TBB::instance().numa_task_arena(node).execute([&, node] {
@@ -92,20 +89,14 @@ class CommunityRedistributorT {
           });
     }
     TBB::instance().wait();
-    end = std::chrono::high_resolution_clock::now();
-    mt_kahypar::utils::Timer::instance().add_timing("compute_hyperedge_mapping", "Compute Hyperedge Mapping",
-                                                    "redistribution", mt_kahypar::utils::Timer::Type::PREPROCESSING,
-                                                    std::chrono::duration<double>(end - start).count());
+    utils::Timer::instance().stop_timer("compute_hyperedge_mapping");
 
     // Reset Pins to original node ids
-    start = std::chrono::high_resolution_clock::now();
+    utils::Timer::instance().start_timer("reset_pins_to_original_ids", "Reset Pins to original IDs");
     hg.resetPinsToOriginalNodeIds();
-    end = std::chrono::high_resolution_clock::now();
-    mt_kahypar::utils::Timer::instance().add_timing("reset_pins_to_original_ids", "Reset Pins to original IDs",
-                                                    "redistribution", mt_kahypar::utils::Timer::Type::PREPROCESSING,
-                                                    std::chrono::duration<double>(end - start).count());
+    utils::Timer::instance().stop_timer("reset_pins_to_original_ids");
 
-    start = std::chrono::high_resolution_clock::now();
+    utils::Timer::instance().start_timer("stream_hyperedges", "Stream Hyperedges");
     // Initialize Streaming Hypergraphs
     std::vector<StreamingHyperGraph> numa_hypergraphs;
     TBB::instance().execute_sequential_on_all_numa_nodes([&](const int node) {
@@ -143,34 +134,25 @@ class CommunityRedistributorT {
           });
     }
     TBB::instance().wait();
-    end = std::chrono::high_resolution_clock::now();
-    mt_kahypar::utils::Timer::instance().add_timing("stream_hyperedges", "Stream Hyperedges",
-                                                    "redistribution", mt_kahypar::utils::Timer::Type::PREPROCESSING,
-                                                    std::chrono::duration<double>(end - start).count());
+    utils::Timer::instance().stop_timer("stream_hyperedges");
 
     // Initialize hypergraph
-    start = std::chrono::high_resolution_clock::now();
+    utils::Timer::instance().start_timer("initialize hypergraph", "Initialize Hypergraph");
     HyperGraph hypergraph(hg.initialNumNodes(), std::move(numa_hypergraphs), std::move(node_mapping), k);
     ASSERT(hypergraph.initialNumNodes() == hg.initialNumNodes());
     ASSERT(hypergraph.initialNumEdges() == hg.initialNumEdges());
     ASSERT(hypergraph.initialNumPins() == hg.initialNumPins());
-    end = std::chrono::high_resolution_clock::now();
-    mt_kahypar::utils::Timer::instance().add_timing("initialize hypergraph", "Initialize Hypergraph",
-                                                    "redistribution", mt_kahypar::utils::Timer::Type::PREPROCESSING,
-                                                    std::chrono::duration<double>(end - start).count());
+    utils::Timer::instance().stop_timer("initialize hypergraph");
 
     // Initialize Communities
-    start = std::chrono::high_resolution_clock::now();
+    utils::Timer::instance().start_timer("initialize_communities", "Initialize Communities");
     tbb::parallel_for(0UL, hypergraph.initialNumNodes(), [&](const HypernodeID& hn) {
           HypernodeID old_global_id = hg.globalNodeID(hn);
           HypernodeID new_global_id = hypergraph.globalNodeID(hn);
           hypergraph.setCommunityID(new_global_id, hg.communityID(old_global_id));
         });
     hypergraph.initializeCommunities();
-    end = std::chrono::high_resolution_clock::now();
-    mt_kahypar::utils::Timer::instance().add_timing("initialize_communities", "Initialize Communities",
-                                                    "redistribution", mt_kahypar::utils::Timer::Type::PREPROCESSING,
-                                                    std::chrono::duration<double>(end - start).count());
+    utils::Timer::instance().stop_timer("initialize_communities");
 
     HEAVY_PREPROCESSING_ASSERT([&] {
           for (const HypernodeID& hn : hypergraph.nodes()) {

@@ -101,6 +101,11 @@ class RecursiveInitialPartitionerT : public IInitialPartitioner {
       return;
     }
 
+    if (_top_level) {
+      utils::Timer::instance().disable();
+      utils::Stats::instance().disable();
+    }
+
     // We do parallel recursion, if the contract limit is equal to 2 * p * t
     // ( where p is the number of threads and t the contract limit multiplier )
     bool do_parallel_recursion = _context.coarsening.contraction_limit /
@@ -133,6 +138,11 @@ class RecursiveInitialPartitionerT : public IInitialPartitioner {
       }
     } else {
       best = recursivePartition(_context.shared_memory.num_threads, 0);
+    }
+
+    if (_top_level) {
+      utils::Timer::instance().enable();
+      utils::Stats::instance().enable();
     }
 
     HEAVY_INITIAL_PARTITIONING_ASSERT(best.objective == metrics::objective(best.hypergraph, _context.partition.objective));
@@ -225,15 +235,12 @@ class RecursiveInitialPartitionerT : public IInitialPartitioner {
     RecursivePartitionResult result(setupRecursiveContext(num_threads));
 
     // Copy hypergraph
-    HighResClockTimepoint start = std::chrono::high_resolution_clock::now();
+    utils::Timer::instance().start_timer("top_level_hypergraph_copy_" + std::to_string(recursion_number),
+                                         "Top Level Hypergraph Copy " + std::to_string(recursion_number), true, _top_level);
     auto copy = _hg.copy(result.context.partition.k);
     result.hypergraph = std::move(copy.first);
     result.mapping = std::move(copy.second);
-    HighResClockTimepoint end = std::chrono::high_resolution_clock::now();
-    utils::Timer::instance().add_timing("top_level_hypergraph_copy_" + std::to_string(recursion_number),
-                                        "Top Level Hypergraph Copy " + std::to_string(recursion_number),
-                                        "initial_partitioning", mt_kahypar::utils::Timer::Type::INITIAL_PARTITIONING,
-                                        std::chrono::duration<double>(end - start).count(), _top_level);
+    utils::Timer::instance().stop_timer("top_level_hypergraph_copy_" + std::to_string(recursion_number), _top_level);
 
     // Call multilevel partitioner recursively
     DBG << "Perform recursive multilevel partitioner call with"
@@ -242,23 +249,10 @@ class RecursiveInitialPartitionerT : public IInitialPartitioner {
         << "c =" << result.context.coarsening.contraction_limit << "and"
         << "rep =" << result.context.initial_partitioning.runs;
 
-    if (_top_level) {
-      utils::Timer::instance().set_context_type(kahypar::ContextType::initial_partitioning);
-      utils::Stats::instance().set_context_type(kahypar::ContextType::initial_partitioning);
-    }
-
-    start = std::chrono::high_resolution_clock::now();
+    utils::Timer::instance().start_timer("top_level_multilevel_recursion_" + std::to_string(recursion_number),
+                                         "Top Level Multilevel Recursion " + std::to_string(recursion_number), true, _top_level);
     multilevel::partition(result.hypergraph, result.context, false);
-    end = std::chrono::high_resolution_clock::now();
-    utils::Timer::instance().add_timing("top_level_multilevel_recursion_" + std::to_string(recursion_number),
-                                        "Top Level Multilevel Recursion " + std::to_string(recursion_number),
-                                        "initial_partitioning", mt_kahypar::utils::Timer::Type::INITIAL_PARTITIONING,
-                                        std::chrono::duration<double>(end - start).count(), _top_level);
-
-    if (_top_level) {
-      utils::Timer::instance().set_context_type(kahypar::ContextType::main);
-      utils::Stats::instance().set_context_type(kahypar::ContextType::main);
-    }
+    utils::Timer::instance().stop_timer("top_level_multilevel_recursion_" + std::to_string(recursion_number), _top_level);
 
     result.objective = metrics::objective(result.hypergraph, result.context.partition.objective);
     result.imbalance = metrics::imbalance(result.hypergraph, result.context);
