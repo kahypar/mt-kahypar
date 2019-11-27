@@ -22,7 +22,10 @@
 #include <algorithm>
 #include <thread>
 
+#undef __TBB_ARENA_OBSERVER
+#define __TBB_ARENA_OBSERVER true
 #include "tbb/task_scheduler_observer.h"
+#undef __TBB_ARENA_OBSERVER
 
 #include "mt-kahypar/macros.h"
 #include "mt-kahypar/parallel/global_thread_pinning.h"

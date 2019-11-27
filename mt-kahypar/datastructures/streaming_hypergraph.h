@@ -34,7 +34,6 @@
 #include "tbb/queuing_mutex.h"
 #include "tbb/task_arena.h"
 #include "tbb/task_group.h"
-#include "tbb/task_scheduler_observer.h"
 
 #include "kahypar/datastructure/fast_reset_flag_array.h"
 #include "kahypar/meta/mandatory.h"
