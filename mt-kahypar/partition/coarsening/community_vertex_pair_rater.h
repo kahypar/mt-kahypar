@@ -25,21 +25,19 @@
 #include <stack>
 #include <vector>
 
-#include "kahypar/meta/mandatory.h"
 #include "kahypar/datastructure/fast_reset_flag_array.h"
 #include "kahypar/datastructure/sparse_map.h"
+#include "kahypar/meta/mandatory.h"
 
+#include "mt-kahypar/definitions.h"
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
 #include "mt-kahypar/partition/context.h"
-#include "mt-kahypar/definitions.h"
-
 
 namespace mt_kahypar {
-
-template< typename TypeTraits = Mandatory,
+template <typename TypeTraits = Mandatory,
           typename ScorePolicy = Mandatory,
           typename HeavyNodePenaltyPolicy = Mandatory,
-          typename AcceptancePolicy = Mandatory >
+          typename AcceptancePolicy = Mandatory>
 class CommunityVertexPairRater {
   using HyperGraph = typename TypeTraits::HyperGraph;
 
@@ -59,10 +57,10 @@ class CommunityVertexPairRater {
       valid(false) { }
 
     VertexPairRating(const VertexPairRating&) = delete;
-    VertexPairRating& operator= (const VertexPairRating&) = delete;
+    VertexPairRating & operator= (const VertexPairRating &) = delete;
 
     VertexPairRating(VertexPairRating&&) = default;
-    VertexPairRating& operator= (VertexPairRating&&) = delete;
+    VertexPairRating & operator= (VertexPairRating &&) = delete;
 
     HypernodeID target;
     RatingType value;
@@ -71,7 +69,7 @@ class CommunityVertexPairRater {
 
  public:
   using Rating = VertexPairRating;
-  using HypernodeMapping = std::shared_ptr<std::vector<HypernodeID>>;
+  using HypernodeMapping = std::shared_ptr<std::vector<HypernodeID> >;
 
   CommunityVertexPairRater(HyperGraph& hypergraph,
                            const Context& context,
@@ -85,20 +83,20 @@ class CommunityVertexPairRater {
     _already_matched(_hg.numCommunityHypernodes(_community_id)) { }
 
   CommunityVertexPairRater(const CommunityVertexPairRater&) = delete;
-  CommunityVertexPairRater& operator= (const CommunityVertexPairRater&) = delete;
+  CommunityVertexPairRater & operator= (const CommunityVertexPairRater &) = delete;
 
   CommunityVertexPairRater(CommunityVertexPairRater&&) = delete;
-  CommunityVertexPairRater& operator= (CommunityVertexPairRater&&) = delete;
+  CommunityVertexPairRater & operator= (CommunityVertexPairRater &&) = delete;
 
   VertexPairRating rate(const HypernodeID u) {
     ASSERT(_hg.communityID(u) == _community_id);
     const HypernodeWeight weight_u = _hg.nodeWeight(u);
-    for ( const HyperedgeID& he : _hg.incidentEdges(u, _community_id) ) {
+    for (const HyperedgeID& he : _hg.incidentEdges(u, _community_id)) {
       ASSERT(_hg.edgeSize(he) > 1, V(he));
-      if ( _hg.edgeSize(he, _community_id) < _context.partition.hyperedge_size_threshold ) {
+      if (_hg.edgeSize(he, _community_id) < _context.partition.hyperedge_size_threshold) {
         const RatingType score = ScorePolicy::score(_hg, he, _community_id);
-        for ( const HypernodeID& v : _hg.pins(he, _community_id) ) {
-          if ( u != v && belowThresholdNodeWeight(weight_u, _hg.nodeWeight(v)) ) {
+        for (const HypernodeID& v : _hg.pins(he, _community_id)) {
+          if (u != v && belowThresholdNodeWeight(weight_u, _hg.nodeWeight(v))) {
             ASSERT(_hg.communityID(v) == _community_id);
             ASSERT(_community_node_mapping[_hg.communityNodeId(v)] == v);
             _tmp_ratings[_hg.communityNodeId(v)] += score;
@@ -125,7 +123,7 @@ class CommunityVertexPairRater {
       DBG << "r(" << u << "," << tmp_target << ")=" << tmp_rating;
       if (AcceptancePolicy::acceptRating(tmp_rating, max_rating,
                                          community_target, tmp_community_target,
-                                         cpu_id, _already_matched) ) {
+                                         cpu_id, _already_matched)) {
         max_rating = tmp_rating;
         community_target = tmp_community_target;
         target = tmp_target;

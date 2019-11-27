@@ -20,6 +20,7 @@
 #pragma once
 
 #include <algorithm>
+#include <mutex>
 #include <thread>
 
 #include "tbb/task_arena.h"
@@ -32,7 +33,6 @@
 
 namespace mt_kahypar {
 namespace ds {
-
 /**
  * Allows to insert key-value pairs concurrently. Internally,
  * the hash of a key is used to map a key-value pair to a bucket.
@@ -52,15 +52,14 @@ namespace ds {
  * Bucket 3: 5 -> 2
  * Bucket 4: 1 -> 2
  */
-template< typename Key, typename Value >
+template <typename Key, typename Value>
 class StreamingMap {
-
   static constexpr bool debug = false;
   static constexpr size_t BUCKET_FACTOR = 128;
 
   using KeyValuePair = std::pair<Key, Value>;
-  using Buffer = parallel::scalable_vector<parallel::scalable_vector<KeyValuePair>>;
-  using ValueMap = parallel::scalable_vector<parallel::scalable_vector<Value>>;
+  using Buffer = parallel::scalable_vector<parallel::scalable_vector<KeyValuePair> >;
+  using ValueMap = parallel::scalable_vector<parallel::scalable_vector<Value> >;
 
  public:
   StreamingMap() :
@@ -69,7 +68,7 @@ class StreamingMap {
     _buffer(_size) { }
 
   StreamingMap(const StreamingMap&) = delete;
-  StreamingMap& operator= (const StreamingMap&) = delete;
+  StreamingMap & operator= (const StreamingMap &) = delete;
 
   StreamingMap(StreamingMap&& other) :
     _size(BUCKET_FACTOR * std::thread::hardware_concurrency()),
@@ -83,28 +82,28 @@ class StreamingMap {
     _buffer[bucket].emplace_back(key, value);
   }
 
-  template < class F >
+  template <class F>
   void copy(tbb::task_arena& arena,
             ValueMap& destination,
             F&& key_extractor) {
     tbb::task_group group;
     arena.execute([&] {
-      for ( size_t bucket = 0; bucket < _buffer.size(); ++bucket ) {
-        group.run([&, bucket] {
-          ASSERT(bucket < _buffer.size());
-          for ( const KeyValuePair& p : _buffer[bucket] ) {
-            const Key& key = key_extractor(p.first);
-            ASSERT(key < destination.size());
-            destination[key].emplace_back(p.second);
+          for (size_t bucket = 0; bucket < _buffer.size(); ++bucket) {
+            group.run([&, bucket] {
+              ASSERT(bucket < _buffer.size());
+              for (const KeyValuePair& p : _buffer[bucket]) {
+                const Key& key = key_extractor(p.first);
+                ASSERT(key < destination.size());
+                destination[key].emplace_back(p.second);
+              }
+            });
           }
         });
-      }
-    });
     group.wait();
   }
 
   void clear() {
-    for ( size_t i = 0; i < _buffer.size(); ++i ) {
+    for (size_t i = 0; i < _buffer.size(); ++i) {
       parallel::scalable_vector<KeyValuePair> tmp_buffer;
       _buffer[i] = std::move(tmp_buffer);
     }
@@ -115,6 +114,5 @@ class StreamingMap {
   std::vector<std::mutex> _mutex;
   Buffer _buffer;
 };
-
-} // namespace ds
-} // namespace mt_kahypar
+}  // namespace ds
+}  // namespace mt_kahypar

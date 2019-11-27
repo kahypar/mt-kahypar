@@ -27,7 +27,6 @@
 #include "mt-kahypar/macros.h"
 
 namespace mt_kahypar {
-
 enum class Type : int8_t {
   Unweighted = 0,
   EdgeWeights = 1,
@@ -44,6 +43,7 @@ enum class InitialHyperedgeDistribution : uint8_t {
 
 enum class CommunityAssignmentObjective : uint8_t {
   vertex_objective,
+  vertex_degree_objective,
   pin_objective,
   UNDEFINED
 };
@@ -53,13 +53,7 @@ enum class CommunityAssignmentStrategy : uint8_t {
   UNDEFINED
 };
 
-enum class CoarseningAlgorithm : uint8_t {
-  community_coarsener,
-  UNDEFINED
-};
-
-
-enum class CommunityDetectionStarExpansionWeightModification : uint8_t {
+enum class LouvainEdgeWeight : uint8_t {
   hybrid,
   uniform,
   non_uniform,
@@ -67,6 +61,15 @@ enum class CommunityDetectionStarExpansionWeightModification : uint8_t {
   UNDEFINED
 };
 
+enum class CommunityLoadBalancingStrategy : uint8_t {
+  size_constraint,
+  none
+};
+
+enum class CoarseningAlgorithm : uint8_t {
+  community_coarsener,
+  UNDEFINED
+};
 
 enum class RatingFunction : uint8_t {
   heavy_edge,
@@ -86,6 +89,12 @@ enum class AcceptancePolicy : uint8_t {
   UNDEFINED
 };
 
+enum class InitialPartitioningMode : uint8_t {
+  direct,
+  recursive,
+  UNDEFINED
+};
+
 enum class LabelPropagationAlgorithm : uint8_t {
   label_propagation_km1,
   label_propagation_cut,
@@ -99,7 +108,7 @@ enum class ExecutionType : uint8_t {
   UNDEFINED
 };
 
-std::ostream& operator<< (std::ostream& os, const Type& type) {
+std::ostream & operator<< (std::ostream& os, const Type& type) {
   switch (type) {
     case Type::Unweighted: return os << "unweighted";
     case Type::EdgeWeights: return os << "edge_weights";
@@ -110,7 +119,7 @@ std::ostream& operator<< (std::ostream& os, const Type& type) {
   return os << static_cast<uint8_t>(type);
 }
 
-std::ostream& operator<< (std::ostream& os, const InitialHyperedgeDistribution& strategy) {
+std::ostream & operator<< (std::ostream& os, const InitialHyperedgeDistribution& strategy) {
   switch (strategy) {
     case InitialHyperedgeDistribution::equally: return os << "equally";
     case InitialHyperedgeDistribution::random: return os << "random";
@@ -121,10 +130,10 @@ std::ostream& operator<< (std::ostream& os, const InitialHyperedgeDistribution& 
   return os << static_cast<uint8_t>(strategy);
 }
 
-
-std::ostream& operator<< (std::ostream& os, const CommunityAssignmentObjective& objective) {
+std::ostream & operator<< (std::ostream& os, const CommunityAssignmentObjective& objective) {
   switch (objective) {
     case CommunityAssignmentObjective::vertex_objective: return os << "vertex_objective";
+    case CommunityAssignmentObjective::vertex_degree_objective: return os << "vertex_degree_objective";
     case CommunityAssignmentObjective::pin_objective: return os << "pin_objective";
     case CommunityAssignmentObjective::UNDEFINED: return os << "UNDEFINED";
       // omit default case to trigger compiler warning for missing cases
@@ -132,7 +141,7 @@ std::ostream& operator<< (std::ostream& os, const CommunityAssignmentObjective& 
   return os << static_cast<uint8_t>(objective);
 }
 
-std::ostream& operator<< (std::ostream& os, const CommunityAssignmentStrategy& strategy) {
+std::ostream & operator<< (std::ostream& os, const CommunityAssignmentStrategy& strategy) {
   switch (strategy) {
     case CommunityAssignmentStrategy::bin_packing: return os << "bin_packing";
     case CommunityAssignmentStrategy::UNDEFINED: return os << "UNDEFINED";
@@ -141,7 +150,28 @@ std::ostream& operator<< (std::ostream& os, const CommunityAssignmentStrategy& s
   return os << static_cast<uint8_t>(strategy);
 }
 
-std::ostream& operator<< (std::ostream& os, const CoarseningAlgorithm& algo) {
+std::ostream & operator<< (std::ostream& os, const LouvainEdgeWeight& type) {
+  switch (type) {
+    case LouvainEdgeWeight::hybrid: return os << "hybrid";
+    case LouvainEdgeWeight::uniform: return os << "uniform";
+    case LouvainEdgeWeight::non_uniform: return os << "non_uniform";
+    case LouvainEdgeWeight::degree: return os << "degree";
+    case LouvainEdgeWeight::UNDEFINED: return os << "UNDEFINED";
+      // omit default case to trigger compiler warning for missing cases
+  }
+  return os << static_cast<uint8_t>(type);
+}
+
+std::ostream & operator<< (std::ostream& os, const CommunityLoadBalancingStrategy& strategy) {
+  switch (strategy) {
+    case CommunityLoadBalancingStrategy::size_constraint: return os << "size_constraint";
+    case CommunityLoadBalancingStrategy::none: return os << "none";
+      // omit default case to trigger compiler warning for missing cases
+  }
+  return os << static_cast<uint8_t>(strategy);
+}
+
+std::ostream & operator<< (std::ostream& os, const CoarseningAlgorithm& algo) {
   switch (algo) {
     case CoarseningAlgorithm::community_coarsener: return os << "community_coarsener";
     case CoarseningAlgorithm::UNDEFINED: return os << "UNDEFINED";
@@ -150,7 +180,7 @@ std::ostream& operator<< (std::ostream& os, const CoarseningAlgorithm& algo) {
   return os << static_cast<uint8_t>(algo);
 }
 
-std::ostream& operator<< (std::ostream& os, const HeavyNodePenaltyPolicy& heavy_hn_policy) {
+std::ostream & operator<< (std::ostream& os, const HeavyNodePenaltyPolicy& heavy_hn_policy) {
   switch (heavy_hn_policy) {
     case HeavyNodePenaltyPolicy::multiplicative_penalty: return os << "multiplicative";
     case HeavyNodePenaltyPolicy::no_penalty: return os << "no_penalty";
@@ -160,7 +190,7 @@ std::ostream& operator<< (std::ostream& os, const HeavyNodePenaltyPolicy& heavy_
   return os << static_cast<uint8_t>(heavy_hn_policy);
 }
 
-std::ostream& operator<< (std::ostream& os, const AcceptancePolicy& acceptance_policy) {
+std::ostream & operator<< (std::ostream& os, const AcceptancePolicy& acceptance_policy) {
   switch (acceptance_policy) {
     case AcceptancePolicy::best: return os << "best";
     case AcceptancePolicy::best_prefer_unmatched: return os << "best_prefer_unmatched";
@@ -170,7 +200,7 @@ std::ostream& operator<< (std::ostream& os, const AcceptancePolicy& acceptance_p
   return os << static_cast<uint8_t>(acceptance_policy);
 }
 
-std::ostream& operator<< (std::ostream& os, const RatingFunction& func) {
+std::ostream & operator<< (std::ostream& os, const RatingFunction& func) {
   switch (func) {
     case RatingFunction::heavy_edge: return os << "heavy_edge";
     case RatingFunction::UNDEFINED: return os << "UNDEFINED";
@@ -179,7 +209,17 @@ std::ostream& operator<< (std::ostream& os, const RatingFunction& func) {
   return os << static_cast<uint8_t>(func);
 }
 
-std::ostream& operator<< (std::ostream& os, const LabelPropagationAlgorithm& algo) {
+std::ostream & operator<< (std::ostream& os, const InitialPartitioningMode& mode) {
+  switch (mode) {
+    case InitialPartitioningMode::direct: return os << "direct";
+    case InitialPartitioningMode::recursive: return os << "recursive";
+    case InitialPartitioningMode::UNDEFINED: return os << "UNDEFINED";
+      // omit default case to trigger compiler warning for missing cases
+  }
+  return os << static_cast<uint8_t>(mode);
+}
+
+std::ostream & operator<< (std::ostream& os, const LabelPropagationAlgorithm& algo) {
   switch (algo) {
     case LabelPropagationAlgorithm::label_propagation_km1: return os << "label_propagation_km1";
     case LabelPropagationAlgorithm::label_propagation_cut: return os << "label_propagation_cut";
@@ -189,7 +229,7 @@ std::ostream& operator<< (std::ostream& os, const LabelPropagationAlgorithm& alg
   return os << static_cast<uint8_t>(algo);
 }
 
-std::ostream& operator<< (std::ostream& os, const ExecutionType& type) {
+std::ostream & operator<< (std::ostream& os, const ExecutionType& type) {
   switch (type) {
     case ExecutionType::exponential: return os << "exponential";
     case ExecutionType::multilevel: return os << "multilevel";
@@ -208,19 +248,19 @@ static InitialHyperedgeDistribution initialHyperedgeDistributionFromString(const
   } else if (strategy == "all_on_one") {
     return InitialHyperedgeDistribution::all_on_one;
   }
-  LOG << "No valid community assignment strategy.";
-  exit(0);
+  ERROR("No valid community assignment strategy.");
   return InitialHyperedgeDistribution::UNDEFINED;
 }
 
 static CommunityAssignmentObjective communityAssignmentObjectiveFromString(const std::string& objective) {
   if (objective == "vertex_objective") {
     return CommunityAssignmentObjective::vertex_objective;
+  } else if (objective == "vertex_degree_objective") {
+    return CommunityAssignmentObjective::vertex_degree_objective;
   } else if (objective == "pin_objective") {
     return CommunityAssignmentObjective::pin_objective;
   }
-  LOG << "No valid community assignment objective.";
-  exit(0);
+  ERROR("No valid community assignment objective.");
   return CommunityAssignmentObjective::UNDEFINED;
 }
 
@@ -228,17 +268,39 @@ static CommunityAssignmentStrategy communityAssignmentStrategyFromString(const s
   if (strategy == "bin_packing") {
     return CommunityAssignmentStrategy::bin_packing;
   }
-  LOG << "No valid community assignment strategy.";
-  exit(0);
+  ERROR("No valid community assignment strategy.");
   return CommunityAssignmentStrategy::UNDEFINED;
+}
+
+static LouvainEdgeWeight louvainEdgeWeightFromString(const std::string& type) {
+  if (type == "hybrid") {
+    return LouvainEdgeWeight::hybrid;
+  } else if (type == "uniform") {
+    return LouvainEdgeWeight::uniform;
+  } else if (type == "non_uniform") {
+    return LouvainEdgeWeight::non_uniform;
+  } else if (type == "degree") {
+    return LouvainEdgeWeight::degree;
+  }
+  ERROR("No valid louvain edge weight.");
+  return LouvainEdgeWeight::UNDEFINED;
+}
+
+static CommunityLoadBalancingStrategy communityLoadBalancingStrategyFromString(const std::string& strategy) {
+  if (strategy == "size_constraint") {
+    return CommunityLoadBalancingStrategy::size_constraint;
+  } else if (strategy == "none") {
+    return CommunityLoadBalancingStrategy::none;
+  }
+  ERROR("No valid louvain edge weight.");
+  return CommunityLoadBalancingStrategy::none;
 }
 
 static CoarseningAlgorithm coarseningAlgorithmFromString(const std::string& type) {
   if (type == "community_coarsener") {
     return CoarseningAlgorithm::community_coarsener;
   }
-  LOG << "Illegal option:" << type;
-  exit(0);
+  ERROR("Illegal option: " + type);
   return CoarseningAlgorithm::UNDEFINED;
 }
 
@@ -251,9 +313,8 @@ static HeavyNodePenaltyPolicy heavyNodePenaltyFromString(const std::string& pena
     return HeavyNodePenaltyPolicy::edge_frequency_penalty;
     // omit default case to trigger compiler warning for missing cases
   }
-  LOG << "No valid edge penalty policy for rating.";
-  exit(0);
-  return HeavyNodePenaltyPolicy::multiplicative_penalty;
+  ERROR("No valid edge penalty policy for rating.");
+  return HeavyNodePenaltyPolicy::UNDEFINED;
 }
 
 static AcceptancePolicy acceptanceCriterionFromString(const std::string& crit) {
@@ -262,17 +323,25 @@ static AcceptancePolicy acceptanceCriterionFromString(const std::string& crit) {
   } else if (crit == "best_prefer_unmatched") {
     return AcceptancePolicy::best_prefer_unmatched;
   }
-  LOG << "No valid acceptance criterion for rating.";
-  exit(0);
+  ERROR("No valid acceptance criterion for rating.");
 }
 
 static RatingFunction ratingFunctionFromString(const std::string& function) {
   if (function == "heavy_edge") {
     return RatingFunction::heavy_edge;
   }
-  LOG << "No valid rating function for rating.";
-  exit(0);
+  ERROR("No valid rating function for rating.");
   return RatingFunction::UNDEFINED;
+}
+
+static InitialPartitioningMode initialPartitioningModeFromString(const std::string& mode) {
+  if (mode == "direct") {
+    return InitialPartitioningMode::direct;
+  } else if (mode == "recursive") {
+    return InitialPartitioningMode::recursive;
+  }
+  ERROR("Illegal option: " + mode);
+  return InitialPartitioningMode::UNDEFINED;
 }
 
 static LabelPropagationAlgorithm labelPropagationAlgorithmFromString(const std::string& type) {
@@ -283,8 +352,7 @@ static LabelPropagationAlgorithm labelPropagationAlgorithmFromString(const std::
   } else if (type == "do_nothing") {
     return LabelPropagationAlgorithm::do_nothing;
   }
-  LOG << "Illegal option:" << type;
-  exit(0);
+  ERROR("Illegal option: " + type);
   return LabelPropagationAlgorithm::do_nothing;
 }
 
@@ -296,9 +364,7 @@ static ExecutionType executionTypeFromString(const std::string& type) {
   } else if (type == "constant") {
     return ExecutionType::constant;
   }
-  LOG << "Illegal option:" << type;
-  exit(0);
+  ERROR("Illegal option: " + type);
   return ExecutionType::UNDEFINED;
 }
-
-} // namesapce mt_kahypar
+}  // namesapce mt_kahypar

@@ -27,14 +27,10 @@
 
 namespace mt_kahypar {
 namespace utils {
-
 class Stats {
-
- static constexpr bool debug = false;
-
+  static constexpr bool debug = false;
 
  public:
-
   enum class Type : uint8_t {
     BOOLEAN = 0,
     INT32 = 1,
@@ -44,7 +40,6 @@ class Stats {
   };
 
   class Stat {
-
    public:
     explicit Stat(const bool value) :
       _type(Type::BOOLEAN),
@@ -86,30 +81,30 @@ class Stats {
       _value_4(0.0),
       _value_5(value) { }
 
-   template< typename T >
-   void update( const T delta ) { }
+    template <typename T>
+    void update(const T delta) { }
 
-   void update( const bool value ) {
-     _value_1 = value;
-   }
+    void update(const bool value) {
+      _value_1 = value;
+    }
 
-   void update( const int32_t delta ) {
-     _value_2 += delta;
-   }
+    void update(const int32_t delta) {
+      _value_2 += delta;
+    }
 
-   void update( const int64_t delta ) {
-     _value_3 += delta;
-   }
+    void update(const int64_t delta) {
+      _value_3 += delta;
+    }
 
-   void update( const float delta ) {
-     _value_4 += delta;
-   }
+    void update(const float delta) {
+      _value_4 += delta;
+    }
 
-   void update( const double delta ) {
-     _value_5 += delta;
-   }
+    void update(const double delta) {
+      _value_5 += delta;
+    }
 
-   friend std::ostream& operator<<(std::ostream& str, const Stat& stat);
+    friend std::ostream & operator<< (std::ostream& str, const Stat& stat);
 
    private:
     Type _type;
@@ -121,61 +116,69 @@ class Stats {
   };
 
  public:
+  Stats(const Stats&) = delete;
+  Stats & operator= (const Stats &) = delete;
+
+  Stats(Stats&&) = delete;
+  Stats & operator= (Stats &&) = delete;
 
   static Stats& instance() {
-    if ( _instance == nullptr ) {
-      std::lock_guard<std::mutex> _lock(_mutex);
-      if ( _instance == nullptr ) {
-        _instance = new Stats();
+    static Stats instance;
+    return instance;
+  }
+
+void enable() {
+    std::lock_guard<std::mutex> lock(_stat_mutex);
+    _enable = true;
+  }
+
+  void disable() {
+    std::lock_guard<std::mutex> lock(_stat_mutex);
+    _enable = false;
+  }
+  template <typename T>
+  void add_stat(const std::string& key, const T value) {
+    std::lock_guard<std::mutex> lock(_stat_mutex);
+    if (_enable) {
+      if (_stats.find(key) == _stats.end()) {
+        _stats.emplace(
+          std::piecewise_construct,
+          std::forward_as_tuple(key),
+          std::forward_as_tuple(value));
       }
     }
-    return *_instance;
   }
 
-  template< typename T >
-  void add_stat( const std::string& key, const T value ) {
+  template <typename T>
+  void update_stat(const std::string& key, const T delta) {
     std::lock_guard<std::mutex> lock(_stat_mutex);
-    if ( _stats.find(key) == _stats.end() ) {
-      _stats.emplace(
-        std::piecewise_construct,
-        std::forward_as_tuple(key),
-        std::forward_as_tuple(value));
+    if (_enable) {
+      if (_stats.find(key) == _stats.end()) {
+        _stats.emplace(
+          std::piecewise_construct,
+          std::forward_as_tuple(key),
+          std::forward_as_tuple(delta));
+      } else {
+        _stats.at(key).update(delta);
+      }
     }
   }
 
-  template< typename T >
-  void update_stat( const std::string& key, const T delta ) {
-    std::lock_guard<std::mutex> lock(_stat_mutex);
-    if ( _stats.find(key) == _stats.end() ) {
-      _stats.emplace(
-        std::piecewise_construct,
-        std::forward_as_tuple(key),
-        std::forward_as_tuple(delta));
-    } else {
-      _stats.at(key).update(delta);
-    }
-  }
-
-  friend std::ostream& operator<<(std::ostream& str, const Stats& stats);
+  friend std::ostream & operator<< (std::ostream& str, const Stats& stats);
 
  private:
   explicit Stats() :
     _stat_mutex(),
-    _stats() { }
-
-  static std::mutex _mutex;
-  static Stats* _instance;
+    _stats(),
+    _enable(true) { }
 
   std::mutex _stat_mutex;
   std::unordered_map<std::string, Stat> _stats;
+  bool _enable;
 };
 
-Stats* Stats::_instance { nullptr };
-std::mutex Stats::_mutex;
-
-
-std::ostream& operator<<(std::ostream& str, const Stats::Stat& stat) {
-  switch ( stat._type ) {
+std::ostream & operator<< (std::ostream& str, const Stats::Stat& stat) {
+  switch (stat._type) {
     case Stats::Type::BOOLEAN:
       str << std::boolalpha << stat._value_1;
       break;
@@ -192,23 +195,22 @@ std::ostream& operator<<(std::ostream& str, const Stats::Stat& stat) {
       str << stat._value_5;
       break;
     default:
-      break; // UNKNOWN TYPE
+      break;  // UNKNOWN TYPE
   }
   return str;
 }
 
-std::ostream& operator<<(std::ostream& str, const Stats& stats) {
+std::ostream & operator<< (std::ostream& str, const Stats& stats) {
   std::vector<std::string> keys;
-  for ( const auto& stat : stats._stats ) {
+  for (const auto& stat : stats._stats) {
     keys.emplace_back(stat.first);
   }
   std::sort(keys.begin(), keys.end());
 
-  for ( const std::string& key : keys ) {
+  for (const std::string& key : keys) {
     str << " " << key << "=" << stats._stats.at(key);
   }
   return str;
 }
-
-} // namespace utils
-} // namespace mt_kahypar
+}  // namespace utils
+}  // namespace mt_kahypar

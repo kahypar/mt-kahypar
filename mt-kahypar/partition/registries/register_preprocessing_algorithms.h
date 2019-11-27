@@ -21,27 +21,24 @@
 
 #pragma once
 
-
 #include "kahypar/meta/registrar.h"
 
-#include "mt-kahypar/partition/factories.h"
 #include "mt-kahypar/partition/context.h"
+#include "mt-kahypar/partition/factories.h"
 
-#define REGISTER_DISPATCHED_COMMUNITY_ASSIGNER(id, dispatcher, ...)        \
-  static meta::Registrar<RedistributionFactory> register_ ## dispatcher(   \
-    id,                                                                    \
-    [](Hypergraph& hypergraph, const Context& context) {                   \
-    return dispatcher::create(                                             \
-      std::forward_as_tuple(hypergraph, context),                          \
-      __VA_ARGS__                                                          \
-      );                                                                   \
+#define REGISTER_DISPATCHED_COMMUNITY_ASSIGNER(id, dispatcher, ...)               \
+  static kahypar::meta::Registrar<RedistributionFactory> register_ ## dispatcher( \
+    id,                                                                           \
+    [](Hypergraph& hypergraph, const Context& context) {                          \
+    return dispatcher::create(                                                    \
+      std::forward_as_tuple(hypergraph, context),                                 \
+      __VA_ARGS__                                                                 \
+      );                                                                          \
   })
 
 namespace mt_kahypar {
-
 REGISTER_DISPATCHED_COMMUNITY_ASSIGNER(CommunityAssignmentStrategy::bin_packing,
                                        BinPackingCommunityAssignmentDispatcher,
-                                       meta::PolicyRegistry<CommunityAssignmentObjective>::getInstance().getPolicy(
-                                         context.shared_memory.assignment_objective));
-
-} // namespace mt_kahypar
+                                       kahypar::meta::PolicyRegistry<CommunityAssignmentObjective>::getInstance().getPolicy(
+                                         context.preprocessing.community_redistribution.assignment_objective));
+}  // namespace mt_kahypar

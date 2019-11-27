@@ -22,65 +22,67 @@
 
 #include "mt-kahypar/datastructures/clustering.h"
 #include "mt-kahypar/datastructures/graph.h"
-#include "mt-kahypar/partition/preprocessing/community_detection/plm.h"
+#include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/preprocessing/community_detection/parallel_contraction.h"
+#include "mt-kahypar/partition/preprocessing/community_detection/plm.h"
+#include "mt-kahypar/utils/timer.h"
 
 namespace mt_kahypar {
 class ParallelModularityLouvain {
-private:
-	static constexpr bool debug = false;
+ private:
+  static constexpr bool debug = false;
 
-	static ds::Clustering localMovingContractRecurse(ds::AdjListGraph& GFine, PLM& mlv, size_t numTasks) {
-		ds::Clustering C(GFine.numNodes());
+  static ds::Clustering localMovingContractRecurse(ds::AdjListGraph& GFine, PLM& mlv, size_t numTasks) {
+    ds::Clustering C(GFine.numNodes());
 
-		DBG << "Start Local Moving";
-		auto t_lm = tbb::tick_count::now();
-		bool clustering_changed = mlv.localMoving(GFine, C);
-		mlv.tr.report("Local Moving", tbb::tick_count::now() - t_lm);
+    DBG << "Start Local Moving";
+    utils::Timer::instance().start_timer("local_moving", "Local Moving");
+    bool clustering_changed = mlv.localMoving(GFine, C);
+    utils::Timer::instance().stop_timer("local_moving");
 
 
 /*
 
-		DBG << "Exiting so we only test local moving";
-		std::exit(-1);
+        ERROR("Exiting so we only test local moving");
 */
 
-		if (clustering_changed) {
-			//contract
-			DBG << "Contract";
+    if (clustering_changed) {
+      // contract
+      DBG << "Contract";
 
-			auto t_contract = tbb::tick_count::now();
-			ds::AdjListGraph GCoarse = ParallelClusteringContractionAdjList::contract(GFine, C, numTasks);
-			mlv.tr.report("Contraction", tbb::tick_count::now() - t_contract);
+      utils::Timer::instance().start_timer("contraction", "Contraction");
+      ds::AdjListGraph GCoarse = ParallelClusteringContractionAdjList::contract(GFine, C, numTasks);
+      utils::Timer::instance().stop_timer("contraction");
 
-#ifndef NDEBUG
-			ds::Clustering coarseGraphSingletons(GCoarse.numNodes());
-			coarseGraphSingletons.assignSingleton();
-			//assert(PLM::doubleMod(GFine, PLM::intraClusterWeights_And_SumOfSquaredClusterVolumes(GFine, C)) == PLM::integerModularityFromScratch(GCoarse, coarseGraphSingletons));
+
+#ifdef KAHYPAR_ENABLE_HEAVY_PREPROCESSING_ASSERTIONS
+      ds::Clustering coarseGraphSingletons(GCoarse.numNodes());
+      coarseGraphSingletons.assignSingleton();
+      // assert(PLM::doubleMod(GFine, PLM::intraClusterWeights_And_SumOfSquaredClusterVolumes(GFine, C)) == PLM::integerModularityFromScratch(GCoarse, coarseGraphSingletons));
 #endif
 
-			ClusteringStatistics::printLocalMovingStats(GFine, C, mlv.tr);
+      ClusteringStatistics::printLocalMovingStats(GFine, C);
 
-			//recurse
-			ds::Clustering coarseC = localMovingContractRecurse(GCoarse, mlv, numTasks);
+      // recurse
+      ds::Clustering coarseC = localMovingContractRecurse(GCoarse, mlv, numTasks);
 
-			auto t_prolong = tbb::tick_count::now();
-			//prolong clustering
-			for (NodeID u : GFine.nodes())		//parallelize
-				C[u] = coarseC[C[u]];
-			mlv.tr.report("Prolong", tbb::tick_count::now() - t_prolong);
-			//assert(PLM::integerModularityFromScratch(GFine, C) == PLM::integerModularityFromScratch(GCoarse, coarseC));
-		}
+      utils::Timer::instance().start_timer("prolong", "Prolong");
+      // prolong clustering
+      for (NodeID u : GFine.nodes()) // parallelize
+        C[u] = coarseC[C[u]];
+      utils::Timer::instance().stop_timer("prolong");
+      // assert(PLM::integerModularityFromScratch(GFine, C) == PLM::integerModularityFromScratch(GCoarse, coarseC));
+    }
 
-		return C;
-	}
-public:
-	static ds::Clustering run(ds::AdjListGraph& graph, size_t numTasks) {
-		PLM mlv(graph.numNodes());
-		ds::Clustering C = localMovingContractRecurse(graph, mlv, numTasks);
-		ClusteringStatistics::printLocalMovingStats(graph, C, mlv.tr);
-		return C;
-	}
+    return C;
+  }
+
+ public:
+  static ds::Clustering run(ds::AdjListGraph& graph, const Context& context) {
+    PLM mlv(context, graph.numNodes());
+    ds::Clustering C = localMovingContractRecurse(graph, mlv, context.shared_memory.num_threads);
+    ClusteringStatistics::printLocalMovingStats(graph, C);
+    return C;
+  }
 };
-
 }

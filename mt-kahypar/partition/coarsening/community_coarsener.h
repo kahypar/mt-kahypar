@@ -22,29 +22,29 @@
 
 #include <string>
 
+#include "tbb/concurrent_queue.h"
 #include "tbb/task_group.h"
-#include "tbb/parallel_for.h"
-#include "tbb/blocked_range.h"
 
 #include "kahypar/meta/mandatory.h"
 
 #include "mt-kahypar/definitions.h"
+#include "mt-kahypar/partition/coarsening/community_coarsener_base.h"
+#include "mt-kahypar/partition/coarsening/community_vertex_pair_rater.h"
+#include "mt-kahypar/partition/coarsening/hypergraph_pruner.h"
+#include "mt-kahypar/partition/coarsening/i_coarsener.h"
+#include "mt-kahypar/partition/coarsening/policies/rating_acceptance_policy.h"
+#include "mt-kahypar/partition/coarsening/policies/rating_heavy_node_penalty_policy.h"
+#include "mt-kahypar/partition/coarsening/policies/rating_score_policy.h"
+#include "mt-kahypar/partition/preprocessing/community_reassignment/policies/community_assignment_objective.h"
 #include "mt-kahypar/utils/randomize.h"
 #include "mt-kahypar/utils/stats.h"
-#include "mt-kahypar/partition/coarsening/i_coarsener.h"
-#include "mt-kahypar/partition/coarsening/community_coarsener_base.h"
-#include "mt-kahypar/partition/coarsening/hypergraph_pruner.h"
-#include "mt-kahypar/partition/coarsening/community_vertex_pair_rater.h"
-#include "mt-kahypar/partition/coarsening/policies/rating_score_policy.h"
-#include "mt-kahypar/partition/coarsening/policies/rating_heavy_node_penalty_policy.h"
-#include "mt-kahypar/partition/coarsening/policies/rating_acceptance_policy.h"
 
 namespace mt_kahypar {
-
-template< typename TypeTraits,
+template <typename TypeTraits,
           class ScorePolicy = HeavyEdgeScore,
           class HeavyNodePenaltyPolicy = MultiplicativePenalty,
-          class AcceptancePolicy = BestRatingPreferringUnmatched >
+          class AcceptancePolicy = BestRatingPreferringUnmatched,
+          class CommunityAssignmentObjective = PinObjectivePolicy>
 class CommunityCoarsenerT : public ICoarsener,
                             private CommunityCoarsenerBase<TypeTraits> {
  private:
@@ -62,7 +62,6 @@ class CommunityCoarsenerT : public ICoarsener,
                                          AcceptancePolicy>;
   using Rating = typename Rater::Rating;
 
-
   static constexpr bool debug = false;
   static constexpr HypernodeID kInvalidHypernode = std::numeric_limits<HypernodeID>::max();
 
@@ -73,8 +72,8 @@ class CommunityCoarsenerT : public ICoarsener,
 
   CommunityCoarsenerT(const CommunityCoarsenerT&) = delete;
   CommunityCoarsenerT(CommunityCoarsenerT&&) = delete;
-  CommunityCoarsenerT& operator= (const CommunityCoarsenerT&) = delete;
-  CommunityCoarsenerT& operator= (CommunityCoarsenerT&&) = delete;
+  CommunityCoarsenerT & operator= (const CommunityCoarsenerT &) = delete;
+  CommunityCoarsenerT & operator= (CommunityCoarsenerT &&) = delete;
 
   ~CommunityCoarsenerT() = default;
 
@@ -88,43 +87,66 @@ class CommunityCoarsenerT : public ICoarsener,
     this->init();
 
     // Compute execution order
-    HighResClockTimepoint start = std::chrono::high_resolution_clock::now();
-    std::vector<parallel::scalable_vector<HypernodeID>> community_hns(_hg.numCommunities());
-    for ( const HypernodeID& hn : _hg.nodes() ) {
+    utils::Timer::instance().start_timer("compute_execution_order", "Compute Execution Order");
+    std::vector<parallel::scalable_vector<HypernodeID> > community_hns(_hg.numCommunities());
+    std::vector<HypernodeWeight> community_weights(_hg.numCommunities(), 0);
+    for (const HypernodeID& hn : _hg.nodes()) {
       ASSERT(_hg.communityID(hn) < _hg.numCommunities());
       community_hns[_hg.communityID(hn)].emplace_back(hn);
+      community_weights[_hg.communityID(hn)] += _hg.nodeWeight(hn);
     }
-    // Execute coarsening in decreasing order of their community sizes
-    std::sort(community_hns.begin(), community_hns.end(),
-      [&](const parallel::scalable_vector<HypernodeID>& lhs, const parallel::scalable_vector<HypernodeID>& rhs) {
-      return lhs.size() > rhs.size();
-    });
-    HighResClockTimepoint end = std::chrono::high_resolution_clock::now();
-    mt_kahypar::utils::Timer::instance().add_timing("compute_execution_order", "Compute Execution Order",
-      "coarsening", mt_kahypar::utils::Timer::Type::COARSENING, 2, std::chrono::duration<double>(end - start).count());
+
+    // Execute coarsening in decreasing order of their community assignment objective
+    // Note, this objective is the same than in the preprocessing step where we
+    // redistribute the communities to numa nodes
+    std::vector<PartitionID> community_ids(_hg.numCommunities(), 0);
+    std::iota(community_ids.begin(), community_ids.end(), 0);
+    std::sort(community_ids.begin(), community_ids.end(), [&](const PartitionID& lhs, const PartitionID& rhs) {
+        return CommunityAssignmentObjective::objective(_hg, lhs) > CommunityAssignmentObjective::objective(_hg, rhs);
+      });
+    int used_numa_nodes = TBB::instance().num_used_numa_nodes();
+    std::vector<tbb::concurrent_queue<PartitionID>> community_queues(used_numa_nodes);
+    for ( const PartitionID& community_id : community_ids ) {
+      int node = _hg.communityNumaNode(community_id);
+      ASSERT(node < used_numa_nodes);
+      community_queues[node].push(community_id);
+    }
+    utils::Timer::instance().stop_timer("compute_execution_order");
 
     // Parallel Community Coarsening
-    start = std::chrono::high_resolution_clock::now();
-    for ( size_t i = 0; i < community_hns.size(); ++i ) {
-      if ( community_hns[i].size() <= 1 ) continue;
-
-      PartitionID community_id = _hg.communityID(community_hns[i][0]);
-      int node = _hg.communityNumaNode(community_id);
-      TBB::instance().numa_task_arena(node).execute([&, community_id, i] {
-        TBB::instance().numa_task_group(node).run([&, community_id, i] {
-          // Compute contraction limit for community relative to
-          // community size and original contraction limit
-          HypernodeID contraction_limit =
-            std::ceil((((double) this->_hg.numCommunityHypernodes(community_id)) /
-              this->_hg.totalWeight()) * _context.coarsening.contraction_limit);
-          parallelCommunityCoarsening(community_id, contraction_limit, community_hns[i]);
-        });
-      });
+    // We schedule exactly number of available threads tasks. Each task
+    // polls from the tbb::concurrent_queue (responsible for the numa node
+    // where the task is executed) a community and executes the contractions
+    utils::Timer::instance().start_timer("parallel_community_coarsening", "Parallel Community Coarsening");
+    for ( int node = 0; node < used_numa_nodes; ++node ) {
+      int num_threads = TBB::instance().number_of_threads_on_numa_node(node);
+      for ( int i = 0; i < num_threads; ++i ) {
+        TBB::instance().numa_task_arena(node).execute([&, node] {
+            TBB::instance().numa_task_group(node).run([&, node] {
+              tbb::concurrent_queue<PartitionID>& queue = community_queues[node];
+              while ( !queue.empty() ) {
+                PartitionID community_id = -1;
+                bool success = queue.try_pop(community_id);
+                if ( success ) {
+                  ASSERT(community_id >= 0);
+                  ASSERT(community_id < _hg.numCommunities());
+                  if ( community_hns[community_id].size() <= 1 ) {
+                    continue;
+                  }
+                  // Compute contraction limit for community relative to
+                  // community size and original contraction limit
+                  HypernodeID contraction_limit =
+                    std::ceil((((double)community_weights[community_id]) /
+                              this->_hg.totalWeight()) * _context.coarsening.contraction_limit);
+                  parallelCommunityCoarsening(community_id, contraction_limit, community_hns[community_id]);
+                }
+              }
+            });
+          });
+      }
     }
     TBB::instance().wait();
-    end = std::chrono::high_resolution_clock::now();
-    mt_kahypar::utils::Timer::instance().add_timing("parallel_community_coarsening", "Parallel Community Coarsening",
-      "coarsening", mt_kahypar::utils::Timer::Type::COARSENING, 3, std::chrono::duration<double>(end - start).count());
+    utils::Timer::instance().stop_timer("parallel_community_coarsening");
 
     // Finalize community coarsening
     this->finalize();
@@ -136,6 +158,7 @@ class CommunityCoarsenerT : public ICoarsener,
     ASSERT(community_nodes.size() > 1);
     DBG << "Start coarsening of community" << community_id
         << "with" << _hg.numCommunityHypernodes(community_id) << "vertices"
+        << "and community assignment objective of" << CommunityAssignmentObjective::objective(_hg, community_id)
         << "and contraction limit" << contraction_limit
         << "on numa node" << HwTopology::instance().numa_node_of_cpu(sched_getcpu())
         << "on cpu" << sched_getcpu();
@@ -145,35 +168,35 @@ class CommunityCoarsenerT : public ICoarsener,
     // in that order
     std::sort(community_nodes.begin(), community_nodes.end(),
               [&](const HypernodeID& lhs, const HypernodeID& rhs) {
-                return _hg.communityNodeId(lhs) < _hg.communityNodeId(rhs);
-              });
+        return _hg.communityNodeId(lhs) < _hg.communityNodeId(rhs);
+      });
     parallel::scalable_vector<HypernodeID> nodes;
-    for ( const HypernodeID& hn : community_nodes ) {
+    for (const HypernodeID& hn : community_nodes) {
       nodes.emplace_back(hn);
     }
 
     Rater rater(_hg, _context, community_id, community_nodes);
     HypernodeID current_num_nodes = nodes.size();
     size_t pass_nr = 0;
-    while ( current_num_nodes > contraction_limit ) {
+    while (current_num_nodes > contraction_limit) {
       DBG << V(community_id) << V(pass_nr) << V(current_num_nodes) << V(sched_getcpu());
 
       rater.resetMatches();
       size_t num_hns_before_pass = current_num_nodes;
       parallel::scalable_vector<HypernodeID> tmp_nodes;
 
-      if ( _enable_randomization ) {
+      if (_enable_randomization) {
         utils::Randomize::instance().shuffleVector(nodes, nodes.size(), sched_getcpu());
       }
 
-      for ( const HypernodeID& hn : nodes ) {
-        if ( _hg.nodeIsEnabled(hn) && _hg.nodeDegree(hn) <= _context.coarsening.hypernode_degree_threshold ) {
+      for (const HypernodeID& hn : nodes) {
+        if (_hg.nodeIsEnabled(hn) && _hg.nodeDegree(hn) <= _context.coarsening.hypernode_degree_threshold) {
           Rating rating = rater.rate(hn);
 
-          if ( rating.target != kInvalidHypernode ) {
+          if (rating.target != kInvalidHypernode) {
             rater.markAsMatched(hn);
             rater.markAsMatched(rating.target);
-            if ( _hg.nodeDegree(rating.target) < _context.coarsening.hypernode_degree_threshold ) {
+            if (_hg.nodeDegree(rating.target) < _context.coarsening.hypernode_degree_threshold) {
               this->performContraction(hn, rating.target);
               tmp_nodes.emplace_back(hn);
             } else {
@@ -182,21 +205,22 @@ class CommunityCoarsenerT : public ICoarsener,
             --current_num_nodes;
           }
 
-          if ( current_num_nodes <= contraction_limit ) {
+          if (current_num_nodes <= contraction_limit) {
             break;
           }
         }
       }
 
-      if ( num_hns_before_pass == current_num_nodes ) {
+      if (num_hns_before_pass == current_num_nodes) {
         break;
       }
 
       nodes = std::move(tmp_nodes);
       ++pass_nr;
     }
+
     utils::Stats::instance().update_stat("num_removed_single_node_hes",
-      (int64_t) _pruner[community_id].removedSingleNodeHyperedges().size());
+                                         (int64_t)_pruner[community_id].removedSingleNodeHyperedges().size());
   }
 
   bool uncoarsenImpl(std::unique_ptr<IRefiner>& label_propagation) override {
@@ -209,9 +233,10 @@ class CommunityCoarsenerT : public ICoarsener,
   bool _enable_randomization;
 };
 
-template< class ScorePolicy = HeavyEdgeScore,
+template <class ScorePolicy = HeavyEdgeScore,
           class HeavyNodePenaltyPolicy = MultiplicativePenalty,
-          class AcceptancePolicy = BestRatingPreferringUnmatched >
-using CommunityCoarsener = CommunityCoarsenerT<GlobalTypeTraits, ScorePolicy, HeavyNodePenaltyPolicy, AcceptancePolicy>;
-
+          class AcceptancePolicy = BestRatingPreferringUnmatched,
+          class CommunityAssignmentObjective = PinObjectivePolicy>
+using CommunityCoarsener = CommunityCoarsenerT<GlobalTypeTraits, ScorePolicy, HeavyNodePenaltyPolicy,
+                                               AcceptancePolicy, CommunityAssignmentObjective>;
 }  // namespace mt_kahypar

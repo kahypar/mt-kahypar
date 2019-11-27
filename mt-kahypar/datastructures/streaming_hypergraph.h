@@ -20,39 +20,35 @@
 #pragma once
 
 #include <algorithm>
+#include <atomic>
+#include <chrono>
+#include <functional>
+#include <set>
 #include <thread>
 #include <type_traits>
-#include <atomic>
-#include <functional>
-#include <chrono>
-#include <set>
 
-#include "tbb/task_scheduler_observer.h"
+#include "tbb/parallel_for.h"
+#include "tbb/parallel_reduce.h"
+#include "tbb/parallel_scan.h"
+#include "tbb/parallel_sort.h"
+#include "tbb/queuing_mutex.h"
 #include "tbb/task_arena.h"
 #include "tbb/task_group.h"
-#include "tbb/parallel_for.h"
-#include "tbb/parallel_scan.h"
-#include "tbb/parallel_reduce.h"
-#include "tbb/parallel_sort.h"
-#include "tbb/blocked_range.h"
-#include "tbb/queuing_mutex.h"
 
 #include "kahypar/datastructure/fast_reset_flag_array.h"
 #include "kahypar/meta/mandatory.h"
 #include "kahypar/utils/math.h"
 
-#include "mt-kahypar/macros.h"
-#include "mt-kahypar/datastructures/streaming_vector.h"
-#include "mt-kahypar/datastructures/streaming_map.h"
 #include "mt-kahypar/datastructures/connectivity_set.h"
+#include "mt-kahypar/datastructures/streaming_map.h"
+#include "mt-kahypar/datastructures/streaming_vector.h"
+#include "mt-kahypar/macros.h"
+#include "mt-kahypar/parallel/atomic_wrapper.h"
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
-#include "mt-kahypar/parallel/copyable_atomic.h"
 #include "mt-kahypar/utils/timer.h"
-
 
 namespace mt_kahypar {
 namespace ds {
-
 // forward
 template <typename HypernodeType_,
           typename HyperedgeType_,
@@ -83,7 +79,6 @@ template <typename HypernodeType_ = Mandatory,
           typename HardwareTopology = Mandatory,
           typename TBBNumaArena = Mandatory>
 class StreamingHypergraph {
-
   static constexpr bool debug = false;
   static constexpr bool enable_heavy_assert = false;
   static constexpr size_t NUMA_NODE_INDENTIFIER = 48;
@@ -95,9 +90,9 @@ class StreamingHypergraph {
   using HypernodeWeight = HypernodeWeightType_;
   using HyperedgeWeight = HyperedgeWeightType_;
   using PartitionID = PartitionIDType_;
-  using HypernodeAtomic = parallel::CopyableAtomic<HypernodeID>;
-  using HyperedgeAtomic = parallel::CopyableAtomic<HyperedgeID>;
-  using PartitionAtomic = parallel::CopyableAtomic<PartitionID>;
+  using HypernodeAtomic = parallel::IntegralAtomicWrapper<HypernodeID>;
+  using HyperedgeAtomic = parallel::IntegralAtomicWrapper<HyperedgeID>;
+  using PartitionAtomic = parallel::IntegralAtomicWrapper<PartitionID>;
 
   static constexpr PartitionID kInvalidPartition = -1;
   static constexpr HypernodeID kInvalidHypernode = std::numeric_limits<HypernodeID>::max();
@@ -106,16 +101,20 @@ class StreamingHypergraph {
                                    HyperedgeWeight, PartitionID, HardwareTopology,
                                    TBBNumaArena>;
 
+<<<<<<< HEAD
   using IncidentNets = parallel::scalable_vector<parallel::scalable_vector<HyperedgeID>>;
   using ThreadLocalFastResetFlagArray = tbb::enumerable_thread_specific<kahypar::ds::FastResetFlagArray<>>;
 
+=======
+  using IncidentNets = parallel::scalable_vector<parallel::scalable_vector<HyperedgeID> >;
+>>>>>>> origin/master
 
   using HighResClockTimepoint = std::chrono::time_point<std::chrono::high_resolution_clock>;
 
-  static_assert( sizeof(HypernodeID) == 8, "Hypernode ID must be 8 byte" );
-  static_assert( std::is_unsigned<HypernodeID>::value, "Hypernode ID must be unsigned" );
-  static_assert( sizeof(HyperedgeID) == 8, "Hyperedge ID must be 8 byte" );
-  static_assert( std::is_unsigned<HyperedgeID>::value, "Hyperedge ID must be unsigned" );
+  static_assert(sizeof(HypernodeID) == 8, "Hypernode ID must be 8 byte");
+  static_assert(std::is_unsigned<HypernodeID>::value, "Hypernode ID must be unsigned");
+  static_assert(sizeof(HyperedgeID) == 8, "Hyperedge ID must be 8 byte");
+  static_assert(std::is_unsigned<HyperedgeID>::value, "Hyperedge ID must be unsigned");
 
   struct AtomicHypernodeData {
     AtomicHypernodeData() :
@@ -131,193 +130,192 @@ class StreamingHypergraph {
    * associated with a vertex (except incident nets and block information).
    */
   class Hypernode {
+   public:
+    using IDType = HyperedgeID;
 
-    public:
-      using IDType = HyperedgeID;
+    Hypernode() :
+      _id(kInvalidHypernode),
+      _original_id(kInvalidHypernode),
+      _community_node_id(kInvalidHypernode),
+      _weight(1),
+      _community_id(kInvalidPartition),
+      _invalid_incident_nets(0),
+      _single_pin_community_nets(0),
+      _invalid_community_nets(0),
+      _valid(false) { }
 
-      Hypernode() :
-        _id(kInvalidHypernode),
-        _original_id(kInvalidHypernode),
-        _community_node_id(kInvalidHypernode),
-        _weight(1),
-        _community_id(kInvalidPartition),
-        _invalid_incident_nets(0),
-        _single_pin_community_nets(0),
-        _invalid_community_nets(0),
-        _valid(false) { }
+    Hypernode(const HypernodeID id,
+              const HypernodeID original_id,
+              const HypernodeWeight weight) :
+      _id(id),
+      _original_id(original_id),
+      _community_node_id(kInvalidHypernode),
+      _weight(weight),
+      _community_id(kInvalidPartition),
+      _invalid_incident_nets(0),
+      _single_pin_community_nets(0),
+      _invalid_community_nets(0),
+      _valid(true) { }
 
-      Hypernode(const HypernodeID id,
-                const HypernodeID original_id,
-                const HypernodeWeight weight) :
-        _id(id),
-        _original_id(original_id),
-        _community_node_id(kInvalidHypernode),
-        _weight(weight),
-        _community_id(kInvalidPartition),
-        _invalid_incident_nets(0),
-        _single_pin_community_nets(0),
-        _invalid_community_nets(0),
-        _valid(true) { }
+    HypernodeID nodeId() const {
+      return _id;
+    }
 
-      HypernodeID nodeId() const {
-        return _id;
-      }
+    HypernodeID originalNodeId() const {
+      return _original_id;
+    }
 
-      HypernodeID originalNodeId() const {
-        return _original_id;
-      }
+    HypernodeID communityNodeId() const {
+      return _community_node_id;
+    }
 
-      HypernodeID communityNodeId() const {
-        return _community_node_id;
-      }
+    void setCommunityNodeId(const HypernodeID community_node_id) {
+      _community_node_id = community_node_id;
+    }
 
-      void setCommunityNodeId(const HypernodeID community_node_id) {
-        _community_node_id = community_node_id;
-      }
+    // ! Disables the hypernode/hyperedge. Disable hypernodes/hyperedges will be skipped
+    // ! when iterating over the set of all nodes/edges.
+    void disable() {
+      ASSERT(!isDisabled());
+      _valid = false;
+    }
 
-      // ! Disables the hypernode/hyperedge. Disable hypernodes/hyperedges will be skipped
-      // ! when iterating over the set of all nodes/edges.
-      void disable() {
-        ASSERT(!isDisabled());
-        _valid = false;
-      }
+    bool isDisabled() const {
+      return _valid == false;
+    }
 
-      bool isDisabled() const {
-        return _valid == false;
-      }
+    void enable() {
+      ASSERT(isDisabled());
+      _valid = true;
+    }
 
-      void enable() {
-        ASSERT(isDisabled());
-        _valid = true;
-      }
+    IDType size() const {
+      ASSERT(!isDisabled());
+      return _incident_nets.size();
+    }
 
-      IDType size() const {
-        ASSERT(!isDisabled());
-        return _incident_nets.size();
-      }
+    HyperedgeWeight weight() const {
+      ASSERT(!isDisabled());
+      return _weight;
+    }
 
-      HyperedgeWeight weight() const {
-        ASSERT(!isDisabled());
-        return _weight;
-      }
+    void setWeight(HyperedgeWeight weight) {
+      ASSERT(!isDisabled());
+      _weight = weight;
+    }
 
-      void setWeight(HyperedgeWeight weight) {
-        ASSERT(!isDisabled());
-        _weight = weight;
-      }
+    PartitionID communityID() const {
+      ASSERT(!isDisabled());
+      return _community_id;
+    }
 
-      PartitionID communityID() const {
-        ASSERT(!isDisabled());
-        return _community_id;
-      }
+    void setCommunityID(const PartitionID community_id) {
+      ASSERT(!isDisabled());
+      _community_id = community_id;
+    }
 
-      void setCommunityID(const PartitionID community_id) {
-        ASSERT(!isDisabled());
-        _community_id = community_id;
-      }
+    size_t invalidIncidentNets() const {
+      return _invalid_incident_nets;
+    }
 
-      size_t invalidIncidentNets() const {
-        return _invalid_incident_nets;
-      }
+    void setInvalidIncidentNets(const size_t invalid_incident_nets) {
+      _invalid_incident_nets = invalid_incident_nets;
+    }
 
-      void setInvalidIncidentNets(const size_t invalid_incident_nets) {
-        _invalid_incident_nets = invalid_incident_nets;
-      }
+    void incrementInvalidIncidentNets() {
+      ++_invalid_incident_nets;
+    }
 
-      void incrementInvalidIncidentNets() {
-        ++_invalid_incident_nets;
-      }
+    void decrementInvalidIncidentNets() {
+      --_invalid_incident_nets;
+    }
 
-      void decrementInvalidIncidentNets() {
-        --_invalid_incident_nets;
-      }
+    size_t singlePinCommunityNets() const {
+      ASSERT(!isDisabled());
+      return _single_pin_community_nets;
+    }
 
-      size_t singlePinCommunityNets() const {
-        ASSERT(!isDisabled());
-        return _single_pin_community_nets;
-      }
+    void setSinglePinCommunityNets(const size_t single_pin_community_nets) {
+      ASSERT(!isDisabled());
+      _single_pin_community_nets = single_pin_community_nets;
+    }
 
-      void setSinglePinCommunityNets(const size_t single_pin_community_nets) {
-        ASSERT(!isDisabled());
-        _single_pin_community_nets = single_pin_community_nets;
-      }
+    void incrementSinglePinCommunityNets() {
+      ASSERT(!isDisabled());
+      ++_single_pin_community_nets;
+    }
 
-      void incrementSinglePinCommunityNets() {
-        ASSERT(!isDisabled());
-        ++_single_pin_community_nets;
-      }
+    void decrementSinglePinCommunityNets() {
+      ASSERT(!isDisabled());
+      --_single_pin_community_nets;
+    }
 
-      void decrementSinglePinCommunityNets() {
-        ASSERT(!isDisabled());
-        --_single_pin_community_nets;
-      }
+    size_t invalidCommunityNets() const {
+      ASSERT(!isDisabled());
+      return _invalid_community_nets;
+    }
 
-      size_t invalidCommunityNets() const {
-        ASSERT(!isDisabled());
-        return _invalid_community_nets;
-      }
+    void setInvalidCommunityNets(const size_t invalid_community_nets) {
+      ASSERT(!isDisabled());
+      _invalid_community_nets = invalid_community_nets;
+    }
 
-      void setInvalidCommunityNets(const size_t invalid_community_nets) {
-        ASSERT(!isDisabled());
-        _invalid_community_nets = invalid_community_nets;
-      }
+    void incrementInvalidCommunityNets() {
+      ASSERT(!isDisabled());
+      ++_invalid_community_nets;
+    }
 
-      void incrementInvalidCommunityNets() {
-        ASSERT(!isDisabled());
-        ++_invalid_community_nets;
-      }
+    void decrementInvalidCommunityNets() {
+      ASSERT(!isDisabled());
+      --_invalid_community_nets;
+    }
 
-      void decrementInvalidCommunityNets() {
-        ASSERT(!isDisabled());
-        --_invalid_community_nets;
-      }
+    bool operator== (const Hypernode& rhs) const {
+      return _incident_nets.size() == rhs._incident_nets.size() &&
+             _weight == rhs._weight &&
+             _valid == rhs._valid &&
+             std::is_permutation(_incident_nets.begin(),
+                                 _incident_nets.end(),
+                                 rhs._incident_nets.begin());
+    }
 
-      bool operator== (const Hypernode& rhs) const {
-        return _incident_nets.size() == rhs._incident_nets.size() &&
-              _weight == rhs._weight &&
-              _valid == rhs._valid &&
-              std::is_permutation(_incident_nets.begin(),
-                                  _incident_nets.end(),
-                                  rhs._incident_nets.begin());
-      }
+    bool operator!= (const Hypernode& rhs) const {
+      return !operator== (this, rhs);
+    }
 
-      bool operator!= (const Hypernode& rhs) const {
-        return !operator== (this, rhs);
-      }
+   private:
+    // ! Hypernode id
+    HypernodeID _id;
+    // ! Original hypernode id
+    HypernodeID _original_id;
+    // ! Hypernode id within a community
+    HypernodeID _community_node_id;
+    // ! Hypernode weight
+    HyperedgeWeight _weight;
+    // ! Community id
+    PartitionID _community_id;
+    // ! Pointer to incident nets indicating that all hyperedges up to
+    // ! that position are invalid.
+    size_t _invalid_incident_nets;
 
-    private:
-      // ! Hypernode id
-      HypernodeID _id;
-      // ! Original hypernode id
-      HypernodeID _original_id;
-      // ! Hypernode id within a community
-      HypernodeID _community_node_id;
-      // ! Hypernode weight
-      HyperedgeWeight _weight;
-      // ! Community id
-      PartitionID _community_id;
-      // ! Pointer to incident nets indicating that all hyperedges up to
-      // ! that position are invalid.
-      size_t _invalid_incident_nets;
+    // ! During community coarsening we maintain the following order
+    // ! on the incident nets of a hypernode
+    // !  1.) All single-pin community hyperedges
+    // !  2.) All valid community hyperedges
+    // !  3.) All invalidated community hyperedges (due to parallel to an other edge)
+    // ! Reason for that is:
+    // !  1.) During rating we only want to iterate over all valid community hyperedges
+    // !  2.) During contraction we want to iterate over all community hyperedges
+    // !  3.) During parallel hyperedge detection we only want to iterate over all
+    // !      single-pin and valid hyperedges
 
-      // ! During community coarsening we maintain the following order
-      // ! on the incident nets of a hypernode
-      // !  1.) All single-pin community hyperedges
-      // !  2.) All valid community hyperedges
-      // !  3.) All invalidated community hyperedges (due to parallel to an other edge)
-      // ! Reason for that is:
-      // !  1.) During rating we only want to iterate over all valid community hyperedges
-      // !  2.) During contraction we want to iterate over all community hyperedges
-      // !  3.) During parallel hyperedge detection we only want to iterate over all
-      // !      single-pin and valid hyperedges
+    // ! All incident nets from 0 to _single_pin_community_nets are single-pin community hyperedges
+    size_t _single_pin_community_nets;
+    // ! All incident nets from _invalid_community_nets to |I(v)| are invalid community hyperedges
+    size_t _invalid_community_nets;
 
-      // ! All incident nets from 0 to _single_pin_community_nets are single-pin community hyperedges
-      size_t _single_pin_community_nets;
-      // ! All incident nets from _invalid_community_nets to |I(v)| are invalid community hyperedges
-      size_t _invalid_community_nets;
-
-      // ! Flag indicating whether or not the element is active.
-      bool _valid;
+    // ! Flag indicating whether or not the element is active.
+    bool _valid;
   };
 
   /**
@@ -325,143 +323,142 @@ class StreamingHypergraph {
    * associated with a net (except connectivity information).
    */
   class Hyperedge {
+   public:
+    using IDType = HyperedgeID;
 
-    public:
-      using IDType = HyperedgeID;
+    Hyperedge() :
+      _begin(0),
+      _size(0),
+      _original_id(kInvalidHypernode),
+      _weight(1),
+      _hash(kEdgeHashSeed),
+      _valid(false),
+      _init_community_hyperedges(false) { }
 
-      Hyperedge() :
-        _begin(0),
-        _size(0),
-        _original_id(kInvalidHypernode),
-        _weight(1),
-        _hash(kEdgeHashSeed),
-        _valid(false),
-        _init_community_hyperedges(false) { }
+    Hyperedge(const size_t begin,
+              const size_t size,
+              const HyperedgeID original_id,
+              const HyperedgeWeight weight) :
+      _begin(begin),
+      _size(size),
+      _original_id(original_id),
+      _weight(weight),
+      _hash(kEdgeHashSeed),
+      _valid(true),
+      _init_community_hyperedges(false) { }
 
-      Hyperedge(const size_t begin,
-                const size_t size,
-                const HyperedgeID original_id,
-                const HyperedgeWeight weight) :
-        _begin(begin),
-        _size(size),
-        _original_id(original_id),
-        _weight(weight),
-        _hash(kEdgeHashSeed),
-        _valid(true),
-        _init_community_hyperedges(false) { }
+    // ! Disables the hypernode/hyperedge. Disable hypernodes/hyperedges will be skipped
+    // ! when iterating over the set of all nodes/edges.
+    void disable() {
+      ASSERT(!isDisabled());
+      _valid = false;
+    }
 
-      // ! Disables the hypernode/hyperedge. Disable hypernodes/hyperedges will be skipped
-      // ! when iterating over the set of all nodes/edges.
-      void disable() {
-        ASSERT(!isDisabled());
-        _valid = false;
-      }
+    void enable() {
+      ASSERT(isDisabled());
+      _valid = true;
+    }
 
-      void enable() {
-        ASSERT(isDisabled());
-        _valid = true;
-      }
+    bool isDisabled() const {
+      return _valid == false;
+    }
 
-      bool isDisabled() const {
-        return _valid == false;
-      }
+    void initializeCommunityHyperedges() {
+      ASSERT(!isInitCommunityHyperedges());
+      _init_community_hyperedges = true;
+    }
 
-      void initializeCommunityHyperedges() {
-        ASSERT(!isInitCommunityHyperedges());
-        _init_community_hyperedges = true;
-      }
+    void deinitializeCommunityHyperedges() {
+      ASSERT(isInitCommunityHyperedges());
+      _init_community_hyperedges = false;
+    }
 
-      void deinitializeCommunityHyperedges() {
-        ASSERT(isInitCommunityHyperedges());
-        _init_community_hyperedges = false;
-      }
+    bool isInitCommunityHyperedges() const {
+      return _init_community_hyperedges;
+    }
 
-      bool isInitCommunityHyperedges() const {
-        return _init_community_hyperedges;
-      }
+    // ! Returns the index of the first element in _incidence_array
+    size_t firstEntry() const {
+      return _begin;
+    }
 
-      // ! Returns the index of the first element in _incidence_array
-      size_t firstEntry() const {
-        return _begin;
-      }
+    // ! Sets the index of the first element in _incidence_array to begin
+    void setFirstEntry(size_t begin) {
+      ASSERT(!isDisabled());
+      _begin = begin;
+    }
 
-      // ! Sets the index of the first element in _incidence_array to begin
-      void setFirstEntry(size_t begin) {
-        ASSERT(!isDisabled());
-        _begin = begin;
-      }
+    // ! Returns the index of the first element in _incidence_array
+    size_t firstInvalidEntry() const {
+      return _begin + _size;
+    }
 
-      // ! Returns the index of the first element in _incidence_array
-      size_t firstInvalidEntry() const {
-        return _begin + _size;
-      }
+    size_t size() const {
+      ASSERT(!isDisabled());
+      return _size;
+    }
 
-      size_t size() const {
-        ASSERT(!isDisabled());
-        return _size;
-      }
+    void setSize(size_t size) {
+      ASSERT(!isDisabled());
+      _size = size;
+    }
 
-      void setSize(size_t size) {
-        ASSERT(!isDisabled());
-        _size = size;
-      }
+    HypernodeID originalEdgeId() const {
+      return _original_id;
+    }
 
-      HypernodeID originalEdgeId() const {
-        return _original_id;
-      }
+    void incrementSize() {
+      ++_size;
+    }
 
-      void incrementSize() {
-        ++_size;
-      }
+    void decrementSize() {
+      ASSERT(_size > 0);
+      --_size;
+    }
 
-      void decrementSize() {
-        ASSERT(_size > 0);
-        --_size;
-      }
+    HyperedgeWeight weight() const {
+      ASSERT(!isDisabled());
+      return _weight;
+    }
 
-      HyperedgeWeight weight() const {
-        ASSERT(!isDisabled());
-        return _weight;
-      }
+    void setWeight(HyperedgeWeight weight) {
+      ASSERT(!isDisabled());
+      _weight = weight;
+    }
 
-      void setWeight(HyperedgeWeight weight) {
-        ASSERT(!isDisabled());
-        _weight = weight;
-      }
+    size_t& hash() {
+      return _hash;
+    }
 
-      size_t & hash() {
-        return _hash;
-      }
+    size_t hash() const {
+      return _hash;
+    }
 
-      size_t hash() const {
-        return _hash;
-      }
+    bool operator== (const Hyperedge& rhs) const {
+      return _begin == rhs._begin && _size == rhs._size && _weight == rhs._weight;
+    }
 
-      bool operator== (const Hyperedge& rhs) const {
-        return _begin == rhs._begin && _size == rhs._size && _weight == rhs._weight;
-      }
+    bool operator!= (const Hyperedge& rhs) const {
+      return !operator== (this, rhs);
+    }
 
-      bool operator!= (const Hyperedge& rhs) const {
-        return !operator== (this, rhs);
-      }
-
-    private:
-      // ! Index of the first element in _incidence_array
-      size_t _begin;
-      // ! Number of _incidence_array elements
-      size_t _size;
-      // ! Original hyperedge id
-      HyperedgeID _original_id;
-      // ! hyperedge weight
-      HyperedgeWeight _weight;
-      // ! Hash of pins
-      size_t _hash;
-      // ! Flag indicating whether or not the element is active.
-      bool _valid;
-      // ! Flag indicating wheter community hyperedges are initialized
-      // ! or not. In case of true some functions of streaming hypergraph
-      // ! are not callable any more.
-      bool _init_community_hyperedges;
+   private:
+    // ! Index of the first element in _incidence_array
+    size_t _begin;
+    // ! Number of _incidence_array elements
+    size_t _size;
+    // ! Original hyperedge id
+    HyperedgeID _original_id;
+    // ! hyperedge weight
+    HyperedgeWeight _weight;
+    // ! Hash of pins
+    size_t _hash;
+    // ! Flag indicating whether or not the element is active.
+    bool _valid;
+    // ! Flag indicating wheter community hyperedges are initialized
+    // ! or not. In case of true some functions of streaming hypergraph
+    // ! are not callable any more.
+    bool _init_community_hyperedges;
   };
 
   /**
@@ -469,103 +466,100 @@ class StreamingHypergraph {
    * associated with it.
    */
   class CommunityHyperedge {
+   public:
+    CommunityHyperedge() :
+      _begin(0),
+      _size(0),
+      _weight(0),
+      _hash(kEdgeHashSeed),
+      _valid(false) { }
 
-    public:
+    CommunityHyperedge(const size_t begin,
+                       const size_t size,
+                       const HypernodeWeight weight) :
+      _begin(begin),
+      _size(size),
+      _weight(weight),
+      _hash(kEdgeHashSeed),
+      _valid(true) { }
 
-      CommunityHyperedge() :
-        _begin(0),
-        _size(0),
-        _weight(0),
-        _hash(kEdgeHashSeed),
-        _valid(false) { }
+    void disable() {
+      ASSERT(!isDisabled());
+      _valid = false;
+    }
 
-      CommunityHyperedge(const size_t begin,
-                         const size_t size,
-                         const HypernodeWeight weight) :
-        _begin(begin),
-        _size(size),
-        _weight(weight),
-        _hash(kEdgeHashSeed),
-        _valid(true) { }
+    bool isDisabled() const {
+      return _valid == false;
+    }
 
-      void disable() {
-        ASSERT(!isDisabled());
-        _valid = false;
-      }
+    // ! Returns the index of the first element in _incidence_array
+    size_t firstEntry() const {
+      return _begin;
+    }
 
-      bool isDisabled() const {
-        return _valid == false;
-      }
+    // ! Sets the index of the first element in _incidence_array to begin
+    void setFirstEntry(size_t begin) {
+      _begin = begin;
+    }
 
-      // ! Returns the index of the first element in _incidence_array
-      size_t firstEntry() const {
-        return _begin;
-      }
+    // ! Returns the index of the first element in _incidence_array
+    size_t firstInvalidEntry() const {
+      return _begin + _size;
+    }
 
-      // ! Sets the index of the first element in _incidence_array to begin
-      void setFirstEntry(size_t begin) {
-        _begin = begin;
-      }
+    size_t size() const {
+      return _size;
+    }
 
-      // ! Returns the index of the first element in _incidence_array
-      size_t firstInvalidEntry() const {
-        return _begin + _size;
-      }
+    void setSize(size_t size) {
+      _size = size;
+    }
 
-      size_t size() const {
-        return _size;
-      }
+    void incrementSize() {
+      ++_size;
+    }
 
-      void setSize(size_t size) {
-        _size = size;
-      }
+    void decrementSize() {
+      ASSERT(_size > 0);
+      --_size;
+    }
 
-      void incrementSize() {
-        ++_size;
-      }
+    HyperedgeWeight weight() const {
+      return _weight;
+    }
 
-      void decrementSize() {
-        ASSERT(_size > 0);
-        --_size;
-      }
+    void setWeight(HyperedgeWeight weight) {
+      _weight = weight;
+    }
 
-      HyperedgeWeight weight() const {
-        return _weight;
-      }
+    size_t& hash() {
+      return _hash;
+    }
 
-      void setWeight(HyperedgeWeight weight) {
-        _weight = weight;
-      }
+    size_t hash() const {
+      return _hash;
+    }
 
-      size_t & hash() {
-        return _hash;
-      }
+    bool operator== (const CommunityHyperedge& rhs) const {
+      return _begin == rhs._begin && _size == rhs._size;
+    }
 
-      size_t hash() const {
-        return _hash;
-      }
+    bool operator!= (const CommunityHyperedge& rhs) const {
+      return !operator== (this, rhs);
+    }
 
-      bool operator== (const CommunityHyperedge& rhs) const {
-        return _begin == rhs._begin && _size == rhs._size;
-      }
-
-      bool operator!= (const CommunityHyperedge& rhs) const {
-        return !operator== (this, rhs);
-      }
-
-    private:
-      // ! Index of the first element in _incidence_array
-      size_t _begin;
-      // ! Number of _incidence_array elements
-      size_t _size;
-      // ! hyperedge weight
-      HyperedgeWeight _weight;
-      // ! Hash of pins
-      size_t _hash;
-      // ! Flag indicating whether or not the element is active.
-      bool _valid;
+   private:
+    // ! Index of the first element in _incidence_array
+    size_t _begin;
+    // ! Number of _incidence_array elements
+    size_t _size;
+    // ! hyperedge weight
+    HyperedgeWeight _weight;
+    // ! Hash of pins
+    size_t _hash;
+    // ! Flag indicating whether or not the element is active.
+    bool _valid;
   };
-
 
   /*!
    * Iterator for HypergraphElements (Hypernodes/Hyperedges)
@@ -590,8 +584,7 @@ class StreamingHypergraph {
                          typename ElementType::IDType,   // value_type
                          std::ptrdiff_t,   // difference_type
                          const typename ElementType::IDType*,   // pointer
-                         typename ElementType::IDType>{   // reference
-
+                         typename ElementType::IDType> {   // reference
    public:
     using IDType = typename ElementType::IDType;
 
@@ -621,7 +614,7 @@ class StreamingHypergraph {
     }
 
     // ! Prefix increment. The iterator advances to the next valid element.
-    HypergraphElementIterator& operator++ () {
+    HypergraphElementIterator & operator++ () {
       ASSERT(_id < _max_id);
       do {
         ++_id;
@@ -673,7 +666,7 @@ class StreamingHypergraph {
   // ! Iterator over the connectivity set of a hyperedge
   using ConnectivitySetIterator = typename ConnectivitySet::ConnectivitySetIterator;
   // ! Community Hyperedges
-  using CommunityHyperedges = parallel::scalable_vector<parallel::scalable_vector<CommunityHyperedge>>;
+  using CommunityHyperedges = parallel::scalable_vector<parallel::scalable_vector<CommunityHyperedge> >;
 
  public:
   enum class UncontractionCase : uint8_t {
@@ -692,7 +685,6 @@ class StreamingHypergraph {
   *
   */
   struct Memento {
-
     Memento() :
       u(kInvalidHypernode),
       v(kInvalidHypernode),
@@ -702,7 +694,7 @@ class StreamingHypergraph {
       parallel_hes_begin(0),
       parallel_hes_size(0) { }
 
-    Memento( HypernodeID representative, HypernodeID contraction_partner ) :
+    Memento(HypernodeID representative, HypernodeID contraction_partner) :
       u(representative),
       v(contraction_partner),
       community_id(kInvalidPartition),
@@ -711,7 +703,7 @@ class StreamingHypergraph {
       parallel_hes_begin(0),
       parallel_hes_size(0) { }
 
-    Memento( HypernodeID representative, HypernodeID contraction_partner, PartitionID community ) :
+    Memento(HypernodeID representative, HypernodeID contraction_partner, PartitionID community) :
       u(representative),
       v(contraction_partner),
       community_id(community),
@@ -765,12 +757,12 @@ class StreamingHypergraph {
     _incident_net_stream() {
     // Make sure constructor is called on corresponding numa node
     ASSERT(HardwareTopology::instance().numa_node_of_cpu(sched_getcpu()) == _node,
-      "Only allowed to allocate numa hypergraph on node" << _node << ", but it is"
-      << HardwareTopology::instance().numa_node_of_cpu(sched_getcpu()));
+           "Only allowed to allocate numa hypergraph on node" << _node << ", but it is"
+                                                              << HardwareTopology::instance().numa_node_of_cpu(sched_getcpu()));
   }
 
   StreamingHypergraph(const StreamingHypergraph&) = delete;
-  StreamingHypergraph& operator= (const StreamingHypergraph&) = delete;
+  StreamingHypergraph & operator= (const StreamingHypergraph &) = delete;
 
   StreamingHypergraph(StreamingHypergraph&& other) :
     _node(other._node),
@@ -798,7 +790,6 @@ class StreamingHypergraph {
     _hypernode_stream(std::move(other._hypernode_stream)),
     _incident_net_stream(std::move(other._incident_net_stream)) { }
 
-
   // ####################### General Hypergraph Stats #######################
 
   // ! Initial number of hypernodes
@@ -825,18 +816,17 @@ class StreamingHypergraph {
   void updateTotalWeight() {
     tbb::task_group group;
     _arena.execute([&] {
-      group.run([&] {
-        _total_weight = tbb::parallel_reduce(tbb::blocked_range<HypernodeID>(0UL, _num_hypernodes), 0,
-          [this](const tbb::blocked_range<HypernodeID>& range, HypernodeWeight init) {
-            HypernodeWeight weight = init;
-            for ( HypernodeID hn = range.begin(); hn < range.end(); ++hn ) {
-              weight += this->_hypernodes[hn].weight();
-            }
-            return weight;
-          },
-          std::plus<HypernodeWeight>());
-      });
-    });
+          group.run([&] {
+            _total_weight = tbb::parallel_reduce(tbb::blocked_range<HypernodeID>(0UL, _num_hypernodes), 0,
+                                                 [this](const tbb::blocked_range<HypernodeID>& range, HypernodeWeight init) {
+              HypernodeWeight weight = init;
+              for (HypernodeID hn = range.begin(); hn < range.end(); ++hn) {
+                weight += this->_hypernodes[hn].weight();
+              }
+              return weight;
+            }, std::plus<HypernodeWeight>());
+          });
+        });
     group.wait();
   }
 
@@ -1006,11 +996,11 @@ class StreamingHypergraph {
   // ! Number of pins of a hyperedge
   HypernodeID edgeSize(const HyperedgeID e) const {
     ASSERT(!hyperedge(e).isDisabled(), "Hyperedge" << e << "is disabled");
-    if ( hyperedge(e).isInitCommunityHyperedges() ) {
+    if (hyperedge(e).isInitCommunityHyperedges()) {
       HypernodeID size = 0;
       HyperedgeID local_id = get_local_edge_id_of_hyperedge(e);
       ASSERT(local_id < _community_hyperedges.size());
-      for ( const CommunityHyperedge& community_he : _community_hyperedges[local_id] ) {
+      for (const CommunityHyperedge& community_he : _community_hyperedges[local_id]) {
         size += community_he.size();
       }
       return size;
@@ -1022,11 +1012,11 @@ class StreamingHypergraph {
   // ! Hash value defined over the pins of a hyperedge
   size_t edgeHash(const HyperedgeID e) const {
     ASSERT(!hyperedge(e).isDisabled(), "Hyperedge" << e << "is disabled");
-    if ( hyperedge(e).isInitCommunityHyperedges() ) {
+    if (hyperedge(e).isInitCommunityHyperedges()) {
       size_t hash = 0;
       HyperedgeID local_id = get_local_edge_id_of_hyperedge(e);
       ASSERT(local_id < _community_hyperedges.size());
-      for ( const CommunityHyperedge& community_he : _community_hyperedges[local_id] ) {
+      for (const CommunityHyperedge& community_he : _community_hyperedges[local_id]) {
         hash += community_he.hash();
       }
       return hash;
@@ -1155,10 +1145,10 @@ class StreamingHypergraph {
   // ! NOTE, this function have to be called after initial partitioning
   // ! and before local search.
   void initializeNumCutHyperedges(const std::vector<Self>& hypergraphs) {
-    for ( const HypernodeID& hn : nodes() ) {
-      ASSERT( _atomic_hn_data[get_local_node_id_of_vertex(hn)].num_incident_cut_hes == 0 );
-      for ( const HyperedgeID& he : incidentEdges(hn) ) {
-        if ( hypergraph_of_hyperedge(he, hypergraphs).connectivity(he) > 1 ) {
+    for (const HypernodeID& hn : nodes()) {
+      ASSERT(_atomic_hn_data[get_local_node_id_of_vertex(hn)].num_incident_cut_hes == 0);
+      for (const HyperedgeID& he : incidentEdges(hn)) {
+        if (hypergraph_of_hyperedge(he, hypergraphs).connectivity(he) > 1) {
           incrementIncidentNumCutHyperedges(hn);
         }
       }
@@ -1222,7 +1212,7 @@ class StreamingHypergraph {
 
     ASSERT(_incidence_array[last_pin_slot] == v, "v is not last entry in incidence array!");
 
-    if ( slot_of_u != last_pin_slot ) {
+    if (slot_of_u != last_pin_slot) {
       // Case 1:
       // Hyperedge e contains both u and v. Thus we don't need to connect u to e and
       // can just cut off the last entry in the edge array of e that now contains v.
@@ -1287,7 +1277,7 @@ class StreamingHypergraph {
 
     ASSERT(_incidence_array[last_pin_slot] == v, "v is not last entry in incidence array!");
 
-    if ( slot_of_u != last_pin_slot ) {
+    if (slot_of_u != last_pin_slot) {
       // Case 1:
       // Hyperedge e contains both u and v. Thus we don't need to connect u to e and
       // can just cut off the last entry in the edge array of e that now contains v.
@@ -1319,16 +1309,16 @@ class StreamingHypergraph {
     using std::swap;
 
     ASSERT(!hyperedge(e).isDisabled(), "Hyperedge" << e << "is disabled");
-    if ( containsIncidentNet(e) ) {
+    if (containsIncidentNet(e)) {
       // ... then we have to do some kind of restore operation.
-      if ( get_uncontraction_case(e, hyperedge(e).size(), v) == UncontractionCase::CASE_1 ) {
+      if (get_uncontraction_case(e, hyperedge(e).size(), v) == UncontractionCase::CASE_1) {
         // hyperedge(he + 1) always exists because of sentinel
         // Undo case 1 operation (i.e. Pin v was just cut off by decreasing size of HE e)
         DBG << V(e) << " -> case 1";
         hyperedge(e).incrementSize();
         incrementPinCountInPart(e, hypergraph_of_vertex(v, hypergraphs).partID(v));
 
-        if ( connectivity(e) > 1 ) {
+        if (connectivity(e) > 1) {
           hypergraph_of_vertex(v, hypergraphs).incrementIncidentNumCutHyperedges(v);
         }
 
@@ -1349,7 +1339,7 @@ class StreamingHypergraph {
         DBG << "resetting reused Pinslot of HE" << e << "from" << u << "to" << v;
         resetReusedPinSlotToOriginalValue(e, u, v);
 
-        if ( connectivity(e) > 1 ) {
+        if (connectivity(e) > 1) {
           hypergraph_of_vertex(u, hypergraphs).decrementIncidentNumCutHyperedges(u);
           hypergraph_of_vertex(v, hypergraphs).incrementIncidentNumCutHyperedges(v);
         }
@@ -1383,14 +1373,14 @@ class StreamingHypergraph {
     const Self& hypergraph_of_rep = hypergraph_of_hyperedge(representative, hypergraphs);
     ASSERT(hypergraph_of_rep.edgeIsEnabled(representative), "Hyperedge" << representative << "is disabled");
 
-    if ( containsIncidentNet(e) ) {
+    if (containsIncidentNet(e)) {
       ASSERT(hypergraph_of_rep.edgeSize(representative) <=
              hyperedge(e + 1).firstEntry() - hyperedge(e).firstEntry(),
              V(hypergraph_of_rep.edgeSize(representative))
              << V((hyperedge(e + 1).firstEntry() - hyperedge(e).firstEntry())));
 
       size_t edge_size = hypergraph_of_rep.edgeSize(representative);
-      if ( get_uncontraction_case(e, edge_size, v) == UncontractionCase::CASE_2 ) {
+      if (get_uncontraction_case(e, edge_size, v) == UncontractionCase::CASE_2) {
         // Undo case 2 opeations (i.e. Entry of pin v in HE e was reused to store connection to u):
         // Set incidence entry containing u for this HE e back to v, because this slot was used
         // to store the new edge to representative u during contraction as u was not a pin of e.
@@ -1443,10 +1433,10 @@ class StreamingHypergraph {
     int cpu_id = sched_getcpu();
     // Make sure calling thread is part of correct numa node
     ASSERT(HardwareTopology::instance().numa_node_of_cpu(cpu_id) == _node,
-      "Expected that assigned cpu is on numa node" << _node << ", but was CPU" << cpu_id
-       << "is on node" << HardwareTopology::instance().numa_node_of_cpu(cpu_id));
+           "Expected that assigned cpu is on numa node" << _node << ", but was CPU" << cpu_id
+                                                        << "is on node" << HardwareTopology::instance().numa_node_of_cpu(cpu_id));
     _hyperedge_stream.stream(_pin_stream.size(cpu_id), hyperedge.size(), original_id, weight);
-    for ( const HypernodeID& pin : hyperedge  ) {
+    for (const HypernodeID& pin : hyperedge) {
       _pin_stream.stream(pin);
     }
   }
@@ -1473,105 +1463,92 @@ class StreamingHypergraph {
                             const std::vector<HypernodeID>& node_mapping) {
     // Make sure calling thread is part of correct numa node
     ASSERT(HardwareTopology::instance().numa_node_of_cpu(sched_getcpu()) == _node,
-      "Expected that assigned cpu is on numa node" << _node << ", but was on node"
-        << HardwareTopology::instance().numa_node_of_cpu(sched_getcpu()));
+           "Expected that assigned cpu is on numa node" << _node << ", but was on node"
+                                                        << HardwareTopology::instance().numa_node_of_cpu(sched_getcpu()));
 
     _hypernodes = _hypernode_stream.copy(_arena);
     _num_hypernodes = _hypernodes.size();
     _atomic_hn_data.resize(_num_hypernodes);
 
     // Sort hypernodes in increasing order of their node id and ...
-    HighResClockTimepoint start = std::chrono::high_resolution_clock::now();
+    utils::Timer::instance().start_timer("sort_and_remap_node_ids", "Sort and Remap Nodes", true);
     tbb::task_group group;
     _arena.execute([&] {
-      group.run([&] {
-        tbb::parallel_sort(_hypernodes.begin(), _hypernodes.end(),
-          [&](const Hypernode& lhs, const Hypernode& rhs) {
-          return lhs.nodeId() < rhs.nodeId();
+          group.run([&] {
+            tbb::parallel_sort(_hypernodes.begin(), _hypernodes.end(),
+                               [&](const Hypernode& lhs, const Hypernode& rhs) {
+              return lhs.nodeId() < rhs.nodeId();
+            });
+          });
         });
-      });
-    });
-
 
     // ... parallel to that remap node ids in incidence array to new node ids
     _arena.execute([&] {
-      group.run([&] {
-        tbb::parallel_for(tbb::blocked_range<size_t>(0UL, _incidence_array.size()),
-          [&](const tbb::blocked_range<size_t>& range) {
-          for ( size_t pos = range.begin(); pos < range.end(); ++pos ) {
-            HypernodeID pin = _incidence_array[pos];
-            ASSERT(pin < node_mapping.size());
-            _incidence_array[pos] = node_mapping[pin];
-          }
+          group.run([&] {
+            tbb::parallel_for(0UL, _incidence_array.size(), [&](const size_t& pos) {
+              HypernodeID pin = _incidence_array[pos];
+              ASSERT(pin < node_mapping.size());
+              _incidence_array[pos] = node_mapping[pin];
+            });
+          });
         });
-      });
-    });
     group.wait();
-    HighResClockTimepoint end = std::chrono::high_resolution_clock::now();
-    mt_kahypar::utils::Timer::instance().add_timing("sort_and_remap_node_ids", "Sort and Remap Nodes",
-      "initialize_numa_hypernodes", mt_kahypar::utils::Timer::Type::IMPORT, 0, std::chrono::duration<double>(end - start).count());
+    utils::Timer::instance().stop_timer("sort_and_remap_node_ids");
 
     // Compute Total Hypergraph Weight
-    start = std::chrono::high_resolution_clock::now();
+    utils::Timer::instance().start_timer("compute_total_weight", "Compute Total Weight", true);
     updateTotalWeight();
-    end = std::chrono::high_resolution_clock::now();
-    mt_kahypar::utils::Timer::instance().add_timing("compute_total_weight", "Compute Total Weight",
-      "initialize_numa_hypernodes", mt_kahypar::utils::Timer::Type::IMPORT, 1, std::chrono::duration<double>(end - start).count());
+    utils::Timer::instance().stop_timer("compute_total_weight");
 
-    ASSERT([&]{
-      for ( size_t i = 0; i < _hypernodes.size(); ++i ) {
-        const Hypernode& hn = _hypernodes[i];
-        const int node = get_numa_node_of_vertex(hn.nodeId());
-        const HypernodeID local_id = get_local_node_id_of_vertex(hn.nodeId());
-        if ( node != _node ) {
-          LOG << "Hypernode" << hn.nodeId() << "should be on numa node" << node
-              << ", but is on numa node" << _node;
-          return false;
-        } else if ( i != local_id ) {
-          LOG << "Hypernode" << local_id << "should have local id" << i;
-          return false;
-        }
+    ASSERT([&] {
+          for (size_t i = 0; i < _hypernodes.size(); ++i) {
+            const Hypernode& hn = _hypernodes[i];
+            const int node = get_numa_node_of_vertex(hn.nodeId());
+            const HypernodeID local_id = get_local_node_id_of_vertex(hn.nodeId());
+            if (node != _node) {
+              LOG << "Hypernode" << hn.nodeId() << "should be on numa node" << node
+                  << ", but is on numa node" << _node;
+              return false;
+            } else if (i != local_id) {
+              LOG << "Hypernode" << local_id << "should have local id" << i;
+              return false;
+            }
 
-        if ( i > 0 ) {
-          const Hypernode& previous_hn = _hypernodes[i-1];
-          const HypernodeID previous_local_id = get_local_node_id_of_vertex(previous_hn.nodeId());
-          if ( local_id <= previous_local_id ) {
-            LOG << "Local node ids not sorted" << V(previous_local_id) << V(local_id);
-            return false;
-          } else if ( previous_local_id + 1 != local_id ) {
-            LOG << "Local node ids not consecutive" << V(previous_local_id) << V(local_id);
-            return false;
-          }
-        }
-      }
-      return true;
-    }(), "Initialization of hypernodes failed");
-
-    // Stream incident nets
-    start = std::chrono::high_resolution_clock::now();
-    _arena.execute([&] {
-      group.run([&] {
-        tbb::parallel_for(tbb::blocked_range<size_t>(0UL, _hyperedges.size()),
-          [&](const tbb::blocked_range<size_t>& range) {
-          for ( size_t pos = range.begin(); pos < range.end(); ++pos ) {
-            Hyperedge& he = _hyperedges[pos];
-            const HyperedgeID he_id = get_global_edge_id(pos);
-            for ( size_t incidence_array_pos = he.firstEntry();
-                  incidence_array_pos < he.firstEntry() + he.size();
-                  ++incidence_array_pos ) {
-              const HypernodeID pin = _incidence_array[incidence_array_pos];
-              hypergraph_of_vertex(pin, hypergraphs).streamIncidentNet(pin, he_id);
-              // Initialize edge hash
-              he.hash() += kahypar::math::hash(pin);
+            if (i > 0) {
+              const Hypernode& previous_hn = _hypernodes[i - 1];
+              const HypernodeID previous_local_id = get_local_node_id_of_vertex(previous_hn.nodeId());
+              if (local_id <= previous_local_id) {
+                LOG << "Local node ids not sorted" << V(previous_local_id) << V(local_id);
+                return false;
+              } else if (previous_local_id + 1 != local_id) {
+                LOG << "Local node ids not consecutive" << V(previous_local_id) << V(local_id);
+                return false;
+              }
             }
           }
+          return true;
+        } (), "Initialization of hypernodes failed");
+
+    // Stream incident nets
+    utils::Timer::instance().start_timer("stream_incident_nets", "Stream Incident Nets", true);
+    _arena.execute([&] {
+          group.run([&] {
+            tbb::parallel_for(0UL, _hyperedges.size(), [&](const size_t& pos) {
+              Hyperedge& he = _hyperedges[pos];
+              const HyperedgeID he_id = get_global_edge_id(pos);
+              for (size_t incidence_array_pos = he.firstEntry();
+                    incidence_array_pos < he.firstEntry() + he.size();
+                    ++incidence_array_pos) {
+                const HypernodeID pin = _incidence_array[incidence_array_pos];
+                hypergraph_of_vertex(pin, hypergraphs).streamIncidentNet(pin, he_id);
+                // Initialize edge hash
+                he.hash() += kahypar::math::hash(pin);
+              }
+            });
+          });
         });
-      });
-    });
     group.wait();
-    end = std::chrono::high_resolution_clock::now();
-    mt_kahypar::utils::Timer::instance().add_timing("stream_incident_nets", "Stream Incident Nets",
-      "initialize_numa_hypernodes", mt_kahypar::utils::Timer::Type::IMPORT, 2, std::chrono::duration<double>(end - start).count());
+    utils::Timer::instance().stop_timer("stream_incident_nets");
 
     _hypernode_stream.clear();
   }
@@ -1585,23 +1562,21 @@ class StreamingHypergraph {
   void initializeHyperedges(const HypernodeID num_hypernodes) {
     // Make sure calling thread is part of correct numa node
     ASSERT(HardwareTopology::instance().numa_node_of_cpu(sched_getcpu()) == _node,
-      "Expected that assigned cpu is on numa node" << _node << ", but was on node"
-        << HardwareTopology::instance().numa_node_of_cpu(sched_getcpu()));
+           "Expected that assigned cpu is on numa node" << _node << ", but was on node"
+                                                        << HardwareTopology::instance().numa_node_of_cpu(sched_getcpu()));
 
     // Copy streamed data into global vectors
-     HighResClockTimepoint start = std::chrono::high_resolution_clock::now();
+    utils::Timer::instance().start_timer("copy_incidence_array_and_he", "Copy Incidence Array and HEs", true);
     _incidence_array = _pin_stream.copy(_arena);
     _hyperedges = _hyperedge_stream.copy(_arena);
     _num_pins = _incidence_array.size();
     _num_hyperedges = _hyperedges.size();
-    HighResClockTimepoint end = std::chrono::high_resolution_clock::now();
-    mt_kahypar::utils::Timer::instance().add_timing("copy_incidencce_array_and_he", "Copy Incidence Array and HEs",
-      "initialize_hyperedges", mt_kahypar::utils::Timer::Type::IMPORT, 0, std::chrono::duration<double>(end - start).count());
+    utils::Timer::instance().stop_timer("copy_incidence_array_and_he");
 
     ASSERT(_k > 0);
     _pins_in_part.assign(_num_hyperedges * _k, HypernodeAtomic(0));
     ASSERT(_connectivity_sets.size() == 0);
-    for ( HyperedgeID he = 0; he < _num_hyperedges; ++he ) {
+    for (HyperedgeID he = 0; he < _num_hyperedges; ++he) {
       _connectivity_sets.emplace_back(_k);
     }
     ThreadLocalFastResetFlagArray tmp_incidence_nets_of_v(_num_hyperedges);
@@ -1610,67 +1585,61 @@ class StreamingHypergraph {
     // Update start position of each hyperedge to correct one in global incidence array
     // Note, start positions are stored relative to the local buffer there are streamed into.
     // However, memcpy does hyperedges invalidates those local positions.
-    start = std::chrono::high_resolution_clock::now();
+    utils::Timer::instance().start_timer("update_start_position", "Update Start Positions of HEs", true);
     tbb::task_group group;
     _arena.execute([&] {
-      for ( size_t cpu_id = 0; cpu_id < std::thread::hardware_concurrency(); ++cpu_id ) {
-        group.run([&, cpu_id] {
-          size_t start = _hyperedge_stream.prefix_sum(cpu_id);
-          size_t end = start + _hyperedge_stream.size(cpu_id);
-          size_t delta = _pin_stream.prefix_sum(cpu_id);
-          ASSERT(end <= _hyperedges.size());
-          for ( size_t pos = start; pos < end; ++pos ) {
-            _hyperedges[pos].setFirstEntry( _hyperedges[pos].firstEntry() + delta );
+          for (size_t cpu_id = 0; cpu_id < std::thread::hardware_concurrency(); ++cpu_id) {
+            group.run([&, cpu_id] {
+              size_t start = _hyperedge_stream.prefix_sum(cpu_id);
+              size_t end = start + _hyperedge_stream.size(cpu_id);
+              size_t delta = _pin_stream.prefix_sum(cpu_id);
+              ASSERT(end <= _hyperedges.size());
+              for (size_t pos = start; pos < end; ++pos) {
+                _hyperedges[pos].setFirstEntry(_hyperedges[pos].firstEntry() + delta);
+              }
+            });
           }
         });
-      }
-    });
     group.wait();
     // Emplace Back Sentinel
     _hyperedges.emplace_back(_incidence_array.size(), 0, 0UL, 0);
-    end = std::chrono::high_resolution_clock::now();
-    mt_kahypar::utils::Timer::instance().add_timing("update_start_position", "Update Start Positions of HEs",
-      "initialize_hyperedges", mt_kahypar::utils::Timer::Type::IMPORT, 1, std::chrono::duration<double>(end - start).count());
-
+    utils::Timer::instance().stop_timer("update_start_position");
 
     ASSERT([&] {
-      for ( size_t cpu_id = 0; cpu_id < std::thread::hardware_concurrency(); ++cpu_id ) {
-        size_t start = _hyperedge_stream.prefix_sum(cpu_id);
-        for ( size_t idx = 0; idx < _hyperedge_stream.size(cpu_id); ++idx ) {
-          const Hyperedge& stream_he = _hyperedge_stream.value(cpu_id, idx);
-          const Hyperedge& he = _hyperedges[idx + start];
-          if ( stream_he.size() != he.size() ) {
-            LOG << "Unequal size";
-            return false;
-          }
-          size_t global_pos = he.firstEntry();
-          for ( size_t pos = stream_he.firstEntry(); pos < stream_he.firstEntry() + stream_he.size(); ++pos ) {
-            if ( _incidence_array[global_pos] != _pin_stream.value(cpu_id, pos) ) {
-              LOG << "Pins in stream and global incidence array are not equal"
-                  << V(_incidence_array[global_pos]) << V(_pin_stream.value(cpu_id, pos));
-              return false;
+          for (size_t cpu_id = 0; cpu_id < std::thread::hardware_concurrency(); ++cpu_id) {
+            size_t start = _hyperedge_stream.prefix_sum(cpu_id);
+            for (size_t idx = 0; idx < _hyperedge_stream.size(cpu_id); ++idx) {
+              const Hyperedge& stream_he = _hyperedge_stream.value(cpu_id, idx);
+              const Hyperedge& he = _hyperedges[idx + start];
+              if (stream_he.size() != he.size()) {
+                LOG << "Unequal size";
+                return false;
+              }
+              size_t global_pos = he.firstEntry();
+              for (size_t pos = stream_he.firstEntry(); pos < stream_he.firstEntry() + stream_he.size(); ++pos) {
+                if (_incidence_array[global_pos] != _pin_stream.value(cpu_id, pos)) {
+                  LOG << "Pins in stream and global incidence array are not equal"
+                      << V(_incidence_array[global_pos]) << V(_pin_stream.value(cpu_id, pos));
+                  return false;
+                }
+                ++global_pos;
+              }
             }
-            ++global_pos;
           }
-        }
-      }
-      return true;
-    }(), "Failed to copy buffer to hypergraph");
+          return true;
+        } (), "Failed to copy buffer to hypergraph");
 
     // Compute how many times a hypernode occurs on this node
     // as pin. Will be later important to compute node assignment.
     // TODO(heuer): Think how to parallelize this
-    start = std::chrono::high_resolution_clock::now();
+    utils::Timer::instance().start_timer("compute_vertex_pin_count", "Compute Vertex Pin Counts", true);
     _vertex_pin_count.resize(num_hypernodes);
-    for ( size_t i = 0; i < _incidence_array.size(); ++i ) {
+    for (size_t i = 0; i < _incidence_array.size(); ++i) {
       const HypernodeID& pin = _incidence_array[i];
       ASSERT(pin < _vertex_pin_count.size());
       _vertex_pin_count[pin]++;
     }
-    end = std::chrono::high_resolution_clock::now();
-    mt_kahypar::utils::Timer::instance().add_timing("compute_vertex_pin_count", "Compute Vertex Pin Counts",
-      "initialize_hyperedges", mt_kahypar::utils::Timer::Type::IMPORT, 2, std::chrono::duration<double>(end - start).count());
-
+    utils::Timer::instance().stop_timer("compute_vertex_pin_count");
 
     _pin_stream.clear();
     _hyperedge_stream.clear();
@@ -1680,14 +1649,14 @@ class StreamingHypergraph {
   void initializeIncidentNets() {
     // Make sure calling thread is part of correct numa node
     ASSERT(HardwareTopology::instance().numa_node_of_cpu(sched_getcpu()) == _node,
-      "Expected that assigned cpu is on numa node" << _node << ", but was on node"
-        << HardwareTopology::instance().numa_node_of_cpu(sched_getcpu()));
+           "Expected that assigned cpu is on numa node" << _node << ", but was on node"
+                                                        << HardwareTopology::instance().numa_node_of_cpu(sched_getcpu()));
 
     _incident_nets.resize(_hypernodes.size());
     _incident_net_stream.copy(_arena, _incident_nets, [&](const HypernodeID& u) {
-      ASSERT(get_numa_node_of_vertex(u) == _node);
-      return get_local_node_id_of_vertex(u);
-    });
+          ASSERT(get_numa_node_of_vertex(u) == _node);
+          return get_local_node_id_of_vertex(u);
+        });
     _incident_net_stream.clear();
   }
 
@@ -1699,85 +1668,82 @@ class StreamingHypergraph {
   *       community hyperedge pointing to the sorted incidence array
   */
   void initializeCommunityHyperedges(const std::vector<Self>& hypergraphs) {
+    auto add_community_hyperedge =
+      [&](const HyperedgeID he,
+          const PartitionID community_id,
+          const size_t start,
+          const size_t end,
+          const HyperedgeWeight weight) {
+        if (community_id != kInvalidPartition) {
+          ASSERT(he < this->_community_hyperedges.size());
+          ASSERT(start < end);
+          this->_community_hyperedge_ids[he].emplace_back(community_id);
+          this->_community_hyperedges[he].emplace_back(start, end - start, weight);
 
-    auto add_community_hyperedge = [&](const HyperedgeID he,
-                                       const PartitionID community_id,
-                                       const size_t start,
-                                       const size_t end,
-                                       const HyperedgeWeight weight) {
-      if ( community_id != kInvalidPartition ) {
-        ASSERT(he < this->_community_hyperedges.size());
-        ASSERT(start < end);
-        this->_community_hyperedge_ids[he].emplace_back(community_id);
-        this->_community_hyperedges[he].emplace_back(start, end - start, weight);
-
-        // Compute community hyperedge hash
-        for ( size_t pos = start; pos < end; ++pos ) {
-          this->_community_hyperedges[he].back().hash() +=
-            kahypar::math::hash(this->_incidence_array[pos]);
+          // Compute community hyperedge hash
+          for (size_t pos = start; pos < end; ++pos) {
+            this->_community_hyperedges[he].back().hash() +=
+              kahypar::math::hash(this->_incidence_array[pos]);
+          }
         }
-      }
-    };
+      };
 
     // Add community hyperedges
     _community_hyperedge_ids.resize(_num_hyperedges);
     _community_hyperedges.resize(_num_hyperedges);
     tbb::task_group group;
     _arena.execute([&] {
-      group.run([&] {
-        tbb::parallel_for(tbb::blocked_range<HyperedgeID>(0UL, this->_num_hyperedges),
-        [&](const tbb::blocked_range<size_t>& range) {
-          for ( HyperedgeID he = range.begin(); he < range.end(); ++he ) {
-            Hyperedge& e = this->_hyperedges[he];
-            if ( !e.isDisabled() ) {
-              // Sort pins of hyperedge in increasing order of their community ids
-              size_t incidence_array_start = e.firstEntry();
-              size_t incidence_array_end = e.firstInvalidEntry();
-              std::sort(this->_incidence_array.begin() + incidence_array_start,
-                        this->_incidence_array.begin() + incidence_array_end,
-                        [&](const HypernodeID& lhs, const HypernodeID& rhs) {
-                          return hypergraph_of_vertex(lhs, hypergraphs).communityID(lhs) <
-                                hypergraph_of_vertex(rhs, hypergraphs).communityID(rhs);
-                        });
+          group.run([&] {
+            tbb::parallel_for(0UL, this->_num_hyperedges, [&](const HyperedgeID& he) {
+              Hyperedge& e = this->_hyperedges[he];
+              if (!e.isDisabled()) {
+                // Sort pins of hyperedge in increasing order of their community ids
+                size_t incidence_array_start = e.firstEntry();
+                size_t incidence_array_end = e.firstInvalidEntry();
+                std::sort(this->_incidence_array.begin() + incidence_array_start,
+                          this->_incidence_array.begin() + incidence_array_end,
+                          [&](const HypernodeID& lhs, const HypernodeID& rhs) {
+                  return hypergraph_of_vertex(lhs, hypergraphs).communityID(lhs) <
+                  hypergraph_of_vertex(rhs, hypergraphs).communityID(rhs);
+                });
 
-              // Add community hyperedges for each consecutive range of pins with
-              // the same community id
-              size_t last_community_start = incidence_array_start;
-              PartitionID last_community_id = kInvalidPartition;
-              for ( size_t incidence_array_pos = incidence_array_start;
-                    incidence_array_pos < incidence_array_end;
-                    ++incidence_array_pos ) {
-                const HypernodeID pin = this->_incidence_array[incidence_array_pos];
-                const PartitionID community_id = hypergraph_of_vertex(pin, hypergraphs).communityID(pin);
-                if ( community_id != last_community_id ) {
-                  add_community_hyperedge(he, last_community_id, last_community_start, incidence_array_pos, e.weight());
-                  last_community_start = incidence_array_pos;
-                  last_community_id = community_id;
-                }
-              }
-              add_community_hyperedge(he, last_community_id, last_community_start, incidence_array_end, e.weight());
-              e.initializeCommunityHyperedges();
-
-              HEAVY_COARSENING_ASSERT([&] {
-                if ( e.firstEntry() != _community_hyperedges[he][0].firstEntry() ) {
-                  return false;
-                }
-                for ( size_t i = 1; i < _community_hyperedges[he].size(); ++i ) {
-                  if ( _community_hyperedges[he][i - 1].firstInvalidEntry() !=
-                      _community_hyperedges[he][i].firstEntry() ) {
-                    return false;
+                // Add community hyperedges for each consecutive range of pins with
+                // the same community id
+                size_t last_community_start = incidence_array_start;
+                PartitionID last_community_id = kInvalidPartition;
+                for (size_t incidence_array_pos = incidence_array_start;
+                      incidence_array_pos < incidence_array_end;
+                      ++incidence_array_pos) {
+                  const HypernodeID pin = this->_incidence_array[incidence_array_pos];
+                  const PartitionID community_id = hypergraph_of_vertex(pin, hypergraphs).communityID(pin);
+                  if (community_id != last_community_id) {
+                    add_community_hyperedge(he, last_community_id, last_community_start, incidence_array_pos, e.weight());
+                    last_community_start = incidence_array_pos;
+                    last_community_id = community_id;
                   }
                 }
-                if ( e.firstInvalidEntry() != _community_hyperedges[he].back().firstInvalidEntry() ) {
-                  return false;
-                }
-                return true;
-              }(), "Initialization of community hyperedges failed!");
-            }
-          }
+                add_community_hyperedge(he, last_community_id, last_community_start, incidence_array_end, e.weight());
+                e.initializeCommunityHyperedges();
+
+                HEAVY_COARSENING_ASSERT([&] {
+                  if (e.firstEntry() != _community_hyperedges[he][0].firstEntry()) {
+                    return false;
+                  }
+                  for (size_t i = 1; i < _community_hyperedges[he].size(); ++i) {
+                    if (_community_hyperedges[he][i - 1].firstInvalidEntry() !=
+                        _community_hyperedges[he][i].firstEntry()) {
+                      return false;
+                    }
+                  }
+                  if (e.firstInvalidEntry() != _community_hyperedges[he].back().firstInvalidEntry()) {
+                    return false;
+                  }
+                  return true;
+                } (), "Initialization of community hyperedges failed!");
+              }
+            });
+          });
         });
-      });
-    });
     group.wait();
   }
 
@@ -1796,59 +1762,56 @@ class StreamingHypergraph {
     // which contains at least to pins and in second part are all single-pin community hyperedges
     tbb::task_group group;
     _arena.execute([&] {
-      group.run([&] {
-        tbb::parallel_for(tbb::blocked_range<HypernodeID>(0UL, this->_num_hypernodes),
-        [&](const tbb::blocked_range<HypernodeID>& range) {
-          for ( HypernodeID v = range.begin(); v < range.end(); ++v ) {
-            HypernodeID hn = get_global_node_id(v);
-            if ( !this->hypernode(hn).isDisabled() ) {
-              PartitionID community_id = this->communityID(hn);
-              int single_pin_community_nets = 0;
-              if ( _remove_single_pin_community_nets ) {
-                for ( int i = 0; i < (int) _incident_nets[v].size(); ++i ) {
-                  HyperedgeID he = this->_incident_nets[v][i];
-                  if ( hypergraph_of_hyperedge(he, hypergraphs).edgeSize(he, community_id) == 1 ) {
-                    std::swap(this->_incident_nets[v][i],
-                              this->_incident_nets[v][single_pin_community_nets]);
-                    ++single_pin_community_nets;
+          group.run([&] {
+            tbb::parallel_for(0UL, this->_num_hypernodes, [&](const HypernodeID& v) {
+              HypernodeID hn = get_global_node_id(v);
+              if (!this->hypernode(hn).isDisabled()) {
+                PartitionID community_id = this->communityID(hn);
+                int single_pin_community_nets = 0;
+                if (_remove_single_pin_community_nets) {
+                  for (int i = 0; i < (int)_incident_nets[v].size(); ++i) {
+                    HyperedgeID he = this->_incident_nets[v][i];
+                    if (hypergraph_of_hyperedge(he, hypergraphs).edgeSize(he, community_id) == 1) {
+                      std::swap(this->_incident_nets[v][i],
+                                this->_incident_nets[v][single_pin_community_nets]);
+                      ++single_pin_community_nets;
+                    }
                   }
                 }
+                this->hypernode(hn).setSinglePinCommunityNets(single_pin_community_nets);
+                this->hypernode(hn).setInvalidCommunityNets(_incident_nets[v].size());
+
+                HEAVY_COARSENING_ASSERT([&] {
+                  if (_remove_single_pin_community_nets) {
+                    size_t single_pin_community_hyperedges = this->hypernode(hn).singlePinCommunityNets();
+                    for (size_t i = 0; i < single_pin_community_hyperedges; ++i) {
+                      const HyperedgeID he = incident_nets(hn)[i];
+                      if (hypergraph_of_hyperedge(he, hypergraphs).edgeSize(he, community_id) > 1) {
+                        LOG << "Hyperedge" << he << "is a non single-pin commnunity hyperedge";
+                        return false;
+                      }
+                    }
+                  }
+                  return true;
+                } (), "There non single-pin community hyperedges in single-pin part of incident nets");
+
+                HEAVY_COARSENING_ASSERT([&] {
+                  if (_remove_single_pin_community_nets) {
+                    size_t single_pin_community_hyperedges = this->hypernode(hn).singlePinCommunityNets();
+                    for (size_t i = single_pin_community_hyperedges; i < incident_nets(hn).size(); ++i) {
+                      const HyperedgeID he = incident_nets(hn)[i];
+                      if (hypergraph_of_hyperedge(he, hypergraphs).edgeSize(he, community_id) <= 1) {
+                        LOG << "Hyperedge" << he << "is a single-pin commnunity hyperedge";
+                        return false;
+                      }
+                    }
+                  }
+                  return true;
+                } (), "There single-pin community hyperedges in non-single-pin part of incident nets");
               }
-              this->hypernode(hn).setSinglePinCommunityNets(single_pin_community_nets);
-              this->hypernode(hn).setInvalidCommunityNets(_incident_nets[v].size());
-
-              HEAVY_COARSENING_ASSERT([&] {
-                if ( _remove_single_pin_community_nets ) {
-                  size_t single_pin_community_hyperedges = this->hypernode(hn).singlePinCommunityNets();
-                  for ( size_t i = 0; i < single_pin_community_hyperedges; ++i ) {
-                    const HyperedgeID he = incident_nets(hn)[i];
-                    if ( hypergraph_of_hyperedge(he, hypergraphs).edgeSize(he, community_id) > 1 ) {
-                      LOG << "Hyperedge" << he << "is a non single-pin commnunity hyperedge";
-                      return false;
-                    }
-                  }
-                }
-                return true;
-              }(), "There non single-pin community hyperedges in single-pin part of incident nets");
-
-              HEAVY_COARSENING_ASSERT([&] {
-                if ( _remove_single_pin_community_nets ) {
-                  size_t single_pin_community_hyperedges = this->hypernode(hn).singlePinCommunityNets();
-                  for ( size_t i = single_pin_community_hyperedges; i < incident_nets(hn).size(); ++i ) {
-                    const HyperedgeID he = incident_nets(hn)[i];
-                    if ( hypergraph_of_hyperedge(he, hypergraphs).edgeSize(he, community_id) <= 1 ) {
-                      LOG << "Hyperedge" << he << "is a single-pin commnunity hyperedge";
-                      return false;
-                    }
-                  }
-                }
-                return true;
-              }(), "There single-pin community hyperedges in non-single-pin part of incident nets");
-            }
-          }
+            });
+          });
         });
-      });
-    });
     group.wait();
   }
 
@@ -1867,8 +1830,8 @@ class StreamingHypergraph {
    * @params history contraction history
    */
   void removeCommunityHyperedges(const std::vector<Memento>& mementos,
-                                const HypernodeID num_hypernodes,
-                                const std::vector<Self>& hypergraphs) {
+                                 const HypernodeID num_hypernodes,
+                                 const std::vector<Self>& hypergraphs) {
     // All disabled hypernodes have to follow a specific order in invalid part of the incidence array
     // such that they can be successfully uncontracted. They have be sorted in decreasing order of their
     // contraction. In order to realize this we compute the contraction index of a hypernode inside the
@@ -1876,80 +1839,74 @@ class StreamingHypergraph {
     parallel::scalable_vector<HypernodeID> contraction_index(num_hypernodes, std::numeric_limits<HypernodeID>::max());
     tbb::task_group group;
     _arena.execute([&] {
-      group.run([&] {
-        tbb::parallel_for(tbb::blocked_range<size_t>(0UL, mementos.size()),
-        [&](const tbb::blocked_range<size_t>& range) {
-          for ( size_t i = range.begin(); i < range.end(); ++i ) {
-            const HypernodeID v = mementos[i].v;
-            ASSERT(hypergraph_of_vertex(v, hypergraphs).originalNodeId(v) < num_hypernodes);
-            ASSERT(contraction_index[hypergraph_of_vertex(v, hypergraphs).originalNodeId(v)] == std::numeric_limits<HypernodeID>::max(),
-              "Hypernode" << v << "occurs more than once as contraction partner in hierarchy");
-            contraction_index[hypergraph_of_vertex(v, hypergraphs).originalNodeId(v)] = i;
-          }
+          group.run([&] {
+            tbb::parallel_for(0UL, mementos.size(), [&](const size_t& i) {
+              const HypernodeID v = mementos[i].v;
+              ASSERT(hypergraph_of_vertex(v, hypergraphs).originalNodeId(v) < num_hypernodes);
+              ASSERT(contraction_index[hypergraph_of_vertex(v, hypergraphs).originalNodeId(v)] == std::numeric_limits<HypernodeID>::max(),
+                      "Hypernode" << v << "occurs more than once as contraction partner in hierarchy");
+              contraction_index[hypergraph_of_vertex(v, hypergraphs).originalNodeId(v)] = i;
+            });
+          });
         });
-      });
-    });
     group.wait();
 
     // The incidence array of a hyperedge is constructed as follows: The first part consists
     // of all enabled pins and the remainder of all invalid pins. The invalid pins in the
     // remainder are sorted in decreasing order of their contraction index.
     _arena.execute([&] {
-      group.run([&] {
-        tbb::parallel_for(tbb::blocked_range<HyperedgeID>(0UL, _num_hyperedges),
-        [&](const tbb::blocked_range<HyperedgeID>& range) {
-          for ( HyperedgeID he = range.begin(); he < range.end(); ++he ) {
-            Hyperedge& e = this->_hyperedges[he];
-            if ( e.isInitCommunityHyperedges() ) {
-              int64_t first_entry = e.firstEntry();
-              int64_t last_entry = e.firstInvalidEntry();
-              // Sort pins of hyperedge in decreasing order of their contraction index
-              std::sort(this->_incidence_array.begin() + first_entry,
-                        this->_incidence_array.begin() + last_entry,
-                        [&](const HypernodeID& lhs, const HypernodeID& rhs) {
-                          HypernodeID original_lhs = hypergraph_of_vertex(lhs, hypergraphs).originalNodeId(lhs);
-                          HypernodeID original_rhs = hypergraph_of_vertex(rhs, hypergraphs).originalNodeId(rhs);
-                          return contraction_index[original_lhs] > contraction_index[original_rhs];
-                        });
+          group.run([&] {
+            tbb::parallel_for(0UL, _num_hyperedges, [&](const HyperedgeID& he) {
+              Hyperedge& e = this->_hyperedges[he];
+              if (e.isInitCommunityHyperedges()) {
+                int64_t first_entry = e.firstEntry();
+                int64_t last_entry = e.firstInvalidEntry();
+                // Sort pins of hyperedge in decreasing order of their contraction index
+                std::sort(this->_incidence_array.begin() + first_entry,
+                          this->_incidence_array.begin() + last_entry,
+                          [&](const HypernodeID& lhs, const HypernodeID& rhs) {
+                  HypernodeID original_lhs = hypergraph_of_vertex(lhs, hypergraphs).originalNodeId(lhs);
+                  HypernodeID original_rhs = hypergraph_of_vertex(rhs, hypergraphs).originalNodeId(rhs);
+                  return contraction_index[original_lhs] > contraction_index[original_rhs];
+                });
 
-              // Count number of enabled hypernodes
-              --last_entry;
-              ASSERT(first_entry <= last_entry);
-              for ( ; last_entry >= first_entry; --last_entry ) {
-                const HypernodeID pin = this->_incidence_array[last_entry];
-                if ( !hypergraph_of_vertex(pin, hypergraphs).nodeIsEnabled(pin) ) {
-                  e.decrementSize();
+                // Count number of enabled hypernodes
+                --last_entry;
+                ASSERT(first_entry <= last_entry);
+                for ( ; last_entry >= first_entry; --last_entry) {
+                  const HypernodeID pin = this->_incidence_array[last_entry];
+                  if (!hypergraph_of_vertex(pin, hypergraphs).nodeIsEnabled(pin)) {
+                    e.decrementSize();
+                  }
                 }
+
+                e.deinitializeCommunityHyperedges();
+
+                HEAVY_COARSENING_ASSERT([&] {
+                  for (size_t i = e.firstEntry(); i < e.firstInvalidEntry(); ++i) {
+                    const HypernodeID& pin = this->_incidence_array[i];
+                    if (!hypergraph_of_vertex(pin, hypergraphs).nodeIsEnabled(pin)) {
+                      LOG << "Hypernode" << pin << "is disabled";
+                      return false;
+                    }
+                  }
+                  return true;
+                } (), "There are disabled hypernodes in valid part of hyperedge");
+
+                HEAVY_COARSENING_ASSERT([&] {
+                  for (size_t i = e.firstInvalidEntry(); i < _hyperedges[he + 1].firstEntry(); ++i) {
+                    const HypernodeID& pin = this->_incidence_array[i];
+                    if (hypergraph_of_vertex(pin, hypergraphs).nodeIsEnabled(pin)) {
+                      LOG << "Hypernode" << pin << "is enabled";
+                      return false;
+                    }
+                  }
+                  return true;
+                } (), "There are enabled hypernodes in invalid part of hyperedge");
               }
-
-              e.deinitializeCommunityHyperedges();
-
-              HEAVY_COARSENING_ASSERT([&] {
-                for ( size_t i = e.firstEntry(); i < e.firstInvalidEntry(); ++i ) {
-                  const HypernodeID& pin = this->_incidence_array[i];
-                  if ( !hypergraph_of_vertex(pin, hypergraphs).nodeIsEnabled(pin) ) {
-                    LOG << "Hypernode" << pin << "is disabled";
-                    return false;
-                  }
-                }
-                return true;
-              }(), "There are disabled hypernodes in valid part of hyperedge");
-
-              HEAVY_COARSENING_ASSERT([&] {
-                for ( size_t i = e.firstInvalidEntry(); i < _hyperedges[he + 1].firstEntry(); ++i ) {
-                  const HypernodeID& pin = this->_incidence_array[i];
-                  if ( hypergraph_of_vertex(pin, hypergraphs).nodeIsEnabled(pin) ) {
-                    LOG << "Hypernode" << pin << "is enabled";
-                    return false;
-                  }
-                }
-                return true;
-              }(), "There are enabled hypernodes in invalid part of hyperedge");
-            }
-          }
+            });
+          });
         });
-      });
-    });
     group.wait();
 
     CommunityHyperedges community_hyperedges;
@@ -1960,19 +1917,15 @@ class StreamingHypergraph {
   void resetPinsToOriginalNodeIds(const std::vector<Self>& hypergraphs) {
     tbb::task_group group;
     _arena.execute([&] {
-      group.run([&] {
-        tbb::parallel_for(tbb::blocked_range<size_t>(0UL, this->_num_pins),
-        [&](const tbb::blocked_range<size_t>& range) {
-          for ( size_t i = range.begin(); i < range.end(); ++i ) {
-            HypernodeID pin = this->_incidence_array[i];
-            this->_incidence_array[i] = hypergraph_of_vertex(pin, hypergraphs).hypernode(pin).originalNodeId();
-          }
+          group.run([&] {
+            tbb::parallel_for(0UL, this->_num_pins, [&](const size_t& i) {
+              HypernodeID pin = this->_incidence_array[i];
+              this->_incidence_array[i] = hypergraph_of_vertex(pin, hypergraphs).hypernode(pin).originalNodeId();
+            });
+          });
         });
-      });
-    });
     group.wait();
   }
-
 
   // ! Invalidates all disabled hyperedges from the incident nets array of each node
   // ! For further details please take a look at the documentation of uncontraction(...)
@@ -1980,31 +1933,28 @@ class StreamingHypergraph {
   void invalidateDisabledHyperedgesFromIncidentNets(const std::vector<Self>& hypergraphs) {
     tbb::task_group group;
     _arena.execute([&] {
-      group.run([&] {
-        tbb::parallel_for(tbb::blocked_range<HypernodeID>(0UL, this->_num_hypernodes),
-        [&](const tbb::blocked_range<HypernodeID>& range) {
-          for ( HypernodeID id = range.begin(); id < range.end(); ++id ) {
-            const HypernodeID hn = get_global_node_id(id);
-            invalidateDisabledHyperedgesFromIncidentNets(hn, hypergraphs);
-          }
+          group.run([&] {
+            tbb::parallel_for(0UL, this->_num_hypernodes, [&](const HypernodeID& id) {
+              const HypernodeID hn = get_global_node_id(id);
+              invalidateDisabledHyperedgesFromIncidentNets(hn, hypergraphs);
+            });
+          });
         });
-      });
-    });
     group.wait();
   }
 
   // ! Only for assertion
   bool verify_incident_nets_of_hypergraph(const std::vector<Self>& hypergraphs) const {
-    for ( size_t pos = 0; pos < _incident_nets.size(); ++pos ) {
+    for (size_t pos = 0; pos < _incident_nets.size(); ++pos) {
       const HypernodeID& hn = _hypernodes[pos].nodeId();
-      for ( const HyperedgeID& he : _incident_nets[pos] ) {
+      for (const HyperedgeID& he : _incident_nets[pos]) {
         const Self& hypergraph_of_he = hypergraph_of_hyperedge(he, hypergraphs);
         const HyperedgeID local_edge_id = get_local_edge_id_of_hyperedge(he);
         ASSERT(local_edge_id < hypergraph_of_he._hyperedges.size());
         const Hyperedge& e = hypergraph_of_he._hyperedges[local_edge_id];
         const auto first = hypergraph_of_he._incidence_array.begin() + e.firstEntry();
         const auto last = first + e.size();
-        if ( std::find(first, last, hn) == last ) {
+        if (std::find(first, last, hn) == last) {
           LOG << "Hypernode" << hn << "not part of hyperedge" << he << "on numa node" << get_numa_node_of_hyperedge(he);
           return false;
         }
@@ -2016,31 +1966,30 @@ class StreamingHypergraph {
   // ####################### Helper Functions #######################
 
   KAHYPAR_ATTRIBUTE_ALWAYS_INLINE static HyperedgeID get_global_edge_id(const int node, const size_t edge_pos) {
-    return ( ( (HyperedgeID) node ) << NUMA_NODE_INDENTIFIER ) | edge_pos;
+    return (((HyperedgeID)node) << NUMA_NODE_INDENTIFIER) | edge_pos;
   }
 
   KAHYPAR_ATTRIBUTE_ALWAYS_INLINE static int get_numa_node_of_vertex(const HypernodeID u) {
-    return (int) (u >> NUMA_NODE_INDENTIFIER);
+    return (int)(u >> NUMA_NODE_INDENTIFIER);
   }
 
   KAHYPAR_ATTRIBUTE_ALWAYS_INLINE static int get_numa_node_of_hyperedge(const HyperedgeID e) {
-    return (int) (e >> NUMA_NODE_INDENTIFIER);
+    return (int)(e >> NUMA_NODE_INDENTIFIER);
   }
 
   void printHyperedgeInfo(const HyperedgeID e) const {
     LOG << "Hyperedge:" << e;
     LOG << "Original Size:" << (hyperedge(e + 1).firstEntry() - hyperedge(e).firstEntry());
-    if ( edgeIsEnabled(e) ) {
+    if (edgeIsEnabled(e)) {
       LOG << "Current Size:" << hyperedge(e).size();
     }
-    for ( size_t pos = hyperedge(e).firstEntry(); pos < hyperedge(e + 1).firstEntry(); ++pos ) {
+    for (size_t pos = hyperedge(e).firstEntry(); pos < hyperedge(e + 1).firstEntry(); ++pos) {
       std::cout << _incidence_array[pos] << " ";
     }
     std::cout << std::endl;
   }
 
  private:
-
   template <typename NodeType_,
             typename EdgeType_,
             typename NodeWeightType_,
@@ -2050,9 +1999,7 @@ class StreamingHypergraph {
             typename TBBNumaArena_>
   friend class Hypergraph;
 
-
   // ####################### Contract / Uncontract #######################
-
 
   // ! Connect hyperedge e to representative hypernode u.
   KAHYPAR_ATTRIBUTE_ALWAYS_INLINE void connectHyperedgeToRepresentative(const HyperedgeID e,
@@ -2069,7 +2016,6 @@ class StreamingHypergraph {
     hypergraph_of_u.incident_nets(u).push_back(e);
   }
 
-
   // ! Connect hyperedge e to representative hypernode u.
   KAHYPAR_ATTRIBUTE_ALWAYS_INLINE void connectHyperedgeToRepresentative(const HyperedgeID e,
                                                                         const HypernodeID u,
@@ -2084,7 +2030,7 @@ class StreamingHypergraph {
     size_t he_pos = incident_nets_of_u.size() - 1;
 
     // If community hyperedge is not disabled we swap it to valid part of incident nets
-    if ( !community_he.isDisabled() ) {
+    if (!community_he.isDisabled()) {
       size_t invalid_community_nets = hypergraph_of_u.hypernode(u).invalidCommunityNets();
       std::swap(incident_nets_of_u[invalid_community_nets], incident_nets_of_u[he_pos]);
       he_pos = invalid_community_nets;
@@ -2092,7 +2038,7 @@ class StreamingHypergraph {
 
       // If community hyperedge is a single-pin community hyperedge we swap it to single-pin
       // part of incident nets of u
-      if ( _remove_single_pin_community_nets && community_he.size() == 1 ) {
+      if (_remove_single_pin_community_nets && community_he.size() == 1) {
         size_t single_pin_community_nets = hypergraph_of_u.hypernode(u).singlePinCommunityNets();
         std::swap(incident_nets_of_u[single_pin_community_nets], incident_nets_of_u[he_pos]);
         hypergraph_of_u.hypernode(u).incrementSinglePinCommunityNets();
@@ -2115,8 +2061,8 @@ class StreamingHypergraph {
     int64_t pins_end = hyperedge(he).firstInvalidEntry();
     int64_t slot_of_u = pins_end;
 
-    for ( int64_t pos = pins_end - 1; pos >= pins_start; --pos ) {
-      if ( _incidence_array[pos] == u ) {
+    for (int64_t pos = pins_end - 1; pos >= pins_start; --pos) {
+      if (_incidence_array[pos] == u) {
         slot_of_u = pos;
         break;
       }
@@ -2142,8 +2088,8 @@ class StreamingHypergraph {
     int64_t pins_end = pins_start + size;
     int64_t slot_of_u = pins_end;
 
-    for ( int64_t pos = pins_end - 1; pos >= pins_start; --pos ) {
-      if ( _incidence_array[pos] == u ) {
+    for (int64_t pos = pins_end - 1; pos >= pins_start; --pos) {
+      if (_incidence_array[pos] == u) {
         slot_of_u = pos;
         break;
       }
@@ -2164,7 +2110,7 @@ class StreamingHypergraph {
       hypergraphs[node]._incident_nets_of_v.local().reset();
     }
 
-    for ( const HyperedgeID& he : incident_nets(v) ) {
+    for (const HyperedgeID& he : incident_nets(v)) {
       Self& hypergraph_of_he = hypergraph_of_hyperedge(he, hypergraphs);
       HyperedgeID local_he_id = get_local_edge_id_of_hyperedge(he);
       ASSERT(local_he_id < hypergraph_of_he._num_hyperedges);
@@ -2187,8 +2133,8 @@ class StreamingHypergraph {
                                                                            const size_t size,
                                                                            const HypernodeID v) const {
     size_t incidence_array_start = hyperedge(he).firstEntry();
-    if ( incidence_array_start + size < hyperedge(he + 1).firstEntry() &&
-         _incidence_array[incidence_array_start + size] == v ) {
+    if (incidence_array_start + size < hyperedge(he + 1).firstEntry() &&
+        _incidence_array[incidence_array_start + size] == v) {
       return UncontractionCase::CASE_1;
     } else {
       return UncontractionCase::CASE_2;
@@ -2229,8 +2175,8 @@ class StreamingHypergraph {
     auto& incident_nets_of_hn = incident_nets(hn);
     int64_t invalid_community_nets = hypernode(hn).invalidCommunityNets();
     int64_t pos = invalid_community_nets - 1;
-    for ( ; pos >= 0; --pos ) {
-      if ( incident_nets_of_hn[pos] == he ) {
+    for ( ; pos >= 0; --pos) {
+      if (incident_nets_of_hn[pos] == he) {
         break;
       }
     }
@@ -2240,7 +2186,7 @@ class StreamingHypergraph {
     // to valid part incident nets
     int64_t single_pin_community_nets = hypernode(hn).singlePinCommunityNets();
     ASSERT(pos != -1);
-    if ( pos < single_pin_community_nets ) {
+    if (pos < single_pin_community_nets) {
       ASSERT(single_pin_community_nets > 0);
       std::swap(incident_nets_of_hn[pos], incident_nets_of_hn[single_pin_community_nets - 1]);
       pos = single_pin_community_nets - 1;
@@ -2252,7 +2198,7 @@ class StreamingHypergraph {
     pos = invalid_community_nets - 1;
     hypernode(hn).decrementInvalidCommunityNets();
 
-    if ( !invalidate_only ) {
+    if (!invalidate_only) {
       // ... and if hyperedge should be removed from incident nets, we swap it to the end
       // and pop back.
       std::swap(incident_nets_of_hn[pos], incident_nets_of_hn.back());
@@ -2262,28 +2208,28 @@ class StreamingHypergraph {
     }
 
     HEAVY_COARSENING_ASSERT([&] {
-      size_t invalid_community_nets = hypernode(hn).invalidCommunityNets();
-      for ( size_t i = 0; i < invalid_community_nets; ++i) {
-        const HyperedgeID he = incident_nets_of_hn[i];
-        if ( hypergraph_of_hyperedge(he, hypergraphs).community_hyperedge(he, community_id).isDisabled() ) {
-          LOG << "HE" << he << "should be in invalid part of incident nets of HN" << hn;
-          return false;
-        }
-      }
-      return true;
-    }(), "There is an invalidated community hyperedge in valid part of incident nets");
+          size_t invalid_community_nets = hypernode(hn).invalidCommunityNets();
+          for (size_t i = 0; i < invalid_community_nets; ++i) {
+            const HyperedgeID he = incident_nets_of_hn[i];
+            if (hypergraph_of_hyperedge(he, hypergraphs).community_hyperedge(he, community_id).isDisabled()) {
+              LOG << "HE" << he << "should be in invalid part of incident nets of HN" << hn;
+              return false;
+            }
+          }
+          return true;
+        } (), "There is an invalidated community hyperedge in valid part of incident nets");
 
     HEAVY_COARSENING_ASSERT([&] {
-      size_t invalid_community_nets = hypernode(hn).invalidCommunityNets();
-      for ( size_t i = invalid_community_nets; i < incident_nets_of_hn.size(); ++i) {
-        const HyperedgeID he = incident_nets_of_hn[i];
-        if ( !hypergraph_of_hyperedge(he, hypergraphs).community_hyperedge(he, community_id).isDisabled() ) {
-          LOG << "HE" << he << "should be in valid part of incident nets of HN" << hn;
-          return false;
-        }
-      }
-      return true;
-    }(), "There is an valid community hyperedge in invalid part of incident nets");
+          size_t invalid_community_nets = hypernode(hn).invalidCommunityNets();
+          for (size_t i = invalid_community_nets; i < incident_nets_of_hn.size(); ++i) {
+            const HyperedgeID he = incident_nets_of_hn[i];
+            if (!hypergraph_of_hyperedge(he, hypergraphs).community_hyperedge(he, community_id).isDisabled()) {
+              LOG << "HE" << he << "should be in valid part of incident nets of HN" << hn;
+              return false;
+            }
+          }
+          return true;
+        } (), "There is an valid community hyperedge in invalid part of incident nets");
   }
 
   // ! Inserts hyperedge he to incident nets array of vertex hn
@@ -2291,19 +2237,19 @@ class StreamingHypergraph {
                                                                      const HypernodeID hn) {
     size_t invalid_incident_nets = hypernode(hn).invalidIncidentNets();
     HEAVY_REFINEMENT_ASSERT(std::count(incident_nets(hn).begin() + invalid_incident_nets,
-                            incident_nets(hn).end(), he) == 0,
+                                       incident_nets(hn).end(), he) == 0,
                             "HN" << hn << "is already connected to HE" << he);
 
     auto& incident_nets_of_hn = incident_nets(hn);
     size_t slot_of_he = invalid_incident_nets;
-    for ( size_t pos = 0; pos < invalid_incident_nets; ++pos ) {
-      if ( incident_nets_of_hn[pos] == he ) {
+    for (size_t pos = 0; pos < invalid_incident_nets; ++pos) {
+      if (incident_nets_of_hn[pos] == he) {
         slot_of_he = pos;
         break;
       }
     }
 
-    if ( slot_of_he < invalid_incident_nets ) {
+    if (slot_of_he < invalid_incident_nets) {
       ASSERT(incident_nets_of_hn[slot_of_he] == he);
       std::swap(incident_nets_of_hn[slot_of_he],
                 incident_nets_of_hn[invalid_incident_nets - 1]);
@@ -2319,9 +2265,9 @@ class StreamingHypergraph {
                                                                                     const std::vector<Self>& hypergraphs) {
     size_t invalid_incident_nets = 0;
     size_t incident_nets_end = incident_nets(hn).size();
-    for ( size_t pos = 0; pos < incident_nets_end; ++pos  ) {
+    for (size_t pos = 0; pos < incident_nets_end; ++pos) {
       const HyperedgeID he = incident_nets(hn)[pos];
-      if ( !hypergraph_of_hyperedge(he, hypergraphs).edgeIsEnabled(he) ) {
+      if (!hypergraph_of_hyperedge(he, hypergraphs).edgeIsEnabled(he)) {
         std::swap(incident_nets(hn)[pos], incident_nets(hn)[invalid_incident_nets++]);
       }
     }
@@ -2354,7 +2300,7 @@ class StreamingHypergraph {
     ASSERT(offset < _pins_in_part.size());
     const HypernodeID pin_count_after = --_pins_in_part[offset];
     const bool connectivity_decreased = pin_count_after == 0;
-    if ( connectivity_decreased ) {
+    if (connectivity_decreased) {
       _connectivity_sets[local_id].remove(id);
     }
     return pin_count_after;
@@ -2372,7 +2318,7 @@ class StreamingHypergraph {
     ASSERT(offset < _pins_in_part.size());
     const HypernodeID pin_count_after = ++_pins_in_part[offset];
     const bool connectivity_increased = pin_count_after == 1;
-    if ( connectivity_increased ) {
+    if (connectivity_increased) {
       _connectivity_sets[local_id].add(id);
     }
     return pin_count_after;
@@ -2382,33 +2328,33 @@ class StreamingHypergraph {
 
   KAHYPAR_ATTRIBUTE_ALWAYS_INLINE HypernodeID get_global_node_id() {
     HypernodeID local_node_id = _next_node_id++;
-    return ( ( (HypernodeID) _node ) << NUMA_NODE_INDENTIFIER ) | local_node_id;
+    return (((HypernodeID)_node) << NUMA_NODE_INDENTIFIER) | local_node_id;
   }
 
   KAHYPAR_ATTRIBUTE_ALWAYS_INLINE HypernodeID get_global_node_id(const HypernodeID local_id) const {
-    return ( ( (HypernodeID) _node ) << NUMA_NODE_INDENTIFIER ) | local_id;
+    return (((HypernodeID)_node) << NUMA_NODE_INDENTIFIER) | local_id;
   }
 
   KAHYPAR_ATTRIBUTE_ALWAYS_INLINE static HypernodeID get_local_node_id_of_vertex(const HypernodeID u) {
-    return ( (1UL << NUMA_NODE_INDENTIFIER) - 1 ) & u;
+    return ((1UL << NUMA_NODE_INDENTIFIER) - 1) & u;
   }
 
   KAHYPAR_ATTRIBUTE_ALWAYS_INLINE static const Self& hypergraph_of_vertex(const HypernodeID u,
                                                                           const std::vector<Self>& hypergraph) {
     int node = get_numa_node_of_vertex(u);
-    ASSERT(node < (int) hypergraph.size());
+    ASSERT(node < (int)hypergraph.size());
     return hypergraph[node];
   }
 
   KAHYPAR_ATTRIBUTE_ALWAYS_INLINE static Self& hypergraph_of_vertex(const HypernodeID u,
                                                                     std::vector<Self>& hypergraph) {
     int node = get_numa_node_of_vertex(u);
-    ASSERT(node < (int) hypergraph.size());
+    ASSERT(node < (int)hypergraph.size());
     return hypergraph[node];
   }
 
   // ! Accessor for hypernode-related information
-  KAHYPAR_ATTRIBUTE_ALWAYS_INLINE const Hypernode & hypernode(const HypernodeID u) const {
+  KAHYPAR_ATTRIBUTE_ALWAYS_INLINE const Hypernode& hypernode(const HypernodeID u) const {
     HypernodeID local_id = get_local_node_id_of_vertex(u);
     ASSERT(get_numa_node_of_vertex(u) == _node, "Hypernode" << u << "is not part of numa node" << _node);
     ASSERT(local_id < _num_hypernodes, "Hypernode" << u << "does not exist");
@@ -2416,7 +2362,7 @@ class StreamingHypergraph {
   }
 
   // ! To avoid code duplication we implement non-const version in terms of const version
-  KAHYPAR_ATTRIBUTE_ALWAYS_INLINE Hypernode & hypernode(const HypernodeID u) {
+  KAHYPAR_ATTRIBUTE_ALWAYS_INLINE Hypernode& hypernode(const HypernodeID u) {
     return const_cast<Hypernode&>(static_cast<const StreamingHypergraph&>(*this).hypernode(u));
   }
 
@@ -2436,29 +2382,29 @@ class StreamingHypergraph {
   // ####################### Hyperedge Information #######################
 
   KAHYPAR_ATTRIBUTE_ALWAYS_INLINE HyperedgeID get_global_edge_id(const size_t edge_pos) const {
-    return ( ( (HyperedgeID) _node ) << NUMA_NODE_INDENTIFIER ) | edge_pos;
+    return (((HyperedgeID)_node) << NUMA_NODE_INDENTIFIER) | edge_pos;
   }
 
   KAHYPAR_ATTRIBUTE_ALWAYS_INLINE static HypernodeID get_local_edge_id_of_hyperedge(const HyperedgeID e) {
-    return ( (1UL << NUMA_NODE_INDENTIFIER) - 1 ) & e;
+    return ((1UL << NUMA_NODE_INDENTIFIER) - 1) & e;
   }
 
   KAHYPAR_ATTRIBUTE_ALWAYS_INLINE static Self& hypergraph_of_hyperedge(const HyperedgeID e,
                                                                        std::vector<Self>& hypergraph) {
     int node = get_numa_node_of_hyperedge(e);
-    ASSERT(node < (int) hypergraph.size());
+    ASSERT(node < (int)hypergraph.size());
     return hypergraph[node];
   }
 
   KAHYPAR_ATTRIBUTE_ALWAYS_INLINE static const Self& hypergraph_of_hyperedge(const HyperedgeID e,
                                                                              const std::vector<Self>& hypergraph) {
     int node = get_numa_node_of_hyperedge(e);
-    ASSERT(node < (int) hypergraph.size());
+    ASSERT(node < (int)hypergraph.size());
     return hypergraph[node];
   }
 
   // ! Accessor for hyperedge-related information
-  KAHYPAR_ATTRIBUTE_ALWAYS_INLINE const Hyperedge & hyperedge(const HyperedgeID e) const {
+  KAHYPAR_ATTRIBUTE_ALWAYS_INLINE const Hyperedge& hyperedge(const HyperedgeID e) const {
     // <= instead of < because of sentinel
     HypernodeID local_id = get_local_edge_id_of_hyperedge(e);
     ASSERT(get_numa_node_of_hyperedge(e) == _node, "Hyperedge" << e << "is not part of numa node" << _node);
@@ -2467,14 +2413,14 @@ class StreamingHypergraph {
   }
 
   // ! To avoid code duplication we implement non-const version in terms of const version
-  KAHYPAR_ATTRIBUTE_ALWAYS_INLINE Hyperedge & hyperedge(const HyperedgeID e) {
+  KAHYPAR_ATTRIBUTE_ALWAYS_INLINE Hyperedge& hyperedge(const HyperedgeID e) {
     return const_cast<Hyperedge&>(static_cast<const StreamingHypergraph&>(*this).hyperedge(e));
   }
 
   // ####################### Community Hyperedge Information #######################
 
   // ! Accessor for community hyperedge-related information
-  KAHYPAR_ATTRIBUTE_ALWAYS_INLINE const CommunityHyperedge & community_hyperedge(const HyperedgeID e, const PartitionID community_id) const {
+  KAHYPAR_ATTRIBUTE_ALWAYS_INLINE const CommunityHyperedge& community_hyperedge(const HyperedgeID e, const PartitionID community_id) const {
     HypernodeID local_id = get_local_edge_id_of_hyperedge(e);
     ASSERT(get_numa_node_of_hyperedge(e) == _node, "Hyperedge" << e << "is not part of numa node" << _node);
     ASSERT(local_id < _num_hyperedges, "Hyperedge" << e << "does not exist");
@@ -2491,8 +2437,8 @@ class StreamingHypergraph {
     ASSERT(local_id < _num_hyperedges, "Hyperedge" << e << "does not exist");
 
     size_t pos = 0;
-    for ( ; pos < _community_hyperedge_ids[local_id].size(); ++pos ) {
-      if ( _community_hyperedge_ids[local_id][pos] == community_id ) {
+    for ( ; pos < _community_hyperedge_ids[local_id].size(); ++pos) {
+      if (_community_hyperedge_ids[local_id][pos] == community_id) {
         break;
       }
     }
@@ -2503,7 +2449,7 @@ class StreamingHypergraph {
   }
 
   // ! To avoid code duplication we implement non-const version in terms of const version
-  KAHYPAR_ATTRIBUTE_ALWAYS_INLINE CommunityHyperedge & community_hyperedge(const HyperedgeID e, const PartitionID community_id) {
+  KAHYPAR_ATTRIBUTE_ALWAYS_INLINE CommunityHyperedge& community_hyperedge(const HyperedgeID e, const PartitionID community_id) {
     return const_cast<CommunityHyperedge&>(static_cast<const StreamingHypergraph&>(*this).community_hyperedge(e, community_id));
   }
 
@@ -2534,7 +2480,7 @@ class StreamingHypergraph {
   // ! Pins of hyperedges
   parallel::scalable_vector<HypernodeID> _incidence_array;
   // ! Community Ids of community hyperedges
-  std::vector<parallel::scalable_vector<PartitionID>> _community_hyperedge_ids;
+  std::vector<parallel::scalable_vector<PartitionID> > _community_hyperedge_ids;
   // ! Community Hyperedges
   CommunityHyperedges _community_hyperedges;
 
@@ -2568,6 +2514,5 @@ class StreamingHypergraph {
   // ! Stream for incident nets
   StreamingMap<HypernodeID, HyperedgeID> _incident_net_stream;
 };
-
-} // namespace ds
-} // namespace mt_kahypar
+}  // namespace ds
+}  // namespace mt_kahypar

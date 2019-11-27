@@ -36,10 +36,10 @@ class SingleNodeHyperedgeRemover {
     _removed_hes() { }
 
   SingleNodeHyperedgeRemover(const SingleNodeHyperedgeRemover&) = delete;
-  SingleNodeHyperedgeRemover& operator= (const SingleNodeHyperedgeRemover&) = delete;
+  SingleNodeHyperedgeRemover & operator= (const SingleNodeHyperedgeRemover &) = delete;
 
   SingleNodeHyperedgeRemover(SingleNodeHyperedgeRemover&&) = delete;
-  SingleNodeHyperedgeRemover& operator= (SingleNodeHyperedgeRemover&&) = delete;
+  SingleNodeHyperedgeRemover & operator= (SingleNodeHyperedgeRemover &&) = delete;
 
   RemovalResult removeSingleNodeHyperedges(Hypergraph& hypergraph) {
     RemovalResult result { 0, 0 };

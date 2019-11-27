@@ -26,7 +26,6 @@
 
 namespace mt_kahypar {
 namespace io {
-
 namespace internal {
 struct Statistic {
   uint64_t min = 0;
@@ -42,10 +41,10 @@ template <typename T>
 Statistic createStats(const std::vector<T>& vec, const double avg, const double stdev) {
   internal::Statistic stats;
   if (!vec.empty()) {
-    const auto quartiles = math::firstAndThirdQuartile(vec);
+    const auto quartiles = kahypar::math::firstAndThirdQuartile(vec);
     stats.min = vec.front();
     stats.q1 = quartiles.first;
-    stats.med = math::median(vec);
+    stats.med = kahypar::math::median(vec);
     stats.q3 = quartiles.second;
     stats.max = vec.back();
     stats.avg = avg;
@@ -54,17 +53,16 @@ Statistic createStats(const std::vector<T>& vec, const double avg, const double 
   return stats;
 }
 
-
 void printStats(const Statistic& he_size_stats,
                 const Statistic& he_weight_stats,
                 const Statistic& hn_deg_stats,
                 const Statistic& hn_weight_stats) {
   // default double precision is 7
   const uint8_t double_width = 7;
-  const uint8_t he_size_width = std::max(math::digits(he_size_stats.max), double_width) + 4;
-  const uint8_t he_weight_width = std::max(math::digits(he_weight_stats.max), double_width) + 4;
-  const uint8_t hn_deg_width = std::max(math::digits(hn_deg_stats.max), double_width) + 4;
-  const uint8_t hn_weight_width = std::max(math::digits(hn_weight_stats.max), double_width) + 4;
+  const uint8_t he_size_width = std::max(kahypar::math::digits(he_size_stats.max), double_width) + 4;
+  const uint8_t he_weight_width = std::max(kahypar::math::digits(he_weight_stats.max), double_width) + 4;
+  const uint8_t hn_deg_width = std::max(kahypar::math::digits(hn_deg_stats.max), double_width) + 4;
+  const uint8_t hn_weight_width = std::max(kahypar::math::digits(hn_weight_stats.max), double_width) + 4;
 
   LOG << "HE size" << std::right << std::setw(he_size_width + 10)
       << "HE weight" << std::right << std::setw(he_weight_width + 8)
@@ -103,7 +101,6 @@ void printStats(const Statistic& he_size_stats,
 
 static inline void printBanner(const Context& context) {
   if (!context.partition.quiet_mode) {
-
     LOG << R"(+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++)";
     LOG << R"(+         __  __ _______       _  __     _    _       _____                   +)";
     LOG << R"(+        |  \/  |__   __|     | |/ /    | |  | |     |  __ \                  +)";
@@ -195,8 +192,8 @@ inline void printPartSizesAndWeights(const Hypergraph& hypergraph) {
   for (PartitionID i = 0; i != hypergraph.k(); ++i) {
     max_part_size = std::max(max_part_size, hypergraph.partSize(i));
   }
-  const uint8_t part_digits = math::digits(max_part_size);
-  const uint8_t k_digits = math::digits(hypergraph.k());
+  const uint8_t part_digits = kahypar::math::digits(max_part_size);
+  const uint8_t k_digits = kahypar::math::digits(hypergraph.k());
   for (PartitionID i = 0; i != hypergraph.k(); ++i) {
     LOG << "|part" << std::right << std::setw(k_digits) << i
         << std::setw(1) << "| =" << std::right << std::setw(part_digits) << hypergraph.partSize(i)
@@ -298,7 +295,5 @@ inline void printPartitioningResults(const Hypergraph& hypergraph,
 static inline void printStripe() {
   LOG << "--------------------------------------------------------------------------------";
 }
-
-
-} // namespace io
-} // namespace mt_kahypar
+}  // namespace io
+}  // namespace mt_kahypar

@@ -18,7 +18,6 @@
  *
  ******************************************************************************/
 
-
 #include "gmock/gmock.h"
 
 #include "tests/datastructures/hypergraph_fixtures.h"
@@ -27,19 +26,18 @@ using ::testing::Test;
 
 namespace mt_kahypar {
 namespace ds {
-
 using AHypergraphWithTwoStreamingHypergraphs = AHypergraph<2>;
 using TestHypergraph = typename AHypergraphWithTwoStreamingHypergraphs::TestHypergraph;
 using TestStreamingHypergraph = typename AHypergraphWithTwoStreamingHypergraphs::TestStreamingHypergraph;
 
 TestHypergraph construct_test_hypergraph(const AHypergraphWithTwoStreamingHypergraphs& test) {
-  return test.construct_hypergraph(7, { {0, 2}, {0, 1, 3, 4}, {3, 4, 6}, {2, 5, 6} },
-                                      { 0, 0, 0, 1, 1, 1, 1 },
-                                      { 0, 0, 1, 1 } );
+  return test.construct_hypergraph(7, { { 0, 2 }, { 0, 1, 3, 4 }, { 3, 4, 6 }, { 2, 5, 6 } },
+                                   { 0, 0, 0, 1, 1, 1, 1 },
+                                   { 0, 0, 1, 1 });
 }
 
 void assignPartitionIDs(TestHypergraph& hypergraph) {
-  for ( const HypernodeID& hn : hypergraph.nodes() ) {
+  for (const HypernodeID& hn : hypergraph.nodes()) {
     PartitionID part_id = TestStreamingHypergraph::get_numa_node_of_vertex(hn);
     hypergraph.setNodePart(hn, part_id);
   }
@@ -47,14 +45,16 @@ void assignPartitionIDs(TestHypergraph& hypergraph) {
   hypergraph.initializeNumCutHyperedges();
 }
 
-template< typename IDType >
-auto identity = [](const IDType& id) { return id; };
+template <typename IDType>
+auto identity = [](const IDType& id) {
+                  return id;
+                };
 
-template< typename IDType, typename F, typename K = decltype(identity<IDType>) >
+template <typename IDType, typename F, typename K = decltype(identity<IDType>)>
 void verifyIterator(const std::set<IDType>& reference, F&& it_func, K map_func = identity<IDType>, bool log = false) {
   size_t count = 0;
-  for ( const IDType& id : it_func() ) {
-    if ( log ) LOG << V(id) << V(map_func(id));
+  for (const IDType& id : it_func()) {
+    if (log) LOG << V(id) << V(map_func(id));
     ASSERT_TRUE(reference.find(map_func(id)) != reference.end()) << V(map_func(id));
     count++;
   }
@@ -63,15 +63,15 @@ void verifyIterator(const std::set<IDType>& reference, F&& it_func, K map_func =
 
 void verifyPinIterators(const TestHypergraph& hypergraph,
                         const std::vector<HyperedgeID> hyperedges,
-                        const std::vector<std::set<HypernodeID>>& references,
+                        const std::vector<std::set<HypernodeID> >& references,
                         bool log = false) {
   ASSERT(hyperedges.size() == references.size());
-  for ( size_t i = 0; i < hyperedges.size(); ++i ) {
+  for (size_t i = 0; i < hyperedges.size(); ++i) {
     const HyperedgeID he = hyperedges[i];
     const std::set<HypernodeID>& reference = references[i];
     size_t count = 0;
-    for ( const HypernodeID& pin : hypergraph.pins(he) ) {
-      if ( log ) LOG << V(he) << V(pin);
+    for (const HypernodeID& pin : hypergraph.pins(he)) {
+      if (log) LOG << V(he) << V(pin);
       ASSERT_TRUE(reference.find(pin) != reference.end()) << V(he) << V(pin);
       count++;
     }
@@ -111,26 +111,26 @@ TEST_F(AHypergraphWithTwoStreamingHypergraphs, HasCorrectWeightAfterUpdatingNode
 TEST_F(AHypergraphWithTwoStreamingHypergraphs, ChecksLocalNodeIterators1) {
   TestHypergraph hypergraph = construct_test_hypergraph(*this);
 
-  verifyIterator<HypernodeID>({0, 1, 2}, [&] {
-    return hypergraph.nodes(0);
-  });
+  verifyIterator<HypernodeID>({ 0, 1, 2 }, [&] {
+        return hypergraph.nodes(0);
+      });
 }
 
 TEST_F(AHypergraphWithTwoStreamingHypergraphs, ChecksLocalNodeIterators2) {
   TestHypergraph hypergraph = construct_test_hypergraph(*this);
 
-  verifyIterator<HypernodeID>({281474976710656, 281474976710657, 281474976710658, 281474976710659}, [&] {
-    return hypergraph.nodes(1);
-  });
+  verifyIterator<HypernodeID>({ 281474976710656, 281474976710657, 281474976710658, 281474976710659 }, [&] {
+        return hypergraph.nodes(1);
+      });
 }
 
 TEST_F(AHypergraphWithTwoStreamingHypergraphs, ChecksLocalNodeIteratorsWithDisabledHypernodes1) {
   TestHypergraph hypergraph = construct_test_hypergraph(*this);
   hypergraph.disableHypernode(1);
 
-  verifyIterator<HypernodeID>({0, 2}, [&] {
-    return hypergraph.nodes(0);
-  });
+  verifyIterator<HypernodeID>({ 0, 2 }, [&] {
+        return hypergraph.nodes(0);
+      });
 }
 
 TEST_F(AHypergraphWithTwoStreamingHypergraphs, ChecksLocalNodeIteratorsWithDisabledHypernodes2) {
@@ -138,51 +138,51 @@ TEST_F(AHypergraphWithTwoStreamingHypergraphs, ChecksLocalNodeIteratorsWithDisab
   hypergraph.disableHypernode(281474976710657);
   hypergraph.disableHypernode(281474976710658);
 
-  verifyIterator<HypernodeID>({281474976710656, 281474976710659}, [&] {
-    return hypergraph.nodes(1);
-  });
+  verifyIterator<HypernodeID>({ 281474976710656, 281474976710659 }, [&] {
+        return hypergraph.nodes(1);
+      });
 }
 
 TEST_F(AHypergraphWithTwoStreamingHypergraphs, ChecksOriginalNodeIds1) {
   TestHypergraph hypergraph = construct_test_hypergraph(*this);
 
-  verifyIterator<HypernodeID>({0, 1, 2}, [&] {
-    return hypergraph.nodes(0);
-  }, [&](const HypernodeID& hn) {
-    return hypergraph.originalNodeID(hn);
-  });
+  verifyIterator<HypernodeID>({ 0, 1, 2 }, [&] {
+        return hypergraph.nodes(0);
+      }, [&](const HypernodeID& hn) {
+        return hypergraph.originalNodeID(hn);
+      });
 }
 
 TEST_F(AHypergraphWithTwoStreamingHypergraphs, ChecksOriginalNodeIds2) {
   TestHypergraph hypergraph = construct_test_hypergraph(*this);
 
-  verifyIterator<HypernodeID>({3, 4, 5, 6}, [&] {
-    return hypergraph.nodes(1);
-  }, [&](const HypernodeID& hn) {
-    return hypergraph.originalNodeID(hn);
-  });
+  verifyIterator<HypernodeID>({ 3, 4, 5, 6 }, [&] {
+        return hypergraph.nodes(1);
+      }, [&](const HypernodeID& hn) {
+        return hypergraph.originalNodeID(hn);
+      });
 }
 
 TEST_F(AHypergraphWithTwoStreamingHypergraphs, ChecksGlobalNodeIterator) {
   TestHypergraph hypergraph = construct_test_hypergraph(*this);
 
-  verifyIterator<HypernodeID>({0, 1, 2, 281474976710656, 281474976710657,
-    281474976710658, 281474976710659}, [&] {
-    return hypergraph.nodes();
-  });
+  verifyIterator<HypernodeID>({ 0, 1, 2, 281474976710656, 281474976710657,
+                                281474976710658, 281474976710659 }, [&] {
+        return hypergraph.nodes();
+      });
 }
 
 TEST_F(AHypergraphWithTwoStreamingHypergraphs, ChecksGlobalNodeIteratorIfAllNodesAreAssignedToSecondNode) {
   TestHypergraph hypergraph = this->construct_hypergraph(7,
-    { {0, 2}, {0, 1, 3, 4}, {3, 4, 6}, {2, 5, 6} },
-    { 1, 1, 1, 1, 1, 1, 1 },
-    { 1, 1, 1, 1 } );
+                                                         { { 0, 2 }, { 0, 1, 3, 4 }, { 3, 4, 6 }, { 2, 5, 6 } },
+                                                         { 1, 1, 1, 1, 1, 1, 1 },
+                                                         { 1, 1, 1, 1 });
 
-  verifyIterator<HypernodeID>({281474976710656, 281474976710657,
-    281474976710658, 281474976710659, 281474976710660, 281474976710661,
-    281474976710662}, [&] {
-    return hypergraph.nodes();
-  });
+  verifyIterator<HypernodeID>({ 281474976710656, 281474976710657,
+                                281474976710658, 281474976710659, 281474976710660, 281474976710661,
+                                281474976710662 }, [&] {
+        return hypergraph.nodes();
+      });
 }
 
 TEST_F(AHypergraphWithTwoStreamingHypergraphs, ChecksGlobalNodeIteratorWithDisabledHypernodes1) {
@@ -191,9 +191,9 @@ TEST_F(AHypergraphWithTwoStreamingHypergraphs, ChecksGlobalNodeIteratorWithDisab
   hypergraph.disableHypernode(281474976710657);
   hypergraph.disableHypernode(281474976710659);
 
-  verifyIterator<HypernodeID>({0, 1, 281474976710656, 281474976710658}, [&] {
-    return hypergraph.nodes();
-  });
+  verifyIterator<HypernodeID>({ 0, 1, 281474976710656, 281474976710658 }, [&] {
+        return hypergraph.nodes();
+      });
 }
 
 TEST_F(AHypergraphWithTwoStreamingHypergraphs, ChecksGlobalNodeIteratorWithDisabledHypernodes2) {
@@ -203,51 +203,51 @@ TEST_F(AHypergraphWithTwoStreamingHypergraphs, ChecksGlobalNodeIteratorWithDisab
   hypergraph.disableHypernode(281474976710656);
   hypergraph.disableHypernode(281474976710659);
 
-  verifyIterator<HypernodeID>({1, 281474976710657, 281474976710658}, [&] {
-    return hypergraph.nodes();
-  });
+  verifyIterator<HypernodeID>({ 1, 281474976710657, 281474976710658 }, [&] {
+        return hypergraph.nodes();
+      });
 }
 
 TEST_F(AHypergraphWithTwoStreamingHypergraphs, ChecksLocalEdgeIterators1) {
   TestHypergraph hypergraph = construct_test_hypergraph(*this);
 
-  verifyIterator<HyperedgeID>({0, 1}, [&] {
-    return hypergraph.edges(0);
-  });
+  verifyIterator<HyperedgeID>({ 0, 1 }, [&] {
+        return hypergraph.edges(0);
+      });
 }
 
 TEST_F(AHypergraphWithTwoStreamingHypergraphs, ChecksLocalEdgeIterators2) {
   TestHypergraph hypergraph = construct_test_hypergraph(*this);
 
-  verifyIterator<HyperedgeID>({281474976710656, 281474976710657}, [&] {
-    return hypergraph.edges(1);
-  });
+  verifyIterator<HyperedgeID>({ 281474976710656, 281474976710657 }, [&] {
+        return hypergraph.edges(1);
+      });
 }
 
 TEST_F(AHypergraphWithTwoStreamingHypergraphs, ChecksLocalEdgeIteratorsWithDisabledHyperedges1) {
   TestHypergraph hypergraph = construct_test_hypergraph(*this);
   hypergraph.disableHyperedge(1);
 
-  verifyIterator<HyperedgeID>({0}, [&] {
-    return hypergraph.edges(0);
-  });
+  verifyIterator<HyperedgeID>({ 0 }, [&] {
+        return hypergraph.edges(0);
+      });
 }
 
 TEST_F(AHypergraphWithTwoStreamingHypergraphs, ChecksLocalEdgeIteratorsWithDisabledHyperedges2) {
   TestHypergraph hypergraph = construct_test_hypergraph(*this);
   hypergraph.disableHyperedge(281474976710656);
 
-  verifyIterator<HyperedgeID>({281474976710657}, [&] {
-    return hypergraph.edges(1);
-  });
+  verifyIterator<HyperedgeID>({ 281474976710657 }, [&] {
+        return hypergraph.edges(1);
+      });
 }
 
 TEST_F(AHypergraphWithTwoStreamingHypergraphs, ChecksGlobalEdgeIterators) {
   TestHypergraph hypergraph = construct_test_hypergraph(*this);
 
-  verifyIterator<HyperedgeID>({0, 1, 281474976710656, 281474976710657}, [&] {
-    return hypergraph.edges();
-  });
+  verifyIterator<HyperedgeID>({ 0, 1, 281474976710656, 281474976710657 }, [&] {
+        return hypergraph.edges();
+      });
 }
 
 TEST_F(AHypergraphWithTwoStreamingHypergraphs, ChecksGlobalEdgeIteratorsWithDisabledHyperedges1) {
@@ -255,9 +255,9 @@ TEST_F(AHypergraphWithTwoStreamingHypergraphs, ChecksGlobalEdgeIteratorsWithDisa
   hypergraph.disableHyperedge(1);
   hypergraph.disableHyperedge(281474976710656);
 
-  verifyIterator<HyperedgeID>({0, 281474976710657}, [&] {
-    return hypergraph.edges();
-  });
+  verifyIterator<HyperedgeID>({ 0, 281474976710657 }, [&] {
+        return hypergraph.edges();
+      });
 }
 
 TEST_F(AHypergraphWithTwoStreamingHypergraphs, ChecksGlobalEdgeIteratorsWithDisabledHyperedges2) {
@@ -265,84 +265,84 @@ TEST_F(AHypergraphWithTwoStreamingHypergraphs, ChecksGlobalEdgeIteratorsWithDisa
   hypergraph.disableHyperedge(0);
   hypergraph.disableHyperedge(281474976710657);
 
-  verifyIterator<HyperedgeID>({1, 281474976710656}, [&] {
-    return hypergraph.edges();
-  });
+  verifyIterator<HyperedgeID>({ 1, 281474976710656 }, [&] {
+        return hypergraph.edges();
+      });
 }
 
 TEST_F(AHypergraphWithTwoStreamingHypergraphs, ChecksIncidentEdgesOfHypernode1) {
   TestHypergraph hypergraph = construct_test_hypergraph(*this);
 
-  verifyIterator<HyperedgeID>({0, 1}, [&] {
-    return hypergraph.incidentEdges(GLOBAL_ID(hypergraph, 0));
-  });
+  verifyIterator<HyperedgeID>({ 0, 1 }, [&] {
+        return hypergraph.incidentEdges(GLOBAL_ID(hypergraph, 0));
+      });
 }
 
 TEST_F(AHypergraphWithTwoStreamingHypergraphs, ChecksIncidentEdgesOfHypernode2) {
   TestHypergraph hypergraph = construct_test_hypergraph(*this);
 
-  verifyIterator<HyperedgeID>({0, 281474976710657}, [&] {
-    return hypergraph.incidentEdges(GLOBAL_ID(hypergraph, 2));
-  });
+  verifyIterator<HyperedgeID>({ 0, 281474976710657 }, [&] {
+        return hypergraph.incidentEdges(GLOBAL_ID(hypergraph, 2));
+      });
 }
 
 TEST_F(AHypergraphWithTwoStreamingHypergraphs, ChecksIncidentEdgesOfHypernode3) {
   TestHypergraph hypergraph = construct_test_hypergraph(*this);
 
-  verifyIterator<HyperedgeID>({1, 281474976710656}, [&] {
-    return hypergraph.incidentEdges(GLOBAL_ID(hypergraph, 3));
-  });
+  verifyIterator<HyperedgeID>({ 1, 281474976710656 }, [&] {
+        return hypergraph.incidentEdges(GLOBAL_ID(hypergraph, 3));
+      });
 }
 
 TEST_F(AHypergraphWithTwoStreamingHypergraphs, ChecksIncidentEdgesOfHypernode4) {
   TestHypergraph hypergraph = construct_test_hypergraph(*this);
 
-  verifyIterator<HyperedgeID>({281474976710657}, [&] {
-    return hypergraph.incidentEdges(GLOBAL_ID(hypergraph, 5));
-  });
+  verifyIterator<HyperedgeID>({ 281474976710657 }, [&] {
+        return hypergraph.incidentEdges(GLOBAL_ID(hypergraph, 5));
+      });
 }
 
 TEST_F(AHypergraphWithTwoStreamingHypergraphs, ChecksIncidentEdgesOfHypernode5) {
   TestHypergraph hypergraph = construct_test_hypergraph(*this);
 
-  verifyIterator<HyperedgeID>({281474976710656, 281474976710657}, [&] {
-    return hypergraph.incidentEdges(GLOBAL_ID(hypergraph, 6));
-  });
+  verifyIterator<HyperedgeID>({ 281474976710656, 281474976710657 }, [&] {
+        return hypergraph.incidentEdges(GLOBAL_ID(hypergraph, 6));
+      });
 }
 
 TEST_F(AHypergraphWithTwoStreamingHypergraphs, ChecksPinsOfHyperedge1) {
   TestHypergraph hypergraph = construct_test_hypergraph(*this);
 
-  verifyIterator<HypernodeID>({GLOBAL_ID(hypergraph, 0), GLOBAL_ID(hypergraph, 2)}, [&] {
-    return hypergraph.pins(0);
-  });
+  verifyIterator<HypernodeID>({ GLOBAL_ID(hypergraph, 0), GLOBAL_ID(hypergraph, 2) }, [&] {
+        return hypergraph.pins(0);
+      });
 }
 
 TEST_F(AHypergraphWithTwoStreamingHypergraphs, ChecksPinsOfHyperedge2) {
   TestHypergraph hypergraph = construct_test_hypergraph(*this);
 
-  verifyIterator<HypernodeID>({GLOBAL_ID(hypergraph, 0), GLOBAL_ID(hypergraph, 1),
-    GLOBAL_ID(hypergraph, 3), GLOBAL_ID(hypergraph, 4)}, [&] {
-    return hypergraph.pins(1);
-  });
+  verifyIterator<HypernodeID>({ GLOBAL_ID(hypergraph, 0), GLOBAL_ID(hypergraph, 1),
+                                GLOBAL_ID(hypergraph, 3), GLOBAL_ID(hypergraph, 4) }, [&] {
+        return hypergraph.pins(1);
+      });
 }
 
 TEST_F(AHypergraphWithTwoStreamingHypergraphs, ChecksPinsOfHyperedge3) {
   TestHypergraph hypergraph = construct_test_hypergraph(*this);
 
-  verifyIterator<HypernodeID>({GLOBAL_ID(hypergraph, 3),
-    GLOBAL_ID(hypergraph, 4), GLOBAL_ID(hypergraph, 6)}, [&] {
-    return hypergraph.pins(281474976710656);
-  });
+  verifyIterator<HypernodeID>({ GLOBAL_ID(hypergraph, 3),
+                                GLOBAL_ID(hypergraph, 4), GLOBAL_ID(hypergraph, 6) }, [&] {
+        return hypergraph.pins(281474976710656);
+      });
 }
 
 TEST_F(AHypergraphWithTwoStreamingHypergraphs, ChecksPinsOfHyperedge4) {
   TestHypergraph hypergraph = construct_test_hypergraph(*this);
 
-  verifyIterator<HypernodeID>({GLOBAL_ID(hypergraph, 2),
-    GLOBAL_ID(hypergraph, 5), GLOBAL_ID(hypergraph, 6)}, [&] {
-    return hypergraph.pins(281474976710657);
-  });
+  verifyIterator<HypernodeID>({ GLOBAL_ID(hypergraph, 2),
+                                GLOBAL_ID(hypergraph, 5), GLOBAL_ID(hypergraph, 6) }, [&] {
+        return hypergraph.pins(281474976710657);
+      });
 }
 
 TEST_F(AHypergraphWithTwoStreamingHypergraphs, VerifiesInitialNodeWeights) {
@@ -400,8 +400,8 @@ TEST_F(AHypergraphWithTwoStreamingHypergraphs, VerifiesModifiedEdgeWeights) {
 
 TEST_F(AHypergraphWithTwoStreamingHypergraphs, ContractsTwoHypernodes1) {
   TestHypergraph hypergraph = construct_test_hypergraph(*this);
-  std::vector<HypernodeID> id = {GLOBAL_ID(hypergraph, 0), GLOBAL_ID(hypergraph, 1), GLOBAL_ID(hypergraph, 2),
-    GLOBAL_ID(hypergraph, 3), GLOBAL_ID(hypergraph, 4), GLOBAL_ID(hypergraph, 5), GLOBAL_ID(hypergraph, 6)};
+  std::vector<HypernodeID> id = { GLOBAL_ID(hypergraph, 0), GLOBAL_ID(hypergraph, 1), GLOBAL_ID(hypergraph, 2),
+                                  GLOBAL_ID(hypergraph, 3), GLOBAL_ID(hypergraph, 4), GLOBAL_ID(hypergraph, 5), GLOBAL_ID(hypergraph, 6) };
   HypernodeID u = id[0];
   HypernodeID v = id[2];
   hypergraph.contract(u, v);
@@ -410,18 +410,18 @@ TEST_F(AHypergraphWithTwoStreamingHypergraphs, ContractsTwoHypernodes1) {
   ASSERT_FALSE(hypergraph.nodeIsEnabled(v));
   ASSERT_EQ(2, hypergraph.nodeWeight(u));
 
-  verifyIterator<HyperedgeID>({0, 1, 281474976710657}, [&] {
-    return hypergraph.incidentEdges(u);
-  });
+  verifyIterator<HyperedgeID>({ 0, 1, 281474976710657 }, [&] {
+        return hypergraph.incidentEdges(u);
+      });
 
-  verifyPinIterators(hypergraph, {0, 1, 281474976710656, 281474976710657},
-   { {id[0]}, {id[0], id[1], id[3], id[4]}, {id[3], id[4], id[6]}, {id[0], id[5], id[6]} } );
+  verifyPinIterators(hypergraph, { 0, 1, 281474976710656, 281474976710657 },
+                     { { id[0] }, { id[0], id[1], id[3], id[4] }, { id[3], id[4], id[6] }, { id[0], id[5], id[6] } });
 }
 
 TEST_F(AHypergraphWithTwoStreamingHypergraphs, ContractsTwoHypernodes2) {
   TestHypergraph hypergraph = construct_test_hypergraph(*this);
-  std::vector<HypernodeID> id = {GLOBAL_ID(hypergraph, 0), GLOBAL_ID(hypergraph, 1), GLOBAL_ID(hypergraph, 2),
-    GLOBAL_ID(hypergraph, 3), GLOBAL_ID(hypergraph, 4), GLOBAL_ID(hypergraph, 5), GLOBAL_ID(hypergraph, 6)};
+  std::vector<HypernodeID> id = { GLOBAL_ID(hypergraph, 0), GLOBAL_ID(hypergraph, 1), GLOBAL_ID(hypergraph, 2),
+                                  GLOBAL_ID(hypergraph, 3), GLOBAL_ID(hypergraph, 4), GLOBAL_ID(hypergraph, 5), GLOBAL_ID(hypergraph, 6) };
   HypernodeID u = id[3];
   HypernodeID v = id[4];
   hypergraph.contract(u, v);
@@ -430,18 +430,18 @@ TEST_F(AHypergraphWithTwoStreamingHypergraphs, ContractsTwoHypernodes2) {
   ASSERT_FALSE(hypergraph.nodeIsEnabled(v));
   ASSERT_EQ(2, hypergraph.nodeWeight(u));
 
-  verifyIterator<HyperedgeID>({1, 281474976710656}, [&] {
-    return hypergraph.incidentEdges(u);
-  });
+  verifyIterator<HyperedgeID>({ 1, 281474976710656 }, [&] {
+        return hypergraph.incidentEdges(u);
+      });
 
-  verifyPinIterators(hypergraph, {0, 1, 281474976710656, 281474976710657},
-   { {id[0], id[2]}, {id[0], id[1], id[3]}, {id[3], id[6]}, {id[2], id[5], id[6]} } );
+  verifyPinIterators(hypergraph, { 0, 1, 281474976710656, 281474976710657 },
+                     { { id[0], id[2] }, { id[0], id[1], id[3] }, { id[3], id[6] }, { id[2], id[5], id[6] } });
 }
 
 TEST_F(AHypergraphWithTwoStreamingHypergraphs, ContractsTwoHypernodes3) {
   TestHypergraph hypergraph = construct_test_hypergraph(*this);
-  std::vector<HypernodeID> id = {GLOBAL_ID(hypergraph, 0), GLOBAL_ID(hypergraph, 1), GLOBAL_ID(hypergraph, 2),
-    GLOBAL_ID(hypergraph, 3), GLOBAL_ID(hypergraph, 4), GLOBAL_ID(hypergraph, 5), GLOBAL_ID(hypergraph, 6)};
+  std::vector<HypernodeID> id = { GLOBAL_ID(hypergraph, 0), GLOBAL_ID(hypergraph, 1), GLOBAL_ID(hypergraph, 2),
+                                  GLOBAL_ID(hypergraph, 3), GLOBAL_ID(hypergraph, 4), GLOBAL_ID(hypergraph, 5), GLOBAL_ID(hypergraph, 6) };
   HypernodeID u = id[6];
   HypernodeID v = id[3];
   hypergraph.contract(u, v);
@@ -450,18 +450,18 @@ TEST_F(AHypergraphWithTwoStreamingHypergraphs, ContractsTwoHypernodes3) {
   ASSERT_FALSE(hypergraph.nodeIsEnabled(v));
   ASSERT_EQ(2, hypergraph.nodeWeight(u));
 
-  verifyIterator<HyperedgeID>({1, 281474976710656, 281474976710657}, [&] {
-    return hypergraph.incidentEdges(u);
-  });
+  verifyIterator<HyperedgeID>({ 1, 281474976710656, 281474976710657 }, [&] {
+        return hypergraph.incidentEdges(u);
+      });
 
-  verifyPinIterators(hypergraph, {0, 1, 281474976710656, 281474976710657},
-   { {id[0], id[2]}, {id[0], id[1], id[4], id[6]}, {id[4], id[6]}, {id[2], id[5], id[6]} } );
+  verifyPinIterators(hypergraph, { 0, 1, 281474976710656, 281474976710657 },
+                     { { id[0], id[2] }, { id[0], id[1], id[4], id[6] }, { id[4], id[6] }, { id[2], id[5], id[6] } });
 }
 
 TEST_F(AHypergraphWithTwoStreamingHypergraphs, ContractsTwoHypernodes4) {
   TestHypergraph hypergraph = construct_test_hypergraph(*this);
-  std::vector<HypernodeID> id = {GLOBAL_ID(hypergraph, 0), GLOBAL_ID(hypergraph, 1), GLOBAL_ID(hypergraph, 2),
-    GLOBAL_ID(hypergraph, 3), GLOBAL_ID(hypergraph, 4), GLOBAL_ID(hypergraph, 5), GLOBAL_ID(hypergraph, 6)};
+  std::vector<HypernodeID> id = { GLOBAL_ID(hypergraph, 0), GLOBAL_ID(hypergraph, 1), GLOBAL_ID(hypergraph, 2),
+                                  GLOBAL_ID(hypergraph, 3), GLOBAL_ID(hypergraph, 4), GLOBAL_ID(hypergraph, 5), GLOBAL_ID(hypergraph, 6) };
   HypernodeID u = id[5];
   HypernodeID v = id[0];
   hypergraph.contract(u, v);
@@ -470,18 +470,18 @@ TEST_F(AHypergraphWithTwoStreamingHypergraphs, ContractsTwoHypernodes4) {
   ASSERT_FALSE(hypergraph.nodeIsEnabled(v));
   ASSERT_EQ(2, hypergraph.nodeWeight(u));
 
-  verifyIterator<HyperedgeID>({0, 1, 281474976710657}, [&] {
-    return hypergraph.incidentEdges(u);
-  });
+  verifyIterator<HyperedgeID>({ 0, 1, 281474976710657 }, [&] {
+        return hypergraph.incidentEdges(u);
+      });
 
-  verifyPinIterators(hypergraph, {0, 1, 281474976710656, 281474976710657},
-    { {id[2], id[5]}, {id[1], id[3], id[4], id[5]}, {id[3], id[4], id[6]}, {id[2], id[5], id[6]} } );
+  verifyPinIterators(hypergraph, { 0, 1, 281474976710656, 281474976710657 },
+                     { { id[2], id[5] }, { id[1], id[3], id[4], id[5] }, { id[3], id[4], id[6] }, { id[2], id[5], id[6] } });
 }
 
 TEST_F(AHypergraphWithTwoStreamingHypergraphs, ContractsTwoHypernodes5) {
   TestHypergraph hypergraph = construct_test_hypergraph(*this);
-  std::vector<HypernodeID> id = {GLOBAL_ID(hypergraph, 0), GLOBAL_ID(hypergraph, 1), GLOBAL_ID(hypergraph, 2),
-    GLOBAL_ID(hypergraph, 3), GLOBAL_ID(hypergraph, 4), GLOBAL_ID(hypergraph, 5), GLOBAL_ID(hypergraph, 6)};
+  std::vector<HypernodeID> id = { GLOBAL_ID(hypergraph, 0), GLOBAL_ID(hypergraph, 1), GLOBAL_ID(hypergraph, 2),
+                                  GLOBAL_ID(hypergraph, 3), GLOBAL_ID(hypergraph, 4), GLOBAL_ID(hypergraph, 5), GLOBAL_ID(hypergraph, 6) };
   HypernodeID u = id[4];
   HypernodeID v = id[1];
   hypergraph.contract(u, v);
@@ -490,18 +490,18 @@ TEST_F(AHypergraphWithTwoStreamingHypergraphs, ContractsTwoHypernodes5) {
   ASSERT_FALSE(hypergraph.nodeIsEnabled(v));
   ASSERT_EQ(2, hypergraph.nodeWeight(u));
 
-  verifyIterator<HyperedgeID>({1, 281474976710656}, [&] {
-    return hypergraph.incidentEdges(u);
-  });
+  verifyIterator<HyperedgeID>({ 1, 281474976710656 }, [&] {
+        return hypergraph.incidentEdges(u);
+      });
 
-  verifyPinIterators(hypergraph, {0, 1, 281474976710656, 281474976710657},
-    { {id[0], id[2]}, {id[0], id[3], id[4]}, {id[3], id[4], id[6]}, {id[2], id[5], id[6]} } );
+  verifyPinIterators(hypergraph, { 0, 1, 281474976710656, 281474976710657 },
+                     { { id[0], id[2] }, { id[0], id[3], id[4] }, { id[3], id[4], id[6] }, { id[2], id[5], id[6] } });
 }
 
 TEST_F(AHypergraphWithTwoStreamingHypergraphs, ContractsTwoHypernodes6) {
   TestHypergraph hypergraph = construct_test_hypergraph(*this);
-  std::vector<HypernodeID> id = {GLOBAL_ID(hypergraph, 0), GLOBAL_ID(hypergraph, 1), GLOBAL_ID(hypergraph, 2),
-    GLOBAL_ID(hypergraph, 3), GLOBAL_ID(hypergraph, 4), GLOBAL_ID(hypergraph, 5), GLOBAL_ID(hypergraph, 6)};
+  std::vector<HypernodeID> id = { GLOBAL_ID(hypergraph, 0), GLOBAL_ID(hypergraph, 1), GLOBAL_ID(hypergraph, 2),
+                                  GLOBAL_ID(hypergraph, 3), GLOBAL_ID(hypergraph, 4), GLOBAL_ID(hypergraph, 5), GLOBAL_ID(hypergraph, 6) };
   HypernodeID u = id[0];
   HypernodeID v = id[6];
   hypergraph.contract(u, v);
@@ -510,18 +510,18 @@ TEST_F(AHypergraphWithTwoStreamingHypergraphs, ContractsTwoHypernodes6) {
   ASSERT_FALSE(hypergraph.nodeIsEnabled(v));
   ASSERT_EQ(2, hypergraph.nodeWeight(u));
 
-  verifyIterator<HyperedgeID>({0, 1, 281474976710656, 281474976710657}, [&] {
-    return hypergraph.incidentEdges(u);
-  });
+  verifyIterator<HyperedgeID>({ 0, 1, 281474976710656, 281474976710657 }, [&] {
+        return hypergraph.incidentEdges(u);
+      });
 
-  verifyPinIterators(hypergraph, {0, 1, 281474976710656, 281474976710657},
-    { {id[0], id[2]}, {id[0], id[1], id[3], id[4]}, {id[0], id[3], id[4]}, {id[0], id[2], id[5]} } );
+  verifyPinIterators(hypergraph, { 0, 1, 281474976710656, 281474976710657 },
+                     { { id[0], id[2] }, { id[0], id[1], id[3], id[4] }, { id[0], id[3], id[4] }, { id[0], id[2], id[5] } });
 }
 
 TEST_F(AHypergraphWithTwoStreamingHypergraphs, HasEqualHashIfTwoHyperedgesBecomeParallel1) {
   TestHypergraph hypergraph = construct_test_hypergraph(*this);
-  std::vector<HypernodeID> id = {GLOBAL_ID(hypergraph, 0), GLOBAL_ID(hypergraph, 1), GLOBAL_ID(hypergraph, 2),
-    GLOBAL_ID(hypergraph, 3), GLOBAL_ID(hypergraph, 4), GLOBAL_ID(hypergraph, 5), GLOBAL_ID(hypergraph, 6)};
+  std::vector<HypernodeID> id = { GLOBAL_ID(hypergraph, 0), GLOBAL_ID(hypergraph, 1), GLOBAL_ID(hypergraph, 2),
+                                  GLOBAL_ID(hypergraph, 3), GLOBAL_ID(hypergraph, 4), GLOBAL_ID(hypergraph, 5), GLOBAL_ID(hypergraph, 6) };
 
   ASSERT_NE(hypergraph.edgeHash(1), hypergraph.edgeHash(281474976710656));
 
@@ -533,20 +533,20 @@ TEST_F(AHypergraphWithTwoStreamingHypergraphs, HasEqualHashIfTwoHyperedgesBecome
   ASSERT_FALSE(hypergraph.nodeIsEnabled(id[6]));
   ASSERT_EQ(3, hypergraph.nodeWeight(id[0]));
 
-  verifyIterator<HyperedgeID>({0, 1, 281474976710656, 281474976710657}, [&] {
-    return hypergraph.incidentEdges(id[0]);
-  });
+  verifyIterator<HyperedgeID>({ 0, 1, 281474976710656, 281474976710657 }, [&] {
+        return hypergraph.incidentEdges(id[0]);
+      });
 
-  verifyPinIterators(hypergraph, {0, 1, 281474976710656, 281474976710657},
-    { {id[0], id[2]}, {id[0], id[3], id[4]}, {id[0], id[3], id[4]}, {id[0], id[2], id[5]} } );
+  verifyPinIterators(hypergraph, { 0, 1, 281474976710656, 281474976710657 },
+                     { { id[0], id[2] }, { id[0], id[3], id[4] }, { id[0], id[3], id[4] }, { id[0], id[2], id[5] } });
 
   ASSERT_EQ(hypergraph.edgeHash(1), hypergraph.edgeHash(281474976710656));
 }
 
 TEST_F(AHypergraphWithTwoStreamingHypergraphs, HasEqualHashIfTwoHyperedgesBecomeParallel2) {
   TestHypergraph hypergraph = construct_test_hypergraph(*this);
-  std::vector<HypernodeID> id = {GLOBAL_ID(hypergraph, 0), GLOBAL_ID(hypergraph, 1), GLOBAL_ID(hypergraph, 2),
-    GLOBAL_ID(hypergraph, 3), GLOBAL_ID(hypergraph, 4), GLOBAL_ID(hypergraph, 5), GLOBAL_ID(hypergraph, 6)};
+  std::vector<HypernodeID> id = { GLOBAL_ID(hypergraph, 0), GLOBAL_ID(hypergraph, 1), GLOBAL_ID(hypergraph, 2),
+                                  GLOBAL_ID(hypergraph, 3), GLOBAL_ID(hypergraph, 4), GLOBAL_ID(hypergraph, 5), GLOBAL_ID(hypergraph, 6) };
 
   ASSERT_NE(hypergraph.edgeHash(0), hypergraph.edgeHash(281474976710657));
 
@@ -560,24 +560,24 @@ TEST_F(AHypergraphWithTwoStreamingHypergraphs, HasEqualHashIfTwoHyperedgesBecome
   ASSERT_EQ(2, hypergraph.nodeWeight(id[0]));
   ASSERT_EQ(2, hypergraph.nodeWeight(id[2]));
 
-  verifyIterator<HyperedgeID>({0, 1, 281474976710656, 281474976710657}, [&] {
-    return hypergraph.incidentEdges(id[0]);
-  });
+  verifyIterator<HyperedgeID>({ 0, 1, 281474976710656, 281474976710657 }, [&] {
+        return hypergraph.incidentEdges(id[0]);
+      });
 
-  verifyIterator<HyperedgeID>({0, 281474976710657}, [&] {
-    return hypergraph.incidentEdges(id[2]);
-  });
+  verifyIterator<HyperedgeID>({ 0, 281474976710657 }, [&] {
+        return hypergraph.incidentEdges(id[2]);
+      });
 
-  verifyPinIterators(hypergraph, {0, 1, 281474976710656, 281474976710657},
-    { {id[0], id[2]}, {id[0], id[1], id[3], id[4]}, {id[0], id[3], id[4]}, {id[0], id[2]} } );
+  verifyPinIterators(hypergraph, { 0, 1, 281474976710656, 281474976710657 },
+                     { { id[0], id[2] }, { id[0], id[1], id[3], id[4] }, { id[0], id[3], id[4] }, { id[0], id[2] } });
 
   ASSERT_EQ(hypergraph.edgeHash(0), hypergraph.edgeHash(281474976710657));
 }
 
 TEST_F(AHypergraphWithTwoStreamingHypergraphs, HasEqualHashIfTwoHyperedgesBecomeParallel3) {
   TestHypergraph hypergraph = construct_test_hypergraph(*this);
-  std::vector<HypernodeID> id = {GLOBAL_ID(hypergraph, 0), GLOBAL_ID(hypergraph, 1), GLOBAL_ID(hypergraph, 2),
-    GLOBAL_ID(hypergraph, 3), GLOBAL_ID(hypergraph, 4), GLOBAL_ID(hypergraph, 5), GLOBAL_ID(hypergraph, 6)};
+  std::vector<HypernodeID> id = { GLOBAL_ID(hypergraph, 0), GLOBAL_ID(hypergraph, 1), GLOBAL_ID(hypergraph, 2),
+                                  GLOBAL_ID(hypergraph, 3), GLOBAL_ID(hypergraph, 4), GLOBAL_ID(hypergraph, 5), GLOBAL_ID(hypergraph, 6) };
 
   ASSERT_NE(hypergraph.edgeHash(0), hypergraph.edgeHash(281474976710657));
   ASSERT_NE(hypergraph.edgeHash(1), hypergraph.edgeHash(281474976710656));
@@ -594,16 +594,16 @@ TEST_F(AHypergraphWithTwoStreamingHypergraphs, HasEqualHashIfTwoHyperedgesBecome
   ASSERT_EQ(3, hypergraph.nodeWeight(id[0]));
   ASSERT_EQ(2, hypergraph.nodeWeight(id[2]));
 
-  verifyIterator<HyperedgeID>({0, 1, 281474976710656, 281474976710657}, [&] {
-    return hypergraph.incidentEdges(id[0]);
-  });
+  verifyIterator<HyperedgeID>({ 0, 1, 281474976710656, 281474976710657 }, [&] {
+        return hypergraph.incidentEdges(id[0]);
+      });
 
-  verifyIterator<HyperedgeID>({0, 281474976710657}, [&] {
-    return hypergraph.incidentEdges(id[2]);
-  });
+  verifyIterator<HyperedgeID>({ 0, 281474976710657 }, [&] {
+        return hypergraph.incidentEdges(id[2]);
+      });
 
-  verifyPinIterators(hypergraph, {0, 1, 281474976710656, 281474976710657},
-    { {id[0], id[2]}, {id[0], id[3], id[4]}, {id[0], id[3], id[4]}, {id[0], id[2]} } );
+  verifyPinIterators(hypergraph, { 0, 1, 281474976710656, 281474976710657 },
+                     { { id[0], id[2] }, { id[0], id[3], id[4] }, { id[0], id[3], id[4] }, { id[0], id[2] } });
 
   ASSERT_EQ(hypergraph.edgeHash(0), hypergraph.edgeHash(281474976710657));
   ASSERT_EQ(hypergraph.edgeHash(1), hypergraph.edgeHash(281474976710656));
@@ -611,8 +611,8 @@ TEST_F(AHypergraphWithTwoStreamingHypergraphs, HasEqualHashIfTwoHyperedgesBecome
 
 TEST_F(AHypergraphWithTwoStreamingHypergraphs, HasEqualHashIfTwoHyperedgesBecomeParallel4) {
   TestHypergraph hypergraph = construct_test_hypergraph(*this);
-  std::vector<HypernodeID> id = {GLOBAL_ID(hypergraph, 0), GLOBAL_ID(hypergraph, 1), GLOBAL_ID(hypergraph, 2),
-    GLOBAL_ID(hypergraph, 3), GLOBAL_ID(hypergraph, 4), GLOBAL_ID(hypergraph, 5), GLOBAL_ID(hypergraph, 6)};
+  std::vector<HypernodeID> id = { GLOBAL_ID(hypergraph, 0), GLOBAL_ID(hypergraph, 1), GLOBAL_ID(hypergraph, 2),
+                                  GLOBAL_ID(hypergraph, 3), GLOBAL_ID(hypergraph, 4), GLOBAL_ID(hypergraph, 5), GLOBAL_ID(hypergraph, 6) };
 
   ASSERT_NE(hypergraph.edgeHash(1), hypergraph.edgeHash(281474976710656));
 
@@ -628,24 +628,24 @@ TEST_F(AHypergraphWithTwoStreamingHypergraphs, HasEqualHashIfTwoHyperedgesBecome
   ASSERT_EQ(3, hypergraph.nodeWeight(id[0]));
   ASSERT_EQ(2, hypergraph.nodeWeight(id[4]));
 
-  verifyIterator<HyperedgeID>({0, 1, 281474976710656}, [&] {
-    return hypergraph.incidentEdges(id[0]);
-  });
+  verifyIterator<HyperedgeID>({ 0, 1, 281474976710656 }, [&] {
+        return hypergraph.incidentEdges(id[0]);
+      });
 
-  verifyIterator<HyperedgeID>({1, 281474976710656, 281474976710657}, [&] {
-    return hypergraph.incidentEdges(id[4]);
-  });
+  verifyIterator<HyperedgeID>({ 1, 281474976710656, 281474976710657 }, [&] {
+        return hypergraph.incidentEdges(id[4]);
+      });
 
-  verifyPinIterators(hypergraph, {0, 1, 281474976710656, 281474976710657},
-    { {id[0], id[2]}, {id[0], id[4]}, {id[0], id[4]}, {id[2], id[4], id[5]} } );
+  verifyPinIterators(hypergraph, { 0, 1, 281474976710656, 281474976710657 },
+                     { { id[0], id[2] }, { id[0], id[4] }, { id[0], id[4] }, { id[2], id[4], id[5] } });
 
   ASSERT_EQ(hypergraph.edgeHash(1), hypergraph.edgeHash(281474976710656));
 }
 
 TEST_F(AHypergraphWithTwoStreamingHypergraphs, UncontractsTwoHypernodes1) {
   TestHypergraph hypergraph = construct_test_hypergraph(*this);
-  std::vector<HypernodeID> id = {GLOBAL_ID(hypergraph, 0), GLOBAL_ID(hypergraph, 1), GLOBAL_ID(hypergraph, 2),
-    GLOBAL_ID(hypergraph, 3), GLOBAL_ID(hypergraph, 4), GLOBAL_ID(hypergraph, 5), GLOBAL_ID(hypergraph, 6)};
+  std::vector<HypernodeID> id = { GLOBAL_ID(hypergraph, 0), GLOBAL_ID(hypergraph, 1), GLOBAL_ID(hypergraph, 2),
+                                  GLOBAL_ID(hypergraph, 3), GLOBAL_ID(hypergraph, 4), GLOBAL_ID(hypergraph, 5), GLOBAL_ID(hypergraph, 6) };
   parallel::scalable_vector<HyperedgeID> parallel_he_representative(hypergraph.initialNumEdges());
 
   HypernodeID u = id[0];
@@ -659,22 +659,22 @@ TEST_F(AHypergraphWithTwoStreamingHypergraphs, UncontractsTwoHypernodes1) {
   ASSERT_EQ(1, hypergraph.nodeWeight(u));
   ASSERT_EQ(1, hypergraph.nodeWeight(v));
 
-  verifyIterator<HyperedgeID>({0, 1}, [&] {
-    return hypergraph.incidentEdges(u);
-  });
+  verifyIterator<HyperedgeID>({ 0, 1 }, [&] {
+        return hypergraph.incidentEdges(u);
+      });
 
-  verifyIterator<HyperedgeID>({0, 281474976710657}, [&] {
-    return hypergraph.incidentEdges(v);
-  });
+  verifyIterator<HyperedgeID>({ 0, 281474976710657 }, [&] {
+        return hypergraph.incidentEdges(v);
+      });
 
-  verifyPinIterators(hypergraph, {0, 1, 281474976710656, 281474976710657},
-   { {id[0], id[2]}, {id[0], id[1], id[3], id[4]}, {id[3], id[4], id[6]}, {id[2], id[5], id[6]} } );
+  verifyPinIterators(hypergraph, { 0, 1, 281474976710656, 281474976710657 },
+                     { { id[0], id[2] }, { id[0], id[1], id[3], id[4] }, { id[3], id[4], id[6] }, { id[2], id[5], id[6] } });
 }
 
 TEST_F(AHypergraphWithTwoStreamingHypergraphs, UncontractsTwoHypernodes2) {
   TestHypergraph hypergraph = construct_test_hypergraph(*this);
-  std::vector<HypernodeID> id = {GLOBAL_ID(hypergraph, 0), GLOBAL_ID(hypergraph, 1), GLOBAL_ID(hypergraph, 2),
-    GLOBAL_ID(hypergraph, 3), GLOBAL_ID(hypergraph, 4), GLOBAL_ID(hypergraph, 5), GLOBAL_ID(hypergraph, 6)};
+  std::vector<HypernodeID> id = { GLOBAL_ID(hypergraph, 0), GLOBAL_ID(hypergraph, 1), GLOBAL_ID(hypergraph, 2),
+                                  GLOBAL_ID(hypergraph, 3), GLOBAL_ID(hypergraph, 4), GLOBAL_ID(hypergraph, 5), GLOBAL_ID(hypergraph, 6) };
   parallel::scalable_vector<HyperedgeID> parallel_he_representative(hypergraph.initialNumEdges());
 
   HypernodeID u = id[3];
@@ -688,22 +688,22 @@ TEST_F(AHypergraphWithTwoStreamingHypergraphs, UncontractsTwoHypernodes2) {
   ASSERT_EQ(1, hypergraph.nodeWeight(u));
   ASSERT_EQ(1, hypergraph.nodeWeight(v));
 
-  verifyIterator<HyperedgeID>({1, 281474976710656}, [&] {
-    return hypergraph.incidentEdges(u);
-  });
+  verifyIterator<HyperedgeID>({ 1, 281474976710656 }, [&] {
+        return hypergraph.incidentEdges(u);
+      });
 
-  verifyIterator<HyperedgeID>({1, 281474976710656}, [&] {
-    return hypergraph.incidentEdges(v);
-  });
+  verifyIterator<HyperedgeID>({ 1, 281474976710656 }, [&] {
+        return hypergraph.incidentEdges(v);
+      });
 
-  verifyPinIterators(hypergraph, {0, 1, 281474976710656, 281474976710657},
-   { {id[0], id[2]}, {id[0], id[1], id[3], id[4]}, {id[3], id[4], id[6]}, {id[2], id[5], id[6]} });
+  verifyPinIterators(hypergraph, { 0, 1, 281474976710656, 281474976710657 },
+                     { { id[0], id[2] }, { id[0], id[1], id[3], id[4] }, { id[3], id[4], id[6] }, { id[2], id[5], id[6] } });
 }
 
 TEST_F(AHypergraphWithTwoStreamingHypergraphs, UncontractsTwoHypernodes3) {
   TestHypergraph hypergraph = construct_test_hypergraph(*this);
-  std::vector<HypernodeID> id = {GLOBAL_ID(hypergraph, 0), GLOBAL_ID(hypergraph, 1), GLOBAL_ID(hypergraph, 2),
-    GLOBAL_ID(hypergraph, 3), GLOBAL_ID(hypergraph, 4), GLOBAL_ID(hypergraph, 5), GLOBAL_ID(hypergraph, 6)};
+  std::vector<HypernodeID> id = { GLOBAL_ID(hypergraph, 0), GLOBAL_ID(hypergraph, 1), GLOBAL_ID(hypergraph, 2),
+                                  GLOBAL_ID(hypergraph, 3), GLOBAL_ID(hypergraph, 4), GLOBAL_ID(hypergraph, 5), GLOBAL_ID(hypergraph, 6) };
   parallel::scalable_vector<HyperedgeID> parallel_he_representative(hypergraph.initialNumEdges());
 
   HypernodeID u = id[6];
@@ -717,22 +717,22 @@ TEST_F(AHypergraphWithTwoStreamingHypergraphs, UncontractsTwoHypernodes3) {
   ASSERT_EQ(1, hypergraph.nodeWeight(u));
   ASSERT_EQ(1, hypergraph.nodeWeight(v));
 
-  verifyIterator<HyperedgeID>({281474976710656, 281474976710657}, [&] {
-    return hypergraph.incidentEdges(u);
-  });
+  verifyIterator<HyperedgeID>({ 281474976710656, 281474976710657 }, [&] {
+        return hypergraph.incidentEdges(u);
+      });
 
-  verifyIterator<HyperedgeID>({1, 281474976710656}, [&] {
-    return hypergraph.incidentEdges(v);
-  });
+  verifyIterator<HyperedgeID>({ 1, 281474976710656 }, [&] {
+        return hypergraph.incidentEdges(v);
+      });
 
-  verifyPinIterators(hypergraph, {0, 1, 281474976710656, 281474976710657},
-   { {id[0], id[2]}, {id[0], id[1], id[3], id[4]}, {id[3], id[4], id[6]}, {id[2], id[5], id[6]} });
+  verifyPinIterators(hypergraph, { 0, 1, 281474976710656, 281474976710657 },
+                     { { id[0], id[2] }, { id[0], id[1], id[3], id[4] }, { id[3], id[4], id[6] }, { id[2], id[5], id[6] } });
 }
 
 TEST_F(AHypergraphWithTwoStreamingHypergraphs, UncontractsTwoHypernodes4) {
   TestHypergraph hypergraph = construct_test_hypergraph(*this);
-  std::vector<HypernodeID> id = {GLOBAL_ID(hypergraph, 0), GLOBAL_ID(hypergraph, 1), GLOBAL_ID(hypergraph, 2),
-    GLOBAL_ID(hypergraph, 3), GLOBAL_ID(hypergraph, 4), GLOBAL_ID(hypergraph, 5), GLOBAL_ID(hypergraph, 6)};
+  std::vector<HypernodeID> id = { GLOBAL_ID(hypergraph, 0), GLOBAL_ID(hypergraph, 1), GLOBAL_ID(hypergraph, 2),
+                                  GLOBAL_ID(hypergraph, 3), GLOBAL_ID(hypergraph, 4), GLOBAL_ID(hypergraph, 5), GLOBAL_ID(hypergraph, 6) };
   parallel::scalable_vector<HyperedgeID> parallel_he_representative(hypergraph.initialNumEdges());
 
   HypernodeID u = id[5];
@@ -746,22 +746,22 @@ TEST_F(AHypergraphWithTwoStreamingHypergraphs, UncontractsTwoHypernodes4) {
   ASSERT_EQ(1, hypergraph.nodeWeight(u));
   ASSERT_EQ(1, hypergraph.nodeWeight(v));
 
-  verifyIterator<HyperedgeID>({281474976710657}, [&] {
-    return hypergraph.incidentEdges(u);
-  });
+  verifyIterator<HyperedgeID>({ 281474976710657 }, [&] {
+        return hypergraph.incidentEdges(u);
+      });
 
-  verifyIterator<HyperedgeID>({0, 1}, [&] {
-    return hypergraph.incidentEdges(v);
-  });
+  verifyIterator<HyperedgeID>({ 0, 1 }, [&] {
+        return hypergraph.incidentEdges(v);
+      });
 
-  verifyPinIterators(hypergraph, {0, 1, 281474976710656, 281474976710657},
-   { {id[0], id[2]}, {id[0], id[1], id[3], id[4]}, {id[3], id[4], id[6]}, {id[2], id[5], id[6]} });
+  verifyPinIterators(hypergraph, { 0, 1, 281474976710656, 281474976710657 },
+                     { { id[0], id[2] }, { id[0], id[1], id[3], id[4] }, { id[3], id[4], id[6] }, { id[2], id[5], id[6] } });
 }
 
 TEST_F(AHypergraphWithTwoStreamingHypergraphs, UncontractsTwoHypernodes5) {
   TestHypergraph hypergraph = construct_test_hypergraph(*this);
-  std::vector<HypernodeID> id = {GLOBAL_ID(hypergraph, 0), GLOBAL_ID(hypergraph, 1), GLOBAL_ID(hypergraph, 2),
-    GLOBAL_ID(hypergraph, 3), GLOBAL_ID(hypergraph, 4), GLOBAL_ID(hypergraph, 5), GLOBAL_ID(hypergraph, 6)};
+  std::vector<HypernodeID> id = { GLOBAL_ID(hypergraph, 0), GLOBAL_ID(hypergraph, 1), GLOBAL_ID(hypergraph, 2),
+                                  GLOBAL_ID(hypergraph, 3), GLOBAL_ID(hypergraph, 4), GLOBAL_ID(hypergraph, 5), GLOBAL_ID(hypergraph, 6) };
   parallel::scalable_vector<HyperedgeID> parallel_he_representative(hypergraph.initialNumEdges());
 
   HypernodeID u = id[4];
@@ -775,22 +775,22 @@ TEST_F(AHypergraphWithTwoStreamingHypergraphs, UncontractsTwoHypernodes5) {
   ASSERT_EQ(1, hypergraph.nodeWeight(u));
   ASSERT_EQ(1, hypergraph.nodeWeight(v));
 
-  verifyIterator<HyperedgeID>({1, 281474976710656}, [&] {
-    return hypergraph.incidentEdges(u);
-  });
+  verifyIterator<HyperedgeID>({ 1, 281474976710656 }, [&] {
+        return hypergraph.incidentEdges(u);
+      });
 
-  verifyIterator<HyperedgeID>({1}, [&] {
-    return hypergraph.incidentEdges(v);
-  });
+  verifyIterator<HyperedgeID>({ 1 }, [&] {
+        return hypergraph.incidentEdges(v);
+      });
 
-  verifyPinIterators(hypergraph, {0, 1, 281474976710656, 281474976710657},
-   { {id[0], id[2]}, {id[0], id[1], id[3], id[4]}, {id[3], id[4], id[6]}, {id[2], id[5], id[6]} });
+  verifyPinIterators(hypergraph, { 0, 1, 281474976710656, 281474976710657 },
+                     { { id[0], id[2] }, { id[0], id[1], id[3], id[4] }, { id[3], id[4], id[6] }, { id[2], id[5], id[6] } });
 }
 
 TEST_F(AHypergraphWithTwoStreamingHypergraphs, UncontractsTwoHypernodes6) {
   TestHypergraph hypergraph = construct_test_hypergraph(*this);
-  std::vector<HypernodeID> id = {GLOBAL_ID(hypergraph, 0), GLOBAL_ID(hypergraph, 1), GLOBAL_ID(hypergraph, 2),
-    GLOBAL_ID(hypergraph, 3), GLOBAL_ID(hypergraph, 4), GLOBAL_ID(hypergraph, 5), GLOBAL_ID(hypergraph, 6)};
+  std::vector<HypernodeID> id = { GLOBAL_ID(hypergraph, 0), GLOBAL_ID(hypergraph, 1), GLOBAL_ID(hypergraph, 2),
+                                  GLOBAL_ID(hypergraph, 3), GLOBAL_ID(hypergraph, 4), GLOBAL_ID(hypergraph, 5), GLOBAL_ID(hypergraph, 6) };
   parallel::scalable_vector<HyperedgeID> parallel_he_representative(hypergraph.initialNumEdges());
 
   HypernodeID u = id[0];
@@ -804,22 +804,22 @@ TEST_F(AHypergraphWithTwoStreamingHypergraphs, UncontractsTwoHypernodes6) {
   ASSERT_EQ(1, hypergraph.nodeWeight(u));
   ASSERT_EQ(1, hypergraph.nodeWeight(v));
 
-  verifyIterator<HyperedgeID>({0, 1}, [&] {
-    return hypergraph.incidentEdges(u);
-  });
+  verifyIterator<HyperedgeID>({ 0, 1 }, [&] {
+        return hypergraph.incidentEdges(u);
+      });
 
-  verifyIterator<HyperedgeID>({281474976710656, 281474976710657}, [&] {
-    return hypergraph.incidentEdges(v);
-  });
+  verifyIterator<HyperedgeID>({ 281474976710656, 281474976710657 }, [&] {
+        return hypergraph.incidentEdges(v);
+      });
 
-  verifyPinIterators(hypergraph, {0, 1, 281474976710656, 281474976710657},
-   { {id[0], id[2]}, {id[0], id[1], id[3], id[4]}, {id[3], id[4], id[6]}, {id[2], id[5], id[6]} });
+  verifyPinIterators(hypergraph, { 0, 1, 281474976710656, 281474976710657 },
+                     { { id[0], id[2] }, { id[0], id[1], id[3], id[4] }, { id[3], id[4], id[6] }, { id[2], id[5], id[6] } });
 }
 
 TEST_F(AHypergraphWithTwoStreamingHypergraphs, FullyContractsHypergraphAndThenUncontract) {
   TestHypergraph hypergraph = construct_test_hypergraph(*this);
-  std::vector<HypernodeID> id = {GLOBAL_ID(hypergraph, 0), GLOBAL_ID(hypergraph, 1), GLOBAL_ID(hypergraph, 2),
-    GLOBAL_ID(hypergraph, 3), GLOBAL_ID(hypergraph, 4), GLOBAL_ID(hypergraph, 5), GLOBAL_ID(hypergraph, 6)};
+  std::vector<HypernodeID> id = { GLOBAL_ID(hypergraph, 0), GLOBAL_ID(hypergraph, 1), GLOBAL_ID(hypergraph, 2),
+                                  GLOBAL_ID(hypergraph, 3), GLOBAL_ID(hypergraph, 4), GLOBAL_ID(hypergraph, 5), GLOBAL_ID(hypergraph, 6) };
   parallel::scalable_vector<HyperedgeID> parallel_he_representative(hypergraph.initialNumEdges());
 
   auto memento_1 = hypergraph.contract(id[0], id[2]);
@@ -834,12 +834,12 @@ TEST_F(AHypergraphWithTwoStreamingHypergraphs, FullyContractsHypergraphAndThenUn
     ASSERT_TRUE(hypergraph.nodeIsEnabled(id[0]));
     ASSERT_EQ(7, hypergraph.nodeWeight(id[0]));
 
-    verifyIterator<HyperedgeID>({0, 1, 281474976710656, 281474976710657}, [&] {
-      return hypergraph.incidentEdges(id[0]);
-    });
+    verifyIterator<HyperedgeID>({ 0, 1, 281474976710656, 281474976710657 }, [&] {
+          return hypergraph.incidentEdges(id[0]);
+        });
 
-    verifyPinIterators(hypergraph, {0, 1, 281474976710656, 281474976710657},
-    { {id[0]}, {id[0]}, {id[0]}, {id[0]} });
+    verifyPinIterators(hypergraph, { 0, 1, 281474976710656, 281474976710657 },
+                       { { id[0] }, { id[0] }, { id[0] }, { id[0] } });
   }
 
   assignPartitionIDs(hypergraph);
@@ -853,16 +853,16 @@ TEST_F(AHypergraphWithTwoStreamingHypergraphs, FullyContractsHypergraphAndThenUn
     ASSERT_EQ(5, hypergraph.nodeWeight(id[0]));
     ASSERT_EQ(2, hypergraph.nodeWeight(id[5]));
 
-    verifyIterator<HyperedgeID>({0, 1, 281474976710656, 281474976710657}, [&] {
-      return hypergraph.incidentEdges(id[0]);
-    });
+    verifyIterator<HyperedgeID>({ 0, 1, 281474976710656, 281474976710657 }, [&] {
+          return hypergraph.incidentEdges(id[0]);
+        });
 
-    verifyIterator<HyperedgeID>({281474976710656, 281474976710657}, [&] {
-      return hypergraph.incidentEdges(id[5]);
-    });
+    verifyIterator<HyperedgeID>({ 281474976710656, 281474976710657 }, [&] {
+          return hypergraph.incidentEdges(id[5]);
+        });
 
-    verifyPinIterators(hypergraph, {0, 1, 281474976710656, 281474976710657},
-    { {id[0]}, {id[0]}, {id[0], id[5]}, {id[0], id[5]} });
+    verifyPinIterators(hypergraph, { 0, 1, 281474976710656, 281474976710657 },
+                       { { id[0] }, { id[0] }, { id[0], id[5] }, { id[0], id[5] } });
   }
 
   // Second Uncontraction
@@ -874,16 +874,16 @@ TEST_F(AHypergraphWithTwoStreamingHypergraphs, FullyContractsHypergraphAndThenUn
     ASSERT_EQ(3, hypergraph.nodeWeight(id[0]));
     ASSERT_EQ(2, hypergraph.nodeWeight(id[3]));
 
-    verifyIterator<HyperedgeID>({0, 1, 281474976710657}, [&] {
-      return hypergraph.incidentEdges(id[0]);
-    });
+    verifyIterator<HyperedgeID>({ 0, 1, 281474976710657 }, [&] {
+          return hypergraph.incidentEdges(id[0]);
+        });
 
-    verifyIterator<HyperedgeID>({1, 281474976710656}, [&] {
-      return hypergraph.incidentEdges(id[3]);
-    });
+    verifyIterator<HyperedgeID>({ 1, 281474976710656 }, [&] {
+          return hypergraph.incidentEdges(id[3]);
+        });
 
-    verifyPinIterators(hypergraph, {0, 1, 281474976710656, 281474976710657},
-    { {id[0]}, {id[0], id[3]}, {id[3], id[5]}, {id[0], id[5]} });
+    verifyPinIterators(hypergraph, { 0, 1, 281474976710656, 281474976710657 },
+                       { { id[0] }, { id[0], id[3] }, { id[3], id[5] }, { id[0], id[5] } });
   }
 
   // Third Uncontraction
@@ -895,16 +895,16 @@ TEST_F(AHypergraphWithTwoStreamingHypergraphs, FullyContractsHypergraphAndThenUn
     ASSERT_EQ(2, hypergraph.nodeWeight(id[0]));
     ASSERT_EQ(1, hypergraph.nodeWeight(id[1]));
 
-    verifyIterator<HyperedgeID>({0, 1, 281474976710657}, [&] {
-      return hypergraph.incidentEdges(id[0]);
-    });
+    verifyIterator<HyperedgeID>({ 0, 1, 281474976710657 }, [&] {
+          return hypergraph.incidentEdges(id[0]);
+        });
 
-    verifyIterator<HyperedgeID>({1}, [&] {
-      return hypergraph.incidentEdges(id[1]);
-    });
+    verifyIterator<HyperedgeID>({ 1 }, [&] {
+          return hypergraph.incidentEdges(id[1]);
+        });
 
-    verifyPinIterators(hypergraph, {0, 1, 281474976710656, 281474976710657},
-    { {id[0]}, {id[0], id[1], id[3]}, {id[3], id[5]}, {id[0], id[5]} });
+    verifyPinIterators(hypergraph, { 0, 1, 281474976710656, 281474976710657 },
+                       { { id[0] }, { id[0], id[1], id[3] }, { id[3], id[5] }, { id[0], id[5] } });
   }
 
   // Fourth Uncontraction
@@ -916,16 +916,16 @@ TEST_F(AHypergraphWithTwoStreamingHypergraphs, FullyContractsHypergraphAndThenUn
     ASSERT_EQ(1, hypergraph.nodeWeight(id[3]));
     ASSERT_EQ(1, hypergraph.nodeWeight(id[4]));
 
-    verifyIterator<HyperedgeID>({1, 281474976710656}, [&] {
-      return hypergraph.incidentEdges(id[3]);
-    });
+    verifyIterator<HyperedgeID>({ 1, 281474976710656 }, [&] {
+          return hypergraph.incidentEdges(id[3]);
+        });
 
-    verifyIterator<HyperedgeID>({1, 281474976710656}, [&] {
-      return hypergraph.incidentEdges(id[4]);
-    });
+    verifyIterator<HyperedgeID>({ 1, 281474976710656 }, [&] {
+          return hypergraph.incidentEdges(id[4]);
+        });
 
-    verifyPinIterators(hypergraph, {0, 1, 281474976710656, 281474976710657},
-    { {id[0]}, {id[0], id[1], id[3], id[4]}, {id[3], id[4], id[5]}, {id[0], id[5]} });
+    verifyPinIterators(hypergraph, { 0, 1, 281474976710656, 281474976710657 },
+                       { { id[0] }, { id[0], id[1], id[3], id[4] }, { id[3], id[4], id[5] }, { id[0], id[5] } });
   }
 
   // Fifth Uncontraction
@@ -937,16 +937,16 @@ TEST_F(AHypergraphWithTwoStreamingHypergraphs, FullyContractsHypergraphAndThenUn
     ASSERT_EQ(1, hypergraph.nodeWeight(id[5]));
     ASSERT_EQ(1, hypergraph.nodeWeight(id[6]));
 
-    verifyIterator<HyperedgeID>({281474976710657}, [&] {
-      return hypergraph.incidentEdges(id[5]);
-    });
+    verifyIterator<HyperedgeID>({ 281474976710657 }, [&] {
+          return hypergraph.incidentEdges(id[5]);
+        });
 
-    verifyIterator<HyperedgeID>({281474976710656, 281474976710657}, [&] {
-      return hypergraph.incidentEdges(id[6]);
-    });
+    verifyIterator<HyperedgeID>({ 281474976710656, 281474976710657 }, [&] {
+          return hypergraph.incidentEdges(id[6]);
+        });
 
-    verifyPinIterators(hypergraph, {0, 1, 281474976710656, 281474976710657},
-    { {id[0]}, {id[0], id[1], id[3], id[4]}, {id[3], id[4], id[6]}, {id[0], id[5], id[6]} });
+    verifyPinIterators(hypergraph, { 0, 1, 281474976710656, 281474976710657 },
+                       { { id[0] }, { id[0], id[1], id[3], id[4] }, { id[3], id[4], id[6] }, { id[0], id[5], id[6] } });
   }
 
   // Sixth Uncontraction
@@ -958,123 +958,123 @@ TEST_F(AHypergraphWithTwoStreamingHypergraphs, FullyContractsHypergraphAndThenUn
     ASSERT_EQ(1, hypergraph.nodeWeight(id[0]));
     ASSERT_EQ(1, hypergraph.nodeWeight(id[2]));
 
-    verifyIterator<HyperedgeID>({0, 1}, [&] {
-      return hypergraph.incidentEdges(id[0]);
-    });
+    verifyIterator<HyperedgeID>({ 0, 1 }, [&] {
+          return hypergraph.incidentEdges(id[0]);
+        });
 
-    verifyIterator<HyperedgeID>({0, 281474976710657}, [&] {
-      return hypergraph.incidentEdges(id[2]);
-    });
+    verifyIterator<HyperedgeID>({ 0, 281474976710657 }, [&] {
+          return hypergraph.incidentEdges(id[2]);
+        });
 
-    verifyPinIterators(hypergraph, {0, 1, 281474976710656, 281474976710657},
-    { {id[0], id[2]}, {id[0], id[1], id[3], id[4]}, {id[3], id[4], id[6]}, {id[2], id[5], id[6]} });
+    verifyPinIterators(hypergraph, { 0, 1, 281474976710656, 281474976710657 },
+                       { { id[0], id[2] }, { id[0], id[1], id[3], id[4] }, { id[3], id[4], id[6] }, { id[2], id[5], id[6] } });
   }
 }
 
 TEST_F(AHypergraphWithTwoStreamingHypergraphs, RemovesAnEdgeFromHypergraph1) {
   TestHypergraph hypergraph = construct_test_hypergraph(*this);
-  std::vector<HypernodeID> id = {GLOBAL_ID(hypergraph, 0), GLOBAL_ID(hypergraph, 1), GLOBAL_ID(hypergraph, 2),
-    GLOBAL_ID(hypergraph, 3), GLOBAL_ID(hypergraph, 4), GLOBAL_ID(hypergraph, 5), GLOBAL_ID(hypergraph, 6)};
+  std::vector<HypernodeID> id = { GLOBAL_ID(hypergraph, 0), GLOBAL_ID(hypergraph, 1), GLOBAL_ID(hypergraph, 2),
+                                  GLOBAL_ID(hypergraph, 3), GLOBAL_ID(hypergraph, 4), GLOBAL_ID(hypergraph, 5), GLOBAL_ID(hypergraph, 6) };
 
   hypergraph.removeEdge(0);
 
   ASSERT_FALSE(hypergraph.edgeIsEnabled(0));
 
-  verifyIterator<HyperedgeID>({1}, [&] {
-    return hypergraph.incidentEdges(id[0]);
-  });
+  verifyIterator<HyperedgeID>({ 1 }, [&] {
+        return hypergraph.incidentEdges(id[0]);
+      });
 
-  verifyIterator<HyperedgeID>({281474976710657}, [&] {
-    return hypergraph.incidentEdges(id[2]);
-  });
+  verifyIterator<HyperedgeID>({ 281474976710657 }, [&] {
+        return hypergraph.incidentEdges(id[2]);
+      });
 
-  verifyPinIterators(hypergraph, {1, 281474976710656, 281474976710657},
-   { {id[0], id[1], id[3], id[4]}, {id[3], id[4], id[6]}, {id[2], id[5], id[6]} });
+  verifyPinIterators(hypergraph, { 1, 281474976710656, 281474976710657 },
+                     { { id[0], id[1], id[3], id[4] }, { id[3], id[4], id[6] }, { id[2], id[5], id[6] } });
 }
 
 TEST_F(AHypergraphWithTwoStreamingHypergraphs, RemovesAnEdgeFromHypergraph2) {
   TestHypergraph hypergraph = construct_test_hypergraph(*this);
-  std::vector<HypernodeID> id = {GLOBAL_ID(hypergraph, 0), GLOBAL_ID(hypergraph, 1), GLOBAL_ID(hypergraph, 2),
-    GLOBAL_ID(hypergraph, 3), GLOBAL_ID(hypergraph, 4), GLOBAL_ID(hypergraph, 5), GLOBAL_ID(hypergraph, 6)};
+  std::vector<HypernodeID> id = { GLOBAL_ID(hypergraph, 0), GLOBAL_ID(hypergraph, 1), GLOBAL_ID(hypergraph, 2),
+                                  GLOBAL_ID(hypergraph, 3), GLOBAL_ID(hypergraph, 4), GLOBAL_ID(hypergraph, 5), GLOBAL_ID(hypergraph, 6) };
 
   hypergraph.removeEdge(1);
 
   ASSERT_FALSE(hypergraph.edgeIsEnabled(1));
 
-  verifyIterator<HyperedgeID>({0}, [&] {
-    return hypergraph.incidentEdges(id[0]);
-  });
+  verifyIterator<HyperedgeID>({ 0 }, [&] {
+        return hypergraph.incidentEdges(id[0]);
+      });
 
-  verifyIterator<HyperedgeID>({}, [&] {
-    return hypergraph.incidentEdges(id[1]);
-  });
+  verifyIterator<HyperedgeID>({ }, [&] {
+        return hypergraph.incidentEdges(id[1]);
+      });
 
-  verifyIterator<HyperedgeID>({281474976710656}, [&] {
-    return hypergraph.incidentEdges(id[3]);
-  });
+  verifyIterator<HyperedgeID>({ 281474976710656 }, [&] {
+        return hypergraph.incidentEdges(id[3]);
+      });
 
-  verifyIterator<HyperedgeID>({281474976710656}, [&] {
-    return hypergraph.incidentEdges(id[4]);
-  });
+  verifyIterator<HyperedgeID>({ 281474976710656 }, [&] {
+        return hypergraph.incidentEdges(id[4]);
+      });
 
-  verifyPinIterators(hypergraph, {0, 281474976710656, 281474976710657},
-   { {id[0], id[2]}, {id[3], id[4], id[6]}, {id[2], id[5], id[6]} });
+  verifyPinIterators(hypergraph, { 0, 281474976710656, 281474976710657 },
+                     { { id[0], id[2] }, { id[3], id[4], id[6] }, { id[2], id[5], id[6] } });
 }
 
 TEST_F(AHypergraphWithTwoStreamingHypergraphs, RemovesAnEdgeFromHypergraph3) {
   TestHypergraph hypergraph = construct_test_hypergraph(*this);
-  std::vector<HypernodeID> id = {GLOBAL_ID(hypergraph, 0), GLOBAL_ID(hypergraph, 1), GLOBAL_ID(hypergraph, 2),
-    GLOBAL_ID(hypergraph, 3), GLOBAL_ID(hypergraph, 4), GLOBAL_ID(hypergraph, 5), GLOBAL_ID(hypergraph, 6)};
+  std::vector<HypernodeID> id = { GLOBAL_ID(hypergraph, 0), GLOBAL_ID(hypergraph, 1), GLOBAL_ID(hypergraph, 2),
+                                  GLOBAL_ID(hypergraph, 3), GLOBAL_ID(hypergraph, 4), GLOBAL_ID(hypergraph, 5), GLOBAL_ID(hypergraph, 6) };
 
   hypergraph.removeEdge(281474976710656);
 
   ASSERT_FALSE(hypergraph.edgeIsEnabled(281474976710656));
 
-  verifyIterator<HyperedgeID>({1}, [&] {
-    return hypergraph.incidentEdges(id[3]);
-  });
+  verifyIterator<HyperedgeID>({ 1 }, [&] {
+        return hypergraph.incidentEdges(id[3]);
+      });
 
-  verifyIterator<HyperedgeID>({1}, [&] {
-    return hypergraph.incidentEdges(id[4]);
-  });
+  verifyIterator<HyperedgeID>({ 1 }, [&] {
+        return hypergraph.incidentEdges(id[4]);
+      });
 
-  verifyIterator<HyperedgeID>({281474976710657}, [&] {
-    return hypergraph.incidentEdges(id[6]);
-  });
+  verifyIterator<HyperedgeID>({ 281474976710657 }, [&] {
+        return hypergraph.incidentEdges(id[6]);
+      });
 
-  verifyPinIterators(hypergraph, {0, 1, 281474976710657},
-   { {id[0], id[2]}, {id[0], id[1], id[3], id[4]}, {id[2], id[5], id[6]} });
+  verifyPinIterators(hypergraph, { 0, 1, 281474976710657 },
+                     { { id[0], id[2] }, { id[0], id[1], id[3], id[4] }, { id[2], id[5], id[6] } });
 }
 
 TEST_F(AHypergraphWithTwoStreamingHypergraphs, RemovesAnEdgeFromHypergraph4) {
   TestHypergraph hypergraph = construct_test_hypergraph(*this);
-  std::vector<HypernodeID> id = {GLOBAL_ID(hypergraph, 0), GLOBAL_ID(hypergraph, 1), GLOBAL_ID(hypergraph, 2),
-    GLOBAL_ID(hypergraph, 3), GLOBAL_ID(hypergraph, 4), GLOBAL_ID(hypergraph, 5), GLOBAL_ID(hypergraph, 6)};
+  std::vector<HypernodeID> id = { GLOBAL_ID(hypergraph, 0), GLOBAL_ID(hypergraph, 1), GLOBAL_ID(hypergraph, 2),
+                                  GLOBAL_ID(hypergraph, 3), GLOBAL_ID(hypergraph, 4), GLOBAL_ID(hypergraph, 5), GLOBAL_ID(hypergraph, 6) };
 
   hypergraph.removeEdge(281474976710657);
 
   ASSERT_FALSE(hypergraph.edgeIsEnabled(281474976710657));
 
-  verifyIterator<HyperedgeID>({0}, [&] {
-    return hypergraph.incidentEdges(id[2]);
-  });
+  verifyIterator<HyperedgeID>({ 0 }, [&] {
+        return hypergraph.incidentEdges(id[2]);
+      });
 
-  verifyIterator<HyperedgeID>({}, [&] {
-    return hypergraph.incidentEdges(id[5]);
-  });
+  verifyIterator<HyperedgeID>({ }, [&] {
+        return hypergraph.incidentEdges(id[5]);
+      });
 
-  verifyIterator<HyperedgeID>({281474976710656}, [&] {
-    return hypergraph.incidentEdges(id[6]);
-  });
+  verifyIterator<HyperedgeID>({ 281474976710656 }, [&] {
+        return hypergraph.incidentEdges(id[6]);
+      });
 
-  verifyPinIterators(hypergraph, {0, 1, 281474976710656},
-   { {id[0], id[2]}, {id[0], id[1], id[3], id[4]}, {id[3], id[4], id[6]} });
+  verifyPinIterators(hypergraph, { 0, 1, 281474976710656 },
+                     { { id[0], id[2] }, { id[0], id[1], id[3], id[4] }, { id[3], id[4], id[6] } });
 }
 
 TEST_F(AHypergraphWithTwoStreamingHypergraphs, RemovesTwoEdgesFromHypergraph1) {
   TestHypergraph hypergraph = construct_test_hypergraph(*this);
-  std::vector<HypernodeID> id = {GLOBAL_ID(hypergraph, 0), GLOBAL_ID(hypergraph, 1), GLOBAL_ID(hypergraph, 2),
-    GLOBAL_ID(hypergraph, 3), GLOBAL_ID(hypergraph, 4), GLOBAL_ID(hypergraph, 5), GLOBAL_ID(hypergraph, 6)};
+  std::vector<HypernodeID> id = { GLOBAL_ID(hypergraph, 0), GLOBAL_ID(hypergraph, 1), GLOBAL_ID(hypergraph, 2),
+                                  GLOBAL_ID(hypergraph, 3), GLOBAL_ID(hypergraph, 4), GLOBAL_ID(hypergraph, 5), GLOBAL_ID(hypergraph, 6) };
 
   hypergraph.removeEdge(0);
   hypergraph.removeEdge(1);
@@ -1082,42 +1082,42 @@ TEST_F(AHypergraphWithTwoStreamingHypergraphs, RemovesTwoEdgesFromHypergraph1) {
   ASSERT_FALSE(hypergraph.edgeIsEnabled(0));
   ASSERT_FALSE(hypergraph.edgeIsEnabled(1));
 
-  verifyIterator<HyperedgeID>({}, [&] {
-    return hypergraph.incidentEdges(id[0]);
-  });
+  verifyIterator<HyperedgeID>({ }, [&] {
+        return hypergraph.incidentEdges(id[0]);
+      });
 
-  verifyIterator<HyperedgeID>({}, [&] {
-    return hypergraph.incidentEdges(id[1]);
-  });
+  verifyIterator<HyperedgeID>({ }, [&] {
+        return hypergraph.incidentEdges(id[1]);
+      });
 
-  verifyIterator<HyperedgeID>({281474976710657}, [&] {
-    return hypergraph.incidentEdges(id[2]);
-  });
+  verifyIterator<HyperedgeID>({ 281474976710657 }, [&] {
+        return hypergraph.incidentEdges(id[2]);
+      });
 
-  verifyIterator<HyperedgeID>({281474976710656}, [&] {
-    return hypergraph.incidentEdges(id[3]);
-  });
+  verifyIterator<HyperedgeID>({ 281474976710656 }, [&] {
+        return hypergraph.incidentEdges(id[3]);
+      });
 
-  verifyIterator<HyperedgeID>({281474976710656}, [&] {
-    return hypergraph.incidentEdges(id[4]);
-  });
+  verifyIterator<HyperedgeID>({ 281474976710656 }, [&] {
+        return hypergraph.incidentEdges(id[4]);
+      });
 
-  verifyIterator<HyperedgeID>({281474976710657}, [&] {
-    return hypergraph.incidentEdges(id[5]);
-  });
+  verifyIterator<HyperedgeID>({ 281474976710657 }, [&] {
+        return hypergraph.incidentEdges(id[5]);
+      });
 
-  verifyIterator<HyperedgeID>({281474976710656, 281474976710657}, [&] {
-    return hypergraph.incidentEdges(id[6]);
-  });
+  verifyIterator<HyperedgeID>({ 281474976710656, 281474976710657 }, [&] {
+        return hypergraph.incidentEdges(id[6]);
+      });
 
-  verifyPinIterators(hypergraph, {281474976710656, 281474976710657},
-   { {id[3], id[4], id[6]}, {id[2], id[5], id[6]} });
+  verifyPinIterators(hypergraph, { 281474976710656, 281474976710657 },
+                     { { id[3], id[4], id[6] }, { id[2], id[5], id[6] } });
 }
 
 TEST_F(AHypergraphWithTwoStreamingHypergraphs, RemovesTwoEdgesFromHypergraph2) {
   TestHypergraph hypergraph = construct_test_hypergraph(*this);
-  std::vector<HypernodeID> id = {GLOBAL_ID(hypergraph, 0), GLOBAL_ID(hypergraph, 1), GLOBAL_ID(hypergraph, 2),
-    GLOBAL_ID(hypergraph, 3), GLOBAL_ID(hypergraph, 4), GLOBAL_ID(hypergraph, 5), GLOBAL_ID(hypergraph, 6)};
+  std::vector<HypernodeID> id = { GLOBAL_ID(hypergraph, 0), GLOBAL_ID(hypergraph, 1), GLOBAL_ID(hypergraph, 2),
+                                  GLOBAL_ID(hypergraph, 3), GLOBAL_ID(hypergraph, 4), GLOBAL_ID(hypergraph, 5), GLOBAL_ID(hypergraph, 6) };
 
   hypergraph.removeEdge(281474976710656);
   hypergraph.removeEdge(281474976710657);
@@ -1125,42 +1125,42 @@ TEST_F(AHypergraphWithTwoStreamingHypergraphs, RemovesTwoEdgesFromHypergraph2) {
   ASSERT_FALSE(hypergraph.edgeIsEnabled(281474976710656));
   ASSERT_FALSE(hypergraph.edgeIsEnabled(281474976710657));
 
-  verifyIterator<HyperedgeID>({0, 1}, [&] {
-    return hypergraph.incidentEdges(id[0]);
-  });
+  verifyIterator<HyperedgeID>({ 0, 1 }, [&] {
+        return hypergraph.incidentEdges(id[0]);
+      });
 
-  verifyIterator<HyperedgeID>({1}, [&] {
-    return hypergraph.incidentEdges(id[1]);
-  });
+  verifyIterator<HyperedgeID>({ 1 }, [&] {
+        return hypergraph.incidentEdges(id[1]);
+      });
 
-  verifyIterator<HyperedgeID>({0}, [&] {
-    return hypergraph.incidentEdges(id[2]);
-  });
+  verifyIterator<HyperedgeID>({ 0 }, [&] {
+        return hypergraph.incidentEdges(id[2]);
+      });
 
-  verifyIterator<HyperedgeID>({1}, [&] {
-    return hypergraph.incidentEdges(id[3]);
-  });
+  verifyIterator<HyperedgeID>({ 1 }, [&] {
+        return hypergraph.incidentEdges(id[3]);
+      });
 
-  verifyIterator<HyperedgeID>({1}, [&] {
-    return hypergraph.incidentEdges(id[4]);
-  });
+  verifyIterator<HyperedgeID>({ 1 }, [&] {
+        return hypergraph.incidentEdges(id[4]);
+      });
 
-  verifyIterator<HyperedgeID>({}, [&] {
-    return hypergraph.incidentEdges(id[5]);
-  });
+  verifyIterator<HyperedgeID>({ }, [&] {
+        return hypergraph.incidentEdges(id[5]);
+      });
 
-  verifyIterator<HyperedgeID>({}, [&] {
-    return hypergraph.incidentEdges(id[6]);
-  });
+  verifyIterator<HyperedgeID>({ }, [&] {
+        return hypergraph.incidentEdges(id[6]);
+      });
 
-  verifyPinIterators(hypergraph, {0, 1},
-   { {id[0], id[2]}, {id[0], id[1], id[3], id[4]} });
+  verifyPinIterators(hypergraph, { 0, 1 },
+                     { { id[0], id[2] }, { id[0], id[1], id[3], id[4] } });
 }
 
 TEST_F(AHypergraphWithTwoStreamingHypergraphs, RestoreAnEdgeOfHypergraph1) {
   TestHypergraph hypergraph = construct_test_hypergraph(*this);
-  std::vector<HypernodeID> id = {GLOBAL_ID(hypergraph, 0), GLOBAL_ID(hypergraph, 1), GLOBAL_ID(hypergraph, 2),
-    GLOBAL_ID(hypergraph, 3), GLOBAL_ID(hypergraph, 4), GLOBAL_ID(hypergraph, 5), GLOBAL_ID(hypergraph, 6)};
+  std::vector<HypernodeID> id = { GLOBAL_ID(hypergraph, 0), GLOBAL_ID(hypergraph, 1), GLOBAL_ID(hypergraph, 2),
+                                  GLOBAL_ID(hypergraph, 3), GLOBAL_ID(hypergraph, 4), GLOBAL_ID(hypergraph, 5), GLOBAL_ID(hypergraph, 6) };
 
   hypergraph.removeEdge(0);
   assignPartitionIDs(hypergraph);
@@ -1168,22 +1168,22 @@ TEST_F(AHypergraphWithTwoStreamingHypergraphs, RestoreAnEdgeOfHypergraph1) {
 
   ASSERT_TRUE(hypergraph.edgeIsEnabled(0));
 
-  verifyIterator<HyperedgeID>({0, 1}, [&] {
-    return hypergraph.incidentEdges(id[0]);
-  });
+  verifyIterator<HyperedgeID>({ 0, 1 }, [&] {
+        return hypergraph.incidentEdges(id[0]);
+      });
 
-  verifyIterator<HyperedgeID>({0, 281474976710657}, [&] {
-    return hypergraph.incidentEdges(id[2]);
-  });
+  verifyIterator<HyperedgeID>({ 0, 281474976710657 }, [&] {
+        return hypergraph.incidentEdges(id[2]);
+      });
 
-  verifyPinIterators(hypergraph, {0, 1, 281474976710656, 281474976710657},
-   { {id[0], id[2]}, {id[0], id[1], id[3], id[4]}, {id[3], id[4], id[6]}, {id[2], id[5], id[6]} });
+  verifyPinIterators(hypergraph, { 0, 1, 281474976710656, 281474976710657 },
+                     { { id[0], id[2] }, { id[0], id[1], id[3], id[4] }, { id[3], id[4], id[6] }, { id[2], id[5], id[6] } });
 }
 
 TEST_F(AHypergraphWithTwoStreamingHypergraphs, RestoreAnEdgeOfHypergraph2) {
   TestHypergraph hypergraph = construct_test_hypergraph(*this);
-  std::vector<HypernodeID> id = {GLOBAL_ID(hypergraph, 0), GLOBAL_ID(hypergraph, 1), GLOBAL_ID(hypergraph, 2),
-    GLOBAL_ID(hypergraph, 3), GLOBAL_ID(hypergraph, 4), GLOBAL_ID(hypergraph, 5), GLOBAL_ID(hypergraph, 6)};
+  std::vector<HypernodeID> id = { GLOBAL_ID(hypergraph, 0), GLOBAL_ID(hypergraph, 1), GLOBAL_ID(hypergraph, 2),
+                                  GLOBAL_ID(hypergraph, 3), GLOBAL_ID(hypergraph, 4), GLOBAL_ID(hypergraph, 5), GLOBAL_ID(hypergraph, 6) };
 
   hypergraph.removeEdge(1);
   assignPartitionIDs(hypergraph);
@@ -1191,30 +1191,30 @@ TEST_F(AHypergraphWithTwoStreamingHypergraphs, RestoreAnEdgeOfHypergraph2) {
 
   ASSERT_TRUE(hypergraph.edgeIsEnabled(1));
 
-  verifyIterator<HyperedgeID>({0, 1}, [&] {
-    return hypergraph.incidentEdges(id[0]);
-  });
+  verifyIterator<HyperedgeID>({ 0, 1 }, [&] {
+        return hypergraph.incidentEdges(id[0]);
+      });
 
-  verifyIterator<HyperedgeID>({1}, [&] {
-    return hypergraph.incidentEdges(id[1]);
-  });
+  verifyIterator<HyperedgeID>({ 1 }, [&] {
+        return hypergraph.incidentEdges(id[1]);
+      });
 
-  verifyIterator<HyperedgeID>({1, 281474976710656}, [&] {
-    return hypergraph.incidentEdges(id[3]);
-  });
+  verifyIterator<HyperedgeID>({ 1, 281474976710656 }, [&] {
+        return hypergraph.incidentEdges(id[3]);
+      });
 
-  verifyIterator<HyperedgeID>({1, 281474976710656}, [&] {
-    return hypergraph.incidentEdges(id[4]);
-  });
+  verifyIterator<HyperedgeID>({ 1, 281474976710656 }, [&] {
+        return hypergraph.incidentEdges(id[4]);
+      });
 
-  verifyPinIterators(hypergraph, {0, 1, 281474976710656, 281474976710657},
-   { {id[0], id[2]}, {id[0], id[1], id[3], id[4]}, {id[3], id[4], id[6]}, {id[2], id[5], id[6]} });
+  verifyPinIterators(hypergraph, { 0, 1, 281474976710656, 281474976710657 },
+                     { { id[0], id[2] }, { id[0], id[1], id[3], id[4] }, { id[3], id[4], id[6] }, { id[2], id[5], id[6] } });
 }
 
 TEST_F(AHypergraphWithTwoStreamingHypergraphs, RestoreAnEdgeOfHypergraph3) {
   TestHypergraph hypergraph = construct_test_hypergraph(*this);
-  std::vector<HypernodeID> id = {GLOBAL_ID(hypergraph, 0), GLOBAL_ID(hypergraph, 1), GLOBAL_ID(hypergraph, 2),
-    GLOBAL_ID(hypergraph, 3), GLOBAL_ID(hypergraph, 4), GLOBAL_ID(hypergraph, 5), GLOBAL_ID(hypergraph, 6)};
+  std::vector<HypernodeID> id = { GLOBAL_ID(hypergraph, 0), GLOBAL_ID(hypergraph, 1), GLOBAL_ID(hypergraph, 2),
+                                  GLOBAL_ID(hypergraph, 3), GLOBAL_ID(hypergraph, 4), GLOBAL_ID(hypergraph, 5), GLOBAL_ID(hypergraph, 6) };
 
   hypergraph.removeEdge(281474976710656);
   assignPartitionIDs(hypergraph);
@@ -1222,26 +1222,26 @@ TEST_F(AHypergraphWithTwoStreamingHypergraphs, RestoreAnEdgeOfHypergraph3) {
 
   ASSERT_TRUE(hypergraph.edgeIsEnabled(281474976710656));
 
-  verifyIterator<HyperedgeID>({1, 281474976710656}, [&] {
-    return hypergraph.incidentEdges(id[3]);
-  });
+  verifyIterator<HyperedgeID>({ 1, 281474976710656 }, [&] {
+        return hypergraph.incidentEdges(id[3]);
+      });
 
-  verifyIterator<HyperedgeID>({1, 281474976710656}, [&] {
-    return hypergraph.incidentEdges(id[4]);
-  });
+  verifyIterator<HyperedgeID>({ 1, 281474976710656 }, [&] {
+        return hypergraph.incidentEdges(id[4]);
+      });
 
-  verifyIterator<HyperedgeID>({281474976710656, 281474976710657}, [&] {
-    return hypergraph.incidentEdges(id[6]);
-  });
+  verifyIterator<HyperedgeID>({ 281474976710656, 281474976710657 }, [&] {
+        return hypergraph.incidentEdges(id[6]);
+      });
 
-  verifyPinIterators(hypergraph, {0, 1, 281474976710656, 281474976710657},
-   { {id[0], id[2]}, {id[0], id[1], id[3], id[4]}, {id[3], id[4], id[6]}, {id[2], id[5], id[6]} });
+  verifyPinIterators(hypergraph, { 0, 1, 281474976710656, 281474976710657 },
+                     { { id[0], id[2] }, { id[0], id[1], id[3], id[4] }, { id[3], id[4], id[6] }, { id[2], id[5], id[6] } });
 }
 
 TEST_F(AHypergraphWithTwoStreamingHypergraphs, RestoreAnEdgeOfHypergraph4) {
   TestHypergraph hypergraph = construct_test_hypergraph(*this);
-  std::vector<HypernodeID> id = {GLOBAL_ID(hypergraph, 0), GLOBAL_ID(hypergraph, 1), GLOBAL_ID(hypergraph, 2),
-    GLOBAL_ID(hypergraph, 3), GLOBAL_ID(hypergraph, 4), GLOBAL_ID(hypergraph, 5), GLOBAL_ID(hypergraph, 6)};
+  std::vector<HypernodeID> id = { GLOBAL_ID(hypergraph, 0), GLOBAL_ID(hypergraph, 1), GLOBAL_ID(hypergraph, 2),
+                                  GLOBAL_ID(hypergraph, 3), GLOBAL_ID(hypergraph, 4), GLOBAL_ID(hypergraph, 5), GLOBAL_ID(hypergraph, 6) };
 
   hypergraph.removeEdge(281474976710657);
   assignPartitionIDs(hypergraph);
@@ -1249,26 +1249,26 @@ TEST_F(AHypergraphWithTwoStreamingHypergraphs, RestoreAnEdgeOfHypergraph4) {
 
   ASSERT_TRUE(hypergraph.edgeIsEnabled(281474976710657));
 
-  verifyIterator<HyperedgeID>({0, 281474976710657}, [&] {
-    return hypergraph.incidentEdges(id[2]);
-  });
+  verifyIterator<HyperedgeID>({ 0, 281474976710657 }, [&] {
+        return hypergraph.incidentEdges(id[2]);
+      });
 
-  verifyIterator<HyperedgeID>({281474976710657}, [&] {
-    return hypergraph.incidentEdges(id[5]);
-  });
+  verifyIterator<HyperedgeID>({ 281474976710657 }, [&] {
+        return hypergraph.incidentEdges(id[5]);
+      });
 
-  verifyIterator<HyperedgeID>({281474976710656, 281474976710657}, [&] {
-    return hypergraph.incidentEdges(id[6]);
-  });
+  verifyIterator<HyperedgeID>({ 281474976710656, 281474976710657 }, [&] {
+        return hypergraph.incidentEdges(id[6]);
+      });
 
-  verifyPinIterators(hypergraph, {0, 1, 281474976710656, 281474976710657},
-   { {id[0], id[2]}, {id[0], id[1], id[3], id[4]}, {id[3], id[4], id[6]}, {id[2], id[5], id[6]} });
+  verifyPinIterators(hypergraph, { 0, 1, 281474976710656, 281474976710657 },
+                     { { id[0], id[2] }, { id[0], id[1], id[3], id[4] }, { id[3], id[4], id[6] }, { id[2], id[5], id[6] } });
 }
 
 TEST_F(AHypergraphWithTwoStreamingHypergraphs, ContractionsIntermixedWithEdgeRemovals) {
   TestHypergraph hypergraph = construct_test_hypergraph(*this);
-  std::vector<HypernodeID> id = {GLOBAL_ID(hypergraph, 0), GLOBAL_ID(hypergraph, 1), GLOBAL_ID(hypergraph, 2),
-    GLOBAL_ID(hypergraph, 3), GLOBAL_ID(hypergraph, 4), GLOBAL_ID(hypergraph, 5), GLOBAL_ID(hypergraph, 6)};
+  std::vector<HypernodeID> id = { GLOBAL_ID(hypergraph, 0), GLOBAL_ID(hypergraph, 1), GLOBAL_ID(hypergraph, 2),
+                                  GLOBAL_ID(hypergraph, 3), GLOBAL_ID(hypergraph, 4), GLOBAL_ID(hypergraph, 5), GLOBAL_ID(hypergraph, 6) };
   parallel::scalable_vector<HyperedgeID> parallel_he_representative(hypergraph.initialNumEdges());
 
   auto memento_1 = hypergraph.contract(id[0], id[2]);
@@ -1277,8 +1277,8 @@ TEST_F(AHypergraphWithTwoStreamingHypergraphs, ContractionsIntermixedWithEdgeRem
   auto memento_3 = hypergraph.contract(id[3], id[6]);
   hypergraph.removeEdge(281474976710656);
 
-  verifyPinIterators(hypergraph, {1, 281474976710657},
-   { {id[0], id[3], id[4]}, {id[0], id[5], id[3]} });
+  verifyPinIterators(hypergraph, { 1, 281474976710657 },
+                     { { id[0], id[3], id[4] }, { id[0], id[5], id[3] } });
 
   assignPartitionIDs(hypergraph);
 
@@ -1288,20 +1288,17 @@ TEST_F(AHypergraphWithTwoStreamingHypergraphs, ContractionsIntermixedWithEdgeRem
   hypergraph.restoreSinglePinHyperedge(0);
   hypergraph.uncontract(memento_1, parallel_he_representative);
 
-  verifyPinIterators(hypergraph, {0, 1, 281474976710656, 281474976710657},
-   { {id[0], id[2]}, {id[0], id[1], id[3], id[4]}, {id[3], id[4], id[6]}, {id[2], id[5], id[6]} });
+  verifyPinIterators(hypergraph, { 0, 1, 281474976710656, 281474976710657 },
+                     { { id[0], id[2] }, { id[0], id[1], id[3], id[4] }, { id[3], id[4], id[6] }, { id[2], id[5], id[6] } });
 }
 
 TEST_F(AHypergraphWithTwoStreamingHypergraphs, StreamsCommunityIDsInParallelIntoHypergraph) {
   TestHypergraph hypergraph = construct_test_hypergraph(*this);
   std::vector<PartitionID> communities = { 0, 0, 0, 1, 1, 2, 2 };
 
-  tbb::parallel_for(tbb::blocked_range<HypernodeID>(0UL, hypergraph.initialNumNodes()),
-    [&](const tbb::blocked_range<HypernodeID>& range) {
-    for ( HypernodeID hn = range.begin(); hn < range.end(); ++hn ) {
-      hypergraph.setCommunityID(hypergraph.globalNodeID(hn), communities[hn]);
-    }
-  });
+  tbb::parallel_for(0UL, hypergraph.initialNumNodes(), [&](const HypernodeID& hn) {
+        hypergraph.setCommunityID(hypergraph.globalNodeID(hn), communities[hn]);
+      });
   hypergraph.initializeCommunities();
 
   ASSERT_EQ(3, hypergraph.numCommunities());
@@ -1334,14 +1331,14 @@ TEST_F(AHypergraphWithTwoStreamingHypergraphs, ResetsPinsToOriginalIds) {
   TestHypergraph hypergraph = construct_test_hypergraph(*this);
   hypergraph.resetPinsToOriginalNodeIds();
 
-  verifyPinIterators(hypergraph, {0, 1, 281474976710656, 281474976710657},
-   { {0, 2}, {0, 1, 3, 4}, {3, 4, 6}, {2, 5, 6} });
+  verifyPinIterators(hypergraph, { 0, 1, 281474976710656, 281474976710657 },
+                     { { 0, 2 }, { 0, 1, 3, 4 }, { 3, 4, 6 }, { 2, 5, 6 } });
 }
 
 TEST_F(AHypergraphWithTwoStreamingHypergraphs, SetPartIdsOfVertex1) {
   TestHypergraph hypergraph = construct_test_hypergraph(*this);
 
-  ASSERT_TRUE( hypergraph.setNodePart(0, 0) );
+  ASSERT_TRUE(hypergraph.setNodePart(0, 0));
   ASSERT_EQ(0, hypergraph.partID(0));
   ASSERT_EQ(1, hypergraph.localPartWeight(0));
   ASSERT_EQ(1, hypergraph.localPartSize(0));
@@ -1350,7 +1347,7 @@ TEST_F(AHypergraphWithTwoStreamingHypergraphs, SetPartIdsOfVertex1) {
 TEST_F(AHypergraphWithTwoStreamingHypergraphs, SetPartIdsOfVertex2) {
   TestHypergraph hypergraph = construct_test_hypergraph(*this);
 
-  ASSERT_TRUE( hypergraph.setNodePart(281474976710656, 1) );
+  ASSERT_TRUE(hypergraph.setNodePart(281474976710656, 1));
   ASSERT_EQ(1, hypergraph.partID(281474976710656));
   ASSERT_EQ(1, hypergraph.localPartWeight(1));
   ASSERT_EQ(1, hypergraph.localPartSize(1));
@@ -1379,7 +1376,7 @@ TEST_F(AHypergraphWithTwoStreamingHypergraphs, UpdatePartIdsOfOneVertex) {
   TestHypergraph hypergraph = construct_test_hypergraph(*this);
 
   assignPartitionIDs(hypergraph);
-  ASSERT_TRUE( hypergraph.changeNodePart(2, 0, 1) );
+  ASSERT_TRUE(hypergraph.changeNodePart(2, 0, 1));
 
   ASSERT_EQ(1, hypergraph.partID(2));
   ASSERT_EQ(2, hypergraph.localPartWeight(0));
@@ -1392,8 +1389,8 @@ TEST_F(AHypergraphWithTwoStreamingHypergraphs, UpdatePartIdsOfTwoVertices) {
   TestHypergraph hypergraph = construct_test_hypergraph(*this);
 
   assignPartitionIDs(hypergraph);
-  ASSERT_TRUE( hypergraph.changeNodePart(2, 0, 1) );
-  ASSERT_TRUE( hypergraph.changeNodePart(281474976710659, 1, 0) );
+  ASSERT_TRUE(hypergraph.changeNodePart(2, 0, 1));
+  ASSERT_TRUE(hypergraph.changeNodePart(281474976710659, 1, 0));
 
   ASSERT_EQ(0, hypergraph.partID(281474976710659));
   ASSERT_EQ(3, hypergraph.localPartWeight(0));
@@ -1406,9 +1403,9 @@ TEST_F(AHypergraphWithTwoStreamingHypergraphs, UpdatePartIdsOfThreeVertices) {
   TestHypergraph hypergraph = construct_test_hypergraph(*this);
 
   assignPartitionIDs(hypergraph);
-  ASSERT_TRUE( hypergraph.changeNodePart(2, 0, 1) );
-  ASSERT_TRUE( hypergraph.changeNodePart(281474976710659, 1, 0) );
-  ASSERT_TRUE( hypergraph.changeNodePart(281474976710658, 1, 0) );
+  ASSERT_TRUE(hypergraph.changeNodePart(2, 0, 1));
+  ASSERT_TRUE(hypergraph.changeNodePart(281474976710659, 1, 0));
+  ASSERT_TRUE(hypergraph.changeNodePart(281474976710658, 1, 0));
 
   ASSERT_EQ(0, hypergraph.partID(281474976710658));
   ASSERT_EQ(4, hypergraph.localPartWeight(0));
@@ -1419,8 +1416,8 @@ TEST_F(AHypergraphWithTwoStreamingHypergraphs, UpdatePartIdsOfThreeVertices) {
 
 TEST_F(AHypergraphWithTwoStreamingHypergraphs, ChecksPartIdAssignmentAfterUncontraction1) {
   TestHypergraph hypergraph = construct_test_hypergraph(*this);
-  std::vector<HypernodeID> id = {GLOBAL_ID(hypergraph, 0), GLOBAL_ID(hypergraph, 1), GLOBAL_ID(hypergraph, 2),
-    GLOBAL_ID(hypergraph, 3), GLOBAL_ID(hypergraph, 4), GLOBAL_ID(hypergraph, 5), GLOBAL_ID(hypergraph, 6)};
+  std::vector<HypernodeID> id = { GLOBAL_ID(hypergraph, 0), GLOBAL_ID(hypergraph, 1), GLOBAL_ID(hypergraph, 2),
+                                  GLOBAL_ID(hypergraph, 3), GLOBAL_ID(hypergraph, 4), GLOBAL_ID(hypergraph, 5), GLOBAL_ID(hypergraph, 6) };
   parallel::scalable_vector<HyperedgeID> parallel_he_representative(hypergraph.initialNumEdges());
 
   HypernodeID u = id[0];
@@ -1444,8 +1441,8 @@ TEST_F(AHypergraphWithTwoStreamingHypergraphs, ChecksPartIdAssignmentAfterUncont
 
 TEST_F(AHypergraphWithTwoStreamingHypergraphs, ChecksPartIdAssignmentAfterUncontraction2) {
   TestHypergraph hypergraph = construct_test_hypergraph(*this);
-  std::vector<HypernodeID> id = {GLOBAL_ID(hypergraph, 0), GLOBAL_ID(hypergraph, 1), GLOBAL_ID(hypergraph, 2),
-    GLOBAL_ID(hypergraph, 3), GLOBAL_ID(hypergraph, 4), GLOBAL_ID(hypergraph, 5), GLOBAL_ID(hypergraph, 6)};
+  std::vector<HypernodeID> id = { GLOBAL_ID(hypergraph, 0), GLOBAL_ID(hypergraph, 1), GLOBAL_ID(hypergraph, 2),
+                                  GLOBAL_ID(hypergraph, 3), GLOBAL_ID(hypergraph, 4), GLOBAL_ID(hypergraph, 5), GLOBAL_ID(hypergraph, 6) };
   parallel::scalable_vector<HyperedgeID> parallel_he_representative(hypergraph.initialNumEdges());
 
   HypernodeID u = id[3];
@@ -1469,8 +1466,8 @@ TEST_F(AHypergraphWithTwoStreamingHypergraphs, ChecksPartIdAssignmentAfterUncont
 
 TEST_F(AHypergraphWithTwoStreamingHypergraphs, ChecksPartIdAssignmentAfterUncontraction3) {
   TestHypergraph hypergraph = construct_test_hypergraph(*this);
-  std::vector<HypernodeID> id = {GLOBAL_ID(hypergraph, 0), GLOBAL_ID(hypergraph, 1), GLOBAL_ID(hypergraph, 2),
-    GLOBAL_ID(hypergraph, 3), GLOBAL_ID(hypergraph, 4), GLOBAL_ID(hypergraph, 5), GLOBAL_ID(hypergraph, 6)};
+  std::vector<HypernodeID> id = { GLOBAL_ID(hypergraph, 0), GLOBAL_ID(hypergraph, 1), GLOBAL_ID(hypergraph, 2),
+                                  GLOBAL_ID(hypergraph, 3), GLOBAL_ID(hypergraph, 4), GLOBAL_ID(hypergraph, 5), GLOBAL_ID(hypergraph, 6) };
   parallel::scalable_vector<HyperedgeID> parallel_he_representative(hypergraph.initialNumEdges());
 
   HypernodeID u = id[0];
@@ -1494,8 +1491,8 @@ TEST_F(AHypergraphWithTwoStreamingHypergraphs, ChecksPartIdAssignmentAfterUncont
 
 TEST_F(AHypergraphWithTwoStreamingHypergraphs, ChecksPartIdAssignmentAfterSeveralUncontractions) {
   TestHypergraph hypergraph = construct_test_hypergraph(*this);
-  std::vector<HypernodeID> id = {GLOBAL_ID(hypergraph, 0), GLOBAL_ID(hypergraph, 1), GLOBAL_ID(hypergraph, 2),
-    GLOBAL_ID(hypergraph, 3), GLOBAL_ID(hypergraph, 4), GLOBAL_ID(hypergraph, 5), GLOBAL_ID(hypergraph, 6)};
+  std::vector<HypernodeID> id = { GLOBAL_ID(hypergraph, 0), GLOBAL_ID(hypergraph, 1), GLOBAL_ID(hypergraph, 2),
+                                  GLOBAL_ID(hypergraph, 3), GLOBAL_ID(hypergraph, 4), GLOBAL_ID(hypergraph, 5), GLOBAL_ID(hypergraph, 6) };
   parallel::scalable_vector<HyperedgeID> parallel_he_representative(hypergraph.initialNumEdges());
 
   auto memento_1 = hypergraph.contract(id[0], id[1]);
@@ -1534,9 +1531,9 @@ TEST_F(AHypergraphWithTwoStreamingHypergraphs, ChecksPartIdAssignmentAfterSevera
 }
 
 TEST_F(AHypergraphWithTwoStreamingHypergraphs, RestoresParallelHyperedgeDuringUncontraction1) {
-  TestHypergraph hypergraph = construct_hypergraph(3, { {0, 1, 2}, {1, 2} },
-                                                      { 0, 0, 0 }, { 0, 0 }, {0, 0, 0} );
-  std::vector<HypernodeID> id = {GLOBAL_ID(hypergraph, 0), GLOBAL_ID(hypergraph, 1), GLOBAL_ID(hypergraph, 2)};
+  TestHypergraph hypergraph = construct_hypergraph(3, { { 0, 1, 2 }, { 1, 2 } },
+                                                   { 0, 0, 0 }, { 0, 0 }, { 0, 0, 0 });
+  std::vector<HypernodeID> id = { GLOBAL_ID(hypergraph, 0), GLOBAL_ID(hypergraph, 1), GLOBAL_ID(hypergraph, 2) };
   // Hyperedge 1 becomes parallel to hyperedge 0
   auto memento = hypergraph.contract(id[0], id[1]);
   hypergraph.disableHyperedge(1);
@@ -1545,22 +1542,22 @@ TEST_F(AHypergraphWithTwoStreamingHypergraphs, RestoresParallelHyperedgeDuringUn
 
   parallel::scalable_vector<HyperedgeID> parallel_he_representative(
     hypergraph.initialNumEdges(), std::numeric_limits<HyperedgeID>::max());
-  parallel_he_representative[1] = 0; // Indicating that hyperedge 1 is parallel to 0
+  parallel_he_representative[1] = 0;  // Indicating that hyperedge 1 is parallel to 0
 
-  verifyPinIterators(hypergraph, {0},
-   { {id[0], id[2]} });
+  verifyPinIterators(hypergraph, { 0 },
+                     { { id[0], id[2] } });
 
   // Should restore hyperedge 1
   hypergraph.uncontract(memento, parallel_he_representative);
 
-  verifyPinIterators(hypergraph, {0, 1},
-   { {id[0], id[1], id[2]}, {id[1], id[2]} });
+  verifyPinIterators(hypergraph, { 0, 1 },
+                     { { id[0], id[1], id[2] }, { id[1], id[2] } });
 }
 
 TEST_F(AHypergraphWithTwoStreamingHypergraphs, RestoresParallelHyperedgeDuringUncontraction2) {
-  TestHypergraph hypergraph = construct_hypergraph(3, { {0, 1, 2}, {1, 2} },
-                                                      { 0, 0, 0 }, { 0, 0 }, {0, 0, 0} );
-  std::vector<HypernodeID> id = {GLOBAL_ID(hypergraph, 0), GLOBAL_ID(hypergraph, 1), GLOBAL_ID(hypergraph, 2)};
+  TestHypergraph hypergraph = construct_hypergraph(3, { { 0, 1, 2 }, { 1, 2 } },
+                                                   { 0, 0, 0 }, { 0, 0 }, { 0, 0, 0 });
+  std::vector<HypernodeID> id = { GLOBAL_ID(hypergraph, 0), GLOBAL_ID(hypergraph, 1), GLOBAL_ID(hypergraph, 2) };
   // Hyperedge 0 becomes parallel to hyperedge 1
   auto memento = hypergraph.contract(id[0], id[1]);
   hypergraph.disableHyperedge(0);
@@ -1569,22 +1566,22 @@ TEST_F(AHypergraphWithTwoStreamingHypergraphs, RestoresParallelHyperedgeDuringUn
 
   parallel::scalable_vector<HyperedgeID> parallel_he_representative(
     hypergraph.initialNumEdges(), std::numeric_limits<HyperedgeID>::max());
-  parallel_he_representative[0] = 1; // Indicating that hyperedge 0 is parallel to 1
+  parallel_he_representative[0] = 1;  // Indicating that hyperedge 0 is parallel to 1
 
-  verifyPinIterators(hypergraph, {1},
-   { {id[0], id[2]} });
+  verifyPinIterators(hypergraph, { 1 },
+                     { { id[0], id[2] } });
 
   // Should restore hyperedge 0
   hypergraph.uncontract(memento, parallel_he_representative);
 
-  verifyPinIterators(hypergraph, {0, 1},
-   { {id[0], id[1], id[2]}, {id[1], id[2]} });
+  verifyPinIterators(hypergraph, { 0, 1 },
+                     { { id[0], id[1], id[2] }, { id[1], id[2] } });
 }
 
 TEST_F(AHypergraphWithTwoStreamingHypergraphs, RestoresParallelHyperedgeDuringUncontraction3) {
-  TestHypergraph hypergraph = construct_hypergraph(3, { {0, 2}, {1, 2} },
-                                                      { 0, 0, 0 }, { 0, 0 }, {0, 0, 0} );
-  std::vector<HypernodeID> id = {GLOBAL_ID(hypergraph, 0), GLOBAL_ID(hypergraph, 1), GLOBAL_ID(hypergraph, 2)};
+  TestHypergraph hypergraph = construct_hypergraph(3, { { 0, 2 }, { 1, 2 } },
+                                                   { 0, 0, 0 }, { 0, 0 }, { 0, 0, 0 });
+  std::vector<HypernodeID> id = { GLOBAL_ID(hypergraph, 0), GLOBAL_ID(hypergraph, 1), GLOBAL_ID(hypergraph, 2) };
   // Hyperedge 1 becomes parallel to hyperedge 0
   auto memento = hypergraph.contract(id[0], id[1]);
   hypergraph.disableHyperedge(1);
@@ -1593,22 +1590,22 @@ TEST_F(AHypergraphWithTwoStreamingHypergraphs, RestoresParallelHyperedgeDuringUn
 
   parallel::scalable_vector<HyperedgeID> parallel_he_representative(
     hypergraph.initialNumEdges(), std::numeric_limits<HyperedgeID>::max());
-  parallel_he_representative[1] = 0; // Indicating that hyperedge 1 is parallel to 0
+  parallel_he_representative[1] = 0;  // Indicating that hyperedge 1 is parallel to 0
 
-  verifyPinIterators(hypergraph, {0},
-   { {id[0], id[2]} });
+  verifyPinIterators(hypergraph, { 0 },
+                     { { id[0], id[2] } });
 
   // Should restore hyperedge 1
   hypergraph.uncontract(memento, parallel_he_representative);
 
-  verifyPinIterators(hypergraph, {0, 1},
-   { {id[0], id[2]}, {id[1], id[2]} });
+  verifyPinIterators(hypergraph, { 0, 1 },
+                     { { id[0], id[2] }, { id[1], id[2] } });
 }
 
 TEST_F(AHypergraphWithTwoStreamingHypergraphs, RestoresParallelHyperedgeDuringUncontraction4) {
-  TestHypergraph hypergraph = construct_hypergraph(3, { {0, 2}, {1, 2} },
-                                                      { 0, 0, 0 }, { 0, 0 }, {0, 0, 0} );
-  std::vector<HypernodeID> id = {GLOBAL_ID(hypergraph, 0), GLOBAL_ID(hypergraph, 1), GLOBAL_ID(hypergraph, 2)};
+  TestHypergraph hypergraph = construct_hypergraph(3, { { 0, 2 }, { 1, 2 } },
+                                                   { 0, 0, 0 }, { 0, 0 }, { 0, 0, 0 });
+  std::vector<HypernodeID> id = { GLOBAL_ID(hypergraph, 0), GLOBAL_ID(hypergraph, 1), GLOBAL_ID(hypergraph, 2) };
   // Hyperedge 0 becomes parallel to hyperedge 1
   auto memento = hypergraph.contract(id[0], id[1]);
   hypergraph.disableHyperedge(0);
@@ -1617,22 +1614,22 @@ TEST_F(AHypergraphWithTwoStreamingHypergraphs, RestoresParallelHyperedgeDuringUn
 
   parallel::scalable_vector<HyperedgeID> parallel_he_representative(
     hypergraph.initialNumEdges(), std::numeric_limits<HyperedgeID>::max());
-  parallel_he_representative[0] = 1; // Indicating that hyperedge 0 is parallel to 1
+  parallel_he_representative[0] = 1;  // Indicating that hyperedge 0 is parallel to 1
 
-  verifyPinIterators(hypergraph, {1},
-   { {id[0], id[2]} });
+  verifyPinIterators(hypergraph, { 1 },
+                     { { id[0], id[2] } });
 
   // Should restore hyperedge 0
   hypergraph.uncontract(memento, parallel_he_representative);
 
-  verifyPinIterators(hypergraph, {0, 1},
-   { {id[0], id[2]}, {id[1], id[2]} });
+  verifyPinIterators(hypergraph, { 0, 1 },
+                     { { id[0], id[2] }, { id[1], id[2] } });
 }
 
 TEST_F(AHypergraphWithTwoStreamingHypergraphs, RestoresParallelHyperedgeDuringUncontraction5) {
-  TestHypergraph hypergraph = construct_hypergraph(4, { {1, 2}, {0, 1, 2, 3}, { 2, 3 } },
-                                                      { 0, 0, 0, 0 }, { 0, 0, 0 }, {0, 0, 0, 0} );
-  std::vector<HypernodeID> id = {GLOBAL_ID(hypergraph, 0), GLOBAL_ID(hypergraph, 1), GLOBAL_ID(hypergraph, 2), GLOBAL_ID(hypergraph, 3)};
+  TestHypergraph hypergraph = construct_hypergraph(4, { { 1, 2 }, { 0, 1, 2, 3 }, { 2, 3 } },
+                                                   { 0, 0, 0, 0 }, { 0, 0, 0 }, { 0, 0, 0, 0 });
+  std::vector<HypernodeID> id = { GLOBAL_ID(hypergraph, 0), GLOBAL_ID(hypergraph, 1), GLOBAL_ID(hypergraph, 2), GLOBAL_ID(hypergraph, 3) };
   // Hyperedge 2 becomes parallel to hyperedge 0
   auto memento_1 = hypergraph.contract(id[1], id[3]);
   // Hyperede 1 becomes parallel to hyperedge 0
@@ -1644,24 +1641,193 @@ TEST_F(AHypergraphWithTwoStreamingHypergraphs, RestoresParallelHyperedgeDuringUn
 
   parallel::scalable_vector<HyperedgeID> parallel_he_representative(
     hypergraph.initialNumEdges(), std::numeric_limits<HyperedgeID>::max());
-  parallel_he_representative[1] = 0; // Indicating that hyperedge 1 is parallel to 0
-  parallel_he_representative[2] = 1; // Indicating that hyperedge 2 is parallel to 1
+  parallel_he_representative[1] = 0;  // Indicating that hyperedge 1 is parallel to 0
+  parallel_he_representative[2] = 1;  // Indicating that hyperedge 2 is parallel to 1
 
-  verifyPinIterators(hypergraph, {0},
-   { {id[0], id[1]} });
+  verifyPinIterators(hypergraph, { 0 },
+                     { { id[0], id[1] } });
 
   // Should restore hyperedge 1 and 2
   hypergraph.uncontract(memento_2, parallel_he_representative);
 
-  verifyPinIterators(hypergraph, {0, 1, 2},
-   { {id[1], id[2]}, {id[0], id[1], id[2]}, {id[1], id[2]} });
+  verifyPinIterators(hypergraph, { 0, 1, 2 },
+                     { { id[1], id[2] }, { id[0], id[1], id[2] }, { id[1], id[2] } });
 
   hypergraph.uncontract(memento_1, parallel_he_representative);
 
-  verifyPinIterators(hypergraph, {0, 1, 2},
-   { {id[1], id[2]}, {id[0], id[1], id[2], id[3]}, {id[2], id[3]} });
+  verifyPinIterators(hypergraph, { 0, 1, 2 },
+                     { { id[1], id[2] }, { id[0], id[1], id[2], id[3] }, { id[2], id[3] } });
 }
 
+TEST_F(AHypergraphWithTwoStreamingHypergraphs, CopiesItselfWhereAllVerticesAOnOneNumaNode) {
+  TestHypergraph hypergraph = construct_hypergraph(4, { { 1, 2 }, { 0, 1, 2, 3 }, { 2, 3 } },
+                                                   { 0, 0, 0, 0 }, { 0, 0, 0 }, { 0, 0, 0, 0 });
+  std::vector<HypernodeID> id = { GLOBAL_ID(hypergraph, 0), GLOBAL_ID(hypergraph, 1), GLOBAL_ID(hypergraph, 2), GLOBAL_ID(hypergraph, 3) };
+  auto copy = hypergraph.copy(2);
+  TestHypergraph& copy_hg = copy.first;
+  auto& mapping = copy.second;
+  std::vector<HypernodeID> copy_id = { GLOBAL_ID(copy_hg, mapping[hypergraph.originalNodeID(id[0])]),
+                                       GLOBAL_ID(copy_hg, mapping[hypergraph.originalNodeID(id[1])]),
+                                       GLOBAL_ID(copy_hg, mapping[hypergraph.originalNodeID(id[2])]),
+                                       GLOBAL_ID(copy_hg, mapping[hypergraph.originalNodeID(id[3])]) };
 
-} // namespace ds
-} // namespace mt_kahypar
+  verifyPinIterators(copy_hg, { copy_hg.globalEdgeID(0), copy_hg.globalEdgeID(1), copy_hg.globalEdgeID(2) },
+                     { { copy_id[1], copy_id[2] }, { copy_id[0], copy_id[1], copy_id[2], copy_id[3] },
+                       { copy_id[2], copy_id[3] } });
+}
+
+TEST_F(AHypergraphWithTwoStreamingHypergraphs, CopiesItselfWhereVerticesAreOnDifferentNumaNodes) {
+  TestHypergraph hypergraph = construct_hypergraph(4, { { 1, 2 }, { 0, 1, 2, 3 }, { 2, 3 } },
+                                                   { 0, 0, 1, 1 }, { 0, 1, 0 }, { 0, 0, 0, 0 });
+  std::vector<HypernodeID> id = { GLOBAL_ID(hypergraph, 0), GLOBAL_ID(hypergraph, 1), GLOBAL_ID(hypergraph, 2), GLOBAL_ID(hypergraph, 3) };
+  auto copy = hypergraph.copy(2);
+  TestHypergraph& copy_hg = copy.first;
+  auto& mapping = copy.second;
+  std::vector<HypernodeID> copy_id = { GLOBAL_ID(copy_hg, mapping[hypergraph.originalNodeID(id[0])]),
+                                       GLOBAL_ID(copy_hg, mapping[hypergraph.originalNodeID(id[1])]),
+                                       GLOBAL_ID(copy_hg, mapping[hypergraph.originalNodeID(id[2])]),
+                                       GLOBAL_ID(copy_hg, mapping[hypergraph.originalNodeID(id[3])]) };
+
+  ASSERT_EQ(0, TestStreamingHypergraph::get_numa_node_of_vertex(copy_id[0]));
+  ASSERT_EQ(0, TestStreamingHypergraph::get_numa_node_of_vertex(copy_id[1]));
+  ASSERT_EQ(1, TestStreamingHypergraph::get_numa_node_of_vertex(copy_id[2]));
+  ASSERT_EQ(1, TestStreamingHypergraph::get_numa_node_of_vertex(copy_id[3]));
+
+  verifyPinIterators(copy_hg, { copy_hg.globalEdgeID(0), copy_hg.globalEdgeID(1), copy_hg.globalEdgeID(2) },
+                     { { copy_id[1], copy_id[2] }, { copy_id[2], copy_id[3] },
+                       { copy_id[0], copy_id[1], copy_id[2], copy_id[3] } });
+}
+
+TEST_F(AHypergraphWithTwoStreamingHypergraphs, CopiesItselfAfterOneContraction) {
+  TestHypergraph hypergraph = construct_hypergraph(4, { { 1, 2 }, { 0, 1, 2, 3 }, { 2, 3 } },
+                                                   { 0, 0, 1, 1 }, { 0, 1, 0 }, { 0, 0, 0, 0 });
+  std::vector<HypernodeID> id = { GLOBAL_ID(hypergraph, 0), GLOBAL_ID(hypergraph, 1), GLOBAL_ID(hypergraph, 2), GLOBAL_ID(hypergraph, 3) };
+  hypergraph.contract(id[1], id[2]);
+
+  auto copy = hypergraph.copy(2);
+  TestHypergraph& copy_hg = copy.first;
+  auto& mapping = copy.second;
+  std::vector<HypernodeID> copy_id = { GLOBAL_ID(copy_hg, mapping[hypergraph.originalNodeID(id[0])]),
+                                       GLOBAL_ID(copy_hg, mapping[hypergraph.originalNodeID(id[1])]),
+                                       0,
+                                       GLOBAL_ID(copy_hg, mapping[hypergraph.originalNodeID(id[3])]) };
+
+  ASSERT_EQ(1, copy_hg.nodeWeight(copy_id[0]));
+  ASSERT_EQ(2, copy_hg.nodeWeight(copy_id[1]));
+  ASSERT_EQ(1, copy_hg.nodeWeight(copy_id[3]));
+
+  verifyPinIterators(copy_hg, { copy_hg.globalEdgeID(0), copy_hg.globalEdgeID(1), copy_hg.globalEdgeID(2) },
+                     { { copy_id[1] }, { copy_id[1], copy_id[3] }, { copy_id[0], copy_id[1], copy_id[3] } });
+}
+
+TEST_F(AHypergraphWithTwoStreamingHypergraphs, CopiesItselfAfterTwoContractions) {
+  TestHypergraph hypergraph = construct_hypergraph(4, { { 1, 2 }, { 0, 1, 2, 3 }, { 2, 3 } },
+                                                   { 0, 0, 1, 1 }, { 0, 1, 0 }, { 0, 0, 0, 0 });
+  std::vector<HypernodeID> id = { GLOBAL_ID(hypergraph, 0), GLOBAL_ID(hypergraph, 1), GLOBAL_ID(hypergraph, 2), GLOBAL_ID(hypergraph, 3) };
+  hypergraph.contract(id[1], id[2]);
+  hypergraph.contract(id[1], id[3]);
+
+  auto copy = hypergraph.copy(2);
+  TestHypergraph& copy_hg = copy.first;
+  auto& mapping = copy.second;
+  std::vector<HypernodeID> copy_id = { GLOBAL_ID(copy_hg, mapping[hypergraph.originalNodeID(id[0])]),
+                                       GLOBAL_ID(copy_hg, mapping[hypergraph.originalNodeID(id[1])]),
+                                       0, 0 };
+
+  ASSERT_EQ(1, copy_hg.nodeWeight(copy_id[0]));
+  ASSERT_EQ(3, copy_hg.nodeWeight(copy_id[1]));
+
+  verifyPinIterators(copy_hg, { copy_hg.globalEdgeID(0), copy_hg.globalEdgeID(1), copy_hg.globalEdgeID(2) },
+                     { { copy_id[1] }, { copy_id[1] }, { copy_id[0], copy_id[1] } });
+}
+
+TEST_F(AHypergraphWithTwoStreamingHypergraphs, CopiesItselfAfterTwoContractionsWithDisabledHyperedge) {
+  TestHypergraph hypergraph = construct_hypergraph(4, { { 1, 2 }, { 0, 1, 2, 3 }, { 2, 3 } },
+                                                   { 0, 0, 1, 1 }, { 0, 1, 0 }, { 0, 0, 0, 0 });
+  std::vector<HypernodeID> id = { GLOBAL_ID(hypergraph, 0), GLOBAL_ID(hypergraph, 1), GLOBAL_ID(hypergraph, 2), GLOBAL_ID(hypergraph, 3) };
+  hypergraph.contract(id[1], id[2]);
+  hypergraph.contract(id[1], id[3]);
+  hypergraph.removeEdge(hypergraph.globalEdgeID(2));
+  hypergraph.setEdgeWeight(hypergraph.globalEdgeID(0), 2);
+
+  auto copy = hypergraph.copy(2);
+  TestHypergraph& copy_hg = copy.first;
+  auto& mapping = copy.second;
+  std::vector<HypernodeID> copy_id = { GLOBAL_ID(copy_hg, mapping[hypergraph.originalNodeID(id[0])]),
+                                       GLOBAL_ID(copy_hg, mapping[hypergraph.originalNodeID(id[1])]),
+                                       0, 0 };
+
+  ASSERT_EQ(1, copy_hg.nodeWeight(copy_id[0]));
+  ASSERT_EQ(3, copy_hg.nodeWeight(copy_id[1]));
+  ASSERT_EQ(2, copy_hg.edgeWeight(copy_hg.globalEdgeID(0)));
+
+  verifyPinIterators(copy_hg, { copy_hg.globalEdgeID(0), copy_hg.globalEdgeID(1) },
+                     { { copy_id[1] }, { copy_id[0], copy_id[1] } });
+}
+
+TEST_F(AHypergraphWithTwoStreamingHypergraphs, CopiesItselfWithCommunities) {
+  TestHypergraph hypergraph = construct_hypergraph(4, { { 1, 2 }, { 0, 1, 2, 3 }, { 2, 3 } },
+                                                   { 0, 0, 1, 1 }, { 0, 1, 0 }, { 0, 1, 2, 2 });
+  std::vector<HypernodeID> id = { GLOBAL_ID(hypergraph, 0), GLOBAL_ID(hypergraph, 1), GLOBAL_ID(hypergraph, 2), GLOBAL_ID(hypergraph, 3) };
+  auto copy = hypergraph.copy(2);
+  TestHypergraph& copy_hg = copy.first;
+  auto& mapping = copy.second;
+  std::vector<HypernodeID> copy_id = { GLOBAL_ID(copy_hg, mapping[hypergraph.originalNodeID(id[0])]),
+                                       GLOBAL_ID(copy_hg, mapping[hypergraph.originalNodeID(id[1])]),
+                                       GLOBAL_ID(copy_hg, mapping[hypergraph.originalNodeID(id[2])]),
+                                       GLOBAL_ID(copy_hg, mapping[hypergraph.originalNodeID(id[3])]) };
+
+  ASSERT_EQ(0, copy_hg.communityID(copy_id[0]));
+  ASSERT_EQ(1, copy_hg.communityID(copy_id[1]));
+  ASSERT_EQ(2, copy_hg.communityID(copy_id[2]));
+  ASSERT_EQ(2, copy_hg.communityID(copy_id[3]));
+
+  verifyPinIterators(copy_hg, { copy_hg.globalEdgeID(0), copy_hg.globalEdgeID(1), copy_hg.globalEdgeID(2) },
+                     { { copy_id[1], copy_id[2] }, { copy_id[2], copy_id[3] },
+                       { copy_id[0], copy_id[1], copy_id[2], copy_id[3] } });
+}
+
+TEST_F(AHypergraphWithTwoStreamingHypergraphs, CopiesItselfWithCommunitiesAfterOneContraction) {
+  TestHypergraph hypergraph = construct_hypergraph(4, { { 1, 2 }, { 0, 1, 2, 3 }, { 2, 3 } },
+                                                   { 0, 0, 1, 1 }, { 0, 1, 0 }, { 0, 1, 2, 2 });
+  std::vector<HypernodeID> id = { GLOBAL_ID(hypergraph, 0), GLOBAL_ID(hypergraph, 1), GLOBAL_ID(hypergraph, 2), GLOBAL_ID(hypergraph, 3) };
+  hypergraph.contract(id[1], id[2]);
+
+  auto copy = hypergraph.copy(2);
+  TestHypergraph& copy_hg = copy.first;
+  auto& mapping = copy.second;
+  std::vector<HypernodeID> copy_id = { GLOBAL_ID(copy_hg, mapping[hypergraph.originalNodeID(id[0])]),
+                                       GLOBAL_ID(copy_hg, mapping[hypergraph.originalNodeID(id[1])]),
+                                       0,
+                                       GLOBAL_ID(copy_hg, mapping[hypergraph.originalNodeID(id[3])]) };
+
+  ASSERT_EQ(0, copy_hg.communityID(copy_id[0]));
+  ASSERT_EQ(1, copy_hg.communityID(copy_id[1]));
+  ASSERT_EQ(2, copy_hg.communityID(copy_id[3]));
+
+  verifyPinIterators(copy_hg, { copy_hg.globalEdgeID(0), copy_hg.globalEdgeID(1), copy_hg.globalEdgeID(2) },
+                     { { copy_id[1] }, { copy_id[1], copy_id[3] }, { copy_id[0], copy_id[1], copy_id[3] } });
+}
+
+TEST_F(AHypergraphWithTwoStreamingHypergraphs, CopiesItselfWithCommunitiesAfterTwoContractions) {
+  TestHypergraph hypergraph = construct_hypergraph(4, { { 1, 2 }, { 0, 1, 2, 3 }, { 2, 3 } },
+                                                   { 0, 0, 1, 1 }, { 0, 1, 0 }, { 0, 1, 2, 2 });
+  std::vector<HypernodeID> id = { GLOBAL_ID(hypergraph, 0), GLOBAL_ID(hypergraph, 1), GLOBAL_ID(hypergraph, 2), GLOBAL_ID(hypergraph, 3) };
+  hypergraph.contract(id[1], id[2]);
+  hypergraph.contract(id[1], id[3]);
+
+  auto copy = hypergraph.copy(2);
+  TestHypergraph& copy_hg = copy.first;
+  auto& mapping = copy.second;
+  std::vector<HypernodeID> copy_id = { GLOBAL_ID(copy_hg, mapping[hypergraph.originalNodeID(id[0])]),
+                                       GLOBAL_ID(copy_hg, mapping[hypergraph.originalNodeID(id[1])]),
+                                       0, 0 };
+
+  ASSERT_EQ(0, copy_hg.communityID(copy_id[0]));
+  ASSERT_EQ(1, copy_hg.communityID(copy_id[1]));
+
+  verifyPinIterators(copy_hg, { copy_hg.globalEdgeID(0), copy_hg.globalEdgeID(1), copy_hg.globalEdgeID(2) },
+                     { { copy_id[1] }, { copy_id[1] }, { copy_id[0], copy_id[1] } });
+}
+}  // namespace ds
+}  // namespace mt_kahypar

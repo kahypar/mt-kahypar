@@ -20,15 +20,14 @@
 
 #pragma once
 
+#include "kahypar/datastructure/fast_reset_flag_array.h"
 #include "kahypar/meta/policy_registry.h"
 #include "kahypar/meta/typelist.h"
-#include "kahypar/datastructure/fast_reset_flag_array.h"
 
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/coarsening/policies/rating_tie_breaking_policy.h"
 
 namespace mt_kahypar {
-
 class BestRatingWithTieBreaking final : public kahypar::meta::PolicyBase {
  public:
   KAHYPAR_ATTRIBUTE_ALWAYS_INLINE static inline bool acceptRating(const RatingType tmp,
@@ -36,11 +35,10 @@ class BestRatingWithTieBreaking final : public kahypar::meta::PolicyBase {
                                                                   const HypernodeID,
                                                                   const HypernodeID,
                                                                   const int cpu_id,
-                                                                  const kahypar::ds::FastResetFlagArray<>&) {
+                                                                  const kahypar::ds::FastResetFlagArray<> &) {
     return max_rating < tmp || (max_rating == tmp && RandomRatingWins::acceptEqual(cpu_id));
   }
 };
-
 
 class BestRatingPreferringUnmatched final : public kahypar::meta::PolicyBase {
  public:
@@ -60,5 +58,5 @@ class BestRatingPreferringUnmatched final : public kahypar::meta::PolicyBase {
   }
 };
 
-using AcceptancePolicies = meta::Typelist<BestRatingWithTieBreaking, BestRatingPreferringUnmatched >;
+using AcceptancePolicies = kahypar::meta::Typelist<BestRatingWithTieBreaking, BestRatingPreferringUnmatched>;
 }  // namespace mt_kahypar

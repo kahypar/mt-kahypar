@@ -27,8 +27,8 @@
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/partition/metrics.h"
-#include "mt-kahypar/utils/timer.h"
 #include "mt-kahypar/utils/stats.h"
+#include "mt-kahypar/utils/timer.h"
 
 namespace mt_kahypar {
 namespace io {
@@ -40,7 +40,7 @@ static inline void serialize(const Hypergraph& hypergraph,
     std::ostringstream oss;
     oss << "RESULT"
         << " graph=" << context.partition.graph_filename.substr(
-        context.partition.graph_filename.find_last_of('/') + 1)
+      context.partition.graph_filename.find_last_of('/') + 1)
         << " numHNs=" << hypergraph.initialNumNodes()
         << " numHEs=" << hypergraph.initialNumEdges()
         << " mode=" << context.partition.mode
@@ -52,6 +52,14 @@ static inline void serialize(const Hypergraph& hypergraph,
         << " perfect_balanced_part_weight=" << context.partition.perfect_balance_part_weights[0]
         << " max_part_weight=" << context.partition.max_part_weights[0]
         << " total_graph_weight=" << hypergraph.totalWeight()
+        << " community_load_balancing_strategy=" << context.preprocessing.community_detection.load_balancing_strategy
+        << " community_size_constraint_factor=" << context.preprocessing.community_detection.size_constraint_factor
+        << " louvain_edge_weight_function=" << context.preprocessing.community_detection.edge_weight_function
+        << " louvain_max_pass_iterations=" << context.preprocessing.community_detection.max_pass_iterations
+        << " louvain_min_eps_improvement=" << context.preprocessing.community_detection.min_eps_improvement
+        << " use_community_redistribution=" << std::boolalpha << context.preprocessing.community_redistribution.use_community_redistribution
+        << " community_redistribution_assignment_strategy=" << context.preprocessing.community_redistribution.assignment_strategy
+        << " community_redistribution_assignment_objective=" << context.preprocessing.community_redistribution.assignment_objective
         << " coarsening_algorithm=" << context.coarsening.algorithm
         << " contraction_limit_multiplier=" << context.coarsening.contraction_limit_multiplier
         << " max_allowed_weight_multiplier=" << context.coarsening.max_allowed_weight_multiplier
@@ -64,6 +72,7 @@ static inline void serialize(const Hypergraph& hypergraph,
         << " rating_heavy_node_penalty_policy=" << context.coarsening.rating.heavy_node_penalty_policy
         << " rating_acceptance_policy=" << context.coarsening.rating.acceptance_policy
         << " initial_partitioning_context=" << context.initial_partitioning.context_file
+        << " initial_partitioning_mode=" << context.initial_partitioning.mode
         << " initial_partitioning_runs=" << context.initial_partitioning.runs
         << " use_batch_uncontractions=" << std::boolalpha << context.refinement.use_batch_uncontractions
         << " batch_size=" << context.refinement.batch_size
@@ -75,10 +84,7 @@ static inline void serialize(const Hypergraph& hypergraph,
         << " lp_execution_policy=" << context.refinement.label_propagation.execution_policy
         << " lp_execution_policy_alpha=" << context.refinement.label_propagation.execution_policy_alpha
         << " num_threads=" << context.shared_memory.num_threads
-        << " use_community_redistribution=" << std::boolalpha << context.shared_memory.use_community_redistribution
-        << " initial_hyperedge_distribution=" << context.shared_memory.initial_distribution
-        << " community_assignment_strategy=" << context.shared_memory.assignment_strategy
-        << " community_assignment_objective=" << context.shared_memory.assignment_objective;
+        << " initial_hyperedge_distribution=" << context.shared_memory.initial_distribution;
 
     // Metrics
     oss << " cut=" << metrics::hyperedgeCut(hypergraph)

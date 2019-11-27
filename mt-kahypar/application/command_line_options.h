@@ -18,27 +18,26 @@
  *
  ******************************************************************************/
 
-
 #pragma once
 
 #include <boost/program_options.hpp>
 
 #if defined(_MSC_VER)
-#include <Windows.h>
 #include <process.h>
+#include <Windows.h>
 #else
 #include <sys/ioctl.h>
 #endif
 
 #include <cctype>
+#include <fstream>
 #include <limits>
 #include <string>
 #include <vector>
-#include <fstream>
 
+#include "mt-kahypar/io/partitioning_output.h"
 #include "mt-kahypar/mt_kahypar.h"
 #include "mt-kahypar/partition/context.h"
-#include "mt-kahypar/io/partitioning_output.h"
 
 namespace po = boost::program_options;
 
@@ -75,14 +74,14 @@ po::options_description createGeneralOptionsDescription(Context& context, const 
     "Seed for random number generator \n"
     "(default: -1)")
     ("cmaxnet",
-    po::value<HyperedgeID>(&context.partition.hyperedge_size_threshold)->value_name("<uint32_t>"),
+    po::value<HyperedgeID>(&context.partition.hyperedge_size_threshold)->value_name("<uint64_t>"),
     "Hyperedges larger than cmaxnet are ignored during partitioning process.")
     ("objective,o",
     po::value<std::string>()->value_name("<string>")->required()->notifier([&](const std::string& s) {
       if (s == "cut") {
-        context.partition.objective = Objective::cut;
+        context.partition.objective = kahypar::Objective::cut;
       } else if (s == "km1") {
-        context.partition.objective = Objective::km1;
+        context.partition.objective = kahypar::Objective::km1;
       }
     }),
     "Objective: \n"
@@ -118,6 +117,59 @@ po::options_description createGenericOptionsDescription(Context& context,
   return generic_options;
 }
 
+po::options_description createPreprocessingOptionsDescription(Context& context, const int num_columns) {
+  po::options_description options("Preprocessing Options", num_columns);
+  options.add_options()
+    ("p-community-load-balancing-strategy",
+    po::value<std::string>()->value_name("<string>")->notifier(
+      [&](const std::string& strategy) {
+      context.preprocessing.community_detection.load_balancing_strategy = communityLoadBalancingStrategyFromString(strategy);
+    }),
+    "Community load balancing strategies:\n"
+    "- size_constraint\n"
+    "- label_propagation\n"
+    "- none")
+    ("p-community-size-constraint-factor",
+    po::value<size_t>(&context.preprocessing.community_detection.size_constraint_factor)->value_name("<size_t>"),
+    "If load balancing strategy is 'size_constraint', than a community is not allowed to have an volume\n"
+    "greater than total_volume / ( size_constraint_factor * num_threads )")
+    ("p-louvain-edge-weight-function",
+    po::value<std::string>()->value_name("<string>")->notifier(
+      [&](const std::string& type) {
+      context.preprocessing.community_detection.edge_weight_function = louvainEdgeWeightFromString(type);
+    }),
+    "Louvain edge weight functions:\n"
+    "- hybrid\n"
+    "- uniform\n"
+    "- non_uniform\n"
+    "- degree")
+    ("p-max-louvain-pass-iterations",
+    po::value<uint32_t>(&context.preprocessing.community_detection.max_pass_iterations)->value_name("<uint32_t>"),
+    "Maximum number of iterations over all nodes of one louvain pass")
+    ("p-louvain-min-eps-improvement",
+    po::value<long double>(&context.preprocessing.community_detection.min_eps_improvement)->value_name("<long double>"),
+    "Minimum improvement of quality during a louvain pass which leads to further passes")
+    ("p-enable-community-redistribution",
+    po::value<bool>(&context.preprocessing.community_redistribution.use_community_redistribution)->value_name("<bool>"),
+    "If true, hypergraph is redistributed based on community detection")
+    ("p-community-redistribution-objective",
+    po::value<std::string>()->value_name("<string>")->notifier(
+      [&](const std::string& objective) {
+      context.preprocessing.community_redistribution.assignment_objective = mt_kahypar::communityAssignmentObjectiveFromString(objective);
+    }),
+    "Objective used during community redistribution of hypergraph: \n"
+    " - vertex_objective \n"
+    " - pin_objective")
+    ("p-community-redistribution-strategy",
+    po::value<std::string>()->value_name("<string>")->notifier(
+      [&](const std::string& strategy) {
+      context.preprocessing.community_redistribution.assignment_strategy = mt_kahypar::communityAssignmentStrategyFromString(strategy);
+    }),
+    "Strategy used during community redistribution of hypergraph: \n"
+    " - bin_packing");
+  return options;
+}
+
 po::options_description createCoarseningOptionsDescription(Context& context,
                                                            const int num_columns) {
   po::options_description options("Coarsening Options", num_columns);
@@ -142,15 +194,15 @@ po::options_description createCoarseningOptionsDescription(Context& context,
     ("c-rating-score",
     po::value<std::string>()->value_name("<string>")->notifier(
       [&](const std::string& rating_score) {
-        context.coarsening.rating.rating_function =
-          mt_kahypar::ratingFunctionFromString(rating_score);
+      context.coarsening.rating.rating_function =
+        mt_kahypar::ratingFunctionFromString(rating_score);
     }), "Rating function used to calculate scores for vertex pairs:\n"
-    "- heavy_edge")
+        "- heavy_edge")
     ("c-rating-heavy-node-penalty",
     po::value<std::string>()->value_name("<string>")->notifier(
       [&](const std::string& penalty) {
-        context.coarsening.rating.heavy_node_penalty_policy =
-          heavyNodePenaltyFromString(penalty);
+      context.coarsening.rating.heavy_node_penalty_policy =
+        heavyNodePenaltyFromString(penalty);
     }),
     "Penalty function to discourage heavy vertices:\n"
     "- multiplicative\n"
@@ -159,8 +211,8 @@ po::options_description createCoarseningOptionsDescription(Context& context,
     ("c-rating-acceptance-criterion",
     po::value<std::string>()->value_name("<string>")->notifier(
       [&](const std::string& crit) {
-        context.coarsening.rating.acceptance_policy =
-          acceptanceCriterionFromString(crit);
+      context.coarsening.rating.acceptance_policy =
+        acceptanceCriterionFromString(crit);
     }),
     "Acceptance/Tiebreaking criterion for contraction partners having the same score:\n"
     "- best\n"
@@ -174,6 +226,14 @@ po::options_description createInitialPartitioningOptionsDescription(Context& con
     ("i-context-file",
     po::value<std::string>(&context.initial_partitioning.context_file)->required()->value_name("<string>"),
     "Context file for initial partitioning call to KaHyPar.")
+    ("i-mode",
+    po::value<std::string>()->value_name("<string>")->notifier(
+      [&](const std::string& mode) {
+      context.initial_partitioning.mode = initialPartitioningModeFromString(mode);
+    }),
+    "Mode of initial partitioning:\n"
+    "- direct\n"
+    "- recursive")
     ("i-call-kahypar-multiple-times",
     po::value<bool>(&context.initial_partitioning.call_kahypar_multiple_times)->value_name("<bool>"),
     "If true, KaHyPar is called i-runs times during IP (with one call to IP of KaHyPar).\n"
@@ -201,8 +261,8 @@ po::options_description createRefinementOptionsDescription(Context& context, con
     ("r-lp-type",
     po::value<std::string>()->value_name("<string>")->notifier(
       [&](const std::string& type) {
-        context.refinement.label_propagation.algorithm =
-          labelPropagationAlgorithmFromString(type);
+      context.refinement.label_propagation.algorithm =
+        labelPropagationAlgorithmFromString(type);
     }),
     "Algorithm used for label propagation:\n"
     "- label_propagation_km1\n"
@@ -227,8 +287,8 @@ po::options_description createRefinementOptionsDescription(Context& context, con
     ("r-lp-execution-policy",
     po::value<std::string>()->value_name("<string>")->notifier(
       [&](const std::string& type) {
-        context.refinement.label_propagation.execution_policy =
-          executionTypeFromString(type);
+      context.refinement.label_propagation.execution_policy =
+        executionTypeFromString(type);
     }),
     "Execution policy used for label propagation:\n"
     "- exponential\n"
@@ -250,8 +310,6 @@ po::options_description createSharedMemoryOptionsDescription(Context& context,
     po::value<size_t>(&context.shared_memory.num_threads)->value_name("<size_t>"),
     "Number of threads used during shared memory hypergraph partitioning\n"
     "(default 1)")
-    ("s-enable-community-redistribution", po::value<bool>(&context.shared_memory.use_community_redistribution)->value_name("<bool>"),
-    "If true, hypergraph is redistributed based on community detection")
     ("s-initial-hyperedge-distribution",
     po::value<std::string>()->value_name("<string>")->notifier(
       [&](const std::string& strategy) {
@@ -260,22 +318,7 @@ po::options_description createSharedMemoryOptionsDescription(Context& context,
     "Determines how hyperedges are distributed to numa nodes after reading hypergraph file: \n"
     " - equally\n"
     " - random\n"
-    " - all_on_one")
-    ("s-community-assignment-objective",
-    po::value<std::string>()->value_name("<string>")->notifier(
-      [&](const std::string& objective) {
-      context.shared_memory.assignment_objective = mt_kahypar::communityAssignmentObjectiveFromString(objective);
-    }),
-    "Objective used during community redistribution of hypergraph: \n"
-    " - vertex_objective \n"
-    " - pin_objective")
-    ("s-community-assignment-strategy",
-    po::value<std::string>()->value_name("<string>")->notifier(
-      [&](const std::string& strategy) {
-      context.shared_memory.assignment_strategy = mt_kahypar::communityAssignmentStrategyFromString(strategy);
-    }),
-    "Strategy used during community redistribution of hypergraph: \n"
-    " - bin_packing");
+    " - all_on_one");
 
   return shared_memory_options;
 }
@@ -306,7 +349,8 @@ void processCommandLineInput(Context& context, int argc, char* argv[]) {
 
   po::options_description general_options = createGeneralOptionsDescription(context, num_columns);
 
-
+  po::options_description preprocessing_options =
+    createPreprocessingOptionsDescription(context, num_columns);
   po::options_description coarsening_options =
     createCoarseningOptionsDescription(context, num_columns);
   po::options_description initial_paritioning_options =
@@ -318,13 +362,14 @@ void processCommandLineInput(Context& context, int argc, char* argv[]) {
 
   po::options_description cmd_line_options;
   cmd_line_options.add(generic_options)
-                  .add(required_options)
-                  .add(preset_options)
-                  .add(general_options)
-                  .add(coarsening_options)
-                  .add(initial_paritioning_options)
-                  .add(refinement_options)
-                  .add(shared_memory_options);
+  .add(required_options)
+  .add(preset_options)
+  .add(general_options)
+  .add(preprocessing_options)
+  .add(coarsening_options)
+  .add(initial_paritioning_options)
+  .add(refinement_options)
+  .add(shared_memory_options);
 
   po::variables_map cmd_vm;
   po::store(po::parse_command_line(argc, argv, cmd_line_options), cmd_vm);
@@ -341,20 +386,19 @@ void processCommandLineInput(Context& context, int argc, char* argv[]) {
 
   std::ifstream file(context_path.c_str());
   if (!file) {
-    std::cerr << "Could not load context file at: " << context_path << std::endl;
-    std::exit(-1);
+    ERROR("Could not load context file at: " + context_path);
   }
 
   po::options_description ini_line_options;
   ini_line_options.add(general_options)
-                  .add(coarsening_options)
-                  .add(initial_paritioning_options)
-                  .add(refinement_options)
-                  .add(shared_memory_options);
+  .add(preprocessing_options)
+  .add(coarsening_options)
+  .add(initial_paritioning_options)
+  .add(refinement_options)
+  .add(shared_memory_options);
 
   po::store(po::parse_config_file(file, ini_line_options, true), cmd_vm);
   po::notify(cmd_vm);
-
 
   std::string epsilon_str = std::to_string(context.partition.epsilon);
   epsilon_str.erase(epsilon_str.find_last_not_of('0') + 1, std::string::npos);
@@ -371,5 +415,4 @@ void processCommandLineInput(Context& context, int argc, char* argv[]) {
   context.partition.graph_community_filename =
     context.partition.graph_filename + ".community";
 }
-
-} // namespace mt_kahypar
+}  // namespace mt_kahypar

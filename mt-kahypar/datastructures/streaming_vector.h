@@ -20,8 +20,8 @@
 #pragma once
 
 #include <algorithm>
-#include <type_traits>
 #include <thread>
+#include <type_traits>
 
 #include "tbb/task_arena.h"
 #include "tbb/task_group.h"
@@ -33,7 +33,6 @@
 
 namespace mt_kahypar {
 namespace ds {
-
 /**
  * Vector that allows to insert values concurrently. Internally,
  * a buffer is allocated for each cpu. A stream operation will insert
@@ -43,14 +42,13 @@ namespace ds {
  * Note, to ensure that this class is thread safe one have to make sure
  * that the calling threads are all scheduled on an unique CPU.
  */
-template< typename Value >
+template <typename Value>
 class StreamingVector {
-
-  static_assert( std::is_trivially_copyable<Value>::value, "Value must be trivially copyable" );
+  static_assert(std::is_trivially_copyable<Value>::value, "Value must be trivially copyable");
 
   static constexpr bool debug = false;
 
-  using Buffer = parallel::scalable_vector<parallel::scalable_vector<Value>>;
+  using Buffer = parallel::scalable_vector<parallel::scalable_vector<Value> >;
 
  public:
   StreamingVector() :
@@ -58,22 +56,22 @@ class StreamingVector {
     _prefix_sum(std::thread::hardware_concurrency()) { }
 
   StreamingVector(const StreamingVector&) = delete;
-  StreamingVector& operator= (const StreamingVector&) = delete;
+  StreamingVector & operator= (const StreamingVector &) = delete;
 
   StreamingVector(StreamingVector&& other) = default;
-  StreamingVector& operator= (StreamingVector&&) = default;
+  StreamingVector & operator= (StreamingVector &&) = default;
 
-  template< class... Args >
-  void stream( Args&&... args ) {
+  template <class ... Args>
+  void stream(Args&& ... args) {
     int cpu_id = sched_getcpu();
-    _cpu_buffer[cpu_id].emplace_back( std::forward<Args>(args)... );
+    _cpu_buffer[cpu_id].emplace_back(std::forward<Args>(args)...);
   }
 
   parallel::scalable_vector<Value> copy(tbb::task_arena& arena) {
     parallel::scalable_vector<Value> values;
 
     size_t total_size = 0;
-    for ( size_t i = 0; i < _cpu_buffer.size(); ++i) {
+    for (size_t i = 0; i < _cpu_buffer.size(); ++i) {
       _prefix_sum[i] = total_size;
       total_size += _cpu_buffer[i].size();
     }
@@ -81,12 +79,12 @@ class StreamingVector {
 
     tbb::task_group group;
     arena.execute([&] {
-      for ( int cpu_id = 0; cpu_id < (int)_cpu_buffer.size(); ++cpu_id ) {
-        group.run([&, cpu_id] {
-          memcpy_from_cpu_buffer_to_destination(values, cpu_id, _prefix_sum[cpu_id]);
+          for (int cpu_id = 0; cpu_id < (int)_cpu_buffer.size(); ++cpu_id) {
+            group.run([&, cpu_id] {
+              memcpy_from_cpu_buffer_to_destination(values, cpu_id, _prefix_sum[cpu_id]);
+            });
+          }
         });
-      }
-    });
     group.wait();
 
     return values;
@@ -104,7 +102,7 @@ class StreamingVector {
 
   size_t size() const {
     size_t size = 0;
-    for ( size_t i = 0; i < _cpu_buffer.size(); ++i ) {
+    for (size_t i = 0; i < _cpu_buffer.size(); ++i) {
       size += _cpu_buffer[i].size();
     }
     return size;
@@ -121,7 +119,7 @@ class StreamingVector {
   }
 
   void clear() {
-    for ( size_t i = 0; i < _cpu_buffer.size(); ++i ) {
+    for (size_t i = 0; i < _cpu_buffer.size(); ++i) {
       parallel::scalable_vector<Value> tmp_value;
       _cpu_buffer[i] = std::move(tmp_value);
     }
@@ -129,7 +127,6 @@ class StreamingVector {
   }
 
  private:
-
   void memcpy_from_cpu_buffer_to_destination(parallel::scalable_vector<Value>& destination,
                                              const int cpu_id,
                                              const size_t position) {
@@ -141,8 +138,6 @@ class StreamingVector {
 
   Buffer _cpu_buffer;
   parallel::scalable_vector<size_t> _prefix_sum;
-
 };
-
-} // namespace ds
-} // namespace mt_kahypar
+}  // namespace ds
+}  // namespace mt_kahypar

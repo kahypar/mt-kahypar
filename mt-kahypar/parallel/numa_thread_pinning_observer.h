@@ -30,13 +30,12 @@
 
 namespace mt_kahypar {
 namespace parallel {
-
 /**
  * Pins threads of task arena to a NUMA node. Each time a thread
  * enters a task arena on_scheduler_entry(...) is called. Each time
  * a thread leaves a task arena on_scheduler_exit(...) is called.
  */
-template< typename HwTopology >
+template <typename HwTopology>
 class NumaThreadPinningObserver : public tbb::task_scheduler_observer {
   using Base = tbb::task_scheduler_observer;
 
@@ -53,14 +52,14 @@ class NumaThreadPinningObserver : public tbb::task_scheduler_observer {
   }
 
   NumaThreadPinningObserver(const NumaThreadPinningObserver&) = delete;
-  NumaThreadPinningObserver& operator= (const NumaThreadPinningObserver&) = delete;
+  NumaThreadPinningObserver & operator= (const NumaThreadPinningObserver &) = delete;
 
   NumaThreadPinningObserver(NumaThreadPinningObserver&& other) :
-   _arena(other._arena),
-   _topology(other._topology),
-   _numa_node(other._numa_node) { }
+    _arena(other._arena),
+    _topology(other._topology),
+    _numa_node(other._numa_node) { }
 
-  NumaThreadPinningObserver& operator= (NumaThreadPinningObserver&&) = delete;
+  NumaThreadPinningObserver & operator= (NumaThreadPinningObserver &&) = delete;
 
   ~NumaThreadPinningObserver() {
     observe(false);
@@ -79,6 +78,5 @@ class NumaThreadPinningObserver : public tbb::task_scheduler_observer {
   HwTopology& _topology;
   int _numa_node;
 };
-
-} // namespace parallel
-} // namespace mt_kahypar
+}  // namespace parallel
+}  // namespace mt_kahypar

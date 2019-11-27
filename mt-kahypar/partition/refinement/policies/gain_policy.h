@@ -19,7 +19,6 @@
  *
  ******************************************************************************/
 
-
 #pragma once
 
 #include <vector>
@@ -28,23 +27,20 @@
 
 #include "kahypar/meta/policy_registry.h"
 #include "kahypar/meta/typelist.h"
-#include "kahypar/partition/metrics.h"
 #include "kahypar/partition/context_enum_classes.h"
+#include "kahypar/partition/metrics.h"
 
 #include "mt-kahypar/definitions.h"
-#include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
+#include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/utils/randomize.h"
 
 namespace mt_kahypar {
-
-
 template <class Derived = Mandatory,
           class HyperGraph = Mandatory>
 class GainPolicy : public kahypar::meta::PolicyBase {
-
-using DeltaGain = tbb::enumerable_thread_specific<Gain>;
-using TmpScores = tbb::enumerable_thread_specific<parallel::scalable_vector<Gain>>;
+  using DeltaGain = tbb::enumerable_thread_specific<Gain>;
+  using TmpScores = tbb::enumerable_thread_specific<parallel::scalable_vector<Gain> >;
 
  public:
   GainPolicy(HyperGraph& hypergraph, const Context& context) :
@@ -76,14 +72,14 @@ using TmpScores = tbb::enumerable_thread_specific<parallel::scalable_vector<Gain
   // ! all threads relative to the last call of reset()
   Gain delta() const {
     Gain overall_delta = 0;
-    for ( const Gain& delta : _deltas ) {
+    for (const Gain& delta : _deltas) {
       overall_delta += delta;
     }
     return overall_delta;
   }
 
   void reset() {
-    for ( Gain& delta : _deltas ) {
+    for (Gain& delta : _deltas) {
       delta = 0;
     }
   }
@@ -97,10 +93,9 @@ using TmpScores = tbb::enumerable_thread_specific<parallel::scalable_vector<Gain
 
 template <class HyperGraph = Mandatory>
 class Km1Policy : public GainPolicy<Km1Policy<HyperGraph>, HyperGraph> {
+  using Base = GainPolicy<Km1Policy<HyperGraph>, HyperGraph>;
 
-using Base = GainPolicy<Km1Policy<HyperGraph>, HyperGraph>;
-
-static constexpr bool enable_heavy_assert = false;
+  static constexpr bool enable_heavy_assert = false;
 
  public:
   Km1Policy(HyperGraph& hypergraph,
@@ -111,26 +106,26 @@ static constexpr bool enable_heavy_assert = false;
 
   Move computeMaxGainMoveImpl(const HypernodeID hn) {
     HEAVY_REFINEMENT_ASSERT([&] {
-      for (PartitionID k = 0; k < _context.partition.k; ++k) {
-        if ( _tmp_scores.local()[k] != 0 ) {
-          return false;
+        for (PartitionID k = 0; k < _context.partition.k; ++k) {
+          if (_tmp_scores.local()[k] != 0) {
+            return false;
+          }
         }
-      }
-      return true;
-    }(), "Scores and valid parts not correctly reset");
+        return true;
+      } (), "Scores and valid parts not correctly reset");
 
     PartitionID from = _hg.partID(hn);
     parallel::scalable_vector<Gain>& tmp_scores = _tmp_scores.local();
-    for ( const HyperedgeID& he : _hg.incidentEdges(hn) ) {
+    for (const HyperedgeID& he : _hg.incidentEdges(hn)) {
       HypernodeID pin_count_in_from_part = _hg.pinCountInPart(he, from);
       HyperedgeWeight he_weight = _hg.edgeWeight(he);
-      if ( pin_count_in_from_part == 1 ) {
+      if (pin_count_in_from_part == 1) {
         // In case, there is only one pin left in the from part,
         // we can decrease the connectivity metric by moving the
         // only pin left (vertex 'hn') to one of its incident blocks
         // also contained in the hyperedge
-        for ( const PartitionID& to : _hg.connectivitySet(he) ) {
-          if ( from != to ) {
+        for (const PartitionID& to : _hg.connectivitySet(he)) {
+          if (from != to) {
             tmp_scores[to] -= he_weight;
           }
         }
@@ -138,8 +133,8 @@ static constexpr bool enable_heavy_assert = false;
         // In case, there are more than one pin left in from part, than
         // we would increase the connectivity, if we would move vertex hn
         // to one block that is not contained in the hyperedge.
-        for ( PartitionID to = 0; to < _context.partition.k; ++to ) {
-          if ( from != to && _hg.pinCountInPart(he, to) == 0 ) {
+        for (PartitionID to = 0; to < _context.partition.k; ++to) {
+          if (from != to && _hg.pinCountInPart(he, to) == 0) {
             tmp_scores[to] += he_weight;
           }
         }
@@ -150,14 +145,14 @@ static constexpr bool enable_heavy_assert = false;
     HypernodeWeight hn_weight = _hg.nodeWeight(hn);
     int cpu_id = sched_getcpu();
     utils::Randomize& rand = utils::Randomize::instance();
-    for ( PartitionID to = 0; to < _context.partition.k; ++to ) {
-      if ( from != to ) {
-        bool new_best_gain = ( tmp_scores[to] < best_move.gain ) ||
-                            ( tmp_scores[to] == best_move.gain &&
+    for (PartitionID to = 0; to < _context.partition.k; ++to) {
+      if (from != to) {
+        bool new_best_gain = (tmp_scores[to] < best_move.gain) ||
+                             (tmp_scores[to] == best_move.gain &&
                               !_disable_randomization &&
-                              rand.flipCoin(cpu_id) );
-        if ( new_best_gain && _hg.localPartWeight(to) + hn_weight <=
-             _context.partition.max_part_weights[to] ) {
+                              rand.flipCoin(cpu_id));
+        if (new_best_gain && _hg.localPartWeight(to) + hn_weight <=
+            _context.partition.max_part_weights[to]) {
           best_move.to = to;
           best_move.gain = tmp_scores[to];
         }
@@ -172,7 +167,7 @@ static constexpr bool enable_heavy_assert = false;
                                            const HypernodeID pin_count_in_from_part_after,
                                            const HypernodeID pin_count_in_to_part_after) {
     _deltas.local() += HyperGraph::km1Delta(edge_weight, edge_size,
-      pin_count_in_from_part_after, pin_count_in_to_part_after);
+                                            pin_count_in_from_part_after, pin_count_in_to_part_after);
   }
 
   using Base::_hg;
@@ -182,13 +177,11 @@ static constexpr bool enable_heavy_assert = false;
   bool _disable_randomization;
 };
 
-
 template <class HyperGraph = Mandatory>
 class CutPolicy : public GainPolicy<CutPolicy<HyperGraph>, HyperGraph> {
+  using Base = GainPolicy<CutPolicy<HyperGraph>, HyperGraph>;
 
-using Base = GainPolicy<CutPolicy<HyperGraph>, HyperGraph>;
-
-static constexpr bool enable_heavy_assert = false;
+  static constexpr bool enable_heavy_assert = false;
 
  public:
   CutPolicy(HyperGraph& hypergraph,
@@ -199,33 +192,33 @@ static constexpr bool enable_heavy_assert = false;
 
   Move computeMaxGainMoveImpl(const HypernodeID hn) {
     HEAVY_REFINEMENT_ASSERT([&] {
-      for (PartitionID k = 0; k < _context.partition.k; ++k) {
-        if ( _tmp_scores.local()[k] != 0 ) {
-          return false;
+        for (PartitionID k = 0; k < _context.partition.k; ++k) {
+          if (_tmp_scores.local()[k] != 0) {
+            return false;
+          }
         }
-      }
-      return true;
-    }(), "Scores and valid parts not correctly reset");
+        return true;
+      } (), "Scores and valid parts not correctly reset");
 
     PartitionID from = _hg.partID(hn);
     parallel::scalable_vector<Gain>& tmp_scores = _tmp_scores.local();
     Gain internal_weight = 0;
-    for ( const HyperedgeID& he : _hg.incidentEdges(hn) ) {
+    for (const HyperedgeID& he : _hg.incidentEdges(hn)) {
       PartitionID connectivity = _hg.connectivity(he);
       HypernodeID pin_count_in_from_part = _hg.pinCountInPart(he, from);
       HyperedgeWeight weight = _hg.edgeWeight(he);
-      if ( connectivity == 1 ) {
+      if (connectivity == 1) {
         ASSERT(_hg.edgeSize(he) > 1);
         // In case, the hyperedge is a non-cut hyperedge, we would increase
         // the cut, if we move vertex hn to an other block.
         internal_weight += weight;
-      } else if ( connectivity == 2 && pin_count_in_from_part == 1 ) {
-        for ( const PartitionID& to : _hg.connectivitySet(he) ) {
+      } else if (connectivity == 2 && pin_count_in_from_part == 1) {
+        for (const PartitionID& to : _hg.connectivitySet(he)) {
           // In case there are only two blocks contained in the current
           // hyperedge and only one pin left in the from part of the hyperedge,
           // we would make the current hyperedge a non-cut hyperedge when moving
           // vertex hn to the other block.
-          if ( from != to ) {
+          if (from != to) {
             tmp_scores[to] -= weight;
           }
         }
@@ -236,15 +229,15 @@ static constexpr bool enable_heavy_assert = false;
     HypernodeWeight hn_weight = _hg.nodeWeight(hn);
     int cpu_id = sched_getcpu();
     utils::Randomize& rand = utils::Randomize::instance();
-    for ( PartitionID to = 0; to < _context.partition.k; ++to ) {
-      if ( from != to ) {
+    for (PartitionID to = 0; to < _context.partition.k; ++to) {
+      if (from != to) {
         Gain score = tmp_scores[to] + internal_weight;
-        bool new_best_gain = ( score < best_move.gain ) ||
-                             ( score == best_move.gain &&
-                               !_disable_randomization &&
-                               rand.flipCoin(cpu_id) );
-        if ( new_best_gain && _hg.localPartWeight(to) + hn_weight <=
-             _context.partition.max_part_weights[to] ) {
+        bool new_best_gain = (score < best_move.gain) ||
+                             (score == best_move.gain &&
+                              !_disable_randomization &&
+                              rand.flipCoin(cpu_id));
+        if (new_best_gain && _hg.localPartWeight(to) + hn_weight <=
+            _context.partition.max_part_weights[to]) {
           best_move.to = to;
           best_move.gain = score;
         }
@@ -259,7 +252,7 @@ static constexpr bool enable_heavy_assert = false;
                                            const HypernodeID pin_count_in_from_part_after,
                                            const HypernodeID pin_count_in_to_part_after) {
     _deltas.local() += HyperGraph::cutDelta(edge_weight, edge_size,
-      pin_count_in_from_part_after, pin_count_in_to_part_after);
+                                            pin_count_in_from_part_after, pin_count_in_to_part_after);
   }
 
   using Base::_hg;
@@ -268,5 +261,4 @@ static constexpr bool enable_heavy_assert = false;
   using Base::_tmp_scores;
   bool _disable_randomization;
 };
-
 }  // namespace mt_kahypar

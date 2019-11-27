@@ -29,9 +29,8 @@
 
 namespace mt_kahypar {
 namespace preprocessing {
-
-template< typename TypeTraits = Mandatory,
-          typename Objective = Mandatory >
+template <typename TypeTraits = Mandatory,
+          typename Objective = Mandatory>
 class BinPackingCommunityAssignmentT : public ICommunityAssignment {
  private:
   using HyperGraph = typename TypeTraits::HyperGraph;
@@ -50,37 +49,37 @@ class BinPackingCommunityAssignmentT : public ICommunityAssignment {
     _context(context) { }
 
   BinPackingCommunityAssignmentT(const BinPackingCommunityAssignmentT&) = delete;
-  BinPackingCommunityAssignmentT& operator= (const BinPackingCommunityAssignmentT&) = delete;
+  BinPackingCommunityAssignmentT & operator= (const BinPackingCommunityAssignmentT &) = delete;
 
   BinPackingCommunityAssignmentT(BinPackingCommunityAssignmentT&&) = delete;
-  BinPackingCommunityAssignmentT& operator= (BinPackingCommunityAssignmentT&&) = delete;
+  BinPackingCommunityAssignmentT & operator= (BinPackingCommunityAssignmentT &&) = delete;
 
  private:
   std::vector<PartitionID> computeAssignmentImpl() {
     // Compute Bin Capacities
-    HighResClockTimepoint start = std::chrono::high_resolution_clock::now();
+    utils::Timer::instance().start_timer("compute_community_mapping", "Compute Community Mapping");
     int used_numa_nodes = TBB::instance().num_used_numa_nodes();
     std::vector<HypernodeID> bin_capacities(used_numa_nodes, 0);
-    for ( int node = 0; node < used_numa_nodes; ++node ) {
+    for (int node = 0; node < used_numa_nodes; ++node) {
       bin_capacities[node] = bin_capacity(node);
       DBG << "Bin Capacity for node" << node << "is" << bin_capacities[node];
     }
 
     // Sort communities in increasing order of their objective (either vertex or pin count)
     std::vector<Community> communities;
-    for ( PartitionID community = 0; community < _hg.numCommunities(); ++community ) {
-      communities.emplace_back( Community { community, Objective::objective(_hg, community) } );
+    for (PartitionID community = 0; community < _hg.numCommunities(); ++community) {
+      communities.emplace_back(Community { community, Objective::objective(_hg, community) });
     }
     std::sort(communities.begin(), communities.end(),
-      [](const Community& lhs, const Community& rhs) {
-        return lhs.objective < rhs.objective;
-      });
+              [](const Community& lhs, const Community& rhs) {
+          return lhs.objective < rhs.objective;
+        });
 
     // Assign communities in round-robin fashion to bins
     std::vector<HypernodeID> current_capacity(used_numa_nodes, 0);
     std::vector<PartitionID> community_assignment(_hg.numCommunities(), -1);
     int current_bin = 0;
-    while ( !communities.empty() ) {
+    while (!communities.empty()) {
       const Community community = communities.back();
       communities.pop_back();
 
@@ -88,16 +87,16 @@ class BinPackingCommunityAssignmentT : public ICommunityAssignment {
       int start_bin = current_bin;
       bool found = false;
       do {
-        ASSERT( current_bin < (int) current_capacity.size() );
-        if ( current_capacity[current_bin] + community.objective <= bin_capacities[current_bin] ) {
+        ASSERT(current_bin < (int)current_capacity.size());
+        if (current_capacity[current_bin] + community.objective <= bin_capacities[current_bin]) {
           found = true;
           break;
         }
-        current_bin = ( current_bin + 1 ) % used_numa_nodes;
-      } while ( current_bin != start_bin );
+        current_bin = (current_bin + 1) % used_numa_nodes;
+      } while (current_bin != start_bin);
 
-      if ( found ) {
-        ASSERT( current_capacity[current_bin] + community.objective <= bin_capacities[current_bin] );
+      if (found) {
+        ASSERT(current_capacity[current_bin] + community.objective <= bin_capacities[current_bin]);
         current_capacity[current_bin] += community.objective;
         community_assignment[community.community_id] = current_bin;
         DBG << "Assign community" << community.community_id << "of size" << community.objective << "to node" << current_bin
@@ -107,10 +106,10 @@ class BinPackingCommunityAssignmentT : public ICommunityAssignment {
         // we assign the community to the node where the overflow is minimal
         HypernodeID overflow = std::numeric_limits<HypernodeID>::max();
         int assigned_bin = -1;
-        for ( int bin = 0; bin < used_numa_nodes; ++bin ) {
+        for (int bin = 0; bin < used_numa_nodes; ++bin) {
           ASSERT(current_capacity[bin] + community.objective > bin_capacities[bin]);
           HypernodeID current_overflow = (current_capacity[bin] + community.objective) - bin_capacities[bin];
-          if ( current_overflow < overflow ) {
+          if (current_overflow < overflow) {
             overflow = current_overflow;
             assigned_bin = bin;
           }
@@ -122,11 +121,9 @@ class BinPackingCommunityAssignmentT : public ICommunityAssignment {
             << "(Overflow Capacity =" << (current_capacity[assigned_bin] - bin_capacities[assigned_bin]) << ")";
       }
 
-      current_bin = ( current_bin + 1 ) % used_numa_nodes;
+      current_bin = (current_bin + 1) % used_numa_nodes;
     }
-    HighResClockTimepoint end = std::chrono::high_resolution_clock::now();
-    mt_kahypar::utils::Timer::instance().add_timing("compute_community_mapping", "Compute Community Mapping",
-      "redistribution", mt_kahypar::utils::Timer::Type::PREPROCESSING, 0, std::chrono::duration<double>(end - start).count());
+    utils::Timer::instance().stop_timer("compute_community_mapping");
 
     ASSERT(std::count(community_assignment.begin(), community_assignment.end(), -1) == 0, "There are unassigned communities");
     return community_assignment;
@@ -136,15 +133,14 @@ class BinPackingCommunityAssignmentT : public ICommunityAssignment {
     ASSERT(node < TBB::instance().num_used_numa_nodes());
     int total_threads = TBB::instance().total_number_of_threads();
     int threads_of_node = TBB::instance().number_of_threads_on_numa_node(node);
-    return std::ceil( ( ( (double) threads_of_node ) / total_threads ) * Objective::total(_hg) );
+    return std::ceil((((double)threads_of_node) / total_threads) * Objective::total(_hg));
   }
 
   HyperGraph& _hg;
   const Context& _context;
 };
 
-template< typename Objective = Mandatory >
+template <typename Objective = Mandatory>
 using BinPackingCommunityAssignment = BinPackingCommunityAssignmentT<GlobalTypeTraits, Objective>;
-
-} // namespace preprocessing
-} // namespace mt_kahypar
+}  // namespace preprocessing
+}  // namespace mt_kahypar

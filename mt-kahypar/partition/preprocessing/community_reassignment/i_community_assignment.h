@@ -24,13 +24,12 @@
 
 namespace mt_kahypar {
 namespace preprocessing {
-
 class ICommunityAssignment {
  public:
   ICommunityAssignment(const ICommunityAssignment&) = delete;
-  ICommunityAssignment& operator= (const ICommunityAssignment&) = delete;
+  ICommunityAssignment & operator= (const ICommunityAssignment &) = delete;
   ICommunityAssignment(ICommunityAssignment&&) = delete;
-  ICommunityAssignment& operator= (ICommunityAssignment&&) = delete;
+  ICommunityAssignment & operator= (ICommunityAssignment &&) = delete;
 
   virtual ~ICommunityAssignment() = default;
 
@@ -44,6 +43,5 @@ class ICommunityAssignment {
  private:
   virtual std::vector<PartitionID> computeAssignmentImpl() = 0;
 };
-
-} // namespace preprocessing
-} // namespace mt_kahypar
+}  // namespace preprocessing
+}  // namespace mt_kahypar

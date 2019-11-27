@@ -26,13 +26,12 @@
 #include "kahypar/meta/mandatory.h"
 
 #include "mt-kahypar/macros.h"
-#include "mt-kahypar/parallel/copyable_atomic.h"
+#include "mt-kahypar/parallel/atomic_wrapper.h"
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
 #include "mt-kahypar/utils/bit_magic.h"
 
 namespace mt_kahypar {
 namespace ds {
-
 /**
  * Can store a set of partition ids (< k = number of blocks).
  *
@@ -62,13 +61,11 @@ namespace ds {
  * set with the assumptions that conflicts happens very rarely.
  */
 class ConnectivitySet {
-
   static constexpr bool debug = false;
 
   using PartitionID = int32_t;
-  using ConnectivityAtomic = parallel::CopyableAtomic<PartitionID>;
-  using BitsetAtomic = parallel::CopyableAtomic<uint8_t>;
-
+  using ConnectivityAtomic = parallel::IntegralAtomicWrapper<PartitionID>;
+  using BitsetAtomic = parallel::IntegralAtomicWrapper<uint8_t>;
 
  public:
   /**
@@ -84,7 +81,6 @@ class ConnectivitySet {
                          std::ptrdiff_t,             // difference_type
                          const PartitionID*,         // pointer
                          PartitionID> {              // reference
-
    public:
     ConnectivitySetIterator(const parallel::scalable_vector<BitsetAtomic>& bitset) :
       _bitset(bitset),
@@ -109,7 +105,7 @@ class ConnectivitySet {
     }
 
     // ! Prefix increment. The iterator advances to the next valid element.
-    ConnectivitySetIterator& operator++ () {
+    ConnectivitySetIterator & operator++ () {
       next();
       return *this;
     }
@@ -141,10 +137,10 @@ class ConnectivitySet {
    private:
     void next() {
       ++_current_id;
-      while ( _current_id + 1 > utils::count[_current_bitset] ) {
+      while (_current_id + 1 > utils::count[_current_bitset]) {
         _current_id = 0;
         ++_current_bitset_id;
-        if ( _current_bitset_id < (PartitionID) _bitset.size() ) {
+        if (_current_bitset_id < (PartitionID)_bitset.size()) {
           _current_bitset = _bitset[_current_bitset_id];
         } else {
           _current_bitset = 0;
@@ -163,30 +159,30 @@ class ConnectivitySet {
   ConnectivitySet(const PartitionID k) :
     _connectivity(0),
     _bitset() {
-    size_t num_entries = k / 8 + ( k % 8 > 0 ? 1 : 0 );
+    size_t num_entries = k / 8 + (k % 8 > 0 ? 1 : 0);
     _bitset.assign(num_entries, BitsetAtomic(0));
   }
 
   std::pair<ConnectivitySetIterator, ConnectivitySetIterator> connectivitySet() const {
-    return std::make_pair( ConnectivitySetIterator(_bitset),
-                           ConnectivitySetIterator(_bitset, _bitset.size(), 0) );
+    return std::make_pair(ConnectivitySetIterator(_bitset),
+                          ConnectivitySetIterator(_bitset, _bitset.size(), 0));
   }
 
   bool contains(const PartitionID id) const {
-    ASSERT(id >= 0 && id <  ( (PartitionID) ( 8 * _bitset.size() ) ) );
+    ASSERT(id >= 0 && id < ((PartitionID)(8 * _bitset.size())));
     size_t entry = id / 8;
-    size_t offset = ( id % 8 ) + 1;
+    size_t offset = (id % 8) + 1;
     return _bitset[entry] & utils::bitmask[offset];
   }
 
   void add(const PartitionID id) {
-    ASSERT(id >= 0 && id <  ( (PartitionID) ( 8 * _bitset.size() ) ) );
+    ASSERT(id >= 0 && id < ((PartitionID)(8 * _bitset.size())));
     ++_connectivity;
     XOR(id);
   }
 
   void remove(const PartitionID id) {
-    ASSERT(id >= 0 && id <  ( (PartitionID) ( 8 * _bitset.size() ) ) );
+    ASSERT(id >= 0 && id < ((PartitionID)(8 * _bitset.size())));
     --_connectivity;
     XOR(id);
   }
@@ -198,7 +194,7 @@ class ConnectivitySet {
    */
   void clear() {
     _connectivity = 0;
-    for ( size_t i = 0; i < _bitset.size(); ++i ) {
+    for (size_t i = 0; i < _bitset.size(); ++i) {
       _bitset[i] &= utils::bitmask[0];
     }
   }
@@ -208,17 +204,15 @@ class ConnectivitySet {
   }
 
  private:
-
   KAHYPAR_ATTRIBUTE_ALWAYS_INLINE void XOR(const PartitionID id) {
-    ASSERT(id >= 0 && id <  ( (PartitionID) ( 8 * _bitset.size() ) ) );
+    ASSERT(id >= 0 && id < ((PartitionID)(8 * _bitset.size())));
     size_t entry = id / 8;
-    size_t offset = ( id % 8 ) + 1;
+    size_t offset = (id % 8) + 1;
     _bitset[entry] ^= utils::bitmask[offset];
   }
 
   ConnectivityAtomic _connectivity;
   parallel::scalable_vector<BitsetAtomic> _bitset;
 };
-
-} // namespace ds
-} // namespace mt_kahypar
+}  // namespace ds
+}  // namespace mt_kahypar
