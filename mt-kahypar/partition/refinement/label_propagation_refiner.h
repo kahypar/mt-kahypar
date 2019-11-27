@@ -99,6 +99,9 @@ class LabelPropagationRefinerT final : public IRefiner {
       return false;
     }
 
+
+    utils::Timer::instance().start_timer("label_propagation", "Label Propagation");
+
     HEAVY_REFINEMENT_ASSERT([&] {
         // Assertion verifies, that all enabled nodes are contained in _nodes
         std::vector<HypernodeID> tmp_nodes;
@@ -144,6 +147,7 @@ class LabelPropagationRefinerT final : public IRefiner {
                             V(current_metric) << V(delta) << V(metrics::objective(_hg, _context.partition.objective)));
     best_metrics.updateMetric(current_metric + delta, kahypar::Mode::direct_kway, _context.partition.objective);
     utils::Stats::instance().update_stat("lp_improvement", std::abs(delta));
+    utils::Timer::instance().stop_timer("label_propagation");
     return delta < 0;
   }
 

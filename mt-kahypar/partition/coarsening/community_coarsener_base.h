@@ -119,7 +119,7 @@ class CommunityCoarsenerBase {
 
     std::vector<HypernodeID> refinement_nodes;
     while (!_history.empty()) {
-      utils::Timer::instance().start_timer("uncontraction", "Uncontraction");
+      // utils::Timer::instance().start_timer("uncontraction", "Uncontraction");
       PartitionID community_id = _hg.communityID(_history.back().u);
       DBG << "Uncontracting: (" << _history.back().u << "," << _history.back().v << ")" << V(_history.size());
       _pruner[community_id].restoreParallelHyperedges(_hg, _history.back());
@@ -131,16 +131,14 @@ class CommunityCoarsenerBase {
       refinement_nodes.push_back(_history.back().u);
       refinement_nodes.push_back(_history.back().v);
       _hg.updateGlobalPartInfos();
-      utils::Timer::instance().stop_timer("uncontraction");
+      // utils::Timer::instance().stop_timer("uncontraction");
 
       // Call label propagation refiner
-      utils::Timer::instance().start_timer("label_propagation", "Label Propagation");
       if (label_propagation) {
         // NOTE, label propagation refiner relies on the assumption, that it is called after
         // each uncontraction. Do not move the refiner call out of this loop.
         label_propagation->refine(refinement_nodes, current_metrics);
       }
-      utils::Timer::instance().stop_timer("label_propagation");
 
       refinement_nodes.clear();
       _history.pop_back();
