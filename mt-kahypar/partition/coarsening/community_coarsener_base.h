@@ -25,6 +25,9 @@
 
 #include "tbb/parallel_for.h"
 #include "tbb/task_group.h"
+#include "tbb/parallel_invoke.h"
+#include "tbb/concurrent_queue.h"
+#include "tbb/concurrent_vector.h"
 
 #include "kahypar/partition/metrics.h"
 
@@ -56,7 +59,7 @@ class CommunityCoarsenerBase {
     _contained_hypernodes(hypergraph.initialNumNodes()),
     _batch_hyperedges(hypergraph.initialNumEdges()),
     _incident_nets_of_v(hypergraph.initialNumEdges()),
-    _batch_arena(_context.shared_memory.num_threads, 0),
+    _batch_arena(std::max(_context.shared_memory.num_threads - 1, 1UL), 0),
     _batch_group(),
     _parallel_he_representative(hypergraph.initialNumEdges(), kInvalidHyperedge),
     _pruner(),
@@ -122,6 +125,8 @@ class CommunityCoarsenerBase {
     utils::Stats::instance().add_stat("initial_imbalance", current_metrics.imbalance);
 
     std::vector<HypernodeID> refinement_nodes;
+    size_t max_batch_size = _context.refinement.use_batch_uncontractions &&
+                            _context.shared_memory.num_threads > 1 ? _context.refinement.batch_size : 1;
     while (!_history.empty()) {
       // utils::Timer::instance().start_timer("uncontraction", "Uncontraction");
         std::vector<Memento> batch;
@@ -164,89 +169,120 @@ class CommunityCoarsenerBase {
       return;
     }
 
-    kahypar::ds::FastResetFlagArray<>& batch_hypernodes = _contained_hypernodes.local();
-    size_t last_batch_idx = 0;
-    while ( last_batch_idx < batch.size() ) {
-      batch_hypernodes.reset();
-      _batch_hyperedges.reset();
-      size_t current_batch_idx = last_batch_idx;
-      for ( ; current_batch_idx < batch.size(); ++current_batch_idx ) {
-        _incident_nets_of_v.reset();
-        const Memento& current_memento = batch[current_batch_idx];
-        bool found_conflict = false;
+    tbb::concurrent_vector<tbb::concurrent_queue<Memento>> batch_queues;
+    int64_t valid_batch_queues = 0;
+    std::atomic<int64_t> current_batch_queue(-1);
+    size_t current_batch_size = 1;
+    std::atomic<size_t> num_processed(0);
+    bool terminated = false;
+    tbb::parallel_invoke([&] {
+      // Master Thread
 
-        const HypernodeID original_u_id = _hg.originalNodeID(current_memento.u);
-        const HypernodeID original_v_id = _hg.originalNodeID(current_memento.v);
-        if ( batch_hypernodes[original_u_id] || batch_hypernodes[original_v_id] ) {
-          found_conflict = true;
-          break;
+      auto switch_batch_queue = [&] {
+        size_t tmp_num_processed = valid_batch_queues == 1 && current_batch_queue == -1 ? 1 : num_processed.load();
+        ASSERT( tmp_num_processed <= current_batch_size );
+        if ( tmp_num_processed == current_batch_size &&
+             current_batch_queue.load() + 1 < valid_batch_queues ) {
+          ASSERT( current_batch_queue < 0 || batch_queues[current_batch_queue].empty() );
+          num_processed = 0;
+          current_batch_size = batch_queues[current_batch_queue + 1].unsafe_size();
+          ++current_batch_queue;
+        } else if ( tmp_num_processed == current_batch_size && terminated ) {
+          ASSERT( current_batch_queue.load() + 1 == valid_batch_queues );
+          ++current_batch_queue;
         }
-        batch_hypernodes.set(original_u_id, true);
-        batch_hypernodes.set(original_v_id, true);
+      };
 
-        ASSERT(!_hg.nodeIsEnabled(current_memento.v));
-        _hg.enableHypernode(current_memento.v);
-        for ( const HyperedgeID& he : _hg.incidentEdges(current_memento.v) ) {
-          const HyperedgeID original_id = _hg.originalEdgeID(he);
-          if ( _batch_hyperedges[original_id] ) {
+      kahypar::ds::FastResetFlagArray<>& batch_hypernodes = _contained_hypernodes.local();
+      size_t current_batch_idx = 0;
+      while ( current_batch_idx < batch.size() ) {
+        batch_hypernodes.reset();
+        _batch_hyperedges.reset();
+        batch_queues.emplace_back();
+        for ( ; current_batch_idx < batch.size(); ++current_batch_idx ) {
+          _incident_nets_of_v.reset();
+          const Memento& current_memento = batch[current_batch_idx];
+          bool found_conflict = false;
+
+          const HypernodeID original_u_id = _hg.originalNodeID(current_memento.u);
+          const HypernodeID original_v_id = _hg.originalNodeID(current_memento.v);
+          if ( batch_hypernodes[original_u_id] || batch_hypernodes[original_v_id] ) {
             found_conflict = true;
             break;
           }
-          _incident_nets_of_v.set(original_id, true);
-          _batch_hyperedges.set(original_id, true);
-        }
-        _hg.disableHypernode(current_memento.v);
+          batch_hypernodes.set(original_u_id, true);
+          batch_hypernodes.set(original_v_id, true);
 
-        if ( found_conflict ) {
-          break;
-        }
+          ASSERT(!_hg.nodeIsEnabled(current_memento.v));
+          _hg.enableHypernode(current_memento.v);
+          for ( const HyperedgeID& he : _hg.incidentEdges(current_memento.v) ) {
+            const HyperedgeID original_id = _hg.originalEdgeID(he);
+            if ( _batch_hyperedges[original_id] ) {
+              found_conflict = true;
+              break;
+            }
+            _incident_nets_of_v.set(original_id, true);
+            _batch_hyperedges.set(original_id, true);
+          }
+          _hg.disableHypernode(current_memento.v);
 
-        ASSERT(_hg.nodeIsEnabled(current_memento.u));
-        for ( const HyperedgeID& he : _hg.incidentEdges(current_memento.u) ) {
-          const HyperedgeID original_id = _hg.originalEdgeID(he);
-          if ( !_incident_nets_of_v[original_id] && _batch_hyperedges[original_id] ) {
-            found_conflict = true;
+          if ( found_conflict ) {
             break;
           }
-          _batch_hyperedges.set(original_id, true);
-        }
 
-        if ( found_conflict ) {
-          break;
-        }
+          ASSERT(_hg.nodeIsEnabled(current_memento.u));
+          for ( const HyperedgeID& he : _hg.incidentEdges(current_memento.u) ) {
+            const HyperedgeID original_id = _hg.originalEdgeID(he);
+            if ( !_incident_nets_of_v[original_id] && _batch_hyperedges[original_id] ) {
+              found_conflict = true;
+              break;
+            }
+            _batch_hyperedges.set(original_id, true);
+          }
 
-        refinement_nodes.push_back(current_memento.u);
-        refinement_nodes.push_back(current_memento.v);
+          if ( found_conflict ) {
+            break;
+          }
+
+          batch_queues.back().push(batch[current_batch_idx]);
+          refinement_nodes.push_back(current_memento.u);
+          refinement_nodes.push_back(current_memento.v);
+          switch_batch_queue();
+        }
+        ++valid_batch_queues;
+        switch_batch_queue();
       }
-
-      size_t batch_size = current_batch_idx - last_batch_idx;
-      size_t num_threads = std::min( std::max( batch_size / 20, 1UL ), _context.shared_memory.num_threads );
-      if ( num_threads == 1 ) {
-        parallelBatchUncontract(batch, 1, last_batch_idx, current_batch_idx);
-      } else {
-        LOG << V(batch_size) << V(num_threads);
+      terminated = true;
+      while ( current_batch_queue < valid_batch_queues ) {
+        switch_batch_queue();
+      }
+    }, [&] {
+      // Worker Thread
+      ASSERT(_context.shared_memory.num_threads > 1);
+      size_t num_threads = _context.shared_memory.num_threads - 1;
+      _batch_arena.execute([&] {
         for ( size_t i = 0; i < num_threads; ++i ) {
-          _batch_arena.execute([&, i] {
-            _batch_group.run([&, i] {
-              parallelBatchUncontract(batch, num_threads, last_batch_idx + i, current_batch_idx);
-            });
+          _batch_group.run([&] {
+
+            Memento current_memento;
+            while ( !terminated || current_batch_queue < valid_batch_queues ) {
+
+              int64_t tmp_current_batch_queue = current_batch_queue.load();
+              if ( tmp_current_batch_queue >= 0 &&
+                   tmp_current_batch_queue < valid_batch_queues &&
+                   batch_queues[tmp_current_batch_queue].try_pop(current_memento) ) {
+                // Uncontract
+                uncontract(current_memento);
+                ++num_processed;
+              }
+
+            }
+
           });
         }
-        _batch_arena.execute([&] { _batch_group.wait(); });
-      }
-      last_batch_idx = current_batch_idx;
-    }
-  }
-
-  void parallelBatchUncontract( const std::vector<Memento>& batch,
-                                const size_t num_threads,
-                                const size_t start_idx,
-                                const size_t end_idx ) {
-    ASSERT(start_idx <= end_idx);
-    ASSERT(end_idx <= batch.size());
-    for ( size_t i = start_idx; i < end_idx; i += num_threads ) {
-      uncontract(batch[i]);
-    }
+      });
+      _batch_arena.execute([&] { _batch_group.wait(); });
+    });
   }
 
   void uncontract(const Memento& memento) {

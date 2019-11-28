@@ -101,13 +101,9 @@ class StreamingHypergraph {
                                    HyperedgeWeight, PartitionID, HardwareTopology,
                                    TBBNumaArena>;
 
-<<<<<<< HEAD
   using IncidentNets = parallel::scalable_vector<parallel::scalable_vector<HyperedgeID>>;
   using ThreadLocalFastResetFlagArray = tbb::enumerable_thread_specific<kahypar::ds::FastResetFlagArray<>>;
 
-=======
-  using IncidentNets = parallel::scalable_vector<parallel::scalable_vector<HyperedgeID> >;
->>>>>>> origin/master
 
   using HighResClockTimepoint = std::chrono::time_point<std::chrono::high_resolution_clock>;
 
