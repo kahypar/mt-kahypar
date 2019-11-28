@@ -2228,28 +2228,11 @@ class StreamingHypergraph {
   // ! Inserts hyperedge he to incident nets array of vertex hn
   KAHYPAR_ATTRIBUTE_ALWAYS_INLINE void insertIncidentEdgeToHypernode(const HyperedgeID he,
                                                                      const HypernodeID hn) {
-    size_t invalid_incident_nets = hypernode(hn).invalidIncidentNets();
-    HEAVY_REFINEMENT_ASSERT(std::count(incident_nets(hn).begin() + invalid_incident_nets,
-                                       incident_nets(hn).end(), he) == 0,
-                            "HN" << hn << "is already connected to HE" << he);
-
-    auto& incident_nets_of_hn = incident_nets(hn);
-    size_t slot_of_he = invalid_incident_nets;
-    for (size_t pos = 0; pos < invalid_incident_nets; ++pos) {
-      if (incident_nets_of_hn[pos] == he) {
-        slot_of_he = pos;
-        break;
-      }
-    }
-
-    if (slot_of_he < invalid_incident_nets) {
-      ASSERT(incident_nets_of_hn[slot_of_he] == he);
-      std::swap(incident_nets_of_hn[slot_of_he],
-                incident_nets_of_hn[invalid_incident_nets - 1]);
-      hypernode(hn).decrementInvalidIncidentNets();
-    } else {
-      incident_nets_of_hn.push_back(he);
-    }
+    HEAVY_REFINEMENT_ASSERT(std::count(
+      incident_nets(hn).begin() + hypernode(hn).invalidIncidentNets(),
+      incident_nets(hn).end(), he) == 0,
+      "HN" << hn << "is already connected to HE" << he);
+    incident_nets(hn).push_back(he);
   }
 
   // ! Invalidates all disabled hyperedges of the incident nets array of hypernode v

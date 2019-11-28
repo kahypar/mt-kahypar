@@ -1097,15 +1097,27 @@ class Hypergraph {
     // uncontraction (see hypergraph pruner). However, in some cases this is not the case.
     // Therefore, we perform an explicit check here if two hyperedges become non-parallel
     // after uncontraction.
-    const auto& incident_hes_of_u = hypergraph_of_vertex(memento.u).incident_nets(memento.u);
-    size_t incident_hes_start = hypergraph_of_vertex(memento.u).hypernode(memento.u).invalidIncidentNets();
+    StreamingHypergraph& hypergraph_of_u = hypergraph_of_vertex(memento.u);
+    auto& incident_hes_of_u = hypergraph_of_u.incident_nets(memento.u);
+    size_t incident_hes_start = hypergraph_of_u.hypernode(memento.u).invalidIncidentNets();
     std::vector<HyperedgeID> disabled_hyperedges;
     for (size_t incident_hes_it = 0; incident_hes_it != incident_hes_start; ++incident_hes_it) {
-      disabled_hyperedges.push_back(incident_hes_of_u[incident_hes_it]);
+      const HyperedgeID& he = incident_hes_of_u[incident_hes_it];
+      if ( !edgeIsEnabled(he) ) {
+        disabled_hyperedges.push_back(he);
+      } else {
+        // If hyperedge is enabled, we remove it from the invalid incident nets part,
+        // since a restore operation should already added that net to the valid part
+        // of its incident nets (see restoreEdge and insertIncidentEdgeToHypernode).
+        std::swap(incident_hes_of_u[incident_hes_it--], incident_hes_of_u[--incident_hes_start]);
+        hypergraph_of_u.hypernode(memento.u).decrementInvalidIncidentNets();
+        std::swap(incident_hes_of_u[incident_hes_start], incident_hes_of_u.back());
+        incident_hes_of_u.pop_back();
+      }
     }
     // All disabled hyperedges have to be traversed in decreasing order of their edge id
     // when checking if they become non-parallel to one of its representatives.
-    std::sort(disabled_hyperedges.begin(), disabled_hyperedges.begin() + incident_hes_start,
+    std::sort(disabled_hyperedges.begin(), disabled_hyperedges.end(),
               [&](const HyperedgeID& lhs, const HyperedgeID& rhs) {
           return lhs > rhs;
         });
@@ -1151,7 +1163,7 @@ class Hypergraph {
 
         if (becomes_non_parallel) {
           restoreParallelHyperedge(last_representative, parallel_he_representative);
-          incident_hes_start = hypergraph_of_vertex(memento.u).hypernode(memento.u).invalidIncidentNets();
+          incident_hes_start = hypergraph_of_u.hypernode(memento.u).invalidIncidentNets();
         }
       }
     }
@@ -1162,12 +1174,13 @@ class Hypergraph {
     // to check that each hyperedge is parallel to its representative
     for (size_t incident_hes_it = 0; incident_hes_it != incident_hes_start; ++incident_hes_it) {
       const HyperedgeID he = incident_hes_of_u[incident_hes_it];
-      const HyperedgeID representative = find_representative(he);
-
-      if (hypergraph_of_edge(he).uncontract(memento.u, memento.v, he, representative,
-                                            incident_hes_it, _hypergraphs)) {
-        --incident_hes_it;
-        --incident_hes_start;
+      if ( !edgeIsEnabled(he) ) {
+        const HyperedgeID representative = find_representative(he);
+        if (hypergraph_of_edge(he).uncontract(memento.u, memento.v, he, representative,
+                                              incident_hes_it, _hypergraphs)) {
+          --incident_hes_it;
+          --incident_hes_start;
+        }
       }
     }
     #endif
