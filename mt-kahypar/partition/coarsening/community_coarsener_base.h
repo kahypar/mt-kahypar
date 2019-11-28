@@ -25,6 +25,7 @@
 
 #include "tbb/parallel_for.h"
 #include "tbb/task_group.h"
+#include "tbb/parallel_invoke.h"
 
 #include "kahypar/partition/metrics.h"
 
@@ -110,9 +111,33 @@ class CommunityCoarsenerBase {
   bool doUncoarsen(std::unique_ptr<IRefiner>& label_propagation) {
     ASSERT(!_init, "Community coarsener must be finalized before uncoarsening");
 
-    kahypar::Metrics current_metrics = { metrics::hyperedgeCut(_hg),
-                                         metrics::km1(_hg),
-                                         metrics::imbalance(_hg, _context) };
+    int64_t num_nodes = 0;
+    int64_t num_edges = 0;
+    HyperedgeWeight cut = 0;
+    HyperedgeWeight km1 = 0;
+    tbb::parallel_invoke([&] {
+      // Compute current number of nodes
+      for ( const HypernodeID& hn : _hg.nodes() ) {
+        unused(hn);
+        ++num_nodes;
+      }
+    }, [&] {
+      // Compute current number of edges
+      for ( const HyperedgeID& he : _hg.edges() ) {
+        unused(he);
+        ++num_edges;
+      }
+    }, [&] {
+      // Cut metric
+      cut = metrics::hyperedgeCut(_hg);
+    }, [&] {
+      // Km1 metric
+      km1 = metrics::km1(_hg);
+    });
+
+    kahypar::Metrics current_metrics = { cut, km1, metrics::imbalance(_hg, _context) };
+    utils::Stats::instance().add_stat("initial_num_nodes", num_nodes);
+    utils::Stats::instance().add_stat("initial_num_edges", num_edges);
     utils::Stats::instance().add_stat("initial_cut", current_metrics.cut);
     utils::Stats::instance().add_stat("initial_km1", current_metrics.km1);
     utils::Stats::instance().add_stat("initial_imbalance", current_metrics.imbalance);

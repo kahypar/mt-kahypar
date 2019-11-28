@@ -93,6 +93,14 @@ static inline void serialize(const Hypergraph& hypergraph,
         << " imbalance=" << metrics::imbalance(hypergraph, context)
         << " totalPartitionTime=" << elapsed_seconds.count();
 
+    // Part Weights and Sizes
+    for ( PartitionID i = 0; i < context.partition.k; ++i ) {
+      oss << " partSize" << i << "=" << hypergraph.partSize(i);
+    }
+    for ( PartitionID i = 0; i < context.partition.k; ++i ) {
+      oss << " partWeight" << i << "=" << hypergraph.partWeight(i);
+    }
+
     // Timings
     utils::Timer::instance(context.partition.detailed_timings).serialize(oss);
 
