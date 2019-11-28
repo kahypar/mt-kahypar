@@ -172,6 +172,11 @@ inline void Partitioner::preprocess(Hypergraph& hypergraph, const Context& conte
   utils::Stats::instance().add_stat("num_communities", hypergraph.numCommunities());
   utils::Timer::instance().stop_timer("community_detection");
 
+  if ( context.partition.verbose_output ) {
+    io::printCommunityInformation(hypergraph);
+    io::printStripe();
+  }
+
   // Redistribute Hypergraph based on communities
   utils::Timer::instance().start_timer("redistribution", "Redistribution");
   redistribution(hypergraph, context);
