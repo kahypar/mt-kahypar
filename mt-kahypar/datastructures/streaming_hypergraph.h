@@ -1346,6 +1346,73 @@ class StreamingHypergraph {
     return false;
   }
 
+  bool uncontract(const HypernodeID u, const HypernodeID v,
+                  const HyperedgeID e, const size_t incident_nets_pos,
+                  std::vector<Self>& hypergraphs,
+                  const kahypar::ds::FastResetFlagArray<>& batch_hypernodes ) {
+    using std::swap;
+
+    ASSERT(!hyperedge(e).isDisabled(), "Hyperedge" << e << "is disabled");
+    if (containsIncidentNet(e)) {
+      // ... then we have to do some kind of restore operation.
+      if (get_uncontraction_case(e, hyperedge(e).size(), v,
+            hypergraphs, batch_hypernodes) == UncontractionCase::CASE_1) {
+        // hyperedge(he + 1) always exists because of sentinel
+        // Undo case 1 operation (i.e. Pin v was just cut off by decreasing size of HE e)
+        DBG << V(e) << " -> case 1";
+        incrementPinCountInPart(e, hypergraph_of_vertex(v, hypergraphs).partID(v));
+
+        if (connectivity(e) > 1) {
+          hypergraph_of_vertex(v, hypergraphs).incrementIncidentNumCutHyperedges(v);
+        }
+
+        return false;
+      } else {
+        // Undo case 2 opeations (i.e. Entry of pin v in HE e was reused to store connection to u):
+        // Set incidence entry containing u for this HE e back to v, because this slot was used
+        // to store the new edge to representative u during contraction as u was not a pin of e.
+        DBG << V(e) << " -> case 2";
+        Self& hypergraph_of_u = hypergraph_of_vertex(u, hypergraphs);
+        ASSERT(e == hypergraph_of_u.incident_nets(u)[incident_nets_pos]);
+
+        size_t incident_nets_end = hypergraph_of_u.incident_nets(u).size();
+        swap(hypergraph_of_u.incident_nets(u)[incident_nets_pos],
+             hypergraph_of_u.incident_nets(u)[incident_nets_end - 1]);
+        hypergraph_of_u.incident_nets(u).pop_back();
+
+        DBG << "resetting reused Pinslot of HE" << e << "from" << u << "to" << v;
+        resetReusedPinSlotToOriginalValue(e, u, v);
+
+        if (connectivity(e) > 1) {
+          hypergraph_of_vertex(u, hypergraphs).decrementIncidentNumCutHyperedges(u);
+          hypergraph_of_vertex(v, hypergraphs).incrementIncidentNumCutHyperedges(v);
+        }
+
+        return true;
+      }
+    }
+    return false;
+  }
+
+  void postprocessUncontraction( const HyperedgeID e,
+                                 const std::vector<Self>& hypergraphs,
+                                 const kahypar::ds::FastResetFlagArray<>& batch_hypernodes ) {
+    ASSERT(!hyperedge(e).isDisabled(), "Hyperedge" << e << "is disabled");
+    if (containsIncidentNet(e)) {
+      size_t incidence_array_start = hyperedge(e).firstEntry();
+      size_t tmp_size = hyperedge(e).size();
+      for ( ; incidence_array_start + tmp_size < hyperedge(e + 1).firstEntry(); ++tmp_size ) {
+        const size_t pos = incidence_array_start + tmp_size;
+        const HypernodeID pin = _incidence_array[pos];
+        const HypernodeID original_id = hypergraph_of_vertex(pin, hypergraphs).originalNodeId(pin);
+        if ( !batch_hypernodes[original_id] ) {
+          break;
+        }
+      }
+      hyperedge(e).setSize(tmp_size);
+    }
+  }
+
   #ifndef NDEBUG
   /*!
   * Undoes a contraction operation (u,v) inside hyperedge e.
@@ -2137,6 +2204,25 @@ class StreamingHypergraph {
     }
   }
 
+  KAHYPAR_ATTRIBUTE_ALWAYS_INLINE UncontractionCase get_uncontraction_case(const HyperedgeID he,
+                                                                           const size_t size,
+                                                                           const HypernodeID v,
+                                                                           const std::vector<Self>& hypergraphs,
+                                                                           const kahypar::ds::FastResetFlagArray<>& batch_hypernodes) const {
+    size_t invalid_part_start = hyperedge(he).firstEntry() + size;
+    size_t incidence_array_end = hyperedge(he + 1).firstEntry();
+    for ( size_t pos = invalid_part_start; pos < incidence_array_end; ++pos ) {
+      const HypernodeID pin = _incidence_array[pos];
+      const HypernodeID original_id = hypergraph_of_vertex(pin, hypergraphs).originalNodeId(pin);
+      if ( !batch_hypernodes[original_id] ) {
+        return UncontractionCase::CASE_2;
+      } else if ( pin == v ) {
+        return UncontractionCase::CASE_1;
+      }
+    }
+    return UncontractionCase::CASE_2;
+  }
+
   // ####################### Remove / Restore Hyperedges #######################
 
   // ! Removes hyperedge e from the incident nets of vertex hn
@@ -2270,9 +2356,9 @@ class StreamingHypergraph {
   // ! Decrements the number of pins of hyperedge he in block id
   KAHYPAR_ATTRIBUTE_ALWAYS_INLINE HypernodeID decrementPinCountInPart(const HyperedgeID he, const PartitionID id) {
     ASSERT(!hyperedge(he).isDisabled(), "Hyperedge" << he << "is disabled");
-    ASSERT(pinCountInPart(he, id) > 0,
+    /*ASSERT(pinCountInPart(he, id) > 0,
            "HE" << he << ": pin_count[" << id << "]=" << pinCountInPart(he, id)
-                << "edgesize=" << edgeSize(he));
+                << "edgesize=" << edgeSize(he));*/
     ASSERT(id < _k && id != kInvalidPartition, "Part ID" << id << "out of bounds!");
     const HyperedgeID local_id = get_local_edge_id_of_hyperedge(he);
     const size_t offset = local_id * _k + id;
@@ -2288,10 +2374,10 @@ class StreamingHypergraph {
   // ! Increments the number of pins of hyperedge he in block id
   KAHYPAR_ATTRIBUTE_ALWAYS_INLINE HypernodeID incrementPinCountInPart(const HyperedgeID he, const PartitionID id) {
     ASSERT(!hyperedge(he).isDisabled(), "Hyperedge" << he << "is disabled");
-    ASSERT(pinCountInPart(he, id) <= edgeSize(he),
+    /*ASSERT(pinCountInPart(he, id) <= edgeSize(he),
            "HE" << he << ": pin_count[" << id << "]=" << pinCountInPart(he, id)
                 << "edgesize=" << edgeSize(he));
-    ASSERT(id < _k && id != kInvalidPartition, "Part ID" << id << "out of bounds!");
+    ASSERT(id < _k && id != kInvalidPartition, "Part ID" << id << "out of bounds!");*/
     const HyperedgeID local_id = get_local_edge_id_of_hyperedge(he);
     const size_t offset = local_id * _k + id;
     ASSERT(offset < _pins_in_part.size());

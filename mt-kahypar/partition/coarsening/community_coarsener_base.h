@@ -26,8 +26,6 @@
 #include "tbb/parallel_for.h"
 #include "tbb/task_group.h"
 #include "tbb/parallel_invoke.h"
-#include "tbb/concurrent_queue.h"
-#include "tbb/concurrent_vector.h"
 
 #include "kahypar/partition/metrics.h"
 
@@ -57,8 +55,6 @@ class CommunityCoarsenerBase {
     _context(context),
     _init(false),
     _contained_hypernodes(hypergraph.initialNumNodes()),
-    _batch_hyperedges(hypergraph.initialNumEdges()),
-    _incident_nets_of_v(hypergraph.initialNumEdges()),
     _batch_arena(std::max(_context.shared_memory.num_threads - 1, 1UL), 0),
     _batch_group(),
     _parallel_he_representative(hypergraph.initialNumEdges(), kInvalidHyperedge),
@@ -111,7 +107,7 @@ class CommunityCoarsenerBase {
     DBG << "Contract: (" << u << "," << v << ")";
     _community_history[community_id].emplace_back(_hg.contract(u, v, community_id));
     _pruner[community_id].removeSingleNodeHyperedges(_hg, community_id, _community_history[community_id].back());
-    _pruner[community_id].removeParallelHyperedges(_hg, community_id, _community_history[community_id].back());
+    // _pruner[community_id].removeParallelHyperedges(_hg, community_id, _community_history[community_id].back());
   }
 
   bool doUncoarsen(std::unique_ptr<IRefiner>& label_propagation) {
@@ -193,127 +189,40 @@ class CommunityCoarsenerBase {
       return;
     }
 
-    tbb::concurrent_vector<tbb::concurrent_queue<Memento>> batch_queues;
-    int64_t valid_batch_queues = 0;
-    std::atomic<int64_t> current_batch_queue(-1);
-    size_t current_batch_size = 1;
-    std::atomic<size_t> num_processed(0);
-    bool terminated = false;
-    tbb::parallel_invoke([&] {
-      // Master Thread
+    kahypar::ds::FastResetFlagArray<>& batch_hypernodes = _contained_hypernodes.local();
+    size_t current_batch_idx = 0;
+    while ( current_batch_idx < batch.size() ) {
+      batch_hypernodes.reset();
+      std::vector<Memento> next_batch;
+      for ( ; current_batch_idx < batch.size(); ++current_batch_idx ) {
+        const Memento& current_memento = batch[current_batch_idx];
 
-      auto switch_batch_queue = [&] {
-        size_t tmp_num_processed = valid_batch_queues == 1 && current_batch_queue == -1 ? 1 : num_processed.load();
-        ASSERT( tmp_num_processed <= current_batch_size );
-        if ( tmp_num_processed == current_batch_size &&
-             current_batch_queue.load() + 1 < valid_batch_queues ) {
-          ASSERT( current_batch_queue < 0 || batch_queues[current_batch_queue].empty() );
-          num_processed = 0;
-          current_batch_size = batch_queues[current_batch_queue + 1].unsafe_size();
-          ++current_batch_queue;
-        } else if ( tmp_num_processed == current_batch_size && terminated ) {
-          ASSERT( current_batch_queue.load() + 1 == valid_batch_queues );
-          ++current_batch_queue;
+        const HypernodeID original_u_id = _hg.originalNodeID(current_memento.u);
+        const HypernodeID original_v_id = _hg.originalNodeID(current_memento.v);
+        if ( !_hg.nodeIsEnabled(current_memento.u) ||
+              batch_hypernodes[original_u_id] ) {
+          break;
         }
-      };
+        batch_hypernodes.set(original_u_id, true);
+        batch_hypernodes.set(original_v_id, true);
 
-      kahypar::ds::FastResetFlagArray<>& batch_hypernodes = _contained_hypernodes.local();
-      size_t current_batch_idx = 0;
-      while ( current_batch_idx < batch.size() ) {
-        batch_hypernodes.reset();
-        _batch_hyperedges.reset();
-        batch_queues.emplace_back();
-        for ( ; current_batch_idx < batch.size(); ++current_batch_idx ) {
-          _incident_nets_of_v.reset();
-          const Memento& current_memento = batch[current_batch_idx];
-          bool found_conflict = false;
+        next_batch.push_back(current_memento);
+        refinement_nodes.push_back(current_memento.u);
+        refinement_nodes.push_back(current_memento.v);
 
-          const HypernodeID original_u_id = _hg.originalNodeID(current_memento.u);
-          const HypernodeID original_v_id = _hg.originalNodeID(current_memento.v);
-          if ( batch_hypernodes[original_u_id] || batch_hypernodes[original_v_id] ) {
-            found_conflict = true;
-            break;
-          }
-          batch_hypernodes.set(original_u_id, true);
-          batch_hypernodes.set(original_v_id, true);
-
-          ASSERT(!_hg.nodeIsEnabled(current_memento.v));
-          _hg.enableHypernode(current_memento.v);
-          for ( const HyperedgeID& he : _hg.incidentEdges(current_memento.v) ) {
-            const HyperedgeID original_id = _hg.originalEdgeID(he);
-            if ( _batch_hyperedges[original_id] ) {
-              found_conflict = true;
-              break;
-            }
-            _incident_nets_of_v.set(original_id, true);
-            _batch_hyperedges.set(original_id, true);
-          }
-          _hg.disableHypernode(current_memento.v);
-
-          if ( found_conflict ) {
-            break;
-          }
-
-          ASSERT(_hg.nodeIsEnabled(current_memento.u));
-          for ( const HyperedgeID& he : _hg.incidentEdges(current_memento.u) ) {
-            const HyperedgeID original_id = _hg.originalEdgeID(he);
-            if ( !_incident_nets_of_v[original_id] && _batch_hyperedges[original_id] ) {
-              found_conflict = true;
-              break;
-            }
-            _batch_hyperedges.set(original_id, true);
-          }
-
-          if ( found_conflict ) {
-            break;
-          }
-
-          batch_queues.back().push(batch[current_batch_idx]);
-          refinement_nodes.push_back(current_memento.u);
-          refinement_nodes.push_back(current_memento.v);
-          switch_batch_queue();
-        }
-        ++valid_batch_queues;
-        switch_batch_queue();
+        PartitionID community_id = _hg.communityID(current_memento.u);
+        _pruner[community_id].restoreSingleNodeHyperedges(_hg, current_memento);
       }
-      terminated = true;
-      while ( current_batch_queue < valid_batch_queues ) {
-        switch_batch_queue();
-      }
-    }, [&] {
-      // Worker Thread
-      ASSERT(_context.shared_memory.num_threads > 1);
-      size_t num_threads = _context.shared_memory.num_threads - 1;
-      _batch_arena.execute([&] {
-        for ( size_t i = 0; i < num_threads; ++i ) {
-          _batch_group.run([&] {
 
-            Memento current_memento;
-            while ( !terminated || current_batch_queue < valid_batch_queues ) {
-
-              int64_t tmp_current_batch_queue = current_batch_queue.load();
-              if ( tmp_current_batch_queue >= 0 &&
-                   tmp_current_batch_queue < valid_batch_queues &&
-                   batch_queues[tmp_current_batch_queue].try_pop(current_memento) ) {
-                // Uncontract
-                uncontract(current_memento);
-                ++num_processed;
-              }
-
-            }
-
-          });
-        }
-      });
-      _batch_arena.execute([&] { _batch_group.wait(); });
-    });
+      _hg.uncontract(next_batch, batch_hypernodes);
+    }
   }
 
   void uncontract(const Memento& memento) {
-    PartitionID community_id = _hg.communityID(memento.u);
+    // PartitionID community_id = _hg.communityID(memento.u);
     DBG << "Uncontracting: (" << memento.u << "," << memento.v << ")";
-    _pruner[community_id].restoreParallelHyperedges(_hg, memento);
-    _pruner[community_id].restoreSingleNodeHyperedges(_hg, memento);
+    // _pruner[community_id].restoreParallelHyperedges(_hg, memento);
+    // _pruner[community_id].restoreSingleNodeHyperedges(_hg, memento);
     _hg.uncontract(memento, _parallel_he_representative);
   }
 
@@ -455,8 +364,6 @@ class CommunityCoarsenerBase {
   const Context& _context;
   bool _init;
   ThreadLocalFastResetFlagArray _contained_hypernodes;
-  kahypar::ds::FastResetFlagArray<> _batch_hyperedges;
-  kahypar::ds::FastResetFlagArray<> _incident_nets_of_v;
   tbb::task_arena _batch_arena;
   tbb::task_group _batch_group;
   parallel::scalable_vector<HyperedgeID> _parallel_he_representative;

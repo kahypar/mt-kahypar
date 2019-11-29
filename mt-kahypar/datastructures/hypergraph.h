@@ -1215,6 +1215,48 @@ class Hypergraph {
                             V(memento.v) << V(numIncidentCutHyperedges(memento.v)) << V(numIncidentCutHEs(memento.v)));
   }
 
+  void uncontract(const std::vector<Memento>& batch,
+                  const kahypar::ds::FastResetFlagArray<>& batch_hypernodes) {
+
+    tbb::parallel_for(0UL, batch.size(), [&](const size_t i) {
+      const Memento& memento = batch[i];
+      ASSERT(nodeIsEnabled(memento.u), "Hypernode" << memento.u << "is disabled");
+      ASSERT(!nodeIsEnabled(memento.v), "Hypernode" << memento.v << "is not invalid");
+
+      DBG << "uncontracting (" << memento.u << "," << memento.v << ")";
+      reverseContraction(memento);
+      markAllIncidentNetsOf(memento.v);
+
+      auto& incident_hes_of_u = hypergraph_of_vertex(memento.u).incident_nets(memento.u);
+      size_t incident_hes_start = hypergraph_of_vertex(memento.u).hypernode(memento.u).invalidIncidentNets();
+      // ASSERT(incident_hes_start == 0, V(incident_hes_start));
+      size_t incident_hes_end = incident_hes_of_u.size();
+      for (size_t incident_hes_it = incident_hes_start; incident_hes_it != incident_hes_end; ++incident_hes_it) {
+        const HyperedgeID he = incident_hes_of_u[incident_hes_it];
+        if (hypergraph_of_edge(he).uncontract(
+          memento.u, memento.v, he, incident_hes_it, _hypergraphs, batch_hypernodes)) {
+          --incident_hes_it;
+          --incident_hes_end;
+        }
+      }
+
+      setNodeWeight(memento.u, nodeWeight(memento.u) - nodeWeight(memento.v));
+    });
+
+    tbb::parallel_for(0UL, batch.size(), [&](const size_t i) {
+      const Memento& memento = batch[i];
+      markAllIncidentNetsOf(memento.v);
+      auto& incident_hes_of_u = hypergraph_of_vertex(memento.u).incident_nets(memento.u);
+      size_t incident_hes_start = hypergraph_of_vertex(memento.u).hypernode(memento.u).invalidIncidentNets();
+      // ASSERT(incident_hes_start == 0, V(incident_hes_start));
+      size_t incident_hes_end = incident_hes_of_u.size();
+      for (size_t incident_hes_it = incident_hes_start; incident_hes_it != incident_hes_end; ++incident_hes_it) {
+        const HyperedgeID he = incident_hes_of_u[incident_hes_it];
+        hypergraph_of_edge(he).postprocessUncontraction(he, _hypergraphs, batch_hypernodes);
+      }
+    });
+  }
+
   // ####################### Remove / Restore Hyperedges #######################
 
   /*!
