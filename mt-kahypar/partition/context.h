@@ -99,13 +99,17 @@ inline std::ostream & operator<< (std::ostream& str, const CommunityRedistributi
 }
 
 struct PreprocessingParameters {
+  bool use_community_structure_from_file = false;
   CommunityDetectionParameters community_detection = { };
   CommunityRedistributionParameters community_redistribution = { };
 };
 
 inline std::ostream & operator<< (std::ostream& str, const PreprocessingParameters& params) {
   str << "Preprocessing Parameters:" << std::endl;
-  str << std::endl << params.community_detection;
+  str << "  Use Community Structure from File:  " << std::boolalpha  << params.use_community_structure_from_file << std::endl;
+  if ( !params.use_community_structure_from_file ) {
+    str << std::endl << params.community_detection;
+  }
   str << std::endl << params.community_redistribution;
   return str;
 }

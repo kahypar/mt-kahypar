@@ -52,6 +52,7 @@ static inline void serialize(const Hypergraph& hypergraph,
         << " perfect_balanced_part_weight=" << context.partition.perfect_balance_part_weights[0]
         << " max_part_weight=" << context.partition.max_part_weights[0]
         << " total_graph_weight=" << hypergraph.totalWeight()
+        << " use_community_structure_from_file=" << std::boolalpha << context.preprocessing.use_community_structure_from_file
         << " community_load_balancing_strategy=" << context.preprocessing.community_detection.load_balancing_strategy
         << " community_size_constraint_factor=" << context.preprocessing.community_detection.size_constraint_factor
         << " louvain_edge_weight_function=" << context.preprocessing.community_detection.edge_weight_function
@@ -93,6 +94,14 @@ static inline void serialize(const Hypergraph& hypergraph,
         << " absorption=" << metrics::absorption(hypergraph)
         << " imbalance=" << metrics::imbalance(hypergraph, context)
         << " totalPartitionTime=" << elapsed_seconds.count();
+
+    // Part Weights and Sizes
+    for ( PartitionID i = 0; i < context.partition.k; ++i ) {
+      oss << " partSize" << i << "=" << hypergraph.partSize(i);
+    }
+    for ( PartitionID i = 0; i < context.partition.k; ++i ) {
+      oss << " partWeight" << i << "=" << hypergraph.partWeight(i);
+    }
 
     // Timings
     utils::Timer::instance(context.partition.detailed_timings).serialize(oss);
