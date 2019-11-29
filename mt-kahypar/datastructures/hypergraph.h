@@ -1229,7 +1229,6 @@ class Hypergraph {
 
       auto& incident_hes_of_u = hypergraph_of_vertex(memento.u).incident_nets(memento.u);
       size_t incident_hes_start = hypergraph_of_vertex(memento.u).hypernode(memento.u).invalidIncidentNets();
-      // ASSERT(incident_hes_start == 0, V(incident_hes_start));
       size_t incident_hes_end = incident_hes_of_u.size();
       for (size_t incident_hes_it = incident_hes_start; incident_hes_it != incident_hes_end; ++incident_hes_it) {
         const HyperedgeID he = incident_hes_of_u[incident_hes_it];
@@ -1240,6 +1239,18 @@ class Hypergraph {
         }
       }
 
+    // Remove all previously enabled parallel hyperedges from invalid part of incident nets of v
+    StreamingHypergraph& hypergraph_of_v = hypergraph_of_vertex(memento.v);
+    auto& incident_hes_of_v = hypergraph_of_v.incident_nets(memento.v);
+    incident_hes_start = hypergraph_of_v.hypernode(memento.v).invalidIncidentNets();
+    for (size_t incident_hes_it = 0; incident_hes_it != incident_hes_start; ++incident_hes_it) {
+      const HyperedgeID he = incident_hes_of_v[incident_hes_it];
+      if (edgeIsEnabled(he)) {
+        std::swap(incident_hes_of_v[incident_hes_it--], incident_hes_of_v[--incident_hes_start]);
+        hypergraph_of_v.hypernode(memento.v).decrementInvalidIncidentNets();
+      }
+    }
+
       setNodeWeight(memento.u, nodeWeight(memento.u) - nodeWeight(memento.v));
     });
 
@@ -1248,7 +1259,6 @@ class Hypergraph {
       markAllIncidentNetsOf(memento.v);
       auto& incident_hes_of_u = hypergraph_of_vertex(memento.u).incident_nets(memento.u);
       size_t incident_hes_start = hypergraph_of_vertex(memento.u).hypernode(memento.u).invalidIncidentNets();
-      // ASSERT(incident_hes_start == 0, V(incident_hes_start));
       size_t incident_hes_end = incident_hes_of_u.size();
       for (size_t incident_hes_it = incident_hes_start; incident_hes_it != incident_hes_end; ++incident_hes_it) {
         const HyperedgeID he = incident_hes_of_u[incident_hes_it];
