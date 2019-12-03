@@ -1141,12 +1141,6 @@ class Hypergraph {
     ASSERT(batch.size() > 0);
     HEAVY_REFINEMENT_ASSERT(batch_uncontraction_precondition_assertions(batch, batch_hypernodes));
 
-    // 1. PHASE
-    // In contrast to the sequential uncontraction version, we only handle
-    // uncontraction case 2 here (if u was not part of hyperedge, but v).
-    // In that case, we have to replace u by v in the corresponding hyperedge.
-    // This is thread-safe as long as the batch fullfils the preconditions
-    // verified above.
     tbb::parallel_for(0UL, batch.size(), [&](const size_t i) {
       const Memento& memento = batch[i];
       DBG << "uncontracting (" << memento.u << "," << memento.v << ")";
@@ -1159,21 +1153,6 @@ class Hypergraph {
       // Remove all previously enabled parallel hyperedges from
       // invalid part of incident nets of v
       postprocessMemento(memento);
-    });
-
-    // 2. PHASE
-    // In the second phase, we handle uncontraction case 1
-    // (if u and v were part of the hyperedge before). Since, we already
-    // handled case 2 in the first phase, we just have to increment the
-    // size of each hyperedge such that all contraction partners of the
-    // batch are in the valid part of an hyperedge.
-    tbb::parallel_for(0UL, batch.size(), [&](const size_t i) {
-      const Memento& memento = batch[i];
-      markAllIncidentNetsOf(memento.v);
-      for (const HyperedgeID& he : incidentEdges(memento.u)) {
-        hypergraph_of_edge(he).incrementHyperedgeSizesAfterBatchUncontraction(
-          he, _hypergraphs, batch_hypernodes);
-      }
     });
 
     // Verify postconditions for batch uncontractions
@@ -1687,11 +1666,11 @@ class Hypergraph {
           UncontractionCase case_rep = is_batch_uncontraction ?
             hypergraph_of_rep.get_uncontraction_case(representative, edge_size, memento.v, _hypergraphs, *batch_hypernodes) :
             hypergraph_of_rep.get_uncontraction_case(representative, edge_size, memento.v);
-          bool is_case_1_rep = case_rep == UncontractionCase::CASE_1;
+          bool is_case_1_rep = case_rep != UncontractionCase::CASE_2;
           UncontractionCase case_he = is_batch_uncontraction ?
             hypergraph_of_rep.get_uncontraction_case(he, edge_size, memento.v, _hypergraphs, *batch_hypernodes) :
             hypergraph_of_rep.get_uncontraction_case(he, edge_size, memento.v);
-          bool is_case_1_he = case_he == UncontractionCase::CASE_1;
+          bool is_case_1_he = case_he != UncontractionCase::CASE_2;
 
           // In case, the contraction partner v contains either the disabled hyperedge or
           // the representative (but not both), than both become non parallel afterwards.

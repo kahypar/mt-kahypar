@@ -663,7 +663,9 @@ class StreamingHypergraph {
  public:
   enum class UncontractionCase : uint8_t {
     CASE_1 = 0,
-    CASE_2 = 1
+    CASE_1_FORWARD = 1,
+    CASE_1_BACKWARD = 2,
+    CASE_2 = 3
   };
 
   /*!
@@ -1309,17 +1311,18 @@ class StreamingHypergraph {
       UncontractionCase uncontraction_case = is_batch_uncontraction ?
         get_uncontraction_case(e, hyperedge(e).size(), v, hypergraphs, *batch_hypernodes) :
         get_uncontraction_case(e, hyperedge(e).size(), v);
-      if (uncontraction_case == UncontractionCase::CASE_1) {
+      if (uncontraction_case != UncontractionCase::CASE_2) {
         // hyperedge(he + 1) always exists because of sentinel
         // Undo case 1 operation (i.e. Pin v was just cut off by decreasing size of HE e)
         DBG << V(e) << " -> case 1";
-        if ( !is_batch_uncontraction ) {
-          // In case, we perform batch uncontractions in parallel other uncontractions that
-          // are executed in parallel rely on the assumption that the size of an edge is the
-          // same as before the batch is uncontracted. The size of all hyperedges is adapted
-          // in a batch uncontraction postprocessing step (also in parallel).
+
+        if ( uncontraction_case == UncontractionCase::CASE_1 ) {
           hyperedge(e).incrementSize();
+        } else if ( uncontraction_case == UncontractionCase::CASE_1_FORWARD ) {
+          ASSERT(is_batch_uncontraction);
+          incrementHyperedgeSizeDuringBatchUncontraction(e, hypergraphs, *batch_hypernodes);
         }
+
         incrementPinCountInPart(e, hypergraph_of_vertex(v, hypergraphs).partID(v));
 
         if (connectivity(e) > 1) {
@@ -1354,36 +1357,6 @@ class StreamingHypergraph {
     return false;
   }
 
-  /*!
-   * Batch uncontraction postprocessing step.
-   *
-   * Since, the sizes of the hyperedges are not incremented during batch
-   * uncontraction mode, we perform that after batch uncontractions also
-   * parallel by calling this function for each hyperedge adjacent to a
-   * contraction partner.
-   * The new size of the hyperedge will be its current size plus the number
-   * of vertices in the invalid part of the hyperedge contained in the batch.
-   */
-  void incrementHyperedgeSizesAfterBatchUncontraction(const HyperedgeID e,
-                                                      const std::vector<Self>& hypergraphs,
-                                                      const kahypar::ds::FastResetFlagArray<>& batch_hypernodes) {
-    ASSERT(!hyperedge(e).isDisabled(), "Hyperedge" << e << "is disabled");
-    if (containsIncidentNet(e)) {
-      size_t incidence_array_start = hyperedge(e).firstEntry();
-      size_t tmp_size = hyperedge(e).size();
-      for ( ; incidence_array_start + tmp_size < hyperedge(e + 1).firstEntry(); ++tmp_size ) {
-        const size_t pos = incidence_array_start + tmp_size;
-        const HypernodeID pin = _incidence_array[pos];
-        const HypernodeID original_id = hypergraph_of_vertex(pin, hypergraphs).originalNodeId(pin);
-        if ( !batch_hypernodes[original_id] ) {
-          break;
-        }
-      }
-      // Note, since batch_hypernodes is constant within a batch uncontraction, several threads
-      // that adapt the size of that hyperedge concurrently should compute the same tmp_size.
-      hyperedge(e).setSize(tmp_size);
-    }
-  }
 
   #ifndef NDEBUG
   /*!
@@ -2022,6 +1995,28 @@ class StreamingHypergraph {
 
   // ####################### Contract / Uncontract #######################
 
+  // ! Increments the size of an hyperedge to its final size after the batch uncontraction
+  void incrementHyperedgeSizeDuringBatchUncontraction(const HyperedgeID e,
+                                                      const std::vector<Self>& hypergraphs,
+                                                      const kahypar::ds::FastResetFlagArray<>& batch_hypernodes) {
+    ASSERT(!hyperedge(e).isDisabled(), "Hyperedge" << e << "is disabled");
+    if (containsIncidentNet(e)) {
+      size_t incidence_array_start = hyperedge(e).firstEntry();
+      size_t tmp_size = hyperedge(e).size();
+      for ( ; incidence_array_start + tmp_size < hyperedge(e + 1).firstEntry(); ++tmp_size ) {
+        const size_t pos = incidence_array_start + tmp_size;
+        const HypernodeID pin = _incidence_array[pos];
+        const HypernodeID original_id = hypergraph_of_vertex(pin, hypergraphs).originalNodeId(pin);
+        if ( !batch_hypernodes[original_id] ) {
+          break;
+        }
+      }
+      // Note, since batch_hypernodes is constant within a batch uncontraction, several threads
+      // that adapt the size of that hyperedge concurrently should compute the same tmp_size.
+      hyperedge(e).setSize(tmp_size);
+    }
+  }
+
   // ! Connect hyperedge e to representative hypernode u.
   KAHYPAR_ATTRIBUTE_ALWAYS_INLINE void connectHyperedgeToRepresentative(const HyperedgeID e,
                                                                         const HypernodeID u,
@@ -2185,17 +2180,45 @@ class StreamingHypergraph {
                                                                            const HypernodeID v,
                                                                            const std::vector<Self>& hypergraphs,
                                                                            const kahypar::ds::FastResetFlagArray<>& batch_hypernodes) const {
-    size_t invalid_part_start = hyperedge(he).firstEntry() + size;
-    size_t incidence_array_end = hyperedge(he + 1).firstEntry();
-    for ( size_t pos = invalid_part_start; pos < incidence_array_end; ++pos ) {
-      const HypernodeID pin = _incidence_array[pos];
-      const HypernodeID original_id = hypergraph_of_vertex(pin, hypergraphs).originalNodeId(pin);
-      if ( !batch_hypernodes[original_id] ) {
-        return UncontractionCase::CASE_2;
-      } else if ( pin == v ) {
-        return UncontractionCase::CASE_1;
+    ASSERT(size > 0);
+    const int64_t incidence_array_start = hyperedge(he).firstEntry();
+    const int64_t invalid_part_start = incidence_array_start + size;
+    const int64_t incidence_array_end = hyperedge(he + 1).firstEntry();
+    bool is_forward = invalid_part_start < incidence_array_end &&
+      // Checks wheter the first vertex in the invalid part is part of the batch or not
+      batch_hypernodes[hypergraph_of_vertex(_incidence_array[invalid_part_start],
+      hypergraphs).originalNodeId(_incidence_array[invalid_part_start])];
+
+    if ( is_forward ) {
+      // In that case, the size of the hyperedge is the same as before the batch
+      // uncontraction.
+      for ( int64_t pos = invalid_part_start; pos < incidence_array_end; ++pos ) {
+        const HypernodeID pin = _incidence_array[pos];
+        const HypernodeID original_id = hypergraph_of_vertex(pin, hypergraphs).originalNodeId(pin);
+        if ( !batch_hypernodes[original_id] ) {
+          return UncontractionCase::CASE_2;
+        } else if ( pin == v ) {
+          // Indicates that the batch uncontraction function can adapt the size
+          // of the hyperedge to its final size after the batch uncontraction
+          return UncontractionCase::CASE_1_FORWARD;
+        }
+      }
+    } else {
+      // In that case, the size of the hyperedge is already increased to its size after
+      // the batch uncontraction (by an other thread processing the same hyperedge).
+      // In that case, we have to look backward from the current size of the hyperedge
+      // to decide if we are in uncontraction case 1 or 2.
+      for ( int64_t pos = invalid_part_start - 1; pos >= incidence_array_start; --pos ) {
+        const HypernodeID pin = _incidence_array[pos];
+        const HypernodeID original_id = hypergraph_of_vertex(pin, hypergraphs).originalNodeId(pin);
+        if ( !batch_hypernodes[original_id] ) {
+          return UncontractionCase::CASE_2;
+        } else if ( pin == v ) {
+          return UncontractionCase::CASE_1_BACKWARD;
+        }
       }
     }
+
     return UncontractionCase::CASE_2;
   }
 
