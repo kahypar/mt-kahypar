@@ -247,22 +247,18 @@ class StreamingHypergraph {
     }
 
     size_t invalidCommunityNets() const {
-      ASSERT(!isDisabled());
       return _invalid_community_nets;
     }
 
     void setInvalidCommunityNets(const size_t invalid_community_nets) {
-      ASSERT(!isDisabled());
       _invalid_community_nets = invalid_community_nets;
     }
 
     void incrementInvalidCommunityNets() {
-      ASSERT(!isDisabled());
       ++_invalid_community_nets;
     }
 
     void decrementInvalidCommunityNets() {
-      ASSERT(!isDisabled());
       --_invalid_community_nets;
     }
 
@@ -1296,70 +1292,34 @@ class StreamingHypergraph {
   /*!
   * Undoes a contraction operation (u,v) inside hyperedge e.
   *
-  * NOTE, this function is not thread-safe and should only be called in a single-threaded
-  * setting.
+  * NOTE, this function is only thread-safe, if we are in batch uncontraction mode
+  * and the batch fullfils the requirement decribed in the batch uncontractions
+  * function of hypergraph.h
   */
   bool uncontract(const HypernodeID u, const HypernodeID v,
                   const HyperedgeID e, const size_t incident_nets_pos,
-                  std::vector<Self>& hypergraphs) {
-    using std::swap;
-
-    ASSERT(!hyperedge(e).isDisabled(), "Hyperedge" << e << "is disabled");
-    if (containsIncidentNet(e)) {
-      // ... then we have to do some kind of restore operation.
-      if (get_uncontraction_case(e, hyperedge(e).size(), v) == UncontractionCase::CASE_1) {
-        // hyperedge(he + 1) always exists because of sentinel
-        // Undo case 1 operation (i.e. Pin v was just cut off by decreasing size of HE e)
-        DBG << V(e) << " -> case 1";
-        hyperedge(e).incrementSize();
-        incrementPinCountInPart(e, hypergraph_of_vertex(v, hypergraphs).partID(v));
-
-        if (connectivity(e) > 1) {
-          hypergraph_of_vertex(v, hypergraphs).incrementIncidentNumCutHyperedges(v);
-        }
-
-        return false;
-      } else {
-        // Undo case 2 opeations (i.e. Entry of pin v in HE e was reused to store connection to u):
-        // Set incidence entry containing u for this HE e back to v, because this slot was used
-        // to store the new edge to representative u during contraction as u was not a pin of e.
-        DBG << V(e) << " -> case 2";
-        Self& hypergraph_of_u = hypergraph_of_vertex(u, hypergraphs);
-        ASSERT(e == hypergraph_of_u.incident_nets(u)[incident_nets_pos]);
-
-        size_t incident_nets_end = hypergraph_of_u.incident_nets(u).size();
-        swap(hypergraph_of_u.incident_nets(u)[incident_nets_pos],
-             hypergraph_of_u.incident_nets(u)[incident_nets_end - 1]);
-        hypergraph_of_u.incident_nets(u).pop_back();
-
-        DBG << "resetting reused Pinslot of HE" << e << "from" << u << "to" << v;
-        resetReusedPinSlotToOriginalValue(e, u, v);
-
-        if (connectivity(e) > 1) {
-          hypergraph_of_vertex(u, hypergraphs).decrementIncidentNumCutHyperedges(u);
-          hypergraph_of_vertex(v, hypergraphs).incrementIncidentNumCutHyperedges(v);
-        }
-
-        return true;
-      }
-    }
-    return false;
-  }
-
-  bool uncontract(const HypernodeID u, const HypernodeID v,
-                  const HyperedgeID e, const size_t incident_nets_pos,
                   std::vector<Self>& hypergraphs,
-                  const kahypar::ds::FastResetFlagArray<>& batch_hypernodes ) {
+                  const kahypar::ds::FastResetFlagArray<>* batch_hypernodes = nullptr) {
     using std::swap;
 
+    bool is_batch_uncontraction = batch_hypernodes != nullptr;
     ASSERT(!hyperedge(e).isDisabled(), "Hyperedge" << e << "is disabled");
     if (containsIncidentNet(e)) {
       // ... then we have to do some kind of restore operation.
-      if (get_uncontraction_case(e, hyperedge(e).size(), v,
-            hypergraphs, batch_hypernodes) == UncontractionCase::CASE_1) {
+      UncontractionCase uncontraction_case = is_batch_uncontraction ?
+        get_uncontraction_case(e, hyperedge(e).size(), v, hypergraphs, *batch_hypernodes) :
+        get_uncontraction_case(e, hyperedge(e).size(), v);
+      if (uncontraction_case == UncontractionCase::CASE_1) {
         // hyperedge(he + 1) always exists because of sentinel
         // Undo case 1 operation (i.e. Pin v was just cut off by decreasing size of HE e)
         DBG << V(e) << " -> case 1";
+        if ( !is_batch_uncontraction ) {
+          // In case, we perform batch uncontractions in parallel other uncontractions that
+          // are executed in parallel rely on the assumption that the size of an edge is the
+          // same as before the batch is uncontracted. The size of all hyperedges is adapted
+          // in a batch uncontraction postprocessing step (also in parallel).
+          hyperedge(e).incrementSize();
+        }
         incrementPinCountInPart(e, hypergraph_of_vertex(v, hypergraphs).partID(v));
 
         if (connectivity(e) > 1) {
@@ -1394,9 +1354,19 @@ class StreamingHypergraph {
     return false;
   }
 
-  void postprocessUncontraction( const HyperedgeID e,
-                                 const std::vector<Self>& hypergraphs,
-                                 const kahypar::ds::FastResetFlagArray<>& batch_hypernodes ) {
+  /*!
+   * Batch uncontraction postprocessing step.
+   *
+   * Since, the sizes of the hyperedges are not incremented during batch
+   * uncontraction mode, we perform that after batch uncontractions also
+   * parallel by calling this function for each hyperedge adjacent to a
+   * contraction partner.
+   * The new size of the hyperedge will be its current size plus the number
+   * of vertices in the invalid part of the hyperedge contained in the batch.
+   */
+  void incrementHyperedgeSizesAfterBatchUncontraction(const HyperedgeID e,
+                                                      const std::vector<Self>& hypergraphs,
+                                                      const kahypar::ds::FastResetFlagArray<>& batch_hypernodes) {
     ASSERT(!hyperedge(e).isDisabled(), "Hyperedge" << e << "is disabled");
     if (containsIncidentNet(e)) {
       size_t incidence_array_start = hyperedge(e).firstEntry();
@@ -1409,6 +1379,8 @@ class StreamingHypergraph {
           break;
         }
       }
+      // Note, since batch_hypernodes is constant within a batch uncontraction, several threads
+      // that adapt the size of that hyperedge concurrently should compute the same tmp_size.
       hyperedge(e).setSize(tmp_size);
     }
   }
@@ -1430,12 +1402,14 @@ class StreamingHypergraph {
   bool uncontract(const HypernodeID u, const HypernodeID v,
                   const HyperedgeID e, const HyperedgeID representative,
                   const size_t incident_nets_pos,
-                  std::vector<Self>& hypergraphs) {
+                  std::vector<Self>& hypergraphs,
+                  const kahypar::ds::FastResetFlagArray<>* batch_hypernodes = nullptr) {
     using std::swap;
     ASSERT(hyperedge(e).isDisabled(), "Hyperedge" << e << "is enabled");
     const Self& hypergraph_of_rep = hypergraph_of_hyperedge(representative, hypergraphs);
     ASSERT(hypergraph_of_rep.edgeIsEnabled(representative), "Hyperedge" << representative << "is disabled");
 
+    bool is_batch_uncontraction = batch_hypernodes != nullptr;
     if (containsIncidentNet(e)) {
       ASSERT(hypergraph_of_rep.edgeSize(representative) <=
              hyperedge(e + 1).firstEntry() - hyperedge(e).firstEntry(),
@@ -1443,7 +1417,10 @@ class StreamingHypergraph {
              << V((hyperedge(e + 1).firstEntry() - hyperedge(e).firstEntry())));
 
       size_t edge_size = hypergraph_of_rep.edgeSize(representative);
-      if (get_uncontraction_case(e, edge_size, v) == UncontractionCase::CASE_2) {
+      UncontractionCase uncontraction_case = is_batch_uncontraction ?
+        get_uncontraction_case(e, edge_size, v, hypergraphs, *batch_hypernodes) :
+        get_uncontraction_case(e, edge_size, v);
+      if (uncontraction_case == UncontractionCase::CASE_2) {
         // Undo case 2 opeations (i.e. Entry of pin v in HE e was reused to store connection to u):
         // Set incidence entry containing u for this HE e back to v, because this slot was used
         // to store the new edge to representative u during contraction as u was not a pin of e.
@@ -1892,31 +1869,12 @@ class StreamingHypergraph {
    *
    * @params history contraction history
    */
-  void removeCommunityHyperedges(const std::vector<Memento>& mementos,
-                                 const HypernodeID num_hypernodes,
+  void removeCommunityHyperedges(const std::vector<HypernodeID>& contraction_index,
                                  const std::vector<Self>& hypergraphs) {
-    // All disabled hypernodes have to follow a specific order in invalid part of the incidence array
-    // such that they can be successfully uncontracted. They have be sorted in decreasing order of their
-    // contraction. In order to realize this we compute the contraction index of a hypernode inside the
-    // contraction history and use it later for sorting them.
-    parallel::scalable_vector<HypernodeID> contraction_index(num_hypernodes, std::numeric_limits<HypernodeID>::max());
-    tbb::task_group group;
-    _arena.execute([&] {
-          group.run([&] {
-            tbb::parallel_for(0UL, mementos.size(), [&](const size_t& i) {
-              const HypernodeID v = mementos[i].v;
-              ASSERT(hypergraph_of_vertex(v, hypergraphs).originalNodeId(v) < num_hypernodes);
-              ASSERT(contraction_index[hypergraph_of_vertex(v, hypergraphs).originalNodeId(v)] == std::numeric_limits<HypernodeID>::max(),
-                      "Hypernode" << v << "occurs more than once as contraction partner in hierarchy");
-              contraction_index[hypergraph_of_vertex(v, hypergraphs).originalNodeId(v)] = i;
-            });
-          });
-        });
-    group.wait();
-
     // The incidence array of a hyperedge is constructed as follows: The first part consists
     // of all enabled pins and the remainder of all invalid pins. The invalid pins in the
     // remainder are sorted in decreasing order of their contraction index.
+    tbb::task_group group;
     _arena.execute([&] {
           group.run([&] {
             tbb::parallel_for(0UL, _num_hyperedges, [&](const HyperedgeID& he) {
@@ -2130,7 +2088,15 @@ class StreamingHypergraph {
         break;
       }
     }
-    ASSERT(slot_of_u != pins_end, "Hypernode" << u << "not found in hyperedge" << he);
+
+    ASSERT( [&] {
+      if ( slot_of_u == pins_end ) {
+        LOG << V(pins_start) << V(pins_end) << V(slot_of_u);
+        printHyperedgeInfo(he);
+        return false;
+      }
+      return true;
+    }(), "Hypernode" << u << "not found in hyperedge" << he);
     ASSERT(_incidence_array[slot_of_u] == u, "Hypernode" << u << "not found in hyperedge" << he);
     _incidence_array[slot_of_u] = v;
   }
@@ -2158,7 +2124,15 @@ class StreamingHypergraph {
       }
     }
 
-    ASSERT(slot_of_u != pins_end, "Hypernode" << u << "not found in hyperedge" << he);
+    ASSERT( [&] {
+      if ( slot_of_u == pins_end ) {
+        LOG << V(size) << V(pins_start)
+            << V(pins_end) << V(slot_of_u);
+        printHyperedgeInfo(he);
+        return false;
+      }
+      return true;
+    }(), "Hypernode" << u << "not found in hyperedge" << he);
     ASSERT(_incidence_array[slot_of_u] == u, "Hypernode" << u << "not found in hyperedge" << he);
     _incidence_array[slot_of_u] = v;
   }
@@ -2192,6 +2166,7 @@ class StreamingHypergraph {
     return local_incident_nets_of_v[local_id];
   }
 
+  // ! Returns the uncontraction case, if we are in sequential uncontraction mode
   KAHYPAR_ATTRIBUTE_ALWAYS_INLINE UncontractionCase get_uncontraction_case(const HyperedgeID he,
                                                                            const size_t size,
                                                                            const HypernodeID v) const {
@@ -2204,6 +2179,7 @@ class StreamingHypergraph {
     }
   }
 
+  // ! Returns the uncontraction case, if we are in batch uncontraction mode
   KAHYPAR_ATTRIBUTE_ALWAYS_INLINE UncontractionCase get_uncontraction_case(const HyperedgeID he,
                                                                            const size_t size,
                                                                            const HypernodeID v,
@@ -2317,11 +2293,28 @@ class StreamingHypergraph {
   // ! Inserts hyperedge he to incident nets array of vertex hn
   KAHYPAR_ATTRIBUTE_ALWAYS_INLINE void insertIncidentEdgeToHypernode(const HyperedgeID he,
                                                                      const HypernodeID hn) {
-    HEAVY_REFINEMENT_ASSERT(std::count(
-      incident_nets(hn).begin() + hypernode(hn).invalidIncidentNets(),
-      incident_nets(hn).end(), he) == 0,
-      "HN" << hn << "is already connected to HE" << he);
-    incident_nets(hn).push_back(he);
+    size_t invalid_incident_nets = hypernode(hn).invalidIncidentNets();
+    HEAVY_REFINEMENT_ASSERT(std::count(incident_nets(hn).begin() + invalid_incident_nets,
+                                       incident_nets(hn).end(), he) == 0,
+                            "HN" << hn << "is already connected to HE" << he);
+
+    auto& incident_nets_of_hn = incident_nets(hn);
+    size_t slot_of_he = invalid_incident_nets;
+    for (size_t pos = 0; pos < invalid_incident_nets; ++pos) {
+      if (incident_nets_of_hn[pos] == he) {
+        slot_of_he = pos;
+        break;
+      }
+    }
+
+    if (slot_of_he < invalid_incident_nets) {
+      ASSERT(incident_nets_of_hn[slot_of_he] == he);
+      std::swap(incident_nets_of_hn[slot_of_he],
+                incident_nets_of_hn[invalid_incident_nets - 1]);
+      hypernode(hn).decrementInvalidIncidentNets();
+    } else {
+      incident_nets_of_hn.push_back(he);
+    }
   }
 
   // ! Invalidates all disabled hyperedges of the incident nets array of hypernode v

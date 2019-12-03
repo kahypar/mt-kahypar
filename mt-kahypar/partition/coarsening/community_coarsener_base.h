@@ -90,7 +90,8 @@ class CommunityCoarsenerBase {
 
     // Reset community hyperedges
     utils::Timer::instance().start_timer("reset_community_hyperedges", "Reset Community Hyperedges");
-    _hg.removeCommunityHyperedges(_history);
+    _hg.buildContractionHierarchy(_history);
+    _hg.removeCommunityHyperedges();
     utils::Timer::instance().stop_timer("reset_community_hyperedges");
 
     utils::Timer::instance().start_timer("postprocess_parallel_hyperedges", "Postprocess Parallel Hyperedges");
@@ -107,7 +108,7 @@ class CommunityCoarsenerBase {
     DBG << "Contract: (" << u << "," << v << ")";
     _community_history[community_id].emplace_back(_hg.contract(u, v, community_id));
     _pruner[community_id].removeSingleNodeHyperedges(_hg, community_id, _community_history[community_id].back());
-    // _pruner[community_id].removeParallelHyperedges(_hg, community_id, _community_history[community_id].back());
+    _pruner[community_id].removeParallelHyperedges(_hg, community_id, _community_history[community_id].back());
   }
 
   bool doUncoarsen(std::unique_ptr<IRefiner>& label_propagation) {
@@ -199,6 +200,11 @@ class CommunityCoarsenerBase {
 
         const HypernodeID original_u_id = _hg.originalNodeID(current_memento.u);
         const HypernodeID original_v_id = _hg.originalNodeID(current_memento.v);
+        // A batch is defined as a sequence of mementos such that all representative
+        // nodes of the contraction are enabled and no representative occurs more
+        // than once in batch. This guarantess, that several uncontractions can
+        // run in parallel and work concurrently on the same hyperedges without
+        // conflicts.
         if ( !_hg.nodeIsEnabled(current_memento.u) ||
               batch_hypernodes[original_u_id] ) {
           break;
@@ -207,22 +213,40 @@ class CommunityCoarsenerBase {
         batch_hypernodes.set(original_v_id, true);
 
         next_batch.push_back(current_memento);
+        // NOTE, label propagation refiner relies on the assumption, that on the second position
+        // of the refinement_nodes vector always the contraction partner occurs. Do not change the
+        // order here.
         refinement_nodes.push_back(current_memento.u);
         refinement_nodes.push_back(current_memento.v);
-
-        PartitionID community_id = _hg.communityID(current_memento.u);
-        _pruner[community_id].restoreSingleNodeHyperedges(_hg, current_memento);
       }
 
-      _hg.uncontract(next_batch, batch_hypernodes);
+      // Batch uncontraction function of hypergraph requires that only the
+      // contraction partners of the hypernodes are marked in batch bit set.
+      for ( const Memento& memento : next_batch ) {
+        const HypernodeID original_u_id = _hg.originalNodeID(memento.u);
+        batch_hypernodes.set(original_u_id, false);
+      }
+
+      // Sequential preprocessing step for batch uncontractions
+      for ( const Memento& memento : next_batch ) {
+        PartitionID community_id = _hg.communityID(memento.u);
+        _pruner[community_id].restoreParallelHyperedges(_hg, memento, &batch_hypernodes);
+        _pruner[community_id].restoreSingleNodeHyperedges(_hg, memento);
+        // Operation reverses contraction and restores all parallel hyperedges that becomes
+        // non-parallel to its representative that are not detected by the hypergraph pruner
+        _hg.preprocessMementoForBatchUncontraction(memento, _parallel_he_representative, batch_hypernodes);
+      }
+
+      // Batch Uncontraction
+      _hg.uncontract(next_batch, _parallel_he_representative, batch_hypernodes);
     }
   }
 
   void uncontract(const Memento& memento) {
-    // PartitionID community_id = _hg.communityID(memento.u);
+    PartitionID community_id = _hg.communityID(memento.u);
     DBG << "Uncontracting: (" << memento.u << "," << memento.v << ")";
-    // _pruner[community_id].restoreParallelHyperedges(_hg, memento);
-    // _pruner[community_id].restoreSingleNodeHyperedges(_hg, memento);
+    _pruner[community_id].restoreParallelHyperedges(_hg, memento);
+    _pruner[community_id].restoreSingleNodeHyperedges(_hg, memento);
     _hg.uncontract(memento, _parallel_he_representative);
   }
 

@@ -71,20 +71,22 @@ class HypergraphPrunerT {
       DBG << "restore single-node HE "
           << _removed_single_node_hyperedges[i];
       hypergraph.restoreSinglePinHyperedge(_removed_single_node_hyperedges[i]);
-      // _removed_single_node_hyperedges.pop_back();
+      _removed_single_node_hyperedges.pop_back();
     }
   }
 
   void restoreParallelHyperedges(HyperGraph& hypergraph,
-                                 const Memento& memento) {
+                                 const Memento& memento,
+                                const kahypar::ds::FastResetFlagArray<>* batch_hypernodes = nullptr) {
     for (int i = memento.parallel_hes_begin + memento.parallel_hes_size - 1;
          i >= memento.parallel_hes_begin; --i) {
       ASSERT(i >= 0 && static_cast<size_t>(i) < _removed_parallel_hyperedges.size(),
              "Index out of bounds:" << i);
       const HyperedgeID restore_parallel_edge = _removed_parallel_hyperedges[i];
       DBG << "restore parallel HE" << restore_parallel_edge;
-      hypergraph.restoreParallelHyperedge(restore_parallel_edge, _parallel_he_representative);
-      // _removed_parallel_hyperedges.pop_back();
+      hypergraph.restoreParallelHyperedge(
+        restore_parallel_edge, memento, _parallel_he_representative, batch_hypernodes);
+      _removed_parallel_hyperedges.pop_back();
     }
   }
 

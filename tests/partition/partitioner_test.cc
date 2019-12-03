@@ -65,6 +65,10 @@ class APartitioner : public Test {
     context.initial_partitioning.runs = 1;
     context.initial_partitioning.context_file = "test_instances/fast_initial_partitioning.ini";
 
+    // Refinement
+    context.refinement.use_batch_uncontractions = true;
+    context.refinement.batch_size = 100;
+
     // Label Propagation
     context.refinement.label_propagation.algorithm = LabelPropagationAlgorithm::label_propagation_km1;
     context.refinement.label_propagation.execution_policy = ExecutionType::exponential;
