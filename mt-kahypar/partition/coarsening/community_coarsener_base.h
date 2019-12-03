@@ -42,6 +42,7 @@ class CommunityCoarsenerBase {
  private:
   using HyperGraph = typename TypeTraits::HyperGraph;
   using StreamingHyperGraph = typename TypeTraits::StreamingHyperGraph;
+  using TBB = typename TypeTraits::TBB;
 
   using Memento = typename StreamingHyperGraph::Memento;
   using HypergraphPruner = HypergraphPrunerT<TypeTraits>;
@@ -55,14 +56,18 @@ class CommunityCoarsenerBase {
     _context(context),
     _init(false),
     _contained_hypernodes(hypergraph.initialNumNodes()),
-    _batch_arena(std::max(_context.shared_memory.num_threads - 1, 1UL), 0),
-    _batch_group(),
+    _representative_hypernodes(hypergraph.initialNumNodes()),
+    _current_batch(),
     _parallel_he_representative(hypergraph.initialNumEdges(), kInvalidHyperedge),
     _pruner(),
     _community_history(_hg.numCommunities()),
     _history() {
     for (PartitionID community_id = 0; community_id < _hg.numCommunities(); ++community_id) {
       _pruner.emplace_back(_contained_hypernodes, _parallel_he_representative);
+    }
+
+    if (_context.refinement.use_batch_uncontractions) {
+      _current_batch.reserve(_context.refinement.batch_size);
     }
   }
 
@@ -150,12 +155,7 @@ class CommunityCoarsenerBase {
                             _context.shared_memory.num_threads > 1 ? _context.refinement.batch_size : 1;
     while (!_history.empty()) {
       // utils::Timer::instance().start_timer("uncontraction", "Uncontraction");
-        std::vector<Memento> batch;
-      while ( !_history.empty() && batch.size() < max_batch_size ) {
-        batch.emplace_back(_history.back());
-        _history.pop_back();
-      }
-      batchUncontraction(batch, refinement_nodes);
+      batchUncontraction(max_batch_size, refinement_nodes);
       _hg.updateGlobalPartInfos();
       // utils::Timer::instance().stop_timer("uncontraction");
 
@@ -177,58 +177,53 @@ class CommunityCoarsenerBase {
   }
 
  private:
-  void batchUncontraction(const std::vector<Memento>& batch,
+  void batchUncontraction(const size_t batch_size,
                           std::vector<HypernodeID>& refinement_nodes) {
-    ASSERT(!batch.empty());
-    if ( batch.size() == 1 ) {
-      uncontract(batch[0]);
+    ASSERT(batch_size > 0);
+    if ( batch_size == 1 ) {
+      uncontract(_history.back());
       // NOTE, label propagation refiner relies on the assumption, that on the second position
       // of the refinement_nodes vector always the contraction partner occurs. Do not change the
       // order here.
-      refinement_nodes.push_back(batch[0].u);
-      refinement_nodes.push_back(batch[0].v);
+      refinement_nodes.push_back(_history.back().u);
+      refinement_nodes.push_back(_history.back().v);
+      _history.pop_back();
       return;
     }
 
     kahypar::ds::FastResetFlagArray<>& batch_hypernodes = _contained_hypernodes.local();
     size_t current_batch_idx = 0;
-    while ( current_batch_idx < batch.size() ) {
+    while ( !_history.empty() && current_batch_idx < batch_size ) {
       batch_hypernodes.reset();
-      std::vector<Memento> next_batch;
-      for ( ; current_batch_idx < batch.size(); ++current_batch_idx ) {
-        const Memento& current_memento = batch[current_batch_idx];
+      _representative_hypernodes.reset();
+      _current_batch.clear();
+      for ( ; current_batch_idx < batch_size && !_history.empty(); ++current_batch_idx ) {
+        const Memento& current_memento = _history.back();
 
         const HypernodeID original_u_id = _hg.originalNodeID(current_memento.u);
         const HypernodeID original_v_id = _hg.originalNodeID(current_memento.v);
         // A batch is defined as a sequence of mementos such that all representative
-        // nodes of the contraction are enabled and no representative occurs more
+        // nodes of the contractions are enabled and no representative occurs more
         // than once in batch. This guarantess, that several uncontractions can
         // run in parallel and work concurrently on the same hyperedges without
         // conflicts.
-        if ( !_hg.nodeIsEnabled(current_memento.u) ||
-              batch_hypernodes[original_u_id] ) {
+        if ( !_hg.nodeIsEnabled(current_memento.u) || _representative_hypernodes[original_u_id] ) {
           break;
         }
-        batch_hypernodes.set(original_u_id, true);
+        _representative_hypernodes.set(original_u_id, true);
         batch_hypernodes.set(original_v_id, true);
 
-        next_batch.push_back(current_memento);
+        _current_batch.push_back(current_memento);
         // NOTE, label propagation refiner relies on the assumption, that on the second position
         // of the refinement_nodes vector always the contraction partner occurs. Do not change the
         // order here.
         refinement_nodes.push_back(current_memento.u);
         refinement_nodes.push_back(current_memento.v);
-      }
-
-      // Batch uncontraction function of hypergraph requires that only the
-      // contraction partners of the hypernodes are marked in batch bit set.
-      for ( const Memento& memento : next_batch ) {
-        const HypernodeID original_u_id = _hg.originalNodeID(memento.u);
-        batch_hypernodes.set(original_u_id, false);
+        _history.pop_back();
       }
 
       // Sequential preprocessing step for batch uncontractions
-      for ( const Memento& memento : next_batch ) {
+      for ( const Memento& memento : _current_batch ) {
         PartitionID community_id = _hg.communityID(memento.u);
         _pruner[community_id].restoreParallelHyperedges(_hg, memento, &batch_hypernodes);
         _pruner[community_id].restoreSingleNodeHyperedges(_hg, memento);
@@ -238,7 +233,7 @@ class CommunityCoarsenerBase {
       }
 
       // Batch Uncontraction
-      _hg.uncontract(next_batch, _parallel_he_representative, batch_hypernodes);
+      _hg.uncontract(_current_batch, _parallel_he_representative, batch_hypernodes);
     }
   }
 
@@ -388,8 +383,10 @@ class CommunityCoarsenerBase {
   const Context& _context;
   bool _init;
   ThreadLocalFastResetFlagArray _contained_hypernodes;
-  tbb::task_arena _batch_arena;
-  tbb::task_group _batch_group;
+
+  kahypar::ds::FastResetFlagArray<> _representative_hypernodes;
+  std::vector<Memento> _current_batch;
+
   parallel::scalable_vector<HyperedgeID> _parallel_he_representative;
   parallel::scalable_vector<HypergraphPruner> _pruner;
   parallel::scalable_vector<parallel::scalable_vector<Memento> > _community_history;
