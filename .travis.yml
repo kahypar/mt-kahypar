@@ -4,7 +4,7 @@ language: cpp
 
 # Ubuntu 14.04 Trusty support
 sudo: true
-dist: trusty
+dist: bionic
 
 matrix:
   include:
@@ -28,6 +28,8 @@ matrix:
             - libnuma-dev
             - libnuma1
             - hwloc
+            - libtbb-dev
+            - libtbb2
             - libhwloc-dev
 
     # gcc 6 - Release Build
@@ -61,6 +63,7 @@ install:
   - mkdir -p ${DEPS_DIR} && cd ${DEPS_DIR}
   - |
     if [[ "${TRAVIS_OS_NAME}" == "linux" ]]; then
+      # install cmake 3.13
       CMAKE_URL="https://cmake.org/files/v3.13/cmake-3.13.0-rc3-Linux-x86_64.tar.gz"
       mkdir cmake && travis_retry wget --no-check-certificate --quiet -O - ${CMAKE_URL} | tar --strip-components=1 -xz -C cmake
       export PATH=${DEPS_DIR}/cmake/bin:${PATH}
@@ -69,8 +72,6 @@ install:
       brew install cmake || brew upgrade cmake
     fi
   - cmake --version
-  - sudo apt-get update
-  - sudo apt-get -y install libtbb-dev
 
 before_script:
   # print out some version numbers
