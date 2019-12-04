@@ -29,31 +29,14 @@ matrix:
             - libtbb-dev
             - libhwloc-dev
 
-    # gcc 6 - Release Build
-    # - env: CMAKE_CC="gcc-6" CMAKE_CXX="g++-6" BUILD_TYPE="Release" COV="OFF" SONAR="OFF"
-    #   os: linux
-    #   addons: *gcc6
-
-    # gcc 6 - CodeCov
-    # - env: CMAKE_CC="gcc-6" CMAKE_CXX="g++-6" BUILD_TYPE="Debug" COV="ON" SONAR="OFF"
-    #   os: linux
-    #   addons: *gcc6
-
-    # gcc 6 - SonarCube
-    # - env: CMAKE_CC="gcc-6" CMAKE_CXX="g++-6" BUILD_TYPE="Debug" COV="OFF" SONAR="ON"
-    #   os: linux
-    #   addons: *gcc6
-
-    # clang 3.7 on MacOSX
-    # - env: CMAKE_CC="clang" CMAKE_CXX="clang++" BUILD_TYPE="Debug" COV="OFF"
-    #   os: osx
-    #   before_install:
-    #    - HOMEBREW_NO_AUTO_UPDATE=1 brew install cppcheck
-
-    # - env: CMAKE_CC="clang" CMAKE_CXX="clang++" BUILD_TYPE="Release" COV="OFF"
-    #   os: osx
-    #   before_install:
-    #     - HOMEBREW_NO_AUTO_UPDATE=1 brew install cppcheck
+    # gcc 7 - Debug Build
+    - env:
+       - CMAKE_CC="gcc-7"
+       - CMAKE_CXX="g++-7"
+       - BUILD_TYPE="Debug"
+       - COV="OFF"
+      os: linux
+      addons: *gcc7
 
 install:
   - DEPS_DIR="${HOME}/deps"
@@ -101,4 +84,4 @@ before_script:
       $CMAKE_ARGS ..
 
 script:
-  - make clean all
+  - make KaHyPar
