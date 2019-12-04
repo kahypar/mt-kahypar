@@ -75,12 +75,15 @@ before_script:
   # print out some version numbers
   - $CMAKE_CXX --version
   # install kahypar library interface
-  - cd external_tools/kahypar; mkdir build
+  - echo $PWD
+  - cd "${TRAVIS_BUILD_DIR}"
+  - echo $PWD
+  - cd external_tools/kahypar; mkdir build; cd build
+  - echo $PWD
   - cmake .. -DCMAKE_BUILD_TYPE=RELEASE
   - make install.library
-  - cd ../..
+  - cd ../../..
   # configure
-  - cd "${TRAVIS_BUILD_DIR}"
   - mkdir build; cd build
   - cmake
       -DCMAKE_BUILD_TYPE="$BUILD_TYPE"
