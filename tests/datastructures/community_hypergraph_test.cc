@@ -363,7 +363,8 @@ TEST_F(ACommunityHypergraph, removeCommunityHyperedgesAfterContraction1) {
   HypernodeID v = id[2];
   std::vector<Memento> mementos = { hypergraph.contract(u, v, 0) };
 
-  hypergraph.removeCommunityHyperedges(mementos);
+  hypergraph.buildContractionHierarchy(mementos);
+  hypergraph.removeCommunityHyperedges();
 
   verifyPinIterators(hypergraph, { 0, 1, 281474976710656, 281474976710657 },
                      { { id[0] }, { id[0], id[1], id[3], id[4] }, { id[3], id[4], id[6] }, { id[0], id[5], id[6] } });
@@ -386,7 +387,8 @@ TEST_F(ACommunityHypergraph, removeCommunityHyperedgesAfterContraction2) {
   HypernodeID v = id[1];
   std::vector<Memento> mementos = { hypergraph.contract(u, v, 0) };
 
-  hypergraph.removeCommunityHyperedges(mementos);
+  hypergraph.buildContractionHierarchy(mementos);
+  hypergraph.removeCommunityHyperedges();
 
   verifyPinIterators(hypergraph, { 0, 1, 281474976710656, 281474976710657 },
                      { { id[0], id[2] }, { id[0], id[3], id[4] }, { id[3], id[4], id[6] }, { id[2], id[5], id[6] } });
@@ -409,7 +411,8 @@ TEST_F(ACommunityHypergraph, removeCommunityHyperedgesAfterContraction3) {
   HypernodeID v = id[4];
   std::vector<Memento> mementos = { hypergraph.contract(u, v, 1) };
 
-  hypergraph.removeCommunityHyperedges(mementos);
+  hypergraph.buildContractionHierarchy(mementos);
+  hypergraph.removeCommunityHyperedges();
 
   verifyPinIterators(hypergraph, { 0, 1, 281474976710656, 281474976710657 },
                      { { id[0], id[2] }, { id[0], id[1], id[3] }, { id[3], id[6] }, { id[2], id[5], id[6] } });
@@ -432,7 +435,8 @@ TEST_F(ACommunityHypergraph, removeCommunityHyperedgesAfterContraction4) {
   HypernodeID v = id[6];
   std::vector<Memento> mementos = { hypergraph.contract(u, v, 1) };
 
-  hypergraph.removeCommunityHyperedges(mementos);
+  hypergraph.buildContractionHierarchy(mementos);
+  hypergraph.removeCommunityHyperedges();
 
   verifyPinIterators(hypergraph, { 0, 1, 281474976710656, 281474976710657 },
                      { { id[0], id[2] }, { id[0], id[1], id[3], id[4] }, { id[3], id[4] }, { id[2], id[4], id[5] } });
@@ -454,7 +458,8 @@ TEST_F(ACommunityHypergraph, removeCommunityHyperedgesAfterSeveralContractions1)
   std::vector<Memento> mementos = { hypergraph.contract(id[0], id[2], 0),
                                     hypergraph.contract(id[3], id[4], 1) };
 
-  hypergraph.removeCommunityHyperedges(mementos);
+  hypergraph.buildContractionHierarchy(mementos);
+  hypergraph.removeCommunityHyperedges();
 
   verifyPinIterators(hypergraph, { 0, 1, 281474976710656, 281474976710657 },
                      { { id[0] }, { id[0], id[1], id[3] }, { id[3], id[6] }, { id[0], id[5], id[6] } });
@@ -477,7 +482,8 @@ TEST_F(ACommunityHypergraph, removeCommunityHyperedgesAfterSeveralContractions2)
   std::vector<Memento> mementos = { hypergraph.contract(id[0], id[1], 0),
                                     hypergraph.contract(id[3], id[6], 1) };
 
-  hypergraph.removeCommunityHyperedges(mementos);
+  hypergraph.buildContractionHierarchy(mementos);
+  hypergraph.removeCommunityHyperedges();
 
   verifyPinIterators(hypergraph, { 0, 1, 281474976710656, 281474976710657 },
                      { { id[0], id[2] }, { id[0], id[3], id[4] }, { id[3], id[4] }, { id[2], id[3], id[5] } });
@@ -501,7 +507,8 @@ TEST_F(ACommunityHypergraph, removeCommunityHyperedgesAfterSeveralContractions3)
                                     hypergraph.contract(id[3], id[6], 1),
                                     hypergraph.contract(id[0], id[2], 0) };
 
-  hypergraph.removeCommunityHyperedges(mementos);
+  hypergraph.buildContractionHierarchy(mementos);
+  hypergraph.removeCommunityHyperedges();
 
   verifyPinIterators(hypergraph, { 0, 1, 281474976710656, 281474976710657 },
                      { { id[0] }, { id[0], id[3], id[4] }, { id[3], id[4] }, { id[0], id[3], id[5] } });
@@ -527,7 +534,8 @@ TEST_F(ACommunityHypergraph, removeCommunityHyperedgesAfterSeveralContractions4)
                                     hypergraph.contract(id[2], id[1], 0),
                                     hypergraph.contract(id[4], id[3], 1) };
 
-  hypergraph.removeCommunityHyperedges(mementos);
+  hypergraph.buildContractionHierarchy(mementos);
+  hypergraph.removeCommunityHyperedges();
 
   verifyPinIterators(hypergraph, { 0, 1, 281474976710656, 281474976710657 },
                      { { id[2] }, { id[2], id[4] }, { id[4] }, { id[2], id[4], id[5] } });
@@ -593,7 +601,8 @@ TEST_F(ACommunityHypergraph, DoesParallelContractionsOnHypergraph1) {
   std::vector<std::vector<Memento> > m = { { mementos[0], mementos[2] }, { mementos[1], mementos[3] }, { } };
   doParallelContractions(hypergraph, m);
 
-  hypergraph.removeCommunityHyperedges(mementos);
+  hypergraph.buildContractionHierarchy(mementos);
+  hypergraph.removeCommunityHyperedges();
 
   verifyPinIterators(hypergraph, { 0, 1, 281474976710656, 281474976710657 },
                      { { id[2] }, { id[2], id[4] }, { id[4] }, { id[2], id[4], id[5] } });
@@ -623,7 +632,8 @@ TEST_F(ACommunityHypergraph, DoesParallelContractionsOnHypergraph2) {
   std::vector<std::vector<Memento> > m = { { mementos[0], mementos[3] }, { mementos[1], mementos[2] }, { } };
   doParallelContractions(hypergraph, m);
 
-  hypergraph.removeCommunityHyperedges(mementos);
+  hypergraph.buildContractionHierarchy(mementos);
+  hypergraph.removeCommunityHyperedges();
 
   verifyPinIterators(hypergraph, { 0, 1, 281474976710656, 281474976710657 },
                      { { id[0] }, { id[0], id[6] }, { id[6] }, { id[0], id[5], id[6] } });
@@ -653,7 +663,8 @@ TEST_F(ACommunityHypergraph, DoesParallelContractionsOnHypergraph3) {
   std::vector<std::vector<Memento> > m = { { mementos[0], mementos[1] }, { mementos[2], mementos[3] }, { } };
   doParallelContractions(hypergraph, m);
 
-  hypergraph.removeCommunityHyperedges(mementos);
+  hypergraph.buildContractionHierarchy(mementos);
+  hypergraph.removeCommunityHyperedges();
 
   verifyPinIterators(hypergraph, { 0, 1, 281474976710656, 281474976710657 },
                      { { id[2] }, { id[2], id[6] }, { id[6] }, { id[2], id[5], id[6] } });
@@ -683,7 +694,8 @@ TEST_F(ACommunityHypergraph, DoesParallelContractionsOnHypergraph4) {
   std::vector<std::vector<Memento> > m = { { mementos[1], mementos[2] }, { mementos[0], mementos[3] }, { } };
   doParallelContractions(hypergraph, m);
 
-  hypergraph.removeCommunityHyperedges(mementos);
+  hypergraph.buildContractionHierarchy(mementos);
+  hypergraph.removeCommunityHyperedges();
 
   verifyPinIterators(hypergraph, { 0, 1, 281474976710656, 281474976710657 },
                      { { id[1] }, { id[1], id[4] }, { id[4] }, { id[1], id[4], id[5] } });
@@ -713,7 +725,8 @@ TEST_F(ACommunityHypergraph, DoesParallelContractionsOnHypergraphWithEdgeRemoval
   std::vector<std::vector<Memento> > m = { { mementos[1], mementos[2] }, { mementos[0], mementos[3] }, { } };
   doParallelContractions(hypergraph, m, { { 0 }, { }, { } });
 
-  hypergraph.removeCommunityHyperedges(mementos);
+  hypergraph.buildContractionHierarchy(mementos);
+  hypergraph.removeCommunityHyperedges();
 
   verifyPinIterators(hypergraph, { 1, 281474976710656, 281474976710657 },
                      { { id[1], id[4] }, { id[4] }, { id[1], id[4], id[5] } });

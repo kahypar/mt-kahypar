@@ -30,6 +30,7 @@
 #include "mt-kahypar/partition/initial_partitioning/i_initial_partitioner.h"
 #include "mt-kahypar/partition/initial_partitioning/kahypar.h"
 #include "mt-kahypar/partition/metrics.h"
+#include "mt-kahypar/utils/randomize.h"
 
 namespace mt_kahypar {
 template <typename TypeTraits>
