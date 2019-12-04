@@ -25,8 +25,6 @@ matrix:
             - libboost-program-options1.55-dev
             - lcov
             - gcovr
-            - libtbb-dev
-            - libtbb2
             - libnuma-dev
             - libnuma1
             - hwloc
@@ -71,6 +69,8 @@ install:
       brew install cmake || brew upgrade cmake
     fi
   - cmake --version
+  - sudo apt-get update
+  - sudo apt-get -y install libtbb-dev
 
 before_script:
   # print out some version numbers
