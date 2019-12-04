@@ -189,7 +189,7 @@ class AdjListStarExpansion {
   AdjListStarExpansion() { }
 
  public:
-  template< typename HyperGraph >
+  template <typename HyperGraph>
   static AdjListGraph contructGraph(const HyperGraph& hg, const Context& context) {
     AdjListGraph graph(hg.initialNumNodes() + hg.initialNumEdges());
     bool isGraph = true;
@@ -240,32 +240,31 @@ class AdjListStarExpansion {
     return graph;
   }
 
-  template< typename HyperGraph >
+  template <typename HyperGraph>
   static void restrictClusteringToHypernodes(const HyperGraph& hg, Clustering& C) {
     C.resize(hg.initialNumNodes());
     C.shrink_to_fit();
   }
 
  private:
-
   // TaggedInteger would be great here
 
-  template< typename HyperGraph >
+  template <typename HyperGraph>
   static NodeID mapHyperedge(const HyperGraph& hg, const HyperedgeID e) {
     return hg.initialNumNodes() + hg.originalEdgeID(e);
   }
 
-  template< typename HyperGraph >
+  template <typename HyperGraph>
   static NodeID mapHypernode(const HyperGraph& hg, const HypernodeID u) {
     return hg.originalNodeID(u);
   }
 
-  template< typename HyperGraph >
+  template <typename HyperGraph>
   static HypernodeID mapNodeToHypernode(const HyperGraph& hg, const NodeID u) {
     return hg.globalNodeID(u);
   }
 
-  template< typename HyperGraph >
+  template <typename HyperGraph>
   static HyperedgeID mapNodeToHyperedge(const HyperGraph& hg, const NodeID u) {
     return hg.globalEdgeID(u - hg.initialNumNodes());
   }

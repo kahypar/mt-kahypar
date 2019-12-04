@@ -75,6 +75,8 @@ static inline void serialize(const Hypergraph& hypergraph,
         << " initial_partitioning_context=" << context.initial_partitioning.context_file
         << " initial_partitioning_mode=" << context.initial_partitioning.mode
         << " initial_partitioning_runs=" << context.initial_partitioning.runs
+        << " use_batch_uncontractions=" << std::boolalpha << context.refinement.use_batch_uncontractions
+        << " batch_size=" << context.refinement.batch_size
         << " lp_algorithm=" << context.refinement.label_propagation.algorithm
         << " lp_maximum_iterations=" << context.refinement.label_propagation.maximum_iterations
         << " lp_part_weight_update_frequency=" << context.refinement.label_propagation.part_weight_update_frequency
@@ -94,10 +96,10 @@ static inline void serialize(const Hypergraph& hypergraph,
         << " totalPartitionTime=" << elapsed_seconds.count();
 
     // Part Weights and Sizes
-    for ( PartitionID i = 0; i < context.partition.k; ++i ) {
+    for (PartitionID i = 0; i < context.partition.k; ++i) {
       oss << " partSize" << i << "=" << hypergraph.partSize(i);
     }
-    for ( PartitionID i = 0; i < context.partition.k; ++i ) {
+    for (PartitionID i = 0; i < context.partition.k; ++i) {
       oss << " partWeight" << i << "=" << hypergraph.partWeight(i);
     }
 

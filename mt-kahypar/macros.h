@@ -90,7 +90,7 @@
   char answer = 'N';                                                             \
   std::cin >> answer;                                                            \
   answer = std::toupper(answer);                                                 \
-  if ( answer == 'Y' ) {                                                         \
+  if (answer == 'Y') {                                                           \
     context_variable = alternative_value;                                        \
   } else {                                                                       \
     ERROR(error_msg);                                                            \

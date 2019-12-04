@@ -19,12 +19,12 @@
  ******************************************************************************/
 #pragma once
 
-#include <functional>
 #include <atomic>
+#include <chrono>
+#include <functional>
 #include <mutex>
 #include <string>
 #include <unordered_map>
-#include <chrono>
 
 #include <tbb/enumerable_thread_specific.h>
 
@@ -45,7 +45,6 @@ class Timer {
   static constexpr size_t SUB_LEVEL_PREFIX_LENGTH = 3;
 
  private:
-
   struct Key {
     std::string parent;
     std::string key;
@@ -58,7 +57,7 @@ class Timer {
   };
 
   struct KeyEqual {
-    bool operator()(const Key& lhs, const Key& rhs) const {
+    bool operator() (const Key& lhs, const Key& rhs) const {
       return lhs.parent == rhs.parent && lhs.key == rhs.key;
     }
   };
@@ -174,7 +173,7 @@ class Timer {
                    bool is_parallel_context = false,
                    bool force = false) {
     std::lock_guard<std::mutex> lock(_timing_mutex);
-    if ( _enable || force ) {
+    if (_enable || force) {
       if (force || is_parallel_context) {
         _local_active_timings.local().emplace_back(key, description, std::chrono::high_resolution_clock::now());
       } else {
@@ -188,13 +187,13 @@ class Timer {
     HighResClockTimepoint end = std::chrono::high_resolution_clock::now();
     std::lock_guard<std::mutex> lock(_timing_mutex);
 
-    if ( _enable || force ) {
+    if (_enable || force) {
       ASSERT(!force || !_local_active_timings.local().empty());
       ActiveTiming current_timing;
       // First check if there are some active timings on the local stack
       // (in that case we are in a parallel context) and if there are
       // no active timings we pop from global stack
-      if ( !_local_active_timings.local().empty() ) {
+      if (!_local_active_timings.local().empty()) {
         ASSERT(_local_active_timings.local().back().key() == key);
         current_timing = _local_active_timings.local().back();
         _local_active_timings.local().pop_back();
@@ -210,21 +209,21 @@ class Timer {
       // on the global stack. If there are no elements on the global
       // stack the timing represents a root.
       std::string parent = "";
-      if ( !_local_active_timings.local().empty() ) {
+      if (!_local_active_timings.local().empty()) {
         parent = _local_active_timings.local().back().key();
-      } else if ( !_active_timings.empty() ) {
+      } else if (!_active_timings.empty()) {
         parent = _active_timings.back().key();
       }
 
       Key timing_key { parent, current_timing.key() };
-      if ( _timings.find(timing_key) == _timings.end() ) {
-          _timings.emplace(
-            std::piecewise_construct,
-            std::forward_as_tuple(timing_key),
-            std::forward_as_tuple(current_timing.key(),
-              current_timing.description(), parent, _index++));
+      if (_timings.find(timing_key) == _timings.end()) {
+        _timings.emplace(
+          std::piecewise_construct,
+          std::forward_as_tuple(timing_key),
+          std::forward_as_tuple(current_timing.key(),
+                                current_timing.description(), parent, _index++));
       }
-      double time =  std::chrono::duration<double>(end - current_timing.start()).count();
+      double time = std::chrono::duration<double>(end - current_timing.start()).count();
       _timings.at(timing_key).add_timing(time);
     }
   }
@@ -236,23 +235,23 @@ class Timer {
     }
     std::sort(timings.begin(), timings.end(),
               [&](const Timing& lhs, const Timing& rhs) {
-                return lhs.key() < rhs.key();
-              });
+          return lhs.key() < rhs.key();
+        });
 
-    if ( !timings.empty() ) {
+    if (!timings.empty()) {
       auto print = [&](const std::string& key, const double time, const bool is_root) {
-        if ( _show_detailed_timings || is_root ) {
-          str << " " << key << "=" << time;
-        }
-      };
+                     if (_show_detailed_timings || is_root) {
+                       str << " " << key << "=" << time;
+                     }
+                   };
 
       // We aggregate timings in case there multiple timings with same key
       // but different parent
       std::string last_key = timings[0].key();
       double time = timings[0].timing();
       bool is_root = timings[0].is_root();
-      for ( size_t i = 1; i < timings.size(); ++i ) {
-        if ( last_key == timings[i].key() ) {
+      for (size_t i = 1; i < timings.size(); ++i) {
+        if (last_key == timings[i].key()) {
           time += timings[i].timing();
           is_root |= timings[i].is_root();
         } else {
@@ -342,6 +341,5 @@ std::ostream & operator<< (std::ostream& str, const Timer& timer) {
 
   return str;
 }
-
 }  // namespace utils
 }  // namespace mt_kahypar

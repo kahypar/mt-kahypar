@@ -169,7 +169,7 @@ class PLM {
       nodesMovedThisRound = ets_nodesMovedThisRound.combine(std::plus<size_t>());
       clusteringChanged |= nodesMovedThisRound > 0;
 
-      if ( debug ) {
+      if (debug) {
         std::stringstream os;
         os << "Thread Local Runtime : ";
         for (auto& t : ts_runtime) {

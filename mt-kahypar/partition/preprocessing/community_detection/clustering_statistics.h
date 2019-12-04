@@ -26,7 +26,6 @@
 #include "mt-kahypar/datastructures/graph.h"
 
 namespace mt_kahypar {
-
 class ClusteringStatistics {
  private:
   static constexpr bool debug = false;

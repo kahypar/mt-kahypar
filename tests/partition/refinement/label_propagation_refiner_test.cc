@@ -27,6 +27,7 @@
 #include "mt-kahypar/partition/refinement/label_propagation_refiner.h"
 #include "mt-kahypar/partition/refinement/policies/execution_policy.h"
 #include "mt-kahypar/partition/refinement/policies/gain_policy.h"
+#include "mt-kahypar/utils/randomize.h"
 
 #include "tests/datastructures/hypergraph_fixtures.h"
 
