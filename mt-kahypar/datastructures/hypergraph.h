@@ -1946,6 +1946,7 @@ class Hypergraph {
   // ! Only for debugging
   bool batch_uncontraction_precondition_assertions(const std::vector<Memento>& batch,
                                                    const kahypar::ds::FastResetFlagArray<>& batch_hypernodes) {
+    ASSERT(_contraction_index.size() == _num_hypernodes);
     HypernodeID last_contraction_index = _contraction_index[originalNodeID(batch[0].v)] + 1;
     std::set<HypernodeID> representatives;
     for (const Memento& memento : batch) {

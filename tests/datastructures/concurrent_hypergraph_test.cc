@@ -23,6 +23,9 @@
 
 #include "gmock/gmock.h"
 
+#include "kahypar/datastructure/fast_reset_flag_array.h"
+
+#include "mt-kahypar/parallel/stl/scalable_vector.h"
 #include "tests/datastructures/hypergraph_fixtures.h"
 
 using ::testing::Test;
@@ -32,6 +35,7 @@ namespace ds {
 using AConcurrentHypergraph = AHypergraph<2>;
 using TestHypergraph = typename AConcurrentHypergraph::TestHypergraph;
 using TestStreamingHypergraph = typename AConcurrentHypergraph::TestStreamingHypergraph;
+using Memento = typename TestStreamingHypergraph::Memento;
 
 void assignPartitionIDs(TestHypergraph& hypergraph) {
   hypergraph.setNodePart(hypergraph.globalNodeID(0), 0);
@@ -44,6 +48,16 @@ void assignPartitionIDs(TestHypergraph& hypergraph) {
   hypergraph.updateGlobalPartInfos();
   hypergraph.initializeNumCutHyperedges();
 }
+
+TestHypergraph construct_test_hypergraph_without_partition(const AConcurrentHypergraph& test) {
+  TestHypergraph hypergraph = test.construct_hypergraph(7,
+                                                        { { 0, 2 }, { 0, 1, 3, 4 }, { 3, 4, 6 }, { 2, 5, 6 } },
+                                                        { 0, 0, 0, 1, 1, 1, 1 },
+                                                        { 0, 0, 1, 1 },
+                                                        { 0, 0, 0, 1, 1, 2, 1 }, 3);
+  return hypergraph;
+}
+
 
 TestHypergraph construct_test_hypergraph(const AConcurrentHypergraph& test) {
   TestHypergraph hypergraph = test.construct_hypergraph(7,
@@ -73,6 +87,24 @@ void executeConcurrent(F f1, K f2) {
       });
 
   group.wait();
+}
+
+void verifyPinIterators(const TestHypergraph& hypergraph,
+                        const std::vector<HyperedgeID> hyperedges,
+                        const std::vector<std::set<HypernodeID> >& references,
+                        bool log = false) {
+  ASSERT(hyperedges.size() == references.size());
+  for (size_t i = 0; i < hyperedges.size(); ++i) {
+    const HyperedgeID he = hyperedges[i];
+    const std::set<HypernodeID>& reference = references[i];
+    size_t count = 0;
+    for (const HypernodeID& pin : hypergraph.pins(he)) {
+      if (log) LOG << V(he) << V(pin);
+      ASSERT_TRUE(reference.find(pin) != reference.end()) << V(he) << V(pin);
+      count++;
+    }
+    ASSERT_EQ(count, reference.size());
+  }
 }
 
 TEST_F(AConcurrentHypergraph, HasCorrectLocalPartWeights) {
@@ -580,6 +612,129 @@ TEST_F(AConcurrentHypergraph, HasCorrectBorderNodesIfNodesAreMovingConcurrently3
   ASSERT_EQ(0, hypergraph.numIncidentCutHyperedges(hypergraph.globalNodeID(4)));
   ASSERT_EQ(0, hypergraph.numIncidentCutHyperedges(hypergraph.globalNodeID(5)));
   ASSERT_EQ(0, hypergraph.numIncidentCutHyperedges(hypergraph.globalNodeID(6)));
+}
+
+TEST_F(AConcurrentHypergraph, UncontractsABatchOfContractionsConcurrently1)  {
+  TestHypergraph hypergraph = construct_test_hypergraph_without_partition(*this);
+  std::vector<HypernodeID> id = { GLOBAL_ID(hypergraph, 0), GLOBAL_ID(hypergraph, 1), GLOBAL_ID(hypergraph, 2),
+                                  GLOBAL_ID(hypergraph, 3), GLOBAL_ID(hypergraph, 4), GLOBAL_ID(hypergraph, 5), GLOBAL_ID(hypergraph, 6) };
+
+  parallel::scalable_vector<HyperedgeID> parallel_he_representative(
+    hypergraph.initialNumEdges(), std::numeric_limits<HyperedgeID>::max());
+  kahypar::ds::FastResetFlagArray<> batch_hypernodes(hypergraph.initialNumNodes());
+
+  std::vector<Memento> batch;
+  batch.emplace_back(hypergraph.contract(hypergraph.globalNodeID(0), hypergraph.globalNodeID(2)));
+  batch_hypernodes.set(2, true);
+  batch.emplace_back(hypergraph.contract(hypergraph.globalNodeID(3), hypergraph.globalNodeID(4)));
+  batch_hypernodes.set(4, true);
+  batch.emplace_back(hypergraph.contract(hypergraph.globalNodeID(5), hypergraph.globalNodeID(6)));
+  batch_hypernodes.set(6, true);
+
+  verifyPinIterators(hypergraph, { hypergraph.globalEdgeID(0), hypergraph.globalEdgeID(1),
+    hypergraph.globalEdgeID(2), hypergraph.globalEdgeID(3) },
+    { { id[0] }, { id[0], id[1], id[3] }, { id[3], id[5] }, { id[0], id[5] } });
+
+  hypergraph.buildContractionHierarchy(batch);
+  hypergraph.setNodePart(id[0], 0);
+  hypergraph.setNodePart(id[1], 1);
+  hypergraph.setNodePart(id[3], 0);
+  hypergraph.setNodePart(id[5], 1);
+  hypergraph.updateGlobalPartInfos();
+  hypergraph.initializeNumCutHyperedges();
+
+  std::reverse(batch.begin(), batch.end());
+  for ( const Memento& memento : batch ) {
+    hypergraph.preprocessMementoForBatchUncontraction(
+      memento, parallel_he_representative, batch_hypernodes);
+  }
+  hypergraph.uncontract(batch, parallel_he_representative, batch_hypernodes);
+
+  verifyPinIterators(hypergraph, { hypergraph.globalEdgeID(0), hypergraph.globalEdgeID(1),
+    hypergraph.globalEdgeID(2), hypergraph.globalEdgeID(3) },
+    { { id[0], id[2] }, { id[0], id[1], id[3], id[4] }, { id[3], id[4], id[6] }, { id[2], id[5], id[6] } });
+}
+
+TEST_F(AConcurrentHypergraph, UncontractsABatchOfContractionsConcurrently2)  {
+  TestHypergraph hypergraph = construct_test_hypergraph_without_partition(*this);
+  std::vector<HypernodeID> id = { GLOBAL_ID(hypergraph, 0), GLOBAL_ID(hypergraph, 1), GLOBAL_ID(hypergraph, 2),
+                                  GLOBAL_ID(hypergraph, 3), GLOBAL_ID(hypergraph, 4), GLOBAL_ID(hypergraph, 5), GLOBAL_ID(hypergraph, 6) };
+
+  parallel::scalable_vector<HyperedgeID> parallel_he_representative(
+    hypergraph.initialNumEdges(), std::numeric_limits<HyperedgeID>::max());
+  kahypar::ds::FastResetFlagArray<> batch_hypernodes(hypergraph.initialNumNodes());
+
+  std::vector<Memento> batch;
+  batch.emplace_back(hypergraph.contract(hypergraph.globalNodeID(0), hypergraph.globalNodeID(3)));
+  batch_hypernodes.set(3, true);
+  batch.emplace_back(hypergraph.contract(hypergraph.globalNodeID(1), hypergraph.globalNodeID(4)));
+  batch_hypernodes.set(4, true);
+  batch.emplace_back(hypergraph.contract(hypergraph.globalNodeID(2), hypergraph.globalNodeID(5)));
+  batch_hypernodes.set(5, true);
+
+  verifyPinIterators(hypergraph, { hypergraph.globalEdgeID(0), hypergraph.globalEdgeID(1),
+    hypergraph.globalEdgeID(2), hypergraph.globalEdgeID(3) },
+    { { id[0], id[2] }, { id[0], id[1] }, { id[0], id[1], id[6] }, { id[2], id[6] } });
+
+  hypergraph.buildContractionHierarchy(batch);
+  hypergraph.setNodePart(id[0], 0);
+  hypergraph.setNodePart(id[1], 1);
+  hypergraph.setNodePart(id[2], 0);
+  hypergraph.setNodePart(id[6], 1);
+  hypergraph.updateGlobalPartInfos();
+  hypergraph.initializeNumCutHyperedges();
+
+  std::reverse(batch.begin(), batch.end());
+  for ( const Memento& memento : batch ) {
+    hypergraph.preprocessMementoForBatchUncontraction(
+      memento, parallel_he_representative, batch_hypernodes);
+  }
+  hypergraph.uncontract(batch, parallel_he_representative, batch_hypernodes);
+
+  verifyPinIterators(hypergraph, { hypergraph.globalEdgeID(0), hypergraph.globalEdgeID(1),
+    hypergraph.globalEdgeID(2), hypergraph.globalEdgeID(3) },
+    { { id[0], id[2] }, { id[0], id[1], id[3], id[4] }, { id[3], id[4], id[6] }, { id[2], id[5], id[6] } });
+}
+
+TEST_F(AConcurrentHypergraph, UncontractsABatchOfContractionsConcurrently3)  {
+  TestHypergraph hypergraph = construct_test_hypergraph_without_partition(*this);
+  std::vector<HypernodeID> id = { GLOBAL_ID(hypergraph, 0), GLOBAL_ID(hypergraph, 1), GLOBAL_ID(hypergraph, 2),
+                                  GLOBAL_ID(hypergraph, 3), GLOBAL_ID(hypergraph, 4), GLOBAL_ID(hypergraph, 5), GLOBAL_ID(hypergraph, 6) };
+
+  parallel::scalable_vector<HyperedgeID> parallel_he_representative(
+    hypergraph.initialNumEdges(), std::numeric_limits<HyperedgeID>::max());
+  kahypar::ds::FastResetFlagArray<> batch_hypernodes(hypergraph.initialNumNodes());
+
+  std::vector<Memento> batch;
+  batch.emplace_back(hypergraph.contract(hypergraph.globalNodeID(0), hypergraph.globalNodeID(5)));
+  batch_hypernodes.set(5, true);
+  batch.emplace_back(hypergraph.contract(hypergraph.globalNodeID(3), hypergraph.globalNodeID(2)));
+  batch_hypernodes.set(2, true);
+  batch.emplace_back(hypergraph.contract(hypergraph.globalNodeID(1), hypergraph.globalNodeID(6)));
+  batch_hypernodes.set(6, true);
+
+  verifyPinIterators(hypergraph, { hypergraph.globalEdgeID(0), hypergraph.globalEdgeID(1),
+    hypergraph.globalEdgeID(2), hypergraph.globalEdgeID(3) },
+    { { id[0], id[3] }, { id[0], id[1], id[3], id[4] }, { id[1], id[3], id[4] }, { id[0], id[1], id[3] } });
+
+  hypergraph.buildContractionHierarchy(batch);
+  hypergraph.setNodePart(id[0], 0);
+  hypergraph.setNodePart(id[1], 1);
+  hypergraph.setNodePart(id[3], 0);
+  hypergraph.setNodePart(id[4], 1);
+  hypergraph.updateGlobalPartInfos();
+  hypergraph.initializeNumCutHyperedges();
+
+  std::reverse(batch.begin(), batch.end());
+  for ( const Memento& memento : batch ) {
+    hypergraph.preprocessMementoForBatchUncontraction(
+      memento, parallel_he_representative, batch_hypernodes);
+  }
+  hypergraph.uncontract(batch, parallel_he_representative, batch_hypernodes);
+
+  verifyPinIterators(hypergraph, { hypergraph.globalEdgeID(0), hypergraph.globalEdgeID(1),
+    hypergraph.globalEdgeID(2), hypergraph.globalEdgeID(3) },
+    { { id[0], id[2] }, { id[0], id[1], id[3], id[4] }, { id[3], id[4], id[6] }, { id[2], id[5], id[6] } });
 }
 }  // namespace ds
 }  // namespace mt_kahypar
