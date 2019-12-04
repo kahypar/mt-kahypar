@@ -6,8 +6,6 @@ language: cpp
 sudo: false
 dist: trusty
 
-addons:
-
 matrix:
   include:
     # gcc 7 - Release Build
@@ -69,7 +67,7 @@ install:
     fi
   - cmake --version
 
-  before_script:
+before_script:
   # print out some version numbers
   - $CMAKE_CXX --version
   # install kahypar library interface
