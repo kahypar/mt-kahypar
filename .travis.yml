@@ -21,15 +21,11 @@ matrix:
             - ubuntu-toolchain-r-test
           packages:
             - g++-7
-            - libboost-program-options1.67.0
-            - libboost-program-options1.67-dev
             - lcov
             - gcovr
+            - libboost-program-options-dev
             - libnuma-dev
-            - libnuma1
-            - hwloc
             - libtbb-dev
-            - libtbb2
             - libhwloc-dev
 
     # gcc 6 - Release Build
