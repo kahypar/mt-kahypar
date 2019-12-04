@@ -21,8 +21,8 @@ matrix:
             - ubuntu-toolchain-r-test
           packages:
             - g++-7
-            - libboost-program-options1.55.0
-            - libboost-program-options1.55-dev
+            - libboost-program-options1.67.0
+            - libboost-program-options1.67-dev
             - lcov
             - gcovr
             - libnuma-dev
