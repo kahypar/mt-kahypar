@@ -40,7 +40,6 @@ class ParallelModularityLouvain {
     bool clustering_changed = mlv.localMoving(GFine, C);
     utils::Timer::instance().stop_timer("local_moving");
 
-
 /*
 
         ERROR("Exiting so we only test local moving");
@@ -53,7 +52,6 @@ class ParallelModularityLouvain {
       utils::Timer::instance().start_timer("contraction", "Contraction");
       ds::AdjListGraph GCoarse = ParallelClusteringContractionAdjList::contract(GFine, C, numTasks);
       utils::Timer::instance().stop_timer("contraction");
-
 
 #ifdef KAHYPAR_ENABLE_HEAVY_PREPROCESSING_ASSERTIONS
       ds::Clustering coarseGraphSingletons(GCoarse.numNodes());

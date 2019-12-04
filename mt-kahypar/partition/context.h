@@ -106,8 +106,8 @@ struct PreprocessingParameters {
 
 inline std::ostream & operator<< (std::ostream& str, const PreprocessingParameters& params) {
   str << "Preprocessing Parameters:" << std::endl;
-  str << "  Use Community Structure from File:  " << std::boolalpha  << params.use_community_structure_from_file << std::endl;
-  if ( !params.use_community_structure_from_file ) {
+  str << "  Use Community Structure from File:  " << std::boolalpha << params.use_community_structure_from_file << std::endl;
+  if (!params.use_community_structure_from_file) {
     str << std::endl << params.community_detection;
   }
   str << std::endl << params.community_redistribution;
@@ -199,7 +199,7 @@ struct RefinementParameters {
 inline std::ostream & operator<< (std::ostream& str, const RefinementParameters& params) {
   str << "Refinement Parameters:" << std::endl;
   str << "  Use Batch Uncontractions:           " << std::boolalpha << params.use_batch_uncontractions << std::endl;
-  if ( params.use_batch_uncontractions ) {
+  if (params.use_batch_uncontractions) {
     str << "  Batch Size:                         " << params.batch_size << std::endl;
   }
   str << std::endl << params.label_propagation;
@@ -253,22 +253,22 @@ class Context {
   }
 
   void sanityCheck() {
-    if ( partition.objective == kahypar::Objective::cut &&
-         refinement.label_propagation.algorithm == LabelPropagationAlgorithm::label_propagation_km1 ) {
+    if (partition.objective == kahypar::Objective::cut &&
+        refinement.label_propagation.algorithm == LabelPropagationAlgorithm::label_propagation_km1) {
       ALGO_SWITCH("Refinement algorithm" << refinement.label_propagation.algorithm << "only works for km1 metric."
-            << "Do you want to use the cut version of the label propagation refiner (Y/N)?",
-            "Partitioning with" << refinement.label_propagation.algorithm
-            << "refiner in combination with cut metric is not possible!",
-            refinement.label_propagation.algorithm,
-            LabelPropagationAlgorithm::label_propagation_cut);
-    } else if ( partition.objective == kahypar::Objective::km1 &&
-         refinement.label_propagation.algorithm == LabelPropagationAlgorithm::label_propagation_cut ) {
+                                         << "Do you want to use the cut version of the label propagation refiner (Y/N)?",
+                  "Partitioning with" << refinement.label_propagation.algorithm
+                                         << "refiner in combination with cut metric is not possible!",
+                  refinement.label_propagation.algorithm,
+                  LabelPropagationAlgorithm::label_propagation_cut);
+    } else if (partition.objective == kahypar::Objective::km1 &&
+               refinement.label_propagation.algorithm == LabelPropagationAlgorithm::label_propagation_cut) {
       ALGO_SWITCH("Refinement algorithm" << refinement.label_propagation.algorithm << "only works for cut metric."
-            << "Do you want to use the km1 version of the label propagation refiner (Y/N)?",
-            "Partitioning with" << refinement.label_propagation.algorithm
-            << "refiner in combination with km1 metric is not possible!",
-            refinement.label_propagation.algorithm,
-            LabelPropagationAlgorithm::label_propagation_km1);
+                                         << "Do you want to use the km1 version of the label propagation refiner (Y/N)?",
+                  "Partitioning with" << refinement.label_propagation.algorithm
+                                         << "refiner in combination with km1 metric is not possible!",
+                  refinement.label_propagation.algorithm,
+                  LabelPropagationAlgorithm::label_propagation_km1);
     }
   }
 };

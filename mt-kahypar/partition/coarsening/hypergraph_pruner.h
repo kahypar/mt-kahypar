@@ -77,7 +77,7 @@ class HypergraphPrunerT {
 
   void restoreParallelHyperedges(HyperGraph& hypergraph,
                                  const Memento& memento,
-                                const kahypar::ds::FastResetFlagArray<>* batch_hypernodes = nullptr) {
+                                 const kahypar::ds::FastResetFlagArray<>* batch_hypernodes = nullptr) {
     for (int i = memento.parallel_hes_begin + memento.parallel_hes_size - 1;
          i >= memento.parallel_hes_begin; --i) {
       ASSERT(i >= 0 && static_cast<size_t>(i) < _removed_parallel_hyperedges.size(),

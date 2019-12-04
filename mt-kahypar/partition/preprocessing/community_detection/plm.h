@@ -169,7 +169,7 @@ class PLM {
       nodesMovedThisRound = ets_nodesMovedThisRound.combine(std::plus<size_t>());
       clusteringChanged |= nodesMovedThisRound > 0;
 
-      if ( debug ) {
+      if (debug) {
         std::stringstream os;
         os << "Thread Local Runtime : ";
         for (auto& t : ts_runtime) {
@@ -234,8 +234,8 @@ class PLM {
     bool comp = eq(modBeforeMove + adjustedGain, modAfterMove);
     ASSERT(comp,
            V(modBeforeMove + adjustedGain) << V(modAfterMove) << V(gain) << V(adjustedGain)
-           << V(coverageBeforeMove) << V(expectedCoverageBeforeMove) << V(modBeforeMove)
-           << V(coverageAfterMove) << V(expectedCoverageAfterMove) << V(modAfterMove));
+                                           << V(coverageBeforeMove) << V(expectedCoverageBeforeMove) << V(modBeforeMove)
+                                           << V(coverageAfterMove) << V(expectedCoverageAfterMove) << V(modAfterMove));
 
     // revert move
     C[u] = from;

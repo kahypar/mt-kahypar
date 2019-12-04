@@ -87,17 +87,16 @@ class LabelPropagationRefinerT final : public IRefiner {
     // each uncontraction and that the contraction partner is on the
     // second position of vector refinement_nodes.
     ASSERT(refinement_nodes.size() % 2 == 0);
-    for ( size_t i = 0; i < refinement_nodes.size() / 2; ++i ) {
-      addVertex(refinement_nodes[ 2 * i + 1 ]); // add all contraction partners
+    for (size_t i = 0; i < refinement_nodes.size() / 2; ++i) {
+      addVertex(refinement_nodes[2 * i + 1]);  // add all contraction partners
       ++_current_level;
     }
 
     // Label propagation is not executed on all levels of the n-level hierarchy.
     // If LP should be executed on the current level is determined by the execution policy.
-    if ( !_execution_policy.execute(_current_level) ) {
+    if (!_execution_policy.execute(_current_level)) {
       return false;
     }
-
 
     utils::Timer::instance().start_timer("label_propagation", "Label Propagation");
 
@@ -233,9 +232,9 @@ class LabelPropagationRefinerT final : public IRefiner {
             // zero gain move, the balance of the solution.
             bool perform_move = best_move.gain < 0 ||
                                 (_context.refinement.label_propagation.rebalancing &&
-                                  best_move.gain == 0 &&
-                                  _hg.localPartWeight(best_move.from) - 1 >
-                                  _hg.localPartWeight(best_move.to) + 1);
+                                 best_move.gain == 0 &&
+                                 _hg.localPartWeight(best_move.from) - 1 >
+                                 _hg.localPartWeight(best_move.to) + 1);
             if (perform_move) {
               PartitionID from = best_move.from;
               PartitionID to = best_move.to;

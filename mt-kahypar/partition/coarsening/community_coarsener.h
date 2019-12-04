@@ -105,8 +105,8 @@ class CommunityCoarsenerT : public ICoarsener,
         return CommunityAssignmentObjective::objective(_hg, lhs) > CommunityAssignmentObjective::objective(_hg, rhs);
       });
     int used_numa_nodes = TBB::instance().num_used_numa_nodes();
-    std::vector<tbb::concurrent_queue<PartitionID>> community_queues(used_numa_nodes);
-    for ( const PartitionID& community_id : community_ids ) {
+    std::vector<tbb::concurrent_queue<PartitionID> > community_queues(used_numa_nodes);
+    for (const PartitionID& community_id : community_ids) {
       int node = _hg.communityNumaNode(community_id);
       ASSERT(node < used_numa_nodes);
       community_queues[node].push(community_id);
@@ -118,26 +118,26 @@ class CommunityCoarsenerT : public ICoarsener,
     // polls from the tbb::concurrent_queue (responsible for the numa node
     // where the task is executed) a community and executes the contractions
     utils::Timer::instance().start_timer("parallel_community_coarsening", "Parallel Community Coarsening");
-    for ( int node = 0; node < used_numa_nodes; ++node ) {
+    for (int node = 0; node < used_numa_nodes; ++node) {
       int num_threads = TBB::instance().number_of_threads_on_numa_node(node);
-      for ( int i = 0; i < num_threads; ++i ) {
+      for (int i = 0; i < num_threads; ++i) {
         TBB::instance().numa_task_arena(node).execute([&, node] {
             TBB::instance().numa_task_group(node).run([&, node] {
               tbb::concurrent_queue<PartitionID>& queue = community_queues[node];
-              while ( !queue.empty() ) {
+              while (!queue.empty()) {
                 PartitionID community_id = -1;
                 bool success = queue.try_pop(community_id);
-                if ( success ) {
+                if (success) {
                   ASSERT(community_id >= 0);
                   ASSERT(community_id < _hg.numCommunities());
-                  if ( community_hns[community_id].size() <= 1 ) {
+                  if (community_hns[community_id].size() <= 1) {
                     continue;
                   }
                   // Compute contraction limit for community relative to
                   // community size and original contraction limit
                   HypernodeID contraction_limit =
                     std::ceil((((double)community_weights[community_id]) /
-                              this->_hg.totalWeight()) * _context.coarsening.contraction_limit);
+                               this->_hg.totalWeight()) * _context.coarsening.contraction_limit);
                   parallelCommunityCoarsening(community_id, contraction_limit, community_hns[community_id]);
                 }
               }

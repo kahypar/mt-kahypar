@@ -231,7 +231,7 @@ inline void printCommunityInformation(const Hypergraph& hypergraph) {
   community_pins.reserve(num_communities);
   community_degrees.reserve(num_communities);
 
-  for ( PartitionID i = 0; i < num_communities; ++i ) {
+  for (PartitionID i = 0; i < num_communities; ++i) {
     community_sizes.push_back(hypergraph.numCommunityHypernodes(i));
     community_pins.push_back(hypergraph.numCommunityPins(i));
     community_degrees.push_back(hypergraph.communityDegree(i));
@@ -242,16 +242,16 @@ inline void printCommunityInformation(const Hypergraph& hypergraph) {
   std::sort(community_degrees.begin(), community_degrees.end());
 
   const double avg_community_size = std::accumulate(community_sizes.begin(), community_sizes.end(), 0.0) /
-                                      static_cast<double>(community_sizes.size());
+                                    static_cast<double>(community_sizes.size());
   const double avg_community_pins = std::accumulate(community_pins.begin(), community_pins.end(), 0.0) /
-                                      static_cast<double>(community_pins.size());
+                                    static_cast<double>(community_pins.size());
   const double avg_community_degree = std::accumulate(community_degrees.begin(), community_degrees.end(), 0.0) /
-                                        static_cast<double>(community_degrees.size());
+                                      static_cast<double>(community_degrees.size());
 
   double stdev_community_size = 0.0;
   double stdev_community_pins = 0.0;
   double stdev_community_degree = 0.0;
-  for ( PartitionID i = 0; i < num_communities; ++i ) {
+  for (PartitionID i = 0; i < num_communities; ++i) {
     stdev_community_size = (community_sizes[i] - avg_community_size) * (community_sizes[i] - avg_community_size);
     stdev_community_pins = (community_pins[i] - avg_community_pins) * (community_pins[i] - avg_community_pins);
     stdev_community_degree = (community_degrees[i] - avg_community_degree) * (community_degrees[i] - avg_community_degree);

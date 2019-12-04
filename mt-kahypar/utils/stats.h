@@ -127,7 +127,7 @@ class Stats {
     return instance;
   }
 
-void enable() {
+  void enable() {
     std::lock_guard<std::mutex> lock(_stat_mutex);
     _enable = true;
   }

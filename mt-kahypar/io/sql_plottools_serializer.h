@@ -96,10 +96,10 @@ static inline void serialize(const Hypergraph& hypergraph,
         << " totalPartitionTime=" << elapsed_seconds.count();
 
     // Part Weights and Sizes
-    for ( PartitionID i = 0; i < context.partition.k; ++i ) {
+    for (PartitionID i = 0; i < context.partition.k; ++i) {
       oss << " partSize" << i << "=" << hypergraph.partSize(i);
     }
-    for ( PartitionID i = 0; i < context.partition.k; ++i ) {
+    for (PartitionID i = 0; i < context.partition.k; ++i) {
       oss << " partWeight" << i << "=" << hypergraph.partWeight(i);
     }
 

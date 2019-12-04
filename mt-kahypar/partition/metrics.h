@@ -133,7 +133,6 @@ static inline double imbalance(const HyperGraph& hypergraph, const Context& cont
   return max_balance - 1.0;
 }
 
-
 template <typename HyperGraph>
 static inline double avgHyperedgeDegree(const HyperGraph& hypergraph) {
   return static_cast<double>(hypergraph.initialNumPins()) / hypergraph.initialNumEdges();
