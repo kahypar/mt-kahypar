@@ -80,15 +80,23 @@ before_script:
   - echo $PWD
   - cd external_tools/kahypar; mkdir build; cd build
   - echo $PWD
-  - cmake .. -DCMAKE_BUILD_TYPE=RELEASE
+  - cmake ..
+    -DCMAKE_BUILD_TYPE=RELEASE
+    -DCMAKE_C_COMPILER="$CMAKE_CC"
+    -DCMAKE_CXX_COMPILER="$CMAKE_CXX"
+    -DCMAKE_C_FLAGS="$COMPILER_FLAGS"
+    -DCMAKE_CXX_FLAGS="$COMPILER_FLAGS"
   - make install.library
   - cd ../../..
   # configure
   - mkdir build; cd build
   - cmake
       -DCMAKE_BUILD_TYPE="$BUILD_TYPE"
-      -DCMAKE_C_COMPILER="$CMAKE_CC" -DCMAKE_CXX_COMPILER="$CMAKE_CXX" -DKAHYPAR_USE_GCOV="$COV"
-      -DCMAKE_C_FLAGS="$COMPILER_FLAGS" -DCMAKE_CXX_FLAGS="$COMPILER_FLAGS"
+      -DCMAKE_C_COMPILER="$CMAKE_CC"
+      -DCMAKE_CXX_COMPILER="$CMAKE_CXX"
+      -DKAHYPAR_USE_GCOV="$COV"
+      -DCMAKE_C_FLAGS="$COMPILER_FLAGS"
+      -DCMAKE_CXX_FLAGS="$COMPILER_FLAGS"
       $CMAKE_ARGS ..
 
 script:
