@@ -20,7 +20,7 @@ matrix:
           sources:
             - ubuntu-toolchain-r-test
           packages:
-            - g++-6
+            - g++-7
             - libboost-program-options1.55.0
             - libboost-program-options1.55-dev
             - lcov
