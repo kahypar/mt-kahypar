@@ -3,7 +3,7 @@
 language: cpp
 
 # Ubuntu 14.04 Trusty support
-sudo: false
+sudo: true
 dist: trusty
 
 matrix:
@@ -78,13 +78,14 @@ before_script:
   - cd "${TRAVIS_BUILD_DIR}"
   - cd external_tools/kahypar; mkdir build; cd build
   - echo "$COMPILER_FLAGS"
-  - cmake ..
+  - cmake
     -DCMAKE_BUILD_TYPE=RELEASE
     -DCMAKE_C_COMPILER="$CMAKE_CC"
     -DCMAKE_CXX_COMPILER="$CMAKE_CXX"
     -DCMAKE_C_FLAGS="$COMPILER_FLAGS"
     -DCMAKE_CXX_FLAGS="$COMPILER_FLAGS"
-  - make install.library
+    $CMAKE_ARGS ..
+  - sudo make install.library
   - cd ../../..
   # configure
   - mkdir build; cd build
