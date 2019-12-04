@@ -1,0 +1,91 @@
+# Travis-CI build script for KaHyPar
+
+language: cpp
+
+# Ubuntu 14.04 Trusty support
+sudo: false
+dist: trusty
+
+addons:
+
+matrix:
+  include:
+    # gcc 7 - Release Build
+    - env: CMAKE_CC="gcc-7" CMAKE_CXX="g++-7" BUILD_TYPE="Release" COV="OFF""
+      os: linux
+      addons: &gcc7
+        apt:
+          sources:
+            - ubuntu-toolchain-r-test
+          packages:
+            - g++-6
+            - libboost-program-options1.55.0
+            - libboost-program-options1.55-dev
+            - lcov
+            - gcovr
+            - libtbb2
+            - libnuma-dev
+            - libnuma1
+            - hwloc
+            - libhwloc-dev
+
+    # gcc 6 - Release Build
+    # - env: CMAKE_CC="gcc-6" CMAKE_CXX="g++-6" BUILD_TYPE="Release" COV="OFF" SONAR="OFF"
+    #   os: linux
+    #   addons: *gcc6
+
+    # gcc 6 - CodeCov
+    # - env: CMAKE_CC="gcc-6" CMAKE_CXX="g++-6" BUILD_TYPE="Debug" COV="ON" SONAR="OFF"
+    #   os: linux
+    #   addons: *gcc6
+
+    # gcc 6 - SonarCube
+    # - env: CMAKE_CC="gcc-6" CMAKE_CXX="g++-6" BUILD_TYPE="Debug" COV="OFF" SONAR="ON"
+    #   os: linux
+    #   addons: *gcc6
+
+    # clang 3.7 on MacOSX
+    # - env: CMAKE_CC="clang" CMAKE_CXX="clang++" BUILD_TYPE="Debug" COV="OFF"
+    #   os: osx
+    #   before_install:
+    #    - HOMEBREW_NO_AUTO_UPDATE=1 brew install cppcheck
+
+    # - env: CMAKE_CC="clang" CMAKE_CXX="clang++" BUILD_TYPE="Release" COV="OFF"
+    #   os: osx
+    #   before_install:
+    #     - HOMEBREW_NO_AUTO_UPDATE=1 brew install cppcheck
+
+install:
+  - DEPS_DIR="${HOME}/deps"
+  - mkdir -p ${DEPS_DIR} && cd ${DEPS_DIR}
+  - |
+    if [[ "${TRAVIS_OS_NAME}" == "linux" ]]; then
+      CMAKE_URL="https://cmake.org/files/v3.13/cmake-3.13.0-rc3-Linux-x86_64.tar.gz"
+      mkdir cmake && travis_retry wget --no-check-certificate --quiet -O - ${CMAKE_URL} | tar --strip-components=1 -xz -C cmake
+      export PATH=${DEPS_DIR}/cmake/bin:${PATH}
+      echo ${PATH}
+    else
+      brew install cmake || brew upgrade cmake
+    fi
+  - cmake --version
+
+  before_script:
+  # print out some version numbers
+  - $CMAKE_CXX --version
+  # install kahypar library interface
+  - cd external_tools/kahypar; mkdir build
+  - cmake .. -DCMAKE_BUILD_TYPE=RELEASE
+  - make install.library
+  - cd ../..
+  # configure
+  - cd "${TRAVIS_BUILD_DIR}"
+  - mkdir build; cd build
+  - cmake
+      -DCMAKE_BUILD_TYPE="$BUILD_TYPE"
+      -DCMAKE_C_COMPILER="$CMAKE_CC" -DCMAKE_CXX_COMPILER="$CMAKE_CXX" -DKAHYPAR_USE_GCOV="$COV"
+      -DCMAKE_C_FLAGS="$COMPILER_FLAGS" -DCMAKE_CXX_FLAGS="$COMPILER_FLAGS"
+      $CMAKE_ARGS ..
+
+script:
+  - |
+    make clean all
