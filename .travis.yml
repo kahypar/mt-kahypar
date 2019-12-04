@@ -25,7 +25,7 @@ matrix:
             - libboost-program-options1.55-dev
             - lcov
             - gcovr
-            - libbtbb-dev
+            - libtbb-dev
             - libtbb2
             - libnuma-dev
             - libnuma1
