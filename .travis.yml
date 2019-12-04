@@ -9,7 +9,11 @@ dist: trusty
 matrix:
   include:
     # gcc 7 - Release Build
-    - env: CMAKE_CC="gcc-7" CMAKE_CXX="g++-7" BUILD_TYPE="Release" COV="OFF""
+    - env:
+      - CMAKE_CC="gcc-7"
+      - CMAKE_CXX="g++-7"
+      - BUILD_TYPE="Release"
+      - COV="OFF"
       os: linux
       addons: &gcc7
         apt:
