@@ -107,7 +107,7 @@ class CommunityRedistributorT {
     for (int node = 0; node < used_numa_nodes; ++node) {
       for (int streaming_node = 0; streaming_node < used_numa_nodes; ++streaming_node) {
         TBB::instance().numa_task_arena(streaming_node).execute([&, node, streaming_node] {
-              TBB::instance().numa_task_group(node).run([&, node, streaming_node] {
+              TBB::instance().numa_task_group(streaming_node).run([&, node, streaming_node] {
                 tbb::parallel_for(0UL, hg.initialNumEdges(node), [&, node, streaming_node](const HyperedgeID& local_he) {
                   ASSERT(streaming_node == HwTopology::instance().numa_node_of_cpu(sched_getcpu()));
                   if (hyperedge_mapping[node][local_he] == streaming_node) {
