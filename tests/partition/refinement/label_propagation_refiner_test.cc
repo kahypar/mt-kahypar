@@ -126,7 +126,7 @@ class ALabelPropagationRefiner : public Test {
 };
 
 template <typename Config>
-size_t ALabelPropagationRefiner<Config>::num_threads = std::thread::hardware_concurrency();
+size_t ALabelPropagationRefiner<Config>::num_threads = HwTopology::instance().num_cpus();
 
 static constexpr double EPS = 10e-6;
 

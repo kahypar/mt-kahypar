@@ -37,6 +37,14 @@ int main(int argc, char* argv[]) {
 
   mt_kahypar::utils::Randomize::instance().setSeed(context.partition.seed);
 
+  size_t num_available_cpus = mt_kahypar::HardwareTopology::instance().num_cpus();
+  if ( num_available_cpus < context.shared_memory.num_threads ) {
+    WARNING("There are currently only" << num_available_cpus << "cpus available."
+      << "Setting number of threads from" << context.shared_memory.num_threads
+      << "to" << num_available_cpus);
+    context.shared_memory.num_threads = num_available_cpus;
+  }
+
   // Initialize TBB task arenas on numa nodes
   mt_kahypar::TBBNumaArena::instance(context.shared_memory.num_threads);
 

@@ -52,7 +52,7 @@ class HwlocTopology {
                              }
                              hwloc_bitmap_foreach_end();
                              // Assume that core consists of two processing units (hyperthreads)
-                             ASSERT(core_cpus.size() <= 2);
+                             ASSERT(!core_cpus.empty());
                              cpus.push_back(core_cpus[0]);
                            };
     enumerate_all_core_units(node, add_cpu_of_core);
@@ -72,8 +72,9 @@ class HwlocTopology {
                              }
                              hwloc_bitmap_foreach_end();
                              // Assume that core consists of two processing units (hyperthreads)
-                             ASSERT(core_cpus.size() <= 2);
-                             cpus.push_back(core_cpus[1]);
+                             if ( core_cpus.size() >= 2 ) {
+                              cpus.push_back(core_cpus[1]);
+                             }
                            };
     enumerate_all_core_units(node, add_cpu_of_core);
 

@@ -28,6 +28,7 @@ matrix:
             - numactl
             - libtbb-dev
             - libhwloc-dev
+            - moreutils
 
     # gcc 7 - Debug Build
     - env:
@@ -84,4 +85,4 @@ before_script:
       $CMAKE_ARGS ..
 
 script:
-  - make KaHyPar
+  - make

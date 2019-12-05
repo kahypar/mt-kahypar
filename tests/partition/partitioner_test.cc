@@ -93,7 +93,7 @@ class APartitioner : public Test {
   Context context;
 };
 
-size_t APartitioner::num_threads = std::thread::hardware_concurrency();
+size_t APartitioner::num_threads = HardwareTopology::instance().num_cpus();
 
 void verifyThatHypergraphsAreEquivalent(const Hypergraph& hypergraph,
                                         const Hypergraph& reference) {
