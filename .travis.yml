@@ -57,9 +57,6 @@ install:
 before_script:
   # print out some version numbers
   - $CMAKE_CXX --version
-  # numa information
-  - numactl --hardware
-  - cat /proc/self/status
   # install kahypar library interface
   - cd "${TRAVIS_BUILD_DIR}"
   - cd external_tools/kahypar; mkdir build; cd build
