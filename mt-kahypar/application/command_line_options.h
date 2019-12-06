@@ -226,9 +226,6 @@ po::options_description createCoarseningOptionsDescription(Context& context,
 po::options_description createInitialPartitioningOptionsDescription(Context& context, const int num_columns) {
   po::options_description options("Initial Partitioning Options", num_columns);
   options.add_options()
-    ("i-context-file",
-    po::value<std::string>(&context.initial_partitioning.context_file)->required()->value_name("<string>"),
-    "Context file for initial partitioning call to KaHyPar.")
     ("i-mode",
     po::value<std::string>()->value_name("<string>")->notifier(
       [&](const std::string& mode) {
@@ -341,7 +338,10 @@ void processCommandLineInput(Context& context, int argc, char* argv[]) {
     "Number of blocks")
     ("epsilon,e",
     po::value<double>(&context.partition.epsilon)->value_name("<double>")->required(),
-    "Imbalance parameter epsilon");
+    "Imbalance parameter epsilon")
+    ("i-context-file",
+    po::value<std::string>(&context.initial_partitioning.context_file)->required()->value_name("<string>"),
+    "Context file for initial partitioning call to KaHyPar.");
 
   std::string context_path;
   po::options_description preset_options("Preset Options", num_columns);
@@ -417,5 +417,38 @@ void processCommandLineInput(Context& context, int argc, char* argv[]) {
     + ".KaHyPar";
   context.partition.graph_community_filename =
     context.partition.graph_filename + ".community";
+}
+
+void parseIniToContext(Context& context, const std::string& ini_filename) {
+  std::ifstream file(ini_filename.c_str());
+  if (!file) {
+    ERROR("Could not load context file at: " << ini_filename);
+  }
+  const int num_columns = 80;
+
+  po::options_description general_options =
+    createGeneralOptionsDescription(context, num_columns);
+  po::options_description preprocessing_options =
+    createPreprocessingOptionsDescription(context, num_columns);
+  po::options_description coarsening_options =
+    createCoarseningOptionsDescription(context, num_columns);
+  po::options_description initial_paritioning_options =
+    createInitialPartitioningOptionsDescription(context, num_columns);
+  po::options_description refinement_options =
+    createRefinementOptionsDescription(context, num_columns);
+  po::options_description shared_memory_options =
+    createSharedMemoryOptionsDescription(context, num_columns);
+
+  po::variables_map cmd_vm;
+  po::options_description ini_line_options;
+  ini_line_options.add(general_options)
+  .add(preprocessing_options)
+  .add(coarsening_options)
+  .add(initial_paritioning_options)
+  .add(refinement_options)
+  .add(shared_memory_options);
+
+  po::store(po::parse_config_file(file, ini_line_options, true), cmd_vm);
+  po::notify(cmd_vm);
 }
 }  // namespace mt_kahypar
