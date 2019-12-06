@@ -47,30 +47,6 @@ matrix:
       os: linux
       addons: *gcc7
 
-    # clang 3.7 - MacOSx Release Build
-    - env:
-       - CMAKE_CC="clang"
-       - CMAKE_CXX="clang++"
-       - BUILD_TYPE="Release"
-       - COV="OFF"
-       - KAHYPAR_ENABLE_HEAVY_PREPROCESSING_ASSERTIONS="OFF"
-       - KAHYPAR_ENABLE_HEAVY_COARSENING_ASSERTIONS="OFF"
-       - KAHYPAR_ENABLE_HEAVY_INITIAL_PARTITIONING_ASSERTIONS="OFF"
-       - KAHYPAR_ENABLE_HEAVY_REFINEMENT_ASSERTIONS="OFF"
-      os: osx
-
-    # clang 3.7 - MacOSx Debug Build
-    - env:
-       - CMAKE_CC="clang"
-       - CMAKE_CXX="clang++"
-       - BUILD_TYPE="Debug"
-       - COV="OFF"
-       - KAHYPAR_ENABLE_HEAVY_PREPROCESSING_ASSERTIONS="ON"
-       - KAHYPAR_ENABLE_HEAVY_COARSENING_ASSERTIONS="ON"
-       - KAHYPAR_ENABLE_HEAVY_INITIAL_PARTITIONING_ASSERTIONS="ON"
-       - KAHYPAR_ENABLE_HEAVY_REFINEMENT_ASSERTIONS="ON"
-      os: osx
-
 install:
   - DEPS_DIR="${HOME}/deps"
   - mkdir -p ${DEPS_DIR} && cd ${DEPS_DIR}
