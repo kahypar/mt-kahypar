@@ -8,7 +8,7 @@ dist: bionic
 
 matrix:
   include:
-    # gcc 7 - Release Build
+    # gcc 7 - Linux Release Build
     - env:
       - CMAKE_CC="gcc-7"
       - CMAKE_CXX="g++-7"
@@ -34,7 +34,7 @@ matrix:
             - libhwloc-dev
             - moreutils
 
-    # gcc 7 - Debug Build
+    # gcc 7 - Linux Debug Build
     - env:
        - CMAKE_CC="gcc-7"
        - CMAKE_CXX="g++-7"
@@ -46,6 +46,30 @@ matrix:
        - KAHYPAR_ENABLE_HEAVY_REFINEMENT_ASSERTIONS="ON"
       os: linux
       addons: *gcc7
+
+    # clang 3.7 - MacOSx Release Build
+    - env:
+       - CMAKE_CC="clang"
+       - CMAKE_CXX="clang++"
+       - BUILD_TYPE="Release"
+       - COV="OFF"
+       - KAHYPAR_ENABLE_HEAVY_PREPROCESSING_ASSERTIONS="OFF"
+       - KAHYPAR_ENABLE_HEAVY_COARSENING_ASSERTIONS="OFF"
+       - KAHYPAR_ENABLE_HEAVY_INITIAL_PARTITIONING_ASSERTIONS="OFF"
+       - KAHYPAR_ENABLE_HEAVY_REFINEMENT_ASSERTIONS="OFF"
+      os: osx
+
+    # clang 3.7 - MacOSx Debug Build
+    - env:
+       - CMAKE_CC="clang"
+       - CMAKE_CXX="clang++"
+       - BUILD_TYPE="Debug"
+       - COV="OFF"
+       - KAHYPAR_ENABLE_HEAVY_PREPROCESSING_ASSERTIONS="ON"
+       - KAHYPAR_ENABLE_HEAVY_COARSENING_ASSERTIONS="ON"
+       - KAHYPAR_ENABLE_HEAVY_INITIAL_PARTITIONING_ASSERTIONS="ON"
+       - KAHYPAR_ENABLE_HEAVY_REFINEMENT_ASSERTIONS="ON"
+      os: osx
 
 install:
   - DEPS_DIR="${HOME}/deps"
