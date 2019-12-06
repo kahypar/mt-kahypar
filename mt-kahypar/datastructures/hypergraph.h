@@ -1665,8 +1665,8 @@ class Hypergraph {
                                        hypergraph_of_rep.get_uncontraction_case(representative, edge_size, memento.v);
           bool is_case_1_rep = case_rep != UncontractionCase::CASE_2;
           UncontractionCase case_he = is_batch_uncontraction ?
-                                      hypergraph_of_rep.get_uncontraction_case(he, edge_size, memento.v, _hypergraphs, *batch_hypernodes) :
-                                      hypergraph_of_rep.get_uncontraction_case(he, edge_size, memento.v);
+                                      hypergraph_of_he.get_uncontraction_case(he, edge_size, memento.v, _hypergraphs, *batch_hypernodes) :
+                                      hypergraph_of_he.get_uncontraction_case(he, edge_size, memento.v);
           bool is_case_1_he = case_he != UncontractionCase::CASE_2;
 
           // In case, the contraction partner v contains either the disabled hyperedge or
@@ -1780,12 +1780,13 @@ class Hypergraph {
   // ! A vertex is assigned to the numa node where it occurs most as pin.
   void computeNodeMapping() {
     size_t num_streaming_hypergraphs = _hypergraphs.size();
+    ASSERT(num_streaming_hypergraphs > 0);
     // Computes mapping for each node to a streaming hypergraph
     // A node is assigned to the streaming hypergraph where it occurs
     // most as pin.
     utils::Timer::instance().start_timer("compute_node_mapping", "Compute Node Mapping");
     tbb::parallel_for(0UL, _num_hypernodes, [&](const HypernodeID& hn) {
-          size_t max_pins = 0;
+          size_t max_pins = _hypergraphs[0].vertexPinCount(hn);
           HypernodeID max_node_id = 0;
           for (HypernodeID node = 1; node < num_streaming_hypergraphs; ++node) {
             size_t num_pins = _hypergraphs[node].vertexPinCount(hn);
