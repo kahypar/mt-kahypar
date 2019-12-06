@@ -62,17 +62,14 @@ int main(int argc, char* argv[]) {
 
   std::vector<std::vector<int>> adj_list(num_nodes + 1);
   int u = 1;
-  int cnt = 0;
   while ( std::getline(in_stream, line) ) {
     std::istringstream sstream(line);
     int v;
     while ( sstream >> v ) {
       adj_list[u].push_back(v);
-      cnt++;
     }
     ++u;
   }
-  LOG << V(u) << V(cnt);
 
   // Write header
   out_stream << num_edges << " " << num_nodes << " 0"  /* Unweighted */ << std::endl;
