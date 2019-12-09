@@ -46,7 +46,7 @@ class SingleNodeHyperedgeRemover {
     for (const HyperedgeID& he : hypergraph.edges()) {
       if (hypergraph.edgeSize(he) == 1) {
         ++result.num_removed_single_node_hes;
-        if (hypergraph.nodeDegree(*hypergraph.pins(he).first) == 1) {
+        if (hypergraph.nodeDegree(*hypergraph.pins(he).begin()) == 1) {
           ++result.num_unconnected_hns;
         }
         hypergraph.removeEdge(he);

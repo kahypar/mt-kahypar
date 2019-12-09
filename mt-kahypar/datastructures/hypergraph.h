@@ -72,7 +72,6 @@ class Hypergraph {
   using HypernodeIterator = typename StreamingHypergraph::HypernodeIterator;
   using HyperedgeIterator = typename StreamingHypergraph::HyperedgeIterator;
   using IncidenceIterator = typename StreamingHypergraph::IncidenceIterator;
-  using ConnectivitySetIterator = typename StreamingHypergraph::ConnectivitySetIterator;
   using CommunityIterator = typename StreamingHypergraph::CommunityIterator;
   using Memento = typename StreamingHypergraph::Memento;
   using UncontractionCase = typename StreamingHypergraph::UncontractionCase;
@@ -90,88 +89,6 @@ class Hypergraph {
 }
 
   using HighResClockTimepoint = std::chrono::time_point<std::chrono::high_resolution_clock>;
-
-  /*!
-   * Iterator for HypergraphElements (Hypernodes/Hyperedges)
-   *
-   * The iterator is used in for-each loops over all hypernodes/hyperedges.
-   * In order to support iteration over coarsened hypergraphs, this iterator
-   * skips over HypergraphElements marked as invalid.
-   * Iterating over the set of vertices \f$V\f$ therefore is linear in the
-   * size \f$|V|\f$ of the original hypergraph - even if it has been coarsened
-   * to much smaller size. The same also holds true for for-each loops over
-   * the set of hyperedges.
-   *
-   * In order to be as generic as possible, the iterator does not expose the
-   * internal Hypernode/Hyperedge representations. Instead only handles to
-   * the respective elements are returned, i.e. the IDs of the corresponding
-   * hypernodes/hyperedges.
-   *
-   */
-  template <typename Iterator>
-  class GlobalHypergraphElementIterator :
-    public std::iterator<std::forward_iterator_tag,    // iterator_category
-                         typename Iterator::IDType,   // value_type
-                         std::ptrdiff_t,   // difference_type
-                         const typename Iterator::IDType*,   // pointer
-                         typename Iterator::IDType> {   // reference
-    using IDType = typename Iterator::IDType;
-    using Iterators = std::vector<std::pair<Iterator, Iterator> >;
-
-   public:
-    /*!
-     * Construct a GlobalHypergraphElementIterator
-     * See Hypergraph::nodes() or Hypergraph::edges() for usage.
-     *
-     * \param iterators container of iterators (see StreamingHypergraph::HypergraphElementIterator)
-     */
-    GlobalHypergraphElementIterator(Iterators&& iterators) :
-      _iterators(std::move(iterators)),
-      _idx(0) {
-      ASSERT(_iterators.size() > 0);
-      while (_idx < _iterators.size() - 1 &&
-             *_iterators[_idx].first == *_iterators[_idx].second) {
-        ++_idx;
-      }
-    }
-
-    // ! Returns the id of the element the iterator currently points to.
-    IDType operator* () const {
-      return *_iterators[_idx].first;
-    }
-
-    // ! Prefix increment. The iterator advances to the next valid element.
-    GlobalHypergraphElementIterator & operator++ () {
-      ++_iterators[_idx].first;
-      while (*_iterators[_idx].first == *_iterators[_idx].second &&
-             _idx < _iterators.size() - 1) {
-        ++_idx;
-      }
-      return *this;
-    }
-
-    // ! Postfix increment. The iterator advances to the next valid element.
-    GlobalHypergraphElementIterator operator++ (int) {
-      GlobalHypergraphElementIterator copy = *this;
-      operator++ ();
-      return copy;
-    }
-
-    // ! Convenience function for range-based for-loops
-    friend GlobalHypergraphElementIterator end<>(const std::pair<GlobalHypergraphElementIterator,
-                                                                 GlobalHypergraphElementIterator>& iter_pair);
-    // ! Convenience function for range-based for-loops
-    friend GlobalHypergraphElementIterator begin<>(const std::pair<GlobalHypergraphElementIterator,
-                                                                   GlobalHypergraphElementIterator>& iter_pair);
-
-    bool operator!= (const GlobalHypergraphElementIterator& rhs) {
-      return *_iterators[_idx].first != *rhs._iterators[rhs._idx].first;
-    }
-
-   private:
-    Iterators _iterators;
-    size_t _idx;
-  };
 
   /*!
    * For each block \f$V_i\f$ of the \f$k\f$-way partition \f$\mathrm{\Pi} = \{V_1, \dots, V_k\}\f$,
@@ -273,11 +190,6 @@ class Hypergraph {
 
   // ! TBB Thread Local Storage
   using ThreadLocalPartInfos = tbb::enumerable_thread_specific<ThreadPartInfos>;
-
-  // ! Iterator to iterator over the hypernodes
-  using GlobalHypernodeIterator = GlobalHypergraphElementIterator<HypernodeIterator>;
-  // ! Iterator to iterator over the hyperedges
-  using GlobalHyperedgeIterator = GlobalHypergraphElementIterator<HyperedgeIterator>;
 
  public:
   constexpr static size_t kEdgeHashSeed = StreamingHypergraph::kEdgeHashSeed;
@@ -457,43 +369,35 @@ class Hypergraph {
   // ####################### Iterators #######################
 
   // ! Returns an iterator over the set of active nodes of the hypergraph
-  std::pair<GlobalHypernodeIterator, GlobalHypernodeIterator> nodes() const {
-    ASSERT(_hypergraphs.size() > 0);
-    std::vector<std::pair<HypernodeIterator, HypernodeIterator> > iterators;
-    std::vector<std::pair<HypernodeIterator, HypernodeIterator> > end;
-    for (size_t node = 0; node < _hypergraphs.size(); ++node) {
-      iterators.emplace_back(_hypergraphs[node].nodes());
+  ConcatenatedRange<IteratorRange<HypernodeIterator>> nodes() const {
+    ASSERT(!_hypergraphs.empty());
+    ConcatenatedRange<IteratorRange<HypernodeIterator>> r;
+    for (const StreamingHypergraph& socket_hg : _hypergraphs) {
+      r.concat(socket_hg.nodes());
     }
-    size_t last = iterators.size() - 1;
-    end.emplace_back(std::make_pair(iterators[last].second, iterators[last].second));
-    return std::make_pair(GlobalHypernodeIterator(std::move(iterators)),
-                          GlobalHypernodeIterator(std::move(end)));
+    return r;
   }
 
   // ! Returns an iterator over the set of active nodes of the hypergraph on a numa node
-  std::pair<HypernodeIterator, HypernodeIterator> nodes(const int node) const {
-    ASSERT(node < (int)_hypergraphs.size());
-    return _hypergraphs[node].nodes();
+  IteratorRange<HypernodeIterator> nodes(const int socket) const {
+    ASSERT(socket < (int)_hypergraphs.size());
+    return _hypergraphs[socket].nodes();
   }
 
   // ! Returns an iterator over the set of active edges of the hypergraph
-  std::pair<GlobalHyperedgeIterator, GlobalHyperedgeIterator> edges() const {
-    ASSERT(_hypergraphs.size() > 0);
-    std::vector<std::pair<HyperedgeIterator, HyperedgeIterator> > iterators;
-    std::vector<std::pair<HyperedgeIterator, HyperedgeIterator> > end;
-    for (size_t node = 0; node < _hypergraphs.size(); ++node) {
-      iterators.emplace_back(_hypergraphs[node].edges());
+  ConcatenatedRange<IteratorRange<HyperedgeIterator>> edges() const {
+    ASSERT(!_hypergraphs.empty());
+    ConcatenatedRange<IteratorRange<HyperedgeIterator>> r;
+    for (const StreamingHypergraph& socket_hg : _hypergraphs) {
+      r.concat(socket_hg.edges());
     }
-    size_t last = iterators.size() - 1;
-    end.emplace_back(std::make_pair(iterators[last].second, iterators[last].second));
-    return std::make_pair(GlobalHyperedgeIterator(std::move(iterators)),
-                          GlobalHyperedgeIterator(std::move(end)));
+    return r;
   }
 
   // ! Returns an iterator over the set of active nodes of the hypergraph on a numa node
-  std::pair<HyperedgeIterator, HyperedgeIterator> edges(const int node) const {
-    ASSERT(node < (int)_hypergraphs.size());
-    return _hypergraphs[node].edges();
+  IteratorRange<HyperedgeIterator> edges(const int socket) const {
+    ASSERT(socket < (int)_hypergraphs.size());
+    return _hypergraphs[socket].edges();
   }
 
   /*!
@@ -510,53 +414,41 @@ class Hypergraph {
    *  <----------------------------------------- incidentEdges(u) ------------------------------------------>
    */
 
-  // ! Returns a for-each iterator-pair to loop over the set of incident hyperedges of hypernode u.
-  // ! During parallel community coarsening we do not remove parallel hyperedges (which spans more than
-  // ! one community) incident to hypernode u. Instead, we just invalidate those hyperedges
-  // ! (which means swapping them to the end of incident nets and storing a pointer to all
-  // ! invalidated hyperedges). This function returns an iterator over all VALID and INVALID
-  // ! hyperedges incident of vertex u.
-  std::pair<IncidenceIterator, IncidenceIterator> incidentEdges(const HypernodeID u) const {
+  // ! Returns a range to loop over all VALID and INVALID hyperedges of vertex u
+  IteratorRange<IncidenceIterator> incidentEdges(const HypernodeID u) const {
     return hypergraph_of_vertex(u).incidentEdges(u);
   }
 
-  // ! Returns a for-each iterator-pair to loop over the set of incident hyperedges of hypernode u.
-  // ! During parallel community coarsening we do not remove parallel hyperedges (which spans more than
-  // ! one community) incident to hypernode u. Instead, we just invalidate those hyperedges
-  // ! (which means swapping them to the end of incident nets and storing a pointer to all
-  // ! invalidated hyperedges). This function returns an iterator over all VALID hyperedges incident
-  // ! of vertex u.
-  std::pair<IncidenceIterator, IncidenceIterator> validIncidentEdges(const HypernodeID u, const PartitionID community_id) const {
+  // ! Returns a range to loop over all VALID hyperedges of hypernode u.
+  IteratorRange<IncidenceIterator> validIncidentEdges(const HypernodeID u, const PartitionID community_id) const {
     return hypergraph_of_vertex(u).validIncidentEdges(u, community_id);
   }
 
-  // ! Returns a for-each iterator-pair to loop over the set of incident hyperedges of hypernode u.
-  // ! Note, this function returns the same incident edges than validIncidentEdges(u, community_id), but
-  // ! additionally it skips all hyperedges that only contains a single vertex of a community (single-pin
-  // ! community hyperedges)
-  std::pair<IncidenceIterator, IncidenceIterator> incidentEdges(const HypernodeID u, const PartitionID community_id) const {
+  // TODO function name should reflect its purpose
+  // ! Returns a range to loop over the set of all VALID incident hyperedges of hypernode u that are not single-pin community hyperedges.
+  IteratorRange<IncidenceIterator> incidentEdges(const HypernodeID u, const PartitionID community_id) const {
     return hypergraph_of_vertex(u).incidentEdges(u, community_id);
   }
 
-  // ! Returns a for-each iterator-pair to loop over the set pins of hyperedge e.
+  // ! Returns a range to loop over the pins of hyperedge e.
   // ! Note, this function fails if community hyperedges are initialized.
-  std::pair<IncidenceIterator, IncidenceIterator> pins(const HyperedgeID e) const {
+  IteratorRange<IncidenceIterator> pins(const HyperedgeID e) const {
     return hypergraph_of_edge(e).pins(e);
   }
 
-  // ! Returns a for-each iterator-pair to loop over the set pins of hyperedge e that belongs to a certain community.
+  // ! Returns a range to loop over the pins of hyperedge e that belong to a certain community.
   // ! Note, this function fails if community hyperedges are not initialized.
-  std::pair<IncidenceIterator, IncidenceIterator> pins(const HyperedgeID e, const PartitionID community_id) const {
+  IteratorRange<IncidenceIterator> pins(const HyperedgeID e, const PartitionID community_id) const {
     return hypergraph_of_edge(e).pins(e, community_id);
   }
 
-  // ! Returns a for-each iterator-pair to loop over the set of communities contained in hyperedge e.
-  std::pair<CommunityIterator, CommunityIterator> communities(const HyperedgeID e) const {
+  // ! Returns a range to loop over the set of communities contained in hyperedge e.
+  IteratorRange<CommunityIterator> communities(const HyperedgeID e) const {
     return hypergraph_of_edge(e).communities(e);
   }
 
-  // ! Returns a for-each iterator-pair to loop over the set of block ids contained in hyperedge e.
-  std::pair<ConnectivitySetIterator, ConnectivitySetIterator> connectivitySet(const HyperedgeID e) const {
+  // ! Returns a range to loop over the set of block ids contained in hyperedge e.
+  IteratorRange<ConnectivitySets::Iterator> connectivitySet(const HyperedgeID e) const {
     return hypergraph_of_edge(e).connectivitySet(e);
   }
 
