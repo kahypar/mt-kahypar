@@ -24,6 +24,7 @@
 #include <numeric>
 #include <thread>
 #include <unordered_map>
+#include <errno.h>
 
 #include "mt-kahypar/macros.h"
 
@@ -40,7 +41,7 @@ class GlobalThreadPinning {
   GlobalThreadPinning(GlobalThreadPinning&&) = delete;
   GlobalThreadPinning & operator= (GlobalThreadPinning &&) = delete;
 
-  static GlobalThreadPinning& instance(const int num_threads = std::thread::hardware_concurrency()) {
+  static GlobalThreadPinning& instance(const int num_threads = HwTopology::instance().num_cpus()) {
     static GlobalThreadPinning instance(num_threads);
     return instance;
   }
@@ -98,13 +99,16 @@ class GlobalThreadPinning {
 
  private:
   explicit GlobalThreadPinning(const int num_threads) :
-    _num_cpus(std::thread::hardware_concurrency()),
+    _num_cpus(HwTopology::instance().num_cpus()),
     _num_threads(num_threads),
     _pinning_mutex(),
-    _free_cpus(_num_cpus),
+    _free_cpus(),
     _pinned_threads(),
     _is_pinned_to_numa_node() {
-    std::iota(_free_cpus.begin(), _free_cpus.end(), 0);
+    ASSERT(_num_threads <= _num_cpus, V(_num_threads) << V(_num_cpus));
+    for ( const int cpu_id : HwTopology::instance().get_all_cpus() ) {
+      _free_cpus.push_back(cpu_id);
+    }
 
     // Sort cpus in the following order
     // 1.) Non-hyperthread first
@@ -151,7 +155,9 @@ class GlobalThreadPinning {
     const int err = sched_setaffinity(0, size, &mask);
 
     if (err) {
-      ERROR("Failed to set thread affinity");
+      const int error = errno;
+      ERROR("Failed to set thread affinity to cpu" << cpu_id
+        << "." << strerror(error));
     }
 
     ASSERT(sched_getcpu() == cpu_id);

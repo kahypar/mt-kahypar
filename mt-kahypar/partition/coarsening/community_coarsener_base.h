@@ -254,7 +254,7 @@ class CommunityCoarsenerBase {
               [&](const auto& lhs, const auto& rhs) {
         return lhs.size() > rhs.size();
       });
-    while (_community_history.back().size() == 0) {
+    while (!_community_history.empty() && _community_history.back().size() == 0) {
       _community_history.pop_back();
     }
 

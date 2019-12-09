@@ -61,7 +61,7 @@ class AConcurrentHypergraph : public Test {
   }
 
   static void SetUpTestSuite() {
-    TBBNumaArena::instance(std::thread::hardware_concurrency());
+    TBBNumaArena::instance(HardwareTopology::instance().num_cpus());
     utils::Randomize::instance().setSeed(0);
   }
 

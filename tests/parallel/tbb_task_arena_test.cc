@@ -46,7 +46,7 @@ class ATBBNumaArenaTest : public Test {
 
  public:
   ATBBNumaArenaTest() :
-    num_threads(std::thread::hardware_concurrency()) { }
+    num_threads(HwTopology::instance().num_cpus()) { }
 
   int expected_num_numa_nodes() const {
     return Numa::NUMA_NODES;

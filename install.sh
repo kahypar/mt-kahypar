@@ -8,7 +8,7 @@ git submodule update
 mkdir build
 cd build
 cmake .. -DCMAKE_BUILD_TYPE=RELEASE
-sudo make install.library
+make install.library
 cd ../../..
 
 # Build Mt-KaHyPar

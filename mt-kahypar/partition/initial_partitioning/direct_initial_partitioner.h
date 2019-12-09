@@ -110,16 +110,16 @@ class DirectInitialPartitionerT : public IInitialPartitioner {
     // => this ensures that the initial partitioning runs are evenly scattered across
     //    the numa nodes
     auto get_numa_node_for_execution = [&]() {
-                                         int numa_node = utils::Randomize::instance().getRandomInt(0,
-                                                                                                   numa_cpus_prefix_sum[used_numa_nodes - 1], sched_getcpu());
-                                         for (size_t j = 0; j < used_numa_nodes; ++j) {
-                                           if (numa_cpus_prefix_sum[j] <= numa_node && numa_node < numa_cpus_prefix_sum[j + 1]) {
-                                             numa_node = j;
-                                           }
-                                         }
-                                         ASSERT(numa_node < (int)used_numa_nodes);
-                                         return numa_node;
-                                       };
+      int numa_node = utils::Randomize::instance().getRandomInt(0,
+      numa_cpus_prefix_sum[used_numa_nodes - 1], sched_getcpu());
+      for (size_t j = 0; j < used_numa_nodes; ++j) {
+        if (numa_cpus_prefix_sum[j] <= numa_node && numa_node < numa_cpus_prefix_sum[j + 1]) {
+          numa_node = j;
+        }
+      }
+      ASSERT(numa_node < (int)used_numa_nodes);
+      return numa_node;
+    };
 
     for (size_t i = 0; i < num_ip_calls; ++i) {
       int numa_node = get_numa_node_for_execution();

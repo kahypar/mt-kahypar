@@ -51,13 +51,14 @@ class AHypergraph : public Test {
 
  public:
   using TBBArena = typename TestTypeTraits<NUM_NUMA_NODES>::TBB;
+  using HwTopology = typename TestTypeTraits<NUM_NUMA_NODES>::HwTopology;
   using TestStreamingHypergraph = typename TestTypeTraits<NUM_NUMA_NODES>::StreamingHyperGraph;
   using TestHypergraph = typename TestTypeTraits<NUM_NUMA_NODES>::HyperGraph;
 
   AHypergraph() { }
 
   static void SetUpTestSuite() {
-    TBBArena::instance(std::thread::hardware_concurrency());
+    TBBArena::instance(HwTopology::instance().num_cpus());
   }
 
   TestHypergraph construct_hypergraph(const HypernodeID num_hypernodes,

@@ -1,0 +1,4 @@
+ignore:
+  - "external_tools/kahypar/**/*"  # ignore KaHyPar
+  - "tests/**/*"
+  - "tools/*"

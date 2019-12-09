@@ -94,7 +94,6 @@ class HardwareTopology {
       return _cpuset;
     }
 
-    // ! List of CPUs of NUMA node (only testing)
     std::vector<int> cpus() {
       std::lock_guard<std::mutex> lock(_mutex);
       std::vector<int> cpus;
@@ -140,7 +139,8 @@ class HardwareTopology {
 
     int pin_thread_to_cpu() {
       std::lock_guard<std::mutex> lock(_mutex);
-      ASSERT(_free_cpus > 0, "There are no free cpus on numa node" << _node_id);
+      ASSERT(_free_cpus > 0, "There are no free cpus on numa node"
+        << _node_id << "( TID =" << std::this_thread::get_id() << ")");
       Cpu& cpu = _cpus.front();
       int cpu_id = cpu.cpu_id;
       std::swap(_cpus[0], _cpus[--_free_cpus]);
@@ -157,7 +157,8 @@ class HardwareTopology {
         }
         ++pos;
       }
-      ASSERT(pos < _cpus.size(), "CPU" << cpu_id << "not found on numa node" << _node_id);
+      ASSERT(pos < _cpus.size(), "CPU" << cpu_id << "not found on numa node"
+        << _node_id << "( TID =" << std::this_thread::get_id() << ")");
       std::swap(_cpus[_free_cpus++], _cpus[pos]);
     }
 
@@ -190,8 +191,13 @@ class HardwareTopology {
     return _numa_nodes.size();
   }
 
+  size_t num_cpus() const {
+    return _num_cpus;
+  }
+
   int numa_node_of_cpu(const int cpu_id) const {
     ASSERT(cpu_id < (int)_cpu_to_numa_node.size());
+    ASSERT(_cpu_to_numa_node[cpu_id] != std::numeric_limits<int>::max());
     return _cpu_to_numa_node[cpu_id];
   }
 
@@ -228,11 +234,22 @@ class HardwareTopology {
     return _numa_nodes[node].get_cpuset();
   }
 
-  // ! List of CPUs of NUMA node (only testing)
+  // ! List of CPUs of NUMA node
   std::vector<int> get_cpus_of_numa_node(int node) {
     ASSERT(node < (int)_numa_nodes.size());
     ASSERT(_numa_nodes[node].get_id() == node);
     return _numa_nodes[node].cpus();
+  }
+
+  // ! List of all available CPUs
+  std::vector<int> get_all_cpus() {
+    std::vector<int> cpus;
+    for ( size_t node = 0; node < num_numa_nodes(); ++node ) {
+      for ( const int cpu_id : _numa_nodes[node].cpus() ) {
+        cpus.push_back(cpu_id);
+      }
+    }
+    return cpus;
   }
 
   // ! Pins a thread to a NUMA node
@@ -254,10 +271,11 @@ class HardwareTopology {
 
  private:
   HardwareTopology() :
-    _num_cpus(std::thread::hardware_concurrency()),
+    _num_cpus(0),
     _topology(),
     _numa_nodes(),
-    _cpu_to_numa_node(_num_cpus) {
+    _cpu_to_numa_node(std::thread::hardware_concurrency(),
+      std::numeric_limits<int>::max()) {
     HwTopology::initialize(_topology);
     init_numa_nodes();
   }
@@ -270,13 +288,14 @@ class HardwareTopology {
       for (const int cpu_id : _numa_nodes.back().cpus()) {
         ASSERT(cpu_id < (int)_cpu_to_numa_node.size());
         _cpu_to_numa_node[cpu_id] = _numa_nodes.back().get_id();
+        ++_num_cpus;
       }
     }
   }
 
   static std::mutex _mutex;
 
-  const size_t _num_cpus;
+  size_t _num_cpus;
   Topology _topology;
   std::vector<NumaNode> _numa_nodes;
   std::vector<int> _cpu_to_numa_node;
