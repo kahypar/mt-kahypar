@@ -29,7 +29,7 @@ inline int popcount_64(const uint64_t x) {
 }
 
 inline int lowest_set_bit_64(const uint64_t x) {
-  return __builtin_ctz(x);
+  return __builtin_ctzll(x);
 }
 
 }  // namespace utils

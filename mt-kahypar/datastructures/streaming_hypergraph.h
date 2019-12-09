@@ -1126,6 +1126,12 @@ class StreamingHypergraph {
     return _connectivity_sets.connectivity(local_id);
   }
 
+  PartitionID computeConnectivity(const HyperedgeID e) const {
+    ASSERT(!hyperedge(e).isDisabled(), "Hyperedge" << e << "is disabled");
+    const HyperedgeID local_id = get_local_edge_id_of_hyperedge(e);
+    return _connectivity_sets.computeConnectivity(local_id);
+  }
+
   // ! Returns the number pins of hyperedge e that are part of block id
   HypernodeID pinCountInPart(const HyperedgeID e, const PartitionID id) const {
     ASSERT(!hyperedge(e).isDisabled(), "Hyperedge" << e << "is disabled");

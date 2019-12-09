@@ -214,22 +214,25 @@ void verifyConnectivitySet(mt_kahypar::Hypergraph& hypergraph,
                            const PartitionID k) {
   for (const HyperedgeID& he : hypergraph.edges()) {
     std::vector<HypernodeID> pin_count_in_part(k, 0);
-    std::set<PartitionID> connectivity_set;
+    std::set<PartitionID> recomputed_connectivity_set;
     for (const HypernodeID& pin : hypergraph.pins(he)) {
       PartitionID id = hypergraph.partID(pin);
       HypernodeID pin_count_before = pin_count_in_part[id]++;
       if (pin_count_before == 0) {
-        connectivity_set.insert(id);
+        recomputed_connectivity_set.insert(id);
       }
     }
 
-    ASSERT_EQ(connectivity_set.size(), hypergraph.connectivity(he));
-    size_t connectivity = 0;
+    std::set<PartitionID> connectivity_set;
     for (const PartitionID id : hypergraph.connectivitySet(he)) {
-      ASSERT_TRUE(connectivity_set.find(id) != connectivity_set.end());
-      ++connectivity;
+      ASSERT(id < k && id >= 0);
+      connectivity_set.insert(id);
     }
-    ASSERT_EQ(connectivity_set.size(), connectivity);
+
+    ASSERT_EQ(hypergraph.connectivity(he), hypergraph.computeConnectivity(he));
+    ASSERT_EQ(hypergraph.connectivity(he), connectivity_set.size());
+    ASSERT_EQ(connectivity_set.size(), recomputed_connectivity_set.size());
+    ASSERT_EQ(connectivity_set, recomputed_connectivity_set);
   }
 }
 
