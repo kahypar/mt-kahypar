@@ -48,7 +48,7 @@ class Partitioner {
 
   static constexpr double MIN_DEGREE_RANK = 0.0001;
   static constexpr double MAX_DEGREE_RANK = 0.01;
-  static constexpr HypernodeID STDEV_MAX_DEGREE_THRESHOLD_FACTOR = 10;
+  static constexpr HypernodeID STDEV_MAX_DEGREE_THRESHOLD_FACTOR = 25;
   static constexpr HypernodeID HIGH_DEGREE_VERTEX_THRESHOLD = 100;
 
  public:
@@ -98,7 +98,7 @@ inline void Partitioner::setupContext(const Hypergraph& hypergraph, Context& con
 
   context.setupPartWeights(hypergraph.totalWeight());
 
-  if (context.coarsening.use_hypernode_degree_threshold) {
+  if (context.coarsening.use_high_degree_vertex_threshold) {
     std::vector<HypernodeID> hn_degrees;
     for ( const HypernodeID& hn : hypergraph.nodes() ) {
       hn_degrees.push_back(hypergraph.nodeDegree(hn));
@@ -108,6 +108,7 @@ inline void Partitioner::setupContext(const Hypergraph& hypergraph, Context& con
         return lhs > rhs;
       });
     double last_stdev = 0.0;
+    double stdev_at_threshold = 0.0;
     double stdev_threshold = hn_degrees[0] / STDEV_MAX_DEGREE_THRESHOLD_FACTOR;
     HypernodeID prefix_sum = 0;
     HypernodeID prefix_square_sum = 0;
@@ -125,11 +126,23 @@ inline void Partitioner::setupContext(const Hypergraph& hypergraph, Context& con
       if ( last_stdev > stdev_degree &&
            stdev_degree > stdev_threshold &&
            i > MIN_DEGREE_RANK * hypergraph.initialNumNodes() ) {
-        context.coarsening.hypernode_degree_threshold =
+        context.coarsening.high_degree_vertex_threshold =
           std::max(hn_degrees[i], HIGH_DEGREE_VERTEX_THRESHOLD);
         break;
       }
+      if ( i == MIN_DEGREE_RANK * hypergraph.initialNumNodes() ) {
+        stdev_at_threshold = stdev_degree;
+      }
       last_stdev = stdev_degree;
+    }
+
+    // Fallback, if no high degree vertex threshold was detected,
+    // but stdev is still above the threshold
+    if ( stdev_at_threshold > stdev_threshold &&
+         context.coarsening.high_degree_vertex_threshold == std::numeric_limits<HypernodeID>::max() ) {
+        context.coarsening.high_degree_vertex_threshold =
+          std::max(hn_degrees[MIN_DEGREE_RANK * hypergraph.initialNumNodes()],
+            HIGH_DEGREE_VERTEX_THRESHOLD);
     }
   }
 
