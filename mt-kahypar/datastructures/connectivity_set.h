@@ -147,17 +147,13 @@ public:
 
     void findNextBit() {
       ++currentPartition;
-      while (currentBlock()->load(std::memory_order_relaxed) >> (currentPartition % bits_per_block) == 0 && currentPartition < k) {
+      UnsafeBlock b = currentBlock()->load(std::memory_order_release);
+      while (b >> (currentPartition % bits_per_block) == 0 && currentPartition < k) {
         currentPartition += (bits_per_block - (currentPartition % bits_per_block));   // skip rest of block
+        b = currentBlock()->load(std::memory_order_release);
       }
       if (currentPartition < k) {
-        UnsafeBlock b = currentBlock()->load(std::memory_order_relaxed) >> (currentPartition % bits_per_block);
-        if (b != 0) {
-          currentPartition += utils::lowest_set_bit_64(b);
-        } else {
-          // this should only happen if another thread has removed the incident parts set in the currentBlock() since exiting the while loop
-          currentPartition += (bits_per_block - (currentPartition % bits_per_block));   // skip rest of block
-        }
+        currentPartition += utils::lowest_set_bit_64(b >> (currentPartition % bits_per_block));
       } else {
         currentPartition = k;
       }
