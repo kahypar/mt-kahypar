@@ -31,8 +31,7 @@ namespace mt_kahypar {
 class UseCommunityStructure final : public kahypar::meta::PolicyBase {
  public:
   template <typename HyperGraph>
-  KAHYPAR_ATTRIBUTE_ALWAYS_INLINE static inline bool sameCommunity(const HyperGraph& hypergraph,
-                                                                   const HypernodeID u, const HypernodeID v) {
+  KAHYPAR_ATTRIBUTE_ALWAYS_INLINE static inline bool sameCommunity(const HyperGraph& hypergraph, const HypernodeID u, const HypernodeID v) {
     return hypergraph.communityID(u) == hypergraph.communityID(v);
   }
 };
@@ -40,8 +39,7 @@ class UseCommunityStructure final : public kahypar::meta::PolicyBase {
 class IgnoreCommunityStructure final : public kahypar::meta::PolicyBase {
  public:
   template <typename HyperGraph>
-  KAHYPAR_ATTRIBUTE_ALWAYS_INLINE static inline bool sameCommunity(const HyperGraph& hypergraph,
-                                                                   const HypernodeID, const HypernodeID) {
+  KAHYPAR_ATTRIBUTE_ALWAYS_INLINE static inline bool sameCommunity(const HyperGraph& , const HypernodeID , const HypernodeID ) {
     return true;
   }
 };
