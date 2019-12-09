@@ -191,8 +191,8 @@ po::options_description createCoarseningOptionsDescription(Context& context,
     ("c-t",
     po::value<HypernodeID>(&context.coarsening.contraction_limit_multiplier)->value_name("<int>"),
     "Coarsening stops when there are no more than t * k hypernodes left")
-    ("c-use-hypernode-degree-threshold",
-    po::value<bool>(&context.coarsening.use_hypernode_degree_threshold)->value_name("<bool>"),
+    ("c-use-high-degree-vertex-threshold",
+    po::value<bool>(&context.coarsening.use_high_degree_vertex_threshold)->value_name("<bool>"),
     "If true, than all hypernodes with a degree greater than mean + 5 * stdev are skipped during coarsening")
     ("c-rating-score",
     po::value<std::string>()->value_name("<string>")->notifier(
