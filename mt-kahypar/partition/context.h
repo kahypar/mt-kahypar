@@ -147,7 +147,9 @@ inline std::ostream & operator<< (std::ostream& str, const CoarseningParameters&
   str << "  Algorithm:                          " << params.algorithm << std::endl;
   str << "  max allowed weight multiplier:      " << params.max_allowed_weight_multiplier << std::endl;
   str << "  contraction limit multiplier:       " << params.contraction_limit_multiplier << std::endl;
-  str << "  use hypernode degree threshold:     " << std::boolalpha << params.use_hypernode_degree_threshold << std::endl;
+  if ( params.use_hypernode_degree_threshold ) {
+    str << "  hypernode degree threshold:         " << std::boolalpha << params.hypernode_degree_threshold << std::endl;
+  }
   str << std::endl << params.rating;
   return str;
 }

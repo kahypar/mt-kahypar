@@ -46,6 +46,11 @@ class Partitioner {
  private:
   static constexpr bool debug = false;
 
+  static constexpr double MIN_DEGREE_RANK = 0.0001;
+  static constexpr double MAX_DEGREE_RANK = 0.01;
+  static constexpr HypernodeID STDEV_MAX_DEGREE_THRESHOLD_FACTOR = 10;
+  static constexpr HypernodeID HIGH_DEGREE_VERTEX_THRESHOLD = 100;
+
  public:
   Partitioner() :
     _single_node_he_remover() { }
@@ -94,18 +99,37 @@ inline void Partitioner::setupContext(const Hypergraph& hypergraph, Context& con
   context.setupPartWeights(hypergraph.totalWeight());
 
   if (context.coarsening.use_hypernode_degree_threshold) {
-    // TODO(heuer): replace this with a smarter statistical detection of power law distribution
-    double avg_hypernode_degree = metrics::avgHypernodeDegree(hypergraph);
-    double stdev_hn_degree = 0.0;
-    for (const auto& hn : hypergraph.nodes()) {
-      stdev_hn_degree += (hypergraph.nodeDegree(hn) - avg_hypernode_degree) *
-                         (hypergraph.nodeDegree(hn) - avg_hypernode_degree);
+    std::vector<HypernodeID> hn_degrees;
+    for ( const HypernodeID& hn : hypergraph.nodes() ) {
+      hn_degrees.push_back(hypergraph.nodeDegree(hn));
     }
-    stdev_hn_degree = std::sqrt(stdev_hn_degree / (hypergraph.initialNumNodes() - 1));
-    HyperedgeID rank_hypernode_degree = metrics::hypernodeDegreeRank(hypergraph,
-                                                                     hypergraph.initialNumNodes() - std::ceil(0.00166 * hypergraph.initialNumNodes()));
-    if (avg_hypernode_degree + 5 * stdev_hn_degree < rank_hypernode_degree && rank_hypernode_degree > 250) {
-      context.coarsening.hypernode_degree_threshold = rank_hypernode_degree;
+    std::sort(hn_degrees.begin(), hn_degrees.end(),
+      [&](const HypernodeID& lhs, const HypernodeID& rhs) {
+        return lhs > rhs;
+      });
+    double last_stdev = 0.0;
+    double stdev_threshold = hn_degrees[0] / STDEV_MAX_DEGREE_THRESHOLD_FACTOR;
+    HypernodeID prefix_sum = 0;
+    HypernodeID prefix_square_sum = 0;
+    for ( size_t i = 0; i < MAX_DEGREE_RANK * hn_degrees.size(); ++i ) {
+      prefix_sum += hn_degrees[i];
+      prefix_square_sum += (hn_degrees[i] * hn_degrees[i]);
+      double prefix_avg = static_cast<double>(prefix_sum) / (i + 1);
+      // VAR(X) = E(X^2) - avg^2
+      double stdev_degree = std::sqrt(static_cast<double>(prefix_square_sum) / (i + 1) - prefix_avg * prefix_avg);
+
+      // We accept the current index i as high degree vertex threshold, if
+      //  1.) It is a local maximum of the function stdev(hn_degrees[0:i])
+      //  2.) stdev(hn_degrees[0:i]) is greater than a threshold
+      //  3.) i is greater than some threshold
+      if ( last_stdev > stdev_degree &&
+           stdev_degree > stdev_threshold &&
+           i > MIN_DEGREE_RANK * hypergraph.initialNumNodes() ) {
+        context.coarsening.hypernode_degree_threshold =
+          std::max(hn_degrees[i], HIGH_DEGREE_VERTEX_THRESHOLD);
+        break;
+      }
+      last_stdev = stdev_degree;
     }
   }
 

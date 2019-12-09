@@ -37,7 +37,33 @@ class HwlocTopology {
 
   static hwloc_obj_t get_first_numa_node(hwloc_topology_t topology) {
     int numa_depth = hwloc_get_type_or_below_depth(topology, HWLOC_OBJ_NUMANODE);
-    return hwloc_get_obj_by_depth(topology, numa_depth, 0);
+    hwloc_obj_t node = hwloc_get_obj_by_depth(topology, numa_depth, 0);
+
+    // Special Case:
+    // On some architecture the numa node is represented with a special node
+    // (with a so called "special depth" < 0) without childs. The core nodes of the numa
+    // node are then stored under another node (e.g. L3 Cache Node) on the same level
+    // in the topology. Since, we rely on the assumption that we find all core nodes under
+    // a numa node, we have to fix this here.
+    if ( numa_depth < 0 ) {
+      ASSERT(node->parent);
+      for ( size_t i = 0; i < node->parent->arity; ++i ) {
+        if ( node->parent->children[i]->type != HWLOC_OBJ_NUMANODE ) {
+          node = node->parent->children[i];
+          break;
+        }
+      }
+
+      ASSERT(node->depth >= 0);
+      int current_index = 0;
+      hwloc_obj_t current_node = node;
+      while(current_node) {
+        current_node->os_index = current_index++;
+        current_node = current_node->next_cousin;
+      }
+    }
+
+    return node;
   }
 
   static std::vector<int> get_cpus_of_numa_node_without_hyperthreads(hwloc_obj_t node) {
