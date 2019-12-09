@@ -252,9 +252,9 @@ inline void printCommunityInformation(const Hypergraph& hypergraph) {
   double stdev_community_pins = 0.0;
   double stdev_community_degree = 0.0;
   for (PartitionID i = 0; i < num_communities; ++i) {
-    stdev_community_size = (community_sizes[i] - avg_community_size) * (community_sizes[i] - avg_community_size);
-    stdev_community_pins = (community_pins[i] - avg_community_pins) * (community_pins[i] - avg_community_pins);
-    stdev_community_degree = (community_degrees[i] - avg_community_degree) * (community_degrees[i] - avg_community_degree);
+    stdev_community_size += (community_sizes[i] - avg_community_size) * (community_sizes[i] - avg_community_size);
+    stdev_community_pins += (community_pins[i] - avg_community_pins) * (community_pins[i] - avg_community_pins);
+    stdev_community_degree += (community_degrees[i] - avg_community_degree) * (community_degrees[i] - avg_community_degree);
   }
   stdev_community_size = std::sqrt(stdev_community_size / static_cast<double>(num_communities - 1));
   stdev_community_pins = std::sqrt(stdev_community_pins / static_cast<double>(num_communities - 1));
