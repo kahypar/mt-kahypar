@@ -38,12 +38,12 @@ private:
 public:
   class Iterator {
   public:
-    Iterator(std::vector<RangeT>& ranges, begin_tag) : ranges(ranges), currentRange(0), currentRangeIterator(ranges.front().begin()) { }
+    Iterator(std::vector<RangeT>& ranges, begin_tag) : ranges(ranges), currentRange(0), currentRangeIterator(ranges.front().begin()) {
+      moveToNextRange();
+    }
+
     Iterator(std::vector<RangeT>& ranges, end_tag) : ranges(ranges), currentRange(ranges.size() - 1), currentRangeIterator(ranges.back().end()) { }
 
-    std::vector<RangeT>& ranges;
-    size_t currentRange;
-    typename RangeT::Iterator currentRangeIterator;
 
     bool operator==(Iterator& o) {
       return currentRange == o.currentRange && currentRangeIterator == o.currentRangeIterator;
@@ -56,17 +56,27 @@ public:
     Iterator& operator++() {
       // if we're at the end of the current range, advance to the next
       // restrict currentRange to ranges.size() - 1, since the end() ConcatenatedRange::Iterator has to be initialized somehow
-      // TODO test whether or not this accidentally forgets one element at the end
-      while (currentRangeIterator++ == ranges[currentRange].end() && currentRange < ranges.size() - 1) {
-        currentRangeIterator = ranges[++currentRange].begin();
+      if (++currentRangeIterator == ranges[currentRange].end()) {
+        moveToNextRange();
       }
-
       return *this;
     }
 
     typename RangeT::Iterator::value_type operator*() const {
       return *currentRangeIterator;
     }
+
+  private:
+    std::vector<RangeT>& ranges;
+    size_t currentRange;
+    typename RangeT::Iterator currentRangeIterator;
+
+    void moveToNextRange() {
+      while (currentRangeIterator == ranges[currentRange].end() && currentRange < ranges.size() - 1) {
+        currentRangeIterator = ranges[++currentRange].begin();
+      }
+    }
+
   };
 
   Iterator begin() {
