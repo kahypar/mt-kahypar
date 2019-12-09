@@ -2,6 +2,7 @@
  * This file is part of KaHyPar.
  *
  * Copyright (C) 2019 Tobias Heuer <tobias.heuer@kit.edu>
+ * Copyright (C) 2019 Lars Gottesbüren <lars.gottesbueren@kit.edu>
  *
  * KaHyPar is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -22,197 +23,168 @@
 #include <atomic>
 #include <type_traits>
 
-#include "kahypar/definitions.h"
-#include "kahypar/meta/mandatory.h"
+#include "mt-kahypar/parallel/atomic_wrapper.h"
+#include "mt-kahypar/utils/bit_ops.h"
+#include "mt-kahypar/utils/range.h"
 
 #include "mt-kahypar/macros.h"
-#include "mt-kahypar/parallel/atomic_wrapper.h"
-#include "mt-kahypar/parallel/stl/scalable_vector.h"
-#include "mt-kahypar/utils/bit_magic.h"
 
 namespace mt_kahypar {
 namespace ds {
-/**
- * Can store a set of partition ids (< k = number of blocks).
- *
- * Each connectivity set is associated with exactly one hyperedge. For each hyperedge it stores
- * the block ids which its corresponding pins belongs to. If a pin of the hyperedge is
- * moved to a different block the connectivity can increase or decrease.
- * This class provides a lock-free and thread-safe way to handle connectivity changes in a multi-
- * threaded setting. The block ids are stored in a bitset. If the connectivity increased or decreased
- * one can add or remove the corresponding block id from the set with add(...) or remove(...).
- * Also, the class provides a thread-safe iterator over a snapshot of the connectivity set.
- *
- * IMPORTANT
- * ---------
- * In some situations the number of set ones in the bitset can differ from value returned by size().
- * Think of the situation, where a vertex move decreased the connectivity of block x. In parallel,
- * an other vertex moves to block x and increased the connectivity again. Since, connectivity of block
- * x first decreased and than increased, the corresponding bit for block x is set before updating the
- * connectivity set. However, since both moves happens simultanously it can happen that the connectivity
- * set is first updated with the increase operation and afterwards with the decrease operation.
- * To handle that case, we perform a XOR operation on the bit position for block x ( bit for block x XOR 1 ).
- * In the concrete example this means, that the increase operation for block x would set the corresponding
- * bit to zero, but connectivity is temporary inceased. However, in such situations there must be always an
- * decrease operation running in parallel, which will decrease the connectivity again and set the bit
- * for block x to 1 again.
- * In fact of that, the connectivity set reflects the real connectivity of a hyperedge if all parallel
- * operations are finished. In a parallel setting, this set can be used as indicator for the real connectivity
- * set with the assumptions that conflicts happens very rarely.
- */
-class ConnectivitySet {
-  static constexpr bool debug = false;
 
-  using PartitionID = int32_t;
-  using ConnectivityAtomic = parallel::IntegralAtomicWrapper<PartitionID>;
-  using BitsetAtomic = parallel::IntegralAtomicWrapper<uint8_t>;
 
- public:
-  /**
-   * Thread-safe iterator over the set of block ids of the connectivity set.
-   * To do so, the iterator makes a copy of the 8-bit word (which has at least one set bit)
-   * over which it will iterate next. During that time changes on that part of the bitset will
-   * not be reflected in the iterator. However, any other modification on the bitset will
-   * be also immediately visible in the iterator.
-   */
-  class ConnectivitySetIterator :
-    public std::iterator<std::forward_iterator_tag,  // iterator_category
-                         PartitionID,                // value_type
-                         std::ptrdiff_t,             // difference_type
-                         const PartitionID*,         // pointer
-                         PartitionID> {              // reference
-   public:
-    ConnectivitySetIterator(const parallel::scalable_vector<BitsetAtomic>& bitset) :
-      _bitset(bitset),
-      _current_id(-1),
-      _current_bitset_id(0),
-      _current_bitset(_bitset[0]) {
-      next();
+class ConnectivitySets {
+public:
+
+  static constexpr bool debug = true;
+  using PartitionID = uint32_t;
+  using HyperedgeID = uint64_t;	// TODO how to keep synced with definitions.h, other than templates?
+
+
+  ConnectivitySets(const HyperedgeID numEdges, const PartitionID k) : k(k), numEdges(numEdges),
+                                                                      numBlocksPerHyperedge(k / bits_per_block + (k % bits_per_block != 0)),
+                                                                      bits(numEdges * numBlocksPerHyperedge),
+                                                                      connectivity_cache(numEdges)
+  {
+  }
+
+  void add(const HyperedgeID he, const PartitionID p) {
+    toggle(he, p);
+    connectivity_cache[he].fetch_add(1, std::memory_order_relaxed);
+  }
+
+  void remove(const HyperedgeID he, const PartitionID p) {
+    toggle(he, p);
+    connectivity_cache[he].fetch_sub(1, std::memory_order_relaxed);
+  }
+
+  bool contains(const HyperedgeID he, const PartitionID p) const {
+    const size_t div = p / bits_per_block;
+    const size_t rem = p % bits_per_block;
+    return bits[he * numBlocksPerHyperedge + div].load(std::memory_order_relaxed) & (UnsafeBlock(1) << rem);
+  }
+
+  // not threadsafe
+  void clear(const HyperedgeID he) {
+    for (size_t i = he * numBlocksPerHyperedge; i < (he + 1) * numBlocksPerHyperedge; ++i) {
+      bits[i].store(0, std::memory_order_relaxed);
+    }
+    connectivity_cache[he].store(0, std::memory_order_relaxed);
+  }
+
+  // Note: this might differ from the lookup
+  PartitionID computeConnectivity(const HyperedgeID he) const {
+    PartitionID conn = 0;
+    for (size_t i = he * numBlocksPerHyperedge; i < (he + 1) * numBlocksPerHyperedge; ++i) {
+      conn += utils::popcount_64(bits[i].load(std::memory_order_relaxed));
+    }
+    return conn;
+  }
+
+  // Note: this might differ from the number of actually set bits
+  PartitionID connectivity(const HyperedgeID he) const {
+    return connectivity_cache[he].load(std::memory_order_relaxed);
+  }
+
+
+private:
+  using UnsafeBlock = uint64_t;
+  static constexpr int bits_per_block = std::numeric_limits<UnsafeBlock>::digits;
+  using Block = parallel::IntegralAtomicWrapper<UnsafeBlock>;
+  using BlockIterator = std::vector<Block>::const_iterator;
+
+	
+	PartitionID k;
+	HyperedgeID numEdges;
+	PartitionID numBlocksPerHyperedge;
+	std::vector<Block> bits;
+	std::vector< parallel::IntegralAtomicWrapper<PartitionID> > connectivity_cache;
+
+	void toggle(const HyperedgeID he, const PartitionID p) {
+	  assert(p < k);
+	  assert(he < numEdges);
+    const size_t div = p / bits_per_block, rem = p % bits_per_block;
+    const size_t idx = he * numBlocksPerHyperedge + div;
+    assert(idx < bits.size());
+	  bits[idx].fetch_xor(UnsafeBlock(1) << rem, std::memory_order_relaxed);
+	}
+
+public:
+
+  class Iterator : public std::iterator<std::forward_iterator_tag, PartitionID, std::ptrdiff_t, const PartitionID*, PartitionID> {
+  public:
+    Iterator(BlockIterator first, PartitionID part, PartitionID k) : currentPartition(part), k(k), firstBlockIt(first) {
+      findNextBit();
     }
 
-    ConnectivitySetIterator(const parallel::scalable_vector<BitsetAtomic>& bitset,
-                            const PartitionID current_bitset_id,
-                            const uint8_t current_bitset) :
-      _bitset(bitset),
-      _current_id(-1),
-      _current_bitset_id(current_bitset_id),
-      _current_bitset(current_bitset) { }
-
-    // ! Returns the id of the element the iterator currently points to.
-    PartitionID operator* () const {
-      ASSERT(_current_id < utils::count[_current_bitset]);
-      return 8 * _current_bitset_id + utils::select[_current_bitset][_current_id + 1];
+    PartitionID operator*() const {
+      return currentPartition;
     }
 
-    // ! Prefix increment. The iterator advances to the next valid element.
-    ConnectivitySetIterator & operator++ () {
-      next();
+    Iterator& operator++() {
+      findNextBit();
       return *this;
     }
 
-    // ! Postfix increment. The iterator advances to the next valid element.
-    ConnectivitySetIterator operator++ (int) {
-      ConnectivitySetIterator copy = *this;
-      operator++ ();
-      return copy;
+    Iterator operator++(int ) {
+      const Iterator res = *this;
+      findNextBit();
+      return res;
     }
 
-    // ! Convenience function for range-based for-loops
-    friend ConnectivitySetIterator en(const std::pair<ConnectivitySetIterator,
-                                                      ConnectivitySetIterator>& iter_pair);
-    // ! Convenience function for range-based for-loops
-    friend ConnectivitySetIterator begin(const std::pair<ConnectivitySetIterator,
-                                                         ConnectivitySetIterator>& iter_pair);
-
-    bool operator!= (const ConnectivitySetIterator& rhs) {
-      return _current_bitset_id != rhs._current_bitset_id ||
-             _current_bitset != rhs._current_bitset;
+    bool operator==(const Iterator& o) const {
+      return currentPartition == o.currentPartition && firstBlockIt == o.firstBlockIt;
     }
 
-    bool operator== (const ConnectivitySetIterator& rhs) {
-      return _current_bitset_id == rhs._current_bitset_id &&
-             _current_bitset == rhs._current_bitset;
+    bool operator!=(const Iterator& o) const {
+      return !operator==(o);
     }
 
-   private:
-    void next() {
-      ++_current_id;
-      while (_current_id + 1 > utils::count[_current_bitset]) {
-        _current_id = 0;
-        ++_current_bitset_id;
-        if (_current_bitset_id < (PartitionID)_bitset.size()) {
-          _current_bitset = _bitset[_current_bitset_id];
+  private:
+    PartitionID currentPartition;
+    PartitionID k;
+    BlockIterator firstBlockIt;
+
+    void findNextBit() {
+      ++currentPartition;
+      while (currentBlock()->load(std::memory_order_relaxed) >> (currentPartition % bits_per_block) == 0 && currentPartition < k) {
+        currentPartition += (bits_per_block - (currentPartition % bits_per_block));   // skip rest of block
+      }
+      if (currentPartition < k) {
+        UnsafeBlock b = currentBlock()->load(std::memory_order_relaxed) >> (currentPartition % bits_per_block);
+        if (b != 0) {
+          currentPartition += utils::lowest_set_bit_64(b);
         } else {
-          _current_bitset = 0;
-          _current_bitset_id = _bitset.size();
-          break;
+          // this should only happen if another thread has removed the incident parts set in the currentBlock() since exiting the while loop
+          currentPartition += (bits_per_block - (currentPartition % bits_per_block));   // skip rest of block
         }
+      } else {
+        currentPartition = k;
       }
     }
 
-    const parallel::scalable_vector<BitsetAtomic>& _bitset;
-    PartitionID _current_id;
-    PartitionID _current_bitset_id;
-    uint8_t _current_bitset;
+    BlockIterator currentBlock() const {
+      return firstBlockIt + currentPartition / bits_per_block;
+    }
+
   };
 
-  ConnectivitySet(const PartitionID k) :
-    _connectivity(0),
-    _bitset() {
-    size_t num_entries = k / 8 + (k % 8 > 0 ? 1 : 0);
-    _bitset.assign(num_entries, BitsetAtomic(0));
+	Iterator hyperedgeBegin(const HyperedgeID he) const {
+	  return Iterator(bits.begin() + he * numBlocksPerHyperedge, -1, k);
+	}
+
+	Iterator hyperedgeEnd(const HyperedgeID he) const {
+	  return Iterator(bits.begin() + he * numBlocksPerHyperedge, k-1, k);
+	}
+
+
+  IteratorRange<Iterator> connectivitySet(const HyperedgeID he) const {
+    return IteratorRange<Iterator>(hyperedgeBegin(he), hyperedgeEnd(he));
   }
 
-  std::pair<ConnectivitySetIterator, ConnectivitySetIterator> connectivitySet() const {
-    return std::make_pair(ConnectivitySetIterator(_bitset),
-                          ConnectivitySetIterator(_bitset, _bitset.size(), 0));
-  }
-
-  bool contains(const PartitionID id) const {
-    ASSERT(id >= 0 && id < ((PartitionID)(8 * _bitset.size())));
-    size_t entry = id / 8;
-    size_t offset = (id % 8) + 1;
-    return _bitset[entry] & utils::bitmask[offset];
-  }
-
-  void add(const PartitionID id) {
-    ASSERT(id >= 0 && id < ((PartitionID)(8 * _bitset.size())));
-    ++_connectivity;
-    XOR(id);
-  }
-
-  void remove(const PartitionID id) {
-    ASSERT(id >= 0 && id < ((PartitionID)(8 * _bitset.size())));
-    --_connectivity;
-    XOR(id);
-  }
-
-  /*!
-   * Clears the connectivity set
-   * Note, this function is not thread-safe and should be not called
-   * in a multi-threaded setting.
-   */
-  void clear() {
-    _connectivity = 0;
-    for (size_t i = 0; i < _bitset.size(); ++i) {
-      _bitset[i] &= utils::bitmask[0];
-    }
-  }
-
-  PartitionID size() const {
-    return _connectivity;
-  }
-
- private:
-  KAHYPAR_ATTRIBUTE_ALWAYS_INLINE void XOR(const PartitionID id) {
-    ASSERT(id >= 0 && id < ((PartitionID)(8 * _bitset.size())));
-    size_t entry = id / 8;
-    size_t offset = (id % 8) + 1;
-    _bitset[entry] ^= utils::bitmask[offset];
-  }
-
-  ConnectivityAtomic _connectivity;
-  parallel::scalable_vector<BitsetAtomic> _bitset;
 };
+	
+
+
 }  // namespace ds
 }  // namespace mt_kahypar
