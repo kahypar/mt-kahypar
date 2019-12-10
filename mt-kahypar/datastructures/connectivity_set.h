@@ -54,7 +54,7 @@ public:
 
   ConnectivitySets(const HyperedgeID numEdges, const PartitionID k) : k(k),
                                                                       numEdges(numEdges),
-                                                                      numBlocksPerHyperedge(k / bits_per_block + (k % bits_per_block != 0)),
+                                                                      numBlocksPerHyperedge(k / BITS_PER_BLOCK + (k % BITS_PER_BLOCK != 0)),
                                                                       bits(numEdges * numBlocksPerHyperedge)
   {
   }
@@ -68,8 +68,8 @@ public:
   }
 
   bool contains(const HyperedgeID he, const PartitionID p) const {
-    const size_t div = p / bits_per_block;
-    const size_t rem = p % bits_per_block;
+    const size_t div = p / BITS_PER_BLOCK;
+    const size_t rem = p % BITS_PER_BLOCK;
     return bits[he * numBlocksPerHyperedge + div].load(std::memory_order_relaxed) & (UnsafeBlock(1) << rem);
   }
 
@@ -90,7 +90,7 @@ public:
 
 private:
   using UnsafeBlock = uint64_t;
-  static constexpr int bits_per_block = std::numeric_limits<UnsafeBlock>::digits;
+  static constexpr int BITS_PER_BLOCK = std::numeric_limits<UnsafeBlock>::digits;
   using Block = parallel::IntegralAtomicWrapper<UnsafeBlock>;
   using BlockIterator = std::vector<Block>::const_iterator;
 
@@ -103,7 +103,7 @@ private:
 	void toggle(const HyperedgeID he, const PartitionID p) {
 	  assert(p < k);
 	  assert(he < numEdges);
-    const size_t div = p / bits_per_block, rem = p % bits_per_block;
+    const size_t div = p / BITS_PER_BLOCK, rem = p % BITS_PER_BLOCK;
     const size_t idx = he * numBlocksPerHyperedge + div;
     assert(idx < bits.size());
 	  bits[idx].fetch_xor(UnsafeBlock(1) << rem, std::memory_order_relaxed);
@@ -148,19 +148,19 @@ public:
     void findNextBit() {
       ++currentPartition;
       UnsafeBlock b = currentBlock()->load(std::memory_order_release);
-      while (b >> (currentPartition % bits_per_block) == 0 && currentPartition < k) {
-        currentPartition += (bits_per_block - (currentPartition % bits_per_block));   // skip rest of block
+      while (b >> (currentPartition % BITS_PER_BLOCK) == 0 && currentPartition < k) {
+        currentPartition += (BITS_PER_BLOCK - (currentPartition % BITS_PER_BLOCK));   // skip rest of block
         b = currentBlock()->load(std::memory_order_release);
       }
       if (currentPartition < k) {
-        currentPartition += utils::lowest_set_bit_64(b >> (currentPartition % bits_per_block));
+        currentPartition += utils::lowest_set_bit_64(b >> (currentPartition % BITS_PER_BLOCK));
       } else {
         currentPartition = k;
       }
     }
 
     BlockIterator currentBlock() const {
-      return firstBlockIt + currentPartition / bits_per_block;
+      return firstBlockIt + currentPartition / BITS_PER_BLOCK;
     }
 
   };
