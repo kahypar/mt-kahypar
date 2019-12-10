@@ -23,6 +23,7 @@
 #include <queue>
 #include <string>
 #include <sstream>
+#include <boost/progress.hpp>
 
 #include "tbb/parallel_for.h"
 #include "tbb/parallel_invoke.h"
@@ -152,19 +153,15 @@ class CommunityCoarsenerBase {
     utils::Stats::instance().add_stat("initial_km1", current_metrics.km1);
     utils::Stats::instance().add_stat("initial_imbalance", current_metrics.imbalance);
 
-    auto get_metric = [&]() {
-      return current_metrics.getMetric(kahypar::Mode::direct_kway, _context.partition.objective);
-    };
-
-    // Uncontraction Progress Bar
-    HypernodeID current_num_nodes = num_nodes;
-    HypernodeID last_progress = 0;
-    HighResClockTimepoint start = std::chrono::high_resolution_clock::now();
-    printUncontractionProgressBar(current_num_nodes, get_metric(), start);
-
     std::vector<HypernodeID> refinement_nodes;
     size_t max_batch_size = _context.refinement.use_batch_uncontractions &&
                             _context.shared_memory.num_threads > 1 ? _context.refinement.batch_size : 1;
+    std::unique_ptr<boost::progress_display> uncontraction_progress(nullptr);
+    if ( _context.partition.verbose_output && _context.partition.enable_progress_bar ) {
+      uncontraction_progress = std::make_unique<boost::progress_display>(_hg.initialNumNodes());
+      *uncontraction_progress += num_nodes;
+    }
+
     while (!_history.empty()) {
       // utils::Timer::instance().start_timer("uncontraction", "Uncontraction");
       batchUncontraction(max_batch_size, refinement_nodes);
@@ -178,18 +175,15 @@ class CommunityCoarsenerBase {
         label_propagation->refine(refinement_nodes, current_metrics);
       }
 
-      if ( _context.partition.verbose_output ) {
-        current_num_nodes += max_batch_size;
-        HypernodeID current_progress = progress(current_num_nodes);
-        if ( update_progess_bar_after_each_uncontraction ||
-             last_progress < current_progress) {
-          printUncontractionProgressBar(current_num_nodes, get_metric(), start);
-        }
-        last_progress = current_progress;
+      if ( uncontraction_progress ) {
+        *uncontraction_progress += max_batch_size;
       }
       refinement_nodes.clear();
     }
-    printUncontractionProgressBar(_hg.initialNumNodes(), get_metric(), start);
+    if ( uncontraction_progress ) {
+      *uncontraction_progress += (uncontraction_progress->expected_count() - uncontraction_progress->count());
+    }
+
 
     ASSERT(metrics::objective(_hg, _context.partition.objective) ==
            current_metrics.getMetric(kahypar::Mode::direct_kway, _context.partition.objective),
@@ -398,44 +392,6 @@ class CommunityCoarsenerBase {
     utils::Timer::instance().start_timer("remove_disabled_hyperedges_from_incident_nets", "Remove Disabled HE from HNs");
     _hg.invalidateDisabledHyperedgesFromIncidentNets();
     utils::Timer::instance().stop_timer("remove_disabled_hyperedges_from_incident_nets");
-  }
-
-  HypernodeID progress(const HypernodeID current_num_nodes) const {
-    return ( static_cast<double>(current_num_nodes) / _hg.initialNumNodes() ) * 100.0;
-  }
-
-  void printUncontractionProgressBar(const HypernodeID current_num_nodes,
-                                     const HypernodeWeight current_objective,
-                                     const HighResClockTimepoint& start) {
-    if ( _context.partition.verbose_output && _context.partition.enable_progress_bar ) {
-      const HypernodeID current_progress = progress(current_num_nodes);
-      HighResClockTimepoint end = std::chrono::high_resolution_clock::now();
-      size_t elapsed_time = std::chrono::duration<double>(end - start).count();
-      size_t minutes = elapsed_time / 60;
-      size_t seconds = elapsed_time % 60;
-
-      std::stringstream ss;
-      ss << "[ ";
-      for ( size_t i = 0; i < current_progress; ++i ) {
-        ss << "#";
-      }
-      for ( size_t i = 0; i < 100 - current_progress; ++i ) {
-        ss << " ";
-      }
-      ss << " " << static_cast<int>(current_progress) << "% ] ";
-      ss << " (" << current_num_nodes << "/" << _hg.initialNumNodes() << ") - ";
-
-      ss << "Elapsed Time: ";
-      if ( minutes > 0 ) {
-        ss << minutes << " min ";
-      }
-      ss << seconds << " s - ";
-
-      ss << "Current Objective: " << current_objective;
-
-      std::cout << ss.str() << "\r" << (current_progress == 100 ? "\n" : "");
-      std::cout.flush();
-    }
   }
 
  protected:
