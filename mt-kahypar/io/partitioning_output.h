@@ -298,16 +298,19 @@ static inline void printPartitioningResults(const Hypergraph& hypergraph,
   }
 }
 
-static inline void printInputInformation(const Context& context, const Hypergraph& hypergraph) {
+static inline void printContext(const Context& context) {
   if (context.partition.verbose_output) {
     LOG << context;
-    if (context.partition.verbose_output) {
-      LOG << "\n********************************************************************************";
-      LOG << "*                                    Input                                     *";
-      LOG << "********************************************************************************";
-      io::printHypergraphInfo(hypergraph, context.partition.graph_filename.substr(
-                                context.partition.graph_filename.find_last_of('/') + 1));
-    }
+  }
+}
+
+static inline void printInputInformation(const Context& context, const Hypergraph& hypergraph) {
+  if (context.partition.verbose_output) {
+    LOG << "\n********************************************************************************";
+    LOG << "*                                    Input                                     *";
+    LOG << "********************************************************************************";
+    io::printHypergraphInfo(hypergraph, context.partition.graph_filename.substr(
+                              context.partition.graph_filename.find_last_of('/') + 1));
   }
 }
 

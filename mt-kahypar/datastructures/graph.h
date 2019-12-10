@@ -190,7 +190,7 @@ class AdjListStarExpansion {
 
  public:
   template <typename HyperGraph>
-  static AdjListGraph contructGraph(const HyperGraph& hg, const Context& context) {
+  static AdjListGraph constructGraph(const HyperGraph& hg, const Context& context) {
     AdjListGraph graph(hg.initialNumNodes() + hg.initialNumEdges());
     bool isGraph = true;
     for (const HyperedgeID he : hg.edges()) {

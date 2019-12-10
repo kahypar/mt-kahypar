@@ -1424,7 +1424,7 @@ class Hypergraph {
           }
           return num_communities;
         },
-                                            [](const PartitionID lhs, const PartitionID rhs) {
+        [](const PartitionID lhs, const PartitionID rhs) {
           return std::max(lhs, rhs);
         });
     utils::Timer::instance().stop_timer("compute_number_of_communities");

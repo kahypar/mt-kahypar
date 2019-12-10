@@ -54,7 +54,6 @@ class HwlocTopology {
         }
       }
 
-      ASSERT(node->depth >= 0);
       int current_index = 0;
       hwloc_obj_t current_node = node;
       while(current_node) {
