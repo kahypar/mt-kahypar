@@ -33,6 +33,17 @@ namespace mt_kahypar {
 namespace ds {
 
 
+/**
+ *      The connectivity set of a hyperedge is the set of parts of the partition, that it has pins in.
+ *      For each hyperedge we maintain its connectivity set in a packed format (std::vector<uint64_t>)
+ *      and implement the necessary bitset functionality ourselves, i.e. add, remove, contains, clear, iteration.
+ *      That is because we want atomic updates to support safe parallel modification of the partition.
+ *      Adding/removing a part are both implemented as a toggle of the corresponding bit, in case an add and
+ *      a remove operation are interweaved. However, this means the user must ensure that no two threads simultaneously try
+ *      to add a part. One correct way is to keep an atomic count of pins for each hyperedge and part. Then only the thread
+ *      raising the counter from zero to one performs the add, and only the thread decreasing the counter from one to zero
+ *      performs the removal.
+ */
 class ConnectivitySets {
 public:
 
@@ -44,19 +55,16 @@ public:
   ConnectivitySets(const HyperedgeID numEdges, const PartitionID k) : k(k),
                                                                       numEdges(numEdges),
                                                                       numBlocksPerHyperedge(k / bits_per_block + (k % bits_per_block != 0)),
-                                                                      bits(numEdges * numBlocksPerHyperedge),
-                                                                      connectivity_cache(numEdges)
+                                                                      bits(numEdges * numBlocksPerHyperedge)
   {
   }
 
   void add(const HyperedgeID he, const PartitionID p) {
     toggle(he, p);
-    connectivity_cache[he].fetch_add(1, std::memory_order_relaxed);
   }
 
   void remove(const HyperedgeID he, const PartitionID p) {
     toggle(he, p);
-    connectivity_cache[he].fetch_sub(1, std::memory_order_relaxed);
   }
 
   bool contains(const HyperedgeID he, const PartitionID p) const {
@@ -70,7 +78,6 @@ public:
     for (size_t i = he * numBlocksPerHyperedge; i < (he + 1) * numBlocksPerHyperedge; ++i) {
       bits[i].store(0, std::memory_order_relaxed);
     }
-    connectivity_cache[he].store(0, std::memory_order_relaxed);
   }
 
   PartitionID connectivity(const HyperedgeID he) const {
@@ -92,7 +99,6 @@ private:
 	HyperedgeID numEdges;
 	PartitionID numBlocksPerHyperedge;
 	std::vector<Block> bits;
-	std::vector< parallel::IntegralAtomicWrapper<PartitionID> > connectivity_cache;
 
 	void toggle(const HyperedgeID he, const PartitionID p) {
 	  assert(p < k);
