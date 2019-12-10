@@ -174,13 +174,6 @@ class StreamingHypergraph {
       _valid = true;
     }
 
-    /*
-    IDType size() const {
-      ASSERT(!isDisabled());
-      return _incident_nets.size();
-    }
-    */
-
     HyperedgeWeight weight() const {
       ASSERT(!isDisabled());
       return _weight;
@@ -252,21 +245,6 @@ class StreamingHypergraph {
     void decrementInvalidCommunityNets() {
       --_invalid_community_nets;
     }
-
-    /*
-    bool operator== (const Hypernode& rhs) const {
-      return _incident_nets.size() == rhs._incident_nets.size() &&
-             _weight == rhs._weight &&
-             _valid == rhs._valid &&
-             std::is_permutation(_incident_nets.begin(),
-                                 _incident_nets.end(),
-                                 rhs._incident_nets.begin());
-    }
-
-    bool operator!= (const Hypernode& rhs) const {
-      return !operator== (this, rhs);
-    }
-    */
 
    private:
     // ! Hypernode id
@@ -627,7 +605,7 @@ class StreamingHypergraph {
     // Handle to the HypergraphElement the iterator currently points to
     IDType _id = 0;
     // Maximum allowed index
-    /* const */ IDType _max_id = 0;
+    IDType _max_id = 0;
     // HypergraphElement the iterator currently points to
     const ElementType* _element = nullptr;
   };
