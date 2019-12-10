@@ -57,7 +57,7 @@ class IntegralAtomicWrapper {
   // static_assert( std::atomic<T>::is_always_lock_free, "Atomic must be lock free" );
 
  public:
-  explicit IntegralAtomicWrapper(const T value) :
+  explicit IntegralAtomicWrapper(const T value = T()) :
     _value(value) { }
 
   IntegralAtomicWrapper(const IntegralAtomicWrapper& other) :
@@ -85,7 +85,7 @@ class IntegralAtomicWrapper {
     _value.store(desired, order);
   }
 
-  T load(std::memory_order order = std::memory_order_seq_cst) noexcept {
+  T load(std::memory_order order = std::memory_order_seq_cst) const noexcept {
     return _value.load(order);
   }
 

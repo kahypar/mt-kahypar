@@ -109,7 +109,6 @@ void verifyPinIterators(const TestHypergraph& hypergraph,
 
 TEST_F(AConcurrentHypergraph, HasCorrectLocalPartWeights) {
   TestHypergraph hypergraph = construct_test_hypergraph(*this);
-
   executeConcurrent([&] {
         ASSERT_EQ(3, hypergraph.localPartWeight(0));
         ASSERT_EQ(3, hypergraph.localPartSize(0));

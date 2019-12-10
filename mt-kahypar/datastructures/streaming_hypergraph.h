@@ -47,6 +47,8 @@
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
 #include "mt-kahypar/utils/timer.h"
 
+#include "mt-kahypar/utils/range.h"
+
 namespace mt_kahypar {
 namespace ds {
 // forward
@@ -58,18 +60,6 @@ template <typename HypernodeType_,
           typename HardwareTopology,
           typename TBBNumaArena>
 class Hypergraph;
-
-// ! Helper function to allow range-based for loops
-template <typename Iterator>
-Iterator begin(const std::pair<Iterator, Iterator>& x) {
-  return x.first;
-}
-
-// ! Helper function to allow range-based for loops
-template <typename Iterator>
-Iterator end(const std::pair<Iterator, Iterator>& x) {
-  return x.second;
-}
 
 template <typename HypernodeType_ = Mandatory,
           typename HyperedgeType_ = Mandatory,
@@ -184,11 +174,6 @@ class StreamingHypergraph {
       _valid = true;
     }
 
-    IDType size() const {
-      ASSERT(!isDisabled());
-      return _incident_nets.size();
-    }
-
     HyperedgeWeight weight() const {
       ASSERT(!isDisabled());
       return _weight;
@@ -259,19 +244,6 @@ class StreamingHypergraph {
 
     void decrementInvalidCommunityNets() {
       --_invalid_community_nets;
-    }
-
-    bool operator== (const Hypernode& rhs) const {
-      return _incident_nets.size() == rhs._incident_nets.size() &&
-             _weight == rhs._weight &&
-             _valid == rhs._valid &&
-             std::is_permutation(_incident_nets.begin(),
-                                 _incident_nets.end(),
-                                 rhs._incident_nets.begin());
-    }
-
-    bool operator!= (const Hypernode& rhs) const {
-      return !operator== (this, rhs);
     }
 
    private:
@@ -621,13 +593,6 @@ class StreamingHypergraph {
       return copy;
     }
 
-    // ! Convenience function for range-based for-loops
-    friend HypergraphElementIterator end<>(const std::pair<HypergraphElementIterator,
-                                                           HypergraphElementIterator>& iter_pair);
-    // ! Convenience function for range-based for-loops
-    friend HypergraphElementIterator begin<>(const std::pair<HypergraphElementIterator,
-                                                             HypergraphElementIterator>& iter_pair);
-
     bool operator!= (const HypergraphElementIterator& rhs) {
       return _id != rhs._id;
     }
@@ -640,7 +605,7 @@ class StreamingHypergraph {
     // Handle to the HypergraphElement the iterator currently points to
     IDType _id = 0;
     // Maximum allowed index
-    const IDType _max_id = 0;
+    IDType _max_id = 0;
     // HypergraphElement the iterator currently points to
     const ElementType* _element = nullptr;
   };
@@ -654,8 +619,6 @@ class StreamingHypergraph {
   using IncidenceIterator = typename parallel::scalable_vector<HypernodeID>::const_iterator;
   // ! Iterator over the set of community ids of a hyperedge
   using CommunityIterator = typename parallel::scalable_vector<PartitionID>::const_iterator;
-  // ! Iterator over the connectivity set of a hyperedge
-  using ConnectivitySetIterator = typename ConnectivitySet::ConnectivitySetIterator;
   // ! Community Hyperedges
   using CommunityHyperedges = parallel::scalable_vector<parallel::scalable_vector<CommunityHyperedge> >;
 
@@ -741,7 +704,7 @@ class StreamingHypergraph {
     _incident_nets_of_v(),
     _atomic_hn_data(),
     _pins_in_part(),
-    _connectivity_sets(),
+    _connectivity_sets(0,0),
     _vertex_pin_count(),
     _pin_stream(),
     _hyperedge_stream(),
@@ -825,19 +788,19 @@ class StreamingHypergraph {
 
   // ####################### Iterators #######################
 
-  // ! Returns an iterator over the set of active nodes of the hypergraph
-  std::pair<HypernodeIterator, HypernodeIterator> nodes() const {
+  // ! Returns a range of the active nodes of the hypergraph
+  IteratorRange<HypernodeIterator> nodes() const {
     HypernodeID start = get_global_node_id(0);
     HypernodeID end = get_global_node_id(_num_hypernodes);
-    return std::make_pair(HypernodeIterator(_hypernodes.data(), start, end),
+    return IteratorRange<HypernodeIterator>(HypernodeIterator(_hypernodes.data(), start, end),
                           HypernodeIterator((_hypernodes.data() + _num_hypernodes), end, end));
   }
 
-  // ! Returns an iterator over the set of active edges of the hypergraph
-  std::pair<HyperedgeIterator, HyperedgeIterator> edges() const {
+  // ! Returns a range of the active edges of the hypergraph
+  IteratorRange<HyperedgeIterator> edges() const {
     HyperedgeID start = get_global_edge_id(0UL);
     HyperedgeID end = get_global_edge_id(_num_hyperedges);
-    return std::make_pair(HyperedgeIterator(_hyperedges.data(), start, end),
+    return IteratorRange<HyperedgeIterator>(HyperedgeIterator(_hyperedges.data(), start, end),
                           HyperedgeIterator((_hyperedges.data() + _num_hyperedges), end, end));
   }
 
@@ -846,77 +809,63 @@ class StreamingHypergraph {
    * at the documentation in hypergraph.
    */
 
-  // ! Returns a for-each iterator-pair to loop over the set of incident hyperedges of hypernode u.
-  // ! During parallel community coarsening we do not remove parallel hyperedges (which spans more than
-  // ! one community) incident to hypernode u. Instead, we just invalidate those hyperedges
-  // ! (which means swapping them to the end of incident nets and storing a pointer to all
-  // ! invalidated hyperedges). This function returns an iterator over all VALID and INVALID
-  // ! hyperedges incident of vertex u.
-  std::pair<IncidenceIterator, IncidenceIterator> incidentEdges(const HypernodeID u) const {
+  // ! During parallel community coarsening we do not remove parallel (identical) hyperedges that span more than one community.
+  // ! Instead, we just invalidate those hyperedges, which means swapping them to the end of incident nets and storing a pointer to all invalidated hyperedges.
+
+  // ! Returns a range to loop over the set of all VALID and INVALID incident hyperedges of hypernode u.
+  IteratorRange<IncidenceIterator> incidentEdges(const HypernodeID u) const {
     ASSERT(!hypernode(u).isDisabled(), "Hypernode" << u << "is disabled");
-    return std::make_pair(incident_nets(u).cbegin() + hypernode(u).invalidIncidentNets(),
-                          incident_nets(u).cend());
+    return IteratorRange<IncidenceIterator>(incident_nets(u).cbegin() + hypernode(u).invalidIncidentNets(), incident_nets(u).cend());
   }
 
-  // ! Returns a for-each iterator-pair to loop over the set of incident hyperedges of hypernode u.
-  // ! During parallel community coarsening we do not remove parallel hyperedges (which spans more than
-  // ! one community) incident to hypernode u. Instead, we just invalidate those hyperedges
-  // ! (which means swapping them to the end of incident nets and storing a pointer to all
-  // ! invalidated hyperedges). This function returns an iterator over all VALID hyperedges incident
-  // ! of vertex u.
-  std::pair<IncidenceIterator, IncidenceIterator> validIncidentEdges(const HypernodeID u, const PartitionID) const {
+  // ! Returns a range to loop over the set of all VALID incident hyperedges of hypernode u.
+  IteratorRange<IncidenceIterator> validIncidentEdges(const HypernodeID u, const PartitionID) const {
     ASSERT(!hypernode(u).isDisabled(), "Hypernode" << u << "is disabled");
     ASSERT(hypernode(u).invalidCommunityNets() <= incident_nets(u).size());
-    return std::make_pair(incident_nets(u).cbegin(),
-                          incident_nets(u).cbegin() + hypernode(u).invalidCommunityNets());
+    return IteratorRange<IncidenceIterator>(incident_nets(u).cbegin(), incident_nets(u).cbegin() + hypernode(u).invalidCommunityNets());
   }
 
-  // ! Returns a for-each iterator-pair to loop over the set of incident hyperedges of hypernode u.
-  // ! Note, this function returns the same incident edges than validIncidentEdges(u, community_id), but
-  // ! additionally it skips all hyperedges that only contains a single vertex of a community (single-pin
-  // ! community hyperedges)
-  std::pair<IncidenceIterator, IncidenceIterator> incidentEdges(const HypernodeID u, const PartitionID) const {
+
+  // TODO function name should reflect its purpose
+  // ! Returns a range to loop over the set of all VALID incident hyperedges of hypernode u that are not single-pin community hyperedges.
+  IteratorRange<IncidenceIterator> incidentEdges(const HypernodeID u, const PartitionID) const {
     ASSERT(!hypernode(u).isDisabled(), "Hypernode" << u << "is disabled");
     ASSERT(hypernode(u).singlePinCommunityNets() <= hypernode(u).invalidCommunityNets());
     ASSERT(hypernode(u).invalidCommunityNets() <= incident_nets(u).size());
-    return std::make_pair(incident_nets(u).cbegin() + hypernode(u).singlePinCommunityNets(),
-                          incident_nets(u).cbegin() + hypernode(u).invalidCommunityNets());
+    return IteratorRange<IncidenceIterator>(incident_nets(u).cbegin() + hypernode(u).singlePinCommunityNets(), incident_nets(u).cbegin() + hypernode(u).invalidCommunityNets());
   }
 
-  // ! Returns a for-each iterator-pair to loop over the set pins of hyperedge e.
+  // ! Returns a range to loop over the pins of hyperedge e.
   // ! Note, this function fails if community hyperedges are initialized.
-  std::pair<IncidenceIterator, IncidenceIterator> pins(const HyperedgeID e) const {
+  IteratorRange<IncidenceIterator> pins(const HyperedgeID e) const {
     ASSERT(!hyperedge(e).isDisabled(), "Hyperedge" << e << "is disabled");
     ASSERT(!hyperedge(e).isInitCommunityHyperedges(), "Community hyperedges of HE" << e << "are initialized");
-    return std::make_pair(_incidence_array.cbegin() + hyperedge(e).firstEntry(),
-                          _incidence_array.cbegin() + hyperedge(e).firstInvalidEntry());
+    return IteratorRange<IncidenceIterator>(_incidence_array.cbegin() + hyperedge(e).firstEntry(), _incidence_array.cbegin() + hyperedge(e).firstInvalidEntry());
   }
 
-  // ! Returns a for-each iterator-pair to loop over the set pins of hyperedge e that belongs to a certain community.
+  // ! Returns a range to loop over the pins of hyperedge e that belong to a certain community.
   // ! Note, this function fails if community hyperedges are not initialized.
-  std::pair<IncidenceIterator, IncidenceIterator> pins(const HyperedgeID e, const PartitionID community_id) const {
+  IteratorRange<IncidenceIterator> pins(const HyperedgeID e, const PartitionID community_id) const {
     ASSERT(!hyperedge(e).isDisabled(), "Hyperedge" << e << "is disabled");
     ASSERT(hyperedge(e).isInitCommunityHyperedges(), "Community hyperedges of HE" << e << "are not initialized");
     const CommunityHyperedge& community_he = community_hyperedge(e, community_id);
-    return std::make_pair(_incidence_array.cbegin() + community_he.firstEntry(),
-                          _incidence_array.cbegin() + community_he.firstInvalidEntry());
+    return IteratorRange<IncidenceIterator>(_incidence_array.cbegin() + community_he.firstEntry(), _incidence_array.cbegin() + community_he.firstInvalidEntry());
   }
 
-  // ! Returns a for-each iterator-pair to loop over the set of communities contained in hyperedge e.
-  std::pair<CommunityIterator, CommunityIterator> communities(const HyperedgeID e) const {
+  // ! Returns a range to loop over the set of communities contained in hyperedge e.
+  IteratorRange<CommunityIterator> communities(const HyperedgeID e) const {
     ASSERT(!hyperedge(e).isDisabled(), "Hyperedge" << e << "is disabled");
     ASSERT(hyperedge(e).isInitCommunityHyperedges(), "Community hyperedges of HE" << e << "are not initialized");
     HyperedgeID local_id = get_local_edge_id_of_hyperedge(e);
     ASSERT(local_id < _community_hyperedge_ids.size());
-    return std::make_pair(_community_hyperedge_ids[local_id].cbegin(),
-                          _community_hyperedge_ids[local_id].cend());
+    return IteratorRange<CommunityIterator>(_community_hyperedge_ids[local_id].cbegin(), _community_hyperedge_ids[local_id].cend());
   }
 
-  // ! Returns a for-each iterator-pair to loop over the set of block ids contained in hyperedge e.
-  std::pair<ConnectivitySetIterator, ConnectivitySetIterator> connectivitySet(const HyperedgeID e) const {
+  // ! Returns a range to loop over the set of block ids contained in hyperedge e.
+  IteratorRange<ConnectivitySets::Iterator> connectivitySet(const HyperedgeID e) const {
     ASSERT(!hyperedge(e).isDisabled(), "Hyperedge" << e << "is disabled");
     const HyperedgeID local_id = get_local_edge_id_of_hyperedge(e);
-    return _connectivity_sets[local_id].connectivitySet();
+    return _connectivity_sets.connectivitySet(local_id);
   }
 
   // ####################### Hypernode Information #######################
@@ -1101,7 +1050,7 @@ class StreamingHypergraph {
 
   // ####################### Partition Information #######################
 
-  // ! Sets the block id an unassigned vertex u.
+  // ! Sets the block id of an unassigned vertex u.
   // ! Returns true, if assignment of unassigned vertex u to block id succeeds.
   bool setNodePart(const HypernodeID u, PartitionID id) {
     ASSERT(!hypernode(u).isDisabled(), "Hypernode" << u << "is disabled");
@@ -1152,7 +1101,7 @@ class StreamingHypergraph {
   PartitionID connectivity(const HyperedgeID e) const {
     ASSERT(!hyperedge(e).isDisabled(), "Hyperedge" << e << "is disabled");
     const HyperedgeID local_id = get_local_edge_id_of_hyperedge(e);
-    return _connectivity_sets[local_id].size();
+    return _connectivity_sets.connectivity(local_id);
   }
 
   // ! Returns the number pins of hyperedge e that are part of block id
@@ -1586,10 +1535,9 @@ class StreamingHypergraph {
 
     ASSERT(_k > 0);
     _pins_in_part.assign(_num_hyperedges * _k, HypernodeAtomic(0));
-    ASSERT(_connectivity_sets.size() == 0);
-    for (HyperedgeID he = 0; he < _num_hyperedges; ++he) {
-      _connectivity_sets.emplace_back(_k);
-    }
+
+    _connectivity_sets = ConnectivitySets(_num_hyperedges, _k);
+
     ThreadLocalFastResetFlagArray tmp_incidence_nets_of_v(_num_hyperedges);
     _incident_nets_of_v = std::move(tmp_incidence_nets_of_v);
 
@@ -2368,37 +2316,37 @@ class StreamingHypergraph {
   }
 
   // ! Decrements the number of pins of hyperedge he in block id
-  KAHYPAR_ATTRIBUTE_ALWAYS_INLINE HypernodeID decrementPinCountInPart(const HyperedgeID he, const PartitionID id) {
+  KAHYPAR_ATTRIBUTE_ALWAYS_INLINE HypernodeID decrementPinCountInPart(const HyperedgeID he, const PartitionID part_id) {
     ASSERT(!hyperedge(he).isDisabled(), "Hyperedge" << he << "is disabled");
     /*ASSERT(pinCountInPart(he, id) > 0,
            "HE" << he << ": pin_count[" << id << "]=" << pinCountInPart(he, id)
                 << "edgesize=" << edgeSize(he));*/
-    ASSERT(id < _k && id != kInvalidPartition, "Part ID" << id << "out of bounds!");
+    ASSERT(part_id < _k && part_id != kInvalidPartition, "Part ID" << part_id << "out of bounds!");
     const HyperedgeID local_id = get_local_edge_id_of_hyperedge(he);
-    const size_t offset = local_id * _k + id;
+    const size_t offset = local_id * _k + part_id;
     ASSERT(offset < _pins_in_part.size());
     const HypernodeID pin_count_after = --_pins_in_part[offset];
     const bool connectivity_decreased = pin_count_after == 0;
     if (connectivity_decreased) {
-      _connectivity_sets[local_id].remove(id);
+      _connectivity_sets.remove(local_id, part_id);
     }
     return pin_count_after;
   }
 
   // ! Increments the number of pins of hyperedge he in block id
-  KAHYPAR_ATTRIBUTE_ALWAYS_INLINE HypernodeID incrementPinCountInPart(const HyperedgeID he, const PartitionID id) {
+  KAHYPAR_ATTRIBUTE_ALWAYS_INLINE HypernodeID incrementPinCountInPart(const HyperedgeID he, const PartitionID part_id) {
     ASSERT(!hyperedge(he).isDisabled(), "Hyperedge" << he << "is disabled");
     /*ASSERT(pinCountInPart(he, id) <= edgeSize(he),
            "HE" << he << ": pin_count[" << id << "]=" << pinCountInPart(he, id)
                 << "edgesize=" << edgeSize(he));
     ASSERT(id < _k && id != kInvalidPartition, "Part ID" << id << "out of bounds!");*/
     const HyperedgeID local_id = get_local_edge_id_of_hyperedge(he);
-    const size_t offset = local_id * _k + id;
+    const size_t offset = local_id * _k + part_id;
     ASSERT(offset < _pins_in_part.size());
     const HypernodeID pin_count_after = ++_pins_in_part[offset];
     const bool connectivity_increased = pin_count_after == 1;
     if (connectivity_increased) {
-      _connectivity_sets[local_id].add(id);
+      _connectivity_sets.add(local_id, part_id);
     }
     return pin_count_after;
   }
@@ -2574,7 +2522,7 @@ class StreamingHypergraph {
   parallel::scalable_vector<HypernodeAtomic> _pins_in_part;
   // ! For each hyperedge, _connectivity_sets stores the connectivity and the set of block ids
   // ! which the pins of the hyperedge belongs to
-  parallel::scalable_vector<ConnectivitySet> _connectivity_sets;
+  ConnectivitySets _connectivity_sets;
 
   // ! Contains for each hypernode, how many time it
   // ! occurs as pin in incidence array
