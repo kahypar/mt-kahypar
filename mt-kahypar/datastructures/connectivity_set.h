@@ -36,12 +36,13 @@ namespace ds {
 class ConnectivitySets {
 public:
 
-  static constexpr bool debug = true;
+  static constexpr bool debug = false;
   using PartitionID = uint32_t;
   using HyperedgeID = uint64_t;	// TODO how to keep synced with definitions.h, other than templates?
 
 
-  ConnectivitySets(const HyperedgeID numEdges, const PartitionID k) : k(k), numEdges(numEdges),
+  ConnectivitySets(const HyperedgeID numEdges, const PartitionID k) : k(k),
+                                                                      numEdges(numEdges),
                                                                       numBlocksPerHyperedge(k / bits_per_block + (k % bits_per_block != 0)),
                                                                       bits(numEdges * numBlocksPerHyperedge),
                                                                       connectivity_cache(numEdges)
@@ -72,20 +73,13 @@ public:
     connectivity_cache[he].store(0, std::memory_order_relaxed);
   }
 
-  // Note: this might differ from the lookup
-  PartitionID computeConnectivity(const HyperedgeID he) const {
+  PartitionID connectivity(const HyperedgeID he) const {
     PartitionID conn = 0;
     for (size_t i = he * numBlocksPerHyperedge; i < (he + 1) * numBlocksPerHyperedge; ++i) {
       conn += utils::popcount_64(bits[i].load(std::memory_order_relaxed));
     }
     return conn;
   }
-
-  // Note: this might differ from the number of actually set bits
-  PartitionID connectivity(const HyperedgeID he) const {
-    return connectivity_cache[he].load(std::memory_order_relaxed);
-  }
-
 
 private:
   using UnsafeBlock = uint64_t;
