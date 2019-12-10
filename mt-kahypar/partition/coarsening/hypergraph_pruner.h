@@ -94,8 +94,8 @@ class HypergraphPrunerT {
                                              const PartitionID community_id,
                                              Memento& memento) {
     memento.one_pin_hes_begin = _removed_single_node_hyperedges.size();
-    auto begin_it = hypergraph.incidentEdges(memento.u, community_id).first;
-    auto end_it = hypergraph.incidentEdges(memento.u, community_id).second;
+    auto begin_it = hypergraph.incidentEdges(memento.u, community_id).begin();
+    auto end_it = hypergraph.incidentEdges(memento.u, community_id).end();
     HyperedgeWeight removed_he_weight = 0;
     for (auto he_it = begin_it; he_it != end_it; ++he_it) {
       if (hypergraph.numCommunitiesInHyperedge(*he_it) == 1 &&

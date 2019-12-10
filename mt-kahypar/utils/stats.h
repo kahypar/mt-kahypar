@@ -82,7 +82,7 @@ class Stats {
       _value_5(value) { }
 
     template <typename T>
-    void update(const T delta) { }
+    void update(const T ) { }
 
     void update(const bool value) {
       _value_1 = value;
