@@ -801,10 +801,6 @@ class Hypergraph {
     return hypergraph_of_edge(e).connectivity(e);
   }
 
-  PartitionID computeConnectivity(const HyperedgeID e) const {
-    return hypergraph_of_edge(e).computeConnectivity(e);
-  }
-
   // ! Returns the number pins of hyperedge e that are part of block id
   HypernodeID pinCountInPart(const HyperedgeID e, const PartitionID id) const {
     return hypergraph_of_edge(e).pinCountInPart(e, id);

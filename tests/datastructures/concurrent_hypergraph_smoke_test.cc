@@ -229,7 +229,6 @@ void verifyConnectivitySet(mt_kahypar::Hypergraph& hypergraph,
       connectivity_set.insert(id);
     }
 
-    ASSERT_EQ(hypergraph.connectivity(he), hypergraph.computeConnectivity(he));
     ASSERT_EQ(hypergraph.connectivity(he), connectivity_set.size());
     ASSERT_EQ(connectivity_set.size(), recomputed_connectivity_set.size());
     ASSERT_EQ(connectivity_set, recomputed_connectivity_set);
