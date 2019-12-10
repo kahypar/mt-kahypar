@@ -41,6 +41,7 @@ struct PartitioningParameters {
   bool verbose_output = false;
   bool quiet_mode = false;
   bool detailed_timings = false;
+  bool enable_progress_bar = false;
   bool sp_process_output = false;
   bool write_partition_file = false;
 
@@ -150,7 +151,7 @@ inline std::ostream & operator<< (std::ostream& str, const CoarseningParameters&
   str << "  contraction limit multiplier:       " << params.contraction_limit_multiplier << std::endl;
   str << "  contraction limit:                  " << params.contraction_limit << std::endl;
   if ( params.use_high_degree_vertex_threshold ) {
-    str << "  high degree degree threshold:       " << params.high_degree_vertex_threshold << std::endl;
+    str << "  high degree vertex threshold:       " << params.high_degree_vertex_threshold << std::endl;
   }
   str << std::endl << params.rating;
   return str;

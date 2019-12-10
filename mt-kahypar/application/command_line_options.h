@@ -109,6 +109,8 @@ po::options_description createGenericOptionsDescription(Context& context,
     "Quiet Mode: Completely suppress console output")
     ("show-detailed-timings", po::value<bool>(&context.partition.detailed_timings)->value_name("<bool>"),
     "If true, detailed timings overview is shown")
+    ("enable-progress-bar", po::value<bool>(&context.partition.enable_progress_bar)->value_name("<bool>"),
+    "If true, than progress bar is shown during uncoarsening")
     ("time-limit", po::value<int>(&context.partition.time_limit)->value_name("<int>"),
     "Time limit in seconds")
     ("sp-process,s", po::value<bool>(&context.partition.sp_process_output)->value_name("<bool>"),

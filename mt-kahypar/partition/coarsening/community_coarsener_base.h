@@ -407,7 +407,7 @@ class CommunityCoarsenerBase {
   void printUncontractionProgressBar(const HypernodeID current_num_nodes,
                                      const HypernodeWeight current_objective,
                                      const HighResClockTimepoint& start) {
-    if ( _context.partition.verbose_output ) {
+    if ( _context.partition.verbose_output && _context.partition.enable_progress_bar ) {
       const HypernodeID current_progress = progress(current_num_nodes);
       HighResClockTimepoint end = std::chrono::high_resolution_clock::now();
       size_t elapsed_time = std::chrono::duration<double>(end - start).count();
