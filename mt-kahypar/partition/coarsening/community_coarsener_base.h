@@ -23,7 +23,6 @@
 #include <queue>
 #include <string>
 #include <sstream>
-#include <boost/progress.hpp>
 
 #include "tbb/parallel_for.h"
 #include "tbb/parallel_invoke.h"
@@ -36,6 +35,7 @@
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/partition/metrics.h"
 #include "mt-kahypar/partition/refinement/i_refiner.h"
+#include "mt-kahypar/utils/progress_bar.h"
 #include "mt-kahypar/utils/stats.h"
 
 namespace mt_kahypar {
@@ -156,11 +156,9 @@ class CommunityCoarsenerBase {
     std::vector<HypernodeID> refinement_nodes;
     size_t max_batch_size = _context.refinement.use_batch_uncontractions &&
                             _context.shared_memory.num_threads > 1 ? _context.refinement.batch_size : 1;
-    std::unique_ptr<boost::progress_display> uncontraction_progress(nullptr);
-    if ( _context.partition.verbose_output && _context.partition.enable_progress_bar ) {
-      uncontraction_progress = std::make_unique<boost::progress_display>(_hg.initialNumNodes());
-      *uncontraction_progress += num_nodes;
-    }
+    utils::ProgressBar uncontraction_progress(_hg.initialNumNodes(),
+      _context.partition.objective == kahypar::Objective::km1 ? current_metrics.km1 : current_metrics.cut,
+      _context.partition.verbose_output && _context.partition.enable_progress_bar);
 
     while (!_history.empty()) {
       // utils::Timer::instance().start_timer("uncontraction", "Uncontraction");
@@ -175,13 +173,11 @@ class CommunityCoarsenerBase {
         label_propagation->refine(refinement_nodes, current_metrics);
       }
 
-      if ( uncontraction_progress ) {
-        *uncontraction_progress += max_batch_size;
-      }
+      uncontraction_progress.setObjective(
+        _context.partition.objective == kahypar::Objective::km1 ?
+        current_metrics.km1 : current_metrics.cut);
+      uncontraction_progress += max_batch_size;
       refinement_nodes.clear();
-    }
-    if ( uncontraction_progress ) {
-      *uncontraction_progress += (uncontraction_progress->expected_count() - uncontraction_progress->count());
     }
 
 
