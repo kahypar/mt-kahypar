@@ -77,6 +77,7 @@
 #define HEAVY_REFINEMENT_ASSERT(...) EXPAND(HEAVY_ASSERT_EVAL(REFINEMENT, EXPAND(NARG(__VA_ARGS__)))(__VA_ARGS__))
 
 // Info, Warning and Error Output Macros
+#define GREEN "\033[1;92m"
 #define CYAN "\033[1;96m"
 #define YELLOW "\033[1;93m"
 #define RED "\033[1;91m"
