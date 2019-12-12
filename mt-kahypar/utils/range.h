@@ -23,8 +23,6 @@
 
 #include <vector>
 
-#include <boost/range/join.hpp>
-
 template<typename IteratorT>
 class IteratorRange {
 public:
