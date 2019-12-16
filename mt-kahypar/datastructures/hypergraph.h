@@ -1515,25 +1515,11 @@ class Hypergraph {
     StreamingHypergraph& hypergraph_of_u = hypergraph_of_vertex(memento.u);
     auto& incident_hes_of_u = hypergraph_of_u.incident_nets(memento.u);
     size_t incident_hes_start = hypergraph_of_u.hypernode(memento.u).invalidIncidentNets();
-    std::vector<HyperedgeID> disabled_hyperedges;
     for (size_t incident_hes_it = 0; incident_hes_it != incident_hes_start; ++incident_hes_it) {
       const HyperedgeID& he = incident_hes_of_u[incident_hes_it];
       if (!edgeIsEnabled(he)) {
-        disabled_hyperedges.push_back(he);
-      }
-    }
-    // All disabled hyperedges have to be traversed in decreasing order of their edge id
-    // when checking if they become non-parallel to one of its representatives.
-    std::sort(disabled_hyperedges.begin(), disabled_hyperedges.end(),
-              [&](const HyperedgeID& lhs, const HyperedgeID& rhs) {
-          return lhs > rhs;
-        });
-
-    // Check if a disabled parallel hyperedges will become non-parallel to
-    // its representative.
-    for (const HyperedgeID& he : disabled_hyperedges) {
-      if (!edgeIsEnabled(he)) {
         StreamingHypergraph& hypergraph_of_he = hypergraph_of_edge(he);
+        const bool contains_he = hypergraph_of_he.containsIncidentNet(he);
         HyperedgeID representative = findRepresentative(he, parallel_he_representative);
         const size_t edge_size = edgeSize(representative);
         bool becomes_non_parallel = false;
@@ -1549,33 +1535,40 @@ class Hypergraph {
           representative = globalEdgeID(current_representative);
 
           StreamingHypergraph& hypergraph_of_rep = hypergraph_of_edge(representative);
+          const bool contains_rep = hypergraph_of_rep.containsIncidentNet(representative);
+          if ( contains_he || contains_rep ) {
+            // In case, both hyperedges fall into different uncontraction cases, than both become
+            // non parallel afterwards.
+            UncontractionCase case_rep = is_batch_uncontraction ?
+                                        hypergraph_of_rep.get_uncontraction_case(representative, edge_size, memento.v, _hypergraphs, *batch_hypernodes) :
+                                        hypergraph_of_rep.get_uncontraction_case(representative, edge_size, memento.v);
+            bool is_case_1_rep = case_rep != UncontractionCase::CASE_2;
+            UncontractionCase case_he = is_batch_uncontraction ?
+                                        hypergraph_of_he.get_uncontraction_case(he, edge_size, memento.v, _hypergraphs, *batch_hypernodes) :
+                                        hypergraph_of_he.get_uncontraction_case(he, edge_size, memento.v);
+            bool is_case_1_he = case_he != UncontractionCase::CASE_2;
 
-          // In case, both hyperedges fall into different uncontraction cases, than both become
-          // non parallel afterwards.
-          UncontractionCase case_rep = is_batch_uncontraction ?
-                                       hypergraph_of_rep.get_uncontraction_case(representative, edge_size, memento.v, _hypergraphs, *batch_hypernodes) :
-                                       hypergraph_of_rep.get_uncontraction_case(representative, edge_size, memento.v);
-          bool is_case_1_rep = case_rep != UncontractionCase::CASE_2;
-          UncontractionCase case_he = is_batch_uncontraction ?
-                                      hypergraph_of_he.get_uncontraction_case(he, edge_size, memento.v, _hypergraphs, *batch_hypernodes) :
-                                      hypergraph_of_he.get_uncontraction_case(he, edge_size, memento.v);
-          bool is_case_1_he = case_he != UncontractionCase::CASE_2;
-
-          // In case, the contraction partner v contains either the disabled hyperedge or
-          // the representative (but not both), than both become non parallel afterwards.
-          becomes_non_parallel = becomes_non_parallel ||
-                                 (hypergraph_of_he.containsIncidentNet(he) &&
-                                  !hypergraph_of_rep.containsIncidentNet(representative)) ||
-                                 (!hypergraph_of_he.containsIncidentNet(he) &&
-                                  hypergraph_of_rep.containsIncidentNet(representative)) ||
-                                 (!is_case_1_rep && is_case_1_he) ||
-                                 (is_case_1_rep && !is_case_1_he);
+            // In case, the contraction partner v contains either the disabled hyperedge or
+            // the representative (but not both), than both become non parallel afterwards.
+            becomes_non_parallel = becomes_non_parallel ||
+                                  (contains_he && !contains_rep) ||
+                                  (!contains_he && contains_rep) ||
+                                  (!is_case_1_rep && is_case_1_he) ||
+                                  (is_case_1_rep && !is_case_1_he);
+          }
         }
 
         if (becomes_non_parallel) {
           restoreParallelHyperedge(last_representative, memento, parallel_he_representative, batch_hypernodes);
-          incident_hes_start = hypergraph_of_u.hypernode(memento.u).invalidIncidentNets();
         }
+      } else {
+        // At that point, we have already restored the hyperedge and inserted it into the valid
+        // part of the vertex incident nets => just remove the hyperedge from the invalid part
+        ASSERT(incident_hes_start > 0);
+        std::swap(incident_hes_of_u[incident_hes_it--], incident_hes_of_u[--incident_hes_start]);
+        std::swap(incident_hes_of_u[incident_hes_start], incident_hes_of_u.back());
+        incident_hes_of_u.pop_back();
+        hypergraph_of_u.hypernode(memento.u).decrementInvalidIncidentNets();
       }
     }
   }

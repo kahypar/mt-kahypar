@@ -244,6 +244,7 @@ class AdjListStarExpansion {
   static void restrictClusteringToHypernodes(const HyperGraph& hg, Clustering& C) {
     C.resize(hg.initialNumNodes());
     C.shrink_to_fit();
+    C.compactify();
   }
 
  private:
