@@ -36,4 +36,5 @@
 namespace mt_kahypar {
 REGISTER_INITIAL_PARTITIONER(InitialPartitioningMode::direct, DirectInitialPartitioner);
 REGISTER_INITIAL_PARTITIONER(InitialPartitioningMode::recursive, RecursiveInitialPartitioner);
+REGISTER_INITIAL_PARTITIONER(InitialPartitioningMode::recursive_bisection, RecursiveBisectionInitialPartitioner);
 }  // namespace mt_kahypar

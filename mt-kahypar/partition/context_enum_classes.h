@@ -92,6 +92,7 @@ enum class AcceptancePolicy : uint8_t {
 enum class InitialPartitioningMode : uint8_t {
   direct,
   recursive,
+  recursive_bisection,
   UNDEFINED
 };
 
@@ -213,6 +214,7 @@ std::ostream & operator<< (std::ostream& os, const InitialPartitioningMode& mode
   switch (mode) {
     case InitialPartitioningMode::direct: return os << "direct";
     case InitialPartitioningMode::recursive: return os << "recursive";
+    case InitialPartitioningMode::recursive_bisection: return os << "recursive_bisection";
     case InitialPartitioningMode::UNDEFINED: return os << "UNDEFINED";
       // omit default case to trigger compiler warning for missing cases
   }
@@ -339,6 +341,8 @@ static InitialPartitioningMode initialPartitioningModeFromString(const std::stri
     return InitialPartitioningMode::direct;
   } else if (mode == "recursive") {
     return InitialPartitioningMode::recursive;
+  } else if (mode == "recursive_bisection") {
+    return InitialPartitioningMode::recursive_bisection;
   }
   ERROR("Illegal option: " + mode);
   return InitialPartitioningMode::UNDEFINED;

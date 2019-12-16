@@ -33,6 +33,7 @@
 #include "mt-kahypar/partition/initial_partitioning/direct_initial_partitioner.h"
 #include "mt-kahypar/partition/initial_partitioning/i_initial_partitioner.h"
 #include "mt-kahypar/partition/initial_partitioning/recursive_initial_partitioner.h"
+#include "mt-kahypar/partition/initial_partitioning/recursive_bisection_initial_partitioner.h"
 #include "mt-kahypar/partition/preprocessing/community_reassignment/bin_packing_community_assignment.h"
 #include "mt-kahypar/partition/preprocessing/community_reassignment/i_community_assignment.h"
 #include "mt-kahypar/partition/preprocessing/community_reassignment/policies/community_assignment_objective.h"
