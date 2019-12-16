@@ -1829,5 +1829,170 @@ TEST_F(AHypergraphWithTwoStreamingHypergraphs, CopiesItselfWithCommunitiesAfterT
   verifyPinIterators(copy_hg, { copy_hg.globalEdgeID(0), copy_hg.globalEdgeID(1), copy_hg.globalEdgeID(2) },
                      { { copy_id[1] }, { copy_id[1] }, { copy_id[0], copy_id[1] } });
 }
+
+TEST_F(AHypergraphWithTwoStreamingHypergraphs, ExtractPartZeroOfPartitionAsHypergraphWithCutNetSplitting) {
+  TestHypergraph hypergraph = construct_hypergraph(4, { { 1, 2 }, { 0, 1, 2, 3 }, { 2, 3 } },
+                                                   { 0, 0, 1, 1 }, { 0, 1, 0 }, { 0, 0, 1, 1 });
+  std::vector<HypernodeID> id = { GLOBAL_ID(hypergraph, 0), GLOBAL_ID(hypergraph, 1), GLOBAL_ID(hypergraph, 2), GLOBAL_ID(hypergraph, 3) };
+  hypergraph.setNodePart(id[0], 0);
+  hypergraph.setNodePart(id[1], 1);
+  hypergraph.setNodePart(id[2], 0);
+  hypergraph.setNodePart(id[3], 1);
+  hypergraph.initializeNumCutHyperedges();
+  hypergraph.updateGlobalPartInfos();
+
+  auto copy = hypergraph.copy(2, 0, true /* cut net splitting */);
+  TestHypergraph& copy_hg = copy.first;
+  auto& mapping = copy.second;
+  std::vector<HypernodeID> copy_id = { GLOBAL_ID(copy_hg, mapping[hypergraph.originalNodeID(id[0])]),
+                                       GLOBAL_ID(copy_hg, mapping[hypergraph.originalNodeID(id[2])]) };
+
+  ASSERT_EQ(0, TestStreamingHypergraph::get_numa_node_of_vertex(copy_id[0]));
+  ASSERT_EQ(1, TestStreamingHypergraph::get_numa_node_of_vertex(copy_id[1]));
+
+  ASSERT_EQ(0, copy_hg.communityID(copy_id[0]));
+  ASSERT_EQ(1, copy_hg.communityID(copy_id[1]));
+
+  verifyPinIterators(copy_hg, { copy_hg.globalEdgeID(0), copy_hg.globalEdgeID(1), copy_hg.globalEdgeID(2) },
+                     { { copy_id[1] }, { copy_id[1] }, { copy_id[0], copy_id[1] }});
+}
+
+TEST_F(AHypergraphWithTwoStreamingHypergraphs, ExtractPartOneOfPartitionAsHypergraphWithCutNetSplitting) {
+  TestHypergraph hypergraph = construct_hypergraph(4, { { 1, 2 }, { 0, 1, 2, 3 }, { 2, 3 } },
+                                                   { 0, 0, 1, 1 }, { 0, 1, 0 }, { 0, 0, 1, 1 });
+  std::vector<HypernodeID> id = { GLOBAL_ID(hypergraph, 0), GLOBAL_ID(hypergraph, 1), GLOBAL_ID(hypergraph, 2), GLOBAL_ID(hypergraph, 3) };
+  hypergraph.setNodePart(id[0], 0);
+  hypergraph.setNodePart(id[1], 1);
+  hypergraph.setNodePart(id[2], 0);
+  hypergraph.setNodePart(id[3], 1);
+  hypergraph.initializeNumCutHyperedges();
+  hypergraph.updateGlobalPartInfos();
+
+  auto copy = hypergraph.copy(2, 1, true /* cut net splitting */);
+  TestHypergraph& copy_hg = copy.first;
+  auto& mapping = copy.second;
+  std::vector<HypernodeID> copy_id = { GLOBAL_ID(copy_hg, mapping[hypergraph.originalNodeID(id[1])]),
+                                       GLOBAL_ID(copy_hg, mapping[hypergraph.originalNodeID(id[3])]) };
+
+  ASSERT_EQ(0, TestStreamingHypergraph::get_numa_node_of_vertex(copy_id[0]));
+  ASSERT_EQ(1, TestStreamingHypergraph::get_numa_node_of_vertex(copy_id[1]));
+
+  ASSERT_EQ(0, copy_hg.communityID(copy_id[0]));
+  ASSERT_EQ(1, copy_hg.communityID(copy_id[1]));
+
+  verifyPinIterators(copy_hg, { copy_hg.globalEdgeID(0), copy_hg.globalEdgeID(1), copy_hg.globalEdgeID(2) },
+                     { { copy_id[0] }, { copy_id[1] }, { copy_id[0], copy_id[1] }});
+}
+
+TEST_F(AHypergraphWithTwoStreamingHypergraphs, ExtractPartOneOfPartitionAsHypergraphWithCutNetSplittingAfterContraction) {
+  TestHypergraph hypergraph = construct_hypergraph(4, { { 1, 2 }, { 0, 1, 2, 3 }, { 2, 3 } },
+                                                   { 0, 0, 1, 1 }, { 0, 1, 0 }, { 0, 0, 1, 1 });
+  std::vector<HypernodeID> id = { GLOBAL_ID(hypergraph, 0), GLOBAL_ID(hypergraph, 1), GLOBAL_ID(hypergraph, 2), GLOBAL_ID(hypergraph, 3) };
+  hypergraph.contract(id[1], id[3]);
+
+  hypergraph.setNodePart(id[0], 0);
+  hypergraph.setNodePart(id[1], 1);
+  hypergraph.setNodePart(id[2], 0);
+  hypergraph.initializeNumCutHyperedges();
+  hypergraph.updateGlobalPartInfos();
+
+  auto copy = hypergraph.copy(2, 1, true /* cut net splitting */);
+  TestHypergraph& copy_hg = copy.first;
+  auto& mapping = copy.second;
+  std::vector<HypernodeID> copy_id = { GLOBAL_ID(copy_hg, mapping[hypergraph.originalNodeID(id[1])]) };
+
+  ASSERT_EQ(0, TestStreamingHypergraph::get_numa_node_of_vertex(copy_id[0]));
+
+  ASSERT_EQ(0, copy_hg.communityID(copy_id[0]));
+
+  verifyPinIterators(copy_hg, { copy_hg.globalEdgeID(0), copy_hg.globalEdgeID(1) },
+                     { { copy_id[0] }, { copy_id[0] } });
+}
+
+TEST_F(AHypergraphWithTwoStreamingHypergraphs, ExtractPartZeroOfPartitionAsHypergraphWithCutNetRemoval) {
+  TestHypergraph hypergraph = construct_hypergraph(4, { { 1, 2 }, { 0, 1, 2, 3 }, { 2, 3 } },
+                                                   { 0, 0, 1, 1 }, { 0, 1, 0 }, { 0, 0, 1, 1 });
+  std::vector<HypernodeID> id = { GLOBAL_ID(hypergraph, 0), GLOBAL_ID(hypergraph, 1), GLOBAL_ID(hypergraph, 2), GLOBAL_ID(hypergraph, 3) };
+  hypergraph.setNodePart(id[0], 1);
+  hypergraph.setNodePart(id[1], 1);
+  hypergraph.setNodePart(id[2], 0);
+  hypergraph.setNodePart(id[3], 0);
+  hypergraph.initializeNumCutHyperedges();
+  hypergraph.updateGlobalPartInfos();
+
+  auto copy = hypergraph.copy(2, 0, false /* cut net removal */);
+  TestHypergraph& copy_hg = copy.first;
+  auto& mapping = copy.second;
+  std::vector<HypernodeID> copy_id = { GLOBAL_ID(copy_hg, mapping[hypergraph.originalNodeID(id[2])]),
+                                       GLOBAL_ID(copy_hg, mapping[hypergraph.originalNodeID(id[3])]) };
+
+  ASSERT_EQ(1, TestStreamingHypergraph::get_numa_node_of_vertex(copy_id[0]));
+  ASSERT_EQ(1, TestStreamingHypergraph::get_numa_node_of_vertex(copy_id[1]));
+
+  ASSERT_EQ(1, copy_hg.communityID(copy_id[0]));
+  ASSERT_EQ(1, copy_hg.communityID(copy_id[1]));
+
+  verifyPinIterators(copy_hg, { copy_hg.globalEdgeID(0) }, { { copy_id[0], copy_id[1] }});
+}
+
+TEST_F(AHypergraphWithTwoStreamingHypergraphs, ExtractPartOneOfPartitionAsHypergraphWithCutNetRemoval) {
+  TestHypergraph hypergraph = construct_hypergraph(4, { { 1, 2 }, { 0, 1, 2, 3 }, { 2, 3 } },
+                                                   { 0, 0, 1, 1 }, { 0, 1, 0 }, { 0, 0, 1, 1 });
+  std::vector<HypernodeID> id = { GLOBAL_ID(hypergraph, 0), GLOBAL_ID(hypergraph, 1), GLOBAL_ID(hypergraph, 2), GLOBAL_ID(hypergraph, 3) };
+  hypergraph.setNodePart(id[0], 0);
+  hypergraph.setNodePart(id[1], 1);
+  hypergraph.setNodePart(id[2], 1);
+  hypergraph.setNodePart(id[3], 1);
+  hypergraph.initializeNumCutHyperedges();
+  hypergraph.updateGlobalPartInfos();
+
+  auto copy = hypergraph.copy(2, 1, false /* cut net removal */);
+  TestHypergraph& copy_hg = copy.first;
+  auto& mapping = copy.second;
+  std::vector<HypernodeID> copy_id = { GLOBAL_ID(copy_hg, mapping[hypergraph.originalNodeID(id[1])]),
+                                       GLOBAL_ID(copy_hg, mapping[hypergraph.originalNodeID(id[2])]),
+                                       GLOBAL_ID(copy_hg, mapping[hypergraph.originalNodeID(id[3])]) };
+
+  ASSERT_EQ(0, TestStreamingHypergraph::get_numa_node_of_vertex(copy_id[0]));
+  ASSERT_EQ(1, TestStreamingHypergraph::get_numa_node_of_vertex(copy_id[1]));
+  ASSERT_EQ(1, TestStreamingHypergraph::get_numa_node_of_vertex(copy_id[2]));
+
+  ASSERT_EQ(0, copy_hg.communityID(copy_id[0]));
+  ASSERT_EQ(1, copy_hg.communityID(copy_id[1]));
+  ASSERT_EQ(1, copy_hg.communityID(copy_id[2]));
+
+  verifyPinIterators(copy_hg, { copy_hg.globalEdgeID(0), copy_hg.globalEdgeID(1) },
+                     { { copy_id[0], copy_id[1] }, { copy_id[1], copy_id[2] }});
+}
+
+TEST_F(AHypergraphWithTwoStreamingHypergraphs, ExtractPartOneOfPartitionAsHypergraphWithCutNetRemovalAfterContraction) {
+  TestHypergraph hypergraph = construct_hypergraph(4, { { 1, 2 }, { 0, 1, 2, 3 }, { 2, 3 } },
+                                                   { 0, 0, 1, 1 }, { 0, 1, 0 }, { 0, 0, 1, 1 });
+  std::vector<HypernodeID> id = { GLOBAL_ID(hypergraph, 0), GLOBAL_ID(hypergraph, 1), GLOBAL_ID(hypergraph, 2), GLOBAL_ID(hypergraph, 3) };
+  hypergraph.contract(id[2], id[3]);
+
+  hypergraph.setNodePart(id[0], 0);
+  hypergraph.setNodePart(id[1], 1);
+  hypergraph.setNodePart(id[2], 1);
+  hypergraph.initializeNumCutHyperedges();
+  hypergraph.updateGlobalPartInfos();
+
+  auto copy = hypergraph.copy(2, 1, false /* cut net removal */);
+  TestHypergraph& copy_hg = copy.first;
+  auto& mapping = copy.second;
+  std::vector<HypernodeID> copy_id = { GLOBAL_ID(copy_hg, mapping[hypergraph.originalNodeID(id[1])]),
+                                       GLOBAL_ID(copy_hg, mapping[hypergraph.originalNodeID(id[2])]) };
+
+  ASSERT_EQ(0, TestStreamingHypergraph::get_numa_node_of_vertex(copy_id[0]));
+  ASSERT_EQ(1, TestStreamingHypergraph::get_numa_node_of_vertex(copy_id[1]));
+
+  ASSERT_EQ(0, copy_hg.communityID(copy_id[0]));
+  ASSERT_EQ(1, copy_hg.communityID(copy_id[1]));
+
+  verifyPinIterators(copy_hg, { copy_hg.globalEdgeID(0), copy_hg.globalEdgeID(1) },
+                     { { copy_id[0], copy_id[1] }, { copy_id[1] }});
+}
+
+
 }  // namespace ds
 }  // namespace mt_kahypar
