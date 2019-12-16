@@ -1196,7 +1196,7 @@ class Hypergraph {
           const HypernodeID pin = hypergraph_of_he._incidence_array[incidence_array_pos];
           const HypernodeID original_id = originalNodeID(pin);
           if (batch[original_id] && _contraction_index[original_id] > contraction_index) {
-            hypergraph_of_vertex(pin).insertIncidentEdgeToHypernode(he, pin);
+            hypergraph_of_vertex(pin).insertIncidentEdgeToHypernodeFromInvalidPart(he, pin);
           } else {
             break;
           }
@@ -1206,7 +1206,7 @@ class Hypergraph {
           const HypernodeID pin = hypergraph_of_he._incidence_array[incidence_array_pos];
           const HypernodeID original_id = originalNodeID(pin);
           if (batch[original_id] && _contraction_index[original_id] > contraction_index) {
-            hypergraph_of_vertex(pin).insertIncidentEdgeToHypernode(he, pin);
+            hypergraph_of_vertex(pin).insertIncidentEdgeToHypernodeFromInvalidPart(he, pin);
           } else {
             break;
           }
