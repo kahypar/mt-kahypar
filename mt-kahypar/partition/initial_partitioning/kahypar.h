@@ -266,6 +266,9 @@ static kahypar_context_t* setupContext(const Context& context, const bool debug)
   kahypar_context.preprocessing.enable_min_hash_sparsifier = false;
   kahypar_context.preprocessing.enable_community_detection = false;
   kahypar_context.partition.verbose_output = debug;
+  kahypar_set_custom_target_block_weights(context.partition.k,
+    context.partition.max_part_weights.data(), kahypar_c);
+
   sanitizeCheck(kahypar_context);
   return kahypar_c;
 }

@@ -40,9 +40,6 @@
 #include "mt-kahypar/utils/timer.h"
 
 namespace mt_kahypar {
-namespace multilevel {
-static inline void partition(Hypergraph& hypergraph, const Context& context, const bool top_level);
-}  // namespace multilevel
 
 template <typename TypeTraits>
 class RecursiveBisectionInitialPartitionerT : public IInitialPartitioner {
@@ -51,6 +48,8 @@ class RecursiveBisectionInitialPartitionerT : public IInitialPartitioner {
   using StreamingHyperGraph = typename TypeTraits::StreamingHyperGraph;
   using TBB = typename TypeTraits::TBB;
   using HwTopology = typename TypeTraits::HwTopology;
+
+  using BlockRange = std::pair<PartitionID, PartitionID>;
 
   static constexpr bool debug = false;
   static constexpr bool kahypar_debug = false;
@@ -72,11 +71,203 @@ class RecursiveBisectionInitialPartitionerT : public IInitialPartitioner {
 
  private:
   void initialPartitionImpl() override final {
-    for ( const HypernodeID& hn : _hg.nodes() ) {
-      _hg.setNodePart(hn, 0);
+    if (_top_level) {
+      utils::Timer::instance().disable();
+      utils::Stats::instance().disable();
     }
 
-    _hg.updateGlobalPartInfos();
+    recursiveBisection(_hg, _context, _top_level);
+
+    if (_top_level) {
+      utils::Timer::instance().enable();
+      utils::Stats::instance().enable();
+    }
+  }
+
+  void recursiveBisection(HyperGraph& hypergraph, const Context& context, const bool top_level) {
+    ASSERT(_context.partition.k >= 2);
+
+    PartitionID num_blocks_part_0 = context.partition.k / 2 + (context.partition.k % 2 != 0 ? 1 : 0);
+    PartitionID num_blocks_part_1 = context.partition.k / 2;
+    BlockRange range_0 = std::make_pair(0, num_blocks_part_0);
+    BlockRange range_1 = std::make_pair(num_blocks_part_0, num_blocks_part_0 + num_blocks_part_1);
+
+    // Bisecting the hypergraph into two blocks
+    utils::Timer::instance().start_timer("top_level_bisection", "Top Level Bisection", false, top_level);
+    bisect(hypergraph, context, 0, num_blocks_part_0);
+    utils::Timer::instance().stop_timer("top_level_bisection", top_level);
+    hypergraph.initializeNumCutHyperedges();
+    hypergraph.updateGlobalPartInfos();
+
+    bool do_parallel_recursion = num_blocks_part_0 >= 2 && num_blocks_part_1 >= 2;
+    if ( do_parallel_recursion ) {
+      if ( context.shared_memory.num_threads > 1 ) {
+        // In case we have to partition both blocks from the bisection further into
+        // more than one block, we call the recursive bisection initial partitioner
+        // recursively in parallel with half of the number of threads,
+        tbb::parallel_invoke([&] {
+          utils::Timer::instance().start_timer("top_level_recursion_0", "Top Level Recursion 0", true, top_level);
+          size_t num_threads = std::max(context.shared_memory.num_threads / 2 +
+            (context.shared_memory.num_threads % 2 == 0 ? 1 : 0), 1UL);
+          recursivelyBisectBlock(hypergraph, context, 0, num_threads, range_0);
+          utils::Timer::instance().stop_timer("top_level_recursion_0", top_level);
+        }, [&] {
+          utils::Timer::instance().start_timer("top_level_recursion_1", "Top Level Recursion 1", true, top_level);
+          size_t num_threads = std::max(context.shared_memory.num_threads / 2, 1UL);
+          recursivelyBisectBlock(hypergraph, context, num_blocks_part_0, num_threads, range_1);
+          utils::Timer::instance().stop_timer("top_level_recursion_1", top_level);
+        });
+      } else {
+        utils::Timer::instance().start_timer("top_level_recursion_0", "Top Level Recursion 0", true, top_level);
+        recursivelyBisectBlock(hypergraph, context, 0, 1UL, range_0);
+        utils::Timer::instance().stop_timer("top_level_recursion_0", top_level);
+
+        utils::Timer::instance().start_timer("top_level_recursion_1", "Top Level Recursion 1", true, top_level);
+        recursivelyBisectBlock(hypergraph, context, num_blocks_part_0, 1UL, range_1);
+        utils::Timer::instance().stop_timer("top_level_recursion_1", top_level);
+      }
+    } else if ( num_blocks_part_0 >= 2 ) {
+      // In case only the first block has to be partitioned into more than one block, we call
+      // the recursive bisection initial partitioner recusively on the block 0
+      utils::Timer::instance().start_timer("top_level_recursion_0", "Top Level Recursion 0", true, top_level);
+      recursivelyBisectBlock(hypergraph, context, 0, context.shared_memory.num_threads, range_0);
+      utils::Timer::instance().stop_timer("top_level_recursion_0", top_level);
+    }
+
+    hypergraph.updateGlobalPartInfos();
+  }
+
+  void recursivelyBisectBlock(HyperGraph& hypergraph,
+                              const Context& context,
+                              const PartitionID block,
+                              const size_t num_threads,
+                              const BlockRange& range) {
+    const PartitionID k = range.second - range.first;
+    ASSERT(k >= 2);
+    Context rb_context = setupRecursiveBisectionContext(context, k, num_threads, range);
+
+    // Extracts the block, which we want to recursively partition, as new hypergraph
+    // and calls the recursive bisection initial partitioner recursively.
+    bool cut_net_splitting = context.partition.objective == kahypar::Objective::km1;
+    auto copy_hypergraph = hypergraph.copy(k, block, cut_net_splitting);
+    HyperGraph& rb_hypergraph = copy_hypergraph.first;
+    auto& mapping = copy_hypergraph.second;
+    recursiveBisection(rb_hypergraph, rb_context, false);
+
+    // Assigns partition to top level hypergraph
+    assignPartitionFromRecursionToOriginalHypergraph(hypergraph, rb_hypergraph, mapping, block);
+  }
+
+  void bisect(HyperGraph& hypergraph, const Context& context,
+              const PartitionID block_0, const PartitionID block_1) {
+    ASSERT(block_0 < context.partition.k);
+    ASSERT(block_1 < context.partition.k);
+    Context bisection_context = setupBisectionContext(hypergraph.totalWeight(), context);
+
+    auto copy_hypergraph = hypergraph.copy(2);
+    HyperGraph& tmp_hg = copy_hypergraph.first;
+    auto& mapping = copy_hypergraph.second;
+
+    // Bisect hypergraph with parallel multilevel bisection
+    multilevel::partition(tmp_hg, bisection_context, false);
+
+    // Apply partition to hypergraph
+    for (const HypernodeID& hn : hypergraph.nodes()) {
+      const HypernodeID original_id = hypergraph.originalNodeID(hn);
+      ASSERT(original_id < mapping.size());
+      PartitionID part_id = tmp_hg.partID(tmp_hg.globalNodeID(mapping[original_id]));
+      ASSERT(part_id != kInvalidPartition && part_id < hypergraph.k());
+      if ( part_id == 0 ) {
+        hypergraph.setNodePart(hn, block_0);
+      } else {
+        hypergraph.setNodePart(hn, block_1);
+      }
+    }
+  }
+
+  void assignPartitionFromRecursionToOriginalHypergraph(HyperGraph& original_hg,
+                                                        const HyperGraph& rb_hg,
+                                                        const parallel::scalable_vector<HypernodeID>& mapping,
+                                                        const PartitionID part_id) {
+    ASSERT(original_hg.initialNumNodes() == mapping.size());
+    for ( const HypernodeID& hn : original_hg.nodes() ) {
+      if ( original_hg.partID(hn) == part_id ) {
+        const HypernodeID original_id = original_hg.originalNodeID(hn);
+        ASSERT(original_id < mapping.size());
+        PartitionID to = part_id + rb_hg.partID(rb_hg.globalNodeID(mapping[original_id]));
+        ASSERT(to != kInvalidPartition && to < original_hg.k());
+        original_hg.changeNodePart(hn, part_id, to);
+      }
+    }
+  }
+
+  Context setupRecursiveBisectionContext(const Context& context,
+                                         const PartitionID k,
+                                         const size_t num_threads,
+                                         const BlockRange& range) {
+    Context rb_context(context);
+    rb_context.partition.k = k;
+    rb_context.shared_memory.num_threads = num_threads;
+
+    ASSERT(range.first < range.second);
+    ASSERT(range.second - range.first == k);
+    rb_context.partition.perfect_balance_part_weights.assign(k, 0);
+    rb_context.partition.max_part_weights.assign(k, 0);
+    for ( PartitionID part_id = range.first; part_id < range.second; ++part_id ) {
+      rb_context.partition.perfect_balance_part_weights[part_id - range.first] =
+        context.partition.perfect_balance_part_weights[part_id];
+      rb_context.partition.max_part_weights[part_id - range.first] =
+        context.partition.max_part_weights[part_id];
+    }
+
+    return rb_context;
+  }
+
+  Context setupBisectionContext(const HypernodeWeight total_weight, const Context& context) {
+    Context bisection_context(context);
+
+    bisection_context.partition.k = 2;
+    bisection_context.partition.verbose_output = debug;
+    bisection_context.initial_partitioning.mode = InitialPartitioningMode::direct;
+
+    // Setup contraction limit and maximum allowed node weight
+    bisection_context.coarsening.contraction_limit =
+      bisection_context.coarsening.contraction_limit_multiplier * bisection_context.partition.k;
+    bisection_context.coarsening.hypernode_weight_fraction =
+      bisection_context.coarsening.max_allowed_weight_multiplier
+      / bisection_context.coarsening.contraction_limit;
+    bisection_context.coarsening.max_allowed_node_weight = ceil(
+      bisection_context.coarsening.hypernode_weight_fraction * total_weight);
+
+    // Setup Part Weights
+    PartitionID num_blocks_part_0 = context.partition.k / 2 + (context.partition.k % 2 != 0 ? 1 : 0);
+    ASSERT(num_blocks_part_0 +  context.partition.k / 2 == context.partition.k);
+    bisection_context.partition.perfect_balance_part_weights.assign(2, 0);
+    bisection_context.partition.max_part_weights.assign(2, 0);
+    for ( PartitionID i = 0; i < num_blocks_part_0; ++i ) {
+      bisection_context.partition.perfect_balance_part_weights[0] +=
+        context.partition.perfect_balance_part_weights[i];
+      bisection_context.partition.max_part_weights[0] +=
+        context.partition.max_part_weights[i];
+    }
+    for ( PartitionID i = num_blocks_part_0; i < context.partition.k; ++i ) {
+      bisection_context.partition.perfect_balance_part_weights[1] +=
+        context.partition.perfect_balance_part_weights[i];
+      bisection_context.partition.max_part_weights[1] +=
+        context.partition.max_part_weights[i];
+    }
+
+    // Special case, if balance constraint will be violated with this bisection
+    // => would cause KaHyPar to exit with failure
+    HypernodeWeight total_max_part_weight = bisection_context.partition.max_part_weights[0] +
+      bisection_context.partition.max_part_weights[1];
+    if (total_max_part_weight < total_weight) {
+      HypernodeWeight delta = total_weight - total_max_part_weight;
+      bisection_context.partition.max_part_weights[0] += std::ceil(((double)delta) / 2.0);
+      bisection_context.partition.max_part_weights[1] += std::ceil(((double)delta) / 2.0);
+    }
+
+    return bisection_context;
   }
 
  private:

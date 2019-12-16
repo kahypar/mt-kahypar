@@ -158,7 +158,8 @@ class DirectInitialPartitionerT : public IInitialPartitioner {
     _hg.updateGlobalPartInfos();
     _hg.initializeNumCutHyperedges();
 
-    ASSERT(metrics::objective(_hg, _context.partition.objective) == best.objective);
+    ASSERT(metrics::objective(_hg, _context.partition.objective) == best.objective,
+      V(metrics::objective(_hg, _context.partition.objective)) << V(best.objective));
     ASSERT(metrics::imbalance(_hg, _context) == best.imbalance);
     kahypar_context_free(context);
   }

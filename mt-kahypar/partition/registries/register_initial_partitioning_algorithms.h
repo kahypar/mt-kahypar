@@ -25,6 +25,16 @@
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/partition/factories.h"
 
+namespace mt_kahypar {
+namespace multilevel {
+static inline void partition(Hypergraph& hypergraph, const Context& context, const bool top_level);
+}  // namespace multilevel
+}  // namespace mt_kahypar
+
+#include "mt-kahypar/partition/initial_partitioning/direct_initial_partitioner.h"
+#include "mt-kahypar/partition/initial_partitioning/recursive_initial_partitioner.h"
+#include "mt-kahypar/partition/initial_partitioning/recursive_bisection_initial_partitioner.h"
+
 #define REGISTER_INITIAL_PARTITIONER(id, partitioner)                                  \
   static kahypar::meta::Registrar<InitialPartitionerFactory> register_ ## partitioner( \
     id,                                                                                \

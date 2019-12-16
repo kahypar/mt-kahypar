@@ -40,9 +40,6 @@
 #include "mt-kahypar/utils/timer.h"
 
 namespace mt_kahypar {
-namespace multilevel {
-static inline void partition(Hypergraph& hypergraph, const Context& context, const bool top_level);
-}  // namespace multilevel
 
 template <typename TypeTraits>
 class RecursiveInitialPartitionerT : public IInitialPartitioner {
