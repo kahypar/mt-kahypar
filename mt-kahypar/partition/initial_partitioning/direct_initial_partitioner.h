@@ -58,7 +58,7 @@ class DirectInitialPartitionerT : public IInitialPartitioner {
 
  private:
   void initialPartitionImpl() override final {
-    kahypar_context_t* context = setupContext(_context, kahypar_debug);
+    kahypar_context_t* context = setupContext(_context, true, kahypar_debug);
 
     // Setup number of runs per thread
     std::vector<size_t> ip_runs;

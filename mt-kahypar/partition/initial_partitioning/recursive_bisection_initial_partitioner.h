@@ -94,7 +94,7 @@ class RecursiveBisectionInitialPartitionerT : public IInitialPartitioner {
 
     // Bisecting the hypergraph into two blocks
     utils::Timer::instance().start_timer("top_level_bisection", "Top Level Bisection", false, top_level);
-    bisect(hypergraph, context, 0, num_blocks_part_0);
+    bisect(hypergraph, context, 0, num_blocks_part_0, top_level);
     utils::Timer::instance().stop_timer("top_level_bisection", top_level);
     hypergraph.initializeNumCutHyperedges();
     hypergraph.updateGlobalPartInfos();
@@ -159,19 +159,25 @@ class RecursiveBisectionInitialPartitionerT : public IInitialPartitioner {
   }
 
   void bisect(HyperGraph& hypergraph, const Context& context,
-              const PartitionID block_0, const PartitionID block_1) {
+              const PartitionID block_0, const PartitionID block_1,
+              bool top_level) {
     ASSERT(block_0 < context.partition.k);
     ASSERT(block_1 < context.partition.k);
     Context bisection_context = setupBisectionContext(hypergraph.totalWeight(), context);
 
+    utils::Timer::instance().start_timer("top_level_copy", "Top Level Copy", false, top_level);
     auto copy_hypergraph = hypergraph.copy(2);
     HyperGraph& tmp_hg = copy_hypergraph.first;
     auto& mapping = copy_hypergraph.second;
+    utils::Timer::instance().stop_timer("top_level_copy", top_level);
 
+    utils::Timer::instance().start_timer("top_level_parallel_bisection", "Top Level Parallel Bisection", false, top_level);
     // Bisect hypergraph with parallel multilevel bisection
     multilevel::partition(tmp_hg, bisection_context, false);
+    utils::Timer::instance().stop_timer("top_level_parallel_bisection", top_level);
 
     // Apply partition to hypergraph
+    utils::Timer::instance().start_timer("top_level_apply_bisection", "Top Level Apply Bisection", false, top_level);
     for (const HypernodeID& hn : hypergraph.nodes()) {
       const HypernodeID original_id = hypergraph.originalNodeID(hn);
       ASSERT(original_id < mapping.size());
@@ -183,6 +189,7 @@ class RecursiveBisectionInitialPartitionerT : public IInitialPartitioner {
         hypergraph.setNodePart(hn, block_1);
       }
     }
+    utils::Timer::instance().stop_timer("top_level_apply_bisection", top_level);
   }
 
   void assignPartitionFromRecursionToOriginalHypergraph(HyperGraph& original_hg,
@@ -229,6 +236,7 @@ class RecursiveBisectionInitialPartitionerT : public IInitialPartitioner {
     bisection_context.partition.k = 2;
     bisection_context.partition.verbose_output = debug;
     bisection_context.initial_partitioning.mode = InitialPartitioningMode::direct;
+    bisection_context.initial_partitioning.technique = kahypar::InitialPartitioningTechnique::flat;
 
     // Setup contraction limit and maximum allowed node weight
     bisection_context.coarsening.contraction_limit =

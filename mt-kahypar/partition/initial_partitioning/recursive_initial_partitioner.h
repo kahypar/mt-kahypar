@@ -360,9 +360,12 @@ class RecursiveInitialPartitionerT : public IInitialPartitioner {
   }
 
   kahypar_context_t* setupKaHyParBisectionContext() {
-    kahypar_context_t* kahypar_c = mt_kahypar::setupContext(_context, kahypar_debug);
+    kahypar_context_t* kahypar_c = mt_kahypar::setupContext(_context, false, kahypar_debug);
     kahypar::Context& kahypar_context = *reinterpret_cast<kahypar::Context*>(kahypar_c);
     kahypar_context.partition.k = 2;
+    kahypar_context.initial_partitioning.technique = kahypar::InitialPartitioningTechnique::flat;
+    kahypar_context.initial_partitioning.coarsening.algorithm = kahypar::CoarseningAlgorithm::do_nothing;
+    kahypar_context.initial_partitioning.local_search.algorithm = kahypar::RefinementAlgorithm::do_nothing;
     kahypar_context.coarsening.algorithm = kahypar::CoarseningAlgorithm::do_nothing;
     kahypar_context.local_search.algorithm = kahypar::RefinementAlgorithm::do_nothing;
     kahypar_context.initial_partitioning.nruns = _context.initial_partitioning.runs;

@@ -255,7 +255,9 @@ static kahypar_context_t* readContext(const std::string& context_file) {
   return context;
 }
 
-static kahypar_context_t* setupContext(const Context& context, const bool debug) {
+static kahypar_context_t* setupContext(const Context& context,
+                                       const bool use_custom_target_block_weights,
+                                       const bool debug) {
   kahypar_context_t* kahypar_c = readContext(context.initial_partitioning.context_file);
   kahypar::Context& kahypar_context = *reinterpret_cast<kahypar::Context*>(kahypar_c);
   kahypar_context.partition.objective = context.partition.objective;
@@ -266,8 +268,18 @@ static kahypar_context_t* setupContext(const Context& context, const bool debug)
   kahypar_context.preprocessing.enable_min_hash_sparsifier = false;
   kahypar_context.preprocessing.enable_community_detection = false;
   kahypar_context.partition.verbose_output = debug;
-  kahypar_set_custom_target_block_weights(context.partition.k,
-    context.partition.max_part_weights.data(), kahypar_c);
+  if ( use_custom_target_block_weights ) {
+    kahypar_set_custom_target_block_weights(context.partition.k,
+      context.partition.max_part_weights.data(), kahypar_c);
+  }
+
+  if ( context.initial_partitioning.technique == kahypar::InitialPartitioningTechnique::flat ) {
+    kahypar_context.initial_partitioning.technique = kahypar::InitialPartitioningTechnique::flat;
+    kahypar_context.initial_partitioning.coarsening.algorithm = kahypar::CoarseningAlgorithm::do_nothing;
+    kahypar_context.initial_partitioning.local_search.algorithm = kahypar::RefinementAlgorithm::do_nothing;
+    kahypar_context.coarsening.algorithm = kahypar::CoarseningAlgorithm::do_nothing;
+    kahypar_context.local_search.algorithm = kahypar::RefinementAlgorithm::do_nothing;
+  }
 
   sanitizeCheck(kahypar_context);
   return kahypar_c;
