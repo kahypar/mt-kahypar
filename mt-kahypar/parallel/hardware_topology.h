@@ -139,11 +139,12 @@ class HardwareTopology {
 
     int pin_thread_to_cpu() {
       std::lock_guard<std::mutex> lock(_mutex);
-      ASSERT(_free_cpus > 0, "There are no free cpus on numa node"
-        << _node_id << "( TID =" << std::this_thread::get_id() << ")");
-      Cpu& cpu = _cpus.front();
-      int cpu_id = cpu.cpu_id;
-      std::swap(_cpus[0], _cpus[--_free_cpus]);
+      int cpu_id = -1;
+      if ( _free_cpus > 0 ) {
+        Cpu& cpu = _cpus.front();
+        cpu_id = cpu.cpu_id;
+        std::swap(_cpus[0], _cpus[--_free_cpus]);
+      }
       return cpu_id;
     }
 
@@ -253,11 +254,14 @@ class HardwareTopology {
   }
 
   // ! Pins a thread to a NUMA node
-  void pin_thread_to_numa_node(const int node) {
+  bool pin_thread_to_numa_node(const int node) {
     ASSERT(node < (int)_numa_nodes.size());
     ASSERT(_numa_nodes[node].get_id() == node);
     int cpu_id = _numa_nodes[node].pin_thread_to_cpu();
-    GlobalThreadPinning::instance().pin_thread_to_numa_node(node, cpu_id);
+    if ( cpu_id != -1 ) {
+      GlobalThreadPinning::instance().pin_thread_to_numa_node(node, cpu_id);
+    }
+    return cpu_id != -1;
   }
 
   // ! Unpin a thread from a NUMA node
