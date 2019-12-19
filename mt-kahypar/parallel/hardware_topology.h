@@ -217,7 +217,7 @@ class HardwareTopology {
     ASSERT(node < (int)_numa_nodes.size());
     int cpu_id = _numa_nodes[node].get_backup_cpu(except_cpu);
     if ( cpu_id == -1 ) {
-      #ifdef NDEBUG
+      #ifndef NDEBUG
       ASSERT(num_numa_nodes() > 1);
       if ( node == 0 ) {
         cpu_id = _numa_nodes[1].get_backup_cpu(except_cpu);
