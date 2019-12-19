@@ -272,7 +272,11 @@ class TBBNumaArena {
       if (num_cpus_on_numa_node > 0) {
         DBG << "Initialize TBB task arena on numa node" << node
             << "with" << num_cpus_on_numa_node << "threads";
+        #ifndef KAHYPAR_TRAVIS_BUILD
         _arenas.emplace_back(num_cpus_on_numa_node, 0);
+        #else
+        _arenas.emplace_back(num_cpus_on_numa_node, 1 /* reserve for master */);
+        #endif
         _arenas.back().initialize();
         _observer.emplace_back(_arenas.back(), node, _cpus_to_numa_node[node]);
       }
