@@ -160,6 +160,7 @@ inline std::ostream & operator<< (std::ostream& str, const CoarseningParameters&
 struct InitialPartitioningParameters {
   std::string context_file = "";
   InitialPartitioningMode mode = InitialPartitioningMode::UNDEFINED;
+  kahypar::InitialPartitioningTechnique technique = kahypar::InitialPartitioningTechnique::multilevel;
   bool call_kahypar_multiple_times = false;
   size_t runs = 1;
 };

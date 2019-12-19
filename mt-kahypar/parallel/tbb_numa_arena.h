@@ -20,14 +20,14 @@
 #pragma once
 
 #include <mutex>
+#include <memory>
 
 #include "tbb/task_arena.h"
 #include "tbb/task_group.h"
 #include "tbb/task_scheduler_init.h"
 
 #include "mt-kahypar/macros.h"
-#include "mt-kahypar/parallel/global_thread_pinning_observer.h"
-#include "mt-kahypar/parallel/numa_thread_pinning_observer.h"
+#include "mt-kahypar/parallel/thread_pinning_observer.h"
 
 namespace mt_kahypar {
 namespace parallel {
@@ -41,9 +41,9 @@ class TBBNumaArena {
   static constexpr bool debug = false;
 
  private:
-  using GlobalThreadPinning = mt_kahypar::parallel::GlobalThreadPinning<HwTopology>;
-  using GlobalThreadPinningObserver = mt_kahypar::parallel::GlobalThreadPinningObserver<HwTopology>;
-  using NumaThreadPinningObserver = mt_kahypar::parallel::NumaThreadPinningObserver<HwTopology>;
+  using Self = TBBNumaArena<HwTopology>;
+  using ThreadPinningObserver = mt_kahypar::parallel::ThreadPinningObserver<HwTopology>;
+  using SplittedTBBNumaArena = std::pair<std::unique_ptr<Self>, std::unique_ptr<Self>>;
 
  public:
   TBBNumaArena(const TBBNumaArena&) = delete;
@@ -79,6 +79,62 @@ class TBBNumaArena {
     ASSERT(_arenas.size() <= _groups.size());
     ASSERT(node < (int)_arenas.size());
     return _groups[node];
+  }
+
+  SplittedTBBNumaArena split_tbb_numa_arena(const size_t num_threads_0, const size_t num_threads_1) {
+    ASSERT(num_threads_0 + num_threads_1 <= static_cast<size_t>(total_number_of_threads()),
+      V(num_threads_0) << V(num_threads_1) << V(total_number_of_threads()));
+    const size_t num_numa_nodes = num_used_numa_nodes();
+    // At least one open slot should be available on each numa node
+    std::vector<std::vector<int>> cpu_to_numa_node_0(num_numa_nodes);
+    std::vector<std::vector<int>> cpu_to_numa_node_1(num_numa_nodes);
+
+    auto num_threads_on_numa_node = [&](const size_t node, const size_t num_threads) {
+      ASSERT(node < _cpus_to_numa_node.size());
+      return static_cast<double>(num_threads) * (
+        static_cast<double>(_cpus_to_numa_node[node].size()) /
+        static_cast<double>(num_threads_0 + num_threads_1) );
+    };
+
+
+    size_t threads_left_0 = num_threads_0;
+    size_t threads_left_1 = num_threads_1;
+    for ( size_t node = 0; node < num_numa_nodes; ++node ) {
+      size_t num_cpus_on_numa_node_0 = 0;
+      size_t num_cpus_on_numa_node_1 = 0;
+      if ( threads_left_0 >= threads_left_1 ) {
+        num_cpus_on_numa_node_0 = std::max( std::min(
+          static_cast<size_t>(std::ceil(num_threads_on_numa_node(node, num_threads_0))),
+          threads_left_0 ), 1UL );
+        num_cpus_on_numa_node_1 = std::max( std::min(
+          static_cast<size_t>(std::floor(num_threads_on_numa_node(node, num_threads_1))),
+          threads_left_1 ), 1UL );
+      } else {
+        num_cpus_on_numa_node_0 = std::max( std::min(
+          static_cast<size_t>(std::floor(num_threads_on_numa_node(node, num_threads_0))),
+          threads_left_0 ), 1UL );
+        num_cpus_on_numa_node_1 = std::max( std::min(
+          static_cast<size_t>(std::ceil(num_threads_on_numa_node(node, num_threads_1))),
+          threads_left_1 ), 1UL );
+      }
+      threads_left_0 -= (num_cpus_on_numa_node_0 <= threads_left_0 ? num_cpus_on_numa_node_0 : threads_left_0);
+      threads_left_1 -= (num_cpus_on_numa_node_1 <= threads_left_1 ? num_cpus_on_numa_node_1 : threads_left_1);
+
+      std::vector<int>& cpus_on_numa_node = _cpus_to_numa_node[node];
+      ASSERT(num_cpus_on_numa_node_0 <= cpus_on_numa_node.size());
+      ASSERT(num_cpus_on_numa_node_1 <= cpus_on_numa_node.size());
+      for ( size_t i = 0; i < num_cpus_on_numa_node_0; ++i ) {
+        cpu_to_numa_node_0[node].push_back(cpus_on_numa_node[i]);
+      }
+      for ( size_t i = cpus_on_numa_node.size() - num_cpus_on_numa_node_1;
+            i < cpus_on_numa_node.size(); ++i ) {
+        cpu_to_numa_node_1[node].push_back(cpus_on_numa_node[i]);
+      }
+    }
+
+    return std::make_pair(
+      std::unique_ptr<Self>(new Self(cpu_to_numa_node_0)),
+      std::unique_ptr<Self>(new Self(cpu_to_numa_node_1)) );
   }
 
   template <typename F>
@@ -121,75 +177,115 @@ class TBBNumaArena {
   }
 
   void terminate() {
-    for (NumaThreadPinningObserver& observer : _observer) {
-      observer.observe(false);
-    }
-    _global_observer.observe(false);
-
     for (tbb::task_arena& arena : _arenas) {
       arena.terminate();
     }
-    _init.terminate();
+
+    for (ThreadPinningObserver& observer : _observer) {
+      observer.observe(false);
+    }
+
+    if ( _global_observer ) {
+      _global_observer->observe(false);
+    }
+
+    if ( _init ) {
+      _init->terminate();
+    }
   }
 
  private:
   explicit TBBNumaArena(const int num_threads) :
     _num_threads(num_threads),
-    _init(num_threads),
+    _init(std::make_unique<tbb::task_scheduler_init>(num_threads)),
+    _global_observer(nullptr),
     _arenas(),
     _groups(HwTopology::instance().num_numa_nodes()),
-    _global_observer(),
-    _observer() {
+    _observer(),
+    _cpus_to_numa_node() {
     HwTopology& topology = HwTopology::instance();
-    int threads_left = num_threads;
     int num_numa_nodes = topology.num_numa_nodes();
     DBG << "Initialize TBB with" << num_threads << "threads";
     _arenas.reserve(num_numa_nodes);
     // TODO(heuer): fix copy constructor of observer
     _observer.reserve(num_numa_nodes);
 
-    std::vector<int> used_cpus_on_numa_node(num_numa_nodes);
-    // First use cores (to prevent using hyperthreads)
-    for (int node = 0; node < num_numa_nodes && threads_left > 0; ++node) {
-      used_cpus_on_numa_node[node] = std::min(threads_left, topology.num_cores_on_numa_node(node));
-      threads_left -= used_cpus_on_numa_node[node];
+    std::vector<int> cpus = topology.get_all_cpus();
+    // Sort cpus in the following order
+    // 1.) Non-hyperthread first
+    // 2.) Increasing order of numa node
+    // 3.) Increasing order of cpu id
+    // ...
+    std::sort(cpus.begin(), cpus.end(),
+              [&](const int& lhs, const int& rhs) {
+          int node_lhs = topology.numa_node_of_cpu(lhs);
+          int node_rhs = topology.numa_node_of_cpu(rhs);
+          bool is_hyperthread_lhs = topology.is_hyperthread(lhs);
+          bool is_hyperthread_rhs = topology.is_hyperthread(rhs);
+          return is_hyperthread_lhs < is_hyperthread_rhs ||
+          (is_hyperthread_lhs == is_hyperthread_rhs && node_lhs < node_rhs) ||
+          (is_hyperthread_lhs == is_hyperthread_rhs && node_lhs == node_rhs && lhs < rhs);
+        });
+    // ... this ensure that we first pop nodes in hyperthreading
+    while (static_cast<int>(cpus.size()) > _num_threads) {
+      cpus.pop_back();
+    }
+    _global_observer = std::make_unique<ThreadPinningObserver>(cpus);
+
+    _cpus_to_numa_node.resize(num_numa_nodes);
+    for ( const int cpu_id : cpus ) {
+      int node = topology.numa_node_of_cpu(cpu_id);
+      ASSERT(node < static_cast<int>(_cpus_to_numa_node.size()));
+      _cpus_to_numa_node[node].push_back(cpu_id);
+    }
+    while( !_cpus_to_numa_node.empty() && _cpus_to_numa_node.back().empty() ) {
+      _cpus_to_numa_node.pop_back();
     }
 
-    // If there are still thread to assign left we use hyperthreading
-    for (int node = 0; node < num_numa_nodes && threads_left > 0; ++node) {
-      int num_hyperthreads = std::min(threads_left, topology.num_cpus_on_numa_node(node) - used_cpus_on_numa_node[node]);
-      used_cpus_on_numa_node[node] += num_hyperthreads;
-      threads_left -= num_hyperthreads;
+    initialize_tbb_numa_arenas();
+  }
+
+  explicit TBBNumaArena(const std::vector<std::vector<int>>& cpus_to_numa_node)
+    : _num_threads(0),
+      _init(nullptr),
+      _global_observer(nullptr),
+      _arenas(),
+      _groups(cpus_to_numa_node.size()),
+      _observer(),
+      _cpus_to_numa_node(cpus_to_numa_node) {
+    ASSERT(_cpus_to_numa_node.size() <= static_cast<size_t>(HwTopology::instance().num_numa_nodes()));
+    int num_numa_nodes = _cpus_to_numa_node.size();
+    _arenas.reserve(num_numa_nodes);
+    _observer.reserve(num_numa_nodes);
+
+    for ( size_t node = 0; node < _cpus_to_numa_node.size(); ++node ) {
+      _num_threads += _cpus_to_numa_node[node].size();
     }
 
-    for (int node = 0; node < num_numa_nodes; ++node) {
-      if (used_cpus_on_numa_node[node] > 0) {
-        int num_cpus = used_cpus_on_numa_node[node];
+    initialize_tbb_numa_arenas();
+  }
+
+  void initialize_tbb_numa_arenas() {
+    for (size_t node = 0; node < _cpus_to_numa_node.size(); ++node) {
+      int num_cpus_on_numa_node = _cpus_to_numa_node[node].size();
+      ASSERT(num_cpus_on_numa_node <= HwTopology::instance().num_cpus_on_numa_node(node));
+      if (num_cpus_on_numa_node > 0) {
         DBG << "Initialize TBB task arena on numa node" << node
-            << "with" << num_cpus << "threads";
-        _arenas.emplace_back(num_cpus, num_cpus == 1 ? 1 : 0);
-        _observer.emplace_back(_arenas.back(), node);
+            << "with" << num_cpus_on_numa_node << "threads";
+        _arenas.emplace_back(num_cpus_on_numa_node, 0);
+        _arenas.back().initialize();
+        _observer.emplace_back(_arenas.back(), node, _cpus_to_numa_node[node]);
       }
     }
-    _num_threads -= threads_left;
-
-    // Initialize Global Thread Pinning
-    GlobalThreadPinning::instance(num_threads);
-    for (int node = 0; node < num_numa_nodes; ++node) {
-      // Seems that there is one extra worker threads when num_threads is equal to,
-      // but only one will participate in task scheduling at a time
-      int num_cpus = std::max(used_cpus_on_numa_node[node], 2);
-      topology.use_only_num_cpus_on_numa_node(node, num_cpus);
-    }
-    _global_observer.observe(true);
   }
 
   int _num_threads;
-  tbb::task_scheduler_init _init;
+  std::unique_ptr<tbb::task_scheduler_init> _init;
+  std::unique_ptr<ThreadPinningObserver> _global_observer;
   std::vector<tbb::task_arena> _arenas;
   std::vector<tbb::task_group> _groups;
-  GlobalThreadPinningObserver _global_observer;
-  std::vector<NumaThreadPinningObserver> _observer;
+  std::vector<ThreadPinningObserver> _observer;
+  std::vector<std::vector<int>> _cpus_to_numa_node;
 };
 }  // namespace parallel
 }  // namespace mt_kahypar

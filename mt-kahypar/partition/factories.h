@@ -30,9 +30,7 @@
 #include "mt-kahypar/partition/coarsening/policies/rating_community_policy.h"
 #include "mt-kahypar/partition/coarsening/policies/rating_heavy_node_penalty_policy.h"
 #include "mt-kahypar/partition/context.h"
-#include "mt-kahypar/partition/initial_partitioning/direct_initial_partitioner.h"
 #include "mt-kahypar/partition/initial_partitioning/i_initial_partitioner.h"
-#include "mt-kahypar/partition/initial_partitioning/recursive_initial_partitioner.h"
 #include "mt-kahypar/partition/preprocessing/community_reassignment/bin_packing_community_assignment.h"
 #include "mt-kahypar/partition/preprocessing/community_reassignment/i_community_assignment.h"
 #include "mt-kahypar/partition/preprocessing/community_reassignment/policies/community_assignment_objective.h"
@@ -49,7 +47,7 @@ using BinPackingCommunityAssignmentDispatcher = kahypar::meta::StaticMultiDispat
                                                                                           kahypar::meta::Typelist<ObjectivePolicyClasses> >;
 
 using CoarsenerFactory = kahypar::meta::Factory<CoarseningAlgorithm,
-                                                ICoarsener* (*)(Hypergraph&, const Context&)>;
+                                                ICoarsener* (*)(Hypergraph&, const Context&, TBBNumaArena&)>;
 
 using CommunityCoarsenerDispatcher = kahypar::meta::StaticMultiDispatchFactory<CommunityCoarsener,
                                                                                ICoarsener,
@@ -59,10 +57,10 @@ using CommunityCoarsenerDispatcher = kahypar::meta::StaticMultiDispatchFactory<C
                                                                                                        ObjectivePolicyClasses> >;
 
 using InitialPartitionerFactory = kahypar::meta::Factory<InitialPartitioningMode,
-                                                         IInitialPartitioner* (*)(Hypergraph&, const Context&, const bool)>;
+                                                         IInitialPartitioner* (*)(Hypergraph&, const Context&, const bool, TBBNumaArena&)>;
 
 using LabelPropagationFactory = kahypar::meta::Factory<LabelPropagationAlgorithm,
-                                                       IRefiner* (*)(Hypergraph&, const Context&)>;
+                                                       IRefiner* (*)(Hypergraph&, const Context&, TBBNumaArena&)>;
 
 using LabelPropagationKm1Dispatcher = kahypar::meta::StaticMultiDispatchFactory<LabelPropagationKm1Refiner,
                                                                                 IRefiner,

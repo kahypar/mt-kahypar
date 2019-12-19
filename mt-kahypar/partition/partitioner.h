@@ -46,10 +46,10 @@ class Partitioner {
  private:
   static constexpr bool debug = false;
 
-  static constexpr double MIN_DEGREE_RANK = 0.0001;
-  static constexpr double MAX_DEGREE_RANK = 0.01;
-  static constexpr HypernodeID STDEV_MAX_DEGREE_THRESHOLD_FACTOR = 25;
-  static constexpr HypernodeID HIGH_DEGREE_VERTEX_THRESHOLD = 100;
+  static double MIN_DEGREE_RANK;
+  static double MAX_DEGREE_RANK;
+  static HypernodeID STDEV_MAX_DEGREE_THRESHOLD_FACTOR;
+  static HypernodeID HIGH_DEGREE_VERTEX_THRESHOLD;
 
  public:
   Partitioner() :
@@ -78,6 +78,11 @@ class Partitioner {
 
   HypergraphSparsifier _hypergraph_sparsifier;
 };
+
+double Partitioner::MIN_DEGREE_RANK = 0.0001;
+double Partitioner::MAX_DEGREE_RANK = 0.01;
+HypernodeID Partitioner::STDEV_MAX_DEGREE_THRESHOLD_FACTOR = 25;
+HypernodeID Partitioner::HIGH_DEGREE_VERTEX_THRESHOLD = 100;
 
 inline void Partitioner::setupContext(const Hypergraph& hypergraph, Context& context) {
   if (context.initial_partitioning.mode == InitialPartitioningMode::direct) {
@@ -290,7 +295,7 @@ inline void Partitioner::partition(Hypergraph& hypergraph, Context& context) {
   utils::Timer::instance().stop_timer("preprocessing");
 
   // ################## MULTILEVEL ##################
-  multilevel::partition(hypergraph, context, true);
+  multilevel::partition(hypergraph, context, true, TBBNumaArena::instance());
 
   postprocess(hypergraph, context);
 

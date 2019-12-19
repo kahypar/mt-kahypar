@@ -74,7 +74,8 @@ class AHypergraph : public Test {
     std::vector<TestStreamingHypergraph> numa_hypergraphs;
     for (int node = 0; node < NUM_NUMA_NODES; ++node) {
       TBBArena::instance().numa_task_arena(node).execute([&] {
-            numa_hypergraphs.emplace_back(node, k, false);
+            numa_hypergraphs.emplace_back(node, k,
+              TBBArena::instance().numa_task_arena(node), false);
           });
     }
 
@@ -92,7 +93,8 @@ class AHypergraph : public Test {
     }
 
     // Create hypergraph (that also initialize hypernodes)
-    TestHypergraph hypergraph(num_hypernodes, std::move(numa_hypergraphs), std::move(node_mapping), k);
+    TestHypergraph hypergraph(num_hypernodes, std::move(numa_hypergraphs),
+      std::move(node_mapping), k, TBBArena::instance());
 
     if (communities.size() > 0) {
       ASSERT(num_hypernodes == communities.size());

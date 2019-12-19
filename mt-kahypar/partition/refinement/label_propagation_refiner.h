@@ -56,9 +56,10 @@ class LabelPropagationRefinerT final : public IRefiner {
   static constexpr bool enable_heavy_assert = false;
 
  public:
-  explicit LabelPropagationRefinerT(HyperGraph& hypergraph, const Context& context) :
+  explicit LabelPropagationRefinerT(HyperGraph& hypergraph, const Context& context, TBB& tbb_arena) :
     _hg(hypergraph),
     _context(context),
+    _tbb_arena(tbb_arena),
     _numa_nodes_indices(),
     _nodes(),
     _current_level(0),
@@ -104,7 +105,7 @@ class LabelPropagationRefinerT final : public IRefiner {
         // Assertion verifies, that all enabled nodes are contained in _nodes
         std::vector<HypernodeID> tmp_nodes;
         tmp_nodes.insert(tmp_nodes.begin(), _nodes.begin(), _nodes.end());
-        for (int node = 0; node < TBB::instance().num_used_numa_nodes(); ++node) {
+        for (int node = 0; node < _tbb_arena.num_used_numa_nodes(); ++node) {
           size_t pos = _numa_nodes_indices[node];
           size_t end = _numa_nodes_indices[node + 1];
           std::sort(tmp_nodes.begin() + pos, tmp_nodes.begin() + end);
@@ -125,7 +126,7 @@ class LabelPropagationRefinerT final : public IRefiner {
 
     if (_context.refinement.label_propagation.numa_aware) {
       // Execute label propagation on all numa nodes
-      TBB::instance().execute_parallel_on_all_numa_nodes([&](const int node) {
+      _tbb_arena.execute_parallel_on_all_numa_nodes([&](const int node) {
           labelPropagation(node);
         });
     } else {
@@ -151,7 +152,11 @@ class LabelPropagationRefinerT final : public IRefiner {
 
   void initialize() {
     HypernodeID current_num_nodes = 0;
+    _numa_nodes_indices.assign(_tbb_arena.num_used_numa_nodes() + 1, 0);
     for (const HypernodeID& hn : _hg.nodes()) {
+      const size_t node = StreamingHyperGraph::get_numa_node_of_vertex(hn);
+      ASSERT(node + 1 < _numa_nodes_indices.size());
+      ++_numa_nodes_indices[node + 1];
       _nodes.emplace_back(hn);
       ++current_num_nodes;
     }
@@ -167,26 +172,14 @@ class LabelPropagationRefinerT final : public IRefiner {
 
     // Build up a vector that points to the start position of the vertices
     // belonging to the same numa node in _nodes
-    int last_node = 0;
-    while (last_node < TBB::instance().num_used_numa_nodes() &&
-           _hg.initialNumNodes(last_node) == 0) {
-      _numa_nodes_indices.push_back(0);
-      ++last_node;
+    for (size_t i = 1; i < _numa_nodes_indices.size(); ++i) {
+      _numa_nodes_indices[i] += _numa_nodes_indices[i - 1];
     }
-    ASSERT(StreamingHyperGraph::get_numa_node_of_vertex(_nodes[0]) == last_node);
-    _numa_nodes_indices.push_back(0);
-    for (size_t i = 1; i < _nodes.size(); ++i) {
-      int node = StreamingHyperGraph::get_numa_node_of_vertex(_nodes[i]);
-      if (node != last_node) {
-        _numa_nodes_indices.push_back(i);
-        last_node = node;
-      }
-    }
-    _numa_nodes_indices.push_back(_nodes.size());
+    ASSERT(_numa_nodes_indices.back() == current_num_nodes);
 
     // Random shuffle all nodes belonging to the same numa node
-    ASSERT(_numa_nodes_indices.size() - 1 == (size_t)TBB::instance().num_used_numa_nodes());
-    for (int node = 0; node < TBB::instance().num_used_numa_nodes(); ++node) {
+    ASSERT(_numa_nodes_indices.size() - 1 == (size_t)_tbb_arena.num_used_numa_nodes());
+    for (int node = 0; node < _tbb_arena.num_used_numa_nodes(); ++node) {
       size_t start = _numa_nodes_indices[node];
       size_t end = _numa_nodes_indices[node + 1];
       utils::Randomize::instance().shuffleVector(_nodes, start, end, sched_getcpu());
@@ -309,6 +302,7 @@ class LabelPropagationRefinerT final : public IRefiner {
 
   HyperGraph& _hg;
   const Context& _context;
+  TBB& _tbb_arena;
   // ! Vector that poins to the first vertex of a consecutive range of nodes
   // ! that belong to the same numa node in _nodes.
   std::vector<size_t> _numa_nodes_indices;

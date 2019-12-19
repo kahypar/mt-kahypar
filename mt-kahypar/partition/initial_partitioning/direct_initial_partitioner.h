@@ -47,9 +47,13 @@ class DirectInitialPartitionerT : public IInitialPartitioner {
   static HypernodeID kInvalidHypernode;
 
  public:
-  DirectInitialPartitionerT(HyperGraph& hypergraph, const Context& context, const bool) :
+  DirectInitialPartitionerT(HyperGraph& hypergraph,
+                            const Context& context,
+                            const bool,
+                            TBB& tbb_arena) :
     _hg(hypergraph),
-    _context(context) { }
+    _context(context),
+    _tbb_arena(tbb_arena) { }
 
   DirectInitialPartitionerT(const DirectInitialPartitionerT&) = delete;
   DirectInitialPartitionerT(DirectInitialPartitionerT&&) = delete;
@@ -58,7 +62,7 @@ class DirectInitialPartitionerT : public IInitialPartitioner {
 
  private:
   void initialPartitionImpl() override final {
-    kahypar_context_t* context = setupContext(_context, kahypar_debug);
+    kahypar_context_t* context = setupContext(_context, true, kahypar_debug);
 
     // Setup number of runs per thread
     std::vector<size_t> ip_runs;
@@ -99,11 +103,11 @@ class DirectInitialPartitionerT : public IInitialPartitioner {
     std::vector<KaHyParPartitioningResult> results(num_ip_calls);
     KaHyParHypergraph kahypar_hypergraph = convertToKaHyParHypergraph(_hg, node_mapping);
 
-    size_t used_numa_nodes = TBB::instance().num_used_numa_nodes();
+    size_t used_numa_nodes = _tbb_arena.num_used_numa_nodes();
     std::vector<int> numa_cpus_prefix_sum(used_numa_nodes + 1, 0);
     for (size_t i = 1; i <= used_numa_nodes; ++i) {
       numa_cpus_prefix_sum[i] = numa_cpus_prefix_sum[i - 1] +
-                                TBB::instance().number_of_threads_on_numa_node(i - 1);
+                                _tbb_arena.number_of_threads_on_numa_node(i - 1);
     }
     // Returns a numa node with probability of the number of active threads on that
     // numa node divided by the total number of active threads
@@ -123,14 +127,14 @@ class DirectInitialPartitionerT : public IInitialPartitioner {
 
     for (size_t i = 0; i < num_ip_calls; ++i) {
       int numa_node = get_numa_node_for_execution();
-      TBB::instance().numa_task_arena(numa_node).execute([&, i] {
-          TBB::instance().numa_task_group(numa_node).run([&, i] {
+      _tbb_arena.numa_task_arena(numa_node).execute([&, i] {
+          _tbb_arena.numa_task_group(numa_node).run([&, i] {
             size_t seed = _context.partition.seed + i * _context.initial_partitioning.runs;
             results[i] = partitionWithKaHyPar(kahypar_hypergraph, context, ip_runs[i], seed);
           });
         });
     }
-    TBB::instance().wait();
+    _tbb_arena.wait();
 
     // Select best partition
     KaHyParPartitioningResult best;
@@ -158,7 +162,8 @@ class DirectInitialPartitionerT : public IInitialPartitioner {
     _hg.updateGlobalPartInfos();
     _hg.initializeNumCutHyperedges();
 
-    ASSERT(metrics::objective(_hg, _context.partition.objective) == best.objective);
+    ASSERT(metrics::objective(_hg, _context.partition.objective) == best.objective,
+      V(metrics::objective(_hg, _context.partition.objective)) << V(best.objective));
     ASSERT(metrics::imbalance(_hg, _context) == best.imbalance);
     kahypar_context_free(context);
   }
@@ -195,6 +200,7 @@ class DirectInitialPartitionerT : public IInitialPartitioner {
 
   HyperGraph& _hg;
   const Context& _context;
+  TBB& _tbb_arena;
 };
 
 template <typename TypeTraits>

@@ -35,6 +35,7 @@ class ACommunityCoarsener : public ds::AHypergraph<2> {
  public:
   using Base::TestStreamingHypergraph;
   using Base::TestHypergraph;
+  using Base::TBBArena;
 
   ACommunityCoarsener() :
     Base(),
