@@ -686,10 +686,11 @@ class StreamingHypergraph {
 
   explicit StreamingHypergraph(const int node,
                                const PartitionID k,
+                               tbb::task_arena& arena,
                                const bool remove_single_pin_community_nets = true) :
     _node(node),
     _k(k),
-    _arena(TBBNumaArena::instance().numa_task_arena(node)),
+    _arena(arena),
     _remove_single_pin_community_nets(remove_single_pin_community_nets),
     _num_hypernodes(0),
     _num_hyperedges(0),

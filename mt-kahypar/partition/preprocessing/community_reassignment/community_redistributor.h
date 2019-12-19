@@ -93,14 +93,14 @@ class CommunityRedistributorT {
 
     // Reset Pins to original node ids
     utils::Timer::instance().start_timer("reset_pins_to_original_ids", "Reset Pins to original IDs");
-    hg.resetPinsToOriginalNodeIds();
+    hg.resetPinsToOriginalNodeIds(TBB::instance());
     utils::Timer::instance().stop_timer("reset_pins_to_original_ids");
 
     utils::Timer::instance().start_timer("stream_hyperedges", "Stream Hyperedges");
     // Initialize Streaming Hypergraphs
     std::vector<StreamingHyperGraph> numa_hypergraphs;
     TBB::instance().execute_sequential_on_all_numa_nodes([&](const int node) {
-          numa_hypergraphs.emplace_back(node, k);
+          numa_hypergraphs.emplace_back(node, k, TBB::instance().numa_task_arena(node));
         });
 
     // Stream hyperedges into hypergraphs
@@ -138,7 +138,8 @@ class CommunityRedistributorT {
 
     // Initialize hypergraph
     utils::Timer::instance().start_timer("initialize hypergraph", "Initialize Hypergraph");
-    HyperGraph hypergraph(hg.initialNumNodes(), std::move(numa_hypergraphs), std::move(node_mapping), k);
+    HyperGraph hypergraph(hg.initialNumNodes(), std::move(numa_hypergraphs),
+      std::move(node_mapping), k, TBB::instance());
     ASSERT(hypergraph.initialNumNodes() == hg.initialNumNodes());
     ASSERT(hypergraph.initialNumEdges() == hg.initialNumEdges());
     ASSERT(hypergraph.initialNumPins() == hg.initialNumPins());

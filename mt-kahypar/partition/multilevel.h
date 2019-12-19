@@ -20,6 +20,8 @@
 
 #pragma once
 
+#include <memory>
+
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/io/hypergraph_io.h"
 #include "mt-kahypar/partition/context.h"
@@ -27,13 +29,16 @@
 
 namespace mt_kahypar {
 namespace multilevel {
-static inline void partition(Hypergraph& hypergraph, const Context& context, const bool top_level) {
+static inline void partition(Hypergraph& hypergraph,
+                             const Context& context,
+                             const bool top_level,
+                             TBBNumaArena& tbb_arena) {
   // ################## COARSENING ##################
   mt_kahypar::io::printCoarseningBanner(context);
   utils::Timer::instance().start_timer("coarsening", "Coarsening");
   std::unique_ptr<ICoarsener> coarsener =
     CoarsenerFactory::getInstance().createObject(
-      context.coarsening.algorithm, hypergraph, context);
+      context.coarsening.algorithm, hypergraph, context, tbb_arena);
   coarsener->coarsen();
   utils::Timer::instance().stop_timer("coarsening");
 
@@ -46,7 +51,7 @@ static inline void partition(Hypergraph& hypergraph, const Context& context, con
   utils::Timer::instance().start_timer("initial_partitioning", "Initial Partitioning");
   std::unique_ptr<IInitialPartitioner> initial_partitioner =
     InitialPartitionerFactory::getInstance().createObject(
-      context.initial_partitioning.mode, hypergraph, context, top_level);
+      context.initial_partitioning.mode, hypergraph, context, top_level, tbb_arena);
   initial_partitioner->initialPartition();
   utils::Timer::instance().stop_timer("initial_partitioning");
 
@@ -57,7 +62,7 @@ static inline void partition(Hypergraph& hypergraph, const Context& context, con
   utils::Timer::instance().start_timer("refinement", "Refinement");
   std::unique_ptr<IRefiner> label_propagation =
     LabelPropagationFactory::getInstance().createObject(
-      context.refinement.label_propagation.algorithm, hypergraph, context);
+      context.refinement.label_propagation.algorithm, hypergraph, context, tbb_arena);
 
   coarsener->uncoarsen(label_propagation);
   utils::Timer::instance().stop_timer("refinement");

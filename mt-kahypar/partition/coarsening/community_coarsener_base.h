@@ -54,9 +54,10 @@ class CommunityCoarsenerBase {
   static HypernodeID kInvalidHyperedge;
 
  public:
-  CommunityCoarsenerBase(HyperGraph& hypergraph, const Context& context) :
+  CommunityCoarsenerBase(HyperGraph& hypergraph, const Context& context, TBB& tbb_arena) :
     _hg(hypergraph),
     _context(context),
+    _tbb_arena(tbb_arena),
     _init(false),
     _contained_hypernodes(hypergraph.initialNumNodes()),
     _representative_hypernodes(hypergraph.initialNumNodes()),
@@ -85,7 +86,7 @@ class CommunityCoarsenerBase {
   void init() {
     // Initialize community hyperedges such that parallel contractions in each community are possible
     utils::Timer::instance().start_timer("initialize_community_hyperedges", "Initialize Community Hyperedges");
-    _hg.initializeCommunityHyperedges();
+    _hg.initializeCommunityHyperedges(_tbb_arena);
     _init = true;
     utils::Timer::instance().stop_timer("initialize_community_hyperedges");
   }
@@ -99,7 +100,7 @@ class CommunityCoarsenerBase {
     // Reset community hyperedges
     utils::Timer::instance().start_timer("reset_community_hyperedges", "Reset Community Hyperedges");
     _hg.buildContractionHierarchy(_history);
-    _hg.removeCommunityHyperedges();
+    _hg.removeCommunityHyperedges(_tbb_arena);
     utils::Timer::instance().stop_timer("reset_community_hyperedges");
 
     utils::Timer::instance().start_timer("postprocess_parallel_hyperedges", "Postprocess Parallel Hyperedges");
@@ -386,13 +387,14 @@ class CommunityCoarsenerBase {
     utils::Timer::instance().stop_timer("determine_he_weights");
 
     utils::Timer::instance().start_timer("remove_disabled_hyperedges_from_incident_nets", "Remove Disabled HE from HNs");
-    _hg.invalidateDisabledHyperedgesFromIncidentNets();
+    _hg.invalidateDisabledHyperedgesFromIncidentNets(_tbb_arena);
     utils::Timer::instance().stop_timer("remove_disabled_hyperedges_from_incident_nets");
   }
 
  protected:
   HyperGraph& _hg;
   const Context& _context;
+  TBB& _tbb_arena;
   bool _init;
   ThreadLocalFastResetFlagArray _contained_hypernodes;
 

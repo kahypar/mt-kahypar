@@ -27,7 +27,10 @@
 
 namespace mt_kahypar {
 namespace multilevel {
-static inline void partition(Hypergraph& hypergraph, const Context& context, const bool top_level);
+static inline void partition(Hypergraph& hypergraph,
+                             const Context& context,
+                             const bool top_level,
+                             TBBNumaArena& tbb_arena);
 }  // namespace multilevel
 }  // namespace mt_kahypar
 
@@ -35,12 +38,12 @@ static inline void partition(Hypergraph& hypergraph, const Context& context, con
 #include "mt-kahypar/partition/initial_partitioning/recursive_initial_partitioner.h"
 #include "mt-kahypar/partition/initial_partitioning/recursive_bisection_initial_partitioner.h"
 
-#define REGISTER_INITIAL_PARTITIONER(id, partitioner)                                  \
-  static kahypar::meta::Registrar<InitialPartitionerFactory> register_ ## partitioner( \
-    id,                                                                                \
-    [](Hypergraph& hypergraph, const Context& context, const bool top_level)           \
-    -> IInitialPartitioner* {                                                          \
-    return new partitioner(hypergraph, context, top_level);                            \
+#define REGISTER_INITIAL_PARTITIONER(id, partitioner)                                                 \
+  static kahypar::meta::Registrar<InitialPartitionerFactory> register_ ## partitioner(                \
+    id,                                                                                               \
+    [](Hypergraph& hypergraph, const Context& context, const bool top_level, TBBNumaArena& tbb_arena) \
+    -> IInitialPartitioner* {                                                                         \
+    return new partitioner(hypergraph, context, top_level, tbb_arena);                                \
   })
 
 namespace mt_kahypar {

@@ -130,7 +130,7 @@ static inline HyperGraph readHyperedges(std::ifstream& file,
   int used_numa_nodes = TBB::instance().num_used_numa_nodes();
   std::vector<StreamingHyperGraph> numa_hypergraphs;
   TBB::instance().execute_sequential_on_all_numa_nodes([&](const int node) {
-          numa_hypergraphs.emplace_back(node, k);
+          numa_hypergraphs.emplace_back(node, k, TBB::instance().numa_task_arena(node));
         });
 
   // Read input file line by line
@@ -181,12 +181,13 @@ static inline HyperGraph readHyperedges(std::ifstream& file,
   utils::Timer::instance().stop_timer("initialize_hyperedges");
 
   utils::Timer::instance().start_timer("initialize_hypernodes", "Initialize Hypernodes");
-  HyperGraph hypergraph(num_hypernodes, std::move(numa_hypergraphs), k);
+  HyperGraph hypergraph(num_hypernodes, std::move(numa_hypergraphs), k, TBB::instance());
   utils::Timer::instance().stop_timer("initialize_hypernodes");
   return hypergraph;
 }
 
-template <typename HyperGraph = Hypergraph>
+template < typename HyperGraph = Hypergraph,
+           typename TBB = TBBNumaArena>
 static inline void readHypernodeWeights(std::ifstream& file,
                                         HyperGraph& hypergraph,
                                         const HypernodeID num_hypernodes,
@@ -207,7 +208,7 @@ static inline void readHypernodeWeights(std::ifstream& file,
       line_stream >> weight;
       hypergraph.setNodeWeight(hypergraph.globalNodeID(hn), weight);
     }
-    hypergraph.updateTotalWeight();
+    hypergraph.updateTotalWeight(TBB::instance());
   }
 }
 
@@ -246,7 +247,7 @@ static inline HyperGraph readHypergraphFile(const std::string& filename,
     readHGRHeader(file, num_hyperedges, num_hypernodes, type);
     hypergraph = readHyperedges<HyperGraph, StreamingHyperGraph, TBB, HwTopology>(
       file, num_hypernodes, num_hyperedges, type, distribution, k);
-    readHypernodeWeights<HyperGraph>(file, hypergraph, num_hypernodes, type);
+    readHypernodeWeights<HyperGraph, TBB>(file, hypergraph, num_hypernodes, type);
     file.close();
   } else {
     ERROR("Error: File not found: " + filename);
