@@ -218,13 +218,11 @@ class HardwareTopology {
     int cpu_id = _numa_nodes[node].get_backup_cpu(except_cpu);
     if ( cpu_id == -1 ) {
       #ifndef NDEBUG
-      ASSERT(num_numa_nodes() > 1);
-      if ( node == 0 ) {
-        cpu_id = _numa_nodes[1].get_backup_cpu(except_cpu);
-      } else {
-        cpu_id = _numa_nodes[0].get_backup_cpu(except_cpu);
-      }
-      ASSERT(cpu_id != -1);
+      // Handling special case:
+      // Travis CI has only two cpus, when mocking a numa architecture
+      // of two nodes, we have to search for a backup node on a different
+      // numa node. Note, this is only enabled in DEBUG mode.
+      cpu_id = except_cpu;
       #else
       ERROR("Your system has not enough cpus to execute MT-KaHyPar (> 1)");
       #endif
