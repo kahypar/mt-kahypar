@@ -97,7 +97,7 @@ class ATBBNumaArenaTest : public Test {
   int num_threads;
 };
 
-#define SYSTEM_HAS_MORE_THAN_FOUR_CORES true
+#define SYSTEM_HAS_MORE_THAN_FOUR_CORES false
 typedef ::testing::Types<Numa<1>, Numa<2>
                          #if SYSTEM_HAS_MORE_THAN_FOUR_CORES
                          , Numa<4>

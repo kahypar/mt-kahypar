@@ -104,7 +104,7 @@ class ALabelPropagationRefiner : public Test {
     context.setupPartWeights(hypergraph.totalWeight());
     initialPartition();
 
-    refiner = std::make_unique<Refiner>(hypergraph, context);
+    refiner = std::make_unique<Refiner>(hypergraph, context, TBB::instance());
   }
 
   static void SetUpTestSuite() {
@@ -112,7 +112,7 @@ class ALabelPropagationRefiner : public Test {
   }
 
   void initialPartition() {
-    DirectInitialPartitionerT<TypeTraits> initial_partitioner(hypergraph, context, true);
+    DirectInitialPartitionerT<TypeTraits> initial_partitioner(hypergraph, context, true, TBB::instance());
     initial_partitioner.initialPartition();
     metrics.km1 = metrics::km1(hypergraph);
     metrics.cut = metrics::hyperedgeCut(hypergraph);
@@ -128,7 +128,7 @@ class ALabelPropagationRefiner : public Test {
 template <typename Config>
 size_t ALabelPropagationRefiner<Config>::num_threads = HwTopology::instance().num_cpus();
 
-static constexpr double EPS = 10e-6;
+static constexpr double EPS = 0.05;
 
 typedef ::testing::Types<TestConfig<2, kahypar::Objective::cut>,
                          TestConfig<4, kahypar::Objective::cut>,

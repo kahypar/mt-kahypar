@@ -29,6 +29,7 @@ namespace ds {
 using AHypergraphWithTwoStreamingHypergraphs = AHypergraph<2>;
 using TestHypergraph = typename AHypergraphWithTwoStreamingHypergraphs::TestHypergraph;
 using TestStreamingHypergraph = typename AHypergraphWithTwoStreamingHypergraphs::TestStreamingHypergraph;
+using TBBArena = typename AHypergraphWithTwoStreamingHypergraphs::TBBArena;
 
 TestHypergraph construct_test_hypergraph(const AHypergraphWithTwoStreamingHypergraphs& test) {
   return test.construct_hypergraph(7, { { 0, 2 }, { 0, 1, 3, 4 }, { 3, 4, 6 }, { 2, 5, 6 } },
@@ -103,7 +104,7 @@ TEST_F(AHypergraphWithTwoStreamingHypergraphs, HasCorrectWeightAfterUpdatingNode
   hypergraph.setNodeWeight(1, 5);
   hypergraph.setNodeWeight(281474976710656, 10);
   hypergraph.setNodeWeight(281474976710658, 5);
-  hypergraph.updateTotalWeight();
+  hypergraph.updateTotalWeight(TBBArena::instance());
 
   ASSERT_EQ(26, hypergraph.totalWeight());
 }
@@ -1329,7 +1330,7 @@ TEST_F(AHypergraphWithTwoStreamingHypergraphs, StreamsCommunityIDsInParallelInto
 
 TEST_F(AHypergraphWithTwoStreamingHypergraphs, ResetsPinsToOriginalIds) {
   TestHypergraph hypergraph = construct_test_hypergraph(*this);
-  hypergraph.resetPinsToOriginalNodeIds();
+  hypergraph.resetPinsToOriginalNodeIds(TBBArena::instance());
 
   verifyPinIterators(hypergraph, { 0, 1, 281474976710656, 281474976710657 },
                      { { 0, 2 }, { 0, 1, 3, 4 }, { 3, 4, 6 }, { 2, 5, 6 } });
@@ -1537,7 +1538,7 @@ TEST_F(AHypergraphWithTwoStreamingHypergraphs, RestoresParallelHyperedgeDuringUn
   // Hyperedge 1 becomes parallel to hyperedge 0
   auto memento = hypergraph.contract(id[0], id[1]);
   hypergraph.disableHyperedge(1);
-  hypergraph.invalidateDisabledHyperedgesFromIncidentNets();
+  hypergraph.invalidateDisabledHyperedgesFromIncidentNets(TBBArena::instance());
   assignPartitionIDs(hypergraph);
 
   parallel::scalable_vector<HyperedgeID> parallel_he_representative(
@@ -1561,7 +1562,7 @@ TEST_F(AHypergraphWithTwoStreamingHypergraphs, RestoresParallelHyperedgeDuringUn
   // Hyperedge 0 becomes parallel to hyperedge 1
   auto memento = hypergraph.contract(id[0], id[1]);
   hypergraph.disableHyperedge(0);
-  hypergraph.invalidateDisabledHyperedgesFromIncidentNets();
+  hypergraph.invalidateDisabledHyperedgesFromIncidentNets(TBBArena::instance());
   assignPartitionIDs(hypergraph);
 
   parallel::scalable_vector<HyperedgeID> parallel_he_representative(
@@ -1585,7 +1586,7 @@ TEST_F(AHypergraphWithTwoStreamingHypergraphs, RestoresParallelHyperedgeDuringUn
   // Hyperedge 1 becomes parallel to hyperedge 0
   auto memento = hypergraph.contract(id[0], id[1]);
   hypergraph.disableHyperedge(1);
-  hypergraph.invalidateDisabledHyperedgesFromIncidentNets();
+  hypergraph.invalidateDisabledHyperedgesFromIncidentNets(TBBArena::instance());
   assignPartitionIDs(hypergraph);
 
   parallel::scalable_vector<HyperedgeID> parallel_he_representative(
@@ -1609,7 +1610,7 @@ TEST_F(AHypergraphWithTwoStreamingHypergraphs, RestoresParallelHyperedgeDuringUn
   // Hyperedge 0 becomes parallel to hyperedge 1
   auto memento = hypergraph.contract(id[0], id[1]);
   hypergraph.disableHyperedge(0);
-  hypergraph.invalidateDisabledHyperedgesFromIncidentNets();
+  hypergraph.invalidateDisabledHyperedgesFromIncidentNets(TBBArena::instance());
   assignPartitionIDs(hypergraph);
 
   parallel::scalable_vector<HyperedgeID> parallel_he_representative(
@@ -1636,7 +1637,7 @@ TEST_F(AHypergraphWithTwoStreamingHypergraphs, RestoresParallelHyperedgeDuringUn
   auto memento_2 = hypergraph.contract(id[0], id[2]);
   hypergraph.disableHyperedge(1);
   hypergraph.disableHyperedge(2);
-  hypergraph.invalidateDisabledHyperedgesFromIncidentNets();
+  hypergraph.invalidateDisabledHyperedgesFromIncidentNets(TBBArena::instance());
   assignPartitionIDs(hypergraph);
 
   parallel::scalable_vector<HyperedgeID> parallel_he_representative(
@@ -1663,7 +1664,7 @@ TEST_F(AHypergraphWithTwoStreamingHypergraphs, CopiesItselfWhereAllVerticesAOnOn
   TestHypergraph hypergraph = construct_hypergraph(4, { { 1, 2 }, { 0, 1, 2, 3 }, { 2, 3 } },
                                                    { 0, 0, 0, 0 }, { 0, 0, 0 }, { 0, 0, 0, 0 });
   std::vector<HypernodeID> id = { GLOBAL_ID(hypergraph, 0), GLOBAL_ID(hypergraph, 1), GLOBAL_ID(hypergraph, 2), GLOBAL_ID(hypergraph, 3) };
-  auto copy = hypergraph.copy(2);
+  auto copy = hypergraph.copy(2, TBBArena::instance());
   TestHypergraph& copy_hg = copy.first;
   auto& mapping = copy.second;
   std::vector<HypernodeID> copy_id = { GLOBAL_ID(copy_hg, mapping[hypergraph.originalNodeID(id[0])]),
@@ -1680,7 +1681,7 @@ TEST_F(AHypergraphWithTwoStreamingHypergraphs, CopiesItselfWhereVerticesAreOnDif
   TestHypergraph hypergraph = construct_hypergraph(4, { { 1, 2 }, { 0, 1, 2, 3 }, { 2, 3 } },
                                                    { 0, 0, 1, 1 }, { 0, 1, 0 }, { 0, 0, 0, 0 });
   std::vector<HypernodeID> id = { GLOBAL_ID(hypergraph, 0), GLOBAL_ID(hypergraph, 1), GLOBAL_ID(hypergraph, 2), GLOBAL_ID(hypergraph, 3) };
-  auto copy = hypergraph.copy(2);
+  auto copy = hypergraph.copy(2, TBBArena::instance());
   TestHypergraph& copy_hg = copy.first;
   auto& mapping = copy.second;
   std::vector<HypernodeID> copy_id = { GLOBAL_ID(copy_hg, mapping[hypergraph.originalNodeID(id[0])]),
@@ -1704,7 +1705,7 @@ TEST_F(AHypergraphWithTwoStreamingHypergraphs, CopiesItselfAfterOneContraction) 
   std::vector<HypernodeID> id = { GLOBAL_ID(hypergraph, 0), GLOBAL_ID(hypergraph, 1), GLOBAL_ID(hypergraph, 2), GLOBAL_ID(hypergraph, 3) };
   hypergraph.contract(id[1], id[2]);
 
-  auto copy = hypergraph.copy(2);
+  auto copy = hypergraph.copy(2, TBBArena::instance());
   TestHypergraph& copy_hg = copy.first;
   auto& mapping = copy.second;
   std::vector<HypernodeID> copy_id = { GLOBAL_ID(copy_hg, mapping[hypergraph.originalNodeID(id[0])]),
@@ -1727,7 +1728,7 @@ TEST_F(AHypergraphWithTwoStreamingHypergraphs, CopiesItselfAfterTwoContractions)
   hypergraph.contract(id[1], id[2]);
   hypergraph.contract(id[1], id[3]);
 
-  auto copy = hypergraph.copy(2);
+  auto copy = hypergraph.copy(2, TBBArena::instance());
   TestHypergraph& copy_hg = copy.first;
   auto& mapping = copy.second;
   std::vector<HypernodeID> copy_id = { GLOBAL_ID(copy_hg, mapping[hypergraph.originalNodeID(id[0])]),
@@ -1750,7 +1751,7 @@ TEST_F(AHypergraphWithTwoStreamingHypergraphs, CopiesItselfAfterTwoContractionsW
   hypergraph.removeEdge(hypergraph.globalEdgeID(2));
   hypergraph.setEdgeWeight(hypergraph.globalEdgeID(0), 2);
 
-  auto copy = hypergraph.copy(2);
+  auto copy = hypergraph.copy(2, TBBArena::instance());
   TestHypergraph& copy_hg = copy.first;
   auto& mapping = copy.second;
   std::vector<HypernodeID> copy_id = { GLOBAL_ID(copy_hg, mapping[hypergraph.originalNodeID(id[0])]),
@@ -1769,7 +1770,7 @@ TEST_F(AHypergraphWithTwoStreamingHypergraphs, CopiesItselfWithCommunities) {
   TestHypergraph hypergraph = construct_hypergraph(4, { { 1, 2 }, { 0, 1, 2, 3 }, { 2, 3 } },
                                                    { 0, 0, 1, 1 }, { 0, 1, 0 }, { 0, 1, 2, 2 });
   std::vector<HypernodeID> id = { GLOBAL_ID(hypergraph, 0), GLOBAL_ID(hypergraph, 1), GLOBAL_ID(hypergraph, 2), GLOBAL_ID(hypergraph, 3) };
-  auto copy = hypergraph.copy(2);
+  auto copy = hypergraph.copy(2, TBBArena::instance());
   TestHypergraph& copy_hg = copy.first;
   auto& mapping = copy.second;
   std::vector<HypernodeID> copy_id = { GLOBAL_ID(copy_hg, mapping[hypergraph.originalNodeID(id[0])]),
@@ -1793,7 +1794,7 @@ TEST_F(AHypergraphWithTwoStreamingHypergraphs, CopiesItselfWithCommunitiesAfterO
   std::vector<HypernodeID> id = { GLOBAL_ID(hypergraph, 0), GLOBAL_ID(hypergraph, 1), GLOBAL_ID(hypergraph, 2), GLOBAL_ID(hypergraph, 3) };
   hypergraph.contract(id[1], id[2]);
 
-  auto copy = hypergraph.copy(2);
+  auto copy = hypergraph.copy(2, TBBArena::instance());
   TestHypergraph& copy_hg = copy.first;
   auto& mapping = copy.second;
   std::vector<HypernodeID> copy_id = { GLOBAL_ID(copy_hg, mapping[hypergraph.originalNodeID(id[0])]),
@@ -1816,7 +1817,7 @@ TEST_F(AHypergraphWithTwoStreamingHypergraphs, CopiesItselfWithCommunitiesAfterT
   hypergraph.contract(id[1], id[2]);
   hypergraph.contract(id[1], id[3]);
 
-  auto copy = hypergraph.copy(2);
+  auto copy = hypergraph.copy(2, TBBArena::instance());
   TestHypergraph& copy_hg = copy.first;
   auto& mapping = copy.second;
   std::vector<HypernodeID> copy_id = { GLOBAL_ID(copy_hg, mapping[hypergraph.originalNodeID(id[0])]),
@@ -1841,7 +1842,7 @@ TEST_F(AHypergraphWithTwoStreamingHypergraphs, ExtractPartZeroOfPartitionAsHyper
   hypergraph.initializeNumCutHyperedges();
   hypergraph.updateGlobalPartInfos();
 
-  auto copy = hypergraph.copy(2, 0, true /* cut net splitting */);
+  auto copy = hypergraph.copy(2, TBBArena::instance(), 0, true /* cut net splitting */);
   TestHypergraph& copy_hg = copy.first;
   auto& mapping = copy.second;
   std::vector<HypernodeID> copy_id = { GLOBAL_ID(copy_hg, mapping[hypergraph.originalNodeID(id[0])]),
@@ -1868,7 +1869,7 @@ TEST_F(AHypergraphWithTwoStreamingHypergraphs, ExtractPartOneOfPartitionAsHyperg
   hypergraph.initializeNumCutHyperedges();
   hypergraph.updateGlobalPartInfos();
 
-  auto copy = hypergraph.copy(2, 1, true /* cut net splitting */);
+  auto copy = hypergraph.copy(2, TBBArena::instance(), 1, true /* cut net splitting */);
   TestHypergraph& copy_hg = copy.first;
   auto& mapping = copy.second;
   std::vector<HypernodeID> copy_id = { GLOBAL_ID(copy_hg, mapping[hypergraph.originalNodeID(id[1])]),
@@ -1896,7 +1897,7 @@ TEST_F(AHypergraphWithTwoStreamingHypergraphs, ExtractPartOneOfPartitionAsHyperg
   hypergraph.initializeNumCutHyperedges();
   hypergraph.updateGlobalPartInfos();
 
-  auto copy = hypergraph.copy(2, 1, true /* cut net splitting */);
+  auto copy = hypergraph.copy(2, TBBArena::instance(), 1, true /* cut net splitting */);
   TestHypergraph& copy_hg = copy.first;
   auto& mapping = copy.second;
   std::vector<HypernodeID> copy_id = { GLOBAL_ID(copy_hg, mapping[hypergraph.originalNodeID(id[1])]) };
@@ -1920,7 +1921,7 @@ TEST_F(AHypergraphWithTwoStreamingHypergraphs, ExtractPartZeroOfPartitionAsHyper
   hypergraph.initializeNumCutHyperedges();
   hypergraph.updateGlobalPartInfos();
 
-  auto copy = hypergraph.copy(2, 0, false /* cut net removal */);
+  auto copy = hypergraph.copy(2, TBBArena::instance(), 0, false /* cut net removal */);
   TestHypergraph& copy_hg = copy.first;
   auto& mapping = copy.second;
   std::vector<HypernodeID> copy_id = { GLOBAL_ID(copy_hg, mapping[hypergraph.originalNodeID(id[2])]),
@@ -1946,7 +1947,7 @@ TEST_F(AHypergraphWithTwoStreamingHypergraphs, ExtractPartOneOfPartitionAsHyperg
   hypergraph.initializeNumCutHyperedges();
   hypergraph.updateGlobalPartInfos();
 
-  auto copy = hypergraph.copy(2, 1, false /* cut net removal */);
+  auto copy = hypergraph.copy(2, TBBArena::instance(), 1, false /* cut net removal */);
   TestHypergraph& copy_hg = copy.first;
   auto& mapping = copy.second;
   std::vector<HypernodeID> copy_id = { GLOBAL_ID(copy_hg, mapping[hypergraph.originalNodeID(id[1])]),
@@ -1977,7 +1978,7 @@ TEST_F(AHypergraphWithTwoStreamingHypergraphs, ExtractPartOneOfPartitionAsHyperg
   hypergraph.initializeNumCutHyperedges();
   hypergraph.updateGlobalPartInfos();
 
-  auto copy = hypergraph.copy(2, 1, false /* cut net removal */);
+  auto copy = hypergraph.copy(2, TBBArena::instance(), 1, false /* cut net removal */);
   TestHypergraph& copy_hg = copy.first;
   auto& mapping = copy.second;
   std::vector<HypernodeID> copy_id = { GLOBAL_ID(copy_hg, mapping[hypergraph.originalNodeID(id[1])]),

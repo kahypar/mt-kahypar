@@ -31,6 +31,7 @@ namespace ds {
 using ACommunityHypergraph = AHypergraph<2>;
 using TestHypergraph = typename ACommunityHypergraph::TestHypergraph;
 using TestStreamingHypergraph = typename ACommunityHypergraph::TestStreamingHypergraph;
+using TBBArena = typename ACommunityHypergraph::TBBArena;
 using HwTopology = typename ACommunityHypergraph::HwTopology;
 using Memento = typename TestStreamingHypergraph::Memento;
 
@@ -81,7 +82,7 @@ void verifyPinIterators(const TestHypergraph& hypergraph,
 
 TEST_F(ACommunityHypergraph, InitializesCommunityHyperedges) {
   TestHypergraph hypergraph = construct_test_hypergraph(*this);
-  hypergraph.initializeCommunityHyperedges();
+  hypergraph.initializeCommunityHyperedges(TBBArena::instance());
 
   ASSERT_EQ(1, hypergraph.numCommunitiesInHyperedge(0));
   ASSERT_EQ(2, hypergraph.numCommunitiesInHyperedge(1));
@@ -91,7 +92,7 @@ TEST_F(ACommunityHypergraph, InitializesCommunityHyperedges) {
 
 TEST_F(ACommunityHypergraph, VerifiesCommunityHyperedgeSizes) {
   TestHypergraph hypergraph = construct_test_hypergraph(*this);
-  hypergraph.initializeCommunityHyperedges();
+  hypergraph.initializeCommunityHyperedges(TBBArena::instance());
 
   ASSERT_EQ(2, hypergraph.edgeSize(0, 0));
   ASSERT_EQ(2, hypergraph.edgeSize(1, 0));
@@ -105,7 +106,7 @@ TEST_F(ACommunityHypergraph, VerifiesPinsOfCommunityHyperedges) {
   TestHypergraph hypergraph = construct_test_hypergraph(*this);
   std::vector<HypernodeID> id = { GLOBAL_ID(hypergraph, 0), GLOBAL_ID(hypergraph, 1), GLOBAL_ID(hypergraph, 2),
                                   GLOBAL_ID(hypergraph, 3), GLOBAL_ID(hypergraph, 4), GLOBAL_ID(hypergraph, 5), GLOBAL_ID(hypergraph, 6) };
-  hypergraph.initializeCommunityHyperedges();
+  hypergraph.initializeCommunityHyperedges(TBBArena::instance());
 
   verifyIterator<HypernodeID>({ id[0], id[2] }, [&] {
         return hypergraph.pins(0, 0);
@@ -136,7 +137,7 @@ TEST_F(ACommunityHypergraph, VerifiesIncidentNetsOfHypernodes) {
   TestHypergraph hypergraph = construct_test_hypergraph(*this);
   std::vector<HypernodeID> id = { GLOBAL_ID(hypergraph, 0), GLOBAL_ID(hypergraph, 1), GLOBAL_ID(hypergraph, 2),
                                   GLOBAL_ID(hypergraph, 3), GLOBAL_ID(hypergraph, 4), GLOBAL_ID(hypergraph, 5), GLOBAL_ID(hypergraph, 6) };
-  hypergraph.initializeCommunityHyperedges();
+  hypergraph.initializeCommunityHyperedges(TBBArena::instance());
 
   // Note, in case we iterate over incident edges of the community hyperedges
   // we skip single-pin nets
@@ -174,7 +175,7 @@ TEST_F(ACommunityHypergraph, ContractsTwoHypernodes1) {
   TestHypergraph hypergraph = construct_test_hypergraph(*this);
   std::vector<HypernodeID> id = { GLOBAL_ID(hypergraph, 0), GLOBAL_ID(hypergraph, 1), GLOBAL_ID(hypergraph, 2),
                                   GLOBAL_ID(hypergraph, 3), GLOBAL_ID(hypergraph, 4), GLOBAL_ID(hypergraph, 5), GLOBAL_ID(hypergraph, 6) };
-  hypergraph.initializeCommunityHyperedges();
+  hypergraph.initializeCommunityHyperedges(TBBArena::instance());
 
   HypernodeID u = id[0];
   HypernodeID v = id[2];
@@ -205,7 +206,7 @@ TEST_F(ACommunityHypergraph, ContractsTwoHypernodes2) {
   TestHypergraph hypergraph = construct_test_hypergraph(*this);
   std::vector<HypernodeID> id = { GLOBAL_ID(hypergraph, 0), GLOBAL_ID(hypergraph, 1), GLOBAL_ID(hypergraph, 2),
                                   GLOBAL_ID(hypergraph, 3), GLOBAL_ID(hypergraph, 4), GLOBAL_ID(hypergraph, 5), GLOBAL_ID(hypergraph, 6) };
-  hypergraph.initializeCommunityHyperedges();
+  hypergraph.initializeCommunityHyperedges(TBBArena::instance());
 
   HypernodeID u = id[0];
   HypernodeID v = id[1];
@@ -232,7 +233,7 @@ TEST_F(ACommunityHypergraph, ContractsTwoHypernodes3) {
   TestHypergraph hypergraph = construct_test_hypergraph(*this);
   std::vector<HypernodeID> id = { GLOBAL_ID(hypergraph, 0), GLOBAL_ID(hypergraph, 1), GLOBAL_ID(hypergraph, 2),
                                   GLOBAL_ID(hypergraph, 3), GLOBAL_ID(hypergraph, 4), GLOBAL_ID(hypergraph, 5), GLOBAL_ID(hypergraph, 6) };
-  hypergraph.initializeCommunityHyperedges();
+  hypergraph.initializeCommunityHyperedges(TBBArena::instance());
 
   HypernodeID u = id[1];
   HypernodeID v = id[2];
@@ -263,7 +264,7 @@ TEST_F(ACommunityHypergraph, ContractsTwoHypernodes4) {
   TestHypergraph hypergraph = construct_test_hypergraph(*this);
   std::vector<HypernodeID> id = { GLOBAL_ID(hypergraph, 0), GLOBAL_ID(hypergraph, 1), GLOBAL_ID(hypergraph, 2),
                                   GLOBAL_ID(hypergraph, 3), GLOBAL_ID(hypergraph, 4), GLOBAL_ID(hypergraph, 5), GLOBAL_ID(hypergraph, 6) };
-  hypergraph.initializeCommunityHyperedges();
+  hypergraph.initializeCommunityHyperedges(TBBArena::instance());
 
   HypernodeID u = id[3];
   HypernodeID v = id[4];
@@ -290,7 +291,7 @@ TEST_F(ACommunityHypergraph, ContractsTwoHypernodes5) {
   TestHypergraph hypergraph = construct_test_hypergraph(*this);
   std::vector<HypernodeID> id = { GLOBAL_ID(hypergraph, 0), GLOBAL_ID(hypergraph, 1), GLOBAL_ID(hypergraph, 2),
                                   GLOBAL_ID(hypergraph, 3), GLOBAL_ID(hypergraph, 4), GLOBAL_ID(hypergraph, 5), GLOBAL_ID(hypergraph, 6) };
-  hypergraph.initializeCommunityHyperedges();
+  hypergraph.initializeCommunityHyperedges(TBBArena::instance());
 
   HypernodeID u = id[3];
   HypernodeID v = id[6];
@@ -321,7 +322,7 @@ TEST_F(ACommunityHypergraph, ContractsTwoHypernodes6) {
   TestHypergraph hypergraph = construct_test_hypergraph(*this);
   std::vector<HypernodeID> id = { GLOBAL_ID(hypergraph, 0), GLOBAL_ID(hypergraph, 1), GLOBAL_ID(hypergraph, 2),
                                   GLOBAL_ID(hypergraph, 3), GLOBAL_ID(hypergraph, 4), GLOBAL_ID(hypergraph, 5), GLOBAL_ID(hypergraph, 6) };
-  hypergraph.initializeCommunityHyperedges();
+  hypergraph.initializeCommunityHyperedges(TBBArena::instance());
 
   HypernodeID u = id[4];
   HypernodeID v = id[6];
@@ -353,14 +354,14 @@ TEST_F(ACommunityHypergraph, removeCommunityHyperedgesAfterContraction1) {
   std::vector<HypernodeID> id = { GLOBAL_ID(hypergraph, 0), GLOBAL_ID(hypergraph, 1), GLOBAL_ID(hypergraph, 2),
                                   GLOBAL_ID(hypergraph, 3), GLOBAL_ID(hypergraph, 4), GLOBAL_ID(hypergraph, 5), GLOBAL_ID(hypergraph, 6) };
   parallel::scalable_vector<HyperedgeID> parallel_he_representative(hypergraph.initialNumEdges());
-  hypergraph.initializeCommunityHyperedges();
+  hypergraph.initializeCommunityHyperedges(TBBArena::instance());
 
   HypernodeID u = id[0];
   HypernodeID v = id[2];
   std::vector<Memento> mementos = { hypergraph.contract(u, v, 0) };
 
   hypergraph.buildContractionHierarchy(mementos);
-  hypergraph.removeCommunityHyperedges();
+  hypergraph.removeCommunityHyperedges(TBBArena::instance());
 
   verifyPinIterators(hypergraph, { 0, 1, 281474976710656, 281474976710657 },
                      { { id[0] }, { id[0], id[1], id[3], id[4] }, { id[3], id[4], id[6] }, { id[0], id[5], id[6] } });
@@ -377,14 +378,14 @@ TEST_F(ACommunityHypergraph, removeCommunityHyperedgesAfterContraction2) {
   std::vector<HypernodeID> id = { GLOBAL_ID(hypergraph, 0), GLOBAL_ID(hypergraph, 1), GLOBAL_ID(hypergraph, 2),
                                   GLOBAL_ID(hypergraph, 3), GLOBAL_ID(hypergraph, 4), GLOBAL_ID(hypergraph, 5), GLOBAL_ID(hypergraph, 6) };
   parallel::scalable_vector<HyperedgeID> parallel_he_representative(hypergraph.initialNumEdges());
-  hypergraph.initializeCommunityHyperedges();
+  hypergraph.initializeCommunityHyperedges(TBBArena::instance());
 
   HypernodeID u = id[0];
   HypernodeID v = id[1];
   std::vector<Memento> mementos = { hypergraph.contract(u, v, 0) };
 
   hypergraph.buildContractionHierarchy(mementos);
-  hypergraph.removeCommunityHyperedges();
+  hypergraph.removeCommunityHyperedges(TBBArena::instance());
 
   verifyPinIterators(hypergraph, { 0, 1, 281474976710656, 281474976710657 },
                      { { id[0], id[2] }, { id[0], id[3], id[4] }, { id[3], id[4], id[6] }, { id[2], id[5], id[6] } });
@@ -401,14 +402,14 @@ TEST_F(ACommunityHypergraph, removeCommunityHyperedgesAfterContraction3) {
   std::vector<HypernodeID> id = { GLOBAL_ID(hypergraph, 0), GLOBAL_ID(hypergraph, 1), GLOBAL_ID(hypergraph, 2),
                                   GLOBAL_ID(hypergraph, 3), GLOBAL_ID(hypergraph, 4), GLOBAL_ID(hypergraph, 5), GLOBAL_ID(hypergraph, 6) };
   parallel::scalable_vector<HyperedgeID> parallel_he_representative(hypergraph.initialNumEdges());
-  hypergraph.initializeCommunityHyperedges();
+  hypergraph.initializeCommunityHyperedges(TBBArena::instance());
 
   HypernodeID u = id[3];
   HypernodeID v = id[4];
   std::vector<Memento> mementos = { hypergraph.contract(u, v, 1) };
 
   hypergraph.buildContractionHierarchy(mementos);
-  hypergraph.removeCommunityHyperedges();
+  hypergraph.removeCommunityHyperedges(TBBArena::instance());
 
   verifyPinIterators(hypergraph, { 0, 1, 281474976710656, 281474976710657 },
                      { { id[0], id[2] }, { id[0], id[1], id[3] }, { id[3], id[6] }, { id[2], id[5], id[6] } });
@@ -425,14 +426,14 @@ TEST_F(ACommunityHypergraph, removeCommunityHyperedgesAfterContraction4) {
   std::vector<HypernodeID> id = { GLOBAL_ID(hypergraph, 0), GLOBAL_ID(hypergraph, 1), GLOBAL_ID(hypergraph, 2),
                                   GLOBAL_ID(hypergraph, 3), GLOBAL_ID(hypergraph, 4), GLOBAL_ID(hypergraph, 5), GLOBAL_ID(hypergraph, 6) };
   parallel::scalable_vector<HyperedgeID> parallel_he_representative(hypergraph.initialNumEdges());
-  hypergraph.initializeCommunityHyperedges();
+  hypergraph.initializeCommunityHyperedges(TBBArena::instance());
 
   HypernodeID u = id[4];
   HypernodeID v = id[6];
   std::vector<Memento> mementos = { hypergraph.contract(u, v, 1) };
 
   hypergraph.buildContractionHierarchy(mementos);
-  hypergraph.removeCommunityHyperedges();
+  hypergraph.removeCommunityHyperedges(TBBArena::instance());
 
   verifyPinIterators(hypergraph, { 0, 1, 281474976710656, 281474976710657 },
                      { { id[0], id[2] }, { id[0], id[1], id[3], id[4] }, { id[3], id[4] }, { id[2], id[4], id[5] } });
@@ -449,13 +450,13 @@ TEST_F(ACommunityHypergraph, removeCommunityHyperedgesAfterSeveralContractions1)
   std::vector<HypernodeID> id = { GLOBAL_ID(hypergraph, 0), GLOBAL_ID(hypergraph, 1), GLOBAL_ID(hypergraph, 2),
                                   GLOBAL_ID(hypergraph, 3), GLOBAL_ID(hypergraph, 4), GLOBAL_ID(hypergraph, 5), GLOBAL_ID(hypergraph, 6) };
   parallel::scalable_vector<HyperedgeID> parallel_he_representative(hypergraph.initialNumEdges());
-  hypergraph.initializeCommunityHyperedges();
+  hypergraph.initializeCommunityHyperedges(TBBArena::instance());
 
   std::vector<Memento> mementos = { hypergraph.contract(id[0], id[2], 0),
                                     hypergraph.contract(id[3], id[4], 1) };
 
   hypergraph.buildContractionHierarchy(mementos);
-  hypergraph.removeCommunityHyperedges();
+  hypergraph.removeCommunityHyperedges(TBBArena::instance());
 
   verifyPinIterators(hypergraph, { 0, 1, 281474976710656, 281474976710657 },
                      { { id[0] }, { id[0], id[1], id[3] }, { id[3], id[6] }, { id[0], id[5], id[6] } });
@@ -473,13 +474,13 @@ TEST_F(ACommunityHypergraph, removeCommunityHyperedgesAfterSeveralContractions2)
   std::vector<HypernodeID> id = { GLOBAL_ID(hypergraph, 0), GLOBAL_ID(hypergraph, 1), GLOBAL_ID(hypergraph, 2),
                                   GLOBAL_ID(hypergraph, 3), GLOBAL_ID(hypergraph, 4), GLOBAL_ID(hypergraph, 5), GLOBAL_ID(hypergraph, 6) };
   parallel::scalable_vector<HyperedgeID> parallel_he_representative(hypergraph.initialNumEdges());
-  hypergraph.initializeCommunityHyperedges();
+  hypergraph.initializeCommunityHyperedges(TBBArena::instance());
 
   std::vector<Memento> mementos = { hypergraph.contract(id[0], id[1], 0),
                                     hypergraph.contract(id[3], id[6], 1) };
 
   hypergraph.buildContractionHierarchy(mementos);
-  hypergraph.removeCommunityHyperedges();
+  hypergraph.removeCommunityHyperedges(TBBArena::instance());
 
   verifyPinIterators(hypergraph, { 0, 1, 281474976710656, 281474976710657 },
                      { { id[0], id[2] }, { id[0], id[3], id[4] }, { id[3], id[4] }, { id[2], id[3], id[5] } });
@@ -497,14 +498,14 @@ TEST_F(ACommunityHypergraph, removeCommunityHyperedgesAfterSeveralContractions3)
   std::vector<HypernodeID> id = { GLOBAL_ID(hypergraph, 0), GLOBAL_ID(hypergraph, 1), GLOBAL_ID(hypergraph, 2),
                                   GLOBAL_ID(hypergraph, 3), GLOBAL_ID(hypergraph, 4), GLOBAL_ID(hypergraph, 5), GLOBAL_ID(hypergraph, 6) };
   parallel::scalable_vector<HyperedgeID> parallel_he_representative(hypergraph.initialNumEdges());
-  hypergraph.initializeCommunityHyperedges();
+  hypergraph.initializeCommunityHyperedges(TBBArena::instance());
 
   std::vector<Memento> mementos = { hypergraph.contract(id[0], id[1], 0),
                                     hypergraph.contract(id[3], id[6], 1),
                                     hypergraph.contract(id[0], id[2], 0) };
 
   hypergraph.buildContractionHierarchy(mementos);
-  hypergraph.removeCommunityHyperedges();
+  hypergraph.removeCommunityHyperedges(TBBArena::instance());
 
   verifyPinIterators(hypergraph, { 0, 1, 281474976710656, 281474976710657 },
                      { { id[0] }, { id[0], id[3], id[4] }, { id[3], id[4] }, { id[0], id[3], id[5] } });
@@ -523,7 +524,7 @@ TEST_F(ACommunityHypergraph, removeCommunityHyperedgesAfterSeveralContractions4)
   std::vector<HypernodeID> id = { GLOBAL_ID(hypergraph, 0), GLOBAL_ID(hypergraph, 1), GLOBAL_ID(hypergraph, 2),
                                   GLOBAL_ID(hypergraph, 3), GLOBAL_ID(hypergraph, 4), GLOBAL_ID(hypergraph, 5), GLOBAL_ID(hypergraph, 6) };
   parallel::scalable_vector<HyperedgeID> parallel_he_representative(hypergraph.initialNumEdges());
-  hypergraph.initializeCommunityHyperedges();
+  hypergraph.initializeCommunityHyperedges(TBBArena::instance());
 
   std::vector<Memento> mementos = { hypergraph.contract(id[1], id[0], 0),
                                     hypergraph.contract(id[3], id[6], 1),
@@ -531,7 +532,7 @@ TEST_F(ACommunityHypergraph, removeCommunityHyperedgesAfterSeveralContractions4)
                                     hypergraph.contract(id[4], id[3], 1) };
 
   hypergraph.buildContractionHierarchy(mementos);
-  hypergraph.removeCommunityHyperedges();
+  hypergraph.removeCommunityHyperedges(TBBArena::instance());
 
   verifyPinIterators(hypergraph, { 0, 1, 281474976710656, 281474976710657 },
                      { { id[2] }, { id[2], id[4] }, { id[4] }, { id[2], id[4], id[5] } });
@@ -587,7 +588,7 @@ TEST_F(ACommunityHypergraph, DoesParallelContractionsOnHypergraph1) {
   std::vector<HypernodeID> id = { GLOBAL_ID(hypergraph, 0), GLOBAL_ID(hypergraph, 1), GLOBAL_ID(hypergraph, 2),
                                   GLOBAL_ID(hypergraph, 3), GLOBAL_ID(hypergraph, 4), GLOBAL_ID(hypergraph, 5), GLOBAL_ID(hypergraph, 6) };
   parallel::scalable_vector<HyperedgeID> parallel_he_representative(hypergraph.initialNumEdges());
-  hypergraph.initializeCommunityHyperedges();
+  hypergraph.initializeCommunityHyperedges(TBBArena::instance());
 
   std::vector<Memento> mementos = { Memento { id[1], id[0] },
                                     Memento { id[3], id[6] },
@@ -598,7 +599,7 @@ TEST_F(ACommunityHypergraph, DoesParallelContractionsOnHypergraph1) {
   doParallelContractions(hypergraph, m);
 
   hypergraph.buildContractionHierarchy(mementos);
-  hypergraph.removeCommunityHyperedges();
+  hypergraph.removeCommunityHyperedges(TBBArena::instance());
 
   verifyPinIterators(hypergraph, { 0, 1, 281474976710656, 281474976710657 },
                      { { id[2] }, { id[2], id[4] }, { id[4] }, { id[2], id[4], id[5] } });
@@ -618,7 +619,7 @@ TEST_F(ACommunityHypergraph, DoesParallelContractionsOnHypergraph2) {
   std::vector<HypernodeID> id = { GLOBAL_ID(hypergraph, 0), GLOBAL_ID(hypergraph, 1), GLOBAL_ID(hypergraph, 2),
                                   GLOBAL_ID(hypergraph, 3), GLOBAL_ID(hypergraph, 4), GLOBAL_ID(hypergraph, 5), GLOBAL_ID(hypergraph, 6) };
   parallel::scalable_vector<HyperedgeID> parallel_he_representative(hypergraph.initialNumEdges());
-  hypergraph.initializeCommunityHyperedges();
+  hypergraph.initializeCommunityHyperedges(TBBArena::instance());
 
   std::vector<Memento> mementos = { Memento { id[0], id[2] },
                                     Memento { id[3], id[4] },
@@ -629,7 +630,7 @@ TEST_F(ACommunityHypergraph, DoesParallelContractionsOnHypergraph2) {
   doParallelContractions(hypergraph, m);
 
   hypergraph.buildContractionHierarchy(mementos);
-  hypergraph.removeCommunityHyperedges();
+  hypergraph.removeCommunityHyperedges(TBBArena::instance());
 
   verifyPinIterators(hypergraph, { 0, 1, 281474976710656, 281474976710657 },
                      { { id[0] }, { id[0], id[6] }, { id[6] }, { id[0], id[5], id[6] } });
@@ -649,7 +650,7 @@ TEST_F(ACommunityHypergraph, DoesParallelContractionsOnHypergraph3) {
   std::vector<HypernodeID> id = { GLOBAL_ID(hypergraph, 0), GLOBAL_ID(hypergraph, 1), GLOBAL_ID(hypergraph, 2),
                                   GLOBAL_ID(hypergraph, 3), GLOBAL_ID(hypergraph, 4), GLOBAL_ID(hypergraph, 5), GLOBAL_ID(hypergraph, 6) };
   parallel::scalable_vector<HyperedgeID> parallel_he_representative(hypergraph.initialNumEdges());
-  hypergraph.initializeCommunityHyperedges();
+  hypergraph.initializeCommunityHyperedges(TBBArena::instance());
 
   std::vector<Memento> mementos = { Memento { id[2], id[1] },
                                     Memento { id[2], id[0] },
@@ -660,7 +661,7 @@ TEST_F(ACommunityHypergraph, DoesParallelContractionsOnHypergraph3) {
   doParallelContractions(hypergraph, m);
 
   hypergraph.buildContractionHierarchy(mementos);
-  hypergraph.removeCommunityHyperedges();
+  hypergraph.removeCommunityHyperedges(TBBArena::instance());
 
   verifyPinIterators(hypergraph, { 0, 1, 281474976710656, 281474976710657 },
                      { { id[2] }, { id[2], id[6] }, { id[6] }, { id[2], id[5], id[6] } });
@@ -680,7 +681,7 @@ TEST_F(ACommunityHypergraph, DoesParallelContractionsOnHypergraph4) {
   std::vector<HypernodeID> id = { GLOBAL_ID(hypergraph, 0), GLOBAL_ID(hypergraph, 1), GLOBAL_ID(hypergraph, 2),
                                   GLOBAL_ID(hypergraph, 3), GLOBAL_ID(hypergraph, 4), GLOBAL_ID(hypergraph, 5), GLOBAL_ID(hypergraph, 6) };
   parallel::scalable_vector<HyperedgeID> parallel_he_representative(hypergraph.initialNumEdges());
-  hypergraph.initializeCommunityHyperedges();
+  hypergraph.initializeCommunityHyperedges(TBBArena::instance());
 
   std::vector<Memento> mementos = { Memento { id[4], id[3] },
                                     Memento { id[1], id[2] },
@@ -691,7 +692,7 @@ TEST_F(ACommunityHypergraph, DoesParallelContractionsOnHypergraph4) {
   doParallelContractions(hypergraph, m);
 
   hypergraph.buildContractionHierarchy(mementos);
-  hypergraph.removeCommunityHyperedges();
+  hypergraph.removeCommunityHyperedges(TBBArena::instance());
 
   verifyPinIterators(hypergraph, { 0, 1, 281474976710656, 281474976710657 },
                      { { id[1] }, { id[1], id[4] }, { id[4] }, { id[1], id[4], id[5] } });
@@ -711,7 +712,7 @@ TEST_F(ACommunityHypergraph, DoesParallelContractionsOnHypergraphWithEdgeRemoval
   std::vector<HypernodeID> id = { GLOBAL_ID(hypergraph, 0), GLOBAL_ID(hypergraph, 1), GLOBAL_ID(hypergraph, 2),
                                   GLOBAL_ID(hypergraph, 3), GLOBAL_ID(hypergraph, 4), GLOBAL_ID(hypergraph, 5), GLOBAL_ID(hypergraph, 6) };
   parallel::scalable_vector<HyperedgeID> parallel_he_representative(hypergraph.initialNumEdges());
-  hypergraph.initializeCommunityHyperedges();
+  hypergraph.initializeCommunityHyperedges(TBBArena::instance());
 
   std::vector<Memento> mementos = { Memento { id[4], id[3] },
                                     Memento { id[1], id[2] },
@@ -722,7 +723,7 @@ TEST_F(ACommunityHypergraph, DoesParallelContractionsOnHypergraphWithEdgeRemoval
   doParallelContractions(hypergraph, m, { { 0 }, { } });
 
   hypergraph.buildContractionHierarchy(mementos);
-  hypergraph.removeCommunityHyperedges();
+  hypergraph.removeCommunityHyperedges(TBBArena::instance());
 
   verifyPinIterators(hypergraph, { 1, 281474976710656, 281474976710657 },
                      { { id[1], id[4] }, { id[4] }, { id[1], id[4], id[5] } });
