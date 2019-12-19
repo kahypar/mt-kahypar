@@ -100,11 +100,10 @@ class RecursiveBisectionInitialPartitionerT : public IInitialPartitioner {
     utils::Timer::instance().start_timer("top_level_bisection", "Top Level Bisection", false, top_level);
     bisect(hypergraph, context, 0, num_blocks_part_0, top_level, tbb_arena);
     utils::Timer::instance().stop_timer("top_level_bisection", top_level);
-    hypergraph.initializeNumCutHyperedges();
-    hypergraph.updateGlobalPartInfos();
 
     bool do_parallel_recursion = num_blocks_part_0 >= 2 && num_blocks_part_1 >= 2;
     if ( do_parallel_recursion ) {
+
       if ( context.shared_memory.num_threads > 1 ) {
         // In case we have to partition both blocks from the bisection further into
         // more than one block, we call the recursive bisection initial partitioner
@@ -112,6 +111,11 @@ class RecursiveBisectionInitialPartitionerT : public IInitialPartitioner {
         size_t num_threads_0 = std::max(context.shared_memory.num_threads / 2 +
           (context.shared_memory.num_threads % 2 == 1 ? 1 : 0), 1UL);
         size_t num_threads_1 = std::max(context.shared_memory.num_threads / 2, 1UL);
+
+        DBG << "Current k = " << context.partition.k << ","
+            << "Parallel Recursion 0: k =" << num_blocks_part_0 << ", num_threads =" << num_threads_0
+            << "Parallel Recursion 1: k =" << num_blocks_part_1 << ", num_threads =" << num_threads_1;
+
         auto tbb_splitted_arena = tbb_arena.split_tbb_numa_arena(num_threads_0, num_threads_1);
         tbb::parallel_invoke([&] {
           utils::Timer::instance().start_timer("top_level_recursion_0", "Top Level Recursion 0", true, top_level);
@@ -125,6 +129,10 @@ class RecursiveBisectionInitialPartitionerT : public IInitialPartitioner {
         tbb_splitted_arena.first->terminate();
         tbb_splitted_arena.second->terminate();
       } else {
+        DBG << "Current k = " << context.partition.k << ","
+            << "Sequential Recursion 0: k =" << num_blocks_part_0 << ", num_threads =" << context.shared_memory.num_threads
+            << "Sequential Recursion 1: k =" << num_blocks_part_1 << ", num_threads =" << context.shared_memory.num_threads;
+
         utils::Timer::instance().start_timer("top_level_recursion_0", "Top Level Recursion 0", true, top_level);
         recursivelyBisectBlock(hypergraph, context, 0, 1UL, range_0, tbb_arena);
         utils::Timer::instance().stop_timer("top_level_recursion_0", top_level);
@@ -136,6 +144,9 @@ class RecursiveBisectionInitialPartitionerT : public IInitialPartitioner {
     } else if ( num_blocks_part_0 >= 2 ) {
       // In case only the first block has to be partitioned into more than one block, we call
       // the recursive bisection initial partitioner recusively on the block 0
+      DBG << "Current k = " << context.partition.k << ","
+          << "Sequential Recursion 0: k =" << num_blocks_part_0 << ", num_threads =" << context.shared_memory.num_threads;
+
       utils::Timer::instance().start_timer("top_level_recursion_0", "Top Level Recursion 0", true, top_level);
       recursivelyBisectBlock(hypergraph, context, 0, context.shared_memory.num_threads, range_0, tbb_arena);
       utils::Timer::instance().stop_timer("top_level_recursion_0", top_level);
@@ -197,7 +208,13 @@ class RecursiveBisectionInitialPartitionerT : public IInitialPartitioner {
         hypergraph.setNodePart(hn, block_1);
       }
     }
+    hypergraph.initializeNumCutHyperedges();
+    hypergraph.updateGlobalPartInfos();
+
     utils::Timer::instance().stop_timer("top_level_apply_bisection", top_level);
+
+    ASSERT(metrics::objective(tmp_hg, context.partition.objective) ==
+      metrics::objective(hypergraph, context.partition.objective));
   }
 
   void assignPartitionFromRecursionToOriginalHypergraph(HyperGraph& original_hg,
@@ -274,7 +291,7 @@ class RecursiveBisectionInitialPartitionerT : public IInitialPartitioner {
     }
 
     // Special case, if balance constraint will be violated with this bisection
-    // => would cause KaHyPar to exit with failure
+    // => causes KaHyPar to exit with failure
     HypernodeWeight total_max_part_weight = bisection_context.partition.max_part_weights[0] +
       bisection_context.partition.max_part_weights[1];
     if (total_max_part_weight < total_weight) {

@@ -34,11 +34,7 @@
 
 namespace mt_kahypar {
 namespace parallel {
-/**
- * Pins threads of task arena to a NUMA node. Each time a thread
- * enters a task arena on_scheduler_entry(...) is called. Each time
- * a thread leaves a task arena on_scheduler_exit(...) is called.
- */
+
 template <typename HwTopology>
 class ThreadPinningObserver : public tbb::task_scheduler_observer {
   using Base = tbb::task_scheduler_observer;
@@ -46,6 +42,9 @@ class ThreadPinningObserver : public tbb::task_scheduler_observer {
   static constexpr bool debug = false;
 
  public:
+
+  // Observer is pinned to a task arena and is responsible for pinning
+  // joining threads to the corresponding numa node.
   explicit ThreadPinningObserver(tbb::task_arena& arena,
                                  const int numa_node,
                                  const std::vector<int>& cpus) :
@@ -68,12 +67,19 @@ class ThreadPinningObserver : public tbb::task_scheduler_observer {
       }
       return true;
     }());
+
+    // In case we have a task arena of size one, it can sometimes happen that master threads
+    // joins the arena regardless if there are an other worker thread already inside.
+    // In order to have enough CPU available for this special case, we request a backup
+    // CPU from the hardware topology here.
     if ( _cpus.size() == 1 ) {
       _cpus.push_back(HwTopology::instance().get_backup_cpu(_numa_node, _cpus[0]));
     }
     observe(true);
   }
 
+  // Observer is pinned to the global task arena and is reponsible for
+  // pinning threads to unique CPU id.
   explicit ThreadPinningObserver(const std::vector<int>& cpus) :
     Base(true),
     _num_cpus(HwTopology::instance().num_cpus()),
