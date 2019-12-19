@@ -117,14 +117,17 @@ class HardwareTopology {
     }
 
     int get_backup_cpu(const int except_cpu) {
-      ASSERT(_cpus.size() > 1);
       std::lock_guard<std::mutex> lock(_mutex);
-      std::random_shuffle(_cpus.begin(), _cpus.end());
-      if ( _cpus[0].cpu_id != except_cpu ) {
-        return _cpus[0].cpu_id;
-      } else {
-        return _cpus[1].cpu_id;
+      int cpu_id = -1;
+      if ( _cpus.size() > 1 ) {
+        std::random_shuffle(_cpus.begin(), _cpus.end());
+        if ( _cpus[0].cpu_id != except_cpu ) {
+          cpu_id = _cpus[0].cpu_id;
+        } else {
+          cpu_id = _cpus[1].cpu_id;
+        }
       }
+      return cpu_id;
     }
 
    private:
@@ -212,7 +215,21 @@ class HardwareTopology {
   // ! Returns a CPU on a NUMA node that differs from CPU except_cpu
   int get_backup_cpu(const int node, const int except_cpu) {
     ASSERT(node < (int)_numa_nodes.size());
-    return _numa_nodes[node].get_backup_cpu(except_cpu);
+    int cpu_id = _numa_nodes[node].get_backup_cpu(except_cpu);
+    if ( cpu_id == -1 ) {
+      #ifdef NDEBUG
+      ASSERT(num_numa_nodes() > 1);
+      if ( node == 0 ) {
+        cpu_id = _numa_nodes[1].get_backup_cpu(except_cpu);
+      } else {
+        cpu_id = _numa_nodes[0].get_backup_cpu(except_cpu);
+      }
+      ASSERT(cpu_id != -1);
+      #else
+      ERROR("Your system has not enough cpus to execute MT-KaHyPar (> 1)");
+      #endif
+    }
+    return cpu_id;
   }
 
  private:
