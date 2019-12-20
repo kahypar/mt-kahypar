@@ -1479,6 +1479,7 @@ class Hypergraph {
     parallel::scalable_vector<HypernodeID> hn_mapping(_num_hypernodes, kInvalidHyperedge);
     parallel::scalable_vector<HypernodeWeight> hn_weights;
     parallel::scalable_vector<PartitionID> community_ids;
+    parallel::scalable_vector<bool> is_high_degree_vertex;
     std::vector<HypernodeID> hn_to_numa_node;
     HypernodeID num_hypernodes = 0;
     for (const HypernodeID& hn : nodes()) {
@@ -1488,6 +1489,7 @@ class Hypergraph {
         hn_mapping[originalNodeID(hn)] = num_hypernodes++;
         hn_weights.emplace_back(nodeWeight(hn));
         community_ids.emplace_back(communityID(hn));
+        is_high_degree_vertex.emplace_back(isHighDegreeVertex(hn));
         hn_to_numa_node.emplace_back(StreamingHypergraph::get_numa_node_of_vertex(hn));
       }
     }
@@ -1534,6 +1536,7 @@ class Hypergraph {
 
     // Initialize node weights and community ids
     tbb::parallel_for(0UL, num_hypernodes, [&](const HypernodeID& id) {
+          copy_hypergraph._is_high_degree_vertex[id] = is_high_degree_vertex[id];
           copy_hypergraph.setNodeWeight(copy_hypergraph.globalNodeID(id), hn_weights[id]);
           copy_hypergraph.setCommunityID(copy_hypergraph.globalNodeID(id), community_ids[id]);
         });

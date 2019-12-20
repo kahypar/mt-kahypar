@@ -355,9 +355,7 @@ class RecursiveInitialPartitionerT : public IInitialPartitioner {
     // Coarsening Parameters
     context.coarsening.contraction_limit = std::max(context.partition.k * context.coarsening.contraction_limit_multiplier,
                                                     2 * context.shared_memory.num_threads * context.coarsening.contraction_limit_multiplier);
-    context.coarsening.hypernode_weight_fraction = context.coarsening.max_allowed_weight_multiplier /
-                                                   context.coarsening.contraction_limit;
-    context.coarsening.max_allowed_node_weight = ceil(context.coarsening.hypernode_weight_fraction * _hg.totalWeight());
+    context.setupMaximumAllowedNodeWeight(_hg.totalWeight());
 
     // Initial Partitioning Parameters
     bool is_parallel_recursion = _context.shared_memory.num_threads != context.shared_memory.num_threads;

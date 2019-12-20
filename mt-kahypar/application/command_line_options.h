@@ -190,6 +190,10 @@ po::options_description createCoarseningOptionsDescription(Context& context,
     po::value<double>(&context.coarsening.max_allowed_weight_multiplier)->value_name("<double>"),
     "The maximum weight of a vertex in the coarsest hypergraph H is:\n"
     "(s * w(H)) / (t * k)\n")
+    ("c-s-high-degree",
+    po::value<double>(&context.coarsening.max_allowed_high_degree_node_weight_multiplier)->value_name("<double>"),
+    "The maximum weight of a high degree vertex in the coarsest hypergraph H is:\n"
+    "(s * w(H)) / (t * k)\n")
     ("c-t",
     po::value<HypernodeID>(&context.coarsening.contraction_limit_multiplier)->value_name("<int>"),
     "Coarsening stops when there are no more than t * k hypernodes left")

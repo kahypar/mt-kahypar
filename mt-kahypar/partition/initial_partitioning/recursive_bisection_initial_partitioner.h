@@ -263,15 +263,6 @@ class RecursiveBisectionInitialPartitionerT : public IInitialPartitioner {
     bisection_context.initial_partitioning.mode = InitialPartitioningMode::direct;
     bisection_context.initial_partitioning.technique = kahypar::InitialPartitioningTechnique::flat;
 
-    // Setup contraction limit and maximum allowed node weight
-    bisection_context.coarsening.contraction_limit =
-      bisection_context.coarsening.contraction_limit_multiplier * bisection_context.partition.k;
-    bisection_context.coarsening.hypernode_weight_fraction =
-      bisection_context.coarsening.max_allowed_weight_multiplier
-      / bisection_context.coarsening.contraction_limit;
-    bisection_context.coarsening.max_allowed_node_weight = ceil(
-      bisection_context.coarsening.hypernode_weight_fraction * total_weight);
-
     // Setup Part Weights
     PartitionID num_blocks_part_0 = context.partition.k / 2 + (context.partition.k % 2 != 0 ? 1 : 0);
     ASSERT(num_blocks_part_0 +  context.partition.k / 2 == context.partition.k);
@@ -299,6 +290,8 @@ class RecursiveBisectionInitialPartitionerT : public IInitialPartitioner {
       bisection_context.partition.max_part_weights[0] += std::ceil(((double)delta) / 2.0);
       bisection_context.partition.max_part_weights[1] += std::ceil(((double)delta) / 2.0);
     }
+
+    bisection_context.setupContractionLimit(total_weight);
 
     return bisection_context;
   }

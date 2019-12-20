@@ -134,12 +134,13 @@ struct CoarseningParameters {
   RatingParameters rating = { };
   HypernodeID contraction_limit_multiplier = std::numeric_limits<HypernodeID>::max();
   double max_allowed_weight_multiplier = std::numeric_limits<double>::max();
+  double max_allowed_high_degree_node_weight_multiplier = std::numeric_limits<double>::max();
   bool use_high_degree_vertex_threshold = false;
 
   // Those will be determined dynamically
   HypernodeWeight max_allowed_node_weight = 0;
+  HypernodeWeight max_allowed_high_degree_node_weight = 0;
   HypernodeID contraction_limit = 0;
-  double hypernode_weight_fraction = 0.0;
   HyperedgeID high_degree_vertex_threshold = std::numeric_limits<HyperedgeID>::max();
 };
 
@@ -147,7 +148,9 @@ inline std::ostream & operator<< (std::ostream& str, const CoarseningParameters&
   str << "Coarsening Parameters:" << std::endl;
   str << "  Algorithm:                          " << params.algorithm << std::endl;
   str << "  max allowed weight multiplier:      " << params.max_allowed_weight_multiplier << std::endl;
+  str << "  max allowed high degree multiplier: " << params.max_allowed_high_degree_node_weight_multiplier << std::endl;
   str << "  maximum allowed hypernode weight:   " << params.max_allowed_node_weight << std::endl;
+  str << "  maximum allowed high-degree weight: " << params.max_allowed_high_degree_node_weight << std::endl;
   str << "  contraction limit multiplier:       " << params.contraction_limit_multiplier << std::endl;
   str << "  contraction limit:                  " << params.contraction_limit << std::endl;
   if ( params.use_high_degree_vertex_threshold ) {
@@ -256,6 +259,43 @@ class Context {
     for (PartitionID part = 1; part != partition.k; ++part) {
       partition.max_part_weights.push_back(partition.max_part_weights[0]);
     }
+  }
+
+  void setupContractionLimit(const HypernodeWeight total_hypergraph_weight) {
+    // Setup contraction limit
+    if (initial_partitioning.mode == InitialPartitioningMode::recursive) {
+      coarsening.contraction_limit =
+        2 * std::max(shared_memory.num_threads, static_cast<size_t>(partition.k)) *
+        coarsening.contraction_limit_multiplier;
+    } else {
+      coarsening.contraction_limit =
+        coarsening.contraction_limit_multiplier * partition.k;
+    }
+
+    // Setup maximum allowed vertex and high-degree vertex weight
+    setupMaximumAllowedNodeWeight(total_hypergraph_weight);
+  }
+
+  void setupMaximumAllowedNodeWeight(const HypernodeWeight total_hypergraph_weight) {
+    HypernodeWeight min_block_weight = std::numeric_limits<HypernodeWeight>::max();
+    for ( PartitionID part_id = 0; part_id < partition.k; ++part_id ) {
+      min_block_weight = std::min(min_block_weight, partition.max_part_weights[part_id]);
+    }
+
+    double hypernode_weight_fraction =
+      coarsening.max_allowed_weight_multiplier
+      / coarsening.contraction_limit;
+    double high_degree_hypernode_weight_fraction =
+      coarsening.max_allowed_high_degree_node_weight_multiplier
+      / coarsening.contraction_limit;
+    coarsening.max_allowed_node_weight =
+      std::ceil(hypernode_weight_fraction * total_hypergraph_weight);
+    coarsening.max_allowed_high_degree_node_weight =
+      std::ceil(high_degree_hypernode_weight_fraction * total_hypergraph_weight);
+    coarsening.max_allowed_node_weight =
+      std::min(coarsening.max_allowed_node_weight, min_block_weight);
+    coarsening.max_allowed_high_degree_node_weight =
+      std::min(coarsening.max_allowed_high_degree_node_weight, min_block_weight);
   }
 
   void sanityCheck() {

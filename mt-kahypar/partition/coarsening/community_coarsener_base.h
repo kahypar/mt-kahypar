@@ -159,6 +159,7 @@ class CommunityCoarsenerBase {
     utils::ProgressBar uncontraction_progress(_hg.initialNumNodes(),
       _context.partition.objective == kahypar::Objective::km1 ? current_metrics.km1 : current_metrics.cut,
       _context.partition.verbose_output && _context.partition.enable_progress_bar);
+    uncontraction_progress += num_nodes;
 
     while (!_history.empty()) {
       // utils::Timer::instance().start_timer("uncontraction", "Uncontraction");

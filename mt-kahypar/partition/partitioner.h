@@ -85,23 +85,9 @@ HypernodeID Partitioner::STDEV_MAX_DEGREE_THRESHOLD_FACTOR = 25;
 HypernodeID Partitioner::HIGH_DEGREE_VERTEX_THRESHOLD = 100;
 
 inline void Partitioner::setupContext(Hypergraph& hypergraph, Context& context) {
-  if (context.initial_partitioning.mode == InitialPartitioningMode::recursive) {
-    context.coarsening.contraction_limit =
-      2 * std::max(context.shared_memory.num_threads, (size_t)context.partition.k) *
-      context.coarsening.contraction_limit_multiplier;
-  } else {
-    context.coarsening.contraction_limit =
-      context.coarsening.contraction_limit_multiplier * context.partition.k;
-  }
-
-  context.coarsening.hypernode_weight_fraction =
-    context.coarsening.max_allowed_weight_multiplier
-    / context.coarsening.contraction_limit;
-
-  context.coarsening.max_allowed_node_weight = ceil(context.coarsening.hypernode_weight_fraction
-                                                    * hypergraph.totalWeight());
 
   context.setupPartWeights(hypergraph.totalWeight());
+  context.setupContractionLimit(hypergraph.totalWeight());
 
   if (context.coarsening.use_high_degree_vertex_threshold) {
     std::vector<HypernodeID> hn_degrees;
