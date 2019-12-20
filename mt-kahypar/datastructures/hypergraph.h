@@ -483,6 +483,11 @@ class Hypergraph {
     return hypergraph_of_vertex(u).nodeDegree(u);
   }
 
+  // ! Number of invalid incident nets
+  HyperedgeID numInvalidIncidentNets(const HypernodeID u) const {
+    return hypergraph_of_vertex(u).numInvalidIncidentNets(u);
+  }
+
   // ! Returns, whether a hypernode is enabled or not
   bool nodeIsEnabled(const HypernodeID u) const {
     return hypergraph_of_vertex(u).nodeIsEnabled(u);
@@ -987,20 +992,20 @@ class Hypergraph {
   }
 
   /*!
-   * This function has to be called before the batch uncontraction function for each
-   * memento in the batch in uncontraction order. It reverses the contraction stored
-   * in the memento and restores all disabled parallel hyperedges that would become
-   * non-parallel to its representative hyperedge due to the uncontraction stored in
-   * memento.
+   * This function reverses the contraction stored in the memento and restores all disabled
+   * parallel hyperedges that would become non-parallel to its representative hyperedge due to
+   * the uncontraction stored in memento.
+   *
+   * Note, this function is not thread-safe and have to be called in uncontraction order.
    *
   * \param memento Memento remembering the contraction operation that should be reverted
   * \param parallel_he_representative for each disabled hyperedge it contains it
   *                                   parallel representative.
   * \param batch_hypernodes bitset that contains all contraction partners of the batch
    */
-  void preprocessMementoForBatchUncontraction(const Memento& memento,
-                                              parallel::scalable_vector<HyperedgeID>& parallel_he_representative,
-                                              const kahypar::ds::FastResetFlagArray<>& batch_hypernodes) {
+  void restoreDisabledHyperedgesThatBecomeNonParallel(const Memento& memento,
+                                                      parallel::scalable_vector<HyperedgeID>& parallel_he_representative,
+                                                      const kahypar::ds::FastResetFlagArray<>& batch_hypernodes) {
     ASSERT(nodeIsEnabled(memento.u) && !nodeIsEnabled(memento.v));
     reverseContraction(memento);
     if (hypergraph_of_vertex(memento.u).hypernode(memento.u).invalidIncidentNets() > 0) {
@@ -1011,11 +1016,61 @@ class Hypergraph {
   }
 
   /*!
+   * In contrast to restoreDisabledHyperedgesThatBecomeNonParallel(...), this function only finds
+   * all hyperedges that would become non-parallel to its representative due to the uncontraction
+   * stored in the memento and stores it in a vector.
+   *
+   * This function is thread-safe and can be called in parallel for an entire batch to find all hyperedges
+   * that become non-parallel to its representative and afterwards restore only those hyperedges sequential.
+   *
+   * \param memento Memento remembering the contraction operation that should be reverted
+   * \param parallel_he_representative for each disabled hyperedge it contains it
+   *                                   parallel representative.
+   * \param batch_hypernodes bitset that contains all contraction partners of the batch
+   */
+  parallel::scalable_vector<HyperedgeID> findDisabledHyperedgesThatBecomeNonParallel(
+    const Memento& memento,
+    parallel::scalable_vector<HyperedgeID>& parallel_he_representative,
+    const kahypar::ds::FastResetFlagArray<>& batch_hypernodes) {
+    ASSERT(nodeIsEnabled(memento.u) && !nodeIsEnabled(memento.v));
+    reverseContraction(memento);
+
+    parallel::scalable_vector<HyperedgeID> non_parallel_hyperedges;
+    if (hypergraph_of_vertex(memento.u).hypernode(memento.u).invalidIncidentNets() > 0) {
+      markAllIncidentNetsOf(memento.v);
+
+      StreamingHypergraph& hypergraph_of_u = hypergraph_of_vertex(memento.u);
+      auto& incident_hes_of_u = hypergraph_of_u.incident_nets(memento.u);
+      size_t incident_hes_start = hypergraph_of_u.hypernode(memento.u).invalidIncidentNets();
+      for (size_t incident_hes_it = 0; incident_hes_it != incident_hes_start; ++incident_hes_it) {
+        const HyperedgeID& he = incident_hes_of_u[incident_hes_it];
+        if (!edgeIsEnabled(he)) {
+          HyperedgeID non_parallel_representative = findNonParallelRepresentativeOfHyperedge(
+            memento, he, parallel_he_representative, &batch_hypernodes);
+
+          if (non_parallel_representative != kInvalidHyperedge) {
+            non_parallel_hyperedges.push_back(non_parallel_representative);
+          }
+        } else {
+          // At that point, we have already restored the hyperedge and inserted it into the valid
+          // part of the vertex incident nets => just remove the hyperedge from the invalid part
+          ASSERT(incident_hes_start > 0);
+          std::swap(incident_hes_of_u[incident_hes_it--], incident_hes_of_u[--incident_hes_start]);
+          std::swap(incident_hes_of_u[incident_hes_start], incident_hes_of_u.back());
+          incident_hes_of_u.pop_back();
+          hypergraph_of_u.hypernode(memento.u).decrementInvalidIncidentNets();
+        }
+      }
+    }
+    return non_parallel_hyperedges;
+  }
+
+  /*!
    * Undoes a batch of contractions that was remembered by the mementos in parallel.
    *
    * Note, in order that this function works correctly and in a thread-safe manner, the
-   * function preprocessMementoForBatchUncontraction(...) has to be called for each
-   * memento in the batch before in order of their uncontraction position in the hierarchy.
+   * function find- or restoreDisabledHyperedgesThatBecomeNonParallel(...) has to be called for each
+   * memento in the batch before.
    * Furthermore, the batch has to fullfil some preconditions:
    *   1.) Each representative of a contraction is only allowed to occur at
    *       most once in the batch ( <(u,v), ..., (u, w)> not allowed ).
@@ -1521,7 +1576,6 @@ class Hypergraph {
   KAHYPAR_ATTRIBUTE_ALWAYS_INLINE void restoreNonParallelDisabledHyperedges(const Memento& memento,
                                                                             parallel::scalable_vector<HyperedgeID>& parallel_he_representative,
                                                                             const kahypar::ds::FastResetFlagArray<>* batch_hypernodes = nullptr) {
-    bool is_batch_uncontraction = batch_hypernodes != nullptr;
     // Uncontraction starts by checking if a disabled parallel hyperedge becomes non-parallel
     // to one of its representatives. Usually all parallel hyperedges are enabled before
     // uncontraction (see hypergraph pruner). However, in some cases this is not the case.
@@ -1533,48 +1587,12 @@ class Hypergraph {
     for (size_t incident_hes_it = 0; incident_hes_it != incident_hes_start; ++incident_hes_it) {
       const HyperedgeID& he = incident_hes_of_u[incident_hes_it];
       if (!edgeIsEnabled(he)) {
-        StreamingHypergraph& hypergraph_of_he = hypergraph_of_edge(he);
-        const bool contains_he = hypergraph_of_he.containsIncidentNet(he);
-        HyperedgeID representative = findRepresentative(he, parallel_he_representative);
-        const size_t edge_size = edgeSize(representative);
-        bool becomes_non_parallel = false;
+        HyperedgeID non_parallel_representative = findNonParallelRepresentativeOfHyperedge(
+          memento, he, parallel_he_representative, batch_hypernodes);
 
-        HyperedgeID last_representative = he;
-        HyperedgeID current_representative = originalEdgeID(he);
-        representative = globalEdgeID(current_representative);
-        // Verify if hyperedge becomes non-parallel to one of its representatives (all hyperedges
-        // on the path to the root in the hyperedge representative tree)
-        while (!becomes_non_parallel && parallel_he_representative[current_representative] != kInvalidHyperedge) {
-          last_representative = representative;
-          current_representative = parallel_he_representative[current_representative];
-          representative = globalEdgeID(current_representative);
-
-          StreamingHypergraph& hypergraph_of_rep = hypergraph_of_edge(representative);
-          const bool contains_rep = hypergraph_of_rep.containsIncidentNet(representative);
-          if ( contains_he || contains_rep ) {
-            // In case, both hyperedges fall into different uncontraction cases, than both become
-            // non parallel afterwards.
-            UncontractionCase case_rep = is_batch_uncontraction ?
-                                        hypergraph_of_rep.get_uncontraction_case(representative, edge_size, memento.v, _hypergraphs, *batch_hypernodes) :
-                                        hypergraph_of_rep.get_uncontraction_case(representative, edge_size, memento.v);
-            bool is_case_1_rep = case_rep != UncontractionCase::CASE_2;
-            UncontractionCase case_he = is_batch_uncontraction ?
-                                        hypergraph_of_he.get_uncontraction_case(he, edge_size, memento.v, _hypergraphs, *batch_hypernodes) :
-                                        hypergraph_of_he.get_uncontraction_case(he, edge_size, memento.v);
-            bool is_case_1_he = case_he != UncontractionCase::CASE_2;
-
-            // In case, the contraction partner v contains either the disabled hyperedge or
-            // the representative (but not both), than both become non parallel afterwards.
-            becomes_non_parallel = becomes_non_parallel ||
-                                  (contains_he && !contains_rep) ||
-                                  (!contains_he && contains_rep) ||
-                                  (!is_case_1_rep && is_case_1_he) ||
-                                  (is_case_1_rep && !is_case_1_he);
-          }
-        }
-
-        if (becomes_non_parallel) {
-          restoreParallelHyperedge(last_representative, memento, parallel_he_representative, batch_hypernodes);
+        if (non_parallel_representative != kInvalidHyperedge) {
+          restoreParallelHyperedge(non_parallel_representative, memento,
+            parallel_he_representative, batch_hypernodes);
         }
       } else {
         // At that point, we have already restored the hyperedge and inserted it into the valid
@@ -1586,6 +1604,86 @@ class Hypergraph {
         hypergraph_of_u.hypernode(memento.u).decrementInvalidIncidentNets();
       }
     }
+  }
+
+  /*!
+   * Checks if a hyperedge becomes non-parallel to one of its representatives. For more details,
+   * please have look at restoreNonParallelDisabledHyperedges(...).
+   *
+   * \param memento Memento remembering the contraction operation that should be reverted
+   * \param he Hyperedge that should be checked, if it becomes non-parallel to one of its representatives
+   * \param parallel_he_representative for each disabled hyperedge it contains it
+   *                                   parallel representative.
+   * \param batch_hypernodes bitset that contains all contraction partners of the batch
+   */
+  KAHYPAR_ATTRIBUTE_ALWAYS_INLINE HyperedgeID findNonParallelRepresentativeOfHyperedge(const Memento& memento,
+                                                                                       const HyperedgeID he,
+                                                                                       const parallel::scalable_vector<HyperedgeID>& parallel_he_representative,
+                                                                                       const kahypar::ds::FastResetFlagArray<>* batch_hypernodes = nullptr) {
+    ASSERT(!edgeIsEnabled(he), "Hyperedge" << he << "is already enabled");
+    HyperedgeID non_parallel_representative = kInvalidHyperedge;
+
+    StreamingHypergraph& hypergraph_of_he = hypergraph_of_edge(he);
+    HyperedgeID representative = findRepresentative(he, parallel_he_representative);
+    const size_t edge_size = edgeSize(representative);
+    bool becomes_non_parallel = false;
+
+    HyperedgeID last_representative = he;
+    HyperedgeID current_representative = originalEdgeID(he);
+    representative = globalEdgeID(current_representative);
+    // Verify if hyperedge becomes non-parallel to one of its representatives (all hyperedges
+    // on the path to the root in the hyperedge representative tree)
+    while (!becomes_non_parallel && parallel_he_representative[current_representative] != kInvalidHyperedge) {
+      last_representative = representative;
+      current_representative = parallel_he_representative[current_representative];
+      representative = globalEdgeID(current_representative);
+
+      StreamingHypergraph& hypergraph_of_rep = hypergraph_of_edge(representative);
+      becomes_non_parallel = checkIfHyperedgeBecomesNonParallelToRepresentative(
+        memento, he, representative, edge_size, hypergraph_of_he, hypergraph_of_rep, batch_hypernodes);
+    }
+
+    if (becomes_non_parallel) {
+      non_parallel_representative = last_representative;
+    }
+
+    return non_parallel_representative;
+  }
+
+  // ! Checks if hyperedge he becomes non-parallel to its representative due to the uncontraction
+  // ! stored in the memento. For more details, please have look at restoreNonParallelDisabledHyperedges(...)
+  KAHYPAR_ATTRIBUTE_ALWAYS_INLINE bool checkIfHyperedgeBecomesNonParallelToRepresentative(
+    const Memento& memento,
+    const HyperedgeID he, const HyperedgeID representative, const size_t edge_size,
+    StreamingHypergraph& hypergraph_of_he, StreamingHypergraph& hypergraph_of_rep,
+    const kahypar::ds::FastResetFlagArray<>* batch_hypernodes = nullptr) {
+
+    const bool is_batch_uncontraction = batch_hypernodes != nullptr;
+    bool becomes_non_parallel = false;
+    const bool contains_he = hypergraph_of_he.containsIncidentNet(he);
+    const bool contains_rep = hypergraph_of_rep.containsIncidentNet(representative);
+    if ( contains_he || contains_rep ) {
+      // In case, both hyperedges fall into different uncontraction cases, than both become
+      // non parallel afterwards.
+      UncontractionCase case_rep = is_batch_uncontraction ?
+                                  hypergraph_of_rep.get_uncontraction_case(representative, edge_size, memento.v, _hypergraphs, *batch_hypernodes) :
+                                  hypergraph_of_rep.get_uncontraction_case(representative, edge_size, memento.v);
+      bool is_case_1_rep = case_rep != UncontractionCase::CASE_2;
+      UncontractionCase case_he = is_batch_uncontraction ?
+                                  hypergraph_of_he.get_uncontraction_case(he, edge_size, memento.v, _hypergraphs, *batch_hypernodes) :
+                                  hypergraph_of_he.get_uncontraction_case(he, edge_size, memento.v);
+      bool is_case_1_he = case_he != UncontractionCase::CASE_2;
+
+      // In case, the contraction partner v contains either the disabled hyperedge or
+      // the representative (but not both), than both become non parallel afterwards.
+      becomes_non_parallel = becomes_non_parallel ||
+                            (contains_he && !contains_rep) ||
+                            (!contains_he && contains_rep) ||
+                            (!is_case_1_rep && is_case_1_he) ||
+                            (is_case_1_rep && !is_case_1_he);
+    }
+
+    return becomes_non_parallel;
   }
 
   /*!

@@ -644,7 +644,7 @@ TEST_F(AConcurrentHypergraph, UncontractsABatchOfContractionsConcurrently1)  {
 
   std::reverse(batch.begin(), batch.end());
   for ( const Memento& memento : batch ) {
-    hypergraph.preprocessMementoForBatchUncontraction(
+    hypergraph.restoreDisabledHyperedgesThatBecomeNonParallel(
       memento, parallel_he_representative, batch_hypernodes);
   }
   hypergraph.uncontract(batch, parallel_he_representative, batch_hypernodes);
@@ -685,7 +685,7 @@ TEST_F(AConcurrentHypergraph, UncontractsABatchOfContractionsConcurrently2)  {
 
   std::reverse(batch.begin(), batch.end());
   for ( const Memento& memento : batch ) {
-    hypergraph.preprocessMementoForBatchUncontraction(
+    hypergraph.restoreDisabledHyperedgesThatBecomeNonParallel(
       memento, parallel_he_representative, batch_hypernodes);
   }
   hypergraph.uncontract(batch, parallel_he_representative, batch_hypernodes);
@@ -726,7 +726,7 @@ TEST_F(AConcurrentHypergraph, UncontractsABatchOfContractionsConcurrently3)  {
 
   std::reverse(batch.begin(), batch.end());
   for ( const Memento& memento : batch ) {
-    hypergraph.preprocessMementoForBatchUncontraction(
+    hypergraph.restoreDisabledHyperedgesThatBecomeNonParallel(
       memento, parallel_he_representative, batch_hypernodes);
   }
   hypergraph.uncontract(batch, parallel_he_representative, batch_hypernodes);

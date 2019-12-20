@@ -895,6 +895,12 @@ class StreamingHypergraph {
     return incident_nets(u).size() - hypernode(u).invalidIncidentNets();
   }
 
+  // ! Number of invalid incident nets
+  HyperedgeID numInvalidIncidentNets(const HypernodeID u) const {
+    ASSERT(!hypernode(u).isDisabled(), "Hypernode" << u << "is disabled");
+    return hypernode(u).invalidIncidentNets();
+  }
+
   // ! Number of hyperedges a vertex occurs as a pin in this hypergraph
   size_t vertexPinCount(const HypernodeID hn) const {
     ASSERT(hn < _vertex_pin_count.size());

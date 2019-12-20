@@ -50,7 +50,7 @@ class CommunityCoarsenerBase {
   using HypergraphPruner = HypergraphPrunerT<TypeTraits>;
 
   static constexpr bool debug = false;
-  static constexpr bool update_progess_bar_after_each_uncontraction = false;
+  static constexpr HyperedgeID NUM_INVALID_INCIDENT_NETS_THRESHOLD = 100;
   static HypernodeID kInvalidHyperedge;
 
  public:
@@ -210,6 +210,7 @@ class CommunityCoarsenerBase {
       batch_hypernodes.reset();
       _representative_hypernodes.reset();
       _current_batch.clear();
+      HyperedgeID num_invalid_incident_nets_of_batch = 0;
       for ( ; current_batch_idx < batch_size && !_history.empty(); ++current_batch_idx) {
         const Memento& current_memento = _history.back();
 
@@ -225,6 +226,7 @@ class CommunityCoarsenerBase {
         }
         _representative_hypernodes.set(original_u_id, true);
         batch_hypernodes.set(original_v_id, true);
+        num_invalid_incident_nets_of_batch += _hg.numInvalidIncidentNets(current_memento.u);
 
         _current_batch.push_back(current_memento);
         // NOTE, label propagation refiner relies on the assumption, that on the second position
@@ -235,14 +237,41 @@ class CommunityCoarsenerBase {
         _history.pop_back();
       }
 
+
+      std::vector<parallel::scalable_vector<HyperedgeID>> non_parallel_hyperedges(_current_batch.size());
+      bool perform_parallel_non_parallel_hyperedge_detection =
+        num_invalid_incident_nets_of_batch >= NUM_INVALID_INCIDENT_NETS_THRESHOLD;
+      if ( perform_parallel_non_parallel_hyperedge_detection ) {
+        // Detecting in parallel which hyperedges become non-parallel due to the
+        // uncontractions in the current batch. Note, it is not thread-safe
+        // to restore those hyperedges in parallel.
+        tbb::parallel_for(0UL, _current_batch.size(), [&](const size_t idx) {
+          non_parallel_hyperedges[idx] = _hg.findDisabledHyperedgesThatBecomeNonParallel(
+            _current_batch[idx], _parallel_he_representative, batch_hypernodes);
+        });
+      }
+
       // Sequential preprocessing step for batch uncontractions
+      size_t idx = 0;
       for (const Memento& memento : _current_batch) {
         PartitionID community_id = _hg.communityID(memento.u);
         _pruner[community_id].restoreParallelHyperedges(_hg, memento, &batch_hypernodes);
         _pruner[community_id].restoreSingleNodeHyperedges(_hg, memento);
-        // Operation reverses contraction and restores all parallel hyperedges that becomes
-        // non-parallel to its representative that are not detected by the hypergraph pruner
-        _hg.preprocessMementoForBatchUncontraction(memento, _parallel_he_representative, batch_hypernodes);
+
+        if ( perform_parallel_non_parallel_hyperedge_detection ) {
+          // In that case, we have already detected all hyperedges that would become non-parallel
+          // due to the uncontractions in the current batch before and can just restore them.
+          for ( const HyperedgeID& he : non_parallel_hyperedges[idx] ) {
+            _hg.restoreParallelHyperedge(he, memento, _parallel_he_representative, &batch_hypernodes);
+          }
+          ++idx;
+        } else {
+          // In that case, the amount of work was not sufficient to justify parallel detection of
+          // non-parallel hyperedges. Consequently, we perform the non-parallel hyperedge detection
+          // step here.
+          _hg.restoreDisabledHyperedgesThatBecomeNonParallel(
+            memento, _parallel_he_representative, batch_hypernodes);
+        }
       }
 
       // Batch Uncontraction
