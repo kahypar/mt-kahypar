@@ -60,7 +60,6 @@ class CommunityCoarsenerBase {
     _tbb_arena(tbb_arena),
     _init(false),
     _contained_hypernodes(hypergraph.initialNumNodes()),
-    _representative_hypernodes(hypergraph.initialNumNodes()),
     _current_batch(),
     _parallel_he_representative(hypergraph.initialNumEdges(), kInvalidHyperedge),
     _pruner(),
@@ -208,24 +207,19 @@ class CommunityCoarsenerBase {
     size_t current_batch_idx = 0;
     while (!_history.empty() && current_batch_idx < batch_size) {
       batch_hypernodes.reset();
-      _representative_hypernodes.reset();
       _current_batch.clear();
       HyperedgeID num_invalid_incident_nets_of_batch = 0;
       for ( ; current_batch_idx < batch_size && !_history.empty(); ++current_batch_idx) {
         const Memento& current_memento = _history.back();
 
-        const HypernodeID original_u_id = _hg.originalNodeID(current_memento.u);
-        const HypernodeID original_v_id = _hg.originalNodeID(current_memento.v);
         // A batch is defined as a sequence of mementos such that all representative
-        // nodes of the contractions are enabled and no representative occurs more
-        // than once in batch. This guarantess, that several uncontractions can
-        // run in parallel and work concurrently on the same hyperedges without
-        // conflicts.
-        if (!_hg.nodeIsEnabled(current_memento.u) || _representative_hypernodes[original_u_id]) {
+        // nodes of the contractions are enabled This guarantess, that several
+        // uncontractions can run in parallel and work concurrently on the same
+        // hyperedges without conflicts.
+        if (!_hg.nodeIsEnabled(current_memento.u)) {
           break;
         }
-        _representative_hypernodes.set(original_u_id, true);
-        batch_hypernodes.set(original_v_id, true);
+        batch_hypernodes.set(_hg.originalNodeID(current_memento.v), true);
         num_invalid_incident_nets_of_batch += _hg.numInvalidIncidentNets(current_memento.u);
 
         _current_batch.push_back(current_memento);
@@ -274,8 +268,15 @@ class CommunityCoarsenerBase {
         }
       }
 
+      std::sort(_current_batch.begin(), _current_batch.end(),
+        [&](const Memento& lhs, const Memento& rhs) {
+        return lhs.u < rhs.u || (lhs.u == rhs.u &&
+          _hg.contractionIndex(lhs.v) > _hg.contractionIndex(rhs.v));
+      });
+
       // Batch Uncontraction
-      _hg.uncontract(_current_batch, _parallel_he_representative, batch_hypernodes);
+      _hg.uncontract(_current_batch, _parallel_he_representative,
+        batch_hypernodes, perform_parallel_non_parallel_hyperedge_detection);
     }
   }
 
@@ -427,9 +428,7 @@ class CommunityCoarsenerBase {
   bool _init;
   ThreadLocalFastResetFlagArray _contained_hypernodes;
 
-  kahypar::ds::FastResetFlagArray<> _representative_hypernodes;
   std::vector<Memento> _current_batch;
-
   parallel::scalable_vector<HyperedgeID> _parallel_he_representative;
   parallel::scalable_vector<HypergraphPruner> _pruner;
   parallel::scalable_vector<parallel::scalable_vector<Memento> > _community_history;

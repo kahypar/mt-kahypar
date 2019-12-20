@@ -507,6 +507,12 @@ class Hypergraph {
     return hypergraph_of_vertex(u).numInvalidIncidentNets(u);
   }
 
+  // ! Contraction index of the vertex in the contraction hierarchy
+  HypernodeID contractionIndex(const HypernodeID u) const {
+    ASSERT(originalNodeID(u) < _contraction_index.size());
+    return _contraction_index[originalNodeID(u)];
+  }
+
   // ! Returns, whether a hypernode is enabled or not
   bool nodeIsEnabled(const HypernodeID u) const {
     return hypergraph_of_vertex(u).nodeIsEnabled(u);
@@ -1002,7 +1008,7 @@ class Hypergraph {
     // Postprocessing Memento
     // Remove all previously enabled parallel hyperedges from
     // invalid part of incident nets of v
-    postprocessMemento(memento);
+    removeEnabledHyperedgesFromInvalidPart(memento.v, false);
 
     HEAVY_REFINEMENT_ASSERT(numIncidentCutHyperedges(memento.u) == numIncidentCutHEs(memento.u),
                             V(memento.u) << V(numIncidentCutHyperedges(memento.u)) << V(numIncidentCutHEs(memento.u)));
@@ -1070,14 +1076,6 @@ class Hypergraph {
           if (non_parallel_representative != kInvalidHyperedge) {
             non_parallel_hyperedges.push_back(non_parallel_representative);
           }
-        } else {
-          // At that point, we have already restored the hyperedge and inserted it into the valid
-          // part of the vertex incident nets => just remove the hyperedge from the invalid part
-          ASSERT(incident_hes_start > 0);
-          std::swap(incident_hes_of_u[incident_hes_it--], incident_hes_of_u[--incident_hes_start]);
-          std::swap(incident_hes_of_u[incident_hes_start], incident_hes_of_u.back());
-          incident_hes_of_u.pop_back();
-          hypergraph_of_u.hypernode(memento.u).decrementInvalidIncidentNets();
         }
       }
     }
@@ -1090,11 +1088,9 @@ class Hypergraph {
    * Note, in order that this function works correctly and in a thread-safe manner, the
    * function find- or restoreDisabledHyperedgesThatBecomeNonParallel(...) has to be called for each
    * memento in the batch before.
-   * Furthermore, the batch has to fullfil some preconditions:
-   *   1.) Each representative of a contraction is only allowed to occur at
-   *       most once in the batch ( <(u,v), ..., (u, w)> not allowed ).
-   *   2.) A representative of a contraction must be enabled before the batch uncontraction
-   *       (<(u,v), ..., (v, w)> not allowed).
+   * Furthermore, the batch has to fullfil a precondition:
+   *   - A representative of a contraction must be enabled before the batch uncontraction
+   *     (<(u,v), ..., (v, w)> not allowed).
    *
    * \param memento Memento remembering the contraction operation that should be reverted
    * \param parallel_he_representative for each disabled hyperedge it contains it
@@ -1103,23 +1099,44 @@ class Hypergraph {
    */
   void uncontract(const std::vector<Memento>& batch,
                   parallel::scalable_vector<HyperedgeID>& parallel_he_representative,
-                  const kahypar::ds::FastResetFlagArray<>& batch_hypernodes) {
+                  const kahypar::ds::FastResetFlagArray<>& batch_hypernodes,
+                  const bool remove_enabled_hyperedges_from_u) {
     // Verify preconditions for batch uncontractions
     ASSERT(batch.size() > 0);
     HEAVY_REFINEMENT_ASSERT(batch_uncontraction_precondition_assertions(batch, batch_hypernodes));
 
     tbb::parallel_for(0UL, batch.size(), [&](const size_t i) {
-          const Memento& memento = batch[i];
-          DBG << "uncontracting (" << memento.u << "," << memento.v << ")";
-          markAllIncidentNetsOf(memento.v);
+          // All mementos containing the same representative have to processed
+          // by the same thread in order that this function is thread-safe.
+          // The precondition is that the batch is sorted by the representative.
+          // Consequently, all uncontractions with same representative are consecutive
+          // in the batch. A thread processes the memento, if it is the first memento in the
+          // batch containing the representative.
+          bool process_memento = (i == 0 || batch[i].u != batch[i - 1].u);
+          if ( process_memento ) {
+            const HypernodeID representative = batch[i].u;
+            for ( size_t idx = i; idx < batch.size(); ++idx ) {
+              const Memento& memento = batch[idx];
+              if ( memento.u != representative ) {
+                break;
+              }
 
-          // Uncontract Hyperedges
-          uncontractHyperedges(memento, parallel_he_representative, &batch_hypernodes);
+              DBG << "uncontracting (" << memento.u << "," << memento.v << ")";
+              markAllIncidentNetsOf(memento.v);
 
-          // Postprocessing Memento
-          // Remove all previously enabled parallel hyperedges from
-          // invalid part of incident nets of v
-          postprocessMemento(memento);
+              // Uncontract Hyperedges
+              uncontractHyperedges(memento, parallel_he_representative, &batch_hypernodes);
+
+              // Postprocessing Memento
+              // Remove all previously enabled parallel hyperedges from
+              // invalid part of incident nets of v
+              removeEnabledHyperedgesFromInvalidPart(memento.v, false);
+            }
+
+            if ( remove_enabled_hyperedges_from_u ) {
+              removeEnabledHyperedgesFromInvalidPart(representative, true);
+            }
+          }
         });
 
     // Verify postconditions for batch uncontractions
@@ -1748,7 +1765,6 @@ class Hypergraph {
     size_t incident_hes_end = incident_hes_of_u.size();
     for (size_t incident_hes_it = incident_hes_start; incident_hes_it != incident_hes_end; ++incident_hes_it) {
       const HyperedgeID he = incident_hes_of_u[incident_hes_it];
-      // LOG << V(memento.u) << V(memento.v) << V(he);
       if (hypergraph_of_edge(he).uncontract(
             memento.u, memento.v, he, incident_hes_it, _hypergraphs, batch_hypernodes)) {
         --incident_hes_it;
@@ -1757,15 +1773,20 @@ class Hypergraph {
     }
   }
 
-  void postprocessMemento(const Memento& memento) {
-    StreamingHypergraph& hypergraph_of_v = hypergraph_of_vertex(memento.v);
-    auto& incident_hes_of_v = hypergraph_of_v.incident_nets(memento.v);
-    size_t incident_hes_start = hypergraph_of_v.hypernode(memento.v).invalidIncidentNets();
+  void removeEnabledHyperedgesFromInvalidPart(const HypernodeID u,
+                                              const bool remove_enabled_hyperedges) {
+    StreamingHypergraph& hypergraph_of_u = hypergraph_of_vertex(u);
+    auto& incident_hes_of_u = hypergraph_of_u.incident_nets(u);
+    size_t incident_hes_start = hypergraph_of_u.hypernode(u).invalidIncidentNets();
     for (size_t incident_hes_it = 0; incident_hes_it != incident_hes_start; ++incident_hes_it) {
-      const HyperedgeID he = incident_hes_of_v[incident_hes_it];
+      const HyperedgeID he = incident_hes_of_u[incident_hes_it];
       if (edgeIsEnabled(he)) {
-        std::swap(incident_hes_of_v[incident_hes_it--], incident_hes_of_v[--incident_hes_start]);
-        hypergraph_of_v.hypernode(memento.v).decrementInvalidIncidentNets();
+        std::swap(incident_hes_of_u[incident_hes_it--], incident_hes_of_u[--incident_hes_start]);
+        hypergraph_of_u.hypernode(u).decrementInvalidIncidentNets();
+        if ( remove_enabled_hyperedges ) {
+          std::swap(incident_hes_of_u[incident_hes_start], incident_hes_of_u.back());
+          incident_hes_of_u.pop_back();
+        }
       }
     }
   }
@@ -1965,12 +1986,11 @@ class Hypergraph {
   bool batch_uncontraction_precondition_assertions(const std::vector<Memento>& batch,
                                                    const kahypar::ds::FastResetFlagArray<>& batch_hypernodes) {
     ASSERT(_contraction_index.size() == _num_hypernodes);
-    HypernodeID last_contraction_index = _contraction_index[originalNodeID(batch[0].v)] + 1;
     std::set<HypernodeID> representatives;
-    for (const Memento& memento : batch) {
+    for (size_t i = 0; i < batch.size(); ++i) {
+      const Memento& memento = batch[i];
       const HypernodeID u = memento.u;
       const HypernodeID v = memento.v;
-      const HypernodeID contraction_index = _contraction_index[originalNodeID(v)];
 
       if (!nodeIsEnabled(u)) {
         LOG << "Representative is disabled"
@@ -1984,8 +2004,17 @@ class Hypergraph {
       }
 
       if (representatives.find(u) != representatives.end()) {
-        LOG << "Representatives are only allowed to occur once in a batch" << V(memento.u);
-        return false;
+        if ( i == 0 || batch[i - 1].u != u ) {
+          LOG << "If a representatives occurs more than once in the batch,"
+              << "than all mementos containing the representative must be in"
+              << "consecutive order in the batch" << V(memento.u);
+          return false;
+        } else if ( i == 0 || contractionIndex(batch[i - 1].v) <= contractionIndex(v) ) {
+          LOG << "If a representatives occurs more than once in the batch,"
+              << "than all its uncontractions in the batch must be sorted in"
+              << "uncontraction order";
+          return false;
+        }
       } else {
         representatives.insert(u);
       }
@@ -2001,15 +2030,6 @@ class Hypergraph {
         LOG << "Contraction partner is not marked in batch bitset" << V(memento.v);
         return false;
       }
-
-      if (contraction_index + 1 != last_contraction_index) {
-        LOG << "Batch does not contain uncontractions in the right order"
-            << "(possibly permutation or some mementos are missing)"
-            << V(contraction_index) << V(last_contraction_index);
-        return false;
-      }
-
-      last_contraction_index = contraction_index;
     }
     return true;
   }
