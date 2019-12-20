@@ -496,7 +496,7 @@ class Hypergraph {
   void markAllHighDegreeVertices(const HypernodeID high_degree_threshold) {
     for ( const HypernodeID& hn : nodes() ) {
       if ( nodeDegree(hn) >= high_degree_threshold ) {
-        ASSERT(originalNodeID(u) < _is_high_degree_vertex.size());
+        ASSERT(originalNodeID(hn) < _is_high_degree_vertex.size());
         _is_high_degree_vertex[originalNodeID(hn)] = true;
       }
     }
