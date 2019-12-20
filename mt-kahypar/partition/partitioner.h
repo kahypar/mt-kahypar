@@ -64,7 +64,7 @@ class Partitioner {
   inline void partition(Hypergraph& hypergraph, Context& context);
 
  private:
-  static inline void setupContext(const Hypergraph& hypergraph, Context& context);
+  static inline void setupContext(Hypergraph& hypergraph, Context& context);
 
   static inline void configurePreprocessing(const Hypergraph& hypergraph, Context& context);
 
@@ -84,7 +84,7 @@ double Partitioner::MAX_DEGREE_RANK = 0.01;
 HypernodeID Partitioner::STDEV_MAX_DEGREE_THRESHOLD_FACTOR = 25;
 HypernodeID Partitioner::HIGH_DEGREE_VERTEX_THRESHOLD = 100;
 
-inline void Partitioner::setupContext(const Hypergraph& hypergraph, Context& context) {
+inline void Partitioner::setupContext(Hypergraph& hypergraph, Context& context) {
   if (context.initial_partitioning.mode == InitialPartitioningMode::recursive) {
     context.coarsening.contraction_limit =
       2 * std::max(context.shared_memory.num_threads, (size_t)context.partition.k) *
@@ -148,6 +148,10 @@ inline void Partitioner::setupContext(const Hypergraph& hypergraph, Context& con
         context.coarsening.high_degree_vertex_threshold =
           std::max(hn_degrees[MIN_DEGREE_RANK * hypergraph.initialNumNodes()],
             HIGH_DEGREE_VERTEX_THRESHOLD);
+    }
+
+    if ( context.coarsening.high_degree_vertex_threshold != std::numeric_limits<HypernodeID>::max() ) {
+      hypergraph.markAllHighDegreeVertices(context.coarsening.high_degree_vertex_threshold);
     }
   }
 

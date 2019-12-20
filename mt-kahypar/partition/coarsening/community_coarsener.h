@@ -190,17 +190,17 @@ class CommunityCoarsenerT : public ICoarsener,
       }
 
       for (const HypernodeID& hn : nodes) {
-        if (_hg.nodeIsEnabled(hn) && _hg.nodeDegree(hn) <= _context.coarsening.high_degree_vertex_threshold) {
+        if (_hg.nodeIsEnabled(hn) && !_hg.isHighDegreeVertex(hn)) {
           Rating rating = rater.rate(hn);
 
           if (rating.target != kInvalidHypernode) {
             rater.markAsMatched(hn);
             rater.markAsMatched(rating.target);
-            if (_hg.nodeDegree(rating.target) < _context.coarsening.high_degree_vertex_threshold) {
+            if (_hg.isHighDegreeVertex(rating.target)) {
+              this->performContraction(rating.target, hn);
+            } else {
               this->performContraction(hn, rating.target);
               tmp_nodes.emplace_back(hn);
-            } else {
-              this->performContraction(rating.target, hn);
             }
             --current_num_nodes;
           }

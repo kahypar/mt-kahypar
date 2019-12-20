@@ -201,6 +201,7 @@ class Hypergraph {
     _num_pins(0),
     _num_communities(0),
     _k(0),
+    _is_high_degree_vertex(),
     _communities_num_hypernodes(),
     _communities_num_pins(),
     _community_degree(),
@@ -226,6 +227,7 @@ class Hypergraph {
     _num_pins(0),
     _num_communities(0),
     _k(k),
+    _is_high_degree_vertex(num_hypernodes, false),
     _communities_num_hypernodes(),
     _communities_num_pins(),
     _community_degree(),
@@ -254,6 +256,7 @@ class Hypergraph {
     _num_pins(0),
     _num_communities(0),
     _k(k),
+    _is_high_degree_vertex(num_hypernodes, false),
     _communities_num_hypernodes(),
     _communities_num_pins(),
     _community_degree(),
@@ -278,6 +281,7 @@ class Hypergraph {
     _num_pins(other._num_pins),
     _num_communities(other._num_communities),
     _k(other._k),
+    _is_high_degree_vertex(std::move(other._is_high_degree_vertex)),
     _communities_num_hypernodes(std::move(other._communities_num_hypernodes)),
     _communities_num_pins(std::move(other._communities_num_pins)),
     _community_degree(std::move(other._community_degree)),
@@ -297,6 +301,7 @@ class Hypergraph {
     _num_pins = other._num_pins;
     _num_communities = other._num_communities;
     _k = other._k;
+    _is_high_degree_vertex = std::move(other._is_high_degree_vertex);
     _communities_num_hypernodes = std::move(other._communities_num_hypernodes);
     _communities_num_pins = std::move(other._communities_num_pins);
     _community_degree = std::move(other._community_degree);
@@ -481,6 +486,20 @@ class Hypergraph {
   // ! Degree of a hypernode
   HyperedgeID nodeDegree(const HypernodeID u) const {
     return hypergraph_of_vertex(u).nodeDegree(u);
+  }
+
+  bool isHighDegreeVertex(const HypernodeID u) const {
+    ASSERT(originalNodeID(u) < _is_high_degree_vertex.size());
+    return _is_high_degree_vertex[originalNodeID(u)];
+  }
+
+  void markAllHighDegreeVertices(const HypernodeID high_degree_threshold) {
+    for ( const HypernodeID& hn : nodes() ) {
+      if ( nodeDegree(hn) >= high_degree_threshold ) {
+        ASSERT(originalNodeID(u) < _is_high_degree_vertex.size());
+        _is_high_degree_vertex[originalNodeID(hn)] = true;
+      }
+    }
   }
 
   // ! Number of invalid incident nets
@@ -2116,6 +2135,8 @@ class Hypergraph {
   // ! Number of blocks
   PartitionID _k;
 
+  // ! Indicates, if a vertex is a high degree hypernode
+  parallel::scalable_vector<bool> _is_high_degree_vertex;
   // ! Number of hypernodes in a community
   parallel::scalable_vector<HypernodeID> _communities_num_hypernodes;
   // ! Number of pins in a community
