@@ -1,1 +1,3 @@
+add_gmock_test(initial_partitioner_test initial_partitioner_test.cc)
+target_link_libraries(initial_partitioner_test ${Boost_LIBRARIES})
 add_gmock_test(kahypar_test kahypar_test.cc)

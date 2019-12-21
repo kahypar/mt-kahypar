@@ -29,6 +29,26 @@
 #include "mt-kahypar/partition/metrics.h"
 
 namespace mt_kahypar {
+
+struct KaHyParHypergraph {
+  KaHyParHypergraph() :
+    num_vertices(0),
+    num_hyperedges(0),
+    hyperedge_indices(),
+    hyperedges(),
+    vertex_weights(),
+    hyperedge_weights(),
+    reverse_mapping() { }
+
+  kahypar_hypernode_id_t num_vertices;
+  kahypar_hyperedge_id_t num_hyperedges;
+  parallel::scalable_vector<size_t> hyperedge_indices;
+  parallel::scalable_vector<kahypar_hyperedge_id_t> hyperedges;
+  parallel::scalable_vector<kahypar_hypernode_weight_t> vertex_weights;
+  parallel::scalable_vector<kahypar_hyperedge_weight_t> hyperedge_weights;
+  parallel::scalable_vector<HypernodeID> reverse_mapping;
+};
+
 struct KaHyParPartitioningResult {
   KaHyParPartitioningResult() :
     objective(0),
@@ -40,30 +60,14 @@ struct KaHyParPartitioningResult {
     imbalance(1.0),
     partition(num_vertices, -1) { }
 
-  kahypar_hyperedge_weight_t objective;
-  double imbalance;
-  parallel::scalable_vector<kahypar_partition_id_t> partition;
-};
-
-struct KaHyParHypergraph {
-  KaHyParHypergraph() :
-    num_vertices(0),
-    num_hyperedges(0),
-    hyperedge_indices(),
-    hyperedges(),
-    vertex_weights(),
-    hyperedge_weights(),
-    reverse_mapping(),
-    part_weights() { }
-
   void computePartWeights(const PartitionID k,
-                          const parallel::scalable_vector<kahypar_partition_id_t>& partition) {
-    ASSERT(partition.size() == vertex_weights.size());
+                          const KaHyParHypergraph& kahypar_hypergraph) {
+    ASSERT(partition.size() == kahypar_hypergraph.vertex_weights.size());
     part_weights.assign(k, 0);
     for (HypernodeID hn = 0; hn < partition.size(); ++hn) {
       PartitionID part = partition[hn];
       ASSERT(part != -1 && part < k);
-      part_weights[part] += vertex_weights[hn];
+      part_weights[part] += kahypar_hypergraph.vertex_weights[hn];
     }
   }
 
@@ -72,13 +76,9 @@ struct KaHyParHypergraph {
     return part_weights[id];
   }
 
-  kahypar_hypernode_id_t num_vertices;
-  kahypar_hyperedge_id_t num_hyperedges;
-  parallel::scalable_vector<size_t> hyperedge_indices;
-  parallel::scalable_vector<kahypar_hyperedge_id_t> hyperedges;
-  parallel::scalable_vector<kahypar_hypernode_weight_t> vertex_weights;
-  parallel::scalable_vector<kahypar_hyperedge_weight_t> hyperedge_weights;
-  parallel::scalable_vector<HypernodeID> reverse_mapping;
+  kahypar_hyperedge_weight_t objective;
+  double imbalance;
+  parallel::scalable_vector<kahypar_partition_id_t> partition;
   parallel::scalable_vector<HypernodeWeight> part_weights;
 };
 
@@ -173,11 +173,11 @@ static void kahypar_partition(const KaHyParHypergraph& hypergraph,
 }
 
 // ! Computes the imbalance of a partition without applying it to the hypergraph.
-static double imbalance(KaHyParHypergraph& kahypar_hypergraph,
+static double imbalance(const KaHyParHypergraph& kahypar_hypergraph,
                         const Context& context,
-                        const KaHyParPartitioningResult& kahypar_result) {
-  kahypar_hypergraph.computePartWeights(context.partition.k, kahypar_result.partition);
-  return metrics::imbalance(kahypar_hypergraph, context);
+                        KaHyParPartitioningResult& kahypar_result) {
+  kahypar_result.computePartWeights(context.partition.k, kahypar_hypergraph);
+  return metrics::imbalance(kahypar_result, context);
 }
 
 static void sanitizeCheck(kahypar::Context& context) {

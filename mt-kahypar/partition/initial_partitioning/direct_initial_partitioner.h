@@ -164,7 +164,8 @@ class DirectInitialPartitionerT : public IInitialPartitioner {
 
     ASSERT(metrics::objective(_hg, _context.partition.objective) == best.objective,
       V(metrics::objective(_hg, _context.partition.objective)) << V(best.objective));
-    ASSERT(metrics::imbalance(_hg, _context) == best.imbalance);
+    ASSERT(metrics::imbalance(_hg, _context) == best.imbalance,
+      V(metrics::imbalance(_hg, _context)) << V(best.imbalance));
     kahypar_context_free(context);
   }
 
