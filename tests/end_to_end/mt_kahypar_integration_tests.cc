@@ -241,7 +241,7 @@ TYPED_TEST(MtKaHyPar, PartitionsAHypergraph) {
   // Partition Hypergraph
   Hypergraph hypergraph = io::readHypergraphFile(
     this->context.partition.graph_filename, this->context.partition.k,
-    this->context.shared_memory.initial_distribution);
+    this->context.shared_memory.initial_hyperedge_distribution);
 
   HighResClockTimepoint start = std::chrono::high_resolution_clock::now();
   partition::Partitioner().partition(hypergraph, this->context);
@@ -254,7 +254,7 @@ TYPED_TEST(MtKaHyPar, PartitionsAHypergraph) {
   // equivalent with input hypergraph
   Hypergraph reference = io::readHypergraphFile(
     this->context.partition.graph_filename, this->context.partition.k,
-    this->context.shared_memory.initial_distribution);
+    this->context.shared_memory.initial_hyperedge_distribution);
   verifyThatHypergraphsAreEquivalent(hypergraph, reference);
 
   HypernodeID num_hypernodes = 0;

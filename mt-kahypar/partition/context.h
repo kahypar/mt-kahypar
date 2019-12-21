@@ -217,13 +217,13 @@ inline std::ostream & operator<< (std::ostream& str, const RefinementParameters&
 
 struct SharedMemoryParameters {
   size_t num_threads = 1;
-  InitialHyperedgeDistribution initial_distribution = InitialHyperedgeDistribution::UNDEFINED;
+  InitialHyperedgeDistribution initial_hyperedge_distribution = InitialHyperedgeDistribution::UNDEFINED;
 };
 
 inline std::ostream & operator<< (std::ostream& str, const SharedMemoryParameters& params) {
   str << "Shared Memory Parameters:             " << std::endl;
   str << "  Number of Threads:                  " << params.num_threads << std::endl;
-  str << "  Initial Hyperedge Distribution:     " << params.initial_distribution << std::endl;
+  str << "  Initial Hyperedge Distribution:     " << params.initial_hyperedge_distribution << std::endl;
   return str;
 }
 

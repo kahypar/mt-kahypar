@@ -51,7 +51,7 @@ int main(int argc, char* argv[]) {
   // Read Hypergraph
   mt_kahypar::Hypergraph hypergraph = mt_kahypar::io::readHypergraphFile(
     context.partition.graph_filename, context.partition.k,
-    context.shared_memory.initial_distribution);
+    context.shared_memory.initial_hyperedge_distribution);
 
   // Partition Hypergraph
   mt_kahypar::HighResClockTimepoint start = std::chrono::high_resolution_clock::now();
@@ -61,7 +61,9 @@ int main(int argc, char* argv[]) {
   // Print Stats
   std::chrono::duration<double> elapsed_seconds(end - start);
   mt_kahypar::io::printPartitioningResults(hypergraph, context, elapsed_seconds);
-  mt_kahypar::io::serializer::serialize(hypergraph, context, elapsed_seconds);
+  if ( context.partition.sp_process_output ) {
+    std::cout << mt_kahypar::io::serializer::serialize(hypergraph, context, elapsed_seconds) << std::endl;
+  }
   if (context.partition.write_partition_file) {
     mt_kahypar::io::writePartitionFile(hypergraph, context.partition.graph_partition_filename);
   }

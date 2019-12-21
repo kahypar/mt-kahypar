@@ -1,0 +1,1 @@
+add_gmock_test(sql_plottools_serializer_test sql_plottools_serializer_test.cc)

@@ -319,7 +319,7 @@ po::options_description createSharedMemoryOptionsDescription(Context& context,
     ("s-initial-hyperedge-distribution",
     po::value<std::string>()->value_name("<string>")->notifier(
       [&](const std::string& strategy) {
-      context.shared_memory.initial_distribution = mt_kahypar::initialHyperedgeDistributionFromString(strategy);
+      context.shared_memory.initial_hyperedge_distribution = mt_kahypar::initialHyperedgeDistributionFromString(strategy);
     }),
     "Determines how hyperedges are distributed to numa nodes after reading hypergraph file: \n"
     " - equally\n"

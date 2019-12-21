@@ -1,4 +1,5 @@
 add_subdirectory(datastructures)
 add_subdirectory(end_to_end)
+add_subdirectory(io)
 add_subdirectory(parallel)
 add_subdirectory(partition)

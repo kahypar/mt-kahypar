@@ -21,7 +21,7 @@
 #pragma once
 #include <array>
 #include <chrono>
-#include <fstream>
+#include <sstream>
 #include <string>
 
 #include "mt-kahypar/definitions.h"
@@ -33,11 +33,11 @@
 namespace mt_kahypar {
 namespace io {
 namespace serializer {
-static inline void serialize(const Hypergraph& hypergraph,
-                             const Context& context,
-                             const std::chrono::duration<double>& elapsed_seconds) {
+static inline std::string serialize(const Hypergraph& hypergraph,
+                                    const Context& context,
+                                    const std::chrono::duration<double>& elapsed_seconds) {
   if (context.partition.sp_process_output) {
-    std::ostringstream oss;
+    std::stringstream oss;
     oss << "RESULT"
         << " graph=" << context.partition.graph_filename.substr(
       context.partition.graph_filename.find_last_of('/') + 1)
@@ -48,33 +48,36 @@ static inline void serialize(const Hypergraph& hypergraph,
         << " k=" << context.partition.k
         << " epsilon=" << context.partition.epsilon
         << " seed=" << context.partition.seed
-        << " he_size_threshold=" << context.partition.hyperedge_size_threshold
-        << " perfect_balanced_part_weight=" << context.partition.perfect_balance_part_weights[0]
+        << " hyperedge_size_threshold=" << context.partition.hyperedge_size_threshold
+        << " time_limit=" << context.partition.time_limit
+        << " perfect_balance_part_weight=" << context.partition.perfect_balance_part_weights[0]
         << " max_part_weight=" << context.partition.max_part_weights[0]
         << " total_graph_weight=" << hypergraph.totalWeight()
         << " use_community_structure_from_file=" << std::boolalpha << context.preprocessing.use_community_structure_from_file
         << " community_load_balancing_strategy=" << context.preprocessing.community_detection.load_balancing_strategy
         << " community_size_constraint_factor=" << context.preprocessing.community_detection.size_constraint_factor
-        << " louvain_edge_weight_function=" << context.preprocessing.community_detection.edge_weight_function
-        << " louvain_max_pass_iterations=" << context.preprocessing.community_detection.max_pass_iterations
-        << " louvain_min_eps_improvement=" << context.preprocessing.community_detection.min_eps_improvement
+        << " community_edge_weight_function=" << context.preprocessing.community_detection.edge_weight_function
+        << " community_max_pass_iterations=" << context.preprocessing.community_detection.max_pass_iterations
+        << " community_min_eps_improvement=" << context.preprocessing.community_detection.min_eps_improvement
         << " use_community_redistribution=" << std::boolalpha << context.preprocessing.community_redistribution.use_community_redistribution
         << " community_redistribution_assignment_strategy=" << context.preprocessing.community_redistribution.assignment_strategy
         << " community_redistribution_assignment_objective=" << context.preprocessing.community_redistribution.assignment_objective
         << " coarsening_algorithm=" << context.coarsening.algorithm
-        << " contraction_limit_multiplier=" << context.coarsening.contraction_limit_multiplier
-        << " max_allowed_weight_multiplier=" << context.coarsening.max_allowed_weight_multiplier
-        << " max_allowed_high_degree_node_weight_multiplier=" << context.coarsening.max_allowed_high_degree_node_weight_multiplier
-        << " use_high_degree_vertex_threshold=" << std::boolalpha << context.coarsening.use_high_degree_vertex_threshold
-        << " max_allowed_node_weight=" << context.coarsening.max_allowed_node_weight
-        << " max_allowed_high_degree_node_weight=" << context.coarsening.max_allowed_high_degree_node_weight
-        << " contraction_limit=" << context.coarsening.contraction_limit
-        << " high_degree_vertex_threshold=" << context.coarsening.high_degree_vertex_threshold
+        << " coarsening_contraction_limit_multiplier=" << context.coarsening.contraction_limit_multiplier
+        << " coarsening_max_allowed_weight_multiplier=" << context.coarsening.max_allowed_weight_multiplier
+        << " coarsening_max_allowed_high_degree_node_weight_multiplier=" << context.coarsening.max_allowed_high_degree_node_weight_multiplier
+        << " coarsening_use_high_degree_vertex_threshold=" << std::boolalpha << context.coarsening.use_high_degree_vertex_threshold
+        << " coarsening_max_allowed_node_weight=" << context.coarsening.max_allowed_node_weight
+        << " coarsening_max_allowed_high_degree_node_weight=" << context.coarsening.max_allowed_high_degree_node_weight
+        << " coarsening_contraction_limit=" << context.coarsening.contraction_limit
+        << " coarsening_high_degree_vertex_threshold=" << context.coarsening.high_degree_vertex_threshold
         << " rating_function=" << context.coarsening.rating.rating_function
         << " rating_heavy_node_penalty_policy=" << context.coarsening.rating.heavy_node_penalty_policy
         << " rating_acceptance_policy=" << context.coarsening.rating.acceptance_policy
-        << " initial_partitioning_context=" << context.initial_partitioning.context_file
+        << " initial_partitioning_context_file=" << context.initial_partitioning.context_file
         << " initial_partitioning_mode=" << context.initial_partitioning.mode
+        << " initial_partitioning_technique=" << context.initial_partitioning.technique
+        << " initial_partitioning_call_kahypar_multiple_times=" << std::boolalpha << context.initial_partitioning.call_kahypar_multiple_times
         << " initial_partitioning_runs=" << context.initial_partitioning.runs
         << " use_batch_uncontractions=" << std::boolalpha << context.refinement.use_batch_uncontractions
         << " batch_size=" << context.refinement.batch_size
@@ -86,15 +89,17 @@ static inline void serialize(const Hypergraph& hypergraph,
         << " lp_execution_policy=" << context.refinement.label_propagation.execution_policy
         << " lp_execution_policy_alpha=" << context.refinement.label_propagation.execution_policy_alpha
         << " num_threads=" << context.shared_memory.num_threads
-        << " initial_hyperedge_distribution=" << context.shared_memory.initial_distribution;
+        << " initial_hyperedge_distribution=" << context.shared_memory.initial_hyperedge_distribution;
 
     // Metrics
-    oss << " cut=" << metrics::hyperedgeCut(hypergraph)
-        << " soed=" << metrics::soed(hypergraph)
-        << " km1=" << metrics::km1(hypergraph)
-        << " absorption=" << metrics::absorption(hypergraph)
-        << " imbalance=" << metrics::imbalance(hypergraph, context)
-        << " totalPartitionTime=" << elapsed_seconds.count();
+    if ( hypergraph.initialNumEdges() > 0 ) {
+      oss << " cut=" << metrics::hyperedgeCut(hypergraph)
+          << " soed=" << metrics::soed(hypergraph)
+          << " km1=" << metrics::km1(hypergraph)
+          << " absorption=" << metrics::absorption(hypergraph)
+          << " imbalance=" << metrics::imbalance(hypergraph, context);
+    }
+    oss << " totalPartitionTime=" << elapsed_seconds.count();
 
     // Part Weights and Sizes
     for (PartitionID i = 0; i < context.partition.k; ++i) {
@@ -110,8 +115,9 @@ static inline void serialize(const Hypergraph& hypergraph,
     // Stats
     oss << utils::Stats::instance();
 
-    std::cout << oss.str() << std::endl;
+    return oss.str();
   }
+  return "";
 }
 }  // namespace serializer
 }  // namespace io
