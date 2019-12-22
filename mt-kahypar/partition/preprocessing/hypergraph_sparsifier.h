@@ -62,7 +62,7 @@ class HypergraphSparsifier {
       // them afterwards.
       if ( hypergraph.nodeDegree(hn) == 0 && hypergraph.nodeWeight(hn) == 1) {
         ++num_removed_degree_zero_hypernodes;
-        hypergraph.disableHypernode(hn);
+        hypergraph.removeHypernode(hn);
         _removed_hns.push_back(hn);
       }
     }

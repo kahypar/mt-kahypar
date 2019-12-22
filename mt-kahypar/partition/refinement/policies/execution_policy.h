@@ -75,8 +75,9 @@ class MultilevelExecutionPolicy : public ExecutionPolicy<MultilevelExecutionPoli
   void initialize(const HyperGraph& hg, const HypernodeID current_num_nodes) {
     ASSERT(_alpha >= 1.0);
     size_t last_level = 0;
-    for (size_t i = 0; hg.initialNumNodes() / std::pow(_alpha, i) >= current_num_nodes; ++i) {
-      size_t next_level = hg.initialNumNodes() / std::pow(_alpha, i) - current_num_nodes;
+    HypernodeID initial_num_nodes = hg.initialNumNodes() - hg.numRemovedHypernodes();
+    for (size_t i = 0; initial_num_nodes / std::pow(_alpha, i) >= current_num_nodes; ++i) {
+      size_t next_level = initial_num_nodes / std::pow(_alpha, i) - current_num_nodes;
       if (last_level != next_level) {
         _execution_levels.push_back(next_level);
         last_level = next_level;
@@ -101,14 +102,15 @@ class ExponentialExecutionPolicy : public ExecutionPolicy<ExponentialExecutionPo
   void initialize(const HyperGraph& hg, const HypernodeID current_num_nodes) {
     ASSERT(_alpha >= 1.0);
     size_t last_level = 0;
-    for (size_t i = 0; current_num_nodes + std::pow(_alpha, i) <= hg.initialNumNodes(); ++i) {
+    HypernodeID initial_num_nodes = hg.initialNumNodes() - hg.numRemovedHypernodes();
+    for (size_t i = 0; current_num_nodes + std::pow(_alpha, i) <= initial_num_nodes; ++i) {
       size_t next_level = std::pow(_alpha, i);
       if (last_level != next_level) {
         _execution_levels.push_back(next_level);
         last_level = next_level;
       }
     }
-    _execution_levels.push_back(hg.initialNumNodes() - current_num_nodes);
+    _execution_levels.push_back(initial_num_nodes - current_num_nodes);
     std::reverse(_execution_levels.begin(), _execution_levels.end());
   }
 
@@ -130,14 +132,15 @@ class ConstantExecutionPolicy : public ExecutionPolicy<ConstantExecutionPolicy> 
     ASSERT(_alpha >= 1.0);
     size_t constant = _alpha;
     size_t last_level = 0;
-    for (size_t i = 0; current_num_nodes + i * constant <= hg.initialNumNodes(); ++i) {
+    HypernodeID initial_num_nodes = hg.initialNumNodes() - hg.numRemovedHypernodes();
+    for (size_t i = 0; current_num_nodes + i * constant <= initial_num_nodes; ++i) {
       size_t next_level = std::max(i * constant, 1UL);
       if (last_level != next_level) {
         _execution_levels.push_back(next_level);
         last_level = next_level;
       }
     }
-    _execution_levels.push_back(hg.initialNumNodes() - current_num_nodes);
+    _execution_levels.push_back(initial_num_nodes - current_num_nodes);
     std::reverse(_execution_levels.begin(), _execution_levels.end());
   }
 

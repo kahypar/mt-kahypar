@@ -277,6 +277,7 @@ class LabelPropagationRefinerT final : public IRefiner {
                              const size_t end,
                              const int node,
                              const bool is_first_round) {
+    unused(node);
     // This function is passed as lambda to the changeNodePart function and used
     // to calculate the "real" delta of a move (in terms of the used objective function).
     auto objective_delta = [&](const HyperedgeWeight edge_weight,

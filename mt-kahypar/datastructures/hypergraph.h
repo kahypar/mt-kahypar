@@ -223,6 +223,7 @@ class Hypergraph {
              PartitionID k,
              TBBNumaArena& tbb_arena) :
     _num_hypernodes(num_hypernodes),
+    _num_removed_hypernodes(0),
     _num_hyperedges(0),
     _num_pins(0),
     _num_communities(0),
@@ -252,6 +253,7 @@ class Hypergraph {
              PartitionID k,
              TBBNumaArena& tbb_arena) :
     _num_hypernodes(num_hypernodes),
+    _num_removed_hypernodes(0),
     _num_hyperedges(0),
     _num_pins(0),
     _num_communities(0),
@@ -277,6 +279,7 @@ class Hypergraph {
 
   Hypergraph(Hypergraph&& other) :
     _num_hypernodes(other._num_hypernodes),
+    _num_removed_hypernodes(other._num_removed_hypernodes),
     _num_hyperedges(other._num_hyperedges),
     _num_pins(other._num_pins),
     _num_communities(other._num_communities),
@@ -297,6 +300,7 @@ class Hypergraph {
 
   Hypergraph & operator= (Hypergraph&& other) {
     _num_hypernodes = other._num_hypernodes;
+    _num_removed_hypernodes = other._num_removed_hypernodes;
     _num_hyperedges = other._num_hyperedges;
     _num_pins = other._num_pins;
     _num_communities = other._num_communities;
@@ -328,6 +332,11 @@ class Hypergraph {
   HypernodeID initialNumNodes(const int node) const {
     ASSERT(node < (int)_hypergraphs.size());
     return _hypergraphs[node].initialNumNodes();
+  }
+
+  // ! Number of removed hypernodes
+  HypernodeID numRemovedHypernodes() const {
+    return _num_removed_hypernodes;
   }
 
   // ! Initial number of hyperedges
@@ -526,6 +535,12 @@ class Hypergraph {
   // ! Disable a hypernode (must be enabled before)
   void disableHypernode(const HypernodeID u) {
     hypergraph_of_vertex(u).disableHypernode(u);
+  }
+
+  // ! Remove hypernode
+  void removeHypernode(const HypernodeID u) {
+    disableHypernode(u);
+    ++_num_removed_hypernodes;
   }
 
   // ####################### Hyperedge Information #######################
@@ -2149,6 +2164,8 @@ class Hypergraph {
 
   // ! Number of hypernodes
   HypernodeID _num_hypernodes;
+  // ! Number of removed hypernodes
+  HypernodeID _num_removed_hypernodes;
   // ! Number of hyperedges
   HyperedgeID _num_hyperedges;
   // ! Number of pins
