@@ -253,7 +253,7 @@ class LabelPropagationRefinerT final : public IRefiner {
         "lp_round_" + std::to_string(i) + (node != -1 ? "_" + std::to_string(node) : ""),
         "Label Propagation Round " + std::to_string(i) + (node != -1 ? " - " + std::to_string(node) : ""), true);
       if ( !converged ) {
-        converged = labelPropagationRound(refinement_nodes, start, end, numa_node, i == 0);
+        converged = labelPropagationRound(refinement_nodes, start, end, node, i == 0);
       }
 
       if ( _context.refinement.label_propagation.numa_aware ) {
@@ -277,7 +277,6 @@ class LabelPropagationRefinerT final : public IRefiner {
                              const size_t end,
                              const int node,
                              const bool is_first_round) {
-    ASSERT(node >= 0 && node < static_cast<int>(_active.size()));
     // This function is passed as lambda to the changeNodePart function and used
     // to calculate the "real" delta of a move (in terms of the used objective function).
     auto objective_delta = [&](const HyperedgeWeight edge_weight,
@@ -299,7 +298,7 @@ class LabelPropagationRefinerT final : public IRefiner {
         // We only compute the max gain move for a node if we are either in the first round of label
         // propagation or if the vertex is still active. A vertex is active, if it changed its block
         // in the last round or one of its neighbors.
-        if (is_first_round || _active[node][original_id]) {
+        if (is_first_round || _active[0][original_id]) {
           Move best_move = _gain.computeMaxGainMove(hn);
 
           // We perform a move if it either improves the solution quality or, in case of a
@@ -329,7 +328,8 @@ class LabelPropagationRefinerT final : public IRefiner {
                 // Set all neighbors of the vertex to active
                 for (const HyperedgeID& he : _hg.incidentEdges(hn)) {
                   for (const HypernodeID& pin : _hg.pins(he)) {
-                    int pin_numa_node = StreamingHyperGraph::get_numa_node_of_vertex(pin);
+                    int pin_numa_node = _context.refinement.label_propagation.numa_aware ?
+                      StreamingHyperGraph::get_numa_node_of_vertex(pin) : 0;
                     _next_active[pin_numa_node].set(_hg.originalNodeID(pin), true);
                   }
                 }
@@ -343,7 +343,7 @@ class LabelPropagationRefinerT final : public IRefiner {
                 _hg.changeNodePart(hn, to, from, objective_delta);
               }
             }
-            _next_active[node].set(original_id, true);
+            _next_active[0].set(original_id, true);
           }
         }
 
