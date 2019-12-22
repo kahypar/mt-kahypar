@@ -101,7 +101,7 @@ class ExponentialExecutionPolicy : public ExecutionPolicy<ExponentialExecutionPo
   void initialize(const HyperGraph& hg, const HypernodeID current_num_nodes) {
     ASSERT(_alpha >= 1.0);
     size_t last_level = 0;
-    for (size_t i = 0; current_num_nodes + std::pow(_alpha, i) < hg.initialNumNodes(); ++i) {
+    for (size_t i = 0; current_num_nodes + std::pow(_alpha, i) <= hg.initialNumNodes(); ++i) {
       size_t next_level = std::pow(_alpha, i);
       if (last_level != next_level) {
         _execution_levels.push_back(next_level);
@@ -130,7 +130,7 @@ class ConstantExecutionPolicy : public ExecutionPolicy<ConstantExecutionPolicy> 
     ASSERT(_alpha >= 1.0);
     size_t constant = _alpha;
     size_t last_level = 0;
-    for (size_t i = 0; current_num_nodes + i * constant < hg.initialNumNodes(); ++i) {
+    for (size_t i = 0; current_num_nodes + i * constant <= hg.initialNumNodes(); ++i) {
       size_t next_level = std::max(i * constant, 1UL);
       if (last_level != next_level) {
         _execution_levels.push_back(next_level);

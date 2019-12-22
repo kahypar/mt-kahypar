@@ -181,6 +181,7 @@ struct LabelPropagationParameters {
   LabelPropagationAlgorithm algorithm = LabelPropagationAlgorithm::do_nothing;
   size_t maximum_iterations = 1;
   size_t part_weight_update_frequency = 100;
+  bool localized = false;
   bool numa_aware = false;
   bool rebalancing = true;
   ExecutionType execution_policy = ExecutionType::UNDEFINED;
@@ -192,10 +193,13 @@ inline std::ostream & operator<< (std::ostream& str, const LabelPropagationParam
   str << "    Algorithm:                        " << params.algorithm << std::endl;
   str << "    Maximum Iterations:               " << params.maximum_iterations << std::endl;
   str << "    Part Weight Update Frequency:     " << params.part_weight_update_frequency << std::endl;
+  str << "    Localized:                        " << std::boolalpha << params.localized << std::endl;
   str << "    Numa Aware:                       " << std::boolalpha << params.numa_aware << std::endl;
   str << "    Rebalancing:                      " << std::boolalpha << params.rebalancing << std::endl;
-  str << "    Execution Policy:                 " << params.execution_policy << std::endl;
-  str << "    Execution Policy Alpha:           " << params.execution_policy_alpha << std::endl;
+  if ( !params.localized ) {
+    str << "    Execution Policy:                 " << params.execution_policy << std::endl;
+    str << "    Execution Policy Alpha:           " << params.execution_policy_alpha << std::endl;
+  }
   return str;
 }
 
@@ -315,6 +319,13 @@ class Context {
                                          << "refiner in combination with km1 metric is not possible!",
                   refinement.label_propagation.algorithm,
                   LabelPropagationAlgorithm::label_propagation_km1);
+    }
+
+    if ( refinement.label_propagation.localized ) {
+      // If we use localized label propagation, we want to execute LP on each level
+      // only on the uncontracted hypernodes
+      refinement.label_propagation.execution_policy = ExecutionType::constant;
+      refinement.label_propagation.execution_policy_alpha = 1.0;
     }
   }
 };

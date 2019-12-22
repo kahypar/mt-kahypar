@@ -29,6 +29,7 @@
 
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/macros.h"
+#include "mt-kahypar/parallel/stl/scalable_vector.h"
 
 namespace mt_kahypar {
 class IRefiner {
@@ -40,7 +41,7 @@ class IRefiner {
 
   virtual ~IRefiner() = default;
 
-  bool refine(const std::vector<HypernodeID>& refinement_nodes,
+  bool refine(const parallel::scalable_vector<HypernodeID>& refinement_nodes,
               kahypar::Metrics& best_metrics) {
     return refineImpl(refinement_nodes, best_metrics);
   }
@@ -49,7 +50,7 @@ class IRefiner {
   IRefiner() = default;
 
  private:
-  virtual bool refineImpl(const std::vector<HypernodeID>& refinement_nodes,
+  virtual bool refineImpl(const parallel::scalable_vector<HypernodeID>& refinement_nodes,
                           kahypar::Metrics& best_metrics) = 0;
 };
 }  // namespace mt_kahypar

@@ -282,10 +282,14 @@ po::options_description createRefinementOptionsDescription(Context& context, con
     po::value<size_t>(&context.refinement.label_propagation.part_weight_update_frequency)->value_name("<size_t>"),
     "Determines after how many iterations the local part weights are updated\n"
     "(default 100)")
+    ("r-lp-localized",
+    po::value<bool>(&context.refinement.label_propagation.localized)->value_name("<bool>"),
+    "If true, label propagation is executed only on the previously uncontracted vertices)\n"
+    "(default false)")
     ("r-lp-numa-aware",
     po::value<bool>(&context.refinement.label_propagation.numa_aware)->value_name("<bool>"),
     "If true, label propagation is executed numa friendly (which means that nodes are processed on its numa nodes)\n"
-    "(default true)")
+    "(default false)")
     ("r-lp-rebalancing",
     po::value<bool>(&context.refinement.label_propagation.rebalancing)->value_name("<bool>"),
     "If true, zero gain moves are used to rebalance solution\n"

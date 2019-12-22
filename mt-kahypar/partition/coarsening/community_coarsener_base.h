@@ -153,9 +153,8 @@ class CommunityCoarsenerBase {
     utils::Stats::instance().add_stat("initial_km1", current_metrics.km1);
     utils::Stats::instance().add_stat("initial_imbalance", current_metrics.imbalance);
 
-    std::vector<HypernodeID> refinement_nodes;
-    size_t max_batch_size = _context.refinement.use_batch_uncontractions &&
-                            _context.shared_memory.num_threads > 1 ? _context.refinement.batch_size : 1;
+    parallel::scalable_vector<HypernodeID> refinement_nodes;
+    size_t max_batch_size = _context.refinement.use_batch_uncontractions ? _context.refinement.batch_size : 1;
     utils::ProgressBar uncontraction_progress(_hg.initialNumNodes(),
       _context.partition.objective == kahypar::Objective::km1 ? current_metrics.km1 : current_metrics.cut,
       _context.partition.verbose_output && _context.partition.enable_progress_bar);
@@ -191,7 +190,7 @@ class CommunityCoarsenerBase {
 
  private:
   void batchUncontraction(const size_t batch_size,
-                          std::vector<HypernodeID>& refinement_nodes) {
+                          parallel::scalable_vector<HypernodeID>& refinement_nodes) {
     ASSERT(batch_size > 0);
     if (batch_size == 1) {
       uncontract(_history.back());
