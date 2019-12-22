@@ -98,7 +98,11 @@ class ALabelPropagationRefiner : public Test {
     context.refinement.label_propagation.execution_policy = ExecutionType::exponential;
     context.refinement.label_propagation.part_weight_update_frequency = 5;
     context.refinement.label_propagation.localized = false;
+    #ifdef KAHYPAR_TRAVIS_BUILD
+    context.refinement.label_propagation.numa_aware = false;
+    #else
     context.refinement.label_propagation.numa_aware = true;
+    #endif
 
     // Read hypergraph
     hypergraph = io::readHypergraphFile<HyperGraph, StreamingHyperGraph, TBB, HwTopology>(
