@@ -187,7 +187,7 @@ inline void Partitioner::preprocess(Hypergraph& hypergraph, const Context& conte
   utils::Timer::instance().start_timer("perform_community_detection", "Perform Community Detection");
   ds::Clustering communities(0);
   if (!context.preprocessing.use_community_structure_from_file) {
-    ds::AdjListGraph graph = ds::AdjListStarExpansion::constructGraph(hypergraph, context);
+    ds::AdjListGraph graph = ds::AdjListStarExpansion::constructGraph(hypergraph, context, true);
     communities = ParallelModularityLouvain::run(graph, context);   // TODO(lars): give switch for PLM/SLM
     ds::AdjListStarExpansion::restrictClusteringToHypernodes(hypergraph, communities);
     _hypergraph_sparsifier.assignAllDegreeZeroHypernodesToSameCommunity(hypergraph, communities);

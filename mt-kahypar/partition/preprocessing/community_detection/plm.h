@@ -71,7 +71,7 @@ class PLM {
                                                     _context.shared_memory.num_threads)));
     }
 
-    std::vector<NodeID> nodes(G.numNodes());
+    parallel::scalable_vector<NodeID> nodes(G.numNodes());
     for (NodeID u : G.nodes()) {
       nodes[u] = u;
       clusterVolumes[u].store(G.nodeVolume(u));
@@ -94,7 +94,7 @@ class PLM {
       // parallel shuffle starts becoming competitive with sequential shuffle at four cores... :(
       // TODO implement block-based weak shuffling or use the pseudo-random online permutation approach
       utils::Timer::instance().start_timer("random_shuffle", "Random Shuffle");
-      utils::Randomize::instance().shuffleVector(nodes);
+      utils::Randomize::instance().parallelShuffleVector(nodes, _context.shared_memory.num_threads);
       utils::Timer::instance().stop_timer("random_shuffle");
 
       tbb::enumerable_thread_specific<size_t> ets_nodesMovedThisRound(0);
