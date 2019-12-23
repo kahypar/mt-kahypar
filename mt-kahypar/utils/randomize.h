@@ -128,6 +128,14 @@ class Randomize {
   }
 
   template <typename T>
+  void shuffleVector(parallel::scalable_vector<T>& vector, int cpu_id = -1) {
+    if (cpu_id == -1)
+      cpu_id = sched_getcpu();
+    ASSERT(cpu_id < (int)std::thread::hardware_concurrency());
+    std::shuffle(vector.begin(), vector.end(), _rand[cpu_id].getGenerator());
+  }
+
+  template <typename T>
   void shuffleVector(parallel::scalable_vector<T>& vector, size_t num_elements, int cpu_id) {
     ASSERT(cpu_id < (int)std::thread::hardware_concurrency());
     std::shuffle(vector.begin(), vector.begin() + num_elements, _rand[cpu_id].getGenerator());
@@ -143,31 +151,6 @@ class Randomize {
   void shuffleVector(parallel::scalable_vector<T>& vector, size_t i, size_t j, int cpu_id) {
     ASSERT(cpu_id < (int)std::thread::hardware_concurrency());
     std::shuffle(vector.begin() + i, vector.begin() + j, _rand[cpu_id].getGenerator());
-  }
-
-  template <typename T>
-  void parallelShuffleVector(parallel::scalable_vector<T>& vector, const size_t num_threads) {
-    if ( num_threads > 1 ) {
-      // Pseudo Random-Shuffling
-      // In this parallel pseudo-random shuffling algorithm each PE permutates a consecutive
-      // block of the input array of size |A| / num_threads
-      // TODO(lars): Replace this with real parallel random-shuffling algorithm
-      const size_t size = vector.size();
-      const size_t block_size = size / num_threads + (size % num_threads != 0 ? 1 : 0);
-      tbb::task_group group;
-      for ( size_t i = 0; i < num_threads; ++i ) {
-        group.run([&, i] {
-          const size_t start = i * block_size;
-          const size_t end = std::min((i + 1) * block_size, size);
-          shuffleVector(vector, start, end, i);
-        });
-      }
-      group.wait();
-    } else {
-      const size_t cpu_id = sched_getcpu();
-      shuffleVector(vector, 0UL, vector.size(), cpu_id);
-    }
-
   }
 
   // returns uniformly random int from the interval [low, high]
