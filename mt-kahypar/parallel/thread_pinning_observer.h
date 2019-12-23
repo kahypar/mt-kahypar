@@ -51,6 +51,7 @@ class ThreadPinningObserver : public tbb::task_scheduler_observer {
     Base(arena),
     _num_cpus(HwTopology::instance().num_cpus()),
     _numa_node(numa_node),
+    _is_global_thread_pool(false),
     _cpus(cpus),
     _mutex(),
     _cpu_before() {
@@ -84,6 +85,7 @@ class ThreadPinningObserver : public tbb::task_scheduler_observer {
     Base(true),
     _num_cpus(HwTopology::instance().num_cpus()),
     _numa_node(-1),
+    _is_global_thread_pool(true),
     _cpus(cpus),
     _mutex(),
     _cpu_before() {
@@ -100,6 +102,7 @@ class ThreadPinningObserver : public tbb::task_scheduler_observer {
   ThreadPinningObserver(ThreadPinningObserver&& other) :
     _num_cpus(other._num_cpus),
     _numa_node(other._numa_node),
+    _is_global_thread_pool(other._is_global_thread_pool),
     _cpus(other._cpus),
     _mutex(),
     _cpu_before(std::move(other._cpu_before)) { }
@@ -107,21 +110,34 @@ class ThreadPinningObserver : public tbb::task_scheduler_observer {
   ThreadPinningObserver & operator= (ThreadPinningObserver &&) = delete;
 
   void on_scheduler_entry(bool) override {
-    std::lock_guard<std::mutex> lock(_mutex);
     const int slot = tbb::this_task_arena::current_thread_index();
     ASSERT(static_cast<size_t>(slot) < _cpus.size(), V(slot) << V(_cpus.size()));
     DBG << pin_thread_message(_cpus[slot]);
-    _cpu_before[std::this_thread::get_id()] = sched_getcpu();
+    if(!_is_global_thread_pool) {
+      std::thread::id thread_id = std::this_thread::get_id();
+      int current_cpu = sched_getcpu();
+      std::lock_guard<std::mutex> lock(_mutex);
+      _cpu_before[thread_id] = current_cpu;
+    }
     pin_thread_to_cpu(_cpus[slot]);
   }
 
   void on_scheduler_exit(bool) override {
-    std::lock_guard<std::mutex> lock(_mutex);
-    DBG << unpin_thread_message();
-    std::thread::id thread_id = std::this_thread::get_id();
-    if ( _cpu_before.find(thread_id) != _cpu_before.end() ) {
-      pin_thread_to_cpu(_cpu_before[thread_id]);
-      _cpu_before.erase(thread_id);
+    if (!_is_global_thread_pool) {
+      std::thread::id thread_id = std::this_thread::get_id();
+      int cpu_before = -1;
+      {
+        std::lock_guard<std::mutex> lock(_mutex);
+        DBG << unpin_thread_message();
+        auto it = _cpu_before.find(thread_id);
+        if ( it != _cpu_before.end() ) {
+          cpu_before = it->second;
+          _cpu_before.erase(thread_id);
+        }
+      }
+      if ( cpu_before != -1 ) {
+        pin_thread_to_cpu(cpu_before);
+      }
     }
   }
 
@@ -173,6 +189,7 @@ class ThreadPinningObserver : public tbb::task_scheduler_observer {
 
   const int _num_cpus;
   const int _numa_node;
+  const bool _is_global_thread_pool;
   std::vector<int> _cpus;
 
   std::mutex _mutex;
