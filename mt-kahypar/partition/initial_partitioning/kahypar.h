@@ -118,7 +118,7 @@ static KaHyParHypergraph convertToKaHyParHypergraph(const HyperGraph& hypergraph
 template <typename HyperGraph>
 static KaHyParHypergraph extractBlockAsKaHyParHypergraph(const HyperGraph& hypergraph,
                                                          const PartitionID block,
-                                                         std::vector<HypernodeID>& node_mapping,
+                                                         parallel::scalable_vector<HypernodeID>& node_mapping,
                                                          const bool cut_net_splitting = true) {
   ASSERT(hypergraph.initialNumNodes() == node_mapping.size());
   ASSERT(block >= 0 && block < hypergraph.k());

@@ -103,30 +103,8 @@ class DirectInitialPartitionerT : public IInitialPartitioner {
     std::vector<KaHyParPartitioningResult> results(num_ip_calls);
     KaHyParHypergraph kahypar_hypergraph = convertToKaHyParHypergraph(_hg, node_mapping);
 
-    size_t used_numa_nodes = TBB::instance().num_used_numa_nodes();
-    std::vector<int> numa_cpus_prefix_sum(used_numa_nodes + 1, 0);
-    for (size_t i = 1; i <= used_numa_nodes; ++i) {
-      numa_cpus_prefix_sum[i] = numa_cpus_prefix_sum[i - 1] +
-                                TBB::instance().number_of_threads_on_numa_node(i - 1);
-    }
-    // Returns a numa node with probability of the number of active threads on that
-    // numa node divided by the total number of active threads
-    // => this ensures that the initial partitioning runs are evenly scattered across
-    //    the numa nodes
-    auto get_numa_node_for_execution = [&]() {
-      int numa_node = utils::Randomize::instance().getRandomInt(0,
-      numa_cpus_prefix_sum[used_numa_nodes - 1], sched_getcpu());
-      for (size_t j = 0; j < used_numa_nodes; ++j) {
-        if (numa_cpus_prefix_sum[j] <= numa_node && numa_node < numa_cpus_prefix_sum[j + 1]) {
-          numa_node = j;
-        }
-      }
-      ASSERT(numa_node < (int)used_numa_nodes);
-      return numa_node;
-    };
-
     for (size_t i = 0; i < num_ip_calls; ++i) {
-      int numa_node = get_numa_node_for_execution();
+      int numa_node = TBB::instance().choose_random_numa_node();
       TBB::instance().numa_task_arena(numa_node).execute([&, i] {
           TBB::instance().numa_task_group(_task_group_id, numa_node).run([&, i] {
             size_t seed = _context.partition.seed + i * _context.initial_partitioning.runs;

@@ -87,6 +87,19 @@ class TBBNumaArena {
     return _arenas.size();
   }
 
+  int choose_random_numa_node() const {
+    int rand = utils::Randomize::instance().getRandomInt(
+      0, total_number_of_threads() - 1, sched_getcpu());
+    int node = 0;
+    for ( ; node < num_used_numa_nodes(); ++node ) {
+      if ( rand < number_of_threads_on_numa_node(node) ) {
+        break;
+      }
+      rand -= number_of_threads_on_numa_node(node);
+    }
+    return node;
+  }
+
   tbb::task_arena& numa_task_arena(const int node) {
     ASSERT(static_cast<size_t>(node) < _arenas.size());
     return _arenas[node];
