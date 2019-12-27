@@ -480,7 +480,7 @@ class RecursiveInitialPartitionerT : public IInitialPartitioner {
       // Compute node mapping that maps all hypernodes of the coarsened hypergraph
       // to a consecutive range of node ids
       HypernodeID num_vertices = 0;
-      std::vector<HypernodeID> node_mapping(_hg.initialNumNodes(), kInvalidHypernode);
+      parallel::scalable_vector<HypernodeID> node_mapping(_hg.initialNumNodes(), kInvalidHypernode);
       for (const HypernodeID& hn : _hg.nodes()) {
         ASSERT(_hg.originalNodeID(hn) < _hg.initialNumNodes());
         node_mapping[_hg.originalNodeID(hn)] = num_vertices++;

@@ -86,7 +86,7 @@ struct KaHyParPartitioningResult {
 // ! by the KaHyPar-Library Interface.
 template <typename HyperGraph>
 static KaHyParHypergraph convertToKaHyParHypergraph(const HyperGraph& hypergraph,
-                                                    const std::vector<HypernodeID>& node_mapping) {
+                                                    const parallel::scalable_vector<HypernodeID>& node_mapping) {
   ASSERT(hypergraph.initialNumNodes() == node_mapping.size());
   KaHyParHypergraph kahypar_hypergraph;
 

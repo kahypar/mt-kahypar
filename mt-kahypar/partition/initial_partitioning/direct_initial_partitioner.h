@@ -90,7 +90,7 @@ class DirectInitialPartitionerT : public IInitialPartitioner {
 
     // Setup node mapping to a continous range
     HypernodeID num_vertices = 0;
-    std::vector<HypernodeID> node_mapping(_hg.initialNumNodes(), kInvalidHypernode);
+    parallel::scalable_vector<HypernodeID> node_mapping(_hg.initialNumNodes(), kInvalidHypernode);
     std::vector<HypernodeID> reverse_mapping;
     for (const HypernodeID& hn : _hg.nodes()) {
       ASSERT(_hg.originalNodeID(hn) < _hg.initialNumNodes());

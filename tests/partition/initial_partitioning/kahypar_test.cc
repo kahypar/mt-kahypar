@@ -50,7 +50,7 @@ class AKahyparPartitioner : public ds::AHypergraph<2> {
   }
 
   TestHypergraph hypergraph;
-  std::vector<HypernodeID> node_mapping;
+  parallel::scalable_vector<HypernodeID> node_mapping;
   std::vector<HypernodeID> reverse_mapping;
 };
 
