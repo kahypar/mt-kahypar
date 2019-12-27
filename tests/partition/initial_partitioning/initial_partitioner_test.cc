@@ -32,10 +32,11 @@ using ::testing::Test;
 namespace mt_kahypar {
 
 
-template <template<typename> class InitialPartitioner, PartitionID k>
+template <template<typename> class InitialPartitioner, InitialPartitioningMode mode, PartitionID k>
 struct TestConfig {
   using TypeTraits = GlobalTypeTraits;
   using Partitioner = InitialPartitioner<TypeTraits>;
+  static constexpr InitialPartitioningMode MODE = mode;
   static constexpr PartitionID K = k;
 };
 
@@ -71,6 +72,7 @@ class AInitialPartitionerTest : public Test {
     // Initial Partitioning
     context.initial_partitioning.runs = 5;
     context.initial_partitioning.context_file = "../test_instances/fast_initial_partitioning.ini";
+    context.initial_partitioning.mode = Config::MODE;
     context.initial_partitioning.technique = kahypar::InitialPartitioningTechnique::flat;
 
     // Label Propagation
@@ -117,18 +119,18 @@ size_t AInitialPartitionerTest<Config>::num_threads = HwTopology::instance().num
 
 static constexpr double EPS = 0.05;
 
-typedef ::testing::Types<TestConfig<DirectInitialPartitionerT, 2>,
-                         TestConfig<DirectInitialPartitionerT, 3>,
-                         TestConfig<DirectInitialPartitionerT, 4>,
-                         TestConfig<DirectInitialPartitionerT, 5>,
-                         TestConfig<RecursiveInitialPartitionerT, 2>,
-                         TestConfig<RecursiveInitialPartitionerT, 3>,
-                         TestConfig<RecursiveInitialPartitionerT, 4>,
-                         TestConfig<RecursiveInitialPartitionerT, 5>,
-                         TestConfig<RecursiveBisectionInitialPartitionerT, 2>,
-                         TestConfig<RecursiveBisectionInitialPartitionerT, 3>,
-                         TestConfig<RecursiveBisectionInitialPartitionerT, 4>,
-                         TestConfig<RecursiveBisectionInitialPartitionerT, 5> > TestConfigs;
+typedef ::testing::Types<TestConfig<DirectInitialPartitionerT, InitialPartitioningMode::direct, 2>,
+                         TestConfig<DirectInitialPartitionerT, InitialPartitioningMode::direct, 3>,
+                         TestConfig<DirectInitialPartitionerT, InitialPartitioningMode::direct, 4>,
+                         TestConfig<DirectInitialPartitionerT, InitialPartitioningMode::direct, 5>,
+                         TestConfig<RecursiveInitialPartitionerT, InitialPartitioningMode::recursive, 2>,
+                         TestConfig<RecursiveInitialPartitionerT, InitialPartitioningMode::recursive, 3>,
+                         TestConfig<RecursiveInitialPartitionerT, InitialPartitioningMode::recursive, 4>,
+                         TestConfig<RecursiveInitialPartitionerT, InitialPartitioningMode::recursive, 5>,
+                         TestConfig<RecursiveBisectionInitialPartitionerT, InitialPartitioningMode::recursive_bisection, 2>,
+                         TestConfig<RecursiveBisectionInitialPartitionerT, InitialPartitioningMode::recursive_bisection, 3>,
+                         TestConfig<RecursiveBisectionInitialPartitionerT, InitialPartitioningMode::recursive_bisection, 4>,
+                         TestConfig<RecursiveBisectionInitialPartitionerT, InitialPartitioningMode::recursive_bisection, 5> > TestConfigs;
 
 TYPED_TEST_CASE(AInitialPartitionerTest, TestConfigs);
 
