@@ -116,8 +116,8 @@ class RecursiveInitialPartitionerT : public IInitialPartitioner {
     RecursivePartitionResult best;
     if (do_parallel_recursion) {
       // Perform parallel recursion
-      size_t num_threads_1 = std::ceil(((double)_context.shared_memory.num_threads) / 2.0);
-      size_t num_threads_2 = std::floor(((double)_context.shared_memory.num_threads) / 2.0);
+      size_t num_threads_1 = std::ceil(((double) std::max(_context.shared_memory.num_threads, 2UL)) / 2.0);
+      size_t num_threads_2 = std::floor(((double) std::max(_context.shared_memory.num_threads, 2UL)) / 2.0);
       auto tbb_recursion_task_groups = TBB::instance().create_tbb_task_groups_for_recursion();
       RecursivePartitionResult r1;
       RecursivePartitionResult r2;
