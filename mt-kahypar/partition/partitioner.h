@@ -285,7 +285,7 @@ inline void Partitioner::partition(Hypergraph& hypergraph, Context& context) {
   utils::Timer::instance().stop_timer("preprocessing");
 
   // ################## MULTILEVEL ##################
-  multilevel::partition(hypergraph, context, true, TBBNumaArena::instance());
+  multilevel::partition(hypergraph, context, true, TBBNumaArena::GLOBAL_TASK_GROUP);
 
   postprocess(hypergraph, context);
 

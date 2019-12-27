@@ -47,6 +47,7 @@ using HardwareTopology = mt_kahypar::parallel::HardwareTopology<>;
 using TBBNumaArena = mt_kahypar::parallel::TBBNumaArena<HardwareTopology>;
 using ThreadLocalFastResetFlagArray = tbb::enumerable_thread_specific<kahypar::ds::FastResetFlagArray<> >;
 
+using TaskGroupID = size_t;
 using RatingType = double;
 using HypernodeID = uint64_t;
 using HyperedgeID = uint64_t;

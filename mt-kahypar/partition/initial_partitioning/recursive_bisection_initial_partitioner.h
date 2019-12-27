@@ -62,11 +62,11 @@ class RecursiveBisectionInitialPartitionerT : public IInitialPartitioner {
   RecursiveBisectionInitialPartitionerT(HyperGraph& hypergraph,
                                         const Context& context,
                                         const bool top_level,
-                                        TBB& tbb_arena) :
+                                        const TaskGroupID task_group_id) :
     _hg(hypergraph),
     _context(context),
     _top_level(top_level),
-    _tbb_arena(tbb_arena) { }
+    _task_group_id(task_group_id) { }
 
   RecursiveBisectionInitialPartitionerT(const RecursiveBisectionInitialPartitionerT&) = delete;
   RecursiveBisectionInitialPartitionerT(RecursiveBisectionInitialPartitionerT&&) = delete;
@@ -80,7 +80,7 @@ class RecursiveBisectionInitialPartitionerT : public IInitialPartitioner {
       utils::Stats::instance().disable();
     }
 
-    recursiveBisection(_hg, _context, _top_level, _tbb_arena);
+    recursiveBisection(_hg, _context, _top_level, _task_group_id);
 
     if (_top_level) {
       utils::Timer::instance().enable();
@@ -88,7 +88,7 @@ class RecursiveBisectionInitialPartitionerT : public IInitialPartitioner {
     }
   }
 
-  void recursiveBisection(HyperGraph& hypergraph, const Context& context, const bool top_level, TBB& tbb_arena) {
+  void recursiveBisection(HyperGraph& hypergraph, const Context& context, const bool top_level, const TaskGroupID task_group_id) {
     ASSERT(_context.partition.k >= 2);
 
     PartitionID num_blocks_part_0 = context.partition.k / 2 + (context.partition.k % 2 != 0 ? 1 : 0);
@@ -98,7 +98,7 @@ class RecursiveBisectionInitialPartitionerT : public IInitialPartitioner {
 
     // Bisecting the hypergraph into two blocks
     utils::Timer::instance().start_timer("top_level_bisection", "Top Level Bisection", false, top_level);
-    bisect(hypergraph, context, 0, num_blocks_part_0, top_level, tbb_arena);
+    bisect(hypergraph, context, 0, num_blocks_part_0, top_level, task_group_id);
     utils::Timer::instance().stop_timer("top_level_bisection", top_level);
 
     bool do_parallel_recursion = num_blocks_part_0 >= 2 && num_blocks_part_1 >= 2;
@@ -116,29 +116,27 @@ class RecursiveBisectionInitialPartitionerT : public IInitialPartitioner {
             << "Parallel Recursion 0: k =" << num_blocks_part_0 << ", num_threads =" << num_threads_0
             << "Parallel Recursion 1: k =" << num_blocks_part_1 << ", num_threads =" << num_threads_1;
 
-        auto tbb_splitted_arena = tbb_arena.split_tbb_numa_arena(num_threads_0, num_threads_1);
+        auto tbb_recursion_task_groups = TBB::instance().create_tbb_task_groups_for_recursion();
         tbb::parallel_invoke([&] {
           utils::Timer::instance().start_timer("top_level_recursion_0", "Top Level Recursion 0", true, top_level);
-          recursivelyBisectBlock(hypergraph, context, 0, num_threads_0, range_0, *tbb_splitted_arena.first);
+          recursivelyBisectBlock(hypergraph, context, 0, num_threads_0, range_0, tbb_recursion_task_groups.first);
           utils::Timer::instance().stop_timer("top_level_recursion_0", top_level);
         }, [&] {
           utils::Timer::instance().start_timer("top_level_recursion_1", "Top Level Recursion 1", true, top_level);
-          recursivelyBisectBlock(hypergraph, context, num_blocks_part_0, num_threads_1, range_1, *tbb_splitted_arena.second);
+          recursivelyBisectBlock(hypergraph, context, num_blocks_part_0, num_threads_1, range_1, tbb_recursion_task_groups.second);
           utils::Timer::instance().stop_timer("top_level_recursion_1", top_level);
         });
-        tbb_splitted_arena.first->terminate();
-        tbb_splitted_arena.second->terminate();
       } else {
         DBG << "Current k = " << context.partition.k << ","
             << "Sequential Recursion 0: k =" << num_blocks_part_0 << ", num_threads =" << context.shared_memory.num_threads
             << "Sequential Recursion 1: k =" << num_blocks_part_1 << ", num_threads =" << context.shared_memory.num_threads;
 
         utils::Timer::instance().start_timer("top_level_recursion_0", "Top Level Recursion 0", true, top_level);
-        recursivelyBisectBlock(hypergraph, context, 0, 1UL, range_0, tbb_arena);
+        recursivelyBisectBlock(hypergraph, context, 0, 1UL, range_0, task_group_id);
         utils::Timer::instance().stop_timer("top_level_recursion_0", top_level);
 
         utils::Timer::instance().start_timer("top_level_recursion_1", "Top Level Recursion 1", true, top_level);
-        recursivelyBisectBlock(hypergraph, context, num_blocks_part_0, 1UL, range_1, tbb_arena);
+        recursivelyBisectBlock(hypergraph, context, num_blocks_part_0, 1UL, range_1, task_group_id);
         utils::Timer::instance().stop_timer("top_level_recursion_1", top_level);
       }
     } else if ( num_blocks_part_0 >= 2 ) {
@@ -148,7 +146,7 @@ class RecursiveBisectionInitialPartitionerT : public IInitialPartitioner {
           << "Sequential Recursion 0: k =" << num_blocks_part_0 << ", num_threads =" << context.shared_memory.num_threads;
 
       utils::Timer::instance().start_timer("top_level_recursion_0", "Top Level Recursion 0", true, top_level);
-      recursivelyBisectBlock(hypergraph, context, 0, context.shared_memory.num_threads, range_0, tbb_arena);
+      recursivelyBisectBlock(hypergraph, context, 0, context.shared_memory.num_threads, range_0, task_group_id);
       utils::Timer::instance().stop_timer("top_level_recursion_0", top_level);
     }
 
@@ -160,7 +158,7 @@ class RecursiveBisectionInitialPartitionerT : public IInitialPartitioner {
                               const PartitionID block,
                               const size_t num_threads,
                               const BlockRange& range,
-                              TBB& tbb_arena) {
+                              const TaskGroupID task_group_id) {
     const PartitionID k = range.second - range.first;
     ASSERT(k >= 2);
     Context rb_context = setupRecursiveBisectionContext(context, k, num_threads, range);
@@ -168,10 +166,10 @@ class RecursiveBisectionInitialPartitionerT : public IInitialPartitioner {
     // Extracts the block, which we want to recursively partition, as new hypergraph
     // and calls the recursive bisection initial partitioner recursively.
     bool cut_net_splitting = context.partition.objective == kahypar::Objective::km1;
-    auto copy_hypergraph = hypergraph.copy(k, tbb_arena, block, cut_net_splitting);
+    auto copy_hypergraph = hypergraph.copy(k, task_group_id, block, cut_net_splitting);
     HyperGraph& rb_hypergraph = copy_hypergraph.first;
     auto& mapping = copy_hypergraph.second;
-    recursiveBisection(rb_hypergraph, rb_context, false, tbb_arena);
+    recursiveBisection(rb_hypergraph, rb_context, false, task_group_id);
 
     // Assigns partition to top level hypergraph
     assignPartitionFromRecursionToOriginalHypergraph(hypergraph, rb_hypergraph, mapping, block);
@@ -179,20 +177,20 @@ class RecursiveBisectionInitialPartitionerT : public IInitialPartitioner {
 
   void bisect(HyperGraph& hypergraph, const Context& context,
               const PartitionID block_0, const PartitionID block_1,
-              bool top_level, TBB& tbb_arena) {
+              bool top_level, const TaskGroupID task_group_id) {
     ASSERT(block_0 < context.partition.k);
     ASSERT(block_1 < context.partition.k);
     Context bisection_context = setupBisectionContext(hypergraph.totalWeight(), context);
 
     utils::Timer::instance().start_timer("top_level_copy", "Top Level Copy", false, top_level);
-    auto copy_hypergraph = hypergraph.copy(2, tbb_arena);
+    auto copy_hypergraph = hypergraph.copy(2, task_group_id);
     HyperGraph& tmp_hg = copy_hypergraph.first;
     auto& mapping = copy_hypergraph.second;
     utils::Timer::instance().stop_timer("top_level_copy", top_level);
 
     utils::Timer::instance().start_timer("top_level_parallel_bisection", "Top Level Parallel Bisection", false, top_level);
     // Bisect hypergraph with parallel multilevel bisection
-    multilevel::partition(tmp_hg, bisection_context, false, tbb_arena);
+    multilevel::partition(tmp_hg, bisection_context, false, task_group_id);
     utils::Timer::instance().stop_timer("top_level_parallel_bisection", top_level);
 
     // Apply partition to hypergraph
@@ -300,7 +298,7 @@ class RecursiveBisectionInitialPartitionerT : public IInitialPartitioner {
   HyperGraph& _hg;
   const Context& _context;
   const bool _top_level;
-  TBB& _tbb_arena;
+  const TaskGroupID _task_group_id;
 };
 
 template <typename TypeTraits>

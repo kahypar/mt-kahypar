@@ -31,48 +31,48 @@ using Coarsener = CommunityCoarsenerT<ds::TestTypeTraits<2>, HeavyEdgeScore,
                                       PinObjectivePolicy>;
 
 TEST_F(ACommunityCoarsener, DecreasesNumberOfPins) {
-  Coarsener coarsener(hypergraph, context, TBBArena::instance());
+  Coarsener coarsener(hypergraph, context, TBBArena::GLOBAL_TASK_GROUP);
   decreasesNumberOfPins(coarsener, hypergraph, 14);
 }
 
 TEST_F(ACommunityCoarsener, DecreasesNumberOfHyperedges) {
-  Coarsener coarsener(hypergraph, context, TBBArena::instance());
+  Coarsener coarsener(hypergraph, context, TBBArena::GLOBAL_TASK_GROUP);
   decreasesNumberOfHyperedges(coarsener, hypergraph, 7);
 }
 
 TEST_F(ACommunityCoarsener, RemovesHyperedgesOfSizeOneDuringCoarsening) {
-  Coarsener coarsener(hypergraph, context, TBBArena::instance());
+  Coarsener coarsener(hypergraph, context, TBBArena::GLOBAL_TASK_GROUP);
   removesHyperedgesOfSizeOneDuringCoarsening(
     coarsener, hypergraph, { 0, 5, 281474976710656, 281474976710661 });
 }
 
 TEST_F(ACommunityCoarsener, ReAddsHyperedgesOfSizeOneDuringUncoarsening) {
-  Coarsener coarsener(hypergraph, context, TBBArena::instance());
+  Coarsener coarsener(hypergraph, context, TBBArena::GLOBAL_TASK_GROUP);
   reAddsHyperedgesOfSizeOneDuringUncoarsening(
     coarsener, hypergraph, { 0, 5, 281474976710656, 281474976710661 });
 }
 
 TEST_F(ACommunityCoarsener, RemovesParallelHyperedgesDuringCoarsening) {
-  Coarsener coarsener(hypergraph, context, TBBArena::instance());
+  Coarsener coarsener(hypergraph, context, TBBArena::GLOBAL_TASK_GROUP);
   removesParallelHyperedgesDuringCoarsening(
     coarsener, hypergraph, { 2, 4, 7, 9, 281474976710658, 281474976710660, 281474976710663 });
 }
 
 TEST_F(ACommunityCoarsener, UpdatesEdgeWeightOfRepresentativeHyperedgeOnParallelHyperedgeRemoval) {
-  Coarsener coarsener(hypergraph, context, TBBArena::instance());
+  Coarsener coarsener(hypergraph, context, TBBArena::GLOBAL_TASK_GROUP);
   updatesEdgeWeightOfRepresentativeHyperedgeOnParallelHyperedgeRemoval(
     coarsener, hypergraph, { { 1, 2 }, { 3, 2 }, { 6, 2 }, { 8, 2 },
       { 281474976710657, 2 }, { 281474976710659, 2 }, { 281474976710662, 2 } });
 }
 
 TEST_F(ACommunityCoarsener, RestoresParallelHyperedgesDuringUncoarsening) {
-  Coarsener coarsener(hypergraph, context, TBBArena::instance());
+  Coarsener coarsener(hypergraph, context, TBBArena::GLOBAL_TASK_GROUP);
   restoresParallelHyperedgesDuringUncoarsening(
     coarsener, hypergraph, { 2, 4, 7, 9, 281474976710658, 281474976710660, 281474976710663 });
 }
 
 TEST_F(ACommunityCoarsener, DoesNotCoarsenUntilCoarseningLimit) {
-  Coarsener coarsener(hypergraph, context, TBBArena::instance());
+  Coarsener coarsener(hypergraph, context, TBBArena::GLOBAL_TASK_GROUP);
   doesNotCoarsenUntilCoarseningLimit(coarsener, hypergraph, context, 4, 3, 8);
 }
 }  // namespace mt_kahypar

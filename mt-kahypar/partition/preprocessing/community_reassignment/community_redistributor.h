@@ -61,7 +61,7 @@ class CommunityRedistributorT {
     std::vector<parallel::scalable_vector<PartitionID> > hyperedge_mapping(used_numa_nodes);
     for (int node = 0; node < used_numa_nodes; ++node) {
       TBB::instance().numa_task_arena(node).execute([&, node] {
-            TBB::instance().numa_task_group(node).run([&, node] {
+            TBB::instance().numa_task_group(TBB::GLOBAL_TASK_GROUP, node).run([&, node] {
               hyperedge_mapping[node].assign(hg.initialNumEdges(node), -1);
               tbb::parallel_for(0UL, hg.initialNumEdges(node), [&](const HyperedgeID& local_he) {
                 const HyperedgeID he = StreamingHyperGraph::get_global_edge_id(node, local_he);
@@ -88,18 +88,18 @@ class CommunityRedistributorT {
             });
           });
     }
-    TBB::instance().wait();
+    TBB::instance().wait(TBB::GLOBAL_TASK_GROUP);
     utils::Timer::instance().stop_timer("compute_hyperedge_mapping");
 
     // Reset Pins to original node ids
     utils::Timer::instance().start_timer("reset_pins_to_original_ids", "Reset Pins to original IDs");
-    hg.resetPinsToOriginalNodeIds(TBB::instance());
+    hg.resetPinsToOriginalNodeIds(TBB::GLOBAL_TASK_GROUP);
     utils::Timer::instance().stop_timer("reset_pins_to_original_ids");
 
     utils::Timer::instance().start_timer("stream_hyperedges", "Stream Hyperedges");
     // Initialize Streaming Hypergraphs
     std::vector<StreamingHyperGraph> numa_hypergraphs;
-    TBB::instance().execute_sequential_on_all_numa_nodes([&](const int node) {
+    TBB::instance().execute_sequential_on_all_numa_nodes(TBB::GLOBAL_TASK_GROUP, [&](const int node) {
           numa_hypergraphs.emplace_back(node, k, TBB::instance().numa_task_arena(node));
         });
 
@@ -107,7 +107,7 @@ class CommunityRedistributorT {
     for (int node = 0; node < used_numa_nodes; ++node) {
       for (int streaming_node = 0; streaming_node < used_numa_nodes; ++streaming_node) {
         TBB::instance().numa_task_arena(streaming_node).execute([&, node, streaming_node] {
-              TBB::instance().numa_task_group(streaming_node).run([&, node, streaming_node] {
+              TBB::instance().numa_task_group(TBB::GLOBAL_TASK_GROUP, streaming_node).run([&, node, streaming_node] {
                 tbb::parallel_for(0UL, hg.initialNumEdges(node), [&, node, streaming_node](const HyperedgeID& local_he) {
                   ASSERT(streaming_node == HwTopology::instance().numa_node_of_cpu(sched_getcpu()));
                   if (hyperedge_mapping[node][local_he] == streaming_node) {
@@ -122,24 +122,24 @@ class CommunityRedistributorT {
               });
             });
       }
-      TBB::instance().wait();
+      TBB::instance().wait(TBB::GLOBAL_TASK_GROUP);
     }
 
     // Initialize hyperedges in numa hypergraphs
     for (int node = 0; node < used_numa_nodes; ++node) {
       TBB::instance().numa_task_arena(node).execute([&] {
-            TBB::instance().numa_task_group(node).run([&, node] {
+            TBB::instance().numa_task_group(TBB::GLOBAL_TASK_GROUP, node).run([&, node] {
               numa_hypergraphs[node].initializeHyperedges(hg.initialNumNodes());
             });
           });
     }
-    TBB::instance().wait();
+    TBB::instance().wait(TBB::GLOBAL_TASK_GROUP);
     utils::Timer::instance().stop_timer("stream_hyperedges");
 
     // Initialize hypergraph
     utils::Timer::instance().start_timer("initialize hypergraph", "Initialize Hypergraph");
     HyperGraph hypergraph(hg.initialNumNodes(), std::move(numa_hypergraphs),
-      std::move(node_mapping), k, TBB::instance());
+      std::move(node_mapping), k, TBB::GLOBAL_TASK_GROUP);
     ASSERT(hypergraph.initialNumNodes() == hg.initialNumNodes());
     ASSERT(hypergraph.initialNumEdges() == hg.initialNumEdges());
     ASSERT(hypergraph.initialNumPins() == hg.initialNumPins());

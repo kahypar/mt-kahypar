@@ -75,6 +75,7 @@ class Hypergraph {
   using CommunityIterator = typename StreamingHypergraph::CommunityIterator;
   using Memento = typename StreamingHypergraph::Memento;
   using UncontractionCase = typename StreamingHypergraph::UncontractionCase;
+  using TaskGroupID = typename TBBNumaArena::TaskGroupID;
 
   // ! Generic function that will be called if a hypernode v moves from a block from to a block to for
   // ! each incident net of the moved vertex v.
@@ -221,7 +222,7 @@ class Hypergraph {
   Hypergraph(const HypernodeID num_hypernodes,
              std::vector<StreamingHypergraph>&& hypergraphs,
              PartitionID k,
-             TBBNumaArena& tbb_arena) :
+             const TaskGroupID task_group_id) :
     _num_hypernodes(num_hypernodes),
     _num_removed_hypernodes(0),
     _num_hyperedges(0),
@@ -242,7 +243,7 @@ class Hypergraph {
     _edge_mapping(),
     _community_node_mapping() {
     computeNodeMapping();
-    initializeHypernodes(tbb_arena);
+    initializeHypernodes(task_group_id);
   }
 
   // ! Constructs a hypergraph based on the given numa hypergraphs
@@ -251,7 +252,7 @@ class Hypergraph {
              std::vector<StreamingHypergraph>&& hypergraphs,
              std::vector<HypernodeID>&& node_mapping,
              PartitionID k,
-             TBBNumaArena& tbb_arena) :
+             const TaskGroupID task_group_id) :
     _num_hypernodes(num_hypernodes),
     _num_removed_hypernodes(0),
     _num_hyperedges(0),
@@ -271,7 +272,7 @@ class Hypergraph {
     _node_mapping(std::move(node_mapping)),
     _edge_mapping(),
     _community_node_mapping() {
-    initializeHypernodes(tbb_arena);
+    initializeHypernodes(task_group_id);
   }
 
   Hypergraph(const Hypergraph&) = delete;
@@ -371,8 +372,8 @@ class Hypergraph {
   }
 
   // ! Recomputes the total weight of the hypergraph (in parallel)
-  void updateTotalWeight(TBBNumaArena& tbb_arena) {
-    tbb_arena.execute_parallel_on_all_numa_nodes([&](const int node) {
+  void updateTotalWeight(const TaskGroupID task_group_id) {
+    TBBNumaArena::instance().execute_parallel_on_all_numa_nodes(task_group_id, [&](const int node) {
           _hypergraphs[node].updateTotalWeight();
         });
   }
@@ -1358,12 +1359,12 @@ class Hypergraph {
    *
    * Note, this function have to be called before parallel community coarsening.
    */
-  void initializeCommunityHyperedges(TBBNumaArena& tbb_arena) {
-    tbb_arena.execute_parallel_on_all_numa_nodes([&](const int node) {
+  void initializeCommunityHyperedges(const TaskGroupID task_group_id) {
+    TBBNumaArena::instance().execute_parallel_on_all_numa_nodes(task_group_id, [&](const int node) {
           _hypergraphs[node].initializeCommunityHyperedges(_hypergraphs);
         });
 
-    tbb_arena.execute_parallel_on_all_numa_nodes([&](const int node) {
+    TBBNumaArena::instance().execute_parallel_on_all_numa_nodes(task_group_id, [&](const int node) {
           _hypergraphs[node].initializeCommunityHypernodes(_hypergraphs);
         });
   }
@@ -1397,9 +1398,9 @@ class Hypergraph {
    * Note this function have to be called after parallel community coarsening such
    * that uncontractions can be performed correctly.
    */
-  void removeCommunityHyperedges(TBBNumaArena& tbb_arena) {
+  void removeCommunityHyperedges(const TaskGroupID task_group_id) {
     ASSERT(_contraction_index.size() == _num_hypernodes);
-    tbb_arena.execute_parallel_on_all_numa_nodes([&](const int node) {
+    TBBNumaArena::instance().execute_parallel_on_all_numa_nodes(task_group_id, [&](const int node) {
           _hypergraphs[node].removeCommunityHyperedges(_contraction_index, _hypergraphs);
         });
   }
@@ -1456,16 +1457,16 @@ class Hypergraph {
   }
 
   // ! Resets the ids of all pins in the incidence array to its original node id
-  void resetPinsToOriginalNodeIds(TBBNumaArena& tbb_arena) {
-    tbb_arena.execute_parallel_on_all_numa_nodes([&](const int node) {
+  void resetPinsToOriginalNodeIds(const TaskGroupID task_group_id) {
+    TBBNumaArena::instance().execute_parallel_on_all_numa_nodes(task_group_id, [&](const int node) {
           _hypergraphs[node].resetPinsToOriginalNodeIds(_hypergraphs);
         });
   }
 
   // ! Invalidates all disabled hyperedges from the incident nets array of each node
   // ! For further details please take a look at the documentation of uncontraction(...)
-  void invalidateDisabledHyperedgesFromIncidentNets(TBBNumaArena& tbb_arena) {
-    tbb_arena.execute_parallel_on_all_numa_nodes([&](const int node) {
+  void invalidateDisabledHyperedgesFromIncidentNets(const TaskGroupID task_group_id) {
+    TBBNumaArena::instance().execute_parallel_on_all_numa_nodes(task_group_id, [&](const int node) {
           _hypergraphs[node].invalidateDisabledHyperedgesFromIncidentNets(_hypergraphs);
         });
   }
@@ -1481,13 +1482,13 @@ class Hypergraph {
   // ! that contains a mapping from the original node ids of the original hypergraph to
   // ! original node ids of the copied hypergraph.
   std::pair<Self, parallel::scalable_vector<HypernodeID> > copy(const PartitionID num_blocks,
-                                                                TBBNumaArena& tbb_arena,
+                                                                const TaskGroupID& task_group_id,
                                                                 const PartitionID part_id = -1,
                                                                 const bool cut_net_splitting = true) {
     // Allocate numa hypergraph on their corresponding numa nodes
     std::vector<StreamingHypergraph> numa_hypergraphs;
-    tbb_arena.execute_sequential_on_all_numa_nodes([&](const int node) {
-          numa_hypergraphs.emplace_back(node, num_blocks, tbb_arena.numa_task_arena(node));
+    TBBNumaArena::instance().execute_sequential_on_all_numa_nodes(task_group_id, [&](const int node) {
+          numa_hypergraphs.emplace_back(node, num_blocks, TBBNumaArena::instance().numa_task_arena(node));
         });
 
     // Compactify vertex ids
@@ -1521,7 +1522,7 @@ class Hypergraph {
     }
 
     // Copy Hyperedges
-    tbb_arena.execute_parallel_on_all_numa_nodes([&](const int node) {
+    TBBNumaArena::instance().execute_parallel_on_all_numa_nodes(task_group_id, [&](const int node) {
           tbb::parallel_for(0UL, _num_hyperedges, [&](const HyperedgeID& id) {
             const HyperedgeID he = globalEdgeID(id);
             if (edgeIsEnabled(he) && StreamingHypergraph::get_numa_node_of_hyperedge(he) == node &&
@@ -1541,13 +1542,13 @@ class Hypergraph {
         });
 
     // Initialize Hyperedges
-    tbb_arena.execute_parallel_on_all_numa_nodes([&](const int node) {
+    TBBNumaArena::instance().execute_parallel_on_all_numa_nodes(task_group_id, [&](const int node) {
           numa_hypergraphs[node].initializeHyperedges(num_hypernodes);
         });
 
     // Initialize Hypergraph
     Self copy_hypergraph(num_hypernodes, std::move(numa_hypergraphs),
-                         std::move(hn_to_numa_node), num_blocks, tbb_arena);
+                         std::move(hn_to_numa_node), num_blocks, task_group_id);
 
     // Initialize node weights and community ids
     tbb::parallel_for(0UL, num_hypernodes, [&](const HypernodeID& id) {
@@ -1555,7 +1556,7 @@ class Hypergraph {
           copy_hypergraph.setNodeWeight(copy_hypergraph.globalNodeID(id), hn_weights[id]);
           copy_hypergraph.setCommunityID(copy_hypergraph.globalNodeID(id), community_ids[id]);
         });
-    copy_hypergraph.updateTotalWeight(tbb_arena);
+    copy_hypergraph.updateTotalWeight(task_group_id);
     copy_hypergraph.initializeCommunities();
 
     // Initialize community to numa node mapping
@@ -1863,7 +1864,7 @@ class Hypergraph {
    * by the vertex to numa node mapping) and afterwards the incident nets data
    * structure is initialized.
    */
-  void initializeHypernodes(TBBNumaArena& tbb_arena) {
+  void initializeHypernodes(const TaskGroupID task_group_id) {
     // Verify that node mapping is valid
     ASSERT([&]() {
           for (HypernodeID hn = 0; hn < _num_hypernodes; ++hn) {
@@ -1882,18 +1883,13 @@ class Hypergraph {
     // Stream hypernodes into corresponding streaming hypergraph, where it
     // is assigned to
     std::vector<HypernodeID> tmp_node_mapping(_num_hypernodes);
-    for (HypernodeID node = 0; node < num_streaming_hypergraphs; ++node) {
-      tbb_arena.numa_task_arena(node).execute([&] {
-            tbb_arena.numa_task_group(node).run([&, node] {
-              tbb::parallel_for(0UL, _num_hypernodes, [&](const HypernodeID& hn) {
-                if (_node_mapping[hn] == node) {
-                  tmp_node_mapping[hn] = _hypergraphs[node].streamHypernode(hn, 1);
-                }
-              });
-            });
-          });
-    }
-    tbb_arena.wait();
+    TBBNumaArena::instance().execute_parallel_on_all_numa_nodes(task_group_id, [&](const size_t node) {
+      tbb::parallel_for(0UL, _num_hypernodes, [&](const HypernodeID& hn) {
+        if (_node_mapping[hn] == node) {
+          tmp_node_mapping[hn] = _hypergraphs[node].streamHypernode(hn, 1);
+        }
+      });
+    });
     _node_mapping = std::move(tmp_node_mapping);
     utils::Timer::instance().stop_timer("stream_hypernodes");
 
@@ -1901,14 +1897,9 @@ class Hypergraph {
     // NOTE, that also involves streaming local incident nets to other
     // streaming hypergraphs
     utils::Timer::instance().start_timer("initialize_numa_hypernodes", "Initialize Numa Hypernodes");
-    for (size_t node = 0; node < num_streaming_hypergraphs; ++node) {
-      tbb_arena.numa_task_arena(node).execute([&] {
-            tbb_arena.numa_task_group(node).run([&, node] {
-              _hypergraphs[node].initializeHypernodes(_hypergraphs, _node_mapping);
-            });
-          });
-    }
-    tbb_arena.wait();
+    TBBNumaArena::instance().execute_parallel_on_all_numa_nodes(task_group_id, [&](const int node) {
+      _hypergraphs[node].initializeHypernodes(_hypergraphs, _node_mapping);
+    });
     utils::Timer::instance().stop_timer("initialize_numa_hypernodes");
 
     // Verify that number of hypernodes is equal to number of hypernodes
@@ -1931,14 +1922,9 @@ class Hypergraph {
 
     // Initialize incident nets of hypernodes
     utils::Timer::instance().start_timer("initialize_incident_nets", "Initialize Incident Nets");
-    for (size_t node = 0; node < num_streaming_hypergraphs; ++node) {
-      tbb_arena.numa_task_arena(node).execute([&] {
-            tbb_arena.numa_task_group(node).run([&, node] {
-              _hypergraphs[node].initializeIncidentNets();
-            });
-          });
-    }
-    tbb_arena.wait();
+    TBBNumaArena::instance().execute_parallel_on_all_numa_nodes(task_group_id, [&](const int node) {
+      _hypergraphs[node].initializeIncidentNets();
+    });
     utils::Timer::instance().stop_timer("initialize_incident_nets");
 
     ASSERT([&] {

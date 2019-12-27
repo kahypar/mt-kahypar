@@ -26,14 +26,14 @@
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/partition/factories.h"
 
-#define REGISTER_DISPATCHED_COARSENER(id, dispatcher, ...)                        \
-  static kahypar::meta::Registrar<CoarsenerFactory> register_ ## dispatcher(      \
-    id,                                                                           \
-    [](Hypergraph& hypergraph, const Context& context, TBBNumaArena& tbb_arena) { \
-    return dispatcher::create(                                                    \
-      std::forward_as_tuple(hypergraph, context, tbb_arena),                      \
-      __VA_ARGS__                                                                 \
-      );                                                                          \
+#define REGISTER_DISPATCHED_COARSENER(id, dispatcher, ...)                                \
+  static kahypar::meta::Registrar<CoarsenerFactory> register_ ## dispatcher(              \
+    id,                                                                                   \
+    [](Hypergraph& hypergraph, const Context& context, const TaskGroupID task_group_id) { \
+    return dispatcher::create(                                                            \
+      std::forward_as_tuple(hypergraph, context, task_group_id),                          \
+      __VA_ARGS__                                                                         \
+      );                                                                                  \
   })
 
 namespace mt_kahypar {

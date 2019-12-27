@@ -66,8 +66,8 @@ class CommunityCoarsenerT : public ICoarsener,
   static constexpr HypernodeID kInvalidHypernode = std::numeric_limits<HypernodeID>::max();
 
  public:
-  CommunityCoarsenerT(HyperGraph& hypergraph, const Context& context, TBB& tbb_arena) :
-    Base(hypergraph, context, tbb_arena),
+  CommunityCoarsenerT(HyperGraph& hypergraph, const Context& context, const TaskGroupID task_group_id) :
+    Base(hypergraph, context, task_group_id),
     _enable_randomization(true) { }
 
   CommunityCoarsenerT(const CommunityCoarsenerT&) = delete;
@@ -104,7 +104,7 @@ class CommunityCoarsenerT : public ICoarsener,
     std::sort(community_ids.begin(), community_ids.end(), [&](const PartitionID& lhs, const PartitionID& rhs) {
         return CommunityAssignmentObjective::objective(_hg, lhs) > CommunityAssignmentObjective::objective(_hg, rhs);
       });
-    int used_numa_nodes = _tbb_arena.num_used_numa_nodes();
+    int used_numa_nodes = TBB::instance().num_used_numa_nodes();
     std::vector<tbb::concurrent_queue<PartitionID> > community_queues(used_numa_nodes);
     for (const PartitionID& community_id : community_ids) {
       int node = _hg.communityNumaNode(community_id);
@@ -119,10 +119,10 @@ class CommunityCoarsenerT : public ICoarsener,
     // where the task is executed) a community and executes the contractions
     utils::Timer::instance().start_timer("parallel_community_coarsening", "Parallel Community Coarsening");
     for (int node = 0; node < used_numa_nodes; ++node) {
-      int num_threads = _tbb_arena.number_of_threads_on_numa_node(node);
+      int num_threads = TBB::instance().number_of_threads_on_numa_node(node);
       for (int i = 0; i < num_threads; ++i) {
-        _tbb_arena.numa_task_arena(node).execute([&, node] {
-            _tbb_arena.numa_task_group(node).run([&, node] {
+        TBB::instance().numa_task_arena(node).execute([&, node] {
+            TBB::instance().numa_task_group(_task_group_id, node).run([&, node] {
               tbb::concurrent_queue<PartitionID>& queue = community_queues[node];
               while (!queue.empty()) {
                 PartitionID community_id = -1;
@@ -145,7 +145,7 @@ class CommunityCoarsenerT : public ICoarsener,
           });
       }
     }
-    _tbb_arena.wait();
+    TBB::instance().wait(_task_group_id);
     utils::Timer::instance().stop_timer("parallel_community_coarsening");
 
     // Finalize community coarsening
@@ -230,7 +230,7 @@ class CommunityCoarsenerT : public ICoarsener,
   using Base::_hg;
   using Base::_context;
   using Base::_pruner;
-  using Base::_tbb_arena;
+  using Base::_task_group_id;
   bool _enable_randomization;
 };
 

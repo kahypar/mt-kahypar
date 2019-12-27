@@ -69,7 +69,7 @@ static inline void streamHyperedgesEquallyIntoNumaHypergraphs(const std::vector<
   // parallel for in the corresponding numa task arena over the resp. range.
   size_t num_numa_hypergraphs = numa_hypergraphs.size();
   size_t num_hyperedges_per_hypergraph = hyperedge_lines.size() / num_numa_hypergraphs;
-  TBB::instance().execute_parallel_on_all_numa_nodes([&](const int node) {
+  TBB::instance().execute_parallel_on_all_numa_nodes(TBB::GLOBAL_TASK_GROUP, [&](const int node) {
           size_t start = node * num_hyperedges_per_hypergraph;
           size_t end = node != (int)num_numa_hypergraphs - 1 ?
                        (node + 1) * num_hyperedges_per_hypergraph : hyperedge_lines.size();
@@ -129,7 +129,7 @@ static inline HyperGraph readHyperedges(std::ifstream& file,
   // Allocate numa hypergraph on their corresponding numa nodes
   int used_numa_nodes = TBB::instance().num_used_numa_nodes();
   std::vector<StreamingHyperGraph> numa_hypergraphs;
-  TBB::instance().execute_sequential_on_all_numa_nodes([&](const int node) {
+  TBB::instance().execute_sequential_on_all_numa_nodes(TBB::GLOBAL_TASK_GROUP, [&](const int node) {
           numa_hypergraphs.emplace_back(node, k, TBB::instance().numa_task_arena(node));
         });
 
@@ -172,16 +172,16 @@ static inline HyperGraph readHyperedges(std::ifstream& file,
   utils::Timer::instance().start_timer("initialize_hyperedges", "Initialize Hyperedges");
   for (int node = 0; node < used_numa_nodes; ++node) {
     TBB::instance().numa_task_arena(node).execute([&] {
-            TBB::instance().numa_task_group(node).run([&, node] {
+            TBB::instance().numa_task_group(TBB::GLOBAL_TASK_GROUP, node).run([&, node] {
               numa_hypergraphs[node].initializeHyperedges(num_hypernodes);
             });
           });
   }
-  TBB::instance().wait();
+  TBB::instance().wait(TBB::GLOBAL_TASK_GROUP);
   utils::Timer::instance().stop_timer("initialize_hyperedges");
 
   utils::Timer::instance().start_timer("initialize_hypernodes", "Initialize Hypernodes");
-  HyperGraph hypergraph(num_hypernodes, std::move(numa_hypergraphs), k, TBB::instance());
+  HyperGraph hypergraph(num_hypernodes, std::move(numa_hypergraphs), k, TBB::GLOBAL_TASK_GROUP);
   utils::Timer::instance().stop_timer("initialize_hypernodes");
   return hypergraph;
 }
@@ -208,7 +208,7 @@ static inline void readHypernodeWeights(std::ifstream& file,
       line_stream >> weight;
       hypergraph.setNodeWeight(hypergraph.globalNodeID(hn), weight);
     }
-    hypergraph.updateTotalWeight(TBB::instance());
+    hypergraph.updateTotalWeight(TBB::GLOBAL_TASK_GROUP);
   }
 }
 

@@ -47,7 +47,7 @@ using BinPackingCommunityAssignmentDispatcher = kahypar::meta::StaticMultiDispat
                                                                                           kahypar::meta::Typelist<ObjectivePolicyClasses> >;
 
 using CoarsenerFactory = kahypar::meta::Factory<CoarseningAlgorithm,
-                                                ICoarsener* (*)(Hypergraph&, const Context&, TBBNumaArena&)>;
+                                                ICoarsener* (*)(Hypergraph&, const Context&, const TaskGroupID)>;
 
 using CommunityCoarsenerDispatcher = kahypar::meta::StaticMultiDispatchFactory<CommunityCoarsener,
                                                                                ICoarsener,
@@ -57,10 +57,10 @@ using CommunityCoarsenerDispatcher = kahypar::meta::StaticMultiDispatchFactory<C
                                                                                                        ObjectivePolicyClasses> >;
 
 using InitialPartitionerFactory = kahypar::meta::Factory<InitialPartitioningMode,
-                                                         IInitialPartitioner* (*)(Hypergraph&, const Context&, const bool, TBBNumaArena&)>;
+                                                         IInitialPartitioner* (*)(Hypergraph&, const Context&, const bool, const TaskGroupID)>;
 
 using LabelPropagationFactory = kahypar::meta::Factory<LabelPropagationAlgorithm,
-                                                       IRefiner* (*)(Hypergraph&, const Context&, TBBNumaArena&)>;
+                                                       IRefiner* (*)(Hypergraph&, const Context&, const TaskGroupID)>;
 
 using LabelPropagationKm1Dispatcher = kahypar::meta::StaticMultiDispatchFactory<LabelPropagationKm1Refiner,
                                                                                 IRefiner,

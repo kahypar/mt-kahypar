@@ -82,11 +82,11 @@ class RecursiveInitialPartitionerT : public IInitialPartitioner {
   RecursiveInitialPartitionerT(HyperGraph& hypergraph,
                                const Context& context,
                                const bool top_level,
-                               TBB& tbb_arena) :
+                               const TaskGroupID task_group_id) :
     _hg(hypergraph),
     _context(context),
     _top_level(top_level),
-    _tbb_arena(tbb_arena) { }
+    _task_group_id(task_group_id) { }
 
   RecursiveInitialPartitionerT(const RecursiveInitialPartitionerT&) = delete;
   RecursiveInitialPartitionerT(RecursiveInitialPartitionerT&&) = delete;
@@ -118,16 +118,14 @@ class RecursiveInitialPartitionerT : public IInitialPartitioner {
       // Perform parallel recursion
       size_t num_threads_1 = std::ceil(((double)_context.shared_memory.num_threads) / 2.0);
       size_t num_threads_2 = std::floor(((double)_context.shared_memory.num_threads) / 2.0);
-      auto tbb_splitted_arena = _tbb_arena.split_tbb_numa_arena(num_threads_1, num_threads_2);
+      auto tbb_recursion_task_groups = TBB::instance().create_tbb_task_groups_for_recursion();
       RecursivePartitionResult r1;
       RecursivePartitionResult r2;
       tbb::parallel_invoke([&] {
-          r1 = recursivePartition(num_threads_1, *tbb_splitted_arena.first, 0);
+          r1 = recursivePartition(num_threads_1, tbb_recursion_task_groups.first, 0);
         }, [&] {
-          r2 = recursivePartition(num_threads_2, *tbb_splitted_arena.second, 1);
+          r2 = recursivePartition(num_threads_2, tbb_recursion_task_groups.second, 1);
         });
-      tbb_splitted_arena.first->terminate();
-      tbb_splitted_arena.second->terminate();
 
       // Choose best partition of both parallel recursion
       bool r1_has_better_quality = r1.objective < r2.objective;
@@ -141,7 +139,7 @@ class RecursiveInitialPartitionerT : public IInitialPartitioner {
         best = std::move(r2);
       }
     } else {
-      best = recursivePartition(_context.shared_memory.num_threads, _tbb_arena, 0);
+      best = recursivePartition(_context.shared_memory.num_threads, _task_group_id, 0);
     }
 
     if (_top_level) {
@@ -235,13 +233,13 @@ class RecursiveInitialPartitionerT : public IInitialPartitioner {
     _hg.updateGlobalPartInfos();
   }
 
-  RecursivePartitionResult recursivePartition(const size_t num_threads, TBB& tbb_arena, const size_t recursion_number) {
+  RecursivePartitionResult recursivePartition(const size_t num_threads, const TaskGroupID task_group_id, const size_t recursion_number) {
     RecursivePartitionResult result(setupRecursiveContext(num_threads));
 
     // Copy hypergraph
     utils::Timer::instance().start_timer("top_level_hypergraph_copy_" + std::to_string(recursion_number),
                                          "Top Level Hypergraph Copy " + std::to_string(recursion_number), true, _top_level);
-    auto copy = _hg.copy(result.context.partition.k, tbb_arena);
+    auto copy = _hg.copy(result.context.partition.k, task_group_id);
     result.hypergraph = std::move(copy.first);
     result.mapping = std::move(copy.second);
     utils::Timer::instance().stop_timer("top_level_hypergraph_copy_" + std::to_string(recursion_number), _top_level);
@@ -255,7 +253,7 @@ class RecursiveInitialPartitionerT : public IInitialPartitioner {
 
     utils::Timer::instance().start_timer("top_level_multilevel_recursion_" + std::to_string(recursion_number),
                                          "Top Level Multilevel Recursion " + std::to_string(recursion_number), true, _top_level);
-    multilevel::partition(result.hypergraph, result.context, false, tbb_arena);
+    multilevel::partition(result.hypergraph, result.context, false, task_group_id);
     utils::Timer::instance().stop_timer("top_level_multilevel_recursion_" + std::to_string(recursion_number), _top_level);
 
     result.objective = metrics::objective(result.hypergraph, result.context.partition.objective);
@@ -382,7 +380,7 @@ class RecursiveInitialPartitionerT : public IInitialPartitioner {
   HyperGraph& _hg;
   const Context& _context;
   const bool _top_level;
-  TBB& _tbb_arena;
+  const TaskGroupID _task_group_id;
 };
 
 template <typename TypeTraits>

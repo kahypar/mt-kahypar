@@ -21,6 +21,7 @@
 
 #include <mutex>
 #include <memory>
+#include <shared_mutex>
 
 #include "tbb/task_arena.h"
 #include "tbb/task_group.h"
@@ -41,11 +42,27 @@ class TBBNumaArena {
   static constexpr bool debug = false;
 
  private:
+
+  struct MovableTaskGroup {
+    MovableTaskGroup() :
+      task_group() { }
+
+    MovableTaskGroup(MovableTaskGroup&&) :
+      task_group() { }
+
+    tbb::task_group task_group;
+  };
+
   using Self = TBBNumaArena<HwTopology>;
   using ThreadPinningObserver = mt_kahypar::parallel::ThreadPinningObserver<HwTopology>;
-  using SplittedTBBNumaArena = std::pair<std::unique_ptr<Self>, std::unique_ptr<Self>>;
+  using NumaTaskGroups = std::vector<MovableTaskGroup>;
 
  public:
+  using TaskGroupID = size_t;
+  using RecursionTaskGroups = std::pair<TaskGroupID, TaskGroupID>;
+  static TaskGroupID GLOBAL_TASK_GROUP;
+  static TaskGroupID INVALID_TASK_GROUP;
+
   TBBNumaArena(const TBBNumaArena&) = delete;
   TBBNumaArena & operator= (const TBBNumaArena &) = delete;
 
@@ -62,7 +79,7 @@ class TBBNumaArena {
   }
 
   int number_of_threads_on_numa_node(const int node) const {
-    ASSERT(node < (int)_arenas.size());
+    ASSERT(static_cast<size_t>(node) < _arenas.size());
     return _arenas[node].max_concurrency();
   }
 
@@ -71,106 +88,67 @@ class TBBNumaArena {
   }
 
   tbb::task_arena& numa_task_arena(const int node) {
-    ASSERT(node < (int)_arenas.size());
+    ASSERT(static_cast<size_t>(node) < _arenas.size());
     return _arenas[node];
   }
 
-  tbb::task_group& numa_task_group(const int node) {
-    ASSERT(_arenas.size() <= _groups.size());
-    ASSERT(node < (int)_arenas.size());
-    return _groups[node];
+  tbb::task_group& numa_task_group(const TaskGroupID task_group_id, const int node) {
+    std::shared_lock<std::shared_timed_mutex> read_lock(_task_group_read_write_mutex);
+    ASSERT(task_group_id < _groups.size());
+    ASSERT(static_cast<size_t>(node) <= _groups[task_group_id].size());
+    return _groups[task_group_id][node].task_group;
   }
 
-  SplittedTBBNumaArena split_tbb_numa_arena(const size_t num_threads_0, const size_t num_threads_1) {
-    ASSERT(num_threads_0 + num_threads_1 <= static_cast<size_t>(total_number_of_threads()),
-      V(num_threads_0) << V(num_threads_1) << V(total_number_of_threads()));
-    const size_t num_numa_nodes = num_used_numa_nodes();
-    // At least one open slot should be available on each numa node
-    std::vector<std::vector<int>> cpu_to_numa_node_0(num_numa_nodes);
-    std::vector<std::vector<int>> cpu_to_numa_node_1(num_numa_nodes);
-
-    auto num_threads_on_numa_node = [&](const size_t node, const size_t num_threads) {
-      ASSERT(node < _cpus_to_numa_node.size());
-      return static_cast<double>(num_threads) * (
-        static_cast<double>(_cpus_to_numa_node[node].size()) /
-        static_cast<double>(num_threads_0 + num_threads_1) );
-    };
-
-
-    size_t threads_left_0 = num_threads_0;
-    size_t threads_left_1 = num_threads_1;
-    for ( size_t node = 0; node < num_numa_nodes; ++node ) {
-      size_t num_cpus_on_numa_node_0 = 0;
-      size_t num_cpus_on_numa_node_1 = 0;
-      if ( threads_left_0 >= threads_left_1 ) {
-        num_cpus_on_numa_node_0 = std::max( std::min(
-          static_cast<size_t>(std::ceil(num_threads_on_numa_node(node, num_threads_0))),
-          threads_left_0 ), 1UL );
-        num_cpus_on_numa_node_1 = std::max( std::min(
-          static_cast<size_t>(std::floor(num_threads_on_numa_node(node, num_threads_1))),
-          threads_left_1 ), 1UL );
-      } else {
-        num_cpus_on_numa_node_0 = std::max( std::min(
-          static_cast<size_t>(std::floor(num_threads_on_numa_node(node, num_threads_0))),
-          threads_left_0 ), 1UL );
-        num_cpus_on_numa_node_1 = std::max( std::min(
-          static_cast<size_t>(std::ceil(num_threads_on_numa_node(node, num_threads_1))),
-          threads_left_1 ), 1UL );
-      }
-      threads_left_0 -= (num_cpus_on_numa_node_0 <= threads_left_0 ? num_cpus_on_numa_node_0 : threads_left_0);
-      threads_left_1 -= (num_cpus_on_numa_node_1 <= threads_left_1 ? num_cpus_on_numa_node_1 : threads_left_1);
-
-      std::vector<int>& cpus_on_numa_node = _cpus_to_numa_node[node];
-      ASSERT(num_cpus_on_numa_node_0 <= cpus_on_numa_node.size());
-      ASSERT(num_cpus_on_numa_node_1 <= cpus_on_numa_node.size());
-      for ( size_t i = 0; i < num_cpus_on_numa_node_0; ++i ) {
-        cpu_to_numa_node_0[node].push_back(cpus_on_numa_node[i]);
-      }
-      for ( size_t i = cpus_on_numa_node.size() - num_cpus_on_numa_node_1;
-            i < cpus_on_numa_node.size(); ++i ) {
-        cpu_to_numa_node_1[node].push_back(cpus_on_numa_node[i]);
-      }
+  RecursionTaskGroups create_tbb_task_groups_for_recursion() {
+    TaskGroupID task_group_1 = INVALID_TASK_GROUP;
+    TaskGroupID task_group_2 = INVALID_TASK_GROUP;
+    std::lock_guard<std::shared_timed_mutex> write_lock(_task_group_read_write_mutex);
+    task_group_1 = _groups.size();
+    _groups.emplace_back();
+    task_group_2 = _groups.size();
+    _groups.emplace_back();
+    for ( int node = 0; node < num_used_numa_nodes(); ++node ) {
+      _groups[task_group_1].emplace_back();
+      _groups[task_group_2].emplace_back();
     }
-
-    return std::make_pair(
-      std::unique_ptr<Self>(new Self(cpu_to_numa_node_0)),
-      std::unique_ptr<Self>(new Self(cpu_to_numa_node_1)) );
+    ASSERT(task_group_1 != INVALID_TASK_GROUP && task_group_2 != INVALID_TASK_GROUP);
+    return std::make_pair(task_group_1, task_group_2);
   }
 
   template <typename F>
-  void execute_sequential_on_all_numa_nodes(F&& func) {
+  void execute_sequential_on_all_numa_nodes(const TaskGroupID task_group_id, F&& func) {
     for (int node = 0; node < num_used_numa_nodes(); ++node) {
       numa_task_arena(node).execute([&] {
-            numa_task_group(node).run([&, node] {
+            numa_task_group(task_group_id, node).run([&, node] {
               func(node);
             });
           });
-      wait(node, numa_task_group(node));
+      wait(node, numa_task_group(task_group_id, node));
     }
   }
 
   template <typename F>
-  void execute_parallel_on_all_numa_nodes(F&& func) {
+  void execute_parallel_on_all_numa_nodes(const TaskGroupID task_group_id, F&& func) {
     for (int node = 0; node < num_used_numa_nodes(); ++node) {
       numa_task_arena(node).execute([&] {
-            numa_task_group(node).run([&, node] {
+            numa_task_group(task_group_id, node).run([&, node] {
               func(node);
             });
           });
     }
-    wait();
+    wait(task_group_id);
   }
 
-  void wait() {
+  void wait(const TaskGroupID task_group_id) {
     for (int node = 0; node < num_used_numa_nodes(); ++node) {
       _arenas[node].execute([&, node] {
-            _groups[node].wait();
+            numa_task_group(task_group_id, node).wait();
           });
     }
   }
 
   void wait(const int node, tbb::task_group& group) {
-    ASSERT(node < (int)_arenas.size());
+    ASSERT(static_cast<size_t>(node) < _arenas.size());
     _arenas[node].execute([&] {
           group.wait();
         });
@@ -200,7 +178,8 @@ class TBBNumaArena {
     _init(std::make_unique<tbb::task_scheduler_init>(num_threads)),
     _global_observer(nullptr),
     _arenas(),
-    _groups(HwTopology::instance().num_numa_nodes()),
+    _task_group_read_write_mutex(),
+    _groups(1),
     _observer(),
     _cpus_to_numa_node() {
     HwTopology& topology = HwTopology::instance();
@@ -245,27 +224,8 @@ class TBBNumaArena {
     initialize_tbb_numa_arenas();
   }
 
-  explicit TBBNumaArena(const std::vector<std::vector<int>>& cpus_to_numa_node)
-    : _num_threads(0),
-      _init(nullptr),
-      _global_observer(nullptr),
-      _arenas(),
-      _groups(cpus_to_numa_node.size()),
-      _observer(),
-      _cpus_to_numa_node(cpus_to_numa_node) {
-    ASSERT(_cpus_to_numa_node.size() <= static_cast<size_t>(HwTopology::instance().num_numa_nodes()));
-    int num_numa_nodes = _cpus_to_numa_node.size();
-    _arenas.reserve(num_numa_nodes);
-    _observer.reserve(num_numa_nodes);
-
-    for ( size_t node = 0; node < _cpus_to_numa_node.size(); ++node ) {
-      _num_threads += _cpus_to_numa_node[node].size();
-    }
-
-    initialize_tbb_numa_arenas();
-  }
-
   void initialize_tbb_numa_arenas() {
+    _groups.reserve(1024);
     for (size_t node = 0; node < _cpus_to_numa_node.size(); ++node) {
       int num_cpus_on_numa_node = _cpus_to_numa_node[node].size();
       ASSERT(num_cpus_on_numa_node <= HwTopology::instance().num_cpus_on_numa_node(node));
@@ -277,6 +237,7 @@ class TBBNumaArena {
         #else
         _arenas.emplace_back(num_cpus_on_numa_node, 1 /* reserve for master */);
         #endif
+        _groups[GLOBAL_TASK_GROUP].emplace_back();
         _arenas.back().initialize();
         _observer.emplace_back(_arenas.back(), node, _cpus_to_numa_node[node]);
       }
@@ -287,9 +248,15 @@ class TBBNumaArena {
   std::unique_ptr<tbb::task_scheduler_init> _init;
   std::unique_ptr<ThreadPinningObserver> _global_observer;
   std::vector<tbb::task_arena> _arenas;
-  std::vector<tbb::task_group> _groups;
+  std::shared_timed_mutex _task_group_read_write_mutex;
+  std::vector<NumaTaskGroups> _groups;
   std::vector<ThreadPinningObserver> _observer;
   std::vector<std::vector<int>> _cpus_to_numa_node;
 };
+
+template <typename HwTopology>
+typename TBBNumaArena<HwTopology>::TaskGroupID TBBNumaArena<HwTopology>::GLOBAL_TASK_GROUP = 0;
+template <typename HwTopology>
+typename TBBNumaArena<HwTopology>::TaskGroupID TBBNumaArena<HwTopology>::INVALID_TASK_GROUP = std::numeric_limits<TaskGroupID>::max();
 }  // namespace parallel
 }  // namespace mt_kahypar

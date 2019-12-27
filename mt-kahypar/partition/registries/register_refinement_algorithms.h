@@ -31,18 +31,18 @@
 #define REGISTER_DISPATCHED_LP_REFINER(id, dispatcher, t, ...)                               \
   static kahypar::meta::Registrar<LabelPropagationFactory> JOIN(register_ ## dispatcher, t)( \
     id,                                                                                      \
-    [](Hypergraph& hypergraph, const Context& context, TBBNumaArena& tbb_arena) {            \
+    [](Hypergraph& hypergraph, const Context& context, const TaskGroupID task_group_id) {    \
     return dispatcher::create(                                                               \
-      std::forward_as_tuple(hypergraph, context, tbb_arena),                                 \
+      std::forward_as_tuple(hypergraph, context, task_group_id),                             \
       __VA_ARGS__                                                                            \
       );                                                                                     \
   })
 
-#define REGISTER_LP_REFINER(id, refiner, t)                                                     \
-  static kahypar::meta::Registrar<LabelPropagationFactory> JOIN(register_ ## refiner, t)(       \
-    id,                                                                                         \
-    [](Hypergraph& hypergraph, const Context& context, TBBNumaArena& tbb_arena) -> IRefiner* {  \
-    return new refiner(hypergraph, context, tbb_arena);                                         \
+#define REGISTER_LP_REFINER(id, refiner, t)                                                             \
+  static kahypar::meta::Registrar<LabelPropagationFactory> JOIN(register_ ## refiner, t)(               \
+    id,                                                                                                 \
+    [](Hypergraph& hypergraph, const Context& context, const TaskGroupID task_group_id) -> IRefiner* {  \
+    return new refiner(hypergraph, context, task_group_id);                                             \
   })
 
 namespace mt_kahypar {

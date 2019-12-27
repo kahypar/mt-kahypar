@@ -84,7 +84,7 @@ class AInitialPartitionerTest : public Test {
     assignCommunities();
 
     initial_partitioner = std::make_unique<InitialPartitioner>(
-      hypergraph, context, true, TBB::instance());
+      hypergraph, context, true, TBB::GLOBAL_TASK_GROUP);
   }
 
   void assignCommunities() {

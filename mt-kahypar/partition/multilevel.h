@@ -32,13 +32,13 @@ namespace multilevel {
 static inline void partition(Hypergraph& hypergraph,
                              const Context& context,
                              const bool top_level,
-                             TBBNumaArena& tbb_arena) {
+                             const TaskGroupID task_group_id) {
   // ################## COARSENING ##################
   mt_kahypar::io::printCoarseningBanner(context);
   utils::Timer::instance().start_timer("coarsening", "Coarsening");
   std::unique_ptr<ICoarsener> coarsener =
     CoarsenerFactory::getInstance().createObject(
-      context.coarsening.algorithm, hypergraph, context, tbb_arena);
+      context.coarsening.algorithm, hypergraph, context, task_group_id);
   coarsener->coarsen();
   utils::Timer::instance().stop_timer("coarsening");
 
@@ -51,7 +51,7 @@ static inline void partition(Hypergraph& hypergraph,
   utils::Timer::instance().start_timer("initial_partitioning", "Initial Partitioning");
   std::unique_ptr<IInitialPartitioner> initial_partitioner =
     InitialPartitionerFactory::getInstance().createObject(
-      context.initial_partitioning.mode, hypergraph, context, top_level, tbb_arena);
+      context.initial_partitioning.mode, hypergraph, context, top_level, task_group_id);
   initial_partitioner->initialPartition();
   utils::Timer::instance().stop_timer("initial_partitioning");
 
@@ -62,7 +62,7 @@ static inline void partition(Hypergraph& hypergraph,
   utils::Timer::instance().start_timer("refinement", "Refinement");
   std::unique_ptr<IRefiner> label_propagation =
     LabelPropagationFactory::getInstance().createObject(
-      context.refinement.label_propagation.algorithm, hypergraph, context, tbb_arena);
+      context.refinement.label_propagation.algorithm, hypergraph, context, task_group_id);
 
   coarsener->uncoarsen(label_propagation);
   utils::Timer::instance().stop_timer("refinement");
