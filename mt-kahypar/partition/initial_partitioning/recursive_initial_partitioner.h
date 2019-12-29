@@ -55,11 +55,12 @@ namespace mt_kahypar {
  * best partition of both recursions and further bisect each block of the partition to obtain a 4-way
  * partition and continue uncontraction with 2 threads until 8 * c hypernodes. This is repeated until
  * we obtain a k-way partition of the hypergraph.
- * Note, the recursive initial partitioner is written in TBB continuation style. The TBB continuation style
- * is especially useful for recursive patterns. Each task defines its continuation task. A continuation task
- * specifies how it should be continued if all child tasks terminates. As a consequence, we do not have to waste
- * CPU time for waiting until the recursion terminates and threads are able to perform work stealing in other parts
- * of the recursion. Once all child tasks terminates, the continuation task is automatically invoked (without waiting).
+ * Note, the recursive initial partitioner is written in TBB continuation style. The TBB continuation
+ * style is especially useful for recursive patterns. Each task defines its continuation task. A continuation
+ * task defines how computation should continue, if all its child tasks are completed. As a consequence,
+ * tasks can be spawned without waiting for their completion, because the continuation task is automatically
+ * invoked if all child tasks are terminated. Therefore, no thread will waste CPU time while waiting for
+ * their recursive tasks to complete.
  *
  * Implementation Details
  * ----------------------
