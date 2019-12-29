@@ -41,6 +41,25 @@
 
 namespace mt_kahypar {
 
+/*!
+ * RECURSIVE BISECTION INITIAL PARTITIONER
+ * The recursive bisection initial partitioner starts by performing a parallel multilevel bisection.
+ * Once the hypergraph is bisected both blocks are partitioned recursively in parallel until the
+ * desired number of blocks are reached.
+ * Note, the recursive bisection initial partitioner is written in TBB continuation style. The TBB continuation style
+ * is especially useful for recursive patterns. Each task defines its continuation task. A continuation task
+ * specifies how it should be continued if all child tasks terminates. As a consequence, we do not have to waste
+ * CPU time for waiting until the recursion terminates and threads are able to perform work stealing in other parts
+ * of the recursion. Once all child tasks terminates, the continuation task is automatically invoked (without waiting).
+ *
+ * Implementation Details
+ * ----------------------
+ * The recursive bisection initial partitioner starts by spawning the root RecursiveBisectionTask. The RecursiveBisectionTask
+ * bisects the hypergraph and then spawns two RecursiveBisectionChildTask. Both are responsible for exactly one block of
+ * the partition. The RecursiveBisectionChildTask extracts its corresponding block as unpartitioned hypergraph and spawns
+ * recursively a RecursiveBisectionTask for that hypergraph. Once that RecursiveBisectionTask is completed, a
+ * RecursiveBisectionChildContinuationTask is started and the partition of the recursion is applied to the original hypergraph.
+ */
 template <typename TypeTraits>
 class RecursiveBisectionInitialPartitionerT : public IInitialPartitioner {
  private:
@@ -58,54 +77,10 @@ class RecursiveBisectionInitialPartitionerT : public IInitialPartitioner {
   static PartitionID kInvalidPartition;
   static HypernodeID kInvalidHypernode;
 
-  class RecursiveBisectionChildContinuationTask : public tbb::task {
-
-   public:
-    RecursiveBisectionChildContinuationTask(HyperGraph& original_hypergraph,
-                                            Hypergraph&& rb_hypergraph,
-                                            parallel::scalable_vector<HypernodeID>&& mapping,
-                                            Context&& context,
-                                            const PartitionID part_id) :
-      _original_hg(original_hypergraph),
-      _rb_hg(std::move(rb_hypergraph)),
-      _mapping(std::move(mapping)),
-      _context(std::move(context)),
-      _part_id(part_id) { }
-
-    tbb::task* execute() override {
-      assignPartitionFromRecursionToOriginalHypergraph();
-      return nullptr;
-    }
-
-    HyperGraph& recursiveHypergraph() {
-      return _rb_hg;
-    }
-
-    const Context& recursiveContext() const {
-      return _context;
-    }
-
-   private:
-    void assignPartitionFromRecursionToOriginalHypergraph() {
-      ASSERT(_original_hg.initialNumNodes() == _mapping.size());
-      for ( const HypernodeID& hn : _original_hg.nodes() ) {
-        if ( _original_hg.partID(hn) == _part_id ) {
-          const HypernodeID original_id = _original_hg.originalNodeID(hn);
-          ASSERT(original_id < _mapping.size());
-          PartitionID to = _part_id + _rb_hg.partID(_rb_hg.globalNodeID(_mapping[original_id]));
-          ASSERT(to != kInvalidPartition && to < _original_hg.k());
-          _original_hg.changeNodePart(hn, _part_id, to);
-        }
-      }
-    }
-
-    HyperGraph& _original_hg;
-    Hypergraph _rb_hg;
-    const parallel::scalable_vector<HypernodeID> _mapping;
-    const Context _context;
-    const PartitionID _part_id;
-  };
-
+  /*!
+   * A recursive bisection child task extracts a block of the partition
+   * and recursively partition it into the desired number of blocks.
+   */
   class RecursiveBisectionChildTask : public tbb::task {
 
    public:
@@ -113,31 +88,31 @@ class RecursiveBisectionInitialPartitionerT : public IInitialPartitioner {
                                 const Context& context,
                                 const PartitionID block,
                                 const BlockRange range,
-                                const bool top_level,
                                 const TaskGroupID task_group_id) :
       _hg(hypergraph),
       _context(context),
       _block(block),
       _range(range),
-      _top_level(top_level),
       _task_group_id(task_group_id) { }
 
     tbb::task* execute() override {
       const PartitionID k = _range.second - _range.first;
       Context rb_context = setupRecursiveBisectionContext(k);
 
-      // Extracts the block, which we want to recursively partition, as new hypergraph
-      // and calls the recursive bisection initial partitioner recursively.
+      // Extracts the block of the hypergraph which we recursively want to partition as
+      // seperate unpartitioned hypergraph.
       bool cut_net_splitting = _context.partition.objective == kahypar::Objective::km1;
       auto copy_hypergraph = _hg.copy(k, _task_group_id, _block, cut_net_splitting);
       HyperGraph& rb_hypergraph = copy_hypergraph.first;
       auto& mapping = copy_hypergraph.second;
 
+      // Spawns a new recursive bisection task to partition the current block of the hypergraph
+      // into the desired number of blocks
       RecursiveBisectionChildContinuationTask& child_continuation = *new(allocate_continuation())
         RecursiveBisectionChildContinuationTask(_hg, std::move(rb_hypergraph),
           std::move(mapping), std::move(rb_context), _block);
       RecursiveBisectionTask& recursion = *new(child_continuation.allocate_child()) RecursiveBisectionTask(
-        child_continuation.recursiveHypergraph(), child_continuation.recursiveContext(), false, _task_group_id);
+        child_continuation.recursiveHypergraph(), child_continuation.recursiveContext(), _task_group_id);
       child_continuation.set_ref_count(1);
       tbb::task::spawn(recursion);
 
@@ -166,10 +141,66 @@ class RecursiveBisectionInitialPartitionerT : public IInitialPartitioner {
     const Context _context;
     const PartitionID _block;
     const BlockRange _range;
-    const bool _top_level;
     const TaskGroupID _task_group_id;
   };
 
+  /*!
+   * Continuation task for the recursive bisection child task. Applies the
+   * partition obtained by a recursive bisection task to the original
+   * hypergraph.
+   */
+  class RecursiveBisectionChildContinuationTask : public tbb::task {
+
+   public:
+    RecursiveBisectionChildContinuationTask(HyperGraph& original_hypergraph,
+                                            Hypergraph&& rb_hypergraph,
+                                            parallel::scalable_vector<HypernodeID>&& mapping,
+                                            Context&& context,
+                                            const PartitionID part_id) :
+      _original_hg(original_hypergraph),
+      _rb_hg(std::move(rb_hypergraph)),
+      _mapping(std::move(mapping)),
+      _context(std::move(context)),
+      _part_id(part_id) { }
+
+    tbb::task* execute() override {
+      // Applying partition of the recursively bisected hypergraph (rb_hg) to
+      // original hypergraph (original_hg). All hypernodes that belong to block
+      // 'part_id' in the original hypergraph are moved to the block defined in
+      // rb_hg.
+      ASSERT(_original_hg.initialNumNodes() == _mapping.size());
+      for ( const HypernodeID& hn : _original_hg.nodes() ) {
+        if ( _original_hg.partID(hn) == _part_id ) {
+          const HypernodeID original_id = _original_hg.originalNodeID(hn);
+          ASSERT(original_id < _mapping.size());
+          PartitionID to = _part_id + _rb_hg.partID(_rb_hg.globalNodeID(_mapping[original_id]));
+          ASSERT(to != kInvalidPartition && to < _original_hg.k());
+          _original_hg.changeNodePart(hn, _part_id, to);
+        }
+      }
+      return nullptr;
+    }
+
+    HyperGraph& recursiveHypergraph() {
+      return _rb_hg;
+    }
+
+    const Context& recursiveContext() const {
+      return _context;
+    }
+
+   private:
+    HyperGraph& _original_hg;
+    Hypergraph _rb_hg;
+    const parallel::scalable_vector<HypernodeID> _mapping;
+    const Context _context;
+    const PartitionID _part_id;
+  };
+
+  /*!
+   * Continuation task for the recursive bisection task. Updates
+   * global part sizes and weights.
+   */
   class RecursiveBisectionContinuationTask : public tbb::task {
 
    public:
@@ -185,16 +216,19 @@ class RecursiveBisectionInitialPartitionerT : public IInitialPartitioner {
     HyperGraph& _hg;
   };
 
+  /*!
+   * The recursive bisection is responsible for performing the top level
+   * bisection and then it spawns two recursive bisection child task to
+   * recursively bisect both blocks of the partition in parallel.
+   */
   class RecursiveBisectionTask : public tbb::task {
 
    public:
     RecursiveBisectionTask(HyperGraph& hypergraph,
                           const Context& context,
-                          const bool top_level,
                           const TaskGroupID task_group_id) :
       _hg(hypergraph),
       _context(context),
-      _top_level(top_level),
       _task_group_id(task_group_id) { }
 
     tbb::task* execute() override {
@@ -206,9 +240,7 @@ class RecursiveBisectionInitialPartitionerT : public IInitialPartitioner {
       BlockRange range_1 = std::make_pair(num_blocks_part_0, num_blocks_part_0 + num_blocks_part_1);
 
       // Bisecting the hypergraph into two blocks
-      utils::Timer::instance().start_timer("top_level_bisection", "Top Level Bisection", false, _top_level);
       bisect(0, num_blocks_part_0);
-      utils::Timer::instance().stop_timer("top_level_bisection", _top_level);
 
       if ( num_blocks_part_0 >= 2 && num_blocks_part_1 >= 2 ) {
         // In case we have to partition both blocks from the bisection further into
@@ -221,9 +253,9 @@ class RecursiveBisectionInitialPartitionerT : public IInitialPartitioner {
         auto tbb_recursion_task_groups = TBB::instance().create_tbb_task_groups_for_recursion();
         RecursiveBisectionContinuationTask& recursive_continuation = *new(allocate_continuation()) RecursiveBisectionContinuationTask(_hg);
         RecursiveBisectionChildTask& recursion_0 = *new(recursive_continuation.allocate_child()) RecursiveBisectionChildTask(
-          _hg, _context, 0, range_0, _top_level, tbb_recursion_task_groups.first);
+          _hg, _context, 0, range_0, tbb_recursion_task_groups.first);
         RecursiveBisectionChildTask& recursion_1 = *new(recursive_continuation.allocate_child()) RecursiveBisectionChildTask(
-          _hg, _context, num_blocks_part_0, range_1, _top_level, tbb_recursion_task_groups.second);
+          _hg, _context, num_blocks_part_0, range_1, tbb_recursion_task_groups.second);
         recursive_continuation.set_ref_count(2);
         tbb::task::spawn(recursion_1);
         tbb::task::spawn(recursion_0);
@@ -232,10 +264,10 @@ class RecursiveBisectionInitialPartitionerT : public IInitialPartitioner {
         // In case only the first block has to be partitioned into more than one block, we call
         // the recursive bisection initial partitioner recusively on the block 0
         DBG << "Current k = " << _context.partition.k << ","
-            << "Sequential Recursion 0: k =" << num_blocks_part_0;
+            << "Recursion 0: k =" << num_blocks_part_0;
         RecursiveBisectionContinuationTask& recursive_continuation = *new(allocate_continuation()) RecursiveBisectionContinuationTask(_hg);
         RecursiveBisectionChildTask& recursion_0 = *new(recursive_continuation.allocate_child()) RecursiveBisectionChildTask(
-          _hg, _context, 0, range_0, _top_level, _task_group_id);
+          _hg, _context, 0, range_0, _task_group_id);
         recursive_continuation.set_ref_count(1);
         tbb::task::spawn(recursion_0);
       }
@@ -244,25 +276,19 @@ class RecursiveBisectionInitialPartitionerT : public IInitialPartitioner {
     }
 
    private:
-
     void bisect(const PartitionID block_0, const PartitionID block_1) {
       ASSERT(block_0 < _context.partition.k);
       ASSERT(block_1 < _context.partition.k);
       Context bisection_context = setupBisectionContext();
 
-      utils::Timer::instance().start_timer("top_level_copy", "Top Level Copy", false, _top_level);
       auto copy_hypergraph = _hg.copy(2, _task_group_id);
       HyperGraph& tmp_hg = copy_hypergraph.first;
       auto& mapping = copy_hypergraph.second;
-      utils::Timer::instance().stop_timer("top_level_copy", _top_level);
 
-      utils::Timer::instance().start_timer("top_level_parallel_bisection", "Top Level Parallel Bisection", false, _top_level);
       // Bisect hypergraph with parallel multilevel bisection
       multilevel::partition(tmp_hg, bisection_context, false, _task_group_id);
-      utils::Timer::instance().stop_timer("top_level_parallel_bisection", _top_level);
 
       // Apply partition to hypergraph
-      utils::Timer::instance().start_timer("top_level_apply_bisection", "Top Level Apply Bisection", false, _top_level);
       for (const HypernodeID& hn : _hg.nodes()) {
         const HypernodeID original_id = _hg.originalNodeID(hn);
         ASSERT(original_id < mapping.size());
@@ -276,8 +302,6 @@ class RecursiveBisectionInitialPartitionerT : public IInitialPartitioner {
       }
       _hg.initializeNumCutHyperedges();
       _hg.updateGlobalPartInfos();
-
-      utils::Timer::instance().stop_timer("top_level_apply_bisection", _top_level);
 
       ASSERT(metrics::objective(tmp_hg, _context.partition.objective) ==
         metrics::objective(_hg, _context.partition.objective));
@@ -327,7 +351,6 @@ class RecursiveBisectionInitialPartitionerT : public IInitialPartitioner {
 
     HyperGraph& _hg;
     const Context& _context;
-    const bool _top_level;
     const TaskGroupID _task_group_id;
   };
 
@@ -354,7 +377,7 @@ class RecursiveBisectionInitialPartitionerT : public IInitialPartitioner {
     }
 
     RecursiveBisectionTask& root_bisection_task = *new(tbb::task::allocate_root()) RecursiveBisectionTask(
-      _hg, _context, _top_level, _task_group_id);
+      _hg, _context, _task_group_id);
     tbb::task::spawn_root_and_wait(root_bisection_task);
 
     if (_top_level) {

@@ -41,6 +41,38 @@
 
 namespace mt_kahypar {
 
+/*!
+ * RECURSIVE INITIAL PARTITIONER
+ * For reason of simplicity we assume in the following description of the algorithm that
+ * the number of threads p and the number of blocks k is a power of 2 and p = k. The recursive
+ * initial partitioner is invoked, if the number of vertices is 2 * c * p (where c is our
+ * contraction limit multiplier).
+ * The recursive initial partitioner starts by performing parallel coarsening with p threads
+ * until c * p vertices are reached. Afterwards, the hypergraph is copied and the hypergraphs
+ * are recursively coarsened with p / 2 threads each. Once p = 1 (and the contraction limit is 2 * c)
+ * we initially bisect the hypergraph in two blocks. After initial partitioning each thread uncontracts
+ * its hypergraph (and performs refinement) until 4 * c hypernodes are rechead. Afterwards, we choose the
+ * best partition of both recursions and further bisect each block of the partition to obtain a 4-way
+ * partition and continue uncontraction with 2 threads until 8 * c hypernodes. This is repeated until
+ * we obtain a k-way partition of the hypergraph.
+ * Note, the recursive initial partitioner is written in TBB continuation style. The TBB continuation style
+ * is especially useful for recursive patterns. Each task defines its continuation task. A continuation task
+ * specifies how it should be continued if all child tasks terminates. As a consequence, we do not have to waste
+ * CPU time for waiting until the recursion terminates and threads are able to perform work stealing in other parts
+ * of the recursion. Once all child tasks terminates, the continuation task is automatically invoked (without waiting).
+ *
+ * Implementation Details
+ * ----------------------
+ * The recursive initial partitioner starts by spawning the root RecursiveTask. The RecursiveTask spawns
+ * two RecursiveChildTask. Within such a task the hypergraph is copied and coarsened to the next desired contraction limit.
+ * Once that contraction limit is reached the RecursiveChildTask spawns again one RecursiveTask. Once the RecursiveTask
+ * of a RecursiveChildTask terminates, the RecursiveChildContinuationTask starts and uncontracts the hypergraph to
+ * its original size (and also performs refinement). Once both RecursiveChildTask of a RecursiveTask terminates, the
+ * RecursiveContinuationTask starts and chooses the best partition of both recursions and spawns for each block
+ * a BisectionTask. The BisectionTask performs a partition call to KaHyPar to bisect exactly one block of the current
+ * partition. Once all BisectionTasks terminates, the BisectionContinuationTask starts and applies all bisections to the
+ * current hypergraph.
+ */
 template <typename TypeTraits>
 class RecursiveInitialPartitionerT : public IInitialPartitioner {
  private:
@@ -78,33 +110,10 @@ class RecursiveInitialPartitionerT : public IInitialPartitioner {
     double imbalance;
   };
 
-  class RecursiveChildContinuationTask : public tbb::task {
-
-   public:
-    RecursiveChildContinuationTask(std::unique_ptr<ICoarsener>&& coarsener,
-                                   RecursivePartitionResult& result,
-                                   const TaskGroupID task_group_id) :
-      _coarsener(std::move(coarsener)),
-      _result(result),
-      _task_group_id(task_group_id) { }
-
-    tbb::task* execute() override {
-      std::unique_ptr<IRefiner> label_propagation =
-        LabelPropagationFactory::getInstance().createObject(
-          _result.context.refinement.label_propagation.algorithm, _result.hypergraph, _result.context, _task_group_id);
-      _coarsener->uncoarsen(label_propagation);
-
-      _result.objective = metrics::objective(_result.hypergraph, _result.context.partition.objective);
-      _result.imbalance = metrics::imbalance(_result.hypergraph, _result.context);
-      return nullptr;
-    }
-
-   private:
-    std::unique_ptr<ICoarsener> _coarsener;
-    RecursivePartitionResult& _result;
-    const TaskGroupID _task_group_id;
-  };
-
+  /*!
+   * The recursive child task is responsible for copying the hypergraph
+   * and coarsen the hypergraph until the next contraction limit is reached.
+   */
   class RecursiveChildTask : public tbb::task {
 
    public:
@@ -127,25 +136,23 @@ class RecursiveInitialPartitionerT : public IInitialPartitioner {
       _result = RecursivePartitionResult(setupRecursiveContext());
 
       // Copy hypergraph
-      utils::Timer::instance().start_timer("top_level_hypergraph_copy_" + std::to_string(_recursion_number),
-                                          "Top Level Hypergraph Copy " + std::to_string(_recursion_number), true, _top_level);
       auto copy = _hg.copy(_result.context.partition.k, _task_group_id);
       _result.hypergraph = std::move(copy.first);
       _result.mapping = std::move(copy.second);
-      utils::Timer::instance().stop_timer("top_level_hypergraph_copy_" + std::to_string(_recursion_number), _top_level);
 
-      // Call multilevel partitioner recursively
       DBG << "Perform recursive multilevel partitioner call with"
           << "k =" << _result.context.partition.k << ","
           << "p =" << _result.context.shared_memory.num_threads << ","
           << "c =" << _result.context.coarsening.contraction_limit << "and"
           << "rep =" << _result.context.initial_partitioning.runs;
 
+      // Coarsening
       std::unique_ptr<ICoarsener> coarsener =
         CoarsenerFactory::getInstance().createObject(
           _result.context.coarsening.algorithm, _result.hypergraph, _result.context, _task_group_id);
       coarsener->coarsen();
 
+      // Call recursive initial partitioner
       RecursiveChildContinuationTask& child_continuation = *new(allocate_continuation())
         RecursiveChildContinuationTask(std::move(coarsener), _result, _task_group_id);
       RecursiveTask& recursive_task = *new(child_continuation.allocate_child()) RecursiveTask(
@@ -200,6 +207,111 @@ class RecursiveInitialPartitionerT : public IInitialPartitioner {
     const size_t _recursion_number;
   };
 
+  /*!
+   * Continuation task for the recursive child task. It is automatically called
+   * after the recursive child task terminates and responsible for uncontracting
+   * the hypergraph.
+   */
+  class RecursiveChildContinuationTask : public tbb::task {
+
+   public:
+    RecursiveChildContinuationTask(std::unique_ptr<ICoarsener>&& coarsener,
+                                   RecursivePartitionResult& result,
+                                   const TaskGroupID task_group_id) :
+      _coarsener(std::move(coarsener)),
+      _result(result),
+      _task_group_id(task_group_id) { }
+
+    tbb::task* execute() override {
+      // Uncontraction
+      std::unique_ptr<IRefiner> label_propagation =
+        LabelPropagationFactory::getInstance().createObject(
+          _result.context.refinement.label_propagation.algorithm, _result.hypergraph, _result.context, _task_group_id);
+      _coarsener->uncoarsen(label_propagation);
+
+      // Compute metrics
+      _result.objective = metrics::objective(_result.hypergraph, _result.context.partition.objective);
+      _result.imbalance = metrics::imbalance(_result.hypergraph, _result.context);
+      return nullptr;
+    }
+
+   private:
+    std::unique_ptr<ICoarsener> _coarsener;
+    RecursivePartitionResult& _result;
+    const TaskGroupID _task_group_id;
+  };
+
+  /*!
+   * A bisection task is started after we return from the recursion. It is
+   * responsible for bisecting one block of the current k'-way partition (k' < k).
+   */
+  class BisectionTask : public tbb::task {
+
+   public:
+    BisectionTask(HyperGraph& hypergraph,
+                  const Context& context,
+                  const PartitionID block,
+                  KaHyParPartitioningResult& result,
+                  parallel::scalable_vector<HypernodeID>& node_mapping) :
+      _hg(hypergraph),
+      _context(context),
+      _block(block),
+      _result(result),
+      _node_mapping(node_mapping) { }
+
+    tbb::task* execute() override {
+      kahypar_context_t* kahypar_context = setupKaHyParBisectionContext();
+      std::vector<HypernodeWeight> max_part_weights;
+      max_part_weights.emplace_back(_context.partition.max_part_weights[2 * _block]);
+      max_part_weights.emplace_back(_context.partition.max_part_weights[2 * _block + 1]);
+      // Special case, if balance constraint will be violated with this bisection
+      // => would cause KaHyPar to exit with failure
+      if (max_part_weights[0] + max_part_weights[1] < _hg.partWeight(_block)) {
+        HypernodeWeight delta = _hg.partWeight(_block) - (max_part_weights[0] + max_part_weights[1]);
+        max_part_weights[0] += std::ceil(((double)delta) / 2.0);
+        max_part_weights[1] += std::ceil(((double)delta) / 2.0);
+      }
+      ASSERT(max_part_weights[0] + max_part_weights[1] >= _hg.partWeight(_block));
+      kahypar_set_custom_target_block_weights(2, max_part_weights.data(), kahypar_context);
+
+      // Build KaHyPar Hypergraph Data Structure
+      bool cut_net_splitting = _context.partition.objective == kahypar::Objective::km1;
+      KaHyParHypergraph kahypar_hypergraph = extractBlockAsKaHyParHypergraph(_hg, _block, _node_mapping, cut_net_splitting);
+
+      // Bisect KaHyPar Hypergraph
+      kahypar_partition(kahypar_hypergraph, *reinterpret_cast<kahypar::Context*>(kahypar_context), _result);
+
+      kahypar_context_free(kahypar_context);
+      return nullptr;
+    }
+
+   private:
+    kahypar_context_t* setupKaHyParBisectionContext() {
+      kahypar_context_t* kahypar_c = mt_kahypar::setupContext(_context, false, kahypar_debug);
+      kahypar::Context& kahypar_context = *reinterpret_cast<kahypar::Context*>(kahypar_c);
+      kahypar_context.partition.k = 2;
+      kahypar_context.initial_partitioning.technique = kahypar::InitialPartitioningTechnique::flat;
+      kahypar_context.initial_partitioning.coarsening.algorithm = kahypar::CoarseningAlgorithm::do_nothing;
+      kahypar_context.initial_partitioning.local_search.algorithm = kahypar::RefinementAlgorithm::do_nothing;
+      kahypar_context.coarsening.algorithm = kahypar::CoarseningAlgorithm::do_nothing;
+      kahypar_context.local_search.algorithm = kahypar::RefinementAlgorithm::do_nothing;
+      kahypar_context.initial_partitioning.nruns = _context.initial_partitioning.runs;
+      kahypar_context.partition.seed = utils::Randomize::instance().getRandomInt(0, 2000, sched_getcpu());
+      return kahypar_c;
+    }
+
+    HyperGraph& _hg;
+    const Context& _context;
+    const PartitionID _block;
+    KaHyParPartitioningResult& _result;
+    parallel::scalable_vector<HypernodeID>& _node_mapping;
+  };
+
+  /*!
+   * Continuation task for the bisection task. The bisection continuation task
+   * is called after all bisection tasks terminates and is responsible for applying
+   * all bisections done by the bisection tasks to the current hypergraph.
+   */
   class BisectionContinuationTask : public tbb::task {
 
    public:
@@ -267,155 +379,10 @@ class RecursiveInitialPartitionerT : public IInitialPartitioner {
     parallel::scalable_vector<KaHyParPartitioningResult> _results;
   };
 
-  class BisectionTask : public tbb::task {
-
-   public:
-    BisectionTask(HyperGraph& hypergraph,
-                  const Context& context,
-                  const PartitionID block,
-                  KaHyParPartitioningResult& result,
-                  parallel::scalable_vector<HypernodeID>& node_mapping) :
-      _hg(hypergraph),
-      _context(context),
-      _block(block),
-      _result(result),
-      _node_mapping(node_mapping) { }
-
-    tbb::task* execute() override {
-      bisectPartition();
-      return nullptr;
-    }
-
-   private:
-    void bisectPartition() {
-      kahypar_context_t* kahypar_context = setupKaHyParBisectionContext();
-      std::vector<HypernodeWeight> max_part_weights;
-      max_part_weights.emplace_back(_context.partition.max_part_weights[2 * _block]);
-      max_part_weights.emplace_back(_context.partition.max_part_weights[2 * _block + 1]);
-      // Special case, if balance constraint will be violated with this bisection
-      // => would cause KaHyPar to exit with failure
-      if (max_part_weights[0] + max_part_weights[1] < _hg.partWeight(_block)) {
-        HypernodeWeight delta = _hg.partWeight(_block) - (max_part_weights[0] + max_part_weights[1]);
-        max_part_weights[0] += std::ceil(((double)delta) / 2.0);
-        max_part_weights[1] += std::ceil(((double)delta) / 2.0);
-      }
-      ASSERT(max_part_weights[0] + max_part_weights[1] >= _hg.partWeight(_block));
-      kahypar_set_custom_target_block_weights(2, max_part_weights.data(), kahypar_context);
-
-      // Build KaHyPar Hypergraph Data Structure
-      bool cut_net_splitting = _context.partition.objective == kahypar::Objective::km1;
-      KaHyParHypergraph kahypar_hypergraph = extractBlockAsKaHyParHypergraph(_hg, _block, _node_mapping, cut_net_splitting);
-
-      // Bisect KaHyPar Hypergraph
-      kahypar_partition(kahypar_hypergraph, *reinterpret_cast<kahypar::Context*>(kahypar_context), _result);
-
-      kahypar_context_free(kahypar_context);
-    }
-
-    kahypar_context_t* setupKaHyParBisectionContext() {
-      kahypar_context_t* kahypar_c = mt_kahypar::setupContext(_context, false, kahypar_debug);
-      kahypar::Context& kahypar_context = *reinterpret_cast<kahypar::Context*>(kahypar_c);
-      kahypar_context.partition.k = 2;
-      kahypar_context.initial_partitioning.technique = kahypar::InitialPartitioningTechnique::flat;
-      kahypar_context.initial_partitioning.coarsening.algorithm = kahypar::CoarseningAlgorithm::do_nothing;
-      kahypar_context.initial_partitioning.local_search.algorithm = kahypar::RefinementAlgorithm::do_nothing;
-      kahypar_context.coarsening.algorithm = kahypar::CoarseningAlgorithm::do_nothing;
-      kahypar_context.local_search.algorithm = kahypar::RefinementAlgorithm::do_nothing;
-      kahypar_context.initial_partitioning.nruns = _context.initial_partitioning.runs;
-      kahypar_context.partition.seed = utils::Randomize::instance().getRandomInt(0, 2000, sched_getcpu());
-      return kahypar_c;
-    }
-
-    HyperGraph& _hg;
-    const Context& _context;
-    const PartitionID _block;
-    KaHyParPartitioningResult& _result;
-    parallel::scalable_vector<HypernodeID>& _node_mapping;
-  };
-
-  class RecursiveContinuationTask : public tbb::task {
-
-   public:
-    RecursiveContinuationTask(HyperGraph& hypergraph,
-                              const Context& context,
-                              const bool top_level,
-                              const TaskGroupID task_group_id,
-                              const bool was_recursion) :
-      _hg(hypergraph),
-      _context(context),
-      _top_level(top_level),
-      _task_group_id(task_group_id),
-      _was_recursion(was_recursion) { }
-
-    RecursivePartitionResult r1;
-    RecursivePartitionResult r2;
-
-    tbb::task* execute() override {
-      ASSERT(r1.objective < std::numeric_limits<HyperedgeWeight>::max());
-
-      RecursivePartitionResult best;
-      // Choose best partition of both parallel recursion
-      bool r1_has_better_quality = r1.objective < r2.objective;
-      bool r1_is_balanced = r1.imbalance < r1.context.partition.epsilon;
-      bool r2_is_balanced = r2.imbalance < r2.context.partition.epsilon;
-      if (!_was_recursion ||
-          (r1_has_better_quality && r1_is_balanced) ||
-          (r1_is_balanced && !r2_is_balanced) ||
-          (r1_has_better_quality && !r1_is_balanced && !r2_is_balanced)) {
-        best = std::move(r1);
-      } else {
-        best = std::move(r2);
-      }
-
-      HEAVY_INITIAL_PARTITIONING_ASSERT(best.objective == metrics::objective(best.hypergraph, _context.partition.objective));
-
-      // Apply best partition to hypergraph
-      for (const HypernodeID& hn : _hg.nodes()) {
-        const HypernodeID original_id = _hg.originalNodeID(hn);
-        ASSERT(original_id < best.mapping.size());
-        // The partID function of the hypergraph takes a global node id and
-        // returns the partition id of the vertex.
-        // The mapping function of RecursivePartitionResult object (best.mapping) stores a mapping from
-        // the original node id of hypergraph _hg to the original node ids of the copied hypergraph
-        // (best.hypergraph).
-        // Note, original node ids are the node ids of the input hypergraph and the global node ids are
-        // the internal node ids of the hypergraph.
-        PartitionID part_id = best.hypergraph.partID(best.hypergraph.globalNodeID(best.mapping[original_id]));
-        ASSERT(part_id != kInvalidPartition && part_id < _hg.k());
-        _hg.setNodePart(hn, part_id);
-      }
-      _hg.initializeNumCutHyperedges();
-      _hg.updateGlobalPartInfos();
-
-      // The hypergraph is now partitioned into the number of blocks of the recursive context (best.context.partition.k).
-      // Based on wheter we reduced k in recursion, we have to bisect the blocks of the partition
-      // in the desired number of blocks of the current context (_context.partition.k).
-
-      HEAVY_INITIAL_PARTITIONING_ASSERT(best.objective == metrics::objective(_hg, _context.partition.objective));
-
-      // Bisect all blocks of best partition, if we are not on the top level of recursive initial partitioning
-      // and the number of threads is small than k
-      bool perform_bisections = !_top_level && _context.shared_memory.num_threads < (size_t)_context.partition.k;
-      if (perform_bisections) {
-        BisectionContinuationTask& bisection_continuation = *new(allocate_continuation())
-          BisectionContinuationTask(_hg, _context, best.objective, _context.partition.k / 2);
-        bisection_continuation.set_ref_count(_context.partition.k / 2 );
-        for (PartitionID block = 0; block < _context.partition.k / 2; ++block) {
-          tbb::task::spawn(*new(bisection_continuation.allocate_child()) BisectionTask(
-            _hg, _context, block, bisection_continuation._results[block], bisection_continuation._node_mapping));
-        }
-      }
-      return nullptr;
-    }
-
-   private:
-    HyperGraph& _hg;
-    const Context& _context;
-    const bool _top_level;
-    const TaskGroupID _task_group_id;
-    const bool _was_recursion;
-  };
-
+  /*!
+   * The recursive task contains the base case for initial bisecting the hypergraph
+   * (if p = 1) and performing recursion by calling the recursive child tasks.
+   */
   class RecursiveTask : public tbb::task {
 
    public:
@@ -526,6 +493,96 @@ class RecursiveInitialPartitionerT : public IInitialPartitioner {
     const Context& _context;
     const bool _top_level;
     const TaskGroupID _task_group_id;
+  };
+
+  /*!
+   * Continuation task for the recursive task. The recursive continuation task
+   * is called after all recursive child tasks of the recursive task terminates
+   * and is responsible for choosing the best partition of the recursive child tasks
+   * and spawn bisection tasks to further transform the k'-way partition into
+   * a 2*k'-way partition.
+   */
+  class RecursiveContinuationTask : public tbb::task {
+
+   public:
+    RecursiveContinuationTask(HyperGraph& hypergraph,
+                              const Context& context,
+                              const bool top_level,
+                              const TaskGroupID task_group_id,
+                              const bool was_recursion) :
+      _hg(hypergraph),
+      _context(context),
+      _top_level(top_level),
+      _task_group_id(task_group_id),
+      _was_recursion(was_recursion) { }
+
+    RecursivePartitionResult r1;
+    RecursivePartitionResult r2;
+
+    tbb::task* execute() override {
+      ASSERT(r1.objective < std::numeric_limits<HyperedgeWeight>::max());
+
+      RecursivePartitionResult best;
+      // Choose best partition of both parallel recursion
+      bool r1_has_better_quality = r1.objective < r2.objective;
+      bool r1_is_balanced = r1.imbalance < r1.context.partition.epsilon;
+      bool r2_is_balanced = r2.imbalance < r2.context.partition.epsilon;
+      if (!_was_recursion ||
+          (r1_has_better_quality && r1_is_balanced) ||
+          (r1_is_balanced && !r2_is_balanced) ||
+          (r1_has_better_quality && !r1_is_balanced && !r2_is_balanced)) {
+        best = std::move(r1);
+      } else {
+        best = std::move(r2);
+      }
+
+      HEAVY_INITIAL_PARTITIONING_ASSERT(best.objective == metrics::objective(best.hypergraph, _context.partition.objective));
+
+      // Apply best partition to hypergraph
+      for (const HypernodeID& hn : _hg.nodes()) {
+        const HypernodeID original_id = _hg.originalNodeID(hn);
+        ASSERT(original_id < best.mapping.size());
+        // The partID function of the hypergraph takes a global node id and
+        // returns the partition id of the vertex.
+        // The mapping function of RecursivePartitionResult object (best.mapping) stores a mapping from
+        // the original node id of hypergraph _hg to the original node ids of the copied hypergraph
+        // (best.hypergraph).
+        // Note, original node ids are the node ids of the input hypergraph and the global node ids are
+        // the internal node ids of the hypergraph.
+        PartitionID part_id = best.hypergraph.partID(best.hypergraph.globalNodeID(best.mapping[original_id]));
+        ASSERT(part_id != kInvalidPartition && part_id < _hg.k());
+        _hg.setNodePart(hn, part_id);
+      }
+      _hg.initializeNumCutHyperedges();
+      _hg.updateGlobalPartInfos();
+
+      // The hypergraph is now partitioned into the number of blocks of the recursive context (best.context.partition.k).
+      // Based on wheter we reduced k in recursion, we have to bisect the blocks of the partition
+      // in the desired number of blocks of the current context (_context.partition.k).
+
+      HEAVY_INITIAL_PARTITIONING_ASSERT(best.objective == metrics::objective(_hg, _context.partition.objective));
+
+      // Bisect all blocks of best partition, if we are not on the top level of recursive initial partitioning
+      // and the number of threads is small than k
+      bool perform_bisections = !_top_level && _context.shared_memory.num_threads < (size_t)_context.partition.k;
+      if (perform_bisections) {
+        BisectionContinuationTask& bisection_continuation = *new(allocate_continuation())
+          BisectionContinuationTask(_hg, _context, best.objective, _context.partition.k / 2);
+        bisection_continuation.set_ref_count(_context.partition.k / 2 );
+        for (PartitionID block = 0; block < _context.partition.k / 2; ++block) {
+          tbb::task::spawn(*new(bisection_continuation.allocate_child()) BisectionTask(
+            _hg, _context, block, bisection_continuation._results[block], bisection_continuation._node_mapping));
+        }
+      }
+      return nullptr;
+    }
+
+   private:
+    HyperGraph& _hg;
+    const Context& _context;
+    const bool _top_level;
+    const TaskGroupID _task_group_id;
+    const bool _was_recursion;
   };
 
  public:
