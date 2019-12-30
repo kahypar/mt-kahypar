@@ -50,10 +50,11 @@ class AHypergraph : public Test {
   using HyperedgeVector = parallel::scalable_vector<HyperedgeID>;
 
  public:
-  using TBBArena = typename TestTypeTraits<NUM_NUMA_NODES>::TBB;
-  using HwTopology = typename TestTypeTraits<NUM_NUMA_NODES>::HwTopology;
-  using TestStreamingHypergraph = typename TestTypeTraits<NUM_NUMA_NODES>::StreamingHyperGraph;
-  using TestHypergraph = typename TestTypeTraits<NUM_NUMA_NODES>::HyperGraph;
+  using TypeTraits = TestTypeTraits<NUM_NUMA_NODES>;
+  using TBBArena = typename TypeTraits::TBB;
+  using HwTopology = typename TypeTraits::HwTopology;
+  using TestStreamingHypergraph = typename TypeTraits::StreamingHyperGraph;
+  using TestHypergraph = typename TypeTraits::HyperGraph;
 
   AHypergraph() { }
 

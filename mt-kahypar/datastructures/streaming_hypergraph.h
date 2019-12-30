@@ -1119,6 +1119,24 @@ class StreamingHypergraph {
     return _pins_in_part[static_cast<size_t>(local_id) * _k + id];
   }
 
+  // ! Reset partition (not thread-safe)
+  void resetPartition() {
+    // Reset partition ids
+    for ( AtomicHypernodeData& hn_data : _atomic_hn_data ) {
+      hn_data.part_id = kInvalidPartition;
+      hn_data.num_incident_cut_hes = 0;
+    }
+
+    // Reset pin count in part and connectivity set
+    for ( const HyperedgeID& he : edges() ) {
+      const HyperedgeID local_id = get_local_edge_id_of_hyperedge(he);
+      for ( const PartitionID& part_id : connectivitySet(he) ) {
+        _pins_in_part[static_cast<size_t>(local_id) * _k + part_id] = 0;
+      }
+      _connectivity_sets.clear(local_id);
+    }
+  }
+
   // ####################### Contract / Uncontract #######################
 
   /*!

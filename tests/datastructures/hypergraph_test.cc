@@ -1994,6 +1994,53 @@ TEST_F(AHypergraphWithTwoStreamingHypergraphs, ExtractPartOneOfPartitionAsHyperg
                      { { copy_id[0], copy_id[1] }, { copy_id[1] }});
 }
 
+TEST_F(AHypergraphWithTwoStreamingHypergraphs, ResetPartWeightAndSizeAfterResetPartitioning) {
+  TestHypergraph hypergraph = construct_test_hypergraph(*this);
+  assignPartitionIDs(hypergraph);
+  hypergraph.resetPartition();
+
+  ASSERT_EQ(0, hypergraph.partWeight(0));
+  ASSERT_EQ(0, hypergraph.partSize(0));
+  ASSERT_EQ(0, hypergraph.partWeight(1));
+  ASSERT_EQ(0, hypergraph.partSize(1));
+  ASSERT_EQ(0, hypergraph.localPartWeight(0));
+  ASSERT_EQ(0, hypergraph.localPartSize(0));
+  ASSERT_EQ(0, hypergraph.localPartWeight(1));
+  ASSERT_EQ(0, hypergraph.localPartSize(1));
+}
+
+TEST_F(AHypergraphWithTwoStreamingHypergraphs, ResetPartitionIdsAfterResetPartitioning) {
+  TestHypergraph hypergraph = construct_test_hypergraph(*this);
+  assignPartitionIDs(hypergraph);
+  hypergraph.resetPartition();
+
+  for ( const HypernodeID& hn : hypergraph.nodes() ) {
+    ASSERT_EQ(-1, hypergraph.partID(hn));
+    ASSERT_EQ(0, hypergraph.numIncidentCutHyperedges(hn));
+  }
+}
+
+TEST_F(AHypergraphWithTwoStreamingHypergraphs, ResetConnectivitySetsAfterResetPartitioning) {
+  TestHypergraph hypergraph = construct_test_hypergraph(*this);
+  assignPartitionIDs(hypergraph);
+  hypergraph.resetPartition();
+
+  for ( const HyperedgeID& he : hypergraph.edges() ) {
+    ASSERT_EQ(0, hypergraph.connectivity(he));
+  }
+}
+
+TEST_F(AHypergraphWithTwoStreamingHypergraphs, ResetPinCountInPartAfterResetPartitioning) {
+  TestHypergraph hypergraph = construct_test_hypergraph(*this);
+  assignPartitionIDs(hypergraph);
+  hypergraph.resetPartition();
+
+  for ( const HyperedgeID& he : hypergraph.edges() ) {
+    ASSERT_EQ(0, hypergraph.pinCountInPart(he, 0));
+    ASSERT_EQ(0, hypergraph.pinCountInPart(he, 1));
+  }
+}
+
 
 }  // namespace ds
 }  // namespace mt_kahypar

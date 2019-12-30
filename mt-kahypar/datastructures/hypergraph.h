@@ -913,6 +913,23 @@ class Hypergraph {
     }
   }
 
+  // ! Reset partition (not thread-safe)
+  void resetPartition() {
+    // Reset partition on streaming hypergraphs
+    for ( StreamingHypergraph& streaming_hypergraph : _hypergraphs ) {
+      streaming_hypergraph.resetPartition();
+    }
+
+    // Reset global and local block weights
+    for ( PartitionID part_id = 0; part_id < _k; ++part_id ) {
+      _part_info[part_id].weight = 0;
+      _part_info[part_id].size = 0;
+    }
+    for (ThreadPartInfos& thread_part_info : _local_part_info) {
+      thread_part_info.reset();
+    }
+  }
+
   // ####################### Contract / Uncontract #######################
 
   /*!
