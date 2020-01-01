@@ -23,26 +23,26 @@
 #include "tbb/task.h"
 
 #include "mt-kahypar/definitions.h"
-#include "mt-kahypar/partition/initial_partitioning/flat/initial_partitioning_hypergraph.h"
+#include "mt-kahypar/partition/initial_partitioning/flat/initial_partitioning_data_container.h"
 #include "mt-kahypar/utils/randomize.h"
 
 namespace mt_kahypar {
 template<typename TypeTraits>
 class RandomInitialPartitionerT : public tbb::task {
   using HyperGraph = typename TypeTraits::HyperGraph;
-  using InitialPartitioningHypergraph = InitialPartitioningHypergraphT<TypeTraits>;
+  using InitialPartitioningDataContainer = InitialPartitioningDataContainerT<TypeTraits>;
 
   static constexpr bool debug = false;
   static PartitionID kInvalidPartition;
 
  public:
-  RandomInitialPartitionerT(InitialPartitioningHypergraph& ip_hypergraph,
+  RandomInitialPartitionerT(InitialPartitioningDataContainer& ip_data,
                             const Context& context) :
-    _ip_hg(ip_hypergraph),
+    _ip_data(ip_data),
     _context(context) { }
 
   tbb::task* execute() override {
-    HyperGraph& hg = _ip_hg.local_hypergraph();
+    HyperGraph& hg = _ip_data.local_hypergraph();
     int cpu_id = sched_getcpu();
 
     for ( const HypernodeID& hn : hg.nodes() ) {
@@ -65,7 +65,7 @@ class RandomInitialPartitionerT : public tbb::task {
       hg.setNodePart(hn, current_block);
     }
 
-    _ip_hg.commit();
+    _ip_data.commit();
     return nullptr;
   }
 
@@ -78,7 +78,7 @@ class RandomInitialPartitionerT : public tbb::task {
       _context.partition.max_part_weights[block];
   }
 
-  InitialPartitioningHypergraph& _ip_hg;
+  InitialPartitioningDataContainer& _ip_data;
   const Context& _context;
 };
 template <typename TypeTraits>

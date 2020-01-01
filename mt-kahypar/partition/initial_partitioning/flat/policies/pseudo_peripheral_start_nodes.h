@@ -24,7 +24,7 @@
 
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
 #include "mt-kahypar/parallel/stl/scalable_queue.h"
-#include "mt-kahypar/partition/initial_partitioning/flat/initial_partitioning_hypergraph.h"
+#include "mt-kahypar/partition/initial_partitioning/flat/initial_partitioning_data_container.h"
 #include "mt-kahypar/utils/randomize.h"
 
 namespace mt_kahypar {
@@ -32,7 +32,7 @@ namespace mt_kahypar {
 template<typename TypeTraits>
 class PseudoPeripheralStartNodes : public tbb::task {
   using HyperGraph = typename TypeTraits::HyperGraph;
-  using InitialPartitioningHypergraph = InitialPartitioningHypergraphT<TypeTraits>;
+  using InitialPartitioningDataContainer = InitialPartitioningDataContainerT<TypeTraits>;
   using StartNodes = parallel::scalable_vector<HypernodeID>;
   using Queue = parallel::scalable_queue<HypernodeID>;
 
@@ -41,13 +41,13 @@ class PseudoPeripheralStartNodes : public tbb::task {
   static HypernodeID kInvalidHypernode;
 
  public:
-  static inline StartNodes computeStartNodes(InitialPartitioningHypergraph& ip_hypergraph,
+  static inline StartNodes computeStartNodes(InitialPartitioningDataContainer& ip_data,
                                              const Context& context) {
-    HyperGraph& hypergraph = ip_hypergraph.local_hypergraph();
+    HyperGraph& hypergraph = ip_data.local_hypergraph();
     kahypar::ds::FastResetFlagArray<>& hypernodes_in_queue =
-      ip_hypergraph.local_hypernode_fast_reset_flag_array();
+      ip_data.local_hypernode_fast_reset_flag_array();
     kahypar::ds::FastResetFlagArray<>& hyperedges_in_queue =
-      ip_hypergraph.local_hyperedge_fast_reset_flag_array();
+      ip_data.local_hyperedge_fast_reset_flag_array();
     int cpu_id = sched_getcpu();
 
     StartNodes start_nodes;

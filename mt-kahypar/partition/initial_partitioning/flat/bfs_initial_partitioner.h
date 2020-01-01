@@ -23,7 +23,7 @@
 #include "tbb/task.h"
 
 #include "mt-kahypar/definitions.h"
-#include "mt-kahypar/partition/initial_partitioning/flat/initial_partitioning_hypergraph.h"
+#include "mt-kahypar/partition/initial_partitioning/flat/initial_partitioning_data_container.h"
 #include "mt-kahypar/partition/initial_partitioning/flat/policies/pseudo_peripheral_start_nodes.h"
 #include "mt-kahypar/parallel/stl/scalable_queue.h"
 #include "mt-kahypar/utils/randomize.h"
@@ -32,7 +32,7 @@ namespace mt_kahypar {
 template<typename TypeTraits>
 class BFSInitialPartitionerT : public tbb::task {
   using HyperGraph = typename TypeTraits::HyperGraph;
-  using InitialPartitioningHypergraph = InitialPartitioningHypergraphT<TypeTraits>;
+  using InitialPartitioningDataContainer = InitialPartitioningDataContainerT<TypeTraits>;
   using Queue = parallel::scalable_queue<HypernodeID>;
 
 
@@ -41,20 +41,20 @@ class BFSInitialPartitionerT : public tbb::task {
   static HypernodeID kInvalidHypernode;
 
  public:
-  BFSInitialPartitionerT(InitialPartitioningHypergraph& ip_hypergraph,
+  BFSInitialPartitionerT(InitialPartitioningDataContainer& ip_data,
                          const Context& context) :
-    _ip_hg(ip_hypergraph),
+    _ip_data(ip_data),
     _context(context) { }
 
   tbb::task* execute() override {
-    HyperGraph& hypergraph = _ip_hg.local_hypergraph();
+    HyperGraph& hypergraph = _ip_data.local_hypergraph();
     kahypar::ds::FastResetFlagArray<>& hypernodes_in_queue =
-      _ip_hg.local_hypernode_fast_reset_flag_array();
+      _ip_data.local_hypernode_fast_reset_flag_array();
     kahypar::ds::FastResetFlagArray<>& hyperedges_in_queue =
-      _ip_hg.local_hyperedge_fast_reset_flag_array();
+      _ip_data.local_hyperedge_fast_reset_flag_array();
 
     parallel::scalable_vector<HypernodeID> start_nodes =
-      PseudoPeripheralStartNodes<TypeTraits>::computeStartNodes(_ip_hg, _context);
+      PseudoPeripheralStartNodes<TypeTraits>::computeStartNodes(_ip_data, _context);
 
     // Insert each start node for each block into its corresponding queue
     hypernodes_in_queue.reset();
@@ -66,7 +66,7 @@ class BFSInitialPartitionerT : public tbb::task {
       markHypernodeAsInQueue(hypergraph, hypernodes_in_queue, start_nodes[block], block);
     }
 
-    _ip_hg.reset_unassigned_hypernodes();
+    _ip_data.reset_unassigned_hypernodes();
     HypernodeID num_assigned_hypernodes = 0;
     // We grow the k blocks of the partition starting from each start node in
     // a BFS-fashion. The BFS queues for each block are visited in round-robin-fashion.
@@ -98,7 +98,7 @@ class BFSInitialPartitionerT : public tbb::task {
           // Special case, in case all hypernodes in the queue are already
           // assigned to an other block or the hypergraph is unconnected, we
           // choose an new unassigned hypernode (if one exists)
-          hn = _ip_hg.get_unassigned_hypernode();
+          hn = _ip_data.get_unassigned_hypernode();
         }
 
         if ( hn != kInvalidHypernode ) {
@@ -122,7 +122,7 @@ class BFSInitialPartitionerT : public tbb::task {
         return true;
       } (), "There are unassigned hypernodes!");
 
-    _ip_hg.commit();
+    _ip_data.commit();
     return nullptr;
   }
 
@@ -179,7 +179,7 @@ class BFSInitialPartitionerT : public tbb::task {
       hypergraph.originalEdgeID(he), true);
   }
 
-  InitialPartitioningHypergraph& _ip_hg;
+  InitialPartitioningDataContainer& _ip_data;
   const Context& _context;
 };
 

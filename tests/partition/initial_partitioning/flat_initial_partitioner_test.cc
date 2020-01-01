@@ -48,13 +48,13 @@ template<typename TypeTraits,
 class InitialPartitionerRootTaskT : public tbb::task {
   using HyperGraph = typename TypeTraits::HyperGraph;
   using TBB = typename TypeTraits::TBB;
-  using InitialPartitioningHypergraph = InitialPartitioningHypergraphT<TypeTraits>;
+  using InitialPartitioningDataContainer = InitialPartitioningDataContainerT<TypeTraits>;
 
  public:
   InitialPartitionerRootTaskT(HyperGraph& hypergraph,
                               const Context& context,
                               const size_t runs) :
-    _ip_hg(hypergraph, context, TBB::GLOBAL_TASK_GROUP),
+    _ip_data(hypergraph, context, TBB::GLOBAL_TASK_GROUP),
     _context(context),
     _runs(runs) { }
 
@@ -62,15 +62,15 @@ class InitialPartitionerRootTaskT : public tbb::task {
     tbb::task::set_ref_count(_runs + 1);
     for ( size_t i = 0; i < _runs; ++i ) {
       tbb::task::spawn(*new(tbb::task::allocate_child())
-        InitialPartitionerTask(_ip_hg, _context));
+        InitialPartitionerTask(_ip_data, _context));
     }
     tbb::task::wait_for_all();
-    _ip_hg.apply();
+    _ip_data.apply();
     return nullptr;
   }
 
  private:
-  InitialPartitioningHypergraph _ip_hg;
+  InitialPartitioningDataContainer _ip_data;
   const Context& _context;
   const size_t _runs;
 };
@@ -86,7 +86,6 @@ class AFlatInitialPartitionerTest : public ds::AHypergraph<2> {
   using Base::TBBArena;
   using Base::TestHypergraph;
   using Base::TestStreamingHypergraph;
-  using InitialPartitioningHypergraph = InitialPartitioningHypergraphT<TypeTraits>;
   using InitialPartitionerRootTask = InitialPartitionerRootTaskT<
     TypeTraits, typename Config::template InitialPartitionerTask<TypeTraits>>;
 

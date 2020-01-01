@@ -28,7 +28,7 @@
 
 namespace mt_kahypar {
 template <typename TypeTraits>
-class InitialPartitioningHypergraphT {
+class InitialPartitioningDataContainerT {
   using HyperGraph = typename TypeTraits::HyperGraph;
   using TBB = typename TypeTraits::TBB;
 
@@ -83,9 +83,9 @@ class InitialPartitioningHypergraphT {
   using ThreadLocalUnassignedHypernodes = tbb::enumerable_thread_specific<parallel::scalable_vector<HypernodeID>>;
 
  public:
-  InitialPartitioningHypergraphT(HyperGraph& hypergraph,
-                                 const Context& context,
-                                 const TaskGroupID& task_group_id) :
+  InitialPartitioningDataContainerT(HyperGraph& hypergraph,
+                                    const Context& context,
+                                    const TaskGroupID& task_group_id) :
     _hg(hypergraph),
     _context(context),
     _task_group_id(task_group_id),
@@ -97,11 +97,11 @@ class InitialPartitioningHypergraphT {
     _local_unassigned_hypernodes(),
     _local_unassigned_hypernode_pointer(std::numeric_limits<size_t>::max())  { }
 
-  InitialPartitioningHypergraphT(const InitialPartitioningHypergraphT&) = delete;
-  InitialPartitioningHypergraphT & operator= (const InitialPartitioningHypergraphT &) = delete;
+  InitialPartitioningDataContainerT(const InitialPartitioningDataContainerT&) = delete;
+  InitialPartitioningDataContainerT & operator= (const InitialPartitioningDataContainerT &) = delete;
 
-  InitialPartitioningHypergraphT(InitialPartitioningHypergraphT&&) = delete;
-  InitialPartitioningHypergraphT & operator= (InitialPartitioningHypergraphT &&) = delete;
+  InitialPartitioningDataContainerT(InitialPartitioningDataContainerT&&) = delete;
+  InitialPartitioningDataContainerT & operator= (InitialPartitioningDataContainerT &&) = delete;
 
   const HyperGraph& global_hypergraph() const {
     return _hg;
@@ -236,7 +236,7 @@ class InitialPartitioningHypergraphT {
 };
 
 template <typename TypeTraits>
-PartitionID InitialPartitioningHypergraphT<TypeTraits>::kInvalidPartition = -1;
+PartitionID InitialPartitioningDataContainerT<TypeTraits>::kInvalidPartition = -1;
 template <typename TypeTraits>
-HypernodeID InitialPartitioningHypergraphT<TypeTraits>::kInvalidHypernode = std::numeric_limits<HypernodeID>::max();
+HypernodeID InitialPartitioningDataContainerT<TypeTraits>::kInvalidHypernode = std::numeric_limits<HypernodeID>::max();
 } // namespace mt_kahypar
