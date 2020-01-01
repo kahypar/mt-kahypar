@@ -34,6 +34,7 @@ class InitialPartitioningHypergraphT {
 
   static constexpr bool debug = false;
   static PartitionID kInvalidPartition;
+  static HypernodeID kInvalidHypernode;
 
   struct PartitioningResult {
     explicit PartitioningResult(HyperedgeWeight objective,
@@ -79,6 +80,7 @@ class InitialPartitioningHypergraphT {
   };
 
   using ThreadLocalHypergraph = tbb::enumerable_thread_specific<LocalInitialPartitioningHypergraph>;
+  using ThreadLocalUnassignedHypernodes = tbb::enumerable_thread_specific<parallel::scalable_vector<HypernodeID>>;
 
  public:
   InitialPartitioningHypergraphT(HyperGraph& hypergraph,
@@ -89,7 +91,11 @@ class InitialPartitioningHypergraphT {
     _task_group_id(task_group_id),
     _local_hg([&] {
       return copy_hypergraph();
-    }) { }
+    }),
+    _local_hn_visited(_context.partition.k * _local_hg.local()._hypergraph.initialNumNodes()),
+    _local_he_visited(_context.partition.k * _local_hg.local()._hypergraph.initialNumEdges()),
+    _local_unassigned_hypernodes(),
+    _local_unassigned_hypernode_pointer(std::numeric_limits<size_t>::max())  { }
 
   InitialPartitioningHypergraphT(const InitialPartitioningHypergraphT&) = delete;
   InitialPartitioningHypergraphT & operator= (const InitialPartitioningHypergraphT &) = delete;
@@ -103,6 +109,51 @@ class InitialPartitioningHypergraphT {
 
   HyperGraph& local_hypergraph() {
     return _local_hg.local()._hypergraph;
+  }
+
+  kahypar::ds::FastResetFlagArray<>& local_hypernode_fast_reset_flag_array() {
+    return _local_hn_visited.local();
+  }
+
+  kahypar::ds::FastResetFlagArray<>& local_hyperedge_fast_reset_flag_array() {
+    return _local_he_visited.local();
+  }
+
+  void reset_unassigned_hypernodes() {
+    parallel::scalable_vector<HypernodeID>& unassigned_hypernodes =
+      _local_unassigned_hypernodes.local();
+    size_t& unassigned_hypernode_pointer = _local_unassigned_hypernode_pointer.local();
+    if ( unassigned_hypernode_pointer == std::numeric_limits<size_t>::max() ) {
+      // In case the local unassigned hypernode vector was not initialized before
+      // we initialize it here
+      const HyperGraph& hypergraph = _local_hg.local()._hypergraph;
+      for ( const HypernodeID& hn : hypergraph.nodes() ) {
+        unassigned_hypernodes.push_back(hn);
+      }
+    }
+    unassigned_hypernode_pointer = unassigned_hypernodes.size();
+  }
+
+  HypernodeID get_unassigned_hypernode() {
+    const HyperGraph& hypergraph = _local_hg.local()._hypergraph;
+    parallel::scalable_vector<HypernodeID>& unassigned_hypernodes =
+      _local_unassigned_hypernodes.local();
+    size_t& unassigned_hypernode_pointer = _local_unassigned_hypernode_pointer.local();
+    ASSERT(unassigned_hypernodes.size() > 0);
+    ASSERT(unassigned_hypernode_pointer <= unassigned_hypernodes.size());
+
+    while ( unassigned_hypernode_pointer > 0 ) {
+      const HypernodeID current_hn = unassigned_hypernodes[0];
+      // In case the current hypernode is unassigned we return it
+      if ( hypergraph.partID(current_hn) == kInvalidPartition ) {
+        return current_hn;
+      }
+      // In case the hypernode on the first position is already assigned,
+      // we swap it to end of the unassigned hypernode vector and decrement
+      // the pointer such that we will not visit it again
+      std::swap(unassigned_hypernodes[0], unassigned_hypernodes[--unassigned_hypernode_pointer]);
+    }
+    return kInvalidHypernode;
   }
 
   // ! Only for testing
@@ -178,8 +229,14 @@ class InitialPartitioningHypergraphT {
   const TaskGroupID& _task_group_id;
 
   ThreadLocalHypergraph _local_hg;
+  ThreadLocalFastResetFlagArray _local_hn_visited;
+  ThreadLocalFastResetFlagArray _local_he_visited;
+  ThreadLocalUnassignedHypernodes _local_unassigned_hypernodes;
+  tbb::enumerable_thread_specific<size_t> _local_unassigned_hypernode_pointer;
 };
 
 template <typename TypeTraits>
 PartitionID InitialPartitioningHypergraphT<TypeTraits>::kInvalidPartition = -1;
+template <typename TypeTraits>
+HypernodeID InitialPartitioningHypergraphT<TypeTraits>::kInvalidHypernode = std::numeric_limits<HypernodeID>::max();
 } // namespace mt_kahypar

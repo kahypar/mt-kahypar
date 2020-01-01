@@ -79,17 +79,16 @@ class PseudoPeripheralStartNodes : public tbb::task {
         // to queue.
         for ( const HyperedgeID& he : hypergraph.incidentEdges(last_hypernode_touched) ) {
           const HyperedgeID original_he_id = hypergraph.originalEdgeID(he);
-          if ( !hyperedges_in_queue[original_he_id] &&
-               hypergraph.edgeSize(he) <= context.partition.hyperedge_size_threshold ) {
-
-            for ( const HypernodeID& pin : hypergraph.pins(he) ) {
-              const HypernodeID original_pin_id = hypergraph.originalNodeID(pin);
-              if ( !hypernodes_in_queue[original_pin_id] ) {
-                queue.push(pin);
-                hypernodes_in_queue.set(original_pin_id, true);
+          if ( !hyperedges_in_queue[original_he_id] ) {
+            if ( hypergraph.edgeSize(he) <= context.partition.hyperedge_size_threshold ) {
+              for ( const HypernodeID& pin : hypergraph.pins(he) ) {
+                const HypernodeID original_pin_id = hypergraph.originalNodeID(pin);
+                if ( !hypernodes_in_queue[original_pin_id] ) {
+                  queue.push(pin);
+                  hypernodes_in_queue.set(original_pin_id, true);
+                }
               }
             }
-
             hyperedges_in_queue.set(original_he_id, true);
           }
         }
