@@ -105,6 +105,7 @@ class InitialPartitioningHypergraphT {
     return _local_hg.local()._hypergraph;
   }
 
+  // ! Only for testing
   HypernodeID map_hypernode_to_local_hypergraph(const HypernodeID hn) {
     LocalInitialPartitioningHypergraph& local_hg = _local_hg.local();
     return local_hg._hypergraph.globalNodeID(local_hg._mapping[_hg.originalNodeID(hn)]);
@@ -139,7 +140,7 @@ class InitialPartitioningHypergraphT {
   }
 
   /*!
-   * Determines the best partition computed by all threads and applies to
+   * Determines the best partition computed by all threads and applies it to
    * the hypergraph. Note, this function is not thread-safe and should be called
    * if no other thread using that object operates on it.
    * Note, object is afterwards not usable any more.
