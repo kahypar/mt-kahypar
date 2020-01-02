@@ -122,7 +122,7 @@ class BFSInitialPartitionerT : public tbb::task {
         return true;
       } (), "There are unassigned hypernodes!");
 
-    _ip_data.commit();
+    _ip_data.commit(InitialPartitioningAlgorithm::bfs);
     return nullptr;
   }
 

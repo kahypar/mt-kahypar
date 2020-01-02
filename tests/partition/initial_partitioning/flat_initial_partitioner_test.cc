@@ -94,7 +94,7 @@ class AFlatInitialPartitionerTest : public ds::AHypergraph<2> {
     hypergraph(),
     context() {
     context.partition.k = Config::K;
-    context.partition.epsilon = 0.;
+    context.partition.epsilon = 0.2;
     context.partition.objective = kahypar::Objective::km1;
     hypergraph = io::readHypergraphFile<TestHypergraph, TestStreamingHypergraph, TBBArena, HwTopology>(
       "../test_instances/test_instance.hgr", context.partition.k, InitialHyperedgeDistribution::equally);

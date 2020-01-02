@@ -89,6 +89,12 @@ enum class AcceptancePolicy : uint8_t {
   UNDEFINED
 };
 
+enum class InitialPartitioningAlgorithm : uint8_t {
+  random = 0,
+  bfs = 1,
+  UNDEFINED = 2
+};
+
 enum class InitialPartitioningMode : uint8_t {
   direct,
   recursive,
@@ -208,6 +214,16 @@ std::ostream & operator<< (std::ostream& os, const RatingFunction& func) {
       // omit default case to trigger compiler warning for missing cases
   }
   return os << static_cast<uint8_t>(func);
+}
+
+std::ostream & operator<< (std::ostream& os, const InitialPartitioningAlgorithm& algo) {
+  switch (algo) {
+    case InitialPartitioningAlgorithm::random: return os << "random";
+    case InitialPartitioningAlgorithm::bfs: return os << "bfs";
+    case InitialPartitioningAlgorithm::UNDEFINED: return os << "UNDEFINED";
+      // omit default case to trigger compiler warning for missing cases
+  }
+  return os << static_cast<uint8_t>(algo);
 }
 
 std::ostream & operator<< (std::ostream& os, const InitialPartitioningMode& mode) {
@@ -334,6 +350,16 @@ static RatingFunction ratingFunctionFromString(const std::string& function) {
   }
   ERROR("No valid rating function for rating.");
   return RatingFunction::UNDEFINED;
+}
+
+static InitialPartitioningAlgorithm initialPartitioningAlgorithmFromString(const std::string& algo) {
+  if (algo == "random") {
+    return InitialPartitioningAlgorithm::random;
+  } else if (algo == "bfs") {
+    return InitialPartitioningAlgorithm::bfs;
+  }
+  ERROR("Illegal option: " + algo);
+  return InitialPartitioningAlgorithm::UNDEFINED;
 }
 
 static InitialPartitioningMode initialPartitioningModeFromString(const std::string& mode) {

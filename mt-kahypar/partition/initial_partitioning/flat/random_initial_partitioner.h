@@ -65,7 +65,7 @@ class RandomInitialPartitionerT : public tbb::task {
       hg.setNodePart(hn, current_block);
     }
 
-    _ip_data.commit();
+    _ip_data.commit(InitialPartitioningAlgorithm::random);
     return nullptr;
   }
 

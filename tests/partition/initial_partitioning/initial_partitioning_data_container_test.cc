@@ -196,7 +196,7 @@ TEST_F(AInitialPartitioningDataContainer, AppliesPartitionToHypergraph) {
   local_hg.setNodePart(ip_data.map_hypernode_to_local_hypergraph(id[4]), 1);
   local_hg.setNodePart(ip_data.map_hypernode_to_local_hypergraph(id[5]), 1);
   local_hg.setNodePart(ip_data.map_hypernode_to_local_hypergraph(id[6]), 1);
-  ip_data.commit();
+  ip_data.commit(InitialPartitioningAlgorithm::random);
 
   ip_data.apply();
 
@@ -227,7 +227,7 @@ TEST_F(AInitialPartitioningDataContainer, AppliesBestPartitionToHypergraph) {
   local_hg.setNodePart(ip_data.map_hypernode_to_local_hypergraph(id[4]), 1);
   local_hg.setNodePart(ip_data.map_hypernode_to_local_hypergraph(id[5]), 1);
   local_hg.setNodePart(ip_data.map_hypernode_to_local_hypergraph(id[6]), 1);
-  ip_data.commit();
+  ip_data.commit(InitialPartitioningAlgorithm::random);
 
   // Cut = 2
   local_hg.setNodePart(ip_data.map_hypernode_to_local_hypergraph(id[0]), 0);
@@ -237,7 +237,7 @@ TEST_F(AInitialPartitioningDataContainer, AppliesBestPartitionToHypergraph) {
   local_hg.setNodePart(ip_data.map_hypernode_to_local_hypergraph(id[4]), 1);
   local_hg.setNodePart(ip_data.map_hypernode_to_local_hypergraph(id[5]), 1);
   local_hg.setNodePart(ip_data.map_hypernode_to_local_hypergraph(id[6]), 1);
-  ip_data.commit();
+  ip_data.commit(InitialPartitioningAlgorithm::random);
 
   ip_data.apply();
 
@@ -268,7 +268,7 @@ TEST_F(AInitialPartitioningDataContainer, AppliesBestPartitionWithImbalancedPart
   local_hg.setNodePart(ip_data.map_hypernode_to_local_hypergraph(id[4]), 1);
   local_hg.setNodePart(ip_data.map_hypernode_to_local_hypergraph(id[5]), 1);
   local_hg.setNodePart(ip_data.map_hypernode_to_local_hypergraph(id[6]), 1);
-  ip_data.commit();
+  ip_data.commit(InitialPartitioningAlgorithm::random);
 
   // Cut = 2
   local_hg.setNodePart(ip_data.map_hypernode_to_local_hypergraph(id[0]), 0);
@@ -278,7 +278,7 @@ TEST_F(AInitialPartitioningDataContainer, AppliesBestPartitionWithImbalancedPart
   local_hg.setNodePart(ip_data.map_hypernode_to_local_hypergraph(id[4]), 1);
   local_hg.setNodePart(ip_data.map_hypernode_to_local_hypergraph(id[5]), 1);
   local_hg.setNodePart(ip_data.map_hypernode_to_local_hypergraph(id[6]), 1);
-  ip_data.commit();
+  ip_data.commit(InitialPartitioningAlgorithm::random);
 
   ip_data.apply();
 
@@ -309,7 +309,7 @@ TEST_F(AInitialPartitioningDataContainer, AppliesBestPartitionWithImbalancedPart
   local_hg.setNodePart(ip_data.map_hypernode_to_local_hypergraph(id[4]), 1);
   local_hg.setNodePart(ip_data.map_hypernode_to_local_hypergraph(id[5]), 1);
   local_hg.setNodePart(ip_data.map_hypernode_to_local_hypergraph(id[6]), 1);
-  ip_data.commit();
+  ip_data.commit(InitialPartitioningAlgorithm::random);
 
   // Cut = 2, also imbalanced, but has better balance than first cut
   local_hg.setNodePart(ip_data.map_hypernode_to_local_hypergraph(id[0]), 0);
@@ -319,7 +319,7 @@ TEST_F(AInitialPartitioningDataContainer, AppliesBestPartitionWithImbalancedPart
   local_hg.setNodePart(ip_data.map_hypernode_to_local_hypergraph(id[4]), 1);
   local_hg.setNodePart(ip_data.map_hypernode_to_local_hypergraph(id[5]), 1);
   local_hg.setNodePart(ip_data.map_hypernode_to_local_hypergraph(id[6]), 1);
-  ip_data.commit();
+  ip_data.commit(InitialPartitioningAlgorithm::random);
 
   ip_data.apply();
 
@@ -350,7 +350,7 @@ TEST_F(AInitialPartitioningDataContainer, AppliesBestPartitionWithImbalancedPart
   local_hg.setNodePart(ip_data.map_hypernode_to_local_hypergraph(id[4]), 1);
   local_hg.setNodePart(ip_data.map_hypernode_to_local_hypergraph(id[5]), 1);
   local_hg.setNodePart(ip_data.map_hypernode_to_local_hypergraph(id[6]), 1);
-  ip_data.commit();
+  ip_data.commit(InitialPartitioningAlgorithm::random);
 
   // Cut = 1, also imbalanced but better metric
   local_hg.setNodePart(ip_data.map_hypernode_to_local_hypergraph(id[0]), 1);
@@ -360,7 +360,7 @@ TEST_F(AInitialPartitioningDataContainer, AppliesBestPartitionWithImbalancedPart
   local_hg.setNodePart(ip_data.map_hypernode_to_local_hypergraph(id[4]), 1);
   local_hg.setNodePart(ip_data.map_hypernode_to_local_hypergraph(id[5]), 1);
   local_hg.setNodePart(ip_data.map_hypernode_to_local_hypergraph(id[6]), 1);
-  ip_data.commit();
+  ip_data.commit(InitialPartitioningAlgorithm::random);
 
   ip_data.apply();
 
@@ -394,7 +394,7 @@ TEST_F(AInitialPartitioningDataContainer, AppliesBestPartitionToHypergraphInPara
     local_hg.setNodePart(ip_data.map_hypernode_to_local_hypergraph(id[4]), 1);
     local_hg.setNodePart(ip_data.map_hypernode_to_local_hypergraph(id[5]), 1);
     local_hg.setNodePart(ip_data.map_hypernode_to_local_hypergraph(id[6]), 1);
-    ip_data.commit();
+    ip_data.commit(InitialPartitioningAlgorithm::random);
   }, [&] {
     ++cnt;
     while(cnt < 2) { }
@@ -407,7 +407,7 @@ TEST_F(AInitialPartitioningDataContainer, AppliesBestPartitionToHypergraphInPara
     local_hg.setNodePart(ip_data.map_hypernode_to_local_hypergraph(id[4]), 1);
     local_hg.setNodePart(ip_data.map_hypernode_to_local_hypergraph(id[5]), 1);
     local_hg.setNodePart(ip_data.map_hypernode_to_local_hypergraph(id[6]), 1);
-    ip_data.commit();
+    ip_data.commit(InitialPartitioningAlgorithm::random);
   });
 
   ip_data.apply();
@@ -442,7 +442,7 @@ TEST_F(AInitialPartitioningDataContainer, AppliesBestPartitionToHypergraphInPara
     local_hg.setNodePart(ip_data.map_hypernode_to_local_hypergraph(id[4]), 1);
     local_hg.setNodePart(ip_data.map_hypernode_to_local_hypergraph(id[5]), 1);
     local_hg.setNodePart(ip_data.map_hypernode_to_local_hypergraph(id[6]), 1);
-    ip_data.commit();
+    ip_data.commit(InitialPartitioningAlgorithm::random);
   }, [&] {
     ++cnt;
     while(cnt < 2) { }
@@ -455,7 +455,7 @@ TEST_F(AInitialPartitioningDataContainer, AppliesBestPartitionToHypergraphInPara
     local_hg.setNodePart(ip_data.map_hypernode_to_local_hypergraph(id[4]), 1);
     local_hg.setNodePart(ip_data.map_hypernode_to_local_hypergraph(id[5]), 1);
     local_hg.setNodePart(ip_data.map_hypernode_to_local_hypergraph(id[6]), 1);
-    ip_data.commit();
+    ip_data.commit(InitialPartitioningAlgorithm::random);
   });
 
   ip_data.apply();
@@ -490,7 +490,7 @@ TEST_F(AInitialPartitioningDataContainer, AppliesBestPartitionToHypergraphInPara
     local_hg.setNodePart(ip_data.map_hypernode_to_local_hypergraph(id[4]), 1);
     local_hg.setNodePart(ip_data.map_hypernode_to_local_hypergraph(id[5]), 1);
     local_hg.setNodePart(ip_data.map_hypernode_to_local_hypergraph(id[6]), 1);
-    ip_data.commit();
+    ip_data.commit(InitialPartitioningAlgorithm::random);
   }, [&] {
     ++cnt;
     while(cnt < 2) { }
@@ -503,7 +503,7 @@ TEST_F(AInitialPartitioningDataContainer, AppliesBestPartitionToHypergraphInPara
     local_hg.setNodePart(ip_data.map_hypernode_to_local_hypergraph(id[4]), 0);
     local_hg.setNodePart(ip_data.map_hypernode_to_local_hypergraph(id[5]), 1);
     local_hg.setNodePart(ip_data.map_hypernode_to_local_hypergraph(id[6]), 1);
-    ip_data.commit();
+    ip_data.commit(InitialPartitioningAlgorithm::random);
   });
 
   ip_data.apply();

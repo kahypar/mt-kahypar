@@ -85,7 +85,7 @@ class InitialPartitioningDataContainerT {
  public:
   InitialPartitioningDataContainerT(HyperGraph& hypergraph,
                                     const Context& context,
-                                    const TaskGroupID& task_group_id) :
+                                    const TaskGroupID task_group_id) :
     _hg(hypergraph),
     _context(context),
     _task_group_id(task_group_id),
@@ -167,7 +167,8 @@ class InitialPartitioningDataContainerT {
    * the best local partition, if it has a better quality (or better imbalance).
    * Partition on the local hypergraph is resetted afterwards.
    */
-  void commit() {
+  void commit(const InitialPartitioningAlgorithm algorithm) {
+    unused(algorithm);
     LocalInitialPartitioningHypergraph& ip_hypergraph = _local_hg.local();
     ip_hypergraph._hypergraph.initializeNumCutHyperedges();
     ip_hypergraph._hypergraph.updateGlobalPartInfos();
@@ -175,6 +176,9 @@ class InitialPartitioningDataContainerT {
     PartitioningResult result(
       metrics::objective(ip_hypergraph._hypergraph, _context.partition.objective),
       metrics::imbalance(ip_hypergraph._hypergraph, _context));
+
+    DBG << "Algorithm =" << algorithm << ", Objective =" << _context.partition.objective
+        << ", Metric =" << result._objective << ", Imbalance =" << result._imbalance;
 
     if ( ip_hypergraph._result.is_better(result, _context.partition.epsilon) ) {
       for ( const HypernodeID& hn : ip_hypergraph._hypergraph.nodes() ) {
@@ -226,7 +230,7 @@ class InitialPartitioningDataContainerT {
 
   HyperGraph& _hg;
   const Context& _context;
-  const TaskGroupID& _task_group_id;
+  const TaskGroupID _task_group_id;
 
   ThreadLocalHypergraph _local_hg;
   ThreadLocalFastResetFlagArray _local_hn_visited;
@@ -239,4 +243,6 @@ template <typename TypeTraits>
 PartitionID InitialPartitioningDataContainerT<TypeTraits>::kInvalidPartition = -1;
 template <typename TypeTraits>
 HypernodeID InitialPartitioningDataContainerT<TypeTraits>::kInvalidHypernode = std::numeric_limits<HypernodeID>::max();
+
+using InitialPartitioningDataContainer = InitialPartitioningDataContainerT<GlobalTypeTraits>;
 } // namespace mt_kahypar
