@@ -28,6 +28,48 @@
 
 namespace mt_kahypar {
 
+template<typename TypeTraits>
+class PoolInitialPartitionerContinuationT : public tbb::task {
+  using HyperGraph = typename TypeTraits::HyperGraph;
+  using InitialPartitioningDataContainer = InitialPartitioningDataContainerT<TypeTraits>;
+
+  public:
+  PoolInitialPartitionerContinuationT(HyperGraph& hypergraph,
+                                      const Context& context,
+                                      const TaskGroupID task_group_id) :
+    _ip_data(hypergraph, context, task_group_id) { }
+
+  tbb::task* execute() override {
+    _ip_data.apply();
+    return nullptr;
+  }
+
+  InitialPartitioningDataContainer _ip_data;
+};
+
+template<typename TypeTraits>
+static void spawn_initial_partitioner(PoolInitialPartitionerContinuationT<TypeTraits>& continuation_task,
+                                      const Context& context ) {
+  // For each initial partitioner, we create exactly number of initial partitioning runs
+  // tasks => each tasks creates exactly one partition.
+  tbb::task_list ip_tasks;
+  for ( uint8_t i = 0; i < static_cast<uint8_t>(InitialPartitioningAlgorithm::UNDEFINED); ++i ) {
+    InitialPartitioningAlgorithm algorithm = static_cast<InitialPartitioningAlgorithm>(i);
+    for ( size_t j = 0; j < context.initial_partitioning.runs; ++j ) {
+      std::unique_ptr<tbb::task> initial_partitioner_ptr =
+        FlatInitialPartitionerFactory::getInstance().createObject(
+          algorithm, &continuation_task, continuation_task._ip_data, context);
+      tbb::task* initial_partitioner = initial_partitioner_ptr.release();
+      ip_tasks.push_back(*initial_partitioner);
+    }
+  }
+
+  // Spawn Initial Partitioner
+  continuation_task.set_ref_count(context.initial_partitioning.runs *
+    static_cast<uint8_t>(InitialPartitioningAlgorithm::UNDEFINED));
+  tbb::task::spawn(ip_tasks);
+}
+
 /*!
  * The pool initial partitioner spawns for each initial partitioning run and algorithm
  * exactly one initial partitioning task. The number of initial partitions computed during
@@ -37,26 +79,9 @@ namespace mt_kahypar {
 template<typename TypeTraits>
 class PoolInitialPartitionerT : public tbb::task {
   using HyperGraph = typename TypeTraits::HyperGraph;
+  using PoolInitialPartitionerContinuation = PoolInitialPartitionerContinuationT<TypeTraits>;
 
   static constexpr bool debug = false;
-
-  class PoolInitialPartitionerContinuation : public tbb::task {
-    using HyperGraph = typename TypeTraits::HyperGraph;
-    using InitialPartitioningDataContainer = InitialPartitioningDataContainerT<TypeTraits>;
-
-   public:
-    PoolInitialPartitionerContinuation(HyperGraph& hypergraph,
-                                       const Context& context,
-                                       const TaskGroupID task_group_id) :
-      _ip_data(hypergraph, context, task_group_id) { }
-
-    tbb::task* execute() override {
-      _ip_data.apply();
-      return nullptr;
-    }
-
-    InitialPartitioningDataContainer _ip_data;
-  };
 
  public:
   PoolInitialPartitionerT(HyperGraph& hypergraph,
@@ -69,24 +94,7 @@ class PoolInitialPartitionerT : public tbb::task {
   tbb::task* execute() override {
     PoolInitialPartitionerContinuation& ip_continuation = *new(allocate_continuation())
       PoolInitialPartitionerContinuation(_hg, _context, _task_group_id);
-
-    // For each initial partitioner, we create exactly number of initial partitioning runs
-    // tasks => each tasks creates exactly one partition.
-    tbb::task_list ip_tasks;
-    for ( uint8_t i = 0; i < static_cast<uint8_t>(InitialPartitioningAlgorithm::UNDEFINED); ++i ) {
-      InitialPartitioningAlgorithm algorithm = static_cast<InitialPartitioningAlgorithm>(i);
-      for ( size_t j = 0; j < _context.initial_partitioning.runs; ++j ) {
-        std::unique_ptr<tbb::task> initial_partitioner_ptr =
-          FlatInitialPartitionerFactory::getInstance().createObject(
-            algorithm, &ip_continuation, ip_continuation._ip_data, _context);
-        tbb::task* initial_partitioner = initial_partitioner_ptr.release();
-        ip_tasks.push_back(*initial_partitioner);
-      }
-    }
-
-    ip_continuation.set_ref_count(_context.initial_partitioning.runs *
-      static_cast<uint8_t>(InitialPartitioningAlgorithm::UNDEFINED));
-    tbb::task::spawn(ip_tasks);
+    spawn_initial_partitioner(ip_continuation, _context);
     return nullptr;
   }
 

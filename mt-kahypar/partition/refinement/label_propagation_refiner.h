@@ -313,6 +313,7 @@ class LabelPropagationRefinerT final : public IRefiner {
                   const int node,
                   const bool is_first_round,
                   const F& objective_delta) {
+    unused(node);
     bool is_moved = false;
     const HypernodeID original_id = _hg.originalNodeID(hn);
     ASSERT(node == -1 || StreamingHyperGraph::get_numa_node_of_vertex(hn) == node);

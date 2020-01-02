@@ -102,7 +102,7 @@ class BFSInitialPartitionerT : public tbb::task {
         }
 
         if ( hn != kInvalidHypernode ) {
-          ASSERT(hypergraph.partID(hn) == kInvalidPartition);
+          ASSERT(hypergraph.partID(hn) == kInvalidPartition, V(block) << V(hypergraph.partID(hn)));
           hypergraph.setNodePart(hn, block);
           ++num_assigned_hypernodes;
           pushIncidentHypernodesIntoQueue(hypergraph, _context, queues[block],
@@ -112,15 +112,6 @@ class BFSInitialPartitionerT : public tbb::task {
         }
       }
     }
-
-    ASSERT([&]() {
-        for (const HypernodeID& hn : hypergraph.nodes()) {
-          if (hypergraph.partID(hn) == kInvalidPartition) {
-            return false;
-          }
-        }
-        return true;
-      } (), "There are unassigned hypernodes!");
 
     _ip_data.commit(InitialPartitioningAlgorithm::bfs);
     return nullptr;

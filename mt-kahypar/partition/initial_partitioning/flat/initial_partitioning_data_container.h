@@ -50,15 +50,15 @@ class InitialPartitioningDataContainerT {
       _imbalance(imbalance) { }
 
     bool is_other_better(const PartitioningResult& other, const double epsilon) {
-      bool improved_metric_within_balance = (other._imbalance <= epsilon &&
-                                             other._objective < _objective);
-      bool improved_balanced_of_imbalanced_partition = (_imbalance > epsilon &&
-                                                        other._imbalance < _imbalance);
-      bool equal_imbalance_but_better_metric = (_imbalance == other._imbalance &&
-                                                other._objective < _objective);
-      return improved_metric_within_balance ||
-             improved_balanced_of_imbalanced_partition ||
-             equal_imbalance_but_better_metric;
+      bool equal_metric = other._objective == _objective;
+      bool improved_metric = other._objective < _objective;
+      bool improved_imbalance = other._imbalance < _imbalance;
+      bool is_feasible = _imbalance <= epsilon;
+      bool is_other_feasible = other._imbalance <= epsilon;
+      return ( improved_metric && (is_other_feasible || improved_imbalance) ) ||
+             ( equal_metric && improved_imbalance ) ||
+             ( is_other_feasible && !is_feasible ) ||
+             ( improved_metric && !is_other_feasible && !is_feasible );
     }
 
     std::string str() const {
@@ -90,23 +90,28 @@ class InitialPartitioningDataContainerT {
               std::numeric_limits<HypernodeWeight>::max(),
               std::numeric_limits<double>::max()),
       _label_propagation(nullptr) {
-      _context.refinement.label_propagation.part_weight_update_frequency = std::numeric_limits<size_t>::max();
-      _context.refinement.label_propagation.numa_aware = false;
-      _context.refinement.label_propagation.localized = false;
-      _context.refinement.label_propagation.execution_policy = ExecutionType::none;
-      _context.refinement.label_propagation.execute_always = true;
-      _context.refinement.label_propagation.execute_sequential = true;
 
-      if ( _context.partition.objective == kahypar::Objective::km1 ) {
-        _label_propagation = std::make_unique<LabelPropagationKm1Refiner>(
-          _hypergraph, _context, task_group_id);
-      } else if ( _context.partition.objective == kahypar::Objective::cut ) {
-        _label_propagation = std::make_unique<LabelPropagationCutRefiner>(
-          _hypergraph, _context, task_group_id);
+      if ( _context.refinement.label_propagation.algorithm != LabelPropagationAlgorithm::do_nothing ) {
+        if ( _context.partition.objective == kahypar::Objective::km1 ) {
+          _label_propagation = std::make_unique<LabelPropagationKm1Refiner>(
+            _hypergraph, _context, task_group_id);
+        } else if ( _context.partition.objective == kahypar::Objective::cut ) {
+          _label_propagation = std::make_unique<LabelPropagationCutRefiner>(
+            _hypergraph, _context, task_group_id);
+        }
       }
     }
 
     void commit(const InitialPartitioningAlgorithm algorithm) {
+      ASSERT([&]() {
+          for (const HypernodeID& hn : _hypergraph.nodes()) {
+            if (_hypergraph.partID(hn) == kInvalidPartition) {
+              return false;
+            }
+          }
+          return true;
+        } (), "There are unassigned hypernodes!");
+
       _hypergraph.initializeNumCutHyperedges();
       _hypergraph.updateGlobalPartInfos();
 
@@ -141,7 +146,7 @@ class InitialPartitioningDataContainerT {
     }
 
     HyperGraph _hypergraph;
-    Context _context;
+    const Context& _context;
     parallel::scalable_vector<HypernodeID> _mapping;
     parallel::scalable_vector<PartitionID> _partition;
     PartitioningResult _result;
@@ -164,7 +169,15 @@ class InitialPartitioningDataContainerT {
     _local_hn_visited(_context.partition.k * _local_hg.local()._hypergraph.initialNumNodes()),
     _local_he_visited(_context.partition.k * _local_hg.local()._hypergraph.initialNumEdges()),
     _local_unassigned_hypernodes(),
-    _local_unassigned_hypernode_pointer(std::numeric_limits<size_t>::max())  { }
+    _local_unassigned_hypernode_pointer(std::numeric_limits<size_t>::max())  {
+    // Setup Label Propagation Refiner Config for Initial Partitioning
+    _context.refinement.label_propagation.part_weight_update_frequency = std::numeric_limits<size_t>::max();
+    _context.refinement.label_propagation.numa_aware = false;
+    _context.refinement.label_propagation.localized = false;
+    _context.refinement.label_propagation.execution_policy = ExecutionType::none;
+    _context.refinement.label_propagation.execute_always = true;
+    _context.refinement.label_propagation.execute_sequential = true;
+  }
 
   InitialPartitioningDataContainerT(const InitialPartitioningDataContainerT&) = delete;
   InitialPartitioningDataContainerT & operator= (const InitialPartitioningDataContainerT &) = delete;
@@ -296,13 +309,13 @@ class InitialPartitioningDataContainerT {
 
  private:
   LocalInitialPartitioningHypergraph copy_hypergraph() {
-    auto tmp_hg = _hg.copy(_context.partition.k, _task_group_id);
+    auto tmp_hg = _hg.copy_sequential(_context.partition.k);
     return LocalInitialPartitioningHypergraph(
       std::move(tmp_hg.first), _context, std::move(tmp_hg.second), _task_group_id);
   }
 
   HyperGraph& _hg;
-  const Context& _context;
+  Context _context;
   const TaskGroupID _task_group_id;
 
   ThreadLocalHypergraph _local_hg;

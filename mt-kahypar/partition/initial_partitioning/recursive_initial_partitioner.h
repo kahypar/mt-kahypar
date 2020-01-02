@@ -34,6 +34,7 @@
 #include "mt-kahypar/macros.h"
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/partition/initial_partitioning/i_initial_partitioner.h"
+#include "mt-kahypar/partition/initial_partitioning/flat/pool_initial_partitioner.h"
 #include "mt-kahypar/partition/initial_partitioning/kahypar.h"
 #include "mt-kahypar/utils/randomize.h"
 #include "mt-kahypar/utils/stats.h"
@@ -98,6 +99,13 @@ class RecursiveInitialPartitionerT : public IInitialPartitioner {
       imbalance(1.0) { }
 
     explicit RecursivePartitionResult(Context&& c) :
+      hypergraph(),
+      context(c),
+      mapping(),
+      objective(std::numeric_limits<HyperedgeWeight>::max()),
+      imbalance(1.0) { }
+
+    explicit RecursivePartitionResult(const Context& c) :
       hypergraph(),
       context(c),
       mapping(),
@@ -248,64 +256,48 @@ class RecursiveInitialPartitionerT : public IInitialPartitioner {
    */
   class BisectionTask : public tbb::task {
 
+  using PoolInitialPartitionerContinuation = PoolInitialPartitionerContinuationT<TypeTraits>;
+
    public:
     BisectionTask(HyperGraph& hypergraph,
-                  const Context& context,
+                  const TaskGroupID task_group_id,
                   const PartitionID block,
-                  KaHyParPartitioningResult& result,
-                  parallel::scalable_vector<HypernodeID>& node_mapping) :
+                  RecursivePartitionResult& result) :
       _hg(hypergraph),
-      _context(context),
+      _task_group_id(task_group_id),
       _block(block),
-      _result(result),
-      _node_mapping(node_mapping) { }
+      _result(result) { }
 
     tbb::task* execute() override {
-      kahypar_context_t* kahypar_context = setupKaHyParBisectionContext();
+      // Setup Initial Partitioning Context
+      std::vector<HypernodeWeight> perfect_balance_part_weights;
       std::vector<HypernodeWeight> max_part_weights;
-      max_part_weights.emplace_back(_context.partition.max_part_weights[2 * _block]);
-      max_part_weights.emplace_back(_context.partition.max_part_weights[2 * _block + 1]);
-      // Special case, if balance constraint will be violated with this bisection
-      // => would cause KaHyPar to exit with failure
-      if (max_part_weights[0] + max_part_weights[1] < _hg.partWeight(_block)) {
-        HypernodeWeight delta = _hg.partWeight(_block) - (max_part_weights[0] + max_part_weights[1]);
-        max_part_weights[0] += std::ceil(((double)delta) / 2.0);
-        max_part_weights[1] += std::ceil(((double)delta) / 2.0);
-      }
-      ASSERT(max_part_weights[0] + max_part_weights[1] >= _hg.partWeight(_block));
-      kahypar_set_custom_target_block_weights(2, max_part_weights.data(), kahypar_context);
+      perfect_balance_part_weights.emplace_back(_result.context.partition.perfect_balance_part_weights[2 * _block]);
+      perfect_balance_part_weights.emplace_back(_result.context.partition.perfect_balance_part_weights[2 * _block + 1]);
+      max_part_weights.emplace_back(_result.context.partition.max_part_weights[2 * _block]);
+      max_part_weights.emplace_back(_result.context.partition.max_part_weights[2 * _block + 1]);
+      _result.context.partition.perfect_balance_part_weights = std::move(perfect_balance_part_weights);
+      _result.context.partition.max_part_weights = std::move(max_part_weights);
+      _result.context.partition.k = 2;
 
-      // Build KaHyPar Hypergraph Data Structure
-      bool cut_net_splitting = _context.partition.objective == kahypar::Objective::km1;
-      KaHyParHypergraph kahypar_hypergraph = extractBlockAsKaHyParHypergraph(_hg, _block, _node_mapping, cut_net_splitting);
+      // Extract Block of Hypergraph
+      bool cut_net_splitting = _result.context.partition.objective == kahypar::Objective::km1;
+      auto tmp_hypergraph = _hg.copy_sequential(2, _block, cut_net_splitting);
+      _result.hypergraph = std::move(tmp_hypergraph.first);
+      _result.mapping = std::move(tmp_hypergraph.second);
 
-      // Bisect KaHyPar Hypergraph
-      kahypar_partition(kahypar_hypergraph, *reinterpret_cast<kahypar::Context*>(kahypar_context), _result);
-
-      kahypar_context_free(kahypar_context);
+      // Spawn Initial Partitioner
+      PoolInitialPartitionerContinuation& ip_continuation = *new(allocate_continuation())
+        PoolInitialPartitionerContinuation(_result.hypergraph, _result.context, _task_group_id);
+      spawn_initial_partitioner(ip_continuation, _result.context);
       return nullptr;
     }
 
    private:
-    kahypar_context_t* setupKaHyParBisectionContext() {
-      kahypar_context_t* kahypar_c = mt_kahypar::setupContext(_context, false, kahypar_debug);
-      kahypar::Context& kahypar_context = *reinterpret_cast<kahypar::Context*>(kahypar_c);
-      kahypar_context.partition.k = 2;
-      kahypar_context.initial_partitioning.technique = kahypar::InitialPartitioningTechnique::flat;
-      kahypar_context.initial_partitioning.coarsening.algorithm = kahypar::CoarseningAlgorithm::do_nothing;
-      kahypar_context.initial_partitioning.local_search.algorithm = kahypar::RefinementAlgorithm::do_nothing;
-      kahypar_context.coarsening.algorithm = kahypar::CoarseningAlgorithm::do_nothing;
-      kahypar_context.local_search.algorithm = kahypar::RefinementAlgorithm::do_nothing;
-      kahypar_context.initial_partitioning.nruns = _context.initial_partitioning.runs;
-      kahypar_context.partition.seed = utils::Randomize::instance().getRandomInt(0, 2000, sched_getcpu());
-      return kahypar_c;
-    }
-
     HyperGraph& _hg;
-    const Context& _context;
+    const TaskGroupID _task_group_id;
     const PartitionID _block;
-    KaHyParPartitioningResult& _result;
-    parallel::scalable_vector<HypernodeID>& _node_mapping;
+    RecursivePartitionResult& _result;
   };
 
   /*!
@@ -323,25 +315,25 @@ class RecursiveInitialPartitionerT : public IInitialPartitioner {
       _hg(hypergraph),
       _context(context),
       _current_objective(current_objective),
-      _node_mapping(_hg.initialNumNodes(), kInvalidHypernode),
       _results() {
       _results.reserve(num_bisections);
       for ( PartitionID block = 0; block < num_bisections; ++block ) {
-        ASSERT(block < _hg.k());
-        _results.emplace_back(_hg.partSize(block));
+        _results.emplace_back(_context);
       }
     }
 
     tbb::task* execute() override {
       // Apply all bisections to current hypergraph
       PartitionID unbisected_block = (_context.partition.k % 2 == 1 ? (PartitionID) _results.size() : kInvalidPartition);
-      for (const HypernodeID& hn : _hg.nodes()) {
-        PartitionID from = _hg.partID(hn);
+      for ( const HypernodeID& hn : _hg.nodes() ) {
+        const PartitionID from = _hg.partID(hn);
         PartitionID to = kInvalidPartition;
-        if (from != unbisected_block) {
-          ASSERT(from != kInvalidPartition && from < (PartitionID)_results.size());
-          ASSERT(_node_mapping[_hg.originalNodeID(hn)] < _results[from].partition.size());
-          to = _results[from].partition[_node_mapping[_hg.originalNodeID(hn)]] == 0 ? 2 * from : 2 * from + 1;
+        if ( from != unbisected_block ) {
+          const HypernodeID original_hn_id = _hg.originalNodeID(hn);
+          ASSERT(from != kInvalidPartition && static_cast<size_t>(from) < _results.size());
+          ASSERT(original_hn_id < _results[from].mapping.size());
+          const HyperGraph& from_hg = _results[from].hypergraph;
+          to = from_hg.partID(from_hg.globalNodeID(_results[from].mapping[original_hn_id])) == 0 ? 2 * from : 2 * from + 1;
         } else {
           to = _context.partition.k - 1;
         }
@@ -356,7 +348,7 @@ class RecursiveInitialPartitionerT : public IInitialPartitioner {
           HyperedgeWeight expected_objective = _current_objective;
           HyperedgeWeight actual_objective = metrics::objective(_hg, _context.partition.objective);
           for (size_t i = 0; i < _results.size(); ++i) {
-            expected_objective += _results[i].objective;
+            expected_objective += metrics::objective(_results[i].hypergraph, _context.partition.objective);
           }
 
           if (expected_objective != actual_objective) {
@@ -376,8 +368,7 @@ class RecursiveInitialPartitionerT : public IInitialPartitioner {
     const HyperedgeWeight _current_objective;
 
    public:
-    parallel::scalable_vector<HypernodeID> _node_mapping;
-    parallel::scalable_vector<KaHyParPartitioningResult> _results;
+    parallel::scalable_vector<RecursivePartitionResult> _results;
   };
 
   /*!
@@ -385,6 +376,8 @@ class RecursiveInitialPartitionerT : public IInitialPartitioner {
    * (if p = 1) and performing recursion by calling the recursive child tasks.
    */
   class RecursiveTask : public tbb::task {
+
+  using PoolInitialPartitionerContinuation = PoolInitialPartitionerContinuationT<TypeTraits>;
 
    public:
     RecursiveTask(HyperGraph& hypergraph,
@@ -400,96 +393,45 @@ class RecursiveInitialPartitionerT : public IInitialPartitioner {
       if (_context.shared_memory.num_threads == 1 &&
           _context.coarsening.contraction_limit == 2 * _context.coarsening.contraction_limit_multiplier) {
         // Base Case -> Bisect Hypergraph
-        initialBisection();
-        return nullptr;
-      }
-
-      // We do parallel recursion, if the contract limit is equal to 2 * p * t
-      // ( where p is the number of threads and t the contract limit multiplier )
-      bool do_parallel_recursion = _context.coarsening.contraction_limit /
-                                  (2 * _context.coarsening.contraction_limit_multiplier) ==
-                                  _context.shared_memory.num_threads;
-      if (do_parallel_recursion) {
-        // Perform parallel recursion
-        size_t num_threads_1 = std::ceil(((double) std::max(_context.shared_memory.num_threads, 2UL)) / 2.0);
-        size_t num_threads_2 = std::floor(((double) std::max(_context.shared_memory.num_threads, 2UL)) / 2.0);
-        auto tbb_recursion_task_groups = TBB::instance().create_tbb_task_groups_for_recursion();
-
-        RecursiveContinuationTask& recursive_continuation = *new(allocate_continuation())
-          RecursiveContinuationTask(_hg, _context, _top_level, _task_group_id, true);
-        RecursiveChildTask& recursion_0 = *new(recursive_continuation.allocate_child()) RecursiveChildTask(
-          _hg, _context, recursive_continuation.r1, _top_level, tbb_recursion_task_groups.first, num_threads_1, 0);
-        RecursiveChildTask& recursion_1 = *new(recursive_continuation.allocate_child()) RecursiveChildTask(
-          _hg, _context, recursive_continuation.r2, _top_level, tbb_recursion_task_groups.second, num_threads_2, 0);
-        recursive_continuation.set_ref_count(2);
-        tbb::task::spawn(recursion_1);
-        tbb::task::spawn(recursion_0);
+        ASSERT(_context.partition.k == 2);
+        ASSERT(_context.partition.max_part_weights.size() == 2);
+        PoolInitialPartitionerContinuation& ip_continuation = *new(allocate_continuation())
+          PoolInitialPartitionerContinuation(_hg, _context, _task_group_id);
+        spawn_initial_partitioner(ip_continuation, _context);
       } else {
-        RecursiveContinuationTask& recursive_continuation = *new(allocate_continuation())
-          RecursiveContinuationTask(_hg, _context, _top_level, _task_group_id, false);
-        RecursiveChildTask& recursion = *new(recursive_continuation.allocate_child()) RecursiveChildTask(
-          _hg, _context, recursive_continuation.r1, _top_level, _task_group_id, _context.shared_memory.num_threads, 0);
-        recursive_continuation.set_ref_count(1);
-        tbb::task::spawn(recursion);
-      }
+        // We do parallel recursion, if the contract limit is equal to 2 * p * t
+        // ( where p is the number of threads and t the contract limit multiplier )
+        bool do_parallel_recursion = _context.coarsening.contraction_limit /
+                                    (2 * _context.coarsening.contraction_limit_multiplier) ==
+                                    _context.shared_memory.num_threads;
+        if (do_parallel_recursion) {
+          // Perform parallel recursion
+          size_t num_threads_1 = std::ceil(((double) std::max(_context.shared_memory.num_threads, 2UL)) / 2.0);
+          size_t num_threads_2 = std::floor(((double) std::max(_context.shared_memory.num_threads, 2UL)) / 2.0);
+          auto tbb_recursion_task_groups = TBB::instance().create_tbb_task_groups_for_recursion();
 
+          RecursiveContinuationTask& recursive_continuation = *new(allocate_continuation())
+            RecursiveContinuationTask(_hg, _context, _top_level, _task_group_id, true);
+          RecursiveChildTask& recursion_0 = *new(recursive_continuation.allocate_child()) RecursiveChildTask(
+            _hg, _context, recursive_continuation.r1, _top_level, tbb_recursion_task_groups.first, num_threads_1, 0);
+          RecursiveChildTask& recursion_1 = *new(recursive_continuation.allocate_child()) RecursiveChildTask(
+            _hg, _context, recursive_continuation.r2, _top_level, tbb_recursion_task_groups.second, num_threads_2, 0);
+          recursive_continuation.set_ref_count(2);
+          tbb::task::spawn(recursion_1);
+          tbb::task::spawn(recursion_0);
+        } else {
+          RecursiveContinuationTask& recursive_continuation = *new(allocate_continuation())
+            RecursiveContinuationTask(_hg, _context, _top_level, _task_group_id, false);
+          RecursiveChildTask& recursion = *new(recursive_continuation.allocate_child()) RecursiveChildTask(
+            _hg, _context, recursive_continuation.r1, _top_level, _task_group_id, _context.shared_memory.num_threads, 0);
+          recursive_continuation.set_ref_count(1);
+          tbb::task::spawn(recursion);
+        }
+      }
       return nullptr;
     }
 
    private:
-    void initialBisection() {
-      ASSERT(_context.partition.k == 2);
-      ASSERT(_context.partition.max_part_weights.size() == 2);
-      ASSERT(_context.shared_memory.num_threads == 1);
-
-      kahypar_context_t* kahypar_context = setupKaHyParBisectionContext();
-      kahypar_set_custom_target_block_weights(2, _context.partition.max_part_weights.data(), kahypar_context);
-
-      // Compute node mapping that maps all hypernodes of the coarsened hypergraph
-      // to a consecutive range of node ids
-      HypernodeID num_vertices = 0;
-      parallel::scalable_vector<HypernodeID> node_mapping(_hg.initialNumNodes(), kInvalidHypernode);
-      for (const HypernodeID& hn : _hg.nodes()) {
-        ASSERT(_hg.originalNodeID(hn) < _hg.initialNumNodes());
-        node_mapping[_hg.originalNodeID(hn)] = num_vertices++;
-      }
-
-      // Build KaHyPar Hypergraph Data Structure
-      const KaHyParHypergraph kahypar_hypergraph = convertToKaHyParHypergraph(_hg, node_mapping);
-      KaHyParPartitioningResult result(num_vertices);
-
-      // Bisect KaHyPar Hypergraph
-      kahypar_partition(kahypar_hypergraph, *reinterpret_cast<kahypar::Context*>(kahypar_context), result);
-
-      // Apply partition to MT-KaHyPar Hypergraph
-      for (HypernodeID u = 0; u < result.partition.size(); ++u) {
-        ASSERT(u < kahypar_hypergraph.reverse_mapping.size());
-        HypernodeID hn = kahypar_hypergraph.reverse_mapping[u];
-        ASSERT(node_mapping[_hg.originalNodeID(hn)] != kInvalidHypernode);
-        PartitionID part_id = result.partition[u];
-        ASSERT(part_id >= 0 && part_id < _context.partition.k);
-        _hg.setNodePart(hn, part_id);
-      }
-      _hg.updateGlobalPartInfos();
-      _hg.initializeNumCutHyperedges();
-
-      kahypar_context_free(kahypar_context);
-    }
-
-    kahypar_context_t* setupKaHyParBisectionContext() {
-      kahypar_context_t* kahypar_c = mt_kahypar::setupContext(_context, false, kahypar_debug);
-      kahypar::Context& kahypar_context = *reinterpret_cast<kahypar::Context*>(kahypar_c);
-      kahypar_context.partition.k = 2;
-      kahypar_context.initial_partitioning.technique = kahypar::InitialPartitioningTechnique::flat;
-      kahypar_context.initial_partitioning.coarsening.algorithm = kahypar::CoarseningAlgorithm::do_nothing;
-      kahypar_context.initial_partitioning.local_search.algorithm = kahypar::RefinementAlgorithm::do_nothing;
-      kahypar_context.coarsening.algorithm = kahypar::CoarseningAlgorithm::do_nothing;
-      kahypar_context.local_search.algorithm = kahypar::RefinementAlgorithm::do_nothing;
-      kahypar_context.initial_partitioning.nruns = _context.initial_partitioning.runs;
-      kahypar_context.partition.seed = utils::Randomize::instance().getRandomInt(0, 2000, sched_getcpu());
-      return kahypar_c;
-    }
-
     HyperGraph& _hg;
     const Context& _context;
     const bool _top_level;
@@ -572,7 +514,7 @@ class RecursiveInitialPartitionerT : public IInitialPartitioner {
         bisection_continuation.set_ref_count(_context.partition.k / 2 );
         for (PartitionID block = 0; block < _context.partition.k / 2; ++block) {
           tbb::task::spawn(*new(bisection_continuation.allocate_child()) BisectionTask(
-            _hg, _context, block, bisection_continuation._results[block], bisection_continuation._node_mapping));
+            _hg, _task_group_id, block, bisection_continuation._results[block]));
         }
       }
       return nullptr;

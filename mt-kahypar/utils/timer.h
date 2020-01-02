@@ -184,8 +184,8 @@ class Timer {
 
   void stop_timer(const std::string& key, bool force = false) {
     unused(key);
-    HighResClockTimepoint end = std::chrono::high_resolution_clock::now();
     std::lock_guard<std::mutex> lock(_timing_mutex);
+    HighResClockTimepoint end = std::chrono::high_resolution_clock::now();
 
     if (_enable || force) {
       ASSERT(!force || !_local_active_timings.local().empty());
