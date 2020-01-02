@@ -28,13 +28,10 @@
 #include "tbb/task_arena.h"
 #include "tbb/task_group.h"
 
-#include <libkahypar.h>
-
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/macros.h"
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/partition/initial_partitioning/i_initial_partitioner.h"
-#include "mt-kahypar/partition/initial_partitioning/kahypar.h"
 #include "mt-kahypar/utils/randomize.h"
 #include "mt-kahypar/utils/stats.h"
 #include "mt-kahypar/utils/timer.h"

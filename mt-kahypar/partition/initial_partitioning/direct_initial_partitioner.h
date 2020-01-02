@@ -20,8 +20,6 @@
 
 #pragma once
 
-#include <libkahypar.h>
-
 #include "kahypar/partition/context.h"
 
 #include "mt-kahypar/definitions.h"

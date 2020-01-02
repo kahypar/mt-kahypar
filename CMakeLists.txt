@@ -218,24 +218,6 @@ ELSE ()
     MESSAGE(STATUS "WARNING: hwlock library not found.")
 ENDIF ()
 
-# find libkahypar
-
-FIND_PATH(KAHYPAR_INCLUDE_DIR NAME libkahypar.h
-  HINTS "/usr/local/include" "${CMAKE_CURRENT_SOURCE_DIR}/external_tools/kahypar/include" )
-
-FIND_LIBRARY(KAHYPAR_LIBRARY NAME libkahypar.so
-  HINTS "/usr/local/lib" "${CMAKE_CURRENT_SOURCE_DIR}/external_tools/kahypar/build/lib" )
-
-IF (KAHYPAR_INCLUDE_DIR AND KAHYPAR_LIBRARY)
-    SET(KAHYPAR_FOUND TRUE)
-    MESSAGE(STATUS "Found kahypar library: inc=${KAHYPAR_INCLUDE_DIR}, lib=${KAHYPAR_LIBRARY}")
-    include_directories(${KAHYPAR_INCLUDE_DIR})
-    link_libraries(${KAHYPAR_LIBRARY})
-ELSE ()
-    SET(KAHYPAR_FOUND FALSE)
-    MESSAGE(STATUS "WARNING: kahypar library not found.")
-ENDIF ()
-
 # TODO: Add git revision
 
 if(NOT MSVC)
