@@ -67,6 +67,23 @@ class StreamingVector {
     _cpu_buffer[cpu_id].emplace_back(std::forward<Args>(args)...);
   }
 
+  parallel::scalable_vector<Value> copy() {
+    parallel::scalable_vector<Value> values;
+
+    size_t total_size = 0;
+    for (size_t i = 0; i < _cpu_buffer.size(); ++i) {
+      _prefix_sum[i] = total_size;
+      total_size += _cpu_buffer[i].size();
+    }
+    values.resize(total_size);
+
+    for (int cpu_id = 0; cpu_id < (int)_cpu_buffer.size(); ++cpu_id) {
+      memcpy_from_cpu_buffer_to_destination(values, cpu_id, _prefix_sum[cpu_id]);
+    }
+
+    return values;
+  }
+
   parallel::scalable_vector<Value> copy(tbb::task_arena& arena) {
     parallel::scalable_vector<Value> values;
 

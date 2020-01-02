@@ -713,7 +713,7 @@ class StreamingHypergraph {
     _hypernode_stream(),
     _incident_net_stream() {
     // Make sure constructor is called on corresponding numa node
-    ASSERT(HardwareTopology::instance().numa_node_of_cpu(sched_getcpu()) == _node,
+    ASSERT(_node == -1 || HardwareTopology::instance().numa_node_of_cpu(sched_getcpu()) == _node,
            "Only allowed to allocate numa hypergraph on node" << _node << ", but it is"
                                                               << HardwareTopology::instance().numa_node_of_cpu(sched_getcpu()));
   }
@@ -785,6 +785,14 @@ class StreamingHypergraph {
           });
         });
     group.wait();
+  }
+
+    // ! Recomputes the total weight of the hypergraph (in sequential)
+  void updateTotalWeightSequential() {
+    _total_weight = 0;
+    for ( const HypernodeID& hn : nodes() ) {
+      _total_weight += nodeWeight(hn);
+    }
   }
 
   // ####################### Iterators #######################
@@ -1158,7 +1166,7 @@ class StreamingHypergraph {
    */
   void contract(const HypernodeID u, const HypernodeID v,
                 const HyperedgeID e, Self& hypergraph_of_u) {
-    ASSERT(get_numa_node_of_hyperedge(e) == _node);
+    ASSERT(_node == -1 || get_numa_node_of_hyperedge(e) == _node);
     using std::swap;
     const HypernodeID pins_begin = hyperedge(e).firstEntry();
     const HypernodeID pins_end = hyperedge(e).firstInvalidEntry();
@@ -1221,7 +1229,7 @@ class StreamingHypergraph {
   void contract(const HypernodeID u, const HypernodeID v,
                 const HyperedgeID e, const PartitionID community_id,
                 Self& hypergraph_of_u) {
-    ASSERT(get_numa_node_of_hyperedge(e) == _node);
+    ASSERT(_node == -1 || get_numa_node_of_hyperedge(e) == _node);
 
     using std::swap;
     CommunityHyperedge& community_he = community_hyperedge(e, community_id);
@@ -1403,7 +1411,7 @@ class StreamingHypergraph {
   HypernodeID streamHypernode(const HypernodeID original_id,
                               const HypernodeWeight weight) {
     // Make sure calling thread is part of correct numa node
-    ASSERT(HardwareTopology::instance().numa_node_of_cpu(sched_getcpu()) == _node);
+    ASSERT(_node == -1 || HardwareTopology::instance().numa_node_of_cpu(sched_getcpu()) == _node);
     HypernodeID node_id = get_global_node_id();
     _hypernode_stream.stream(node_id, original_id, weight);
     return node_id;
@@ -1417,7 +1425,7 @@ class StreamingHypergraph {
                        const HyperedgeWeight& weight) {
     int cpu_id = sched_getcpu();
     // Make sure calling thread is part of correct numa node
-    ASSERT(HardwareTopology::instance().numa_node_of_cpu(cpu_id) == _node,
+    ASSERT(_node == -1 || HardwareTopology::instance().numa_node_of_cpu(cpu_id) == _node,
            "Expected that assigned cpu is on numa node" << _node << ", but was CPU" << cpu_id
                                                         << "is on node" << HardwareTopology::instance().numa_node_of_cpu(cpu_id));
     _hyperedge_stream.stream(_pin_stream.size(cpu_id), hyperedge.size(), original_id, weight);
@@ -1431,7 +1439,7 @@ class StreamingHypergraph {
   // ! initializeIncidentNets() have to be called.
   void streamIncidentNet(const HypernodeID hn,
                          const HyperedgeID he) {
-    ASSERT(get_numa_node_of_vertex(hn) == _node);
+    ASSERT(_node == -1 || get_numa_node_of_vertex(hn) == _node);
     _incident_net_stream.stream(hn, he);
   }
 
@@ -1447,7 +1455,7 @@ class StreamingHypergraph {
   void initializeHypernodes(std::vector<Self>& hypergraphs,
                             const std::vector<HypernodeID>& node_mapping) {
     // Make sure calling thread is part of correct numa node
-    ASSERT(HardwareTopology::instance().numa_node_of_cpu(sched_getcpu()) == _node,
+    ASSERT(_node == -1 || HardwareTopology::instance().numa_node_of_cpu(sched_getcpu()) == _node,
            "Expected that assigned cpu is on numa node" << _node << ", but was on node"
                                                         << HardwareTopology::instance().numa_node_of_cpu(sched_getcpu()));
 
@@ -1490,7 +1498,7 @@ class StreamingHypergraph {
             const Hypernode& hn = _hypernodes[i];
             const int node = get_numa_node_of_vertex(hn.nodeId());
             const HypernodeID local_id = get_local_node_id_of_vertex(hn.nodeId());
-            if (node != _node) {
+            if (_node != -1 && node != _node) {
               LOG << "Hypernode" << hn.nodeId() << "should be on numa node" << node
                   << ", but is on numa node" << _node;
               return false;
@@ -1539,14 +1547,99 @@ class StreamingHypergraph {
   }
 
   /*!
-  * This function initializes all hyperedges that are streamed into this hypergraph.
+  * This function initializes all hypernodes that are streamed into this hypergraph.
+  * This includes:
+  *   1.) Replace vertex ids in incidence array with new numa vertex ids
+  *   2.) Stream all incident nets part of this hypergraph to their corresponding
+  *       streaming hypergraphs.
+  */
+  void initializeHypernodesSequential(const std::vector<HypernodeID>& node_mapping) {
+    ASSERT(_node == -1);
+
+    _hypernodes = _hypernode_stream.copy();
+    _num_hypernodes = _hypernodes.size();
+    _atomic_hn_data.resize(_num_hypernodes);
+
+    // Sort hypernodes in increasing order of their node id and ...
+    utils::Timer::instance().start_timer("sort_and_remap_node_ids", "Sort and Remap Nodes", true);
+    std::sort(_hypernodes.begin(), _hypernodes.end(),
+              [&](const Hypernode& lhs, const Hypernode& rhs) {
+                return lhs.nodeId() < rhs.nodeId();
+              });
+
+    // ... remap node ids in incidence array to new node ids
+    for ( size_t pos = 0; pos < _incidence_array.size(); ++pos ) {
+      HypernodeID pin = _incidence_array[pos];
+      ASSERT(pin < node_mapping.size());
+      _incidence_array[pos] = node_mapping[pin];
+    }
+    utils::Timer::instance().stop_timer("sort_and_remap_node_ids");
+
+    // Compute Total Hypergraph Weight
+    utils::Timer::instance().start_timer("compute_total_weight", "Compute Total Weight", true);
+    updateTotalWeightSequential();
+    utils::Timer::instance().stop_timer("compute_total_weight");
+
+    ASSERT([&] {
+          for (size_t i = 0; i < _hypernodes.size(); ++i) {
+            const Hypernode& hn = _hypernodes[i];
+            const int node = get_numa_node_of_vertex(hn.nodeId());
+            const HypernodeID local_id = get_local_node_id_of_vertex(hn.nodeId());
+            if (_node != -1 && node != _node) {
+              LOG << "Hypernode" << hn.nodeId() << "should be on numa node" << node
+                  << ", but is on numa node" << _node;
+              return false;
+            } else if (i != local_id) {
+              LOG << "Hypernode" << local_id << "should have local id" << i;
+              return false;
+            }
+
+            if (i > 0) {
+              const Hypernode& previous_hn = _hypernodes[i - 1];
+              const HypernodeID previous_local_id = get_local_node_id_of_vertex(previous_hn.nodeId());
+              if (local_id <= previous_local_id) {
+                LOG << "Local node ids not sorted" << V(previous_local_id) << V(local_id);
+                return false;
+              } else if (previous_local_id + 1 != local_id) {
+                LOG << "Local node ids not consecutive" << V(previous_local_id) << V(local_id);
+                return false;
+              }
+            }
+          }
+          return true;
+        } (), "Initialization of hypernodes failed");
+
+    // Stream incident nets
+    utils::Timer::instance().start_timer("stream_incident_nets", "Stream Incident Nets", true);
+    _incident_nets.resize(_hypernodes.size());
+    for ( size_t pos = 0; pos < _hyperedges.size(); ++pos ) {
+      Hyperedge& he = _hyperedges[pos];
+      const HyperedgeID he_id = get_global_edge_id(pos);
+      for (size_t incidence_array_pos = he.firstEntry();
+            incidence_array_pos < he.firstEntry() + he.size();
+            ++incidence_array_pos) {
+        const HypernodeID pin = _incidence_array[incidence_array_pos];
+        const HypernodeID local_pin_id = get_local_node_id_of_vertex(pin);
+        ASSERT(local_pin_id < _incident_nets.size());
+        _incident_nets[local_pin_id].push_back(he_id);
+        // Initialize edge hash
+        he.hash() += kahypar::math::hash(pin);
+      }
+    }
+    utils::Timer::instance().stop_timer("stream_incident_nets");
+
+    _hypernode_stream.clear();
+  }
+
+  /*!
+  * This function initializes all hyperedges that are streamed into this hypergraph in parallel.
   * This includes:
   *   1.) Setting up incidence array of this hypergraph
   *   2.) Compute vertex pin counts of all pins contained in this hypergraph
   */
   void initializeHyperedges(const HypernodeID num_hypernodes) {
     // Make sure calling thread is part of correct numa node
-    ASSERT(HardwareTopology::instance().numa_node_of_cpu(sched_getcpu()) == _node,
+    ASSERT(_node == -1 || HardwareTopology::instance().numa_node_of_cpu(sched_getcpu()) == _node,
            "Expected that assigned cpu is on numa node" << _node << ", but was on node"
                                                         << HardwareTopology::instance().numa_node_of_cpu(sched_getcpu()));
 
@@ -1629,16 +1722,96 @@ class StreamingHypergraph {
     _hyperedge_stream.clear();
   }
 
+  /*!
+  * This function initializes all hyperedges that are streamed into this hypergraph non parallel.
+  * This includes:
+  *   1.) Setting up incidence array of this hypergraph
+  *   2.) Compute vertex pin counts of all pins contained in this hypergraph
+  */
+  void initializeHyperedgesSequential(const HypernodeID num_hypernodes) {
+    // Copy streamed data into global vectors
+    utils::Timer::instance().start_timer("copy_incidence_array_and_he", "Copy Incidence Array and HEs", true);
+    _incidence_array = _pin_stream.copy();
+    _hyperedges = _hyperedge_stream.copy();
+    _num_pins = _incidence_array.size();
+    _num_hyperedges = _hyperedges.size();
+    utils::Timer::instance().stop_timer("copy_incidence_array_and_he");
+
+    ASSERT(_k > 0);
+    _pins_in_part.assign(_num_hyperedges * _k, HypernodeAtomic(0));
+
+    _connectivity_sets = ConnectivitySets(_num_hyperedges, _k);
+
+    ThreadLocalFastResetFlagArray tmp_incidence_nets_of_v(_num_hyperedges);
+    _incident_nets_of_v = std::move(tmp_incidence_nets_of_v);
+
+    // Update start position of each hyperedge to correct one in global incidence array
+    // Note, start positions are stored relative to the local buffer there are streamed into.
+    // However, memcpy does hyperedges invalidates those local positions.
+    utils::Timer::instance().start_timer("update_start_position", "Update Start Positions of HEs", true);
+    for (size_t cpu_id = 0; cpu_id < std::thread::hardware_concurrency(); ++cpu_id) {
+      size_t start = _hyperedge_stream.prefix_sum(cpu_id);
+      size_t end = start + _hyperedge_stream.size(cpu_id);
+      size_t delta = _pin_stream.prefix_sum(cpu_id);
+      ASSERT(end <= _hyperedges.size());
+      for (size_t pos = start; pos < end; ++pos) {
+        _hyperedges[pos].setFirstEntry(_hyperedges[pos].firstEntry() + delta);
+      }
+    }
+    // Emplace Back Sentinel
+    _hyperedges.emplace_back(_incidence_array.size(), 0, 0UL, 0);
+    utils::Timer::instance().stop_timer("update_start_position");
+
+    ASSERT([&] {
+          for (size_t cpu_id = 0; cpu_id < std::thread::hardware_concurrency(); ++cpu_id) {
+            size_t start = _hyperedge_stream.prefix_sum(cpu_id);
+            for (size_t idx = 0; idx < _hyperedge_stream.size(cpu_id); ++idx) {
+              const Hyperedge& stream_he = _hyperedge_stream.value(cpu_id, idx);
+              const Hyperedge& he = _hyperedges[idx + start];
+              if (stream_he.size() != he.size()) {
+                LOG << "Unequal size";
+                return false;
+              }
+              size_t global_pos = he.firstEntry();
+              for (size_t pos = stream_he.firstEntry(); pos < stream_he.firstEntry() + stream_he.size(); ++pos) {
+                if (_incidence_array[global_pos] != _pin_stream.value(cpu_id, pos)) {
+                  LOG << "Pins in stream and global incidence array are not equal"
+                      << V(_incidence_array[global_pos]) << V(_pin_stream.value(cpu_id, pos));
+                  return false;
+                }
+                ++global_pos;
+              }
+            }
+          }
+          return true;
+        } (), "Failed to copy buffer to hypergraph");
+
+    // Compute how many times a hypernode occurs on this node
+    // as pin. Will be later important to compute node assignment.
+    // TODO(heuer): Think how to parallelize this
+    utils::Timer::instance().start_timer("compute_vertex_pin_count", "Compute Vertex Pin Counts", true);
+    _vertex_pin_count.resize(num_hypernodes);
+    for (size_t i = 0; i < _incidence_array.size(); ++i) {
+      const HypernodeID& pin = _incidence_array[i];
+      ASSERT(pin < _vertex_pin_count.size());
+      _vertex_pin_count[pin]++;
+    }
+    utils::Timer::instance().stop_timer("compute_vertex_pin_count");
+
+    _pin_stream.clear();
+    _hyperedge_stream.clear();
+  }
+
   // ! This function initializes all incident nets that are streamed into this hypergraph.
   void initializeIncidentNets() {
     // Make sure calling thread is part of correct numa node
-    ASSERT(HardwareTopology::instance().numa_node_of_cpu(sched_getcpu()) == _node,
+    ASSERT(_node == -1 || HardwareTopology::instance().numa_node_of_cpu(sched_getcpu()) == _node,
            "Expected that assigned cpu is on numa node" << _node << ", but was on node"
                                                         << HardwareTopology::instance().numa_node_of_cpu(sched_getcpu()));
 
     _incident_nets.resize(_hypernodes.size());
     _incident_net_stream.copy(_arena, _incident_nets, [&](const HypernodeID& u) {
-          ASSERT(get_numa_node_of_vertex(u) == _node);
+          ASSERT(_node == -1 || get_numa_node_of_vertex(u) == _node);
           return get_local_node_id_of_vertex(u);
         });
     _incident_net_stream.clear();
@@ -1994,7 +2167,7 @@ class StreamingHypergraph {
                                                                         Self& hypergraph_of_u) {
     ASSERT(hypergraph_of_u.nodeIsEnabled(u), "Hypernode" << u << "is disabled");
     ASSERT(!hyperedge(e).isDisabled(), "Hyperedge" << e << "is disabled");
-    ASSERT(_node == get_numa_node_of_hyperedge(e));
+    ASSERT(_node == -1 || _node == get_numa_node_of_hyperedge(e));
     // Hyperedge e does not contain u. Therefore we use the entry of v (i.e. the last entry
     // -- this is ensured by the contract method) in e's edge array to store the information
     // that u is now connected to e and add the edge (u,e) to indicate this conection also from
@@ -2010,7 +2183,7 @@ class StreamingHypergraph {
                                                                         Self& hypergraph_of_u) {
     ASSERT(hypergraph_of_u.nodeIsEnabled(u), "Hypernode" << u << "is disabled");
     ASSERT(!hyperedge(e).isDisabled(), "Hyperedge" << e << "is disabled");
-    ASSERT(_node == get_numa_node_of_hyperedge(e));
+    ASSERT(_node == -1 || _node == get_numa_node_of_hyperedge(e));
 
     auto& incident_nets_of_u = hypergraph_of_u.incident_nets(u);
     incident_nets_of_u.push_back(e);
@@ -2126,7 +2299,7 @@ class StreamingHypergraph {
   // ! called before
   KAHYPAR_ATTRIBUTE_ALWAYS_INLINE bool containsIncidentNet(const HyperedgeID e) {
     HypernodeID local_id = get_local_edge_id_of_hyperedge(e);
-    ASSERT(get_numa_node_of_hyperedge(e) == _node, "Hyperedge" << e << "is not part of this numa node");
+    ASSERT(_node == -1 || get_numa_node_of_hyperedge(e) == _node, "Hyperedge" << e << "is not part of this numa node");
     ASSERT(local_id <= _num_hyperedges, "Hyperedge" << e << "does not exist");
     kahypar::ds::FastResetFlagArray<>& local_incident_nets_of_v = _incident_nets_of_v.local();
     return local_incident_nets_of_v[local_id];
@@ -2388,12 +2561,14 @@ class StreamingHypergraph {
   // ####################### Hypernode Information #######################
 
   KAHYPAR_ATTRIBUTE_ALWAYS_INLINE HypernodeID get_global_node_id() {
-    HypernodeID local_node_id = _next_node_id++;
-    return (((HypernodeID)_node) << NUMA_NODE_INDENTIFIER) | local_node_id;
+    const HypernodeID local_node_id = _next_node_id++;
+    const HypernodeID numa_node = static_cast<HypernodeID>(std::max(_node, 0));
+    return (numa_node << NUMA_NODE_INDENTIFIER) | local_node_id;
   }
 
   KAHYPAR_ATTRIBUTE_ALWAYS_INLINE HypernodeID get_global_node_id(const HypernodeID local_id) const {
-    return (((HypernodeID)_node) << NUMA_NODE_INDENTIFIER) | local_id;
+    const HypernodeID numa_node = static_cast<HypernodeID>(std::max(_node, 0));
+    return (numa_node << NUMA_NODE_INDENTIFIER) | local_id;
   }
 
   KAHYPAR_ATTRIBUTE_ALWAYS_INLINE static HypernodeID get_local_node_id_of_vertex(const HypernodeID u) {
@@ -2417,7 +2592,7 @@ class StreamingHypergraph {
   // ! Accessor for hypernode-related information
   KAHYPAR_ATTRIBUTE_ALWAYS_INLINE const Hypernode& hypernode(const HypernodeID u) const {
     HypernodeID local_id = get_local_node_id_of_vertex(u);
-    ASSERT(get_numa_node_of_vertex(u) == _node, "Hypernode" << u << "is not part of numa node" << _node);
+    ASSERT(_node == -1 || get_numa_node_of_vertex(u) == _node, "Hypernode" << u << "is not part of numa node" << _node);
     ASSERT(local_id < _num_hypernodes, "Hypernode" << u << "does not exist");
     return _hypernodes[local_id];
   }
@@ -2430,7 +2605,7 @@ class StreamingHypergraph {
   // ! Accessor to the incident nets array of hypernode u
   KAHYPAR_ATTRIBUTE_ALWAYS_INLINE const parallel::scalable_vector<HyperedgeID>& incident_nets(const HypernodeID u) const {
     HypernodeID local_id = get_local_node_id_of_vertex(u);
-    ASSERT(get_numa_node_of_vertex(u) == _node, "Hypernode" << u << "is not part of numa node" << _node);
+    ASSERT(_node == -1 || get_numa_node_of_vertex(u) == _node, "Hypernode" << u << "is not part of numa node" << _node);
     ASSERT(local_id < _num_hypernodes, "Hypernode" << u << "does not exist");
     return _incident_nets[local_id];
   }
@@ -2443,7 +2618,8 @@ class StreamingHypergraph {
   // ####################### Hyperedge Information #######################
 
   KAHYPAR_ATTRIBUTE_ALWAYS_INLINE HyperedgeID get_global_edge_id(const size_t edge_pos) const {
-    return (((HyperedgeID)_node) << NUMA_NODE_INDENTIFIER) | edge_pos;
+    const HyperedgeID numa_node = static_cast<HypernodeID>(std::max(_node, 0));
+    return (numa_node << NUMA_NODE_INDENTIFIER) | edge_pos;
   }
 
   KAHYPAR_ATTRIBUTE_ALWAYS_INLINE static HypernodeID get_local_edge_id_of_hyperedge(const HyperedgeID e) {
@@ -2468,7 +2644,7 @@ class StreamingHypergraph {
   KAHYPAR_ATTRIBUTE_ALWAYS_INLINE const Hyperedge& hyperedge(const HyperedgeID e) const {
     // <= instead of < because of sentinel
     HypernodeID local_id = get_local_edge_id_of_hyperedge(e);
-    ASSERT(get_numa_node_of_hyperedge(e) == _node, "Hyperedge" << e << "is not part of numa node" << _node);
+    ASSERT(_node == -1 || get_numa_node_of_hyperedge(e) == _node, "Hyperedge" << e << "is not part of numa node" << _node);
     ASSERT(local_id <= _num_hyperedges, "Hyperedge" << e << "does not exist");
     return _hyperedges[local_id];
   }
@@ -2483,7 +2659,7 @@ class StreamingHypergraph {
   // ! Accessor for community hyperedge-related information
   KAHYPAR_ATTRIBUTE_ALWAYS_INLINE const CommunityHyperedge& community_hyperedge(const HyperedgeID e, const PartitionID community_id) const {
     HypernodeID local_id = get_local_edge_id_of_hyperedge(e);
-    ASSERT(get_numa_node_of_hyperedge(e) == _node, "Hyperedge" << e << "is not part of numa node" << _node);
+    ASSERT(_node == -1 || get_numa_node_of_hyperedge(e) == _node, "Hyperedge" << e << "is not part of numa node" << _node);
     ASSERT(local_id < _num_hyperedges, "Hyperedge" << e << "does not exist");
 
     size_t community_hyperedge_position = find_position_of_community_hyperedge(e, community_id);
@@ -2494,7 +2670,7 @@ class StreamingHypergraph {
 
   KAHYPAR_ATTRIBUTE_ALWAYS_INLINE size_t find_position_of_community_hyperedge(const HyperedgeID e, const PartitionID community_id) const {
     HypernodeID local_id = get_local_edge_id_of_hyperedge(e);
-    ASSERT(get_numa_node_of_hyperedge(e) == _node, "Hyperedge" << e << "is not part of numa node" << _node);
+    ASSERT(_node == -1 || get_numa_node_of_hyperedge(e) == _node, "Hyperedge" << e << "is not part of numa node" << _node);
     ASSERT(local_id < _num_hyperedges, "Hyperedge" << e << "does not exist");
 
     size_t pos = 0;
