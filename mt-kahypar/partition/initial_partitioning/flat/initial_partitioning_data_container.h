@@ -20,6 +20,8 @@
 
 #pragma once
 
+#include <sstream>
+
 #include "tbb/enumerable_thread_specific.h"
 
 #include "mt-kahypar/partition/context.h"
@@ -37,12 +39,14 @@ class InitialPartitioningDataContainerT {
   static HypernodeID kInvalidHypernode;
 
   struct PartitioningResult {
-    explicit PartitioningResult(HyperedgeWeight objective,
+    explicit PartitioningResult(InitialPartitioningAlgorithm algorithm,
+                                HyperedgeWeight objective,
                                 double imbalance) :
+      _algorithm(algorithm),
       _objective(objective),
       _imbalance(imbalance) { }
 
-    bool is_better(const PartitioningResult& other, const double epsilon) {
+    bool is_other_better(const PartitioningResult& other, const double epsilon) {
       bool improved_metric_within_balance = (other._imbalance <= epsilon &&
                                              other._objective < _objective);
       bool improved_balanced_of_imbalanced_partition = (_imbalance > epsilon &&
@@ -54,6 +58,15 @@ class InitialPartitioningDataContainerT {
              equal_imbalance_but_better_metric;
     }
 
+    std::string str() const {
+      std::stringstream ss;
+      ss << "Algorithm = " << _algorithm << ", "
+         << "Objective = " << _objective << ", "
+         << "Imbalance = " << _imbalance;
+      return ss.str();
+    }
+
+    InitialPartitioningAlgorithm _algorithm;
     HyperedgeWeight _objective;
     double _imbalance;
   };
@@ -62,18 +75,50 @@ class InitialPartitioningDataContainerT {
 
     LocalInitialPartitioningHypergraph() :
       _hypergraph(),
+      _context(),
       _mapping(),
       _partition(),
       _result(std::numeric_limits<HypernodeWeight>::max(), std::numeric_limits<double>::max()) { }
 
     LocalInitialPartitioningHypergraph(HyperGraph&& hypergraph,
+                                       const Context& context,
                                        parallel::scalable_vector<HypernodeID>&& mapping) :
       _hypergraph(std::move(hypergraph)),
+      _context(context),
       _mapping(std::move(mapping)),
       _partition(_hypergraph.initialNumNodes(), kInvalidPartition),
-      _result(std::numeric_limits<HypernodeWeight>::max(), std::numeric_limits<double>::max()) { }
+      _result(InitialPartitioningAlgorithm::UNDEFINED,
+              std::numeric_limits<HypernodeWeight>::max(),
+              std::numeric_limits<double>::max()) { }
+
+    void commit(const InitialPartitioningAlgorithm algorithm) {
+      _hypergraph.initializeNumCutHyperedges();
+      _hypergraph.updateGlobalPartInfos();
+
+      PartitioningResult result(algorithm,
+        metrics::objective(_hypergraph, _context.partition.objective),
+        metrics::imbalance(_hypergraph, _context));
+
+      DBG << "Thread ID:" << std::this_thread::get_id()
+          << "- CPU ID:" << sched_getcpu()
+          << "[" << result.str() << "]";
+
+      if ( _result.is_other_better(result, _context.partition.epsilon) ) {
+        for ( const HypernodeID& hn : _hypergraph.nodes() ) {
+          const HypernodeID original_id = _hypergraph.originalNodeID(hn);
+          const PartitionID part_id = _hypergraph.partID(hn);
+          ASSERT(original_id < _partition.size());
+          ASSERT(part_id != kInvalidPartition);
+          _partition[original_id] = part_id;
+        }
+        _result = std::move(result);
+      }
+
+      _hypergraph.resetPartition();
+    }
 
     HyperGraph _hypergraph;
+    const Context& _context;
     parallel::scalable_vector<HypernodeID> _mapping;
     parallel::scalable_vector<PartitionID> _partition;
     PartitioningResult _result;
@@ -168,64 +213,67 @@ class InitialPartitioningDataContainerT {
    * Partition on the local hypergraph is resetted afterwards.
    */
   void commit(const InitialPartitioningAlgorithm algorithm) {
-    unused(algorithm);
-    LocalInitialPartitioningHypergraph& ip_hypergraph = _local_hg.local();
-    ip_hypergraph._hypergraph.initializeNumCutHyperedges();
-    ip_hypergraph._hypergraph.updateGlobalPartInfos();
-
-    PartitioningResult result(
-      metrics::objective(ip_hypergraph._hypergraph, _context.partition.objective),
-      metrics::imbalance(ip_hypergraph._hypergraph, _context));
-
-    DBG << "Algorithm =" << algorithm << ", Objective =" << _context.partition.objective
-        << ", Metric =" << result._objective << ", Imbalance =" << result._imbalance;
-
-    if ( ip_hypergraph._result.is_better(result, _context.partition.epsilon) ) {
-      for ( const HypernodeID& hn : ip_hypergraph._hypergraph.nodes() ) {
-        const HypernodeID original_id = ip_hypergraph._hypergraph.originalNodeID(hn);
-        const PartitionID part_id = ip_hypergraph._hypergraph.partID(hn);
-        ASSERT(original_id < ip_hypergraph._partition.size());
-        ASSERT(part_id != kInvalidPartition);
-        ip_hypergraph._partition[original_id] = part_id;
-      }
-      ip_hypergraph._result = std::move(result);
-    }
-
-    ip_hypergraph._hypergraph.resetPartition();
+    _local_hg.local().commit(algorithm);
   }
 
   /*!
    * Determines the best partition computed by all threads and applies it to
    * the hypergraph. Note, this function is not thread-safe and should be called
    * if no other thread using that object operates on it.
-   * Note, object is afterwards not usable any more.
    */
   void apply() {
     // Determine best partition
-    LocalInitialPartitioningHypergraph best;
+    LocalInitialPartitioningHypergraph* best = nullptr;
+    LocalInitialPartitioningHypergraph* worst = nullptr;
+    LocalInitialPartitioningHypergraph* best_imbalance = nullptr;
+    LocalInitialPartitioningHypergraph* best_objective = nullptr;
     for ( LocalInitialPartitioningHypergraph& partition : _local_hg ) {
-      if ( best._result.is_better(partition._result, _context.partition.epsilon) ) {
-        best = std::move(partition);
+      if ( !best || best->_result.is_other_better(partition._result, _context.partition.epsilon) ) {
+        best = &partition;
+      }
+      if ( !worst || !worst->_result.is_other_better(partition._result, _context.partition.epsilon) ) {
+        worst = &partition;
+      }
+      if ( !best_imbalance || best_imbalance->_result._imbalance > partition._result._imbalance ||
+           (best_imbalance->_result._imbalance == partition._result._imbalance &&
+            best_objective->_result._objective > partition._result._objective)) {
+        best_imbalance = &partition;
+      }
+      if ( !best_objective || best_objective->_result._objective > partition._result._objective ) {
+        best_objective = &partition;
       }
     }
+
+    ASSERT(best);
+    ASSERT(worst);
+    ASSERT(best_imbalance);
+    ASSERT(best_objective);
+    DBG << "Num Vertices =" << _hg.initialNumNodes() << ", Num Edges =" << _hg.initialNumEdges()
+        << ", k =" << _context.partition.k << ", epsilon =" << _context.partition.epsilon;
+    DBG << "Best Partition                [" << best->_result.str() << "]";
+    DBG << "Worst Partition               [" << worst->_result.str() << "]";
+    DBG << "Best Balanced Partition       [" << best_imbalance->_result.str() << "]";
+    DBG << "Partition with Best Objective [" << best_objective->_result.str() << "]";
 
     // Applies best partition to hypergraph
     for ( const HypernodeID& hn : _hg.nodes() ) {
       const HypernodeID original_id = _hg.originalNodeID(hn);
-      ASSERT(original_id < best._mapping.size());
-      const PartitionID part_id = best._partition[best._mapping[original_id]];
+      ASSERT(original_id < best->_mapping.size());
+      const PartitionID part_id = best->_partition[best->_mapping[original_id]];
       ASSERT(part_id != kInvalidPartition && part_id < _hg.k());
       _hg.setNodePart(hn, part_id);
     }
+
     _hg.initializeNumCutHyperedges();
     _hg.updateGlobalPartInfos();
-    ASSERT(best._result._objective == metrics::objective(_hg, _context.partition.objective));
+    ASSERT(best->_result._objective == metrics::objective(_hg, _context.partition.objective),
+           V(best->_result._objective) << V(metrics::objective(_hg, _context.partition.objective)));
   }
 
  private:
   LocalInitialPartitioningHypergraph copy_hypergraph() {
     auto tmp_hg = _hg.copy(_context.partition.k, _task_group_id);
-    return LocalInitialPartitioningHypergraph(std::move(tmp_hg.first), std::move(tmp_hg.second));
+    return LocalInitialPartitioningHypergraph(std::move(tmp_hg.first), _context, std::move(tmp_hg.second));
   }
 
   HyperGraph& _hg;
