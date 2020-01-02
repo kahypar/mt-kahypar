@@ -66,6 +66,7 @@ before_script:
   # print out some version numbers
   - $CMAKE_CXX --version
   # configure
+  - cd "${TRAVIS_BUILD_DIR}"
   - mkdir build; cd build
   - cmake
       -DCMAKE_BUILD_TYPE="$BUILD_TYPE"
