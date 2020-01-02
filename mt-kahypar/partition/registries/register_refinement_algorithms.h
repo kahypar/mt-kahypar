@@ -28,14 +28,14 @@
 #include "mt-kahypar/partition/refinement/do_nothing_refiner.h"
 #include "mt-kahypar/partition/refinement/label_propagation_refiner.h"
 
-#define REGISTER_DISPATCHED_LP_REFINER(id, dispatcher, t, ...)                               \
-  static kahypar::meta::Registrar<LabelPropagationFactory> JOIN(register_ ## dispatcher, t)( \
-    id,                                                                                      \
-    [](Hypergraph& hypergraph, const Context& context, const TaskGroupID task_group_id) {    \
-    return dispatcher::create(                                                               \
-      std::forward_as_tuple(hypergraph, context, task_group_id),                             \
-      __VA_ARGS__                                                                            \
-      );                                                                                     \
+#define REGISTER_DISPATCHED_LP_REFINER(id, dispatcher, t, ...)                                           \
+  static kahypar::meta::Registrar<LabelPropagationFactory> JOIN(register_ ## dispatcher, t)(             \
+    id,                                                                                                  \
+    [](Hypergraph& hypergraph, const Context& context, const TaskGroupID task_group_id) {                \
+    return dispatcher::create(                                                                           \
+      std::forward_as_tuple(hypergraph, context, task_group_id),                                         \
+      __VA_ARGS__                                                                                        \
+      );                                                                                                 \
   })
 
 #define REGISTER_LP_REFINER(id, refiner, t)                                                             \

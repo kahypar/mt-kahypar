@@ -39,6 +39,7 @@
 #include "mt-kahypar/partition/metrics.h"
 #include "mt-kahypar/partition/refinement/i_refiner.h"
 #include "mt-kahypar/partition/refinement/policies/gain_policy.h"
+#include "mt-kahypar/partition/refinement/policies/execution_policy.h"
 #include "mt-kahypar/utils/randomize.h"
 #include "mt-kahypar/utils/stats.h"
 
@@ -108,7 +109,7 @@ class LabelPropagationRefinerT final : public IRefiner {
 
     // Label propagation is not executed on all levels of the n-level hierarchy.
     // If LP should be executed on the current level is determined by the execution policy.
-    if (!_execution_policy.execute(_current_level)) {
+    if (!_context.refinement.label_propagation.execute_always && !_execution_policy.execute(_current_level)) {
       return false;
     }
 
@@ -289,72 +290,92 @@ class LabelPropagationRefinerT final : public IRefiner {
                            };
 
     bool converged = true;
-    tbb::enumerable_thread_specific<size_t> iteration_cnt(0);
-    tbb::parallel_for(start, end, [&](const size_t& j) {
-        size_t& local_iteration_cnt = iteration_cnt.local();
+    if ( _context.refinement.label_propagation.execute_sequential ) {
+      size_t local_iteration_cnt = 0;
+      for ( size_t j = start; j < end; ++j ) {
         const HypernodeID hn = refinement_nodes[j];
-        const HypernodeID original_id = _hg.originalNodeID(hn);
-        ASSERT(node == -1 || StreamingHyperGraph::get_numa_node_of_vertex(hn) == node);
+        converged &= !moveVertex(hn, local_iteration_cnt, node, is_first_round, objective_delta);
+      }
+    } else {
+      tbb::enumerable_thread_specific<size_t> iteration_cnt(0);
+      tbb::parallel_for(start, end, [&](const size_t& j) {
+          size_t& local_iteration_cnt = iteration_cnt.local();
+          const HypernodeID hn = refinement_nodes[j];
+          converged &= !moveVertex(hn, local_iteration_cnt, node, is_first_round, objective_delta);
+        });
+    }
+    return converged;
+  }
 
-        // We only compute the max gain move for a node if we are either in the first round of label
-        // propagation or if the vertex is still active. A vertex is active, if it changed its block
-        // in the last round or one of its neighbors.
-        if (is_first_round || _active[0][original_id]) {
-          Move best_move = _gain.computeMaxGainMove(hn);
+  template<typename F>
+  bool moveVertex(const HypernodeID hn,
+                  size_t& local_iteration_cnt,
+                  const int node,
+                  const bool is_first_round,
+                  const F& objective_delta) {
+    bool is_moved = false;
+    const HypernodeID original_id = _hg.originalNodeID(hn);
+    ASSERT(node == -1 || StreamingHyperGraph::get_numa_node_of_vertex(hn) == node);
 
-          // We perform a move if it either improves the solution quality or, in case of a
-          // zero gain move, the balance of the solution.
-          bool perform_move = best_move.gain < 0 ||
-                              (_context.refinement.label_propagation.rebalancing &&
-                                best_move.gain == 0 &&
-                                _hg.localPartWeight(best_move.from) - 1 >
-                                _hg.localPartWeight(best_move.to) + 1);
-          if (perform_move) {
-            PartitionID from = best_move.from;
-            PartitionID to = best_move.to;
-            ASSERT(from != to);
-            ASSERT(_hg.localPartWeight(to) + _hg.nodeWeight(hn) <= _context.partition.max_part_weights[to]);
+    // We only compute the max gain move for a node if we are either in the first round of label
+    // propagation or if the vertex is still active. A vertex is active, if it changed its block
+    // in the last round or one of its neighbors.
+    if (is_first_round || _active[0][original_id]) {
+      Move best_move = _gain.computeMaxGainMove(hn);
 
-            Gain delta_before = _gain.localDelta();
-            if (_hg.changeNodePart(hn, from, to, objective_delta)) {
-              // In case the move to block 'to' was successful, we verify that the "real" gain
-              // of the move is either equal to our computed gain or if not, still improves
-              // the solution quality.
-              Gain move_delta = _gain.localDelta() - delta_before;
-              bool accept_move = (move_delta == best_move.gain || move_delta <= 0);
-              if (accept_move) {
-                DBG << "Move hypernode" << hn << "from block" << from << "to block" << to
-                    << "with gain" << best_move.gain << "( Real Gain: " << move_delta << ")";
+      // We perform a move if it either improves the solution quality or, in case of a
+      // zero gain move, the balance of the solution.
+      bool perform_move = best_move.gain < 0 ||
+                          (_context.refinement.label_propagation.rebalancing &&
+                            best_move.gain == 0 &&
+                            _hg.localPartWeight(best_move.from) - 1 >
+                            _hg.localPartWeight(best_move.to) + 1);
+      if (perform_move) {
+        PartitionID from = best_move.from;
+        PartitionID to = best_move.to;
+        ASSERT(from != to);
+        ASSERT(_hg.localPartWeight(to) + _hg.nodeWeight(hn) <= _context.partition.max_part_weights[to]);
 
-                // Set all neighbors of the vertex to active
-                for (const HyperedgeID& he : _hg.incidentEdges(hn)) {
-                  for (const HypernodeID& pin : _hg.pins(he)) {
-                    int pin_numa_node = _context.refinement.label_propagation.numa_aware ?
-                      StreamingHyperGraph::get_numa_node_of_vertex(pin) : 0;
-                    _next_active[pin_numa_node].set(_hg.originalNodeID(pin), true);
-                  }
-                }
-                converged = false;
-              } else {
-                DBG << "Revert move of hypernode" << hn << "from block" << from << "to block" << to
-                    << "( Expected Gain:" << best_move.gain << ", Real Gain:" << move_delta << ")";
-                // In case, the real gain is not equal with the computed gain and
-                // worsen the solution quality we revert the move.
-                ASSERT(_hg.partID(hn) == to);
-                _hg.changeNodePart(hn, to, from, objective_delta);
+        Gain delta_before = _gain.localDelta();
+        if (_hg.changeNodePart(hn, from, to, objective_delta)) {
+          // In case the move to block 'to' was successful, we verify that the "real" gain
+          // of the move is either equal to our computed gain or if not, still improves
+          // the solution quality.
+          Gain move_delta = _gain.localDelta() - delta_before;
+          bool accept_move = (move_delta == best_move.gain || move_delta <= 0);
+          if (accept_move) {
+            DBG << "Move hypernode" << hn << "from block" << from << "to block" << to
+                << "with gain" << best_move.gain << "( Real Gain: " << move_delta << ")";
+
+            // Set all neighbors of the vertex to active
+            for (const HyperedgeID& he : _hg.incidentEdges(hn)) {
+              for (const HypernodeID& pin : _hg.pins(he)) {
+                int pin_numa_node = _context.refinement.label_propagation.numa_aware ?
+                  StreamingHyperGraph::get_numa_node_of_vertex(pin) : 0;
+                _next_active[pin_numa_node].set(_hg.originalNodeID(pin), true);
               }
             }
-            _next_active[0].set(original_id, true);
+            is_moved = true;
+          } else {
+            DBG << "Revert move of hypernode" << hn << "from block" << from << "to block" << to
+                << "( Expected Gain:" << best_move.gain << ", Real Gain:" << move_delta << ")";
+            // In case, the real gain is not equal with the computed gain and
+            // worsen the solution quality we revert the move.
+            ASSERT(_hg.partID(hn) == to);
+            _hg.changeNodePart(hn, to, from, objective_delta);
           }
         }
+        _next_active[0].set(original_id, true);
+      }
+    }
 
-        ++local_iteration_cnt;
-        if (local_iteration_cnt % _context.refinement.label_propagation.part_weight_update_frequency == 0) {
-          // We frequently update the local block weights of the current threads
-          _hg.updateLocalPartInfos();
-        }
-      });
-    return converged;
+    ++local_iteration_cnt;
+    if (local_iteration_cnt % _context.refinement.label_propagation.part_weight_update_frequency == 0) {
+      // We frequently update the local block weights of the current threads
+      _hg.updateLocalPartInfos();
+    }
+
+    return is_moved;
   }
 
   // ! Adds a hypernode to set of vertices that are

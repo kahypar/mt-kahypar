@@ -149,5 +149,18 @@ class ConstantExecutionPolicy : public ExecutionPolicy<ConstantExecutionPolicy> 
   using ExecutionPolicy::_alpha;
 };
 
-using ExecutionPolicyClasses = kahypar::meta::Typelist<ExponentialExecutionPolicy, MultilevelExecutionPolicy, ConstantExecutionPolicy>;
+class NoExecutionPolicy : public ExecutionPolicy<NoExecutionPolicy> {
+ public:
+  NoExecutionPolicy() :
+    ExecutionPolicy() { }
+
+  NoExecutionPolicy(const double alpha) :
+    ExecutionPolicy(alpha) { }
+
+  template <typename HyperGraph>
+  void initialize(const HyperGraph&, const HypernodeID) { }
+};
+
+using ExecutionPolicyClasses = kahypar::meta::Typelist<ExponentialExecutionPolicy, MultilevelExecutionPolicy,
+                                                       ConstantExecutionPolicy, NoExecutionPolicy>;
 }  // namespace mt_kahypar

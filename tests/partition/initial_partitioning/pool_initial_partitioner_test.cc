@@ -116,11 +116,11 @@ TYPED_TEST(APoolInitialPartitionerTest, HasNoSignificantLowPartitionWeights) {
     PoolInitialPartitioner(this->hypergraph, this->context, TBB::GLOBAL_TASK_GROUP);
   tbb::task::spawn_root_and_wait(initial_partitioner);
 
-  // Each block should have a weight greater or equal than half the average
+  // Each block should have a weight greater or equal than 20% of the average
   // block weight.
   for ( PartitionID block = 0; block < this->context.partition.k; ++block ) {
     ASSERT_GE(this->hypergraph.partWeight(block),
-              this->context.partition.perfect_balance_part_weights[block] / 2);
+              this->context.partition.perfect_balance_part_weights[block] / 5);
   }
 }
 

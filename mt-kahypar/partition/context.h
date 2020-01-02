@@ -186,6 +186,8 @@ struct LabelPropagationParameters {
   bool rebalancing = true;
   ExecutionType execution_policy = ExecutionType::UNDEFINED;
   double execution_policy_alpha = 2.0;
+  bool execute_always = false;
+  bool execute_sequential = false;
 };
 
 inline std::ostream & operator<< (std::ostream& str, const LabelPropagationParameters& params) {
