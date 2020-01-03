@@ -119,11 +119,7 @@ size_t AInitialPartitionerTest<Config>::num_threads = HwTopology::instance().num
 
 static constexpr double EPS = 0.05;
 
-typedef ::testing::Types<TestConfig<DirectInitialPartitionerT, InitialPartitioningMode::direct, 2>,
-                         TestConfig<DirectInitialPartitionerT, InitialPartitioningMode::direct, 3>,
-                         TestConfig<DirectInitialPartitionerT, InitialPartitioningMode::direct, 4>,
-                         TestConfig<DirectInitialPartitionerT, InitialPartitioningMode::direct, 5>,
-                         TestConfig<RecursiveInitialPartitionerT, InitialPartitioningMode::recursive, 2>,
+typedef ::testing::Types<TestConfig<RecursiveInitialPartitionerT, InitialPartitioningMode::recursive, 2>,
                          TestConfig<RecursiveInitialPartitionerT, InitialPartitioningMode::recursive, 3>,
                          TestConfig<RecursiveInitialPartitionerT, InitialPartitioningMode::recursive, 4>,
                          TestConfig<RecursiveInitialPartitionerT, InitialPartitioningMode::recursive, 5>,
