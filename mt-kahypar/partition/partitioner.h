@@ -32,7 +32,6 @@
 #include "mt-kahypar/io/partitioning_output.h"
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/partition/factories.h"
-#include "mt-kahypar/partition/initial_partitioning/direct_initial_partitioner.h"
 #include "mt-kahypar/partition/metrics.h"
 #include "mt-kahypar/partition/multilevel.h"
 #include "mt-kahypar/partition/preprocessing/hypergraph_sparsifier.h"

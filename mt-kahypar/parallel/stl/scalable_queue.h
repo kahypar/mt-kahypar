@@ -1,7 +1,6 @@
 /*******************************************************************************
  * This file is part of KaHyPar.
  *
- * Copyright (C) 2018 Sebastian Schlag <sebastian.schlag@kit.edu>
  * Copyright (C) 2019 Tobias Heuer <tobias.heuer@kit.edu>
  *
  * KaHyPar is free software: you can redistribute it and/or modify
@@ -21,9 +20,13 @@
 
 #pragma once
 
-#include "mt-kahypar/partition/registries/register_coarsening_algorithms.h"
-#include "mt-kahypar/partition/registries/register_initial_partitioning_algorithms.h"
-#include "mt-kahypar/partition/registries/register_flat_initial_partitioning_algorithms.h"
-#include "mt-kahypar/partition/registries/register_policies.h"
-#include "mt-kahypar/partition/registries/register_preprocessing_algorithms.h"
-#include "mt-kahypar/partition/registries/register_refinement_algorithms.h"
+#include <queue>
+
+#include "tbb/scalable_allocator.h"
+
+namespace mt_kahypar {
+namespace parallel {
+template <typename T>
+using scalable_queue = std::queue<T, std::deque<T, tbb::scalable_allocator<T>> >;
+}  // namespace parallel
+}  // namespace mt_kahypar

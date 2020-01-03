@@ -65,20 +65,8 @@ install:
 before_script:
   # print out some version numbers
   - $CMAKE_CXX --version
-  # install kahypar library interface
-  - cd "${TRAVIS_BUILD_DIR}"
-  - cd external_tools/kahypar; mkdir build; cd build
-  - echo "$COMPILER_FLAGS"
-  - cmake
-    -DCMAKE_BUILD_TYPE=RELEASE
-    -DCMAKE_C_COMPILER="$CMAKE_CC"
-    -DCMAKE_CXX_COMPILER="$CMAKE_CXX"
-    -DCMAKE_C_FLAGS="$COMPILER_FLAGS"
-    -DCMAKE_CXX_FLAGS="$COMPILER_FLAGS"
-    $CMAKE_ARGS ..
-  - sudo make install.library
-  - cd ../../..
   # configure
+  - cd "${TRAVIS_BUILD_DIR}"
   - mkdir build; cd build
   - cmake
       -DCMAKE_BUILD_TYPE="$BUILD_TYPE"

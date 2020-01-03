@@ -30,11 +30,11 @@ namespace multilevel {
 static inline void partition(Hypergraph& hypergraph,
                              const Context& context,
                              const bool top_level,
-                             const TaskGroupID task_group_id);
+                             const TaskGroupID task_group_id,
+                             tbb::task* parent);
 }  // namespace multilevel
 }  // namespace mt_kahypar
 
-#include "mt-kahypar/partition/initial_partitioning/direct_initial_partitioner.h"
 #include "mt-kahypar/partition/initial_partitioning/recursive_initial_partitioner.h"
 #include "mt-kahypar/partition/initial_partitioning/recursive_bisection_initial_partitioner.h"
 
@@ -47,7 +47,6 @@ static inline void partition(Hypergraph& hypergraph,
   })
 
 namespace mt_kahypar {
-REGISTER_INITIAL_PARTITIONER(InitialPartitioningMode::direct, DirectInitialPartitioner);
 REGISTER_INITIAL_PARTITIONER(InitialPartitioningMode::recursive, RecursiveInitialPartitioner);
 REGISTER_INITIAL_PARTITIONER(InitialPartitioningMode::recursive_bisection, RecursiveBisectionInitialPartitioner);
 }  // namespace mt_kahypar

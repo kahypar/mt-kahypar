@@ -47,7 +47,7 @@ std::unordered_map<std::string, std::string> target_struct_prefix =
 std::set<std::string> excluded_members =
   { "verbose_output", "quiet_mode", "detailed_timings", "enable_progress_bar", "sp_process_output",
     "write_partition_file", "graph_partition_filename", "graph_community_filename", "community_detection",
-    "community_redistribution", "coarsening_rating", "label_propagation" };
+    "community_redistribution", "coarsening_rating", "label_propagation", "lp_execute_always", "lp_execute_sequential" };
 
 bool is_target_struct(const std::string& line) {
   for ( const std::string& target_struct : target_structs ) {
@@ -168,7 +168,6 @@ TEST(ASqlPlotSerializerTest, ChecksIfSomeParametersFromContextAreMissing) {
   dummy_context.partition.sp_process_output = true;
   dummy_context.partition.perfect_balance_part_weights.assign(2, 0);
   dummy_context.partition.max_part_weights.assign(2, 0);
-  dummy_context.initial_partitioning.context_file = "dummy.ini";
   HighResClockTimepoint end = std::chrono::high_resolution_clock::now();
   std::chrono::duration<double> elapsed_seconds(end - start);
 

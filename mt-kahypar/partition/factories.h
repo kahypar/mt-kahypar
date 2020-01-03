@@ -20,6 +20,8 @@
 
 #pragma once
 
+#include "tbb/task.h"
+
 #include "kahypar/meta/abstract_factory.h"
 #include "kahypar/meta/static_multi_dispatch_factory.h"
 #include "kahypar/meta/typelist.h"
@@ -31,6 +33,7 @@
 #include "mt-kahypar/partition/coarsening/policies/rating_heavy_node_penalty_policy.h"
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/partition/initial_partitioning/i_initial_partitioner.h"
+#include "mt-kahypar/partition/initial_partitioning/flat/initial_partitioning_data_container.h"
 #include "mt-kahypar/partition/preprocessing/community_reassignment/bin_packing_community_assignment.h"
 #include "mt-kahypar/partition/preprocessing/community_reassignment/i_community_assignment.h"
 #include "mt-kahypar/partition/preprocessing/community_reassignment/policies/community_assignment_objective.h"
@@ -55,6 +58,9 @@ using CommunityCoarsenerDispatcher = kahypar::meta::StaticMultiDispatchFactory<C
                                                                                                        HeavyNodePenaltyPolicies,
                                                                                                        AcceptancePolicies,
                                                                                                        ObjectivePolicyClasses> >;
+
+using FlatInitialPartitionerFactory = kahypar::meta::Factory<InitialPartitioningAlgorithm,
+                                                             tbb::task* (*)(tbb::task*, InitialPartitioningDataContainer&, const Context&)>;
 
 using InitialPartitionerFactory = kahypar::meta::Factory<InitialPartitioningMode,
                                                          IInitialPartitioner* (*)(Hypergraph&, const Context&, const bool, const TaskGroupID)>;

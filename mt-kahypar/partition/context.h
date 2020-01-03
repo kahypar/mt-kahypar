@@ -161,18 +161,13 @@ inline std::ostream & operator<< (std::ostream& str, const CoarseningParameters&
 }
 
 struct InitialPartitioningParameters {
-  std::string context_file = "";
   InitialPartitioningMode mode = InitialPartitioningMode::UNDEFINED;
-  kahypar::InitialPartitioningTechnique technique = kahypar::InitialPartitioningTechnique::multilevel;
-  bool call_kahypar_multiple_times = false;
   size_t runs = 1;
 };
 
 inline std::ostream & operator<< (std::ostream& str, const InitialPartitioningParameters& params) {
   str << "Initial Partitioning Parameters:" << std::endl;
-  str << "  Initial Partitioning Context:       " << params.context_file << std::endl;
   str << "  Initial Partitioning Mode:          " << params.mode << std::endl;
-  str << "  Call KaHyPar multiple times:        " << std::boolalpha << params.call_kahypar_multiple_times << std::endl;
   str << "  Number of Runs:                     " << params.runs << std::endl;
   return str;
 }
@@ -186,6 +181,8 @@ struct LabelPropagationParameters {
   bool rebalancing = true;
   ExecutionType execution_policy = ExecutionType::UNDEFINED;
   double execution_policy_alpha = 2.0;
+  bool execute_always = false;
+  bool execute_sequential = false;
 };
 
 inline std::ostream & operator<< (std::ostream& str, const LabelPropagationParameters& params) {
