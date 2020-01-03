@@ -286,7 +286,7 @@ class RecursiveInitialPartitionerT : public IInitialPartitioner {
       // Spawn Initial Partitioner
       PoolInitialPartitionerContinuation& ip_continuation = *new(allocate_continuation())
         PoolInitialPartitionerContinuation(_result.hypergraph, _result.context, _task_group_id);
-      spawn_initial_partitioner(ip_continuation, _result.context);
+      spawn_initial_partitioner(ip_continuation);
       return nullptr;
     }
 
@@ -394,7 +394,7 @@ class RecursiveInitialPartitionerT : public IInitialPartitioner {
         ASSERT(_context.partition.max_part_weights.size() == 2);
         PoolInitialPartitionerContinuation& ip_continuation = *new(allocate_continuation())
           PoolInitialPartitionerContinuation(_hg, _context, _task_group_id);
-        spawn_initial_partitioner(ip_continuation, _context);
+        spawn_initial_partitioner(ip_continuation);
       } else {
         // We do parallel recursion, if the contract limit is equal to 2 * p * t
         // ( where p is the number of threads and t the contract limit multiplier )
