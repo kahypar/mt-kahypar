@@ -199,7 +199,7 @@ class Timer {
         _local_active_timings.local().pop_back();
       } else {
         ASSERT(!_active_timings.empty());
-        ASSERT(_active_timings.back().key() == key);
+        ASSERT(_active_timings.back().key() == key, V(_active_timings.back().key()) << V(key));
         current_timing = _active_timings.back();
         _active_timings.pop_back();
       }
