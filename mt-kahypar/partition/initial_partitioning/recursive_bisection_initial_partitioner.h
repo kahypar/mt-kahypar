@@ -321,7 +321,6 @@ class RecursiveBisectionInitialPartitionerT : public IInitialPartitioner {
       bisection_context.partition.k = 2;
       bisection_context.partition.verbose_output = debug;
       bisection_context.initial_partitioning.mode = InitialPartitioningMode::direct;
-      bisection_context.initial_partitioning.technique = kahypar::InitialPartitioningTechnique::flat;
 
       // Setup Part Weights
       PartitionID num_blocks_part_0 = context.partition.k / 2 + (context.partition.k % 2 != 0 ? 1 : 0);

@@ -168,7 +168,6 @@ TEST(ASqlPlotSerializerTest, ChecksIfSomeParametersFromContextAreMissing) {
   dummy_context.partition.sp_process_output = true;
   dummy_context.partition.perfect_balance_part_weights.assign(2, 0);
   dummy_context.partition.max_part_weights.assign(2, 0);
-  dummy_context.initial_partitioning.context_file = "dummy.ini";
   HighResClockTimepoint end = std::chrono::high_resolution_clock::now();
   std::chrono::duration<double> elapsed_seconds(end - start);
 

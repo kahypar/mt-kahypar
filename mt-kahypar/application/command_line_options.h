@@ -239,13 +239,8 @@ po::options_description createInitialPartitioningOptionsDescription(Context& con
     }),
     "Mode of initial partitioning:\n"
     "- direct\n"
-    "- recursive")
-    ("i-call-kahypar-multiple-times",
-    po::value<bool>(&context.initial_partitioning.call_kahypar_multiple_times)->value_name("<bool>"),
-    "If true, KaHyPar is called i-runs times during IP (with one call to IP of KaHyPar).\n"
-    "Otherwise, KaHyPar is called s-num-threads times and the IP of KaHyPar is called i-runs times\n"
-    "(splitted over s-num-threads)"
-    "(default: false)")
+    "- recursive\n"
+    "- recursive_bisection")
     ("i-runs",
     po::value<size_t>(&context.initial_partitioning.runs)->value_name("<size_t>"),
     "Number of runs for initial partitioner \n"
@@ -348,10 +343,7 @@ void processCommandLineInput(Context& context, int argc, char* argv[]) {
     "Number of blocks")
     ("epsilon,e",
     po::value<double>(&context.partition.epsilon)->value_name("<double>")->required(),
-    "Imbalance parameter epsilon")
-    ("i-context-file",
-    po::value<std::string>(&context.initial_partitioning.context_file)->required()->value_name("<string>"),
-    "Context file for initial partitioning call to KaHyPar.");
+    "Imbalance parameter epsilon");
 
   std::string context_path;
   po::options_description preset_options("Preset Options", num_columns);

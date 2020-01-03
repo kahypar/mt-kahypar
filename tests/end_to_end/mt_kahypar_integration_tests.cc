@@ -65,7 +65,6 @@ class MtKaHyPar : public Test {
     context.partition.detailed_timings = true;
     context.preprocessing.community_detection.load_balancing_strategy = Config::BALANCING_STRATEGY;
     context.initial_partitioning.mode = Config::INITIAL_PARTITIONING_MODE;
-    context.initial_partitioning.context_file = "../../../config/fast_initial_partitioning.ini";
     context.refinement.use_batch_uncontractions = Config::USE_BATCH_UNCONTRACTIONS;
     context.refinement.label_propagation.algorithm = Config::LP_ALGORITHM;
     context.refinement.label_propagation.localized = Config::LOCALIZED_LP;

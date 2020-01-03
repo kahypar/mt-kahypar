@@ -74,10 +74,7 @@ static inline std::string serialize(const Hypergraph& hypergraph,
         << " rating_function=" << context.coarsening.rating.rating_function
         << " rating_heavy_node_penalty_policy=" << context.coarsening.rating.heavy_node_penalty_policy
         << " rating_acceptance_policy=" << context.coarsening.rating.acceptance_policy
-        << " initial_partitioning_context_file=" << context.initial_partitioning.context_file
         << " initial_partitioning_mode=" << context.initial_partitioning.mode
-        << " initial_partitioning_technique=" << context.initial_partitioning.technique
-        << " initial_partitioning_call_kahypar_multiple_times=" << std::boolalpha << context.initial_partitioning.call_kahypar_multiple_times
         << " initial_partitioning_runs=" << context.initial_partitioning.runs
         << " use_batch_uncontractions=" << std::boolalpha << context.refinement.use_batch_uncontractions
         << " batch_size=" << context.refinement.batch_size

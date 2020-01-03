@@ -71,9 +71,7 @@ class AInitialPartitionerTest : public Test {
 
     // Initial Partitioning
     context.initial_partitioning.runs = 5;
-    context.initial_partitioning.context_file = "../test_instances/fast_initial_partitioning.ini";
     context.initial_partitioning.mode = Config::MODE;
-    context.initial_partitioning.technique = kahypar::InitialPartitioningTechnique::flat;
 
     // Label Propagation
     context.refinement.label_propagation.algorithm = LabelPropagationAlgorithm::do_nothing;

@@ -91,7 +91,6 @@ class ALabelPropagationRefiner : public Test {
     // Initial Partitioning
     context.initial_partitioning.mode = InitialPartitioningMode::recursive;
     context.initial_partitioning.runs = 1;
-    context.initial_partitioning.context_file = "../test_instances/fast_initial_partitioning.ini";
 
     // Label Propagation
     context.refinement.label_propagation.algorithm = Config::LP_ALGO;
