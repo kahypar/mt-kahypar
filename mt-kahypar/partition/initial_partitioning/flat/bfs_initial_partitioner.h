@@ -41,7 +41,8 @@ class BFSInitialPartitionerT : public tbb::task {
   static HypernodeID kInvalidHypernode;
 
  public:
-  BFSInitialPartitionerT(InitialPartitioningDataContainer& ip_data,
+  BFSInitialPartitionerT(const InitialPartitioningAlgorithm,
+                         InitialPartitioningDataContainer& ip_data,
                          const Context& context) :
     _ip_data(ip_data),
     _context(context) { }

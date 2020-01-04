@@ -28,16 +28,34 @@
 
 #include "mt-kahypar/partition/initial_partitioning/flat/random_initial_partitioner.h"
 #include "mt-kahypar/partition/initial_partitioning/flat/bfs_initial_partitioner.h"
+#include "mt-kahypar/partition/initial_partitioning/flat/greedy_initial_partitioner.h"
+#include "mt-kahypar/partition/initial_partitioning/flat/policies/gain_computation_policy.h"
+#include "mt-kahypar/partition/initial_partitioning/flat/policies/pq_selection_policy.h"
 
 #define REGISTER_FLAT_INITIAL_PARTITIONER(id, partitioner)                                           \
   static kahypar::meta::Registrar<FlatInitialPartitionerFactory> register_ ## partitioner(           \
     id,                                                                                              \
-    [](tbb::task* parent, InitialPartitioningDataContainer& ip_hypergraph, const Context& context)   \
+    [](tbb::task* parent, const InitialPartitioningAlgorithm algorithm,                              \
+       InitialPartitioningDataContainer& ip_hypergraph, const Context& context)                      \
     -> tbb::task* {                                                                                  \
-    return new(parent->allocate_child()) partitioner(ip_hypergraph, context);                        \
+    return new(parent->allocate_child()) partitioner(algorithm, ip_hypergraph, context);             \
   })
 
 namespace mt_kahypar {
+
+using GreedyRoundRobinFMInitialPartitioner = GreedyInitialPartitioner<CutGainPolicy, RoundRobinPQSelectionPolicy>;
+using GreedyGlobalFMInitialPartitioner = GreedyInitialPartitioner<CutGainPolicy, GlobalPQSelectionPolicy>;
+using GreedySequentialFMInitialPartitioner = GreedyInitialPartitioner<CutGainPolicy, SequentialPQSelectionPolicy>;
+using GreedyRoundRobinMaxNetInitialPartitioner = GreedyInitialPartitioner<MaxNetGainPolicy, RoundRobinPQSelectionPolicy>;
+using GreedyGlobalMaxNetInitialPartitioner = GreedyInitialPartitioner<MaxNetGainPolicy, GlobalPQSelectionPolicy>;
+using GreedySequentialMaxNetInitialPartitioner = GreedyInitialPartitioner<MaxNetGainPolicy, SequentialPQSelectionPolicy>;
+
 REGISTER_FLAT_INITIAL_PARTITIONER(InitialPartitioningAlgorithm::random, RandomInitialPartitioner);
 REGISTER_FLAT_INITIAL_PARTITIONER(InitialPartitioningAlgorithm::bfs, BFSInitialPartitioner);
+REGISTER_FLAT_INITIAL_PARTITIONER(InitialPartitioningAlgorithm::greedy_round_robin_fm, GreedyRoundRobinFMInitialPartitioner);
+REGISTER_FLAT_INITIAL_PARTITIONER(InitialPartitioningAlgorithm::greedy_global_fm, GreedyGlobalFMInitialPartitioner);
+REGISTER_FLAT_INITIAL_PARTITIONER(InitialPartitioningAlgorithm::greedy_sequential_fm, GreedySequentialFMInitialPartitioner);
+REGISTER_FLAT_INITIAL_PARTITIONER(InitialPartitioningAlgorithm::greedy_round_robin_max_net, GreedyRoundRobinMaxNetInitialPartitioner);
+REGISTER_FLAT_INITIAL_PARTITIONER(InitialPartitioningAlgorithm::greedy_global_max_net, GreedyGlobalMaxNetInitialPartitioner);
+REGISTER_FLAT_INITIAL_PARTITIONER(InitialPartitioningAlgorithm::greedy_sequential_max_net, GreedySequentialMaxNetInitialPartitioner);
 }  // namespace mt_kahypar

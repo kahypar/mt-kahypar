@@ -68,7 +68,7 @@ namespace mt_kahypar {
  * of a RecursiveChildTask terminates, the RecursiveChildContinuationTask starts and uncontracts the hypergraph to
  * its original size (and also performs refinement). Once both RecursiveChildTask of a RecursiveTask terminates, the
  * RecursiveContinuationTask starts and chooses the best partition of both recursions and spawns for each block
- * a BisectionTask. The BisectionTask performs a partition call to KaHyPar to bisect exactly one block of the current
+ * a BisectionTask. The BisectionTask performs a initial partition call to bisect exactly one block of the current
  * partition. Once all BisectionTasks terminates, the BisectionContinuationTask starts and applies all bisections to the
  * current hypergraph.
  */

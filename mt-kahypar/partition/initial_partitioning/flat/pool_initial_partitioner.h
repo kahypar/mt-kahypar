@@ -56,7 +56,7 @@ class SpawnInitialPartitionerTaskListT : public tbb::task {
     for ( const InitialPartitioningAlgorithm& algorithm : _ip_tasks ) {
       std::unique_ptr<tbb::task> initial_partitioner_ptr =
             FlatInitialPartitionerFactory::getInstance().createObject(
-              algorithm, &task_continuation, _ip_data, _context);
+              algorithm, &task_continuation, algorithm, _ip_data, _context);
       tbb::task* initial_partitioner = initial_partitioner_ptr.release();
       tbb::task::spawn(*initial_partitioner);
     }

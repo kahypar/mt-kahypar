@@ -30,7 +30,7 @@
 namespace mt_kahypar {
 
 template<typename TypeTraits>
-class PseudoPeripheralStartNodes : public tbb::task {
+class PseudoPeripheralStartNodes {
   using HyperGraph = typename TypeTraits::HyperGraph;
   using InitialPartitioningDataContainer = InitialPartitioningDataContainerT<TypeTraits>;
   using StartNodes = parallel::scalable_vector<HypernodeID>;

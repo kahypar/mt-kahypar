@@ -92,7 +92,13 @@ enum class AcceptancePolicy : uint8_t {
 enum class InitialPartitioningAlgorithm : uint8_t {
   random = 0,
   bfs = 1,
-  UNDEFINED = 2
+  greedy_round_robin_fm = 2,
+  greedy_global_fm = 3,
+  greedy_sequential_fm = 4,
+  greedy_round_robin_max_net = 5,
+  greedy_global_max_net = 6,
+  greedy_sequential_max_net = 7,
+  UNDEFINED = 8
 };
 
 enum class InitialPartitioningMode : uint8_t {
@@ -221,6 +227,12 @@ std::ostream & operator<< (std::ostream& os, const InitialPartitioningAlgorithm&
   switch (algo) {
     case InitialPartitioningAlgorithm::random: return os << "random";
     case InitialPartitioningAlgorithm::bfs: return os << "bfs";
+    case InitialPartitioningAlgorithm::greedy_round_robin_fm: return os << "greedy_round_robin_fm";
+    case InitialPartitioningAlgorithm::greedy_global_fm: return os << "greedy_global_fm";
+    case InitialPartitioningAlgorithm::greedy_sequential_fm: return os << "greedy_sequential_fm";
+    case InitialPartitioningAlgorithm::greedy_round_robin_max_net: return os << "greedy_round_robin_max_net";
+    case InitialPartitioningAlgorithm::greedy_global_max_net: return os << "greedy_global_max_net";
+    case InitialPartitioningAlgorithm::greedy_sequential_max_net: return os << "greedy_sequential_max_net";
     case InitialPartitioningAlgorithm::UNDEFINED: return os << "UNDEFINED";
       // omit default case to trigger compiler warning for missing cases
   }
@@ -359,6 +371,18 @@ static InitialPartitioningAlgorithm initialPartitioningAlgorithmFromString(const
     return InitialPartitioningAlgorithm::random;
   } else if (algo == "bfs") {
     return InitialPartitioningAlgorithm::bfs;
+  } else if (algo == "greedy_round_robin_fm") {
+    return InitialPartitioningAlgorithm::greedy_round_robin_fm;
+  } else if (algo == "greedy_global_fm") {
+    return InitialPartitioningAlgorithm::greedy_global_fm;
+  } else if (algo == "greedy_sequential_fm") {
+    return InitialPartitioningAlgorithm::greedy_sequential_fm;
+  } else if (algo == "greedy_round_robin_max_net") {
+    return InitialPartitioningAlgorithm::greedy_round_robin_max_net;
+  } else if (algo == "greedy_global_max_net") {
+    return InitialPartitioningAlgorithm::greedy_global_max_net;
+  } else if (algo == "greedy_sequential_max_net") {
+    return InitialPartitioningAlgorithm::greedy_sequential_max_net;
   }
   ERROR("Illegal option: " + algo);
   return InitialPartitioningAlgorithm::UNDEFINED;

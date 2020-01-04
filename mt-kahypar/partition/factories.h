@@ -60,7 +60,7 @@ using CommunityCoarsenerDispatcher = kahypar::meta::StaticMultiDispatchFactory<C
                                                                                                        ObjectivePolicyClasses> >;
 
 using FlatInitialPartitionerFactory = kahypar::meta::Factory<InitialPartitioningAlgorithm,
-                                                             tbb::task* (*)(tbb::task*, InitialPartitioningDataContainer&, const Context&)>;
+                                                             tbb::task* (*)(tbb::task*, const InitialPartitioningAlgorithm, InitialPartitioningDataContainer&, const Context&)>;
 
 using InitialPartitionerFactory = kahypar::meta::Factory<InitialPartitioningMode,
                                                          IInitialPartitioner* (*)(Hypergraph&, const Context&, const bool, const TaskGroupID)>;

@@ -36,7 +36,8 @@ class RandomInitialPartitionerT : public tbb::task {
   static PartitionID kInvalidPartition;
 
  public:
-  RandomInitialPartitionerT(InitialPartitioningDataContainer& ip_data,
+  RandomInitialPartitionerT(const InitialPartitioningAlgorithm,
+                            InitialPartitioningDataContainer& ip_data,
                             const Context& context) :
     _ip_data(ip_data),
     _context(context) { }

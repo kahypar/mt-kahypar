@@ -166,6 +166,8 @@ class InitialPartitioningDataContainerT {
     _local_hg([&] {
       return copy_hypergraph();
     }),
+    _local_kway_pq(_context.partition.k),
+    _is_local_pq_initialized(false),
     _local_hn_visited(_context.partition.k * _local_hg.local()._hypergraph.initialNumNodes()),
     _local_he_visited(_context.partition.k * _local_hg.local()._hypergraph.initialNumEdges()),
     _local_unassigned_hypernodes(),
@@ -191,6 +193,16 @@ class InitialPartitioningDataContainerT {
 
   HyperGraph& local_hypergraph() {
     return _local_hg.local()._hypergraph;
+  }
+
+  KWayPriorityQueue& local_kway_priority_queue() {
+    bool& is_local_pq_initialized = _is_local_pq_initialized.local();
+    KWayPriorityQueue& local_kway_pq = _local_kway_pq.local();
+    if ( !is_local_pq_initialized ) {
+      local_kway_pq.initialize(local_hypergraph().initialNumNodes());
+      is_local_pq_initialized = true;
+    }
+    return local_kway_pq;
   }
 
   kahypar::ds::FastResetFlagArray<>& local_hypernode_fast_reset_flag_array() {
@@ -319,6 +331,8 @@ class InitialPartitioningDataContainerT {
   const TaskGroupID _task_group_id;
 
   ThreadLocalHypergraph _local_hg;
+  ThreadLocalKWayPriorityQueue _local_kway_pq;
+  tbb::enumerable_thread_specific<bool> _is_local_pq_initialized;
   ThreadLocalFastResetFlagArray _local_hn_visited;
   ThreadLocalFastResetFlagArray _local_he_visited;
   ThreadLocalUnassignedHypernodes _local_unassigned_hypernodes;

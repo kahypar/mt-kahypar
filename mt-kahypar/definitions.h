@@ -26,6 +26,7 @@
 #include "tbb/enumerable_thread_specific.h"
 
 #include "kahypar/datastructure/fast_reset_flag_array.h"
+#include "kahypar/datastructure/kway_priority_queue.h"
 
 #include "mt-kahypar/datastructures/hypergraph.h"
 #include "mt-kahypar/datastructures/streaming_hypergraph.h"
@@ -45,7 +46,6 @@ using HardwareTopology = mt_kahypar::parallel::HardwareTopology<TopoMock, topolo
 using HardwareTopology = mt_kahypar::parallel::HardwareTopology<>;
 #endif
 using TBBNumaArena = mt_kahypar::parallel::TBBNumaArena<HardwareTopology>;
-using ThreadLocalFastResetFlagArray = tbb::enumerable_thread_specific<kahypar::ds::FastResetFlagArray<> >;
 
 using TaskGroupID = size_t;
 using RatingType = double;
@@ -55,6 +55,10 @@ using HypernodeWeight = int32_t;
 using HyperedgeWeight = int32_t;
 using PartitionID = int32_t;
 using Gain = HyperedgeWeight;
+
+using ThreadLocalFastResetFlagArray = tbb::enumerable_thread_specific<kahypar::ds::FastResetFlagArray<> >;
+using KWayPriorityQueue = kahypar::ds::KWayPriorityQueue<HypernodeID, Gain, std::numeric_limits<Gain>, true>;
+using ThreadLocalKWayPriorityQueue = tbb::enumerable_thread_specific<KWayPriorityQueue>;
 
 using NodeID = uint32_t;
 
