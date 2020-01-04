@@ -70,7 +70,7 @@ class AInitialPartitionerTest : public Test {
     context.shared_memory.num_threads = num_threads;
 
     // Initial Partitioning
-    context.initial_partitioning.runs = 5;
+    context.initial_partitioning.runs = 1;
     context.initial_partitioning.mode = Config::MODE;
 
     // Label Propagation
