@@ -244,6 +244,14 @@ po::options_description createInitialPartitioningOptionsDescription(Context& con
     ("i-runs",
     po::value<size_t>(&context.initial_partitioning.runs)->value_name("<size_t>"),
     "Number of runs for initial partitioner \n"
+    "(default: 1)")
+    ("i-lp-maximum-iterations",
+    po::value<size_t>(&context.initial_partitioning.lp_maximum_iterations)->value_name("<size_t>"),
+    "Maximum number of iterations of label propagation initial partitioner \n"
+    "(default: 1)")
+    ("i-lp-initial-block-size",
+    po::value<size_t>(&context.initial_partitioning.lp_initial_block_size)->value_name("<size_t>"),
+    "Initial block size used for label propagation initial partitioner \n"
     "(default: 1)");
   return options;
 }

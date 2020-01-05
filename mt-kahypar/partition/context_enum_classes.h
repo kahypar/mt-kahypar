@@ -98,7 +98,8 @@ enum class InitialPartitioningAlgorithm : uint8_t {
   greedy_round_robin_max_net = 5,
   greedy_global_max_net = 6,
   greedy_sequential_max_net = 7,
-  UNDEFINED = 8
+  label_propagation = 8,
+  UNDEFINED = 9
 };
 
 enum class InitialPartitioningMode : uint8_t {
@@ -233,6 +234,7 @@ std::ostream & operator<< (std::ostream& os, const InitialPartitioningAlgorithm&
     case InitialPartitioningAlgorithm::greedy_round_robin_max_net: return os << "greedy_round_robin_max_net";
     case InitialPartitioningAlgorithm::greedy_global_max_net: return os << "greedy_global_max_net";
     case InitialPartitioningAlgorithm::greedy_sequential_max_net: return os << "greedy_sequential_max_net";
+    case InitialPartitioningAlgorithm::label_propagation: return os << "label_propagation";
     case InitialPartitioningAlgorithm::UNDEFINED: return os << "UNDEFINED";
       // omit default case to trigger compiler warning for missing cases
   }
@@ -383,6 +385,8 @@ static InitialPartitioningAlgorithm initialPartitioningAlgorithmFromString(const
     return InitialPartitioningAlgorithm::greedy_global_max_net;
   } else if (algo == "greedy_sequential_max_net") {
     return InitialPartitioningAlgorithm::greedy_sequential_max_net;
+  } else if (algo == "label_propagation") {
+    return InitialPartitioningAlgorithm::label_propagation;
   }
   ERROR("Illegal option: " + algo);
   return InitialPartitioningAlgorithm::UNDEFINED;

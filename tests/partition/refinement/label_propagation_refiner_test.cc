@@ -125,7 +125,7 @@ class ALabelPropagationRefiner : public Test {
     ip_context.refinement.label_propagation.algorithm = LabelPropagationAlgorithm::do_nothing;
     InitialPartitioningDataContainerT<TypeTraits> ip_data(hypergraph, ip_context, TBB::GLOBAL_TASK_GROUP);
     BFSInitialPartitionerT<TypeTraits>& initial_partitioner = *new(tbb::task::allocate_root())
-      BFSInitialPartitionerT<TypeTraits>(ip_data, ip_context);
+      BFSInitialPartitionerT<TypeTraits>(InitialPartitioningAlgorithm::bfs, ip_data, ip_context);
     tbb::task::spawn_root_and_wait(initial_partitioner);
     ip_data.apply();
     metrics.km1 = metrics::km1(hypergraph);

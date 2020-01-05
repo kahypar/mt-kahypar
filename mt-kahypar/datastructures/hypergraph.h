@@ -85,8 +85,8 @@ class Hypergraph {
   // !  3.) Pin count in block from after move
   // !  4.) Pin count in block to after move
   // ! This function can be used to compute e.g. the delta in cut or km1 metric after a move
-  using DeltaFunction = std::function<void (const HyperedgeWeight, const HypernodeID, const HypernodeID, const HypernodeID)>;
-  #define NOOP_FUNC [] (const HyperedgeWeight, const HypernodeID, const HypernodeID, const HypernodeID) { \
+  using DeltaFunction = std::function<void (const HyperedgeID, const HyperedgeWeight, const HypernodeID, const HypernodeID, const HypernodeID)>;
+  #define NOOP_FUNC [] (const HyperedgeID, const HyperedgeWeight, const HypernodeID, const HypernodeID, const HypernodeID) { \
 }
 
   using HighResClockTimepoint = std::chrono::time_point<std::chrono::high_resolution_clock>;
@@ -210,6 +210,7 @@ class Hypergraph {
     _local_part_info([&] {
         return ThreadPartInfos::construct(_k, _part_info);
       }),
+    _is_init_num_cut_hyperedges(false),
     _contraction_index(),
     _hypergraphs(),
     _node_mapping(),
@@ -237,6 +238,7 @@ class Hypergraph {
     _local_part_info([&] {
         return ThreadPartInfos::construct(_k, _part_info);
       }),
+    _is_init_num_cut_hyperedges(false),
     _contraction_index(),
     _hypergraphs(std::move(hypergraphs)),
     _node_mapping(num_hypernodes, 0),
@@ -267,6 +269,7 @@ class Hypergraph {
     _local_part_info([&] {
         return ThreadPartInfos::construct(_k, _part_info);
       }),
+    _is_init_num_cut_hyperedges(false),
     _contraction_index(),
     _hypergraphs(std::move(hypergraphs)),
     _node_mapping(std::move(node_mapping)),
@@ -294,6 +297,7 @@ class Hypergraph {
     _local_part_info([&] {
         return ThreadPartInfos::construct(_k, _part_info);
       }),
+    _is_init_num_cut_hyperedges(false),
     _contraction_index(),
     _hypergraphs(),
     _node_mapping(),
@@ -322,6 +326,7 @@ class Hypergraph {
     _local_part_info([&] {
         return ThreadPartInfos::construct(_k, _part_info);
       }),
+    _is_init_num_cut_hyperedges(other._is_init_num_cut_hyperedges),
     _contraction_index(std::move(other._contraction_index)),
     _hypergraphs(std::move(other._hypergraphs)),
     _node_mapping(std::move(other._node_mapping)),
@@ -343,6 +348,7 @@ class Hypergraph {
     _local_part_info = ThreadLocalPartInfos([&] {
           return ThreadPartInfos::construct(_k, _part_info);
         });
+    _is_init_num_cut_hyperedges = other._is_init_num_cut_hyperedges;
     _contraction_index = std::move(other._contraction_index);
     _hypergraphs = std::move(other._hypergraphs);
     _node_mapping = std::move(other._node_mapping);
@@ -805,23 +811,26 @@ class Hypergraph {
       for (const HyperedgeID& he : incidentEdges(u)) {
         HyperedgeID pin_count_in_from_part_after = hypergraph_of_edge(he).decrementPinCountInPart(he, from);
         HyperedgeID pin_count_in_to_part_after = hypergraph_of_edge(he).incrementPinCountInPart(he, to);
-        bool no_pins_left_in_source_part = pin_count_in_from_part_after == 0;
-        bool only_one_pin_in_to_part = pin_count_in_to_part_after == 1;
         HypernodeID edge_size = edgeSize(he);
 
-        delta_func(edgeWeight(he), edge_size, pin_count_in_from_part_after, pin_count_in_to_part_after);
+        delta_func(he, edgeWeight(he), edge_size, pin_count_in_from_part_after, pin_count_in_to_part_after);
 
-        if (no_pins_left_in_source_part && !only_one_pin_in_to_part &&
-            pin_count_in_to_part_after == edge_size) {
-          // In that case, hyperedge he becomes an internal hyperedge
-          for (const HypernodeID& pin : pins(he)) {
-            hypergraph_of_vertex(pin).decrementIncidentNumCutHyperedges(pin);
-          }
-        } else if (!no_pins_left_in_source_part && only_one_pin_in_to_part &&
-                   pin_count_in_from_part_after == edge_size - 1) {
-          // In that case, hyperedge he becomes an cut hyperede
-          for (const HypernodeID& pin : pins(he)) {
-            hypergraph_of_vertex(pin).incrementIncidentNumCutHyperedges(pin);
+        if ( _is_init_num_cut_hyperedges ) {
+          bool no_pins_left_in_source_part = pin_count_in_from_part_after == 0;
+          bool only_one_pin_in_to_part = pin_count_in_to_part_after == 1;
+
+          if (no_pins_left_in_source_part && !only_one_pin_in_to_part &&
+              pin_count_in_to_part_after == edge_size) {
+            // In that case, hyperedge he becomes an internal hyperedge
+            for (const HypernodeID& pin : pins(he)) {
+              hypergraph_of_vertex(pin).decrementIncidentNumCutHyperedges(pin);
+            }
+          } else if (!no_pins_left_in_source_part && only_one_pin_in_to_part &&
+                    pin_count_in_from_part_after == edge_size - 1) {
+            // In that case, hyperedge he becomes an cut hyperede
+            for (const HypernodeID& pin : pins(he)) {
+              hypergraph_of_vertex(pin).incrementIncidentNumCutHyperedges(pin);
+            }
           }
         }
       }
@@ -833,22 +842,25 @@ class Hypergraph {
   }
 
   // ! Helper function to compute delta for cut-metric after changeNodePart
-  static HyperedgeWeight cutDelta(const HyperedgeWeight edge_weight,
+  static HyperedgeWeight cutDelta(const HyperedgeID,
+                                  const HyperedgeWeight edge_weight,
                                   const HypernodeID edge_size,
                                   const HypernodeID pin_count_in_from_part_after,
                                   const HypernodeID pin_count_in_to_part_after) {
-    if (pin_count_in_to_part_after == edge_size) {
-      return -edge_weight;
-    } else if (pin_count_in_from_part_after == edge_size - 1 &&
-               pin_count_in_to_part_after == 1) {
-      return edge_weight;
-    } else {
-      return 0;
+    if ( edge_size > 1 ) {
+      if (pin_count_in_to_part_after == edge_size) {
+        return -edge_weight;
+      } else if (pin_count_in_from_part_after == edge_size - 1 &&
+                pin_count_in_to_part_after == 1) {
+        return edge_weight;
+      }
     }
+    return 0;
   }
 
   // ! Helper function to compute delta for km1-metric after changeNodePart
-  static HyperedgeWeight km1Delta(const HyperedgeWeight edge_weight,
+  static HyperedgeWeight km1Delta(const HyperedgeID,
+                                  const HyperedgeWeight edge_weight,
                                   const HypernodeID,
                                   const HypernodeID pin_count_in_from_part_after,
                                   const HypernodeID pin_count_in_to_part_after) {
@@ -875,9 +887,11 @@ class Hypergraph {
   // ! NOTE, this function have to be called after initial partitioning
   // ! and before local search.
   void initializeNumCutHyperedges() {
+    ASSERT(!_is_init_num_cut_hyperedges, "Cut hyperedges already initialized");
     for (StreamingHypergraph& hypergraph : _hypergraphs) {
       hypergraph.initializeNumCutHyperedges(_hypergraphs);
     }
+    _is_init_num_cut_hyperedges = true;
   }
 
   // ! Number of blocks which pins of hyperedge e belongs to
@@ -955,6 +969,7 @@ class Hypergraph {
     for ( StreamingHypergraph& streaming_hypergraph : _hypergraphs ) {
       streaming_hypergraph.resetPartition();
     }
+    _is_init_num_cut_hyperedges = false;
 
     // Reset global and local block weights
     for ( PartitionID part_id = 0; part_id < _k; ++part_id ) {
@@ -2420,6 +2435,8 @@ class Hypergraph {
   std::vector<PartInfo> _part_info;
   // ! Thread local weight and size information for all blocks.
   ThreadLocalPartInfos _local_part_info;
+  // ! True, if cut hyperedges are initialized
+  bool _is_init_num_cut_hyperedges;
 
   // ! Contains for each hypernode that occurs as contraction partner
   // ! in the contraction hierarchy its position within this sequence.

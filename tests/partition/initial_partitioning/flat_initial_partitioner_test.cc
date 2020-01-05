@@ -29,6 +29,7 @@
 #include "mt-kahypar/partition/initial_partitioning/flat/random_initial_partitioner.h"
 #include "mt-kahypar/partition/initial_partitioning/flat/bfs_initial_partitioner.h"
 #include "mt-kahypar/partition/initial_partitioning/flat/greedy_initial_partitioner.h"
+#include "mt-kahypar/partition/initial_partitioning/flat/label_propagation_initial_partitioner.h"
 #include "mt-kahypar/partition/initial_partitioning/flat/policies/gain_computation_policy.h"
 #include "mt-kahypar/partition/initial_partitioning/flat/policies/pq_selection_policy.h"
 #include "tests/datastructures/hypergraph_fixtures.h"
@@ -104,6 +105,8 @@ class AFlatInitialPartitionerTest : public ds::AHypergraph<2> {
     context.partition.k = Config::K;
     context.partition.epsilon = 0.2;
     context.partition.objective = kahypar::Objective::km1;
+    context.initial_partitioning.lp_initial_block_size = 5;
+    context.initial_partitioning.lp_maximum_iterations = 100;
     hypergraph = io::readHypergraphFile<TestHypergraph, TestStreamingHypergraph, TBBArena, HwTopology>(
       "../test_instances/test_instance.hgr", context.partition.k, InitialHyperedgeDistribution::equally);
     for ( const HypernodeID& hn : hypergraph.nodes() ) {
@@ -232,7 +235,19 @@ typedef ::testing::Types<TestConfig<RandomInitialPartitionerT, InitialPartitioni
                          TestConfig<GreedySequentialMaxNetInitialPartitionerT, InitialPartitioningAlgorithm::greedy_sequential_max_net, 4, 5>,
                          TestConfig<GreedySequentialMaxNetInitialPartitionerT, InitialPartitioningAlgorithm::greedy_sequential_max_net, 5, 1>,
                          TestConfig<GreedySequentialMaxNetInitialPartitionerT, InitialPartitioningAlgorithm::greedy_sequential_max_net, 5, 2>,
-                         TestConfig<GreedySequentialMaxNetInitialPartitionerT, InitialPartitioningAlgorithm::greedy_sequential_max_net, 5, 5> > TestConfigs;
+                         TestConfig<GreedySequentialMaxNetInitialPartitionerT, InitialPartitioningAlgorithm::greedy_sequential_max_net, 5, 5>,
+                         TestConfig<LabelPropagationInitialPartitionerT, InitialPartitioningAlgorithm::label_propagation, 2, 1>,
+                         TestConfig<LabelPropagationInitialPartitionerT, InitialPartitioningAlgorithm::label_propagation, 2, 2>,
+                         TestConfig<LabelPropagationInitialPartitionerT, InitialPartitioningAlgorithm::label_propagation, 2, 5>,
+                         TestConfig<LabelPropagationInitialPartitionerT, InitialPartitioningAlgorithm::label_propagation, 3, 1>,
+                         TestConfig<LabelPropagationInitialPartitionerT, InitialPartitioningAlgorithm::label_propagation, 3, 2>,
+                         TestConfig<LabelPropagationInitialPartitionerT, InitialPartitioningAlgorithm::label_propagation, 3, 5>,
+                         TestConfig<LabelPropagationInitialPartitionerT, InitialPartitioningAlgorithm::label_propagation, 4, 1>,
+                         TestConfig<LabelPropagationInitialPartitionerT, InitialPartitioningAlgorithm::label_propagation, 4, 2>,
+                         TestConfig<LabelPropagationInitialPartitionerT, InitialPartitioningAlgorithm::label_propagation, 4, 5>,
+                         TestConfig<LabelPropagationInitialPartitionerT, InitialPartitioningAlgorithm::label_propagation, 5, 1>,
+                         TestConfig<LabelPropagationInitialPartitionerT, InitialPartitioningAlgorithm::label_propagation, 5, 2>,
+                         TestConfig<LabelPropagationInitialPartitionerT, InitialPartitioningAlgorithm::label_propagation, 5, 5> > TestConfigs;
 
 TYPED_TEST_CASE(AFlatInitialPartitionerTest, TestConfigs);
 

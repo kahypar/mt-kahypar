@@ -29,6 +29,7 @@
 #include "mt-kahypar/partition/initial_partitioning/flat/random_initial_partitioner.h"
 #include "mt-kahypar/partition/initial_partitioning/flat/bfs_initial_partitioner.h"
 #include "mt-kahypar/partition/initial_partitioning/flat/greedy_initial_partitioner.h"
+#include "mt-kahypar/partition/initial_partitioning/flat/label_propagation_initial_partitioner.h"
 #include "mt-kahypar/partition/initial_partitioning/flat/policies/gain_computation_policy.h"
 #include "mt-kahypar/partition/initial_partitioning/flat/policies/pq_selection_policy.h"
 
@@ -58,4 +59,5 @@ REGISTER_FLAT_INITIAL_PARTITIONER(InitialPartitioningAlgorithm::greedy_sequentia
 REGISTER_FLAT_INITIAL_PARTITIONER(InitialPartitioningAlgorithm::greedy_round_robin_max_net, GreedyRoundRobinMaxNetInitialPartitioner);
 REGISTER_FLAT_INITIAL_PARTITIONER(InitialPartitioningAlgorithm::greedy_global_max_net, GreedyGlobalMaxNetInitialPartitioner);
 REGISTER_FLAT_INITIAL_PARTITIONER(InitialPartitioningAlgorithm::greedy_sequential_max_net, GreedySequentialMaxNetInitialPartitioner);
+REGISTER_FLAT_INITIAL_PARTITIONER(InitialPartitioningAlgorithm::label_propagation, LabelPropagationInitialPartitioner);
 }  // namespace mt_kahypar

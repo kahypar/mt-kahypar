@@ -127,16 +127,17 @@ void moveAllNodesOfHypergraphRandom(mt_kahypar::Hypergraph& hypergraph,
 
   tbb::enumerable_thread_specific<HyperedgeWeight> deltas;
 
-  auto objective_delta = [&](const HyperedgeWeight edge_weight,
+  auto objective_delta = [&](const HyperedgeID he,
+                             const HyperedgeWeight edge_weight,
                              const HypernodeID edge_size,
                              const HypernodeID pin_count_in_from_part_after,
                              const HypernodeID pin_count_in_to_part_after) {
                            if (objective == kahypar::Objective::km1) {
                              deltas.local() += mt_kahypar::Hypergraph::km1Delta(
-                               edge_weight, edge_size, pin_count_in_from_part_after, pin_count_in_to_part_after);
+                               he, edge_weight, edge_size, pin_count_in_from_part_after, pin_count_in_to_part_after);
                            } else if (objective == kahypar::Objective::cut) {
                              deltas.local() += mt_kahypar::Hypergraph::cutDelta(
-                               edge_weight, edge_size, pin_count_in_from_part_after, pin_count_in_to_part_after);
+                               he, edge_weight, edge_size, pin_count_in_from_part_after, pin_count_in_to_part_after);
                            }
                          };
 
