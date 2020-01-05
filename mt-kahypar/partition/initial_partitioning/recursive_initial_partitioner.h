@@ -283,10 +283,12 @@ class RecursiveInitialPartitionerT : public IInitialPartitioner {
       _result.hypergraph = std::move(tmp_hypergraph.first);
       _result.mapping = std::move(tmp_hypergraph.second);
 
-      // Spawn Initial Partitioner
-      PoolInitialPartitionerContinuation& ip_continuation = *new(allocate_continuation())
-        PoolInitialPartitionerContinuation(_result.hypergraph, _result.context, _task_group_id);
-      spawn_initial_partitioner(ip_continuation);
+      if ( _result.hypergraph.initialNumNodes() > 0 ) {
+        // Spawn Initial Partitioner
+        PoolInitialPartitionerContinuation& ip_continuation = *new(allocate_continuation())
+          PoolInitialPartitionerContinuation(_result.hypergraph, _result.context, _task_group_id);
+        spawn_initial_partitioner(ip_continuation);
+      }
       return nullptr;
     }
 

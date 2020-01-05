@@ -107,13 +107,15 @@ class RecursiveBisectionInitialPartitionerT : public IInitialPartitioner {
 
       // Spawns a new recursive bisection task to partition the current block of the hypergraph
       // into the desired number of blocks
-      RecursiveBisectionChildContinuationTask& child_continuation = *new(allocate_continuation())
-        RecursiveBisectionChildContinuationTask(_hg, std::move(rb_hypergraph),
-          std::move(mapping), std::move(rb_context), _block);
-      RecursiveMultilevelBisectionTask& recursion = *new(child_continuation.allocate_child()) RecursiveMultilevelBisectionTask(
-        child_continuation.recursiveHypergraph(), child_continuation.recursiveContext(), _task_group_id);
-      child_continuation.set_ref_count(1);
-      tbb::task::spawn(recursion);
+      if ( rb_hypergraph.initialNumNodes() > 0 ) {
+        RecursiveBisectionChildContinuationTask& child_continuation = *new(allocate_continuation())
+          RecursiveBisectionChildContinuationTask(_hg, std::move(rb_hypergraph),
+            std::move(mapping), std::move(rb_context), _block);
+        RecursiveMultilevelBisectionTask& recursion = *new(child_continuation.allocate_child()) RecursiveMultilevelBisectionTask(
+          child_continuation.recursiveHypergraph(), child_continuation.recursiveContext(), _task_group_id);
+        child_continuation.set_ref_count(1);
+        tbb::task::spawn(recursion);
+      }
 
       return nullptr;
     }
