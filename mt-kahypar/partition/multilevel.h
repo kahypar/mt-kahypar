@@ -29,6 +29,7 @@
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/partition/factories.h"
 #include "mt-kahypar/partition/initial_partitioning/flat/pool_initial_partitioner.h"
+#include "mt-kahypar/utils/initial_partitioning_stats.h"
 
 namespace mt_kahypar {
 namespace multilevel {
@@ -56,6 +57,9 @@ class RefinementTask : public tbb::task {
     utils::Timer::instance().stop_timer("initial_partitioning");
 
     io::printPartitioningResults(_hg, _context, "Initial Partitioning Results:");
+    if ( _context.partition.verbose_output ) {
+      utils::InitialPartitioningStats::instance().printInitialPartitioningStats();
+    }
 
     // ################## LOCAL SEARCH ##################
     io::printLocalSearchBanner(_context);

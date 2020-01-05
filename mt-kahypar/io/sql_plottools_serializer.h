@@ -27,6 +27,7 @@
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/partition/metrics.h"
+#include "mt-kahypar/utils/initial_partitioning_stats.h"
 #include "mt-kahypar/utils/stats.h"
 #include "mt-kahypar/utils/timer.h"
 
@@ -114,6 +115,9 @@ static inline std::string serialize(const Hypergraph& hypergraph,
 
     // Stats
     oss << utils::Stats::instance();
+
+    // Initial Partitioning Stats
+    oss << utils::InitialPartitioningStats::instance();
 
     return oss.str();
   }

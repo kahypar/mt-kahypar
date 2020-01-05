@@ -33,6 +33,7 @@ class LabelPropagationInitialPartitionerT : public tbb::task {
   using InitialPartitioningDataContainer = InitialPartitioningDataContainerT<TypeTraits>;
 
   static constexpr bool debug = false;
+  static constexpr bool enable_heavy_assert = false;
   static PartitionID kInvalidPartition;
   static HypernodeID kInvalidHypernode;
 
@@ -51,6 +52,7 @@ class LabelPropagationInitialPartitionerT : public tbb::task {
     _tmp_scores(context.partition.k) { }
 
   tbb::task* execute() override {
+    HighResClockTimepoint start = std::chrono::high_resolution_clock::now();
     HyperGraph& hg = _ip_data.local_hypergraph();
     _ip_data.reset_unassigned_hypernodes();
 
@@ -141,7 +143,9 @@ class LabelPropagationInitialPartitionerT : public tbb::task {
       assignVertexToBlockWithMinimumWeight(hg, unassigned_hn);
     }
 
-    _ip_data.commit(InitialPartitioningAlgorithm::label_propagation);
+    HighResClockTimepoint end = std::chrono::high_resolution_clock::now();
+    double time = std::chrono::duration<double>(end - start).count();
+    _ip_data.commit(InitialPartitioningAlgorithm::label_propagation, time);
     return nullptr;
   }
 

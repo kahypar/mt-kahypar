@@ -48,6 +48,7 @@ class BFSInitialPartitionerT : public tbb::task {
     _context(context) { }
 
   tbb::task* execute() override {
+    HighResClockTimepoint start = std::chrono::high_resolution_clock::now();
     HyperGraph& hypergraph = _ip_data.local_hypergraph();
     kahypar::ds::FastResetFlagArray<>& hypernodes_in_queue =
       _ip_data.local_hypernode_fast_reset_flag_array();
@@ -114,7 +115,9 @@ class BFSInitialPartitionerT : public tbb::task {
       }
     }
 
-    _ip_data.commit(InitialPartitioningAlgorithm::bfs);
+    HighResClockTimepoint end = std::chrono::high_resolution_clock::now();
+    double time = std::chrono::duration<double>(end - start).count();
+    _ip_data.commit(InitialPartitioningAlgorithm::bfs, time);
     return nullptr;
   }
 

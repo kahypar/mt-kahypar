@@ -48,6 +48,7 @@ class GreedyInitialPartitionerT : public tbb::task {
     _context(context) { }
 
   tbb::task* execute() override {
+    HighResClockTimepoint start = std::chrono::high_resolution_clock::now();
     HyperGraph& hg = _ip_data.local_hypergraph();
     KWayPriorityQueue& kway_pq = _ip_data.local_kway_priority_queue();
     kahypar::ds::FastResetFlagArray<>& hyperedges_in_queue =
@@ -103,7 +104,9 @@ class GreedyInitialPartitionerT : public tbb::task {
       }
     }
 
-    _ip_data.commit(_algorithm);
+    HighResClockTimepoint end = std::chrono::high_resolution_clock::now();
+    double time = std::chrono::duration<double>(end - start).count();
+    _ip_data.commit(_algorithm, time);
     return nullptr;
   }
 

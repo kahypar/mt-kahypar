@@ -43,6 +43,7 @@ class RandomInitialPartitionerT : public tbb::task {
     _context(context) { }
 
   tbb::task* execute() override {
+    HighResClockTimepoint start = std::chrono::high_resolution_clock::now();
     HyperGraph& hg = _ip_data.local_hypergraph();
     int cpu_id = sched_getcpu();
 
@@ -66,7 +67,9 @@ class RandomInitialPartitionerT : public tbb::task {
       hg.setNodePart(hn, current_block);
     }
 
-    _ip_data.commit(InitialPartitioningAlgorithm::random);
+    HighResClockTimepoint end = std::chrono::high_resolution_clock::now();
+    double time = std::chrono::duration<double>(end - start).count();
+    _ip_data.commit(InitialPartitioningAlgorithm::random, time);
     return nullptr;
   }
 
