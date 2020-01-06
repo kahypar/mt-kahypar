@@ -45,7 +45,8 @@ class GreedyInitialPartitionerT : public tbb::task {
                             const Context& context) :
     _algorithm(algorithm),
     _ip_data(ip_data),
-    _context(context) { }
+    _context(context),
+    _default_block(PQSelectionPolicy::getDefaultBlock()) { }
 
   tbb::task* execute() override {
     HighResClockTimepoint start = std::chrono::high_resolution_clock::now();
@@ -54,13 +55,28 @@ class GreedyInitialPartitionerT : public tbb::task {
     kahypar::ds::FastResetFlagArray<>& hyperedges_in_queue =
       _ip_data.local_hyperedge_fast_reset_flag_array();
 
+    // Experiments have shown that some pq selection policies work better
+    // if we preassign all vertices to a block and than execute the greedy
+    // initial partitioner. E.g. the round-robin variant leaves the hypernode
+    // unassigned, but the global and sequential strategy both preassign
+    // all vertices to block 1 before initial partitioning.
+    if ( _default_block != kInvalidPartition ) {
+      ASSERT(_default_block < _context.partition.k);
+      kway_pq.disablePart(_default_block);
+      for ( const HypernodeID& hn : hg.nodes() ) {
+        hg.setNodePart(hn, _default_block);
+      }
+    }
+
     // Insert start vertices into its corresponding PQs
     parallel::scalable_vector<HypernodeID> start_nodes =
       PseudoPeripheralStartNodes<TypeTraits>::computeStartNodes(_ip_data, _context);
     ASSERT(static_cast<size_t>(_context.partition.k) == start_nodes.size());
     kway_pq.clear();
     for ( PartitionID block = 0; block < _context.partition.k; ++block ) {
-      insertVertexIntoPQ(hg, kway_pq, start_nodes[block], block);
+      if ( block != _default_block ) {
+        insertVertexIntoPQ(hg, kway_pq, start_nodes[block], block);
+      }
     }
 
     _ip_data.reset_unassigned_hypernodes();
@@ -69,6 +85,15 @@ class GreedyInitialPartitionerT : public tbb::task {
     bool use_perfect_balanced_as_upper_bound = true;
     bool allow_overfitting = false;
     while (true) {
+      // If our default block has a weight less than the perfect balanced block weight
+      // we terminate greedy initial partitioner in order to prevent that the default block
+      // becomes underloaded.
+      if ( _default_block != kInvalidPartition &&
+           hg.localPartWeight(_default_block) <
+           _context.partition.perfect_balance_part_weights[_default_block] ) {
+        break;
+      }
+
       HypernodeID hn = kInvalidHypernode;
       Gain gain = kInvalidGain;
 
@@ -93,11 +118,16 @@ class GreedyInitialPartitionerT : public tbb::task {
 
       ASSERT(hn != kInvalidHypernode);
       ASSERT(to != kInvalidPartition);
-      ASSERT(hg.partID(hn) == kInvalidPartition);
+      ASSERT(to != _default_block);
+      ASSERT(hg.partID(hn) == _default_block);
 
       if ( allow_overfitting || fitsIntoBlock(hg, hn, to, use_perfect_balanced_as_upper_bound) ) {
-        hg.setNodePart(hn, to);
-        insertAndUpdateVerticesAfterMove(hg, kway_pq, hyperedges_in_queue, hn, to);
+        if ( _default_block != kInvalidPartition ) {
+          hg.changeNodePart(hn, _default_block, to);
+        } else {
+          hg.setNodePart(hn, to);
+        }
+        insertAndUpdateVerticesAfterMove(hg, kway_pq, hyperedges_in_queue, hn, _default_block, to);
       } else {
         kway_pq.insert(hg.originalNodeID(hn), to, gain);
         kway_pq.disablePart(to);
@@ -128,7 +158,7 @@ class GreedyInitialPartitionerT : public tbb::task {
                           const PartitionID to) {
     const HypernodeID original_id = hypergraph.originalNodeID(hn);
     ASSERT(to != kInvalidPartition && to < _context.partition.k);
-    ASSERT(hypergraph.partID(hn) == kInvalidPartition);
+    ASSERT(hypergraph.partID(hn) == _default_block, V(hypergraph.partID(hn)) << V(_default_block));
     ASSERT(!pq.contains(original_id, to));
 
     const Gain gain = GainPolicy::calculateGain(hypergraph, hn, to);
@@ -144,7 +174,8 @@ class GreedyInitialPartitionerT : public tbb::task {
   void insertUnassignedVertexIntoPQ(const HyperGraph& hypergraph,
                                     KWayPriorityQueue& pq,
                                     const PartitionID to) {
-    const HypernodeID unassigned_hn = _ip_data.get_unassigned_hypernode();
+    ASSERT(to != _default_block);
+    const HypernodeID unassigned_hn = _ip_data.get_unassigned_hypernode(_default_block);
     if ( unassigned_hn != kInvalidHypernode ) {
       insertVertexIntoPQ(hypergraph, pq, unassigned_hn, to);
     }
@@ -154,12 +185,13 @@ class GreedyInitialPartitionerT : public tbb::task {
                                         KWayPriorityQueue& pq,
                                         kahypar::ds::FastResetFlagArray<>& hyperedges_in_queue,
                                         const HypernodeID hn,
+                                        const PartitionID from,
                                         const PartitionID to) {
     ASSERT(to != kInvalidPartition && to < _context.partition.k);
     ASSERT(hypergraph.partID(hn) == to);
 
     // Perform delta gain updates
-    GainPolicy::deltaGainUpdate(hypergraph, pq, hn, to);
+    GainPolicy::deltaGainUpdate(hypergraph, pq, hn, from, to);
 
     // Remove moved hypernode hn from all PQs
     const HypernodeID original_id = hypergraph.originalNodeID(hn);
@@ -181,7 +213,7 @@ class GreedyInitialPartitionerT : public tbb::task {
       if ( !hyperedges_in_queue[to * hypergraph.initialNumEdges() + original_he_id] ) {
         for ( const HypernodeID& pin : hypergraph.pins(he) ) {
           const HypernodeID original_pin_id = hypergraph.originalNodeID(pin);
-          if ( hypergraph.partID(pin) == kInvalidPartition && !pq.contains(original_pin_id, to) ) {
+          if ( hypergraph.partID(pin) == _default_block && !pq.contains(original_pin_id, to) ) {
             insertVertexIntoPQ(hypergraph, pq, pin, to);
           }
         }
@@ -197,13 +229,16 @@ class GreedyInitialPartitionerT : public tbb::task {
 
   void enableAllPQs(const PartitionID k, KWayPriorityQueue& pq) {
     for ( PartitionID block = 0; block < k; ++block ) {
-      pq.enablePart(block);
+      if ( block != _default_block ) {
+        pq.enablePart(block);
+      }
     }
   }
 
   const InitialPartitioningAlgorithm _algorithm;
   InitialPartitioningDataContainer& _ip_data;
   const Context& _context;
+  const PartitionID _default_block;
 };
 
 template <typename TypeTraits, typename GainPolicy, typename PQSelectionPolicy>

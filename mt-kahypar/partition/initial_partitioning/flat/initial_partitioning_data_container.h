@@ -249,7 +249,7 @@ class InitialPartitioningDataContainerT {
     unassigned_hypernode_pointer = unassigned_hypernodes.size();
   }
 
-  HypernodeID get_unassigned_hypernode() {
+  HypernodeID get_unassigned_hypernode(const PartitionID unassigned_block = kInvalidPartition) {
     const HyperGraph& hypergraph = _local_hg.local()._hypergraph;
     parallel::scalable_vector<HypernodeID>& unassigned_hypernodes =
       _local_unassigned_hypernodes.local();
@@ -260,7 +260,7 @@ class InitialPartitioningDataContainerT {
     while ( unassigned_hypernode_pointer > 0 ) {
       const HypernodeID current_hn = unassigned_hypernodes[0];
       // In case the current hypernode is unassigned we return it
-      if ( hypergraph.partID(current_hn) == kInvalidPartition ) {
+      if ( hypergraph.partID(current_hn) == unassigned_block ) {
         return current_hn;
       }
       // In case the hypernode on the first position is already assigned,

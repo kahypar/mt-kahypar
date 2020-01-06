@@ -62,6 +62,14 @@ class RoundRobinPQSelectionPolicy {
     hn = hypergraph.globalNodeID(hn);
     return true;
   }
+
+  // As default block we define the block to which all vertices are assigned to
+  // before greedy initial partitioning. Experiments have shown that the greedy
+  // round robin variant performs best if we leave all vertices unassigned before
+  // greedy initial partitioning.
+  static inline PartitionID getDefaultBlock() {
+    return kInvalidPartition;
+  }
 };
 
 HypernodeID RoundRobinPQSelectionPolicy::kInvalidHypernode = std::numeric_limits<HypernodeID>::max();
@@ -95,6 +103,14 @@ class GlobalPQSelectionPolicy {
     } else {
       return false;
     }
+  }
+
+  // As default block we define the block to which all vertices are assigned to
+  // before greedy initial partitioning. Experiments have shown that the greedy
+  // global variant performs best if we assign all vertices to block 1 before
+  // greedy initial partitioning.
+  static inline PartitionID getDefaultBlock() {
+    return 1;
   }
 };
 
@@ -142,6 +158,14 @@ class SequentialPQSelectionPolicy {
       return GlobalPQSelectionPolicy::pop(hypergraph,
         pq, hn, to, gain, use_perfect_balanced_as_upper_bound);
     }
+  }
+
+  // As default block we define the block to which all vertices are assigned to
+  // before greedy initial partitioning. Experiments have shown that the greedy
+  // sequential variant performs best if we assign all vertices to block 1 before
+  // greedy initial partitioning.
+  static inline PartitionID getDefaultBlock() {
+    return 1;
   }
 };
 

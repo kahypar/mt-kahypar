@@ -116,7 +116,7 @@ class InitialPartitioningStats {
               << std::left << std::setw(15) << " Avg. Quality"
               << std::left << std::setw(15) << "  Total Time (s)"
               << std::left << std::setw(10) << "  Total Best"
-              << std::left << std::setw(15) << "  Total Best (%)"
+              << std::left << std::setw(15) << " Total Best (%)"
               << "\033[0m" << std::endl;
     for ( const InitialPartitionerSummary& summary : _ip_summary ) {
       LOG << std::left << std::setw(30) << summary.algorithm
