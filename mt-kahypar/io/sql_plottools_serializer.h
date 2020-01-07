@@ -103,12 +103,12 @@ static inline std::string serialize(const Hypergraph& hypergraph,
     oss << " totalPartitionTime=" << elapsed_seconds.count();
 
     // Part Weights and Sizes
-    for (PartitionID i = 0; i < context.partition.k; ++i) {
+    /*for (PartitionID i = 0; i < context.partition.k; ++i) {
       oss << " partSize" << i << "=" << hypergraph.partSize(i);
     }
     for (PartitionID i = 0; i < context.partition.k; ++i) {
       oss << " partWeight" << i << "=" << hypergraph.partWeight(i);
-    }
+    }*/
 
     // Timings
     utils::Timer::instance(context.partition.detailed_timings).serialize(oss);
