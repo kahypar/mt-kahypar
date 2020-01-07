@@ -135,7 +135,7 @@ void printCommunityStats(const Statistic& community_size_stats,
 }  // namespace internal
 
 static inline void printBanner(const Context& context) {
-  if (!context.partition.quiet_mode) {
+  if (context.partition.verbose_output) {
     LOG << R"(+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++)";
     LOG << R"(+         __  __ _______       _  __     _    _       _____                   +)";
     LOG << R"(+        |  \/  |__   __|     | |/ /    | |  | |     |  __ \                  +)";
@@ -362,7 +362,7 @@ inline void printPartitioningResults(const Hypergraph& hypergraph,
                                      const Context& context,
                                      const std::chrono::duration<double>& elapsed_seconds) {
   unused(hypergraph);
-  if (!context.partition.quiet_mode) {
+  if (context.partition.verbose_output) {
     LOG << "\n********************************************************************************";
     LOG << "*                             Partitioning Result                              *";
     LOG << "********************************************************************************";
