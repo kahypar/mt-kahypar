@@ -54,7 +54,7 @@ class LabelPropagationRefinerT final : public IRefiner {
   using TBB = typename TypeTraits::TBB;
   using HwTopology = typename TypeTraits::HwTopology;
   using GainCalculator = GainPolicy<HyperGraph>;
-  using NumaFasetFlagArray = parallel::scalable_vector<kahypar::ds::FastResetFlagArray<>>;
+  using NumaFastResetFlagArray = parallel::scalable_vector<kahypar::ds::FastResetFlagArray<>>;
 
   static constexpr bool debug = false;
   static constexpr bool enable_heavy_assert = false;
@@ -71,12 +71,14 @@ class LabelPropagationRefinerT final : public IRefiner {
     _gain(_hg, _context),
     _active(),
     _next_active(),
+    _visited_he(),
     _numa_lp_round_synchronization(0) {
     initialize();
     _nodes.reserve(_hg.initialNumNodes());
     for ( int node = 0; node < TBB::instance().num_used_numa_nodes(); ++node ) {
       _active.emplace_back(_hg.initialNumNodes());
       _next_active.emplace_back(_hg.initialNumNodes());
+      _visited_he.emplace_back(_hg.initialNumEdges());
     }
   }
 
@@ -278,7 +280,8 @@ class LabelPropagationRefinerT final : public IRefiner {
                              const size_t end,
                              const int node,
                              const bool is_first_round) {
-    unused(node);
+    int numa_node = node == -1 ? 0 : node;
+    _visited_he[numa_node].reset();
     // This function is passed as lambda to the changeNodePart function and used
     // to calculate the "real" delta of a move (in terms of the used objective function).
     auto objective_delta = [&](const HyperedgeID he,
@@ -314,7 +317,7 @@ class LabelPropagationRefinerT final : public IRefiner {
                   const int node,
                   const bool is_first_round,
                   const F& objective_delta) {
-    unused(node);
+    int numa_node = node == -1 ? 0 : node;
     bool is_moved = false;
     const HypernodeID original_id = _hg.originalNodeID(hn);
     ASSERT(node == -1 || StreamingHyperGraph::get_numa_node_of_vertex(hn) == node);
@@ -351,10 +354,14 @@ class LabelPropagationRefinerT final : public IRefiner {
 
             // Set all neighbors of the vertex to active
             for (const HyperedgeID& he : _hg.incidentEdges(hn)) {
-              for (const HypernodeID& pin : _hg.pins(he)) {
-                int pin_numa_node = _context.refinement.label_propagation.numa_aware ?
-                  StreamingHyperGraph::get_numa_node_of_vertex(pin) : 0;
-                _next_active[pin_numa_node].set(_hg.originalNodeID(pin), true);
+              const HyperedgeID original_he_id = _hg.originalEdgeID(he);
+              if ( !_visited_he[numa_node][original_he_id] ) {
+                for (const HypernodeID& pin : _hg.pins(he)) {
+                  int pin_numa_node = _context.refinement.label_propagation.numa_aware ?
+                    StreamingHyperGraph::get_numa_node_of_vertex(pin) : 0;
+                  _next_active[pin_numa_node].set(_hg.originalNodeID(pin), true);
+                }
+                _visited_he[numa_node].set(original_he_id, true);
               }
             }
             is_moved = true;
@@ -422,8 +429,9 @@ class LabelPropagationRefinerT final : public IRefiner {
   // ! Computes max gain moves
   GainCalculator _gain;
   // ! Indicate which vertices are active and considered for LP
-  NumaFasetFlagArray _active;
-  NumaFasetFlagArray _next_active;
+  NumaFastResetFlagArray _active;
+  NumaFastResetFlagArray _next_active;
+  NumaFastResetFlagArray _visited_he;
   std::atomic<size_t> _numa_lp_round_synchronization;
 };
 

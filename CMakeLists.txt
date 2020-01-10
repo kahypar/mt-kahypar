@@ -178,7 +178,7 @@ endif()
 find_package(TBB REQUIRED)
 include_directories(SYSTEM ${TBB_INCLUDE_DIRS})
 link_libraries(${TBB_LIBRARIES})
-
+MESSAGE(STATUS "Found TBB library: inc=${TBB_INCLUDE_DIRS}, lib=${TBB_LIBRARIES}")
 
 # find LIBNUMA
 FIND_PATH(NUMA_INCLUDE_DIR NAME numa.h
