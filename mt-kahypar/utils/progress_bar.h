@@ -59,10 +59,21 @@ class ProgressBar {
     finalize();
   }
 
+  void enable() {
+    _enable = true;
+    display_progress();
+  }
+
+  size_t count() const {
+    return _count.load();
+  }
+
   size_t  operator+=( const size_t increment ) {
-    _count.fetch_add(increment);
-    if ( _count > _next_tic_count ) {
-      display_progress();
+    if ( _enable ) {
+      _count.fetch_add(increment);
+      if ( _count > _next_tic_count ) {
+        display_progress();
+      }
     }
     return _count;
   }

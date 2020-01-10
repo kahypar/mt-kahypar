@@ -36,6 +36,7 @@
 #include "mt-kahypar/partition/coarsening/policies/rating_heavy_node_penalty_policy.h"
 #include "mt-kahypar/partition/coarsening/policies/rating_score_policy.h"
 #include "mt-kahypar/partition/preprocessing/community_reassignment/policies/community_assignment_objective.h"
+#include "mt-kahypar/utils/progress_bar.h"
 #include "mt-kahypar/utils/randomize.h"
 #include "mt-kahypar/utils/stats.h"
 
@@ -68,6 +69,7 @@ class CommunityCoarsenerT : public ICoarsener,
  public:
   CommunityCoarsenerT(HyperGraph& hypergraph, const Context& context, const TaskGroupID task_group_id) :
     Base(hypergraph, context, task_group_id),
+    _progress_bar(hypergraph.initialNumNodes(), 0, false),
     _enable_randomization(true) { }
 
   CommunityCoarsenerT(const CommunityCoarsenerT&) = delete;
@@ -117,6 +119,9 @@ class CommunityCoarsenerT : public ICoarsener,
     // We schedule exactly number of available threads tasks. Each task
     // polls from the tbb::concurrent_queue (responsible for the numa node
     // where the task is executed) a community and executes the contractions
+    if ( _context.partition.verbose_output && _context.partition.enable_progress_bar ) {
+      _progress_bar.enable();
+    }
     utils::Timer::instance().start_timer("parallel_community_coarsening", "Parallel Community Coarsening");
     for (int node = 0; node < used_numa_nodes; ++node) {
       int num_threads = TBB::instance().number_of_threads_on_numa_node(node);
@@ -146,6 +151,7 @@ class CommunityCoarsenerT : public ICoarsener,
       }
     }
     TBB::instance().wait(_task_group_id);
+    _progress_bar += (_hg.initialNumNodes() - _progress_bar.count());
     utils::Timer::instance().stop_timer("parallel_community_coarsening");
 
     // Finalize community coarsening
@@ -211,6 +217,8 @@ class CommunityCoarsenerT : public ICoarsener,
         }
       }
 
+      _progress_bar += (num_hns_before_pass - current_num_nodes);
+
       if (num_hns_before_pass == current_num_nodes) {
         break;
       }
@@ -231,6 +239,7 @@ class CommunityCoarsenerT : public ICoarsener,
   using Base::_context;
   using Base::_pruner;
   using Base::_task_group_id;
+  utils::ProgressBar _progress_bar;
   bool _enable_randomization;
 };
 
