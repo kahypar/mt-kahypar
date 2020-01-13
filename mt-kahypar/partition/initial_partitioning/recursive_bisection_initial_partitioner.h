@@ -86,8 +86,9 @@ class RecursiveBisectionInitialPartitionerT : public IInitialPartitioner {
         double base = ceil(static_cast<double>(original_hypergraph_weight) / original_k)
                       / ceil(static_cast<double>(current_hypergraph_weight) / current_k)
                       * (1.0 + original_epsilon);
-        return std::min(0.99, std::max(std::pow(base, 1.0 /
+        double adaptive_epsilon = std::min(0.99, std::max(std::pow(base, 1.0 /
           ceil(log2(static_cast<double>(current_k)))) - 1.0,0.0));
+        return adaptive_epsilon;
       }
     }
 
@@ -357,7 +358,20 @@ class RecursiveBisectionInitialPartitionerT : public IInitialPartitioner {
       if ( context.initial_partitioning.use_adaptive_epsilon ) {
         bisection_context.partition.epsilon = _original_hypergraph_info.computeAdaptiveEpsilon(
           total_weight, context.partition.k);
-        bisection_context.setupPartWeights(total_weight);
+
+        bisection_context.partition.perfect_balance_part_weights.clear();
+        bisection_context.partition.max_part_weights.clear();
+        const PartitionID k = context.partition.k;
+        const PartitionID k0 = k / 2 + (k % 2 != 0 ? 1 : 0);
+        const PartitionID k1 = k / 2;
+        bisection_context.partition.perfect_balance_part_weights.push_back(
+          std::ceil(k0 / static_cast<double>(k) * static_cast<double>(total_weight)));
+        bisection_context.partition.perfect_balance_part_weights.push_back(
+          std::ceil(k1 / static_cast<double>(k) * static_cast<double>(total_weight)));
+        bisection_context.partition.max_part_weights.push_back(
+          (1 + bisection_context.partition.epsilon) * bisection_context.partition.perfect_balance_part_weights[0]);
+        bisection_context.partition.max_part_weights.push_back(
+          (1 + bisection_context.partition.epsilon) * bisection_context.partition.perfect_balance_part_weights[1]);
       } else {
         PartitionID num_blocks_part_0 = context.partition.k / 2 + (context.partition.k % 2 != 0 ? 1 : 0);
         ASSERT(num_blocks_part_0 +  context.partition.k / 2 == context.partition.k);

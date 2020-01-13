@@ -71,6 +71,7 @@ class AInitialPartitionerTest : public Test {
 
     // Initial Partitioning
     context.initial_partitioning.runs = 1;
+    context.initial_partitioning.use_adaptive_epsilon = true;
     context.initial_partitioning.mode = Config::MODE;
 
     // Label Propagation
