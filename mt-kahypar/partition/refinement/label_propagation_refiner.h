@@ -379,7 +379,7 @@ class LabelPropagationRefinerT final : public IRefiner {
     }
 
     ++local_iteration_cnt;
-    if (local_iteration_cnt % _context.refinement.label_propagation.localPartWeightUpdateFrequency(_nodes.size()) == 0) {
+    if (local_iteration_cnt % _context.refinement.label_propagation.localPartWeightUpdateFrequency() == 0) {
       // We frequently update the local block weights of the current threads
       _hg.updateLocalPartInfos();
     }
@@ -409,6 +409,12 @@ class LabelPropagationRefinerT final : public IRefiner {
     // of the node range of its numa node (avoids expensive call to generate random integers)
     size_t swap_pos = (_numa_nodes_indices[node] + _numa_nodes_indices[node + 1]) / 2;
     std::swap(_nodes[current_position], _nodes[swap_pos]);
+  }
+
+  size_t localPartWeightUpdateFrequency() const {
+    return std::min(100.0, std::max(5.0,
+      _context.refinement.label_propagation.part_weight_update_factor *
+      static_cast<double>(_nodes.size())));
   }
 
   HyperGraph& _hg;

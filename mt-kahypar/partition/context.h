@@ -187,10 +187,6 @@ struct LabelPropagationParameters {
   double execution_policy_alpha = 2.0;
   bool execute_always = false;
   bool execute_sequential = false;
-
-  size_t localPartWeightUpdateFrequency(const HypernodeID current_num_nodes) const {
-    return std::min(100.0, std::max(5.0, part_weight_update_factor * static_cast<double>(current_num_nodes)));
-  }
 };
 
 inline std::ostream & operator<< (std::ostream& str, const LabelPropagationParameters& params) {
