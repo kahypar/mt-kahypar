@@ -83,7 +83,7 @@ static inline std::string serialize(const Hypergraph& hypergraph,
         << " batch_size=" << context.refinement.batch_size
         << " lp_algorithm=" << context.refinement.label_propagation.algorithm
         << " lp_maximum_iterations=" << context.refinement.label_propagation.maximum_iterations
-        << " lp_part_weight_update_frequency=" << context.refinement.label_propagation.part_weight_update_frequency
+        << " lp_part_weight_update_factor=" << context.refinement.label_propagation.part_weight_update_factor
         << " lp_localized=" << std::boolalpha << context.refinement.label_propagation.localized
         << " lp_numa_aware=" << std::boolalpha << context.refinement.label_propagation.numa_aware
         << " lp_rebalancing=" << std::boolalpha << context.refinement.label_propagation.rebalancing

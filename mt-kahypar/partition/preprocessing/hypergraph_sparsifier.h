@@ -111,6 +111,7 @@ class HypergraphSparsifier {
       hypergraph.setNodePart(hn, current_block);
       current_block_idx = (current_block_idx + 1) % valid_blocks.size();
     }
+    hypergraph.updateGlobalPartInfos();
   }
 
  private:

@@ -152,6 +152,7 @@ class CommunityCoarsenerT : public ICoarsener,
     }
     TBB::instance().wait(_task_group_id);
     _progress_bar += (_hg.initialNumNodes() - _progress_bar.count());
+    _progress_bar.disable();
     utils::Timer::instance().stop_timer("parallel_community_coarsening");
 
     // Finalize community coarsening

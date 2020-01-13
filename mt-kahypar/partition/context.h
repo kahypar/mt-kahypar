@@ -179,7 +179,7 @@ inline std::ostream & operator<< (std::ostream& str, const InitialPartitioningPa
 struct LabelPropagationParameters {
   LabelPropagationAlgorithm algorithm = LabelPropagationAlgorithm::do_nothing;
   size_t maximum_iterations = 1;
-  size_t part_weight_update_frequency = 100;
+  double part_weight_update_factor = 0.01;
   bool localized = false;
   bool numa_aware = false;
   bool rebalancing = true;
@@ -187,13 +187,17 @@ struct LabelPropagationParameters {
   double execution_policy_alpha = 2.0;
   bool execute_always = false;
   bool execute_sequential = false;
+
+  size_t localPartWeightUpdateFrequency(const HypernodeID current_num_nodes) const {
+    return std::min(100.0, std::max(5.0, part_weight_update_factor * static_cast<double>(current_num_nodes)));
+  }
 };
 
 inline std::ostream & operator<< (std::ostream& str, const LabelPropagationParameters& params) {
   str << "  Label Propagation Parameters:" << std::endl;
   str << "    Algorithm:                        " << params.algorithm << std::endl;
   str << "    Maximum Iterations:               " << params.maximum_iterations << std::endl;
-  str << "    Part Weight Update Frequency:     " << params.part_weight_update_frequency << std::endl;
+  str << "    Part Weight Update Factor:        " << params.part_weight_update_factor << std::endl;
   str << "    Localized:                        " << std::boolalpha << params.localized << std::endl;
   str << "    Numa Aware:                       " << std::boolalpha << params.numa_aware << std::endl;
   str << "    Rebalancing:                      " << std::boolalpha << params.rebalancing << std::endl;

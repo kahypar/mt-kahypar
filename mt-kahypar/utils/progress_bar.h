@@ -64,6 +64,10 @@ class ProgressBar {
     display_progress();
   }
 
+  void disable() {
+    _enable = false;
+  }
+
   size_t count() const {
     return _count.load();
   }
@@ -71,7 +75,7 @@ class ProgressBar {
   size_t  operator+=( const size_t increment ) {
     if ( _enable ) {
       _count.fetch_add(increment);
-      if ( _count > _next_tic_count ) {
+      if ( _count >= _next_tic_count ) {
         display_progress();
       }
     }
@@ -84,9 +88,11 @@ class ProgressBar {
 
  private:
   void finalize() {
-    _count = _expected_count;
-    _next_tic_count = std::numeric_limits<size_t>::max();
-    display_progress();
+    if ( _count.load() < _expected_count ) {
+      _count = _expected_count;
+      _next_tic_count = std::numeric_limits<size_t>::max();
+      display_progress();
+    }
   }
 
   void display_progress() {

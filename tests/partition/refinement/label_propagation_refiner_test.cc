@@ -95,7 +95,7 @@ class ALabelPropagationRefiner : public Test {
     // Label Propagation
     context.refinement.label_propagation.algorithm = Config::LP_ALGO;
     context.refinement.label_propagation.execution_policy = ExecutionType::exponential;
-    context.refinement.label_propagation.part_weight_update_frequency = 5;
+    context.refinement.label_propagation.part_weight_update_factor = 0.001;
     context.refinement.label_propagation.localized = false;
     #ifdef KAHYPAR_TRAVIS_BUILD
     context.refinement.label_propagation.numa_aware = false;

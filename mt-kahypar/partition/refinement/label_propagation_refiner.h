@@ -379,7 +379,7 @@ class LabelPropagationRefinerT final : public IRefiner {
     }
 
     ++local_iteration_cnt;
-    if (local_iteration_cnt % _context.refinement.label_propagation.part_weight_update_frequency == 0) {
+    if (local_iteration_cnt % _context.refinement.label_propagation.localPartWeightUpdateFrequency(_nodes.size()) == 0) {
       // We frequently update the local block weights of the current threads
       _hg.updateLocalPartInfos();
     }
