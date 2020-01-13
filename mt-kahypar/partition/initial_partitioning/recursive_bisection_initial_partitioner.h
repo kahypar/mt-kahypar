@@ -353,10 +353,11 @@ class RecursiveBisectionInitialPartitionerT : public IInitialPartitioner {
       bisection_context.initial_partitioning.mode = InitialPartitioningMode::direct;
 
       // Setup Part Weights
+      HypernodeWeight total_weight = hypergraph.totalWeight();
       if ( context.initial_partitioning.use_adaptive_epsilon ) {
         bisection_context.partition.epsilon = _original_hypergraph_info.computeAdaptiveEpsilon(
-          hypergraph.totalWeight(), context.partition.k);
-        bisection_context.setupPartWeights(hypergraph.totalWeight());
+          total_weight, context.partition.k);
+        bisection_context.setupPartWeights(total_weight);
       } else {
         PartitionID num_blocks_part_0 = context.partition.k / 2 + (context.partition.k % 2 != 0 ? 1 : 0);
         ASSERT(num_blocks_part_0 +  context.partition.k / 2 == context.partition.k);
@@ -376,7 +377,6 @@ class RecursiveBisectionInitialPartitionerT : public IInitialPartitioner {
         }
 
         // Special case, if balance constraint will be violated with this bisection
-        HypernodeWeight total_weight = hypergraph.totalWeight();
         HypernodeWeight total_max_part_weight = bisection_context.partition.max_part_weights[0] +
           bisection_context.partition.max_part_weights[1];
         if (total_max_part_weight < total_weight) {
@@ -384,9 +384,8 @@ class RecursiveBisectionInitialPartitionerT : public IInitialPartitioner {
           bisection_context.partition.max_part_weights[0] += std::ceil(((double)delta) / 2.0);
           bisection_context.partition.max_part_weights[1] += std::ceil(((double)delta) / 2.0);
         }
-
-        bisection_context.setupContractionLimit(total_weight);
       }
+      bisection_context.setupContractionLimit(total_weight);
 
 
       return bisection_context;
