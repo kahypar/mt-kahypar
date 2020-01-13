@@ -167,7 +167,8 @@ inline void Partitioner::sanitize(Hypergraph& hypergraph, const Context& context
     _hypergraph_sparsifier.removeDegreeZeroHypernodes(hypergraph);
   utils::Timer::instance().stop_timer("degree_zero_hypernode_removal");
 
-  if (context.partition.verbose_output && num_removed_single_node_hes > 0) {
+  if (context.partition.verbose_output &&
+      ( num_removed_single_node_hes > 0 || num_removed_degree_zero_hypernodes > 0 )) {
     LOG << "Performing single-node HE and degree-zero HN removal:";
     LOG << "\033[1m\033[31m" << " # removed"
         << num_removed_single_node_hes << "hyperedges with |e|=1"

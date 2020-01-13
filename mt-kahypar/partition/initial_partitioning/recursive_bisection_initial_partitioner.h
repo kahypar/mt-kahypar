@@ -76,6 +76,26 @@ class RecursiveBisectionInitialPartitionerT : public IInitialPartitioner {
   static PartitionID kInvalidPartition;
   static HypernodeID kInvalidHypernode;
 
+  struct OriginalHypergraphInfo {
+
+    double computeAdaptiveEpsilon(const HypernodeWeight current_hypergraph_weight,
+                                  const PartitionID current_k) const {
+      if ( current_hypergraph_weight == 0 ) {
+        return 0.0;
+      } else {
+        double base = ceil(static_cast<double>(original_hypergraph_weight) / original_k)
+                      / ceil(static_cast<double>(current_hypergraph_weight) / current_k)
+                      * (1.0 + original_epsilon);
+        return std::min(0.99, std::max(std::pow(base, 1.0 /
+          ceil(log2(static_cast<double>(current_k)))) - 1.0,0.0));
+      }
+    }
+
+    const HypernodeWeight original_hypergraph_weight;
+    const PartitionID original_k;
+    const double original_epsilon;
+  };
+
   /*!
    * A recursive bisection child task extracts a block of the partition
    * and recursively partition it into the desired number of blocks.
@@ -83,11 +103,13 @@ class RecursiveBisectionInitialPartitionerT : public IInitialPartitioner {
   class RecursiveBisectionChildTask : public tbb::task {
 
    public:
-    RecursiveBisectionChildTask(HyperGraph& hypergraph,
+    RecursiveBisectionChildTask(const OriginalHypergraphInfo original_hypergraph_info,
+                                HyperGraph& hypergraph,
                                 const Context& context,
                                 const PartitionID block,
                                 const BlockRange range,
                                 const TaskGroupID task_group_id) :
+      _original_hypergraph_info(original_hypergraph_info),
       _hg(hypergraph),
       _context(context),
       _block(block),
@@ -112,7 +134,8 @@ class RecursiveBisectionInitialPartitionerT : public IInitialPartitioner {
           RecursiveBisectionChildContinuationTask(_hg, std::move(rb_hypergraph),
             std::move(mapping), std::move(rb_context), _block);
         RecursiveMultilevelBisectionTask& recursion = *new(child_continuation.allocate_child()) RecursiveMultilevelBisectionTask(
-          child_continuation.recursiveHypergraph(), child_continuation.recursiveContext(), _task_group_id);
+          _original_hypergraph_info, child_continuation.recursiveHypergraph(),
+          child_continuation.recursiveContext(), _task_group_id);
         child_continuation.set_ref_count(1);
         tbb::task::spawn(recursion);
       }
@@ -138,6 +161,7 @@ class RecursiveBisectionInitialPartitionerT : public IInitialPartitioner {
       return rb_context;
     }
 
+    const OriginalHypergraphInfo _original_hypergraph_info;
     HyperGraph& _hg;
     const Context _context;
     const PartitionID _block;
@@ -242,15 +266,19 @@ class RecursiveBisectionInitialPartitionerT : public IInitialPartitioner {
   class MultilevelBisectionContinuationTask : public tbb::task {
 
    public:
-    MultilevelBisectionContinuationTask(HyperGraph& hypergraph,
-                              const Context& context,
-                              const TaskGroupID task_group_id) :
+    MultilevelBisectionContinuationTask(const OriginalHypergraphInfo original_hypergraph_info,
+                                        HyperGraph& hypergraph,
+                                        const Context& context,
+                                        const TaskGroupID task_group_id) :
       _bisection_hg(),
       _bisection_mapping(),
-      _bisection_context(setupBisectionContext(hypergraph, context)),
+      _bisection_context(),
+      _original_hypergraph_info(original_hypergraph_info),
       _hg(hypergraph),
       _context(context),
-      _task_group_id(task_group_id) {}
+      _task_group_id(task_group_id) {
+      _bisection_context = setupBisectionContext(_hg, _context);
+    }
 
     tbb::task* execute() override {
       // Apply partition to hypergraph
@@ -290,9 +318,9 @@ class RecursiveBisectionInitialPartitionerT : public IInitialPartitioner {
         auto tbb_recursion_task_groups = TBB::instance().create_tbb_task_groups_for_recursion();
         RecursiveMultilevelBisectionContinuationTask& recursive_continuation = *new(allocate_continuation()) RecursiveMultilevelBisectionContinuationTask(_hg);
         RecursiveBisectionChildTask& recursion_0 = *new(recursive_continuation.allocate_child()) RecursiveBisectionChildTask(
-          _hg, _context, 0, range_0, tbb_recursion_task_groups.first);
+          _original_hypergraph_info, _hg, _context, 0, range_0, tbb_recursion_task_groups.first);
         RecursiveBisectionChildTask& recursion_1 = *new(recursive_continuation.allocate_child()) RecursiveBisectionChildTask(
-          _hg, _context, num_blocks_part_0, range_1, tbb_recursion_task_groups.second);
+          _original_hypergraph_info, _hg, _context, num_blocks_part_0, range_1, tbb_recursion_task_groups.second);
         recursive_continuation.set_ref_count(2);
         tbb::task::spawn(recursion_1);
         tbb::task::spawn(recursion_0);
@@ -304,7 +332,7 @@ class RecursiveBisectionInitialPartitionerT : public IInitialPartitioner {
             << "Recursion 0: k =" << num_blocks_part_0;
         RecursiveMultilevelBisectionContinuationTask& recursive_continuation = *new(allocate_continuation()) RecursiveMultilevelBisectionContinuationTask(_hg);
         RecursiveBisectionChildTask& recursion_0 = *new(recursive_continuation.allocate_child()) RecursiveBisectionChildTask(
-          _hg, _context, 0, range_0, _task_group_id);
+          _original_hypergraph_info, _hg, _context, 0, range_0, _task_group_id);
         recursive_continuation.set_ref_count(1);
         tbb::task::spawn(recursion_0);
       }
@@ -325,38 +353,46 @@ class RecursiveBisectionInitialPartitionerT : public IInitialPartitioner {
       bisection_context.initial_partitioning.mode = InitialPartitioningMode::direct;
 
       // Setup Part Weights
-      PartitionID num_blocks_part_0 = context.partition.k / 2 + (context.partition.k % 2 != 0 ? 1 : 0);
-      ASSERT(num_blocks_part_0 +  context.partition.k / 2 == context.partition.k);
-      bisection_context.partition.perfect_balance_part_weights.assign(2, 0);
-      bisection_context.partition.max_part_weights.assign(2, 0);
-      for ( PartitionID i = 0; i < num_blocks_part_0; ++i ) {
-        bisection_context.partition.perfect_balance_part_weights[0] +=
-          context.partition.perfect_balance_part_weights[i];
-        bisection_context.partition.max_part_weights[0] +=
-          context.partition.max_part_weights[i];
-      }
-      for ( PartitionID i = num_blocks_part_0; i < context.partition.k; ++i ) {
-        bisection_context.partition.perfect_balance_part_weights[1] +=
-          context.partition.perfect_balance_part_weights[i];
-        bisection_context.partition.max_part_weights[1] +=
-          context.partition.max_part_weights[i];
+      if ( context.initial_partitioning.use_adaptive_epsilon ) {
+        bisection_context.partition.epsilon = _original_hypergraph_info.computeAdaptiveEpsilon(
+          hypergraph.totalWeight(), context.partition.k);
+        bisection_context.setupPartWeights(hypergraph.totalWeight());
+      } else {
+        PartitionID num_blocks_part_0 = context.partition.k / 2 + (context.partition.k % 2 != 0 ? 1 : 0);
+        ASSERT(num_blocks_part_0 +  context.partition.k / 2 == context.partition.k);
+        bisection_context.partition.perfect_balance_part_weights.assign(2, 0);
+        bisection_context.partition.max_part_weights.assign(2, 0);
+        for ( PartitionID i = 0; i < num_blocks_part_0; ++i ) {
+          bisection_context.partition.perfect_balance_part_weights[0] +=
+            context.partition.perfect_balance_part_weights[i];
+          bisection_context.partition.max_part_weights[0] +=
+            context.partition.max_part_weights[i];
+        }
+        for ( PartitionID i = num_blocks_part_0; i < context.partition.k; ++i ) {
+          bisection_context.partition.perfect_balance_part_weights[1] +=
+            context.partition.perfect_balance_part_weights[i];
+          bisection_context.partition.max_part_weights[1] +=
+            context.partition.max_part_weights[i];
+        }
+
+        // Special case, if balance constraint will be violated with this bisection
+        HypernodeWeight total_weight = hypergraph.totalWeight();
+        HypernodeWeight total_max_part_weight = bisection_context.partition.max_part_weights[0] +
+          bisection_context.partition.max_part_weights[1];
+        if (total_max_part_weight < total_weight) {
+          HypernodeWeight delta = total_weight - total_max_part_weight;
+          bisection_context.partition.max_part_weights[0] += std::ceil(((double)delta) / 2.0);
+          bisection_context.partition.max_part_weights[1] += std::ceil(((double)delta) / 2.0);
+        }
+
+        bisection_context.setupContractionLimit(total_weight);
       }
 
-      // Special case, if balance constraint will be violated with this bisection
-      HypernodeWeight total_weight = hypergraph.totalWeight();
-      HypernodeWeight total_max_part_weight = bisection_context.partition.max_part_weights[0] +
-        bisection_context.partition.max_part_weights[1];
-      if (total_max_part_weight < total_weight) {
-        HypernodeWeight delta = total_weight - total_max_part_weight;
-        bisection_context.partition.max_part_weights[0] += std::ceil(((double)delta) / 2.0);
-        bisection_context.partition.max_part_weights[1] += std::ceil(((double)delta) / 2.0);
-      }
-
-      bisection_context.setupContractionLimit(total_weight);
 
       return bisection_context;
     }
 
+    const OriginalHypergraphInfo _original_hypergraph_info;
     HyperGraph& _hg;
     const Context& _context;
     const TaskGroupID _task_group_id;
@@ -369,9 +405,11 @@ class RecursiveBisectionInitialPartitionerT : public IInitialPartitioner {
   class RecursiveMultilevelBisectionTask : public tbb::task {
 
    public:
-    RecursiveMultilevelBisectionTask(HyperGraph& hypergraph,
-                          const Context& context,
-                          const TaskGroupID task_group_id) :
+    RecursiveMultilevelBisectionTask(const OriginalHypergraphInfo original_hypergraph_info,
+                                     HyperGraph& hypergraph,
+                                     const Context& context,
+                                     const TaskGroupID task_group_id) :
+      _original_hypergraph_info(original_hypergraph_info),
       _hg(hypergraph),
       _context(context),
       _task_group_id(task_group_id) { }
@@ -379,7 +417,7 @@ class RecursiveBisectionInitialPartitionerT : public IInitialPartitioner {
     tbb::task* execute() override {
       ASSERT(_context.partition.k >= 2);
       MultilevelBisectionContinuationTask& bisection_continuation_task = *new(allocate_continuation())
-        MultilevelBisectionContinuationTask(_hg, _context, _task_group_id);
+        MultilevelBisectionContinuationTask(_original_hypergraph_info, _hg, _context, _task_group_id);
       bisection_continuation_task.set_ref_count(1);
       tbb::task::spawn(*new(bisection_continuation_task.allocate_child()) MultilevelBisectionTask(
         _hg, bisection_continuation_task._bisection_hg,
@@ -390,6 +428,7 @@ class RecursiveBisectionInitialPartitionerT : public IInitialPartitioner {
     }
 
    private:
+    const OriginalHypergraphInfo _original_hypergraph_info;
     HyperGraph& _hg;
     const Context& _context;
     const TaskGroupID _task_group_id;
@@ -437,6 +476,7 @@ class RecursiveBisectionInitialPartitionerT : public IInitialPartitioner {
     }
 
     RecursiveMultilevelBisectionTask& root_bisection_task = *new(tbb::task::allocate_root()) RecursiveMultilevelBisectionTask(
+      OriginalHypergraphInfo { _hg.totalWeight(), _context.partition.k, _context.partition.epsilon },
       _hg, _context, _task_group_id);
     tbb::task::spawn_root_and_wait(root_bisection_task);
 

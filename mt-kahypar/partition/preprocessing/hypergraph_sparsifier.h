@@ -100,7 +100,7 @@ class HypergraphSparsifier {
       // Search for a valid block to which we assign the restored hypernode
       // Note, a valid block must exist because we only remove weight one hypernodes
       PartitionID current_block = valid_blocks[current_block_idx];
-      while ( hypergraph.partWeight(current_block) >= context.partition.max_part_weights[current_block] ) {
+      while ( hypergraph.localPartWeight(current_block) >= context.partition.max_part_weights[current_block] ) {
         std::swap(valid_blocks[current_block_idx], valid_blocks.back());
         valid_blocks.pop_back();
         ASSERT(!valid_blocks.empty());

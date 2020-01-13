@@ -154,8 +154,8 @@ class Km1Policy : public GainPolicy<Km1Policy<HyperGraph>, HyperGraph> {
                              (score == best_move.gain &&
                               !_disable_randomization &&
                               rand.flipCoin(cpu_id));
-        if (new_best_gain && _hg.localPartWeight(to) + hn_weight <=
-            _context.partition.max_part_weights[to]) {
+        if (new_best_gain &&
+            _hg.localPartWeight(to) + hn_weight <= _context.partition.max_part_weights[to]) {
           best_move.to = to;
           best_move.gain = score;
         }

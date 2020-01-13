@@ -245,6 +245,10 @@ po::options_description createInitialPartitioningOptionsDescription(Context& con
     po::value<size_t>(&context.initial_partitioning.runs)->value_name("<size_t>"),
     "Number of runs for initial partitioner \n"
     "(default: 1)")
+    ("i-use-adaptive-epsilon",
+    po::value<bool>(&context.initial_partitioning.use_adaptive_epsilon)->value_name("<bool>"),
+    "If true, adaptive epsilon is used during recursive initial partitioning \n"
+    "(default: false)")
     ("i-lp-maximum-iterations",
     po::value<size_t>(&context.initial_partitioning.lp_maximum_iterations)->value_name("<size_t>"),
     "Maximum number of iterations of label propagation initial partitioner \n"

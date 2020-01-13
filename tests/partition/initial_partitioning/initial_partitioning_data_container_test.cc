@@ -301,8 +301,8 @@ TEST_F(AInitialPartitioningDataContainer, AppliesBestPartitionWithImbalancedPart
 
   TestHypergraph& local_hg = ip_data.local_hypergraph();
 
-  // Cut = 2, but imbalanced
-  local_hg.setNodePart(ip_data.map_hypernode_to_local_hypergraph(id[0]), 0);
+  // Cut = 1, but imbalanced
+  local_hg.setNodePart(ip_data.map_hypernode_to_local_hypergraph(id[0]), 1);
   local_hg.setNodePart(ip_data.map_hypernode_to_local_hypergraph(id[1]), 0);
   local_hg.setNodePart(ip_data.map_hypernode_to_local_hypergraph(id[2]), 1);
   local_hg.setNodePart(ip_data.map_hypernode_to_local_hypergraph(id[3]), 1);
@@ -311,8 +311,8 @@ TEST_F(AInitialPartitioningDataContainer, AppliesBestPartitionWithImbalancedPart
   local_hg.setNodePart(ip_data.map_hypernode_to_local_hypergraph(id[6]), 1);
   ip_data.commit(InitialPartitioningAlgorithm::random);
 
-  // Cut = 1, also imbalanced but has better cut than first
-  local_hg.setNodePart(ip_data.map_hypernode_to_local_hypergraph(id[0]), 1);
+  // Cut = 2, also imbalanced but better balance
+  local_hg.setNodePart(ip_data.map_hypernode_to_local_hypergraph(id[0]), 0);
   local_hg.setNodePart(ip_data.map_hypernode_to_local_hypergraph(id[1]), 0);
   local_hg.setNodePart(ip_data.map_hypernode_to_local_hypergraph(id[2]), 1);
   local_hg.setNodePart(ip_data.map_hypernode_to_local_hypergraph(id[3]), 1);
@@ -323,8 +323,8 @@ TEST_F(AInitialPartitioningDataContainer, AppliesBestPartitionWithImbalancedPart
 
   ip_data.apply();
 
-  ASSERT_EQ(1, metrics::objective(hypergraph, context.partition.objective));
-  ASSERT_EQ(1, hypergraph.partID(id[0]));
+  ASSERT_EQ(2, metrics::objective(hypergraph, context.partition.objective));
+  ASSERT_EQ(0, hypergraph.partID(id[0]));
   ASSERT_EQ(0, hypergraph.partID(id[1]));
   ASSERT_EQ(1, hypergraph.partID(id[2]));
   ASSERT_EQ(1, hypergraph.partID(id[3]));
@@ -342,9 +342,9 @@ TEST_F(AInitialPartitioningDataContainer, AppliesBestPartitionWithImbalancedPart
 
   TestHypergraph& local_hg = ip_data.local_hypergraph();
 
-  // Cut = 2, but imbalanced
-  local_hg.setNodePart(ip_data.map_hypernode_to_local_hypergraph(id[0]), 0);
-  local_hg.setNodePart(ip_data.map_hypernode_to_local_hypergraph(id[1]), 1);
+  // Cut = 1
+  local_hg.setNodePart(ip_data.map_hypernode_to_local_hypergraph(id[0]), 1);
+  local_hg.setNodePart(ip_data.map_hypernode_to_local_hypergraph(id[1]), 0);
   local_hg.setNodePart(ip_data.map_hypernode_to_local_hypergraph(id[2]), 1);
   local_hg.setNodePart(ip_data.map_hypernode_to_local_hypergraph(id[3]), 1);
   local_hg.setNodePart(ip_data.map_hypernode_to_local_hypergraph(id[4]), 1);
@@ -352,9 +352,9 @@ TEST_F(AInitialPartitioningDataContainer, AppliesBestPartitionWithImbalancedPart
   local_hg.setNodePart(ip_data.map_hypernode_to_local_hypergraph(id[6]), 1);
   ip_data.commit(InitialPartitioningAlgorithm::random);
 
-  // Cut = 1, also imbalanced but better metric
-  local_hg.setNodePart(ip_data.map_hypernode_to_local_hypergraph(id[0]), 1);
-  local_hg.setNodePart(ip_data.map_hypernode_to_local_hypergraph(id[1]), 0);
+  // Cut = 2
+  local_hg.setNodePart(ip_data.map_hypernode_to_local_hypergraph(id[0]), 0);
+  local_hg.setNodePart(ip_data.map_hypernode_to_local_hypergraph(id[1]), 1);
   local_hg.setNodePart(ip_data.map_hypernode_to_local_hypergraph(id[2]), 1);
   local_hg.setNodePart(ip_data.map_hypernode_to_local_hypergraph(id[3]), 1);
   local_hg.setNodePart(ip_data.map_hypernode_to_local_hypergraph(id[4]), 1);

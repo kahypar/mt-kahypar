@@ -325,6 +325,7 @@ class LabelPropagationRefinerT final : public IRefiner {
     // We only compute the max gain move for a node if we are either in the first round of label
     // propagation or if the vertex is still active. A vertex is active, if it changed its block
     // in the last round or one of its neighbors.
+
     if (is_first_round || _active[0][original_id]) {
       Move best_move = _gain.computeMaxGainMove(hn);
 
