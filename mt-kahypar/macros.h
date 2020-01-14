@@ -22,6 +22,8 @@
 
 #include "kahypar/macros.h"
 
+#define USE_LOCAL_PART_WEIGHTS true
+
 #define HEAVY_ASSERT0(cond) \
   !(enable_heavy_assert) ? (void)0 : [&]() { ASSERT(cond); } ()
 #define HEAVY_ASSERT1(cond, msg) \

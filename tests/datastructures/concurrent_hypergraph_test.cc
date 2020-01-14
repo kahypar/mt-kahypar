@@ -199,23 +199,27 @@ TEST_F(AConcurrentHypergraph, PerformsConcurrentMovesWhereAllSucceed) {
         ASSERT_TRUE(hypergraph.changeNodePart(hypergraph.globalNodeID(3), 1, 2));
         ASSERT_TRUE(hypergraph.changeNodePart(hypergraph.globalNodeID(2), 0, 2));
 
+        #if USE_LOCAL_PART_WEIGHTS
         ASSERT_EQ(1, hypergraph.localPartWeight(0));
         ASSERT_EQ(1, hypergraph.localPartSize(0));
         ASSERT_EQ(2, hypergraph.localPartWeight(1));
         ASSERT_EQ(2, hypergraph.localPartSize(1));
         ASSERT_EQ(4, hypergraph.localPartWeight(2));
         ASSERT_EQ(4, hypergraph.localPartSize(2));
+        #endif
       }, [&] {
         ASSERT_TRUE(hypergraph.changeNodePart(hypergraph.globalNodeID(5), 2, 1));
         ASSERT_TRUE(hypergraph.changeNodePart(hypergraph.globalNodeID(6), 2, 0));
         ASSERT_TRUE(hypergraph.changeNodePart(hypergraph.globalNodeID(4), 1, 2));
 
+        #if USE_LOCAL_PART_WEIGHTS
         ASSERT_EQ(4, hypergraph.localPartWeight(0));
         ASSERT_EQ(4, hypergraph.localPartSize(0));
         ASSERT_EQ(2, hypergraph.localPartWeight(1));
         ASSERT_EQ(2, hypergraph.localPartSize(1));
         ASSERT_EQ(1, hypergraph.localPartWeight(2));
         ASSERT_EQ(1, hypergraph.localPartSize(2));
+        #endif
       });
 
   hypergraph.updateGlobalPartInfos();
@@ -239,6 +243,7 @@ TEST_F(AConcurrentHypergraph, PerformsConcurrentMovesAndUpdatesLocalPartInfos) {
 
         ASSERT_TRUE(hypergraph.changeNodePart(hypergraph.globalNodeID(3), 1, 2));  // Move 5
 
+        #if USE_LOCAL_PART_WEIGHTS
         hypergraph.updateLocalPartInfos();  // Move 1, 2, 3, 4, 5 are applied
         ASSERT_EQ(3, hypergraph.localPartWeight(0));
         ASSERT_EQ(3, hypergraph.localPartSize(0));
@@ -246,15 +251,19 @@ TEST_F(AConcurrentHypergraph, PerformsConcurrentMovesAndUpdatesLocalPartInfos) {
         ASSERT_EQ(2, hypergraph.localPartSize(1));
         ASSERT_EQ(2, hypergraph.localPartWeight(2));
         ASSERT_EQ(2, hypergraph.localPartSize(2));
+        #endif
 
         ASSERT_TRUE(hypergraph.changeNodePart(hypergraph.globalNodeID(2), 0, 2));  // Move 6
 
+
+        #if USE_LOCAL_PART_WEIGHTS
         ASSERT_EQ(2, hypergraph.localPartWeight(0));
         ASSERT_EQ(2, hypergraph.localPartSize(0));
         ASSERT_EQ(2, hypergraph.localPartWeight(1));
         ASSERT_EQ(2, hypergraph.localPartSize(1));
         ASSERT_EQ(3, hypergraph.localPartWeight(2));
         ASSERT_EQ(3, hypergraph.localPartSize(2));
+        #endif
       }, [&] {
         ASSERT_TRUE(hypergraph.changeNodePart(hypergraph.globalNodeID(5), 2, 1));  // Move 2
         ASSERT_TRUE(hypergraph.changeNodePart(hypergraph.globalNodeID(6), 2, 0));  // Move 3
@@ -262,6 +271,7 @@ TEST_F(AConcurrentHypergraph, PerformsConcurrentMovesAndUpdatesLocalPartInfos) {
         cnt++;
         while (cnt < 2) { }
 
+        #if USE_LOCAL_PART_WEIGHTS
         hypergraph.updateLocalPartInfos();  // Move 1, 2, 3 are applied
         ASSERT_EQ(3, hypergraph.localPartWeight(0));
         ASSERT_EQ(3, hypergraph.localPartSize(0));
@@ -269,17 +279,20 @@ TEST_F(AConcurrentHypergraph, PerformsConcurrentMovesAndUpdatesLocalPartInfos) {
         ASSERT_EQ(4, hypergraph.localPartSize(1));
         ASSERT_EQ(0, hypergraph.localPartWeight(2));
         ASSERT_EQ(0, hypergraph.localPartSize(2));
+        #endif
 
         ASSERT_TRUE(hypergraph.changeNodePart(hypergraph.globalNodeID(4), 1, 2));  // Move 4
 
         cnt++;
 
+        #if USE_LOCAL_PART_WEIGHTS
         ASSERT_EQ(3, hypergraph.localPartWeight(0));
         ASSERT_EQ(3, hypergraph.localPartSize(0));
         ASSERT_EQ(3, hypergraph.localPartWeight(1));
         ASSERT_EQ(3, hypergraph.localPartSize(1));
         ASSERT_EQ(1, hypergraph.localPartWeight(2));
         ASSERT_EQ(1, hypergraph.localPartSize(2));
+        #endif
       });
 
   hypergraph.updateGlobalPartInfos();

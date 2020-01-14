@@ -102,10 +102,16 @@ class Hypergraph {
       return weight == other.weight && size == other.size;
     }
 
+    #if USE_LOCAL_PART_WEIGHTS
     HypernodeWeight weight;
     int64_t size;
+    #else
+    std::atomic<HypernodeWeight> weight;
+    std::atomic<int64_t> size;
+    #endif
   };
 
+  #if USE_LOCAL_PART_WEIGHTS
   /**
    * Each thread contains its local part weight and size information. If a hypernode changes
    * its block, the modification to part weights and sizes are only applied to
@@ -191,6 +197,7 @@ class Hypergraph {
 
   // ! TBB Thread Local Storage
   using ThreadLocalPartInfos = tbb::enumerable_thread_specific<ThreadPartInfos>;
+  #endif
 
  public:
   constexpr static size_t kEdgeHashSeed = StreamingHypergraph::kEdgeHashSeed;
@@ -207,9 +214,11 @@ class Hypergraph {
     _communities_num_pins(),
     _community_degree(),
     _part_info(),
+    #if USE_LOCAL_PART_WEIGHTS
     _local_part_info([&] {
         return ThreadPartInfos::construct(_k, _part_info);
       }),
+    #endif
     _is_init_num_cut_hyperedges(false),
     _contraction_index(),
     _hypergraphs(),
@@ -235,9 +244,11 @@ class Hypergraph {
     _communities_num_pins(),
     _community_degree(),
     _part_info(k),
+    #if USE_LOCAL_PART_WEIGHTS
     _local_part_info([&] {
         return ThreadPartInfos::construct(_k, _part_info);
       }),
+    #endif
     _is_init_num_cut_hyperedges(false),
     _contraction_index(),
     _hypergraphs(std::move(hypergraphs)),
@@ -266,9 +277,11 @@ class Hypergraph {
     _communities_num_pins(),
     _community_degree(),
     _part_info(k),
+    #if USE_LOCAL_PART_WEIGHTS
     _local_part_info([&] {
         return ThreadPartInfos::construct(_k, _part_info);
       }),
+    #endif
     _is_init_num_cut_hyperedges(false),
     _contraction_index(),
     _hypergraphs(std::move(hypergraphs)),
@@ -294,9 +307,11 @@ class Hypergraph {
     _communities_num_pins(),
     _community_degree(),
     _part_info(k),
+    #if USE_LOCAL_PART_WEIGHTS
     _local_part_info([&] {
         return ThreadPartInfos::construct(_k, _part_info);
       }),
+    #endif
     _is_init_num_cut_hyperedges(false),
     _contraction_index(),
     _hypergraphs(),
@@ -323,9 +338,11 @@ class Hypergraph {
     _communities_num_pins(std::move(other._communities_num_pins)),
     _community_degree(std::move(other._community_degree)),
     _part_info(std::move(other._part_info)),
+    #if USE_LOCAL_PART_WEIGHTS
     _local_part_info([&] {
         return ThreadPartInfos::construct(_k, _part_info);
       }),
+    #endif
     _is_init_num_cut_hyperedges(other._is_init_num_cut_hyperedges),
     _contraction_index(std::move(other._contraction_index)),
     _hypergraphs(std::move(other._hypergraphs)),
@@ -345,9 +362,11 @@ class Hypergraph {
     _communities_num_pins = std::move(other._communities_num_pins);
     _community_degree = std::move(other._community_degree);
     _part_info = std::move(other._part_info);
+    #if USE_LOCAL_PART_WEIGHTS
     _local_part_info = ThreadLocalPartInfos([&] {
           return ThreadPartInfos::construct(_k, _part_info);
         });
+    #endif
     _is_init_num_cut_hyperedges = other._is_init_num_cut_hyperedges;
     _contraction_index = std::move(other._contraction_index);
     _hypergraphs = std::move(other._hypergraphs);
@@ -780,8 +799,14 @@ class Hypergraph {
     // Sets the node part of vertex u to id. The operation succeeds
     // if CAS operation on part_id of vertex u succeeds
     if (hypergraph_of_u.setNodePart(u, id)) {
+      #if USE_LOCAL_PART_WEIGHTS
       // Update local block weights of calling thread
       _local_part_info.local().apply(id, PartInfo{ nodeWeight(u), 1 });
+      #else
+      // Update block weights
+      ++_part_info[id].size;
+      _part_info[id].weight += nodeWeight(u);
+      #endif
 
       for (const HyperedgeID& he : incidentEdges(u)) {
         hypergraph_of_edge(he).incrementPinCountInPart(he, id);
@@ -804,9 +829,17 @@ class Hypergraph {
     // Changes the node part of vertex u to id. The operation succeeds
     // if CAS operation on part_id of vertex u succeeds
     if (hypergraph_of_u.changeNodePart(u, from, to)) {
+      #if USE_LOCAL_PART_WEIGHTS
       // Update local block weights of calling thread
       _local_part_info.local().apply(from, PartInfo{ -nodeWeight(u), -1 });
       _local_part_info.local().apply(to, PartInfo{ nodeWeight(u), 1 });
+      #else
+      // Update block weights
+      --_part_info[from].size;
+      _part_info[from].weight -= nodeWeight(u);
+      ++_part_info[to].size;
+      _part_info[to].weight += nodeWeight(u);
+      #endif
 
       for (const HyperedgeID& he : incidentEdges(u)) {
         HyperedgeID pin_count_in_from_part_after = hypergraph_of_edge(he).decrementPinCountInPart(he, from);
@@ -929,24 +962,35 @@ class Hypergraph {
   // ! Local weight of a block (of calling thread)
   HypernodeWeight localPartWeight(const PartitionID id) {
     ASSERT(id < _k && id != kInvalidPartition, "Part ID" << id << "is invalid");
+    #if USE_LOCAL_PART_WEIGHTS
     return _local_part_info.local().weight(id);
+    #else
+    return _part_info[id].weight;
+    #endif
   }
 
   // ! Local size of a block (of calling thread)
   size_t localPartSize(const PartitionID id) {
     ASSERT(id < _k && id != kInvalidPartition, "Part ID" << id << "is invalid");
+    #if USE_LOCAL_PART_WEIGHTS
     return _local_part_info.local().size(id);
+    #else
+    return _part_info[id].size;
+    #endif
   }
 
   // ! Updates the local block weights of the calling thread
   void updateLocalPartInfos() {
+    #if USE_LOCAL_PART_WEIGHTS
     _local_part_info.local().snapshot(_local_part_info);
+    #endif
   }
 
   // ! Updates the global block weights
   // ! Note, this function is not thread safe and should be only called in
   // ! a single-threaded setting.
   void updateGlobalPartInfos() {
+    #if USE_LOCAL_PART_WEIGHTS
     for (const ThreadPartInfos& thread_part_info : _local_part_info) {
       // Applying deltas of each local part information to global part information
       const std::vector<PartInfo>& delta = thread_part_info.delta();
@@ -961,6 +1005,7 @@ class Hypergraph {
     for (ThreadPartInfos& thread_part_info : _local_part_info) {
       thread_part_info.reset();
     }
+    #endif
   }
 
   // ! Reset partition (not thread-safe)
@@ -976,9 +1021,12 @@ class Hypergraph {
       _part_info[part_id].weight = 0;
       _part_info[part_id].size = 0;
     }
+
+    #if USE_LOCAL_PART_WEIGHTS
     for (ThreadPartInfos& thread_part_info : _local_part_info) {
       thread_part_info.reset();
     }
+    #endif
   }
 
   // ####################### Contract / Uncontract #######################
@@ -1762,7 +1810,11 @@ class Hypergraph {
     PartitionID part_id = partID(memento.u);
     ASSERT(part_id != kInvalidPartition);
     hypergraph_of_vertex(memento.v).setNodePart(memento.v, part_id);
+    #if USE_LOCAL_PART_WEIGHTS
     _local_part_info.local().apply(part_id, PartInfo { 0, 1 });
+    #else
+    ++_part_info[part_id].size;
+    #endif
     setNodeWeight(memento.u, nodeWeight(memento.u) - nodeWeight(memento.v));
   }
 
@@ -2433,8 +2485,10 @@ class Hypergraph {
   parallel::scalable_vector<HyperedgeID> _community_degree;
   // ! Global weight and size information for all blocks.
   std::vector<PartInfo> _part_info;
+  #if USE_LOCAL_PART_WEIGHTS
   // ! Thread local weight and size information for all blocks.
   ThreadLocalPartInfos _local_part_info;
+  #endif
   // ! True, if cut hyperedges are initialized
   bool _is_init_num_cut_hyperedges;
 

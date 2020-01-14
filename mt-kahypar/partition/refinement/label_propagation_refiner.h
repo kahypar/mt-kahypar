@@ -335,7 +335,9 @@ class LabelPropagationRefinerT final : public IRefiner {
                           (_context.refinement.label_propagation.rebalancing &&
                             best_move.gain == 0 &&
                             _hg.localPartWeight(best_move.from) - 1 >
-                            _hg.localPartWeight(best_move.to) + 1);
+                            _hg.localPartWeight(best_move.to) + 1 &&
+                            _hg.localPartWeight(best_move.to) <
+                            _context.partition.perfect_balance_part_weights[best_move.to]);
       if (perform_move) {
         PartitionID from = best_move.from;
         PartitionID to = best_move.to;
