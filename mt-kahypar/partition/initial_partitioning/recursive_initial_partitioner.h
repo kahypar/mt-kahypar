@@ -116,6 +116,17 @@ class RecursiveInitialPartitionerT : public IInitialPartitioner {
     double imbalance;
   };
 
+  struct OriginalHypergraphInfo {
+
+    double computeAdaptiveEpsilon(const PartitionID current_k) const {
+      return std::min(0.99, std::max(std::pow(1.0 + original_epsilon, 1.0 /
+        log2(ceil(static_cast<double>(original_k) / static_cast<double>(current_k)) + 1.0)) - 1.0,0.0));
+    }
+
+    const PartitionID original_k;
+    const double original_epsilon;
+  };
+
   /*!
    * The recursive child task is responsible for copying the hypergraph
    * and coarsen the hypergraph until the next contraction limit is reached.
@@ -123,13 +134,15 @@ class RecursiveInitialPartitionerT : public IInitialPartitioner {
   class RecursiveChildTask : public tbb::task {
 
    public:
-    RecursiveChildTask(HyperGraph& hypergraph,
+    RecursiveChildTask(const OriginalHypergraphInfo original_hypergraph_info,
+                       HyperGraph& hypergraph,
                        const Context& context,
                        RecursivePartitionResult& result,
                        const bool top_level,
                        const TaskGroupID task_group_id,
                        const size_t num_threads,
                        const size_t recursion_number) :
+      _original_hypergraph_info(original_hypergraph_info),
       _hg(hypergraph),
       _context(context),
       _result(result),
@@ -162,7 +175,7 @@ class RecursiveInitialPartitionerT : public IInitialPartitioner {
       RecursiveChildContinuationTask& child_continuation = *new(allocate_continuation())
         RecursiveChildContinuationTask(std::move(coarsener), _result, _task_group_id);
       RecursiveTask& recursive_task = *new(child_continuation.allocate_child()) RecursiveTask(
-        _result.hypergraph, _result.context, false, _task_group_id);
+        _original_hypergraph_info, _result.hypergraph, _result.context, false, _task_group_id);
       child_continuation.set_ref_count(1);
       tbb::task::spawn(recursive_task);
       return nullptr;
@@ -185,8 +198,20 @@ class RecursiveInitialPartitionerT : public IInitialPartitioner {
         for (PartitionID part = 0; part < _context.partition.k; ++part) {
           context.partition.perfect_balance_part_weights[part / 2] +=
             _context.partition.perfect_balance_part_weights[part];
-          context.partition.max_part_weights[part / 2] +=
-            _context.partition.max_part_weights[part];
+        }
+
+        if ( context.initial_partitioning.use_adaptive_epsilon ) {
+          context.partition.epsilon = _original_hypergraph_info.computeAdaptiveEpsilon(context.partition.k);
+          for (PartitionID part = 0; part < context.partition.k; ++part) {
+            context.partition.max_part_weights[part] = std::ceil(( 1.0 + context.partition.epsilon ) *
+              context.partition.perfect_balance_part_weights[part]);
+          }
+        } else {
+          context.partition.max_part_weights.assign(context.partition.k, 0);
+          for (PartitionID part = 0; part < _context.partition.k; ++part) {
+            context.partition.max_part_weights[part / 2] +=
+              _context.partition.max_part_weights[part];
+          }
         }
       }
       context.partition.verbose_output = debug;
@@ -204,6 +229,7 @@ class RecursiveInitialPartitionerT : public IInitialPartitioner {
       return context;
     }
 
+    const OriginalHypergraphInfo _original_hypergraph_info;
     HyperGraph& _hg;
     const Context& _context;
     RecursivePartitionResult& _result;
@@ -379,10 +405,12 @@ class RecursiveInitialPartitionerT : public IInitialPartitioner {
   using PoolInitialPartitionerContinuation = PoolInitialPartitionerContinuationT<TypeTraits>;
 
    public:
-    RecursiveTask(HyperGraph& hypergraph,
+    RecursiveTask(const OriginalHypergraphInfo original_hypergraph_info,
+                  HyperGraph& hypergraph,
                   const Context& context,
                   const bool top_level,
                   const TaskGroupID task_group_id) :
+      _original_hypergraph_info(original_hypergraph_info),
       _hg(hypergraph),
       _context(context),
       _top_level(top_level),
@@ -410,19 +438,22 @@ class RecursiveInitialPartitionerT : public IInitialPartitioner {
           auto tbb_recursion_task_groups = TBB::instance().create_tbb_task_groups_for_recursion();
 
           RecursiveContinuationTask& recursive_continuation = *new(allocate_continuation())
-            RecursiveContinuationTask(_hg, _context, _top_level, _task_group_id, true);
+            RecursiveContinuationTask(_original_hypergraph_info, _hg, _context, _top_level, _task_group_id, true);
           RecursiveChildTask& recursion_0 = *new(recursive_continuation.allocate_child()) RecursiveChildTask(
-            _hg, _context, recursive_continuation.r1, _top_level, tbb_recursion_task_groups.first, num_threads_1, 0);
+            _original_hypergraph_info, _hg, _context, recursive_continuation.r1,
+            _top_level, tbb_recursion_task_groups.first, num_threads_1, 0);
           RecursiveChildTask& recursion_1 = *new(recursive_continuation.allocate_child()) RecursiveChildTask(
-            _hg, _context, recursive_continuation.r2, _top_level, tbb_recursion_task_groups.second, num_threads_2, 0);
+            _original_hypergraph_info, _hg, _context, recursive_continuation.r2,
+            _top_level, tbb_recursion_task_groups.second, num_threads_2, 0);
           recursive_continuation.set_ref_count(2);
           tbb::task::spawn(recursion_1);
           tbb::task::spawn(recursion_0);
         } else {
           RecursiveContinuationTask& recursive_continuation = *new(allocate_continuation())
-            RecursiveContinuationTask(_hg, _context, _top_level, _task_group_id, false);
+            RecursiveContinuationTask(_original_hypergraph_info, _hg, _context, _top_level, _task_group_id, false);
           RecursiveChildTask& recursion = *new(recursive_continuation.allocate_child()) RecursiveChildTask(
-            _hg, _context, recursive_continuation.r1, _top_level, _task_group_id, _context.shared_memory.num_threads, 0);
+            _original_hypergraph_info, _hg, _context, recursive_continuation.r1,
+            _top_level, _task_group_id, _context.shared_memory.num_threads, 0);
           recursive_continuation.set_ref_count(1);
           tbb::task::spawn(recursion);
         }
@@ -431,6 +462,7 @@ class RecursiveInitialPartitionerT : public IInitialPartitioner {
     }
 
    private:
+    const OriginalHypergraphInfo _original_hypergraph_info;
     HyperGraph& _hg;
     const Context& _context;
     const bool _top_level;
@@ -447,11 +479,13 @@ class RecursiveInitialPartitionerT : public IInitialPartitioner {
   class RecursiveContinuationTask : public tbb::task {
 
    public:
-    RecursiveContinuationTask(HyperGraph& hypergraph,
+    RecursiveContinuationTask(const OriginalHypergraphInfo original_hypergraph_info,
+                              HyperGraph& hypergraph,
                               const Context& context,
                               const bool top_level,
                               const TaskGroupID task_group_id,
                               const bool was_recursion) :
+      _original_hypergraph_info(original_hypergraph_info),
       _hg(hypergraph),
       _context(context),
       _top_level(top_level),
@@ -520,6 +554,7 @@ class RecursiveInitialPartitionerT : public IInitialPartitioner {
     }
 
    private:
+    const OriginalHypergraphInfo _original_hypergraph_info;
     HyperGraph& _hg;
     const Context& _context;
     const bool _top_level;
@@ -550,6 +585,7 @@ class RecursiveInitialPartitionerT : public IInitialPartitioner {
     }
 
     RecursiveTask& root_recursive_task = *new(tbb::task::allocate_root()) RecursiveTask(
+      OriginalHypergraphInfo { _context.partition.k, _context.partition.epsilon },
       _hg, _context, _top_level, _task_group_id);
     tbb::task::spawn_root_and_wait(root_recursive_task);
 
