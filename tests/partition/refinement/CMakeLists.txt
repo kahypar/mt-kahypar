@@ -1,2 +1,3 @@
 add_gmock_test(gain_policy_test gain_policy_test.cc)
 add_gmock_test(label_propagation_refiner_test label_propagation_refiner_test.cc)
+add_gmock_test(zero_gain_cache_test zero_gain_cache_test.cc)

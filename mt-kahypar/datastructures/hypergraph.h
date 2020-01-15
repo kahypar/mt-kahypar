@@ -86,8 +86,7 @@ class Hypergraph {
   // !  4.) Pin count in block to after move
   // ! This function can be used to compute e.g. the delta in cut or km1 metric after a move
   using DeltaFunction = std::function<void (const HyperedgeID, const HyperedgeWeight, const HypernodeID, const HypernodeID, const HypernodeID)>;
-  #define NOOP_FUNC [] (const HyperedgeID, const HyperedgeWeight, const HypernodeID, const HypernodeID, const HypernodeID) { \
-}
+  #define NOOP_FUNC [] (const HyperedgeID, const HyperedgeWeight, const HypernodeID, const HypernodeID, const HypernodeID) { }
 
   using HighResClockTimepoint = std::chrono::time_point<std::chrono::high_resolution_clock>;
 
