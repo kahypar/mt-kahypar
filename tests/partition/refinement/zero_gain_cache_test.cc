@@ -33,9 +33,8 @@ class AZeroGainCache : public ds::AHypergraph<1> {
   using Base = AHypergraph<1>;
 
  public:
-  using Base::TypeTraits;
   using Base::TestHypergraph;
-  using Cache = ZeroGainCache<TypeTraits>;
+  using Cache = ZeroGainCache<TestHypergraph>;
 
   AZeroGainCache() :
     Base(),
@@ -48,7 +47,8 @@ class AZeroGainCache : public ds::AHypergraph<1> {
                                     { }, 4)),
     context(),
     zero_gain_cache(nullptr),
-    id(16) {
+    id(16),
+    delta(0) {
 
     context.partition.k = 4;
     context.partition.epsilon = 0.0;
@@ -63,29 +63,30 @@ class AZeroGainCache : public ds::AHypergraph<1> {
     hypergraph.updateGlobalPartInfos();
     hypergraph.initializeNumCutHyperedges();
 
-    zero_gain_cache = std::make_unique<Cache>(hypergraph, context);
+    zero_gain_cache = std::make_unique<Cache>(hypergraph.initialNumNodes(), context);
   }
 
   void insertAllZeroGainMoves() {
-    zero_gain_cache->insert(id[0],  0, 1);
-    zero_gain_cache->insert(id[2],  0, 1);
-    zero_gain_cache->insert(id[5],  1, 0);
-    zero_gain_cache->insert(id[7],  1, 0);
-    zero_gain_cache->insert(id[8],  2, 3);
-    zero_gain_cache->insert(id[10], 2, 3);
-    zero_gain_cache->insert(id[13], 3, 2);
-    zero_gain_cache->insert(id[15], 3, 2);
+    zero_gain_cache->insert(hypergraph, id[0],  0, 1);
+    zero_gain_cache->insert(hypergraph, id[2],  0, 1);
+    zero_gain_cache->insert(hypergraph, id[5],  1, 0);
+    zero_gain_cache->insert(hypergraph, id[7],  1, 0);
+    zero_gain_cache->insert(hypergraph, id[8],  2, 3);
+    zero_gain_cache->insert(hypergraph, id[10], 2, 3);
+    zero_gain_cache->insert(hypergraph, id[13], 3, 2);
+    zero_gain_cache->insert(hypergraph, id[15], 3, 2);
   }
 
   TestHypergraph hypergraph;
   Context context;
   std::unique_ptr<Cache> zero_gain_cache;
   std::vector<HypernodeID> id;
+  Gain delta;
 };
 
 TEST_F(AZeroGainCache, InsertsAZeroGainMove) {
   Cache& cache = *zero_gain_cache;
-  cache.insert(id[0], 0, 1);
+  cache.insert(hypergraph, id[0], 0, 1);
 
   ASSERT_EQ(0, cache._cache_entry[0].from);
   ASSERT_TRUE(cache._cache_entry[0].valid_to[1]);
@@ -94,8 +95,8 @@ TEST_F(AZeroGainCache, InsertsAZeroGainMove) {
 
 TEST_F(AZeroGainCache, InsertsTwoZeroGainMoves) {
   Cache& cache = *zero_gain_cache;
-  cache.insert(id[0], 0, 1);
-  cache.insert(id[3], 0, 1);
+  cache.insert(hypergraph, id[0], 0, 1);
+  cache.insert(hypergraph, id[3], 0, 1);
 
   ASSERT_EQ(0, cache._cache_entry[3].from);
   ASSERT_TRUE(cache._cache_entry[3].valid_to[1]);
@@ -104,8 +105,8 @@ TEST_F(AZeroGainCache, InsertsTwoZeroGainMoves) {
 
 TEST_F(AZeroGainCache, InsertsTwoZeroGainMovesToDifferentBlocks) {
   Cache& cache = *zero_gain_cache;
-  cache.insert(id[0], 0, 1);
-  cache.insert(id[5], 1, 0);
+  cache.insert(hypergraph, id[0], 0, 1);
+  cache.insert(hypergraph, id[5], 1, 0);
 
   ASSERT_EQ(1, cache._cache_entry[5].from);
   ASSERT_TRUE(cache._cache_entry[5].valid_to[0]);
@@ -114,8 +115,8 @@ TEST_F(AZeroGainCache, InsertsTwoZeroGainMovesToDifferentBlocks) {
 
 TEST_F(AZeroGainCache, InsertsTwoZeroGainMovesForSameVertex1) {
   Cache& cache = *zero_gain_cache;
-  cache.insert(id[0], 0, 1);
-  cache.insert(id[0], 0, 2);
+  cache.insert(hypergraph, id[0], 0, 1);
+  cache.insert(hypergraph, id[0], 0, 2);
 
   ASSERT_EQ(0, cache._cache_entry[0].from);
   ASSERT_TRUE(cache._cache_entry[0].valid_to[1]);
@@ -126,10 +127,9 @@ TEST_F(AZeroGainCache, InsertsTwoZeroGainMovesForSameVertex1) {
 
 TEST_F(AZeroGainCache, InsertsTwoZeroGainMovesForSameVertex2) {
   Cache& cache = *zero_gain_cache;
-  cache.insert(id[0], 0, 1);
-  cache.insert(id[3], 0, 1);
-  cache.insert(id[0], 0, 2);
-
+  cache.insert(hypergraph, id[0], 0, 1);
+  cache.insert(hypergraph, id[3], 0, 1);
+  cache.insert(hypergraph, id[0], 0, 2);
   ASSERT_EQ(0, cache._cache_entry[0].from);
   ASSERT_TRUE(cache._cache_entry[0].valid_to[1]);
   ASSERT_TRUE(cache._cache_entry[0].valid_to[2]);
@@ -139,9 +139,9 @@ TEST_F(AZeroGainCache, InsertsTwoZeroGainMovesForSameVertex2) {
 
 TEST_F(AZeroGainCache, ReinsertZeroGainMoveAfterChangeNodePart1) {
   Cache& cache = *zero_gain_cache;
-  cache.insert(id[0], 0, 1);
+  cache.insert(hypergraph, id[0], 0, 1);
   hypergraph.changeNodePart(id[0], 0, 1);
-  cache.insert(id[0], 1, 0);
+  cache.insert(hypergraph, id[0], 1, 0);
 
   ASSERT_EQ(1, cache._cache_entry[0].from);
   ASSERT_TRUE(cache._cache_entry[0].valid_to[0]);
@@ -152,10 +152,10 @@ TEST_F(AZeroGainCache, ReinsertZeroGainMoveAfterChangeNodePart1) {
 
 TEST_F(AZeroGainCache, ReinsertZeroGainMoveAfterChangeNodePart2) {
   Cache& cache = *zero_gain_cache;
-  cache.insert(id[0], 0, 1);
-  cache.insert(id[3], 0, 1);
+  cache.insert(hypergraph, id[0], 0, 1);
+  cache.insert(hypergraph, id[3], 0, 1);
   hypergraph.changeNodePart(id[0], 0, 1);
-  cache.insert(id[0], 1, 0);
+  cache.insert(hypergraph, id[0], 1, 0);
 
   ASSERT_EQ(1, cache._cache_entry[0].from);
   ASSERT_EQ(0, cache._cache_entry[3].from);
@@ -171,7 +171,7 @@ TEST_F(AZeroGainCache, ReinsertZeroGainMoveAfterChangeNodePart2) {
 
 TEST_F(AZeroGainCache, CheckIfMoveIsPossible1) {
   insertAllZeroGainMoves();
-  ASSERT_TRUE(zero_gain_cache->isMovePossible(id[1], 0, 1));
+  ASSERT_TRUE(zero_gain_cache->isMovePossible(hypergraph, id[1], 0, 1));
 }
 
 TEST_F(AZeroGainCache, CheckIfMoveIsPossible2) {
@@ -179,12 +179,12 @@ TEST_F(AZeroGainCache, CheckIfMoveIsPossible2) {
   hypergraph.changeNodePart(id[5], 1, 0);
   hypergraph.changeNodePart(id[7], 1, 0);
   // There is no zero gain move left to move hn 1 from block 0 to 1
-  ASSERT_FALSE(zero_gain_cache->isMovePossible(id[1], 0, 1));
+  ASSERT_FALSE(zero_gain_cache->isMovePossible(hypergraph, id[1], 0, 1));
 }
 
 TEST_F(AZeroGainCache, PerformRebalancingMoves1) {
   insertAllZeroGainMoves();
-  ASSERT_TRUE(zero_gain_cache->performMove(id[1], 0, 1));
+  ASSERT_TRUE(zero_gain_cache->performMove(hypergraph, id[1], 0, 1, delta));
   ASSERT_EQ(1, hypergraph.partID(id[1]));
   ASSERT_EQ(0, hypergraph.partID(id[5]));
   ASSERT_EQ(1, hypergraph.partID(id[7]));
@@ -194,7 +194,7 @@ TEST_F(AZeroGainCache, PerformRebalancingMoves2) {
   insertAllZeroGainMoves();
   hypergraph.changeNodePart(id[5], 1, 0);
   hypergraph.changeNodePart(id[2], 0, 1);
-  ASSERT_TRUE(zero_gain_cache->performMove(id[1], 0, 1));
+  ASSERT_TRUE(zero_gain_cache->performMove(hypergraph, id[1], 0, 1, delta));
   ASSERT_EQ(1, hypergraph.partID(id[1]));
   ASSERT_EQ(0, hypergraph.partID(id[5]));
   ASSERT_EQ(0, hypergraph.partID(id[7]));
@@ -202,8 +202,8 @@ TEST_F(AZeroGainCache, PerformRebalancingMoves2) {
 
 TEST_F(AZeroGainCache, PerformRebalancingMoves3) {
   insertAllZeroGainMoves();
-  ASSERT_TRUE(zero_gain_cache->performMove(id[1], 0, 1));
-  ASSERT_TRUE(zero_gain_cache->performMove(id[12], 3, 2));
+  ASSERT_TRUE(zero_gain_cache->performMove(hypergraph, id[1], 0, 1, delta));
+  ASSERT_TRUE(zero_gain_cache->performMove(hypergraph, id[12], 3, 2, delta));
   ASSERT_EQ(1, hypergraph.partID(id[1]));
   ASSERT_EQ(0, hypergraph.partID(id[5]));
   ASSERT_EQ(1, hypergraph.partID(id[7]));

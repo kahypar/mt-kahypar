@@ -38,6 +38,7 @@
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/partition/metrics.h"
 #include "mt-kahypar/partition/refinement/i_refiner.h"
+#include "mt-kahypar/partition/refinement/zero_gain_cache.h"
 #include "mt-kahypar/partition/refinement/policies/gain_policy.h"
 #include "mt-kahypar/partition/refinement/policies/execution_policy.h"
 #include "mt-kahypar/utils/randomize.h"
@@ -55,6 +56,7 @@ class LabelPropagationRefinerT final : public IRefiner {
   using HwTopology = typename TypeTraits::HwTopology;
   using GainCalculator = GainPolicy<HyperGraph>;
   using NumaFastResetFlagArray = parallel::scalable_vector<kahypar::ds::FastResetFlagArray<>>;
+  using ThreadLocalZeroGainCache = tbb::enumerable_thread_specific<ZeroGainCache<HyperGraph>>;
 
   static constexpr bool debug = false;
   static constexpr bool enable_heavy_assert = false;
@@ -69,6 +71,7 @@ class LabelPropagationRefinerT final : public IRefiner {
     _current_level(0),
     _execution_policy(context.refinement.label_propagation.execution_policy_alpha),
     _gain(_hg, _context),
+    _zero_gain_cache(_hg.initialNumNodes(), _context),
     _active(),
     _next_active(),
     _visited_he(),
@@ -327,30 +330,27 @@ class LabelPropagationRefinerT final : public IRefiner {
     // in the last round or one of its neighbors.
 
     if (is_first_round || _active[0][original_id]) {
-      Move best_move = _gain.computeMaxGainMove(hn);
+      ZeroGainCache<HyperGraph>& zero_gain_cache = _zero_gain_cache.local();
+      Move best_move = _gain.computeMaxGainMove(hn, zero_gain_cache);
 
       // We perform a move if it either improves the solution quality or, in case of a
       // zero gain move, the balance of the solution.
-      bool perform_move = best_move.gain < 0 ||
-                          (_context.refinement.label_propagation.rebalancing &&
-                            best_move.gain == 0 &&
-                            _hg.localPartWeight(best_move.from) - 1 >
-                            _hg.localPartWeight(best_move.to) + 1 &&
-                            _hg.localPartWeight(best_move.to) <
-                            _context.partition.perfect_balance_part_weights[best_move.to]);
-      if (perform_move) {
+      if (best_move.gain < 0) {
         PartitionID from = best_move.from;
         PartitionID to = best_move.to;
         ASSERT(from != to);
-        ASSERT(_hg.localPartWeight(to) + _hg.nodeWeight(hn) <= _context.partition.max_part_weights[to]);
 
+        const bool is_feasible_move = _hg.localPartWeight(to) + _hg.nodeWeight(hn) <=
+          _context.partition.max_part_weights[to];
         Gain delta_before = _gain.localDelta();
-        if (_hg.changeNodePart(hn, from, to, objective_delta)) {
+        if ( ( is_feasible_move && _hg.changeNodePart(hn, from, to, objective_delta) ) ||
+             ( !is_feasible_move && _context.refinement.label_propagation.use_zero_gain_cache &&
+                zero_gain_cache.performMove(_hg, hn, from, to, _gain.localDelta()) ) ) {
           // In case the move to block 'to' was successful, we verify that the "real" gain
           // of the move is either equal to our computed gain or if not, still improves
           // the solution quality.
           Gain move_delta = _gain.localDelta() - delta_before;
-          bool accept_move = (move_delta == best_move.gain || move_delta <= 0);
+          bool accept_move = (move_delta == best_move.gain || move_delta <= 0 || !is_feasible_move);
           if (accept_move) {
             DBG << "Move hypernode" << hn << "from block" << from << "to block" << to
                 << "with gain" << best_move.gain << "( Real Gain: " << move_delta << ")";
@@ -437,6 +437,8 @@ class LabelPropagationRefinerT final : public IRefiner {
   ExecutionPolicy _execution_policy;
   // ! Computes max gain moves
   GainCalculator _gain;
+  // ! Thread local zero gain cache
+  ThreadLocalZeroGainCache _zero_gain_cache;
   // ! Indicate which vertices are active and considered for LP
   NumaFastResetFlagArray _active;
   NumaFastResetFlagArray _next_active;

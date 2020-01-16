@@ -87,7 +87,7 @@ static inline std::string serialize(const Hypergraph& hypergraph,
         << " lp_part_weight_update_factor=" << context.refinement.label_propagation.part_weight_update_factor
         << " lp_localized=" << std::boolalpha << context.refinement.label_propagation.localized
         << " lp_numa_aware=" << std::boolalpha << context.refinement.label_propagation.numa_aware
-        << " lp_rebalancing=" << std::boolalpha << context.refinement.label_propagation.rebalancing
+        << " lp_use_zero_gain_cache=" << std::boolalpha << context.refinement.label_propagation.use_zero_gain_cache
         << " lp_execution_policy=" << context.refinement.label_propagation.execution_policy
         << " lp_execution_policy_alpha=" << context.refinement.label_propagation.execution_policy_alpha
         << " num_threads=" << context.shared_memory.num_threads

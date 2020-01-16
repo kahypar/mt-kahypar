@@ -28,11 +28,10 @@
 
 namespace mt_kahypar {
 
-template<typename TypeTraits>
+template<typename HyperGraph>
 class ZeroGainCache {
 
  private:
-  using HyperGraph = typename TypeTraits::HyperGraph;
   #define NOOP_FUNC [] (const HyperedgeID, const HyperedgeWeight, const HypernodeID, const HypernodeID, const HypernodeID) { }
 
 
@@ -60,19 +59,20 @@ class ZeroGainCache {
   using CachePtr = vector<VertexCacheEntry>;
 
  public:
-  explicit ZeroGainCache(HyperGraph& hypergraph,
+  explicit ZeroGainCache(const HypernodeID num_nodes,
                          const Context& context) :
-    _hg(hypergraph),
     _context(context),
     _cache(context.partition.k, vector<vector<HypernodeID>>(context.partition.k)),
-    _cache_entry(hypergraph.initialNumNodes(), VertexCacheEntry(context.partition.k)) { }
+    _cache_entry(num_nodes, VertexCacheEntry(context.partition.k)) { }
 
-  void insert(const HypernodeID hn, const PartitionID from, const PartitionID to) {
-    const HypernodeID original_id = _hg.originalNodeID(hn);
+  void insert(const HyperGraph& hg,
+              const HypernodeID hn,
+              const PartitionID from,
+              const PartitionID to) {
+    const HypernodeID original_id = hg.originalNodeID(hn);
     ASSERT(original_id < _cache_entry.size());
     ASSERT(from != kInvalidPartition && from < _context.partition.k);
     ASSERT(to != kInvalidPartition && to < _context.partition.k);
-    ASSERT(from == _hg.partID(hn));
 
     VertexCacheEntry& cache_entry = _cache_entry[original_id];
     // In case there exists a cache entry for vertex hn in an other block,
@@ -90,14 +90,14 @@ class ZeroGainCache {
     }
   }
 
-  bool isMovePossible(const HypernodeID hn,
+  bool isMovePossible(HyperGraph& hg,
+                      const HypernodeID hn,
                       const PartitionID from,
                       const PartitionID to) {
     ASSERT(from != kInvalidPartition && from < _context.partition.k);
     ASSERT(to != kInvalidPartition && to < _context.partition.k);
-    ASSERT(_hg.partID(hn) == from);
     const HypernodeWeight weight_buffer =
-      _context.partition.max_part_weights[from] - _hg.localPartWeight(from);
+      _context.partition.max_part_weights[from] - hg.localPartWeight(from);
     if ( weight_buffer < 0 ) {
       // Rebalancing not possible since balance constraint already violated
       return false;
@@ -107,14 +107,14 @@ class ZeroGainCache {
     // the upper bound. If the rebalancing weight would be greater
     // than the upper bound we would violate the balance constraint
     // in the block 'from'
-    const HypernodeWeight hn_weight = _hg.nodeWeight(hn);
+    const HypernodeWeight hn_weight = hg.nodeWeight(hn);
     const HypernodeWeight upper_bound = weight_buffer + hn_weight;
     HypernodeWeight rebalancing_weight = 0;
 
     size_t end = _cache[to][from].size();
     for ( size_t pos = 0; pos < end; ++pos ) {
       const HypernodeID u = _cache[to][from][pos];
-      if ( _hg.partID(u) != to ) {
+      if ( hg.partID(u) != to ) {
         // Lazy removal of vertices
         // In that case, cache entry indicates that moving hypernode u
         // from block to to block from is a zero gain move, but u is no
@@ -124,7 +124,7 @@ class ZeroGainCache {
         continue;
       }
 
-      const HypernodeWeight u_weight = _hg.nodeWeight(u);
+      const HypernodeWeight u_weight = hg.nodeWeight(u);
       if ( rebalancing_weight + u_weight <= upper_bound ) {
         rebalancing_weight += u_weight;
         if ( rebalancing_weight >= hn_weight ) {
@@ -136,13 +136,13 @@ class ZeroGainCache {
     return hn_weight <= rebalancing_weight && rebalancing_weight <= upper_bound;
   }
 
-  bool performMove(const HypernodeID hn,
+  bool performMove(HyperGraph& hg,
+                   const HypernodeID hn,
                    const PartitionID from,
-                   const PartitionID to) {
+                   const PartitionID to,
+                   Gain& delta) {
     ASSERT(from != kInvalidPartition && from < _context.partition.k);
     ASSERT(to != kInvalidPartition && to < _context.partition.k);
-    ASSERT(_hg.partID(hn) == from);
-    Gain delta = 0;
     auto objective_delta = [&](const HyperedgeID he,
                                const HyperedgeWeight edge_weight,
                                const HypernodeID edge_size,
@@ -158,7 +158,7 @@ class ZeroGainCache {
                            };
 
     const HypernodeWeight weight_buffer =
-      _context.partition.max_part_weights[from] - _hg.localPartWeight(from);
+      _context.partition.max_part_weights[from] - hg.localPartWeight(from);
     if ( weight_buffer < 0 ) {
       // Rebalancing not possible since balance constraint already violated
       return false;
@@ -168,7 +168,7 @@ class ZeroGainCache {
     // the upper bound. If the rebalancing weight would be greater
     // than the upper bound we would violate the balance constraint
     // in the block 'from'
-    const HypernodeWeight hn_weight = _hg.nodeWeight(hn);
+    const HypernodeWeight hn_weight = hg.nodeWeight(hn);
     const HypernodeWeight upper_bound = weight_buffer + hn_weight;
     HypernodeWeight rebalancing_weight = 0;
 
@@ -176,7 +176,7 @@ class ZeroGainCache {
     size_t end = _cache[to][from].size();
     for ( size_t pos = 0; pos < end; ++pos ) {
       const HypernodeID u = _cache[to][from][pos];
-      if ( _hg.partID(u) != to ) {
+      if ( hg.partID(u) != to ) {
         // Lazy removal of vertices
         // In that case, cache entry indicates that moving hypernode u
         // from block to to block from is a zero gain move, but u is no
@@ -186,11 +186,11 @@ class ZeroGainCache {
         continue;
       }
 
-      const HypernodeWeight u_weight = _hg.nodeWeight(u);
+      const HypernodeWeight u_weight = hg.nodeWeight(u);
       if ( rebalancing_weight + u_weight <= upper_bound ) {
-        delta = 0;
-        if ( _hg.changeNodePart(u, to, from, objective_delta) ) {
-          if ( delta == 0 ) {
+        Gain delta_before = delta;
+        if ( hg.changeNodePart(u, to, from, objective_delta) ) {
+          if ( delta - delta_before == 0 ) {
             // In case the move of vertex u from block 'to' to block
             // 'from' succeeds and it is still a zero gain move, we
             // add its weight to the rebalancing weight
@@ -199,13 +199,13 @@ class ZeroGainCache {
           } else {
             // In case, vertex u is no longer a zero gain move, we
             // revert the move immediatly
-            _hg.changeNodePart(u, from, to);
+            hg.changeNodePart(u, from, to, objective_delta);
           }
 
           // Remove vertex u from cache, because it was either moved
           // successfully to an other block or it is no longer a
           // zero gain move.
-          const HypernodeID original_id = _hg.originalNodeID(u);
+          const HypernodeID original_id = hg.originalNodeID(u);
           ASSERT(original_id < _cache_entry.size());
           _cache_entry[original_id].valid_to[from] = false;
           std::swap(_cache[to][from][pos--], _cache[to][from][--end]);
@@ -219,14 +219,11 @@ class ZeroGainCache {
     }
 
     bool success = hn_weight <= rebalancing_weight && rebalancing_weight <= upper_bound;
-    if ( success ) {
-      // In case of success, we can move vertex hn
-      _hg.changeNodePart(hn, from, to);
-    } else {
+    if ( !success || !hg.changeNodePart(hn, from, to, objective_delta) ) {
       // In case, we were not successful, because either the rebalancing weight
       // is smaller than the vertex weight or we would violate the balance
       // constraint, we immediatly revert all moves
-      revertMoves(moved_hypernodes, to, from);
+      revertMoves(hg, moved_hypernodes, to, from, delta);
     }
     return success;
   }
@@ -240,14 +237,32 @@ class ZeroGainCache {
   FRIEND_TEST(AZeroGainCache, ReinsertZeroGainMoveAfterChangeNodePart1);
   FRIEND_TEST(AZeroGainCache, ReinsertZeroGainMoveAfterChangeNodePart2);
 
-  void revertMoves(parallel::scalable_vector<HypernodeID> moved_hypernodes,
+  void revertMoves(HyperGraph& hg,
+                   const parallel::scalable_vector<HypernodeID>& moved_hypernodes,
                    const PartitionID from,
-                   const PartitionID to) {
+                   const PartitionID to,
+                   Gain& delta) {
+    ASSERT(from != kInvalidPartition && from < _context.partition.k);
+    ASSERT(to != kInvalidPartition && to < _context.partition.k);
+    auto objective_delta = [&](const HyperedgeID he,
+                               const HyperedgeWeight edge_weight,
+                               const HypernodeID edge_size,
+                               const HypernodeID pin_count_in_from_part_after,
+                               const HypernodeID pin_count_in_to_part_after) {
+                              if ( _context.partition.objective == kahypar::Objective::cut ) {
+                                delta += HyperGraph::cutDelta(he, edge_weight, edge_size,
+                                  pin_count_in_from_part_after, pin_count_in_to_part_after);
+                              } else {
+                                delta += HyperGraph::km1Delta(he, edge_weight, edge_size,
+                                  pin_count_in_from_part_after, pin_count_in_to_part_after);
+                              }
+                           };
+
     for ( const HypernodeID hn : moved_hypernodes ) {
-      const PartitionID part_id = _hg.partID(hn);
-      if ( part_id == from && _hg.changeNodePart(hn, from, to) ) {
+      const PartitionID part_id = hg.partID(hn);
+      if ( part_id == from && hg.changeNodePart(hn, from, to, objective_delta) ) {
         // Revert move and reinsert vertex hn to cache
-        const HypernodeID original_id = _hg.originalNodeID(hn);
+        const HypernodeID original_id = hg.originalNodeID(hn);
         ASSERT(original_id < _cache_entry.size());
         ASSERT(!_cache_entry[original_id].valid_to[from]);
         _cache[to][from].emplace_back(hn);
@@ -256,7 +271,6 @@ class ZeroGainCache {
     }
   }
 
-  HyperGraph& _hg;
   const Context _context;
   Cache _cache;
   CachePtr _cache_entry;
