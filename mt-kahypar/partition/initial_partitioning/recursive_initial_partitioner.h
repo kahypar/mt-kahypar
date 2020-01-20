@@ -259,6 +259,7 @@ class RecursiveInitialPartitionerT : public IInitialPartitioner {
       std::unique_ptr<IRefiner> label_propagation =
         LabelPropagationFactory::getInstance().createObject(
           _result.context.refinement.label_propagation.algorithm, _result.hypergraph, _result.context, _task_group_id);
+      _result.context.refinement.label_propagation.numa_aware = false;
       _coarsener->uncoarsen(label_propagation);
 
       // Compute metrics
