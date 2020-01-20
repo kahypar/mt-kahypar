@@ -298,8 +298,8 @@ po::options_description createRefinementOptionsDescription(Context& context, con
     po::value<bool>(&context.refinement.label_propagation.numa_aware)->value_name("<bool>"),
     "If true, label propagation is executed numa friendly (which means that nodes are processed on its numa nodes)\n"
     "(default false)")
-    ("r-lp-zero-gain-cache",
-    po::value<bool>(&context.refinement.label_propagation.use_zero_gain_cache)->value_name("<bool>"),
+    ("r-lp-rebalancing",
+    po::value<bool>(&context.refinement.label_propagation.rebalancing)->value_name("<bool>"),
     "If true, zero gain moves are used to rebalance solution\n"
     "(default true)")
     ("r-lp-execution-policy",

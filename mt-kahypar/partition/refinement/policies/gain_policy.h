@@ -33,7 +33,6 @@
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
 #include "mt-kahypar/partition/context.h"
-#include "mt-kahypar/partition/refinement/zero_gain_cache.h"
 #include "mt-kahypar/utils/randomize.h"
 
 namespace mt_kahypar {
@@ -50,8 +49,8 @@ class GainPolicy : public kahypar::meta::PolicyBase {
     _deltas(0),
     _tmp_scores(context.partition.k, 0) { }
 
-  Move computeMaxGainMove(const HypernodeID hn, ZeroGainCache<HyperGraph>& zero_gain_cache) {
-    return static_cast<Derived*>(this)->computeMaxGainMoveImpl(hn, zero_gain_cache);
+  Move computeMaxGainMove(const HypernodeID hn) {
+    return static_cast<Derived*>(this)->computeMaxGainMoveImpl(hn);
   }
 
   inline void computeDeltaForHyperedge(const HyperedgeID he,
@@ -67,7 +66,7 @@ class GainPolicy : public kahypar::meta::PolicyBase {
   // ! Returns the delta in the objective function for all moves
   // ! performed by the calling thread relative to the last call
   // ! reset()
-  Gain& localDelta() {
+  Gain localDelta() {
     return _deltas.local();
   }
 
@@ -107,7 +106,7 @@ class Km1Policy : public GainPolicy<Km1Policy<HyperGraph>, HyperGraph> {
     Base(hypergraph, context),
     _disable_randomization(disable_randomization) { }
 
-  Move computeMaxGainMoveImpl(const HypernodeID hn, ZeroGainCache<HyperGraph>& zero_gain_cache) {
+  Move computeMaxGainMoveImpl(const HypernodeID hn) {
     HEAVY_REFINEMENT_ASSERT([&] {
         for (PartitionID k = 0; k < _context.partition.k; ++k) {
           if (_tmp_scores.local()[k] != 0) {
@@ -155,17 +154,10 @@ class Km1Policy : public GainPolicy<Km1Policy<HyperGraph>, HyperGraph> {
                              (score == best_move.gain &&
                               !_disable_randomization &&
                               rand.flipCoin(cpu_id));
-        bool is_move_feasible =  _hg.localPartWeight(to) + hn_weight <=
-            _context.partition.max_part_weights[to];
-        if (new_best_gain && ( is_move_feasible ||
-            ( _context.refinement.label_propagation.use_zero_gain_cache &&
-              zero_gain_cache.isMovePossible(_hg, hn, from, to) ) ) ) {
+        if (new_best_gain &&
+            _hg.localPartWeight(to) + hn_weight <= _context.partition.max_part_weights[to]) {
           best_move.to = to;
           best_move.gain = score;
-        }
-
-        if ( _context.refinement.label_propagation.use_zero_gain_cache && score == 0 ) {
-          zero_gain_cache.insert(_hg, hn, from, to);
         }
       }
       tmp_scores[to] = 0;
@@ -202,7 +194,7 @@ class CutPolicy : public GainPolicy<CutPolicy<HyperGraph>, HyperGraph> {
     Base(hypergraph, context),
     _disable_randomization(disable_randomization) { }
 
-  Move computeMaxGainMoveImpl(const HypernodeID hn, ZeroGainCache<HyperGraph>& zero_gain_cache) {
+  Move computeMaxGainMoveImpl(const HypernodeID hn) {
     HEAVY_REFINEMENT_ASSERT([&] {
         for (PartitionID k = 0; k < _context.partition.k; ++k) {
           if (_tmp_scores.local()[k] != 0) {
@@ -248,17 +240,10 @@ class CutPolicy : public GainPolicy<CutPolicy<HyperGraph>, HyperGraph> {
                              (score == best_move.gain &&
                               !_disable_randomization &&
                               rand.flipCoin(cpu_id));
-        bool is_move_feasible =  _hg.localPartWeight(to) + hn_weight <=
-            _context.partition.max_part_weights[to];
-        if (new_best_gain && ( is_move_feasible ||
-            ( _context.refinement.label_propagation.use_zero_gain_cache &&
-              zero_gain_cache.isMovePossible(_hg, hn, from, to) ) ) ) {
+        if (new_best_gain && _hg.localPartWeight(to) + hn_weight <=
+            _context.partition.max_part_weights[to]) {
           best_move.to = to;
           best_move.gain = score;
-        }
-
-        if ( _context.refinement.label_propagation.use_zero_gain_cache && score == 0 ) {
-          zero_gain_cache.insert(_hg, hn, from, to);
         }
       }
       tmp_scores[to] = 0;

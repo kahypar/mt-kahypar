@@ -184,7 +184,7 @@ struct LabelPropagationParameters {
   double part_weight_update_factor = 0.01;
   bool localized = false;
   bool numa_aware = false;
-  bool use_zero_gain_cache = true;
+  bool rebalancing = true;
   ExecutionType execution_policy = ExecutionType::UNDEFINED;
   double execution_policy_alpha = 2.0;
   bool execute_always = false;
@@ -198,7 +198,7 @@ inline std::ostream & operator<< (std::ostream& str, const LabelPropagationParam
   str << "    Part Weight Update Factor:        " << params.part_weight_update_factor << std::endl;
   str << "    Localized:                        " << std::boolalpha << params.localized << std::endl;
   str << "    Numa Aware:                       " << std::boolalpha << params.numa_aware << std::endl;
-  str << "    Use Zero Gain Cache:              " << std::boolalpha << params.use_zero_gain_cache << std::endl;
+  str << "    Rebalancing:                      " << std::boolalpha << params.rebalancing << std::endl;
   if ( !params.localized ) {
     str << "    Execution Policy:                 " << params.execution_policy << std::endl;
     str << "    Execution Policy Alpha:           " << params.execution_policy_alpha << std::endl;
