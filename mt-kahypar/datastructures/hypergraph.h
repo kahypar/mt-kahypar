@@ -57,6 +57,7 @@ class Hypergraph {
                           PartitionID, HardwareTopology, TBBNumaArena>;
 
   static constexpr PartitionID kInvalidPartition = -1;
+  static HypernodeID kInvalidHypernode;
   static HyperedgeID kInvalidHyperedge;
 
  public:
@@ -89,6 +90,18 @@ class Hypergraph {
   #define NOOP_FUNC [] (const HyperedgeID, const HyperedgeWeight, const HypernodeID, const HypernodeID, const HypernodeID) { }
 
   using HighResClockTimepoint = std::chrono::time_point<std::chrono::high_resolution_clock>;
+
+  /*!
+   * This struct is used during multilevel coarsening to efficiently
+   * detect parallel hyperedges.
+   */
+  struct ContractedHyperedge {
+    size_t hash;
+    HyperedgeWeight weight;
+    bool is_parallel; // Indicates if this hyperedges is already detected as parallel
+    int node; // NUMA Node of hyperedge
+    parallel::scalable_vector<HypernodeID> hyperedge;
+  };
 
   /*!
    * For each block \f$V_i\f$ of the \f$k\f$-way partition \f$\mathrm{\Pi} = \{V_1, \dots, V_k\}\f$,
@@ -1104,6 +1117,214 @@ class Hypergraph {
 
     disableHypernode(v);
     return Memento { u, v, community_id };
+  }
+
+  /*!
+   *
+   */
+  std::pair<Self, parallel::scalable_vector<HypernodeID>> contract(
+    const parallel::scalable_vector<HypernodeID>& communities,
+    const TaskGroupID task_group_id) {
+    ASSERT(communities.size() == _num_hypernodes);
+    HEAVY_COARSENING_ASSERT(community_contraction_precondition_assertions(communities));
+
+    // #################### STAGE 1 ####################
+    // Remapping of vertex ids to a consecutive range of ids between [0,|V'|) where
+    // V' is the set of all vertices in the contracted hypergraph
+    parallel::scalable_vector<HypernodeID> mapping(_num_hypernodes, kInvalidHypernode);
+    std::vector<HypernodeID> hn_to_numa_node;
+    parallel::scalable_vector<HypernodeWeight> hn_weights;
+    parallel::scalable_vector<PartitionID> community_ids;
+    parallel::scalable_vector<bool> is_high_degree_vertex;
+    HypernodeID num_hypernodes = 0;
+    for ( HypernodeID id = 0; id < _num_hypernodes; ++id ) {
+      const HypernodeID hn = globalNodeID(id);
+      if ( nodeIsEnabled(hn) ) {
+        HypernodeID community = communities[id];
+        if ( mapping[community] == kInvalidHypernode ) {
+          ASSERT(num_hypernodes == hn_to_numa_node.size());
+          ASSERT(num_hypernodes == hn_weights.size());
+          ASSERT(num_hypernodes == community_ids.size());
+          mapping[community] = num_hypernodes++;
+          hn_to_numa_node.emplace_back(StreamingHypergraph::get_numa_node_of_vertex(hn));
+          hn_weights.emplace_back(nodeWeight(hn));
+          community_ids.emplace_back(communityID(hn));
+          is_high_degree_vertex.emplace_back(isHighDegreeVertex(hn));
+        } else {
+          ASSERT(mapping[community] < hn_weights.size());
+          hn_weights[mapping[community]] += nodeWeight(hn);
+          is_high_degree_vertex[mapping[community]] =
+            is_high_degree_vertex[mapping[community]] | isHighDegreeVertex(hn);
+        }
+      }
+    }
+
+    // #################### STAGE 2 ####################
+    // We iterate over all hyperedges in parallel and remap their ids
+    // to the ones determined in the step before. Furthermore, duplicates
+    // and disabled hyperedges are removed. The hyperedges are then inserted
+    // into a streaming map with their hash as key. All hyperedges with the same
+    // hash are then present in the same bucket of the streaming map, which
+    // makes it possible to detect parallel hyperedges in parallel.
+
+    // Mapping from a vertex id of the current hypergraph to its
+    // id in the coarse hypergraph
+    auto map_to_coarse_hypergraph = [&](const HypernodeID hn) {
+      return mapping[communities[originalNodeID(hn)]];
+    };
+
+    StreamingMap<size_t, ContractedHyperedge> hash_to_hyperedge;
+    tbb::parallel_for(0UL, _num_hyperedges, [&](const HyperedgeID original_he_id) {
+      const HyperedgeID he = globalEdgeID(original_he_id);
+
+      if ( edgeIsEnabled(he) ) {
+        parallel::scalable_vector<HypernodeID> hyperedge;
+        hyperedge.reserve(edgeSize(he));
+        for ( const HypernodeID pin : pins(he) ) {
+          hyperedge.emplace_back(map_to_coarse_hypergraph(pin));
+        }
+
+        // Removing duplicates
+        std::sort(hyperedge.begin(), hyperedge.end());
+        hyperedge.erase(std::unique(hyperedge.begin(), hyperedge.end()), hyperedge.end());
+
+        // Removing disable hypernodes
+        while ( !hyperedge.empty() && hyperedge.back() == kInvalidHypernode ) {
+          hyperedge.pop_back();
+        }
+
+        // Remove single-pin hyperedges
+        if ( hyperedge.size() > 1 ) {
+          // Compute hash of hyperedge
+          size_t he_hash = kEdgeHashSeed;
+          for ( const HypernodeID& pin : hyperedge ) {
+            he_hash += kahypar::math::hash(pin);
+          }
+          hash_to_hyperedge.stream(he_hash,
+            ContractedHyperedge { he_hash, edgeWeight(he), false,
+              StreamingHypergraph::get_numa_node_of_hyperedge(he), std::move(hyperedge) } );
+        }
+      }
+    });
+
+    using HyperedgeMap = parallel::scalable_vector<parallel::scalable_vector<ContractedHyperedge>>;
+    HyperedgeMap hyperedge_buckets(hash_to_hyperedge.size());
+    hash_to_hyperedge.copy(hyperedge_buckets, [&](const size_t key) {
+      return key % hash_to_hyperedge.size();
+    });
+
+    // #################### STAGE 3 ####################
+    // We iterate now in parallel over each bucket and sort each bucket
+    // after its hash. A bucket is processed by one thread and parallel
+    // hyperedges are detected by comparing the pins of hyperedges with
+    // the same hash.
+
+    parallel::scalable_vector<HyperedgeID> num_hyperedges_prefix_sum(hyperedge_buckets.size() + 1, 0);
+    tbb::parallel_for(0UL, hyperedge_buckets.size(), [&](const size_t bucket) {
+      parallel::scalable_vector<ContractedHyperedge>& hyperedge_bucket = hyperedge_buckets[bucket];
+      std::sort(hyperedge_bucket.begin(), hyperedge_bucket.end(),
+        [&](const ContractedHyperedge& lhs, const ContractedHyperedge& rhs) {
+          return lhs.hash < rhs.hash || (lhs.hash == rhs.hash && lhs.hyperedge.size() < rhs.hyperedge.size());
+        });
+
+      // Helper function that checks if two hyperedges are parallel
+      // Note, pins inside the hyperedges are sorted.
+      auto check_if_hyperedges_are_parallel = [](const parallel::scalable_vector<HypernodeID>& lhs,
+                                                 const parallel::scalable_vector<HypernodeID>& rhs) {
+        HEAVY_COARSENING_ASSERT(std::is_sorted(lhs.cbegin(), lhs.cend()));
+        HEAVY_COARSENING_ASSERT(std::is_sorted(rhs.cbegin(), rhs.cend()));
+        if ( lhs.size() == rhs.size() ) {
+          for ( size_t i = 0; i < lhs.size(); ++i ) {
+            if ( lhs[i] != rhs[i] ) {
+              return false;
+            }
+          }
+          return true;
+        } else {
+          return false;
+        }
+      };
+
+      // Parallel Hyperedge Detection
+      for ( size_t i = 0; i < hyperedge_bucket.size(); ++i ) {
+        ContractedHyperedge& contracted_he_lhs = hyperedge_bucket[i];
+        if ( !contracted_he_lhs.is_parallel ) {
+          ++num_hyperedges_prefix_sum[bucket + 1];
+          for ( size_t j = i + 1; j < hyperedge_bucket.size(); ++j ) {
+            ContractedHyperedge& contracted_he_rhs = hyperedge_bucket[j];
+            if ( !contracted_he_rhs.is_parallel &&
+                 contracted_he_lhs.hash == contracted_he_rhs.hash &&
+                 check_if_hyperedges_are_parallel(
+                   contracted_he_lhs.hyperedge, contracted_he_rhs.hyperedge) ) {
+                // Hyperedges are parallel
+                contracted_he_lhs.weight += contracted_he_rhs.weight;
+                contracted_he_rhs.is_parallel = true;
+            } else if ( contracted_he_lhs.hash != contracted_he_rhs.hash ) {
+              // In case, hash of both are not equal we go to the next hyperedge
+              // because we compared it with all hyperedges that had an equal hash
+              break;
+            }
+          }
+        }
+      }
+    });
+    for ( size_t i = 1; i < hyperedge_buckets.size(); ++i ) {
+      num_hyperedges_prefix_sum[i] += num_hyperedges_prefix_sum[i - 1];
+    }
+
+
+    // #################### STAGE 4 ####################
+    // Initialize numa hypergraphs and stream hyperedges into
+    // numa hypergraph.
+
+    // Allocate numa hypergraph on their corresponding numa nodes
+    std::vector<StreamingHypergraph> numa_hypergraphs;
+    TBBNumaArena::instance().execute_sequential_on_all_numa_nodes(task_group_id, [&](const int node) {
+            numa_hypergraphs.emplace_back(node, _k, TBBNumaArena::instance().numa_task_arena(node));
+          });
+
+    // Stream hyperedges into numa hypergraphs and intialize hyperedges
+    TBBNumaArena::instance().execute_parallel_on_all_numa_nodes(task_group_id, [&](const int node) {
+      tbb::parallel_for(0UL, hyperedge_buckets.size(), [&, node](const size_t bucket) {
+        HyperedgeID original_he_id = num_hyperedges_prefix_sum[bucket];
+        for ( ContractedHyperedge& contracted_hyperedge : hyperedge_buckets[bucket] ) {
+          // If hyperedge was not detected to be parallel to an other hyperedge
+          // and it was before on the current numa node, we stream it into the
+          // corresponding numa hypergraph
+          if ( !contracted_hyperedge.is_parallel ) {
+            if ( node == contracted_hyperedge.node ) {
+              numa_hypergraphs[node].streamHyperedge(
+                contracted_hyperedge.hyperedge, original_he_id, contracted_hyperedge.weight);
+            }
+            ++original_he_id;
+          }
+        }
+      });
+    });
+    TBBNumaArena::instance().execute_parallel_on_all_numa_nodes(task_group_id, [&](const int node) {
+      numa_hypergraphs[node].initializeHyperedges(num_hypernodes);
+    });
+
+    // #################### STAGE 5 ####################
+    // Initialize Hypergraph
+    Self contracted_hypergraph(num_hypernodes, std::move(numa_hypergraphs),
+                               std::move(hn_to_numa_node), _k, task_group_id);
+
+    // Initialize node weights and community ids
+    tbb::parallel_for(0UL, num_hypernodes, [&](const HypernodeID& id) {
+          const HypernodeID hn = contracted_hypergraph.globalNodeID(id);
+          contracted_hypergraph._is_high_degree_vertex[id] = is_high_degree_vertex[id];
+          contracted_hypergraph.setNodeWeight(hn, hn_weights[id]);
+          contracted_hypergraph.setCommunityID(hn, community_ids[id]);
+        });
+    contracted_hypergraph.updateTotalWeight(task_group_id);
+    contracted_hypergraph.initializeCommunities();
+
+    // Initialize community to numa node mapping
+    std::vector<PartitionID> community_node_mapping(_community_node_mapping);
+    contracted_hypergraph.setCommunityNodeMapping(std::move(community_node_mapping));
+
+    return std::make_pair(std::move(contracted_hypergraph), std::move(mapping));
   }
 
   /*!
@@ -2434,6 +2655,26 @@ class Hypergraph {
   }
 
   // ! Only for debugging
+  bool community_contraction_precondition_assertions(const parallel::scalable_vector<HypernodeID>& communities) {
+    for ( HypernodeID hn = 0; hn < _num_hypernodes; ++hn ) {
+      const HypernodeID representative = communities[hn];
+      if ( representative >= _num_hypernodes ) {
+        LOG << "Hypernode" << hn << "has an invalid representative";
+        LOG << V(hn) << V(representative) << V(_num_hypernodes);
+        return false;
+      }
+
+      const HypernodeID global_hn = globalNodeID(hn);
+      if ( !nodeIsEnabled(global_hn) && hn != representative ) {
+        LOG << "Each disabled hypernode must be its own representative";
+        LOG << V(hn) << V(representative);
+        return false;
+      }
+    }
+    return true;
+  }
+
+  // ! Only for debugging
   bool verify_that_hyperedges_are_parallel(const HyperedgeID representative, const HyperedgeID parallel_he) {
     if (!edgeIsEnabled(representative) || edgeIsEnabled(parallel_he)) {
       LOG << "HE" << representative << "must be enabled and HE" << parallel_he << "disabled";
@@ -2519,5 +2760,17 @@ HyperedgeType_ Hypergraph<HypernodeType_, HyperedgeType_,
                           HypernodeWeightType_, HyperedgeWeightType_,
                           PartitionIDType_, HardwareTopology,
                           TBBNumaArena>::kInvalidHyperedge = std::numeric_limits<HyperedgeType_>::max();
+
+template <typename HypernodeType_,
+          typename HyperedgeType_,
+          typename HypernodeWeightType_,
+          typename HyperedgeWeightType_,
+          typename PartitionIDType_,
+          typename HardwareTopology,
+          typename TBBNumaArena>
+HypernodeType_ Hypergraph<HypernodeType_, HyperedgeType_,
+                          HypernodeWeightType_, HyperedgeWeightType_,
+                          PartitionIDType_, HardwareTopology,
+                          TBBNumaArena>::kInvalidHypernode = std::numeric_limits<HypernodeType_>::max();
 }  // namespace ds
 }  // namespace mt_kahypar

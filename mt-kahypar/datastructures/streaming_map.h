@@ -82,6 +82,13 @@ class StreamingMap {
     _buffer[bucket].emplace_back(key, value);
   }
 
+  void stream(const Key& key, Value&& value) {
+    size_t bucket = std::hash<Key>()(key) % _size;
+    ASSERT(bucket < _size);
+    std::lock_guard<std::mutex> lock(_mutex[bucket]);
+    _buffer[bucket].emplace_back(key, std::move(value));
+  }
+
   template <class F>
   void copy(tbb::task_arena& arena,
             ValueMap& destination,
@@ -91,15 +98,32 @@ class StreamingMap {
           for (size_t bucket = 0; bucket < _buffer.size(); ++bucket) {
             group.run([&, bucket] {
               ASSERT(bucket < _buffer.size());
-              for (const KeyValuePair& p : _buffer[bucket]) {
+              for (KeyValuePair& p : _buffer[bucket]) {
                 const Key& key = key_extractor(p.first);
                 ASSERT(key < destination.size());
-                destination[key].emplace_back(p.second);
+                destination[key].emplace_back(std::move(p.second));
               }
             });
           }
         });
     group.wait();
+  }
+
+  template <class F>
+  void copy(ValueMap& destination,
+            F&& key_extractor) {
+    tbb::parallel_for(0UL, _size, [&](const size_t bucket) {
+      ASSERT(bucket < _buffer.size());
+      for (KeyValuePair& p : _buffer[bucket]) {
+        const Key& key = key_extractor(p.first);
+        ASSERT(key < destination.size());
+        destination[key].emplace_back(std::move(p.second));
+      }
+    });
+  }
+
+  size_t size() const {
+    return _size;
   }
 
   void clear() {

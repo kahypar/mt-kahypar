@@ -34,7 +34,8 @@ using TBBArena = typename AHypergraphWithTwoStreamingHypergraphs::TBBArena;
 TestHypergraph construct_test_hypergraph(const AHypergraphWithTwoStreamingHypergraphs& test) {
   return test.construct_hypergraph(7, { { 0, 2 }, { 0, 1, 3, 4 }, { 3, 4, 6 }, { 2, 5, 6 } },
                                    { 0, 0, 0, 1, 1, 1, 1 },
-                                   { 0, 0, 1, 1 });
+                                   { 0, 0, 1, 1 },
+                                   { 0, 0, 0, 1, 1, 1, 1 });
 }
 
 void assignPartitionIDs(TestHypergraph& hypergraph) {
@@ -1311,13 +1312,33 @@ TEST_F(AHypergraphWithTwoStreamingHypergraphs, StreamsCommunityIDsInParallelInto
   ASSERT_EQ(2, hypergraph.communityID(GLOBAL_ID(hypergraph, 5)));
   ASSERT_EQ(2, hypergraph.communityID(GLOBAL_ID(hypergraph, 6)));
 
-  ASSERT_EQ(0, hypergraph.communityNodeId(GLOBAL_ID(hypergraph, 0)));
-  ASSERT_EQ(1, hypergraph.communityNodeId(GLOBAL_ID(hypergraph, 1)));
-  ASSERT_EQ(2, hypergraph.communityNodeId(GLOBAL_ID(hypergraph, 2)));
-  ASSERT_EQ(0, hypergraph.communityNodeId(GLOBAL_ID(hypergraph, 3)));
-  ASSERT_EQ(1, hypergraph.communityNodeId(GLOBAL_ID(hypergraph, 4)));
-  ASSERT_EQ(0, hypergraph.communityNodeId(GLOBAL_ID(hypergraph, 5)));
-  ASSERT_EQ(1, hypergraph.communityNodeId(GLOBAL_ID(hypergraph, 6)));
+  std::set<HypernodeID> ids_comm_0 = {
+    hypergraph.communityNodeId(GLOBAL_ID(hypergraph, 0)),
+    hypergraph.communityNodeId(GLOBAL_ID(hypergraph, 1)),
+    hypergraph.communityNodeId(GLOBAL_ID(hypergraph, 2))
+   };
+  std::set<HypernodeID> ids_comm_1 = {
+    hypergraph.communityNodeId(GLOBAL_ID(hypergraph, 3)),
+    hypergraph.communityNodeId(GLOBAL_ID(hypergraph, 4))
+   };
+  std::set<HypernodeID> ids_comm_2 = {
+    hypergraph.communityNodeId(GLOBAL_ID(hypergraph, 5)),
+    hypergraph.communityNodeId(GLOBAL_ID(hypergraph, 6))
+   };
+
+  ASSERT_EQ(3, ids_comm_0.size());
+  ASSERT_EQ(2, ids_comm_1.size());
+  ASSERT_EQ(2, ids_comm_2.size());
+  for ( const HypernodeID id : ids_comm_0 ) {
+    ASSERT_LE(id, 3);
+  }
+  for ( const HypernodeID id : ids_comm_1 ) {
+    ASSERT_LE(id, 2);
+  }
+  for ( const HypernodeID id : ids_comm_2 ) {
+    ASSERT_LE(id, 2);
+  }
+
 
   ASSERT_EQ(3, hypergraph.numCommunityHypernodes(0));
   ASSERT_EQ(2, hypergraph.numCommunityHypernodes(1));
@@ -2041,6 +2062,233 @@ TEST_F(AHypergraphWithTwoStreamingHypergraphs, ResetPinCountInPartAfterResetPart
   }
 }
 
+TEST_F(AHypergraphWithTwoStreamingHypergraphs, ContractsCommunities1) {
+  TestHypergraph hypergraph = construct_test_hypergraph(*this);
+
+  auto contracted_hg = hypergraph.contract({1, 4, 1, 5, 5, 4, 5}, TBBArena::GLOBAL_TASK_GROUP);
+  TestHypergraph& c_hypergraph = contracted_hg.first;
+  parallel::scalable_vector<HypernodeID>& c_mapping = contracted_hg.second;
+  std::vector<HypernodeID> id = { GLOBAL_ID(c_hypergraph, 0),
+    GLOBAL_ID(c_hypergraph, 1), GLOBAL_ID(c_hypergraph, 2) };
+
+  // Verify Mapping
+  ASSERT_EQ(0, c_mapping[1]);
+  ASSERT_EQ(1, c_mapping[4]);
+  ASSERT_EQ(2, c_mapping[5]);
+
+  // Verify Stats
+  ASSERT_EQ(3, c_hypergraph.initialNumNodes());
+  ASSERT_EQ(1, c_hypergraph.initialNumEdges());
+  ASSERT_EQ(3, c_hypergraph.initialNumPins());
+  ASSERT_EQ(7, c_hypergraph.totalWeight());
+
+  // Verify Vertex Weights
+  ASSERT_EQ(2, c_hypergraph.nodeWeight(id[0]));
+  ASSERT_EQ(2, c_hypergraph.nodeWeight(id[1]));
+  ASSERT_EQ(3, c_hypergraph.nodeWeight(id[2]));
+
+  // Verify Hyperedge Weights
+  ASSERT_EQ(2, c_hypergraph.edgeWeight(c_hypergraph.globalEdgeID(0)));
+
+  // Verify Hypergraph Structure
+  verifyIterator<HyperedgeID>({ c_hypergraph.globalEdgeID(0) }, [&] {
+        return c_hypergraph.incidentEdges(id[0]);
+      });
+  verifyIterator<HyperedgeID>({ c_hypergraph.globalEdgeID(0) }, [&] {
+        return c_hypergraph.incidentEdges(id[1]);
+      });
+  verifyIterator<HyperedgeID>({ c_hypergraph.globalEdgeID(0) }, [&] {
+        return c_hypergraph.incidentEdges(id[2]);
+      });
+  verifyPinIterators(c_hypergraph, { c_hypergraph.globalEdgeID(0) },
+                     { { id[0], id[1], id[2] } });
+}
+
+TEST_F(AHypergraphWithTwoStreamingHypergraphs, ContractsCommunities2) {
+  TestHypergraph hypergraph = construct_test_hypergraph(*this);
+
+  auto contracted_hg = hypergraph.contract({1, 4, 1, 5, 5, 6, 5}, TBBArena::GLOBAL_TASK_GROUP);
+  TestHypergraph& c_hypergraph = contracted_hg.first;
+  parallel::scalable_vector<HypernodeID>& c_mapping = contracted_hg.second;
+  std::vector<HypernodeID> id = { GLOBAL_ID(c_hypergraph, 0),
+    GLOBAL_ID(c_hypergraph, 1), GLOBAL_ID(c_hypergraph, 2), GLOBAL_ID(c_hypergraph, 3) };
+
+  // Verify Mapping
+  ASSERT_EQ(0, c_mapping[1]);
+  ASSERT_EQ(1, c_mapping[4]);
+  ASSERT_EQ(2, c_mapping[5]);
+  ASSERT_EQ(3, c_mapping[6]);
+
+  // Verify Stats
+  ASSERT_EQ(4, c_hypergraph.initialNumNodes());
+  ASSERT_EQ(2, c_hypergraph.initialNumEdges());
+  ASSERT_EQ(6, c_hypergraph.initialNumPins());
+  ASSERT_EQ(7, c_hypergraph.totalWeight());
+
+  // Verify Vertex Weights
+  ASSERT_EQ(2, c_hypergraph.nodeWeight(id[0]));
+  ASSERT_EQ(1, c_hypergraph.nodeWeight(id[1]));
+  ASSERT_EQ(3, c_hypergraph.nodeWeight(id[2]));
+  ASSERT_EQ(1, c_hypergraph.nodeWeight(id[3]));
+
+  // Verify Hyperedge Weights
+  ASSERT_EQ(1, c_hypergraph.edgeWeight(c_hypergraph.globalEdgeID(0)));
+  ASSERT_EQ(1, c_hypergraph.edgeWeight(c_hypergraph.globalEdgeID(1)));
+
+  // Verify Hypergraph Structure
+  verifyIterator<HyperedgeID>({ c_hypergraph.globalEdgeID(0), c_hypergraph.globalEdgeID(1) }, [&] {
+        return c_hypergraph.incidentEdges(id[0]);
+      });
+  verifyIterator<HyperedgeID>({ c_hypergraph.globalEdgeID(0) }, [&] {
+        return c_hypergraph.incidentEdges(id[1]);
+      });
+  verifyIterator<HyperedgeID>({ c_hypergraph.globalEdgeID(0), c_hypergraph.globalEdgeID(1) }, [&] {
+        return c_hypergraph.incidentEdges(id[2]);
+      });
+  verifyIterator<HyperedgeID>({ c_hypergraph.globalEdgeID(1) }, [&] {
+        return c_hypergraph.incidentEdges(id[3]);
+      });
+  verifyPinIterators(c_hypergraph, { c_hypergraph.globalEdgeID(0), c_hypergraph.globalEdgeID(1) },
+                     { { id[0], id[1], id[2] }, { id[0], id[2], id[3] } });
+}
+
+TEST_F(AHypergraphWithTwoStreamingHypergraphs, ContractsCommunities3) {
+  TestHypergraph hypergraph = construct_test_hypergraph(*this);
+
+  auto contracted_hg = hypergraph.contract({2, 2, 0, 5, 5, 1, 1}, TBBArena::GLOBAL_TASK_GROUP);
+  TestHypergraph& c_hypergraph = contracted_hg.first;
+  parallel::scalable_vector<HypernodeID>& c_mapping = contracted_hg.second;
+  std::vector<HypernodeID> id = { GLOBAL_ID(c_hypergraph, 0),
+    GLOBAL_ID(c_hypergraph, 1), GLOBAL_ID(c_hypergraph, 2), GLOBAL_ID(c_hypergraph, 3) };
+
+  // Verify Mapping
+  ASSERT_EQ(1, c_mapping[0]);
+  ASSERT_EQ(3, c_mapping[1]);
+  ASSERT_EQ(0, c_mapping[2]);
+  ASSERT_EQ(2, c_mapping[5]);
+
+  // Verify Stats
+  ASSERT_EQ(4, c_hypergraph.initialNumNodes());
+  ASSERT_EQ(4, c_hypergraph.initialNumEdges());
+  ASSERT_EQ(8, c_hypergraph.initialNumPins());
+  ASSERT_EQ(7, c_hypergraph.totalWeight());
+
+  // Verify Vertex Weights
+  ASSERT_EQ(2, c_hypergraph.nodeWeight(id[0]));
+  ASSERT_EQ(1, c_hypergraph.nodeWeight(id[1]));
+  ASSERT_EQ(2, c_hypergraph.nodeWeight(id[2]));
+  ASSERT_EQ(2, c_hypergraph.nodeWeight(id[3]));
+
+  // Verify Hyperedge Weights
+  ASSERT_EQ(1, c_hypergraph.edgeWeight(c_hypergraph.globalEdgeID(0)));
+  ASSERT_EQ(1, c_hypergraph.edgeWeight(c_hypergraph.globalEdgeID(1)));
+  ASSERT_EQ(1, c_hypergraph.edgeWeight(c_hypergraph.globalEdgeID(2)));
+  ASSERT_EQ(1, c_hypergraph.edgeWeight(c_hypergraph.globalEdgeID(3)));
+
+  // Verify Hypergraph Structure
+  verifyIterator<HyperedgeID>({ c_hypergraph.globalEdgeID(0), c_hypergraph.globalEdgeID(1) }, [&] {
+        return c_hypergraph.incidentEdges(id[0]);
+      });
+  verifyIterator<HyperedgeID>({ c_hypergraph.globalEdgeID(0), c_hypergraph.globalEdgeID(2) }, [&] {
+        return c_hypergraph.incidentEdges(id[1]);
+      });
+  verifyIterator<HyperedgeID>({ c_hypergraph.globalEdgeID(1), c_hypergraph.globalEdgeID(3) }, [&] {
+        return c_hypergraph.incidentEdges(id[2]);
+      });
+  verifyIterator<HyperedgeID>({ c_hypergraph.globalEdgeID(2), c_hypergraph.globalEdgeID(3) }, [&] {
+        return c_hypergraph.incidentEdges(id[3]);
+      });
+  verifyPinIterators(c_hypergraph, { c_hypergraph.globalEdgeID(0),
+    c_hypergraph.globalEdgeID(1), c_hypergraph.globalEdgeID(2), c_hypergraph.globalEdgeID(3) },
+    { { id[0], id[1] }, { id[0], id[2] }, { id[1], id[3] }, { id[2], id[3] } });
+}
+
+TEST_F(AHypergraphWithTwoStreamingHypergraphs, ContractsCommunitiesWithDisabledHypernodes) {
+  TestHypergraph hypergraph = construct_test_hypergraph(*this);
+  hypergraph.disableHypernode(hypergraph.globalNodeID(0));
+  hypergraph.disableHypernode(hypergraph.globalNodeID(6));
+
+  auto contracted_hg = hypergraph.contract({0, 1, 1, 2, 2, 2, 6}, TBBArena::GLOBAL_TASK_GROUP);
+  TestHypergraph& c_hypergraph = contracted_hg.first;
+  parallel::scalable_vector<HypernodeID>& c_mapping = contracted_hg.second;
+  std::vector<HypernodeID> id = { GLOBAL_ID(c_hypergraph, 0), GLOBAL_ID(c_hypergraph, 1) };
+
+  // Verify Mapping
+  ASSERT_EQ(0, c_mapping[1]);
+  ASSERT_EQ(1, c_mapping[2]);
+
+  // Verify Stats
+  ASSERT_EQ(2, c_hypergraph.initialNumNodes());
+  ASSERT_EQ(1, c_hypergraph.initialNumEdges());
+  ASSERT_EQ(2, c_hypergraph.initialNumPins());
+  ASSERT_EQ(5, c_hypergraph.totalWeight());
+
+  // Verify Vertex Weights
+  ASSERT_EQ(2, c_hypergraph.nodeWeight(id[0]));
+  ASSERT_EQ(3, c_hypergraph.nodeWeight(id[1]));
+
+  // Verify Hyperedge Weights
+  ASSERT_EQ(2, c_hypergraph.edgeWeight(c_hypergraph.globalEdgeID(0)));
+
+  // Verify Hypergraph Structure
+  verifyIterator<HyperedgeID>({ c_hypergraph.globalEdgeID(0) }, [&] {
+        return c_hypergraph.incidentEdges(id[0]);
+      });
+  verifyIterator<HyperedgeID>({ c_hypergraph.globalEdgeID(0) }, [&] {
+        return c_hypergraph.incidentEdges(id[1]);
+      });
+  verifyPinIterators(c_hypergraph, { c_hypergraph.globalEdgeID(0) },
+                     { { id[0], id[1] } });
+}
+
+TEST_F(AHypergraphWithTwoStreamingHypergraphs, ContractsCommunitiesWithDisabledHyperedges) {
+  TestHypergraph hypergraph = construct_test_hypergraph(*this);
+  hypergraph.disableHyperedge(hypergraph.globalEdgeID(3));
+
+  auto contracted_hg = hypergraph.contract({0, 0, 0, 1, 1, 2, 3}, TBBArena::GLOBAL_TASK_GROUP);
+  TestHypergraph& c_hypergraph = contracted_hg.first;
+  parallel::scalable_vector<HypernodeID>& c_mapping = contracted_hg.second;
+  std::vector<HypernodeID> id = { GLOBAL_ID(c_hypergraph, 0), GLOBAL_ID(c_hypergraph, 1),
+    GLOBAL_ID(c_hypergraph, 2), GLOBAL_ID(c_hypergraph, 3) };
+
+  // Verify Mapping
+  ASSERT_EQ(0, c_mapping[0]);
+  ASSERT_EQ(1, c_mapping[1]);
+  ASSERT_EQ(2, c_mapping[2]);
+  ASSERT_EQ(3, c_mapping[3]);
+
+  // Verify Stats
+  ASSERT_EQ(4, c_hypergraph.initialNumNodes());
+  ASSERT_EQ(2, c_hypergraph.initialNumEdges());
+  ASSERT_EQ(4, c_hypergraph.initialNumPins());
+  ASSERT_EQ(7, c_hypergraph.totalWeight());
+
+  // Verify Vertex Weights
+  ASSERT_EQ(3, c_hypergraph.nodeWeight(id[0]));
+  ASSERT_EQ(2, c_hypergraph.nodeWeight(id[1]));
+  ASSERT_EQ(1, c_hypergraph.nodeWeight(id[2]));
+  ASSERT_EQ(1, c_hypergraph.nodeWeight(id[3]));
+
+  // Verify Hyperedge Weights
+  ASSERT_EQ(1, c_hypergraph.edgeWeight(c_hypergraph.globalEdgeID(0)));
+  ASSERT_EQ(1, c_hypergraph.edgeWeight(c_hypergraph.globalEdgeID(1)));
+
+  // Verify Hypergraph Structure
+  verifyIterator<HyperedgeID>({ c_hypergraph.globalEdgeID(0) }, [&] {
+        return c_hypergraph.incidentEdges(id[0]);
+      });
+  verifyIterator<HyperedgeID>({ c_hypergraph.globalEdgeID(0), c_hypergraph.globalEdgeID(1) }, [&] {
+        return c_hypergraph.incidentEdges(id[1]);
+      });
+  verifyIterator<HyperedgeID>({ }, [&] {
+        return c_hypergraph.incidentEdges(id[2]);
+      });
+  verifyIterator<HyperedgeID>({ c_hypergraph.globalEdgeID(1) }, [&] {
+        return c_hypergraph.incidentEdges(id[3]);
+      });
+  verifyPinIterators(c_hypergraph, { c_hypergraph.globalEdgeID(0), c_hypergraph.globalEdgeID(1) },
+                     { { id[0], id[1] }, { id[1], id[3] } });
+}
 
 }  // namespace ds
 }  // namespace mt_kahypar
