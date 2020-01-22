@@ -1120,7 +1120,14 @@ class Hypergraph {
   }
 
   /*!
+   * Contracts a given community structure. All vertices with the same label
+   * are collapsed into the same vertex. The resulting single-pin and parallel
+   * hyperedges are removed from the contracted graph. The function returns
+   * the contracted hypergraph and a mapping which specifies a mapping from
+   * community label (given in 'communities') to a vertex in the coarse hypergraph.
    *
+   * \param communities Community structure that should be contracted
+   * \param task_group_id Task Group ID
    */
   std::pair<Self, parallel::scalable_vector<HypernodeID>> contract(
     const parallel::scalable_vector<HypernodeID>& communities,
