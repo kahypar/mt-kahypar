@@ -153,6 +153,19 @@ class Randomize {
     std::shuffle(vector.begin() + i, vector.begin() + j, _rand[cpu_id].getGenerator());
   }
 
+  template <typename T>
+  void parallelShuffleVector(parallel::scalable_vector<T>& vector) {
+    const size_t P = std::thread::hardware_concurrency();
+    const size_t N = vector.size();
+    const size_t step = N / P + ( N % P != 0 ? 1 : 0 );
+    tbb::parallel_for(0UL, P, [&](const size_t i) {
+      const size_t start = i * step;
+      const size_t end = std::min( ( i + 1 ) * step, N);
+      const int cpu_id = sched_getcpu();
+      std::shuffle(vector.begin() + start, vector.begin() + end, _rand[cpu_id].getGenerator());
+    });
+  }
+
   // returns uniformly random int from the interval [low, high]
   int getRandomInt(int low, int high, int cpu_id) {
     ASSERT(cpu_id < (int)std::thread::hardware_concurrency());

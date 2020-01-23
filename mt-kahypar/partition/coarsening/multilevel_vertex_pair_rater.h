@@ -81,8 +81,8 @@ class MultilevelVertexPairRater {
     _hg(hypergraph),
     _context(context),
     _uf(uf),
-    _local_tmp_ratings(_hg.initialNumNodes()),
-    _already_matched(_hg.initialNumNodes()) { }
+    _local_tmp_ratings(hypergraph.initialNumNodes()),
+    _already_matched(hypergraph.initialNumNodes()) { }
 
   MultilevelVertexPairRater(const MultilevelVertexPairRater&) = delete;
   MultilevelVertexPairRater & operator= (const MultilevelVertexPairRater &) = delete;
@@ -102,7 +102,7 @@ class MultilevelVertexPairRater {
           const HypernodeID original_v_id = _hg.originalNodeID(v);
           if ( u != v && belowThresholdNodeWeight(original_u_id,
                original_v_id, weight_u, _uf.weight(original_v_id)) ) {
-            ASSERT(original_v_id < tmp_ratings.size());
+            ASSERT(original_v_id < _hg.initialNumNodes());
             tmp_ratings[original_v_id] += score;
           }
         }

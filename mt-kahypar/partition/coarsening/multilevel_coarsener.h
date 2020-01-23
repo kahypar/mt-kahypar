@@ -57,7 +57,7 @@ class MultilevelCoarsenerT : public ICoarsener {
   using Rating = typename Rater::Rating;
 
 
-  static constexpr bool debug = false;
+  static constexpr bool debug = true;
   static constexpr HypernodeID kInvalidHypernode = std::numeric_limits<HypernodeID>::max();
 
  public:
@@ -67,7 +67,7 @@ class MultilevelCoarsenerT : public ICoarsener {
     _task_group_id(task_group_id),
     _uf(hypergraph),
     _rater(hypergraph, context, _uf),
-    _progress_bar(hypergraph.initialNumNodes(), 0, false),
+    // _progress_bar(hypergraph.initialNumNodes(), 0, false),
     _enable_randomization(true) { }
 
   MultilevelCoarsenerT(const MultilevelCoarsenerT&) = delete;
@@ -83,11 +83,70 @@ class MultilevelCoarsenerT : public ICoarsener {
 
  private:
   void coarsenImpl() override {
+    int pass_nr = 0;
+    parallel::scalable_vector<HypernodeID> current_vertices;
+    while ( _hg.initialNumNodes() > _context.coarsening.contraction_limit ) {
+      DBG << V(pass_nr) << V(_hg.initialNumNodes()) << V(_hg.initialNumEdges());
 
+      // Random shuffle vertices of current hypergraph
+      current_vertices.clear();
+      for ( const HypernodeID& hn : _hg.nodes() ) {
+        current_vertices.emplace_back(hn);
+      }
+      utils::Randomize::instance().parallelShuffleVector(current_vertices);
+
+      // We iterate in parallel over all vertices of the hypergraph and compute its contraction
+      // partner. The vertices are processed on the numa node which they are placed on.
+      // Matched vertices are linked in a concurrent union find data structure, that also aggregates
+      // weights of the resulting clusters and keep track of the number of nodes left, if we would
+      // contract all matched vertices.
+      _rater.resetMatches();
+      const HypernodeID num_hns_before_pass = _uf.numDistinctSets();
+      const HypernodeID hierarchy_contraction_limit = hierarchyContractionLimit();
+      DBG << V(_hg.initialNumNodes()) << V(hierarchy_contraction_limit);
+      TBB::instance().execute_parallel_on_all_numa_nodes(_task_group_id, [&](const int node) {
+        tbb::parallel_for(0UL, _hg.initialNumNodes(node), [&, node](const HypernodeID id) {
+          const HypernodeID hn = StreamingHyperGraph::get_global_node_id(node, id);
+          if ( _uf.numDistinctSets() > hierarchy_contraction_limit &&
+               _hg.nodeIsEnabled(hn) &&
+               !_hg.isHighDegreeVertex(hn) ) {
+            const Rating rating = _rater.rate(hn);
+            if ( rating.target != kInvalidHypernode ) {
+              _rater.markAsMatched(hn);
+              _rater.markAsMatched(rating.target);
+              _uf.link(_hg.originalNodeID(hn), _hg.originalNodeID(rating.target));
+            }
+          }
+        });
+      });
+      DBG << V(_uf.numDistinctSets());
+
+      if ( num_hns_before_pass == _uf.numDistinctSets() ) {
+        break;
+      }
+
+      // Compute community structure that is given by the representatives of each
+      // node in the union find data structure.
+      parallel::scalable_vector<HypernodeID> communities(_hg.initialNumNodes());
+      tbb::parallel_for(0UL, _hg.initialNumNodes(), [&](const HypernodeID id) {
+        communities[id] = _uf.find(id);
+      });
+
+      // TODO(heuer): Contract Communities here
+
+      break;
+      _uf.reset(_hg);
+      ++pass_nr;
+    }
   }
 
   bool uncoarsenImpl(std::unique_ptr<IRefiner>&) override {
     return true;
+  }
+
+  HypernodeID hierarchyContractionLimit() const {
+    return std::max( static_cast<HypernodeID>( static_cast<double>(_hg.initialNumNodes()) /
+      _context.coarsening.multilevel_shrink_factor ), _context.coarsening.contraction_limit );
   }
 
   HyperGraph& _hg;
@@ -95,7 +154,7 @@ class MultilevelCoarsenerT : public ICoarsener {
   const TaskGroupID _task_group_id;
   UnionFind _uf;
   Rater _rater;
-  utils::ProgressBar _progress_bar;
+  // utils::ProgressBar _progress_bar;
   bool _enable_randomization;
 };
 

@@ -2103,6 +2103,10 @@ class StreamingHypergraph {
 
   // ####################### Helper Functions #######################
 
+  KAHYPAR_ATTRIBUTE_ALWAYS_INLINE static HypernodeID get_global_node_id(const int node, const size_t node_pos) {
+    return (((HyperedgeID)node) << NUMA_NODE_INDENTIFIER) | node_pos;
+  }
+
   KAHYPAR_ATTRIBUTE_ALWAYS_INLINE static HyperedgeID get_global_edge_id(const int node, const size_t edge_pos) {
     return (((HyperedgeID)node) << NUMA_NODE_INDENTIFIER) | edge_pos;
   }
