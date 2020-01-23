@@ -86,20 +86,20 @@ inline std::ostream & operator<< (std::ostream& str, const CommunityDetectionPar
 }
 
 struct CommunityRedistributionParameters {
-  bool use_community_redistribution = false;
   CommunityAssignmentObjective assignment_objective = CommunityAssignmentObjective::UNDEFINED;
   CommunityAssignmentStrategy assignment_strategy = CommunityAssignmentStrategy::UNDEFINED;
 };
 
 inline std::ostream & operator<< (std::ostream& str, const CommunityRedistributionParameters& params) {
   str << "  Community Detection Parameters:" << std::endl;
-  str << "    Use Community Redistribution:     " << std::boolalpha << params.use_community_redistribution << std::endl;
   str << "    Community Assignment Objective:   " << params.assignment_objective << std::endl;
   str << "    Community Assignment Strategy:    " << params.assignment_strategy << std::endl;
   return str;
 }
 
 struct PreprocessingParameters {
+  bool use_community_detection = false;
+  bool use_community_redistribution = false;
   bool use_community_structure_from_file = false;
   CommunityDetectionParameters community_detection = { };
   CommunityRedistributionParameters community_redistribution = { };
@@ -107,11 +107,15 @@ struct PreprocessingParameters {
 
 inline std::ostream & operator<< (std::ostream& str, const PreprocessingParameters& params) {
   str << "Preprocessing Parameters:" << std::endl;
+  str << "  Use Community Detection:            " << std::boolalpha << params.use_community_detection << std::endl;
+  str << "  Use Community Redistribution:       " << std::boolalpha << params.use_community_redistribution << std::endl;
   str << "  Use Community Structure from File:  " << std::boolalpha << params.use_community_structure_from_file << std::endl;
-  if (!params.use_community_structure_from_file) {
+  if (!params.use_community_structure_from_file && params.use_community_detection) {
     str << std::endl << params.community_detection;
   }
-  str << std::endl << params.community_redistribution;
+  if ( params.use_community_redistribution ) {
+    str << std::endl << params.community_redistribution;
+  }
   return str;
 }
 
@@ -323,6 +327,24 @@ class Context {
                   refinement.label_propagation.algorithm,
                   LabelPropagationAlgorithm::label_propagation_km1);
     }
+
+    if ( !preprocessing.use_community_detection ) {
+      if ( coarsening.algorithm == CoarseningAlgorithm::community_coarsener ) {
+        ALGO_SWITCH("Coarsening algorithm" << coarsening.algorithm << "only works if community detection is enabled."
+                                           << "Do you want to enable community detection (Y/N)?",
+                    "Coarsening with" << coarsening.algorithm
+                                      << "without community detection is not possible!",
+                    preprocessing.use_community_detection,
+                    true);
+      } else if ( preprocessing.use_community_redistribution ) {
+        ALGO_SWITCH("Community redistribution only works if community detection is enabled."
+                    << "Do you want to enable community detection (Y/N)?",
+                    "Community redistribution without community detection is not possible!",
+                    preprocessing.use_community_detection,
+                    true);
+      }
+    }
+
 
     if ( refinement.label_propagation.localized ) {
       // If we use localized label propagation, we want to execute LP on each level

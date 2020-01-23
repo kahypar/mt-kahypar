@@ -181,56 +181,6 @@ inline void Partitioner::sanitize(Hypergraph& hypergraph, const Context& context
 }
 
 inline void Partitioner::preprocess(Hypergraph& hypergraph, const Context& context) {
-  io::printTopLevelPreprocessingBanner(context);
-
-  utils::Timer::instance().start_timer("community_detection", "Community Detection");
-  utils::Timer::instance().start_timer("perform_community_detection", "Perform Community Detection");
-  ds::Clustering communities(0);
-  if (!context.preprocessing.use_community_structure_from_file) {
-    ds::AdjListGraph graph = ds::AdjListStarExpansion::constructGraph(hypergraph, context, true);
-    communities = ParallelModularityLouvain::run(graph, context);   // TODO(lars): give switch for PLM/SLM
-    ds::AdjListStarExpansion::restrictClusteringToHypernodes(hypergraph, communities);
-    _hypergraph_sparsifier.assignAllDegreeZeroHypernodesToSameCommunity(hypergraph, communities);
-  } else {
-    io::readPartitionFile(context.partition.graph_community_filename, communities);
-  }
-  utils::Timer::instance().stop_timer("perform_community_detection");
-
-  // Stream community ids into hypergraph
-  utils::Timer::instance().start_timer("stream_community_ids", "Stream Community IDs");
-  tbb::parallel_for(tbb::blocked_range<HypernodeID>(0UL, hypergraph.initialNumNodes()),
-                    [&](const tbb::blocked_range<HypernodeID>& range) {
-        for (HypernodeID id = range.begin(); id < range.end(); ++id) {
-          const HypernodeID hn = hypergraph.globalNodeID(id);
-          hypergraph.setCommunityID(hn, communities[id]);
-        }
-      });
-  utils::Timer::instance().stop_timer("stream_community_ids");
-
-  // Initialize Communities
-  utils::Timer::instance().start_timer("initialize_communities", "Initialize Communities");
-  hypergraph.initializeCommunities();
-  utils::Timer::instance().stop_timer("initialize_communities");
-
-  utils::Stats::instance().add_stat("num_communities", hypergraph.numCommunities());
-  utils::Timer::instance().stop_timer("community_detection");
-
-  if (context.partition.verbose_output) {
-    io::printCommunityInformation(hypergraph);
-    io::printStripe();
-  }
-
-  // Redistribute Hypergraph based on communities
-  utils::Timer::instance().start_timer("redistribution", "Redistribution");
-  redistribution(hypergraph, context);
-  utils::Timer::instance().stop_timer("redistribution");
-}
-
-inline void Partitioner::redistribution(Hypergraph& hypergraph, const Context& context) {
-  std::unique_ptr<preprocessing::ICommunityAssignment> community_assignment =
-    RedistributionFactory::getInstance().createObject(
-      context.preprocessing.community_redistribution.assignment_strategy, hypergraph, context);
-
   for (int node = 0; node < TBBNumaArena::instance().num_used_numa_nodes(); ++node) {
     utils::Stats::instance().add_stat("initial_hns_on_numa_node_" + std::to_string(node),
                                       (int64_t)hypergraph.initialNumNodes(node));
@@ -240,8 +190,67 @@ inline void Partitioner::redistribution(Hypergraph& hypergraph, const Context& c
                                       (int64_t)hypergraph.initialNumPins(node));
   }
 
+  if ( context.preprocessing.use_community_detection ) {
+    io::printTopLevelPreprocessingBanner(context);
+
+    utils::Timer::instance().start_timer("community_detection", "Community Detection");
+    utils::Timer::instance().start_timer("perform_community_detection", "Perform Community Detection");
+    ds::Clustering communities(0);
+    if (!context.preprocessing.use_community_structure_from_file) {
+      ds::AdjListGraph graph = ds::AdjListStarExpansion::constructGraph(hypergraph, context, true);
+      communities = ParallelModularityLouvain::run(graph, context);   // TODO(lars): give switch for PLM/SLM
+      ds::AdjListStarExpansion::restrictClusteringToHypernodes(hypergraph, communities);
+      _hypergraph_sparsifier.assignAllDegreeZeroHypernodesToSameCommunity(hypergraph, communities);
+    } else {
+      io::readPartitionFile(context.partition.graph_community_filename, communities);
+    }
+    utils::Timer::instance().stop_timer("perform_community_detection");
+
+    // Stream community ids into hypergraph
+    utils::Timer::instance().start_timer("stream_community_ids", "Stream Community IDs");
+    tbb::parallel_for(tbb::blocked_range<HypernodeID>(0UL, hypergraph.initialNumNodes()),
+                      [&](const tbb::blocked_range<HypernodeID>& range) {
+          for (HypernodeID id = range.begin(); id < range.end(); ++id) {
+            const HypernodeID hn = hypergraph.globalNodeID(id);
+            hypergraph.setCommunityID(hn, communities[id]);
+          }
+        });
+    utils::Timer::instance().stop_timer("stream_community_ids");
+
+    // Initialize Communities
+    utils::Timer::instance().start_timer("initialize_communities", "Initialize Communities");
+    hypergraph.initializeCommunities();
+    utils::Timer::instance().stop_timer("initialize_communities");
+
+    utils::Stats::instance().add_stat("num_communities", hypergraph.numCommunities());
+    utils::Timer::instance().stop_timer("community_detection");
+
+    if (context.partition.verbose_output) {
+      io::printCommunityInformation(hypergraph);
+      io::printStripe();
+    }
+
+    // Redistribute Hypergraph based on communities
+    utils::Timer::instance().start_timer("redistribution", "Redistribution");
+    redistribution(hypergraph, context);
+    utils::Timer::instance().stop_timer("redistribution");
+  } else {
+    // Per default all communities are assigned to community 0
+    utils::Timer::instance().disable();
+    hypergraph.initializeCommunities();
+    std::vector<PartitionID> community_node_mapping(1, 0);
+    hypergraph.setCommunityNodeMapping(std::move(community_node_mapping));
+    utils::Timer::instance().enable();
+  }
+}
+
+inline void Partitioner::redistribution(Hypergraph& hypergraph, const Context& context) {
+  std::unique_ptr<preprocessing::ICommunityAssignment> community_assignment =
+    RedistributionFactory::getInstance().createObject(
+      context.preprocessing.community_redistribution.assignment_strategy, hypergraph, context);
+
   std::vector<PartitionID> community_node_mapping = community_assignment->computeAssignment();
-  if (context.preprocessing.community_redistribution.use_community_redistribution &&
+  if (context.preprocessing.use_community_redistribution &&
       TBBNumaArena::instance().num_used_numa_nodes() > 1) {
     HyperedgeWeight remote_pin_count_before = metrics::remotePinCount(hypergraph);
     hypergraph = preprocessing::CommunityRedistributor::redistribute(hypergraph, context.partition.k, community_node_mapping);

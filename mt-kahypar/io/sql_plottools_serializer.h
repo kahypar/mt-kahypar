@@ -55,12 +55,13 @@ static inline std::string serialize(const Hypergraph& hypergraph,
         << " max_part_weight=" << context.partition.max_part_weights[0]
         << " total_graph_weight=" << hypergraph.totalWeight()
         << " use_community_structure_from_file=" << std::boolalpha << context.preprocessing.use_community_structure_from_file
+        << " use_community_detection=" << std::boolalpha << context.preprocessing.use_community_detection
         << " community_load_balancing_strategy=" << context.preprocessing.community_detection.load_balancing_strategy
         << " community_size_constraint_factor=" << context.preprocessing.community_detection.size_constraint_factor
         << " community_edge_weight_function=" << context.preprocessing.community_detection.edge_weight_function
         << " community_max_pass_iterations=" << context.preprocessing.community_detection.max_pass_iterations
         << " community_min_eps_improvement=" << context.preprocessing.community_detection.min_eps_improvement
-        << " use_community_redistribution=" << std::boolalpha << context.preprocessing.community_redistribution.use_community_redistribution
+        << " use_community_redistribution=" << std::boolalpha << context.preprocessing.use_community_redistribution
         << " community_redistribution_assignment_strategy=" << context.preprocessing.community_redistribution.assignment_strategy
         << " community_redistribution_assignment_objective=" << context.preprocessing.community_redistribution.assignment_objective
         << " coarsening_algorithm=" << context.coarsening.algorithm

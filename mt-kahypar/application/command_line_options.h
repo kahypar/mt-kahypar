@@ -125,6 +125,9 @@ po::options_description createPreprocessingOptionsDescription(Context& context, 
     ("p-use-community-structure-from-file",
     po::value<bool>(&context.preprocessing.use_community_structure_from_file)->value_name("<bool>"),
     "If true, than community structure is read from file <path-to-hypergraph>/<hypergraph-name>.community")
+    ("p-enable-community-detection",
+    po::value<bool>(&context.preprocessing.use_community_detection)->value_name("<bool>"),
+    "If true, community detection is used as preprocessing step to guide contractions in coarsening phase")
     ("p-community-load-balancing-strategy",
     po::value<std::string>()->value_name("<string>")->notifier(
       [&](const std::string& strategy) {
@@ -155,8 +158,8 @@ po::options_description createPreprocessingOptionsDescription(Context& context, 
     po::value<long double>(&context.preprocessing.community_detection.min_eps_improvement)->value_name("<long double>"),
     "Minimum improvement of quality during a louvain pass which leads to further passes")
     ("p-enable-community-redistribution",
-    po::value<bool>(&context.preprocessing.community_redistribution.use_community_redistribution)->value_name("<bool>"),
-    "If true, hypergraph is redistributed based on community detection")
+    po::value<bool>(&context.preprocessing.use_community_redistribution)->value_name("<bool>"),
+    "If true, hypergraph is redistributed based on community information to numa nodes")
     ("p-community-redistribution-objective",
     po::value<std::string>()->value_name("<string>")->notifier(
       [&](const std::string& objective) {
