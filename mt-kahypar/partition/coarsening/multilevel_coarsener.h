@@ -49,6 +49,14 @@ class MultilevelCoarsenerT : public ICoarsener {
   using TBB = typename TypeTraits::TBB;
   using HwTopology = typename TypeTraits::HwTopology;
 
+  using UnionFind = ds::ConcurrentUnionFind<HyperGraph>;
+  using Rater = MultilevelVertexPairRater<TypeTraits,
+                                          ScorePolicy,
+                                          HeavyNodePenaltyPolicy,
+                                          AcceptancePolicy>;
+  using Rating = typename Rater::Rating;
+
+
   static constexpr bool debug = false;
   static constexpr HypernodeID kInvalidHypernode = std::numeric_limits<HypernodeID>::max();
 
@@ -57,6 +65,8 @@ class MultilevelCoarsenerT : public ICoarsener {
     _hg(hypergraph),
     _context(context),
     _task_group_id(task_group_id),
+    _uf(hypergraph),
+    _rater(hypergraph, context, _uf),
     _progress_bar(hypergraph.initialNumNodes(), 0, false),
     _enable_randomization(true) { }
 
@@ -83,6 +93,8 @@ class MultilevelCoarsenerT : public ICoarsener {
   HyperGraph& _hg;
   const Context& _context;
   const TaskGroupID _task_group_id;
+  UnionFind _uf;
+  Rater _rater;
   utils::ProgressBar _progress_bar;
   bool _enable_randomization;
 };
