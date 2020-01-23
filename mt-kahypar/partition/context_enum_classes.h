@@ -68,6 +68,7 @@ enum class CommunityLoadBalancingStrategy : uint8_t {
 
 enum class CoarseningAlgorithm : uint8_t {
   community_coarsener,
+  multilevel_coarsener,
   UNDEFINED
 };
 
@@ -189,6 +190,7 @@ std::ostream & operator<< (std::ostream& os, const CommunityLoadBalancingStrateg
 std::ostream & operator<< (std::ostream& os, const CoarseningAlgorithm& algo) {
   switch (algo) {
     case CoarseningAlgorithm::community_coarsener: return os << "community_coarsener";
+    case CoarseningAlgorithm::multilevel_coarsener: return os << "multilevel_coarsener";
     case CoarseningAlgorithm::UNDEFINED: return os << "UNDEFINED";
       // omit default case to trigger compiler warning for missing cases
   }
@@ -333,6 +335,8 @@ static CommunityLoadBalancingStrategy communityLoadBalancingStrategyFromString(c
 static CoarseningAlgorithm coarseningAlgorithmFromString(const std::string& type) {
   if (type == "community_coarsener") {
     return CoarseningAlgorithm::community_coarsener;
+  } else if (type == "multilevel_coarsener") {
+    return CoarseningAlgorithm::multilevel_coarsener;
   }
   ERROR("Illegal option: " + type);
   return CoarseningAlgorithm::UNDEFINED;

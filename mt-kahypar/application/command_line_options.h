@@ -185,7 +185,8 @@ po::options_description createCoarseningOptionsDescription(Context& context,
       context.coarsening.algorithm = mt_kahypar::coarseningAlgorithmFromString(ctype);
     }),
     "Coarsening Algorithm:\n"
-    " - community_coarsener")
+    " - community_coarsener\n"
+    " - multilevel_coarsener")
     ("c-s",
     po::value<double>(&context.coarsening.max_allowed_weight_multiplier)->value_name("<double>"),
     "The maximum weight of a vertex in the coarsest hypergraph H is:\n"
