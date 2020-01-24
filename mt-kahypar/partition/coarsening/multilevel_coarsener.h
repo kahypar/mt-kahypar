@@ -90,20 +90,27 @@ class MultilevelCoarsenerT : public ICoarsenerT<TypeTraits>,
 
     int pass_nr = 0;
     const HypernodeID initial_num_nodes = Base::currentNumNodes();
-    parallel::scalable_vector<HypernodeID> current_vertices;
+    parallel::scalable_vector<parallel::scalable_vector<HypernodeID>> current_vertices(2);
     while ( Base::currentNumNodes() > _context.coarsening.contraction_limit ) {
       HyperGraph& current_hg = Base::currentHypergraph();
       DBG << V(pass_nr) << V(current_hg.initialNumNodes()) << V(current_hg.initialNumEdges());
 
       // Random shuffle vertices of current hypergraph
       utils::Timer::instance().start_timer("shuffle_vertices", "Shuffle Vertices");
-      current_vertices.resize(current_hg.initialNumNodes());
+      for ( int node = 0; node < TBB::instance().num_used_numa_nodes(); ++node ) {
+        current_vertices[node].resize(current_hg.initialNumNodes());
+      }
       tbb::parallel_for(0UL, current_hg.initialNumNodes(), [&](const HypernodeID id) {
-        ASSERT(id < current_vertices.size());
-        current_vertices[id] = current_hg.globalNodeID(id);
+        const HypernodeID hn = current_hg.globalNodeID(id);
+        const int node = StreamingHyperGraph::get_numa_node_of_vertex(hn);
+        const HypernodeID local_id = StreamingHyperGraph::get_local_node_id_of_vertex(hn);
+        ASSERT(local_id < current_vertices.size());
+        current_vertices[node][local_id] = hn;
       });
       if ( _context.coarsening.shuffle_vertices ) {
-        utils::Randomize::instance().parallelShuffleVector(current_vertices);
+        for ( int node = 0; node < TBB::instance().num_used_numa_nodes(); ++node ) {
+          utils::Randomize::instance().parallelShuffleVector(current_vertices[node]);
+        }
       }
       utils::Timer::instance().stop_timer("shuffle_vertices");
 
@@ -119,10 +126,8 @@ class MultilevelCoarsenerT : public ICoarsenerT<TypeTraits>,
       DBG << V(current_hg.initialNumNodes()) << V(hierarchy_contraction_limit);
       TBB::instance().execute_parallel_on_all_numa_nodes(_task_group_id, [&](const int node) {
         tbb::parallel_for(0UL, current_hg.initialNumNodes(node), [&, node](const HypernodeID id) {
-          const HypernodeID original_id = current_hg.originalNodeID(
-            StreamingHyperGraph::get_global_node_id(node, id));
-          ASSERT(id < current_vertices.size());
-          const HypernodeID hn = current_vertices[original_id];
+          ASSERT(id < current_vertices[node].size());
+          const HypernodeID hn = current_vertices[node][id];
           // We perform rating if ...
           //  1.) The contraction limit of the current level is not reached
           //  2.) Vertex hn is enabled
@@ -138,7 +143,7 @@ class MultilevelCoarsenerT : public ICoarsenerT<TypeTraits>,
             if ( rating.target != kInvalidHypernode ) {
               _rater.markAsMatched(current_hg, hn);
               _rater.markAsMatched(current_hg, rating.target);
-              _uf.link(original_id, current_hg.originalNodeID(rating.target));
+              _uf.link(current_hg.originalNodeID(hn), current_hg.originalNodeID(rating.target));
             }
           }
         });

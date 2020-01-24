@@ -2114,6 +2114,10 @@ class StreamingHypergraph {
     return (((HyperedgeID)node) << NUMA_NODE_INDENTIFIER) | edge_pos;
   }
 
+  KAHYPAR_ATTRIBUTE_ALWAYS_INLINE static HypernodeID get_local_node_id_of_vertex(const HypernodeID u) {
+    return ((1UL << NUMA_NODE_INDENTIFIER) - 1) & u;
+  }
+
   KAHYPAR_ATTRIBUTE_ALWAYS_INLINE static int get_numa_node_of_vertex(const HypernodeID u) {
     return (int)(u >> NUMA_NODE_INDENTIFIER);
   }
@@ -2576,10 +2580,6 @@ class StreamingHypergraph {
   KAHYPAR_ATTRIBUTE_ALWAYS_INLINE HypernodeID get_global_node_id(const HypernodeID local_id) const {
     const HypernodeID numa_node = static_cast<HypernodeID>(std::max(_node, 0));
     return (numa_node << NUMA_NODE_INDENTIFIER) | local_id;
-  }
-
-  KAHYPAR_ATTRIBUTE_ALWAYS_INLINE static HypernodeID get_local_node_id_of_vertex(const HypernodeID u) {
-    return ((1UL << NUMA_NODE_INDENTIFIER) - 1) & u;
   }
 
   KAHYPAR_ATTRIBUTE_ALWAYS_INLINE static const Self& hypergraph_of_vertex(const HypernodeID u,
