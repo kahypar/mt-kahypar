@@ -1875,8 +1875,8 @@ TEST_F(AHypergraphWithTwoStreamingHypergraphs, ExtractPartZeroOfPartitionAsHyper
   ASSERT_EQ(0, copy_hg.communityID(copy_id[0]));
   ASSERT_EQ(1, copy_hg.communityID(copy_id[1]));
 
-  verifyPinIterators(copy_hg, { copy_hg.globalEdgeID(0), copy_hg.globalEdgeID(1), copy_hg.globalEdgeID(2) },
-                     { { copy_id[1] }, { copy_id[1] }, { copy_id[0], copy_id[1] }});
+  verifyPinIterators(copy_hg, { copy_hg.globalEdgeID(0) },
+                     { { copy_id[0], copy_id[1] }});
 }
 
 TEST_F(AHypergraphWithTwoStreamingHypergraphs, ExtractPartOneOfPartitionAsHypergraphWithCutNetSplitting) {
@@ -1902,8 +1902,8 @@ TEST_F(AHypergraphWithTwoStreamingHypergraphs, ExtractPartOneOfPartitionAsHyperg
   ASSERT_EQ(0, copy_hg.communityID(copy_id[0]));
   ASSERT_EQ(1, copy_hg.communityID(copy_id[1]));
 
-  verifyPinIterators(copy_hg, { copy_hg.globalEdgeID(0), copy_hg.globalEdgeID(1), copy_hg.globalEdgeID(2) },
-                     { { copy_id[0] }, { copy_id[1] }, { copy_id[0], copy_id[1] }});
+  verifyPinIterators(copy_hg, { copy_hg.globalEdgeID(0) },
+                     { { copy_id[0], copy_id[1] }});
 }
 
 TEST_F(AHypergraphWithTwoStreamingHypergraphs, ExtractPartOneOfPartitionAsHypergraphWithCutNetSplittingAfterContraction) {
@@ -1927,8 +1927,7 @@ TEST_F(AHypergraphWithTwoStreamingHypergraphs, ExtractPartOneOfPartitionAsHyperg
 
   ASSERT_EQ(0, copy_hg.communityID(copy_id[0]));
 
-  verifyPinIterators(copy_hg, { copy_hg.globalEdgeID(0), copy_hg.globalEdgeID(1) },
-                     { { copy_id[0] }, { copy_id[0] } });
+  verifyPinIterators(copy_hg, { }, { });
 }
 
 TEST_F(AHypergraphWithTwoStreamingHypergraphs, ExtractPartZeroOfPartitionAsHypergraphWithCutNetRemoval) {
@@ -2011,8 +2010,8 @@ TEST_F(AHypergraphWithTwoStreamingHypergraphs, ExtractPartOneOfPartitionAsHyperg
   ASSERT_EQ(0, copy_hg.communityID(copy_id[0]));
   ASSERT_EQ(1, copy_hg.communityID(copy_id[1]));
 
-  verifyPinIterators(copy_hg, { copy_hg.globalEdgeID(0), copy_hg.globalEdgeID(1) },
-                     { { copy_id[0], copy_id[1] }, { copy_id[1] }});
+  verifyPinIterators(copy_hg, { copy_hg.globalEdgeID(0) },
+                     { { copy_id[0], copy_id[1] } });
 }
 
 TEST_F(AHypergraphWithTwoStreamingHypergraphs, ResetPartWeightAndSizeAfterResetPartitioning) {

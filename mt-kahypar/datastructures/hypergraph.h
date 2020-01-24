@@ -25,6 +25,7 @@
 #include <set>
 #include <type_traits>
 
+#include "tbb/parallel_invoke.h"
 #include "tbb/enumerable_thread_specific.h"
 
 #include "kahypar/meta/mandatory.h"
@@ -1131,13 +1132,16 @@ class Hypergraph {
    */
   std::pair<Self, parallel::scalable_vector<HypernodeID>> contract(
     const parallel::scalable_vector<HypernodeID>& communities,
-    const TaskGroupID task_group_id) {
+    const TaskGroupID task_group_id) const {
     ASSERT(communities.size() == _num_hypernodes);
     HEAVY_COARSENING_ASSERT(community_contraction_precondition_assertions(communities));
+    const bool timer_was_enabled = utils::Timer::instance().isEnabled();
+    utils::Timer::instance().disable();
 
     // #################### STAGE 1 ####################
     // Remapping of vertex ids to a consecutive range of ids between [0,|V'|) where
     // V' is the set of all vertices in the contracted hypergraph
+    utils::Timer::instance().start_timer("compute_cluster_mapping", "Compute Cluster Mapping", false, timer_was_enabled);
     parallel::scalable_vector<HypernodeID> mapping(_num_hypernodes, kInvalidHypernode);
     std::vector<HypernodeID> hn_to_numa_node;
     parallel::scalable_vector<HypernodeWeight> hn_weights;
@@ -1165,6 +1169,7 @@ class Hypergraph {
         }
       }
     }
+    utils::Timer::instance().stop_timer("compute_cluster_mapping", timer_was_enabled);
 
     // #################### STAGE 2 ####################
     // We iterate over all hyperedges in parallel and remap their ids
@@ -1174,6 +1179,7 @@ class Hypergraph {
     // hash are then present in the same bucket of the streaming map, which
     // makes it possible to detect parallel hyperedges in parallel.
 
+    utils::Timer::instance().start_timer("contracting_hyperedges", "Contracting Hyperedges", false, timer_was_enabled);
     // Mapping from a vertex id of the current hypergraph to its
     // id in the coarse hypergraph
     auto map_to_coarse_hypergraph = [&](const HypernodeID hn) {
@@ -1213,6 +1219,7 @@ class Hypergraph {
         }
       }
     });
+    utils::Timer::instance().stop_timer("contracting_hyperedges", timer_was_enabled);
 
     using HyperedgeMap = parallel::scalable_vector<parallel::scalable_vector<ContractedHyperedge>>;
     HyperedgeMap hyperedge_buckets(hash_to_hyperedge.size());
@@ -1226,6 +1233,7 @@ class Hypergraph {
     // hyperedges are detected by comparing the pins of hyperedges with
     // the same hash.
 
+    utils::Timer::instance().start_timer("remove_parallel_hyperedges", "Remove Parallel Hyperedges", false, timer_was_enabled);
     parallel::scalable_vector<HyperedgeID> num_hyperedges_prefix_sum(hyperedge_buckets.size() + 1, 0);
     tbb::parallel_for(0UL, hyperedge_buckets.size(), [&](const size_t bucket) {
       parallel::scalable_vector<ContractedHyperedge>& hyperedge_bucket = hyperedge_buckets[bucket];
@@ -1278,6 +1286,7 @@ class Hypergraph {
     for ( size_t i = 1; i < hyperedge_buckets.size(); ++i ) {
       num_hyperedges_prefix_sum[i] += num_hyperedges_prefix_sum[i - 1];
     }
+    utils::Timer::instance().stop_timer("remove_parallel_hyperedges", timer_was_enabled);
 
 
     // #################### STAGE 4 ####################
@@ -1285,6 +1294,7 @@ class Hypergraph {
     // numa hypergraph.
 
     // Allocate numa hypergraph on their corresponding numa nodes
+    utils::Timer::instance().start_timer("stream_hyperedges", "Stream Hyperedges", false, timer_was_enabled);
     std::vector<StreamingHypergraph> numa_hypergraphs;
     TBBNumaArena::instance().execute_sequential_on_all_numa_nodes(task_group_id, [&](const int node) {
             numa_hypergraphs.emplace_back(node, _k, TBBNumaArena::instance().numa_task_arena(node));
@@ -1311,13 +1321,17 @@ class Hypergraph {
     TBBNumaArena::instance().execute_parallel_on_all_numa_nodes(task_group_id, [&](const int node) {
       numa_hypergraphs[node].initializeHyperedges(num_hypernodes);
     });
+    utils::Timer::instance().stop_timer("stream_hyperedges", timer_was_enabled);
 
     // #################### STAGE 5 ####################
     // Initialize Hypergraph
+    utils::Timer::instance().start_timer("build_hypergraph", "Build Hypergraph", false, timer_was_enabled);
     Self contracted_hypergraph(num_hypernodes, std::move(numa_hypergraphs),
                                std::move(hn_to_numa_node), _k, task_group_id);
+    utils::Timer::instance().stop_timer("build_hypergraph", timer_was_enabled);
 
     // Initialize node weights and community ids
+    utils::Timer::instance().start_timer("init_weight_community", "Init Node Weight & Communities", false, timer_was_enabled);
     tbb::parallel_for(0UL, num_hypernodes, [&](const HypernodeID& id) {
           const HypernodeID hn = contracted_hypergraph.globalNodeID(id);
           contracted_hypergraph._is_high_degree_vertex[id] = is_high_degree_vertex[id];
@@ -1326,11 +1340,15 @@ class Hypergraph {
         });
     contracted_hypergraph.updateTotalWeight(task_group_id);
     contracted_hypergraph.initializeCommunities();
+    utils::Timer::instance().stop_timer("init_weight_community", timer_was_enabled);
 
     // Initialize community to numa node mapping
     std::vector<PartitionID> community_node_mapping(_community_node_mapping);
     contracted_hypergraph.setCommunityNodeMapping(std::move(community_node_mapping));
 
+    if ( timer_was_enabled ) {
+      utils::Timer::instance().enable();
+    }
     return std::make_pair(std::move(contracted_hypergraph), std::move(mapping));
   }
 
@@ -1773,30 +1791,40 @@ class Hypergraph {
         });
     utils::Timer::instance().stop_timer("compute_number_of_communities");
 
-    // Compute number of hypernodes per community and also for each node
-    // a unique node id within each community
-    utils::Timer::instance().start_timer("compute_num_community_hns", "Compute Num Community HNs");
-    _communities_num_hypernodes.assign(_num_communities, 0);
-    _community_degree.assign(_num_communities, 0);
-    for (const HypernodeID& hn : nodes()) {
-      PartitionID community_id = communityID(hn);
-      ASSERT(community_id < _num_communities);
-      hypergraph_of_vertex(hn).hypernode(hn).setCommunityNodeId(_communities_num_hypernodes[community_id]);
-      ++_communities_num_hypernodes[community_id];
-      _community_degree[community_id] += nodeDegree(hn);
+    _communities_num_hypernodes.assign(_num_communities, parallel::IntegralAtomicWrapper<HypernodeID>(0));
+    _community_degree.assign(_num_communities, parallel::IntegralAtomicWrapper<HypernodeID>(0));
+    _communities_num_pins.assign(_num_communities, parallel::IntegralAtomicWrapper<HyperedgeID>(0));
+    if ( _num_communities > 1 ) {
+      // Compute number of hypernodes per community and also for each node
+      // a unique node id within each community
+      tbb::parallel_invoke([&] {
+        tbb::parallel_for(0UL, _num_hypernodes, [&](const HypernodeID id) {
+          const HypernodeID hn = globalNodeID(id);
+          if ( nodeIsEnabled(hn) ) {
+            PartitionID community_id = communityID(hn);
+            ASSERT(community_id < _num_communities);
+            const HypernodeID community_node_id = _communities_num_hypernodes[community_id]++;
+            hypergraph_of_vertex(hn).hypernode(hn).setCommunityNodeId(community_node_id);
+            _community_degree[community_id] += nodeDegree(hn);
+          }
+        });
+      }, [&] {
+        tbb::parallel_for(0UL, _num_hyperedges, [&](const HyperedgeID id) {
+          const HyperedgeID he = globalEdgeID(id);
+          if ( edgeIsEnabled(he) ) {
+            for (const HypernodeID& pin : pins(he)) {
+              ASSERT(communityID(pin) < _num_communities);
+              ++_communities_num_pins[communityID(pin)];
+            }
+          }
+        });
+      });
+    } else {
+      ASSERT(_num_communities == 1);
+      _communities_num_hypernodes[0] = _num_hypernodes;
+      _community_degree[0] = _num_pins;
+      _communities_num_pins[0] = _num_pins;
     }
-    utils::Timer::instance().stop_timer("compute_num_community_hns");
-
-    // Compute number of pins per community
-    utils::Timer::instance().start_timer("compute_num_community_pins", "Compute Num Community Pins");
-    _communities_num_pins.assign(_num_communities, 0);
-    for (const HyperedgeID& he : edges()) {
-      for (const HypernodeID& pin : pins(he)) {
-        ASSERT(communityID(pin) < _num_communities);
-        ++_communities_num_pins[communityID(pin)];
-      }
-    }
-    utils::Timer::instance().stop_timer("compute_num_community_pins");
   }
 
   /*!
@@ -1817,30 +1845,33 @@ class Hypergraph {
     }
     utils::Timer::instance().stop_timer("compute_number_of_communities");
 
-    // Compute number of hypernodes per community and also for each node
-    // a unique node id within each community
-    utils::Timer::instance().start_timer("compute_num_community_hns", "Compute Num Community HNs");
-    _communities_num_hypernodes.assign(_num_communities, 0);
-    _community_degree.assign(_num_communities, 0);
-    for (const HypernodeID& hn : nodes()) {
-      PartitionID community_id = communityID(hn);
-      ASSERT(community_id < _num_communities);
-      hypergraph_of_vertex(hn).hypernode(hn).setCommunityNodeId(_communities_num_hypernodes[community_id]);
-      ++_communities_num_hypernodes[community_id];
-      _community_degree[community_id] += nodeDegree(hn);
-    }
-    utils::Timer::instance().stop_timer("compute_num_community_hns");
-
-    // Compute number of pins per community
-    utils::Timer::instance().start_timer("compute_num_community_pins", "Compute Num Community Pins");
-    _communities_num_pins.assign(_num_communities, 0);
-    for (const HyperedgeID& he : edges()) {
-      for (const HypernodeID& pin : pins(he)) {
-        ASSERT(communityID(pin) < _num_communities);
-        ++_communities_num_pins[communityID(pin)];
+    _communities_num_hypernodes.assign(_num_communities, parallel::IntegralAtomicWrapper<HypernodeID>(0));
+    _community_degree.assign(_num_communities, parallel::IntegralAtomicWrapper<HypernodeID>(0));
+    _communities_num_pins.assign(_num_communities, parallel::IntegralAtomicWrapper<HyperedgeID>(0));
+    if ( _num_communities > 1 ) {
+      // Compute number of hypernodes per community and also for each node
+      // a unique node id within each community
+      for (const HypernodeID& hn : nodes()) {
+        PartitionID community_id = communityID(hn);
+        ASSERT(community_id < _num_communities);
+        hypergraph_of_vertex(hn).hypernode(hn).setCommunityNodeId(_communities_num_hypernodes[community_id]);
+        ++_communities_num_hypernodes[community_id];
+        _community_degree[community_id] += nodeDegree(hn);
       }
+
+      // Compute number of pins per community
+      for (const HyperedgeID& he : edges()) {
+        for (const HypernodeID& pin : pins(he)) {
+          ASSERT(communityID(pin) < _num_communities);
+          ++_communities_num_pins[communityID(pin)];
+        }
+      }
+    } else {
+      ASSERT(_num_communities == 1);
+      _communities_num_hypernodes[0] = _num_hypernodes;
+      _community_degree[0] = _num_pins;
+      _communities_num_pins[0] = _num_pins;
     }
-    utils::Timer::instance().stop_timer("compute_num_community_pins");
   }
 
   // ! Resets the ids of all pins in the incidence array to its original node id
@@ -1902,7 +1933,7 @@ class Hypergraph {
     HypernodeID num_hyperedges = 0;
     for (const HyperedgeID& he : edges()) {
       ASSERT(originalEdgeID(he) < _num_hyperedges);
-      if ( part_id == -1 || ( pinCountInPart(he, part_id) > 0 &&
+      if ( part_id == -1 || ( pinCountInPart(he, part_id) > 1 &&
            (cut_net_splitting || connectivity(he) == 1) ) ) {
         he_mapping[originalEdgeID(he)] = num_hyperedges++;
       }
@@ -1913,7 +1944,7 @@ class Hypergraph {
           tbb::parallel_for(0UL, _num_hyperedges, [&](const HyperedgeID& id) {
             const HyperedgeID he = globalEdgeID(id);
             if (edgeIsEnabled(he) && StreamingHypergraph::get_numa_node_of_hyperedge(he) == node &&
-               ( part_id == -1 || ( pinCountInPart(he, part_id) > 0 &&
+               ( part_id == -1 || ( pinCountInPart(he, part_id) > 1 &&
                ( cut_net_splitting || connectivity(he) == 1) ) ) ) {
               parallel::scalable_vector<HypernodeID> hyperedge;
               for (const HypernodeID& pin : pins(he)) {
@@ -2662,7 +2693,7 @@ class Hypergraph {
   }
 
   // ! Only for debugging
-  bool community_contraction_precondition_assertions(const parallel::scalable_vector<HypernodeID>& communities) {
+  bool community_contraction_precondition_assertions(const parallel::scalable_vector<HypernodeID>& communities) const {
     for ( HypernodeID hn = 0; hn < _num_hypernodes; ++hn ) {
       const HypernodeID representative = communities[hn];
       if ( representative >= _num_hypernodes ) {
@@ -2725,11 +2756,11 @@ class Hypergraph {
   // ! Indicates, if a vertex is a high degree hypernode
   parallel::scalable_vector<bool> _is_high_degree_vertex;
   // ! Number of hypernodes in a community
-  parallel::scalable_vector<HypernodeID> _communities_num_hypernodes;
+  parallel::scalable_vector<parallel::IntegralAtomicWrapper<HypernodeID>> _communities_num_hypernodes;
   // ! Number of pins in a community
-  parallel::scalable_vector<HypernodeID> _communities_num_pins;
+  parallel::scalable_vector<parallel::IntegralAtomicWrapper<HypernodeID>> _communities_num_pins;
   // ! Total degree of a community
-  parallel::scalable_vector<HyperedgeID> _community_degree;
+  parallel::scalable_vector<parallel::IntegralAtomicWrapper<HyperedgeID>> _community_degree;
   // ! Global weight and size information for all blocks.
   std::vector<PartInfo> _part_info;
   #if USE_LOCAL_PART_WEIGHTS

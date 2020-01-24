@@ -46,7 +46,7 @@ template <typename TypeTraits,
           class HeavyNodePenaltyPolicy = MultiplicativePenalty,
           class AcceptancePolicy = BestRatingPreferringUnmatched,
           class CommunityAssignmentObjective = PinObjectivePolicy>
-class CommunityCoarsenerT : public ICoarsener,
+class CommunityCoarsenerT : public ICoarsenerT<TypeTraits>,
                             private CommunityCoarsenerBase<TypeTraits> {
  private:
   using HyperGraph = typename TypeTraits::HyperGraph;
@@ -234,6 +234,10 @@ class CommunityCoarsenerT : public ICoarsener,
 
   bool uncoarsenImpl(std::unique_ptr<IRefiner>& label_propagation) override {
     return this->doUncoarsen(label_propagation);
+  }
+
+  HyperGraph& coarsestHypergraphImpl() override {
+    return _hg;
   }
 
   using Base::_hg;

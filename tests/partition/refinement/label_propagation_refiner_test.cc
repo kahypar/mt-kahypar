@@ -81,7 +81,7 @@ class ALabelPropagationRefiner : public Test {
     context.partition.verbose_output = false;
 
     // Preprocessing
-    context.preprocessing.community_redistribution.use_community_redistribution = true;
+    context.preprocessing.use_community_redistribution = true;
     context.preprocessing.community_redistribution.assignment_strategy = CommunityAssignmentStrategy::bin_packing;
     context.preprocessing.community_redistribution.assignment_objective = CommunityAssignmentObjective::pin_objective;
 

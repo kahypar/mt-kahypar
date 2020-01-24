@@ -23,15 +23,20 @@
 #include <string>
 
 #include "mt-kahypar/macros.h"
+#include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/refinement/i_refiner.h"
 
 namespace mt_kahypar {
-class ICoarsener {
+template<typename TypeTraits>
+class ICoarsenerT {
+
+  using HyperGraph = typename TypeTraits::HyperGraph;
+
  public:
-  ICoarsener(const ICoarsener&) = delete;
-  ICoarsener(ICoarsener&&) = delete;
-  ICoarsener & operator= (const ICoarsener &) = delete;
-  ICoarsener & operator= (ICoarsener &&) = delete;
+  ICoarsenerT(const ICoarsenerT&) = delete;
+  ICoarsenerT(ICoarsenerT&&) = delete;
+  ICoarsenerT & operator= (const ICoarsenerT &) = delete;
+  ICoarsenerT & operator= (ICoarsenerT &&) = delete;
 
   void coarsen() {
     coarsenImpl();
@@ -41,13 +46,20 @@ class ICoarsener {
     return uncoarsenImpl(label_propagation);
   }
 
-  virtual ~ICoarsener() = default;
+  HyperGraph& coarsestHypergraph() {
+    return coarsestHypergraphImpl();
+  }
+
+  virtual ~ICoarsenerT() = default;
 
  protected:
-  ICoarsener() = default;
+  ICoarsenerT() = default;
 
  private:
   virtual void coarsenImpl() = 0;
   virtual bool uncoarsenImpl(std::unique_ptr<IRefiner>& label_propagation) = 0;
+  virtual HyperGraph& coarsestHypergraphImpl() = 0;
 };
+
+using ICoarsener = ICoarsenerT<GlobalTypeTraits>;
 }  // namespace kahypar

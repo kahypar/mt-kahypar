@@ -78,7 +78,6 @@ class MultilevelVertexPairRater {
   MultilevelVertexPairRater(HyperGraph& hypergraph,
                            const Context& context,
                            UnionFind& uf) :
-    _hg(hypergraph),
     _context(context),
     _uf(uf),
     _local_tmp_ratings(hypergraph.initialNumNodes()),
@@ -90,47 +89,47 @@ class MultilevelVertexPairRater {
   MultilevelVertexPairRater(MultilevelVertexPairRater&&) = delete;
   MultilevelVertexPairRater & operator= (MultilevelVertexPairRater &&) = delete;
 
-  VertexPairRating rate(const HypernodeID u) {
+  VertexPairRating rate(const HyperGraph& hypergraph, const HypernodeID u) {
     TmpRatingMap& tmp_ratings = _local_tmp_ratings.local();
-    const HypernodeID original_u_id = _hg.originalNodeID(u);
+    const HypernodeID original_u_id = hypergraph.originalNodeID(u);
     const HypernodeWeight weight_u = _uf.weight(original_u_id);
-    for ( const HyperedgeID& he : _hg.incidentEdges(u) ) {
-      ASSERT(_hg.edgeSize(he) > 1, V(he));
-      if ( _hg.edgeSize(he) < _context.partition.hyperedge_size_threshold ) {
-        const RatingType score = ScorePolicy::score(_hg, he);
-        for ( const HypernodeID& v : _hg.pins(he) ) {
-          const HypernodeID original_v_id = _hg.originalNodeID(v);
-          if ( u != v && belowThresholdNodeWeight(original_u_id,
-               original_v_id, weight_u, _uf.weight(original_v_id)) ) {
-            ASSERT(original_v_id < _hg.initialNumNodes());
-            tmp_ratings[original_v_id] += score;
-          }
+    for ( const HyperedgeID& he : hypergraph.incidentEdges(u) ) {
+      ASSERT(hypergraph.edgeSize(he) > 1, V(he));
+      if ( hypergraph.edgeSize(he) < _context.partition.hyperedge_size_threshold ) {
+        const RatingType score = ScorePolicy::score(hypergraph, he);
+        for ( const HypernodeID& v : hypergraph.pins(he) ) {
+          const HypernodeID original_v_id = hypergraph.originalNodeID(v);
+          ASSERT(original_v_id < hypergraph.initialNumNodes());
+          tmp_ratings[original_v_id] += score;
         }
       }
     }
 
     int cpu_id = sched_getcpu();
-    const PartitionID community_u_id = _hg.communityID(u);
+    const PartitionID community_u_id = hypergraph.communityID(u);
     RatingType max_rating = std::numeric_limits<RatingType>::min();
     HypernodeID target = std::numeric_limits<HypernodeID>::max();
     HypernodeID target_id = std::numeric_limits<HypernodeID>::max();
     for (auto it = tmp_ratings.end() - 1; it >= tmp_ratings.begin(); --it) {
       const HypernodeID tmp_target_id = it->key;
-      const HypernodeID tmp_target = _hg.globalNodeID(tmp_target_id);
-      const HypernodeWeight target_weight = _uf.isSameSet(original_u_id, tmp_target_id) ? 1 : _uf.weight(tmp_target);
+      const HypernodeID tmp_target = hypergraph.globalNodeID(tmp_target_id);
+      const bool is_same_set = _uf.isSameSet(original_u_id, tmp_target_id);
+      const HypernodeWeight target_weight = _uf.weight(tmp_target_id);
 
-      HypernodeWeight penalty = HeavyNodePenaltyPolicy::penalty(weight_u, target_weight);
-      penalty = penalty == 0 ? std::max(std::max(weight_u, target_weight), 1) : penalty;
-      const RatingType tmp_rating = it->value / static_cast<double>(penalty);
+      if ( tmp_target != u && belowThresholdNodeWeight(is_same_set, tmp_target, weight_u, target_weight) ) {
+        HypernodeWeight penalty = HeavyNodePenaltyPolicy::penalty(weight_u, target_weight);
+        penalty = penalty == 0 ? std::max(std::max(weight_u, target_weight), 1) : penalty;
+        const RatingType tmp_rating = it->value / static_cast<double>(penalty);
 
-      DBG << "r(" << u << "," << tmp_target << ")=" << tmp_rating;
-      if ( community_u_id == _hg.communityID(tmp_target) &&
-           AcceptancePolicy::acceptRating(tmp_rating, max_rating,
-                                          target_id, tmp_target_id,
-                                          cpu_id, _already_matched) ) {
-        max_rating = tmp_rating;
-        target_id = tmp_target_id;
-        target = tmp_target;
+        DBG << "r(" << u << "," << tmp_target << ")=" << tmp_rating;
+        if ( community_u_id == hypergraph.communityID(tmp_target) &&
+            AcceptancePolicy::acceptRating(tmp_rating, max_rating,
+                                           target_id, tmp_target_id,
+                                           cpu_id, _already_matched) ) {
+          max_rating = tmp_rating;
+          target_id = tmp_target_id;
+          target = tmp_target;
+        }
       }
     }
 
@@ -148,8 +147,8 @@ class MultilevelVertexPairRater {
   // ! Several threads will mark matches in parallel. However, since
   // ! we only set the corresponding value to true this function is
   // ! thread-safe.
-  void markAsMatched(const HypernodeID hn) {
-    _already_matched.set(_hg.originalNodeID(hn), true);
+  void markAsMatched(const HyperGraph& hypergraph, const HypernodeID hn) {
+    _already_matched.set(hypergraph.originalNodeID(hn), true);
   }
 
   // ! Note, this function is not thread safe
@@ -158,15 +157,14 @@ class MultilevelVertexPairRater {
   }
 
  private:
-  inline bool belowThresholdNodeWeight(const HypernodeID original_u_id,
-                                       const HypernodeID original_v_id,
+  inline bool belowThresholdNodeWeight(const bool is_same_set,
+                                       const HypernodeID v,
                                        const HypernodeWeight weight_u,
                                        const HypernodeWeight weight_v) const {
     // In case, if u and v are already in the same set (which means that they are
     // already contracted togehter), the weight is always below the threshold, otherwise
     // we perform an explicit check
-    return !_uf.isSameSet(original_u_id, original_v_id) ?
-      weight_v + weight_u <= thresholdNodeWeight(original_v_id) : true;
+    return is_same_set ? true : weight_v + weight_u <= thresholdNodeWeight(v);
   }
 
   inline HypernodeWeight thresholdNodeWeight(const HypernodeID v) const {
@@ -175,7 +173,6 @@ class MultilevelVertexPairRater {
      _context.coarsening.max_allowed_node_weight;
   }
 
-  HyperGraph& _hg;
   const Context& _context;
   UnionFind& _uf;
   ThreadLocalTmpRatingMap _local_tmp_ratings;

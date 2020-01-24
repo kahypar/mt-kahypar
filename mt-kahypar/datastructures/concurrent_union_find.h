@@ -52,10 +52,12 @@ class ConcurrentUnionFind {
     init(hypergraph);
   }
 
-  void link(const HypernodeID u, const HypernodeID v) {
-    ASSERT(u < _set.size());
-    ASSERT(v < _set.size());
+  void link(const HypernodeID x, const HypernodeID y) {
+    ASSERT(x < _set.size());
+    ASSERT(y < _set.size());
 
+    const HypernodeID u = std::min(x, y);
+    const HypernodeID v = std::max(x, y);
     bool success = false;
     while ( !success ) {
       HypernodeWeight root_u = static_cast<HypernodeWeight>(find(u));
@@ -102,7 +104,7 @@ class ConcurrentUnionFind {
   }
 
   HypernodeID find(const HypernodeID u) {
-    ASSERT(u < _set.size());
+    ASSERT(u >= 0 && u < _set.size());
     HypernodeWeight parent = _set[u];
     if ( parent < 0 /* u is root */ ) {
       return u;
