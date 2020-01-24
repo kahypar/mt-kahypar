@@ -168,14 +168,14 @@ class MultilevelCoarsenerBase {
       _context.partition.verbose_output && _context.partition.enable_progress_bar);
     uncontraction_progress += num_nodes;
 
-    while ( !_hierarchies.empty() ) {
+    for ( int i = _hierarchies.size() - 1; i >= 0; --i ) {
       // Project partition to next level finer hypergraph
-      HyperGraph& representative_hg = _hierarchies.back().representativeHypergraph();
-      HyperGraph& contracted_hg = _hierarchies.back().contractedHypergraph();
+      HyperGraph& representative_hg = _hierarchies[i].representativeHypergraph();
+      HyperGraph& contracted_hg = _hierarchies[i].contractedHypergraph();
       tbb::parallel_for(0UL, representative_hg.initialNumNodes(), [&](const HypernodeID id) {
         const HypernodeID hn = representative_hg.globalNodeID(id);
         if ( representative_hg.nodeIsEnabled(hn) ) {
-          const HypernodeID coarse_hn = _hierarchies.back().mapToContractedHypergraph(hn);
+          const HypernodeID coarse_hn = _hierarchies[i].mapToContractedHypergraph(hn);
           const PartitionID block = contracted_hg.partID(coarse_hn);
           ASSERT(block != -1 && block < representative_hg.k());
           representative_hg.setNodePart(hn, block);
@@ -191,7 +191,6 @@ class MultilevelCoarsenerBase {
              metrics::imbalance(contracted_hg, _context),
              V(metrics::imbalance(representative_hg, _context)) <<
              V(metrics::imbalance(contracted_hg, _context)));
-      _hierarchies.pop_back();
 
       // Update Progress Bar
       uncontraction_progress.setObjective(

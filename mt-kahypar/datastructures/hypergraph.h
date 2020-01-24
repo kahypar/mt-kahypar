@@ -1143,32 +1143,42 @@ class Hypergraph {
     // V' is the set of all vertices in the contracted hypergraph
     utils::Timer::instance().start_timer("compute_cluster_mapping", "Compute Cluster Mapping", false, timer_was_enabled);
     parallel::scalable_vector<HypernodeID> mapping(_num_hypernodes, kInvalidHypernode);
-    std::vector<HypernodeID> hn_to_numa_node;
-    parallel::scalable_vector<HypernodeWeight> hn_weights;
-    parallel::scalable_vector<PartitionID> community_ids;
-    parallel::scalable_vector<bool> is_high_degree_vertex;
     HypernodeID num_hypernodes = 0;
     for ( HypernodeID id = 0; id < _num_hypernodes; ++id ) {
       const HypernodeID hn = globalNodeID(id);
       if ( nodeIsEnabled(hn) ) {
         HypernodeID community = communities[id];
         if ( mapping[community] == kInvalidHypernode ) {
-          ASSERT(num_hypernodes == hn_to_numa_node.size());
-          ASSERT(num_hypernodes == hn_weights.size());
-          ASSERT(num_hypernodes == community_ids.size());
           mapping[community] = num_hypernodes++;
-          hn_to_numa_node.emplace_back(StreamingHypergraph::get_numa_node_of_vertex(hn));
-          hn_weights.emplace_back(nodeWeight(hn));
-          community_ids.emplace_back(communityID(hn));
-          is_high_degree_vertex.emplace_back(isHighDegreeVertex(hn));
-        } else {
-          ASSERT(mapping[community] < hn_weights.size());
-          hn_weights[mapping[community]] += nodeWeight(hn);
-          is_high_degree_vertex[mapping[community]] =
-            is_high_degree_vertex[mapping[community]] | isHighDegreeVertex(hn);
         }
       }
     }
+
+    std::vector<HypernodeID> hn_to_numa_node(num_hypernodes, 0);
+    parallel::scalable_vector<parallel::IntegralAtomicWrapper<HypernodeWeight>> hn_weights(
+      num_hypernodes, parallel::IntegralAtomicWrapper<HypernodeWeight>(0));
+    parallel::scalable_vector<PartitionID> community_ids(num_hypernodes, 0);
+    parallel::scalable_vector<parallel::IntegralAtomicWrapper<uint8_t>> is_high_degree_vertex(
+      num_hypernodes, parallel::IntegralAtomicWrapper<uint8_t>(false));
+    tbb::parallel_for(0UL, _num_hypernodes, [&](const HypernodeID id) {
+      const HypernodeID hn = globalNodeID(id);
+      if ( nodeIsEnabled(hn) ) {
+        HypernodeID coarse_id = mapping[communities[id]];
+        ASSERT(coarse_id < num_hypernodes);
+        // In case community detection and redistribution is enabled all vertices matched
+        // to one vertex in the contracted hypergraph belong to the same numa node.
+        // Otherwise, last write wins.
+        hn_to_numa_node[coarse_id] = StreamingHypergraph::get_numa_node_of_vertex(hn);
+        // Weight vector is atomic => thread-safe
+        hn_weights[coarse_id] += nodeWeight(hn);
+        // In case community detection is enabled all vertices matched to one vertex
+        // in the contracted hypergraph belong to same community. Otherwise, all communities
+        // are default assigned to community 0
+        community_ids[coarse_id] = communityID(hn);
+        // Vector is atomic => thread-safe
+        is_high_degree_vertex[coarse_id].fetch_or(isHighDegreeVertex(hn));
+      }
+    });
     utils::Timer::instance().stop_timer("compute_cluster_mapping", timer_was_enabled);
 
     // #################### STAGE 2 ####################

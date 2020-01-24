@@ -1102,14 +1102,17 @@ class StreamingHypergraph {
   // ! NOTE, this function have to be called after initial partitioning
   // ! and before local search.
   void initializeNumCutHyperedges(const std::vector<Self>& hypergraphs) {
-    for (const HypernodeID& hn : nodes()) {
-      ASSERT(_atomic_hn_data[get_local_node_id_of_vertex(hn)].num_incident_cut_hes == 0);
-      for (const HyperedgeID& he : incidentEdges(hn)) {
-        if (hypergraph_of_hyperedge(he, hypergraphs).connectivity(he) > 1) {
-          incrementIncidentNumCutHyperedges(hn);
-        }
-      }
-    }
+    _arena.execute([&] {
+          tbb::parallel_for(0UL, this->_num_hypernodes, [&](const HypernodeID& id) {
+            const HypernodeID hn = get_global_node_id(id);
+            ASSERT(_atomic_hn_data[get_local_node_id_of_vertex(hn)].num_incident_cut_hes == 0);
+            for (const HyperedgeID& he : incidentEdges(hn)) {
+              if (hypergraph_of_hyperedge(he, hypergraphs).connectivity(he) > 1) {
+                incrementIncidentNumCutHyperedges(hn);
+              }
+            }
+          });
+        });
   }
 
   // ! Number of blocks which pins of hyperedge e belongs to

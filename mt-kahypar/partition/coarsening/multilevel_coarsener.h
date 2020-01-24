@@ -97,10 +97,11 @@ class MultilevelCoarsenerT : public ICoarsenerT<TypeTraits>,
 
       // Random shuffle vertices of current hypergraph
       utils::Timer::instance().start_timer("shuffle_vertices", "Shuffle Vertices");
-      current_vertices.clear();
-      for ( const HypernodeID& hn : current_hg.nodes() ) {
-        current_vertices.emplace_back(hn);
-      }
+      current_vertices.resize(current_hg.initialNumNodes());
+      tbb::parallel_for(0UL, current_hg.initialNumNodes(), [&](const HypernodeID id) {
+        ASSERT(id < current_vertices.size());
+        current_vertices[id] = current_hg.globalNodeID(id);
+      });
       utils::Randomize::instance().parallelShuffleVector(current_vertices);
       utils::Timer::instance().stop_timer("shuffle_vertices");
 
@@ -116,7 +117,14 @@ class MultilevelCoarsenerT : public ICoarsenerT<TypeTraits>,
       DBG << V(current_hg.initialNumNodes()) << V(hierarchy_contraction_limit);
       TBB::instance().execute_parallel_on_all_numa_nodes(_task_group_id, [&](const int node) {
         tbb::parallel_for(0UL, current_hg.initialNumNodes(node), [&, node](const HypernodeID id) {
-          const HypernodeID hn = StreamingHyperGraph::get_global_node_id(node, id);
+          ASSERT(id < current_vertices.size());
+          const HypernodeID hn = current_vertices[id];
+          // We perform rating if ...
+          //  1.) The contraction limit of the current level is not reached
+          //  2.) Vertex hn is enabled
+          //  3.) Vertex hn is not a high degree vertex
+          //  4.) If the ignoring already matched vertices flag is not set
+          //      or vertex hn is not already matched with an other vertex
           if ( _uf.numDistinctSets() > hierarchy_contraction_limit &&
                current_hg.nodeIsEnabled(hn) &&
                !current_hg.isHighDegreeVertex(hn) &&
