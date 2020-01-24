@@ -119,7 +119,8 @@ class MultilevelCoarsenerT : public ICoarsenerT<TypeTraits>,
           const HypernodeID hn = StreamingHyperGraph::get_global_node_id(node, id);
           if ( _uf.numDistinctSets() > hierarchy_contraction_limit &&
                current_hg.nodeIsEnabled(hn) &&
-               !current_hg.isHighDegreeVertex(hn) ) {
+               !current_hg.isHighDegreeVertex(hn) &&
+               (!_context.coarsening.ignore_already_matched_vertices || !_rater.isMatched(current_hg, hn)) ) {
             const Rating rating = _rater.rate(current_hg, hn);
             if ( rating.target != kInvalidHypernode ) {
               _rater.markAsMatched(current_hg, hn);

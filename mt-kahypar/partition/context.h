@@ -140,6 +140,7 @@ struct CoarseningParameters {
   double max_allowed_weight_multiplier = std::numeric_limits<double>::max();
   double max_allowed_high_degree_node_weight_multiplier = std::numeric_limits<double>::max();
   double multilevel_shrink_factor = std::numeric_limits<double>::max();
+  bool ignore_already_matched_vertices = false;
   bool use_high_degree_vertex_threshold = false;
 
   // Those will be determined dynamically
@@ -160,6 +161,7 @@ inline std::ostream & operator<< (std::ostream& str, const CoarseningParameters&
   str << "  contraction limit:                  " << params.contraction_limit << std::endl;
   if ( params.algorithm == CoarseningAlgorithm::multilevel_coarsener ) {
     str << "  multilevel shrink factor:           " << params.multilevel_shrink_factor << std::endl;
+    str << "  ignore already matched vertices:    " << std::boolalpha << params.ignore_already_matched_vertices << std::endl;
   }
   if ( params.use_high_degree_vertex_threshold ) {
     str << "  high degree vertex threshold:       " << params.high_degree_vertex_threshold << std::endl;

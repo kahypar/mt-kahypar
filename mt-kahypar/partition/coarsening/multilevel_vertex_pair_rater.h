@@ -151,6 +151,10 @@ class MultilevelVertexPairRater {
     _already_matched.set(hypergraph.originalNodeID(hn), true);
   }
 
+  bool isMatched(const HyperGraph& hypergraph, const HypernodeID hn) {
+    return _already_matched[hypergraph.originalNodeID(hn)];
+  }
+
   // ! Note, this function is not thread safe
   void resetMatches() {
     _already_matched.reset();
