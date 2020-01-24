@@ -119,8 +119,10 @@ class MultilevelCoarsenerT : public ICoarsenerT<TypeTraits>,
       DBG << V(current_hg.initialNumNodes()) << V(hierarchy_contraction_limit);
       TBB::instance().execute_parallel_on_all_numa_nodes(_task_group_id, [&](const int node) {
         tbb::parallel_for(0UL, current_hg.initialNumNodes(node), [&, node](const HypernodeID id) {
+          const HypernodeID original_id = current_hg.originalNodeID(
+            StreamingHyperGraph::get_global_node_id(node, id));
           ASSERT(id < current_vertices.size());
-          const HypernodeID hn = current_vertices[id];
+          const HypernodeID hn = current_vertices[original_id];
           // We perform rating if ...
           //  1.) The contraction limit of the current level is not reached
           //  2.) Vertex hn is enabled
@@ -136,7 +138,7 @@ class MultilevelCoarsenerT : public ICoarsenerT<TypeTraits>,
             if ( rating.target != kInvalidHypernode ) {
               _rater.markAsMatched(current_hg, hn);
               _rater.markAsMatched(current_hg, rating.target);
-              _uf.link(current_hg.originalNodeID(hn), current_hg.originalNodeID(rating.target));
+              _uf.link(original_id, current_hg.originalNodeID(rating.target));
             }
           }
         });
