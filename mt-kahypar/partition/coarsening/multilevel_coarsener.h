@@ -102,7 +102,9 @@ class MultilevelCoarsenerT : public ICoarsenerT<TypeTraits>,
         ASSERT(id < current_vertices.size());
         current_vertices[id] = current_hg.globalNodeID(id);
       });
-      utils::Randomize::instance().parallelShuffleVector(current_vertices);
+      if ( _context.coarsening.shuffle_vertices ) {
+        utils::Randomize::instance().parallelShuffleVector(current_vertices);
+      }
       utils::Timer::instance().stop_timer("shuffle_vertices");
 
       // We iterate in parallel over all vertices of the hypergraph and compute its contraction

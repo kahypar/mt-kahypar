@@ -207,6 +207,9 @@ po::options_description createCoarseningOptionsDescription(Context& context,
     ("c-ignore-already-matched-vertices",
     po::value<bool>(&context.coarsening.ignore_already_matched_vertices)->value_name("<bool>"),
     "If true, multilevel coarsener ignores already matched vertices")
+    ("c-shuffle-vertices",
+    po::value<bool>(&context.coarsening.shuffle_vertices)->value_name("<bool>"),
+    "If true, vertices are shuffled before computing matching partner")
     ("c-use-high-degree-vertex-threshold",
     po::value<bool>(&context.coarsening.use_high_degree_vertex_threshold)->value_name("<bool>"),
     "If true, than all hypernodes with a degree greater than mean + 5 * stdev are skipped during coarsening")
