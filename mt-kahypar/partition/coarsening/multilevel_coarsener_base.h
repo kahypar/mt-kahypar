@@ -24,6 +24,7 @@
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/partition/refinement/i_refiner.h"
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
+#include "mt-kahypar/utils/progress_bar.h"
 
 namespace mt_kahypar {
 template <typename TypeTraits>
@@ -131,6 +132,27 @@ class MultilevelCoarsenerBase {
   }
 
   bool doUncoarsen(std::unique_ptr<IRefiner>&) {
+    const HyperGraph& current_hg = currentHypergraph();
+    int64_t num_nodes = current_hg.initialNumNodes();
+    int64_t num_edges = current_hg.initialNumEdges();
+    HyperedgeWeight cut = 0;
+    HyperedgeWeight km1 = 0;
+    tbb::parallel_invoke([&] {
+        // Cut metric
+        cut = metrics::hyperedgeCut(current_hg);
+      }, [&] {
+        // Km1 metric
+        km1 = metrics::km1(current_hg);
+      });
+
+    kahypar::Metrics current_metrics = { cut, km1, metrics::imbalance(current_hg, _context) };
+    utils::Stats::instance().add_stat("initial_num_nodes", num_nodes);
+    utils::Stats::instance().add_stat("initial_num_edges", num_edges);
+    utils::Stats::instance().add_stat("initial_cut", current_metrics.cut);
+    utils::Stats::instance().add_stat("initial_km1", current_metrics.km1);
+    utils::Stats::instance().add_stat("initial_imbalance", current_metrics.imbalance);
+
+
     // We set the representative hypergraph of each hypergraph in the hierarchy
     // here, because due to resizing of the vector capacity it might become invalid
     // during creating the hierarchies
@@ -141,6 +163,10 @@ class MultilevelCoarsenerBase {
       }
     }
 
+    utils::ProgressBar uncontraction_progress(_hg.initialNumNodes(),
+      _context.partition.objective == kahypar::Objective::km1 ? current_metrics.km1 : current_metrics.cut,
+      _context.partition.verbose_output && _context.partition.enable_progress_bar);
+    uncontraction_progress += num_nodes;
 
     while ( !_hierarchies.empty() ) {
       // Project partition to next level finer hypergraph
@@ -167,9 +193,19 @@ class MultilevelCoarsenerBase {
              V(metrics::imbalance(contracted_hg, _context)));
       _hierarchies.pop_back();
 
+      // Update Progress Bar
+      uncontraction_progress.setObjective(
+        _context.partition.objective == kahypar::Objective::km1 ?
+        current_metrics.km1 : current_metrics.cut);
+      uncontraction_progress += representative_hg.initialNumNodes() - contracted_hg.initialNumNodes();
+
       // TODO: Do some refinement stuff here
     }
 
+    ASSERT(metrics::objective(_hg, _context.partition.objective) ==
+           current_metrics.getMetric(kahypar::Mode::direct_kway, _context.partition.objective),
+           V(current_metrics.getMetric(kahypar::Mode::direct_kway, _context.partition.objective)) <<
+           V(metrics::objective(_hg, _context.partition.objective)));
     return true;
   }
 
