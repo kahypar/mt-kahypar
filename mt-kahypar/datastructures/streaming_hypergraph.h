@@ -1105,10 +1105,12 @@ class StreamingHypergraph {
     _arena.execute([&] {
           tbb::parallel_for(0UL, this->_num_hypernodes, [&](const HypernodeID& id) {
             const HypernodeID hn = get_global_node_id(id);
-            ASSERT(_atomic_hn_data[get_local_node_id_of_vertex(hn)].num_incident_cut_hes == 0);
-            for (const HyperedgeID& he : incidentEdges(hn)) {
-              if (hypergraph_of_hyperedge(he, hypergraphs).connectivity(he) > 1) {
-                incrementIncidentNumCutHyperedges(hn);
+            if ( nodeIsEnabled(hn) ) {
+              ASSERT(_atomic_hn_data[get_local_node_id_of_vertex(hn)].num_incident_cut_hes == 0);
+              for (const HyperedgeID& he : incidentEdges(hn)) {
+                if (hypergraph_of_hyperedge(he, hypergraphs).connectivity(he) > 1) {
+                  incrementIncidentNumCutHyperedges(hn);
+                }
               }
             }
           });

@@ -24,6 +24,7 @@
 
 #include "tbb/concurrent_queue.h"
 #include "tbb/task_group.h"
+#include "tbb/parallel_for.h"
 
 #include "kahypar/meta/mandatory.h"
 
@@ -90,7 +91,7 @@ class MultilevelCoarsenerT : public ICoarsenerT<TypeTraits>,
 
     int pass_nr = 0;
     const HypernodeID initial_num_nodes = Base::currentNumNodes();
-    parallel::scalable_vector<parallel::scalable_vector<HypernodeID>> current_vertices(2);
+    parallel::scalable_vector<parallel::scalable_vector<HypernodeID>> current_vertices(TBB::instance().num_used_numa_nodes());
     while ( Base::currentNumNodes() > _context.coarsening.contraction_limit ) {
       HyperGraph& current_hg = Base::currentHypergraph();
       DBG << V(pass_nr) << V(current_hg.initialNumNodes()) << V(current_hg.initialNumEdges());
@@ -98,13 +99,13 @@ class MultilevelCoarsenerT : public ICoarsenerT<TypeTraits>,
       // Random shuffle vertices of current hypergraph
       utils::Timer::instance().start_timer("shuffle_vertices", "Shuffle Vertices");
       for ( int node = 0; node < TBB::instance().num_used_numa_nodes(); ++node ) {
-        current_vertices[node].resize(current_hg.initialNumNodes());
+        current_vertices[node].resize(current_hg.initialNumNodes(node));
       }
       tbb::parallel_for(0UL, current_hg.initialNumNodes(), [&](const HypernodeID id) {
         const HypernodeID hn = current_hg.globalNodeID(id);
         const int node = StreamingHyperGraph::get_numa_node_of_vertex(hn);
         const HypernodeID local_id = StreamingHyperGraph::get_local_node_id_of_vertex(hn);
-        ASSERT(local_id < current_vertices.size());
+        ASSERT(local_id < current_vertices[node].size());
         current_vertices[node][local_id] = hn;
       });
       if ( _context.coarsening.shuffle_vertices ) {

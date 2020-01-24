@@ -143,7 +143,7 @@ class TBBNumaArena {
   template <typename F>
   void execute_parallel_on_all_numa_nodes(const TaskGroupID task_group_id, F&& func) {
     for (int node = 0; node < num_used_numa_nodes(); ++node) {
-      numa_task_arena(node).execute([&] {
+      numa_task_arena(node).execute([&, node] {
             numa_task_group(task_group_id, node).run([&, node] {
               func(node);
             });
