@@ -116,7 +116,7 @@ class MultilevelVertexPairRater {
       const bool is_same_set = _uf.isSameSet(original_u_id, tmp_target_id);
       const HypernodeWeight target_weight = _uf.weight(tmp_target_id);
 
-      if ( tmp_target != u && belowThresholdNodeWeight(is_same_set, tmp_target, weight_u, target_weight) ) {
+      if ( tmp_target != u && belowThresholdNodeWeight(is_same_set, tmp_target_id, weight_u, target_weight) ) {
         HypernodeWeight penalty = HeavyNodePenaltyPolicy::penalty(weight_u, target_weight);
         penalty = penalty == 0 ? std::max(std::max(weight_u, target_weight), 1) : penalty;
         const RatingType tmp_rating = it->value / static_cast<double>(penalty);
