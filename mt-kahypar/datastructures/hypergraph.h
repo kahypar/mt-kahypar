@@ -102,6 +102,8 @@ class Hypergraph {
     bool is_parallel; // Indicates if this hyperedges is already detected as parallel
     int node; // NUMA Node of hyperedge
     parallel::scalable_vector<HypernodeID> hyperedge;
+    HyperedgeID he_idx; // Index in hyperedge vector
+    HypernodeID pin_idx; // Index of pins in incidence array
   };
 
   /*!
@@ -1225,7 +1227,7 @@ class Hypergraph {
           }
           hash_to_hyperedge.stream(he_hash,
             ContractedHyperedge { he_hash, edgeWeight(he), false,
-              StreamingHypergraph::get_numa_node_of_hyperedge(he), std::move(hyperedge) } );
+              StreamingHypergraph::get_numa_node_of_hyperedge(he), std::move(hyperedge), 0UL, 0UL } );
         }
       }
     });
@@ -1245,6 +1247,10 @@ class Hypergraph {
 
     utils::Timer::instance().start_timer("remove_parallel_hyperedges", "Remove Parallel Hyperedges", false, timer_was_enabled);
     parallel::scalable_vector<HyperedgeID> num_hyperedges_prefix_sum(hyperedge_buckets.size() + 1, 0);
+    parallel::scalable_vector<parallel::IntegralAtomicWrapper<HyperedgeID>> num_hyperedges(
+      TBBNumaArena::instance().num_used_numa_nodes(), parallel::IntegralAtomicWrapper<HyperedgeID>(0));
+    parallel::scalable_vector<parallel::IntegralAtomicWrapper<HypernodeID>> num_pins(
+      TBBNumaArena::instance().num_used_numa_nodes(), parallel::IntegralAtomicWrapper<HypernodeID>(0));
     tbb::parallel_for(0UL, hyperedge_buckets.size(), [&](const size_t bucket) {
       parallel::scalable_vector<ContractedHyperedge>& hyperedge_bucket = hyperedge_buckets[bucket];
       std::sort(hyperedge_bucket.begin(), hyperedge_bucket.end(),
@@ -1275,6 +1281,9 @@ class Hypergraph {
         ContractedHyperedge& contracted_he_lhs = hyperedge_bucket[i];
         if ( !contracted_he_lhs.is_parallel ) {
           ++num_hyperedges_prefix_sum[bucket + 1];
+          ASSERT(contracted_he_lhs.node < TBBNumaArena::instance().num_used_numa_nodes());
+          contracted_he_lhs.he_idx = num_hyperedges[contracted_he_lhs.node]++;
+          contracted_he_lhs.pin_idx = num_pins[contracted_he_lhs.node].fetch_add(contracted_he_lhs.hyperedge.size());
           for ( size_t j = i + 1; j < hyperedge_bucket.size(); ++j ) {
             ContractedHyperedge& contracted_he_rhs = hyperedge_bucket[j];
             if ( !contracted_he_rhs.is_parallel &&
@@ -1304,13 +1313,19 @@ class Hypergraph {
     // numa hypergraph.
 
     // Allocate numa hypergraph on their corresponding numa nodes
-    utils::Timer::instance().start_timer("stream_hyperedges", "Stream Hyperedges", false, timer_was_enabled);
+    utils::Timer::instance().start_timer("init_hyperedges", "Init Hyperedges", false, timer_was_enabled);
     std::vector<StreamingHypergraph> numa_hypergraphs;
     TBBNumaArena::instance().execute_sequential_on_all_numa_nodes(task_group_id, [&](const int node) {
             numa_hypergraphs.emplace_back(node, _k, TBBNumaArena::instance().numa_task_arena(node));
           });
 
+    TBBNumaArena::instance().execute_parallel_on_all_numa_nodes(task_group_id, [&](const int node) {
+            numa_hypergraphs[node].initializeHyperedges(num_hyperedges[node], num_pins[node]);
+          });
+    utils::Timer::instance().stop_timer("init_hyperedges", timer_was_enabled);
+
     // Stream hyperedges into numa hypergraphs and intialize hyperedges
+    utils::Timer::instance().start_timer("add_hyperedges", "Add Hyperedges", false, timer_was_enabled);
     TBBNumaArena::instance().execute_parallel_on_all_numa_nodes(task_group_id, [&](const int node) {
       tbb::parallel_for(0UL, hyperedge_buckets.size(), [&, node](const size_t bucket) {
         HyperedgeID original_he_id = num_hyperedges_prefix_sum[bucket];
@@ -1320,18 +1335,21 @@ class Hypergraph {
           // corresponding numa hypergraph
           if ( !contracted_hyperedge.is_parallel ) {
             if ( node == contracted_hyperedge.node ) {
-              numa_hypergraphs[node].streamHyperedge(
-                contracted_hyperedge.hyperedge, original_he_id, contracted_hyperedge.weight);
+              numa_hypergraphs[node].addHyperedge(
+                contracted_hyperedge.hyperedge, original_he_id, contracted_hyperedge.weight,
+                contracted_hyperedge.he_idx, contracted_hyperedge.pin_idx);
             }
             ++original_he_id;
           }
         }
       });
     });
-    TBBNumaArena::instance().execute_parallel_on_all_numa_nodes(task_group_id, [&](const int node) {
-      numa_hypergraphs[node].initializeHyperedges(num_hypernodes);
-    });
-    utils::Timer::instance().stop_timer("stream_hyperedges", timer_was_enabled);
+
+    // Add Sentinel to each numa hypergraph
+    for ( int node = 0; node < TBBNumaArena::instance().num_used_numa_nodes(); ++node ) {
+      numa_hypergraphs[node]._hyperedges.emplace_back(numa_hypergraphs[node]._incidence_array.size(), 0, 0UL, 0);
+    }
+    utils::Timer::instance().stop_timer("add_hyperedges", timer_was_enabled);
 
     // #################### STAGE 5 ####################
     // Initialize Hypergraph
@@ -1971,7 +1989,7 @@ class Hypergraph {
 
     // Initialize Hyperedges
     TBBNumaArena::instance().execute_parallel_on_all_numa_nodes(task_group_id, [&](const int node) {
-          numa_hypergraphs[node].initializeHyperedges(num_hypernodes);
+          numa_hypergraphs[node].initializeHyperedges(num_hypernodes, false);
         });
 
     // Initialize Hypergraph
@@ -2041,7 +2059,7 @@ class Hypergraph {
     }
 
     // Initialize Hyperedges
-    hypergraph.initializeHyperedgesSequential(num_hypernodes);
+    hypergraph.initializeHyperedgesSequential(num_hypernodes, false);
 
     // Initialize Hypergraph
     Self copy_hypergraph(num_hypernodes, std::move(hypergraph), num_blocks);
