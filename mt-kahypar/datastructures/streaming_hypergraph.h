@@ -1676,15 +1676,13 @@ class StreamingHypergraph {
     utils::Timer::instance().stop_timer("copy_incidence_array_and_he");
 
     ASSERT(_k > 0);
-    _arena.execute([&] {
-      tbb::parallel_invoke([&] {
-        _pins_in_part.assign(_num_hyperedges * _k, HypernodeAtomic(0));
-      }, [&] {
-        _connectivity_sets = ConnectivitySets(_num_hyperedges, _k);
-      }, [&] {
-        ThreadLocalFastResetFlagArray tmp_incidence_nets_of_v(_num_hyperedges);
-        _incident_nets_of_v = std::move(tmp_incidence_nets_of_v);
-      });
+    tbb::parallel_invoke([&] {
+      _pins_in_part.assign(_num_hyperedges * _k, HypernodeAtomic(0));
+    }, [&] {
+      _connectivity_sets = ConnectivitySets(_num_hyperedges, _k);
+    }, [&] {
+      ThreadLocalFastResetFlagArray tmp_incidence_nets_of_v(_num_hyperedges);
+      _incident_nets_of_v = std::move(tmp_incidence_nets_of_v);
     });
 
     // Update start position of each hyperedge to correct one in global incidence array
@@ -1759,23 +1757,26 @@ class StreamingHypergraph {
    */
   void initializeHyperedges(const HyperedgeID num_hyperedges,
                             const HypernodeID num_pins) {
+    // Make sure calling thread is part of correct numa node
+    ASSERT(_node == -1 || HardwareTopology::instance().numa_node_of_cpu(sched_getcpu()) == _node,
+           "Expected that assigned cpu is on numa node" << _node << ", but was on node"
+                                                        << HardwareTopology::instance().numa_node_of_cpu(sched_getcpu()));
+
     _num_hyperedges = num_hyperedges;
     _num_pins = num_pins;
 
     ASSERT(_k > 0);
-    _arena.execute([&] {
-      tbb::parallel_invoke([&] {
-        _hyperedges.resize(num_hyperedges);
-      }, [&] {
-        _incidence_array.resize(num_pins);
-      }, [&] {
-        _pins_in_part.assign(_num_hyperedges * _k, HypernodeAtomic(0));
-      }, [&] {
-        _connectivity_sets = ConnectivitySets(_num_hyperedges, _k);
-      }, [&] {
-        ThreadLocalFastResetFlagArray tmp_incidence_nets_of_v(_num_hyperedges);
-        _incident_nets_of_v = std::move(tmp_incidence_nets_of_v);
-      });
+    tbb::parallel_invoke([&] {
+      _hyperedges.resize(num_hyperedges);
+    }, [&] {
+      _incidence_array.resize(num_pins);
+    }, [&] {
+      _pins_in_part.assign(_num_hyperedges * _k, HypernodeAtomic(0));
+    }, [&] {
+      _connectivity_sets = ConnectivitySets(_num_hyperedges, _k);
+    }, [&] {
+      ThreadLocalFastResetFlagArray tmp_incidence_nets_of_v(_num_hyperedges);
+      _incident_nets_of_v = std::move(tmp_incidence_nets_of_v);
     });
   }
 
