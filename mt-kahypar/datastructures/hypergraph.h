@@ -1247,10 +1247,12 @@ class Hypergraph {
 
     utils::Timer::instance().start_timer("remove_parallel_hyperedges", "Remove Parallel Hyperedges", false, timer_was_enabled);
     parallel::scalable_vector<HyperedgeID> num_hyperedges_prefix_sum(hyperedge_buckets.size() + 1, 0);
-    parallel::scalable_vector<parallel::IntegralAtomicWrapper<HyperedgeID>> num_hyperedges(
-      TBBNumaArena::instance().num_used_numa_nodes(), parallel::IntegralAtomicWrapper<HyperedgeID>(0));
-    parallel::scalable_vector<parallel::IntegralAtomicWrapper<HypernodeID>> num_pins(
-      TBBNumaArena::instance().num_used_numa_nodes(), parallel::IntegralAtomicWrapper<HypernodeID>(0));
+    parallel::scalable_vector<parallel::scalable_vector<HyperedgeID>> num_numa_hyperedges_prefix_sum(
+      hyperedge_buckets.size() + 1, parallel::scalable_vector<HyperedgeID>(
+        TBBNumaArena::instance().num_used_numa_nodes(), 0));
+    parallel::scalable_vector<parallel::scalable_vector<HypernodeID>> num_numa_pins_prefix_sum(
+      hyperedge_buckets.size() + 1, parallel::scalable_vector<HypernodeID>(
+        TBBNumaArena::instance().num_used_numa_nodes(), 0));
     tbb::parallel_for(0UL, hyperedge_buckets.size(), [&](const size_t bucket) {
       parallel::scalable_vector<ContractedHyperedge>& hyperedge_bucket = hyperedge_buckets[bucket];
       std::sort(hyperedge_bucket.begin(), hyperedge_bucket.end(),
@@ -1280,10 +1282,12 @@ class Hypergraph {
       for ( size_t i = 0; i < hyperedge_bucket.size(); ++i ) {
         ContractedHyperedge& contracted_he_lhs = hyperedge_bucket[i];
         if ( !contracted_he_lhs.is_parallel ) {
-          ++num_hyperedges_prefix_sum[bucket + 1];
           ASSERT(contracted_he_lhs.node < TBBNumaArena::instance().num_used_numa_nodes());
-          contracted_he_lhs.he_idx = num_hyperedges[contracted_he_lhs.node]++;
-          contracted_he_lhs.pin_idx = num_pins[contracted_he_lhs.node].fetch_add(contracted_he_lhs.hyperedge.size());
+          const int node = contracted_he_lhs.node;
+          contracted_he_lhs.he_idx = num_numa_hyperedges_prefix_sum[bucket + 1][node]++;
+          contracted_he_lhs.pin_idx = num_numa_pins_prefix_sum[bucket + 1][node];
+          num_numa_pins_prefix_sum[bucket + 1][node] += contracted_he_lhs.hyperedge.size();
+          ++num_hyperedges_prefix_sum[bucket + 1];
           for ( size_t j = i + 1; j < hyperedge_bucket.size(); ++j ) {
             ContractedHyperedge& contracted_he_rhs = hyperedge_bucket[j];
             if ( !contracted_he_rhs.is_parallel &&
@@ -1302,8 +1306,12 @@ class Hypergraph {
         }
       }
     });
-    for ( size_t i = 1; i < hyperedge_buckets.size(); ++i ) {
+    for ( size_t i = 1; i <= hyperedge_buckets.size(); ++i ) {
       num_hyperedges_prefix_sum[i] += num_hyperedges_prefix_sum[i - 1];
+      for ( int node = 0; node < TBBNumaArena::instance().num_used_numa_nodes(); ++node ) {
+        num_numa_hyperedges_prefix_sum[i][node] += num_numa_hyperedges_prefix_sum[i - 1][node];
+        num_numa_pins_prefix_sum[i][node] += num_numa_pins_prefix_sum[i - 1][node];
+      }
     }
     utils::Timer::instance().stop_timer("remove_parallel_hyperedges", timer_was_enabled);
 
@@ -1320,7 +1328,9 @@ class Hypergraph {
           });
 
     TBBNumaArena::instance().execute_parallel_on_all_numa_nodes(task_group_id, [&](const int node) {
-            numa_hypergraphs[node].initializeHyperedges(num_hyperedges[node], num_pins[node]);
+            numa_hypergraphs[node].initializeHyperedges(
+              num_numa_hyperedges_prefix_sum[hyperedge_buckets.size()][node],
+              num_numa_pins_prefix_sum[hyperedge_buckets.size()][node]);
           });
     utils::Timer::instance().stop_timer("init_hyperedges", timer_was_enabled);
 
@@ -1329,6 +1339,8 @@ class Hypergraph {
     TBBNumaArena::instance().execute_parallel_on_all_numa_nodes(task_group_id, [&](const int node) {
       tbb::parallel_for(0UL, hyperedge_buckets.size(), [&, node](const size_t bucket) {
         HyperedgeID original_he_id = num_hyperedges_prefix_sum[bucket];
+        const HyperedgeID numa_hyperedges_prefix_sum = num_numa_hyperedges_prefix_sum[bucket][node];
+        const HypernodeID numa_pins_prefix_sum = num_numa_pins_prefix_sum[bucket][node];
         for ( ContractedHyperedge& contracted_hyperedge : hyperedge_buckets[bucket] ) {
           // If hyperedge was not detected to be parallel to an other hyperedge
           // and it was before on the current numa node, we stream it into the
@@ -1337,7 +1349,8 @@ class Hypergraph {
             if ( node == contracted_hyperedge.node ) {
               numa_hypergraphs[node].addHyperedge(
                 contracted_hyperedge.hyperedge, original_he_id, contracted_hyperedge.weight,
-                contracted_hyperedge.he_idx, contracted_hyperedge.pin_idx);
+                numa_hyperedges_prefix_sum + contracted_hyperedge.he_idx,
+                numa_pins_prefix_sum + contracted_hyperedge.pin_idx);
             }
             ++original_he_id;
           }

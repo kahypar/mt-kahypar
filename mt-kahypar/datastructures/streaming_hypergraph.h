@@ -1451,7 +1451,7 @@ class StreamingHypergraph {
     ASSERT(_node == -1 || HardwareTopology::instance().numa_node_of_cpu(sched_getcpu()) == _node,
            "Expected that assigned cpu is on numa node" << _node << ", but was CPU" << sched_getcpu()
                                                         << "is on node" << HardwareTopology::instance().numa_node_of_cpu(sched_getcpu()));
-    ASSERT(he_idx < _hyperedges.size());
+    ASSERT(he_idx < _hyperedges.size(), V(he_idx) << V(_hyperedges.size()));
     ASSERT(pin_idx + hyperedge.size() <= _incidence_array.size());
     _hyperedges[he_idx] = Hyperedge(pin_idx, hyperedge.size(), original_id, weight);
     memcpy(_incidence_array.data() + pin_idx, hyperedge.data(), sizeof(HypernodeID) * hyperedge.size());
