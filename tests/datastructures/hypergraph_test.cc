@@ -2071,9 +2071,9 @@ TEST_F(AHypergraphWithTwoStreamingHypergraphs, ContractsCommunities1) {
     GLOBAL_ID(c_hypergraph, 1), GLOBAL_ID(c_hypergraph, 2) };
 
   // Verify Mapping
-  ASSERT_EQ(0, c_mapping[1]);
-  ASSERT_EQ(1, c_mapping[4]);
-  ASSERT_EQ(2, c_mapping[5]);
+  ASSERT_EQ(0, c_hypergraph.originalNodeID(c_mapping[1]));
+  ASSERT_EQ(1, c_hypergraph.originalNodeID(c_mapping[4]));
+  ASSERT_EQ(2, c_hypergraph.originalNodeID(c_mapping[5]));
 
   // Verify Stats
   ASSERT_EQ(3, c_hypergraph.initialNumNodes());
@@ -2113,10 +2113,10 @@ TEST_F(AHypergraphWithTwoStreamingHypergraphs, ContractsCommunities2) {
     GLOBAL_ID(c_hypergraph, 1), GLOBAL_ID(c_hypergraph, 2), GLOBAL_ID(c_hypergraph, 3) };
 
   // Verify Mapping
-  ASSERT_EQ(0, c_mapping[1]);
-  ASSERT_EQ(1, c_mapping[4]);
-  ASSERT_EQ(2, c_mapping[5]);
-  ASSERT_EQ(3, c_mapping[6]);
+  ASSERT_EQ(0, c_hypergraph.originalNodeID(c_mapping[1]));
+  ASSERT_EQ(1, c_hypergraph.originalNodeID(c_mapping[4]));
+  ASSERT_EQ(2, c_hypergraph.originalNodeID(c_mapping[5]));
+  ASSERT_EQ(3, c_hypergraph.originalNodeID(c_mapping[6]));
 
   // Verify Stats
   ASSERT_EQ(4, c_hypergraph.initialNumNodes());
@@ -2161,10 +2161,10 @@ TEST_F(AHypergraphWithTwoStreamingHypergraphs, ContractsCommunities3) {
     GLOBAL_ID(c_hypergraph, 1), GLOBAL_ID(c_hypergraph, 2), GLOBAL_ID(c_hypergraph, 3) };
 
   // Verify Mapping
-  ASSERT_EQ(1, c_mapping[0]);
-  ASSERT_EQ(3, c_mapping[1]);
-  ASSERT_EQ(0, c_mapping[2]);
-  ASSERT_EQ(2, c_mapping[5]);
+  ASSERT_EQ(1, c_hypergraph.originalNodeID(c_mapping[0]));
+  ASSERT_EQ(3, c_hypergraph.originalNodeID(c_mapping[1]));
+  ASSERT_EQ(0, c_hypergraph.originalNodeID(c_mapping[2]));
+  ASSERT_EQ(2, c_hypergraph.originalNodeID(c_mapping[5]));
 
   // Verify Stats
   ASSERT_EQ(4, c_hypergraph.initialNumNodes());
@@ -2188,10 +2188,10 @@ TEST_F(AHypergraphWithTwoStreamingHypergraphs, ContractsCommunities3) {
   verifyIterator<HyperedgeID>({ c_hypergraph.globalEdgeID(0), c_hypergraph.globalEdgeID(1) }, [&] {
         return c_hypergraph.incidentEdges(id[0]);
       });
-  verifyIterator<HyperedgeID>({ c_hypergraph.globalEdgeID(0), c_hypergraph.globalEdgeID(2) }, [&] {
+  verifyIterator<HyperedgeID>({ c_hypergraph.globalEdgeID(1), c_hypergraph.globalEdgeID(3) }, [&] {
         return c_hypergraph.incidentEdges(id[1]);
       });
-  verifyIterator<HyperedgeID>({ c_hypergraph.globalEdgeID(1), c_hypergraph.globalEdgeID(3) }, [&] {
+  verifyIterator<HyperedgeID>({ c_hypergraph.globalEdgeID(0), c_hypergraph.globalEdgeID(2) }, [&] {
         return c_hypergraph.incidentEdges(id[2]);
       });
   verifyIterator<HyperedgeID>({ c_hypergraph.globalEdgeID(2), c_hypergraph.globalEdgeID(3) }, [&] {
@@ -2199,7 +2199,7 @@ TEST_F(AHypergraphWithTwoStreamingHypergraphs, ContractsCommunities3) {
       });
   verifyPinIterators(c_hypergraph, { c_hypergraph.globalEdgeID(0),
     c_hypergraph.globalEdgeID(1), c_hypergraph.globalEdgeID(2), c_hypergraph.globalEdgeID(3) },
-    { { id[0], id[1] }, { id[0], id[2] }, { id[1], id[3] }, { id[2], id[3] } });
+    { { id[0], id[2] }, { id[0], id[1] }, { id[2], id[3] }, { id[1], id[3] } });
 }
 
 TEST_F(AHypergraphWithTwoStreamingHypergraphs, ContractsCommunitiesWithDisabledHypernodes) {
@@ -2213,8 +2213,8 @@ TEST_F(AHypergraphWithTwoStreamingHypergraphs, ContractsCommunitiesWithDisabledH
   std::vector<HypernodeID> id = { GLOBAL_ID(c_hypergraph, 0), GLOBAL_ID(c_hypergraph, 1) };
 
   // Verify Mapping
-  ASSERT_EQ(0, c_mapping[1]);
-  ASSERT_EQ(1, c_mapping[2]);
+  ASSERT_EQ(0, c_hypergraph.originalNodeID(c_mapping[1]));
+  ASSERT_EQ(1, c_hypergraph.originalNodeID(c_mapping[2]));
 
   // Verify Stats
   ASSERT_EQ(2, c_hypergraph.initialNumNodes());
@@ -2251,10 +2251,10 @@ TEST_F(AHypergraphWithTwoStreamingHypergraphs, ContractsCommunitiesWithDisabledH
     GLOBAL_ID(c_hypergraph, 2), GLOBAL_ID(c_hypergraph, 3) };
 
   // Verify Mapping
-  ASSERT_EQ(0, c_mapping[0]);
-  ASSERT_EQ(1, c_mapping[1]);
-  ASSERT_EQ(2, c_mapping[2]);
-  ASSERT_EQ(3, c_mapping[3]);
+  ASSERT_EQ(0, c_hypergraph.originalNodeID(c_mapping[0]));
+  ASSERT_EQ(1, c_hypergraph.originalNodeID(c_mapping[1]));
+  ASSERT_EQ(2, c_hypergraph.originalNodeID(c_mapping[2]));
+  ASSERT_EQ(3, c_hypergraph.originalNodeID(c_mapping[3]));
 
   // Verify Stats
   ASSERT_EQ(4, c_hypergraph.initialNumNodes());

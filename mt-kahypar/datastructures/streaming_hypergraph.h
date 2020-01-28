@@ -2155,6 +2155,7 @@ class StreamingHypergraph {
         const auto last = first + e.size();
         if (std::find(first, last, hn) == last) {
           LOG << "Hypernode" << hn << "not part of hyperedge" << he << "on numa node" << get_numa_node_of_hyperedge(he);
+          hypergraph_of_he.printHyperedgeInfo(he);
           return false;
         }
       }

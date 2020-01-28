@@ -75,9 +75,7 @@ class MultilevelCoarsenerBase {
       ASSERT(_representative_hypergraph);
       const HypernodeID original_id = _representative_hypergraph->originalNodeID(hn);
       ASSERT(original_id < _communities.size());
-      const HypernodeID original_contracted_id = _mapping[_communities[original_id]];
-      ASSERT(original_contracted_id < _contracted_hypergraph.initialNumNodes());
-      return _contracted_hypergraph.globalNodeID(original_contracted_id);
+      return _mapping[_communities[original_id]];
     }
 
    private:
