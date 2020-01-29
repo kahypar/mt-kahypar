@@ -143,7 +143,6 @@ struct CoarseningParameters {
   double max_allowed_high_degree_node_weight_multiplier = std::numeric_limits<double>::max();
   double multilevel_shrink_factor = std::numeric_limits<double>::max();
   bool ignore_already_matched_vertices = false;
-  bool shuffle_vertices = false;
   bool use_high_degree_vertex_threshold = false;
 
   // Those will be determined dynamically
@@ -165,7 +164,6 @@ inline std::ostream & operator<< (std::ostream& str, const CoarseningParameters&
   if ( params.algorithm == CoarseningAlgorithm::multilevel_coarsener ) {
     str << "  multilevel shrink factor:           " << params.multilevel_shrink_factor << std::endl;
     str << "  ignore already matched vertices:    " << std::boolalpha << params.ignore_already_matched_vertices << std::endl;
-    str << "  shuffle vertices:                   " << std::boolalpha << params.shuffle_vertices << std::endl;
   }
   if ( params.use_high_degree_vertex_threshold ) {
     str << "  high degree vertex threshold:       " << params.high_degree_vertex_threshold << std::endl;
@@ -237,12 +235,14 @@ inline std::ostream & operator<< (std::ostream& str, const RefinementParameters&
 
 struct SharedMemoryParameters {
   size_t num_threads = 1;
+  size_t shuffle_block_size = 0;
   InitialHyperedgeDistribution initial_hyperedge_distribution = InitialHyperedgeDistribution::UNDEFINED;
 };
 
 inline std::ostream & operator<< (std::ostream& str, const SharedMemoryParameters& params) {
   str << "Shared Memory Parameters:             " << std::endl;
   str << "  Number of Threads:                  " << params.num_threads << std::endl;
+  str << "  Random Shuffle Block Size:          " << params.shuffle_block_size << std::endl;
   str << "  Initial Hyperedge Distribution:     " << params.initial_hyperedge_distribution << std::endl;
   return str;
 }

@@ -207,9 +207,6 @@ po::options_description createCoarseningOptionsDescription(Context& context,
     ("c-ignore-already-matched-vertices",
     po::value<bool>(&context.coarsening.ignore_already_matched_vertices)->value_name("<bool>"),
     "If true, multilevel coarsener ignores already matched vertices")
-    ("c-shuffle-vertices",
-    po::value<bool>(&context.coarsening.shuffle_vertices)->value_name("<bool>"),
-    "If true, vertices are shuffled before computing matching partner")
     ("c-use-high-degree-vertex-threshold",
     po::value<bool>(&context.coarsening.use_high_degree_vertex_threshold)->value_name("<bool>"),
     "If true, than all hypernodes with a degree greater than mean + 5 * stdev are skipped during coarsening")
@@ -341,6 +338,10 @@ po::options_description createSharedMemoryOptionsDescription(Context& context,
     po::value<size_t>(&context.shared_memory.num_threads)->value_name("<size_t>"),
     "Number of threads used during shared memory hypergraph partitioning\n"
     "(default 1)")
+    ("s-shuffle-block-size",
+    po::value<size_t>(&context.shared_memory.shuffle_block_size)->value_name("<size_t>"),
+    "If we perform a random shuffle in parallel, we perform a parallel for over blocks of size"
+    "'shuffle_block_size' and shuffle them sequential.")
     ("s-initial-hyperedge-distribution",
     po::value<std::string>()->value_name("<string>")->notifier(
       [&](const std::string& strategy) {

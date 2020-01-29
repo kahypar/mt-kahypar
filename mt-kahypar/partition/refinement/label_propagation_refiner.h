@@ -185,7 +185,8 @@ class LabelPropagationRefinerT final : public IRefinerT<TypeTraits> {
       if ( _context.refinement.label_propagation.localized ) {
         // In case, we execute non-numa-aware localized label propagation, we
         // perform label propagation on the current uncontracted vertices
-        labelPropagation(hypergraph, refinement_nodes, 0UL, refinement_nodes.size());
+        parallel::scalable_vector<HypernodeID> current_refinement_nodes(refinement_nodes);
+        labelPropagation(hypergraph, current_refinement_nodes, 0UL, current_refinement_nodes.size());
       } else {
         // In case, we execute non-numa-aware non-localized label propagation, we
         // perform label propagation on all vertices
@@ -210,7 +211,7 @@ class LabelPropagationRefinerT final : public IRefinerT<TypeTraits> {
   }
 
   void labelPropagation(HyperGraph& hypergraph,
-                        const parallel::scalable_vector<HypernodeID>& refinement_nodes,
+                        parallel::scalable_vector<HypernodeID>& refinement_nodes,
                         const size_t start,
                         const size_t end,
                         int node = -1) {
@@ -243,7 +244,7 @@ class LabelPropagationRefinerT final : public IRefinerT<TypeTraits> {
   }
 
   bool labelPropagationRound(HyperGraph& hypergraph,
-                             const parallel::scalable_vector<HypernodeID>& refinement_nodes,
+                             parallel::scalable_vector<HypernodeID>& refinement_nodes,
                              const size_t start,
                              const size_t end,
                              const int node,
@@ -260,6 +261,10 @@ class LabelPropagationRefinerT final : public IRefinerT<TypeTraits> {
                              _gain.computeDeltaForHyperedge(he, edge_weight, edge_size,
                                                             pin_count_in_from_part_after, pin_count_in_to_part_after);
                            };
+
+    // Parallel Shuffle Vector
+    utils::Randomize::instance().localizedParallelShuffleVector(
+      refinement_nodes, start, end, _context.shared_memory.shuffle_block_size);
 
     bool converged = true;
     if ( _context.refinement.label_propagation.execute_sequential ) {
@@ -460,12 +465,6 @@ class LabelPropagationRefinerT final : public IRefinerT<TypeTraits> {
       std::swap(_nodes[current_position], _nodes[numa_node_start]);
       current_position = numa_node_start++;
     }
-    // Pseudo-Random Shuffling
-    // Since the nodes are initial shuffled (see initialize()) and the contraction order
-    // gives us also some kind of randomness, we only swap the new vertex to the middle
-    // of the node range of its numa node (avoids expensive call to generate random integers)
-    size_t swap_pos = (_numa_nodes_indices[node] + _numa_nodes_indices[node + 1]) / 2;
-    std::swap(_nodes[current_position], _nodes[swap_pos]);
   }
 
   size_t localPartWeightUpdateFrequency() const {

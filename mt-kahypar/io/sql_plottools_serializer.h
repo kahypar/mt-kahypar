@@ -71,7 +71,6 @@ static inline std::string serialize(const Hypergraph& hypergraph,
         << " coarsening_max_allowed_high_degree_node_weight_multiplier=" << context.coarsening.max_allowed_high_degree_node_weight_multiplier
         << " coarsening_multilevel_shrink_factor=" << context.coarsening.multilevel_shrink_factor
         << " coarsening_ignore_already_matched_vertices=" << std::boolalpha << context.coarsening.ignore_already_matched_vertices
-        << " coarsening_shuffle_vertices=" << std::boolalpha << context.coarsening.shuffle_vertices
         << " coarsening_use_high_degree_vertex_threshold=" << std::boolalpha << context.coarsening.use_high_degree_vertex_threshold
         << " coarsening_max_allowed_node_weight=" << context.coarsening.max_allowed_node_weight
         << " coarsening_max_allowed_high_degree_node_weight=" << context.coarsening.max_allowed_high_degree_node_weight
@@ -96,6 +95,7 @@ static inline std::string serialize(const Hypergraph& hypergraph,
         << " lp_execution_policy=" << context.refinement.label_propagation.execution_policy
         << " lp_execution_policy_alpha=" << context.refinement.label_propagation.execution_policy_alpha
         << " num_threads=" << context.shared_memory.num_threads
+        << " shuffle_block_size=" << context.shared_memory.shuffle_block_size
         << " initial_hyperedge_distribution=" << context.shared_memory.initial_hyperedge_distribution;
 
     // Metrics

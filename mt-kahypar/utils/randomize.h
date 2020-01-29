@@ -143,24 +143,37 @@ class Randomize {
 
   template <typename T>
   void shuffleVector(std::vector<T>& vector, size_t i, size_t j, int cpu_id) {
+    ASSERT(i <= j && j < vector.size());
     ASSERT(cpu_id < (int)std::thread::hardware_concurrency());
     std::shuffle(vector.begin() + i, vector.begin() + j, _rand[cpu_id].getGenerator());
   }
 
   template <typename T>
   void shuffleVector(parallel::scalable_vector<T>& vector, size_t i, size_t j, int cpu_id) {
+    ASSERT(i <= j && j < vector.size());
     ASSERT(cpu_id < (int)std::thread::hardware_concurrency());
     std::shuffle(vector.begin() + i, vector.begin() + j, _rand[cpu_id].getGenerator());
   }
 
   template <typename T>
-  void parallelShuffleVector(parallel::scalable_vector<T>& vector) {
+  void parallelShuffleVector(parallel::scalable_vector<T>& vector, const size_t i, const size_t j) {
+    ASSERT(i <= j && j < vector.size());
     const size_t P = std::thread::hardware_concurrency();
-    const size_t N = vector.size();
+    const size_t N = j - i;
     const size_t step = N / P;
-    tbb::parallel_for(0UL, P, [&](const size_t i) {
-      const size_t start = i * step;
-      const size_t end = i == P - 1 ? N : (i + 1) * step;
+    tbb::parallel_for(0UL, P, [&](const size_t k) {
+      const size_t start = i + k * step;
+      const size_t end = i + (k == P - 1 ? N : (k + 1) * step);
+      const int cpu_id = sched_getcpu();
+      std::shuffle(vector.begin() + start, vector.begin() + end, _rand[cpu_id].getGenerator());
+    });
+  }
+
+  template <typename T>
+  void localizedParallelShuffleVector(parallel::scalable_vector<T>& vector, const size_t i, const size_t j, const size_t block_size) {
+    ASSERT(i <= j && j < vector.size());
+    tbb::parallel_for(i, j, block_size, [&](const size_t start) {
+      const size_t end = std::min(start + block_size, j);
       const int cpu_id = sched_getcpu();
       std::shuffle(vector.begin() + start, vector.begin() + end, _rand[cpu_id].getGenerator());
     });
