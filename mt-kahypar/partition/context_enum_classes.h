@@ -34,6 +34,11 @@ enum class Type : int8_t {
   EdgeAndNodeWeights = 11,
 };
 
+enum class Paradigm : int8_t {
+  nlevel,
+  multilevel
+};
+
 enum class InitialHyperedgeDistribution : uint8_t {
   equally,
   random,
@@ -121,6 +126,7 @@ enum class ExecutionType : uint8_t {
   multilevel,
   constant,
   none,
+  always,
   UNDEFINED
 };
 
@@ -134,6 +140,16 @@ std::ostream & operator<< (std::ostream& os, const Type& type) {
   }
   return os << static_cast<uint8_t>(type);
 }
+
+std::ostream & operator<< (std::ostream& os, const Paradigm& paradigm) {
+  switch (paradigm) {
+    case Paradigm::nlevel: return os << "nlevel";
+    case Paradigm::multilevel: return os << "multilevel";
+      // omit default case to trigger compiler warning for missing cases
+  }
+  return os << static_cast<uint8_t>(paradigm);
+}
+
 
 std::ostream & operator<< (std::ostream& os, const InitialHyperedgeDistribution& strategy) {
   switch (strategy) {
@@ -270,6 +286,7 @@ std::ostream & operator<< (std::ostream& os, const ExecutionType& type) {
     case ExecutionType::multilevel: return os << "multilevel";
     case ExecutionType::constant: return os << "constant";
     case ExecutionType::none: return os << "none";
+    case ExecutionType::always: return os << "always";
     case ExecutionType::UNDEFINED: return os << "UNDEFINED";
       // omit default case to trigger compiler warning for missing cases
   }
@@ -429,6 +446,8 @@ static ExecutionType executionTypeFromString(const std::string& type) {
     return ExecutionType::constant;
   } else if (type == "none") {
     return ExecutionType::none;
+  } else if (type == "always") {
+    return ExecutionType::always;
   }
   ERROR("Illegal option: " + type);
   return ExecutionType::UNDEFINED;

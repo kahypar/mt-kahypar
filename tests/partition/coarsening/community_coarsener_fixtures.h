@@ -33,6 +33,7 @@ class ACommunityCoarsener : public ds::AHypergraph<2> {
   using Base = ds::AHypergraph<2>;
 
  public:
+  using Base::TypeTraits;
   using Base::TestStreamingHypergraph;
   using Base::TestHypergraph;
   using Base::TBBArena;
@@ -40,7 +41,8 @@ class ACommunityCoarsener : public ds::AHypergraph<2> {
   ACommunityCoarsener() :
     Base(),
     hypergraph(),
-    context() {
+    context(),
+    nullptr_refiner(nullptr) {
     hypergraph = construct_hypergraph(16,
                                       { { 0, 1 }, { 0, 1, 3 }, { 1, 2, 3 }, { 2, 3, 4 }, { 2, 4 },
                                         { 4, 5 }, { 4, 5, 7 }, { 5, 6, 7 }, { 6, 7, 8 }, { 6, 8 },
@@ -60,6 +62,7 @@ class ACommunityCoarsener : public ds::AHypergraph<2> {
 
   TestHypergraph hypergraph;
   Context context;
+  std::unique_ptr<IRefinerT<TypeTraits>> nullptr_refiner;
 };
 
 template <class HyperGraph>
@@ -134,8 +137,9 @@ void removesHyperedgesOfSizeOneDuringCoarsening(Coarsener& coarsener,
   }
 }
 
-template <class Coarsener, class HyperGraph>
+template <class Coarsener, class HyperGraph, class TypeTraits>
 void reAddsHyperedgesOfSizeOneDuringUncoarsening(Coarsener& coarsener,
+                                                 std::unique_ptr<IRefinerT<TypeTraits>>& refiner,
                                                  HyperGraph& hypergraph,
                                                  const std::vector<HyperedgeID>& single_node_hes) {
   doCoarsening(coarsener);
@@ -143,8 +147,7 @@ void reAddsHyperedgesOfSizeOneDuringUncoarsening(Coarsener& coarsener,
     ASSERT_THAT(hypergraph.edgeIsEnabled(he), Eq(false)) << V(he);
   }
   assignPartitionIDs(hypergraph);
-  std::unique_ptr<IRefiner> nullptr_refiner(nullptr);
-  coarsener.uncoarsen(nullptr_refiner);
+  coarsener.uncoarsen(refiner);
   for (const HyperedgeID& he : single_node_hes) {
     ASSERT_THAT(hypergraph.edgeIsEnabled(he), Eq(true)) << V(he);
   }
@@ -173,8 +176,9 @@ void updatesEdgeWeightOfRepresentativeHyperedgeOnParallelHyperedgeRemoval(Coarse
   }
 }
 
-template <class Coarsener, class HyperGraph>
+template <class Coarsener, class HyperGraph, class TypeTraits>
 void restoresParallelHyperedgesDuringUncoarsening(Coarsener& coarsener,
+                                                  std::unique_ptr<IRefinerT<TypeTraits>>& refiner,
                                                   HyperGraph& hypergraph,
                                                   const std::vector<HyperedgeID>& parallel_hes) {
   doCoarsening(coarsener);
@@ -182,8 +186,7 @@ void restoresParallelHyperedgesDuringUncoarsening(Coarsener& coarsener,
     ASSERT_THAT(hypergraph.edgeIsEnabled(he), Eq(false)) << V(he);
   }
   assignPartitionIDs(hypergraph);
-  std::unique_ptr<IRefiner> nullptr_refiner(nullptr);
-  coarsener.uncoarsen(nullptr_refiner);
+  coarsener.uncoarsen(refiner);
   for (const HyperedgeID& he : parallel_hes) {
     ASSERT_THAT(hypergraph.edgeIsEnabled(he), Eq(true)) << V(he);
   }

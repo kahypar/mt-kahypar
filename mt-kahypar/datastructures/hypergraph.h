@@ -421,6 +421,11 @@ class Hypergraph {
 
   // ####################### General Hypergraph Stats #######################
 
+  // ! Number of NUMA hypergraphs
+  size_t numNumaHypergraphs() const {
+    return _hypergraphs.size();
+  }
+
   // ! Initial number of hypernodes
   HypernodeID initialNumNodes() const {
     return _num_hypernodes;

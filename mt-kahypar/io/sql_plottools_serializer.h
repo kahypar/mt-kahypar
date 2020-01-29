@@ -44,6 +44,7 @@ static inline std::string serialize(const Hypergraph& hypergraph,
       context.partition.graph_filename.find_last_of('/') + 1)
         << " numHNs=" << hypergraph.initialNumNodes()
         << " numHEs=" << hypergraph.initialNumEdges()
+        << " paradigm=" << context.partition.paradigm
         << " mode=" << context.partition.mode
         << " objective=" << context.partition.objective
         << " k=" << context.partition.k

@@ -37,6 +37,8 @@ class MultilevelCoarsenerBase {
   using Memento = typename StreamingHyperGraph::Memento;
   using HypergraphPruner = HypergraphPrunerT<TypeTraits>;
 
+  using Refiner = IRefinerT<TypeTraits>;
+
   static constexpr bool debug = false;
 
   class Hierarchy {
@@ -129,7 +131,7 @@ class MultilevelCoarsenerBase {
       std::move(communities), std::move(contracted_hg.second));
   }
 
-  bool doUncoarsen(std::unique_ptr<IRefiner>&) {
+  bool doUncoarsen(std::unique_ptr<Refiner>& label_propagation) {
     const HyperGraph& current_hg = currentHypergraph();
     int64_t num_nodes = current_hg.initialNumNodes();
     int64_t num_edges = current_hg.initialNumEdges();
@@ -168,6 +170,7 @@ class MultilevelCoarsenerBase {
 
     for ( int i = _hierarchies.size() - 1; i >= 0; --i ) {
       // Project partition to next level finer hypergraph
+      utils::Timer::instance().start_timer("projecting_partition", "Projecting Partition");
       HyperGraph& representative_hg = _hierarchies[i].representativeHypergraph();
       HyperGraph& contracted_hg = _hierarchies[i].contractedHypergraph();
       tbb::parallel_for(0UL, representative_hg.initialNumNodes(), [&](const HypernodeID id) {
@@ -189,14 +192,24 @@ class MultilevelCoarsenerBase {
              metrics::imbalance(contracted_hg, _context),
              V(metrics::imbalance(representative_hg, _context)) <<
              V(metrics::imbalance(contracted_hg, _context)));
+      utils::Timer::instance().stop_timer("projecting_partition");
+
+      // Refinement
+      utils::Timer::instance().start_timer("initialize_refiner", "Initialize Refiner");
+      if ( label_propagation ) {
+        label_propagation->initialize(representative_hg);
+      }
+      utils::Timer::instance().stop_timer("initialize_refiner");
+
+      if ( label_propagation ) {
+        label_propagation->refine(representative_hg, {}, current_metrics);
+      }
 
       // Update Progress Bar
       uncontraction_progress.setObjective(
         _context.partition.objective == kahypar::Objective::km1 ?
         current_metrics.km1 : current_metrics.cut);
       uncontraction_progress += representative_hg.initialNumNodes() - contracted_hg.initialNumNodes();
-
-      // TODO: Do some refinement stuff here
     }
 
     ASSERT(metrics::objective(_hg, _context.partition.objective) ==

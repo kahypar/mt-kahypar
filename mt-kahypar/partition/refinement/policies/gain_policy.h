@@ -43,14 +43,13 @@ class GainPolicy : public kahypar::meta::PolicyBase {
   using TmpScores = tbb::enumerable_thread_specific<parallel::scalable_vector<Gain> >;
 
  public:
-  GainPolicy(HyperGraph& hypergraph, const Context& context) :
-    _hg(hypergraph),
+  GainPolicy(const Context& context) :
     _context(context),
     _deltas(0),
     _tmp_scores(context.partition.k, 0) { }
 
-  Move computeMaxGainMove(const HypernodeID hn) {
-    return static_cast<Derived*>(this)->computeMaxGainMoveImpl(hn);
+  Move computeMaxGainMove(HyperGraph& hypergraph, const HypernodeID hn) {
+    return static_cast<Derived*>(this)->computeMaxGainMoveImpl(hypergraph, hn);
   }
 
   inline void computeDeltaForHyperedge(const HyperedgeID he,
@@ -87,7 +86,6 @@ class GainPolicy : public kahypar::meta::PolicyBase {
   }
 
  protected:
-  HyperGraph& _hg;
   const Context& _context;
   DeltaGain _deltas;
   TmpScores _tmp_scores;
@@ -100,13 +98,12 @@ class Km1Policy : public GainPolicy<Km1Policy<HyperGraph>, HyperGraph> {
   static constexpr bool enable_heavy_assert = false;
 
  public:
-  Km1Policy(HyperGraph& hypergraph,
-            const Context& context,
+  Km1Policy(const Context& context,
             bool disable_randomization = false) :
-    Base(hypergraph, context),
+    Base(context),
     _disable_randomization(disable_randomization) { }
 
-  Move computeMaxGainMoveImpl(const HypernodeID hn) {
+  Move computeMaxGainMoveImpl(HyperGraph& hypergraph, const HypernodeID hn) {
     HEAVY_REFINEMENT_ASSERT([&] {
         for (PartitionID k = 0; k < _context.partition.k; ++k) {
           if (_tmp_scores.local()[k] != 0) {
@@ -116,12 +113,12 @@ class Km1Policy : public GainPolicy<Km1Policy<HyperGraph>, HyperGraph> {
         return true;
       } (), "Scores and valid parts not correctly reset");
 
-    PartitionID from = _hg.partID(hn);
+    PartitionID from = hypergraph.partID(hn);
     parallel::scalable_vector<Gain>& tmp_scores = _tmp_scores.local();
     Gain internal_weight = 0;
-    for (const HyperedgeID& he : _hg.incidentEdges(hn)) {
-      HypernodeID pin_count_in_from_part = _hg.pinCountInPart(he, from);
-      HyperedgeWeight he_weight = _hg.edgeWeight(he);
+    for (const HyperedgeID& he : hypergraph.incidentEdges(hn)) {
+      HypernodeID pin_count_in_from_part = hypergraph.pinCountInPart(he, from);
+      HyperedgeWeight he_weight = hypergraph.edgeWeight(he);
 
       // In case, there is more one than one pin left in from part, we would
       // increase the connectivity, if we would move the pin to one block
@@ -136,7 +133,7 @@ class Km1Policy : public GainPolicy<Km1Policy<HyperGraph>, HyperGraph> {
       // Substract edge weight of all incident blocks.
       // Note, in case the pin count in from part is greater than one
       // we will later add that edge weight to the gain (see internal_weight).
-      for (const PartitionID& to : _hg.connectivitySet(he)) {
+      for (const PartitionID& to : hypergraph.connectivitySet(he)) {
         if (from != to) {
           tmp_scores[to] -= he_weight;
         }
@@ -144,7 +141,7 @@ class Km1Policy : public GainPolicy<Km1Policy<HyperGraph>, HyperGraph> {
     }
 
     Move best_move { from, from, 0 };
-    HypernodeWeight hn_weight = _hg.nodeWeight(hn);
+    HypernodeWeight hn_weight = hypergraph.nodeWeight(hn);
     int cpu_id = sched_getcpu();
     utils::Randomize& rand = utils::Randomize::instance();
     for (PartitionID to = 0; to < _context.partition.k; ++to) {
@@ -155,7 +152,7 @@ class Km1Policy : public GainPolicy<Km1Policy<HyperGraph>, HyperGraph> {
                               !_disable_randomization &&
                               rand.flipCoin(cpu_id));
         if (new_best_gain &&
-            _hg.localPartWeight(to) + hn_weight <= _context.partition.max_part_weights[to]) {
+            hypergraph.localPartWeight(to) + hn_weight <= _context.partition.max_part_weights[to]) {
           best_move.to = to;
           best_move.gain = score;
         }
@@ -174,7 +171,6 @@ class Km1Policy : public GainPolicy<Km1Policy<HyperGraph>, HyperGraph> {
                                             pin_count_in_from_part_after, pin_count_in_to_part_after);
   }
 
-  using Base::_hg;
   using Base::_context;
   using Base::_deltas;
   using Base::_tmp_scores;
@@ -188,13 +184,12 @@ class CutPolicy : public GainPolicy<CutPolicy<HyperGraph>, HyperGraph> {
   static constexpr bool enable_heavy_assert = false;
 
  public:
-  CutPolicy(HyperGraph& hypergraph,
-            const Context& context,
+  CutPolicy(const Context& context,
             bool disable_randomization = false) :
-    Base(hypergraph, context),
+    Base(context),
     _disable_randomization(disable_randomization) { }
 
-  Move computeMaxGainMoveImpl(const HypernodeID hn) {
+  Move computeMaxGainMoveImpl(HyperGraph& hypergraph, const HypernodeID hn) {
     HEAVY_REFINEMENT_ASSERT([&] {
         for (PartitionID k = 0; k < _context.partition.k; ++k) {
           if (_tmp_scores.local()[k] != 0) {
@@ -204,20 +199,20 @@ class CutPolicy : public GainPolicy<CutPolicy<HyperGraph>, HyperGraph> {
         return true;
       } (), "Scores and valid parts not correctly reset");
 
-    PartitionID from = _hg.partID(hn);
+    PartitionID from = hypergraph.partID(hn);
     parallel::scalable_vector<Gain>& tmp_scores = _tmp_scores.local();
     Gain internal_weight = 0;
-    for (const HyperedgeID& he : _hg.incidentEdges(hn)) {
-      PartitionID connectivity = _hg.connectivity(he);
-      HypernodeID pin_count_in_from_part = _hg.pinCountInPart(he, from);
-      HyperedgeWeight weight = _hg.edgeWeight(he);
+    for (const HyperedgeID& he : hypergraph.incidentEdges(hn)) {
+      PartitionID connectivity = hypergraph.connectivity(he);
+      HypernodeID pin_count_in_from_part = hypergraph.pinCountInPart(he, from);
+      HyperedgeWeight weight = hypergraph.edgeWeight(he);
       if (connectivity == 1) {
-        ASSERT(_hg.edgeSize(he) > 1);
+        ASSERT(hypergraph.edgeSize(he) > 1);
         // In case, the hyperedge is a non-cut hyperedge, we would increase
         // the cut, if we move vertex hn to an other block.
         internal_weight += weight;
       } else if (connectivity == 2 && pin_count_in_from_part == 1) {
-        for (const PartitionID& to : _hg.connectivitySet(he)) {
+        for (const PartitionID& to : hypergraph.connectivitySet(he)) {
           // In case there are only two blocks contained in the current
           // hyperedge and only one pin left in the from part of the hyperedge,
           // we would make the current hyperedge a non-cut hyperedge when moving
@@ -230,7 +225,7 @@ class CutPolicy : public GainPolicy<CutPolicy<HyperGraph>, HyperGraph> {
     }
 
     Move best_move { from, from, 0 };
-    HypernodeWeight hn_weight = _hg.nodeWeight(hn);
+    HypernodeWeight hn_weight = hypergraph.nodeWeight(hn);
     int cpu_id = sched_getcpu();
     utils::Randomize& rand = utils::Randomize::instance();
     for (PartitionID to = 0; to < _context.partition.k; ++to) {
@@ -240,7 +235,7 @@ class CutPolicy : public GainPolicy<CutPolicy<HyperGraph>, HyperGraph> {
                              (score == best_move.gain &&
                               !_disable_randomization &&
                               rand.flipCoin(cpu_id));
-        if (new_best_gain && _hg.localPartWeight(to) + hn_weight <=
+        if (new_best_gain && hypergraph.localPartWeight(to) + hn_weight <=
             _context.partition.max_part_weights[to]) {
           best_move.to = to;
           best_move.gain = score;
@@ -260,7 +255,6 @@ class CutPolicy : public GainPolicy<CutPolicy<HyperGraph>, HyperGraph> {
                                             pin_count_in_from_part_after, pin_count_in_to_part_after);
   }
 
-  using Base::_hg;
   using Base::_context;
   using Base::_deltas;
   using Base::_tmp_scores;

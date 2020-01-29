@@ -27,6 +27,7 @@
 
 namespace mt_kahypar {
 struct PartitioningParameters {
+  Paradigm paradigm = Paradigm::nlevel;
   kahypar::Mode mode = kahypar::Mode::UNDEFINED;
   kahypar::Objective objective = kahypar::Objective::UNDEFINED;
   double epsilon = std::numeric_limits<double>::max();
@@ -55,6 +56,7 @@ inline std::ostream & operator<< (std::ostream& str, const PartitioningParameter
   str << "  Hypergraph:                         " << params.graph_filename << std::endl;
   str << "  Partition File:                     " << params.graph_partition_filename << std::endl;
   str << "  Community File:                     " << params.graph_community_filename << std::endl;
+  str << "  Paradigm:                           " << params.paradigm << std::endl;
   str << "  Mode:                               " << params.mode << std::endl;
   str << "  Objective:                          " << params.objective << std::endl;
   str << "  k:                                  " << params.k << std::endl;
@@ -199,7 +201,6 @@ struct LabelPropagationParameters {
   bool rebalancing = true;
   ExecutionType execution_policy = ExecutionType::UNDEFINED;
   double execution_policy_alpha = 2.0;
-  bool execute_always = false;
   bool execute_sequential = false;
 };
 
@@ -353,12 +354,24 @@ class Context {
       }
     }
 
-
     if ( refinement.label_propagation.localized ) {
       // If we use localized label propagation, we want to execute LP on each level
       // only on the uncontracted hypernodes
       refinement.label_propagation.execution_policy = ExecutionType::constant;
       refinement.label_propagation.execution_policy_alpha = 1.0;
+    }
+
+    switch ( coarsening.algorithm ) {
+      case CoarseningAlgorithm::community_coarsener:
+        partition.paradigm = Paradigm::nlevel;
+        break;
+      case CoarseningAlgorithm::multilevel_coarsener:
+        partition.paradigm = Paradigm::multilevel;
+        refinement.label_propagation.execution_policy = ExecutionType::always;
+        refinement.label_propagation.localized = false;
+        break;
+      case CoarseningAlgorithm::UNDEFINED:
+        break;
     }
   }
 };

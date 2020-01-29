@@ -49,7 +49,7 @@ TEST_F(ACommunityCoarsener, RemovesHyperedgesOfSizeOneDuringCoarsening) {
 TEST_F(ACommunityCoarsener, ReAddsHyperedgesOfSizeOneDuringUncoarsening) {
   Coarsener coarsener(hypergraph, context, TBBArena::GLOBAL_TASK_GROUP);
   reAddsHyperedgesOfSizeOneDuringUncoarsening(
-    coarsener, hypergraph, { 0, 5, 281474976710656, 281474976710661 });
+    coarsener, nullptr_refiner, hypergraph, { 0, 5, 281474976710656, 281474976710661 });
 }
 
 TEST_F(ACommunityCoarsener, RemovesParallelHyperedgesDuringCoarsening) {
@@ -68,7 +68,7 @@ TEST_F(ACommunityCoarsener, UpdatesEdgeWeightOfRepresentativeHyperedgeOnParallel
 TEST_F(ACommunityCoarsener, RestoresParallelHyperedgesDuringUncoarsening) {
   Coarsener coarsener(hypergraph, context, TBBArena::GLOBAL_TASK_GROUP);
   restoresParallelHyperedgesDuringUncoarsening(
-    coarsener, hypergraph, { 2, 4, 7, 9, 281474976710658, 281474976710660, 281474976710663 });
+    coarsener, nullptr_refiner, hypergraph, { 2, 4, 7, 9, 281474976710658, 281474976710660, 281474976710663 });
 }
 
 TEST_F(ACommunityCoarsener, DoesNotCoarsenUntilCoarseningLimit) {

@@ -63,6 +63,8 @@ class CommunityCoarsenerT : public ICoarsenerT<TypeTraits>,
                                          AcceptancePolicy>;
   using Rating = typename Rater::Rating;
 
+  using Refiner = IRefinerT<TypeTraits>;
+
   static constexpr bool debug = false;
   static constexpr HypernodeID kInvalidHypernode = std::numeric_limits<HypernodeID>::max();
 
@@ -232,7 +234,7 @@ class CommunityCoarsenerT : public ICoarsenerT<TypeTraits>,
                                          (int64_t)_pruner[community_id].removedSingleNodeHyperedges().size());
   }
 
-  bool uncoarsenImpl(std::unique_ptr<IRefiner>& label_propagation) override {
+  bool uncoarsenImpl(std::unique_ptr<Refiner>& label_propagation) override {
     return this->doUncoarsen(label_propagation);
   }
 

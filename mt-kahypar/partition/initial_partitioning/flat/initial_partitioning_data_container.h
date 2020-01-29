@@ -37,6 +37,7 @@ template <typename TypeTraits>
 class InitialPartitioningDataContainerT {
   using HyperGraph = typename TypeTraits::HyperGraph;
   using TBB = typename TypeTraits::TBB;
+  using Refiner = IRefinerT<TypeTraits>;
 
   static constexpr bool debug = false;
   static PartitionID kInvalidPartition;
@@ -76,8 +77,8 @@ class InitialPartitioningDataContainerT {
   };
 
   struct LocalInitialPartitioningHypergraph {
-    using LabelPropagationKm1Refiner = LabelPropagationRefinerT<TypeTraits, NoExecutionPolicy, Km1Policy>;
-    using LabelPropagationCutRefiner = LabelPropagationRefinerT<TypeTraits, NoExecutionPolicy, CutPolicy>;
+    using LabelPropagationKm1Refiner = LabelPropagationRefinerT<TypeTraits, AlwaysExecutionPolicy, Km1Policy>;
+    using LabelPropagationCutRefiner = LabelPropagationRefinerT<TypeTraits, AlwaysExecutionPolicy, CutPolicy>;
 
     LocalInitialPartitioningHypergraph(HyperGraph&& hypergraph,
                                        const Context& context,
@@ -101,9 +102,11 @@ class InitialPartitioningDataContainerT {
         if ( _context.partition.objective == kahypar::Objective::km1 ) {
           _label_propagation = std::make_unique<LabelPropagationKm1Refiner>(
             _hypergraph, _context, task_group_id);
+          _label_propagation->initialize(_hypergraph);
         } else if ( _context.partition.objective == kahypar::Objective::cut ) {
           _label_propagation = std::make_unique<LabelPropagationCutRefiner>(
             _hypergraph, _context, task_group_id);
+          _label_propagation->initialize(_hypergraph);
         }
       }
     }
@@ -126,7 +129,7 @@ class InitialPartitioningDataContainerT {
         metrics::imbalance(_hypergraph, _context) };
 
       if ( _label_propagation ) {
-        _label_propagation->refine({}, current_metric);
+        _label_propagation->refine(_hypergraph, {}, current_metric);
       }
 
       PartitioningResult result(algorithm,
@@ -169,7 +172,7 @@ class InitialPartitioningDataContainerT {
     parallel::scalable_vector<HypernodeID> _mapping;
     parallel::scalable_vector<PartitionID> _partition;
     PartitioningResult _result;
-    std::unique_ptr<IRefiner> _label_propagation;
+    std::unique_ptr<Refiner> _label_propagation;
     parallel::scalable_vector<utils::InitialPartitionerSummary> _stats;
   };
 
@@ -197,8 +200,7 @@ class InitialPartitioningDataContainerT {
     _context.refinement.label_propagation.part_weight_update_factor = 1.0;
     _context.refinement.label_propagation.numa_aware = false;
     _context.refinement.label_propagation.localized = false;
-    _context.refinement.label_propagation.execution_policy = ExecutionType::none;
-    _context.refinement.label_propagation.execute_always = true;
+    _context.refinement.label_propagation.execution_policy = ExecutionType::always;
     _context.refinement.label_propagation.execute_sequential = true;
   }
 

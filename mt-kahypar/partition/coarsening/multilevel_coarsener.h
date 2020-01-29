@@ -60,6 +60,7 @@ class MultilevelCoarsenerT : public ICoarsenerT<TypeTraits>,
                                           AcceptancePolicy>;
   using Rating = typename Rater::Rating;
 
+  using Refiner = IRefinerT<TypeTraits>;
 
   static constexpr bool debug = false;
   static constexpr HypernodeID kInvalidHypernode = std::numeric_limits<HypernodeID>::max();
@@ -174,7 +175,7 @@ class MultilevelCoarsenerT : public ICoarsenerT<TypeTraits>,
     _progress_bar.disable();
   }
 
-  bool uncoarsenImpl(std::unique_ptr<IRefiner>& label_propagation) override {
+  bool uncoarsenImpl(std::unique_ptr<Refiner>& label_propagation) override {
     return Base::doUncoarsen(label_propagation);
   }
 

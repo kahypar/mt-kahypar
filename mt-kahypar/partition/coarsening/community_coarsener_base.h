@@ -49,6 +49,8 @@ class CommunityCoarsenerBase {
   using Memento = typename StreamingHyperGraph::Memento;
   using HypergraphPruner = HypergraphPrunerT<TypeTraits>;
 
+  using Refiner = IRefinerT<TypeTraits>;
+
   static constexpr bool debug = false;
   static constexpr HyperedgeID NUM_INVALID_INCIDENT_NETS_THRESHOLD = 100;
   static HypernodeID kInvalidHyperedge;
@@ -119,7 +121,7 @@ class CommunityCoarsenerBase {
     _pruner[community_id].removeParallelHyperedges(_hg, community_id, _community_history[community_id].back());
   }
 
-  bool doUncoarsen(std::unique_ptr<IRefiner>& label_propagation) {
+  bool doUncoarsen(std::unique_ptr<Refiner>& label_propagation) {
     ASSERT(!_init, "Community coarsener must be finalized before uncoarsening");
 
     int64_t num_nodes = 0;
@@ -153,6 +155,11 @@ class CommunityCoarsenerBase {
     utils::Stats::instance().add_stat("initial_km1", current_metrics.km1);
     utils::Stats::instance().add_stat("initial_imbalance", current_metrics.imbalance);
 
+    // Initialize Refiner
+    if ( label_propagation ) {
+      label_propagation->initialize(_hg);
+    }
+
     parallel::scalable_vector<HypernodeID> refinement_nodes;
     size_t max_batch_size = _context.refinement.use_batch_uncontractions ? _context.refinement.batch_size : 1;
     utils::ProgressBar uncontraction_progress(_hg.initialNumNodes(),
@@ -170,7 +177,7 @@ class CommunityCoarsenerBase {
       if (label_propagation) {
         // NOTE, label propagation refiner relies on the assumption, that it is called after
         // each uncontraction. Do not move the refiner call out of this loop.
-        label_propagation->refine(refinement_nodes, current_metrics);
+        label_propagation->refine(_hg, refinement_nodes, current_metrics);
       }
 
       uncontraction_progress.setObjective(

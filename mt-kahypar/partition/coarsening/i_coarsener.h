@@ -31,6 +31,7 @@ template<typename TypeTraits>
 class ICoarsenerT {
 
   using HyperGraph = typename TypeTraits::HyperGraph;
+  using Refiner = IRefinerT<TypeTraits>;
 
  public:
   ICoarsenerT(const ICoarsenerT&) = delete;
@@ -42,7 +43,7 @@ class ICoarsenerT {
     coarsenImpl();
   }
 
-  bool uncoarsen(std::unique_ptr<IRefiner>& label_propagation) {
+  bool uncoarsen(std::unique_ptr<Refiner>& label_propagation) {
     return uncoarsenImpl(label_propagation);
   }
 
@@ -57,7 +58,7 @@ class ICoarsenerT {
 
  private:
   virtual void coarsenImpl() = 0;
-  virtual bool uncoarsenImpl(std::unique_ptr<IRefiner>& label_propagation) = 0;
+  virtual bool uncoarsenImpl(std::unique_ptr<Refiner>& label_propagation) = 0;
   virtual HyperGraph& coarsestHypergraphImpl() = 0;
 };
 

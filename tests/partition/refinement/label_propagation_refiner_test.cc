@@ -114,6 +114,7 @@ class ALabelPropagationRefiner : public Test {
     initialPartition();
 
     refiner = std::make_unique<Refiner>(hypergraph, context, TBB::GLOBAL_TASK_GROUP);
+    refiner->initialize(hypergraph);
   }
 
   static void SetUpTestSuite() {
@@ -154,24 +155,24 @@ typedef ::testing::Types<TestConfig<2, kahypar::Objective::cut>,
 TYPED_TEST_CASE(ALabelPropagationRefiner, TestConfigs);
 
 TYPED_TEST(ALabelPropagationRefiner, UpdatesImbalanceCorrectly) {
-  this->refiner->refine({ }, this->metrics);
+  this->refiner->refine(this->hypergraph, { }, this->metrics);
   ASSERT_DOUBLE_EQ(metrics::imbalance(this->hypergraph, this->context), this->metrics.imbalance);
 }
 
 TYPED_TEST(ALabelPropagationRefiner, DoesNotViolateBalanceConstraint) {
-  this->refiner->refine({ }, this->metrics);
+  this->refiner->refine(this->hypergraph, { }, this->metrics);
   ASSERT_LE(this->metrics.imbalance, this->context.partition.epsilon + EPS);
 }
 
 TYPED_TEST(ALabelPropagationRefiner, UpdatesMetricsCorrectly) {
-  this->refiner->refine({ }, this->metrics);
+  this->refiner->refine(this->hypergraph, { }, this->metrics);
   ASSERT_EQ(metrics::objective(this->hypergraph, this->context.partition.objective),
             this->metrics.getMetric(kahypar::Mode::direct_kway, this->context.partition.objective));
 }
 
 TYPED_TEST(ALabelPropagationRefiner, DoesNotWorsenSolutionQuality) {
   HyperedgeWeight objective_before = metrics::objective(this->hypergraph, this->context.partition.objective);
-  this->refiner->refine({ }, this->metrics);
+  this->refiner->refine(this->hypergraph, { }, this->metrics);
   ASSERT_LE(this->metrics.getMetric(kahypar::Mode::direct_kway, this->context.partition.objective), objective_before);
 }
 }  // namespace mt_kahypar
