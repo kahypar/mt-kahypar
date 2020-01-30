@@ -56,7 +56,8 @@ class RefinementTask : public tbb::task {
     enableTimerAndStats();
     utils::Timer::instance().stop_timer("initial_partitioning");
 
-    io::printPartitioningResults(_hg, _context, "Initial Partitioning Results:");
+    io::printPartitioningResults(_coarsener->coarsestHypergraph(),
+      _context, "Initial Partitioning Results:");
     if ( _context.partition.verbose_output ) {
       utils::InitialPartitioningStats::instance().printInitialPartitioningStats();
     }
@@ -114,8 +115,9 @@ class CoarseningTask : public tbb::task {
     _coarsener.coarsen();
     utils::Timer::instance().stop_timer("coarsening");
 
+    Hypergraph& coarsest_hypergraph = _coarsener.coarsestHypergraph();
     if (_context.partition.verbose_output) {
-      mt_kahypar::io::printHypergraphInfo(_hg, "Coarsened Hypergraph");
+      mt_kahypar::io::printHypergraphInfo(coarsest_hypergraph, "Coarsened Hypergraph");
     }
 
     // ################## INITIAL PARTITIONING ##################
@@ -124,12 +126,13 @@ class CoarseningTask : public tbb::task {
     if ( _context.initial_partitioning.mode == InitialPartitioningMode::direct ) {
       disableTimerAndStats();
       PoolInitialPartitionerContinuation& ip_continuation = *new(allocate_continuation())
-        PoolInitialPartitionerContinuation(_hg, _context, _task_group_id);
+        PoolInitialPartitionerContinuation(coarsest_hypergraph, _context, _task_group_id);
       spawn_initial_partitioner(ip_continuation);
     } else {
       std::unique_ptr<IInitialPartitioner> initial_partitioner =
         InitialPartitionerFactory::getInstance().createObject(
-          _context.initial_partitioning.mode, _hg, _context, _top_level, _task_group_id);
+          _context.initial_partitioning.mode, coarsest_hypergraph,
+          _context, _top_level, _task_group_id);
       initial_partitioner->initialPartition();
     }
     return nullptr;

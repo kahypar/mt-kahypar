@@ -1102,14 +1102,19 @@ class StreamingHypergraph {
   // ! NOTE, this function have to be called after initial partitioning
   // ! and before local search.
   void initializeNumCutHyperedges(const std::vector<Self>& hypergraphs) {
-    for (const HypernodeID& hn : nodes()) {
-      ASSERT(_atomic_hn_data[get_local_node_id_of_vertex(hn)].num_incident_cut_hes == 0);
-      for (const HyperedgeID& he : incidentEdges(hn)) {
-        if (hypergraph_of_hyperedge(he, hypergraphs).connectivity(he) > 1) {
-          incrementIncidentNumCutHyperedges(hn);
-        }
-      }
-    }
+    _arena.execute([&] {
+          tbb::parallel_for(0UL, this->_num_hypernodes, [&](const HypernodeID& id) {
+            const HypernodeID hn = get_global_node_id(id);
+            if ( nodeIsEnabled(hn) ) {
+              ASSERT(_atomic_hn_data[get_local_node_id_of_vertex(hn)].num_incident_cut_hes == 0);
+              for (const HyperedgeID& he : incidentEdges(hn)) {
+                if (hypergraph_of_hyperedge(he, hypergraphs).connectivity(he) > 1) {
+                  incrementIncidentNumCutHyperedges(hn);
+                }
+              }
+            }
+          });
+        });
   }
 
   // ! Number of blocks which pins of hyperedge e belongs to
@@ -1422,7 +1427,7 @@ class StreamingHypergraph {
   // ! initializeHyperedges() have to be called.
   void streamHyperedge(const parallel::scalable_vector<HypernodeID>& hyperedge,
                        const HyperedgeID original_id,
-                       const HyperedgeWeight& weight) {
+                       const HyperedgeWeight weight) {
     int cpu_id = sched_getcpu();
     // Make sure calling thread is part of correct numa node
     ASSERT(_node == -1 || HardwareTopology::instance().numa_node_of_cpu(cpu_id) == _node,
@@ -1432,6 +1437,24 @@ class StreamingHypergraph {
     for (const HypernodeID& pin : hyperedge) {
       _pin_stream.stream(pin);
     }
+  }
+
+  // ! Adds a hyperedge to the hypergraph
+  // ! Note, adding a hyperedge, the function initializeHyperedges(num_he, num_pins) has
+  // ! to be called.
+  void addHyperedge(const parallel::scalable_vector<HypernodeID>& hyperedge,
+                    const HyperedgeID original_id,
+                    const HyperedgeWeight weight,
+                    const HyperedgeID he_idx,
+                    const HypernodeID pin_idx) {
+    // Make sure calling thread is part of correct numa node
+    ASSERT(_node == -1 || HardwareTopology::instance().numa_node_of_cpu(sched_getcpu()) == _node,
+           "Expected that assigned cpu is on numa node" << _node << ", but was CPU" << sched_getcpu()
+                                                        << "is on node" << HardwareTopology::instance().numa_node_of_cpu(sched_getcpu()));
+    ASSERT(he_idx < _hyperedges.size(), V(he_idx) << V(_hyperedges.size()));
+    ASSERT(pin_idx + hyperedge.size() <= _incidence_array.size());
+    _hyperedges[he_idx] = Hyperedge(pin_idx, hyperedge.size(), original_id, weight);
+    memcpy(_incidence_array.data() + pin_idx, hyperedge.data(), sizeof(HypernodeID) * hyperedge.size());
   }
 
   // ! Indicates that hypernode hn is incident to net he.
@@ -1637,7 +1660,8 @@ class StreamingHypergraph {
   *   1.) Setting up incidence array of this hypergraph
   *   2.) Compute vertex pin counts of all pins contained in this hypergraph
   */
-  void initializeHyperedges(const HypernodeID num_hypernodes) {
+  void initializeHyperedges(const HypernodeID num_hypernodes,
+                            const bool compute_vertex_pin_counts = true) {
     // Make sure calling thread is part of correct numa node
     ASSERT(_node == -1 || HardwareTopology::instance().numa_node_of_cpu(sched_getcpu()) == _node,
            "Expected that assigned cpu is on numa node" << _node << ", but was on node"
@@ -1652,12 +1676,14 @@ class StreamingHypergraph {
     utils::Timer::instance().stop_timer("copy_incidence_array_and_he");
 
     ASSERT(_k > 0);
-    _pins_in_part.assign(_num_hyperedges * _k, HypernodeAtomic(0));
-
-    _connectivity_sets = ConnectivitySets(_num_hyperedges, _k);
-
-    ThreadLocalFastResetFlagArray tmp_incidence_nets_of_v(_num_hyperedges);
-    _incident_nets_of_v = std::move(tmp_incidence_nets_of_v);
+    tbb::parallel_invoke([&] {
+      _pins_in_part.assign(_num_hyperedges * _k, HypernodeAtomic(0));
+    }, [&] {
+      _connectivity_sets = ConnectivitySets(_num_hyperedges, _k);
+    }, [&] {
+      ThreadLocalFastResetFlagArray tmp_incidence_nets_of_v(_num_hyperedges);
+      _incident_nets_of_v = std::move(tmp_incidence_nets_of_v);
+    });
 
     // Update start position of each hyperedge to correct one in global incidence array
     // Note, start positions are stored relative to the local buffer there are streamed into.
@@ -1709,17 +1735,49 @@ class StreamingHypergraph {
     // Compute how many times a hypernode occurs on this node
     // as pin. Will be later important to compute node assignment.
     // TODO(heuer): Think how to parallelize this
-    utils::Timer::instance().start_timer("compute_vertex_pin_count", "Compute Vertex Pin Counts", true);
-    _vertex_pin_count.resize(num_hypernodes);
-    for (size_t i = 0; i < _incidence_array.size(); ++i) {
-      const HypernodeID& pin = _incidence_array[i];
-      ASSERT(pin < _vertex_pin_count.size());
-      _vertex_pin_count[pin]++;
+    if ( compute_vertex_pin_counts ) {
+      utils::Timer::instance().start_timer("compute_vertex_pin_count", "Compute Vertex Pin Counts", true);
+      _vertex_pin_count.resize(num_hypernodes);
+      for (size_t i = 0; i < _incidence_array.size(); ++i) {
+        const HypernodeID& pin = _incidence_array[i];
+        ASSERT(pin < _vertex_pin_count.size());
+        _vertex_pin_count[pin]++;
+      }
+      utils::Timer::instance().stop_timer("compute_vertex_pin_count");
     }
-    utils::Timer::instance().stop_timer("compute_vertex_pin_count");
 
     _pin_stream.clear();
     _hyperedge_stream.clear();
+  }
+
+  /*!
+   * This function allocates the data structures needed for setting up hyperedge related
+   * information. Afterwards, one can call addHyperedge(...) to add hyperedges in a more
+   * efficient manner than with streamHyperedge(...)
+   */
+  void initializeHyperedges(const HyperedgeID num_hyperedges,
+                            const HypernodeID num_pins) {
+    // Make sure calling thread is part of correct numa node
+    ASSERT(_node == -1 || HardwareTopology::instance().numa_node_of_cpu(sched_getcpu()) == _node,
+           "Expected that assigned cpu is on numa node" << _node << ", but was on node"
+                                                        << HardwareTopology::instance().numa_node_of_cpu(sched_getcpu()));
+
+    _num_hyperedges = num_hyperedges;
+    _num_pins = num_pins;
+
+    ASSERT(_k > 0);
+    tbb::parallel_invoke([&] {
+      _hyperedges.resize(num_hyperedges);
+    }, [&] {
+      _incidence_array.resize(num_pins);
+    }, [&] {
+      _pins_in_part.assign(_num_hyperedges * _k, HypernodeAtomic(0));
+    }, [&] {
+      _connectivity_sets = ConnectivitySets(_num_hyperedges, _k);
+    }, [&] {
+      ThreadLocalFastResetFlagArray tmp_incidence_nets_of_v(_num_hyperedges);
+      _incident_nets_of_v = std::move(tmp_incidence_nets_of_v);
+    });
   }
 
   /*!
@@ -1728,7 +1786,8 @@ class StreamingHypergraph {
   *   1.) Setting up incidence array of this hypergraph
   *   2.) Compute vertex pin counts of all pins contained in this hypergraph
   */
-  void initializeHyperedgesSequential(const HypernodeID num_hypernodes) {
+  void initializeHyperedgesSequential(const HypernodeID num_hypernodes,
+                                      const bool compute_vertex_pin_counts = true) {
     // Copy streamed data into global vectors
     utils::Timer::instance().start_timer("copy_incidence_array_and_he", "Copy Incidence Array and HEs", true);
     _incidence_array = _pin_stream.copy();
@@ -1789,14 +1848,16 @@ class StreamingHypergraph {
     // Compute how many times a hypernode occurs on this node
     // as pin. Will be later important to compute node assignment.
     // TODO(heuer): Think how to parallelize this
-    utils::Timer::instance().start_timer("compute_vertex_pin_count", "Compute Vertex Pin Counts", true);
-    _vertex_pin_count.resize(num_hypernodes);
-    for (size_t i = 0; i < _incidence_array.size(); ++i) {
-      const HypernodeID& pin = _incidence_array[i];
-      ASSERT(pin < _vertex_pin_count.size());
-      _vertex_pin_count[pin]++;
+    if ( compute_vertex_pin_counts ) {
+      utils::Timer::instance().start_timer("compute_vertex_pin_count", "Compute Vertex Pin Counts", true);
+      _vertex_pin_count.resize(num_hypernodes);
+      for (size_t i = 0; i < _incidence_array.size(); ++i) {
+        const HypernodeID& pin = _incidence_array[i];
+        ASSERT(pin < _vertex_pin_count.size());
+        _vertex_pin_count[pin]++;
+      }
+      utils::Timer::instance().stop_timer("compute_vertex_pin_count");
     }
-    utils::Timer::instance().stop_timer("compute_vertex_pin_count");
 
     _pin_stream.clear();
     _hyperedge_stream.clear();
@@ -2094,6 +2155,7 @@ class StreamingHypergraph {
         const auto last = first + e.size();
         if (std::find(first, last, hn) == last) {
           LOG << "Hypernode" << hn << "not part of hyperedge" << he << "on numa node" << get_numa_node_of_hyperedge(he);
+          hypergraph_of_he.printHyperedgeInfo(he);
           return false;
         }
       }
@@ -2103,8 +2165,16 @@ class StreamingHypergraph {
 
   // ####################### Helper Functions #######################
 
+  KAHYPAR_ATTRIBUTE_ALWAYS_INLINE static HypernodeID get_global_node_id(const int node, const size_t node_pos) {
+    return (((HyperedgeID)node) << NUMA_NODE_INDENTIFIER) | node_pos;
+  }
+
   KAHYPAR_ATTRIBUTE_ALWAYS_INLINE static HyperedgeID get_global_edge_id(const int node, const size_t edge_pos) {
     return (((HyperedgeID)node) << NUMA_NODE_INDENTIFIER) | edge_pos;
+  }
+
+  KAHYPAR_ATTRIBUTE_ALWAYS_INLINE static HypernodeID get_local_node_id_of_vertex(const HypernodeID u) {
+    return ((1UL << NUMA_NODE_INDENTIFIER) - 1) & u;
   }
 
   KAHYPAR_ATTRIBUTE_ALWAYS_INLINE static int get_numa_node_of_vertex(const HypernodeID u) {
@@ -2569,10 +2639,6 @@ class StreamingHypergraph {
   KAHYPAR_ATTRIBUTE_ALWAYS_INLINE HypernodeID get_global_node_id(const HypernodeID local_id) const {
     const HypernodeID numa_node = static_cast<HypernodeID>(std::max(_node, 0));
     return (numa_node << NUMA_NODE_INDENTIFIER) | local_id;
-  }
-
-  KAHYPAR_ATTRIBUTE_ALWAYS_INLINE static HypernodeID get_local_node_id_of_vertex(const HypernodeID u) {
-    return ((1UL << NUMA_NODE_INDENTIFIER) - 1) & u;
   }
 
   KAHYPAR_ATTRIBUTE_ALWAYS_INLINE static const Self& hypergraph_of_vertex(const HypernodeID u,

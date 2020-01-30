@@ -34,11 +34,13 @@ class ExecutionPolicy : public kahypar::meta::PolicyBase {
  public:
   ExecutionPolicy() :
     _execution_levels(),
-    _alpha(2.0) { }
+    _alpha(2.0),
+    _execute_always(false) { }
 
   ExecutionPolicy(const double alpha) :
     _execution_levels(),
-    _alpha(alpha) { }
+    _alpha(alpha),
+    _execute_always(false) { }
 
   template <typename HyperGraph>
   void initialize(const HyperGraph& hg, const HypernodeID current_num_nodes) {
@@ -46,7 +48,9 @@ class ExecutionPolicy : public kahypar::meta::PolicyBase {
   }
 
   bool execute(const size_t level) {
-    if (_execution_levels.size() == 0) {
+    if ( _execute_always ) {
+      return true;
+    } else if (_execution_levels.size() == 0) {
       return false;
     }
 
@@ -61,6 +65,7 @@ class ExecutionPolicy : public kahypar::meta::PolicyBase {
  protected:
   std::vector<size_t> _execution_levels;
   double _alpha;
+  bool _execute_always;
 };
 
 class MultilevelExecutionPolicy : public ExecutionPolicy<MultilevelExecutionPolicy> {
@@ -161,6 +166,26 @@ class NoExecutionPolicy : public ExecutionPolicy<NoExecutionPolicy> {
   void initialize(const HyperGraph&, const HypernodeID) { }
 };
 
+class AlwaysExecutionPolicy : public ExecutionPolicy<AlwaysExecutionPolicy> {
+ public:
+  AlwaysExecutionPolicy() :
+    ExecutionPolicy() {
+    _execute_always = true;
+  }
+
+  AlwaysExecutionPolicy(const double alpha) :
+    ExecutionPolicy(alpha) {
+    _execute_always = true;
+  }
+
+  template <typename HyperGraph>
+  void initialize(const HyperGraph&, const HypernodeID) { }
+
+ private:
+  using ExecutionPolicy::_execute_always;
+};
+
 using ExecutionPolicyClasses = kahypar::meta::Typelist<ExponentialExecutionPolicy, MultilevelExecutionPolicy,
-                                                       ConstantExecutionPolicy, NoExecutionPolicy>;
+                                                       ConstantExecutionPolicy, NoExecutionPolicy,
+                                                       AlwaysExecutionPolicy>;
 }  // namespace mt_kahypar

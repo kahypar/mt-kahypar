@@ -172,10 +172,11 @@ class RecursiveInitialPartitionerT : public IInitialPartitioner {
       coarsener->coarsen();
 
       // Call recursive initial partitioner
+      HyperGraph& coarsest_hypergraph = coarsener->coarsestHypergraph();
       RecursiveChildContinuationTask& child_continuation = *new(allocate_continuation())
         RecursiveChildContinuationTask(std::move(coarsener), _result, _task_group_id);
       RecursiveTask& recursive_task = *new(child_continuation.allocate_child()) RecursiveTask(
-        _original_hypergraph_info, _result.hypergraph, _result.context, false, _task_group_id);
+        _original_hypergraph_info, coarsest_hypergraph, _result.context, false, _task_group_id);
       child_continuation.set_ref_count(1);
       tbb::task::spawn(recursive_task);
       return nullptr;

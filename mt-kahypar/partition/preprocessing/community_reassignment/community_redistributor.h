@@ -129,7 +129,7 @@ class CommunityRedistributorT {
     for (int node = 0; node < used_numa_nodes; ++node) {
       TBB::instance().numa_task_arena(node).execute([&] {
             TBB::instance().numa_task_group(TBB::GLOBAL_TASK_GROUP, node).run([&, node] {
-              numa_hypergraphs[node].initializeHyperedges(hg.initialNumNodes());
+              numa_hypergraphs[node].initializeHyperedges(hg.initialNumNodes(), false);
             });
           });
     }

@@ -94,7 +94,8 @@ class PLM {
       // parallel shuffle starts becoming competitive with sequential shuffle at four cores... :(
       // TODO implement block-based weak shuffling or use the pseudo-random online permutation approach
       utils::Timer::instance().start_timer("random_shuffle", "Random Shuffle");
-      utils::Randomize::instance().shuffleVector(nodes);
+      utils::Randomize::instance().localizedParallelShuffleVector(
+        nodes, 0UL, nodes.size(), _context.shared_memory.shuffle_block_size);
       utils::Timer::instance().stop_timer("random_shuffle");
 
       tbb::enumerable_thread_specific<size_t> ets_nodesMovedThisRound(0);

@@ -158,14 +158,18 @@ class Timer {
     return instance;
   }
 
+  bool isEnabled() const {
+    return _is_enabled;
+  }
+
   void enable() {
     std::lock_guard<std::mutex> lock(_timing_mutex);
-    _enable = true;
+    _is_enabled = true;
   }
 
   void disable() {
     std::lock_guard<std::mutex> lock(_timing_mutex);
-    _enable = false;
+    _is_enabled = false;
   }
 
   void start_timer(const std::string& key,
@@ -173,7 +177,7 @@ class Timer {
                    bool is_parallel_context = false,
                    bool force = false) {
     std::lock_guard<std::mutex> lock(_timing_mutex);
-    if (_enable || force) {
+    if (_is_enabled || force) {
       if (force || is_parallel_context) {
         _local_active_timings.local().emplace_back(key, description, std::chrono::high_resolution_clock::now());
       } else {
@@ -186,7 +190,7 @@ class Timer {
     unused(key);
     std::lock_guard<std::mutex> lock(_timing_mutex);
 
-    if (_enable || force) {
+    if (_is_enabled || force) {
       HighResClockTimepoint end = std::chrono::high_resolution_clock::now();
       ASSERT(!force || !_local_active_timings.local().empty());
       ActiveTiming current_timing;
@@ -274,7 +278,7 @@ class Timer {
     _active_timings(),
     _local_active_timings(),
     _index(0),
-    _enable(true),
+    _is_enabled(true),
     _show_detailed_timings(false) { }
 
   std::mutex _timing_mutex;
@@ -288,7 +292,7 @@ class Timer {
   // if we are in a parallel context
   LocalActiveTimingStack _local_active_timings;
   std::atomic<int> _index;
-  bool _enable;
+  bool _is_enabled;
   bool _show_detailed_timings;
 };
 

@@ -58,6 +58,7 @@ class APoolInitialPartitionerTest : public Test {
     context.partition.k = Config::K;
     context.partition.epsilon = 0.2;
     context.partition.objective = kahypar::Objective::km1;
+    context.partition.paradigm = Paradigm::nlevel;
     context.initial_partitioning.runs = Config::RUNS;
     context.refinement.label_propagation.algorithm = LabelPropagationAlgorithm::label_propagation_km1;
     hypergraph = io::readHypergraphFile<HyperGraph, StreamingHyperGraph, TBB, HwTopology>(

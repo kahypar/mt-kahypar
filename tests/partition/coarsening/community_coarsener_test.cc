@@ -21,7 +21,7 @@
 #include "gmock/gmock.h"
 
 #include "mt-kahypar/partition/coarsening/community_coarsener.h"
-#include "tests/partition/coarsening/community_coarsener_fixtures.h"
+#include "tests/partition/coarsening/coarsener_fixtures.h"
 
 using ::testing::Test;
 
@@ -30,48 +30,48 @@ using Coarsener = CommunityCoarsenerT<ds::TestTypeTraits<2>, HeavyEdgeScore,
                                       NoWeightPenalty, BestRatingPreferringUnmatched,
                                       PinObjectivePolicy>;
 
-TEST_F(ACommunityCoarsener, DecreasesNumberOfPins) {
+TEST_F(ACoarsener, DecreasesNumberOfPins) {
   Coarsener coarsener(hypergraph, context, TBBArena::GLOBAL_TASK_GROUP);
-  decreasesNumberOfPins(coarsener, hypergraph, 14);
+  decreasesNumberOfPins(coarsener, 14);
 }
 
-TEST_F(ACommunityCoarsener, DecreasesNumberOfHyperedges) {
+TEST_F(ACoarsener, DecreasesNumberOfHyperedges) {
   Coarsener coarsener(hypergraph, context, TBBArena::GLOBAL_TASK_GROUP);
-  decreasesNumberOfHyperedges(coarsener, hypergraph, 7);
+  decreasesNumberOfHyperedges(coarsener, 7);
 }
 
-TEST_F(ACommunityCoarsener, RemovesHyperedgesOfSizeOneDuringCoarsening) {
+TEST_F(ACoarsener, RemovesHyperedgesOfSizeOneDuringCoarsening) {
   Coarsener coarsener(hypergraph, context, TBBArena::GLOBAL_TASK_GROUP);
   removesHyperedgesOfSizeOneDuringCoarsening(
     coarsener, hypergraph, { 0, 5, 281474976710656, 281474976710661 });
 }
 
-TEST_F(ACommunityCoarsener, ReAddsHyperedgesOfSizeOneDuringUncoarsening) {
+TEST_F(ACoarsener, ReAddsHyperedgesOfSizeOneDuringUncoarsening) {
   Coarsener coarsener(hypergraph, context, TBBArena::GLOBAL_TASK_GROUP);
   reAddsHyperedgesOfSizeOneDuringUncoarsening(
-    coarsener, hypergraph, { 0, 5, 281474976710656, 281474976710661 });
+    coarsener, nullptr_refiner, hypergraph, { 0, 5, 281474976710656, 281474976710661 });
 }
 
-TEST_F(ACommunityCoarsener, RemovesParallelHyperedgesDuringCoarsening) {
+TEST_F(ACoarsener, RemovesParallelHyperedgesDuringCoarsening) {
   Coarsener coarsener(hypergraph, context, TBBArena::GLOBAL_TASK_GROUP);
   removesParallelHyperedgesDuringCoarsening(
     coarsener, hypergraph, { 2, 4, 7, 9, 281474976710658, 281474976710660, 281474976710663 });
 }
 
-TEST_F(ACommunityCoarsener, UpdatesEdgeWeightOfRepresentativeHyperedgeOnParallelHyperedgeRemoval) {
+TEST_F(ACoarsener, UpdatesEdgeWeightOfRepresentativeHyperedgeOnParallelHyperedgeRemoval) {
   Coarsener coarsener(hypergraph, context, TBBArena::GLOBAL_TASK_GROUP);
   updatesEdgeWeightOfRepresentativeHyperedgeOnParallelHyperedgeRemoval(
     coarsener, hypergraph, { { 1, 2 }, { 3, 2 }, { 6, 2 }, { 8, 2 },
       { 281474976710657, 2 }, { 281474976710659, 2 }, { 281474976710662, 2 } });
 }
 
-TEST_F(ACommunityCoarsener, RestoresParallelHyperedgesDuringUncoarsening) {
+TEST_F(ACoarsener, RestoresParallelHyperedgesDuringUncoarsening) {
   Coarsener coarsener(hypergraph, context, TBBArena::GLOBAL_TASK_GROUP);
   restoresParallelHyperedgesDuringUncoarsening(
-    coarsener, hypergraph, { 2, 4, 7, 9, 281474976710658, 281474976710660, 281474976710663 });
+    coarsener, nullptr_refiner, hypergraph, { 2, 4, 7, 9, 281474976710658, 281474976710660, 281474976710663 });
 }
 
-TEST_F(ACommunityCoarsener, DoesNotCoarsenUntilCoarseningLimit) {
+TEST_F(ACoarsener, DoesNotCoarsenUntilCoarseningLimit) {
   Coarsener coarsener(hypergraph, context, TBBArena::GLOBAL_TASK_GROUP);
   doesNotCoarsenUntilCoarseningLimit(coarsener, hypergraph, context, 4, 3, 8);
 }

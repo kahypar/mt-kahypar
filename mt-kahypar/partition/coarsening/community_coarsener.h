@@ -46,7 +46,7 @@ template <typename TypeTraits,
           class HeavyNodePenaltyPolicy = MultiplicativePenalty,
           class AcceptancePolicy = BestRatingPreferringUnmatched,
           class CommunityAssignmentObjective = PinObjectivePolicy>
-class CommunityCoarsenerT : public ICoarsener,
+class CommunityCoarsenerT : public ICoarsenerT<TypeTraits>,
                             private CommunityCoarsenerBase<TypeTraits> {
  private:
   using HyperGraph = typename TypeTraits::HyperGraph;
@@ -62,6 +62,8 @@ class CommunityCoarsenerT : public ICoarsener,
                                          HeavyNodePenaltyPolicy,
                                          AcceptancePolicy>;
   using Rating = typename Rater::Rating;
+
+  using Refiner = IRefinerT<TypeTraits>;
 
   static constexpr bool debug = false;
   static constexpr HypernodeID kInvalidHypernode = std::numeric_limits<HypernodeID>::max();
@@ -232,8 +234,12 @@ class CommunityCoarsenerT : public ICoarsener,
                                          (int64_t)_pruner[community_id].removedSingleNodeHyperedges().size());
   }
 
-  bool uncoarsenImpl(std::unique_ptr<IRefiner>& label_propagation) override {
+  bool uncoarsenImpl(std::unique_ptr<Refiner>& label_propagation) override {
     return this->doUncoarsen(label_propagation);
+  }
+
+  HyperGraph& coarsestHypergraphImpl() override {
+    return _hg;
   }
 
   using Base::_hg;

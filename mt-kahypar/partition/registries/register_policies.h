@@ -76,4 +76,6 @@ REGISTER_POLICY(ExecutionType, ExecutionType::constant,
                 ConstantExecutionPolicy);
 REGISTER_POLICY(ExecutionType, ExecutionType::none,
                 NoExecutionPolicy);
+REGISTER_POLICY(ExecutionType, ExecutionType::always,
+                AlwaysExecutionPolicy);
 }  // namespace mt_kahypar

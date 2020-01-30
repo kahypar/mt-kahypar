@@ -27,6 +27,7 @@
 
 namespace mt_kahypar {
 struct PartitioningParameters {
+  Paradigm paradigm = Paradigm::nlevel;
   kahypar::Mode mode = kahypar::Mode::UNDEFINED;
   kahypar::Objective objective = kahypar::Objective::UNDEFINED;
   double epsilon = std::numeric_limits<double>::max();
@@ -55,6 +56,7 @@ inline std::ostream & operator<< (std::ostream& str, const PartitioningParameter
   str << "  Hypergraph:                         " << params.graph_filename << std::endl;
   str << "  Partition File:                     " << params.graph_partition_filename << std::endl;
   str << "  Community File:                     " << params.graph_community_filename << std::endl;
+  str << "  Paradigm:                           " << params.paradigm << std::endl;
   str << "  Mode:                               " << params.mode << std::endl;
   str << "  Objective:                          " << params.objective << std::endl;
   str << "  k:                                  " << params.k << std::endl;
@@ -86,20 +88,20 @@ inline std::ostream & operator<< (std::ostream& str, const CommunityDetectionPar
 }
 
 struct CommunityRedistributionParameters {
-  bool use_community_redistribution = false;
   CommunityAssignmentObjective assignment_objective = CommunityAssignmentObjective::UNDEFINED;
   CommunityAssignmentStrategy assignment_strategy = CommunityAssignmentStrategy::UNDEFINED;
 };
 
 inline std::ostream & operator<< (std::ostream& str, const CommunityRedistributionParameters& params) {
   str << "  Community Detection Parameters:" << std::endl;
-  str << "    Use Community Redistribution:     " << std::boolalpha << params.use_community_redistribution << std::endl;
   str << "    Community Assignment Objective:   " << params.assignment_objective << std::endl;
   str << "    Community Assignment Strategy:    " << params.assignment_strategy << std::endl;
   return str;
 }
 
 struct PreprocessingParameters {
+  bool use_community_detection = false;
+  bool use_community_redistribution = false;
   bool use_community_structure_from_file = false;
   CommunityDetectionParameters community_detection = { };
   CommunityRedistributionParameters community_redistribution = { };
@@ -107,11 +109,15 @@ struct PreprocessingParameters {
 
 inline std::ostream & operator<< (std::ostream& str, const PreprocessingParameters& params) {
   str << "Preprocessing Parameters:" << std::endl;
+  str << "  Use Community Detection:            " << std::boolalpha << params.use_community_detection << std::endl;
+  str << "  Use Community Redistribution:       " << std::boolalpha << params.use_community_redistribution << std::endl;
   str << "  Use Community Structure from File:  " << std::boolalpha << params.use_community_structure_from_file << std::endl;
-  if (!params.use_community_structure_from_file) {
+  if (!params.use_community_structure_from_file && params.use_community_detection) {
     str << std::endl << params.community_detection;
   }
-  str << std::endl << params.community_redistribution;
+  if ( params.use_community_redistribution ) {
+    str << std::endl << params.community_redistribution;
+  }
   return str;
 }
 
@@ -135,6 +141,8 @@ struct CoarseningParameters {
   HypernodeID contraction_limit_multiplier = std::numeric_limits<HypernodeID>::max();
   double max_allowed_weight_multiplier = std::numeric_limits<double>::max();
   double max_allowed_high_degree_node_weight_multiplier = std::numeric_limits<double>::max();
+  double multilevel_shrink_factor = std::numeric_limits<double>::max();
+  bool ignore_already_matched_vertices = false;
   bool use_high_degree_vertex_threshold = false;
 
   // Those will be determined dynamically
@@ -153,6 +161,10 @@ inline std::ostream & operator<< (std::ostream& str, const CoarseningParameters&
   str << "  maximum allowed high-degree weight: " << params.max_allowed_high_degree_node_weight << std::endl;
   str << "  contraction limit multiplier:       " << params.contraction_limit_multiplier << std::endl;
   str << "  contraction limit:                  " << params.contraction_limit << std::endl;
+  if ( params.algorithm == CoarseningAlgorithm::multilevel_coarsener ) {
+    str << "  multilevel shrink factor:           " << params.multilevel_shrink_factor << std::endl;
+    str << "  ignore already matched vertices:    " << std::boolalpha << params.ignore_already_matched_vertices << std::endl;
+  }
   if ( params.use_high_degree_vertex_threshold ) {
     str << "  high degree vertex threshold:       " << params.high_degree_vertex_threshold << std::endl;
   }
@@ -187,7 +199,6 @@ struct LabelPropagationParameters {
   bool rebalancing = true;
   ExecutionType execution_policy = ExecutionType::UNDEFINED;
   double execution_policy_alpha = 2.0;
-  bool execute_always = false;
   bool execute_sequential = false;
 };
 
@@ -224,12 +235,14 @@ inline std::ostream & operator<< (std::ostream& str, const RefinementParameters&
 
 struct SharedMemoryParameters {
   size_t num_threads = 1;
+  size_t shuffle_block_size = 2;
   InitialHyperedgeDistribution initial_hyperedge_distribution = InitialHyperedgeDistribution::UNDEFINED;
 };
 
 inline std::ostream & operator<< (std::ostream& str, const SharedMemoryParameters& params) {
   str << "Shared Memory Parameters:             " << std::endl;
   str << "  Number of Threads:                  " << params.num_threads << std::endl;
+  str << "  Random Shuffle Block Size:          " << params.shuffle_block_size << std::endl;
   str << "  Initial Hyperedge Distribution:     " << params.initial_hyperedge_distribution << std::endl;
   return str;
 }
@@ -324,11 +337,41 @@ class Context {
                   LabelPropagationAlgorithm::label_propagation_km1);
     }
 
+    if ( !preprocessing.use_community_detection ) {
+      if ( coarsening.algorithm == CoarseningAlgorithm::community_coarsener ) {
+        ALGO_SWITCH("Coarsening algorithm" << coarsening.algorithm << "only works if community detection is enabled."
+                                           << "Do you want to enable community detection (Y/N)?",
+                    "Coarsening with" << coarsening.algorithm
+                                      << "without community detection is not possible!",
+                    preprocessing.use_community_detection,
+                    true);
+      } else if ( preprocessing.use_community_redistribution ) {
+        ALGO_SWITCH("Community redistribution only works if community detection is enabled."
+                    << "Do you want to enable community detection (Y/N)?",
+                    "Community redistribution without community detection is not possible!",
+                    preprocessing.use_community_detection,
+                    true);
+      }
+    }
+
     if ( refinement.label_propagation.localized ) {
       // If we use localized label propagation, we want to execute LP on each level
       // only on the uncontracted hypernodes
       refinement.label_propagation.execution_policy = ExecutionType::constant;
       refinement.label_propagation.execution_policy_alpha = 1.0;
+    }
+
+    switch ( coarsening.algorithm ) {
+      case CoarseningAlgorithm::community_coarsener:
+        partition.paradigm = Paradigm::nlevel;
+        break;
+      case CoarseningAlgorithm::multilevel_coarsener:
+        partition.paradigm = Paradigm::multilevel;
+        refinement.label_propagation.execution_policy = ExecutionType::always;
+        refinement.label_propagation.localized = false;
+        break;
+      case CoarseningAlgorithm::UNDEFINED:
+        break;
     }
   }
 };

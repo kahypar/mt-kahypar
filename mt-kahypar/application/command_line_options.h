@@ -125,6 +125,9 @@ po::options_description createPreprocessingOptionsDescription(Context& context, 
     ("p-use-community-structure-from-file",
     po::value<bool>(&context.preprocessing.use_community_structure_from_file)->value_name("<bool>"),
     "If true, than community structure is read from file <path-to-hypergraph>/<hypergraph-name>.community")
+    ("p-enable-community-detection",
+    po::value<bool>(&context.preprocessing.use_community_detection)->value_name("<bool>"),
+    "If true, community detection is used as preprocessing step to guide contractions in coarsening phase")
     ("p-community-load-balancing-strategy",
     po::value<std::string>()->value_name("<string>")->notifier(
       [&](const std::string& strategy) {
@@ -155,8 +158,8 @@ po::options_description createPreprocessingOptionsDescription(Context& context, 
     po::value<long double>(&context.preprocessing.community_detection.min_eps_improvement)->value_name("<long double>"),
     "Minimum improvement of quality during a louvain pass which leads to further passes")
     ("p-enable-community-redistribution",
-    po::value<bool>(&context.preprocessing.community_redistribution.use_community_redistribution)->value_name("<bool>"),
-    "If true, hypergraph is redistributed based on community detection")
+    po::value<bool>(&context.preprocessing.use_community_redistribution)->value_name("<bool>"),
+    "If true, hypergraph is redistributed based on community information to numa nodes")
     ("p-community-redistribution-objective",
     po::value<std::string>()->value_name("<string>")->notifier(
       [&](const std::string& objective) {
@@ -185,7 +188,8 @@ po::options_description createCoarseningOptionsDescription(Context& context,
       context.coarsening.algorithm = mt_kahypar::coarseningAlgorithmFromString(ctype);
     }),
     "Coarsening Algorithm:\n"
-    " - community_coarsener")
+    " - community_coarsener\n"
+    " - multilevel_coarsener")
     ("c-s",
     po::value<double>(&context.coarsening.max_allowed_weight_multiplier)->value_name("<double>"),
     "The maximum weight of a vertex in the coarsest hypergraph H is:\n"
@@ -197,6 +201,12 @@ po::options_description createCoarseningOptionsDescription(Context& context,
     ("c-t",
     po::value<HypernodeID>(&context.coarsening.contraction_limit_multiplier)->value_name("<int>"),
     "Coarsening stops when there are no more than t * k hypernodes left")
+    ("c-shrink-factor",
+    po::value<double>(&context.coarsening.multilevel_shrink_factor)->value_name("<double>"),
+    "Multilevel coarsener creates a new hierarchy, if number of nodes is below |V| / shrink_factor")
+    ("c-ignore-already-matched-vertices",
+    po::value<bool>(&context.coarsening.ignore_already_matched_vertices)->value_name("<bool>"),
+    "If true, multilevel coarsener ignores already matched vertices")
     ("c-use-high-degree-vertex-threshold",
     po::value<bool>(&context.coarsening.use_high_degree_vertex_threshold)->value_name("<bool>"),
     "If true, than all hypernodes with a degree greater than mean + 5 * stdev are skipped during coarsening")
@@ -328,6 +338,10 @@ po::options_description createSharedMemoryOptionsDescription(Context& context,
     po::value<size_t>(&context.shared_memory.num_threads)->value_name("<size_t>"),
     "Number of threads used during shared memory hypergraph partitioning\n"
     "(default 1)")
+    ("s-shuffle-block-size",
+    po::value<size_t>(&context.shared_memory.shuffle_block_size)->value_name("<size_t>"),
+    "If we perform a random shuffle in parallel, we perform a parallel for over blocks of size"
+    "'shuffle_block_size' and shuffle them sequential.")
     ("s-initial-hyperedge-distribution",
     po::value<std::string>()->value_name("<string>")->notifier(
       [&](const std::string& strategy) {
