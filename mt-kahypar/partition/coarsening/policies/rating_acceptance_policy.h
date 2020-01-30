@@ -28,6 +28,19 @@
 #include "mt-kahypar/partition/coarsening/policies/rating_tie_breaking_policy.h"
 
 namespace mt_kahypar {
+
+class BestRatingWithoutTieBreaking final : public kahypar::meta::PolicyBase {
+ public:
+  KAHYPAR_ATTRIBUTE_ALWAYS_INLINE static inline bool acceptRating(const RatingType tmp,
+                                                                  const RatingType max_rating,
+                                                                  const HypernodeID u,
+                                                                  const HypernodeID v,
+                                                                  const int,
+                                                                  const kahypar::ds::FastResetFlagArray<> &) {
+    return max_rating < tmp || ( max_rating == tmp && u < v );
+  }
+};
+
 class BestRatingWithTieBreaking final : public kahypar::meta::PolicyBase {
  public:
   KAHYPAR_ATTRIBUTE_ALWAYS_INLINE static inline bool acceptRating(const RatingType tmp,

@@ -110,9 +110,11 @@ class MultilevelCoarsenerT : public ICoarsenerT<TypeTraits>,
         current_vertices[node][local_id] = hn;
       });
 
-      for ( int node = 0; node < TBB::instance().num_used_numa_nodes(); ++node ) {
-        utils::Randomize::instance().localizedParallelShuffleVector(
-          current_vertices[node], 0UL, current_vertices[node].size(), _context.shared_memory.shuffle_block_size);
+      if ( _enable_randomization ) {
+        for ( int node = 0; node < TBB::instance().num_used_numa_nodes(); ++node ) {
+          utils::Randomize::instance().localizedParallelShuffleVector(
+            current_vertices[node], 0UL, current_vertices[node].size(), _context.shared_memory.shuffle_block_size);
+        }
       }
       utils::Timer::instance().stop_timer("shuffle_vertices");
 

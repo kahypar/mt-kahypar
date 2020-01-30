@@ -1,1 +1,2 @@
 add_gmock_test(community_coarsener_test community_coarsener_test.cc)
+add_gmock_test(multilevel_coarsener_test multilevel_coarsener_test.cc)

@@ -22,9 +22,11 @@
 
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/context.h"
+#include "mt-kahypar/partition/metrics.h"
 #include "mt-kahypar/partition/refinement/i_refiner.h"
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
 #include "mt-kahypar/utils/progress_bar.h"
+#include "mt-kahypar/utils/stats.h"
 
 namespace mt_kahypar {
 template <typename TypeTraits>
@@ -33,9 +35,6 @@ class MultilevelCoarsenerBase {
   using HyperGraph = typename TypeTraits::HyperGraph;
   using StreamingHyperGraph = typename TypeTraits::StreamingHyperGraph;
   using TBB = typename TypeTraits::TBB;
-
-  using Memento = typename StreamingHyperGraph::Memento;
-  using HypergraphPruner = HypergraphPrunerT<TypeTraits>;
 
   using Refiner = IRefinerT<TypeTraits>;
 

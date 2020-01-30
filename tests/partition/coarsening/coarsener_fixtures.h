@@ -28,7 +28,7 @@ using ::testing::Eq;
 using ::testing::Le;
 
 namespace mt_kahypar {
-class ACommunityCoarsener : public ds::AHypergraph<2> {
+class ACoarsener : public ds::AHypergraph<2> {
  private:
   using Base = ds::AHypergraph<2>;
 
@@ -38,7 +38,7 @@ class ACommunityCoarsener : public ds::AHypergraph<2> {
   using Base::TestHypergraph;
   using Base::TBBArena;
 
-  ACommunityCoarsener() :
+  ACoarsener() :
     Base(),
     hypergraph(),
     context(),
@@ -57,6 +57,8 @@ class ACommunityCoarsener : public ds::AHypergraph<2> {
     context.partition.objective = kahypar::Objective::km1;
     context.coarsening.max_allowed_node_weight = std::numeric_limits<HypernodeWeight>::max();
     context.coarsening.contraction_limit = 8;
+    context.coarsening.ignore_already_matched_vertices = false;
+    context.coarsening.multilevel_shrink_factor = 4.0;
     context.setupPartWeights(hypergraph.totalWeight());
   }
 
@@ -111,20 +113,18 @@ void doCoarsening(Coarsener& coarsener) {
   coarsener.coarsen();
 }
 
-template <class Coarsener, class Hypergraph>
+template <class Coarsener>
 void decreasesNumberOfPins(Coarsener& coarsener,
-                           Hypergraph& hypergraph,
                            const size_t number_of_pins) {
   doCoarsening(coarsener);
-  ASSERT_THAT(currentNumPins(hypergraph), Eq(number_of_pins));
+  ASSERT_THAT(currentNumPins(coarsener.coarsestHypergraph()), Eq(number_of_pins));
 }
 
-template <class Coarsener, class HyperGraph>
+template <class Coarsener>
 void decreasesNumberOfHyperedges(Coarsener& coarsener,
-                                 HyperGraph& hypergraph,
                                  const HyperedgeID num_hyperedges) {
   doCoarsening(coarsener);
-  ASSERT_THAT(currentNumEdges(hypergraph), Eq(num_hyperedges));
+  ASSERT_THAT(currentNumEdges(coarsener.coarsestHypergraph()), Eq(num_hyperedges));
 }
 
 template <class Coarsener, class HyperGraph>
