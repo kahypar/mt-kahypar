@@ -235,7 +235,7 @@ inline std::ostream & operator<< (std::ostream& str, const RefinementParameters&
 
 struct SharedMemoryParameters {
   size_t num_threads = 1;
-  size_t shuffle_block_size = 0;
+  size_t shuffle_block_size = 2;
   InitialHyperedgeDistribution initial_hyperedge_distribution = InitialHyperedgeDistribution::UNDEFINED;
 };
 

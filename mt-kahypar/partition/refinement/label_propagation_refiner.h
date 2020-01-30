@@ -262,9 +262,14 @@ class LabelPropagationRefinerT final : public IRefinerT<TypeTraits> {
                                                             pin_count_in_from_part_after, pin_count_in_to_part_after);
                            };
 
-    // Parallel Shuffle Vector
-    utils::Randomize::instance().localizedParallelShuffleVector(
-      refinement_nodes, start, end, _context.shared_memory.shuffle_block_size);
+    // Shuffle Vector
+    if ( _context.refinement.label_propagation.execute_sequential ) {
+      utils::Randomize::instance().localizedShuffleVector(
+        refinement_nodes, start, end, _context.shared_memory.shuffle_block_size);
+    } else {
+      utils::Randomize::instance().localizedParallelShuffleVector(
+        refinement_nodes, start, end, _context.shared_memory.shuffle_block_size);
+    }
 
     bool converged = true;
     if ( _context.refinement.label_propagation.execute_sequential ) {
