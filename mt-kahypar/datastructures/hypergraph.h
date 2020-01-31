@@ -1944,6 +1944,7 @@ class Hypergraph {
         [](const PartitionID lhs, const PartitionID rhs) {
           return std::max(lhs, rhs);
         });
+    _num_communities = std::max(_num_communities, 1);
     utils::Timer::instance().stop_timer("compute_number_of_communities");
 
     _communities_num_hypernodes.assign(_num_communities, parallel::IntegralAtomicWrapper<HypernodeID>(0));
@@ -1994,7 +1995,7 @@ class Hypergraph {
   void initializeCommunitiesSequential() {
     // Compute number of communities
     utils::Timer::instance().start_timer("compute_number_of_communities", "Compute Num of Communities");
-    _num_communities = 0;
+    _num_communities = 1;
     for ( const HypernodeID& hn : nodes() ) {
       _num_communities = std::max(_num_communities, communityID(hn) + 1);
     }
