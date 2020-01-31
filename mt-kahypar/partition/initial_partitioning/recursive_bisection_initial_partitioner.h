@@ -177,6 +177,9 @@ class RecursiveBisectionInitialPartitionerT : public IInitialPartitioner {
    */
   class RecursiveBisectionChildContinuationTask : public tbb::task {
 
+    using DeltaFunction = std::function<void (const HyperedgeID, const HyperedgeWeight, const HypernodeID, const HypernodeID, const HypernodeID)>;
+    #define NOOP_FUNC [] (const HyperedgeID, const HyperedgeWeight, const HypernodeID, const HypernodeID, const HypernodeID) { }
+
    public:
     RecursiveBisectionChildContinuationTask(HyperGraph& original_hypergraph,
                                             Hypergraph&& rb_hypergraph,
@@ -201,7 +204,7 @@ class RecursiveBisectionInitialPartitionerT : public IInitialPartitioner {
           ASSERT(original_id < _mapping.size());
           PartitionID to = _part_id + _rb_hg.partID(_rb_hg.globalNodeID(_mapping[original_id]));
           ASSERT(to != kInvalidPartition && to < _original_hg.k());
-          _original_hg.changeNodePart(hn, _part_id, to);
+          _original_hg.changeNodePart(hn, _part_id, to, NOOP_FUNC, true);
         }
       }
       return nullptr;

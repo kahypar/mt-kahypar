@@ -870,7 +870,8 @@ class Hypergraph {
   bool changeNodePart(const HypernodeID u,
                       const PartitionID from,
                       const PartitionID to,
-                      const DeltaFunction& delta_func = NOOP_FUNC) {
+                      const DeltaFunction& delta_func = NOOP_FUNC,
+                      const bool unsafe = false) {
     StreamingHypergraph& hypergraph_of_u = hypergraph_of_vertex(u);
     ASSERT(to < _k && to != kInvalidPartition, "Part ID" << to << "is invalid");
 
@@ -889,33 +890,11 @@ class Hypergraph {
       _part_info[to].weight += nodeWeight(u);
       #endif
 
-      for (const HyperedgeID& he : incidentEdges(u)) {
-        HyperedgeID pin_count_in_from_part_after = hypergraph_of_edge(he).decrementPinCountInPart(he, from);
-        HyperedgeID pin_count_in_to_part_after = hypergraph_of_edge(he).incrementPinCountInPart(he, to);
-        HypernodeID edge_size = edgeSize(he);
-
-        delta_func(he, edgeWeight(he), edge_size, pin_count_in_from_part_after, pin_count_in_to_part_after);
-
-        if ( _is_init_num_cut_hyperedges ) {
-          bool no_pins_left_in_source_part = pin_count_in_from_part_after == 0;
-          bool only_one_pin_in_to_part = pin_count_in_to_part_after == 1;
-
-          if (no_pins_left_in_source_part && !only_one_pin_in_to_part &&
-              pin_count_in_to_part_after == edge_size) {
-            // In that case, hyperedge he becomes an internal hyperedge
-            for (const HypernodeID& pin : pins(he)) {
-              hypergraph_of_vertex(pin).decrementIncidentNumCutHyperedges(pin);
-            }
-          } else if (!no_pins_left_in_source_part && only_one_pin_in_to_part &&
-                    pin_count_in_from_part_after == edge_size - 1) {
-            // In that case, hyperedge he becomes an cut hyperede
-            for (const HypernodeID& pin : pins(he)) {
-              hypergraph_of_vertex(pin).incrementIncidentNumCutHyperedges(pin);
-            }
-          }
-        }
+      if ( !unsafe ) {
+        updatePinCountInPartSafe(u, from, to, delta_func);
+      } else {
+        updatePinCountInPartUnsafe(u, from, to, delta_func);
       }
-
       return true;
     }
 
@@ -2495,6 +2474,129 @@ class Hypergraph {
     for (const HypernodeID& pin : pins(he, community_id)) {
       hypergraph_of_vertex(pin).removeIncidentEdgeFromHypernode(
         he, pin, community_id, _hypergraphs, true  /* invalidate only */);
+    }
+  }
+
+  // ####################### Partition Information #######################
+
+  // ! Returns pin count in from and to part of hyperedge he such that
+  // ! the pin counts represents a stable snapshot of the hyperedge
+  // ! (required for safe change node part)
+  void getPinCountInFromAndToPart(const HyperedgeID he,
+                                  const HypernodeID edge_size,
+                                  const PartitionID from,
+                                  const PartitionID to,
+                                  HypernodeID& pin_count_in_from_part_before,
+                                  HypernodeID& pin_count_in_to_part_before) {
+    HypernodeID sum_edge_size = 0;
+    while ( sum_edge_size != edge_size ) {
+      sum_edge_size = 0;
+      pin_count_in_from_part_before = 0;
+      pin_count_in_to_part_before = 0;
+      for ( const PartitionID& block : connectivitySet(he) ) {
+        const HypernodeID pin_count_in_part = pinCountInPart(he, block);
+        sum_edge_size += pin_count_in_part;
+        if ( block == from ) {
+          pin_count_in_from_part_before = pin_count_in_part;
+        } else if ( block == to ) {
+          pin_count_in_to_part_before = pin_count_in_part;
+        }
+      }
+    }
+  }
+
+  // ! Updates the pin count in part, the num incident cut hyperedges and
+  // ! computes the delta of the move in an thread safe manner. The data structure
+  // ! is guaranteed to be in an consistent state afterwards.
+  void updatePinCountInPartSafe(const HypernodeID u,
+                                const PartitionID from,
+                                const PartitionID to,
+                                const DeltaFunction& delta_func) {
+    ASSERT(_is_init_num_cut_hyperedges);
+    for (const HyperedgeID& he : incidentEdges(u)) {
+      HypernodeID pin_count_in_from_part_before = kInvalidHypernode;
+      HypernodeID pin_count_in_to_part_before = kInvalidHypernode;
+      HypernodeID pin_count_in_from_part_after = kInvalidHypernode;
+      HypernodeID pin_count_in_to_part_after = kInvalidHypernode;
+      HypernodeID edge_size = edgeSize(he);
+      // In order to safely update the number of incident cut hyperedges and to compute
+      // the delta of the move we need a stable snapshot of the pin count in from and to
+      // part before and after the move. If we not do so, it can happen that due to concurrent
+      // updates the pin count represents some intermediate state and the conditions
+      // below are not triggered which leaves the data structure in an inconsistent
+      // state. However, this should happen very rarely.
+      while ( pin_count_in_from_part_before - 1 != pin_count_in_from_part_after ||
+              pin_count_in_to_part_before + 1 != pin_count_in_to_part_after  ) {
+        getPinCountInFromAndToPart(he, edge_size, from, to,
+          pin_count_in_from_part_before, pin_count_in_to_part_before);
+        pin_count_in_from_part_after = hypergraph_of_edge(he).decrementPinCountInPart(he, from);
+        pin_count_in_to_part_after = hypergraph_of_edge(he).incrementPinCountInPart(he, to);
+
+        if ( pin_count_in_from_part_before - 1 != pin_count_in_from_part_after ||
+              pin_count_in_to_part_before + 1 != pin_count_in_to_part_after  ) {
+          hypergraph_of_edge(he).incrementPinCountInPart(he, from);
+          hypergraph_of_edge(he).decrementPinCountInPart(he, to);
+          pin_count_in_from_part_after = kInvalidHypernode;
+          pin_count_in_to_part_after = kInvalidHypernode;
+        }
+      }
+
+      delta_func(he, edgeWeight(he), edge_size, pin_count_in_from_part_after, pin_count_in_to_part_after);
+
+      bool no_pins_left_in_source_part = pin_count_in_from_part_after == 0;
+      bool only_one_pin_in_to_part = pin_count_in_to_part_after == 1;
+
+      if (no_pins_left_in_source_part && !only_one_pin_in_to_part &&
+          pin_count_in_to_part_after == edge_size) {
+        // In that case, hyperedge he becomes an internal hyperedge
+        for (const HypernodeID& pin : pins(he)) {
+          hypergraph_of_vertex(pin).decrementIncidentNumCutHyperedges(pin);
+        }
+      } else if (!no_pins_left_in_source_part && only_one_pin_in_to_part &&
+                pin_count_in_from_part_after == edge_size - 1) {
+        // In that case, hyperedge he becomes an cut hyperede
+        for (const HypernodeID& pin : pins(he)) {
+          hypergraph_of_vertex(pin).incrementIncidentNumCutHyperedges(pin);
+        }
+      }
+    }
+  }
+
+  // ! Updates the pin count in part, the num incident cut hyperedges and
+  // ! computes the delta of the move in an thread safe manner. However, in some
+  // ! rare cases it can happen that the data structure is left in an inconsistent
+  // ! state due to concurrent updates.
+  void updatePinCountInPartUnsafe(const HypernodeID u,
+                                  const PartitionID from,
+                                  const PartitionID to,
+                                  const DeltaFunction& delta_func) {
+    for (const HyperedgeID& he : incidentEdges(u)) {
+      // If updated concurrently the pin counts in from and to part can represent some intermediate
+      // state and it can happen that the below conditions are not triggered.
+      HypernodeID pin_count_in_from_part_after = hypergraph_of_edge(he).decrementPinCountInPart(he, from);
+      HypernodeID pin_count_in_to_part_after = hypergraph_of_edge(he).incrementPinCountInPart(he, to);
+      HypernodeID edge_size = edgeSize(he);
+
+      delta_func(he, edgeWeight(he), edge_size, pin_count_in_from_part_after, pin_count_in_to_part_after);
+
+      if ( _is_init_num_cut_hyperedges ) {
+        bool no_pins_left_in_source_part = pin_count_in_from_part_after == 0;
+        bool only_one_pin_in_to_part = pin_count_in_to_part_after == 1;
+
+        if (no_pins_left_in_source_part && !only_one_pin_in_to_part &&
+            pin_count_in_to_part_after == edge_size) {
+          // In that case, hyperedge he becomes an internal hyperedge
+          for (const HypernodeID& pin : pins(he)) {
+            hypergraph_of_vertex(pin).decrementIncidentNumCutHyperedges(pin);
+          }
+        } else if (!no_pins_left_in_source_part && only_one_pin_in_to_part &&
+                  pin_count_in_from_part_after == edge_size - 1) {
+          // In that case, hyperedge he becomes an cut hyperede
+          for (const HypernodeID& pin : pins(he)) {
+            hypergraph_of_vertex(pin).incrementIncidentNumCutHyperedges(pin);
+          }
+        }
+      }
     }
   }
 

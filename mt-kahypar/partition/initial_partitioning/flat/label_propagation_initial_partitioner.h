@@ -32,6 +32,9 @@ class LabelPropagationInitialPartitionerT : public tbb::task {
   using HyperGraph = typename TypeTraits::HyperGraph;
   using InitialPartitioningDataContainer = InitialPartitioningDataContainerT<TypeTraits>;
 
+  using DeltaFunction = std::function<void (const HyperedgeID, const HyperedgeWeight, const HypernodeID, const HypernodeID, const HypernodeID)>;
+  #define NOOP_FUNC [] (const HyperedgeID, const HyperedgeWeight, const HypernodeID, const HypernodeID, const HypernodeID) { }
+
   static constexpr bool debug = false;
   static constexpr bool enable_heavy_assert = false;
   static PartitionID kInvalidPartition;
@@ -105,7 +108,7 @@ class LabelPropagationInitialPartitionerT : public tbb::task {
               ASSERT(fitsIntoBlock(hg, hn, to));
 
               #ifndef KAHYPAR_ENABLE_HEAVY_INITIAL_PARTITIONING_ASSERTIONS
-              hg.changeNodePart(hn, from, to);
+              hg.changeNodePart(hn, from, to, NOOP_FUNC, true);
               #else
               Gain expected_gain = 0;
               auto cut_delta = [&](const HyperedgeID he,
@@ -122,7 +125,7 @@ class LabelPropagationInitialPartitionerT : public tbb::task {
                 expected_gain -= HyperGraph::cutDelta(he, edge_weight, adjusted_edge_size,
                   pin_count_in_from_part_after, pin_count_in_to_part_after);
               };
-              hg.changeNodePart(hn, from, to, cut_delta);
+              hg.changeNodePart(hn, from, to, cut_delta, true);
               ASSERT(expected_gain == max_gain_move.gain, "Gain calculation failed"
                 << V(expected_gain) << V(max_gain_move.gain));
               #endif

@@ -33,6 +33,9 @@ class GreedyInitialPartitionerT : public tbb::task {
   using HyperGraph = typename TypeTraits::HyperGraph;
   using InitialPartitioningDataContainer = InitialPartitioningDataContainerT<TypeTraits>;
 
+  using DeltaFunction = std::function<void (const HyperedgeID, const HyperedgeWeight, const HypernodeID, const HypernodeID, const HypernodeID)>;
+  #define NOOP_FUNC [] (const HyperedgeID, const HyperedgeWeight, const HypernodeID, const HypernodeID, const HypernodeID) { }
+
   static constexpr bool debug = false;
   static constexpr bool enable_heavy_assert = false;
   static PartitionID kInvalidPartition;
@@ -123,7 +126,7 @@ class GreedyInitialPartitionerT : public tbb::task {
 
       if ( allow_overfitting || fitsIntoBlock(hg, hn, to, use_perfect_balanced_as_upper_bound) ) {
         if ( _default_block != kInvalidPartition ) {
-          hg.changeNodePart(hn, _default_block, to);
+          hg.changeNodePart(hn, _default_block, to, NOOP_FUNC, true);
         } else {
           hg.setNodePart(hn, to);
         }
