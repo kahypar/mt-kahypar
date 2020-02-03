@@ -37,4 +37,10 @@ struct Move {
   Gain gain;
 };
 
+// Constant Declarations
+static constexpr PartitionID kInvalidPartition = -1;
+static constexpr HypernodeID kInvalidHypernode = std::numeric_limits<HypernodeID>::max();
+static constexpr HypernodeID kInvalidHyperedge = std::numeric_limits<HyperedgeID>::max();
+static constexpr size_t kEdgeHashSeed = 42;
+
 }  // namespace mt_kahypar

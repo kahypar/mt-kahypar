@@ -173,5 +173,70 @@ class PrefixSum {
       );
   }
 };
+
+template<typename T>
+class TBBPrefixSum {
+  static_assert(std::is_integral<T>::value, "Data type is not a integral type");
+
+ public:
+  TBBPrefixSum(parallel::scalable_vector<T>& data) :
+    _sum(0),
+    _data(data) { }
+
+  TBBPrefixSum(TBBPrefixSum& prefix_sum, tbb::split) :
+    _sum(0),
+    _data(prefix_sum._data) { }
+
+  T total_sum() const {
+    return _sum;
+  }
+
+  size_t size() const {
+    return _data.size() + 1;
+  }
+
+  T operator[] (const size_t i) const {
+    ASSERT(i <= _data.size());
+    if ( i > 0 ) {
+      return _data[i - 1];
+    } else {
+      return static_cast<T>(0);
+    }
+  }
+
+  T value(const size_t i) const {
+    ASSERT(i < _data.size());
+    if ( i > 0 ) {
+      return _data[i] - _data[i - 1];
+    } else {
+      return _data[0];
+    }
+  }
+
+  template<typename Tag>
+  void operator()(const tbb::blocked_range<size_t>& range, Tag) {
+      T temp = _sum;
+      for( size_t i = range.begin(); i < range.end(); ++i ) {
+          temp = temp + _data[i];
+          if( Tag::is_final_scan() ) {
+            _data[i] = temp;
+          }
+      }
+      _sum = temp;
+  }
+
+  void reverse_join(TBBPrefixSum& prefix_sum) {
+    _sum = prefix_sum._sum + _sum;
+  }
+
+  void assign(TBBPrefixSum& prefix_sum) {
+    _sum = prefix_sum._sum;
+  }
+
+ private:
+  T _sum;
+  parallel::scalable_vector<T>& _data;
+};
+
 }  // namespace parallel
 }  // namespace mt_kahypar
