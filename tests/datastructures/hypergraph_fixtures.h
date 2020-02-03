@@ -38,10 +38,8 @@ struct TestTypeTraits {
   using TopoMock = mt_kahypar::parallel::TopologyMock<NUM_NUMA_NODES>;
   using HwTopology = mt_kahypar::parallel::HardwareTopology<TopoMock, parallel::topology_t, parallel::node_t>;
   using TBB = mt_kahypar::parallel::TBBNumaArena<HwTopology>;
-  using HyperGraph = mt_kahypar::ds::Hypergraph<HypernodeID, HyperedgeID,
-                                                HypernodeWeight, HyperedgeWeight, PartitionID, HwTopology, TBB>;
-  using StreamingHyperGraph = mt_kahypar::ds::StreamingHypergraph<HypernodeID, HyperedgeID,
-                                                                  HypernodeWeight, HyperedgeWeight, PartitionID, HwTopology, TBB>;
+  using HyperGraph = mt_kahypar::ds::Hypergraph<HwTopology, TBB>;
+  using StreamingHyperGraph = mt_kahypar::ds::StreamingHypergraph<HwTopology, TBB>;
 };
 
 template <int NUM_NUMA_NODES>

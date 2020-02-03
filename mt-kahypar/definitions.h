@@ -48,13 +48,6 @@ using HardwareTopology = mt_kahypar::parallel::HardwareTopology<>;
 using TBBNumaArena = mt_kahypar::parallel::TBBNumaArena<HardwareTopology>;
 
 using TaskGroupID = size_t;
-using RatingType = double;
-using HypernodeID = uint64_t;
-using HyperedgeID = uint64_t;
-using HypernodeWeight = int32_t;
-using HyperedgeWeight = int32_t;
-using PartitionID = int32_t;
-using Gain = HyperedgeWeight;
 
 using ThreadLocalFastResetFlagArray = tbb::enumerable_thread_specific<kahypar::ds::FastResetFlagArray<> >;
 using KWayPriorityQueue = kahypar::ds::KWayPriorityQueue<HypernodeID, Gain, std::numeric_limits<Gain>, true>;
@@ -62,27 +55,8 @@ using ThreadLocalKWayPriorityQueue = tbb::enumerable_thread_specific<KWayPriorit
 
 using NodeID = uint32_t;
 
-struct Move {
-  PartitionID from;
-  PartitionID to;
-  Gain gain;
-};
-
-using StreamingHypergraph = mt_kahypar::ds::StreamingHypergraph<HypernodeID,
-                                                                HyperedgeID,
-                                                                HypernodeWeight,
-                                                                HyperedgeWeight,
-                                                                PartitionID,
-                                                                HardwareTopology,
-                                                                TBBNumaArena>;
-
-using Hypergraph = mt_kahypar::ds::Hypergraph<HypernodeID,
-                                              HyperedgeID,
-                                              HypernodeWeight,
-                                              HyperedgeWeight,
-                                              PartitionID,
-                                              HardwareTopology,
-                                              TBBNumaArena>;
+using StreamingHypergraph = mt_kahypar::ds::StreamingHypergraph<HardwareTopology, TBBNumaArena>;
+using Hypergraph = mt_kahypar::ds::Hypergraph<HardwareTopology, TBBNumaArena>;
 
 struct GlobalTypeTraits {
   using HyperGraph = Hypergraph;
