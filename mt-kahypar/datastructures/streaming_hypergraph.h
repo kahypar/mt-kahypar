@@ -1077,6 +1077,7 @@ class StreamingHypergraph {
   // ! Returns true, if move of vertex u to corresponding block succeeds.
   bool changeNodePart(const HypernodeID u, PartitionID from, PartitionID to) {
     ASSERT(!hypernode(u).isDisabled(), "Hypernode" << u << "is disabled");
+    // TODO why do we need CAS for part IDs if each vertex can only be moved by one processor?
     return _atomic_hn_data[get_local_node_id_of_vertex(u)].part_id.compare_and_exchange_strong(from, to);
   }
 
