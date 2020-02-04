@@ -67,7 +67,7 @@ class NumaHypergraphFactory {
     // Construct hypergraphs on each NUMA node in parallel
     hypergraph._node_mapping.resize(num_hypernodes);
     hypergraph._edge_mapping.resize(num_hyperedges);
-    TBBNumaArena::instance().execute_sequential_on_all_numa_nodes(
+    TBBNumaArena::instance().execute_parallel_on_all_numa_nodes(
       TBBNumaArena::GLOBAL_TASK_GROUP, [&](const int node) {
         ASSERT(static_cast<size_t>(node) < hypergraph._hypergraphs.size());
         hypergraph._hypergraphs[node] = Factory::construct(

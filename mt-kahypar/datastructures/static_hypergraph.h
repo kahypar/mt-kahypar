@@ -333,6 +333,11 @@ class StaticHypergraph {
 
   using IncidenceArray = parallel::scalable_vector<HypernodeID>;
   using IncidentNets = parallel::scalable_vector<HyperedgeID>;
+
+ public:
+  static constexpr bool is_static_hypergraph = true;
+  static constexpr bool is_partitioned = false;
+
   // ! Iterator to iterate over the hypernodes
   using HypernodeIterator = HypergraphElementIterator<const Hypernode>;
   // ! Iterator to iterate over the hyperedges
@@ -341,10 +346,6 @@ class StaticHypergraph {
   using IncidenceIterator = typename IncidenceArray::const_iterator;
   // ! Iterator to iterate over the incident nets of a hypernode
   using IncidentNetsIterator = typename IncidentNets::const_iterator;
-
- public:
-  static constexpr bool is_static_hypergraph = true;
-  static constexpr bool is_partitioned = false;
 
   explicit StaticHypergraph() :
     _node(0),
@@ -411,7 +412,7 @@ class StaticHypergraph {
   // ! Iterates in parallel over all active nodes and calls function f
   // ! for each vertex
   template<typename F>
-  void doParallelForAllNodes(const F& f) {
+  void doParallelForAllNodes(const TaskGroupID, const F& f) {
     tbb::parallel_for(0UL, _num_hypernodes, [&](const HypernodeID& id) {
       const HypernodeID hn = common::get_global_vertex_id(_node, id);
       if ( nodeIsEnabled(hn) ) {
@@ -423,7 +424,7 @@ class StaticHypergraph {
   // ! Iterates in parallel over all active edges and calls function f
   // ! for each net
   template<typename F>
-  void doParallelForAllEdges(const F& f) {
+  void doParallelForAllEdges(const TaskGroupID, const F& f) {
     tbb::parallel_for(0UL, _num_hyperedges, [&](const HyperedgeID& id) {
       const HyperedgeID he = common::get_global_edge_id(_node, id);
       if ( edgeIsEnabled(he) ) {
@@ -477,6 +478,12 @@ class StaticHypergraph {
     return hypernode(u).originalNodeID();
   }
 
+  // ! Reverse operation of originalNodeID(u)
+  HypernodeID globalNodeID(const HypernodeID u) const {
+    ASSERT(u < _num_hypernodes);
+    return u;
+  }
+
   // ! Weight of a vertex
   HypernodeWeight nodeWeight(const HypernodeID u) const {
     ASSERT(!hypernode(u).isDisabled(), "Hypernode" << u << "is disabled");
@@ -501,6 +508,12 @@ class StaticHypergraph {
   // ! of edges between [0,|E|).
   HyperedgeID originalEdgeID(const HyperedgeID e) const {
     return hyperedge(e).originalEdgeID();
+  }
+
+  // ! Reverse operation of originalEdgeID(e)
+  HypernodeID globalEdgeID(const HyperedgeID e) const {
+    ASSERT(e < _num_hyperedges);
+    return e;
   }
 
   // ! Weight of a hyperedge

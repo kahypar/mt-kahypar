@@ -45,6 +45,7 @@ TEST_F(AStaticHypergraph, HasCorrectInitialNodeIterator) {
   for ( const HypernodeID& hn : hypergraph.nodes() ) {
     ASSERT_EQ(expected_hn++, hn);
   }
+  ASSERT_EQ(7, expected_hn);
 }
 
 TEST_F(AStaticHypergraph, HasCorrectInitialEdgeIterator) {
@@ -52,6 +53,7 @@ TEST_F(AStaticHypergraph, HasCorrectInitialEdgeIterator) {
   for ( const HyperedgeID& he : hypergraph.edges() ) {
     ASSERT_EQ(expected_he++, he);
   }
+  ASSERT_EQ(4, expected_he);
 }
 
 TEST_F(AStaticHypergraph, VerifiesIncidentNets1) {
@@ -118,9 +120,10 @@ TEST_F(AStaticHypergraph, VerifiesEdgeSizes) {
 
 TEST_F(AStaticHypergraph, IteratesParallelOverAllNodes) {
   std::vector<uint8_t> visited(7, false);
-  hypergraph.doParallelForAllNodes([&](const HypernodeID hn) {
-    visited[hn] = true;
-  });
+  hypergraph.doParallelForAllNodes(TBBNumaArena::GLOBAL_TASK_GROUP,
+    [&](const HypernodeID hn) {
+      visited[hn] = true;
+    });
 
   for ( size_t i = 0; i < visited.size(); ++i ) {
     ASSERT_TRUE(visited[i]) << i;
@@ -129,9 +132,10 @@ TEST_F(AStaticHypergraph, IteratesParallelOverAllNodes) {
 
 TEST_F(AStaticHypergraph, IteratesParallelOverAllEdges) {
   std::vector<uint8_t> visited(4, false);
-  hypergraph.doParallelForAllEdges([&](const HyperedgeID he) {
-    visited[he] = true;
-  });
+  hypergraph.doParallelForAllEdges(TBBNumaArena::GLOBAL_TASK_GROUP,
+    [&](const HyperedgeID he) {
+      visited[he] = true;
+    });
 
   for ( size_t i = 0; i < visited.size(); ++i ) {
     ASSERT_TRUE(visited[i]) << i;

@@ -32,6 +32,8 @@ using ::testing::Test;
 namespace mt_kahypar {
 namespace ds {
 #define GLOBAL_ID(hypergraph, id) hypergraph.globalNodeID(id)
+#define GLOBAL_NODE_ID(hypergraph, id) hypergraph.globalNodeID(id)
+#define GLOBAL_EDGE_ID(hypergraph, id) hypergraph.globalEdgeID(id)
 
 template <int NUM_NUMA_NODES>
 struct TestTypeTraits {
@@ -109,15 +111,20 @@ class AHypergraph : public Test {
 
 auto identity = [](const HypernodeID& id) { return id; };
 
-template<typename Hypergraph, typename Factory>
+template<typename Hypergraph, typename Factory, typename TBB = TBBNumaArena>
 class HypergraphFixture : public Test {
  public:
   HypergraphFixture() :
     hypergraph(Factory::construct(
-      7 , 4, { {0, 2}, {0, 1, 3, 4}, {3, 4, 6}, {2, 5, 6} })) { }
+      7 , 4, { {0, 2}, {0, 1, 3, 4}, {3, 4, 6}, {2, 5, 6} })) {
+    id.resize(7);
+    for ( const HypernodeID& hn : hypergraph.nodes() ) {
+      id[hypergraph.originalNodeID(hn)] = hn;
+    }
+  }
 
   static void SetUpTestSuite() {
-    TBBNumaArena::instance(HardwareTopology::instance().num_cpus());
+    TBB::instance(HardwareTopology::instance().num_cpus());
   }
 
   template <typename K = decltype(identity)>
@@ -152,6 +159,7 @@ class HypergraphFixture : public Test {
   }
 
   Hypergraph hypergraph;
+  std::vector<HypernodeID> id;
 };
 
 }  // namespace ds
