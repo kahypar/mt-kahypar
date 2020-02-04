@@ -47,18 +47,10 @@ class StaticHypergraph {
     Hypernode() :
       _begin(0),
       _size(0),
+      _original_id(kInvalidHypernode),
       _weight(1),
       _community_id(0),
       _valid(false) { }
-
-    Hypernode(const size_t begin,
-              const size_t size,
-              const HypernodeWeight weight) :
-      _begin(begin),
-      _size(size),
-      _weight(weight),
-      _community_id(0),
-      _valid(true) { }
 
     bool isDisabled() const {
       return _valid == false;
@@ -100,6 +92,14 @@ class StaticHypergraph {
       _size = size;
     }
 
+    HypernodeID originalNodeID() const {
+      return _original_id;
+    }
+
+    void setOriginalNodeID(const HypernodeID original_id) {
+      _original_id = original_id;
+    }
+
     HyperedgeWeight weight() const {
       ASSERT(!isDisabled());
       return _weight;
@@ -125,6 +125,8 @@ class StaticHypergraph {
     size_t _begin;
     // ! Number of incident nets
     size_t _size;
+    // ! Original id of hypernode
+    HypernodeID _original_id;
     // ! Hypernode weight
     HyperedgeWeight _weight;
     // ! Community id
@@ -144,18 +146,10 @@ class StaticHypergraph {
     Hyperedge() :
       _begin(0),
       _size(0),
+      _original_id(kInvalidHyperedge),
       _weight(1),
       _hash(kEdgeHashSeed),
       _valid(false) { }
-
-    Hyperedge(const size_t begin,
-              const size_t size,
-              const HyperedgeWeight weight) :
-      _begin(begin),
-      _size(size),
-      _weight(weight),
-      _hash(kEdgeHashSeed),
-      _valid(true) { }
 
     // ! Disables the hypernode/hyperedge. Disable hypernodes/hyperedges will be skipped
     // ! when iterating over the set of all nodes/edges.
@@ -199,6 +193,14 @@ class StaticHypergraph {
       _size = size;
     }
 
+    HyperedgeID originalEdgeID() const {
+      return _original_id;
+    }
+
+    void setOriginalEdgeID(const HyperedgeID original_id) {
+      _original_id = original_id;
+    }
+
     HyperedgeWeight weight() const {
       ASSERT(!isDisabled());
       return _weight;
@@ -230,6 +232,8 @@ class StaticHypergraph {
     size_t _begin;
     // ! Number of pins
     size_t _size;
+    // ! Original id of hyperedge
+    HyperedgeID _original_id;
     // ! hyperedge weight
     HyperedgeWeight _weight;
     // ! Hash of pins
@@ -343,6 +347,7 @@ class StaticHypergraph {
   static constexpr bool is_partitioned = false;
 
   explicit StaticHypergraph() :
+    _node(0),
     _num_hypernodes(0),
     _num_hyperedges(0),
     _num_pins(0),
@@ -356,6 +361,7 @@ class StaticHypergraph {
   StaticHypergraph & operator= (const StaticHypergraph &) = delete;
 
   StaticHypergraph(StaticHypergraph&& other) :
+    _node(other._node),
     _num_hypernodes(other._num_hypernodes),
     _num_hyperedges(other._num_hyperedges),
     _num_pins(other._num_pins),
@@ -366,6 +372,7 @@ class StaticHypergraph {
     _incidence_array(std::move(other._incidence_array)) { }
 
   StaticHypergraph & operator= (StaticHypergraph&& other) {
+    _node = other._node;
     _num_hypernodes = other._num_hypernodes;
     _num_hyperedges = other._num_hyperedges;
     _num_pins = other._num_pins;
@@ -405,7 +412,8 @@ class StaticHypergraph {
   // ! for each vertex
   template<typename F>
   void doParallelForAllNodes(const F& f) {
-    tbb::parallel_for(0UL, _num_hypernodes, [&](const HypernodeID& hn) {
+    tbb::parallel_for(0UL, _num_hypernodes, [&](const HypernodeID& id) {
+      const HypernodeID hn = common::get_global_vertex_id(_node, id);
       if ( nodeIsEnabled(hn) ) {
         f(hn);
       }
@@ -416,7 +424,8 @@ class StaticHypergraph {
   // ! for each net
   template<typename F>
   void doParallelForAllEdges(const F& f) {
-    tbb::parallel_for(0UL, _num_hyperedges, [&](const HyperedgeID& he) {
+    tbb::parallel_for(0UL, _num_hyperedges, [&](const HyperedgeID& id) {
+      const HyperedgeID he = common::get_global_edge_id(_node, id);
       if ( edgeIsEnabled(he) ) {
         f(he);
       }
@@ -425,16 +434,20 @@ class StaticHypergraph {
 
   // ! Returns a range of the active nodes of the hypergraph
   IteratorRange<HypernodeIterator> nodes() const {
+    const HypernodeID start = common::get_global_vertex_id(_node, 0);
+    const HypernodeID end = common::get_global_vertex_id(_node, _num_hypernodes);
     return IteratorRange<HypernodeIterator>(
-      HypernodeIterator(_hypernodes.data(), 0UL, _num_hypernodes),
-      HypernodeIterator(_hypernodes.data() + _num_hypernodes, _num_hypernodes, _num_hypernodes));
+      HypernodeIterator(_hypernodes.data(), start, end),
+      HypernodeIterator(_hypernodes.data() + _num_hypernodes, end, end));
   }
 
   // ! Returns a range of the active edges of the hypergraph
   IteratorRange<HyperedgeIterator> edges() const {
+    const HyperedgeID start = common::get_global_edge_id(_node, 0);
+    const HyperedgeID end = common::get_global_edge_id(_node, _num_hyperedges);
     return IteratorRange<HyperedgeIterator>(
-      HyperedgeIterator(_hyperedges.data(), 0UL, _num_hyperedges),
-      HyperedgeIterator(_hyperedges.data() + _num_hyperedges, _num_hyperedges, _num_hyperedges));
+      HyperedgeIterator(_hyperedges.data(), start, end),
+      HyperedgeIterator(_hyperedges.data() + _num_hyperedges, end, end));
   }
 
   // ! Returns a range to loop over the incident nets of hypernode u.
@@ -457,6 +470,13 @@ class StaticHypergraph {
 
   // ####################### Hypernode Information #######################
 
+  // ! Returns for a vertex of the hypergraph its original vertex id
+  // ! Can be used to map the global vertex ids to a consecutive range
+  // ! of nodes between [0,|V|).
+  HypernodeID originalNodeID(const HypernodeID u) const {
+    return hypernode(u).originalNodeID();
+  }
+
   // ! Weight of a vertex
   HypernodeWeight nodeWeight(const HypernodeID u) const {
     ASSERT(!hypernode(u).isDisabled(), "Hypernode" << u << "is disabled");
@@ -475,6 +495,13 @@ class StaticHypergraph {
   }
 
   // ####################### Hyperedge Information #######################
+
+  // ! Returns for a edge of the hypergraph its original edge id
+  // ! Can be used to map the global edge ids to a consecutive range
+  // ! of edges between [0,|E|).
+  HyperedgeID originalEdgeID(const HyperedgeID e) const {
+    return hyperedge(e).originalEdgeID();
+  }
 
   // ! Weight of a hyperedge
   HypernodeWeight edgeWeight(const HyperedgeID e) const {
@@ -506,8 +533,11 @@ class StaticHypergraph {
 
   // ! Accessor for hypernode-related information
   KAHYPAR_ATTRIBUTE_ALWAYS_INLINE const Hypernode& hypernode(const HypernodeID u) const {
-    ASSERT(u < _num_hypernodes, "Hypernode" << u << "does not exist");
-    return _hypernodes[u];
+    const HyperedgeID local_pos = common::get_local_position_of_vertex(u);
+    ASSERT(_node == common::get_numa_node_of_vertex(u),
+      "Hypernode" << u << "is not part of hypergraph on numa node" << _node);
+    ASSERT(local_pos < _num_hypernodes, "Hypernode" << u << "does not exist");
+    return _hypernodes[local_pos];
   }
 
   // ! To avoid code duplication we implement non-const version in terms of const version
@@ -519,9 +549,11 @@ class StaticHypergraph {
 
   // ! Accessor for hyperedge-related information
   KAHYPAR_ATTRIBUTE_ALWAYS_INLINE const Hyperedge& hyperedge(const HyperedgeID e) const {
-    // <= instead of < because of sentinel
-    ASSERT(e <= _num_hyperedges, "Hyperedge" << e << "does not exist");
-    return _hyperedges[e];
+    const HyperedgeID local_pos = common::get_local_position_of_edge(e);
+    ASSERT(_node == common::get_numa_node_of_edge(e),
+      "Hyperedge" << e << "is not part of hypergraph on numa node" << _node);
+    ASSERT(local_pos < _num_hyperedges, "Hyperedge" << e << "does not exist");
+    return _hyperedges[local_pos];
   }
 
   // ! To avoid code duplication we implement non-const version in terms of const version
@@ -529,6 +561,8 @@ class StaticHypergraph {
     return const_cast<Hyperedge&>(static_cast<const StaticHypergraph&>(*this).hyperedge(e));
   }
 
+  // ! NUMA node of hypergraph
+  int _node;
   // ! Number of hypernodes
   HypernodeID _num_hypernodes;
   // ! Number of hyperedges

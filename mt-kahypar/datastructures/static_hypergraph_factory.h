@@ -112,6 +112,7 @@ class StaticHypergraphFactory {
         }
 
         const HyperedgeID he = pos;
+        hyperedge.setOriginalEdgeID(he);
         size_t incidence_array_pos = hyperedge.firstEntry();
         size_t hash = kEdgeHashSeed;
         for ( const HypernodeID& pin : edge_vector[pos] ) {
@@ -136,6 +137,7 @@ class StaticHypergraphFactory {
         hypernode.enable();
         hypernode.setFirstEntry(incident_net_prefix_sum[pos]);
         hypernode.setSize(incident_net_prefix_sum.value(pos));
+        hypernode.setOriginalNodeID(pos);
         if ( hypernode_weight ) {
           hypernode.setWeight(hypernode_weight[pos]);
         }

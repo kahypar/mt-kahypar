@@ -24,6 +24,12 @@
 
 #define USE_LOCAL_PART_WEIGHTS false
 
+#if defined(__GNUC__) || defined(__clang__)
+#define MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE __attribute__ ((always_inline)) inline
+#else
+#define MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
+#endif
+
 #define HEAVY_ASSERT0(cond) \
   !(enable_heavy_assert) ? (void)0 : [&]() { ASSERT(cond); } ()
 #define HEAVY_ASSERT1(cond, msg) \

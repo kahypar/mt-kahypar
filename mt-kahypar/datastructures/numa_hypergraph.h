@@ -40,10 +40,76 @@ class NumaHypergraph {
   static constexpr bool is_static_hypergraph = Hypergraph::is_static_hypergraph;
   static constexpr bool is_partitioned = false;
 
-  explicit NumaHypergraph() { }
+  explicit NumaHypergraph() :
+    _num_hypernodes(0),
+    _num_hyperedges(0),
+    _num_pins(0),
+    _total_weight(0),
+    _hypergraphs(),
+    _node_mapping(),
+    _edge_mapping() { }
 
   NumaHypergraph(const NumaHypergraph&) = delete;
   NumaHypergraph & operator= (const NumaHypergraph &) = delete;
+
+  NumaHypergraph(NumaHypergraph&& other) :
+    _num_hypernodes(other._num_hypernodes),
+    _num_hyperedges(other._num_hyperedges),
+    _num_pins(other._num_pins),
+    _total_weight(other._total_weight),
+    _hypergraphs(std::move(other._hypergraphs)),
+    _node_mapping(std::move(other._node_mapping)),
+    _edge_mapping(std::move(other._edge_mapping)) { }
+
+  NumaHypergraph & operator= (NumaHypergraph&& other) {
+    _num_hypernodes = other._num_hypernodes;
+    _num_hyperedges = other._num_hyperedges;
+    _num_pins = other._num_pins;
+    _total_weight = other._total_weight;
+    _hypergraphs = std::move(other._hypergraphs);
+    _node_mapping = std::move(other._node_mapping);
+    _edge_mapping = std::move(other._edge_mapping);
+    return *this;
+  }
+
+  // ####################### General Hypergraph Stats #######################
+
+  // ! Initial number of hypernodes
+  HypernodeID initialNumNodes() const {
+    return _num_hypernodes;
+  }
+
+  // ! Initial number of hyperedges
+  HyperedgeID initialNumEdges() const {
+    return _num_hyperedges;
+  }
+
+  // ! Initial number of pins
+  HypernodeID initialNumPins() const {
+    return _num_pins;
+  }
+
+  // ! Total weight of hypergraph
+  HypernodeWeight totalWeight() const {
+    return _total_weight;
+  }
+
+ private:
+  // ! Number of hypernodes
+  HypernodeID _num_hypernodes;
+  // ! Number of hyperedges
+  HyperedgeID _num_hyperedges;
+  // ! Number of pins
+  HypernodeID _num_pins;
+  // ! Total weight of hypergraph
+  HypernodeWeight _total_weight;
+
+  // ! NUMA Hypergraphs
+  parallel::scalable_vector<Hypergraph> _hypergraphs;
+  // ! Mapping from original node id to its hypergraph node id
+  std::vector<HypernodeID> _node_mapping;
+  // ! Mapping from original edge id to its hypergraph edge id
+  std::vector<HyperedgeID> _edge_mapping;
 };
 
 } // namespace ds
