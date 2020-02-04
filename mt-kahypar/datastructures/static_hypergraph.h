@@ -20,6 +20,8 @@
 
 #pragma once
 
+#include "tbb/parallel_for.h"
+
 #include "kahypar/meta/mandatory.h"
 
 #include "mt-kahypar/datastructures/hypergraph_common.h"
@@ -398,6 +400,28 @@ class StaticHypergraph {
   }
 
   // ####################### Iterators #######################
+
+  // ! Iterates in parallel over all active nodes and calls function f
+  // ! for each vertex
+  template<typename F>
+  void doParallelForAllNodes(const F& f) {
+    tbb::parallel_for(0UL, _num_hypernodes, [&](const HypernodeID& hn) {
+      if ( nodeIsEnabled(hn) ) {
+        f(hn);
+      }
+    });
+  }
+
+  // ! Iterates in parallel over all active edges and calls function f
+  // ! for each net
+  template<typename F>
+  void doParallelForAllEdges(const F& f) {
+    tbb::parallel_for(0UL, _num_hyperedges, [&](const HyperedgeID& he) {
+      if ( edgeIsEnabled(he) ) {
+        f(he);
+      }
+    });
+  }
 
   // ! Returns a range of the active nodes of the hypergraph
   IteratorRange<HypernodeIterator> nodes() const {

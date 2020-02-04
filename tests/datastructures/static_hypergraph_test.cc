@@ -107,5 +107,27 @@ TEST_F(AStaticHypergraph, VerifiesEdgeSizes) {
   ASSERT_EQ(3, hypergraph.edgeSize(3));
 }
 
+TEST_F(AStaticHypergraph, IteratesParallelOverAllNodes) {
+  std::vector<uint8_t> visited(7, false);
+  hypergraph.doParallelForAllNodes([&](const HypernodeID hn) {
+    visited[hn] = true;
+  });
+
+  for ( size_t i = 0; i < visited.size(); ++i ) {
+    ASSERT_TRUE(visited[i]) << i;
+  }
+}
+
+TEST_F(AStaticHypergraph, IteratesParallelOverAllEdges) {
+  std::vector<uint8_t> visited(4, false);
+  hypergraph.doParallelForAllEdges([&](const HyperedgeID he) {
+    visited[he] = true;
+  });
+
+  for ( size_t i = 0; i < visited.size(); ++i ) {
+    ASSERT_TRUE(visited[i]) << i;
+  }
+}
+
 }
 } // namespace mt_kahypar
