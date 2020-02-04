@@ -18,6 +18,8 @@
  *
  ******************************************************************************/
 
+#pragma once
+
 #include "kahypar/meta/mandatory.h"
 
 #include "mt-kahypar/datastructures/hypergraph_common.h"
@@ -25,7 +27,6 @@
 namespace mt_kahypar {
 namespace ds {
 
-template <typename TBBNumaArena = Mandatory>
 class DynamicHypergraph {
 
  public:

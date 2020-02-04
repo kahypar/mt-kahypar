@@ -18,6 +18,8 @@
  *
  ******************************************************************************/
 
+#pragma once
+
 #include "tbb/enumerable_thread_specific.h"
 #include "tbb/parallel_for.h"
 #include "tbb/parallel_invoke.h"
@@ -34,7 +36,9 @@
 namespace mt_kahypar {
 namespace ds {
 
-template <typename TBBNumaArena = Mandatory>
+// Forward
+class StaticHypergraphFactory;
+
 class StaticHypergraph {
 
   /**
@@ -222,7 +226,7 @@ class StaticHypergraph {
     }
 
     bool operator!= (const Hyperedge& rhs) const {
-      return !operator== (this, rhs);
+      return _begin != rhs._begin || _size != rhs._size || _weight != rhs._weight;
     }
 
    private:
@@ -262,22 +266,6 @@ class StaticHypergraph {
     _hyperedges(),
     _incidence_array() { }
 
-  explicit StaticHypergraph(const HypernodeID num_hypernodes,
-                            const HyperedgeID num_hyperedges,
-                            const HyperedgeVector& edge_vector,
-                            const HyperedgeWeight* hyperedge_weight = nullptr,
-                            const HypernodeWeight* hypernode_weight = nullptr) :
-    _num_hypernodes(num_hypernodes),
-    _num_hyperedges(num_hyperedges),
-    _num_pins(0),
-    _total_weight(0),
-    _hypernodes(num_hypernodes),
-    _incident_nets(),
-    _hyperedges(num_hyperedges),
-    _incidence_array() {
-    construct(edge_vector, hyperedge_weight, hypernode_weight);
-  }
-
   StaticHypergraph(const StaticHypergraph&) = delete;
   StaticHypergraph & operator= (const StaticHypergraph &) = delete;
 
@@ -300,114 +288,11 @@ class StaticHypergraph {
     _incident_nets = std::move(other._incident_nets);
     _hyperedges = std::move(other._hyperedges);
     _incidence_array = std::move(other._incidence_array);
+    return *this;
   }
 
  private:
-
-  // ####################### Construction #######################
-
-  void construct(const HyperedgeVector& edge_vector,
-                 const HyperedgeWeight* hyperedge_weight = nullptr,
-                 const HypernodeWeight* hypernode_weight = nullptr) {
-    ASSERT(edge_vector.size() == _num_hyperedges);
-
-    // Compute number of pins per hyperedge and number
-    // of incident nets per vertex
-    Counter num_pins_per_hyperedge(_num_hyperedges, 0);
-    ThreadLocalCounter local_incident_nets_per_vertex(_num_hypernodes, 0);
-    tbb::parallel_for(0UL, _num_hyperedges, [&](const size_t pos) {
-      Counter& num_incident_nets_per_vertex = local_incident_nets_per_vertex.local();
-      num_pins_per_hyperedge[pos] = edge_vector[pos].size();
-      for ( const HypernodeID& pin : edge_vector[pos] ) {
-        ASSERT(pin < _num_hypernodes);
-        ++num_incident_nets_per_vertex[pin];
-      }
-    });
-
-    // We sum up the number of incident nets per vertex only thread local.
-    // To obtain the global number of incident nets per vertex, we iterate
-    // over each thread local counter and sum it up.
-    Counter num_incident_nets_per_vertex(_num_hypernodes, 0);
-    for ( Counter& c : local_incident_nets_per_vertex ) {
-      tbb::parallel_for(0UL, _num_hypernodes, [&](const size_t pos) {
-        num_incident_nets_per_vertex[pos] += c[pos];
-      });
-    }
-
-    // Compute prefix sum over the number of pins per hyperedge and the
-    // number of incident nets per vertex. The prefix sum is used than as
-    // start position for each hyperedge resp. hypernode in the incidence
-    // resp. incident nets array.
-    parallel::TBBPrefixSum<size_t> pin_prefix_sum(num_pins_per_hyperedge);
-    parallel::TBBPrefixSum<size_t> incident_net_prefix_sum(num_incident_nets_per_vertex);
-    tbb::parallel_invoke([&] {
-      tbb::parallel_scan(tbb::blocked_range<size_t>(
-        0UL, _num_hyperedges), pin_prefix_sum);
-    }, [&] {
-      tbb::parallel_scan(tbb::blocked_range<size_t>(
-        0UL, _num_hypernodes), incident_net_prefix_sum);
-    });
-
-    ASSERT(pin_prefix_sum.total_sum() == incident_net_prefix_sum.total_sum());
-    _num_pins = pin_prefix_sum.total_sum();
-    _incident_nets.resize(_num_pins);
-    _incidence_array.resize(_num_pins);
-
-    AtomicCounter incident_nets_position(_num_hypernodes,
-      parallel::IntegralAtomicWrapper<size_t>(0));
-    tbb::parallel_invoke([&] {
-      tbb::parallel_for(0UL, _num_hyperedges, [&](const size_t pos) {
-        // Setup hyperedges
-        Hyperedge& hyperedge = _hyperedges[pos];
-        hyperedge.enable();
-        hyperedge.setFirstEntry(pin_prefix_sum[pos]);
-        hyperedge.setSize(pin_prefix_sum.value(pos));
-        if ( hyperedge_weight ) {
-          hyperedge.setWeight(hyperedge_weight[pos]);
-        }
-
-        const HyperedgeID he = pos;
-        size_t incidence_array_pos = hyperedge.firstEntry();
-        size_t hash = kEdgeHashSeed;
-        for ( const HypernodeID& pin : edge_vector[pos] ) {
-          ASSERT(incidence_array_pos < hyperedge.firstInvalidEntry());
-          ASSERT(pin < _num_hypernodes);
-          // Compute hash of hyperedge
-          hash += kahypar::math::hash(pin);
-          // Add pin to incidence array
-          _incidence_array[incidence_array_pos++] = pin;
-          // Add hyperedge he as a incident net to pin
-          const size_t incident_nets_pos = incident_net_prefix_sum[pin] +
-            incident_nets_position[pin]++;
-          ASSERT(incident_nets_pos < incident_net_prefix_sum[pin + 1]);
-          _incident_nets[incident_nets_pos] = he;
-        }
-        hyperedge.hash() = hash;
-      });
-    }, [&] {
-      tbb::parallel_for(0UL, _num_hypernodes, [&](const size_t pos) {
-        // Setup hypernodes
-        Hypernode& hypernode = _hypernodes[pos];
-        hypernode.enable();
-        hypernode.setFirstEntry(incident_net_prefix_sum[pos]);
-        hypernode.setSize(incident_net_prefix_sum.value(pos));
-        if ( hypernode_weight ) {
-          hypernode.setWeight(hypernode_weight[pos]);
-        }
-      });
-    });
-
-    // Compute total weight of hypergraph
-    _total_weight = tbb::parallel_reduce(
-      tbb::blocked_range<HypernodeID>(0UL, _num_hypernodes), 0,
-      [&](const tbb::blocked_range<HypernodeID>& range, HypernodeWeight init) {
-        HypernodeWeight weight = init;
-        for (HypernodeID hn = range.begin(); hn < range.end(); ++hn) {
-          weight += _hypernodes[hn].weight();
-        }
-        return weight;
-      }, std::plus<HypernodeWeight>());
-  }
+  friend class StaticHypergraphFactory;
 
   // ! Number of hypernodes
   HypernodeID _num_hypernodes;

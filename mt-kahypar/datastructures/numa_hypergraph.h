@@ -18,6 +18,8 @@
  *
  ******************************************************************************/
 
+#pragma once
+
 #include <type_traits>
 
 #include "kahypar/meta/mandatory.h"
