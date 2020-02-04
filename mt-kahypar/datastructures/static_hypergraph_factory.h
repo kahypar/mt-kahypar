@@ -156,10 +156,8 @@ class StaticHypergraphFactory {
     return hypergraph;
   }
 
-
  private:
   StaticHypergraphFactory() { }
-
 };
 
 } // namespace ds

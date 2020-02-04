@@ -1,4 +1,5 @@
 add_gmock_test(hypergraph_test hypergraph_test.cc)
+add_gmock_test(static_hypergraph_test static_hypergraph_test.cc)
 add_gmock_test(community_hypergraph_test community_hypergraph_test.cc)
 add_gmock_test(concurrent_hypergraph_test concurrent_hypergraph_test.cc)
 add_gmock_test(concurrent_hypergraph_smoke_test concurrent_hypergraph_smoke_test.cc)

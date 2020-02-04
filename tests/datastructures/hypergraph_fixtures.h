@@ -106,5 +106,53 @@ class AHypergraph : public Test {
     return hypergraph;
   }
 };
+
+auto identity = [](const HypernodeID& id) { return id; };
+
+template<typename Hypergraph, typename Factory>
+class HypergraphFixture : public Test {
+ public:
+  HypergraphFixture() :
+    hypergraph(Factory::construct(
+      7 , 4, { {0, 2}, {0, 1, 3, 4}, {3, 4, 6}, {2, 5, 6} })) { }
+
+  static void SetUpTestSuite() {
+    TBBNumaArena::instance(HardwareTopology::instance().num_cpus());
+  }
+
+  template <typename K = decltype(identity)>
+  void verifyIncidentNets(const HypernodeID hn,
+                          const std::set<HypernodeID>& reference,
+                          K map_func = identity,
+                          bool log = false) {
+    size_t count = 0;
+    for (const HyperedgeID& he : hypergraph.incidentEdges(hn)) {
+      if (log) LOG << V(he) << V(map_func(he));
+      ASSERT_TRUE(reference.find(map_func(he)) != reference.end()) << V(map_func(he));
+      count++;
+    }
+    ASSERT_EQ(count, reference.size());
+  }
+
+  void verifyPins(const std::vector<HyperedgeID> hyperedges,
+                  const std::vector< std::set<HypernodeID> >& references,
+                  bool log = false) {
+    ASSERT(hyperedges.size() == references.size());
+    for (size_t i = 0; i < hyperedges.size(); ++i) {
+      const HyperedgeID he = hyperedges[i];
+      const std::set<HypernodeID>& reference = references[i];
+      size_t count = 0;
+      for (const HypernodeID& pin : hypergraph.pins(he)) {
+        if (log) LOG << V(he) << V(pin);
+        ASSERT_TRUE(reference.find(pin) != reference.end()) << V(he) << V(pin);
+        count++;
+      }
+      ASSERT_EQ(count, reference.size());
+    }
+  }
+
+  Hypergraph hypergraph;
+};
+
 }  // namespace ds
 }  // namespace mt_kahypar
