@@ -29,6 +29,13 @@
 namespace mt_kahypar {
 namespace ds {
 
+// Forward
+template <typename Hypergraph,
+          typename Factory,
+          typename HardwareTopology,
+          typename TBBNumaArena>
+class NumaHypergraphFactory;
+
 template <typename Hypergraph = Mandatory,
           typename HardwareTopology = Mandatory,
           typename TBBNumaArena = Mandatory>
@@ -95,6 +102,12 @@ class NumaHypergraph {
   }
 
  private:
+  template <typename HyperGraph,
+            typename Factory,
+            typename HwTopology,
+            typename TBB>
+  friend class NumaHypergraphFactory;
+
   // ! Number of hypernodes
   HypernodeID _num_hypernodes;
   // ! Number of hyperedges
@@ -107,9 +120,9 @@ class NumaHypergraph {
   // ! NUMA Hypergraphs
   parallel::scalable_vector<Hypergraph> _hypergraphs;
   // ! Mapping from original node id to its hypergraph node id
-  std::vector<HypernodeID> _node_mapping;
+  parallel::scalable_vector<HypernodeID> _node_mapping;
   // ! Mapping from original edge id to its hypergraph edge id
-  std::vector<HyperedgeID> _edge_mapping;
+  parallel::scalable_vector<HyperedgeID> _edge_mapping;
 };
 
 } // namespace ds
