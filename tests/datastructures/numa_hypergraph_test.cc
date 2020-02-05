@@ -311,5 +311,68 @@ TEST_F(AStaticNumaHypergraph, ComputesCorrectCommunityDegreeInEachCommunity) {
   ASSERT_EQ(3, hypergraph.communityDegree(2));
 }
 
+TEST_F(AStaticNumaHypergraph, VerifiesNumberOfCommunitiesInHyperedges) {
+  assignCommunityIds();
+  hypergraph.initializeCommunityHyperedges(TBBNumaArena::GLOBAL_TASK_GROUP);
+  ASSERT_EQ(1, hypergraph.numCommunitiesInHyperedge(GLOBAL_EDGE_ID(hypergraph, 0)));
+  ASSERT_EQ(2, hypergraph.numCommunitiesInHyperedge(GLOBAL_EDGE_ID(hypergraph, 1)));
+  ASSERT_EQ(2, hypergraph.numCommunitiesInHyperedge(GLOBAL_EDGE_ID(hypergraph, 2)));
+  ASSERT_EQ(2, hypergraph.numCommunitiesInHyperedge(GLOBAL_EDGE_ID(hypergraph, 3)));
+}
+
+TEST_F(AStaticNumaHypergraph, VerifiesCommunityHyperedgeInternals1) {
+  assignCommunityIds();
+  hypergraph.initializeCommunityHyperedges(TBBNumaArena::GLOBAL_TASK_GROUP);
+  ASSERT_EQ(1, hypergraph.edgeWeight(GLOBAL_EDGE_ID(hypergraph, 0), 0));
+  ASSERT_EQ(2, hypergraph.edgeSize(GLOBAL_EDGE_ID(hypergraph, 0), 0));
+  ASSERT_EQ(1, hypergraph.edgeWeight(GLOBAL_EDGE_ID(hypergraph, 1), 0));
+  ASSERT_EQ(2, hypergraph.edgeSize(GLOBAL_EDGE_ID(hypergraph, 1), 0));
+  ASSERT_EQ(1, hypergraph.edgeWeight(GLOBAL_EDGE_ID(hypergraph, 3), 0));
+  ASSERT_EQ(1, hypergraph.edgeSize(GLOBAL_EDGE_ID(hypergraph, 3), 0));
+}
+
+TEST_F(AStaticNumaHypergraph, VerifiesCommunityHyperedgeInternals2) {
+  assignCommunityIds();
+  hypergraph.initializeCommunityHyperedges(TBBNumaArena::GLOBAL_TASK_GROUP);
+  ASSERT_EQ(1, hypergraph.edgeWeight(GLOBAL_EDGE_ID(hypergraph, 1), 1));
+  ASSERT_EQ(2, hypergraph.edgeSize(GLOBAL_EDGE_ID(hypergraph, 1), 1));
+  ASSERT_EQ(1, hypergraph.edgeWeight(GLOBAL_EDGE_ID(hypergraph, 2), 1));
+  ASSERT_EQ(2, hypergraph.edgeSize(GLOBAL_EDGE_ID(hypergraph, 2), 1));
+}
+
+TEST_F(AStaticNumaHypergraph, VerifiesCommunityHyperedgeInternals3) {
+  assignCommunityIds();
+  hypergraph.initializeCommunityHyperedges(TBBNumaArena::GLOBAL_TASK_GROUP);
+  ASSERT_EQ(1, hypergraph.edgeWeight(GLOBAL_EDGE_ID(hypergraph, 2), 2));
+  ASSERT_EQ(1, hypergraph.edgeSize(GLOBAL_EDGE_ID(hypergraph, 2), 2));
+  ASSERT_EQ(1, hypergraph.edgeWeight(GLOBAL_EDGE_ID(hypergraph, 3), 2));
+  ASSERT_EQ(2, hypergraph.edgeSize(GLOBAL_EDGE_ID(hypergraph, 3), 2));
+}
+
+TEST_F(AStaticNumaHypergraph, CanIterateOverThePinsOfASpecificCommunityInAHyperedge1) {
+  assignCommunityIds();
+  hypergraph.initializeCommunityHyperedges(TBBNumaArena::GLOBAL_TASK_GROUP);
+  verifyCommunityPins(0, { GLOBAL_EDGE_ID(hypergraph, 0),
+                           GLOBAL_EDGE_ID(hypergraph, 1),
+                           GLOBAL_EDGE_ID(hypergraph, 3) },
+    { {id[0], id[2]}, {id[0], id[1]}, {id[2]} });
+}
+
+TEST_F(AStaticNumaHypergraph, CanIterateOverThePinsOfASpecificCommunityInAHyperedge2) {
+  assignCommunityIds();
+  hypergraph.initializeCommunityHyperedges(TBBNumaArena::GLOBAL_TASK_GROUP);
+  verifyCommunityPins(1, { GLOBAL_EDGE_ID(hypergraph, 1),
+                           GLOBAL_EDGE_ID(hypergraph, 2) },
+    { {id[3], id[4]}, {id[3], id[4]} });
+}
+
+TEST_F(AStaticNumaHypergraph, CanIterateOverThePinsOfASpecificCommunityInAHyperedge3) {
+  assignCommunityIds();
+  hypergraph.initializeCommunityHyperedges(TBBNumaArena::GLOBAL_TASK_GROUP);
+  verifyCommunityPins(2, { GLOBAL_EDGE_ID(hypergraph, 2),
+                           GLOBAL_EDGE_ID(hypergraph, 3) },
+    { {id[6]}, {id[5], id[6]} });
+}
+
 }
 } // namespace mt_kahypar

@@ -22,6 +22,7 @@
 #include <cstdint>
 
 #include "mt-kahypar/macros.h"
+#include "mt-kahypar/parallel/stl/scalable_vector.h"
 
 namespace mt_kahypar {
 
@@ -71,6 +72,15 @@ MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE static HyperedgeID get_local_position_of_edge
 
 MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE static int get_numa_node_of_edge(const HyperedgeID e) {
   return static_cast<int>(e >> NUMA_NODE_IDENTIFIER);
+}
+
+template<typename Hypergraph>
+MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE static const Hypergraph& hypergraph_of_vertex(
+  const HypernodeID u,
+  const parallel::scalable_vector<Hypergraph>& hypergraphs) {
+  int node = get_numa_node_of_vertex(u);
+  ASSERT(node < static_cast<int>(hypergraphs.size()));
+  return hypergraphs[node];
 }
 
 } // namespace common

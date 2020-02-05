@@ -158,6 +158,24 @@ class HypergraphFixture : public Test {
     }
   }
 
+  void verifyCommunityPins(const PartitionID community_id,
+                           const std::vector<HyperedgeID> hyperedges,
+                           const std::vector< std::set<HypernodeID> >& references,
+                           bool log = false) {
+    ASSERT(hyperedges.size() == references.size());
+    for (size_t i = 0; i < hyperedges.size(); ++i) {
+      const HyperedgeID he = hyperedges[i];
+      const std::set<HypernodeID>& reference = references[i];
+      size_t count = 0;
+      for (const HypernodeID& pin : hypergraph.pins(he, community_id)) {
+        if (log) LOG << V(he) << V(pin);
+        ASSERT_TRUE(reference.find(pin) != reference.end()) << V(he) << V(pin);
+        count++;
+      }
+      ASSERT_EQ(count, reference.size());
+    }
+  }
+
   void assignCommunityIds() {
     hypergraph.setCommunityID(id[0], 0);
     hypergraph.setCommunityID(id[1], 0);

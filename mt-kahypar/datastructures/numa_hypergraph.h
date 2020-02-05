@@ -67,7 +67,8 @@ class NumaHypergraph {
     _total_weight(0),
     _hypergraphs(),
     _node_mapping(),
-    _edge_mapping() { }
+    _edge_mapping(),
+    _community_node_mapping() { }
 
   NumaHypergraph(const NumaHypergraph&) = delete;
   NumaHypergraph & operator= (const NumaHypergraph &) = delete;
@@ -80,7 +81,8 @@ class NumaHypergraph {
     _total_weight(other._total_weight),
     _hypergraphs(std::move(other._hypergraphs)),
     _node_mapping(std::move(other._node_mapping)),
-    _edge_mapping(std::move(other._edge_mapping)) { }
+    _edge_mapping(std::move(other._edge_mapping)),
+    _community_node_mapping(std::move(other._community_node_mapping)) { }
 
   NumaHypergraph & operator= (NumaHypergraph&& other) {
     _num_hypernodes = other._num_hypernodes;
@@ -91,6 +93,7 @@ class NumaHypergraph {
     _hypergraphs = std::move(other._hypergraphs);
     _node_mapping = std::move(other._node_mapping);
     _edge_mapping = std::move(other._edge_mapping);
+    _community_node_mapping = std::move(other._community_node_mapping);
     return *this;
   }
 
@@ -253,13 +256,13 @@ class NumaHypergraph {
    *
    * Structure of incident nets for a vertex u during community coarsening:
    *
-   * | <-- single-pin community hyperedges --> | <--   valid hyperedges     --> | <-- invalid hyperedges --> |
+   * | <-- single-pin community hyperedges --> | <-- multi-pin community hyperedges --> | <-- invalid hyperedges --> |
    *
-   *                                            <-- validIncidentEdges(u,c) -->
+   *                                             <--   multiPinIncidentEdges(u,c)   -->
    *
-   *  <-------------------------- incidentEdges(u,c) ------------------------->
+   *  <--------------------------- activeIncidentEdges(u,c) -------------------------->
    *
-   *  <----------------------------------------- incidentEdges(u) ------------------------------------------>
+   *  <---------------------------------------------- incidentEdges(u) --------------------------------------------->
    */
 
   // ! Returns a range to loop over the incident nets of hypernode u.
@@ -268,11 +271,15 @@ class NumaHypergraph {
   }
 
   // ! Returns a range to loop over all VALID hyperedges of hypernode u.
-  // IteratorRange<IncidenceIterator> validIncidentEdges(const HypernodeID u, const PartitionID community_id) const {
+  IteratorRange<IncidentNetsIterator> multiPinIncidentEdges(const HypernodeID u, const PartitionID community_id) const {
+    return hypergraph_of_vertex(u).multiPinIncidentEdges(u, community_id);
+  }
 
   // TODO function name should reflect its purpose
   // ! Returns a range to loop over the set of all VALID incident hyperedges of hypernode u that are not single-pin community hyperedges.
-  // IteratorRange<IncidenceIterator> incidentEdges(const HypernodeID u, const PartitionID community_id) const {
+  IteratorRange<IncidentNetsIterator> activeIncidentEdges(const HypernodeID u, const PartitionID community_id) const {
+    return hypergraph_of_vertex(u).activeIncidentEdges(u, community_id);
+  }
 
   // ! Returns a range to loop over the pins of hyperedge e.
   IteratorRange<IncidenceIterator> pins(const HyperedgeID e) const {
@@ -281,7 +288,9 @@ class NumaHypergraph {
 
   // ! Returns a range to loop over the pins of hyperedge e that belong to a certain community.
   // ! Note, this function fails if community hyperedges are not initialized.
-  // IteratorRange<IncidenceIterator> pins(const HyperedgeID e, const PartitionID community_id) const {
+  IteratorRange<IncidenceIterator> pins(const HyperedgeID e, const PartitionID community_id) const {
+    return hypergraph_of_edge(e).pins(e, community_id);
+  }
 
   // ! Returns a range to loop over the set of communities contained in hyperedge e.
   // IteratorRange<CommunityIterator> communities(const HyperedgeID e) const {
@@ -413,16 +422,24 @@ class NumaHypergraph {
   // ####################### Community Hyperedge Information #######################
 
   // ! Weight of a community hyperedge
-  // HypernodeWeight edgeWeight(const HyperedgeID e, const PartitionID community_id)
+  HypernodeWeight edgeWeight(const HyperedgeID e, const PartitionID community_id) const {
+    return hypergraph_of_edge(e).edgeWeight(e, community_id);
+  }
 
   // ! Sets the weight of a community hyperedge
-  // void setEdgeWeight(const HyperedgeID e, const PartitionID community_id, const HyperedgeWeight weight)
+  void setEdgeWeight(const HyperedgeID e, const PartitionID community_id, const HyperedgeWeight weight) {
+    hypergraph_of_edge(e).setEdgeWeight(e, community_id, weight);
+  }
 
   // ! Number of pins of a hyperedge that are assigned to a community
-  // HypernodeID edgeSize(const HyperedgeID e, const PartitionID community_id)
+  HypernodeID edgeSize(const HyperedgeID e, const PartitionID community_id) const {
+    return hypergraph_of_edge(e).edgeSize(e, community_id);
+  }
 
   // ! Hash value defined over the pins of a hyperedge that belongs to a community
-  // size_t edgeHash(const HyperedgeID e, const PartitionID community_id)
+  size_t edgeHash(const HyperedgeID e, const PartitionID community_id) const {
+    return hypergraph_of_edge(e).edgeHash(e, community_id);
+  }
 
   // ####################### Community Information #######################
 
@@ -476,13 +493,21 @@ class NumaHypergraph {
   }
 
   // ! Number of communities which pins of hyperedge belongs to
-  // size_t numCommunitiesInHyperedge(const HyperedgeID e) const
+  size_t numCommunitiesInHyperedge(const HyperedgeID e) const {
+    return hypergraph_of_vertex(e).numCommunitiesInHyperedge(e);
+  }
 
   // ! Numa node to which community is assigned to
-  // PartitionID communityNumaNode(const PartitionID community_id) const
+  PartitionID communityNumaNode(const PartitionID community_id) const {
+    ASSERT(static_cast<size_t>(community_id) < _community_node_mapping.size());
+    return _community_node_mapping[community_id];
+  }
 
   // ! Sets the community to numa node mapping
-  // void setCommunityNodeMapping(std::vector<PartitionID>&& community_node_mapping)
+  void setCommunityNodeMapping(std::vector<PartitionID>&& community_node_mapping) {
+    ASSERT(community_node_mapping.size() == static_cast<size_t>(numCommunities()));
+    _community_node_mapping = std::move(community_node_mapping);
+  }
 
   // ####################### Initialization / Reset Functions #######################
 
@@ -498,6 +523,20 @@ class NumaHypergraph {
   void initializeCommunities(const TaskGroupID task_group_id) {
     TBBNumaArena::instance().execute_parallel_on_all_numa_nodes(task_group_id, [&](const int node) {
           _hypergraphs[node].initializeCommunities(task_group_id, _hypergraphs);
+        });
+  }
+
+  /*!
+  * Initializes community hyperedges.
+  * This includes:
+  *   1.) Sort the pins of each hyperedge in increasing order of their community id
+  *   2.) Introduce for each community id contained in a hyperedge a seperate
+  *       community hyperedge pointing to a range of consecutive pins with
+  *       same community in that hyperedge
+  */
+  void initializeCommunityHyperedges(const TaskGroupID task_group_id) {
+    TBBNumaArena::instance().execute_parallel_on_all_numa_nodes(task_group_id, [&](const int node) {
+          _hypergraphs[node].initializeCommunityHyperedges(task_group_id, _hypergraphs);
         });
   }
 
@@ -547,6 +586,8 @@ class NumaHypergraph {
   parallel::scalable_vector<HypernodeID> _node_mapping;
   // ! Mapping from original edge id to its hypergraph edge id
   parallel::scalable_vector<HyperedgeID> _edge_mapping;
+  // ! Mapping from community id to its NUMA node which they are assigned to
+  parallel::scalable_vector<PartitionID> _community_node_mapping;
 };
 
 } // namespace ds

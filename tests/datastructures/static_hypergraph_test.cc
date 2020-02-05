@@ -248,5 +248,64 @@ TEST_F(AStaticHypergraph, ComputesCorrectCommunityDegreeInEachCommunity) {
   ASSERT_EQ(3, hypergraph.communityDegree(2));
 }
 
+TEST_F(AStaticHypergraph, VerifiesNumberOfCommunitiesInHyperedges) {
+  assignCommunityIds();
+  hypergraph.initializeCommunityHyperedges(TBBNumaArena::GLOBAL_TASK_GROUP);
+  ASSERT_EQ(1, hypergraph.numCommunitiesInHyperedge(0));
+  ASSERT_EQ(2, hypergraph.numCommunitiesInHyperedge(1));
+  ASSERT_EQ(2, hypergraph.numCommunitiesInHyperedge(2));
+  ASSERT_EQ(2, hypergraph.numCommunitiesInHyperedge(3));
+}
+
+TEST_F(AStaticHypergraph, VerifiesCommunityHyperedgeInternals1) {
+  assignCommunityIds();
+  hypergraph.initializeCommunityHyperedges(TBBNumaArena::GLOBAL_TASK_GROUP);
+  ASSERT_EQ(1, hypergraph.edgeWeight(0, 0));
+  ASSERT_EQ(2, hypergraph.edgeSize(0, 0));
+  ASSERT_EQ(1, hypergraph.edgeWeight(1, 0));
+  ASSERT_EQ(2, hypergraph.edgeSize(1, 0));
+  ASSERT_EQ(1, hypergraph.edgeWeight(3, 0));
+  ASSERT_EQ(1, hypergraph.edgeSize(3, 0));
+}
+
+TEST_F(AStaticHypergraph, VerifiesCommunityHyperedgeInternals2) {
+  assignCommunityIds();
+  hypergraph.initializeCommunityHyperedges(TBBNumaArena::GLOBAL_TASK_GROUP);
+  ASSERT_EQ(1, hypergraph.edgeWeight(1, 1));
+  ASSERT_EQ(2, hypergraph.edgeSize(1, 1));
+  ASSERT_EQ(1, hypergraph.edgeWeight(2, 1));
+  ASSERT_EQ(2, hypergraph.edgeSize(2, 1));
+}
+
+TEST_F(AStaticHypergraph, VerifiesCommunityHyperedgeInternals3) {
+  assignCommunityIds();
+  hypergraph.initializeCommunityHyperedges(TBBNumaArena::GLOBAL_TASK_GROUP);
+  ASSERT_EQ(1, hypergraph.edgeWeight(2, 2));
+  ASSERT_EQ(1, hypergraph.edgeSize(2, 2));
+  ASSERT_EQ(1, hypergraph.edgeWeight(3, 2));
+  ASSERT_EQ(2, hypergraph.edgeSize(3, 2));
+}
+
+TEST_F(AStaticHypergraph, CanIterateOverThePinsOfASpecificCommunityInAHyperedge1) {
+  assignCommunityIds();
+  hypergraph.initializeCommunityHyperedges(TBBNumaArena::GLOBAL_TASK_GROUP);
+  verifyCommunityPins(0, { 0, 1, 3 },
+    { {0, 2}, {0, 1}, {2} });
+}
+
+TEST_F(AStaticHypergraph, CanIterateOverThePinsOfASpecificCommunityInAHyperedge2) {
+  assignCommunityIds();
+  hypergraph.initializeCommunityHyperedges(TBBNumaArena::GLOBAL_TASK_GROUP);
+  verifyCommunityPins(1, { 1, 2 },
+    { {3, 4}, {3, 4} });
+}
+
+TEST_F(AStaticHypergraph, CanIterateOverThePinsOfASpecificCommunityInAHyperedge3) {
+  assignCommunityIds();
+  hypergraph.initializeCommunityHyperedges(TBBNumaArena::GLOBAL_TASK_GROUP);
+  verifyCommunityPins(2, { 2, 3 },
+    { {6}, {5, 6} });
+}
+
 }
 } // namespace mt_kahypar

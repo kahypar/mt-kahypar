@@ -35,6 +35,9 @@ namespace ds {
 // Forward
 class StaticHypergraphFactory;
 
+template<class Hypergraph>
+class CommunitySupport;
+
 class StaticHypergraph {
 
   /**
@@ -552,6 +555,7 @@ class StaticHypergraph {
     return edges();
   }
 
+
   // ! Returns a range to loop over the incident nets of hypernode u.
   IteratorRange<IncidentNetsIterator> incidentEdges(const HypernodeID u) const {
     ASSERT(!hypernode(u).isDisabled(), "Hypernode" << u << "is disabled");
@@ -559,6 +563,21 @@ class StaticHypergraph {
     return IteratorRange<IncidentNetsIterator>(
       _incident_nets.cbegin() + hn.firstEntry(),
       _incident_nets.cbegin() + hn.firstInvalidEntry());
+  }
+
+  // ! Returns a range to loop over all VALID hyperedges of hypernode u.
+  IteratorRange<IncidentNetsIterator> multiPinIncidentEdges(const HypernodeID, const PartitionID) const {
+    ERROR("multiPinIncidentEdges(u,c) is not supported in static hypergraph");
+    return IteratorRange<IncidentNetsIterator>(
+      _incident_nets.cend(), _incident_nets.cend());
+  }
+
+  // TODO function name should reflect its purpose
+  // ! Returns a range to loop over the set of all VALID incident hyperedges of hypernode u that are not single-pin community hyperedges.
+  IteratorRange<IncidentNetsIterator> activeIncidentEdges(const HypernodeID, const PartitionID) const {
+    ERROR("activeIncidentEdges(u,c) is not supported in static hypergraph");
+    return IteratorRange<IncidentNetsIterator>(
+      _incident_nets.cend(), _incident_nets.cend());
   }
 
   // ! Returns a range to loop over the pins of hyperedge e.
@@ -570,37 +589,11 @@ class StaticHypergraph {
       _incidence_array.cbegin() + he.firstInvalidEntry());
   }
 
-  /*!
-   * Illustration for different incidentEdges iterators:
-   *
-   * Structure of incident nets for a vertex u during community coarsening:
-   *
-   * | <-- single-pin community hyperedges --> | <--   valid hyperedges     --> | <-- invalid hyperedges --> |
-   *
-   *                                            <-- validIncidentEdges(u,c) -->
-   *
-   *  <-------------------------- incidentEdges(u,c) ------------------------->
-   *
-   *  <----------------------------------------- incidentEdges(u) ------------------------------------------>
-   */
-
-  // ! Returns a range to loop over all VALID and INVALID hyperedges of vertex u
-  // IteratorRange<IncidenceIterator> incidentEdges(const HypernodeID u) const {
-
-  // ! Returns a range to loop over all VALID hyperedges of hypernode u.
-  // IteratorRange<IncidenceIterator> validIncidentEdges(const HypernodeID u, const PartitionID community_id) const {
-
-  // TODO function name should reflect its purpose
-  // ! Returns a range to loop over the set of all VALID incident hyperedges of hypernode u that are not single-pin community hyperedges.
-  // IteratorRange<IncidenceIterator> incidentEdges(const HypernodeID u, const PartitionID community_id) const {
-
-  // ! Returns a range to loop over the pins of hyperedge e.
-  // ! Note, this function fails if community hyperedges are initialized.
-  // IteratorRange<IncidenceIterator> pins(const HyperedgeID e) const {
-
   // ! Returns a range to loop over the pins of hyperedge e that belong to a certain community.
   // ! Note, this function fails if community hyperedges are not initialized.
-  // IteratorRange<IncidenceIterator> pins(const HyperedgeID e, const PartitionID community_id) const {
+  IteratorRange<IncidenceIterator> pins(const HyperedgeID e, const PartitionID community_id) const {
+    return _community_support.pins(*this, e, community_id);
+  }
 
   // ! Returns a range to loop over the set of communities contained in hyperedge e.
   // IteratorRange<CommunityIterator> communities(const HyperedgeID e) const {
@@ -744,16 +737,24 @@ class StaticHypergraph {
   // ####################### Community Hyperedge Information #######################
 
   // ! Weight of a community hyperedge
-  // HypernodeWeight edgeWeight(const HyperedgeID e, const PartitionID community_id)
+  HypernodeWeight edgeWeight(const HyperedgeID e, const PartitionID community_id) const {
+    return _community_support.edgeWeight(e, community_id);
+  }
 
   // ! Sets the weight of a community hyperedge
-  // void setEdgeWeight(const HyperedgeID e, const PartitionID community_id, const HyperedgeWeight weight)
+  void setEdgeWeight(const HyperedgeID e, const PartitionID community_id, const HyperedgeWeight weight) {
+    _community_support.setEdgeWeight(e, community_id, weight);
+  }
 
   // ! Number of pins of a hyperedge that are assigned to a community
-  // HypernodeID edgeSize(const HyperedgeID e, const PartitionID community_id)
+  HypernodeID edgeSize(const HyperedgeID e, const PartitionID community_id) const {
+    return _community_support.edgeSize(e, community_id);
+  }
 
   // ! Hash value defined over the pins of a hyperedge that belongs to a community
-  // size_t edgeHash(const HyperedgeID e, const PartitionID community_id)
+  size_t edgeHash(const HyperedgeID e, const PartitionID community_id) const {
+    return _community_support.edgeHash(e, community_id);
+  }
 
   // ####################### Community Information #######################
 
@@ -797,13 +798,17 @@ class StaticHypergraph {
   }
 
   // ! Number of communities which pins of hyperedge belongs to
-  // size_t numCommunitiesInHyperedge(const HyperedgeID e) const
+  size_t numCommunitiesInHyperedge(const HyperedgeID e) const {
+    return _community_support.numCommunitiesInHyperedge(e);
+  }
 
   // ! Numa node to which community is assigned to
-  // PartitionID communityNumaNode(const PartitionID community_id) const
+  PartitionID communityNumaNode(const PartitionID) const {
+    return 0;
+  }
 
   // ! Sets the community to numa node mapping
-  // void setCommunityNodeMapping(std::vector<PartitionID>&& community_node_mapping)
+  void setCommunityNodeMapping(std::vector<PartitionID>&&) { }
 
   // ####################### Initialization / Reset Functions #######################
 
@@ -821,8 +826,23 @@ class StaticHypergraph {
     _community_support.initialize(*this, _node, hypergraphs);
   }
 
+  /*!
+  * Initializes community hyperedges.
+  * This includes:
+  *   1.) Sort the pins of each hyperedge in increasing order of their community id
+  *   2.) Introduce for each community id contained in a hyperedge a seperate
+  *       community hyperedge pointing to a range of consecutive pins with
+  *       same community in that hyperedge
+  */
+  void initializeCommunityHyperedges(const TaskGroupID,
+                                     const parallel::scalable_vector<StaticHypergraph>& hypergraphs = {}) {
+    _community_support.initializeCommunityHyperedges(*this, hypergraphs);
+  }
+
  private:
   friend class StaticHypergraphFactory;
+  template<typename Hypergraph>
+  friend class CommunitySupport;
 
   // ####################### Hypernode Information #######################
 
