@@ -42,6 +42,7 @@ template <typename Hypergraph = Mandatory,
           typename TBBNumaArena = Mandatory>
 class NumaHypergraph {
 
+  static_assert(!Hypergraph::is_numa_aware,  "Only non-numa-aware hypergraphs are allowed");
   static_assert(!Hypergraph::is_partitioned,  "Only unpartitioned hypergraphs are allowed");
 
   // ! Iterator to iterate over the hypernodes
@@ -62,6 +63,7 @@ class NumaHypergraph {
     _num_hypernodes(0),
     _num_hyperedges(0),
     _num_pins(0),
+    _total_degree(0),
     _total_weight(0),
     _hypergraphs(),
     _node_mapping(),
@@ -74,6 +76,7 @@ class NumaHypergraph {
     _num_hypernodes(other._num_hypernodes),
     _num_hyperedges(other._num_hyperedges),
     _num_pins(other._num_pins),
+    _total_degree(other._total_degree),
     _total_weight(other._total_weight),
     _hypergraphs(std::move(other._hypergraphs)),
     _node_mapping(std::move(other._node_mapping)),
@@ -83,6 +86,7 @@ class NumaHypergraph {
     _num_hypernodes = other._num_hypernodes;
     _num_hyperedges = other._num_hyperedges;
     _num_pins = other._num_pins;
+    _total_degree = other._total_degree;
     _total_weight = other._total_weight;
     _hypergraphs = std::move(other._hypergraphs);
     _node_mapping = std::move(other._node_mapping);
@@ -139,6 +143,17 @@ class NumaHypergraph {
     return _hypergraphs[node].initialNumPins();
   }
 
+  // ! Initial sum of the degree of all vertices
+  HypernodeID initialTotalVertexDegree() const {
+    return _total_degree;
+  }
+
+  // ! Initial sum of the degree of all vertices on numa node
+  HypernodeID initialTotalVertexDegree(const int node) const {
+    ASSERT(node < static_cast<int>(_hypergraphs.size()));
+    return _hypergraphs[node].initialTotalVertexDegree();
+  }
+
   // ! Total weight of hypergraph
   HypernodeWeight totalWeight() const {
     return _total_weight;
@@ -171,6 +186,13 @@ class NumaHypergraph {
   // ! for each vertex
   template<typename F>
   void doParallelForAllNodes(const TaskGroupID task_group_id, const F& f) {
+    static_cast<const NumaHypergraph&>(*this).doParallelForAllNodes(task_group_id, f);
+  }
+
+  // ! Iterates in parallel over all active nodes and calls function f
+  // ! for each vertex
+  template<typename F>
+  void doParallelForAllNodes(const TaskGroupID task_group_id, const F& f) const {
     TBBNumaArena::instance().execute_parallel_on_all_numa_nodes(
       task_group_id, [&](const int node) {
         _hypergraphs[node].doParallelForAllNodes(task_group_id, f);
@@ -181,6 +203,13 @@ class NumaHypergraph {
   // ! for each net
   template<typename F>
   void doParallelForAllEdges(const TaskGroupID task_group_id, const F& f) {
+    static_cast<const NumaHypergraph&>(*this).doParallelForAllEdges(task_group_id, f);
+  }
+
+  // ! Iterates in parallel over all active edges and calls function f
+  // ! for each net
+  template<typename F>
+  void doParallelForAllEdges(const TaskGroupID task_group_id, const F& f) const {
     TBBNumaArena::instance().execute_parallel_on_all_numa_nodes(
       task_group_id, [&](const int node) {
         _hypergraphs[node].doParallelForAllEdges(task_group_id, f);
@@ -381,6 +410,97 @@ class NumaHypergraph {
     hypergraph_of_edge(e).disableHyperedge(e);
   }
 
+  // ####################### Community Hyperedge Information #######################
+
+  // ! Weight of a community hyperedge
+  // HypernodeWeight edgeWeight(const HyperedgeID e, const PartitionID community_id)
+
+  // ! Sets the weight of a community hyperedge
+  // void setEdgeWeight(const HyperedgeID e, const PartitionID community_id, const HyperedgeWeight weight)
+
+  // ! Number of pins of a hyperedge that are assigned to a community
+  // HypernodeID edgeSize(const HyperedgeID e, const PartitionID community_id)
+
+  // ! Hash value defined over the pins of a hyperedge that belongs to a community
+  // size_t edgeHash(const HyperedgeID e, const PartitionID community_id)
+
+  // ####################### Community Information #######################
+
+  // ! Number of communities
+  PartitionID numCommunities() const {
+    return _hypergraphs[0].numCommunities();
+  }
+
+  // ! Community id which hypernode u is assigned to
+  PartitionID communityID(const HypernodeID u) const {
+    return hypergraph_of_vertex(u).communityID(u);
+  }
+
+  // ! Assign a community to a hypernode
+  // ! Note, in order to use all community-related functions, initializeCommunities()
+  // ! have to be called after assigning to each vertex a community id
+  void setCommunityID(const HypernodeID u, const PartitionID community_id) {
+    hypergraph_of_vertex(u).setCommunityID(u, community_id);
+  }
+
+  // ! Consider hypernode u is part of community C = {v_1, ..., v_n},
+  // ! than this function returns a unique id for hypernode u in the
+  // ! range [0,n).
+  // HypernodeID communityNodeId(const HypernodeID u) const
+
+  // ! Number of hypernodes in community
+  HypernodeID numCommunityHypernodes(const PartitionID community) const {
+    HypernodeID num_community_hypernodes = 0;
+    for ( const Hypergraph& hypergraph : _hypergraphs ) {
+      num_community_hypernodes += hypergraph.numCommunityHypernodes(community);
+    }
+    return num_community_hypernodes;
+  }
+
+  // ! Number of pins in community
+  HypernodeID numCommunityPins(const PartitionID community) const {
+    HypernodeID num_community_pins = 0;
+    for ( const Hypergraph& hypergraph : _hypergraphs ) {
+      num_community_pins += hypergraph.numCommunityPins(community);
+    }
+    return num_community_pins;
+  }
+
+  // ! Total degree of community
+  HyperedgeID communityDegree(const PartitionID community) const {
+    HypernodeID total_community_degree = 0;
+    for ( const Hypergraph& hypergraph : _hypergraphs ) {
+      total_community_degree += hypergraph.communityDegree(community);
+    }
+    return total_community_degree;
+  }
+
+  // ! Number of communities which pins of hyperedge belongs to
+  // size_t numCommunitiesInHyperedge(const HyperedgeID e) const
+
+  // ! Numa node to which community is assigned to
+  // PartitionID communityNumaNode(const PartitionID community_id) const
+
+  // ! Sets the community to numa node mapping
+  // void setCommunityNodeMapping(std::vector<PartitionID>&& community_node_mapping)
+
+  // ####################### Initialization / Reset Functions #######################
+
+  /*!
+   * Initializes community-related information after all vertices are assigned to a community.
+   * This includes:
+   *  1.) Number of Communities
+   *  2.) Number of Vertices per Community
+   *  3.) Number of Pins per Community
+   *  4.) For each hypernode v of community C, we compute a unique id within
+   *      that community in the range [0, |C|)
+   */
+  void initializeCommunities(const TaskGroupID task_group_id) {
+    TBBNumaArena::instance().execute_parallel_on_all_numa_nodes(task_group_id, [&](const int node) {
+          _hypergraphs[node].initializeCommunities(task_group_id, _hypergraphs);
+        });
+  }
+
  private:
   template <typename HyperGraph,
             typename Factory,
@@ -416,6 +536,8 @@ class NumaHypergraph {
   HyperedgeID _num_hyperedges;
   // ! Number of pins
   HypernodeID _num_pins;
+  // ! Total degree of all vertices
+  HypernodeID _total_degree;
   // ! Total weight of hypergraph
   HypernodeWeight _total_weight;
 

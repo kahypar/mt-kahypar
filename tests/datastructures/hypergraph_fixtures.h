@@ -158,6 +158,17 @@ class HypergraphFixture : public Test {
     }
   }
 
+  void assignCommunityIds() {
+    hypergraph.setCommunityID(id[0], 0);
+    hypergraph.setCommunityID(id[1], 0);
+    hypergraph.setCommunityID(id[2], 0);
+    hypergraph.setCommunityID(id[3], 1);
+    hypergraph.setCommunityID(id[4], 1);
+    hypergraph.setCommunityID(id[5], 2);
+    hypergraph.setCommunityID(id[6], 2);
+    hypergraph.initializeCommunities(TBB::GLOBAL_TASK_GROUP);
+  }
+
   Hypergraph hypergraph;
   std::vector<HypernodeID> id;
 };

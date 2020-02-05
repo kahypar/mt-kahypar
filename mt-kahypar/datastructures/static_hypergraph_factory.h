@@ -105,6 +105,7 @@ class StaticHypergraphFactory {
 
     ASSERT(pin_prefix_sum.total_sum() == incident_net_prefix_sum.total_sum());
     hypergraph._num_pins = pin_prefix_sum.total_sum();
+    hypergraph._total_degree = incident_net_prefix_sum.total_sum();
     hypergraph._incident_nets.resize(hypergraph._num_pins);
     hypergraph._incidence_array.resize(hypergraph._num_pins);
 
@@ -251,6 +252,7 @@ class StaticHypergraphFactory {
     hypergraph._num_hypernodes = vertices_prefix_sum.total_sum();
     hypergraph._num_hyperedges = edges_prefix_sum.total_sum();
     hypergraph._num_pins = pin_prefix_sum.total_sum();
+    hypergraph._total_degree = incident_net_prefix_sum.total_sum();
     hypergraph._hypernodes.resize(hypergraph._num_hypernodes);
     hypergraph._hyperedges.resize(hypergraph._num_hyperedges);
     hypergraph._incident_nets.resize(incident_net_prefix_sum.total_sum());

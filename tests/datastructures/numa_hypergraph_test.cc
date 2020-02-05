@@ -50,12 +50,15 @@ TEST_F(AStaticNumaHypergraph, HasCorrectStats) {
   ASSERT_EQ(7,  hypergraph.initialNumNodes());
   ASSERT_EQ(4,  hypergraph.initialNumEdges());
   ASSERT_EQ(12, hypergraph.initialNumPins());
+  ASSERT_EQ(12, hypergraph.initialTotalVertexDegree());
   ASSERT_EQ(5,  hypergraph.initialNumNodes(0));
   ASSERT_EQ(2,  hypergraph.initialNumEdges(0));
   ASSERT_EQ(6,  hypergraph.initialNumPins(0));
+  ASSERT_EQ(9,  hypergraph.initialTotalVertexDegree(0));
   ASSERT_EQ(2,  hypergraph.initialNumNodes(1));
   ASSERT_EQ(2,  hypergraph.initialNumEdges(1));
   ASSERT_EQ(6,  hypergraph.initialNumPins(1));
+  ASSERT_EQ(3,  hypergraph.initialTotalVertexDegree(1));
   ASSERT_EQ(7,  hypergraph.totalWeight());
 }
 
@@ -262,6 +265,50 @@ TEST_F(AStaticNumaHypergraph, VerifiesEdgeSizes) {
   ASSERT_EQ(4, hypergraph.edgeSize(GLOBAL_EDGE_ID(hypergraph, 1)));
   ASSERT_EQ(3, hypergraph.edgeSize(GLOBAL_EDGE_ID(hypergraph, 2)));
   ASSERT_EQ(3, hypergraph.edgeSize(GLOBAL_EDGE_ID(hypergraph, 3)));
+}
+
+TEST_F(AStaticNumaHypergraph, SetsCommunityIDsForEachVertex) {
+  hypergraph.setCommunityID(id[0], 1);
+  hypergraph.setCommunityID(id[1], 1);
+  hypergraph.setCommunityID(id[2], 1);
+  hypergraph.setCommunityID(id[3], 2);
+  hypergraph.setCommunityID(id[4], 2);
+  hypergraph.setCommunityID(id[5], 3);
+  hypergraph.setCommunityID(id[6], 3);
+
+  ASSERT_EQ(1, hypergraph.communityID(id[0]));
+  ASSERT_EQ(1, hypergraph.communityID(id[1]));
+  ASSERT_EQ(1, hypergraph.communityID(id[2]));
+  ASSERT_EQ(2, hypergraph.communityID(id[3]));
+  ASSERT_EQ(2, hypergraph.communityID(id[4]));
+  ASSERT_EQ(3, hypergraph.communityID(id[5]));
+  ASSERT_EQ(3, hypergraph.communityID(id[6]));
+}
+
+TEST_F(AStaticNumaHypergraph, ComputesCorrectNumberOfCommunities) {
+  assignCommunityIds();
+  ASSERT_EQ(3, hypergraph.numCommunities());
+}
+
+TEST_F(AStaticNumaHypergraph, ComputesCorrectNumberOfHypernodesInEachCommunity) {
+  assignCommunityIds();
+  ASSERT_EQ(3, hypergraph.numCommunityHypernodes(0));
+  ASSERT_EQ(2, hypergraph.numCommunityHypernodes(1));
+  ASSERT_EQ(2, hypergraph.numCommunityHypernodes(2));
+}
+
+TEST_F(AStaticNumaHypergraph, ComputesCorrectNumberOfPinsInEachCommunity) {
+  assignCommunityIds();
+  ASSERT_EQ(5, hypergraph.numCommunityPins(0));
+  ASSERT_EQ(4, hypergraph.numCommunityPins(1));
+  ASSERT_EQ(3, hypergraph.numCommunityPins(2));
+}
+
+TEST_F(AStaticNumaHypergraph, ComputesCorrectCommunityDegreeInEachCommunity) {
+  assignCommunityIds();
+  ASSERT_EQ(5, hypergraph.communityDegree(0));
+  ASSERT_EQ(4, hypergraph.communityDegree(1));
+  ASSERT_EQ(3, hypergraph.communityDegree(2));
 }
 
 }

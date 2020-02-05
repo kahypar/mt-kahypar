@@ -24,6 +24,7 @@
 
 #include "kahypar/meta/mandatory.h"
 
+#include "mt-kahypar/datastructures/community_support.h"
 #include "mt-kahypar/datastructures/hypergraph_common.h"
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
 #include "mt-kahypar/utils/range.h"
@@ -365,11 +366,13 @@ class StaticHypergraph {
     _num_removed_hypernodes(0),
     _num_hyperedges(0),
     _num_pins(0),
+    _total_degree(0),
     _total_weight(0),
     _hypernodes(),
     _incident_nets(),
     _hyperedges(),
-    _incidence_array() { }
+    _incidence_array(),
+    _community_support() { }
 
   StaticHypergraph(const StaticHypergraph&) = delete;
   StaticHypergraph & operator= (const StaticHypergraph &) = delete;
@@ -377,24 +380,30 @@ class StaticHypergraph {
   StaticHypergraph(StaticHypergraph&& other) :
     _node(other._node),
     _num_hypernodes(other._num_hypernodes),
+    _num_removed_hypernodes(other._num_removed_hypernodes),
     _num_hyperedges(other._num_hyperedges),
     _num_pins(other._num_pins),
+    _total_degree(other._total_degree),
     _total_weight(other._total_weight),
     _hypernodes(std::move(other._hypernodes)),
     _incident_nets(std::move(other._incident_nets)),
     _hyperedges(std::move(other._hyperedges)),
-    _incidence_array(std::move(other._incidence_array)) { }
+    _incidence_array(std::move(other._incidence_array)),
+    _community_support(std::move(other._community_support)) { }
 
   StaticHypergraph & operator= (StaticHypergraph&& other) {
     _node = other._node;
     _num_hypernodes = other._num_hypernodes;
+    _num_removed_hypernodes = other._num_removed_hypernodes;
     _num_hyperedges = other._num_hyperedges;
     _num_pins = other._num_pins;
+    _total_degree = other._total_degree;
     _total_weight = other._total_weight;
     _hypernodes = std::move(other._hypernodes);
     _incident_nets = std::move(other._incident_nets);
     _hyperedges = std::move(other._hyperedges);
     _incidence_array = std::move(other._incidence_array);
+    _community_support = std::move(_community_support);
     return *this;
   }
 
@@ -440,6 +449,16 @@ class StaticHypergraph {
     return _num_pins;
   }
 
+  // ! Initial sum of the degree of all vertices
+  HypernodeID initialTotalVertexDegree() const {
+    return _total_degree;
+  }
+
+  // ! Initial sum of the degree of all vertices on numa node
+  HypernodeID initialTotalVertexDegree(const int) const {
+    return _total_degree;
+  }
+
   // ! Total weight of hypergraph
   HypernodeWeight totalWeight() const {
     return _total_weight;
@@ -470,7 +489,14 @@ class StaticHypergraph {
   // ! Iterates in parallel over all active nodes and calls function f
   // ! for each vertex
   template<typename F>
-  void doParallelForAllNodes(const TaskGroupID, const F& f) {
+  void doParallelForAllNodes(const TaskGroupID task_group_id, const F& f) {
+    static_cast<const StaticHypergraph&>(*this).doParallelForAllNodes(task_group_id, f);
+  }
+
+  // ! Iterates in parallel over all active nodes and calls function f
+  // ! for each vertex
+  template<typename F>
+  void doParallelForAllNodes(const TaskGroupID, const F& f) const {
     tbb::parallel_for(0UL, _num_hypernodes, [&](const HypernodeID& id) {
       const HypernodeID hn = common::get_global_vertex_id(_node, id);
       if ( nodeIsEnabled(hn) ) {
@@ -482,7 +508,14 @@ class StaticHypergraph {
   // ! Iterates in parallel over all active edges and calls function f
   // ! for each net
   template<typename F>
-  void doParallelForAllEdges(const TaskGroupID, const F& f) {
+  void doParallelForAllEdges(const TaskGroupID task_group_id, const F& f) {
+    static_cast<const StaticHypergraph&>(*this).doParallelForAllEdges(task_group_id, f);
+  }
+
+  // ! Iterates in parallel over all active edges and calls function f
+  // ! for each net
+  template<typename F>
+  void doParallelForAllEdges(const TaskGroupID, const F& f) const {
     tbb::parallel_for(0UL, _num_hyperedges, [&](const HyperedgeID& id) {
       const HyperedgeID he = common::get_global_edge_id(_node, id);
       if ( edgeIsEnabled(he) ) {
@@ -708,6 +741,86 @@ class StaticHypergraph {
     hyperedge(e).disable();
   }
 
+  // ####################### Community Hyperedge Information #######################
+
+  // ! Weight of a community hyperedge
+  // HypernodeWeight edgeWeight(const HyperedgeID e, const PartitionID community_id)
+
+  // ! Sets the weight of a community hyperedge
+  // void setEdgeWeight(const HyperedgeID e, const PartitionID community_id, const HyperedgeWeight weight)
+
+  // ! Number of pins of a hyperedge that are assigned to a community
+  // HypernodeID edgeSize(const HyperedgeID e, const PartitionID community_id)
+
+  // ! Hash value defined over the pins of a hyperedge that belongs to a community
+  // size_t edgeHash(const HyperedgeID e, const PartitionID community_id)
+
+  // ####################### Community Information #######################
+
+  // ! Number of communities
+  PartitionID numCommunities() const {
+    return _community_support.numCommunities();
+  }
+
+  // ! Community id which hypernode u is assigned to
+  PartitionID communityID(const HypernodeID u) const {
+    ASSERT(!hypernode(u).isDisabled(), "Hypernode" << u << "is disabled");
+    return hypernode(u).communityID();
+  }
+
+  // ! Assign a community to a hypernode
+  // ! Note, in order to use all community-related functions, initializeCommunities()
+  // ! have to be called after assigning to each vertex a community id
+  void setCommunityID(const HypernodeID u, const PartitionID community_id) {
+    ASSERT(!hypernode(u).isDisabled(), "Hypernode" << u << "is disabled");
+    return hypernode(u).setCommunityID(community_id);
+  }
+
+  // ! Consider hypernode u is part of community C = {v_1, ..., v_n},
+  // ! than this function returns a unique id for hypernode u in the
+  // ! range [0,n).
+  // HypernodeID communityNodeId(const HypernodeID u) const
+
+  // ! Number of hypernodes in community
+  HypernodeID numCommunityHypernodes(const PartitionID community) const {
+    return _community_support.numCommunityHypernodes(community);
+  }
+
+  // ! Number of pins in community
+  HypernodeID numCommunityPins(const PartitionID community) const {
+    return _community_support.numCommunityPins(community);
+  }
+
+  // ! Total degree of community
+  HyperedgeID communityDegree(const PartitionID community) const {
+    return _community_support.communityDegree(community);
+  }
+
+  // ! Number of communities which pins of hyperedge belongs to
+  // size_t numCommunitiesInHyperedge(const HyperedgeID e) const
+
+  // ! Numa node to which community is assigned to
+  // PartitionID communityNumaNode(const PartitionID community_id) const
+
+  // ! Sets the community to numa node mapping
+  // void setCommunityNodeMapping(std::vector<PartitionID>&& community_node_mapping)
+
+  // ####################### Initialization / Reset Functions #######################
+
+  /*!
+   * Initializes community-related information after all vertices are assigned to a community.
+   * This includes:
+   *  1.) Number of Communities
+   *  2.) Number of Vertices per Community
+   *  3.) Number of Pins per Community
+   *  4.) For each hypernode v of community C, we compute a unique id within
+   *      that community in the range [0, |C|)
+   */
+  void initializeCommunities(const TaskGroupID,
+                             const parallel::scalable_vector<StaticHypergraph>& hypergraphs = {}) {
+    _community_support.initialize(*this, _node, hypergraphs);
+  }
+
  private:
   friend class StaticHypergraphFactory;
 
@@ -753,6 +866,8 @@ class StaticHypergraph {
   HyperedgeID _num_hyperedges;
   // ! Number of pins
   HypernodeID _num_pins;
+  // ! Total degree of all vertices
+  HypernodeID _total_degree;
   // ! Total weight of hypergraph
   HypernodeWeight _total_weight;
 
@@ -764,6 +879,9 @@ class StaticHypergraph {
   parallel::scalable_vector<Hyperedge> _hyperedges;
   // ! Incident nets of hypernodes
   IncidenceArray _incidence_array;
+
+  // ! Community Information and Stats
+  CommunitySupport<StaticHypergraph> _community_support;
 };
 
 } // namespace ds

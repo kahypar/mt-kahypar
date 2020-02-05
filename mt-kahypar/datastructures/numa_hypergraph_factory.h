@@ -83,6 +83,7 @@ class NumaHypergraphFactory {
       hypergraph._num_hypernodes += numa_hypergraph.initialNumNodes();
       hypergraph._num_hyperedges += numa_hypergraph.initialNumEdges();
       hypergraph._num_pins += numa_hypergraph.initialNumPins();
+      hypergraph._total_degree += numa_hypergraph.initialTotalVertexDegree();
       hypergraph._total_weight += numa_hypergraph.totalWeight();
     }
     ASSERT(hypergraph.initialNumNodes() == num_hypernodes);
