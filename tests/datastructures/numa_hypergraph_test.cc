@@ -50,12 +50,60 @@ TEST_F(AStaticNumaHypergraph, HasCorrectStats) {
   ASSERT_EQ(7,  hypergraph.initialNumNodes());
   ASSERT_EQ(4,  hypergraph.initialNumEdges());
   ASSERT_EQ(12, hypergraph.initialNumPins());
+  ASSERT_EQ(5,  hypergraph.initialNumNodes(0));
+  ASSERT_EQ(2,  hypergraph.initialNumEdges(0));
+  ASSERT_EQ(6,  hypergraph.initialNumPins(0));
+  ASSERT_EQ(2,  hypergraph.initialNumNodes(1));
+  ASSERT_EQ(2,  hypergraph.initialNumEdges(1));
+  ASSERT_EQ(6,  hypergraph.initialNumPins(1));
   ASSERT_EQ(7,  hypergraph.totalWeight());
 }
 
 TEST_F(AStaticNumaHypergraph, HasCorrectInitialNodeIterator) {
   HypernodeID expected_hn = 0;
   for ( const HypernodeID& hn : hypergraph.nodes() ) {
+    ASSERT_EQ(hypergraph.globalNodeID(expected_hn), hn);
+    ++expected_hn;
+  }
+  ASSERT_EQ(7, expected_hn);
+}
+
+TEST_F(AStaticNumaHypergraph, HasCorrectNodeIteratorIfVerticesAreDisabled) {
+  hypergraph.disableHypernode(id[0]);
+  hypergraph.disableHypernode(id[5]);
+  const std::vector<HypernodeID> expected_iter =
+    { id[1], id[2], id[3], id[4], id[6] };
+  HypernodeID pos = 0;
+  for ( const HypernodeID& hn : hypergraph.nodes() ) {
+    ASSERT_EQ(expected_iter[pos++], hn);
+  }
+  ASSERT_EQ(expected_iter.size(), pos);
+}
+
+TEST_F(AStaticNumaHypergraph, HasCorrectInitialVertexNumaNodeZeroIterator) {
+  HypernodeID expected_hn = 0;
+  for ( const HypernodeID& hn : hypergraph.nodes(0) ) {
+    ASSERT_EQ(hypergraph.globalNodeID(expected_hn), hn);
+    ++expected_hn;
+  }
+  ASSERT_EQ(5, expected_hn);
+}
+
+TEST_F(AStaticNumaHypergraph, HasCorrectEdgeIteratorIfVerticesAreDisabled) {
+  hypergraph.disableHyperedge(GLOBAL_EDGE_ID(hypergraph, 0));
+  hypergraph.disableHyperedge(GLOBAL_EDGE_ID(hypergraph, 2));
+  const std::vector<HyperedgeID> expected_iter =
+    { GLOBAL_EDGE_ID(hypergraph, 1), GLOBAL_EDGE_ID(hypergraph, 3) };
+  HypernodeID pos = 0;
+  for ( const HyperedgeID& he : hypergraph.edges() ) {
+    ASSERT_EQ(expected_iter[pos++], he);
+  }
+  ASSERT_EQ(expected_iter.size(), pos);
+}
+
+TEST_F(AStaticNumaHypergraph, HasCorrectInitialVertexNumaNodeOneIterator) {
+  HypernodeID expected_hn = 5;
+  for ( const HypernodeID& hn : hypergraph.nodes(1) ) {
     ASSERT_EQ(hypergraph.globalNodeID(expected_hn), hn);
     ++expected_hn;
   }
@@ -69,6 +117,48 @@ TEST_F(AStaticNumaHypergraph, HasCorrectInitialEdgeIterator) {
     ++expected_he;
   }
   ASSERT_EQ(4, expected_he);
+}
+
+TEST_F(AStaticNumaHypergraph, HasCorrectInitialEdgeNumaNodeZeroIterator) {
+  HyperedgeID expected_he = 0;
+  for ( const HyperedgeID& he : hypergraph.edges(0) ) {
+    ASSERT_EQ(hypergraph.globalEdgeID(expected_he), he);
+    ++expected_he;
+  }
+  ASSERT_EQ(2, expected_he);
+}
+
+TEST_F(AStaticNumaHypergraph, HasCorrectInitialEdgeNumaNodeOneIterator) {
+  HyperedgeID expected_he = 2;
+  for ( const HyperedgeID& he : hypergraph.edges(1) ) {
+    ASSERT_EQ(hypergraph.globalEdgeID(expected_he), he);
+    ++expected_he;
+  }
+  ASSERT_EQ(4, expected_he);
+}
+
+TEST_F(AStaticNumaHypergraph, IteratesParallelOverAllNodes) {
+  std::vector<uint8_t> visited(7, false);
+  hypergraph.doParallelForAllNodes(TBBNumaArena::GLOBAL_TASK_GROUP,
+    [&](const HypernodeID hn) {
+      visited[hypergraph.originalNodeID(hn)] = true;
+    });
+
+  for ( size_t i = 0; i < visited.size(); ++i ) {
+    ASSERT_TRUE(visited[i]) << i;
+  }
+}
+
+TEST_F(AStaticNumaHypergraph, IteratesParallelOverAllEdges) {
+  std::vector<uint8_t> visited(4, false);
+  hypergraph.doParallelForAllEdges(TBBNumaArena::GLOBAL_TASK_GROUP,
+    [&](const HyperedgeID he) {
+      visited[hypergraph.originalEdgeID(he)] = true;
+    });
+
+  for ( size_t i = 0; i < visited.size(); ++i ) {
+    ASSERT_TRUE(visited[i]) << i;
+  }
 }
 
 TEST_F(AStaticNumaHypergraph, VerifiesIncidentNets1) {
@@ -112,6 +202,15 @@ TEST_F(AStaticNumaHypergraph, VerifiesVertexWeights) {
   }
 }
 
+TEST_F(AStaticNumaHypergraph, ModifiesNodeWeight) {
+  hypergraph.setNodeWeight(id[0], 2);
+  hypergraph.setNodeWeight(id[6], 2);
+  ASSERT_EQ(2, hypergraph.nodeWeight(id[0]));
+  ASSERT_EQ(2, hypergraph.nodeWeight(id[6]));
+  hypergraph.updateTotalWeight(TBBNumaArena::GLOBAL_TASK_GROUP);
+  ASSERT_EQ(9, hypergraph.totalWeight());
+}
+
 TEST_F(AStaticNumaHypergraph, VerifiesVertexDegrees) {
   ASSERT_EQ(2, hypergraph.nodeDegree(GLOBAL_NODE_ID(hypergraph, 0)));
   ASSERT_EQ(1, hypergraph.nodeDegree(GLOBAL_NODE_ID(hypergraph, 1)));
@@ -120,6 +219,23 @@ TEST_F(AStaticNumaHypergraph, VerifiesVertexDegrees) {
   ASSERT_EQ(2, hypergraph.nodeDegree(GLOBAL_NODE_ID(hypergraph, 4)));
   ASSERT_EQ(1, hypergraph.nodeDegree(GLOBAL_NODE_ID(hypergraph, 5)));
   ASSERT_EQ(2, hypergraph.nodeDegree(GLOBAL_NODE_ID(hypergraph, 6)));
+}
+
+TEST_F(AStaticNumaHypergraph, MarksVerticesWithADegreeGreaterOrEqualThanTwoAsHighDegree) {
+  hypergraph.markAllHighDegreeVertices(TBBNumaArena::GLOBAL_TASK_GROUP, 2UL);
+  ASSERT_TRUE(hypergraph.isHighDegreeVertex(id[0]));
+  ASSERT_FALSE(hypergraph.isHighDegreeVertex(id[1]));
+  ASSERT_TRUE(hypergraph.isHighDegreeVertex(id[2]));
+  ASSERT_TRUE(hypergraph.isHighDegreeVertex(id[3]));
+  ASSERT_TRUE(hypergraph.isHighDegreeVertex(id[4]));
+  ASSERT_FALSE(hypergraph.isHighDegreeVertex(id[5]));
+  ASSERT_TRUE(hypergraph.isHighDegreeVertex(id[6]));
+}
+
+TEST_F(AStaticNumaHypergraph, RemovesVertices) {
+  hypergraph.removeHypernode(id[0]);
+  hypergraph.removeHypernode(id[5]);
+  ASSERT_EQ(2, hypergraph.numRemovedHypernodes());
 }
 
 TEST_F(AStaticNumaHypergraph, VerifiesOriginalEdgeIDs) {
@@ -134,35 +250,18 @@ TEST_F(AStaticNumaHypergraph, VerifiesEdgeWeights) {
   }
 }
 
+TEST_F(AStaticNumaHypergraph, ModifiesEdgeWeight) {
+  hypergraph.setEdgeWeight(GLOBAL_EDGE_ID(hypergraph, 0), 2);
+  hypergraph.setEdgeWeight(GLOBAL_EDGE_ID(hypergraph, 2), 2);
+  ASSERT_EQ(2, hypergraph.edgeWeight(GLOBAL_EDGE_ID(hypergraph, 0)));
+  ASSERT_EQ(2, hypergraph.edgeWeight(GLOBAL_EDGE_ID(hypergraph, 2)));
+}
+
 TEST_F(AStaticNumaHypergraph, VerifiesEdgeSizes) {
   ASSERT_EQ(2, hypergraph.edgeSize(GLOBAL_EDGE_ID(hypergraph, 0)));
   ASSERT_EQ(4, hypergraph.edgeSize(GLOBAL_EDGE_ID(hypergraph, 1)));
   ASSERT_EQ(3, hypergraph.edgeSize(GLOBAL_EDGE_ID(hypergraph, 2)));
   ASSERT_EQ(3, hypergraph.edgeSize(GLOBAL_EDGE_ID(hypergraph, 3)));
-}
-
-TEST_F(AStaticNumaHypergraph, IteratesParallelOverAllNodes) {
-  std::vector<uint8_t> visited(7, false);
-  hypergraph.doParallelForAllNodes(TBBNumaArena::GLOBAL_TASK_GROUP,
-    [&](const HypernodeID hn) {
-      visited[hypergraph.originalNodeID(hn)] = true;
-    });
-
-  for ( size_t i = 0; i < visited.size(); ++i ) {
-    ASSERT_TRUE(visited[i]) << i;
-  }
-}
-
-TEST_F(AStaticNumaHypergraph, IteratesParallelOverAllEdges) {
-  std::vector<uint8_t> visited(4, false);
-  hypergraph.doParallelForAllEdges(TBBNumaArena::GLOBAL_TASK_GROUP,
-    [&](const HyperedgeID he) {
-      visited[hypergraph.originalEdgeID(he)] = true;
-    });
-
-  for ( size_t i = 0; i < visited.size(); ++i ) {
-    ASSERT_TRUE(visited[i]) << i;
-  }
 }
 
 }

@@ -31,6 +31,7 @@ class DynamicHypergraph {
 
  public:
   static constexpr bool is_static_hypergraph = false;
+  static constexpr bool is_numa_aware = false;
   static constexpr bool is_partitioned = false;
 
   explicit DynamicHypergraph() { }

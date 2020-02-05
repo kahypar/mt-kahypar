@@ -50,6 +50,7 @@ class StaticHypergraph {
       _original_id(kInvalidHypernode),
       _weight(1),
       _community_id(0),
+      _is_high_degree_vertex(false),
       _valid(false) { }
 
     bool isDisabled() const {
@@ -120,6 +121,14 @@ class StaticHypergraph {
       _community_id = community_id;
     }
 
+    bool isHighDegreeVertex() const {
+      return _is_high_degree_vertex;
+    }
+
+    void markAsHighDegreeVertex() {
+      _is_high_degree_vertex = true;
+    }
+
    private:
     // ! Index of the first element in _incident_nets
     size_t _begin;
@@ -131,6 +140,8 @@ class StaticHypergraph {
     HyperedgeWeight _weight;
     // ! Community id
     PartitionID _community_id;
+    // ! Indicates, wheather this vertex is a high degree node or not
+    bool _is_high_degree_vertex;
     // ! Flag indicating whether or not the element is active.
     bool _valid;
   };
@@ -336,6 +347,7 @@ class StaticHypergraph {
 
  public:
   static constexpr bool is_static_hypergraph = true;
+  static constexpr bool is_numa_aware = false;
   static constexpr bool is_partitioned = false;
 
   // ! Iterator to iterate over the hypernodes
@@ -350,6 +362,7 @@ class StaticHypergraph {
   explicit StaticHypergraph() :
     _node(0),
     _num_hypernodes(0),
+    _num_removed_hypernodes(0),
     _num_hyperedges(0),
     _num_pins(0),
     _total_weight(0),
@@ -387,13 +400,33 @@ class StaticHypergraph {
 
   // ####################### General Hypergraph Stats #######################
 
+  // ! Number of NUMA hypergraphs
+  size_t numNumaHypergraphs() const {
+    return 1UL;
+  }
+
   // ! Initial number of hypernodes
   HypernodeID initialNumNodes() const {
     return _num_hypernodes;
   }
 
+  // ! Initial number of hypernodes on numa node
+  HypernodeID initialNumNodes(const int) const {
+    return _num_hypernodes;
+  }
+
+  // ! Number of removed hypernodes
+  HypernodeID numRemovedHypernodes() const {
+    return _num_removed_hypernodes;
+  }
+
   // ! Initial number of hyperedges
   HyperedgeID initialNumEdges() const {
+    return _num_hyperedges;
+  }
+
+  // ! Initial number of hyperedges on numa node
+  HyperedgeID initialNumEdges(const int) const {
     return _num_hyperedges;
   }
 
@@ -402,9 +435,34 @@ class StaticHypergraph {
     return _num_pins;
   }
 
+  // ! Initial number of pins on numa node
+  HypernodeID initialNumPins(const int) const {
+    return _num_pins;
+  }
+
   // ! Total weight of hypergraph
   HypernodeWeight totalWeight() const {
     return _total_weight;
+  }
+
+  // ! Recomputes the total weight of the hypergraph (parallel)
+  void updateTotalWeight(const TaskGroupID) {
+    _total_weight = tbb::parallel_reduce(tbb::blocked_range<HypernodeID>(0UL, _num_hypernodes), 0,
+      [this](const tbb::blocked_range<HypernodeID>& range, HypernodeWeight init) {
+        HypernodeWeight weight = init;
+        for (HypernodeID hn = range.begin(); hn < range.end(); ++hn) {
+          weight += this->_hypernodes[hn].weight();
+        }
+        return weight;
+      }, std::plus<HypernodeWeight>());
+  }
+
+  // ! Recomputes the total weight of the hypergraph (sequential)
+  void updateTotalWeight() {
+    _total_weight = 0;
+    for ( const HypernodeID& hn : nodes() ) {
+      _total_weight += nodeWeight(hn);
+    }
   }
 
   // ####################### Iterators #######################
@@ -442,6 +500,11 @@ class StaticHypergraph {
       HypernodeIterator(_hypernodes.data() + _num_hypernodes, end, end));
   }
 
+  // ! Returns an iterator over the set of active nodes of the hypergraph on a numa node
+  IteratorRange<HypernodeIterator> nodes(const int) const {
+    return nodes();
+  }
+
   // ! Returns a range of the active edges of the hypergraph
   IteratorRange<HyperedgeIterator> edges() const {
     const HyperedgeID start = common::get_global_edge_id(_node, 0);
@@ -449,6 +512,11 @@ class StaticHypergraph {
     return IteratorRange<HyperedgeIterator>(
       HyperedgeIterator(_hyperedges.data(), start, end),
       HyperedgeIterator(_hyperedges.data() + _num_hyperedges, end, end));
+  }
+
+  // ! Returns an iterator over the set of active nodes of the hypergraph on a numa node
+  IteratorRange<HyperedgeIterator> edges(const int) const {
+    return edges();
   }
 
   // ! Returns a range to loop over the incident nets of hypernode u.
@@ -468,6 +536,41 @@ class StaticHypergraph {
       _incidence_array.cbegin() + he.firstEntry(),
       _incidence_array.cbegin() + he.firstInvalidEntry());
   }
+
+  /*!
+   * Illustration for different incidentEdges iterators:
+   *
+   * Structure of incident nets for a vertex u during community coarsening:
+   *
+   * | <-- single-pin community hyperedges --> | <--   valid hyperedges     --> | <-- invalid hyperedges --> |
+   *
+   *                                            <-- validIncidentEdges(u,c) -->
+   *
+   *  <-------------------------- incidentEdges(u,c) ------------------------->
+   *
+   *  <----------------------------------------- incidentEdges(u) ------------------------------------------>
+   */
+
+  // ! Returns a range to loop over all VALID and INVALID hyperedges of vertex u
+  // IteratorRange<IncidenceIterator> incidentEdges(const HypernodeID u) const {
+
+  // ! Returns a range to loop over all VALID hyperedges of hypernode u.
+  // IteratorRange<IncidenceIterator> validIncidentEdges(const HypernodeID u, const PartitionID community_id) const {
+
+  // TODO function name should reflect its purpose
+  // ! Returns a range to loop over the set of all VALID incident hyperedges of hypernode u that are not single-pin community hyperedges.
+  // IteratorRange<IncidenceIterator> incidentEdges(const HypernodeID u, const PartitionID community_id) const {
+
+  // ! Returns a range to loop over the pins of hyperedge e.
+  // ! Note, this function fails if community hyperedges are initialized.
+  // IteratorRange<IncidenceIterator> pins(const HyperedgeID e) const {
+
+  // ! Returns a range to loop over the pins of hyperedge e that belong to a certain community.
+  // ! Note, this function fails if community hyperedges are not initialized.
+  // IteratorRange<IncidenceIterator> pins(const HyperedgeID e, const PartitionID community_id) const {
+
+  // ! Returns a range to loop over the set of communities contained in hyperedge e.
+  // IteratorRange<CommunityIterator> communities(const HyperedgeID e) const {
 
   // ####################### Hypernode Information #######################
 
@@ -490,15 +593,65 @@ class StaticHypergraph {
     return hypernode(u).weight();
   }
 
+  // ! Sets the weight of a vertex
+  void setNodeWeight(const HypernodeID u, const HypernodeWeight weight) {
+    ASSERT(!hypernode(u).isDisabled(), "Hypernode" << u << "is disabled");
+    return hypernode(u).setWeight(weight);
+  }
+
   // ! Degree of a hypernode
   HyperedgeID nodeDegree(const HypernodeID u) const {
     ASSERT(!hypernode(u).isDisabled(), "Hypernode" << u << "is disabled");
     return hypernode(u).size();
   }
 
+  // ! Returns, if the corresponding vertex is high degree vertex
+  bool isHighDegreeVertex(const HypernodeID u) const {
+    ASSERT(!hypernode(u).isDisabled(), "Hypernode" << u << "is disabled");
+    return hypernode(u).isHighDegreeVertex();
+  }
+  // ! Marks all vertices with a degree greater the threshold
+  // ! as high degree vertex
+  void markAllHighDegreeVertices(const TaskGroupID task_group_id,
+                                 const HypernodeID high_degree_threshold) {
+    doParallelForAllNodes(task_group_id, [&](const HypernodeID hn) {
+      if ( nodeDegree(hn) >= high_degree_threshold ) {
+        hypernode(hn).markAsHighDegreeVertex();
+      }
+    });
+  }
+
+  // ! Number of invalid incident nets
+  HyperedgeID numInvalidIncidentNets(const HypernodeID) const {
+    ERROR("numInvalidIncidentNets(u) is not supported in static hypergraph");
+    return kInvalidHyperedge;
+  }
+
+  // ! Contraction index of the vertex in the contraction hierarchy
+  HypernodeID contractionIndex(const HypernodeID) const {
+    ERROR("contractionIndex(u) is not supported in static hypergraph");
+    return kInvalidHypernode;
+  }
+
   // ! Returns, whether a hypernode is enabled or not
   bool nodeIsEnabled(const HypernodeID u) const {
     return !hypernode(u).isDisabled();
+  }
+
+  // ! Enables a hypernode (must be disabled before)
+  void enableHypernode(const HypernodeID u) {
+    hypernode(u).enable();
+  }
+
+  // ! Disables a hypernode (must be enabled before)
+  void disableHypernode(const HypernodeID u) {
+    hypernode(u).disable();
+  }
+
+  // ! Removes a hypernode (must be enabled before)
+  void removeHypernode(const HypernodeID u) {
+    hypernode(u).disable();
+    ++_num_removed_hypernodes;
   }
 
   // ####################### Hyperedge Information #######################
@@ -522,6 +675,12 @@ class StaticHypergraph {
     return hyperedge(e).weight();
   }
 
+  // ! Sets the weight of a hyperedge
+  void setEdgeWeight(const HyperedgeID e, const HyperedgeWeight weight) {
+    ASSERT(!hyperedge(e).isDisabled(), "Hyperedge" << e << "is disabled");
+    return hyperedge(e).setWeight(weight);
+  }
+
   // ! Number of pins of a hyperedge
   HypernodeID edgeSize(const HyperedgeID e) const {
     ASSERT(!hyperedge(e).isDisabled(), "Hyperedge" << e << "is disabled");
@@ -537,6 +696,16 @@ class StaticHypergraph {
   // ! Returns, whether a hyperedge is enabled or not
   bool edgeIsEnabled(const HyperedgeID e) const {
     return !hyperedge(e).isDisabled();
+  }
+
+  // ! Enables a hyperedge (must be disabled before)
+  void enableHyperedge(const HyperedgeID e) {
+    hyperedge(e).enable();
+  }
+
+  // ! Disabled a hyperedge (must be enabled before)
+  void disableHyperedge(const HyperedgeID e) {
+    hyperedge(e).disable();
   }
 
  private:
@@ -578,6 +747,8 @@ class StaticHypergraph {
   int _node;
   // ! Number of hypernodes
   HypernodeID _num_hypernodes;
+  // ! Number of removed hypernodes
+  HypernodeID _num_removed_hypernodes;
   // ! Number of hyperedges
   HyperedgeID _num_hyperedges;
   // ! Number of pins

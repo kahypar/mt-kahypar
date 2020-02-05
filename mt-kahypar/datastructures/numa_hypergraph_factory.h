@@ -47,7 +47,8 @@ class NumaHypergraphFactory {
   };
 
  public:
-  static NumaHyperGraph construct(const HypernodeID num_hypernodes,
+  static NumaHyperGraph construct(const TaskGroupID task_group_id,
+                                  const HypernodeID num_hypernodes,
                                   const HyperedgeID num_hyperedges,
                                   const HyperedgeVector& edge_vector,
                                   const HyperedgeWeight* hyperedge_weight = nullptr,
@@ -60,7 +61,7 @@ class NumaHypergraphFactory {
 
     // Allocate empty hypergraphs on each NUMA node
     TBBNumaArena::instance().execute_sequential_on_all_numa_nodes(
-      TBBNumaArena::GLOBAL_TASK_GROUP, [&](const int) {
+      task_group_id, [&](const int) {
         hypergraph._hypergraphs.emplace_back();
       });
 
@@ -68,7 +69,7 @@ class NumaHypergraphFactory {
     hypergraph._node_mapping.resize(num_hypernodes);
     hypergraph._edge_mapping.resize(num_hyperedges);
     TBBNumaArena::instance().execute_parallel_on_all_numa_nodes(
-      TBBNumaArena::GLOBAL_TASK_GROUP, [&](const int node) {
+      task_group_id, [&](const int node) {
         ASSERT(static_cast<size_t>(node) < hypergraph._hypergraphs.size());
         hypergraph._hypergraphs[node] = Factory::construct(
           node, num_hypernodes, num_hyperedges, edge_vector,
@@ -91,7 +92,7 @@ class NumaHypergraphFactory {
     // the ids encodes the NUMA node the reside on and position inside
     // that hypergraph
     TBBNumaArena::instance().execute_parallel_on_all_numa_nodes(
-      TBBNumaArena::GLOBAL_TASK_GROUP, [&](const int node) {
+      task_group_id, [&](const int node) {
         ASSERT(static_cast<size_t>(node) < hypergraph._hypergraphs.size());
         Factory::remapVertexAndEdgeIds(
           hypergraph._hypergraphs[node],

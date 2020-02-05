@@ -115,7 +115,7 @@ template<typename Hypergraph, typename Factory, typename TBB = TBBNumaArena>
 class HypergraphFixture : public Test {
  public:
   HypergraphFixture() :
-    hypergraph(Factory::construct(
+    hypergraph(Factory::construct(TBB::GLOBAL_TASK_GROUP,
       7 , 4, { {0, 2}, {0, 1, 3, 4}, {3, 4, 6}, {2, 5, 6} })) {
     id.resize(7);
     for ( const HypernodeID& hn : hypergraph.nodes() ) {

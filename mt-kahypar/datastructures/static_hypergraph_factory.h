@@ -52,7 +52,8 @@ class StaticHypergraphFactory {
   using NumaNodeMapping = parallel::scalable_vector<T>;
 
  public:
-  static StaticHypergraph construct(const HypernodeID num_hypernodes,
+  static StaticHypergraph construct(const TaskGroupID task_group_id,
+                                    const HypernodeID num_hypernodes,
                                     const HyperedgeID num_hyperedges,
                                     const HyperedgeVector& edge_vector,
                                     const HyperedgeWeight* hyperedge_weight = nullptr,
@@ -154,15 +155,7 @@ class StaticHypergraphFactory {
     });
 
     // Compute total weight of hypergraph
-    hypergraph._total_weight = tbb::parallel_reduce(
-      tbb::blocked_range<HypernodeID>(0UL, num_hypernodes), 0,
-      [&](const tbb::blocked_range<HypernodeID>& range, HypernodeWeight init) {
-        HypernodeWeight weight = init;
-        for (HypernodeID hn = range.begin(); hn < range.end(); ++hn) {
-          weight += hypergraph._hypernodes[hn].weight();
-        }
-        return weight;
-      }, std::plus<HypernodeWeight>());
+    hypergraph.updateTotalWeight(task_group_id);
 
     return hypergraph;
   }

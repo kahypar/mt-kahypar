@@ -31,8 +31,11 @@ template <typename Hypergraph = Mandatory,
           typename TBBNumaArena = Mandatory>
 class PartitionedHypergraph {
 
+  static_assert(!Hypergraph::is_numa_aware,  "Only non-numa-aware hypergraphs are allowed");
+
  public:
   static constexpr bool is_static_hypergraph = Hypergraph::is_static_hypergraph;
+  static constexpr bool is_numa_aware = false;
   static constexpr bool is_partitioned = true;
 
   explicit PartitionedHypergraph(Hypergraph& hypergraph) :
