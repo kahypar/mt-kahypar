@@ -208,6 +208,14 @@ class CommunitySupport {
     return *this;
   }
 
+  bool isInitialized() const {
+    return _is_initialized;
+  }
+
+  bool areCommunityHyperedgesInitialized() const {
+    return _are_community_hyperedges_initialized;
+  }
+
   // ! Number of communities
   PartitionID numCommunities() const {
     ASSERT(_is_initialized);

@@ -176,7 +176,6 @@ class PrefixSum {
 
 template<typename T>
 class TBBPrefixSum {
-  static_assert(std::is_integral<T>::value, "Data type is not a integral type");
 
  public:
   TBBPrefixSum(parallel::scalable_vector<T>& data) :

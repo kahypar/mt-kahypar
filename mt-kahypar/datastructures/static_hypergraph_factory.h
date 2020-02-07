@@ -155,18 +155,8 @@ class StaticHypergraphFactory {
       });
     });
     // Add Sentinels
-    hypergraph._hypernodes.emplace_back();
-    hypergraph._hypernodes.back().enable();
-    hypergraph._hypernodes.back().setFirstEntry(hypergraph._incident_nets.size());
-    hypergraph._hypernodes.back().setSize(0);
-    hypergraph._hypernodes.back().setWeight(0);
-    hypergraph._hypernodes.back().disable();
-    hypergraph._hyperedges.emplace_back();
-    hypergraph._hyperedges.back().enable();
-    hypergraph._hyperedges.back().setFirstEntry(hypergraph._incidence_array.size());
-    hypergraph._hyperedges.back().setSize(0);
-    hypergraph._hyperedges.back().setWeight(0);
-    hypergraph._hyperedges.back().disable();
+    hypergraph._hypernodes.emplace_back(hypergraph._incident_nets.size());
+    hypergraph._hyperedges.emplace_back(hypergraph._incidence_array.size());
 
     // Compute total weight of hypergraph
     hypergraph.updateTotalWeight(task_group_id);
@@ -333,18 +323,8 @@ class StaticHypergraphFactory {
       });
     });
     // Add Sentinels
-    hypergraph._hypernodes.emplace_back();
-    hypergraph._hypernodes.back().enable();
-    hypergraph._hypernodes.back().setFirstEntry(hypergraph._incident_nets.size());
-    hypergraph._hypernodes.back().setSize(0);
-    hypergraph._hypernodes.back().setWeight(0);
-    hypergraph._hypernodes.back().disable();
-    hypergraph._hyperedges.emplace_back();
-    hypergraph._hyperedges.back().enable();
-    hypergraph._hyperedges.back().setFirstEntry(hypergraph._incidence_array.size());
-    hypergraph._hyperedges.back().setSize(0);
-    hypergraph._hyperedges.back().setWeight(0);
-    hypergraph._hyperedges.back().disable();
+    hypergraph._hypernodes.emplace_back(hypergraph._incident_nets.size());
+    hypergraph._hyperedges.emplace_back(hypergraph._incidence_array.size());
 
     // Compute total weight of hypergraph
     hypergraph._total_weight = tbb::parallel_reduce(

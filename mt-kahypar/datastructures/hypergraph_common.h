@@ -94,6 +94,20 @@ struct Memento {
   int parallel_hes_size;
 };
 
+/*!
+  * This struct is used during multilevel coarsening to efficiently
+  * detect parallel hyperedges.
+  */
+struct ContractedHyperedge {
+  size_t hash;
+  HyperedgeWeight weight;
+  bool is_parallel; // Indicates if this hyperedges is already detected as parallel
+  int node; // NUMA Node of hyperedge
+  parallel::scalable_vector<HypernodeID> hyperedge;
+  HyperedgeID he_idx; // Index in hyperedge vector
+  HypernodeID pin_idx; // Index of pins in incidence array
+};
+
 namespace common {
 
 static constexpr size_t NUMA_NODE_IDENTIFIER = 48;
