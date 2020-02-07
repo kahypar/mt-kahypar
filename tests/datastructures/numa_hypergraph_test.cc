@@ -311,6 +311,66 @@ TEST_F(AStaticNumaHypergraph, ComputesCorrectCommunityDegreeInEachCommunity) {
   ASSERT_EQ(3, hypergraph.communityDegree(2));
 }
 
+TEST_F(AStaticNumaHypergraph, ComputesCorrectCommunityNodeIdsOfCommunityZero) {
+  hypergraph.setCommunityID(id[0], 0);
+  hypergraph.setCommunityID(id[1], 0);
+  hypergraph.setCommunityID(id[2], 0);
+  hypergraph.setCommunityID(id[3], 1);
+  hypergraph.setCommunityID(id[4], 2);
+  hypergraph.setCommunityID(id[5], 1);
+  hypergraph.setCommunityID(id[6], 2);
+  hypergraph.initializeCommunities(TBB::GLOBAL_TASK_GROUP);
+
+  std::vector<bool> flag(3, false);
+  ASSERT_LE(hypergraph.communityNodeId(id[0]), 2);
+  ASSERT_FALSE(flag[hypergraph.communityNodeId(id[0])]);
+  flag[hypergraph.communityNodeId(id[0])] = true;
+  ASSERT_LE(hypergraph.communityNodeId(id[1]), 2);
+  ASSERT_FALSE(flag[hypergraph.communityNodeId(id[1])]);
+  flag[hypergraph.communityNodeId(id[1])] = true;
+  ASSERT_LE(hypergraph.communityNodeId(id[2]), 2);
+  ASSERT_FALSE(flag[hypergraph.communityNodeId(id[2])]);
+  flag[hypergraph.communityNodeId(id[2])] = true;
+}
+
+TEST_F(AStaticNumaHypergraph, ComputesCorrectCommunityNodeIdsOfCommunityOne) {
+  hypergraph.setCommunityID(id[0], 0);
+  hypergraph.setCommunityID(id[1], 0);
+  hypergraph.setCommunityID(id[2], 0);
+  hypergraph.setCommunityID(id[3], 1);
+  hypergraph.setCommunityID(id[4], 2);
+  hypergraph.setCommunityID(id[5], 1);
+  hypergraph.setCommunityID(id[6], 2);
+  hypergraph.initializeCommunities(TBB::GLOBAL_TASK_GROUP);
+
+  std::vector<bool> flag(3, false);
+  ASSERT_LE(hypergraph.communityNodeId(id[3]), 1);
+  ASSERT_FALSE(flag[hypergraph.communityNodeId(id[3])]);
+  flag[hypergraph.communityNodeId(id[3])] = true;
+  ASSERT_LE(hypergraph.communityNodeId(id[5]), 1);
+  ASSERT_FALSE(flag[hypergraph.communityNodeId(id[5])]);
+  flag[hypergraph.communityNodeId(id[5])] = true;
+}
+
+TEST_F(AStaticNumaHypergraph, ComputesCorrectCommunityNodeIdsOfCommunityTwo) {
+  hypergraph.setCommunityID(id[0], 0);
+  hypergraph.setCommunityID(id[1], 0);
+  hypergraph.setCommunityID(id[2], 0);
+  hypergraph.setCommunityID(id[3], 1);
+  hypergraph.setCommunityID(id[4], 2);
+  hypergraph.setCommunityID(id[5], 1);
+  hypergraph.setCommunityID(id[6], 2);
+  hypergraph.initializeCommunities(TBB::GLOBAL_TASK_GROUP);
+
+  std::vector<bool> flag(3, false);
+  ASSERT_LE(hypergraph.communityNodeId(id[4]), 1);
+  ASSERT_FALSE(flag[hypergraph.communityNodeId(id[4])]);
+  flag[hypergraph.communityNodeId(id[4])] = true;
+  ASSERT_LE(hypergraph.communityNodeId(id[6]), 1);
+  ASSERT_FALSE(flag[hypergraph.communityNodeId(id[6])]);
+  flag[hypergraph.communityNodeId(id[6])] = true;
+}
+
 TEST_F(AStaticNumaHypergraph, VerifiesNumberOfCommunitiesInHyperedges) {
   assignCommunityIds();
   hypergraph.initializeCommunityHyperedges(TBB::GLOBAL_TASK_GROUP);

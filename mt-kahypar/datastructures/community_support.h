@@ -29,6 +29,7 @@
 
 #include "mt-kahypar/datastructures/hypergraph_common.h"
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
+#include "mt-kahypar/parallel/atomic_wrapper.h"
 #include "mt-kahypar/utils/range.h"
 
 namespace mt_kahypar {
@@ -43,6 +44,7 @@ class CommunitySupport {
  static_assert(!Hypergraph::is_partitioned, "Only unpartitioned hypergraphs are allowed");
 
  using Counter = parallel::scalable_vector<HypernodeID>;
+ using AtomicCounter = parallel::scalable_vector<parallel::IntegralAtomicWrapper<HypernodeID>>;
  using ThreadLocalCounter = tbb::enumerable_thread_specific<Counter>;
 
   /**
@@ -174,7 +176,8 @@ class CommunitySupport {
     _community_degree(),
     _are_community_hyperedges_initialized(false),
     _community_hyperedge_ids(),
-    _community_hyperedges() { }
+    _community_hyperedges(),
+    _vertex_to_community_node_id() { }
 
   CommunitySupport(const CommunitySupport&) = delete;
   CommunitySupport & operator= (const CommunitySupport &) = delete;
@@ -188,7 +191,8 @@ class CommunitySupport {
     _community_degree(std::move(other._community_degree)),
     _are_community_hyperedges_initialized(other._are_community_hyperedges_initialized),
     _community_hyperedge_ids(std::move(other._community_hyperedge_ids)),
-    _community_hyperedges(std::move(other._community_hyperedges)) { }
+    _community_hyperedges(std::move(other._community_hyperedges)),
+    _vertex_to_community_node_id(std::move(other._vertex_to_community_node_id)) { }
 
   CommunitySupport & operator= (CommunitySupport&& other) {
     _node = other._node;
@@ -200,6 +204,7 @@ class CommunitySupport {
     _are_community_hyperedges_initialized = other._are_community_hyperedges_initialized;
     _community_hyperedge_ids = std::move(other._community_hyperedge_ids);
     _community_hyperedges = std::move(other._community_hyperedges);
+    _vertex_to_community_node_id = std::move(other._vertex_to_community_node_id);
     return *this;
   }
 
@@ -252,6 +257,16 @@ class CommunitySupport {
       _community_hyperedge_ids[local_id].cend());
   }
 
+  // ! Consider hypernode u is part of community C = {v_1, ..., v_n},
+  // ! than this function returns a unique id for hypernode u in the
+  // ! range [0,n).
+  HypernodeID communityNodeId(const HypernodeID u) const {
+    const HypernodeID local_id = common::get_local_position_of_vertex(u);
+    ASSERT(local_id < _vertex_to_community_node_id.size(), "Hypernode" << u << "does not exist");
+    ASSERT(_node == common::get_numa_node_of_vertex(u), "Hypernode" << u << "is not part of NUMA node" << _node);
+    return _vertex_to_community_node_id[local_id];
+  }
+
   // ! Weight of a community hyperedge
   HypernodeWeight edgeWeight(const HyperedgeID e, const PartitionID community_id) const {
     ASSERT(_are_community_hyperedges_initialized);
@@ -297,9 +312,8 @@ class CommunitySupport {
    * is not able to.
    */
   void initialize(const Hypergraph& hypergraph,
-                  const int node,
                   const parallel::scalable_vector<Hypergraph>& hypergraphs) {
-    _node = node;
+    _node = hypergraph.numaNode();
     // Compute number of communities
     if ( hypergraphs.empty() ) {
       computeNumberOfCommunities(hypergraph);
@@ -308,19 +322,22 @@ class CommunitySupport {
     }
 
     if ( _num_communities > 1 ) {
-      ThreadLocalCounter local_communities_num_hypernodes(_num_communities, 0);
+      AtomicCounter tmp_communities_num_hypernodes(_num_communities,
+        parallel::IntegralAtomicWrapper<HypernodeID>(0));
       ThreadLocalCounter local_communities_num_pins(_num_communities, 0);
       ThreadLocalCounter local_community_degree(_num_communities, 0);
       // Iterate in parallel over all edges and vertices and gather stats about
       // communities. Stats are first aggregated in thread locals and afterwards
       // sequential in the member vector.
       tbb::parallel_invoke([&] {
+        _vertex_to_community_node_id.resize(hypergraph.initialNumNodes());
         hypergraph.doParallelForAllNodes(TBBNumaArena::GLOBAL_TASK_GROUP, [&](const HypernodeID hn) {
-          Counter& communities_num_hypernodes = local_communities_num_hypernodes.local();
           Counter& community_degree = local_community_degree.local();
           const PartitionID community_id = hypergraph.communityID(hn);
           ASSERT(community_id < _num_communities);
-          ++communities_num_hypernodes[community_id];
+          const HypernodeID local_id = common::get_local_position_of_vertex(hn);
+          ASSERT(local_id < _vertex_to_community_node_id.size());
+          _vertex_to_community_node_id[local_id] = tmp_communities_num_hypernodes[community_id]++;
           community_degree[community_id] += hypergraph.nodeDegree(hn);
         });
       }, [&] {
@@ -329,7 +346,7 @@ class CommunitySupport {
           for ( const HypernodeID& pin : hypergraph.pins(he) ) {
             const int hn_node = common::get_numa_node_of_vertex(pin);
             PartitionID community_id = kInvalidPartition;
-            if ( hn_node != node ) {
+            if ( hn_node != _node ) {
               // In case the current pin is on an other NUMA node, we look up
               // its community id on the corresponding hypergraph, otherwise ...
               ASSERT(hn_node < static_cast<int>(hypergraphs.size()));
@@ -350,10 +367,8 @@ class CommunitySupport {
 
       // Aggregate thread locals in member vectors
       tbb::parallel_invoke([&] {
-        for ( const Counter& communities_num_hypernodes : local_communities_num_hypernodes ) {
-          for ( PartitionID community_id = 0; community_id < _num_communities; ++community_id ) {
-            _communities_num_hypernodes[community_id] += communities_num_hypernodes[community_id];
-          }
+        for ( PartitionID community_id = 0; community_id < _num_communities; ++community_id ) {
+          _communities_num_hypernodes[community_id] = tmp_communities_num_hypernodes[community_id].load();
         }
       }, [&] {
         for ( const Counter& communities_num_pins : local_communities_num_pins ) {
@@ -375,6 +390,39 @@ class CommunitySupport {
       _communities_num_pins.assign(1, hypergraph.initialNumPins());
       _community_degree.assign(1, hypergraph.initialTotalVertexDegree());
     }
+
+    // In case 'hypergraph' is part of a numa-aware hypergraph, finalizeCommunityNodeIds
+    // have to be called in order to initialize the community node ids.
+    _is_initialized = true;
+  }
+
+  // ! In order to get unique community node ids in case 'hypergraph' is part of a numa-aware
+  // ! hypergraph, we have to add the prefix sum over the number of nodes in each community
+  // ! of hypergraphs on a numa node with an id smaller than the current hypergraph to all
+  // ! local community node ids.
+  void finalizeCommunityNodeIds(const Hypergraph& hypergraph,
+                                const parallel::scalable_vector<Hypergraph>& hypergraphs) {
+    ASSERT(_is_initialized);
+    ASSERT(!hypergraphs.empty());
+    if ( hypergraph.numaNode() == 0 ) {
+      return;
+    }
+
+    parallel::scalable_vector<HypernodeID> num_hypernodes_prefix_sum(_num_communities, 0);
+    tbb::parallel_for(0, _num_communities, [&](const PartitionID community_id) {
+      for ( const Hypergraph& hg : hypergraphs ) {
+        if ( hg.numaNode() < hypergraph.numaNode() ) {
+          num_hypernodes_prefix_sum[community_id] += hg.numCommunityHypernodes(community_id);
+        }
+      }
+    });
+
+    hypergraph.doParallelForAllNodes(TBBNumaArena::GLOBAL_TASK_GROUP, [&](const HypernodeID hn) {
+      const PartitionID community_id = hypergraph.communityID(hn);
+      const HypernodeID local_id = common::get_local_position_of_vertex(hn);
+      ASSERT(local_id < _vertex_to_community_node_id.size());
+      _vertex_to_community_node_id[local_id] += num_hypernodes_prefix_sum[community_id];
+    });
 
     _is_initialized = true;
   }
@@ -499,17 +547,17 @@ class CommunitySupport {
       community_support._communities_num_hypernodes.resize(
         _communities_num_hypernodes.size());
       memcpy(community_support._communities_num_hypernodes.data(),
-        _communities_num_hypernodes.data(), sizeof(HypernodeID) * _num_communities);
+        _communities_num_hypernodes.data(), sizeof(HypernodeID) * _communities_num_hypernodes.size());
     }, [&] {
       community_support._communities_num_pins.resize(
         _communities_num_pins.size());
       memcpy(community_support._communities_num_pins.data(),
-        _communities_num_pins.data(), sizeof(HypernodeID) * _num_communities);
+        _communities_num_pins.data(), sizeof(HypernodeID) * _communities_num_pins.size());
     }, [&] {
       community_support._community_degree.resize(
         _community_degree.size());
       memcpy(community_support._community_degree.data(),
-        _community_degree.data(), sizeof(HyperedgeID) * _num_communities);
+        _community_degree.data(), sizeof(HyperedgeID) * _community_degree.size());
     }, [&] {
       const size_t size = _community_hyperedge_ids.size();
       community_support._community_hyperedge_ids.resize(size);
@@ -528,6 +576,12 @@ class CommunitySupport {
         memcpy(community_support._community_hyperedges[i].data(),
           _community_hyperedges[i].data(), sizeof(CommunityHyperedge) * he_size);
       });
+    }, [&] {
+      community_support._vertex_to_community_node_id.resize(
+        _vertex_to_community_node_id.size());
+      memcpy(community_support._vertex_to_community_node_id.data(),
+        _vertex_to_community_node_id.data(), sizeof(HypernodeID) *
+        _vertex_to_community_node_id.size());
     });
 
     return community_support;
@@ -561,6 +615,12 @@ class CommunitySupport {
     community_support._community_hyperedges.resize(_community_hyperedges.size());
     std::copy(_community_hyperedges.begin(), _community_hyperedges.end(),
       community_support._community_hyperedges.begin());
+
+    community_support._vertex_to_community_node_id.resize(
+      _vertex_to_community_node_id.size());
+    memcpy(community_support._vertex_to_community_node_id.data(),
+      _vertex_to_community_node_id.data(), sizeof(HypernodeID) *
+      _vertex_to_community_node_id.size());
 
     return community_support;
   }
@@ -637,6 +697,10 @@ class CommunitySupport {
   CommunitiesOfHyperedges _community_hyperedge_ids;
   // ! For each hyperedge this structure contains all community hyperedges
   CommunityHyperedges _community_hyperedges;
+
+  // ! Mapping that maps a vertex u to a unique id in the range [0,|C_u|)
+  // ! where C_v is the community id of vertex u
+  parallel::scalable_vector<HypernodeID> _vertex_to_community_node_id;
 
 };
 

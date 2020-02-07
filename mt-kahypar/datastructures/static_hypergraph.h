@@ -418,6 +418,10 @@ class StaticHypergraph {
     return 1UL;
   }
 
+  int numaNode() const {
+    return _node;
+  }
+
   // ! Initial number of hypernodes
   HypernodeID initialNumNodes() const {
     return _num_hypernodes;
@@ -783,7 +787,9 @@ class StaticHypergraph {
   // ! Consider hypernode u is part of community C = {v_1, ..., v_n},
   // ! than this function returns a unique id for hypernode u in the
   // ! range [0,n).
-  // HypernodeID communityNodeId(const HypernodeID u) const
+  HypernodeID communityNodeId(const HypernodeID u) const {
+    return _community_support.communityNodeId(u);
+  }
 
   // ! Number of hypernodes in community
   HypernodeID numCommunityHypernodes(const PartitionID community) const {
@@ -922,7 +928,7 @@ class StaticHypergraph {
    */
   void initializeCommunities(const TaskGroupID,
                              const parallel::scalable_vector<StaticHypergraph>& hypergraphs = {}) {
-    _community_support.initialize(*this, _node, hypergraphs);
+    _community_support.initialize(*this, hypergraphs);
   }
 
   /*!
@@ -1063,6 +1069,12 @@ class StaticHypergraph {
   // ! To avoid code duplication we implement non-const version in terms of const version
   KAHYPAR_ATTRIBUTE_ALWAYS_INLINE Hyperedge& hyperedge(const HyperedgeID e) {
     return const_cast<Hyperedge&>(static_cast<const StaticHypergraph&>(*this).hyperedge(e));
+  }
+
+  // ####################### Initialization / Reset Functions #######################
+
+  void finalizeCommunityNodeIds(const parallel::scalable_vector<StaticHypergraph>& hypergraphs) {
+    _community_support.finalizeCommunityNodeIds(*this, hypergraphs);
   }
 
   // ####################### Remove / Restore Hyperedges #######################

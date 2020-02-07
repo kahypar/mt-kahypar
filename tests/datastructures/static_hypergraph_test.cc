@@ -248,6 +248,42 @@ TEST_F(AStaticHypergraph, ComputesCorrectCommunityDegreeInEachCommunity) {
   ASSERT_EQ(3, hypergraph.communityDegree(2));
 }
 
+TEST_F(AStaticHypergraph, ComputesCorrectCommunityNodeIdsOfCommunityZero) {
+  assignCommunityIds();
+  std::vector<bool> flag(3, false);
+  ASSERT_LE(hypergraph.communityNodeId(0), 2);
+  ASSERT_FALSE(flag[hypergraph.communityNodeId(0)]);
+  flag[hypergraph.communityNodeId(0)] = true;
+  ASSERT_LE(hypergraph.communityNodeId(1), 2);
+  ASSERT_FALSE(flag[hypergraph.communityNodeId(1)]);
+  flag[hypergraph.communityNodeId(1)] = true;
+  ASSERT_LE(hypergraph.communityNodeId(2), 2);
+  ASSERT_FALSE(flag[hypergraph.communityNodeId(2)]);
+  flag[hypergraph.communityNodeId(2)] = true;
+}
+
+TEST_F(AStaticHypergraph, ComputesCorrectCommunityNodeIdsOfCommunityOne) {
+  assignCommunityIds();
+  std::vector<bool> flag(3, false);
+  ASSERT_LE(hypergraph.communityNodeId(3), 1);
+  ASSERT_FALSE(flag[hypergraph.communityNodeId(3)]);
+  flag[hypergraph.communityNodeId(3)] = true;
+  ASSERT_LE(hypergraph.communityNodeId(4), 1);
+  ASSERT_FALSE(flag[hypergraph.communityNodeId(4)]);
+  flag[hypergraph.communityNodeId(4)] = true;
+}
+
+TEST_F(AStaticHypergraph, ComputesCorrectCommunityNodeIdsOfCommunityTwo) {
+  assignCommunityIds();
+  std::vector<bool> flag(3, false);
+  ASSERT_LE(hypergraph.communityNodeId(5), 1);
+  ASSERT_FALSE(flag[hypergraph.communityNodeId(5)]);
+  flag[hypergraph.communityNodeId(5)] = true;
+  ASSERT_LE(hypergraph.communityNodeId(6), 1);
+  ASSERT_FALSE(flag[hypergraph.communityNodeId(6)]);
+  flag[hypergraph.communityNodeId(6)] = true;
+}
+
 TEST_F(AStaticHypergraph, VerifiesNumberOfCommunitiesInHyperedges) {
   assignCommunityIds();
   hypergraph.initializeCommunityHyperedges(TBBNumaArena::GLOBAL_TASK_GROUP);

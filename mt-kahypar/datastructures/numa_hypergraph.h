@@ -467,7 +467,9 @@ class NumaHypergraph {
   // ! Consider hypernode u is part of community C = {v_1, ..., v_n},
   // ! than this function returns a unique id for hypernode u in the
   // ! range [0,n).
-  // HypernodeID communityNodeId(const HypernodeID u) const
+  HypernodeID communityNodeId(const HypernodeID u) const {
+    return hypergraph_of_vertex(u).communityNodeId(u);
+  }
 
   // ! Number of hypernodes in community
   HypernodeID numCommunityHypernodes(const PartitionID community) const {
@@ -623,6 +625,10 @@ class NumaHypergraph {
   void initializeCommunities(const TaskGroupID task_group_id) {
     TBBNumaArena::instance().execute_parallel_on_all_numa_nodes(task_group_id, [&](const int node) {
           _hypergraphs[node].initializeCommunities(task_group_id, _hypergraphs);
+        });
+
+    TBBNumaArena::instance().execute_parallel_on_all_numa_nodes(task_group_id, [&](const int node) {
+          _hypergraphs[node].finalizeCommunityNodeIds(_hypergraphs);
         });
   }
 
