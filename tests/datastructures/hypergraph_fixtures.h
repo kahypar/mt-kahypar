@@ -128,12 +128,13 @@ class HypergraphFixture : public Test {
   }
 
   template <typename K = decltype(identity)>
-  void verifyIncidentNets(const HypernodeID hn,
+  void verifyIncidentNets(const Hypergraph& hg,
+                          const HypernodeID hn,
                           const std::set<HypernodeID>& reference,
                           K map_func = identity,
                           bool log = false) {
     size_t count = 0;
-    for (const HyperedgeID& he : hypergraph.incidentEdges(hn)) {
+    for (const HyperedgeID& he : hg.incidentEdges(hn)) {
       if (log) LOG << V(he) << V(map_func(he));
       ASSERT_TRUE(reference.find(map_func(he)) != reference.end()) << V(map_func(he));
       count++;
@@ -141,7 +142,16 @@ class HypergraphFixture : public Test {
     ASSERT_EQ(count, reference.size());
   }
 
-  void verifyPins(const std::vector<HyperedgeID> hyperedges,
+  template <typename K = decltype(identity)>
+  void verifyIncidentNets(const HypernodeID hn,
+                          const std::set<HypernodeID>& reference,
+                          K map_func = identity,
+                          bool log = false) {
+    verifyIncidentNets(hypergraph, hn, reference, map_func, log);
+  }
+
+  void verifyPins(const Hypergraph& hg,
+                  const std::vector<HyperedgeID> hyperedges,
                   const std::vector< std::set<HypernodeID> >& references,
                   bool log = false) {
     ASSERT(hyperedges.size() == references.size());
@@ -149,13 +159,19 @@ class HypergraphFixture : public Test {
       const HyperedgeID he = hyperedges[i];
       const std::set<HypernodeID>& reference = references[i];
       size_t count = 0;
-      for (const HypernodeID& pin : hypergraph.pins(he)) {
+      for (const HypernodeID& pin : hg.pins(he)) {
         if (log) LOG << V(he) << V(pin);
         ASSERT_TRUE(reference.find(pin) != reference.end()) << V(he) << V(pin);
         count++;
       }
       ASSERT_EQ(count, reference.size());
     }
+  }
+
+  void verifyPins(const std::vector<HyperedgeID> hyperedges,
+                  const std::vector< std::set<HypernodeID> >& references,
+                  bool log = false) {
+    verifyPins(hypergraph, hyperedges, references, log);
   }
 
   void verifyCommunityPins(const PartitionID community_id,

@@ -51,6 +51,14 @@ class CommunitySupport {
    */
   class CommunityHyperedge {
    public:
+    CommunityHyperedge() :
+      _community_id(kInvalidPartition),
+      _begin(0),
+      _size(0),
+      _weight(0),
+      _hash(kEdgeHashSeed),
+      _valid(false) { }
+
     CommunityHyperedge(const PartitionID community_id,
                        const size_t begin,
                        const size_t size,
@@ -475,6 +483,86 @@ class CommunitySupport {
     _community_hyperedge_ids = std::move(tmp_community_hyperedge_ids);
     _community_hyperedges = std::move(tmp_community_hyperedges);
     _are_community_hyperedges_initialized = false;
+  }
+
+  // ! Copy community support in parallel
+  CommunitySupport copy(const TaskGroupID) {
+    CommunitySupport community_support;
+    community_support._node = _node;
+    community_support._is_initialized = _is_initialized;
+    community_support._num_communities = _num_communities;
+    community_support._are_community_hyperedges_initialized =
+      _are_community_hyperedges_initialized;
+
+    // Copy all members in parallel
+    tbb::parallel_invoke([&] {
+      community_support._communities_num_hypernodes.resize(
+        _communities_num_hypernodes.size());
+      memcpy(community_support._communities_num_hypernodes.data(),
+        _communities_num_hypernodes.data(), sizeof(HypernodeID) * _num_communities);
+    }, [&] {
+      community_support._communities_num_pins.resize(
+        _communities_num_pins.size());
+      memcpy(community_support._communities_num_pins.data(),
+        _communities_num_pins.data(), sizeof(HypernodeID) * _num_communities);
+    }, [&] {
+      community_support._community_degree.resize(
+        _community_degree.size());
+      memcpy(community_support._community_degree.data(),
+        _community_degree.data(), sizeof(HyperedgeID) * _num_communities);
+    }, [&] {
+      const size_t size = _community_hyperedge_ids.size();
+      community_support._community_hyperedge_ids.resize(size);
+      tbb::parallel_for(0UL, size, [&](const size_t i) {
+        const size_t he_size = _community_hyperedge_ids[i].size();
+        community_support._community_hyperedge_ids[i].resize(he_size);
+        memcpy(community_support._community_hyperedge_ids[i].data(),
+          _community_hyperedge_ids[i].data(), sizeof(PartitionID) * he_size);
+      });
+    }, [&] {
+      const size_t size = _community_hyperedges.size();
+      community_support._community_hyperedges.resize(size);
+      tbb::parallel_for(0UL, size, [&](const size_t i) {
+        const size_t he_size = _community_hyperedges[i].size();
+        community_support._community_hyperedges[i].resize(he_size);
+        memcpy(community_support._community_hyperedges[i].data(),
+          _community_hyperedges[i].data(), sizeof(CommunityHyperedge) * he_size);
+      });
+    });
+
+    return community_support;
+  }
+
+  // Copy community support sequential
+  CommunitySupport copy() {
+    CommunitySupport community_support;
+    community_support._node = _node;
+    community_support._is_initialized = _is_initialized;
+    community_support._num_communities = _num_communities;
+
+    community_support._communities_num_hypernodes.resize(
+      _communities_num_hypernodes.size());
+    memcpy(community_support._communities_num_hypernodes.data(),
+      _communities_num_hypernodes.data(), sizeof(HypernodeID) * _num_communities);
+    community_support._communities_num_pins.resize(
+      _communities_num_pins.size());
+    memcpy(community_support._communities_num_pins.data(),
+      _communities_num_pins.data(), sizeof(HypernodeID) * _num_communities);
+    community_support._community_degree.resize(
+      _community_degree.size());
+    memcpy(community_support._community_degree.data(),
+      _community_degree.data(), sizeof(HyperedgeID) * _num_communities);
+
+    community_support._are_community_hyperedges_initialized =
+      _are_community_hyperedges_initialized;
+    community_support._community_hyperedge_ids.resize(_community_hyperedge_ids.size());
+    std::copy(_community_hyperedge_ids.begin(), _community_hyperedge_ids.end(),
+      community_support._community_hyperedge_ids.begin());
+    community_support._community_hyperedges.resize(_community_hyperedges.size());
+    std::copy(_community_hyperedges.begin(), _community_hyperedges.end(),
+      community_support._community_hyperedges.begin());
+
+    return community_support;
   }
 
  private:

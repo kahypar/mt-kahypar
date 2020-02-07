@@ -1862,6 +1862,10 @@ class Hypergraph {
     TBBNumaArena::instance().execute_parallel_on_all_numa_nodes(task_group_id, [&](const int node) {
           _hypergraphs[node].initializeCommunityHyperedges(_hypergraphs);
         });
+
+    TBBNumaArena::instance().execute_parallel_on_all_numa_nodes(task_group_id, [&](const int node) {
+          _hypergraphs[node].initializeCommunityHypernodes(_hypergraphs);
+        });
   }
 
   /*!

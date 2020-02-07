@@ -667,6 +667,75 @@ class NumaHypergraph {
     ERROR("invalidateDisabledHyperedgesFromIncidentNets(id) is not supported in numa hypergraph");
   }
 
+  // ####################### Copy #######################
+
+  // ! Copy numa hypergraph in parallel
+  // ! TODO(heuer): in case dynamic hypergraph is used, vertex and edge ids must
+  // ! be also compactified
+  NumaHypergraph copy(const TaskGroupID task_group_id) {
+    NumaHypergraph hypergraph;
+
+    hypergraph._num_hypernodes = _num_hypernodes;
+    hypergraph._num_hyperedges = _num_hyperedges;
+    hypergraph._num_pins = _num_pins;
+    hypergraph._total_degree = _total_degree;
+    hypergraph._total_weight = _total_weight;
+
+    tbb::parallel_invoke([&] {
+      hypergraph._hypergraphs.resize(_hypergraphs.size());
+      TBBNumaArena::instance().execute_parallel_on_all_numa_nodes(task_group_id, [&](const int node) {
+            hypergraph._hypergraphs[node] = _hypergraphs[node].copy(task_group_id);
+          });
+    }, [&] {
+      hypergraph._node_mapping.resize(_node_mapping.size());
+      memcpy(hypergraph._node_mapping.data(), _node_mapping.data(),
+        sizeof(HypernodeID) * _node_mapping.size());
+    }, [&] {
+      hypergraph._edge_mapping.resize(_edge_mapping.size());
+      memcpy(hypergraph._edge_mapping.data(), _edge_mapping.data(),
+        sizeof(HyperedgeID) * _edge_mapping.size());
+    }, [&] {
+      hypergraph._community_node_mapping.resize(_community_node_mapping.size());
+      memcpy(hypergraph._community_node_mapping.data(), _community_node_mapping.data(),
+        sizeof(PartitionID) * _community_node_mapping.size());
+    });
+
+    return hypergraph;
+  }
+
+  // ! Copy numa hypergraph sequential
+  // ! TODO(heuer): in case dynamic hypergraph is used, vertex and edge ids must
+  // ! be also compactified
+  NumaHypergraph copy() {
+    NumaHypergraph hypergraph;
+
+    hypergraph._num_hypernodes = _num_hypernodes;
+    hypergraph._num_hyperedges = _num_hyperedges;
+    hypergraph._num_pins = _num_pins;
+    hypergraph._total_degree = _total_degree;
+    hypergraph._total_weight = _total_weight;
+
+    hypergraph._hypergraphs.resize(_hypergraphs.size());
+    for ( size_t node = 0; node < _hypergraphs.size(); ++node ) {
+      // Note, in case we copy sequential the hypergraphs (which are originally
+      // located one on each NUMA node) are copied all to the NUMA node where
+      // the calling thread is running.
+      hypergraph._hypergraphs[node] = _hypergraphs[node].copy();
+    }
+
+    hypergraph._node_mapping.resize(_node_mapping.size());
+    memcpy(hypergraph._node_mapping.data(), _node_mapping.data(),
+      sizeof(HypernodeID) * _node_mapping.size());
+    hypergraph._edge_mapping.resize(_edge_mapping.size());
+    memcpy(hypergraph._edge_mapping.data(), _edge_mapping.data(),
+      sizeof(HyperedgeID) * _edge_mapping.size());
+    hypergraph._community_node_mapping.resize(_community_node_mapping.size());
+    memcpy(hypergraph._community_node_mapping.data(), _community_node_mapping.data(),
+      sizeof(PartitionID) * _community_node_mapping.size());
+
+    return hypergraph;
+  }
+
  private:
   template <typename HyperGraph,
             typename Factory,

@@ -427,5 +427,153 @@ TEST_F(AStaticHypergraph, RestoresARemovedHyperedge4) {
   verifyPins({ 3 }, { {2, 5, 6} });
 }
 
+TEST_F(AStaticHypergraph, ComparesStatsIfCopiedParallel) {
+  StaticHypergraph copy_hg = hypergraph.copy(TBBNumaArena::GLOBAL_TASK_GROUP);
+  ASSERT_EQ(hypergraph.initialNumNodes(), copy_hg.initialNumNodes());
+  ASSERT_EQ(hypergraph.initialNumEdges(), copy_hg.initialNumEdges());
+  ASSERT_EQ(hypergraph.initialNumPins(), copy_hg.initialNumPins());
+  ASSERT_EQ(hypergraph.initialTotalVertexDegree(), copy_hg.initialTotalVertexDegree());
+  ASSERT_EQ(hypergraph.totalWeight(), copy_hg.totalWeight());
+}
+
+TEST_F(AStaticHypergraph, ComparesStatsIfCopiedSequential) {
+  StaticHypergraph copy_hg = hypergraph.copy();
+  ASSERT_EQ(hypergraph.initialNumNodes(), copy_hg.initialNumNodes());
+  ASSERT_EQ(hypergraph.initialNumEdges(), copy_hg.initialNumEdges());
+  ASSERT_EQ(hypergraph.initialNumPins(), copy_hg.initialNumPins());
+  ASSERT_EQ(hypergraph.initialTotalVertexDegree(), copy_hg.initialTotalVertexDegree());
+  ASSERT_EQ(hypergraph.totalWeight(), copy_hg.totalWeight());
+}
+
+TEST_F(AStaticHypergraph, ComparesIncidentNetsIfCopiedParallel) {
+  StaticHypergraph copy_hg = hypergraph.copy(TBBNumaArena::GLOBAL_TASK_GROUP);
+  verifyIncidentNets(copy_hg, 0, { 0, 1 });
+  verifyIncidentNets(copy_hg, 1, { 1 });
+  verifyIncidentNets(copy_hg, 2, { 0, 3 });
+  verifyIncidentNets(copy_hg, 3, { 1, 2 });
+  verifyIncidentNets(copy_hg, 4, { 1, 2 });
+  verifyIncidentNets(copy_hg, 5, { 3 });
+  verifyIncidentNets(copy_hg, 6, { 2, 3 });
+}
+
+TEST_F(AStaticHypergraph, ComparesIncidentNetsIfCopiedSequential) {
+  StaticHypergraph copy_hg = hypergraph.copy();
+  verifyIncidentNets(copy_hg, 0, { 0, 1 });
+  verifyIncidentNets(copy_hg, 1, { 1 });
+  verifyIncidentNets(copy_hg, 2, { 0, 3 });
+  verifyIncidentNets(copy_hg, 3, { 1, 2 });
+  verifyIncidentNets(copy_hg, 4, { 1, 2 });
+  verifyIncidentNets(copy_hg, 5, { 3 });
+  verifyIncidentNets(copy_hg, 6, { 2, 3 });
+}
+
+TEST_F(AStaticHypergraph, ComparesPinsOfHyperedgesIfCopiedParallel) {
+  StaticHypergraph copy_hg = hypergraph.copy(TBBNumaArena::GLOBAL_TASK_GROUP);
+  verifyPins(copy_hg, { 0, 1, 2, 3 },
+    { {0, 2}, {0, 1, 3, 4}, {3, 4, 6}, {2, 5, 6} });
+}
+
+TEST_F(AStaticHypergraph, ComparesPinsOfHyperedgesIfCopiedSequential) {
+  StaticHypergraph copy_hg = hypergraph.copy();
+  verifyPins(copy_hg, { 0, 1, 2, 3 },
+    { {0, 2}, {0, 1, 3, 4}, {3, 4, 6}, {2, 5, 6} });
+}
+
+TEST_F(AStaticHypergraph, ComparesCommunityStatsIfCopiedParallel) {
+  assignCommunityIds();
+  StaticHypergraph copy_hg = hypergraph.copy(TBBNumaArena::GLOBAL_TASK_GROUP);
+  ASSERT_EQ(hypergraph.numCommunityHypernodes(0), copy_hg.numCommunityHypernodes(0));
+  ASSERT_EQ(hypergraph.numCommunityHypernodes(1), copy_hg.numCommunityHypernodes(1));
+  ASSERT_EQ(hypergraph.numCommunityHypernodes(2), copy_hg.numCommunityHypernodes(2));
+  ASSERT_EQ(hypergraph.numCommunityPins(0), copy_hg.numCommunityPins(0));
+  ASSERT_EQ(hypergraph.numCommunityPins(1), copy_hg.numCommunityPins(1));
+  ASSERT_EQ(hypergraph.numCommunityPins(2), copy_hg.numCommunityPins(2));
+  ASSERT_EQ(hypergraph.communityDegree(0), copy_hg.communityDegree(0));
+  ASSERT_EQ(hypergraph.communityDegree(1), copy_hg.communityDegree(1));
+  ASSERT_EQ(hypergraph.communityDegree(2), copy_hg.communityDegree(2));
+}
+
+TEST_F(AStaticHypergraph, ComparesCommunityStatsIfCopiedSequential) {
+  assignCommunityIds();
+  StaticHypergraph copy_hg = hypergraph.copy();
+  ASSERT_EQ(hypergraph.numCommunityHypernodes(0), copy_hg.numCommunityHypernodes(0));
+  ASSERT_EQ(hypergraph.numCommunityHypernodes(1), copy_hg.numCommunityHypernodes(1));
+  ASSERT_EQ(hypergraph.numCommunityHypernodes(2), copy_hg.numCommunityHypernodes(2));
+  ASSERT_EQ(hypergraph.numCommunityPins(0), copy_hg.numCommunityPins(0));
+  ASSERT_EQ(hypergraph.numCommunityPins(1), copy_hg.numCommunityPins(1));
+  ASSERT_EQ(hypergraph.numCommunityPins(2), copy_hg.numCommunityPins(2));
+  ASSERT_EQ(hypergraph.communityDegree(0), copy_hg.communityDegree(0));
+  ASSERT_EQ(hypergraph.communityDegree(1), copy_hg.communityDegree(1));
+  ASSERT_EQ(hypergraph.communityDegree(2), copy_hg.communityDegree(2));
+}
+
+TEST_F(AStaticHypergraph, ComparesCommunityIdsIfCopiedParallel) {
+  assignCommunityIds();
+  StaticHypergraph copy_hg = hypergraph.copy(TBBNumaArena::GLOBAL_TASK_GROUP);
+  ASSERT_EQ(hypergraph.communityID(0), copy_hg.communityID(0));
+  ASSERT_EQ(hypergraph.communityID(1), copy_hg.communityID(1));
+  ASSERT_EQ(hypergraph.communityID(2), copy_hg.communityID(2));
+  ASSERT_EQ(hypergraph.communityID(3), copy_hg.communityID(3));
+  ASSERT_EQ(hypergraph.communityID(4), copy_hg.communityID(4));
+  ASSERT_EQ(hypergraph.communityID(5), copy_hg.communityID(5));
+  ASSERT_EQ(hypergraph.communityID(6), copy_hg.communityID(6));
+}
+
+TEST_F(AStaticHypergraph, ComparesCommunityIdsIfCopiedSequential) {
+  assignCommunityIds();
+  StaticHypergraph copy_hg = hypergraph.copy();
+  ASSERT_EQ(hypergraph.communityID(0), copy_hg.communityID(0));
+  ASSERT_EQ(hypergraph.communityID(1), copy_hg.communityID(1));
+  ASSERT_EQ(hypergraph.communityID(2), copy_hg.communityID(2));
+  ASSERT_EQ(hypergraph.communityID(3), copy_hg.communityID(3));
+  ASSERT_EQ(hypergraph.communityID(4), copy_hg.communityID(4));
+  ASSERT_EQ(hypergraph.communityID(5), copy_hg.communityID(5));
+  ASSERT_EQ(hypergraph.communityID(6), copy_hg.communityID(6));
+}
+
+TEST_F(AStaticHypergraph, ComparesNumberOfCommunitiesInHyperedgesIfCopiedParallel) {
+  assignCommunityIds();
+  hypergraph.initializeCommunityHyperedges(TBBNumaArena::GLOBAL_TASK_GROUP);
+  StaticHypergraph copy_hg = hypergraph.copy(TBBNumaArena::GLOBAL_TASK_GROUP);
+  ASSERT_EQ(hypergraph.numCommunitiesInHyperedge(0), copy_hg.numCommunitiesInHyperedge(0));
+  ASSERT_EQ(hypergraph.numCommunitiesInHyperedge(1), copy_hg.numCommunitiesInHyperedge(1));
+  ASSERT_EQ(hypergraph.numCommunitiesInHyperedge(2), copy_hg.numCommunitiesInHyperedge(2));
+  ASSERT_EQ(hypergraph.numCommunitiesInHyperedge(3), copy_hg.numCommunitiesInHyperedge(3));
+}
+
+TEST_F(AStaticHypergraph, ComparesNumberOfCommunitiesInHyperedgesIfCopiedSequential) {
+  assignCommunityIds();
+  hypergraph.initializeCommunityHyperedges(TBBNumaArena::GLOBAL_TASK_GROUP);
+  StaticHypergraph copy_hg = hypergraph.copy();
+  ASSERT_EQ(hypergraph.numCommunitiesInHyperedge(0), copy_hg.numCommunitiesInHyperedge(0));
+  ASSERT_EQ(hypergraph.numCommunitiesInHyperedge(1), copy_hg.numCommunitiesInHyperedge(1));
+  ASSERT_EQ(hypergraph.numCommunitiesInHyperedge(2), copy_hg.numCommunitiesInHyperedge(2));
+  ASSERT_EQ(hypergraph.numCommunitiesInHyperedge(3), copy_hg.numCommunitiesInHyperedge(3));
+}
+
+TEST_F(AStaticHypergraph, ComparesPinsOfCommunityHyperedgesIfCopiedParallel) {
+  assignCommunityIds();
+  hypergraph.initializeCommunityHyperedges(TBBNumaArena::GLOBAL_TASK_GROUP);
+  StaticHypergraph copy_hg = hypergraph.copy(TBBNumaArena::GLOBAL_TASK_GROUP);
+  verifyCommunityPins(0, { 0, 1, 3 },
+    { {0, 2}, {0, 1}, {2} });
+  verifyCommunityPins(1, { 1, 2 },
+    { {3, 4}, {3, 4} });
+  verifyCommunityPins(2, { 2, 3 },
+    { {6}, {5, 6} });
+}
+
+TEST_F(AStaticHypergraph, ComparesPinsOfCommunityHyperedgesIfCopiedSequential) {
+  assignCommunityIds();
+  hypergraph.initializeCommunityHyperedges(TBBNumaArena::GLOBAL_TASK_GROUP);
+  StaticHypergraph copy_hg = hypergraph.copy();
+  verifyCommunityPins(0, { 0, 1, 3 },
+    { {0, 2}, {0, 1}, {2} });
+  verifyCommunityPins(1, { 1, 2 },
+    { {3, 4}, {3, 4} });
+  verifyCommunityPins(2, { 2, 3 },
+    { {6}, {5, 6} });
+}
+
 }
 } // namespace mt_kahypar

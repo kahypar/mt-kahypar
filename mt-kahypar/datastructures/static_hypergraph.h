@@ -407,7 +407,7 @@ class StaticHypergraph {
     _incident_nets = std::move(other._incident_nets);
     _hyperedges = std::move(other._hyperedges);
     _incidence_array = std::move(other._incidence_array);
-    _community_support = std::move(_community_support);
+    _community_support = std::move(other._community_support);
     return *this;
   }
 
@@ -956,6 +956,73 @@ class StaticHypergraph {
     ERROR("invalidateDisabledHyperedgesFromIncidentNets(id) is not supported in static hypergraph");
   }
 
+  // ####################### Copy #######################
+
+  // ! Copy static hypergraph in parallel
+  StaticHypergraph copy(const TaskGroupID task_group_id) {
+    StaticHypergraph hypergraph;
+
+    hypergraph._node = _node;
+    hypergraph._num_hypernodes = _num_hypernodes;
+    hypergraph._num_removed_hypernodes = _num_removed_hypernodes;
+    hypergraph._num_hyperedges = _num_hyperedges;
+    hypergraph._num_pins = _num_pins;
+    hypergraph._total_degree = _total_degree;
+    hypergraph._total_weight = _total_weight;
+
+    tbb::parallel_invoke([&] {
+      hypergraph._hypernodes.resize(_hypernodes.size());
+      memcpy(hypergraph._hypernodes.data(), _hypernodes.data(),
+        sizeof(Hypernode) * _hypernodes.size());
+    }, [&] {
+      hypergraph._incident_nets.resize(_incident_nets.size());
+      memcpy(hypergraph._incident_nets.data(), _incident_nets.data(),
+        sizeof(HyperedgeID) * _incident_nets.size());
+    }, [&] {
+      hypergraph._hyperedges.resize(_hyperedges.size());
+      memcpy(hypergraph._hyperedges.data(), _hyperedges.data(),
+        sizeof(Hyperedge) * _hyperedges.size());
+    }, [&] {
+      hypergraph._incidence_array.resize(_incidence_array.size());
+      memcpy(hypergraph._incidence_array.data(), _incidence_array.data(),
+        sizeof(HypernodeID) * _incidence_array.size());
+    }, [&] {
+      hypergraph._community_support = _community_support.copy(task_group_id);
+    });
+
+    return hypergraph;
+  }
+
+  // ! Copy static hypergraph sequential
+  StaticHypergraph copy() {
+    StaticHypergraph hypergraph;
+
+    hypergraph._node = _node;
+    hypergraph._num_hypernodes = _num_hypernodes;
+    hypergraph._num_removed_hypernodes = _num_removed_hypernodes;
+    hypergraph._num_hyperedges = _num_hyperedges;
+    hypergraph._num_pins = _num_pins;
+    hypergraph._total_degree = _total_degree;
+    hypergraph._total_weight = _total_weight;
+
+    hypergraph._hypernodes.resize(_hypernodes.size());
+    memcpy(hypergraph._hypernodes.data(), _hypernodes.data(),
+      sizeof(Hypernode) * _hypernodes.size());
+    hypergraph._incident_nets.resize(_incident_nets.size());
+    memcpy(hypergraph._incident_nets.data(), _incident_nets.data(),
+      sizeof(HyperedgeID) * _incident_nets.size());
+
+    hypergraph._hyperedges.resize(_hyperedges.size());
+    memcpy(hypergraph._hyperedges.data(), _hyperedges.data(),
+      sizeof(Hyperedge) * _hyperedges.size());
+    hypergraph._incidence_array.resize(_incidence_array.size());
+    memcpy(hypergraph._incidence_array.data(), _incidence_array.data(),
+      sizeof(HypernodeID) * _incidence_array.size());
+
+    hypergraph._community_support = _community_support.copy();
+
+    return hypergraph;
+  }
 
  private:
   friend class StaticHypergraphFactory;

@@ -142,7 +142,7 @@ TEST_F(AStaticNumaHypergraph, HasCorrectInitialEdgeNumaNodeOneIterator) {
 
 TEST_F(AStaticNumaHypergraph, IteratesParallelOverAllNodes) {
   std::vector<uint8_t> visited(7, false);
-  hypergraph.doParallelForAllNodes(TBBNumaArena::GLOBAL_TASK_GROUP,
+  hypergraph.doParallelForAllNodes(TBB::GLOBAL_TASK_GROUP,
     [&](const HypernodeID hn) {
       visited[hypergraph.originalNodeID(hn)] = true;
     });
@@ -154,7 +154,7 @@ TEST_F(AStaticNumaHypergraph, IteratesParallelOverAllNodes) {
 
 TEST_F(AStaticNumaHypergraph, IteratesParallelOverAllEdges) {
   std::vector<uint8_t> visited(4, false);
-  hypergraph.doParallelForAllEdges(TBBNumaArena::GLOBAL_TASK_GROUP,
+  hypergraph.doParallelForAllEdges(TBB::GLOBAL_TASK_GROUP,
     [&](const HyperedgeID he) {
       visited[hypergraph.originalEdgeID(he)] = true;
     });
@@ -210,7 +210,7 @@ TEST_F(AStaticNumaHypergraph, ModifiesNodeWeight) {
   hypergraph.setNodeWeight(id[6], 2);
   ASSERT_EQ(2, hypergraph.nodeWeight(id[0]));
   ASSERT_EQ(2, hypergraph.nodeWeight(id[6]));
-  hypergraph.updateTotalWeight(TBBNumaArena::GLOBAL_TASK_GROUP);
+  hypergraph.updateTotalWeight(TBB::GLOBAL_TASK_GROUP);
   ASSERT_EQ(9, hypergraph.totalWeight());
 }
 
@@ -225,7 +225,7 @@ TEST_F(AStaticNumaHypergraph, VerifiesVertexDegrees) {
 }
 
 TEST_F(AStaticNumaHypergraph, MarksVerticesWithADegreeGreaterOrEqualThanTwoAsHighDegree) {
-  hypergraph.markAllHighDegreeVertices(TBBNumaArena::GLOBAL_TASK_GROUP, 2UL);
+  hypergraph.markAllHighDegreeVertices(TBB::GLOBAL_TASK_GROUP, 2UL);
   ASSERT_TRUE(hypergraph.isHighDegreeVertex(id[0]));
   ASSERT_FALSE(hypergraph.isHighDegreeVertex(id[1]));
   ASSERT_TRUE(hypergraph.isHighDegreeVertex(id[2]));
@@ -313,7 +313,7 @@ TEST_F(AStaticNumaHypergraph, ComputesCorrectCommunityDegreeInEachCommunity) {
 
 TEST_F(AStaticNumaHypergraph, VerifiesNumberOfCommunitiesInHyperedges) {
   assignCommunityIds();
-  hypergraph.initializeCommunityHyperedges(TBBNumaArena::GLOBAL_TASK_GROUP);
+  hypergraph.initializeCommunityHyperedges(TBB::GLOBAL_TASK_GROUP);
   ASSERT_EQ(1, hypergraph.numCommunitiesInHyperedge(GLOBAL_EDGE_ID(hypergraph, 0)));
   ASSERT_EQ(2, hypergraph.numCommunitiesInHyperedge(GLOBAL_EDGE_ID(hypergraph, 1)));
   ASSERT_EQ(2, hypergraph.numCommunitiesInHyperedge(GLOBAL_EDGE_ID(hypergraph, 2)));
@@ -322,7 +322,7 @@ TEST_F(AStaticNumaHypergraph, VerifiesNumberOfCommunitiesInHyperedges) {
 
 TEST_F(AStaticNumaHypergraph, ChecksHyperedgeCommunityIterator1) {
   assignCommunityIds();
-  hypergraph.initializeCommunityHyperedges(TBBNumaArena::GLOBAL_TASK_GROUP);
+  hypergraph.initializeCommunityHyperedges(TBB::GLOBAL_TASK_GROUP);
   const std::vector<PartitionID> expected_iter = { 0 };
   size_t pos = 0;
   for ( const PartitionID& community_id : hypergraph.communities(GLOBAL_EDGE_ID(hypergraph, 0)) ) {
@@ -333,7 +333,7 @@ TEST_F(AStaticNumaHypergraph, ChecksHyperedgeCommunityIterator1) {
 
 TEST_F(AStaticNumaHypergraph, ChecksHyperedgeCommunityIterator2) {
   assignCommunityIds();
-  hypergraph.initializeCommunityHyperedges(TBBNumaArena::GLOBAL_TASK_GROUP);
+  hypergraph.initializeCommunityHyperedges(TBB::GLOBAL_TASK_GROUP);
   const std::vector<PartitionID> expected_iter = { 0, 1 };
   size_t pos = 0;
   for ( const PartitionID& community_id : hypergraph.communities(GLOBAL_EDGE_ID(hypergraph, 1)) ) {
@@ -344,7 +344,7 @@ TEST_F(AStaticNumaHypergraph, ChecksHyperedgeCommunityIterator2) {
 
 TEST_F(AStaticNumaHypergraph, ChecksHyperedgeCommunityIterator3) {
   assignCommunityIds();
-  hypergraph.initializeCommunityHyperedges(TBBNumaArena::GLOBAL_TASK_GROUP);
+  hypergraph.initializeCommunityHyperedges(TBB::GLOBAL_TASK_GROUP);
   const std::vector<PartitionID> expected_iter = { 1, 2 };
   size_t pos = 0;
   for ( const PartitionID& community_id : hypergraph.communities(GLOBAL_EDGE_ID(hypergraph, 2)) ) {
@@ -355,7 +355,7 @@ TEST_F(AStaticNumaHypergraph, ChecksHyperedgeCommunityIterator3) {
 
 TEST_F(AStaticNumaHypergraph, ChecksHyperedgeCommunityIterator4) {
   assignCommunityIds();
-  hypergraph.initializeCommunityHyperedges(TBBNumaArena::GLOBAL_TASK_GROUP);
+  hypergraph.initializeCommunityHyperedges(TBB::GLOBAL_TASK_GROUP);
   const std::vector<PartitionID> expected_iter = { 0, 2 };
   size_t pos = 0;
   for ( const PartitionID& community_id : hypergraph.communities(GLOBAL_EDGE_ID(hypergraph, 3)) ) {
@@ -366,7 +366,7 @@ TEST_F(AStaticNumaHypergraph, ChecksHyperedgeCommunityIterator4) {
 
 TEST_F(AStaticNumaHypergraph, VerifiesCommunityHyperedgeInternals1) {
   assignCommunityIds();
-  hypergraph.initializeCommunityHyperedges(TBBNumaArena::GLOBAL_TASK_GROUP);
+  hypergraph.initializeCommunityHyperedges(TBB::GLOBAL_TASK_GROUP);
   ASSERT_EQ(1, hypergraph.edgeWeight(GLOBAL_EDGE_ID(hypergraph, 0), 0));
   ASSERT_EQ(2, hypergraph.edgeSize(GLOBAL_EDGE_ID(hypergraph, 0), 0));
   ASSERT_EQ(1, hypergraph.edgeWeight(GLOBAL_EDGE_ID(hypergraph, 1), 0));
@@ -377,7 +377,7 @@ TEST_F(AStaticNumaHypergraph, VerifiesCommunityHyperedgeInternals1) {
 
 TEST_F(AStaticNumaHypergraph, VerifiesCommunityHyperedgeInternals2) {
   assignCommunityIds();
-  hypergraph.initializeCommunityHyperedges(TBBNumaArena::GLOBAL_TASK_GROUP);
+  hypergraph.initializeCommunityHyperedges(TBB::GLOBAL_TASK_GROUP);
   ASSERT_EQ(1, hypergraph.edgeWeight(GLOBAL_EDGE_ID(hypergraph, 1), 1));
   ASSERT_EQ(2, hypergraph.edgeSize(GLOBAL_EDGE_ID(hypergraph, 1), 1));
   ASSERT_EQ(1, hypergraph.edgeWeight(GLOBAL_EDGE_ID(hypergraph, 2), 1));
@@ -386,7 +386,7 @@ TEST_F(AStaticNumaHypergraph, VerifiesCommunityHyperedgeInternals2) {
 
 TEST_F(AStaticNumaHypergraph, VerifiesCommunityHyperedgeInternals3) {
   assignCommunityIds();
-  hypergraph.initializeCommunityHyperedges(TBBNumaArena::GLOBAL_TASK_GROUP);
+  hypergraph.initializeCommunityHyperedges(TBB::GLOBAL_TASK_GROUP);
   ASSERT_EQ(1, hypergraph.edgeWeight(GLOBAL_EDGE_ID(hypergraph, 2), 2));
   ASSERT_EQ(1, hypergraph.edgeSize(GLOBAL_EDGE_ID(hypergraph, 2), 2));
   ASSERT_EQ(1, hypergraph.edgeWeight(GLOBAL_EDGE_ID(hypergraph, 3), 2));
@@ -395,7 +395,7 @@ TEST_F(AStaticNumaHypergraph, VerifiesCommunityHyperedgeInternals3) {
 
 TEST_F(AStaticNumaHypergraph, CanIterateOverThePinsOfASpecificCommunityInAHyperedge1) {
   assignCommunityIds();
-  hypergraph.initializeCommunityHyperedges(TBBNumaArena::GLOBAL_TASK_GROUP);
+  hypergraph.initializeCommunityHyperedges(TBB::GLOBAL_TASK_GROUP);
   verifyCommunityPins(0, { GLOBAL_EDGE_ID(hypergraph, 0),
                            GLOBAL_EDGE_ID(hypergraph, 1),
                            GLOBAL_EDGE_ID(hypergraph, 3) },
@@ -404,7 +404,7 @@ TEST_F(AStaticNumaHypergraph, CanIterateOverThePinsOfASpecificCommunityInAHypere
 
 TEST_F(AStaticNumaHypergraph, CanIterateOverThePinsOfASpecificCommunityInAHyperedge2) {
   assignCommunityIds();
-  hypergraph.initializeCommunityHyperedges(TBBNumaArena::GLOBAL_TASK_GROUP);
+  hypergraph.initializeCommunityHyperedges(TBB::GLOBAL_TASK_GROUP);
   verifyCommunityPins(1, { GLOBAL_EDGE_ID(hypergraph, 1),
                            GLOBAL_EDGE_ID(hypergraph, 2) },
     { {id[3], id[4]}, {id[3], id[4]} });
@@ -412,7 +412,7 @@ TEST_F(AStaticNumaHypergraph, CanIterateOverThePinsOfASpecificCommunityInAHypere
 
 TEST_F(AStaticNumaHypergraph, CanIterateOverThePinsOfASpecificCommunityInAHyperedge3) {
   assignCommunityIds();
-  hypergraph.initializeCommunityHyperedges(TBBNumaArena::GLOBAL_TASK_GROUP);
+  hypergraph.initializeCommunityHyperedges(TBB::GLOBAL_TASK_GROUP);
   verifyCommunityPins(2, { GLOBAL_EDGE_ID(hypergraph, 2),
                            GLOBAL_EDGE_ID(hypergraph, 3) },
     { {id[6]}, {id[5], id[6]} });
@@ -506,6 +506,188 @@ TEST_F(AStaticNumaHypergraph, RestoresARemovedHyperedge4) {
                               GLOBAL_EDGE_ID(hypergraph, 3) });
   verifyPins({ GLOBAL_EDGE_ID(hypergraph, 3) },
     { {id[2], id[5], id[6]} });
+}
+
+TEST_F(AStaticNumaHypergraph, ComparesStatsIfCopiedParallel) {
+  NumaHyperGraph copy_hg = hypergraph.copy(TBB::GLOBAL_TASK_GROUP);
+  ASSERT_EQ(hypergraph.initialNumNodes(), copy_hg.initialNumNodes());
+  ASSERT_EQ(hypergraph.initialNumEdges(), copy_hg.initialNumEdges());
+  ASSERT_EQ(hypergraph.initialNumPins(), copy_hg.initialNumPins());
+  ASSERT_EQ(hypergraph.initialTotalVertexDegree(), copy_hg.initialTotalVertexDegree());
+  ASSERT_EQ(hypergraph.totalWeight(), copy_hg.totalWeight());
+}
+
+TEST_F(AStaticNumaHypergraph, ComparesStatsIfCopiedSequential) {
+  NumaHyperGraph copy_hg = hypergraph.copy();
+  ASSERT_EQ(hypergraph.initialNumNodes(), copy_hg.initialNumNodes());
+  ASSERT_EQ(hypergraph.initialNumEdges(), copy_hg.initialNumEdges());
+  ASSERT_EQ(hypergraph.initialNumPins(), copy_hg.initialNumPins());
+  ASSERT_EQ(hypergraph.initialTotalVertexDegree(), copy_hg.initialTotalVertexDegree());
+  ASSERT_EQ(hypergraph.totalWeight(), copy_hg.totalWeight());
+}
+
+TEST_F(AStaticNumaHypergraph, ComparesIncidentNetsIfCopiedParallel) {
+  NumaHyperGraph copy_hg = hypergraph.copy(TBB::GLOBAL_TASK_GROUP);
+  verifyIncidentNets(copy_hg, id[0], { GLOBAL_EDGE_ID(hypergraph, 0),
+                                       GLOBAL_EDGE_ID(hypergraph, 1) });
+  verifyIncidentNets(copy_hg, id[1], { GLOBAL_EDGE_ID(hypergraph, 1) });
+  verifyIncidentNets(copy_hg, id[2], { GLOBAL_EDGE_ID(hypergraph, 0),
+                                       GLOBAL_EDGE_ID(hypergraph, 3) });
+  verifyIncidentNets(copy_hg, id[3], { GLOBAL_EDGE_ID(hypergraph, 1),
+                                       GLOBAL_EDGE_ID(hypergraph, 2) });
+  verifyIncidentNets(copy_hg, id[4], { GLOBAL_EDGE_ID(hypergraph, 1),
+                                       GLOBAL_EDGE_ID(hypergraph, 2) });
+  verifyIncidentNets(copy_hg, id[5], { GLOBAL_EDGE_ID(hypergraph, 3) });
+  verifyIncidentNets(copy_hg, id[6], { GLOBAL_EDGE_ID(hypergraph, 2),
+                                       GLOBAL_EDGE_ID(hypergraph, 3) });
+}
+
+TEST_F(AStaticNumaHypergraph, ComparesIncidentNetsIfCopiedSequential) {
+  NumaHyperGraph copy_hg = hypergraph.copy();
+  verifyIncidentNets(copy_hg, id[0], { GLOBAL_EDGE_ID(hypergraph, 0),
+                                       GLOBAL_EDGE_ID(hypergraph, 1) });
+  verifyIncidentNets(copy_hg, id[1], { GLOBAL_EDGE_ID(hypergraph, 1) });
+  verifyIncidentNets(copy_hg, id[2], { GLOBAL_EDGE_ID(hypergraph, 0),
+                                       GLOBAL_EDGE_ID(hypergraph, 3) });
+  verifyIncidentNets(copy_hg, id[3], { GLOBAL_EDGE_ID(hypergraph, 1),
+                                       GLOBAL_EDGE_ID(hypergraph, 2) });
+  verifyIncidentNets(copy_hg, id[4], { GLOBAL_EDGE_ID(hypergraph, 1),
+                                       GLOBAL_EDGE_ID(hypergraph, 2) });
+  verifyIncidentNets(copy_hg, id[5], { GLOBAL_EDGE_ID(hypergraph, 3) });
+  verifyIncidentNets(copy_hg, id[6], { GLOBAL_EDGE_ID(hypergraph, 2),
+                                       GLOBAL_EDGE_ID(hypergraph, 3) });
+}
+
+TEST_F(AStaticNumaHypergraph, ComparesPinsOfHyperedgesIfCopiedParallel) {
+  NumaHyperGraph copy_hg = hypergraph.copy(TBB::GLOBAL_TASK_GROUP);
+  verifyPins(copy_hg, { GLOBAL_EDGE_ID(hypergraph, 0),
+                        GLOBAL_EDGE_ID(hypergraph, 1),
+                        GLOBAL_EDGE_ID(hypergraph, 2),
+                        GLOBAL_EDGE_ID(hypergraph, 3) },
+    { {id[0], id[2]}, {id[0], id[1], id[3], id[4]},
+      {id[3], id[4], id[6]}, {id[2], id[5], id[6]} });
+}
+
+TEST_F(AStaticNumaHypergraph, ComparesPinsOfHyperedgesIfCopiedSequential) {
+  NumaHyperGraph copy_hg = hypergraph.copy();
+  verifyPins(copy_hg, { GLOBAL_EDGE_ID(hypergraph, 0),
+                        GLOBAL_EDGE_ID(hypergraph, 1),
+                        GLOBAL_EDGE_ID(hypergraph, 2),
+                        GLOBAL_EDGE_ID(hypergraph, 3) },
+    { {id[0], id[2]}, {id[0], id[1], id[3], id[4]},
+      {id[3], id[4], id[6]}, {id[2], id[5], id[6]} });
+}
+
+TEST_F(AStaticNumaHypergraph, ComparesCommunityStatsIfCopiedParallel) {
+  assignCommunityIds();
+  NumaHyperGraph copy_hg = hypergraph.copy(TBB::GLOBAL_TASK_GROUP);
+  ASSERT_EQ(hypergraph.numCommunityHypernodes(0), copy_hg.numCommunityHypernodes(0));
+  ASSERT_EQ(hypergraph.numCommunityHypernodes(1), copy_hg.numCommunityHypernodes(1));
+  ASSERT_EQ(hypergraph.numCommunityHypernodes(2), copy_hg.numCommunityHypernodes(2));
+  ASSERT_EQ(hypergraph.numCommunityPins(0), copy_hg.numCommunityPins(0));
+  ASSERT_EQ(hypergraph.numCommunityPins(1), copy_hg.numCommunityPins(1));
+  ASSERT_EQ(hypergraph.numCommunityPins(2), copy_hg.numCommunityPins(2));
+  ASSERT_EQ(hypergraph.communityDegree(0), copy_hg.communityDegree(0));
+  ASSERT_EQ(hypergraph.communityDegree(1), copy_hg.communityDegree(1));
+  ASSERT_EQ(hypergraph.communityDegree(2), copy_hg.communityDegree(2));
+}
+
+TEST_F(AStaticNumaHypergraph, ComparesCommunityStatsIfCopiedSequential) {
+  assignCommunityIds();
+  NumaHyperGraph copy_hg = hypergraph.copy();
+  ASSERT_EQ(hypergraph.numCommunityHypernodes(0), copy_hg.numCommunityHypernodes(0));
+  ASSERT_EQ(hypergraph.numCommunityHypernodes(1), copy_hg.numCommunityHypernodes(1));
+  ASSERT_EQ(hypergraph.numCommunityHypernodes(2), copy_hg.numCommunityHypernodes(2));
+  ASSERT_EQ(hypergraph.numCommunityPins(0), copy_hg.numCommunityPins(0));
+  ASSERT_EQ(hypergraph.numCommunityPins(1), copy_hg.numCommunityPins(1));
+  ASSERT_EQ(hypergraph.numCommunityPins(2), copy_hg.numCommunityPins(2));
+  ASSERT_EQ(hypergraph.communityDegree(0), copy_hg.communityDegree(0));
+  ASSERT_EQ(hypergraph.communityDegree(1), copy_hg.communityDegree(1));
+  ASSERT_EQ(hypergraph.communityDegree(2), copy_hg.communityDegree(2));
+}
+
+TEST_F(AStaticNumaHypergraph, ComparesCommunityIdsIfCopiedParallel) {
+  assignCommunityIds();
+  NumaHyperGraph copy_hg = hypergraph.copy(TBB::GLOBAL_TASK_GROUP);
+  ASSERT_EQ(hypergraph.communityID(id[0]), copy_hg.communityID(id[0]));
+  ASSERT_EQ(hypergraph.communityID(id[1]), copy_hg.communityID(id[1]));
+  ASSERT_EQ(hypergraph.communityID(id[2]), copy_hg.communityID(id[2]));
+  ASSERT_EQ(hypergraph.communityID(id[3]), copy_hg.communityID(id[3]));
+  ASSERT_EQ(hypergraph.communityID(id[4]), copy_hg.communityID(id[4]));
+  ASSERT_EQ(hypergraph.communityID(id[5]), copy_hg.communityID(id[5]));
+  ASSERT_EQ(hypergraph.communityID(id[6]), copy_hg.communityID(id[6]));
+}
+
+TEST_F(AStaticNumaHypergraph, ComparesCommunityIdsIfCopiedSequential) {
+  assignCommunityIds();
+  NumaHyperGraph copy_hg = hypergraph.copy();
+  ASSERT_EQ(hypergraph.communityID(id[0]), copy_hg.communityID(id[0]));
+  ASSERT_EQ(hypergraph.communityID(id[1]), copy_hg.communityID(id[1]));
+  ASSERT_EQ(hypergraph.communityID(id[2]), copy_hg.communityID(id[2]));
+  ASSERT_EQ(hypergraph.communityID(id[3]), copy_hg.communityID(id[3]));
+  ASSERT_EQ(hypergraph.communityID(id[4]), copy_hg.communityID(id[4]));
+  ASSERT_EQ(hypergraph.communityID(id[5]), copy_hg.communityID(id[5]));
+  ASSERT_EQ(hypergraph.communityID(id[6]), copy_hg.communityID(id[6]));
+}
+
+TEST_F(AStaticNumaHypergraph, ComparesNumberOfCommunitiesInHyperedgesIfCopiedParallel) {
+  assignCommunityIds();
+  hypergraph.initializeCommunityHyperedges(TBB::GLOBAL_TASK_GROUP);
+  NumaHyperGraph copy_hg = hypergraph.copy(TBB::GLOBAL_TASK_GROUP);
+  ASSERT_EQ(hypergraph.numCommunitiesInHyperedge(GLOBAL_EDGE_ID(hypergraph, 0)),
+            copy_hg.numCommunitiesInHyperedge(GLOBAL_EDGE_ID(hypergraph, 0)));
+  ASSERT_EQ(hypergraph.numCommunitiesInHyperedge(GLOBAL_EDGE_ID(hypergraph, 1)),
+            copy_hg.numCommunitiesInHyperedge(GLOBAL_EDGE_ID(hypergraph, 1)));
+  ASSERT_EQ(hypergraph.numCommunitiesInHyperedge(GLOBAL_EDGE_ID(hypergraph, 2)),
+            copy_hg.numCommunitiesInHyperedge(GLOBAL_EDGE_ID(hypergraph, 2)));
+  ASSERT_EQ(hypergraph.numCommunitiesInHyperedge(GLOBAL_EDGE_ID(hypergraph, 3)),
+            copy_hg.numCommunitiesInHyperedge(GLOBAL_EDGE_ID(hypergraph, 3)));
+}
+
+TEST_F(AStaticNumaHypergraph, ComparesNumberOfCommunitiesInHyperedgesIfCopiedSequential) {
+  assignCommunityIds();
+  hypergraph.initializeCommunityHyperedges(TBB::GLOBAL_TASK_GROUP);
+  NumaHyperGraph copy_hg = hypergraph.copy();
+  ASSERT_EQ(hypergraph.numCommunitiesInHyperedge(GLOBAL_EDGE_ID(hypergraph, 0)),
+            copy_hg.numCommunitiesInHyperedge(GLOBAL_EDGE_ID(hypergraph, 0)));
+  ASSERT_EQ(hypergraph.numCommunitiesInHyperedge(GLOBAL_EDGE_ID(hypergraph, 1)),
+            copy_hg.numCommunitiesInHyperedge(GLOBAL_EDGE_ID(hypergraph, 1)));
+  ASSERT_EQ(hypergraph.numCommunitiesInHyperedge(GLOBAL_EDGE_ID(hypergraph, 2)),
+            copy_hg.numCommunitiesInHyperedge(GLOBAL_EDGE_ID(hypergraph, 2)));
+  ASSERT_EQ(hypergraph.numCommunitiesInHyperedge(GLOBAL_EDGE_ID(hypergraph, 3)),
+            copy_hg.numCommunitiesInHyperedge(GLOBAL_EDGE_ID(hypergraph, 3)));
+}
+
+TEST_F(AStaticNumaHypergraph, ComparesPinsOfCommunityHyperedgesIfCopiedParallel) {
+  assignCommunityIds();
+  hypergraph.initializeCommunityHyperedges(TBB::GLOBAL_TASK_GROUP);
+  NumaHyperGraph copy_hg = hypergraph.copy(TBB::GLOBAL_TASK_GROUP);
+  verifyCommunityPins(0, { GLOBAL_EDGE_ID(hypergraph, 0),
+                           GLOBAL_EDGE_ID(hypergraph, 1),
+                           GLOBAL_EDGE_ID(hypergraph, 3) },
+    { {id[0], id[2]}, {id[0], id[1]}, {id[2]} });
+  verifyCommunityPins(1, { GLOBAL_EDGE_ID(hypergraph, 1),
+                           GLOBAL_EDGE_ID(hypergraph, 2) },
+    { {id[3], id[4]}, {id[3], id[4]} });
+  verifyCommunityPins(2, { GLOBAL_EDGE_ID(hypergraph, 2),
+                           GLOBAL_EDGE_ID(hypergraph, 3) },
+    { {id[6]}, {id[5], id[6]} });
+}
+
+TEST_F(AStaticNumaHypergraph, ComparesPinsOfCommunityHyperedgesIfCopiedSequential) {
+  assignCommunityIds();
+  hypergraph.initializeCommunityHyperedges(TBB::GLOBAL_TASK_GROUP);
+  NumaHyperGraph copy_hg = hypergraph.copy();
+  verifyCommunityPins(0, { GLOBAL_EDGE_ID(hypergraph, 0),
+                           GLOBAL_EDGE_ID(hypergraph, 1),
+                           GLOBAL_EDGE_ID(hypergraph, 3) },
+    { {id[0], id[2]}, {id[0], id[1]}, {id[2]} });
+  verifyCommunityPins(1, { GLOBAL_EDGE_ID(hypergraph, 1),
+                           GLOBAL_EDGE_ID(hypergraph, 2) },
+    { {id[3], id[4]}, {id[3], id[4]} });
+  verifyCommunityPins(2, { GLOBAL_EDGE_ID(hypergraph, 2),
+                           GLOBAL_EDGE_ID(hypergraph, 3) },
+    { {id[6]}, {id[5], id[6]} });
 }
 
 }
