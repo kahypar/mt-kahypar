@@ -1392,7 +1392,7 @@ class StaticHypergraph {
     Hypernode& hn = hypernode(u);
     ASSERT(!hn.isDisabled(), "Hypernode" << u << "is disabled");
     HEAVY_REFINEMENT_ASSERT(std::count(_incident_nets.cbegin() + hn.firstEntry(),
-                                       _incident_nets.cend() + hn.firstInvalidEntry(), e) == 0,
+                                       _incident_nets.cbegin() + hn.firstInvalidEntry(), e) == 0,
                         "HN" << u << "is already connected to HE" << e);
     const size_t incident_nets_start = hn.firstInvalidEntry();
     const size_t incident_nets_end = hypernode(u + 1).firstEntry();
