@@ -1862,27 +1862,6 @@ class Hypergraph {
     TBBNumaArena::instance().execute_parallel_on_all_numa_nodes(task_group_id, [&](const int node) {
           _hypergraphs[node].initializeCommunityHyperedges(_hypergraphs);
         });
-
-    TBBNumaArena::instance().execute_parallel_on_all_numa_nodes(task_group_id, [&](const int node) {
-          _hypergraphs[node].initializeCommunityHypernodes(_hypergraphs);
-        });
-  }
-
-  /*!
-   * Builds up a vector that stores for each contraction partner in the
-   * contraction history its position.
-   *
-   * @params history contraction history
-   */
-  void buildContractionHierarchy(const std::vector<Memento>& history) {
-    _contraction_index.assign(_num_hypernodes, std::numeric_limits<HypernodeID>::max());
-    tbb::parallel_for(0UL, history.size(), [&](const size_t& i) {
-          const HypernodeID v = history[i].v;
-          ASSERT(originalNodeID(v) < _num_hypernodes);
-          ASSERT(_contraction_index[originalNodeID(v)] == std::numeric_limits<HypernodeID>::max(),
-                 "Hypernode" << v << "occurs more than once as contraction partner in hierarchy");
-          _contraction_index[originalNodeID(v)] = i;
-        });
   }
 
   /*!
@@ -1901,6 +1880,23 @@ class Hypergraph {
     ASSERT(_contraction_index.size() == _num_hypernodes);
     TBBNumaArena::instance().execute_parallel_on_all_numa_nodes(task_group_id, [&](const int node) {
           _hypergraphs[node].removeCommunityHyperedges(_contraction_index, _hypergraphs);
+        });
+  }
+
+  /*!
+   * Builds up a vector that stores for each contraction partner in the
+   * contraction history its position.
+   *
+   * @params history contraction history
+   */
+  void buildContractionHierarchy(const std::vector<Memento>& history) {
+    _contraction_index.assign(_num_hypernodes, std::numeric_limits<HypernodeID>::max());
+    tbb::parallel_for(0UL, history.size(), [&](const size_t& i) {
+          const HypernodeID v = history[i].v;
+          ASSERT(originalNodeID(v) < _num_hypernodes);
+          ASSERT(_contraction_index[originalNodeID(v)] == std::numeric_limits<HypernodeID>::max(),
+                 "Hypernode" << v << "occurs more than once as contraction partner in hierarchy");
+          _contraction_index[originalNodeID(v)] = i;
         });
   }
 

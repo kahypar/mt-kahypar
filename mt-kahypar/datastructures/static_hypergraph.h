@@ -938,6 +938,25 @@ class StaticHypergraph {
     _community_support.initializeCommunityHyperedges(*this, hypergraphs);
   }
 
+  /*!
+   * Removes all community hyperedges from the hypergraph after parallel community
+   * coarsening terminates.
+   */
+  void removeCommunityHyperedges(const TaskGroupID,
+                                 const parallel::scalable_vector<HypernodeID>& contraction_index = {},
+                                 const parallel::scalable_vector<StaticHypergraph>& hypergraphs = {}) {
+    _community_support.removeCommunityHyperedges(contraction_index, hypergraphs);
+  }
+
+  void buildContractionHierarchy(const std::vector<Memento>&) {
+    ERROR("buildContractionHierarchy(mementos) is not supported in static hypergraph");
+  }
+
+  void invalidateDisabledHyperedgesFromIncidentNets(const TaskGroupID) {
+    ERROR("invalidateDisabledHyperedgesFromIncidentNets(id) is not supported in static hypergraph");
+  }
+
+
  private:
   friend class StaticHypergraphFactory;
   template<typename Hypergraph>

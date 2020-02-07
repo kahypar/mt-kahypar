@@ -461,6 +461,22 @@ class CommunitySupport {
     _are_community_hyperedges_initialized = true;
   }
 
+  void removeCommunityHyperedges(const parallel::scalable_vector<HypernodeID>& contraction_index,
+                                 const parallel::scalable_vector<Hypergraph>& hypergraphs) {
+    ASSERT(_are_community_hyperedges_initialized);
+    unused(contraction_index);
+    unused(hypergraphs);
+    if (!Hypergraph::is_static_hypergraph) {
+      // TODO(heuer): implement removal of community hyperedges for dynamic hypergraph here
+    }
+
+    CommunitiesOfHyperedges tmp_community_hyperedge_ids;
+    CommunityHyperedges tmp_community_hyperedges;
+    _community_hyperedge_ids = std::move(tmp_community_hyperedge_ids);
+    _community_hyperedges = std::move(tmp_community_hyperedges);
+    _are_community_hyperedges_initialized = false;
+  }
+
  private:
   void computeNumberOfCommunities(const Hypergraph& hypergraph,
                                   const int node = 0) {

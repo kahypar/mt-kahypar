@@ -516,31 +516,31 @@ class NumaHypergraph {
   // ####################### Contract / Uncontract #######################
 
   Memento contract(const HypernodeID, const HypernodeID) {
-    ERROR("contract(u,v) is not supported in static hypergraph");
+    ERROR("contract(u,v) is not supported in numa hypergraph");
     return Memento();
   }
 
   Memento contract(const HypernodeID, const HypernodeID, const PartitionID) {
-    ERROR("contract(u,v,c) is not supported in static hypergraph");
+    ERROR("contract(u,v,c) is not supported in numa hypergraph");
     return Memento();
   }
 
   std::pair<StaticHypergraph, parallel::scalable_vector<HypernodeID>> contract(
     const parallel::scalable_vector<HypernodeID>&,
     const TaskGroupID) const {
-    ERROR("contract(communities,id) is not supported in static hypergraph");
+    ERROR("contract(communities,id) is not supported in numa hypergraph");
     return std::make_pair(StaticHypergraph(), parallel::scalable_vector<HypernodeID>());
   }
 
   void uncontract(const Memento&, parallel::scalable_vector<HyperedgeID>&) {
-    ERROR("uncontract(memento,parallel_he) is not supported in static hypergraph");
+    ERROR("uncontract(memento,parallel_he) is not supported in numa hypergraph");
   }
 
   void uncontract(const std::vector<Memento>&,
                   parallel::scalable_vector<HyperedgeID>&,
                   const kahypar::ds::FastResetFlagArray<>&,
                   const bool) {
-    ERROR("uncontract(...) is not supported in static hypergraph");
+    ERROR("uncontract(...) is not supported in numa hypergraph");
   }
 
   void restoreDisabledHyperedgesThatBecomeNonParallel(
@@ -548,7 +548,7 @@ class NumaHypergraph {
     parallel::scalable_vector<HyperedgeID>&,
     const kahypar::ds::FastResetFlagArray<>&) {
     ERROR("restoreDisabledHyperedgesThatBecomeNonParallel(...) is not supported"
-          << "in static hypergraph");
+          << "in numa hypergraph");
   }
 
   parallel::scalable_vector<HyperedgeID> findDisabledHyperedgesThatBecomeNonParallel(
@@ -556,7 +556,7 @@ class NumaHypergraph {
     parallel::scalable_vector<HyperedgeID>&,
     const kahypar::ds::FastResetFlagArray<>&) {
     ERROR("findDisabledHyperedgesThatBecomeNonParallel(...) is not supported"
-          << "in static hypergraph");
+          << "in numa hypergraph");
     return parallel::scalable_vector<HyperedgeID>();
   }
 
@@ -578,11 +578,11 @@ class NumaHypergraph {
   }
 
   void removeSinglePinCommunityEdge(const HyperedgeID, const PartitionID) {
-    ERROR("removeSinglePinCommunityEdge(e,c) is not supported in static hypergraph");
+    ERROR("removeSinglePinCommunityEdge(e,c) is not supported in numa hypergraph");
   }
 
   void removeParallelEdge(const HyperedgeID, const PartitionID) {
-    ERROR("removeParallelEdge(e,c) is not supported in static hypergraph");
+    ERROR("removeParallelEdge(e,c) is not supported in numa hypergraph");
   }
 
   // ! Restores an hyperedge of a certain size.
@@ -606,7 +606,7 @@ class NumaHypergraph {
                                 parallel::scalable_vector<HyperedgeID>&,
                                 const kahypar::ds::FastResetFlagArray<>* batch_hypernodes = nullptr) {
     unused(batch_hypernodes);
-    ERROR("restoreParallelHyperedge(...) is not supported in static hypergraph");
+    ERROR("restoreParallelHyperedge(...) is not supported in numa hypergraph");
   }
 
   // ####################### Initialization / Reset Functions #######################
@@ -638,6 +638,33 @@ class NumaHypergraph {
     TBBNumaArena::instance().execute_parallel_on_all_numa_nodes(task_group_id, [&](const int node) {
           _hypergraphs[node].initializeCommunityHyperedges(task_group_id, _hypergraphs);
         });
+  }
+
+  /*!
+   * Removes all community hyperedges from the hypergraph after parallel community
+   * coarsening terminates.
+   *
+   * In case, template parameter Hypergraph is the dynamic hypergraph:
+   * The pins of the original hyperedge are sorted in decreasing order of their
+   * contraction index. The contraction index of a vertex v is defined as the index
+   * of the contraction (u,v) in the contraction history, where v occurs as contraction
+   * partner. This is done to fullfil the invariants required by the uncontraction method.
+   *
+   * Note this function have to be called after parallel community coarsening such
+   * that uncontractions can be performed correctly.
+   */
+  void removeCommunityHyperedges(const TaskGroupID task_group_id) {
+    TBBNumaArena::instance().execute_parallel_on_all_numa_nodes(task_group_id, [&](const int node) {
+          _hypergraphs[node].removeCommunityHyperedges(task_group_id, {}, _hypergraphs);
+        });
+  }
+
+  void buildContractionHierarchy(const std::vector<Memento>&) {
+    ERROR("buildContractionHierarchy(mementos) is not supported in numa hypergraph");
+  }
+
+  void invalidateDisabledHyperedgesFromIncidentNets(const TaskGroupID) {
+    ERROR("invalidateDisabledHyperedgesFromIncidentNets(id) is not supported in numa hypergraph");
   }
 
  private:
