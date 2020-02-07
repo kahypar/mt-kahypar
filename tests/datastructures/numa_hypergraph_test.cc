@@ -320,6 +320,50 @@ TEST_F(AStaticNumaHypergraph, VerifiesNumberOfCommunitiesInHyperedges) {
   ASSERT_EQ(2, hypergraph.numCommunitiesInHyperedge(GLOBAL_EDGE_ID(hypergraph, 3)));
 }
 
+TEST_F(AStaticNumaHypergraph, ChecksHyperedgeCommunityIterator1) {
+  assignCommunityIds();
+  hypergraph.initializeCommunityHyperedges(TBBNumaArena::GLOBAL_TASK_GROUP);
+  const std::vector<PartitionID> expected_iter = { 0 };
+  size_t pos = 0;
+  for ( const PartitionID& community_id : hypergraph.communities(GLOBAL_EDGE_ID(hypergraph, 0)) ) {
+    ASSERT_EQ(expected_iter[pos++], community_id);
+  }
+  ASSERT_EQ(expected_iter.size(), pos);
+}
+
+TEST_F(AStaticNumaHypergraph, ChecksHyperedgeCommunityIterator2) {
+  assignCommunityIds();
+  hypergraph.initializeCommunityHyperedges(TBBNumaArena::GLOBAL_TASK_GROUP);
+  const std::vector<PartitionID> expected_iter = { 0, 1 };
+  size_t pos = 0;
+  for ( const PartitionID& community_id : hypergraph.communities(GLOBAL_EDGE_ID(hypergraph, 1)) ) {
+    ASSERT_EQ(expected_iter[pos++], community_id);
+  }
+  ASSERT_EQ(expected_iter.size(), pos);
+}
+
+TEST_F(AStaticNumaHypergraph, ChecksHyperedgeCommunityIterator3) {
+  assignCommunityIds();
+  hypergraph.initializeCommunityHyperedges(TBBNumaArena::GLOBAL_TASK_GROUP);
+  const std::vector<PartitionID> expected_iter = { 1, 2 };
+  size_t pos = 0;
+  for ( const PartitionID& community_id : hypergraph.communities(GLOBAL_EDGE_ID(hypergraph, 2)) ) {
+    ASSERT_EQ(expected_iter[pos++], community_id);
+  }
+  ASSERT_EQ(expected_iter.size(), pos);
+}
+
+TEST_F(AStaticNumaHypergraph, ChecksHyperedgeCommunityIterator4) {
+  assignCommunityIds();
+  hypergraph.initializeCommunityHyperedges(TBBNumaArena::GLOBAL_TASK_GROUP);
+  const std::vector<PartitionID> expected_iter = { 0, 2 };
+  size_t pos = 0;
+  for ( const PartitionID& community_id : hypergraph.communities(GLOBAL_EDGE_ID(hypergraph, 3)) ) {
+    ASSERT_EQ(expected_iter[pos++], community_id);
+  }
+  ASSERT_EQ(expected_iter.size(), pos);
+}
+
 TEST_F(AStaticNumaHypergraph, VerifiesCommunityHyperedgeInternals1) {
   assignCommunityIds();
   hypergraph.initializeCommunityHyperedges(TBBNumaArena::GLOBAL_TASK_GROUP);
@@ -372,6 +416,96 @@ TEST_F(AStaticNumaHypergraph, CanIterateOverThePinsOfASpecificCommunityInAHypere
   verifyCommunityPins(2, { GLOBAL_EDGE_ID(hypergraph, 2),
                            GLOBAL_EDGE_ID(hypergraph, 3) },
     { {id[6]}, {id[5], id[6]} });
+}
+
+TEST_F(AStaticNumaHypergraph, RemovesAHyperedgeFromTheHypergraph1) {
+  hypergraph.removeEdge(GLOBAL_EDGE_ID(hypergraph, 0));
+  verifyIncidentNets(id[0], { GLOBAL_EDGE_ID(hypergraph, 1) });
+  verifyIncidentNets(id[2], { GLOBAL_EDGE_ID(hypergraph, 3) });
+  for ( const HyperedgeID& he : hypergraph.edges() ) {
+    ASSERT_NE(GLOBAL_EDGE_ID(hypergraph, 0), he);
+  }
+}
+
+TEST_F(AStaticNumaHypergraph, RemovesAHyperedgeFromTheHypergraph2) {
+  hypergraph.removeEdge(GLOBAL_EDGE_ID(hypergraph, 1));
+  verifyIncidentNets(id[0], { GLOBAL_EDGE_ID(hypergraph, 0) });
+  verifyIncidentNets(id[1], { });
+  verifyIncidentNets(id[3], { GLOBAL_EDGE_ID(hypergraph, 2) });
+  verifyIncidentNets(id[4], { GLOBAL_EDGE_ID(hypergraph, 2) });
+  for ( const HyperedgeID& he : hypergraph.edges() ) {
+    ASSERT_NE(GLOBAL_EDGE_ID(hypergraph, 1), he);
+  }
+}
+
+TEST_F(AStaticNumaHypergraph, RemovesAHyperedgeFromTheHypergraph3) {
+  hypergraph.removeEdge(GLOBAL_EDGE_ID(hypergraph, 2));
+  verifyIncidentNets(id[3], { GLOBAL_EDGE_ID(hypergraph, 1) });
+  verifyIncidentNets(id[4], { GLOBAL_EDGE_ID(hypergraph, 1) });
+  verifyIncidentNets(id[6], { GLOBAL_EDGE_ID(hypergraph, 3) });
+  for ( const HyperedgeID& he : hypergraph.edges() ) {
+    ASSERT_NE(GLOBAL_EDGE_ID(hypergraph, 2), he);
+  }
+}
+
+TEST_F(AStaticNumaHypergraph, RemovesAHyperedgeFromTheHypergraph4) {
+  hypergraph.removeEdge(GLOBAL_EDGE_ID(hypergraph, 3));
+  verifyIncidentNets(id[2], { GLOBAL_EDGE_ID(hypergraph, 0) });
+  verifyIncidentNets(id[5], { });
+  verifyIncidentNets(id[6], { GLOBAL_EDGE_ID(hypergraph, 2) });
+  for ( const HyperedgeID& he : hypergraph.edges() ) {
+    ASSERT_NE(GLOBAL_EDGE_ID(hypergraph, 3), he);
+  }
+}
+
+TEST_F(AStaticNumaHypergraph, RestoresARemovedHyperedge1) {
+  hypergraph.removeEdge(GLOBAL_EDGE_ID(hypergraph, 0));
+  hypergraph.restoreEdge(GLOBAL_EDGE_ID(hypergraph, 0), 2);
+  verifyIncidentNets(id[0], { GLOBAL_EDGE_ID(hypergraph, 0),
+                              GLOBAL_EDGE_ID(hypergraph, 1) });
+  verifyIncidentNets(id[2], { GLOBAL_EDGE_ID(hypergraph, 0),
+                              GLOBAL_EDGE_ID(hypergraph, 3) });
+  verifyPins({ GLOBAL_EDGE_ID(hypergraph, 0) },
+    { {id[0], id[2]} });
+}
+
+TEST_F(AStaticNumaHypergraph, RestoresARemovedHyperedge2) {
+  hypergraph.removeEdge(GLOBAL_EDGE_ID(hypergraph, 1));
+  hypergraph.restoreEdge(GLOBAL_EDGE_ID(hypergraph, 1), 4);
+  verifyIncidentNets(id[0], { GLOBAL_EDGE_ID(hypergraph, 0),
+                              GLOBAL_EDGE_ID(hypergraph, 1) });
+  verifyIncidentNets(id[1], { GLOBAL_EDGE_ID(hypergraph, 1) });
+  verifyIncidentNets(id[3], { GLOBAL_EDGE_ID(hypergraph, 1),
+                              GLOBAL_EDGE_ID(hypergraph, 2) });
+  verifyIncidentNets(id[4], { GLOBAL_EDGE_ID(hypergraph, 1),
+                              GLOBAL_EDGE_ID(hypergraph, 2) });
+  verifyPins({ GLOBAL_EDGE_ID(hypergraph, 1) },
+    { {id[0], id[1], id[3], id[4]} });
+}
+
+TEST_F(AStaticNumaHypergraph, RestoresARemovedHyperedge3) {
+  hypergraph.removeEdge(GLOBAL_EDGE_ID(hypergraph, 2));
+  hypergraph.restoreEdge(GLOBAL_EDGE_ID(hypergraph, 2), 3);
+  verifyIncidentNets(id[3], { GLOBAL_EDGE_ID(hypergraph, 1),
+                              GLOBAL_EDGE_ID(hypergraph, 2) });
+  verifyIncidentNets(id[4], { GLOBAL_EDGE_ID(hypergraph, 1),
+                              GLOBAL_EDGE_ID(hypergraph, 2) });
+  verifyIncidentNets(id[6], { GLOBAL_EDGE_ID(hypergraph, 2),
+                              GLOBAL_EDGE_ID(hypergraph, 3) });
+  verifyPins({ GLOBAL_EDGE_ID(hypergraph, 2) },
+    { {id[3], id[4], id[6]} });
+}
+
+TEST_F(AStaticNumaHypergraph, RestoresARemovedHyperedge4) {
+  hypergraph.removeEdge(GLOBAL_EDGE_ID(hypergraph, 3));
+  hypergraph.restoreEdge(GLOBAL_EDGE_ID(hypergraph, 3), 3);
+  verifyIncidentNets(id[2], { GLOBAL_EDGE_ID(hypergraph, 0),
+                              GLOBAL_EDGE_ID(hypergraph, 3) });
+  verifyIncidentNets(id[5], { GLOBAL_EDGE_ID(hypergraph, 3) });
+  verifyIncidentNets(id[6], { GLOBAL_EDGE_ID(hypergraph, 2),
+                              GLOBAL_EDGE_ID(hypergraph, 3) });
+  verifyPins({ GLOBAL_EDGE_ID(hypergraph, 3) },
+    { {id[2], id[5], id[6]} });
 }
 
 }

@@ -34,17 +34,65 @@ using HyperedgeWeight = int32_t;
 using PartitionID = int32_t;
 using Gain = HyperedgeWeight;
 
+// Constant Declarations
+static constexpr PartitionID kInvalidPartition = -1;
+static constexpr HypernodeID kInvalidHypernode = std::numeric_limits<HypernodeID>::max();
+static constexpr HypernodeID kInvalidHyperedge = std::numeric_limits<HyperedgeID>::max();
+static constexpr size_t kEdgeHashSeed = 42;
+
 struct Move {
   PartitionID from;
   PartitionID to;
   Gain gain;
 };
 
-// Constant Declarations
-static constexpr PartitionID kInvalidPartition = -1;
-static constexpr HypernodeID kInvalidHypernode = std::numeric_limits<HypernodeID>::max();
-static constexpr HypernodeID kInvalidHyperedge = std::numeric_limits<HyperedgeID>::max();
-static constexpr size_t kEdgeHashSeed = 42;
+/*!
+* A memento stores all information necessary to undo the contraction operation
+* of a vertex pair \f$(u,v)\f$.
+*/
+struct Memento {
+  Memento() :
+    u(kInvalidHypernode),
+    v(kInvalidHypernode),
+    community_id(kInvalidPartition),
+    one_pin_hes_begin(0),
+    one_pin_hes_size(0),
+    parallel_hes_begin(0),
+    parallel_hes_size(0) { }
+
+  Memento(HypernodeID representative, HypernodeID contraction_partner) :
+    u(representative),
+    v(contraction_partner),
+    community_id(kInvalidPartition),
+    one_pin_hes_begin(0),
+    one_pin_hes_size(0),
+    parallel_hes_begin(0),
+    parallel_hes_size(0) { }
+
+  Memento(HypernodeID representative, HypernodeID contraction_partner, PartitionID community) :
+    u(representative),
+    v(contraction_partner),
+    community_id(community),
+    one_pin_hes_begin(0),
+    one_pin_hes_size(0),
+    parallel_hes_begin(0),
+    parallel_hes_size(0) { }
+
+  // ! The representative hypernode that remains in the hypergraph
+  HypernodeID u;
+  // ! The contraction partner of u that is removed from the hypergraph after the contraction.
+  HypernodeID v;
+  // ! Community id of hypernodes
+  PartitionID community_id;
+  // ! start of removed single pin hyperedges
+  int one_pin_hes_begin;
+  // ! # removed single pin hyperedges
+  int one_pin_hes_size;
+  // ! start of removed parallel hyperedges
+  int parallel_hes_begin;
+  // ! # removed parallel hyperedges
+  int parallel_hes_size;
+};
 
 namespace common {
 

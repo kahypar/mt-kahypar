@@ -53,6 +53,8 @@ class NumaHypergraph {
   using IncidenceIterator = typename Hypergraph::IncidenceIterator;
   // ! Iterator to iterate over the incident nets of a hypernode
   using IncidentNetsIterator = typename Hypergraph::IncidentNetsIterator;
+  // ! Iterator to iterate over the set of communities contained in a hyperedge
+  using CommunityIterator = typename Hypergraph::CommunityIterator;
 
  public:
   static constexpr bool is_static_hypergraph = Hypergraph::is_static_hypergraph;
@@ -270,13 +272,13 @@ class NumaHypergraph {
     return hypergraph_of_vertex(u).incidentEdges(u);
   }
 
-  // ! Returns a range to loop over all VALID hyperedges of hypernode u.
+  // ! Returns a range to loop over all active multi-pin hyperedges of hypernode u.
   IteratorRange<IncidentNetsIterator> multiPinIncidentEdges(const HypernodeID u, const PartitionID community_id) const {
     return hypergraph_of_vertex(u).multiPinIncidentEdges(u, community_id);
   }
 
-  // TODO function name should reflect its purpose
-  // ! Returns a range to loop over the set of all VALID incident hyperedges of hypernode u that are not single-pin community hyperedges.
+  // ! Returns a range to loop over the set of all active incident
+  // ! hyperedges of hypernode u that are not single-pin community hyperedges.
   IteratorRange<IncidentNetsIterator> activeIncidentEdges(const HypernodeID u, const PartitionID community_id) const {
     return hypergraph_of_vertex(u).activeIncidentEdges(u, community_id);
   }
@@ -293,7 +295,9 @@ class NumaHypergraph {
   }
 
   // ! Returns a range to loop over the set of communities contained in hyperedge e.
-  // IteratorRange<CommunityIterator> communities(const HyperedgeID e) const {
+  IteratorRange<CommunityIterator> communities(const HyperedgeID e) const {
+    return hypergraph_of_edge(e).communities(e);
+  }
 
   // ####################### Hypernode Information #######################
 
@@ -507,6 +511,102 @@ class NumaHypergraph {
   void setCommunityNodeMapping(std::vector<PartitionID>&& community_node_mapping) {
     ASSERT(community_node_mapping.size() == static_cast<size_t>(numCommunities()));
     _community_node_mapping = std::move(community_node_mapping);
+  }
+
+  // ####################### Contract / Uncontract #######################
+
+  Memento contract(const HypernodeID, const HypernodeID) {
+    ERROR("contract(u,v) is not supported in static hypergraph");
+    return Memento();
+  }
+
+  Memento contract(const HypernodeID, const HypernodeID, const PartitionID) {
+    ERROR("contract(u,v,c) is not supported in static hypergraph");
+    return Memento();
+  }
+
+  std::pair<StaticHypergraph, parallel::scalable_vector<HypernodeID>> contract(
+    const parallel::scalable_vector<HypernodeID>&,
+    const TaskGroupID) const {
+    ERROR("contract(communities,id) is not supported in static hypergraph");
+    return std::make_pair(StaticHypergraph(), parallel::scalable_vector<HypernodeID>());
+  }
+
+  void uncontract(const Memento&, parallel::scalable_vector<HyperedgeID>&) {
+    ERROR("uncontract(memento,parallel_he) is not supported in static hypergraph");
+  }
+
+  void uncontract(const std::vector<Memento>&,
+                  parallel::scalable_vector<HyperedgeID>&,
+                  const kahypar::ds::FastResetFlagArray<>&,
+                  const bool) {
+    ERROR("uncontract(...) is not supported in static hypergraph");
+  }
+
+  void restoreDisabledHyperedgesThatBecomeNonParallel(
+    const Memento&,
+    parallel::scalable_vector<HyperedgeID>&,
+    const kahypar::ds::FastResetFlagArray<>&) {
+    ERROR("restoreDisabledHyperedgesThatBecomeNonParallel(...) is not supported"
+          << "in static hypergraph");
+  }
+
+  parallel::scalable_vector<HyperedgeID> findDisabledHyperedgesThatBecomeNonParallel(
+    const Memento&,
+    parallel::scalable_vector<HyperedgeID>&,
+    const kahypar::ds::FastResetFlagArray<>&) {
+    ERROR("findDisabledHyperedgesThatBecomeNonParallel(...) is not supported"
+          << "in static hypergraph");
+    return parallel::scalable_vector<HyperedgeID>();
+  }
+
+  // ####################### Remove / Restore Hyperedges #######################
+
+  /*!
+  * Removes a hyperedge from the hypergraph. This includes the removal of he from all
+  * of its pins and to disable the hyperedge.
+  *
+  * NOTE, this function is not thread-safe and should only be called in a single-threaded
+  * setting.
+  */
+  void removeEdge(const HyperedgeID he) {
+    ASSERT(edgeIsEnabled(he), "Hyperedge" << he << "is disabled");
+    for ( const HypernodeID& pin : pins(he) ) {
+      hypergraph_of_vertex(pin).removeIncidentEdgeFromHypernode(he, pin);
+    }
+    hypergraph_of_edge(he).disableHyperedge(he);
+  }
+
+  void removeSinglePinCommunityEdge(const HyperedgeID, const PartitionID) {
+    ERROR("removeSinglePinCommunityEdge(e,c) is not supported in static hypergraph");
+  }
+
+  void removeParallelEdge(const HyperedgeID, const PartitionID) {
+    ERROR("removeParallelEdge(e,c) is not supported in static hypergraph");
+  }
+
+  // ! Restores an hyperedge of a certain size.
+  void restoreEdge(const HyperedgeID he, const size_t,
+                   const HyperedgeID representative = kInvalidHyperedge) {
+    unused(representative);
+    ASSERT(!edgeIsEnabled(he), "Hyperedge" << he << "already enabled");
+    hypergraph_of_edge(he).enableHyperedge(he);
+    for ( const HypernodeID& pin : pins(he) ) {
+      hypergraph_of_vertex(pin).insertIncidentEdgeToHypernode(he, pin);
+    }
+  }
+
+  // ! Restores a single-pin hyperedge
+  void restoreSinglePinHyperedge(const HyperedgeID he) {
+    restoreEdge(he, 1);
+  }
+
+  void restoreParallelHyperedge(const HyperedgeID,
+                                const Memento&,
+                                parallel::scalable_vector<HyperedgeID>&,
+                                const kahypar::ds::FastResetFlagArray<>* batch_hypernodes = nullptr) {
+    unused(batch_hypernodes);
+    ERROR("restoreParallelHyperedge(...) is not supported in static hypergraph");
   }
 
   // ####################### Initialization / Reset Functions #######################

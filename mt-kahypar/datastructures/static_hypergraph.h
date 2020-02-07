@@ -35,10 +35,9 @@ namespace ds {
 // Forward
 class StaticHypergraphFactory;
 
-template<class Hypergraph>
-class CommunitySupport;
-
 class StaticHypergraph {
+
+  static constexpr bool enable_heavy_assert = false;
 
   /**
    * Represents a hypernode of the hypergraph and contains all information
@@ -362,6 +361,8 @@ class StaticHypergraph {
   using IncidenceIterator = typename IncidenceArray::const_iterator;
   // ! Iterator to iterate over the incident nets of a hypernode
   using IncidentNetsIterator = typename IncidentNets::const_iterator;
+  // ! Iterator to iterate over the set of communities contained in a hyperedge
+  using CommunityIterator = typename CommunitySupport<StaticHypergraph>::CommunityIterator;
 
   explicit StaticHypergraph() :
     _node(0),
@@ -565,15 +566,15 @@ class StaticHypergraph {
       _incident_nets.cbegin() + hn.firstInvalidEntry());
   }
 
-  // ! Returns a range to loop over all VALID hyperedges of hypernode u.
+  // ! Returns a range to loop over all active multi-pin hyperedges of hypernode u.
   IteratorRange<IncidentNetsIterator> multiPinIncidentEdges(const HypernodeID, const PartitionID) const {
     ERROR("multiPinIncidentEdges(u,c) is not supported in static hypergraph");
     return IteratorRange<IncidentNetsIterator>(
       _incident_nets.cend(), _incident_nets.cend());
   }
 
-  // TODO function name should reflect its purpose
-  // ! Returns a range to loop over the set of all VALID incident hyperedges of hypernode u that are not single-pin community hyperedges.
+  // ! Returns a range to loop over the set of all active incident
+  // ! hyperedges of hypernode u that are not single-pin community hyperedges.
   IteratorRange<IncidentNetsIterator> activeIncidentEdges(const HypernodeID, const PartitionID) const {
     ERROR("activeIncidentEdges(u,c) is not supported in static hypergraph");
     return IteratorRange<IncidentNetsIterator>(
@@ -596,7 +597,9 @@ class StaticHypergraph {
   }
 
   // ! Returns a range to loop over the set of communities contained in hyperedge e.
-  // IteratorRange<CommunityIterator> communities(const HyperedgeID e) const {
+  IteratorRange<CommunityIterator> communities(const HyperedgeID e) const {
+    return _community_support.communities(e);
+  }
 
   // ####################### Hypernode Information #######################
 
@@ -810,6 +813,102 @@ class StaticHypergraph {
   // ! Sets the community to numa node mapping
   void setCommunityNodeMapping(std::vector<PartitionID>&&) { }
 
+  // ####################### Contract / Uncontract #######################
+
+  Memento contract(const HypernodeID, const HypernodeID) {
+    ERROR("contract(u,v) is not supported in static hypergraph");
+    return Memento();
+  }
+
+  Memento contract(const HypernodeID, const HypernodeID, const PartitionID) {
+    ERROR("contract(u,v,c) is not supported in static hypergraph");
+    return Memento();
+  }
+
+  std::pair<StaticHypergraph, parallel::scalable_vector<HypernodeID>> contract(
+    const parallel::scalable_vector<HypernodeID>&,
+    const TaskGroupID) const {
+    ERROR("contract(communities,id) is not supported in static hypergraph");
+    return std::make_pair(StaticHypergraph(), parallel::scalable_vector<HypernodeID>());
+  }
+
+  void uncontract(const Memento&, parallel::scalable_vector<HyperedgeID>&) {
+    ERROR("uncontract(memento,parallel_he) is not supported in static hypergraph");
+  }
+
+  void uncontract(const std::vector<Memento>&,
+                  parallel::scalable_vector<HyperedgeID>&,
+                  const kahypar::ds::FastResetFlagArray<>&,
+                  const bool) {
+    ERROR("uncontract(...) is not supported in static hypergraph");
+  }
+
+  void restoreDisabledHyperedgesThatBecomeNonParallel(
+    const Memento&,
+    parallel::scalable_vector<HyperedgeID>&,
+    const kahypar::ds::FastResetFlagArray<>&) {
+    ERROR("restoreDisabledHyperedgesThatBecomeNonParallel(...) is not supported"
+          << "in static hypergraph");
+  }
+
+  parallel::scalable_vector<HyperedgeID> findDisabledHyperedgesThatBecomeNonParallel(
+    const Memento&,
+    parallel::scalable_vector<HyperedgeID>&,
+    const kahypar::ds::FastResetFlagArray<>&) {
+    ERROR("findDisabledHyperedgesThatBecomeNonParallel(...) is not supported"
+          << "in static hypergraph");
+    return parallel::scalable_vector<HyperedgeID>();
+  }
+
+  // ####################### Remove / Restore Hyperedges #######################
+
+  /*!
+  * Removes a hyperedge from the hypergraph. This includes the removal of he from all
+  * of its pins and to disable the hyperedge.
+  *
+  * NOTE, this function is not thread-safe and should only be called in a single-threaded
+  * setting.
+  */
+  void removeEdge(const HyperedgeID he) {
+    ASSERT(edgeIsEnabled(he), "Hyperedge" << he << "is disabled");
+    for ( const HypernodeID& pin : pins(he) ) {
+      removeIncidentEdgeFromHypernode(he, pin);
+    }
+    disableHyperedge(he);
+  }
+
+  void removeSinglePinCommunityEdge(const HyperedgeID, const PartitionID) {
+    ERROR("removeSinglePinCommunityEdge(e,c) is not supported in static hypergraph");
+  }
+
+  void removeParallelEdge(const HyperedgeID, const PartitionID) {
+    ERROR("removeParallelEdge(e,c) is not supported in static hypergraph");
+  }
+
+  // ! Restores an hyperedge of a certain size.
+  void restoreEdge(const HyperedgeID he, const size_t,
+                   const HyperedgeID representative = kInvalidHyperedge) {
+    unused(representative);
+    ASSERT(!edgeIsEnabled(he), "Hyperedge" << he << "already enabled");
+    enableHyperedge(he);
+    for ( const HypernodeID& pin : pins(he) ) {
+      insertIncidentEdgeToHypernode(he, pin);
+    }
+  }
+
+  // ! Restores a single-pin hyperedge
+  void restoreSinglePinHyperedge(const HyperedgeID he) {
+    restoreEdge(he, 1);
+  }
+
+  void restoreParallelHyperedge(const HyperedgeID,
+                                const Memento&,
+                                parallel::scalable_vector<HyperedgeID>&,
+                                const kahypar::ds::FastResetFlagArray<>* batch_hypernodes = nullptr) {
+    unused(batch_hypernodes);
+    ERROR("restoreParallelHyperedge(...) is not supported in static hypergraph");
+  }
+
   // ####################### Initialization / Reset Functions #######################
 
   /*!
@@ -843,6 +942,10 @@ class StaticHypergraph {
   friend class StaticHypergraphFactory;
   template<typename Hypergraph>
   friend class CommunitySupport;
+  template <typename Hypergraph,
+            typename HardwareTopology,
+            typename TBBNumaArena>
+  friend class NumaHypergraph;
 
   // ####################### Hypernode Information #######################
 
@@ -851,7 +954,7 @@ class StaticHypergraph {
     const HyperedgeID local_pos = common::get_local_position_of_vertex(u);
     ASSERT(_node == common::get_numa_node_of_vertex(u),
       "Hypernode" << u << "is not part of hypergraph on numa node" << _node);
-    ASSERT(local_pos < _num_hypernodes, "Hypernode" << u << "does not exist");
+    ASSERT(local_pos <= _num_hypernodes, "Hypernode" << u << "does not exist");
     return _hypernodes[local_pos];
   }
 
@@ -867,13 +970,55 @@ class StaticHypergraph {
     const HyperedgeID local_pos = common::get_local_position_of_edge(e);
     ASSERT(_node == common::get_numa_node_of_edge(e),
       "Hyperedge" << e << "is not part of hypergraph on numa node" << _node);
-    ASSERT(local_pos < _num_hyperedges, "Hyperedge" << e << "does not exist");
+    ASSERT(local_pos <= _num_hyperedges, "Hyperedge" << e << "does not exist");
     return _hyperedges[local_pos];
   }
 
   // ! To avoid code duplication we implement non-const version in terms of const version
   KAHYPAR_ATTRIBUTE_ALWAYS_INLINE Hyperedge& hyperedge(const HyperedgeID e) {
     return const_cast<Hyperedge&>(static_cast<const StaticHypergraph&>(*this).hyperedge(e));
+  }
+
+  // ####################### Remove / Restore Hyperedges #######################
+
+  // ! Removes hyperedge e from the incident nets of vertex hn
+  KAHYPAR_ATTRIBUTE_ALWAYS_INLINE void removeIncidentEdgeFromHypernode(const HyperedgeID e,
+                                                                       const HypernodeID u) {
+    using std::swap;
+    ASSERT(!hypernode(u).isDisabled(), "Hypernode" << u << "is disabled");
+
+    Hypernode& hn = hypernode(u);
+    size_t incident_nets_pos = hn.firstEntry();
+    for ( ; incident_nets_pos < hn.firstInvalidEntry(); ++incident_nets_pos ) {
+      if ( _incident_nets[incident_nets_pos] == e ) {
+        break;
+      }
+    }
+    ASSERT(incident_nets_pos < hn.firstInvalidEntry());
+    swap(_incident_nets[incident_nets_pos], _incident_nets[hn.firstInvalidEntry() - 1]);
+    hn.setSize(hn.size() - 1);
+  }
+
+  // ! Inserts hyperedge he to incident nets array of vertex hn
+  KAHYPAR_ATTRIBUTE_ALWAYS_INLINE void insertIncidentEdgeToHypernode(const HyperedgeID e,
+                                                                     const HypernodeID u) {
+    using std::swap;
+    Hypernode& hn = hypernode(u);
+    ASSERT(!hn.isDisabled(), "Hypernode" << u << "is disabled");
+    HEAVY_REFINEMENT_ASSERT(std::count(_incident_nets.cbegin() + hn.firstEntry(),
+                                       _incident_nets.cend() + hn.firstInvalidEntry(), e) == 0,
+                        "HN" << u << "is already connected to HE" << e);
+    const size_t incident_nets_start = hn.firstInvalidEntry();
+    const size_t incident_nets_end = hypernode(u + 1).firstEntry();
+    size_t incident_nets_pos = incident_nets_start;
+    for ( ; incident_nets_pos < incident_nets_end; ++incident_nets_pos ) {
+      if ( _incident_nets[incident_nets_pos] == e ) {
+        break;
+      }
+    }
+    ASSERT(incident_nets_pos < incident_nets_end);
+    swap(_incident_nets[incident_nets_start], _incident_nets[incident_nets_pos]);
+    hn.setSize(hn.size() + 1);
   }
 
   // ! NUMA node of hypergraph

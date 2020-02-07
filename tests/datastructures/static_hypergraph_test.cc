@@ -257,6 +257,50 @@ TEST_F(AStaticHypergraph, VerifiesNumberOfCommunitiesInHyperedges) {
   ASSERT_EQ(2, hypergraph.numCommunitiesInHyperedge(3));
 }
 
+TEST_F(AStaticHypergraph, ChecksHyperedgeCommunityIterator1) {
+  assignCommunityIds();
+  hypergraph.initializeCommunityHyperedges(TBBNumaArena::GLOBAL_TASK_GROUP);
+  const std::vector<PartitionID> expected_iter = { 0 };
+  size_t pos = 0;
+  for ( const PartitionID& community_id : hypergraph.communities(0) ) {
+    ASSERT_EQ(expected_iter[pos++], community_id);
+  }
+  ASSERT_EQ(expected_iter.size(), pos);
+}
+
+TEST_F(AStaticHypergraph, ChecksHyperedgeCommunityIterator2) {
+  assignCommunityIds();
+  hypergraph.initializeCommunityHyperedges(TBBNumaArena::GLOBAL_TASK_GROUP);
+  const std::vector<PartitionID> expected_iter = { 0, 1 };
+  size_t pos = 0;
+  for ( const PartitionID& community_id : hypergraph.communities(1) ) {
+    ASSERT_EQ(expected_iter[pos++], community_id);
+  }
+  ASSERT_EQ(expected_iter.size(), pos);
+}
+
+TEST_F(AStaticHypergraph, ChecksHyperedgeCommunityIterator3) {
+  assignCommunityIds();
+  hypergraph.initializeCommunityHyperedges(TBBNumaArena::GLOBAL_TASK_GROUP);
+  const std::vector<PartitionID> expected_iter = { 1, 2 };
+  size_t pos = 0;
+  for ( const PartitionID& community_id : hypergraph.communities(2) ) {
+    ASSERT_EQ(expected_iter[pos++], community_id);
+  }
+  ASSERT_EQ(expected_iter.size(), pos);
+}
+
+TEST_F(AStaticHypergraph, ChecksHyperedgeCommunityIterator4) {
+  assignCommunityIds();
+  hypergraph.initializeCommunityHyperedges(TBBNumaArena::GLOBAL_TASK_GROUP);
+  const std::vector<PartitionID> expected_iter = { 0, 2 };
+  size_t pos = 0;
+  for ( const PartitionID& community_id : hypergraph.communities(3) ) {
+    ASSERT_EQ(expected_iter[pos++], community_id);
+  }
+  ASSERT_EQ(expected_iter.size(), pos);
+}
+
 TEST_F(AStaticHypergraph, VerifiesCommunityHyperedgeInternals1) {
   assignCommunityIds();
   hypergraph.initializeCommunityHyperedges(TBBNumaArena::GLOBAL_TASK_GROUP);
@@ -305,6 +349,82 @@ TEST_F(AStaticHypergraph, CanIterateOverThePinsOfASpecificCommunityInAHyperedge3
   hypergraph.initializeCommunityHyperedges(TBBNumaArena::GLOBAL_TASK_GROUP);
   verifyCommunityPins(2, { 2, 3 },
     { {6}, {5, 6} });
+}
+
+TEST_F(AStaticHypergraph, RemovesAHyperedgeFromTheHypergraph1) {
+  hypergraph.removeEdge(0);
+  verifyIncidentNets(0, { 1 });
+  verifyIncidentNets(2, { 3 });
+  for ( const HyperedgeID& he : hypergraph.edges() ) {
+    ASSERT_NE(0, he);
+  }
+}
+
+TEST_F(AStaticHypergraph, RemovesAHyperedgeFromTheHypergraph2) {
+  hypergraph.removeEdge(1);
+  verifyIncidentNets(0, { 0 });
+  verifyIncidentNets(1, { });
+  verifyIncidentNets(3, { 2 });
+  verifyIncidentNets(4, { 2 });
+  for ( const HyperedgeID& he : hypergraph.edges() ) {
+    ASSERT_NE(1, he);
+  }
+}
+
+TEST_F(AStaticHypergraph, RemovesAHyperedgeFromTheHypergraph3) {
+  hypergraph.removeEdge(2);
+  verifyIncidentNets(3, { 1 });
+  verifyIncidentNets(4, { 1 });
+  verifyIncidentNets(6, { 3 });
+  for ( const HyperedgeID& he : hypergraph.edges() ) {
+    ASSERT_NE(2, he);
+  }
+}
+
+TEST_F(AStaticHypergraph, RemovesAHyperedgeFromTheHypergraph4) {
+  hypergraph.removeEdge(3);
+  verifyIncidentNets(2, { 0 });
+  verifyIncidentNets(5, { });
+  verifyIncidentNets(6, { 2 });
+  for ( const HyperedgeID& he : hypergraph.edges() ) {
+    ASSERT_NE(3, he);
+  }
+}
+
+TEST_F(AStaticHypergraph, RestoresARemovedHyperedge1) {
+  hypergraph.removeEdge(0);
+  hypergraph.restoreEdge(0, 2);
+  verifyIncidentNets(0, { 0, 1 });
+  verifyIncidentNets(2, { 0, 3 });
+  verifyPins({ 0 }, { {0, 2} });
+}
+
+TEST_F(AStaticHypergraph, RestoresARemovedHyperedge2) {
+  hypergraph.removeEdge(1);
+  hypergraph.restoreEdge(1, 4);
+  verifyIncidentNets(0, { 0, 1 });
+  verifyIncidentNets(1, { 1 });
+  verifyIncidentNets(3, { 1, 2 });
+  verifyIncidentNets(4, { 1, 2 });
+  verifyPins({ 1 }, { {0, 1, 3, 4} });
+}
+
+TEST_F(AStaticHypergraph, RestoresARemovedHyperedge3) {
+  hypergraph.removeEdge(2);
+  hypergraph.restoreEdge(2, 3);
+  verifyIncidentNets(3, { 1, 2 });
+  verifyIncidentNets(4, { 1, 2 });
+  verifyIncidentNets(6, { 2, 3 });
+  verifyPins({ 2 }, { {3, 4, 6} });
+}
+
+TEST_F(AStaticHypergraph, RestoresARemovedHyperedge4) {
+  hypergraph.removeEdge(3);
+  hypergraph.restoreEdge(3, 3);
+  verifyIncidentNets(2, { 0, 3 });
+  verifyIncidentNets(5, { 3 });
+  verifyIncidentNets(6, { 2, 3 });
+  verifyPins({ 3 }, { {2, 5, 6} });
 }
 
 }

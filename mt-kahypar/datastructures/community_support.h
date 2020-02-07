@@ -149,34 +149,49 @@ class CommunitySupport {
   static_assert(std::is_trivially_copyable<CommunityHyperedge>::value,
     "Community Hyperedge is not trivally copyable");
 
+  using CommunitiesOfHyperedges = parallel::scalable_vector<parallel::scalable_vector<PartitionID> >;
   using CommunityHyperedges = parallel::scalable_vector<parallel::scalable_vector<CommunityHyperedge> >;
   // ! Iterator to iterate over the pins of a hyperedge
   using IncidenceIterator = typename Hypergraph::IncidenceIterator;
 
  public:
+  using CommunityIterator = parallel::scalable_vector<PartitionID>::const_iterator;
+
   explicit CommunitySupport() :
+    _node(0),
     _is_initialized(false),
     _num_communities(0),
     _communities_num_hypernodes(),
     _communities_num_pins(),
-    _community_degree() { }
+    _community_degree(),
+    _are_community_hyperedges_initialized(false),
+    _community_hyperedge_ids(),
+    _community_hyperedges() { }
 
   CommunitySupport(const CommunitySupport&) = delete;
   CommunitySupport & operator= (const CommunitySupport &) = delete;
 
   CommunitySupport(CommunitySupport&& other) :
+    _node(other._node),
     _is_initialized(other._is_initialized),
     _num_communities(other._num_communities),
     _communities_num_hypernodes(std::move(other._communities_num_hypernodes)),
     _communities_num_pins(std::move(other._communities_num_pins)),
-    _community_degree(std::move(other._community_degree)) { }
+    _community_degree(std::move(other._community_degree)),
+    _are_community_hyperedges_initialized(other._are_community_hyperedges_initialized),
+    _community_hyperedge_ids(std::move(other._community_hyperedge_ids)),
+    _community_hyperedges(std::move(other._community_hyperedges)) { }
 
   CommunitySupport & operator= (CommunitySupport&& other) {
+    _node = other._node;
     _is_initialized = other._is_initialized;
     _num_communities = other._num_communities;
     _communities_num_hypernodes = std::move(other._communities_num_hypernodes);
     _communities_num_pins = std::move(other._communities_num_pins);
     _community_degree = std::move(other._community_degree);
+    _are_community_hyperedges_initialized = other._are_community_hyperedges_initialized;
+    _community_hyperedge_ids = std::move(other._community_hyperedge_ids);
+    _community_hyperedges = std::move(other._community_hyperedges);
     return *this;
   }
 
@@ -216,6 +231,17 @@ class CommunitySupport {
     return IteratorRange<IncidenceIterator>(
       hypergraph._incidence_array.cbegin() + community_he.firstEntry(),
       hypergraph._incidence_array.cbegin() + community_he.firstInvalidEntry());
+  }
+
+  // ! Returns a range to loop over the set of communities contained in hyperedge e.
+  IteratorRange<CommunityIterator> communities(const HyperedgeID e) const {
+    ASSERT(_are_community_hyperedges_initialized);
+    HyperedgeID local_id = common::get_local_position_of_edge(e);
+    ASSERT(local_id < _community_hyperedge_ids.size(), "Hyperedge" << e << "does not exist");
+    ASSERT(_node == common::get_numa_node_of_edge(e), "Hyperedge" << e << "is not part of NUMA node" << _node);
+    return IteratorRange<CommunityIterator>(
+      _community_hyperedge_ids[local_id].cbegin(),
+      _community_hyperedge_ids[local_id].cend());
   }
 
   // ! Weight of a community hyperedge
@@ -265,6 +291,7 @@ class CommunitySupport {
   void initialize(const Hypergraph& hypergraph,
                   const int node,
                   const parallel::scalable_vector<Hypergraph>& hypergraphs) {
+    _node = node;
     // Compute number of communities
     if ( hypergraphs.empty() ) {
       computeNumberOfCommunities(hypergraph);
@@ -372,6 +399,7 @@ class CommunitySupport {
         ASSERT(community_id != kInvalidPartition);
         ASSERT(he < _community_hyperedges.size());
         ASSERT(start < end);
+        _community_hyperedge_ids[he].push_back(community_id);
         _community_hyperedges[he].emplace_back(community_id, start, end - start, weight);
 
         // Compute community hyperedge hash
@@ -381,6 +409,7 @@ class CommunitySupport {
         }
       };
 
+    _community_hyperedge_ids.resize(hypergraph.initialNumEdges());
     _community_hyperedges.resize(hypergraph.initialNumEdges());
     tbb::parallel_for(0UL, hypergraph.initialNumEdges(), [&](const HyperedgeID& he) {
       auto& e = hypergraph._hyperedges[he];
@@ -466,6 +495,7 @@ class CommunitySupport {
   KAHYPAR_ATTRIBUTE_ALWAYS_INLINE const CommunityHyperedge& community_hyperedge(const HyperedgeID e, const PartitionID community_id) const {
     const HypernodeID local_id = common::get_local_position_of_edge(e);
     ASSERT(local_id < _community_hyperedges.size(), "Hyperedge" << e << "does not exist");
+    ASSERT(_node == common::get_numa_node_of_edge(e), "Hyperedge" << e << "is not part of NUMA node" << _node);
 
     size_t community_hyperedge_pos = 0;
     for ( ; community_hyperedge_pos < _community_hyperedges[local_id].size(); ++community_hyperedge_pos ) {
@@ -484,6 +514,8 @@ class CommunitySupport {
     return const_cast<CommunityHyperedge&>(static_cast<const CommunitySupport&>(*this).community_hyperedge(e, community_id));
   }
 
+  // ! NUMA node over which this class is constructed
+  int _node;
   // ! Indicates, if community information are initialized
   bool _is_initialized;
   // ! Number of communities
@@ -497,6 +529,8 @@ class CommunitySupport {
 
   // ! Indicates, if community hyperedges are initialized
   bool _are_community_hyperedges_initialized;
+  // ! Community Ids contained in a hyperedge
+  CommunitiesOfHyperedges _community_hyperedge_ids;
   // ! For each hyperedge this structure contains all community hyperedges
   CommunityHyperedges _community_hyperedges;
 
