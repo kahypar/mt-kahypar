@@ -789,7 +789,45 @@ TEST_F(AStaticHypergraph, ContractsCommunitiesWithDisabledHyperedges) {
     { {0, 1}, {1, 3} });
 }
 
-// TODO(heuer): More tests with communities assigned
+TEST_F(AStaticHypergraph, ContractCommunitiesIfCommunityInformationAreAvailable) {
+  assignCommunityIds();
+  auto contracted_hg = hypergraph.contract(
+    {0, 0, 1, 2, 2, 3, 3}, TBBNumaArena::GLOBAL_TASK_GROUP);
+  StaticHypergraph& c_hypergraph = contracted_hg.first;
+
+  // Verify Community Ids
+  ASSERT_EQ(0, c_hypergraph.communityID(0));
+  ASSERT_EQ(0, c_hypergraph.communityID(1));
+  ASSERT_EQ(1, c_hypergraph.communityID(2));
+  ASSERT_EQ(2, c_hypergraph.communityID(3));
+
+  // Verify Community Stats
+  ASSERT_EQ(2, c_hypergraph.numCommunityHypernodes(0));
+  ASSERT_EQ(1, c_hypergraph.numCommunityHypernodes(1));
+  ASSERT_EQ(1, c_hypergraph.numCommunityHypernodes(2));
+  ASSERT_EQ(4, c_hypergraph.numCommunityPins(0));
+  ASSERT_EQ(2, c_hypergraph.numCommunityPins(1));
+  ASSERT_EQ(2, c_hypergraph.numCommunityPins(2));
+  ASSERT_EQ(4, c_hypergraph.communityDegree(0));
+  ASSERT_EQ(2, c_hypergraph.communityDegree(1));
+  ASSERT_EQ(2, c_hypergraph.communityDegree(2));
+}
+
+TEST_F(AStaticHypergraph, ContractCommunitiesIfCommunityHyperedgesAreAvailable) {
+  assignCommunityIds();
+  hypergraph.initializeCommunityHyperedges(TBBNumaArena::GLOBAL_TASK_GROUP);
+  auto contracted_hg = hypergraph.contract(
+    {0, 0, 1, 2, 2, 3, 3}, TBBNumaArena::GLOBAL_TASK_GROUP);
+  StaticHypergraph& c_hypergraph = contracted_hg.first;
+
+  // Verify Hypergraph Structure
+  verifyCommunityPins(c_hypergraph, 0, { 0, 1, 2 },
+    { {0, 1}, {0}, {1} });
+  verifyCommunityPins(c_hypergraph, 1, { 1, 3 },
+    { {2}, {2} });
+  verifyCommunityPins(c_hypergraph, 2, { 2, 3 },
+    { {3}, {3} });
+}
 
 }
 } // namespace mt_kahypar

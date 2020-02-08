@@ -898,7 +898,8 @@ class StaticHypergraph {
     }, [&] {
       community_ids.assign(num_hypernodes, 0);
     }, [&] {
-      is_high_degree_vertex.assign(num_hypernodes, parallel::IntegralAtomicWrapper<uint8_t>(false));
+      is_high_degree_vertex.assign(num_hypernodes,
+        parallel::IntegralAtomicWrapper<uint8_t>(false));
     });
 
     doParallelForAllNodes(task_group_id, [&](const HypernodeID& hn) {
@@ -922,34 +923,7 @@ class StaticHypergraph {
     // hash are then present in the same bucket of the streaming map, which
     // makes it possible to detect parallel hyperedges in parallel.
     StreamingMap<size_t, ContractedHyperedge> hash_to_hyperedge;
-    doParallelForAllEdges(task_group_id, [&](const HyperedgeID& he) {
-      parallel::scalable_vector<HypernodeID> hyperedge;
-      hyperedge.reserve(edgeSize(he));
-      for ( const HypernodeID pin : pins(he) ) {
-        hyperedge.emplace_back(map_to_coarse_hypergraph(pin));
-      }
-
-      // Removing duplicates
-      std::sort(hyperedge.begin(), hyperedge.end());
-      hyperedge.erase(std::unique(hyperedge.begin(), hyperedge.end()), hyperedge.end());
-
-      // Removing disable hypernodes
-      while ( !hyperedge.empty() && hyperedge.back() == kInvalidHypernode ) {
-        hyperedge.pop_back();
-      }
-
-      // Remove single-pin hyperedges
-      if ( hyperedge.size() > 1 ) {
-        // Compute hash of hyperedge
-        size_t he_hash = kEdgeHashSeed;
-        for ( const HypernodeID& pin : hyperedge ) {
-          he_hash += kahypar::math::hash(pin);
-        }
-        hash_to_hyperedge.stream(he_hash,
-          ContractedHyperedge { he_hash, edgeWeight(he),
-            false, 0, std::move(hyperedge), 0UL, 0UL } );
-      }
-    });
+    contractHyperedges(task_group_id, hash_to_hyperedge, map_to_coarse_hypergraph);
 
     using HyperedgeMap = parallel::scalable_vector<parallel::scalable_vector<ContractedHyperedge>>;
     HyperedgeMap hyperedge_buckets(hash_to_hyperedge.size());
@@ -1048,7 +1022,6 @@ class StaticHypergraph {
       incident_nets_prefix_sum(num_incident_nets);
     tbb::parallel_scan(tbb::blocked_range<HypernodeID>(
       0UL, num_hypernodes), incident_nets_prefix_sum);
-    hypergraph._incident_nets.resize(hypergraph._num_pins);
 
     tbb::parallel_invoke([&] {
       // Setup hypernodes
@@ -1058,7 +1031,7 @@ class StaticHypergraph {
         const size_t incident_nets_size = hn == 0 ? incident_nets_prefix_sum[hn + 1] :
           incident_nets_prefix_sum[hn + 1] - incident_nets_prefix_sum[hn];
         ASSERT(incident_nets_pos + incident_nets_size <=
-              hypergraph._incident_nets.size());
+              hypergraph._total_degree);
         Hypernode& hn_obj = hypergraph._hypernodes[hn];
         hn_obj.enable();
         hn_obj.setFirstEntry(incident_nets_pos);
@@ -1074,6 +1047,7 @@ class StaticHypergraph {
       // Setup hyperedges, incidence and incident nets array
       hypergraph._hyperedges.resize(hypergraph._num_hyperedges);
       hypergraph._incidence_array.resize(hypergraph._num_pins);
+      hypergraph._incident_nets.resize(hypergraph._total_degree);
 
       parallel::scalable_vector<parallel::IntegralAtomicWrapper<HyperedgeID>> incident_nets_pos(
         num_hypernodes, parallel::IntegralAtomicWrapper<HyperedgeID>(0));
@@ -1357,6 +1331,42 @@ class StaticHypergraph {
   // ! To avoid code duplication we implement non-const version in terms of const version
   KAHYPAR_ATTRIBUTE_ALWAYS_INLINE Hyperedge& hyperedge(const HyperedgeID e) {
     return const_cast<Hyperedge&>(static_cast<const StaticHypergraph&>(*this).hyperedge(e));
+  }
+
+  // ####################### Contract / Uncontract #######################
+
+  template<typename F>
+  void contractHyperedges(const TaskGroupID task_group_id,
+                          StreamingMap<size_t, ContractedHyperedge>& hash_to_hyperedge,
+                          const F& mapping_to_coarse_hypergraph) const {
+    doParallelForAllEdges(task_group_id, [&](const HyperedgeID& he) {
+      parallel::scalable_vector<HypernodeID> hyperedge;
+      hyperedge.reserve(edgeSize(he));
+      for ( const HypernodeID pin : pins(he) ) {
+        hyperedge.emplace_back(mapping_to_coarse_hypergraph(pin));
+      }
+
+      // Removing duplicates
+      std::sort(hyperedge.begin(), hyperedge.end());
+      hyperedge.erase(std::unique(hyperedge.begin(), hyperedge.end()), hyperedge.end());
+
+      // Removing disabled hypernodes
+      while ( !hyperedge.empty() && hyperedge.back() == kInvalidHypernode ) {
+        hyperedge.pop_back();
+      }
+
+      // Remove single-pin hyperedges
+      if ( hyperedge.size() > 1 ) {
+        // Compute hash of hyperedge
+        size_t he_hash = kEdgeHashSeed;
+        for ( const HypernodeID& pin : hyperedge ) {
+          he_hash += kahypar::math::hash(pin);
+        }
+        hash_to_hyperedge.stream(he_hash,
+          ContractedHyperedge { he_hash, edgeWeight(he),
+            false, _node, std::move(hyperedge), 0UL, 0UL } );
+      }
+    });
   }
 
   // ####################### Initialization / Reset Functions #######################
