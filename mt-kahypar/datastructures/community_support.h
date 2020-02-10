@@ -30,6 +30,7 @@
 #include "mt-kahypar/datastructures/hypergraph_common.h"
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
 #include "mt-kahypar/parallel/atomic_wrapper.h"
+#include "mt-kahypar/utils/memory_tree.h"
 #include "mt-kahypar/utils/range.h"
 
 namespace mt_kahypar {
@@ -631,6 +632,32 @@ class CommunitySupport {
       _vertex_to_community_node_id.size());
 
     return community_support;
+  }
+
+  void memoryConsumption(utils::MemoryTreeNode* parent) const {
+    ASSERT(parent);
+
+    parent->addChild("Num Hypernodes per Community",
+      sizeof(HypernodeID) * _communities_num_hypernodes.size());
+    parent->addChild("Num Pins per Community",
+      sizeof(HypernodeID) * _communities_num_pins.size());
+    parent->addChild("Community Degree",
+      sizeof(HyperedgeID) * _community_degree.size());
+
+    size_t size_community_hyperedge_ids = 0;
+    for ( const auto& community_he_ids : _community_hyperedge_ids ) {
+      size_community_hyperedge_ids += sizeof(PartitionID) * community_he_ids.size();
+    }
+    parent->addChild("Community IDs of HEs", size_community_hyperedge_ids);
+
+    size_t size_community_hyperedges = 0;
+    for ( const auto& community_hes : _community_hyperedges ) {
+      size_community_hyperedges += sizeof(CommunityHyperedge) * community_hes.size();
+    }
+    parent->addChild("Community Hyperedges of HEs", size_community_hyperedges);
+
+    parent->addChild("Vertex to Community Node ID",
+      sizeof(HypernodeID) * _vertex_to_community_node_id.size());
   }
 
  private:

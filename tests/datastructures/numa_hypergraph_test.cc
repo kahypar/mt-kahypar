@@ -1001,7 +1001,5 @@ TEST_F(AStaticNumaHypergraph, ContractCommunitiesIfCommunityHyperedgesAreAvailab
     { {id[3]}, {id[3]} });
 }
 
-
-
 }
 } // namespace mt_kahypar

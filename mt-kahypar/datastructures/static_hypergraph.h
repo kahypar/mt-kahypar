@@ -31,6 +31,7 @@
 #include "mt-kahypar/datastructures/streaming_map.h"
 #include "mt-kahypar/parallel/parallel_prefix_sum.h"
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
+#include "mt-kahypar/utils/memory_tree.h"
 #include "mt-kahypar/utils/range.h"
 
 namespace mt_kahypar {
@@ -1290,6 +1291,18 @@ class StaticHypergraph {
     hypergraph._community_support = _community_support.copy();
 
     return hypergraph;
+  }
+
+  void memoryConsumption(utils::MemoryTreeNode* parent) const {
+    ASSERT(parent);
+
+    parent->addChild("Hypernodes", sizeof(Hypernode) * _hypernodes.size());
+    parent->addChild("Incident Nets", sizeof(HyperedgeID) * _incident_nets.size());
+    parent->addChild("Hyperedges", sizeof(Hyperedge) * _hyperedges.size());
+    parent->addChild("Incidence Array", sizeof(HypernodeID) * _incidence_array.size());
+
+    utils::MemoryTreeNode* community_support_node = parent->addChild("Community Support");
+    _community_support.memoryConsumption(community_support_node);
   }
 
  private:

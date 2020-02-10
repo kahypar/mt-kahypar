@@ -1096,6 +1096,23 @@ class NumaHypergraph {
     return hypergraph;
   }
 
+  void memoryConsumption(utils::MemoryTreeNode* parent) const {
+    ASSERT(parent);
+
+    for ( size_t node = 0; node < _hypergraphs.size(); ++node ) {
+      utils::MemoryTreeNode* numa_hypergraph_node =parent->addChild(
+        "NUMA Hypergraph " + std::to_string(node));
+      _hypergraphs[node].memoryConsumption(numa_hypergraph_node);
+    }
+
+    parent->addChild("Global Node Mapping",
+      sizeof(HypernodeID) * _node_mapping.size());
+    parent->addChild("Global Edge Mapping",
+      sizeof(HyperedgeID) * _edge_mapping.size());
+    parent->addChild("Community NUMA Node Mapping",
+      sizeof(PartitionID) * _community_node_mapping.size());
+  }
+
  private:
   template <typename HyperGraph,
             typename Factory,
