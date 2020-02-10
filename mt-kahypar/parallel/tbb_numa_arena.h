@@ -2,6 +2,7 @@
  * This file is part of KaHyPar.
  *
  * Copyright (C) 2019 Tobias Heuer <tobias.heuer@kit.edu>
+ * Copyright (C) 2020 Lars Gottesbüren <lars.gottesbueren@kit.edu>
  *
  * KaHyPar is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -148,6 +149,26 @@ class TBBNumaArena {
               func(node);
             });
           });
+    }
+    wait(task_group_id);
+  }
+
+
+  // TODO find a better name
+  // could reimplement with parallel_do instead of specifying a fixed number of tasks, whi h is kind of bad.
+  // however parallel_do suggests that each body should perform significant amount of work, and preferably spawns more than one subsequent entry
+  template<typename Functor>
+  void run_max_concurrency_tasks_on_all_sockets(const TaskGroupID task_group_id, Functor&& f) {
+    int overall_task_id = 0;
+    for (int socket = 0; socket < num_used_numa_nodes(); ++socket) {
+      tbb::task_arena& this_arena = numa_task_arena(socket);
+      const int n_tasks = this_arena.max_concurrency();
+      this_arena.execute([&, socket] {
+        tbb::task_group& tg = numa_task_group(task_group_id, socket);
+        for (int task_id = 0 ; task_id < n_tasks; ++task_id, ++overall_task_id) {
+          tg.run(f(socket, overall_task_id, task_id));
+        }
+      });
     }
     wait(task_group_id);
   }
