@@ -217,8 +217,24 @@ inline std::ostream & operator<< (std::ostream& str, const LabelPropagationParam
   return str;
 }
 
+struct FMParameters {
+  bool numa_aware = false;
+  bool shuffle = true;
+  size_t multitry_rounds = 3;
+};
+
+inline std::ostream& operator<<(std::ostream& out, const FMParameters& params) {
+  out << "  FM Parameters: \n";
+  out << "    Numa Aware:                       " << std::boolalpha << params.numa_aware << "\n";
+  out << "    Shuffle:                          " << std::boolalpha << params.shuffle << "\n";
+  out << "    Multiy-Try Rounds:                " << params.multitry_rounds << "\n";
+  out << std::flush;
+  return out;
+}
+
 struct RefinementParameters {
   LabelPropagationParameters label_propagation;
+  FMParameters fm;
   bool use_batch_uncontractions = false;
   size_t batch_size = 1;
 };
@@ -230,6 +246,7 @@ inline std::ostream & operator<< (std::ostream& str, const RefinementParameters&
     str << "  Batch Size:                         " << params.batch_size << std::endl;
   }
   str << std::endl << params.label_propagation;
+  str << "\n" << params.fm;
   return str;
 }
 
