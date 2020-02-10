@@ -62,7 +62,7 @@ using ThreadLocalKWayPriorityQueue = tbb::enumerable_thread_specific<KWayPriorit
 
 using NodeID = uint32_t;
 
-struct Move {
+struct Move {   // TODO move this to LPA code. FM needs a different definition
   PartitionID from;
   PartitionID to;
   Gain gain;
