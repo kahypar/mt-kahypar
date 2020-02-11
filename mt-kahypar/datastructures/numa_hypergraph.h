@@ -38,13 +38,23 @@ template <typename Hypergraph,
           typename TBBNumaArena>
 class NumaHypergraphFactory;
 
-template <typename Hypergraph = Mandatory,
-          typename HardwareTopology = Mandatory,
-          typename TBBNumaArena = Mandatory>
+template <typename HyperGraph = Mandatory,
+          typename HwTopology = Mandatory,
+          typename TBB = Mandatory>
 class NumaHypergraph {
 
-  static_assert(!Hypergraph::is_numa_aware,  "Only non-numa-aware hypergraphs are allowed");
-  static_assert(!Hypergraph::is_partitioned,  "Only unpartitioned hypergraphs are allowed");
+  static_assert(!HyperGraph::is_numa_aware,  "Only non-numa-aware hypergraphs are allowed");
+  static_assert(!HyperGraph::is_partitioned,  "Only unpartitioned hypergraphs are allowed");
+
+ public:
+  // ! Type Traits
+  using Hypergraph = HyperGraph;
+  using HardwareTopology = HwTopology;
+  using TBBNumaArena = TBB;
+
+  static constexpr bool is_static_hypergraph = Hypergraph::is_static_hypergraph;
+  static constexpr bool is_numa_aware = true;
+  static constexpr bool is_partitioned = false;
 
   // ! Iterator to iterate over the hypernodes
   using HypernodeIterator = typename Hypergraph::HypernodeIterator;
@@ -56,11 +66,6 @@ class NumaHypergraph {
   using IncidentNetsIterator = typename Hypergraph::IncidentNetsIterator;
   // ! Iterator to iterate over the set of communities contained in a hyperedge
   using CommunityIterator = typename Hypergraph::CommunityIterator;
-
- public:
-  static constexpr bool is_static_hypergraph = Hypergraph::is_static_hypergraph;
-  static constexpr bool is_numa_aware = true;
-  static constexpr bool is_partitioned = false;
 
   explicit NumaHypergraph() :
     _num_hypernodes(0),
@@ -105,6 +110,11 @@ class NumaHypergraph {
   // ! Number of NUMA hypergraphs
   size_t numNumaHypergraphs() const {
     return _hypergraphs.size();
+  }
+
+  Hypergraph& numaHypergraph(const int node) {
+    ASSERT(node < static_cast<int>(_hypergraphs.size()));
+    return _hypergraphs[node];
   }
 
   // ! Initial number of hypernodes
@@ -1114,10 +1124,10 @@ class NumaHypergraph {
   }
 
  private:
-  template <typename HyperGraph,
+  template <typename Hypgraph,
             typename Factory,
-            typename HwTopology,
-            typename TBB>
+            typename HwTopo,
+            typename TBBArena>
   friend class NumaHypergraphFactory;
 
   // ####################### Helper Functions #######################

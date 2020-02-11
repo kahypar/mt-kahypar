@@ -26,10 +26,13 @@
 
 #define USE_LOCAL_PART_WEIGHTS false
 
-#define TRUE_SPECIALIZATION(EXPR, TYPE)     \
+#define SPECIALIZATION(EXPR, TYPE)          \
   template<bool T = EXPR>                   \
   std::enable_if_t<T, TYPE>
 
+#define TRUE_SPECIALIZATION(EXPR, TYPE)     \
+  template<bool T = EXPR>                   \
+  std::enable_if_t<T, TYPE>
 
 #define FALSE_SPECIALIZATION(EXPR, TYPE)    \
   template<bool T = EXPR>                   \

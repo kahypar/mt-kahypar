@@ -25,7 +25,10 @@
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/datastructures/static_hypergraph.h"
 #include "mt-kahypar/datastructures/static_hypergraph_factory.h"
+#include "mt-kahypar/datastructures/numa_hypergraph.h"
+#include "mt-kahypar/datastructures/numa_hypergraph_factory.h"
 #include "mt-kahypar/datastructures/partitioned_hypergraph.h"
+#include "mt-kahypar/datastructures/numa_partitioned_hypergraph.h"
 #include "tests/datastructures/hypergraph_fixtures.h"
 
 using ::testing::Test;
@@ -56,7 +59,7 @@ class APartitionedHypergraph : public Test {
   APartitionedHypergraph() :
     hypergraph(Factory::construct(TBB::GLOBAL_TASK_GROUP,
       7 , 4, { {0, 2}, {0, 1, 3, 4}, {3, 4, 6}, {2, 5, 6} })),
-    partitioned_hypergraph(3, hypergraph),
+    partitioned_hypergraph(3, TBB::GLOBAL_TASK_GROUP, hypergraph),
     id() {
     id.resize(7);
     for ( const HypernodeID& hn : hypergraph.nodes() ) {
@@ -115,16 +118,36 @@ void executeConcurrent(const F1& f1, const F2& f2) {
   });
 }
 
+// Mocking Numa Architecture (=> 2 NUMA Nodes)
+using TypeTraits = TestTypeTraits<2>;
+using HwTopology = typename TypeTraits::HwTopology;
+using TBB = typename TypeTraits::TBB;
+
+// Define NUMA Hypergraph and Factory
+using NumaHyperGraph = NumaHypergraph<StaticHypergraph, HwTopology, TBB>;
+using NumaHyperGraphFactory = NumaHypergraphFactory<
+  StaticHypergraph, StaticHypergraphFactory, HwTopology, TBB>;
+
 typedef ::testing::Types<PartitionedHypergraphTypeTraits<
-                          PartitionedHypergraph<StaticHypergraph, TBBNumaArena, true>,
+                          PartitionedHypergraph<StaticHypergraph, true>,
                           StaticHypergraph,
                           StaticHypergraphFactory,
                           TBBNumaArena>,
                         PartitionedHypergraphTypeTraits<
-                          PartitionedHypergraph<StaticHypergraph, TBBNumaArena, false>,
+                          PartitionedHypergraph<StaticHypergraph, false>,
                           StaticHypergraph,
                           StaticHypergraphFactory,
-                          TBBNumaArena>> PartitionedHypergraphTestTypes;
+                          TBBNumaArena>,
+                        PartitionedHypergraphTypeTraits<
+                          NumaPartitionedHypergraph<NumaHyperGraph, true>,
+                          NumaHyperGraph,
+                          NumaHyperGraphFactory,
+                          TBB>,
+                        PartitionedHypergraphTypeTraits<
+                          NumaPartitionedHypergraph<NumaHyperGraph, false>,
+                          NumaHyperGraph,
+                          NumaHyperGraphFactory,
+                          TBB>> PartitionedHypergraphTestTypes;
 
 TYPED_TEST_CASE(APartitionedHypergraph, PartitionedHypergraphTestTypes);
 
