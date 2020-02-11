@@ -159,9 +159,11 @@ std::ostream & operator<< (std::ostream& str, const MemoryTreeNode& memory_tree_
         const size_t parent_size_in_bytes,
         const MemoryTreeNode& parent,
         int level) {
-      print(str, parent_size_in_bytes, parent, level);
-      for (const auto& child : parent._childs) {
-        dfs(str, parent._size_in_bytes, *child.second.get(), level + 1);
+      if ( parent._size_in_bytes > 0 ) {
+        print(str, parent_size_in_bytes, parent, level);
+        for (const auto& child : parent._childs) {
+          dfs(str, parent._size_in_bytes, *child.second.get(), level + 1);
+        }
       }
     };
 

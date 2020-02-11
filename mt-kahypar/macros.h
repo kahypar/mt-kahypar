@@ -20,9 +20,20 @@
 
 #pragma once
 
+#include <type_traits>
+
 #include "kahypar/macros.h"
 
 #define USE_LOCAL_PART_WEIGHTS false
+
+#define TRUE_SPECIALIZATION(EXPR, TYPE)     \
+  template<bool T = EXPR>                   \
+  std::enable_if_t<T, TYPE>
+
+
+#define FALSE_SPECIALIZATION(EXPR, TYPE)    \
+  template<bool T = EXPR>                   \
+  std::enable_if_t<!T, TYPE>
 
 #if defined(__GNUC__) || defined(__clang__)
 #define MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE __attribute__ ((always_inline)) inline
