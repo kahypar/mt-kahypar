@@ -56,8 +56,10 @@ class NumaHypergraphFactory {
     NumaHyperGraph hypergraph;
 
     // Compute mapping that maps each vertex and edge to a NUMA node
+    utils::Timer::instance().start_timer("compute_numa_mapping", "Compute Vertex to NUMA Mapping");
     NumaMapping numa_mapping = computeVertexAndEdgeToNumaNodeMapping(
       num_hypernodes, num_hyperedges, edge_vector);
+    utils::Timer::instance().stop_timer("compute_numa_mapping");
 
     // Allocate empty hypergraphs on each NUMA node
     TBBNumaArena::instance().execute_sequential_on_all_numa_nodes(
@@ -66,6 +68,7 @@ class NumaHypergraphFactory {
       });
 
     // Construct hypergraphs on each NUMA node in parallel
+    utils::Timer::instance().start_timer("construct_numa_hypergraphs", "Construct NUMA hypergraphs");
     hypergraph._node_mapping.resize(num_hypernodes);
     hypergraph._edge_mapping.resize(num_hyperedges);
     TBBNumaArena::instance().execute_parallel_on_all_numa_nodes(
@@ -77,6 +80,7 @@ class NumaHypergraphFactory {
           hypergraph._node_mapping, hypergraph._edge_mapping,
           hyperedge_weight, hypernode_weight);
       });
+    utils::Timer::instance().stop_timer("construct_numa_hypergraphs");
 
     // Setup internal stats of numa hypergraph
     for ( const Hypergraph& numa_hypergraph : hypergraph._hypergraphs ) {
@@ -92,6 +96,7 @@ class NumaHypergraphFactory {
     // Remap the vertex and edge ids of each numa hypergraph such that
     // the ids encodes the NUMA node the reside on and position inside
     // that hypergraph
+    utils::Timer::instance().start_timer("compute_global_mappings", "Comp. Global HN and HE Mapping");
     TBBNumaArena::instance().execute_parallel_on_all_numa_nodes(
       task_group_id, [&](const int node) {
         ASSERT(static_cast<size_t>(node) < hypergraph._hypergraphs.size());
@@ -100,6 +105,7 @@ class NumaHypergraphFactory {
           hypergraph._node_mapping,
           hypergraph._edge_mapping);
       });
+    utils::Timer::instance().stop_timer("compute_global_mappings");
 
     return hypergraph;
   }

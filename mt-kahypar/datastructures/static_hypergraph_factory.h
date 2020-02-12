@@ -68,6 +68,7 @@ class StaticHypergraphFactory {
 
     // Compute number of pins per hyperedge and number
     // of incident nets per vertex
+    utils::Timer::instance().start_timer("compute_ds_sizes", "Precompute DS Size", true);
     Counter num_pins_per_hyperedge(num_hyperedges, 0);
     ThreadLocalCounter local_incident_nets_per_vertex(num_hypernodes, 0);
     tbb::parallel_for(0UL, num_hyperedges, [&](const size_t pos) {
@@ -88,11 +89,13 @@ class StaticHypergraphFactory {
         num_incident_nets_per_vertex[pos] += c[pos];
       });
     }
+    utils::Timer::instance().stop_timer("compute_ds_sizes");
 
     // Compute prefix sum over the number of pins per hyperedge and the
     // number of incident nets per vertex. The prefix sum is used than as
     // start position for each hyperedge resp. hypernode in the incidence
     // resp. incident nets array.
+    utils::Timer::instance().start_timer("compute_prefix_sums", "Compute Prefix Sums", true);
     parallel::TBBPrefixSum<size_t> pin_prefix_sum(num_pins_per_hyperedge);
     parallel::TBBPrefixSum<size_t> incident_net_prefix_sum(num_incident_nets_per_vertex);
     tbb::parallel_invoke([&] {
@@ -102,7 +105,9 @@ class StaticHypergraphFactory {
       tbb::parallel_scan(tbb::blocked_range<size_t>(
         0UL, num_hypernodes), incident_net_prefix_sum);
     });
+    utils::Timer::instance().stop_timer("compute_prefix_sums");
 
+    utils::Timer::instance().start_timer("setup_hypergraph", "Setup hypergraph", true);
     ASSERT(pin_prefix_sum.total_sum() == incident_net_prefix_sum.total_sum());
     hypergraph._num_pins = pin_prefix_sum.total_sum();
     hypergraph._total_degree = incident_net_prefix_sum.total_sum();
@@ -160,6 +165,7 @@ class StaticHypergraphFactory {
 
     // Compute total weight of hypergraph
     hypergraph.updateTotalWeight(task_group_id);
+    utils::Timer::instance().stop_timer("setup_hypergraph");
 
     return hypergraph;
   }
@@ -194,6 +200,7 @@ class StaticHypergraphFactory {
 
     // Compute number of pins per hyperedge and number
     // of incident nets per vertex on this NUMA node
+    utils::Timer::instance().start_timer("compute_ds_sizes", "Precompute DS Size", true);
     ASSERT(edge_vector.size() == num_hyperedges);
     Counter edges_on_this_numa_node(num_hyperedges, 0);
     Counter num_pins_per_hyperedge(num_hyperedges, 0);
@@ -226,6 +233,7 @@ class StaticHypergraphFactory {
         }
       });
     }
+    utils::Timer::instance().stop_timer("compute_ds_sizes");
 
     // Compute prefix sum over the number of pins per hyperedge and the
     // number of incident nets per vertex. The prefix sum is used than as
@@ -234,6 +242,7 @@ class StaticHypergraphFactory {
     // Additionally we also compute a prefix sum over the edges and vertices
     // array on this numa nodes (initially contains only 0 and 1), which will
     // be used to map those to a consecutive range in the NUMA hypergraph.
+    utils::Timer::instance().start_timer("compute_prefix_sums", "Compute Prefix Sums", true);
     parallel::TBBPrefixSum<size_t> edges_prefix_sum(edges_on_this_numa_node);
     parallel::TBBPrefixSum<size_t> vertices_prefix_sum(vertices_on_this_numa_node);
     parallel::TBBPrefixSum<size_t> pin_prefix_sum(num_pins_per_hyperedge);
@@ -251,7 +260,10 @@ class StaticHypergraphFactory {
       tbb::parallel_scan(tbb::blocked_range<size_t>(
         0UL, num_hypernodes), incident_net_prefix_sum);
     });
+    utils::Timer::instance().stop_timer("compute_prefix_sums");
 
+
+    utils::Timer::instance().start_timer("setup_numa_hypergraph", "Setup NUMA hypergraph", true);
     hypergraph._num_hypernodes = vertices_prefix_sum.total_sum();
     hypergraph._num_hyperedges = edges_prefix_sum.total_sum();
     hypergraph._num_pins = pin_prefix_sum.total_sum();
@@ -336,6 +348,7 @@ class StaticHypergraphFactory {
         }
         return weight;
       }, std::plus<HypernodeWeight>());
+    utils::Timer::instance().stop_timer("setup_numa_hypergraph");
 
     return hypergraph;
   }
