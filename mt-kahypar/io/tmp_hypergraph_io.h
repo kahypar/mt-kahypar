@@ -142,7 +142,7 @@ template <typename HyperGraph,
 static inline HyperGraph readHypergraphFile(const std::string& filename,
                                             const TaskGroupID task_group_id) {
   ASSERT(!filename.empty(), "No filename for hypergraph file specified");
-  utils::Timer::instance().start_timer("hypergraph_import", "Construct Hypergraph from File");
+  utils::Timer::instance().start_timer("construct_hypergraph_from_file", "Construct Hypergraph from File");
 
   // Read Hypergraph file
   std::ifstream file(filename);
@@ -167,7 +167,7 @@ static inline HyperGraph readHypergraphFile(const std::string& filename,
     num_hypernodes, num_hyperedges, hyperedges,
     hyperedges_weight.data(), hypernodes_weight.data());
   utils::Timer::instance().stop_timer("construct_hypergraph");
-  utils::Timer::instance().stop_timer("hypergraph_import");
+  utils::Timer::instance().stop_timer("construct_hypergraph_from_file");
   return hypergraph;
 }
 

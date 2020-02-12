@@ -260,7 +260,7 @@ class PartitionedHypergraph {
   }
 
   // ! Returns an iterator over the set of active nodes of the hypergraph
-  ConcatenatedRange<IteratorRange<HypernodeIterator>> nodes() const {
+  IteratorRange<HypernodeIterator> nodes() const {
     return _hg->nodes();
   }
 
@@ -270,7 +270,7 @@ class PartitionedHypergraph {
   }
 
   // ! Returns an iterator over the set of active edges of the hypergraph
-  ConcatenatedRange<IteratorRange<HyperedgeIterator>> edges() const {
+  IteratorRange<HyperedgeIterator> edges() const {
     return _hg->edges();
   }
 

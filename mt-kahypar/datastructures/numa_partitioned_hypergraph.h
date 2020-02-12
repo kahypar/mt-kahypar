@@ -86,20 +86,25 @@ class NumaPartitionedHypergraph {
       return weight == other.weight && size == other.size;
     }
 
-    std::atomic<HypernodeWeight> weight;
-    std::atomic<int64_t> size;
+    parallel::IntegralAtomicWrapper<HypernodeWeight> weight;
+    parallel::IntegralAtomicWrapper<int64_t> size;
   };
-
 
  public:
   static constexpr bool is_static_hypergraph = Hypergraph::is_static_hypergraph;
   static constexpr bool is_numa_aware = true;
   static constexpr bool is_partitioned = true;
 
+  explicit NumaPartitionedHypergraph() :
+    _k(kInvalidPartition),
+    _hg(nullptr),
+    _part_info(),
+    _hypergraphs() { }
+
   explicit NumaPartitionedHypergraph(const PartitionID k,
                                      Hypergraph& hypergraph) :
     _k(k),
-    _hg(hypergraph),
+    _hg(&hypergraph),
     _part_info(k),
     _hypergraphs() {
     for ( size_t node = 0; node < hypergraph.numNumaHypergraphs(); ++node) {
@@ -111,7 +116,7 @@ class NumaPartitionedHypergraph {
                                      const TaskGroupID task_group_id,
                                      Hypergraph& hypergraph) :
     _k(k),
-    _hg(hypergraph),
+    _hg(&hypergraph),
     _part_info(k),
     _hypergraphs() {
     TBBNumaArena::instance().execute_sequential_on_all_numa_nodes(task_group_id, [&](const int) {
@@ -127,61 +132,75 @@ class NumaPartitionedHypergraph {
   NumaPartitionedHypergraph(const NumaPartitionedHypergraph&) = delete;
   NumaPartitionedHypergraph & operator= (const NumaPartitionedHypergraph &) = delete;
 
+  NumaPartitionedHypergraph(NumaPartitionedHypergraph&& other) :
+    _k(other._k),
+    _hg(other._hg),
+    _part_info(std::move(other._part_info)),
+    _hypergraphs(std::move(other._hypergraphs)) { }
+
+  NumaPartitionedHypergraph & operator= (NumaPartitionedHypergraph&& other) {
+    _k = other._k;
+    _hg = other._hg;
+    _part_info = std::move(other._part_info);
+    _hypergraphs = std::move(other._hypergraphs);
+    return *this;
+  }
+
   // ####################### General Hypergraph Stats #######################
 
   // ! Number of NUMA hypergraphs
   size_t numNumaHypergraphs() const {
-    return _hg.numNumaHypergraphs();
+    return _hg->numNumaHypergraphs();
   }
 
   // ! Initial number of hypernodes
   HypernodeID initialNumNodes() const {
-    return _hg.initialNumNodes();
+    return _hg->initialNumNodes();
   }
 
   // ! Initial number of hypernodes on numa node
   HypernodeID initialNumNodes(const int node) const {
-    return _hg.initialNumNodes(node);
+    return _hg->initialNumNodes(node);
   }
 
   // ! Number of removed hypernodes
   HypernodeID numRemovedHypernodes() const {
-    return _hg.numRemovedHypernodes();
+    return _hg->numRemovedHypernodes();
   }
 
   // ! Initial number of hyperedges
   HyperedgeID initialNumEdges() const {
-    return _hg.initialNumEdges();
+    return _hg->initialNumEdges();
   }
 
   // ! Initial number of hyperedges on numa node
   HyperedgeID initialNumEdges(const int node) const {
-    return _hg.initialNumEdges(node);
+    return _hg->initialNumEdges(node);
   }
 
   // ! Initial number of pins
   HypernodeID initialNumPins() const {
-    return _hg.initialNumPins();
+    return _hg->initialNumPins();
   }
 
   // ! Initial number of pins on numa node
   HypernodeID initialNumPins(const int node) const {
-    return _hg.initialNumPins(node);
+    return _hg->initialNumPins(node);
   }
 
   // ! Initial sum of the degree of all vertices
   HypernodeID initialTotalVertexDegree() const {
-    return _hg.initialTotalVertexDegree();
+    return _hg->initialTotalVertexDegree();
   }
 
   // ! Initial sum of the degree of all vertices on numa node
   HypernodeID initialTotalVertexDegree(const int node) const {
-    return _hg.initialTotalVertexDegree(node);
+    return _hg->initialTotalVertexDegree(node);
   }
 
   // ! Total weight of hypergraph
   HypernodeWeight totalWeight() const {
-    return _hg.totalWeight();
+    return _hg->totalWeight();
   }
 
   // ! Number of blocks this hypergraph is partitioned into
@@ -202,7 +221,7 @@ class NumaPartitionedHypergraph {
   // ! for each vertex
   template<typename F>
   void doParallelForAllNodes(const TaskGroupID task_group_id, const F& f) const {
-    _hg.doParallelForAllNodes(task_group_id, f);
+    _hg->doParallelForAllNodes(task_group_id, f);
   }
 
   // ! Iterates in parallel over all active edges and calls function f
@@ -216,37 +235,37 @@ class NumaPartitionedHypergraph {
   // ! for each net
   template<typename F>
   void doParallelForAllEdges(const TaskGroupID task_group_id, const F& f) const {
-    _hg.doParallelForAllEdges(task_group_id, f);
+    _hg->doParallelForAllEdges(task_group_id, f);
   }
 
   // ! Returns an iterator over the set of active nodes of the hypergraph
   ConcatenatedRange<IteratorRange<HypernodeIterator>> nodes() const {
-    return _hg.nodes();
+    return _hg->nodes();
   }
 
   // ! Returns an iterator over the set of active nodes of the hypergraph on a numa node
   IteratorRange<HypernodeIterator> nodes(const int node) const {
-    return _hg.nodes(node);
+    return _hg->nodes(node);
   }
 
   // ! Returns an iterator over the set of active edges of the hypergraph
   ConcatenatedRange<IteratorRange<HyperedgeIterator>> edges() const {
-    return _hg.edges();
+    return _hg->edges();
   }
 
   // ! Returns an iterator over the set of active nodes of the hypergraph on a numa node
   IteratorRange<HyperedgeIterator> edges(const int node) const {
-    return _hg.edges();
+    return _hg->edges();
   }
 
   // ! Returns a range to loop over the incident nets of hypernode u.
   IteratorRange<IncidentNetsIterator> incidentEdges(const HypernodeID u) const {
-    return _hg.incidentEdges(u);
+    return _hg->incidentEdges(u);
   }
 
   // ! Returns a range to loop over the pins of hyperedge e.
   IteratorRange<IncidenceIterator> pins(const HyperedgeID e) const {
-    return _hg.pins(e);
+    return _hg->pins(e);
   }
 
   // ! Returns a range to loop over the set of block ids contained in hyperedge e.
@@ -260,47 +279,47 @@ class NumaPartitionedHypergraph {
   // ! Can be used to map the global vertex ids to a consecutive range
   // ! of nodes between [0,|V|).
   HypernodeID originalNodeID(const HypernodeID u) const {
-    return _hg.originalNodeID(u);
+    return _hg->originalNodeID(u);
   }
 
   // ! Reverse operation of originalNodeID(u)
   HypernodeID globalNodeID(const HypernodeID u) const {
-    return _hg.globalNodeID(u);
+    return _hg->globalNodeID(u);
   }
 
   // ! Weight of a vertex
   HypernodeWeight nodeWeight(const HypernodeID u) const {
-    return _hg.nodeWeight(u);
+    return _hg->nodeWeight(u);
   }
 
   // ! Sets the weight of a vertex
   void setNodeWeight(const HypernodeID u, const HypernodeWeight weight) {
-    _hg.setNodeWeight(u, weight);
+    _hg->setNodeWeight(u, weight);
   }
 
   // ! Degree of a hypernode
   HyperedgeID nodeDegree(const HypernodeID u) const {
-    return _hg.nodeDegree(u);
+    return _hg->nodeDegree(u);
   }
 
   // ! Returns, if the corresponding vertex is high degree vertex
   bool isHighDegreeVertex(const HypernodeID u) const {
-    return _hg.isHighDegreeVertex(u);
+    return _hg->isHighDegreeVertex(u);
   }
 
   // ! Returns, whether a hypernode is enabled or not
   bool nodeIsEnabled(const HypernodeID u) const {
-    return _hg.nodeIsEnabled(u);
+    return _hg->nodeIsEnabled(u);
   }
 
   // ! Enables a hypernode (must be disabled before)
   void enableHypernode(const HypernodeID u) {
-    _hg.enableHypernode(u);
+    _hg->enableHypernode(u);
   }
 
   // ! Disable a hypernode (must be enabled before)
   void disableHypernode(const HypernodeID u) {
-    _hg.disableHypernode(u);
+    _hg->disableHypernode(u);
   }
 
   // ####################### Hyperedge Information #######################
@@ -309,42 +328,42 @@ class NumaPartitionedHypergraph {
   // ! Can be used to map the global edge ids to a consecutive range
   // ! of edges between [0,|E|).
   HypernodeID originalEdgeID(const HyperedgeID e) const {
-    return _hg.originalEdgeID(e);
+    return _hg->originalEdgeID(e);
   }
 
   // ! Reverse operation of originalEdgeID(e)
   HypernodeID globalEdgeID(const HyperedgeID e) const {
-    return _hg.globalEdgeID(e);
+    return _hg->globalEdgeID(e);
   }
 
   // ! Weight of a hyperedge
   HypernodeWeight edgeWeight(const HyperedgeID e) const {
-    return _hg.edgeWeight(e);
+    return _hg->edgeWeight(e);
   }
 
   // ! Sets the weight of a hyperedge
   void setEdgeWeight(const HyperedgeID e, const HyperedgeWeight weight) {
-    _hg.setEdgeWeight(e, weight);
+    _hg->setEdgeWeight(e, weight);
   }
 
   // ! Number of pins of a hyperedge
   HypernodeID edgeSize(const HyperedgeID e) const {
-    return _hg.edgeSize(e);
+    return _hg->edgeSize(e);
   }
 
   // ! Returns, whether a hyperedge is enabled or not
   bool edgeIsEnabled(const HyperedgeID e) const {
-    return _hg.edgeIsEnabled(e);
+    return _hg->edgeIsEnabled(e);
   }
 
   // ! Enables a hyperedge (must be disabled before)
   void enableHyperedge(const HyperedgeID e) {
-    _hg.enableHyperedge(e);
+    _hg->enableHyperedge(e);
   }
 
   // ! Disabled a hyperedge (must be enabled before)
   void disableHyperedge(const HyperedgeID e) {
-    _hg.disableHyperedge(e);
+    _hg->disableHyperedge(e);
   }
 
   // ####################### Uncontraction #######################
@@ -382,12 +401,12 @@ class NumaPartitionedHypergraph {
   // ! Restores an hyperedge of a certain size.
   void restoreEdge(const HyperedgeID he, const size_t size,
                    const HyperedgeID representative = kInvalidHyperedge) {
-    _hg.restoreEdge(he, size, representative);
+    _hg->restoreEdge(he, size, representative);
   }
 
   // ! Restores a single-pin hyperedge
   void restoreSinglePinHyperedge(const HyperedgeID he) {
-    _hg.restoreSinglePinHyperedge(he);
+    _hg->restoreSinglePinHyperedge(he);
   }
 
   void restoreParallelHyperedge(const HyperedgeID,
@@ -618,9 +637,9 @@ class NumaPartitionedHypergraph {
   }
 
   // ! Number of blocks
-  const PartitionID _k;
+  PartitionID _k;
   // ! Hypergraph object around this partitioned hypergraph is wrapped
-  Hypergraph& _hg;
+  Hypergraph* _hg;
 
   // ! Weight and size information for all blocks.
   parallel::scalable_vector<PartInfo> _part_info;

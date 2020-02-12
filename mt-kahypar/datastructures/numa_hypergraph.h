@@ -46,6 +46,8 @@ class NumaHypergraph {
   static_assert(!HyperGraph::is_numa_aware,  "Only non-numa-aware hypergraphs are allowed");
   static_assert(!HyperGraph::is_partitioned,  "Only unpartitioned hypergraphs are allowed");
 
+ static constexpr bool enable_heavy_assert = false;
+
  public:
   // ! Type Traits
   using Hypergraph = HyperGraph;
