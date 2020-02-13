@@ -169,6 +169,12 @@ class PartitionedHypergraph {
 
   // ####################### General Hypergraph Stats #######################
 
+  // ! Returns the underlying hypergraph
+  Hypergraph& hypergraph() {
+    ASSERT(_hg);
+    return *_hg;
+  }
+
   // ! Number of NUMA hypergraphs
   size_t numNumaHypergraphs() const {
     return _hg->numNumaHypergraphs();
@@ -660,7 +666,6 @@ class PartitionedHypergraph {
     ASSERT(from != kInvalidPartition && from < _k);
     ASSERT(to != kInvalidPartition && to < _k);
     ASSERT(from != to);
-    ASSERT(_is_init_num_cut_hyperedges);
 
     if ( vertexPartInfo(u).part_id.compare_and_exchange_strong(from, to) ) {
 
@@ -693,7 +698,6 @@ class PartitionedHypergraph {
     ASSERT(from != kInvalidPartition && from < _k);
     ASSERT(to != kInvalidPartition && to < _k);
     ASSERT(from != to);
-    ASSERT(_is_init_num_cut_hyperedges);
 
     if ( vertexPartInfo(u).part_id.compare_and_exchange_strong(from, to) ) {
 

@@ -148,6 +148,12 @@ class NumaPartitionedHypergraph {
 
   // ####################### General Hypergraph Stats #######################
 
+  // ! Returns the underlying hypergraph
+  Hypergraph& hypergraph() {
+    ASSERT(_hg);
+    return *_hg;
+  }
+
   // ! Number of NUMA hypergraphs
   size_t numNumaHypergraphs() const {
     return _hg->numNumaHypergraphs();

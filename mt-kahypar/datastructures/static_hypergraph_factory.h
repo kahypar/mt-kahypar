@@ -214,7 +214,7 @@ class StaticHypergraphFactory {
 
       Counter& num_incident_nets_per_vertex = local_incident_nets_per_vertex.local();
       for ( const HypernodeID& pin : edge_vector[pos] ) {
-        ASSERT(pin < num_hypernodes);
+        ASSERT(pin < num_hypernodes, V(pin) << V(num_hypernodes));
         if ( vertices_to_numa_node[pin] == node ) {
           ++num_incident_nets_per_vertex[pin];
         }

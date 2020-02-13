@@ -29,7 +29,7 @@
 namespace mt_kahypar {
 template<typename TypeTraits>
 class LabelPropagationInitialPartitionerT : public tbb::task {
-  using HyperGraph = typename TypeTraits::HyperGraph;
+  using HyperGraph = typename TypeTraits::template PartitionedHyperGraph<false>;
   using InitialPartitioningDataContainer = InitialPartitioningDataContainerT<TypeTraits>;
 
   using DeltaFunction = std::function<void (const HyperedgeID, const HyperedgeWeight, const HypernodeID, const HypernodeID, const HypernodeID)>;
@@ -47,8 +47,8 @@ class LabelPropagationInitialPartitionerT : public tbb::task {
 
  public:
   LabelPropagationInitialPartitionerT(const InitialPartitioningAlgorithm,
-                            InitialPartitioningDataContainer& ip_data,
-                            const Context& context) :
+                                      InitialPartitioningDataContainer& ip_data,
+                                      const Context& context) :
     _ip_data(ip_data),
     _context(context),
     _valid_blocks(context.partition.k),
@@ -108,7 +108,7 @@ class LabelPropagationInitialPartitionerT : public tbb::task {
               ASSERT(fitsIntoBlock(hg, hn, to));
 
               #ifndef KAHYPAR_ENABLE_HEAVY_INITIAL_PARTITIONING_ASSERTIONS
-              hg.changeNodePart(hn, from, to, NOOP_FUNC, true);
+              hg.changeNodePart(hn, from, to, NOOP_FUNC);
               #else
               Gain expected_gain = 0;
               auto cut_delta = [&](const HyperedgeID he,
@@ -125,7 +125,7 @@ class LabelPropagationInitialPartitionerT : public tbb::task {
                 expected_gain -= HyperGraph::cutDelta(he, edge_weight, adjusted_edge_size,
                   pin_count_in_from_part_after, pin_count_in_to_part_after);
               };
-              hg.changeNodePart(hn, from, to, cut_delta, true);
+              hg.changeNodePart(hn, from, to, cut_delta);
               ASSERT(expected_gain == max_gain_move.gain, "Gain calculation failed"
                 << V(expected_gain) << V(max_gain_move.gain));
               #endif
@@ -160,7 +160,7 @@ class LabelPropagationInitialPartitionerT : public tbb::task {
                      const HypernodeID hn,
                      const PartitionID block) const {
     ASSERT(block != kInvalidPartition && block < _context.partition.k);
-    return hypergraph.localPartWeight(block) + hypergraph.nodeWeight(hn) <=
+    return hypergraph.partWeight(block) + hypergraph.nodeWeight(hn) <=
       _context.partition.max_part_weights[block];
   }
 
@@ -275,13 +275,13 @@ class LabelPropagationInitialPartitionerT : public tbb::task {
       for ( const HypernodeID& pin : hypergraph.pins(he) ) {
         if ( hypergraph.partID(pin) == kInvalidPartition ) {
           hypergraph.setNodePart(pin, block);
-          if ( hypergraph.localPartSize(block) ==
+          if ( hypergraph.partSize(block) ==
               _context.initial_partitioning.lp_initial_block_size ) {
             break;
           }
         }
       }
-      if ( hypergraph.localPartSize(block) ==
+      if ( hypergraph.partSize(block) ==
            _context.initial_partitioning.lp_initial_block_size ) {
         break;
       }
@@ -290,7 +290,7 @@ class LabelPropagationInitialPartitionerT : public tbb::task {
     // If there are last than _context.initial_partitioning.lp_initial_block_size
     // adjacent vertices to the seed vertex, we find a new seed vertex and call
     // this function recursive
-    const HypernodeID part_size = hypergraph.localPartSize(block);
+    const HypernodeID part_size = hypergraph.partSize(block);
     if ( part_size < _context.initial_partitioning.lp_initial_block_size ) {
       const HypernodeID new_seed_vertex = _ip_data.get_unassigned_hypernode();
       if ( new_seed_vertex != kInvalidHypernode  ) {
@@ -307,7 +307,7 @@ class LabelPropagationInitialPartitionerT : public tbb::task {
     PartitionID minimum_weight_block = kInvalidPartition;
     HypernodeWeight minimum_weight = std::numeric_limits<HypernodeWeight>::max();
     for ( PartitionID block = 0; block < _context.partition.k; ++block ) {
-      const HypernodeWeight block_weight = hypergraph.localPartWeight(block);
+      const HypernodeWeight block_weight = hypergraph.partWeight(block);
       if ( block_weight < minimum_weight ) {
         minimum_weight = block_weight;
         minimum_weight_block = block;

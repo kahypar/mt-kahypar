@@ -25,7 +25,7 @@
 #include "tbb/parallel_invoke.h"
 
 #include "mt-kahypar/utils/timer.h"
-#include "mt-kahypar/io/hypergraph_io.h"
+#include "mt-kahypar/io/tmp_hypergraph_io.h"
 #include "mt-kahypar/partition/initial_partitioning/flat/random_initial_partitioner.h"
 #include "mt-kahypar/partition/initial_partitioning/flat/bfs_initial_partitioner.h"
 #include "mt-kahypar/partition/initial_partitioning/flat/greedy_initial_partitioner.h"
@@ -38,33 +38,37 @@ using ::testing::Test;
 
 namespace mt_kahypar {
 
+using TestTypeTraits = ds::TestTypeTraits<2>;
+using HyperGraph = typename TestTypeTraits::HyperGraph;
+using HyperGraphFactory = typename TestTypeTraits::HyperGraphFactory;
+using PartitionedHyperGraph = typename TestTypeTraits::PartitionedHyperGraph<>;
+using HwTopology = typename TestTypeTraits::HwTopology;
+using TBB = typename TestTypeTraits::TBB;
+
+
 template<template<typename> class InitialPartitionerT,
          InitialPartitioningAlgorithm algorithm,
          PartitionID k, size_t runs>
 struct TestConfig {
-  template<typename TypeTraits>
-  using InitialPartitionerTask = InitialPartitionerT<TypeTraits>;
+  using InitialPartitionerTask = InitialPartitionerT<TestTypeTraits>;
   static constexpr InitialPartitioningAlgorithm ALGORITHM = algorithm;
   static constexpr PartitionID K = k;
   static constexpr size_t RUNS = runs;
 };
 
-template<typename TypeTraits,
-         class InitialPartitionerTask>
+template<class InitialPartitionerTask>
 class InitialPartitionerRootTaskT : public tbb::task {
-  using HyperGraph = typename TypeTraits::HyperGraph;
-  using TBB = typename TypeTraits::TBB;
-  using InitialPartitioningDataContainer = InitialPartitioningDataContainerT<TypeTraits>;
+  using InitialPartitioningDataContainer = InitialPartitioningDataContainerT<TestTypeTraits>;
 
  public:
-  InitialPartitionerRootTaskT(HyperGraph& hypergraph,
+  InitialPartitionerRootTaskT(PartitionedHyperGraph& hypergraph,
                               const Context& context,
                               const InitialPartitioningAlgorithm algorithm,
                               const size_t runs) :
     _ip_data(hypergraph, context, TBB::GLOBAL_TASK_GROUP),
     _context(context),
     _algorithm(algorithm),
-    _runs(runs) { }
+    _runs(runs) {}
 
   tbb::task* execute() override {
     tbb::task::set_ref_count(_runs + 1);
@@ -85,45 +89,39 @@ class InitialPartitionerRootTaskT : public tbb::task {
 };
 
 template<typename Config>
-class AFlatInitialPartitionerTest : public ds::AHypergraph<2> {
- private:
-  using Base = ds::AHypergraph<2>;
+class AFlatInitialPartitionerTest : public Test {
 
  public:
-  using Base::TypeTraits;
-  using Base::HwTopology;
-  using Base::TBBArena;
-  using Base::TestHypergraph;
-  using Base::TestStreamingHypergraph;
-  using InitialPartitionerRootTask = InitialPartitionerRootTaskT<
-    TypeTraits, typename Config::template InitialPartitionerTask<TypeTraits>>;
+  using InitialPartitionerRootTask = InitialPartitionerRootTaskT<typename Config::InitialPartitionerTask>;
 
   AFlatInitialPartitionerTest() :
-    Base(),
     hypergraph(),
+    partitioned_hypergraph(),
     context() {
     context.partition.k = Config::K;
     context.partition.epsilon = 0.2;
     context.partition.objective = kahypar::Objective::km1;
     context.initial_partitioning.lp_initial_block_size = 5;
     context.initial_partitioning.lp_maximum_iterations = 100;
-    hypergraph = io::readHypergraphFile<TestHypergraph, TestStreamingHypergraph, TBBArena, HwTopology>(
-      "../test_instances/test_instance.hgr", context.partition.k, InitialHyperedgeDistribution::equally);
-    for ( const HypernodeID& hn : hypergraph.nodes() ) {
-      hypergraph.setCommunityID(hn, 0);
-    }
-    hypergraph.initializeCommunities();
+    hypergraph = tmp_io::readHypergraphFile<HyperGraph, HyperGraphFactory>(
+      "../test_instances/test_instance.hgr", TBB::GLOBAL_TASK_GROUP);
+    partitioned_hypergraph = PartitionedHyperGraph(context.partition.k, TBB::GLOBAL_TASK_GROUP, hypergraph);
     context.setupPartWeights(hypergraph.totalWeight());
     utils::Timer::instance().disable();
   }
 
+  static void SetUpTestSuite() {
+    TBB::instance(HwTopology::instance().num_cpus());
+  }
+
   void execute() {
     InitialPartitionerRootTask& root_ip_task = *new(tbb::task::allocate_root())
-      InitialPartitionerRootTask(hypergraph, context, Config::ALGORITHM, Config::RUNS);
+      InitialPartitionerRootTask(partitioned_hypergraph, context, Config::ALGORITHM, Config::RUNS);
     tbb::task::spawn_root_and_wait(root_ip_task);
   }
 
-  TestHypergraph hypergraph;
+  HyperGraph hypergraph;
+  PartitionedHyperGraph partitioned_hypergraph;
   Context context;
 };
 
@@ -254,7 +252,7 @@ TYPED_TEST_CASE(AFlatInitialPartitionerTest, TestConfigs);
 TYPED_TEST(AFlatInitialPartitionerTest, HasValidImbalance) {
   this->execute();
 
-  ASSERT_LE(metrics::imbalance(this->hypergraph, this->context),
+  ASSERT_LE(metrics::imbalance(this->partitioned_hypergraph, this->context),
             this->context.partition.epsilon);
 }
 
@@ -262,7 +260,7 @@ TYPED_TEST(AFlatInitialPartitionerTest, AssginsEachHypernode) {
   this->execute();
 
   for ( const HypernodeID& hn : this->hypergraph.nodes() ) {
-    ASSERT_NE(this->hypergraph.partID(hn), -1);
+    ASSERT_NE(this->partitioned_hypergraph.partID(hn), -1);
   }
 }
 
@@ -272,7 +270,7 @@ TYPED_TEST(AFlatInitialPartitionerTest, HasNoSignificantLowPartitionWeights) {
   // Each block should have a weight greater or equal than 20% of the average
   // block weight.
   for ( PartitionID block = 0; block < this->context.partition.k; ++block ) {
-    ASSERT_GE(this->hypergraph.partWeight(block),
+    ASSERT_GE(this->partitioned_hypergraph.partWeight(block),
               this->context.partition.perfect_balance_part_weights[block] / 5);
   }
 }

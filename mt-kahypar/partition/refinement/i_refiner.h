@@ -32,9 +32,10 @@
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
 
 namespace mt_kahypar {
-template<typename TypeTraits>
+template<typename TypeTraits,
+         bool track_border_vertices = TRACK_BORDER_VERTICES>
 class IRefinerT {
-  using HyperGraph = typename TypeTraits::PartitionedHyperGraph;
+  using HyperGraph = typename TypeTraits::template PartitionedHyperGraph<track_border_vertices>;
 
  public:
   IRefinerT(const IRefinerT&) = delete;

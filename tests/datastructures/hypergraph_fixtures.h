@@ -47,7 +47,8 @@ struct TestTypeTraits {
   using HyperGraph = NumaHypergraph<StaticHypergraph, HwTopology, TBB>;
   using HyperGraphFactory = NumaHypergraphFactory<
     StaticHypergraph, StaticHypergraphFactory, HwTopology, TBB>;
-  using PartitionedHyperGraph = NumaPartitionedHypergraph<HyperGraph>;
+  template<bool track_border_vertices = true>
+  using PartitionedHyperGraph = NumaPartitionedHypergraph<HyperGraph, track_border_vertices>;
 };
 
 template <int NUM_NUMA_NODES>

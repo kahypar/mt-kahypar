@@ -46,10 +46,11 @@
 namespace mt_kahypar {
 template <typename TypeTraits,
           typename ExecutionPolicy,
-          template <typename> class GainPolicy>
-class LabelPropagationRefinerT final : public IRefinerT<TypeTraits> {
+          template <typename> class GainPolicy,
+          bool track_border_vertices = TRACK_BORDER_VERTICES>
+class LabelPropagationRefinerT final : public IRefinerT<TypeTraits, track_border_vertices> {
  private:
-  using HyperGraph = typename TypeTraits::PartitionedHyperGraph;
+  using HyperGraph = typename TypeTraits::template PartitionedHyperGraph<track_border_vertices>;
   using TBB = typename TypeTraits::TBB;
   using HwTopology = typename TypeTraits::HwTopology;
   using GainCalculator = GainPolicy<HyperGraph>;
