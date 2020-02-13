@@ -73,7 +73,7 @@ class SpawnInitialPartitionerTaskListT : public tbb::task {
 
 template<typename TypeTraits>
 class PoolInitialPartitionerContinuationT : public tbb::task {
-  using HyperGraph = typename TypeTraits::HyperGraph;
+  using HyperGraph = typename TypeTraits::template PartitionedHyperGraph<>;
   using InitialPartitioningDataContainer = InitialPartitioningDataContainerT<TypeTraits>;
 
   public:
@@ -134,7 +134,7 @@ static void spawn_initial_partitioner(PoolInitialPartitionerContinuationT<TypeTr
  */
 template<typename TypeTraits>
 class PoolInitialPartitionerT : public tbb::task {
-  using HyperGraph = typename TypeTraits::HyperGraph;
+  using HyperGraph = typename TypeTraits::template PartitionedHyperGraph<>;
   using PoolInitialPartitionerContinuation = PoolInitialPartitionerContinuationT<TypeTraits>;
 
   static constexpr bool debug = false;
