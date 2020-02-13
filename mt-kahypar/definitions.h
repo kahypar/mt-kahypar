@@ -59,14 +59,14 @@ using ThreadLocalKWayPriorityQueue = tbb::enumerable_thread_specific<KWayPriorit
 using NodeID = uint32_t;
 
 #if KAHYPAR_ENABLE_NUMA_AWARE_PARTITIONING
-  using Hypergraph = ds::StaticHypergraph;
-  using HypergraphFactory = ds::StaticHypergraphFactory;
-  using PartitionedHypergraph = ds::PartitionedHypergraph<Hypergraph, TRACK_BORDER_VERTICES>;
-#else
   using Hypergraph = ds::NumaHypergraph<ds::StaticHypergraph, HardwareTopology, TBBNumaArena>;
   using HypergraphFactory = ds::NumaHypergraphFactory<
     ds::StaticHypergraph, ds::StaticHypergraphFactory, HardwareTopology, TBBNumaArena>;
   using PartitionedHypergraph = ds::NumaPartitionedHypergraph<Hypergraph, TRACK_BORDER_VERTICES>;
+#else
+  using Hypergraph = ds::StaticHypergraph;
+  using HypergraphFactory = ds::StaticHypergraphFactory;
+  using PartitionedHypergraph = ds::PartitionedHypergraph<Hypergraph, TRACK_BORDER_VERTICES>;
 #endif
 
 struct GlobalTypeTraits {

@@ -36,7 +36,6 @@
 #include <vector>
 
 #include "mt-kahypar/io/partitioning_output.h"
-#include "mt-kahypar/mt_kahypar.h"
 #include "mt-kahypar/partition/context.h"
 
 namespace po = boost::program_options;
