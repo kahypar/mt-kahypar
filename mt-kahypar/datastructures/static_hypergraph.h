@@ -1189,9 +1189,9 @@ class StaticHypergraph {
    *  4.) For each hypernode v of community C, we compute a unique id within
    *      that community in the range [0, |C|)
    */
-  void initializeCommunities(const TaskGroupID,
+  void initializeCommunities(const TaskGroupID task_group_id,
                              const parallel::scalable_vector<StaticHypergraph>& hypergraphs = {}) {
-    _community_support.initialize(*this, hypergraphs);
+    _community_support.initialize(*this, hypergraphs, task_group_id);
   }
 
   /*!
@@ -1384,8 +1384,9 @@ class StaticHypergraph {
 
   // ####################### Initialization / Reset Functions #######################
 
-  void finalizeCommunityNodeIds(const parallel::scalable_vector<StaticHypergraph>& hypergraphs) {
-    _community_support.finalizeCommunityNodeIds(*this, hypergraphs);
+  void finalizeCommunityNodeIds(const parallel::scalable_vector<StaticHypergraph>& hypergraphs,
+                                const TaskGroupID task_group_id) {
+    _community_support.finalizeCommunityNodeIds(*this, hypergraphs, task_group_id);
   }
 
   // ####################### Remove / Restore Hyperedges #######################

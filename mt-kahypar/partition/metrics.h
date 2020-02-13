@@ -39,10 +39,10 @@ static inline HyperedgeWeight remotePinCount(const HyperGraph& hypergraph) {
   int used_numa_nodes = TBBNumaArena::instance().num_used_numa_nodes();
   HyperedgeWeight remote_pin_count = 0;
   for (const HyperedgeID& he : hypergraph.edges()) {
-    int he_node = StreamingHypergraph::get_numa_node_of_hyperedge(he);
+    int he_node = common::get_numa_node_of_edge(he);
     std::vector<size_t> pin_count_on_node(used_numa_nodes, 0);
     for (const HypernodeID& pin : hypergraph.pins(he)) {
-      int hn_node = StreamingHypergraph::get_numa_node_of_vertex(pin);
+      int hn_node = common::get_numa_node_of_vertex(pin);
       ASSERT(hn_node < used_numa_nodes);
       ++pin_count_on_node[hn_node];
     }

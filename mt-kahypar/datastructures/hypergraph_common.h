@@ -26,6 +26,7 @@
 
 namespace mt_kahypar {
 
+using TaskGroupID = size_t;
 using RatingType = double;
 using HypernodeID = uint64_t;
 using HyperedgeID = uint64_t;

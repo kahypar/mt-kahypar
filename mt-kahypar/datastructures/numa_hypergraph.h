@@ -994,7 +994,7 @@ class NumaHypergraph {
         });
 
     TBBNumaArena::instance().execute_parallel_on_all_numa_nodes(task_group_id, [&](const int node) {
-          _hypergraphs[node].finalizeCommunityNodeIds(_hypergraphs);
+          _hypergraphs[node].finalizeCommunityNodeIds(_hypergraphs, task_group_id);
         });
   }
 

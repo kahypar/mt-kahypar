@@ -24,6 +24,7 @@
 
 #include "tbb/enumerable_thread_specific.h"
 #include "tbb/parallel_invoke.h"
+#include "tbb/parallel_reduce.h"
 
 #include "kahypar/meta/mandatory.h"
 
@@ -321,7 +322,8 @@ class CommunitySupport {
    * is not able to.
    */
   void initialize(const Hypergraph& hypergraph,
-                  const parallel::scalable_vector<Hypergraph>& hypergraphs) {
+                  const parallel::scalable_vector<Hypergraph>& hypergraphs,
+                  const TaskGroupID task_group_id) {
     _node = hypergraph.numaNode();
     // Compute number of communities
     if ( hypergraphs.empty() ) {
@@ -340,7 +342,7 @@ class CommunitySupport {
       // sequential in the member vector.
       tbb::parallel_invoke([&] {
         _vertex_to_community_node_id.resize(hypergraph.initialNumNodes());
-        hypergraph.doParallelForAllNodes(TBBNumaArena::GLOBAL_TASK_GROUP, [&](const HypernodeID hn) {
+        hypergraph.doParallelForAllNodes(task_group_id, [&](const HypernodeID hn) {
           Counter& community_degree = local_community_degree.local();
           const PartitionID community_id = hypergraph.communityID(hn);
           ASSERT(community_id < _num_communities);
@@ -350,7 +352,7 @@ class CommunitySupport {
           community_degree[community_id] += hypergraph.nodeDegree(hn);
         });
       }, [&] {
-        hypergraph.doParallelForAllEdges(TBBNumaArena::GLOBAL_TASK_GROUP, [&](const HyperedgeID he) {
+        hypergraph.doParallelForAllEdges(task_group_id, [&](const HyperedgeID he) {
           Counter& communities_num_pins = local_communities_num_pins.local();
           for ( const HypernodeID& pin : hypergraph.pins(he) ) {
             const int hn_node = common::get_numa_node_of_vertex(pin);
@@ -410,7 +412,8 @@ class CommunitySupport {
   // ! of hypergraphs on a numa node with an id smaller than the current hypergraph to all
   // ! local community node ids.
   void finalizeCommunityNodeIds(const Hypergraph& hypergraph,
-                                const parallel::scalable_vector<Hypergraph>& hypergraphs) {
+                                const parallel::scalable_vector<Hypergraph>& hypergraphs,
+                                const TaskGroupID task_group_id) {
     ASSERT(_is_initialized);
     ASSERT(!hypergraphs.empty());
     if ( hypergraph.numaNode() == 0 ) {
@@ -426,7 +429,7 @@ class CommunitySupport {
       }
     });
 
-    hypergraph.doParallelForAllNodes(TBBNumaArena::GLOBAL_TASK_GROUP, [&](const HypernodeID hn) {
+    hypergraph.doParallelForAllNodes(task_group_id, [&](const HypernodeID hn) {
       const PartitionID community_id = hypergraph.communityID(hn);
       const HypernodeID local_id = common::get_local_position_of_vertex(hn);
       ASSERT(local_id < _vertex_to_community_node_id.size());

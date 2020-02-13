@@ -19,8 +19,6 @@
  ******************************************************************************/
 #pragma once
 
-#define USE_HARDWARE_MOCK false
-
 #include <chrono>
 
 #include "tbb/enumerable_thread_specific.h"
@@ -28,12 +26,19 @@
 #include "kahypar/datastructure/fast_reset_flag_array.h"
 #include "kahypar/datastructure/kway_priority_queue.h"
 
-#include "mt-kahypar/datastructures/hypergraph.h"
-#include "mt-kahypar/datastructures/streaming_hypergraph.h"
 #include "mt-kahypar/parallel/hardware_topology.h"
 #include "mt-kahypar/parallel/tbb_numa_arena.h"
+#include "mt-kahypar/datastructures/static_hypergraph.h"
+#include "mt-kahypar/datastructures/static_hypergraph_factory.h"
+#include "mt-kahypar/datastructures/numa_hypergraph.h"
+#include "mt-kahypar/datastructures/numa_hypergraph_factory.h"
+#include "mt-kahypar/datastructures/partitioned_hypergraph.h"
+#include "mt-kahypar/datastructures/numa_partitioned_hypergraph.h"
 
 #include "tests/parallel/topology_mock.h"
+
+#define USE_HARDWARE_MOCK false
+#define TRACK_BORDER_VERTICES true
 
 namespace mt_kahypar {
 #if USE_HARDWARE_MOCK
@@ -47,20 +52,27 @@ using HardwareTopology = mt_kahypar::parallel::HardwareTopology<>;
 #endif
 using TBBNumaArena = mt_kahypar::parallel::TBBNumaArena<HardwareTopology>;
 
-using TaskGroupID = size_t;
-
 using ThreadLocalFastResetFlagArray = tbb::enumerable_thread_specific<kahypar::ds::FastResetFlagArray<> >;
 using KWayPriorityQueue = kahypar::ds::KWayPriorityQueue<HypernodeID, Gain, std::numeric_limits<Gain>, true>;
 using ThreadLocalKWayPriorityQueue = tbb::enumerable_thread_specific<KWayPriorityQueue>;
 
 using NodeID = uint32_t;
 
-using StreamingHypergraph = mt_kahypar::ds::StreamingHypergraph<HardwareTopology, TBBNumaArena>;
-using Hypergraph = mt_kahypar::ds::Hypergraph<HardwareTopology, TBBNumaArena>;
+#if KAHYPAR_ENABLE_NUMA_AWARE_PARTITIONING
+  using Hypergraph = ds::StaticHypergraph;
+  using HypergraphFactory = ds::StaticHypergraphFactory;
+  using PartitionedHypergraph = ds::PartitionedHypergraph<Hypergraph, TRACK_BORDER_VERTICES>;
+#else
+  using Hypergraph = ds::NumaHypergraph<ds::StaticHypergraph, HardwareTopology, TBBNumaArena>;
+  using HypergraphFactory = ds::NumaHypergraphFactory<
+    ds::StaticHypergraph, ds::StaticHypergraphFactory, HardwareTopology, TBBNumaArena>;
+  using PartitionedHypergraph = ds::NumaPartitionedHypergraph<Hypergraph, TRACK_BORDER_VERTICES>;
+#endif
 
 struct GlobalTypeTraits {
   using HyperGraph = Hypergraph;
-  using StreamingHyperGraph = StreamingHypergraph;
+  using HyperGraphFactory = HypergraphFactory;
+  using PartitionedHyperGraph = PartitionedHypergraph;
   using TBB = TBBNumaArena;
   using HwTopology = HardwareTopology;
 };
