@@ -53,7 +53,7 @@ class GreedyInitialPartitionerT : public tbb::task {
 
   tbb::task* execute() override {
     HighResClockTimepoint start = std::chrono::high_resolution_clock::now();
-    HyperGraph& hg = _ip_data.local_hypergraph();
+    HyperGraph& hg = _ip_data.local_partitioned_hypergraph();
     KWayPriorityQueue& kway_pq = _ip_data.local_kway_priority_queue();
     kahypar::ds::FastResetFlagArray<>& hyperedges_in_queue =
       _ip_data.local_hyperedge_fast_reset_flag_array();

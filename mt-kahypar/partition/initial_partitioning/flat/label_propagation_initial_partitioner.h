@@ -56,7 +56,7 @@ class LabelPropagationInitialPartitionerT : public tbb::task {
 
   tbb::task* execute() override {
     HighResClockTimepoint start = std::chrono::high_resolution_clock::now();
-    HyperGraph& hg = _ip_data.local_hypergraph();
+    HyperGraph& hg = _ip_data.local_partitioned_hypergraph();
     _ip_data.reset_unassigned_hypernodes();
 
     parallel::scalable_vector<HypernodeID> start_nodes =

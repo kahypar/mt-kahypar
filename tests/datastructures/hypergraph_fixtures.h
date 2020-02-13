@@ -21,7 +21,11 @@
 #include "gmock/gmock.h"
 
 #include "kahypar/definitions.h"
-#include "mt-kahypar/datastructures/hypergraph.h"
+#include "mt-kahypar/datastructures/static_hypergraph.h"
+#include "mt-kahypar/datastructures/static_hypergraph_factory.h"
+#include "mt-kahypar/datastructures/numa_hypergraph.h"
+#include "mt-kahypar/datastructures/numa_hypergraph_factory.h"
+#include "mt-kahypar/datastructures/numa_partitioned_hypergraph.h"
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/parallel/hardware_topology.h"
 #include "mt-kahypar/parallel/tbb_numa_arena.h"
@@ -40,8 +44,10 @@ struct TestTypeTraits {
   using TopoMock = mt_kahypar::parallel::TopologyMock<NUM_NUMA_NODES>;
   using HwTopology = mt_kahypar::parallel::HardwareTopology<TopoMock, parallel::topology_t, parallel::node_t>;
   using TBB = mt_kahypar::parallel::TBBNumaArena<HwTopology>;
-  using HyperGraph = mt_kahypar::ds::Hypergraph<HwTopology, TBB>;
-  using StreamingHyperGraph = mt_kahypar::ds::StreamingHypergraph<HwTopology, TBB>;
+  using HyperGraph = NumaHypergraph<StaticHypergraph, HwTopology, TBB>;
+  using HyperGraphFactory = NumaHypergraphFactory<
+    StaticHypergraph, StaticHypergraphFactory, HwTopology, TBB>;
+  using PartitionedHyperGraph = NumaPartitionedHypergraph<HyperGraph>;
 };
 
 template <int NUM_NUMA_NODES>

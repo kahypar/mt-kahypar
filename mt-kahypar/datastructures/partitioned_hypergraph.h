@@ -814,9 +814,35 @@ class PartitionedHypergraph {
     _is_init_num_cut_hyperedges = true;
   }
 
+  // ! Initializes the number of cut hyperedges for each vertex
+  // ! NOTE, this function have to be called after initial partitioning
+  // ! and before local search.
+  TRUE_SPECIALIZATION(track_border_vertices, void) initializeNumCutHyperedges(
+    const parallel::scalable_vector<PartitionedHypergraph>& hypergraphs = {}) {
+    ASSERT(!_is_init_num_cut_hyperedges);
+    for ( const HypernodeID& hn : nodes() ) {
+      ASSERT(partID(hn) != kInvalidPartition);
+      for ( const HyperedgeID& he : incidentEdges(hn)) {
+        const PartitionID he_connectivity = hypergraphs.empty() ? connectivity(he) :
+          common::hypergraph_of_edge(he, hypergraphs).connectivity(he);
+        if ( he_connectivity > 1 ) {
+          incrementIncidentNumCutHyperedges(hn);
+        }
+      }
+    }
+    _is_init_num_cut_hyperedges = true;
+  }
+
   // ! NOOP, in case border vertices should be not explicitly tracked
   FALSE_SPECIALIZATION(track_border_vertices, void) initializeNumCutHyperedges(
     const TaskGroupID,
+    const parallel::scalable_vector<PartitionedHypergraph>& hypergraphs = {}) {
+    unused(hypergraphs);
+    _is_init_num_cut_hyperedges = true;
+  }
+
+  // ! NOOP, in case border vertices should be not explicitly tracked
+  FALSE_SPECIALIZATION(track_border_vertices, void) initializeNumCutHyperedges(
     const parallel::scalable_vector<PartitionedHypergraph>& hypergraphs = {}) {
     unused(hypergraphs);
     _is_init_num_cut_hyperedges = true;

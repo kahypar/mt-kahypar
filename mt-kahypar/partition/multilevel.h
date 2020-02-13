@@ -25,7 +25,6 @@
 #include "tbb/task.h"
 
 #include "mt-kahypar/definitions.h"
-#include "mt-kahypar/io/hypergraph_io.h"
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/partition/factories.h"
 #include "mt-kahypar/partition/initial_partitioning/flat/pool_initial_partitioner.h"

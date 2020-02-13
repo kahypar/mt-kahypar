@@ -34,7 +34,7 @@
 namespace mt_kahypar {
 template<typename TypeTraits>
 class IRefinerT {
-  using HyperGraph = typename TypeTraits::HyperGraph;
+  using HyperGraph = typename TypeTraits::PartitionedHyperGraph;
 
  public:
   IRefinerT(const IRefinerT&) = delete;

@@ -44,7 +44,7 @@ class RandomInitialPartitionerT : public tbb::task {
 
   tbb::task* execute() override {
     HighResClockTimepoint start = std::chrono::high_resolution_clock::now();
-    HyperGraph& hg = _ip_data.local_hypergraph();
+    HyperGraph& hg = _ip_data.local_partitioned_hypergraph();
     int cpu_id = sched_getcpu();
 
     for ( const HypernodeID& hn : hg.nodes() ) {

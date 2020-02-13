@@ -558,6 +558,15 @@ class NumaPartitionedHypergraph {
   // ! Initializes the number of cut hyperedges for each vertex
   // ! NOTE, this function have to be called after initial partitioning
   // ! and before local search.
+  void initializeNumCutHyperedges() {
+    for( size_t node = 0; node < _hypergraphs.size(); ++node ) {
+      _hypergraphs[node].initializeNumCutHyperedges(_hypergraphs);
+    }
+  }
+
+  // ! Initializes the number of cut hyperedges for each vertex
+  // ! NOTE, this function have to be called after initial partitioning
+  // ! and before local search.
   void initializeNumCutHyperedges(const TaskGroupID task_group_id) {
     TBBNumaArena::instance().execute_parallel_on_all_numa_nodes(task_group_id, [&](const int node) {
           _hypergraphs[node].initializeNumCutHyperedges(task_group_id, _hypergraphs);
