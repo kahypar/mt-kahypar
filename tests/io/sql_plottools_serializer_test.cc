@@ -162,6 +162,7 @@ bool check_if_member_is_contained_in_result_line(const std::string& context_memb
 TEST(ASqlPlotSerializerTest, ChecksIfSomeParametersFromContextAreMissing) {
   HighResClockTimepoint start = std::chrono::high_resolution_clock::now();
   Hypergraph dummy_hypergraph;
+  PartitionedHypergraph<> dummy_partitioned_hypergraph(2, dummy_hypergraph);
   Context dummy_context;
   dummy_context.partition.graph_filename = "dummy.hgr";
   dummy_context.partition.k = 0;
@@ -171,7 +172,7 @@ TEST(ASqlPlotSerializerTest, ChecksIfSomeParametersFromContextAreMissing) {
   HighResClockTimepoint end = std::chrono::high_resolution_clock::now();
   std::chrono::duration<double> elapsed_seconds(end - start);
 
-  std::string result = serializer::serialize(dummy_hypergraph, dummy_context, elapsed_seconds);
+  std::string result = serializer::serialize(dummy_partitioned_hypergraph, dummy_context, elapsed_seconds);
   std::set<std::string> members_result = get_all_members_from_result_line(result);
   std::vector<std::string> members_context = get_all_members_in_context();
   for ( const std::string& member : members_context ) {

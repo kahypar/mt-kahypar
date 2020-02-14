@@ -269,7 +269,7 @@ inline void printCommunityInformation(const Hypergraph& hypergraph) {
     internal::createStats(community_degrees, avg_community_degree, stdev_community_degree));
 }
 
-inline void printPartSizesAndWeights(const PartitionedHypergraph& hypergraph, const Context& context) {
+inline void printPartSizesAndWeights(const PartitionedHypergraph<>& hypergraph, const Context& context) {
   HypernodeID max_part_size = 0;
   for (PartitionID i = 0; i != hypergraph.k(); ++i) {
     max_part_size = std::max(max_part_size, hypergraph.partSize(i));
@@ -290,7 +290,7 @@ inline void printPartSizesAndWeights(const PartitionedHypergraph& hypergraph, co
   }
 }
 
-static inline void printPartitioningResults(const PartitionedHypergraph& hypergraph,
+static inline void printPartitioningResults(const PartitionedHypergraph<>& hypergraph,
                                             const Context& context,
                                             const std::string& description) {
   if (context.partition.verbose_output) {
@@ -352,7 +352,7 @@ static inline void printLocalSearchBanner(const Context& context) {
   }
 }
 
-inline void printObjectives(const PartitionedHypergraph& hypergraph,
+inline void printObjectives(const PartitionedHypergraph<>& hypergraph,
                             const Context& context,
                             const std::chrono::duration<double>& elapsed_seconds) {
   LOG << "Objectives:";
@@ -364,7 +364,7 @@ inline void printObjectives(const PartitionedHypergraph& hypergraph,
   LOG << " Partitioning Time         =" << elapsed_seconds.count() << "s";
 }
 
-inline void printPartitioningResults(const PartitionedHypergraph& hypergraph,
+inline void printPartitioningResults(const PartitionedHypergraph<>& hypergraph,
                                      const Context& context,
                                      const std::chrono::duration<double>& elapsed_seconds) {
   unused(hypergraph);

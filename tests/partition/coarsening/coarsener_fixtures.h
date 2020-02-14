@@ -28,29 +28,30 @@ using ::testing::Eq;
 using ::testing::Le;
 
 namespace mt_kahypar {
-class ACoarsener : public ds::AHypergraph<2> {
+
+using TestTypeTraits = ds::TestTypeTraits<2>;
+using HyperGraph = typename TestTypeTraits::HyperGraph;
+using HyperGraphFactory = typename TestTypeTraits::HyperGraphFactory;
+using PartitionedHyperGraph = typename TestTypeTraits::template PartitionedHyperGraph<>;
+using TBB = typename TestTypeTraits::TBB;
+
+class ACoarsener : public Test {
  private:
-  using Base = ds::AHypergraph<2>;
 
  public:
-  using Base::TypeTraits;
-  using Base::TestStreamingHypergraph;
-  using Base::TestHypergraph;
-  using Base::TBBArena;
 
   ACoarsener() :
-    Base(),
-    hypergraph(),
+    hypergraph(HyperGraphFactory::construct(TBB::GLOBAL_TASK_GROUP,
+      16, 18, { { 0, 1 }, { 0, 1, 3 }, { 1, 2, 3 }, { 2, 3, 4 }, { 2, 4 },
+                { 4, 5 }, { 4, 5, 7 }, { 5, 6, 7 }, { 6, 7, 8 }, { 6, 8 },
+                { 8, 9 }, { 8, 9, 11 }, { 9, 10, 11 }, { 10, 11, 12 }, { 10, 12 },
+                { 12, 13 }, { 12, 13, 15 }, { 13, 14, 15 } })),
     context(),
     nullptr_refiner(nullptr) {
-    hypergraph = construct_hypergraph(16,
-                                      { { 0, 1 }, { 0, 1, 3 }, { 1, 2, 3 }, { 2, 3, 4 }, { 2, 4 },
-                                        { 4, 5 }, { 4, 5, 7 }, { 5, 6, 7 }, { 6, 7, 8 }, { 6, 8 },
-                                        { 8, 9 }, { 8, 9, 11 }, { 9, 10, 11 }, { 10, 11, 12 }, { 10, 12 },
-                                        { 12, 13 }, { 12, 13, 15 }, { 13, 14, 15 } },
-                                      { 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1 },
-                                      { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1 },
-                                      { 0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3 });
+    for ( const HypernodeID& hn : hypergraph.nodes() ) {
+      hypergraph.setCommunityID(hn, hypergraph.originalNodeID(hn) / 4);
+    }
+    hypergraph.initializeCommunities(TBB::GLOBAL_TASK_GROUP);
     hypergraph.setCommunityNodeMapping({ 0, 0, 1, 1 });
 
     context.partition.k = 2;
@@ -62,20 +63,18 @@ class ACoarsener : public ds::AHypergraph<2> {
     context.setupPartWeights(hypergraph.totalWeight());
   }
 
-  TestHypergraph hypergraph;
+  HyperGraph hypergraph;
   Context context;
-  std::unique_ptr<IRefinerT<TypeTraits>> nullptr_refiner;
+  std::unique_ptr<IRefinerT<TestTypeTraits>> nullptr_refiner;
 };
 
 template <class HyperGraph>
 void assignPartitionIDs(HyperGraph& hypergraph) {
-  using StreamingHyperGraph = typename HyperGraph::StreamingHypergraph;
   for (const HypernodeID& hn : hypergraph.nodes()) {
-    PartitionID part_id = StreamingHyperGraph::get_numa_node_of_vertex(hn);
+    PartitionID part_id = common::get_numa_node_of_vertex(hn);
     hypergraph.setNodePart(hn, part_id);
   }
-  hypergraph.updateGlobalPartInfos();
-  hypergraph.initializeNumCutHyperedges();
+  hypergraph.initializeNumCutHyperedges(TBB::GLOBAL_TASK_GROUP);
 }
 
 template <class HyperGraph>
@@ -146,7 +145,8 @@ void reAddsHyperedgesOfSizeOneDuringUncoarsening(Coarsener& coarsener,
   for (const HyperedgeID& he : single_node_hes) {
     ASSERT_THAT(hypergraph.edgeIsEnabled(he), Eq(false)) << V(he);
   }
-  assignPartitionIDs(hypergraph);
+  PartitionedHyperGraph& partitioned_hypergraph = coarsener.coarsestPartitionedHypergraph();
+  assignPartitionIDs(partitioned_hypergraph);
   coarsener.uncoarsen(refiner);
   for (const HyperedgeID& he : single_node_hes) {
     ASSERT_THAT(hypergraph.edgeIsEnabled(he), Eq(true)) << V(he);
@@ -185,7 +185,8 @@ void restoresParallelHyperedgesDuringUncoarsening(Coarsener& coarsener,
   for (const HyperedgeID& he : parallel_hes) {
     ASSERT_THAT(hypergraph.edgeIsEnabled(he), Eq(false)) << V(he);
   }
-  assignPartitionIDs(hypergraph);
+  PartitionedHyperGraph& partitioned_hypergraph = coarsener.coarsestPartitionedHypergraph();
+  assignPartitionIDs(partitioned_hypergraph);
   coarsener.uncoarsen(refiner);
   for (const HyperedgeID& he : parallel_hes) {
     ASSERT_THAT(hypergraph.edgeIsEnabled(he), Eq(true)) << V(he);

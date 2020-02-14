@@ -58,7 +58,7 @@ static inline Hyperedge readStringAsHyperedge(const std::string& hyperedge_line,
   return std::make_pair(hyperedge, weight);
 }
 
-template <typename StreamingHyperGraph = StreamingHypergraph,
+template <typename StreamingHyperGraph,
           typename TBB = TBBNumaArena,
           typename HwTopology = HardwareTopology>
 static inline void streamHyperedgesEquallyIntoNumaHypergraphs(const std::vector<std::string>& hyperedge_lines,
@@ -81,7 +81,7 @@ static inline void streamHyperedgesEquallyIntoNumaHypergraphs(const std::vector<
         });
 }
 
-template <typename StreamingHyperGraph = StreamingHypergraph,
+template <typename StreamingHyperGraph,
           typename TBB = TBBNumaArena,
           typename HwTopology = HardwareTopology>
 static inline void streamHyperedgesRandomIntoNumaHypergraphs(const std::vector<std::string>& hyperedge_lines,
@@ -99,7 +99,7 @@ static inline void streamHyperedgesRandomIntoNumaHypergraphs(const std::vector<s
         });
 }
 
-template <typename StreamingHyperGraph = StreamingHypergraph,
+template <typename StreamingHyperGraph,
           typename TBB = TBBNumaArena,
           typename HwTopology = HardwareTopology>
 static inline void streamHyperedgesIntoOneNumaHypergraph(const std::vector<std::string>& hyperedge_lines,
@@ -116,8 +116,8 @@ static inline void streamHyperedgesIntoOneNumaHypergraph(const std::vector<std::
         });
 }
 
-template <typename HyperGraph = Hypergraph,
-          typename StreamingHyperGraph = StreamingHypergraph,
+template <typename HyperGraph,
+          typename StreamingHyperGraph,
           typename TBB = TBBNumaArena,
           typename HwTopology = HardwareTopology>
 static inline HyperGraph readHyperedges(std::ifstream& file,
@@ -186,7 +186,7 @@ static inline HyperGraph readHyperedges(std::ifstream& file,
   return hypergraph;
 }
 
-template < typename HyperGraph = Hypergraph,
+template < typename HyperGraph,
            typename TBB = TBBNumaArena>
 static inline void readHypernodeWeights(std::ifstream& file,
                                         HyperGraph& hypergraph,
@@ -229,8 +229,8 @@ static inline void readHGRHeader(std::ifstream& file, HyperedgeID& num_hyperedge
 }
 }  // namespace
 
-template <typename HyperGraph = Hypergraph,
-          typename StreamingHyperGraph = StreamingHypergraph,
+template <typename HyperGraph,
+          typename StreamingHyperGraph,
           typename TBB = TBBNumaArena,
           typename HwTopology = HardwareTopology>
 static inline HyperGraph readHypergraphFile(const std::string& filename,
@@ -271,7 +271,8 @@ static inline void readPartitionFile(const std::string& filename, std::vector<Pa
   }
 }
 
-static inline void writePartitionFile(const Hypergraph& hypergraph, const std::string& filename) {
+template<typename HyperGraph>
+static inline void writePartitionFile(const HyperGraph& hypergraph, const std::string& filename) {
   if (filename.empty()) {
     LOG << "No filename for partition file specified";
   } else {

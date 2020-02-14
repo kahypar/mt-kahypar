@@ -21,6 +21,7 @@
 #include "gmock/gmock.h"
 
 #include "kahypar/definitions.h"
+#include "mt-kahypar/datastructures/hypergraph.h"
 #include "mt-kahypar/datastructures/static_hypergraph.h"
 #include "mt-kahypar/datastructures/static_hypergraph_factory.h"
 #include "mt-kahypar/datastructures/numa_hypergraph.h"
@@ -40,6 +41,15 @@ namespace ds {
 #define GLOBAL_EDGE_ID(hypergraph, id) hypergraph.globalEdgeID(id)
 
 template <int NUM_NUMA_NODES>
+struct OldTestTypeTraits {
+  using TopoMock = mt_kahypar::parallel::TopologyMock<NUM_NUMA_NODES>;
+  using HwTopology = mt_kahypar::parallel::HardwareTopology<TopoMock, parallel::topology_t, parallel::node_t>;
+  using TBB = mt_kahypar::parallel::TBBNumaArena<HwTopology>;
+  using HyperGraph = mt_kahypar::ds::Hypergraph<HwTopology, TBB>;
+  using StreamingHyperGraph = mt_kahypar::ds::StreamingHypergraph<HwTopology, TBB>;
+};
+
+template <int NUM_NUMA_NODES>
 struct TestTypeTraits {
   using TopoMock = mt_kahypar::parallel::TopologyMock<NUM_NUMA_NODES>;
   using HwTopology = mt_kahypar::parallel::HardwareTopology<TopoMock, parallel::topology_t, parallel::node_t>;
@@ -57,7 +67,7 @@ class AHypergraph : public Test {
   using HyperedgeVector = parallel::scalable_vector<HyperedgeID>;
 
  public:
-  using TypeTraits = TestTypeTraits<NUM_NUMA_NODES>;
+  using TypeTraits = OldTestTypeTraits<NUM_NUMA_NODES>;
   using TBBArena = typename TypeTraits::TBB;
   using HwTopology = typename TypeTraits::HwTopology;
   using TestStreamingHypergraph = typename TypeTraits::StreamingHyperGraph;

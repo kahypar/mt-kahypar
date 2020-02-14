@@ -523,7 +523,7 @@ class NumaHypergraph {
   }
 
   // ! Sets the community to numa node mapping
-  void setCommunityNodeMapping(std::vector<PartitionID>&& community_node_mapping) {
+  void setCommunityNodeMapping(parallel::scalable_vector<PartitionID>&& community_node_mapping) {
     ASSERT(community_node_mapping.size() == static_cast<size_t>(numCommunities()));
     _community_node_mapping = std::move(community_node_mapping);
   }

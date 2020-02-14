@@ -48,7 +48,7 @@ class MultilevelCoarsenerT : public ICoarsenerT<TypeTraits>,
                              private MultilevelCoarsenerBase<TypeTraits> {
  private:
   using HyperGraph = typename TypeTraits::HyperGraph;
-  using StreamingHyperGraph = typename TypeTraits::StreamingHyperGraph;
+  using PartitionedHyperGraph = typename TypeTraits::template PartitionedHyperGraph<>;
   using TBB = typename TypeTraits::TBB;
   using HwTopology = typename TypeTraits::HwTopology;
 
@@ -104,8 +104,8 @@ class MultilevelCoarsenerT : public ICoarsenerT<TypeTraits>,
       }
       tbb::parallel_for(0UL, current_hg.initialNumNodes(), [&](const HypernodeID id) {
         const HypernodeID hn = current_hg.globalNodeID(id);
-        const int node = StreamingHyperGraph::get_numa_node_of_vertex(hn);
-        const HypernodeID local_id = StreamingHyperGraph::get_local_node_id_of_vertex(hn);
+        const int node = common::get_numa_node_of_vertex(hn);
+        const HypernodeID local_id = common::get_local_position_of_vertex(hn);
         ASSERT(local_id < current_vertices[node].size());
         current_vertices[node][local_id] = hn;
       });
@@ -177,12 +177,16 @@ class MultilevelCoarsenerT : public ICoarsenerT<TypeTraits>,
     _progress_bar.disable();
   }
 
-  bool uncoarsenImpl(std::unique_ptr<Refiner>& label_propagation) override {
+  PartitionedHyperGraph&& uncoarsenImpl(std::unique_ptr<Refiner>& label_propagation) override {
     return Base::doUncoarsen(label_propagation);
   }
 
   HyperGraph& coarsestHypergraphImpl() override {
     return Base::currentHypergraph();
+  }
+
+  PartitionedHyperGraph& coarsestPartitionedHypergraphImpl() override {
+    return Base::currentPartitionedHypergraph();
   }
 
   HypernodeID hierarchyContractionLimit(const HyperGraph& hypergraph) const {
