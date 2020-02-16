@@ -692,7 +692,8 @@ class NumaHypergraph {
       parallel::scalable_vector<ContractedHyperedge>& hyperedge_bucket = hyperedge_buckets[bucket];
       std::sort(hyperedge_bucket.begin(), hyperedge_bucket.end(),
         [&](const ContractedHyperedge& lhs, const ContractedHyperedge& rhs) {
-          return lhs.hash < rhs.hash || (lhs.hash == rhs.hash && lhs.hyperedge.size() < rhs.hyperedge.size());
+          return lhs.hash < rhs.hash || (lhs.hash == rhs.hash && lhs.hyperedge.size() < rhs.hyperedge.size()) ||
+            (lhs.hash == rhs.hash && lhs.hyperedge.size() == rhs.hyperedge.size() && lhs.he < rhs.he);
         });
 
       // Parallel Hyperedge Detection

@@ -100,6 +100,7 @@ struct Memento {
   * detect parallel hyperedges.
   */
 struct ContractedHyperedge {
+  HyperedgeID he;
   size_t hash;
   HyperedgeWeight weight;
   bool is_parallel; // Indicates if this hyperedges is already detected as parallel

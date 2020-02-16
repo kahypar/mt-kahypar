@@ -1376,7 +1376,7 @@ class StaticHypergraph {
           he_hash += kahypar::math::hash(pin);
         }
         hash_to_hyperedge.stream(he_hash,
-          ContractedHyperedge { he_hash, edgeWeight(he),
+          ContractedHyperedge { he, he_hash, edgeWeight(he),
             false, _node, std::move(hyperedge), 0UL, 0UL } );
       }
     });
