@@ -307,7 +307,7 @@ inline PartitionedHypergraph<> Partitioner::partition(Hypergraph& hypergraph, Co
     io::printStripe();
   }
 
-  return std::move(partitioned_hypergraph);
+  return partitioned_hypergraph;
 }
 }  // namespace partition
 }  // namespace mt_kahypar
