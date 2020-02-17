@@ -45,7 +45,7 @@ class CommunityRedistributorT {
 
   static HyperGraph redistribute(const TaskGroupID task_group_id,
                                  const HyperGraph& hg,
-                                 const std::vector<PartitionID>& community_assignment) {
+                                 const parallel::scalable_vector<PartitionID>& community_assignment) {
     // Compute Node Mapping
     utils::Timer::instance().start_timer("compute_node_mapping", "Compute Node Mapping");
     parallel::scalable_vector<int> vertices_to_numa_node(hg.initialNumNodes(), -1);

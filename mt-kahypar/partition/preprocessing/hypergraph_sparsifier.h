@@ -83,7 +83,7 @@ class HypergraphSparsifier {
     }
   }
 
-  void restoreSingleNodeHyperedges(Hypergraph& hypergraph) {
+  void restoreSingleNodeHyperedges(PartitionedHypergraph<>& hypergraph) {
     for (const HyperedgeID& he : _removed_hes) {
       hypergraph.restoreSinglePinHyperedge(he);
     }

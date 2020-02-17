@@ -321,7 +321,6 @@ class LabelPropagationRefinerT final : public IRefinerT<TypeTraits, track_border
         if (best_move.from != best_move.to && perform_move) {
           PartitionID from = best_move.from;
           PartitionID to = best_move.to;
-          ASSERT(hypergraph.partWeight(to) + hypergraph.nodeWeight(hn) <= _context.partition.max_part_weights[to]);
 
           Gain delta_before = _gain.localDelta();
           if (hypergraph.changeNodePart(hn, from, to, objective_delta)) {

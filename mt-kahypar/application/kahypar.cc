@@ -22,10 +22,11 @@
 
 #include "mt-kahypar/application/command_line_options.h"
 #include "mt-kahypar/definitions.h"
+#include "mt-kahypar/mt_kahypar.h"
 #include "mt-kahypar/io/tmp_hypergraph_io.h"
-// #include "mt-kahypar/io/sql_plottools_serializer.h"
+#include "mt-kahypar/io/sql_plottools_serializer.h"
 #include "mt-kahypar/partition/context.h"
-// #include "mt-kahypar/partition/partitioner.h"
+#include "mt-kahypar/partition/partitioner.h"
 
 #include "mt-kahypar/utils/randomize.h"
 #include "mt-kahypar/utils/timer.h"
@@ -54,21 +55,23 @@ int main(int argc, char* argv[]) {
       context.partition.graph_filename, mt_kahypar::TBBNumaArena::GLOBAL_TASK_GROUP);
 
   // Partition Hypergraph
-  /*mt_kahypar::HighResClockTimepoint start = std::chrono::high_resolution_clock::now();
-  mt_kahypar::partition::Partitioner().partition(hypergraph, context);
+  mt_kahypar::HighResClockTimepoint start = std::chrono::high_resolution_clock::now();
+  mt_kahypar::PartitionedHypergraph<> partitioned_hypergraph =
+    mt_kahypar::partition::Partitioner().partition(hypergraph, context);
   mt_kahypar::HighResClockTimepoint end = std::chrono::high_resolution_clock::now();
 
   // Print Stats
   std::chrono::duration<double> elapsed_seconds(end - start);
-  mt_kahypar::io::printPartitioningResults(hypergraph, context, elapsed_seconds);
+  mt_kahypar::io::printPartitioningResults(
+    partitioned_hypergraph, context, elapsed_seconds);
   if ( context.partition.sp_process_output ) {
-    std::cout << mt_kahypar::io::serializer::serialize(hypergraph, context, elapsed_seconds) << std::endl;
+    std::cout << mt_kahypar::io::serializer::serialize(
+      partitioned_hypergraph, context, elapsed_seconds) << std::endl;
   }
   if (context.partition.write_partition_file) {
-    mt_kahypar::io::writePartitionFile(hypergraph, context.partition.graph_partition_filename);
-  }*/
-
-  // LOG << mt_kahypar::utils::Timer::instance(true);
+    mt_kahypar::tmp_io::writePartitionFile(
+      partitioned_hypergraph, context.partition.graph_partition_filename);
+  }
 
   mt_kahypar::TBBNumaArena::instance().terminate();
   return 0;
