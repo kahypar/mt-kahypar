@@ -50,12 +50,11 @@ class CommunityCoarsenerT : public ICoarsenerT<TypeTraits>,
                             private CommunityCoarsenerBase<TypeTraits> {
  private:
   using HyperGraph = typename TypeTraits::HyperGraph;
-  using StreamingHyperGraph = typename TypeTraits::StreamingHyperGraph;
+  using PartitionedHyperGraph = typename TypeTraits::template PartitionedHyperGraph<>;
   using TBB = typename TypeTraits::TBB;
   using HwTopology = typename TypeTraits::HwTopology;
 
   using Base = CommunityCoarsenerBase<TypeTraits>;
-  using Memento = typename StreamingHyperGraph::Memento;
   using HypergraphPruner = HypergraphPrunerT<TypeTraits>;
   using Rater = CommunityVertexPairRater<TypeTraits,
                                          ScorePolicy,
@@ -234,7 +233,7 @@ class CommunityCoarsenerT : public ICoarsenerT<TypeTraits>,
                                          (int64_t)_pruner[community_id].removedSingleNodeHyperedges().size());
   }
 
-  bool uncoarsenImpl(std::unique_ptr<Refiner>& label_propagation) override {
+  PartitionedHyperGraph&& uncoarsenImpl(std::unique_ptr<Refiner>& label_propagation) override {
     return this->doUncoarsen(label_propagation);
   }
 
@@ -242,7 +241,13 @@ class CommunityCoarsenerT : public ICoarsenerT<TypeTraits>,
     return _hg;
   }
 
+  PartitionedHyperGraph& coarsestPartitionedHypergraphImpl() override {
+    return _partitioned_hg;
+  }
+
+
   using Base::_hg;
+  using Base::_partitioned_hg;
   using Base::_context;
   using Base::_pruner;
   using Base::_task_group_id;

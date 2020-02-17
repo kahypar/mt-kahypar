@@ -33,13 +33,13 @@ using TestTypeTraits = ds::TestTypeTraits<2>;
 using HyperGraph = typename TestTypeTraits::HyperGraph;
 using HyperGraphFactory = typename TestTypeTraits::HyperGraphFactory;
 using PartitionedHyperGraph = typename TestTypeTraits::template PartitionedHyperGraph<>;
+using HwTopology = typename TestTypeTraits::HwTopology;
 using TBB = typename TestTypeTraits::TBB;
 
 class ACoarsener : public Test {
  private:
 
  public:
-
   ACoarsener() :
     hypergraph(HyperGraphFactory::construct(TBB::GLOBAL_TASK_GROUP,
       16, 18, { { 0, 1 }, { 0, 1, 3 }, { 1, 2, 3 }, { 2, 3, 4 }, { 2, 4 },
@@ -61,6 +61,10 @@ class ACoarsener : public Test {
     context.coarsening.ignore_already_matched_vertices = false;
     context.coarsening.multilevel_shrink_factor = 4.0;
     context.setupPartWeights(hypergraph.totalWeight());
+  }
+
+  static void SetUpTestSuite() {
+    TBB::instance(HwTopology::instance().num_cpus());
   }
 
   HyperGraph hypergraph;

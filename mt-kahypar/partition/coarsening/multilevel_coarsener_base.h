@@ -46,8 +46,9 @@ class MultilevelCoarsenerBase {
 
    public:
     explicit Hierarchy(HyperGraph&& contracted_hypergraph,
-                       const PartitionID k,
                        tbb::task_group& group,
+                       const PartitionID k,
+                       const TaskGroupID task_group_id,
                        parallel::scalable_vector<HypernodeID>&& communities,
                        parallel::scalable_vector<HypernodeID>&& mapping) :
       _representative_hypergraph(nullptr),
@@ -57,8 +58,9 @@ class MultilevelCoarsenerBase {
       _mapping(std::move(mapping)) {
       ASSERT(_communities.size() == _mapping.size());
       // Construct partitioned hypergraph async
-      group.run([&] {
-        _contracted_partitioned_hypergraph = PartitionedHyperGraph(k, _contracted_hypergraph);
+      group.run([&, k, task_group_id] {
+        _contracted_partitioned_hypergraph = PartitionedHyperGraph(
+          k, task_group_id, _contracted_hypergraph);
       });
     }
 
@@ -160,8 +162,8 @@ class MultilevelCoarsenerBase {
     HyperGraph& current_hg = currentHypergraph();
     ASSERT(current_hg.initialNumNodes() == communities.size());
     auto contracted_hg = current_hg.contract(communities, _task_group_id);
-    _hierarchies.emplace_back(std::move(contracted_hg.first), _context.partition.k, _group,
-      std::move(communities), std::move(contracted_hg.second));
+    _hierarchies.emplace_back(std::move(contracted_hg.first), _group, _context.partition.k,
+      _task_group_id, std::move(communities), std::move(contracted_hg.second));
   }
 
   PartitionedHyperGraph&& doUncoarsen(std::unique_ptr<Refiner>& label_propagation) {
