@@ -36,6 +36,12 @@
 namespace mt_kahypar {
 namespace ds {
 
+// Forward
+template <typename Hypergraph,
+          typename HypergraphFactory,
+          bool track_border_vertices>
+class NumaPartitionedHypergraph;
+
 template <typename Hypergraph = Mandatory,
           typename HypergraphFactory = Mandatory,
           bool track_border_vertices = true>
@@ -440,11 +446,14 @@ class PartitionedHypergraph {
   void restoreEdge(const HyperedgeID he, const size_t size,
                    const HyperedgeID representative = kInvalidHyperedge) {
     _hg->restoreEdge(he, size, representative);
+    for ( const HypernodeID& pin : pins(he) ) {
+      incrementPinCountInPart(he, partID(pin));
+    }
   }
 
   // ! Restores a single-pin hyperedge
   void restoreSinglePinHyperedge(const HyperedgeID he) {
-    _hg->restoreSinglePinHyperedge(he);
+    restoreEdge(he, 1);
   }
 
   void restoreParallelHyperedge(const HyperedgeID,
@@ -1017,6 +1026,10 @@ class PartitionedHypergraph {
   }
 
  private:
+  template <typename HyperGraph,
+            typename HyperGraphFactory,
+            bool track_border_hns>
+  friend class NumaPartitionedHypergraph;
 
   // ! Accessor for partition information of a vertex
   KAHYPAR_ATTRIBUTE_ALWAYS_INLINE const VertexPartInfo& vertexPartInfo(const HypernodeID u) const {

@@ -22,7 +22,7 @@
 
 #include "mt-kahypar/application/command_line_options.h"
 #include "mt-kahypar/definitions.h"
-#include "mt-kahypar/io/hypergraph_io.h"
+#include "mt-kahypar/io/tmp_hypergraph_io.h"
 #include "mt-kahypar/mt_kahypar.h"
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/partition/partitioner.h"
@@ -193,7 +193,7 @@ using MultiLevelCutConfig = TestConfig<k,
                                        false,
                                        false>;
 
-typedef ::testing::Types<NLevelCutConfig<2,
+typedef ::testing::Types</*NLevelCutConfig<2,
                                          CommunityLoadBalancingStrategy::none,
                                          InitialPartitioningMode::direct,
                                          false,
@@ -332,7 +332,7 @@ typedef ::testing::Types<NLevelCutConfig<2,
                                          CommunityLoadBalancingStrategy::size_constraint,
                                          InitialPartitioningMode::direct,
                                          false,
-                                         false>,
+                                         false>,*/
                          MultiLevelCutConfig<2,
                                              CommunityLoadBalancingStrategy::none,
                                              false,
@@ -435,70 +435,70 @@ TYPED_TEST_CASE(MtKaHyPar, TestConfigs);
 void partitionHypergraph(Hypergraph& hypergraph, Context& context) {
   // Partition Hypergraph
   HighResClockTimepoint start = std::chrono::high_resolution_clock::now();
-  partition::Partitioner().partition(hypergraph, context);
+  PartitionedHypergraph<> partitioned_hypergraph =
+    partition::Partitioner().partition(hypergraph, context);
   HighResClockTimepoint end = std::chrono::high_resolution_clock::now();
 
   std::chrono::duration<double> elapsed_seconds(end - start);
-  mt_kahypar::io::printPartitioningResults(hypergraph, context, elapsed_seconds);
+  mt_kahypar::io::printPartitioningResults(partitioned_hypergraph, context, elapsed_seconds);
 
   // Verify that partitioned hypergraph is
   // equivalent with input hypergraph
-  Hypergraph reference = io::readHypergraphFile(
-    context.partition.graph_filename, context.partition.k,
-    context.shared_memory.initial_hyperedge_distribution);
+  Hypergraph reference = tmp_io::readHypergraphFile<Hypergraph, HypergraphFactory>(
+    context.partition.graph_filename, TBBNumaArena::GLOBAL_TASK_GROUP);
   verifyThatHypergraphsAreEquivalent(hypergraph, reference);
 
   HypernodeID num_hypernodes = 0;
-  std::vector<HypernodeWeight> weights(hypergraph.k(), 0);
-  std::vector<size_t> sizes(hypergraph.k(), 0);
+  std::vector<HypernodeWeight> weights(partitioned_hypergraph.k(), 0);
+  std::vector<size_t> sizes(partitioned_hypergraph.k(), 0);
   for ( const HypernodeID& hn : hypergraph.nodes() ) {
     // Make sure that each hypernode has a block id between [0,k)
-    PartitionID part_id = hypergraph.partID(hn);
+    PartitionID part_id = partitioned_hypergraph.partID(hn);
     ASSERT_NE(-1, part_id);
     ASSERT_LE(part_id, context.partition.k);
-    weights[part_id] += hypergraph.nodeWeight(hn);
+    weights[part_id] += partitioned_hypergraph.nodeWeight(hn);
     ++sizes[part_id];
     ++num_hypernodes;
 
     // Verify that border nodes are stored correctly
     bool is_border_node = false;
-    for ( const HyperedgeID& he : hypergraph.incidentEdges(hn) ) {
-      if ( hypergraph.connectivity(he) > 1 ) {
+    for ( const HyperedgeID& he : partitioned_hypergraph.incidentEdges(hn) ) {
+      if ( partitioned_hypergraph.connectivity(he) > 1 ) {
         is_border_node = true;
         break;
       }
     }
-    ASSERT_EQ(is_border_node, hypergraph.isBorderNode(hn));
+    ASSERT_EQ(is_border_node, partitioned_hypergraph.isBorderNode(hn));
   }
   // Verify that hypergraph is fully uncontracted
-  ASSERT_EQ(hypergraph.initialNumNodes(), num_hypernodes);
+  ASSERT_EQ(partitioned_hypergraph.initialNumNodes(), num_hypernodes);
 
   // Verify block weights and sizes
-  for ( PartitionID k = 0; k < hypergraph.k(); ++k ) {
-    ASSERT_EQ(weights[k], hypergraph.partWeight(k));
-    ASSERT_EQ(sizes[k], hypergraph.partSize(k));
+  for ( PartitionID k = 0; k < partitioned_hypergraph.k(); ++k ) {
+    ASSERT_EQ(weights[k], partitioned_hypergraph.partWeight(k));
+    ASSERT_EQ(sizes[k], partitioned_hypergraph.partSize(k));
   }
 
   // Verify connectivity (sets) and pin count in part
   size_t num_hyperedges = 0;
-  for ( const HyperedgeID& he : hypergraph.edges() ) {
-    std::vector<HypernodeID> pin_count_in_part(hypergraph.k(), 0);
+  for ( const HyperedgeID& he : partitioned_hypergraph.edges() ) {
+    std::vector<HypernodeID> pin_count_in_part(partitioned_hypergraph.k(), 0);
     PartitionID connectivity = 0;
-    for ( const HypernodeID& pin : hypergraph.pins(he) ) {
-      PartitionID part_id = hypergraph.partID(pin);
+    for ( const HypernodeID& pin : partitioned_hypergraph.pins(he) ) {
+      PartitionID part_id = partitioned_hypergraph.partID(pin);
       if ( pin_count_in_part[part_id] == 0 ) {
         ++connectivity;
       }
       ++pin_count_in_part[part_id];
     }
-    ASSERT_EQ(connectivity, hypergraph.connectivity(he));
+    ASSERT_EQ(connectivity, partitioned_hypergraph.connectivity(he));
 
-    for ( PartitionID k = 0; k < hypergraph.k(); ++k ) {
-      ASSERT_EQ(pin_count_in_part[k], hypergraph.pinCountInPart(he, k));
+    for ( PartitionID k = 0; k < partitioned_hypergraph.k(); ++k ) {
+      ASSERT_EQ(pin_count_in_part[k], partitioned_hypergraph.pinCountInPart(he, k));
     }
 
     PartitionID connectivity_2 = 0;
-    for ( const PartitionID& k : hypergraph.connectivitySet(he) ) {
+    for ( const PartitionID& k : partitioned_hypergraph.connectivitySet(he) ) {
       ++connectivity_2;
       ASSERT_GT(pin_count_in_part[k], 0);
     }
@@ -512,9 +512,8 @@ void partitionHypergraph(Hypergraph& hypergraph, Context& context) {
 TYPED_TEST(MtKaHyPar, PartitionsAVLSIInstance) {
   // Read Hypergraph
   this->context.partition.graph_filename = "test_instances/ibm01.hgr";
-  Hypergraph hypergraph = io::readHypergraphFile(
-    this->context.partition.graph_filename, this->context.partition.k,
-    this->context.shared_memory.initial_hyperedge_distribution);
+  Hypergraph hypergraph = tmp_io::readHypergraphFile<Hypergraph, HypergraphFactory>(
+    this->context.partition.graph_filename, TBBNumaArena::GLOBAL_TASK_GROUP);
 
   partitionHypergraph(hypergraph, this->context);
 }
@@ -522,9 +521,8 @@ TYPED_TEST(MtKaHyPar, PartitionsAVLSIInstance) {
 TYPED_TEST(MtKaHyPar, PartitionsASparseMatrixInstance) {
   // Read Hypergraph
   this->context.partition.graph_filename = "test_instances/powersim.mtx.hgr";
-  Hypergraph hypergraph = io::readHypergraphFile(
-    this->context.partition.graph_filename, this->context.partition.k,
-    this->context.shared_memory.initial_hyperedge_distribution);
+  Hypergraph hypergraph = tmp_io::readHypergraphFile<Hypergraph, HypergraphFactory>(
+    this->context.partition.graph_filename, TBBNumaArena::GLOBAL_TASK_GROUP);
 
   partitionHypergraph(hypergraph, this->context);
 }
@@ -532,9 +530,8 @@ TYPED_TEST(MtKaHyPar, PartitionsASparseMatrixInstance) {
 TYPED_TEST(MtKaHyPar, PartitionsASATInstance) {
   // Read Hypergraph
   this->context.partition.graph_filename = "test_instances/sat14_atco_enc1_opt2_10_16.cnf.primal.hgr";
-  Hypergraph hypergraph = io::readHypergraphFile(
-    this->context.partition.graph_filename, this->context.partition.k,
-    this->context.shared_memory.initial_hyperedge_distribution);
+  Hypergraph hypergraph = tmp_io::readHypergraphFile<Hypergraph, HypergraphFactory>(
+    this->context.partition.graph_filename, TBBNumaArena::GLOBAL_TASK_GROUP);
 
   partitionHypergraph(hypergraph, this->context);
 }

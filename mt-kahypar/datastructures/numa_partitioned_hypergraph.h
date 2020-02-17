@@ -415,11 +415,15 @@ class NumaPartitionedHypergraph {
   void restoreEdge(const HyperedgeID he, const size_t size,
                    const HyperedgeID representative = kInvalidHyperedge) {
     _hg->restoreEdge(he, size, representative);
+    PartitionedHyperGraph& hypergraph_of_he = hypergraph_of_edge(he);
+    for ( const HypernodeID& pin : pins(he) ) {
+      hypergraph_of_he.incrementPinCountInPart(he, partID(pin));
+    }
   }
 
   // ! Restores a single-pin hyperedge
   void restoreSinglePinHyperedge(const HyperedgeID he) {
-    _hg->restoreSinglePinHyperedge(he);
+    restoreEdge(he, 1);
   }
 
   void restoreParallelHyperedge(const HyperedgeID,
