@@ -516,6 +516,10 @@ class NumaHypergraph {
     return hypergraph_of_vertex(e).numCommunitiesInHyperedge(e);
   }
 
+  bool hasCommunityNodeMapping() const {
+    return _community_node_mapping.size() > 0;
+  }
+
   // ! Numa node to which community is assigned to
   PartitionID communityNumaNode(const PartitionID community_id) const {
     ASSERT(static_cast<size_t>(community_id) < _community_node_mapping.size());
@@ -526,6 +530,11 @@ class NumaHypergraph {
   void setCommunityNodeMapping(parallel::scalable_vector<PartitionID>&& community_node_mapping) {
     ASSERT(community_node_mapping.size() == static_cast<size_t>(numCommunities()));
     _community_node_mapping = std::move(community_node_mapping);
+  }
+
+  // ! Returns a copy of community to numa node mapping
+  parallel::scalable_vector<PartitionID> communityNodeMapping() const {
+    return _community_node_mapping;
   }
 
   // ####################### Contract / Uncontract #######################

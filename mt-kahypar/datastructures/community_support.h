@@ -397,6 +397,7 @@ class CommunitySupport {
     } else {
       // Special case, if community information are not available
       // => all are assigned to the same community
+        _vertex_to_community_node_id.resize(hypergraph.initialNumNodes());
       _communities_num_hypernodes.assign(1, hypergraph.initialNumNodes());
       _communities_num_pins.assign(1, hypergraph.initialNumPins());
       _community_degree.assign(1, hypergraph.initialTotalVertexDegree());

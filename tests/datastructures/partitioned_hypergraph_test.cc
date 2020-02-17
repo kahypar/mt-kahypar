@@ -51,11 +51,12 @@ template<typename TypeTraits>
 class APartitionedHypergraph : public Test {
 
  using PartitionedHyperGraph = typename TypeTraits::PartitionedHyperGraph;
- using Hypergraph = typename TypeTraits::Hypergraph;
  using Factory = typename TypeTraits::Factory;
- using TBB = typename TypeTraits::TBB;
 
  public:
+ using Hypergraph = typename TypeTraits::Hypergraph;
+ using TBB = typename TypeTraits::TBB;
+
   APartitionedHypergraph() :
     hypergraph(Factory::construct(TBB::GLOBAL_TASK_GROUP,
       7 , 4, { {0, 2}, {0, 1, 3, 4}, {3, 4, 6}, {2, 5, 6} })),
@@ -99,6 +100,24 @@ class APartitionedHypergraph : public Test {
     ASSERT_EQ(connectivity_set.size(), connectivity) << V(he);
   }
 
+  void verifyPins(const Hypergraph& hg,
+                  const std::vector<HyperedgeID> hyperedges,
+                  const std::vector< std::set<HypernodeID> >& references,
+                  bool log = false) {
+    ASSERT(hyperedges.size() == references.size());
+    for (size_t i = 0; i < hyperedges.size(); ++i) {
+      const HyperedgeID he = hyperedges[i];
+      const std::set<HypernodeID>& reference = references[i];
+      size_t count = 0;
+      for (const HypernodeID& pin : hg.pins(he)) {
+        if (log) LOG << V(he) << V(pin);
+        ASSERT_TRUE(reference.find(pin) != reference.end()) << V(he) << V(pin);
+        count++;
+      }
+      ASSERT_EQ(count, reference.size());
+    }
+  }
+
   Hypergraph hypergraph;
   PartitionedHyperGraph partitioned_hypergraph;
   std::vector<HypernodeID> id;
@@ -129,22 +148,22 @@ using NumaHyperGraphFactory = NumaHypergraphFactory<
   StaticHypergraph, StaticHypergraphFactory, HwTopology, TBB>;
 
 typedef ::testing::Types<PartitionedHypergraphTypeTraits<
-                          PartitionedHypergraph<StaticHypergraph, true>,
+                          PartitionedHypergraph<StaticHypergraph, StaticHypergraphFactory, true>,
                           StaticHypergraph,
                           StaticHypergraphFactory,
                           TBBNumaArena>,
                         PartitionedHypergraphTypeTraits<
-                          PartitionedHypergraph<StaticHypergraph, false>,
+                          PartitionedHypergraph<StaticHypergraph, StaticHypergraphFactory, false>,
                           StaticHypergraph,
                           StaticHypergraphFactory,
                           TBBNumaArena>,
                         PartitionedHypergraphTypeTraits<
-                          NumaPartitionedHypergraph<NumaHyperGraph, true>,
+                          NumaPartitionedHypergraph<NumaHyperGraph, NumaHyperGraphFactory, true>,
                           NumaHyperGraph,
                           NumaHyperGraphFactory,
                           TBB>,
                         PartitionedHypergraphTypeTraits<
-                          NumaPartitionedHypergraph<NumaHyperGraph, false>,
+                          NumaPartitionedHypergraph<NumaHyperGraph, NumaHyperGraphFactory, false>,
                           NumaHyperGraph,
                           NumaHyperGraphFactory,
                           TBB>> PartitionedHypergraphTestTypes;
@@ -481,6 +500,217 @@ TYPED_TEST(APartitionedHypergraph, HasCorrectBorderNodesIfNodesAreMovingConcurre
   ASSERT_EQ(0, this->partitioned_hypergraph.numIncidentCutHyperedges(this->id[4]));
   ASSERT_EQ(0, this->partitioned_hypergraph.numIncidentCutHyperedges(this->id[5]));
   ASSERT_EQ(0, this->partitioned_hypergraph.numIncidentCutHyperedges(this->id[6]));
+}
+
+TYPED_TEST(APartitionedHypergraph, ExtractBlockZeroWithCutNetSplitting) {
+  auto extracted_hg = this->partitioned_hypergraph.extract(TBB::GLOBAL_TASK_GROUP, 0, true);
+  auto& hg = extracted_hg.first;
+  auto& hn_mapping = extracted_hg.second;
+
+  ASSERT_EQ(3, hg.initialNumNodes());
+  ASSERT_EQ(2, hg.initialNumEdges());
+  ASSERT_EQ(4, hg.initialNumPins());
+
+  auto map_from_original_to_extracted_hg = [&](const HypernodeID hn) {
+    return hg.globalNodeID(hn_mapping[this->hypergraph.originalNodeID(hn)]);
+  };
+  parallel::scalable_vector<HypernodeID> node_id = {
+    map_from_original_to_extracted_hg(this->id[0]),
+    map_from_original_to_extracted_hg(this->id[1]),
+    map_from_original_to_extracted_hg(this->id[2])
+  };
+  parallel::scalable_vector<HypernodeID> edge_id = {
+    hg.globalEdgeID(0), hg.globalEdgeID(1) };
+
+  this->verifyPins(hg, {edge_id[0], edge_id[1]},
+    { {node_id[0], node_id[2]}, {node_id[0], node_id[1]} });
+}
+
+TYPED_TEST(APartitionedHypergraph, ExtractBlockOneWithCutNetSplitting) {
+  auto extracted_hg = this->partitioned_hypergraph.extract(TBB::GLOBAL_TASK_GROUP, 1, true);
+  auto& hg = extracted_hg.first;
+  auto& hn_mapping = extracted_hg.second;
+
+  ASSERT_EQ(2, hg.initialNumNodes());
+  ASSERT_EQ(2, hg.initialNumEdges());
+  ASSERT_EQ(4, hg.initialNumPins());
+
+  auto map_from_original_to_extracted_hg = [&](const HypernodeID hn) {
+    return hg.globalNodeID(hn_mapping[this->hypergraph.originalNodeID(hn)]);
+  };
+  parallel::scalable_vector<HypernodeID> node_id = {
+    map_from_original_to_extracted_hg(this->id[3]),
+    map_from_original_to_extracted_hg(this->id[4])
+  };
+  parallel::scalable_vector<HypernodeID> edge_id = {
+    hg.globalEdgeID(0), hg.globalEdgeID(1) };
+
+  this->verifyPins(hg, {edge_id[0], edge_id[1]},
+    { {node_id[0], node_id[1]}, {node_id[0], node_id[1]} });
+}
+
+TYPED_TEST(APartitionedHypergraph, ExtractBlockTwoWithCutNetSplitting) {
+  auto extracted_hg = this->partitioned_hypergraph.extract(TBB::GLOBAL_TASK_GROUP, 2, true);
+  auto& hg = extracted_hg.first;
+  auto& hn_mapping = extracted_hg.second;
+
+  ASSERT_EQ(2, hg.initialNumNodes());
+  ASSERT_EQ(1, hg.initialNumEdges());
+  ASSERT_EQ(2, hg.initialNumPins());
+
+  auto map_from_original_to_extracted_hg = [&](const HypernodeID hn) {
+    return hg.globalNodeID(hn_mapping[this->hypergraph.originalNodeID(hn)]);
+  };
+  parallel::scalable_vector<HypernodeID> node_id = {
+    map_from_original_to_extracted_hg(this->id[5]),
+    map_from_original_to_extracted_hg(this->id[6])
+  };
+  parallel::scalable_vector<HypernodeID> edge_id = {
+    hg.globalEdgeID(0) };
+
+  this->verifyPins(hg, {edge_id[0]},
+    { {node_id[0], node_id[1]} });
+}
+
+TYPED_TEST(APartitionedHypergraph, ExtractBlockZeroWithCutNetRemoval) {
+  auto extracted_hg = this->partitioned_hypergraph.extract(TBB::GLOBAL_TASK_GROUP, 0, false);
+  auto& hg = extracted_hg.first;
+  auto& hn_mapping = extracted_hg.second;
+
+  ASSERT_EQ(3, hg.initialNumNodes());
+  ASSERT_EQ(1, hg.initialNumEdges());
+  ASSERT_EQ(2, hg.initialNumPins());
+
+  auto map_from_original_to_extracted_hg = [&](const HypernodeID hn) {
+    return hg.globalNodeID(hn_mapping[this->hypergraph.originalNodeID(hn)]);
+  };
+  parallel::scalable_vector<HypernodeID> node_id = {
+    map_from_original_to_extracted_hg(this->id[0]),
+    map_from_original_to_extracted_hg(this->id[1]),
+    map_from_original_to_extracted_hg(this->id[2])
+  };
+  parallel::scalable_vector<HypernodeID> edge_id = {
+    hg.globalEdgeID(0) };
+
+  this->verifyPins(hg, {edge_id[0]},
+    { {node_id[0], node_id[2]} });
+}
+
+TYPED_TEST(APartitionedHypergraph, ExtractBlockOneWithCutNetRemoval) {
+  this->partitioned_hypergraph.changeNodePart(this->id[6], 2, 1);
+  auto extracted_hg = this->partitioned_hypergraph.extract(TBB::GLOBAL_TASK_GROUP, 1, false);
+  auto& hg = extracted_hg.first;
+  auto& hn_mapping = extracted_hg.second;
+
+  ASSERT_EQ(3, hg.initialNumNodes());
+  ASSERT_EQ(1, hg.initialNumEdges());
+  ASSERT_EQ(3, hg.initialNumPins());
+
+  auto map_from_original_to_extracted_hg = [&](const HypernodeID hn) {
+    return hg.globalNodeID(hn_mapping[this->hypergraph.originalNodeID(hn)]);
+  };
+  parallel::scalable_vector<HypernodeID> node_id = {
+    map_from_original_to_extracted_hg(this->id[3]),
+    map_from_original_to_extracted_hg(this->id[4]),
+    map_from_original_to_extracted_hg(this->id[6])
+  };
+  parallel::scalable_vector<HypernodeID> edge_id = {
+    hg.globalEdgeID(0) };
+
+  this->verifyPins(hg, {edge_id[0]},
+    { {node_id[0], node_id[1], node_id[2]} });
+}
+
+TYPED_TEST(APartitionedHypergraph, ExtractBlockTwoWithCutNetRemoval) {
+  this->partitioned_hypergraph.changeNodePart(this->id[2], 0, 2);
+  auto extracted_hg = this->partitioned_hypergraph.extract(TBB::GLOBAL_TASK_GROUP, 2, false);
+  auto& hg = extracted_hg.first;
+  auto& hn_mapping = extracted_hg.second;
+
+  ASSERT_EQ(3, hg.initialNumNodes());
+  ASSERT_EQ(1, hg.initialNumEdges());
+  ASSERT_EQ(3, hg.initialNumPins());
+
+  auto map_from_original_to_extracted_hg = [&](const HypernodeID hn) {
+    return hg.globalNodeID(hn_mapping[this->hypergraph.originalNodeID(hn)]);
+  };
+  parallel::scalable_vector<HypernodeID> node_id = {
+    map_from_original_to_extracted_hg(this->id[2]),
+    map_from_original_to_extracted_hg(this->id[5]),
+    map_from_original_to_extracted_hg(this->id[6])
+  };
+  parallel::scalable_vector<HypernodeID> edge_id = {
+    hg.globalEdgeID(0) };
+
+  this->verifyPins(hg, {edge_id[0]},
+    { {node_id[0], node_id[1], node_id[2]} });
+}
+
+TYPED_TEST(APartitionedHypergraph, ExtractBlockZeroWithCommunityInformation) {
+  this->hypergraph.setCommunityID(this->id[0], 0);
+  this->hypergraph.setCommunityID(this->id[1], 1);
+  this->hypergraph.setCommunityID(this->id[2], 0);
+  this->hypergraph.setCommunityID(this->id[3], 2);
+  this->hypergraph.setCommunityID(this->id[4], 3);
+  this->hypergraph.setCommunityID(this->id[5], 4);
+  this->hypergraph.setCommunityID(this->id[6], 5);
+  this->hypergraph.initializeCommunities(TBB::GLOBAL_TASK_GROUP);
+
+  auto extracted_hg = this->partitioned_hypergraph.extract(TBB::GLOBAL_TASK_GROUP, 0, true);
+  auto& hg = extracted_hg.first;
+  auto& hn_mapping = extracted_hg.second;
+
+  auto map_from_original_to_extracted_hg = [&](const HypernodeID hn) {
+    return hg.globalNodeID(hn_mapping[this->hypergraph.originalNodeID(hn)]);
+  };
+
+  ASSERT_EQ(0, hg.communityID(map_from_original_to_extracted_hg(this->id[0])));
+  ASSERT_EQ(1, hg.communityID(map_from_original_to_extracted_hg(this->id[1])));
+  ASSERT_EQ(0, hg.communityID(map_from_original_to_extracted_hg(this->id[2])));
+}
+
+TYPED_TEST(APartitionedHypergraph, ExtractBlockOneWithCommunityInformation) {
+  this->hypergraph.setCommunityID(this->id[0], 0);
+  this->hypergraph.setCommunityID(this->id[1], 1);
+  this->hypergraph.setCommunityID(this->id[2], 0);
+  this->hypergraph.setCommunityID(this->id[3], 2);
+  this->hypergraph.setCommunityID(this->id[4], 3);
+  this->hypergraph.setCommunityID(this->id[5], 4);
+  this->hypergraph.setCommunityID(this->id[6], 5);
+  this->hypergraph.initializeCommunities(TBB::GLOBAL_TASK_GROUP);
+
+  auto extracted_hg = this->partitioned_hypergraph.extract(TBB::GLOBAL_TASK_GROUP, 1, true);
+  auto& hg = extracted_hg.first;
+  auto& hn_mapping = extracted_hg.second;
+
+  auto map_from_original_to_extracted_hg = [&](const HypernodeID hn) {
+    return hg.globalNodeID(hn_mapping[this->hypergraph.originalNodeID(hn)]);
+  };
+
+  ASSERT_EQ(2, hg.communityID(map_from_original_to_extracted_hg(this->id[3])));
+  ASSERT_EQ(3, hg.communityID(map_from_original_to_extracted_hg(this->id[4])));
+}
+
+TYPED_TEST(APartitionedHypergraph, ExtractBlockTwoWithCommunityInformation) {
+  this->hypergraph.setCommunityID(this->id[0], 0);
+  this->hypergraph.setCommunityID(this->id[1], 1);
+  this->hypergraph.setCommunityID(this->id[2], 0);
+  this->hypergraph.setCommunityID(this->id[3], 2);
+  this->hypergraph.setCommunityID(this->id[4], 3);
+  this->hypergraph.setCommunityID(this->id[5], 4);
+  this->hypergraph.setCommunityID(this->id[6], 5);
+  this->hypergraph.initializeCommunities(TBB::GLOBAL_TASK_GROUP);
+
+  auto extracted_hg = this->partitioned_hypergraph.extract(TBB::GLOBAL_TASK_GROUP, 2, true);
+  auto& hg = extracted_hg.first;
+  auto& hn_mapping = extracted_hg.second;
+
+  auto map_from_original_to_extracted_hg = [&](const HypernodeID hn) {
+    return hg.globalNodeID(hn_mapping[this->hypergraph.originalNodeID(hn)]);
+  };
+
+  ASSERT_EQ(4, hg.communityID(map_from_original_to_extracted_hg(this->id[5])));
+  ASSERT_EQ(5, hg.communityID(map_from_original_to_extracted_hg(this->id[6])));
 }
 
 }  // namespace ds

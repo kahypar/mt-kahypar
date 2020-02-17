@@ -835,13 +835,22 @@ class StaticHypergraph {
     return _community_support.numCommunitiesInHyperedge(e);
   }
 
+  bool hasCommunityNodeMapping() const {
+    return false;
+  }
+
   // ! Numa node to which community is assigned to
   PartitionID communityNumaNode(const PartitionID) const {
     return 0;
   }
 
   // ! Sets the community to numa node mapping
-  void setCommunityNodeMapping(std::vector<PartitionID>&&) { }
+  void setCommunityNodeMapping(parallel::scalable_vector<PartitionID>&&) { }
+
+  // ! Returns a copy of community to numa node mapping
+  parallel::scalable_vector<PartitionID> communityNodeMapping() const {
+    return { 0 };
+  }
 
   // ####################### Contract / Uncontract #######################
 

@@ -48,6 +48,8 @@ class NumaHypergraphFactory {
   };
 
  public:
+  using UnderlyingFactory = Factory;
+
   static NumaHyperGraph construct(const TaskGroupID task_group_id,
                                   const HypernodeID num_hypernodes,
                                   const HyperedgeID num_hyperedges,
@@ -213,7 +215,7 @@ class NumaHypergraphFactory {
     ASSERT(edge_vector.size() == num_hyperedges);
     const int used_numa_nodes = TBBNumaArena::instance().num_used_numa_nodes();
     ASSERT(used_numa_nodes > 0);
-    const size_t num_hyperedges_per_hypergraph = num_hyperedges / used_numa_nodes;
+    const size_t num_hyperedges_per_hypergraph = std::max( num_hyperedges / used_numa_nodes, 1UL);
 
     parallel::scalable_vector<AtomicCounter> num_hn_occurs_as_pin_on_numa_node(used_numa_nodes,
       AtomicCounter(num_hypernodes, parallel::IntegralAtomicWrapper<size_t>(0)));
