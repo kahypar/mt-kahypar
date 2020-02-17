@@ -171,6 +171,13 @@ class StaticHypergraphFactory {
     return hypergraph;
   }
 
+  static StaticHypergraph construct(const TaskGroupID,
+                                    const StaticHypergraph&,
+                                    parallel::scalable_vector<int>&&) {
+    ERROR("Redistribution of static hypergraph is not supported");
+    return StaticHypergraph();
+  }
+
  private:
   template <typename Hypergraph,
             typename Factory,

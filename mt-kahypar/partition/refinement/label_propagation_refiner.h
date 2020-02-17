@@ -123,10 +123,9 @@ class LabelPropagationRefinerT final : public IRefinerT<TypeTraits, track_border
         if ( !_context.refinement.label_propagation.localized ) {
           std::vector<HypernodeID> tmp_nodes;
           tmp_nodes.insert(tmp_nodes.begin(), _nodes.begin(), _nodes.end());
+          std::sort(tmp_nodes.begin(), tmp_nodes.end());
           for (int node = 0; node < TBB::instance().num_used_numa_nodes(); ++node) {
             size_t pos = _numa_nodes_indices[node];
-            size_t end = _numa_nodes_indices[node + 1];
-            std::sort(tmp_nodes.begin() + pos, tmp_nodes.begin() + end);
             for (const HypernodeID& hn : hypergraph.nodes(node)) {
               HypernodeID current_hn = tmp_nodes[pos++];
               if (common::get_numa_node_of_vertex(current_hn) != node) {

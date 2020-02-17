@@ -41,8 +41,17 @@
 #define TRACK_BORDER_VERTICES true
 
 namespace mt_kahypar {
-#if USE_HARDWARE_MOCK
+
+#if KAHYPAR_ENABLE_NUMA_AWARE_PARTITIONING
 static constexpr int NUM_NUMA_NODES = 2;
+#else
+// In case non-numa-aware partitioning is enabled, we mock
+// the system architecture to simulate a system with one
+// NUMA node.
+static constexpr int NUM_NUMA_NODES = 1;
+#endif
+
+#if USE_HARDWARE_MOCK || !KAHYPAR_ENABLE_NUMA_AWARE_PARTITIONING
 using TopoMock = mt_kahypar::parallel::TopologyMock<NUM_NUMA_NODES>;
 using topology_t = mt_kahypar::parallel::topology_t;
 using node_t = mt_kahypar::parallel::node_t;
