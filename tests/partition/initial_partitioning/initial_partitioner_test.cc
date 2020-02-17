@@ -65,14 +65,14 @@ class AInitialPartitionerTest : public Test {
     context.partition.objective = kahypar::Objective::km1;
     context.partition.epsilon = 0.2;
     context.partition.k = Config::K;
-    context.partition.verbose_output = false;
+    context.partition.verbose_output = true;
 
     // Shared Memory
     context.shared_memory.num_threads = num_threads;
 
     // Initial Partitioning
     context.initial_partitioning.runs = 1;
-    context.initial_partitioning.use_adaptive_epsilon = true;
+    context.initial_partitioning.use_adaptive_epsilon = false;
     context.initial_partitioning.mode = Config::MODE;
 
     // Label Propagation
@@ -123,10 +123,10 @@ size_t AInitialPartitionerTest<Config>::num_threads = HwTopology::instance().num
 
 static constexpr double EPS = 0.05;
 
-typedef ::testing::Types</*TestConfig<RecursiveInitialPartitionerT, InitialPartitioningMode::recursive, 2>,
+typedef ::testing::Types<TestConfig<RecursiveInitialPartitionerT, InitialPartitioningMode::recursive, 2>,
                          TestConfig<RecursiveInitialPartitionerT, InitialPartitioningMode::recursive, 3>,
                          TestConfig<RecursiveInitialPartitionerT, InitialPartitioningMode::recursive, 4>,
-                         TestConfig<RecursiveInitialPartitionerT, InitialPartitioningMode::recursive, 5>,*/
+                         TestConfig<RecursiveInitialPartitionerT, InitialPartitioningMode::recursive, 5>,
                          TestConfig<RecursiveBisectionInitialPartitionerT, InitialPartitioningMode::recursive_bisection, 2>,
                          TestConfig<RecursiveBisectionInitialPartitionerT, InitialPartitioningMode::recursive_bisection, 3>,
                          TestConfig<RecursiveBisectionInitialPartitionerT, InitialPartitioningMode::recursive_bisection, 4>,

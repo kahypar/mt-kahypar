@@ -157,6 +157,10 @@ class NumaPartitionedHypergraph {
     return *_hg;
   }
 
+  void setHypergraph(Hypergraph& hypergraph) {
+    _hg = &hypergraph;
+  }
+
   // ! Number of NUMA hypergraphs
   size_t numNumaHypergraphs() const {
     return _hg->numNumaHypergraphs();
