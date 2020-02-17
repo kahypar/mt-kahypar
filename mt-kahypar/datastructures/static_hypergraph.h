@@ -33,6 +33,7 @@
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
 #include "mt-kahypar/utils/memory_tree.h"
 #include "mt-kahypar/utils/range.h"
+#include "mt-kahypar/utils/timer.h"
 
 namespace mt_kahypar {
 namespace ds {
@@ -881,6 +882,7 @@ class StaticHypergraph {
 
     // #################### STAGE 1 ####################
     // Remapping of vertex ids
+    utils::Timer::instance().start_timer("compute_cluster_mapping", "Compute Cluster Mapping");
     parallel::scalable_vector<HypernodeID> mapping(_num_hypernodes, kInvalidHypernode);
     HypernodeID num_hypernodes = 0;
     for ( const HypernodeID& hn : nodes() ) {
@@ -924,6 +926,8 @@ class StaticHypergraph {
       // Vector is atomic => thread-safe
       is_high_degree_vertex[coarse_hn].fetch_or(isHighDegreeVertex(hn));
     });
+    utils::Timer::instance().stop_timer("compute_cluster_mapping");
+
 
     // #################### STAGE 2 ####################
     // We iterate over all hyperedges in parallel and remap their ids
@@ -932,6 +936,7 @@ class StaticHypergraph {
     // into a streaming map with their hash as key. All hyperedges with the same
     // hash are then present in the same bucket of the streaming map, which
     // makes it possible to detect parallel hyperedges in parallel.
+    utils::Timer::instance().start_timer("contracting_hyperedges", "Contracting Hyperedges");
     StreamingMap<size_t, ContractedHyperedge> hash_to_hyperedge;
     contractHyperedges(task_group_id, hash_to_hyperedge, map_to_coarse_hypergraph);
 
@@ -940,6 +945,7 @@ class StaticHypergraph {
     hash_to_hyperedge.copy(hyperedge_buckets, [&](const size_t key) {
       return key % hash_to_hyperedge.size();
     });
+    utils::Timer::instance().stop_timer("contracting_hyperedges");
 
     // #################### STAGE 3 ####################
     // We iterate now in parallel over each bucket and sort each bucket
@@ -947,6 +953,7 @@ class StaticHypergraph {
     // hyperedges are detected by comparing the pins of hyperedges with
     // the same hash.
 
+    utils::Timer::instance().start_timer("remove_parallel_hyperedges", "Remove Parallel Hyperedges");
     // Helper function that checks if two hyperedges are parallel
     // Note, pins inside the hyperedges are sorted.
     auto check_if_hyperedges_are_parallel = [](const parallel::scalable_vector<HypernodeID>& lhs,
@@ -1017,9 +1024,11 @@ class StaticHypergraph {
       num_hyperedges_prefix_sum[i] += num_hyperedges_prefix_sum[i - 1];
       num_pins_prefix_sum[i] += num_pins_prefix_sum[i - 1];
     }
+    utils::Timer::instance().stop_timer("remove_parallel_hyperedges");
 
     // #################### STAGE 4 ####################
     // Initialize hypergraph
+    utils::Timer::instance().start_timer("construct_contracted_hypergraph", "Construct Contracted Hypergraph");
     StaticHypergraph hypergraph;
     hypergraph._num_hypernodes = num_hypernodes;
     hypergraph._num_hyperedges = num_hyperedges_prefix_sum.back();
@@ -1028,13 +1037,16 @@ class StaticHypergraph {
 
     // Compute start position of incident nets for each vertex
     // in incident net array
+    utils::Timer::instance().start_timer("incident_net_prefix_sum", "Incident Net Prefix Sum");
     parallel::TBBPrefixSum<parallel::IntegralAtomicWrapper<HyperedgeID>>
       incident_nets_prefix_sum(num_incident_nets);
     tbb::parallel_scan(tbb::blocked_range<HypernodeID>(
       0UL, num_hypernodes), incident_nets_prefix_sum);
+    utils::Timer::instance().stop_timer("incident_net_prefix_sum");
 
     tbb::parallel_invoke([&] {
       // Setup hypernodes
+      utils::Timer::instance().start_timer("setup_hypernodes", "Setup Hypernodes", true);
       hypergraph._hypernodes.resize(hypergraph._num_hypernodes);
       tbb::parallel_for(0UL, num_hypernodes, [&](const HypernodeID hn) {
         const size_t incident_nets_pos = incident_nets_prefix_sum[hn];
@@ -1053,7 +1065,9 @@ class StaticHypergraph {
           hn_obj.markAsHighDegreeVertex();
         }
       });
+      utils::Timer::instance().stop_timer("setup_hypernodes");
     }, [&] {
+      utils::Timer::instance().start_timer("setup_hyperedges", "Setup Hyperedges", true);
       // Setup hyperedges, incidence and incident nets array
       hypergraph._hyperedges.resize(hypergraph._num_hyperedges);
       hypergraph._incidence_array.resize(hypergraph._num_pins);
@@ -1093,9 +1107,12 @@ class StaticHypergraph {
           }
         }
       });
+      utils::Timer::instance().stop_timer("setup_hyperedges");
     });
+    utils::Timer::instance().stop_timer("construct_contracted_hypergraph");
 
     // Initialize Communities and Update Total Weight
+    utils::Timer::instance().start_timer("setup_communities", "Setup Communities");
     tbb::parallel_invoke([&] {
       if ( _community_support.isInitialized() ) {
         hypergraph.initializeCommunities(task_group_id);
@@ -1106,6 +1123,7 @@ class StaticHypergraph {
     }, [&] {
       hypergraph.updateTotalWeight(task_group_id);
     });
+    utils::Timer::instance().stop_timer("setup_communities");
 
     return std::make_pair(std::move(hypergraph), std::move(mapping));
   }

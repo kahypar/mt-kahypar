@@ -567,6 +567,7 @@ class NumaHypergraph {
 
     // #################### STAGE 1 ####################
     // Remapping of vertex ids
+    utils::Timer::instance().start_timer("compute_cluster_mapping", "Compute Cluster Mapping");
     parallel::scalable_vector<HypernodeID> mapping(_num_hypernodes, kInvalidHypernode);
     parallel::scalable_vector<HypernodeID> num_numa_hypernodes_prefix_sum(num_numa_nodes + 1, 0);
     for ( HypernodeID id = 0; id < _num_hypernodes; ++id ) {
@@ -634,6 +635,7 @@ class NumaHypergraph {
       // Vector is atomic => thread-safe
       is_high_degree_vertex[original_id].fetch_or(isHighDegreeVertex(hn));
     });
+    utils::Timer::instance().stop_timer("compute_cluster_mapping");
 
     // #################### STAGE 2 ####################
     // We iterate over all hyperedges in parallel and remap their ids
@@ -642,6 +644,7 @@ class NumaHypergraph {
     // into a streaming map with their hash as key. All hyperedges with the same
     // hash are then present in the same bucket of the streaming map, which
     // makes it possible to detect parallel hyperedges in parallel.
+    utils::Timer::instance().start_timer("contracting_hyperedges", "Contracting Hyperedges");
     StreamingMap<size_t, ContractedHyperedge> hash_to_hyperedge;
     TBBNumaArena::instance().execute_parallel_on_all_numa_nodes(task_group_id, [&](const int node) {
           _hypergraphs[node].contractHyperedges(
@@ -653,6 +656,7 @@ class NumaHypergraph {
     hash_to_hyperedge.copy(hyperedge_buckets, [&](const size_t key) {
       return key % hash_to_hyperedge.size();
     });
+    utils::Timer::instance().stop_timer("contracting_hyperedges");
 
     // #################### STAGE 3 ####################
     // We iterate now in parallel over each bucket and sort each bucket
@@ -660,6 +664,7 @@ class NumaHypergraph {
     // hyperedges are detected by comparing the pins of hyperedges with
     // the same hash.
 
+    utils::Timer::instance().start_timer("remove_parallel_hyperedges", "Remove Parallel Hyperedges");
     // Helper function that checks if two hyperedges are parallel
     // Note, pins inside the hyperedges are sorted.
     auto check_if_hyperedges_are_parallel = [](const parallel::scalable_vector<HypernodeID>& lhs,
@@ -751,9 +756,11 @@ class NumaHypergraph {
         num_numa_pins_prefix_sum[i][node] += num_numa_pins_prefix_sum[i - 1][node];
       }
     }
+    utils::Timer::instance().stop_timer("remove_parallel_hyperedges");
 
     // #################### STAGE 4 ####################
     // Initialize hypergraph
+    utils::Timer::instance().start_timer("construct_contracted_hypergraph", "Construct Contracted Hypergraph");
     NumaHypergraph hypergraph;
 
     // Prefix sum over the number of incident nets on each NUMA node
@@ -766,10 +773,10 @@ class NumaHypergraph {
         num_numa_incident_nets_prefix_sum.emplace_back(num_numa_incident_nets[node]);
       });
 
-
     // Compute prefix sum over the number of incident nets on each NUMA node
     // => Used to compute positions of the incident nets of a vertex in each
     // NUMA hypergraph
+    utils::Timer::instance().start_timer("incident_net_prefix_sum", "Incident Net Prefix Sum");
     TBBNumaArena::instance().execute_parallel_on_all_numa_nodes(
       task_group_id, [&](const int node) {
         const HypernodeID num_numa_hypernodes =
@@ -777,6 +784,7 @@ class NumaHypergraph {
         tbb::parallel_scan(tbb::blocked_range<HypernodeID>(
           0UL, num_numa_hypernodes), num_numa_incident_nets_prefix_sum[node]);
       });
+    utils::Timer::instance().stop_timer("incident_net_prefix_sum");
 
     // Setup stats of each hypergraph on each NUMA node in parallel
     TBBNumaArena::instance().execute_parallel_on_all_numa_nodes(
@@ -801,6 +809,7 @@ class NumaHypergraph {
         Hypergraph& hg = hypergraph._hypergraphs[node];
 
         tbb::parallel_invoke([&] {
+          utils::Timer::instance().start_timer("setup_hypernodes", "Setup Hypernodes", true);
           // Setup hypernodes
           using Hypernode = typename Hypergraph::Hypernode;
           hg._hypernodes.resize(hg._num_hypernodes);
@@ -826,7 +835,9 @@ class NumaHypergraph {
               hn_obj.markAsHighDegreeVertex();
             }
           });
+          utils::Timer::instance().stop_timer("setup_hypernodes");
         }, [&] {
+          utils::Timer::instance().start_timer("setup_hyperedges", "Setup Hyperedges", true);
           // Setup hyperedges, incidence and incident nets array
           using Hyperedge = typename Hypergraph::Hyperedge;
           hg._hyperedges.resize(hg._num_hyperedges);
@@ -881,8 +892,10 @@ class NumaHypergraph {
               }
             }
           });
+          utils::Timer::instance().stop_timer("setup_hyperedges");
         });
       });
+    utils::Timer::instance().stop_timer("construct_contracted_hypergraph");
 
     // Compute stats of NUMA hypergraph
     for ( int node = 0; node < num_numa_nodes; ++node ) {
@@ -893,6 +906,7 @@ class NumaHypergraph {
     }
 
     // Initialize Communities and Update Total Weight
+    utils::Timer::instance().start_timer("setup_communities", "Setup Communities");
     tbb::parallel_invoke([&] {
       const Hypergraph& hg = _hypergraphs[0];
       if ( hg._community_support.isInitialized() ) {
@@ -905,6 +919,7 @@ class NumaHypergraph {
       hypergraph.updateTotalWeight(task_group_id);
       hypergraph._community_node_mapping = _community_node_mapping;
     });
+    utils::Timer::instance().stop_timer("setup_communities");
 
     return std::make_pair(std::move(hypergraph), std::move(mapping));
   }
