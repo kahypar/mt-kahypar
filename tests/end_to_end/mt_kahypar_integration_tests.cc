@@ -59,7 +59,7 @@ class MtKaHyPar : public Test {
  public:
   MtKaHyPar() :
     context() {
-    parseIniToContext(context, "../../../config/shared_memory_context.ini");
+    parseIniToContext(context, "../../../config/multilevel_config.ini");
     context.partition.graph_filename = "test_instances/ibm01.hgr";
     context.partition.k = Config::K;
     context.partition.objective = Config::OBJECTIVE;

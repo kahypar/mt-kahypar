@@ -807,7 +807,7 @@ class PartitionedHypergraph {
     const parallel::scalable_vector<PartitionedHypergraph>& hypergraphs = {}) {
     ASSERT(!_is_init_num_cut_hyperedges);
     _hg->doParallelForAllNodes(task_group_id, [&](const HypernodeID hn) {
-      ASSERT(partID(hn) != kInvalidPartition);
+      ASSERT(partID(hn) != kInvalidPartition, V(hn) << V(partID(hn)));
       for ( const HyperedgeID& he : incidentEdges(hn)) {
         const PartitionID he_connectivity = hypergraphs.empty() ? connectivity(he) :
           common::hypergraph_of_edge(he, hypergraphs).connectivity(he);

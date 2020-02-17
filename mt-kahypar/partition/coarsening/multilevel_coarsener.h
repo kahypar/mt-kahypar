@@ -175,6 +175,7 @@ class MultilevelCoarsenerT : public ICoarsenerT<TypeTraits>,
     }
     _progress_bar += (initial_num_nodes - _progress_bar.count());
     _progress_bar.disable();
+    Base::finalize();
   }
 
   PartitionedHyperGraph&& uncoarsenImpl(std::unique_ptr<Refiner>& label_propagation) override {

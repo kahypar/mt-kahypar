@@ -323,7 +323,7 @@ class NumaHypergraph {
 
   // ! Reverse operation of originalNodeID(u)
   HypernodeID globalNodeID(const HypernodeID u) const {
-    ASSERT(u < _node_mapping.size());
+    ASSERT(u < _node_mapping.size(), V(u) << V(_node_mapping.size()));
     return _node_mapping[u];
   }
 
@@ -528,7 +528,6 @@ class NumaHypergraph {
 
   // ! Sets the community to numa node mapping
   void setCommunityNodeMapping(parallel::scalable_vector<PartitionID>&& community_node_mapping) {
-    ASSERT(community_node_mapping.size() == static_cast<size_t>(numCommunities()));
     _community_node_mapping = std::move(community_node_mapping);
   }
 

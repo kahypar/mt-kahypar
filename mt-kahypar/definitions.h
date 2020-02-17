@@ -63,12 +63,14 @@ using NodeID = uint32_t;
   using HypergraphFactory = ds::NumaHypergraphFactory<
     ds::StaticHypergraph, ds::StaticHypergraphFactory, HardwareTopology, TBBNumaArena>;
   template<bool track_border_vertices = TRACK_BORDER_VERTICES>
-  using PartitionedHypergraph = ds::NumaPartitionedHypergraph<Hypergraph, track_border_vertices>;
+  using PartitionedHypergraph = ds::NumaPartitionedHypergraph<
+    Hypergraph, HypergraphFactory, track_border_vertices>;
 #else
   using Hypergraph = ds::StaticHypergraph;
   using HypergraphFactory = ds::StaticHypergraphFactory;
   template<bool track_border_vertices = TRACK_BORDER_VERTICES>
-  using PartitionedHypergraph = ds::PartitionedHypergraph<Hypergraph, track_border_vertices>;
+  using PartitionedHypergraph = ds::PartitionedHypergraph<
+    Hypergraph, HypergraphFactory, track_border_vertices>;
 #endif
 
 struct GlobalTypeTraits {

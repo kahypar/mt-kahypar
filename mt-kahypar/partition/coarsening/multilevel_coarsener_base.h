@@ -46,9 +46,6 @@ class MultilevelCoarsenerBase {
 
    public:
     explicit Hierarchy(HyperGraph&& contracted_hypergraph,
-                       tbb::task_group& group,
-                       const PartitionID k,
-                       const TaskGroupID task_group_id,
                        parallel::scalable_vector<HypernodeID>&& communities,
                        parallel::scalable_vector<HypernodeID>&& mapping) :
       _representative_hypergraph(nullptr),
@@ -57,11 +54,6 @@ class MultilevelCoarsenerBase {
       _communities(std::move(communities)),
       _mapping(std::move(mapping)) {
       ASSERT(_communities.size() == _mapping.size());
-      // Construct partitioned hypergraph async
-      group.run([&, k, task_group_id] {
-        _contracted_partitioned_hypergraph = PartitionedHyperGraph(
-          k, task_group_id, _contracted_hypergraph);
-      });
     }
 
     void setRepresentativeHypergraph(PartitionedHyperGraph* representative_hypergraph) {
@@ -111,25 +103,19 @@ class MultilevelCoarsenerBase {
 
  public:
   MultilevelCoarsenerBase(HyperGraph& hypergraph, const Context& context, const TaskGroupID task_group_id) :
+    _is_finalized(false),
     _hg(hypergraph),
     _partitioned_hg(),
     _context(context),
-    _group(),
     _task_group_id(task_group_id),
-    _hierarchies() {
-    _group.run([&] {
-      _partitioned_hg = PartitionedHyperGraph(_context.partition.k, _hg);
-    });
-  }
+    _hierarchies() { }
 
   MultilevelCoarsenerBase(const MultilevelCoarsenerBase&) = delete;
   MultilevelCoarsenerBase(MultilevelCoarsenerBase&&) = delete;
   MultilevelCoarsenerBase & operator= (const MultilevelCoarsenerBase &) = delete;
   MultilevelCoarsenerBase & operator= (MultilevelCoarsenerBase &&) = delete;
 
-  virtual ~MultilevelCoarsenerBase() throw () {
-    _group.wait();
-  }
+  virtual ~MultilevelCoarsenerBase() throw () { }
 
  protected:
 
@@ -150,7 +136,7 @@ class MultilevelCoarsenerBase {
   }
 
   PartitionedHyperGraph& currentPartitionedHypergraph() {
-    _group.wait();
+    ASSERT(_is_finalized);
     if ( _hierarchies.empty() ) {
       return _partitioned_hg;
     } else {
@@ -158,12 +144,41 @@ class MultilevelCoarsenerBase {
     }
   }
 
+  void finalize() {
+    // Construct partitioned hypergraphs parallel
+    tbb::task_group group;
+    // Construct top level partitioned hypergraph
+    group.run([&] {
+      _partitioned_hg = PartitionedHyperGraph(
+        _context.partition.k, _task_group_id, _hg);
+    });
+    // Construct partitioned hypergraph for each coarsened hypergraph in the hierarchy
+    for ( size_t i = 0; i < _hierarchies.size(); ++i ) {
+      group.run([&, i] {
+        _hierarchies[i].contractedPartitionedHypergraph() = PartitionedHyperGraph(
+           _context.partition.k, _task_group_id, _hierarchies[i].contractedHypergraph());
+      });
+    }
+    group.wait();
+
+    // Set the representative partitioned hypergraph for each hypergraph
+    // in the hierarchy
+    if ( _hierarchies.size() > 0 ) {
+      _hierarchies[0].setRepresentativeHypergraph(&_partitioned_hg);
+      for ( size_t i = 1; i < _hierarchies.size(); ++i ) {
+        _hierarchies[i].setRepresentativeHypergraph(&_hierarchies[i - 1].contractedPartitionedHypergraph());
+      }
+    }
+    _is_finalized = true;
+  }
+
   void performMultilevelContraction(parallel::scalable_vector<HypernodeID>&& communities) {
+    ASSERT(!_is_finalized);
     HyperGraph& current_hg = currentHypergraph();
     ASSERT(current_hg.initialNumNodes() == communities.size());
     auto contracted_hg = current_hg.contract(communities, _task_group_id);
-    _hierarchies.emplace_back(std::move(contracted_hg.first), _group, _context.partition.k,
-      _task_group_id, std::move(communities), std::move(contracted_hg.second));
+    _hierarchies.emplace_back(std::move(contracted_hg.first),
+      std::move(communities), std::move(contracted_hg.second));
   }
 
   PartitionedHyperGraph&& doUncoarsen(std::unique_ptr<Refiner>& label_propagation) {
@@ -187,18 +202,6 @@ class MultilevelCoarsenerBase {
     utils::Stats::instance().add_stat("initial_km1", current_metrics.km1);
     utils::Stats::instance().add_stat("initial_imbalance", current_metrics.imbalance);
 
-
-    // We set the representative hypergraph of each hypergraph in the hierarchy
-    // here, because due to resizing of the vector capacity it might become invalid
-    // during creating the hierarchies
-    _group.wait();
-    if ( _hierarchies.size() > 0 ) {
-      _hierarchies[0].setRepresentativeHypergraph(&_partitioned_hg);
-      for ( size_t i = 1; i < _hierarchies.size(); ++i ) {
-        _hierarchies[i].setRepresentativeHypergraph(&_hierarchies[i - 1].contractedPartitionedHypergraph());
-      }
-    }
-
     utils::ProgressBar uncontraction_progress(_hg.initialNumNodes(),
       _context.partition.objective == kahypar::Objective::km1 ? current_metrics.km1 : current_metrics.cut,
       _context.partition.verbose_output && _context.partition.enable_progress_bar);
@@ -219,6 +222,7 @@ class MultilevelCoarsenerBase {
         }
       });
       representative_hg.initializeNumCutHyperedges(_task_group_id);
+
       ASSERT(metrics::objective(representative_hg, _context.partition.objective) ==
              metrics::objective(contracted_hg, _context.partition.objective),
              V(metrics::objective(representative_hg, _context.partition.objective)) <<
@@ -255,10 +259,10 @@ class MultilevelCoarsenerBase {
   }
 
  protected:
+  bool _is_finalized;
   HyperGraph& _hg;
   PartitionedHyperGraph _partitioned_hg;
   const Context& _context;
-  tbb::task_group _group;
   const TaskGroupID _task_group_id;
   parallel::scalable_vector<Hierarchy> _hierarchies;
 };
