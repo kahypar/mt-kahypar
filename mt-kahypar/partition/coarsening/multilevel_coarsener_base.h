@@ -151,6 +151,7 @@ class MultilevelCoarsenerBase {
   }
 
   void finalize() {
+    utils::Timer::instance().start_timer("finalize_multilevel_hierarchy", "Finalize Multilevel Hierarchy");
     // Construct partitioned hypergraphs parallel
     tbb::task_group group;
     // Construct top level partitioned hypergraph
@@ -176,6 +177,7 @@ class MultilevelCoarsenerBase {
       }
     }
     _is_finalized = true;
+    utils::Timer::instance().stop_timer("finalize_multilevel_hierarchy");
   }
 
   void performMultilevelContraction(parallel::scalable_vector<HypernodeID>&& communities) {
