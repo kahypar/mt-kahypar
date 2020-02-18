@@ -921,6 +921,18 @@ class NumaHypergraph {
     });
     utils::Timer::instance().stop_timer("setup_communities");
 
+    utils::Timer::instance().start_timer("free_internal_data", "Free Internal Data");
+    // We free memory here in parallel, because this can become a major
+    // bottleneck, if memory is freed sequential after function return
+    tbb::parallel_invoke([&] {
+      parallel::parallel_free(hyperedge_buckets);
+    }, [&] {
+      parallel::parallel_free(num_numa_incident_nets);
+    }, [&] {
+      parallel::parallel_free(hn_to_numa_node, hn_weights, community_ids, hn_weights);
+    });
+    utils::Timer::instance().stop_timer("free_internal_data");
+
     return std::make_pair(std::move(hypergraph), std::move(mapping));
   }
 

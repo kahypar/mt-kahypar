@@ -1106,6 +1106,10 @@ class StaticHypergraph {
             }
           }
         }
+        // We free memory here in parallel, because this can become a major
+        // bottleneck, if memory is freed sequential after function return
+        parallel::scalable_vector<ContractedHyperedge> tmp_bucket;
+        hyperedge_buckets[bucket] = std::move(tmp_bucket);
       });
       utils::Timer::instance().stop_timer("setup_hyperedges");
     });
@@ -1124,6 +1128,12 @@ class StaticHypergraph {
       hypergraph.updateTotalWeight(task_group_id);
     });
     utils::Timer::instance().stop_timer("setup_communities");
+
+    utils::Timer::instance().start_timer("free_internal_data", "Free Internal Data");
+    // We free memory here in parallel, because this can become a major
+    // bottleneck, if memory is freed sequential after function return
+    parallel::parallel_free(hn_weights, community_ids, hn_weights, num_incident_nets);
+    utils::Timer::instance().stop_timer("free_internal_data");
 
     return std::make_pair(std::move(hypergraph), std::move(mapping));
   }
