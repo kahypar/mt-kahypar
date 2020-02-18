@@ -296,9 +296,8 @@ inline PartitionedHypergraph<> Partitioner::partition(Hypergraph& hypergraph, Co
   utils::Timer::instance().stop_timer("preprocessing");
 
   // ################## MULTILEVEL ##################
-  PartitionedHypergraph<> partitioned_hypergraph;
-  multilevel::partition(hypergraph, partitioned_hypergraph,
-    context, true, TBBNumaArena::GLOBAL_TASK_GROUP);
+  PartitionedHypergraph<> partitioned_hypergraph = multilevel::partition(
+    hypergraph, context, true, TBBNumaArena::GLOBAL_TASK_GROUP);
 
   postprocess(partitioned_hypergraph, context);
 

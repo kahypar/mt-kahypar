@@ -340,10 +340,12 @@ class RecursiveInitialPartitionerT : public IInitialPartitioner {
    public:
     BisectionContinuationTask(PartitionedHyperGraph& hypergraph,
                               const Context& context,
+                              const TaskGroupID task_group_id,
                               const HyperedgeWeight current_objective,
                               const PartitionID num_bisections) :
       _hg(hypergraph),
       _context(context),
+      _task_group_id(task_group_id),
       _current_objective(current_objective),
       _results() {
       _results.reserve(num_bisections);
@@ -355,7 +357,7 @@ class RecursiveInitialPartitionerT : public IInitialPartitioner {
     tbb::task* execute() override {
       // Apply all bisections to current hypergraph
       PartitionID unbisected_block = (_context.partition.k % 2 == 1 ? (PartitionID) _results.size() : kInvalidPartition);
-      for ( const HypernodeID& hn : _hg.nodes() ) {
+      _hg.doParallelForAllNodes(_task_group_id, [&](const HypernodeID& hn) {
         const PartitionID from = _hg.partID(hn);
         PartitionID to = kInvalidPartition;
         if ( from != unbisected_block ) {
@@ -372,7 +374,7 @@ class RecursiveInitialPartitionerT : public IInitialPartitioner {
         if (from != to) {
           _hg.changeNodePart(hn, from, to);
         }
-      }
+      });
 
       HEAVY_INITIAL_PARTITIONING_ASSERT([&] {
           HyperedgeWeight expected_objective = _current_objective;
@@ -395,6 +397,7 @@ class RecursiveInitialPartitionerT : public IInitialPartitioner {
    private:
     PartitionedHyperGraph& _hg;
     const Context& _context;
+    const TaskGroupID _task_group_id;
     const HyperedgeWeight _current_objective;
 
    public:
@@ -516,24 +519,22 @@ class RecursiveInitialPartitionerT : public IInitialPartitioner {
       } else {
         best = std::move(r2);
       }
+      // Note, we move r1 or r2 into best, both contain the the
+      // hypergraph and the partitioned hypergraph, whereas the
+      // partitioned hypergraph contains a pointer to the hypergraph.
+      // Moving r1 or r2 invalidates the pointer to the original
+      // hypergraph. Therefore, we explicitly set it here.
       best.partitioned_hypergraph.setHypergraph(best.hypergraph);
 
       HEAVY_INITIAL_PARTITIONING_ASSERT(best.objective ==
         metrics::objective(best.partitioned_hypergraph, _context.partition.objective));
 
       // Apply best partition to hypergraph
-      for (const HypernodeID& hn : _hg.nodes()) {
-        // The partID function of the hypergraph takes a global node id and
-        // returns the partition id of the vertex.
-        // The mapping function of RecursivePartitionResult object (best.mapping) stores a mapping from
-        // the original node id of hypergraph _hg to the original node ids of the copied hypergraph
-        // (best.hypergraph).
-        // Note, original node ids are the node ids of the input hypergraph and the global node ids are
-        // the internal node ids of the hypergraph.
+      _hg.doParallelForAllNodes(_task_group_id, [&](const HypernodeID& hn) {
         PartitionID part_id = best.partitioned_hypergraph.partID(hn);
         ASSERT(part_id != kInvalidPartition && part_id < _hg.k());
         _hg.setNodePart(hn, part_id);
-      }
+      });
       _hg.initializeNumCutHyperedges();
 
       // The hypergraph is now partitioned into the number of blocks of the recursive context (best.context.partition.k).
@@ -547,7 +548,8 @@ class RecursiveInitialPartitionerT : public IInitialPartitioner {
       bool perform_bisections = !_top_level && _context.shared_memory.num_threads < (size_t)_context.partition.k;
       if (perform_bisections) {
         BisectionContinuationTask& bisection_continuation = *new(allocate_continuation())
-          BisectionContinuationTask(_hg, _context, best.objective, _context.partition.k / 2);
+          BisectionContinuationTask(_hg, _context, _task_group_id,
+            best.objective, _context.partition.k / 2);
         bisection_continuation.set_ref_count(_context.partition.k / 2 );
         for (PartitionID block = 0; block < _context.partition.k / 2; ++block) {
           tbb::task::spawn(*new(bisection_continuation.allocate_child()) BisectionTask(

@@ -131,11 +131,13 @@ class RecursiveBisectionInitialPartitionerT : public IInitialPartitioner {
       // into the desired number of blocks
       if ( rb_hypergraph.initialNumNodes() > 0 ) {
         RecursiveBisectionChildContinuationTask& child_continuation = *new(allocate_continuation())
-          RecursiveBisectionChildContinuationTask(_hg, std::move(rb_hypergraph),
-            std::move(mapping), std::move(rb_context), k, _task_group_id, _block);
-        RecursiveMultilevelBisectionTask& recursion = *new(child_continuation.allocate_child()) RecursiveMultilevelBisectionTask(
-          _original_hypergraph_info, child_continuation.recursiveHypergraph(),
-          child_continuation.recursiveContext(), _task_group_id);
+          RecursiveBisectionChildContinuationTask(_hg, std::move(rb_context),
+            std::move(rb_hypergraph), std::move(mapping), k, _task_group_id, _block);
+        RecursiveMultilevelBisectionTask& recursion = *new(child_continuation.allocate_child())
+          RecursiveMultilevelBisectionTask(
+            _original_hypergraph_info,
+            child_continuation.recursivePartitionedHypergraph(),
+            child_continuation.recursiveContext(), _task_group_id);
         child_continuation.set_ref_count(1);
         tbb::task::spawn(recursion);
       }
@@ -181,17 +183,18 @@ class RecursiveBisectionInitialPartitionerT : public IInitialPartitioner {
 
    public:
     RecursiveBisectionChildContinuationTask(PartitionedHyperGraph& original_hypergraph,
+                                            Context&& context,
                                             HyperGraph&& rb_hypergraph,
                                             parallel::scalable_vector<HypernodeID>&& mapping,
-                                            Context&& context,
                                             const PartitionID k,
                                             const TaskGroupID task_group_id,
                                             const PartitionID part_id) :
       _original_hg(original_hypergraph),
+      _context(std::move(context)),
       _rb_hg(std::move(rb_hypergraph)),
       _rb_partitioned_hg(k, task_group_id, _rb_hg),
       _mapping(std::move(mapping)),
-      _context(std::move(context)),
+      _task_group_id(task_group_id),
       _part_id(part_id) { }
 
     tbb::task* execute() override {
@@ -200,7 +203,7 @@ class RecursiveBisectionInitialPartitionerT : public IInitialPartitioner {
       // 'part_id' in the original hypergraph are moved to the block defined in
       // _rb_partitioned_hg.
       ASSERT(_original_hg.initialNumNodes() == _mapping.size());
-      for ( const HypernodeID& hn : _original_hg.nodes() ) {
+      _original_hg.doParallelForAllNodes(_task_group_id, [&](const HypernodeID& hn) {
         if ( _original_hg.partID(hn) == _part_id ) {
           const HypernodeID original_id = _original_hg.originalNodeID(hn);
           ASSERT(original_id < _mapping.size());
@@ -211,11 +214,11 @@ class RecursiveBisectionInitialPartitionerT : public IInitialPartitioner {
             _original_hg.changeNodePart(hn, _part_id, to, NOOP_FUNC);
           }
         }
-      }
+      });
       return nullptr;
     }
 
-    PartitionedHyperGraph& recursiveHypergraph() {
+    PartitionedHyperGraph& recursivePartitionedHypergraph() {
       return _rb_partitioned_hg;
     }
 
@@ -225,10 +228,11 @@ class RecursiveBisectionInitialPartitionerT : public IInitialPartitioner {
 
    private:
     PartitionedHyperGraph& _original_hg;
+    const Context _context;
     Hypergraph _rb_hg;
     PartitionedHyperGraph _rb_partitioned_hg;
     const parallel::scalable_vector<HypernodeID> _mapping;
-    const Context _context;
+    const TaskGroupID _task_group_id;
     const PartitionID _part_id;
   };
 
@@ -252,7 +256,7 @@ class RecursiveBisectionInitialPartitionerT : public IInitialPartitioner {
     tbb::task* execute() override {
       // Bisect hypergraph with parallel multilevel bisection
       _bisection_hg = _original_hg.hypergraph().copy(_task_group_id);
-      multilevel::partition(_bisection_hg, _bisection_partitioned_hg,
+      multilevel::partition_async(_bisection_hg, _bisection_partitioned_hg,
         _bisection_context, false, _task_group_id, this);
       return nullptr;
     }
@@ -293,7 +297,7 @@ class RecursiveBisectionInitialPartitionerT : public IInitialPartitioner {
       // Apply partition to hypergraph
       const PartitionID block_0 = 0;
       const PartitionID block_1 = _context.partition.k / 2 + (_context.partition.k % 2 != 0 ? 1 : 0);
-      for (const HypernodeID& hn : _hg.nodes()) {
+      _hg.doParallelForAllNodes(_task_group_id, [&](const HypernodeID& hn) {
         const HypernodeID original_id = _hg.originalNodeID(hn);
         PartitionID part_id = _bisection_partitioned_hg.partID(
           _bisection_partitioned_hg.globalNodeID(original_id));
@@ -303,8 +307,8 @@ class RecursiveBisectionInitialPartitionerT : public IInitialPartitioner {
         } else {
           _hg.setNodePart(hn, block_1);
         }
-      }
-      _hg.initializeNumCutHyperedges();
+      });
+      _hg.initializeNumCutHyperedges(_task_group_id);
 
       ASSERT(metrics::objective(_bisection_partitioned_hg, _context.partition.objective) ==
         metrics::objective(_hg, _context.partition.objective));
@@ -439,11 +443,12 @@ class RecursiveBisectionInitialPartitionerT : public IInitialPartitioner {
       MultilevelBisectionContinuationTask& bisection_continuation_task = *new(allocate_continuation())
         MultilevelBisectionContinuationTask(_original_hypergraph_info, _hg, _context, _task_group_id);
       bisection_continuation_task.set_ref_count(1);
-      tbb::task::spawn(*new(bisection_continuation_task.allocate_child()) MultilevelBisectionTask(
-        _hg, bisection_continuation_task._bisection_hg,
-        bisection_continuation_task._bisection_partitioned_hg,
-        bisection_continuation_task._bisection_context,
-        _task_group_id));
+      tbb::task::spawn(*new(bisection_continuation_task.allocate_child())
+        MultilevelBisectionTask(
+          _hg, bisection_continuation_task._bisection_hg,
+          bisection_continuation_task._bisection_partitioned_hg,
+          bisection_continuation_task._bisection_context,
+          _task_group_id));
       return nullptr;
     }
 

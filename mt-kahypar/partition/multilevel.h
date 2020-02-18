@@ -214,25 +214,36 @@ class MultilevelPartitioningTask : public tbb::task {
 
 } // namespace
 
-static inline void partition(Hypergraph& hypergraph,
-                             PartitionedHypergraph& partitioned_hypergraph,
-                             const Context& context,
-                             const bool top_level,
-                             const TaskGroupID task_group_id,
-                             tbb::task* parent = nullptr) {
-  if ( parent ) {
-    // In case, a parent task is defined, we spawn the multilevel partitioner in
-    // TBB continuation style
-    spawn_multilevel_partitioner(
-      hypergraph, partitioned_hypergraph, context, top_level, task_group_id, *parent);
-  } else {
-    // In case, no parent task is defined, we spawn the multilevel partitioner in
-    // TBB blocking style
-    MultilevelPartitioningTask& multilevel_task = *new(tbb::task::allocate_root())
-      MultilevelPartitioningTask(
-        hypergraph, partitioned_hypergraph, context, top_level, task_group_id);
-    tbb::task::spawn_root_and_wait(multilevel_task);
-  }
+// ! Performs multilevel partitioning on the given hypergraph
+// ! in TBB blocking-style.
+static inline PartitionedHypergraph partition(Hypergraph& hypergraph,
+                                              const Context& context,
+                                              const bool top_level,
+                                              const TaskGroupID task_group_id) {
+  PartitionedHypergraph partitioned_hypergraph;
+  MultilevelPartitioningTask& multilevel_task = *new(tbb::task::allocate_root())
+    MultilevelPartitioningTask(
+      hypergraph, partitioned_hypergraph,
+      context, top_level, task_group_id);
+  tbb::task::spawn_root_and_wait(multilevel_task);
+  return partitioned_hypergraph;
 }
+
+// ! Performs multilevel partitioning on the given hypergraph
+// ! in TBB continuation-style.
+// ! Note, the final partitioned hypergraph is moved into the
+// ! passed partitioned hypergraph object.
+static inline void partition_async(Hypergraph& hypergraph,
+                                   PartitionedHypergraph& partitioned_hypergraph,
+                                   const Context& context,
+                                   const bool top_level,
+                                   const TaskGroupID task_group_id,
+                                   tbb::task* parent) {
+  ASSERT(parent);
+  spawn_multilevel_partitioner(
+    hypergraph, partitioned_hypergraph, context,
+    top_level, task_group_id, *parent);
+}
+
 }  // namespace multilevel
 }  // namespace mt_kahypar
