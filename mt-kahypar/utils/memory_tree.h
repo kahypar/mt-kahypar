@@ -39,7 +39,7 @@ class MemoryTreeNode {
  using map_type = std::map<std::string, std::unique_ptr<MemoryTreeNode>>;
 
  public:
-  static constexpr int MAX_LINE_LENGTH = 40;
+  static constexpr int MAX_LINE_LENGTH = 45;
   static char LINE_PREFIX[];
   static constexpr size_t LINE_PREFIX_LENGTH = 3;
 

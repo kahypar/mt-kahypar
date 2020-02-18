@@ -22,6 +22,7 @@
 
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/partition/metrics.h"
+#include "mt-kahypar/utils/memory_tree.h"
 #include "mt-kahypar/utils/timer.h"
 
 namespace mt_kahypar {
@@ -211,7 +212,6 @@ inline void printHypergraphInfo(const HyperGraph& hypergraph, const std::string&
 
   LOG << "Hypergraph Information";
   LOG << "Name :" << name;
-  // LOG << "Type:" << hypergraph.typeAsString();
   LOG << "# HNs :" << num_hypernodes
       << "# HEs :" << num_hyperedges
       << "# pins:" << num_pins;
@@ -221,6 +221,13 @@ inline void printHypergraphInfo(const HyperGraph& hypergraph, const std::string&
     internal::createStats(he_weights, avg_he_weight, stdev_he_weight),
     internal::createStats(hn_degrees, avg_hn_degree, stdev_hn_degree),
     internal::createStats(hn_weights, avg_hn_weight, stdev_hn_weight));
+
+  // Print Memory Consumption
+  utils::MemoryTreeNode hypergraph_memory_consumption("Hypergraph", utils::OutputType::MEGABYTE);
+  hypergraph.memoryConsumption(&hypergraph_memory_consumption);
+  hypergraph_memory_consumption.finalize();
+  LOG << "\nHypergraph Memory Consumption";
+  LOG << hypergraph_memory_consumption;
 }
 
 inline void printCommunityInformation(const Hypergraph& hypergraph) {

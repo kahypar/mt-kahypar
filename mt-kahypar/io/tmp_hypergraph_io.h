@@ -85,6 +85,7 @@ static inline void readHyperedges(std::ifstream& file,
   utils::Timer::instance().start_timer("parse_hyperedges", "Parse Hyperedges");
   parallel::scalable_vector<std::string> lines;
   tbb::parallel_invoke([&] {
+    lines.reserve(num_hyperedges);
     std::string he_line;
     while (lines.size() < num_hyperedges) {
       std::getline(file, he_line);

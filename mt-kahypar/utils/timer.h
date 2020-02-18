@@ -38,7 +38,7 @@ class Timer {
   using HighResClockTimepoint = std::chrono::time_point<std::chrono::high_resolution_clock>;
 
  public:
-  static constexpr int MAX_LINE_LENGTH = 40;
+  static constexpr int MAX_LINE_LENGTH = 45;
   static char TOP_LEVEL_PREFIX[];
   static constexpr size_t TOP_LEVEL_PREFIX_LENGTH = 3;
   static char SUB_LEVEL_PREFIX[];
