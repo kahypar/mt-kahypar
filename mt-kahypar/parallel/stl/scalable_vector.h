@@ -26,6 +26,8 @@
 #include "tbb/parallel_invoke.h"
 #include "tbb/scalable_allocator.h"
 
+#include "mt-kahypar/macros.h"
+
 namespace mt_kahypar {
 namespace parallel {
 template <typename T>
