@@ -675,6 +675,7 @@ class NumaPartitionedHypergraph {
     // Extract plain hypergraph data for corresponding block
     using HyperedgeVector = parallel::scalable_vector<parallel::scalable_vector<HypernodeID>>;
     HyperedgeVector edge_vector;
+    parallel::scalable_vector<int> vertices_to_numa_node;
     parallel::scalable_vector<HyperedgeWeight> hyperedge_weight;
     parallel::scalable_vector<HypernodeWeight> hypernode_weight;
     tbb::parallel_invoke([&] {
@@ -683,20 +684,23 @@ class NumaPartitionedHypergraph {
       doParallelForAllEdges(task_group_id, [&](const HyperedgeID he) {
         if ( pinCountInPart(he, block) > 1 &&
              (cut_net_splitting || connectivity(he) == 1) ) {
-          const HyperedgeID original_id = originalEdgeID(he);
-          hyperedge_weight[he_mapping[original_id]] = edgeWeight(he);
+          const HyperedgeID extracted_edge_id = he_mapping[originalEdgeID(he)];
+          hyperedge_weight[extracted_edge_id] = edgeWeight(he);
           for ( const HypernodeID& pin : pins(he) ) {
             if ( partID(pin) == block ) {
-              edge_vector[he_mapping[original_id]].push_back(hn_mapping[originalNodeID(pin)]);
+              edge_vector[extracted_edge_id].push_back(hn_mapping[originalNodeID(pin)]);
             }
           }
         }
       });
     }, [&] {
       hypernode_weight.resize(num_hypernodes);
+      vertices_to_numa_node.resize(num_hypernodes);
       doParallelForAllNodes(task_group_id, [&](const HypernodeID hn) {
         if ( partID(hn) == block ) {
-          hypernode_weight[hn_mapping[originalNodeID(hn)]] = nodeWeight(hn);
+          const HypernodeID extracted_vertex_id = hn_mapping[originalNodeID(hn)];
+          hypernode_weight[extracted_vertex_id] = nodeWeight(hn);
+          vertices_to_numa_node[extracted_vertex_id] = common::get_numa_node_of_vertex(hn);
         }
       });
     });
@@ -704,7 +708,8 @@ class NumaPartitionedHypergraph {
     // Construct hypergraph
     Hypergraph extracted_hypergraph = HypergraphFactory::construct(
       task_group_id, num_hypernodes, num_hyperedges,
-      edge_vector, hyperedge_weight.data(), hypernode_weight.data());
+      edge_vector, std::move(vertices_to_numa_node),
+      hyperedge_weight.data(), hypernode_weight.data());
 
     // Set community ids
     doParallelForAllNodes(task_group_id, [&](const HypernodeID& hn) {
@@ -712,6 +717,9 @@ class NumaPartitionedHypergraph {
         const HypernodeID extracted_hn =
           extracted_hypergraph.globalNodeID(hn_mapping[originalNodeID(hn)]);
         extracted_hypergraph.setCommunityID(extracted_hn, _hg->communityID(hn));
+        if ( isHighDegreeVertex(hn) ) {
+          extracted_hypergraph.markAsHighDegreeVertex(extracted_hn);
+        }
       }
     });
     extracted_hypergraph.initializeCommunities(task_group_id);

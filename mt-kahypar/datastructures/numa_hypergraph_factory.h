@@ -56,61 +56,31 @@ class NumaHypergraphFactory {
                                   const HyperedgeVector& edge_vector,
                                   const HyperedgeWeight* hyperedge_weight = nullptr,
                                   const HypernodeWeight* hypernode_weight = nullptr) {
-    NumaHyperGraph hypergraph;
-
     // Compute mapping that maps each vertex and edge to a NUMA node
     utils::Timer::instance().start_timer("compute_numa_mapping", "Compute Vertex to NUMA Mapping");
     NumaMapping numa_mapping = computeVertexAndEdgeToNumaNodeMapping(
       num_hypernodes, num_hyperedges, edge_vector);
     utils::Timer::instance().stop_timer("compute_numa_mapping");
 
-    // Allocate empty hypergraphs on each NUMA node
-    TBBNumaArena::instance().execute_sequential_on_all_numa_nodes(
-      task_group_id, [&](const int) {
-        hypergraph._hypergraphs.emplace_back();
-      });
+    return construct(task_group_id, num_hypernodes, num_hyperedges,
+      edge_vector, numa_mapping, hyperedge_weight, hypernode_weight);
+  }
 
-    // Construct hypergraphs on each NUMA node in parallel
-    utils::Timer::instance().start_timer("construct_numa_hypergraphs", "Construct NUMA hypergraphs");
-    hypergraph._node_mapping.resize(num_hypernodes);
-    hypergraph._edge_mapping.resize(num_hyperedges);
-    TBBNumaArena::instance().execute_parallel_on_all_numa_nodes(
-      task_group_id, [&](const int node) {
-        ASSERT(static_cast<size_t>(node) < hypergraph._hypergraphs.size());
-        hypergraph._hypergraphs[node] = Factory::construct(
-          node, num_hypernodes, num_hyperedges, edge_vector,
-          numa_mapping.vertices_to_numa_node, numa_mapping.edges_to_numa_node,
-          hypergraph._node_mapping, hypergraph._edge_mapping,
-          hyperedge_weight, hypernode_weight);
-      });
-    utils::Timer::instance().stop_timer("construct_numa_hypergraphs");
+  static NumaHyperGraph construct(const TaskGroupID task_group_id,
+                                  const HypernodeID num_hypernodes,
+                                  const HyperedgeID num_hyperedges,
+                                  const HyperedgeVector& edge_vector,
+                                  parallel::scalable_vector<int>&& vertices_to_numa_node,
+                                  const HyperedgeWeight* hyperedge_weight = nullptr,
+                                  const HypernodeWeight* hypernode_weight = nullptr) {
+    // Compute mapping that maps each vertex and edge to a NUMA node
+    utils::Timer::instance().start_timer("compute_numa_mapping", "Compute Vertex to NUMA Mapping");
+    NumaMapping numa_mapping = computeEdgeToNumaNodeMapping(
+      edge_vector, std::move(vertices_to_numa_node));
+    utils::Timer::instance().stop_timer("compute_numa_mapping");
 
-    // Setup internal stats of numa hypergraph
-    for ( const Hypergraph& numa_hypergraph : hypergraph._hypergraphs ) {
-      hypergraph._num_hypernodes += numa_hypergraph.initialNumNodes();
-      hypergraph._num_hyperedges += numa_hypergraph.initialNumEdges();
-      hypergraph._num_pins += numa_hypergraph.initialNumPins();
-      hypergraph._total_degree += numa_hypergraph.initialTotalVertexDegree();
-      hypergraph._total_weight += numa_hypergraph.totalWeight();
-    }
-    ASSERT(hypergraph.initialNumNodes() == num_hypernodes);
-    ASSERT(hypergraph.initialNumEdges() == num_hyperedges);
-
-    // Remap the vertex and edge ids of each numa hypergraph such that
-    // the ids encodes the NUMA node the reside on and position inside
-    // that hypergraph
-    utils::Timer::instance().start_timer("compute_global_mappings", "Comp. Global HN and HE Mapping");
-    TBBNumaArena::instance().execute_parallel_on_all_numa_nodes(
-      task_group_id, [&](const int node) {
-        ASSERT(static_cast<size_t>(node) < hypergraph._hypergraphs.size());
-        Factory::remapVertexAndEdgeIds(
-          hypergraph._hypergraphs[node],
-          hypergraph._node_mapping,
-          hypergraph._edge_mapping);
-      });
-    utils::Timer::instance().stop_timer("compute_global_mappings");
-
-    return hypergraph;
+    return construct(task_group_id, num_hypernodes, num_hyperedges,
+      edge_vector, numa_mapping, hyperedge_weight, hypernode_weight);
   }
 
   static NumaHyperGraph construct(const TaskGroupID task_group_id,
@@ -205,6 +175,64 @@ class NumaHypergraphFactory {
  private:
   NumaHypergraphFactory() { }
 
+  static NumaHyperGraph construct(const TaskGroupID task_group_id,
+                                  const HypernodeID num_hypernodes,
+                                  const HyperedgeID num_hyperedges,
+                                  const HyperedgeVector& edge_vector,
+                                  const NumaMapping& numa_mapping,
+                                  const HyperedgeWeight* hyperedge_weight,
+                                  const HypernodeWeight* hypernode_weight) {
+    NumaHyperGraph hypergraph;
+
+    // Allocate empty hypergraphs on each NUMA node
+    TBBNumaArena::instance().execute_sequential_on_all_numa_nodes(
+      task_group_id, [&](const int) {
+        hypergraph._hypergraphs.emplace_back();
+      });
+
+    // Construct hypergraphs on each NUMA node in parallel
+    utils::Timer::instance().start_timer("construct_numa_hypergraphs", "Construct NUMA hypergraphs");
+    hypergraph._node_mapping.resize(num_hypernodes);
+    hypergraph._edge_mapping.resize(num_hyperedges);
+    TBBNumaArena::instance().execute_parallel_on_all_numa_nodes(
+      task_group_id, [&](const int node) {
+        ASSERT(static_cast<size_t>(node) < hypergraph._hypergraphs.size());
+        hypergraph._hypergraphs[node] = Factory::construct(
+          node, num_hypernodes, num_hyperedges, edge_vector,
+          numa_mapping.vertices_to_numa_node, numa_mapping.edges_to_numa_node,
+          hypergraph._node_mapping, hypergraph._edge_mapping,
+          hyperedge_weight, hypernode_weight);
+      });
+    utils::Timer::instance().stop_timer("construct_numa_hypergraphs");
+
+    // Setup internal stats of numa hypergraph
+    for ( const Hypergraph& numa_hypergraph : hypergraph._hypergraphs ) {
+      hypergraph._num_hypernodes += numa_hypergraph.initialNumNodes();
+      hypergraph._num_hyperedges += numa_hypergraph.initialNumEdges();
+      hypergraph._num_pins += numa_hypergraph.initialNumPins();
+      hypergraph._total_degree += numa_hypergraph.initialTotalVertexDegree();
+      hypergraph._total_weight += numa_hypergraph.totalWeight();
+    }
+    ASSERT(hypergraph.initialNumNodes() == num_hypernodes);
+    ASSERT(hypergraph.initialNumEdges() == num_hyperedges);
+
+    // Remap the vertex and edge ids of each numa hypergraph such that
+    // the ids encodes the NUMA node the reside on and position inside
+    // that hypergraph
+    utils::Timer::instance().start_timer("compute_global_mappings", "Comp. Global HN and HE Mapping");
+    TBBNumaArena::instance().execute_parallel_on_all_numa_nodes(
+      task_group_id, [&](const int node) {
+        ASSERT(static_cast<size_t>(node) < hypergraph._hypergraphs.size());
+        Factory::remapVertexAndEdgeIds(
+          hypergraph._hypergraphs[node],
+          hypergraph._node_mapping,
+          hypergraph._edge_mapping);
+      });
+    utils::Timer::instance().stop_timer("compute_global_mappings");
+
+    return hypergraph;
+  }
+
   // ! Computes for each hyperedge and vertex a mapping to a numa node, to which
   // ! it will be assigned to.
   static NumaMapping computeVertexAndEdgeToNumaNodeMapping(const HypernodeID num_hypernodes,
@@ -247,7 +275,36 @@ class NumaHypergraphFactory {
     return NumaMapping { std::move(vertices_to_numa_node), std::move(edges_to_numa_node) };
   }
 
-  // ! Computes for each hyperedge and vertex a mapping to a numa node, to which
+  // ! Computes for each hyperedge a mapping to a numa node, to which
+  // ! it will be assigned to.
+  static NumaMapping computeEdgeToNumaNodeMapping(const HyperedgeVector& edge_vector,
+                                                  parallel::scalable_vector<int>&& vertices_to_numa_node) {
+    const int used_numa_nodes = TBBNumaArena::instance().num_used_numa_nodes();
+    parallel::scalable_vector<int> edges_to_numa_node(edge_vector.size(), 0);
+    tbb::parallel_for(0UL, edge_vector.size(), [&](const HyperedgeID he) {
+      parallel::scalable_vector<size_t> num_he_occurs_as_incident_net_on_numa_node(used_numa_nodes, 0);
+      for ( const HypernodeID& pin : edge_vector[he] ) {
+        ASSERT(pin < vertices_to_numa_node.size());
+        const int node = vertices_to_numa_node[pin];
+        ++num_he_occurs_as_incident_net_on_numa_node[node];
+      }
+
+      int best_count = std::numeric_limits<int>::min();
+      int best_node = -1;
+      for ( int node = 0; node < used_numa_nodes; ++node ) {
+        const int count = static_cast<int>(num_he_occurs_as_incident_net_on_numa_node[node]);
+        if ( count > best_count ) {
+          best_node = node;
+          best_count = count;
+        }
+      }
+      edges_to_numa_node[he] = best_node;
+    });
+
+    return NumaMapping { std::move(vertices_to_numa_node), std::move(edges_to_numa_node) };
+  }
+
+  // ! Computes for each hyperedge a mapping to a numa node, to which
   // ! it will be assigned to.
   static NumaMapping computeEdgeToNumaNodeMapping(const TaskGroupID task_group_id,
                                                   const NumaHyperGraph& hypergraph,

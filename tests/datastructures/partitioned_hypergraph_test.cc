@@ -522,6 +522,10 @@ TYPED_TEST(APartitionedHypergraph, ExtractBlockZeroWithCutNetSplitting) {
   parallel::scalable_vector<HypernodeID> edge_id = {
     hg.globalEdgeID(0), hg.globalEdgeID(1) };
 
+  ASSERT_EQ(common::get_numa_node_of_vertex(this->id[0]), common::get_numa_node_of_vertex(node_id[0]));
+  ASSERT_EQ(common::get_numa_node_of_vertex(this->id[1]), common::get_numa_node_of_vertex(node_id[1]));
+  ASSERT_EQ(common::get_numa_node_of_vertex(this->id[2]), common::get_numa_node_of_vertex(node_id[2]));
+
   this->verifyPins(hg, {edge_id[0], edge_id[1]},
     { {node_id[0], node_id[2]}, {node_id[0], node_id[1]} });
 }
@@ -544,6 +548,9 @@ TYPED_TEST(APartitionedHypergraph, ExtractBlockOneWithCutNetSplitting) {
   };
   parallel::scalable_vector<HypernodeID> edge_id = {
     hg.globalEdgeID(0), hg.globalEdgeID(1) };
+
+  ASSERT_EQ(common::get_numa_node_of_vertex(this->id[3]), common::get_numa_node_of_vertex(node_id[0]));
+  ASSERT_EQ(common::get_numa_node_of_vertex(this->id[4]), common::get_numa_node_of_vertex(node_id[1]));
 
   this->verifyPins(hg, {edge_id[0], edge_id[1]},
     { {node_id[0], node_id[1]}, {node_id[0], node_id[1]} });
@@ -568,6 +575,9 @@ TYPED_TEST(APartitionedHypergraph, ExtractBlockTwoWithCutNetSplitting) {
   parallel::scalable_vector<HypernodeID> edge_id = {
     hg.globalEdgeID(0) };
 
+  ASSERT_EQ(common::get_numa_node_of_vertex(this->id[5]), common::get_numa_node_of_vertex(node_id[0]));
+  ASSERT_EQ(common::get_numa_node_of_vertex(this->id[6]), common::get_numa_node_of_vertex(node_id[1]));
+
   this->verifyPins(hg, {edge_id[0]},
     { {node_id[0], node_id[1]} });
 }
@@ -591,6 +601,10 @@ TYPED_TEST(APartitionedHypergraph, ExtractBlockZeroWithCutNetRemoval) {
   };
   parallel::scalable_vector<HypernodeID> edge_id = {
     hg.globalEdgeID(0) };
+
+  ASSERT_EQ(common::get_numa_node_of_vertex(this->id[0]), common::get_numa_node_of_vertex(node_id[0]));
+  ASSERT_EQ(common::get_numa_node_of_vertex(this->id[1]), common::get_numa_node_of_vertex(node_id[1]));
+  ASSERT_EQ(common::get_numa_node_of_vertex(this->id[2]), common::get_numa_node_of_vertex(node_id[2]));
 
   this->verifyPins(hg, {edge_id[0]},
     { {node_id[0], node_id[2]} });
@@ -617,6 +631,10 @@ TYPED_TEST(APartitionedHypergraph, ExtractBlockOneWithCutNetRemoval) {
   parallel::scalable_vector<HypernodeID> edge_id = {
     hg.globalEdgeID(0) };
 
+  ASSERT_EQ(common::get_numa_node_of_vertex(this->id[3]), common::get_numa_node_of_vertex(node_id[0]));
+  ASSERT_EQ(common::get_numa_node_of_vertex(this->id[4]), common::get_numa_node_of_vertex(node_id[1]));
+  ASSERT_EQ(common::get_numa_node_of_vertex(this->id[6]), common::get_numa_node_of_vertex(node_id[2]));
+
   this->verifyPins(hg, {edge_id[0]},
     { {node_id[0], node_id[1], node_id[2]} });
 }
@@ -641,6 +659,10 @@ TYPED_TEST(APartitionedHypergraph, ExtractBlockTwoWithCutNetRemoval) {
   };
   parallel::scalable_vector<HypernodeID> edge_id = {
     hg.globalEdgeID(0) };
+
+  ASSERT_EQ(common::get_numa_node_of_vertex(this->id[2]), common::get_numa_node_of_vertex(node_id[0]));
+  ASSERT_EQ(common::get_numa_node_of_vertex(this->id[5]), common::get_numa_node_of_vertex(node_id[1]));
+  ASSERT_EQ(common::get_numa_node_of_vertex(this->id[6]), common::get_numa_node_of_vertex(node_id[2]));
 
   this->verifyPins(hg, {edge_id[0]},
     { {node_id[0], node_id[1], node_id[2]} });

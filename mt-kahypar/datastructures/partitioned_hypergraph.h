@@ -1015,6 +1015,9 @@ class PartitionedHypergraph {
         const HypernodeID extracted_hn =
           extracted_hypergraph.globalNodeID(hn_mapping[originalNodeID(hn)]);
         extracted_hypergraph.setCommunityID(extracted_hn, _hg->communityID(hn));
+        if ( isHighDegreeVertex(hn) ) {
+          extracted_hypergraph.markAsHighDegreeVertex(extracted_hn);
+        }
       }
     });
     extracted_hypergraph.initializeCommunities(task_group_id);

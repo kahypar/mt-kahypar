@@ -347,6 +347,11 @@ class NumaHypergraph {
     return hypergraph_of_vertex(u).isHighDegreeVertex(u);
   }
 
+  // ! Marks hypernode u as high degree vertex
+  void markAsHighDegreeVertex(const HypernodeID u) {
+    hypergraph_of_vertex(u).markAsHighDegreeVertex(u);
+  }
+
   // ! Marks all vertices with a degree greater the threshold
   // ! as high degree vertex
   void markAllHighDegreeVertices(const TaskGroupID task_group_id,

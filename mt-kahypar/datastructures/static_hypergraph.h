@@ -668,6 +668,13 @@ class StaticHypergraph {
     ASSERT(!hypernode(u).isDisabled(), "Hypernode" << u << "is disabled");
     return hypernode(u).isHighDegreeVertex();
   }
+
+  // ! Marks hypernode u as high degree vertex
+  void markAsHighDegreeVertex(const HypernodeID u) {
+    ASSERT(!hypernode(u).isDisabled(), "Hypernode" << u << "is disabled");
+    hypernode(u).markAsHighDegreeVertex();
+  }
+
   // ! Marks all vertices with a degree greater the threshold
   // ! as high degree vertex
   void markAllHighDegreeVertices(const TaskGroupID task_group_id,
