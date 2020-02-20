@@ -30,49 +30,54 @@ using Coarsener = CommunityCoarsenerT<ds::TestTypeTraits<2>, HeavyEdgeScore,
                                       NoWeightPenalty, BestRatingPreferringUnmatched,
                                       PinObjectivePolicy>;
 
+// Currently not supported, because n-level hypergraph is not implemented
+#if false
+
 TEST_F(ACoarsener, DecreasesNumberOfPins) {
-  Coarsener coarsener(hypergraph, context, TBBArena::GLOBAL_TASK_GROUP);
+  Coarsener coarsener(hypergraph, context, TBB::GLOBAL_TASK_GROUP);
   decreasesNumberOfPins(coarsener, 14);
 }
 
 TEST_F(ACoarsener, DecreasesNumberOfHyperedges) {
-  Coarsener coarsener(hypergraph, context, TBBArena::GLOBAL_TASK_GROUP);
+  Coarsener coarsener(hypergraph, context, TBB::GLOBAL_TASK_GROUP);
   decreasesNumberOfHyperedges(coarsener, 7);
 }
 
 TEST_F(ACoarsener, RemovesHyperedgesOfSizeOneDuringCoarsening) {
-  Coarsener coarsener(hypergraph, context, TBBArena::GLOBAL_TASK_GROUP);
+  Coarsener coarsener(hypergraph, context, TBB::GLOBAL_TASK_GROUP);
   removesHyperedgesOfSizeOneDuringCoarsening(
     coarsener, hypergraph, { 0, 5, 281474976710656, 281474976710661 });
 }
 
 TEST_F(ACoarsener, ReAddsHyperedgesOfSizeOneDuringUncoarsening) {
-  Coarsener coarsener(hypergraph, context, TBBArena::GLOBAL_TASK_GROUP);
+  Coarsener coarsener(hypergraph, context, TBB::GLOBAL_TASK_GROUP);
   reAddsHyperedgesOfSizeOneDuringUncoarsening(
     coarsener, nullptr_refiner, hypergraph, { 0, 5, 281474976710656, 281474976710661 });
 }
 
 TEST_F(ACoarsener, RemovesParallelHyperedgesDuringCoarsening) {
-  Coarsener coarsener(hypergraph, context, TBBArena::GLOBAL_TASK_GROUP);
+  Coarsener coarsener(hypergraph, context, TBB::GLOBAL_TASK_GROUP);
   removesParallelHyperedgesDuringCoarsening(
     coarsener, hypergraph, { 2, 4, 7, 9, 281474976710658, 281474976710660, 281474976710663 });
 }
 
 TEST_F(ACoarsener, UpdatesEdgeWeightOfRepresentativeHyperedgeOnParallelHyperedgeRemoval) {
-  Coarsener coarsener(hypergraph, context, TBBArena::GLOBAL_TASK_GROUP);
+  Coarsener coarsener(hypergraph, context, TBB::GLOBAL_TASK_GROUP);
   updatesEdgeWeightOfRepresentativeHyperedgeOnParallelHyperedgeRemoval(
     coarsener, hypergraph, { { 1, 2 }, { 3, 2 }, { 6, 2 }, { 8, 2 },
       { 281474976710657, 2 }, { 281474976710659, 2 }, { 281474976710662, 2 } });
 }
 
 TEST_F(ACoarsener, RestoresParallelHyperedgesDuringUncoarsening) {
-  Coarsener coarsener(hypergraph, context, TBBArena::GLOBAL_TASK_GROUP);
+  Coarsener coarsener(hypergraph, context, TBB::GLOBAL_TASK_GROUP);
   restoresParallelHyperedgesDuringUncoarsening(
     coarsener, nullptr_refiner, hypergraph, { 2, 4, 7, 9, 281474976710658, 281474976710660, 281474976710663 });
 }
 
 TEST_F(ACoarsener, DoesNotCoarsenUntilCoarseningLimit) {
-  Coarsener coarsener(hypergraph, context, TBBArena::GLOBAL_TASK_GROUP);
+  Coarsener coarsener(hypergraph, context, TBB::GLOBAL_TASK_GROUP);
   doesNotCoarsenUntilCoarseningLimit(coarsener, hypergraph, context, 4, 3, 8);
 }
+
+#endif
 }  // namespace mt_kahypar

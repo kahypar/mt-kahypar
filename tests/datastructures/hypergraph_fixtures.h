@@ -22,6 +22,11 @@
 
 #include "kahypar/definitions.h"
 #include "mt-kahypar/datastructures/hypergraph.h"
+#include "mt-kahypar/datastructures/static_hypergraph.h"
+#include "mt-kahypar/datastructures/static_hypergraph_factory.h"
+#include "mt-kahypar/datastructures/numa_hypergraph.h"
+#include "mt-kahypar/datastructures/numa_hypergraph_factory.h"
+#include "mt-kahypar/datastructures/numa_partitioned_hypergraph.h"
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/parallel/hardware_topology.h"
 #include "mt-kahypar/parallel/tbb_numa_arena.h"
@@ -32,16 +37,29 @@ using ::testing::Test;
 namespace mt_kahypar {
 namespace ds {
 #define GLOBAL_ID(hypergraph, id) hypergraph.globalNodeID(id)
+#define GLOBAL_NODE_ID(hypergraph, id) hypergraph.globalNodeID(id)
+#define GLOBAL_EDGE_ID(hypergraph, id) hypergraph.globalEdgeID(id)
+
+template <int NUM_NUMA_NODES>
+struct OldTestTypeTraits {
+  using TopoMock = mt_kahypar::parallel::TopologyMock<NUM_NUMA_NODES>;
+  using HwTopology = mt_kahypar::parallel::HardwareTopology<TopoMock, parallel::topology_t, parallel::node_t>;
+  using TBB = mt_kahypar::parallel::TBBNumaArena<HwTopology>;
+  using HyperGraph = mt_kahypar::ds::Hypergraph<HwTopology, TBB>;
+  using StreamingHyperGraph = mt_kahypar::ds::StreamingHypergraph<HwTopology, TBB>;
+};
 
 template <int NUM_NUMA_NODES>
 struct TestTypeTraits {
   using TopoMock = mt_kahypar::parallel::TopologyMock<NUM_NUMA_NODES>;
   using HwTopology = mt_kahypar::parallel::HardwareTopology<TopoMock, parallel::topology_t, parallel::node_t>;
   using TBB = mt_kahypar::parallel::TBBNumaArena<HwTopology>;
-  using HyperGraph = mt_kahypar::ds::Hypergraph<HypernodeID, HyperedgeID,
-                                                HypernodeWeight, HyperedgeWeight, PartitionID, HwTopology, TBB>;
-  using StreamingHyperGraph = mt_kahypar::ds::StreamingHypergraph<HypernodeID, HyperedgeID,
-                                                                  HypernodeWeight, HyperedgeWeight, PartitionID, HwTopology, TBB>;
+  using HyperGraph = NumaHypergraph<StaticHypergraph, HwTopology, TBB>;
+  using HyperGraphFactory = NumaHypergraphFactory<
+    StaticHypergraph, StaticHypergraphFactory, HwTopology, TBB>;
+  template<bool track_border_vertices = true>
+  using PartitionedHyperGraph = NumaPartitionedHypergraph<
+    HyperGraph, HyperGraphFactory, track_border_vertices>;
 };
 
 template <int NUM_NUMA_NODES>
@@ -50,7 +68,7 @@ class AHypergraph : public Test {
   using HyperedgeVector = parallel::scalable_vector<HyperedgeID>;
 
  public:
-  using TypeTraits = TestTypeTraits<NUM_NUMA_NODES>;
+  using TypeTraits = OldTestTypeTraits<NUM_NUMA_NODES>;
   using TBBArena = typename TypeTraits::TBB;
   using HwTopology = typename TypeTraits::HwTopology;
   using TestStreamingHypergraph = typename TypeTraits::StreamingHyperGraph;
@@ -108,5 +126,112 @@ class AHypergraph : public Test {
     return hypergraph;
   }
 };
+
+auto identity = [](const HypernodeID& id) { return id; };
+
+template<typename Hypergraph, typename Factory, typename TBB = TBBNumaArena>
+class HypergraphFixture : public Test {
+ public:
+  HypergraphFixture() :
+    hypergraph(Factory::construct(TBB::GLOBAL_TASK_GROUP,
+      7 , 4, { {0, 2}, {0, 1, 3, 4}, {3, 4, 6}, {2, 5, 6} })) {
+    id.resize(7);
+    for ( const HypernodeID& hn : hypergraph.nodes() ) {
+      id[hypergraph.originalNodeID(hn)] = hn;
+    }
+  }
+
+  static void SetUpTestSuite() {
+    TBB::instance(HardwareTopology::instance().num_cpus());
+  }
+
+  template <typename K = decltype(identity)>
+  void verifyIncidentNets(const Hypergraph& hg,
+                          const HypernodeID hn,
+                          const std::set<HypernodeID>& reference,
+                          K map_func = identity,
+                          bool log = false) {
+    size_t count = 0;
+    for (const HyperedgeID& he : hg.incidentEdges(hn)) {
+      if (log) LOG << V(he) << V(map_func(he));
+      ASSERT_TRUE(reference.find(map_func(he)) != reference.end()) << V(map_func(he));
+      count++;
+    }
+    ASSERT_EQ(count, reference.size());
+  }
+
+  template <typename K = decltype(identity)>
+  void verifyIncidentNets(const HypernodeID hn,
+                          const std::set<HypernodeID>& reference,
+                          K map_func = identity,
+                          bool log = false) {
+    verifyIncidentNets(hypergraph, hn, reference, map_func, log);
+  }
+
+  void verifyPins(const Hypergraph& hg,
+                  const std::vector<HyperedgeID> hyperedges,
+                  const std::vector< std::set<HypernodeID> >& references,
+                  bool log = false) {
+    ASSERT(hyperedges.size() == references.size());
+    for (size_t i = 0; i < hyperedges.size(); ++i) {
+      const HyperedgeID he = hyperedges[i];
+      const std::set<HypernodeID>& reference = references[i];
+      size_t count = 0;
+      for (const HypernodeID& pin : hg.pins(he)) {
+        if (log) LOG << V(he) << V(pin);
+        ASSERT_TRUE(reference.find(pin) != reference.end()) << V(he) << V(pin);
+        count++;
+      }
+      ASSERT_EQ(count, reference.size());
+    }
+  }
+
+  void verifyPins(const std::vector<HyperedgeID> hyperedges,
+                  const std::vector< std::set<HypernodeID> >& references,
+                  bool log = false) {
+    verifyPins(hypergraph, hyperedges, references, log);
+  }
+
+  void verifyCommunityPins(const Hypergraph& hg,
+                           const PartitionID community_id,
+                           const std::vector<HyperedgeID> hyperedges,
+                           const std::vector< std::set<HypernodeID> >& references,
+                           bool log = false) {
+    ASSERT(hyperedges.size() == references.size());
+    for (size_t i = 0; i < hyperedges.size(); ++i) {
+      const HyperedgeID he = hyperedges[i];
+      const std::set<HypernodeID>& reference = references[i];
+      size_t count = 0;
+      for (const HypernodeID& pin : hg.pins(he, community_id)) {
+        if (log) LOG << V(he) << V(pin);
+        ASSERT_TRUE(reference.find(pin) != reference.end()) << V(he) << V(pin);
+        count++;
+      }
+      ASSERT_EQ(count, reference.size());
+    }
+  }
+
+  void verifyCommunityPins(const PartitionID community_id,
+                           const std::vector<HyperedgeID> hyperedges,
+                           const std::vector< std::set<HypernodeID> >& references,
+                           bool log = false) {
+    verifyCommunityPins(hypergraph, community_id, hyperedges, references, log);
+  }
+
+  void assignCommunityIds() {
+    hypergraph.setCommunityID(id[0], 0);
+    hypergraph.setCommunityID(id[1], 0);
+    hypergraph.setCommunityID(id[2], 0);
+    hypergraph.setCommunityID(id[3], 1);
+    hypergraph.setCommunityID(id[4], 1);
+    hypergraph.setCommunityID(id[5], 2);
+    hypergraph.setCommunityID(id[6], 2);
+    hypergraph.initializeCommunities(TBB::GLOBAL_TASK_GROUP);
+  }
+
+  Hypergraph hypergraph;
+  std::vector<HypernodeID> id;
+};
+
 }  // namespace ds
 }  // namespace mt_kahypar

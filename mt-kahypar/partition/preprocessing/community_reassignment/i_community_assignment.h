@@ -33,7 +33,7 @@ class ICommunityAssignment {
 
   virtual ~ICommunityAssignment() = default;
 
-  std::vector<PartitionID> computeAssignment() {
+  parallel::scalable_vector<PartitionID> computeAssignment() {
     return computeAssignmentImpl();
   }
 
@@ -41,7 +41,7 @@ class ICommunityAssignment {
   ICommunityAssignment() = default;
 
  private:
-  virtual std::vector<PartitionID> computeAssignmentImpl() = 0;
+  virtual parallel::scalable_vector<PartitionID> computeAssignmentImpl() = 0;
 };
 }  // namespace preprocessing
 }  // namespace mt_kahypar

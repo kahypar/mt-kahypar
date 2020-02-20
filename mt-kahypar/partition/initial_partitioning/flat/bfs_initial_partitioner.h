@@ -31,7 +31,7 @@
 namespace mt_kahypar {
 template<typename TypeTraits>
 class BFSInitialPartitionerT : public tbb::task {
-  using HyperGraph = typename TypeTraits::HyperGraph;
+  using HyperGraph = typename TypeTraits::template PartitionedHyperGraph<false>;
   using InitialPartitioningDataContainer = InitialPartitioningDataContainerT<TypeTraits>;
   using Queue = parallel::scalable_queue<HypernodeID>;
 
@@ -49,7 +49,7 @@ class BFSInitialPartitionerT : public tbb::task {
 
   tbb::task* execute() override {
     HighResClockTimepoint start = std::chrono::high_resolution_clock::now();
-    HyperGraph& hypergraph = _ip_data.local_hypergraph();
+    HyperGraph& hypergraph = _ip_data.local_partitioned_hypergraph();
     kahypar::ds::FastResetFlagArray<>& hypernodes_in_queue =
       _ip_data.local_hypernode_fast_reset_flag_array();
     kahypar::ds::FastResetFlagArray<>& hyperedges_in_queue =
@@ -126,7 +126,7 @@ class BFSInitialPartitionerT : public tbb::task {
                      const HypernodeID hn,
                      const PartitionID block) const {
     ASSERT(block != kInvalidPartition && block < _context.partition.k);
-    return hypergraph.localPartWeight(block) + hypergraph.nodeWeight(hn) <=
+    return hypergraph.partWeight(block) + hypergraph.nodeWeight(hn) <=
       _context.partition.max_part_weights[block];
   }
 

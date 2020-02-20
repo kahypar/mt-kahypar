@@ -31,7 +31,7 @@ namespace mt_kahypar {
 
 template<typename TypeTraits>
 class PseudoPeripheralStartNodes {
-  using HyperGraph = typename TypeTraits::HyperGraph;
+  using HyperGraph = typename TypeTraits::template PartitionedHyperGraph<false>;
   using InitialPartitioningDataContainer = InitialPartitioningDataContainerT<TypeTraits>;
   using StartNodes = parallel::scalable_vector<HypernodeID>;
   using Queue = parallel::scalable_queue<HypernodeID>;
@@ -43,7 +43,7 @@ class PseudoPeripheralStartNodes {
  public:
   static inline StartNodes computeStartNodes(InitialPartitioningDataContainer& ip_data,
                                              const Context& context) {
-    HyperGraph& hypergraph = ip_data.local_hypergraph();
+    HyperGraph& hypergraph = ip_data.local_partitioned_hypergraph();
     kahypar::ds::FastResetFlagArray<>& hypernodes_in_queue =
       ip_data.local_hypernode_fast_reset_flag_array();
     kahypar::ds::FastResetFlagArray<>& hyperedges_in_queue =

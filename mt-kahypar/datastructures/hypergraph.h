@@ -30,45 +30,28 @@
 
 #include "kahypar/meta/mandatory.h"
 
+#include "mt-kahypar/datastructures/hypergraph_common.h"
 #include "mt-kahypar/datastructures/streaming_hypergraph.h"
 #include "mt-kahypar/macros.h"
 #include "mt-kahypar/utils/timer.h"
 
 namespace mt_kahypar {
 namespace ds {
-template <typename HypernodeType_ = Mandatory,
-          typename HyperedgeType_ = Mandatory,
-          typename HypernodeWeightType_ = Mandatory,
-          typename HyperedgeWeightType_ = Mandatory,
-          typename PartitionIDType_ = Mandatory,
-          typename HardwareTopology = Mandatory,
+template <typename HardwareTopology = Mandatory,
           typename TBBNumaArena = Mandatory>
 class Hypergraph {
  private:
   static constexpr bool debug = false;
   static constexpr bool enable_heavy_assert = false;
 
-  using HypernodeID = HypernodeType_;
-  using HyperedgeID = HyperedgeType_;
-  using HypernodeWeight = HypernodeWeightType_;
-  using HyperedgeWeight = HyperedgeWeightType_;
-  using PartitionID = PartitionIDType_;
-
-  using Self = Hypergraph<HypernodeID, HyperedgeID, HypernodeWeight, HyperedgeWeight,
-                          PartitionID, HardwareTopology, TBBNumaArena>;
+  using Self = Hypergraph<HardwareTopology, TBBNumaArena>;
 
   static constexpr PartitionID kInvalidPartition = -1;
   static HypernodeID kInvalidHypernode;
   static HyperedgeID kInvalidHyperedge;
 
  public:
-  using StreamingHypergraph = mt_kahypar::ds::StreamingHypergraph<HypernodeID,
-                                                                  HyperedgeID,
-                                                                  HypernodeWeight,
-                                                                  HyperedgeWeight,
-                                                                  PartitionID,
-                                                                  HardwareTopology,
-                                                                  TBBNumaArena>;
+  using StreamingHypergraph = mt_kahypar::ds::StreamingHypergraph<HardwareTopology, TBBNumaArena>;
 
  private:
   using HypernodeIterator = typename StreamingHypergraph::HypernodeIterator;
@@ -1886,23 +1869,6 @@ class Hypergraph {
   }
 
   /*!
-   * Builds up a vector that stores for each contraction partner in the
-   * contraction history its position.
-   *
-   * @params history contraction history
-   */
-  void buildContractionHierarchy(const std::vector<Memento>& history) {
-    _contraction_index.assign(_num_hypernodes, std::numeric_limits<HypernodeID>::max());
-    tbb::parallel_for(0UL, history.size(), [&](const size_t& i) {
-          const HypernodeID v = history[i].v;
-          ASSERT(originalNodeID(v) < _num_hypernodes);
-          ASSERT(_contraction_index[originalNodeID(v)] == std::numeric_limits<HypernodeID>::max(),
-                 "Hypernode" << v << "occurs more than once as contraction partner in hierarchy");
-          _contraction_index[originalNodeID(v)] = i;
-        });
-  }
-
-  /*!
    * Removes all community hyperedges from the hypergraph after parallel community
    * coarsening terminates.
    *
@@ -1918,6 +1884,23 @@ class Hypergraph {
     ASSERT(_contraction_index.size() == _num_hypernodes);
     TBBNumaArena::instance().execute_parallel_on_all_numa_nodes(task_group_id, [&](const int node) {
           _hypergraphs[node].removeCommunityHyperedges(_contraction_index, _hypergraphs);
+        });
+  }
+
+  /*!
+   * Builds up a vector that stores for each contraction partner in the
+   * contraction history its position.
+   *
+   * @params history contraction history
+   */
+  void buildContractionHierarchy(const std::vector<Memento>& history) {
+    _contraction_index.assign(_num_hypernodes, std::numeric_limits<HypernodeID>::max());
+    tbb::parallel_for(0UL, history.size(), [&](const size_t& i) {
+          const HypernodeID v = history[i].v;
+          ASSERT(originalNodeID(v) < _num_hypernodes);
+          ASSERT(_contraction_index[originalNodeID(v)] == std::numeric_limits<HypernodeID>::max(),
+                 "Hypernode" << v << "occurs more than once as contraction partner in hierarchy");
+          _contraction_index[originalNodeID(v)] = i;
         });
   }
 
@@ -1944,6 +1927,7 @@ class Hypergraph {
         [](const PartitionID lhs, const PartitionID rhs) {
           return std::max(lhs, rhs);
         });
+    _num_communities = std::max(_num_communities, 1);
     utils::Timer::instance().stop_timer("compute_number_of_communities");
 
     _communities_num_hypernodes.assign(_num_communities, parallel::IntegralAtomicWrapper<HypernodeID>(0));
@@ -1994,7 +1978,7 @@ class Hypergraph {
   void initializeCommunitiesSequential() {
     // Compute number of communities
     utils::Timer::instance().start_timer("compute_number_of_communities", "Compute Num of Communities");
-    _num_communities = 0;
+    _num_communities = 1;
     for ( const HypernodeID& hn : nodes() ) {
       _num_communities = std::max(_num_communities, communityID(hn) + 1);
     }
@@ -3065,28 +3049,12 @@ class Hypergraph {
   std::vector<PartitionID> _community_node_mapping;
 };
 
-template <typename HypernodeType_,
-          typename HyperedgeType_,
-          typename HypernodeWeightType_,
-          typename HyperedgeWeightType_,
-          typename PartitionIDType_,
-          typename HardwareTopology,
-          typename TBBNumaArena>
-HyperedgeType_ Hypergraph<HypernodeType_, HyperedgeType_,
-                          HypernodeWeightType_, HyperedgeWeightType_,
-                          PartitionIDType_, HardwareTopology,
-                          TBBNumaArena>::kInvalidHyperedge = std::numeric_limits<HyperedgeType_>::max();
+template <typename HardwareTopology, typename TBBNumaArena>
+HyperedgeID Hypergraph<HardwareTopology, TBBNumaArena>::kInvalidHyperedge =
+  std::numeric_limits<HyperedgeID>::max();
 
-template <typename HypernodeType_,
-          typename HyperedgeType_,
-          typename HypernodeWeightType_,
-          typename HyperedgeWeightType_,
-          typename PartitionIDType_,
-          typename HardwareTopology,
-          typename TBBNumaArena>
-HypernodeType_ Hypergraph<HypernodeType_, HyperedgeType_,
-                          HypernodeWeightType_, HyperedgeWeightType_,
-                          PartitionIDType_, HardwareTopology,
-                          TBBNumaArena>::kInvalidHypernode = std::numeric_limits<HypernodeType_>::max();
+template <typename HardwareTopology, typename TBBNumaArena>
+HypernodeID Hypergraph<HardwareTopology, TBBNumaArena>::kInvalidHypernode =
+  std::numeric_limits<HypernodeID>::max();
 }  // namespace ds
 }  // namespace mt_kahypar

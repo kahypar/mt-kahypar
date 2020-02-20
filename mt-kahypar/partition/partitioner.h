@@ -28,7 +28,6 @@
 
 #include "mt-kahypar/datastructures/graph.h"
 #include "mt-kahypar/definitions.h"
-#include "mt-kahypar/io/hypergraph_io.h"
 #include "mt-kahypar/io/partitioning_output.h"
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/partition/factories.h"
@@ -60,7 +59,7 @@ class Partitioner {
   Partitioner(Partitioner&&) = delete;
   Partitioner & operator= (Partitioner &&) = delete;
 
-  inline void partition(Hypergraph& hypergraph, Context& context);
+  inline PartitionedHypergraph<> partition(Hypergraph& hypergraph, Context& context);
 
  private:
   static inline void setupContext(Hypergraph& hypergraph, Context& context);
@@ -73,7 +72,7 @@ class Partitioner {
 
   inline void redistribution(Hypergraph& hypergraph, const Context& context);
 
-  inline void postprocess(Hypergraph& hypergraph, const Context& context);
+  inline void postprocess(PartitionedHypergraph<>& hypergraph, const Context& context);
 
   HypergraphSparsifier _hypergraph_sparsifier;
 };
@@ -136,7 +135,8 @@ inline void Partitioner::setupContext(Hypergraph& hypergraph, Context& context) 
     }
 
     if ( context.coarsening.high_degree_vertex_threshold != std::numeric_limits<HypernodeID>::max() ) {
-      hypergraph.markAllHighDegreeVertices(context.coarsening.high_degree_vertex_threshold);
+      hypergraph.markAllHighDegreeVertices(TBBNumaArena::GLOBAL_TASK_GROUP,
+        context.coarsening.high_degree_vertex_threshold);
     }
   }
 
@@ -202,7 +202,7 @@ inline void Partitioner::preprocess(Hypergraph& hypergraph, const Context& conte
       ds::AdjListStarExpansion::restrictClusteringToHypernodes(hypergraph, communities);
       _hypergraph_sparsifier.assignAllDegreeZeroHypernodesToSameCommunity(hypergraph, communities);
     } else {
-      io::readPartitionFile(context.partition.graph_community_filename, communities);
+      tmp_io::readPartitionFile(context.partition.graph_community_filename, communities);
     }
     utils::Timer::instance().stop_timer("perform_community_detection");
 
@@ -219,7 +219,7 @@ inline void Partitioner::preprocess(Hypergraph& hypergraph, const Context& conte
 
     // Initialize Communities
     utils::Timer::instance().start_timer("initialize_communities", "Initialize Communities");
-    hypergraph.initializeCommunities();
+    hypergraph.initializeCommunities(TBBNumaArena::GLOBAL_TASK_GROUP);
     utils::Timer::instance().stop_timer("initialize_communities");
 
     utils::Stats::instance().add_stat("num_communities", hypergraph.numCommunities());
@@ -237,8 +237,8 @@ inline void Partitioner::preprocess(Hypergraph& hypergraph, const Context& conte
   } else {
     // Per default all communities are assigned to community 0
     utils::Timer::instance().disable();
-    hypergraph.initializeCommunities();
-    std::vector<PartitionID> community_node_mapping(1, 0);
+    hypergraph.initializeCommunities(TBBNumaArena::GLOBAL_TASK_GROUP);
+    parallel::scalable_vector<PartitionID> community_node_mapping(1, 0);
     hypergraph.setCommunityNodeMapping(std::move(community_node_mapping));
     utils::Timer::instance().enable();
   }
@@ -249,11 +249,13 @@ inline void Partitioner::redistribution(Hypergraph& hypergraph, const Context& c
     RedistributionFactory::getInstance().createObject(
       context.preprocessing.community_redistribution.assignment_strategy, hypergraph, context);
 
-  std::vector<PartitionID> community_node_mapping = community_assignment->computeAssignment();
+  parallel::scalable_vector<PartitionID> community_node_mapping =
+    community_assignment->computeAssignment();
   if (context.preprocessing.use_community_redistribution &&
       TBBNumaArena::instance().num_used_numa_nodes() > 1) {
     HyperedgeWeight remote_pin_count_before = metrics::remotePinCount(hypergraph);
-    hypergraph = preprocessing::CommunityRedistributor::redistribute(hypergraph, context.partition.k, community_node_mapping);
+    hypergraph = preprocessing::CommunityRedistributor::redistribute(
+      TBBNumaArena::GLOBAL_TASK_GROUP, hypergraph, community_node_mapping);
     HyperedgeWeight remote_pin_count_after = metrics::remotePinCount(hypergraph);
     utils::Stats::instance().add_stat("remote_pin_count_before", remote_pin_count_before);
     utils::Stats::instance().add_stat("remote_pin_count_after", remote_pin_count_after);
@@ -275,12 +277,12 @@ inline void Partitioner::redistribution(Hypergraph& hypergraph, const Context& c
   hypergraph.setCommunityNodeMapping(std::move(community_node_mapping));
 }
 
-inline void Partitioner::postprocess(Hypergraph& hypergraph, const Context& context) {
+inline void Partitioner::postprocess(PartitionedHypergraph<>& hypergraph, const Context& context) {
   _hypergraph_sparsifier.restoreDegreeZeroHypernodes(hypergraph, context);
   _hypergraph_sparsifier.restoreSingleNodeHyperedges(hypergraph);
 }
 
-inline void Partitioner::partition(Hypergraph& hypergraph, Context& context) {
+inline PartitionedHypergraph<> Partitioner::partition(Hypergraph& hypergraph, Context& context) {
   configurePreprocessing(hypergraph, context);
   setupContext(hypergraph, context);
 
@@ -294,14 +296,17 @@ inline void Partitioner::partition(Hypergraph& hypergraph, Context& context) {
   utils::Timer::instance().stop_timer("preprocessing");
 
   // ################## MULTILEVEL ##################
-  multilevel::partition(hypergraph, context, true, TBBNumaArena::GLOBAL_TASK_GROUP);
+  PartitionedHypergraph<> partitioned_hypergraph = multilevel::partition(
+    hypergraph, context, true, TBBNumaArena::GLOBAL_TASK_GROUP);
 
-  postprocess(hypergraph, context);
+  postprocess(partitioned_hypergraph, context);
 
   if (context.partition.verbose_output) {
-    io::printHypergraphInfo(hypergraph, "Uncoarsened Hypergraph");
+    io::printHypergraphInfo(partitioned_hypergraph, "Uncoarsened Hypergraph");
     io::printStripe();
   }
+
+  return partitioned_hypergraph;
 }
 }  // namespace partition
 }  // namespace mt_kahypar

@@ -91,7 +91,7 @@ class CommunityVertexPairRater {
   VertexPairRating rate(const HypernodeID u) {
     ASSERT(_hg.communityID(u) == _community_id);
     const HypernodeWeight weight_u = _hg.nodeWeight(u);
-    for (const HyperedgeID& he : _hg.incidentEdges(u, _community_id)) {
+    for (const HyperedgeID& he : _hg.multiPinIncidentEdges(u, _community_id)) {
       ASSERT(_hg.edgeSize(he) > 1, V(he));
       if (_hg.edgeSize(he, _community_id) < _context.partition.hyperedge_size_threshold) {
         const RatingType score = ScorePolicy::score(_hg, he, _community_id);

@@ -30,7 +30,7 @@ template<typename TypeTraits,
          typename GainPolicy,
          typename PQSelectionPolicy>
 class GreedyInitialPartitionerT : public tbb::task {
-  using HyperGraph = typename TypeTraits::HyperGraph;
+  using HyperGraph = typename TypeTraits::template PartitionedHyperGraph<false>;
   using InitialPartitioningDataContainer = InitialPartitioningDataContainerT<TypeTraits>;
 
   using DeltaFunction = std::function<void (const HyperedgeID, const HyperedgeWeight, const HypernodeID, const HypernodeID, const HypernodeID)>;
@@ -53,7 +53,7 @@ class GreedyInitialPartitionerT : public tbb::task {
 
   tbb::task* execute() override {
     HighResClockTimepoint start = std::chrono::high_resolution_clock::now();
-    HyperGraph& hg = _ip_data.local_hypergraph();
+    HyperGraph& hg = _ip_data.local_partitioned_hypergraph();
     KWayPriorityQueue& kway_pq = _ip_data.local_kway_priority_queue();
     kahypar::ds::FastResetFlagArray<>& hyperedges_in_queue =
       _ip_data.local_hyperedge_fast_reset_flag_array();
@@ -92,7 +92,7 @@ class GreedyInitialPartitionerT : public tbb::task {
       // we terminate greedy initial partitioner in order to prevent that the default block
       // becomes underloaded.
       if ( _default_block != kInvalidPartition &&
-           hg.localPartWeight(_default_block) <
+           hg.partWeight(_default_block) <
            _context.partition.perfect_balance_part_weights[_default_block] ) {
         break;
       }
@@ -126,7 +126,7 @@ class GreedyInitialPartitionerT : public tbb::task {
 
       if ( allow_overfitting || fitsIntoBlock(hg, hn, to, use_perfect_balanced_as_upper_bound) ) {
         if ( _default_block != kInvalidPartition ) {
-          hg.changeNodePart(hn, _default_block, to, NOOP_FUNC, true);
+          hg.changeNodePart(hn, _default_block, to, NOOP_FUNC);
         } else {
           hg.setNodePart(hn, to);
         }
@@ -151,7 +151,7 @@ class GreedyInitialPartitionerT : public tbb::task {
     ASSERT(block != kInvalidPartition && block < _context.partition.k);
     const HyperedgeWeight upper_bound = use_perfect_balanced_as_upper_bound ?
       _context.partition.perfect_balance_part_weights[block] : _context.partition.max_part_weights[block];
-    return hypergraph.localPartWeight(block) + hypergraph.nodeWeight(hn) <=
+    return hypergraph.partWeight(block) + hypergraph.nodeWeight(hn) <=
       upper_bound;
   }
 

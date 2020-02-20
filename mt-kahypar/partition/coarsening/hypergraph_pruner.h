@@ -30,10 +30,9 @@ namespace mt_kahypar {
 template <typename TypeTraits>
 class HypergraphPrunerT {
   using HyperGraph = typename TypeTraits::HyperGraph;
-  using StreamingHyperGraph = typename TypeTraits::StreamingHyperGraph;
+  using PartitionedHyperGraph = typename TypeTraits::template PartitionedHyperGraph<>;
   using TBB = typename TypeTraits::TBB;
   using HwTopology = typename TypeTraits::HwTopology;
-  using Memento = typename StreamingHyperGraph::Memento;
 
  protected:
   static constexpr bool debug = false;
@@ -62,7 +61,7 @@ class HypergraphPrunerT {
 
   virtual ~HypergraphPrunerT() = default;
 
-  void restoreSingleNodeHyperedges(HyperGraph& hypergraph,
+  void restoreSingleNodeHyperedges(PartitionedHyperGraph& hypergraph,
                                    const Memento& memento) {
     for (int i = memento.one_pin_hes_begin + memento.one_pin_hes_size - 1;
          i >= memento.one_pin_hes_begin; --i) {
@@ -75,7 +74,7 @@ class HypergraphPrunerT {
     }
   }
 
-  void restoreParallelHyperedges(HyperGraph& hypergraph,
+  void restoreParallelHyperedges(PartitionedHyperGraph& hypergraph,
                                  const Memento& memento,
                                  const kahypar::ds::FastResetFlagArray<>* batch_hypernodes = nullptr) {
     for (int i = memento.parallel_hes_begin + memento.parallel_hes_size - 1;
@@ -94,8 +93,8 @@ class HypergraphPrunerT {
                                              const PartitionID community_id,
                                              Memento& memento) {
     memento.one_pin_hes_begin = _removed_single_node_hyperedges.size();
-    auto begin_it = hypergraph.incidentEdges(memento.u, community_id).begin();
-    auto end_it = hypergraph.incidentEdges(memento.u, community_id).end();
+    auto begin_it = hypergraph.activeIncidentEdges(memento.u, community_id).begin();
+    auto end_it = hypergraph.activeIncidentEdges(memento.u, community_id).end();
     HyperedgeWeight removed_he_weight = 0;
     for (auto he_it = begin_it; he_it != end_it; ++he_it) {
       if (hypergraph.numCommunitiesInHyperedge(*he_it) == 1 &&
@@ -176,7 +175,7 @@ class HypergraphPrunerT {
  private:
   void createFingerprints(HyperGraph& hypergraph, const HypernodeID u, const PartitionID community_id) {
     _fingerprints.clear();
-    for (const HyperedgeID& he : hypergraph.validIncidentEdges(u, community_id)) {
+    for (const HyperedgeID& he : hypergraph.activeIncidentEdges(u, community_id)) {
       DBG << "Fingerprint for HE" << he << "= {" << he << "," << hypergraph.edgeHash(he)
           << "," << hypergraph.edgeSize(he) << "}";
       _fingerprints.emplace_back(Fingerprint { he, hypergraph.edgeHash(he) });

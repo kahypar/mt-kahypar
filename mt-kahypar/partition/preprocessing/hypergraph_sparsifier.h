@@ -83,13 +83,13 @@ class HypergraphSparsifier {
     }
   }
 
-  void restoreSingleNodeHyperedges(Hypergraph& hypergraph) {
+  void restoreSingleNodeHyperedges(PartitionedHypergraph<>& hypergraph) {
     for (const HyperedgeID& he : _removed_hes) {
       hypergraph.restoreSinglePinHyperedge(he);
     }
   }
 
-  void restoreDegreeZeroHypernodes(Hypergraph& hypergraph, const Context& context) {
+  void restoreDegreeZeroHypernodes(PartitionedHypergraph<>& hypergraph, const Context& context) {
     std::vector<PartitionID> valid_blocks(context.partition.k, 0);
     std::iota(valid_blocks.begin(), valid_blocks.end(), 0);
     size_t current_block_idx = 0;
@@ -100,7 +100,7 @@ class HypergraphSparsifier {
       // Search for a valid block to which we assign the restored hypernode
       // Note, a valid block must exist because we only remove weight one hypernodes
       PartitionID current_block = valid_blocks[current_block_idx];
-      while ( hypergraph.localPartWeight(current_block) >= context.partition.max_part_weights[current_block] ) {
+      while ( hypergraph.partWeight(current_block) >= context.partition.max_part_weights[current_block] ) {
         std::swap(valid_blocks[current_block_idx], valid_blocks.back());
         valid_blocks.pop_back();
         ASSERT(!valid_blocks.empty());
@@ -111,7 +111,6 @@ class HypergraphSparsifier {
       hypergraph.setNodePart(hn, current_block);
       current_block_idx = (current_block_idx + 1) % valid_blocks.size();
     }
-    hypergraph.updateGlobalPartInfos();
   }
 
  private:
