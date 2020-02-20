@@ -975,9 +975,9 @@ class Hypergraph {
    */
 
   // ! Global weight of a block
-  HypernodeWeight partWeight(const PartitionID id) const {
+  HypernodeWeight partWeight(const PartitionID id, std::memory_order order = std::memory_order_seq_cst) const {
     ASSERT(id < _k && id != kInvalidPartition, "Part ID" << id << "is invalid");
-    return _part_info[id].weight;
+    return _part_info[id].weight.load(order);
   }
 
   // ! Global size of a block
