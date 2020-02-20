@@ -71,10 +71,10 @@ using FlatInitialPartitionerFactory = kahypar::meta::Factory<InitialPartitioning
                                                              tbb::task* (*)(tbb::task*, const InitialPartitioningAlgorithm, InitialPartitioningDataContainer&, const Context&)>;
 
 using InitialPartitionerFactory = kahypar::meta::Factory<InitialPartitioningMode,
-                                                         IInitialPartitioner* (*)(Hypergraph&, const Context&, const bool, const TaskGroupID)>;
+                                                         IInitialPartitioner* (*)(PartitionedHypergraph<>&, const Context&, const bool, const TaskGroupID)>;
 
 using LabelPropagationFactory = kahypar::meta::Factory<LabelPropagationAlgorithm,
-                                                       IRefiner* (*)(Hypergraph&, const Context&, const TaskGroupID)>;
+                                                       IRefiner* (*)(PartitionedHypergraph<>&, const Context&, const TaskGroupID)>;
 
 using LabelPropagationKm1Dispatcher = kahypar::meta::StaticMultiDispatchFactory<LabelPropagationKm1Refiner,
                                                                                 IRefiner,

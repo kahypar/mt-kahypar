@@ -22,10 +22,10 @@
 
 #include "mt-kahypar/application/command_line_options.h"
 #include "mt-kahypar/definitions.h"
-#include "mt-kahypar/io/hypergraph_io.h"
+#include "mt-kahypar/io/tmp_hypergraph_io.h"
 #include "mt-kahypar/mt_kahypar.h"
 #include "mt-kahypar/partition/context.h"
-#include "mt-kahypar/partition/partitioner.h"
+#include "mt-kahypar/partition/multilevel.h"
 
 using ::testing::Test;
 
@@ -44,7 +44,8 @@ template <typename Config>
 class AInitialPartitionerTest : public Test {
   using TypeTraits = typename Config::TypeTraits;
   using HyperGraph = typename TypeTraits::HyperGraph;
-  using StreamingHyperGraph = typename TypeTraits::StreamingHyperGraph;
+  using PartitionedHyperGraph = typename TypeTraits::template PartitionedHyperGraph<>;
+  using HyperGraphFactory = typename TypeTraits::HyperGraphFactory;
   using TBB = typename TypeTraits::TBB;
   using HwTopology = typename TypeTraits::HwTopology;
   using InitialPartitioner = typename Config::Partitioner;
@@ -56,7 +57,7 @@ class AInitialPartitionerTest : public Test {
     hypergraph(),
     context() {
 
-    parseIniToContext(context, "../../../../config/shared_memory_context.ini");
+    parseIniToContext(context, "../../../../config/multilevel_config.ini");
 
     context.partition.graph_filename = "../test_instances/unweighted_ibm01.hgr";
     context.partition.graph_community_filename = "../test_instances/ibm01.hgr.community";
@@ -64,43 +65,46 @@ class AInitialPartitionerTest : public Test {
     context.partition.objective = kahypar::Objective::km1;
     context.partition.epsilon = 0.2;
     context.partition.k = Config::K;
-    context.partition.verbose_output = false;
+    context.partition.verbose_output = true;
 
     // Shared Memory
     context.shared_memory.num_threads = num_threads;
 
     // Initial Partitioning
     context.initial_partitioning.runs = 1;
-    context.initial_partitioning.use_adaptive_epsilon = true;
+    context.initial_partitioning.use_adaptive_epsilon = false;
     context.initial_partitioning.mode = Config::MODE;
 
     // Label Propagation
     context.refinement.label_propagation.algorithm = LabelPropagationAlgorithm::do_nothing;
 
     // Read hypergraph
-    hypergraph = io::readHypergraphFile<HyperGraph, StreamingHyperGraph, TBB, HwTopology>(
-      "../test_instances/unweighted_ibm01.hgr", context.partition.k, InitialHyperedgeDistribution::equally);
+    hypergraph = tmp_io::readHypergraphFile<HyperGraph, HyperGraphFactory>(
+      "../test_instances/unweighted_ibm01.hgr", TBB::GLOBAL_TASK_GROUP);
+    partitioned_hypergraph = PartitionedHyperGraph(
+      context.partition.k, TBB::GLOBAL_TASK_GROUP, hypergraph);
     context.setupPartWeights(hypergraph.totalWeight());
     context.setupContractionLimit(hypergraph.totalWeight());
     assignCommunities();
 
     initial_partitioner = std::make_unique<InitialPartitioner>(
-      hypergraph, context, true, TBB::GLOBAL_TASK_GROUP);
+      partitioned_hypergraph, context, true, TBB::GLOBAL_TASK_GROUP);
   }
 
   void assignCommunities() {
     std::vector<PartitionID> communities;
-    io::readPartitionFile(context.partition.graph_community_filename, communities);
+    tmp_io::readPartitionFile(context.partition.graph_community_filename, communities);
 
     for ( const HypernodeID& hn : hypergraph.nodes() ) {
       hypergraph.setCommunityID(hn, communities[hypergraph.originalNodeID(hn)]);
     }
-    hypergraph.initializeCommunities();
+    hypergraph.initializeCommunities(TBB::GLOBAL_TASK_GROUP);
 
     std::unique_ptr<preprocessing::ICommunityAssignment> community_assignment =
       RedistributionFactory::getInstance().createObject(
         context.preprocessing.community_redistribution.assignment_strategy, hypergraph, context);
-    std::vector<PartitionID> community_node_mapping = community_assignment->computeAssignment();
+    parallel::scalable_vector<PartitionID> community_node_mapping =
+      community_assignment->computeAssignment();
     hypergraph.setCommunityNodeMapping(std::move(community_node_mapping));
   }
 
@@ -109,6 +113,7 @@ class AInitialPartitionerTest : public Test {
   }
 
   HyperGraph hypergraph;
+  PartitionedHyperGraph partitioned_hypergraph;
   Context context;
   std::unique_ptr<InitialPartitioner> initial_partitioner;
 };
@@ -133,7 +138,7 @@ TYPED_TEST(AInitialPartitionerTest, VerifiesThatAllPartsAreNonEmpty) {
   this->initial_partitioner->initialPartition();
 
   for ( PartitionID part_id = 0; part_id < this->context.partition.k; ++part_id ) {
-    ASSERT_GT(this->hypergraph.partSize(part_id), 0);
+    ASSERT_GT(this->partitioned_hypergraph.partSize(part_id), 0);
   }
 }
 
@@ -143,14 +148,14 @@ TYPED_TEST(AInitialPartitionerTest, VerifiesThatPartSizesAndWeightsAreCorrect) {
   std::vector<HypernodeID> part_size(this->context.partition.k, 0);
   std::vector<HypernodeWeight> part_weight(this->context.partition.k, 0);
   for ( const HypernodeID& hn : this->hypergraph.nodes() ) {
-    PartitionID part_id = this->hypergraph.partID(hn);
+    PartitionID part_id = this->partitioned_hypergraph.partID(hn);
     ++part_size[part_id];
-    part_weight[part_id] += this->hypergraph.nodeWeight(hn);
+    part_weight[part_id] += this->partitioned_hypergraph.nodeWeight(hn);
   }
 
   for ( PartitionID part_id = 0; part_id < this->context.partition.k; ++part_id ) {
-    ASSERT_EQ(this->hypergraph.partSize(part_id), part_size[part_id]);
-    ASSERT_EQ(this->hypergraph.partWeight(part_id), part_weight[part_id]);
+    ASSERT_EQ(this->partitioned_hypergraph.partSize(part_id), part_size[part_id]);
+    ASSERT_EQ(this->partitioned_hypergraph.partWeight(part_id), part_weight[part_id]);
   }
 }
 
@@ -158,7 +163,8 @@ TYPED_TEST(AInitialPartitionerTest, VerifiesThatAllPartWeightsAreSmallerThanMaxP
   this->initial_partitioner->initialPartition();
 
   for ( PartitionID part_id = 0; part_id < this->context.partition.k; ++part_id ) {
-    ASSERT_LE(this->hypergraph.partWeight(part_id), this->context.partition.max_part_weights[part_id]);
+    ASSERT_LE(this->partitioned_hypergraph.partWeight(part_id),
+              this->context.partition.max_part_weights[part_id]);
   }
 }
 

@@ -337,6 +337,16 @@ class Context {
                   LabelPropagationAlgorithm::label_propagation_km1);
     }
 
+    // Sanitize based on compiler flags
+    if ( coarsening.algorithm == CoarseningAlgorithm::community_coarsener ) {
+      ALGO_SWITCH("Coarsening algorithm" << coarsening.algorithm << "is currently not supported."
+                                          << "Do you want to switch to multilevel coarsener (Y/N)?",
+                  "Coarsening with" << coarsening.algorithm
+                                    << "is currently not supported!",
+                  coarsening.algorithm,
+                  CoarseningAlgorithm::multilevel_coarsener);
+    }
+
     if ( !preprocessing.use_community_detection ) {
       if ( coarsening.algorithm == CoarseningAlgorithm::community_coarsener ) {
         ALGO_SWITCH("Coarsening algorithm" << coarsening.algorithm << "only works if community detection is enabled."

@@ -26,6 +26,8 @@
 #include "tbb/task_group.h"
 
 #include "mt-kahypar/definitions.h"
+#include "mt-kahypar/datastructures/hypergraph.h"
+#include "mt-kahypar/datastructures/streaming_hypergraph.h"
 #include "mt-kahypar/io/hypergraph_io.h"
 #include "mt-kahypar/partition/metrics.h"
 #include "mt-kahypar/utils/randomize.h"
@@ -41,6 +43,9 @@ struct TestConfig {
   static constexpr kahypar::Objective OBJECTIVE = objective;
 };
 
+using HyperGraph = Hypergraph<HardwareTopology, TBBNumaArena>;
+using StreamingHyperGraph = StreamingHypergraph<HardwareTopology, TBBNumaArena>;
+
 template <typename Config>
 class AConcurrentHypergraph : public Test {
  public:
@@ -51,7 +56,8 @@ class AConcurrentHypergraph : public Test {
     hypergraph() {
     int cpu_id = sched_getcpu();
     hypergraph =
-      io::readHypergraphFile("../partition/test_instances/ibm01.hgr", k, InitialHyperedgeDistribution::equally);
+      io::readHypergraphFile<HyperGraph, StreamingHyperGraph, TBBNumaArena, HardwareTopology>(
+        "../partition/test_instances/ibm01.hgr", k, InitialHyperedgeDistribution::equally);
     for (const HypernodeID& hn : hypergraph.nodes()) {
       PartitionID id = utils::Randomize::instance().getRandomInt(0, k - 1, cpu_id);
       hypergraph.setNodePart(hn, id);
@@ -68,7 +74,7 @@ class AConcurrentHypergraph : public Test {
   PartitionID k;
   size_t num_threads;
   kahypar::Objective objective;
-  mt_kahypar::Hypergraph hypergraph;
+  HyperGraph hypergraph;
 };
 
 typedef ::testing::Types<TestConfig<2, 1, kahypar::Objective::cut>,
@@ -117,7 +123,7 @@ typedef ::testing::Types<TestConfig<2, 1, kahypar::Objective::cut>,
 TYPED_TEST_CASE(AConcurrentHypergraph,
                 TestConfigs);
 
-void moveAllNodesOfHypergraphRandom(mt_kahypar::Hypergraph& hypergraph,
+void moveAllNodesOfHypergraphRandom(HyperGraph& hypergraph,
                                     const PartitionID k,
                                     const size_t num_threads,
                                     const kahypar::Objective objective,
@@ -133,10 +139,10 @@ void moveAllNodesOfHypergraphRandom(mt_kahypar::Hypergraph& hypergraph,
                              const HypernodeID pin_count_in_from_part_after,
                              const HypernodeID pin_count_in_to_part_after) {
                            if (objective == kahypar::Objective::km1) {
-                             deltas.local() += mt_kahypar::Hypergraph::km1Delta(
+                             deltas.local() += HyperGraph::km1Delta(
                                he, edge_weight, edge_size, pin_count_in_from_part_after, pin_count_in_to_part_after);
                            } else if (objective == kahypar::Objective::cut) {
-                             deltas.local() += mt_kahypar::Hypergraph::cutDelta(
+                             deltas.local() += HyperGraph::cutDelta(
                                he, edge_weight, edge_size, pin_count_in_from_part_after, pin_count_in_to_part_after);
                            }
                          };
@@ -182,7 +188,7 @@ void moveAllNodesOfHypergraphRandom(mt_kahypar::Hypergraph& hypergraph,
   hypergraph.updateGlobalPartInfos();
 }
 
-void verifyBlockWeightsAndSizes(mt_kahypar::Hypergraph& hypergraph,
+void verifyBlockWeightsAndSizes(HyperGraph& hypergraph,
                                 const PartitionID k) {
   std::vector<HypernodeWeight> block_weight(k, 0);
   std::vector<size_t> block_size(k, 0);
@@ -197,7 +203,7 @@ void verifyBlockWeightsAndSizes(mt_kahypar::Hypergraph& hypergraph,
   }
 }
 
-void verifyPinCountsInParts(mt_kahypar::Hypergraph& hypergraph,
+void verifyPinCountsInParts(HyperGraph& hypergraph,
                             const PartitionID k) {
   for (const HyperedgeID& he : hypergraph.edges()) {
     std::vector<HypernodeID> pin_count_in_part(k, 0);
@@ -211,7 +217,7 @@ void verifyPinCountsInParts(mt_kahypar::Hypergraph& hypergraph,
   }
 }
 
-void verifyConnectivitySet(mt_kahypar::Hypergraph& hypergraph,
+void verifyConnectivitySet(HyperGraph& hypergraph,
                            const PartitionID k) {
   for (const HyperedgeID& he : hypergraph.edges()) {
     std::vector<HypernodeID> pin_count_in_part(k, 0);
@@ -236,7 +242,7 @@ void verifyConnectivitySet(mt_kahypar::Hypergraph& hypergraph,
   }
 }
 
-void verifyBorderNodes(mt_kahypar::Hypergraph& hypergraph) {
+void verifyBorderNodes(HyperGraph& hypergraph) {
   for (const HypernodeID& hn : hypergraph.nodes()) {
     bool is_border_node = false;
     for (const HyperedgeID& he : hypergraph.incidentEdges(hn)) {

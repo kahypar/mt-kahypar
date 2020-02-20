@@ -55,7 +55,7 @@ class BinPackingCommunityAssignmentT : public ICommunityAssignment {
   BinPackingCommunityAssignmentT & operator= (BinPackingCommunityAssignmentT &&) = delete;
 
  private:
-  std::vector<PartitionID> computeAssignmentImpl() {
+  parallel::scalable_vector<PartitionID> computeAssignmentImpl() {
     // Compute Bin Capacities
     utils::Timer::instance().start_timer("compute_community_mapping", "Compute Community Mapping");
     int used_numa_nodes = TBB::instance().num_used_numa_nodes();
@@ -77,7 +77,7 @@ class BinPackingCommunityAssignmentT : public ICommunityAssignment {
 
     // Assign communities in round-robin fashion to bins
     std::vector<HypernodeID> current_capacity(used_numa_nodes, 0);
-    std::vector<PartitionID> community_assignment(_hg.numCommunities(), -1);
+    parallel::scalable_vector<PartitionID> community_assignment(_hg.numCommunities(), -1);
     int current_bin = 0;
     while (!communities.empty()) {
       const Community community = communities.back();

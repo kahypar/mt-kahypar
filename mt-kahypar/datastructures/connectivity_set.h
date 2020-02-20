@@ -24,7 +24,9 @@
 #include <type_traits>
 
 #include "mt-kahypar/parallel/atomic_wrapper.h"
+#include "mt-kahypar/parallel/stl/scalable_vector.h"
 #include "mt-kahypar/utils/bit_ops.h"
+#include "mt-kahypar/utils/memory_tree.h"
 #include "mt-kahypar/utils/range.h"
 
 #include "mt-kahypar/macros.h"
@@ -88,17 +90,22 @@ public:
     return conn;
   }
 
+  void memoryConsumption(utils::MemoryTreeNode* parent) const {
+    ASSERT(parent);
+    parent->addChild("Connectivity Bit Vector", sizeof(Block) * bits.size());
+  }
+
 private:
   using UnsafeBlock = uint64_t;
   static constexpr int BITS_PER_BLOCK = std::numeric_limits<UnsafeBlock>::digits;
   using Block = parallel::IntegralAtomicWrapper<UnsafeBlock>;
-  using BlockIterator = std::vector<Block>::const_iterator;
+  using BlockIterator = parallel::scalable_vector<Block>::const_iterator;
 
-	
+
 	PartitionID k;
 	HyperedgeID numEdges;
 	PartitionID numBlocksPerHyperedge;
-	std::vector<Block> bits;
+	parallel::scalable_vector<Block> bits;
 
 	void toggle(const HyperedgeID he, const PartitionID p) {
 	  assert(p < k);
@@ -179,7 +186,7 @@ public:
   }
 
 };
-	
+
 
 
 }  // namespace ds

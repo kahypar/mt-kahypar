@@ -29,96 +29,83 @@ using ::testing::Test;
 
 namespace mt_kahypar {
 namespace ds {
-class ARedistributorOnTwoNumaNodes : public AHypergraph<2> {
- private:
-  using Base = AHypergraph<2>;
+
+template< int NUM_NUMA_NODES >
+class ARedistributor : public Test {
 
  public:
-  using Base::TBBArena;
-  using Base::TestStreamingHypergraph;
-  using Base::TestHypergraph;
-  using Redistributor = mt_kahypar::preprocessing::CommunityRedistributorT<TestTypeTraits<2> >;
+  using TypeTraits = TestTypeTraits<NUM_NUMA_NODES>;
+  using HyperGraph = typename TypeTraits::HyperGraph;
+  using Factory = typename TypeTraits::HyperGraphFactory;
+  using TBB = typename TypeTraits::TBB;
+  using HwTopology = typename TypeTraits::HwTopology;
+  using Redistributor = mt_kahypar::preprocessing::CommunityRedistributorT<TypeTraits>;
 
-  ARedistributorOnTwoNumaNodes() :
-    Base(),
-    hypergraph(construct_hypergraph(7,
-                                    { { 0, 2 }, { 0, 1, 3, 4 }, { 3, 4, 6 }, { 2, 5, 6 } },
-                                    { 0, 1, 0, 1, 0, 1, 0 },
-                                    { 0, 0, 1, 1 },
-                                    { 0, 0, 1, 1, 2, 3, 2 })),
-    context() { }
+  ARedistributor() :
+    hypergraph(Factory::construct(TBB::GLOBAL_TASK_GROUP,
+      7 , 4, { {0, 2}, {0, 1, 3, 4}, {3, 4, 6}, {2, 5, 6} })),
+    context(),
+    id() {
+    id.resize(7);
+    for ( const HypernodeID& hn : hypergraph.nodes() ) {
+      id[hypergraph.originalNodeID(hn)] = hn;
+    }
 
-  static void TearDownTestSuite() {
-    TBBArena::instance().terminate();
+    hypergraph.setCommunityID(id[0], 0);
+    hypergraph.setCommunityID(id[1], 0);
+    hypergraph.setCommunityID(id[2], 1);
+    hypergraph.setCommunityID(id[3], 1);
+    hypergraph.setCommunityID(id[4], 2);
+    hypergraph.setCommunityID(id[5], 3);
+    hypergraph.setCommunityID(id[6], 2);
+    hypergraph.initializeCommunities(TBB::GLOBAL_TASK_GROUP);
   }
 
-  TestHypergraph hypergraph;
+  static void SetUpTestSuite() {
+    TBB::instance(HwTopology::instance().num_cpus());
+  }
+
+  static void TearDownTestSuite() {
+    TBB::instance().terminate();
+  }
+
+  HyperGraph hypergraph;
   Context context;
+  std::vector<HypernodeID> id;
 };
 
+using ARedistributorOnTwoNumaNodes = ARedistributor<2>;
+
 TEST_F(ARedistributorOnTwoNumaNodes, RedistributesCommunities) {
-  ASSERT_EQ(0, TestStreamingHypergraph::get_numa_node_of_vertex(hypergraph.globalNodeID(0)));
-  ASSERT_EQ(1, TestStreamingHypergraph::get_numa_node_of_vertex(hypergraph.globalNodeID(1)));
-  ASSERT_EQ(0, TestStreamingHypergraph::get_numa_node_of_vertex(hypergraph.globalNodeID(2)));
-  ASSERT_EQ(1, TestStreamingHypergraph::get_numa_node_of_vertex(hypergraph.globalNodeID(3)));
-  ASSERT_EQ(0, TestStreamingHypergraph::get_numa_node_of_vertex(hypergraph.globalNodeID(4)));
-  ASSERT_EQ(1, TestStreamingHypergraph::get_numa_node_of_vertex(hypergraph.globalNodeID(5)));
-  ASSERT_EQ(0, TestStreamingHypergraph::get_numa_node_of_vertex(hypergraph.globalNodeID(6)));
+  HyperGraph r_hypergraph =
+    Redistributor::redistribute(TBB::GLOBAL_TASK_GROUP, hypergraph, { 0, 0, 1, 1 });
 
-  TestHypergraph r_hypergraph = Redistributor::redistribute(hypergraph, 2, { 0, 0, 1, 1 });
-
-  ASSERT_EQ(0, TestStreamingHypergraph::get_numa_node_of_vertex(r_hypergraph.globalNodeID(0)));
-  ASSERT_EQ(0, TestStreamingHypergraph::get_numa_node_of_vertex(r_hypergraph.globalNodeID(1)));
-  ASSERT_EQ(0, TestStreamingHypergraph::get_numa_node_of_vertex(r_hypergraph.globalNodeID(2)));
-  ASSERT_EQ(0, TestStreamingHypergraph::get_numa_node_of_vertex(r_hypergraph.globalNodeID(3)));
-  ASSERT_EQ(1, TestStreamingHypergraph::get_numa_node_of_vertex(r_hypergraph.globalNodeID(4)));
-  ASSERT_EQ(1, TestStreamingHypergraph::get_numa_node_of_vertex(r_hypergraph.globalNodeID(5)));
-  ASSERT_EQ(1, TestStreamingHypergraph::get_numa_node_of_vertex(r_hypergraph.globalNodeID(6)));
+  ASSERT_EQ(0, common::get_numa_node_of_vertex(r_hypergraph.globalNodeID(0)));
+  ASSERT_EQ(0, common::get_numa_node_of_vertex(r_hypergraph.globalNodeID(1)));
+  ASSERT_EQ(0, common::get_numa_node_of_vertex(r_hypergraph.globalNodeID(2)));
+  ASSERT_EQ(0, common::get_numa_node_of_vertex(r_hypergraph.globalNodeID(3)));
+  ASSERT_EQ(1, common::get_numa_node_of_vertex(r_hypergraph.globalNodeID(4)));
+  ASSERT_EQ(1, common::get_numa_node_of_vertex(r_hypergraph.globalNodeID(5)));
+  ASSERT_EQ(1, common::get_numa_node_of_vertex(r_hypergraph.globalNodeID(6)));
 }
 
 #define SYSTEM_HAS_MORE_THAN_FOUR_CORES false
 
 #if SYSTEM_HAS_NORE_THAN_FOUR_CORES
-class ARedistributorOnFourNumaNodes : public AHypergraph<4> {
- private:
-  using Base = AHypergraph<4>;
 
- public:
-  using Base::TestStreamingHypergraph;
-  using Base::TestHypergraph;
-  using Redistributor = mt_kahypar::preprocessing::CommunityRedistributorT<TestTypeTraits<4> >;
-
-  ARedistributorOnFourNumaNodes() :
-    Base(),
-    hypergraph(construct_hypergraph(7,
-                                    { { 0, 2 }, { 0, 1, 3, 4 }, { 3, 4, 6 }, { 2, 5, 6 } },
-                                    { 0, 1, 2, 3, 0, 1, 2 },
-                                    { 0, 1, 2, 3 },
-                                    { 0, 0, 1, 1, 2, 3, 2 })),
-    context() { }
-
-  TestHypergraph hypergraph;
-  Context context;
-};
+using ARedistributorOnFourNumaNodes = ARedistributor<4>;
 
 TEST_F(ARedistributorOnFourNumaNodes, RedistributesCommunities) {
-  ASSERT_EQ(0, TestStreamingHypergraph::get_numa_node_of_vertex(hypergraph.globalNodeID(0)));
-  ASSERT_EQ(1, TestStreamingHypergraph::get_numa_node_of_vertex(hypergraph.globalNodeID(1)));
-  ASSERT_EQ(2, TestStreamingHypergraph::get_numa_node_of_vertex(hypergraph.globalNodeID(2)));
-  ASSERT_EQ(3, TestStreamingHypergraph::get_numa_node_of_vertex(hypergraph.globalNodeID(3)));
-  ASSERT_EQ(0, TestStreamingHypergraph::get_numa_node_of_vertex(hypergraph.globalNodeID(4)));
-  ASSERT_EQ(1, TestStreamingHypergraph::get_numa_node_of_vertex(hypergraph.globalNodeID(5)));
-  ASSERT_EQ(2, TestStreamingHypergraph::get_numa_node_of_vertex(hypergraph.globalNodeID(6)));
+  HyperGraph r_hypergraph =
+    Redistributor::redistribute(TBB::GLOBAL_TASK_GROUP, hypergraph, { 0, 1, 2, 3 });
 
-  TestHypergraph r_hypergraph = Redistributor::redistribute(hypergraph, 2, { 0, 1, 2, 3 });
-
-  ASSERT_EQ(0, TestStreamingHypergraph::get_numa_node_of_vertex(r_hypergraph.globalNodeID(0)));
-  ASSERT_EQ(0, TestStreamingHypergraph::get_numa_node_of_vertex(r_hypergraph.globalNodeID(1)));
-  ASSERT_EQ(1, TestStreamingHypergraph::get_numa_node_of_vertex(r_hypergraph.globalNodeID(2)));
-  ASSERT_EQ(1, TestStreamingHypergraph::get_numa_node_of_vertex(r_hypergraph.globalNodeID(3)));
-  ASSERT_EQ(2, TestStreamingHypergraph::get_numa_node_of_vertex(r_hypergraph.globalNodeID(4)));
-  ASSERT_EQ(3, TestStreamingHypergraph::get_numa_node_of_vertex(r_hypergraph.globalNodeID(5)));
-  ASSERT_EQ(2, TestStreamingHypergraph::get_numa_node_of_vertex(r_hypergraph.globalNodeID(6)));
+  ASSERT_EQ(0, common::get_numa_node_of_vertex(r_hypergraph.globalNodeID(0)));
+  ASSERT_EQ(0, common::get_numa_node_of_vertex(r_hypergraph.globalNodeID(1)));
+  ASSERT_EQ(1, common::get_numa_node_of_vertex(r_hypergraph.globalNodeID(2)));
+  ASSERT_EQ(1, common::get_numa_node_of_vertex(r_hypergraph.globalNodeID(3)));
+  ASSERT_EQ(2, common::get_numa_node_of_vertex(r_hypergraph.globalNodeID(4)));
+  ASSERT_EQ(3, common::get_numa_node_of_vertex(r_hypergraph.globalNodeID(5)));
+  ASSERT_EQ(2, common::get_numa_node_of_vertex(r_hypergraph.globalNodeID(6)));
 }
 #endif
 }  // namespace ds

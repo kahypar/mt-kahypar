@@ -47,13 +47,8 @@ void assignPartitionIDs(TestHypergraph& hypergraph) {
   hypergraph.initializeNumCutHyperedges();
 }
 
-template <typename IDType>
-auto identity = [](const IDType& id) {
-                  return id;
-                };
-
-template <typename IDType, typename F, typename K = decltype(identity<IDType>)>
-void verifyIterator(const std::set<IDType>& reference, F&& it_func, K map_func = identity<IDType>, bool log = false) {
+template <typename IDType, typename F, typename K = decltype(identity)>
+void verifyIterator(const std::set<IDType>& reference, F&& it_func, K map_func = identity, bool log = false) {
   size_t count = 0;
   for (const IDType& id : it_func()) {
     if (log) LOG << V(id) << V(map_func(id));

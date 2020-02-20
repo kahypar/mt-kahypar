@@ -27,11 +27,12 @@
 
 namespace mt_kahypar {
 namespace multilevel {
-static inline void partition(Hypergraph& hypergraph,
-                             const Context& context,
-                             const bool top_level,
-                             const TaskGroupID task_group_id,
-                             tbb::task* parent);
+static inline void partition_async(Hypergraph& hypergraph,
+                                   PartitionedHypergraph<>& partitioned_hypergraph,
+                                   const Context& context,
+                                   const bool top_level,
+                                   const TaskGroupID task_group_id,
+                                   tbb::task* parent);
 }  // namespace multilevel
 }  // namespace mt_kahypar
 
@@ -41,7 +42,8 @@ static inline void partition(Hypergraph& hypergraph,
 #define REGISTER_INITIAL_PARTITIONER(id, partitioner)                                                          \
   static kahypar::meta::Registrar<InitialPartitionerFactory> register_ ## partitioner(                         \
     id,                                                                                                        \
-    [](Hypergraph& hypergraph, const Context& context, const bool top_level, const TaskGroupID task_group_id)  \
+    [](PartitionedHypergraph<>& hypergraph, const Context& context,                                            \
+       const bool top_level, const TaskGroupID task_group_id)                                                  \
     -> IInitialPartitioner* {                                                                                  \
     return new partitioner(hypergraph, context, top_level, task_group_id);                                     \
   })

@@ -26,7 +26,7 @@
 
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/utils/timer.h"
-#include "mt-kahypar/io/hypergraph_io.h"
+#include "mt-kahypar/io/tmp_hypergraph_io.h"
 #include "mt-kahypar/partition/registries/register_flat_initial_partitioning_algorithms.h"
 #include "mt-kahypar/partition/initial_partitioning/flat/pool_initial_partitioner.h"
 
@@ -47,13 +47,15 @@ template<typename Config>
 class APoolInitialPartitionerTest : public Test {
  private:
   using HyperGraph = typename GlobalTypeTraits::HyperGraph;
-  using StreamingHyperGraph = typename GlobalTypeTraits::StreamingHyperGraph;
+  using HyperGraphFactory = typename GlobalTypeTraits::HyperGraphFactory;
+  using PartitionedHyperGraph = typename GlobalTypeTraits::template PartitionedHyperGraph<>;
   using HwTopology = typename GlobalTypeTraits::HwTopology;
 
  public:
 
   APoolInitialPartitionerTest() :
     hypergraph(),
+    partitioned_hypergraph(),
     context() {
     context.partition.k = Config::K;
     context.partition.epsilon = 0.2;
@@ -61,12 +63,10 @@ class APoolInitialPartitionerTest : public Test {
     context.partition.paradigm = Paradigm::nlevel;
     context.initial_partitioning.runs = Config::RUNS;
     context.refinement.label_propagation.algorithm = LabelPropagationAlgorithm::label_propagation_km1;
-    hypergraph = io::readHypergraphFile<HyperGraph, StreamingHyperGraph, TBB, HwTopology>(
-      "../test_instances/test_instance.hgr", context.partition.k, InitialHyperedgeDistribution::equally);
-    for ( const HypernodeID& hn : hypergraph.nodes() ) {
-      hypergraph.setCommunityID(hn, 0);
-    }
-    hypergraph.initializeCommunities();
+    hypergraph = tmp_io::readHypergraphFile<HyperGraph, HyperGraphFactory>(
+      "../test_instances/test_instance.hgr", TBB::GLOBAL_TASK_GROUP);
+    partitioned_hypergraph = PartitionedHyperGraph(
+      context.partition.k, TBB::GLOBAL_TASK_GROUP, hypergraph);
     context.setupPartWeights(hypergraph.totalWeight());
     utils::Timer::instance().disable();
   }
@@ -76,6 +76,7 @@ class APoolInitialPartitionerTest : public Test {
   }
 
   HyperGraph hypergraph;
+  PartitionedHyperGraph partitioned_hypergraph;
   Context context;
 };
 
@@ -96,32 +97,32 @@ TYPED_TEST_CASE(APoolInitialPartitionerTest, TestConfigs);
 
 TYPED_TEST(APoolInitialPartitionerTest, HasValidImbalance) {
   PoolInitialPartitioner& initial_partitioner = *new(tbb::task::allocate_root())
-    PoolInitialPartitioner(this->hypergraph, this->context, TBB::GLOBAL_TASK_GROUP);
+    PoolInitialPartitioner(this->partitioned_hypergraph, this->context, TBB::GLOBAL_TASK_GROUP);
   tbb::task::spawn_root_and_wait(initial_partitioner);
 
-  ASSERT_LE(metrics::imbalance(this->hypergraph, this->context),
+  ASSERT_LE(metrics::imbalance(this->partitioned_hypergraph, this->context),
             this->context.partition.epsilon);
 }
 
 TYPED_TEST(APoolInitialPartitionerTest, AssginsEachHypernode) {
   PoolInitialPartitioner& initial_partitioner = *new(tbb::task::allocate_root())
-    PoolInitialPartitioner(this->hypergraph, this->context, TBB::GLOBAL_TASK_GROUP);
+    PoolInitialPartitioner(this->partitioned_hypergraph, this->context, TBB::GLOBAL_TASK_GROUP);
   tbb::task::spawn_root_and_wait(initial_partitioner);
 
-  for ( const HypernodeID& hn : this->hypergraph.nodes() ) {
-    ASSERT_NE(this->hypergraph.partID(hn), -1);
+  for ( const HypernodeID& hn : this->partitioned_hypergraph.nodes() ) {
+    ASSERT_NE(this->partitioned_hypergraph.partID(hn), -1);
   }
 }
 
 TYPED_TEST(APoolInitialPartitionerTest, HasNoSignificantLowPartitionWeights) {
   PoolInitialPartitioner& initial_partitioner = *new(tbb::task::allocate_root())
-    PoolInitialPartitioner(this->hypergraph, this->context, TBB::GLOBAL_TASK_GROUP);
+    PoolInitialPartitioner(this->partitioned_hypergraph, this->context, TBB::GLOBAL_TASK_GROUP);
   tbb::task::spawn_root_and_wait(initial_partitioner);
 
   // Each block should have a weight greater or equal than 20% of the average
   // block weight.
   for ( PartitionID block = 0; block < this->context.partition.k; ++block ) {
-    ASSERT_GE(this->hypergraph.partWeight(block),
+    ASSERT_GE(this->partitioned_hypergraph.partWeight(block),
               this->context.partition.perfect_balance_part_weights[block] / 5);
   }
 }

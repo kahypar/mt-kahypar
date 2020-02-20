@@ -39,6 +39,7 @@
 #include "kahypar/meta/mandatory.h"
 #include "kahypar/utils/math.h"
 
+#include "mt-kahypar/datastructures/hypergraph_common.h"
 #include "mt-kahypar/datastructures/connectivity_set.h"
 #include "mt-kahypar/datastructures/streaming_map.h"
 #include "mt-kahypar/datastructures/streaming_vector.h"
@@ -52,21 +53,11 @@
 namespace mt_kahypar {
 namespace ds {
 // forward
-template <typename HypernodeType_,
-          typename HyperedgeType_,
-          typename HypernodeWeightType_,
-          typename HyperedgeWeightType_,
-          typename PartitionIDType_,
-          typename HardwareTopology,
+template <typename HardwareTopology,
           typename TBBNumaArena>
 class Hypergraph;
 
-template <typename HypernodeType_ = Mandatory,
-          typename HyperedgeType_ = Mandatory,
-          typename HypernodeWeightType_ = Mandatory,
-          typename HyperedgeWeightType_ = Mandatory,
-          typename PartitionIDType_ = Mandatory,
-          typename HardwareTopology = Mandatory,
+template <typename HardwareTopology = Mandatory,
           typename TBBNumaArena = Mandatory>
 class StreamingHypergraph {
   static constexpr bool debug = false;
@@ -75,11 +66,6 @@ class StreamingHypergraph {
   // seed for edge hashes used for parallel net detection
   static constexpr size_t kEdgeHashSeed = 42;
 
-  using HypernodeID = HypernodeType_;
-  using HyperedgeID = HyperedgeType_;
-  using HypernodeWeight = HypernodeWeightType_;
-  using HyperedgeWeight = HyperedgeWeightType_;
-  using PartitionID = PartitionIDType_;
   using HypernodeAtomic = parallel::IntegralAtomicWrapper<HypernodeID>;
   using HyperedgeAtomic = parallel::IntegralAtomicWrapper<HyperedgeID>;
   using PartitionAtomic = parallel::IntegralAtomicWrapper<PartitionID>;
@@ -87,9 +73,7 @@ class StreamingHypergraph {
   static constexpr PartitionID kInvalidPartition = -1;
   static constexpr HypernodeID kInvalidHypernode = std::numeric_limits<HypernodeID>::max();
 
-  using Self = StreamingHypergraph<HypernodeID, HyperedgeID, HypernodeWeight,
-                                   HyperedgeWeight, PartitionID, HardwareTopology,
-                                   TBBNumaArena>;
+  using Self = StreamingHypergraph<HardwareTopology, TBBNumaArena>;
 
   using IncidentNets = parallel::scalable_vector<parallel::scalable_vector<HyperedgeID> >;
   using ThreadLocalFastResetFlagArray = tbb::enumerable_thread_specific<kahypar::ds::FastResetFlagArray<> >;
@@ -2198,13 +2182,7 @@ class StreamingHypergraph {
   }
 
  private:
-  template <typename NodeType_,
-            typename EdgeType_,
-            typename NodeWeightType_,
-            typename EdgeWeightType_,
-            typename PartitionID_,
-            typename HardwareTopology_,
-            typename TBBNumaArena_>
+  template <typename HardwareTopology_, typename TBBNumaArena_>
   friend class Hypergraph;
 
   // ####################### Contract / Uncontract #######################

@@ -46,11 +46,11 @@
 namespace mt_kahypar {
 template <typename TypeTraits,
           typename ExecutionPolicy,
-          template <typename> class GainPolicy>
-class LabelPropagationRefinerT final : public IRefinerT<TypeTraits> {
+          template <typename> class GainPolicy,
+          bool track_border_vertices = TRACK_BORDER_VERTICES>
+class LabelPropagationRefinerT final : public IRefinerT<TypeTraits, track_border_vertices> {
  private:
-  using HyperGraph = typename TypeTraits::HyperGraph;
-  using StreamingHyperGraph = typename TypeTraits::StreamingHyperGraph;
+  using HyperGraph = typename TypeTraits::template PartitionedHyperGraph<track_border_vertices>;
   using TBB = typename TypeTraits::TBB;
   using HwTopology = typename TypeTraits::HwTopology;
   using GainCalculator = GainPolicy<HyperGraph>;
@@ -123,13 +123,12 @@ class LabelPropagationRefinerT final : public IRefinerT<TypeTraits> {
         if ( !_context.refinement.label_propagation.localized ) {
           std::vector<HypernodeID> tmp_nodes;
           tmp_nodes.insert(tmp_nodes.begin(), _nodes.begin(), _nodes.end());
+          std::sort(tmp_nodes.begin(), tmp_nodes.end());
           for (int node = 0; node < TBB::instance().num_used_numa_nodes(); ++node) {
             size_t pos = _numa_nodes_indices[node];
-            size_t end = _numa_nodes_indices[node + 1];
-            std::sort(tmp_nodes.begin() + pos, tmp_nodes.begin() + end);
             for (const HypernodeID& hn : hypergraph.nodes(node)) {
               HypernodeID current_hn = tmp_nodes[pos++];
-              if (StreamingHyperGraph::get_numa_node_of_vertex(current_hn) != node) {
+              if (common::get_numa_node_of_vertex(current_hn) != node) {
                 LOG << "Hypernode" << hn << "is not on numa node" << node;
                 return false;
               }
@@ -151,7 +150,7 @@ class LabelPropagationRefinerT final : public IRefinerT<TypeTraits> {
 
     if ( _context.refinement.label_propagation.localized ) {
       tbb::parallel_for(0UL, refinement_nodes.size(), [&](const size_t i) {
-        size_t node = StreamingHyperGraph::get_numa_node_of_vertex(refinement_nodes[i]);
+        size_t node = common::get_numa_node_of_vertex(refinement_nodes[i]);
         ASSERT(node < _active.size());
         _active[node].set(hypergraph.originalNodeID(refinement_nodes[i]), true);
       });
@@ -166,7 +165,7 @@ class LabelPropagationRefinerT final : public IRefinerT<TypeTraits> {
             // to actual numa node and perform label propagation on those nodes.
             parallel::scalable_vector<HypernodeID> current_refinement_nodes;
             for ( const HypernodeID& hn : refinement_nodes ) {
-              if ( StreamingHyperGraph::get_numa_node_of_vertex(hn) == node ) {
+              if ( common::get_numa_node_of_vertex(hn) == node ) {
                 current_refinement_nodes.push_back(hn);
               }
             }
@@ -195,7 +194,6 @@ class LabelPropagationRefinerT final : public IRefinerT<TypeTraits> {
     }
 
     // Update global part weight and sizes
-    hypergraph.updateGlobalPartInfos();
     best_metrics.imbalance = metrics::imbalance(hypergraph, _context);
 
     // Update metrics statistics
@@ -302,7 +300,7 @@ class LabelPropagationRefinerT final : public IRefinerT<TypeTraits> {
     if ( hypergraph.nodeIsEnabled(hn) && hypergraph.isBorderNode(hn) ) {
       int numa_node = node == -1 ? 0 : node;
       const HypernodeID original_id = hypergraph.originalNodeID(hn);
-      ASSERT(node == -1 || StreamingHyperGraph::get_numa_node_of_vertex(hn) == node);
+      ASSERT(node == -1 || common::get_numa_node_of_vertex(hn) == node);
 
       // We only compute the max gain move for a node if we are either in the first round of label
       // propagation or if the vertex is still active. A vertex is active, if it changed its block
@@ -315,14 +313,13 @@ class LabelPropagationRefinerT final : public IRefinerT<TypeTraits> {
         bool perform_move = best_move.gain < 0 ||
                             (_context.refinement.label_propagation.rebalancing &&
                               best_move.gain == 0 &&
-                              hypergraph.localPartWeight(best_move.from) - 1 >
-                              hypergraph.localPartWeight(best_move.to) + 1 &&
-                              hypergraph.localPartWeight(best_move.to) <
+                              hypergraph.partWeight(best_move.from) - 1 >
+                              hypergraph.partWeight(best_move.to) + 1 &&
+                              hypergraph.partWeight(best_move.to) <
                               _context.partition.perfect_balance_part_weights[best_move.to]);
         if (best_move.from != best_move.to && perform_move) {
           PartitionID from = best_move.from;
           PartitionID to = best_move.to;
-          ASSERT(hypergraph.localPartWeight(to) + hypergraph.nodeWeight(hn) <= _context.partition.max_part_weights[to]);
 
           Gain delta_before = _gain.localDelta();
           if (hypergraph.changeNodePart(hn, from, to, objective_delta)) {
@@ -341,7 +338,7 @@ class LabelPropagationRefinerT final : public IRefinerT<TypeTraits> {
                 if ( !_visited_he[numa_node][original_he_id] ) {
                   for (const HypernodeID& pin : hypergraph.pins(he)) {
                     int pin_numa_node = _context.refinement.label_propagation.numa_aware ?
-                      StreamingHyperGraph::get_numa_node_of_vertex(pin) : 0;
+                      common::get_numa_node_of_vertex(pin) : 0;
                     _next_active[pin_numa_node].set(hypergraph.originalNodeID(pin), true);
                   }
                   _visited_he[numa_node].set(original_he_id, true);
@@ -362,10 +359,6 @@ class LabelPropagationRefinerT final : public IRefinerT<TypeTraits> {
       }
 
       ++local_iteration_cnt;
-      if (local_iteration_cnt % localPartWeightUpdateFrequency() == 0) {
-        // We frequently update the local block weights of the current threads
-        hypergraph.updateLocalPartInfos();
-      }
     }
 
     return is_moved;
@@ -390,8 +383,8 @@ class LabelPropagationRefinerT final : public IRefinerT<TypeTraits> {
 
     _nodes.resize(hypergraph.initialNumNodes());
     auto add_vertex = [&](const HypernodeID hn) {
-      const int node = StreamingHyperGraph::get_numa_node_of_vertex(hn);
-      const HypernodeID local_id = StreamingHyperGraph::get_local_node_id_of_vertex(hn);
+      const int node = common::get_numa_node_of_vertex(hn);
+      const HypernodeID local_id = common::get_local_position_of_vertex(hn);
       ASSERT(_numa_nodes_indices[node] + local_id < _nodes.size());
       _nodes[_numa_nodes_indices[node] + local_id] = hn;
     };
@@ -421,7 +414,7 @@ class LabelPropagationRefinerT final : public IRefinerT<TypeTraits> {
     HypernodeID current_num_nodes = 0;
     _numa_nodes_indices.assign(TBB::instance().num_used_numa_nodes() + 1, 0);
     for (const HypernodeID& hn : hypergraph.nodes()) {
-      const size_t node = StreamingHyperGraph::get_numa_node_of_vertex(hn);
+      const size_t node = common::get_numa_node_of_vertex(hn);
       ASSERT(node + 1 < _numa_nodes_indices.size());
       ++_numa_nodes_indices[node + 1];
       _nodes.emplace_back(hn);
@@ -433,8 +426,8 @@ class LabelPropagationRefinerT final : public IRefinerT<TypeTraits> {
     // numa node are within a consecutive range in _nodes
     std::sort(_nodes.begin(), _nodes.end(),
               [&](const HypernodeID& lhs, const HypernodeID& rhs) {
-        return StreamingHyperGraph::get_numa_node_of_vertex(lhs) <
-        StreamingHyperGraph::get_numa_node_of_vertex(rhs);
+        return common::get_numa_node_of_vertex(lhs) <
+               common::get_numa_node_of_vertex(rhs);
       });
 
     // Build up a vector that points to the start position of the vertices
@@ -460,7 +453,7 @@ class LabelPropagationRefinerT final : public IRefinerT<TypeTraits> {
     // Swap new vertex to the consecutive range of hypernodes
     // that belong to the same numa node than the new vertex
     int num_numa_nodes = _numa_nodes_indices.size() - 1;
-    int node = StreamingHyperGraph::get_numa_node_of_vertex(hn);
+    int node = common::get_numa_node_of_vertex(hn);
     ++_numa_nodes_indices.back();
     size_t current_position = _nodes.size() - 1;
     int current_numa_node = num_numa_nodes - 1;
@@ -469,12 +462,6 @@ class LabelPropagationRefinerT final : public IRefinerT<TypeTraits> {
       std::swap(_nodes[current_position], _nodes[numa_node_start]);
       current_position = numa_node_start++;
     }
-  }
-
-  size_t localPartWeightUpdateFrequency() const {
-    return std::min(100.0, std::max(5.0,
-      _context.refinement.label_propagation.part_weight_update_factor *
-      static_cast<double>(_nodes.size())));
   }
 
   const Context& _context;
