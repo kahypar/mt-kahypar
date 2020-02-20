@@ -26,24 +26,26 @@
 using ::testing::Test;
 
 namespace mt_kahypar {
-using Coarsener = MultilevelCoarsenerT<ds::TestTypeTraits<2>, HeavyEdgeScore,
+using TestTypeTraits = ds::TestTypeTraits<2>;
+using PartitionedHyperGraph = typename TestTypeTraits::template PartitionedHyperGraph<>;
+using Coarsener = MultilevelCoarsenerT<TestTypeTraits, HeavyEdgeScore,
                                        NoWeightPenalty, BestRatingWithoutTieBreaking>;
 
 TEST_F(ACoarsener, DecreasesNumberOfPins) {
   context.coarsening.contraction_limit = 7;
-  Coarsener coarsener(hypergraph, context, TBBArena::GLOBAL_TASK_GROUP);
+  Coarsener coarsener(hypergraph, context, TBB::GLOBAL_TASK_GROUP);
   decreasesNumberOfPins(coarsener, 12);
 }
 
 TEST_F(ACoarsener, DecreasesNumberOfHyperedges) {
   context.coarsening.contraction_limit = 7;
-  Coarsener coarsener(hypergraph, context, TBBArena::GLOBAL_TASK_GROUP);
+  Coarsener coarsener(hypergraph, context, TBB::GLOBAL_TASK_GROUP);
   decreasesNumberOfHyperedges(coarsener, 6);
 }
 
 TEST_F(ACoarsener, RemovesHyperedgesOfSizeOneDuringCoarsening) {
   context.coarsening.contraction_limit = 7;
-  Coarsener coarsener(hypergraph, context, TBBArena::GLOBAL_TASK_GROUP);
+  Coarsener coarsener(hypergraph, context, TBB::GLOBAL_TASK_GROUP);
   doCoarsening(coarsener);
   auto& hypergraph = coarsener.coarsestHypergraph();
   for ( const HyperedgeID& he : hypergraph.edges() ) {
@@ -53,7 +55,7 @@ TEST_F(ACoarsener, RemovesHyperedgesOfSizeOneDuringCoarsening) {
 
 TEST_F(ACoarsener, RemovesParallelHyperedgesDuringCoarsening) {
   context.coarsening.contraction_limit = 7;
-  Coarsener coarsener(hypergraph, context, TBBArena::GLOBAL_TASK_GROUP);
+  Coarsener coarsener(hypergraph, context, TBB::GLOBAL_TASK_GROUP);
   doCoarsening(coarsener);
   auto& hypergraph = coarsener.coarsestHypergraph();
   for ( const HyperedgeID& he : hypergraph.edges() ) {
@@ -63,16 +65,15 @@ TEST_F(ACoarsener, RemovesParallelHyperedgesDuringCoarsening) {
 
 TEST_F(ACoarsener, ProjectsPartitionBackToOriginalHypergraph) {
   context.coarsening.contraction_limit = 7;
-  Coarsener coarsener(hypergraph, context, TBBArena::GLOBAL_TASK_GROUP);
+  Coarsener coarsener(hypergraph, context, TBB::GLOBAL_TASK_GROUP);
   doCoarsening(coarsener);
-  assignPartitionIDs(coarsener.coarsestHypergraph());
-  for ( const HypernodeID& hn : hypergraph.nodes() ) {
-    ASSERT_EQ(-1, hypergraph.partID(hn));
-  }
-  coarsener.uncoarsen(nullptr_refiner);
-  for ( const HypernodeID& hn : hypergraph.nodes() ) {
-    PartitionID part_id = StreamingHypergraph::get_numa_node_of_vertex(hn);
-    ASSERT_EQ(part_id, hypergraph.partID(hn));
+  PartitionedHyperGraph& coarsest_partitioned_hypergraph =
+    coarsener.coarsestPartitionedHypergraph();
+  assignPartitionIDs(coarsest_partitioned_hypergraph);
+  PartitionedHyperGraph partitioned_hypergraph = coarsener.uncoarsen(nullptr_refiner);
+  for ( const HypernodeID& hn : partitioned_hypergraph.nodes() ) {
+    PartitionID part_id = common::get_numa_node_of_vertex(hn);
+    ASSERT_EQ(part_id, partitioned_hypergraph.partID(hn));
   }
 }
 

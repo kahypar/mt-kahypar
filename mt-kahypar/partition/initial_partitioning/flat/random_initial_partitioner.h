@@ -29,7 +29,7 @@
 namespace mt_kahypar {
 template<typename TypeTraits>
 class RandomInitialPartitionerT : public tbb::task {
-  using HyperGraph = typename TypeTraits::HyperGraph;
+  using HyperGraph = typename TypeTraits::template PartitionedHyperGraph<false>;
   using InitialPartitioningDataContainer = InitialPartitioningDataContainerT<TypeTraits>;
 
   static constexpr bool debug = false;
@@ -44,7 +44,7 @@ class RandomInitialPartitionerT : public tbb::task {
 
   tbb::task* execute() override {
     HighResClockTimepoint start = std::chrono::high_resolution_clock::now();
-    HyperGraph& hg = _ip_data.local_hypergraph();
+    HyperGraph& hg = _ip_data.local_partitioned_hypergraph();
     int cpu_id = sched_getcpu();
 
     for ( const HypernodeID& hn : hg.nodes() ) {
@@ -78,7 +78,7 @@ class RandomInitialPartitionerT : public tbb::task {
                      const HypernodeID hn,
                      const PartitionID block) const {
     ASSERT(block != kInvalidPartition && block < _context.partition.k);
-    return hypergraph.localPartWeight(block) + hypergraph.nodeWeight(hn) <=
+    return hypergraph.partWeight(block) + hypergraph.nodeWeight(hn) <=
       _context.partition.max_part_weights[block];
   }
 

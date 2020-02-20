@@ -19,8 +19,6 @@
  ******************************************************************************/
 #pragma once
 
-#define USE_HARDWARE_MOCK false
-
 #include <chrono>
 
 #include "tbb/enumerable_thread_specific.h"
@@ -28,16 +26,32 @@
 #include "kahypar/datastructure/fast_reset_flag_array.h"
 #include "kahypar/datastructure/kway_priority_queue.h"
 
-#include "mt-kahypar/datastructures/hypergraph.h"
-#include "mt-kahypar/datastructures/streaming_hypergraph.h"
 #include "mt-kahypar/parallel/hardware_topology.h"
 #include "mt-kahypar/parallel/tbb_numa_arena.h"
+#include "mt-kahypar/datastructures/static_hypergraph.h"
+#include "mt-kahypar/datastructures/static_hypergraph_factory.h"
+#include "mt-kahypar/datastructures/numa_hypergraph.h"
+#include "mt-kahypar/datastructures/numa_hypergraph_factory.h"
+#include "mt-kahypar/datastructures/partitioned_hypergraph.h"
+#include "mt-kahypar/datastructures/numa_partitioned_hypergraph.h"
 
 #include "tests/parallel/topology_mock.h"
 
+#define USE_HARDWARE_MOCK false
+#define TRACK_BORDER_VERTICES true
+
 namespace mt_kahypar {
-#if USE_HARDWARE_MOCK
+
+#if KAHYPAR_ENABLE_NUMA_AWARE_PARTITIONING
 static constexpr int NUM_NUMA_NODES = 2;
+#else
+// In case non-numa-aware partitioning is enabled, we mock
+// the system architecture to simulate a system with one
+// NUMA node.
+static constexpr int NUM_NUMA_NODES = 1;
+#endif
+
+#if USE_HARDWARE_MOCK || !KAHYPAR_ENABLE_NUMA_AWARE_PARTITIONING
 using TopoMock = mt_kahypar::parallel::TopologyMock<NUM_NUMA_NODES>;
 using topology_t = mt_kahypar::parallel::topology_t;
 using node_t = mt_kahypar::parallel::node_t;
@@ -47,46 +61,32 @@ using HardwareTopology = mt_kahypar::parallel::HardwareTopology<>;
 #endif
 using TBBNumaArena = mt_kahypar::parallel::TBBNumaArena<HardwareTopology>;
 
-using TaskGroupID = size_t;
-using RatingType = double;
-using HypernodeID = uint64_t;
-using HyperedgeID = uint64_t;
-using HypernodeWeight = int32_t;
-using HyperedgeWeight = int32_t;
-using PartitionID = int32_t;
-using Gain = HyperedgeWeight;
-
 using ThreadLocalFastResetFlagArray = tbb::enumerable_thread_specific<kahypar::ds::FastResetFlagArray<> >;
 using KWayPriorityQueue = kahypar::ds::KWayPriorityQueue<HypernodeID, Gain, std::numeric_limits<Gain>, true>;
 using ThreadLocalKWayPriorityQueue = tbb::enumerable_thread_specific<KWayPriorityQueue>;
 
 using NodeID = uint32_t;
 
-struct Move {
-  PartitionID from;
-  PartitionID to;
-  Gain gain;
-};
-
-using StreamingHypergraph = mt_kahypar::ds::StreamingHypergraph<HypernodeID,
-                                                                HyperedgeID,
-                                                                HypernodeWeight,
-                                                                HyperedgeWeight,
-                                                                PartitionID,
-                                                                HardwareTopology,
-                                                                TBBNumaArena>;
-
-using Hypergraph = mt_kahypar::ds::Hypergraph<HypernodeID,
-                                              HyperedgeID,
-                                              HypernodeWeight,
-                                              HyperedgeWeight,
-                                              PartitionID,
-                                              HardwareTopology,
-                                              TBBNumaArena>;
+#if KAHYPAR_ENABLE_NUMA_AWARE_PARTITIONING
+  using Hypergraph = ds::NumaHypergraph<ds::StaticHypergraph, HardwareTopology, TBBNumaArena>;
+  using HypergraphFactory = ds::NumaHypergraphFactory<
+    ds::StaticHypergraph, ds::StaticHypergraphFactory, HardwareTopology, TBBNumaArena>;
+  template<bool track_border_vertices = TRACK_BORDER_VERTICES>
+  using PartitionedHypergraph = ds::NumaPartitionedHypergraph<
+    Hypergraph, HypergraphFactory, track_border_vertices>;
+#else
+  using Hypergraph = ds::StaticHypergraph;
+  using HypergraphFactory = ds::StaticHypergraphFactory;
+  template<bool track_border_vertices = TRACK_BORDER_VERTICES>
+  using PartitionedHypergraph = ds::PartitionedHypergraph<
+    Hypergraph, HypergraphFactory, track_border_vertices>;
+#endif
 
 struct GlobalTypeTraits {
   using HyperGraph = Hypergraph;
-  using StreamingHyperGraph = StreamingHypergraph;
+  using HyperGraphFactory = HypergraphFactory;
+  template<bool track_border_vertices = TRACK_BORDER_VERTICES>
+  using PartitionedHyperGraph = PartitionedHypergraph<track_border_vertices>;
   using TBB = TBBNumaArena;
   using HwTopology = HardwareTopology;
 };
