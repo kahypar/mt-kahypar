@@ -586,10 +586,15 @@ class PartitionedHypergraph {
       --_part_info[from].size;
       _part_info[from].weight -= nodeWeight(u);
       ++_part_info[to].size;
+
+
+      // TODO make this a condition for the success check via nice atomics
       _part_info[to].weight += nodeWeight(u);
 
       // Update Pin Count Part of all incident edges
       for ( const HyperedgeID& he : incidentEdges(u) ) {
+
+        // TODO update affinity values here
         HypernodeID pin_count_in_from_part_after = kInvalidHypernode;
         HypernodeID pin_count_in_to_part_after = kInvalidHypernode;
         updatePinCountOfHyperedge(he, *this, from, to, pin_count_in_from_part_after,
@@ -1129,33 +1134,51 @@ class PartitionedHypergraph {
   }
 
   KAHYPAR_ATTRIBUTE_ALWAYS_INLINE HypernodeID decrementPinCountInPart(const HyperedgeID e,
-                                                                      const PartitionID id) {
+                                                                      const PartitionID p) {
     ASSERT(_hg->edgeIsEnabled(e), "Hyperedge" << e << "is disabled");
-    ASSERT(id != kInvalidPartition && id < _k);
-    const HyperedgeID local_id = common::get_local_position_of_edge(e);
-    ASSERT(local_id < _hg->initialNumEdges(), "Hyperedge" << e << "does not exist");
+    ASSERT(p != kInvalidPartition && p < _k);
+    const HyperedgeID local_hyperedge_id = common::get_local_position_of_edge(e);
+    ASSERT(local_hyperedge_id < _hg->initialNumEdges(), "Hyperedge" << e << "does not exist");
     ASSERT(_node == common::get_numa_node_of_edge(e),
            "Hyperedge" << e << "is not part of numa node" << _node);
-    const HypernodeID pin_count_after = --_pins_in_part[local_id * _k + id];
+    const HypernodeID pin_count_after = --_pins_in_part[local_hyperedge_id * _k + p];
     if ( pin_count_after == 0 ) {
       // Connectivity of hyperedge decreased
-      _connectivity_sets.remove(local_id, id);
+      _connectivity_sets.remove(local_hyperedge_id, p);
+      for (HypernodeID u : pins(e)) {
+        incidentWeightWithZeroPins[u * _k + p].fetch_sub(edgeWeight(e), std::memory_order_relaxed);
+        if (partID(u) == p) {
+          incidentWeightToCurrentPartWithExactlyOnePin[u].fetch_sub(edgeWeight(e), std::memory_order_relaxed);
+        }
+      }
+    } else if ( pin_count_after == 1 ) {
+      for (HypernodeID u : pins(e)) {
+        if (partID(u) == p) {
+          incidentWeightToCurrentPartWithExactlyOnePin[u].fetch_add(edgeWeight(e), std::memory_order_relaxed);
+        }
+      }
     }
     return pin_count_after;
   }
 
   KAHYPAR_ATTRIBUTE_ALWAYS_INLINE HypernodeID incrementPinCountInPart(const HyperedgeID e,
-                                                                      const PartitionID id) {
+                                                                      const PartitionID p) {
     ASSERT(_hg->edgeIsEnabled(e), "Hyperedge" << e << "is disabled");
-    ASSERT(id != kInvalidPartition && id < _k);
-    const HyperedgeID local_id = common::get_local_position_of_edge(e);
-    ASSERT(local_id < _hg->initialNumEdges(), "Hyperedge" << e << "does not exist");
+    ASSERT(p != kInvalidPartition && p < _k);
+    const HyperedgeID local_hyperedge_id = common::get_local_position_of_edge(e);
+    ASSERT(local_hyperedge_id < _hg->initialNumEdges(), "Hyperedge" << e << "does not exist");
     ASSERT(_node == common::get_numa_node_of_edge(e),
            "Hyperedge" << e << "is not part of numa node" << _node);
-    const HypernodeID pin_count_after = ++_pins_in_part[local_id * _k + id];
+    const HypernodeID pin_count_after = ++_pins_in_part[local_hyperedge_id * _k + p];
     if ( pin_count_after == 1 ) {
       // Connectivity of hyperedge increased
-      _connectivity_sets.add(local_id, id);
+      _connectivity_sets.add(local_hyperedge_id, p);
+      for (HypernodeID u : pins(e)) {
+        incidentWeightWithZeroPins[u * _k + p].fetch_sub(edgeWeight(e), std::memory_order_relaxed);
+        if (partID(u) == p) {
+          incidentWeightToCurrentPartWithExactlyOnePin[u].fetch_add(edgeWeight(e), std::memory_order_relaxed);
+        }
+      }
     }
     return pin_count_after;
   }
@@ -1192,7 +1215,7 @@ class PartitionedHypergraph {
   PartitionID _k;
   // ! NUMA node of this partitioned hypergraph
   int _node;
-  // ! Hypergraph object around this partitioned hypergraph is wrapped
+  // ! Hypergraph object around which this partitioned hypergraph is wrapped
   Hypergraph* _hg;
 
   // ! Indicates, if cut hyperedges are initialized
@@ -1208,6 +1231,12 @@ class PartitionedHypergraph {
   // ! For each hyperedge, _connectivity_sets stores the connectivity and the set of block ids
   // ! which the pins of the hyperedge belongs to
   ConnectivitySets _connectivity_sets;
+
+  // ! For each (vertex u, part i), the sum of edge weights for edges incident to u with zero pins in part i
+  std::vector< std::atomic<HyperedgeWeight> > incidentWeightWithZeroPins;
+  // ! For each vertex, the weight of incident edges with exactly one pin in its current part
+  std::vector< std::atomic<HyperedgeWeight> > incidentWeightToCurrentPartWithExactlyOnePin;
+
 };
 
 } // namespace ds
