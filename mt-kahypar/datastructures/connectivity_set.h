@@ -22,6 +22,8 @@
 
 #include <atomic>
 #include <type_traits>
+#include <limits>
+#include <cassert>
 
 #include "mt-kahypar/parallel/atomic_wrapper.h"
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
@@ -30,6 +32,7 @@
 #include "mt-kahypar/utils/range.h"
 
 #include "mt-kahypar/macros.h"
+#include "hypergraph_common.h"
 
 namespace mt_kahypar {
 namespace ds {
@@ -50,9 +53,6 @@ class ConnectivitySets {
 public:
 
   static constexpr bool debug = false;
-  using PartitionID = uint32_t;
-  using HyperedgeID = uint64_t;	// TODO how to keep synced with definitions.h, other than templates?
-
 
   ConnectivitySets(const HyperedgeID numEdges, const PartitionID k) : k(k),
                                                                       numEdges(numEdges),
@@ -70,8 +70,8 @@ public:
   }
 
   bool contains(const HyperedgeID he, const PartitionID p) const {
-    const size_t div = p / BITS_PER_BLOCK;
-    const size_t rem = p % BITS_PER_BLOCK;
+    const PartitionID div = p / BITS_PER_BLOCK;
+    const PartitionID rem = p % BITS_PER_BLOCK;
     return bits[he * numBlocksPerHyperedge + div].load(std::memory_order_relaxed) & (UnsafeBlock(1) << rem);
   }
 
