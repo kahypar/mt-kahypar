@@ -142,23 +142,23 @@ class IntegralAtomicWrapper {
   }
 
   T operator+= (T arg) noexcept {
-    return _value.fetch_add(arg) + arg;
+    return _value.operator+=(arg);
   }
 
   T operator-= (T arg) noexcept {
-    return _value.fetch_sub(arg) - arg;
+    return _value.operator-=(arg);
   }
 
   T operator&= (T arg) noexcept {
-    return _value.fetch_and(arg) & arg;
+    return _value.operator&=(arg);
   }
 
   T operator|= (T arg) noexcept {
-    return _value.fetch_or(arg) | arg;
+    return _value.operator|=(arg);
   }
 
   T operator^= (T arg) noexcept {
-    return _value.fetch_xor(arg) ^ arg;
+    return _value.operator^=(arg);
   }
 
  private:
