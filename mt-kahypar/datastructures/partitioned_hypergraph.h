@@ -761,29 +761,28 @@ class PartitionedHypergraph {
 
   // ! Block which vertex u belongs to
   PartitionID partID(const HypernodeID u) const {
+    // TODO specify load mem order
     return vertexPartInfo(u).part_id;
   }
 
   // ! Returns, whether hypernode u is adjacent to a least one cut hyperedge.
-  TRUE_SPECIALIZATION(track_border_vertices, bool) isBorderNode(const HypernodeID u) const {
-    ASSERT(_is_init_num_cut_hyperedges);
-    return vertexPartInfo(u).num_incident_cut_hes > 0;
-  }
-
-  // ! Returns, whether hypernode u is adjacent to a least one cut hyperedge.
-  FALSE_SPECIALIZATION(track_border_vertices, bool) isBorderNode(const HypernodeID u) const {
-    for ( const HyperedgeID& he : incidentEdges(u) ) {
-      if ( connectivity(he) > 1 ) {
-        return true;
+  bool isBorderNode(const HypernodeID u) const {
+    if constexpr (track_border_vertices) {
+      ASSERT(_is_init_num_cut_hyperedges);
+      return vertexPartInfo(u).num_incident_cut_hes > 0;
+    } else {
+      for ( const HyperedgeID& he : incidentEdges(u) ) {
+        if ( connectivity(he) > 1 ) {
+          return true;
+        }
       }
+      return false;
     }
-    return false;
   }
 
   // ! Returns, whether hypernode u is adjacent to a least one cut hyperedge.
-  FALSE_SPECIALIZATION(track_border_vertices, bool) isBorderNode(
-    const HypernodeID u,
-    const parallel::scalable_vector<PartitionedHypergraph>& hypergraphs) const {
+  template<bool T = track_border_vertices> std::enable_if_t<!T, bool>
+  isBorderNode(const HypernodeID u, const parallel::scalable_vector<PartitionedHypergraph>& hypergraphs) const {
     for ( const HyperedgeID& he : incidentEdges(u) ) {
       if ( common::hypergraph_of_edge(he, hypergraphs).connectivity(he) > 1 ) {
         return true;
@@ -793,17 +792,16 @@ class PartitionedHypergraph {
   }
 
   // ! Number of incident cut hyperedges of vertex u
-  TRUE_SPECIALIZATION(track_border_vertices, HyperedgeID) numIncidentCutHyperedges(const HypernodeID u) const {
-    return vertexPartInfo(u).num_incident_cut_hes;
-  }
-
-  // ! Number of incident cut hyperedges of vertex u
-  FALSE_SPECIALIZATION(track_border_vertices, HyperedgeID) numIncidentCutHyperedges(const HypernodeID u) const {
-    HyperedgeID num_incident_cut_hyperedges = 0;
-    for ( const HyperedgeID& he : incidentEdges(u) ) {
-      num_incident_cut_hyperedges += ( connectivity(he) > 1 );
+  HyperedgeID numIncidentCutHyperedges(const HypernodeID u) const {
+    if constexpr (track_border_vertices) {
+      return vertexPartInfo(u).num_incident_cut_hes;
+    } else {
+      HyperedgeID num_incident_cut_hyperedges = 0;
+      for ( const HyperedgeID& he : incidentEdges(u) ) {
+        num_incident_cut_hyperedges += ( connectivity(he) > 1 );
+      }
+      return num_incident_cut_hyperedges;
     }
-    return num_incident_cut_hyperedges;
   }
 
   // ! Number of incident cut hyperedges of vertex u
@@ -889,7 +887,7 @@ class PartitionedHypergraph {
     ASSERT(local_id < _hg->initialNumEdges(), "Hyperedge" << e << "does not exist");
     ASSERT(_node == common::get_numa_node_of_edge(e),
            "Hyperedge" << e << "is not part of numa node" << _node);
-    return _pins_in_part[local_id * _k + id];;
+    return _pins_in_part[local_id * _k + id];
   }
 
   // ! Weight of a block
@@ -1146,16 +1144,12 @@ class PartitionedHypergraph {
       // Connectivity of hyperedge decreased
       _connectivity_sets.remove(local_hyperedge_id, p);
       for (HypernodeID u : pins(e)) {
-        incidentWeightWithZeroPins[u * _k + p].fetch_sub(edgeWeight(e), std::memory_order_relaxed);
-        if (partID(u) == p) {
-          incidentWeightToCurrentPartWithExactlyOnePin[u].fetch_sub(edgeWeight(e), std::memory_order_relaxed);
-        }
+        affinity[u * _k + p].w0pins.fetch_sub(edgeWeight(e), std::memory_order_relaxed);
+        affinity[u * _k + p].w1pins.fetch_sub(edgeWeight(e), std::memory_order_relaxed);
       }
     } else if ( pin_count_after == 1 ) {
       for (HypernodeID u : pins(e)) {
-        if (partID(u) == p) {
-          incidentWeightToCurrentPartWithExactlyOnePin[u].fetch_add(edgeWeight(e), std::memory_order_relaxed);
-        }
+        affinity[u * _k + p].w1pins.fetch_add(edgeWeight(e), std::memory_order_relaxed);
       }
     }
     return pin_count_after;
@@ -1174,13 +1168,16 @@ class PartitionedHypergraph {
       // Connectivity of hyperedge increased
       _connectivity_sets.add(local_hyperedge_id, p);
       for (HypernodeID u : pins(e)) {
-        incidentWeightWithZeroPins[u * _k + p].fetch_sub(edgeWeight(e), std::memory_order_relaxed);
-        if (partID(u) == p) {
-          incidentWeightToCurrentPartWithExactlyOnePin[u].fetch_add(edgeWeight(e), std::memory_order_relaxed);
-        }
+        affinity[u * _k + p].w0pins.fetch_sub(edgeWeight(e), std::memory_order_relaxed);
+        affinity[u * _k + p].w1pins.fetch_add(edgeWeight(e), std::memory_order_relaxed);
       }
     }
     return pin_count_after;
+  }
+
+  const HyperedgeWeight km1Gain(HypernodeID u, PartitionID p) const {
+    return affinity[u * _k + partID(u)].w1pins.load(std::memory_order_relaxed)
+           - affinity[u * _k + p].w0pins.load(std::memory_order_relaxed);
   }
 
   // ! Returns pin count in from and to part of hyperedge he such that
@@ -1232,10 +1229,15 @@ class PartitionedHypergraph {
   // ! which the pins of the hyperedge belongs to
   ConnectivitySets _connectivity_sets;
 
-  // ! For each (vertex u, part i), the sum of edge weights for edges incident to u with zero pins in part i
-  std::vector< std::atomic<HyperedgeWeight> > incidentWeightWithZeroPins;
-  // ! For each vertex, the weight of incident edges with exactly one pin in its current part
-  std::vector< std::atomic<HyperedgeWeight> > incidentWeightToCurrentPartWithExactlyOnePin;
+
+  struct AffinityInformation {
+    std::atomic<HyperedgeWeight> w0pins, w1pins;
+    AffinityInformation() : w0pins(0), w1pins(0) { }
+  };
+  // ! For each (vertex u, part i), the sum of edge weights for edges incident to u with zero/one pins in part i
+  std::vector< AffinityInformation > affinity;
+
+
 
 };
 
