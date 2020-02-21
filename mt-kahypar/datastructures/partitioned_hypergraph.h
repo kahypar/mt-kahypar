@@ -902,6 +902,15 @@ class PartitionedHypergraph {
     return _part_info[id].size;
   }
 
+  const HyperedgeWeight km1Gain(HypernodeID u, PartitionID p) const {
+    return _affinity[u * _k + partID(u)].w1pins.load(std::memory_order_relaxed)
+           - _affinity[u * _k + p].w0pins.load(std::memory_order_relaxed);
+  }
+
+  const HyperedgeWeight affinity(HypernodeID u, PartitionID p) const {
+    return _affinity[u * _k + p].w0pins.load(std::memory_order_relaxed);
+  }
+
   // ! Reset partition (not thread-safe)
   void resetPartition() {
     // Reset partition ids
@@ -1144,12 +1153,12 @@ class PartitionedHypergraph {
       // Connectivity of hyperedge decreased
       _connectivity_sets.remove(local_hyperedge_id, p);
       for (HypernodeID u : pins(e)) {
-        affinity[u * _k + p].w0pins.fetch_sub(edgeWeight(e), std::memory_order_relaxed);
-        affinity[u * _k + p].w1pins.fetch_sub(edgeWeight(e), std::memory_order_relaxed);
+        _affinity[u * _k + p].w0pins.fetch_sub(edgeWeight(e), std::memory_order_relaxed);
+        _affinity[u * _k + p].w1pins.fetch_sub(edgeWeight(e), std::memory_order_relaxed);
       }
     } else if ( pin_count_after == 1 ) {
       for (HypernodeID u : pins(e)) {
-        affinity[u * _k + p].w1pins.fetch_add(edgeWeight(e), std::memory_order_relaxed);
+        _affinity[u * _k + p].w1pins.fetch_add(edgeWeight(e), std::memory_order_relaxed);
       }
     }
     return pin_count_after;
@@ -1168,16 +1177,11 @@ class PartitionedHypergraph {
       // Connectivity of hyperedge increased
       _connectivity_sets.add(local_hyperedge_id, p);
       for (HypernodeID u : pins(e)) {
-        affinity[u * _k + p].w0pins.fetch_sub(edgeWeight(e), std::memory_order_relaxed);
-        affinity[u * _k + p].w1pins.fetch_add(edgeWeight(e), std::memory_order_relaxed);
+        _affinity[u * _k + p].w0pins.fetch_sub(edgeWeight(e), std::memory_order_relaxed);
+        _affinity[u * _k + p].w1pins.fetch_add(edgeWeight(e), std::memory_order_relaxed);
       }
     }
     return pin_count_after;
-  }
-
-  const HyperedgeWeight km1Gain(HypernodeID u, PartitionID p) const {
-    return affinity[u * _k + partID(u)].w1pins.load(std::memory_order_relaxed)
-           - affinity[u * _k + p].w0pins.load(std::memory_order_relaxed);
   }
 
   // ! Returns pin count in from and to part of hyperedge he such that
@@ -1235,7 +1239,7 @@ class PartitionedHypergraph {
     AffinityInformation() : w0pins(0), w1pins(0) { }
   };
   // ! For each (vertex u, part i), the sum of edge weights for edges incident to u with zero/one pins in part i
-  std::vector< AffinityInformation > affinity;
+  std::vector< AffinityInformation > _affinity;
 
 
 

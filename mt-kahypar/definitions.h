@@ -39,6 +39,7 @@
 
 #define USE_HARDWARE_MOCK false
 #define TRACK_BORDER_VERTICES true
+#define KAHYPAR_ENABLE_NUMA_AWARE_PARTITIONING FALSE
 
 namespace mt_kahypar {
 
