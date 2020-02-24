@@ -411,6 +411,7 @@ class RecursiveBisectionInitialPartitionerT : public IInitialPartitioner {
         }
       }
       bisection_context.setupContractionLimit(total_weight);
+      bisection_context.setupHyperedgePinWeightThreshold();
 
 
       return bisection_context;

@@ -144,12 +144,15 @@ struct CoarseningParameters {
   double multilevel_shrink_factor = std::numeric_limits<double>::max();
   bool ignore_already_matched_vertices = false;
   bool use_high_degree_vertex_threshold = false;
+  bool use_heavy_hyperedge_removal = false;
+  HypernodeWeight hyperedge_pin_weight_fraction = 0;
 
   // Those will be determined dynamically
   HypernodeWeight max_allowed_node_weight = 0;
   HypernodeWeight max_allowed_high_degree_node_weight = 0;
   HypernodeID contraction_limit = 0;
   HyperedgeID high_degree_vertex_threshold = std::numeric_limits<HyperedgeID>::max();
+  HypernodeWeight max_hyperedge_pin_weight = std::numeric_limits<HypernodeWeight>::max();
 };
 
 inline std::ostream & operator<< (std::ostream& str, const CoarseningParameters& params) {
@@ -167,6 +170,10 @@ inline std::ostream & operator<< (std::ostream& str, const CoarseningParameters&
   }
   if ( params.use_high_degree_vertex_threshold ) {
     str << "  high degree vertex threshold:       " << params.high_degree_vertex_threshold << std::endl;
+  }
+  if ( params.use_heavy_hyperedge_removal ) {
+    str << "  hyperedge pin weight fraction:      " << params.hyperedge_pin_weight_fraction << std::endl;
+    str << "  maximum hyperedge pin weight:       " << params.max_hyperedge_pin_weight << std::endl;
   }
   str << std::endl << params.rating;
   return str;
@@ -279,6 +286,8 @@ class Context {
     for (PartitionID part = 1; part != partition.k; ++part) {
       partition.max_part_weights.push_back(partition.max_part_weights[0]);
     }
+
+    setupHyperedgePinWeightThreshold();
   }
 
   void setupContractionLimit(const HypernodeWeight total_hypergraph_weight) {
@@ -316,6 +325,18 @@ class Context {
       std::min(coarsening.max_allowed_node_weight, min_block_weight);
     coarsening.max_allowed_high_degree_node_weight =
       std::min(coarsening.max_allowed_high_degree_node_weight, min_block_weight);
+  }
+
+  void setupHyperedgePinWeightThreshold() {
+    if ( coarsening.use_heavy_hyperedge_removal ) {
+      HypernodeWeight max_block_weight = 0;
+      for ( PartitionID block = 0; block < partition.k; ++block ) {
+        max_block_weight = std::max(max_block_weight, partition.max_part_weights[block]);
+      }
+
+      coarsening.max_hyperedge_pin_weight = max_block_weight /
+        coarsening.hyperedge_pin_weight_fraction;
+    }
   }
 
   void sanityCheck() {

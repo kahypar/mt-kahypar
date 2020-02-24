@@ -208,7 +208,13 @@ po::options_description createCoarseningOptionsDescription(Context& context,
     "If true, multilevel coarsener ignores already matched vertices")
     ("c-use-high-degree-vertex-threshold",
     po::value<bool>(&context.coarsening.use_high_degree_vertex_threshold)->value_name("<bool>"),
-    "If true, than all hypernodes with a degree greater than mean + 5 * stdev are skipped during coarsening")
+    "If true, than high degree vertices are special treated during coarsening")
+    ("c-use-heavy-hyperedge-removal",
+    po::value<bool>(&context.coarsening.use_heavy_hyperedge_removal)->value_name("<bool>"),
+    "If true, than hyperedges where the sum of the weights of all pins are greater than a threshold are removed")
+    ("c-hyperedge-pin-weight-fraction",
+    po::value<int>(&context.coarsening.hyperedge_pin_weight_fraction)->value_name("<int>"),
+    "Hyperedges where the sum of the weights of all pins are greater than ((1 + eps)|V|/k) / fraction are removed")
     ("c-rating-score",
     po::value<std::string>()->value_name("<string>")->notifier(
       [&](const std::string& rating_score) {
