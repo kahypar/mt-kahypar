@@ -934,7 +934,7 @@ class NumaHypergraph {
     }, [&] {
       parallel::parallel_free(num_numa_incident_nets);
     }, [&] {
-      parallel::parallel_free(hn_to_numa_node, hn_weights, community_ids, hn_weights);
+      parallel::parallel_free(hn_to_numa_node, hn_weights, community_ids, is_high_degree_vertex);
     });
     utils::Timer::instance().stop_timer("free_internal_data");
 

@@ -1139,7 +1139,7 @@ class StaticHypergraph {
     utils::Timer::instance().start_timer("free_internal_data", "Free Internal Data");
     // We free memory here in parallel, because this can become a major
     // bottleneck, if memory is freed sequential after function return
-    parallel::parallel_free(hn_weights, community_ids, hn_weights, num_incident_nets);
+    parallel::parallel_free(hn_weights, community_ids, num_incident_nets, is_high_degree_vertex);
     utils::Timer::instance().stop_timer("free_internal_data");
 
     return std::make_pair(std::move(hypergraph), std::move(mapping));
