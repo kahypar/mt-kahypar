@@ -146,7 +146,7 @@ class HeavyHyperedgeRemoverT {
 
   void applyPartition(PartitionedHyperGraph& partitioned_hypergraph) {
     ASSERT(_is_init);
-    ASSERT(partitioned_hypergraph.initNumNodes() == _sparsified_partitioned_hg.initNumNodes());
+    ASSERT(partitioned_hypergraph.initialNumNodes() == _sparsified_partitioned_hg.initialNumNodes());
     partitioned_hypergraph.doParallelForAllNodes(_task_group_id, [&](const HypernodeID hn) {
       ASSERT(_sparsified_partitioned_hg.nodeIsEnabled(hn));
       partitioned_hypergraph.setNodePart(hn, _sparsified_partitioned_hg.partID(hn));
