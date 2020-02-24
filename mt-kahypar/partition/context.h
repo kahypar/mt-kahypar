@@ -181,7 +181,7 @@ struct InitialPartitioningParameters {
   size_t lp_initial_block_size = 1;
 
   bool use_heavy_hyperedge_removal = false;
-  HypernodeWeight hyperedge_pin_weight_fraction = 0;
+  double hyperedge_pin_weight_fraction = 0.0;
   HypernodeWeight max_hyperedge_pin_weight = std::numeric_limits<HypernodeWeight>::max();
 };
 

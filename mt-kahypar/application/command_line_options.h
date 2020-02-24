@@ -272,7 +272,7 @@ po::options_description createInitialPartitioningOptionsDescription(Context& con
     po::value<bool>(&context.initial_partitioning.use_heavy_hyperedge_removal)->value_name("<bool>"),
     "If true, than hyperedges where the sum of the weights of all pins are greater than a threshold are removed before IP")
     ("i-hyperedge-pin-weight-fraction",
-    po::value<int>(&context.initial_partitioning.hyperedge_pin_weight_fraction)->value_name("<int>"),
+    po::value<double>(&context.initial_partitioning.hyperedge_pin_weight_fraction)->value_name("<double>"),
     "Hyperedges where the sum of the weights of all pins are greater than ((1 + eps)|V|/k) / fraction are removed before IP");
   return options;
 }
