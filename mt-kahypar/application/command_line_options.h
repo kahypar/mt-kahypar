@@ -211,12 +211,6 @@ po::options_description createCoarseningOptionsDescription(Context& context,
     ("c-use-high-degree-vertex-threshold",
     po::value<bool>(&context.coarsening.use_high_degree_vertex_threshold)->value_name("<bool>"),
     "If true, than high degree vertices are special treated during coarsening")
-    ("c-use-heavy-hyperedge-removal",
-    po::value<bool>(&context.coarsening.use_heavy_hyperedge_removal)->value_name("<bool>"),
-    "If true, than hyperedges where the sum of the weights of all pins are greater than a threshold are removed")
-    ("c-hyperedge-pin-weight-fraction",
-    po::value<int>(&context.coarsening.hyperedge_pin_weight_fraction)->value_name("<int>"),
-    "Hyperedges where the sum of the weights of all pins are greater than ((1 + eps)|V|/k) / fraction are removed")
     ("c-rating-score",
     po::value<std::string>()->value_name("<string>")->notifier(
       [&](const std::string& rating_score) {
@@ -273,7 +267,13 @@ po::options_description createInitialPartitioningOptionsDescription(Context& con
     ("i-lp-initial-block-size",
     po::value<size_t>(&context.initial_partitioning.lp_initial_block_size)->value_name("<size_t>"),
     "Initial block size used for label propagation initial partitioner \n"
-    "(default: 1)");
+    "(default: 1)")
+    ("i-use-heavy-hyperedge-removal",
+    po::value<bool>(&context.initial_partitioning.use_heavy_hyperedge_removal)->value_name("<bool>"),
+    "If true, than hyperedges where the sum of the weights of all pins are greater than a threshold are removed before IP")
+    ("i-hyperedge-pin-weight-fraction",
+    po::value<int>(&context.initial_partitioning.hyperedge_pin_weight_fraction)->value_name("<int>"),
+    "Hyperedges where the sum of the weights of all pins are greater than ((1 + eps)|V|/k) / fraction are removed before IP");
   return options;
 }
 
