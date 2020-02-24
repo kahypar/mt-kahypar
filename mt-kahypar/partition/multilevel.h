@@ -126,7 +126,8 @@ class CoarseningTask : public tbb::task {
 
     if (_context.partition.verbose_output) {
       mt_kahypar::io::printHypergraphInfo(
-        _coarsener.coarsestHypergraph(), "Coarsened Hypergraph");
+        _coarsener.coarsestHypergraph(), "Coarsened Hypergraph",
+        _context.partition.show_memory_consumption);
     }
 
     // ################## INITIAL PARTITIONING ##################

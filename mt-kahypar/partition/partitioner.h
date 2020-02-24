@@ -302,7 +302,8 @@ inline PartitionedHypergraph<> Partitioner::partition(Hypergraph& hypergraph, Co
   postprocess(partitioned_hypergraph, context);
 
   if (context.partition.verbose_output) {
-    io::printHypergraphInfo(partitioned_hypergraph, "Uncoarsened Hypergraph");
+    io::printHypergraphInfo(partitioned_hypergraph, "Uncoarsened Hypergraph",
+      context.partition.show_memory_consumption);
     io::printStripe();
   }
 

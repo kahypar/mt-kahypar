@@ -109,10 +109,13 @@ class MultilevelCoarsenerBase {
     _context(context),
     _task_group_id(task_group_id),
     _hierarchies() {
-    const size_t estimated_number_of_levels = std::ceil( std::log2(
-      static_cast<double>(_hg.initialNumNodes()) /
-      static_cast<double>(_context.coarsening.contraction_limit)) /
-      std::log2(_context.coarsening.multilevel_shrink_factor) ) + 1UL;
+    size_t estimated_number_of_levels = 1UL;
+    if ( _hg.initialNumNodes() > _context.coarsening.contraction_limit ) {
+      estimated_number_of_levels = std::ceil( std::log2(
+        static_cast<double>(_hg.initialNumNodes()) /
+        static_cast<double>(_context.coarsening.contraction_limit)) /
+        std::log2(_context.coarsening.multilevel_shrink_factor) ) + 1UL;
+    }
     _hierarchies.reserve(estimated_number_of_levels);
   }
 
@@ -184,8 +187,7 @@ class MultilevelCoarsenerBase {
     ASSERT(!_is_finalized);
     HyperGraph& current_hg = currentHypergraph();
     ASSERT(current_hg.initialNumNodes() == communities.size());
-    auto contracted_hg = current_hg.contract(communities, _task_group_id,
-      _context.coarsening.max_hyperedge_pin_weight);
+    auto contracted_hg = current_hg.contract(communities, _task_group_id);
     _hierarchies.emplace_back(std::move(contracted_hg.first),
       std::move(communities), std::move(contracted_hg.second));
   }
@@ -232,23 +234,15 @@ class MultilevelCoarsenerBase {
       });
       representative_hg.initializeNumCutHyperedges(_task_group_id);
 
-      /*ASSERT(metrics::objective(representative_hg, _context.partition.objective) ==
+      ASSERT(metrics::objective(representative_hg, _context.partition.objective) ==
              metrics::objective(contracted_hg, _context.partition.objective),
              V(metrics::objective(representative_hg, _context.partition.objective)) <<
-             V(metrics::objective(contracted_hg, _context.partition.objective)));*/
+             V(metrics::objective(contracted_hg, _context.partition.objective)));
       ASSERT(metrics::imbalance(representative_hg, _context) ==
              metrics::imbalance(contracted_hg, _context),
              V(metrics::imbalance(representative_hg, _context)) <<
              V(metrics::imbalance(contracted_hg, _context)));
       utils::Timer::instance().stop_timer("projecting_partition");
-
-      tbb::parallel_invoke([&] {
-        // Cut metric
-        current_metrics.cut = metrics::hyperedgeCut(representative_hg);
-      }, [&] {
-        // Km1 metric
-        current_metrics.km1 = metrics::km1(representative_hg);
-      });
 
       // Refinement
       utils::Timer::instance().start_timer("initialize_refiner", "Initialize Refiner");

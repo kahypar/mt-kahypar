@@ -884,8 +884,7 @@ class StaticHypergraph {
    */
   std::pair<StaticHypergraph, parallel::scalable_vector<HypernodeID>> contract(
     const parallel::scalable_vector<HypernodeID>& communities,
-    const TaskGroupID task_group_id,
-    const HypernodeWeight hyperedge_pin_weight_limit = std::numeric_limits<HypernodeWeight>::max()) const {
+    const TaskGroupID task_group_id) const {
     ASSERT(communities.size() == _num_hypernodes);
 
     // #################### STAGE 1 ####################
@@ -1000,10 +999,15 @@ class StaticHypergraph {
         ContractedHyperedge& contracted_he_lhs = hyperedge_bucket[i];
         if ( !contracted_he_lhs.is_parallel ) {
 
-          HypernodeWeight pin_weight_of_hyperedge = 0;
+          // Determine position for each hyperedge and its pin
+          // in the hyperedge vector and incidence array
+          contracted_he_lhs.he_idx = num_hyperedges_prefix_sum[bucket + 1]++;
+          contracted_he_lhs.pin_idx = num_pins_prefix_sum[bucket + 1];
+          num_pins_prefix_sum[bucket + 1] += contracted_he_lhs.hyperedge.size();
+          // Aggregate the number of incident nets of each vertex
           for ( const HypernodeID& pin : contracted_he_lhs.hyperedge ) {
             ASSERT(pin < num_hypernodes);
-            pin_weight_of_hyperedge += hn_weights[pin];
+            ++num_incident_nets[pin];
           }
 
           for ( size_t j = i + 1; j < hyperedge_bucket.size(); ++j ) {
@@ -1019,25 +1023,6 @@ class StaticHypergraph {
               // In case, hash of both are not equal we go to the next hyperedge
               // because we compared it with all hyperedges that had an equal hash
               break;
-            }
-          }
-
-          if ( pin_weight_of_hyperedge > hyperedge_pin_weight_limit ) {
-            // In that case, the hyperedge becomes to heavy. Assumption
-            // is that if the sum of the weights of all pins in a hyperedge
-            // are greater than a threshold, than this hyperedge will be with
-            // high probability a cut hyperedge.
-            contracted_he_lhs.is_parallel = true;
-          } else {
-            // Determine position for each hyperedge and its pin
-            // in the hyperedge vector and incidence array
-            contracted_he_lhs.he_idx = num_hyperedges_prefix_sum[bucket + 1]++;
-            contracted_he_lhs.pin_idx = num_pins_prefix_sum[bucket + 1];
-            num_pins_prefix_sum[bucket + 1] += contracted_he_lhs.hyperedge.size();
-            // Aggregate the number of incident nets of each vertex
-            for ( const HypernodeID& pin : contracted_he_lhs.hyperedge ) {
-              ASSERT(pin < num_hypernodes);
-              ++num_incident_nets[pin];
             }
           }
         }
