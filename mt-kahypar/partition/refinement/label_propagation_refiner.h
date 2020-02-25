@@ -306,7 +306,7 @@ class LabelPropagationRefinerT final : public IRefinerT<TypeTraits, track_border
       // propagation or if the vertex is still active. A vertex is active, if it changed its block
       // in the last round or one of its neighbors.
 
-      if (is_first_round || _active[0][original_id]) {
+      if (is_first_round || _active[numa_node][original_id]) {
         Move best_move = _gain.computeMaxGainMove(hypergraph, hn);
         // We perform a move if it either improves the solution quality or, in case of a
         // zero gain move, the balance of the solution.
@@ -315,8 +315,9 @@ class LabelPropagationRefinerT final : public IRefinerT<TypeTraits, track_border
                               best_move.gain == 0 &&
                               hypergraph.partWeight(best_move.from) - 1 >
                               hypergraph.partWeight(best_move.to) + 1 &&
-                              hypergraph.partWeight(best_move.to) <
+                              hypergraph.partWeight(best_move.to) + hypergraph.nodeWeight(hn) <=
                               _context.partition.perfect_balance_part_weights[best_move.to]);
+
         if (best_move.from != best_move.to && perform_move) {
           PartitionID from = best_move.from;
           PartitionID to = best_move.to;
@@ -354,7 +355,7 @@ class LabelPropagationRefinerT final : public IRefinerT<TypeTraits, track_border
               hypergraph.changeNodePart(hn, to, from, objective_delta);
             }
           }
-          _next_active[0].set(original_id, true);
+          _next_active[numa_node].set(original_id, true);
         }
       }
 
