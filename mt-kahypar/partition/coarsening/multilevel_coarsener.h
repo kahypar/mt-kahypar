@@ -168,10 +168,13 @@ class MultilevelCoarsenerT : public ICoarsenerT<TypeTraits>,
       utils::Timer::instance().stop_timer("parallel_clustering");
       DBG << V(_uf.numDistinctSets());
 
-      _progress_bar += (num_hns_before_pass - _uf.numDistinctSets());
-      if ( num_hns_before_pass == _uf.numDistinctSets() ) {
+      const double reduction_percentage =
+        static_cast<double>(num_hns_before_pass) /
+        static_cast<double>(_uf.numDistinctSets());
+      if ( reduction_percentage < _context.coarsening.minimum_shrink_factor ) {
         break;
       }
+      _progress_bar += (num_hns_before_pass - _uf.numDistinctSets());
 
       // Compute community structure that is given by the representatives of each
       // node in the union find data structure.
@@ -205,7 +208,7 @@ class MultilevelCoarsenerT : public ICoarsenerT<TypeTraits>,
 
   HypernodeID hierarchyContractionLimit(const HyperGraph& hypergraph) const {
     return std::max( static_cast<HypernodeID>( static_cast<double>(hypergraph.initialNumNodes()) /
-      _context.coarsening.multilevel_shrink_factor ), _context.coarsening.contraction_limit );
+      _context.coarsening.maximum_shrink_factor ), _context.coarsening.contraction_limit );
   }
 
   using Base::_context;
