@@ -156,7 +156,7 @@ class MultilevelCoarsenerT : public ICoarsenerT<TypeTraits>,
                 current_hg.isHighDegreeVertex(rating.target) ?
                   _context.coarsening.max_allowed_high_degree_node_weight :
                   _context.coarsening.max_allowed_node_weight;
-              if ( contracted_weight < maximum_allowed_node_weight ) {
+              if ( contracted_weight <= maximum_allowed_node_weight ) {
                 _uf.link(current_hg.originalNodeID(hn), current_hg.originalNodeID(rating.target));
                 _rater.markAsMatched(current_hg, hn);
                 _rater.markAsMatched(current_hg, rating.target);
