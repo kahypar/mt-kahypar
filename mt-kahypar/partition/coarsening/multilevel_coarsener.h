@@ -71,7 +71,9 @@ class MultilevelCoarsenerT : public ICoarsenerT<TypeTraits>,
     _uf(hypergraph),
     _rater(hypergraph, context, _uf),
     _progress_bar(hypergraph.initialNumNodes(), 0, false),
-    _enable_randomization(true) { }
+    _enable_randomization(true) {
+    _progress_bar += hypergraph.numRemovedHypernodes();
+  }
 
   MultilevelCoarsenerT(const MultilevelCoarsenerT&) = delete;
   MultilevelCoarsenerT(MultilevelCoarsenerT&&) = delete;
