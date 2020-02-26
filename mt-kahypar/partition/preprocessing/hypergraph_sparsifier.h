@@ -26,6 +26,7 @@
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/datastructures/clustering.h"
 #include "mt-kahypar/partition/context.h"
+#include "mt-kahypar/parallel/stl/scalable_vector.h"
 
 namespace mt_kahypar {
 class HypergraphSparsifier {
@@ -33,7 +34,8 @@ class HypergraphSparsifier {
 
   HypergraphSparsifier() :
     _removed_hes(),
-    _removed_hns() { }
+    _removed_hns(),
+    _representative_hns() { }
 
   HypergraphSparsifier(const HypergraphSparsifier&) = delete;
   HypergraphSparsifier & operator= (const HypergraphSparsifier &) = delete;
@@ -53,17 +55,31 @@ class HypergraphSparsifier {
     return num_removed_single_node_hes;
   }
 
-  HypernodeID removeDegreeZeroHypernodes(Hypergraph& hypergraph) {
+  HypernodeID contractDegreeZeroHypernodes(Hypergraph& hypergraph, const Context& context) {
+    _representative_hns.assign(hypergraph.initialNumNodes(), kInvalidHypernode);
     HypernodeID num_removed_degree_zero_hypernodes = 0;
+    HypernodeID last_representative = kInvalidHypernode;
+    HypernodeWeight last_representative_weight = 0;
     for (const HypernodeID& hn : hypergraph.nodes()) {
-      // Currently, we only remove zero-degree hypernodes with weight one
-      // If, we would remove hypernodes with weight greater than one than a
-      // a feasible partition would be not always possible, if we restore
-      // them afterwards.
-      if ( hypergraph.nodeDegree(hn) == 0 && hypergraph.nodeWeight(hn) == 1) {
-        ++num_removed_degree_zero_hypernodes;
-        hypergraph.removeHypernode(hn);
-        _removed_hns.push_back(hn);
+      if ( hypergraph.nodeDegree(hn) == 0 ) {
+        bool was_removed = false;
+        if ( last_representative != kInvalidHypernode ) {
+          const HypernodeWeight weight = hypergraph.nodeWeight(hn);
+          if ( last_representative_weight + weight <= context.coarsening.max_allowed_node_weight ) {
+            ++num_removed_degree_zero_hypernodes;
+            hypergraph.removeHypernode(hn);
+            hypergraph.setNodeWeight(last_representative, last_representative_weight + weight);
+            last_representative_weight += weight;
+            _removed_hns.push_back(hn);
+            _representative_hns[hypergraph.originalNodeID(hn)] = last_representative;
+            was_removed = true;
+          }
+        }
+
+        if ( !was_removed ) {
+          last_representative = hn;
+          last_representative_weight = hypergraph.nodeWeight(hn);
+        }
       }
     }
     return num_removed_degree_zero_hypernodes;
@@ -89,32 +105,22 @@ class HypergraphSparsifier {
     }
   }
 
-  void restoreDegreeZeroHypernodes(PartitionedHypergraph<>& hypergraph, const Context& context) {
-    std::vector<PartitionID> valid_blocks(context.partition.k, 0);
-    std::iota(valid_blocks.begin(), valid_blocks.end(), 0);
-    size_t current_block_idx = 0;
+  void restoreDegreeZeroHypernodes(PartitionedHypergraph<>& hypergraph) {
     for ( const HypernodeID& hn : _removed_hns ) {
+      const HypernodeID original_id = hypergraph.originalNodeID(hn);
+      ASSERT(original_id < _representative_hns.size());
+      const HypernodeID representative = _representative_hns[original_id];
+      ASSERT(representative != kInvalidHypernode);
       hypergraph.enableHypernode(hn);
-      ASSERT(hypergraph.nodeWeight(hn) == 1);
-
-      // Search for a valid block to which we assign the restored hypernode
-      // Note, a valid block must exist because we only remove weight one hypernodes
-      PartitionID current_block = valid_blocks[current_block_idx];
-      while ( hypergraph.partWeight(current_block) >= context.partition.max_part_weights[current_block] ) {
-        std::swap(valid_blocks[current_block_idx], valid_blocks.back());
-        valid_blocks.pop_back();
-        ASSERT(!valid_blocks.empty());
-        current_block_idx = current_block_idx % valid_blocks.size();
-        current_block = valid_blocks[current_block_idx];
-      }
-
-      hypergraph.setNodePart(hn, current_block);
-      current_block_idx = (current_block_idx + 1) % valid_blocks.size();
+      hypergraph.setNodeWeight(representative,
+        hypergraph.nodeWeight(representative) - hypergraph.nodeWeight(hn));
+      hypergraph.setNodePart(hn, hypergraph.partID(representative));
     }
   }
 
  private:
-  std::vector<HyperedgeID> _removed_hes;
-  std::vector<HypernodeID> _removed_hns;
+  parallel::scalable_vector<HyperedgeID> _removed_hes;
+  parallel::scalable_vector<HypernodeID> _removed_hns;
+  parallel::scalable_vector<HypernodeID> _representative_hns;
 };
 }  // namespace mt_kahypar

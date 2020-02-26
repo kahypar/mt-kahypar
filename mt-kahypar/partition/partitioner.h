@@ -72,7 +72,7 @@ class Partitioner {
 
   inline void redistribution(Hypergraph& hypergraph, const Context& context);
 
-  inline void postprocess(PartitionedHypergraph<>& hypergraph, const Context& context);
+  inline void postprocess(PartitionedHypergraph<>& hypergraph);
 
   HypergraphSparsifier _hypergraph_sparsifier;
 };
@@ -164,7 +164,7 @@ inline void Partitioner::sanitize(Hypergraph& hypergraph, const Context& context
 
   utils::Timer::instance().start_timer("degree_zero_hypernode_removal", "Degree Zero Hypernode Removal");
   const HypernodeID num_removed_degree_zero_hypernodes =
-    _hypergraph_sparsifier.removeDegreeZeroHypernodes(hypergraph);
+    _hypergraph_sparsifier.contractDegreeZeroHypernodes(hypergraph, context);
   utils::Timer::instance().stop_timer("degree_zero_hypernode_removal");
 
   if (context.partition.verbose_output &&
@@ -277,8 +277,8 @@ inline void Partitioner::redistribution(Hypergraph& hypergraph, const Context& c
   hypergraph.setCommunityNodeMapping(std::move(community_node_mapping));
 }
 
-inline void Partitioner::postprocess(PartitionedHypergraph<>& hypergraph, const Context& context) {
-  _hypergraph_sparsifier.restoreDegreeZeroHypernodes(hypergraph, context);
+inline void Partitioner::postprocess(PartitionedHypergraph<>& hypergraph) {
+  _hypergraph_sparsifier.restoreDegreeZeroHypernodes(hypergraph);
   _hypergraph_sparsifier.restoreSingleNodeHyperedges(hypergraph);
 }
 
@@ -299,7 +299,7 @@ inline PartitionedHypergraph<> Partitioner::partition(Hypergraph& hypergraph, Co
   PartitionedHypergraph<> partitioned_hypergraph = multilevel::partition(
     hypergraph, context, true, TBBNumaArena::GLOBAL_TASK_GROUP);
 
-  postprocess(partitioned_hypergraph, context);
+  postprocess(partitioned_hypergraph);
 
   if (context.partition.verbose_output) {
     io::printHypergraphInfo(partitioned_hypergraph, "Uncoarsened Hypergraph",
