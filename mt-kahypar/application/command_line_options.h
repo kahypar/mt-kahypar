@@ -276,7 +276,13 @@ po::options_description createInitialPartitioningOptionsDescription(Context& con
     "If true, than hypergraph is sparsified before initial partitioning")
     ("i-hyperedge-pin-weight-fraction",
     po::value<double>(&context.initial_partitioning.sparsification.hyperedge_pin_weight_fraction)->value_name("<double>"),
-    "Hyperedges where the sum of the weights of all pins are greater than ((1 + eps)|V|/k) / fraction are removed before IP");
+    "Hyperedges where the sum of the weights of all pins are greater than ((1 + eps)|V|/k) / fraction are removed before IP")
+    ("i-high-degree-threshold-factor",
+    po::value<double>(&context.initial_partitioning.sparsification.high_degree_threshold_factor)->value_name("<double>"),
+    "If sparsification is enabled, vertices which are in more than |E| * factor hyperedges are removed as pin before IP")
+    ("i-high-degree-hyperedge-weight-threshold",
+    po::value<int>(&context.initial_partitioning.sparsification.high_degree_hyperedge_weight_threshold)->value_name("<int>"),
+    "High degree vertices are removed from hyperedges with a weight less than or equal to this threshold");
   return options;
 }
 
