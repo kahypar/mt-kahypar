@@ -307,7 +307,7 @@ class HypergraphSparsifierT {
       }
       // Hyperedge will be include in sparsified hypergraph if its weight of
       // all pins is less than a predefined upper bound
-      if ( pin_weight <= _context.initial_partitioning.max_hyperedge_pin_weight ) {
+      if ( pin_weight <= _context.initial_partitioning.sparsification.max_hyperedge_pin_weight ) {
         include_in_sparsified_hg[hypergraph.originalEdgeID(he)] = 1UL;
       }
     });

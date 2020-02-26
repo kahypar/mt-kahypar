@@ -152,7 +152,7 @@ class CoarseningTask : public tbb::task {
 
     // ################## INITIAL PARTITIONING ##################
     utils::Timer::instance().start_timer("initial_partitioning", "Initial Partitioning");
-    if ( _context.initial_partitioning.use_heavy_hyperedge_removal ) {
+    if ( _context.initial_partitioning.use_sparsification ) {
       // Sparsify Hypergraph, if heavy hyperedge removal is enabled
       utils::Timer::instance().start_timer("sparsify_hypergraph", "Sparsify Hypergraph");
       _sparsifier.sparsify(_coarsener.coarsestHypergraph());

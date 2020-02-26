@@ -224,7 +224,7 @@ class RecursiveInitialPartitionerT : public IInitialPartitioner {
       child_continuation._coarsener->coarsen();
 
       // Call recursive initial partitioner
-      if ( _context.initial_partitioning.use_heavy_hyperedge_removal ) {
+      if ( _context.initial_partitioning.use_sparsification ) {
         // Sparsify Hypergraph, if heavy hyperedge removal is enabled
         child_continuation._sparsifier.sparsify(child_continuation._coarsener->coarsestHypergraph());
       }
@@ -286,7 +286,7 @@ class RecursiveInitialPartitionerT : public IInitialPartitioner {
       context.coarsening.contraction_limit = std::max(context.partition.k * context.coarsening.contraction_limit_multiplier,
                                                       2 * context.shared_memory.num_threads * context.coarsening.contraction_limit_multiplier);
       context.setupMaximumAllowedNodeWeight(_hg.totalWeight());
-      context.setupHyperedgePinWeightThreshold();
+      context.setupSparsificationParameters();
 
       // Initial Partitioning Parameters
       bool is_parallel_recursion = _context.shared_memory.num_threads != context.shared_memory.num_threads;

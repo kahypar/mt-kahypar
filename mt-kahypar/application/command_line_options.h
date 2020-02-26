@@ -271,11 +271,11 @@ po::options_description createInitialPartitioningOptionsDescription(Context& con
     po::value<size_t>(&context.initial_partitioning.lp_initial_block_size)->value_name("<size_t>"),
     "Initial block size used for label propagation initial partitioner \n"
     "(default: 1)")
-    ("i-use-heavy-hyperedge-removal",
-    po::value<bool>(&context.initial_partitioning.use_heavy_hyperedge_removal)->value_name("<bool>"),
-    "If true, than hyperedges where the sum of the weights of all pins are greater than a threshold are removed before IP")
+    ("i-use-sparsification",
+    po::value<bool>(&context.initial_partitioning.use_sparsification)->value_name("<bool>"),
+    "If true, than hypergraph is sparsified before initial partitioning")
     ("i-hyperedge-pin-weight-fraction",
-    po::value<double>(&context.initial_partitioning.hyperedge_pin_weight_fraction)->value_name("<double>"),
+    po::value<double>(&context.initial_partitioning.sparsification.hyperedge_pin_weight_fraction)->value_name("<double>"),
     "Hyperedges where the sum of the weights of all pins are greater than ((1 + eps)|V|/k) / fraction are removed before IP");
   return options;
 }

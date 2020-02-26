@@ -175,16 +175,27 @@ inline std::ostream & operator<< (std::ostream& str, const CoarseningParameters&
   return str;
 }
 
+struct SparsificationParameters {
+  double hyperedge_pin_weight_fraction = 0.0;
+  // Those will be determined dynamically
+  HypernodeWeight max_hyperedge_pin_weight = std::numeric_limits<HypernodeWeight>::max();
+};
+
+inline std::ostream & operator<< (std::ostream& str, const SparsificationParameters& params) {
+  str << "  Sparsification Parameters:" << std::endl;
+  str << "    hyperedge pin weight fraction:    " << params.hyperedge_pin_weight_fraction << std::endl;
+  str << "    maximum hyperedge pin weight:     " << params.max_hyperedge_pin_weight << std::endl;
+  return str;
+}
+
 struct InitialPartitioningParameters {
   InitialPartitioningMode mode = InitialPartitioningMode::UNDEFINED;
+  SparsificationParameters sparsification = { };
+  bool use_sparsification = false;
   size_t runs = 1;
   bool use_adaptive_epsilon = false;
   size_t lp_maximum_iterations = 1;
   size_t lp_initial_block_size = 1;
-
-  bool use_heavy_hyperedge_removal = false;
-  double hyperedge_pin_weight_fraction = 0.0;
-  HypernodeWeight max_hyperedge_pin_weight = std::numeric_limits<HypernodeWeight>::max();
 };
 
 inline std::ostream & operator<< (std::ostream& str, const InitialPartitioningParameters& params) {
@@ -194,9 +205,8 @@ inline std::ostream & operator<< (std::ostream& str, const InitialPartitioningPa
   str << "  Use Adaptive Epsilon:               " << std::boolalpha << params.use_adaptive_epsilon << std::endl;
   str << "  Maximum Iterations of LP IP:        " << params.lp_maximum_iterations << std::endl;
   str << "  Initial Block Size of LP IP:        " << params.lp_initial_block_size << std::endl;
-  if ( params.use_heavy_hyperedge_removal ) {
-    str << "  hyperedge pin weight fraction:      " << params.hyperedge_pin_weight_fraction << std::endl;
-    str << "  maximum hyperedge pin weight:       " << params.max_hyperedge_pin_weight << std::endl;
+  if ( params.use_sparsification ) {
+    str << std::endl << params.sparsification;
   }
   return str;
 }
@@ -291,7 +301,7 @@ class Context {
       partition.max_part_weights.push_back(partition.max_part_weights[0]);
     }
 
-    setupHyperedgePinWeightThreshold();
+    setupSparsificationParameters();
   }
 
   void setupContractionLimit(const HypernodeWeight total_hypergraph_weight) {
@@ -331,15 +341,15 @@ class Context {
       std::min(coarsening.max_allowed_high_degree_node_weight, min_block_weight);
   }
 
-  void setupHyperedgePinWeightThreshold() {
-    if ( initial_partitioning.use_heavy_hyperedge_removal ) {
+  void setupSparsificationParameters() {
+    if ( initial_partitioning.use_sparsification ) {
       HypernodeWeight max_block_weight = 0;
       for ( PartitionID block = 0; block < partition.k; ++block ) {
         max_block_weight = std::max(max_block_weight, partition.max_part_weights[block]);
       }
 
-      initial_partitioning.max_hyperedge_pin_weight = max_block_weight /
-        initial_partitioning.hyperedge_pin_weight_fraction;
+      initial_partitioning.sparsification.max_hyperedge_pin_weight = max_block_weight /
+        initial_partitioning.sparsification.hyperedge_pin_weight_fraction;
     }
   }
 

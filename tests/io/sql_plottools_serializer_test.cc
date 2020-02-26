@@ -36,18 +36,18 @@ namespace io {
 std::vector<std::string> target_structs =
   { "PartitioningParameters", "CommunityDetectionParameters", "CommunityRedistributionParameters",
     "PreprocessingParameters", "RatingParameters", "CoarseningParameters", "InitialPartitioningParameters",
-    "LabelPropagationParameters", "RefinementParameters", "SharedMemoryParameters" };
+    "SparsificationParameters", "LabelPropagationParameters", "RefinementParameters", "SharedMemoryParameters" };
 
 std::unordered_map<std::string, std::string> target_struct_prefix =
   { {"PartitioningParameters", ""}, {"CommunityDetectionParameters", "community_"}, {"CommunityRedistributionParameters", "community_redistribution_"},
     {"PreprocessingParameters", ""}, {"RatingParameters", "rating_"}, {"CoarseningParameters", "coarsening_"},
-    {"InitialPartitioningParameters", "initial_partitioning_"}, {"LabelPropagationParameters", "lp_"}, {"RefinementParameters", ""},
-    {"SharedMemoryParameters", ""} };
+    {"InitialPartitioningParameters", "initial_partitioning_"}, {"SparsificationParameters", "sparsification_"},
+    {"LabelPropagationParameters", "lp_"}, {"RefinementParameters", ""}, {"SharedMemoryParameters", ""} };
 
 std::set<std::string> excluded_members =
   { "verbose_output", "quiet_mode", "detailed_timings", "show_memory_consumption", "enable_progress_bar", "sp_process_output",
     "write_partition_file", "graph_partition_filename", "graph_community_filename", "community_detection",
-    "community_redistribution", "coarsening_rating", "label_propagation", "lp_execute_sequential" };
+    "community_redistribution", "coarsening_rating", "initial_partitioning_sparsification", "label_propagation", "lp_execute_sequential" };
 
 bool is_target_struct(const std::string& line) {
   for ( const std::string& target_struct : target_structs ) {
