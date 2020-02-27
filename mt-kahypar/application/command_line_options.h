@@ -208,9 +208,6 @@ po::options_description createCoarseningOptionsDescription(Context& context,
     ("c-max-shrink-factor",
     po::value<double>(&context.coarsening.maximum_shrink_factor)->value_name("<double>"),
     "Maximum factor a hypergraph can shrink in a multilevel pass")
-    ("c-ignore-already-matched-vertices",
-    po::value<bool>(&context.coarsening.ignore_already_matched_vertices)->value_name("<bool>"),
-    "If true, multilevel coarsener ignores already matched vertices")
     ("c-use-high-degree-vertex-threshold",
     po::value<bool>(&context.coarsening.use_high_degree_vertex_threshold)->value_name("<bool>"),
     "If true, than high degree vertices are special treated during coarsening")

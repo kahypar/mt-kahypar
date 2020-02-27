@@ -79,13 +79,14 @@ enum class CoarseningAlgorithm : uint8_t {
 
 enum class RatingFunction : uint8_t {
   heavy_edge,
+  sameness,
   UNDEFINED
 };
 
 enum class HeavyNodePenaltyPolicy : uint8_t {
   no_penalty,
   multiplicative_penalty,
-  edge_frequency_penalty,
+  additive,
   UNDEFINED
 };
 
@@ -217,7 +218,7 @@ std::ostream & operator<< (std::ostream& os, const HeavyNodePenaltyPolicy& heavy
   switch (heavy_hn_policy) {
     case HeavyNodePenaltyPolicy::multiplicative_penalty: return os << "multiplicative";
     case HeavyNodePenaltyPolicy::no_penalty: return os << "no_penalty";
-    case HeavyNodePenaltyPolicy::edge_frequency_penalty: return os << "edge_frequency_penalty";
+    case HeavyNodePenaltyPolicy::additive: return os << "additive";
     case HeavyNodePenaltyPolicy::UNDEFINED: return os << "UNDEFINED";
   }
   return os << static_cast<uint8_t>(heavy_hn_policy);
@@ -236,6 +237,7 @@ std::ostream & operator<< (std::ostream& os, const AcceptancePolicy& acceptance_
 std::ostream & operator<< (std::ostream& os, const RatingFunction& func) {
   switch (func) {
     case RatingFunction::heavy_edge: return os << "heavy_edge";
+    case RatingFunction::sameness: return os << "sameness";
     case RatingFunction::UNDEFINED: return os << "UNDEFINED";
       // omit default case to trigger compiler warning for missing cases
   }
@@ -364,8 +366,8 @@ static HeavyNodePenaltyPolicy heavyNodePenaltyFromString(const std::string& pena
     return HeavyNodePenaltyPolicy::multiplicative_penalty;
   } else if (penalty == "no_penalty") {
     return HeavyNodePenaltyPolicy::no_penalty;
-  } else if (penalty == "edge_frequency_penalty") {
-    return HeavyNodePenaltyPolicy::edge_frequency_penalty;
+  } else if (penalty == "additive") {
+    return HeavyNodePenaltyPolicy::additive;
     // omit default case to trigger compiler warning for missing cases
   }
   ERROR("No valid edge penalty policy for rating.");
@@ -384,6 +386,8 @@ static AcceptancePolicy acceptanceCriterionFromString(const std::string& crit) {
 static RatingFunction ratingFunctionFromString(const std::string& function) {
   if (function == "heavy_edge") {
     return RatingFunction::heavy_edge;
+  } else  if (function == "sameness") {
+    return RatingFunction::sameness;
   }
   ERROR("No valid rating function for rating.");
   return RatingFunction::UNDEFINED;

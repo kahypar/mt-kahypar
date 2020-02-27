@@ -58,7 +58,6 @@ class ACoarsener : public Test {
     context.partition.objective = kahypar::Objective::km1;
     context.coarsening.max_allowed_node_weight = std::numeric_limits<HypernodeWeight>::max();
     context.coarsening.contraction_limit = 8;
-    context.coarsening.ignore_already_matched_vertices = false;
     context.coarsening.minimum_shrink_factor = 1.01;
     context.coarsening.maximum_shrink_factor = 4.0;
     context.setupPartWeights(hypergraph.totalWeight());

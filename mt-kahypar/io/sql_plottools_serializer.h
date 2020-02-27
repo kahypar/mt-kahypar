@@ -72,7 +72,6 @@ static inline std::string serialize(const PartitionedHypergraph<>& hypergraph,
         << " coarsening_max_allowed_high_degree_node_weight_multiplier=" << context.coarsening.max_allowed_high_degree_node_weight_multiplier
         << " coarsening_minimum_shrink_factor=" << context.coarsening.minimum_shrink_factor
         << " coarsening_maximum_shrink_factor=" << context.coarsening.maximum_shrink_factor
-        << " coarsening_ignore_already_matched_vertices=" << std::boolalpha << context.coarsening.ignore_already_matched_vertices
         << " coarsening_use_high_degree_vertex_threshold=" << std::boolalpha << context.coarsening.use_high_degree_vertex_threshold
         << " coarsening_max_allowed_node_weight=" << context.coarsening.max_allowed_node_weight
         << " coarsening_max_allowed_high_degree_node_weight=" << context.coarsening.max_allowed_high_degree_node_weight
