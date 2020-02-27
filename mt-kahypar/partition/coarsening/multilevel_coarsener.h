@@ -136,18 +136,29 @@ class MultilevelCoarsenerT : public ICoarsenerT<TypeTraits>,
           //  1.) The contraction limit of the current level is not reached
           //  2.) Vertex hn is enabled
           //  3.) Vertex hn is not a high degree vertex
-          //  4.) If the ignoring already matched vertices flag is not set
-          //      or vertex hn is not already matched with an other vertex
+          //  4.) Vertex hn is not matched before
           if ( _uf.numDistinctSets() > hierarchy_contraction_limit &&
                current_hg.nodeIsEnabled(hn) &&
                !current_hg.isHighDegreeVertex(hn) &&
-               (!_context.coarsening.ignore_already_matched_vertices ||
-                !_rater.isMatched(current_hg, hn)) ) {
+               ( !_enable_randomization || !_rater.isMatched(current_hg, hn) ) ) {
             const Rating rating = _rater.rate(current_hg, hn);
             if ( rating.target != kInvalidHypernode ) {
-              _rater.markAsMatched(current_hg, hn);
-              _rater.markAsMatched(current_hg, rating.target);
-              _uf.link(current_hg.originalNodeID(hn), current_hg.originalNodeID(rating.target));
+              // Check that if we contract both vertices, that the resulting weight
+              // is less than the maximum allowed node weight.
+              const HypernodeID original_hn_id = current_hg.originalNodeID(hn);
+              const HypernodeID original_target_id = current_hg.originalNodeID(rating.target);
+              const bool is_same_set = _uf.isSameSet(original_hn_id, original_target_id);
+              const HypernodeWeight contracted_weight = is_same_set ? _uf.weight(original_hn_id) :
+                _uf.weight(original_hn_id) + _uf.weight(original_target_id);
+              const HypernodeWeight maximum_allowed_node_weight =
+                current_hg.isHighDegreeVertex(rating.target) ?
+                  _context.coarsening.max_allowed_high_degree_node_weight :
+                  _context.coarsening.max_allowed_node_weight;
+              if ( contracted_weight <= maximum_allowed_node_weight ) {
+                _uf.link(original_hn_id, original_target_id);
+                _rater.markAsMatched(current_hg, hn);
+                _rater.markAsMatched(current_hg, rating.target);
+              }
             }
           }
         });

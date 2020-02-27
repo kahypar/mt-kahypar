@@ -81,6 +81,7 @@ class MultilevelVertexPairRater {
     _context(context),
     _uf(uf),
     _local_tmp_ratings(hypergraph.initialNumNodes()),
+    _local_visited_representatives(hypergraph.initialNumNodes()),
     _already_matched(hypergraph.initialNumNodes()) { }
 
   MultilevelVertexPairRater(const MultilevelVertexPairRater&) = delete;
@@ -91,6 +92,7 @@ class MultilevelVertexPairRater {
 
   VertexPairRating rate(const HyperGraph& hypergraph, const HypernodeID u) {
     TmpRatingMap& tmp_ratings = _local_tmp_ratings.local();
+    kahypar::ds::FastResetFlagArray<>& visited_representatives = _local_visited_representatives.local();
     const HypernodeID original_u_id = hypergraph.originalNodeID(u);
     const HypernodeWeight weight_u = _uf.weight(original_u_id);
     for ( const HyperedgeID& he : hypergraph.incidentEdges(u) ) {
@@ -99,9 +101,14 @@ class MultilevelVertexPairRater {
         const RatingType score = ScorePolicy::score(hypergraph, he);
         for ( const HypernodeID& v : hypergraph.pins(he) ) {
           const HypernodeID original_v_id = hypergraph.originalNodeID(v);
-          ASSERT(original_v_id < hypergraph.initialNumNodes());
-          tmp_ratings[original_v_id] += score;
+          const HypernodeID representative = _uf.find(original_v_id);
+          ASSERT(representative < hypergraph.initialNumNodes());
+          if ( !visited_representatives[representative] ) {
+            tmp_ratings[representative] += score;
+            visited_representatives.set(representative, true);
+          }
         }
+        visited_representatives.reset();
       }
     }
 
@@ -180,6 +187,7 @@ class MultilevelVertexPairRater {
   const Context& _context;
   UnionFind& _uf;
   ThreadLocalTmpRatingMap _local_tmp_ratings;
+  ThreadLocalFastResetFlagArray _local_visited_representatives;
   kahypar::ds::FastResetFlagArray<> _already_matched;
 };
 }  // namespace mt_kahypar

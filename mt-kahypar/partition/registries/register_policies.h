@@ -51,13 +51,15 @@ REGISTER_POLICY(CommunityAssignmentObjective, CommunityAssignmentObjective::pin_
 // //////////////////////////////////////////////////////////////////////////////
 REGISTER_POLICY(RatingFunction, RatingFunction::heavy_edge,
                 HeavyEdgeScore);
+REGISTER_POLICY(RatingFunction, RatingFunction::sameness,
+                SamenessScore);
 
 REGISTER_POLICY(HeavyNodePenaltyPolicy, HeavyNodePenaltyPolicy::no_penalty,
                 NoWeightPenalty);
 REGISTER_POLICY(HeavyNodePenaltyPolicy, HeavyNodePenaltyPolicy::multiplicative_penalty,
                 MultiplicativePenalty);
-REGISTER_POLICY(HeavyNodePenaltyPolicy, HeavyNodePenaltyPolicy::edge_frequency_penalty,
-                EdgeFrequencyPenalty);
+REGISTER_POLICY(HeavyNodePenaltyPolicy, HeavyNodePenaltyPolicy::additive,
+                AdditivePenalty);
 
 REGISTER_POLICY(AcceptancePolicy, AcceptancePolicy::best,
                 BestRatingWithTieBreaking);
