@@ -175,8 +175,6 @@ inline std::ostream & operator<< (std::ostream& str, const CoarseningParameters&
 
 struct SparsificationParameters {
   double hyperedge_pin_weight_fraction = 0.0;
-  double high_degree_threshold_factor = 1.0;
-  HyperedgeWeight high_degree_hyperedge_weight_threshold = 0;
   // Those will be determined dynamically
   HypernodeWeight max_hyperedge_pin_weight = std::numeric_limits<HypernodeWeight>::max();
 };
@@ -184,8 +182,6 @@ struct SparsificationParameters {
 inline std::ostream & operator<< (std::ostream& str, const SparsificationParameters& params) {
   str << "  Sparsification Parameters:" << std::endl;
   str << "    hyperedge pin weight fraction:    " << params.hyperedge_pin_weight_fraction << std::endl;
-  str << "    high-degree threshold factor:     " << params.high_degree_threshold_factor << std::endl;
-  str << "    high-degree HE weight threshold:  " << params.high_degree_hyperedge_weight_threshold << std::endl;
   str << "    maximum hyperedge pin weight:     " << params.max_hyperedge_pin_weight << std::endl;
   return str;
 }

@@ -109,15 +109,6 @@ class HypergraphSparsifierT {
       hypergraph, edge_vector, hyperedge_weight);
     utils::Timer::instance().stop_timer("heavy_hyperedge_removal");
 
-    // #################### STAGE 3 ####################
-    // High Degree Vertex Removal
-    // Removes vertices that have a degree greater than a certain threshold
-    // from all hyperedges. High-degree vertices are removed from hyperedges
-    // as long as their are more than two pins left.
-    utils::Timer::instance().start_timer("high_degree_vertex_removal", "High-Degree HN Removal");
-    highDegreeVertexSparsification(num_hypernodes, edge_vector, hyperedge_weight);
-    utils::Timer::instance().stop_timer("high_degree_vertex_removal");
-
     // #################### STAGE 4 ####################
     // Construct sparsified hypergraph
     utils::Timer::instance().start_timer("construct_sparsified_hypergraph", "Construct Sparsified HG");
@@ -348,48 +339,6 @@ class HypergraphSparsifierT {
     utils::Timer::instance().stop_timer("add_sparsified_hes");
 
     return edge_vector.size();
-  }
-
-  // ! Removes vertices that have a degree greater than a certain threshold
-  // ! from all hyperedges. High-degree vertices are removed from hyperedges
-  // ! as long as their are more than two pins left.
-  void highDegreeVertexSparsification(const HypernodeID num_hypernodes,
-                                      HyperedgeVector& edge_vector,
-                                      const parallel::scalable_vector<HyperedgeWeight>& hyperedge_weight) {
-    ASSERT(edge_vector.size() == hyperedge_weight.size());
-    const HyperedgeID num_hyperedges = edge_vector.size();
-    const HyperedgeID high_degree_threshold = static_cast<double>(num_hyperedges) *
-      _context.initial_partitioning.sparsification.high_degree_threshold_factor;
-
-    utils::Timer::instance().start_timer("calculate_vertex_degrees", "Calc. Vertex Degrees");
-    parallel::scalable_vector<parallel::IntegralAtomicWrapper<HyperedgeID>> vertex_degree(
-      num_hypernodes, parallel::IntegralAtomicWrapper<HyperedgeID>(0));
-    tbb::parallel_for(0UL, num_hyperedges, [&](const size_t i) {
-      for ( const HypernodeID& pin : edge_vector[i] ) {
-        ++vertex_degree[pin];
-      }
-    });
-    utils::Timer::instance().stop_timer("calculate_vertex_degrees");
-
-    utils::Timer::instance().start_timer("remove_high_degree_vertices_from_hes", "Remove High-Degree HNs from HEs");
-    tbb::parallel_for(0UL, num_hyperedges, [&](const size_t i) {
-      if ( hyperedge_weight[i] <= _context.initial_partitioning.sparsification.high_degree_hyperedge_weight_threshold ) {
-        parallel::scalable_vector<HypernodeID>& hyperedge = edge_vector[i];
-        std::sort(hyperedge.begin(), hyperedge.end(),
-          [&](const HypernodeID lhs, const HypernodeID rhs) {
-            return vertex_degree[lhs] < vertex_degree[rhs];
-          });
-        while ( hyperedge.size() > 2 ) {
-          const HypernodeID pin = hyperedge.back();
-          if ( vertex_degree[pin] > high_degree_threshold ) {
-            hyperedge.pop_back();
-          } else {
-            break;
-          }
-        }
-      }
-    });
-    utils::Timer::instance().stop_timer("remove_high_degree_vertices_from_hes");
   }
 
   const Context& _context;
