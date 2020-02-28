@@ -23,8 +23,12 @@
 
 #include <vector>
 
+#include "kahypar/utils/math.h"
+#include "kahypar/utils/hash_vector.h"
+
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/datastructures/clustering.h"
+#include "mt-kahypar/datastructures/streaming_map.h"
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/parallel/atomic_wrapper.h"
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
@@ -32,7 +36,6 @@
 namespace mt_kahypar {
 template<typename TypeTraits>
 class HypergraphSparsifierT {
- public:
 
   using HyperGraph = typename TypeTraits::HyperGraph;
   using PartitionedHyperGraph = typename TypeTraits::template PartitionedHyperGraph<>;
@@ -40,6 +43,43 @@ class HypergraphSparsifierT {
   using TBB = typename TypeTraits::TBB;
   using HyperedgeVector = parallel::scalable_vector<parallel::scalable_vector<HypernodeID>>;
 
+  using HashFunc = kahypar::math::MurmurHash<HypernodeID>;
+  using HashValue = typename HashFunc::HashValue;
+  using HashFuncVector = kahypar::HashFuncVector<HashFunc>;
+
+  struct Footprint {
+    parallel::scalable_vector<HashValue> footprint;
+    HyperedgeID he;
+
+    bool operator==(const Footprint& other) {
+      ASSERT(footprint.size() == other.footprint.size());
+      for ( size_t i = 0; i < footprint.size(); ++i ) {
+        if ( footprint[i] != other.footprint[i] ) {
+          return false;
+        }
+      }
+      return true;
+    }
+
+    bool operator<(const Footprint& other) {
+      ASSERT(footprint.size() == other.footprint.size());
+      for ( size_t i = 0; i < footprint.size(); ++i ) {
+        if ( footprint[i] < other.footprint[i] ) {
+          return true;
+        } else if ( footprint[i] > other.footprint[i] ) {
+          return false;
+        }
+      }
+      return he < other.he;
+    }
+
+  };
+
+  using FootprintMap = parallel::scalable_vector<parallel::scalable_vector<Footprint>>;
+
+  static constexpr bool enable_heavy_assert = false;
+
+ public:
   HypergraphSparsifierT(const Context& context,
                         const TaskGroupID task_group_id) :
     _context(context),
@@ -105,12 +145,18 @@ class HypergraphSparsifierT {
     // If the weight of all pins of a hyperedge is greater than a
     // certain threshold, we remove them from the hypergraph
     utils::Timer::instance().start_timer("heavy_hyperedge_removal", "Heavy HE Removal");
-    const HyperedgeID num_hyperedges = heavyHyperedgeRemovalSparsification(
+    HyperedgeID num_hyperedges = heavyHyperedgeRemovalSparsification(
       hypergraph, edge_vector, hyperedge_weight);
     utils::Timer::instance().stop_timer("heavy_hyperedge_removal");
 
+    // #################### STAGE 3 ####################
+    utils::Timer::instance().start_timer("similiar_hyperedge_removal", "Similiar HE Removal");
+    similiarHyperedgeRemoval(edge_vector, hyperedge_weight);
+    utils::Timer::instance().stop_timer("similiar_hyperedge_removal");
+
     // #################### STAGE 4 ####################
     // Construct sparsified hypergraph
+    num_hyperedges = edge_vector.size();
     utils::Timer::instance().start_timer("construct_sparsified_hypergraph", "Construct Sparsified HG");
     if ( TBB::instance().num_used_numa_nodes() == 1 ) {
       _sparsified_hg = HyperGraphFactory::construct(
@@ -334,11 +380,156 @@ class HypergraphSparsifierT {
         for ( const HypernodeID& pin : hypergraph.pins(he) ) {
           edge_vector[pos].push_back(_mapping[hypergraph.originalNodeID(pin)]);
         }
+        std::sort(edge_vector[pos].begin(), edge_vector[pos].end());
       }
     });
     utils::Timer::instance().stop_timer("add_sparsified_hes");
 
     return edge_vector.size();
+  }
+
+  void similiarHyperedgeRemoval(HyperedgeVector& edge_vector,
+                                parallel::scalable_vector<HyperedgeWeight>& hyperedge_weight) {
+    HashFuncVector hash_functions(_context.initial_partitioning.sparsification.min_hash_footprint_size,
+      utils::Randomize::instance().getRandomInt(0, 1000, sched_getcpu()));
+
+    ds::StreamingMap<HashValue, Footprint> hash_buckets;
+    tbb::parallel_for(0UL, edge_vector.size(), [&](const HyperedgeID he) {
+      Footprint he_footprint;
+      he_footprint.footprint = {};
+      he_footprint.he = he;
+      for ( size_t i = 0; i < hash_functions.getHashNum(); ++i ) {
+        he_footprint.footprint.push_back(minHash(hash_functions[i], edge_vector[he]));
+      }
+      hash_buckets.stream(combineHash(he_footprint), std::move(he_footprint));
+    });
+
+    FootprintMap footprint_map(hash_buckets.size());
+    hash_buckets.copy(footprint_map, [&](const HashValue key) {
+      return key % hash_buckets.size();
+    });
+
+    tbb::parallel_for(0UL, footprint_map.size(), [&](const size_t bucket) {
+      parallel::scalable_vector<Footprint>& footprint_bucket = footprint_map[bucket];
+      if ( footprint_bucket.size() > 0 ) {
+        std::sort(footprint_bucket.begin(), footprint_bucket.end());
+
+        for ( size_t i = 0; i < footprint_bucket.size(); ++i ) {
+          Footprint& representative = footprint_bucket[i];
+          if ( representative.he != kInvalidHyperedge ) {
+            parallel::scalable_vector<HypernodeID> rep_he = edge_vector[representative.he];
+            for ( size_t j = i + 1; j < footprint_bucket.size(); ++j ) {
+              Footprint& similiar_footprint = footprint_bucket[j];
+              if ( similiar_footprint.he != kInvalidHyperedge ) {
+                if ( representative == similiar_footprint ) {
+                  const double jaccard_index = jaccard(
+                    edge_vector[representative.he], edge_vector[similiar_footprint.he]);
+                  if ( jaccard_index >= _context.initial_partitioning.sparsification.jaccard_threshold ) {
+                    sampleCombineHyperedges(rep_he, edge_vector[similiar_footprint.he]);
+                    edge_vector[similiar_footprint.he].clear();
+                    hyperedge_weight[representative.he] += hyperedge_weight[similiar_footprint.he];
+                    hyperedge_weight[similiar_footprint.he] = 0;
+                    similiar_footprint.he = kInvalidHyperedge;
+                  }
+                } else {
+                  break;
+                }
+              }
+            }
+            edge_vector[representative.he] = std::move(rep_he);
+          }
+        }
+      }
+    });
+
+    for ( size_t i = 0; i < edge_vector.size(); ++i ) {
+      if ( edge_vector[i].size() == 0 ) {
+        std::swap(edge_vector[i], edge_vector.back());
+        std::swap(hyperedge_weight[i], hyperedge_weight.back());
+        edge_vector.pop_back();
+        hyperedge_weight.pop_back();
+        --i;
+      }
+    }
+  }
+
+  HashValue minHash(const HashFunc& hash_function,
+                    const parallel::scalable_vector<HypernodeID>& hyperedge ) {
+    HashValue hash_value = std::numeric_limits<HashValue>::max();
+    for ( const HypernodeID& pin : hyperedge ) {
+      hash_value = std::min(hash_value, hash_function(pin));
+    }
+    return hash_value;
+  }
+
+  HashValue combineHash(const Footprint& footprint) {
+    HashValue hash_value = kEdgeHashSeed;
+    for ( const HashValue& value : footprint.footprint ) {
+      hash_value ^= value;
+    }
+    return hash_value;
+  }
+
+  double jaccard(const parallel::scalable_vector<HypernodeID>& lhs,
+                 const parallel::scalable_vector<HypernodeID>& rhs) {
+    const size_t min_size = std::min(lhs.size(), rhs.size());
+    const size_t max_size = std::max(lhs.size(), rhs.size());
+    if ( static_cast<double>(min_size) / static_cast<double>(max_size) <
+         _context.initial_partitioning.sparsification.jaccard_threshold ) {
+      return 0.0;
+    }
+
+    size_t intersection_size = 0;
+    size_t i = 0;
+    size_t j = 0;
+    while ( i < lhs.size() && j < rhs.size() ) {
+      if ( lhs[i] == rhs[j] ) {
+        ++intersection_size;
+        ++i;
+        ++j;
+      } else if ( lhs[i] < rhs[j] ) {
+        ++i;
+      } else {
+        ++j;
+      }
+    }
+    const size_t union_size = lhs.size() + rhs.size() - intersection_size;
+    return static_cast<double>(intersection_size) /
+      static_cast<double>(union_size);
+  }
+
+  void unionCombineHyperedges(parallel::scalable_vector<HypernodeID>& lhs,
+                              const parallel::scalable_vector<HypernodeID>& rhs) {
+    size_t lhs_size = lhs.size();
+    size_t j = 0;
+    for ( size_t i = 0; i < lhs_size; ++i ) {
+      while ( j < rhs.size() && rhs[j] < lhs[i] ) {
+        lhs.push_back(rhs[j++]);
+      }
+    }
+    for ( ; j < rhs.size(); ++j ) {
+      lhs.push_back(rhs[j]);
+    }
+    std::sort(lhs.begin(), lhs.end());
+  }
+
+  void sampleCombineHyperedges(parallel::scalable_vector<HypernodeID>& lhs,
+                               const parallel::scalable_vector<HypernodeID>& rhs) {
+    parallel::scalable_vector<HypernodeID> combined;
+    int cpu_id = sched_getcpu();
+    for ( const HypernodeID& pin : lhs ) {
+      if ( utils::Randomize::instance().flipCoin(cpu_id) ) {
+        combined.push_back(pin);
+      }
+    }
+    for ( const HypernodeID& pin : rhs ) {
+      if ( utils::Randomize::instance().flipCoin(cpu_id) ) {
+        combined.push_back(pin);
+      }
+    }
+    std::sort(combined.begin(), combined.end());
+    combined.erase(std::unique(combined.begin(), combined.end()), combined.end());
+    lhs = std::move(combined);
   }
 
   const Context& _context;

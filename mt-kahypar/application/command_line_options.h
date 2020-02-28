@@ -273,7 +273,13 @@ po::options_description createInitialPartitioningOptionsDescription(Context& con
     "If true, than hypergraph is sparsified before initial partitioning")
     ("i-hyperedge-pin-weight-fraction",
     po::value<double>(&context.initial_partitioning.sparsification.hyperedge_pin_weight_fraction)->value_name("<double>"),
-    "Hyperedges where the sum of the weights of all pins are greater than ((1 + eps)|V|/k) / fraction are removed before IP");
+    "Hyperedges where the sum of the weights of all pins are greater than ((1 + eps)|V|/k) / fraction are removed before IP")
+    ("i-min-hash-footprint-size",
+    po::value<size_t>(&context.initial_partitioning.sparsification.min_hash_footprint_size)->value_name("<size_t>"),
+    "Number of locality sensitive hash functions used for similiar hyperedge removal")
+    ("i-jaccard-threshold",
+    po::value<double>(&context.initial_partitioning.sparsification.jaccard_threshold)->value_name("<double>"),
+    "Jaccard threshold for which to hyperedges are considered as similiar");
   return options;
 }
 

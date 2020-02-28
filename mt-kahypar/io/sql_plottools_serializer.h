@@ -87,6 +87,8 @@ static inline std::string serialize(const PartitionedHypergraph<>& hypergraph,
         << " initial_partitioning_lp_initial_block_size=" << context.initial_partitioning.lp_initial_block_size
         << " initial_partitioning_use_sparsification=" << std::boolalpha << context.initial_partitioning.use_sparsification
         << " sparsification_hyperedge_pin_weight_fraction=" << context.initial_partitioning.sparsification.hyperedge_pin_weight_fraction
+        << " sparsification_min_hash_footprint_size=" << context.initial_partitioning.sparsification.min_hash_footprint_size
+        << " sparsification_jaccard_threshold=" << context.initial_partitioning.sparsification.jaccard_threshold
         << " sparsification_max_hyperedge_pin_weight=" << context.initial_partitioning.sparsification.max_hyperedge_pin_weight
         << " use_batch_uncontractions=" << std::boolalpha << context.refinement.use_batch_uncontractions
         << " batch_size=" << context.refinement.batch_size
