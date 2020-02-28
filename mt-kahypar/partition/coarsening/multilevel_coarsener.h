@@ -166,7 +166,7 @@ class MultilevelCoarsenerT : public ICoarsenerT<TypeTraits>,
         });
       });
       utils::Timer::instance().stop_timer("parallel_clustering");
-      DBG << V(_uf.numDistinctSets());
+      DBG << V(num_hns_before_pass) << V(_uf.numDistinctSets());
 
       const double reduction_percentage =
         static_cast<double>(num_hns_before_pass) /
@@ -207,8 +207,9 @@ class MultilevelCoarsenerT : public ICoarsenerT<TypeTraits>,
   }
 
   HypernodeID hierarchyContractionLimit(const HyperGraph& hypergraph) const {
-    return std::max( static_cast<HypernodeID>( static_cast<double>(hypergraph.initialNumNodes()) /
-      _context.coarsening.maximum_shrink_factor ), _context.coarsening.contraction_limit );
+    return std::max( static_cast<HypernodeID>( static_cast<double>(hypergraph.initialNumNodes()
+      - hypergraph.numRemovedHypernodes() ) / _context.coarsening.maximum_shrink_factor ),
+      _context.coarsening.contraction_limit );
   }
 
   using Base::_context;
