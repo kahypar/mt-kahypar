@@ -161,17 +161,6 @@ TEST_F(AStaticHypergraph, VerifiesVertexDegrees) {
   ASSERT_EQ(2, hypergraph.nodeDegree(6));
 }
 
-TEST_F(AStaticHypergraph, MarksVerticesWithADegreeGreaterOrEqualThanTwoAsHighDegree) {
-  hypergraph.markAllHighDegreeVertices(TBBNumaArena::GLOBAL_TASK_GROUP, 2UL);
-  ASSERT_TRUE(hypergraph.isHighDegreeVertex(0));
-  ASSERT_FALSE(hypergraph.isHighDegreeVertex(1));
-  ASSERT_TRUE(hypergraph.isHighDegreeVertex(2));
-  ASSERT_TRUE(hypergraph.isHighDegreeVertex(3));
-  ASSERT_TRUE(hypergraph.isHighDegreeVertex(4));
-  ASSERT_FALSE(hypergraph.isHighDegreeVertex(5));
-  ASSERT_TRUE(hypergraph.isHighDegreeVertex(6));
-}
-
 TEST_F(AStaticHypergraph, RemovesVertices) {
   hypergraph.removeHypernode(0);
   hypergraph.removeHypernode(5);

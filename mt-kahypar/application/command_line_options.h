@@ -205,10 +205,6 @@ po::options_description createCoarseningOptionsDescription(Context& context,
     po::value<double>(&context.coarsening.max_allowed_weight_multiplier)->value_name("<double>"),
     "The maximum weight of a vertex in the coarsest hypergraph H is:\n"
     "(s * w(H)) / (t * k)\n")
-    ("c-s-high-degree",
-    po::value<double>(&context.coarsening.max_allowed_high_degree_node_weight_multiplier)->value_name("<double>"),
-    "The maximum weight of a high degree vertex in the coarsest hypergraph H is:\n"
-    "(s * w(H)) / (t * k)\n")
     ("c-t",
     po::value<HypernodeID>(&context.coarsening.contraction_limit_multiplier)->value_name("<int>"),
     "Coarsening stops when there are no more than t * k hypernodes left")
@@ -218,9 +214,6 @@ po::options_description createCoarseningOptionsDescription(Context& context,
     ("c-max-shrink-factor",
     po::value<double>(&context.coarsening.maximum_shrink_factor)->value_name("<double>"),
     "Maximum factor a hypergraph can shrink in a multilevel pass")
-    ("c-use-high-degree-vertex-threshold",
-    po::value<bool>(&context.coarsening.use_high_degree_vertex_threshold)->value_name("<bool>"),
-    "If true, than all hypernodes with a degree greater than mean + 5 * stdev are skipped during coarsening")
     ("c-rating-score",
     po::value<std::string>()->value_name("<string>")->notifier(
       [&](const std::string& rating_score) {

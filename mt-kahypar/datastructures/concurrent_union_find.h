@@ -39,8 +39,7 @@ class ConcurrentUnionFind {
  public:
   explicit ConcurrentUnionFind(const HyperGraph& hypergraph) :
     _num_distinct_sets(hypergraph.initialNumNodes()),
-    _set(hypergraph.initialNumNodes()),
-    _contains_high_degree_vertex(hypergraph.initialNumNodes(), 0) {
+    _set(hypergraph.initialNumNodes()) {
     init(hypergraph);
   }
 
@@ -76,7 +75,6 @@ class ConcurrentUnionFind {
               weight_v = _set[root_v].load();
               desired_weight = weight_u + weight_v;
             }
-            _contains_high_degree_vertex[root_v] |= _contains_high_degree_vertex[root_u];
             --_num_distinct_sets;
             success = true;
           }
@@ -88,7 +86,6 @@ class ConcurrentUnionFind {
               weight_u = _set[root_u].load();
               desired_weight = weight_u + weight_v;
             }
-            _contains_high_degree_vertex[root_u] |= _contains_high_degree_vertex[root_v];
             --_num_distinct_sets;
             success = true;
           }
@@ -133,11 +130,6 @@ class ConcurrentUnionFind {
     return std::abs(weight);
   }
 
-  bool containsHighDegreeVertex(const HypernodeID u) {
-    ASSERT(u < _set.size());
-    return _contains_high_degree_vertex[find(u)];
-  }
-
  private:
   void init(const HyperGraph& hypergraph) {
     ASSERT(hypergraph.initialNumNodes() <= _set.size());
@@ -146,7 +138,6 @@ class ConcurrentUnionFind {
       const HypernodeID hn = hypergraph.globalNodeID(id);
       if ( hypergraph.nodeIsEnabled(hn) ) {
         _set[id] = -hypergraph.nodeWeight(hn);
-        _contains_high_degree_vertex[id] = hypergraph.isHighDegreeVertex(hn);
       } else {
         _set[id] = std::numeric_limits<HypernodeWeight>::min();
         --_num_distinct_sets;
@@ -156,7 +147,6 @@ class ConcurrentUnionFind {
 
   std::atomic<size_t> _num_distinct_sets;
   parallel::scalable_vector<parallel::IntegralAtomicWrapper<HypernodeWeight>> _set;
-  parallel::scalable_vector<uint8_t> _contains_high_degree_vertex;
 };
 
 }  // namespace ds

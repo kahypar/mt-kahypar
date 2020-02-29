@@ -342,25 +342,6 @@ class NumaHypergraph {
     return hypergraph_of_vertex(u).nodeDegree(u);
   }
 
-  // ! Returns, if the corresponding vertex is high degree vertex
-  bool isHighDegreeVertex(const HypernodeID u) const {
-    return hypergraph_of_vertex(u).isHighDegreeVertex(u);
-  }
-
-  // ! Marks hypernode u as high degree vertex
-  void markAsHighDegreeVertex(const HypernodeID u) {
-    hypergraph_of_vertex(u).markAsHighDegreeVertex(u);
-  }
-
-  // ! Marks all vertices with a degree greater the threshold
-  // ! as high degree vertex
-  void markAllHighDegreeVertices(const TaskGroupID task_group_id,
-                                 const HypernodeID high_degree_threshold) {
-    TBBNumaArena::instance().execute_parallel_on_all_numa_nodes(task_group_id, [&](const int node) {
-          _hypergraphs[node].markAllHighDegreeVertices(task_group_id, high_degree_threshold);
-        });
-  }
-
   // ! Number of invalid incident nets
   HyperedgeID numInvalidIncidentNets(const HypernodeID u) const {
     return hypergraph_of_vertex(u).numInvalidIncidentNets(u);
@@ -598,7 +579,6 @@ class NumaHypergraph {
     parallel::scalable_vector<HypernodeID> hn_to_numa_node;
     parallel::scalable_vector<parallel::IntegralAtomicWrapper<HypernodeWeight>> hn_weights;
     parallel::scalable_vector<PartitionID> community_ids;
-    parallel::scalable_vector<parallel::IntegralAtomicWrapper<uint8_t>> is_high_degree_vertex;
     tbb::parallel_invoke([&] {
       hn_to_numa_node.resize(num_hypernodes, 0);
     }, [&] {
@@ -606,9 +586,6 @@ class NumaHypergraph {
         parallel::IntegralAtomicWrapper<HypernodeWeight>(0));
     }, [&] {
       community_ids.assign(num_hypernodes, 0);
-    }, [&] {
-      is_high_degree_vertex.assign(num_hypernodes,
-        parallel::IntegralAtomicWrapper<uint8_t>(false));
     });
 
     // Mapping from a vertex id of the current hypergraph to its
@@ -637,8 +614,6 @@ class NumaHypergraph {
       // in the contracted hypergraph belong to same community. Otherwise, all communities
       // are default assigned to community 0
       community_ids[original_id] = communityID(hn);
-      // Vector is atomic => thread-safe
-      is_high_degree_vertex[original_id].fetch_or(isHighDegreeVertex(hn));
     });
     utils::Timer::instance().stop_timer("compute_cluster_mapping");
 
@@ -836,9 +811,6 @@ class NumaHypergraph {
             hn_obj.setOriginalNodeID(original_id);
             hn_obj.setWeight(hn_weights[original_id]);
             hn_obj.setCommunityID(community_ids[original_id]);
-            if ( is_high_degree_vertex[original_id] ) {
-              hn_obj.markAsHighDegreeVertex();
-            }
           });
           utils::Timer::instance().stop_timer("setup_hypernodes");
         }, [&] {
@@ -934,7 +906,7 @@ class NumaHypergraph {
     }, [&] {
       parallel::parallel_free(num_numa_incident_nets);
     }, [&] {
-      parallel::parallel_free(hn_to_numa_node, hn_weights, community_ids, is_high_degree_vertex);
+      parallel::parallel_free(hn_to_numa_node, hn_weights, community_ids);
     });
     utils::Timer::instance().stop_timer("free_internal_data");
 

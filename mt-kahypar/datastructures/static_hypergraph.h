@@ -59,7 +59,6 @@ class StaticHypergraph {
       _original_id(kInvalidHypernode),
       _weight(1),
       _community_id(0),
-      _is_high_degree_vertex(false),
       _valid(false) { }
 
     // Sentinel Constructor
@@ -69,7 +68,6 @@ class StaticHypergraph {
       _original_id(kInvalidHypernode),
       _weight(1),
       _community_id(0),
-      _is_high_degree_vertex(false),
       _valid(false) { }
 
     bool isDisabled() const {
@@ -140,14 +138,6 @@ class StaticHypergraph {
       _community_id = community_id;
     }
 
-    bool isHighDegreeVertex() const {
-      return _is_high_degree_vertex;
-    }
-
-    void markAsHighDegreeVertex() {
-      _is_high_degree_vertex = true;
-    }
-
    private:
     // ! Index of the first element in _incident_nets
     size_t _begin;
@@ -159,8 +149,6 @@ class StaticHypergraph {
     HyperedgeWeight _weight;
     // ! Community id
     PartitionID _community_id;
-    // ! Indicates, wheather this vertex is a high degree node or not
-    bool _is_high_degree_vertex;
     // ! Flag indicating whether or not the element is active.
     bool _valid;
   };
@@ -663,29 +651,6 @@ class StaticHypergraph {
     return hypernode(u).size();
   }
 
-  // ! Returns, if the corresponding vertex is high degree vertex
-  bool isHighDegreeVertex(const HypernodeID u) const {
-    ASSERT(!hypernode(u).isDisabled(), "Hypernode" << u << "is disabled");
-    return hypernode(u).isHighDegreeVertex();
-  }
-
-  // ! Marks hypernode u as high degree vertex
-  void markAsHighDegreeVertex(const HypernodeID u) {
-    ASSERT(!hypernode(u).isDisabled(), "Hypernode" << u << "is disabled");
-    hypernode(u).markAsHighDegreeVertex();
-  }
-
-  // ! Marks all vertices with a degree greater the threshold
-  // ! as high degree vertex
-  void markAllHighDegreeVertices(const TaskGroupID task_group_id,
-                                 const HypernodeID high_degree_threshold) {
-    doParallelForAllNodes(task_group_id, [&](const HypernodeID hn) {
-      if ( nodeDegree(hn) >= high_degree_threshold ) {
-        hypernode(hn).markAsHighDegreeVertex();
-      }
-    });
-  }
-
   // ! Number of invalid incident nets
   HyperedgeID numInvalidIncidentNets(const HypernodeID) const {
     ERROR("numInvalidIncidentNets(u) is not supported in static hypergraph");
@@ -911,14 +876,10 @@ class StaticHypergraph {
 
     parallel::scalable_vector<parallel::IntegralAtomicWrapper<HypernodeWeight>> hn_weights;
     parallel::scalable_vector<PartitionID> community_ids;
-    parallel::scalable_vector<parallel::IntegralAtomicWrapper<uint8_t>> is_high_degree_vertex;
     tbb::parallel_invoke([&] {
       hn_weights.assign(num_hypernodes, parallel::IntegralAtomicWrapper<HypernodeWeight>(0));
     }, [&] {
       community_ids.assign(num_hypernodes, 0);
-    }, [&] {
-      is_high_degree_vertex.assign(num_hypernodes,
-        parallel::IntegralAtomicWrapper<uint8_t>(false));
     });
 
     doParallelForAllNodes(task_group_id, [&](const HypernodeID& hn) {
@@ -930,8 +891,6 @@ class StaticHypergraph {
       // in the contracted hypergraph belong to same community. Otherwise, all communities
       // are default assigned to community 0
       community_ids[coarse_hn] = communityID(hn);
-      // Vector is atomic => thread-safe
-      is_high_degree_vertex[coarse_hn].fetch_or(isHighDegreeVertex(hn));
     });
     utils::Timer::instance().stop_timer("compute_cluster_mapping");
 
@@ -1068,9 +1027,6 @@ class StaticHypergraph {
         hn_obj.setOriginalNodeID(hn);
         hn_obj.setWeight(hn_weights[hn]);
         hn_obj.setCommunityID(community_ids[hn]);
-        if ( is_high_degree_vertex[hn] ) {
-          hn_obj.markAsHighDegreeVertex();
-        }
       });
       utils::Timer::instance().stop_timer("setup_hypernodes");
     }, [&] {
@@ -1139,7 +1095,7 @@ class StaticHypergraph {
     utils::Timer::instance().start_timer("free_internal_data", "Free Internal Data");
     // We free memory here in parallel, because this can become a major
     // bottleneck, if memory is freed sequential after function return
-    parallel::parallel_free(hn_weights, community_ids, num_incident_nets, is_high_degree_vertex);
+    parallel::parallel_free(hn_weights, community_ids, num_incident_nets);
     utils::Timer::instance().stop_timer("free_internal_data");
 
     return std::make_pair(std::move(hypergraph), std::move(mapping));

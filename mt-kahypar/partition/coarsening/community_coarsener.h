@@ -198,13 +198,13 @@ class CommunityCoarsenerT : public ICoarsenerT<TypeTraits>,
       }
 
       for (const HypernodeID& hn : nodes) {
-        if (_hg.nodeIsEnabled(hn) && !_hg.isHighDegreeVertex(hn)) {
+        if (_hg.nodeIsEnabled(hn)) {
           Rating rating = rater.rate(hn);
 
           if (rating.target != kInvalidHypernode) {
             rater.markAsMatched(hn);
             rater.markAsMatched(rating.target);
-            if (_hg.isHighDegreeVertex(rating.target)) {
+            if (_hg.nodeDegree(rating.target) > _hg.nodeDegree(hn)) {
               this->performContraction(rating.target, hn);
             } else {
               this->performContraction(hn, rating.target);
