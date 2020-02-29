@@ -68,11 +68,14 @@ static inline std::string serialize(const PartitionedHypergraph<>& hypergraph,
         << " community_redistribution_assignment_objective=" << context.preprocessing.community_redistribution.assignment_objective
         << " coarsening_algorithm=" << context.coarsening.algorithm
         << " coarsening_contraction_limit_multiplier=" << context.coarsening.contraction_limit_multiplier
+        << " coarsening_use_adaptive_max_allowed_node_weight=" << std::boolalpha << context.coarsening.use_adaptive_max_allowed_node_weight
+        << " coarsening_max_allowed_weight_fraction=" << context.coarsening.max_allowed_weight_fraction
+        << " coarsening_adaptive_node_weight_shrink_factor_threshold=" << context.coarsening.adaptive_node_weight_shrink_factor_threshold
         << " coarsening_max_allowed_weight_multiplier=" << context.coarsening.max_allowed_weight_multiplier
         << " coarsening_max_allowed_high_degree_node_weight_multiplier=" << context.coarsening.max_allowed_high_degree_node_weight_multiplier
         << " coarsening_minimum_shrink_factor=" << context.coarsening.minimum_shrink_factor
         << " coarsening_maximum_shrink_factor=" << context.coarsening.maximum_shrink_factor
-       << " coarsening_use_high_degree_vertex_threshold=" << std::boolalpha << context.coarsening.use_high_degree_vertex_threshold
+        << " coarsening_use_high_degree_vertex_threshold=" << std::boolalpha << context.coarsening.use_high_degree_vertex_threshold
         << " coarsening_max_allowed_node_weight=" << context.coarsening.max_allowed_node_weight
         << " coarsening_max_allowed_high_degree_node_weight=" << context.coarsening.max_allowed_high_degree_node_weight
         << " coarsening_contraction_limit=" << context.coarsening.contraction_limit

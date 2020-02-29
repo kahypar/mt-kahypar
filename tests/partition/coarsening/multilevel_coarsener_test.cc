@@ -32,19 +32,19 @@ using Coarsener = MultilevelCoarsenerT<TestTypeTraits, HeavyEdgeScore,
                                        NoWeightPenalty, BestRatingWithoutTieBreaking>;
 
 TEST_F(ACoarsener, DecreasesNumberOfPins) {
-  context.coarsening.contraction_limit = 7;
+  context.coarsening.contraction_limit = 8;
   Coarsener coarsener(hypergraph, context, TBB::GLOBAL_TASK_GROUP);
-  decreasesNumberOfPins(coarsener, 12);
+  decreasesNumberOfPins(coarsener, 14);
 }
 
 TEST_F(ACoarsener, DecreasesNumberOfHyperedges) {
-  context.coarsening.contraction_limit = 7;
+  context.coarsening.contraction_limit = 8;
   Coarsener coarsener(hypergraph, context, TBB::GLOBAL_TASK_GROUP);
-  decreasesNumberOfHyperedges(coarsener, 6);
+  decreasesNumberOfHyperedges(coarsener, 7);
 }
 
 TEST_F(ACoarsener, RemovesHyperedgesOfSizeOneDuringCoarsening) {
-  context.coarsening.contraction_limit = 7;
+  context.coarsening.contraction_limit = 8;
   Coarsener coarsener(hypergraph, context, TBB::GLOBAL_TASK_GROUP);
   doCoarsening(coarsener);
   auto& hypergraph = coarsener.coarsestHypergraph();
@@ -54,7 +54,7 @@ TEST_F(ACoarsener, RemovesHyperedgesOfSizeOneDuringCoarsening) {
 }
 
 TEST_F(ACoarsener, RemovesParallelHyperedgesDuringCoarsening) {
-  context.coarsening.contraction_limit = 7;
+  context.coarsening.contraction_limit = 8;
   Coarsener coarsener(hypergraph, context, TBB::GLOBAL_TASK_GROUP);
   doCoarsening(coarsener);
   auto& hypergraph = coarsener.coarsestHypergraph();
@@ -64,7 +64,7 @@ TEST_F(ACoarsener, RemovesParallelHyperedgesDuringCoarsening) {
 }
 
 TEST_F(ACoarsener, ProjectsPartitionBackToOriginalHypergraph) {
-  context.coarsening.contraction_limit = 7;
+  context.coarsening.contraction_limit = 8;
   Coarsener coarsener(hypergraph, context, TBB::GLOBAL_TASK_GROUP);
   doCoarsening(coarsener);
   PartitionedHyperGraph& coarsest_partitioned_hypergraph =

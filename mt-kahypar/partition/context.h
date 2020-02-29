@@ -139,6 +139,9 @@ struct CoarseningParameters {
   CoarseningAlgorithm algorithm = CoarseningAlgorithm::UNDEFINED;
   RatingParameters rating = { };
   HypernodeID contraction_limit_multiplier = std::numeric_limits<HypernodeID>::max();
+  bool use_adaptive_max_allowed_node_weight = false;
+  double max_allowed_weight_fraction = std::numeric_limits<double>::max();
+  double adaptive_node_weight_shrink_factor_threshold = std::numeric_limits<double>::max();
   double max_allowed_weight_multiplier = std::numeric_limits<double>::max();
   double max_allowed_high_degree_node_weight_multiplier = std::numeric_limits<double>::max();
   double minimum_shrink_factor = std::numeric_limits<double>::max();
@@ -155,10 +158,16 @@ struct CoarseningParameters {
 inline std::ostream & operator<< (std::ostream& str, const CoarseningParameters& params) {
   str << "Coarsening Parameters:" << std::endl;
   str << "  Algorithm:                          " << params.algorithm << std::endl;
-  str << "  max allowed weight multiplier:      " << params.max_allowed_weight_multiplier << std::endl;
-  str << "  max allowed high degree multiplier: " << params.max_allowed_high_degree_node_weight_multiplier << std::endl;
-  str << "  maximum allowed hypernode weight:   " << params.max_allowed_node_weight << std::endl;
-  str << "  maximum allowed high-degree weight: " << params.max_allowed_high_degree_node_weight << std::endl;
+  str << "  use adaptive max node weight:       " << std::boolalpha << params.use_adaptive_max_allowed_node_weight << std::endl;
+  if ( params.use_adaptive_max_allowed_node_weight ) {
+    str << "  max allowed weight fraction:        " << params.max_allowed_weight_fraction << std::endl;
+    str << "  adaptive node weight threshold:     " << params.adaptive_node_weight_shrink_factor_threshold << std::endl;
+  } else {
+    str << "  max allowed weight multiplier:      " << params.max_allowed_weight_multiplier << std::endl;
+    str << "  max allowed high degree multiplier: " << params.max_allowed_high_degree_node_weight_multiplier << std::endl;
+    str << "  maximum allowed hypernode weight:   " << params.max_allowed_node_weight << std::endl;
+    str << "  maximum allowed high-degree weight: " << params.max_allowed_high_degree_node_weight << std::endl;
+  }
   str << "  contraction limit multiplier:       " << params.contraction_limit_multiplier << std::endl;
   str << "  contraction limit:                  " << params.contraction_limit << std::endl;
   if ( params.algorithm == CoarseningAlgorithm::multilevel_coarsener ) {
