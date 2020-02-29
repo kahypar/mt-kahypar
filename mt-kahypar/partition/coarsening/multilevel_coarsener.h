@@ -72,7 +72,34 @@ class MultilevelCoarsenerT : public ICoarsenerT<TypeTraits>,
     _rater(hypergraph, context, _uf),
     _max_allowed_node_weight(context.coarsening.max_allowed_node_weight),
     _progress_bar(hypergraph.initialNumNodes(), 0, false),
-    _enable_randomization(true) { }
+    _enable_randomization(true) {
+    if ( _context.coarsening.use_adaptive_max_allowed_node_weight &&
+          hypergraph.totalWeight() !=
+          static_cast<HypernodeWeight>(hypergraph.initialNumNodes()) ) {
+      // If we have a weighted instance and adaptive maximum node weight is
+      // enabled we adapt the maximum allowed node such that it is greater
+      // than the heaviest node of the hypergraph.
+      const HypernodeWeight max_vertex_weight = tbb::parallel_reduce(
+      tbb::blocked_range<HypernodeID>(0UL, hypergraph.initialNumNodes()), 0,
+      [&](const tbb::blocked_range<HypernodeID>& range, HypernodeWeight init) {
+        HypernodeWeight weight = init;
+        for (HypernodeID id = range.begin(); id < range.end(); ++id) {
+          const HypernodeID hn = hypergraph.globalNodeID(id);
+          if ( hypergraph.nodeIsEnabled(hn) ) {
+            weight = std::max(weight, hypergraph.nodeWeight(hn));
+          }
+        }
+        return weight;
+      }, [](const HypernodeWeight lhs, const HypernodeWeight rhs) {
+        return std::max(lhs, rhs);
+      });
+      double node_weight_multiplier = std::pow(2.0, std::ceil(std::log2(
+        static_cast<double>(max_vertex_weight) / static_cast<double>(_max_allowed_node_weight))));
+      if ( node_weight_multiplier > 1.0 ) {
+        _max_allowed_node_weight = increaseMaximumAllowedNodeWeight(node_weight_multiplier);
+      }
+    }
+  }
 
   MultilevelCoarsenerT(const MultilevelCoarsenerT&) = delete;
   MultilevelCoarsenerT(MultilevelCoarsenerT&&) = delete;
@@ -201,7 +228,7 @@ class MultilevelCoarsenerT : public ICoarsenerT<TypeTraits>,
           _context.coarsening.adaptive_node_weight_shrink_factor_threshold;
         if ( ( reduction_vertices_below_threshold && reduction_pins_below_threshold ) ||
              ( !reduction_vertices_below_threshold && reduction_pins_below_threshold ) ) {
-          _max_allowed_node_weight = increaseMaximumAllowedNodeWeight();
+          _max_allowed_node_weight = increaseMaximumAllowedNodeWeight(2.0);
         }
         DBG << V(reduction_vertices_percentage)
             << V(reduction_pins_percentage)
@@ -234,14 +261,15 @@ class MultilevelCoarsenerT : public ICoarsenerT<TypeTraits>,
       _context.coarsening.contraction_limit );
   }
 
-  HypernodeWeight increaseMaximumAllowedNodeWeight() {
+  HypernodeWeight increaseMaximumAllowedNodeWeight(const double multiplier) {
     HypernodeWeight max_part_weight = 0;
     for ( PartitionID block = 0; block < _context.partition.k; ++block ) {
       max_part_weight = std::max(max_part_weight,
         _context.partition.max_part_weights[block]);
     }
-    return std::min( 2.0 * static_cast<double>(_max_allowed_node_weight),
-      max_part_weight / _context.coarsening.max_allowed_weight_fraction );
+    return std::min( multiplier * static_cast<double>(_max_allowed_node_weight),
+      std::max( max_part_weight / _context.coarsening.max_allowed_weight_fraction,
+        static_cast<double>(_context.coarsening.max_allowed_node_weight ) ) );
   }
 
   using Base::_context;
