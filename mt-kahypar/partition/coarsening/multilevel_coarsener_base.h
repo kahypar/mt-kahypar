@@ -109,10 +109,13 @@ class MultilevelCoarsenerBase {
     _context(context),
     _task_group_id(task_group_id),
     _hierarchies() {
-    const size_t estimated_number_of_levels = std::ceil( std::log2(
-      static_cast<double>(_hg.initialNumNodes()) /
-      static_cast<double>(_context.coarsening.contraction_limit)) /
-      std::log2(_context.coarsening.multilevel_shrink_factor) ) + 1UL;
+    size_t estimated_number_of_levels = 1UL;
+    if ( _hg.initialNumNodes() > _context.coarsening.contraction_limit ) {
+      estimated_number_of_levels = std::ceil( std::log2(
+        static_cast<double>(_hg.initialNumNodes()) /
+        static_cast<double>(_context.coarsening.contraction_limit)) /
+        std::log2(_context.coarsening.maximum_shrink_factor) ) + 1UL;
+    }
     _hierarchies.reserve(estimated_number_of_levels);
   }
 

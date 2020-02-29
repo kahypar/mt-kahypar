@@ -200,9 +200,12 @@ po::options_description createCoarseningOptionsDescription(Context& context,
     ("c-t",
     po::value<HypernodeID>(&context.coarsening.contraction_limit_multiplier)->value_name("<int>"),
     "Coarsening stops when there are no more than t * k hypernodes left")
-    ("c-shrink-factor",
-    po::value<double>(&context.coarsening.multilevel_shrink_factor)->value_name("<double>"),
-    "Multilevel coarsener creates a new hierarchy, if number of nodes is below |V| / shrink_factor")
+    ("c-min-shrink-factor",
+    po::value<double>(&context.coarsening.minimum_shrink_factor)->value_name("<double>"),
+    "Minimum factor a hypergraph must shrink in a multilevel pass")
+    ("c-max-shrink-factor",
+    po::value<double>(&context.coarsening.maximum_shrink_factor)->value_name("<double>"),
+    "Maximum factor a hypergraph can shrink in a multilevel pass")
     ("c-use-high-degree-vertex-threshold",
     po::value<bool>(&context.coarsening.use_high_degree_vertex_threshold)->value_name("<bool>"),
     "If true, than all hypernodes with a degree greater than mean + 5 * stdev are skipped during coarsening")

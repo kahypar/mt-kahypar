@@ -95,7 +95,10 @@ class MultilevelCoarsenerT : public ICoarsenerT<TypeTraits>,
     parallel::scalable_vector<parallel::scalable_vector<HypernodeID>> current_vertices(TBB::instance().num_used_numa_nodes());
     while ( Base::currentNumNodes() > _context.coarsening.contraction_limit ) {
       HyperGraph& current_hg = Base::currentHypergraph();
-      DBG << V(pass_nr) << V(current_hg.initialNumNodes()) << V(current_hg.initialNumEdges());
+      DBG << V(pass_nr)
+          << V(current_hg.initialNumNodes())
+          << V(current_hg.initialNumEdges())
+          << V(current_hg.initialNumPins());
 
       // Random shuffle vertices of current hypergraph
       utils::Timer::instance().start_timer("shuffle_vertices", "Shuffle Vertices");
@@ -166,10 +169,13 @@ class MultilevelCoarsenerT : public ICoarsenerT<TypeTraits>,
       utils::Timer::instance().stop_timer("parallel_clustering");
       DBG << V(_uf.numDistinctSets());
 
-      _progress_bar += (num_hns_before_pass - _uf.numDistinctSets());
-      if ( num_hns_before_pass == _uf.numDistinctSets() ) {
+      const double reduction_percentage =
+        static_cast<double>(num_hns_before_pass) /
+        static_cast<double>(_uf.numDistinctSets());
+      if ( reduction_percentage < _context.coarsening.minimum_shrink_factor ) {
         break;
       }
+      _progress_bar += (num_hns_before_pass - _uf.numDistinctSets());
 
       // Compute community structure that is given by the representatives of each
       // node in the union find data structure.
@@ -202,8 +208,9 @@ class MultilevelCoarsenerT : public ICoarsenerT<TypeTraits>,
   }
 
   HypernodeID hierarchyContractionLimit(const HyperGraph& hypergraph) const {
-    return std::max( static_cast<HypernodeID>( static_cast<double>(hypergraph.initialNumNodes()) /
-      _context.coarsening.multilevel_shrink_factor ), _context.coarsening.contraction_limit );
+    return std::max( static_cast<HypernodeID>( static_cast<double>(hypergraph.initialNumNodes() -
+      hypergraph.numRemovedHypernodes()) / _context.coarsening.maximum_shrink_factor ),
+      _context.coarsening.contraction_limit );
   }
 
   using Base::_context;
