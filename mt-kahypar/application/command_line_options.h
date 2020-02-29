@@ -191,13 +191,21 @@ po::options_description createCoarseningOptionsDescription(Context& context,
     "Coarsening Algorithm:\n"
     " - community_coarsener\n"
     " - multilevel_coarsener")
+    ("c-use-adaptive-max-node-weight",
+    po::value<bool>(&context.coarsening.use_adaptive_max_allowed_node_weight)->value_name("<bool>"),
+    "If true, than the maximum allowed node weight is adapted based on the reduction ratio\n"
+    "during multilevel coarsing")
+    ("c-adaptive-s",
+    po::value<double>(&context.coarsening.max_allowed_weight_fraction)->value_name("<double>"),
+    "The maximum allowed node weight is not allowed to become greater than\n"
+    "((1 + epsilon) * w(H)/k) / (adaptive_s), if adaptive maximum node weight is enabled\n")
+    ("c-adaptive-threshold",
+    po::value<double>(&context.coarsening.adaptive_node_weight_shrink_factor_threshold)->value_name("<double>"),
+    "The maximum allowed node weight is adapted, if the reduction ratio of vertices or pins\n"
+    "is lower than this threshold\n")
     ("c-s",
     po::value<double>(&context.coarsening.max_allowed_weight_multiplier)->value_name("<double>"),
     "The maximum weight of a vertex in the coarsest hypergraph H is:\n"
-    "(s * w(H)) / (t * k)\n")
-    ("c-s-high-degree",
-    po::value<double>(&context.coarsening.max_allowed_high_degree_node_weight_multiplier)->value_name("<double>"),
-    "The maximum weight of a high degree vertex in the coarsest hypergraph H is:\n"
     "(s * w(H)) / (t * k)\n")
     ("c-t",
     po::value<HypernodeID>(&context.coarsening.contraction_limit_multiplier)->value_name("<int>"),
@@ -208,9 +216,6 @@ po::options_description createCoarseningOptionsDescription(Context& context,
     ("c-max-shrink-factor",
     po::value<double>(&context.coarsening.maximum_shrink_factor)->value_name("<double>"),
     "Maximum factor a hypergraph can shrink in a multilevel pass")
-    ("c-use-high-degree-vertex-threshold",
-    po::value<bool>(&context.coarsening.use_high_degree_vertex_threshold)->value_name("<bool>"),
-    "If true, than high degree vertices are special treated during coarsening")
     ("c-rating-score",
     po::value<std::string>()->value_name("<string>")->notifier(
       [&](const std::string& rating_score) {

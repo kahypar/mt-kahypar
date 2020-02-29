@@ -96,7 +96,7 @@ class CommunityVertexPairRater {
       if (_hg.edgeSize(he, _community_id) < _context.partition.hyperedge_size_threshold) {
         const RatingType score = ScorePolicy::score(_hg, he, _community_id);
         for (const HypernodeID& v : _hg.pins(he, _community_id)) {
-          if (u != v && belowThresholdNodeWeight(weight_u, _hg.nodeWeight(v), v)) {
+          if (u != v && belowThresholdNodeWeight(weight_u, _hg.nodeWeight(v))) {
             ASSERT(_hg.communityID(v) == _community_id);
             ASSERT(_community_node_mapping[_hg.communityNodeId(v)] == v);
             _tmp_ratings[_hg.communityNodeId(v)] += score;
@@ -152,15 +152,8 @@ class CommunityVertexPairRater {
 
  private:
   inline bool belowThresholdNodeWeight(const HypernodeWeight weight_u,
-                                       const HypernodeWeight weight_v,
-                                       const HypernodeID v) const {
-    return weight_v + weight_u <= thresholdNodeWeight(v);
-  }
-
-  inline HypernodeWeight thresholdNodeWeight(const HypernodeID v) const {
-    return _hg.isHighDegreeVertex(v) ?
-     _context.coarsening.max_allowed_high_degree_node_weight :
-     _context.coarsening.max_allowed_node_weight;
+                                       const HypernodeWeight weight_v) const {
+    return weight_v + weight_u <= _context.coarsening.max_allowed_node_weight;
   }
 
   HyperGraph& _hg;

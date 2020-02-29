@@ -371,7 +371,6 @@ inline void printObjectives(const PartitionedHypergraph<>& hypergraph,
   LOG << " Hyperedge Cut  (minimize) =" << metrics::hyperedgeCut(hypergraph);
   LOG << " SOED           (minimize) =" << metrics::soed(hypergraph);
   LOG << " (k-1)          (minimize) =" << metrics::km1(hypergraph);
-  LOG << " Absorption     (maximize) =" << metrics::absorption(hypergraph);
   LOG << " Imbalance                 =" << metrics::imbalance(hypergraph, context);
   LOG << " Partitioning Time         =" << elapsed_seconds.count() << "s";
 }

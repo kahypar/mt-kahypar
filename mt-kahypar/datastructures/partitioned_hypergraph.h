@@ -352,11 +352,6 @@ class PartitionedHypergraph {
     return _hg->nodeDegree(u);
   }
 
-  // ! Returns, if the corresponding vertex is high degree vertex
-  bool isHighDegreeVertex(const HypernodeID u) const {
-    return _hg->isHighDegreeVertex(u);
-  }
-
   // ! Returns, whether a hypernode is enabled or not
   bool nodeIsEnabled(const HypernodeID u) const {
     return _hg->nodeIsEnabled(u);
@@ -1021,9 +1016,6 @@ class PartitionedHypergraph {
         const HypernodeID extracted_hn =
           extracted_hypergraph.globalNodeID(hn_mapping[originalNodeID(hn)]);
         extracted_hypergraph.setCommunityID(extracted_hn, _hg->communityID(hn));
-        if ( isHighDegreeVertex(hn) ) {
-          extracted_hypergraph.markAsHighDegreeVertex(extracted_hn);
-        }
       }
     });
     extracted_hypergraph.initializeCommunities(task_group_id);
