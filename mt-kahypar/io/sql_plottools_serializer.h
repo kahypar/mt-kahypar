@@ -107,7 +107,6 @@ static inline std::string serialize(const PartitionedHypergraph<>& hypergraph,
       oss << " cut=" << metrics::hyperedgeCut(hypergraph)
           << " soed=" << metrics::soed(hypergraph)
           << " km1=" << metrics::km1(hypergraph)
-          << " absorption=" << metrics::absorption(hypergraph)
           << " imbalance=" << metrics::imbalance(hypergraph, context);
     }
     oss << " totalPartitionTime=" << elapsed_seconds.count();

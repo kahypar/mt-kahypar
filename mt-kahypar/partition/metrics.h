@@ -92,21 +92,6 @@ static inline HyperedgeWeight soed(const HyperGraph& hypergraph) {
 }
 
 template <typename HyperGraph>
-static inline double absorption(const HyperGraph& hypergraph) {
-  double absorption_val = 0.0;
-  for (PartitionID part = 0; part < hypergraph.k(); ++part) {
-    for (const HyperedgeID& he : hypergraph.edges()) {
-      HypernodeID pin_count_in_part = hypergraph.pinCountInPart(he, part);
-      if (pin_count_in_part > 0 && hypergraph.edgeSize(he) > 1) {
-        absorption_val += static_cast<double>((pin_count_in_part - 1)) / (hypergraph.edgeSize(he) - 1)
-                          * hypergraph.edgeWeight(he);
-      }
-    }
-  }
-  return absorption_val;
-}
-
-template <typename HyperGraph>
 static inline HyperedgeWeight objective(const HyperGraph& hg, const kahypar::Objective& objective) {
   switch (objective) {
     case kahypar::Objective::cut: return hyperedgeCut(hg);
