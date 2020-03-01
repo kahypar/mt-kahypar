@@ -307,7 +307,13 @@ class NumaPartitionedHypergraph {
 
   // ! Sets the weight of a vertex
   void setNodeWeight(const HypernodeID u, const HypernodeWeight weight) {
-    hypergraph_of_vertex(u).setNodeWeight(u, weight);
+    const PartitionID block = partID(u);
+    if ( block != kInvalidPartition ) {
+      ASSERT(block < _k);
+      const HypernodeWeight delta = weight - _hg->nodeWeight(u);
+      _part_info[block].weight += delta;
+    }
+    _hg->setNodeWeight(u, weight);
   }
 
   // ! Degree of a hypernode
