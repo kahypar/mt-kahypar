@@ -217,18 +217,18 @@ class HypergraphSparsifierT {
       parallel::TBBPrefixSum<HyperedgeID> he_prefix_sum(_he_included_in_sparsified_hg);
       parallel::TBBPrefixSum<HyperedgeID> hn_prefix_sum(_hn_included_in_sparsified_hg);
       tbb::parallel_invoke([&] {
-        tbb::parallel_scan(tbb::blocked_range<size_t>(0UL, _num_edges), he_prefix_sum);
+        tbb::parallel_scan(tbb::blocked_range<size_t>(ID(0), _num_edges), he_prefix_sum);
       }, [&] {
-        tbb::parallel_scan(tbb::blocked_range<size_t>(0UL, _num_nodes), hn_prefix_sum);
+        tbb::parallel_scan(tbb::blocked_range<size_t>(ID(0), _num_nodes), hn_prefix_sum);
       });
 
       // Apply vertex id of sparsified hypergraph to mapping
-      tbb::parallel_for(0UL, _num_nodes, [&](const HypernodeID u) {
+      tbb::parallel_for(ID(0), _num_nodes, [&](const HypernodeID u) {
         _mapping[u] = hn_prefix_sum[_mapping[u]];
       });
 
       // Apply mapping to all enabled hyperedges
-      tbb::parallel_for(0UL, _num_edges, [&](const HyperedgeID& e) {
+      tbb::parallel_for(ID(0), _num_edges, [&](const HyperedgeID& e) {
         if ( edgeIsEnabled(e) ) {
           parallel::scalable_vector<HypernodeID>& hyperedge = _edge_vector[e];
           for ( HypernodeID& pin : hyperedge ) {
@@ -244,7 +244,7 @@ class HypergraphSparsifierT {
       const HyperedgeID num_hyperedges = he_prefix_sum.total_sum();
       SparsifiedHypergraph sparsified_hypergraph(num_hypernodes, num_hyperedges);
       tbb::parallel_invoke([&] {
-        tbb::parallel_for(0UL, _num_edges, [&](const HyperedgeID e) {
+        tbb::parallel_for(ID(0), _num_edges, [&](const HyperedgeID e) {
           if ( he_prefix_sum.value(e) ) {
             const HyperedgeID sparsified_id = he_prefix_sum[e];
             sparsified_hypergraph._edge_vector[sparsified_id] = std::move(_edge_vector[e]);
@@ -252,7 +252,7 @@ class HypergraphSparsifierT {
           }
         });
       }, [&] {
-        tbb::parallel_for(0UL, _num_nodes, [&](const HypernodeID u) {
+        tbb::parallel_for(ID(0), _num_nodes, [&](const HypernodeID u) {
           if ( hn_prefix_sum.value(u) ) {
             const HyperedgeID sparsified_id = hn_prefix_sum[u];
             sparsified_hypergraph._vertices_to_numa_node[sparsified_id] = _vertices_to_numa_node[u];
@@ -556,7 +556,7 @@ class HypergraphSparsifierT {
   // ! than a certain threshold. The threshold is specified in
   // ! '_context.initial_partitioning.max_hyperedge_pin_weight'
   void heavyHyperedgeRemovalSparsification(SparsifiedHypergraph& hypergraph) {
-    tbb::parallel_for(0UL, hypergraph.numEdges(), [&](const HyperedgeID& e) {
+    tbb::parallel_for(ID(0), hypergraph.numEdges(), [&](const HyperedgeID& e) {
       if ( hypergraph.edgeIsEnabled(e) ) {
         HypernodeWeight pin_weight = 0;
         for ( const HypernodeID& pin : hypergraph.pins(e) ) {
@@ -576,7 +576,7 @@ class HypergraphSparsifierT {
       utils::Randomize::instance().getRandomInt(0, 1000, sched_getcpu()));
 
     ds::StreamingMap<HashValue, Footprint> hash_buckets;
-    tbb::parallel_for(0UL, hypergraph.numEdges(), [&](const HyperedgeID he) {
+    tbb::parallel_for(ID(0), hypergraph.numEdges(), [&](const HyperedgeID he) {
       if ( hypergraph.edgeIsEnabled(he) ) {
         Footprint he_footprint;
         he_footprint.footprint = {};

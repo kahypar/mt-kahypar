@@ -72,7 +72,7 @@ class StaticHypergraphFactory {
     utils::Timer::instance().start_timer("compute_ds_sizes", "Precompute DS Size", true);
     Counter num_pins_per_hyperedge(num_hyperedges, 0);
     ThreadLocalCounter local_incident_nets_per_vertex(num_hypernodes, 0);
-    tbb::parallel_for(0UL, num_hyperedges, [&](const size_t pos) {
+    tbb::parallel_for(ID(0), num_hyperedges, [&](const size_t pos) {
       Counter& num_incident_nets_per_vertex = local_incident_nets_per_vertex.local();
       num_pins_per_hyperedge[pos] = edge_vector[pos].size();
       for ( const HypernodeID& pin : edge_vector[pos] ) {
@@ -86,7 +86,7 @@ class StaticHypergraphFactory {
     // over each thread local counter and sum it up.
     Counter num_incident_nets_per_vertex(num_hypernodes, 0);
     for ( Counter& c : local_incident_nets_per_vertex ) {
-      tbb::parallel_for(0UL, num_hypernodes, [&](const size_t pos) {
+      tbb::parallel_for(ID(0), num_hypernodes, [&](const size_t pos) {
         num_incident_nets_per_vertex[pos] += c[pos];
       });
     }
@@ -101,10 +101,10 @@ class StaticHypergraphFactory {
     parallel::TBBPrefixSum<size_t> incident_net_prefix_sum(num_incident_nets_per_vertex);
     tbb::parallel_invoke([&] {
       tbb::parallel_scan(tbb::blocked_range<size_t>(
-        0UL, num_hyperedges), pin_prefix_sum);
+        0UL, UI64(num_hyperedges)), pin_prefix_sum);
     }, [&] {
       tbb::parallel_scan(tbb::blocked_range<size_t>(
-        0UL, num_hypernodes), incident_net_prefix_sum);
+        0UL, UI64(num_hypernodes)), incident_net_prefix_sum);
     });
     utils::Timer::instance().stop_timer("compute_prefix_sums");
 
@@ -118,7 +118,7 @@ class StaticHypergraphFactory {
     AtomicCounter incident_nets_position(num_hypernodes,
       parallel::IntegralAtomicWrapper<size_t>(0));
     tbb::parallel_invoke([&] {
-      tbb::parallel_for(0UL, num_hyperedges, [&](const size_t pos) {
+      tbb::parallel_for(ID(0), num_hyperedges, [&](const size_t pos) {
         // Setup hyperedges
         StaticHypergraph::Hyperedge& hyperedge = hypergraph._hyperedges[pos];
         hyperedge.enable();
@@ -148,7 +148,7 @@ class StaticHypergraphFactory {
         hyperedge.hash() = hash;
       });
     }, [&] {
-      tbb::parallel_for(0UL, num_hypernodes, [&](const size_t pos) {
+      tbb::parallel_for(ID(0), num_hypernodes, [&](const size_t pos) {
         // Setup hypernodes
         StaticHypergraph::Hypernode& hypernode = hypergraph._hypernodes[pos];
         hypernode.enable();
@@ -224,7 +224,7 @@ class StaticHypergraphFactory {
     Counter edges_on_this_numa_node(num_hyperedges, 0);
     Counter num_pins_per_hyperedge(num_hyperedges, 0);
     ThreadLocalCounter local_incident_nets_per_vertex(num_hypernodes, 0);
-    tbb::parallel_for(0UL, num_hyperedges, [&](const size_t pos) {
+    tbb::parallel_for(ID(0), num_hyperedges, [&](const size_t pos) {
       if ( edges_to_numa_node[pos] == node ) {
         num_pins_per_hyperedge[pos] = edge_vector[pos].size();
         edges_on_this_numa_node[pos] = 1UL;
@@ -245,7 +245,7 @@ class StaticHypergraphFactory {
     Counter vertices_on_this_numa_node(num_hypernodes, 0);
     Counter num_incident_nets_per_vertex(num_hypernodes, 0);
     for ( Counter& c : local_incident_nets_per_vertex ) {
-      tbb::parallel_for(0UL, num_hypernodes, [&](const size_t pos) {
+      tbb::parallel_for(ID(0), num_hypernodes, [&](const size_t pos) {
         if ( vertices_to_numa_node[pos] == node ) {
           num_incident_nets_per_vertex[pos] += c[pos];
           vertices_on_this_numa_node[pos] = 1UL;
@@ -268,16 +268,16 @@ class StaticHypergraphFactory {
     parallel::TBBPrefixSum<size_t> incident_net_prefix_sum(num_incident_nets_per_vertex);
     tbb::parallel_invoke([&] {
       tbb::parallel_scan(tbb::blocked_range<size_t>(
-        0UL, num_hyperedges), edges_prefix_sum);
+        0UL, UI64(num_hyperedges)), edges_prefix_sum);
     }, [&] {
       tbb::parallel_scan(tbb::blocked_range<size_t>(
-        0UL, num_hypernodes), vertices_prefix_sum);
+        0UL, UI64(num_hypernodes)), vertices_prefix_sum);
     }, [&] {
       tbb::parallel_scan(tbb::blocked_range<size_t>(
-        0UL, num_hyperedges), pin_prefix_sum);
+        0UL, UI64(num_hyperedges)), pin_prefix_sum);
     }, [&] {
       tbb::parallel_scan(tbb::blocked_range<size_t>(
-        0UL, num_hypernodes), incident_net_prefix_sum);
+        0UL, UI64(num_hypernodes)), incident_net_prefix_sum);
     });
     utils::Timer::instance().stop_timer("compute_prefix_sums");
 
@@ -295,7 +295,7 @@ class StaticHypergraphFactory {
     AtomicCounter incident_nets_position(num_hypernodes,
       parallel::IntegralAtomicWrapper<size_t>(0));
     tbb::parallel_invoke([&] {
-      tbb::parallel_for(0UL, num_hyperedges, [&](const size_t pos) {
+      tbb::parallel_for(ID(0), num_hyperedges, [&](const size_t pos) {
         // Setup hyperedges
         const bool is_edge_on_this_numa_node =
           edges_to_numa_node[pos] == node;
@@ -336,7 +336,7 @@ class StaticHypergraphFactory {
         }
       });
     }, [&] {
-      tbb::parallel_for(0UL, num_hypernodes, [&](const size_t pos) {
+      tbb::parallel_for(ID(0), num_hypernodes, [&](const size_t pos) {
         // Setup hypernodes
         if ( vertices_to_numa_node[pos] == node ) {
           const size_t local_pos = vertices_prefix_sum[pos];
@@ -359,7 +359,7 @@ class StaticHypergraphFactory {
 
     // Compute total weight of hypergraph
     hypergraph._total_weight = tbb::parallel_reduce(
-      tbb::blocked_range<HypernodeID>(0UL, hypergraph._num_hypernodes), 0,
+      tbb::blocked_range<HypernodeID>(ID(0), hypergraph._num_hypernodes), 0,
       [&](const tbb::blocked_range<HypernodeID>& range, HypernodeWeight init) {
         HypernodeWeight weight = init;
         for (HypernodeID hn = range.begin(); hn < range.end(); ++hn) {
@@ -387,7 +387,7 @@ class StaticHypergraphFactory {
       });
     }, [&] {
       // Remap Incidence Array
-      tbb::parallel_for(0UL, hypergraph._num_hyperedges, [&](const size_t pos) {
+      tbb::parallel_for(0UL, UI64(hypergraph._num_hyperedges), [&](const size_t pos) {
         StaticHypergraph::Hyperedge& hyperedge = hypergraph._hyperedges[pos];
         const size_t incidence_array_start = hyperedge.firstEntry();
         const size_t incidence_array_end = hyperedge.firstInvalidEntry();

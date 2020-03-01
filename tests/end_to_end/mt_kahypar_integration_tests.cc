@@ -22,7 +22,7 @@
 
 #include "mt-kahypar/application/command_line_options.h"
 #include "mt-kahypar/definitions.h"
-#include "mt-kahypar/io/tmp_hypergraph_io.h"
+#include "mt-kahypar/io/hypergraph_io.h"
 #include "mt-kahypar/mt_kahypar.h"
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/partition/partitioner.h"
@@ -33,23 +33,15 @@ namespace mt_kahypar {
 
 template< PartitionID k,
           kahypar::Objective objective,
-          CommunityLoadBalancingStrategy balancing_strategy,
           bool use_community_detection,
-          CoarseningAlgorithm coarsening_algorithm,
           InitialPartitioningMode initial_partitioning_mode,
-          LabelPropagationAlgorithm lp_algorithm,
-          bool localized_lp,
-          bool use_batch_uncontractions >
+          LabelPropagationAlgorithm lp_algorithm >
 struct TestConfig {
   static constexpr PartitionID K = k;
   static constexpr kahypar::Objective OBJECTIVE = objective;
-  static constexpr CommunityLoadBalancingStrategy BALANCING_STRATEGY = balancing_strategy;
   static constexpr bool USE_COMMUNITY_DETECTION = use_community_detection;
-  static constexpr CoarseningAlgorithm COARSENING_ALGORITHM = coarsening_algorithm;
   static constexpr InitialPartitioningMode INITIAL_PARTITIONING_MODE = initial_partitioning_mode;
   static constexpr LabelPropagationAlgorithm LP_ALGORITHM = lp_algorithm;
-  static constexpr bool LOCALIZED_LP = localized_lp;
-  static constexpr bool USE_BATCH_UNCONTRACTIONS = use_batch_uncontractions;
 };
 
 template< typename Config >
@@ -59,7 +51,7 @@ class MtKaHyPar : public Test {
  public:
   MtKaHyPar() :
     context() {
-    parseIniToContext(context, "../../../config/multilevel_config.ini");
+    parseIniToContext(context, "../../../config/fast_preset.ini");
     context.partition.graph_filename = "test_instances/ibm01.hgr";
     context.partition.k = Config::K;
     context.partition.objective = Config::OBJECTIVE;
@@ -67,16 +59,13 @@ class MtKaHyPar : public Test {
     context.partition.seed = 42;
     context.partition.verbose_output = true;
     context.partition.detailed_timings = true;
-    context.preprocessing.community_detection.load_balancing_strategy = Config::BALANCING_STRATEGY;
     context.preprocessing.use_community_detection = Config::USE_COMMUNITY_DETECTION;
     if ( !context.preprocessing.use_community_detection ) {
       context.preprocessing.use_community_redistribution = false;
     }
-    context.coarsening.algorithm = Config::COARSENING_ALGORITHM;
+    context.coarsening.algorithm = CoarseningAlgorithm::multilevel_coarsener;
     context.initial_partitioning.mode = Config::INITIAL_PARTITIONING_MODE;
-    context.refinement.use_batch_uncontractions = Config::USE_BATCH_UNCONTRACTIONS;
     context.refinement.label_propagation.algorithm = Config::LP_ALGORITHM;
-    context.refinement.label_propagation.localized = Config::LOCALIZED_LP;
     context.shared_memory.num_threads = num_threads;
   }
 
@@ -136,297 +125,93 @@ void verifyThatHypergraphsAreEquivalent(const Hypergraph& hypergraph,
 }
 
 template< PartitionID k,
-          CommunityLoadBalancingStrategy balancing_strategy,
-          InitialPartitioningMode initial_partitioning_mode,
-          bool localized_lp,
-          bool use_batch_uncontractions>
-using NLevelKm1Config = TestConfig<k,
-                                   kahypar::Objective::km1,
-                                   balancing_strategy,
-                                   true,
-                                   CoarseningAlgorithm::community_coarsener,
-                                   initial_partitioning_mode,
-                                   LabelPropagationAlgorithm::label_propagation_km1,
-                                   localized_lp,
-                                   use_batch_uncontractions>;
-
-template< PartitionID k,
-          CommunityLoadBalancingStrategy balancing_strategy,
-          InitialPartitioningMode initial_partitioning_mode,
-          bool localized_lp,
-          bool use_batch_uncontractions>
-using NLevelCutConfig = TestConfig<k,
-                                   kahypar::Objective::cut,
-                                   balancing_strategy,
-                                   true,
-                                   CoarseningAlgorithm::community_coarsener,
-                                   initial_partitioning_mode,
-                                   LabelPropagationAlgorithm::label_propagation_cut,
-                                   localized_lp,
-                                   use_batch_uncontractions>;
-
-template< PartitionID k,
-          CommunityLoadBalancingStrategy balancing_strategy,
           bool use_community_detection,
           InitialPartitioningMode initial_partitioning_mode>
 using MultiLevelKm1Config = TestConfig<k,
                                        kahypar::Objective::km1,
-                                       balancing_strategy,
                                        use_community_detection,
-                                       CoarseningAlgorithm::multilevel_coarsener,
                                        initial_partitioning_mode,
-                                       LabelPropagationAlgorithm::label_propagation_km1,
-                                       false,
-                                       false>;
+                                       LabelPropagationAlgorithm::label_propagation_km1>;
 
 template< PartitionID k,
-          CommunityLoadBalancingStrategy balancing_strategy,
           bool use_community_detection,
           InitialPartitioningMode initial_partitioning_mode>
 using MultiLevelCutConfig = TestConfig<k,
                                        kahypar::Objective::cut,
-                                       balancing_strategy,
                                        use_community_detection,
-                                       CoarseningAlgorithm::multilevel_coarsener,
                                        initial_partitioning_mode,
-                                       LabelPropagationAlgorithm::label_propagation_cut,
-                                       false,
-                                       false>;
+                                       LabelPropagationAlgorithm::label_propagation_cut>;
 
-typedef ::testing::Types</*NLevelCutConfig<2,
-                                         CommunityLoadBalancingStrategy::none,
-                                         InitialPartitioningMode::direct,
-                                         false,
-                                         false>,
-                         NLevelCutConfig<4,
-                                         CommunityLoadBalancingStrategy::none,
-                                         InitialPartitioningMode::direct,
-                                         false,
-                                         false>,
-                         NLevelCutConfig<8,
-                                         CommunityLoadBalancingStrategy::none,
-                                         InitialPartitioningMode::direct,
-                                         false,
-                                         false>,
-                         NLevelCutConfig<2,
-                                         CommunityLoadBalancingStrategy::none,
-                                         InitialPartitioningMode::recursive,
-                                         false,
-                                         false>,
-                         NLevelCutConfig<4,
-                                         CommunityLoadBalancingStrategy::none,
-                                         InitialPartitioningMode::recursive,
-                                         false,
-                                         false>,
-                         NLevelCutConfig<8,
-                                         CommunityLoadBalancingStrategy::none,
-                                         InitialPartitioningMode::recursive,
-                                         false,
-                                         false>,
-                         NLevelKm1Config<2,
-                                         CommunityLoadBalancingStrategy::none,
-                                         InitialPartitioningMode::direct,
-                                         false,
-                                         false>,
-                         NLevelKm1Config<4,
-                                         CommunityLoadBalancingStrategy::none,
-                                         InitialPartitioningMode::direct,
-                                         false,
-                                         false>,
-                         NLevelKm1Config<8,
-                                         CommunityLoadBalancingStrategy::none,
-                                         InitialPartitioningMode::direct,
-                                         false,
-                                         false>,
-                         NLevelKm1Config<2,
-                                         CommunityLoadBalancingStrategy::none,
-                                         InitialPartitioningMode::recursive,
-                                         false,
-                                         false>,
-                         NLevelKm1Config<4,
-                                         CommunityLoadBalancingStrategy::none,
-                                         InitialPartitioningMode::recursive,
-                                         false,
-                                         false>,
-                         NLevelKm1Config<8,
-                                         CommunityLoadBalancingStrategy::none,
-                                         InitialPartitioningMode::recursive,
-                                         false,
-                                         false>,
-                         NLevelKm1Config<2,
-                                         CommunityLoadBalancingStrategy::none,
-                                         InitialPartitioningMode::recursive,
-                                         false,
-                                         true>,
-                         NLevelKm1Config<4,
-                                         CommunityLoadBalancingStrategy::none,
-                                         InitialPartitioningMode::recursive,
-                                         false,
-                                         true>,
-                         NLevelKm1Config<8,
-                                         CommunityLoadBalancingStrategy::none,
-                                         InitialPartitioningMode::recursive,
-                                         false,
-                                         true>,
-                         NLevelKm1Config<2,
-                                         CommunityLoadBalancingStrategy::none,
-                                         InitialPartitioningMode::recursive,
-                                         true,
-                                         true>,
-                         NLevelKm1Config<4,
-                                         CommunityLoadBalancingStrategy::none,
-                                         InitialPartitioningMode::recursive,
-                                         true,
-                                         true>,
-                         NLevelKm1Config<8,
-                                         CommunityLoadBalancingStrategy::none,
-                                         InitialPartitioningMode::recursive,
-                                         true,
-                                         true>,
-                         NLevelKm1Config<2,
-                                         CommunityLoadBalancingStrategy::none,
-                                         InitialPartitioningMode::recursive_bisection,
-                                         false,
-                                         false>,
-                         NLevelKm1Config<4,
-                                         CommunityLoadBalancingStrategy::none,
-                                         InitialPartitioningMode::recursive_bisection,
-                                         false,
-                                         false>,
-                         NLevelKm1Config<8,
-                                         CommunityLoadBalancingStrategy::none,
-                                         InitialPartitioningMode::recursive_bisection,
-                                         false,
-                                         false>,
-                         NLevelKm1Config<2,
-                                        CommunityLoadBalancingStrategy::none,
-                                        InitialPartitioningMode::recursive_bisection,
-                                        false,
-                                        true>,
-                         NLevelKm1Config<4,
-                                         CommunityLoadBalancingStrategy::none,
-                                         InitialPartitioningMode::recursive_bisection,
-                                         false,
-                                         true>,
-                         NLevelKm1Config<8,
-                                         CommunityLoadBalancingStrategy::none,
-                                         InitialPartitioningMode::recursive_bisection,
-                                         false,
-                                         true>,
-                         NLevelKm1Config<2,
-                                         CommunityLoadBalancingStrategy::none,
-                                         InitialPartitioningMode::recursive_bisection,
-                                         true,
-                                         true>,
-                         NLevelKm1Config<4,
-                                         CommunityLoadBalancingStrategy::none,
-                                         InitialPartitioningMode::recursive_bisection,
-                                         true,
-                                         true>,
-                         NLevelKm1Config<8,
-                                         CommunityLoadBalancingStrategy::none,
-                                         InitialPartitioningMode::recursive_bisection,
-                                         true,
-                                         true>,
-                         NLevelKm1Config<2,
-                                         CommunityLoadBalancingStrategy::size_constraint,
-                                         InitialPartitioningMode::direct,
-                                         false,
-                                         false>,*/
-                         MultiLevelCutConfig<2,
-                                             CommunityLoadBalancingStrategy::none,
+typedef ::testing::Types<MultiLevelCutConfig<2,
                                              false,
                                              InitialPartitioningMode::recursive>,
                          MultiLevelCutConfig<4,
-                                             CommunityLoadBalancingStrategy::none,
                                              false,
                                              InitialPartitioningMode::recursive>,
                          MultiLevelCutConfig<8,
-                                             CommunityLoadBalancingStrategy::none,
                                              false,
                                              InitialPartitioningMode::recursive>,
                           MultiLevelCutConfig<2,
-                                             CommunityLoadBalancingStrategy::none,
                                              false,
                                              InitialPartitioningMode::recursive_bisection>,
                          MultiLevelCutConfig<4,
-                                             CommunityLoadBalancingStrategy::none,
                                              false,
                                              InitialPartitioningMode::recursive_bisection>,
                          MultiLevelCutConfig<8,
-                                             CommunityLoadBalancingStrategy::none,
                                              false,
                                              InitialPartitioningMode::recursive_bisection>,
                          MultiLevelCutConfig<2,
-                                             CommunityLoadBalancingStrategy::none,
                                              true,
                                              InitialPartitioningMode::recursive>,
                          MultiLevelCutConfig<4,
-                                             CommunityLoadBalancingStrategy::none,
                                              true,
                                              InitialPartitioningMode::recursive>,
                          MultiLevelCutConfig<8,
-                                             CommunityLoadBalancingStrategy::none,
                                              true,
                                              InitialPartitioningMode::recursive>,
                           MultiLevelCutConfig<2,
-                                             CommunityLoadBalancingStrategy::none,
                                              true,
                                              InitialPartitioningMode::recursive_bisection>,
                          MultiLevelCutConfig<4,
-                                             CommunityLoadBalancingStrategy::none,
                                              true,
                                              InitialPartitioningMode::recursive_bisection>,
                          MultiLevelCutConfig<8,
-                                             CommunityLoadBalancingStrategy::none,
                                              true,
                                              InitialPartitioningMode::recursive_bisection>,
                          MultiLevelKm1Config<2,
-                                             CommunityLoadBalancingStrategy::none,
                                              false,
                                              InitialPartitioningMode::recursive>,
                          MultiLevelKm1Config<4,
-                                             CommunityLoadBalancingStrategy::none,
                                              false,
                                              InitialPartitioningMode::recursive>,
                          MultiLevelKm1Config<8,
-                                             CommunityLoadBalancingStrategy::none,
                                              false,
                                              InitialPartitioningMode::recursive>,
                          MultiLevelKm1Config<2,
-                                             CommunityLoadBalancingStrategy::none,
                                              false,
                                              InitialPartitioningMode::recursive_bisection>,
                          MultiLevelKm1Config<4,
-                                             CommunityLoadBalancingStrategy::none,
                                              false,
                                              InitialPartitioningMode::recursive_bisection>,
                          MultiLevelKm1Config<8,
-                                             CommunityLoadBalancingStrategy::none,
                                              false,
                                              InitialPartitioningMode::recursive_bisection>,
                          MultiLevelKm1Config<2,
-                                             CommunityLoadBalancingStrategy::none,
                                              true,
                                              InitialPartitioningMode::recursive>,
                          MultiLevelKm1Config<4,
-                                             CommunityLoadBalancingStrategy::none,
                                              true,
                                              InitialPartitioningMode::recursive>,
                          MultiLevelKm1Config<8,
-                                             CommunityLoadBalancingStrategy::none,
                                              true,
                                              InitialPartitioningMode::recursive>,
                          MultiLevelKm1Config<2,
-                                             CommunityLoadBalancingStrategy::none,
                                              true,
                                              InitialPartitioningMode::recursive_bisection>,
                          MultiLevelKm1Config<4,
-                                             CommunityLoadBalancingStrategy::none,
                                              true,
                                              InitialPartitioningMode::recursive_bisection>,
                          MultiLevelKm1Config<8,
-                                             CommunityLoadBalancingStrategy::none,
                                              true,
                                              InitialPartitioningMode::recursive_bisection> > TestConfigs;
 
@@ -444,7 +229,7 @@ void partitionHypergraph(Hypergraph& hypergraph, Context& context) {
 
   // Verify that partitioned hypergraph is
   // equivalent with input hypergraph
-  Hypergraph reference = tmp_io::readHypergraphFile<Hypergraph, HypergraphFactory>(
+  Hypergraph reference = io::readHypergraphFile<Hypergraph, HypergraphFactory>(
     context.partition.graph_filename, TBBNumaArena::GLOBAL_TASK_GROUP);
   verifyThatHypergraphsAreEquivalent(hypergraph, reference);
 
@@ -512,7 +297,7 @@ void partitionHypergraph(Hypergraph& hypergraph, Context& context) {
 TYPED_TEST(MtKaHyPar, PartitionsAVLSIInstance) {
   // Read Hypergraph
   this->context.partition.graph_filename = "test_instances/ibm01.hgr";
-  Hypergraph hypergraph = tmp_io::readHypergraphFile<Hypergraph, HypergraphFactory>(
+  Hypergraph hypergraph = io::readHypergraphFile<Hypergraph, HypergraphFactory>(
     this->context.partition.graph_filename, TBBNumaArena::GLOBAL_TASK_GROUP);
 
   partitionHypergraph(hypergraph, this->context);
@@ -521,7 +306,7 @@ TYPED_TEST(MtKaHyPar, PartitionsAVLSIInstance) {
 TYPED_TEST(MtKaHyPar, PartitionsASparseMatrixInstance) {
   // Read Hypergraph
   this->context.partition.graph_filename = "test_instances/powersim.mtx.hgr";
-  Hypergraph hypergraph = tmp_io::readHypergraphFile<Hypergraph, HypergraphFactory>(
+  Hypergraph hypergraph = io::readHypergraphFile<Hypergraph, HypergraphFactory>(
     this->context.partition.graph_filename, TBBNumaArena::GLOBAL_TASK_GROUP);
 
   partitionHypergraph(hypergraph, this->context);
@@ -530,7 +315,7 @@ TYPED_TEST(MtKaHyPar, PartitionsASparseMatrixInstance) {
 TYPED_TEST(MtKaHyPar, PartitionsASATInstance) {
   // Read Hypergraph
   this->context.partition.graph_filename = "test_instances/sat14_atco_enc1_opt2_10_16.cnf.primal.hgr";
-  Hypergraph hypergraph = tmp_io::readHypergraphFile<Hypergraph, HypergraphFactory>(
+  Hypergraph hypergraph = io::readHypergraphFile<Hypergraph, HypergraphFactory>(
     this->context.partition.graph_filename, TBBNumaArena::GLOBAL_TASK_GROUP);
 
   partitionHypergraph(hypergraph, this->context);

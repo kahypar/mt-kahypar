@@ -283,8 +283,10 @@ class RecursiveInitialPartitionerT : public IInitialPartitioner {
       context.type = kahypar::ContextType::initial_partitioning;
 
       // Coarsening Parameters
-      context.coarsening.contraction_limit = std::max(context.partition.k * context.coarsening.contraction_limit_multiplier,
-                                                      2 * context.shared_memory.num_threads * context.coarsening.contraction_limit_multiplier);
+      context.coarsening.contraction_limit = std::max(
+        context.partition.k * context.coarsening.contraction_limit_multiplier,
+        2 * ID(context.shared_memory.num_threads) *
+        context.coarsening.contraction_limit_multiplier);
       context.setupMaximumAllowedNodeWeight(_hg.totalWeight());
       context.setupSparsificationParameters();
 

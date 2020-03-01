@@ -20,11 +20,10 @@
 
 #include "gmock/gmock.h"
 
+#include "tests/datastructures/hypergraph_fixtures.h"
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/datastructures/static_hypergraph.h"
 #include "mt-kahypar/datastructures/static_hypergraph_factory.h"
-
-#include "tests/datastructures/hypergraph_fixtures.h"
 
 using ::testing::Test;
 

@@ -134,7 +134,7 @@ class ConcurrentUnionFind {
   void init(const HyperGraph& hypergraph) {
     ASSERT(hypergraph.initialNumNodes() <= _set.size());
     _num_distinct_sets = hypergraph.initialNumNodes();
-    tbb::parallel_for(0UL, hypergraph.initialNumNodes(), [&](const HypernodeID id) {
+    tbb::parallel_for(ID(0), hypergraph.initialNumNodes(), [&](const HypernodeID id) {
       const HypernodeID hn = hypergraph.globalNodeID(id);
       if ( hypergraph.nodeIsEnabled(hn) ) {
         _set[id] = -hypergraph.nodeWeight(hn);

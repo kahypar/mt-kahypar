@@ -480,7 +480,7 @@ class CommunitySupport {
 
     _community_hyperedge_ids.resize(hypergraph.initialNumEdges());
     _community_hyperedges.resize(hypergraph.initialNumEdges());
-    tbb::parallel_for(0UL, hypergraph.initialNumEdges(), [&](const HyperedgeID& he) {
+    tbb::parallel_for(ID(0), hypergraph.initialNumEdges(), [&](const HyperedgeID& he) {
       auto& e = hypergraph._hyperedges[he];
       if ( !e.isDisabled() ) {
         // Sort pins of hyperedge in increasing order of their community ids
@@ -668,7 +668,7 @@ class CommunitySupport {
   void computeNumberOfCommunities(const Hypergraph& hypergraph,
                                   const int node = 0) {
     // The number of communities is the maximum community id plus 1
-    _num_communities = tbb::parallel_reduce(tbb::blocked_range<HypernodeID>(0UL, hypergraph.initialNumNodes()),
+    _num_communities = tbb::parallel_reduce(tbb::blocked_range<HypernodeID>(ID(0), hypergraph.initialNumNodes()),
       _num_communities, [&](const tbb::blocked_range<HypernodeID>& range, PartitionID init) {
         PartitionID num_communities = init;
         for (HypernodeID id = range.begin(); id < range.end(); ++id) {

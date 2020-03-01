@@ -20,31 +20,30 @@
 
 #include "gmock/gmock.h"
 
+#include "tests/datastructures/hypergraph_fixtures.h"
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/partition/refinement/zero_gain_cache.h"
-#include "tests/datastructures/hypergraph_fixtures.h"
 
 using ::testing::Test;
 
 namespace mt_kahypar {
 
-class AZeroGainCache : public ds::AHypergraph<1> {
- private:
-  using Base = AHypergraph<1>;
+using TypeTraits = ds::TestTypeTraits<1>;
+using HyperGraph = typename TypeTraits::HyperGraph;
+using HyperGraphFactory = typename TypeTraits::HyperGraphFactory;
+using PartitionedHyperGraph = typename TypeTraits::template PartitionedHyperGraph<>;
+using TBB = typename TypeTraits::TBB;
 
+class AZeroGainCache : public Test {
  public:
-  using Base::TestHypergraph;
-  using Cache = ZeroGainCache<TestHypergraph>;
+  using Cache = ZeroGainCache<PartitionedHyperGraph>;
 
   AZeroGainCache() :
-    Base(),
-    hypergraph(construct_hypergraph(16,
-                                    { { 0, 1,  2,  3,  4,  5,  6,  7 },
-                                      { 8, 9, 10, 11, 12, 13, 14, 15 },
-                                      { 1, 4 }, { 3, 6 }, { 9, 12 }, {11, 14} },
-                                    { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
-                                    { 0, 0, 0, 0, 0, 0 },
-                                    { }, 4)),
+    hg(HyperGraphFactory::construct(TBB::GLOBAL_TASK_GROUP,
+      16 , 6, { { 0, 1,  2,  3,  4,  5,  6,  7 },
+                { 8, 9, 10, 11, 12, 13, 14, 15 },
+                { 1, 4 }, { 3, 6 }, { 9, 12 }, {11, 14} })),
+    hypergraph(),
     context(),
     zero_gain_cache(nullptr),
     id(16),
@@ -53,6 +52,7 @@ class AZeroGainCache : public ds::AHypergraph<1> {
     context.partition.k = 4;
     context.partition.epsilon = 0.0;
     context.setupPartWeights(16);
+    hypergraph = PartitionedHyperGraph(4, TBB::GLOBAL_TASK_GROUP, hg);
 
     // Assign part ids
     for ( HypernodeID original_hn = 0; original_hn < 16; ++original_hn ) {
@@ -60,7 +60,6 @@ class AZeroGainCache : public ds::AHypergraph<1> {
       hypergraph.setNodePart(hn, original_hn / 4);
       id[original_hn] = hn;
     }
-    hypergraph.updateGlobalPartInfos();
     hypergraph.initializeNumCutHyperedges();
 
     zero_gain_cache = std::make_unique<Cache>(hypergraph.initialNumNodes(), context);
@@ -77,7 +76,8 @@ class AZeroGainCache : public ds::AHypergraph<1> {
     zero_gain_cache->insert(hypergraph, id[15], 3, 2);
   }
 
-  TestHypergraph hypergraph;
+  HyperGraph hg;
+  PartitionedHyperGraph hypergraph;
   Context context;
   std::unique_ptr<Cache> zero_gain_cache;
   std::vector<HypernodeID> id;

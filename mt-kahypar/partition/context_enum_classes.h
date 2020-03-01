@@ -35,15 +35,7 @@ enum class Type : int8_t {
 };
 
 enum class Paradigm : int8_t {
-  nlevel,
   multilevel
-};
-
-enum class InitialHyperedgeDistribution : uint8_t {
-  equally,
-  random,
-  all_on_one,
-  UNDEFINED
 };
 
 enum class CommunityAssignmentObjective : uint8_t {
@@ -66,13 +58,7 @@ enum class LouvainEdgeWeight : uint8_t {
   UNDEFINED
 };
 
-enum class CommunityLoadBalancingStrategy : uint8_t {
-  size_constraint,
-  none
-};
-
 enum class CoarseningAlgorithm : uint8_t {
-  community_coarsener,
   multilevel_coarsener,
   UNDEFINED
 };
@@ -122,15 +108,6 @@ enum class LabelPropagationAlgorithm : uint8_t {
   do_nothing
 };
 
-enum class ExecutionType : uint8_t {
-  exponential,
-  multilevel,
-  constant,
-  none,
-  always,
-  UNDEFINED
-};
-
 std::ostream & operator<< (std::ostream& os, const Type& type) {
   switch (type) {
     case Type::Unweighted: return os << "unweighted";
@@ -144,23 +121,10 @@ std::ostream & operator<< (std::ostream& os, const Type& type) {
 
 std::ostream & operator<< (std::ostream& os, const Paradigm& paradigm) {
   switch (paradigm) {
-    case Paradigm::nlevel: return os << "nlevel";
     case Paradigm::multilevel: return os << "multilevel";
       // omit default case to trigger compiler warning for missing cases
   }
   return os << static_cast<uint8_t>(paradigm);
-}
-
-
-std::ostream & operator<< (std::ostream& os, const InitialHyperedgeDistribution& strategy) {
-  switch (strategy) {
-    case InitialHyperedgeDistribution::equally: return os << "equally";
-    case InitialHyperedgeDistribution::random: return os << "random";
-    case InitialHyperedgeDistribution::all_on_one: return os << "all_on_one";
-    case InitialHyperedgeDistribution::UNDEFINED: return os << "UNDEFINED";
-      // omit default case to trigger compiler warning for missing cases
-  }
-  return os << static_cast<uint8_t>(strategy);
 }
 
 std::ostream & operator<< (std::ostream& os, const CommunityAssignmentObjective& objective) {
@@ -195,18 +159,8 @@ std::ostream & operator<< (std::ostream& os, const LouvainEdgeWeight& type) {
   return os << static_cast<uint8_t>(type);
 }
 
-std::ostream & operator<< (std::ostream& os, const CommunityLoadBalancingStrategy& strategy) {
-  switch (strategy) {
-    case CommunityLoadBalancingStrategy::size_constraint: return os << "size_constraint";
-    case CommunityLoadBalancingStrategy::none: return os << "none";
-      // omit default case to trigger compiler warning for missing cases
-  }
-  return os << static_cast<uint8_t>(strategy);
-}
-
 std::ostream & operator<< (std::ostream& os, const CoarseningAlgorithm& algo) {
   switch (algo) {
-    case CoarseningAlgorithm::community_coarsener: return os << "community_coarsener";
     case CoarseningAlgorithm::multilevel_coarsener: return os << "multilevel_coarsener";
     case CoarseningAlgorithm::UNDEFINED: return os << "UNDEFINED";
       // omit default case to trigger compiler warning for missing cases
@@ -282,31 +236,6 @@ std::ostream & operator<< (std::ostream& os, const LabelPropagationAlgorithm& al
   return os << static_cast<uint8_t>(algo);
 }
 
-std::ostream & operator<< (std::ostream& os, const ExecutionType& type) {
-  switch (type) {
-    case ExecutionType::exponential: return os << "exponential";
-    case ExecutionType::multilevel: return os << "multilevel";
-    case ExecutionType::constant: return os << "constant";
-    case ExecutionType::none: return os << "none";
-    case ExecutionType::always: return os << "always";
-    case ExecutionType::UNDEFINED: return os << "UNDEFINED";
-      // omit default case to trigger compiler warning for missing cases
-  }
-  return os << static_cast<uint8_t>(type);
-}
-
-static InitialHyperedgeDistribution initialHyperedgeDistributionFromString(const std::string& strategy) {
-  if (strategy == "equally") {
-    return InitialHyperedgeDistribution::equally;
-  } else if (strategy == "random") {
-    return InitialHyperedgeDistribution::random;
-  } else if (strategy == "all_on_one") {
-    return InitialHyperedgeDistribution::all_on_one;
-  }
-  ERROR("No valid community assignment strategy.");
-  return InitialHyperedgeDistribution::UNDEFINED;
-}
-
 static CommunityAssignmentObjective communityAssignmentObjectiveFromString(const std::string& objective) {
   if (objective == "vertex_objective") {
     return CommunityAssignmentObjective::vertex_objective;
@@ -341,20 +270,8 @@ static LouvainEdgeWeight louvainEdgeWeightFromString(const std::string& type) {
   return LouvainEdgeWeight::UNDEFINED;
 }
 
-static CommunityLoadBalancingStrategy communityLoadBalancingStrategyFromString(const std::string& strategy) {
-  if (strategy == "size_constraint") {
-    return CommunityLoadBalancingStrategy::size_constraint;
-  } else if (strategy == "none") {
-    return CommunityLoadBalancingStrategy::none;
-  }
-  ERROR("No valid louvain edge weight.");
-  return CommunityLoadBalancingStrategy::none;
-}
-
 static CoarseningAlgorithm coarseningAlgorithmFromString(const std::string& type) {
-  if (type == "community_coarsener") {
-    return CoarseningAlgorithm::community_coarsener;
-  } else if (type == "multilevel_coarsener") {
+  if (type == "multilevel_coarsener") {
     return CoarseningAlgorithm::multilevel_coarsener;
   }
   ERROR("Illegal option: " + type);
@@ -441,19 +358,4 @@ static LabelPropagationAlgorithm labelPropagationAlgorithmFromString(const std::
   return LabelPropagationAlgorithm::do_nothing;
 }
 
-static ExecutionType executionTypeFromString(const std::string& type) {
-  if (type == "exponential") {
-    return ExecutionType::exponential;
-  } else if (type == "multilevel") {
-    return ExecutionType::multilevel;
-  } else if (type == "constant") {
-    return ExecutionType::constant;
-  } else if (type == "none") {
-    return ExecutionType::none;
-  } else if (type == "always") {
-    return ExecutionType::always;
-  }
-  ERROR("Illegal option: " + type);
-  return ExecutionType::UNDEFINED;
-}
 }  // namesapce mt_kahypar

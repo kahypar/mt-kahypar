@@ -141,7 +141,7 @@ inline void Partitioner::preprocess(Hypergraph& hypergraph) {
       ds::AdjListStarExpansion::restrictClusteringToHypernodes(hypergraph, communities);
       _hypergraph_sparsifier.assignAllDegreeZeroHypernodesToSameCommunity(hypergraph, communities);
     } else {
-      tmp_io::readPartitionFile(_context.partition.graph_community_filename, communities);
+      io::readPartitionFile(_context.partition.graph_community_filename, communities);
     }
     utils::Timer::instance().stop_timer("perform_community_detection");
 
@@ -184,14 +184,15 @@ inline void Partitioner::preprocess(Hypergraph& hypergraph) {
 }
 
 inline void Partitioner::redistribution(Hypergraph& hypergraph) {
-  std::unique_ptr<preprocessing::ICommunityAssignment> community_assignment =
-    RedistributionFactory::getInstance().createObject(
-      _context.preprocessing.community_redistribution.assignment_strategy, hypergraph, _context);
-
-  parallel::scalable_vector<PartitionID> community_node_mapping =
-    community_assignment->computeAssignment();
   if (_context.preprocessing.use_community_redistribution &&
       TBBNumaArena::instance().num_used_numa_nodes() > 1) {
+    std::unique_ptr<preprocessing::ICommunityAssignment> community_assignment =
+      RedistributionFactory::getInstance().createObject(
+        _context.preprocessing.community_redistribution.assignment_strategy,
+        hypergraph, _context);
+
+    parallel::scalable_vector<PartitionID> community_node_mapping =
+      community_assignment->computeAssignment();
     HyperedgeWeight remote_pin_count_before = metrics::remotePinCount(hypergraph);
     hypergraph = preprocessing::CommunityRedistributor::redistribute(
       TBBNumaArena::GLOBAL_TASK_GROUP, hypergraph, community_node_mapping);
@@ -212,8 +213,9 @@ inline void Partitioner::redistribution(Hypergraph& hypergraph) {
       LOG << " Remote Pin Count After Redistribution    =" << remote_pin_count_after;
       io::printStripe();
     }
+
+    hypergraph.setCommunityNodeMapping(std::move(community_node_mapping));
   }
-  hypergraph.setCommunityNodeMapping(std::move(community_node_mapping));
 }
 
 inline void Partitioner::postprocess(PartitionedHypergraph<>& hypergraph) {
