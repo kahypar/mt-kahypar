@@ -37,6 +37,6 @@
 
 namespace mt_kahypar {
 REGISTER_LP_REFINER(LabelPropagationAlgorithm::label_propagation_cut, LabelPropagationCutRefiner, Cut);
-REGISTER_LP_REFINER(LabelPropagationAlgorithm::label_propagation_km1, LabelPropagationCutRefiner, Km1);
+REGISTER_LP_REFINER(LabelPropagationAlgorithm::label_propagation_km1, LabelPropagationKm1Refiner, Km1);
 REGISTER_LP_REFINER(LabelPropagationAlgorithm::do_nothing, DoNothingRefiner, 1);
 }  // namespace mt_kahypar
