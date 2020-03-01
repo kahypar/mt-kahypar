@@ -26,10 +26,19 @@
 
 namespace mt_kahypar {
 
+#define UI64(X) static_cast<uint64_t>(X)
+
 using TaskGroupID = size_t;
 using RatingType = double;
+#if ( KAHYPAR_ENABLE_NUMA_AWARE_PARTITIONING || HYPERGRAPH_UNIT_TEST )
+#define ID(X) static_cast<uint64_t>(X)
 using HypernodeID = uint64_t;
 using HyperedgeID = uint64_t;
+#else
+#define ID(X) static_cast<uint32_t>(X)
+using HypernodeID = uint32_t;
+using HyperedgeID = uint32_t;
+#endif
 using HypernodeWeight = int32_t;
 using HyperedgeWeight = int32_t;
 using PartitionID = int32_t;
@@ -112,7 +121,7 @@ struct ContractedHyperedge {
 
 namespace common {
 
-#if KAHYPAR_ENABLE_NUMA_AWARE_PARTITIONING
+#if ( KAHYPAR_ENABLE_NUMA_AWARE_PARTITIONING || HYPERGRAPH_UNIT_TEST )
 
 static constexpr size_t NUMA_NODE_IDENTIFIER = 48;
 

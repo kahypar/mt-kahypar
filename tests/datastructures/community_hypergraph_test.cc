@@ -22,8 +22,8 @@
 
 #include "gmock/gmock.h"
 
-#include "mt-kahypar/datastructures/hypergraph_common.h"
 #include "tests/datastructures/hypergraph_fixtures.h"
+#include "mt-kahypar/datastructures/hypergraph_common.h"
 
 using ::testing::Test;
 

@@ -29,7 +29,6 @@
 
 #include "tbb/parallel_for.h"
 #include "tbb/parallel_reduce.h"
-#include "tbb/parallel_scan.h"
 #include "tbb/parallel_sort.h"
 #include "tbb/queuing_mutex.h"
 #include "tbb/task_arena.h"

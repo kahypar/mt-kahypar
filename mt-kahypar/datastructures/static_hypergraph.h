@@ -45,6 +45,9 @@ class StaticHypergraph {
 
   static constexpr bool enable_heavy_assert = false;
 
+  static_assert(std::is_unsigned<HypernodeID>::value, "Hypernode ID must be unsigned");
+  static_assert(std::is_unsigned<HyperedgeID>::value, "Hyperedge ID must be unsigned");
+
   /**
    * Represents a hypernode of the hypergraph and contains all information
    * associated with a vertex.
@@ -487,7 +490,7 @@ class StaticHypergraph {
 
   // ! Recomputes the total weight of the hypergraph (parallel)
   void updateTotalWeight(const TaskGroupID) {
-    _total_weight = tbb::parallel_reduce(tbb::blocked_range<HypernodeID>(0UL, _num_hypernodes), 0,
+    _total_weight = tbb::parallel_reduce(tbb::blocked_range<HypernodeID>(ID(0), _num_hypernodes), 0,
       [this](const tbb::blocked_range<HypernodeID>& range, HypernodeWeight init) {
         HypernodeWeight weight = init;
         for (HypernodeID hn = range.begin(); hn < range.end(); ++hn) {
@@ -518,7 +521,7 @@ class StaticHypergraph {
   // ! for each vertex
   template<typename F>
   void doParallelForAllNodes(const TaskGroupID, const F& f) const {
-    tbb::parallel_for(0UL, _num_hypernodes, [&](const HypernodeID& id) {
+    tbb::parallel_for(ID(0), _num_hypernodes, [&](const HypernodeID& id) {
       const HypernodeID hn = common::get_global_vertex_id(_node, id);
       if ( nodeIsEnabled(hn) ) {
         f(hn);
@@ -537,7 +540,7 @@ class StaticHypergraph {
   // ! for each net
   template<typename F>
   void doParallelForAllEdges(const TaskGroupID, const F& f) const {
-    tbb::parallel_for(0UL, _num_hyperedges, [&](const HyperedgeID& id) {
+    tbb::parallel_for(ID(0), _num_hyperedges, [&](const HyperedgeID& id) {
       const HyperedgeID he = common::get_global_edge_id(_node, id);
       if ( edgeIsEnabled(he) ) {
         f(he);
@@ -943,8 +946,8 @@ class StaticHypergraph {
     // Stores the prefix sum over the number of pins in each bucket
     parallel::scalable_vector<HyperedgeID> num_pins_prefix_sum(hyperedge_buckets.size() + 1, 0);
     // For each node we aggregate the number of incident nets
-    parallel::scalable_vector<parallel::IntegralAtomicWrapper<HyperedgeID>> num_incident_nets(
-      num_hypernodes, parallel::IntegralAtomicWrapper<HyperedgeID>(0));
+    parallel::scalable_vector<parallel::IntegralAtomicWrapper<size_t>> num_incident_nets(
+      num_hypernodes, parallel::IntegralAtomicWrapper<size_t>(0));
 
     tbb::parallel_for(0UL, hyperedge_buckets.size(), [&](const size_t bucket) {
       parallel::scalable_vector<ContractedHyperedge>& hyperedge_bucket = hyperedge_buckets[bucket];
@@ -1004,17 +1007,17 @@ class StaticHypergraph {
     // Compute start position of incident nets for each vertex
     // in incident net array
     utils::Timer::instance().start_timer("incident_net_prefix_sum", "Incident Net Prefix Sum");
-    parallel::TBBPrefixSum<parallel::IntegralAtomicWrapper<HyperedgeID>>
+    parallel::TBBPrefixSum<parallel::IntegralAtomicWrapper<size_t>>
       incident_nets_prefix_sum(num_incident_nets);
-    tbb::parallel_scan(tbb::blocked_range<HypernodeID>(
-      0UL, num_hypernodes), incident_nets_prefix_sum);
+    tbb::parallel_scan(tbb::blocked_range<size_t>(
+      0UL, UI64(num_hypernodes)), incident_nets_prefix_sum);
     utils::Timer::instance().stop_timer("incident_net_prefix_sum");
 
     tbb::parallel_invoke([&] {
       // Setup hypernodes
       utils::Timer::instance().start_timer("setup_hypernodes", "Setup Hypernodes", true);
       hypergraph._hypernodes.resize(hypergraph._num_hypernodes);
-      tbb::parallel_for(0UL, num_hypernodes, [&](const HypernodeID hn) {
+      tbb::parallel_for(ID(0), num_hypernodes, [&](const HypernodeID hn) {
         const size_t incident_nets_pos = incident_nets_prefix_sum[hn];
         const size_t incident_nets_size = hn == 0 ? incident_nets_prefix_sum[hn + 1] :
           incident_nets_prefix_sum[hn + 1] - incident_nets_prefix_sum[hn];
@@ -1377,7 +1380,7 @@ class StaticHypergraph {
         }
         hash_to_hyperedge.stream(he_hash,
           ContractedHyperedge { he, he_hash, edgeWeight(he),
-            false, _node, std::move(hyperedge), 0UL, 0UL } );
+            false, _node, std::move(hyperedge), ID(0), ID(0) } );
       }
     });
   }

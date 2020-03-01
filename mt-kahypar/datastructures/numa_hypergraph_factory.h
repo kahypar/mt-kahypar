@@ -243,11 +243,12 @@ class NumaHypergraphFactory {
     ASSERT(edge_vector.size() == num_hyperedges);
     const int used_numa_nodes = TBBNumaArena::instance().num_used_numa_nodes();
     ASSERT(used_numa_nodes > 0);
-    const size_t num_hyperedges_per_hypergraph = std::max( num_hyperedges / used_numa_nodes, 1UL);
+    const size_t num_hyperedges_per_hypergraph = std::max(
+      UI64(num_hyperedges / used_numa_nodes), 1UL);
 
     parallel::scalable_vector<AtomicCounter> num_hn_occurs_as_pin_on_numa_node(used_numa_nodes,
       AtomicCounter(num_hypernodes, parallel::IntegralAtomicWrapper<size_t>(0)));
-    tbb::parallel_for(0UL, num_hyperedges, [&](const HyperedgeID he) {
+    tbb::parallel_for(ID(0), num_hyperedges, [&](const HyperedgeID he) {
       // Equally split the hyperedges across the numa nodes
       const HyperedgeID node = std::min(static_cast<int>(he / num_hyperedges_per_hypergraph), used_numa_nodes - 1);
       edges_to_numa_node[he] = node;
@@ -259,7 +260,7 @@ class NumaHypergraphFactory {
 
     // Compute vertex to numa node mapping based on
     // where each vertex occurs most as pin
-    tbb::parallel_for(0UL, num_hypernodes, [&](const HypernodeID hn) {
+    tbb::parallel_for(ID(0), num_hypernodes, [&](const HypernodeID hn) {
       int best_count = std::numeric_limits<int>::min();
       int best_node = -1;
       for ( int node = 0; node < used_numa_nodes; ++node ) {
@@ -281,7 +282,7 @@ class NumaHypergraphFactory {
                                                   parallel::scalable_vector<int>&& vertices_to_numa_node) {
     const int used_numa_nodes = TBBNumaArena::instance().num_used_numa_nodes();
     parallel::scalable_vector<int> edges_to_numa_node(edge_vector.size(), 0);
-    tbb::parallel_for(0UL, edge_vector.size(), [&](const HyperedgeID he) {
+    tbb::parallel_for(ID(0), ID(edge_vector.size()), [&](const HyperedgeID he) {
       parallel::scalable_vector<size_t> num_he_occurs_as_incident_net_on_numa_node(used_numa_nodes, 0);
       for ( const HypernodeID& pin : edge_vector[he] ) {
         ASSERT(pin < vertices_to_numa_node.size());

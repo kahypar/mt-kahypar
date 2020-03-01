@@ -394,7 +394,7 @@ class LabelPropagationRefinerT final : public IRefinerT<TypeTraits, track_border
         add_vertex(hn);
       }
     } else {
-      tbb::parallel_for(0UL, hypergraph.initialNumNodes(), [&](const HypernodeID id) {
+      tbb::parallel_for(ID(0), hypergraph.initialNumNodes(), [&](const HypernodeID id) {
         const HypernodeID hn = hypergraph.globalNodeID(id);
         add_vertex(hn);
       });

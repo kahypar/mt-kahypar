@@ -20,7 +20,6 @@
 
 #include "gmock/gmock.h"
 
-#include "mt-kahypar/partition/coarsening/community_coarsener.h"
 #include "tests/partition/coarsening/coarsener_fixtures.h"
 
 using ::testing::Test;

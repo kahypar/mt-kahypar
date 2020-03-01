@@ -20,9 +20,9 @@
 
 #include "gmock/gmock.h"
 
+#include "tests/datastructures/hypergraph_fixtures.h"
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/partition/refinement/zero_gain_cache.h"
-#include "tests/datastructures/hypergraph_fixtures.h"
 
 using ::testing::Test;
 

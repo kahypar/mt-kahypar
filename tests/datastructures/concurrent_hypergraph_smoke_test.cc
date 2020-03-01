@@ -25,6 +25,8 @@
 #include "tbb/task_arena.h"
 #include "tbb/task_group.h"
 
+#define HYPERGRAPH_UNIT_TEST true
+
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/datastructures/hypergraph.h"
 #include "mt-kahypar/datastructures/streaming_hypergraph.h"

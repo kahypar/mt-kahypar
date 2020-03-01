@@ -58,6 +58,11 @@ class NumaHypergraph {
   static constexpr bool is_numa_aware = true;
   static constexpr bool is_partitioned = false;
 
+  static_assert(sizeof(HypernodeID) == 8, "Hypernode ID must be 8 byte");
+  static_assert(std::is_unsigned<HypernodeID>::value, "Hypernode ID must be unsigned");
+  static_assert(sizeof(HyperedgeID) == 8, "Hyperedge ID must be 8 byte");
+  static_assert(std::is_unsigned<HyperedgeID>::value, "Hyperedge ID must be unsigned");
+
   // ! Iterator to iterate over the hypernodes
   using HypernodeIterator = typename Hypergraph::HypernodeIterator;
   // ! Iterator to iterate over the hyperedges
@@ -762,7 +767,7 @@ class NumaHypergraph {
         const HypernodeID num_numa_hypernodes =
           num_numa_hypernodes_prefix_sum[node + 1] - num_numa_hypernodes_prefix_sum[node];
         tbb::parallel_scan(tbb::blocked_range<HypernodeID>(
-          0UL, num_numa_hypernodes), num_numa_incident_nets_prefix_sum[node]);
+          ID(0), num_numa_hypernodes), num_numa_incident_nets_prefix_sum[node]);
       });
     utils::Timer::instance().stop_timer("incident_net_prefix_sum");
 
@@ -793,7 +798,7 @@ class NumaHypergraph {
           // Setup hypernodes
           using Hypernode = typename Hypergraph::Hypernode;
           hg._hypernodes.resize(hg._num_hypernodes);
-          tbb::parallel_for(0UL, hg._num_hypernodes, [&](const HypernodeID id) {
+          tbb::parallel_for(ID(0), hg._num_hypernodes, [&](const HypernodeID id) {
             const size_t incident_nets_pos = num_numa_incident_nets_prefix_sum[node][id];
             const size_t incident_nets_size = id == 0 ?
               num_numa_incident_nets_prefix_sum[node][id + 1] :

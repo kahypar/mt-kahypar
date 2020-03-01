@@ -20,8 +20,10 @@
 
 #include "gmock/gmock.h"
 
-#include "mt-kahypar/definitions.h"
 #include "tests/datastructures/hypergraph_fixtures.h"
+#include "mt-kahypar/definitions.h"
+#include "mt-kahypar/partition/coarsening/multilevel_coarsener.h"
+#include "mt-kahypar/partition/coarsening/community_coarsener.h"
 
 using ::testing::Test;
 using ::testing::Eq;

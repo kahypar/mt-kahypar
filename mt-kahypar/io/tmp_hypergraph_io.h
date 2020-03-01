@@ -104,7 +104,7 @@ static inline void readHyperedges(std::ifstream& file,
   const bool has_hyperedge_weights = type == mt_kahypar::Type::EdgeWeights ||
                                      type == mt_kahypar::Type::EdgeAndNodeWeights ?
                                      true : false;
-  tbb::parallel_for(0UL, num_hyperedges, [&](const HyperedgeID i) {
+  tbb::parallel_for(ID(0), num_hyperedges, [&](const HyperedgeID i) {
     readStringAsHyperedge(lines[i], has_hyperedge_weights,
       hyperedges[i], hyperedges_weight[i]);
   });

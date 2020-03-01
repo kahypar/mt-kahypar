@@ -80,7 +80,7 @@ class MultilevelCoarsenerT : public ICoarsenerT<TypeTraits>,
       // enabled we adapt the maximum allowed node such that it is greater
       // than the heaviest node of the hypergraph.
       const HypernodeWeight max_vertex_weight = tbb::parallel_reduce(
-      tbb::blocked_range<HypernodeID>(0UL, hypergraph.initialNumNodes()), 0,
+      tbb::blocked_range<HypernodeID>(ID(0), hypergraph.initialNumNodes()), 0,
       [&](const tbb::blocked_range<HypernodeID>& range, HypernodeWeight init) {
         HypernodeWeight weight = init;
         for (HypernodeID id = range.begin(); id < range.end(); ++id) {
@@ -133,7 +133,7 @@ class MultilevelCoarsenerT : public ICoarsenerT<TypeTraits>,
       for ( int node = 0; node < TBB::instance().num_used_numa_nodes(); ++node ) {
         current_vertices[node].resize(current_hg.initialNumNodes(node));
       }
-      tbb::parallel_for(0UL, current_hg.initialNumNodes(), [&](const HypernodeID id) {
+      tbb::parallel_for(ID(0), current_hg.initialNumNodes(), [&](const HypernodeID id) {
         const HypernodeID hn = current_hg.globalNodeID(id);
         const int node = common::get_numa_node_of_vertex(hn);
         const HypernodeID local_id = common::get_local_position_of_vertex(hn);
@@ -161,7 +161,7 @@ class MultilevelCoarsenerT : public ICoarsenerT<TypeTraits>,
       const HypernodeID hierarchy_contraction_limit = hierarchyContractionLimit(current_hg);
       DBG << V(current_hg.initialNumNodes()) << V(hierarchy_contraction_limit);
       TBB::instance().execute_parallel_on_all_numa_nodes(_task_group_id, [&](const int node) {
-        tbb::parallel_for(0UL, current_hg.initialNumNodes(node), [&, node](const HypernodeID id) {
+        tbb::parallel_for(ID(0), current_hg.initialNumNodes(node), [&, node](const HypernodeID id) {
           ASSERT(id < current_vertices[node].size());
           const HypernodeID hn = current_vertices[node][id];
           // We perform rating if ...
@@ -206,7 +206,7 @@ class MultilevelCoarsenerT : public ICoarsenerT<TypeTraits>,
       // node in the union find data structure.
       utils::Timer::instance().start_timer("parallel_multilevel_contraction", "Parallel Multilevel Contraction");
       parallel::scalable_vector<HypernodeID> communities(current_hg.initialNumNodes());
-      tbb::parallel_for(0UL, current_hg.initialNumNodes(), [&](const HypernodeID id) {
+      tbb::parallel_for(ID(0), current_hg.initialNumNodes(), [&](const HypernodeID id) {
         communities[id] = _uf.find(id);
       });
       Base::performMultilevelContraction(std::move(communities));

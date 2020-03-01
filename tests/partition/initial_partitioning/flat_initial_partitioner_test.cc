@@ -24,6 +24,7 @@
 
 #include "tbb/parallel_invoke.h"
 
+#include "tests/datastructures/hypergraph_fixtures.h"
 #include "mt-kahypar/utils/timer.h"
 #include "mt-kahypar/io/tmp_hypergraph_io.h"
 #include "mt-kahypar/partition/initial_partitioning/flat/random_initial_partitioner.h"
@@ -32,7 +33,6 @@
 #include "mt-kahypar/partition/initial_partitioning/flat/label_propagation_initial_partitioner.h"
 #include "mt-kahypar/partition/initial_partitioning/flat/policies/gain_computation_policy.h"
 #include "mt-kahypar/partition/initial_partitioning/flat/policies/pq_selection_policy.h"
-#include "tests/datastructures/hypergraph_fixtures.h"
 
 using ::testing::Test;
 
