@@ -291,11 +291,6 @@ po::options_description createRefinementOptionsDescription(Context& context, con
     po::value<size_t>(&context.refinement.label_propagation.maximum_iterations)->value_name("<size_t>"),
     "Maximum number of iterations over all nodes during label propagation\n"
     "(default 1)")
-    ("r-lp-part-weight-update-factor",
-    po::value<double>(&context.refinement.label_propagation.part_weight_update_factor)->value_name("<double>"),
-    "Determines after how many iterations the local part weights are updated\n"
-    "=> steps = min(100, max(5, current_num_nodes * part_weight_update_factor))\n"
-    "(default 100)")
     ("r-lp-numa-aware",
     po::value<bool>(&context.refinement.label_propagation.numa_aware)->value_name("<bool>"),
     "If true, label propagation is executed numa friendly (which means that nodes are processed on its numa nodes)\n"

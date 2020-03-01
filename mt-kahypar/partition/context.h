@@ -194,7 +194,6 @@ inline std::ostream & operator<< (std::ostream& str, const InitialPartitioningPa
 struct LabelPropagationParameters {
   LabelPropagationAlgorithm algorithm = LabelPropagationAlgorithm::do_nothing;
   size_t maximum_iterations = 1;
-  double part_weight_update_factor = 0.01;
   bool numa_aware = false;
   bool rebalancing = true;
   bool execute_sequential = false;
@@ -204,7 +203,6 @@ inline std::ostream & operator<< (std::ostream& str, const LabelPropagationParam
   str << "  Label Propagation Parameters:" << std::endl;
   str << "    Algorithm:                        " << params.algorithm << std::endl;
   str << "    Maximum Iterations:               " << params.maximum_iterations << std::endl;
-  str << "    Part Weight Update Factor:        " << params.part_weight_update_factor << std::endl;
   str << "    Numa Aware:                       " << std::boolalpha << params.numa_aware << std::endl;
   str << "    Rebalancing:                      " << std::boolalpha << params.rebalancing << std::endl;
   return str;

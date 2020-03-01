@@ -195,7 +195,6 @@ class InitialPartitioningDataContainerT {
     _local_unassigned_hypernode_pointer(std::numeric_limits<size_t>::max())  {
     // Setup Label Propagation Refiner Config for Initial Partitioning
     _context.refinement.label_propagation.maximum_iterations = 3;
-    _context.refinement.label_propagation.part_weight_update_factor = 1.0;
     _context.refinement.label_propagation.numa_aware = false;
     _context.refinement.label_propagation.execute_sequential = true;
   }
