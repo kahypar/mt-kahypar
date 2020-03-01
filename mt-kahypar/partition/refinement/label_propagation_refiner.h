@@ -38,13 +38,11 @@
 #include "mt-kahypar/partition/metrics.h"
 #include "mt-kahypar/partition/refinement/i_refiner.h"
 #include "mt-kahypar/partition/refinement/policies/gain_policy.h"
-#include "mt-kahypar/partition/refinement/policies/execution_policy.h"
 #include "mt-kahypar/utils/randomize.h"
 #include "mt-kahypar/utils/stats.h"
 
 namespace mt_kahypar {
 template <typename TypeTraits,
-          typename ExecutionPolicy,
           template <typename> class GainPolicy,
           bool track_border_vertices = TRACK_BORDER_VERTICES>
 class LabelPropagationRefinerT final : public IRefinerT<TypeTraits, track_border_vertices> {
@@ -59,27 +57,18 @@ class LabelPropagationRefinerT final : public IRefinerT<TypeTraits, track_border
   static constexpr bool enable_heavy_assert = false;
 
  public:
-  explicit LabelPropagationRefinerT(HyperGraph& hypergraph, const Context& context, const TaskGroupID task_group_id) :
+  explicit LabelPropagationRefinerT(HyperGraph&,
+                                    const Context& context,
+                                    const TaskGroupID task_group_id) :
     _context(context),
     _task_group_id(task_group_id),
     _numa_nodes_indices(),
     _nodes(),
-    _current_level(0),
-    _execution_policy(context.refinement.label_propagation.execution_policy_alpha),
     _gain(context),
     _active(),
     _next_active(),
     _visited_he(),
-    _numa_lp_round_synchronization(0) {
-    if ( _context.partition.paradigm == Paradigm::nlevel ) {
-      _nodes.reserve(hypergraph.initialNumNodes());
-      for ( int node = 0; node < TBB::instance().num_used_numa_nodes(); ++node ) {
-        _active.emplace_back(hypergraph.initialNumNodes());
-        _next_active.emplace_back(hypergraph.initialNumNodes());
-        _visited_he.emplace_back(hypergraph.initialNumEdges());
-      }
-    }
-  }
+    _numa_lp_round_synchronization(0) { }
 
   LabelPropagationRefinerT(const LabelPropagationRefinerT&) = delete;
   LabelPropagationRefinerT(LabelPropagationRefinerT&&) = delete;
@@ -89,52 +78,28 @@ class LabelPropagationRefinerT final : public IRefinerT<TypeTraits, track_border
 
  private:
   bool refineImpl(HyperGraph& hypergraph,
-                  const parallel::scalable_vector<HypernodeID>& refinement_nodes,
+                  const parallel::scalable_vector<HypernodeID>&,
                   kahypar::Metrics& best_metrics) override final {
     _gain.reset();
-
-    // We collect all contraction partners of the uncontractions in order
-    // to avoid rebuilding and reshuffling the set of enabled nodes each
-    // time from scratch if we execute label propagation.
-    // NOTE, the assumption is that the LP Refiner is called after
-    // each uncontraction and that the contraction partner is on the
-    // second position of vector refinement_nodes.
-    ASSERT(refinement_nodes.size() % 2 == 0);
-    if ( !_context.refinement.label_propagation.localized ) {
-      for (size_t i = 0; i < refinement_nodes.size() / 2; ++i) {
-        addVertex(refinement_nodes[2 * i + 1]);  // add all contraction partners
-        ++_current_level;
-      }
-    } else {
-      _current_level += refinement_nodes.size() / 2;
-    }
-
-    // Label propagation is not executed on all levels of the n-level hierarchy.
-    // If LP should be executed on the current level is determined by the execution policy.
-    if (!_execution_policy.execute(_current_level)) {
-      return false;
-    }
 
     utils::Timer::instance().start_timer("label_propagation", "Label Propagation");
 
     HEAVY_REFINEMENT_ASSERT([&] {
         // Assertion verifies, that all enabled nodes are contained in _nodes
-        if ( !_context.refinement.label_propagation.localized ) {
-          std::vector<HypernodeID> tmp_nodes;
-          tmp_nodes.insert(tmp_nodes.begin(), _nodes.begin(), _nodes.end());
-          std::sort(tmp_nodes.begin(), tmp_nodes.end());
-          for (int node = 0; node < TBB::instance().num_used_numa_nodes(); ++node) {
-            size_t pos = _numa_nodes_indices[node];
-            for (const HypernodeID& hn : hypergraph.nodes(node)) {
-              HypernodeID current_hn = tmp_nodes[pos++];
-              if (common::get_numa_node_of_vertex(current_hn) != node) {
-                LOG << "Hypernode" << hn << "is not on numa node" << node;
-                return false;
-              }
-              if (current_hn != hn) {
-                LOG << "Hypernode" << hn << "not contained in vertex set";
-                return false;
-              }
+        std::vector<HypernodeID> tmp_nodes;
+        tmp_nodes.insert(tmp_nodes.begin(), _nodes.begin(), _nodes.end());
+        std::sort(tmp_nodes.begin(), tmp_nodes.end());
+        for (int node = 0; node < TBB::instance().num_used_numa_nodes(); ++node) {
+          size_t pos = _numa_nodes_indices[node];
+          for (const HypernodeID& hn : hypergraph.nodes(node)) {
+            HypernodeID current_hn = tmp_nodes[pos++];
+            if (common::get_numa_node_of_vertex(current_hn) != node) {
+              LOG << "Hypernode" << hn << "is not on numa node" << node;
+              return false;
+            }
+            if (current_hn != hn) {
+              LOG << "Hypernode" << hn << "not contained in vertex set";
+              return false;
             }
           }
         }
@@ -147,49 +112,20 @@ class LabelPropagationRefinerT final : public IRefinerT<TypeTraits, track_border
       _next_active[node].reset();
     }
 
-    if ( _context.refinement.label_propagation.localized ) {
-      tbb::parallel_for(0UL, refinement_nodes.size(), [&](const size_t i) {
-        size_t node = common::get_numa_node_of_vertex(refinement_nodes[i]);
-        ASSERT(node < _active.size());
-        _active[node].set(hypergraph.originalNodeID(refinement_nodes[i]), true);
-      });
-    }
-
-    if (_context.refinement.label_propagation.numa_aware && TBB::instance().num_used_numa_nodes() > 1) {
+    if (_context.refinement.label_propagation.numa_aware &&
+        TBB::instance().num_used_numa_nodes() > 1) {
       // Execute label propagation on all numa nodes
       TBB::instance().execute_parallel_on_all_numa_nodes(_task_group_id, [&](const int node) {
-          if ( _context.refinement.label_propagation.localized ) {
-            // In case, we perform numa-aware localized label propagation, we
-            // collect all vertices of the current uncontracted node that belongs
-            // to actual numa node and perform label propagation on those nodes.
-            parallel::scalable_vector<HypernodeID> current_refinement_nodes;
-            for ( const HypernodeID& hn : refinement_nodes ) {
-              if ( common::get_numa_node_of_vertex(hn) == node ) {
-                current_refinement_nodes.push_back(hn);
-              }
-            }
-            labelPropagation(hypergraph, current_refinement_nodes, 0UL,
-              current_refinement_nodes.size(), node);
-          } else {
-            // In case we execute numa-aware non-localized label propagation, we perform
-            // label propagation on all nodes of the current numa node.
-            size_t start = _numa_nodes_indices[node];
-            size_t end = _numa_nodes_indices[node + 1];
-            labelPropagation(hypergraph, _nodes, start, end, node);
-          }
+          // In case we execute numa-aware label propagation, we perform
+          // label propagation on all nodes of the current numa node.
+          size_t start = _numa_nodes_indices[node];
+          size_t end = _numa_nodes_indices[node + 1];
+          labelPropagation(hypergraph, _nodes, start, end, node);
         });
     } else {
-      // Execute label propagation
-      if ( _context.refinement.label_propagation.localized ) {
-        // In case, we execute non-numa-aware localized label propagation, we
-        // perform label propagation on the current uncontracted vertices
-        parallel::scalable_vector<HypernodeID> current_refinement_nodes(refinement_nodes);
-        labelPropagation(hypergraph, current_refinement_nodes, 0UL, current_refinement_nodes.size());
-      } else {
-        // In case, we execute non-numa-aware non-localized label propagation, we
-        // perform label propagation on all vertices
-        labelPropagation(hypergraph, _nodes, 0UL, _nodes.size());
-      }
+      // In case, we execute non-numa-aware label propagation, we
+      // perform label propagation on all vertices
+      labelPropagation(hypergraph, _nodes, 0UL, _nodes.size());
     }
 
     // Update global part weight and sizes
@@ -364,16 +300,6 @@ class LabelPropagationRefinerT final : public IRefinerT<TypeTraits, track_border
   }
 
   void initializeImpl(HyperGraph& hypergraph) override final {
-    if ( _context.partition.paradigm == Paradigm::nlevel ) {
-      nlevelInitialization(hypergraph);
-    } else if ( _context.partition.paradigm == Paradigm::multilevel ) {
-      multilevelInitialization(hypergraph);
-    } else {
-      ERROR("No valid paradigm:" << _context.partition.paradigm);
-    }
-  }
-
-  void multilevelInitialization(HyperGraph& hypergraph) {
     const int num_numa_nodes = hypergraph.numNumaHypergraphs();
     _numa_nodes_indices.assign(num_numa_nodes + 1, 0);
     for ( int node = 1; node <= num_numa_nodes; ++node ) {
@@ -409,60 +335,6 @@ class LabelPropagationRefinerT final : public IRefinerT<TypeTraits, track_border
     }
   }
 
-  void nlevelInitialization(HyperGraph& hypergraph) {
-    HypernodeID current_num_nodes = 0;
-    _numa_nodes_indices.assign(TBB::instance().num_used_numa_nodes() + 1, 0);
-    for (const HypernodeID& hn : hypergraph.nodes()) {
-      const size_t node = common::get_numa_node_of_vertex(hn);
-      ASSERT(node + 1 < _numa_nodes_indices.size());
-      ++_numa_nodes_indices[node + 1];
-      _nodes.emplace_back(hn);
-      ++current_num_nodes;
-    }
-    _execution_policy.initialize(hypergraph, current_num_nodes);
-
-    // Sort vertices such that all hypernodes belonging to the same
-    // numa node are within a consecutive range in _nodes
-    std::sort(_nodes.begin(), _nodes.end(),
-              [&](const HypernodeID& lhs, const HypernodeID& rhs) {
-        return common::get_numa_node_of_vertex(lhs) <
-               common::get_numa_node_of_vertex(rhs);
-      });
-
-    // Build up a vector that points to the start position of the vertices
-    // belonging to the same numa node in _nodes
-    for (size_t i = 1; i < _numa_nodes_indices.size(); ++i) {
-      _numa_nodes_indices[i] += _numa_nodes_indices[i - 1];
-    }
-    ASSERT(_numa_nodes_indices.back() == current_num_nodes);
-
-    // Random shuffle all nodes belonging to the same numa node
-    ASSERT(_numa_nodes_indices.size() - 1 == (size_t)TBB::instance().num_used_numa_nodes());
-    for (int node = 0; node < TBB::instance().num_used_numa_nodes(); ++node) {
-      size_t start = _numa_nodes_indices[node];
-      size_t end = _numa_nodes_indices[node + 1];
-      utils::Randomize::instance().shuffleVector(_nodes, start, end, sched_getcpu());
-    }
-  }
-
-  // ! Adds a hypernode to set of vertices that are
-  // ! considered during label propagation
-  void addVertex(const HypernodeID hn) {
-    _nodes.emplace_back(hn);
-    // Swap new vertex to the consecutive range of hypernodes
-    // that belong to the same numa node than the new vertex
-    int num_numa_nodes = _numa_nodes_indices.size() - 1;
-    int node = common::get_numa_node_of_vertex(hn);
-    ++_numa_nodes_indices.back();
-    size_t current_position = _nodes.size() - 1;
-    int current_numa_node = num_numa_nodes - 1;
-    while (node < current_numa_node) {
-      size_t& numa_node_start = _numa_nodes_indices[current_numa_node--];
-      std::swap(_nodes[current_position], _nodes[numa_node_start]);
-      current_position = numa_node_start++;
-    }
-  }
-
   const Context& _context;
   const TaskGroupID _task_group_id;
   // ! Vector that poins to the first vertex of a consecutive range of nodes
@@ -473,10 +345,6 @@ class LabelPropagationRefinerT final : public IRefinerT<TypeTraits, track_border
   // ! Inside a consecutive range of nodes, that belongs to the same numa node, the
   // ! vertices are pseudo-random shuffled.
   parallel::scalable_vector<HypernodeID> _nodes;
-  // ! Incremental counter of calls to LP
-  size_t _current_level;
-  // ! Indicate whether LP should be executed or not
-  ExecutionPolicy _execution_policy;
   // ! Computes max gain moves
   GainCalculator _gain;
   // ! Indicate which vertices are active and considered for LP
@@ -486,8 +354,6 @@ class LabelPropagationRefinerT final : public IRefinerT<TypeTraits, track_border
   std::atomic<size_t> _numa_lp_round_synchronization;
 };
 
-template <typename ExecutionPolicy = Mandatory>
-using LabelPropagationKm1Refiner = LabelPropagationRefinerT<GlobalTypeTraits, ExecutionPolicy, Km1Policy>;
-template <typename ExecutionPolicy = Mandatory>
-using LabelPropagationCutRefiner = LabelPropagationRefinerT<GlobalTypeTraits, ExecutionPolicy, CutPolicy>;
+using LabelPropagationKm1Refiner = LabelPropagationRefinerT<GlobalTypeTraits, Km1Policy>;
+using LabelPropagationCutRefiner = LabelPropagationRefinerT<GlobalTypeTraits, CutPolicy>;
 }  // namespace kahypar

@@ -304,10 +304,6 @@ po::options_description createRefinementOptionsDescription(Context& context, con
     "Determines after how many iterations the local part weights are updated\n"
     "=> steps = min(100, max(5, current_num_nodes * part_weight_update_factor))\n"
     "(default 100)")
-    ("r-lp-localized",
-    po::value<bool>(&context.refinement.label_propagation.localized)->value_name("<bool>"),
-    "If true, label propagation is executed only on the previously uncontracted vertices)\n"
-    "(default false)")
     ("r-lp-numa-aware",
     po::value<bool>(&context.refinement.label_propagation.numa_aware)->value_name("<bool>"),
     "If true, label propagation is executed numa friendly (which means that nodes are processed on its numa nodes)\n"
@@ -315,22 +311,7 @@ po::options_description createRefinementOptionsDescription(Context& context, con
     ("r-lp-rebalancing",
     po::value<bool>(&context.refinement.label_propagation.rebalancing)->value_name("<bool>"),
     "If true, zero gain moves are used to rebalance solution\n"
-    "(default true)")
-    ("r-lp-execution-policy",
-    po::value<std::string>()->value_name("<string>")->notifier(
-      [&](const std::string& type) {
-      context.refinement.label_propagation.execution_policy =
-        executionTypeFromString(type);
-    }),
-    "Execution policy used for label propagation:\n"
-    "- exponential\n"
-    "- multilevel\n"
-    "- constant")
-    ("r-lp-execution-policy-alpha",
-    po::value<double>(&context.refinement.label_propagation.execution_policy_alpha)->value_name("<double>"),
-    "In case of execution policy 'exponential', LP is executed in each level which is a power of alpha\n"
-    "In case of execution policy 'multilevel', LP is executed on each level INITIAL_NUM_NODES / alpha ^ i\n"
-    "In case of execution policy 'constant', LP is executed on each level which is a multiple of alpha");
+    "(default true)");
   return options;
 }
 
@@ -345,16 +326,7 @@ po::options_description createSharedMemoryOptionsDescription(Context& context,
     ("s-shuffle-block-size",
     po::value<size_t>(&context.shared_memory.shuffle_block_size)->value_name("<size_t>"),
     "If we perform a random shuffle in parallel, we perform a parallel for over blocks of size"
-    "'shuffle_block_size' and shuffle them sequential.")
-    ("s-initial-hyperedge-distribution",
-    po::value<std::string>()->value_name("<string>")->notifier(
-      [&](const std::string& strategy) {
-      context.shared_memory.initial_hyperedge_distribution = mt_kahypar::initialHyperedgeDistributionFromString(strategy);
-    }),
-    "Determines how hyperedges are distributed to numa nodes after reading hypergraph file: \n"
-    " - equally\n"
-    " - random\n"
-    " - all_on_one");
+    "'shuffle_block_size' and shuffle them sequential.");
 
   return shared_memory_options;
 }

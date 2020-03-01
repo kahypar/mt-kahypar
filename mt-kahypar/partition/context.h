@@ -27,7 +27,7 @@
 
 namespace mt_kahypar {
 struct PartitioningParameters {
-  Paradigm paradigm = Paradigm::nlevel;
+  Paradigm paradigm = Paradigm::multilevel;
   kahypar::Mode mode = kahypar::Mode::UNDEFINED;
   kahypar::Objective objective = kahypar::Objective::UNDEFINED;
   double epsilon = std::numeric_limits<double>::max();
@@ -195,11 +195,8 @@ struct LabelPropagationParameters {
   LabelPropagationAlgorithm algorithm = LabelPropagationAlgorithm::do_nothing;
   size_t maximum_iterations = 1;
   double part_weight_update_factor = 0.01;
-  bool localized = false;
   bool numa_aware = false;
   bool rebalancing = true;
-  ExecutionType execution_policy = ExecutionType::UNDEFINED;
-  double execution_policy_alpha = 2.0;
   bool execute_sequential = false;
 };
 
@@ -208,13 +205,8 @@ inline std::ostream & operator<< (std::ostream& str, const LabelPropagationParam
   str << "    Algorithm:                        " << params.algorithm << std::endl;
   str << "    Maximum Iterations:               " << params.maximum_iterations << std::endl;
   str << "    Part Weight Update Factor:        " << params.part_weight_update_factor << std::endl;
-  str << "    Localized:                        " << std::boolalpha << params.localized << std::endl;
   str << "    Numa Aware:                       " << std::boolalpha << params.numa_aware << std::endl;
   str << "    Rebalancing:                      " << std::boolalpha << params.rebalancing << std::endl;
-  if ( !params.localized ) {
-    str << "    Execution Policy:                 " << params.execution_policy << std::endl;
-    str << "    Execution Policy Alpha:           " << params.execution_policy_alpha << std::endl;
-  }
   return str;
 }
 
@@ -237,14 +229,12 @@ inline std::ostream & operator<< (std::ostream& str, const RefinementParameters&
 struct SharedMemoryParameters {
   size_t num_threads = 1;
   size_t shuffle_block_size = 2;
-  InitialHyperedgeDistribution initial_hyperedge_distribution = InitialHyperedgeDistribution::UNDEFINED;
 };
 
 inline std::ostream & operator<< (std::ostream& str, const SharedMemoryParameters& params) {
   str << "Shared Memory Parameters:             " << std::endl;
   str << "  Number of Threads:                  " << params.num_threads << std::endl;
   str << "  Random Shuffle Block Size:          " << params.shuffle_block_size << std::endl;
-  str << "  Initial Hyperedge Distribution:     " << params.initial_hyperedge_distribution << std::endl;
   return str;
 }
 
@@ -331,51 +321,14 @@ class Context {
                   LabelPropagationAlgorithm::label_propagation_km1);
     }
 
-    // Sanitize based on compiler flags
-    if ( coarsening.algorithm == CoarseningAlgorithm::community_coarsener ) {
-      ALGO_SWITCH("Coarsening algorithm" << coarsening.algorithm << "is currently not supported."
-                                          << "Do you want to switch to multilevel coarsener (Y/N)?",
-                  "Coarsening with" << coarsening.algorithm
-                                    << "is currently not supported!",
-                  coarsening.algorithm,
-                  CoarseningAlgorithm::multilevel_coarsener);
-    }
-
     if ( !preprocessing.use_community_detection ) {
-      if ( coarsening.algorithm == CoarseningAlgorithm::community_coarsener ) {
-        ALGO_SWITCH("Coarsening algorithm" << coarsening.algorithm << "only works if community detection is enabled."
-                                           << "Do you want to enable community detection (Y/N)?",
-                    "Coarsening with" << coarsening.algorithm
-                                      << "without community detection is not possible!",
-                    preprocessing.use_community_detection,
-                    true);
-      } else if ( preprocessing.use_community_redistribution ) {
+      if ( preprocessing.use_community_redistribution ) {
         ALGO_SWITCH("Community redistribution only works if community detection is enabled."
                     << "Do you want to enable community detection (Y/N)?",
                     "Community redistribution without community detection is not possible!",
                     preprocessing.use_community_detection,
                     true);
       }
-    }
-
-    if ( refinement.label_propagation.localized ) {
-      // If we use localized label propagation, we want to execute LP on each level
-      // only on the uncontracted hypernodes
-      refinement.label_propagation.execution_policy = ExecutionType::constant;
-      refinement.label_propagation.execution_policy_alpha = 1.0;
-    }
-
-    switch ( coarsening.algorithm ) {
-      case CoarseningAlgorithm::community_coarsener:
-        partition.paradigm = Paradigm::nlevel;
-        break;
-      case CoarseningAlgorithm::multilevel_coarsener:
-        partition.paradigm = Paradigm::multilevel;
-        refinement.label_propagation.execution_policy = ExecutionType::always;
-        refinement.label_propagation.localized = false;
-        break;
-      case CoarseningAlgorithm::UNDEFINED:
-        break;
     }
   }
 };

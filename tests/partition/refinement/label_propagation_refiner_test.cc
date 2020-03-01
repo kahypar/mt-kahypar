@@ -26,7 +26,6 @@
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/partition/initial_partitioning/flat/bfs_initial_partitioner.h"
 #include "mt-kahypar/partition/refinement/label_propagation_refiner.h"
-#include "mt-kahypar/partition/refinement/policies/execution_policy.h"
 #include "mt-kahypar/partition/refinement/policies/gain_policy.h"
 #include "mt-kahypar/utils/randomize.h"
 
@@ -39,7 +38,7 @@ struct TestConfig { };
 template <PartitionID k>
 struct TestConfig<k, kahypar::Objective::km1> {
   using TypeTraits = ds::TestTypeTraits<2>;
-  using Refiner = LabelPropagationRefinerT<TypeTraits, ExponentialExecutionPolicy, Km1Policy>;
+  using Refiner = LabelPropagationRefinerT<TypeTraits, Km1Policy>;
   static constexpr PartitionID K = k;
   static constexpr kahypar::Objective OBJECTIVE = kahypar::Objective::km1;
   static constexpr LabelPropagationAlgorithm LP_ALGO = LabelPropagationAlgorithm::label_propagation_km1;
@@ -48,7 +47,7 @@ struct TestConfig<k, kahypar::Objective::km1> {
 template <PartitionID k>
 struct TestConfig<k, kahypar::Objective::cut> {
   using TypeTraits = ds::TestTypeTraits<2>;
-  using Refiner = LabelPropagationRefinerT<TypeTraits, ExponentialExecutionPolicy, CutPolicy>;
+  using Refiner = LabelPropagationRefinerT<TypeTraits, CutPolicy>;
   static constexpr PartitionID K = k;
   static constexpr kahypar::Objective OBJECTIVE = kahypar::Objective::cut;
   static constexpr LabelPropagationAlgorithm LP_ALGO = LabelPropagationAlgorithm::label_propagation_cut;
@@ -95,9 +94,6 @@ class ALabelPropagationRefiner : public Test {
 
     // Label Propagation
     context.refinement.label_propagation.algorithm = Config::LP_ALGO;
-    context.refinement.label_propagation.execution_policy = ExecutionType::exponential;
-    context.refinement.label_propagation.part_weight_update_factor = 0.001;
-    context.refinement.label_propagation.localized = false;
     #ifdef KAHYPAR_TRAVIS_BUILD
     context.refinement.label_propagation.numa_aware = false;
     #else
