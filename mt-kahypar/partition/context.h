@@ -212,16 +212,10 @@ inline std::ostream & operator<< (std::ostream& str, const LabelPropagationParam
 
 struct RefinementParameters {
   LabelPropagationParameters label_propagation;
-  bool use_batch_uncontractions = false;
-  size_t batch_size = 1;
 };
 
 inline std::ostream & operator<< (std::ostream& str, const RefinementParameters& params) {
   str << "Refinement Parameters:" << std::endl;
-  str << "  Use Batch Uncontractions:           " << std::boolalpha << params.use_batch_uncontractions << std::endl;
-  if (params.use_batch_uncontractions) {
-    str << "  Batch Size:                         " << params.batch_size << std::endl;
-  }
   str << std::endl << params.label_propagation;
   return str;
 }

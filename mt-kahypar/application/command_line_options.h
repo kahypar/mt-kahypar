@@ -277,14 +277,6 @@ po::options_description createInitialPartitioningOptionsDescription(Context& con
 po::options_description createRefinementOptionsDescription(Context& context, const int num_columns) {
   po::options_description options("Refinement Options", num_columns);
   options.add_options()
-    ("r-use-batch-uncontractions",
-    po::value<bool>(&context.refinement.use_batch_uncontractions)->value_name("<bool>"),
-    "If true, contractions are reversed in parallel. The batch size is determined by r-batch-size.\n"
-    "(default false)")
-    ("r-batch-size",
-    po::value<size_t>(&context.refinement.batch_size)->value_name("<size_t>"),
-    "Determines how many contractions are reversed in parallel if batch uncontractions are used.\n"
-    "(default 1000)")
     ("r-lp-type",
     po::value<std::string>()->value_name("<string>")->notifier(
       [&](const std::string& type) {
