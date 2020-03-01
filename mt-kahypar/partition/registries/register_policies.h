@@ -29,7 +29,6 @@
 #include "mt-kahypar/partition/coarsening/policies/rating_score_policy.h"
 #include "mt-kahypar/partition/context_enum_classes.h"
 #include "mt-kahypar/partition/preprocessing/community_reassignment/policies/community_assignment_objective.h"
-#include "mt-kahypar/partition/refinement/policies/execution_policy.h"
 
 #define REGISTER_POLICY(policy, id, policy_class)                                                    \
   static kahypar::meta::Registrar<kahypar::meta::PolicyRegistry<policy> > register_ ## policy_class( \
@@ -51,31 +50,19 @@ REGISTER_POLICY(CommunityAssignmentObjective, CommunityAssignmentObjective::pin_
 // //////////////////////////////////////////////////////////////////////////////
 REGISTER_POLICY(RatingFunction, RatingFunction::heavy_edge,
                 HeavyEdgeScore);
+REGISTER_POLICY(RatingFunction, RatingFunction::sameness,
+                SamenessScore);
 
 REGISTER_POLICY(HeavyNodePenaltyPolicy, HeavyNodePenaltyPolicy::no_penalty,
                 NoWeightPenalty);
 REGISTER_POLICY(HeavyNodePenaltyPolicy, HeavyNodePenaltyPolicy::multiplicative_penalty,
                 MultiplicativePenalty);
-REGISTER_POLICY(HeavyNodePenaltyPolicy, HeavyNodePenaltyPolicy::edge_frequency_penalty,
-                EdgeFrequencyPenalty);
+REGISTER_POLICY(HeavyNodePenaltyPolicy, HeavyNodePenaltyPolicy::additive,
+                AdditivePenalty);
 
 REGISTER_POLICY(AcceptancePolicy, AcceptancePolicy::best,
                 BestRatingWithTieBreaking);
 REGISTER_POLICY(AcceptancePolicy, AcceptancePolicy::best_prefer_unmatched,
                 BestRatingPreferringUnmatched);
 
-// //////////////////////////////////////////////////////////////////////////////
-//                              Refinement Policies
-// //////////////////////////////////////////////////////////////////////////////
-
-REGISTER_POLICY(ExecutionType, ExecutionType::exponential,
-                ExponentialExecutionPolicy);
-REGISTER_POLICY(ExecutionType, ExecutionType::multilevel,
-                MultilevelExecutionPolicy);
-REGISTER_POLICY(ExecutionType, ExecutionType::constant,
-                ConstantExecutionPolicy);
-REGISTER_POLICY(ExecutionType, ExecutionType::none,
-                NoExecutionPolicy);
-REGISTER_POLICY(ExecutionType, ExecutionType::always,
-                AlwaysExecutionPolicy);
 }  // namespace mt_kahypar

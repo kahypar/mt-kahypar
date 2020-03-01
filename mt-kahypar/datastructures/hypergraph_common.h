@@ -26,10 +26,19 @@
 
 namespace mt_kahypar {
 
+#define UI64(X) static_cast<uint64_t>(X)
+
 using TaskGroupID = size_t;
 using RatingType = double;
+#if ( KAHYPAR_ENABLE_NUMA_AWARE_PARTITIONING || HYPERGRAPH_UNIT_TEST )
+#define ID(X) static_cast<uint64_t>(X)
 using HypernodeID = uint64_t;
 using HyperedgeID = uint64_t;
+#else
+#define ID(X) static_cast<uint32_t>(X)
+using HypernodeID = uint32_t;
+using HyperedgeID = uint32_t;
+#endif
 using HypernodeWeight = int32_t;
 using HyperedgeWeight = int32_t;
 using PartitionID = int32_t;
@@ -112,6 +121,8 @@ struct ContractedHyperedge {
 
 namespace common {
 
+#if ( KAHYPAR_ENABLE_NUMA_AWARE_PARTITIONING || HYPERGRAPH_UNIT_TEST )
+
 static constexpr size_t NUMA_NODE_IDENTIFIER = 48;
 
 MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE static HypernodeID get_global_vertex_id(const int node, const size_t vertex_pos) {
@@ -137,6 +148,31 @@ MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE static HyperedgeID get_local_position_of_edge
 MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE static int get_numa_node_of_edge(const HyperedgeID e) {
   return static_cast<int>(e >> NUMA_NODE_IDENTIFIER);
 }
+#else
+MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE static HypernodeID get_global_vertex_id(const int, const size_t vertex_pos) {
+  return vertex_pos;
+}
+
+MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE static HypernodeID get_local_position_of_vertex(const HypernodeID u) {
+  return u;
+}
+
+MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE static int get_numa_node_of_vertex(const HypernodeID) {
+  return 0;
+}
+
+MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE static HyperedgeID get_global_edge_id(const int, const size_t edge_pos) {
+  return edge_pos;
+}
+
+MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE static HyperedgeID get_local_position_of_edge(const HyperedgeID e) {
+  return e;
+}
+
+MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE static int get_numa_node_of_edge(const HyperedgeID) {
+  return 0;
+}
+#endif
 
 template<typename Hypergraph>
 MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE static const Hypergraph& hypergraph_of_vertex(

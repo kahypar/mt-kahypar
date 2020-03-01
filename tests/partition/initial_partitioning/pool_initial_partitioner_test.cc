@@ -26,7 +26,7 @@
 
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/utils/timer.h"
-#include "mt-kahypar/io/tmp_hypergraph_io.h"
+#include "mt-kahypar/io/hypergraph_io.h"
 #include "mt-kahypar/partition/registries/register_flat_initial_partitioning_algorithms.h"
 #include "mt-kahypar/partition/initial_partitioning/flat/pool_initial_partitioner.h"
 
@@ -60,10 +60,9 @@ class APoolInitialPartitionerTest : public Test {
     context.partition.k = Config::K;
     context.partition.epsilon = 0.2;
     context.partition.objective = kahypar::Objective::km1;
-    context.partition.paradigm = Paradigm::nlevel;
     context.initial_partitioning.runs = Config::RUNS;
     context.refinement.label_propagation.algorithm = LabelPropagationAlgorithm::label_propagation_km1;
-    hypergraph = tmp_io::readHypergraphFile<HyperGraph, HyperGraphFactory>(
+    hypergraph = io::readHypergraphFile<HyperGraph, HyperGraphFactory>(
       "../test_instances/test_instance.hgr", TBB::GLOBAL_TASK_GROUP);
     partitioned_hypergraph = PartitionedHyperGraph(
       context.partition.k, TBB::GLOBAL_TASK_GROUP, hypergraph);

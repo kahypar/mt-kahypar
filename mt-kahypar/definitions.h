@@ -30,10 +30,12 @@
 #include "mt-kahypar/parallel/tbb_numa_arena.h"
 #include "mt-kahypar/datastructures/static_hypergraph.h"
 #include "mt-kahypar/datastructures/static_hypergraph_factory.h"
+#include "mt-kahypar/datastructures/partitioned_hypergraph.h"
+#if KAHYPAR_ENABLE_NUMA_AWARE_PARTITIONING
 #include "mt-kahypar/datastructures/numa_hypergraph.h"
 #include "mt-kahypar/datastructures/numa_hypergraph_factory.h"
-#include "mt-kahypar/datastructures/partitioned_hypergraph.h"
 #include "mt-kahypar/datastructures/numa_partitioned_hypergraph.h"
+#endif
 
 #include "tests/parallel/topology_mock.h"
 

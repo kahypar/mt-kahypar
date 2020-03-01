@@ -49,7 +49,7 @@ class CommunityRedistributorT {
     // Compute Node Mapping
     utils::Timer::instance().start_timer("compute_node_mapping", "Compute Node Mapping");
     parallel::scalable_vector<int> vertices_to_numa_node(hg.initialNumNodes(), -1);
-    tbb::parallel_for(0UL, hg.initialNumNodes(), [&](const HypernodeID& hn) {
+    tbb::parallel_for(ID(0), hg.initialNumNodes(), [&](const HypernodeID& hn) {
           vertices_to_numa_node[hn] = community_assignment[hg.communityID(hg.globalNodeID(hn))];
         });
     utils::Timer::instance().stop_timer("compute_node_mapping");

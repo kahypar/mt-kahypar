@@ -24,9 +24,9 @@
 
 #include "tbb/parallel_invoke.h"
 
+#include "tests/datastructures/hypergraph_fixtures.h"
 #include "mt-kahypar/utils/timer.h"
 #include "mt-kahypar/partition/initial_partitioning/flat/initial_partitioning_data_container.h"
-#include "tests/datastructures/hypergraph_fixtures.h"
 
 using ::testing::Test;
 

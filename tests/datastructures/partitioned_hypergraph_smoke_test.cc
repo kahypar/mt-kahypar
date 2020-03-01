@@ -25,8 +25,10 @@
 #include "tbb/task_arena.h"
 #include "tbb/task_group.h"
 
+#include "tests/datastructures/hypergraph_fixtures.h"
+
 #include "mt-kahypar/definitions.h"
-#include "mt-kahypar/io/tmp_hypergraph_io.h"
+#include "mt-kahypar/io/hypergraph_io.h"
 #include "mt-kahypar/partition/metrics.h"
 #include "mt-kahypar/utils/randomize.h"
 
@@ -36,7 +38,6 @@
 #include "mt-kahypar/datastructures/numa_hypergraph_factory.h"
 #include "mt-kahypar/datastructures/partitioned_hypergraph.h"
 #include "mt-kahypar/datastructures/numa_partitioned_hypergraph.h"
-#include "tests/datastructures/hypergraph_fixtures.h"
 
 using ::testing::Test;
 
@@ -72,7 +73,7 @@ class AConcurrentHypergraph : public Test {
     underlying_hypergraph(),
     hypergraph() {
     int cpu_id = sched_getcpu();
-    underlying_hypergraph = tmp_io::readHypergraphFile<Hypergraph, Factory>(
+    underlying_hypergraph = io::readHypergraphFile<Hypergraph, Factory>(
       "../partition/test_instances/ibm01.hgr", TBB::GLOBAL_TASK_GROUP);
     hypergraph = PartitionedHyperGraph(k, TBB::GLOBAL_TASK_GROUP, underlying_hypergraph);
     for (const HypernodeID& hn : hypergraph.nodes()) {

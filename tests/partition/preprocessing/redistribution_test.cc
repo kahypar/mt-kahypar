@@ -20,10 +20,10 @@
 
 #include "gmock/gmock.h"
 
+#include "tests/datastructures/hypergraph_fixtures.h"
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/partition/preprocessing/community_reassignment/community_redistributor.h"
 #include "mt-kahypar/partition/preprocessing/community_reassignment/policies/community_assignment_objective.h"
-#include "tests/datastructures/hypergraph_fixtures.h"
 
 using ::testing::Test;
 

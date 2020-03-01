@@ -127,19 +127,6 @@ po::options_description createPreprocessingOptionsDescription(Context& context, 
     ("p-enable-community-detection",
     po::value<bool>(&context.preprocessing.use_community_detection)->value_name("<bool>"),
     "If true, community detection is used as preprocessing step to guide contractions in coarsening phase")
-    ("p-community-load-balancing-strategy",
-    po::value<std::string>()->value_name("<string>")->notifier(
-      [&](const std::string& strategy) {
-      context.preprocessing.community_detection.load_balancing_strategy = communityLoadBalancingStrategyFromString(strategy);
-    }),
-    "Community load balancing strategies:\n"
-    "- size_constraint\n"
-    "- label_propagation\n"
-    "- none")
-    ("p-community-size-constraint-factor",
-    po::value<size_t>(&context.preprocessing.community_detection.size_constraint_factor)->value_name("<size_t>"),
-    "If load balancing strategy is 'size_constraint', than a community is not allowed to have an volume\n"
-    "greater than total_volume / ( size_constraint_factor * num_threads )")
     ("p-louvain-edge-weight-function",
     po::value<std::string>()->value_name("<string>")->notifier(
       [&](const std::string& type) {
@@ -189,26 +176,31 @@ po::options_description createCoarseningOptionsDescription(Context& context,
     "Coarsening Algorithm:\n"
     " - community_coarsener\n"
     " - multilevel_coarsener")
+    ("c-use-adaptive-max-node-weight",
+    po::value<bool>(&context.coarsening.use_adaptive_max_allowed_node_weight)->value_name("<bool>"),
+    "If true, than the maximum allowed node weight is adapted based on the reduction ratio\n"
+    "during multilevel coarsing")
+    ("c-adaptive-s",
+    po::value<double>(&context.coarsening.max_allowed_weight_fraction)->value_name("<double>"),
+    "The maximum allowed node weight is not allowed to become greater than\n"
+    "((1 + epsilon) * w(H)/k) / (adaptive_s), if adaptive maximum node weight is enabled\n")
+    ("c-adaptive-threshold",
+    po::value<double>(&context.coarsening.adaptive_node_weight_shrink_factor_threshold)->value_name("<double>"),
+    "The maximum allowed node weight is adapted, if the reduction ratio of vertices or pins\n"
+    "is lower than this threshold\n")
     ("c-s",
     po::value<double>(&context.coarsening.max_allowed_weight_multiplier)->value_name("<double>"),
     "The maximum weight of a vertex in the coarsest hypergraph H is:\n"
     "(s * w(H)) / (t * k)\n")
-    ("c-s-high-degree",
-    po::value<double>(&context.coarsening.max_allowed_high_degree_node_weight_multiplier)->value_name("<double>"),
-    "The maximum weight of a high degree vertex in the coarsest hypergraph H is:\n"
-    "(s * w(H)) / (t * k)\n")
     ("c-t",
     po::value<HypernodeID>(&context.coarsening.contraction_limit_multiplier)->value_name("<int>"),
     "Coarsening stops when there are no more than t * k hypernodes left")
-    ("c-shrink-factor",
-    po::value<double>(&context.coarsening.multilevel_shrink_factor)->value_name("<double>"),
-    "Multilevel coarsener creates a new hierarchy, if number of nodes is below |V| / shrink_factor")
-    ("c-ignore-already-matched-vertices",
-    po::value<bool>(&context.coarsening.ignore_already_matched_vertices)->value_name("<bool>"),
-    "If true, multilevel coarsener ignores already matched vertices")
-    ("c-use-high-degree-vertex-threshold",
-    po::value<bool>(&context.coarsening.use_high_degree_vertex_threshold)->value_name("<bool>"),
-    "If true, than all hypernodes with a degree greater than mean + 5 * stdev are skipped during coarsening")
+    ("c-min-shrink-factor",
+    po::value<double>(&context.coarsening.minimum_shrink_factor)->value_name("<double>"),
+    "Minimum factor a hypergraph must shrink in a multilevel pass")
+    ("c-max-shrink-factor",
+    po::value<double>(&context.coarsening.maximum_shrink_factor)->value_name("<double>"),
+    "Maximum factor a hypergraph can shrink in a multilevel pass")
     ("c-rating-score",
     po::value<std::string>()->value_name("<string>")->notifier(
       [&](const std::string& rating_score) {
@@ -272,14 +264,6 @@ po::options_description createInitialPartitioningOptionsDescription(Context& con
 po::options_description createRefinementOptionsDescription(Context& context, const int num_columns) {
   po::options_description options("Refinement Options", num_columns);
   options.add_options()
-    ("r-use-batch-uncontractions",
-    po::value<bool>(&context.refinement.use_batch_uncontractions)->value_name("<bool>"),
-    "If true, contractions are reversed in parallel. The batch size is determined by r-batch-size.\n"
-    "(default false)")
-    ("r-batch-size",
-    po::value<size_t>(&context.refinement.batch_size)->value_name("<size_t>"),
-    "Determines how many contractions are reversed in parallel if batch uncontractions are used.\n"
-    "(default 1000)")
     ("r-lp-type",
     po::value<std::string>()->value_name("<string>")->notifier(
       [&](const std::string& type) {
@@ -294,15 +278,6 @@ po::options_description createRefinementOptionsDescription(Context& context, con
     po::value<size_t>(&context.refinement.label_propagation.maximum_iterations)->value_name("<size_t>"),
     "Maximum number of iterations over all nodes during label propagation\n"
     "(default 1)")
-    ("r-lp-part-weight-update-factor",
-    po::value<double>(&context.refinement.label_propagation.part_weight_update_factor)->value_name("<double>"),
-    "Determines after how many iterations the local part weights are updated\n"
-    "=> steps = min(100, max(5, current_num_nodes * part_weight_update_factor))\n"
-    "(default 100)")
-    ("r-lp-localized",
-    po::value<bool>(&context.refinement.label_propagation.localized)->value_name("<bool>"),
-    "If true, label propagation is executed only on the previously uncontracted vertices)\n"
-    "(default false)")
     ("r-lp-numa-aware",
     po::value<bool>(&context.refinement.label_propagation.numa_aware)->value_name("<bool>"),
     "If true, label propagation is executed numa friendly (which means that nodes are processed on its numa nodes)\n"
@@ -310,22 +285,7 @@ po::options_description createRefinementOptionsDescription(Context& context, con
     ("r-lp-rebalancing",
     po::value<bool>(&context.refinement.label_propagation.rebalancing)->value_name("<bool>"),
     "If true, zero gain moves are used to rebalance solution\n"
-    "(default true)")
-    ("r-lp-execution-policy",
-    po::value<std::string>()->value_name("<string>")->notifier(
-      [&](const std::string& type) {
-      context.refinement.label_propagation.execution_policy =
-        executionTypeFromString(type);
-    }),
-    "Execution policy used for label propagation:\n"
-    "- exponential\n"
-    "- multilevel\n"
-    "- constant")
-    ("r-lp-execution-policy-alpha",
-    po::value<double>(&context.refinement.label_propagation.execution_policy_alpha)->value_name("<double>"),
-    "In case of execution policy 'exponential', LP is executed in each level which is a power of alpha\n"
-    "In case of execution policy 'multilevel', LP is executed on each level INITIAL_NUM_NODES / alpha ^ i\n"
-    "In case of execution policy 'constant', LP is executed on each level which is a multiple of alpha");
+    "(default true)");
   return options;
 }
 
@@ -340,16 +300,7 @@ po::options_description createSharedMemoryOptionsDescription(Context& context,
     ("s-shuffle-block-size",
     po::value<size_t>(&context.shared_memory.shuffle_block_size)->value_name("<size_t>"),
     "If we perform a random shuffle in parallel, we perform a parallel for over blocks of size"
-    "'shuffle_block_size' and shuffle them sequential.")
-    ("s-initial-hyperedge-distribution",
-    po::value<std::string>()->value_name("<string>")->notifier(
-      [&](const std::string& strategy) {
-      context.shared_memory.initial_hyperedge_distribution = mt_kahypar::initialHyperedgeDistributionFromString(strategy);
-    }),
-    "Determines how hyperedges are distributed to numa nodes after reading hypergraph file: \n"
-    " - equally\n"
-    " - random\n"
-    " - all_on_one");
+    "'shuffle_block_size' and shuffle them sequential.");
 
   return shared_memory_options;
 }

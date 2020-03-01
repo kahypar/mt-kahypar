@@ -10,6 +10,7 @@ cmake-build-debug/*
 *.py~
 *.cfg~
 build/*
+build2/*
 rel2/
 external_tools/*
 relwithdebinfo/*
