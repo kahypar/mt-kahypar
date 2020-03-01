@@ -68,8 +68,6 @@ inline std::ostream & operator<< (std::ostream& str, const PartitioningParameter
 }
 
 struct CommunityDetectionParameters {
-  CommunityLoadBalancingStrategy load_balancing_strategy = CommunityLoadBalancingStrategy::none;
-  size_t size_constraint_factor = 0;
   LouvainEdgeWeight edge_weight_function = LouvainEdgeWeight::UNDEFINED;
   uint32_t max_pass_iterations = std::numeric_limits<uint32_t>::max();
   long double min_eps_improvement = std::numeric_limits<long double>::max();
@@ -77,10 +75,6 @@ struct CommunityDetectionParameters {
 
 inline std::ostream & operator<< (std::ostream& str, const CommunityDetectionParameters& params) {
   str << "  Community Detection Parameters:" << std::endl;
-  str << "    Load Balancing Strategy:          " << params.load_balancing_strategy << std::endl;
-  if (params.load_balancing_strategy == CommunityLoadBalancingStrategy::size_constraint) {
-    str << "    Size Constraint Factor:           " << params.size_constraint_factor << std::endl;
-  }
   str << "    Edge Weight Function:             " << params.edge_weight_function << std::endl;
   str << "    Maximum Louvain-Pass Iterations:  " << params.max_pass_iterations << std::endl;
   str << "    Minimum Quality Improvement:      " << params.min_eps_improvement << std::endl;

@@ -58,11 +58,6 @@ enum class LouvainEdgeWeight : uint8_t {
   UNDEFINED
 };
 
-enum class CommunityLoadBalancingStrategy : uint8_t {
-  size_constraint,
-  none
-};
-
 enum class CoarseningAlgorithm : uint8_t {
   multilevel_coarsener,
   UNDEFINED
@@ -162,15 +157,6 @@ std::ostream & operator<< (std::ostream& os, const LouvainEdgeWeight& type) {
       // omit default case to trigger compiler warning for missing cases
   }
   return os << static_cast<uint8_t>(type);
-}
-
-std::ostream & operator<< (std::ostream& os, const CommunityLoadBalancingStrategy& strategy) {
-  switch (strategy) {
-    case CommunityLoadBalancingStrategy::size_constraint: return os << "size_constraint";
-    case CommunityLoadBalancingStrategy::none: return os << "none";
-      // omit default case to trigger compiler warning for missing cases
-  }
-  return os << static_cast<uint8_t>(strategy);
 }
 
 std::ostream & operator<< (std::ostream& os, const CoarseningAlgorithm& algo) {
@@ -282,16 +268,6 @@ static LouvainEdgeWeight louvainEdgeWeightFromString(const std::string& type) {
   }
   ERROR("No valid louvain edge weight.");
   return LouvainEdgeWeight::UNDEFINED;
-}
-
-static CommunityLoadBalancingStrategy communityLoadBalancingStrategyFromString(const std::string& strategy) {
-  if (strategy == "size_constraint") {
-    return CommunityLoadBalancingStrategy::size_constraint;
-  } else if (strategy == "none") {
-    return CommunityLoadBalancingStrategy::none;
-  }
-  ERROR("No valid louvain edge weight.");
-  return CommunityLoadBalancingStrategy::none;
 }
 
 static CoarseningAlgorithm coarseningAlgorithmFromString(const std::string& type) {
