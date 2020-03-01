@@ -97,7 +97,7 @@ class ZeroGainCache {
     ASSERT(from != kInvalidPartition && from < _context.partition.k);
     ASSERT(to != kInvalidPartition && to < _context.partition.k);
     const HypernodeWeight weight_buffer =
-      _context.partition.max_part_weights[from] - hg.localPartWeight(from);
+      _context.partition.max_part_weights[from] - hg.partWeight(from);
     if ( weight_buffer < 0 ) {
       // Rebalancing not possible since balance constraint already violated
       return false;
@@ -158,7 +158,7 @@ class ZeroGainCache {
                            };
 
     const HypernodeWeight weight_buffer =
-      _context.partition.max_part_weights[from] - hg.localPartWeight(from);
+      _context.partition.max_part_weights[from] - hg.partWeight(from);
     if ( weight_buffer < 0 ) {
       // Rebalancing not possible since balance constraint already violated
       return false;

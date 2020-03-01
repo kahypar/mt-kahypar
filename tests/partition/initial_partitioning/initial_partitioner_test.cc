@@ -22,7 +22,7 @@
 
 #include "mt-kahypar/application/command_line_options.h"
 #include "mt-kahypar/definitions.h"
-#include "mt-kahypar/io/tmp_hypergraph_io.h"
+#include "mt-kahypar/io/hypergraph_io.h"
 #include "mt-kahypar/mt_kahypar.h"
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/partition/multilevel.h"
@@ -79,7 +79,7 @@ class AInitialPartitionerTest : public Test {
     context.refinement.label_propagation.algorithm = LabelPropagationAlgorithm::do_nothing;
 
     // Read hypergraph
-    hypergraph = tmp_io::readHypergraphFile<HyperGraph, HyperGraphFactory>(
+    hypergraph = io::readHypergraphFile<HyperGraph, HyperGraphFactory>(
       "../test_instances/unweighted_ibm01.hgr", TBB::GLOBAL_TASK_GROUP);
     partitioned_hypergraph = PartitionedHyperGraph(
       context.partition.k, TBB::GLOBAL_TASK_GROUP, hypergraph);
@@ -93,7 +93,7 @@ class AInitialPartitionerTest : public Test {
 
   void assignCommunities() {
     std::vector<PartitionID> communities;
-    tmp_io::readPartitionFile(context.partition.graph_community_filename, communities);
+    io::readPartitionFile(context.partition.graph_community_filename, communities);
 
     for ( const HypernodeID& hn : hypergraph.nodes() ) {
       hypergraph.setCommunityID(hn, communities[hypergraph.originalNodeID(hn)]);

@@ -22,7 +22,7 @@
 
 #include "tests/datastructures/hypergraph_fixtures.h"
 #include "mt-kahypar/definitions.h"
-#include "mt-kahypar/io/tmp_hypergraph_io.h"
+#include "mt-kahypar/io/hypergraph_io.h"
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/partition/initial_partitioning/flat/bfs_initial_partitioner.h"
 #include "mt-kahypar/partition/refinement/label_propagation_refiner.h"
@@ -105,7 +105,7 @@ class ALabelPropagationRefiner : public Test {
     #endif
 
     // Read hypergraph
-    hypergraph = tmp_io::readHypergraphFile<HyperGraph, HyperGraphFactory>(
+    hypergraph = io::readHypergraphFile<HyperGraph, HyperGraphFactory>(
       "../test_instances/unweighted_ibm01.hgr", TBB::GLOBAL_TASK_GROUP);
     partitioned_hypergraph = PartitionedHyperGraph(context.partition.k,
       TBB::GLOBAL_TASK_GROUP, hypergraph);

@@ -27,28 +27,27 @@
 using ::testing::Test;
 
 namespace mt_kahypar {
-template <template <typename> class GainPolicy, PartitionID K>
-class AGainPolicy : public ds::AHypergraph<2> {
- private:
-  using Base = AHypergraph<2>;
 
+using TypeTraits = ds::TestTypeTraits<2>;
+using HyperGraph = typename TypeTraits::HyperGraph;
+using HyperGraphFactory = typename TypeTraits::HyperGraphFactory;
+using PartitionedHyperGraph = typename TypeTraits::template PartitionedHyperGraph<>;
+using TBB = typename TypeTraits::TBB;
+
+template <template <typename> class GainPolicy, PartitionID K>
+class AGainPolicy : public Test {
  public:
-  using Base::TestStreamingHypergraph;
-  using Base::TestHypergraph;
-  using GainCalculator = GainPolicy<TestHypergraph>;
+  using GainCalculator = GainPolicy<PartitionedHyperGraph>;
 
   AGainPolicy() :
-    Base(),
-    hypergraph(construct_hypergraph(7,
-                                    { { 0, 2 }, { 0, 1, 3, 4 }, { 3, 4, 6 }, { 2, 5, 6 } },
-                                    { 0, 1, 0, 1, 0, 1, 0 },
-                                    { 0, 0, 1, 1 },
-                                    { 0, 0, 1, 1, 2, 3, 2 }, K)),
+    hg(HyperGraphFactory::construct(TBB::GLOBAL_TASK_GROUP,
+      7 , 4, { {0, 2}, {0, 1, 3, 4}, {3, 4, 6}, {2, 5, 6} })),
     context(),
     gain(nullptr) {
     context.partition.k = K;
     context.partition.max_part_weights.assign(K, std::numeric_limits<HypernodeWeight>::max());
     gain = std::make_unique<GainCalculator>(context, true  /* disable randomization */);
+    hypergraph = PartitionedHyperGraph(K, TBB::GLOBAL_TASK_GROUP, hg);
   }
 
   void assignPartitionIDs(const std::vector<PartitionID>& part_ids) {
@@ -57,11 +56,11 @@ class AGainPolicy : public ds::AHypergraph<2> {
       ASSERT(part < K);
       hypergraph.setNodePart(hypergraph.globalNodeID(hn++), part);
     }
-    hypergraph.updateGlobalPartInfos();
     hypergraph.initializeNumCutHyperedges();
   }
 
-  TestHypergraph hypergraph;
+  HyperGraph hg;
+  PartitionedHyperGraph hypergraph;
   Context context;
   std::unique_ptr<GainCalculator> gain;
 };

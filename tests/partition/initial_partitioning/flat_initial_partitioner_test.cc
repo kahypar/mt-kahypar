@@ -26,7 +26,7 @@
 
 #include "tests/datastructures/hypergraph_fixtures.h"
 #include "mt-kahypar/utils/timer.h"
-#include "mt-kahypar/io/tmp_hypergraph_io.h"
+#include "mt-kahypar/io/hypergraph_io.h"
 #include "mt-kahypar/partition/initial_partitioning/flat/random_initial_partitioner.h"
 #include "mt-kahypar/partition/initial_partitioning/flat/bfs_initial_partitioner.h"
 #include "mt-kahypar/partition/initial_partitioning/flat/greedy_initial_partitioner.h"
@@ -103,7 +103,7 @@ class AFlatInitialPartitionerTest : public Test {
     context.partition.objective = kahypar::Objective::km1;
     context.initial_partitioning.lp_initial_block_size = 5;
     context.initial_partitioning.lp_maximum_iterations = 100;
-    hypergraph = tmp_io::readHypergraphFile<HyperGraph, HyperGraphFactory>(
+    hypergraph = io::readHypergraphFile<HyperGraph, HyperGraphFactory>(
       "../test_instances/test_instance.hgr", TBB::GLOBAL_TASK_GROUP);
     partitioned_hypergraph = PartitionedHyperGraph(context.partition.k, TBB::GLOBAL_TASK_GROUP, hypergraph);
     context.setupPartWeights(hypergraph.totalWeight());

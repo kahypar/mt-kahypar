@@ -26,12 +26,12 @@
 #include "mt-kahypar/datastructures/static_hypergraph_factory.h"
 #include "mt-kahypar/datastructures/numa_hypergraph.h"
 #include "mt-kahypar/datastructures/numa_hypergraph_factory.h"
-#include "mt-kahypar/io/tmp_hypergraph_io.h"
+#include "mt-kahypar/io/hypergraph_io.h"
 
 using ::testing::Test;
 
 namespace mt_kahypar {
-namespace tmp_io {
+namespace io {
 
 template< typename HyperGraph,
           typename HyperGraphFactory,
@@ -244,5 +244,5 @@ TYPED_TEST(AHypergraphReader, ReadsAnHypergraphWithNodeAndEdgeWeights) {
   ASSERT_EQ(3, this->hypergraph.edgeWeight(this->edge_id[2]));
   ASSERT_EQ(8, this->hypergraph.edgeWeight(this->edge_id[3]));
 }
-}  // namespace tmp_io
+}  // namespace io
 }  // namespace mt_kahypar

@@ -34,7 +34,6 @@
 
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
-#include "mt-kahypar/datastructures/streaming_vector.h"
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/partition/metrics.h"
 #include "mt-kahypar/partition/refinement/i_refiner.h"

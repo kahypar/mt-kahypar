@@ -22,7 +22,7 @@
 
 #include "mt-kahypar/application/command_line_options.h"
 #include "mt-kahypar/definitions.h"
-#include "mt-kahypar/io/tmp_hypergraph_io.h"
+#include "mt-kahypar/io/hypergraph_io.h"
 #include "mt-kahypar/mt_kahypar.h"
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/partition/partitioner.h"
@@ -444,7 +444,7 @@ void partitionHypergraph(Hypergraph& hypergraph, Context& context) {
 
   // Verify that partitioned hypergraph is
   // equivalent with input hypergraph
-  Hypergraph reference = tmp_io::readHypergraphFile<Hypergraph, HypergraphFactory>(
+  Hypergraph reference = io::readHypergraphFile<Hypergraph, HypergraphFactory>(
     context.partition.graph_filename, TBBNumaArena::GLOBAL_TASK_GROUP);
   verifyThatHypergraphsAreEquivalent(hypergraph, reference);
 
@@ -512,7 +512,7 @@ void partitionHypergraph(Hypergraph& hypergraph, Context& context) {
 TYPED_TEST(MtKaHyPar, PartitionsAVLSIInstance) {
   // Read Hypergraph
   this->context.partition.graph_filename = "test_instances/ibm01.hgr";
-  Hypergraph hypergraph = tmp_io::readHypergraphFile<Hypergraph, HypergraphFactory>(
+  Hypergraph hypergraph = io::readHypergraphFile<Hypergraph, HypergraphFactory>(
     this->context.partition.graph_filename, TBBNumaArena::GLOBAL_TASK_GROUP);
 
   partitionHypergraph(hypergraph, this->context);
@@ -521,7 +521,7 @@ TYPED_TEST(MtKaHyPar, PartitionsAVLSIInstance) {
 TYPED_TEST(MtKaHyPar, PartitionsASparseMatrixInstance) {
   // Read Hypergraph
   this->context.partition.graph_filename = "test_instances/powersim.mtx.hgr";
-  Hypergraph hypergraph = tmp_io::readHypergraphFile<Hypergraph, HypergraphFactory>(
+  Hypergraph hypergraph = io::readHypergraphFile<Hypergraph, HypergraphFactory>(
     this->context.partition.graph_filename, TBBNumaArena::GLOBAL_TASK_GROUP);
 
   partitionHypergraph(hypergraph, this->context);
@@ -530,7 +530,7 @@ TYPED_TEST(MtKaHyPar, PartitionsASparseMatrixInstance) {
 TYPED_TEST(MtKaHyPar, PartitionsASATInstance) {
   // Read Hypergraph
   this->context.partition.graph_filename = "test_instances/sat14_atco_enc1_opt2_10_16.cnf.primal.hgr";
-  Hypergraph hypergraph = tmp_io::readHypergraphFile<Hypergraph, HypergraphFactory>(
+  Hypergraph hypergraph = io::readHypergraphFile<Hypergraph, HypergraphFactory>(
     this->context.partition.graph_filename, TBBNumaArena::GLOBAL_TASK_GROUP);
 
   partitionHypergraph(hypergraph, this->context);

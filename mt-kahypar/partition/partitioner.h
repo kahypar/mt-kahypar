@@ -139,7 +139,7 @@ inline void Partitioner::preprocess(Hypergraph& hypergraph) {
       ds::AdjListStarExpansion::restrictClusteringToHypernodes(hypergraph, communities);
       _hypergraph_sparsifier.assignAllDegreeZeroHypernodesToSameCommunity(hypergraph, communities);
     } else {
-      tmp_io::readPartitionFile(_context.partition.graph_community_filename, communities);
+      io::readPartitionFile(_context.partition.graph_community_filename, communities);
     }
     utils::Timer::instance().stop_timer("perform_community_detection");
 

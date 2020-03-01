@@ -23,7 +23,6 @@
 #define HYPERGRAPH_UNIT_TEST true
 
 #include "kahypar/definitions.h"
-#include "mt-kahypar/datastructures/hypergraph.h"
 #include "mt-kahypar/datastructures/static_hypergraph.h"
 #include "mt-kahypar/datastructures/static_hypergraph_factory.h"
 #include "mt-kahypar/datastructures/numa_hypergraph.h"
@@ -43,15 +42,6 @@ namespace ds {
 #define GLOBAL_EDGE_ID(hypergraph, id) hypergraph.globalEdgeID(id)
 
 template <int NUM_NUMA_NODES>
-struct OldTestTypeTraits {
-  using TopoMock = mt_kahypar::parallel::TopologyMock<NUM_NUMA_NODES>;
-  using HwTopology = mt_kahypar::parallel::HardwareTopology<TopoMock, parallel::topology_t, parallel::node_t>;
-  using TBB = mt_kahypar::parallel::TBBNumaArena<HwTopology>;
-  using HyperGraph = mt_kahypar::ds::Hypergraph<HwTopology, TBB>;
-  using StreamingHyperGraph = mt_kahypar::ds::StreamingHypergraph<HwTopology, TBB>;
-};
-
-template <int NUM_NUMA_NODES>
 struct TestTypeTraits {
   using TopoMock = mt_kahypar::parallel::TopologyMock<NUM_NUMA_NODES>;
   using HwTopology = mt_kahypar::parallel::HardwareTopology<TopoMock, parallel::topology_t, parallel::node_t>;
@@ -62,71 +52,6 @@ struct TestTypeTraits {
   template<bool track_border_vertices = true>
   using PartitionedHyperGraph = NumaPartitionedHypergraph<
     HyperGraph, HyperGraphFactory, track_border_vertices>;
-};
-
-template <int NUM_NUMA_NODES>
-class AHypergraph : public Test {
- private:
-  using HyperedgeVector = parallel::scalable_vector<HyperedgeID>;
-
- public:
-  using TypeTraits = OldTestTypeTraits<NUM_NUMA_NODES>;
-  using TBBArena = typename TypeTraits::TBB;
-  using HwTopology = typename TypeTraits::HwTopology;
-  using TestStreamingHypergraph = typename TypeTraits::StreamingHyperGraph;
-  using TestHypergraph = typename TypeTraits::HyperGraph;
-
-  AHypergraph() { }
-
-  static void SetUpTestSuite() {
-    TBBArena::instance(HwTopology::instance().num_cpus());
-  }
-
-  TestHypergraph construct_hypergraph(const HypernodeID num_hypernodes,
-                                      const std::vector<HyperedgeVector>& hyperedges,
-                                      std::vector<HypernodeID>&& node_mapping,
-                                      const std::vector<HyperedgeID>& edge_mapping,
-                                      const std::vector<PartitionID>& communities = { },
-                                      const PartitionID k = 2) const {
-    ASSERT(num_hypernodes == node_mapping.size());
-    ASSERT(hyperedges.size() == edge_mapping.size());
-
-    // Create hypergraphs
-    std::vector<TestStreamingHypergraph> numa_hypergraphs;
-    for (int node = 0; node < NUM_NUMA_NODES; ++node) {
-      TBBArena::instance().numa_task_arena(node).execute([&] {
-            numa_hypergraphs.emplace_back(node, k,
-              TBBArena::instance().numa_task_arena(node), false);
-          });
-    }
-
-    // Stream hyperedges
-    for (HyperedgeID node = 0; node < NUM_NUMA_NODES; ++node) {
-      TBBArena::instance().numa_task_arena(node).execute([&] {
-            for (size_t i = 0; i < hyperedges.size(); ++i) {
-              ASSERT(edge_mapping[i] < NUM_NUMA_NODES);
-              if (edge_mapping[i] == node) {
-                numa_hypergraphs[node].streamHyperedge(hyperedges[i], i, 1);
-              }
-            }
-            numa_hypergraphs[node].initializeHyperedges(num_hypernodes);
-          });
-    }
-
-    // Create hypergraph (that also initialize hypernodes)
-    TestHypergraph hypergraph(num_hypernodes, std::move(numa_hypergraphs),
-      std::move(node_mapping), k, TBBArena::GLOBAL_TASK_GROUP);
-
-    if (communities.size() > 0) {
-      ASSERT(num_hypernodes == communities.size());
-      for (HypernodeID hn = 0; hn < num_hypernodes; ++hn) {
-        hypergraph.setCommunityID(hypergraph.globalNodeID(hn), communities[hn]);
-      }
-      hypergraph.initializeCommunities();
-    }
-
-    return hypergraph;
-  }
 };
 
 auto identity = [](const HypernodeID& id) { return id; };
