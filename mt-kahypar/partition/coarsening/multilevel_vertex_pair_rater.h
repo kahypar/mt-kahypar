@@ -81,6 +81,7 @@ class MultilevelVertexPairRater {
     _context(context),
     _uf(uf),
     _local_tmp_ratings(hypergraph.initialNumNodes()),
+    _local_visited_representatives(hypergraph.initialNumNodes()),
     _already_matched(hypergraph.initialNumNodes()) { }
 
   MultilevelVertexPairRater(const MultilevelVertexPairRater&) = delete;
@@ -89,8 +90,11 @@ class MultilevelVertexPairRater {
   MultilevelVertexPairRater(MultilevelVertexPairRater&&) = delete;
   MultilevelVertexPairRater & operator= (MultilevelVertexPairRater &&) = delete;
 
-  VertexPairRating rate(const HyperGraph& hypergraph, const HypernodeID u) {
+  VertexPairRating rate(const HyperGraph& hypergraph,
+                        const HypernodeID u,
+                        const HypernodeWeight max_allowed_node_weight) {
     TmpRatingMap& tmp_ratings = _local_tmp_ratings.local();
+    kahypar::ds::FastResetFlagArray<>& visited_representatives = _local_visited_representatives.local();
     const HypernodeID original_u_id = hypergraph.originalNodeID(u);
     const HypernodeWeight weight_u = _uf.weight(original_u_id);
     for ( const HyperedgeID& he : hypergraph.incidentEdges(u) ) {
@@ -99,9 +103,14 @@ class MultilevelVertexPairRater {
         const RatingType score = ScorePolicy::score(hypergraph, he);
         for ( const HypernodeID& v : hypergraph.pins(he) ) {
           const HypernodeID original_v_id = hypergraph.originalNodeID(v);
-          ASSERT(original_v_id < hypergraph.initialNumNodes());
-          tmp_ratings[original_v_id] += score;
+          const HypernodeID representative = _uf.find(original_v_id);
+          ASSERT(representative < hypergraph.initialNumNodes());
+          if ( !visited_representatives[representative] ) {
+            tmp_ratings[representative] += score;
+            visited_representatives.set(representative, true);
+          }
         }
+        visited_representatives.reset();
       }
     }
 
@@ -116,7 +125,8 @@ class MultilevelVertexPairRater {
       const bool is_same_set = _uf.isSameSet(original_u_id, tmp_target_id);
       const HypernodeWeight target_weight = _uf.weight(tmp_target_id);
 
-      if ( tmp_target != u && belowThresholdNodeWeight(is_same_set, tmp_target_id, weight_u, target_weight) ) {
+      if ( tmp_target != u && belowThresholdNodeWeight(
+            is_same_set, weight_u, target_weight, max_allowed_node_weight) ) {
         HypernodeWeight penalty = HeavyNodePenaltyPolicy::penalty(weight_u, target_weight);
         penalty = penalty == 0 ? std::max(std::max(weight_u, target_weight), 1) : penalty;
         const RatingType tmp_rating = it->value / static_cast<double>(penalty);
@@ -162,24 +172,19 @@ class MultilevelVertexPairRater {
 
  private:
   inline bool belowThresholdNodeWeight(const bool is_same_set,
-                                       const HypernodeID v,
                                        const HypernodeWeight weight_u,
-                                       const HypernodeWeight weight_v) const {
+                                       const HypernodeWeight weight_v,
+                                       const HypernodeWeight max_allowed_node_weight) const {
     // In case, if u and v are already in the same set (which means that they are
     // already contracted togehter), the weight is always below the threshold, otherwise
     // we perform an explicit check
-    return is_same_set ? true : weight_v + weight_u <= thresholdNodeWeight(v);
-  }
-
-  inline HypernodeWeight thresholdNodeWeight(const HypernodeID v) const {
-    return _uf.containsHighDegreeVertex(v) ?
-     _context.coarsening.max_allowed_high_degree_node_weight :
-     _context.coarsening.max_allowed_node_weight;
+    return is_same_set ? true : weight_v + weight_u <= max_allowed_node_weight;
   }
 
   const Context& _context;
   UnionFind& _uf;
   ThreadLocalTmpRatingMap _local_tmp_ratings;
+  ThreadLocalFastResetFlagArray _local_visited_representatives;
   kahypar::ds::FastResetFlagArray<> _already_matched;
 };
 }  // namespace mt_kahypar

@@ -307,17 +307,12 @@ class NumaPartitionedHypergraph {
 
   // ! Sets the weight of a vertex
   void setNodeWeight(const HypernodeID u, const HypernodeWeight weight) {
-    _hg->setNodeWeight(u, weight);
+    hypergraph_of_vertex(u).setNodeWeight(u, weight);
   }
 
   // ! Degree of a hypernode
   HyperedgeID nodeDegree(const HypernodeID u) const {
     return _hg->nodeDegree(u);
-  }
-
-  // ! Returns, if the corresponding vertex is high degree vertex
-  bool isHighDegreeVertex(const HypernodeID u) const {
-    return _hg->isHighDegreeVertex(u);
   }
 
   // ! Returns, whether a hypernode is enabled or not
@@ -717,9 +712,6 @@ class NumaPartitionedHypergraph {
         const HypernodeID extracted_hn =
           extracted_hypergraph.globalNodeID(hn_mapping[originalNodeID(hn)]);
         extracted_hypergraph.setCommunityID(extracted_hn, _hg->communityID(hn));
-        if ( isHighDegreeVertex(hn) ) {
-          extracted_hypergraph.markAsHighDegreeVertex(extracted_hn);
-        }
       }
     });
     extracted_hypergraph.initializeCommunities(task_group_id);

@@ -337,6 +337,12 @@ class PartitionedHypergraph {
 
   // ! Sets the weight of a vertex
   void setNodeWeight(const HypernodeID u, const HypernodeWeight weight) {
+    const PartitionID block = partID(u);
+    if ( block != kInvalidPartition ) {
+      ASSERT(block < _k);
+      const HypernodeWeight delta = weight - _hg->nodeWeight(u);
+      _part_info[block].weight += delta;
+    }
     _hg->setNodeWeight(u, weight);
   }
 
@@ -344,11 +350,6 @@ class PartitionedHypergraph {
   // ! Degree of a hypernode
   HyperedgeID nodeDegree(const HypernodeID u) const {
     return _hg->nodeDegree(u);
-  }
-
-  // ! Returns, if the corresponding vertex is high degree vertex
-  bool isHighDegreeVertex(const HypernodeID u) const {
-    return _hg->isHighDegreeVertex(u);
   }
 
   // ! Returns, whether a hypernode is enabled or not
@@ -1015,9 +1016,6 @@ class PartitionedHypergraph {
         const HypernodeID extracted_hn =
           extracted_hypergraph.globalNodeID(hn_mapping[originalNodeID(hn)]);
         extracted_hypergraph.setCommunityID(extracted_hn, _hg->communityID(hn));
-        if ( isHighDegreeVertex(hn) ) {
-          extracted_hypergraph.markAsHighDegreeVertex(extracted_hn);
-        }
       }
     });
     extracted_hypergraph.initializeCommunities(task_group_id);

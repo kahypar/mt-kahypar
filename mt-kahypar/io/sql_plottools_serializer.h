@@ -58,8 +58,6 @@ static inline std::string serialize(const PartitionedHypergraph<>& hypergraph,
         << " total_graph_weight=" << hypergraph.totalWeight()
         << " use_community_structure_from_file=" << std::boolalpha << context.preprocessing.use_community_structure_from_file
         << " use_community_detection=" << std::boolalpha << context.preprocessing.use_community_detection
-        << " community_load_balancing_strategy=" << context.preprocessing.community_detection.load_balancing_strategy
-        << " community_size_constraint_factor=" << context.preprocessing.community_detection.size_constraint_factor
         << " community_edge_weight_function=" << context.preprocessing.community_detection.edge_weight_function
         << " community_max_pass_iterations=" << context.preprocessing.community_detection.max_pass_iterations
         << " community_min_eps_improvement=" << context.preprocessing.community_detection.min_eps_improvement
@@ -68,15 +66,14 @@ static inline std::string serialize(const PartitionedHypergraph<>& hypergraph,
         << " community_redistribution_assignment_objective=" << context.preprocessing.community_redistribution.assignment_objective
         << " coarsening_algorithm=" << context.coarsening.algorithm
         << " coarsening_contraction_limit_multiplier=" << context.coarsening.contraction_limit_multiplier
+        << " coarsening_use_adaptive_max_allowed_node_weight=" << std::boolalpha << context.coarsening.use_adaptive_max_allowed_node_weight
+        << " coarsening_max_allowed_weight_fraction=" << context.coarsening.max_allowed_weight_fraction
+        << " coarsening_adaptive_node_weight_shrink_factor_threshold=" << context.coarsening.adaptive_node_weight_shrink_factor_threshold
         << " coarsening_max_allowed_weight_multiplier=" << context.coarsening.max_allowed_weight_multiplier
-        << " coarsening_max_allowed_high_degree_node_weight_multiplier=" << context.coarsening.max_allowed_high_degree_node_weight_multiplier
-        << " coarsening_multilevel_shrink_factor=" << context.coarsening.multilevel_shrink_factor
-        << " coarsening_ignore_already_matched_vertices=" << std::boolalpha << context.coarsening.ignore_already_matched_vertices
-        << " coarsening_use_high_degree_vertex_threshold=" << std::boolalpha << context.coarsening.use_high_degree_vertex_threshold
+        << " coarsening_minimum_shrink_factor=" << context.coarsening.minimum_shrink_factor
+        << " coarsening_maximum_shrink_factor=" << context.coarsening.maximum_shrink_factor
         << " coarsening_max_allowed_node_weight=" << context.coarsening.max_allowed_node_weight
-        << " coarsening_max_allowed_high_degree_node_weight=" << context.coarsening.max_allowed_high_degree_node_weight
         << " coarsening_contraction_limit=" << context.coarsening.contraction_limit
-        << " coarsening_high_degree_vertex_threshold=" << context.coarsening.high_degree_vertex_threshold
         << " rating_function=" << context.coarsening.rating.rating_function
         << " rating_heavy_node_penalty_policy=" << context.coarsening.rating.heavy_node_penalty_policy
         << " rating_acceptance_policy=" << context.coarsening.rating.acceptance_policy
@@ -85,26 +82,18 @@ static inline std::string serialize(const PartitionedHypergraph<>& hypergraph,
         << " initial_partitioning_use_adaptive_epsilon=" << std::boolalpha << context.initial_partitioning.use_adaptive_epsilon
         << " initial_partitioning_lp_maximum_iterations=" << context.initial_partitioning.lp_maximum_iterations
         << " initial_partitioning_lp_initial_block_size=" << context.initial_partitioning.lp_initial_block_size
-        << " use_batch_uncontractions=" << std::boolalpha << context.refinement.use_batch_uncontractions
-        << " batch_size=" << context.refinement.batch_size
         << " lp_algorithm=" << context.refinement.label_propagation.algorithm
         << " lp_maximum_iterations=" << context.refinement.label_propagation.maximum_iterations
-        << " lp_part_weight_update_factor=" << context.refinement.label_propagation.part_weight_update_factor
-        << " lp_localized=" << std::boolalpha << context.refinement.label_propagation.localized
         << " lp_numa_aware=" << std::boolalpha << context.refinement.label_propagation.numa_aware
         << " lp_rebalancing=" << std::boolalpha << context.refinement.label_propagation.rebalancing
-        << " lp_execution_policy=" << context.refinement.label_propagation.execution_policy
-        << " lp_execution_policy_alpha=" << context.refinement.label_propagation.execution_policy_alpha
         << " num_threads=" << context.shared_memory.num_threads
-        << " shuffle_block_size=" << context.shared_memory.shuffle_block_size
-        << " initial_hyperedge_distribution=" << context.shared_memory.initial_hyperedge_distribution;
+        << " shuffle_block_size=" << context.shared_memory.shuffle_block_size;
 
     // Metrics
     if ( hypergraph.initialNumEdges() > 0 ) {
       oss << " cut=" << metrics::hyperedgeCut(hypergraph)
           << " soed=" << metrics::soed(hypergraph)
           << " km1=" << metrics::km1(hypergraph)
-          << " absorption=" << metrics::absorption(hypergraph)
           << " imbalance=" << metrics::imbalance(hypergraph, context);
     }
     oss << " totalPartitionTime=" << elapsed_seconds.count();

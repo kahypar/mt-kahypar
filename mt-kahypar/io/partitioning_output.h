@@ -279,7 +279,7 @@ inline void printCommunityInformation(const Hypergraph& hypergraph) {
 inline void printPartSizesAndWeights(const PartitionedHypergraph<>& hypergraph, const Context& context) {
   HypernodeID max_part_size = 0;
   for (PartitionID i = 0; i != hypergraph.k(); ++i) {
-    max_part_size = std::max(max_part_size, hypergraph.partSize(i));
+    max_part_size = std::max(max_part_size, ID(hypergraph.partSize(i)));
   }
   const uint8_t part_digits = kahypar::math::digits(max_part_size);
   const uint8_t k_digits = kahypar::math::digits(hypergraph.k());
@@ -366,7 +366,6 @@ inline void printObjectives(const PartitionedHypergraph<>& hypergraph,
   LOG << " Hyperedge Cut  (minimize) =" << metrics::hyperedgeCut(hypergraph);
   LOG << " SOED           (minimize) =" << metrics::soed(hypergraph);
   LOG << " (k-1)          (minimize) =" << metrics::km1(hypergraph);
-  LOG << " Absorption     (maximize) =" << metrics::absorption(hypergraph);
   LOG << " Imbalance                 =" << metrics::imbalance(hypergraph, context);
   LOG << " Partitioning Time         =" << elapsed_seconds.count() << "s";
 }

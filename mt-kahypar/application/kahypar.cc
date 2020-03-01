@@ -23,7 +23,7 @@
 #include "mt-kahypar/application/command_line_options.h"
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/mt_kahypar.h"
-#include "mt-kahypar/io/tmp_hypergraph_io.h"
+#include "mt-kahypar/io/hypergraph_io.h"
 #include "mt-kahypar/io/sql_plottools_serializer.h"
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/partition/partitioner.h"
@@ -50,14 +50,14 @@ int main(int argc, char* argv[]) {
   mt_kahypar::TBBNumaArena::instance(context.shared_memory.num_threads);
 
   // Read Hypergraph
-  mt_kahypar::Hypergraph hypergraph = mt_kahypar::tmp_io::readHypergraphFile<
+  mt_kahypar::Hypergraph hypergraph = mt_kahypar::io::readHypergraphFile<
     mt_kahypar::Hypergraph, mt_kahypar::HypergraphFactory>(
       context.partition.graph_filename, mt_kahypar::TBBNumaArena::GLOBAL_TASK_GROUP);
 
   // Partition Hypergraph
   mt_kahypar::HighResClockTimepoint start = std::chrono::high_resolution_clock::now();
   mt_kahypar::PartitionedHypergraph<> partitioned_hypergraph =
-    mt_kahypar::partition::Partitioner().partition(hypergraph, context);
+    mt_kahypar::partition::Partitioner(context).partition(hypergraph);
   mt_kahypar::HighResClockTimepoint end = std::chrono::high_resolution_clock::now();
 
   // Print Stats
@@ -69,7 +69,7 @@ int main(int argc, char* argv[]) {
       partitioned_hypergraph, context, elapsed_seconds) << std::endl;
   }
   if (context.partition.write_partition_file) {
-    mt_kahypar::tmp_io::writePartitionFile(
+    mt_kahypar::io::writePartitionFile(
       partitioned_hypergraph, context.partition.graph_partition_filename);
   }
 

@@ -24,8 +24,6 @@
 
 #include "kahypar/macros.h"
 
-#define USE_LOCAL_PART_WEIGHTS false
-
 #define SPECIALIZATION(EXPR, TYPE)          \
   template<bool T = EXPR>                   \
   std::enable_if_t<T, TYPE>

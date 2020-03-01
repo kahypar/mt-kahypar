@@ -20,13 +20,12 @@
 
 #include "gmock/gmock.h"
 
+#include "tests/datastructures/hypergraph_fixtures.h"
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/datastructures/static_hypergraph.h"
 #include "mt-kahypar/datastructures/static_hypergraph_factory.h"
 #include "mt-kahypar/datastructures/numa_hypergraph.h"
 #include "mt-kahypar/datastructures/numa_hypergraph_factory.h"
-
-#include "tests/datastructures/hypergraph_fixtures.h"
 
 using ::testing::Test;
 
@@ -222,17 +221,6 @@ TEST_F(AStaticNumaHypergraph, VerifiesVertexDegrees) {
   ASSERT_EQ(2, hypergraph.nodeDegree(GLOBAL_NODE_ID(hypergraph, 4)));
   ASSERT_EQ(1, hypergraph.nodeDegree(GLOBAL_NODE_ID(hypergraph, 5)));
   ASSERT_EQ(2, hypergraph.nodeDegree(GLOBAL_NODE_ID(hypergraph, 6)));
-}
-
-TEST_F(AStaticNumaHypergraph, MarksVerticesWithADegreeGreaterOrEqualThanTwoAsHighDegree) {
-  hypergraph.markAllHighDegreeVertices(TBB::GLOBAL_TASK_GROUP, 2UL);
-  ASSERT_TRUE(hypergraph.isHighDegreeVertex(id[0]));
-  ASSERT_FALSE(hypergraph.isHighDegreeVertex(id[1]));
-  ASSERT_TRUE(hypergraph.isHighDegreeVertex(id[2]));
-  ASSERT_TRUE(hypergraph.isHighDegreeVertex(id[3]));
-  ASSERT_TRUE(hypergraph.isHighDegreeVertex(id[4]));
-  ASSERT_FALSE(hypergraph.isHighDegreeVertex(id[5]));
-  ASSERT_TRUE(hypergraph.isHighDegreeVertex(id[6]));
 }
 
 TEST_F(AStaticNumaHypergraph, RemovesVertices) {

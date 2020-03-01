@@ -20,11 +20,10 @@
 
 #include "gmock/gmock.h"
 
+#include "tests/datastructures/hypergraph_fixtures.h"
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/datastructures/static_hypergraph.h"
 #include "mt-kahypar/datastructures/static_hypergraph_factory.h"
-
-#include "tests/datastructures/hypergraph_fixtures.h"
 
 using ::testing::Test;
 
@@ -159,17 +158,6 @@ TEST_F(AStaticHypergraph, VerifiesVertexDegrees) {
   ASSERT_EQ(2, hypergraph.nodeDegree(4));
   ASSERT_EQ(1, hypergraph.nodeDegree(5));
   ASSERT_EQ(2, hypergraph.nodeDegree(6));
-}
-
-TEST_F(AStaticHypergraph, MarksVerticesWithADegreeGreaterOrEqualThanTwoAsHighDegree) {
-  hypergraph.markAllHighDegreeVertices(TBBNumaArena::GLOBAL_TASK_GROUP, 2UL);
-  ASSERT_TRUE(hypergraph.isHighDegreeVertex(0));
-  ASSERT_FALSE(hypergraph.isHighDegreeVertex(1));
-  ASSERT_TRUE(hypergraph.isHighDegreeVertex(2));
-  ASSERT_TRUE(hypergraph.isHighDegreeVertex(3));
-  ASSERT_TRUE(hypergraph.isHighDegreeVertex(4));
-  ASSERT_FALSE(hypergraph.isHighDegreeVertex(5));
-  ASSERT_TRUE(hypergraph.isHighDegreeVertex(6));
 }
 
 TEST_F(AStaticHypergraph, RemovesVertices) {
