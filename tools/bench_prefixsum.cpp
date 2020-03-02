@@ -22,7 +22,6 @@
 #include <random>
 #include <tbb/task_scheduler_init.h>
 #include <cassert>
-#include <execution>
 
 #include "mt-kahypar/parallel/parallel_prefix_sum.h"
 #include "mt-kahypar/parallel/parallel_counting_sort.h"
@@ -100,12 +99,12 @@ namespace mt_kahypar {
 		std::cout << "stl sort " << (tbb::tick_count::now() - t_stl_sort).seconds() << " [s]" << std::endl;
 		//std::cout << "create side effect " << sorted_vec[0] << std::endl;
 
-		sorted_vec = vec;
+		/*sorted_vec = vec;
 		if (std::is_sorted(sorted_vec.begin(), sorted_vec.end()))
 			std::cout << "input for parallel std::sort is already sorted" << std::endl;
 		auto t_parallel_stl_sort = tbb::tick_count::now();
 		std::sort(std::execution::par, sorted_vec.begin(), sorted_vec.end());
-		std::cout << "parallel stl sort " << (tbb::tick_count::now() - t_parallel_stl_sort).seconds() << " [s]" << std::endl;
+		std::cout << "parallel stl sort " << (tbb::tick_count::now() - t_parallel_stl_sort).seconds() << " [s]" << std::endl;*/
 		//std::cout << "create side effect " << sorted_vec[0] << std::endl;
 
 	}
