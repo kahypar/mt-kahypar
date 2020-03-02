@@ -48,7 +48,7 @@ class MultilevelCoarsenerT : public ICoarsenerT<TypeTraits>,
                              private MultilevelCoarsenerBase<TypeTraits> {
  private:
   using HyperGraph = typename TypeTraits::HyperGraph;
-  using PartitionedHyperGraph = typename TypeTraits::template PartitionedHyperGraph<>;
+  using PartitionedHyperGraph = typename TypeTraits::PartitionedHyperGraph;
   using TBB = typename TypeTraits::TBB;
   using HwTopology = typename TypeTraits::HwTopology;
 

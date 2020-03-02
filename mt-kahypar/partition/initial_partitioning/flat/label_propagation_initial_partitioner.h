@@ -29,7 +29,7 @@
 namespace mt_kahypar {
 template<typename TypeTraits>
 class LabelPropagationInitialPartitionerT : public tbb::task {
-  using HyperGraph = typename TypeTraits::template PartitionedHyperGraph<false>;
+  using HyperGraph = typename TypeTraits::PartitionedHyperGraph;
   using InitialPartitioningDataContainer = InitialPartitioningDataContainerT<TypeTraits>;
 
   using DeltaFunction = std::function<void (const HyperedgeID, const HyperedgeWeight, const HypernodeID, const HypernodeID, const HypernodeID)>;

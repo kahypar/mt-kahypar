@@ -36,8 +36,7 @@ namespace mt_kahypar {
 namespace ds {
 
 template <typename Hypergraph = Mandatory,
-          typename HypergraphFactory = Mandatory,
-          bool track_border_vertices = true>
+          typename HypergraphFactory = Mandatory>
 class NumaPartitionedHypergraph {
 
   static_assert(!Hypergraph::is_partitioned,  "Only unpartitioned hypergraphs are allowed");
@@ -59,8 +58,7 @@ class NumaPartitionedHypergraph {
   using UnderlyingFactory = typename HypergraphFactory::UnderlyingFactory;
   using HardwareTopology = typename Hypergraph::HardwareTopology;
   using TBBNumaArena = typename Hypergraph::TBBNumaArena;
-  using PartitionedHyperGraph = PartitionedHypergraph<
-    UnderlyingHypergraph, UnderlyingFactory, track_border_vertices>;
+  using PartitionedHyperGraph = PartitionedHypergraph<UnderlyingHypergraph, UnderlyingFactory>;
 
 
   // ! Generic function that will be called if a hypernode v moves from a block from to a block to for
@@ -553,42 +551,8 @@ class NumaPartitionedHypergraph {
     return hypergraph_of_vertex(u).partID(u);
   }
 
-  // ! Returns, whether hypernode u is adjacent to a least one cut hyperedge.
-  TRUE_SPECIALIZATION(track_border_vertices, bool) isBorderNode(const HypernodeID u) const {
+  bool isBorderNode(const HypernodeID u) const {
     return hypergraph_of_vertex(u).isBorderNode(u);
-  }
-
-  // ! Returns, whether hypernode u is adjacent to a least one cut hyperedge.
-  FALSE_SPECIALIZATION(track_border_vertices, bool) isBorderNode(const HypernodeID u) const {
-    return hypergraph_of_vertex(u).isBorderNode(u, _hypergraphs);
-  }
-
-  // ! Number of incident cut hyperedges of vertex u
-  TRUE_SPECIALIZATION(track_border_vertices, HyperedgeID) numIncidentCutHyperedges(const HypernodeID u) const {
-    return hypergraph_of_vertex(u).numIncidentCutHyperedges(u);
-  }
-
-  // ! Number of incident cut hyperedges of vertex u
-  FALSE_SPECIALIZATION(track_border_vertices, HyperedgeID) numIncidentCutHyperedges(const HypernodeID u) const {
-    return hypergraph_of_vertex(u).numIncidentCutHyperedges(u, _hypergraphs);
-  }
-
-  // ! Initializes the number of cut hyperedges for each vertex
-  // ! NOTE, this function have to be called after initial partitioning
-  // ! and before local search.
-  void initializeNumCutHyperedges() {
-    for( size_t node = 0; node < _hypergraphs.size(); ++node ) {
-      _hypergraphs[node].initializeNumCutHyperedges(_hypergraphs);
-    }
-  }
-
-  // ! Initializes the number of cut hyperedges for each vertex
-  // ! NOTE, this function have to be called after initial partitioning
-  // ! and before local search.
-  void initializeNumCutHyperedges(const TaskGroupID task_group_id) {
-    TBBNumaArena::instance().execute_parallel_on_all_numa_nodes(task_group_id, [&](const int node) {
-          _hypergraphs[node].initializeNumCutHyperedges(task_group_id, _hypergraphs);
-        });
   }
 
   // ! Number of blocks which pins of hyperedge e belongs to

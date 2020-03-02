@@ -38,9 +38,9 @@ class DoNothingRefiner final : public IRefiner {
   DoNothingRefiner & operator= (DoNothingRefiner &&) = delete;
 
  private:
-  void initializeImpl(PartitionedHypergraph<>&) override final { }
+  void initializeImpl(PartitionedHypergraph&) override final { }
 
-  bool refineImpl(PartitionedHypergraph<>&,
+  bool refineImpl(PartitionedHypergraph&,
                   const parallel::scalable_vector<HypernodeID>&,
                   kahypar::Metrics &) override final {
     return false;

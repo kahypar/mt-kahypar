@@ -76,7 +76,7 @@ template <typename TypeTraits>
 class RecursiveInitialPartitionerT : public IInitialPartitioner {
  private:
   using HyperGraph = typename TypeTraits::HyperGraph;
-  using PartitionedHyperGraph = typename TypeTraits::template PartitionedHyperGraph<>;
+  using PartitionedHyperGraph = typename TypeTraits::PartitionedHyperGraph;
   using TBB = typename TypeTraits::TBB;
   using HwTopology = typename TypeTraits::HwTopology;
 
@@ -537,7 +537,6 @@ class RecursiveInitialPartitionerT : public IInitialPartitioner {
         ASSERT(part_id != kInvalidPartition && part_id < _hg.k());
         _hg.setNodePart(hn, part_id);
       });
-      _hg.initializeNumCutHyperedges();
 
       // The hypergraph is now partitioned into the number of blocks of the recursive context (best.context.partition.k).
       // Based on wheter we reduced k in recursion, we have to bisect the blocks of the partition

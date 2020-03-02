@@ -106,7 +106,7 @@ class HypergraphSparsifier {
     }
   }
 
-  void restoreSingleNodeHyperedges(PartitionedHypergraph<>& hypergraph) {
+  void restoreSingleNodeHyperedges(PartitionedHypergraph& hypergraph) {
     for (const HyperedgeID& he : _removed_hes) {
       hypergraph.restoreSinglePinHyperedge(he);
     }
@@ -114,7 +114,7 @@ class HypergraphSparsifier {
 
   // ! Restore degree-zero vertices
   // ! Each removed degree-zero vertex is assigned to the block of its supervertex.
-  void restoreDegreeZeroHypernodes(PartitionedHypergraph<>& hypergraph) {
+  void restoreDegreeZeroHypernodes(PartitionedHypergraph& hypergraph) {
     for ( const HypernodeID& hn : _removed_hns ) {
       const HypernodeID original_id = hypergraph.originalNodeID(hn);
       ASSERT(original_id < _mapping.size());

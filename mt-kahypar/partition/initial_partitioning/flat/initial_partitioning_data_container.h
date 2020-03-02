@@ -36,10 +36,10 @@ namespace mt_kahypar {
 template <typename TypeTraits>
 class InitialPartitioningDataContainerT {
   using HyperGraph = typename TypeTraits::HyperGraph;
-  using PartitionedHyperGraph = typename TypeTraits::template PartitionedHyperGraph<>;
-  using PartitionedHyperGraphWithoutBorderVertices = typename TypeTraits::template PartitionedHyperGraph<false>;
+  using PartitionedHyperGraph = typename TypeTraits::PartitionedHyperGraph;
+  using PartitionedHyperGraphWithoutBorderVertices = typename TypeTraits::PartitionedHyperGraph;
   using TBB = typename TypeTraits::TBB;
-  using Refiner = IRefinerT<TypeTraits, false>;
+  using Refiner = IRefinerT<TypeTraits>;
 
   static constexpr bool debug = false;
   static PartitionID kInvalidPartition;
@@ -79,8 +79,8 @@ class InitialPartitioningDataContainerT {
   };
 
   struct LocalInitialPartitioningHypergraph {
-    using LabelPropagationKm1Refiner = LabelPropagationRefinerT<TypeTraits, Km1Policy, false>;
-    using LabelPropagationCutRefiner = LabelPropagationRefinerT<TypeTraits, CutPolicy, false>;
+    using LabelPropagationKm1Refiner = LabelPropagationRefinerT<TypeTraits, Km1Policy>;
+    using LabelPropagationCutRefiner = LabelPropagationRefinerT<TypeTraits, CutPolicy>;
 
     LocalInitialPartitioningHypergraph(HyperGraph& hypergraph,
                                        const Context& context,
@@ -121,7 +121,6 @@ class InitialPartitioningDataContainerT {
           return true;
         } (), "There are unassigned hypernodes!");
 
-      _partitioned_hypergraph.initializeNumCutHyperedges();
 
       kahypar::Metrics current_metric = {
         metrics::hyperedgeCut(_partitioned_hypergraph), metrics::km1(_partitioned_hypergraph),
@@ -335,7 +334,6 @@ class InitialPartitioningDataContainerT {
       _partitioned_hg.setNodePart(hn, part_id);
     }
 
-    _partitioned_hg.initializeNumCutHyperedges(_task_group_id);
     utils::InitialPartitioningStats::instance().add_initial_partitioning_result(
       best->_result._algorithm, number_of_threads, stats);
     ASSERT(best->_result._objective == metrics::objective(_partitioned_hg, _context.partition.objective),

@@ -31,7 +31,7 @@
 namespace mt_kahypar {
 template<typename TypeTraits>
 class BFSInitialPartitionerT : public tbb::task {
-  using HyperGraph = typename TypeTraits::template PartitionedHyperGraph<false>;
+  using HyperGraph = typename TypeTraits::PartitionedHyperGraph;
   using InitialPartitioningDataContainer = InitialPartitioningDataContainerT<TypeTraits>;
   using Queue = parallel::scalable_queue<HypernodeID>;
 

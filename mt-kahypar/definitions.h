@@ -40,7 +40,6 @@
 #include "tests/parallel/topology_mock.h"
 
 #define USE_HARDWARE_MOCK false
-#define TRACK_BORDER_VERTICES false
 #define KAHYPAR_ENABLE_NUMA_AWARE_PARTITIONING false
 
 namespace mt_kahypar {
@@ -74,22 +73,18 @@ using NodeID = uint32_t;
   using Hypergraph = ds::NumaHypergraph<ds::StaticHypergraph, HardwareTopology, TBBNumaArena>;
   using HypergraphFactory = ds::NumaHypergraphFactory<
     ds::StaticHypergraph, ds::StaticHypergraphFactory, HardwareTopology, TBBNumaArena>;
-  template<bool track_border_vertices = TRACK_BORDER_VERTICES>
   using PartitionedHypergraph = ds::NumaPartitionedHypergraph<
-    Hypergraph, HypergraphFactory, track_border_vertices>;
+    Hypergraph, HypergraphFactory>;
 #else
   using Hypergraph = ds::StaticHypergraph;
   using HypergraphFactory = ds::StaticHypergraphFactory;
-  template<bool track_border_vertices = TRACK_BORDER_VERTICES>
-  using PartitionedHypergraph = ds::PartitionedHypergraph<
-    Hypergraph, HypergraphFactory, track_border_vertices>;
+  using PartitionedHypergraph = ds::PartitionedHypergraph<Hypergraph, HypergraphFactory>;
 #endif
 
 struct GlobalTypeTraits {
   using HyperGraph = Hypergraph;
   using HyperGraphFactory = HypergraphFactory;
-  template<bool track_border_vertices = TRACK_BORDER_VERTICES>
-  using PartitionedHyperGraph = PartitionedHypergraph<track_border_vertices>;
+  using PartitionedHyperGraph = PartitionedHypergraph;
   using TBB = TBBNumaArena;
   using HwTopology = HardwareTopology;
 };

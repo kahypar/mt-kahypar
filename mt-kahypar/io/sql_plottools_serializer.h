@@ -35,7 +35,7 @@ namespace mt_kahypar {
 namespace io {
 namespace serializer {
 
-static inline std::string serialize(const PartitionedHypergraph<>& hypergraph,
+static inline std::string serialize(const PartitionedHypergraph& hypergraph,
                                     const Context& context,
                                     const std::chrono::duration<double>& elapsed_seconds) {
   if (context.partition.sp_process_output) {

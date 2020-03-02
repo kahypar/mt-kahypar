@@ -35,7 +35,7 @@ namespace multilevel {
 
 namespace {
 
-using PartitionedHypergraph = mt_kahypar::PartitionedHypergraph<>;
+using PartitionedHypergraph = mt_kahypar::PartitionedHypergraph;
 
 class RefinementTask : public tbb::task {
 

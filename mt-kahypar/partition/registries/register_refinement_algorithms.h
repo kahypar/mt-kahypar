@@ -31,7 +31,7 @@
 #define REGISTER_LP_REFINER(id, refiner, t)                                                                          \
   static kahypar::meta::Registrar<LabelPropagationFactory> JOIN(register_ ## refiner, t)(                            \
     id,                                                                                                              \
-    [](PartitionedHypergraph<>& hypergraph, const Context& context, const TaskGroupID task_group_id) -> IRefiner* {  \
+    [](PartitionedHypergraph& hypergraph, const Context& context, const TaskGroupID task_group_id) -> IRefiner* {  \
     return new refiner(hypergraph, context, task_group_id);                                                          \
   })
 

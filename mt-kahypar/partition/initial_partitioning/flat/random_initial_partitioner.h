@@ -29,7 +29,7 @@
 namespace mt_kahypar {
 template<typename TypeTraits>
 class RandomInitialPartitionerT : public tbb::task {
-  using HyperGraph = typename TypeTraits::template PartitionedHyperGraph<false>;
+  using HyperGraph = typename TypeTraits::PartitionedHyperGraph;
   using InitialPartitioningDataContainer = InitialPartitioningDataContainerT<TypeTraits>;
 
   static constexpr bool debug = false;

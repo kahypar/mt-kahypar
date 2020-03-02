@@ -35,7 +35,7 @@ template <typename TypeTraits>
 class MultilevelCoarsenerBase {
  private:
   using HyperGraph = typename TypeTraits::HyperGraph;
-  using PartitionedHyperGraph = typename TypeTraits::template PartitionedHyperGraph<>;
+  using PartitionedHyperGraph = typename TypeTraits::PartitionedHyperGraph;
   using TBB = typename TypeTraits::TBB;
 
   using Refiner = IRefinerT<TypeTraits>;
@@ -232,8 +232,6 @@ class MultilevelCoarsenerBase {
           representative_hg.setNodePart(hn, block);
         }
       });
-
-      representative_hg.initializeNumCutHyperedges(_task_group_id);
 
 
       ASSERT(metrics::objective(representative_hg, _context.partition.objective) ==

@@ -31,7 +31,7 @@ template<typename TypeTraits>
 class ICoarsenerT {
 
   using HyperGraph = typename TypeTraits::HyperGraph;
-  using PartitionedHyperGraph = typename TypeTraits::template PartitionedHyperGraph<>;
+  using PartitionedHyperGraph = typename TypeTraits::PartitionedHyperGraph;
   using Refiner = IRefinerT<TypeTraits>;
 
  public:

@@ -56,8 +56,7 @@ int main(int argc, char* argv[]) {
 
   // Partition Hypergraph
   mt_kahypar::HighResClockTimepoint start = std::chrono::high_resolution_clock::now();
-  mt_kahypar::PartitionedHypergraph<> partitioned_hypergraph =
-    mt_kahypar::partition::Partitioner(context).partition(hypergraph);
+  mt_kahypar::PartitionedHypergraph partitioned_hypergraph = mt_kahypar::partition::Partitioner(context).partition(hypergraph);
   mt_kahypar::HighResClockTimepoint end = std::chrono::high_resolution_clock::now();
 
   // Print Stats

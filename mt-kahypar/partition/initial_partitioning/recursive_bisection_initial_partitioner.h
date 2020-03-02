@@ -63,7 +63,7 @@ template <typename TypeTraits>
 class RecursiveBisectionInitialPartitionerT : public IInitialPartitioner {
  private:
   using HyperGraph = typename TypeTraits::HyperGraph;
-  using PartitionedHyperGraph = typename TypeTraits::template PartitionedHyperGraph<>;
+  using PartitionedHyperGraph = typename TypeTraits::PartitionedHyperGraph;
   using TBB = typename TypeTraits::TBB;
   using HwTopology = typename TypeTraits::HwTopology;
 
@@ -308,7 +308,6 @@ class RecursiveBisectionInitialPartitionerT : public IInitialPartitioner {
           _hg.setNodePart(hn, block_1);
         }
       });
-      _hg.initializeNumCutHyperedges(_task_group_id);
 
       ASSERT(metrics::objective(_bisection_partitioned_hg, _context.partition.objective) ==
         metrics::objective(_hg, _context.partition.objective));
