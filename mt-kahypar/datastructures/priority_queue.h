@@ -174,7 +174,7 @@ protected:
 
       // find child with largest key for MaxHeap / smallest key for MinHeap
       const PosT firstInvalid = std::min(size(), firstChild(pos + 1));
-      for (PosT c = first + 1; c < firstInvalid; ++c) {
+      for (PosT c = first + 1; c < firstInvalid; ++c) {     // TODO this might be an inefficiency compared to a binary heap implementation
         if ( comp(largestChildKey, heap[c].key) ) {
           largestChildKey = heap[c].key;
           largestChild = c;

@@ -781,6 +781,8 @@ class PartitionedHypergraph {
     }
   }
 
+  /*
+
   // ! Returns, whether hypernode u is adjacent to a least one cut hyperedge.
   template<bool T = track_border_vertices> std::enable_if_t<!T, bool>
   isBorderNode(const HypernodeID u, const parallel::scalable_vector<PartitionedHypergraph>& hypergraphs) const {
@@ -816,6 +818,7 @@ class PartitionedHypergraph {
     return num_incident_cut_hyperedges;
   }
 
+   */
   // ! Initializes the number of cut hyperedges for each vertex
   // ! NOTE, this function have to be called after initial partitioning
   // ! and before local search.
@@ -870,6 +873,7 @@ class PartitionedHypergraph {
     _is_init_num_cut_hyperedges = true;
   }
 
+
   // ! Number of blocks which pins of hyperedge e belongs to
   PartitionID connectivity(const HyperedgeID e) const {
     ASSERT(_hg->edgeIsEnabled(e), "Hyperedge" << e << "is disabled");
@@ -903,12 +907,12 @@ class PartitionedHypergraph {
     return _part_info[id].size;
   }
 
-  const HyperedgeWeight km1Gain(HypernodeID u, PartitionID p) const {
+  HyperedgeWeight km1Gain(HypernodeID u, PartitionID p) const {
     return _affinity[u * _k + partID(u)].w1pins.load(std::memory_order_relaxed)
            - _affinity[u * _k + p].w0pins.load(std::memory_order_relaxed);
   }
 
-  const HyperedgeWeight affinity(HypernodeID u, PartitionID p) const {
+  HyperedgeWeight affinity(HypernodeID u, PartitionID p) const {
     return _affinity[u * _k + p].w0pins.load(std::memory_order_relaxed);
   }
 
@@ -957,11 +961,11 @@ class PartitionedHypergraph {
   // ####################### Extract Block #######################
 
   // ! Extracts a block of a partition as separate hypergraph.
-  // ! It also returns an mapping, that maps each vertex of the original
-  // ! hypergraph to a vertex in the extracted hypergraph.
-  // ! Furthermore, if cut_net_splitting is activated, hyperedges that
-  // ! contains more than one block are splitted and otherwise only
-  // ! only nets that are internal in 'block' are in the extracted hypergraph
+  // ! It also returns a vertex-mapping from the original
+  // ! hypergraph to the sub-hypergraph.
+  // ! If cut_net_splitting is activated, hyperedges that
+  // ! span more than one block (cut nets) are split, which is used for the connectivity metric.
+  // ! Otherwise cut nets are discarded (cut metric).
   std::pair<Hypergraph, parallel::scalable_vector<HypernodeID> > extract(
     const TaskGroupID& task_group_id,
     const PartitionID block,
