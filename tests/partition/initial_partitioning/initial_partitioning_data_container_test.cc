@@ -68,7 +68,8 @@ class AInitialPartitioningDataContainer :
 };
 
 TEST_F(AInitialPartitioningDataContainer, ReturnsAnUnassignedLocalHypernode1) {
-  PartitionedHyperGraph partitioned_hypergraph(context.partition.k, hypergraph);
+  PartitionedHyperGraph partitioned_hypergraph(
+    context.partition.k, TBB::instance().total_number_of_threads(), hypergraph);
   InitialPartitioningDataContainer ip_data(
     partitioned_hypergraph, context, TBB::GLOBAL_TASK_GROUP);
   PartitionedHyperGraphWithoutBorderVertices& local_hg = ip_data.local_partitioned_hypergraph();
@@ -77,7 +78,8 @@ TEST_F(AInitialPartitioningDataContainer, ReturnsAnUnassignedLocalHypernode1) {
 }
 
 TEST_F(AInitialPartitioningDataContainer, ReturnsAnUnassignedLocalHypernode2) {
-  PartitionedHyperGraph partitioned_hypergraph(context.partition.k, hypergraph);
+  PartitionedHyperGraph partitioned_hypergraph(
+    context.partition.k, TBB::instance().total_number_of_threads(), hypergraph);
   InitialPartitioningDataContainer ip_data(
     partitioned_hypergraph, context, TBB::GLOBAL_TASK_GROUP);
   PartitionedHyperGraphWithoutBorderVertices& local_hg = ip_data.local_partitioned_hypergraph();
@@ -97,7 +99,8 @@ TEST_F(AInitialPartitioningDataContainer, ReturnsAnUnassignedLocalHypernode2) {
 }
 
 TEST_F(AInitialPartitioningDataContainer, ReturnsAnUnassignedLocalHypernode3) {
-  PartitionedHyperGraph partitioned_hypergraph(context.partition.k, hypergraph);
+  PartitionedHyperGraph partitioned_hypergraph(
+    context.partition.k, TBB::instance().total_number_of_threads(), hypergraph);
   InitialPartitioningDataContainer ip_data(
     partitioned_hypergraph, context, TBB::GLOBAL_TASK_GROUP);
   PartitionedHyperGraphWithoutBorderVertices& local_hg = ip_data.local_partitioned_hypergraph();
@@ -117,7 +120,8 @@ TEST_F(AInitialPartitioningDataContainer, ReturnsAnUnassignedLocalHypernode3) {
 }
 
 TEST_F(AInitialPartitioningDataContainer, ReturnsAnUnassignedLocalHypernode4) {
-  PartitionedHyperGraph partitioned_hypergraph(context.partition.k, hypergraph);
+  PartitionedHyperGraph partitioned_hypergraph(
+    context.partition.k, TBB::instance().total_number_of_threads(), hypergraph);
   InitialPartitioningDataContainer ip_data(
     partitioned_hypergraph, context, TBB::GLOBAL_TASK_GROUP);
   PartitionedHyperGraphWithoutBorderVertices& local_hg = ip_data.local_partitioned_hypergraph();
@@ -137,7 +141,8 @@ TEST_F(AInitialPartitioningDataContainer, ReturnsAnUnassignedLocalHypernode4) {
 }
 
 TEST_F(AInitialPartitioningDataContainer, ReturnsInvalidHypernodeIfAllHypernodesAreAssigned) {
-  PartitionedHyperGraph partitioned_hypergraph(context.partition.k, hypergraph);
+  PartitionedHyperGraph partitioned_hypergraph(
+    context.partition.k, TBB::instance().total_number_of_threads(), hypergraph);
   InitialPartitioningDataContainer ip_data(
     partitioned_hypergraph, context, TBB::GLOBAL_TASK_GROUP);
   PartitionedHyperGraphWithoutBorderVertices& local_hg = ip_data.local_partitioned_hypergraph();
@@ -152,7 +157,8 @@ TEST_F(AInitialPartitioningDataContainer, ReturnsInvalidHypernodeIfAllHypernodes
 }
 
 TEST_F(AInitialPartitioningDataContainer, ReturnsValidUnassignedHypernodeIfPartitionIsResetted) {
-  PartitionedHyperGraph partitioned_hypergraph(context.partition.k, hypergraph);
+  PartitionedHyperGraph partitioned_hypergraph(
+    context.partition.k, TBB::instance().total_number_of_threads(), hypergraph);
   InitialPartitioningDataContainer ip_data(
     partitioned_hypergraph, context, TBB::GLOBAL_TASK_GROUP);
   PartitionedHyperGraphWithoutBorderVertices& local_hg = ip_data.local_partitioned_hypergraph();
@@ -171,7 +177,8 @@ TEST_F(AInitialPartitioningDataContainer, ReturnsValidUnassignedHypernodeIfParti
 }
 
 TEST_F(AInitialPartitioningDataContainer, AppliesPartitionToHypergraph) {
-  PartitionedHyperGraph partitioned_hypergraph(context.partition.k, hypergraph);
+  PartitionedHyperGraph partitioned_hypergraph(
+    context.partition.k, TBB::instance().total_number_of_threads(), hypergraph);
   InitialPartitioningDataContainer ip_data(
     partitioned_hypergraph, context, TBB::GLOBAL_TASK_GROUP);
   PartitionedHyperGraphWithoutBorderVertices& local_hg = ip_data.local_partitioned_hypergraph();
@@ -199,7 +206,8 @@ TEST_F(AInitialPartitioningDataContainer, AppliesPartitionToHypergraph) {
 }
 
 TEST_F(AInitialPartitioningDataContainer, AppliesBestPartitionToHypergraph) {
-  PartitionedHyperGraph partitioned_hypergraph(context.partition.k, hypergraph);
+  PartitionedHyperGraph partitioned_hypergraph(
+    context.partition.k, TBB::instance().total_number_of_threads(), hypergraph);
   InitialPartitioningDataContainer ip_data(
     partitioned_hypergraph, context, TBB::GLOBAL_TASK_GROUP);
   PartitionedHyperGraphWithoutBorderVertices& local_hg = ip_data.local_partitioned_hypergraph();
@@ -237,7 +245,8 @@ TEST_F(AInitialPartitioningDataContainer, AppliesBestPartitionToHypergraph) {
 }
 
 TEST_F(AInitialPartitioningDataContainer, AppliesBestPartitionWithImbalancedPartitionToHypergraph1) {
-  PartitionedHyperGraph partitioned_hypergraph(context.partition.k, hypergraph);
+  PartitionedHyperGraph partitioned_hypergraph(
+    context.partition.k, TBB::instance().total_number_of_threads(), hypergraph);
   InitialPartitioningDataContainer ip_data(
     partitioned_hypergraph, context, TBB::GLOBAL_TASK_GROUP);
   PartitionedHyperGraphWithoutBorderVertices& local_hg = ip_data.local_partitioned_hypergraph();
@@ -275,7 +284,8 @@ TEST_F(AInitialPartitioningDataContainer, AppliesBestPartitionWithImbalancedPart
 }
 
 TEST_F(AInitialPartitioningDataContainer, AppliesBestPartitionWithImbalancedPartitionToHypergraph2) {
-  PartitionedHyperGraph partitioned_hypergraph(context.partition.k, hypergraph);
+  PartitionedHyperGraph partitioned_hypergraph(
+    context.partition.k, TBB::instance().total_number_of_threads(), hypergraph);
   InitialPartitioningDataContainer ip_data(
     partitioned_hypergraph, context, TBB::GLOBAL_TASK_GROUP);
   PartitionedHyperGraphWithoutBorderVertices& local_hg = ip_data.local_partitioned_hypergraph();
@@ -313,7 +323,8 @@ TEST_F(AInitialPartitioningDataContainer, AppliesBestPartitionWithImbalancedPart
 }
 
 TEST_F(AInitialPartitioningDataContainer, AppliesBestPartitionWithImbalancedPartitionToHypergraph3) {
-  PartitionedHyperGraph partitioned_hypergraph(context.partition.k, hypergraph);
+  PartitionedHyperGraph partitioned_hypergraph(
+    context.partition.k, TBB::instance().total_number_of_threads(), hypergraph);
   InitialPartitioningDataContainer ip_data(
     partitioned_hypergraph, context, TBB::GLOBAL_TASK_GROUP);
   PartitionedHyperGraphWithoutBorderVertices& local_hg = ip_data.local_partitioned_hypergraph();
@@ -351,7 +362,8 @@ TEST_F(AInitialPartitioningDataContainer, AppliesBestPartitionWithImbalancedPart
 }
 
 TEST_F(AInitialPartitioningDataContainer, AppliesBestPartitionToHypergraphInParallel1) {
-  PartitionedHyperGraph partitioned_hypergraph(context.partition.k, hypergraph);
+  PartitionedHyperGraph partitioned_hypergraph(
+    context.partition.k, TBB::instance().total_number_of_threads(), hypergraph);
   InitialPartitioningDataContainer ip_data(
     partitioned_hypergraph, context, TBB::GLOBAL_TASK_GROUP);
 
@@ -397,7 +409,8 @@ TEST_F(AInitialPartitioningDataContainer, AppliesBestPartitionToHypergraphInPara
 }
 
 TEST_F(AInitialPartitioningDataContainer, AppliesBestPartitionToHypergraphInParallel2) {
-  PartitionedHyperGraph partitioned_hypergraph(context.partition.k, hypergraph);
+  PartitionedHyperGraph partitioned_hypergraph(
+    context.partition.k, TBB::instance().total_number_of_threads(), hypergraph);
   InitialPartitioningDataContainer ip_data(
     partitioned_hypergraph, context, TBB::GLOBAL_TASK_GROUP);
 
@@ -443,7 +456,8 @@ TEST_F(AInitialPartitioningDataContainer, AppliesBestPartitionToHypergraphInPara
 }
 
 TEST_F(AInitialPartitioningDataContainer, AppliesBestPartitionToHypergraphInParallel3) {
-  PartitionedHyperGraph partitioned_hypergraph(context.partition.k, hypergraph);
+  PartitionedHyperGraph partitioned_hypergraph(
+    context.partition.k, TBB::instance().total_number_of_threads(), hypergraph);
   InitialPartitioningDataContainer ip_data(
     partitioned_hypergraph, context, TBB::GLOBAL_TASK_GROUP);
 

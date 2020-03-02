@@ -162,7 +162,7 @@ bool check_if_member_is_contained_in_result_line(const std::string& context_memb
 TEST(ASqlPlotSerializerTest, ChecksIfSomeParametersFromContextAreMissing) {
   HighResClockTimepoint start = std::chrono::high_resolution_clock::now();
   Hypergraph dummy_hypergraph;
-  PartitionedHypergraph<> dummy_partitioned_hypergraph(2, dummy_hypergraph);
+  PartitionedHypergraph<> dummy_partitioned_hypergraph(2, 2, dummy_hypergraph);
   Context dummy_context;
   dummy_context.partition.graph_filename = "dummy.hgr";
   dummy_context.partition.k = 0;
