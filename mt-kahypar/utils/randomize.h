@@ -58,7 +58,9 @@ class Randomize {
 
     bool flipCoin() {
       bool coinFlip = _precomputed_flip_coins[_next_coin_flip++];
-      _next_coin_flip = (_next_coin_flip % PRECOMPUTED_FLIP_COINS);
+      if (_next_coin_flip == PRECOMPUTED_FLIP_COINS) {
+        precompute_flip_coins();
+      }
       return coinFlip;
     }
 
@@ -82,7 +84,7 @@ class Randomize {
 
    private:
     void precompute_flip_coins() {
-      std::uniform_int_distribution<int> bool_dist;
+      std::uniform_int_distribution<int> bool_dist(0,1);
       for (size_t i = 0; i < PRECOMPUTED_FLIP_COINS; ++i) {
         _precomputed_flip_coins[i] = static_cast<bool>(bool_dist(_gen));
       }
