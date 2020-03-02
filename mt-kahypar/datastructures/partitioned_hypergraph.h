@@ -29,6 +29,7 @@
 
 #include "mt-kahypar/datastructures/hypergraph_common.h"
 #include "mt-kahypar/datastructures/connectivity_set.h"
+#include "mt-kahypar/datastructures/partition_info.h"
 #include "mt-kahypar/parallel/atomic_wrapper.h"
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
 #include "mt-kahypar/utils/range.h"
@@ -77,19 +78,7 @@ class PartitionedHypergraph {
    * a PartInfo object stores the number of hypernodes currently assigned to block \f$V_i\f$
    * as well as the sum of their weights.
    */
-  class PartInfo {
-   public:
-    explicit PartInfo() :
-      weight(0),
-      size(0) { }
-
-    bool operator== (const PartInfo& other) const {
-      return weight == other.weight && size == other.size;
-    }
-
-    parallel::IntegralAtomicWrapper<HypernodeWeight> weight;
-    parallel::IntegralAtomicWrapper<int64_t> size;
-  };
+  using BlockInfo = typename PartitionInfo::BlockInfo;
 
   class VertexPartInfo {
     public:
@@ -119,24 +108,26 @@ class PartitionedHypergraph {
     _connectivity_sets(0, 0) { }
 
   explicit PartitionedHypergraph(const PartitionID k,
+                                 const size_t num_threads,
                                  Hypergraph& hypergraph) :
     _k(k),
     _node(hypergraph.numaNode()),
     _hg(&hypergraph),
     _is_init_num_cut_hyperedges(false),
-    _part_info(k),
+    _part_info(num_threads, k),
     _vertex_part_info(hypergraph.initialNumNodes()),
     _pins_in_part(hypergraph.initialNumEdges() * k, PinCountAtomic(0)),
     _connectivity_sets(hypergraph.initialNumEdges(), k) { }
 
   explicit PartitionedHypergraph(const PartitionID k,
+                                 const size_t num_threads,
                                  const TaskGroupID,
                                  Hypergraph& hypergraph) :
     _k(k),
     _node(hypergraph.numaNode()),
     _hg(&hypergraph),
     _is_init_num_cut_hyperedges(false),
-    _part_info(k),
+    _part_info(num_threads, k),
     _vertex_part_info(),
     _pins_in_part(),
     _connectivity_sets(0, 0) {
@@ -341,7 +332,7 @@ class PartitionedHypergraph {
     if ( block != kInvalidPartition ) {
       ASSERT(block < _k);
       const HypernodeWeight delta = weight - _hg->nodeWeight(u);
-      _part_info[block].weight += delta;
+      _part_info.updateNodeWeight(u, block, delta);
     }
     _hg->setNodeWeight(u, weight);
   }
@@ -531,8 +522,7 @@ class PartitionedHypergraph {
     if ( vertexPartInfo(u).part_id.compare_and_exchange_strong(invalid_id, id) ) {
 
       // Update block weights
-      ++_part_info[id].size;
-      _part_info[id].weight += nodeWeight(u);
+      _part_info.setNodePart(u, id, nodeWeight(u));
 
       // Update Pin Count Part of all incident edges
       for ( const HyperedgeID& he : incidentEdges(u) ) {
@@ -586,9 +576,9 @@ class PartitionedHypergraph {
   // ! Returns true, if move of vertex u to corresponding block succeeds.
   TRUE_SPECIALIZATION(track_border_vertices, bool)
   changeNodePart(const HypernodeID u,
-                  PartitionID from,
-                  PartitionID to,
-                  const DeltaFunction& delta_func = NOOP_FUNC) {
+                 PartitionID from,
+                 PartitionID to,
+                 const DeltaFunction& delta_func = NOOP_FUNC) {
     ASSERT(_hg->nodeIsEnabled(u), "Hypernode" << u << "is disabled");
     ASSERT(from != kInvalidPartition && from < _k);
     ASSERT(to != kInvalidPartition && to < _k);
@@ -598,10 +588,7 @@ class PartitionedHypergraph {
     if ( vertexPartInfo(u).part_id.compare_and_exchange_strong(from, to) ) {
 
       // Update block weights
-      --_part_info[from].size;
-      _part_info[from].weight -= nodeWeight(u);
-      ++_part_info[to].size;
-      _part_info[to].weight += nodeWeight(u);
+      _part_info.changeNodePart(u, from, to, nodeWeight(u));
 
       // Update Pin Count Part of all incident edges
       for ( const HyperedgeID& he : incidentEdges(u) ) {
@@ -639,10 +626,10 @@ class PartitionedHypergraph {
   // ! Returns true, if move of vertex u to corresponding block succeeds.
   TRUE_SPECIALIZATION(track_border_vertices, bool)
   changeNodePart(const HypernodeID u,
-                  PartitionID from,
-                  PartitionID to,
-                  parallel::scalable_vector<PartitionedHypergraph>& hypergraphs,
-                  const DeltaFunction& delta_func = NOOP_FUNC) {
+                 PartitionID from,
+                 PartitionID to,
+                 parallel::scalable_vector<PartitionedHypergraph>& hypergraphs,
+                 const DeltaFunction& delta_func = NOOP_FUNC) {
     ASSERT(_hg->nodeIsEnabled(u), "Hypernode" << u << "is disabled");
     ASSERT(from != kInvalidPartition && from < _k);
     ASSERT(to != kInvalidPartition && to < _k);
@@ -699,10 +686,7 @@ class PartitionedHypergraph {
     if ( vertexPartInfo(u).part_id.compare_and_exchange_strong(from, to) ) {
 
       // Update block weights
-      --_part_info[from].size;
-      _part_info[from].weight -= nodeWeight(u);
-      ++_part_info[to].size;
-      _part_info[to].weight += nodeWeight(u);
+      _part_info.changeNodePart(u, from, to, nodeWeight(u));
 
       // Update Pin Count Part of all incident edges
       for ( const HyperedgeID& he : incidentEdges(u) ) {
@@ -780,22 +764,24 @@ class PartitionedHypergraph {
   void initializePartition(const TaskGroupID task_group_id) {
     tbb::parallel_invoke([&] {
       // Compute Part Infos
-      parallel::scalable_vector<tbb::enumerable_thread_specific<PartInfo>> local_part_info(_k);
+      parallel::scalable_vector<tbb::enumerable_thread_specific<BlockInfo>> local_part_info(_k);
       _hg->doParallelForAllNodes(task_group_id, [&](const HypernodeID hn) {
         const PartitionID block = partID(hn);
         ASSERT(block != kInvalidPartition && block < _k);
-        PartInfo& part_info = local_part_info[block].local();
-        ++part_info.size;
-        part_info.weight += nodeWeight(hn);
+        BlockInfo& block_info = local_part_info[block].local();
+        ++block_info.size;
+        block_info.weight += nodeWeight(hn);
       });
 
       for ( PartitionID block = 0; block < _k; ++block ) {
-        ASSERT(_part_info[block].size == 0);
-        ASSERT(_part_info[block].weight == 0);
-        for ( const PartInfo& part_info : local_part_info[block] ) {
-          _part_info[block].size += part_info.size;
-          _part_info[block].weight += part_info.weight;
+        HypernodeID block_size = ID(0);
+        HypernodeWeight block_weight = 0;
+        for ( const BlockInfo& block_info : local_part_info[block] ) {
+          block_size += block_info.size;
+          block_weight += block_info.weight;
         }
+        _part_info.setBlockSize(block, block_size);
+        _part_info.setBlockWeight(block, block_weight);
       }
     }, [&] {
       // Compute Pin Count In Parts
@@ -982,14 +968,12 @@ class PartitionedHypergraph {
 
   // ! Weight of a block
   HypernodeWeight partWeight(const PartitionID id) const {
-    ASSERT(id != kInvalidPartition && id < _k);
-    return _part_info[id].weight;
+    return _part_info.partWeight(id);
   }
 
   // ! Number of vertices in a block
   size_t partSize(const PartitionID id) const {
-    ASSERT(id != kInvalidPartition && id < _k);
-    return _part_info[id].size;
+    return _part_info.partSize(id);
   }
 
   // ! Reset partition (not thread-safe)
@@ -1010,10 +994,7 @@ class PartitionedHypergraph {
     }
 
     // Reset block weights and sizes
-    for ( PartitionID block = 0; block < _k; ++block ) {
-      _part_info[block].weight = 0;
-      _part_info[block].size = 0;
-    }
+    _part_info.reset();
 
     _is_init_num_cut_hyperedges = false;
   }
@@ -1029,7 +1010,7 @@ class PartitionedHypergraph {
     utils::MemoryTreeNode* connectivity_set_node = parent->addChild("Connectivity Sets");
     _connectivity_sets.memoryConsumption(connectivity_set_node);
 
-    parent->addChild("Part Info", sizeof(PartInfo) * _k);
+    parent->addChild("Part Info", sizeof(BlockInfo) * _k * _part_info.numLocalBlockInfos());
     parent->addChild("Vertex Part Info", sizeof(VertexPartInfo) * _hg->initialNumNodes());
     parent->addChild("Pin Count In Part", sizeof(PinCountAtomic) * _k * _hg->initialNumEdges());
   }
@@ -1307,7 +1288,7 @@ class PartitionedHypergraph {
   // ! Indicates, if cut hyperedges are initialized
   bool _is_init_num_cut_hyperedges;
   // ! Weight and size information for all blocks.
-  parallel::scalable_vector<PartInfo> _part_info;
+  PartitionInfo _part_info;
   // ! Contains for each vertex the block and the number of
   // ! incident cut hyperedges
   parallel::scalable_vector<VertexPartInfo> _vertex_part_info;

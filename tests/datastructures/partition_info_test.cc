@@ -30,6 +30,11 @@ using ::testing::Test;
 namespace mt_kahypar {
 namespace ds {
 
+TEST(APartitionInfo, HasCorrectNumLocalBlockInfos0) {
+  PartitionInfo part_info(1, 2);
+  ASSERT_EQ(1, part_info.numLocalBlockInfos());
+}
+
 TEST(APartitionInfo, HasCorrectNumLocalBlockInfos1) {
   PartitionInfo part_info(8, 8);
   ASSERT_EQ(1, part_info.numLocalBlockInfos());

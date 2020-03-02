@@ -88,7 +88,8 @@ class AInitialPartitionerTest : public Test {
     hypergraph = io::readHypergraphFile<HyperGraph, HyperGraphFactory>(
       "../test_instances/unweighted_ibm01.hgr", TBB::GLOBAL_TASK_GROUP);
     partitioned_hypergraph = PartitionedHyperGraph(
-      context.partition.k, TBB::GLOBAL_TASK_GROUP, hypergraph);
+      context.partition.k, num_threads,
+      TBB::GLOBAL_TASK_GROUP, hypergraph);
     context.setupPartWeights(hypergraph.totalWeight());
     context.setupContractionLimit(hypergraph.totalWeight());
     assignCommunities();

@@ -47,7 +47,9 @@ class AGainPolicy : public Test {
     context.partition.k = K;
     context.partition.max_part_weights.assign(K, std::numeric_limits<HypernodeWeight>::max());
     gain = std::make_unique<GainCalculator>(context, true  /* disable randomization */);
-    hypergraph = PartitionedHyperGraph(K, TBB::GLOBAL_TASK_GROUP, hg);
+    hypergraph = PartitionedHyperGraph(
+      K, TBB::instance().total_number_of_threads(),
+      TBB::GLOBAL_TASK_GROUP, hg);
   }
 
   void assignPartitionIDs(const std::vector<PartitionID>& part_ids) {

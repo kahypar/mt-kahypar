@@ -96,6 +96,18 @@ class PartitionInfo {
   PartitionInfo(const PartitionInfo&) = delete;
   PartitionInfo & operator= (const PartitionInfo &) = delete;
 
+  PartitionInfo(PartitionInfo&& other) :
+    _k(other._k),
+    _num_local_block_infos(other._num_local_block_infos),
+    _part_info(std::move(other._part_info)) { }
+
+  PartitionInfo & operator= (PartitionInfo&& other) {
+    _k = other._k;
+    _num_local_block_infos = other._num_local_block_infos;
+    _part_info = std::move(other._part_info);
+    return *this;
+  }
+
   HypernodeID numLocalBlockInfos() const {
     return _num_local_block_infos;
   }
@@ -112,6 +124,14 @@ class PartitionInfo {
     ASSERT(id != kInvalidPartition && id < _k);
     _part_info[id][0].weight = weight;
     ASSERT(partWeight(id) == weight);
+  }
+
+  inline void updateNodeWeight(const HypernodeID u,
+                               const PartitionID id,
+                               const HypernodeWeight delta) {
+    ASSERT(id != kInvalidPartition && id < _k);
+    const HypernodeID local_bucket = u % _num_local_block_infos;
+    _part_info[id][local_bucket].weight += delta;
   }
 
 
@@ -156,11 +176,20 @@ class PartitionInfo {
     return size;
   }
 
+  void reset() {
+    for ( PartitionID block = 0; block < _k; ++block ) {
+      for ( HypernodeID local_bucket = 0; local_bucket < _num_local_block_infos; ++local_bucket ) {
+        _part_info[block][local_bucket].size = ID(0);
+        _part_info[block][local_bucket].weight = 0;
+      }
+    }
+  }
+
  private:
   HypernodeID computeNumLocalBlockInfos(const size_t num_threads, const PartitionID k) {
     const double log2_num_threads = std::log2(static_cast<double>(num_threads));
     const double log2_k = std::log2(static_cast<double>(k));
-    return std::ceil(log2_num_threads / log2_k);
+    return std::max(std::ceil(log2_num_threads / log2_k), 1.0);
   }
 
   PartitionID _k;

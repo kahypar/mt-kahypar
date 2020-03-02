@@ -65,7 +65,8 @@ class APoolInitialPartitionerTest : public Test {
     hypergraph = io::readHypergraphFile<HyperGraph, HyperGraphFactory>(
       "../test_instances/test_instance.hgr", TBB::GLOBAL_TASK_GROUP);
     partitioned_hypergraph = PartitionedHyperGraph(
-      context.partition.k, TBB::GLOBAL_TASK_GROUP, hypergraph);
+      context.partition.k, HwTopology::instance().num_cpus(),
+      TBB::GLOBAL_TASK_GROUP, hypergraph);
     context.setupPartWeights(hypergraph.totalWeight());
     utils::Timer::instance().disable();
   }
