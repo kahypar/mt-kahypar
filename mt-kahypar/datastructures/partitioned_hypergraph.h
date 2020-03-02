@@ -522,6 +522,8 @@ class PartitionedHypergraph {
 
   // ! Changes the block id of vertex u from block 'from' to block 'to'
   // ! Returns true, if move of vertex u to corresponding block succeeds.
+  /*
+
   TRUE_SPECIALIZATION(track_border_vertices, bool)
   changeNodePart(const HypernodeID u,
                   PartitionID from,
@@ -578,8 +580,12 @@ class PartitionedHypergraph {
     }
   }
 
+  */
+
   // ! Changes the block id of vertex u from block 'from' to block 'to'
   // ! Returns true, if move of vertex u to corresponding block succeeds.
+ /*
+
   TRUE_SPECIALIZATION(track_border_vertices, bool)
   changeNodePart(const HypernodeID u,
                   PartitionID from,
@@ -627,6 +633,8 @@ class PartitionedHypergraph {
     }
   }
 
+  */
+
   // ! Changes the block id of vertex u from block 'from' to block 'to'
   // ! Returns true, if move of vertex u to corresponding block succeeds.
   FALSE_SPECIALIZATION(track_border_vertices, bool)
@@ -639,29 +647,13 @@ class PartitionedHypergraph {
     ASSERT(to != kInvalidPartition && to < _k);
     ASSERT(from != to);
 
-    if (part_weight[id] += nodeWeight(u) <= max_part_weight[id]) {
-      part[u] = id;
+    if (part_weight[to] += nodeWeight(u) <= max_part_weight[to]) {
+      part[u] = to;
+      part_weight[from] -= nodeWeight(u);
+
       for ( const HyperedgeID& he : incidentEdges(u) ) {
-        common::hypergraph_of_edge(he, hypergraphs).incrementPinCountInPart(he, id);
-      }
-      return true;
-    } else {
-      return false;
-    }
-
-
-
-    if ( vertexPartInfo(u).part_id.compare_and_exchange_strong(from, to) ) {
-
-      // Update block weights
-      --_part_info[from].size;
-      _part_info[from].weight -= nodeWeight(u);
-      ++_part_info[to].size;
-      _part_info[to].weight += nodeWeight(u);
-
-      // Update Pin Count Part of all incident edges
-      for ( const HyperedgeID& he : incidentEdges(u) ) {
-        updatePinCountOfHyperedge(he, *this, from, to, delta_func);
+        incrementPinCountInPart(he, to);
+        decrementPinCountInPart(he, from);
       }
 
       return true;
@@ -672,6 +664,8 @@ class PartitionedHypergraph {
 
   // ! Changes the block id of vertex u from block 'from' to block 'to'
   // ! Returns true, if move of vertex u to corresponding block succeeds.
+
+  /*
   FALSE_SPECIALIZATION(track_border_vertices, bool)
   changeNodePart(const HypernodeID u,
                  PartitionID from,
@@ -696,6 +690,9 @@ class PartitionedHypergraph {
       return false;
     }
   }
+
+
+  */
 
   // ! Helper function to compute delta for cut-metric after changeNodePart
   static HyperedgeWeight cutDelta(const HyperedgeID,
@@ -781,7 +778,7 @@ class PartitionedHypergraph {
     return num_incident_cut_hyperedges;
   }
 
-   */
+
   // ! Initializes the number of cut hyperedges for each vertex
   // ! NOTE, this function have to be called after initial partitioning
   // ! and before local search.
@@ -820,6 +817,8 @@ class PartitionedHypergraph {
     }
     _is_init_num_cut_hyperedges = true;
   }
+
+  */
 
   // ! NOOP, in case border vertices should be not explicitly tracked
   FALSE_SPECIALIZATION(track_border_vertices, void) initializeNumCutHyperedges(
