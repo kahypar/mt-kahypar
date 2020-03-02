@@ -266,40 +266,43 @@ class LabelPropagationInitialPartitionerT : public tbb::task {
   }
 
   void extendBlockToInitialBlockSize(HyperGraph& hypergraph,
-                                     const HypernodeID seed_vertex,
+                                     HypernodeID seed_vertex,
                                      const PartitionID block) {
     ASSERT(hypergraph.partID(seed_vertex) == block);
-    // We search for _context.initial_partitioning.lp_initial_block_size vertices
-    // around the seed vertex to extend the corresponding block
-    for ( const HyperedgeID& he : hypergraph.incidentEdges(seed_vertex) ) {
-      for ( const HypernodeID& pin : hypergraph.pins(he) ) {
-        if ( hypergraph.partID(pin) == kInvalidPartition ) {
-          hypergraph.setNodePart(pin, block);
-          if ( hypergraph.partSize(block) ==
-              _context.initial_partitioning.lp_initial_block_size ) {
-            break;
+    size_t block_size = 1;
+
+    while (block_size < _context.initial_partitioning.lp_initial_block_size) {
+
+      // We search for _context.initial_partitioning.lp_initial_block_size vertices
+      // around the seed vertex to extend the corresponding block
+      for ( const HyperedgeID& he : hypergraph.incidentEdges(seed_vertex) ) {
+        for ( const HypernodeID& pin : hypergraph.pins(he) ) {
+          if ( hypergraph.partID(pin) == kInvalidPartition ) {
+            hypergraph.setNodePart(pin, block);
+            block_size++;
+            if ( block_size >= _context.initial_partitioning.lp_initial_block_size ) {
+              break;
+            }
           }
         }
+        if ( block_size >= _context.initial_partitioning.lp_initial_block_size ) {
+          break;
+        }
       }
-      if ( hypergraph.partSize(block) ==
-           _context.initial_partitioning.lp_initial_block_size ) {
-        break;
+
+
+      // If there are less than _context.initial_partitioning.lp_initial_block_size
+      // adjacent vertices to the seed vertex, we find a new seed vertex and call
+      // this function recursive
+      if ( block_size < _context.initial_partitioning.lp_initial_block_size ) {
+        seed_vertex = _ip_data.get_unassigned_hypernode();
+        if ( seed_vertex != kInvalidHypernode  ) {
+          hypergraph.setNodePart(seed_vertex, block);
+          block_size++;
+        }
       }
     }
 
-    // If there are last than _context.initial_partitioning.lp_initial_block_size
-    // adjacent vertices to the seed vertex, we find a new seed vertex and call
-    // this function recursive
-    const HypernodeID part_size = hypergraph.partSize(block);
-    if ( part_size < _context.initial_partitioning.lp_initial_block_size ) {
-      const HypernodeID new_seed_vertex = _ip_data.get_unassigned_hypernode();
-      if ( new_seed_vertex != kInvalidHypernode  ) {
-        hypergraph.setNodePart(new_seed_vertex, block);
-        if ( part_size + 1 < _context.initial_partitioning.lp_initial_block_size ) {
-          extendBlockToInitialBlockSize(hypergraph, new_seed_vertex, block);
-        }
-      }
-    }
   }
 
   void assignVertexToBlockWithMinimumWeight(HyperGraph& hypergraph, const HypernodeID hn) {

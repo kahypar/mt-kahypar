@@ -232,7 +232,9 @@ class MultilevelCoarsenerBase {
           representative_hg.setNodePart(hn, block);
         }
       });
+
       representative_hg.initializeNumCutHyperedges(_task_group_id);
+
 
       ASSERT(metrics::objective(representative_hg, _context.partition.objective) ==
              metrics::objective(contracted_hg, _context.partition.objective),

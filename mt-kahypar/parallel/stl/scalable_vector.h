@@ -29,6 +29,10 @@
 #include "mt-kahypar/macros.h"
 
 namespace mt_kahypar {
+
+template<typename T>
+using vec = std::vector<T, tbb::scalable_allocator<T> >;  // shorter name
+
 namespace parallel {
 template <typename T>
 using scalable_vector = std::vector<T, tbb::scalable_allocator<T> >;

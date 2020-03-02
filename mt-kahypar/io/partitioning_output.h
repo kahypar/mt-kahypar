@@ -276,18 +276,17 @@ inline void printCommunityInformation(const Hypergraph& hypergraph) {
     internal::createStats(community_degrees, avg_community_degree, stdev_community_degree));
 }
 
-inline void printPartSizesAndWeights(const PartitionedHypergraph<>& hypergraph, const Context& context) {
-  HypernodeID max_part_size = 0;
-  for (PartitionID i = 0; i != hypergraph.k(); ++i) {
-    max_part_size = std::max(max_part_size, ID(hypergraph.partSize(i)));
+inline void printPartWeights(const PartitionedHypergraph<> &hypergraph, const Context &context) {
+  HypernodeWeight max_part_weight = 0;
+  for (PartitionID i = 0; i < hypergraph.k(); ++i) {
+    max_part_weight = std::max(max_part_weight, hypergraph.partWeight(i));
   }
-  const uint8_t part_digits = kahypar::math::digits(max_part_size);
+  const uint8_t part_digits = kahypar::math::digits(max_part_weight);
   const uint8_t k_digits = kahypar::math::digits(hypergraph.k());
   for (PartitionID i = 0; i != hypergraph.k(); ++i) {
     bool is_imbalanced = hypergraph.partWeight(i) > context.partition.max_part_weights[i];
     if ( is_imbalanced ) std::cout << RED;
     std::cout << "|block " << std::left  << std::setw(k_digits) << i
-              << std::setw(1) << "| = "  << std::right << std::setw(part_digits) << hypergraph.partSize(i)
               << std::setw(1) << "  w( "  << std::right << std::setw(k_digits) << i
               << std::setw(1) << " ) = "  << std::right << std::setw(part_digits) << hypergraph.partWeight(i)
               << std::setw(1) << "  max( " << std::right << std::setw(k_digits) << i
@@ -306,7 +305,7 @@ static inline void printPartitioningResults(const PartitionedHypergraph<>& hyper
         << metrics::objective(hypergraph, context.partition.objective);
     LOG << "imbalance =" << metrics::imbalance(hypergraph, context);
     LOG << "Part sizes and weights:";
-    io::printPartSizesAndWeights(hypergraph, context);
+    io::printPartWeights(hypergraph, context);
     LOG << "";
   }
 }
@@ -381,7 +380,7 @@ inline void printPartitioningResults(const PartitionedHypergraph<>& hypergraph,
     printObjectives(hypergraph, context, elapsed_seconds);
 
     LOG << "\nPartition sizes and weights: ";
-    printPartSizesAndWeights(hypergraph, context);
+    printPartWeights(hypergraph, context);
 
     LOG << "\nTimings:";
     LOG << utils::Timer::instance(context.partition.detailed_timings);

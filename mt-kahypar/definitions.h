@@ -40,8 +40,8 @@
 #include "tests/parallel/topology_mock.h"
 
 #define USE_HARDWARE_MOCK false
-#define TRACK_BORDER_VERTICES true
-#define KAHYPAR_ENABLE_NUMA_AWARE_PARTITIONING FALSE
+#define TRACK_BORDER_VERTICES false
+#define KAHYPAR_ENABLE_NUMA_AWARE_PARTITIONING false
 
 namespace mt_kahypar {
 
