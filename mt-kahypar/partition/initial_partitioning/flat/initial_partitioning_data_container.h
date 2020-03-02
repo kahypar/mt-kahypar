@@ -327,15 +327,15 @@ class InitialPartitioningDataContainerT {
     DBG << "Partition with Best Objective [" << best_objective->_result.str() << "]";
 
     // Applies best partition to hypergraph
-    for ( const HypernodeID& hn : _partitioned_hg.nodes() ) {
+    _partitioned_hg.doParallelForAllNodes(_task_group_id, [&](const HypernodeID hn) {
       const HypernodeID original_id = _partitioned_hg.originalNodeID(hn);
       ASSERT(original_id < best->_partition.size());
       const PartitionID part_id = best->_partition[original_id];
       ASSERT(part_id != kInvalidPartition && part_id < _partitioned_hg.k());
-      _partitioned_hg.setNodePart(hn, part_id);
-    }
+      _partitioned_hg.setOnlyNodePart(hn, part_id);
+    });
+    _partitioned_hg.initializePartition(_task_group_id);
 
-    _partitioned_hg.initializeNumCutHyperedges(_task_group_id);
     utils::InitialPartitioningStats::instance().add_initial_partitioning_result(
       best->_result._algorithm, number_of_threads, stats);
     ASSERT(best->_result._objective == metrics::objective(_partitioned_hg, _context.partition.objective),

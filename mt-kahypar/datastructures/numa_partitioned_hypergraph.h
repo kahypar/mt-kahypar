@@ -503,6 +503,16 @@ class NumaPartitionedHypergraph {
     }
   }
 
+  // ! Sets the block id of an unassigned vertex u.
+  // ! Returns true, if assignment of unassigned vertex u to block id succeeds.
+  // ! Note, that in contrast to setNodePart the block weights and sizes and also
+  // ! the pin count in part of all incident hyperedges is not updated. In order to
+  // ! update those stats, one has to call initializePartition(...) after all
+  // ! block ids are assigned.
+  bool setOnlyNodePart(const HypernodeID u, PartitionID id) {
+    return hypergraph_of_vertex(u).setOnlyNodePart(u, id);;
+  }
+
   // ! Changes the block id of vertex u from block 'from' to block 'to'
   // ! Returns true, if move of vertex u to corresponding block succeeds.
   bool changeNodePart(const HypernodeID u,
@@ -551,6 +561,42 @@ class NumaPartitionedHypergraph {
   // ! Block which vertex u belongs to
   PartitionID partID(const HypernodeID u) const {
     return hypergraph_of_vertex(u).partID(u);
+  }
+
+  // ! Initializes the partition of the hypergraph, if block ids are assigned with
+  // ! setOnlyNodePart(...). In that case, part info, pin counts in part and border
+  // ! vertices have to be computed in a postprocessing step.
+  void initializePartition(const TaskGroupID task_group_id) {
+    tbb::parallel_invoke([&] {
+      // Compute Part Info
+      parallel::scalable_vector<tbb::enumerable_thread_specific<PartInfo>> local_part_info(_k);
+      _hg->doParallelForAllNodes(task_group_id, [&](const HypernodeID hn) {
+        const PartitionID block = partID(hn);
+        ASSERT(block != kInvalidPartition && block < _k);
+        PartInfo& part_info = local_part_info[block].local();
+        ++part_info.size;
+        part_info.weight += nodeWeight(hn);
+      });
+
+      for ( PartitionID block = 0; block < _k; ++block ) {
+        ASSERT(_part_info[block].size == 0);
+        ASSERT(_part_info[block].weight == 0);
+        for ( const PartInfo& part_info : local_part_info[block] ) {
+          _part_info[block].size += part_info.size;
+          _part_info[block].weight += part_info.weight;
+        }
+      }
+    }, [&] {
+      // Compute Pin Counts
+      TBBNumaArena::instance().execute_parallel_on_all_numa_nodes(task_group_id, [&](const int node) {
+            _hypergraphs[node].initializePartition(task_group_id, _hypergraphs);
+          });
+
+      // Compute Border Vertices
+      TBBNumaArena::instance().execute_parallel_on_all_numa_nodes(task_group_id, [&](const int node) {
+            _hypergraphs[node].initializeNumCutHyperedges(task_group_id, _hypergraphs);
+          });
+    });
   }
 
   // ! Returns, whether hypernode u is adjacent to a least one cut hyperedge.
