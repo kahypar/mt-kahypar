@@ -191,6 +191,7 @@ struct LabelPropagationParameters {
   bool numa_aware = false;
   bool rebalancing = true;
   bool execute_sequential = false;
+  size_t hyperedge_size_activation_threshold = std::numeric_limits<size_t>::max();
 };
 
 inline std::ostream & operator<< (std::ostream& str, const LabelPropagationParameters& params) {
@@ -199,6 +200,7 @@ inline std::ostream & operator<< (std::ostream& str, const LabelPropagationParam
   str << "    Maximum Iterations:               " << params.maximum_iterations << std::endl;
   str << "    Numa Aware:                       " << std::boolalpha << params.numa_aware << std::endl;
   str << "    Rebalancing:                      " << std::boolalpha << params.rebalancing << std::endl;
+  str << "    HE Size Activation Threshold:     " << std::boolalpha << params.hyperedge_size_activation_threshold << std::endl;
   return str;
 }
 

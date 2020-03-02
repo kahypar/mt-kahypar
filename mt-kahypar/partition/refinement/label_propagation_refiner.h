@@ -202,18 +202,15 @@ class LabelPropagationRefinerT final : public IRefinerT<TypeTraits, track_border
 
     bool converged = true;
     if ( _context.refinement.label_propagation.execute_sequential ) {
-      size_t local_iteration_cnt = 0;
       for ( size_t j = start; j < end; ++j ) {
         const HypernodeID hn = refinement_nodes[j];
-        converged &= !moveVertex(hypergraph, hn, local_iteration_cnt,
+        converged &= !moveVertex(hypergraph, hn,
           node, is_first_round, objective_delta);
       }
     } else {
-      tbb::enumerable_thread_specific<size_t> iteration_cnt(0);
       tbb::parallel_for(start, end, [&](const size_t& j) {
-          size_t& local_iteration_cnt = iteration_cnt.local();
           const HypernodeID hn = refinement_nodes[j];
-          converged &= !moveVertex(hypergraph, hn, local_iteration_cnt,
+          converged &= !moveVertex(hypergraph, hn,
             node, is_first_round, objective_delta);
         });
     }
@@ -223,7 +220,6 @@ class LabelPropagationRefinerT final : public IRefinerT<TypeTraits, track_border
   template<typename F>
   bool moveVertex(HyperGraph& hypergraph,
                   const HypernodeID hn,
-                  size_t& local_iteration_cnt,
                   const int node,
                   const bool is_first_round,
                   const F& objective_delta) {
@@ -239,17 +235,18 @@ class LabelPropagationRefinerT final : public IRefinerT<TypeTraits, track_border
       // propagation or if the vertex is still active. A vertex is active, if it changed its block
       // in the last round or one of its neighbors.
 
-      if (is_first_round || _active[0][original_id]) {
+      if (is_first_round || _active[numa_node][original_id]) {
         Move best_move = _gain.computeMaxGainMove(hypergraph, hn);
         // We perform a move if it either improves the solution quality or, in case of a
         // zero gain move, the balance of the solution.
-        bool perform_move = best_move.gain < 0 ||
-                            (_context.refinement.label_propagation.rebalancing &&
-                              best_move.gain == 0 &&
-                              hypergraph.partWeight(best_move.from) - 1 >
-                              hypergraph.partWeight(best_move.to) + 1 &&
-                              hypergraph.partWeight(best_move.to) <
-                              _context.partition.perfect_balance_part_weights[best_move.to]);
+        const bool positive_gain = best_move.gain < 0;
+        const bool zero_gain_move = (_context.refinement.label_propagation.rebalancing &&
+                                     best_move.gain == 0 &&
+                                     hypergraph.partWeight(best_move.from) - 1 >
+                                     hypergraph.partWeight(best_move.to) + 1 &&
+                                     hypergraph.partWeight(best_move.to) <
+                                     _context.partition.perfect_balance_part_weights[best_move.to]);
+        const bool perform_move = positive_gain || zero_gain_move;
         if (best_move.from != best_move.to && perform_move) {
           PartitionID from = best_move.from;
           PartitionID to = best_move.to;
@@ -267,16 +264,20 @@ class LabelPropagationRefinerT final : public IRefinerT<TypeTraits, track_border
 
               // Set all neighbors of the vertex to active
               for (const HyperedgeID& he : hypergraph.incidentEdges(hn)) {
-                const HyperedgeID original_he_id = hypergraph.originalEdgeID(he);
-                if ( !_visited_he[numa_node][original_he_id] ) {
-                  for (const HypernodeID& pin : hypergraph.pins(he)) {
-                    int pin_numa_node = _context.refinement.label_propagation.numa_aware ?
-                      common::get_numa_node_of_vertex(pin) : 0;
-                    _next_active[pin_numa_node].set(hypergraph.originalNodeID(pin), true);
+                if ( hypergraph.edgeSize(he) <=
+                     ID(_context.refinement.label_propagation.hyperedge_size_activation_threshold) ) {
+                  const HyperedgeID original_he_id = hypergraph.originalEdgeID(he);
+                  if ( !_visited_he[numa_node][original_he_id] ) {
+                    for (const HypernodeID& pin : hypergraph.pins(he)) {
+                      int pin_numa_node = _context.refinement.label_propagation.numa_aware ?
+                        common::get_numa_node_of_vertex(pin) : 0;
+                      _next_active[pin_numa_node].set(hypergraph.originalNodeID(pin), true);
+                    }
+                    _visited_he[numa_node].set(original_he_id, true);
                   }
-                  _visited_he[numa_node].set(original_he_id, true);
                 }
               }
+              _next_active[numa_node].set(original_id, true);
               is_moved = true;
             } else {
               DBG << "Revert move of hypernode" << hn << "from block" << from << "to block" << to
@@ -287,11 +288,8 @@ class LabelPropagationRefinerT final : public IRefinerT<TypeTraits, track_border
               hypergraph.changeNodePart(hn, to, from, objective_delta);
             }
           }
-          _next_active[0].set(original_id, true);
         }
       }
-
-      ++local_iteration_cnt;
     }
 
     return is_moved;

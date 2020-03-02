@@ -285,7 +285,11 @@ po::options_description createRefinementOptionsDescription(Context& context, con
     ("r-lp-rebalancing",
     po::value<bool>(&context.refinement.label_propagation.rebalancing)->value_name("<bool>"),
     "If true, zero gain moves are used to rebalance solution\n"
-    "(default true)");
+    "(default true)")
+    ("r-lp-he-size-activation-threshold",
+    po::value<size_t>(&context.refinement.label_propagation.hyperedge_size_activation_threshold)->value_name("<size_t>"),
+    "If a vertex moves during LP only neighbors that are part of hyperedge with size less\n"
+    "this threshold are activated.");
   return options;
 }
 
