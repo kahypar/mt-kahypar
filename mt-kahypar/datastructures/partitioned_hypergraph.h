@@ -482,7 +482,7 @@ class PartitionedHypergraph {
   // ! Returns true, if assignment of unassigned vertex u to block id succeeds.
   bool setNodePart(const HypernodeID u, PartitionID id) {
     ASSERT(id != kInvalidPartition && id < _k && part[u] == kInvalidPartition);
-    // TODO find a way to specify memory_order for add_and_fetch
+    // TODO find a way to specify memory_order for add_and_fetch, since std::memory_order_relaxed suffices to detect a balance violation
     if (part_weight[id] += nodeWeight(u) <= max_part_weight[id]) {
       part[u] = id;
       for ( const HyperedgeID& he : incidentEdges(u) ) {
@@ -513,7 +513,7 @@ class PartitionedHypergraph {
 
   // ! Changes the block id of vertex u from block 'from' to block 'to'
   // ! Returns true, if move of vertex u to corresponding block succeeds.
-  bool changeNodePart(const HypernodeID u, PartitionID from, PartitionID to, const DeltaFunction& delta_func = NOOP_FUNC) {
+  bool changeNodePart(const HypernodeID u, PartitionID from, PartitionID to, std::atomic<uint32_t>& move_counter, uint32_t& move_id) {
     ASSERT(_hg->nodeIsEnabled(u), "Hypernode" << u << "is disabled");
     ASSERT(from != kInvalidPartition && from < _k);
     ASSERT(to != kInvalidPartition && to < _k);
@@ -522,6 +522,8 @@ class PartitionedHypergraph {
     if (part_weight[to] += nodeWeight(u) <= max_part_weight[to]) {
       part[u] = to;
       part_weight[from] -= nodeWeight(u);
+
+      move_id = move_counter.fetch_add(1, std::memory_order_relaxed);
 
       for ( const HyperedgeID& he : incidentEdges(u) ) {
         incrementPinCountInPart(he, to);
@@ -534,10 +536,30 @@ class PartitionedHypergraph {
     }
   }
 
+
   // ! Changes the block id of vertex u from block 'from' to block 'to'
   // ! Returns true, if move of vertex u to corresponding block succeeds.
+  bool changeNodePart(const HypernodeID u, PartitionID from, PartitionID to, DeltaFunction delta_func = NOOP_FUNC) {
+    // TODO eliminate
+    ASSERT(_hg->nodeIsEnabled(u), "Hypernode" << u << "is disabled");
+    ASSERT(from != kInvalidPartition && from < _k);
+    ASSERT(to != kInvalidPartition && to < _k);
+    ASSERT(from != to);
 
+    if (part_weight[to] += nodeWeight(u) <= max_part_weight[to]) {
+      part[u] = to;
+      part_weight[from] -= nodeWeight(u);
 
+      for ( const HyperedgeID& he : incidentEdges(u) ) {
+        HypernodeID pin_count_after_to = incrementPinCountInPart(he, to);
+        HypernodeID pin_count_after_from = decrementPinCountInPart(he, from);
+        delta_func(he, edgeWeight(he), edgeSize(he), pin_count_after_from, pin_count_after_to);
+      }
+      return true;
+    } else {
+      return false;
+    }
+  }
 
   // ! Helper function to compute delta for cut-metric after changeNodePart
   static HyperedgeWeight cutDelta(const HyperedgeID,
@@ -545,6 +567,7 @@ class PartitionedHypergraph {
                                   const HypernodeID edge_size,
                                   const HypernodeID pin_count_in_from_part_after,
                                   const HypernodeID pin_count_in_to_part_after) {
+    // TODO eliminate
     if ( edge_size > 1 ) {
       if (pin_count_in_to_part_after == edge_size) {
         return -edge_weight;
@@ -562,6 +585,7 @@ class PartitionedHypergraph {
                                   const HypernodeID,
                                   const HypernodeID pin_count_in_from_part_after,
                                   const HypernodeID pin_count_in_to_part_after) {
+    // TODO eliminate
     return (pin_count_in_to_part_after == 1 ? edge_weight : 0) +
            (pin_count_in_from_part_after == 0 ? -edge_weight : 0);
   }
@@ -746,8 +770,7 @@ class PartitionedHypergraph {
   friend class NumaPartitionedHypergraph;
 
 
-  KAHYPAR_ATTRIBUTE_ALWAYS_INLINE HypernodeID decrementPinCountInPart(const HyperedgeID e,
-                                                                      const PartitionID p) {
+  HypernodeID decrementPinCountInPart(const HyperedgeID e, const PartitionID p) {
     ASSERT(_hg->edgeIsEnabled(e), "Hyperedge" << e << "is disabled");
     ASSERT(p != kInvalidPartition && p < _k);
     const HyperedgeID local_hyperedge_id = common::get_local_position_of_edge(e);
@@ -770,8 +793,7 @@ class PartitionedHypergraph {
     return pin_count_after;
   }
 
-  KAHYPAR_ATTRIBUTE_ALWAYS_INLINE HypernodeID incrementPinCountInPart(const HyperedgeID e,
-                                                                      const PartitionID p) {
+  HypernodeID incrementPinCountInPart(const HyperedgeID e, const PartitionID p) {
     ASSERT(_hg->edgeIsEnabled(e), "Hyperedge" << e << "is disabled");
     ASSERT(p != kInvalidPartition && p < _k);
     const HyperedgeID local_hyperedge_id = common::get_local_position_of_edge(e);
@@ -817,7 +839,7 @@ class PartitionedHypergraph {
   // ! For each hyperedge and each block, the ID of the first move to place a pin in that block / the last move to remove a pin from that block
   vec< std::atomic<uint32_t> > first_move_in, last_move_out;
 
-  // TODO we probably don't need connectivity sets any more
+  // TODO we probably don't need connectivity sets any more, except in the IP hypergraphs which don't need parallelism support
   // ! For each hyperedge, _connectivity_sets stores the set of blocks that the hyperedge spans
   ConnectivitySets connectivity_sets;
 
