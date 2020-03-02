@@ -102,11 +102,9 @@ class InitialPartitioningDataContainerT {
         if ( _context.partition.objective == kahypar::Objective::km1 ) {
           _label_propagation = std::make_unique<LabelPropagationKm1Refiner>(
             _partitioned_hypergraph, _context, task_group_id);
-          _label_propagation->initialize(_partitioned_hypergraph);
         } else if ( _context.partition.objective == kahypar::Objective::cut ) {
           _label_propagation = std::make_unique<LabelPropagationCutRefiner>(
             _partitioned_hypergraph, _context, task_group_id);
-          _label_propagation->initialize(_partitioned_hypergraph);
         }
       }
     }
@@ -124,10 +122,12 @@ class InitialPartitioningDataContainerT {
       _partitioned_hypergraph.initializeNumCutHyperedges();
 
       kahypar::Metrics current_metric = {
-        metrics::hyperedgeCut(_partitioned_hypergraph), metrics::km1(_partitioned_hypergraph),
+        metrics::hyperedgeCut(_partitioned_hypergraph),
+        metrics::km1(_partitioned_hypergraph),
         metrics::imbalance(_partitioned_hypergraph, _context) };
 
       if ( _label_propagation ) {
+        _label_propagation->initialize(_partitioned_hypergraph);
         _label_propagation->refine(_partitioned_hypergraph, {}, current_metric);
       }
 

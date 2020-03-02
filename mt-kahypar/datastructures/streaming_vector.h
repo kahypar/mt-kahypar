@@ -75,7 +75,6 @@ class StreamingVector {
     for (int cpu_id = 0; cpu_id < (int)_cpu_buffer.size(); ++cpu_id) {
       memcpy_from_cpu_buffer_to_destination(values, cpu_id, _prefix_sum[cpu_id]);
     }
-
     return values;
   }
 
@@ -120,8 +119,7 @@ class StreamingVector {
 
   void clear_sequential() {
     for ( int cpu_id = 0; cpu_id < static_cast<int>(_cpu_buffer.size()); ++cpu_id ) {
-      parallel::scalable_vector<Value> tmp_value;
-      _cpu_buffer[cpu_id] = std::move(tmp_value);
+      _cpu_buffer[cpu_id].clear();
     }
     _prefix_sum.assign(_cpu_buffer.size(), 0);
   }
