@@ -86,21 +86,17 @@ class LabelPropagationRefinerT final : public IRefinerT<TypeTraits, track_border
 
     HEAVY_REFINEMENT_ASSERT([&] {
         // Assertion verifies, that all enabled nodes are contained in _nodes
-        std::vector<HypernodeID> tmp_nodes;
-        tmp_nodes.insert(tmp_nodes.begin(), _nodes.begin(), _nodes.end());
+        parallel::scalable_vector<HypernodeID> tmp_nodes = _nodes;
         std::sort(tmp_nodes.begin(), tmp_nodes.end());
-        for (int node = 0; node < TBB::instance().num_used_numa_nodes(); ++node) {
-          size_t pos = _numa_nodes_indices[node];
-          for (const HypernodeID& hn : hypergraph.nodes(node)) {
-            HypernodeID current_hn = tmp_nodes[pos++];
-            if (common::get_numa_node_of_vertex(current_hn) != node) {
-              LOG << "Hypernode" << hn << "is not on numa node" << node;
-              return false;
-            }
-            if (current_hn != hn) {
-              LOG << "Hypernode" << hn << "not contained in vertex set";
-              return false;
-            }
+        size_t pos = 0;
+        for (const HypernodeID& hn : hypergraph.nodes()) {
+          HypernodeID current_hn = tmp_nodes[pos++];
+          while ( !hypergraph.nodeIsEnabled(current_hn) ) {
+            current_hn = tmp_nodes[pos++];
+          }
+          if (current_hn != hn) {
+            LOG << "Hypernode" << hn << "not contained in vertex set";
+            return false;
           }
         }
         return true;
@@ -232,7 +228,9 @@ class LabelPropagationRefinerT final : public IRefinerT<TypeTraits, track_border
                   const bool is_first_round,
                   const F& objective_delta) {
     bool is_moved = false;
-    if ( hypergraph.nodeIsEnabled(hn) && hypergraph.isBorderNode(hn) ) {
+    if ( hn != kInvalidHypernode &&
+         hypergraph.isBorderNode(hn) ) {
+      ASSERT(hypergraph.nodeIsEnabled(hn));
       int numa_node = node == -1 ? 0 : node;
       const HypernodeID original_id = hypergraph.originalNodeID(hn);
       ASSERT(node == -1 || common::get_numa_node_of_vertex(hn) == node);
@@ -306,7 +304,7 @@ class LabelPropagationRefinerT final : public IRefinerT<TypeTraits, track_border
       _numa_nodes_indices[node] = _numa_nodes_indices[node - 1] + hypergraph.initialNumNodes(node - 1);
     }
 
-    _nodes.resize(hypergraph.initialNumNodes());
+    _nodes.assign(hypergraph.initialNumNodes(), kInvalidHypernode);
     auto add_vertex = [&](const HypernodeID hn) {
       const int node = common::get_numa_node_of_vertex(hn);
       const HypernodeID local_id = common::get_local_position_of_vertex(hn);
@@ -321,7 +319,9 @@ class LabelPropagationRefinerT final : public IRefinerT<TypeTraits, track_border
     } else {
       tbb::parallel_for(ID(0), hypergraph.initialNumNodes(), [&](const HypernodeID id) {
         const HypernodeID hn = hypergraph.globalNodeID(id);
-        add_vertex(hn);
+        if ( hypergraph.nodeIsEnabled(hn) ) {
+          add_vertex(hn);
+        }
       });
     }
 
