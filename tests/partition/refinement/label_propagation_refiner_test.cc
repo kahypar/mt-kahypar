@@ -59,7 +59,7 @@ class ALabelPropagationRefiner : public Test {
   using TypeTraits = typename Config::TypeTraits;
   using HyperGraph = typename TypeTraits::HyperGraph;
   using HyperGraphFactory = typename TypeTraits::HyperGraphFactory;
-  using PartitionedHyperGraph = typename TypeTraits::template PartitionedHyperGraph<>;
+  using PartitionedHyperGraph = typename TypeTraits::PartitionedHyperGraph;
   using TBB = typename TypeTraits::TBB;
   using HwTopology = typename TypeTraits::HwTopology;
 

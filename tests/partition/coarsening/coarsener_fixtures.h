@@ -33,7 +33,7 @@ namespace mt_kahypar {
 using TestTypeTraits = ds::TestTypeTraits<2>;
 using HyperGraph = typename TestTypeTraits::HyperGraph;
 using HyperGraphFactory = typename TestTypeTraits::HyperGraphFactory;
-using PartitionedHyperGraph = typename TestTypeTraits::template PartitionedHyperGraph<>;
+using PartitionedHyperGraph = typename TestTypeTraits::PartitionedHyperGraph;
 using HwTopology = typename TestTypeTraits::HwTopology;
 using TBB = typename TestTypeTraits::TBB;
 

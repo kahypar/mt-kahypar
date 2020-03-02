@@ -35,8 +35,8 @@ namespace mt_kahypar {
 using TestTypeTraits = ds::TestTypeTraits<2>;
 using HyperGraph = typename TestTypeTraits::HyperGraph;
 using HyperGraphFactory = typename TestTypeTraits::HyperGraphFactory;
-using PartitionedHyperGraph = typename TestTypeTraits::PartitionedHyperGraph<>;
-using PartitionedHyperGraphWithoutBorderVertices = typename TestTypeTraits::PartitionedHyperGraph<false>;
+using PartitionedHyperGraph = typename TestTypeTraits::PartitionedHyperGraph;
+using PartitionedHyperGraphWithoutBorderVertices = typename TestTypeTraits::PartitionedHyperGraph;
 using TBB = typename TestTypeTraits::TBB;
 
 class AInitialPartitioningDataContainer :

@@ -48,7 +48,7 @@ class APoolInitialPartitionerTest : public Test {
  private:
   using HyperGraph = typename GlobalTypeTraits::HyperGraph;
   using HyperGraphFactory = typename GlobalTypeTraits::HyperGraphFactory;
-  using PartitionedHyperGraph = typename GlobalTypeTraits::template PartitionedHyperGraph<>;
+  using PartitionedHyperGraph = typename GlobalTypeTraits::PartitionedHyperGraph;
   using HwTopology = typename GlobalTypeTraits::HwTopology;
 
  public:

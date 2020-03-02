@@ -31,7 +31,7 @@ namespace mt_kahypar {
 using TypeTraits = ds::TestTypeTraits<1>;
 using HyperGraph = typename TypeTraits::HyperGraph;
 using HyperGraphFactory = typename TypeTraits::HyperGraphFactory;
-using PartitionedHyperGraph = typename TypeTraits::template PartitionedHyperGraph<>;
+using PartitionedHyperGraph = typename TypeTraits::PartitionedHyperGraph;
 using TBB = typename TypeTraits::TBB;
 
 class AZeroGainCache : public Test {

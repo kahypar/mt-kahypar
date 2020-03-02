@@ -26,7 +26,7 @@ using ::testing::Test;
 
 namespace mt_kahypar {
 using TestTypeTraits = ds::TestTypeTraits<2>;
-using PartitionedHyperGraph = typename TestTypeTraits::template PartitionedHyperGraph<>;
+using PartitionedHyperGraph = typename TestTypeTraits::PartitionedHyperGraph;
 using Coarsener = MultilevelCoarsenerT<TestTypeTraits, HeavyEdgeScore,
                                        NoWeightPenalty, BestRatingWithoutTieBreaking>;
 
