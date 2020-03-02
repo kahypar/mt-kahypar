@@ -539,7 +539,7 @@ class PartitionedHypergraph {
 
   // ! Changes the block id of vertex u from block 'from' to block 'to'
   // ! Returns true, if move of vertex u to corresponding block succeeds.
-  bool changeNodePart(const HypernodeID u, PartitionID from, PartitionID to, DeltaFunction delta_func = NOOP_FUNC) {
+  bool changeNodePart(const HypernodeID u, PartitionID from, PartitionID to, const DeltaFunction& delta_func = NOOP_FUNC) {
     // TODO eliminate
     ASSERT(_hg->nodeIsEnabled(u), "Hypernode" << u << "is disabled");
     ASSERT(from != kInvalidPartition && from < _k);

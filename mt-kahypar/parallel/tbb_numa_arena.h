@@ -23,6 +23,7 @@
 #include <mutex>
 #include <memory>
 #include <shared_mutex>
+#include <functional>
 
 #include "tbb/task_arena.h"
 #include "tbb/task_group.h"
@@ -165,7 +166,7 @@ class TBBNumaArena {
       this_arena.execute([&, socket] {
         tbb::task_group& tg = numa_task_group(task_group_id, socket);
         for (int task_id = 0 ; task_id < n_tasks; ++task_id, ++overall_task_id) {
-          tg.run(f(socket, overall_task_id, task_id));
+          tg.run( std::bind(f, socket, overall_task_id, task_id) );
         }
       });
     }
@@ -184,7 +185,7 @@ class TBBNumaArena {
     ASSERT(static_cast<size_t>(node) < _arenas.size());
     _arenas[node].execute([&] {
           group.wait();
-        });
+    });
   }
 
   void terminate() {

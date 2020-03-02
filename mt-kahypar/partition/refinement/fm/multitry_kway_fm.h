@@ -28,18 +28,20 @@
 #include <atomic>
 
 #include "localized_kway_fm_core.h"
-#include "move_combiner.h"
 
 namespace mt_kahypar {
 namespace refinement {
 
 class MultiTryKWayFM {
 public:
-  MultiTryKWayFM(const Context& context, Hypergraph& hg, TaskGroupID taskGroupID) :
-          context(context), taskGroupID(taskGroupID) { }
+  MultiTryKWayFM(const Context& context, TaskGroupID taskGroupID) :
+          context(context),
+          taskGroupID(taskGroupID),
+          ets_fm(context)
+  { }
 
 
-  bool refine(Hypergraph& hg) {
+  bool refine(PartitionedHypergraph& phg) {
 
     bool overall_improved = false;
     std::atomic<bool> round_improved = true;
@@ -47,7 +49,7 @@ public:
     // global multi try rounds
     for (size_t round = 0; round < context.refinement.fm.multitry_rounds && round_improved; ++round) {
       round_improved = false;
-      initialize(hg);
+      initialize(phg);
 
       auto task = [&](const int socket, const int socket_local_task_id, const int task_id) {
         HypernodeID u = std::numeric_limits<HypernodeID>::max();
@@ -56,11 +58,11 @@ public:
         bool task_improved = false;
 
         while (refinementNodes.tryPop(u, socket) /* && u not marked */ ) {
-          task_improved |= fm.findMoves(u);
+          task_improved |= fm.findMoves(phg, u);
         }
 
         if (task_improved) {
-          round_improved = true;  // somehow std::atomic<bool> doesn't have fetch_or
+          round_improved = true;
         }
 
       };
@@ -68,14 +70,14 @@ public:
       TBBNumaArena::instance().run_max_concurrency_tasks_on_all_sockets(taskGroupID, task);
 
       if (round_improved) {
-        if (moveCombiner.combineAndApplyMoves()) {
+        if (rollbackToBestPrefix()) {
           overall_improved = true;
         } else {
-          moveCombiner.resetAllMoves();
+          resetAllMoves();
         }
       }
 
-      // unmark all vertices by increasing search ID counter
+      // unmark all vertices by increasing search ID counter to a safe value
 
     }
 
@@ -84,13 +86,13 @@ public:
 
 private:
 
-  void initialize(Hypergraph& hg) {
+  void initialize(PartitionedHypergraph& phg) {
     assert(refinementNodes.empty());
 
     // insert border nodes into work queues
-    tbb::parallel_for(hg.nodes(), [&](const HypernodeID u) {
-      if (hg.isBorderNode(u)) {
-        refinementNodes.push(u, StreamingHypergraph::get_numa_node_of_vertex(u));
+    tbb::parallel_for(HypernodeID(0), phg.initialNumNodes(), [&](const HypernodeID u) {
+      if (phg.isBorderNode(u)) {
+        refinementNodes.push(u, common::get_numa_node_of_vertex(u));
       }
     });
 
@@ -101,13 +103,19 @@ private:
 
   }
 
+  bool rollbackToBestPrefix() {
+    return true;
+  }
+
+  void resetAllMoves() {
+
+  }
+
   const Context& context;
   const TaskGroupID taskGroupID;
 
   NumaWorkQueue<HypernodeID> refinementNodes;
   tbb::enumerable_thread_specific<LocalizedKWayFM> ets_fm;
-  MoveCombiner moveCombiner;
-
 };
 
 }

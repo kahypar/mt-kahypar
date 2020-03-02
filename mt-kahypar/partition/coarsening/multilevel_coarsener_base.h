@@ -30,6 +30,8 @@
 #include "mt-kahypar/utils/progress_bar.h"
 #include "mt-kahypar/utils/stats.h"
 
+#include "mt-kahypar/partition/refinement/fm/multitry_kway_fm.h"  // for now. include it in registries later
+
 namespace mt_kahypar {
 template <typename TypeTraits>
 class MultilevelCoarsenerBase {
@@ -103,12 +105,16 @@ class MultilevelCoarsenerBase {
 
  public:
   MultilevelCoarsenerBase(HyperGraph& hypergraph, const Context& context, const TaskGroupID task_group_id) :
+    uncontraction_progress(hypergraph.initialNumNodes(),
+                           std::numeric_limits<HyperedgeWeight>::max(),
+                           context.partition.verbose_output && context.partition.enable_progress_bar),
     _is_finalized(false),
     _hg(hypergraph),
     _partitioned_hg(),
     _context(context),
     _task_group_id(task_group_id),
-    _hierarchies() {
+    _hierarchies()
+  {
     size_t estimated_number_of_levels = 1UL;
     if ( _hg.initialNumNodes() > _context.coarsening.contraction_limit ) {
       estimated_number_of_levels = std::ceil( std::log2(
@@ -193,30 +199,10 @@ class MultilevelCoarsenerBase {
   }
 
   PartitionedHyperGraph&& doUncoarsen(std::unique_ptr<Refiner>& label_propagation) {
-    const PartitionedHyperGraph& current_hg = currentPartitionedHypergraph();
-    int64_t num_nodes = current_hg.initialNumNodes();
-    int64_t num_edges = current_hg.initialNumEdges();
-    HyperedgeWeight cut = 0;
-    HyperedgeWeight km1 = 0;
-    tbb::parallel_invoke([&] {
-        // Cut metric
-        cut = metrics::hyperedgeCut(current_hg);
-      }, [&] {
-        // Km1 metric
-        km1 = metrics::km1(current_hg);
-      });
+    initialize();
 
-    kahypar::Metrics current_metrics = { cut, km1, metrics::imbalance(current_hg, _context) };
-    utils::Stats::instance().add_stat("initial_num_nodes", num_nodes);
-    utils::Stats::instance().add_stat("initial_num_edges", num_edges);
-    utils::Stats::instance().add_stat("initial_cut", current_metrics.cut);
-    utils::Stats::instance().add_stat("initial_km1", current_metrics.km1);
-    utils::Stats::instance().add_stat("initial_imbalance", current_metrics.imbalance);
 
-    utils::ProgressBar uncontraction_progress(_hg.initialNumNodes(),
-      _context.partition.objective == kahypar::Objective::km1 ? current_metrics.km1 : current_metrics.cut,
-      _context.partition.verbose_output && _context.partition.enable_progress_bar);
-    uncontraction_progress += num_nodes;
+    refinement::MultiTryKWayFM fm_refiner(_context, _task_group_id);
 
     for ( int i = _hierarchies.size() - 1; i >= 0; --i ) {
       // Project partition to next level finer hypergraph
@@ -244,6 +230,8 @@ class MultilevelCoarsenerBase {
              V(metrics::imbalance(contracted_hg, _context)));
       utils::Timer::instance().stop_timer("projecting_partition");
 
+      /*
+
       // Refinement
       utils::Timer::instance().start_timer("initialize_refiner", "Initialize Refiner");
       if ( label_propagation ) {
@@ -255,10 +243,13 @@ class MultilevelCoarsenerBase {
         label_propagation->refine(representative_hg, {}, current_metrics);
       }
 
+       */
+
+      fm_refiner.refine(representative_hg);
+      computeMetrics();   // TODO let fm_refiner update the actual value
+
       // Update Progress Bar
-      uncontraction_progress.setObjective(
-        _context.partition.objective == kahypar::Objective::km1 ?
-        current_metrics.km1 : current_metrics.cut);
+      uncontraction_progress.setObjective(current_metrics.getMetric(_context.partition.mode, _context.partition.objective));
       uncontraction_progress += representative_hg.initialNumNodes() - contracted_hg.initialNumNodes();
     }
 
@@ -270,6 +261,34 @@ class MultilevelCoarsenerBase {
   }
 
  protected:
+
+  void computeMetrics() {
+    PartitionedHypergraph& current_hg = currentPartitionedHypergraph();
+    HyperedgeWeight cut = 0;
+    HyperedgeWeight km1 = 0;
+    tbb::parallel_invoke([&] { cut = metrics::hyperedgeCut(current_hg); }, [&] { km1 = metrics::km1(current_hg); });
+    current_metrics = { cut, km1, metrics::imbalance(current_hg, _context) };
+  }
+
+  void initialize() {
+    computeMetrics();
+
+    PartitionedHypergraph& current_hg = currentPartitionedHypergraph();
+    int64_t num_nodes = current_hg.initialNumNodes();
+    int64_t num_edges = current_hg.initialNumEdges();
+    utils::Stats::instance().add_stat("initial_num_nodes", num_nodes);
+    utils::Stats::instance().add_stat("initial_num_edges", num_edges);
+    utils::Stats::instance().add_stat("initial_cut", current_metrics.cut);
+    utils::Stats::instance().add_stat("initial_km1", current_metrics.km1);
+    utils::Stats::instance().add_stat("initial_imbalance", current_metrics.imbalance);
+
+    uncontraction_progress.setObjective(current_metrics.getMetric(_context.partition.mode, _context.partition.objective));
+    uncontraction_progress += num_nodes;
+  }
+
+  kahypar::Metrics current_metrics;
+  utils::ProgressBar uncontraction_progress;
+
   bool _is_finalized;
   HyperGraph& _hg;
   PartitionedHyperGraph _partitioned_hg;

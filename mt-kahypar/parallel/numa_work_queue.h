@@ -42,18 +42,19 @@ public:
   }
 
   bool tryPop(Work& dest, int preferredSocket) {
-    if (queues[preferredSocket].tryPop(dest)) {
+    if (queues[preferredSocket].try_pop(dest)) {
       return true;
     }
     size_t maxIndex = 0;
     size_t maxSize = 0;
     for (size_t i = 0; i < queues.size(); ++i) {
-      if (queues[i].size() > maxSize) {
-        maxSize = queues[i].size();
+      size_t size = queues[i].unsafe_size();
+      if (size > maxSize) {
+        maxSize = size;
         maxIndex = i;
       }
     }
-    return queues[maxIndex].tryPop(dest);
+    return queues[maxIndex].try_pop(dest);
   }
 
   bool tryPop(Work& dest) {
