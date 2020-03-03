@@ -178,14 +178,13 @@ class MultilevelCoarsenerT : public ICoarsenerT<TypeTraits>,
               // is less than the maximum allowed node weight.
               const HypernodeID original_hn_id = current_hg.originalNodeID(hn);
               const HypernodeID original_target_id = current_hg.originalNodeID(rating.target);
-              const bool is_same_set = _uf.isSameSet(original_hn_id, original_target_id);
-              const HypernodeWeight contracted_weight = is_same_set ? _uf.weight(original_hn_id) :
+              const HypernodeWeight contracted_weight =
                 _uf.weight(original_hn_id) + _uf.weight(original_target_id);
               if ( contracted_weight <= _max_allowed_node_weight &&
                    _uf.numDistinctSets() > hierarchy_contraction_limit ) {
-                _uf.link(original_hn_id, original_target_id);
                 _rater.markAsMatched(current_hg, hn);
                 _rater.markAsMatched(current_hg, rating.target);
+                _uf.link(original_hn_id, original_target_id);
               }
             }
           }

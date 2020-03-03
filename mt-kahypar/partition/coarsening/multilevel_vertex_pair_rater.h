@@ -122,11 +122,10 @@ class MultilevelVertexPairRater {
     for (auto it = tmp_ratings.end() - 1; it >= tmp_ratings.begin(); --it) {
       const HypernodeID tmp_target_id = it->key;
       const HypernodeID tmp_target = hypergraph.globalNodeID(tmp_target_id);
-      const bool is_same_set = _uf.isSameSet(original_u_id, tmp_target_id);
       const HypernodeWeight target_weight = _uf.weight(tmp_target_id);
 
       if ( tmp_target != u && belowThresholdNodeWeight(
-            is_same_set, weight_u, target_weight, max_allowed_node_weight) ) {
+           weight_u, target_weight, max_allowed_node_weight) ) {
         HypernodeWeight penalty = HeavyNodePenaltyPolicy::penalty(weight_u, target_weight);
         penalty = penalty == 0 ? std::max(std::max(weight_u, target_weight), 1) : penalty;
         const RatingType tmp_rating = it->value / static_cast<double>(penalty);
@@ -171,14 +170,13 @@ class MultilevelVertexPairRater {
   }
 
  private:
-  inline bool belowThresholdNodeWeight(const bool is_same_set,
-                                       const HypernodeWeight weight_u,
+  inline bool belowThresholdNodeWeight(const HypernodeWeight weight_u,
                                        const HypernodeWeight weight_v,
                                        const HypernodeWeight max_allowed_node_weight) const {
     // In case, if u and v are already in the same set (which means that they are
     // already contracted togehter), the weight is always below the threshold, otherwise
     // we perform an explicit check
-    return is_same_set ? true : weight_v + weight_u <= max_allowed_node_weight;
+    return weight_u + weight_v <= max_allowed_node_weight;
   }
 
   const Context& _context;
