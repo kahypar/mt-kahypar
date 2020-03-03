@@ -51,12 +51,16 @@ class ConcurrentUnionFind {
     init(hypergraph);
   }
 
-  void link(const HypernodeID x, const HypernodeID y) {
+  // ! Note, we do not by perform union-by-size or -rank.
+  // ! In most of our use cases u is an isolated vertex not
+  // ! linked to any other set and v is a representative
+  // ! of a cluster. We further require that the representative
+  // ! of a cluster does not change. Therefore, we make u a
+  // ! child of v.
+  void link(const HypernodeID u, const HypernodeID v) {
     ASSERT(x < _set.size());
     ASSERT(y < _set.size());
 
-    const HypernodeID u = std::min(x, y);
-    const HypernodeID v = std::max(x, y);
     bool success = false;
     while ( !success ) {
       HypernodeWeight root_u = static_cast<HypernodeWeight>(find(u));
@@ -65,30 +69,20 @@ class ConcurrentUnionFind {
       HypernodeWeight weight_v = _set[root_v].load();
 
       if (weight_u < 0 && weight_v < 0) {
-        if ( root_u == root_v ) {
-          success = true;
-        } else if ( weight_u > weight_v ) {
+        if ( root_u != root_v ) {
           if ( _set[root_u].compare_and_exchange_strong(weight_u, root_v) ) {
             HypernodeWeight desired_weight = weight_u + weight_v;
             while ( !_set[root_v].compare_and_exchange_strong(weight_v, desired_weight) ) {
               root_v = static_cast<HypernodeWeight>(find(v));
               weight_v = _set[root_v].load();
-              desired_weight = weight_u + weight_v;
+              desired_weight = weight_u + ( weight_v < 0 ?
+                weight_v : std::numeric_limits<HypernodeWeight>::min() );
             }
             --_num_distinct_sets;
             success = true;
           }
-        } else /* |weight_u| >= |weight_v| */ {
-          if ( _set[root_v].compare_and_exchange_strong(weight_v, root_u) ) {
-            HypernodeWeight desired_weight = weight_u + weight_v;
-            while ( !_set[root_u].compare_and_exchange_strong(weight_u, desired_weight) ) {
-              root_u = static_cast<HypernodeWeight>(find(u));
-              weight_u = _set[root_u].load();
-              desired_weight = weight_u + weight_v;
-            }
-            --_num_distinct_sets;
-            success = true;
-          }
+        } else {
+          success = true;
         }
       }
     }

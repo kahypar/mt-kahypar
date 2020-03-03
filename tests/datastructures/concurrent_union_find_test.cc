@@ -105,8 +105,8 @@ TEST(AConcurrentUnionFind, LinksTwoVertices2) {
   uf.link(5, 7);
   ASSERT_EQ(7, uf.numDistinctSets());
   ASSERT_TRUE(uf.isSameSet(5, 7));
-  ASSERT_EQ(5, uf.find(5));
-  ASSERT_EQ(5, uf.find(7));
+  ASSERT_EQ(7, uf.find(5));
+  ASSERT_EQ(7, uf.find(7));
   ASSERT_EQ(4, uf.weight(5));
   ASSERT_EQ(4, uf.weight(7));
 }
@@ -118,8 +118,8 @@ TEST(AConcurrentUnionFind, LinksTwoVertices3) {
   uf.link(4, 6);
   ASSERT_EQ(7, uf.numDistinctSets());
   ASSERT_TRUE(uf.isSameSet(4, 6));
-  ASSERT_EQ(4, uf.find(4));
-  ASSERT_EQ(4, uf.find(6));
+  ASSERT_EQ(6, uf.find(4));
+  ASSERT_EQ(6, uf.find(6));
   ASSERT_EQ(2, uf.weight(4));
   ASSERT_EQ(2, uf.weight(6));
 }
@@ -134,9 +134,13 @@ TEST(AConcurrentUnionFind, LinksSeveralVertices1) {
   ASSERT_TRUE(uf.isSameSet(1, 2));
   ASSERT_TRUE(uf.isSameSet(4, 6));
   ASSERT_FALSE(uf.isSameSet(2, 4));
-  ASSERT_EQ(1, uf.find(2));
+  ASSERT_EQ(2, uf.find(1));
+  ASSERT_EQ(2, uf.find(2));
+  ASSERT_EQ(3, uf.weight(1));
   ASSERT_EQ(3, uf.weight(2));
-  ASSERT_EQ(4, uf.find(6));
+  ASSERT_EQ(6, uf.find(4));
+  ASSERT_EQ(6, uf.find(6));
+  ASSERT_EQ(2, uf.weight(4));
   ASSERT_EQ(2, uf.weight(6));
 }
 
@@ -149,9 +153,11 @@ TEST(AConcurrentUnionFind, LinksSeveralVertices2) {
   ASSERT_EQ(6, uf.numDistinctSets());
   ASSERT_TRUE(uf.isSameSet(3, 5));
   ASSERT_TRUE(uf.isSameSet(5, 7));
-  ASSERT_EQ(3, uf.find(5));
+  ASSERT_EQ(7, uf.find(3));
+  ASSERT_EQ(7, uf.find(5));
+  ASSERT_EQ(7, uf.find(7));
+  ASSERT_EQ(6, uf.weight(3));
   ASSERT_EQ(6, uf.weight(5));
-  ASSERT_EQ(3, uf.find(7));
   ASSERT_EQ(6, uf.weight(7));
 }
 
@@ -169,9 +175,13 @@ TEST(AConcurrentUnionFind, LinksSeveralVerticesConcurrent1) {
   ASSERT_TRUE(uf.isSameSet(1, 2));
   ASSERT_TRUE(uf.isSameSet(4, 6));
   ASSERT_FALSE(uf.isSameSet(2, 4));
-  ASSERT_EQ(1, uf.find(2));
+  ASSERT_EQ(2, uf.find(1));
+  ASSERT_EQ(2, uf.find(2));
+  ASSERT_EQ(3, uf.weight(1));
   ASSERT_EQ(3, uf.weight(2));
-  ASSERT_EQ(4, uf.find(6));
+  ASSERT_EQ(6, uf.find(4));
+  ASSERT_EQ(6, uf.find(6));
+  ASSERT_EQ(2, uf.weight(4));
   ASSERT_EQ(2, uf.weight(6));
 }
 
@@ -188,13 +198,11 @@ TEST(AConcurrentUnionFind, LinksSeveralVerticesConcurrent2) {
   ASSERT_EQ(6, uf.numDistinctSets());
   ASSERT_TRUE(uf.isSameSet(3, 5));
   ASSERT_TRUE(uf.isSameSet(5, 7));
-
-  const HypernodeID root = uf.find(3);
-  ASSERT_EQ(root, uf.find(3));
+  ASSERT_EQ(7, uf.find(3));
+  ASSERT_EQ(7, uf.find(5));
+  ASSERT_EQ(7, uf.find(7));
   ASSERT_EQ(6, uf.weight(3));
-  ASSERT_EQ(root, uf.find(5));
   ASSERT_EQ(6, uf.weight(5));
-  ASSERT_EQ(root, uf.find(7));
   ASSERT_EQ(6, uf.weight(7));
 }
 
