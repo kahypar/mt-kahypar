@@ -229,10 +229,12 @@ inline PartitionedHypergraph<> Partitioner::partition(Hypergraph& hypergraph) {
   io::printInputInformation(_context, hypergraph);
 
   // ################## PREPROCESSING ##################
+  utils::Profiler::instance().activate("Preprocessing");
   utils::Timer::instance().start_timer("preprocessing", "Preprocessing");
   preprocess(hypergraph);
   sanitize(hypergraph);
   utils::Timer::instance().stop_timer("preprocessing");
+  utils::Profiler::instance().deactivate("Preprocessing");
 
   // ################## MULTILEVEL ##################
   PartitionedHypergraph<> partitioned_hypergraph = multilevel::partition(

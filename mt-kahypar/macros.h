@@ -101,6 +101,7 @@
 #define CYAN "\033[1;96m"
 #define YELLOW "\033[1;93m"
 #define RED "\033[1;91m"
+#define BOLD "\033[1m"
 #define END "\033[0m"
 #define INFO(msg) LOG << CYAN << "[INFO]" << END << msg
 #define WARNING(msg) LOG << YELLOW << "[WARNING]" << END << msg

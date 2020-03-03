@@ -46,6 +46,9 @@ struct PartitioningParameters {
   bool sp_process_output = false;
   bool write_partition_file = false;
 
+  bool enable_profiler = false;
+  int snapshot_interval = std::numeric_limits<int>::max();
+
   std::string graph_filename { };
   std::string graph_partition_filename { };
   std::string graph_community_filename { };

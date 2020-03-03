@@ -109,7 +109,11 @@ po::options_description createGenericOptionsDescription(Context& context,
     ("show-detailed-timings", po::value<bool>(&context.partition.detailed_timings)->value_name("<bool>"),
     "If true, detailed timings overview is shown")
     ("enable-progress-bar", po::value<bool>(&context.partition.enable_progress_bar)->value_name("<bool>"),
-    "If true, than progress bar is shown during uncoarsening")
+    "If true, than progress bar is displayed")
+    ("enable-profiler", po::value<bool>(&context.partition.enable_profiler)->value_name("<bool>"),
+    "If true, than profiler is activated")
+    ("profiler-snapshot-interval", po::value<int>(&context.partition.snapshot_interval)->value_name("<int>"),
+    "Interval in milliseconds for which profiler makes a snapshot of system stats")
     ("time-limit", po::value<int>(&context.partition.time_limit)->value_name("<int>"),
     "Time limit in seconds")
     ("sp-process,s", po::value<bool>(&context.partition.sp_process_output)->value_name("<bool>"),

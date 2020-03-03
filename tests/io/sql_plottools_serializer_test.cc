@@ -47,7 +47,8 @@ std::unordered_map<std::string, std::string> target_struct_prefix =
 std::set<std::string> excluded_members =
   { "verbose_output", "quiet_mode", "detailed_timings", "enable_progress_bar", "sp_process_output",
     "write_partition_file", "graph_partition_filename", "graph_community_filename", "community_detection",
-    "community_redistribution", "coarsening_rating", "label_propagation", "lp_execute_sequential" };
+    "community_redistribution", "coarsening_rating", "label_propagation", "lp_execute_sequential",
+    "enable_profiler", "snapshot_interval" };
 
 bool is_target_struct(const std::string& line) {
   for ( const std::string& target_struct : target_structs ) {
