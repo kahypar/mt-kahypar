@@ -57,11 +57,13 @@ class ConcurrentUnionFind {
   // ! of a cluster. We further require that the representative
   // ! of a cluster does not change. Therefore, we make u a
   // ! child of v.
-  void link(const HypernodeID u, const HypernodeID v) {
+  void link(const HypernodeID x, const HypernodeID y) {
     ASSERT(x < _set.size());
     ASSERT(y < _set.size());
 
     bool success = false;
+    const HypernodeID u = std::min(x, y);
+    const HypernodeID v = std::max(x, y);
     while ( !success ) {
       HypernodeWeight root_u = static_cast<HypernodeWeight>(find(u));
       HypernodeWeight weight_u = _set[root_u].load();
