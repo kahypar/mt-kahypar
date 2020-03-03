@@ -256,7 +256,9 @@ class LabelPropagationRefinerT final : public IRefinerT<TypeTraits, track_border
                     const HypernodeID original_pin_id = hypergraph.originalNodeID(pin);
                     int pin_numa_node = _is_numa_aware ?
                       common::get_numa_node_of_vertex(pin) : 0;
-                    if ( !_next_active[pin_numa_node][original_pin_id] ) {
+                    if ( (_context.refinement.label_propagation.rebalancing ||
+                           hypergraph.isBorderNode(hn)) &&
+                         !_next_active[pin_numa_node][original_pin_id] ) {
                       next_active_nodes[pin_numa_node].stream(pin);
                       _next_active[pin_numa_node].set(original_pin_id, true);
                     }
@@ -293,7 +295,8 @@ class LabelPropagationRefinerT final : public IRefinerT<TypeTraits, track_border
     if ( _context.refinement.label_propagation.execute_sequential ) {
       // Setup active nodes sequential
       for ( const HypernodeID hn : hypergraph.nodes() ) {
-        if ( hypergraph.isBorderNode(hn) ) {
+        if ( _context.refinement.label_propagation.rebalancing ||
+             hypergraph.isBorderNode(hn) ) {
           _active_nodes[0].push_back(hn);
         }
       }
@@ -310,7 +313,8 @@ class LabelPropagationRefinerT final : public IRefinerT<TypeTraits, track_border
       };
 
       hypergraph.doParallelForAllNodes(_task_group_id, [&](const HypernodeID& hn) {
-        if ( hypergraph.isBorderNode(hn) ) {
+        if ( _context.refinement.label_propagation.rebalancing ||
+             hypergraph.isBorderNode(hn) ) {
           add_vertex(hn);
         }
       });
