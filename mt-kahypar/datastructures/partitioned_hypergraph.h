@@ -423,62 +423,7 @@ class PartitionedHypergraph {
     ERROR("restoreParallelHyperedge(...) is not supported in partitioned hypergraph");
   }
 
-  // ####################### Partition Information #######################
-
-  /**
-   * About moving a vertex:
-   * The functions setNodePart(...) and changeNodePart(...) are implemented thread-safe
-   * and lock-free. All involved data structures are based on atomics. We maintain
-   * the following information when moving a node:
-   *  1.) Block id of a vertex
-   *  2.) Pin count in a block of a hyperedge
-   *  3.) Connectivity of a hyperedge (number of blocks to which the pins of a hyperedge
-   *      belongs to)
-   *  4.) Connectivity set of a hyperedge (blocks to which the pins of a hyperedge belongs
-   *      to)
-   *  5.) Number of incident cut hyperedges of a vertex (number with hyperedges with
-   *      connectivity greater than 1)
-   *  6.) Block weights and sizes.
-   *
-   * In order, to change the block id of a vertex, we start by performing a CAS operation
-   * on the block id of a vertex. This prevents that two threads are moving one vertex to
-   * different blocks concurrently. If the operation succeeds we start updating all involved
-   * data structures. Otherwise, we abort the operation and return false (indicating that
-   * the move of the vertex failed). On succees, we update the local block weights of the
-   * calling thread (see description below) and update 2.) - 5.) by iterating over each
-   * hyperedge and increment or decrement the pin count of a block of a hyperedge. Both
-   * operations return the pin count after the atomic update and based on that we can decide
-   * if the hyperedge is still cut or not.
-   *
-   * It is guaranteed, that if all parallel vertex move operations are finished, the values
-   * for 1.) - 5.) reflects the current state of the hypergraph. However, this is not the case
-   * in a parallel setting. Since the update of all incident edges of the moved vertex is not
-   * performed in a transactional/exclusive fashion, it can happen that threads that read one
-   * of the values 2.) to 5.) have an intermediate view on those. Algorithms that
-   * build on top of that have to consider that behavior and resolve or deal with that issue on
-   * a higher layer.
-   *
-   * Another feature of changeNodePart is that someone can pass a generic delta function to compute
-   * e.g. the delta in the cut- or km1-metric when moving vertices in parallel. E.g. one
-   * can pass the following function to changeNodePart (as delta_func) to compute the delta
-   * for the cut-metric of the move:
-   *
-   * HyperedgeWeight delta = 0;
-   * auto cut_delta = [&](const HyperedgeWeight edge_weight,
-   *                             const HypernodeID edge_size,
-   *                             const HypernodeID pin_count_in_from_part_after,
-   *                             const HypernodeID pin_count_in_to_part_after) {
-   *   delta += mt_kahypar::Hypergraph::cutDelta(
-   *     edge_weight, edge_size, pin_count_in_from_part_after, pin_count_in_to_part_after);
-   * };
-   * hypergraph.changeNodePart(hn, from, to, cut_delta); // 'delta' will contain afterwards the delta
-   *                                                     // for the cut metric
-   *
-   * Summing up all deltas of all parallel moves will be delta after the parallel execution phase.
-   *
-   */
-
-  // ! Sets the block id of an unassigned vertex u.
+  // ! Sets the block id of an unassigned vertex u and updates related partition information.
   // ! Returns true, if assignment of unassigned vertex u to block id succeeds.
   bool setNodePart(const HypernodeID u, PartitionID id) {
     ASSERT(id != kInvalidPartition && id < _k && part[u] == kInvalidPartition);
@@ -494,7 +439,7 @@ class PartitionedHypergraph {
     }
   }
 
-  // ! Sets the block id of an unassigned vertex u.
+  // ! Sets the block id of an unassigned vertex u and updates related partition information.
   // ! Returns true, if assignment of unassigned vertex u to block id succeeds.
   bool setNodePart(const HypernodeID u,
                    PartitionID id,
@@ -511,23 +456,23 @@ class PartitionedHypergraph {
     }
   }
 
-  // ! Changes the block id of vertex u from block 'from' to block 'to'
+  // ! Changes the block id of vertex u from block 'from' to block 'to', and updates related partition information.
   // ! Returns true, if move of vertex u to corresponding block succeeds.
-  bool changeNodePart(const HypernodeID u, PartitionID from, PartitionID to, std::atomic<uint32_t>& move_counter, uint32_t& move_id) {
-    ASSERT(_hg->nodeIsEnabled(u), "Hypernode" << u << "is disabled");
-    ASSERT(from != kInvalidPartition && from < _k);
-    ASSERT(to != kInvalidPartition && to < _k);
-    ASSERT(from != to);
+  bool changeNodePart(Move& m, GlobalMoveTracker& moveTracker) {
+    ASSERT(_hg->nodeIsEnabled(m.node), "Hypernode" << m.node << "is disabled");
+    ASSERT(m.from != kInvalidPartition && m.from < _k);
+    ASSERT(m.to != kInvalidPartition && m.to < _k);
+    ASSERT(m.from != m.to);
 
-    if (part_weight[to] += nodeWeight(u) <= max_part_weight[to]) {
-      part[u] = to;
-      part_weight[from] -= nodeWeight(u);
+    if (part_weight[m.to] += nodeWeight(m.node) <= max_part_weight[m.to]) {
+      part[m.node] = m.to;
+      part_weight[m.from] -= nodeWeight(m.node);
 
-      move_id = move_counter.fetch_add(1, std::memory_order_relaxed);
+      const uint32_t move_id = moveTracker.insertMove(m);
 
-      for ( const HyperedgeID& he : incidentEdges(u) ) {
-        incrementPinCountInPart(he, to);
-        decrementPinCountInPart(he, from);
+      for ( const HyperedgeID& he : incidentEdges(m.node) ) {
+        incrementPinCountInPart(he, m.to);
+        decrementPinCountInPart(he, m.from);
       }
 
       return true;
@@ -536,11 +481,28 @@ class PartitionedHypergraph {
     }
   }
 
+  uint32_t lastMoveOut(HyperedgeID he, PartitionID block) const {
+    return last_move_out[he *_k + block].load(std::memory_order_relaxed);
+  }
+
+  uint32_t firstMoveIn(HyperedgeID he, PartitionID block) const {
+    return first_move_in[he * _k + block].load(std::memory_order_relaxed);
+  }
+
+  HypernodeID remainingPinsFromBeginningOfMovePhase(HyperedgeID he, PartitionID block) const {
+    return original_pins_minus_moved_out[he * _k + block].load(std::memory_order_relaxed);
+  }
+
+  void resetStoredMoveIDs() {
+    for (auto& x : last_move_out) x.store(0, std::memory_order_relaxed);
+    for (auto& x : first_move_in) x.store(0, std::memory_order_relaxed);
+  }
+
 
   // ! Changes the block id of vertex u from block 'from' to block 'to'
   // ! Returns true, if move of vertex u to corresponding block succeeds.
   bool changeNodePart(const HypernodeID u, PartitionID from, PartitionID to, const DeltaFunction& delta_func = NOOP_FUNC) {
-    // TODO eliminate
+    // TODO eliminate by rewriting LP refiner to not use DeltaFunction
     ASSERT(_hg->nodeIsEnabled(u), "Hypernode" << u << "is disabled");
     ASSERT(from != kInvalidPartition && from < _k);
     ASSERT(to != kInvalidPartition && to < _k);
@@ -641,26 +603,12 @@ class PartitionedHypergraph {
     return _affinity[u * _k + p].w0pins.load(std::memory_order_relaxed);
   }
 
-  // ! Reset partition (not thread-safe)
+  // ! Reset partition (not thread-safe)    TODO does anyone use this?
   void resetPartition() {
-    // Reset partition ids
-    for ( HypernodeID u : nodes() ) {
-      part[u] = kInvalidPartition;
-    }
-
-    // Reset pin count in part and connectivity set
-    for ( const HyperedgeID& he : edges() ) {
-      const HyperedgeID local_id = common::get_local_position_of_edge(he);
-      for ( const PartitionID& block : connectivitySet(he) ) {
-        pins_in_part[static_cast<size_t>(local_id) * _k + block] = 0;
-      }
-      connectivity_sets.clear(local_id);
-    }
-
-    // Reset block weights and sizes
-    for ( PartitionID block = 0; block < _k; ++block ) {
-      part_weight[block] = 0;
-    }
+    part.assign(part.size(), kInvalidPartition);
+    for (auto& x : pins_in_part) x.store(0, std::memory_order_relaxed);  // vector::assign( .. ) would repeatedly load the copyable atomic, which I'm not sure is fine
+    for (auto& x : part_weight) x.store(0, std::memory_order_relaxed);
+    connectivity_sets.reset();
   }
 
   // ####################### Memory Consumption #######################
@@ -686,12 +634,10 @@ class PartitionedHypergraph {
   // ####################### Extract Block #######################
 
   // ! Extracts a block of a partition as separate hypergraph.
-  // ! It also returns a vertex-mapping from the original
-  // ! hypergraph to the sub-hypergraph.
-  // ! If cut_net_splitting is activated, hyperedges that
-  // ! span more than one block (cut nets) are split, which is used for the connectivity metric.
+  // ! It also returns a vertex-mapping from the original hypergraph to the sub-hypergraph.
+  // ! If cut_net_splitting is activated, hyperedges that span more than one block (cut nets) are split, which is used for the connectivity metric.
   // ! Otherwise cut nets are discarded (cut metric).
-  std::pair<Hypergraph, parallel::scalable_vector<HypernodeID> > extract( const TaskGroupID& task_group_id, PartitionID block, bool cut_net_splitting) {
+  std::pair<Hypergraph, parallel::scalable_vector<HypernodeID> > extract(const TaskGroupID& task_group_id, PartitionID block, bool cut_net_splitting) {
     ASSERT(block != kInvalidPartition && block < _k);
 
     // Compactify vertex ids

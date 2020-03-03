@@ -202,7 +202,7 @@ class MultilevelCoarsenerBase {
     initialize();
 
 
-    refinement::MultiTryKWayFM fm_refiner(_context, _task_group_id);
+    refinement::MultiTryKWayFM fm_refiner(_context, _task_group_id, _hg.initialNumNodes());
 
     for ( int i = _hierarchies.size() - 1; i >= 0; --i ) {
       // Project partition to next level finer hypergraph

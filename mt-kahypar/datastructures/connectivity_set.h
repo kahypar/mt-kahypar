@@ -82,6 +82,12 @@ public:
     }
   }
 
+  void reset() {
+    for (size_t i = 0; i < bits.size(); ++i) {
+      bits[i].store(0, std::memory_order_relaxed);
+    }
+  }
+
   PartitionID connectivity(const HyperedgeID he) const {
     PartitionID conn = 0;
     for (size_t i = he * numBlocksPerHyperedge; i < (he + 1) * numBlocksPerHyperedge; ++i) {

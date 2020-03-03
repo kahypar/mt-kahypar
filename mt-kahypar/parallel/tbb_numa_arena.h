@@ -177,7 +177,7 @@ class TBBNumaArena {
     for (int node = 0; node < num_used_numa_nodes(); ++node) {
       _arenas[node].execute([&, node] {
             numa_task_group(task_group_id, node).wait();
-          });
+      });
     }
   }
 
