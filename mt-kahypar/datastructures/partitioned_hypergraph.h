@@ -473,6 +473,16 @@ class PartitionedHypergraph {
       for ( const HyperedgeID& he : incidentEdges(m.node) ) {
         incrementPinCountInPart(he, m.to);
         decrementPinCountInPart(he, m.from);
+
+        // update first move in
+        std::atomic<MoveID>& fmi = first_move_in[he * _k + m.to];
+        MoveID expected = fmi.load(std::memory_order_relaxed);
+        while ((moveTracker.isIDStale(expected) || expected >= move_id) && !fmi.compare_exchange_weak(expected, move_id)) {  }
+
+        // update last move out
+        std::atomic<MoveID>& lmo = last_move_out[he * _k + m.from];
+        expected = lmo.load(std::memory_order_relaxed);
+        while (expected <= move_id && !lmo.compare_exchange_weak(expected, move_id)) { }
       }
 
       return true;
@@ -494,11 +504,12 @@ class PartitionedHypergraph {
   }
 
   void resetStoredMoveIDs() {
-    for (auto& x : last_move_out) x.store(0, std::memory_order_relaxed);
+    for (auto& x : last_move_out) x.store(0, std::memory_order_relaxed);    // TODO try using memcpy
     for (auto& x : first_move_in) x.store(0, std::memory_order_relaxed);
   }
 
   void setRemainingOriginalPins() {
+    // TODO try using memcpy
     for (size_t i = 0; i < pins_in_part.size(); ++i) {
       original_pins_minus_moved_out[i].store( pins_in_part[i].load(std::memory_order_relaxed), std::memory_order_relaxed );
     }
@@ -612,7 +623,7 @@ class PartitionedHypergraph {
   // ! Reset partition (not thread-safe)    TODO does anyone use this?
   void resetPartition() {
     part.assign(part.size(), kInvalidPartition);
-    for (auto& x : pins_in_part) x.store(0, std::memory_order_relaxed);  // vector::assign( .. ) would repeatedly load the copyable atomic, which I'm not sure is fine
+    for (auto& x : pins_in_part) x.store(0, std::memory_order_relaxed);  // TODO try using memcpy
     for (auto& x : part_weight) x.store(0, std::memory_order_relaxed);
     connectivity_sets.reset();
   }
@@ -789,7 +800,7 @@ class PartitionedHypergraph {
   vec< PinCountAtomic > original_pins_minus_moved_out;    // TODO would like to get rid of this
 
   // ! For each hyperedge and each block, the ID of the first move to place a pin in that block / the last move to remove a pin from that block
-  vec< std::atomic<uint32_t> > first_move_in, last_move_out;
+  vec< std::atomic<MoveID> > first_move_in, last_move_out;
 
   // TODO we probably don't need connectivity sets any more, except in the IP hypergraphs which don't need parallelism support
   // ! For each hyperedge, _connectivity_sets stores the set of blocks that the hyperedge spans

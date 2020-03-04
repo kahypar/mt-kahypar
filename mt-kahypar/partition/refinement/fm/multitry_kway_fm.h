@@ -163,7 +163,6 @@ public:
       phg.resetStoredMoveIDs();
     }
 
-
     phg.setRemainingOriginalPins();
 
     return best_sum;
