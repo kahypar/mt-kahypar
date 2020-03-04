@@ -160,15 +160,13 @@ class MultilevelCoarsenerBase {
     // Construct top level partitioned hypergraph
     group.run([&] {
       _partitioned_hg = PartitionedHyperGraph(
-        _context.partition.k, TBB::instance().total_number_of_threads(),
-        _task_group_id, _hg);
+        _context.partition.k, _task_group_id, _hg);
     });
     // Construct partitioned hypergraph for each coarsened hypergraph in the hierarchy
     for ( size_t i = 0; i < _hierarchies.size(); ++i ) {
       group.run([&, i] {
         _hierarchies[i].contractedPartitionedHypergraph() = PartitionedHyperGraph(
-           _context.partition.k, TBB::instance().total_number_of_threads(),
-           _task_group_id, _hierarchies[i].contractedHypergraph());
+           _context.partition.k, _task_group_id, _hierarchies[i].contractedHypergraph());
       });
     }
     group.wait();

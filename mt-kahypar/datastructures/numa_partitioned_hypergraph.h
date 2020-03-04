@@ -94,24 +94,22 @@ class NumaPartitionedHypergraph {
     _hypergraphs() { }
 
   explicit NumaPartitionedHypergraph(const PartitionID k,
-                                     const size_t num_threads,
                                      Hypergraph& hypergraph) :
     _k(k),
     _hg(&hypergraph),
-    _part_info(num_threads, k),
+    _part_info(k),
     _hypergraphs() {
     for ( size_t node = 0; node < hypergraph.numNumaHypergraphs(); ++node) {
-      _hypergraphs.emplace_back(k, num_threads, hypergraph.numaHypergraph(node));
+      _hypergraphs.emplace_back(k, hypergraph.numaHypergraph(node));
     }
   }
 
   explicit NumaPartitionedHypergraph(const PartitionID k,
-                                     const size_t num_threads,
                                      const TaskGroupID task_group_id,
                                      Hypergraph& hypergraph) :
     _k(k),
     _hg(&hypergraph),
-    _part_info(num_threads, k),
+    _part_info(k),
     _hypergraphs() {
     TBBNumaArena::instance().execute_sequential_on_all_numa_nodes(task_group_id, [&](const int) {
           _hypergraphs.emplace_back();
@@ -119,8 +117,7 @@ class NumaPartitionedHypergraph {
 
     // Construct NUMA partitioned hypergraphs in parallel
     TBBNumaArena::instance().execute_parallel_on_all_numa_nodes(task_group_id, [&](const int node) {
-          _hypergraphs[node] = PartitionedHyperGraph(k, num_threads,
-            task_group_id, hypergraph.numaHypergraph(node));
+          _hypergraphs[node] = PartitionedHyperGraph(k, task_group_id, hypergraph.numaHypergraph(node));
         });
   }
 
@@ -303,7 +300,7 @@ class NumaPartitionedHypergraph {
     if ( block != kInvalidPartition ) {
       ASSERT(block < _k);
       const HypernodeWeight delta = weight - _hg->nodeWeight(u);
-      _part_info.updateNodeWeight(u, block, delta);
+      _part_info[block].weight += delta;
     }
     _hg->setNodeWeight(u, weight);
   }
@@ -487,7 +484,8 @@ class NumaPartitionedHypergraph {
   bool setNodePart(const HypernodeID u, const PartitionID id) {
     if ( hypergraph_of_vertex(u).setNodePart(u, id, _hypergraphs) ) {
       // Update block weights
-      _part_info.setNodePart(u, id, nodeWeight(u));
+      ++_part_info[id].size;
+      _part_info[id].weight += nodeWeight(u);
       return true;
     } else {
       return false;
@@ -512,7 +510,10 @@ class NumaPartitionedHypergraph {
                       const DeltaFunction& delta_func = NOOP_FUNC) {
     if ( hypergraph_of_vertex(u).changeNodePart(u, from, to, _hypergraphs, delta_func) ) {
       // Update block weights
-      _part_info.changeNodePart(u, from, to, nodeWeight(u));
+      --_part_info[from].size;
+      _part_info[from].weight -= nodeWeight(u);
+      ++_part_info[to].size;
+      _part_info[to].weight += nodeWeight(u);
       return true;
     } else {
       return false;
@@ -573,8 +574,8 @@ class NumaPartitionedHypergraph {
           block_size += block_info.size;
           block_weight += block_info.weight;
         }
-        _part_info.setBlockSize(block, block_size);
-        _part_info.setBlockWeight(block, block_weight);
+        _part_info[block].size = block_size;
+        _part_info[block].weight = block_weight;
       }
     }, [&] {
       // Compute Pin Counts
@@ -640,13 +641,13 @@ class NumaPartitionedHypergraph {
   // ! Weight of a block
   HypernodeWeight partWeight(const PartitionID id) const {
     ASSERT(id != kInvalidPartition && id < _k);
-    return _part_info.partWeight(id);
+    return _part_info[id].weight;
   }
 
   // ! Number of vertices in a block
   size_t partSize(const PartitionID id) const {
     ASSERT(id != kInvalidPartition && id < _k);
-    return _part_info.partSize(id);
+    return _part_info[id].size;
   }
 
   // ! Reset partition (not thread-safe)
@@ -656,7 +657,10 @@ class NumaPartitionedHypergraph {
     }
 
     // Reset block weights and sizes
-    _part_info.reset();
+    for ( PartitionID block = 0; block < _k; ++block ) {
+      _part_info[block].weight = 0;
+      _part_info[block].size = 0;
+    }
   }
 
   // ####################### Memory Consumption #######################
@@ -664,7 +668,7 @@ class NumaPartitionedHypergraph {
   void memoryConsumption(utils::MemoryTreeNode* parent) const {
     ASSERT(parent);
 
-    parent->addChild("Part Info", sizeof(BlockInfo) * _k * _part_info.numLocalBlockInfos());
+    parent->addChild("Part Info", sizeof(BlockInfo) * _k);
     for ( size_t node = 0; node < _hypergraphs.size(); ++node ) {
       utils::MemoryTreeNode* numa_hypergraph_node = parent->addChild(
         "NUMA Partitioned Hypergraph " + std::to_string(node));
@@ -791,7 +795,7 @@ class NumaPartitionedHypergraph {
   Hypergraph* _hg;
 
   // ! Weight and size information for all blocks.
-  PartitionInfo _part_info;
+  parallel::scalable_vector<BlockInfo> _part_info;
   // ! Partitioned NUMA Hypergraphs
   parallel::scalable_vector<PartitionedHyperGraph> _hypergraphs;
 };

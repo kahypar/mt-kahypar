@@ -52,9 +52,7 @@ class AZeroGainCache : public Test {
     context.partition.k = 4;
     context.partition.epsilon = 0.0;
     context.setupPartWeights(16);
-    hypergraph = PartitionedHyperGraph(
-      4, TBB::instance().total_number_of_threads(),
-      TBB::GLOBAL_TASK_GROUP, hg);
+    hypergraph = PartitionedHyperGraph(4, TBB::GLOBAL_TASK_GROUP, hg);
 
     // Assign part ids
     for ( HypernodeID original_hn = 0; original_hn < 16; ++original_hn ) {

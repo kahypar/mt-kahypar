@@ -85,7 +85,7 @@ class InitialPartitioningDataContainerT {
     LocalInitialPartitioningHypergraph(HyperGraph& hypergraph,
                                        const Context& context,
                                        const TaskGroupID task_group_id) :
-      _partitioned_hypergraph(context.partition.k, context.partition.k, hypergraph),
+      _partitioned_hypergraph(context.partition.k, hypergraph),
       _context(context),
       _partition(hypergraph.initialNumNodes(), kInvalidPartition),
       _result(InitialPartitioningAlgorithm::UNDEFINED,
