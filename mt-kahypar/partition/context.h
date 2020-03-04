@@ -170,24 +170,6 @@ inline std::ostream & operator<< (std::ostream& str, const CoarseningParameters&
   return str;
 }
 
-struct InitialPartitioningParameters {
-  InitialPartitioningMode mode = InitialPartitioningMode::UNDEFINED;
-  size_t runs = 1;
-  bool use_adaptive_epsilon = false;
-  size_t lp_maximum_iterations = 1;
-  size_t lp_initial_block_size = 1;
-};
-
-inline std::ostream & operator<< (std::ostream& str, const InitialPartitioningParameters& params) {
-  str << "Initial Partitioning Parameters:" << std::endl;
-  str << "  Initial Partitioning Mode:          " << params.mode << std::endl;
-  str << "  Number of Runs:                     " << params.runs << std::endl;
-  str << "  Use Adaptive Epsilon:               " << std::boolalpha << params.use_adaptive_epsilon << std::endl;
-  str << "  Maximum Iterations of LP IP:        " << params.lp_maximum_iterations << std::endl;
-  str << "  Initial Block Size of LP IP:        " << params.lp_initial_block_size << std::endl;
-  return str;
-}
-
 struct LabelPropagationParameters {
   LabelPropagationAlgorithm algorithm = LabelPropagationAlgorithm::do_nothing;
   size_t maximum_iterations = 1;
@@ -214,6 +196,28 @@ struct RefinementParameters {
 inline std::ostream & operator<< (std::ostream& str, const RefinementParameters& params) {
   str << "Refinement Parameters:" << std::endl;
   str << std::endl << params.label_propagation;
+  return str;
+}
+
+struct InitialPartitioningParameters {
+  InitialPartitioningMode mode = InitialPartitioningMode::UNDEFINED;
+  size_t runs = 1;
+  bool use_adaptive_epsilon = false;
+  size_t lp_maximum_iterations = 1;
+  size_t lp_initial_block_size = 1;
+
+  RefinementParameters refinement = { };
+};
+
+inline std::ostream & operator<< (std::ostream& str, const InitialPartitioningParameters& params) {
+  str << "Initial Partitioning Parameters:" << std::endl;
+  str << "  Initial Partitioning Mode:          " << params.mode << std::endl;
+  str << "  Number of Runs:                     " << params.runs << std::endl;
+  str << "  Use Adaptive Epsilon:               " << std::boolalpha << params.use_adaptive_epsilon << std::endl;
+  str << "  Maximum Iterations of LP IP:        " << params.lp_maximum_iterations << std::endl;
+  str << "  Initial Block Size of LP IP:        " << params.lp_initial_block_size << std::endl;
+  str << "\nInitial Partitioning ";
+  str << params.refinement << std::endl;
   return str;
 }
 
@@ -309,6 +313,30 @@ class Context {
                   "Partitioning with" << refinement.label_propagation.algorithm
                                          << "refiner in combination with km1 metric is not possible!",
                   refinement.label_propagation.algorithm,
+                  LabelPropagationAlgorithm::label_propagation_km1);
+    }
+
+    if (partition.objective == kahypar::Objective::cut &&
+        initial_partitioning.refinement.label_propagation.algorithm ==
+        LabelPropagationAlgorithm::label_propagation_km1) {
+      ALGO_SWITCH("Initial Partitioning Refinement algorithm"
+                    << initial_partitioning.refinement.label_propagation.algorithm
+                    << "only works for km1 metric."
+                    << "Do you want to use the cut version of the label propagation refiner (Y/N)?",
+                  "Partitioning with" << initial_partitioning.refinement.label_propagation.algorithm
+                    << "refiner in combination with cut metric is not possible!",
+                  initial_partitioning.refinement.label_propagation.algorithm,
+                  LabelPropagationAlgorithm::label_propagation_cut);
+    } else if (partition.objective == kahypar::Objective::km1 &&
+               initial_partitioning.refinement.label_propagation.algorithm ==
+               LabelPropagationAlgorithm::label_propagation_cut) {
+      ALGO_SWITCH("Initial Partitioning Refinement algorithm"
+                                         << initial_partitioning.refinement.label_propagation.algorithm
+                                         << "only works for cut metric."
+                                         << "Do you want to use the km1 version of the label propagation refiner (Y/N)?",
+                  "Partitioning with" << initial_partitioning.refinement.label_propagation.algorithm
+                                         << "refiner in combination with km1 metric is not possible!",
+                  initial_partitioning.refinement.label_propagation.algorithm,
                   LabelPropagationAlgorithm::label_propagation_km1);
     }
 
