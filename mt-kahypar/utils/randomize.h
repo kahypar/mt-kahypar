@@ -57,11 +57,7 @@ class Randomize {
     }
 
     bool flipCoin() {
-      bool coinFlip = _precomputed_flip_coins[_next_coin_flip++];
-      if (_next_coin_flip == PRECOMPUTED_FLIP_COINS) {
-        precompute_flip_coins();
-      }
-      return coinFlip;
+      return _precomputed_flip_coins[++_next_coin_flip % PRECOMPUTED_FLIP_COINS];
     }
 
     // returns uniformly random int from the interval [low, high]
