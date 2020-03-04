@@ -477,12 +477,13 @@ class PartitionedHypergraph {
         // update first move in
         std::atomic<MoveID>& fmi = first_move_in[he * _k + m.to];
         MoveID expected = fmi.load(std::memory_order_relaxed);
-        while ((moveTracker.isIDStale(expected) || expected >= move_id) && !fmi.compare_exchange_weak(expected, move_id)) {  }
+        // TODO figure out appropriate memory_order. should be fine, as long as it's not seq_cst
+        while ((moveTracker.isIDStale(expected) || expected > move_id) && !fmi.compare_exchange_weak(expected, move_id, std::memory_order_acq_rel)) {  }
 
         // update last move out
         std::atomic<MoveID>& lmo = last_move_out[he * _k + m.from];
         expected = lmo.load(std::memory_order_relaxed);
-        while (expected <= move_id && !lmo.compare_exchange_weak(expected, move_id)) { }
+        while (expected < move_id && !lmo.compare_exchange_weak(expected, move_id, std::memory_order_acq_rel)) { }
       }
 
       return true;
@@ -742,7 +743,7 @@ class PartitionedHypergraph {
            "Hyperedge" << e << "is not part of numa node" << _node);
     const HypernodeID pin_count_after = --pins_in_part[local_hyperedge_id * _k + p];
 
-    --original_pins_minus_moved_out[local_hyperedge_id * _k + p];
+    original_pins_minus_moved_out[local_hyperedge_id * _k + p].fetch_sub(1, std::memory_order_relaxed);
 
     if ( pin_count_after == 0 ) {
       // Connectivity of hyperedge decreased

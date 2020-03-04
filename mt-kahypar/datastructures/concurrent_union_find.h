@@ -68,9 +68,9 @@ class ConcurrentUnionFind {
         if ( root_u == root_v ) {
           success = true;
         } else if ( weight_u > weight_v ) {
-          if ( _set[root_u].compare_and_exchange_strong(weight_u, root_v) ) {
+          if (_set[root_u].compare_exchange_strong(weight_u, root_v) ) {
             HypernodeWeight desired_weight = weight_u + weight_v;
-            while ( !_set[root_v].compare_and_exchange_strong(weight_v, desired_weight) ) {
+            while ( !_set[root_v].compare_exchange_strong(weight_v, desired_weight) ) {
               root_v = static_cast<HypernodeWeight>(find(v));
               weight_v = _set[root_v].load();
               desired_weight = weight_u + weight_v;
@@ -79,9 +79,9 @@ class ConcurrentUnionFind {
             success = true;
           }
         } else /* |weight_u| >= |weight_v| */ {
-          if ( _set[root_v].compare_and_exchange_strong(weight_v, root_u) ) {
+          if (_set[root_v].compare_exchange_strong(weight_v, root_u) ) {
             HypernodeWeight desired_weight = weight_u + weight_v;
-            while ( !_set[root_u].compare_and_exchange_strong(weight_u, desired_weight) ) {
+            while ( !_set[root_u].compare_exchange_strong(weight_u, desired_weight) ) {
               root_u = static_cast<HypernodeWeight>(find(u));
               weight_u = _set[root_u].load();
               desired_weight = weight_u + weight_v;
@@ -110,7 +110,7 @@ class ConcurrentUnionFind {
     ASSERT(parent < static_cast<HypernodeWeight>(_set.size()));
     HypernodeWeight root = static_cast<HypernodeWeight>(find(parent));
     if ( parent != root ) {
-      _set[u].compare_and_exchange_strong(parent, root);
+      _set[u].compare_exchange_strong(parent, root);
     }
     return root;
   }
