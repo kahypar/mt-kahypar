@@ -741,6 +741,9 @@ class PartitionedHypergraph {
     ASSERT(_node == common::get_numa_node_of_edge(e),
            "Hyperedge" << e << "is not part of numa node" << _node);
     const HypernodeID pin_count_after = --pins_in_part[local_hyperedge_id * _k + p];
+
+    --original_pins_minus_moved_out[local_hyperedge_id * _k + p];
+
     if ( pin_count_after == 0 ) {
       // Connectivity of hyperedge decreased
       connectivity_sets.remove(local_hyperedge_id, p);
