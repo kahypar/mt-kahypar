@@ -33,6 +33,8 @@ matrix:
             - libtbb-dev
             - libhwloc-dev
             - moreutils
+            - linux-tools-common
+            - linux-tools-generic
 
     # gcc 7 - Linux Debug Build
     - env:

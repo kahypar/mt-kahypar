@@ -168,7 +168,8 @@ class Km1Policy : public GainPolicy<Km1Policy<HyperGraph>, HyperGraph> {
                                            const HypernodeID pin_count_in_from_part_after,
                                            const HypernodeID pin_count_in_to_part_after) {
     _deltas.local() += HyperGraph::km1Delta(he, edge_weight, edge_size,
-                                            pin_count_in_from_part_after, pin_count_in_to_part_after);
+                                            pin_count_in_from_part_after,
+                                            pin_count_in_to_part_after);
   }
 
   using Base::_context;
@@ -252,7 +253,8 @@ class CutPolicy : public GainPolicy<CutPolicy<HyperGraph>, HyperGraph> {
                                            const HypernodeID pin_count_in_from_part_after,
                                            const HypernodeID pin_count_in_to_part_after) {
     _deltas.local() += HyperGraph::cutDelta(he, edge_weight, edge_size,
-                                            pin_count_in_from_part_after, pin_count_in_to_part_after);
+                                            pin_count_in_from_part_after,
+                                            pin_count_in_to_part_after);
   }
 
   using Base::_context;

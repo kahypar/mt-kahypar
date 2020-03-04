@@ -8,11 +8,12 @@ set_property(TARGET GraphToHgr PROPERTY CXX_STANDARD 14)
 set_property(TARGET GraphToHgr PROPERTY CXX_STANDARD_REQUIRED ON)
 target_link_libraries(GraphToHgr ${Boost_LIBRARIES})
 
+# Not working in Traivs
 # add_executable(PrefixSumBench bench_prefixsum.cpp)
 # target_link_libraries(PrefixSumBench ${Boost_LIBRARIES})
 # target_link_libraries(PrefixSumBench pthread)
 # set_property(TARGET PrefixSumBench PROPERTY CXX_STANDARD 17)
 # set_property(TARGET PrefixSumBench PROPERTY CXX_STANDARD_REQUIRED ON)
 # if(ENABLE_PROFILE MATCHES ON)
-#     target_link_libraries(PrefixSumBench ${PROFILE_FLAGS})
+#      target_link_libraries(PrefixSumBench ${PROFILE_FLAGS})
 # endif()

@@ -83,6 +83,7 @@ class AInitialPartitionerTest : public Test {
 
     // Label Propagation
     context.refinement.label_propagation.algorithm = LabelPropagationAlgorithm::do_nothing;
+    context.initial_partitioning.refinement.label_propagation.algorithm = LabelPropagationAlgorithm::do_nothing;
 
     // Read hypergraph
     hypergraph = io::readHypergraphFile<HyperGraph, HyperGraphFactory>(

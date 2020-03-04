@@ -102,11 +102,9 @@ class InitialPartitioningDataContainerT {
         if ( _context.partition.objective == kahypar::Objective::km1 ) {
           _label_propagation = std::make_unique<LabelPropagationKm1Refiner>(
             _partitioned_hypergraph, _context, task_group_id);
-          _label_propagation->initialize(_partitioned_hypergraph);
         } else if ( _context.partition.objective == kahypar::Objective::cut ) {
           _label_propagation = std::make_unique<LabelPropagationCutRefiner>(
             _partitioned_hypergraph, _context, task_group_id);
-          _label_propagation->initialize(_partitioned_hypergraph);
         }
       }
     }
@@ -124,10 +122,12 @@ class InitialPartitioningDataContainerT {
       _partitioned_hypergraph.initializeNumCutHyperedges();
 
       kahypar::Metrics current_metric = {
-        metrics::hyperedgeCut(_partitioned_hypergraph), metrics::km1(_partitioned_hypergraph),
+        metrics::hyperedgeCut(_partitioned_hypergraph),
+        metrics::km1(_partitioned_hypergraph),
         metrics::imbalance(_partitioned_hypergraph, _context) };
 
       if ( _label_propagation ) {
+        _label_propagation->initialize(_partitioned_hypergraph);
         _label_propagation->refine(_partitioned_hypergraph, {}, current_metric);
       }
 
@@ -194,8 +194,7 @@ class InitialPartitioningDataContainerT {
     _local_unassigned_hypernodes(),
     _local_unassigned_hypernode_pointer(std::numeric_limits<size_t>::max())  {
     // Setup Label Propagation Refiner Config for Initial Partitioning
-    _context.refinement.label_propagation.maximum_iterations = 3;
-    _context.refinement.label_propagation.numa_aware = false;
+    _context.refinement = _context.initial_partitioning.refinement;
     _context.refinement.label_propagation.execute_sequential = true;
   }
 
@@ -327,15 +326,15 @@ class InitialPartitioningDataContainerT {
     DBG << "Partition with Best Objective [" << best_objective->_result.str() << "]";
 
     // Applies best partition to hypergraph
-    for ( const HypernodeID& hn : _partitioned_hg.nodes() ) {
+    _partitioned_hg.doParallelForAllNodes(_task_group_id, [&](const HypernodeID hn) {
       const HypernodeID original_id = _partitioned_hg.originalNodeID(hn);
       ASSERT(original_id < best->_partition.size());
       const PartitionID part_id = best->_partition[original_id];
       ASSERT(part_id != kInvalidPartition && part_id < _partitioned_hg.k());
-      _partitioned_hg.setNodePart(hn, part_id);
-    }
+      _partitioned_hg.setOnlyNodePart(hn, part_id);
+    });
+    _partitioned_hg.initializePartition(_task_group_id);
 
-    _partitioned_hg.initializeNumCutHyperedges(_task_group_id);
     utils::InitialPartitioningStats::instance().add_initial_partitioning_result(
       best->_result._algorithm, number_of_threads, stats);
     ASSERT(best->_result._objective == metrics::objective(_partitioned_hg, _context.partition.objective),

@@ -244,14 +244,14 @@ class StaticHypergraphFactory {
     // over each thread local counter and sum it up.
     Counter vertices_on_this_numa_node(num_hypernodes, 0);
     Counter num_incident_nets_per_vertex(num_hypernodes, 0);
-    for ( Counter& c : local_incident_nets_per_vertex ) {
-      tbb::parallel_for(ID(0), num_hypernodes, [&](const size_t pos) {
-        if ( vertices_to_numa_node[pos] == node ) {
+    tbb::parallel_for(ID(0), num_hypernodes, [&](const size_t pos) {
+      if ( vertices_to_numa_node[pos] == node ) {
+        for ( Counter& c : local_incident_nets_per_vertex ) {
           num_incident_nets_per_vertex[pos] += c[pos];
-          vertices_on_this_numa_node[pos] = 1UL;
         }
-      });
-    }
+        vertices_on_this_numa_node[pos] = 1UL;
+      }
+    });
     utils::Timer::instance().stop_timer("compute_ds_sizes");
 
     // Compute prefix sum over the number of pins per hyperedge and the

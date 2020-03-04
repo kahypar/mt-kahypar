@@ -223,16 +223,13 @@ class MultilevelCoarsenerBase {
       utils::Timer::instance().start_timer("projecting_partition", "Projecting Partition");
       PartitionedHyperGraph& representative_hg = _hierarchies[i].representativeHypergraph();
       PartitionedHyperGraph& contracted_hg = _hierarchies[i].contractedPartitionedHypergraph();
-      tbb::parallel_for(ID(0), representative_hg.initialNumNodes(), [&](const HypernodeID id) {
-        const HypernodeID hn = representative_hg.globalNodeID(id);
-        if ( representative_hg.nodeIsEnabled(hn) ) {
-          const HypernodeID coarse_hn = _hierarchies[i].mapToContractedHypergraph(hn);
-          const PartitionID block = contracted_hg.partID(coarse_hn);
-          ASSERT(block != -1 && block < representative_hg.k());
-          representative_hg.setNodePart(hn, block);
-        }
+      representative_hg.doParallelForAllNodes(_task_group_id, [&](const HypernodeID hn) {
+        const HypernodeID coarse_hn = _hierarchies[i].mapToContractedHypergraph(hn);
+        const PartitionID block = contracted_hg.partID(coarse_hn);
+        ASSERT(block != kInvalidPartition && block < representative_hg.k());
+        representative_hg.setOnlyNodePart(hn, block);
       });
-      representative_hg.initializeNumCutHyperedges(_task_group_id);
+      representative_hg.initializePartition(_task_group_id);
 
       ASSERT(metrics::objective(representative_hg, _context.partition.objective) ==
              metrics::objective(contracted_hg, _context.partition.objective),

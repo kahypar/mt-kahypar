@@ -94,6 +94,7 @@ class ALabelPropagationRefiner : public Test {
 
     // Label Propagation
     context.refinement.label_propagation.algorithm = Config::LP_ALGO;
+    context.initial_partitioning.refinement.label_propagation.algorithm = Config::LP_ALGO;
     #ifdef KAHYPAR_TRAVIS_BUILD
     context.refinement.label_propagation.numa_aware = false;
     #else
@@ -103,8 +104,8 @@ class ALabelPropagationRefiner : public Test {
     // Read hypergraph
     hypergraph = io::readHypergraphFile<HyperGraph, HyperGraphFactory>(
       "../test_instances/unweighted_ibm01.hgr", TBB::GLOBAL_TASK_GROUP);
-    partitioned_hypergraph = PartitionedHyperGraph(context.partition.k,
-      TBB::GLOBAL_TASK_GROUP, hypergraph);
+    partitioned_hypergraph = PartitionedHyperGraph(
+      context.partition.k, TBB::GLOBAL_TASK_GROUP, hypergraph);
     context.setupPartWeights(hypergraph.totalWeight());
     initialPartition();
 
