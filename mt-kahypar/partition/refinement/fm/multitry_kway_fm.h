@@ -73,6 +73,8 @@ public:
   void initialize(PartitionedHypergraph& phg) {
     assert(refinementNodes.empty());
 
+    phg.setRemainingOriginalPins();
+
     // insert border nodes into work queues
     tbb::parallel_for(HypernodeID(0), phg.initialNumNodes(), [&](const HypernodeID u) {
       if (phg.isBorderNode(u)) {
@@ -162,8 +164,6 @@ public:
     if (move_tracker.reset()) {
       phg.resetStoredMoveIDs();
     }
-
-    phg.setRemainingOriginalPins();
 
     return best_sum;
   }

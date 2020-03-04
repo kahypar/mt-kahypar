@@ -504,7 +504,7 @@ class PartitionedHypergraph {
   }
 
   void resetStoredMoveIDs() {
-    for (auto& x : last_move_out) x.store(0, std::memory_order_relaxed);    // TODO try using memcpy
+    for (auto& x : last_move_out) x.store(0, std::memory_order_relaxed);    // should be called very rarely
     for (auto& x : first_move_in) x.store(0, std::memory_order_relaxed);
   }
 
