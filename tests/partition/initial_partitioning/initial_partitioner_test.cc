@@ -78,6 +78,7 @@ class AInitialPartitionerTest : public Test {
 
     // Initial Partitioning
     context.initial_partitioning.runs = 1;
+    context.initial_partitioning.use_sparsification = false;
     context.initial_partitioning.use_adaptive_epsilon = false;
     context.initial_partitioning.mode = Config::MODE;
 
