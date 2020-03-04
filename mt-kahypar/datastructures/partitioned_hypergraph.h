@@ -498,6 +498,12 @@ class PartitionedHypergraph {
     for (auto& x : first_move_in) x.store(0, std::memory_order_relaxed);
   }
 
+  void setRemainingOriginalPins() {
+    for (size_t i = 0; i < pins_in_part.size(); ++i) {
+      original_pins_minus_moved_out[i].store( pins_in_part[i].load(std::memory_order_relaxed), std::memory_order_relaxed );
+    }
+  }
+
 
   // ! Changes the block id of vertex u from block 'from' to block 'to'
   // ! Returns true, if move of vertex u to corresponding block succeeds.
@@ -780,7 +786,7 @@ class PartitionedHypergraph {
   vec< PinCountAtomic > pins_in_part;
 
   // ! For each hyperedge and block, the number of pins_in_part at the beginning of a move phase minus the number of moved out pins
-  vec< PinCountAtomic > original_pins_minus_moved_out;
+  vec< PinCountAtomic > original_pins_minus_moved_out;    // TODO would like to get rid of this
 
   // ! For each hyperedge and each block, the ID of the first move to place a pin in that block / the last move to remove a pin from that block
   vec< std::atomic<uint32_t> > first_move_in, last_move_out;

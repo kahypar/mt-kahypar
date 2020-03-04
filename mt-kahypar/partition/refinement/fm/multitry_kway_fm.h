@@ -163,8 +163,8 @@ public:
       phg.resetStoredMoveIDs();
     }
 
-    // finish move phase, by getting remainingPinsFromBeginningOfMovePhase in order (set to pinCountInPart)
 
+    phg.setRemainingOriginalPins();
 
     return best_sum;
   }
