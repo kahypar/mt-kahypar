@@ -62,41 +62,6 @@ struct Move {
 
 using MoveID = uint32_t;
 
-struct GlobalMoveTracker {
-  std::vector<Move> globalMoveOrder;
-  parallel::IntegralAtomicWrapper<MoveID> runningMoveID;
-  MoveID firstMoveID = 1;
-
-  explicit GlobalMoveTracker(size_t numNodes) : globalMoveOrder(numNodes), runningMoveID(1) { }
-
-  // Returns true if stored move IDs should be reset
-  bool reset() {
-    if (runningMoveID.load() >= std::numeric_limits<MoveID>::max() - globalMoveOrder.size() - 50) {
-      firstMoveID = 1;
-      runningMoveID.store(1);
-      return true;
-    }
-    else {
-      firstMoveID = ++runningMoveID;
-      return false;
-    }
-  }
-
-  MoveID insertMove(Move& m) {
-    const MoveID move_id = runningMoveID.fetch_add(1, std::memory_order_relaxed);
-    globalMoveOrder[move_id - firstMoveID] = m;
-    return move_id;
-  }
-
-  MoveID numPerformedMoves() const {
-    return runningMoveID.load(std::memory_order_relaxed) - firstMoveID;
-  }
-
-  bool isIDStale(const MoveID move_id) const {
-    return move_id < firstMoveID;
-  }
-};
-
 
 /*!
 * A memento stores all information necessary to undo the contraction operation

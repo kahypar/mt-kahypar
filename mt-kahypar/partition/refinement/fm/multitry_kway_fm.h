@@ -34,11 +34,11 @@ namespace refinement {
 
 class MultiTryKWayFM {
 public:
-  MultiTryKWayFM(const Context& context, TaskGroupID taskGroupID, size_t numNodes) :
+  MultiTryKWayFM(const Context& context, TaskGroupID taskGroupID, size_t numNodes, size_t numHyperedges) :
           context(context),
           taskGroupID(taskGroupID),
-          globalMoveTracker(std::make_shared<GlobalMoveTracker>(numNodes)),
-          ets_fm(context, globalMoveTracker)
+          sharedData(numNodes, numHyperedges, context.partition.k),
+          ets_fm(context)
   { }
 
 
@@ -55,7 +55,7 @@ public:
         HypernodeID u = std::numeric_limits<HypernodeID>::max();
         LocalizedKWayFM& fm = ets_fm.local();
         while (refinementNodes.tryPop(u, socket) /* && u not marked */ ) {
-          fm.findMoves(phg, u);
+          fm.findMoves(phg, u, sharedData);
         }
       };
 
@@ -73,7 +73,7 @@ public:
   void initialize(PartitionedHypergraph& phg) {
     assert(refinementNodes.empty());
 
-    phg.setRemainingOriginalPins();
+    sharedData.setRemainingOriginalPins(phg);
 
     // insert border nodes into work queues
     tbb::parallel_for(HypernodeID(0), phg.initialNumNodes(), [&](const HypernodeID u) {
@@ -92,7 +92,7 @@ public:
   // TODO move to its own class
   HyperedgeWeight globalRollbackToBestPrefix(PartitionedHypergraph& phg) {
 
-    GlobalMoveTracker move_tracker = *globalMoveTracker;
+    GlobalMoveTracker& move_tracker = sharedData.moveTracker;
     
     // gain recalculation
     const MoveID numMoves = move_tracker.numPerformedMoves();
@@ -102,13 +102,13 @@ public:
       Move& m = move_tracker.globalMoveOrder[localMoveID];
       const HypernodeID u = m.node;
       for (HyperedgeID e : phg.incidentEdges(u)) {
-          if (phg.remainingPinsFromBeginningOfMovePhase(e, m.from) == 0  && phg.lastMoveOut(e, m.from) == moveID && phg.firstMoveIn(e, m.from) > moveID) {
+          if (sharedData.remainingPinsFromBeginningOfMovePhase(e, m.from) == 0  && sharedData.lastMoveOut(e, m.from) == moveID && sharedData.firstMoveIn(e, m.from) > moveID) {
             gain += phg.edgeWeight(e);
           }
 
-          const MoveID lastOutTo = phg.lastMoveOut(e, m.to);
+          const MoveID lastOutTo = sharedData.lastMoveOut(e, m.to);
           const bool lastOutCameEarlierInThisRound = lastOutTo >= move_tracker.firstMoveID && lastOutTo < moveID;
-          if (phg.remainingPinsFromBeginningOfMovePhase(e, m.to) == 0 && phg.firstMoveIn(e, m.to) == moveID && lastOutCameEarlierInThisRound) {
+          if (sharedData.remainingPinsFromBeginningOfMovePhase(e, m.to) == 0 && sharedData.firstMoveIn(e, m.to) == moveID && lastOutCameEarlierInThisRound) {
             gain -= phg.edgeWeight(e);
           }
       }
@@ -162,7 +162,7 @@ public:
 
     // reset stored move IDs either by raising the firstMoveID or by a hard reset if necessary
     if (move_tracker.reset()) {
-      phg.resetStoredMoveIDs();
+      sharedData.resetStoredMoveIDs();
     }
 
     return best_sum;
@@ -172,7 +172,7 @@ protected:
 
   const Context& context;
   const TaskGroupID taskGroupID;
-  std::shared_ptr<GlobalMoveTracker> globalMoveTracker;
+  FMSharedData sharedData;
   NumaWorkQueue<HypernodeID> refinementNodes;
   tbb::enumerable_thread_specific<LocalizedKWayFM> ets_fm;
 };

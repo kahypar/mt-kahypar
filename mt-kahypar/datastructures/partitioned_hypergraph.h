@@ -456,67 +456,6 @@ class PartitionedHypergraph {
     }
   }
 
-  // ! Changes the block id of vertex u from block 'from' to block 'to', and updates related partition information.
-  // ! Returns true, if move of vertex u to corresponding block succeeds.
-  bool changeNodePart(Move& m, GlobalMoveTracker& moveTracker) {
-    ASSERT(_hg->nodeIsEnabled(m.node), "Hypernode" << m.node << "is disabled");
-    ASSERT(m.from != kInvalidPartition && m.from < _k);
-    ASSERT(m.to != kInvalidPartition && m.to < _k);
-    ASSERT(m.from != m.to);
-
-    if (part_weight[m.to] += nodeWeight(m.node) <= max_part_weight[m.to]) {
-      part[m.node] = m.to;
-      part_weight[m.from] -= nodeWeight(m.node);
-
-      const uint32_t move_id = moveTracker.insertMove(m);
-
-      for ( const HyperedgeID& he : incidentEdges(m.node) ) {
-        incrementPinCountInPart(he, m.to);
-        decrementPinCountInPart(he, m.from);
-
-        // update first move in
-        std::atomic<MoveID>& fmi = first_move_in[he * _k + m.to];
-        MoveID expected = fmi.load(std::memory_order_relaxed);
-        // TODO figure out appropriate memory_order. should be fine, as long as it's not seq_cst
-        while ((moveTracker.isIDStale(expected) || expected > move_id) && !fmi.compare_exchange_weak(expected, move_id, std::memory_order_acq_rel)) {  }
-
-        // update last move out
-        std::atomic<MoveID>& lmo = last_move_out[he * _k + m.from];
-        expected = lmo.load(std::memory_order_relaxed);
-        while (expected < move_id && !lmo.compare_exchange_weak(expected, move_id, std::memory_order_acq_rel)) { }
-      }
-
-      return true;
-    } else {
-      return false;
-    }
-  }
-
-  uint32_t lastMoveOut(HyperedgeID he, PartitionID block) const {
-    return last_move_out[he *_k + block].load(std::memory_order_relaxed);
-  }
-
-  uint32_t firstMoveIn(HyperedgeID he, PartitionID block) const {
-    return first_move_in[he * _k + block].load(std::memory_order_relaxed);
-  }
-
-  HypernodeID remainingPinsFromBeginningOfMovePhase(HyperedgeID he, PartitionID block) const {
-    return original_pins_minus_moved_out[he * _k + block].load(std::memory_order_relaxed);
-  }
-
-  void resetStoredMoveIDs() {
-    for (auto& x : last_move_out) x.store(0, std::memory_order_relaxed);    // should be called very rarely
-    for (auto& x : first_move_in) x.store(0, std::memory_order_relaxed);
-  }
-
-  void setRemainingOriginalPins() {
-    // TODO try using memcpy
-    for (size_t i = 0; i < pins_in_part.size(); ++i) {
-      original_pins_minus_moved_out[i].store( pins_in_part[i].load(std::memory_order_relaxed), std::memory_order_relaxed );
-    }
-  }
-
-
   // ! Changes the block id of vertex u from block 'from' to block 'to'
   // ! Returns true, if move of vertex u to corresponding block succeeds.
   bool changeNodePart(const HypernodeID u, PartitionID from, PartitionID to, const DeltaFunction& delta_func = NOOP_FUNC) {
@@ -627,6 +566,10 @@ class PartitionedHypergraph {
     for (auto& x : pins_in_part) x.store(0, std::memory_order_relaxed);  // TODO try using memcpy
     for (auto& x : part_weight) x.store(0, std::memory_order_relaxed);
     connectivity_sets.reset();
+  }
+
+  auto& getPinCountInPartVector() {
+    return pins_in_part;
   }
 
   // ####################### Memory Consumption #######################
@@ -743,8 +686,6 @@ class PartitionedHypergraph {
            "Hyperedge" << e << "is not part of numa node" << _node);
     const HypernodeID pin_count_after = --pins_in_part[local_hyperedge_id * _k + p];
 
-    original_pins_minus_moved_out[local_hyperedge_id * _k + p].fetch_sub(1, std::memory_order_relaxed);
-
     if ( pin_count_after == 0 ) {
       // Connectivity of hyperedge decreased
       connectivity_sets.remove(local_hyperedge_id, p);
@@ -799,12 +740,6 @@ class PartitionedHypergraph {
 
   // ! For each hyperedge and each block, _pins_in_part stores the number of pins in that block
   vec< PinCountAtomic > pins_in_part;
-
-  // ! For each hyperedge and block, the number of pins_in_part at the beginning of a move phase minus the number of moved out pins
-  vec< PinCountAtomic > original_pins_minus_moved_out;    // TODO would like to get rid of this
-
-  // ! For each hyperedge and each block, the ID of the first move to place a pin in that block / the last move to remove a pin from that block
-  vec< std::atomic<MoveID> > first_move_in, last_move_out;
 
   // TODO we probably don't need connectivity sets any more, except in the IP hypergraphs which don't need parallelism support
   // ! For each hyperedge, _connectivity_sets stores the set of blocks that the hyperedge spans
