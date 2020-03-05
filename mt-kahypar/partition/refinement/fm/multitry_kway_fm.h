@@ -32,6 +32,8 @@
 namespace mt_kahypar {
 namespace refinement {
 
+// TODO try variant in which, a bunch of searches are stored in a PQ, findMoves(..) yields frequently, and then the most promising search is scheduled next
+
 class MultiTryKWayFM {
 public:
   MultiTryKWayFM(const Context& context, TaskGroupID taskGroupID, size_t numNodes, size_t numHyperedges) :
@@ -43,12 +45,8 @@ public:
 
 
   bool refine(PartitionedHypergraph& phg) {
-
     bool overall_improved = false;
-    bool round_improved = true;
-
-    // global multi try rounds
-    for (size_t round = 0; round < context.refinement.fm.multitry_rounds && round_improved; ++round) {
+    for (size_t round = 0; round < context.refinement.fm.multitry_rounds; ++round) {    // global multi try rounds
       initialize(phg);
 
       auto task = [&](const int socket, const int socket_local_task_id, const int task_id) {
@@ -58,15 +56,13 @@ public:
           fm.findMoves(phg, u, sharedData);
         }
       };
-
       TBBNumaArena::instance().run_max_concurrency_tasks_on_all_sockets(taskGroupID, task);
 
       HyperedgeWeight improvement = globalRollbackToBestPrefix(phg);
 
-      round_improved = true;//improvement > 0;
-      overall_improved |= round_improved;
+      if (improvement > 0) { overall_improved = true; }
+      else { break; }
     }
-
     return overall_improved;
   }
 

@@ -459,12 +459,13 @@ class PartitionedHypergraph {
   // ! Changes the block id of vertex u from block 'from' to block 'to'
   // ! Returns true, if move of vertex u to corresponding block succeeds.
   bool changeNodePart(const HypernodeID u, PartitionID from, PartitionID to, const DeltaFunction& delta_func = NOOP_FUNC) {
-    // TODO eliminate by rewriting LP refiner to not use DeltaFunction
     ASSERT(_hg->nodeIsEnabled(u), "Hypernode" << u << "is disabled");
     ASSERT(from != kInvalidPartition && from < _k);
     ASSERT(to != kInvalidPartition && to < _k);
     ASSERT(from != to);
 
+    // TODO consider using CAtomic which offers memory orders on add_fetch
+    // TODO consider implementing thread-specific slack on part_weights
     if (part_weight[to] += nodeWeight(u) <= max_part_weight[to]) {
       part[u] = to;
       part_weight[from] -= nodeWeight(u);

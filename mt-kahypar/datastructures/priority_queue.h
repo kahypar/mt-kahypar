@@ -34,11 +34,12 @@ template<typename KeyT, typename IdT, typename Comparator = std::less<KeyT>, uin
 class Heap {
 
 public:
+  static_assert(arity > 1);
 
   using PosT = uint32_t;
 
   explicit Heap(std::vector<IdT>& external_positions) : comp(), heap(), positions(external_positions) {
-    heap.reserve(10);
+    heap.reserve(1024);
   }
 
   IdT top() const {
@@ -169,20 +170,37 @@ protected:
 
     PosT first = firstChild(pos);
     while (first < size() && first != pos) {
-      PosT largestChild = first;
-      KeyT largestChildKey = heap[largestChild].key;
+      PosT largestChild;
 
-      // find child with largest key for MaxHeap / smallest key for MinHeap
-      const PosT firstInvalid = std::min(size(), firstChild(pos + 1));
-      for (PosT c = first + 1; c < firstInvalid; ++c) {     // TODO this might be an inefficiency compared to a binary heap implementation
-        if ( comp(largestChildKey, heap[c].key) ) {
-          largestChildKey = heap[c].key;
-          largestChild = c;
+      if constexpr (arity > 2) {
+        largestChild = first;
+        KeyT largestChildKey = heap[largestChild].key;
+
+        // find child with largest key for MaxHeap / smallest key for MinHeap
+        const PosT firstInvalid = std::min(size(), firstChild(pos + 1));
+        for (PosT c = first + 1; c < firstInvalid; ++c) {
+          if ( comp(largestChildKey, heap[c].key) ) {
+            largestChildKey = heap[c].key;
+            largestChild = c;
+          }
         }
-      }
 
-      if (comp(largestChildKey, k) || largestChildKey == k) {
-        break;
+        if (comp(largestChildKey, k) || largestChildKey == k) {
+          break;
+        }
+
+      } else {
+        assert(arity == 2);
+
+        const PosT second = std::min(first + 1, size() - 1);    // TODO this branch is not cool. maybe make the while loop condition secondChild(pos) < size() ?
+        const KeyT k1 = heap[first].key, k2 = heap[second].key;
+        const bool c2IsLarger = comp(k2, k1);
+
+        if (comp(k, c2IsLarger ? k2 : k1)) {
+          break;
+        }
+
+        largestChild = c2IsLarger ? second : first;
       }
 
       positions[ heap[largestChild].id ] = pos;
