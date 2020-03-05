@@ -26,6 +26,8 @@
 #include <algorithm>
 #include <cassert>
 
+#include <mt-kahypar/parallel/stl/scalable_vector.h>
+
 namespace mt_kahypar {
 namespace ds {
 
@@ -39,7 +41,7 @@ public:
   static_assert(arity > 1);
 
 
-  explicit Heap(std::vector<IdT>& external_positions) : comp(), heap(), positions(external_positions) {
+  explicit Heap(vec<PosT>& external_positions) : comp(), heap(), positions(external_positions) {
     heap.reserve(1024);
   }
 
@@ -223,22 +225,21 @@ protected:
 
   Comparator comp;                // comp(heap[parent(pos)].key, heap[pos].key) returns true if the element at pos should move upward --> comp = std::less for MaxHeaps
                                   // similarly comp(heap[child(pos)].key, heap[pos].key) returns false if the element at pos should move downward
-  std::vector<HeapElement> heap;
-  std::vector<PosT>& positions;    // this is ref because BlockQueues need to share handles
+  vec<HeapElement> heap;
+  vec<PosT>& positions;    // this is ref because BlockQueues need to share handles
 };
 
 
 // used to initialize handles in ExclusiveHandleHeap before handing a ref to Heap
-template<typename IdT>
 struct HandlesPBase {
   explicit HandlesPBase(size_t n) : handles(n, invalid_position) { }
-  std::vector<IdT> handles;
+  vec<PosT> handles;
 };
 
 template<typename KeyT, typename IdT, typename Comparator, uint32_t arity>
-class ExclusiveHandleHeap : protected HandlesPBase<IdT>, public Heap<KeyT, IdT, Comparator, arity> {
+class ExclusiveHandleHeap : protected HandlesPBase, public Heap<KeyT, IdT, Comparator, arity> {
 public:
-  explicit ExclusiveHandleHeap(size_t nHandles) : HandlesPBase<IdT>(nHandles), Heap<KeyT, IdT, Comparator, arity>(this->handles) { }
+  explicit ExclusiveHandleHeap(size_t nHandles) : HandlesPBase(nHandles), Heap<KeyT, IdT, Comparator, arity>(this->handles) { }
 };
 
 
