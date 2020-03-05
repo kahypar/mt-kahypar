@@ -91,6 +91,9 @@ class PartitionedHypergraph {
   };
 
   using PinCountAtomic = parallel::IntegralAtomicWrapper<HypernodeID>;
+  using AtomicFlag = parallel::IntegralAtomicWrapper<bool>;
+  template<typename T>
+  using ThreadLocalVector = tbb::enumerable_thread_specific<parallel::scalable_vector<T>>;
 
  public:
   static constexpr bool is_static_hypergraph = Hypergraph::is_static_hypergraph;
@@ -105,7 +108,9 @@ class PartitionedHypergraph {
     _part_info(),
     _vertex_part_info(),
     _pins_in_part(),
-    _connectivity_sets(0, 0) { }
+    _connectivity_sets(0, 0),
+    _pin_count_update_ownership(),
+    _failed_pin_count_updates() { }
 
   explicit PartitionedHypergraph(const PartitionID k,
                                  Hypergraph& hypergraph) :
@@ -116,7 +121,9 @@ class PartitionedHypergraph {
     _part_info(k),
     _vertex_part_info(hypergraph.initialNumNodes()),
     _pins_in_part(hypergraph.initialNumEdges() * k, PinCountAtomic(0)),
-    _connectivity_sets(hypergraph.initialNumEdges(), k) { }
+    _connectivity_sets(hypergraph.initialNumEdges(), k),
+    _pin_count_update_ownership(hypergraph.initialNumEdges(), AtomicFlag(false)),
+    _failed_pin_count_updates() { }
 
   explicit PartitionedHypergraph(const PartitionID k,
                                  const TaskGroupID,
@@ -128,13 +135,17 @@ class PartitionedHypergraph {
     _part_info(k),
     _vertex_part_info(),
     _pins_in_part(),
-    _connectivity_sets(0, 0) {
+    _connectivity_sets(0, 0),
+    _pin_count_update_ownership(),
+    _failed_pin_count_updates() {
     tbb::parallel_invoke([&] {
       _vertex_part_info.resize(hypergraph.initialNumNodes());
     }, [&] {
       _pins_in_part.assign(hypergraph.initialNumEdges() * k, PinCountAtomic(0));
     }, [&] {
       _connectivity_sets = ConnectivitySets(hypergraph.initialNumEdges(), k);
+    }, [&] {
+      _pin_count_update_ownership.assign(hypergraph.initialNumEdges(), AtomicFlag(false));
     });
   }
 
@@ -149,7 +160,9 @@ class PartitionedHypergraph {
     _part_info(std::move(other._part_info)),
     _vertex_part_info(std::move(other._vertex_part_info)),
     _pins_in_part(std::move(other._pins_in_part)),
-    _connectivity_sets(std::move(other._connectivity_sets)) { }
+    _connectivity_sets(std::move(other._connectivity_sets)),
+    _pin_count_update_ownership(std::move(other._pin_count_update_ownership)),
+    _failed_pin_count_updates(std::move(other._failed_pin_count_updates)) { }
 
   PartitionedHypergraph & operator= (PartitionedHypergraph&& other) {
     _k = other._k;
@@ -160,6 +173,8 @@ class PartitionedHypergraph {
     _vertex_part_info = std::move(other._vertex_part_info);
     _pins_in_part = std::move(other._pins_in_part);
     _connectivity_sets = std::move(other._connectivity_sets);
+    _pin_count_update_ownership = std::move(other._pin_count_update_ownership);
+    _failed_pin_count_updates = std::move(other._failed_pin_count_updates);
     return *this;
   }
 
@@ -593,28 +608,35 @@ class PartitionedHypergraph {
       _part_info[to].weight += nodeWeight(u);
 
       // Update Pin Count Part of all incident edges
+      auto& failed_pin_count_updates = _failed_pin_count_updates.local();
+      HypernodeID pin_count_in_from_part_after = kInvalidHypernode;
+      HypernodeID pin_count_in_to_part_after = kInvalidHypernode;
       for ( const HyperedgeID& he : incidentEdges(u) ) {
-        HypernodeID pin_count_in_from_part_after = kInvalidHypernode;
-        HypernodeID pin_count_in_to_part_after = kInvalidHypernode;
-        updatePinCountOfHyperedge(he, *this, from, to, pin_count_in_from_part_after,
-          pin_count_in_to_part_after, delta_func);
+        if ( updatePinCountOfHyperedge(he, *this, from, to,
+              pin_count_in_from_part_after,
+              pin_count_in_to_part_after,
+              delta_func) ) {
+          updateNumIncidentCutHyperedges(he,
+            pin_count_in_from_part_after,
+            pin_count_in_to_part_after);
+        } else {
+          // If pin count update failed, remember hyperedge for
+          // later retry
+          failed_pin_count_updates.push_back(he);
+        }
+      }
 
-        bool no_pins_left_in_source_part = pin_count_in_from_part_after == 0;
-        bool only_one_pin_in_to_part = pin_count_in_to_part_after == 1;
-
-        const HypernodeID edge_size = edgeSize(he);
-        if (no_pins_left_in_source_part && !only_one_pin_in_to_part &&
-            pin_count_in_to_part_after == edge_size) {
-          // In that case, hyperedge he becomes an internal hyperedge
-          for (const HypernodeID& pin : pins(he)) {
-            decrementIncidentNumCutHyperedges(pin);
-          }
-        } else if (!no_pins_left_in_source_part && only_one_pin_in_to_part &&
-                  pin_count_in_from_part_after == edge_size - 1) {
-          // In that case, hyperedge he becomes an cut hyperede
-          for (const HypernodeID& pin : pins(he)) {
-            incrementIncidentNumCutHyperedges(pin);
-          }
+      // Retry pin count update on all hyperedges where update failed in
+      // the first try
+      while ( !failed_pin_count_updates.empty() ) {
+        const HyperedgeID he = failed_pin_count_updates.back();
+        if ( updatePinCountOfHyperedge(he, *this, from, to,
+              pin_count_in_from_part_after, pin_count_in_to_part_after,
+              delta_func) ) {
+          updateNumIncidentCutHyperedges(he,
+            pin_count_in_from_part_after,
+            pin_count_in_to_part_after);
+          failed_pin_count_updates.pop_back();
         }
       }
 
@@ -641,29 +663,40 @@ class PartitionedHypergraph {
     if ( vertexPartInfo(u).part_id.compare_and_exchange_strong(from, to) ) {
 
       // Update Pin Count Part of all incident edges
+      auto& failed_pin_count_updates = _failed_pin_count_updates.local();
+      HypernodeID pin_count_in_from_part_after = kInvalidHypernode;
+      HypernodeID pin_count_in_to_part_after = kInvalidHypernode;
       for ( const HyperedgeID& he : incidentEdges(u) ) {
-        HypernodeID pin_count_in_from_part_after = kInvalidHypernode;
-        HypernodeID pin_count_in_to_part_after = kInvalidHypernode;
         PartitionedHypergraph& hypergraph_of_he = common::hypergraph_of_edge(he, hypergraphs);
-        updatePinCountOfHyperedge(he, hypergraph_of_he, from, to,
-          pin_count_in_from_part_after, pin_count_in_to_part_after, delta_func);
+        if ( updatePinCountOfHyperedge(he,
+              hypergraph_of_he, from, to,
+              pin_count_in_from_part_after,
+              pin_count_in_to_part_after,
+              delta_func) ) {
+          updateNumIncidentCutHyperedges(he, hypergraph_of_he,
+            hypergraphs, pin_count_in_from_part_after,
+            pin_count_in_to_part_after);
+        } else {
+          // If pin count update failed, remember hyperedge for
+          // later retry
+          failed_pin_count_updates.push_back(he);
+        }
+      }
 
-        bool no_pins_left_in_source_part = pin_count_in_from_part_after == 0;
-        bool only_one_pin_in_to_part = pin_count_in_to_part_after == 1;
-
-        HypernodeID edge_size = hypergraph_of_he.edgeSize(he);
-        if (no_pins_left_in_source_part && !only_one_pin_in_to_part &&
-            pin_count_in_to_part_after == edge_size) {
-          // In that case, hyperedge he becomes an internal hyperedge
-          for (const HypernodeID& pin : hypergraph_of_he.pins(he)) {
-            common::hypergraph_of_vertex(pin, hypergraphs).decrementIncidentNumCutHyperedges(pin);
-          }
-        } else if (!no_pins_left_in_source_part && only_one_pin_in_to_part &&
-                  pin_count_in_from_part_after == edge_size - 1) {
-          // In that case, hyperedge he becomes an cut hyperede
-          for (const HypernodeID& pin : hypergraph_of_he.pins(he)) {
-            common::hypergraph_of_vertex(pin, hypergraphs).incrementIncidentNumCutHyperedges(pin);
-          }
+      // Retry pin count update on all hyperedges where update failed in
+      // the first try
+      while ( !failed_pin_count_updates.empty() ) {
+        const HyperedgeID he = failed_pin_count_updates.back();
+        PartitionedHypergraph& hypergraph_of_he = common::hypergraph_of_edge(he, hypergraphs);
+        if ( updatePinCountOfHyperedge(he,
+              hypergraph_of_he, from, to,
+              pin_count_in_from_part_after,
+              pin_count_in_to_part_after,
+              delta_func) ) {
+          updateNumIncidentCutHyperedges(he, hypergraph_of_he,
+            hypergraphs, pin_count_in_from_part_after,
+            pin_count_in_to_part_after);
+          failed_pin_count_updates.pop_back();
         }
       }
 
@@ -721,7 +754,8 @@ class PartitionedHypergraph {
 
       // Update Pin Count Part of all incident edges
       for ( const HyperedgeID& he : incidentEdges(u) ) {
-        updatePinCountOfHyperedge(he, common::hypergraph_of_edge(he, hypergraphs),
+        updatePinCountOfHyperedge(he,
+          common::hypergraph_of_edge(he, hypergraphs),
           from, to, delta_func);
       }
 
@@ -1023,6 +1057,7 @@ class PartitionedHypergraph {
     parent->addChild("Part Info", sizeof(BlockInfo) * _k);
     parent->addChild("Vertex Part Info", sizeof(VertexPartInfo) * _hg->initialNumNodes());
     parent->addChild("Pin Count In Part", sizeof(PinCountAtomic) * _k * _hg->initialNumEdges());
+    parent->addChild("HE Ownership", sizeof(AtomicFlag) * _hg->initialNumNodes());
   }
 
   // ####################### Extract Block #######################
@@ -1136,46 +1171,39 @@ class PartitionedHypergraph {
   // ! The update process of the border vertices rely that
   // ! pin_count_in_from_part_after and pin_count_in_to_part_after are not reflecting
   // ! some intermediate state of the pin counts when several vertices move in parallel.
-  // ! Therefore, we verify that the pin counts before the move sum up to the total edge size
-  // ! and then verify that from part and to part are exactly decremented and incremented by one.
-  KAHYPAR_ATTRIBUTE_ALWAYS_INLINE void updatePinCountOfHyperedge(const HyperedgeID& he,
+  // ! Therefore, the current thread, which tries to modify the pin counts of the hyperedge,
+  // ! try to acquire the ownership of the hyperedge and on success, pin counts are updated.
+  KAHYPAR_ATTRIBUTE_ALWAYS_INLINE bool updatePinCountOfHyperedge(const HyperedgeID& he,
                                                                  PartitionedHypergraph& hypergraph_of_he,
                                                                  const PartitionID from,
                                                                  const PartitionID to,
                                                                  HypernodeID& pin_count_in_from_part_after,
                                                                  HypernodeID& pin_count_in_to_part_after,
                                                                  const DeltaFunction& delta_func) {
-    HypernodeID pin_count_in_from_part_before = kInvalidHypernode;
-    HypernodeID pin_count_in_to_part_before = kInvalidHypernode;
     pin_count_in_from_part_after = kInvalidHypernode;
     pin_count_in_to_part_after = kInvalidHypernode;
-    HypernodeID edge_size = hypergraph_of_he.edgeSize(he);
     // In order to safely update the number of incident cut hyperedges and to compute
-    // the delta of the move we need a stable snapshot of the pin count in from and to
+    // the delta of a move we need a stable snapshot of the pin count in from and to
     // part before and after the move. If we not do so, it can happen that due to concurrent
     // updates the pin count represents some intermediate state and the conditions
     // below are not triggered which leaves the data structure in an inconsistent
     // state. However, this should happen very rarely.
-    while ( pin_count_in_from_part_before - 1 != pin_count_in_from_part_after ||
-            pin_count_in_to_part_before + 1 != pin_count_in_to_part_after  ) {
-      getPinCountInFromAndToPart(he, hypergraph_of_he, edge_size, from, to,
-        pin_count_in_from_part_before, pin_count_in_to_part_before);
-      pin_count_in_from_part_after =
-        hypergraph_of_he.decrementPinCountInPart(he, from);
-      pin_count_in_to_part_after =
-        hypergraph_of_he.incrementPinCountInPart(he, to);
-
-      if ( pin_count_in_from_part_before - 1 != pin_count_in_from_part_after ||
-            pin_count_in_to_part_before + 1 != pin_count_in_to_part_after  ) {
-        hypergraph_of_he.incrementPinCountInPart(he, from);
-        hypergraph_of_he.decrementPinCountInPart(he, to);
-        pin_count_in_from_part_after = kInvalidHypernode;
-        pin_count_in_to_part_after = kInvalidHypernode;
-      }
+    bool expected = 0;
+    bool desired = 1;
+    const HyperedgeID local_id = common::get_local_position_of_edge(he);
+    ASSERT(local_id < hypergraph_of_he._pin_count_update_ownership.size());
+    if ( hypergraph_of_he._pin_count_update_ownership[local_id].compare_and_exchange_strong(expected, desired) ) {
+      // In that case, the current thread acquires the ownership of the hyperedge and can
+      // safely update the pin counts in from and to part.
+      pin_count_in_from_part_after = hypergraph_of_he.decrementPinCountInPart(he, from);
+      pin_count_in_to_part_after = hypergraph_of_he.incrementPinCountInPart(he, to);
+      delta_func(he, hypergraph_of_he.edgeWeight(he), hypergraph_of_he.edgeSize(he),
+        pin_count_in_from_part_after, pin_count_in_to_part_after);
+      hypergraph_of_he._pin_count_update_ownership[local_id] = false;
+      return true;
     }
 
-    delta_func(he, hypergraph_of_he.edgeWeight(he), edge_size,
-      pin_count_in_from_part_after, pin_count_in_to_part_after);
+    return false;
   }
 
   // ! Updates pin count in part if no border vertices should be tracked.
@@ -1188,8 +1216,9 @@ class PartitionedHypergraph {
                                                                  const PartitionID from,
                                                                  const PartitionID to,
                                                                  const DeltaFunction& delta_func) {
-    // If updated concurrently the pin counts in from and to part can represent some intermediate
-    // state and it can happen that the below conditions are not triggered.
+    // If updated concurrently the pin counts in from and to part can represent some intermediate state
+    // and it can happen that the delta_func, which rely on the state of the pin count, compute
+    // wrong results
     HypernodeID pin_count_in_from_part_after = hypergraph_of_he.decrementPinCountInPart(he, from);
     HypernodeID pin_count_in_to_part_after = hypergraph_of_he.incrementPinCountInPart(he, to);
 
@@ -1197,6 +1226,56 @@ class PartitionedHypergraph {
     // updatePinCountOfHyperedge(...)
     delta_func(he, hypergraph_of_he.edgeWeight(he), hypergraph_of_he.edgeSize(he),
       pin_count_in_from_part_after, pin_count_in_to_part_after);
+  }
+
+  // ! If hyperedge he becomes cut or internal, the number of incident cut
+  // ! hyperedges of all its pins is incremented resp. decremented.
+  KAHYPAR_ATTRIBUTE_ALWAYS_INLINE void updateNumIncidentCutHyperedges(const HyperedgeID he,
+                                                                      const HypernodeID pin_count_in_from_part_after,
+                                                                      const HypernodeID pin_count_in_to_part_after) {
+    bool no_pins_left_in_source_part = pin_count_in_from_part_after == 0;
+    bool only_one_pin_in_to_part = pin_count_in_to_part_after == 1;
+
+    const HypernodeID edge_size = edgeSize(he);
+    if (no_pins_left_in_source_part && !only_one_pin_in_to_part &&
+        pin_count_in_to_part_after == edge_size) {
+      // In that case, hyperedge he becomes an internal hyperedge
+      for (const HypernodeID& pin : pins(he)) {
+        decrementIncidentNumCutHyperedges(pin);
+      }
+    } else if (!no_pins_left_in_source_part && only_one_pin_in_to_part &&
+              pin_count_in_from_part_after == edge_size - 1) {
+      // In that case, hyperedge he becomes an cut hyperede
+      for (const HypernodeID& pin : pins(he)) {
+        incrementIncidentNumCutHyperedges(pin);
+      }
+    }
+  }
+
+  // ! If hyperedge he becomes cut or internal, the number of incident cut
+  // ! hyperedges of all its pins is incremented resp. decremented.
+  KAHYPAR_ATTRIBUTE_ALWAYS_INLINE void updateNumIncidentCutHyperedges(const HyperedgeID he,
+                                                                      PartitionedHypergraph& hypergraph_of_he,
+                                                                      parallel::scalable_vector<PartitionedHypergraph>& hypergraphs,
+                                                                      const HypernodeID pin_count_in_from_part_after,
+                                                                      const HypernodeID pin_count_in_to_part_after) {
+    bool no_pins_left_in_source_part = pin_count_in_from_part_after == 0;
+    bool only_one_pin_in_to_part = pin_count_in_to_part_after == 1;
+
+    HypernodeID edge_size = hypergraph_of_he.edgeSize(he);
+    if (no_pins_left_in_source_part && !only_one_pin_in_to_part &&
+        pin_count_in_to_part_after == edge_size) {
+      // In that case, hyperedge he becomes an internal hyperedge
+      for (const HypernodeID& pin : hypergraph_of_he.pins(he)) {
+        common::hypergraph_of_vertex(pin, hypergraphs).decrementIncidentNumCutHyperedges(pin);
+      }
+    } else if (!no_pins_left_in_source_part && only_one_pin_in_to_part &&
+               pin_count_in_from_part_after == edge_size - 1) {
+      // In that case, hyperedge he becomes an cut hyperede
+      for (const HypernodeID& pin : hypergraph_of_he.pins(he)) {
+        common::hypergraph_of_vertex(pin, hypergraphs).incrementIncidentNumCutHyperedges(pin);
+      }
+    }
   }
 
   // ! Decrements the number of incident cut hyperedges of hypernode u
@@ -1260,34 +1339,6 @@ class PartitionedHypergraph {
     return pin_count_after;
   }
 
-  // ! Returns pin count in from and to part of hyperedge he such that
-  // ! the pin counts represents a stable snapshot of the hyperedge
-  // ! (required for safe change node part)
-  void getPinCountInFromAndToPart(
-    const HyperedgeID he,
-    const PartitionedHypergraph& hypergraph_of_he,
-    const HypernodeID edge_size,
-    const PartitionID from,
-    const PartitionID to,
-    HypernodeID& pin_count_in_from_part_before,
-    HypernodeID& pin_count_in_to_part_before) {
-    HypernodeID sum_edge_size = 0;
-    while ( sum_edge_size != edge_size ) {
-      sum_edge_size = 0;
-      pin_count_in_from_part_before = 0;
-      pin_count_in_to_part_before = 0;
-      for ( const PartitionID& block : hypergraph_of_he.connectivitySet(he) ) {
-        const HypernodeID pin_count_in_part = hypergraph_of_he.pinCountInPart(he, block);
-        sum_edge_size += pin_count_in_part;
-        if ( block == from ) {
-          pin_count_in_from_part_before = pin_count_in_part;
-        } else if ( block == to ) {
-          pin_count_in_to_part_before = pin_count_in_part;
-        }
-      }
-    }
-  }
-
   // ! Number of blocks
   PartitionID _k;
   // ! NUMA node of this partitioned hypergraph
@@ -1308,6 +1359,13 @@ class PartitionedHypergraph {
   // ! For each hyperedge, _connectivity_sets stores the connectivity and the set of block ids
   // ! which the pins of the hyperedge belongs to
   ConnectivitySets _connectivity_sets;
+  // ! In order to update the pin count of a hyperedge thread-safe, a thread must acquire
+  // ! the ownership of a hyperedge via a CAS operation.
+  parallel::scalable_vector<AtomicFlag> _pin_count_update_ownership;
+  // ! It can happen that some pin count updates are failing during changeNodePart(...)
+  // ! due to concurrent updates. Each thread gathers its hyperedges which failed and
+  // ! try them again at the end.
+  ThreadLocalVector<HyperedgeID> _failed_pin_count_updates;
 };
 
 } // namespace ds
