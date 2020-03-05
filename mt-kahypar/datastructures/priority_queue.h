@@ -29,6 +29,8 @@
 namespace mt_kahypar {
 namespace ds {
 
+using PosT = uint32_t;
+static constexpr PosT invalid_position = std::numeric_limits<PosT>::max();
 
 template<typename KeyT, typename IdT, typename Comparator = std::less<KeyT>, uint32_t arity = 4>
 class Heap {
@@ -36,7 +38,6 @@ class Heap {
 public:
   static_assert(arity > 1);
 
-  using PosT = uint32_t;
 
   explicit Heap(std::vector<IdT>& external_positions) : comp(), heap(), positions(external_positions) {
     heap.reserve(1024);
@@ -50,7 +51,7 @@ public:
     return heap[0].key;
   }
 
-  void deleteTop() () {
+  void deleteTop() {
     assert(!empty());
     positions[heap[0].id] = invalid_position;
     positions[heap.back().id] = 0;
@@ -131,7 +132,6 @@ public:
     return heap[pos].id;
   }
 
-  static constexpr PosT invalid_position = std::numeric_limits<IdT>::max();
 
 protected:
 
@@ -231,14 +231,14 @@ protected:
 // used to initialize handles in ExclusiveHandleHeap before handing a ref to Heap
 template<typename IdT>
 struct HandlesPBase {
-  explicit HandlesPBase(size_t n) : handles(n, Heap::invalid_position) { }
+  explicit HandlesPBase(size_t n) : handles(n, invalid_position) { }
   std::vector<IdT> handles;
 };
 
 template<typename KeyT, typename IdT, typename Comparator, uint32_t arity>
 class ExclusiveHandleHeap : protected HandlesPBase<IdT>, public Heap<KeyT, IdT, Comparator, arity> {
 public:
-  explicit ExclusiveHandleHeap(size_t nHandles) : HandlesPBase<IdT>(nHandles), Heap<KeyT, IdT, Comparator, arity>(handles) { }
+  explicit ExclusiveHandleHeap(size_t nHandles) : HandlesPBase<IdT>(nHandles), Heap<KeyT, IdT, Comparator, arity>(this->handles) { }
 };
 
 
