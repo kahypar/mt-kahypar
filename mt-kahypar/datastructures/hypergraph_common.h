@@ -61,6 +61,7 @@ struct Move {
 };
 
 using MoveID = uint32_t;
+using SearchID = uint32_t;
 
 
 /*!
