@@ -226,7 +226,7 @@ protected:
   Comparator comp;                // comp(heap[parent(pos)].key, heap[pos].key) returns true if the element at pos should move upward --> comp = std::less for MaxHeaps
                                   // similarly comp(heap[child(pos)].key, heap[pos].key) returns false if the element at pos should move downward
   vec<HeapElement> heap;
-  vec<PosT>& positions;    // this is ref because BlockQueues need to share handles
+  vec<PosT>& positions;           // this is ref because BlockQueues need to share handles
 };
 
 

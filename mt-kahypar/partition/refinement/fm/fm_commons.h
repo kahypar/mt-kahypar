@@ -80,12 +80,8 @@ struct NodeTracker {
     return searchOfNode[u].load(std::memory_order_acq_rel) >= lowestActiveSearchID;
   }
 
-  bool claimNode(HypernodeID u, SearchID search) {
-    SearchID old_search = searchOfNode[u].load(std::memory_order_acq_rel);
-    if (isSearchInactive(old_search)) {
-      return searchOfNode[u].compare_exchange_strong(old_search, search, std::memory_order_acq_rel);  // one shot
-    }
-    return false;
+  bool tryToClaimNode(HypernodeID u, SearchID& old_search, SearchID new_search) {
+    return searchOfNode[u].compare_exchange_strong(old_search, new_search, std::memory_order_acq_rel);  // one shot
   }
 
   void requestNewSearches(SearchID num_searches) {
