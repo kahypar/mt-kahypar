@@ -43,7 +43,7 @@ public:
           sharedData(numNodes, numHyperedges, context.partition.k),
           refinementNodes(numNodes),
           globalRollBack(numNodes),
-          ets_fm(context, sharedData)
+          ets_fm(context, &sharedData.vertexPQHandles)
   { }
 
 
@@ -53,6 +53,7 @@ public:
       initialize(phg);
 
       auto task = [&](const int socket, const int socket_local_task_id, const int task_id) {
+        unused(socket_local_task_id); unused(task_id);
         HypernodeID u = std::numeric_limits<HypernodeID>::max();
         LocalizedKWayFM& fm = ets_fm.local();
         while (refinementNodes.tryPop(u, socket) /* && u not marked */ ) {
@@ -71,6 +72,15 @@ public:
 
   void initialize(PartitionedHypergraph& phg) {
     assert(refinementNodes.empty());
+
+    // TODO: another special value for search IDs instead of manual reset.
+    // if that doesn't work, reset can still be parallelized...
+    for (LocalizedKWayFM& local_fm : ets_fm) {
+      for (HypernodeID u : local_fm.deactivatedNodes) {
+        sharedData.nodeTracker.activateNode(u);
+      }
+      local_fm.deactivatedNodes.clear();
+    }
 
     sharedData.setRemainingOriginalPins(phg);
 

@@ -27,6 +27,15 @@
 namespace mt_kahypar {
 namespace refinement {
 
+using BlockPriorityQueue = ds::ExclusiveHandleHeap< ds::MaxHeap<Gain, PartitionID> >;
+
+struct MoveTo { // TODO should we store the target block in the PQ as well, or should we perform another call to bestDestinationBlock upon extraction
+  HypernodeID node = invalidNode;
+  PartitionID toBlock = kInvalidPartition;
+};
+
+using VertexPriorityQueue = ds::MaxHeap<Gain, HypernodeID>;    // these need external handles
+
 
 struct GlobalMoveTracker {
   vec<Move> globalMoveOrder;
@@ -65,29 +74,35 @@ struct GlobalMoveTracker {
 struct NodeTracker {
   vec<std::atomic<SearchID>> searchOfNode;
 
-  SearchID lowestActiveSearchID, highestActiveSearchID;
+  static constexpr SearchID deactivatedNodeMarker = std::numeric_limits<SearchID>::max();
+  SearchID lowestActiveSearchID = 1, highestActiveSearchID = 0;
 
-  explicit NodeTracker(size_t numNodes) : searchOfNode(numNodes), lowestActiveSearchID(1), highestActiveSearchID(0) {}
+  explicit NodeTracker(size_t numNodes) : searchOfNode(numNodes) {
+    for (auto& x : searchOfNode) {
+      x.store(0, std::memory_order_relaxed);
+    }
+  }
+
+  // only the search that owns u is allowed to call this
+  void deactivateNode(HypernodeID u, SearchID search_id) {
+    assert(searchOfNode[u].load() == search_id);
+    searchOfNode[u].store(deactivatedNodeMarker, std::memory_order_acq_rel);
+  }
+
+  // should not be called when searches try to claim nodes
+  void activateNode(HypernodeID u) {
+    searchOfNode[u].store(0, std::memory_order_relaxed);
+  }
 
   bool isSearchInactive(SearchID search_id) const {
     return search_id < lowestActiveSearchID;
   }
 
-  bool isNodeInMySearch(HypernodeID u, SearchID search) const {
-    return searchOfNode[u].load(std::memory_order_acq_rel) == search;
-  }
-
-  bool isNodeInAnActiveSearch(HypernodeID u) const {
-    return searchOfNode[u].load(std::memory_order_acq_rel) >= lowestActiveSearchID;
-  }
-
-  bool tryToClaimNode(HypernodeID u, SearchID& old_search, SearchID new_search) {
-    return searchOfNode[u].compare_exchange_strong(old_search, new_search, std::memory_order_acq_rel);  // one shot
-  }
-
   void requestNewSearches(SearchID max_num_searches) {
     if (highestActiveSearchID >= std::numeric_limits<SearchID>::max() - max_num_searches - 20) {
-      for (auto &x : searchOfNode) x.store(0, std::memory_order_relaxed);
+      for (auto& x : searchOfNode) {
+        x.store(0, std::memory_order_relaxed);
+      }
       highestActiveSearchID = 0;
     }
     lowestActiveSearchID = highestActiveSearchID + 1;

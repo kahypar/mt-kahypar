@@ -63,7 +63,7 @@ public:
     siftDown(0);
   }
 
-  void insert(const KeyT k, const IdT e) {
+  void insert(const IdT e, const KeyT k) {
     assert(!contains(e));
     const PosT pos = size();
     positions[e] = pos;
@@ -95,13 +95,21 @@ public:
     siftUp(pos);
   }
 
-  // assumes semantics of comp = std::less, i.e. we have a MaxHeap and increaseKey moves the element up the tree
+  // assumes semantics of comp = std::less, i.e. we have a MaxHeap and decreaseKey moves the element up the tree
   void decreaseKey(const IdT e, const KeyT newKey) {
     assert(contains(e));
     const PosT pos = positions[e];
     assert(comp(newKey, heap[pos].key));
     heap[pos].key = newKey;
     siftDown(pos);
+  }
+
+  void improveKey(const IdT e, const KeyT newKey) {
+    decreaseKey(e, newKey);
+  }
+
+  void worsenKey(const IdT e, const KeyT newKey) {
+    increaseKey(e, newKey);
   }
 
   void adjustKey(const IdT e, const KeyT newKey) {
@@ -127,8 +135,12 @@ public:
     return size() == 0;
   }
 
-  KeyT key(const PosT pos) const {
+  KeyT keyAtPos(const PosT pos) const {
     return heap[pos].key;
+  }
+
+  KeyT keyOf(const IdT id) const {
+    return heap[positions[id]].key;
   }
 
   IdT id(const PosT pos) const {
@@ -163,7 +175,7 @@ protected:
     }
     positions[id] = pos;
     heap[pos].id = id;
-    heap[pos].key = key;
+    heap[pos].key = k;
   }
 
   void siftDown(PosT pos) {
@@ -214,7 +226,7 @@ protected:
 
     if (pos != initial_pos) {
       positions[id] = pos;
-      heap[pos].key = key;
+      heap[pos].key = k;
       heap[pos].id = id;
     }
   }
@@ -244,9 +256,7 @@ public:
 };
 
 template<typename KeyT, typename IdT>
-using MaxHeap = Heap<KeyT, IdT, std::less<KeyT>, 4>
+using MaxHeap = Heap<KeyT, IdT, std::less<KeyT>, 4>;
 
-using BlockPriorityQueue = ExclusiveHandleHeap< MaxHeap<Gain, PartitionID> >;
-using VertexPriorityQueue = MaxHeap<Gain, HypernodeID>;    // these need external handles
 }
 }

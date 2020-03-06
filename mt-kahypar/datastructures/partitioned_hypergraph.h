@@ -557,16 +557,20 @@ class PartitionedHypergraph {
            - _affinity[u * _k + p].w0pins.load(std::memory_order_relaxed);
   }
 
+  HyperedgeWeight co_affinity(HypernodeID u, PartitionID p) const {
+    return _affinity[u * _k + p].w1pins.load(std::memory_order_relaxed);
+  }
+
   HyperedgeWeight affinity(HypernodeID u, PartitionID p) const {
     return _affinity[u * _k + p].w0pins.load(std::memory_order_relaxed);
   }
 
   std::pair<PartitionID, HyperedgeWeight> bestDestinationBlock(HypernodeID u) const {
-    HyperedgeWeight best_affinity = 0;
+    HyperedgeWeight best_affinity = std::numeric_limits<HyperedgeWeight>::max();
     PartitionID best_index = 0;
     for (PartitionID p = u * _k; p < u * (_k + 1); p) {
       const HyperedgeWeight aff = _affinity[p].w0pins.load(std::memory_order_relaxed);
-      if (aff > best_affinity) {
+      if (aff < best_affinity) {
         best_affinity = aff;
         best_index = p;
       }
