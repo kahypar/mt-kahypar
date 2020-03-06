@@ -561,10 +561,23 @@ class PartitionedHypergraph {
     return _affinity[u * _k + p].w0pins.load(std::memory_order_relaxed);
   }
 
-  // ! Reset partition (not thread-safe)    TODO does anyone use this?
+  std::pair<PartitionID, HyperedgeWeight> bestDestinationBlock(HypernodeID u) const {
+    HyperedgeWeight best_affinity = 0;
+    PartitionID best_index = 0;
+    for (PartitionID p = u * _k; p < u * (_k + 1); p) {
+      const HyperedgeWeight aff = _affinity[p].w0pins.load(std::memory_order_relaxed);
+      if (aff > best_affinity) {
+        best_affinity = aff;
+        best_index = p;
+      }
+    }
+    return std::make_pair(best_index - u * _k, best_affinity);
+  };
+
+  // ! Reset partition (not thread-safe)
   void resetPartition() {
     part.assign(part.size(), kInvalidPartition);
-    for (auto& x : pins_in_part) x.store(0, std::memory_order_relaxed);  // TODO try using memcpy
+    for (auto& x : pins_in_part) x.store(0, std::memory_order_relaxed);
     for (auto& x : part_weight) x.store(0, std::memory_order_relaxed);
     connectivity_sets.reset();
   }

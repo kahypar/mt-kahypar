@@ -43,7 +43,7 @@ public:
           sharedData(numNodes, numHyperedges, context.partition.k),
           refinementNodes(numNodes),
           globalRollBack(numNodes),
-          ets_fm(context)
+          ets_fm(context, sharedData)
   { }
 
 

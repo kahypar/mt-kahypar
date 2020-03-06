@@ -29,10 +29,11 @@
 #include <mt-kahypar/parallel/stl/scalable_vector.h>
 
 namespace mt_kahypar {
-namespace ds {
 
 using PosT = uint32_t;
 static constexpr PosT invalid_position = std::numeric_limits<PosT>::max();
+
+namespace ds {
 
 template<typename KeyT, typename IdT, typename Comparator = std::less<KeyT>, uint32_t arity = 4>
 class Heap {
@@ -236,19 +237,16 @@ struct HandlesPBase {
   vec<PosT> handles;
 };
 
-template<typename KeyT, typename IdT, typename Comparator, uint32_t arity>
-class ExclusiveHandleHeap : protected HandlesPBase, public Heap<KeyT, IdT, Comparator, arity> {
+template<typename HeapT>
+class ExclusiveHandleHeap : protected HandlesPBase, public HeapT {
 public:
-  explicit ExclusiveHandleHeap(size_t nHandles) : HandlesPBase(nHandles), Heap<KeyT, IdT, Comparator, arity>(this->handles) { }
+  explicit ExclusiveHandleHeap(size_t nHandles) : HandlesPBase(nHandles), HeapT(this->handles) { }
 };
 
+template<typename KeyT, typename IdT>
+using MaxHeap = Heap<KeyT, IdT, std::less<KeyT>, 4>
 
-// using BlockQueue = ExclusiveHandleHeap<PartitionID, GainT, std::less<GainT>>;
-// using VertexQueue = MaxHeap<HypernodeID, GainT>;   // these need external handles
-
-// we will probably not use these. and instead just do a scan over k entries. should be fast enough
-// using DQueue = MaxHeap<PartitionID, HyperedgeWeight>;
-
-
+using BlockPriorityQueue = ExclusiveHandleHeap< MaxHeap<Gain, PartitionID> >;
+using VertexPriorityQueue = MaxHeap<Gain, HypernodeID>;    // these need external handles
 }
 }

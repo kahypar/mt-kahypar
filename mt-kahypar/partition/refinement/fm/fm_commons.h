@@ -22,6 +22,7 @@
 #pragma once
 
 #include <mt-kahypar/definitions.h>
+#include <mt-kahypar/datastructures/priority_queue.h>
 
 namespace mt_kahypar {
 namespace refinement {
@@ -101,6 +102,8 @@ struct FMSharedData {
   // ! For each hyperedge and each block, the ID of the first move to place a pin in that block / the last move to remove a pin from that block
   vec<std::atomic<MoveID>> first_move_in, last_move_out;
 
+  vec<PosT> vertexPQHandles;
+
   PartitionID numParts;
 
   GlobalMoveTracker moveTracker;
@@ -111,9 +114,18 @@ struct FMSharedData {
           remaining_original_pins(numHyperedges * numParts),
           first_move_in(numHyperedges * numParts),
           last_move_out(numHyperedges * numParts),
+          vertexPQHandles(numNodes, invalid_position),
           numParts(numParts),
           moveTracker(numNodes),
           nodeTracker(numNodes) {
+
+  }
+
+  ~FMSharedData() {
+    tbb::parallel_invoke(
+            [&]() { parallel::parallel_free(remaining_original_pins, first_move_in, last_move_out); },
+            [&]() { parallel::parallel_free(vertexPQHandles, moveTracker.globalMoveOrder); }
+    );
 
   }
 
@@ -129,9 +141,11 @@ struct FMSharedData {
     return remaining_original_pins[he * numParts + block].load(std::memory_order_relaxed);
   }
 
-  void resetStoredMoveIDs() {
-    for (auto &x : last_move_out) x.store(0, std::memory_order_relaxed);    // should be called very rarely
-    for (auto &x : first_move_in) x.store(0, std::memory_order_relaxed);
+  void resetStoredMoveIDs() {   // should be called very rarely
+    for (auto &x : last_move_out)
+      x.store(0, std::memory_order_relaxed);
+    for (auto &x : first_move_in)
+      x.store(0, std::memory_order_relaxed);
   }
 
   void setRemainingOriginalPins(PartitionedHypergraph &phg) {
