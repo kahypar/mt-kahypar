@@ -1,7 +1,7 @@
 /*******************************************************************************
  * This file is part of KaHyPar.
  *
- * Copyright (C) 2019 Lars Gottesbüren <lars.gottesbueren@kit.edu>
+ * Copyright (communities) 2019 Lars Gottesbüren <lars.gottesbueren@kit.edu>
  *
  * KaHyPar is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -32,55 +32,43 @@ class ParallelModularityLouvain {
  private:
   static constexpr bool debug = false;
 
-  static ds::Clustering localMovingContractRecurse(ds::AdjListGraph& GFine, PLM& mlv, size_t numTasks) {
-    ds::Clustering C(GFine.numNodes());
+  static ds::Clustering localMovingContractRecurse(ds::Graph& fine_graph,
+                                                   PLM& mlv,
+                                                   const size_t num_tasks) {
+    ds::Clustering communities(fine_graph.numNodes());
 
     DBG << "Start Local Moving";
     utils::Timer::instance().start_timer("local_moving", "Local Moving");
-    bool clustering_changed = mlv.localMoving(GFine, C);
+    bool communities_changed = mlv.localMoving(fine_graph, communities);
     utils::Timer::instance().stop_timer("local_moving");
 
-/*
-
-        ERROR("Exiting so we only test local moving");
-*/
-
-    if (clustering_changed) {
-      // contract
-      DBG << "Contract";
-
+    if (communities_changed) {
       utils::Timer::instance().start_timer("contraction", "Contraction");
-      ds::AdjListGraph GCoarse = ParallelClusteringContractionAdjList::contract(GFine, C, numTasks);
+      // Contract Communities
+      ds::Graph coarse_graph = ParallelContraction::contract(fine_graph, communities, num_tasks);
       utils::Timer::instance().stop_timer("contraction");
 
-#ifdef KAHYPAR_ENABLE_HEAVY_PREPROCESSING_ASSERTIONS
-      ds::Clustering coarseGraphSingletons(GCoarse.numNodes());
-      coarseGraphSingletons.assignSingleton();
-      // assert(PLM::doubleMod(GFine, PLM::intraClusterWeights_And_SumOfSquaredClusterVolumes(GFine, C)) == PLM::integerModularityFromScratch(GCoarse, coarseGraphSingletons));
-#endif
-
-      ClusteringStatistics::printLocalMovingStats(GFine, C);
-
-      // recurse
-      ds::Clustering coarseC = localMovingContractRecurse(GCoarse, mlv, numTasks);
+      // Recurse on contracted graph
+      ds::Clustering coarse_communities =
+        localMovingContractRecurse(coarse_graph, mlv, num_tasks);
 
       utils::Timer::instance().start_timer("prolong", "Prolong");
-      // prolong clustering
-      for (NodeID u : GFine.nodes()) // parallelize
-        C[u] = coarseC[C[u]];
+      // Prolong Clustering
+      for (NodeID u : fine_graph.nodes()) {
+        communities[u] = coarse_communities[communities[u]];
+      }
       utils::Timer::instance().stop_timer("prolong");
-      // assert(PLM::integerModularityFromScratch(GFine, C) == PLM::integerModularityFromScratch(GCoarse, coarseC));
     }
 
-    return C;
+    return communities;
   }
 
  public:
-  static ds::Clustering run(ds::AdjListGraph& graph, const Context& context) {
+  static ds::Clustering run(ds::Graph& graph, const Context& context) {
     PLM mlv(context, graph.numNodes());
-    ds::Clustering C = localMovingContractRecurse(graph, mlv, context.shared_memory.num_threads);
-    ClusteringStatistics::printLocalMovingStats(graph, C);
-    return C;
+    ds::Clustering communities = localMovingContractRecurse(
+      graph, mlv, context.shared_memory.num_threads);
+    return communities;
   }
 };
 }

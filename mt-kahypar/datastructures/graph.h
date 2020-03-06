@@ -23,9 +23,10 @@
 #include <functional>
 
 #include <boost/range/irange.hpp>
+
 #include <tbb/parallel_for.h>
 #include <tbb/parallel_invoke.h>
-#include <tbb/parallel_reduce.h>
+#include <tbb/enumerable_thread_specific.h>
 
 #include "mt-kahypar/datastructures/clustering.h"
 #include "mt-kahypar/definitions.h"
@@ -34,7 +35,8 @@
 
 namespace mt_kahypar {
 namespace ds {
-class AdjListGraph {
+class Graph {
+
  public:
   using ArcWeight = double;
 
@@ -50,205 +52,148 @@ class AdjListGraph {
 
   static constexpr size_t coarseGrainsize = 20000;
 
-  explicit AdjListGraph(const size_t numNodes) :
-    _numArcs(0),
-    _totalVolume(0.0),
-    _adj(numNodes),
-    _volume(numNodes, 0) {  /* , selfLoopWeight(numNodes, 0) */
-  }
-
-  void addArc(const NodeID u, const NodeID v, const ArcWeight weight) {
-    assert(u != v);
-    _adj[u].emplace_back(v, weight);
-  }
-
-  void addHalfEdge(const NodeID u, const NodeID v, const ArcWeight weight) {
-    addArc(u, v, weight);
-  }
-
-  void addEdge(const NodeID u, const NodeID v, const ArcWeight weight) {
-    addArc(u, v, weight);
-    addArc(v, u, weight);
-  }
-
-  void addSelfLoop(const NodeID u, const ArcWeight weight) {
-    _volume[u] += weight;        // since the contraction will also
-  }
-
-  // ArcWeight getSelfLoopWeight(const NodeID u) const { return selfLoopWeight[u]; }
-
-  const AdjList& arcsOf(const NodeID u) const {
-    return _adj[u];
-  }
-
-  AdjList& arcsOf(const NodeID u) {
-    return _adj[u];
-  }
-
-  size_t degree(const NodeID u) const {
-    return _adj[u].size();
-  }
-
-  ArcWeight nodeVolume(const NodeID u) const {
-    return _volume[u];
-  }
-
-  ArcWeight computeNodeVolume(const NodeID u) {
-    for (Arc& arc : arcsOf(u))
-      _volume[u] += arc.weight;
-    return _volume[u];
-  }
-
-  void setNodeVolume(const NodeID u, const ArcWeight vol) {
-    _volume[u] = vol;
-  }
-
-  ArcWeight totalVolume() const {
-    return _totalVolume;
-  }
-
-  void setTotalVolume(const ArcWeight totalVolume) {
-    _totalVolume = totalVolume;
+  explicit Graph(const size_t num_nodes) :
+    _num_arcs(0),
+    _total_volume(0.0),
+    _adj_list(),
+    _edge_weights() {
+    tbb::parallel_invoke([&] {
+      _adj_list.resize(num_nodes);
+    }, [&] {
+      _edge_weights.assign(num_nodes, 0);
+    });
   }
 
   size_t numNodes() const {
-    return _adj.size();
+    return _adj_list.size();
   }
 
   void setNumNodes(const size_t n) {
-    _adj.resize(n);
-    _volume.resize(n);
+    _adj_list.resize(n);
+    _edge_weights.resize(n);
+  }
+
+  size_t numArcs() const {
+    return _num_arcs;
+  }
+
+  void setNumArcs(const size_t numArcs) {
+    _num_arcs = numArcs;
   }
 
   auto nodes() const {
     return boost::irange<NodeID>(0, static_cast<NodeID>(numNodes()));
   }
 
-  size_t numArcs() const {
-    return _numArcs;
+  void addDirectedEdge(const NodeID u, const NodeID v, const ArcWeight weight) {
+    addArc(u, v, weight);
   }
 
-  void setNumArcs(const size_t numArcs) {
-    _numArcs = numArcs;
+  void addUndirectedEdge(const NodeID u, const NodeID v, const ArcWeight weight) {
+    addArc(u, v, weight);
+    addArc(v, u, weight);
+  }
+
+  void addSelfLoop(const NodeID u, const ArcWeight weight) {
+    _edge_weights[u] += weight;
+  }
+
+  const AdjList& arcsOf(const NodeID u) const {
+    return _adj_list[u];
+  }
+
+  AdjList& arcsOf(const NodeID u) {
+    return _adj_list[u];
+  }
+
+  size_t degree(const NodeID u) const {
+    return _adj_list[u].size();
+  }
+
+  ArcWeight nodeVolume(const NodeID u) const {
+    return _edge_weights[u];
+  }
+
+  void setNodeVolume(const NodeID u, const ArcWeight vol) {
+    _edge_weights[u] = vol;
+  }
+
+  ArcWeight totalVolume() const {
+    return _total_volume;
+  }
+
+  void setTotalVolume(const ArcWeight totalVolume) {
+    _total_volume = totalVolume;
   }
 
   auto nodesParallelCoarseChunking() const {
     return tbb::blocked_range<NodeID>(0, static_cast<NodeID>(numNodes()), coarseGrainsize);
   }
 
-  void finalize(bool parallel = false) {
-    if (parallel) {
-      // Do in one pass
-      LOG << "Finalizing AdjListGraph in parallel is currently deactivated. Abort";
-      std::abort();
-
-#if 0
-      using PassType = std::pair<ArcWeight, size_t>;
-      std::tie(_totalVolume, _numArcs) = tbb::parallel_reduce(
-        /* indices */
-        nodes(),
-        // nodesParallelCoarseChunking(),
-        /* initial */
-        std::make_pair(ArcWeight(0.0), size_t(0)),
-        /* accumulate */
-        [&](const tbb::blocked_range<NodeID>& r, PassType current) -> PassType {
-            for (NodeID u = r.begin(), last = r.end(); u < last; ++u) {             // why does that not boil down to a range-based for-loop???
-              current.first += computeNodeVolume(u);
-              current.second += degree(u);
-            }
-            return current;
-          },
-        /* join */
-        [](const PassType& l, const PassType& r) -> PassType {
-            return std::make_pair(l.first + r.first, l.second + r.second);
-          }
-        );
-#endif
-    } else {
-      _totalVolume = 0.0;
-      _numArcs = 0;
-      for (const NodeID u : nodes()) {
-        _numArcs += degree(u);
-        _totalVolume += computeNodeVolume(u);
-      }
-    }
+  void finalize() {
+    _total_volume = 0.0;
+    _num_arcs = 0;
+    tbb::enumerable_thread_specific<ArcWeight> local_total_volume(0.0);
+    tbb::enumerable_thread_specific<size_t> local_num_arcs(0);
+    tbb::parallel_for(0U, static_cast<NodeID>(numNodes()), [&](const NodeID u) {
+      local_num_arcs.local() += degree(u);
+      local_total_volume.local() += computeNodeVolume(u);
+    });
+    _total_volume = local_total_volume.combine(std::plus<ArcWeight>());
+    _num_arcs = local_num_arcs.combine(std::plus<size_t>());
   }
 
  private:
-  size_t _numArcs;
-  ArcWeight _totalVolume;
-  parallel::scalable_vector<AdjList> _adj;
-  parallel::scalable_vector<ArcWeight> _volume;
-  // std::vector<ArcWeight> selfLoopWeight;
+  void addArc(const NodeID u, const NodeID v, const ArcWeight weight) {
+    assert(u != v);
+    _adj_list[u].emplace_back(v, weight);
+  }
+
+  ArcWeight computeNodeVolume(const NodeID u) {
+    for (Arc& arc : arcsOf(u))
+      _edge_weights[u] += arc.weight;
+    return _edge_weights[u];
+  }
+
+  size_t _num_arcs;
+  ArcWeight _total_volume;
+  parallel::scalable_vector<AdjList> _adj_list;
+  parallel::scalable_vector<ArcWeight> _edge_weights;
 };
 
-// Ben Style template everything and do ID mapping on-the-fly in case copying stuff becomes a bottleneck
 class AdjListStarExpansion {
  private:
-  using ArcWeight = AdjListGraph::ArcWeight;
+  using ArcWeight = Graph::ArcWeight;
 
   AdjListStarExpansion() { }
 
  public:
   template <typename HyperGraph>
-  static AdjListGraph constructGraph(const HyperGraph& hg, const Context& context, const bool parallel = false) {
+  static Graph constructGraph(const HyperGraph& hg,
+                              const Context& context) {
     utils::Timer::instance().start_timer("construct_graph", "Construct Graph");
-    AdjListGraph graph(hg.initialNumNodes() + hg.initialNumEdges());
-    bool isGraph = true;
-    for (const HyperedgeID he : hg.edges()) {
-      if (hg.edgeSize(he) > 2) {
-        isGraph = false;
-        break;
-      }
-    }
+    Graph graph(hg.initialNumNodes() + hg.initialNumEdges());
 
-    if (isGraph) {
-      graph.setNumNodes(hg.initialNumNodes());
-      if ( parallel ) {
-        tbb::parallel_for(NodeID(0), NodeID(hg.initialNumNodes()), [&](const HypernodeID original_id) {
-          const HypernodeID hn = hg.globalNodeID(original_id);
-          const NodeID graph_hn = mapHypernode(hg, hn);
-          for (const HyperedgeID& he : hg.incidentEdges(hn)) {
-            for ( const HypernodeID& pin : hg.pins(he) ) {
-              if ( hn != pin ) {
-                graph.addHalfEdge(graph_hn, mapHypernode(hg, pin), hg.edgeWeight(he));
-              }
-            }
-          }
-        });
-      } else {
-        for (const HypernodeID& u : hg.nodes()) {
-          for (const HyperedgeID& e : hg.incidentEdges(u)) {
-            for (const HypernodeID& p : hg.pins(e)) {
-              if (p != u)
-                graph.addHalfEdge(mapHypernode(hg, u), mapHypernode(hg, p), hg.edgeWeight(e));
-            }
-          }
-        }
-      }
-      graph.finalize();
-    } else {
-      switch (context.preprocessing.community_detection.edge_weight_function) {
-        case LouvainEdgeWeight::degree:
-          fill(graph, hg, [&](const HyperGraph& hg, const HyperedgeID he, const HypernodeID hn) -> AdjListGraph::ArcWeight {
-              return static_cast<ArcWeight>(hg.edgeWeight(he)) * static_cast<ArcWeight>(hg.nodeDegree(hn)) / static_cast<ArcWeight>(hg.edgeSize(he));
-            }, parallel);
-          break;
-        case LouvainEdgeWeight::non_uniform:
-          fill(graph, hg, [&](const HyperGraph& hg, const HyperedgeID he, const HypernodeID) -> AdjListGraph::ArcWeight {
-              return static_cast<ArcWeight>(hg.edgeWeight(he)) / static_cast<ArcWeight>(hg.edgeSize(he));
-            }, parallel);
-          break;
-        case LouvainEdgeWeight::uniform:
-          fill(graph, hg, [&](const HyperGraph& hg, const HyperedgeID he, const HypernodeID) -> AdjListGraph::ArcWeight {
-              return static_cast<ArcWeight>(hg.edgeWeight(he));
-            }, parallel);
-          break;
-        case LouvainEdgeWeight::hybrid:
-          ERROR("Only uniform/non-uniform/degree edge weight is allowed at graph construction.");
-        default:
-          ERROR("Unknown edge weight for bipartite graph.");
-      }
+    switch (context.preprocessing.community_detection.edge_weight_function) {
+      case LouvainEdgeWeight::degree:
+        fill(graph, hg, [&](const HyperGraph& hg, const HyperedgeID he, const HypernodeID hn) -> Graph::ArcWeight {
+            return static_cast<ArcWeight>(hg.edgeWeight(he)) * static_cast<ArcWeight>(hg.nodeDegree(hn)) / static_cast<ArcWeight>(hg.edgeSize(he));
+          });
+        break;
+      case LouvainEdgeWeight::non_uniform:
+        fill(graph, hg, [&](const HyperGraph& hg, const HyperedgeID he, const HypernodeID) -> Graph::ArcWeight {
+            return static_cast<ArcWeight>(hg.edgeWeight(he)) / static_cast<ArcWeight>(hg.edgeSize(he));
+          });
+        break;
+      case LouvainEdgeWeight::uniform:
+        fill(graph, hg, [&](const HyperGraph& hg, const HyperedgeID he, const HypernodeID) -> Graph::ArcWeight {
+            return static_cast<ArcWeight>(hg.edgeWeight(he));
+          });
+        break;
+      case LouvainEdgeWeight::hybrid:
+        ERROR("Only uniform/non-uniform/degree edge weight is allowed at graph construction.");
+      default:
+        ERROR("Unknown edge weight for bipartite graph.");
     }
     utils::Timer::instance().stop_timer("construct_graph");
 
@@ -285,46 +230,33 @@ class AdjListStarExpansion {
   }
 
   template <class HyperGraph, class EdgeWeightFunction>
-  static void fill(AdjListGraph& graph,
+  static void fill(Graph& graph,
                    const HyperGraph& hg,
-                   EdgeWeightFunction ewf,
-                   bool parallel = false) {
-    if (parallel) {
-      tbb::parallel_invoke(
-        [&]() {
-            // WARNING! This function does not skip deactivated nodes because KaHyPar exposes pairs of iterators, not a range type that implements .empty() as required by parallel_for
-            tbb::parallel_for(NodeID(0), NodeID(hg.initialNumNodes()), [&](const HypernodeID original_id) {
-              const HypernodeID hn = hg.globalNodeID(original_id);
-              const NodeID graph_hn = mapHypernode(hg, hn);
-              for (const HyperedgeID& he : hg.incidentEdges(hn))
-                graph.addHalfEdge(graph_hn, mapHyperedge(hg, he), ewf(hg, he, hn));
-            });
-          },
+                   EdgeWeightFunction ewf) {
+    tbb::parallel_invoke(
+      [&]() {
+          // WARNING! This function does not skip deactivated nodes because KaHyPar exposes pairs of iterators, not a range type that implements .empty() as required by parallel_for
+          tbb::parallel_for(NodeID(0), NodeID(hg.initialNumNodes()), [&](const HypernodeID original_id) {
+            const HypernodeID hn = hg.globalNodeID(original_id);
+            const NodeID graph_hn = mapHypernode(hg, hn);
+            for (const HyperedgeID& he : hg.incidentEdges(hn))
+              graph.addDirectedEdge(graph_hn, mapHyperedge(hg, he), ewf(hg, he, hn));
+          });
+        },
 
-        [&]() {
-            tbb::parallel_for(HyperedgeID(0), HyperedgeID(hg.initialNumEdges()), [&](const HyperedgeID original_id) {
-              const HyperedgeID he = hg.globalEdgeID(original_id);
-              const NodeID graph_he = mapHyperedge(hg, he);
-              for (const HypernodeID& hn : hg.pins(he))
-                graph.addHalfEdge(graph_he, mapHypernode(hg, hn), ewf(hg, he, hn));
-            });
-          }
-        );
-    } else {
-      for (const HypernodeID& hn : hg.nodes()) {
-        for (const HyperedgeID& he : hg.incidentEdges(hn)) {
-          graph.addEdge(mapHypernode(hg, hn), mapHyperedge(hg, he), ewf(hg, he, hn));
+      [&]() {
+          tbb::parallel_for(HyperedgeID(0), HyperedgeID(hg.initialNumEdges()), [&](const HyperedgeID original_id) {
+            const HyperedgeID he = hg.globalEdgeID(original_id);
+            const NodeID graph_he = mapHyperedge(hg, he);
+            for (const HypernodeID& hn : hg.pins(he))
+              graph.addDirectedEdge(graph_he, mapHypernode(hg, hn), ewf(hg, he, hn));
+          });
         }
-      }
-    }
+      );
 
-    graph.finalize(false);
+    graph.finalize();
   }
 };
 
-class CSRGraph {
-  // TODO. refactor commons of AdjListGraph into GraphBase
-  // since contraction is super fast, we might even screw the parallelization there if the benefit to local moving justifies it
-};
 }  // namespace ds
 }  // namespace mt_kahypar

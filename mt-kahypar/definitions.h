@@ -39,7 +39,7 @@
 
 #include "tests/parallel/topology_mock.h"
 
-#define USE_HARDWARE_MOCK false
+#define USE_HARDWARE_MOCK true
 #define TRACK_BORDER_VERTICES true
 
 namespace mt_kahypar {

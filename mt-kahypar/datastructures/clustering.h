@@ -45,20 +45,18 @@ class Clustering : public std::vector<PartitionID> {
     return operator[] (x);
   }
 
-  void assignSingleton(bool parallel = false) {
-    if (parallel) {
-      tbb::parallel_for(PartitionID(0), static_cast<PartitionID>(size()), [&](PartitionID i) {
-            (*this)[i] = i;
-          });
-    } else {
-      std::iota(begin(), end(), 0);
-    }
+  void assignSingleton() {
+    tbb::parallel_for(PartitionID(0), static_cast<PartitionID>(size()), [&](PartitionID i) {
+          (*this)[i] = i;
+        });
   }
 
   size_t compactify(PartitionID upperIDBound = -1, size_t numTasks = 1) {
     if (upperIDBound < 0)
       upperIDBound = static_cast<PartitionID>(size()) - 1;
-    const PartitionID res = numTasks > 1 ? parallelCompactify(upperIDBound, numTasks) : sequentialCompactify(upperIDBound);
+    const PartitionID res = numTasks > 1 ?
+      parallelCompactify(upperIDBound, numTasks) :
+      sequentialCompactify(upperIDBound);
     return static_cast<size_t>(res);
   }
 
