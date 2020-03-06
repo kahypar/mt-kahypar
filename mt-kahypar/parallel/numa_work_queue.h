@@ -36,7 +36,7 @@ public:
 
   void push_back(const T& el) {
     const size_t old_size = size.fetch_add(1, std::memory_order_acq_rel);
-    assert(old_size < vec.size());
+    assert(old_size < elements.size());
     elements[old_size] = el;
   }
 
@@ -49,7 +49,7 @@ public:
     return false;
   }
 
-  bool empty() {
+  bool empty() const {
     return unsafe_size() == 0;
   }
 
@@ -71,14 +71,14 @@ public:
   }
 
 private:
-  std::atomic<size_t> size;
+  CAtomic<size_t> size;
   vec<T> elements;
 };
 
 template<typename Work>
 class NumaWorkQueue {
 public:
-  explicit NumaWorkQueue(size_t numSockets, size_t maxNumElements) : queues(numSockets, ConcurrentDataContainer(maxNumElements)) { }
+  explicit NumaWorkQueue(size_t numSockets, size_t maxNumElements) : queues(numSockets, ConcurrentDataContainer<Work>(maxNumElements)) { }
   explicit NumaWorkQueue(size_t maxNumElements) : NumaWorkQueue(static_cast<size_t>(TBBNumaArena::instance().num_used_numa_nodes()), maxNumElements) { }
 
   bool empty() const {
