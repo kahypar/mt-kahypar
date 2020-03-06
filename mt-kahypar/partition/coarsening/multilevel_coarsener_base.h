@@ -86,6 +86,16 @@ class MultilevelCoarsenerBase {
       return _mapping[_communities[original_id]];
     }
 
+    void freeInternalData() {
+      tbb::parallel_invoke([&] {
+        _contracted_hypergraph.freeInternalData();
+      }, [&] {
+        _contracted_partitioned_hypergraph.freeInternalData();
+      }, [&] {
+        parallel::parallel_free(_communities, _mapping);
+      });
+    }
+
    private:
     // ! Hypergraph on the next finer level
     PartitionedHyperGraph* _representative_hypergraph;
@@ -95,10 +105,10 @@ class MultilevelCoarsenerBase {
     PartitionedHyperGraph _contracted_partitioned_hypergraph;
     // ! Defines the communities that are contracted
     // ! in the contracted hypergraph
-    const parallel::scalable_vector<HypernodeID> _communities;
+    parallel::scalable_vector<HypernodeID> _communities;
     // ! Mapping from community to original vertex id
     // ! in the contracted hypergraph
-    const parallel::scalable_vector<HypernodeID> _mapping;
+    parallel::scalable_vector<HypernodeID> _mapping;
   };
 
  public:
@@ -124,7 +134,11 @@ class MultilevelCoarsenerBase {
   MultilevelCoarsenerBase & operator= (const MultilevelCoarsenerBase &) = delete;
   MultilevelCoarsenerBase & operator= (MultilevelCoarsenerBase &&) = delete;
 
-  virtual ~MultilevelCoarsenerBase() throw () { }
+  virtual ~MultilevelCoarsenerBase() throw () {
+    tbb::parallel_for(0UL, _hierarchies.size(), [&](const size_t i) {
+      _hierarchies[i].freeInternalData();
+    }, tbb::static_partitioner());
+  }
 
  protected:
 

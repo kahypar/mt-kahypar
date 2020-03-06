@@ -25,6 +25,7 @@
 #include "tbb/parallel_for.h"
 #include "tbb/parallel_invoke.h"
 #include "tbb/scalable_allocator.h"
+#include "tbb/enumerable_thread_specific.h"
 
 #include "mt-kahypar/macros.h"
 
@@ -112,6 +113,35 @@ MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE static void parallel_free(scalable_vector<T1>
   }, [&] {
     free(vec5);
   });
+}
+
+namespace {
+  template<typename T>
+  using ThreadLocal = tbb::enumerable_thread_specific<T>;
+
+  template<typename T, typename F>
+  struct ThreadLocalFree {
+    using RangeType = typename ThreadLocal<T>::range_type;
+    using Iterator = typename ThreadLocal<T>::iterator;
+
+    explicit ThreadLocalFree(F&& free_func) :
+      _free_func(free_func) { }
+
+    void operator()(RangeType& range) const {
+      for ( Iterator it = range.begin(); it < range.end(); ++it ) {
+        _free_func(*it);
+      }
+    }
+
+    F _free_func;
+  };
+} // namespace
+
+template<typename T, typename F>
+static void parallel_free_thread_local_internal_data(ThreadLocal<T>& local,
+                                                     F&& free_func) {
+  ThreadLocalFree<T,F> thread_local_free(std::move(free_func));
+  tbb::parallel_for(local.range(), thread_local_free);
 }
 
 }  // namespace parallel

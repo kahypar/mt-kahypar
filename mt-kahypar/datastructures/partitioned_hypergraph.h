@@ -178,6 +178,10 @@ class PartitionedHypergraph {
     return *this;
   }
 
+  ~PartitionedHypergraph() {
+    freeInternalData();
+  }
+
   // ####################### General Hypergraph Stats #######################
 
   // ! Returns the underlying hypergraph
@@ -1041,6 +1045,18 @@ class PartitionedHypergraph {
     }
 
     _is_init_num_cut_hyperedges = false;
+  }
+
+  void freeInternalData() {
+    if ( _k > 0 ) {
+      tbb::parallel_invoke([&] {
+        parallel::parallel_free(_vertex_part_info,
+          _pins_in_part, _pin_count_update_ownership);
+      }, [&] {
+        _connectivity_sets.freeInternalData();
+      });
+    }
+    _k = 0;
   }
 
   // ####################### Memory Consumption #######################

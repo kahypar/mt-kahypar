@@ -64,6 +64,14 @@ class Graph {
     });
   }
 
+  ~Graph() {
+    tbb::parallel_invoke([&] {
+      parallel::parallel_free(_adj_list);
+    }, [&] {
+      parallel::free(_edge_weights);
+    });
+  }
+
   size_t numNodes() const {
     return _adj_list.size();
   }

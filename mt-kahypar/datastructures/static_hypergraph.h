@@ -427,6 +427,10 @@ class StaticHypergraph {
     return *this;
   }
 
+  ~StaticHypergraph() {
+    freeInternalData();
+  }
+
   // ####################### General Hypergraph Stats #######################
 
   // ! Number of NUMA hypergraphs
@@ -1294,6 +1298,21 @@ class StaticHypergraph {
     hypergraph._community_support = _community_support.copy();
 
     return hypergraph;
+  }
+
+  // Free internal data in parallel
+  void freeInternalData() {
+    if ( _num_hypernodes > 0 || _num_hyperedges > 0 ) {
+      tbb::parallel_invoke([&] {
+        _community_support.freeInternalData();
+      }, [&] {
+        parallel::parallel_free(
+          _hypernodes, _incident_nets,
+          _hyperedges, _incidence_array);
+      });
+    }
+    _num_hypernodes = 0;
+    _num_hyperedges = 0;
   }
 
   void memoryConsumption(utils::MemoryTreeNode* parent) const {

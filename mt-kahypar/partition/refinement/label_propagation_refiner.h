@@ -84,6 +84,10 @@ class LabelPropagationRefinerT final : public IRefinerT<TypeTraits, track_border
   LabelPropagationRefinerT & operator= (const LabelPropagationRefinerT &) = delete;
   LabelPropagationRefinerT & operator= (LabelPropagationRefinerT &&) = delete;
 
+  ~LabelPropagationRefinerT() {
+    parallel::parallel_free(_active_nodes, _next_active, _visited_he);
+  }
+
  private:
   bool refineImpl(HyperGraph& hypergraph,
                   const parallel::scalable_vector<HypernodeID>&,

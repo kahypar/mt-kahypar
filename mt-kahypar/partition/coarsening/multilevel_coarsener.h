@@ -130,7 +130,10 @@ class MultilevelCoarsenerT : public ICoarsenerT<TypeTraits>,
   MultilevelCoarsenerT & operator= (const MultilevelCoarsenerT &) = delete;
   MultilevelCoarsenerT & operator= (MultilevelCoarsenerT &&) = delete;
 
-  ~MultilevelCoarsenerT() = default;
+  ~MultilevelCoarsenerT() {
+    parallel::parallel_free(_matching_state,
+      _cluster_weight, _matching_partner);
+  };
 
   void disableRandomization() {
     _enable_randomization = false;
