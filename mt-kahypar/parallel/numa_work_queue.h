@@ -27,18 +27,66 @@
 
 namespace mt_kahypar {
 
+// TODO better name
+template<typename T>
+class ConcurrentDataContainer {
+public:
+
+  ConcurrentDataContainer(size_t maxNumElements) : size(0), elements(maxNumElements, T()) { }
+
+  void push_back(const T& el) {
+    const size_t old_size = size.fetch_add(1, std::memory_order_acq_rel);
+    assert(old_size < vec.size());
+    elements[old_size] = el;
+  }
+
+  bool try_pop(T& dest) {
+    const size_t old_size = size.fetch_sub(1, std::memory_order_acq_rel);
+    if (old_size > 0) {
+      dest = elements[old_size - 1];
+      return true;
+    }
+    return false;
+  }
+
+  bool empty() {
+    return unsafe_size() == 0;
+  }
+
+  size_t unsafe_size() const {
+    return size.load(std::memory_order_acq_rel);
+  }
+
+  vec<T>& get_underlying_container() {
+    return elements;
+  }
+
+  void clear() {
+    size.store(0);
+  }
+
+  void shrink_to_fit() {
+    elements.resize(size);
+    elements.shrink_to_fit();
+  }
+
+private:
+  std::atomic<size_t> size;
+  vec<T> elements;
+};
+
 template<typename Work>
 class NumaWorkQueue {
 public:
-  explicit NumaWorkQueue(size_t numSockets) : queues(numSockets) { }
-  explicit NumaWorkQueue() : queues(static_cast<size_t>(TBBNumaArena::instance().num_used_numa_nodes())) { }
+  explicit NumaWorkQueue(size_t numSockets, size_t maxNumElements) : queues(numSockets, ConcurrentDataContainer(maxNumElements)) { }
+  explicit NumaWorkQueue(size_t maxNumElements) : NumaWorkQueue(static_cast<size_t>(TBBNumaArena::instance().num_used_numa_nodes()), maxNumElements) { }
 
   bool empty() const {
     return std::all_of(queues.begin(), queues.end(), [](const auto& q) { return q.empty(); });
   }
 
   void push(const Work& w, const int socket) {
-    queues[socket].push(w);
+    queues[socket].push_back(w);
   }
 
   bool tryPop(Work& dest, int preferredSocket) {
@@ -62,14 +110,23 @@ public:
     return tryPop(dest, socket);
   }
 
-  void shuffleQueues() {
-    // Implement Me
+  size_t unsafe_size() const {
+    size_t s = 0;
+    for (size_t i = 0; i < queues.size(); ++i) s += queues[i].unsafe_size();
+    return s;
+  }
 
-    // reimplement with own vectors and give up parallel insertion?
+  void shuffleQueues() {
+    tbb::parallel_for(0UL, queues.size(), [&](size_t i) {
+      std::mt19937 rng(queues[i].unsafe_size() + i);
+      auto& data = queues[i].get_underlying_container();
+      std::shuffle(data.begin(), data.end(), rng);
+    });
   }
 
 private:
-  std::vector<tbb::concurrent_queue<Work>> queues;
+  vec<ConcurrentDataContainer<Work>> queues;
+
 };
 
 }

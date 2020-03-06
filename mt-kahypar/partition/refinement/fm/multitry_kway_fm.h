@@ -41,6 +41,7 @@ public:
           context(context),
           taskGroupID(taskGroupID),
           sharedData(numNodes, numHyperedges, context.partition.k),
+          refinementNodes(numNodes),
           globalRollBack(numNodes),
           ets_fm(context)
   { }
@@ -55,7 +56,7 @@ public:
         HypernodeID u = std::numeric_limits<HypernodeID>::max();
         LocalizedKWayFM& fm = ets_fm.local();
         while (refinementNodes.tryPop(u, socket) /* && u not marked */ ) {
-          fm.findMoves(phg, u, sharedData);
+          fm.findMoves(phg, u, sharedData, ++sharedData.nodeTracker.highestActiveSearchID);
         }
       };
       TBBNumaArena::instance().run_max_concurrency_tasks_on_all_sockets(taskGroupID, task);
@@ -79,6 +80,8 @@ public:
         refinementNodes.push(u, common::get_numa_node_of_vertex(u));
       }
     });
+
+    sharedData.nodeTracker.requestNewSearches(static_cast<SearchID>(refinementNodes.unsafe_size()));
 
     // shuffle work queues if requested
     if (context.refinement.fm.shuffle) {

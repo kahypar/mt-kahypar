@@ -84,13 +84,12 @@ struct NodeTracker {
     return searchOfNode[u].compare_exchange_strong(old_search, new_search, std::memory_order_acq_rel);  // one shot
   }
 
-  void requestNewSearches(SearchID num_searches) {
-    if (highestActiveSearchID >= std::numeric_limits<SearchID>::max() - num_searches - 20) {
+  void requestNewSearches(SearchID max_num_searches) {
+    if (highestActiveSearchID >= std::numeric_limits<SearchID>::max() - max_num_searches - 20) {
       for (auto &x : searchOfNode) x.store(0, std::memory_order_relaxed);
       highestActiveSearchID = 0;
     }
     lowestActiveSearchID = highestActiveSearchID + 1;
-    highestActiveSearchID += num_searches;
   }
 };
 
