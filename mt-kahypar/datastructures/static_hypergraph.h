@@ -1046,7 +1046,7 @@ class StaticHypergraph {
       parallel::scalable_vector<parallel::IntegralAtomicWrapper<HyperedgeID>> incident_nets_pos(
         num_hypernodes, parallel::IntegralAtomicWrapper<HyperedgeID>(0));
       tbb::parallel_for(0UL, hyperedge_buckets.size(), [&](const size_t bucket) {
-        for ( ContractedHyperedge contracted_he : hyperedge_buckets[bucket] ) {
+        for ( const ContractedHyperedge& contracted_he : hyperedge_buckets[bucket] ) {
           if ( !contracted_he.is_parallel ) {
             const HyperedgeID he = num_hyperedges_prefix_sum[bucket] + contracted_he.he_idx;
             const size_t incidence_array_pos = num_pins_prefix_sum[bucket] + contracted_he.pin_idx;

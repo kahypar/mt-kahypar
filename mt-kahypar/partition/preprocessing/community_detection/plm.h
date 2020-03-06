@@ -83,7 +83,7 @@ class PLM {
           IncidentClusterWeights& incident_cluster_weights =
             _local_incident_cluster_weight.local();
           for (Arc& arc : graph.arcsOf(u)) {
-            incident_cluster_weights.add(communities[arc.head], arc.weight);
+            incident_cluster_weights[communities[arc.head]] += arc.weight;
           }
 
           PartitionID from = communities[u];
