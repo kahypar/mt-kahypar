@@ -28,11 +28,11 @@
 #include "tbb/enumerable_thread_specific.h"
 
 #include "kahypar/datastructure/fast_reset_flag_array.h"
-#include "kahypar/datastructure/sparse_map.h"
 #include "kahypar/meta/mandatory.h"
 
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/context.h"
+#include "mt-kahypar/datastructures/sparse_map.h"
 
 namespace mt_kahypar {
 template <typename TypeTraits = Mandatory,
@@ -41,7 +41,7 @@ template <typename TypeTraits = Mandatory,
           typename AcceptancePolicy = Mandatory>
 class MultilevelVertexPairRater {
   using HyperGraph = typename TypeTraits::HyperGraph;
-  using TmpRatingMap = kahypar::ds::SparseMap<HypernodeID, RatingType>;
+  using TmpRatingMap = ds::CacheEfficientSparseMap<HypernodeID, RatingType>;
   using ThreadLocalTmpRatingMap = tbb::enumerable_thread_specific<TmpRatingMap>;
 
  private:
@@ -78,7 +78,7 @@ class MultilevelVertexPairRater {
   MultilevelVertexPairRater(HyperGraph& hypergraph,
                            const Context& context) :
     _context(context),
-    _local_tmp_ratings(hypergraph.initialNumNodes()),
+    _local_tmp_ratings(hypergraph.initialNumNodes(), 0.0),
     _local_visited_representatives(hypergraph.initialNumNodes()),
     _already_matched(hypergraph.initialNumNodes()) { }
 

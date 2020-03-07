@@ -24,10 +24,9 @@
 
 #include <tbb/enumerable_thread_specific.h>
 
-#include "kahypar/datastructure/sparse_map.h"
-
 #include "mt-kahypar/datastructures/clustering.h"
 #include "mt-kahypar/datastructures/graph.h"
+#include "mt-kahypar/datastructures/sparse_map.h"
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/macros.h"
 #include "mt-kahypar/parallel/atomic_wrapper.h"
@@ -42,7 +41,7 @@ class PLM {
   using ArcWeight = ds::Graph::ArcWeight;
   using AtomicArcWeight = parallel::AtomicWrapper<ArcWeight>;
   using Arc = ds::Graph::Arc;
-  using IncidentClusterWeights = kahypar::ds::SparseMap<PartitionID, ArcWeight>;
+  using IncidentClusterWeights = ds::CacheEfficientSparseMap<PartitionID, ArcWeight>;
 
  public:
   static constexpr bool debug = false;
