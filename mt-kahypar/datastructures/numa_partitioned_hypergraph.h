@@ -103,19 +103,21 @@ class NumaPartitionedHypergraph {
     _hypergraphs() { }
 
   explicit NumaPartitionedHypergraph(const PartitionID k,
-                                     Hypergraph& hypergraph) :
+                                     Hypergraph& hypergraph,
+                                     vec<HypernodeWeight>& max_part_weight) :
     _k(k),
     _hg(&hypergraph),
     _part_info(k),
     _hypergraphs() {
     for ( size_t node = 0; node < hypergraph.numNumaHypergraphs(); ++node) {
-      _hypergraphs.emplace_back(k, hypergraph.numaHypergraph(node));
+      _hypergraphs.emplace_back(k, hypergraph.numaHypergraph(node), max_part_weight);
     }
   }
 
   explicit NumaPartitionedHypergraph(const PartitionID k,
                                      const TaskGroupID task_group_id,
-                                     Hypergraph& hypergraph) :
+                                     Hypergraph& hypergraph,
+                                     vec<HypernodeWeight>& max_part_weight) :
     _k(k),
     _hg(&hypergraph),
     _part_info(k),
@@ -126,7 +128,7 @@ class NumaPartitionedHypergraph {
 
     // Construct NUMA partitioned hypergraphs in parallel
     TBBNumaArena::instance().execute_parallel_on_all_numa_nodes(task_group_id, [&](const int node) {
-          _hypergraphs[node] = PartitionedHyperGraph(k, task_group_id, hypergraph.numaHypergraph(node));
+          _hypergraphs[node] = PartitionedHyperGraph(k, task_group_id, hypergraph.numaHypergraph(node), max_part_weight);
         });
   }
 
@@ -507,6 +509,7 @@ class NumaPartitionedHypergraph {
                       PartitionID from,
                       PartitionID to,
                       const DeltaFunction& delta_func = NOOP_FUNC) {
+    // TODO bring up to date with PartitionedHypergraph
     if ( hypergraph_of_vertex(u).changeNodePart(u, from, to, _hypergraphs, delta_func) ) {
       // Update block weights
       --_part_info[from].size;
@@ -553,6 +556,10 @@ class NumaPartitionedHypergraph {
 
   bool isBorderNode(const HypernodeID u) const {
     return hypergraph_of_vertex(u).isBorderNode(u);
+  }
+
+  HypernodeID numIncidentCutHyperedges(const HypernodeID u) const {
+    return hypergraph_of_vertex(u).numIncidentCutHyperedges(u);
   }
 
   // ! Number of blocks which pins of hyperedge e belongs to

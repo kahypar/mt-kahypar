@@ -49,9 +49,9 @@ struct TestTypeTraits {
   using HyperGraph = NumaHypergraph<StaticHypergraph, HwTopology, TBB>;
   using HyperGraphFactory = NumaHypergraphFactory<
     StaticHypergraph, StaticHypergraphFactory, HwTopology, TBB>;
-  template<bool track_border_vertices = true>
+
   using PartitionedHyperGraph = NumaPartitionedHypergraph<
-    HyperGraph, HyperGraphFactory, track_border_vertices>;
+    HyperGraph, HyperGraphFactory>;
 };
 
 auto identity = [](const HypernodeID& id) { return id; };

@@ -166,13 +166,13 @@ class MultilevelCoarsenerBase {
     // Construct top level partitioned hypergraph
     group.run([&] {
       _partitioned_hg = PartitionedHyperGraph(
-        _context.partition.k, _task_group_id, _hg);
+        _context.partition.k, _task_group_id, _hg, _context.partition.max_part_weights);
     });
     // Construct partitioned hypergraph for each coarsened hypergraph in the hierarchy
     for ( size_t i = 0; i < _hierarchies.size(); ++i ) {
       group.run([&, i] {
         _hierarchies[i].contractedPartitionedHypergraph() = PartitionedHyperGraph(
-           _context.partition.k, _task_group_id, _hierarchies[i].contractedHypergraph());
+           _context.partition.k, _task_group_id, _hierarchies[i].contractedHypergraph(), _context.partition.max_part_weights);
       });
     }
     group.wait();
@@ -209,6 +209,7 @@ class MultilevelCoarsenerBase {
       utils::Timer::instance().start_timer("projecting_partition", "Projecting Partition");
       PartitionedHyperGraph& representative_hg = _hierarchies[i].representativeHypergraph();
       PartitionedHyperGraph& contracted_hg = _hierarchies[i].contractedPartitionedHypergraph();
+
       tbb::parallel_for(ID(0), representative_hg.initialNumNodes(), [&](const HypernodeID id) {
         const HypernodeID hn = representative_hg.globalNodeID(id);
         if ( representative_hg.nodeIsEnabled(hn) ) {

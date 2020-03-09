@@ -62,10 +62,13 @@ class APartitionedHypergraph : public Test {
       7 , 4, { {0, 2}, {0, 1, 3, 4}, {3, 4, 6}, {2, 5, 6} })),
     partitioned_hypergraph(3, TBB::GLOBAL_TASK_GROUP, hypergraph),
     id() {
+    LOG << "start constr";
     id.resize(7);
     for ( const HypernodeID& hn : hypergraph.nodes() ) {
       id[hypergraph.originalNodeID(hn)] = hn;
     }
+
+    LOG << "Constr";
 
     partitioned_hypergraph.setNodePart(id[0], 0);
     partitioned_hypergraph.setNodePart(id[1], 0);
@@ -74,7 +77,8 @@ class APartitionedHypergraph : public Test {
     partitioned_hypergraph.setNodePart(id[4], 1);
     partitioned_hypergraph.setNodePart(id[5], 2);
     partitioned_hypergraph.setNodePart(id[6], 2);
-    partitioned_hypergraph.initializeNumCutHyperedges(TBB::GLOBAL_TASK_GROUP);
+
+    LOG << "set node part";
   }
 
   static void SetUpTestSuite() {
@@ -147,47 +151,39 @@ using NumaHyperGraph = NumaHypergraph<StaticHypergraph, HwTopology, TBB>;
 using NumaHyperGraphFactory = NumaHypergraphFactory<
   StaticHypergraph, StaticHypergraphFactory, HwTopology, TBB>;
 
-typedef ::testing::Types<PartitionedHypergraphTypeTraits<
-                          PartitionedHypergraph<StaticHypergraph, StaticHypergraphFactory, true>,
+using PartitionedHypergraphTestTypes =
+  ::testing::Types<
+          PartitionedHypergraphTypeTraits<
+                          PartitionedHypergraph<StaticHypergraph, StaticHypergraphFactory>,
                           StaticHypergraph,
                           StaticHypergraphFactory,
-                          TBBNumaArena>,
-                        PartitionedHypergraphTypeTraits<
-                          PartitionedHypergraph<StaticHypergraph, StaticHypergraphFactory, false>,
-                          StaticHypergraph,
-                          StaticHypergraphFactory,
-                          TBBNumaArena>,
-                        PartitionedHypergraphTypeTraits<
-                          NumaPartitionedHypergraph<NumaHyperGraph, NumaHyperGraphFactory, true>,
+                          TBBNumaArena>
+          /*
+          ,
+          PartitionedHypergraphTypeTraits<
+                          NumaPartitionedHypergraph<NumaHyperGraph, NumaHyperGraphFactory>,
                           NumaHyperGraph,
                           NumaHyperGraphFactory,
-                          TBB>,
-                        PartitionedHypergraphTypeTraits<
-                          NumaPartitionedHypergraph<NumaHyperGraph, NumaHyperGraphFactory, false>,
-                          NumaHyperGraph,
-                          NumaHyperGraphFactory,
-                          TBB>> PartitionedHypergraphTestTypes;
+                          TBB>
+          */
+  >;
 
 TYPED_TEST_CASE(APartitionedHypergraph, PartitionedHypergraphTestTypes);
 
 TYPED_TEST(APartitionedHypergraph, HasCorrectPartWeightAndSizes) {
   ASSERT_EQ(3, this->partitioned_hypergraph.partWeight(0));
-  ASSERT_EQ(3, this->partitioned_hypergraph.partSize(0));
   ASSERT_EQ(2, this->partitioned_hypergraph.partWeight(1));
-  ASSERT_EQ(2, this->partitioned_hypergraph.partSize(1));
   ASSERT_EQ(2, this->partitioned_hypergraph.partWeight(2));
-  ASSERT_EQ(2, this->partitioned_hypergraph.partSize(2));
 }
+
+/*
 
 TYPED_TEST(APartitionedHypergraph, HasCorrectPartWeightsIfOnlyOneThreadPerformsModifications) {
   ASSERT_TRUE(this->partitioned_hypergraph.changeNodePart(this->id[0], 0, 1));
 
   ASSERT_EQ(2, this->partitioned_hypergraph.partWeight(0));
-  ASSERT_EQ(2, this->partitioned_hypergraph.partSize(0));
   ASSERT_EQ(3, this->partitioned_hypergraph.partWeight(1));
-  ASSERT_EQ(3, this->partitioned_hypergraph.partSize(1));
   ASSERT_EQ(2, this->partitioned_hypergraph.partWeight(2));
-  ASSERT_EQ(2, this->partitioned_hypergraph.partSize(2));
 }
 
 
@@ -200,19 +196,14 @@ TYPED_TEST(APartitionedHypergraph, PerformsTwoConcurrentMovesWhereOnlyOneSucceed
   });
 
   ASSERT_EQ(2, this->partitioned_hypergraph.partWeight(0));
-  ASSERT_EQ(2, this->partitioned_hypergraph.partSize(0));
   if ( success[0] ) {
     ASSERT_FALSE(success[1]);
     ASSERT_EQ(3, this->partitioned_hypergraph.partWeight(1));
-    ASSERT_EQ(3, this->partitioned_hypergraph.partSize(1));
     ASSERT_EQ(2, this->partitioned_hypergraph.partWeight(2));
-    ASSERT_EQ(2, this->partitioned_hypergraph.partSize(2));
   } else {
     ASSERT_TRUE(success[1]);
     ASSERT_EQ(2, this->partitioned_hypergraph.partWeight(1));
-    ASSERT_EQ(2, this->partitioned_hypergraph.partSize(1));
     ASSERT_EQ(3, this->partitioned_hypergraph.partWeight(2));
-    ASSERT_EQ(3, this->partitioned_hypergraph.partSize(2));
   }
 }
 
@@ -228,11 +219,8 @@ TYPED_TEST(APartitionedHypergraph, PerformsConcurrentMovesWhereAllSucceed) {
   });
 
   ASSERT_EQ(2, this->partitioned_hypergraph.partWeight(0));
-  ASSERT_EQ(2, this->partitioned_hypergraph.partSize(0));
   ASSERT_EQ(2, this->partitioned_hypergraph.partWeight(1));
-  ASSERT_EQ(2, this->partitioned_hypergraph.partSize(1));
   ASSERT_EQ(3, this->partitioned_hypergraph.partWeight(2));
-  ASSERT_EQ(3, this->partitioned_hypergraph.partSize(2));
 }
 
 TYPED_TEST(APartitionedHypergraph, HasCorrectInitialPartitionPinCounts) {
@@ -734,6 +722,7 @@ TYPED_TEST(APartitionedHypergraph, ExtractBlockTwoWithCommunityInformation) {
   ASSERT_EQ(4, hg.communityID(map_from_original_to_extracted_hg(this->id[5])));
   ASSERT_EQ(5, hg.communityID(map_from_original_to_extracted_hg(this->id[6])));
 }
+*/
 
 }  // namespace ds
 }  // namespace mt_kahypar

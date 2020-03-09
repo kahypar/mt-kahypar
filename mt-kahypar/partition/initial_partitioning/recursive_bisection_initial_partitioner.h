@@ -192,7 +192,7 @@ class RecursiveBisectionInitialPartitionerT : public IInitialPartitioner {
       _original_hg(original_hypergraph),
       _context(std::move(context)),
       _rb_hg(std::move(rb_hypergraph)),
-      _rb_partitioned_hg(k, task_group_id, _rb_hg),
+      _rb_partitioned_hg(k, task_group_id, _rb_hg, _context.partition.max_part_weights),
       _mapping(std::move(mapping)),
       _task_group_id(task_group_id),
       _part_id(part_id) { }
