@@ -220,16 +220,6 @@ class InitialPartitioningDataContainerT {
         });
     }, [&] {
       parallel::parallel_free_thread_local_internal_data(
-        _local_hn_visited, [&](kahypar::ds::FastResetFlagArray<>& array) {
-          array.setSize(0);
-        });
-    }, [&] {
-      parallel::parallel_free_thread_local_internal_data(
-        _local_he_visited, [&](kahypar::ds::FastResetFlagArray<>& array) {
-          array.setSize(0);
-        });
-    }, [&] {
-      parallel::parallel_free_thread_local_internal_data(
         _local_unassigned_hypernodes, [&](parallel::scalable_vector<HypernodeID>& array) {
           parallel::free(array);
         });
