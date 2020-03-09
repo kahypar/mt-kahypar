@@ -28,6 +28,7 @@
 namespace mt_kahypar {
 
 // TODO better name
+// Supports a sequence of concurrent push_back followed by a sequence of concurrent try_pop but not both at the same time
 template<typename T>
 class ConcurrentDataContainer {
 public:
@@ -42,7 +43,7 @@ public:
 
   bool try_pop(T& dest) {
     const size_t old_size = size.fetch_sub(1, std::memory_order_acq_rel);
-    if (old_size > 0) {
+    if (old_size > 0 && old_size < capacity()) {
       dest = elements[old_size - 1];
       return true;
     }
@@ -50,11 +51,16 @@ public:
   }
 
   bool empty() const {
-    return unsafe_size() == 0;
+    const size_t s = unsafe_size();
+    return s == 0 || s >= capacity();
   }
 
   size_t unsafe_size() const {
     return size.load(std::memory_order_acq_rel);
+  }
+
+  size_t capacity() const {
+    return elements.size();
   }
 
   vec<T>& get_underlying_container() {
@@ -93,16 +99,23 @@ public:
     if (queues[preferredSocket].try_pop(dest)) {
       return true;
     }
-    size_t maxIndex = 0;
-    size_t maxSize = 0;
-    for (size_t i = 0; i < queues.size(); ++i) {
-      size_t size = queues[i].unsafe_size();
-      if (size > maxSize) {
-        maxSize = size;
-        maxIndex = i;
+    while (!empty()) {
+      // steal from the largest queue
+      size_t maxIndex = 0;
+      size_t maxSize = 0;
+      for (size_t i = 0; i < queues.size(); ++i) {
+        size_t size = queues[i].unsafe_size();
+        if (!queues[i].empty() && size > maxSize) {
+          maxSize = size;
+          maxIndex = i;
+        }
+      }
+      if (queues[maxIndex].try_pop(dest)) {
+        return true;
       }
     }
-    return queues[maxIndex].try_pop(dest);
+
+    return false;
   }
 
   bool tryPop(Work& dest) {
@@ -120,7 +133,7 @@ public:
     tbb::parallel_for(0UL, queues.size(), [&](size_t i) {
       std::mt19937 rng(queues[i].unsafe_size() + i);
       auto& data = queues[i].get_underlying_container();
-      std::shuffle(data.begin(), data.end(), rng);
+      std::shuffle(data.begin(), data.end(), rng);  // TODO parallelize?
     });
   }
 
