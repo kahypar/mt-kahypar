@@ -28,6 +28,8 @@
 #include <tbb/task_group.h>
 #include <tbb/tick_count.h>
 
+#include <mt-kahypar/parallel/stl/scalable_vector.h>
+
 namespace mt_kahypar {
 namespace parallel {
 class Chunking {
@@ -178,7 +180,7 @@ template<typename T>
 class TBBPrefixSum {
 
  public:
-  TBBPrefixSum(parallel::scalable_vector<T>& data) :
+  explicit TBBPrefixSum(parallel::scalable_vector<T>& data) :
     _sum(0),
     _data(data) { }
 
