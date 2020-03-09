@@ -128,7 +128,7 @@ private:
 
         // and we update the gain of moving the best vertex from that block
         if (blockPQ.contains(pu) && gain > blockPQ.keyOf(pu)) {
-          blockPQ.improveKey(pu, gain);
+          blockPQ.increaseKey(pu, gain);
         }
       }
 
@@ -141,7 +141,7 @@ private:
       vertexPQs[pu].adjustKey(u, gain);
 
       if (blockPQ.contains(pu) && gain > blockPQ.keyOf(pu)) {
-        blockPQ.improveKey(pu, gain);
+        blockPQ.increaseKey(pu, gain);
       }
     }
 

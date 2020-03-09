@@ -75,9 +75,9 @@ public:
     assert(!empty() && contains(e));
     PosT pos = positions[e];
     const KeyT removedKey = heap[pos].key, lastKey = heap.back().key;
-    positions[e] = invalid_position;
-    positions[heap.back().id] = pos;
     heap[pos] = heap.back();
+    positions[heap.back().id] = pos;
+    positions[e] = invalid_position;
     heap.pop_back();
     if (comp(removedKey, lastKey)) {
       siftUp(pos);
@@ -102,14 +102,6 @@ public:
     assert(comp(newKey, heap[pos].key));
     heap[pos].key = newKey;
     siftDown(pos);
-  }
-
-  void improveKey(const IdT e, const KeyT newKey) {
-    decreaseKey(e, newKey);
-  }
-
-  void worsenKey(const IdT e, const KeyT newKey) {
-    increaseKey(e, newKey);
   }
 
   void adjustKey(const IdT e, const KeyT newKey) {
@@ -147,11 +139,18 @@ public:
     return heap[pos].id;
   }
 
+  void print() {
+    for (PosT i = 0; i < size(); ++i) {
+      std::cout << "(" << heap[i].id << "," << heap[i].key << ")" << " ";
+    }
+    std::cout << std::endl;
+  }
+
 
 protected:
 
   bool fits(const IdT id) const {
-    return id < positions.size();
+    return static_cast<size_t>(id) < positions.size();
   }
 
   PosT parent(const PosT pos) const {
@@ -209,12 +208,11 @@ protected:
 
         const PosT second = std::min(first + 1, size() - 1);    // TODO this branch is not cool. maybe make the while loop condition secondChild(pos) < size() ?
         const KeyT k1 = heap[first].key, k2 = heap[second].key;
-        const bool c2IsLarger = comp(k2, k1);
-
-        if (comp(k, c2IsLarger ? k2 : k1)) {
+        const bool c2IsLarger = comp(k1, k2);
+        const KeyT largestChildKey = c2IsLarger ? k2 : k1;
+        if (comp(largestChildKey, k) || largestChildKey == k) {
           break;
         }
-
         largestChild = c2IsLarger ? second : first;
       }
 
