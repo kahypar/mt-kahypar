@@ -93,8 +93,15 @@ class PartitionedHypergraph {
     max_part_weight(k, std::numeric_limits<HypernodeWeight>::max()),
     part(hypergraph.initialNumNodes(), kInvalidPartition),
     pins_in_part(hypergraph.initialNumEdges() * k, PinCountAtomic(0)),
-    connectivity_sets(hypergraph.initialNumEdges(), k)
+    connectivity_sets(hypergraph.initialNumEdges(), k),
+    _affinity(hypergraph.initialNumEdges() * k)
   {
+
+    for (AffinityInformation& x : _affinity) {
+      x.w0pins.store(0, std::memory_order_relaxed);
+      x.w1pins.store(0, std::memory_order_relaxed);
+    }
+
     for (auto& x : part_weight)
       x.store(0);
 
@@ -113,7 +120,8 @@ class PartitionedHypergraph {
     part_weight(k),
     max_part_weight(k, std::numeric_limits<HypernodeWeight>::max()),
     pins_in_part(),
-    connectivity_sets(0, 0)
+    connectivity_sets(0, 0),
+    _affinity(hypergraph.initialNumEdges() * k)
   {
     tbb::parallel_invoke([&] {
       part.resize(hypergraph.initialNumNodes(), kInvalidPartition);
@@ -122,6 +130,11 @@ class PartitionedHypergraph {
     }, [&] {
       connectivity_sets = ConnectivitySets(hypergraph.initialNumEdges(), k);
     });
+
+    for (AffinityInformation& x : _affinity) {
+      x.w0pins.store(0, std::memory_order_relaxed);
+      x.w1pins.store(0, std::memory_order_relaxed);
+    }
 
     for (auto& x : part_weight)
       x.store(0);
@@ -452,11 +465,9 @@ class PartitionedHypergraph {
   bool setNodePart(const HypernodeID u, PartitionID id) {
     ASSERT(id != kInvalidPartition && id < _k && part[u] == kInvalidPartition);
     // TODO find a way to specify memory_order for add_and_fetch, since std::memory_order_relaxed suffices to detect a balance violation
-    LOG << V(u) << V(part.size()) << V(id) << V(part_weight.size());
     if (part_weight[id] += nodeWeight(u) <= max_part_weight[id]) {
       part[u] = id;
       for ( const HyperedgeID& he : incidentEdges(u) ) {
-        LOG << V(he);
         incrementPinCountInPart(he, id);
       }
       return true;
