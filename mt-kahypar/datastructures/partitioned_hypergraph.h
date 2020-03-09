@@ -568,7 +568,7 @@ class PartitionedHypergraph {
   std::pair<PartitionID, HyperedgeWeight> bestDestinationBlock(HypernodeID u) const {
     HyperedgeWeight best_affinity = std::numeric_limits<HyperedgeWeight>::max();
     PartitionID best_index = 0;
-    for (PartitionID p = u * _k; p < u * (_k + 1); p) {
+    for (PartitionID p = u * _k; p < u * (_k + 1); ++p) {
       const HyperedgeWeight aff = _affinity[p].w0pins.load(std::memory_order_relaxed);
       if (aff < best_affinity) {
         best_affinity = aff;
