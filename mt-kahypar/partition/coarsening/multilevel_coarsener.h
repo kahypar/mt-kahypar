@@ -206,7 +206,7 @@ class MultilevelCoarsenerT : public ICoarsenerT<TypeTraits>,
           if ( _matching_state[u] == STATE(MatchingState::UNMATCHED) ) {
             const HypernodeID current_num_nodes = num_hns_before_pass -
               contracted_nodes.combine(std::plus<HypernodeID>());
-              if ( current_num_nodes > hierarchy_contraction_limit ) {
+            if ( current_num_nodes > hierarchy_contraction_limit ) {
               ASSERT(current_hg.nodeIsEnabled(hn));
               const Rating rating = _rater.rate(current_hg, hn,
                 cluster_ids, _cluster_weight, _max_allowed_node_weight);

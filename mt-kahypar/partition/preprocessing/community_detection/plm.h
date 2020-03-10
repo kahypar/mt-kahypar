@@ -25,6 +25,7 @@
 #include <tbb/enumerable_thread_specific.h>
 
 #include "kahypar/datastructure/sparse_map.h"
+#include "mt-kahypar/datastructures/sparse_map.h"
 
 #include "mt-kahypar/datastructures/clustering.h"
 #include "mt-kahypar/datastructures/graph.h"
@@ -42,7 +43,8 @@ class PLM {
   using ArcWeight = ds::Graph::ArcWeight;
   using AtomicArcWeight = parallel::AtomicWrapper<ArcWeight>;
   using Arc = ds::Graph::Arc;
-  using IncidentClusterWeights = kahypar::ds::SparseMap<PartitionID, ArcWeight>;
+  using LargeIncidentClusterWeights = kahypar::ds::SparseMap<PartitionID, ArcWeight>;
+  using CacheEfficientIncidentClusterWeights = ds::FixedSizeSparseMap<PartitionID, ArcWeight>;
 
  public:
   static constexpr bool debug = false;
@@ -51,7 +53,8 @@ class PLM {
   explicit PLM(const Context& context, size_t numNodes) :
     _context(context),
     _cluster_volumes(numNodes),
-    _local_incident_cluster_weight(numNodes, 0) { }
+    _local_small_incident_cluster_weight(0),
+    _local_large_incident_cluster_weight(numNodes, 0) { }
 
   bool localMoving(Graph& graph, ds::Clustering& communities) {
     _reciprocal_total_volume = 1.0 / graph.totalVolume();
@@ -80,49 +83,24 @@ class PLM {
       tbb::enumerable_thread_specific<size_t> local_number_of_nodes_moved(0);
       auto moveNode =
         [&](const NodeID u) {         // get rid of named lambda after testing?
-          IncidentClusterWeights& incident_cluster_weights =
-            _local_incident_cluster_weight.local();
-          for (Arc& arc : graph.arcsOf(u)) {
-            incident_cluster_weights[communities[arc.head]] += arc.weight;
-          }
-
-          PartitionID from = communities[u];
-          PartitionID bestCluster = communities[u];
-
-          const ArcWeight volume_from = _cluster_volumes[from];
           const ArcWeight volU = graph.nodeVolume(u);
-          const ArcWeight weight_from = incident_cluster_weights[from];
+          const PartitionID from = communities[u];
+          PartitionID best_cluster = kInvalidPartition;
 
-          const double volMultiplier = _vol_multiplier_div_by_node_vol * volU;
-          double bestGain = weight_from + volMultiplier * (volume_from - volU);
-          for (const auto& clusterWeight : incident_cluster_weights) {
-            PartitionID to = clusterWeight.key;
-            // if from == to, we would have to remove volU from volume_to as well.
-            // just skip it. it has (adjusted) gain zero.
-            if (from == to) {
-              continue;
-            }
-
-            const ArcWeight volume_to = _cluster_volumes[to],
-              weight_to = incident_cluster_weights.get(to);
-
-            double gain = modularityGain(weight_to, volume_to, volMultiplier);
-
-            if (gain > bestGain) {
-              bestCluster = to;
-              bestGain = gain;
-            }
+          if ( ratingsFitIntoSmallSparseMap(graph, u) ) {
+            best_cluster = computeMaxGainCluster(
+              graph, communities, u,
+              _local_small_incident_cluster_weight.local());
+          } else {
+            best_cluster = computeMaxGainCluster(
+              graph, communities, u,
+              _local_large_incident_cluster_weight.local());
           }
 
-          HEAVY_PREPROCESSING_ASSERT(verifyGain(
-            graph, communities, u, bestCluster, bestGain, incident_cluster_weights));
-
-          incident_cluster_weights.clear();
-
-          if (bestCluster != from) {
-            _cluster_volumes[bestCluster] += volU;
+          if (best_cluster != from) {
+            _cluster_volumes[best_cluster] += volU;
             _cluster_volumes[from] -= volU;
-            communities[u] = bestCluster;
+            communities[u] = best_cluster;
             ++local_number_of_nodes_moved.local();
           }
         };
@@ -145,6 +123,56 @@ class PLM {
   }
 
  private:
+    KAHYPAR_ATTRIBUTE_ALWAYS_INLINE bool ratingsFitIntoSmallSparseMap(const Graph& graph,
+                                                                      const HypernodeID u)  {
+    return graph.degree(u) <= CacheEfficientIncidentClusterWeights::MAP_SIZE / 3UL;
+  }
+
+  template<typename Map>
+  KAHYPAR_ATTRIBUTE_ALWAYS_INLINE PartitionID computeMaxGainCluster(const Graph& graph,
+                                                                    ds::Clustering& communities,
+                                                                    const NodeID u,
+                                                                    Map& incident_cluster_weights) {
+    PartitionID from = communities[u];
+    PartitionID bestCluster = communities[u];
+
+    for (const Arc& arc : graph.arcsOf(u)) {
+      incident_cluster_weights[communities[arc.head]] += arc.weight;
+    }
+
+    const ArcWeight volume_from = _cluster_volumes[from];
+    const ArcWeight volU = graph.nodeVolume(u);
+    const ArcWeight weight_from = incident_cluster_weights[from];
+
+    const double volMultiplier = _vol_multiplier_div_by_node_vol * volU;
+    double bestGain = weight_from + volMultiplier * (volume_from - volU);
+    for (const auto& clusterWeight : incident_cluster_weights) {
+      PartitionID to = clusterWeight.key;
+      // if from == to, we would have to remove volU from volume_to as well.
+      // just skip it. it has (adjusted) gain zero.
+      if (from == to) {
+        continue;
+      }
+
+      const ArcWeight volume_to = _cluster_volumes[to],
+        weight_to = incident_cluster_weights.get(to);
+
+      double gain = modularityGain(weight_to, volume_to, volMultiplier);
+
+      if (gain > bestGain) {
+        bestCluster = to;
+        bestGain = gain;
+      }
+    }
+
+    HEAVY_PREPROCESSING_ASSERT(verifyGain(
+      graph, communities, u, bestCluster, bestGain, incident_cluster_weights));
+
+    incident_cluster_weights.clear();
+
+    return bestCluster;
+  }
+
 
   inline double modularityGain(const ArcWeight weight_to,
                                const ArcWeight volume_to,
@@ -161,12 +189,13 @@ class PLM {
         volume_node * (volume_from - volume_node));
   }
 
+  template<typename Map>
   bool verifyGain(const Graph& graph,
                   ds::Clustering& communities,
                   const NodeID u,
                   const PartitionID to,
                   double gain,
-                  const IncidentClusterWeights& icw) {
+                  const Map& icw) {
     const PartitionID from = communities[u];
 
     long double adjustedGain = adjustAdvancedModGain(
@@ -253,6 +282,7 @@ class PLM {
   double _reciprocal_total_volume = 0.0;
   double _vol_multiplier_div_by_node_vol = 0.0;
   std::vector<AtomicArcWeight> _cluster_volumes;
-  tbb::enumerable_thread_specific<IncidentClusterWeights> _local_incident_cluster_weight;
+  tbb::enumerable_thread_specific<CacheEfficientIncidentClusterWeights> _local_small_incident_cluster_weight;
+  tbb::enumerable_thread_specific<LargeIncidentClusterWeights> _local_large_incident_cluster_weight;
 };
 }

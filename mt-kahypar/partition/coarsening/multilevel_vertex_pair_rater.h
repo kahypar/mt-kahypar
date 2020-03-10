@@ -186,7 +186,7 @@ class MultilevelVertexPairRater {
   }
 
 
-  inline bool ratingsFitIntoSmallSparseMap(const Hypergraph& hypergraph,
+  inline bool ratingsFitIntoSmallSparseMap(const HyperGraph& hypergraph,
                                            const HypernodeID u)  {
     // Compute estimation for the upper bound of neighbors of u
     HypernodeID ub_neighbors_u = 0;
