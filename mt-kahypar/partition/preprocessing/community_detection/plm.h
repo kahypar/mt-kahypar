@@ -46,7 +46,7 @@ class PLM {
 
  public:
   static constexpr bool debug = false;
-  static constexpr bool enable_heavy_assert = true;
+  static constexpr bool enable_heavy_assert = false;
 
   explicit PLM(const Context& context, size_t numNodes) :
     _context(context),
