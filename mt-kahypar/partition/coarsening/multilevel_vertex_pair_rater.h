@@ -85,19 +85,13 @@ class MultilevelVertexPairRater {
     _local_small_tmp_ratings(0.0),
     _local_tmp_ratings(hypergraph.initialNumNodes(), 0.0),
     _local_visited_representatives(hypergraph.initialNumNodes()),
-    _already_matched(hypergraph.initialNumNodes()),
-    _num_use_full_sparse_map(0),
-    _num_ratings(0) { }
+    _already_matched(hypergraph.initialNumNodes()) { }
 
   MultilevelVertexPairRater(const MultilevelVertexPairRater&) = delete;
   MultilevelVertexPairRater & operator= (const MultilevelVertexPairRater &) = delete;
 
   MultilevelVertexPairRater(MultilevelVertexPairRater&&) = delete;
   MultilevelVertexPairRater & operator= (MultilevelVertexPairRater &&) = delete;
-
-  ~MultilevelVertexPairRater() {
-    LOG << V(_num_use_full_sparse_map) << V(_num_ratings);
-  }
 
   VertexPairRating rate(const HyperGraph& hypergraph,
                         const HypernodeID u,
@@ -115,12 +109,10 @@ class MultilevelVertexPairRater {
       }
     }
 
-    ++_num_ratings;
     if ( use_small_sparse_map ) {
       return rate(hypergraph, u, _local_small_tmp_ratings.local(),
         cluster_ids, cluster_weight, max_allowed_node_weight);
     } else {
-      ++_num_use_full_sparse_map;
       return rate(hypergraph, u, _local_tmp_ratings.local(),
         cluster_ids, cluster_weight, max_allowed_node_weight);
     }
@@ -209,8 +201,5 @@ class MultilevelVertexPairRater {
   ThreadLocalTmpRatingMap _local_tmp_ratings;
   ThreadLocalFastResetFlagArray _local_visited_representatives;
   kahypar::ds::FastResetFlagArray<> _already_matched;
-
-  std::atomic<size_t> _num_use_full_sparse_map;
-  std::atomic<size_t> _num_ratings;
 };
 }  // namespace mt_kahypar
