@@ -1325,6 +1325,7 @@ class StaticHypergraph {
     ASSERT(_node == common::get_numa_node_of_vertex(u),
       "Hypernode" << u << "is not part of hypergraph on numa node" << _node);
     ASSERT(local_pos <= _num_hypernodes, "Hypernode" << u << "does not exist");
+    assert(local_pos < _hypernodes.size());
     return _hypernodes[local_pos];
   }
 

@@ -94,7 +94,7 @@ class PartitionedHypergraph {
     part(hypergraph.initialNumNodes(), kInvalidPartition),
     pins_in_part(hypergraph.initialNumEdges() * k, PinCountAtomic(0)),
     connectivity_sets(hypergraph.initialNumEdges(), k),
-    _affinity(hypergraph.initialNumEdges() * k)
+    _affinity(hypergraph.initialNumNodes() * k)
   {
 
     for (AffinityInformation& x : _affinity) {
@@ -121,7 +121,7 @@ class PartitionedHypergraph {
     max_part_weight(k, std::numeric_limits<HypernodeWeight>::max()),
     pins_in_part(),
     connectivity_sets(0, 0),
-    _affinity(hypergraph.initialNumEdges() * k)
+    _affinity(hypergraph.initialNumNodes() * k)
   {
     tbb::parallel_invoke([&] {
       part.resize(hypergraph.initialNumNodes(), kInvalidPartition);
@@ -141,7 +141,6 @@ class PartitionedHypergraph {
 
     for (size_t i = 0; i < max_part_weight.size(); ++i)
       this->max_part_weight[i] = max_part_weight[i];
-
   }
 
   PartitionedHypergraph(const PartitionedHypergraph&) = delete;
@@ -155,7 +154,9 @@ class PartitionedHypergraph {
     max_part_weight(std::move(other.max_part_weight)),
     part(std::move(other.part)),
     pins_in_part(std::move(other.pins_in_part)),
-    connectivity_sets(std::move(other.connectivity_sets)) { }
+    connectivity_sets(std::move(other.connectivity_sets)),
+    _affinity(std::move(other._affinity))
+  { }
 
   PartitionedHypergraph & operator= (PartitionedHypergraph&& other) {
     _k = other._k;
@@ -166,6 +167,7 @@ class PartitionedHypergraph {
     part = std::move(other.part),
     pins_in_part = std::move(other.pins_in_part);
     connectivity_sets = std::move(other.connectivity_sets);
+    _affinity = std::move(other._affinity);
     return *this;
   }
 
@@ -465,6 +467,9 @@ class PartitionedHypergraph {
   bool setNodePart(const HypernodeID u, PartitionID id) {
     ASSERT(id != kInvalidPartition && id < _k && part[u] == kInvalidPartition);
     // TODO find a way to specify memory_order for add_and_fetch, since std::memory_order_relaxed suffices to detect a balance violation
+    assert(id >= 0 && static_cast<size_t>(id) < part_weight.size());
+    assert(static_cast<size_t>(id) < max_part_weight.size());
+    assert(u < part.size());
     if (part_weight[id] += nodeWeight(u) <= max_part_weight[id]) {
       part[u] = id;
       for ( const HyperedgeID& he : incidentEdges(u) ) {
@@ -799,11 +804,14 @@ class PartitionedHypergraph {
     ASSERT(local_hyperedge_id < _hg->initialNumEdges(), "Hyperedge" << e << "does not exist");
     ASSERT(_node == common::get_numa_node_of_edge(e),
            "Hyperedge" << e << "is not part of numa node" << _node);
+
+    assert(local_hyperedge_id * _k + p < pins_in_part.size());
     const HypernodeID pin_count_after = ++pins_in_part[local_hyperedge_id * _k + p];
     if ( pin_count_after == 1 ) {
       // Connectivity of hyperedge increased
       connectivity_sets.add(local_hyperedge_id, p);
       for (HypernodeID u : pins(e)) {
+        assert(u * _k + p < _affinity.size());
         _affinity[u * _k + p].w0pins.fetch_sub(edgeWeight(e), std::memory_order_relaxed);
         _affinity[u * _k + p].w1pins.fetch_add(edgeWeight(e), std::memory_order_relaxed);
       }
@@ -842,7 +850,7 @@ class PartitionedHypergraph {
     AffinityInformation() : w0pins(0), w1pins(0) { }
   };
   // ! For each (vertex u, part i), the sum of edge weights for edges incident to u with zero/one pins in part i
-  std::vector< AffinityInformation > _affinity;
+  vec< AffinityInformation > _affinity;
 
 
 

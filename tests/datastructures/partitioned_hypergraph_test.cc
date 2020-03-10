@@ -19,6 +19,7 @@
  ******************************************************************************/
 
 #include <atomic>
+#include <mt-kahypar/parallel/tbb_numa_arena.h>
 
 #include "gmock/gmock.h"
 
@@ -139,6 +140,7 @@ void executeConcurrent(const F1& f1, const F2& f2) {
   });
 }
 
+
 // Mocking Numa Architecture (=> 2 NUMA Nodes)
 using TypeTraits = TestTypeTraits<2>;
 using HwTopology = typename TypeTraits::HwTopology;
@@ -148,6 +150,7 @@ using TBB = typename TypeTraits::TBB;
 using NumaHyperGraph = NumaHypergraph<StaticHypergraph, HwTopology, TBB>;
 using NumaHyperGraphFactory = NumaHypergraphFactory<
   StaticHypergraph, StaticHypergraphFactory, HwTopology, TBB>;
+
 
 using PartitionedHypergraphTestTypes =
   ::testing::Types<
@@ -168,7 +171,7 @@ using PartitionedHypergraphTestTypes =
 
 TYPED_TEST_CASE(APartitionedHypergraph, PartitionedHypergraphTestTypes);
 
-/*
+
 
 TYPED_TEST(APartitionedHypergraph, HasCorrectPartWeightAndSizes) {
   ASSERT_EQ(3, this->partitioned_hypergraph.partWeight(0));
@@ -185,12 +188,41 @@ TYPED_TEST(APartitionedHypergraph, HasCorrectPartWeightsIfOnlyOneThreadPerformsM
   ASSERT_EQ(2, this->partitioned_hypergraph.partWeight(2));
 }
 
-*/
 
+
+
+TEST(UndefinedBehaviourControl, DuringInitialization) {
+  StaticHypergraph hg = StaticHypergraph(
+          StaticHypergraphFactory::construct(
+                  TBBNumaArena::GLOBAL_TASK_GROUP,
+                  7,
+                  4,
+                  {{0, 2},
+                   {0, 1, 3, 4},
+                   {3, 4, 6},
+                   {2, 5, 6}}
+          )
+  );
+
+  static constexpr HypernodeWeight infW = std::numeric_limits<HypernodeWeight>::max();
+  PartitionedHypergraph<StaticHypergraph, StaticHypergraphFactory> phg(3, TBBNumaArena::GLOBAL_TASK_GROUP, hg,
+                                                                       {infW, infW, infW});
+  std::vector<HypernodeID> id(7);
+  for (const HypernodeID& hn : hg.nodes()) {
+    assert(hg.originalNodeID(hn) < id.size());
+    id[hg.originalNodeID(hn)] = hn;
+  }
+
+  phg.setNodePart(id[0], 0);
+  phg.setNodePart(id[1], 0);
+  phg.setNodePart(id[2], 0);
+  phg.setNodePart(id[3], 1);
+  phg.setNodePart(id[4], 1);
+  phg.setNodePart(id[5], 2);
+  phg.setNodePart(id[6], 2);
+}
 
 TYPED_TEST(APartitionedHypergraph, PerformsConcurrentMovesWhereAllSucceed) {
-//TEST(STUPID, PerformsConcurrentMovesWhereAllSucceed) {
-/*
   executeConcurrent([&] {
     ASSERT_TRUE(this->partitioned_hypergraph.changeNodePart(this->id[0], 0, 1));
     ASSERT_TRUE(this->partitioned_hypergraph.changeNodePart(this->id[3], 1, 2));
@@ -204,10 +236,9 @@ TYPED_TEST(APartitionedHypergraph, PerformsConcurrentMovesWhereAllSucceed) {
   ASSERT_EQ(2, this->partitioned_hypergraph.partWeight(0));
   ASSERT_EQ(2, this->partitioned_hypergraph.partWeight(1));
   ASSERT_EQ(3, this->partitioned_hypergraph.partWeight(2));
-*/
-  LOG << "Done";
+
 }
-/*
+
 
 TYPED_TEST(APartitionedHypergraph, HasCorrectInitialPartitionPinCounts) {
   this->verifyPartitionPinCounts(GLOBAL_EDGE_ID(this->hypergraph, 0), { 2, 0, 0 });
@@ -299,9 +330,6 @@ TYPED_TEST(APartitionedHypergraph, HasCorrectPartitionPinCountsIfAllNodesMovesCo
   this->verifyPartitionPinCounts(GLOBAL_EDGE_ID(this->hypergraph, 3), { 0, 2, 1 });
 }
 
-*/
-
-/*
 
 TYPED_TEST(APartitionedHypergraph, HasCorrectConnectivitySetIfTwoNodesMovesConcurrent1) {
   executeConcurrent([&] {
@@ -385,10 +413,6 @@ TYPED_TEST(APartitionedHypergraph, HasCorrectConnectivitySetIfAllNodesMovesConcu
   this->verifyConnectivitySet(GLOBAL_EDGE_ID(this->hypergraph, 2), { 0 });
   this->verifyConnectivitySet(GLOBAL_EDGE_ID(this->hypergraph, 3), { 0, 1 });
 }
-
-*/
-
-/*
 
 TYPED_TEST(APartitionedHypergraph, HasCorrectInitialBorderNodes) {
   ASSERT_TRUE(this->partitioned_hypergraph.isBorderNode(this->id[0]));
@@ -716,7 +740,6 @@ TYPED_TEST(APartitionedHypergraph, ExtractBlockTwoWithCommunityInformation) {
   ASSERT_EQ(4, hg.communityID(map_from_original_to_extracted_hg(this->id[5])));
   ASSERT_EQ(5, hg.communityID(map_from_original_to_extracted_hg(this->id[6])));
 }
-*/
 
 }  // namespace ds
 }  // namespace mt_kahypar
