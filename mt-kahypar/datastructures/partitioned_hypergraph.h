@@ -466,17 +466,36 @@ class PartitionedHypergraph {
   // ! Sets the block id of an unassigned vertex u and updates related partition information.
   // ! Returns true, if assignment of unassigned vertex u to block id succeeds.
   bool setNodePart(const HypernodeID u, PartitionID id) {
+    LOG << V(u) << "set node part";
+    const bool success = setOnlyNodePart(u, id);
+    if (success) {
+      for ( const HyperedgeID& he : incidentEdges(u) ) {
+        incrementPinCountInPartWithoutGainUpdate(he, id);
+      }
+    }
+    return success;
+  }
+
+  void initialize() {
+    // call this function if you used setOnlyNodePart
+  }
+
+  void initializeGains() {
+    // call this function if you used setNodePart
+    assert(_affinity.size() == initialNumNodes() * part_weight.size());
+    assert(std::all_of(_affinity.begin(), _affinity.end(), [](const auto& x) { return x.w0pins == 0 && x.w1pins == 0; }));
+
+    // iterate over hyperedges and compute w0pins, w1pins of its pins
+
+  }
+
+  bool setOnlyNodePart(const HypernodeID u, PartitionID id) {
     ASSERT(id != kInvalidPartition && id < _k && part[u] == kInvalidPartition);
     assert(id >= 0 && static_cast<size_t>(id) < part_weight.size());
     assert(static_cast<size_t>(id) < max_part_weight.size());
     assert(u < part.size());
-
-    LOG << V(u) << "set node part";
     if (part_weight[id].add_fetch(nodeWeight(u), std::memory_order_relaxed) <= max_part_weight[id]) {
       part[u] = id;
-      for ( const HyperedgeID& he : incidentEdges(u) ) {
-        incrementPinCountInPart(he, id);
-      }
       return true;
     } else {
       part_weight[id].fetch_sub(nodeWeight(u), std::memory_order_relaxed);
@@ -780,7 +799,6 @@ class PartitionedHypergraph {
             typename HyperGraphFactory>
   friend class NumaPartitionedHypergraph;
 
-
   HypernodeID decrementPinCountInPart(const HyperedgeID e, const PartitionID p) {
     ASSERT(_hg->edgeIsEnabled(e), "Hyperedge" << e << "is disabled");
     ASSERT(p != kInvalidPartition && p < _k);
@@ -805,29 +823,30 @@ class PartitionedHypergraph {
     return pin_count_after;
   }
 
-  HypernodeID incrementPinCountInPart(const HyperedgeID e, const PartitionID p) {
+  HypernodeID incrementPinCountInPartWithoutGainUpdate(const HyperedgeID e, const PartitionID p) {
     ASSERT(_hg->edgeIsEnabled(e), "Hyperedge" << e << "is disabled");
     ASSERT(p != kInvalidPartition && p < _k);
     const HyperedgeID local_hyperedge_id = common::get_local_position_of_edge(e);
     ASSERT(local_hyperedge_id < _hg->initialNumEdges(), "Hyperedge" << e << "does not exist");
     ASSERT(_node == common::get_numa_node_of_edge(e), "Hyperedge" << e << "is not part of numa node" << _node);
-
-    assert(local_hyperedge_id * _k + p < pins_in_part.size());
-
-    const HypernodeID pin_count_before = pins_in_part[local_hyperedge_id * _k + p];
+    ASSERT(local_hyperedge_id * _k + p < pins_in_part.size());
     const HypernodeID pin_count_after = ++pins_in_part[local_hyperedge_id * _k + p];
-    LOG << "\t" << V(e) << V(p) << V(pin_count_after) << V(pin_count_before) << "increment pcip";
-
     if ( pin_count_after == 1 ) {
-      // Connectivity of hyperedge increased
       connectivity_sets.add(local_hyperedge_id, p);
+    }
+    return pin_count_after;
+  }
+
+  HypernodeID incrementPinCountInPart(const HyperedgeID e, const PartitionID p) {
+    const HypernodeID result = incrementPinCountInPartWithoutGainUpdate(e, p);
+    if (result == 1) {
       for (HypernodeID u : pins(e)) {
         assert(u * _k + p < _affinity.size());
-        _affinity[u * _k + p].w0pins.fetch_sub(edgeWeight(e), std::memory_order_relaxed);   // this doesn't work for setNodePart
+        _affinity[u * _k + p].w0pins.fetch_sub(edgeWeight(e), std::memory_order_relaxed);
         _affinity[u * _k + p].w1pins.fetch_add(edgeWeight(e), std::memory_order_relaxed);
       }
     }
-    return pin_count_after;
+    return result;
   }
 
 
