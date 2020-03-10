@@ -38,12 +38,6 @@ template <typename Key = Mandatory,
           typename Value = Mandatory>
 class CacheEfficientSparseMap {
 
-  static constexpr size_t CACHE_EFFICIENT_MAP_SIZE = 8192;
-  static constexpr size_t REHASH_THRESHOLD = 4096;
-
-  static_assert(REHASH_THRESHOLD < CACHE_EFFICIENT_MAP_SIZE,
-    "Rehash threshold must be smaller than map size");
-
   struct MapElement {
     Key key;
     Value value;
@@ -55,32 +49,24 @@ class CacheEfficientSparseMap {
   };
 
  public:
-  explicit CacheEfficientSparseMap(const Key max_size, const Value initial_value) :
-    _max_size(std::pow(2.0, std::ceil(std::log2(static_cast<double>(max_size))))),
+
+  static constexpr size_t MAP_SIZE = 16384;
+
+  explicit CacheEfficientSparseMap(const Value initial_value) :
     _initial_value(initial_value),
     _data(std::make_unique<uint8_t[]>(
-      _max_size * sizeof(MapElement) +
-      _max_size * sizeof(SparseElement))),
+      MAP_SIZE * sizeof(MapElement) + MAP_SIZE * sizeof(SparseElement))),
     _size(0),
-    _capacity(std::min(static_cast<size_t>(_max_size), CACHE_EFFICIENT_MAP_SIZE)),
-    _rehash_threshold(static_cast<size_t>(_max_size) < CACHE_EFFICIENT_MAP_SIZE ? _max_size : REHASH_THRESHOLD),
     _timestamp(1),
-    _sparse(nullptr),
-    _dense(nullptr),
-    _rehash(0),
-    _ops(0) {
-    _dense = reinterpret_cast<MapElement*>(_data.get());
-    _sparse = reinterpret_cast<SparseElement*>(
-      _data.get() + sizeof(MapElement) * _capacity);
-    memset(_data.get(), 0, _max_size * (sizeof(MapElement) + sizeof(SparseElement)));
+    _sparse(reinterpret_cast<SparseElement*>(_data.get())),
+    _dense(reinterpret_cast<MapElement*>(_data.get() +  + sizeof(SparseElement) * MAP_SIZE)) {
+    memset(_data.get(), 0, MAP_SIZE * (sizeof(MapElement) + sizeof(SparseElement)));
   }
 
   CacheEfficientSparseMap(const CacheEfficientSparseMap&) = delete;
   CacheEfficientSparseMap& operator= (const CacheEfficientSparseMap& other) = delete;
 
-  ~CacheEfficientSparseMap() {
-    LOG << V(_rehash) << V(_ops);
-  }
+  ~CacheEfficientSparseMap() = default;
 
   size_t size() const {
     return _size;
@@ -109,17 +95,10 @@ class CacheEfficientSparseMap {
 
   Value& operator[] (const Key key) {
     SparseElement* s = find(key);
-    ++_ops;
     if ( containsValidElement(key, s) ) {
       ASSERT(s->element);
       return s->element->value;
-    } else if ( _size < _rehash_threshold ) {
-      return addElement(key, _initial_value, s)->value;
     } else {
-      rehash();
-      ASSERT(key < _max_size);
-      s = &_sparse[key];
-      ASSERT(s->timestamp < _timestamp);
       return addElement(key, _initial_value, s)->value;
     }
   }
@@ -131,26 +110,18 @@ class CacheEfficientSparseMap {
 
   void clear() {
     _size = 0;
-    _capacity = std::min(static_cast<size_t>(_max_size), CACHE_EFFICIENT_MAP_SIZE);
-    if ( _max_size >= CACHE_EFFICIENT_MAP_SIZE && _rehash_threshold == _max_size ) {
-      _dense = reinterpret_cast<MapElement*>(_data.get());
-      _sparse = reinterpret_cast<SparseElement*>(
-        _data.get() + sizeof(MapElement) * _capacity);
-      memset(_sparse, 0, _capacity * sizeof(SparseElement));
-    }
-    _rehash_threshold = _max_size < CACHE_EFFICIENT_MAP_SIZE ? _max_size : REHASH_THRESHOLD;
     ++_timestamp;
   }
 
  private:
   inline SparseElement* find(const Key key) const {
-    size_t hash = key & ( _capacity - 1 );
+    size_t hash = key & ( MAP_SIZE - 1 );
     while ( _sparse[hash].timestamp == _timestamp ) {
       ASSERT(_sparse[hash].element);
       if ( _sparse[hash].element->key == key ) {
         return &_sparse[hash];
       }
-      hash = (hash + 1) & ( _capacity - 1 );
+      hash = (hash + 1) & ( MAP_SIZE - 1 );
     }
     return &_sparse[hash];
   }
@@ -173,36 +144,13 @@ class CacheEfficientSparseMap {
     return s->element;
   }
 
-  void rehash() {
-    ++_rehash;
-    ASSERT(_capacity < _max_size);
-    _capacity = _max_size;
-    _rehash_threshold = _max_size;
-    _dense = reinterpret_cast<MapElement*>(_data.get());
-    _sparse = reinterpret_cast<SparseElement*>(
-      _data.get() + sizeof(MapElement) * _capacity);
-
-    for ( MapElement& element : *this ) {
-      const Key& key = element.key;
-      ASSERT(key < _max_size);
-      ASSERT(_sparse[key].timestamp < _timestamp);
-      _sparse[key] = SparseElement { &element, _timestamp };
-    }
-  }
-
-  const size_t _max_size;
   const Value _initial_value;
   std::unique_ptr<uint8_t[]> _data;
 
   size_t _size;
-  size_t _capacity;
-  size_t _rehash_threshold;
   size_t _timestamp;
   SparseElement* _sparse;
   MapElement* _dense;
-
-  size_t _rehash;
-  size_t _ops;
 };
 
 } // namespace ds

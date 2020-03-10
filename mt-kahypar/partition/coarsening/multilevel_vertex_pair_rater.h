@@ -30,9 +30,11 @@
 #include "kahypar/datastructure/fast_reset_flag_array.h"
 #include "kahypar/meta/mandatory.h"
 
+#include "kahypar/datastructure/sparse_map.h"
+#include "mt-kahypar/datastructures/sparse_map.h"
+
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/context.h"
-#include "mt-kahypar/datastructures/sparse_map.h"
 
 namespace mt_kahypar {
 template <typename TypeTraits = Mandatory,
@@ -41,8 +43,10 @@ template <typename TypeTraits = Mandatory,
           typename AcceptancePolicy = Mandatory>
 class MultilevelVertexPairRater {
   using HyperGraph = typename TypeTraits::HyperGraph;
-  using TmpRatingMap = ds::CacheEfficientSparseMap<HypernodeID, RatingType>;
+  using TmpRatingMap = kahypar::ds::SparseMap<HypernodeID, RatingType>;
+  using TmpSmallRatingMap = ds::CacheEfficientSparseMap<HypernodeID, RatingType>;
   using ThreadLocalTmpRatingMap = tbb::enumerable_thread_specific<TmpRatingMap>;
+  using ThreadLocalSmallTmpRatingMap = tbb::enumerable_thread_specific<TmpSmallRatingMap>;
 
  private:
   static constexpr bool debug = false;
@@ -78,9 +82,12 @@ class MultilevelVertexPairRater {
   MultilevelVertexPairRater(HyperGraph& hypergraph,
                            const Context& context) :
     _context(context),
+    _local_small_tmp_ratings(0.0),
     _local_tmp_ratings(hypergraph.initialNumNodes(), 0.0),
     _local_visited_representatives(hypergraph.initialNumNodes()),
-    _already_matched(hypergraph.initialNumNodes()) { }
+    _already_matched(hypergraph.initialNumNodes()),
+    _num_use_full_sparse_map(0),
+    _num_ratings(0) { }
 
   MultilevelVertexPairRater(const MultilevelVertexPairRater&) = delete;
   MultilevelVertexPairRater & operator= (const MultilevelVertexPairRater &) = delete;
@@ -88,12 +95,57 @@ class MultilevelVertexPairRater {
   MultilevelVertexPairRater(MultilevelVertexPairRater&&) = delete;
   MultilevelVertexPairRater & operator= (MultilevelVertexPairRater &&) = delete;
 
+  ~MultilevelVertexPairRater() {
+    LOG << V(_num_use_full_sparse_map) << V(_num_ratings);
+  }
+
   VertexPairRating rate(const HyperGraph& hypergraph,
                         const HypernodeID u,
                         const parallel::scalable_vector<HypernodeID>& cluster_ids,
                         const parallel::scalable_vector<AtomicWeight>& cluster_weight,
                         const HypernodeWeight max_allowed_node_weight) {
-    TmpRatingMap& tmp_ratings = _local_tmp_ratings.local();
+    HypernodeID ub_neighbors_u = 0;
+    bool use_small_sparse_map = true;
+    for ( const HyperedgeID& he : hypergraph.incidentEdges(u) ) {
+      const HypernodeID edge_size = hypergraph.edgeSize(he);
+      ub_neighbors_u += edge_size < _context.partition.hyperedge_size_threshold ? edge_size : 0;
+      if ( ub_neighbors_u > TmpSmallRatingMap::MAP_SIZE / 3 ) {
+        use_small_sparse_map = false;
+        break;
+      }
+    }
+
+    ++_num_ratings;
+    if ( use_small_sparse_map ) {
+      return rate(hypergraph, u, _local_small_tmp_ratings.local(),
+        cluster_ids, cluster_weight, max_allowed_node_weight);
+    } else {
+      ++_num_use_full_sparse_map;
+      return rate(hypergraph, u, _local_tmp_ratings.local(),
+        cluster_ids, cluster_weight, max_allowed_node_weight);
+    }
+  }
+
+  // ! Several threads will mark matches in parallel. However, since
+  // ! we only set the corresponding value to true this function is
+  // ! thread-safe.
+  void markAsMatched(const HypernodeID original_id) {
+    _already_matched.set(original_id, true);
+  }
+
+  // ! Note, this function is not thread safe
+  void resetMatches() {
+    _already_matched.reset();
+  }
+
+ private:
+  template<typename RatingMap>
+  VertexPairRating rate(const HyperGraph& hypergraph,
+                        const HypernodeID u,
+                        RatingMap& tmp_ratings,
+                        const parallel::scalable_vector<HypernodeID>& cluster_ids,
+                        const parallel::scalable_vector<AtomicWeight>& cluster_weight,
+                        const HypernodeWeight max_allowed_node_weight) {
     kahypar::ds::FastResetFlagArray<>& visited_representatives = _local_visited_representatives.local();
     const HypernodeID original_u_id = hypergraph.originalNodeID(u);
     const HypernodeWeight weight_u = cluster_weight[original_u_id];
@@ -152,22 +204,13 @@ class MultilevelVertexPairRater {
     return ret;
   }
 
-  // ! Several threads will mark matches in parallel. However, since
-  // ! we only set the corresponding value to true this function is
-  // ! thread-safe.
-  void markAsMatched(const HypernodeID original_id) {
-    _already_matched.set(original_id, true);
-  }
-
-  // ! Note, this function is not thread safe
-  void resetMatches() {
-    _already_matched.reset();
-  }
-
- private:
   const Context& _context;
+  ThreadLocalSmallTmpRatingMap _local_small_tmp_ratings;
   ThreadLocalTmpRatingMap _local_tmp_ratings;
   ThreadLocalFastResetFlagArray _local_visited_representatives;
   kahypar::ds::FastResetFlagArray<> _already_matched;
+
+  std::atomic<size_t> _num_use_full_sparse_map;
+  std::atomic<size_t> _num_ratings;
 };
 }  // namespace mt_kahypar
