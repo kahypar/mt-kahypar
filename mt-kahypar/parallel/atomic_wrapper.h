@@ -26,9 +26,9 @@
 #include <type_traits>
 
 template<typename T>
-class CAtomic : public std::atomic<T> {
+class CAtomic : public std::__atomic_base<T> {
 public:
-  using Base = std::atomic<T>;
+  using Base = std::__atomic_base<T>;
 
   explicit CAtomic(const T value = T()) : Base(value) { }
 
@@ -53,11 +53,11 @@ public:
 
   // unfortunately the internal value M_i is private, so we cannot issue __atomic_add_fetch( &M_i, i, int(m) ) ourselves
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE T add_fetch(T i, std::memory_order m = std::memory_order_seq_cst) {
-    return fetch_add(i, m) + i;
+    return Base::fetch_add(i, m) + i;
   }
 
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE T sub_fetch(T i, std::memory_order m = std::memory_order_seq_cst) {
-    return fetch_sub(i, m) - i;
+    return Base::fetch_sub(i, m) - i;
   }
 };
 

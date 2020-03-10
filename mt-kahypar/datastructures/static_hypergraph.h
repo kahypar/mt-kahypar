@@ -25,6 +25,8 @@
 #include "tbb/parallel_scan.h"
 
 #include "kahypar/meta/mandatory.h"
+#include "external_tools/kahypar/kahypar/datastructure/fast_reset_flag_array.h"
+
 
 #include "mt-kahypar/datastructures/community_support.h"
 #include "mt-kahypar/datastructures/hypergraph_common.h"

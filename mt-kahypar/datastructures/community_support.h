@@ -33,6 +33,7 @@
 #include "mt-kahypar/parallel/atomic_wrapper.h"
 #include "mt-kahypar/utils/memory_tree.h"
 #include "mt-kahypar/utils/range.h"
+#include <external_tools/kahypar/kahypar/utils/math.h>
 
 namespace mt_kahypar {
 namespace ds {

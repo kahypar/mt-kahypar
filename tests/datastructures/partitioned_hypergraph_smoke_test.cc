@@ -18,6 +18,7 @@
  *
  ******************************************************************************/
 
+#include <boost/range/irange.hpp>
 #include "gmock/gmock.h"
 
 #include "tbb/blocked_range.h"
@@ -71,20 +72,19 @@ class AConcurrentHypergraph : public Test {
     k(Config::K),
     objective(Config::OBJECTIVE),
     underlying_hypergraph(),
-    hypergraph() {
+    hypergraph()
+  {
     int cpu_id = sched_getcpu();
-    underlying_hypergraph = io::readHypergraphFile<Hypergraph, Factory>(
-      "../partition/test_instances/ibm01.hgr", TBB::GLOBAL_TASK_GROUP);
-    hypergraph = PartitionedHyperGraph(k, TBB::GLOBAL_TASK_GROUP, underlying_hypergraph);
+    underlying_hypergraph = io::readHypergraphFile<Hypergraph, Factory>("../partition/test_instances/ibm01.hgr", TBB::GLOBAL_TASK_GROUP);
+    hypergraph = PartitionedHyperGraph(k, TBB::GLOBAL_TASK_GROUP, underlying_hypergraph, std::vector<HypernodeWeight>(k, std::numeric_limits<HypernodeWeight>::max()));
     for (const HypernodeID& hn : hypergraph.nodes()) {
       PartitionID id = utils::Randomize::instance().getRandomInt(0, k - 1, cpu_id);
-      hypergraph.setNodePart(hn, id);
+      assert(hypergraph.setNodePart(hn, id));
     }
-    hypergraph.initializeNumCutHyperedges(TBB::GLOBAL_TASK_GROUP);
   }
 
   static void SetUpTestSuite() {
-    TBB::instance(HardwareTopology::instance().num_cpus());
+    TBB::instance(1); //HardwareTopology::instance().num_cpus());
     utils::Randomize::instance().setSeed(0);
   }
 
@@ -100,11 +100,14 @@ using HwTopology = typename TypeTraits::HwTopology;
 using TBB = typename TypeTraits::TBB;
 
 // Define NUMA Hypergraph and Factory
+/*
 using NumaHyperGraph = NumaHypergraph<StaticHypergraph, HwTopology, TBB>;
 using NumaHyperGraphFactory = NumaHypergraphFactory<
   StaticHypergraph, StaticHypergraphFactory, HwTopology, TBB>;
+*/
 
-typedef ::testing::Types<TestConfig<PartitionedHypergraph<StaticHypergraph, StaticHypergraphFactory>,
+typedef ::testing::Types<
+                        TestConfig<PartitionedHypergraph<StaticHypergraph, StaticHypergraphFactory>,
                                     StaticHypergraph,
                                     StaticHypergraphFactory,
                                     TBBNumaArena,
@@ -139,6 +142,7 @@ typedef ::testing::Types<TestConfig<PartitionedHypergraph<StaticHypergraph, Stat
                                     StaticHypergraphFactory,
                                     TBBNumaArena,
                                     128, kahypar::Objective::cut>,
+
                         TestConfig<PartitionedHypergraph<StaticHypergraph, StaticHypergraphFactory>,
                                     StaticHypergraph,
                                     StaticHypergraphFactory,
@@ -173,7 +177,10 @@ typedef ::testing::Types<TestConfig<PartitionedHypergraph<StaticHypergraph, Stat
                                     StaticHypergraph,
                                     StaticHypergraphFactory,
                                     TBBNumaArena,
-                                    128, kahypar::Objective::km1>,
+                                    128, kahypar::Objective::km1>
+
+        /*
+        ,
                         TestConfig<NumaPartitionedHypergraph<NumaHyperGraph, NumaHyperGraphFactory>,
                                     NumaHyperGraph,
                                     NumaHyperGraphFactory,
@@ -243,7 +250,9 @@ typedef ::testing::Types<TestConfig<PartitionedHypergraph<StaticHypergraph, Stat
                                     NumaHyperGraph,
                                     NumaHyperGraphFactory,
                                     TBB,
-                                    128, kahypar::Objective::km1>> TestConfigs;
+                                    128, kahypar::Objective::km1>
+                                    */
+                                    > TestConfigs;
 
 TYPED_TEST_CASE(AConcurrentHypergraph, TestConfigs);
 
@@ -269,8 +278,10 @@ void moveAllNodesOfHypergraphRandom(HyperGraph& hypergraph,
                          };
 
   HyperedgeWeight metric_before = metrics::objective(hypergraph, objective);
-
   HighResClockTimepoint start = std::chrono::high_resolution_clock::now();
+
+  tbb::enumerable_thread_specific<HyperedgeWeight, tbb::cache_aligned_allocator<HyperedgeWeight>, tbb::ets_key_usage_type::ets_key_per_instance> gains;
+
   tbb::parallel_for(0UL, hypergraph.initialNumNodes(), [&](const HypernodeID& node) {
     int cpu_id = sched_getcpu();
     const HypernodeID hn = hypergraph.globalNodeID(node);
@@ -280,7 +291,9 @@ void moveAllNodesOfHypergraphRandom(HyperGraph& hypergraph,
       to = utils::Randomize::instance().getRandomInt(0, k - 1, cpu_id);
     }
     ASSERT((to >= 0 && to < k) && to != from);
-    hypergraph.changeNodePart(hn, from, to, objective_delta);
+    Gain gain = 0;
+    hypergraph.changeNodePart(hn, from, to, gain, objective_delta);
+    gains.local() += gain;
   });
 
   HighResClockTimepoint end = std::chrono::high_resolution_clock::now();
@@ -291,8 +304,12 @@ void moveAllNodesOfHypergraphRandom(HyperGraph& hypergraph,
     delta += local_delta;
   }
 
+  HyperedgeWeight gain = gains.combine(std::plus<HyperedgeWeight>());
+
   HyperedgeWeight metric_after = metrics::objective(hypergraph, objective);
-  ASSERT_EQ(metric_after, metric_before + delta) << V(metric_before) << V(delta);
+  // Note: since we don't wait for stable state during changeNodePart, we don't get exact deltas. Instead we can use the two atomics to obtain the actual gain
+  ASSERT_EQ(metric_after, metric_before - gain);
+  //ASSERT_EQ(metric_after, metric_before + delta) << V(metric_before) << V(delta);
   if (show_timings) {
     LOG << V(k) << V(objective) << V(metric_before) << V(delta) << V(metric_after) << V(timing);
   }
@@ -310,7 +327,6 @@ void verifyBlockWeightsAndSizes(HyperGraph& hypergraph,
 
   for (PartitionID i = 0; i < k; ++i) {
     ASSERT_EQ(block_weight[i], hypergraph.partWeight(i));
-    ASSERT_EQ(block_size[i], hypergraph.partSize(i));
   }
 }
 
@@ -388,5 +404,7 @@ TYPED_TEST(AConcurrentHypergraph, VerifyBorderNodesSmokeTest) {
   moveAllNodesOfHypergraphRandom(this->hypergraph, this->k, this->objective, false);
   verifyBorderNodes(this->hypergraph);
 }
+
+
 }  // namespace ds
 }  // namespace mt_kahypar

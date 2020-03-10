@@ -5,3 +5,4 @@ add_gmock_test(partitioned_hypergraph_smoke_test partitioned_hypergraph_smoke_te
 add_gmock_test(connectivity_set_test connectivity_set_test.cc)
 add_gmock_test(concurrent_union_find_test concurrent_union_find_test.cc)
 add_gmock_test(priority_queue_test priority_queue_test.cc)
+add_gmock_test(gain_updates_test gain_updates_test.cc)
