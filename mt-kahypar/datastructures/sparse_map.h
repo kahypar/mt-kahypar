@@ -25,6 +25,8 @@
 
 #pragma once
 
+#include <cmath>
+
 #include "mt-kahypar/macros.h"
 #include "kahypar/datastructure/sparse_map.h"
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
@@ -36,8 +38,8 @@ template <typename Key = Mandatory,
           typename Value = Mandatory>
 class CacheEfficientSparseMap {
 
-  static constexpr size_t CACHE_EFFICIENT_MAP_SIZE = 2048;
-  static constexpr size_t REHASH_THRESHOLD = 1024;
+  static constexpr size_t CACHE_EFFICIENT_MAP_SIZE = 8192;
+  static constexpr size_t REHASH_THRESHOLD = 4096;
 
   static_assert(REHASH_THRESHOLD < CACHE_EFFICIENT_MAP_SIZE,
     "Rehash threshold must be smaller than map size");
@@ -54,27 +56,31 @@ class CacheEfficientSparseMap {
 
  public:
   explicit CacheEfficientSparseMap(const Key max_size, const Value initial_value) :
-    _max_size(max_size),
+    _max_size(std::pow(2.0, std::ceil(std::log2(static_cast<double>(max_size))))),
     _initial_value(initial_value),
     _data(std::make_unique<uint8_t[]>(
-      max_size * sizeof(MapElement) +
-      max_size * sizeof(SparseElement))),
+      _max_size * sizeof(MapElement) +
+      _max_size * sizeof(SparseElement))),
     _size(0),
-    _capacity(std::min(static_cast<size_t>(max_size), CACHE_EFFICIENT_MAP_SIZE)),
+    _capacity(std::min(static_cast<size_t>(_max_size), CACHE_EFFICIENT_MAP_SIZE)),
     _rehash_threshold(static_cast<size_t>(_max_size) < CACHE_EFFICIENT_MAP_SIZE ? _max_size : REHASH_THRESHOLD),
     _timestamp(1),
     _sparse(nullptr),
-    _dense(nullptr) {
+    _dense(nullptr),
+    _rehash(0),
+    _ops(0) {
     _dense = reinterpret_cast<MapElement*>(_data.get());
     _sparse = reinterpret_cast<SparseElement*>(
       _data.get() + sizeof(MapElement) * _capacity);
-    memset(_data.get(), 0, max_size * (sizeof(MapElement) + sizeof(SparseElement)));
+    memset(_data.get(), 0, _max_size * (sizeof(MapElement) + sizeof(SparseElement)));
   }
 
   CacheEfficientSparseMap(const CacheEfficientSparseMap&) = delete;
   CacheEfficientSparseMap& operator= (const CacheEfficientSparseMap& other) = delete;
 
-  ~CacheEfficientSparseMap() = default;
+  ~CacheEfficientSparseMap() {
+    LOG << V(_rehash) << V(_ops);
+  }
 
   size_t size() const {
     return _size;
@@ -83,10 +89,6 @@ class CacheEfficientSparseMap {
   bool contains(const Key key) const {
     SparseElement* s = find(key);
     return containsValidElement(key, s);
-  }
-
-  void add(const Key key, const Value value) {
-    // addElement(key, value);
   }
 
   const MapElement* begin() const {
@@ -107,6 +109,7 @@ class CacheEfficientSparseMap {
 
   Value& operator[] (const Key key) {
     SparseElement* s = find(key);
+    ++_ops;
     if ( containsValidElement(key, s) ) {
       ASSERT(s->element);
       return s->element->value;
@@ -141,13 +144,13 @@ class CacheEfficientSparseMap {
 
  private:
   inline SparseElement* find(const Key key) const {
-    size_t hash = key % _capacity;
+    size_t hash = key & ( _capacity - 1 );
     while ( _sparse[hash].timestamp == _timestamp ) {
       ASSERT(_sparse[hash].element);
       if ( _sparse[hash].element->key == key ) {
         return &_sparse[hash];
       }
-      hash = (hash + 1) % _capacity;
+      hash = (hash + 1) & ( _capacity - 1 );
     }
     return &_sparse[hash];
   }
@@ -171,6 +174,7 @@ class CacheEfficientSparseMap {
   }
 
   void rehash() {
+    ++_rehash;
     ASSERT(_capacity < _max_size);
     _capacity = _max_size;
     _rehash_threshold = _max_size;
@@ -196,6 +200,9 @@ class CacheEfficientSparseMap {
   size_t _timestamp;
   SparseElement* _sparse;
   MapElement* _dense;
+
+  size_t _rehash;
+  size_t _ops;
 };
 
 } // namespace ds
