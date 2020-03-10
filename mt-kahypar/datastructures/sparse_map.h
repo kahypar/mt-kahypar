@@ -1,7 +1,7 @@
 /*******************************************************************************
  * This file is part of KaHyPar.
  *
- * Copyright (C) 2016 Sebastian Schlag <sebastian.schlag@kit.edu>
+ * Copyright (C) 2019 Tobias Heuer <tobias.heuer@kit.edu>
  *
  * KaHyPar is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -34,9 +34,26 @@
 namespace mt_kahypar {
 namespace ds {
 
+/*
+ * Sparse map based on sparse set representation of
+ * Briggs, Preston, and Linda Torczon. "An efficient representation for sparse sets."
+ * ACM Letters on Programming Languages and Systems (LOPLAS) 2.1-4 (1993): 59-69.
+ */
+
+/*!
+ * Sparse map implementation that uses a fixed size.
+ * In contrast to the implementation in KaHyPar (see kahypar/datastructure/sparse_map.h),
+ * which uses as size the cardinality of the key universe, hash collisions have to be handled
+ * explicitly. Hash collisions are resolved with linear probing.
+ * Advantage of the implementation is that it uses significantly less space than the
+ * version in KaHyPar and should be therefore more cache-efficient.
+ * Note, there is no fallback strategy if all slots of the sparse map are occupied by an
+ * element. Please make sure that no more than MAP_SIZE elements are inserted into the
+ * sparse map. Otherwise, the behavior is undefined.
+ */
 template <typename Key = Mandatory,
           typename Value = Mandatory>
-class CacheEfficientSparseMap {
+class FixedSizeSparseMap {
 
   struct MapElement {
     Key key;
@@ -49,10 +66,11 @@ class CacheEfficientSparseMap {
   };
 
  public:
-
   static constexpr size_t MAP_SIZE = 16384;
 
-  explicit CacheEfficientSparseMap(const Value initial_value) :
+  static_assert(is_power_of_two(MAP_SIZE), "Size of map is not a power of two!");
+
+  explicit FixedSizeSparseMap(const Value initial_value) :
     _initial_value(initial_value),
     _data(std::make_unique<uint8_t[]>(
       MAP_SIZE * sizeof(MapElement) + MAP_SIZE * sizeof(SparseElement))),
@@ -63,18 +81,13 @@ class CacheEfficientSparseMap {
     memset(_data.get(), 0, MAP_SIZE * (sizeof(MapElement) + sizeof(SparseElement)));
   }
 
-  CacheEfficientSparseMap(const CacheEfficientSparseMap&) = delete;
-  CacheEfficientSparseMap& operator= (const CacheEfficientSparseMap& other) = delete;
+  FixedSizeSparseMap(const FixedSizeSparseMap&) = delete;
+  FixedSizeSparseMap& operator= (const FixedSizeSparseMap& other) = delete;
 
-  ~CacheEfficientSparseMap() = default;
+  ~FixedSizeSparseMap() = default;
 
   size_t size() const {
     return _size;
-  }
-
-  bool contains(const Key key) const {
-    SparseElement* s = find(key);
-    return containsValidElement(key, s);
   }
 
   const MapElement* begin() const {
@@ -91,6 +104,11 @@ class CacheEfficientSparseMap {
 
   MapElement* end() {
     return _dense + _size;
+  }
+
+  bool contains(const Key key) const {
+    SparseElement* s = find(key);
+    return containsValidElement(key, s);
   }
 
   Value& operator[] (const Key key) {

@@ -200,21 +200,22 @@ class MultilevelCoarsenerT : public ICoarsenerT<TypeTraits>,
           ASSERT(id < current_vertices[node].size());
           const HypernodeID hn = current_vertices[node][id];
           const HypernodeID u = current_hg.originalNodeID(hn);
-          const HypernodeID current_num_nodes = num_hns_before_pass -
-            contracted_nodes.combine(std::plus<HypernodeID>());
           // We perform rating if ...
           //  1.) The contraction limit of the current level is not reached
           //  2.) Vertex hn is not matched before
-          if ( current_num_nodes > hierarchy_contraction_limit &&
-               _matching_state[u] == STATE(MatchingState::UNMATCHED) ) {
-            ASSERT(current_hg.nodeIsEnabled(hn));
-            const Rating rating = _rater.rate(current_hg, hn,
-              cluster_ids, _cluster_weight, _max_allowed_node_weight);
-            if ( rating.target != kInvalidHypernode ) {
-              const HypernodeID v = current_hg.originalNodeID(rating.target);
-              matchVertices(current_hg, u, v, cluster_ids,
-                contracted_nodes.local(), _num_conflicts.local());
-              ++_num_matchings.local();
+          if ( _matching_state[u] == STATE(MatchingState::UNMATCHED) ) {
+            const HypernodeID current_num_nodes = num_hns_before_pass -
+              contracted_nodes.combine(std::plus<HypernodeID>());
+              if ( current_num_nodes > hierarchy_contraction_limit ) {
+              ASSERT(current_hg.nodeIsEnabled(hn));
+              const Rating rating = _rater.rate(current_hg, hn,
+                cluster_ids, _cluster_weight, _max_allowed_node_weight);
+              if ( rating.target != kInvalidHypernode ) {
+                const HypernodeID v = current_hg.originalNodeID(rating.target);
+                matchVertices(current_hg, u, v, cluster_ids,
+                  contracted_nodes.local(), _num_conflicts.local());
+                ++_num_matchings.local();
+              }
             }
           }
         });

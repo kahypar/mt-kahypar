@@ -43,10 +43,10 @@ template <typename TypeTraits = Mandatory,
           typename AcceptancePolicy = Mandatory>
 class MultilevelVertexPairRater {
   using HyperGraph = typename TypeTraits::HyperGraph;
-  using TmpRatingMap = kahypar::ds::SparseMap<HypernodeID, RatingType>;
-  using TmpSmallRatingMap = ds::CacheEfficientSparseMap<HypernodeID, RatingType>;
-  using ThreadLocalTmpRatingMap = tbb::enumerable_thread_specific<TmpRatingMap>;
-  using ThreadLocalSmallTmpRatingMap = tbb::enumerable_thread_specific<TmpSmallRatingMap>;
+  using LargeTmpRatingMap = kahypar::ds::SparseMap<HypernodeID, RatingType>;
+  using CacheEfficientRatingMap = ds::FixedSizeSparseMap<HypernodeID, RatingType>;
+  using ThreadLocalLargeTmpRatingMap = tbb::enumerable_thread_specific<LargeTmpRatingMap>;
+  using ThreadLocalCacheEfficientRatingMap = tbb::enumerable_thread_specific<CacheEfficientRatingMap>;
 
  private:
   static constexpr bool debug = false;
@@ -82,8 +82,8 @@ class MultilevelVertexPairRater {
   MultilevelVertexPairRater(HyperGraph& hypergraph,
                            const Context& context) :
     _context(context),
-    _local_small_tmp_ratings(0.0),
-    _local_tmp_ratings(hypergraph.initialNumNodes(), 0.0),
+    _local_cache_efficient_rating_map(0.0),
+    _local_large_rating_map(hypergraph.initialNumNodes(), 0.0),
     _local_visited_representatives(hypergraph.initialNumNodes()),
     _already_matched(hypergraph.initialNumNodes()) { }
 
@@ -98,22 +98,11 @@ class MultilevelVertexPairRater {
                         const parallel::scalable_vector<HypernodeID>& cluster_ids,
                         const parallel::scalable_vector<AtomicWeight>& cluster_weight,
                         const HypernodeWeight max_allowed_node_weight) {
-    HypernodeID ub_neighbors_u = 0;
-    bool use_small_sparse_map = true;
-    for ( const HyperedgeID& he : hypergraph.incidentEdges(u) ) {
-      const HypernodeID edge_size = hypergraph.edgeSize(he);
-      ub_neighbors_u += edge_size < _context.partition.hyperedge_size_threshold ? edge_size : 0;
-      if ( ub_neighbors_u > TmpSmallRatingMap::MAP_SIZE / 3 ) {
-        use_small_sparse_map = false;
-        break;
-      }
-    }
-
-    if ( use_small_sparse_map ) {
-      return rate(hypergraph, u, _local_small_tmp_ratings.local(),
+    if ( ratingsFitIntoSmallSparseMap(hypergraph, u) ) {
+      return rate(hypergraph, u, _local_cache_efficient_rating_map.local(),
         cluster_ids, cluster_weight, max_allowed_node_weight);
     } else {
-      return rate(hypergraph, u, _local_tmp_ratings.local(),
+      return rate(hypergraph, u, _local_large_rating_map.local(),
         cluster_ids, cluster_weight, max_allowed_node_weight);
     }
   }
@@ -196,9 +185,29 @@ class MultilevelVertexPairRater {
     return ret;
   }
 
+
+  inline bool ratingsFitIntoSmallSparseMap(const Hypergraph& hypergraph,
+                                           const HypernodeID u)  {
+    // Compute estimation for the upper bound of neighbors of u
+    HypernodeID ub_neighbors_u = 0;
+    for ( const HyperedgeID& he : hypergraph.incidentEdges(u) ) {
+      const HypernodeID edge_size = hypergraph.edgeSize(he);
+      // Ignore large hyperedges
+      ub_neighbors_u += edge_size < _context.partition.hyperedge_size_threshold ? edge_size : 0;
+      // If the number of estimated neighbors is greater than MAP_SIZE / 3, we
+      // use the large sparse map. The division by 3 also ensures that the fill grade
+      // of the small sparse map would be small enough such that linear probing
+      // is fast.
+      if ( ub_neighbors_u > CacheEfficientRatingMap::MAP_SIZE / 3UL ) {
+        return false;
+      }
+    }
+    return true;
+  }
+
   const Context& _context;
-  ThreadLocalSmallTmpRatingMap _local_small_tmp_ratings;
-  ThreadLocalTmpRatingMap _local_tmp_ratings;
+  ThreadLocalCacheEfficientRatingMap _local_cache_efficient_rating_map;
+  ThreadLocalLargeTmpRatingMap _local_large_rating_map;
   ThreadLocalFastResetFlagArray _local_visited_representatives;
   kahypar::ds::FastResetFlagArray<> _already_matched;
 };
