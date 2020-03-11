@@ -119,6 +119,6 @@
   }
 
 template<typename T>
-constexpr bool is_power_of_two(const T& value) {
+static constexpr bool is_power_of_two(const T& value) {
     return value && ((value & (value - 1)) == 0);
 }

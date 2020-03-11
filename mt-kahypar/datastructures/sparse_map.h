@@ -68,7 +68,7 @@ class FixedSizeSparseMap {
  public:
   static constexpr size_t MAP_SIZE = 16384;
 
-  static_assert(is_power_of_two(MAP_SIZE), "Size of map is not a power of two!");
+  static_assert(MAP_SIZE && ((MAP_SIZE & (MAP_SIZE - 1)) == 0UL), "Size of map is not a power of two!");
 
   explicit FixedSizeSparseMap(const Value initial_value) :
     _initial_value(initial_value),
@@ -133,6 +133,7 @@ class FixedSizeSparseMap {
 
  private:
   inline SparseElement* find(const Key key) const {
+    ASSERT(_size < MAP_SIZE);
     size_t hash = key & ( MAP_SIZE - 1 );
     while ( _sparse[hash].timestamp == _timestamp ) {
       ASSERT(_sparse[hash].element);
