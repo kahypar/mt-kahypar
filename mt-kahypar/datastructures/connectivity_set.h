@@ -59,6 +59,7 @@ public:
                                                                       numBlocksPerHyperedge(k / BITS_PER_BLOCK + (k % BITS_PER_BLOCK != 0)),
                                                                       bits(numEdges * numBlocksPerHyperedge)
   {
+
   }
 
   void add(const HyperedgeID he, const PartitionID p) {
@@ -94,6 +95,10 @@ public:
       conn += utils::popcount_64(bits[i].load(std::memory_order_relaxed));
     }
     return conn;
+  }
+
+  void freeInternalData() {
+    parallel::free(bits);
   }
 
   void memoryConsumption(utils::MemoryTreeNode* parent) const {

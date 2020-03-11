@@ -109,7 +109,11 @@ po::options_description createGenericOptionsDescription(Context& context,
     ("show-detailed-timings", po::value<bool>(&context.partition.detailed_timings)->value_name("<bool>"),
     "If true, detailed timings overview is shown")
     ("enable-progress-bar", po::value<bool>(&context.partition.enable_progress_bar)->value_name("<bool>"),
-    "If true, than progress bar is shown during uncoarsening")
+    "If true, than progress bar is displayed")
+    ("enable-profiler", po::value<bool>(&context.partition.enable_profiler)->value_name("<bool>"),
+    "If true, than profiler is activated")
+    ("profiler-snapshot-interval", po::value<int>(&context.partition.snapshot_interval)->value_name("<int>"),
+    "Interval in milliseconds for which profiler makes a snapshot of system stats")
     ("time-limit", po::value<int>(&context.partition.time_limit)->value_name("<int>"),
     "Time limit in seconds")
     ("sp-process,s", po::value<bool>(&context.partition.sp_process_output)->value_name("<bool>"),
@@ -230,6 +234,52 @@ po::options_description createCoarseningOptionsDescription(Context& context,
   return options;
 }
 
+po::options_description createRefinementOptionsDescription(Context& context,
+                                                           const int num_columns,
+                                                           const bool initial_partitioning) {
+  po::options_description options("Refinement Options", num_columns);
+  options.add_options()
+    (( initial_partitioning ? "i-r-lp-type" : "r-lp-type"),
+    po::value<std::string>()->value_name("<string>")->notifier(
+      [&, initial_partitioning](const std::string& type) {
+      if ( initial_partitioning ) {
+        context.initial_partitioning.refinement.label_propagation.algorithm =
+          labelPropagationAlgorithmFromString(type);
+      } else {
+        context.refinement.label_propagation.algorithm =
+          labelPropagationAlgorithmFromString(type);
+      }
+    }),
+    "Label Propagation Algorithm:\n"
+    "- label_propagation_km1\n"
+    "- label_propagation_cut\n"
+    "- do_nothing")
+    (( initial_partitioning ? "i-r-lp-maximum-iterations" : "r-lp-maximum-iterations"),
+    po::value<size_t>((!initial_partitioning ? &context.refinement.label_propagation.maximum_iterations :
+      &context.initial_partitioning.refinement.label_propagation.maximum_iterations))->value_name("<size_t>"),
+    "Maximum number of iterations over all nodes during label propagation\n"
+    "(default 1)")
+    (( initial_partitioning ? "i-r-lp-rebalancing" : "r-lp-rebalancing"),
+    po::value<bool>((!initial_partitioning ? &context.refinement.label_propagation.rebalancing :
+      &context.initial_partitioning.refinement.label_propagation.rebalancing))->value_name("<bool>"),
+    "If true, zero gain moves are used to rebalance solution\n"
+    "(default true)")
+    (( initial_partitioning ? "i-r-lp-he-size-activation-threshold" : "r-lp-he-size-activation-threshold"),
+    po::value<size_t>((!initial_partitioning ? &context.refinement.label_propagation.hyperedge_size_activation_threshold :
+      &context.initial_partitioning.refinement.label_propagation.hyperedge_size_activation_threshold))->value_name("<size_t>"),
+    "If a vertex moves during LP only neighbors that are part of hyperedge with size less\n"
+    "this threshold are activated.");
+
+  if ( !initial_partitioning ) {
+    options.add_options()
+      ("r-lp-numa-aware",
+      po::value<bool>(&context.refinement.label_propagation.numa_aware)->value_name("<bool>"),
+      "If true, label propagation is executed numa friendly (which means that nodes are processed on its numa nodes)\n"
+      "(default false)");
+  }
+  return options;
+}
+
 po::options_description createInitialPartitioningOptionsDescription(Context& context, const int num_columns) {
   po::options_description options("Initial Partitioning Options", num_columns);
   options.add_options()
@@ -258,34 +308,7 @@ po::options_description createInitialPartitioningOptionsDescription(Context& con
     po::value<size_t>(&context.initial_partitioning.lp_initial_block_size)->value_name("<size_t>"),
     "Initial block size used for label propagation initial partitioner \n"
     "(default: 1)");
-  return options;
-}
-
-po::options_description createRefinementOptionsDescription(Context& context, const int num_columns) {
-  po::options_description options("Refinement Options", num_columns);
-  options.add_options()
-    ("r-lp-type",
-    po::value<std::string>()->value_name("<string>")->notifier(
-      [&](const std::string& type) {
-      context.refinement.label_propagation.algorithm =
-        labelPropagationAlgorithmFromString(type);
-    }),
-    "Algorithm used for label propagation:\n"
-    "- label_propagation_km1\n"
-    "- label_propagation_cut\n"
-    "- do_nothing")
-    ("r-lp-maximum-iterations",
-    po::value<size_t>(&context.refinement.label_propagation.maximum_iterations)->value_name("<size_t>"),
-    "Maximum number of iterations over all nodes during label propagation\n"
-    "(default 1)")
-    ("r-lp-numa-aware",
-    po::value<bool>(&context.refinement.label_propagation.numa_aware)->value_name("<bool>"),
-    "If true, label propagation is executed numa friendly (which means that nodes are processed on its numa nodes)\n"
-    "(default false)")
-    ("r-lp-rebalancing",
-    po::value<bool>(&context.refinement.label_propagation.rebalancing)->value_name("<bool>"),
-    "If true, zero gain moves are used to rebalance solution\n"
-    "(default true)");
+  options.add(createRefinementOptionsDescription(context, num_columns, true));
   return options;
 }
 
@@ -338,7 +361,7 @@ void processCommandLineInput(Context& context, int argc, char* argv[]) {
   po::options_description initial_paritioning_options =
     createInitialPartitioningOptionsDescription(context, num_columns);
   po::options_description refinement_options =
-    createRefinementOptionsDescription(context, num_columns);
+    createRefinementOptionsDescription(context, num_columns, false);
   po::options_description shared_memory_options =
     createSharedMemoryOptionsDescription(context, num_columns);
 
@@ -414,7 +437,7 @@ void parseIniToContext(Context& context, const std::string& ini_filename) {
   po::options_description initial_paritioning_options =
     createInitialPartitioningOptionsDescription(context, num_columns);
   po::options_description refinement_options =
-    createRefinementOptionsDescription(context, num_columns);
+    createRefinementOptionsDescription(context, num_columns, false);
   po::options_description shared_memory_options =
     createSharedMemoryOptionsDescription(context, num_columns);
 

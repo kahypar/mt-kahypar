@@ -28,7 +28,7 @@
 #include <tbb/task_group.h>
 #include <tbb/tick_count.h>
 
-#include <mt-kahypar/parallel/stl/scalable_vector.h>
+#include "mt-kahypar/parallel/stl/scalable_vector.h"
 
 namespace mt_kahypar {
 namespace parallel {

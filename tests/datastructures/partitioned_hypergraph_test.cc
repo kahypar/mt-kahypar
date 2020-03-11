@@ -739,5 +739,86 @@ TYPED_TEST(APartitionedHypergraph, ExtractBlockTwoWithCommunityInformation) {
   ASSERT_EQ(5, hg.communityID(map_from_original_to_extracted_hg(this->id[6])));
 }
 
+TYPED_TEST(APartitionedHypergraph, ComputesPartInfoCorrectIfNodePartsAreSetOnly) {
+  this->partitioned_hypergraph.resetPartition();
+  this->partitioned_hypergraph.setOnlyNodePart(this->id[0], 0);
+  this->partitioned_hypergraph.setOnlyNodePart(this->id[1], 0);
+  this->partitioned_hypergraph.setOnlyNodePart(this->id[2], 0);
+  this->partitioned_hypergraph.setOnlyNodePart(this->id[3], 1);
+  this->partitioned_hypergraph.setOnlyNodePart(this->id[4], 1);
+  this->partitioned_hypergraph.setOnlyNodePart(this->id[5], 2);
+  this->partitioned_hypergraph.setOnlyNodePart(this->id[6], 2);
+  this->partitioned_hypergraph.initializePartition(TBB::GLOBAL_TASK_GROUP);
+
+  ASSERT_EQ(3, this->partitioned_hypergraph.partWeight(0));
+  ASSERT_EQ(3, this->partitioned_hypergraph.partSize(0));
+  ASSERT_EQ(2, this->partitioned_hypergraph.partWeight(1));
+  ASSERT_EQ(2, this->partitioned_hypergraph.partSize(1));
+  ASSERT_EQ(2, this->partitioned_hypergraph.partWeight(2));
+  ASSERT_EQ(2, this->partitioned_hypergraph.partSize(2));
+}
+
+TYPED_TEST(APartitionedHypergraph, SetPinCountsInPartCorrectIfNodePartsAreSetOnly) {
+  this->partitioned_hypergraph.resetPartition();
+  this->partitioned_hypergraph.setOnlyNodePart(this->id[0], 0);
+  this->partitioned_hypergraph.setOnlyNodePart(this->id[1], 0);
+  this->partitioned_hypergraph.setOnlyNodePart(this->id[2], 0);
+  this->partitioned_hypergraph.setOnlyNodePart(this->id[3], 1);
+  this->partitioned_hypergraph.setOnlyNodePart(this->id[4], 1);
+  this->partitioned_hypergraph.setOnlyNodePart(this->id[5], 2);
+  this->partitioned_hypergraph.setOnlyNodePart(this->id[6], 2);
+  this->partitioned_hypergraph.initializePartition(TBB::GLOBAL_TASK_GROUP);
+
+  this->verifyPartitionPinCounts(GLOBAL_EDGE_ID(this->hypergraph, 0), { 2, 0, 0 });
+  this->verifyPartitionPinCounts(GLOBAL_EDGE_ID(this->hypergraph, 1), { 2, 2, 0 });
+  this->verifyPartitionPinCounts(GLOBAL_EDGE_ID(this->hypergraph, 2), { 0, 2, 1 });
+  this->verifyPartitionPinCounts(GLOBAL_EDGE_ID(this->hypergraph, 3), { 1, 0, 2 });
+}
+
+TYPED_TEST(APartitionedHypergraph, ComputesConnectivitySetCorrectIfNodePartsAreSetOnly) {
+  this->partitioned_hypergraph.resetPartition();
+  this->partitioned_hypergraph.setOnlyNodePart(this->id[0], 0);
+  this->partitioned_hypergraph.setOnlyNodePart(this->id[1], 0);
+  this->partitioned_hypergraph.setOnlyNodePart(this->id[2], 0);
+  this->partitioned_hypergraph.setOnlyNodePart(this->id[3], 1);
+  this->partitioned_hypergraph.setOnlyNodePart(this->id[4], 1);
+  this->partitioned_hypergraph.setOnlyNodePart(this->id[5], 2);
+  this->partitioned_hypergraph.setOnlyNodePart(this->id[6], 2);
+  this->partitioned_hypergraph.initializePartition(TBB::GLOBAL_TASK_GROUP);
+
+  this->verifyConnectivitySet(GLOBAL_EDGE_ID(this->hypergraph, 0), { 0 });
+  this->verifyConnectivitySet(GLOBAL_EDGE_ID(this->hypergraph, 1), { 0, 1 });
+  this->verifyConnectivitySet(GLOBAL_EDGE_ID(this->hypergraph, 2), { 1, 2 });
+  this->verifyConnectivitySet(GLOBAL_EDGE_ID(this->hypergraph, 3), { 0, 2 });
+}
+
+TYPED_TEST(APartitionedHypergraph, ComputesBorderNodesCorrectIfNodePartsAreSetOnly) {
+  this->partitioned_hypergraph.resetPartition();
+  this->partitioned_hypergraph.setOnlyNodePart(this->id[0], 0);
+  this->partitioned_hypergraph.setOnlyNodePart(this->id[1], 0);
+  this->partitioned_hypergraph.setOnlyNodePart(this->id[2], 0);
+  this->partitioned_hypergraph.setOnlyNodePart(this->id[3], 1);
+  this->partitioned_hypergraph.setOnlyNodePart(this->id[4], 1);
+  this->partitioned_hypergraph.setOnlyNodePart(this->id[5], 2);
+  this->partitioned_hypergraph.setOnlyNodePart(this->id[6], 2);
+  this->partitioned_hypergraph.initializePartition(TBB::GLOBAL_TASK_GROUP);
+
+  ASSERT_EQ(1, this->partitioned_hypergraph.numIncidentCutHyperedges(this->id[0]));
+  ASSERT_EQ(1, this->partitioned_hypergraph.numIncidentCutHyperedges(this->id[1]));
+  ASSERT_EQ(1, this->partitioned_hypergraph.numIncidentCutHyperedges(this->id[2]));
+  ASSERT_EQ(2, this->partitioned_hypergraph.numIncidentCutHyperedges(this->id[3]));
+  ASSERT_EQ(2, this->partitioned_hypergraph.numIncidentCutHyperedges(this->id[4]));
+  ASSERT_EQ(1, this->partitioned_hypergraph.numIncidentCutHyperedges(this->id[5]));
+  ASSERT_EQ(2, this->partitioned_hypergraph.numIncidentCutHyperedges(this->id[6]));
+
+  ASSERT_TRUE(this->partitioned_hypergraph.isBorderNode(this->id[0]));
+  ASSERT_TRUE(this->partitioned_hypergraph.isBorderNode(this->id[1]));
+  ASSERT_TRUE(this->partitioned_hypergraph.isBorderNode(this->id[2]));
+  ASSERT_TRUE(this->partitioned_hypergraph.isBorderNode(this->id[3]));
+  ASSERT_TRUE(this->partitioned_hypergraph.isBorderNode(this->id[4]));
+  ASSERT_TRUE(this->partitioned_hypergraph.isBorderNode(this->id[5]));
+  ASSERT_TRUE(this->partitioned_hypergraph.isBorderNode(this->id[6]));
+}
+
 }  // namespace ds
 }  // namespace mt_kahypar

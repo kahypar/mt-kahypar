@@ -39,11 +39,6 @@ public:
     return *this;
   }
 
-  CAtomic& operator=(T desired) {   // this one is kind of bad. TODO only used in concurrent_union_find --> get rid of it once that is gone
-    Base::store(desired);
-    return *this;
-  }
-
   CAtomic(CAtomic&& other) : Base(other.load()) { }
 
   CAtomic& operator=(CAtomic&& other) {
@@ -64,6 +59,8 @@ public:
 
 namespace mt_kahypar {
 namespace parallel {
+
+// For non-integral types, e.g. floating point
 template <typename T>
 void fetch_add(std::atomic<T>& x, T y) {
   T cur_x = x.load();

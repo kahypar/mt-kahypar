@@ -65,6 +65,7 @@ class MtKaHyPar : public Test {
     }
     context.coarsening.algorithm = CoarseningAlgorithm::multilevel_coarsener;
     context.initial_partitioning.mode = Config::INITIAL_PARTITIONING_MODE;
+    context.initial_partitioning.refinement.label_propagation.algorithm = Config::LP_ALGORITHM;
     context.refinement.label_propagation.algorithm = Config::LP_ALGORITHM;
     context.shared_memory.num_threads = num_threads;
   }

@@ -303,11 +303,12 @@ class RecursiveBisectionInitialPartitionerT : public IInitialPartitioner {
           _bisection_partitioned_hg.globalNodeID(original_id));
         ASSERT(part_id != kInvalidPartition && part_id < _hg.k());
         if ( part_id == 0 ) {
-          _hg.setNodePart(hn, block_0);
+          _hg.setOnlyNodePart(hn, block_0);
         } else {
-          _hg.setNodePart(hn, block_1);
+          _hg.setOnlyNodePart(hn, block_1);
         }
       });
+      _hg.initializePartition(_task_group_id);
 
       ASSERT(metrics::objective(_bisection_partitioned_hg, _context.partition.objective) ==
         metrics::objective(_hg, _context.partition.objective));

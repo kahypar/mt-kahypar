@@ -27,6 +27,7 @@
 
 #include "mt-kahypar/datastructures/hypergraph_common.h"
 #include "mt-kahypar/datastructures/connectivity_set.h"
+#include "mt-kahypar/datastructures/partition_info.h"
 #include "mt-kahypar/datastructures/partitioned_hypergraph.h"
 #include "mt-kahypar/parallel/atomic_wrapper.h"
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
@@ -77,19 +78,7 @@ class NumaPartitionedHypergraph {
    * a PartInfo object stores the number of hypernodes currently assigned to block \f$V_i\f$
    * as well as the sum of their weights.
    */
-  class PartInfo {
-   public:
-    explicit PartInfo() :
-      weight(0),
-      size(0) { }
-
-    bool operator== (const PartInfo& other) const {
-      return weight == other.weight && size == other.size;
-    }
-
-    parallel::IntegralAtomicWrapper<HypernodeWeight> weight;
-    parallel::IntegralAtomicWrapper<int64_t> size;
-  };
+  using BlockInfo = typename PartitionInfo::BlockInfo;
 
  public:
   static constexpr bool is_static_hypergraph = Hypergraph::is_static_hypergraph;
@@ -147,6 +136,10 @@ class NumaPartitionedHypergraph {
     _part_info = std::move(other._part_info);
     _hypergraphs = std::move(other._hypergraphs);
     return *this;
+  }
+
+  ~NumaPartitionedHypergraph() {
+    freeInternalData();
   }
 
   // ####################### General Hypergraph Stats #######################
@@ -480,7 +473,7 @@ class NumaPartitionedHypergraph {
    *                             const HypernodeID edge_size,
    *                             const HypernodeID pin_count_in_from_part_after,
    *                             const HypernodeID pin_count_in_to_part_after) {
-   *   delta += mt_kahypar::Hypergraph::cutDelta(
+   *   delta += mt_kahypar::cutDelta(
    *     edge_weight, edge_size, pin_count_in_from_part_after, pin_count_in_to_part_after);
    * };
    * hypergraph.changeNodePart(hn, from, to, cut_delta); // 'delta' will contain afterwards the delta
@@ -503,6 +496,16 @@ class NumaPartitionedHypergraph {
     }
   }
 
+  // ! Sets the block id of an unassigned vertex u.
+  // ! Returns true, if assignment of unassigned vertex u to block id succeeds.
+  // ! Note, that in contrast to setNodePart the block weights and sizes and also
+  // ! the pin count in part of all incident hyperedges is not updated. In order to
+  // ! update those stats, one has to call initializePartition(...) after all
+  // ! block ids are assigned.
+  bool setOnlyNodePart(const HypernodeID u, PartitionID id) {
+    return hypergraph_of_vertex(u).setOnlyNodePart(u, id);;
+  }
+
   // ! Changes the block id of vertex u from block 'from' to block 'to'
   // ! Returns true, if move of vertex u to corresponding block succeeds.
   bool changeNodePart(const HypernodeID u,
@@ -522,38 +525,28 @@ class NumaPartitionedHypergraph {
     }
   }
 
-  // ! Helper function to compute delta for cut-metric after changeNodePart
-  static HyperedgeWeight cutDelta(const HyperedgeID,
-                                  const HyperedgeWeight edge_weight,
-                                  const HypernodeID edge_size,
-                                  const HypernodeID pin_count_in_from_part_after,
-                                  const HypernodeID pin_count_in_to_part_after) {
-    if ( edge_size > 1 ) {
-      if (pin_count_in_to_part_after == edge_size) {
-        return -edge_weight;
-      } else if (pin_count_in_from_part_after == edge_size - 1 &&
-                pin_count_in_to_part_after == 1) {
-        return edge_weight;
-      }
-    }
-    return 0;
-  }
-
-  // ! Helper function to compute delta for km1-metric after changeNodePart
-  static HyperedgeWeight km1Delta(const HyperedgeID,
-                                  const HyperedgeWeight edge_weight,
-                                  const HypernodeID,
-                                  const HypernodeID pin_count_in_from_part_after,
-                                  const HypernodeID pin_count_in_to_part_after) {
-    return (pin_count_in_to_part_after == 1 ? edge_weight : 0) +
-           (pin_count_in_from_part_after == 0 ? -edge_weight : 0);
-  }
-
   // ! Block which vertex u belongs to
   PartitionID partID(const HypernodeID u) const {
     return hypergraph_of_vertex(u).partID(u);
   }
 
+
+  // ! Initializes the partition of the hypergraph, if block ids are assigned with
+  // ! setOnlyNodePart(...). In that case, part info, pin counts in part and border
+  // ! vertices have to be computed in a postprocessing step.
+  void initializePartition(const TaskGroupID task_group_id) {
+    tbb::parallel_invoke([&] {
+      // Compute Part Info
+      // TODO implement as in PartitionedHypergraph
+    }, [&] {
+      // Compute Pin Counts
+      TBBNumaArena::instance().execute_parallel_on_all_numa_nodes(task_group_id, [&](const int node) {
+            _hypergraphs[node].initializePartition(task_group_id, _hypergraphs);
+          });
+    });
+  }
+
+  // ! Returns, whether hypernode u is adjacent to a least one cut hyperedge.
   bool isBorderNode(const HypernodeID u) const {
     return hypergraph_of_vertex(u).isBorderNode(u);
   }
@@ -575,14 +568,9 @@ class NumaPartitionedHypergraph {
   // ! Weight of a block
   HypernodeWeight partWeight(const PartitionID id) const {
     ASSERT(id != kInvalidPartition && id < _k);
-    return _part_info[id].weight;
+    return part_weight[id].load(std::memory_order_relaxed);
   }
 
-  // ! Number of vertices in a block
-  size_t partSize(const PartitionID id) const {
-    ASSERT(id != kInvalidPartition && id < _k);
-    return _part_info[id].size;
-  }
 
   // ! Reset partition (not thread-safe)
   void resetPartition() {
@@ -592,9 +580,17 @@ class NumaPartitionedHypergraph {
 
     // Reset block weights and sizes
     for ( PartitionID block = 0; block < _k; ++block ) {
-      _part_info[block].weight = 0;
-      _part_info[block].size = 0;
+      part_weight[block].store(0);
     }
+  }
+
+  void freeInternalData() {
+    if ( _k > 0 ) {
+      tbb::parallel_for(0UL, _hypergraphs.size(), [&](const size_t i) {
+        _hypergraphs[i].freeInternalData();
+      }, tbb::static_partitioner());
+    }
+    _k = 0;
   }
 
   // ####################### Memory Consumption #######################
@@ -602,7 +598,7 @@ class NumaPartitionedHypergraph {
   void memoryConsumption(utils::MemoryTreeNode* parent) const {
     ASSERT(parent);
 
-    parent->addChild("Part Info", sizeof(PartInfo) * _k);
+    parent->addChild("Part Info", sizeof(BlockInfo) * _k);
     for ( size_t node = 0; node < _hypergraphs.size(); ++node ) {
       utils::MemoryTreeNode* numa_hypergraph_node = parent->addChild(
         "NUMA Partitioned Hypergraph " + std::to_string(node));
@@ -728,8 +724,9 @@ class NumaPartitionedHypergraph {
   // ! Hypergraph object around this partitioned hypergraph is wrapped
   Hypergraph* _hg;
 
-  // ! Weight and size information for all blocks.
-  parallel::scalable_vector<PartInfo> _part_info;
+  // ! Weight and information for all blocks.
+  vec< CAtomic<HypernodeWeight> > part_weight;
+
   // ! Partitioned NUMA Hypergraphs
   parallel::scalable_vector<PartitionedHyperGraph> _hypergraphs;
 };

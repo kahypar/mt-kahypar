@@ -29,6 +29,7 @@
 #include "mt-kahypar/partition/factories.h"
 #include "mt-kahypar/partition/initial_partitioning/flat/pool_initial_partitioner.h"
 #include "mt-kahypar/utils/initial_partitioning_stats.h"
+#include "mt-kahypar/utils/profiler.h"
 
 namespace mt_kahypar {
 namespace multilevel {
@@ -61,6 +62,10 @@ class RefinementTask : public tbb::task {
     enableTimerAndStats();
     utils::Timer::instance().stop_timer("initial_partitioning");
 
+    if ( _top_level ) {
+      utils::Profiler::instance().deactivate("Initial Partitioning");
+    }
+
     PartitionedHypergraph& coarsest_partitioned_hypergraph =
       _coarsener->coarsestPartitionedHypergraph();
     io::printPartitioningResults(coarsest_partitioned_hypergraph,
@@ -71,6 +76,11 @@ class RefinementTask : public tbb::task {
 
     // ################## LOCAL SEARCH ##################
     io::printLocalSearchBanner(_context);
+
+    if ( _top_level ) {
+      utils::Profiler::instance().activate("Refinement");
+    }
+
     utils::Timer::instance().start_timer("refinement", "Refinement");
     std::unique_ptr<IRefiner> label_propagation =
       LabelPropagationFactory::getInstance().createObject(
@@ -79,6 +89,10 @@ class RefinementTask : public tbb::task {
 
     _partitioned_hg = _coarsener->uncoarsen(label_propagation);
     utils::Timer::instance().stop_timer("refinement");
+
+    if ( _top_level ) {
+      utils::Profiler::instance().deactivate("Refinement");
+    }
 
     io::printPartitioningResults(_partitioned_hg, _context, "Local Search Results:");
     return nullptr;
@@ -120,9 +134,18 @@ class CoarseningTask : public tbb::task {
   tbb::task* execute() override {
     // ################## COARSENING ##################
     mt_kahypar::io::printCoarseningBanner(_context);
+
+    if ( _top_level ) {
+      utils::Profiler::instance().activate("Coarsening");
+    }
+
     utils::Timer::instance().start_timer("coarsening", "Coarsening");
     _coarsener.coarsen();
     utils::Timer::instance().stop_timer("coarsening");
+
+    if ( _top_level ) {
+      utils::Profiler::instance().deactivate("Coarsening");
+    }
 
     if (_context.partition.verbose_output) {
       mt_kahypar::io::printHypergraphInfo(
@@ -134,6 +157,11 @@ class CoarseningTask : public tbb::task {
       _coarsener.coarsestPartitionedHypergraph();
 
     io::printInitialPartitioningBanner(_context);
+
+    if ( _top_level ) {
+      utils::Profiler::instance().activate("Initial Partitioning");
+    }
+
     utils::Timer::instance().start_timer("initial_partitioning", "Initial Partitioning");
     if ( _context.initial_partitioning.mode == InitialPartitioningMode::direct ) {
       disableTimerAndStats();

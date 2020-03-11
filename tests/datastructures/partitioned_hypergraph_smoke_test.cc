@@ -19,6 +19,7 @@
  ******************************************************************************/
 
 #include <boost/range/irange.hpp>
+#include <mt-kahypar/partition/refinement/policies/gain_policy.h>
 #include "gmock/gmock.h"
 
 #include "tbb/blocked_range.h"
@@ -269,10 +270,10 @@ void moveAllNodesOfHypergraphRandom(HyperGraph& hypergraph,
                              const HypernodeID pin_count_in_from_part_after,
                              const HypernodeID pin_count_in_to_part_after) {
                            if (objective == kahypar::Objective::km1) {
-                             deltas.local() += HyperGraph::km1Delta(
+                             deltas.local() += km1Delta(
                                he, edge_weight, edge_size, pin_count_in_from_part_after, pin_count_in_to_part_after);
                            } else if (objective == kahypar::Objective::cut) {
-                             deltas.local() += HyperGraph::cutDelta(
+                             deltas.local() += cutDelta(
                                he, edge_weight, edge_size, pin_count_in_from_part_after, pin_count_in_to_part_after);
                            }
                          };

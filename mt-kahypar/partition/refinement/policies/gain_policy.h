@@ -36,6 +36,35 @@
 #include "mt-kahypar/utils/randomize.h"
 
 namespace mt_kahypar {
+
+
+// ! Helper function to compute delta for cut-metric after changeNodePart
+static HyperedgeWeight cutDelta(const HyperedgeID,
+                                const HyperedgeWeight edge_weight,
+                                const HypernodeID edge_size,
+                                const HypernodeID pin_count_in_from_part_after,
+                                const HypernodeID pin_count_in_to_part_after) {
+  if ( edge_size > 1 ) {
+    if (pin_count_in_to_part_after == edge_size) {
+      return -edge_weight;
+    } else if (pin_count_in_from_part_after == edge_size - 1 &&
+               pin_count_in_to_part_after == 1) {
+      return edge_weight;
+    }
+  }
+  return 0;
+}
+
+// ! Helper function to compute delta for km1-metric after changeNodePart
+static HyperedgeWeight km1Delta(const HyperedgeID,
+                                const HyperedgeWeight edge_weight,
+                                const HypernodeID,
+                                const HypernodeID pin_count_in_from_part_after,
+                                const HypernodeID pin_count_in_to_part_after) {
+  return (pin_count_in_to_part_after == 1 ? edge_weight : 0) +
+         (pin_count_in_from_part_after == 0 ? -edge_weight : 0);
+}
+
 template <class Derived = Mandatory,
           class HyperGraph = Mandatory>
 class GainPolicy : public kahypar::meta::PolicyBase {
@@ -167,7 +196,7 @@ class Km1Policy : public GainPolicy<Km1Policy<HyperGraph>, HyperGraph> {
                                            const HypernodeID edge_size,
                                            const HypernodeID pin_count_in_from_part_after,
                                            const HypernodeID pin_count_in_to_part_after) {
-    _deltas.local() += HyperGraph::km1Delta(he, edge_weight, edge_size,
+    _deltas.local() += km1Delta(he, edge_weight, edge_size,
                                             pin_count_in_from_part_after,
                                             pin_count_in_to_part_after);
   }
@@ -252,7 +281,7 @@ class CutPolicy : public GainPolicy<CutPolicy<HyperGraph>, HyperGraph> {
                                            const HypernodeID edge_size,
                                            const HypernodeID pin_count_in_from_part_after,
                                            const HypernodeID pin_count_in_to_part_after) {
-    _deltas.local() += HyperGraph::cutDelta(he, edge_weight, edge_size,
+    _deltas.local() += cutDelta(he, edge_weight, edge_size,
                                             pin_count_in_from_part_after,
                                             pin_count_in_to_part_after);
   }

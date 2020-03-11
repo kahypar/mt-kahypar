@@ -27,27 +27,35 @@
 #include "mt-kahypar/datastructures/clustering.h"
 #include "mt-kahypar/datastructures/graph.h"
 #include "mt-kahypar/parallel/parallel_counting_sort.h"
+#include "mt-kahypar/utils/timer.h"
 
 namespace mt_kahypar {
-class ParallelClusteringContractionAdjList {
+class ParallelContraction {
  private:
   static constexpr bool debug = false;
 
  public:
-  using ArcWeight = ds::AdjListGraph::ArcWeight;
+  using ArcWeight = ds::Graph::ArcWeight;
   using IncidentClusterWeights = kahypar::ds::SparseMap<PartitionID, ArcWeight>;
 
-  static ds::AdjListGraph contract(const ds::AdjListGraph& GFine, ds::Clustering& C, size_t numTasks) {
+  static ds::Graph contract(const ds::Graph& GFine, ds::Clustering& C, size_t numTasks) {
+
+    utils::Timer::instance().start_timer("compactify", "Compactify");
     size_t numClusters = C.compactify();
+    utils::Timer::instance().stop_timer("compactify");
     auto nodes = boost::irange(NodeID(0), static_cast<NodeID>(GFine.numNodes()));
 
     // clang complains about structured bindings. we should revert once it works with clang
+    utils::Timer::instance().start_timer("parallel_counting_sort", "Parallel Counting Sort");
     std::vector<NodeID> nodesSortedByCluster; std::vector<uint32_t> clusterBegin;
     std::tie(nodesSortedByCluster, clusterBegin) = parallel::ParallelCountingSort::sort(nodes, numClusters, C, numTasks);
+    utils::Timer::instance().stop_timer("parallel_counting_sort");
 
+
+    utils::Timer::instance().start_timer("construct_coarse_graph", "Construct Coarse Graph");
     tbb::enumerable_thread_specific<IncidentClusterWeights> ets_incidentClusterWeights(numClusters, 0);
     tbb::enumerable_thread_specific<size_t> ets_nArcs(0);
-    ds::AdjListGraph GCoarse(numClusters);
+    ds::Graph GCoarse(numClusters);
     tbb::parallel_for_each(GCoarse.nodes(), [&](const NodeID coarseNode) {
         IncidentClusterWeights& incidentClusterWeights = ets_incidentClusterWeights.local();
         ArcWeight coarseNodeVolume = 0;
@@ -64,7 +72,7 @@ class ParallelClusteringContractionAdjList {
         for (auto& coarseNeighbor : incidentClusterWeights) {
           PartitionID communityID = coarseNeighbor.key;
           if (static_cast<NodeID>(communityID) != coarseNode)
-            GCoarse.addHalfEdge(coarseNode, static_cast<NodeID>(communityID), incidentClusterWeights[communityID]);
+            GCoarse.addDirectedEdge(coarseNode, static_cast<NodeID>(communityID), incidentClusterWeights[communityID]);
         }
         GCoarse.setNodeVolume(coarseNode, coarseNodeVolume);
 
@@ -75,6 +83,7 @@ class ParallelClusteringContractionAdjList {
 
         incidentClusterWeights.clear();
       });
+    utils::Timer::instance().stop_timer("construct_coarse_graph");
 
     GCoarse.setNumArcs(ets_nArcs.combine(std::plus<size_t>()));
     GCoarse.setTotalVolume(GFine.totalVolume());

@@ -112,6 +112,10 @@ class NumaHypergraph {
     return *this;
   }
 
+  ~NumaHypergraph() {
+    freeInternalData();
+  }
+
   // ####################### General Hypergraph Stats #######################
 
   // ! Number of NUMA hypergraphs
@@ -1124,6 +1128,22 @@ class NumaHypergraph {
       sizeof(PartitionID) * _community_node_mapping.size());
 
     return hypergraph;
+  }
+
+  // Free internal data in parallel
+  void freeInternalData() {
+    if ( _num_hypernodes > 0 || _num_hyperedges > 0 ) {
+      tbb::parallel_invoke([&] {
+        tbb::parallel_for(0UL, _hypergraphs.size(), [&](const size_t i) {
+          _hypergraphs[i].freeInternalData();
+        }, tbb::static_partitioner());
+      }, [&] {
+        parallel::parallel_free(_node_mapping,
+          _edge_mapping, _community_node_mapping);
+      });
+    }
+    _num_hypernodes = 0;
+    _num_hyperedges = 0;
   }
 
   void memoryConsumption(utils::MemoryTreeNode* parent) const {

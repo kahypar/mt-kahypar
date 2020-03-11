@@ -211,6 +211,10 @@ class CommunitySupport {
     return *this;
   }
 
+  ~CommunitySupport() {
+    freeInternalData();
+  }
+
   bool isInitialized() const {
     return _is_initialized;
   }
@@ -599,6 +603,26 @@ class CommunitySupport {
     });
 
     return community_support;
+  }
+
+  // Free internal data in parallel
+  void freeInternalData() {
+    if ( _are_community_hyperedges_initialized ) {
+      tbb::parallel_invoke([&] {
+        parallel::parallel_free(_community_hyperedge_ids);
+      }, [&] {
+        parallel::parallel_free(
+          _communities_num_hypernodes, _communities_num_pins,
+          _community_degree, _vertex_to_community_node_id,
+          _community_hyperedges);
+      });
+    } else if ( _is_initialized ) {
+      parallel::parallel_free(
+        _communities_num_hypernodes, _communities_num_pins,
+        _community_degree, _vertex_to_community_node_id);
+    }
+    _is_initialized = false;
+    _are_community_hyperedges_initialized = false;
   }
 
   // Copy community support sequential

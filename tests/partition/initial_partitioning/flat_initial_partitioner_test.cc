@@ -105,7 +105,8 @@ class AFlatInitialPartitionerTest : public Test {
     context.initial_partitioning.lp_maximum_iterations = 100;
     hypergraph = io::readHypergraphFile<HyperGraph, HyperGraphFactory>(
       "../test_instances/test_instance.hgr", TBB::GLOBAL_TASK_GROUP);
-    partitioned_hypergraph = PartitionedHyperGraph(context.partition.k, TBB::GLOBAL_TASK_GROUP, hypergraph);
+    partitioned_hypergraph = PartitionedHyperGraph(
+      context.partition.k, TBB::GLOBAL_TASK_GROUP, hypergraph);
     context.setupPartWeights(hypergraph.totalWeight());
     utils::Timer::instance().disable();
   }
