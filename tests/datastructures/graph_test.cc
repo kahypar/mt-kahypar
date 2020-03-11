@@ -23,7 +23,7 @@
 #include "tests/datastructures/hypergraph_fixtures.h"
 #include "mt-kahypar/datastructures/static_hypergraph.h"
 #include "mt-kahypar/datastructures/static_hypergraph_factory.h"
-#include "mt-kahypar/datastructures/tmp_graph.h"
+#include "mt-kahypar/datastructures/graph.h"
 
 using ::testing::Test;
 
@@ -234,8 +234,8 @@ Clustering clustering(const std::vector<PartitionID>& communities) {
 
 TEST_F(AGraph, ContractCommunities1) {
   Graph graph(hypergraph, LouvainEdgeWeight::uniform, TBBNumaArena::GLOBAL_TASK_GROUP);
-  Graph coarse_graph = graph.contract(
-      clustering( { 3, 3, 3, 2, 2, 4, 4, 3, 3, 2, 4 } ) );
+  Clustering communities = clustering( { 3, 3, 3, 2, 2, 4, 4, 3, 3, 2, 4 } );
+  Graph coarse_graph = graph.contract(communities);
 
   ASSERT_EQ(graph.totalVolume(), coarse_graph.totalVolume());
   ASSERT_EQ(7,  coarse_graph.nodeVolume(0));
@@ -249,8 +249,8 @@ TEST_F(AGraph, ContractCommunities1) {
 
 TEST_F(AGraph, ContractCommunities2) {
   Graph graph(hypergraph, LouvainEdgeWeight::uniform, TBBNumaArena::GLOBAL_TASK_GROUP);
-  Graph coarse_graph = graph.contract(
-      clustering( { 7, 7, 2, 9, 9, 2, 2, 7, 9, 9, 2 } ) );
+  Clustering communities = clustering( { 7, 7, 2, 9, 9, 2, 2, 7, 9, 9, 2 } );
+  Graph coarse_graph = graph.contract(communities);
 
   ASSERT_EQ(graph.totalVolume(), coarse_graph.totalVolume());
   ASSERT_EQ(8,  coarse_graph.nodeVolume(0));
@@ -264,8 +264,8 @@ TEST_F(AGraph, ContractCommunities2) {
 
 TEST_F(AGraph, ContractCommunities3) {
   Graph graph(hypergraph, LouvainEdgeWeight::uniform, TBBNumaArena::GLOBAL_TASK_GROUP);
-  Graph coarse_graph = graph.contract(
-      clustering( { 5, 5, 7, 3, 3, 9, 9, 7, 5, 3, 9 } ) );
+  Clustering communities = clustering( { 5, 5, 7, 3, 3, 9, 9, 7, 5, 3, 9 });
+  Graph coarse_graph = graph.contract(communities);
 
   ASSERT_EQ(graph.totalVolume(), coarse_graph.totalVolume());
   ASSERT_EQ(7, coarse_graph.nodeVolume(0));
@@ -281,8 +281,8 @@ TEST_F(AGraph, ContractCommunities3) {
 
 TEST_F(AGraph, ContractCommunities4) {
   Graph graph(hypergraph, LouvainEdgeWeight::uniform, TBBNumaArena::GLOBAL_TASK_GROUP);
-  Graph coarse_graph = graph.contract(
-      clustering( { 0, 0, 1, 1, 2, 2, 3, 4, 4, 5, 5 } ) );
+  Clustering communities = clustering({ 0, 0, 1, 1, 2, 2, 3, 4, 4, 5, 5 });
+  Graph coarse_graph = graph.contract(communities);
 
   ASSERT_EQ(graph.totalVolume(), coarse_graph.totalVolume());
   ASSERT_EQ(3, coarse_graph.nodeVolume(0));
@@ -299,6 +299,32 @@ TEST_F(AGraph, ContractCommunities4) {
   verifyArcIterator(coarse_graph, 4, {0, 1, 2}, {3, 2, 1});
   verifyArcIterator(coarse_graph, 5, {1, 2, 3}, {2, 2, 2});
 }
+
+TEST_F(AGraph, ContractCommunities5) {
+  Graph graph(hypergraph, LouvainEdgeWeight::uniform, TBBNumaArena::GLOBAL_TASK_GROUP);
+  Clustering communities = clustering({ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 });
+  Graph coarse_graph = graph.contract(communities);
+
+  ASSERT_EQ(graph.totalVolume(), coarse_graph.totalVolume());
+  ASSERT_EQ(1,  coarse_graph.numNodes());
+  ASSERT_EQ(0,  coarse_graph.numArcs());
+  ASSERT_EQ(24, coarse_graph.nodeVolume(0));
+  ASSERT_EQ(0,  coarse_graph.degree(0));
+}
+
+TEST_F(AGraph, HasSameTotalVolumeAfterTwoContractions) {
+  Graph graph(hypergraph, LouvainEdgeWeight::uniform, TBBNumaArena::GLOBAL_TASK_GROUP);
+  Clustering communities = clustering( { 3, 3, 3, 2, 2, 4, 4, 3, 3, 2, 4 } );
+  Graph coarse_graph = graph.contract(communities);
+  communities = clustering( { 0, 1, 2 } );
+  Graph coarse_coarse_graph = coarse_graph.contract(communities);
+
+  ASSERT_EQ(coarse_coarse_graph.totalVolume(), coarse_graph.totalVolume());
+  ASSERT_EQ(7,  coarse_coarse_graph.nodeVolume(0));
+  ASSERT_EQ(11, coarse_coarse_graph.nodeVolume(1));
+  ASSERT_EQ(6,  coarse_coarse_graph.nodeVolume(2));
+}
+
 
 } // namespace ds
 } // namespace mt_kahypar
