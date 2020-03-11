@@ -28,8 +28,10 @@
 #include "tbb/enumerable_thread_specific.h"
 
 #include "kahypar/datastructure/fast_reset_flag_array.h"
-#include "kahypar/datastructure/sparse_map.h"
 #include "kahypar/meta/mandatory.h"
+
+#include "kahypar/datastructure/sparse_map.h"
+#include "mt-kahypar/datastructures/sparse_map.h"
 
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/context.h"
@@ -41,8 +43,10 @@ template <typename TypeTraits = Mandatory,
           typename AcceptancePolicy = Mandatory>
 class MultilevelVertexPairRater {
   using HyperGraph = typename TypeTraits::HyperGraph;
-  using TmpRatingMap = kahypar::ds::SparseMap<HypernodeID, RatingType>;
-  using ThreadLocalTmpRatingMap = tbb::enumerable_thread_specific<TmpRatingMap>;
+  using LargeTmpRatingMap = kahypar::ds::SparseMap<HypernodeID, RatingType>;
+  using CacheEfficientRatingMap = ds::FixedSizeSparseMap<HypernodeID, RatingType>;
+  using ThreadLocalLargeTmpRatingMap = tbb::enumerable_thread_specific<LargeTmpRatingMap>;
+  using ThreadLocalCacheEfficientRatingMap = tbb::enumerable_thread_specific<CacheEfficientRatingMap>;
 
  private:
   static constexpr bool debug = false;
@@ -78,7 +82,8 @@ class MultilevelVertexPairRater {
   MultilevelVertexPairRater(HyperGraph& hypergraph,
                            const Context& context) :
     _context(context),
-    _local_tmp_ratings(hypergraph.initialNumNodes()),
+    _local_cache_efficient_rating_map(0.0),
+    _local_large_rating_map(hypergraph.initialNumNodes(), 0.0),
     _local_visited_representatives(hypergraph.initialNumNodes()),
     _already_matched(hypergraph.initialNumNodes()) { }
 
@@ -93,7 +98,35 @@ class MultilevelVertexPairRater {
                         const parallel::scalable_vector<HypernodeID>& cluster_ids,
                         const parallel::scalable_vector<AtomicWeight>& cluster_weight,
                         const HypernodeWeight max_allowed_node_weight) {
-    TmpRatingMap& tmp_ratings = _local_tmp_ratings.local();
+    if ( ratingsFitIntoSmallSparseMap(hypergraph, u) ) {
+      return rate(hypergraph, u, _local_cache_efficient_rating_map.local(),
+        cluster_ids, cluster_weight, max_allowed_node_weight);
+    } else {
+      return rate(hypergraph, u, _local_large_rating_map.local(),
+        cluster_ids, cluster_weight, max_allowed_node_weight);
+    }
+  }
+
+  // ! Several threads will mark matches in parallel. However, since
+  // ! we only set the corresponding value to true this function is
+  // ! thread-safe.
+  void markAsMatched(const HypernodeID original_id) {
+    _already_matched.set(original_id, true);
+  }
+
+  // ! Note, this function is not thread safe
+  void resetMatches() {
+    _already_matched.reset();
+  }
+
+ private:
+  template<typename RatingMap>
+  VertexPairRating rate(const HyperGraph& hypergraph,
+                        const HypernodeID u,
+                        RatingMap& tmp_ratings,
+                        const parallel::scalable_vector<HypernodeID>& cluster_ids,
+                        const parallel::scalable_vector<AtomicWeight>& cluster_weight,
+                        const HypernodeWeight max_allowed_node_weight) {
     kahypar::ds::FastResetFlagArray<>& visited_representatives = _local_visited_representatives.local();
     const HypernodeID original_u_id = hypergraph.originalNodeID(u);
     const HypernodeWeight weight_u = cluster_weight[original_u_id];
@@ -152,21 +185,29 @@ class MultilevelVertexPairRater {
     return ret;
   }
 
-  // ! Several threads will mark matches in parallel. However, since
-  // ! we only set the corresponding value to true this function is
-  // ! thread-safe.
-  void markAsMatched(const HypernodeID original_id) {
-    _already_matched.set(original_id, true);
+
+  inline bool ratingsFitIntoSmallSparseMap(const HyperGraph& hypergraph,
+                                           const HypernodeID u)  {
+    // Compute estimation for the upper bound of neighbors of u
+    HypernodeID ub_neighbors_u = 0;
+    for ( const HyperedgeID& he : hypergraph.incidentEdges(u) ) {
+      const HypernodeID edge_size = hypergraph.edgeSize(he);
+      // Ignore large hyperedges
+      ub_neighbors_u += edge_size < _context.partition.hyperedge_size_threshold ? edge_size : 0;
+      // If the number of estimated neighbors is greater than MAP_SIZE / 3, we
+      // use the large sparse map. The division by 3 also ensures that the fill grade
+      // of the small sparse map would be small enough such that linear probing
+      // is fast.
+      if ( ub_neighbors_u > CacheEfficientRatingMap::MAP_SIZE / 3UL ) {
+        return false;
+      }
+    }
+    return true;
   }
 
-  // ! Note, this function is not thread safe
-  void resetMatches() {
-    _already_matched.reset();
-  }
-
- private:
   const Context& _context;
-  ThreadLocalTmpRatingMap _local_tmp_ratings;
+  ThreadLocalCacheEfficientRatingMap _local_cache_efficient_rating_map;
+  ThreadLocalLargeTmpRatingMap _local_large_rating_map;
   ThreadLocalFastResetFlagArray _local_visited_representatives;
   kahypar::ds::FastResetFlagArray<> _already_matched;
 };

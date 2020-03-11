@@ -193,7 +193,7 @@ class MultilevelCoarsenerT : public ICoarsenerT<TypeTraits>,
       const HypernodeID num_hns_before_pass = current_hg.initialNumNodes() - current_hg.numRemovedHypernodes();
       const HypernodeID num_pins_before_pass = current_hg.initialNumPins();
       const HypernodeID hierarchy_contraction_limit = hierarchyContractionLimit(current_hg);
-      std::atomic<HypernodeID> current_num_nodes(num_hns_before_pass);
+      tbb::enumerable_thread_specific<HypernodeID> contracted_nodes(0);
       DBG << V(current_hg.initialNumNodes()) << V(hierarchy_contraction_limit);
       TBB::instance().execute_parallel_on_all_numa_nodes(_task_group_id, [&](const int node) {
         tbb::parallel_for(ID(0), current_hg.initialNumNodes(node), [&, node](const HypernodeID id) {
@@ -203,22 +203,26 @@ class MultilevelCoarsenerT : public ICoarsenerT<TypeTraits>,
           // We perform rating if ...
           //  1.) The contraction limit of the current level is not reached
           //  2.) Vertex hn is not matched before
-          if ( current_num_nodes > hierarchy_contraction_limit &&
-               _matching_state[u] == STATE(MatchingState::UNMATCHED) ) {
-            ASSERT(current_hg.nodeIsEnabled(hn));
-            const Rating rating = _rater.rate(current_hg, hn,
-              cluster_ids, _cluster_weight, _max_allowed_node_weight);
-            if ( rating.target != kInvalidHypernode ) {
-              const HypernodeID v = current_hg.originalNodeID(rating.target);
-              matchVertices(current_hg, u, v, cluster_ids,
-                current_num_nodes, hierarchy_contraction_limit,
-                _num_conflicts.local());
-              ++_num_matchings.local();
+          if ( _matching_state[u] == STATE(MatchingState::UNMATCHED) ) {
+            const HypernodeID current_num_nodes = num_hns_before_pass -
+              contracted_nodes.combine(std::plus<HypernodeID>());
+            if ( current_num_nodes > hierarchy_contraction_limit ) {
+              ASSERT(current_hg.nodeIsEnabled(hn));
+              const Rating rating = _rater.rate(current_hg, hn,
+                cluster_ids, _cluster_weight, _max_allowed_node_weight);
+              if ( rating.target != kInvalidHypernode ) {
+                const HypernodeID v = current_hg.originalNodeID(rating.target);
+                matchVertices(current_hg, u, v, cluster_ids,
+                  contracted_nodes.local(), _num_conflicts.local());
+                ++_num_matchings.local();
+              }
             }
           }
         });
       });
       utils::Timer::instance().stop_timer("parallel_clustering");
+      const HypernodeID current_num_nodes = num_hns_before_pass -
+        contracted_nodes.combine(std::plus<HypernodeID>());
       DBG << V(current_num_nodes);
 
       HEAVY_COARSENING_ASSERT([&] {
@@ -250,11 +254,11 @@ class MultilevelCoarsenerT : public ICoarsenerT<TypeTraits>,
 
       const double reduction_vertices_percentage =
         static_cast<double>(num_hns_before_pass) /
-        static_cast<double>(current_num_nodes.load());
+        static_cast<double>(current_num_nodes);
       if ( reduction_vertices_percentage <= _context.coarsening.minimum_shrink_factor ) {
         break;
       }
-      _progress_bar += (num_hns_before_pass - current_num_nodes.load());
+      _progress_bar += (num_hns_before_pass - current_num_nodes);
 
       utils::Timer::instance().start_timer("parallel_multilevel_contraction", "Parallel Multilevel Contraction");
       // Perform parallel contraction
@@ -325,8 +329,7 @@ class MultilevelCoarsenerT : public ICoarsenerT<TypeTraits>,
                                                         const HypernodeID u,
                                                         const HypernodeID v,
                                                         parallel::scalable_vector<HypernodeID>& cluster_ids,
-                                                        std::atomic<HypernodeID>& current_num_nodes,
-                                                        const HypernodeID contraction_limit,
+                                                        HypernodeID& contracted_nodes,
                                                         size_t& num_conflicts) {
     ASSERT(u < hypergraph.initialNumNodes());
     ASSERT(v < hypergraph.initialNumNodes());
@@ -339,8 +342,7 @@ class MultilevelCoarsenerT : public ICoarsenerT<TypeTraits>,
     _matching_partner[u] = v;
     const HypernodeWeight weight_u = hypergraph.nodeWeight(hypergraph.globalNodeID(u));
     HypernodeWeight weight_v = _cluster_weight[v];
-    if ( weight_u + weight_v <= _max_allowed_node_weight &&
-         current_num_nodes > contraction_limit ) {
+    if ( weight_u + weight_v <= _max_allowed_node_weight ) {
 
       if ( _matching_state[u].compare_and_exchange_strong(unmatched, match_in_progress) ) {
         // Current thread gets "ownership" for vertex u. Only threads with "ownership"
@@ -355,7 +357,7 @@ class MultilevelCoarsenerT : public ICoarsenerT<TypeTraits>,
             // we change the cluster id of u to v, ...
             cluster_ids[u] = v;
             _cluster_weight[v] += weight_u;
-            --current_num_nodes;
+            ++contracted_nodes;
             success = true;
           } else {
             // ... otherwise, we try again to match u with the
@@ -366,7 +368,7 @@ class MultilevelCoarsenerT : public ICoarsenerT<TypeTraits>,
               ASSERT(_matching_state[cluster_v] == STATE(MatchingState::MATCHED));
               cluster_ids[u] = cluster_v;
               _cluster_weight[cluster_v] += weight_u;
-              --current_num_nodes;
+              ++contracted_nodes;
               success = true;
             }
           }
@@ -375,7 +377,7 @@ class MultilevelCoarsenerT : public ICoarsenerT<TypeTraits>,
           // of both vertices thread-safe.
           cluster_ids[u] = v;
           _cluster_weight[v] += weight_u;
-          --current_num_nodes;
+          ++contracted_nodes;
           _matching_state[v] = STATE(MatchingState::MATCHED);
           success = true;
         } else {
@@ -389,7 +391,7 @@ class MultilevelCoarsenerT : public ICoarsenerT<TypeTraits>,
             if ( _matching_partner[v] == u && u < v) {
               cluster_ids[u] = v;
               _cluster_weight[v] += weight_u;
-              --current_num_nodes;
+              ++contracted_nodes;
               _matching_state[v] = STATE(MatchingState::MATCHED);
               success = true;
             }
@@ -405,7 +407,7 @@ class MultilevelCoarsenerT : public ICoarsenerT<TypeTraits>,
             if ( weight_u + weight_v <= _max_allowed_node_weight ){
               cluster_ids[u] = cluster_v;
               _cluster_weight[cluster_v] += weight_u;
-              --current_num_nodes;
+              ++contracted_nodes;
               success = true;
             }
           }
