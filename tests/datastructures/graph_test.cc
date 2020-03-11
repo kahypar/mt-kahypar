@@ -224,5 +224,81 @@ TEST_F(AGraph, HasCorrectAdjacentVertices6c) {
   verifyArcIterator(graph, 8, {0, 1, 3, 4}, {0.5, 0.25, 0.5, 0.5});
 }
 
+Clustering clustering(const std::vector<PartitionID>& communities) {
+  Clustering c(communities.size());
+  for ( size_t i = 0; i < communities.size(); ++i ) {
+    c[i] = communities[i];
+  }
+  return c;
 }
+
+TEST_F(AGraph, ContractCommunities1) {
+  Graph graph(hypergraph, LouvainEdgeWeight::uniform, TBBNumaArena::GLOBAL_TASK_GROUP);
+  Graph coarse_graph = graph.contract(
+      clustering( { 3, 3, 3, 2, 2, 4, 4, 3, 3, 2, 4 } ) );
+
+  ASSERT_EQ(graph.totalVolume(), coarse_graph.totalVolume());
+  ASSERT_EQ(7,  coarse_graph.nodeVolume(0));
+  ASSERT_EQ(11, coarse_graph.nodeVolume(1));
+  ASSERT_EQ(6,  coarse_graph.nodeVolume(2));
+
+  verifyArcIterator(coarse_graph, 0, {1, 2}, {2, 1});
+  verifyArcIterator(coarse_graph, 1, {0, 2}, {2, 1});
+  verifyArcIterator(coarse_graph, 2, {0, 1}, {1, 1});
+}
+
+TEST_F(AGraph, ContractCommunities2) {
+  Graph graph(hypergraph, LouvainEdgeWeight::uniform, TBBNumaArena::GLOBAL_TASK_GROUP);
+  Graph coarse_graph = graph.contract(
+      clustering( { 7, 7, 2, 9, 9, 2, 2, 7, 9, 9, 2 } ) );
+
+  ASSERT_EQ(graph.totalVolume(), coarse_graph.totalVolume());
+  ASSERT_EQ(8,  coarse_graph.nodeVolume(0));
+  ASSERT_EQ(5,  coarse_graph.nodeVolume(1));
+  ASSERT_EQ(11, coarse_graph.nodeVolume(2));
+
+  verifyArcIterator(coarse_graph, 0, {1, 2}, {1, 1});
+  verifyArcIterator(coarse_graph, 1, {0, 2}, {1, 2});
+  verifyArcIterator(coarse_graph, 2, {0, 1}, {1, 2});
+}
+
+TEST_F(AGraph, ContractCommunities3) {
+  Graph graph(hypergraph, LouvainEdgeWeight::uniform, TBBNumaArena::GLOBAL_TASK_GROUP);
+  Graph coarse_graph = graph.contract(
+      clustering( { 5, 5, 7, 3, 3, 9, 9, 7, 5, 3, 9 } ) );
+
+  ASSERT_EQ(graph.totalVolume(), coarse_graph.totalVolume());
+  ASSERT_EQ(7, coarse_graph.nodeVolume(0));
+  ASSERT_EQ(7, coarse_graph.nodeVolume(1));
+  ASSERT_EQ(4, coarse_graph.nodeVolume(2));
+  ASSERT_EQ(6, coarse_graph.nodeVolume(3));
+
+  verifyArcIterator(coarse_graph, 0, {1, 3}, {2, 1});
+  verifyArcIterator(coarse_graph, 1, {0, 2}, {2, 1});
+  verifyArcIterator(coarse_graph, 2, {1, 3}, {1, 1});
+  verifyArcIterator(coarse_graph, 3, {0, 2}, {1, 1});
+}
+
+TEST_F(AGraph, ContractCommunities4) {
+  Graph graph(hypergraph, LouvainEdgeWeight::uniform, TBBNumaArena::GLOBAL_TASK_GROUP);
+  Graph coarse_graph = graph.contract(
+      clustering( { 0, 0, 1, 1, 2, 2, 3, 4, 4, 5, 5 } ) );
+
+  ASSERT_EQ(graph.totalVolume(), coarse_graph.totalVolume());
+  ASSERT_EQ(3, coarse_graph.nodeVolume(0));
+  ASSERT_EQ(4, coarse_graph.nodeVolume(1));
+  ASSERT_EQ(3, coarse_graph.nodeVolume(2));
+  ASSERT_EQ(2, coarse_graph.nodeVolume(3));
+  ASSERT_EQ(6, coarse_graph.nodeVolume(4));
+  ASSERT_EQ(6, coarse_graph.nodeVolume(5));
+
+  verifyArcIterator(coarse_graph, 0, {4},       {3});
+  verifyArcIterator(coarse_graph, 1, {4, 5},    {2, 2});
+  verifyArcIterator(coarse_graph, 2, {4, 5},    {1, 2});
+  verifyArcIterator(coarse_graph, 3, {5},       {2});
+  verifyArcIterator(coarse_graph, 4, {0, 1, 2}, {3, 2, 1});
+  verifyArcIterator(coarse_graph, 5, {1, 2, 3}, {2, 2, 2});
+}
+
+} // namespace ds
 } // namespace mt_kahypar
