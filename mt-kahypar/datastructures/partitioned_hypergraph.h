@@ -263,14 +263,12 @@ private:
     // or recompute the gain information from scratch, which would be independent but requires more memory volume
     // since the LP refiner currently does not use and update the gain information, we rely on pinCountInPart being up to date
     // as we have to call initializeGainInformation() before every FM call
-
-    tbb::enumerable_thread_specific<  std::pair< vec<HyperedgeWeight>, vec<HyperedgeWeight> >  > ets_accumulation;
+    tbb::enumerable_thread_specific< vec<HyperedgeWeight> > ets_mfb(_k, 0), ets_mtp(_k, 0);
 
     auto accumulate_and_assign = [&](tbb::blocked_range<HypernodeID>& r) {
 
-      auto& l = ets_accumulation.local();
-      vec<HyperedgeWeight>& l_move_from_benefit = l.first;
-      vec<HyperedgeWeight>& l_move_to_penalty = l.second;
+      vec<HyperedgeWeight>& l_move_from_benefit = ets_mfb.local();
+      vec<HyperedgeWeight>& l_move_to_penalty = ets_mtp.local();
 
       for (HypernodeID u = r.begin(); u < r.end(); ++u) {
         for (HyperedgeID he : incidentEdges(u)) {
