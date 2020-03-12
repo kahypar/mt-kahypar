@@ -344,7 +344,7 @@ class MultilevelCoarsenerT : public ICoarsenerT<TypeTraits>,
     HypernodeWeight weight_v = _cluster_weight[v];
     if ( weight_u + weight_v <= _max_allowed_node_weight ) {
 
-      if ( _matching_state[u].compare_and_exchange_strong(unmatched, match_in_progress) ) {
+      if ( _matching_state[u].compare_exchange_strong(unmatched, match_in_progress) ) {
         // Current thread gets "ownership" for vertex u. Only threads with "ownership"
         // can change the cluster id of a vertex.
 
@@ -372,7 +372,7 @@ class MultilevelCoarsenerT : public ICoarsenerT<TypeTraits>,
               success = true;
             }
           }
-        } else if ( _matching_state[v].compare_and_exchange_strong(unmatched, match_in_progress) ) {
+        } else if ( _matching_state[v].compare_exchange_strong(unmatched, match_in_progress) ) {
           // Current thread has the "ownership" for u and v and can change the cluster id
           // of both vertices thread-safe.
           cluster_ids[u] = v;
