@@ -64,7 +64,6 @@ private:
   using DeltaFunction = std::function<void (const HyperedgeID, const HyperedgeWeight, const HypernodeID, const HypernodeID, const HypernodeID)>;
   #define NOOP_FUNC [] (const HyperedgeID, const HyperedgeWeight, const HypernodeID, const HypernodeID, const HypernodeID) { }
 
-  using PinCountAtomic = CAtomic<HypernodeID>;
 
  public:
   static constexpr bool is_static_hypergraph = Hypergraph::is_static_hypergraph;
@@ -79,10 +78,10 @@ private:
     _hg(&hypergraph),
     part_weight(k, CAtomic<HypernodeWeight>(0)),
     part(hypergraph.initialNumNodes(), kInvalidPartition),
-    //pins_in_part(hypergraph.initialNumEdges() * k, 0),
-    connectivity_sets(hypergraph.initialNumEdges(), k)//,
-    //move_to_penalty(hypergraph.initialNumNodes() * k, 0),
-    //move_from_benefit(hypergraph.initialNumNodes() * k, 0)
+    pins_in_part(hypergraph.initialNumEdges() * k, CAtomic<HypernodeID>(0)),
+    connectivity_sets(hypergraph.initialNumEdges(), k),
+    move_to_penalty(hypergraph.initialNumNodes() * k, CAtomic<HyperedgeWeight>(0)),
+    move_from_benefit(hypergraph.initialNumNodes() * k, CAtomic<HyperedgeWeight>(0))
   {
 
   }
@@ -528,7 +527,7 @@ private:
   vec< PartitionID > part;
 
   // ! For each hyperedge and each block, _pins_in_part stores the number of pins in that block
-  vec< PinCountAtomic > pins_in_part;
+  vec< CAtomic<HypernodeID> > pins_in_part;
 
   // TODO we probably don't need connectivity sets any more, except in the IP hypergraphs which don't need parallelism support
   // ! For each hyperedge, _connectivity_sets stores the set of blocks that the hyperedge spans
@@ -845,7 +844,7 @@ public:
     _hg->memoryConsumption(hypergraph_node);
     utils::MemoryTreeNode* connectivity_set_node = parent->addChild("Connectivity Sets");
     connectivity_sets.memoryConsumption(connectivity_set_node);
-    parent->addChild("Pin Count In Part", sizeof(PinCountAtomic) * _k * _hg->initialNumEdges());
+    parent->addChild("Pin Count In Part", sizeof(CAtomic<HypernodeID>) * _k * _hg->initialNumEdges());
   }
 
 
