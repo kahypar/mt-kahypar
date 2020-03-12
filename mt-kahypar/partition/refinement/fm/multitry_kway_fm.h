@@ -48,6 +48,7 @@ public:
 
 
   bool refine(PartitionedHypergraph& phg) {
+    phg.initializeGainInformation();
     bool overall_improved = false;
     for (size_t round = 0; round < context.refinement.fm.multitry_rounds; ++round) {    // global multi try rounds
       initialize(phg);

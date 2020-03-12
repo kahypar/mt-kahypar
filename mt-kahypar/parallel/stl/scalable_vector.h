@@ -149,4 +149,8 @@ static void parallel_free_thread_local_internal_data(ThreadLocal<T>& local,
 }
 
 }  // namespace parallel
+
+  template<typename T>
+  using tls_enumerable_thread_specific = tbb::enumerable_thread_specific<T, tbb::cache_aligned_allocator<T>, tbb::ets_key_per_instance>;
+
 }  // namespace mt_kahypar

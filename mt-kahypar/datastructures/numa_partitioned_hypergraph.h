@@ -85,21 +85,17 @@ class NumaPartitionedHypergraph {
   static constexpr bool is_numa_aware = true;
   static constexpr bool is_partitioned = true;
 
-  explicit NumaPartitionedHypergraph() :
-    _k(kInvalidPartition),
-    _hg(nullptr),
-    _part_info(),
-    _hypergraphs() { }
+  explicit NumaPartitionedHypergraph() { }
 
   explicit NumaPartitionedHypergraph(const PartitionID k,
                                      Hypergraph& hypergraph,
                                      vec<HypernodeWeight>& max_part_weight) :
     _k(k),
     _hg(&hypergraph),
-    _part_info(k),
+    part_weight(k, 0),
     _hypergraphs() {
     for ( size_t node = 0; node < hypergraph.numNumaHypergraphs(); ++node) {
-      _hypergraphs.emplace_back(k, hypergraph.numaHypergraph(node), max_part_weight);
+      _hypergraphs.emplace_back(k, hypergraph.numaHypergraph(node));
     }
   }
 
@@ -109,34 +105,25 @@ class NumaPartitionedHypergraph {
                                      vec<HypernodeWeight>& max_part_weight) :
     _k(k),
     _hg(&hypergraph),
-    _part_info(k),
-    _hypergraphs() {
+    part_weight(k, 0),
+    _hypergraphs()
+  {
     TBBNumaArena::instance().execute_sequential_on_all_numa_nodes(task_group_id, [&](const int) {
-          _hypergraphs.emplace_back();
-        });
+      _hypergraphs.emplace_back();
+    });
 
     // Construct NUMA partitioned hypergraphs in parallel
     TBBNumaArena::instance().execute_parallel_on_all_numa_nodes(task_group_id, [&](const int node) {
-          _hypergraphs[node] = PartitionedHyperGraph(k, task_group_id, hypergraph.numaHypergraph(node), max_part_weight);
-        });
+      _hypergraphs[node] = PartitionedHyperGraph(k, task_group_id, hypergraph.numaHypergraph(node), max_part_weight);
+    });
   }
 
   NumaPartitionedHypergraph(const NumaPartitionedHypergraph&) = delete;
   NumaPartitionedHypergraph & operator= (const NumaPartitionedHypergraph &) = delete;
 
-  NumaPartitionedHypergraph(NumaPartitionedHypergraph&& other) :
-    _k(other._k),
-    _hg(other._hg),
-    _part_info(std::move(other._part_info)),
-    _hypergraphs(std::move(other._hypergraphs)) { }
+  NumaPartitionedHypergraph(NumaPartitionedHypergraph&& other) = default;
 
-  NumaPartitionedHypergraph & operator= (NumaPartitionedHypergraph&& other) {
-    _k = other._k;
-    _hg = other._hg;
-    _part_info = std::move(other._part_info);
-    _hypergraphs = std::move(other._hypergraphs);
-    return *this;
-  }
+  NumaPartitionedHypergraph & operator= (NumaPartitionedHypergraph&& other) = default;
 
   ~NumaPartitionedHypergraph() {
     freeInternalData();
@@ -304,7 +291,7 @@ class NumaPartitionedHypergraph {
     if ( block != kInvalidPartition ) {
       ASSERT(block < _k);
       const HypernodeWeight delta = weight - _hg->nodeWeight(u);
-      _part_info[block].weight += delta;
+      part_weight[block] += delta;
     }
     _hg->setNodeWeight(u, weight);
   }
@@ -411,7 +398,7 @@ class NumaPartitionedHypergraph {
     _hg->restoreEdge(he, size, representative);
     PartitionedHyperGraph& hypergraph_of_he = hypergraph_of_edge(he);
     for ( const HypernodeID& pin : pins(he) ) {
-      hypergraph_of_he.incrementPinCountInPart(he, partID(pin));
+      hypergraph_of_he.incrementPinCountInPartWithoutGainUpdate(he, partID(pin));
     }
   }
 
@@ -431,55 +418,36 @@ class NumaPartitionedHypergraph {
   // ####################### Partition Information #######################
 
   /**
-   * About moving a vertex:
+   *
+   * No two threads are allowed to move the same vertex concurrently.
+   *
    * The functions setNodePart(...) and changeNodePart(...) are implemented thread-safe
-   * and lock-free. All involved data structures are based on atomics. We maintain
-   * the following information when moving a node:
-   *  1.) Block id of a vertex
-   *  2.) Pin count in a block of a hyperedge
-   *  3.) Connectivity of a hyperedge (number of blocks to which the pins of a hyperedge
-   *      belongs to)
-   *  4.) Connectivity set of a hyperedge (blocks to which the pins of a hyperedge belongs
-   *      to)
-   *  5.) Number of incident cut hyperedges of a vertex (number with hyperedges with
-   *      connectivity greater than 1)
-   *  6.) Block weights and sizes.
+   * and lock-free. We update the following information when moving a node:
+   *  1.) Block id of a vertex: part[ .. ] / partID(.. )
+   *  2.) Pin count in a block of a hyperedge: pins_in_part[he * k + block] / pinCountInPart(he, block)
+   *  3.) Connectivity set of a hyperedge (spanned blocks): connectivitySet(e, block), connectivity(he)
+   *  4.) Block weights. part_weight[ .. ] / partWeight( .. )
+   *  5.) The sum of incident edge weights of a node with zero/one pin in a block: moveFromBenefit(u, block), moveToPenalty(u, block)
    *
-   * In order, to change the block id of a vertex, we start by performing a CAS operation
-   * on the block id of a vertex. This prevents that two threads are moving one vertex to
-   * different blocks concurrently. If the operation succeeds we start updating all involved
-   * data structures. Otherwise, we abort the operation and return false (indicating that
-   * the move of the vertex failed). On succees, we update the local block weights of the
-   * calling thread (see description below) and update 2.) - 5.) by iterating over each
-   * hyperedge and increment or decrement the pin count of a block of a hyperedge. Both
-   * operations return the pin count after the atomic update and based on that we can decide
-   * if the hyperedge is still cut or not.
+   * 2.) - 5.) are based on atomics.
+   * In a parallel setting, a decently accurate km1 gain can be computed as moveFromBenefit(u, partID(u)) - moveToPenalty(u, target_block)
+   * 2.) is used to maintain 5.)
+   * 3.) is a commodity used for initial partitioning
    *
-   * It is guaranteed, that if all parallel vertex move operations are finished, the values
-   * for 1.) - 5.) reflects the current state of the hypergraph. However, this is not the case
-   * in a parallel setting. Since the update of all incident edges of the moved vertex is not
-   * performed in a transactional/exclusive fashion, it can happen that threads that read one
-   * of the values 2.) to 5.) have an intermediate view on those. Algorithms that
-   * build on top of that have to consider that behavior and resolve or deal with that issue on
-   * a higher layer.
-   *
-   * Another feature of changeNodePart is that someone can pass a generic delta function to compute
-   * e.g. the delta in the cut- or km1-metric when moving vertices in parallel. E.g. one
-   * can pass the following function to changeNodePart (as delta_func) to compute the delta
-   * for the cut-metric of the move:
-   *
-   * HyperedgeWeight delta = 0;
-   * auto cut_delta = [&](const HyperedgeWeight edge_weight,
-   *                             const HypernodeID edge_size,
-   *                             const HypernodeID pin_count_in_from_part_after,
-   *                             const HypernodeID pin_count_in_to_part_after) {
-   *   delta += mt_kahypar::cutDelta(
-   *     edge_weight, edge_size, pin_count_in_from_part_after, pin_count_in_to_part_after);
-   * };
-   * hypergraph.changeNodePart(hn, from, to, cut_delta); // 'delta' will contain afterwards the delta
-   *                                                     // for the cut metric
-   *
-   * Summing up all deltas of all parallel moves will be delta after the parallel execution phase.
+   * There is a version of setNodePart and changeNodePart that checks whether the move is feasible with
+   * respect to the balance constraint, by trying to subtract the node weight from a user-supplied budget
+   * for the destination block. If that budget falls below zero, the move fails and the budget update is reverted.
+   * Otherwise the move succeeds and we update the remaining information.
+   * The idea behind maintaining a budget is to alleviate contention on part weights.
+   * Instead, each thread can maintain its own budget and 'steal' some from other threads if it needs to.
+   * Therefore, changeNodePartWithBalanceCheckAndGainUpdates does not maintain part weights.
+   * They can easily be recovered by
+   *    a) thread-local part weight deltas and calling applyPartWeightUpdates(..)
+   *    or
+   *    b) the overall budget for a block across all threads is the max part weight minus the current part weight
+
+   * It is guaranteed, that if all concurrent vertex move operations are finished, the partition information
+   * is in a correct state. The only exception is the above mentioned postprocessing necessary for changeNodePartWithBalanceCheck.
    *
    */
 
@@ -488,8 +456,7 @@ class NumaPartitionedHypergraph {
   bool setNodePart(const HypernodeID u, const PartitionID id) {
     if ( hypergraph_of_vertex(u).setNodePart(u, id, _hypergraphs) ) {
       // Update block weights
-      ++_part_info[id].size;
-      _part_info[id].weight += nodeWeight(u);
+      part_weight[id] += nodeWeight(u);
       return true;
     } else {
       return false;
@@ -503,7 +470,7 @@ class NumaPartitionedHypergraph {
   // ! update those stats, one has to call initializePartition(...) after all
   // ! block ids are assigned.
   bool setOnlyNodePart(const HypernodeID u, PartitionID id) {
-    return hypergraph_of_vertex(u).setOnlyNodePart(u, id);;
+    return hypergraph_of_vertex(u).setOnlyNodePart(u, id);
   }
 
   // ! Changes the block id of vertex u from block 'from' to block 'to'
@@ -512,18 +479,20 @@ class NumaPartitionedHypergraph {
                       PartitionID from,
                       PartitionID to,
                       const DeltaFunction& delta_func = NOOP_FUNC) {
-    // TODO bring up to date with PartitionedHypergraph
     if ( hypergraph_of_vertex(u).changeNodePart(u, from, to, _hypergraphs, delta_func) ) {
       // Update block weights
-      --_part_info[from].size;
-      _part_info[from].weight -= nodeWeight(u);
-      ++_part_info[to].size;
-      _part_info[to].weight += nodeWeight(u);
+      part_weight[from] -= nodeWeight(u);
+      part_weight[to] += nodeWeight(u);
       return true;
     } else {
       return false;
     }
   }
+
+  // TODO at the moment there is no implementation of changeNodePartWithBalanceCheckAndGainUpdate( .. )
+  // and the corresponding constant time gain queries
+  // because the FM implementation is not yet ready for the numa-aware mode
+  // this will be added once FM works properly in non-numa-aware mode
 
   // ! Block which vertex u belongs to
   PartitionID partID(const HypernodeID u) const {
@@ -537,12 +506,19 @@ class NumaPartitionedHypergraph {
   void initializePartition(const TaskGroupID task_group_id) {
     tbb::parallel_invoke([&] {
       // Compute Part Info
-      // TODO implement as in PartitionedHypergraph
+      TBBNumaArena::instance().execute_parallel_on_all_numa_nodes(task_group_id, [&](const int socket) {
+        _hypergraphs[socket].initializeBlockWeights();
+      });
+      for (const auto& socket_phg : _hypergraphs) {
+        for (PartitionID p = 0; p < _k; ++p) {
+          part_weight[p] += socket_phg.partWeight(p);
+        }
+      }
     }, [&] {
       // Compute Pin Counts
       TBBNumaArena::instance().execute_parallel_on_all_numa_nodes(task_group_id, [&](const int node) {
-            _hypergraphs[node].initializePartition(task_group_id, _hypergraphs);
-          });
+        _hypergraphs[node].initializePartition(task_group_id, _hypergraphs);
+      });
     });
   }
 
@@ -720,9 +696,9 @@ class NumaPartitionedHypergraph {
   }
 
   // ! Number of blocks
-  PartitionID _k;
+  PartitionID _k = 0;
   // ! Hypergraph object around this partitioned hypergraph is wrapped
-  Hypergraph* _hg;
+  Hypergraph* _hg = nullptr;
 
   // ! Weight and information for all blocks.
   vec< CAtomic<HypernodeWeight> > part_weight;

@@ -77,7 +77,7 @@ private:
     _k(k),
     _node(hypergraph.numaNode()),
     _hg(&hypergraph),
-    part_weight(static_cast<size_t>(k), CAtomic<HypernodeWeight>(0)),
+    part_weight(static_cast<size_t>(k), 0),
     part(hypergraph.initialNumNodes(), kInvalidPartition),
     pins_in_part(hypergraph.initialNumEdges() * k, PinCountAtomic(0)),
     connectivity_sets(hypergraph.initialNumEdges(), k),
@@ -231,28 +231,19 @@ private:
   }
 
   void initializeBlockWeights() {
-    tbb::enumerable_thread_specific< vec<HypernodeWeight> > ets_part_weight_deltas(_k, 0);
-
     auto accumulate = [&](tbb::blocked_range<HypernodeID>& r) {
-      vec<HypernodeWeight>& pws = ets_part_weight_deltas.local();
+      vec<HypernodeWeight> pws(_k, 0);  // this is not enumerable_thread_specific because of the static partitioner
       for (HypernodeID u = r.begin(); u < r.end(); ++u) {
         pws[partID(u)] += nodeWeight(u);
       }
+      applyPartWeightUpdates(pws);
     };
 
     tbb::parallel_for(tbb::blocked_range<HypernodeID>(HypernodeID(0), initialNumNodes()),
                       accumulate,
                       tbb::static_partitioner()
     );
-
-    for (vec<HypernodeWeight>& local_pws : ets_part_weight_deltas) {
-      applyPartWeightUpdates(local_pws);
-    }
   }
-
-  // TODO move this somewhere more appropriate
-  template<typename T>
-  using tls_enumerable_thread_specific = tbb::enumerable_thread_specific<T, tbb::cache_aligned_allocator<T>, tbb::ets_key_per_instance>;
 
   template<typename FGetPartID>
   void initializePinCountInPart(FGetPartID get_part_id) {
@@ -261,13 +252,19 @@ private:
     auto assign = [&](tbb::blocked_range<HyperedgeID>& r) {
       vec<HypernodeID>& pin_counts = ets_pin_count_in_part.local();
       for (HyperedgeID he = r.begin(); he < r.end(); ++he) {
-
         for (HypernodeID pin : pins(he)) {
           ++pin_counts[get_part_id(pin)];
         }
 
+        const HyperedgeID e_local = common::get_local_position_of_edge(he);
+
         for (PartitionID p = 0; p < _k; ++p) {
-          setPinCountInPart(he, p, pin_counts[p]);
+          pinCountInPartAssertions(he, p);
+          assert(pinCountInPart(he, p) == 0);
+          if (pin_counts[p] > 0) {
+            connectivity_sets.add(e_local, p);
+            pins_in_part[e_local * _k + p].store(pin_counts[p], std::memory_order_relaxed);
+          }
           pin_counts[p] = 0;
         }
 
@@ -280,7 +277,47 @@ private:
 
   // requires pinCountInPart to be computed
   void initializeGainInformation() {
-    // TODO implement
+    // check whether part has been initialized
+    ASSERT( std::all_of(part.begin(), part.end(), [&](const PartitionID p) { return p != kInvalidPartition; }) );
+
+    // we can either assume that pinCountInPart has been initialized and use this information
+    // or recompute the gain information from scratch, which would be independent but requires more memory volume
+    // since the LP refiner currently does not use and update the gain information, we rely on pinCountInPart being up to date
+    // as we have to call initializeGainInformation() before every FM call
+
+    tbb::enumerable_thread_specific<  std::pair< vec<HyperedgeWeight>, vec<HyperedgeWeight> >  > ets_accumulation;
+
+    auto accumulate_and_assign = [&](tbb::blocked_range<HypernodeID>& r) {
+
+      auto& l = ets_accumulation.local();
+      vec<HyperedgeWeight>& l_move_from_benefit = l.first;
+      vec<HyperedgeWeight>& l_move_to_penalty = l.second;
+
+      for (HypernodeID u = r.begin(); u < r.end(); ++u) {
+        for (HyperedgeID he : incidentEdges(u)) {
+          HyperedgeWeight we = edgeWeight(he);
+          for (PartitionID p = 0; p < _k; ++p) {
+            const HypernodeID pcip = pinCountInPart(he, p);
+            if (pcip == 0) {
+              l_move_to_penalty[p] += we;
+            } else if (pcip == 1) {
+              l_move_from_benefit[p] += we;
+            }
+          }
+        }
+
+        for (PartitionID p = 0; p < _k; ++p) {
+          move_to_penalty[u * _k + p].store(l_move_to_penalty[p], std::memory_order_relaxed);
+          move_from_benefit[u * _k + p].store(l_move_from_benefit[p], std::memory_order_relaxed);
+          // reset for next round
+          l_move_to_penalty[p] = 0;
+          l_move_from_benefit[p] = 0;
+        }
+      }
+
+    };
+
+    tbb::parallel_for(tbb::blocked_range<HypernodeID>(HypernodeID(0), initialNumNodes()), accumulate_and_assign);
   }
 
   // ! Initializes the partition of the hypergraph, if block ids are assigned with
@@ -341,7 +378,6 @@ private:
     partAssertions(p);
     return part_weight[p];
   }
-
 
   HyperedgeWeight moveFromBenefit(const HypernodeID u, PartitionID p) const {
     return move_from_benefit[u * _k + p].load(std::memory_order_relaxed);
@@ -422,16 +458,6 @@ private:
     nodeAssertions(u);
     partAssertions(p);
     ASSERT(u * _k + p < move_from_benefit.size());
-  }
-
-  void setPinCountInPart(const HyperedgeID e, const PartitionID p, const HypernodeID pin_count) {
-    pinCountInPartAssertions(e, p);
-    const HyperedgeID e_local = common::get_local_position_of_edge(e);
-    assert(pinCountInPart(e_local, p) == 0);
-    if (pin_count > 0) {
-      connectivity_sets.add(e_local, p);
-      pins_in_part[e_local * _k + p].store(pin_count, std::memory_order_relaxed);
-    }
   }
 
   HypernodeID decrementPinCountInPartWithoutGainUpdate(const HyperedgeID e, const PartitionID p) {
@@ -532,6 +558,9 @@ public:
       // this doesn't break km1 gains, but unfortunately it does break the actual penalty and benefit values
       // we would have to add edgeWeight(he) to all move_to_penalty[pin * _k + p] for p != partID(pin)
       // and add it to move_from_benefit[pin * _k + partID(pin)]
+      // I'm assuming this is only used in postprocessing to restore removed single pin hyperedges in the preprocessing?
+      // Then we don't need those values.
+      // Apply same decision in numa_partitioned_hypergraph
       // TODO decide which version we want
     }
   }
@@ -552,7 +581,6 @@ public:
 
   // Hypergraph Forwards
 
-  // ! Returns the underlying hypergraph
   Hypergraph& hypergraph() {
     ASSERT(_hg);
     return *_hg;
