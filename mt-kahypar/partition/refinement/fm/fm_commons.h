@@ -75,7 +75,8 @@ struct NodeTracker {
   vec<std::atomic<SearchID>> searchOfNode;
 
   static constexpr SearchID deactivatedNodeMarker = std::numeric_limits<SearchID>::max();
-  SearchID lowestActiveSearchID = 1, highestActiveSearchID = 0;
+  SearchID lowestActiveSearchID = 1;
+  std::atomic<SearchID> highestActiveSearchID { 0 };
 
   explicit NodeTracker(size_t numNodes) : searchOfNode(numNodes) {
     for (auto& x : searchOfNode) {
@@ -98,8 +99,13 @@ struct NodeTracker {
     return search_id < lowestActiveSearchID;
   }
 
+  bool canNodeStartNewSearch(HypernodeID u) const {
+    return isSearchInactive( searchOfNode[u].load(std::memory_order_acq_rel) );
+  }
+
+  // not thread-safe
   void requestNewSearches(SearchID max_num_searches) {
-    if (highestActiveSearchID >= std::numeric_limits<SearchID>::max() - max_num_searches - 20) {
+    if (highestActiveSearchID.load(std::memory_order_relaxed) >= std::numeric_limits<SearchID>::max() - max_num_searches - 20) {
       for (auto& x : searchOfNode) {
         x.store(0, std::memory_order_relaxed);
       }

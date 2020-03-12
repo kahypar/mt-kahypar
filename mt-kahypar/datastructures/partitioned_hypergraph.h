@@ -310,10 +310,8 @@ private:
   }
 
   // ! Initializes the partition of the hypergraph, if block ids are assigned with
-  // ! setOnlyNodePart(...). In that case, part info, pin counts in part and border
-  // ! vertices have to be computed in a postprocessing step.
-  // ! Note, this function is called from the numa partitioned hypergraph, which maintains
-  // ! part infos itself.
+  // ! setOnlyNodePart(...). In that case, part weights and pin counts in part have to be computed from scratch
+  // ! Note, this function is called from the numa partitioned hypergraph, which maintains part weights itself
   // ! Furthermore, border vertices can only be computed if pin count information
   // ! on all partitioned hypergraphs are available.
   // ! Therefore, we only compute pin count in part for each hyperedge here.

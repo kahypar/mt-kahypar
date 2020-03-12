@@ -57,7 +57,7 @@ public:
         unused(socket_local_task_id); unused(task_id);
         HypernodeID u = std::numeric_limits<HypernodeID>::max();
         LocalizedKWayFM& fm = ets_fm.local();
-        while (refinementNodes.tryPop(u, socket) /* && u not marked */ ) {
+        while (refinementNodes.tryPop(u, socket) && sharedData.nodeTracker.canNodeStartNewSearch(u)) {
           fm.findMoves(phg, u, sharedData, ++sharedData.nodeTracker.highestActiveSearchID);
         }
       };
@@ -65,9 +65,15 @@ public:
 
       HyperedgeWeight improvement = globalRollBack.globalRollbackToBestPrefix(phg, sharedData);
 
-      if (improvement > 0) { overall_improved = true; }
-      else { break; }
+      if (improvement > 0) {
+        overall_improved = true;
+      }
+      else {
+        break;
+      }
     }
+
+    // TODO apply part weight updates
     return overall_improved;
   }
 
