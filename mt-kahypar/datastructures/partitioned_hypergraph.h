@@ -373,7 +373,9 @@ private:
   std::pair<PartitionID, HyperedgeWeight> bestDestinationBlock(HypernodeID u) const {
     HyperedgeWeight least_penalty = std::numeric_limits<HyperedgeWeight>::max();
     PartitionID best_index = 0;
-    for (PartitionID index = u * _k; index < (u + 1) * _k; ++index) {
+    const PartitionID first = u * _k;
+    const PartitionID firstInvalid = first + _k;
+    for (PartitionID index = first; index < firstInvalid; ++index) {
       const HyperedgeWeight penalty = move_to_penalty[index].load(std::memory_order_relaxed);
       if (penalty < least_penalty) {
         least_penalty = penalty;

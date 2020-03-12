@@ -169,10 +169,11 @@ struct FMSharedData {
       x.store(0, std::memory_order_relaxed);
   }
 
-  void setRemainingOriginalPins(PartitionedHypergraph &phg) {
+  void setRemainingOriginalPins(PartitionedHypergraph& phg) {
     assert(remaining_original_pins.size() == phg.getPinCountInPartVector().size());
     // let's try if this works
-    std::memcpy(remaining_original_pins.data(), phg.getPinCountInPartVector().data(), phg.getPinCountInPartVector().size());
+    size_t n = sizeof(HypernodeID) * phg.getPinCountInPartVector().size();
+    std::memcpy(remaining_original_pins.data(), phg.getPinCountInPartVector().data(), n);
   }
 };
 
