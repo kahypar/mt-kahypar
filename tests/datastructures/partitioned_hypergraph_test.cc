@@ -58,12 +58,10 @@ class APartitionedHypergraph : public Test {
  using Hypergraph = typename TypeTraits::Hypergraph;
  using TBB = typename TypeTraits::TBB;
 
- static constexpr HypernodeWeight infW = std::numeric_limits<HypernodeWeight>::max();
-
   APartitionedHypergraph() :
     hypergraph(Factory::construct(TBB::GLOBAL_TASK_GROUP,
       7 , 4, { {0, 2}, {0, 1, 3, 4}, {3, 4, 6}, {2, 5, 6} })),
-    partitioned_hypergraph(3, TBB::GLOBAL_TASK_GROUP, hypergraph, { infW, infW, infW }),
+    partitioned_hypergraph(3, TBB::GLOBAL_TASK_GROUP, hypergraph),
     id() {
     id.resize(7);
     for ( const HypernodeID& hn : hypergraph.nodes() ) {
@@ -202,9 +200,7 @@ TEST(UndefinedBehaviourControl, DuringInitialization) {
           )
   );
 
-  static constexpr HypernodeWeight infW = std::numeric_limits<HypernodeWeight>::max();
-  PartitionedHypergraph<StaticHypergraph, StaticHypergraphFactory> phg(3, TBBNumaArena::GLOBAL_TASK_GROUP, hg,
-                                                                       {infW, infW, infW});
+  PartitionedHypergraph<StaticHypergraph, StaticHypergraphFactory> phg(3, TBBNumaArena::GLOBAL_TASK_GROUP, hg);
   std::vector<HypernodeID> id(7);
   for (const HypernodeID& hn : hg.nodes()) {
     assert(hg.originalNodeID(hn) < id.size());
@@ -751,11 +747,8 @@ TYPED_TEST(APartitionedHypergraph, ComputesPartInfoCorrectIfNodePartsAreSetOnly)
   this->partitioned_hypergraph.initializePartition(TBB::GLOBAL_TASK_GROUP);
 
   ASSERT_EQ(3, this->partitioned_hypergraph.partWeight(0));
-  ASSERT_EQ(3, this->partitioned_hypergraph.partSize(0));
   ASSERT_EQ(2, this->partitioned_hypergraph.partWeight(1));
-  ASSERT_EQ(2, this->partitioned_hypergraph.partSize(1));
   ASSERT_EQ(2, this->partitioned_hypergraph.partWeight(2));
-  ASSERT_EQ(2, this->partitioned_hypergraph.partSize(2));
 }
 
 TYPED_TEST(APartitionedHypergraph, SetPinCountsInPartCorrectIfNodePartsAreSetOnly) {
