@@ -65,6 +65,19 @@ TEST(GainUpdates, Example1) {
 
   ASSERT_EQ(phg.km1Gain(2, phg.partID(2), 0), -1);
 
+  ASSERT_EQ(phg.km1Gain(4, phg.partID(4), 1), -1);
+  ASSERT_EQ(phg.km1Gain(6, phg.partID(6), 1), -2);
+
+  ASSERT_EQ(phg.km1Gain(12, phg.partID(12), 0), -1);
+  ASSERT_EQ(phg.km1Gain(14, phg.partID(14), 0), -2);
+
+  vec< CAtomic<HypernodeWeight> > budget(2, CAtomic<HypernodeWeight>(500));
+
+  phg.changeNodePartWithBalanceCheckAndGainUpdates(8, 0, budget[0], 1, budget[1]);
+  ASSERT_EQ(budget[0], 501);
+  ASSERT_EQ(budget[1], 499);
+  ASSERT_EQ(phg.km1Gain(8, 1, 0), 2);
+  ASSERT_EQ(phg.km1Gain(6, 0, 1), 0);
 }
 
 
