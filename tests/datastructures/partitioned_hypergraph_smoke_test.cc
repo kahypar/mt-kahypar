@@ -36,8 +36,8 @@
 
 #include "mt-kahypar/datastructures/static_hypergraph.h"
 #include "mt-kahypar/datastructures/static_hypergraph_factory.h"
-#include "mt-kahypar/datastructures/numa_hypergraph.h"
-#include "mt-kahypar/datastructures/numa_hypergraph_factory.h"
+//#include "mt-kahypar/datastructures/numa_hypergraph.h"
+//#include "mt-kahypar/datastructures/numa_hypergraph_factory.h"
 #include "mt-kahypar/datastructures/partitioned_hypergraph.h"
 #include "mt-kahypar/datastructures/numa_partitioned_hypergraph.h"
 
@@ -85,7 +85,7 @@ class AConcurrentHypergraph : public Test {
   }
 
   static void SetUpTestSuite() {
-    TBB::instance(1); //HardwareTopology::instance().num_cpus());
+    TBB::instance(HardwareTopology::instance().num_cpus());
     utils::Randomize::instance().setSeed(0);
   }
 
@@ -281,8 +281,6 @@ void moveAllNodesOfHypergraphRandom(HyperGraph& hypergraph,
   HyperedgeWeight metric_before = metrics::objective(hypergraph, objective);
   HighResClockTimepoint start = std::chrono::high_resolution_clock::now();
 
-  tbb::enumerable_thread_specific<HyperedgeWeight, tbb::cache_aligned_allocator<HyperedgeWeight>, tbb::ets_key_usage_type::ets_key_per_instance> gains;
-
   tbb::parallel_for(0UL, hypergraph.initialNumNodes(), [&](const HypernodeID& node) {
     int cpu_id = sched_getcpu();
     const HypernodeID hn = hypergraph.globalNodeID(node);
@@ -292,9 +290,7 @@ void moveAllNodesOfHypergraphRandom(HyperGraph& hypergraph,
       to = utils::Randomize::instance().getRandomInt(0, k - 1, cpu_id);
     }
     ASSERT((to >= 0 && to < k) && to != from);
-    Gain gain = 0;
-    hypergraph.changeNodePart(hn, from, to, gain, objective_delta);
-    gains.local() += gain;
+    hypergraph.changeNodePart(hn, from, to, objective_delta);
   });
 
   HighResClockTimepoint end = std::chrono::high_resolution_clock::now();
@@ -305,12 +301,8 @@ void moveAllNodesOfHypergraphRandom(HyperGraph& hypergraph,
     delta += local_delta;
   }
 
-  HyperedgeWeight gain = gains.combine(std::plus<HyperedgeWeight>());
-
   HyperedgeWeight metric_after = metrics::objective(hypergraph, objective);
-  // Note: since we don't wait for stable state during changeNodePart, we don't get exact deltas. Instead we can use the two atomics to obtain the actual gain
-  ASSERT_EQ(metric_after, metric_before - gain);
-  //ASSERT_EQ(metric_after, metric_before + delta) << V(metric_before) << V(delta);
+  ASSERT_EQ(metric_after, metric_before + delta) << V(metric_before) << V(delta);
   if (show_timings) {
     LOG << V(k) << V(objective) << V(metric_before) << V(delta) << V(metric_after) << V(timing);
   }

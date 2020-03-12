@@ -37,7 +37,7 @@ namespace mt_kahypar {
 namespace ds {
 
 TEST(GainUpdates, Example1) {
-  TBBNumaArena::instance(2);
+  TBBNumaArena::instance(HardwareTopology::instance().num_cpus());
 
   StaticHypergraph hg = io::readHypergraphFile<StaticHypergraph, StaticHypergraphFactory>("../partition/test_instances/twocenters.hgr", 0);
   PartitionID k = 2;
