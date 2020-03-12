@@ -92,29 +92,9 @@ private:
   PartitionedHypergraph(const PartitionedHypergraph&) = delete;
   PartitionedHypergraph & operator= (const PartitionedHypergraph &) = delete;
 
-  // TODO try whether the default generated move constructor and move assignment operator already work
-  // they should but hey, who knows
   PartitionedHypergraph(PartitionedHypergraph&& other) = default;
-  /*
-  {
-    *this = std::move(other);
-  }
-  */
-
   PartitionedHypergraph & operator= (PartitionedHypergraph&& other) = default;
-  /*
-  {
-    _k = other._k;
-    _node = other._node;
-    _hg = other._hg;
-    part_weight = std::move(other.part_weight),
-    max_part_weight = std::move(other.max_part_weight);
-    part = std::move(other.part),
-    pins_in_part = std::move(other.pins_in_part);
-    connectivity_sets = std::move(other.connectivity_sets);
-    return *this;
-  }
-  */
+
   ~PartitionedHypergraph() {
     freeInternalData();
   }
