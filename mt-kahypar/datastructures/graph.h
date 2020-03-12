@@ -63,15 +63,6 @@ class GraphT {
 
   using AdjacenceIterator = typename parallel::scalable_vector<Arc>::const_iterator;
 
- private:
-  struct ContractedArc {
-    NodeID u;
-    NodeID v;
-    ArcWeight weight;
-    bool valid;
-  };
-
- public:
   explicit GraphT(const HyperGraph& hypergraph,
                   const LouvainEdgeWeight edge_weight_type,
                   const TaskGroupID task_group_id) :
@@ -165,140 +156,135 @@ class GraphT {
       ASSERT(static_cast<size_t>(communities[u]) < mapping.size());
       mapping[communities[u]] = 1UL;
     });
+
+    // Prefix sum determines node ids in coarse graph
     parallel::TBBPrefixSum<size_t> mapping_prefix_sum(mapping);
     tbb::parallel_scan(tbb::blocked_range<size_t>(0UL, mapping.size()), mapping_prefix_sum);
+
     // Remap community ids
-    tbb::parallel_for(0U, static_cast<NodeID>(_num_nodes), [&](const NodeID u) {
-      communities[u] = mapping_prefix_sum[communities[u]];
+    parallel::scalable_vector<parallel::IntegralAtomicWrapper<size_t>> tmp_adjacent_nodes;
+    parallel::scalable_vector<parallel::IntegralAtomicWrapper<size_t>> tmp_pos;
+    coarse_graph._num_nodes = mapping_prefix_sum.total_sum();
+    tbb::parallel_invoke([&] {
+      tbb::parallel_for(0U, static_cast<NodeID>(_num_nodes), [&](const NodeID u) {
+        communities[u] = mapping_prefix_sum[communities[u]];
+      });
+    }, [&] {
+      tmp_adjacent_nodes.assign(coarse_graph._num_nodes,
+        parallel::IntegralAtomicWrapper<size_t>(0));
+      tmp_pos.assign(coarse_graph._num_nodes,
+        parallel::IntegralAtomicWrapper<size_t>(0));
+      coarse_graph._indices.resize(coarse_graph._num_nodes + 1);
+      coarse_graph._node_volumes.resize(coarse_graph._num_nodes);
     });
     utils::Timer::instance().stop_timer("compute_cluster_mapping");
 
     // #################### STAGE 2 ####################
-    // For each node u, we contract its adjacent arcs and store them
-    // in a bucket of a streaming map. The bucket is determined by a
-    // hash over the two endpoints of a arc. Therefore, arcs with equal
-    // endpoints are later in the same bucket in our streaming map
-    // and can be processed together sequentially.
-    utils::Timer::instance().start_timer("local_arc_contraction", "Local Arc Contraction");
-    coarse_graph._num_nodes = mapping_prefix_sum.total_sum();
-    StreamingMap<size_t, ContractedArc> arc_hash_to_contracted_arc;
-    tbb::enumerable_thread_specific<parallel::scalable_vector<ArcWeight>> tmp_node_volumes(coarse_graph._num_nodes);
+    // Write all arcs, that are not a selfloop in the coarse graph, into a tmp
+    // adjacence array. For that, we compute a prefix sum over the sum of all arcs
+    // in each community (which are no selfloop) and write them in parallel to
+    // the tmp adjacence array.
+    utils::Timer::instance().start_timer("construct_tmp_adjacent_array", "Construct Tmp Adjacent Array");
+    parallel::scalable_vector<parallel::AtomicWrapper<ArcWeight>>
+      coarse_node_volumes(coarse_graph._num_nodes);
+    tbb::parallel_for(0U, static_cast<NodeID>(_num_nodes), [&](const NodeID u) {
+      const NodeID coarse_u = communities[u];
+      coarse_node_volumes[coarse_u] += _node_volumes[u];
+      for ( const Arc& arc : arcsOf(u) ) {
+        const NodeID coarse_v = communities[arc.head];
+        if ( coarse_u != coarse_v ) {
+          ASSERT(static_cast<size_t>(coarse_u) < tmp_adjacent_nodes.size());
+          ++tmp_adjacent_nodes[coarse_u];
+        }
+      }
+    });
+
+    parallel::TBBPrefixSum<parallel::IntegralAtomicWrapper<size_t>>
+      tmp_adjacent_nodes_prefix_sum(tmp_adjacent_nodes);
+    tbb::parallel_scan(tbb::blocked_range<size_t>(
+      0UL, tmp_adjacent_nodes.size()), tmp_adjacent_nodes_prefix_sum);
+
+    parallel::scalable_vector<Arc> tmp_arcs(tmp_adjacent_nodes_prefix_sum.total_sum());
+    parallel::scalable_vector<size_t> valid_arcs;
     tbb::parallel_invoke([&] {
       tbb::parallel_for(0U, static_cast<NodeID>(_num_nodes), [&](const NodeID u) {
-        if ( degree(u) > 0 ) {
-          const NodeID coarse_u = communities[u];
-          tmp_node_volumes.local()[coarse_u] += _node_volumes[u];
-          std::sort(_arcs.begin() + _indices[u], _arcs.begin() + _indices[u + 1],
-            [&](const Arc& lhs, const Arc& rhs) {
-              return communities[lhs.head] < communities[rhs.head];
-            });
-
-          size_t pos = _indices[u];
-          ContractedArc c_arc = ContractedArc { coarse_u,
-                                                static_cast<NodeID>(communities[_arcs[pos].head]),
-                                                _arcs[pos++].weight, true };
-          for ( ; pos < _indices[u + 1]; ++pos ) {
-            const NodeID coarse_v = communities[_arcs[pos].head];
-            if ( c_arc.v == coarse_v ) {
-              c_arc.weight += _arcs[pos].weight;
-            } else {
-              arc_hash_to_contracted_arc.stream(hash(c_arc.u, c_arc.v), std::move(c_arc));
-              c_arc = ContractedArc { coarse_u, coarse_v, _arcs[pos].weight, true };
-            }
+        const NodeID coarse_u = communities[u];
+        ASSERT(static_cast<size_t>(coarse_u) < coarse_graph._num_nodes);
+        for ( const Arc& arc : arcsOf(u) ) {
+          const NodeID coarse_v = communities[arc.head];
+          if ( coarse_u != coarse_v ) {
+            const size_t tmp_arcs_pos = tmp_adjacent_nodes_prefix_sum[coarse_u]
+              + tmp_pos[coarse_u]++;
+            ASSERT(tmp_arcs_pos < tmp_adjacent_nodes_prefix_sum[coarse_u + 1]);
+            tmp_arcs[tmp_arcs_pos] = Arc { coarse_v, arc.weight };
           }
-          arc_hash_to_contracted_arc.stream(hash(c_arc.u, c_arc.v), std::move(c_arc));
         }
       });
     }, [&] {
-      coarse_graph._indices.resize(coarse_graph._num_nodes + 1);
-      coarse_graph._node_volumes.resize(coarse_graph._num_nodes);
+      valid_arcs.assign(tmp_adjacent_nodes_prefix_sum.total_sum(), 1UL);
     });
-
-    using ArcMap = parallel::scalable_vector<parallel::scalable_vector<ContractedArc>>;
-    ArcMap arc_buckets(arc_hash_to_contracted_arc.size());
-    arc_hash_to_contracted_arc.copy(arc_buckets, [&](const size_t key) {
-      return key % arc_buckets.size();
-    });
-    utils::Timer::instance().stop_timer("local_arc_contraction");
+    utils::Timer::instance().stop_timer("construct_tmp_adjacent_array");
 
     // #################### STAGE 3 ####################
-    // Arcs with same endpoints are in the same bucket now and weights can be
-    // aggregated by simply sorting a bucket after endpoints.
-    utils::Timer::instance().start_timer("global_arc_contraction", "Global Arc Contraction");
-    parallel::scalable_vector<parallel::IntegralAtomicWrapper<size_t>> tmp_indices(
-      coarse_graph._num_nodes, parallel::IntegralAtomicWrapper<size_t>(0));
-    parallel::scalable_vector<parallel::IntegralAtomicWrapper<size_t>> arc_pos;
-    tbb::parallel_invoke([&] {
-      tbb::parallel_for(0UL, arc_buckets.size(), [&](const size_t bucket) {
-        parallel::scalable_vector<ContractedArc>& arc_bucket = arc_buckets[bucket];
-        if ( arc_bucket.size() > 0 ) {
-          std::sort(arc_bucket.begin(), arc_bucket.end(),
-            [&](const ContractedArc& lhs, const ContractedArc& rhs) {
-              return lhs.u < rhs.u || (lhs.u == rhs.u && lhs.v < rhs.v);
-            });
+    // Aggregate weights of arcs that are equal in each community.
+    // Therefore, we sort the arcs according to their endpoints
+    // and aggregate weight of arcs with equal endpoints.
+    utils::Timer::instance().start_timer("contract_arcs", "Contract Arcs");
+    tbb::parallel_for(0U, static_cast<NodeID>(coarse_graph._num_nodes), [&](const NodeID u) {
+      const size_t tmp_arc_start = tmp_adjacent_nodes_prefix_sum[u];
+      const size_t tmp_arc_end = tmp_adjacent_nodes_prefix_sum[u + 1];
+      std::sort(tmp_arcs.begin() + tmp_arc_start, tmp_arcs.begin() + tmp_arc_end,
+        [&](const Arc& lhs, const Arc& rhs) {
+          return lhs.head < rhs.head;
+        });
 
-          for ( size_t i = 0; i < arc_bucket.size(); ++i ) {
-            ContractedArc& lhs = arc_bucket[i];
-            if ( lhs.valid ) {
-              for ( size_t j = i + 1; j < arc_bucket.size(); ++j ) {
-                ContractedArc& rhs = arc_bucket[j];
-                ASSERT(rhs.valid);
-                if ( lhs.u == rhs.u && lhs.v == rhs.v ) {
-                  lhs.weight += rhs.weight;
-                  rhs.valid = false;
-                } else {
-                  break;
-                }
-              }
-
-              if ( lhs.u == lhs.v ) {
-                // Selfloops are not part of the coarse graph
-                lhs.valid = false;
-              } else {
-                ASSERT(static_cast<size_t>(lhs.u) < tmp_indices.size());
-                ++tmp_indices[lhs.u];
-              }
-            }
-          }
+      size_t arc_rep = tmp_arc_start;
+      for ( size_t pos = tmp_arc_start + 1; pos < tmp_arc_end; ++pos ) {
+        if ( tmp_arcs[arc_rep].head == tmp_arcs[pos].head ) {
+          tmp_arcs[arc_rep].weight += tmp_arcs[pos].weight;
+          valid_arcs[pos] = 0UL;
+        } else {
+          arc_rep = pos;
         }
-      });
-    }, [&] {
-      arc_pos.assign(coarse_graph._num_nodes, parallel::IntegralAtomicWrapper<size_t>(0));
+      }
     });
+    utils::Timer::instance().stop_timer("contract_arcs");
 
-    parallel::TBBPrefixSum<parallel::IntegralAtomicWrapper<size_t>> index_prefix_sum(tmp_indices);
-    tbb::parallel_scan(tbb::blocked_range<size_t>(0UL, tmp_indices.size()), index_prefix_sum);
-    coarse_graph._num_arcs = index_prefix_sum.total_sum();
-    utils::Timer::instance().stop_timer("global_arc_contraction");
 
     // #################### STAGE 4 ####################
-    // Construct coarse graph
-    utils::Timer::instance().start_timer("construct_coarse_graph", "Contract Coarse Graph");
+    // Write aggregated arcs to coarse graph. Therefore, we compute
+    // a prefix sum over all valid arcs in the tmp adjacence array which
+    // determines their position in the coarse graph adjacence array.
+    utils::Timer::instance().start_timer("construct_coarse_graph", "Construct Coarse Graph");
+    parallel::TBBPrefixSum<size_t> indices_prefix_sum(valid_arcs);
+    tbb::parallel_scan(tbb::blocked_range<size_t>(0UL, valid_arcs.size()), indices_prefix_sum);
+
+    coarse_graph._num_arcs = indices_prefix_sum.total_sum();
     coarse_graph._arcs.resize(coarse_graph._num_arcs);
     tbb::parallel_invoke([&] {
-      tbb::parallel_for(0UL, arc_buckets.size(), [&](const size_t bucket) {
-        parallel::scalable_vector<ContractedArc>& arc_bucket = arc_buckets[bucket];
-        for ( size_t i = 0; i < arc_bucket.size(); ++i ) {
-          ContractedArc& lhs = arc_bucket[i];
-          if ( lhs.valid ) {
-            const size_t pos = index_prefix_sum[lhs.u] + arc_pos[lhs.u]++;
-            ASSERT(pos < index_prefix_sum[lhs.u + 1]);
-            coarse_graph._arcs[pos] = Arc { lhs.v, lhs.weight };
-          }
+      tbb::parallel_for(0UL, tmp_arcs.size(), [&](const size_t i) {
+        if ( indices_prefix_sum.value(i) ) {
+          const size_t pos = indices_prefix_sum[i];
+          ASSERT(pos < coarse_graph._arcs.size());
+          coarse_graph._arcs[pos] = std::move(tmp_arcs[i]);
         }
-        parallel::free(arc_bucket);
       });
     }, [&] {
       tbb::parallel_for(0U, static_cast<NodeID>(coarse_graph._num_nodes + 1), [&](const NodeID u) {
-        coarse_graph._indices[u] = index_prefix_sum[u];
-        for ( const parallel::scalable_vector<ArcWeight>& local_node_volumes : tmp_node_volumes ) {
-          coarse_graph._node_volumes[u] += local_node_volumes[u];
+        const size_t start = indices_prefix_sum[tmp_adjacent_nodes_prefix_sum[u]];
+        ASSERT(start <= coarse_graph._arcs.size());
+        coarse_graph._indices[u] = start;
+        if ( u < coarse_graph._num_nodes ) {
+          coarse_graph._node_volumes[u] = coarse_node_volumes[u];
         }
       });
     });
+
     utils::Timer::instance().stop_timer("construct_coarse_graph");
 
-    parallel::parallel_free(mapping, tmp_indices, arc_pos);
+    // Free local data parallel
+    parallel::parallel_free(tmp_adjacent_nodes, tmp_pos,
+      mapping, tmp_arcs, valid_arcs, coarse_node_volumes);
 
     return coarse_graph;
   }
