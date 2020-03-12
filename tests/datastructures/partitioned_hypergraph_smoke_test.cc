@@ -18,6 +18,8 @@
  *
  ******************************************************************************/
 
+#include "tests/datastructures/hypergraph_fixtures.h"
+
 #include <boost/range/irange.hpp>
 #include <mt-kahypar/partition/refinement/policies/gain_policy.h>
 #include "gmock/gmock.h"
@@ -27,8 +29,6 @@
 #include "tbb/task_arena.h"
 #include "tbb/task_group.h"
 
-#include "tests/datastructures/hypergraph_fixtures.h"
-
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/io/hypergraph_io.h"
 #include "mt-kahypar/partition/metrics.h"
@@ -36,8 +36,8 @@
 
 #include "mt-kahypar/datastructures/static_hypergraph.h"
 #include "mt-kahypar/datastructures/static_hypergraph_factory.h"
-//#include "mt-kahypar/datastructures/numa_hypergraph.h"
-//#include "mt-kahypar/datastructures/numa_hypergraph_factory.h"
+#include "mt-kahypar/datastructures/numa_hypergraph.h"
+#include "mt-kahypar/datastructures/numa_hypergraph_factory.h"
 #include "mt-kahypar/datastructures/partitioned_hypergraph.h"
 #include "mt-kahypar/datastructures/numa_partitioned_hypergraph.h"
 
@@ -77,7 +77,7 @@ class AConcurrentHypergraph : public Test {
   {
     int cpu_id = sched_getcpu();
     underlying_hypergraph = io::readHypergraphFile<Hypergraph, Factory>("../partition/test_instances/ibm01.hgr", TBB::GLOBAL_TASK_GROUP);
-    hypergraph = PartitionedHyperGraph(k, TBB::GLOBAL_TASK_GROUP, underlying_hypergraph, std::vector<HypernodeWeight>(k, std::numeric_limits<HypernodeWeight>::max()));
+    hypergraph = PartitionedHyperGraph(k, TBB::GLOBAL_TASK_GROUP, underlying_hypergraph);
     for (const HypernodeID& hn : hypergraph.nodes()) {
       PartitionID id = utils::Randomize::instance().getRandomInt(0, k - 1, cpu_id);
       assert(hypergraph.setNodePart(hn, id));
@@ -101,11 +101,11 @@ using HwTopology = typename TypeTraits::HwTopology;
 using TBB = typename TypeTraits::TBB;
 
 // Define NUMA Hypergraph and Factory
-/*
+
 using NumaHyperGraph = NumaHypergraph<StaticHypergraph, HwTopology, TBB>;
 using NumaHyperGraphFactory = NumaHypergraphFactory<
   StaticHypergraph, StaticHypergraphFactory, HwTopology, TBB>;
-*/
+
 
 typedef ::testing::Types<
                         TestConfig<PartitionedHypergraph<StaticHypergraph, StaticHypergraphFactory>,
@@ -180,7 +180,7 @@ typedef ::testing::Types<
                                     TBBNumaArena,
                                     128, kahypar::Objective::km1>
 
-        /*
+
         ,
                         TestConfig<NumaPartitionedHypergraph<NumaHyperGraph, NumaHyperGraphFactory>,
                                     NumaHyperGraph,
@@ -252,7 +252,7 @@ typedef ::testing::Types<
                                     NumaHyperGraphFactory,
                                     TBB,
                                     128, kahypar::Objective::km1>
-                                    */
+
                                     > TestConfigs;
 
 TYPED_TEST_CASE(AConcurrentHypergraph, TestConfigs);

@@ -88,24 +88,23 @@ class NumaPartitionedHypergraph {
   explicit NumaPartitionedHypergraph() { }
 
   explicit NumaPartitionedHypergraph(const PartitionID k,
-                                     Hypergraph& hypergraph,
-                                     vec<HypernodeWeight>& max_part_weight) :
+                                     Hypergraph& hypergraph) :
     _k(k),
     _hg(&hypergraph),
-    part_weight(k, 0),
-    _hypergraphs() {
-    for ( size_t node = 0; node < hypergraph.numNumaHypergraphs(); ++node) {
+    part_weight(k, CAtomic<HypernodeWeight>(0)),
+    _hypergraphs()
+  {
+    for ( size_t node = 0; node < hypergraph.numNumaHypergraphs(); ++node ) {
       _hypergraphs.emplace_back(k, hypergraph.numaHypergraph(node));
     }
   }
 
   explicit NumaPartitionedHypergraph(const PartitionID k,
                                      const TaskGroupID task_group_id,
-                                     Hypergraph& hypergraph,
-                                     vec<HypernodeWeight>& max_part_weight) :
+                                     Hypergraph& hypergraph) :
     _k(k),
     _hg(&hypergraph),
-    part_weight(k, 0),
+    part_weight(k, CAtomic<HypernodeWeight>(0)),
     _hypergraphs()
   {
     TBBNumaArena::instance().execute_sequential_on_all_numa_nodes(task_group_id, [&](const int) {
@@ -114,7 +113,7 @@ class NumaPartitionedHypergraph {
 
     // Construct NUMA partitioned hypergraphs in parallel
     TBBNumaArena::instance().execute_parallel_on_all_numa_nodes(task_group_id, [&](const int node) {
-      _hypergraphs[node] = PartitionedHyperGraph(k, task_group_id, hypergraph.numaHypergraph(node), max_part_weight);
+      _hypergraphs[node] = PartitionedHyperGraph(k, task_group_id, hypergraph.numaHypergraph(node));
     });
   }
 

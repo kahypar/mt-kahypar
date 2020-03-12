@@ -157,14 +157,14 @@ using PartitionedHypergraphTestTypes =
                           StaticHypergraph,
                           StaticHypergraphFactory,
                           TBBNumaArena>
-          /*
+
           ,
           PartitionedHypergraphTypeTraits<
                           NumaPartitionedHypergraph<NumaHyperGraph, NumaHyperGraphFactory>,
                           NumaHyperGraph,
                           NumaHyperGraphFactory,
                           TBB>
-          */
+          
   >;
 
 TYPED_TEST_CASE(APartitionedHypergraph, PartitionedHypergraphTestTypes);
