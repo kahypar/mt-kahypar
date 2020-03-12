@@ -25,6 +25,7 @@
 #include <mt-kahypar/partition/context.h>
 
 #include "fm_commons.h"
+#include "clearlist.hpp"
 
 
 namespace mt_kahypar {
@@ -73,6 +74,7 @@ public:
             }
           }
         }
+        updateDeduplicator.clear();
 
         /*  NOTE (Lars): only for the version with local rollbacks
         localMoves.push_back(m);
@@ -110,6 +112,11 @@ private:
   }
 
   void insertOrUpdatePQ(PartitionedHypergraph& phg, HypernodeID u, NodeTracker& nt) {
+    if (updateDeduplicator.contains(u)) {
+      return;
+    }
+    updateDeduplicator.insert(u);
+
     SearchID searchOfU = nt.searchOfNode[u].load(std::memory_order_acq_rel);
 
     if (nt.isSearchInactive(searchOfU)) {   // both branches already exclude deactivated nodes
@@ -198,6 +205,12 @@ private:
 
   BlockPriorityQueue blockPQ;
   vec<VertexPriorityQueue> vertexPQs;
+
+  // Note: prefer ClearListSet over SparseSet because
+  // ClearListSet takes numNodes + numInsertedNodes*32 bit
+  // SparseSet takes 2 * numNodes * 32 bit
+  // where numInsertedNodes is presumably much smaller than numNodes
+  ldc::ClearListSet<HypernodeID> updateDeduplicator;
 
   const Context& context;
 
