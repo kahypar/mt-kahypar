@@ -313,7 +313,7 @@ class RecursiveInitialPartitionerT : public IInitialPartitioner {
       auto tmp_hypergraph = _hg.extract(_task_group_id, _block, cut_net_splitting);
       _result.hypergraph = std::move(tmp_hypergraph.first);
       _result.mapping = std::move(tmp_hypergraph.second);
-      _result.partitioned_hypergraph = PartitionedHyperGraph(2, _task_group_id, _result.hypergraph, _result.context.partition.max_part_weights);
+      _result.partitioned_hypergraph = PartitionedHyperGraph(2, _task_group_id, _result.hypergraph);
 
       if ( _result.hypergraph.initialNumNodes() > 0 ) {
         // Spawn Initial Partitioner

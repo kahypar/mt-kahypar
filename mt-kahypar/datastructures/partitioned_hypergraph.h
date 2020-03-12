@@ -77,12 +77,12 @@ private:
     _k(k),
     _node(hypergraph.numaNode()),
     _hg(&hypergraph),
-    part_weight(static_cast<size_t>(k), 0),
+    part_weight(k, CAtomic<HypernodeWeight>(0)),
     part(hypergraph.initialNumNodes(), kInvalidPartition),
-    pins_in_part(hypergraph.initialNumEdges() * k, PinCountAtomic(0)),
-    connectivity_sets(hypergraph.initialNumEdges(), k),
-    move_from_benefit(hypergraph.initialNumNodes() * k, CAtomic<HyperedgeWeight>(0)),
-    move_to_penalty(hypergraph.initialNumNodes() * k, CAtomic<HyperedgeWeight>(0))
+    //pins_in_part(hypergraph.initialNumEdges() * k, 0),
+    connectivity_sets(hypergraph.initialNumEdges(), k)//,
+    //move_to_penalty(hypergraph.initialNumNodes() * k, 0),
+    //move_from_benefit(hypergraph.initialNumNodes() * k, 0)
   {
 
   }
@@ -271,7 +271,7 @@ private:
       }
     };
 
-    tbb::parallel_for(HyperedgeID(0), initialNumEdges(), assign);
+    tbb::parallel_for(tbb::blocked_range<HyperedgeID>(HyperedgeID(0), initialNumEdges()), assign);
   }
 
 
@@ -323,7 +323,7 @@ private:
   // ! Initializes the partition of the hypergraph, if block ids are assigned with
   // ! setOnlyNodePart(...). In that case, part info, pin counts in part and border
   // ! vertices have to be computed in a postprocessing step.
-  void initializePartition() {
+  void initializePartition(const TaskGroupID ) {
     tbb::parallel_invoke(
             [&] { initializeBlockWeights(); },
             [&] { initializePinCountInPart( [&](HypernodeID u) { return partID(u); } ); }
