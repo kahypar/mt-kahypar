@@ -363,7 +363,8 @@ private:
   }
 
   HyperedgeWeight km1Gain(const HypernodeID u, PartitionID from, PartitionID to) const {
-    assert(from == partID(u));
+    ASSERT(from == partID(u), "While gain computation works for from != partID(u), such a query makes no sense");
+    ASSERT(from != to, "The gain computation doesn't work for from = to");
     return moveFromBenefit(u, from) - moveToPenalty(u, to);
   }
 
