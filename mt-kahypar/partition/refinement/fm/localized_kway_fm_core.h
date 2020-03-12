@@ -119,8 +119,8 @@ private:
 
         // if that was successful, we insert it into the vertices ready to move in its current block
         const PartitionID pu = phg.partID(u);
-        auto [bestTo, affinity] = phg.bestDestinationBlock(u);
-        const Gain gain = phg.co_affinity(u, bestTo) - affinity;
+        auto [best_to_block, move_to_penalty] = phg.bestDestinationBlock(u);
+        const Gain gain = phg.moveFromBenefit(u, pu) - move_to_penalty;
         if (vertexPQs[u].empty()) {
           blockPQ.insert(pu, gain);
         }
@@ -136,8 +136,8 @@ private:
 
       // update PQ entries
       const PartitionID pu = phg.partID(u);
-      auto [bestTo, affinity] = phg.bestDestinationBlock(u);
-      const Gain gain = phg.co_affinity(u, bestTo) - affinity;
+      auto [best_to_block, move_to_penalty] = phg.bestDestinationBlock(u);
+      const Gain gain = phg.moveFromBenefit(u, pu) - move_to_penalty;
       vertexPQs[pu].adjustKey(u, gain);
 
       if (blockPQ.contains(pu) && gain > blockPQ.keyOf(pu)) {
@@ -153,24 +153,24 @@ private:
     // also atomic slack part weights are an obstacle
 
     while (!blockPQ.empty()) {
-      const PartitionID best_block = blockPQ.top();
-      const HypernodeID best_node = vertexPQs[best_block].top();
-      const Gain best_estimated_gain = vertexPQs[best_block].topKey();
+      const PartitionID from_block = blockPQ.top();
+      const HypernodeID best_node_in_from = vertexPQs[from_block].top();
+      const Gain best_estimated_gain = vertexPQs[from_block].topKey();
 
-      auto [target_block, aff] = phg.bestDestinationBlock(best_node);
-      const Gain best_gain = phg.co_affinity(best_node, best_block) - aff;
+      auto [target_block, move_to_penalty] = phg.bestDestinationBlock(best_node_in_from);
+      const Gain best_gain = phg.moveFromBenefit(best_node_in_from, from_block) - move_to_penalty;
 
       if (best_estimated_gain == best_gain) {
-        vertexPQs[best_block].deleteTop();
-        m.node = best_node;
+        vertexPQs[from_block].deleteTop();
+        m.node = best_node_in_from;
         m.to = target_block;
-        m.from = best_block;
-        m.gain = phg.km1Gain(best_node, target_block);
+        m.from = from_block;
+        m.gain = phg.km1Gain(best_node_in_from, from_block, target_block);
         return true;
       } else {
-        vertexPQs[best_block].adjustKey(best_node, best_gain);
-        if (vertexPQs[best_block].topKey() != blockPQ.keyOf(best_block)) {
-          blockPQ.adjustKey(best_block, vertexPQs[best_block].topKey());
+        vertexPQs[from_block].adjustKey(best_node_in_from, best_gain);
+        if (vertexPQs[from_block].topKey() != blockPQ.keyOf(from_block)) {
+          blockPQ.adjustKey(from_block, vertexPQs[from_block].topKey());
         }
       }
     }
