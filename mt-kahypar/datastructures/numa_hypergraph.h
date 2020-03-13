@@ -332,7 +332,8 @@ class NumaHypergraph {
 
   // ! Reverse operation of originalNodeID(u)
   HypernodeID globalNodeID(const HypernodeID u) const {
-    ASSERT(u < _node_mapping.size(), V(u) << V(_node_mapping.size()));
+    ASSERT(u < _node_mapping.size(),
+           V(u) << V(_node_mapping.size()) << "u is not in the correct range for original node IDs");
     return _node_mapping[u];
   }
 

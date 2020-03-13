@@ -523,11 +523,20 @@ class NumaPartitionedHypergraph {
 
   // ! Returns, whether hypernode u is adjacent to a least one cut hyperedge.
   bool isBorderNode(const HypernodeID u) const {
-    return hypergraph_of_vertex(u).isBorderNode(u);
+    for (HyperedgeID he : incidentEdges(u)) {
+      if (connectivity(he) > 1) {
+        return true;
+      }
+    }
+    return false;
   }
 
   HypernodeID numIncidentCutHyperedges(const HypernodeID u) const {
-    return hypergraph_of_vertex(u).numIncidentCutHyperedges(u);
+    HypernodeID result = 0;
+    for (const HyperedgeID he : incidentEdges(u)) {
+      result += connectivity(he) > 1 ? 1 : 0;
+    }
+    return result;
   }
 
   // ! Number of blocks which pins of hyperedge e belongs to
@@ -615,6 +624,8 @@ class NumaPartitionedHypergraph {
       }
     });
 
+    LOG << "id remap done";
+
     // Extract plain hypergraph data for corresponding block
     using HyperedgeVector = parallel::scalable_vector<parallel::scalable_vector<HypernodeID>>;
     HyperedgeVector edge_vector;
@@ -648,11 +659,15 @@ class NumaPartitionedHypergraph {
       });
     });
 
+    LOG << "copy stuff done";
+
     // Construct hypergraph
     Hypergraph extracted_hypergraph = HypergraphFactory::construct(
       task_group_id, num_hypernodes, num_hyperedges,
       edge_vector, std::move(vertices_to_numa_node),
       hyperedge_weight.data(), hypernode_weight.data());
+
+    LOG << "factory call done";
 
     // Set community ids
     doParallelForAllNodes(task_group_id, [&](const HypernodeID& hn) {
@@ -666,6 +681,8 @@ class NumaPartitionedHypergraph {
     if ( _hg->hasCommunityNodeMapping() ) {
       extracted_hypergraph.setCommunityNodeMapping(_hg->communityNodeMapping());
     }
+
+    LOG << "set community ids done";
 
     return std::make_pair(std::move(extracted_hypergraph), std::move(hn_mapping));
   }

@@ -455,7 +455,7 @@ private:
   void nodeGainAssertions(const HypernodeID u, const PartitionID p) const {
     nodeAssertions(u);
     partAssertions(p);
-    ASSERT(u * _k + p < move_from_benefit.size());
+    ASSERT(common::get_local_position_of_vertex(u) * _k + p < move_from_benefit.size());
   }
 
   HypernodeID decrementPinCountInPartWithoutGainUpdate(const HyperedgeID e, const PartitionID p) {
