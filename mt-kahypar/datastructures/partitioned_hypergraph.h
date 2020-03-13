@@ -37,6 +37,25 @@
 namespace mt_kahypar {
 namespace ds {
 
+
+/**
+ * A note on ID mappings for nodes and hyperedges.
+ * There are three types of IDs: 1) global IDs 2) local IDs 3) original IDs
+ *
+ * Original IDs are consecutive in [0, |V|) or [0, |E|)
+ * Local IDs are consecutive for the stuff allocated on each NUMA node/socket. These should be used to access arrays
+ * in this class.
+ * Global IDs consist of the local IDs in the bottom 48 bits and the NUMA/socket ID in the top 16 bits.
+ *
+ * All functions are supposed to handle global IDs, which is why they must perform a call to
+ * common::get_local_position_of_{vertex/edge} before accessing memory.
+ * All functions on this hypergraph can also be called with local IDs as the global-to-local mapping only hides
+ * the NUMA ID bits.
+ *
+ * The pin and incident hyperedge IDs stored in _hg are global IDs, so beware before using them to access arrays!
+ *
+ */
+
 // Forward
 template <typename Hypergraph,
           typename HypergraphFactory>
@@ -101,8 +120,9 @@ private:
 
   bool setOnlyNodePart(const HypernodeID u, PartitionID p) {
     partAssertions(p);
-    ASSERT(part[u] == kInvalidPartition);
-    part[u] = p;
+    const HypernodeID u_local = common::get_local_position_of_vertex(u);
+    ASSERT(part[u_local] == kInvalidPartition);
+    part[u_local] = p;
     return true;
   }
 
@@ -135,7 +155,7 @@ private:
   bool setOnlyNodePartWithBalanceCheck(const HypernodeID u, PartitionID p, CAtomic<HypernodeWeight>& budget_p) {
     const HypernodeWeight wu = nodeWeight(u);
     if (budget_p.sub_fetch(wu, std::memory_order_relaxed) >= 0) {
-      part[u] = p;
+      part[common::get_local_position_of_vertex(u)] = p;
       return true;
     } else {
       budget_p.fetch_add(wu, std::memory_order_relaxed);
@@ -151,7 +171,7 @@ private:
     const HypernodeWeight wu = nodeWeight(u);
     part_weight[to].fetch_add(wu, std::memory_order_relaxed);
     part_weight[from].fetch_sub(wu, std::memory_order_relaxed);
-    part[u] = to;
+    part[common::get_local_position_of_vertex(u)] = to;
   }
 
   // ! Changes the block id of vertex u from block 'from' to block 'to'
@@ -355,11 +375,11 @@ private:
   }
 
   HyperedgeWeight moveFromBenefit(const HypernodeID u, PartitionID p) const {
-    return move_from_benefit[u * _k + p].load(std::memory_order_relaxed);
+    return move_from_benefit[common::get_local_position_of_vertex(u) * _k + p].load(std::memory_order_relaxed);
   }
 
   HyperedgeWeight moveToPenalty(const HypernodeID u, PartitionID p) const {
-    return move_to_penalty[u * _k + p].load(std::memory_order_relaxed);
+    return move_to_penalty[common::get_local_position_of_vertex(u) * _k + p].load(std::memory_order_relaxed);
   }
 
   HyperedgeWeight km1Gain(const HypernodeID u, PartitionID from, PartitionID to) const {
@@ -372,7 +392,7 @@ private:
   std::pair<PartitionID, HyperedgeWeight> bestDestinationBlock(HypernodeID u) const {
     HyperedgeWeight least_penalty = std::numeric_limits<HyperedgeWeight>::max();
     PartitionID best_index = 0;
-    const PartitionID first = u * _k;
+    const PartitionID first = common::get_local_position_of_vertex(u) * _k;
     const PartitionID firstInvalid = first + _k;
     for (PartitionID index = first; index < firstInvalid; ++index) {
       const HyperedgeWeight penalty = move_to_penalty[index].load(std::memory_order_relaxed);
@@ -381,7 +401,7 @@ private:
         best_index = index;
       }
     }
-    return std::make_pair(best_index - u * _k, least_penalty);
+    return std::make_pair(best_index - first, least_penalty);
   };
 
   // ! Reset partition (not thread-safe)
@@ -464,14 +484,16 @@ private:
       const HyperedgeWeight we = edgeWeight(e);
       for (HypernodeID u : pins(e)) {
         nodeGainAssertions(u, p);
-        move_from_benefit[u * _k + p].fetch_add(we, std::memory_order_relaxed);
+        const HypernodeID u_local = common::get_local_position_of_vertex(u);
+        move_from_benefit[u_local * _k + p].fetch_add(we, std::memory_order_relaxed);
       }
     } else if (pin_count_after == 0) {
       const HyperedgeWeight we = edgeWeight(e);
       for (HypernodeID u : pins(e)) {
         nodeGainAssertions(u, p);
-        move_from_benefit[u * _k + p].fetch_sub(we, std::memory_order_relaxed);
-        move_to_penalty[u *_k + p].fetch_add(we, std::memory_order_relaxed);
+        const HypernodeID u_local = common::get_local_position_of_vertex(u);
+        move_from_benefit[u_local * _k + p].fetch_sub(we, std::memory_order_relaxed);
+        move_to_penalty[u_local *_k + p].fetch_add(we, std::memory_order_relaxed);
       }
     }
     return pin_count_after;
@@ -483,8 +505,9 @@ private:
       const HyperedgeWeight we = edgeWeight(e);
       for (HypernodeID u : pins(e)) {
         nodeGainAssertions(u, p);
-        move_from_benefit[u * _k + p].fetch_add(we, std::memory_order_relaxed);
-        move_to_penalty[u * _k + p].fetch_sub(we, std::memory_order_relaxed);
+        const HypernodeID u_local = common::get_local_position_of_vertex(u);
+        move_from_benefit[u_local * _k + p].fetch_add(we, std::memory_order_relaxed);
+        move_to_penalty[u_local * _k + p].fetch_sub(we, std::memory_order_relaxed);
       }
     }
     return pin_count_after;
