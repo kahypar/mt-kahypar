@@ -503,22 +503,25 @@ class NumaPartitionedHypergraph {
   // ! setOnlyNodePart(...). In that case, part info, pin counts in part and border
   // ! vertices have to be computed in a postprocessing step.
   void initializePartition(const TaskGroupID task_group_id) {
-    tbb::parallel_invoke([&] {
-      // Compute Part Info
-      TBBNumaArena::instance().execute_parallel_on_all_numa_nodes(task_group_id, [&](const int socket) {
-        _hypergraphs[socket].initializeBlockWeights();
-      });
-      for (const auto& socket_phg : _hypergraphs) {
-        for (PartitionID p = 0; p < _k; ++p) {
-          part_weight[p] += socket_phg.partWeight(p);
-        }
-      }
-    }, [&] {
-      // Compute Pin Counts
-      TBBNumaArena::instance().execute_parallel_on_all_numa_nodes(task_group_id, [&](const int node) {
-        _hypergraphs[node].initializePartition(task_group_id, _hypergraphs);
-      });
-    });
+    tbb::parallel_invoke(
+            [&] {
+                // Compute Part Info
+                TBBNumaArena::instance().execute_parallel_on_all_numa_nodes(task_group_id, [&](const int socket) {
+                    _hypergraphs[socket].initializeBlockWeights();
+                });
+                for (const auto& socket_phg : _hypergraphs) {
+                  for (PartitionID p = 0; p < _k; ++p) {
+                    part_weight[p] += socket_phg.partWeight(p);
+                  }
+                }
+            },
+            [&] {
+              // Compute Pin Counts
+              TBBNumaArena::instance().execute_parallel_on_all_numa_nodes(task_group_id, [&](const int node) {
+                  _hypergraphs[node].initializePinCountInPart([&](HypernodeID u_global) { return partID(u_global); });
+              });
+            }
+    );
   }
 
   // ! Returns, whether hypernode u is adjacent to a least one cut hyperedge.
@@ -609,6 +612,7 @@ class NumaPartitionedHypergraph {
     parallel::scalable_vector<HyperedgeID> he_mapping(_hg->initialNumEdges(), kInvalidHyperedge);
     HypernodeID num_hypernodes = 0;
     HypernodeID num_hyperedges = 0;
+
     tbb::parallel_invoke([&] {
       for ( const HypernodeID& hn : nodes() ) {
         if ( partID(hn) == block ) {
@@ -623,8 +627,6 @@ class NumaPartitionedHypergraph {
         }
       }
     });
-
-    LOG << "id remap done";
 
     // Extract plain hypergraph data for corresponding block
     using HyperedgeVector = parallel::scalable_vector<parallel::scalable_vector<HypernodeID>>;
@@ -659,15 +661,11 @@ class NumaPartitionedHypergraph {
       });
     });
 
-    LOG << "copy stuff done";
-
     // Construct hypergraph
     Hypergraph extracted_hypergraph = HypergraphFactory::construct(
       task_group_id, num_hypernodes, num_hyperedges,
       edge_vector, std::move(vertices_to_numa_node),
       hyperedge_weight.data(), hypernode_weight.data());
-
-    LOG << "factory call done";
 
     // Set community ids
     doParallelForAllNodes(task_group_id, [&](const HypernodeID& hn) {
@@ -681,8 +679,6 @@ class NumaPartitionedHypergraph {
     if ( _hg->hasCommunityNodeMapping() ) {
       extracted_hypergraph.setCommunityNodeMapping(_hg->communityNodeMapping());
     }
-
-    LOG << "set community ids done";
 
     return std::make_pair(std::move(extracted_hypergraph), std::move(hn_mapping));
   }

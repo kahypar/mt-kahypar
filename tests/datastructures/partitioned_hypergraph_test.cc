@@ -153,14 +153,14 @@ using NumaHyperGraphFactory = NumaHypergraphFactory<
 
 using PartitionedHypergraphTestTypes =
   ::testing::Types<
-/*
+
           PartitionedHypergraphTypeTraits<
                           PartitionedHypergraph<StaticHypergraph, StaticHypergraphFactory>,
                           StaticHypergraph,
                           StaticHypergraphFactory,
                           TBBNumaArena>
-*/
-//          ,
+
+          ,
 
           PartitionedHypergraphTypeTraits<
                           NumaPartitionedHypergraph<NumaHyperGraph, NumaHyperGraphFactory>,
@@ -171,8 +171,6 @@ using PartitionedHypergraphTestTypes =
   >;
 
 TYPED_TEST_CASE(APartitionedHypergraph, PartitionedHypergraphTestTypes);
-
-/*
 
 TYPED_TEST(APartitionedHypergraph, HasCorrectPartWeightAndSizes) {
   ASSERT_EQ(3, this->partitioned_hypergraph.partWeight(0));
@@ -476,13 +474,10 @@ TYPED_TEST(APartitionedHypergraph, HasCorrectBorderNodesIfNodesAreMovingConcurre
   ASSERT_EQ(0, this->partitioned_hypergraph.numIncidentCutHyperedges(this->id[6]));
 }
 
-*/
+
 
 TYPED_TEST(APartitionedHypergraph, ExtractBlockZeroWithCutNetSplitting) {
-  LOG << "start extraction";
   auto extracted_hg = this->partitioned_hypergraph.extract(TBB::GLOBAL_TASK_GROUP, 0, true);
-  LOG << "extraction worked";
-
   auto& hg = extracted_hg.first;
   auto& hn_mapping = extracted_hg.second;
 
@@ -509,7 +504,6 @@ TYPED_TEST(APartitionedHypergraph, ExtractBlockZeroWithCutNetSplitting) {
     { {node_id[0], node_id[2]}, {node_id[0], node_id[1]} });
 }
 
-/*
 
 TYPED_TEST(APartitionedHypergraph, ExtractBlockOneWithCutNetSplitting) {
   auto extracted_hg = this->partitioned_hypergraph.extract(TBB::GLOBAL_TASK_GROUP, 1, true);
@@ -718,6 +712,7 @@ TYPED_TEST(APartitionedHypergraph, ExtractBlockTwoWithCommunityInformation) {
   ASSERT_EQ(5, hg.communityID(map_from_original_to_extracted_hg(this->id[6])));
 }
 
+
 TYPED_TEST(APartitionedHypergraph, ComputesPartInfoCorrectIfNodePartsAreSetOnly) {
   this->partitioned_hypergraph.resetPartition();
   this->partitioned_hypergraph.setOnlyNodePart(this->id[0], 0);
@@ -728,7 +723,6 @@ TYPED_TEST(APartitionedHypergraph, ComputesPartInfoCorrectIfNodePartsAreSetOnly)
   this->partitioned_hypergraph.setOnlyNodePart(this->id[5], 2);
   this->partitioned_hypergraph.setOnlyNodePart(this->id[6], 2);
   this->partitioned_hypergraph.initializePartition(TBB::GLOBAL_TASK_GROUP);
-
   ASSERT_EQ(3, this->partitioned_hypergraph.partWeight(0));
   ASSERT_EQ(2, this->partitioned_hypergraph.partWeight(1));
   ASSERT_EQ(2, this->partitioned_hypergraph.partWeight(2));
@@ -796,7 +790,6 @@ TYPED_TEST(APartitionedHypergraph, ComputesBorderNodesCorrectIfNodePartsAreSetOn
   ASSERT_TRUE(this->partitioned_hypergraph.isBorderNode(this->id[6]));
 }
 
-*/
 
 }  // namespace ds
 }  // namespace mt_kahypar

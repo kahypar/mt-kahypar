@@ -51,6 +51,7 @@ namespace ds {
  * common::get_local_position_of_{vertex/edge} before accessing memory.
  * All functions on this hypergraph can also be called with local IDs as the global-to-local mapping only hides
  * the NUMA ID bits.
+ * TODO: this is currently not true! the assertions assume that they're given global IDs
  *
  * The pin and incident hyperedge IDs stored in _hg are global IDs, so beware before using them to access arrays!
  *
@@ -226,14 +227,17 @@ private:
 
   // ! Block that vertex u belongs to
   PartitionID partID(const HypernodeID u) const {
-    return part[u];
+    nodeAssertions(u);
+    return part[common::get_local_position_of_vertex(u)];
   }
 
   void initializeBlockWeights() {
     auto accumulate = [&](tbb::blocked_range<HypernodeID>& r) {
       vec<HypernodeWeight> pws(_k, 0);  // this is not enumerable_thread_specific because of the static partitioner
-      for (HypernodeID u = r.begin(); u < r.end(); ++u) {
-        pws[partID(u)] += nodeWeight(u);
+      for (HypernodeID u_local = r.begin(); u_local < r.end(); ++u_local) {
+        const PartitionID pu = partID( common::get_global_vertex_id(_node, u_local) );
+        const HypernodeWeight wu = nodeWeight( common::get_global_vertex_id(_node, u_local) );
+        pws[pu] += wu;
       }
       applyPartWeightUpdates(pws);
     };
@@ -250,19 +254,18 @@ private:
 
     auto assign = [&](tbb::blocked_range<HyperedgeID>& r) {
       vec<HypernodeID>& pin_counts = ets_pin_count_in_part.local();
-      for (HyperedgeID he = r.begin(); he < r.end(); ++he) {
-        for (HypernodeID pin : pins(he)) {
+      for (HyperedgeID he_local = r.begin(); he_local < r.end(); ++he_local) {
+        const HyperedgeID he_global = common::get_global_edge_id(_node, he_local);
+
+        for (HypernodeID pin : pins(he_global)) {
           ++pin_counts[get_part_id(pin)];
         }
 
-        const HyperedgeID e_local = common::get_local_position_of_edge(he);
-
         for (PartitionID p = 0; p < _k; ++p) {
-          pinCountInPartAssertions(he, p);
-          assert(pinCountInPart(he, p) == 0);
+          assert(pinCountInPart(he_global, p) == 0);
           if (pin_counts[p] > 0) {
-            connectivity_sets.add(e_local, p);
-            pins_in_part[e_local * _k + p].store(pin_counts[p], std::memory_order_relaxed);
+            connectivity_sets.add(he_local, p);
+            pins_in_part[he_local * _k + p].store(pin_counts[p], std::memory_order_relaxed);
           }
           pin_counts[p] = 0;
         }
@@ -325,17 +328,6 @@ private:
             [&] { initializeBlockWeights(); },
             [&] { initializePinCountInPart( [&](HypernodeID u) { return partID(u); } ); }
     );
-  }
-
-  // ! Initializes the partition of the hypergraph, if block ids are assigned with
-  // ! setOnlyNodePart(...). In that case, part weights and pin counts in part have to be computed from scratch
-  // ! Note, this function is called from the numa partitioned hypergraph, which maintains part weights itself
-  // ! Furthermore, border vertices can only be computed if pin count information
-  // ! on all partitioned hypergraphs are available.
-  // ! Therefore, we only compute pin count in part for each hyperedge here.
-  void initializePartition(const TaskGroupID task_group_id,
-                           const parallel::scalable_vector<PartitionedHypergraph>& hypergraphs) {
-    initializePinCountInPart([&](HypernodeID u) { return common::hypergraph_of_vertex(u, hypergraphs).partID(u); });
   }
 
   // ! Returns, whether hypernode u is adjacent to a least one cut hyperedge.
@@ -427,7 +419,7 @@ private:
 
   void edgeAssertions(const HyperedgeID e) const {
     unused(e);
-    ASSERT(_hg->edgeIsEnabled(e), "Hyperedge" << e << "is disabled");
+    ASSERT(edgeIsEnabled(e), "Hyperedge" << e << "is disabled");
     const HyperedgeID local_id = common::get_local_position_of_edge(e);
     unused(local_id);
     ASSERT(local_id < _hg->initialNumEdges(), "Hyperedge" << e << "does not exist");
@@ -435,10 +427,13 @@ private:
   }
 
   void nodeAssertions(const HypernodeID u) const {
-    ASSERT(_hg->nodeIsEnabled(u), "Hypernode" << u << "is disabled");
+    ASSERT(nodeIsEnabled(u), "Hypernode" << u << "is disabled");
     const HyperedgeID local_id = common::get_local_position_of_vertex(u);
     unused(local_id);
-    ASSERT(local_id < _hg->initialNumNodes(), "Hypernode" << u << "does not exist");
+    ASSERT(local_id < initialNumNodes(), "Hypernode" << u << "does not exist");
+    if (_node != common::get_numa_node_of_vertex(u)) {
+      LOG << V(u) << V(_node);
+    }
     ASSERT(_node == common::get_numa_node_of_vertex(u), "Hypernode" << u << "is not part of numa node" << _node);
   }
 
