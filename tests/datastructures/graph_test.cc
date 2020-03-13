@@ -56,15 +56,13 @@ void verifyArcIterator(const Graph& graph,
 }
 
 TEST_F(AGraph, HasCorrectNumNodesAndArcs) {
-  Graph graph(hypergraph, LouvainEdgeWeight::uniform,
-    TBBNumaArena::GLOBAL_TASK_GROUP);
+  Graph graph(hypergraph, LouvainEdgeWeight::uniform);
   ASSERT_EQ(11, graph.numNodes());
   ASSERT_EQ(24, graph.numArcs());
 }
 
 TEST_F(AGraph, IteratesOverAllNodes) {
-  Graph graph(hypergraph, LouvainEdgeWeight::uniform,
-    TBBNumaArena::GLOBAL_TASK_GROUP);
+  Graph graph(hypergraph, LouvainEdgeWeight::uniform);
   std::vector<bool> vis(graph.numNodes(), false);
   for ( const NodeID& u : graph.nodes() ) {
     ASSERT_LE(u, graph.numNodes() - 1);
@@ -77,14 +75,12 @@ TEST_F(AGraph, IteratesOverAllNodes) {
 }
 
 TEST_F(AGraph, VerifyTotalVolumeForUniformEdgeWeight) {
-  Graph graph(hypergraph, LouvainEdgeWeight::uniform,
-    TBBNumaArena::GLOBAL_TASK_GROUP);
+  Graph graph(hypergraph, LouvainEdgeWeight::uniform);
   ASSERT_EQ(24, graph.totalVolume());
 }
 
 TEST_F(AGraph, VerifyNodeVolumeForUniformEdgeWeight) {
-  Graph graph(hypergraph, LouvainEdgeWeight::uniform,
-    TBBNumaArena::GLOBAL_TASK_GROUP);
+  Graph graph(hypergraph, LouvainEdgeWeight::uniform);
   ASSERT_EQ(2, graph.nodeVolume(0));
   ASSERT_EQ(1, graph.nodeVolume(1));
   ASSERT_EQ(2, graph.nodeVolume(3));
@@ -94,8 +90,7 @@ TEST_F(AGraph, VerifyNodeVolumeForUniformEdgeWeight) {
 }
 
 TEST_F(AGraph, VerifyNodeVolumeForNonUniformEdgeWeight) {
-  Graph graph(hypergraph, LouvainEdgeWeight::non_uniform,
-    TBBNumaArena::GLOBAL_TASK_GROUP);
+  Graph graph(hypergraph, LouvainEdgeWeight::non_uniform);
   ASSERT_EQ(0.75, graph.nodeVolume(0));
   ASSERT_EQ(0.25, graph.nodeVolume(1));
   ASSERT_EQ(0.25 + ( 1.0 / 3.0 ), graph.nodeVolume(3));
@@ -105,8 +100,7 @@ TEST_F(AGraph, VerifyNodeVolumeForNonUniformEdgeWeight) {
 }
 
 TEST_F(AGraph, WithCorrectVertexDegrees) {
-  Graph graph(hypergraph, LouvainEdgeWeight::degree,
-    TBBNumaArena::GLOBAL_TASK_GROUP);
+  Graph graph(hypergraph, LouvainEdgeWeight::degree);
   ASSERT_EQ(2, graph.degree(0));
   ASSERT_EQ(1, graph.degree(1));
   ASSERT_EQ(2, graph.degree(2));
@@ -121,106 +115,92 @@ TEST_F(AGraph, WithCorrectVertexDegrees) {
 }
 
 TEST_F(AGraph, HasCorrectAdjacentVertices1a) {
-  Graph graph(hypergraph, LouvainEdgeWeight::uniform,
-    TBBNumaArena::GLOBAL_TASK_GROUP);
+  Graph graph(hypergraph, LouvainEdgeWeight::uniform);
   verifyArcIterator(graph, 0, {7, 8}, {1.0, 1.0});
 }
 
 TEST_F(AGraph, HasCorrectAdjacentVertices1b) {
-  Graph graph(hypergraph, LouvainEdgeWeight::non_uniform,
-    TBBNumaArena::GLOBAL_TASK_GROUP);
+  Graph graph(hypergraph, LouvainEdgeWeight::non_uniform);
   verifyArcIterator(graph, 0, {7, 8}, {0.5, 0.25});
 }
 
 TEST_F(AGraph, HasCorrectAdjacentVertices1c) {
-  Graph graph(hypergraph, LouvainEdgeWeight::degree,
-    TBBNumaArena::GLOBAL_TASK_GROUP);
+  Graph graph(hypergraph, LouvainEdgeWeight::degree);
   verifyArcIterator(graph, 0, {7, 8}, {1.0, 0.5});
 }
 
 TEST_F(AGraph, HasCorrectAdjacentVertices2a) {
-  Graph graph(hypergraph, LouvainEdgeWeight::uniform,
-    TBBNumaArena::GLOBAL_TASK_GROUP);
+  Graph graph(hypergraph, LouvainEdgeWeight::uniform);
   verifyArcIterator(graph, 2, {7, 10}, {1.0, 1.0});
 }
 
 TEST_F(AGraph, HasCorrectAdjacentVertices2b) {
-  Graph graph(hypergraph, LouvainEdgeWeight::non_uniform,
-    TBBNumaArena::GLOBAL_TASK_GROUP);
+  Graph graph(hypergraph, LouvainEdgeWeight::non_uniform);
   verifyArcIterator(graph, 2, {7, 10}, {0.5, 1.0 / 3.0});
 }
 
 TEST_F(AGraph, HasCorrectAdjacentVertices2c) {
-  Graph graph(hypergraph, LouvainEdgeWeight::degree,
-    TBBNumaArena::GLOBAL_TASK_GROUP);
+  Graph graph(hypergraph, LouvainEdgeWeight::degree);
   verifyArcIterator(graph, 2, {7, 10}, {1.0, 2.0 / 3.0});
 }
 
 TEST_F(AGraph, HasCorrectAdjacentVertices3a) {
-  Graph graph(hypergraph, LouvainEdgeWeight::uniform,
-    TBBNumaArena::GLOBAL_TASK_GROUP);
+  Graph graph(hypergraph, LouvainEdgeWeight::uniform);
   verifyArcIterator(graph, 5, {10}, {1.0});
 }
 
 TEST_F(AGraph, HasCorrectAdjacentVertices3b) {
-  Graph graph(hypergraph, LouvainEdgeWeight::non_uniform,
-    TBBNumaArena::GLOBAL_TASK_GROUP);
+  Graph graph(hypergraph, LouvainEdgeWeight::non_uniform);
   verifyArcIterator(graph, 5, {10}, {1.0 / 3.0});
 }
 
 TEST_F(AGraph, HasCorrectAdjacentVertices3c) {
-  Graph graph(hypergraph, LouvainEdgeWeight::degree,
-    TBBNumaArena::GLOBAL_TASK_GROUP);
+  Graph graph(hypergraph, LouvainEdgeWeight::degree);
   verifyArcIterator(graph, 5, {10}, {1.0 / 3.0});
 }
 
 TEST_F(AGraph, HasCorrectAdjacentVertices4a) {
-  Graph graph(hypergraph, LouvainEdgeWeight::uniform,
-    TBBNumaArena::GLOBAL_TASK_GROUP);
+  Graph graph(hypergraph, LouvainEdgeWeight::uniform);
   verifyArcIterator(graph, 6, {9, 10}, {1.0, 1.0});
 }
 
 TEST_F(AGraph, HasCorrectAdjacentVertices4b) {
-  Graph graph(hypergraph, LouvainEdgeWeight::non_uniform,
-    TBBNumaArena::GLOBAL_TASK_GROUP);
+  Graph graph(hypergraph, LouvainEdgeWeight::non_uniform);
   verifyArcIterator(graph, 6, {9, 10}, {1.0 / 3.0, 1.0 / 3.0});
 }
 
 TEST_F(AGraph, HasCorrectAdjacentVertices4c) {
-  Graph graph(hypergraph, LouvainEdgeWeight::degree,
-    TBBNumaArena::GLOBAL_TASK_GROUP);
+  Graph graph(hypergraph, LouvainEdgeWeight::degree);
   verifyArcIterator(graph, 6, {9, 10}, {2.0 / 3.0, 2.0 / 3.0});
 }
 
 TEST_F(AGraph, HasCorrectAdjacentVertices5a) {
-  Graph graph(hypergraph, LouvainEdgeWeight::uniform,
-    TBBNumaArena::GLOBAL_TASK_GROUP);
+  Graph graph(hypergraph, LouvainEdgeWeight::uniform);
   verifyArcIterator(graph, 7, {0, 2}, {1.0, 1.0});
 }
 
 TEST_F(AGraph, HasCorrectAdjacentVertices5b) {
-  Graph graph(hypergraph, LouvainEdgeWeight::non_uniform,
-    TBBNumaArena::GLOBAL_TASK_GROUP);
+  Graph graph(hypergraph, LouvainEdgeWeight::non_uniform);
   verifyArcIterator(graph, 7, {0, 2}, {0.5, 0.5});
 }
 
 TEST_F(AGraph, HasCorrectAdjacentVertices5c) {
-  Graph graph(hypergraph, LouvainEdgeWeight::degree, TBBNumaArena::GLOBAL_TASK_GROUP);
+  Graph graph(hypergraph, LouvainEdgeWeight::degree);
   verifyArcIterator(graph, 7, {0, 2}, {1.0, 1.0});
 }
 
 TEST_F(AGraph, HasCorrectAdjacentVertices6a) {
-  Graph graph(hypergraph, LouvainEdgeWeight::uniform, TBBNumaArena::GLOBAL_TASK_GROUP);
+  Graph graph(hypergraph, LouvainEdgeWeight::uniform);
   verifyArcIterator(graph, 8, {0, 1, 3, 4}, {1.0, 1.0, 1.0, 1.0});
 }
 
 TEST_F(AGraph, HasCorrectAdjacentVertices6b) {
-  Graph graph(hypergraph, LouvainEdgeWeight::non_uniform, TBBNumaArena::GLOBAL_TASK_GROUP);
+  Graph graph(hypergraph, LouvainEdgeWeight::non_uniform);
   verifyArcIterator(graph, 8, {0, 1, 3, 4}, {0.25, 0.25, 0.25, 0.25});
 }
 
 TEST_F(AGraph, HasCorrectAdjacentVertices6c) {
-  Graph graph(hypergraph, LouvainEdgeWeight::degree, TBBNumaArena::GLOBAL_TASK_GROUP);
+  Graph graph(hypergraph, LouvainEdgeWeight::degree);
   verifyArcIterator(graph, 8, {0, 1, 3, 4}, {0.5, 0.25, 0.5, 0.5});
 }
 
@@ -233,14 +213,14 @@ Clustering clustering(const std::vector<PartitionID>& communities) {
 }
 
 TEST_F(AGraph, ContractCommunities1) {
-  Graph graph(hypergraph, LouvainEdgeWeight::uniform, TBBNumaArena::GLOBAL_TASK_GROUP);
+  Graph graph(hypergraph, LouvainEdgeWeight::uniform);
   Clustering communities = clustering( { 3, 3, 3, 2, 2, 4, 4, 3, 3, 2, 4 } );
   Graph coarse_graph = graph.contract(communities);
 
   ASSERT_EQ(graph.totalVolume(), coarse_graph.totalVolume());
-  /*ASSERT_EQ(7,  coarse_graph.nodeVolume(0));
+  ASSERT_EQ(7,  coarse_graph.nodeVolume(0));
   ASSERT_EQ(11, coarse_graph.nodeVolume(1));
-  ASSERT_EQ(6,  coarse_graph.nodeVolume(2));*/
+  ASSERT_EQ(6,  coarse_graph.nodeVolume(2));
 
   verifyArcIterator(coarse_graph, 0, {1, 2}, {2, 1});
   verifyArcIterator(coarse_graph, 1, {0, 2}, {2, 1});
@@ -248,7 +228,7 @@ TEST_F(AGraph, ContractCommunities1) {
 }
 
 TEST_F(AGraph, ContractCommunities2) {
-  Graph graph(hypergraph, LouvainEdgeWeight::uniform, TBBNumaArena::GLOBAL_TASK_GROUP);
+  Graph graph(hypergraph, LouvainEdgeWeight::uniform);
   Clustering communities = clustering( { 7, 7, 2, 9, 9, 2, 2, 7, 9, 9, 2 } );
   Graph coarse_graph = graph.contract(communities);
 
@@ -263,7 +243,7 @@ TEST_F(AGraph, ContractCommunities2) {
 }
 
 TEST_F(AGraph, ContractCommunities3) {
-  Graph graph(hypergraph, LouvainEdgeWeight::uniform, TBBNumaArena::GLOBAL_TASK_GROUP);
+  Graph graph(hypergraph, LouvainEdgeWeight::uniform);
   Clustering communities = clustering( { 5, 5, 7, 3, 3, 9, 9, 7, 5, 3, 9 });
   Graph coarse_graph = graph.contract(communities);
 
@@ -280,7 +260,7 @@ TEST_F(AGraph, ContractCommunities3) {
 }
 
 TEST_F(AGraph, ContractCommunities4) {
-  Graph graph(hypergraph, LouvainEdgeWeight::uniform, TBBNumaArena::GLOBAL_TASK_GROUP);
+  Graph graph(hypergraph, LouvainEdgeWeight::uniform);
   Clustering communities = clustering({ 0, 0, 1, 1, 2, 2, 3, 4, 4, 5, 5 });
   Graph coarse_graph = graph.contract(communities);
 
@@ -301,7 +281,7 @@ TEST_F(AGraph, ContractCommunities4) {
 }
 
 TEST_F(AGraph, ContractCommunities5) {
-  Graph graph(hypergraph, LouvainEdgeWeight::uniform, TBBNumaArena::GLOBAL_TASK_GROUP);
+  Graph graph(hypergraph, LouvainEdgeWeight::uniform);
   Clustering communities = clustering({ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 });
   Graph coarse_graph = graph.contract(communities);
 
@@ -313,7 +293,7 @@ TEST_F(AGraph, ContractCommunities5) {
 }
 
 TEST_F(AGraph, HasSameTotalVolumeAfterTwoContractions) {
-  Graph graph(hypergraph, LouvainEdgeWeight::uniform, TBBNumaArena::GLOBAL_TASK_GROUP);
+  Graph graph(hypergraph, LouvainEdgeWeight::uniform);
   Clustering communities = clustering( { 3, 3, 3, 2, 2, 4, 4, 3, 3, 2, 4 } );
   Graph coarse_graph = graph.contract(communities);
   communities = clustering( { 0, 1, 2 } );
@@ -324,7 +304,5 @@ TEST_F(AGraph, HasSameTotalVolumeAfterTwoContractions) {
   ASSERT_EQ(11, coarse_coarse_graph.nodeVolume(1));
   ASSERT_EQ(6,  coarse_coarse_graph.nodeVolume(2));
 }
-
-
 } // namespace ds
 } // namespace mt_kahypar

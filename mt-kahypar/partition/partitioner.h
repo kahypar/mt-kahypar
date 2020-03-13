@@ -134,8 +134,7 @@ inline void Partitioner::preprocess(Hypergraph& hypergraph) {
     ds::Clustering communities(0);
     if (!_context.preprocessing.use_community_structure_from_file) {
       utils::Timer::instance().start_timer("construct_graph", "Construct Graph");
-      Graph graph(hypergraph, _context.preprocessing.community_detection.edge_weight_function,
-        TBBNumaArena::GLOBAL_TASK_GROUP);
+      Graph graph(hypergraph, _context.preprocessing.community_detection.edge_weight_function);
       utils::Timer::instance().stop_timer("construct_graph");
       communities = ParallelModularityLouvain::run(graph, _context,
         _context.shared_memory.num_threads);   // TODO(lars): give switch for PLM/SLM
