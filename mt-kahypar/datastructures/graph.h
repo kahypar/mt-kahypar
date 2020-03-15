@@ -48,6 +48,9 @@ class GraphT {
   static size_t NUM_BLOCKS;
   static size_t MIN_BLOCK_SIZE;
 
+  static constexpr bool debug = false;
+  static constexpr bool enable_heavy_assert = false;
+
  public:
   using ArcWeight = double;
 
@@ -73,35 +76,41 @@ class GraphT {
   struct AdjacenceArrayBlock {
     explicit AdjacenceArrayBlock() :
       _num_nodes(0),
+      _block_size(0),
       _indices(),
       _arcs(),
       _node_volumes() { }
 
-    explicit AdjacenceArrayBlock(const size_t num_nodes) :
+    explicit AdjacenceArrayBlock(const size_t num_nodes, const size_t block_size) :
       _num_nodes(num_nodes),
+      _block_size(block_size),
       _indices(num_nodes + 1),
       _arcs(),
       _node_volumes(num_nodes) { }
 
     inline IteratorRange<AdjacenceIterator> arcsOf(const NodeID u) const {
-      const size_t local_u = u % _num_nodes;
+      const size_t local_u = u % _block_size;
+      ASSERT(local_u < _num_nodes);
       return IteratorRange<AdjacenceIterator>(
         _arcs.cbegin() + _indices[local_u],
         _arcs.cbegin() + _indices[local_u + 1]);
     }
 
     inline size_t degree(const NodeID u) const {
-      const size_t local_u = u % _num_nodes;
+      const size_t local_u = u % _block_size;
+      ASSERT(local_u < _num_nodes);
       return _indices[local_u + 1] - _indices[local_u];
     }
 
     inline ArcWeight nodeVolume(const NodeID u) const {
-      const size_t local_u = u % _num_nodes;
+      const size_t local_u = u % _block_size;
+      ASSERT(local_u < _num_nodes);
       return _node_volumes[local_u];
     }
 
     inline ArcWeight computeNodeVolume(const NodeID u) {
-      const size_t local_u = u % _num_nodes;
+      const size_t local_u = u % _block_size;
+      ASSERT(local_u < _num_nodes);
       for (const Arc& arc : arcsOf(u)) {
         _node_volumes[local_u] += arc.weight;
       }
@@ -109,6 +118,7 @@ class GraphT {
     }
 
     size_t _num_nodes;
+    size_t _block_size;
     parallel::scalable_vector<size_t> _indices;
     parallel::scalable_vector<Arc> _arcs;
     parallel::scalable_vector<ArcWeight> _node_volumes;
@@ -187,7 +197,7 @@ class GraphT {
   }
 
   ArcWeight nodeVolume(const NodeID u) const {
-    ASSERT(u < _num_nodes);
+    ASSERT(u < _num_nodes, V(u) << V(_num_nodes));
     const size_t block_u = u / _block_size;
     ASSERT(block_u < _blocks.size());
     return _blocks[block_u].nodeVolume(u);
@@ -249,6 +259,7 @@ class GraphT {
       ASSERT(start < end);
       const size_t num_nodes = end - start;
       coarse_graph._blocks[i]._num_nodes = num_nodes;
+      coarse_graph._blocks[i]._block_size = coarse_graph._block_size;
       tmp_blocks[i]._num_nodes = num_nodes;
       tmp_pos[i].assign(num_nodes, parallel::IntegralAtomicWrapper<size_t>(0));
       tmp_adjacent_nodes[i].assign(num_nodes, parallel::IntegralAtomicWrapper<size_t>(0));
@@ -350,7 +361,7 @@ class GraphT {
             block._arcs[pos] = std::move(tmp_block._arcs[j]);
           }
         });
-      }, [&] {
+      }, [&, i] {
         const NodeID start_u = i * coarse_graph._block_size;
         tbb::parallel_for(0U, static_cast<NodeID>(block._num_nodes + 1), [&, i](const NodeID u) {
           const size_t start = indices_prefix_sum[tmp_adjacent_nodes_prefix_sum[i][u]];
@@ -367,6 +378,25 @@ class GraphT {
     });
     coarse_graph._num_arcs += local_num_arcs.combine(std::plus<size_t>());
     utils::Timer::instance().stop_timer("contract_arcs");
+
+    HEAVY_PREPROCESSING_ASSERT([&] {
+      parallel::scalable_vector<ArcWeight> node_volumes(coarse_graph.numNodes(), 0.0);
+      for ( const NodeID& u : coarse_graph.nodes() ) {
+        node_volumes[u] = coarse_graph.nodeVolume(u);
+      }
+      for ( const NodeID& u : nodes() ) {
+        node_volumes[communities[u]] -= nodeVolume(u);
+      }
+      for ( const NodeID& u : coarse_graph.nodes() ) {
+        if ( node_volumes[u] != 0.0 ) {
+          const ArcWeight expected_volume = coarse_graph.nodeVolume(u) - node_volumes[u];
+          LOG << "Computation of node volume for community" << u << "failed."
+              << "Should be" << expected_volume << "not" << coarse_graph.nodeVolume(u);
+          return false;
+        }
+      }
+      return true;
+    }());
 
     // Free local data parallel
     parallel::parallel_free(mapping, coarse_node_volumes);
@@ -406,6 +436,7 @@ class GraphT {
 
       AdjacenceArrayBlock& block = _blocks[i];
       block._num_nodes = num_nodes;
+      block._block_size = _block_size;
       block._indices.resize(num_nodes + 1);
       block._node_volumes.resize(num_nodes);
       const HypernodeID num_hypernodes = hypergraph.initialNumNodes();
@@ -427,7 +458,7 @@ class GraphT {
       // Insert Arcs
       block._arcs.resize(indices_prefix_sum.total_sum());
       tbb::parallel_for(start, end, [&](const NodeID u) {
-        const NodeID local_u = u % num_nodes;
+        const NodeID local_u = u % _block_size;
         size_t pos = block._indices[local_u];
         if ( u < num_hypernodes ) {
           const HypernodeID hn = hypergraph.globalNodeID(u);

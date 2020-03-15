@@ -34,6 +34,9 @@ class ParallelModularityLouvain {
                                                    PLM& mlv,
                                                    const size_t num_tasks) {
     ds::Clustering communities(fine_graph.numNodes());
+    DBG << V(fine_graph.numNodes())
+        << V(fine_graph.numArcs())
+        << V(fine_graph.totalVolume());
 
     DBG << "Start Local Moving";
     utils::Timer::instance().start_timer("local_moving", "Local Moving");
