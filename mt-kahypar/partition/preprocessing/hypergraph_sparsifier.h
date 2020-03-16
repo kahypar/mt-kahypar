@@ -29,6 +29,7 @@
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/datastructures/clustering.h"
 #include "mt-kahypar/datastructures/streaming_map.h"
+#include "mt-kahypar/datastructures/sparsifier_hypergraph.h"
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/parallel/atomic_wrapper.h"
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
@@ -41,7 +42,7 @@ class HypergraphSparsifierT {
   using PartitionedHyperGraph = typename TypeTraits::template PartitionedHyperGraph<>;
   using HyperGraphFactory = typename TypeTraits::HyperGraphFactory;
   using TBB = typename TypeTraits::TBB;
-  using HyperedgeVector = parallel::scalable_vector<parallel::scalable_vector<HypernodeID>>;
+  using SparsifierHypergraph = ds::SparsifierHypergraph<HyperGraph, HyperGraphFactory, TBB>;
 
   using HashFunc = kahypar::math::MurmurHash<HypernodeID>;
   using HashValue = typename HashFunc::HashValue;
@@ -76,270 +77,6 @@ class HypergraphSparsifierT {
   };
 
   using FootprintMap = parallel::scalable_vector<parallel::scalable_vector<Footprint>>;
-
-  class SparsifiedHypergraph {
-
-    using AtomicNodeDegreeVector = parallel::scalable_vector<parallel::IntegralAtomicWrapper<HyperedgeID>>;
-    using PinIterator = parallel::scalable_vector<HypernodeID>::const_iterator;
-
-   public:
-    SparsifiedHypergraph(const HyperGraph& hypergraph,
-                          const TaskGroupID task_group_id) :
-      _num_nodes(hypergraph.initialNumNodes()),
-      _num_edges(hypergraph.initialNumEdges()),
-      _task_group_id(task_group_id),
-      _edge_vector(),
-      _hyperedge_weight(),
-      _he_included_in_sparsified_hg(),
-      _mapping(),
-      _vertices_to_numa_node(),
-      _hypernode_weight(),
-      _node_degrees(),
-      _hn_included_in_sparsified_hg() {
-      initialize(hypergraph, task_group_id);
-    }
-
-    SparsifiedHypergraph(const HypernodeID num_hypernodes,
-                          const HyperedgeID num_hyperedges) :
-      _num_nodes(num_hypernodes),
-      _num_edges(num_hyperedges),
-      _task_group_id(TBB::GLOBAL_TASK_GROUP),
-      _edge_vector(),
-      _hyperedge_weight(),
-      _he_included_in_sparsified_hg(),
-      _mapping(),
-      _vertices_to_numa_node(),
-      _hypernode_weight(),
-      _node_degrees(),
-      _hn_included_in_sparsified_hg() {
-      tbb::parallel_invoke([&] {
-        _edge_vector.resize(num_hyperedges);
-      }, [&] {
-        _hyperedge_weight.resize(num_hyperedges);
-      }, [&] {
-        _vertices_to_numa_node.resize(num_hypernodes);
-      }, [&] {
-        _hypernode_weight.resize(num_hypernodes);
-      });
-    }
-
-    ~SparsifiedHypergraph() {
-      tbb::parallel_invoke([&] {
-        parallel::parallel_free(_edge_vector);
-      }, [&] {
-        parallel::parallel_free(_hyperedge_weight,
-          _he_included_in_sparsified_hg, _vertices_to_numa_node,
-          _hypernode_weight, _node_degrees,
-          _hn_included_in_sparsified_hg);
-      });
-    }
-
-    HypernodeID numNodes() const {
-      return _num_nodes;
-    }
-
-    HyperedgeID numEdges() const {
-      return _num_edges;
-    }
-
-    HypernodeWeight nodeWeight(const HypernodeID u) const {
-      ASSERT(u < _num_nodes, V(u) << V(_num_nodes));
-      return _hypernode_weight[u];
-    }
-
-    HyperedgeID nodeDegree(const HypernodeID u) const {
-      ASSERT(u < _num_nodes);
-      return _node_degrees[u];
-    }
-
-    bool nodeIsEnabled(const HypernodeID u) const {
-      ASSERT(u < _num_nodes);
-      return _hn_included_in_sparsified_hg[u];
-    }
-
-    void contract(const HypernodeID u, const HypernodeID v) {
-      ASSERT(u != v);
-      ASSERT(u < _num_nodes);
-      ASSERT(v < _num_nodes);
-      _mapping[v] = u;
-      _hypernode_weight[u] += _hypernode_weight[v];
-      _hypernode_weight[v] = 0;
-      _hn_included_in_sparsified_hg[v] = 0;
-    }
-
-    parallel::scalable_vector<HypernodeID>&& getMapping() {
-      return std::move(_mapping);
-    }
-
-    const parallel::scalable_vector<HypernodeID> pins(const HyperedgeID e) const {
-      ASSERT(e < _num_edges);
-      return _edge_vector[e];
-    }
-
-    HyperedgeWeight edgeWeight(const HyperedgeID e) const {
-      ASSERT(e < _num_edges);
-      return _hyperedge_weight[e];
-    }
-
-    void setEdgeWeight(const HyperedgeID e, const HyperedgeWeight weight) {
-      ASSERT(e < _num_edges);
-      _hyperedge_weight[e] = weight;
-    }
-
-    bool edgeIsEnabled(const HyperedgeID e) const {
-      ASSERT(e < _num_edges);
-      return _he_included_in_sparsified_hg[e];
-    }
-
-    void replace(const HyperedgeID e, parallel::scalable_vector<HyperedgeID>&& hyperedge) {
-      ASSERT(e < _num_edges);
-      for ( const HypernodeID& pin : _edge_vector[e]) {
-        --_node_degrees[pin];
-      }
-      _edge_vector[e] = std::move(hyperedge);
-      for ( const HypernodeID& pin : _edge_vector[e]) {
-        ++_node_degrees[pin];
-      }
-    }
-
-    void remove(const HyperedgeID e) {
-      ASSERT(e < _num_edges);
-      for ( const HypernodeID& pin : _edge_vector[e] ) {
-        --_node_degrees[pin];
-      }
-      _edge_vector[e].clear();
-      _hyperedge_weight[e] = 0;
-      _he_included_in_sparsified_hg[e] = 0;
-    }
-
-    HyperGraph sparsify() {
-      // Compute number of nodes and edges in sparsified hypergraph
-      parallel::TBBPrefixSum<HyperedgeID> he_prefix_sum(_he_included_in_sparsified_hg);
-      parallel::TBBPrefixSum<HyperedgeID> hn_prefix_sum(_hn_included_in_sparsified_hg);
-      tbb::parallel_invoke([&] {
-        tbb::parallel_scan(tbb::blocked_range<size_t>(ID(0), _num_edges), he_prefix_sum);
-      }, [&] {
-        tbb::parallel_scan(tbb::blocked_range<size_t>(ID(0), _num_nodes), hn_prefix_sum);
-      });
-
-      // Apply vertex id of sparsified hypergraph to mapping
-      tbb::parallel_for(ID(0), _num_nodes, [&](const HypernodeID u) {
-        _mapping[u] = hn_prefix_sum[_mapping[u]];
-      });
-
-      // Apply mapping to all enabled hyperedges
-      tbb::parallel_for(ID(0), _num_edges, [&](const HyperedgeID& e) {
-        if ( edgeIsEnabled(e) ) {
-          parallel::scalable_vector<HypernodeID>& hyperedge = _edge_vector[e];
-          for ( HypernodeID& pin : hyperedge ) {
-            ASSERT(pin < _mapping.size());
-            pin = _mapping[pin];
-          }
-          std::sort(hyperedge.begin(), hyperedge.end());
-          hyperedge.erase(std::unique(hyperedge.begin(), hyperedge.end()), hyperedge.end());
-        }
-      });
-
-      const HypernodeID num_hypernodes = hn_prefix_sum.total_sum();
-      const HyperedgeID num_hyperedges = he_prefix_sum.total_sum();
-      SparsifiedHypergraph sparsified_hypergraph(num_hypernodes, num_hyperedges);
-      tbb::parallel_invoke([&] {
-        tbb::parallel_for(ID(0), _num_edges, [&](const HyperedgeID e) {
-          if ( he_prefix_sum.value(e) ) {
-            const HyperedgeID sparsified_id = he_prefix_sum[e];
-            sparsified_hypergraph._edge_vector[sparsified_id] = std::move(_edge_vector[e]);
-            sparsified_hypergraph._hyperedge_weight[sparsified_id] = _hyperedge_weight[e];
-          }
-        });
-      }, [&] {
-        tbb::parallel_for(ID(0), _num_nodes, [&](const HypernodeID u) {
-          if ( hn_prefix_sum.value(u) ) {
-            const HyperedgeID sparsified_id = hn_prefix_sum[u];
-            sparsified_hypergraph._vertices_to_numa_node[sparsified_id] = _vertices_to_numa_node[u];
-            sparsified_hypergraph._hypernode_weight[sparsified_id] = _hypernode_weight[u];
-          }
-        });
-      });
-
-      if ( TBB::instance().num_used_numa_nodes() == 1 ) {
-        return HyperGraphFactory::construct(
-          _task_group_id, num_hypernodes, num_hyperedges,
-          sparsified_hypergraph._edge_vector,
-          sparsified_hypergraph._hyperedge_weight.data(),
-          sparsified_hypergraph._hypernode_weight.data());
-      } else {
-        return HyperGraphFactory::construct(
-          _task_group_id, num_hypernodes, num_hyperedges,
-          sparsified_hypergraph._edge_vector,
-          std::move(sparsified_hypergraph._vertices_to_numa_node),
-          sparsified_hypergraph._hyperedge_weight.data(),
-          sparsified_hypergraph._hypernode_weight.data());
-      }
-    }
-
-   private:
-    void initialize(const HyperGraph& hypergraph, const TaskGroupID task_group_id) {
-      tbb::parallel_invoke([&] {
-        tbb::parallel_invoke([&] {
-          _edge_vector.resize(_num_edges);
-        }, [&] {
-          _hyperedge_weight.resize(_num_edges);
-        }, [&] {
-          _he_included_in_sparsified_hg.assign(_num_edges, 1);
-        }, [&] {
-          _node_degrees.assign(_num_nodes, parallel::IntegralAtomicWrapper<HyperedgeID>(0));
-        });
-
-        hypergraph.doParallelForAllEdges(task_group_id, [&](const HyperedgeID& he) {
-          const HyperedgeID original_id = hypergraph.originalEdgeID(he);
-          _hyperedge_weight[original_id] = hypergraph.edgeWeight(he);
-          _edge_vector[original_id].reserve(hypergraph.edgeSize(he));
-          for ( const HypernodeID& pin : hypergraph.pins(he) ) {
-            const HypernodeID original_pin_id = hypergraph.originalNodeID(pin);
-            ASSERT(original_pin_id < _num_nodes);
-            _edge_vector[original_id].push_back(original_pin_id);
-            ++_node_degrees[original_pin_id];
-          }
-          std::sort(_edge_vector[original_id].begin(), _edge_vector[original_id].end());
-        });
-      }, [&] {
-        tbb::parallel_invoke([&] {
-          _mapping.resize(_num_nodes);
-        }, [&] {
-          _vertices_to_numa_node.resize(_num_nodes);
-        }, [&] {
-          _hypernode_weight.resize(_num_nodes);
-        }, [&] {
-          _hn_included_in_sparsified_hg.assign(_num_nodes, 1);
-        });
-
-        hypergraph.doParallelForAllNodes(task_group_id, [&](const HypernodeID& hn) {
-          const HypernodeID original_id = hypergraph.originalNodeID(hn);
-          _mapping[original_id] = original_id;
-          _vertices_to_numa_node[original_id] = common::get_numa_node_of_vertex(hn);
-          _hypernode_weight[original_id] = hypergraph.nodeWeight(hn);
-        });
-      });
-    }
-
-    // Stats
-    const HypernodeID _num_nodes;
-    const HyperedgeID _num_edges;
-    const TaskGroupID _task_group_id;
-
-    // Hyperedges
-    HyperedgeVector _edge_vector;
-    parallel::scalable_vector<HyperedgeWeight> _hyperedge_weight;
-    parallel::scalable_vector<HyperedgeID> _he_included_in_sparsified_hg;
-
-    // Hypernodes
-    parallel::scalable_vector<HypernodeID> _mapping;
-    parallel::scalable_vector<int> _vertices_to_numa_node;
-    parallel::scalable_vector<HypernodeWeight> _hypernode_weight;
-    AtomicNodeDegreeVector _node_degrees;
-    parallel::scalable_vector<HypernodeID> _hn_included_in_sparsified_hg;
-  };
-
 
   static constexpr bool enable_heavy_assert = false;
 
@@ -381,7 +118,7 @@ class HypergraphSparsifierT {
   void sparsify(const HyperGraph& hypergraph) {
     ASSERT(!_is_init);
     ASSERT(_mapping.size() == 0, "contractDegreeZeroHypernodes was triggered before");
-    SparsifiedHypergraph sparsified_hypergraph(hypergraph, _task_group_id);
+    SparsifierHypergraph sparsified_hypergraph(hypergraph, _task_group_id);
 
 
     // #################### STAGE 1 ####################
@@ -530,7 +267,7 @@ class HypergraphSparsifierT {
   // ! directly to hypergraph. Instead a mapping is computed that maps each vertex
   // ! of the original hypergraph to its supervertex and the weight of each
   // ! supervertex is aggregated in the hypernode weight vector.
-  void degreeZeroSparsification(SparsifiedHypergraph& hypergraph) {
+  void degreeZeroSparsification(SparsifierHypergraph& hypergraph) {
     ASSERT(!_is_init);
     HypernodeID degree_zero_supervertex = kInvalidHypernode;
     for (HypernodeID hn = 0; hn < hypergraph.numNodes(); ++hn) {
@@ -555,7 +292,7 @@ class HypergraphSparsifierT {
   // ! Removes hyperedges where the weight of all pins is greater
   // ! than a certain threshold. The threshold is specified in
   // ! '_context.initial_partitioning.max_hyperedge_pin_weight'
-  void heavyHyperedgeRemovalSparsification(SparsifiedHypergraph& hypergraph) {
+  void heavyHyperedgeRemovalSparsification(SparsifierHypergraph& hypergraph) {
     tbb::parallel_for(ID(0), hypergraph.numEdges(), [&](const HyperedgeID& e) {
       if ( hypergraph.edgeIsEnabled(e) ) {
         HypernodeWeight pin_weight = 0;
@@ -571,7 +308,7 @@ class HypergraphSparsifierT {
     });
   }
 
-  void similiarHyperedgeRemoval(SparsifiedHypergraph& hypergraph) {
+  void similiarHyperedgeRemoval(SparsifierHypergraph& hypergraph) {
     HashFuncVector hash_functions(_context.initial_partitioning.sparsification.min_hash_footprint_size,
       utils::Randomize::instance().getRandomInt(0, 1000, sched_getcpu()));
 
