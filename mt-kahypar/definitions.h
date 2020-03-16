@@ -28,6 +28,7 @@
 
 #include "mt-kahypar/parallel/hardware_topology.h"
 #include "mt-kahypar/parallel/tbb_numa_arena.h"
+#include "mt-kahypar/datastructures/graph.h"
 #include "mt-kahypar/datastructures/static_hypergraph.h"
 #include "mt-kahypar/datastructures/static_hypergraph_factory.h"
 #include "mt-kahypar/datastructures/partitioned_hypergraph.h"
@@ -67,8 +68,6 @@ using ThreadLocalFastResetFlagArray = tbb::enumerable_thread_specific<kahypar::d
 using KWayPriorityQueue = kahypar::ds::KWayPriorityQueue<HypernodeID, Gain, std::numeric_limits<Gain>, true>;
 using ThreadLocalKWayPriorityQueue = tbb::enumerable_thread_specific<KWayPriorityQueue>;
 
-using NodeID = uint32_t;
-
 #if KAHYPAR_ENABLE_NUMA_AWARE_PARTITIONING
   using Hypergraph = ds::NumaHypergraph<ds::StaticHypergraph, HardwareTopology, TBBNumaArena>;
   using HypergraphFactory = ds::NumaHypergraphFactory<
@@ -80,6 +79,7 @@ using NodeID = uint32_t;
   using HypergraphFactory = ds::StaticHypergraphFactory;
   using PartitionedHypergraph = ds::PartitionedHypergraph<Hypergraph, HypergraphFactory>;
 #endif
+  using Graph = ds::GraphT<Hypergraph>;
 
 struct GlobalTypeTraits {
   using HyperGraph = Hypergraph;

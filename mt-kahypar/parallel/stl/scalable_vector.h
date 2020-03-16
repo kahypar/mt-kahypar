@@ -119,6 +119,33 @@ MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE static void parallel_free(scalable_vector<T1>
   });
 }
 
+template<typename T1,
+         typename T2,
+         typename T3,
+         typename T4,
+         typename T5,
+         typename T6>
+MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE static void parallel_free(scalable_vector<T1>& vec1,
+                                                             scalable_vector<T2>& vec2,
+                                                             scalable_vector<T3>& vec3,
+                                                             scalable_vector<T4>& vec4,
+                                                             scalable_vector<T5>& vec5,
+                                                             scalable_vector<T6>& vec6) {
+  tbb::parallel_invoke([&] {
+    free(vec1);
+  }, [&] {
+    free(vec2);
+  }, [&] {
+    free(vec3);
+  }, [&] {
+    free(vec4);
+  }, [&] {
+    free(vec5);
+  }, [&] {
+    free(vec6);
+  });
+}
+
 namespace {
   template<typename T>
   using ThreadLocal = tbb::enumerable_thread_specific<T>;

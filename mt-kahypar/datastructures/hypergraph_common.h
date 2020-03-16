@@ -44,6 +44,7 @@ using HypernodeWeight = int32_t;
 using HyperedgeWeight = int32_t;
 using PartitionID = int32_t;
 using Gain = HyperedgeWeight;
+using NodeID = uint32_t;
 
 // Constant Declarations
 static constexpr PartitionID kInvalidPartition = -1;

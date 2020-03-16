@@ -26,7 +26,7 @@
 #include <tbb/parallel_for.h>
 
 #include "mt-kahypar/parallel/parallel_prefix_sum.h"
-#include <mt-kahypar/definitions.h>
+#include "mt-kahypar/datastructures/hypergraph_common.h"
 
 namespace mt_kahypar {
 namespace ds {
@@ -49,6 +49,14 @@ class Clustering : public std::vector<PartitionID> {
     tbb::parallel_for(PartitionID(0), static_cast<PartitionID>(size()), [&](PartitionID i) {
           (*this)[i] = i;
         });
+  }
+
+  size_t shrinkAndCompactify(const size_t size,
+                             PartitionID upperIDBound,
+                             size_t numTasks) {
+    Base::resize(size);
+    Base::shrink_to_fit();
+    return compactify(upperIDBound, numTasks);
   }
 
   size_t compactify(PartitionID upperIDBound = -1, size_t numTasks = 1) {
@@ -82,6 +90,7 @@ class Clustering : public std::vector<PartitionID> {
 
     std::vector<PartitionID> mapping(upperIDBound + 1, 0);
     tbb::parallel_for_each(*this, [&](const PartitionID& c) {
+          ASSERT(c < static_cast<PartitionID>(mapping.size()), V(c) << V(mapping.size()));
           mapping[c] = 1;
         });
 
@@ -90,7 +99,7 @@ class Clustering : public std::vector<PartitionID> {
     // NOTE Benchmark!
 
     tbb::parallel_for_each(*this, [&](PartitionID& c) {
-          c = mapping[c];
+          c = mapping[c] - 1;
         });
 
 #ifdef KAHYPAR_ENABLE_HEAVY_PREPROCESSING_ASSERTIONS
