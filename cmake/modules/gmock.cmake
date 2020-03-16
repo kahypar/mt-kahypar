@@ -10,7 +10,14 @@ function(add_gmock_test target)
 
     add_custom_command(TARGET ${target}
                        POST_BUILD
+                       COMMAND cp ${target} ${target}_failed
                        COMMAND ${target}
+                       WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+                       COMMENT "Running ${target}" VERBATIM)
+
+    add_custom_command(TARGET ${target}
+                       POST_BUILD
+                       COMMAND rm -f ${target}_failed
                        WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
                        COMMENT "Running ${target}" VERBATIM)
 endfunction()
