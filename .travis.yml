@@ -89,22 +89,21 @@ before_script:
 
 script:
   - |
-    if [[ "$BUILD_TYPE" == "Debug" && "$COV" == "ON" ]]; then
-      make clean all
-      lcov --directory . --capture --output-file coverage.info;
-      lcov --remove coverage.info '/usr/*' --output-file coverage.info;
-      lcov --list coverage.info;
-      gcovr -r ../ -x > report.xml;
-    elif [[ "$BUILD_TYPE" == "Release" ]]; then
-      make KaHyPar
-      make integration_tests
+    if [[ "$BUILD_TYPE" == "Release" ]]; then
+      make KaHyPar;
+      make integration_tests;
     else
-      make clean all
+      make clean all;
     fi
 
 after_success:
   - |
-    if [[ "$COV" == "ON" ]]; then
-      cd ${TRAVIS_BUILD_DIR};
+    if [[ "$BUILD_TYPE" == "Debug" && "$COV" == "ON" ]]; then
+      cd ${TRAVIS_BUILD_DIR}/build;
+      lcov --directory . --capture --output-file coverage.info;
+      lcov --remove coverage.info '/usr/*' --output-file coverage.info;
+      lcov --list coverage.info;
+      gcovr -r ../ -x > report.xml;
+      cd ..
       bash <(curl -s https://codecov.io/bash) || echo "Codecov did not collect coverage reports"
     fi
