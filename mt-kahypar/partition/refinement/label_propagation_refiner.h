@@ -323,10 +323,14 @@ class LabelPropagationRefinerT final : public IRefinerT<TypeTraits, track_border
         }
       });
 
-      TBB::instance().execute_parallel_on_all_numa_nodes(_task_group_id, [&](const int node) {
-        ASSERT(node < static_cast<int>(_active_nodes.size()));
-        _active_nodes[node] = tmp_active_nodes[node].copy_parallel();
-      });
+      if ( _is_numa_aware ) {
+        TBB::instance().execute_parallel_on_all_numa_nodes(_task_group_id, [&](const int node) {
+          ASSERT(node < static_cast<int>(_active_nodes.size()));
+          _active_nodes[node] = tmp_active_nodes[node].copy_parallel();
+        });
+      } else {
+        _active_nodes[0] = tmp_active_nodes[0].copy_parallel();
+      }
     }
 
     const HypernodeID new_num_nodes = hypergraph.initialNumNodes();
