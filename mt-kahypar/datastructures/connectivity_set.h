@@ -90,6 +90,10 @@ public:
     return conn;
   }
 
+  void freeInternalData() {
+    parallel::free(bits);
+  }
+
   void memoryConsumption(utils::MemoryTreeNode* parent) const {
     ASSERT(parent);
     parent->addChild("Connectivity Bit Vector", sizeof(Block) * bits.size());

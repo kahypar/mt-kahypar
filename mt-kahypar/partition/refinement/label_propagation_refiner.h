@@ -66,8 +66,8 @@ class LabelPropagationRefinerT final : public IRefinerT<TypeTraits, track_border
     _context(context),
     _task_group_id(task_group_id),
     _is_numa_aware(false),
-    _current_num_nodes(0),
-    _current_num_edges(0),
+    _current_num_nodes(kInvalidHypernode),
+    _current_num_edges(kInvalidHyperedge),
     _gain(context),
     _active_nodes(),
     _next_active(),
@@ -83,6 +83,10 @@ class LabelPropagationRefinerT final : public IRefinerT<TypeTraits, track_border
 
   LabelPropagationRefinerT & operator= (const LabelPropagationRefinerT &) = delete;
   LabelPropagationRefinerT & operator= (LabelPropagationRefinerT &&) = delete;
+
+  ~LabelPropagationRefinerT() {
+    parallel::parallel_free(_active_nodes, _next_active, _visited_he);
+  }
 
  private:
   bool refineImpl(HyperGraph& hypergraph,
@@ -326,7 +330,7 @@ class LabelPropagationRefinerT final : public IRefinerT<TypeTraits, track_border
     }
 
     const HypernodeID new_num_nodes = hypergraph.initialNumNodes();
-    if ( new_num_nodes > _current_num_nodes ) {
+    if ( new_num_nodes > _current_num_nodes || _current_num_nodes == kInvalidHypernode ) {
       _next_active.clear();
       for ( int node = 0; node < num_numa_nodes; ++node ) {
         _next_active.emplace_back(hypergraph.initialNumNodes());
@@ -335,7 +339,7 @@ class LabelPropagationRefinerT final : public IRefinerT<TypeTraits, track_border
     }
 
     const HypernodeID new_num_edges = hypergraph.initialNumEdges();
-    if ( new_num_edges > _current_num_edges ) {
+    if ( new_num_edges > _current_num_edges || _current_num_edges == kInvalidHyperedge ) {
       _visited_he.clear();
       for ( int node = 0; node < num_numa_nodes; ++node ) {
         _visited_he.emplace_back(hypergraph.initialNumEdges());

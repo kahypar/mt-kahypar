@@ -26,7 +26,6 @@
 
 #include "kahypar/meta/policy_registry.h"
 
-#include "mt-kahypar/datastructures/graph.h"
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/io/partitioning_output.h"
 #include "mt-kahypar/partition/context.h"
@@ -136,9 +135,14 @@ inline void Partitioner::preprocess(Hypergraph& hypergraph) {
     utils::Timer::instance().start_timer("perform_community_detection", "Perform Community Detection");
     ds::Clustering communities(0);
     if (!_context.preprocessing.use_community_structure_from_file) {
-      ds::AdjListGraph graph = ds::AdjListStarExpansion::constructGraph(hypergraph, _context, true);
-      communities = ParallelModularityLouvain::run(graph, _context);   // TODO(lars): give switch for PLM/SLM
-      ds::AdjListStarExpansion::restrictClusteringToHypernodes(hypergraph, communities);
+      utils::Timer::instance().start_timer("construct_graph", "Construct Graph");
+      Graph graph(hypergraph, _context.preprocessing.community_detection.edge_weight_function);
+      utils::Timer::instance().stop_timer("construct_graph");
+      communities = ParallelModularityLouvain::run(graph, _context,
+        _context.shared_memory.num_threads);   // TODO(lars): give switch for PLM/SLM
+      communities.shrinkAndCompactify(hypergraph.initialNumNodes(),
+        hypergraph.initialNumNodes() + hypergraph.initialNumEdges(),
+        _context.shared_memory.num_threads);
       _hypergraph_sparsifier.assignAllDegreeZeroHypernodesToSameCommunity(hypergraph, communities);
     } else {
       io::readPartitionFile(_context.partition.graph_community_filename, communities);

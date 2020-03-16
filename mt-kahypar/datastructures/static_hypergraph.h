@@ -427,6 +427,10 @@ class StaticHypergraph {
     return *this;
   }
 
+  ~StaticHypergraph() {
+    freeInternalData();
+  }
+
   // ####################### General Hypergraph Stats #######################
 
   // ! Number of NUMA hypergraphs
@@ -1044,7 +1048,7 @@ class StaticHypergraph {
       parallel::scalable_vector<parallel::IntegralAtomicWrapper<HyperedgeID>> incident_nets_pos(
         num_hypernodes, parallel::IntegralAtomicWrapper<HyperedgeID>(0));
       tbb::parallel_for(0UL, hyperedge_buckets.size(), [&](const size_t bucket) {
-        for ( ContractedHyperedge contracted_he : hyperedge_buckets[bucket] ) {
+        for ( const ContractedHyperedge& contracted_he : hyperedge_buckets[bucket] ) {
           if ( !contracted_he.is_parallel ) {
             const HyperedgeID he = num_hyperedges_prefix_sum[bucket] + contracted_he.he_idx;
             const size_t incidence_array_pos = num_pins_prefix_sum[bucket] + contracted_he.pin_idx;
@@ -1296,6 +1300,21 @@ class StaticHypergraph {
     hypergraph._community_support = _community_support.copy();
 
     return hypergraph;
+  }
+
+  // Free internal data in parallel
+  void freeInternalData() {
+    if ( _num_hypernodes > 0 || _num_hyperedges > 0 ) {
+      tbb::parallel_invoke([&] {
+        _community_support.freeInternalData();
+      }, [&] {
+        parallel::parallel_free(
+          _hypernodes, _incident_nets,
+          _hyperedges, _incidence_array);
+      });
+    }
+    _num_hypernodes = 0;
+    _num_hyperedges = 0;
   }
 
   void memoryConsumption(utils::MemoryTreeNode* parent) const {

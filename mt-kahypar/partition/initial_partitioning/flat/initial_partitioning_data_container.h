@@ -166,6 +166,14 @@ class InitialPartitioningDataContainerT {
       }
     }
 
+    void freeInternalData() {
+      tbb::parallel_invoke([&] {
+        _partitioned_hypergraph.freeInternalData();
+      }, [&] {
+        parallel::free(_partition);
+      });
+    }
+
     PartitionedHyperGraphWithoutBorderVertices _partitioned_hypergraph;
     const Context& _context;
     parallel::scalable_vector<PartitionID> _partition;
@@ -203,6 +211,20 @@ class InitialPartitioningDataContainerT {
 
   InitialPartitioningDataContainerT(InitialPartitioningDataContainerT&&) = delete;
   InitialPartitioningDataContainerT & operator= (InitialPartitioningDataContainerT &&) = delete;
+
+  ~InitialPartitioningDataContainerT() {
+    tbb::parallel_invoke([&] {
+      parallel::parallel_free_thread_local_internal_data(
+        _local_hg, [&](LocalInitialPartitioningHypergraph& local_hg) {
+          local_hg.freeInternalData();
+        });
+    }, [&] {
+      parallel::parallel_free_thread_local_internal_data(
+        _local_unassigned_hypernodes, [&](parallel::scalable_vector<HypernodeID>& array) {
+          parallel::free(array);
+        });
+    });
+  }
 
   PartitionedHyperGraph& global_partitioned_hypergraph() {
     return _partitioned_hg;

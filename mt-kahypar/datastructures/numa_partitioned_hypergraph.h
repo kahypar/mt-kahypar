@@ -138,6 +138,10 @@ class NumaPartitionedHypergraph {
     return *this;
   }
 
+  ~NumaPartitionedHypergraph() {
+    freeInternalData();
+  }
+
   // ####################### General Hypergraph Stats #######################
 
   // ! Returns the underlying hypergraph
@@ -661,6 +665,15 @@ class NumaPartitionedHypergraph {
       _part_info[block].weight = 0;
       _part_info[block].size = 0;
     }
+  }
+
+  void freeInternalData() {
+    if ( _k > 0 ) {
+      tbb::parallel_for(0UL, _hypergraphs.size(), [&](const size_t i) {
+        _hypergraphs[i].freeInternalData();
+      }, tbb::static_partitioner());
+    }
+    _k = 0;
   }
 
   // ####################### Memory Consumption #######################
