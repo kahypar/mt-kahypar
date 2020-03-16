@@ -94,7 +94,6 @@ class LabelPropagationRefinerT final : public IRefinerT<TypeTraits, track_border
                   kahypar::Metrics& best_metrics) override final {
     _gain.reset();
 
-    utils::Timer::instance().start_timer("label_propagation", "Label Propagation");
     _numa_lp_round_synchronization = 0;
     for ( int node = 0; node < static_cast<int>(_next_active.size()); ++node ) {
       _next_active[node].reset();
@@ -131,7 +130,6 @@ class LabelPropagationRefinerT final : public IRefinerT<TypeTraits, track_border
       V(metrics::objective(hypergraph, _context.partition.objective)));
     best_metrics.updateMetric(current_metric + delta, kahypar::Mode::direct_kway, _context.partition.objective);
     utils::Stats::instance().update_stat("lp_improvement", std::abs(delta));
-    utils::Timer::instance().stop_timer("label_propagation");
     return delta < 0;
   }
 
