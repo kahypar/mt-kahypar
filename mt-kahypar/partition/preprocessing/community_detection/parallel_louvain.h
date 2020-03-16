@@ -21,9 +21,7 @@
 #pragma once
 
 #include "mt-kahypar/datastructures/clustering.h"
-#include "mt-kahypar/datastructures/graph.h"
 #include "mt-kahypar/definitions.h"
-#include "mt-kahypar/partition/preprocessing/community_detection/parallel_contraction.h"
 #include "mt-kahypar/partition/preprocessing/community_detection/plm.h"
 #include "mt-kahypar/utils/timer.h"
 
@@ -32,10 +30,13 @@ class ParallelModularityLouvain {
  private:
   static constexpr bool debug = false;
 
-  static ds::Clustering localMovingContractRecurse(ds::Graph& fine_graph,
+  static ds::Clustering localMovingContractRecurse(Graph& fine_graph,
                                                    PLM& mlv,
                                                    const size_t num_tasks) {
     ds::Clustering communities(fine_graph.numNodes());
+    DBG << V(fine_graph.numNodes())
+        << V(fine_graph.numArcs())
+        << V(fine_graph.totalVolume());
 
     DBG << "Start Local Moving";
     utils::Timer::instance().start_timer("local_moving", "Local Moving");
@@ -45,7 +46,9 @@ class ParallelModularityLouvain {
     if (communities_changed) {
       utils::Timer::instance().start_timer("contraction", "Contraction");
       // Contract Communities
-      ds::Graph coarse_graph = ParallelContraction::contract(fine_graph, communities, num_tasks);
+      Graph coarse_graph = fine_graph.contract(communities);
+      ASSERT(coarse_graph.totalVolume() == fine_graph.totalVolume(),
+        V(coarse_graph.totalVolume()) << V(fine_graph.totalVolume()));
       utils::Timer::instance().stop_timer("contraction");
 
       // Recurse on contracted graph
@@ -55,6 +58,7 @@ class ParallelModularityLouvain {
       utils::Timer::instance().start_timer("prolong", "Prolong");
       // Prolong Clustering
       for (NodeID u : fine_graph.nodes()) {
+        ASSERT(communities[u] < static_cast<PartitionID>(coarse_communities.size()));
         communities[u] = coarse_communities[communities[u]];
       }
       utils::Timer::instance().stop_timer("prolong");
@@ -64,10 +68,9 @@ class ParallelModularityLouvain {
   }
 
  public:
-  static ds::Clustering run(ds::Graph& graph, const Context& context) {
+  static ds::Clustering run(Graph& graph, const Context& context, const size_t num_tasks) {
     PLM mlv(context, graph.numNodes());
-    ds::Clustering communities = localMovingContractRecurse(
-      graph, mlv, context.shared_memory.num_threads);
+    ds::Clustering communities = localMovingContractRecurse(graph, mlv, num_tasks);
     return communities;
   }
 };

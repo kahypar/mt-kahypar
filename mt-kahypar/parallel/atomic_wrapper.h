@@ -30,13 +30,17 @@ namespace parallel {
 template <typename T>
 void fetch_add(std::atomic<T>& x, T y) {
   T cur_x = x.load();
-  while (!x.compare_exchange_weak(cur_x, cur_x + y, std::memory_order_relaxed));
+  while (!x.compare_exchange_weak(cur_x, cur_x + y, std::memory_order_relaxed)) {
+    cur_x = x.load();
+  }
 }
 
 template <typename T>
 void fetch_sub(std::atomic<T>& x, T y) {
   T cur_x = x.load();
-  while (!x.compare_exchange_weak(cur_x, cur_x - y, std::memory_order_relaxed));
+  while (!x.compare_exchange_weak(cur_x, cur_x - y, std::memory_order_relaxed)) {
+    cur_x = x.load();
+  }
 }
 
 template <class T>
