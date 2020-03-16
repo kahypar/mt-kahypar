@@ -224,7 +224,7 @@ class RecursiveInitialPartitionerT : public IInitialPartitioner {
       child_continuation._coarsener->coarsen();
 
       // Call recursive initial partitioner
-      if ( _context.initial_partitioning.use_sparsification ) {
+      if ( _context.sparsification.use_sparsification ) {
         // Sparsify Hypergraph, if heavy hyperedge removal is enabled
         child_continuation._sparsifier.sparsify(child_continuation._coarsener->coarsestHypergraph());
       }

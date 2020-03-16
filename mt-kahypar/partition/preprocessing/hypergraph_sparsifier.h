@@ -49,6 +49,10 @@ class HypergraphSparsifierT {
   using HashFuncVector = kahypar::HashFuncVector<HashFunc>;
 
   struct Footprint {
+    explicit Footprint() :
+      footprint(),
+      he(kInvalidHyperedge) { }
+
     parallel::scalable_vector<HashValue> footprint;
     HyperedgeID he;
 
@@ -119,7 +123,6 @@ class HypergraphSparsifierT {
     ASSERT(!_is_init);
     ASSERT(_mapping.size() == 0, "contractDegreeZeroHypernodes was triggered before");
     SparsifierHypergraph sparsified_hypergraph(hypergraph, _task_group_id);
-
 
     // #################### STAGE 1 ####################
     // Heavy Hyperedge Removal
@@ -301,7 +304,7 @@ class HypergraphSparsifierT {
         }
         // Hyperedge will be include in sparsified hypergraph if its weight of
         // all pins is less than a predefined upper bound
-        if ( pin_weight >= _context.initial_partitioning.sparsification.max_hyperedge_pin_weight ) {
+        if ( pin_weight >= _context.sparsification.max_hyperedge_pin_weight ) {
           hypergraph.remove(e);
         }
       }
@@ -309,7 +312,7 @@ class HypergraphSparsifierT {
   }
 
   void similiarHyperedgeRemoval(SparsifierHypergraph& hypergraph) {
-    HashFuncVector hash_functions(_context.initial_partitioning.sparsification.min_hash_footprint_size,
+    HashFuncVector hash_functions(_context.sparsification.min_hash_footprint_size,
       utils::Randomize::instance().getRandomInt(0, 1000, sched_getcpu()));
 
     ds::StreamingMap<HashValue, Footprint> hash_buckets;
@@ -347,7 +350,7 @@ class HypergraphSparsifierT {
                 if ( representative == similiar_footprint ) {
                   const double jaccard_index = jaccard(
                     hypergraph.pins(representative.he), hypergraph.pins(similiar_footprint.he));
-                  if ( jaccard_index >= _context.initial_partitioning.sparsification.jaccard_threshold ) {
+                  if ( jaccard_index >= _context.sparsification.jaccard_threshold ) {
                     sampleCombineHyperedges(rep_he, hypergraph.pins(similiar_footprint.he));
                     rep_weight += hypergraph.edgeWeight(similiar_footprint.he);
                     hypergraph.remove(similiar_footprint.he);
@@ -392,7 +395,7 @@ class HypergraphSparsifierT {
     const size_t min_size = std::min(lhs.size(), rhs.size());
     const size_t max_size = std::max(lhs.size(), rhs.size());
     if ( static_cast<double>(min_size) / static_cast<double>(max_size) <
-         _context.initial_partitioning.sparsification.jaccard_threshold ) {
+         _context.sparsification.jaccard_threshold ) {
       return 0.0;
     }
 

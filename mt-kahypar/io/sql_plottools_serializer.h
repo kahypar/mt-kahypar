@@ -82,11 +82,11 @@ static inline std::string serialize(const PartitionedHypergraph<>& hypergraph,
         << " initial_partitioning_use_adaptive_epsilon=" << std::boolalpha << context.initial_partitioning.use_adaptive_epsilon
         << " initial_partitioning_lp_maximum_iterations=" << context.initial_partitioning.lp_maximum_iterations
         << " initial_partitioning_lp_initial_block_size=" << context.initial_partitioning.lp_initial_block_size
-        << " initial_partitioning_use_sparsification=" << std::boolalpha << context.initial_partitioning.use_sparsification
-        << " sparsification_hyperedge_pin_weight_fraction=" << context.initial_partitioning.sparsification.hyperedge_pin_weight_fraction
-        << " sparsification_min_hash_footprint_size=" << context.initial_partitioning.sparsification.min_hash_footprint_size
-        << " sparsification_jaccard_threshold=" << context.initial_partitioning.sparsification.jaccard_threshold
-        << " sparsification_max_hyperedge_pin_weight=" << context.initial_partitioning.sparsification.max_hyperedge_pin_weight
+        << " sparsification_use_sparsification=" << std::boolalpha << context.sparsification.use_sparsification
+        << " sparsification_hyperedge_pin_weight_fraction=" << context.sparsification.hyperedge_pin_weight_fraction
+        << " sparsification_min_hash_footprint_size=" << context.sparsification.min_hash_footprint_size
+        << " sparsification_jaccard_threshold=" << context.sparsification.jaccard_threshold
+        << " sparsification_max_hyperedge_pin_weight=" << context.sparsification.max_hyperedge_pin_weight
         << " lp_algorithm=" << context.refinement.label_propagation.algorithm
         << " lp_maximum_iterations=" << context.refinement.label_propagation.maximum_iterations
         << " lp_numa_aware=" << std::boolalpha << context.refinement.label_propagation.numa_aware

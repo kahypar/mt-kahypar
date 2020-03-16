@@ -46,13 +46,14 @@ void verifyPinsOfSparsifiedHypergraph(SparsifierHyperGraph& s_hypergraph,
 template <class F1, class F2>
 void executeConcurrent(const F1& f1, const F2& f2) {
   std::atomic<int> cnt(0);
+  int num_threads = std::min(2, TBBNumaArena::instance().total_number_of_threads());
   tbb::parallel_invoke([&] {
     cnt++;
-    while (cnt < 2) { }
+    while (cnt < num_threads) { }
     f1();
   }, [&] {
     cnt++;
-    while (cnt < 2) { }
+    while (cnt < num_threads) { }
     f2();
   });
 }
@@ -60,17 +61,18 @@ void executeConcurrent(const F1& f1, const F2& f2) {
 template <class F1, class F2, class F3>
 void executeConcurrent(const F1& f1, const F2& f2, const F3& f3) {
   std::atomic<int> cnt(0);
+  int num_threads = std::min(3, TBBNumaArena::instance().total_number_of_threads());
   tbb::parallel_invoke([&] {
     cnt++;
-    while (cnt < 3) { }
+    while (cnt < num_threads) { }
     f1();
   }, [&] {
     cnt++;
-    while (cnt < 3) { }
+    while (cnt < num_threads) { }
     f2();
   }, [&] {
     cnt++;
-    while (cnt < 3) { }
+    while (cnt < num_threads) { }
     f3();
   });
 }

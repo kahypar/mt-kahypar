@@ -201,6 +201,7 @@ inline std::ostream & operator<< (std::ostream& str, const RefinementParameters&
 }
 
 struct SparsificationParameters {
+  bool use_sparsification = false;
   double hyperedge_pin_weight_fraction = 0.0;
   size_t min_hash_footprint_size = 0;
   double jaccard_threshold = 1.0;
@@ -209,19 +210,17 @@ struct SparsificationParameters {
 };
 
 inline std::ostream & operator<< (std::ostream& str, const SparsificationParameters& params) {
-  str << "  Sparsification Parameters:" << std::endl;
-  str << "    hyperedge pin weight fraction:    " << params.hyperedge_pin_weight_fraction << std::endl;
-  str << "    min-hash footprint size:          " << params.min_hash_footprint_size << std::endl;
-  str << "    jaccard threshold:                " << params.jaccard_threshold << std::endl;
-  str << "    maximum hyperedge pin weight:     " << params.max_hyperedge_pin_weight << std::endl;
+  str << "Sparsification Parameters:" << std::endl;
+  str << "  hyperedge pin weight fraction:      " << params.hyperedge_pin_weight_fraction << std::endl;
+  str << "  min-hash footprint size:            " << params.min_hash_footprint_size << std::endl;
+  str << "  jaccard threshold:                  " << params.jaccard_threshold << std::endl;
+  str << "  maximum hyperedge pin weight:       " << params.max_hyperedge_pin_weight << std::endl;
   return str;
 }
 
 struct InitialPartitioningParameters {
   InitialPartitioningMode mode = InitialPartitioningMode::UNDEFINED;
-  SparsificationParameters sparsification = { };
   RefinementParameters refinement = { };
-  bool use_sparsification = false;
   size_t runs = 1;
   bool use_adaptive_epsilon = false;
   size_t lp_maximum_iterations = 1;
@@ -235,9 +234,6 @@ inline std::ostream & operator<< (std::ostream& str, const InitialPartitioningPa
   str << "  Use Adaptive Epsilon:               " << std::boolalpha << params.use_adaptive_epsilon << std::endl;
   str << "  Maximum Iterations of LP IP:        " << params.lp_maximum_iterations << std::endl;
   str << "  Initial Block Size of LP IP:        " << params.lp_initial_block_size << std::endl;
-  if ( params.use_sparsification ) {
-    str << std::endl << params.sparsification;
-  }
   str << "\nInitial Partitioning ";
   str << params.refinement << std::endl;
   return str;
@@ -262,6 +258,7 @@ class Context {
   CoarseningParameters coarsening { };
   InitialPartitioningParameters initial_partitioning { };
   RefinementParameters refinement { };
+  SparsificationParameters sparsification { };
   SharedMemoryParameters shared_memory { };
   kahypar::ContextType type = kahypar::ContextType::main;
 
@@ -322,14 +319,14 @@ class Context {
   }
 
   void setupSparsificationParameters() {
-    if ( initial_partitioning.use_sparsification ) {
+    if ( sparsification.use_sparsification ) {
       HypernodeWeight max_block_weight = 0;
       for ( PartitionID block = 0; block < partition.k; ++block ) {
         max_block_weight = std::max(max_block_weight, partition.max_part_weights[block]);
       }
 
-      initial_partitioning.sparsification.max_hyperedge_pin_weight = max_block_weight /
-        initial_partitioning.sparsification.hyperedge_pin_weight_fraction;
+      sparsification.max_hyperedge_pin_weight = max_block_weight /
+        sparsification.hyperedge_pin_weight_fraction;
     }
   }
 
@@ -401,8 +398,12 @@ inline std::ostream & operator<< (std::ostream& str, const Context& context) {
       << context.initial_partitioning
       << "-------------------------------------------------------------------------------\n"
       << context.refinement
-      << "-------------------------------------------------------------------------------\n"
-      << context.shared_memory
+      << "-------------------------------------------------------------------------------\n";
+  if ( context.sparsification.use_sparsification ) {
+    str << context.sparsification
+        << "-------------------------------------------------------------------------------\n";
+  }
+  str << context.shared_memory
       << "-------------------------------------------------------------------------------";
   return str;
 }

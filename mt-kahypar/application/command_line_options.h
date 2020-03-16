@@ -309,21 +309,29 @@ po::options_description createInitialPartitioningOptionsDescription(Context& con
     ("i-lp-initial-block-size",
     po::value<size_t>(&context.initial_partitioning.lp_initial_block_size)->value_name("<size_t>"),
     "Initial block size used for label propagation initial partitioner \n"
-    "(default: 1)")
-    ("i-use-sparsification",
-    po::value<bool>(&context.initial_partitioning.use_sparsification)->value_name("<bool>"),
-    "If true, than hypergraph is sparsified before initial partitioning")
-    ("i-hyperedge-pin-weight-fraction",
-    po::value<double>(&context.initial_partitioning.sparsification.hyperedge_pin_weight_fraction)->value_name("<double>"),
-    "Hyperedges where the sum of the weights of all pins are greater than ((1 + eps)|V|/k) / fraction are removed before IP")
-    ("i-min-hash-footprint-size",
-    po::value<size_t>(&context.initial_partitioning.sparsification.min_hash_footprint_size)->value_name("<size_t>"),
-    "Number of locality sensitive hash functions used for similiar hyperedge removal")
-    ("i-jaccard-threshold",
-    po::value<double>(&context.initial_partitioning.sparsification.jaccard_threshold)->value_name("<double>"),
-    "Jaccard threshold for which to hyperedges are considered as similiar");
+    "(default: 1)");
     options.add(createRefinementOptionsDescription(context, num_columns, true));
   return options;
+}
+
+po::options_description createSparsificationOptionsDescription(Context& context,
+                                                               const int num_columns) {
+  po::options_description sparsification_options("Sparsification Options", num_columns);
+  sparsification_options.add_options()
+    ("sp-use-sparsification",
+    po::value<bool>(&context.sparsification.use_sparsification)->value_name("<bool>"),
+    "If true, than hypergraph is sparsified before initial partitioning")
+    ("sp-hyperedge-pin-weight-fraction",
+    po::value<double>(&context.sparsification.hyperedge_pin_weight_fraction)->value_name("<double>"),
+    "Hyperedges where the sum of the weights of all pins are greater than ((1 + eps)|V|/k) / fraction are removed before IP")
+    ("sp-min-hash-footprint-size",
+    po::value<size_t>(&context.sparsification.min_hash_footprint_size)->value_name("<size_t>"),
+    "Number of locality sensitive hash functions used for similiar hyperedge removal")
+    ("sp-jaccard-threshold",
+    po::value<double>(&context.sparsification.jaccard_threshold)->value_name("<double>"),
+    "Jaccard threshold for which to hyperedges are considered as similiar");
+
+  return sparsification_options;
 }
 
 po::options_description createSharedMemoryOptionsDescription(Context& context,
@@ -376,6 +384,8 @@ void processCommandLineInput(Context& context, int argc, char* argv[]) {
     createInitialPartitioningOptionsDescription(context, num_columns);
   po::options_description refinement_options =
     createRefinementOptionsDescription(context, num_columns, false);
+  po::options_description sparsification_options =
+    createSparsificationOptionsDescription(context, num_columns);
   po::options_description shared_memory_options =
     createSharedMemoryOptionsDescription(context, num_columns);
 
@@ -388,6 +398,7 @@ void processCommandLineInput(Context& context, int argc, char* argv[]) {
   .add(coarsening_options)
   .add(initial_paritioning_options)
   .add(refinement_options)
+  .add(sparsification_options)
   .add(shared_memory_options);
 
   po::variables_map cmd_vm;
@@ -414,6 +425,7 @@ void processCommandLineInput(Context& context, int argc, char* argv[]) {
   .add(coarsening_options)
   .add(initial_paritioning_options)
   .add(refinement_options)
+  .add(sparsification_options)
   .add(shared_memory_options);
 
   po::store(po::parse_config_file(file, ini_line_options, true), cmd_vm);
@@ -452,6 +464,8 @@ void parseIniToContext(Context& context, const std::string& ini_filename) {
     createInitialPartitioningOptionsDescription(context, num_columns);
   po::options_description refinement_options =
     createRefinementOptionsDescription(context, num_columns, false);
+  po::options_description sparsification_options =
+    createSparsificationOptionsDescription(context, num_columns);
   po::options_description shared_memory_options =
     createSharedMemoryOptionsDescription(context, num_columns);
 
@@ -462,6 +476,7 @@ void parseIniToContext(Context& context, const std::string& ini_filename) {
   .add(coarsening_options)
   .add(initial_paritioning_options)
   .add(refinement_options)
+  .add(sparsification_options)
   .add(shared_memory_options);
 
   po::store(po::parse_config_file(file, ini_line_options, true), cmd_vm);
