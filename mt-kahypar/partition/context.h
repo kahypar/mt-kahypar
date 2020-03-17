@@ -229,6 +229,7 @@ struct SharedMemoryParameters {
 inline std::ostream & operator<< (std::ostream& str, const SharedMemoryParameters& params) {
   str << "Shared Memory Parameters:             " << std::endl;
   str << "  Number of Threads:                  " << params.num_threads << std::endl;
+  str << "  Number of used NUMA nodes:          " << TBBNumaArena::instance().num_used_numa_nodes() << std::endl;
   str << "  Random Shuffle Block Size:          " << params.shuffle_block_size << std::endl;
   return str;
 }
