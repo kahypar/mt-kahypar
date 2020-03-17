@@ -159,7 +159,7 @@ class SparsifierHypergraph {
   // ! Note, that contraction is not applied to hyperedges. The contraction
   // ! partner v is still present in its incident hyperedges. Contraction
   // ! is applied once function sparsify() is called. However, keep in mind
-  // ! that parallel hyperedges and single-node hyperedges are not removed.
+  // ! that parallel hyperedges and single-pin hyperedges are not removed.
   // ! Furthermore, contracting two already contracted vertices results in
   // ! undefined behaviour.
   void contract(const HypernodeID u, const HypernodeID v) {

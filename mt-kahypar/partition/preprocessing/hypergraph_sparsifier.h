@@ -188,10 +188,15 @@ class HypergraphSparsifierT {
   HypernodeID contractDegreeZeroHypernodes(HyperGraph& hypergraph) {
     ASSERT(!_is_init);
     _mapping.assign(hypergraph.initialNumNodes(), kInvalidHypernode);
+    HypernodeID current_num_nodes = hypergraph.initialNumNodes() - hypergraph.numRemovedHypernodes();
     HypernodeID num_removed_degree_zero_hypernodes = 0;
     HypernodeID last_degree_zero_representative = kInvalidHypernode;
     HypernodeWeight last_degree_zero_weight = 0;
     for (const HypernodeID& hn : hypergraph.nodes()) {
+      if ( current_num_nodes <= _context.coarsening.contraction_limit ) {
+        break;
+      }
+
       if ( hypergraph.nodeDegree(hn) == 0 ) {
         bool was_removed = false;
         if ( last_degree_zero_representative != kInvalidHypernode ) {
@@ -199,6 +204,7 @@ class HypergraphSparsifierT {
           if ( last_degree_zero_weight + weight <= _context.coarsening.max_allowed_node_weight ) {
             // Remove vertex and aggregate its weight in its represenative supervertex
             ++num_removed_degree_zero_hypernodes;
+            --current_num_nodes;
             hypergraph.removeHypernode(hn);
             _removed_hns.push_back(hn);
             was_removed = true;
@@ -279,8 +285,13 @@ class HypergraphSparsifierT {
   // ! supervertex is aggregated in the hypernode weight vector.
   void degreeZeroSparsification(SparsifierHypergraph& hypergraph) {
     ASSERT(!_is_init);
+    HypernodeID current_num_nodes = hypergraph.numNodes() - hypergraph.numRemovedNodes();
     HypernodeID degree_zero_supervertex = kInvalidHypernode;
     for (HypernodeID hn = 0; hn < hypergraph.numNodes(); ++hn) {
+      if ( current_num_nodes <= _context.coarsening.contraction_limit ) {
+        break;
+      }
+
       if ( hypergraph.nodeDegree(hn) == 0 ) {
         bool was_removed = false;
         if ( degree_zero_supervertex != kInvalidHypernode ) {
@@ -289,6 +300,7 @@ class HypergraphSparsifierT {
                _context.coarsening.max_allowed_node_weight ) {
             // Remove vertex and aggregate its weight in its represenative supervertex
             hypergraph.contract(degree_zero_supervertex, hn);
+            --current_num_nodes;
             was_removed = true;
           }
         }
