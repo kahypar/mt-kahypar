@@ -318,9 +318,15 @@ po::options_description createSparsificationOptionsDescription(Context& context,
                                                                const int num_columns) {
   po::options_description sparsification_options("Sparsification Options", num_columns);
   sparsification_options.add_options()
-    ("sp-use-sparsification",
-    po::value<bool>(&context.sparsification.use_sparsification)->value_name("<bool>"),
-    "If true, than hypergraph is sparsified before initial partitioning")
+    ("sp-use-degree-zero-contractions",
+    po::value<bool>(&context.sparsification.use_degree_zero_contractions)->value_name("<bool>"),
+    "If true, than vertices with degree zero are contracted to supervertices")
+    ("sp-use-heavy-net-removal",
+    po::value<bool>(&context.sparsification.use_heavy_net_removal)->value_name("<bool>"),
+    "If true, than hyperedges with a weight greater than a certain threshold are removed before IP")
+    ("sp-use-similiar-net-removal",
+    po::value<bool>(&context.sparsification.use_similiar_net_removal)->value_name("<bool>"),
+    "If true, than hyperedges with a jaccard similiarity greater than a certain threshold are removed before IP")
     ("sp-hyperedge-pin-weight-fraction",
     po::value<double>(&context.sparsification.hyperedge_pin_weight_fraction)->value_name("<double>"),
     "Hyperedges where the sum of the weights of all pins are greater than ((1 + eps)|V|/k) / fraction are removed before IP")

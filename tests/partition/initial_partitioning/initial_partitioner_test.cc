@@ -78,7 +78,10 @@ class AInitialPartitionerTest : public Test {
 
     // Initial Partitioning
     context.initial_partitioning.runs = 1;
-    context.sparsification.use_sparsification = false;
+    context.sparsification.use_degree_zero_contractions = false;
+    context.sparsification.use_heavy_net_removal = false;
+    context.sparsification.use_similiar_net_removal = false;
+    context.sparsification.use_degree_zero_contractions = false;
     context.initial_partitioning.use_adaptive_epsilon = false;
     context.initial_partitioning.mode = Config::MODE;
 

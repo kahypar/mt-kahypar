@@ -201,20 +201,35 @@ inline std::ostream & operator<< (std::ostream& str, const RefinementParameters&
 }
 
 struct SparsificationParameters {
-  bool use_sparsification = false;
+  bool use_degree_zero_contractions = false;
+  bool use_heavy_net_removal = false;
+  bool use_similiar_net_removal = false;
   double hyperedge_pin_weight_fraction = 0.0;
   size_t min_hash_footprint_size = 0;
   double jaccard_threshold = 1.0;
   // Those will be determined dynamically
   HypernodeWeight max_hyperedge_pin_weight = std::numeric_limits<HypernodeWeight>::max();
+
+  bool useSparsification() const {
+    return use_degree_zero_contractions ||
+           use_heavy_net_removal ||
+           use_similiar_net_removal;
+  }
 };
 
 inline std::ostream & operator<< (std::ostream& str, const SparsificationParameters& params) {
   str << "Sparsification Parameters:" << std::endl;
-  str << "  hyperedge pin weight fraction:      " << params.hyperedge_pin_weight_fraction << std::endl;
-  str << "  min-hash footprint size:            " << params.min_hash_footprint_size << std::endl;
-  str << "  jaccard threshold:                  " << params.jaccard_threshold << std::endl;
-  str << "  maximum hyperedge pin weight:       " << params.max_hyperedge_pin_weight << std::endl;
+  str << "  use degree-zero HN contractions:    " << std::boolalpha << params.use_degree_zero_contractions << std::endl;
+  str << "  use heavy net removal:              " << std::boolalpha << params.use_heavy_net_removal << std::endl;
+  str << "  use similiar net removal:           " << std::boolalpha << params.use_similiar_net_removal << std::endl;
+  if ( params.use_heavy_net_removal ) {
+    str << "  hyperedge pin weight fraction:      " << params.hyperedge_pin_weight_fraction << std::endl;
+    str << "  maximum hyperedge pin weight:       " << params.max_hyperedge_pin_weight << std::endl;
+  }
+  if ( params.use_similiar_net_removal ) {
+    str << "  min-hash footprint size:            " << params.min_hash_footprint_size << std::endl;
+    str << "  jaccard threshold:                  " << params.jaccard_threshold << std::endl;
+  }
   return str;
 }
 
@@ -319,7 +334,7 @@ class Context {
   }
 
   void setupSparsificationParameters() {
-    if ( sparsification.use_sparsification ) {
+    if ( sparsification.use_heavy_net_removal ) {
       HypernodeWeight max_block_weight = 0;
       for ( PartitionID block = 0; block < partition.k; ++block ) {
         max_block_weight = std::max(max_block_weight, partition.max_part_weights[block]);
@@ -398,12 +413,10 @@ inline std::ostream & operator<< (std::ostream& str, const Context& context) {
       << context.initial_partitioning
       << "-------------------------------------------------------------------------------\n"
       << context.refinement
-      << "-------------------------------------------------------------------------------\n";
-  if ( context.sparsification.use_sparsification ) {
-    str << context.sparsification
-        << "-------------------------------------------------------------------------------\n";
-  }
-  str << context.shared_memory
+      << "-------------------------------------------------------------------------------\n"
+      << context.sparsification
+      << "-------------------------------------------------------------------------------\n"
+      << context.shared_memory
       << "-------------------------------------------------------------------------------";
   return str;
 }

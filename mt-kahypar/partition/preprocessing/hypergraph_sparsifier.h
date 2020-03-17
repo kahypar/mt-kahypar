@@ -121,6 +121,7 @@ class HypergraphSparsifierT {
 
   void sparsify(const HyperGraph& hypergraph) {
     ASSERT(!_is_init);
+    ASSERT(_context.sparsification.useSparsification());
     ASSERT(_mapping.size() == 0, "contractDegreeZeroHypernodes was triggered before");
     SparsifierHypergraph sparsified_hypergraph(hypergraph, _task_group_id);
 
@@ -128,23 +129,29 @@ class HypergraphSparsifierT {
     // Heavy Hyperedge Removal
     // If the weight of all pins of a hyperedge is greater than a
     // certain threshold, we remove them from the hypergraph
-    utils::Timer::instance().start_timer("heavy_hyperedge_removal", "Heavy HE Removal");
-    heavyHyperedgeRemovalSparsification(sparsified_hypergraph);
-    utils::Timer::instance().stop_timer("heavy_hyperedge_removal");
+    if ( _context.sparsification.use_heavy_net_removal ) {
+      utils::Timer::instance().start_timer("heavy_hyperedge_removal", "Heavy HE Removal");
+      heavyHyperedgeRemovalSparsification(sparsified_hypergraph);
+      utils::Timer::instance().stop_timer("heavy_hyperedge_removal");
+    }
 
     // #################### STAGE 2 ####################
-    utils::Timer::instance().start_timer("similiar_hyperedge_removal", "Similiar HE Removal");
-    similiarHyperedgeRemoval(sparsified_hypergraph);
-    utils::Timer::instance().stop_timer("similiar_hyperedge_removal");
+    if ( _context.sparsification.use_similiar_net_removal ) {
+      utils::Timer::instance().start_timer("similiar_hyperedge_removal", "Similiar HE Removal");
+      similiarHyperedgeRemoval(sparsified_hypergraph);
+      utils::Timer::instance().stop_timer("similiar_hyperedge_removal");
+    }
 
     // #################### STAGE 3 ####################
     // Perform Degree-Zero Contractions
     // Degree-Zero hypernodes are contracted to supervertices such that
     // each supervertex has a weight smaller than the maximum allowed
     // node weight.
-    utils::Timer::instance().start_timer("degree_zero_contraction", "Degree-Zero Contractions");
-    degreeZeroSparsification(sparsified_hypergraph);
-    utils::Timer::instance().stop_timer("degree_zero_contraction");
+    if ( _context.sparsification.use_degree_zero_contractions ) {
+      utils::Timer::instance().start_timer("degree_zero_contraction", "Degree-Zero Contractions");
+      degreeZeroSparsification(sparsified_hypergraph);
+      utils::Timer::instance().stop_timer("degree_zero_contraction");
+    }
 
     // #################### STAGE 4 ####################
     // Construct sparsified hypergraph
