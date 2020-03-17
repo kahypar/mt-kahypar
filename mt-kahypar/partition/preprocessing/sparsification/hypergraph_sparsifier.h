@@ -92,8 +92,6 @@ class HypergraphSparsifierT {
     _is_init(false),
     _sparsified_hg(),
     _sparsified_partitioned_hg(),
-    _removed_hes(),
-    _removed_hns(),
     _mapping() { }
 
   HypergraphSparsifierT(const HypergraphSparsifierT&) = delete;
@@ -121,8 +119,7 @@ class HypergraphSparsifierT {
 
   void sparsify(const HyperGraph& hypergraph) {
     ASSERT(!_is_init);
-    ASSERT(_context.sparsification.useSparsification());
-    ASSERT(_mapping.size() == 0, "contractDegreeZeroHypernodes was triggered before");
+    ASSERT(_context.useSparsification());
     SparsifierHypergraph sparsified_hypergraph(hypergraph, _task_group_id);
 
     // #################### STAGE 1 ####################
@@ -165,90 +162,6 @@ class HypergraphSparsifierT {
     _is_init = true;
   }
 
-
-  // ! Removes single-pin hyperedges since they do not contribute
-  // ! to cut or km1 metric.
-  HyperedgeID removeSingleNodeHyperedges(HyperGraph& hypergraph) {
-    ASSERT(!_is_init);
-    HyperedgeID num_removed_single_node_hes = 0;
-    for (const HyperedgeID& he : hypergraph.edges()) {
-      if (hypergraph.edgeSize(he) == 1) {
-        ++num_removed_single_node_hes;
-        hypergraph.removeEdge(he);
-        _removed_hes.push_back(he);
-      }
-    }
-    return num_removed_single_node_hes;
-  }
-
-  // ! Contracts degree-zero vertices to degree-zero supervertices
-  // ! We contract sets of degree-zero vertices such that the weight of
-  // ! each supervertex is less than or equal than the maximum allowed
-  // ! node weight for a vertex during coarsening.
-  HypernodeID contractDegreeZeroHypernodes(HyperGraph& hypergraph) {
-    ASSERT(!_is_init);
-    _mapping.assign(hypergraph.initialNumNodes(), kInvalidHypernode);
-    HypernodeID current_num_nodes = hypergraph.initialNumNodes() - hypergraph.numRemovedHypernodes();
-    HypernodeID num_removed_degree_zero_hypernodes = 0;
-    HypernodeID last_degree_zero_representative = kInvalidHypernode;
-    HypernodeWeight last_degree_zero_weight = 0;
-    for (const HypernodeID& hn : hypergraph.nodes()) {
-      if ( current_num_nodes <= _context.coarsening.contraction_limit ) {
-        break;
-      }
-
-      if ( hypergraph.nodeDegree(hn) == 0 ) {
-        bool was_removed = false;
-        if ( last_degree_zero_representative != kInvalidHypernode ) {
-          const HypernodeWeight weight = hypergraph.nodeWeight(hn);
-          if ( last_degree_zero_weight + weight <= _context.coarsening.max_allowed_node_weight ) {
-            // Remove vertex and aggregate its weight in its represenative supervertex
-            ++num_removed_degree_zero_hypernodes;
-            --current_num_nodes;
-            hypergraph.removeHypernode(hn);
-            _removed_hns.push_back(hn);
-            was_removed = true;
-            _mapping[hypergraph.originalNodeID(hn)] = last_degree_zero_representative;
-            last_degree_zero_weight += weight;
-            hypergraph.setNodeWeight(last_degree_zero_representative, last_degree_zero_weight);
-          }
-        }
-
-        if ( !was_removed ) {
-          last_degree_zero_representative = hn;
-          last_degree_zero_weight = hypergraph.nodeWeight(hn);
-        }
-      }
-    }
-    return num_removed_degree_zero_hypernodes;
-  }
-
-  // ####################### Restore Operations #######################
-
-  // ! Restore single-pin hyperedges
-  void restoreSingleNodeHyperedges(PartitionedHyperGraph& hypergraph) {
-    for (const HyperedgeID& he : _removed_hes) {
-      hypergraph.restoreSinglePinHyperedge(he);
-    }
-  }
-
-  // ! Restore degree-zero vertices
-  // ! Each removed degree-zero vertex is assigned to the block of its supervertex.
-  void restoreDegreeZeroHypernodes(PartitionedHyperGraph& hypergraph) {
-    for ( const HypernodeID& hn : _removed_hns ) {
-      const HypernodeID original_id = hypergraph.originalNodeID(hn);
-      ASSERT(original_id < _mapping.size());
-      const HypernodeID representative = _mapping[original_id];
-      ASSERT(representative != kInvalidHypernode);
-      // Restore degree-zero vertex and assign it to the block
-      // of its supervertex
-      hypergraph.enableHypernode(hn);
-      hypergraph.setNodeWeight(representative,
-        hypergraph.nodeWeight(representative) - hypergraph.nodeWeight(hn));
-      hypergraph.setNodePart(hn, hypergraph.partID(representative));
-    }
-  }
-
   void undoSparsification(PartitionedHyperGraph& hypergraph) {
     ASSERT(_is_init);
     hypergraph.doParallelForAllNodes(_task_group_id, [&](const HypernodeID hn) {
@@ -260,22 +173,6 @@ class HypergraphSparsifierT {
       hypergraph.setNodePart(hn, _sparsified_partitioned_hg.partID(sparsified_hn));
     });
     hypergraph.initializeNumCutHyperedges(_task_group_id);
-  }
-
-  // ####################### Other #######################
-
-  void assignAllDegreeZeroHypernodesToSameCommunity(HyperGraph& hypergraph, ds::Clustering& clustering) {
-    ASSERT(hypergraph.initialNumNodes() == clustering.size());
-    PartitionID community_id = -1;
-    for ( const HypernodeID& hn : hypergraph.nodes() ) {
-      if ( hypergraph.nodeDegree(hn) == 0 ) {
-        if ( community_id >= 0 ) {
-          clustering[hypergraph.originalNodeID(hn)] = community_id;
-        } else {
-          community_id = clustering[hypergraph.originalNodeID(hn)];
-        }
-      }
-    }
   }
 
  private:
@@ -363,7 +260,7 @@ class HypergraphSparsifierT {
           if ( representative.he != kInvalidHyperedge ) {
             parallel::scalable_vector<HypernodeID> rep_he = hypergraph.pins(representative.he);
             HyperedgeWeight rep_weight = hypergraph.edgeWeight(representative.he);
-            bool exist_similiar_he = false;
+            bool exist_similiar_hes = false;
             for ( size_t j = i + 1; j < footprint_bucket.size(); ++j ) {
               Footprint& similiar_footprint = footprint_bucket[j];
               if ( similiar_footprint.he != kInvalidHyperedge ) {
@@ -375,7 +272,7 @@ class HypergraphSparsifierT {
                     rep_weight += hypergraph.edgeWeight(similiar_footprint.he);
                     hypergraph.remove(similiar_footprint.he);
                     similiar_footprint.he = kInvalidHyperedge;
-                    exist_similiar_he = true;
+                    exist_similiar_hes = true;
                   }
                 } else {
                   break;
@@ -383,7 +280,7 @@ class HypergraphSparsifierT {
               }
             }
 
-            if ( exist_similiar_he ) {
+            if ( exist_similiar_hes ) {
               hypergraph.replace(representative.he, std::move(rep_he));
               hypergraph.setEdgeWeight(representative.he, rep_weight);
             }
@@ -478,8 +375,6 @@ class HypergraphSparsifierT {
   bool _is_init;
   HyperGraph _sparsified_hg;
   PartitionedHyperGraph _sparsified_partitioned_hg;
-  parallel::scalable_vector<HyperedgeID> _removed_hes;
-  parallel::scalable_vector<HypernodeID> _removed_hns;
   parallel::scalable_vector<HypernodeID> _mapping;
 };
 }  // namespace mt_kahypar

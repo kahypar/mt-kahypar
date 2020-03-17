@@ -31,7 +31,7 @@
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/macros.h"
 #include "mt-kahypar/partition/context.h"
-#include "mt-kahypar/partition/preprocessing/hypergraph_sparsifier.h"
+#include "mt-kahypar/partition/preprocessing/sparsification/hypergraph_sparsifier.h"
 #include "mt-kahypar/partition/initial_partitioning/i_initial_partitioner.h"
 #include "mt-kahypar/partition/initial_partitioning/flat/pool_initial_partitioner.h"
 #include "mt-kahypar/utils/randomize.h"
@@ -224,7 +224,7 @@ class RecursiveInitialPartitionerT : public IInitialPartitioner {
       child_continuation._coarsener->coarsen();
 
       // Call recursive initial partitioner
-      if ( _context.sparsification.useSparsification() ) {
+      if ( _context.useSparsification() ) {
         // Sparsify Hypergraph, if heavy hyperedge removal is enabled
         child_continuation._sparsifier.sparsify(child_continuation._coarsener->coarsestHypergraph());
       }

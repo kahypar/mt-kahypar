@@ -27,7 +27,7 @@
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/partition/factories.h"
-#include "mt-kahypar/partition/preprocessing/hypergraph_sparsifier.h"
+#include "mt-kahypar/partition/preprocessing/sparsification/hypergraph_sparsifier.h"
 #include "mt-kahypar/partition/initial_partitioning/flat/pool_initial_partitioner.h"
 #include "mt-kahypar/utils/initial_partitioning_stats.h"
 #include "mt-kahypar/utils/profiler.h"
@@ -175,7 +175,7 @@ class CoarseningTask : public tbb::task {
 
     // ################## INITIAL PARTITIONING ##################
     utils::Timer::instance().start_timer("initial_partitioning", "Initial Partitioning");
-    if ( _context.sparsification.useSparsification() ) {
+    if ( _context.useSparsification() ) {
       // Sparsify Hypergraph, if heavy hyperedge removal is enabled
       utils::Timer::instance().start_timer("sparsify_hypergraph", "Sparsify Hypergraph");
       _sparsifier.sparsify(_coarsener.coarsestHypergraph());
