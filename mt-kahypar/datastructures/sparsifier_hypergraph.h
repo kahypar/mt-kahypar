@@ -20,6 +20,8 @@
 
 #pragma once
 
+#include "tbb/enumerable_thread_specific.h"
+
 #include "mt-kahypar/datastructures/hypergraph_common.h"
 #include "mt-kahypar/parallel/atomic_wrapper.h"
 #include "mt-kahypar/parallel/parallel_prefix_sum.h"
@@ -50,6 +52,7 @@ class SparsifierHypergraph {
   SparsifierHypergraph(const Hypergraph& hypergraph,
                        const TaskGroupID task_group_id) :
     _num_nodes(hypergraph.initialNumNodes()),
+    _num_removed_nodes(0),
     _num_edges(hypergraph.initialNumEdges()),
     _task_group_id(task_group_id),
     _edge_vector(),
@@ -60,14 +63,16 @@ class SparsifierHypergraph {
     _hypernode_weight(),
     _node_degrees(),
     _hn_included_in_sparsified_hg() {
-    initialize(hypergraph, task_group_id);
+    initialize(hypergraph);
   }
 
   SparsifierHypergraph(const HypernodeID num_hypernodes,
-                       const HyperedgeID num_hyperedges) :
+                       const HyperedgeID num_hyperedges,
+                       const TaskGroupID task_group_id) :
     _num_nodes(num_hypernodes),
+    _num_removed_nodes(0),
     _num_edges(num_hyperedges),
-    _task_group_id(TBB::GLOBAL_TASK_GROUP),
+    _task_group_id(task_group_id),
     _edge_vector(),
     _hyperedge_weight(),
     _he_included_in_sparsified_hg(),
@@ -102,6 +107,10 @@ class SparsifierHypergraph {
 
   HypernodeID numNodes() const {
     return _num_nodes;
+  }
+
+  HypernodeID numRemovedNodes() {
+    return _num_removed_nodes.combine(std::plus<HypernodeID>());
   }
 
   HyperedgeID numEdges() const {
@@ -161,6 +170,7 @@ class SparsifierHypergraph {
     _hypernode_weight[u] += _hypernode_weight[v];
     _hypernode_weight[v] = 0;
     _hn_included_in_sparsified_hg[v] = 0;
+    ++_num_removed_nodes.local();
   }
 
   void setEdgeWeight(const HyperedgeID e, const HyperedgeWeight weight) {
@@ -223,7 +233,7 @@ class SparsifierHypergraph {
 
     const HypernodeID num_hypernodes = hn_prefix_sum.total_sum();
     const HyperedgeID num_hyperedges = he_prefix_sum.total_sum();
-    SparsifierHypergraph sparsified_hypergraph(num_hypernodes, num_hyperedges);
+    SparsifierHypergraph sparsified_hypergraph(num_hypernodes, num_hyperedges, _task_group_id);
     tbb::parallel_invoke([&] {
       tbb::parallel_for(ID(0), _num_edges, [&](const HyperedgeID e) {
         if ( he_prefix_sum.value(e) ) {
@@ -264,7 +274,7 @@ class SparsifierHypergraph {
   }
 
  private:
-  void initialize(const Hypergraph& hypergraph, const TaskGroupID task_group_id) {
+  void initialize(const Hypergraph& hypergraph) {
     tbb::parallel_invoke([&] {
       tbb::parallel_invoke([&] {
         _edge_vector.resize(_num_edges);
@@ -276,17 +286,21 @@ class SparsifierHypergraph {
         _node_degrees.assign(_num_nodes, parallel::IntegralAtomicWrapper<HyperedgeID>(0));
       });
 
-      hypergraph.doParallelForAllEdges(task_group_id, [&](const HyperedgeID& he) {
-        const HyperedgeID original_id = hypergraph.originalEdgeID(he);
-        _hyperedge_weight[original_id] = hypergraph.edgeWeight(he);
-        _edge_vector[original_id].reserve(hypergraph.edgeSize(he));
-        for ( const HypernodeID& pin : hypergraph.pins(he) ) {
-          const HypernodeID original_pin_id = hypergraph.originalNodeID(pin);
-          ASSERT(original_pin_id < _num_nodes);
-          _edge_vector[original_id].push_back(original_pin_id);
-          ++_node_degrees[original_pin_id];
+      tbb::parallel_for(ID(0), hypergraph.initialNumEdges(), [&](const HyperedgeID id) {
+        const HyperedgeID he = hypergraph.globalEdgeID(id);
+        if ( hypergraph.edgeIsEnabled(he) ) {
+          _hyperedge_weight[id] = hypergraph.edgeWeight(he);
+          _edge_vector[id].reserve(hypergraph.edgeSize(he));
+          for ( const HypernodeID& pin : hypergraph.pins(he) ) {
+            const HypernodeID original_pin_id = hypergraph.originalNodeID(pin);
+            ASSERT(original_pin_id < _num_nodes);
+            _edge_vector[id].push_back(original_pin_id);
+            ++_node_degrees[original_pin_id];
+          }
+          std::sort(_edge_vector[id].begin(), _edge_vector[id].end());
+        } else {
+          _he_included_in_sparsified_hg[id] = 0;
         }
-        std::sort(_edge_vector[original_id].begin(), _edge_vector[original_id].end());
       });
     }, [&] {
       tbb::parallel_invoke([&] {
@@ -299,17 +313,23 @@ class SparsifierHypergraph {
         _hn_included_in_sparsified_hg.assign(_num_nodes, 1);
       });
 
-      hypergraph.doParallelForAllNodes(task_group_id, [&](const HypernodeID& hn) {
-        const HypernodeID original_id = hypergraph.originalNodeID(hn);
-        _mapping[original_id] = original_id;
-        _vertices_to_numa_node[original_id] = common::get_numa_node_of_vertex(hn);
-        _hypernode_weight[original_id] = hypergraph.nodeWeight(hn);
+      tbb::parallel_for(ID(0), hypergraph.initialNumNodes(), [&](const HypernodeID id) {
+        const HypernodeID hn = hypergraph.globalNodeID(id);
+        _mapping[id] = id;
+        _vertices_to_numa_node[id] = common::get_numa_node_of_vertex(hn);
+        if ( hypergraph.nodeIsEnabled(hn) ) {
+          _hypernode_weight[id] = hypergraph.nodeWeight(hn);
+        } else {
+          _hn_included_in_sparsified_hg[id] = 0;
+          ++_num_removed_nodes.local();
+        }
       });
     });
   }
 
   // Stats
   const HypernodeID _num_nodes;
+  tbb::enumerable_thread_specific<HypernodeID> _num_removed_nodes;
   const HyperedgeID _num_edges;
   const TaskGroupID _task_group_id;
 

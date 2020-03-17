@@ -284,8 +284,9 @@ class HypergraphSparsifierT {
       if ( hypergraph.nodeDegree(hn) == 0 ) {
         bool was_removed = false;
         if ( degree_zero_supervertex != kInvalidHypernode ) {
-          const HypernodeWeight weight = hypergraph.nodeWeight(hn);
-          if ( hypergraph.nodeWeight(hn) + weight <= _context.coarsening.max_allowed_node_weight ) {
+          if ( hypergraph.nodeWeight(degree_zero_supervertex) +
+               hypergraph.nodeWeight(hn) <=
+               _context.coarsening.max_allowed_node_weight ) {
             // Remove vertex and aggregate its weight in its represenative supervertex
             hypergraph.contract(degree_zero_supervertex, hn);
             was_removed = true;
