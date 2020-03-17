@@ -50,7 +50,6 @@ class DegreeZeroHypernodeRemoverT {
   // ! each supervertex is less than or equal than the maximum allowed
   // ! node weight for a vertex during coarsening.
   HypernodeID contractDegreeZeroHypernodes(HyperGraph& hypergraph) {
-    ASSERT(!_is_init);
     _mapping.assign(hypergraph.initialNumNodes(), kInvalidHypernode);
     HypernodeID current_num_nodes = hypergraph.initialNumNodes() - hypergraph.numRemovedHypernodes();
     HypernodeID num_removed_degree_zero_hypernodes = 0;

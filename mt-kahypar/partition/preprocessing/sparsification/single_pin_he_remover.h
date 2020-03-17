@@ -44,7 +44,6 @@ class SinglePinHyperedgeRemoverT {
   // ! Removes single-pin hyperedges since they do not contribute
   // ! to cut or km1 metric.
   HyperedgeID removeSinglePinHyperedges(HyperGraph& hypergraph) {
-    ASSERT(!_is_init);
     HyperedgeID num_removed_single_node_hes = 0;
     for (const HyperedgeID& he : hypergraph.edges()) {
       if (hypergraph.edgeSize(he) == 1) {
