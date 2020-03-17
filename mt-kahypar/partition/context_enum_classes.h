@@ -60,7 +60,8 @@ enum class LouvainEdgeWeight : uint8_t {
 
 enum class SimiliarNetCombinerStrategy : uint8_t {
   union_nets,
-  sampling,
+  max_size,
+  importance,
   UNDEFINED
 };
 
@@ -168,7 +169,8 @@ std::ostream & operator<< (std::ostream& os, const LouvainEdgeWeight& type) {
 std::ostream & operator<< (std::ostream& os, const SimiliarNetCombinerStrategy& strategy) {
   switch (strategy) {
     case SimiliarNetCombinerStrategy::union_nets: return os << "union";
-    case SimiliarNetCombinerStrategy::sampling: return os << "sampling";
+    case SimiliarNetCombinerStrategy::max_size: return os << "max_size";
+    case SimiliarNetCombinerStrategy::importance: return os << "importance";
     case SimiliarNetCombinerStrategy::UNDEFINED: return os << "UNDEFINED";
       // omit default case to trigger compiler warning for missing cases
   }
@@ -289,8 +291,10 @@ static LouvainEdgeWeight louvainEdgeWeightFromString(const std::string& type) {
 static SimiliarNetCombinerStrategy similiarNetCombinerStrategyFromString(const std::string& type) {
   if (type == "union") {
     return SimiliarNetCombinerStrategy::union_nets;
-  } else if (type == "sampling") {
-    return SimiliarNetCombinerStrategy::sampling;
+  } else if (type == "max_size") {
+    return SimiliarNetCombinerStrategy::max_size;
+  } else if (type == "importance") {
+    return SimiliarNetCombinerStrategy::importance;
   }
   ERROR("No valid similiar net unifier strategy.");
   return SimiliarNetCombinerStrategy::UNDEFINED;

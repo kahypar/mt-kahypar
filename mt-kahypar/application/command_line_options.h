@@ -344,7 +344,8 @@ po::options_description createSparsificationOptionsDescription(Context& context,
     }),
     "Determines how similiar nets are combined:\n"
     "- union: set union of both nets\n"
-    "- sampling: pins of both nets are sampled\n");
+    "- max_size: largest net\n"
+    "- importance: net with most 'important' pins");
 
   return sparsification_options;
 }

@@ -32,7 +32,9 @@ namespace {
 
 class UnionCombiner {
  public:
-  KAHYPAR_ATTRIBUTE_ALWAYS_INLINE static inline Hyperedge combine(const Hyperedge& lhs, const Hyperedge& rhs) {
+  template<typename Hypergraph>
+  KAHYPAR_ATTRIBUTE_ALWAYS_INLINE static inline Hyperedge combine(
+    const Hypergraph&, const Hyperedge& lhs, const Hyperedge& rhs) {
     ASSERT(std::is_sorted(lhs.begin(), lhs.end()));
     ASSERT(std::is_sorted(rhs.begin(), rhs.end()));
     Hyperedge combined_he;
@@ -64,30 +66,54 @@ class UnionCombiner {
   }
 };
 
-class SamplingCombiner {
+class MaxSizeCombiner {
  public:
-  KAHYPAR_ATTRIBUTE_ALWAYS_INLINE static inline Hyperedge combine(const Hyperedge& lhs, const Hyperedge& rhs) {
-    Hyperedge combined_he;
-    int cpu_id = sched_getcpu();
-    for ( const HypernodeID& pin : lhs ) {
-      if ( utils::Randomize::instance().flipCoin(cpu_id) ) {
-        combined_he.push_back(pin);
-      }
+  template<typename Hypergraph>
+  KAHYPAR_ATTRIBUTE_ALWAYS_INLINE static inline Hyperedge combine(
+    const Hypergraph&, const Hyperedge& lhs, const Hyperedge& rhs) {
+    if ( lhs.size() < rhs.size() ) {
+      return rhs;
+    } else {
+      return lhs;
     }
-    for ( const HypernodeID& pin : rhs ) {
-      if ( utils::Randomize::instance().flipCoin(cpu_id) ) {
-        combined_he.push_back(pin);
-      }
-    }
-    std::sort(combined_he.begin(), combined_he.end());
-    combined_he.erase(std::unique(combined_he.begin(), combined_he.end()), combined_he.end());
-    return combined_he;
   }
 };
 
+class NetImportanceCombiner {
+ public:
+  template<typename Hypergraph>
+  KAHYPAR_ATTRIBUTE_ALWAYS_INLINE static inline Hyperedge combine(
+    const Hypergraph& hypergraph, const Hyperedge& lhs, const Hyperedge& rhs) {
+    HyperedgeWeight score_lhs = 0;
+    for ( const HypernodeID& id : lhs ) {
+      const HypernodeID pin = hypergraph.globalNodeID(id);
+      for ( const HyperedgeID& he : hypergraph.incidentEdges(pin) ) {
+        score_lhs += hypergraph.edgeWeight(he);
+      }
+    }
+
+    HyperedgeWeight score_rhs = 0;
+    for ( const HypernodeID& id : rhs ) {
+      const HypernodeID pin = hypergraph.globalNodeID(id);
+      for ( const HyperedgeID& he : hypergraph.incidentEdges(pin) ) {
+        score_rhs += hypergraph.edgeWeight(he);
+      }
+    }
+
+    if ( score_lhs > score_rhs ) {
+      return lhs;
+    } else {
+      return rhs;
+    }
+  }
+};
+
+
 class UndefinedCombiner {
  public:
-  KAHYPAR_ATTRIBUTE_ALWAYS_INLINE static inline Hyperedge combine(const Hyperedge& lhs, const Hyperedge&) {
+  template<typename Hypergraph>
+  KAHYPAR_ATTRIBUTE_ALWAYS_INLINE static inline Hyperedge combine(
+    const Hypergraph&, const Hyperedge& lhs, const Hyperedge&) {
     Hyperedge combined_he(lhs);
     ERROR("Similiar net combine strategy is undefined");
     return combined_he;

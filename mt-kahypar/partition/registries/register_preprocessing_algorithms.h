@@ -54,8 +54,10 @@ REGISTER_DISPATCHED_COMMUNITY_ASSIGNER(CommunityAssignmentStrategy::bin_packing,
 
 using HypergraphUnionSparsifier = HypergraphSparsifier<UnionCombiner>;
 REGISTER_HYPERGRAPH_SPARSIFIER(SimiliarNetCombinerStrategy::union_nets, HypergraphUnionSparsifier);
-using HypergraphSamplingSparsifier = HypergraphSparsifier<SamplingCombiner>;
-REGISTER_HYPERGRAPH_SPARSIFIER(SimiliarNetCombinerStrategy::sampling, HypergraphSamplingSparsifier);
+using HypergraphMaxSizeSparsifier = HypergraphSparsifier<MaxSizeCombiner>;
+REGISTER_HYPERGRAPH_SPARSIFIER(SimiliarNetCombinerStrategy::max_size, HypergraphMaxSizeSparsifier);
+using HypergraphImportanceSparsifier = HypergraphSparsifier<NetImportanceCombiner>;
+REGISTER_HYPERGRAPH_SPARSIFIER(SimiliarNetCombinerStrategy::importance, HypergraphImportanceSparsifier);
 using HypergraphUndefinedSparsifier = HypergraphSparsifier<UndefinedCombiner>;
 REGISTER_HYPERGRAPH_SPARSIFIER(SimiliarNetCombinerStrategy::UNDEFINED, HypergraphUndefinedSparsifier);
 }  // namespace mt_kahypar

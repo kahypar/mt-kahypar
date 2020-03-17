@@ -133,7 +133,7 @@ class HypergraphSparsifierT : public IHypergraphSparsifierT<TypeTraits> {
     // #################### STAGE 2 ####################
     if ( _context.sparsification.use_similiar_net_removal ) {
       utils::Timer::instance().start_timer("similiar_hyperedge_removal", "Similiar HE Removal");
-      similiarHyperedgeRemoval(sparsified_hypergraph);
+      similiarHyperedgeRemoval(hypergraph, sparsified_hypergraph);
       utils::Timer::instance().stop_timer("similiar_hyperedge_removal");
     }
 
@@ -222,7 +222,7 @@ class HypergraphSparsifierT : public IHypergraphSparsifierT<TypeTraits> {
     });
   }
 
-  void similiarHyperedgeRemoval(SparsifierHypergraph& hypergraph) {
+  void similiarHyperedgeRemoval(const HyperGraph& original_hg, SparsifierHypergraph& hypergraph) {
     HashFuncVector hash_functions(_context.sparsification.min_hash_footprint_size,
       utils::Randomize::instance().getRandomInt(0, 1000, sched_getcpu()));
 
@@ -262,7 +262,7 @@ class HypergraphSparsifierT : public IHypergraphSparsifierT<TypeTraits> {
                   const double jaccard_index = jaccard(
                     hypergraph.pins(representative.he), hypergraph.pins(similiar_footprint.he));
                   if ( jaccard_index >= _context.sparsification.jaccard_threshold ) {
-                    rep_he = SimiliarNetCombiner::combine(rep_he, hypergraph.pins(similiar_footprint.he));
+                    rep_he = SimiliarNetCombiner::combine(original_hg, rep_he, hypergraph.pins(similiar_footprint.he));
                     rep_weight += hypergraph.edgeWeight(similiar_footprint.he);
                     hypergraph.remove(similiar_footprint.he);
                     similiar_footprint.he = kInvalidHyperedge;
