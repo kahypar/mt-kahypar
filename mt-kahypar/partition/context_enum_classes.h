@@ -58,6 +58,13 @@ enum class LouvainEdgeWeight : uint8_t {
   UNDEFINED
 };
 
+enum class SimiliarNetCombinerStrategy : uint8_t {
+  union_nets,
+  max_size,
+  importance,
+  UNDEFINED
+};
+
 enum class CoarseningAlgorithm : uint8_t {
   multilevel_coarsener,
   UNDEFINED
@@ -157,6 +164,17 @@ std::ostream & operator<< (std::ostream& os, const LouvainEdgeWeight& type) {
       // omit default case to trigger compiler warning for missing cases
   }
   return os << static_cast<uint8_t>(type);
+}
+
+std::ostream & operator<< (std::ostream& os, const SimiliarNetCombinerStrategy& strategy) {
+  switch (strategy) {
+    case SimiliarNetCombinerStrategy::union_nets: return os << "union";
+    case SimiliarNetCombinerStrategy::max_size: return os << "max_size";
+    case SimiliarNetCombinerStrategy::importance: return os << "importance";
+    case SimiliarNetCombinerStrategy::UNDEFINED: return os << "UNDEFINED";
+      // omit default case to trigger compiler warning for missing cases
+  }
+  return os << static_cast<uint8_t>(strategy);
 }
 
 std::ostream & operator<< (std::ostream& os, const CoarseningAlgorithm& algo) {
@@ -268,6 +286,18 @@ static LouvainEdgeWeight louvainEdgeWeightFromString(const std::string& type) {
   }
   ERROR("No valid louvain edge weight.");
   return LouvainEdgeWeight::UNDEFINED;
+}
+
+static SimiliarNetCombinerStrategy similiarNetCombinerStrategyFromString(const std::string& type) {
+  if (type == "union") {
+    return SimiliarNetCombinerStrategy::union_nets;
+  } else if (type == "max_size") {
+    return SimiliarNetCombinerStrategy::max_size;
+  } else if (type == "importance") {
+    return SimiliarNetCombinerStrategy::importance;
+  }
+  ERROR("No valid similiar net unifier strategy.");
+  return SimiliarNetCombinerStrategy::UNDEFINED;
 }
 
 static CoarseningAlgorithm coarseningAlgorithmFromString(const std::string& type) {

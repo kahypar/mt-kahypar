@@ -412,6 +412,7 @@ class RecursiveBisectionInitialPartitionerT : public IInitialPartitioner {
         }
       }
       bisection_context.setupContractionLimit(total_weight);
+      bisection_context.setupSparsificationParameters();
 
 
       return bisection_context;

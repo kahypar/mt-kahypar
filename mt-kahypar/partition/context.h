@@ -42,6 +42,7 @@ struct PartitioningParameters {
   bool verbose_output = false;
   bool quiet_mode = false;
   bool detailed_timings = false;
+  bool show_memory_consumption = false;
   bool enable_progress_bar = false;
   bool sp_process_output = false;
   bool write_partition_file = false;
@@ -199,14 +200,42 @@ inline std::ostream & operator<< (std::ostream& str, const RefinementParameters&
   return str;
 }
 
+struct SparsificationParameters {
+  bool use_degree_zero_contractions = false;
+  bool use_heavy_net_removal = false;
+  bool use_similiar_net_removal = false;
+  double hyperedge_pin_weight_fraction = 0.0;
+  size_t min_hash_footprint_size = 0;
+  double jaccard_threshold = 1.0;
+  SimiliarNetCombinerStrategy similiar_net_combiner_strategy = SimiliarNetCombinerStrategy::UNDEFINED;
+  // Those will be determined dynamically
+  HypernodeWeight max_hyperedge_pin_weight = std::numeric_limits<HypernodeWeight>::max();
+};
+
+inline std::ostream & operator<< (std::ostream& str, const SparsificationParameters& params) {
+  str << "Sparsification Parameters:" << std::endl;
+  str << "  use degree-zero HN contractions:    " << std::boolalpha << params.use_degree_zero_contractions << std::endl;
+  str << "  use heavy net removal:              " << std::boolalpha << params.use_heavy_net_removal << std::endl;
+  str << "  use similiar net removal:           " << std::boolalpha << params.use_similiar_net_removal << std::endl;
+  if ( params.use_heavy_net_removal ) {
+    str << "  hyperedge pin weight fraction:      " << params.hyperedge_pin_weight_fraction << std::endl;
+    str << "  maximum hyperedge pin weight:       " << params.max_hyperedge_pin_weight << std::endl;
+  }
+  if ( params.use_similiar_net_removal ) {
+    str << "  min-hash footprint size:            " << params.min_hash_footprint_size << std::endl;
+    str << "  jaccard threshold:                  " << params.jaccard_threshold << std::endl;
+    str << "  similiar net combiner strategy:     " << params.similiar_net_combiner_strategy << std::endl;
+  }
+  return str;
+}
+
 struct InitialPartitioningParameters {
   InitialPartitioningMode mode = InitialPartitioningMode::UNDEFINED;
+  RefinementParameters refinement = { };
   size_t runs = 1;
   bool use_adaptive_epsilon = false;
   size_t lp_maximum_iterations = 1;
   size_t lp_initial_block_size = 1;
-
-  RefinementParameters refinement = { };
 };
 
 inline std::ostream & operator<< (std::ostream& str, const InitialPartitioningParameters& params) {
@@ -229,6 +258,7 @@ struct SharedMemoryParameters {
 inline std::ostream & operator<< (std::ostream& str, const SharedMemoryParameters& params) {
   str << "Shared Memory Parameters:             " << std::endl;
   str << "  Number of Threads:                  " << params.num_threads << std::endl;
+  str << "  Number of used NUMA nodes:          " << TBBNumaArena::instance().num_used_numa_nodes() << std::endl;
   str << "  Random Shuffle Block Size:          " << params.shuffle_block_size << std::endl;
   return str;
 }
@@ -240,10 +270,17 @@ class Context {
   CoarseningParameters coarsening { };
   InitialPartitioningParameters initial_partitioning { };
   RefinementParameters refinement { };
+  SparsificationParameters sparsification { };
   SharedMemoryParameters shared_memory { };
   kahypar::ContextType type = kahypar::ContextType::main;
 
   Context() { }
+
+  bool useSparsification() const {
+    return sparsification.use_degree_zero_contractions ||
+           sparsification.use_heavy_net_removal ||
+           sparsification.use_similiar_net_removal;
+  }
 
   bool isMainRecursiveBisection() const {
     return partition.mode == kahypar::Mode::recursive_bisection &&
@@ -265,6 +302,8 @@ class Context {
     for (PartitionID part = 1; part != partition.k; ++part) {
       partition.max_part_weights.push_back(partition.max_part_weights[0]);
     }
+
+    setupSparsificationParameters();
   }
 
   void setupContractionLimit(const HypernodeWeight total_hypergraph_weight) {
@@ -295,6 +334,18 @@ class Context {
       std::ceil(hypernode_weight_fraction * total_hypergraph_weight);
     coarsening.max_allowed_node_weight =
       std::min(coarsening.max_allowed_node_weight, min_block_weight);
+  }
+
+  void setupSparsificationParameters() {
+    if ( sparsification.use_heavy_net_removal ) {
+      HypernodeWeight max_block_weight = 0;
+      for ( PartitionID block = 0; block < partition.k; ++block ) {
+        max_block_weight = std::max(max_block_weight, partition.max_part_weights[block]);
+      }
+
+      sparsification.max_hyperedge_pin_weight = max_block_weight /
+        sparsification.hyperedge_pin_weight_fraction;
+    }
   }
 
   void sanityCheck() {
@@ -365,6 +416,8 @@ inline std::ostream & operator<< (std::ostream& str, const Context& context) {
       << context.initial_partitioning
       << "-------------------------------------------------------------------------------\n"
       << context.refinement
+      << "-------------------------------------------------------------------------------\n"
+      << context.sparsification
       << "-------------------------------------------------------------------------------\n"
       << context.shared_memory
       << "-------------------------------------------------------------------------------";

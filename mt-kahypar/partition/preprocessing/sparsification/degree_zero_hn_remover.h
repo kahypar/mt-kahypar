@@ -21,52 +21,45 @@
 
 #pragma once
 
-#include <vector>
-
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/datastructures/clustering.h"
 #include "mt-kahypar/partition/context.h"
+#include "mt-kahypar/parallel/stl/scalable_vector.h"
 
 namespace mt_kahypar {
-class HypergraphSparsifier {
- public:
+template<typename TypeTraits>
+class DegreeZeroHypernodeRemoverT {
 
-  HypergraphSparsifier(const Context& context,
-                       const TaskGroupID task_group_id) :
+  using HyperGraph = typename TypeTraits::HyperGraph;
+  using PartitionedHyperGraph = typename TypeTraits::template PartitionedHyperGraph<>;
+
+ public:
+  DegreeZeroHypernodeRemoverT(const Context& context) :
     _context(context),
-    _task_group_id(task_group_id),
-    _removed_hes(),
     _removed_hns(),
     _mapping() { }
 
-  HypergraphSparsifier(const HypergraphSparsifier&) = delete;
-  HypergraphSparsifier & operator= (const HypergraphSparsifier &) = delete;
+  DegreeZeroHypernodeRemoverT(const DegreeZeroHypernodeRemoverT&) = delete;
+  DegreeZeroHypernodeRemoverT & operator= (const DegreeZeroHypernodeRemoverT &) = delete;
 
-  HypergraphSparsifier(HypergraphSparsifier&&) = delete;
-  HypergraphSparsifier & operator= (HypergraphSparsifier &&) = delete;
-
-  HyperedgeID removeSingleNodeHyperedges(Hypergraph& hypergraph) {
-    HyperedgeID num_removed_single_node_hes = 0;
-    for (const HyperedgeID& he : hypergraph.edges()) {
-      if (hypergraph.edgeSize(he) == 1) {
-        ++num_removed_single_node_hes;
-        hypergraph.removeEdge(he);
-        _removed_hes.push_back(he);
-      }
-    }
-    return num_removed_single_node_hes;
-  }
+  DegreeZeroHypernodeRemoverT(DegreeZeroHypernodeRemoverT&&) = delete;
+  DegreeZeroHypernodeRemoverT & operator= (DegreeZeroHypernodeRemoverT &&) = delete;
 
   // ! Contracts degree-zero vertices to degree-zero supervertices
   // ! We contract sets of degree-zero vertices such that the weight of
   // ! each supervertex is less than or equal than the maximum allowed
   // ! node weight for a vertex during coarsening.
-  HypernodeID contractDegreeZeroHypernodes(Hypergraph& hypergraph) {
+  HypernodeID contractDegreeZeroHypernodes(HyperGraph& hypergraph) {
     _mapping.assign(hypergraph.initialNumNodes(), kInvalidHypernode);
+    HypernodeID current_num_nodes = hypergraph.initialNumNodes() - hypergraph.numRemovedHypernodes();
     HypernodeID num_removed_degree_zero_hypernodes = 0;
     HypernodeID last_degree_zero_representative = kInvalidHypernode;
     HypernodeWeight last_degree_zero_weight = 0;
     for (const HypernodeID& hn : hypergraph.nodes()) {
+      if ( current_num_nodes <= _context.coarsening.contraction_limit ) {
+        break;
+      }
+
       if ( hypergraph.nodeDegree(hn) == 0 ) {
         bool was_removed = false;
         if ( last_degree_zero_representative != kInvalidHypernode ) {
@@ -74,6 +67,7 @@ class HypergraphSparsifier {
           if ( last_degree_zero_weight + weight <= _context.coarsening.max_allowed_node_weight ) {
             // Remove vertex and aggregate its weight in its represenative supervertex
             ++num_removed_degree_zero_hypernodes;
+            --current_num_nodes;
             hypergraph.removeHypernode(hn);
             _removed_hns.push_back(hn);
             was_removed = true;
@@ -92,29 +86,9 @@ class HypergraphSparsifier {
     return num_removed_degree_zero_hypernodes;
   }
 
-  void assignAllDegreeZeroHypernodesToSameCommunity(Hypergraph& hypergraph, ds::Clustering& clustering) {
-    ASSERT(hypergraph.initialNumNodes() == clustering.size());
-    PartitionID community_id = -1;
-    for ( const HypernodeID& hn : hypergraph.nodes() ) {
-      if ( hypergraph.nodeDegree(hn) == 0 ) {
-        if ( community_id >= 0 ) {
-          clustering[hypergraph.originalNodeID(hn)] = community_id;
-        } else {
-          community_id = clustering[hypergraph.originalNodeID(hn)];
-        }
-      }
-    }
-  }
-
-  void restoreSingleNodeHyperedges(PartitionedHypergraph<>& hypergraph) {
-    for (const HyperedgeID& he : _removed_hes) {
-      hypergraph.restoreSinglePinHyperedge(he);
-    }
-  }
-
   // ! Restore degree-zero vertices
   // ! Each removed degree-zero vertex is assigned to the block of its supervertex.
-  void restoreDegreeZeroHypernodes(PartitionedHypergraph<>& hypergraph) {
+  void restoreDegreeZeroHypernodes(PartitionedHyperGraph& hypergraph) {
     for ( const HypernodeID& hn : _removed_hns ) {
       const HypernodeID original_id = hypergraph.originalNodeID(hn);
       ASSERT(original_id < _mapping.size());
@@ -129,12 +103,26 @@ class HypergraphSparsifier {
     }
   }
 
+  void assignAllDegreeZeroHypernodesToSameCommunity(HyperGraph& hypergraph, ds::Clustering& clustering) {
+    ASSERT(hypergraph.initialNumNodes() == clustering.size());
+    PartitionID community_id = -1;
+    for ( const HypernodeID& hn : hypergraph.nodes() ) {
+      if ( hypergraph.nodeDegree(hn) == 0 ) {
+        if ( community_id >= 0 ) {
+          clustering[hypergraph.originalNodeID(hn)] = community_id;
+        } else {
+          community_id = clustering[hypergraph.originalNodeID(hn)];
+        }
+      }
+    }
+  }
+
  private:
   const Context& _context;
-  const TaskGroupID _task_group_id;
-
-  std::vector<HyperedgeID> _removed_hes;
-  std::vector<HypernodeID> _removed_hns;
+  parallel::scalable_vector<HypernodeID> _removed_hns;
   parallel::scalable_vector<HypernodeID> _mapping;
 };
+
+using DegreeZeroHypernodeRemover = DegreeZeroHypernodeRemoverT<GlobalTypeTraits>;
+
 }  // namespace mt_kahypar
