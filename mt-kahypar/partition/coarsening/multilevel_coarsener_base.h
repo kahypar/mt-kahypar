@@ -212,10 +212,13 @@ class MultilevelCoarsenerBase {
   }
 
   PartitionedHyperGraph&& doUncoarsen(std::unique_ptr<Refiner>& label_propagation) {
-    initialize();
-
-
     refinement::MultiTryKWayFM fm_refiner(_context, _task_group_id, _hg.initialNumNodes(), _hg.initialNumEdges());
+
+    initialize();
+    PartitionedHyperGraph& coarsest_hg = currentPartitionedHypergraph();
+
+    // Refine Coarsest Partitioned Hypergraph
+    refine(coarsest_hg, label_propagation, fm_refiner, current_metrics);
 
     for ( int i = _hierarchies.size() - 1; i >= 0; --i ) {
       // Project partition to next level finer hypergraph
@@ -241,23 +244,9 @@ class MultilevelCoarsenerBase {
              V(metrics::imbalance(contracted_hg, _context)));
       utils::Timer::instance().stop_timer("projecting_partition");
 
-      /*
 
       // Refinement
-      utils::Timer::instance().start_timer("initialize_refiner", "Initialize Refiner");
-      if ( label_propagation ) {
-        label_propagation->initialize(representative_hg);
-      }
-      utils::Timer::instance().stop_timer("initialize_refiner");
-
-      if ( label_propagation ) {
-        label_propagation->refine(representative_hg, {}, current_metrics);
-      }
-
-       */
-
-      fm_refiner.refine(representative_hg);
-      computeMetrics();   // TODO let fm_refiner update the actual value
+      refine(representative_hg, label_propagation, fm_refiner, current_metrics);
 
       // Update Progress Bar
       uncontraction_progress.setObjective(current_metrics.getMetric(_context.partition.mode, _context.partition.objective));
@@ -299,6 +288,25 @@ class MultilevelCoarsenerBase {
 
   kahypar::Metrics current_metrics;
   utils::ProgressBar uncontraction_progress;
+
+  void refine(PartitionedHyperGraph& partitioned_hypergraph,
+              std::unique_ptr<Refiner>& label_propagation,
+              refinement::MultiTryKWayFM& fm_refiner,
+              kahypar::Metrics& current_metrics) {
+    if ( label_propagation ) {
+      utils::Timer::instance().start_timer("initialize_lp_refiner", "Initialize LP Refiner");
+      label_propagation->initialize(partitioned_hypergraph);
+      utils::Timer::instance().stop_timer("initialize_lp_refiner");
+
+      utils::Timer::instance().start_timer("label_propagation", "Label Propagation");
+      label_propagation->refine(partitioned_hypergraph, {}, current_metrics);
+      utils::Timer::instance().stop_timer("label_propagation");
+    }
+
+    fm_refiner.refine(partitioned_hypergraph);
+    computeMetrics();   // TODO let fm_refiner update the actual value
+
+  }
 
   bool _is_finalized;
   HyperGraph& _hg;

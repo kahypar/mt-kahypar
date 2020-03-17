@@ -87,6 +87,7 @@ class MultilevelCoarsenerT : public ICoarsenerT<TypeTraits>,
     _num_conflicts(0),
     _progress_bar(hypergraph.initialNumNodes(), 0, false),
     _enable_randomization(true) {
+    _progress_bar += hypergraph.numRemovedHypernodes();
 
     // Initialize internal data structures parallel
     tbb::parallel_invoke([&] {

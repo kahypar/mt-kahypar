@@ -172,6 +172,17 @@ class StaticHypergraphFactory {
   }
 
   static StaticHypergraph construct(const TaskGroupID,
+                                    const HypernodeID,
+                                    const HyperedgeID,
+                                    const HyperedgeVector&,
+                                    parallel::scalable_vector<int>&&,
+                                    const HyperedgeWeight*,
+                                    const HypernodeWeight*) {
+    ERROR("Assignment with fixed numa mapping of static hypergraph is not supported");
+    return StaticHypergraph();
+  }
+
+  static StaticHypergraph construct(const TaskGroupID,
                                     const StaticHypergraph&,
                                     parallel::scalable_vector<int>&&) {
     ERROR("Redistribution of static hypergraph is not supported");

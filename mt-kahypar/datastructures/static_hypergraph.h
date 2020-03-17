@@ -966,6 +966,7 @@ class StaticHypergraph {
       for ( size_t i = 0; i < hyperedge_bucket.size(); ++i ) {
         ContractedHyperedge& contracted_he_lhs = hyperedge_bucket[i];
         if ( !contracted_he_lhs.is_parallel ) {
+
           // Determine position for each hyperedge and its pin
           // in the hyperedge vector and incidence array
           contracted_he_lhs.he_idx = num_hyperedges_prefix_sum[bucket + 1]++;
@@ -976,6 +977,7 @@ class StaticHypergraph {
             ASSERT(pin < num_hypernodes);
             ++num_incident_nets[pin];
           }
+
           for ( size_t j = i + 1; j < hyperedge_bucket.size(); ++j ) {
             ContractedHyperedge& contracted_he_rhs = hyperedge_bucket[j];
             if ( !contracted_he_rhs.is_parallel &&

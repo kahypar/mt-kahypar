@@ -152,7 +152,9 @@ static inline void printBanner(const Context& context) {
 }
 
 template<typename HyperGraph>
-inline void printHypergraphInfo(const HyperGraph& hypergraph, const std::string& name) {
+inline void printHypergraphInfo(const HyperGraph& hypergraph,
+                                const std::string& name,
+                                const bool show_memory_consumption) {
   std::vector<HypernodeID> he_sizes;
   std::vector<HyperedgeWeight> he_weights;
   std::vector<HyperedgeID> hn_degrees;
@@ -222,12 +224,14 @@ inline void printHypergraphInfo(const HyperGraph& hypergraph, const std::string&
     internal::createStats(hn_degrees, avg_hn_degree, stdev_hn_degree),
     internal::createStats(hn_weights, avg_hn_weight, stdev_hn_weight));
 
-  // Print Memory Consumption
-  utils::MemoryTreeNode hypergraph_memory_consumption("Hypergraph", utils::OutputType::MEGABYTE);
-  hypergraph.memoryConsumption(&hypergraph_memory_consumption);
-  hypergraph_memory_consumption.finalize();
-  LOG << "\nHypergraph Memory Consumption";
-  LOG << hypergraph_memory_consumption;
+  if ( show_memory_consumption ) {
+    // Print Memory Consumption
+    utils::MemoryTreeNode hypergraph_memory_consumption("Hypergraph", utils::OutputType::MEGABYTE);
+    hypergraph.memoryConsumption(&hypergraph_memory_consumption);
+    hypergraph_memory_consumption.finalize();
+    LOG << "\nHypergraph Memory Consumption";
+    LOG << hypergraph_memory_consumption;
+  }
 }
 
 inline void printCommunityInformation(const Hypergraph& hypergraph) {
@@ -322,7 +326,8 @@ static inline void printInputInformation(const Context& context, const Hypergrap
     LOG << "*                                    Input                                     *";
     LOG << "********************************************************************************";
     io::printHypergraphInfo(hypergraph, context.partition.graph_filename.substr(
-                              context.partition.graph_filename.find_last_of('/') + 1));
+                              context.partition.graph_filename.find_last_of('/') + 1),
+                            context.partition.show_memory_consumption);
   }
 }
 
