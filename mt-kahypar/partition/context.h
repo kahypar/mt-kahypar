@@ -209,12 +209,6 @@ struct SparsificationParameters {
   double jaccard_threshold = 1.0;
   // Those will be determined dynamically
   HypernodeWeight max_hyperedge_pin_weight = std::numeric_limits<HypernodeWeight>::max();
-
-  bool useSparsification() const {
-    return use_degree_zero_contractions ||
-           use_heavy_net_removal ||
-           use_similiar_net_removal;
-  }
 };
 
 inline std::ostream & operator<< (std::ostream& str, const SparsificationParameters& params) {
@@ -279,6 +273,12 @@ class Context {
   kahypar::ContextType type = kahypar::ContextType::main;
 
   Context() { }
+
+  bool useSparsification() const {
+    return sparsification.use_degree_zero_contractions ||
+           sparsification.use_heavy_net_removal ||
+           sparsification.use_similiar_net_removal;
+  }
 
   bool isMainRecursiveBisection() const {
     return partition.mode == kahypar::Mode::recursive_bisection &&
