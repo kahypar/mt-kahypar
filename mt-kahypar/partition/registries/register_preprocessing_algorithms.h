@@ -25,6 +25,8 @@
 
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/partition/factories.h"
+#include "mt-kahypar/partition/preprocessing/sparsification/hypergraph_sparsifier.h"
+#include "mt-kahypar/partition/preprocessing/sparsification/policies/similiar_net_combine.h"
 
 #define REGISTER_DISPATCHED_COMMUNITY_ASSIGNER(id, dispatcher, ...)               \
   static kahypar::meta::Registrar<RedistributionFactory> register_ ## dispatcher( \
@@ -36,9 +38,24 @@
       );                                                                          \
   })
 
+#define REGISTER_HYPERGRAPH_SPARSIFIER(id, sparsifier)                                      \
+  static kahypar::meta::Registrar<HypergraphSparsifierFactory> register_ ## sparsifier(     \
+    id,                                                                                     \
+    [](const Context& context, const TaskGroupID task_group_id)                             \
+    -> IHypergraphSparsifier* {                                                             \
+    return new sparsifier(context, task_group_id);                                          \
+  })
+
 namespace mt_kahypar {
 REGISTER_DISPATCHED_COMMUNITY_ASSIGNER(CommunityAssignmentStrategy::bin_packing,
                                        BinPackingCommunityAssignmentDispatcher,
                                        kahypar::meta::PolicyRegistry<CommunityAssignmentObjective>::getInstance().getPolicy(
                                          context.preprocessing.community_redistribution.assignment_objective));
+
+using HypergraphUnionSparsifier = HypergraphSparsifier<UnionCombiner>;
+REGISTER_HYPERGRAPH_SPARSIFIER(SimiliarNetCombinerStrategy::union_nets, HypergraphUnionSparsifier);
+using HypergraphSamplingSparsifier = HypergraphSparsifier<SamplingCombiner>;
+REGISTER_HYPERGRAPH_SPARSIFIER(SimiliarNetCombinerStrategy::sampling, HypergraphSamplingSparsifier);
+using HypergraphUndefinedSparsifier = HypergraphSparsifier<UndefinedCombiner>;
+REGISTER_HYPERGRAPH_SPARSIFIER(SimiliarNetCombinerStrategy::UNDEFINED, HypergraphUndefinedSparsifier);
 }  // namespace mt_kahypar

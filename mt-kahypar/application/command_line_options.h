@@ -335,7 +335,16 @@ po::options_description createSparsificationOptionsDescription(Context& context,
     "Number of locality sensitive hash functions used for similiar hyperedge removal")
     ("sp-jaccard-threshold",
     po::value<double>(&context.sparsification.jaccard_threshold)->value_name("<double>"),
-    "Jaccard threshold for which to hyperedges are considered as similiar");
+    "Jaccard threshold for which to hyperedges are considered as similiar")
+    ("sp-similiar-net-combiner-strategy",
+    po::value<std::string>()->value_name("<string>")->notifier(
+      [&](const std::string& strategy) {
+      context.sparsification.similiar_net_combiner_strategy =
+        similiarNetCombinerStrategyFromString(strategy);
+    }),
+    "Determines how similiar nets are combined:\n"
+    "- union: set union of both nets\n"
+    "- sampling: pins of both nets are sampled\n");
 
   return sparsification_options;
 }

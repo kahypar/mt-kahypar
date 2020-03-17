@@ -31,13 +31,16 @@
 #include "mt-kahypar/datastructures/streaming_map.h"
 #include "mt-kahypar/datastructures/sparsifier_hypergraph.h"
 #include "mt-kahypar/partition/context.h"
+#include "mt-kahypar/partition/preprocessing/sparsification/i_hypergraph_sparsifier.h"
 #include "mt-kahypar/parallel/atomic_wrapper.h"
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
 
 namespace mt_kahypar {
-template<typename TypeTraits>
-class HypergraphSparsifierT {
+template<typename TypeTraits,
+         typename SimiliarNetCombiner>
+class HypergraphSparsifierT : public IHypergraphSparsifierT<TypeTraits> {
 
+  using Base = IHypergraphSparsifierT<TypeTraits>;
   using HyperGraph = typename TypeTraits::HyperGraph;
   using PartitionedHyperGraph = typename TypeTraits::template PartitionedHyperGraph<>;
   using HyperGraphFactory = typename TypeTraits::HyperGraphFactory;
@@ -87,9 +90,9 @@ class HypergraphSparsifierT {
  public:
   HypergraphSparsifierT(const Context& context,
                         const TaskGroupID task_group_id) :
+    Base(),
     _context(context),
     _task_group_id(task_group_id),
-    _is_init(false),
     _sparsified_hg(),
     _sparsified_partitioned_hg(),
     _mapping() { }
@@ -101,24 +104,19 @@ class HypergraphSparsifierT {
   HypergraphSparsifierT & operator= (HypergraphSparsifierT &&) = delete;
 
 
+ private:
+
   // ####################### Sparsification Functions #######################
 
-  bool isInitialized() const {
-    return _is_init;
-  }
-
-  HyperGraph& sparsifiedHypergraph() {
-    ASSERT(_is_init);
+  HyperGraph& sparsifiedHypergraphImpl() override final {
     return _sparsified_hg;
   }
 
-  PartitionedHyperGraph& sparsifiedPartitionedHypergraph() {
-    ASSERT(_is_init);
+  PartitionedHyperGraph& sparsifiedPartitionedHypergraphImpl() override final {
     return _sparsified_partitioned_hg;
   }
 
-  void sparsify(const HyperGraph& hypergraph) {
-    ASSERT(!_is_init);
+  void sparsifyImpl(const HyperGraph& hypergraph) override final {
     ASSERT(_context.useSparsification());
     SparsifierHypergraph sparsified_hypergraph(hypergraph, _task_group_id);
 
@@ -158,12 +156,9 @@ class HypergraphSparsifierT {
     _sparsified_partitioned_hg = PartitionedHyperGraph(
       _context.partition.k, _task_group_id, _sparsified_hg);
     utils::Timer::instance().stop_timer("construct_sparsified_hypergraph");
-
-    _is_init = true;
   }
 
-  void undoSparsification(PartitionedHyperGraph& hypergraph) {
-    ASSERT(_is_init);
+  void undoSparsificationImpl(PartitionedHyperGraph& hypergraph) override final {
     hypergraph.doParallelForAllNodes(_task_group_id, [&](const HypernodeID hn) {
       const HypernodeID original_id = hypergraph.originalNodeID(hn);
       ASSERT(original_id < _mapping.size());
@@ -181,7 +176,6 @@ class HypergraphSparsifierT {
   // ! of the original hypergraph to its supervertex and the weight of each
   // ! supervertex is aggregated in the hypernode weight vector.
   void degreeZeroSparsification(SparsifierHypergraph& hypergraph) {
-    ASSERT(!_is_init);
     HypernodeID current_num_nodes = hypergraph.numNodes() - hypergraph.numRemovedNodes();
     HypernodeID degree_zero_supervertex = kInvalidHypernode;
     for (HypernodeID hn = 0; hn < hypergraph.numNodes(); ++hn) {
@@ -268,7 +262,7 @@ class HypergraphSparsifierT {
                   const double jaccard_index = jaccard(
                     hypergraph.pins(representative.he), hypergraph.pins(similiar_footprint.he));
                   if ( jaccard_index >= _context.sparsification.jaccard_threshold ) {
-                    sampleCombineHyperedges(rep_he, hypergraph.pins(similiar_footprint.he));
+                    rep_he = SimiliarNetCombiner::combine(rep_he, hypergraph.pins(similiar_footprint.he));
                     rep_weight += hypergraph.edgeWeight(similiar_footprint.he);
                     hypergraph.remove(similiar_footprint.he);
                     similiar_footprint.he = kInvalidHyperedge;
@@ -335,46 +329,15 @@ class HypergraphSparsifierT {
       static_cast<double>(union_size);
   }
 
-  void unionCombineHyperedges(parallel::scalable_vector<HypernodeID>& lhs,
-                              const parallel::scalable_vector<HypernodeID>& rhs) {
-    size_t lhs_size = lhs.size();
-    size_t j = 0;
-    for ( size_t i = 0; i < lhs_size; ++i ) {
-      while ( j < rhs.size() && rhs[j] < lhs[i] ) {
-        lhs.push_back(rhs[j++]);
-      }
-    }
-    for ( ; j < rhs.size(); ++j ) {
-      lhs.push_back(rhs[j]);
-    }
-    std::sort(lhs.begin(), lhs.end());
-  }
-
-  void sampleCombineHyperedges(parallel::scalable_vector<HypernodeID>& lhs,
-                               const parallel::scalable_vector<HypernodeID>& rhs) {
-    parallel::scalable_vector<HypernodeID> combined;
-    int cpu_id = sched_getcpu();
-    for ( const HypernodeID& pin : lhs ) {
-      if ( utils::Randomize::instance().flipCoin(cpu_id) ) {
-        combined.push_back(pin);
-      }
-    }
-    for ( const HypernodeID& pin : rhs ) {
-      if ( utils::Randomize::instance().flipCoin(cpu_id) ) {
-        combined.push_back(pin);
-      }
-    }
-    std::sort(combined.begin(), combined.end());
-    combined.erase(std::unique(combined.begin(), combined.end()), combined.end());
-    lhs = std::move(combined);
-  }
-
   const Context& _context;
   const TaskGroupID _task_group_id;
 
-  bool _is_init;
   HyperGraph _sparsified_hg;
   PartitionedHyperGraph _sparsified_partitioned_hg;
   parallel::scalable_vector<HypernodeID> _mapping;
 };
+
+template<typename SimiliarNetCombiner>
+using HypergraphSparsifier = HypergraphSparsifierT<GlobalTypeTraits, SimiliarNetCombiner>;
+
 }  // namespace mt_kahypar

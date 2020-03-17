@@ -207,6 +207,7 @@ struct SparsificationParameters {
   double hyperedge_pin_weight_fraction = 0.0;
   size_t min_hash_footprint_size = 0;
   double jaccard_threshold = 1.0;
+  SimiliarNetCombinerStrategy similiar_net_combiner_strategy = SimiliarNetCombinerStrategy::UNDEFINED;
   // Those will be determined dynamically
   HypernodeWeight max_hyperedge_pin_weight = std::numeric_limits<HypernodeWeight>::max();
 };
@@ -223,6 +224,7 @@ inline std::ostream & operator<< (std::ostream& str, const SparsificationParamet
   if ( params.use_similiar_net_removal ) {
     str << "  min-hash footprint size:            " << params.min_hash_footprint_size << std::endl;
     str << "  jaccard threshold:                  " << params.jaccard_threshold << std::endl;
+    str << "  similiar net combiner strategy:     " << params.similiar_net_combiner_strategy << std::endl;
   }
   return str;
 }
