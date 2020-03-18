@@ -119,7 +119,7 @@ class SparsifierHypergraph {
 
   // ####################### Iterators #######################
 
-  const parallel::scalable_vector<HypernodeID> pins(const HyperedgeID e) const {
+  const parallel::scalable_vector<HypernodeID>& pins(const HyperedgeID e) const {
     ASSERT(e < _num_edges);
     return _edge_vector[e];
   }
