@@ -26,6 +26,8 @@
 #include <vector>
 
 #include "mt-kahypar/definitions.h"
+#include "mt-kahypar/datastructures/graph.h"
+#include "mt-kahypar/datastructures/clustering.h"
 #include "mt-kahypar/partition/context.h"
 
 namespace mt_kahypar {
@@ -57,6 +59,37 @@ static inline HyperedgeWeight remotePinCount(const HyperGraph& hypergraph) {
     remote_pin_count += he_remote_pin_count;
   }
   return remote_pin_count;
+}
+
+template<typename HyperGraph>
+static inline double modularity(const ds::GraphT<HyperGraph> graph, ds::Clustering communities) {
+  using Arc = typename ds::GraphT<HyperGraph>::Arc;
+  ASSERT(graph.numNodes(), communities.size());
+  parallel::scalable_vector<double> internal_volume(graph.numNodes(), 0.0);
+  parallel::scalable_vector<double> total_volume(graph.numNodes(), 0.0);
+  for ( const NodeID& u : graph.nodes() ) {
+    const PartitionID community_u = communities[u];
+    ASSERT(community_u < static_cast<PartitionID>(graph.numNodes()));
+    total_volume[community_u] += graph.nodeVolume(u);
+    internal_volume[community_u] += graph.nodeVolume(u);
+    for ( const Arc& arc : graph.arcsOf(u) ) {
+      const NodeID v = arc.head;
+      const PartitionID community_v = communities[v];
+      ASSERT(community_v < static_cast<PartitionID>(graph.numNodes()));
+      if ( community_u != community_v ) {
+        internal_volume[community_u] -= arc.weight;
+      }
+    }
+  }
+
+  double modularity = 0.0;
+  for ( const NodeID& u : graph.nodes() ) {
+    if ( total_volume[u] > 0.0 ) {
+      modularity += internal_volume[u] - (total_volume[u] * total_volume[u]) / graph.totalVolume();
+    }
+  }
+  modularity /= graph.totalVolume();
+  return modularity;
 }
 
 template <typename HyperGraph>

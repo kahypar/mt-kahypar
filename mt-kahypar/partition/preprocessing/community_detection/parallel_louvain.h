@@ -23,6 +23,7 @@
 #include "mt-kahypar/datastructures/clustering.h"
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/preprocessing/community_detection/plm.h"
+#include "mt-kahypar/partition/metrics.h"
 #include "mt-kahypar/utils/timer.h"
 
 namespace mt_kahypar {
@@ -33,23 +34,24 @@ class ParallelModularityLouvain {
   static ds::Clustering localMovingContractRecurse(Graph& fine_graph,
                                                    PLM& mlv,
                                                    const size_t num_tasks) {
-    ds::Clustering communities(fine_graph.numNodes());
     DBG << V(fine_graph.numNodes())
         << V(fine_graph.numArcs())
         << V(fine_graph.totalVolume());
 
-    DBG << "Start Local Moving";
     utils::Timer::instance().start_timer("local_moving", "Local Moving");
+    ds::Clustering communities(fine_graph.numNodes());
     bool communities_changed = mlv.localMoving(fine_graph, communities);
     utils::Timer::instance().stop_timer("local_moving");
 
     if (communities_changed) {
+      DBG << "Modularity after PLM:" << metrics::modularity(fine_graph, communities);
       utils::Timer::instance().start_timer("contraction", "Contraction");
       // Contract Communities
       Graph coarse_graph = fine_graph.contract(communities);
       ASSERT(coarse_graph.totalVolume() == fine_graph.totalVolume(),
         V(coarse_graph.totalVolume()) << V(fine_graph.totalVolume()));
       utils::Timer::instance().stop_timer("contraction");
+      DBG << "Modularity after Contraction:" << metrics::modularity(fine_graph, communities);
 
       // Recurse on contracted graph
       ds::Clustering coarse_communities =
@@ -62,6 +64,8 @@ class ParallelModularityLouvain {
         communities[u] = coarse_communities[communities[u]];
       }
       utils::Timer::instance().stop_timer("prolong");
+
+      DBG << "Modularity after Prolong:" << metrics::modularity(fine_graph, communities);
     }
 
     return communities;

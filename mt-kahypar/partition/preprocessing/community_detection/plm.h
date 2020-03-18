@@ -27,9 +27,10 @@
 #include "kahypar/datastructure/sparse_map.h"
 #include "mt-kahypar/datastructures/sparse_map.h"
 
-#include "mt-kahypar/datastructures/clustering.h"
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/macros.h"
+#include "mt-kahypar/datastructures/clustering.h"
+#include "mt-kahypar/partition/metrics.h"
 #include "mt-kahypar/parallel/atomic_wrapper.h"
 #include "mt-kahypar/utils/randomize.h"
 
@@ -115,7 +116,7 @@ class PLM {
       clustering_changed |= number_of_nodes_moved > 0;
       utils::Timer::instance().stop_timer("local_moving_round");
 
-      DBG << V(currentRound) << V(number_of_nodes_moved);
+      DBG << "Louvain-Pass #" << currentRound << " - Modularity:" << metrics::modularity(graph, communities);
     }
     return clustering_changed;
   }

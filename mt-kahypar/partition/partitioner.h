@@ -141,9 +141,6 @@ inline void Partitioner::preprocess(Hypergraph& hypergraph) {
       utils::Timer::instance().stop_timer("construct_graph");
       communities = ParallelModularityLouvain::run(graph, _context,
         _context.shared_memory.num_threads);   // TODO(lars): give switch for PLM/SLM
-      communities.shrinkAndCompactify(hypergraph.initialNumNodes(),
-        hypergraph.initialNumNodes() + hypergraph.initialNumEdges(),
-        _context.shared_memory.num_threads);
       _degree_zero_hn_remover.assignAllDegreeZeroHypernodesToSameCommunity(hypergraph, communities);
     } else {
       io::readPartitionFile(_context.partition.graph_community_filename, communities);
