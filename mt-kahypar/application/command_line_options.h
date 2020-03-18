@@ -127,9 +127,6 @@ po::options_description createGenericOptionsDescription(Context& context,
 po::options_description createPreprocessingOptionsDescription(Context& context, const int num_columns) {
   po::options_description options("Preprocessing Options", num_columns);
   options.add_options()
-    ("p-use-community-structure-from-file",
-    po::value<bool>(&context.preprocessing.use_community_structure_from_file)->value_name("<bool>"),
-    "If true, than community structure is read from file <path-to-hypergraph>/<hypergraph-name>.community")
     ("p-enable-community-detection",
     po::value<bool>(&context.preprocessing.use_community_detection)->value_name("<bool>"),
     "If true, community detection is used as preprocessing step to guide contractions in coarsening phase")

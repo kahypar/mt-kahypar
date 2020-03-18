@@ -135,16 +135,12 @@ inline void Partitioner::preprocess(Hypergraph& hypergraph) {
     utils::Timer::instance().start_timer("community_detection", "Community Detection");
     utils::Timer::instance().start_timer("perform_community_detection", "Perform Community Detection");
     ds::Clustering communities(0);
-    if (!_context.preprocessing.use_community_structure_from_file) {
-      utils::Timer::instance().start_timer("construct_graph", "Construct Graph");
-      Graph graph(hypergraph, _context.preprocessing.community_detection.edge_weight_function);
-      utils::Timer::instance().stop_timer("construct_graph");
-      communities = ParallelModularityLouvain::run(graph, _context,
-        _context.shared_memory.num_threads);   // TODO(lars): give switch for PLM/SLM
-      _degree_zero_hn_remover.assignAllDegreeZeroHypernodesToSameCommunity(hypergraph, communities);
-    } else {
-      io::readPartitionFile(_context.partition.graph_community_filename, communities);
-    }
+    utils::Timer::instance().start_timer("construct_graph", "Construct Graph");
+    Graph graph(hypergraph, _context.preprocessing.community_detection.edge_weight_function);
+    utils::Timer::instance().stop_timer("construct_graph");
+    communities = ParallelModularityLouvain::run(graph, _context,
+      _context.shared_memory.num_threads);   // TODO(lars): give switch for PLM/SLM
+    _degree_zero_hn_remover.assignAllDegreeZeroHypernodesToSameCommunity(hypergraph, communities);
     utils::Timer::instance().stop_timer("perform_community_detection");
 
     // Stream community ids into hypergraph
@@ -168,6 +164,7 @@ inline void Partitioner::preprocess(Hypergraph& hypergraph) {
 
     if (_context.partition.verbose_output) {
       io::printCommunityInformation(hypergraph);
+      LOG << "Modularity =" << metrics::modularity(graph, communities);
       io::printStripe();
     }
 

@@ -100,7 +100,6 @@ inline std::ostream & operator<< (std::ostream& str, const CommunityRedistributi
 struct PreprocessingParameters {
   bool use_community_detection = false;
   bool use_community_redistribution = false;
-  bool use_community_structure_from_file = false;
   CommunityDetectionParameters community_detection = { };
   CommunityRedistributionParameters community_redistribution = { };
 };
@@ -109,8 +108,7 @@ inline std::ostream & operator<< (std::ostream& str, const PreprocessingParamete
   str << "Preprocessing Parameters:" << std::endl;
   str << "  Use Community Detection:            " << std::boolalpha << params.use_community_detection << std::endl;
   str << "  Use Community Redistribution:       " << std::boolalpha << params.use_community_redistribution << std::endl;
-  str << "  Use Community Structure from File:  " << std::boolalpha << params.use_community_structure_from_file << std::endl;
-  if (!params.use_community_structure_from_file && params.use_community_detection) {
+  if (params.use_community_detection) {
     str << std::endl << params.community_detection;
   }
   if ( params.use_community_redistribution ) {
