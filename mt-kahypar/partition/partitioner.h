@@ -163,8 +163,7 @@ inline void Partitioner::preprocess(Hypergraph& hypergraph) {
     utils::Timer::instance().stop_timer("community_detection");
 
     if (_context.partition.verbose_output) {
-      io::printCommunityInformation(hypergraph);
-      LOG << "Modularity =" << metrics::modularity(graph, communities);
+      io::printCommunityInformation(hypergraph, graph, communities);
       io::printStripe();
     }
 

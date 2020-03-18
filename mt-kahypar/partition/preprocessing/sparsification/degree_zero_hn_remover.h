@@ -104,11 +104,11 @@ class DegreeZeroHypernodeRemoverT {
   }
 
   void assignAllDegreeZeroHypernodesToSameCommunity(HyperGraph& hypergraph, ds::Clustering& clustering) {
-    ASSERT(hypergraph.initialNumNodes() == clustering.size());
-    PartitionID community_id = -1;
+    ASSERT(hypergraph.initialNumNodes() <= clustering.size());
+    PartitionID community_id = kInvalidPartition;
     for ( const HypernodeID& hn : hypergraph.nodes() ) {
       if ( hypergraph.nodeDegree(hn) == 0 ) {
-        if ( community_id >= 0 ) {
+        if ( community_id != kInvalidPartition ) {
           clustering[hypergraph.originalNodeID(hn)] = community_id;
         } else {
           community_id = clustering[hypergraph.originalNodeID(hn)];
