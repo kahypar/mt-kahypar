@@ -122,8 +122,8 @@ class InitialPartitioningDataContainerT {
       _partitioned_hypergraph.initializeNumCutHyperedges();
 
       kahypar::Metrics current_metric = {
-        metrics::hyperedgeCut(_partitioned_hypergraph),
-        metrics::km1(_partitioned_hypergraph),
+        metrics::hyperedgeCut(_partitioned_hypergraph, false),
+        metrics::km1(_partitioned_hypergraph, false),
         metrics::imbalance(_partitioned_hypergraph, _context) };
 
       if ( _label_propagation ) {
