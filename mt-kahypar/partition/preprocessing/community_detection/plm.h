@@ -122,9 +122,31 @@ class PLM {
   }
 
  private:
-    KAHYPAR_ATTRIBUTE_ALWAYS_INLINE bool ratingsFitIntoSmallSparseMap(const Graph& graph,
-                                                                      const HypernodeID u)  {
+  FRIEND_TEST(ALouvain, ComputesMaxGainMove1);
+  FRIEND_TEST(ALouvain, ComputesMaxGainMove2);
+  FRIEND_TEST(ALouvain, ComputesMaxGainMove3);
+  FRIEND_TEST(ALouvain, ComputesMaxGainMove4);
+  FRIEND_TEST(ALouvain, ComputesMaxGainMove5);
+  FRIEND_TEST(ALouvain, ComputesMaxGainMove6);
+  FRIEND_TEST(ALouvain, ComputesMaxGainMove7);
+  FRIEND_TEST(ALouvain, ComputesMaxGainMove8);
+  FRIEND_TEST(ALouvain, ComputesMaxGainMove9);
+  FRIEND_TEST(ALouvain, ComputesMaxGainMove10);
+
+  KAHYPAR_ATTRIBUTE_ALWAYS_INLINE bool ratingsFitIntoSmallSparseMap(const Graph& graph,
+                                                                    const HypernodeID u)  {
     return graph.degree(u) <= CacheEfficientIncidentClusterWeights::MAP_SIZE / 3UL;
+  }
+
+  // ! Only for testing
+  void initializeClusterVolunes(Graph& graph,
+                                ds::Clustering& communities) {
+    _reciprocal_total_volume = 1.0 / graph.totalVolume();
+    _vol_multiplier_div_by_node_vol = _reciprocal_total_volume;
+    tbb::parallel_for(0U, static_cast<NodeID>(graph.numNodes()), [&](const NodeID u) {
+      const PartitionID community_id = communities[u];
+      _cluster_volumes[community_id] += graph.nodeVolume(u);
+    });
   }
 
   template<typename Map>
