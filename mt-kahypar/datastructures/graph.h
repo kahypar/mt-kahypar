@@ -26,6 +26,7 @@
 #include <boost/range/irange.hpp>
 
 #include <tbb/parallel_for.h>
+#include <tbb/parallel_reduce.h>
 #include <tbb/parallel_invoke.h>
 #include <tbb/enumerable_thread_specific.h>
 
@@ -155,12 +156,13 @@ class GraphT {
  public:
   explicit GraphT(const HyperGraph& hypergraph,
                   const LouvainEdgeWeight edge_weight_type) :
-    _num_nodes(hypergraph.initialNumNodes() + hypergraph.initialNumEdges()),
-    _num_arcs(2 * hypergraph.initialNumPins()),
+    _num_nodes(0),
+    _num_arcs(0),
     _total_volume(0),
     _block_size(0),
     _division_shift(0),
     _blocks() {
+
     switch( edge_weight_type ) {
       case LouvainEdgeWeight::uniform:
         construct(hypergraph,
@@ -462,6 +464,48 @@ class GraphT {
   template<typename F>
   void construct(const HyperGraph& hypergraph,
                  const F& edge_weight_func) {
+    // Test, if hypergraph is actually a graph
+    const bool is_graph = tbb::parallel_reduce(tbb::blocked_range<HyperedgeID>(
+      ID(0), hypergraph.initialNumEdges()), true, [&](const tbb::blocked_range<HyperedgeID>& range, bool isGraph) {
+        if ( isGraph ) {
+          bool tmp_is_graph = isGraph;
+          for (HyperedgeID id = range.begin(); id < range.end(); ++id) {
+            const HyperedgeID he = hypergraph.globalEdgeID(id);
+            if ( hypergraph.edgeIsEnabled(he) ) {
+              tmp_is_graph &= (hypergraph.edgeSize(he) == 2);
+            }
+          }
+          return tmp_is_graph;
+        }
+        return false;
+      }, [&](const bool lhs, const bool rhs) {
+        return lhs && rhs;
+      });
+
+    if ( is_graph ) {
+      _num_nodes = hypergraph.initialNumNodes();
+      _num_arcs = 2 * hypergraph.initialNumEdges();
+      constructGraph(hypergraph, edge_weight_func);
+    } else {
+      _num_nodes = hypergraph.initialNumNodes() + hypergraph.initialNumEdges();
+      _num_arcs = 2 * hypergraph.initialNumPins();
+      constructBipartiteGraph(hypergraph, edge_weight_func);
+    }
+
+    // Compute node volumes and total volume
+    utils::Timer::instance().start_timer("compute_node_volumes", "Compute Node Volumes");
+    _total_volume = 0.0;
+    tbb::enumerable_thread_specific<ArcWeight> local_total_volume(0.0);
+    tbb::parallel_for(0U, static_cast<NodeID>(numNodes()), [&](const NodeID u) {
+      local_total_volume.local() += computeNodeVolume(u);
+    });
+    _total_volume = local_total_volume.combine(std::plus<ArcWeight>());
+    utils::Timer::instance().stop_timer("compute_node_volumes");
+  }
+
+  template<typename F>
+  void constructBipartiteGraph(const HyperGraph& hypergraph,
+                               const F& edge_weight_func) {
     // Initialize data structure
     _block_size = computeBlockSize(_num_nodes);
     ASSERT(_block_size && ((_block_size & (_block_size - 1)) == 0UL),
@@ -526,17 +570,68 @@ class GraphT {
       });
     });
     utils::Timer::instance().stop_timer("construct_arcs");
-
-    // Compute node volumes and total volume
-    utils::Timer::instance().start_timer("compute_node_volumes", "Compute Node Volumes");
-    _total_volume = 0.0;
-    tbb::enumerable_thread_specific<ArcWeight> local_total_volume(0.0);
-    tbb::parallel_for(0U, static_cast<NodeID>(numNodes()), [&](const NodeID u) {
-      local_total_volume.local() += computeNodeVolume(u);
-    });
-    _total_volume = local_total_volume.combine(std::plus<ArcWeight>());
-    utils::Timer::instance().stop_timer("compute_node_volumes");
   }
+
+  template<typename F>
+  void constructGraph(const HyperGraph& hypergraph,
+                      const F& edge_weight_func) {
+    // Initialize data structure
+    _block_size = computeBlockSize(_num_nodes);
+    ASSERT(_block_size && ((_block_size & (_block_size - 1)) == 0UL),
+      "Block size is not a power of two!");
+    _division_shift = std::log2(_block_size);
+    const size_t num_blocks = _num_nodes / _block_size + (_num_nodes % _block_size != 0);
+
+    utils::Timer::instance().start_timer("construct_arcs", "Construct Arcs");
+    _blocks.assign(num_blocks, AdjacenceArrayBlock(_block_size));
+    tbb::parallel_for(0UL, num_blocks, [&](const size_t i) {
+      const NodeID start = i * _block_size;
+      const NodeID end = std::min((i + 1) * _block_size, _num_nodes);
+      ASSERT(start < end);
+      const size_t num_nodes = end - start;
+
+      AdjacenceArrayBlock& block = _blocks[i];
+      block._num_nodes = num_nodes;
+      block._indices.resize(num_nodes + 1);
+      block._node_volumes.resize(num_nodes);
+      block._indices[0] = 0;
+      tbb::parallel_for(start, end, [&](const NodeID u) {
+        ASSERT(u < hypergraph.initialNumNodes());
+        const NodeID local_u = MOD(u, _block_size);
+        const HypernodeID hn = hypergraph.globalNodeID(u);
+        block._indices[local_u + 1] = hypergraph.nodeDegree(hn);
+      });
+
+      parallel::TBBPrefixSum<size_t> indices_prefix_sum(block._indices);
+      tbb::parallel_scan(tbb::blocked_range<size_t>(0UL, block._indices.size()), indices_prefix_sum);
+
+      // Insert Arcs
+      block._arcs.resize(indices_prefix_sum.total_sum());
+      tbb::parallel_for(start, end, [&](const NodeID u) {
+        ASSERT(u < hypergraph.initialNumNodes());
+        const NodeID local_u = MOD(u, _block_size);
+        size_t pos = block._indices[local_u];
+        const HypernodeID hn = hypergraph.globalNodeID(u);
+        const HyperedgeID node_degree = hypergraph.nodeDegree(hn);
+        for ( const HyperedgeID& he : hypergraph.incidentEdges(hn) ) {
+          ASSERT(hypergraph.edgeSize(he) == ID(2));
+          const HyperedgeWeight edge_weight = hypergraph.edgeWeight(he);
+          NodeID v = std::numeric_limits<NodeID>::max();
+          for ( const HypernodeID& pin : hypergraph.pins(he) ) {
+            if ( pin != hn ) {
+              v = hypergraph.originalNodeID(pin);
+              break;
+            }
+          }
+          ASSERT(v != std::numeric_limits<NodeID>::max());
+          ASSERT(pos < block._indices[local_u + 1]);
+          block._arcs[pos++] = Arc(v, edge_weight_func(edge_weight, ID(2), node_degree));
+        }
+      });
+    });
+    utils::Timer::instance().stop_timer("construct_arcs");
+  }
+
 
   size_t computeBlockSize(const size_t num_nodes) {
     size_t block_size = 0;
