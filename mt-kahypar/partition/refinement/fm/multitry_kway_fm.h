@@ -29,6 +29,7 @@
 
 #include "localized_kway_fm_core.h"
 #include "global_rollback.h"
+#include "partition_weight_budgets.h"
 
 namespace mt_kahypar {
 namespace refinement {
@@ -43,6 +44,7 @@ public:
           sharedData(numNodes, numHyperedges, context.partition.k),
           refinementNodes(numNodes),
           globalRollBack(numNodes),
+          partition_weight_budgets(static_cast<size_t>(context.partition.k), context.shared_memory.num_threads),
           ets_fm(context, numNodes, &sharedData.vertexPQHandles)
   { }
 
@@ -113,6 +115,7 @@ protected:
   FMSharedData sharedData;
   NumaWorkQueue<HypernodeID> refinementNodes;
   GlobalRollBack globalRollBack;
+  PartitionWeightBudgets partition_weight_budgets;
   tbb::enumerable_thread_specific<LocalizedKWayFM> ets_fm;
 };
 
