@@ -77,10 +77,31 @@ public:
 
   // don't try stealing every time a move is infeasible
   HypernodeWeight steal(uint32_t my_search, PartitionID to, HypernodeWeight least_desired_amount) {
+    if (steal_failures[my_search][to] > 10) {
+      return 0;
+    }
+
+    HypernodeWeight stolen_budget = 0;
     for (uint32_t i = static_cast<SearchID>(search_local_budgets.size()); i > 0; --i) {
       if (i == my_search) continue;
+
+      if (search_local_budgets[i][to].load(std::memory_order_relaxed) >= least_desired_amount) {
+        HypernodeWeight remaining_budget_of_other_processor = search_local_budgets[i][to].sub_fetch(least_desired_amount, std::memory_order_relaxed);
+        if (remaining_budget_of_other_processor >= 0) {
+          // steal successful
+          stolen_budget += least_desired_amount;
+        } else {
+          // restore the stolen budget
+          search_local_budgets[i][to].fetch_add(least_desired_amount, std::memory_order_relaxed);
+        }
+
+      }
     }
-    return 0;
+
+    if (stolen_budget == 0) {
+      steal_failures[my_search][to]++;
+    }
+    return stolen_budget;
   }
 
 };
