@@ -23,6 +23,7 @@
 
 #include <mt-kahypar/definitions.h>
 #include <mt-kahypar/datastructures/priority_queue.h>
+#include "partition_weight_budgets.h"
 
 namespace mt_kahypar {
 namespace refinement {
@@ -117,6 +118,9 @@ struct NodeTracker {
 
 
 struct FMSharedData {
+
+  PartitionWeightBudgets partition_weight_budgets;
+
   // ! For each hyperedge and block, the number of pins_in_part at the beginning of a move phase minus the number of moved out pins
   vec<std::atomic<HypernodeID>> remaining_original_pins;
 
@@ -131,7 +135,8 @@ struct FMSharedData {
 
   NodeTracker nodeTracker;
 
-  FMSharedData(size_t numNodes, size_t numHyperedges, PartitionID numParts) :
+  FMSharedData(size_t numNodes, size_t numHyperedges, PartitionID numParts, size_t maxNumThreads) :
+          partition_weight_budgets(static_cast<size_t>(numParts), maxNumThreads),
           remaining_original_pins(numHyperedges * numParts),
           first_move_in(numHyperedges * numParts),
           last_move_out(numHyperedges * numParts),

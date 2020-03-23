@@ -29,7 +29,6 @@
 
 #include "localized_kway_fm_core.h"
 #include "global_rollback.h"
-#include "partition_weight_budgets.h"
 
 namespace mt_kahypar {
 namespace refinement {
@@ -41,16 +40,17 @@ public:
   MultiTryKWayFM(const Context& context, TaskGroupID taskGroupID, size_t numNodes, size_t numHyperedges) :
           context(context),
           taskGroupID(taskGroupID),
-          sharedData(numNodes, numHyperedges, context.partition.k),
+          sharedData(numNodes, numHyperedges, context.partition.k, context.shared_memory.num_threads),
           refinementNodes(numNodes),
           globalRollBack(numNodes),
-          partition_weight_budgets(static_cast<size_t>(context.partition.k), context.shared_memory.num_threads),
           ets_fm(context, numNodes, &sharedData.vertexPQHandles)
   { }
 
 
   bool refine(PartitionedHypergraph& phg) {
     phg.initializeGainInformation();
+    sharedData.partition_weight_budgets.initialize(phg, context.partition.max_part_weights);
+
     bool overall_improved = false;
     for (size_t round = 0; round < context.refinement.fm.multitry_rounds; ++round) {    // global multi try rounds
       initialize(phg);
@@ -75,7 +75,7 @@ public:
       }
     }
 
-    // TODO apply part weight updates
+    sharedData.partition_weight_budgets.updatePartWeights(phg, context.partition.max_part_weights);
     return overall_improved;
   }
 
@@ -115,7 +115,6 @@ protected:
   FMSharedData sharedData;
   NumaWorkQueue<HypernodeID> refinementNodes;
   GlobalRollBack globalRollBack;
-  PartitionWeightBudgets partition_weight_budgets;
   tbb::enumerable_thread_specific<LocalizedKWayFM> ets_fm;
 };
 

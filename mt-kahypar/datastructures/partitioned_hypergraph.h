@@ -225,6 +225,10 @@ private:
     }
   }
 
+  void setPartWeight(PartitionID p, HypernodeWeight w) {
+    part_weight[p].store(w);
+  }
+
   void recomputePartWeights() {
     for (PartitionID p = 0; p < _k; ++p) {
       part_weight[p].store(0);
