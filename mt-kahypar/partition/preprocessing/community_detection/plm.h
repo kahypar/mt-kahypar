@@ -1,7 +1,8 @@
 /*******************************************************************************
  * This file is part of KaHyPar.
  *
- * Copyright (communities) 2019 Lars Gottesbüren <lars.gottesbueren@kit.edu>
+ * Copyright (C) 2019 Lars Gottesbüren <lars.gottesbueren@kit.edu>
+ * Copyright (C) 2020 Tobias Heuer <tobias.heuer@kit.edu>
  *
  * KaHyPar is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -25,9 +26,10 @@
 #include <tbb/enumerable_thread_specific.h>
 
 #include "kahypar/datastructure/sparse_map.h"
-#include "mt-kahypar/datastructures/sparse_map.h"
 
+#include "mt-kahypar/datastructures/sparse_map.h"
 #include "mt-kahypar/definitions.h"
+#include "mt-kahypar/utils/floating_point_comparisons.h"
 #include "mt-kahypar/macros.h"
 #include "mt-kahypar/datastructures/clustering.h"
 #include "mt-kahypar/partition/metrics.h"
@@ -80,8 +82,7 @@ class PLM {
       utils::Timer::instance().stop_timer("random_shuffle");
 
       tbb::enumerable_thread_specific<size_t> local_number_of_nodes_moved(0);
-      auto moveNode =
-        [&](const NodeID u) {         // get rid of named lambda after testing?
+      auto moveNode = [&](const NodeID u) {
           const ArcWeight volU = graph.nodeVolume(u);
           const PartitionID from = communities[u];
           PartitionID best_cluster = kInvalidPartition;
@@ -139,7 +140,7 @@ class PLM {
   }
 
   // ! Only for testing
-  void initializeClusterVolunes(Graph& graph,
+  void initializeClusterVolumes(Graph& graph,
                                 ds::Clustering& communities) {
     _reciprocal_total_volume = 1.0 / graph.totalVolume();
     _vol_multiplier_div_by_node_vol = _reciprocal_total_volume;
@@ -186,8 +187,7 @@ class PLM {
       }
     }
 
-    HEAVY_PREPROCESSING_ASSERT(verifyGain(
-      graph, communities, u, bestCluster, bestGain, incident_cluster_weights));
+    HEAVY_PREPROCESSING_ASSERT(verifyGain(graph, communities, u, bestCluster, bestGain, incident_cluster_weights));
 
     incident_cluster_weights.clear();
 
@@ -234,15 +234,6 @@ class PLM {
 
     ASSERT(adjustedGain == adjustedGainRecomputed);
 
-    auto eq = [&](const long double x, const long double y) {
-                static constexpr double eps = 1e-8;
-                long double diff = x - y;
-                if (std::abs(diff) >= eps) {
-                  LOG << V(x) << V(y) << V(diff);
-                }
-                return std::abs(diff) < eps;
-              };
-
     long double dTotalVolumeSquared = static_cast<long double>(graph.totalVolume()) * static_cast<long double>(graph.totalVolume());
 
     auto accBeforeMove = intraClusterWeightsAndSumOfSquaredClusterVolumes(graph, communities);
@@ -260,8 +251,8 @@ class PLM {
     long double expectedCoverageAfterMove = accAfterMove.second / dTotalVolumeSquared;
     long double modAfterMove = coverageAfterMove - expectedCoverageAfterMove;
 
-    bool comp = eq(modBeforeMove + adjustedGain, modAfterMove);
-    ASSERT(comp,
+    const bool result = math::are_almost_equal_ld(modBeforeMove + adjustedGain, modAfterMove, 1e-8);
+    ASSERT(result,
            V(modBeforeMove + adjustedGain) << V(modAfterMove) << V(gain) << V(adjustedGain)
            << V(coverageBeforeMove) << V(expectedCoverageBeforeMove) << V(modBeforeMove)
            << V(coverageAfterMove) << V(expectedCoverageAfterMove) << V(modAfterMove));
@@ -271,7 +262,7 @@ class PLM {
     _cluster_volumes[to] -= graph.nodeVolume(u);
     _cluster_volumes[from] += graph.nodeVolume(u);
 
-    return comp;
+    return result;
   }
 
   static std::pair<ArcWeight, ArcWeight> intraClusterWeightsAndSumOfSquaredClusterVolumes(const Graph& graph, const ds::Clustering& communities) {

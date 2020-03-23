@@ -79,7 +79,7 @@ ds::Clustering clustering(const std::vector<PartitionID>& communities) {
 TEST_F(ALouvain, ComputesMaxGainMove1) {
   PLM plm(context, graph.numNodes());
   ds::Clustering communities = clustering( { 0, 1, 0, 2, 3, 4, 5, 1, 2, 3, 4 } );
-  plm.initializeClusterVolunes(graph, communities);
+    plm.initializeClusterVolumes(graph, communities);
   PartitionID to = plm.computeMaxGainCluster(
     graph, communities, 7, plm._local_large_incident_cluster_weight.local());
   ASSERT_EQ(0, to);
@@ -88,7 +88,7 @@ TEST_F(ALouvain, ComputesMaxGainMove1) {
 TEST_F(ALouvain, ComputesMaxGainMove2) {
   PLM plm(context, graph.numNodes());
   ds::Clustering communities = clustering( { 0, 1, 0, 3, 3, 4, 5, 1, 2, 3, 4 } );
-  plm.initializeClusterVolunes(graph, communities);
+    plm.initializeClusterVolumes(graph, communities);
   PartitionID to = plm.computeMaxGainCluster(
     graph, communities, 8, plm._local_large_incident_cluster_weight.local());
   ASSERT_EQ(3, to);
@@ -97,7 +97,7 @@ TEST_F(ALouvain, ComputesMaxGainMove2) {
 TEST_F(ALouvain, ComputesMaxGainMove3) {
   PLM plm(context, graph.numNodes());
   ds::Clustering communities = clustering( { 0, 1, 0, 2, 3, 4, 5, 1, 2, 3, 4 } );
-  plm.initializeClusterVolunes(graph, communities);
+    plm.initializeClusterVolumes(graph, communities);
   PartitionID to = plm.computeMaxGainCluster(
     graph, communities, 8, plm._local_large_incident_cluster_weight.local());
   ASSERT_EQ(2, to);
@@ -106,7 +106,7 @@ TEST_F(ALouvain, ComputesMaxGainMove3) {
 TEST_F(ALouvain, ComputesMaxGainMove4) {
   PLM plm(context, graph.numNodes());
   ds::Clustering communities = clustering( { 0, 1, 0, 2, 3, 4, 5, 1, 2, 3, 4 } );
-  plm.initializeClusterVolunes(graph, communities);
+    plm.initializeClusterVolumes(graph, communities);
   PartitionID to = plm.computeMaxGainCluster(
     graph, communities, 9, plm._local_large_incident_cluster_weight.local());
   ASSERT_EQ(3, to);
@@ -115,7 +115,7 @@ TEST_F(ALouvain, ComputesMaxGainMove4) {
 TEST_F(ALouvain, ComputesMaxGainMove5) {
   PLM plm(context, graph.numNodes());
   ds::Clustering communities = clustering( { 0, 1, 0, 2, 2, 4, 5, 1, 2, 3, 4 } );
-  plm.initializeClusterVolunes(graph, communities);
+    plm.initializeClusterVolumes(graph, communities);
   PartitionID to = plm.computeMaxGainCluster(
     graph, communities, 9, plm._local_large_incident_cluster_weight.local());
   ASSERT_EQ(2, to);
@@ -124,7 +124,7 @@ TEST_F(ALouvain, ComputesMaxGainMove5) {
 TEST_F(ALouvain, ComputesMaxGainMove6) {
   PLM plm(context, graph.numNodes());
   ds::Clustering communities = clustering( { 0, 1, 0, 2, 2, 4, 5, 1, 2, 3, 4 } );
-  plm.initializeClusterVolunes(graph, communities);
+    plm.initializeClusterVolumes(graph, communities);
   PartitionID to = plm.computeMaxGainCluster(
     graph, communities, 10, plm._local_large_incident_cluster_weight.local());
   ASSERT_EQ(4, to);
@@ -133,7 +133,7 @@ TEST_F(ALouvain, ComputesMaxGainMove6) {
 TEST_F(ALouvain, ComputesMaxGainMove7) {
   PLM plm(context, graph.numNodes());
   ds::Clustering communities = clustering( { 0, 1, 0, 2, 2, 4, 0, 1, 2, 3, 4 } );
-  plm.initializeClusterVolunes(graph, communities);
+    plm.initializeClusterVolumes(graph, communities);
   PartitionID to = plm.computeMaxGainCluster(
     graph, communities, 10, plm._local_large_incident_cluster_weight.local());
   ASSERT_EQ(0, to);
@@ -142,7 +142,7 @@ TEST_F(ALouvain, ComputesMaxGainMove7) {
 TEST_F(ALouvain, ComputesMaxGainMove8) {
   PLM plm(context, graph.numNodes());
   ds::Clustering communities = clustering( { 0, 1, 0, 2, 2, 4, 0, 1, 1, 3, 4 } );
-  plm.initializeClusterVolunes(graph, communities);
+    plm.initializeClusterVolumes(graph, communities);
   PartitionID to = plm.computeMaxGainCluster(
     graph, communities, 0, plm._local_large_incident_cluster_weight.local());
   ASSERT_EQ(1, to);
@@ -151,7 +151,7 @@ TEST_F(ALouvain, ComputesMaxGainMove8) {
 TEST_F(ALouvain, ComputesMaxGainMove9) {
   PLM plm(context, graph.numNodes());
   ds::Clustering communities = clustering( { 0, 1, 0, 2, 2, 4, 0, 1, 3, 3, 4 } );
-  plm.initializeClusterVolunes(graph, communities);
+    plm.initializeClusterVolumes(graph, communities);
   PartitionID to = plm.computeMaxGainCluster(
     graph, communities, 4, plm._local_large_incident_cluster_weight.local());
   ASSERT_EQ(3, to);
@@ -160,7 +160,7 @@ TEST_F(ALouvain, ComputesMaxGainMove9) {
 TEST_F(ALouvain, ComputesMaxGainMove10) {
   PLM plm(context, graph.numNodes());
   ds::Clustering communities = clustering( { 0, 1, 0, 2, 2, 0, 4, 1, 3, 3, 4 } );
-  plm.initializeClusterVolunes(graph, communities);
+    plm.initializeClusterVolumes(graph, communities);
   PartitionID to = plm.computeMaxGainCluster(
     graph, communities, 6, plm._local_large_incident_cluster_weight.local());
   ASSERT_EQ(4, to);
