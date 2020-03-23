@@ -314,8 +314,8 @@ class NumaHypergraphFactory {
     parallel::scalable_vector<int> edges_to_numa_node(hypergraph.initialNumEdges(), 0);
     hypergraph.doParallelForAllEdges(task_group_id, [&](const HyperedgeID& he) {
       parallel::scalable_vector<size_t> num_he_occurs_as_incident_net_on_numa_node(used_numa_nodes, 0);
-      for ( const HypernodeID& pin : hypergraph.incidentEdges(he) ) {
-        const int node = common::get_numa_node_of_vertex(pin);
+      for ( const HypernodeID& pin : hypergraph.pins(he) ) {
+        const int node = vertices_to_numa_node[hypergraph.originalNodeID(pin)];
         ++num_he_occurs_as_incident_net_on_numa_node[node];
       }
 

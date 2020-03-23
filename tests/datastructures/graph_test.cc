@@ -205,6 +205,18 @@ TEST_F(AGraph, HasCorrectAdjacentVertices6c) {
   verifyArcIterator(graph, 8, {0, 1, 3, 4}, {0.5, 0.25, 0.5, 0.5});
 }
 
+TEST_F(AGraph, ConstructsAHypergraphWhichIsAGraph) {
+  StaticHypergraph graph_hg = Factory::construct(
+    TBBNumaArena::GLOBAL_TASK_GROUP, 5, 6,
+    { { 0, 1 }, { 0, 2 }, {1, 2}, { 2, 3 }, { 2, 4 }, { 3, 4 } } );
+  Graph graph(graph_hg, LouvainEdgeWeight::uniform);
+  verifyArcIterator(graph, 0, {1, 2}, {1.0, 1.0});
+  verifyArcIterator(graph, 1, {0, 2}, {1.0, 1.0});
+  verifyArcIterator(graph, 2, {0, 1, 3, 4}, {1.0, 1.0, 1.0, 1.0});
+  verifyArcIterator(graph, 3, {2, 4}, {1.0, 1.0});
+  verifyArcIterator(graph, 4, {2, 3}, {1.0, 1.0});
+}
+
 TEST_F(AGraph, ConstructGraphWithSeveralAdjacenceArrayBlocks) {
   using HyperedgeVector = parallel::scalable_vector<parallel::scalable_vector<HypernodeID>>;
   const HypernodeID num_hypernodes = 4000;

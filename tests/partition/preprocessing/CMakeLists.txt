@@ -1,2 +1,3 @@
+add_gmock_test(louvain_test louvain_test.cc)
 add_gmock_test(redistribution_test redistribution_test.cc)
 add_gmock_test(similiar_net_combiner_test similiar_net_combiner_test.cc)

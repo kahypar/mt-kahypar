@@ -56,7 +56,6 @@ static inline std::string serialize(const PartitionedHypergraph& hypergraph,
         << " perfect_balance_part_weight=" << context.partition.perfect_balance_part_weights[0]
         << " max_part_weight=" << context.partition.max_part_weights[0]
         << " total_graph_weight=" << hypergraph.totalWeight()
-        << " use_community_structure_from_file=" << std::boolalpha << context.preprocessing.use_community_structure_from_file
         << " use_community_detection=" << std::boolalpha << context.preprocessing.use_community_detection
         << " community_edge_weight_function=" << context.preprocessing.community_detection.edge_weight_function
         << " community_max_pass_iterations=" << context.preprocessing.community_detection.max_pass_iterations
