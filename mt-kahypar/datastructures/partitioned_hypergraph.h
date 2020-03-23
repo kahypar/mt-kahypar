@@ -226,10 +226,8 @@ private:
   }
 
   void recomputePartWeights() {
-    LOG << V(_k);
     for (PartitionID p = 0; p < _k; ++p) {
       part_weight[p].store(0);
-      LOG << V(part_weight[p]);
     }
 
     for (HypernodeID u : nodes()) {
@@ -443,9 +441,6 @@ private:
     const HyperedgeID local_id = common::get_local_position_of_vertex(u);
     unused(local_id);
     ASSERT(local_id < initialNumNodes(), "Hypernode" << u << "does not exist");
-    if (_node != common::get_numa_node_of_vertex(u)) {
-      LOG << V(u) << V(_node);
-    }
     ASSERT(_node == common::get_numa_node_of_vertex(u), "Hypernode" << u << "is not part of numa node" << _node);
   }
 
@@ -487,17 +482,12 @@ private:
 
   HypernodeID decrementPinCountInPartWithGainUpdate(const HyperedgeID e, const PartitionID p) {
     const HypernodeID pin_count_after = decrementPinCountInPartWithoutGainUpdate(e, p);
-    if (e == 1376) {
-      LOG << "decrement pcip" << V(e) << V(p) << V(pin_count_after);
-    }
     if (pin_count_after == 1) {
       const HyperedgeWeight we = edgeWeight(e);
       for (HypernodeID u : pins(e)) {
         nodeGainAssertions(u, p);
         const HypernodeID u_local = common::get_local_position_of_vertex(u);
         move_from_benefit[u_local * _k + p].fetch_add(we, std::memory_order_relaxed);
-        if (u == 20)
-          LOG << "decrement" << V(e) << V(p) << V(pin_count_after) << V(moveFromBenefit(u, p));
       }
     } else if (pin_count_after == 0) {
       const HyperedgeWeight we = edgeWeight(e);
@@ -506,9 +496,6 @@ private:
         const HypernodeID u_local = common::get_local_position_of_vertex(u);
         move_from_benefit[u_local * _k + p].fetch_sub(we, std::memory_order_relaxed);
         move_to_penalty[u_local *_k + p].fetch_add(we, std::memory_order_relaxed);
-        if (u == 20)
-          LOG << "decrement" << V(e) << V(p) << V(pin_count_after)
-              << V(moveFromBenefit(u, p)) << V(moveToPenalty(u, p));
       }
     }
     return pin_count_after;
@@ -516,9 +503,6 @@ private:
 
   HypernodeID incrementPinCountInPartWithGainUpdate(const HyperedgeID e, const PartitionID p) {
     const HypernodeID pin_count_after = incrementPinCountInPartWithoutGainUpdate(e, p);
-    if (e == 1376) {
-      LOG << "increment pcip" << V(e) << V(p) << V(pin_count_after);
-    }
     if (pin_count_after == 1) {
       const HyperedgeWeight we = edgeWeight(e);
       for (HypernodeID u : pins(e)) {
@@ -526,9 +510,13 @@ private:
         const HypernodeID u_local = common::get_local_position_of_vertex(u);
         move_from_benefit[u_local * _k + p].fetch_add(we, std::memory_order_relaxed);
         move_to_penalty[u_local * _k + p].fetch_sub(we, std::memory_order_relaxed);
-        if (u == 20)
-          LOG << "increment" << V(e) << V(p) << V(pin_count_after)
-              << V(moveFromBenefit(u, p)) << V(moveToPenalty(u, p));
+      }
+    } else if (pin_count_after == 2) {
+      const HyperedgeWeight we = edgeWeight(e);
+      for (HypernodeID u : pins(e)) {
+        nodeGainAssertions(u, p);
+        const HypernodeID u_local = common::get_local_position_of_vertex(u);
+        move_from_benefit[u_local * _k + p].fetch_sub(we, std::memory_order_relaxed);
       }
     }
     return pin_count_after;

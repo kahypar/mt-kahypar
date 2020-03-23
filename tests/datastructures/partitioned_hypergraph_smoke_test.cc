@@ -76,7 +76,6 @@ class AConcurrentHypergraph : public Test {
     hypergraph()
   {
     int cpu_id = sched_getcpu();
-    LOG << V(cpu_id);
     underlying_hypergraph = io::readHypergraphFile<Hypergraph, Factory>("../partition/test_instances/ibm01.hgr", TBB::GLOBAL_TASK_GROUP);
     hypergraph = PartitionedHyperGraph(k, TBB::GLOBAL_TASK_GROUP, underlying_hypergraph);
     for (const HypernodeID& hn : hypergraph.nodes()) {
@@ -99,45 +98,11 @@ class AConcurrentHypergraph : public Test {
       }
     }
 
-    for (PartitionID i = 0; i < k; ++i) {
-      LOG << V(i) << V(move_to_penalty[i]) << V(move_from_benefit[i]);
-    }
-
     hypergraph.initializeGainInformation();
-    for (PartitionID i = 0; i < k; ++i) {
-      LOG << V(i) << V(hypergraph.moveToPenalty(debug_node, i))
-          << V(hypergraph.moveFromBenefit(debug_node, i));
-    }
-
-    LOG << " ----------- ";
-    static constexpr HyperedgeID debug_edge = 1376;
-    for (PartitionID i = 0; i < k; ++i) {
-      LOG << V(i) << V(hypergraph.pinCountInPart(debug_edge, i));
-    }
-    LOG << " ----------- ";
-
-
-    HypernodeID node = 20;
-    PartitionID from = 1;
-    PartitionID to = 0;
-    if (node == 20) LOG << "hyperedges with pinCountInPart(he, to) == 0";
-    for (HyperedgeID he : hypergraph.incidentEdges(node)) {
-      if (hypergraph.pinCountInPart(he, to) == 0) {
-        if (node == 20) LOG << V(he);
-      }
-    }
-    if (node == 20) LOG << "hyperedges with pinCountInPart(he, from) == 1";
-    for (HyperedgeID he : hypergraph.incidentEdges(node)) {
-      if (hypergraph.pinCountInPart(he, from) == 1) {
-        if (node == 20) LOG << V(he);
-      }
-    }
-    if (node == 20) LOG << " -------------------- ";
-
   }
 
   static void SetUpTestSuite() {
-    TBB::instance(1);//HardwareTopology::instance().num_cpus());
+    TBB::instance(HardwareTopology::instance().num_cpus());
     utils::Randomize::instance().setSeed(0);
   }
 
@@ -160,48 +125,12 @@ using NumaHyperGraphFactory = NumaHypergraphFactory<
 
 
 typedef ::testing::Types<
-        /*
+
                         TestConfig<PartitionedHypergraph<StaticHypergraph, StaticHypergraphFactory>,
                                     StaticHypergraph,
                                     StaticHypergraphFactory,
                                     TBBNumaArena,
-                                    2, kahypar::Objective::cut>,
-                        TestConfig<PartitionedHypergraph<StaticHypergraph, StaticHypergraphFactory>,
-                                    StaticHypergraph,
-                                    StaticHypergraphFactory,
-                                    TBBNumaArena,
-                                    4, kahypar::Objective::cut>,
-                        TestConfig<PartitionedHypergraph<StaticHypergraph, StaticHypergraphFactory>,
-                                    StaticHypergraph,
-                                    StaticHypergraphFactory,
-                                    TBBNumaArena,
-                                    8, kahypar::Objective::cut>,
-                        TestConfig<PartitionedHypergraph<StaticHypergraph, StaticHypergraphFactory>,
-                                    StaticHypergraph,
-                                    StaticHypergraphFactory,
-                                    TBBNumaArena,
-                                    16, kahypar::Objective::cut>,
-                        TestConfig<PartitionedHypergraph<StaticHypergraph, StaticHypergraphFactory>,
-                                    StaticHypergraph,
-                                    StaticHypergraphFactory,
-                                    TBBNumaArena,
-                                    32, kahypar::Objective::cut>,
-                        TestConfig<PartitionedHypergraph<StaticHypergraph, StaticHypergraphFactory>,
-                                    StaticHypergraph,
-                                    StaticHypergraphFactory,
-                                    TBBNumaArena,
-                                    64, kahypar::Objective::cut>,
-                        TestConfig<PartitionedHypergraph<StaticHypergraph, StaticHypergraphFactory>,
-                                    StaticHypergraph,
-                                    StaticHypergraphFactory,
-                                    TBBNumaArena,
-                                    128, kahypar::Objective::cut>,
-*/
-                        TestConfig<PartitionedHypergraph<StaticHypergraph, StaticHypergraphFactory>,
-                                    StaticHypergraph,
-                                    StaticHypergraphFactory,
-                                    TBBNumaArena,
-                                    2, kahypar::Objective::km1> /*,
+                                    2, kahypar::Objective::km1>,
                         TestConfig<PartitionedHypergraph<StaticHypergraph, StaticHypergraphFactory>,
                                     StaticHypergraph,
                                     StaticHypergraphFactory,
@@ -232,44 +161,8 @@ typedef ::testing::Types<
                                     StaticHypergraphFactory,
                                     TBBNumaArena,
                                     128, kahypar::Objective::km1>
-*/
-/*
-        ,
-                        TestConfig<NumaPartitionedHypergraph<NumaHyperGraph, NumaHyperGraphFactory>,
-                                    NumaHyperGraph,
-                                    NumaHyperGraphFactory,
-                                    TBB,
-                                    2, kahypar::Objective::cut>,
-                        TestConfig<NumaPartitionedHypergraph<NumaHyperGraph, NumaHyperGraphFactory>,
-                                    NumaHyperGraph,
-                                    NumaHyperGraphFactory,
-                                    TBB,
-                                    4, kahypar::Objective::cut>,
-                        TestConfig<NumaPartitionedHypergraph<NumaHyperGraph, NumaHyperGraphFactory>,
-                                    NumaHyperGraph,
-                                    NumaHyperGraphFactory,
-                                    TBB,
-                                    8, kahypar::Objective::cut>,
-                        TestConfig<NumaPartitionedHypergraph<NumaHyperGraph, NumaHyperGraphFactory>,
-                                    NumaHyperGraph,
-                                    NumaHyperGraphFactory,
-                                    TBB,
-                                    16, kahypar::Objective::cut>,
-                        TestConfig<NumaPartitionedHypergraph<NumaHyperGraph, NumaHyperGraphFactory>,
-                                    NumaHyperGraph,
-                                    NumaHyperGraphFactory,
-                                    TBB,
-                                    32, kahypar::Objective::cut>,
-                        TestConfig<NumaPartitionedHypergraph<NumaHyperGraph, NumaHyperGraphFactory>,
-                                    NumaHyperGraph,
-                                    NumaHyperGraphFactory,
-                                    TBB,
-                                    64, kahypar::Objective::cut>,
-                        TestConfig<NumaPartitionedHypergraph<NumaHyperGraph, NumaHyperGraphFactory>,
-                                    NumaHyperGraph,
-                                    NumaHyperGraphFactory,
-                                    TBB,
-                                    128, kahypar::Objective::cut>,
+
+/*  comment back in once NumaPartitionedHypergraph has FM support
                         TestConfig<NumaPartitionedHypergraph<NumaHyperGraph, NumaHyperGraphFactory>,
                                     NumaHyperGraph,
                                     NumaHyperGraphFactory,
@@ -335,8 +228,8 @@ void moveAllNodesOfHypergraphRandom(HyperGraph& hypergraph,
   HyperedgeWeight metric_before = metrics::objective(hypergraph, objective);
   HighResClockTimepoint start = std::chrono::high_resolution_clock::now();
 
-  //tbb::parallel_for(0UL, hypergraph.initialNumNodes(), [&](const HypernodeID& node) {
-  for (HypernodeID node = 0; node < hypergraph.initialNumNodes(); ++node) {
+
+  tbb::parallel_for(0UL, hypergraph.initialNumNodes(), [&](const HypernodeID& node) {
     int cpu_id = sched_getcpu();
     const HypernodeID hn = hypergraph.globalNodeID(node);
     const PartitionID from = hypergraph.partID(hn);
@@ -350,35 +243,26 @@ void moveAllNodesOfHypergraphRandom(HyperGraph& hypergraph,
 
     Gain gain = hypergraph.km1Gain(hn, from, to);
 
-    Gain move_from_benefit = 0;
-    Gain move_to_penalty = 0;
-    if (node == 20) LOG << "hyperedges with pinCountInPart(he, to) == 0";
-    for (HyperedgeID he : hypergraph.incidentEdges(node)) {
-      if (hypergraph.pinCountInPart(he, to) == 0) {
-        move_to_penalty += hypergraph.edgeWeight(he);
-        if (node == 20) LOG << V(he);
+    if (tbb::this_task_arena::max_concurrency() == 1) {
+      Gain move_from_benefit = 0;
+      Gain move_to_penalty = 0;
+      for (HyperedgeID he : hypergraph.incidentEdges(node)) {
+        if (hypergraph.pinCountInPart(he, to) == 0) {
+          move_to_penalty += hypergraph.edgeWeight(he);
+        }
+        if (hypergraph.pinCountInPart(he, from) == 1) {
+          move_from_benefit += hypergraph.edgeWeight(he);
+        }
       }
+      ASSERT_EQ(move_from_benefit, hypergraph.moveFromBenefit(node, from));
+      ASSERT_EQ(move_to_penalty, hypergraph.moveToPenalty(node, to));
+      const Gain recomputed_gain = move_from_benefit - move_to_penalty;
+      ASSERT_EQ(recomputed_gain, gain);
     }
-    if (node == 20) LOG << "hyperedges with pinCountInPart(he, from) == 1";
-    for (HyperedgeID he : hypergraph.incidentEdges(node)) {
-      if (hypergraph.pinCountInPart(he, from) == 1) {
-        move_from_benefit += hypergraph.edgeWeight(he);
-        if (node == 20) LOG << V(he);
-      }
-    }
-    if (node == 20) LOG << " -------------------- ";
-
-    LOG << V(node) << V(from) << V(to) << V(move_from_benefit) << V(move_to_penalty);
-    ASSERT_EQ(move_from_benefit, hypergraph.moveFromBenefit(node, from));
-    ASSERT_EQ(move_to_penalty, hypergraph.moveToPenalty(node, to));
-    const Gain recomputed_gain = move_from_benefit - move_to_penalty;
-    ASSERT_EQ(recomputed_gain, gain);
 
     hypergraph.changeNodePartWithBalanceCheckAndGainUpdates(hn, from, budget_from, to, budget_to);
     deltas.local() += gain;
-    //hypergraph.changeNodePart(hn, from, to, objective_delta);
-  }
-  //);
+  } );
 
   hypergraph.recomputePartWeights();
 
@@ -391,10 +275,12 @@ void moveAllNodesOfHypergraphRandom(HyperGraph& hypergraph,
   }
 
   HyperedgeWeight metric_after = metrics::objective(hypergraph, objective);
-  ASSERT_EQ(metric_after, metric_before - delta) << V(metric_before) << V(delta);
-  //if (show_timings) {
+  if (tbb::this_task_arena::max_concurrency() == 1) {
+    ASSERT_EQ(metric_after, metric_before - delta) << V(metric_before) << V(delta);
+  }
+  if (show_timings) {
     LOG << V(k) << V(objective) << V(metric_before) << V(delta) << V(metric_after) << V(timing);
-  //}
+  }
 }
 
 template<typename HyperGraph>
@@ -470,8 +356,6 @@ TYPED_TEST(AConcurrentHypergraph, VerifyBlockWeightsSmokeTest) {
   verifyBlockWeightsAndSizes(this->hypergraph, this->k);
 }
 
-/*
-
 TYPED_TEST(AConcurrentHypergraph, VerifyPinCountsInPartsSmokeTest) {
   moveAllNodesOfHypergraphRandom(this->hypergraph, this->k, this->objective, false);
   verifyPinCountsInParts(this->hypergraph, this->k);
@@ -487,7 +371,6 @@ TYPED_TEST(AConcurrentHypergraph, VerifyBorderNodesSmokeTest) {
   verifyBorderNodes(this->hypergraph);
 }
 
-*/
 
 }  // namespace ds
 }  // namespace mt_kahypar
