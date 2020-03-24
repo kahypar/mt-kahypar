@@ -38,7 +38,7 @@ public:
   { }
 
 
-  void initialize(PartitionedHypergraph& phg, std::vector<HypernodeWeight>& max_part_weights) {
+  void initialize(PartitionedHypergraph& phg, const std::vector<HypernodeWeight>& max_part_weights) {
     for (PartitionID p = 0; p < phg.k(); ++p) {
       HypernodeWeight global_budget = phg.partWeight(p) - max_part_weights[p];
       HypernodeWeight local_budget = static_cast<HypernodeWeight>(global_budget / maxNumThreads());
@@ -53,7 +53,7 @@ public:
     }
   }
 
-  void updatePartWeights(PartitionedHypergraph& phg, std::vector<HypernodeWeight>& max_part_weights) {
+  void updatePartWeights(PartitionedHypergraph& phg, const std::vector<HypernodeWeight>& max_part_weights) {
     for (PartitionID p = 0; p < phg.k(); ++p) {
       HypernodeWeight budget = 0;
       for (size_t i = 0; i < search_local_budgets.size(); ++i) {  // cache unfriendly access. but only once after FM is finished
