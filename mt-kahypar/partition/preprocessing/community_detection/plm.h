@@ -75,8 +75,7 @@ class PLM {
          currentRound < _context.preprocessing.community_detection.max_pass_iterations; currentRound++) {
 
       utils::Timer::instance().start_timer("random_shuffle", "Random Shuffle");
-      utils::Randomize::instance().localizedParallelShuffleVector(
-        nodes, 0UL, nodes.size(), _context.shared_memory.shuffle_block_size);
+      utils::Randomize::instance().parallelShuffleVector(nodes, 0UL, nodes.size());
       utils::Timer::instance().stop_timer("random_shuffle");
 
       tbb::enumerable_thread_specific<size_t> local_number_of_nodes_moved(0);

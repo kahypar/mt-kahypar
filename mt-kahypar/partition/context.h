@@ -250,6 +250,7 @@ inline std::ostream & operator<< (std::ostream& str, const InitialPartitioningPa
 
 struct SharedMemoryParameters {
   size_t num_threads = 1;
+  bool use_localized_random_shuffle = false;
   size_t shuffle_block_size = 2;
 };
 
@@ -257,6 +258,7 @@ inline std::ostream & operator<< (std::ostream& str, const SharedMemoryParameter
   str << "Shared Memory Parameters:             " << std::endl;
   str << "  Number of Threads:                  " << params.num_threads << std::endl;
   str << "  Number of used NUMA nodes:          " << TBBNumaArena::instance().num_used_numa_nodes() << std::endl;
+  str << "  Use Localized Random Shuffle:       " << std::boolalpha << params.use_localized_random_shuffle << std::endl;
   str << "  Random Shuffle Block Size:          " << params.shuffle_block_size << std::endl;
   return str;
 }

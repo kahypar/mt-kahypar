@@ -186,9 +186,8 @@ class LabelPropagationRefinerT final : public IRefinerT<TypeTraits, track_border
     // Shuffle Vector
     bool converged = true;
     if ( _context.refinement.label_propagation.execute_sequential ) {
-      utils::Randomize::instance().localizedShuffleVector(
-        _active_nodes[node], 0UL, _active_nodes[node].size(),
-        _context.shared_memory.shuffle_block_size);
+      utils::Randomize::instance().shuffleVector(
+        _active_nodes[node], 0UL, _active_nodes[node].size(), sched_getcpu());
 
       for ( size_t j = 0; j < _active_nodes[node].size(); ++j ) {
         const HypernodeID hn = _active_nodes[node][j];
@@ -196,9 +195,8 @@ class LabelPropagationRefinerT final : public IRefinerT<TypeTraits, track_border
           next_active_nodes, node, objective_delta);
       }
     } else {
-      utils::Randomize::instance().localizedParallelShuffleVector(
-        _active_nodes[node], 0UL, _active_nodes[node].size(),
-        _context.shared_memory.shuffle_block_size);
+      utils::Randomize::instance().parallelShuffleVector(
+        _active_nodes[node], 0UL, _active_nodes[node].size());
 
       tbb::parallel_for(0UL, _active_nodes[node].size(), [&](const size_t& j) {
           const HypernodeID hn = _active_nodes[node][j];

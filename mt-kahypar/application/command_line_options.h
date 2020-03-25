@@ -355,9 +355,12 @@ po::options_description createSharedMemoryOptionsDescription(Context& context,
     po::value<size_t>(&context.shared_memory.num_threads)->value_name("<size_t>"),
     "Number of threads used during shared memory hypergraph partitioning\n"
     "(default 1)")
+    ("s-use-localized-random-shuffle",
+    po::value<bool>(&context.shared_memory.use_localized_random_shuffle)->value_name("<bool>"),
+    "If true, localized parallel random shuffle is performed.")
     ("s-shuffle-block-size",
     po::value<size_t>(&context.shared_memory.shuffle_block_size)->value_name("<size_t>"),
-    "If we perform a random shuffle in parallel, we perform a parallel for over blocks of size"
+    "If we perform a localized random shuffle in parallel, we perform a parallel for over blocks of size"
     "'shuffle_block_size' and shuffle them sequential.");
 
   return shared_memory_options;

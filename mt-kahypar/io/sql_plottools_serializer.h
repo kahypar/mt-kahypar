@@ -95,6 +95,7 @@ static inline std::string serialize(const PartitionedHypergraph<>& hypergraph,
         << " lp_rebalancing=" << std::boolalpha << context.refinement.label_propagation.rebalancing
         << " lp_hyperedge_size_activation_threshold=" << context.refinement.label_propagation.hyperedge_size_activation_threshold
         << " num_threads=" << context.shared_memory.num_threads
+        << " use_localized_random_shuffle=" << context.shared_memory.use_localized_random_shuffle
         << " shuffle_block_size=" << context.shared_memory.shuffle_block_size;
 
     // Metrics
