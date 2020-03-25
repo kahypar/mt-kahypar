@@ -61,15 +61,11 @@ public:
       }
       phg.setPartWeight(p, budget - max_part_weights[p]);
     }
-
   }
 
   size_t maxNumThreads() const {
     return search_local_budgets.size();
   }
-
-  vec< vec<CAtomic<HypernodeWeight>> > search_local_budgets;
-  vec< vec<uint32_t> > steal_failures;
 
   vec<CAtomic<HypernodeWeight>>& localBudgets(uint32_t my_search) {
     return search_local_budgets[my_search];
@@ -77,7 +73,8 @@ public:
 
   // don't try stealing every time a move is infeasible
   HypernodeWeight steal(uint32_t my_search, PartitionID to, HypernodeWeight least_desired_amount) {
-    if (steal_failures[my_search][to] > 10) {
+    if (steal_failures[my_search][to] > 20 && steal_failures[my_search][to] % 10 != 0) {
+      steal_failures[my_search][to]++;
       return 0;
     }
 
@@ -100,9 +97,17 @@ public:
 
     if (stolen_budget == 0) {
       steal_failures[my_search][to]++;
+    } else {
+      steal_failures[my_search][to] = 0;
     }
     return stolen_budget;
   }
+
+private:
+  vec< vec<CAtomic<HypernodeWeight>> > search_local_budgets;
+  vec< vec<uint32_t> > steal_failures;
+
+
 
 };
 
