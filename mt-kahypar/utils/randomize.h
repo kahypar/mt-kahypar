@@ -176,9 +176,9 @@ class Randomize {
         localizedShuffleVector(vector, start, end, sched_getcpu());
       });
     } else {
-      tbb::parallel_for(0UL, P, [&](const size_t k) {
+      tbb::parallel_for(0UL, 2UL, [&](const size_t k) {
         const size_t start = i + k * step;
-        const size_t end = i + (k == P - 1 ? N : (k + 1) * step);
+        const size_t end = i + (k == 1 ? N : (k + 1) * step);
         const int cpu_id = sched_getcpu();
         std::shuffle(vector.begin() + start, vector.begin() + end, _rand[cpu_id].getGenerator());
       });

@@ -178,8 +178,12 @@ class MultilevelCoarsenerT : public ICoarsenerT<TypeTraits>,
 
       if ( _enable_randomization ) {
         for ( int node = 0; node < TBB::instance().num_used_numa_nodes(); ++node ) {
-          utils::Randomize::instance().parallelShuffleVector(
-            current_vertices[node], 0UL, current_vertices[node].size());
+          // utils::Randomize::instance().parallelShuffleVector(
+          //   current_vertices[node], 0UL, current_vertices[node].size());
+          std::sort(current_vertices[node].begin(), current_vertices[node].end(),
+                    [&](const HypernodeID& lhs, const HypernodeID& rhs) {
+                      return current_hg.nodeDegree(lhs) < current_hg.nodeDegree(rhs);
+                    });
         }
       }
       utils::Timer::instance().stop_timer("shuffle_vertices");

@@ -72,8 +72,11 @@ class ParallelModularityLouvain {
   }
 
  public:
-  static ds::Clustering run(Graph& graph, const Context& context, const size_t num_tasks) {
-    PLM mlv(context, graph.numNodes());
+  static ds::Clustering run(Graph& graph,
+                            const Context& context,
+                            const size_t num_tasks,
+                            const bool disable_randomization = false) {
+    PLM mlv(context, graph.numNodes(), disable_randomization);
     ds::Clustering communities = localMovingContractRecurse(graph, mlv, num_tasks);
     return communities;
   }

@@ -168,7 +168,7 @@ TEST_F(ALouvain, ComputesMaxGainMove10) {
 
 TEST_F(ALouvain, KarateClubTest) {
   ds::Clustering communities = ParallelModularityLouvain::run(
-    *karate_club_graph, context, context.shared_memory.num_threads);
+    *karate_club_graph, context, context.shared_memory.num_threads, true);
   std::vector<PartitionID> expected_comm = { 1, 1, 1, 1, 0, 0, 0, 1, 3, 1, 0, 1, 1, 1, 3, 3, 0, 1,
                                              3, 1, 3, 1, 3, 2, 2, 2, 3, 2, 2, 3, 3, 2, 3, 3 };
   for ( const NodeID u : karate_club_graph->nodes() ) {

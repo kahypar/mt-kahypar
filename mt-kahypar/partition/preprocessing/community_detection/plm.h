@@ -49,11 +49,14 @@ class PLM {
   static constexpr bool debug = false;
   static constexpr bool enable_heavy_assert = false;
 
-  explicit PLM(const Context& context, size_t numNodes) :
+  explicit PLM(const Context& context,
+               size_t numNodes,
+               const bool disable_randomization = false) :
     _context(context),
     _cluster_volumes(numNodes),
     _local_small_incident_cluster_weight(0),
-    _local_large_incident_cluster_weight(numNodes, 0) { }
+    _local_large_incident_cluster_weight(numNodes, 0),
+    _disable_randomization(disable_randomization) { }
 
   bool localMoving(Graph& graph, ds::Clustering& communities) {
     _reciprocal_total_volume = 1.0 / graph.totalVolume();
@@ -74,9 +77,11 @@ class PLM {
          _context.preprocessing.community_detection.min_eps_improvement * graph.numNodes() &&
          currentRound < _context.preprocessing.community_detection.max_pass_iterations; currentRound++) {
 
-      utils::Timer::instance().start_timer("random_shuffle", "Random Shuffle");
-      utils::Randomize::instance().parallelShuffleVector(nodes, 0UL, nodes.size());
-      utils::Timer::instance().stop_timer("random_shuffle");
+      if ( !_disable_randomization ) {
+        utils::Timer::instance().start_timer("random_shuffle", "Random Shuffle");
+        utils::Randomize::instance().parallelShuffleVector(nodes, 0UL, nodes.size());
+        utils::Timer::instance().stop_timer("random_shuffle");
+      }
 
       tbb::enumerable_thread_specific<size_t> local_number_of_nodes_moved(0);
       auto moveNode =
@@ -304,5 +309,6 @@ class PLM {
   std::vector<AtomicArcWeight> _cluster_volumes;
   tbb::enumerable_thread_specific<CacheEfficientIncidentClusterWeights> _local_small_incident_cluster_weight;
   tbb::enumerable_thread_specific<LargeIncidentClusterWeights> _local_large_incident_cluster_weight;
+  const bool _disable_randomization;
 };
 }
