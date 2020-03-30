@@ -8,6 +8,12 @@ set_property(TARGET GraphToHgr PROPERTY CXX_STANDARD 14)
 set_property(TARGET GraphToHgr PROPERTY CXX_STANDARD_REQUIRED ON)
 target_link_libraries(GraphToHgr ${Boost_LIBRARIES})
 
+
+add_executable(MetisToParkway metis_to_parkway_converter.cc metis_to_parkway_converter.cc)
+set_property(TARGET MetisToParkway PROPERTY CXX_STANDARD 14)
+set_property(TARGET MetisToParkway PROPERTY CXX_STANDARD_REQUIRED ON)
+target_link_libraries(MetisToParkway ${Boost_LIBRARIES})
+
 # Not working in Traivs
 # add_executable(PrefixSumBench bench_prefixsum.cpp)
 # target_link_libraries(PrefixSumBench ${Boost_LIBRARIES})
