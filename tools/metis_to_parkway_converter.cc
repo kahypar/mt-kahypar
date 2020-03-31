@@ -42,13 +42,15 @@ static void writeParkwayHypergraphForProc(const Hypergraph& hypergraph,
                                           const int rank) {
   const size_t num_vertices = hypergraph.initialNumNodes();
   const size_t num_edges = hypergraph.initialNumEdges();
-  const size_t vertices_per_proc = num_vertices / num_procs + (num_vertices % num_procs != 0);
-  const size_t hyperedges_per_proc = num_edges / num_procs + (num_edges % num_procs != 0);
+  const size_t vertices_per_proc = num_vertices / num_procs;
+  const size_t hyperedges_per_proc = num_edges / num_procs;
 
   const HypernodeID hn_start = rank * vertices_per_proc;
-  const HypernodeID hn_end = std::min((rank + 1) * vertices_per_proc, num_vertices);
+  const HypernodeID hn_end = static_cast<size_t>(rank) != num_procs - 1 ?
+    (rank + 1) * vertices_per_proc : num_vertices;
   const HyperedgeID he_start = rank * hyperedges_per_proc;
-  const HyperedgeID he_end = std::min((rank + 1) * hyperedges_per_proc, num_edges);
+  const HyperedgeID he_end = static_cast<size_t>(rank) != num_procs - 1 ?
+    (rank + 1) * hyperedges_per_proc : num_edges;
 
   std::vector<int> hypernode_weight;
   for ( HypernodeID id = hn_start; id < hn_end; ++id ) {
@@ -70,7 +72,7 @@ static void writeParkwayHypergraphForProc(const Hypergraph& hypergraph,
   int num_local_hypernodes = static_cast<int>(hn_end - hn_start);
   int hyperedge_data_length = static_cast<int>(hyperedge_data.size());
 
-  std::string out_file = hgr_filename + ".bin-" + std::to_string(rank);
+  std::string out_file = hgr_filename + ".bin." + std::to_string(num_procs) + "-" + std::to_string(rank);
   std::ofstream out_stream(out_file, std::ofstream::out | std::ofstream::binary);
 
   out_stream.write((char *) &num_hypernodes, sizeof(int));
