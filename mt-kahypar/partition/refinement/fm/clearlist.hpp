@@ -3,8 +3,6 @@
 #include "boost/dynamic_bitset.hpp"
 #include <vector>
 
-// TODO find suitable location
-
 namespace ldc {
 
 template<class T>
