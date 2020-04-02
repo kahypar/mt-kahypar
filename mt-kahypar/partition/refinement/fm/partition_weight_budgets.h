@@ -104,7 +104,7 @@ public:
   }
 
 private:
-  vec< vec<CAtomic<HypernodeWeight>> > search_local_budgets;
+  vec< vec<CAtomic<HypernodeWeight>> > search_local_budgets;  // actually want vec of vec so they're not consecutive in memory!
   vec< vec<uint32_t> > steal_failures;
 
 
