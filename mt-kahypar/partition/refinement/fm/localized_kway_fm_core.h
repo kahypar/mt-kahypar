@@ -63,7 +63,9 @@ public:
       sharedData.nodeTracker.deactivateNode(m.node, thisSearch);
       deactivatedNodes.push_back(m.node);
 
-      if (phg.changeNodePart(m.node, m.from, m.to)) {
+      if (phg.changeNodePartWithBalanceCheckAndGainUpdatesAndPartWeightUpdates(
+              m.node, m.from, m.to, context.partition.max_part_weights[m.to])) {
+
         performSharedDataUpdates(m, phg, sharedData);
         movesWithNonPositiveGain = m.gain > 0 ? 0 : movesWithNonPositiveGain + 1;
 
@@ -158,7 +160,6 @@ private:
   bool findNextMove(PartitionedHypergraph& phg, Move& m) {
     // TODO activate overloaded blocks and deactivate underloaded. this becomes substantially more expensive than in sequential
     // because sequentially this could be determined from just the last block that was moved from
-    // also atomic slack part weights are an obstacle
 
     while (!blockPQ.empty()) {
       const PartitionID from_block = blockPQ.top();

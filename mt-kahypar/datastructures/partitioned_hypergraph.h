@@ -201,13 +201,31 @@ private:
     return true;
   }
 
+
+  bool changeNodePartWithBalanceCheckAndGainUpdatesAndPartWeightUpdates(
+          const HypernodeID u, PartitionID from, PartitionID to, HypernodeWeight max_weight_to) {
+    const HypernodeWeight wu = nodeWeight(u);
+    const HypernodeWeight to_weight_after = part_weight[to].add_fetch(wu, std::memory_order_relaxed);
+    if (to_weight_after <= max_weight_to) {
+      part_weight[from].fetch_sub(wu, std::memory_order_relaxed);
+      for (HyperedgeID he: incidentEdges(u)) {
+        incrementPinCountInPartWithGainUpdate(he, to);
+        decrementPinCountInPartWithGainUpdate(he, from);
+      }
+      return true;
+    } else {
+      part_weight[to].fetch_sub(wu, std::memory_order_relaxed);
+      return false;
+    }
+  }
+
+
   // Additionally rejects the requested move if it violates balance
   // must recompute part_weights once finished moving nodes
-  bool changeNodePartWithBalanceCheckAndGainUpdates(const HypernodeID u,
-                                                    PartitionID from,
-                                                    CAtomic<HypernodeWeight>& budget_from,
-                                                    PartitionID to,
-                                                    CAtomic<HypernodeWeight>& budget_to) {
+  bool changeNodePartWithBalanceCheckAndGainUpdatesWithoutPartWeightUpdates(
+          const HypernodeID u, PartitionID from,
+          CAtomic<HypernodeWeight>& budget_from, PartitionID to,
+          CAtomic<HypernodeWeight>& budget_to) {
     const bool success = setOnlyNodePartWithBalanceCheck(u, to, budget_to);
     if (success) {
       budget_from.fetch_add(nodeWeight(u), std::memory_order_relaxed);

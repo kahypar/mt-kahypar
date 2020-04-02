@@ -49,10 +49,10 @@ public:
 
   bool refine(PartitionedHypergraph& phg) {
     phg.initializeGainInformation();
-    sharedData.partition_weight_budgets.initialize(phg, context.partition.max_part_weights);
+    //sharedData.partition_weight_budgets.initialize(phg, context.partition.max_part_weights);          // only for version with budgets
 
     bool overall_improved = false;
-    for (size_t round = 0; round < context.refinement.fm.multitry_rounds; ++round) {    // global multi try rounds
+    for (size_t round = 0; round < context.refinement.fm.multitry_rounds; ++round) {                    // global multi try rounds
       initialize(phg);
 
       auto task = [&](const int socket, const int socket_local_task_id, const int task_id) {
@@ -75,7 +75,7 @@ public:
       }
     }
 
-    sharedData.partition_weight_budgets.updatePartWeights(phg, context.partition.max_part_weights);
+    // sharedData.partition_weight_budgets.updatePartWeights(phg, context.partition.max_part_weights);  // only for version with budgets
     return overall_improved;
   }
 
