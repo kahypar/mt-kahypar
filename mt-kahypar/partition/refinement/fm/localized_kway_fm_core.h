@@ -121,6 +121,20 @@ private:
     }
   }
 
+  std::pair<PartitionID, HyperedgeWeight> bestDestinationBlock(PartitionedHypergraph& phg, HypernodeID u) {
+    const HypernodeWeight wu = phg.nodeWeight(u);
+    PartitionID to = kInvalidPartition;
+    HyperedgeWeight to_penalty = std::numeric_limits<HyperedgeWeight>::max();
+    for (PartitionID i = 0; i < phg.k(); ++i) {
+      const HyperedgeWeight penalty = phg.moveToPenalty(u, i);
+      if (penalty < to_penalty && phg.partWeight(to) + wu <= context.partition.max_part_weights[i]) {
+        to_penalty = penalty;
+        to = i;
+      }
+    }
+    return std::make_pair(to, phg.moveFromBenefit(u, phg.partID(u)) - to_penalty);
+  };
+
   void insertOrUpdatePQ(PartitionedHypergraph& phg, HypernodeID u, NodeTracker& nt) {
     SearchID searchOfU = nt.searchOfNode[u].load(std::memory_order_acq_rel);
 
@@ -130,57 +144,41 @@ private:
       if (nt.searchOfNode[u].compare_exchange_strong(searchOfU, thisSearch, std::memory_order_acq_rel)) {
 
         // if that was successful, we insert it into the vertices ready to move in its current block
-        const PartitionID pu = phg.partID(u);
-        auto [best_to_block, move_to_penalty] = phg.bestDestinationBlock(u);
-        const Gain gain = phg.moveFromBenefit(u, pu) - move_to_penalty;
+        const PartitionID from = phg.partID(u);
+        auto [to, gain] = bestDestinationBlock(phg, u);
         if (vertexPQs[u].empty()) {
-          blockPQ.insert(pu, gain);
+          blockPQ.insert(from, gain);
         }
-        vertexPQs[pu].insert(u, gain);
+        vertexPQs[from].insert(u, gain);
 
         // and we update the gain of moving the best vertex from that block
-        if (blockPQ.contains(pu) && gain > blockPQ.keyOf(pu)) {
-          blockPQ.increaseKey(pu, gain);
+        if (blockPQ.contains(from) && gain > blockPQ.keyOf(from)) {
+          blockPQ.increaseKey(from, gain);
         }
       }
 
     } else if (searchOfU == thisSearch) {
 
       // update PQ entries
-      const PartitionID pu = phg.partID(u);
-      auto [best_to_block, move_to_penalty] = phg.bestDestinationBlock(u);
-      const Gain gain = phg.moveFromBenefit(u, pu) - move_to_penalty;
-      vertexPQs[pu].adjustKey(u, gain);
+      const PartitionID from = phg.partID(u);
+      auto [to, gain] = bestDestinationBlock(phg, u);
+      vertexPQs[from].adjustKey(u, gain);
 
-      if (blockPQ.contains(pu) && gain > blockPQ.keyOf(pu)) {
-        blockPQ.increaseKey(pu, gain);
+      if (blockPQ.contains(from) && gain > blockPQ.keyOf(from)) {
+        blockPQ.increaseKey(from, gain);
       }
     }
 
   }
 
   bool findNextMove(PartitionedHypergraph& phg, Move& m) {
-    // TODO activate overloaded blocks and deactivate underloaded. this becomes substantially more expensive than in sequential
-    // because sequentially this could be determined from just the last block that was moved from
-
+    // TODO remove underloaded blocks from blockPQ
     while (!blockPQ.empty()) {
       const PartitionID from = blockPQ.top();
       const HypernodeID u = vertexPQs[from].top();
-      const HypernodeWeight wu = phg.nodeWeight(u);
       const Gain estimated_gain = vertexPQs[from].topKey();
-
-      PartitionID to = kInvalidPartition;
-      HyperedgeWeight to_penalty = std::numeric_limits<HyperedgeWeight>::max();
-      for (PartitionID i = 0; i < phg.k(); ++i) {
-        const HyperedgeWeight penalty = phg.moveToPenalty(u, i);
-        if (penalty < to_penalty && phg.partWeight(to) + wu <= context.partition.max_part_weights[i]) {
-          to_penalty = penalty;
-          to = i;
-        }
-      }
-      const Gain gain = phg.moveFromBenefit(u, from) - to_penalty;
-
-      if (gain >= estimated_gain) {
+      auto [to, gain] = bestDestinationBlock(phg, u);
+      if (gain >= estimated_gain) { // accept any gain that is at least as good
         vertexPQs[from].deleteTop();
         m.node = u; m.to = to; m.from = from;
         m.gain = phg.km1Gain(u, from, to);
@@ -192,14 +190,12 @@ private:
         }
       }
     }
-
     return false;
   }
 
   void reinitialize() {
     localMoves.clear();
   }
-
 
   void revertToBestLocalPrefix(PartitionedHypergraph &phg, size_t bestGainIndex) {
     while (localMoves.size() > bestGainIndex) {
@@ -208,7 +204,6 @@ private:
       localMoves.pop_back();
     }
   }
-
 
   SearchID thisSearch;
   vec<Move> localMoves;
