@@ -71,9 +71,24 @@ public:
     return search_local_budgets[my_search];
   }
 
-  // don't try stealing every time a move is infeasible
+  bool isStealSuccessUnlikely(uint32_t my_search, PartitionID to) const {
+    return steal_failures[my_search][to] > 20;
+  }
+
+  HypernodeWeight amountToSteal(const HypernodeWeight desired_amount,
+                                const HypernodeWeight already_stolen,
+                                const HypernodeWeight budget_of_processor)
+  {
+    // pessimistic version that steals only as much as it needs as early as possible.
+    return std::min(desired_amount - already_stolen, budget_of_processor);
+
+    // TODO implement being a little more greedy with the stolen amount, especially if desired_amount is small?
+    // TODO balance the stolen amounts more?
+  }
+
   HypernodeWeight steal(uint32_t my_search, PartitionID to, HypernodeWeight least_desired_amount) {
-    if (steal_failures[my_search][to] > 20 && steal_failures[my_search][to] % 10 != 0) {
+    // only try stealing infrequently if it has failed often in the past.
+    if (isStealSuccessUnlikely(my_search, to) && steal_failures[my_search][to] % 10 != 0) {
       steal_failures[my_search][to]++;
       return 0;
     }
@@ -82,14 +97,16 @@ public:
     for (uint32_t i = static_cast<SearchID>(search_local_budgets.size()); i > 0; --i) {
       if (i == my_search) continue;
 
-      if (search_local_budgets[i][to].load(std::memory_order_relaxed) >= least_desired_amount) {
-        HypernodeWeight remaining_budget_of_other_processor = search_local_budgets[i][to].sub_fetch(least_desired_amount, std::memory_order_relaxed);
+      const HypernodeWeight budget_of_processor = search_local_budgets[i][to].load(std::memory_order_relaxed);
+      const HypernodeWeight amount_to_steal = amountToSteal(least_desired_amount, stolen_budget, budget_of_processor);
+      if (amount_to_steal > 0 && amount_to_steal <= budget_of_processor) {
+        HypernodeWeight remaining_budget_of_other_processor = search_local_budgets[i][to].sub_fetch(amount_to_steal, std::memory_order_relaxed);
         if (remaining_budget_of_other_processor >= 0) {
           // steal successful
-          stolen_budget += least_desired_amount;
+          stolen_budget += amount_to_steal;
         } else {
           // restore the stolen budget
-          search_local_budgets[i][to].fetch_add(least_desired_amount, std::memory_order_relaxed);
+          search_local_budgets[i][to].fetch_add(amount_to_steal, std::memory_order_relaxed);
         }
 
       }
