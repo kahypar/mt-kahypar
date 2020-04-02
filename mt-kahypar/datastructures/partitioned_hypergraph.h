@@ -207,6 +207,7 @@ private:
     const HypernodeWeight wu = nodeWeight(u);
     const HypernodeWeight to_weight_after = part_weight[to].add_fetch(wu, std::memory_order_relaxed);
     if (to_weight_after <= max_weight_to) {
+      part[common::get_local_position_of_vertex(u)] = to;
       part_weight[from].fetch_sub(wu, std::memory_order_relaxed);
       for (HyperedgeID he: incidentEdges(u)) {
         incrementPinCountInPartWithGainUpdate(he, to);
