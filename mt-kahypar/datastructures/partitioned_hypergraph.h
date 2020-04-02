@@ -396,7 +396,7 @@ private:
   // ! Weight of a block
   HypernodeWeight partWeight(const PartitionID p) const {
     partAssertions(p);
-    return part_weight[p];
+    return part_weight[p].load(std::memory_order_relaxed);
   }
 
   HyperedgeWeight moveFromBenefit(const HypernodeID u, PartitionID p) const {
@@ -412,22 +412,6 @@ private:
     ASSERT(from != to, "The gain computation doesn't work for from = to");
     return moveFromBenefit(u, from) - moveToPenalty(u, to);
   }
-
-  // TODO extend to a version with balance checks
-  std::pair<PartitionID, HyperedgeWeight> bestDestinationBlock(HypernodeID u) const {
-    HyperedgeWeight least_penalty = std::numeric_limits<HyperedgeWeight>::max();
-    PartitionID best_index = 0;
-    const PartitionID first = common::get_local_position_of_vertex(u) * _k;
-    const PartitionID firstInvalid = first + _k;
-    for (PartitionID index = first; index < firstInvalid; ++index) {
-      const HyperedgeWeight penalty = move_to_penalty[index].load(std::memory_order_relaxed);
-      if (penalty < least_penalty) {
-        least_penalty = penalty;
-        best_index = index;
-      }
-    }
-    return std::make_pair(best_index - first, least_penalty);
-  };
 
   // ! Reset partition (not thread-safe)
   void resetPartition() {

@@ -73,7 +73,10 @@ public:
         for (HyperedgeID e : phg.incidentEdges(m.node)) {
           if (phg.edgeSize(e) < context.partition.hyperedge_size_threshold) {
             for (HypernodeID v : phg.pins(e)) {
-              insertOrUpdatePQ(phg, v, sharedData.nodeTracker);
+              if (!updateDeduplicator.contains(u)) {
+                updateDeduplicator.insert(u);
+                insertOrUpdatePQ(phg, v, sharedData.nodeTracker);
+              }
             }
           }
         }
@@ -100,29 +103,25 @@ private:
   void performSharedDataUpdates(Move& m, PartitionedHypergraph& phg, FMSharedData& sd) {
     const HypernodeID u = m.node;
 
-    // TODO either sync this with the balance decision (requires double CAS operation which is probably not supported)
+    // TODO either sync this with the balance decision (requires double CAS operation)
     // or run another prefix sum on the final move order that checks balance
+    // And at least get the move ID increment closer to the balance decision
     const MoveID move_id = sd.moveTracker.insertMove(m);
 
     for (HyperedgeID he : phg.incidentEdges(u)) {
       // update first move in
       std::atomic<MoveID>& fmi = sd.first_move_in[he * numParts + m.to];
-      MoveID expected = fmi.load(std::memory_order_relaxed);
+      MoveID expected = fmi.load(std::memory_order_acq_rel);
       while ((sd.moveTracker.isIDStale(expected) || expected > move_id) && !fmi.compare_exchange_weak(expected, move_id, std::memory_order_acq_rel)) {  }
 
       // update last move out
       std::atomic<MoveID>& lmo = sd.last_move_out[he * numParts + m.from];
-      expected = lmo.load(std::memory_order_relaxed);
+      expected = lmo.load(std::memory_order_acq_rel);
       while (expected < move_id && !lmo.compare_exchange_weak(expected, move_id, std::memory_order_acq_rel)) { }
     }
   }
 
   void insertOrUpdatePQ(PartitionedHypergraph& phg, HypernodeID u, NodeTracker& nt) {
-    if (updateDeduplicator.contains(u)) {
-      return;
-    }
-    updateDeduplicator.insert(u);
-
     SearchID searchOfU = nt.searchOfNode[u].load(std::memory_order_acq_rel);
 
     if (nt.isSearchInactive(searchOfU)) {   // both branches already exclude deactivated nodes
@@ -165,24 +164,31 @@ private:
     // because sequentially this could be determined from just the last block that was moved from
 
     while (!blockPQ.empty()) {
-      const PartitionID from_block = blockPQ.top();
-      const HypernodeID best_node_in_from = vertexPQs[from_block].top();
-      const Gain best_estimated_gain = vertexPQs[from_block].topKey();
+      const PartitionID from = blockPQ.top();
+      const HypernodeID u = vertexPQs[from].top();
+      const HypernodeWeight wu = phg.nodeWeight(u);
+      const Gain estimated_gain = vertexPQs[from].topKey();
 
-      auto [target_block, move_to_penalty] = phg.bestDestinationBlock(best_node_in_from);
-      const Gain best_gain = phg.moveFromBenefit(best_node_in_from, from_block) - move_to_penalty;
+      PartitionID to = kInvalidPartition;
+      HyperedgeWeight to_penalty = std::numeric_limits<HyperedgeWeight>::max();
+      for (PartitionID i = 0; i < phg.k(); ++i) {
+        const HyperedgeWeight penalty = phg.moveToPenalty(u, i);
+        if (penalty < to_penalty && phg.partWeight(to) + wu <= context.partition.max_part_weights[i]) {
+          to_penalty = penalty;
+          to = i;
+        }
+      }
+      const Gain gain = phg.moveFromBenefit(u, from) - to_penalty;
 
-      if (best_estimated_gain == best_gain) {
-        vertexPQs[from_block].deleteTop();
-        m.node = best_node_in_from;
-        m.to = target_block;
-        m.from = from_block;
-        m.gain = phg.km1Gain(best_node_in_from, from_block, target_block);
+      if (gain >= estimated_gain) {
+        vertexPQs[from].deleteTop();
+        m.node = u; m.to = to; m.from = from;
+        m.gain = phg.km1Gain(u, from, to);
         return true;
       } else {
-        vertexPQs[from_block].adjustKey(best_node_in_from, best_gain);
-        if (vertexPQs[from_block].topKey() != blockPQ.keyOf(from_block)) {
-          blockPQ.adjustKey(from_block, vertexPQs[from_block].topKey());
+        vertexPQs[from].adjustKey(u, gain);
+        if (vertexPQs[from].topKey() != blockPQ.keyOf(from)) {
+          blockPQ.adjustKey(from, vertexPQs[from].topKey());
         }
       }
     }
