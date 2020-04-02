@@ -99,6 +99,9 @@ private:
 
   void performSharedDataUpdates(Move& m, PartitionedHypergraph& phg, FMSharedData& sd) {
     const HypernodeID u = m.node;
+
+    // TODO either sync this with the balance decision (requires double CAS operation which is probably not supported)
+    // or run another prefix sum on the final move order that checks balance
     const MoveID move_id = sd.moveTracker.insertMove(m);
 
     for (HyperedgeID he : phg.incidentEdges(u)) {
