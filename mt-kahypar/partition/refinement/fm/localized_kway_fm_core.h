@@ -40,7 +40,10 @@ public:
           blockPQ(static_cast<size_t>(numParts)),
           vertexPQs(static_cast<size_t>(numParts), VertexPriorityQueue(*pq_handles)),
           updateDeduplicator(numNodes),
-          context(context)
+          context(context),
+          max_part_weight(context.partition.max_part_weights[0]),
+          perfect_balance_part_weight(context.partition.perfect_balance_part_weights[0]),
+          min_part_weight(static_cast<HypernodeWeight>(std::floor(perfect_balance_part_weight * (1 - context.partition.epsilon))))
   {
 
   }
@@ -63,8 +66,11 @@ public:
       sharedData.nodeTracker.deactivateNode(m.node, thisSearch);
       deactivatedNodes.push_back(m.node);
 
-      if (phg.changeNodePartWithBalanceCheckAndGainUpdatesAndPartWeightUpdates(
-              m.node, m.from, m.to, context.partition.max_part_weights[m.to])) {
+      if (phg.changeNodePartWithBalanceCheckAndGainUpdatesAndPartWeightUpdates(m.node, m.from, m.to, max_part_weight)) {
+
+        if (phg.partWeight(m.from) <= min_part_weight) {
+          blockPQ.remove(m.from);
+        }
 
         performSharedDataUpdates(m, phg, sharedData);
         movesWithNonPositiveGain = m.gain > 0 ? 0 : movesWithNonPositiveGain + 1;
@@ -146,7 +152,7 @@ private:
         // if that was successful, we insert it into the vertices ready to move in its current block
         const PartitionID from = phg.partID(u);
         auto [to, gain] = bestDestinationBlock(phg, u);
-        if (vertexPQs[u].empty()) {
+        if (!blockPQ.contains(from) && phg.partWeight(from) > min_part_weight) {
           blockPQ.insert(from, gain);
         }
         vertexPQs[from].insert(u, gain);
@@ -172,7 +178,6 @@ private:
   }
 
   bool findNextMove(PartitionedHypergraph& phg, Move& m) {
-    // TODO remove underloaded blocks from blockPQ
     while (!blockPQ.empty()) {
       const PartitionID from = blockPQ.top();
       const HypernodeID u = vertexPQs[from].top();
@@ -219,6 +224,8 @@ private:
   ldc::ClearListSet<HypernodeID> updateDeduplicator;
 
   const Context& context;
+  HypernodeWeight max_part_weight, perfect_balance_part_weight, min_part_weight;
+
 
 public:
   vec<HypernodeID> deactivatedNodes;
