@@ -72,7 +72,7 @@ static void writeParkwayHypergraphForProc(const Hypergraph& hypergraph,
   int num_local_hypernodes = static_cast<int>(hn_end - hn_start);
   int hyperedge_data_length = static_cast<int>(hyperedge_data.size());
 
-  std::string out_file = hgr_filename + ".bin." + std::to_string(num_procs) + "-" + std::to_string(rank);
+  std::string out_file = hgr_filename + "-" + std::to_string(rank);
   std::ofstream out_stream(out_file, std::ofstream::out | std::ofstream::binary);
 
   out_stream.write((char *) &num_hypernodes, sizeof(int));
@@ -85,6 +85,7 @@ static void writeParkwayHypergraphForProc(const Hypergraph& hypergraph,
 
 int main(int argc, char* argv[]) {
   std::string hgr_filename;
+  std::string out_filename;
   int num_procs;
 
   po::options_description options("Options");
@@ -94,7 +95,10 @@ int main(int argc, char* argv[]) {
     "Hypergraph filename")
     ("num-procs,p",
     po::value<int>(&num_procs)->value_name("<int>")->required(),
-    "Number of Processor Parkway will be called with");
+    "Number of Processor Parkway will be called with")
+    ("out-file,o",
+    po::value<std::string>(&out_filename)->value_name("<string>")->required(),
+    "Hypergraph Output Filename");
 
   po::variables_map cmd_vm;
   po::store(po::parse_command_line(argc, argv, options), cmd_vm);
@@ -104,7 +108,7 @@ int main(int argc, char* argv[]) {
     mt_kahypar::io::readHypergraphFile<Hypergraph, Factory>(hgr_filename, 0);
 
   for ( int p = 0; p < num_procs; ++p ) {
-    writeParkwayHypergraphForProc(hypergraph, hgr_filename, num_procs, p);
+    writeParkwayHypergraphForProc(hypergraph, out_filename, num_procs, p);
   }
 
   return 0;

@@ -32,7 +32,7 @@ namespace mt_kahypar {
 namespace utils {
 class ProgressBar {
 
- static constexpr size_t PROGRESS_BAR_SIZE = 100;
+ static constexpr size_t PROGRESS_BAR_SIZE = 75;
  using HighResClockTimepoint = std::chrono::time_point<std::chrono::high_resolution_clock>;
 
  public:
