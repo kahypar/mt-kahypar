@@ -120,7 +120,7 @@ class PartitionedHypergraph {
     _is_init_num_cut_hyperedges(false),
     _part_info(k),
     _vertex_part_info(hypergraph.initialNumNodes()),
-    _pins_in_part(hypergraph.initialNumEdges() * k, PinCountAtomic(0)),
+    _pins_in_part(static_cast<size_t>(hypergraph.initialNumEdges()) * k, PinCountAtomic(0)),
     _connectivity_sets(hypergraph.initialNumEdges(), k),
     _pin_count_update_ownership(hypergraph.initialNumEdges(), AtomicFlag(false)),
     _failed_pin_count_updates() { }
@@ -141,7 +141,7 @@ class PartitionedHypergraph {
     tbb::parallel_invoke([&] {
       _vertex_part_info.resize(hypergraph.initialNumNodes());
     }, [&] {
-      _pins_in_part.assign(hypergraph.initialNumEdges() * k, PinCountAtomic(0));
+      _pins_in_part.assign(static_cast<size_t>(hypergraph.initialNumEdges()) * k, PinCountAtomic(0));
     }, [&] {
       _connectivity_sets = ConnectivitySets(hypergraph.initialNumEdges(), k);
     }, [&] {
@@ -1072,7 +1072,7 @@ class PartitionedHypergraph {
 
     parent->addChild("Part Info", sizeof(BlockInfo) * _k);
     parent->addChild("Vertex Part Info", sizeof(VertexPartInfo) * _hg->initialNumNodes());
-    parent->addChild("Pin Count In Part", sizeof(PinCountAtomic) * _k * _hg->initialNumEdges());
+    parent->addChild("Pin Count In Part", sizeof(PinCountAtomic) * _k * static_cast<size_t>(_hg->initialNumEdges()));
     parent->addChild("HE Ownership", sizeof(AtomicFlag) * _hg->initialNumNodes());
   }
 
