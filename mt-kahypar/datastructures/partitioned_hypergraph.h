@@ -1002,7 +1002,7 @@ class PartitionedHypergraph {
   HypernodeID pinCountInPart(const HyperedgeID e, const PartitionID id) const {
     ASSERT(_hg->edgeIsEnabled(e), "Hyperedge" << e << "is disabled");
     ASSERT(id != kInvalidPartition && id < _k);
-    const HyperedgeID local_id = common::get_local_position_of_edge(e);
+    const size_t local_id = common::get_local_position_of_edge(e);
     ASSERT(local_id < _hg->initialNumEdges(), "Hyperedge" << e << "does not exist");
     ASSERT(_node == common::get_numa_node_of_edge(e),
            "Hyperedge" << e << "is not part of numa node" << _node);
@@ -1031,9 +1031,9 @@ class PartitionedHypergraph {
 
     // Reset pin count in part and connectivity set
     for ( const HyperedgeID& he : edges() ) {
-      const HyperedgeID local_id = common::get_local_position_of_edge(he);
+      const size_t local_id = common::get_local_position_of_edge(he);
       for ( const PartitionID& block : connectivitySet(he) ) {
-        _pins_in_part[static_cast<size_t>(local_id) * _k + block] = 0;
+        _pins_in_part[local_id * _k + block] = 0;
       }
       _connectivity_sets.clear(local_id);
     }
@@ -1309,7 +1309,7 @@ class PartitionedHypergraph {
                                                          const HypernodeID pin_count) {
     ASSERT(_hg->edgeIsEnabled(e), "Hyperedge" << e << "is disabled");
     ASSERT(id != kInvalidPartition && id < _k);
-    const HyperedgeID local_id = common::get_local_position_of_edge(e);
+    const size_t local_id = common::get_local_position_of_edge(e);
     ASSERT(local_id < _hg->initialNumEdges(), "Hyperedge" << e << "does not exist");
     ASSERT(_node == common::get_numa_node_of_edge(e),
            "Hyperedge" << e << "is not part of numa node" << _node);
@@ -1327,7 +1327,7 @@ class PartitionedHypergraph {
                                                                       const PartitionID id) {
     ASSERT(_hg->edgeIsEnabled(e), "Hyperedge" << e << "is disabled");
     ASSERT(id != kInvalidPartition && id < _k);
-    const HyperedgeID local_id = common::get_local_position_of_edge(e);
+    const size_t local_id = common::get_local_position_of_edge(e);
     ASSERT(local_id < _hg->initialNumEdges(), "Hyperedge" << e << "does not exist");
     ASSERT(_node == common::get_numa_node_of_edge(e),
            "Hyperedge" << e << "is not part of numa node" << _node);
@@ -1343,7 +1343,7 @@ class PartitionedHypergraph {
                                                                       const PartitionID id) {
     ASSERT(_hg->edgeIsEnabled(e), "Hyperedge" << e << "is disabled");
     ASSERT(id != kInvalidPartition && id < _k);
-    const HyperedgeID local_id = common::get_local_position_of_edge(e);
+    const size_t local_id = common::get_local_position_of_edge(e);
     ASSERT(local_id < _hg->initialNumEdges(), "Hyperedge" << e << "does not exist");
     ASSERT(_node == common::get_numa_node_of_edge(e),
            "Hyperedge" << e << "is not part of numa node" << _node);
