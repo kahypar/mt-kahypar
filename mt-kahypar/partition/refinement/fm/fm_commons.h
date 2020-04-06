@@ -104,7 +104,6 @@ struct NodeTracker {
     return isSearchInactive( searchOfNode[u].load(std::memory_order_acq_rel) );
   }
 
-  // not thread-safe
   void requestNewSearches(SearchID max_num_searches) {
     if (highestActiveSearchID.load(std::memory_order_relaxed) >= std::numeric_limits<SearchID>::max() - max_num_searches - 20) {
       for (auto& x : searchOfNode) {
@@ -122,10 +121,10 @@ struct FMSharedData {
   //PartitionWeightBudgets partition_weight_budgets;
 
   // ! For each hyperedge and block, the number of pins_in_part at the beginning of a move phase minus the number of moved out pins
-  vec<std::atomic<HypernodeID>> remaining_original_pins;
+  vec<CAtomic<HypernodeID>> remaining_original_pins;
 
   // ! For each hyperedge and each block, the ID of the first move to place a pin in that block / the last move to remove a pin from that block
-  vec<std::atomic<MoveID>> first_move_in, last_move_out;
+  vec<CAtomic<MoveID>> first_move_in, last_move_out;
 
   vec<PosT> vertexPQHandles;
 
@@ -143,8 +142,10 @@ struct FMSharedData {
           vertexPQHandles(numNodes, invalid_position),
           numParts(numParts),
           moveTracker(numNodes),
-          nodeTracker(numNodes) {
-
+          nodeTracker(numNodes)
+  {
+    unused(maxNumThreads);
+    resetStoredMoveIDs();
   }
 
   ~FMSharedData() {
@@ -176,9 +177,8 @@ struct FMSharedData {
 
   void setRemainingOriginalPins(PartitionedHypergraph& phg) {
     assert(remaining_original_pins.size() == phg.getPinCountInPartVector().size());
-    // let's try if this works
-    size_t n = sizeof(HypernodeID) * phg.getPinCountInPartVector().size();
-    std::memcpy(remaining_original_pins.data(), phg.getPinCountInPartVector().data(), n);
+    size_t n = phg.getPinCountInPartVector().size();
+    std::copy_n(remaining_original_pins.begin(), n, phg.getPinCountInPartVector().begin());
   }
 };
 
