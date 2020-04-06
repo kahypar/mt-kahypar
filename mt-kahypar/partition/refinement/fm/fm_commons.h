@@ -168,7 +168,7 @@ struct FMSharedData {
     return remaining_original_pins[he * numParts + block].load(std::memory_order_relaxed);
   }
 
-  void resetStoredMoveIDs() {   // should be called very rarely
+  void resetStoredMoveIDs() {
     for (auto &x : last_move_out)
       x.store(0, std::memory_order_relaxed);
     for (auto &x : first_move_in)

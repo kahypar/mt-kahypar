@@ -43,5 +43,45 @@ TEST(RollBackTests, FindsBestPrefix) {
   ASSERT_EQ(b.best_index, 5);
 }
 
+TEST(RollbackTests, FindsBestPrefixLargeRandom) {
+  tbb::task_scheduler_init tsi(4);
+  size_t n = 1000 * 1000 * 1000;
+  vec<Gain> gains(n, 0);
+  std::mt19937 rng(420);
+  std::uniform_int_distribution<Gain> distr(-5000, 5000);
+
+  auto start_init = tbb::tick_count::now();
+  for (MoveID i = 0; i < n; ++i) {
+    gains[i] = distr(rng);
+  }
+  LOG << "Finish init in " << (tbb::tick_count::now() - start_init).seconds() << "seconds";
+
+  auto start_reduce_sequential = tbb::tick_count::now();
+  Gain sum = 0, best_sum = 0;
+  MoveID best_index = 0;
+  for (MoveID i = 0; i < n; ++i) {
+    sum += gains[i];
+    if (sum > best_sum) {
+      best_sum = sum;
+      best_index = i;
+    }
+  }
+  LOG << "Finish sequential  reduce in " << (tbb::tick_count::now() - start_reduce_sequential).seconds() << "seconds";
+
+  auto start_reduce = tbb::tick_count::now();
+  BestIndexReduceBody b(gains);
+  tbb::parallel_reduce(tbb::blocked_range<MoveID>(0, gains.size()), b);//, tbb::static_partitioner());
+  LOG << "Finish reduce in " << (tbb::tick_count::now() - start_reduce).seconds() << "seconds";
+
+  auto start_reduce_static = tbb::tick_count::now();
+  BestIndexReduceBody b2(gains);
+  tbb::parallel_reduce(tbb::blocked_range<MoveID>(0, gains.size()), b2, tbb::static_partitioner());
+  LOG << "Finish reduce with static partitioner in " << (tbb::tick_count::now() - start_reduce_static).seconds() << "seconds";
+
+  ASSERT_EQ(best_sum, b.best_sum);
+  ASSERT_EQ(sum, b.sum);
+  ASSERT_EQ(best_index, b.best_index);
+}
+
 }   // namespace refinement
 }   // namespace mt_kahypar
