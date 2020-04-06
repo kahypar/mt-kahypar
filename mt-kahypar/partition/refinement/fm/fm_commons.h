@@ -59,8 +59,13 @@ struct GlobalMoveTracker {
 
   MoveID insertMove(Move &m) {
     const MoveID move_id = runningMoveID.fetch_add(1, std::memory_order_relaxed);
+    LOG << V(move_id) << V(firstMoveID);
     globalMoveOrder[move_id - firstMoveID] = m;
     return move_id;
+  }
+
+  Move& getMove(MoveID move_id) {
+    return globalMoveOrder[move_id - firstMoveID];
   }
 
   MoveID numPerformedMoves() const {
@@ -178,11 +183,11 @@ struct FMSharedData {
   void setRemainingOriginalPins(PartitionedHypergraph& phg) {
     assert(remaining_original_pins.size() == phg.getPinCountInPartVector().size());
     size_t n = phg.getPinCountInPartVector().size();
-    std::copy_n(remaining_original_pins.begin(), n, phg.getPinCountInPartVector().begin());
+    std::copy_n(phg.getPinCountInPartVector().begin(), n, remaining_original_pins.begin());
   }
 
   void performHyperedgeSpecificMoveUpdates(MoveID move_id, HyperedgeID e) {
-    Move& m = moveTracker.globalMoveOrder[move_id];
+    Move& m = moveTracker.getMove(move_id);
 
     // update first move in
     CAtomic<MoveID>& fmi = first_move_in[e * numParts + m.to];

@@ -119,34 +119,32 @@ private:
     freeInternalData();
   }
 
-  bool setOnlyNodePart(const HypernodeID u, PartitionID p) {
+  void setOnlyNodePart(const HypernodeID u, PartitionID p) {
     partAssertions(p);
     const HypernodeID u_local = common::get_local_position_of_vertex(u);
     ASSERT(part[u_local] == kInvalidPartition);
     part[u_local] = p;
-    return true;
   }
 
-  bool setNodePart(const HypernodeID u, PartitionID p) {
-    if (setOnlyNodePart(u, p)) {
-      part_weight[p].fetch_add(nodeWeight(u), std::memory_order_relaxed);
-      for (HyperedgeID he : incidentEdges(u)) {
-        incrementPinCountInPartWithoutGainUpdate(he, p);
+  void setNodePart(const HypernodeID u, PartitionID p) {
+    setOnlyNodePart(u, p);
+    part_weight[p].fetch_add(nodeWeight(u), std::memory_order_relaxed);
+    if (u == 0) { LOG << "set node part of " << V(u); }
+    for (HyperedgeID he : incidentEdges(u)) {
+      auto pcip_before = pinCountInPart(he, p);
+      incrementPinCountInPartWithoutGainUpdate(he, p);
+      if (u == 0) {
+        LOG << V(he) << "increment pin count in part" << V(pcip_before) << V(pinCountInPart(he, p));
       }
-      return true;
     }
-    return false;
   }
 
-  bool setNodePart(const HypernodeID u, PartitionID p, parallel::scalable_vector<PartitionedHypergraph>& hypergraphs) {
-    if (setOnlyNodePart(u, p)) {
-      part_weight[p].fetch_add(nodeWeight(u), std::memory_order_relaxed);
-      for (HyperedgeID he : incidentEdges(u)) {
-        common::hypergraph_of_edge(he, hypergraphs).incrementPinCountInPartWithoutGainUpdate(he, p);
-      }
-      return true;
+  void setNodePart(const HypernodeID u, PartitionID p, parallel::scalable_vector<PartitionedHypergraph>& hypergraphs) {
+    setOnlyNodePart(u, p);
+    part_weight[p].fetch_add(nodeWeight(u), std::memory_order_relaxed);
+    for (HyperedgeID he : incidentEdges(u)) {
+      common::hypergraph_of_edge(he, hypergraphs).incrementPinCountInPartWithoutGainUpdate(he, p);
     }
-    return false;
   }
 
   // This function type does not update part weights but instead updates a slack
@@ -407,6 +405,22 @@ private:
 
   HyperedgeWeight moveToPenalty(const HypernodeID u, PartitionID p) const {
     return move_to_penalty[common::get_local_position_of_vertex(u) * _k + p].load(std::memory_order_relaxed);
+  }
+
+  HyperedgeWeight moveFromBenefitRecomputed(const HypernodeID u, PartitionID p) const {
+    HyperedgeWeight w = 0;
+    for (HyperedgeID e : incidentEdges(u))
+      if (pinCountInPart(e, p) == 1)
+        w += edgeWeight(e);
+    return w;
+  }
+
+  HyperedgeWeight moveToPenaltyRecomputed(const HypernodeID u, PartitionID p) const {
+    HyperedgeWeight w = 0;
+    for (HyperedgeID e : incidentEdges(u))
+      if (pinCountInPart(e, p) == 0)
+        w += edgeWeight(e);
+    return w;
   }
 
   HyperedgeWeight km1Gain(const HypernodeID u, PartitionID from, PartitionID to) const {
