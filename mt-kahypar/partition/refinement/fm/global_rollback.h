@@ -22,10 +22,6 @@
 
 #include <atomic>
 
-#include <tbb/parallel_for_each.h>
-
-#include <mt-kahypar/partition/context.h>
-
 #include "fm_commons.h"
 
 namespace mt_kahypar {
@@ -48,7 +44,7 @@ struct BestIndexReduceBody {
       sum += gains[i];
       if (sum > best_sum) {
         best_sum = sum;
-        best_index = i + 1;
+        best_index = i;
       }
     }
   }
@@ -56,7 +52,7 @@ struct BestIndexReduceBody {
   void join(BestIndexReduceBody& rhs) {
     const HyperedgeWeight rhs_sum = sum + rhs.sum;
     const HyperedgeWeight rhs_best_sum = sum + rhs.best_sum;
-    if (best_sum < rhs_best_sum) {
+    if (rhs_best_sum > best_sum) {
       best_index = rhs.best_index;
       best_sum = rhs_best_sum;
     }
@@ -82,7 +78,7 @@ public:
     const auto& move_order = sharedData.moveTracker.globalMoveOrder;
 
     // revert rejected moves
-    tbb::parallel_for(b.best_index, numMoves, [&](const size_t moveID) {
+    tbb::parallel_for(b.best_index + 1, numMoves, [&](const size_t moveID) {
       const Move& m = move_order[moveID];
       phg.changeNodePart(m.node, m.to, m.from);
     });
