@@ -26,14 +26,15 @@
 #include "mt-kahypar/macros.h"
 
 #include <mt-kahypar/partition/refinement/fm/global_rollback.h>
-
+#include <mt-kahypar/definitions.h>
+#include <mt-kahypar/io/hypergraph_io.h>
 
 using ::testing::Test;
 
 namespace mt_kahypar {
 namespace refinement {
 
-TEST(RollBackTests, FindsBestPrefix) {
+TEST(RollbackTests, FindsBestPrefix) {
 
   vec<Gain> gains = { -42, 5, 4, -20, 1, 99, -100, 50 };
   BestIndexReduceBody b(gains);
@@ -44,8 +45,10 @@ TEST(RollBackTests, FindsBestPrefix) {
 }
 
 TEST(RollbackTests, FindsBestPrefixLargeRandom) {
+  bool display_timing = false;
+
   tbb::task_scheduler_init tsi(4);
-  size_t n = 1000 * 1000 * 1000;
+  size_t n = 1000 * 1000 * 2;
   vec<Gain> gains(n, 0);
   std::mt19937 rng(420);
   std::uniform_int_distribution<Gain> distr(-5000, 5000);
@@ -54,7 +57,7 @@ TEST(RollbackTests, FindsBestPrefixLargeRandom) {
   for (MoveID i = 0; i < n; ++i) {
     gains[i] = distr(rng);
   }
-  LOG << "Finish init in " << (tbb::tick_count::now() - start_init).seconds() << "seconds";
+  if (display_timing) LOG << "Finish init in " << (tbb::tick_count::now() - start_init).seconds() << "seconds";
 
   auto start_reduce_sequential = tbb::tick_count::now();
   Gain sum = 0, best_sum = 0;
@@ -66,21 +69,39 @@ TEST(RollbackTests, FindsBestPrefixLargeRandom) {
       best_index = i;
     }
   }
-  LOG << "Finish sequential  reduce in " << (tbb::tick_count::now() - start_reduce_sequential).seconds() << "seconds";
+  if (display_timing) LOG << "Finish sequential  reduce in " << (tbb::tick_count::now() - start_reduce_sequential).seconds() << "seconds";
 
   auto start_reduce = tbb::tick_count::now();
   BestIndexReduceBody b(gains);
   tbb::parallel_reduce(tbb::blocked_range<MoveID>(0, gains.size()), b);//, tbb::static_partitioner());
-  LOG << "Finish reduce in " << (tbb::tick_count::now() - start_reduce).seconds() << "seconds";
+  if (display_timing) LOG << "Finish reduce in " << (tbb::tick_count::now() - start_reduce).seconds() << "seconds";
 
   auto start_reduce_static = tbb::tick_count::now();
   BestIndexReduceBody b2(gains);
   tbb::parallel_reduce(tbb::blocked_range<MoveID>(0, gains.size()), b2, tbb::static_partitioner());
-  LOG << "Finish reduce with static partitioner in " << (tbb::tick_count::now() - start_reduce_static).seconds() << "seconds";
+  if (display_timing) LOG << "Finish reduce with static partitioner in " << (tbb::tick_count::now() - start_reduce_static).seconds() << "seconds";
 
   ASSERT_EQ(best_sum, b.best_sum);
   ASSERT_EQ(sum, b.sum);
   ASSERT_EQ(best_index, b.best_index);
+}
+
+TEST(RollbackTests, GainRecalculation) {
+  Hypergraph hg = io::readHypergraphFile<Hypergraph, HypergraphFactory>("../test_instances/twocenters.hgr", 0);
+  PartitionID k = 2;
+  PartitionedHypergraph phg(k, hg);
+
+  phg.setNodePart(0, 0);
+  phg.setNodePart(1, 0);
+  for (HypernodeID u = 4; u < 12; ++u) {
+    phg.setNodePart(u, 0);
+  }
+
+  phg.setNodePart(2, 1);
+  phg.setNodePart(3, 1);
+  for (HypernodeID u = 12; u < 20; ++u) {
+    phg.setNodePart(u, 1);
+  }
 }
 
 }   // namespace refinement
