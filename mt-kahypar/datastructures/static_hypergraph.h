@@ -373,6 +373,9 @@ class StaticHypergraph {
   using IncidenceArray = parallel::scalable_vector<HypernodeID>;
   using IncidentNets = parallel::scalable_vector<HyperedgeID>;
 
+  // ! Contains data structures that are needed during multilevel contractions.
+  // ! Struct is allocated on top level hypergraph and passed to each contracted
+  // ! hypergraph such that memory can be reused in consecutive contractions.
   struct TmpContractionBuffer {
     explicit TmpContractionBuffer(const HypernodeID num_hypernodes,
                                   const HyperedgeID num_hyperedges,
@@ -937,6 +940,14 @@ class StaticHypergraph {
     IncidenceArray& tmp_incidence_array = _tmp_contraction_buffer->tmp_incidence_array;
     parallel::scalable_vector<size_t>& valid_hyperedges = _tmp_contraction_buffer->valid_hyperedges;
 
+    ASSERT(static_cast<size_t>(_num_hypernodes) <= tmp_hypernodes.size());
+    ASSERT(static_cast<size_t>(_total_degree) <= tmp_incident_nets.size());
+    ASSERT(static_cast<size_t>(_num_hypernodes) <= tmp_num_incident_nets.size());
+    ASSERT(static_cast<size_t>(_num_hypernodes) <= hn_weights.size());
+    ASSERT(static_cast<size_t>(_num_hyperedges) <= tmp_hyperedges.size());
+    ASSERT(static_cast<size_t>(_num_pins) <= tmp_incidence_array.size());
+    ASSERT(static_cast<size_t>(_num_hyperedges) <= valid_hyperedges.size());
+
     // Mapping from a vertex id of the current hypergraph to its
     // id in the coarse hypergraph
     auto map_to_coarse_hypergraph = [&](const HypernodeID hn) {
@@ -997,16 +1008,16 @@ class StaticHypergraph {
         if ( edgeIsEnabled(he) ) {
           // Copy hyperedge and pins to temporary buffer
           const Hyperedge& he = _hyperedges[id];
+          ASSERT(static_cast<size_t>(id) < tmp_hyperedges.size());
+          ASSERT(he.firstInvalidEntry() <= tmp_incidence_array.size());
           tmp_hyperedges[id] = he;
-          memcpy(tmp_incidence_array.data() + he.firstEntry(),
-            _incidence_array.data() + he.firstEntry(), sizeof(HypernodeID) * he.size());
           valid_hyperedges[id] = 1;
 
           // Map pins to vertex ids in coarse graph
           const size_t incidence_array_start = tmp_hyperedges[id].firstEntry();
           const size_t incidence_array_end = tmp_hyperedges[id].firstInvalidEntry();
           for ( size_t pos = incidence_array_start; pos < incidence_array_end; ++pos ) {
-            const HypernodeID pin = tmp_incidence_array[pos];
+            const HypernodeID pin = _incidence_array[pos];
             tmp_incidence_array[pos] = map_to_coarse_hypergraph(pin);
           }
 
@@ -1058,12 +1069,14 @@ class StaticHypergraph {
         tmp_incident_nets_pos.assign(num_hypernodes, parallel::IntegralAtomicWrapper<size_t>(0));
       });
 
-      // Write incident nets of each contracted vertex to the temporary incident net array
+      // Write the incident nets of each contracted vertex to the temporary incident net array
       doParallelForAllNodes(task_group_id, [&](const HypernodeID& hn) {
         const HypernodeID coarse_hn = map_to_coarse_hypergraph(hn);
+        size_t incident_nets_pos = tmp_incident_nets_prefix_sum[coarse_hn] +
+          tmp_incident_nets_pos[coarse_hn].fetch_add(nodeDegree(hn));
+        ASSERT(incident_nets_pos + nodeDegree(hn) <= tmp_incident_nets_prefix_sum[coarse_hn + 1]);
         for ( const HyperedgeID& he : incidentEdges(hn) ) {
-          const size_t pos = tmp_incident_nets_prefix_sum[coarse_hn] + tmp_incident_nets_pos[coarse_hn]++;
-          tmp_incident_nets[pos] = he;
+          tmp_incident_nets[incident_nets_pos++] = he;
         }
       });
 
@@ -1215,14 +1228,14 @@ class StaticHypergraph {
       tbb::parallel_for(ID(0), _num_hyperedges, [&](const HyperedgeID& id) {
         if ( he_mapping.value(id) /* hyperedge is valid */ ) {
           const size_t he_pos = he_mapping[id];
-          const size_t pin_pos = num_pins_prefix_sum[id];
+          const size_t incidence_array_start = num_pins_prefix_sum[id];
           Hyperedge& he = hypergraph._hyperedges[he_pos];
           he = std::move(tmp_hyperedges[id]);
           const size_t tmp_incidence_array_start = he.firstEntry();
-          std::memcpy(hypergraph._incidence_array.data() + pin_pos,
+          std::memcpy(hypergraph._incidence_array.data() + incidence_array_start,
                       tmp_incidence_array.data() + tmp_incidence_array_start,
                       sizeof(HypernodeID) * he.size());
-          he.setFirstEntry(pin_pos);
+          he.setFirstEntry(incidence_array_start);
           he.setOriginalEdgeID(he_pos);
         }
       });
