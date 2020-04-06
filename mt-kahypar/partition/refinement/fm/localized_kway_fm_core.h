@@ -66,17 +66,24 @@ public:
       sharedData.nodeTracker.deactivateNode(m.node, thisSearch);
       deactivatedNodes.push_back(m.node);
 
-      if (phg.changeNodePartWithBalanceCheckAndGainUpdatesAndPartWeightUpdates(m.node, m.from, m.to, max_part_weight)) {
+      MoveID move_id = 0;
+      bool success = phg.changeNodePartWithBalanceCheckAndGainUpdatesAndPartWeightUpdates(
+              m.node, m.from, m.to, max_part_weight, [&] { move_id = sharedData.moveTracker.insertMove(m); });
+      if (success) {
 
-        if (phg.partWeight(m.from) <= min_part_weight) {
-          blockPQ.remove(m.from);
-        }
-
-        performSharedDataUpdates(m, phg, sharedData);
-        movesWithNonPositiveGain = m.gain > 0 ? 0 : movesWithNonPositiveGain + 1;
-
-        // activate neighbors of m.node and update their gains
         for (HyperedgeID e : phg.incidentEdges(m.node)) {
+          // update first move in
+          std::atomic<MoveID>& fmi = sharedData.first_move_in[e * numParts + m.to];
+          MoveID expected = fmi.load(std::memory_order_acq_rel);
+          while ((sharedData.moveTracker.isIDStale(expected) || expected > move_id)
+                 && !fmi.compare_exchange_weak(expected, move_id, std::memory_order_acq_rel)) {  }
+
+          // update last move out
+          std::atomic<MoveID>& lmo = sharedData.last_move_out[e * numParts + m.from];
+          expected = lmo.load(std::memory_order_acq_rel);
+          while (expected < move_id && !lmo.compare_exchange_weak(expected, move_id, std::memory_order_acq_rel)) { }
+
+          // activate neighbors of u and update their gains
           if (phg.edgeSize(e) < context.partition.hyperedge_size_threshold) {
             for (HypernodeID v : phg.pins(e)) {
               if (!updateDeduplicator.contains(u)) {
@@ -87,6 +94,11 @@ public:
           }
         }
         updateDeduplicator.clear();
+
+        if (phg.partWeight(m.from) <= min_part_weight) {
+          blockPQ.remove(m.from);
+        }
+        movesWithNonPositiveGain = m.gain > 0 ? 0 : movesWithNonPositiveGain + 1;
 
         /*  NOTE (Lars): only for the version with local rollbacks
         localMoves.push_back(m);
@@ -106,26 +118,6 @@ public:
 
 private:
 
-  void performSharedDataUpdates(Move& m, PartitionedHypergraph& phg, FMSharedData& sd) {
-    const HypernodeID u = m.node;
-
-    // TODO either sync this with the balance decision (requires double CAS operation)
-    // or run another prefix sum on the final move order that checks balance
-    // And at least get the move ID increment closer to the balance decision
-    const MoveID move_id = sd.moveTracker.insertMove(m);
-
-    for (HyperedgeID he : phg.incidentEdges(u)) {
-      // update first move in
-      std::atomic<MoveID>& fmi = sd.first_move_in[he * numParts + m.to];
-      MoveID expected = fmi.load(std::memory_order_acq_rel);
-      while ((sd.moveTracker.isIDStale(expected) || expected > move_id) && !fmi.compare_exchange_weak(expected, move_id, std::memory_order_acq_rel)) {  }
-
-      // update last move out
-      std::atomic<MoveID>& lmo = sd.last_move_out[he * numParts + m.from];
-      expected = lmo.load(std::memory_order_acq_rel);
-      while (expected < move_id && !lmo.compare_exchange_weak(expected, move_id, std::memory_order_acq_rel)) { }
-    }
-  }
 
   std::pair<PartitionID, HyperedgeWeight> bestDestinationBlock(PartitionedHypergraph& phg, HypernodeID u) {
     const HypernodeWeight wu = phg.nodeWeight(u);
