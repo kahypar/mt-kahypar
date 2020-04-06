@@ -124,17 +124,11 @@ TEST(RollbackTests, GainRecalculation) {
   ASSERT_EQ(1, phg.km1Gain(3, 0, 1));
   performMove({0, 1,  3,  1});
 
-  LOG << "moves performed";
-
   GlobalRollBack grb(hg.initialNumNodes());
   grb.recalculateGains(phg, sharedData);
-  LOG << "recalc";
   for (MoveID round_local_move_id = 0; round_local_move_id < 4; ++round_local_move_id) {
-    LOG << V(round_local_move_id);
     ASSERT_EQ(sharedData.moveTracker.globalMoveOrder[round_local_move_id].gain, grb.gains[round_local_move_id]);
   }
-  LOG << "done";
-
 
 }
 

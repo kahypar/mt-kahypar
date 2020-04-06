@@ -186,13 +186,13 @@ struct FMSharedData {
   }
 
   void performHyperedgeSpecificMoveUpdates(MoveID move_id, HyperedgeID e) {
+    // TODO more pruning!
     Move& m = moveTracker.getMove(move_id);
-
     // update first move in
     CAtomic<MoveID>& fmi = first_move_in[e * numParts + m.to];
     MoveID expected = fmi.load(std::memory_order_acq_rel);
     while ((moveTracker.isIDStale(expected) || expected > move_id)
-           && !fmi.compare_exchange_weak(expected, move_id, std::memory_order_acq_rel)) {  }
+           && !fmi.compare_exchange_weak(expected, move_id, std::memory_order_acq_rel)) { }
 
     // update last move out
     CAtomic<MoveID>& lmo = last_move_out[e * numParts + m.from];

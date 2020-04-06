@@ -108,13 +108,16 @@ public:
     const auto& move_order = sharedData.moveTracker.globalMoveOrder;
     const MoveID firstMoveID = sharedData.moveTracker.firstMoveID;
 
-    tbb::parallel_for(0U, sharedData.moveTracker.numPerformedMoves(), [&](MoveID localMoveID) {
+    //tbb::parallel_for(0U, sharedData.moveTracker.numPerformedMoves(), [&](MoveID localMoveID) {
+    for (MoveID localMoveID = 0; localMoveID < sharedData.moveTracker.numPerformedMoves(); ++localMoveID) {
       MoveID moveID = firstMoveID + localMoveID;
       Gain gain = 0;
       const Move& m = move_order[localMoveID];
       const HypernodeID u = m.node;
       for (HyperedgeID e : phg.incidentEdges(u)) {
-        if (sharedData.remainingPinsFromBeginningOfMovePhase(e, m.from) == 0  && sharedData.lastMoveOut(e, m.from) == moveID && sharedData.firstMoveIn(e, m.from) > moveID) {
+        const MoveID firstInFrom = sharedData.firstMoveIn(e, m.from);
+        if (sharedData.remainingPinsFromBeginningOfMovePhase(e, m.from) == 0  && sharedData.lastMoveOut(e, m.from) == moveID
+            && (firstInFrom > moveID || firstInFrom < firstMoveID)) {
           gain += phg.edgeWeight(e);
         }
 
@@ -124,9 +127,8 @@ public:
           gain -= phg.edgeWeight(e);
         }
       }
-      // m.gain = gain;
       gains[localMoveID] = gain;
-    });
+    }//);
   }
 
   vec<Gain> gains;
