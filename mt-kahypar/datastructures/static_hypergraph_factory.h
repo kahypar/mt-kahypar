@@ -168,6 +168,12 @@ class StaticHypergraphFactory {
     hypergraph.updateTotalWeight(task_group_id);
     utils::Timer::instance().stop_timer("setup_hypergraph");
 
+
+    utils::Timer::instance().start_timer("allocate_tmp_contraction_buffer", "Alloc Tmp Contraction Buffer", true);
+    // Allocates temporary contraction buffer
+    hypergraph.allocateTmpContractionBuffer();
+    utils::Timer::instance().stop_timer("allocate_tmp_contraction_buffer");
+
     return hypergraph;
   }
 

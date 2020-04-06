@@ -373,6 +373,54 @@ class StaticHypergraph {
   using IncidenceArray = parallel::scalable_vector<HypernodeID>;
   using IncidentNets = parallel::scalable_vector<HyperedgeID>;
 
+  struct TmpContractionBuffer {
+    explicit TmpContractionBuffer(const HypernodeID num_hypernodes,
+                                  const HyperedgeID num_hyperedges,
+                                  const HyperedgeID num_pins) :
+        is_initialized(false) {
+      tbb::parallel_invoke([&] {
+        tmp_hypernodes.resize(num_hypernodes);
+      }, [&] {
+        tmp_incident_nets.resize(num_pins);
+      }, [&] {
+        tmp_num_incident_nets.assign(num_hypernodes,
+          parallel::IntegralAtomicWrapper<size_t>(0));
+      }, [&] {
+        hn_weights.assign(num_hypernodes,
+          parallel::IntegralAtomicWrapper<HypernodeWeight>(0));
+      }, [&] {
+        tmp_hyperedges.resize(num_hyperedges);
+      }, [&] {
+        tmp_incidence_array.resize(num_pins);
+      }, [&] {
+        valid_hyperedges.resize(num_hyperedges);
+      });
+      is_initialized = true;
+    }
+
+    void freeInternalData() {
+      if ( is_initialized ) {
+        tbb::parallel_invoke([&] {
+          parallel::parallel_free(tmp_hypernodes, tmp_incident_nets,
+            tmp_num_incident_nets, hn_weights);
+        }, [&] {
+          parallel::parallel_free(tmp_hyperedges,
+            tmp_incidence_array, valid_hyperedges);
+        });
+        is_initialized = false;
+      }
+    }
+
+    bool is_initialized;
+    parallel::scalable_vector<Hypernode> tmp_hypernodes;
+    IncidentNets tmp_incident_nets;
+    parallel::scalable_vector<parallel::IntegralAtomicWrapper<size_t>> tmp_num_incident_nets;
+    parallel::scalable_vector<parallel::IntegralAtomicWrapper<HypernodeWeight>> hn_weights;
+    parallel::scalable_vector<Hyperedge> tmp_hyperedges;
+    IncidenceArray tmp_incidence_array;
+    parallel::scalable_vector<size_t> valid_hyperedges;
+  };
+
  public:
   static constexpr bool is_static_hypergraph = true;
   static constexpr bool is_numa_aware = false;
@@ -401,7 +449,9 @@ class StaticHypergraph {
     _incident_nets(),
     _hyperedges(),
     _incidence_array(),
-    _community_support() { }
+    _community_support(),
+    _tmp_contraction_buffer(nullptr),
+    _is_root_allocator(false) { }
 
   StaticHypergraph(const StaticHypergraph&) = delete;
   StaticHypergraph & operator= (const StaticHypergraph &) = delete;
@@ -418,7 +468,9 @@ class StaticHypergraph {
     _incident_nets(std::move(other._incident_nets)),
     _hyperedges(std::move(other._hyperedges)),
     _incidence_array(std::move(other._incidence_array)),
-    _community_support(std::move(other._community_support)) { }
+    _community_support(std::move(other._community_support)),
+    _tmp_contraction_buffer(std::move(other._tmp_contraction_buffer)),
+    _is_root_allocator(other._is_root_allocator) { }
 
   StaticHypergraph & operator= (StaticHypergraph&& other) {
     _node = other._node;
@@ -433,6 +485,8 @@ class StaticHypergraph {
     _hyperedges = std::move(other._hyperedges);
     _incidence_array = std::move(other._incidence_array);
     _community_support = std::move(other._community_support);
+    _tmp_contraction_buffer = std::move(other._tmp_contraction_buffer);
+    _is_root_allocator = other._is_root_allocator;
     return *this;
   }
 
@@ -866,17 +920,20 @@ class StaticHypergraph {
   std::pair<StaticHypergraph, parallel::scalable_vector<HypernodeID>> contract(
     const parallel::scalable_vector<HypernodeID>& communities,
     const TaskGroupID task_group_id) const {
+    ASSERT(_tmp_contraction_buffer);
     ASSERT(communities.size() == _num_hypernodes);
 
     HypernodeID num_hypernodes = 0;
     parallel::scalable_vector<HypernodeID> mapping(_num_hypernodes, kInvalidHypernode);
-    parallel::scalable_vector<Hypernode> tmp_hypernodes;
-    IncidentNets tmp_incident_nets;
-    parallel::scalable_vector<parallel::IntegralAtomicWrapper<size_t>> tmp_num_incident_nets;
-    parallel::scalable_vector<parallel::IntegralAtomicWrapper<HypernodeWeight>> hn_weights;
-    parallel::scalable_vector<Hyperedge> tmp_hyperedges;
-    IncidenceArray tmp_incidence_array;
-    parallel::scalable_vector<size_t> valid_hyperedges;
+    parallel::scalable_vector<Hypernode>& tmp_hypernodes = _tmp_contraction_buffer->tmp_hypernodes;
+    IncidentNets& tmp_incident_nets = _tmp_contraction_buffer->tmp_incident_nets;
+    parallel::scalable_vector<parallel::IntegralAtomicWrapper<size_t>>& tmp_num_incident_nets =
+      _tmp_contraction_buffer->tmp_num_incident_nets;
+    parallel::scalable_vector<parallel::IntegralAtomicWrapper<HypernodeWeight>>& hn_weights =
+      _tmp_contraction_buffer->hn_weights;
+    parallel::scalable_vector<Hyperedge>& tmp_hyperedges = _tmp_contraction_buffer->tmp_hyperedges;
+    IncidenceArray& tmp_incidence_array = _tmp_contraction_buffer->tmp_incidence_array;
+    parallel::scalable_vector<size_t>& valid_hyperedges = _tmp_contraction_buffer->valid_hyperedges;
 
     // Mapping from a vertex id of the current hypergraph to its
     // id in the coarse hypergraph
@@ -888,51 +945,34 @@ class StaticHypergraph {
     // #################### STAGE 1 ####################
     // Remapping of vertex ids
     utils::Timer::instance().start_timer("preprocess_contractions", "Preprocess Contractions");
-    tbb::parallel_invoke([&] {
-      for ( const HypernodeID& hn : nodes() ) {
-        ASSERT(hn < _num_hypernodes);
-        HypernodeID community = communities[hn];
-        if ( mapping[community] == kInvalidHypernode ) {
-          // Setup mapping from community id to a vertex id
-          // in the contracted hypergraph
-          mapping[community] = num_hypernodes++;
-        }
+    for ( const HypernodeID& hn : nodes() ) {
+      ASSERT(hn < _num_hypernodes);
+      HypernodeID community = communities[hn];
+      if ( mapping[community] == kInvalidHypernode ) {
+        // Setup mapping from community id to a vertex id
+        // in the contracted hypergraph
+        mapping[community] = num_hypernodes++;
       }
+    }
 
-      tbb::parallel_invoke([&] {
-        hn_weights.assign(num_hypernodes, parallel::IntegralAtomicWrapper<HypernodeWeight>(0));
-      }, [&] {
-        tmp_hypernodes.assign(num_hypernodes, Hypernode(true));
-      }, [&] {
-        tmp_num_incident_nets.assign(num_hypernodes, parallel::IntegralAtomicWrapper<size_t>(0));
-      });
-
-      doParallelForAllNodes(task_group_id, [&](const HypernodeID& hn) {
-        const HypernodeID coarse_hn = map_to_coarse_hypergraph(hn);
-        ASSERT(coarse_hn < num_hypernodes);
-        // Weight vector is atomic => thread-safe
-        hn_weights[coarse_hn] += nodeWeight(hn);
-        // In case community detection is enabled all vertices matched to one vertex
-        // in the contracted hypergraph belong to same community. Otherwise, all communities
-        // are default assigned to community 0
-        tmp_hypernodes[coarse_hn].setCommunityID(communityID(hn));
-        tmp_num_incident_nets[coarse_hn] += nodeDegree(hn);
-      });
+    tbb::parallel_invoke([&] {
+      hn_weights.assign(num_hypernodes, parallel::IntegralAtomicWrapper<HypernodeWeight>(0));
     }, [&] {
-      utils::Timer::instance().start_timer("allocate_auxilliary_structures", "Allocate Auxilliary Structures", true);
-      // Initialize tmp incidence array and incident nets
-      tbb::parallel_invoke([&] {
-        tmp_incidence_array.resize(_num_pins);
-        memcpy(tmp_incidence_array.data(), _incidence_array.data(), sizeof(HypernodeID) * _num_pins);
-      }, [&] {
-        tmp_hyperedges.resize(_num_hyperedges);
-        memcpy(tmp_hyperedges.data(), _hyperedges.data(), sizeof(Hyperedge) * _num_hyperedges);
-      }, [&] {
-        valid_hyperedges.assign(_num_hyperedges, 1);
-      }, [&] {
-        tmp_incident_nets.resize(_total_degree);
-      });
-      utils::Timer::instance().stop_timer("allocate_auxilliary_structures");
+      tmp_hypernodes.assign(num_hypernodes, Hypernode(true));
+    }, [&] {
+      tmp_num_incident_nets.assign(num_hypernodes, parallel::IntegralAtomicWrapper<size_t>(0));
+    });
+
+    doParallelForAllNodes(task_group_id, [&](const HypernodeID& hn) {
+      const HypernodeID coarse_hn = map_to_coarse_hypergraph(hn);
+      ASSERT(coarse_hn < num_hypernodes);
+      // Weight vector is atomic => thread-safe
+      hn_weights[coarse_hn] += nodeWeight(hn);
+      // In case community detection is enabled all vertices matched to one vertex
+      // in the contracted hypergraph belong to same community. Otherwise, all communities
+      // are default assigned to community 0
+      tmp_hypernodes[coarse_hn].setCommunityID(communityID(hn));
+      tmp_num_incident_nets[coarse_hn] += nodeDegree(hn);
     });
     utils::Timer::instance().stop_timer("preprocess_contractions");
 
@@ -946,6 +986,12 @@ class StaticHypergraph {
       tbb::parallel_for(ID(0), _num_hyperedges, [&](const HyperedgeID& id) {
         const HyperedgeID he = globalEdgeID(id);
         if ( edgeIsEnabled(he) ) {
+          const Hyperedge& he = _hyperedges[id];
+          tmp_hyperedges[id] = he;
+          memcpy(tmp_incidence_array.data() + he.firstEntry(),
+            _incidence_array.data() + he.firstEntry(), sizeof(HypernodeID) * he.size());
+          valid_hyperedges[id] = 1;
+
           const size_t incidence_array_start = tmp_hyperedges[id].firstEntry();
           const size_t incidence_array_end = tmp_hyperedges[id].firstInvalidEntry();
           for ( size_t pos = incidence_array_start; pos < incidence_array_end; ++pos ) {
@@ -1192,13 +1238,7 @@ class StaticHypergraph {
     });
     utils::Timer::instance().stop_timer("setup_communities");
 
-    utils::Timer::instance().start_timer("free_internal_data", "Free Internal Data");
-    // We free memory here in parallel, because this can become a major
-    // bottleneck, if memory is freed sequential after function return
-    parallel::parallel_free(hn_weights, tmp_hypernodes, tmp_incident_nets,
-      tmp_hyperedges, tmp_incidence_array, valid_hyperedges);
-    utils::Timer::instance().stop_timer("free_internal_data");
-
+    hypergraph._tmp_contraction_buffer = _tmp_contraction_buffer;
     return std::make_pair(std::move(hypergraph), std::move(mapping));
   }
 
@@ -1394,7 +1434,16 @@ class StaticHypergraph {
     return hypergraph;
   }
 
-  // Free internal data in parallel
+  // ! Allocate the temporary contraction buffer
+  void allocateTmpContractionBuffer() {
+    if ( !_is_root_allocator ) {
+      _tmp_contraction_buffer = new TmpContractionBuffer(
+        _num_hypernodes, _num_hyperedges, _num_pins);
+      _is_root_allocator = true;
+    }
+  }
+
+  // ! Free internal data in parallel
   void freeInternalData() {
     if ( _num_hypernodes > 0 || _num_hyperedges > 0 ) {
       tbb::parallel_invoke([&] {
@@ -1403,6 +1452,12 @@ class StaticHypergraph {
         parallel::parallel_free(
           _hypernodes, _incident_nets,
           _hyperedges, _incidence_array);
+      }, [&] {
+        if ( _tmp_contraction_buffer && _is_root_allocator ) {
+          _tmp_contraction_buffer->freeInternalData();
+          free(_tmp_contraction_buffer);
+          _tmp_contraction_buffer = nullptr;
+        }
       });
     }
     _num_hypernodes = 0;
@@ -1573,6 +1628,12 @@ class StaticHypergraph {
 
   // ! Community Information and Stats
   CommunitySupport<StaticHypergraph> _community_support;
+
+  // ! Data that is reused throughout the multilevel hierarchy
+  // ! to contract the hypergraph and to prevent expensive allocations
+  TmpContractionBuffer* _tmp_contraction_buffer;
+  // ! If true, than the contraction buffer was allocated within this hypergraph
+  bool _is_root_allocator;
 };
 
 } // namespace ds
