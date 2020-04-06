@@ -120,6 +120,13 @@ struct ContractedHyperedge {
   HypernodeID pin_idx; // Index of pins in incidence array
 };
 
+struct HyperedgeHash {
+  HyperedgeID he;
+  size_t hash;
+  size_t size;
+  bool valid;
+};
+
 namespace common {
 
 #if ( KAHYPAR_ENABLE_NUMA_AWARE_PARTITIONING || HYPERGRAPH_UNIT_TEST )

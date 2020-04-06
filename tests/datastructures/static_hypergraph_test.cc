@@ -699,11 +699,11 @@ TEST_F(AStaticHypergraph, ContractsCommunities3) {
 
   // Verify Hypergraph Structure
   verifyIncidentNets(c_hypergraph, 0, { 0, 1 });
-  verifyIncidentNets(c_hypergraph, 1, { 0, 2 });
-  verifyIncidentNets(c_hypergraph, 2, { 1, 3 });
+  verifyIncidentNets(c_hypergraph, 1, { 0, 3 });
+  verifyIncidentNets(c_hypergraph, 2, { 1, 2 });
   verifyIncidentNets(c_hypergraph, 3, { 2, 3 });
   verifyPins(c_hypergraph, { 0, 1, 2, 3 },
-    { {0, 1}, {0, 2}, {1, 3}, {2, 3} });
+    { {0, 1}, {0, 2}, {2, 3}, {1, 3} });
 }
 
 TEST_F(AStaticHypergraph, ContractsCommunitiesWithDisabledHypernodes) {
@@ -809,9 +809,9 @@ TEST_F(AStaticHypergraph, ContractCommunitiesIfCommunityHyperedgesAreAvailable) 
   StaticHypergraph& c_hypergraph = contracted_hg.first;
 
   // Verify Hypergraph Structure
-  verifyCommunityPins(c_hypergraph, 0, { 0, 1, 2 },
+  verifyCommunityPins(c_hypergraph, 0, { 0, 1, 3 },
     { {0, 1}, {0}, {1} });
-  verifyCommunityPins(c_hypergraph, 1, { 1, 3 },
+  verifyCommunityPins(c_hypergraph, 1, { 1, 2 },
     { {2}, {2} });
   verifyCommunityPins(c_hypergraph, 2, { 2, 3 },
     { {3}, {3} });
