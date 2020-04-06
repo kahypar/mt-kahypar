@@ -923,14 +923,10 @@ class StaticHypergraph {
    * \param communities Community structure that should be contracted
    * \param task_group_id Task Group ID
    */
-  std::pair<StaticHypergraph, parallel::scalable_vector<HypernodeID>> contract(
-    const parallel::scalable_vector<HypernodeID>& communities,
-    const TaskGroupID task_group_id) const {
+  StaticHypergraph contract(parallel::scalable_vector<HypernodeID>& communities,
+                            const TaskGroupID task_group_id) const {
     ASSERT(_tmp_contraction_buffer);
     ASSERT(communities.size() == _num_hypernodes);
-
-    HypernodeID num_hypernodes = 0;
-    parallel::scalable_vector<HypernodeID> mapping(_num_hypernodes, kInvalidHypernode);
 
     // AUXILLIARY BUFFERS - Reused during multilevel hierarchy to prevent expensive allocations
     parallel::scalable_vector<Hypernode>& tmp_hypernodes = _tmp_contraction_buffer->tmp_hypernodes;
@@ -951,25 +947,35 @@ class StaticHypergraph {
     ASSERT(static_cast<size_t>(_num_pins) <= tmp_incidence_array.size());
     ASSERT(static_cast<size_t>(_num_hyperedges) <= valid_hyperedges.size());
 
+    // #################### STAGE 1 ####################
+    // Compute vertex ids of coarse hypergraph with a parallel prefix sum
+    utils::Timer::instance().start_timer("preprocess_contractions", "Preprocess Contractions");
+    parallel::scalable_vector<size_t> mapping(_num_hypernodes, 0);
+    doParallelForAllNodes(task_group_id, [&](const HypernodeID& hn) {
+      ASSERT(static_cast<size_t>(communities[originalNodeID(hn)]) < mapping.size());
+      mapping[communities[hn]] = 1UL;
+    });
+
+    // Prefix sum determines vertex ids in coarse hypergraph
+    parallel::TBBPrefixSum<size_t> mapping_prefix_sum(mapping);
+    tbb::parallel_scan(tbb::blocked_range<size_t>(0UL, mapping.size()), mapping_prefix_sum);
+    HypernodeID num_hypernodes = mapping_prefix_sum.total_sum();
+
+    // Remap community ids
+    tbb::parallel_for(ID(0), _num_hypernodes, [&](const HypernodeID& hn) {
+      if ( nodeIsEnabled(hn) ) {
+        communities[hn] = mapping_prefix_sum[communities[hn]];
+      } else {
+        communities[hn] = kInvalidHypernode;
+      }
+    });
+
     // Mapping from a vertex id of the current hypergraph to its
     // id in the coarse hypergraph
     auto map_to_coarse_hypergraph = [&](const HypernodeID hn) {
       ASSERT(hn < communities.size());
-      return mapping[communities[hn]];
+      return communities[hn];
     };
-
-    // #################### STAGE 1 ####################
-    // Remapping of vertex ids
-    utils::Timer::instance().start_timer("preprocess_contractions", "Preprocess Contractions");
-    for ( const HypernodeID& hn : nodes() ) {
-      ASSERT(hn < _num_hypernodes);
-      HypernodeID community = communities[hn];
-      if ( mapping[community] == kInvalidHypernode ) {
-        // Setup mapping from community id to a vertex id
-        // in the contracted hypergraph
-        mapping[community] = num_hypernodes++;
-      }
-    }
 
     tbb::parallel_invoke([&] {
       hn_weights.assign(num_hypernodes, parallel::IntegralAtomicWrapper<HypernodeWeight>(0));
@@ -981,7 +987,7 @@ class StaticHypergraph {
 
     doParallelForAllNodes(task_group_id, [&](const HypernodeID& hn) {
       const HypernodeID coarse_hn = map_to_coarse_hypergraph(hn);
-      ASSERT(coarse_hn < num_hypernodes);
+      ASSERT(coarse_hn < num_hypernodes, V(coarse_hn) << V(num_hypernodes));
       // Weight vector is atomic => thread-safe
       hn_weights[coarse_hn] += nodeWeight(hn);
       // In case community detection is enabled all vertices matched to one vertex
@@ -1309,7 +1315,7 @@ class StaticHypergraph {
     utils::Timer::instance().stop_timer("setup_communities");
 
     hypergraph._tmp_contraction_buffer = _tmp_contraction_buffer;
-    return std::make_pair(std::move(hypergraph), std::move(mapping));
+    return hypergraph;
   }
 
   void uncontract(const Memento&, parallel::scalable_vector<HyperedgeID>&) {
@@ -1470,8 +1476,7 @@ class StaticHypergraph {
       hypergraph._community_support = _community_support.copy(task_group_id);
     });
 
-    hypergraph._tmp_contraction_buffer = _tmp_contraction_buffer;
-    hypergraph._is_root_allocator = false;
+    hypergraph.allocateTmpContractionBuffer();
     return hypergraph;
   }
 

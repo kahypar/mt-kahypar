@@ -553,9 +553,8 @@ class NumaHypergraph {
    * \param communities Community structure that should be contracted
    * \param task_group_id Task Group ID
    */
-  std::pair<NumaHypergraph, parallel::scalable_vector<HypernodeID>> contract(
-    const parallel::scalable_vector<HypernodeID>& communities,
-    const TaskGroupID task_group_id) const {
+  NumaHypergraph contract(parallel::scalable_vector<HypernodeID>& communities,
+                          const TaskGroupID task_group_id) const {
     ASSERT(communities.size() == _num_hypernodes);
     const int num_numa_nodes = _hypergraphs.size();
     ASSERT(TBBNumaArena::instance().num_used_numa_nodes() == num_numa_nodes);
@@ -577,7 +576,12 @@ class NumaHypergraph {
           // hypergraph) and the numa node id.
           mapping[community] =  common::get_global_vertex_id(
             node, num_numa_hypernodes_prefix_sum[node + 1]++);
+          communities[id] = mapping[community];
+        } else {
+          communities[id] = mapping[community];
         }
+      } else {
+        communities[id] = kInvalidHypernode;
       }
     }
     for ( int node = 1; node <= num_numa_nodes; ++node ) {
@@ -600,7 +604,7 @@ class NumaHypergraph {
     // Mapping from a vertex id of the current hypergraph to its
     // id in the coarse hypergraph
     auto map_to_coarse_hypergraph = [&](const HypernodeID hn) {
-      return mapping[communities[originalNodeID(hn)]];
+      return communities[originalNodeID(hn)];
     };
 
     // Mapping from a coarse vertex id of the coarse hypergraph to its
@@ -919,7 +923,7 @@ class NumaHypergraph {
     });
     utils::Timer::instance().stop_timer("free_internal_data");
 
-    return std::make_pair(std::move(hypergraph), std::move(mapping));
+    return hypergraph;
   }
 
   void uncontract(const Memento&, parallel::scalable_vector<HyperedgeID>&) {

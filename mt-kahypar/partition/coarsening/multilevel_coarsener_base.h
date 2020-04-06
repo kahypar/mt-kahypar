@@ -46,15 +46,11 @@ class MultilevelCoarsenerBase {
 
    public:
     explicit Hierarchy(HyperGraph&& contracted_hypergraph,
-                       parallel::scalable_vector<HypernodeID>&& communities,
-                       parallel::scalable_vector<HypernodeID>&& mapping) :
+                       parallel::scalable_vector<HypernodeID>&& communities) :
       _representative_hypergraph(nullptr),
       _contracted_hypergraph(std::move(contracted_hypergraph)),
       _contracted_partitioned_hypergraph(),
-      _communities(std::move(communities)),
-      _mapping(std::move(mapping)) {
-      ASSERT(_communities.size() == _mapping.size());
-    }
+      _communities(std::move(communities)) { }
 
     void setRepresentativeHypergraph(PartitionedHyperGraph* representative_hypergraph) {
       _representative_hypergraph = representative_hypergraph;
@@ -83,7 +79,7 @@ class MultilevelCoarsenerBase {
       ASSERT(_representative_hypergraph);
       const HypernodeID original_id = _representative_hypergraph->originalNodeID(hn);
       ASSERT(original_id < _communities.size());
-      return _mapping[_communities[original_id]];
+      return _communities[original_id];
     }
 
     void freeInternalData() {
@@ -92,7 +88,7 @@ class MultilevelCoarsenerBase {
       }, [&] {
         _contracted_partitioned_hypergraph.freeInternalData();
       }, [&] {
-        parallel::parallel_free(_communities, _mapping);
+        parallel::free(_communities);
       });
     }
 
@@ -104,11 +100,8 @@ class MultilevelCoarsenerBase {
     // ! Partitioned Hypergraph
     PartitionedHyperGraph _contracted_partitioned_hypergraph;
     // ! Defines the communities that are contracted
-    // ! in the contracted hypergraph
+    // ! in the coarse hypergraph
     parallel::scalable_vector<HypernodeID> _communities;
-    // ! Mapping from community to original vertex id
-    // ! in the contracted hypergraph
-    parallel::scalable_vector<HypernodeID> _mapping;
   };
 
  public:
@@ -201,9 +194,8 @@ class MultilevelCoarsenerBase {
     ASSERT(!_is_finalized);
     HyperGraph& current_hg = currentHypergraph();
     ASSERT(current_hg.initialNumNodes() == communities.size());
-    auto contracted_hg = current_hg.contract(communities, _task_group_id);
-    _hierarchies.emplace_back(std::move(contracted_hg.first),
-      std::move(communities), std::move(contracted_hg.second));
+    HyperGraph contracted_hg = current_hg.contract(communities, _task_group_id);
+    _hierarchies.emplace_back(std::move(contracted_hg), std::move(communities));
   }
 
   PartitionedHyperGraph&& doUncoarsen(std::unique_ptr<Refiner>& label_propagation) {
