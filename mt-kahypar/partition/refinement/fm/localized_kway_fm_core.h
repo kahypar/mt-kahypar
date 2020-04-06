@@ -67,21 +67,12 @@ public:
       deactivatedNodes.push_back(m.node);
 
       MoveID move_id = 0;
-      bool success = phg.changeNodePartWithBalanceCheckAndGainUpdatesAndPartWeightUpdates(
-              m.node, m.from, m.to, max_part_weight, [&] { move_id = sharedData.moveTracker.insertMove(m); });
+      bool success = phg.changeNodePartFullUpdate(m.node, m.from, m.to, max_part_weight,
+                                                  [&] { move_id = sharedData.moveTracker.insertMove(m); });
       if (success) {
 
         for (HyperedgeID e : phg.incidentEdges(m.node)) {
-          // update first move in
-          std::atomic<MoveID>& fmi = sharedData.first_move_in[e * numParts + m.to];
-          MoveID expected = fmi.load(std::memory_order_acq_rel);
-          while ((sharedData.moveTracker.isIDStale(expected) || expected > move_id)
-                 && !fmi.compare_exchange_weak(expected, move_id, std::memory_order_acq_rel)) {  }
-
-          // update last move out
-          std::atomic<MoveID>& lmo = sharedData.last_move_out[e * numParts + m.from];
-          expected = lmo.load(std::memory_order_acq_rel);
-          while (expected < move_id && !lmo.compare_exchange_weak(expected, move_id, std::memory_order_acq_rel)) { }
+          sharedData.performHyperedgeSpecificMoveUpdates(move_id, e);
 
           // activate neighbors of u and update their gains
           if (phg.edgeSize(e) < context.partition.hyperedge_size_threshold) {

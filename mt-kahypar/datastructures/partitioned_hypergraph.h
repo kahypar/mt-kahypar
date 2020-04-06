@@ -203,7 +203,7 @@ private:
 
 
   template<typename F>
-  bool changeNodePartWithBalanceCheckAndGainUpdatesAndPartWeightUpdates(
+  bool changeNodePartFullUpdate(
           const HypernodeID u, PartitionID from, PartitionID to, HypernodeWeight max_weight_to, F&& report_success) {
     const HypernodeWeight wu = nodeWeight(u);
     const HypernodeWeight to_weight_after = part_weight[to].add_fetch(wu, std::memory_order_relaxed);

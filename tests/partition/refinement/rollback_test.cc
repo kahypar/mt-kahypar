@@ -91,17 +91,10 @@ TEST(RollbackTests, GainRecalculation) {
   PartitionID k = 2;
   PartitionedHypergraph phg(k, hg);
 
-  phg.setNodePart(0, 0);
-  phg.setNodePart(1, 0);
-  for (HypernodeID u = 4; u < 12; ++u) {
-    phg.setNodePart(u, 0);
-  }
+  FMSharedData sharedData(hg.initialNumNodes(), hg.initialNumEdges(), k, 4);
 
-  phg.setNodePart(2, 1);
-  phg.setNodePart(3, 1);
-  for (HypernodeID u = 12; u < 20; ++u) {
-    phg.setNodePart(u, 1);
-  }
+
+
 }
 
 }   // namespace refinement

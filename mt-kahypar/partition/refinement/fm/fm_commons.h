@@ -180,6 +180,23 @@ struct FMSharedData {
     size_t n = phg.getPinCountInPartVector().size();
     std::copy_n(remaining_original_pins.begin(), n, phg.getPinCountInPartVector().begin());
   }
+
+  void performHyperedgeSpecificMoveUpdates(MoveID move_id, HyperedgeID e) {
+    Move& m = moveTracker.globalMoveOrder[move_id];
+
+    // update first move in
+    CAtomic<MoveID>& fmi = first_move_in[e * numParts + m.to];
+    MoveID expected = fmi.load(std::memory_order_acq_rel);
+    while ((moveTracker.isIDStale(expected) || expected > move_id)
+           && !fmi.compare_exchange_weak(expected, move_id, std::memory_order_acq_rel)) {  }
+
+    // update last move out
+    CAtomic<MoveID>& lmo = last_move_out[e * numParts + m.from];
+    expected = lmo.load(std::memory_order_acq_rel);
+    while (expected < move_id && !lmo.compare_exchange_weak(expected, move_id, std::memory_order_acq_rel)) { }
+
+    remaining_original_pins[e * numParts + m.from].fetch_sub(1, std::memory_order_relaxed);
+  }
 };
 
 }
