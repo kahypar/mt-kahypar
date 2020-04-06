@@ -473,7 +473,9 @@ class StaticHypergraph {
     _incidence_array(std::move(other._incidence_array)),
     _community_support(std::move(other._community_support)),
     _tmp_contraction_buffer(std::move(other._tmp_contraction_buffer)),
-    _is_root_allocator(other._is_root_allocator) { }
+    _is_root_allocator(other._is_root_allocator) {
+    other._is_root_allocator = false;
+  }
 
   StaticHypergraph & operator= (StaticHypergraph&& other) {
     _node = other._node;
@@ -490,6 +492,7 @@ class StaticHypergraph {
     _community_support = std::move(other._community_support);
     _tmp_contraction_buffer = std::move(other._tmp_contraction_buffer);
     _is_root_allocator = other._is_root_allocator;
+    other._is_root_allocator = false;
     return *this;
   }
 
@@ -1467,6 +1470,8 @@ class StaticHypergraph {
       hypergraph._community_support = _community_support.copy(task_group_id);
     });
 
+    hypergraph._tmp_contraction_buffer = _tmp_contraction_buffer;
+    hypergraph._is_root_allocator = false;
     return hypergraph;
   }
 
