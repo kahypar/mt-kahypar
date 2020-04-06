@@ -129,13 +129,8 @@ private:
   void setNodePart(const HypernodeID u, PartitionID p) {
     setOnlyNodePart(u, p);
     part_weight[p].fetch_add(nodeWeight(u), std::memory_order_relaxed);
-    if (u == 0) { LOG << "set node part of " << V(u); }
     for (HyperedgeID he : incidentEdges(u)) {
-      auto pcip_before = pinCountInPart(he, p);
       incrementPinCountInPartWithoutGainUpdate(he, p);
-      if (u == 0) {
-        LOG << V(he) << "increment pin count in part" << V(pcip_before) << V(pinCountInPart(he, p));
-      }
     }
   }
 

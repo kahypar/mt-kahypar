@@ -59,7 +59,6 @@ struct GlobalMoveTracker {
 
   MoveID insertMove(Move &m) {
     const MoveID move_id = runningMoveID.fetch_add(1, std::memory_order_relaxed);
-    LOG << V(move_id) << V(firstMoveID);
     globalMoveOrder[move_id - firstMoveID] = m;
     return move_id;
   }
