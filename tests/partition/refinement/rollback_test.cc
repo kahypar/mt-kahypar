@@ -73,7 +73,7 @@ TEST(RollbackTests, FindsBestPrefixLargeRandom) {
 
   auto start_reduce = tbb::tick_count::now();
   BestIndexReduceBody b(gains);
-  tbb::parallel_reduce(tbb::blocked_range<MoveID>(0, gains.size()), b);//, tbb::static_partitioner());
+  tbb::parallel_reduce(tbb::blocked_range<MoveID>(0, gains.size()), b);
   if (display_timing) LOG << "Finish reduce in " << (tbb::tick_count::now() - start_reduce).seconds() << "seconds";
 
   auto start_reduce_static = tbb::tick_count::now();
@@ -93,6 +93,17 @@ TEST(RollbackTests, GainRecalculation) {
 
   FMSharedData sharedData(hg.initialNumNodes(), hg.initialNumEdges(), k, 4);
 
+  phg.setNodePart(0, 0);
+  phg.setNodePart(1, 0);
+  for (HypernodeID u = 4; u < 12; ++u) {
+    phg.setNodePart(u, 0);
+  }
+  phg.setNodePart(2, 1);
+  phg.setNodePart(3, 1);
+  for (HypernodeID u = 12; u < 20; ++u) {
+    phg.setNodePart(u, 1);
+  }
+  phg.initializeGainInformation();
 
 
 }

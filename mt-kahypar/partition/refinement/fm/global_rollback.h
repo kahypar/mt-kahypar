@@ -76,12 +76,25 @@ public:
     tbb::parallel_reduce(tbb::blocked_range<MoveID>(0, numMoves), b, tbb::static_partitioner());
 
     const auto& move_order = sharedData.moveTracker.globalMoveOrder;
+    const PartitionID numParts = sharedData.numParts;
 
     // revert rejected moves
-    tbb::parallel_for(b.best_index + 1, numMoves, [&](const size_t moveID) {
+    tbb::parallel_for(b.best_index + 1, numMoves, [&](const MoveID moveID) {
       const Move& m = move_order[moveID];
-      phg.changeNodePart(m.node, m.to, m.from);
+      phg.changeNodePartFullUpdate(m.node, m.to, m.from, std::numeric_limits<HypernodeWeight>::max(), []{/* do nothing */});
+      for (HyperedgeID e : phg.incidentEdges(m.node)) {
+        sharedData.remaining_original_pins[e * numParts + m.from].fetch_add(1, std::memory_order_relaxed);
+      }
     });
+
+    // apply updates to remaining original pins
+    tbb::parallel_for(MoveID(0), b.best_index + 1, [&](const MoveID moveID) {
+      const PartitionID to = move_order[moveID].to;
+      for (HyperedgeID e : phg.incidentEdges(move_order[moveID].node)) {
+        sharedData.remaining_original_pins[e * numParts + to].fetch_add(1, std::memory_order_relaxed);
+      }
+    });
+    assert(sharedData.remaining_original_pins == phg.getPinCountInPartVector());
 
     if (sharedData.moveTracker.reset()) {
       sharedData.resetStoredMoveIDs();
