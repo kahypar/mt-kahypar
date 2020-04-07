@@ -478,6 +478,7 @@ private:
     ASSERT(common::get_local_position_of_vertex(u) * _k + p < move_from_benefit.size());
   }
 
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
   HypernodeID decrementPinCountInPartWithoutGainUpdate(const HyperedgeID e, const PartitionID p) {
     pinCountInPartAssertions(e, p);
     const HyperedgeID e_local = common::get_local_position_of_edge(e);
@@ -488,6 +489,7 @@ private:
     return pin_count_after;
   }
 
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
   HypernodeID incrementPinCountInPartWithoutGainUpdate(const HyperedgeID e, const PartitionID p) {
     pinCountInPartAssertions(e, p);
     const HyperedgeID e_local = common::get_local_position_of_edge(e);
@@ -498,6 +500,7 @@ private:
     return pin_count_after;
   }
 
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
   HypernodeID decrementPinCountInPartWithGainUpdate(const HyperedgeID e, const PartitionID p) {
     const HypernodeID pin_count_after = decrementPinCountInPartWithoutGainUpdate(e, p);
     if (pin_count_after == 1) {
@@ -519,6 +522,7 @@ private:
     return pin_count_after;
   }
 
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
   HypernodeID incrementPinCountInPartWithGainUpdate(const HyperedgeID e, const PartitionID p) {
     const HypernodeID pin_count_after = incrementPinCountInPartWithoutGainUpdate(e, p);
     if (pin_count_after == 1) {
@@ -586,7 +590,7 @@ public:
       // this doesn't break km1 gains, but unfortunately it does break the actual penalty and benefit values
       // we would have to add edgeWeight(he) to all move_to_penalty[pin * _k + p] for p != partID(pin)
       // and add it to move_from_benefit[pin * _k + partID(pin)]
-      // I'm assuming this is only used in postprocessing to restore removed single pin hyperedges in the preprocessing?
+      // I'm assuming this is only used in postprocessing to restore single pin hyperedges removed in the preprocessing?
       // Then we don't need those values.
       // Apply same decision in numa_partitioned_hypergraph
       // TODO decide which version we want

@@ -49,7 +49,7 @@ public:
   }
 
 
-  void findMoves(PartitionedHypergraph& phg, const HypernodeID u, FMSharedData& sharedData, SearchID search_id) {
+  void findMoves(PartitionedHypergraph& phg, const HypernodeID initialBorderNode, FMSharedData& sharedData, SearchID search_id) {
     /*  NOTE (Lars): only for the version with local rollbacks
     HyperedgeWeight bestGain = 0;
     size_t bestGainIndex = 0;
@@ -58,56 +58,53 @@ public:
     this->thisSearch = search_id;
     reinitialize();
     uint32_t movesWithNonPositiveGain = 0;
-    insertOrUpdatePQ(phg, u, sharedData.nodeTracker);
+    insertOrUpdatePQ(phg, initialBorderNode, sharedData.nodeTracker);
 
     Move m;
     while (movesWithNonPositiveGain < context.refinement.fm.max_number_of_fruitless_moves && findNextMove(phg, m)) {
-
       sharedData.nodeTracker.deactivateNode(m.node, thisSearch);
       deactivatedNodes.push_back(m.node);
-
       MoveID move_id = 0;
-      bool success = phg.changeNodePartFullUpdate(m.node, m.from, m.to, max_part_weight,
-                                                  [&] { move_id = sharedData.moveTracker.insertMove(m); });
-      if (success) {
-
-        for (HyperedgeID e : phg.incidentEdges(m.node)) {
-          sharedData.performHyperedgeSpecificMoveUpdates(m, move_id, e);
-
-          // activate neighbors of u and update their gains
-          if (phg.edgeSize(e) < context.partition.hyperedge_size_threshold) {
-            for (HypernodeID v : phg.pins(e)) {
-              if (!updateDeduplicator.contains(u)) {
-                updateDeduplicator.insert(u);
-                insertOrUpdatePQ(phg, v, sharedData.nodeTracker);
-              }
-            }
-          }
-        }
-        updateDeduplicator.clear();
-
-        if (phg.partWeight(m.from) <= min_part_weight) {
-          blockPQ.remove(m.from);
-        }
+      if (phg.changeNodePartFullUpdate(m.node, m.from, m.to, max_part_weight, [&] { move_id = sharedData.moveTracker.insertMove(m); })) {
+        updateAfterSuccessfulMove(phg, sharedData, m, move_id);
         movesWithNonPositiveGain = m.gain > 0 ? 0 : movesWithNonPositiveGain + 1;
-
-        /*  NOTE (Lars): only for the version with local rollbacks
-        localMoves.push_back(m);
-        overallGain += m.gain;
-        if (overallGain < bestGain) {
-          bestGain = overallGain;
-          bestGainIndex = localMoves.size();
-        }
-        */
       }
     }
 
     // revertToBestLocalPrefix(phg, bestGainIndex);   NOTE (Lars): only for the version with local rollbacks
-
   }
 
+  void updateAfterSuccessfulMove(PartitionedHypergraph& phg, FMSharedData& sharedData, Move& m, MoveID move_id) {
+    const HypernodeID u = m.node;
+    for (HyperedgeID e : phg.incidentEdges(u)) {
+      sharedData.performHyperedgeSpecificMoveUpdates(m, move_id, e);
 
-private:
+      // activate neighbors of u and update their gains
+      if (phg.edgeSize(e) < context.partition.hyperedge_size_threshold) {
+        for (HypernodeID v : phg.pins(e)) {
+          if (!updateDeduplicator.contains(u)) {
+            updateDeduplicator.insert(u);
+            insertOrUpdatePQ(phg, v, sharedData.nodeTracker);
+          }
+        }
+      }
+    }
+    updateDeduplicator.clear();
+
+    if (phg.partWeight(m.from) <= min_part_weight) {
+      blockPQ.remove(m.from);
+    }
+
+    /*  NOTE (Lars): only for the version with local rollbacks
+    localMoves.push_back(m);
+    overallGain += m.gain;
+    if (overallGain < bestGain) {
+      bestGain = overallGain;
+      bestGainIndex = localMoves.size();
+    }
+    */
+  }
+
 
 
   std::pair<PartitionID, HyperedgeWeight> bestDestinationBlock(PartitionedHypergraph& phg, HypernodeID u) {
@@ -192,6 +189,8 @@ private:
       localMoves.pop_back();
     }
   }
+
+private:
 
   SearchID thisSearch;
   vec<Move> localMoves;
