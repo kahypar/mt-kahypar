@@ -30,6 +30,7 @@
 #include "mt-kahypar/datastructures/community_support.h"
 #include "mt-kahypar/datastructures/hypergraph_common.h"
 #include "mt-kahypar/datastructures/streaming_map.h"
+#include "mt-kahypar/datastructures/vector.h"
 #include "mt-kahypar/parallel/parallel_prefix_sum.h"
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
 #include "mt-kahypar/utils/memory_tree.h"
@@ -370,8 +371,8 @@ class StaticHypergraph {
   static_assert(std::is_trivially_copyable<Hypernode>::value, "Hypernode is not trivially copyable");
   static_assert(std::is_trivially_copyable<Hyperedge>::value, "Hyperedge is not trivially copyable");
 
-  using IncidenceArray = parallel::scalable_vector<HypernodeID>;
-  using IncidentNets = parallel::scalable_vector<HyperedgeID>;
+  using IncidenceArray = Vector<HypernodeID>;
+  using IncidentNets = Vector<HyperedgeID>;
 
   // ! Contains data structures that are needed during multilevel contractions.
   // ! Struct is allocated on top level hypergraph and passed to each contracted
@@ -404,11 +405,9 @@ class StaticHypergraph {
     void freeInternalData() {
       if ( is_initialized ) {
         tbb::parallel_invoke([&] {
-          parallel::parallel_free(tmp_hypernodes, tmp_incident_nets,
-            tmp_num_incident_nets, hn_weights);
+          parallel::parallel_free(tmp_hypernodes, tmp_num_incident_nets, hn_weights);
         }, [&] {
-          parallel::parallel_free(tmp_hyperedges,
-            tmp_incidence_array, valid_hyperedges);
+          parallel::parallel_free(tmp_hyperedges, valid_hyperedges);
         });
         is_initialized = false;
       }
@@ -1526,10 +1525,6 @@ class StaticHypergraph {
       tbb::parallel_invoke([&] {
         _community_support.freeInternalData();
       }, [&] {
-        parallel::parallel_free(
-          _hypernodes, _incident_nets,
-          _hyperedges, _incidence_array);
-      }, [&] {
         if ( _tmp_contraction_buffer && _is_root_allocator ) {
           _tmp_contraction_buffer->freeInternalData();
           free(_tmp_contraction_buffer);
@@ -1695,11 +1690,11 @@ class StaticHypergraph {
   HypernodeWeight _total_weight;
 
   // ! Hypernodes
-  parallel::scalable_vector<Hypernode> _hypernodes;
+  Vector<Hypernode> _hypernodes;
   // ! Pins of hyperedges
   IncidentNets _incident_nets;
   // ! Hyperedges
-  parallel::scalable_vector<Hyperedge> _hyperedges;
+  Vector<Hyperedge> _hyperedges;
   // ! Incident nets of hypernodes
   IncidenceArray _incidence_array;
 

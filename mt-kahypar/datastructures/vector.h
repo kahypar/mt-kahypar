@@ -164,7 +164,7 @@ class Vector {
 
   Vector(const size_type size,
                  const value_type init_value = value_type()) :
-    _size(size),
+    _size(0),
     _data(nullptr),
     _underlying_data(nullptr) {
     resize(size, init_value);
@@ -184,7 +184,22 @@ class Vector {
     return _underlying_data[pos];
   }
 
+  reference back() {
+    ASSERT(_underlying_data && _size > 0);
+    return _underlying_data[_size - 1];
+  }
+
+  const_reference back() const {
+    ASSERT(_underlying_data && _size > 0);
+    return _underlying_data[_size - 1];
+  }
+
   value_type* data() {
+    ASSERT(_underlying_data);
+    return _underlying_data;
+  }
+
+  const value_type* data() const {
     ASSERT(_underlying_data);
     return _underlying_data;
   }
@@ -231,10 +246,14 @@ class Vector {
 
   // ! Replaces the contents of the container
   void assign(const size_type count, const value_type value) {
-    ASSERT(count <= _size);
-    tbb::parallel_for(0UL, count, [&](const size_type i) {
-      _underlying_data[i] = value;
-    });
+    if ( _underlying_data ) {
+      ASSERT(count <= _size);
+      tbb::parallel_for(0UL, count, [&](const size_type i) {
+        _underlying_data[i] = value;
+      });
+    } else {
+      resize(count, value);
+    }
   }
 
  private:
@@ -243,6 +262,7 @@ class Vector {
     value_type* ptr = (value_type*) scalable_malloc(sizeof(value_type) * size);
     _data = tbb_unique_ptr<value_type>(ptr, tbb_deleter<value_type>());
     _underlying_data = _data.get();
+    _size = size;
   }
 
   size_type _size;
