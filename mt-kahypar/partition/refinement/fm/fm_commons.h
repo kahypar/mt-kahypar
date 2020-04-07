@@ -138,7 +138,7 @@ struct FMSharedData {
 
   NodeTracker nodeTracker;
 
-  FMSharedData(size_t numNodes, size_t numHyperedges, PartitionID numParts, size_t maxNumThreads) :
+  FMSharedData(size_t numNodes = 0, size_t numHyperedges = 0, PartitionID numParts = 0, size_t maxNumThreads = 0) :
           //partition_weight_budgets(static_cast<size_t>(numParts), maxNumThreads),
           remaining_original_pins(numHyperedges * numParts),
           first_move_in(numHyperedges * numParts),

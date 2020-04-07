@@ -49,9 +49,6 @@ namespace ds {
  *
  * All functions are supposed to handle global IDs, which is why they must perform a call to
  * common::get_local_position_of_{vertex/edge} before accessing memory.
- * All functions on this hypergraph can also be called with local IDs as the global-to-local mapping only hides
- * the NUMA ID bits.
- * TODO: this is currently not true! the assertions assume that they're given global IDs
  *
  * The pin and incident hyperedge IDs stored in _hg are global IDs, so beware before using them to access arrays!
  *

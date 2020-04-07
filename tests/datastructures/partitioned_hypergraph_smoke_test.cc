@@ -83,21 +83,6 @@ class AConcurrentHypergraph : public Test {
       assert(hypergraph.setNodePart(hn, id));
     }
 
-    static constexpr HypernodeID debug_node = 20;
-
-    vec<Gain> move_to_penalty(k, 0), move_from_benefit(k, 0);
-    for (HyperedgeID he : hypergraph.incidentEdges( debug_node )) {
-      for (PartitionID p = 0; p < k; ++p) {
-        if (hypergraph.pinCountInPart(he, p) == 0) {
-          move_to_penalty[p] += hypergraph.edgeWeight(he);
-        }
-
-        if (hypergraph.pinCountInPart(he, p) == 1) {
-          move_from_benefit[p] += hypergraph.edgeWeight(he);
-        }
-      }
-    }
-
     hypergraph.initializeGainInformation();
   }
 

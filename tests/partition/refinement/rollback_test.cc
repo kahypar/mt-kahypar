@@ -32,7 +32,7 @@ using ::testing::Test;
 
 namespace mt_kahypar {
 namespace refinement {
-/*
+
 TEST(RollbackTests, FindsBestPrefix) {
 
   vec<Gain> gains = { -42, 5, 4, -20, 1, 99, -100, 50 };
@@ -84,7 +84,6 @@ TEST(RollbackTests, FindsBestPrefixLargeRandom) {
   ASSERT_EQ(sum, b.sum);
   ASSERT_EQ(best_index, b.best_index);
 }
-*/
 
 
 TEST(RollbackTests, GainRecalculationAndRollsbackCorrectly) {
