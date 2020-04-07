@@ -6,3 +6,4 @@ add_gmock_test(partitioned_hypergraph_smoke_test partitioned_hypergraph_smoke_te
 add_gmock_test(partition_info_test partition_info_test.cc)
 add_gmock_test(sparsifier_hypergraph_test sparsifier_hypergraph_test.cc)
 add_gmock_test(connectivity_set_test connectivity_set_test.cc)
+add_gmock_test(vector_test vector_test.cc)
