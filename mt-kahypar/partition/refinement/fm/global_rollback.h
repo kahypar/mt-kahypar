@@ -94,7 +94,7 @@ public:
         sharedData.remaining_original_pins[e * numParts + to].fetch_add(1, std::memory_order_relaxed);
       }
     });
-    assert(sharedData.remaining_original_pins == phg.getPinCountInPartVector());
+    ASSERT(sharedData.remaining_original_pins == phg.getPinCountInPartVector());
 
     if (sharedData.moveTracker.reset()) {
       sharedData.resetStoredMoveIDs();

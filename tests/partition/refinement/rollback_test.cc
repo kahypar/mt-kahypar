@@ -87,7 +87,7 @@ TEST(RollbackTests, FindsBestPrefixLargeRandom) {
 */
 
 
-TEST(RollbackTests, GainRecalculation) {
+TEST(RollbackTests, GainRecalculationAndRollsbackCorrectly) {
   Hypergraph hg = io::readHypergraphFile<Hypergraph, HypergraphFactory>("../test_instances/twocenters.hgr", 0);
   PartitionID k = 2;
   PartitionedHypergraph phg(k, hg);
@@ -127,6 +127,16 @@ TEST(RollbackTests, GainRecalculation) {
   for (MoveID round_local_move_id = 0; round_local_move_id < 4; ++round_local_move_id) {
     ASSERT_EQ(sharedData.moveTracker.globalMoveOrder[round_local_move_id].gain, grb.gains[round_local_move_id]);
   }
+
+  ASSERT_EQ(phg.km1Gain(4, 0, 1), -1);
+  performMove({0, 1, 4, -1});
+  ASSERT_EQ(phg.km1Gain(5, 0, 1), 0);
+  performMove({0, 1, 5, 0});
+
+  grb.globalRollbackToBestPrefix(phg, sharedData);
+  // revert last two moves
+  ASSERT_EQ(phg.partID(4), 0);
+  ASSERT_EQ(phg.partID(5), 0);
 }
 
 
