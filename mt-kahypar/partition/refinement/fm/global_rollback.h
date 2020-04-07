@@ -108,8 +108,7 @@ public:
     const auto& move_order = sharedData.moveTracker.globalMoveOrder;
     const MoveID firstMoveID = sharedData.moveTracker.firstMoveID;
 
-    //tbb::parallel_for(0U, sharedData.moveTracker.numPerformedMoves(), [&](MoveID localMoveID) {
-    for (MoveID localMoveID = 0; localMoveID < sharedData.moveTracker.numPerformedMoves(); ++localMoveID) {
+    tbb::parallel_for(0U, sharedData.moveTracker.numPerformedMoves(), [&](MoveID localMoveID) {
       MoveID moveID = firstMoveID + localMoveID;
       Gain gain = 0;
       const Move& m = move_order[localMoveID];
@@ -128,7 +127,7 @@ public:
         }
       }
       gains[localMoveID] = gain;
-    }//);
+    });
   }
 
   vec<Gain> gains;

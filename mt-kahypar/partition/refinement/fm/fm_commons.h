@@ -185,9 +185,8 @@ struct FMSharedData {
     std::copy_n(phg.getPinCountInPartVector().begin(), n, remaining_original_pins.begin());
   }
 
-  void performHyperedgeSpecificMoveUpdates(MoveID move_id, HyperedgeID e) {
+  void performHyperedgeSpecificMoveUpdates(Move& m, MoveID move_id, HyperedgeID e) {
     // TODO more pruning!
-    Move& m = moveTracker.getMove(move_id);
     // update first move in
     CAtomic<MoveID>& fmi = first_move_in[e * numParts + m.to];
     MoveID expected = fmi.load(std::memory_order_acq_rel);

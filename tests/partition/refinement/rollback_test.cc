@@ -26,7 +26,6 @@
 #include "mt-kahypar/macros.h"
 
 #include <mt-kahypar/partition/refinement/fm/global_rollback.h>
-#include <mt-kahypar/definitions.h>
 #include <mt-kahypar/io/hypergraph_io.h>
 
 using ::testing::Test;
@@ -86,13 +85,12 @@ TEST(RollbackTests, FindsBestPrefixLargeRandom) {
   ASSERT_EQ(best_index, b.best_index);
 }
 */
+
+
 TEST(RollbackTests, GainRecalculation) {
   Hypergraph hg = io::readHypergraphFile<Hypergraph, HypergraphFactory>("../test_instances/twocenters.hgr", 0);
   PartitionID k = 2;
   PartitionedHypergraph phg(k, hg);
-
-  FMSharedData sharedData(hg.initialNumNodes(), hg.initialNumEdges(), k, 4);
-
   phg.setNodePart(0, 1);
   phg.setNodePart(1, 1);
   for (HypernodeID u = 4; u < 12; ++u) {
@@ -103,15 +101,15 @@ TEST(RollbackTests, GainRecalculation) {
   for (HypernodeID u = 12; u < 20; ++u) {
     phg.setNodePart(u, 1);
   }
-
   phg.initializeGainInformation();
+  FMSharedData sharedData(hg.initialNumNodes(), hg.initialNumEdges(), k, 4);
   sharedData.setRemainingOriginalPins(phg);
 
   auto performMove = [&](Move m) {
     phg.changeNodePartFullUpdate(m.node, m.from, m.to, std::numeric_limits<HypernodeWeight>::max(), []{});
     MoveID move_id = sharedData.moveTracker.insertMove(m);
     for (HyperedgeID e : phg.incidentEdges(m.node)) {
-      sharedData.performHyperedgeSpecificMoveUpdates(move_id, e);
+      sharedData.performHyperedgeSpecificMoveUpdates(m, move_id, e);
     }
   };
 
@@ -128,6 +126,52 @@ TEST(RollbackTests, GainRecalculation) {
   grb.recalculateGains(phg, sharedData);
   for (MoveID round_local_move_id = 0; round_local_move_id < 4; ++round_local_move_id) {
     ASSERT_EQ(sharedData.moveTracker.globalMoveOrder[round_local_move_id].gain, grb.gains[round_local_move_id]);
+  }
+}
+
+
+TEST(RollbackTests, GainRecalculation2) {
+  Hypergraph hg = io::readHypergraphFile<Hypergraph, HypergraphFactory>("../test_instances/twocenters.hgr", 0);
+  PartitionID k = 2;
+  PartitionedHypergraph phg(k, hg);
+  phg.setNodePart(0, 1);
+  phg.setNodePart(1, 1);
+  for (HypernodeID u = 4; u < 12; ++u) {
+    phg.setNodePart(u, 0);
+  }
+  phg.setNodePart(2, 0);
+  phg.setNodePart(3, 0);
+  for (HypernodeID u = 12; u < 20; ++u) {
+    phg.setNodePart(u, 1);
+  }
+  phg.initializeGainInformation();
+  FMSharedData sharedData(hg.initialNumNodes(), hg.initialNumEdges(), k, 4);
+  sharedData.setRemainingOriginalPins(phg);
+
+  auto performUpdates = [&](Move& m) {
+    MoveID move_id = sharedData.moveTracker.insertMove(m);
+    for ( HyperedgeID e : phg.incidentEdges(m.node) ){
+      sharedData.performHyperedgeSpecificMoveUpdates(m, move_id, e);
+    }
+  };
+
+  vec<Gain> expected_gains = { 3, 1 };
+
+  ASSERT_EQ(phg.km1Gain(2, 0, 1), 3);
+  Move move_2 = { 0, 1, 2, 3 };
+  phg.changeNodePartFullUpdate(move_2.node, move_2.from, move_2.to, std::numeric_limits<HypernodeWeight>::max(), []{});
+
+  ASSERT_EQ(phg.km1Gain(0, 1, 0), 1);
+  Move move_0 = { 1, 0, 0, 1 };
+  phg.changeNodePartFullUpdate(move_0.node, move_0.from, move_0.to, std::numeric_limits<HypernodeWeight>::max(), []{});
+
+  performUpdates(move_0);
+  performUpdates(move_2);
+
+  GlobalRollBack grb(hg.initialNumNodes());
+  grb.recalculateGains(phg, sharedData);
+  for (MoveID round_local_move_id = 0; round_local_move_id < sharedData.moveTracker.numPerformedMoves(); ++round_local_move_id) {
+    ASSERT_EQ(grb.gains[round_local_move_id], expected_gains[round_local_move_id]);
   }
 
 }

@@ -72,7 +72,7 @@ public:
       if (success) {
 
         for (HyperedgeID e : phg.incidentEdges(m.node)) {
-          sharedData.performHyperedgeSpecificMoveUpdates(move_id, e);
+          sharedData.performHyperedgeSpecificMoveUpdates(m, move_id, e);
 
           // activate neighbors of u and update their gains
           if (phg.edgeSize(e) < context.partition.hyperedge_size_threshold) {
