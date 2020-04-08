@@ -80,6 +80,7 @@ class NumaHypergraph {
   explicit NumaHypergraph() :
     _num_hypernodes(0),
     _num_hyperedges(0),
+    _num_removed_hyperedges(0),
     _num_pins(0),
     _total_degree(0),
     _total_weight(0),
@@ -94,6 +95,7 @@ class NumaHypergraph {
   NumaHypergraph(NumaHypergraph&& other) :
     _num_hypernodes(other._num_hypernodes),
     _num_hyperedges(other._num_hyperedges),
+    _num_removed_hyperedges(other._num_removed_hyperedges),
     _num_pins(other._num_pins),
     _total_degree(other._total_degree),
     _total_weight(other._total_weight),
@@ -105,6 +107,7 @@ class NumaHypergraph {
   NumaHypergraph & operator= (NumaHypergraph&& other) {
     _num_hypernodes = other._num_hypernodes;
     _num_hyperedges = other._num_hyperedges;
+    _num_removed_hyperedges = other._num_removed_hyperedges;
     _num_pins = other._num_pins;
     _total_degree = other._total_degree;
     _total_weight = other._total_weight;
@@ -160,6 +163,16 @@ class NumaHypergraph {
   HyperedgeID initialNumEdges(const int node) const {
     ASSERT(node < static_cast<int>(_hypergraphs.size()));
     return _hypergraphs[node].initialNumEdges();
+  }
+
+  // ! Number of removed hyperedges
+  HyperedgeID numRemovedHyperedges() const {
+    return _num_removed_hyperedges;
+  }
+
+  // ! Set the number of removed hyperedges
+  void setNumRemovedHyperedges(const HyperedgeID num_removed_hyperedges) {
+    _num_removed_hyperedges = num_removed_hyperedges;
   }
 
   // ! Initial number of pins
@@ -1114,6 +1127,7 @@ class NumaHypergraph {
     for ( const HypernodeID& pin : pins(he) ) {
       hypergraph_of_vertex(pin).removeIncidentEdgeFromHypernode(he, pin);
     }
+    ++_num_removed_hyperedges;
     hypergraph_of_edge(he).disableHyperedge(he);
   }
 
@@ -1221,6 +1235,7 @@ class NumaHypergraph {
 
     hypergraph._num_hypernodes = _num_hypernodes;
     hypergraph._num_hyperedges = _num_hyperedges;
+    hypergraph._num_removed_hyperedges = _num_removed_hyperedges;
     hypergraph._num_pins = _num_pins;
     hypergraph._total_degree = _total_degree;
     hypergraph._total_weight = _total_weight;
@@ -1255,6 +1270,7 @@ class NumaHypergraph {
 
     hypergraph._num_hypernodes = _num_hypernodes;
     hypergraph._num_hyperedges = _num_hyperedges;
+    hypergraph._num_removed_hyperedges = _num_removed_hyperedges;
     hypergraph._num_pins = _num_pins;
     hypergraph._total_degree = _total_degree;
     hypergraph._total_weight = _total_weight;
@@ -1346,6 +1362,8 @@ class NumaHypergraph {
   HypernodeID _num_hypernodes;
   // ! Number of hyperedges
   HyperedgeID _num_hyperedges;
+  // ! Number of removed hyperedges
+  HyperedgeID _num_removed_hyperedges;
   // ! Number of pins
   HypernodeID _num_pins;
   // ! Total degree of all vertices

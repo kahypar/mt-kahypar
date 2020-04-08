@@ -444,6 +444,7 @@ class StaticHypergraph {
     _num_hypernodes(0),
     _num_removed_hypernodes(0),
     _num_hyperedges(0),
+    _num_removed_hyperedges(0),
     _num_pins(0),
     _total_degree(0),
     _total_weight(0),
@@ -463,6 +464,7 @@ class StaticHypergraph {
     _num_hypernodes(other._num_hypernodes),
     _num_removed_hypernodes(other._num_removed_hypernodes),
     _num_hyperedges(other._num_hyperedges),
+    _num_removed_hyperedges(other._num_removed_hyperedges),
     _num_pins(other._num_pins),
     _total_degree(other._total_degree),
     _total_weight(other._total_weight),
@@ -481,6 +483,7 @@ class StaticHypergraph {
     _num_hypernodes = other._num_hypernodes;
     _num_removed_hypernodes = other._num_removed_hypernodes;
     _num_hyperedges = other._num_hyperedges;
+    _num_removed_hyperedges = other._num_removed_hyperedges;
     _num_pins = other._num_pins;
     _total_degree = other._total_degree;
     _total_weight = other._total_weight;
@@ -533,6 +536,16 @@ class StaticHypergraph {
   // ! Initial number of hyperedges on numa node
   HyperedgeID initialNumEdges(const int) const {
     return _num_hyperedges;
+  }
+
+  // ! Number of removed hyperedges
+  HyperedgeID numRemovedHyperedges() const {
+    return _num_removed_hyperedges;
+  }
+
+  // ! Set the number of removed hyperedges
+  void setNumRemovedHyperedges(const HyperedgeID num_removed_hyperedges) {
+    _num_removed_hyperedges = num_removed_hyperedges;
   }
 
   // ! Initial number of pins
@@ -1360,6 +1373,7 @@ class StaticHypergraph {
     for ( const HypernodeID& pin : pins(he) ) {
       removeIncidentEdgeFromHypernode(he, pin);
     }
+    ++_num_removed_hyperedges;
     disableHyperedge(he);
   }
 
@@ -1452,6 +1466,7 @@ class StaticHypergraph {
     hypergraph._num_hypernodes = _num_hypernodes;
     hypergraph._num_removed_hypernodes = _num_removed_hypernodes;
     hypergraph._num_hyperedges = _num_hyperedges;
+    hypergraph._num_removed_hyperedges = _num_removed_hyperedges;
     hypergraph._num_pins = _num_pins;
     hypergraph._total_degree = _total_degree;
     hypergraph._total_weight = _total_weight;
@@ -1488,6 +1503,7 @@ class StaticHypergraph {
     hypergraph._num_hypernodes = _num_hypernodes;
     hypergraph._num_removed_hypernodes = _num_removed_hypernodes;
     hypergraph._num_hyperedges = _num_hyperedges;
+    hypergraph._num_removed_hyperedges = _num_removed_hyperedges;
     hypergraph._num_pins = _num_pins;
     hypergraph._total_degree = _total_degree;
     hypergraph._total_weight = _total_weight;
@@ -1647,6 +1663,8 @@ class StaticHypergraph {
   HypernodeID _num_removed_hypernodes;
   // ! Number of hyperedges
   HyperedgeID _num_hyperedges;
+  // ! Number of removed hyperedges
+  HyperedgeID _num_removed_hyperedges;
   // ! Number of pins
   HypernodeID _num_pins;
   // ! Total degree of all vertices
