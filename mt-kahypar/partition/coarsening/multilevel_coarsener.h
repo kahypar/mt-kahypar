@@ -25,6 +25,7 @@
 #include "tbb/concurrent_queue.h"
 #include "tbb/task_group.h"
 #include "tbb/parallel_for.h"
+#include "tbb/atomic.h"
 
 #include "kahypar/meta/mandatory.h"
 
@@ -83,8 +84,6 @@ class MultilevelCoarsenerT : public ICoarsenerT<TypeTraits>,
     _cluster_weight(),
     _matching_partner(),
     _max_allowed_node_weight(context.coarsening.max_allowed_node_weight),
-    _num_matchings(0),
-    _num_conflicts(0),
     _progress_bar(hypergraph.initialNumNodes(), 0, false),
     _enable_randomization(true) {
     _progress_bar += hypergraph.numRemovedHypernodes();
@@ -194,35 +193,56 @@ class MultilevelCoarsenerT : public ICoarsenerT<TypeTraits>,
       const HypernodeID num_hns_before_pass = current_hg.initialNumNodes() - current_hg.numRemovedHypernodes();
       const HypernodeID num_pins_before_pass = current_hg.initialNumPins();
       const HypernodeID hierarchy_contraction_limit = hierarchyContractionLimit(current_hg);
-      tbb::enumerable_thread_specific<HypernodeID> contracted_nodes(0);
       DBG << V(current_hg.initialNumNodes()) << V(hierarchy_contraction_limit);
+      HypernodeID current_num_nodes = num_hns_before_pass;
+      tbb::enumerable_thread_specific<HypernodeID> contracted_nodes(0);
+      tbb::enumerable_thread_specific<HypernodeID> num_nodes_update_threshold(0);
       TBB::instance().execute_parallel_on_all_numa_nodes(_task_group_id, [&](const int node) {
         tbb::parallel_for(ID(0), current_hg.initialNumNodes(node), [&, node](const HypernodeID id) {
           ASSERT(id < current_vertices[node].size());
           const HypernodeID hn = current_vertices[node][id];
           const HypernodeID u = current_hg.originalNodeID(hn);
+
           // We perform rating if ...
           //  1.) The contraction limit of the current level is not reached
           //  2.) Vertex hn is not matched before
           if ( _matching_state[u] == STATE(MatchingState::UNMATCHED) ) {
-            const HypernodeID current_num_nodes = num_hns_before_pass -
-              contracted_nodes.combine(std::plus<HypernodeID>());
             if ( current_num_nodes > hierarchy_contraction_limit ) {
               ASSERT(current_hg.nodeIsEnabled(hn));
               const Rating rating = _rater.rate(current_hg, hn,
                 cluster_ids, _cluster_weight, _max_allowed_node_weight);
               if ( rating.target != kInvalidHypernode ) {
                 const HypernodeID v = current_hg.originalNodeID(rating.target);
-                matchVertices(current_hg, u, v, cluster_ids,
-                  contracted_nodes.local(), _num_conflicts.local());
-                ++_num_matchings.local();
+                HypernodeID& local_contracted_nodes = contracted_nodes.local();
+                matchVertices(current_hg, u, v, cluster_ids, local_contracted_nodes);
+
+                // To maintain the current number of nodes of the hypergraph each PE sums up
+                // its number of contracted nodes locally. To compute the current number of
+                // nodes, we have to sum up the number of contracted nodes of each PE. This
+                // operation becomes more expensive the more PEs are participating in coarsening.
+                // In order to prevent expensive updates of the current number of nodes, we
+                // define a threshold which the local number of contracted nodes have to exceed
+                // before the current PE updates the current number of nodes. This threshold is defined
+                // by the distance to the current contraction limit divided by the number of PEs.
+                // Once one PE exceeds this bound the first time it is not possible that the
+                // contraction limit is reached, because otherwise an other PE would update
+                // the global current number of nodes before. After update the threshold is
+                // increased by the new difference (in number of nodes) to the contraction limit
+                // divided by the number of PEs.
+                if (  local_contracted_nodes >= local_start_num_nodes_updates_threshold.local() ) {
+                  current_num_nodes = num_hns_before_pass -
+                    contracted_nodes.combine(std::plus<HypernodeID>());
+                  local_start_num_nodes_updates_threshold.local() +=
+                    (current_num_nodes - hierarchy_contraction_limit) /
+                    _context.shared_memory.num_threads;
+                }
               }
             }
           }
         });
       });
       utils::Timer::instance().stop_timer("parallel_clustering");
-      const HypernodeID current_num_nodes = num_hns_before_pass -
+      current_num_nodes = num_hns_before_pass -
         contracted_nodes.combine(std::plus<HypernodeID>());
       DBG << V(current_num_nodes);
 
@@ -292,21 +312,6 @@ class MultilevelCoarsenerT : public ICoarsenerT<TypeTraits>,
     }
     _progress_bar += (initial_num_nodes - _progress_bar.count());
     _progress_bar.disable();
-
-    // Aggregate total number of matchings
-    int64_t num_matchings = 0;
-    for ( const size_t& c : _num_matchings ) {
-      num_matchings += c;
-    }
-    // Aggregate total number of conflicts
-    int64_t num_conflicts = 0;
-    for ( const size_t& c : _num_conflicts ) {
-      num_conflicts += c;
-    }
-    utils::Stats::instance().add_stat("coarsening_num_conflicts", num_matchings);
-    utils::Stats::instance().add_stat("coarsening_num_matchings", num_matchings);
-    DBG << V(num_conflicts) << V(num_matchings);
-
     Base::finalize();
   }
 
@@ -330,8 +335,7 @@ class MultilevelCoarsenerT : public ICoarsenerT<TypeTraits>,
                                                         const HypernodeID u,
                                                         const HypernodeID v,
                                                         parallel::scalable_vector<HypernodeID>& cluster_ids,
-                                                        HypernodeID& contracted_nodes,
-                                                        size_t& num_conflicts) {
+                                                        HypernodeID& contracted_nodes) {
     ASSERT(u < hypergraph.initialNumNodes());
     ASSERT(v < hypergraph.initialNumNodes());
     uint8_t unmatched = STATE(MatchingState::UNMATCHED);
@@ -416,8 +420,6 @@ class MultilevelCoarsenerT : public ICoarsenerT<TypeTraits>,
         _rater.markAsMatched(u);
         _rater.markAsMatched(v);
         _matching_state[u] = STATE(MatchingState::MATCHED);
-      } else {
-        ++num_conflicts;
       }
     }
     return success;
@@ -459,8 +461,6 @@ class MultilevelCoarsenerT : public ICoarsenerT<TypeTraits>,
   parallel::scalable_vector<AtomicWeight> _cluster_weight;
   parallel::scalable_vector<HypernodeID> _matching_partner;
   HypernodeWeight _max_allowed_node_weight;
-  tbb::enumerable_thread_specific<size_t> _num_matchings;
-  tbb::enumerable_thread_specific<size_t> _num_conflicts;
   utils::ProgressBar _progress_bar;
   bool _enable_randomization;
 };
