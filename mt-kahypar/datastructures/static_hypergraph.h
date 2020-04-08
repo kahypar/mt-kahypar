@@ -1082,12 +1082,13 @@ class StaticHypergraph {
       // Write the incident nets of each contracted vertex to the temporary incident net array
       doParallelForAllNodes(task_group_id, [&](const HypernodeID& hn) {
         const HypernodeID coarse_hn = map_to_coarse_hypergraph(hn);
+        const HyperedgeID node_degree = nodeDegree(hn);
         size_t incident_nets_pos = tmp_incident_nets_prefix_sum[coarse_hn] +
-          tmp_incident_nets_pos[coarse_hn].fetch_add(nodeDegree(hn));
-        ASSERT(incident_nets_pos + nodeDegree(hn) <= tmp_incident_nets_prefix_sum[coarse_hn + 1]);
-        for ( const HyperedgeID& he : incidentEdges(hn) ) {
-          tmp_incident_nets[incident_nets_pos++] = he;
-        }
+          tmp_incident_nets_pos[coarse_hn].fetch_add(node_degree);
+        ASSERT(incident_nets_pos + node_degree <= tmp_incident_nets_prefix_sum[coarse_hn + 1]);
+        memcpy(tmp_incident_nets.data() + incident_nets_pos,
+               _incident_nets.data() + _hypernodes[originalNodeID(hn)].firstEntry(),
+               sizeof(HyperedgeID) * node_degree);
       });
 
       // Setup temporary hypernodes

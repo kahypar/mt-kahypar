@@ -759,14 +759,16 @@ class NumaHypergraph {
         const HypernodeID coarse_hn = map_to_coarse_hypergraph(hn);
         const int node = common::get_numa_node_of_vertex(coarse_hn);
         const HypernodeID local_id = common::get_local_position_of_vertex(coarse_hn);
+        const HyperedgeID node_degree = nodeDegree(hn);
         ASSERT(node < num_numa_nodes);
         ASSERT(local_id < tmp_incident_nets_pos[node].size());
         size_t incident_nets_pos = tmp_incident_nets_prefix_sum[node][local_id] +
-          tmp_incident_nets_pos[node][local_id].fetch_add(nodeDegree(hn));
-        ASSERT(incident_nets_pos + nodeDegree(hn) <= tmp_incident_nets_prefix_sum[node][local_id + 1]);
-        for ( const HyperedgeID& he : incidentEdges(hn) ) {
-          tmp_incident_nets[node][incident_nets_pos++] = he;
-        }
+          tmp_incident_nets_pos[node][local_id].fetch_add(node_degree);
+        ASSERT(incident_nets_pos + node_degree <= tmp_incident_nets_prefix_sum[node][local_id + 1]);
+        memcpy(tmp_incident_nets[node].data() + incident_nets_pos,
+               _hypergraphs[node]._incident_nets.data() +
+               _hypergraphs[node]._hypernodes[local_id].firstEntry(),
+               sizeof(HyperedgeID) * node_degree);
       });
 
       // Setup temporary hypernodes
