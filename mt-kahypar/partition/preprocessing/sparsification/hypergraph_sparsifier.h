@@ -28,7 +28,7 @@
 
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/datastructures/clustering.h"
-#include "mt-kahypar/datastructures/streaming_map.h"
+#include "mt-kahypar/datastructures/concurrent_bucket_map.h"
 #include "mt-kahypar/datastructures/sparsifier_hypergraph.h"
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/partition/preprocessing/sparsification/i_hypergraph_sparsifier.h"
@@ -59,7 +59,7 @@ class HypergraphSparsifierT : public IHypergraphSparsifierT<TypeTraits> {
     parallel::scalable_vector<HashValue> footprint;
     HyperedgeID he;
 
-    bool operator==(const Footprint& other) {
+    bool operator==(const Footprint& other) const {
       ASSERT(footprint.size() == other.footprint.size());
       for ( size_t i = 0; i < footprint.size(); ++i ) {
         if ( footprint[i] != other.footprint[i] ) {
@@ -69,7 +69,7 @@ class HypergraphSparsifierT : public IHypergraphSparsifierT<TypeTraits> {
       return true;
     }
 
-    bool operator<(const Footprint& other) {
+    bool operator<(const Footprint& other) const {
       ASSERT(footprint.size() == other.footprint.size());
       for ( size_t i = 0; i < footprint.size(); ++i ) {
         if ( footprint[i] < other.footprint[i] ) {
@@ -82,8 +82,6 @@ class HypergraphSparsifierT : public IHypergraphSparsifierT<TypeTraits> {
     }
 
   };
-
-  using FootprintMap = parallel::scalable_vector<parallel::scalable_vector<Footprint>>;
 
   static constexpr bool enable_heavy_assert = false;
 
@@ -226,7 +224,7 @@ class HypergraphSparsifierT : public IHypergraphSparsifierT<TypeTraits> {
     HashFuncVector hash_functions(_context.sparsification.min_hash_footprint_size,
       utils::Randomize::instance().getRandomInt(0, 1000, sched_getcpu()));
 
-    ds::StreamingMap<HashValue, Footprint> hash_buckets;
+    ds::ConcurrentBucketMap<Footprint> footprint_map;
     tbb::parallel_for(ID(0), hypergraph.numEdges(), [&](const HyperedgeID he) {
       if ( hypergraph.edgeIsEnabled(he) ) {
         Footprint he_footprint;
@@ -235,28 +233,27 @@ class HypergraphSparsifierT : public IHypergraphSparsifierT<TypeTraits> {
         for ( size_t i = 0; i < hash_functions.getHashNum(); ++i ) {
           he_footprint.footprint.push_back(minHash(hash_functions[i], hypergraph.pins(he)));
         }
-        hash_buckets.stream(combineHash(he_footprint), std::move(he_footprint));
+        footprint_map.insert(combineHash(he_footprint), std::move(he_footprint));
       }
     });
 
-    FootprintMap footprint_map(hash_buckets.size());
-    hash_buckets.copy(footprint_map, [&](const HashValue key) {
-      return key % hash_buckets.size();
-    });
-
-    tbb::parallel_for(0UL, footprint_map.size(), [&](const size_t bucket) {
-      parallel::scalable_vector<Footprint>& footprint_bucket = footprint_map[bucket];
+    using BucketElement = typename ds::ConcurrentBucketMap<Footprint>::Element;
+    tbb::parallel_for(0UL, footprint_map.numBuckets(), [&](const size_t bucket) {
+      auto& footprint_bucket = footprint_map.getBucket(bucket);
       if ( footprint_bucket.size() > 0 ) {
-        std::sort(footprint_bucket.begin(), footprint_bucket.end());
+        std::sort(footprint_bucket.begin(), footprint_bucket.end(),
+          [&](const BucketElement& lhs, const BucketElement& rhs) {
+            return lhs.value < rhs.value;
+          });
 
         for ( size_t i = 0; i < footprint_bucket.size(); ++i ) {
-          Footprint& representative = footprint_bucket[i];
+          Footprint& representative = footprint_bucket[i].value;
           if ( representative.he != kInvalidHyperedge ) {
             parallel::scalable_vector<HypernodeID> rep_he = hypergraph.pins(representative.he);
             HyperedgeWeight rep_weight = hypergraph.edgeWeight(representative.he);
             bool exist_similiar_hes = false;
             for ( size_t j = i + 1; j < footprint_bucket.size(); ++j ) {
-              Footprint& similiar_footprint = footprint_bucket[j];
+              Footprint& similiar_footprint = footprint_bucket[j].value;
               if ( similiar_footprint.he != kInvalidHyperedge ) {
                 if ( representative == similiar_footprint ) {
                   const double jaccard_index = jaccard(
@@ -281,6 +278,7 @@ class HypergraphSparsifierT : public IHypergraphSparsifierT<TypeTraits> {
           }
         }
       }
+      footprint_map.clear(bucket);
     });
   }
 

@@ -30,9 +30,10 @@ using ::testing::Test;
 namespace mt_kahypar {
 namespace ds {
 
+using HyperGraph = StaticHypergraph;
 using Factory = StaticHypergraphFactory;
-using AGraph = HypergraphFixture<StaticHypergraph, Factory>;
-using Graph = GraphT<StaticHypergraph>;
+using AGraph = HypergraphFixture<HyperGraph, Factory>;
+using Graph = GraphT<HyperGraph>;
 using Arc = typename Graph::Arc;
 using ArcWeight = typename Graph::ArcWeight;
 
@@ -229,7 +230,7 @@ TEST_F(AGraph, ConstructGraphWithSeveralAdjacenceArrayBlocks) {
     }
   }
   const HyperedgeID num_hyperedges = edge_vector.size();
-  Hypergraph hg = Factory::construct(TBBNumaArena::GLOBAL_TASK_GROUP,
+  HyperGraph hg = Factory::construct(TBBNumaArena::GLOBAL_TASK_GROUP,
     num_hypernodes, num_hyperedges, edge_vector);
   Graph graph(hg, LouvainEdgeWeight::uniform);
 
@@ -367,7 +368,7 @@ TEST_F(AGraph, ContractGraphWithSeveralAdjacenceArrayBlocks) {
     }
   }
   const HyperedgeID num_hyperedges = edge_vector.size();
-  Hypergraph hg = Factory::construct(TBBNumaArena::GLOBAL_TASK_GROUP,
+  HyperGraph hg = Factory::construct(TBBNumaArena::GLOBAL_TASK_GROUP,
     num_hypernodes, num_hyperedges, edge_vector);
   Graph graph(hg, LouvainEdgeWeight::uniform);
   ds::Clustering communities(0);

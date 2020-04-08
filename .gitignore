@@ -11,6 +11,7 @@ cmake-build-debug/*
 *.cfg~
 build/*
 build2/*
+build_numa/*
 rel2/
 external_tools/*
 relwithdebinfo/*
@@ -19,6 +20,7 @@ release128/*
 release/*
 release152/*
 debug/*
+debug_numa/*
 i10pc127/*
 i10pc128/*
 i10pc129/*
