@@ -45,7 +45,7 @@ option(KAHYPAR_ENABLE_HEAVY_REFINEMENT_ASSERTIONS
   "Enable heavy assertions in refinement phase." OFF)
 
 option(KAHYPAR_ENABLE_NUMA_AWARE_PARTITIONING
-  "Enable heavy assertions in refinement phase." ON)
+  "Enable heavy assertions in refinement phase." OFF)
 
 option(KAHYPAR_TRAVIS_BUILD
   "Indicate that this build is executed on Travis CI." OFF)
