@@ -229,10 +229,10 @@ class MultilevelCoarsenerT : public ICoarsenerT<TypeTraits>,
                 // the global current number of nodes before. After update the threshold is
                 // increased by the new difference (in number of nodes) to the contraction limit
                 // divided by the number of PEs.
-                if (  local_contracted_nodes >= local_start_num_nodes_updates_threshold.local() ) {
+                if (  local_contracted_nodes >= num_nodes_update_threshold.local() ) {
                   current_num_nodes = num_hns_before_pass -
                     contracted_nodes.combine(std::plus<HypernodeID>());
-                  local_start_num_nodes_updates_threshold.local() +=
+                  num_nodes_update_threshold.local() +=
                     (current_num_nodes - hierarchy_contraction_limit) /
                     _context.shared_memory.num_threads;
                 }
