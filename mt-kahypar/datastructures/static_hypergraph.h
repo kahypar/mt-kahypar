@@ -380,12 +380,15 @@ class StaticHypergraph {
   struct TmpContractionBuffer {
     explicit TmpContractionBuffer(const HypernodeID num_hypernodes,
                                   const HyperedgeID num_hyperedges,
-                                  const HyperedgeID num_pins) :
+                                  const HyperedgeID num_pins,
+                                  const bool is_numa_buffer = false) :
         is_initialized(false) {
       tbb::parallel_invoke([&] {
         tmp_hypernodes.resize(num_hypernodes);
       }, [&] {
-        tmp_incident_nets.resize(num_pins);
+        if ( !is_numa_buffer ) {
+          tmp_incident_nets.resize(num_pins);
+        }
       }, [&] {
         tmp_num_incident_nets.assign(num_hypernodes,
           parallel::IntegralAtomicWrapper<size_t>(0));
@@ -404,11 +407,8 @@ class StaticHypergraph {
 
     void freeInternalData() {
       if ( is_initialized ) {
-        tbb::parallel_invoke([&] {
-          parallel::parallel_free(tmp_hypernodes, tmp_num_incident_nets, hn_weights);
-        }, [&] {
-          parallel::parallel_free(tmp_hyperedges, valid_hyperedges);
-        });
+        parallel::parallel_free(tmp_hypernodes, tmp_num_incident_nets,
+          hn_weights, tmp_hyperedges, valid_hyperedges);
         is_initialized = false;
       }
     }
@@ -1015,10 +1015,10 @@ class StaticHypergraph {
         const HyperedgeID he = globalEdgeID(id);
         if ( edgeIsEnabled(he) ) {
           // Copy hyperedge and pins to temporary buffer
-          const Hyperedge& he = _hyperedges[id];
+          const Hyperedge& e = _hyperedges[id];
           ASSERT(static_cast<size_t>(id) < tmp_hyperedges.size());
-          ASSERT(he.firstInvalidEntry() <= tmp_incidence_array.size());
-          tmp_hyperedges[id] = he;
+          ASSERT(e.firstInvalidEntry() <= tmp_incidence_array.size());
+          tmp_hyperedges[id] = e;
           valid_hyperedges[id] = 1;
 
           // Map pins to vertex ids in coarse graph
@@ -1026,6 +1026,7 @@ class StaticHypergraph {
           const size_t incidence_array_end = tmp_hyperedges[id].firstInvalidEntry();
           for ( size_t pos = incidence_array_start; pos < incidence_array_end; ++pos ) {
             const HypernodeID pin = _incidence_array[pos];
+            ASSERT(pos < tmp_incidence_array.size());
             tmp_incidence_array[pos] = map_to_coarse_hypergraph(pin);
           }
 
@@ -1511,10 +1512,10 @@ class StaticHypergraph {
   }
 
   // ! Allocate the temporary contraction buffer
-  void allocateTmpContractionBuffer() {
+  void allocateTmpContractionBuffer(const bool is_numa_buffer = false) {
     if ( !_is_root_allocator ) {
       _tmp_contraction_buffer = new TmpContractionBuffer(
-        _num_hypernodes, _num_hyperedges, _num_pins);
+        _num_hypernodes, _num_hyperedges, _num_pins, is_numa_buffer);
       _is_root_allocator = true;
     }
   }
@@ -1587,42 +1588,6 @@ class StaticHypergraph {
   // ! To avoid code duplication we implement non-const version in terms of const version
   KAHYPAR_ATTRIBUTE_ALWAYS_INLINE Hyperedge& hyperedge(const HyperedgeID e) {
     return const_cast<Hyperedge&>(static_cast<const StaticHypergraph&>(*this).hyperedge(e));
-  }
-
-  // ####################### Contract / Uncontract #######################
-
-  template<typename F>
-  void contractHyperedges(const TaskGroupID task_group_id,
-                          StreamingMap<size_t, ContractedHyperedge>& hash_to_hyperedge,
-                          const F& mapping_to_coarse_hypergraph) const {
-    doParallelForAllEdges(task_group_id, [&](const HyperedgeID& he) {
-      parallel::scalable_vector<HypernodeID> hyperedge;
-      hyperedge.reserve(edgeSize(he));
-      for ( const HypernodeID pin : pins(he) ) {
-        hyperedge.emplace_back(mapping_to_coarse_hypergraph(pin));
-      }
-
-      // Removing duplicates
-      std::sort(hyperedge.begin(), hyperedge.end());
-      hyperedge.erase(std::unique(hyperedge.begin(), hyperedge.end()), hyperedge.end());
-
-      // Removing disabled hypernodes
-      while ( !hyperedge.empty() && hyperedge.back() == kInvalidHypernode ) {
-        hyperedge.pop_back();
-      }
-
-      // Remove single-pin hyperedges
-      if ( hyperedge.size() > 1 ) {
-        // Compute hash of hyperedge
-        size_t he_hash = kEdgeHashSeed;
-        for ( const HypernodeID& pin : hyperedge ) {
-          he_hash += kahypar::math::hash(pin);
-        }
-        hash_to_hyperedge.stream(he_hash,
-          ContractedHyperedge { he, he_hash, edgeWeight(he),
-            false, _node, std::move(hyperedge), ID(0), ID(0) } );
-      }
-    });
   }
 
   // ####################### Initialization / Reset Functions #######################

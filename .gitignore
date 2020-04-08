@@ -11,6 +11,7 @@ cmake-build-debug/*
 *.cfg~
 build/*
 build2/*
+build_numa/*
 rel2/
 external_tools/*
 relwithdebinfo/*
