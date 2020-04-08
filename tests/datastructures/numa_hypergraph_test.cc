@@ -812,14 +812,14 @@ TEST_F(AStaticNumaHypergraph, ContractsCommunities2) {
   verifyIncidentNets(c_hypergraph, id[0],
     { GLOBAL_EDGE_ID(c_hypergraph, 0), GLOBAL_EDGE_ID(c_hypergraph, 1) });
   verifyIncidentNets(c_hypergraph, id[1],
-    { GLOBAL_EDGE_ID(c_hypergraph, 1) });
+    { GLOBAL_EDGE_ID(c_hypergraph, 0) });
   verifyIncidentNets(c_hypergraph, id[2],
     { GLOBAL_EDGE_ID(c_hypergraph, 0), GLOBAL_EDGE_ID(c_hypergraph, 1) });
   verifyIncidentNets(c_hypergraph, id[3],
-    { GLOBAL_EDGE_ID(c_hypergraph, 0) });
+    { GLOBAL_EDGE_ID(c_hypergraph, 1) });
   verifyPins(c_hypergraph,
     { GLOBAL_EDGE_ID(c_hypergraph, 0), GLOBAL_EDGE_ID(c_hypergraph, 1) },
-    { {id[0], id[2], id[3]}, {id[0], id[1], id[2]} });
+    { {id[0], id[1], id[2]}, {id[0], id[2], id[3]} });
 }
 
 TEST_F(AStaticNumaHypergraph, ContractsCommunities3) {
@@ -858,17 +858,17 @@ TEST_F(AStaticNumaHypergraph, ContractsCommunities3) {
 
   // Verify Hypergraph Structure
   verifyIncidentNets(c_hypergraph, id[0],
-    { GLOBAL_EDGE_ID(c_hypergraph, 0), GLOBAL_EDGE_ID(c_hypergraph, 2) });
-  verifyIncidentNets(c_hypergraph, id[1],
     { GLOBAL_EDGE_ID(c_hypergraph, 0), GLOBAL_EDGE_ID(c_hypergraph, 1) });
+  verifyIncidentNets(c_hypergraph, id[1],
+    { GLOBAL_EDGE_ID(c_hypergraph, 0), GLOBAL_EDGE_ID(c_hypergraph, 3) });
   verifyIncidentNets(c_hypergraph, id[2],
-    { GLOBAL_EDGE_ID(c_hypergraph, 2), GLOBAL_EDGE_ID(c_hypergraph, 3) });
+    { GLOBAL_EDGE_ID(c_hypergraph, 1), GLOBAL_EDGE_ID(c_hypergraph, 2) });
   verifyIncidentNets(c_hypergraph, id[3],
-    { GLOBAL_EDGE_ID(c_hypergraph, 1), GLOBAL_EDGE_ID(c_hypergraph, 3) });
+    { GLOBAL_EDGE_ID(c_hypergraph, 2), GLOBAL_EDGE_ID(c_hypergraph, 3) });
   verifyPins(c_hypergraph,
     { GLOBAL_EDGE_ID(c_hypergraph, 0), GLOBAL_EDGE_ID(c_hypergraph, 1),
       GLOBAL_EDGE_ID(c_hypergraph, 2), GLOBAL_EDGE_ID(c_hypergraph, 3) },
-    { { id[0], id[1] }, { id[1], id[3] }, { id[0], id[2] }, { id[2], id[3] } });
+    { { id[0], id[1] }, { id[0], id[2] }, { id[2], id[3] }, { id[1], id[3] } });
 }
 
 TEST_F(AStaticNumaHypergraph, ContractsCommunitiesWithDisabledHypernodes) {
@@ -990,13 +990,13 @@ TEST_F(AStaticNumaHypergraph, ContractCommunitiesIfCommunityHyperedgesAreAvailab
   // Verify Hypergraph Structure
   verifyCommunityPins(c_hypergraph, 0,
     { GLOBAL_EDGE_ID(c_hypergraph, 0), GLOBAL_EDGE_ID(c_hypergraph, 1),
-      GLOBAL_EDGE_ID(c_hypergraph, 2) },
-    { {id[0], id[1]}, {id[1]}, {id[0]} });
+      GLOBAL_EDGE_ID(c_hypergraph, 3) },
+    { {id[0], id[1]}, {id[0]}, {id[1]} });
   verifyCommunityPins(c_hypergraph, 1,
-    { GLOBAL_EDGE_ID(c_hypergraph, 2), GLOBAL_EDGE_ID(c_hypergraph, 3) },
+    { GLOBAL_EDGE_ID(c_hypergraph, 1), GLOBAL_EDGE_ID(c_hypergraph, 2) },
     { {id[2]}, {id[2]} });
   verifyCommunityPins(c_hypergraph, 2,
-    { GLOBAL_EDGE_ID(c_hypergraph, 1), GLOBAL_EDGE_ID(c_hypergraph, 3) },
+    { GLOBAL_EDGE_ID(c_hypergraph, 2), GLOBAL_EDGE_ID(c_hypergraph, 3) },
     { {id[3]}, {id[3]} });
 }
 

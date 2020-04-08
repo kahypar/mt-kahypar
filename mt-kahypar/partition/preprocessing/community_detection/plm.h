@@ -35,13 +35,14 @@
 #include "mt-kahypar/utils/randomize.h"
 
 namespace mt_kahypar {
+template<typename G /* Graph */>
 class PLM {
  private:
   static constexpr bool advancedGainAdjustment = false;
 
-  using ArcWeight = typename Graph::ArcWeight;
+  using ArcWeight = typename G::ArcWeight;
   using AtomicArcWeight = parallel::AtomicWrapper<ArcWeight>;
-  using Arc = typename Graph::Arc;
+  using Arc = typename G::Arc;
   using LargeIncidentClusterWeights = kahypar::ds::SparseMap<PartitionID, ArcWeight>;
   using CacheEfficientIncidentClusterWeights = ds::FixedSizeSparseMap<PartitionID, ArcWeight>;
 
@@ -58,7 +59,7 @@ class PLM {
     _local_large_incident_cluster_weight(numNodes, 0),
     _disable_randomization(disable_randomization) { }
 
-  bool localMoving(Graph& graph, ds::Clustering& communities) {
+  bool localMoving(G& graph, ds::Clustering& communities) {
     _reciprocal_total_volume = 1.0 / graph.totalVolume();
     _vol_multiplier_div_by_node_vol = _reciprocal_total_volume;
 
@@ -137,13 +138,13 @@ class PLM {
   FRIEND_TEST(ALouvain, ComputesMaxGainMove9);
   FRIEND_TEST(ALouvain, ComputesMaxGainMove10);
 
-  KAHYPAR_ATTRIBUTE_ALWAYS_INLINE bool ratingsFitIntoSmallSparseMap(const Graph& graph,
+  KAHYPAR_ATTRIBUTE_ALWAYS_INLINE bool ratingsFitIntoSmallSparseMap(const G& graph,
                                                                     const HypernodeID u)  {
     return graph.degree(u) <= CacheEfficientIncidentClusterWeights::MAP_SIZE / 3UL;
   }
 
   // ! Only for testing
-  void initializeClusterVolunes(Graph& graph,
+  void initializeClusterVolunes(G& graph,
                                 ds::Clustering& communities) {
     _reciprocal_total_volume = 1.0 / graph.totalVolume();
     _vol_multiplier_div_by_node_vol = _reciprocal_total_volume;
@@ -154,7 +155,7 @@ class PLM {
   }
 
   template<typename Map>
-  KAHYPAR_ATTRIBUTE_ALWAYS_INLINE PartitionID computeMaxGainCluster(const Graph& graph,
+  KAHYPAR_ATTRIBUTE_ALWAYS_INLINE PartitionID computeMaxGainCluster(const G& graph,
                                                                     ds::Clustering& communities,
                                                                     const NodeID u,
                                                                     Map& incident_cluster_weights) {
@@ -215,7 +216,7 @@ class PLM {
   }
 
   template<typename Map>
-  bool verifyGain(const Graph& graph,
+  bool verifyGain(const G& graph,
                   ds::Clustering& communities,
                   const NodeID u,
                   const PartitionID to,
@@ -278,7 +279,7 @@ class PLM {
     return comp;
   }
 
-  static std::pair<ArcWeight, ArcWeight> intraClusterWeightsAndSumOfSquaredClusterVolumes(const Graph& graph, const ds::Clustering& communities) {
+  static std::pair<ArcWeight, ArcWeight> intraClusterWeightsAndSumOfSquaredClusterVolumes(const G& graph, const ds::Clustering& communities) {
     ArcWeight intraClusterWeights = 0;
     ArcWeight sumOfSquaredClusterVolumes = 0;
     std::vector<ArcWeight> _cluster_volumes(graph.numNodes(), 0);
