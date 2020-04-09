@@ -601,6 +601,8 @@ class NumaHypergraph {
       ASSERT(static_cast<size_t>(_hypergraphs[node]._num_pins) <=
         tmp_contraction_buffer.back()->tmp_incidence_array.size());
       ASSERT(static_cast<size_t>(_hypergraphs[node]._num_hyperedges) <=
+        tmp_contraction_buffer.back()->he_sizes.size());
+      ASSERT(static_cast<size_t>(_hypergraphs[node]._num_hyperedges) <=
         tmp_contraction_buffer.back()->valid_hyperedges.size());
     }
 
@@ -1008,13 +1010,14 @@ class NumaHypergraph {
         // Compute start position of each hyperedge in incidence array
         const HyperedgeID num_hyperedges_on_numa_node =
           num_numa_hyperedges_prefix_sum[node + 1] - num_numa_hyperedges_prefix_sum[node];
-        parallel::scalable_vector<size_t> he_sizes;
+        parallel::scalable_vector<size_t>& he_sizes = tmp_contraction_buffer[node]->he_sizes;
         parallel::TBBPrefixSum<size_t> num_pins_prefix_sum(he_sizes);
         tbb::parallel_invoke([&] {
-          he_sizes.assign(_hypergraphs[node]._num_hyperedges, 0);
           tbb::parallel_for(ID(0), _hypergraphs[node]._num_hyperedges, [&](const HyperedgeID& local_id) {
             if ( he_mapping[node].value(local_id) /* valid hyperedge contained in coarse graph */ ) {
               he_sizes[local_id] = tmp_hyperedges[local_id].size();
+            } else {
+              he_sizes[local_id] = 0;
             }
           });
 
@@ -1060,7 +1063,6 @@ class NumaHypergraph {
         // coarse hypergraph and remove singple-pin/parallel hyperedges.
         const HypernodeID num_hypernodes_on_numa_node =
           num_numa_hypernodes_prefix_sum[node + 1] - num_numa_hypernodes_prefix_sum[node];
-        parallel::scalable_vector<size_t> incident_nets_sizes(num_hypernodes_on_numa_node, 0);
         tbb::parallel_for(ID(0), num_hypernodes_on_numa_node, [&](const HypernodeID& local_id) {
           const size_t incident_nets_start =  tmp_hypernodes[local_id].firstEntry();
           size_t incident_nets_end = tmp_hypernodes[local_id].firstInvalidEntry();
@@ -1076,12 +1078,13 @@ class NumaHypergraph {
           }
           const size_t incident_nets_size = incident_nets_end - incident_nets_start;
           tmp_hypernodes[local_id].setSize(incident_nets_size);
-          incident_nets_sizes[local_id] = incident_nets_size;
+          tmp_contraction_buffer[node]->tmp_num_incident_nets[local_id] = incident_nets_size;
         });
 
         // Compute start position of the incident nets for each vertex inside
         // the coarsened incident net array
-        parallel::TBBPrefixSum<size_t> num_incident_nets_prefix_sum(incident_nets_sizes);
+        parallel::TBBPrefixSum<parallel::IntegralAtomicWrapper<size_t>>
+          num_incident_nets_prefix_sum(tmp_contraction_buffer[node]->tmp_num_incident_nets);
         tbb::parallel_scan(tbb::blocked_range<size_t>(
           0UL, UI64(num_hypernodes_on_numa_node)), num_incident_nets_prefix_sum);
         const size_t total_degree_on_numa_node = num_incident_nets_prefix_sum.total_sum();
