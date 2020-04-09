@@ -91,13 +91,16 @@ public:
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
   std::pair<PartitionID, HyperedgeWeight> bestDestinationBlock(PartitionedHypergraph& phg, HypernodeID u) {
     const HypernodeWeight wu = phg.nodeWeight(u);
+    const PartitionID pu = phg.partID(u);
     PartitionID to = kInvalidPartition;
     HyperedgeWeight to_penalty = std::numeric_limits<HyperedgeWeight>::max();
     for (PartitionID i = 0; i < phg.k(); ++i) {
-      const HyperedgeWeight penalty = phg.moveToPenalty(u, i);
-      if (penalty < to_penalty && phg.partWeight(to) + wu <= max_part_weight) {
-        to_penalty = penalty;
-        to = i;
+      if (i != pu) {
+        const HyperedgeWeight penalty = phg.moveToPenalty(u, i);
+        if (penalty < to_penalty && phg.partWeight(i) + wu <= max_part_weight) {
+          to_penalty = penalty;
+          to = i;
+        }
       }
     }
     return std::make_pair(to, phg.moveFromBenefit(u, phg.partID(u)) - to_penalty);
@@ -105,8 +108,9 @@ public:
 
   void insertOrUpdatePQ(PartitionedHypergraph& phg, HypernodeID u, NodeTracker& nt) {
     SearchID searchOfU = nt.searchOfNode[u].load(std::memory_order_acq_rel);
+    // Note. Deactivated nodes have a special inactive search ID
 
-    if (nt.isSearchInactive(searchOfU)) {   // both branches already exclude deactivated nodes
+    if (nt.isSearchInactive(searchOfU)) {
 
       // try to claim node u
       if (nt.searchOfNode[u].compare_exchange_strong(searchOfU, thisSearch, std::memory_order_acq_rel)) {
@@ -132,7 +136,13 @@ public:
 
       // TODO is this call really necessary?
       // it provides decent upates from other cores but seems somewhat expensive
-      //
+      // maybe do it infrequently
+      // can we prune updates?
+
+      // only gains to from and to part can change --> it makes sense to store the best destination block per vertex and update it
+      // or if phg.partID(u) == from/to part
+
+
       auto [to, gain] = bestDestinationBlock(phg, u);
       vertexPQs[from].adjustKey(u, gain);
 
@@ -144,15 +154,19 @@ public:
   }
 
   bool findNextMove(PartitionedHypergraph& phg, Move& m) {
-    while (!blockPQ.empty()) {
+    if (blockPQ.empty()) {
+      return false;
+    }
+    while (true) {
       const PartitionID from = blockPQ.top();
       const HypernodeID u = vertexPQs[from].top();
       const Gain estimated_gain = vertexPQs[from].topKey();
       auto [to, gain] = bestDestinationBlock(phg, u);
       if (gain >= estimated_gain) { // accept any gain that is at least as good
         vertexPQs[from].deleteTop();
+        blockPQ.adjustKey(from, vertexPQs[from].topKey());
         m.node = u; m.to = to; m.from = from;
-        m.gain = phg.km1Gain(u, from, to);
+        m.gain = gain;
         return true;
       } else {
         vertexPQs[from].adjustKey(u, gain);
@@ -161,7 +175,6 @@ public:
         }
       }
     }
-    return false;
   }
 
   void reinitialize() {
