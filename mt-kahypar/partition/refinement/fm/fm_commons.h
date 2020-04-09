@@ -81,7 +81,7 @@ struct NodeTracker {
 
   static constexpr SearchID deactivatedNodeMarker = std::numeric_limits<SearchID>::max();
   SearchID lowestActiveSearchID = 1;
-  std::atomic<SearchID> highestActiveSearchID { 0 };
+  CAtomic<SearchID> highestActiveSearchID { 0 };
 
   explicit NodeTracker(size_t numNodes) : searchOfNode(numNodes) {
     for (auto& x : searchOfNode) {
@@ -113,7 +113,7 @@ struct NodeTracker {
       for (auto& x : searchOfNode) {
         x.store(0, std::memory_order_relaxed);
       }
-      highestActiveSearchID = 0;
+      highestActiveSearchID.store(0, std::memory_order_relaxed);
     }
     lowestActiveSearchID = highestActiveSearchID + 1;
   }
@@ -152,6 +152,7 @@ struct FMSharedData {
     resetStoredMoveIDs();
   }
 
+  /*
   ~FMSharedData() {
     tbb::parallel_invoke(
             [&]() { parallel::parallel_free(remaining_original_pins, first_move_in, last_move_out); },
@@ -159,6 +160,7 @@ struct FMSharedData {
     );
 
   }
+  */
 
   MoveID lastMoveOut(HyperedgeID he, PartitionID block) const {
     return last_move_out[he * numParts + block].load(std::memory_order_relaxed);
