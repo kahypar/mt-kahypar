@@ -170,6 +170,10 @@ struct FMSharedData {
     return first_move_in[he * numParts + block].load(std::memory_order_relaxed);
   }
 
+  bool isPartUnremovableFromHyperedge(HyperedgeID he, PartitionID block) const {
+    return !moveTracker.isIDStale(firstMoveIn(he, block));
+  }
+
   HypernodeID remainingPinsFromBeginningOfMovePhase(HyperedgeID he, PartitionID block) const {
     return remaining_original_pins[he * numParts + block].load(std::memory_order_relaxed);
   }

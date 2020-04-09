@@ -48,12 +48,10 @@ public:
 
 
   bool refine(PartitionedHypergraph& phg) {
-    { // initialization only as long as LP refiner does not use these datastructures
-      phg.initializeGainInformation();
-      sharedData.setRemainingOriginalPins(phg);
-      //sharedData.partition_weight_budgets.initialize(phg, context.partition.max_part_weights);          // only for version with budgets
-    }
-
+    // initialization only as long as LP refiner does not use these datastructures
+    phg.initializeGainInformation();
+    sharedData.setRemainingOriginalPins(phg);
+    //sharedData.partition_weight_budgets.initialize(phg, context.partition.max_part_weights);          // only for version with budgets
 
     bool overall_improved = false;
     for (size_t round = 0; round < context.refinement.fm.multitry_rounds; ++round) {                    // global multi try rounds

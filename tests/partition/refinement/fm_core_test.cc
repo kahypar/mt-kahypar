@@ -47,15 +47,40 @@ public:
 
     sharedData = FMSharedData(hg.initialNumNodes(), hg.initialNumEdges(), k, 4);
     sharedData.setRemainingOriginalPins(phg);
+
+    context.partition.k = k;
+    context.partition.epsilon = 0.03;
+    context.setupPartWeights(hg.totalWeight());
+
+    // ignore balance in this test
+    for (PartitionID i = 0; i < k; ++i) {
+      context.partition.max_part_weights[i] = hg.totalWeight();
+    }
   }
 
   Hypergraph hg;
   PartitionID k = 8;
   PartitionedHypergraph phg;
   FMSharedData sharedData;
+  Context context;
 };
 
-TEST(FMCoreTest, PQInsertAndUpdate) {
+void printGains(PartitionedHypergraph& phg, PartitionID k) {
+  for (HypernodeID u = 0; u < phg.initialNumNodes(); ++u) {
+    std::cout << "u=" << u << "p=" << phg.partID(u) << ". gains=";
+    for (PartitionID i = 0; i < k; ++i) {
+      if (i != phg.partID(u)) {
+        std::cout << phg.km1Gain(u, phg.partID(u), i) << " ";
+      }
+    }
+    std::cout << std::endl;
+  }
+}
+
+TEST_F(FMCoreTest, PQInsertAndUpdate) {
+  //printGains(phg, k);
+  LocalizedKWayFM fm(context, hg.initialNumNodes(), &sharedData.vertexPQHandles);
+  fm.findMoves(phg, 23, sharedData, 0);
 
 }
 

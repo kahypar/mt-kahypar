@@ -50,11 +50,6 @@ public:
 
 
   void findMoves(PartitionedHypergraph& phg, const HypernodeID initialBorderNode, FMSharedData& sharedData, SearchID search_id) {
-    /*  NOTE (Lars): only for the version with local rollbacks
-    HyperedgeWeight bestGain = 0;
-    size_t bestGainIndex = 0;
-    HyperedgeWeight overallGain = 0;
-    */
     this->thisSearch = search_id;
     reinitialize();
     uint32_t movesWithNonPositiveGain = 0;
@@ -70,15 +65,12 @@ public:
         movesWithNonPositiveGain = m.gain > 0 ? 0 : movesWithNonPositiveGain + 1;
       }
     }
-
-    // revertToBestLocalPrefix(phg, bestGainIndex);   NOTE (Lars): only for the version with local rollbacks
   }
 
   void updateAfterSuccessfulMove(PartitionedHypergraph& phg, FMSharedData& sharedData, Move& m, MoveID move_id) {
     const HypernodeID u = m.node;
     for (HyperedgeID e : phg.incidentEdges(u)) {
       sharedData.performHyperedgeSpecificMoveUpdates(m, move_id, e);
-
       // activate neighbors of u and update their gains
       if (phg.edgeSize(e) < context.partition.hyperedge_size_threshold) {
         for (HypernodeID v : phg.pins(e)) {
@@ -90,30 +82,20 @@ public:
       }
     }
     updateDeduplicator.clear();
-
     if (phg.partWeight(m.from) <= min_part_weight) {
       blockPQ.remove(m.from);
     }
-
-    /*  NOTE (Lars): only for the version with local rollbacks
-    localMoves.push_back(m);
-    overallGain += m.gain;
-    if (overallGain < bestGain) {
-      bestGain = overallGain;
-      bestGainIndex = localMoves.size();
-    }
-    */
   }
 
 
-
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
   std::pair<PartitionID, HyperedgeWeight> bestDestinationBlock(PartitionedHypergraph& phg, HypernodeID u) {
     const HypernodeWeight wu = phg.nodeWeight(u);
     PartitionID to = kInvalidPartition;
     HyperedgeWeight to_penalty = std::numeric_limits<HyperedgeWeight>::max();
     for (PartitionID i = 0; i < phg.k(); ++i) {
       const HyperedgeWeight penalty = phg.moveToPenalty(u, i);
-      if (penalty < to_penalty && phg.partWeight(to) + wu <= context.partition.max_part_weights[i]) {
+      if (penalty < to_penalty && phg.partWeight(to) + wu <= max_part_weight) {
         to_penalty = penalty;
         to = i;
       }
@@ -147,6 +129,10 @@ public:
 
       // update PQ entries
       const PartitionID from = phg.partID(u);
+
+      // TODO is this call really necessary?
+      // it provides decent upates from other cores but seems somewhat expensive
+      //
       auto [to, gain] = bestDestinationBlock(phg, u);
       vertexPQs[from].adjustKey(u, gain);
 
@@ -193,7 +179,6 @@ public:
 private:
 
   SearchID thisSearch;
-  vec<Move> localMoves;
   PartitionID numParts;
 
   BlockPriorityQueue blockPQ;
@@ -210,6 +195,7 @@ private:
 
 
 public:
+  vec<Move> localMoves;
   vec<HypernodeID> deactivatedNodes;
 };
 
