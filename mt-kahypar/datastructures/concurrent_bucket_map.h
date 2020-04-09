@@ -107,15 +107,21 @@ class ConcurrentBucketMap {
     _buckets[bucket].emplace_back( std::move(value) );
   }
 
-  // ! Clears all buckets
-  void clear() {
+  // ! Frees the memory of all buckets
+  void free() {
     parallel::parallel_free(_buckets);
+  }
+
+  // ! Frees the memory of the corresponding bucket
+  void free(const size_t bucket) {
+    ASSERT(bucket < _num_buckets);
+    parallel::free(_buckets[bucket]);
   }
 
   // ! Clears the corresponding bucket
   void clear(const size_t bucket) {
     ASSERT(bucket < _num_buckets);
-    parallel::free(_buckets[bucket]);
+    _buckets[bucket].clear();
   }
 
  private:

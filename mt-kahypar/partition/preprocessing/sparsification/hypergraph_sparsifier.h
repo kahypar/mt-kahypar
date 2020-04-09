@@ -274,7 +274,7 @@ class HypergraphSparsifierT : public IHypergraphSparsifierT<TypeTraits> {
           }
         }
       }
-      footprint_map.clear(bucket);
+      footprint_map.free(bucket);
     });
   }
 

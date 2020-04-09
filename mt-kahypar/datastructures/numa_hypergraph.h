@@ -889,7 +889,7 @@ class NumaHypergraph {
           tmp_contraction_buffer[node_lhs]->tmp_hyperedges[local_id_lhs].setWeight(lhs_weight);
         }
       }
-      hyperedge_hash_map.clear(bucket);
+      hyperedge_hash_map.free(bucket);
     });
     utils::Timer::instance().stop_timer("remove_parallel_hyperedges");
 
