@@ -729,7 +729,7 @@ class NumaHypergraph {
                 he_hash += kahypar::math::hash(tmp_incidence_array[pos]);
               }
               hyperedge_hash_map.insert(he_hash,
-                HyperedgeHash { he, contracted_size, true });
+                HyperedgeHash { he, he_hash, contracted_size, true });
             } else {
               // Hyperedge becomes a single-pin hyperedge
               valid_hyperedges[local_id] = 0;
@@ -770,15 +770,17 @@ class NumaHypergraph {
       // Write the incident nets of each contracted vertex to the temporary incident net array
       doParallelForAllNodes(task_group_id, [&](const HypernodeID& hn) {
         const HypernodeID coarse_hn = map_to_coarse_hypergraph(hn);
-        const int node = common::get_numa_node_of_vertex(coarse_hn);
-        const HypernodeID local_id = common::get_local_position_of_vertex(coarse_hn);
+        const int coarse_node = common::get_numa_node_of_vertex(coarse_hn);
+        const HypernodeID coarse_local_id = common::get_local_position_of_vertex(coarse_hn);
+        const int node = common::get_numa_node_of_vertex(hn);
+        const HypernodeID local_id = common::get_local_position_of_vertex(hn);
         const HyperedgeID node_degree = nodeDegree(hn);
-        ASSERT(node < num_numa_nodes);
-        ASSERT(local_id < tmp_incident_nets_pos[node].size());
-        size_t incident_nets_pos = tmp_incident_nets_prefix_sum[node][local_id] +
-          tmp_incident_nets_pos[node][local_id].fetch_add(node_degree);
-        ASSERT(incident_nets_pos + node_degree <= tmp_incident_nets_prefix_sum[node][local_id + 1]);
-        memcpy(tmp_incident_nets[node].data() + incident_nets_pos,
+        ASSERT(coarse_node < num_numa_nodes);
+        ASSERT(coarse_local_id < tmp_incident_nets_pos[coarse_node].size());
+        size_t incident_nets_pos = tmp_incident_nets_prefix_sum[coarse_node][coarse_local_id] +
+          tmp_incident_nets_pos[coarse_node][coarse_local_id].fetch_add(node_degree);
+        ASSERT(incident_nets_pos + node_degree <= tmp_incident_nets_prefix_sum[coarse_node][coarse_local_id + 1]);
+        memcpy(tmp_incident_nets[coarse_node].data() + incident_nets_pos,
                _hypergraphs[node]._incident_nets.data() +
                _hypergraphs[node]._hypernodes[local_id].firstEntry(),
                sizeof(HyperedgeID) * node_degree);
@@ -851,36 +853,34 @@ class NumaHypergraph {
       }
     };
 
-    using BucketElement = typename ConcurrentBucketMap<HyperedgeHash>::Element;
     tbb::parallel_for(0UL, hyperedge_hash_map.numBuckets(), [&](const size_t bucket) {
       auto& hyperedge_bucket = hyperedge_hash_map.getBucket(bucket);
       std::sort(hyperedge_bucket.begin(), hyperedge_bucket.end(),
-        [&](const BucketElement& lhs, const BucketElement& rhs) {
-          return lhs.key < rhs.key || (lhs.key == rhs.key && lhs.value.size < rhs.value.size);
+        [&](const HyperedgeHash& lhs, const HyperedgeHash& rhs) {
+          return lhs.hash < rhs.hash || (lhs.hash == rhs.hash && lhs.size < rhs.size);
         });
 
       // Parallel Hyperedge Detection
       for ( size_t i = 0; i < hyperedge_bucket.size(); ++i ) {
-        const size_t hash_lhs = hyperedge_bucket[i].key;
-        HyperedgeHash& contracted_he_lhs = hyperedge_bucket[i].value;
+        HyperedgeHash& contracted_he_lhs = hyperedge_bucket[i];
         if ( contracted_he_lhs.valid ) {
           const HyperedgeID lhs_he = contracted_he_lhs.he;
           const int node_lhs = common::get_numa_node_of_edge(lhs_he);
           const HyperedgeID local_id_lhs = common::get_local_position_of_edge(lhs_he);
           HyperedgeWeight lhs_weight = tmp_contraction_buffer[node_lhs]->tmp_hyperedges[local_id_lhs].weight();
           for ( size_t j = i + 1; j < hyperedge_bucket.size(); ++j ) {
-            const size_t hash_rhs = hyperedge_bucket[j].key;
-            HyperedgeHash& contracted_he_rhs = hyperedge_bucket[j].value;
+            HyperedgeHash& contracted_he_rhs = hyperedge_bucket[j];
             const HyperedgeID rhs_he = contracted_he_rhs.he;
             const int node_rhs = common::get_numa_node_of_edge(rhs_he);
             const HyperedgeID local_id_rhs = common::get_local_position_of_edge(rhs_he);
-            if ( contracted_he_rhs.valid && hash_lhs == hash_rhs &&
+            if ( contracted_he_rhs.valid &&
+                 contracted_he_lhs.hash == contracted_he_rhs.hash &&
                  check_if_hyperedges_are_parallel(lhs_he, rhs_he) ) {
                 // Hyperedges are parallel
                 lhs_weight += tmp_contraction_buffer[node_rhs]->tmp_hyperedges[local_id_rhs].weight();
                 contracted_he_rhs.valid = false;
                 tmp_contraction_buffer[node_rhs]->valid_hyperedges[local_id_rhs] = false;
-            } else if ( hash_lhs != hash_rhs ) {
+            } else if ( contracted_he_lhs.hash != contracted_he_rhs.hash ) {
               // In case, hash of both are not equal we go to the next hyperedge
               // because we compared it with all hyperedges that had an equal hash
               break;

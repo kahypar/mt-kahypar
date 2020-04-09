@@ -47,6 +47,9 @@ class StaticHypergraph {
 
   static constexpr bool enable_heavy_assert = false;
 
+  // During contractions we temporary
+  static constexpr HyperedgeID HIGH_DEGREE_CONTRACTION_THRESHOLD = 1;
+
   static_assert(std::is_unsigned<HypernodeID>::value, "Hypernode ID must be unsigned");
   static_assert(std::is_unsigned<HyperedgeID>::value, "Hyperedge ID must be unsigned");
 
@@ -1065,7 +1068,7 @@ class StaticHypergraph {
               he_hash += kahypar::math::hash(tmp_incidence_array[pos]);
             }
             hyperedge_hash_map.insert(he_hash,
-              HyperedgeHash { id, contracted_size, true });
+              HyperedgeHash { id, he_hash, contracted_size, true });
           } else {
             // Hyperedge becomes a single-pin hyperedge
             valid_hyperedges[id] = 0;
@@ -1158,32 +1161,30 @@ class StaticHypergraph {
       }
     };
 
-    using BucketElement = typename ConcurrentBucketMap<HyperedgeHash>::Element;
     tbb::parallel_for(0UL, hyperedge_hash_map.numBuckets(), [&](const size_t bucket) {
       auto& hyperedge_bucket = hyperedge_hash_map.getBucket(bucket);
       std::sort(hyperedge_bucket.begin(), hyperedge_bucket.end(),
-        [&](const BucketElement& lhs, const BucketElement& rhs) {
-          return lhs.key < rhs.key || (lhs.key == rhs.key && lhs.value.size < rhs.value.size);
+        [&](const HyperedgeHash& lhs, const HyperedgeHash& rhs) {
+          return lhs.hash < rhs.hash || (lhs.hash == rhs.hash && lhs.size < rhs.size);
         });
 
       // Parallel Hyperedge Detection
       for ( size_t i = 0; i < hyperedge_bucket.size(); ++i ) {
-        const size_t hash_lhs = hyperedge_bucket[i].key;
-        HyperedgeHash& contracted_he_lhs = hyperedge_bucket[i].value;
+        HyperedgeHash& contracted_he_lhs = hyperedge_bucket[i];
         if ( contracted_he_lhs.valid ) {
           const HyperedgeID lhs_he = contracted_he_lhs.he;
           HyperedgeWeight lhs_weight = tmp_hyperedges[lhs_he].weight();
           for ( size_t j = i + 1; j < hyperedge_bucket.size(); ++j ) {
-            const size_t hash_rhs = hyperedge_bucket[j].key;
-            HyperedgeHash& contracted_he_rhs = hyperedge_bucket[j].value;
+            HyperedgeHash& contracted_he_rhs = hyperedge_bucket[j];
             const HyperedgeID rhs_he = contracted_he_rhs.he;
-            if ( contracted_he_rhs.valid && hash_lhs == hash_rhs &&
+            if ( contracted_he_rhs.valid &&
+                 contracted_he_lhs.hash == contracted_he_rhs.hash &&
                  check_if_hyperedges_are_parallel(lhs_he, rhs_he) ) {
                 // Hyperedges are parallel
                 lhs_weight += tmp_hyperedges[rhs_he].weight();
                 contracted_he_rhs.valid = false;
                 valid_hyperedges[rhs_he] = false;
-            } else if ( hash_lhs != hash_rhs ) {
+            } else if ( contracted_he_lhs.hash != contracted_he_rhs.hash  ) {
               // In case, hash of both are not equal we go to the next hyperedge
               // because we compared it with all hyperedges that had an equal hash
               break;

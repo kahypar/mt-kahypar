@@ -111,6 +111,7 @@ struct Memento {
   */
   struct HyperedgeHash {
     HyperedgeID he;
+    size_t hash;
     size_t size;
     bool valid;
   };

@@ -56,16 +56,9 @@ class ConcurrentBucketMap {
   static constexpr bool debug = false;
   static constexpr size_t BUCKET_FACTOR = 128;
 
-  struct KeyValuePair {
-    size_t key;
-    Value value;
-  };
-
-  using Bucket = parallel::scalable_vector<KeyValuePair>;
-  using ValueMap = parallel::scalable_vector<parallel::scalable_vector<Value> >;
+  using Bucket = parallel::scalable_vector<Value>;
 
  public:
-  using Element = KeyValuePair;
 
   ConcurrentBucketMap() :
     _num_buckets(align_to_next_power_of_two(
@@ -111,7 +104,7 @@ class ConcurrentBucketMap {
     size_t bucket = key & _mod_mask;
     ASSERT(bucket < _num_buckets);
     std::lock_guard<std::mutex> lock(_mutex[bucket]);
-    _buckets[bucket].emplace_back(KeyValuePair { key, std::move(value) } );
+    _buckets[bucket].emplace_back( std::move(value) );
   }
 
   // ! Clears all buckets
