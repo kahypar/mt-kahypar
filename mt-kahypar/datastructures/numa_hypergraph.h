@@ -49,6 +49,14 @@ class NumaHypergraph {
 
  static constexpr bool enable_heavy_assert = false;
 
+  // During contractions we temporary memcpy all incident nets of a collapsed
+  // vertex to consecutive range in a temporary incident nets structure.
+  // Afterwards, we sort that range and remove duplicates. However, it turned
+  // out that this become a major sequential bottleneck in presence of high
+  // degree vertices. Therefore, all vertices with temporary degree greater
+  // than this threshold are contracted with a special procedure.
+  static constexpr HyperedgeID HIGH_DEGREE_CONTRACTION_THRESHOLD = ID(500000);
+
  public:
   // ! Type Traits
   using Hypergraph = HyperGraph;
@@ -729,7 +737,7 @@ class NumaHypergraph {
                 he_hash += kahypar::math::hash(tmp_incidence_array[pos]);
               }
               hyperedge_hash_map.insert(he_hash,
-                HyperedgeHash { he, contracted_size, true });
+                HyperedgeHash { he, he_hash, contracted_size, true });
             } else {
               // Hyperedge becomes a single-pin hyperedge
               valid_hyperedges[local_id] = 0;
@@ -770,15 +778,17 @@ class NumaHypergraph {
       // Write the incident nets of each contracted vertex to the temporary incident net array
       doParallelForAllNodes(task_group_id, [&](const HypernodeID& hn) {
         const HypernodeID coarse_hn = map_to_coarse_hypergraph(hn);
-        const int node = common::get_numa_node_of_vertex(coarse_hn);
-        const HypernodeID local_id = common::get_local_position_of_vertex(coarse_hn);
+        const int coarse_node = common::get_numa_node_of_vertex(coarse_hn);
+        const HypernodeID coarse_local_id = common::get_local_position_of_vertex(coarse_hn);
+        const int node = common::get_numa_node_of_vertex(hn);
+        const HypernodeID local_id = common::get_local_position_of_vertex(hn);
         const HyperedgeID node_degree = nodeDegree(hn);
-        ASSERT(node < num_numa_nodes);
-        ASSERT(local_id < tmp_incident_nets_pos[node].size());
-        size_t incident_nets_pos = tmp_incident_nets_prefix_sum[node][local_id] +
-          tmp_incident_nets_pos[node][local_id].fetch_add(node_degree);
-        ASSERT(incident_nets_pos + node_degree <= tmp_incident_nets_prefix_sum[node][local_id + 1]);
-        memcpy(tmp_incident_nets[node].data() + incident_nets_pos,
+        ASSERT(coarse_node < num_numa_nodes);
+        ASSERT(coarse_local_id < tmp_incident_nets_pos[coarse_node].size());
+        size_t incident_nets_pos = tmp_incident_nets_prefix_sum[coarse_node][coarse_local_id] +
+          tmp_incident_nets_pos[coarse_node][coarse_local_id].fetch_add(node_degree);
+        ASSERT(incident_nets_pos + node_degree <= tmp_incident_nets_prefix_sum[coarse_node][coarse_local_id + 1]);
+        memcpy(tmp_incident_nets[coarse_node].data() + incident_nets_pos,
                _hypergraphs[node]._incident_nets.data() +
                _hypergraphs[node]._hypernodes[local_id].firstEntry(),
                sizeof(HyperedgeID) * node_degree);
@@ -786,29 +796,76 @@ class NumaHypergraph {
 
       // Setup temporary hypernodes
       TBBNumaArena::instance().execute_parallel_on_all_numa_nodes(task_group_id, [&](const int node) {
+        std::mutex high_degree_vertex_mutex;
+        parallel::scalable_vector<HypernodeID> high_degree_vertices;
         const HypernodeID num_hypernodes_on_numa_node =
           num_numa_hypernodes_prefix_sum[node + 1] - num_numa_hypernodes_prefix_sum[node];
         tbb::parallel_for(ID(0), num_hypernodes_on_numa_node, [&, node](const HypernodeID& local_id) {
           // Remove duplicates
           const size_t incident_nets_start = tmp_incident_nets_prefix_sum[node][local_id];
           const size_t incident_nets_end = tmp_incident_nets_prefix_sum[node][local_id + 1];
-          std::sort(tmp_incident_nets[node].begin() + incident_nets_start,
-                    tmp_incident_nets[node].begin() + incident_nets_end);
-          auto first_invalid_entry_it = std::unique(tmp_incident_nets[node].begin() + incident_nets_start,
-                                                    tmp_incident_nets[node].begin() + incident_nets_end);
-
-
-          // Setup pointers to temporary incident nets
-          const size_t contracted_size = std::distance(
-            tmp_incident_nets[node].begin() + incident_nets_start, first_invalid_entry_it);
+          const size_t tmp_degree = incident_nets_end - incident_nets_start;
           const HypernodeID coarse_hn = common::get_global_vertex_id(node, local_id);
           const HypernodeID original_coarse_id = map_to_original_id_in_coarse_hypergraph(coarse_hn);
+          if ( tmp_degree <= HIGH_DEGREE_CONTRACTION_THRESHOLD ) {
+            std::sort(tmp_incident_nets[node].begin() + incident_nets_start,
+                      tmp_incident_nets[node].begin() + incident_nets_end);
+            auto first_invalid_entry_it = std::unique(tmp_incident_nets[node].begin() + incident_nets_start,
+                                                      tmp_incident_nets[node].begin() + incident_nets_end);
+
+
+            // Setup pointers to temporary incident nets
+            const size_t contracted_size = std::distance(
+              tmp_incident_nets[node].begin() + incident_nets_start, first_invalid_entry_it);
+            tmp_contraction_buffer[node]->tmp_hypernodes[local_id].setSize(contracted_size);
+          } else {
+            std::lock_guard<std::mutex> lock(high_degree_vertex_mutex);
+            high_degree_vertices.push_back(local_id);
+          }
           tmp_contraction_buffer[node]->tmp_hypernodes[local_id].setWeight(
             tmp_contraction_buffer[node]->hn_weights[local_id]);
           tmp_contraction_buffer[node]->tmp_hypernodes[local_id].setFirstEntry(incident_nets_start);
-          tmp_contraction_buffer[node]->tmp_hypernodes[local_id].setSize(contracted_size);
           tmp_contraction_buffer[node]->tmp_hypernodes[local_id].setOriginalNodeID(original_coarse_id);
         });
+
+        if ( !high_degree_vertices.empty() ) {
+          // High degree vertices are treated special, because sorting and afterwards
+          // removing duplicates can become a major sequential bottleneck. Therefore,
+          // we distribute the incident nets of a high degree vertex into our concurrent
+          // bucket map. As a result all equal incident nets reside in the same bucket
+          // afterwards. In a second step, we process each bucket in parallel and apply
+          // for each bucket the duplicate removal procedure from above.
+          ConcurrentBucketMap<HyperedgeID> duplicate_incident_nets_map;
+          for ( const HypernodeID& local_id : high_degree_vertices ) {
+            const size_t incident_nets_start = tmp_incident_nets_prefix_sum[node][local_id];
+            const size_t incident_nets_end = tmp_incident_nets_prefix_sum[node][local_id + 1];
+            const size_t tmp_degree = incident_nets_end - incident_nets_start;
+
+            // Insert incident nets into concurrent bucket map
+            duplicate_incident_nets_map.reserve_for_estimated_number_of_insertions(tmp_degree);
+            tbb::parallel_for(incident_nets_start, incident_nets_end, [&](const size_t pos) {
+              HyperedgeID he = tmp_incident_nets[node][pos];
+              duplicate_incident_nets_map.insert(he, std::move(he));
+            });
+
+            // Process each bucket in parallel and remove duplicates
+            std::atomic<size_t> incident_nets_pos(incident_nets_start);
+            tbb::parallel_for(0UL, duplicate_incident_nets_map.numBuckets(), [&](const size_t bucket) {
+              auto& incident_net_bucket = duplicate_incident_nets_map.getBucket(bucket);
+              std::sort(incident_net_bucket.begin(), incident_net_bucket.end());
+              auto first_invalid_entry_it = std::unique(incident_net_bucket.begin(), incident_net_bucket.end());
+              const size_t bucket_degree = std::distance(incident_net_bucket.begin(), first_invalid_entry_it);
+              const size_t tmp_incident_nets_pos = incident_nets_pos.fetch_add(bucket_degree);
+              memcpy(tmp_incident_nets[node].data() + tmp_incident_nets_pos,
+                    incident_net_bucket.data(), sizeof(HyperedgeID) * bucket_degree);
+              duplicate_incident_nets_map.clear(bucket);
+            });
+
+            // Update number of incident nets of high degree vertex
+            const size_t contracted_size = incident_nets_pos.load() - incident_nets_start;
+            tmp_contraction_buffer[node]->tmp_hypernodes[local_id].setSize(contracted_size);
+          }
+        }
       });
       utils::Timer::instance().stop_timer("tmp_contract_incident_nets");
     });
@@ -851,36 +908,34 @@ class NumaHypergraph {
       }
     };
 
-    using BucketElement = typename ConcurrentBucketMap<HyperedgeHash>::Element;
     tbb::parallel_for(0UL, hyperedge_hash_map.numBuckets(), [&](const size_t bucket) {
       auto& hyperedge_bucket = hyperedge_hash_map.getBucket(bucket);
       std::sort(hyperedge_bucket.begin(), hyperedge_bucket.end(),
-        [&](const BucketElement& lhs, const BucketElement& rhs) {
-          return lhs.key < rhs.key || (lhs.key == rhs.key && lhs.value.size < rhs.value.size);
+        [&](const HyperedgeHash& lhs, const HyperedgeHash& rhs) {
+          return lhs.hash < rhs.hash || (lhs.hash == rhs.hash && lhs.size < rhs.size);
         });
 
       // Parallel Hyperedge Detection
       for ( size_t i = 0; i < hyperedge_bucket.size(); ++i ) {
-        const size_t hash_lhs = hyperedge_bucket[i].key;
-        HyperedgeHash& contracted_he_lhs = hyperedge_bucket[i].value;
+        HyperedgeHash& contracted_he_lhs = hyperedge_bucket[i];
         if ( contracted_he_lhs.valid ) {
           const HyperedgeID lhs_he = contracted_he_lhs.he;
           const int node_lhs = common::get_numa_node_of_edge(lhs_he);
           const HyperedgeID local_id_lhs = common::get_local_position_of_edge(lhs_he);
           HyperedgeWeight lhs_weight = tmp_contraction_buffer[node_lhs]->tmp_hyperedges[local_id_lhs].weight();
           for ( size_t j = i + 1; j < hyperedge_bucket.size(); ++j ) {
-            const size_t hash_rhs = hyperedge_bucket[j].key;
-            HyperedgeHash& contracted_he_rhs = hyperedge_bucket[j].value;
+            HyperedgeHash& contracted_he_rhs = hyperedge_bucket[j];
             const HyperedgeID rhs_he = contracted_he_rhs.he;
             const int node_rhs = common::get_numa_node_of_edge(rhs_he);
             const HyperedgeID local_id_rhs = common::get_local_position_of_edge(rhs_he);
-            if ( contracted_he_rhs.valid && hash_lhs == hash_rhs &&
+            if ( contracted_he_rhs.valid &&
+                 contracted_he_lhs.hash == contracted_he_rhs.hash &&
                  check_if_hyperedges_are_parallel(lhs_he, rhs_he) ) {
                 // Hyperedges are parallel
                 lhs_weight += tmp_contraction_buffer[node_rhs]->tmp_hyperedges[local_id_rhs].weight();
                 contracted_he_rhs.valid = false;
                 tmp_contraction_buffer[node_rhs]->valid_hyperedges[local_id_rhs] = false;
-            } else if ( hash_lhs != hash_rhs ) {
+            } else if ( contracted_he_lhs.hash != contracted_he_rhs.hash ) {
               // In case, hash of both are not equal we go to the next hyperedge
               // because we compared it with all hyperedges that had an equal hash
               break;
@@ -889,7 +944,7 @@ class NumaHypergraph {
           tmp_contraction_buffer[node_lhs]->tmp_hyperedges[local_id_lhs].setWeight(lhs_weight);
         }
       }
-      hyperedge_hash_map.clear(bucket);
+      hyperedge_hash_map.free(bucket);
     });
     utils::Timer::instance().stop_timer("remove_parallel_hyperedges");
 
