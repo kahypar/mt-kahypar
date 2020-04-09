@@ -101,6 +101,11 @@ class Randomize {
     return instance;
   }
 
+  void enableLocalizedParallelShuffle(const size_t localized_random_shuffle_block_size) {
+    _perform_localized_random_shuffle = true;
+    _localized_random_shuffle_block_size = localized_random_shuffle_block_size;
+  }
+
   void setSeed(int seed) {
     for (uint32_t i = 0; i < std::thread::hardware_concurrency(); ++i) {
       _rand[i].setSeed(seed + i);
@@ -151,7 +156,11 @@ class Randomize {
   void shuffleVector(parallel::scalable_vector<T>& vector, size_t i, size_t j, int cpu_id) {
     ASSERT(i <= j && j <= vector.size());
     ASSERT(cpu_id < (int)std::thread::hardware_concurrency());
-    std::shuffle(vector.begin() + i, vector.begin() + j, _rand[cpu_id].getGenerator());
+    if ( _perform_localized_random_shuffle ) {
+      localizedShuffleVector(vector, i, j, cpu_id);
+    } else {
+      std::shuffle(vector.begin() + i, vector.begin() + j, _rand[cpu_id].getGenerator());
+    }
   }
 
   template <typename T>
@@ -160,35 +169,20 @@ class Randomize {
     const size_t P = std::thread::hardware_concurrency();
     const size_t N = j - i;
     const size_t step = N / P;
-    tbb::parallel_for(0UL, P, [&](const size_t k) {
-      const size_t start = i + k * step;
-      const size_t end = i + (k == P - 1 ? N : (k + 1) * step);
-      const int cpu_id = sched_getcpu();
-      std::shuffle(vector.begin() + start, vector.begin() + end, _rand[cpu_id].getGenerator());
-    });
-  }
-
-  template <typename T>
-  void localizedShuffleVector(parallel::scalable_vector<T>& vector, const size_t i, const size_t j, const size_t block_size) {
-    ASSERT(i <= j && j <= vector.size());
-    const int cpu_id = sched_getcpu();
-    for ( size_t start = i; start < j; start += block_size ) {
-      const size_t end = std::min(start + block_size, j);
-      std::shuffle(vector.begin() + start, vector.begin() + end, _rand[cpu_id].getGenerator());
+    if ( _perform_localized_random_shuffle ) {
+      tbb::parallel_for(0UL, P, [&](const size_t k) {
+        const size_t start = i + k * step;
+        const size_t end = i + (k == P - 1 ? N : (k + 1) * step);
+        localizedShuffleVector(vector, start, end, sched_getcpu());
+      });
+    } else {
+      tbb::parallel_for(0UL, P, [&](const size_t k) {
+        const size_t start = i + k * step;
+        const size_t end = i + (k == P - 1 ? N : (k + 1) * step);
+        const int cpu_id = sched_getcpu();
+        std::shuffle(vector.begin() + start, vector.begin() + end, _rand[cpu_id].getGenerator());
+      });
     }
-  }
-
-  template <typename T>
-  void localizedParallelShuffleVector(parallel::scalable_vector<T>& vector, const size_t i, const size_t j, const size_t block_size) {
-    ASSERT(i <= j && j <= vector.size());
-    const size_t P = std::thread::hardware_concurrency();
-    const size_t N = j - i;
-    const size_t step = N / P;
-    tbb::parallel_for(0UL, P, [&](const size_t k) {
-      const size_t start = i + k * step;
-      const size_t end = i + (k == P - 1 ? N : (k + 1) * step);
-      localizedShuffleVector(vector, start, end, block_size);
-    });
   }
 
   // returns uniformly random int from the interval [low, high]
@@ -210,9 +204,22 @@ class Randomize {
 
  private:
   explicit Randomize() :
-    _rand(std::thread::hardware_concurrency()) { }
+    _rand(std::thread::hardware_concurrency()),
+    _perform_localized_random_shuffle(false),
+    _localized_random_shuffle_block_size(1024) { }
+
+  template <typename T>
+  void localizedShuffleVector(parallel::scalable_vector<T>& vector, const size_t i, const size_t j, const int cpu_id) {
+    ASSERT(i <= j && j <= vector.size());
+    for ( size_t start = i; start < j; start += _localized_random_shuffle_block_size ) {
+      const size_t end = std::min(start + _localized_random_shuffle_block_size, j);
+      std::shuffle(vector.begin() + start, vector.begin() + end, _rand[cpu_id].getGenerator());
+    }
+  }
 
   std::vector<RandomFunctions> _rand;
+  bool _perform_localized_random_shuffle;
+  size_t _localized_random_shuffle_block_size;
 };
 }  // namespace utils
 }  // namespace mt_kahypar

@@ -76,39 +76,62 @@ static inline void readStringAsHyperedge(const std::string& hyperedge_line,
   }
 }
 
-static inline void readHyperedges(std::ifstream& file,
-                                  const HyperedgeID num_hyperedges,
-                                  const mt_kahypar::Type type,
-                                  HyperedgeVector& hyperedges,
-                                  parallel::scalable_vector<HyperedgeWeight>& hyperedges_weight) {
+static inline bool isSinglePinHyperedge(const std::string& hyperedge_line,
+                                        const bool has_hyperedge_weights) {
+  size_t num_spaces = 0;
+  for ( size_t i = 0; i < hyperedge_line.size(); ++i) {
+    if ( hyperedge_line[i] == ' ' ) {
+      ++num_spaces;
+      if ( num_spaces == 2 ) {
+        break;
+      }
+    }
+  }
+  return has_hyperedge_weights ? num_spaces == 1 : num_spaces == 0;
+}
+
+static inline HyperedgeID readHyperedges(std::ifstream& file,
+                                         const HyperedgeID num_hyperedges,
+                                         const mt_kahypar::Type type,
+                                         HyperedgeVector& hyperedges,
+                                         parallel::scalable_vector<HyperedgeWeight>& hyperedges_weight) {
   // Read input file line by line
   utils::Timer::instance().start_timer("parse_hyperedges", "Parse Hyperedges");
+  const bool has_hyperedge_weights = type == mt_kahypar::Type::EdgeWeights ||
+                                     type == mt_kahypar::Type::EdgeAndNodeWeights ?
+                                     true : false;
+  HyperedgeID num_removed_single_pin_hyperedges = 0;
   parallel::scalable_vector<std::string> lines;
   tbb::parallel_invoke([&] {
     lines.reserve(num_hyperedges);
     std::string he_line;
-    while (lines.size() < num_hyperedges) {
+    while (lines.size() < num_hyperedges - num_removed_single_pin_hyperedges) {
       std::getline(file, he_line);
       // skip any comments
       while (he_line[0] == '%') {
         std::getline(file, he_line);
       }
-      lines.push_back(he_line);
+      if ( !isSinglePinHyperedge(he_line, has_hyperedge_weights) ) {
+        lines.push_back(he_line);
+      } else {
+        ++num_removed_single_pin_hyperedges;
+      }
     }
   }, [&] {
     hyperedges.resize(num_hyperedges);
     hyperedges_weight.resize(num_hyperedges);
   });
 
-  ASSERT(lines.size() == num_hyperedges);
-  const bool has_hyperedge_weights = type == mt_kahypar::Type::EdgeWeights ||
-                                     type == mt_kahypar::Type::EdgeAndNodeWeights ?
-                                     true : false;
-  tbb::parallel_for(ID(0), num_hyperedges, [&](const HyperedgeID i) {
+  HyperedgeID tmp_num_hyperedges = num_hyperedges - num_removed_single_pin_hyperedges;
+  hyperedges.resize(tmp_num_hyperedges);
+  hyperedges_weight.resize(tmp_num_hyperedges);
+  ASSERT(lines.size() == tmp_num_hyperedges);
+  tbb::parallel_for(ID(0), tmp_num_hyperedges, [&](const HyperedgeID i) {
     readStringAsHyperedge(lines[i], has_hyperedge_weights,
       hyperedges[i], hyperedges_weight[i]);
   });
   utils::Timer::instance().stop_timer("parse_hyperedges");
+  return num_removed_single_pin_hyperedges;
 }
 
 static inline void readHypernodeWeights(std::ifstream& file,
@@ -153,9 +176,12 @@ static inline HyperGraph readHypergraphFile(const std::string& filename,
   parallel::scalable_vector<HyperedgeWeight> hyperedges_weight;
   parallel::scalable_vector<HypernodeWeight> hypernodes_weight;
   mt_kahypar::Type type = mt_kahypar::Type::Unweighted;
+  HyperedgeID num_removed_single_pin_hyperedges = 0;
   if (file) {
     readHGRHeader(file, num_hyperedges, num_hypernodes, type);
-    readHyperedges(file, num_hyperedges, type, hyperedges, hyperedges_weight);
+    num_removed_single_pin_hyperedges = readHyperedges(
+      file, num_hyperedges, type, hyperedges, hyperedges_weight);
+    num_hyperedges -= num_removed_single_pin_hyperedges;
     readHypernodeWeights(file, num_hypernodes, type, hypernodes_weight);
     file.close();
   } else {
@@ -167,6 +193,7 @@ static inline HyperGraph readHypergraphFile(const std::string& filename,
   HyperGraph hypergraph = HyperGraphFactory::construct(task_group_id,
     num_hypernodes, num_hyperedges, hyperedges,
     hyperedges_weight.data(), hypernodes_weight.data());
+  hypergraph.setNumRemovedHyperedges(num_removed_single_pin_hyperedges);
   utils::Timer::instance().stop_timer("construct_hypergraph");
   utils::Timer::instance().stop_timer("construct_hypergraph_from_file");
   return hypergraph;

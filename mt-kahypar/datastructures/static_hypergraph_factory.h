@@ -62,8 +62,8 @@ class StaticHypergraphFactory {
     StaticHypergraph hypergraph;
     hypergraph._num_hypernodes = num_hypernodes;
     hypergraph._num_hyperedges = num_hyperedges;
-    hypergraph._hypernodes.resize(num_hypernodes);
-    hypergraph._hyperedges.resize(num_hyperedges);
+    hypergraph._hypernodes.resize(num_hypernodes + 1);
+    hypergraph._hyperedges.resize(num_hyperedges + 1);
 
     ASSERT(edge_vector.size() == num_hyperedges);
 
@@ -161,12 +161,18 @@ class StaticHypergraphFactory {
       });
     });
     // Add Sentinels
-    hypergraph._hypernodes.emplace_back(hypergraph._incident_nets.size());
-    hypergraph._hyperedges.emplace_back(hypergraph._incidence_array.size());
+    hypergraph._hypernodes.back() = StaticHypergraph::Hypernode(hypergraph._incident_nets.size());
+    hypergraph._hyperedges.back() = StaticHypergraph::Hyperedge(hypergraph._incidence_array.size());
 
     // Compute total weight of hypergraph
     hypergraph.updateTotalWeight(task_group_id);
     utils::Timer::instance().stop_timer("setup_hypergraph");
+
+
+    utils::Timer::instance().start_timer("allocate_tmp_contraction_buffer", "Alloc Tmp Contraction Buffer", true);
+    // Allocates temporary contraction buffer
+    hypergraph.allocateTmpContractionBuffer();
+    utils::Timer::instance().stop_timer("allocate_tmp_contraction_buffer");
 
     return hypergraph;
   }
@@ -287,8 +293,8 @@ class StaticHypergraphFactory {
     hypergraph._num_hyperedges = edges_prefix_sum.total_sum();
     hypergraph._num_pins = pin_prefix_sum.total_sum();
     hypergraph._total_degree = incident_net_prefix_sum.total_sum();
-    hypergraph._hypernodes.resize(hypergraph._num_hypernodes);
-    hypergraph._hyperedges.resize(hypergraph._num_hyperedges);
+    hypergraph._hypernodes.resize(hypergraph._num_hypernodes + 1);
+    hypergraph._hyperedges.resize(hypergraph._num_hyperedges + 1);
     hypergraph._incident_nets.resize(incident_net_prefix_sum.total_sum());
     hypergraph._incidence_array.resize(hypergraph._num_pins);
 
@@ -354,8 +360,8 @@ class StaticHypergraphFactory {
       });
     });
     // Add Sentinels
-    hypergraph._hypernodes.emplace_back(hypergraph._incident_nets.size());
-    hypergraph._hyperedges.emplace_back(hypergraph._incidence_array.size());
+    hypergraph._hypernodes.back() = StaticHypergraph::Hypernode(hypergraph._incident_nets.size());
+    hypergraph._hyperedges.back() = StaticHypergraph::Hyperedge(hypergraph._incidence_array.size());
 
     // Compute total weight of hypergraph
     hypergraph._total_weight = tbb::parallel_reduce(
@@ -369,6 +375,10 @@ class StaticHypergraphFactory {
       }, std::plus<HypernodeWeight>());
     utils::Timer::instance().stop_timer("setup_numa_hypergraph");
 
+    utils::Timer::instance().start_timer("allocate_tmp_contraction_buffer", "Alloc Tmp Contraction Buffer", true);
+    // Allocates temporary contraction buffer
+    hypergraph.allocateTmpContractionBuffer(true);
+    utils::Timer::instance().stop_timer("allocate_tmp_contraction_buffer");
     return hypergraph;
   }
 

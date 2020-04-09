@@ -27,6 +27,7 @@
 #include "tbb/parallel_reduce.h"
 
 #include "kahypar/meta/mandatory.h"
+#include "kahypar/utils/math.h"
 
 #include "mt-kahypar/datastructures/hypergraph_common.h"
 #include "mt-kahypar/parallel/stl/scalable_vector.h"

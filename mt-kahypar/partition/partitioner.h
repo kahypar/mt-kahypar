@@ -33,7 +33,6 @@
 #include "mt-kahypar/partition/metrics.h"
 #include "mt-kahypar/partition/multilevel.h"
 #include "mt-kahypar/partition/preprocessing/sparsification/degree_zero_hn_remover.h"
-#include "mt-kahypar/partition/preprocessing/sparsification/single_pin_he_remover.h"
 #include "mt-kahypar/partition/preprocessing/community_detection/parallel_louvain.h"
 #include "mt-kahypar/partition/preprocessing/community_reassignment/community_redistributor.h"
 #include "mt-kahypar/utils/stats.h"
@@ -47,8 +46,7 @@ class Partitioner {
  public:
   Partitioner(Context& context) :
     _context(context),
-    _degree_zero_hn_remover(context),
-    _single_pin_he_remover() { }
+    _degree_zero_hn_remover(context) { }
 
   Partitioner(const Partitioner&) = delete;
   Partitioner & operator= (const Partitioner &) = delete;
@@ -73,7 +71,6 @@ class Partitioner {
 
   Context& _context;
   DegreeZeroHypernodeRemover _degree_zero_hn_remover;
-  SinglePinHyperedgeRemover _single_pin_he_remover;
 };
 
 inline void Partitioner::setupContext(Hypergraph& hypergraph, Context& context) {
@@ -96,24 +93,20 @@ inline void Partitioner::configurePreprocessing(const Hypergraph& hypergraph, Co
 
 inline void Partitioner::sanitize(Hypergraph& hypergraph) {
 
-  utils::Timer::instance().start_timer("single_node_hyperedge_removal", "Single Node Hyperedge Removal");
-  const HyperedgeID num_removed_single_node_hes =
-    _single_pin_he_remover.removeSinglePinHyperedges(hypergraph);
-  utils::Timer::instance().stop_timer("single_node_hyperedge_removal");
-
   utils::Timer::instance().start_timer("degree_zero_hypernode_removal", "Degree Zero Hypernode Removal");
   const HypernodeID num_removed_degree_zero_hypernodes =
     _degree_zero_hn_remover.contractDegreeZeroHypernodes(hypergraph);
   utils::Timer::instance().stop_timer("degree_zero_hypernode_removal");
 
+  const HyperedgeID num_removed_single_node_hes = hypergraph.numRemovedHyperedges();
   if (_context.partition.verbose_output &&
       ( num_removed_single_node_hes > 0 || num_removed_degree_zero_hypernodes > 0 )) {
-    LOG << "Performing single-node HE and degree-zero HN removal:";
+    LOG << "Performed single-node HE removal and degree-zero HN contractions:";
     LOG << "\033[1m\033[31m" << " # removed"
-        << num_removed_single_node_hes << "hyperedges with |e|=1"
+        << num_removed_single_node_hes << "hyperedges with |e| = 1 during hypergraph file parsing"
         << "\033[0m";
-    LOG << "\033[1m\033[31m" << " # removed"
-        << num_removed_degree_zero_hypernodes << "hypernodes with d(v)=0"
+    LOG << "\033[1m\033[31m" << " # contracted"
+        << num_removed_degree_zero_hypernodes << "hypernodes with d(v) = 0 to supervertices"
         << "\033[0m";
     io::printStripe();
   }
@@ -138,7 +131,7 @@ inline void Partitioner::preprocess(Hypergraph& hypergraph) {
     utils::Timer::instance().start_timer("construct_graph", "Construct Graph");
     Graph graph(hypergraph, _context.preprocessing.community_detection.edge_weight_function);
     utils::Timer::instance().stop_timer("construct_graph");
-    communities = ParallelModularityLouvain::run(graph, _context,
+    communities = ParallelModularityLouvain<Graph>::run(graph, _context,
       _context.shared_memory.num_threads);   // TODO(lars): give switch for PLM/SLM
     _degree_zero_hn_remover.assignAllDegreeZeroHypernodesToSameCommunity(hypergraph, communities);
     utils::Timer::instance().stop_timer("perform_community_detection");
@@ -218,7 +211,6 @@ inline void Partitioner::redistribution(Hypergraph& hypergraph) {
 
 inline void Partitioner::postprocess(PartitionedHypergraph& hypergraph) {
   _degree_zero_hn_remover.restoreDegreeZeroHypernodes(hypergraph);
-  _single_pin_he_remover.restoreSinglePinHyperedges(hypergraph);
 }
 
 inline PartitionedHypergraph Partitioner::partition(Hypergraph& hypergraph) {

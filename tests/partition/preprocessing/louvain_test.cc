@@ -33,9 +33,10 @@ namespace mt_kahypar {
 class ALouvain : public ds::HypergraphFixture<ds::StaticHypergraph, ds::StaticHypergraphFactory> {
 
   using Base = ds::HypergraphFixture<ds::StaticHypergraph, ds::StaticHypergraphFactory>;
-  using Graph = ds::GraphT<ds::StaticHypergraph>;
 
  public:
+  using Graph = ds::GraphT<ds::StaticHypergraph>;
+
   ALouvain() :
     Base(),
     graph(hypergraph, LouvainEdgeWeight::uniform),
@@ -77,7 +78,7 @@ ds::Clustering clustering(const std::vector<PartitionID>& communities) {
 }
 
 TEST_F(ALouvain, ComputesMaxGainMove1) {
-  PLM plm(context, graph.numNodes());
+  PLM<Graph> plm(context, graph.numNodes());
   ds::Clustering communities = clustering( { 0, 1, 0, 2, 3, 4, 5, 1, 2, 3, 4 } );
     plm.initializeClusterVolumes(graph, communities);
   PartitionID to = plm.computeMaxGainCluster(
@@ -86,7 +87,7 @@ TEST_F(ALouvain, ComputesMaxGainMove1) {
 }
 
 TEST_F(ALouvain, ComputesMaxGainMove2) {
-  PLM plm(context, graph.numNodes());
+  PLM<Graph> plm(context, graph.numNodes());
   ds::Clustering communities = clustering( { 0, 1, 0, 3, 3, 4, 5, 1, 2, 3, 4 } );
     plm.initializeClusterVolumes(graph, communities);
   PartitionID to = plm.computeMaxGainCluster(
@@ -95,7 +96,7 @@ TEST_F(ALouvain, ComputesMaxGainMove2) {
 }
 
 TEST_F(ALouvain, ComputesMaxGainMove3) {
-  PLM plm(context, graph.numNodes());
+  PLM<Graph> plm(context, graph.numNodes());
   ds::Clustering communities = clustering( { 0, 1, 0, 2, 3, 4, 5, 1, 2, 3, 4 } );
     plm.initializeClusterVolumes(graph, communities);
   PartitionID to = plm.computeMaxGainCluster(
@@ -104,7 +105,7 @@ TEST_F(ALouvain, ComputesMaxGainMove3) {
 }
 
 TEST_F(ALouvain, ComputesMaxGainMove4) {
-  PLM plm(context, graph.numNodes());
+  PLM<Graph> plm(context, graph.numNodes());
   ds::Clustering communities = clustering( { 0, 1, 0, 2, 3, 4, 5, 1, 2, 3, 4 } );
     plm.initializeClusterVolumes(graph, communities);
   PartitionID to = plm.computeMaxGainCluster(
@@ -113,7 +114,7 @@ TEST_F(ALouvain, ComputesMaxGainMove4) {
 }
 
 TEST_F(ALouvain, ComputesMaxGainMove5) {
-  PLM plm(context, graph.numNodes());
+  PLM<Graph> plm(context, graph.numNodes());
   ds::Clustering communities = clustering( { 0, 1, 0, 2, 2, 4, 5, 1, 2, 3, 4 } );
     plm.initializeClusterVolumes(graph, communities);
   PartitionID to = plm.computeMaxGainCluster(
@@ -122,7 +123,7 @@ TEST_F(ALouvain, ComputesMaxGainMove5) {
 }
 
 TEST_F(ALouvain, ComputesMaxGainMove6) {
-  PLM plm(context, graph.numNodes());
+  PLM<Graph> plm(context, graph.numNodes());
   ds::Clustering communities = clustering( { 0, 1, 0, 2, 2, 4, 5, 1, 2, 3, 4 } );
     plm.initializeClusterVolumes(graph, communities);
   PartitionID to = plm.computeMaxGainCluster(
@@ -131,7 +132,7 @@ TEST_F(ALouvain, ComputesMaxGainMove6) {
 }
 
 TEST_F(ALouvain, ComputesMaxGainMove7) {
-  PLM plm(context, graph.numNodes());
+  PLM<Graph> plm(context, graph.numNodes());
   ds::Clustering communities = clustering( { 0, 1, 0, 2, 2, 4, 0, 1, 2, 3, 4 } );
     plm.initializeClusterVolumes(graph, communities);
   PartitionID to = plm.computeMaxGainCluster(
@@ -140,7 +141,7 @@ TEST_F(ALouvain, ComputesMaxGainMove7) {
 }
 
 TEST_F(ALouvain, ComputesMaxGainMove8) {
-  PLM plm(context, graph.numNodes());
+  PLM<Graph> plm(context, graph.numNodes());
   ds::Clustering communities = clustering( { 0, 1, 0, 2, 2, 4, 0, 1, 1, 3, 4 } );
     plm.initializeClusterVolumes(graph, communities);
   PartitionID to = plm.computeMaxGainCluster(
@@ -149,7 +150,7 @@ TEST_F(ALouvain, ComputesMaxGainMove8) {
 }
 
 TEST_F(ALouvain, ComputesMaxGainMove9) {
-  PLM plm(context, graph.numNodes());
+  PLM<Graph> plm(context, graph.numNodes());
   ds::Clustering communities = clustering( { 0, 1, 0, 2, 2, 4, 0, 1, 3, 3, 4 } );
     plm.initializeClusterVolumes(graph, communities);
   PartitionID to = plm.computeMaxGainCluster(
@@ -158,7 +159,7 @@ TEST_F(ALouvain, ComputesMaxGainMove9) {
 }
 
 TEST_F(ALouvain, ComputesMaxGainMove10) {
-  PLM plm(context, graph.numNodes());
+  PLM<Graph> plm(context, graph.numNodes());
   ds::Clustering communities = clustering( { 0, 1, 0, 2, 2, 0, 4, 1, 3, 3, 4 } );
     plm.initializeClusterVolumes(graph, communities);
   PartitionID to = plm.computeMaxGainCluster(
@@ -167,8 +168,8 @@ TEST_F(ALouvain, ComputesMaxGainMove10) {
 }
 
 TEST_F(ALouvain, KarateClubTest) {
-  ds::Clustering communities = ParallelModularityLouvain::run(
-    *karate_club_graph, context, context.shared_memory.num_threads);
+  ds::Clustering communities = ParallelModularityLouvain<Graph>::run(
+    *karate_club_graph, context, context.shared_memory.num_threads, true);
   std::vector<PartitionID> expected_comm = { 1, 1, 1, 1, 0, 0, 0, 1, 3, 1, 0, 1, 1, 1, 3, 3, 0, 1,
                                              3, 1, 3, 1, 3, 2, 2, 2, 3, 2, 2, 3, 3, 2, 3, 3 };
   for ( const NodeID u : karate_club_graph->nodes() ) {

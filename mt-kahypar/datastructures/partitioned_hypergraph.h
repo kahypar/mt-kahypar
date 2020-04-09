@@ -103,6 +103,7 @@ private:
 
   }
 
+
   // TODO bring back the parallel memory allocation once the redesign is finalized
   explicit PartitionedHypergraph(const PartitionID k, const TaskGroupID, Hypergraph& hypergraph) : PartitionedHypergraph(k, hypergraph) { }
 
@@ -864,6 +865,7 @@ public:
     return parallel::scalable_vector<HyperedgeID>();
   }
 
+
   // ####################### Memory Consumption #######################
 
   void memoryConsumption(utils::MemoryTreeNode* parent) const {
@@ -956,7 +958,6 @@ public:
 
     return std::make_pair(std::move(extracted_hypergraph), std::move(hn_mapping));
   }
-
 
 };
 

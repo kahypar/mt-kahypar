@@ -71,14 +71,17 @@ public:
   }
 
   bool contains(const HyperedgeID he, const PartitionID p) const {
-    const PartitionID div = p / BITS_PER_BLOCK;
-    const PartitionID rem = p % BITS_PER_BLOCK;
-    return bits[he * numBlocksPerHyperedge + div].load(std::memory_order_relaxed) & (UnsafeBlock(1) << rem);
+    const size_t div = p / BITS_PER_BLOCK;
+    const size_t rem = p % BITS_PER_BLOCK;
+    const size_t pos = static_cast<size_t>(he) * numBlocksPerHyperedge + div;
+    return bits[pos].load(std::memory_order_relaxed) & (UnsafeBlock(1) << rem);
   }
 
   // not threadsafe
   void clear(const HyperedgeID he) {
-    for (size_t i = he * numBlocksPerHyperedge; i < (he + 1) * numBlocksPerHyperedge; ++i) {
+    const size_t start = static_cast<size_t>(he) * numBlocksPerHyperedge;
+    const size_t end = ( static_cast<size_t>(he) + 1 ) * numBlocksPerHyperedge;
+    for (size_t i = start; i < end; ++i) {
       bits[i].store(0, std::memory_order_relaxed);
     }
   }
@@ -91,7 +94,9 @@ public:
 
   PartitionID connectivity(const HyperedgeID he) const {
     PartitionID conn = 0;
-    for (size_t i = he * numBlocksPerHyperedge; i < (he + 1) * numBlocksPerHyperedge; ++i) {
+    const size_t start = static_cast<size_t>(he) * numBlocksPerHyperedge;
+    const size_t end = ( static_cast<size_t>(he) + 1 ) * numBlocksPerHyperedge;
+    for (size_t i = start; i < end; ++i) {
       conn += utils::popcount_64(bits[i].load(std::memory_order_relaxed));
     }
     return conn;
@@ -122,7 +127,7 @@ private:
 	  assert(p < k);
 	  assert(he < numEdges);
     const size_t div = p / BITS_PER_BLOCK, rem = p % BITS_PER_BLOCK;
-    const size_t idx = he * numBlocksPerHyperedge + div;
+    const size_t idx = static_cast<size_t>(he) * numBlocksPerHyperedge + div;
     assert(idx < bits.size());
 	  bits[idx].fetch_xor(UnsafeBlock(1) << rem, std::memory_order_relaxed);
 	}
@@ -184,11 +189,11 @@ public:
   };
 
 	Iterator hyperedgeBegin(const HyperedgeID he) const {
-	  return Iterator(bits.begin() + he * numBlocksPerHyperedge, -1, k);
+	  return Iterator(bits.begin() + static_cast<size_t>(he) * numBlocksPerHyperedge, -1, k);
 	}
 
 	Iterator hyperedgeEnd(const HyperedgeID he) const {
-	  return Iterator(bits.begin() + he * numBlocksPerHyperedge, k-1, k);
+	  return Iterator(bits.begin() + static_cast<size_t>(he) * numBlocksPerHyperedge, k-1, k);
 	}
 
 

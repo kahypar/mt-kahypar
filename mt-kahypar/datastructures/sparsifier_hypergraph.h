@@ -252,7 +252,7 @@ class SparsifierHypergraph {
       });
     });
 
-    if ( TBB::instance().num_used_numa_nodes() == 1 ) {
+    if ( !Hypergraph::is_numa_aware ) {
       return HypergraphFactory::construct(
         _task_group_id, num_hypernodes, num_hyperedges,
         sparsified_hypergraph._edge_vector,

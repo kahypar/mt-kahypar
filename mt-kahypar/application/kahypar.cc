@@ -38,6 +38,10 @@ int main(int argc, char* argv[]) {
   mt_kahypar::io::printBanner(context);
 
   mt_kahypar::utils::Randomize::instance().setSeed(context.partition.seed);
+  if ( context.shared_memory.use_localized_random_shuffle ) {
+    mt_kahypar::utils::Randomize::instance().enableLocalizedParallelShuffle(
+      context.shared_memory.shuffle_block_size);
+  }
 
   size_t num_available_cpus = mt_kahypar::HardwareTopology::instance().num_cpus();
   if ( num_available_cpus < context.shared_memory.num_threads ) {

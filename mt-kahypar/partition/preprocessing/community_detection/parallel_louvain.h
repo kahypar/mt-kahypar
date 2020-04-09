@@ -27,12 +27,14 @@
 #include "mt-kahypar/utils/timer.h"
 
 namespace mt_kahypar {
+template<typename G /* Graph */>
 class ParallelModularityLouvain {
  private:
   static constexpr bool debug = false;
+  using ParallelLouvainMethod = PLM<G>;
 
-  static ds::Clustering localMovingContractRecurse(Graph& fine_graph,
-                                                   PLM& mlv,
+  static ds::Clustering localMovingContractRecurse(G& fine_graph,
+                                                   ParallelLouvainMethod& mlv,
                                                    const size_t num_tasks) {
     DBG << V(fine_graph.numNodes())
         << V(fine_graph.numArcs())
@@ -47,7 +49,7 @@ class ParallelModularityLouvain {
       DBG << "Modularity after PLM:" << metrics::modularity(fine_graph, communities);
       utils::Timer::instance().start_timer("contraction", "Contraction");
       // Contract Communities
-      Graph coarse_graph = fine_graph.contract(communities);
+      G coarse_graph = fine_graph.contract(communities);
       ASSERT(coarse_graph.totalVolume() == fine_graph.totalVolume(),
         V(coarse_graph.totalVolume()) << V(fine_graph.totalVolume()));
       utils::Timer::instance().stop_timer("contraction");
@@ -72,8 +74,11 @@ class ParallelModularityLouvain {
   }
 
  public:
-  static ds::Clustering run(Graph& graph, const Context& context, const size_t num_tasks) {
-    PLM mlv(context, graph.numNodes());
+  static ds::Clustering run(G& graph,
+                            const Context& context,
+                            const size_t num_tasks,
+                            const bool disable_randomization = false) {
+    ParallelLouvainMethod mlv(context, graph.numNodes(), disable_randomization);
     ds::Clustering communities = localMovingContractRecurse(graph, mlv, num_tasks);
     return communities;
   }

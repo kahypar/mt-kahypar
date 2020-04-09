@@ -37,13 +37,14 @@
 #include "mt-kahypar/utils/randomize.h"
 
 namespace mt_kahypar {
+template<typename G /* Graph */>
 class PLM {
  private:
   static constexpr bool advancedGainAdjustment = false;
 
-  using ArcWeight = typename Graph::ArcWeight;
+  using ArcWeight = typename G::ArcWeight;
   using AtomicArcWeight = parallel::AtomicWrapper<ArcWeight>;
-  using Arc = typename Graph::Arc;
+  using Arc = typename G::Arc;
   using LargeIncidentClusterWeights = kahypar::ds::SparseMap<PartitionID, ArcWeight>;
   using CacheEfficientIncidentClusterWeights = ds::FixedSizeSparseMap<PartitionID, ArcWeight>;
 
@@ -51,13 +52,16 @@ class PLM {
   static constexpr bool debug = false;
   static constexpr bool enable_heavy_assert = false;
 
-  explicit PLM(const Context& context, size_t numNodes) :
+  explicit PLM(const Context& context,
+               size_t numNodes,
+               const bool disable_randomization = false) :
     _context(context),
     _cluster_volumes(numNodes),
     _local_small_incident_cluster_weight(0),
-    _local_large_incident_cluster_weight(numNodes, 0) { }
+    _local_large_incident_cluster_weight(numNodes, 0),
+    _disable_randomization(disable_randomization) { }
 
-  bool localMoving(Graph& graph, ds::Clustering& communities) {
+  bool localMoving(G& graph, ds::Clustering& communities) {
     _reciprocal_total_volume = 1.0 / graph.totalVolume();
     _vol_multiplier_div_by_node_vol = _reciprocal_total_volume;
 
@@ -76,10 +80,11 @@ class PLM {
          _context.preprocessing.community_detection.min_eps_improvement * graph.numNodes() &&
          currentRound < _context.preprocessing.community_detection.max_pass_iterations; currentRound++) {
 
-      utils::Timer::instance().start_timer("random_shuffle", "Random Shuffle");
-      utils::Randomize::instance().localizedParallelShuffleVector(
-        nodes, 0UL, nodes.size(), _context.shared_memory.shuffle_block_size);
-      utils::Timer::instance().stop_timer("random_shuffle");
+      if ( !_disable_randomization ) {
+        utils::Timer::instance().start_timer("random_shuffle", "Random Shuffle");
+        utils::Randomize::instance().parallelShuffleVector(nodes, 0UL, nodes.size());
+        utils::Timer::instance().stop_timer("random_shuffle");
+      }
 
       tbb::enumerable_thread_specific<size_t> local_number_of_nodes_moved(0);
       auto moveNode = [&](const NodeID u) {
@@ -134,14 +139,13 @@ class PLM {
   FRIEND_TEST(ALouvain, ComputesMaxGainMove9);
   FRIEND_TEST(ALouvain, ComputesMaxGainMove10);
 
-  KAHYPAR_ATTRIBUTE_ALWAYS_INLINE bool ratingsFitIntoSmallSparseMap(const Graph& graph,
+  KAHYPAR_ATTRIBUTE_ALWAYS_INLINE bool ratingsFitIntoSmallSparseMap(const G& graph,
                                                                     const HypernodeID u)  {
     return graph.degree(u) <= CacheEfficientIncidentClusterWeights::MAP_SIZE / 3UL;
   }
 
   // ! Only for testing
-  void initializeClusterVolumes(Graph& graph,
-                                ds::Clustering& communities) {
+  void initializeClusterVolumes(Graph& graph, ds::Clustering& communities) {
     _reciprocal_total_volume = 1.0 / graph.totalVolume();
     _vol_multiplier_div_by_node_vol = _reciprocal_total_volume;
     tbb::parallel_for(0U, static_cast<NodeID>(graph.numNodes()), [&](const NodeID u) {
@@ -151,7 +155,7 @@ class PLM {
   }
 
   template<typename Map>
-  KAHYPAR_ATTRIBUTE_ALWAYS_INLINE PartitionID computeMaxGainCluster(const Graph& graph,
+  KAHYPAR_ATTRIBUTE_ALWAYS_INLINE PartitionID computeMaxGainCluster(const G& graph,
                                                                     ds::Clustering& communities,
                                                                     const NodeID u,
                                                                     Map& incident_cluster_weights) {
@@ -211,7 +215,7 @@ class PLM {
   }
 
   template<typename Map>
-  bool verifyGain(const Graph& graph,
+  bool verifyGain(const G& graph,
                   ds::Clustering& communities,
                   const NodeID u,
                   const PartitionID to,
@@ -265,7 +269,7 @@ class PLM {
     return result;
   }
 
-  static std::pair<ArcWeight, ArcWeight> intraClusterWeightsAndSumOfSquaredClusterVolumes(const Graph& graph, const ds::Clustering& communities) {
+  static std::pair<ArcWeight, ArcWeight> intraClusterWeightsAndSumOfSquaredClusterVolumes(const G& graph, const ds::Clustering& communities) {
     ArcWeight intraClusterWeights = 0;
     ArcWeight sumOfSquaredClusterVolumes = 0;
     std::vector<ArcWeight> _cluster_volumes(graph.numNodes(), 0);
@@ -296,5 +300,6 @@ class PLM {
   std::vector<AtomicArcWeight> _cluster_volumes;
   tbb::enumerable_thread_specific<CacheEfficientIncidentClusterWeights> _local_small_incident_cluster_weight;
   tbb::enumerable_thread_specific<LargeIncidentClusterWeights> _local_large_incident_cluster_weight;
+  const bool _disable_randomization;
 };
 }

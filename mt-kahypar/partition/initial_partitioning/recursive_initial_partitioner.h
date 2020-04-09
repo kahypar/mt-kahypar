@@ -294,6 +294,9 @@ class RecursiveInitialPartitionerT : public IInitialPartitioner {
       bool is_parallel_recursion = _context.shared_memory.num_threads != context.shared_memory.num_threads;
       context.initial_partitioning.runs = std::max(context.initial_partitioning.runs / (is_parallel_recursion ? 2 : 1), 1UL);
 
+      // Label Propagation Parameters
+      context.refinement.label_propagation.numa_aware = false;
+
       return context;
     }
 
