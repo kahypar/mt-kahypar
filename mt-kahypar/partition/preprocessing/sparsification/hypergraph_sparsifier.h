@@ -236,23 +236,19 @@ class HypergraphSparsifierT : public IHypergraphSparsifierT<TypeTraits> {
       }
     });
 
-    using BucketElement = typename ds::ConcurrentBucketMap<Footprint>::Element;
     tbb::parallel_for(0UL, footprint_map.numBuckets(), [&](const size_t bucket) {
       auto& footprint_bucket = footprint_map.getBucket(bucket);
       if ( footprint_bucket.size() > 0 ) {
-        std::sort(footprint_bucket.begin(), footprint_bucket.end(),
-          [&](const BucketElement& lhs, const BucketElement& rhs) {
-            return lhs.value < rhs.value;
-          });
+        std::sort(footprint_bucket.begin(), footprint_bucket.end());
 
         for ( size_t i = 0; i < footprint_bucket.size(); ++i ) {
-          Footprint& representative = footprint_bucket[i].value;
+          Footprint& representative = footprint_bucket[i];
           if ( representative.he != kInvalidHyperedge ) {
             parallel::scalable_vector<HypernodeID> rep_he = hypergraph.pins(representative.he);
             HyperedgeWeight rep_weight = hypergraph.edgeWeight(representative.he);
             bool exist_similiar_hes = false;
             for ( size_t j = i + 1; j < footprint_bucket.size(); ++j ) {
-              Footprint& similiar_footprint = footprint_bucket[j].value;
+              Footprint& similiar_footprint = footprint_bucket[j];
               if ( similiar_footprint.he != kInvalidHyperedge ) {
                 if ( representative == similiar_footprint ) {
                   const double jaccard_index = jaccard(
@@ -277,7 +273,7 @@ class HypergraphSparsifierT : public IHypergraphSparsifierT<TypeTraits> {
           }
         }
       }
-      footprint_map.clear(bucket);
+      footprint_map.free(bucket);
     });
   }
 
