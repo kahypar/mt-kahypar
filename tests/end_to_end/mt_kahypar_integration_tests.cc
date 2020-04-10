@@ -58,7 +58,7 @@ class MtKaHyPar : public Test {
     context.partition.epsilon = 0.03;
     context.partition.seed = 42;
     context.partition.verbose_output = true;
-    context.partition.detailed_timings = true;
+    context.partition.show_detailed_timings = true;
     context.preprocessing.use_community_detection = Config::USE_COMMUNITY_DETECTION;
     if ( !context.preprocessing.use_community_detection ) {
       context.preprocessing.use_community_redistribution = false;

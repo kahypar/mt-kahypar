@@ -106,10 +106,12 @@ po::options_description createGenericOptionsDescription(Context& context,
     "Verbose main partitioning output")
     ("quiet,q", po::value<bool>(&context.partition.quiet_mode)->value_name("<bool>"),
     "Quiet Mode: Completely suppress console output")
-    ("show-detailed-timings", po::value<bool>(&context.partition.detailed_timings)->value_name("<bool>"),
+    ("show-detailed-timings", po::value<bool>(&context.partition.show_detailed_timings)->value_name("<bool>"),
     "If true, detailed timings overview is shown")
     ("show-memory-consumption", po::value<bool>(&context.partition.show_memory_consumption)->value_name("<bool>"),
     "If true, memory consumption overview is shown")
+    ("show-modularity", po::value<bool>(&context.partition.show_modularity)->value_name("<bool>"),
+    "If true, modularity is shown")
     ("enable-progress-bar", po::value<bool>(&context.partition.enable_progress_bar)->value_name("<bool>"),
     "If true, than progress bar is displayed")
     ("enable-profiler", po::value<bool>(&context.partition.enable_profiler)->value_name("<bool>"),

@@ -108,7 +108,7 @@ static inline std::string serialize(const PartitionedHypergraph<>& hypergraph,
     oss << " totalPartitionTime=" << elapsed_seconds.count();
 
     // Timings
-    utils::Timer::instance(context.partition.detailed_timings).serialize(oss);
+    utils::Timer::instance(context.partition.show_detailed_timings).serialize(oss);
 
     // Stats
     oss << utils::Stats::instance();
