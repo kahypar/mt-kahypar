@@ -464,6 +464,7 @@ class StaticHypergraph {
     _num_removed_hypernodes(0),
     _num_hyperedges(0),
     _num_removed_hyperedges(0),
+    _max_edge_size(0),
     _num_pins(0),
     _total_degree(0),
     _total_weight(0),
@@ -484,6 +485,7 @@ class StaticHypergraph {
     _num_removed_hypernodes(other._num_removed_hypernodes),
     _num_hyperedges(other._num_hyperedges),
     _num_removed_hyperedges(other._num_removed_hyperedges),
+    _max_edge_size(other._max_edge_size),
     _num_pins(other._num_pins),
     _total_degree(other._total_degree),
     _total_weight(other._total_weight),
@@ -503,6 +505,7 @@ class StaticHypergraph {
     _num_removed_hypernodes = other._num_removed_hypernodes;
     _num_hyperedges = other._num_hyperedges;
     _num_removed_hyperedges = other._num_removed_hyperedges;
+    _max_edge_size = other._max_edge_size;
     _num_pins = other._num_pins;
     _total_degree = other._total_degree;
     _total_weight = other._total_weight;
@@ -822,6 +825,11 @@ class StaticHypergraph {
   HypernodeID edgeSize(const HyperedgeID e) const {
     ASSERT(!hyperedge(e).isDisabled(), "Hyperedge" << e << "is disabled");
     return hyperedge(e).size();
+  }
+
+  // ! Maximum size of a hyperedge
+  HypernodeID maxEdgeSize() const {
+    return _max_edge_size;
   }
 
   // ! Hash value defined over the pins of a hyperedge
@@ -1318,6 +1326,7 @@ class StaticHypergraph {
 
       utils::Timer::instance().start_timer("setup_incidence_array", "Setup Incidence Array", true);
       // Write hyperedges from temporary buffers to incidence array
+      tbb::enumerable_thread_specific<size_t> local_max_edge_size(0UL);
       tbb::parallel_for(ID(0), _num_hyperedges, [&](const HyperedgeID& id) {
         if ( he_mapping.value(id) /* hyperedge is valid */ ) {
           const size_t he_pos = he_mapping[id];
@@ -1325,13 +1334,19 @@ class StaticHypergraph {
           Hyperedge& he = hypergraph._hyperedges[he_pos];
           he = std::move(tmp_hyperedges[id]);
           const size_t tmp_incidence_array_start = he.firstEntry();
+          const size_t edge_size = he.size();
+          local_max_edge_size.local() = std::max(local_max_edge_size.local(), edge_size);
           std::memcpy(hypergraph._incidence_array.data() + incidence_array_start,
                       tmp_incidence_array.data() + tmp_incidence_array_start,
-                      sizeof(HypernodeID) * he.size());
+                      sizeof(HypernodeID) * edge_size);
           he.setFirstEntry(incidence_array_start);
           he.setOriginalEdgeID(he_pos);
         }
       });
+      hypergraph._max_edge_size = local_max_edge_size.combine(
+        [&](const size_t lhs, const size_t rhs) {
+          return std::max(lhs, rhs);
+        });
       utils::Timer::instance().stop_timer("setup_incidence_array");
       utils::Timer::instance().stop_timer("setup_hyperedges");
     }, [&] {
@@ -1538,6 +1553,7 @@ class StaticHypergraph {
     hypergraph._num_removed_hypernodes = _num_removed_hypernodes;
     hypergraph._num_hyperedges = _num_hyperedges;
     hypergraph._num_removed_hyperedges = _num_removed_hyperedges;
+    hypergraph._max_edge_size = _max_edge_size;
     hypergraph._num_pins = _num_pins;
     hypergraph._total_degree = _total_degree;
     hypergraph._total_weight = _total_weight;
@@ -1575,6 +1591,7 @@ class StaticHypergraph {
     hypergraph._num_removed_hypernodes = _num_removed_hypernodes;
     hypergraph._num_hyperedges = _num_hyperedges;
     hypergraph._num_removed_hyperedges = _num_removed_hyperedges;
+    hypergraph._max_edge_size = _max_edge_size;
     hypergraph._num_pins = _num_pins;
     hypergraph._total_degree = _total_degree;
     hypergraph._total_weight = _total_weight;
@@ -1736,6 +1753,8 @@ class StaticHypergraph {
   HyperedgeID _num_hyperedges;
   // ! Number of removed hyperedges
   HyperedgeID _num_removed_hyperedges;
+  // ! Maximum size of a hyperedge
+  HypernodeID _max_edge_size;
   // ! Number of pins
   HypernodeID _num_pins;
   // ! Total degree of all vertices

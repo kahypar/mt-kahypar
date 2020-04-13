@@ -72,14 +72,21 @@ class StaticHypergraphFactory {
     utils::Timer::instance().start_timer("compute_ds_sizes", "Precompute DS Size", true);
     Counter num_pins_per_hyperedge(num_hyperedges, 0);
     ThreadLocalCounter local_incident_nets_per_vertex(num_hypernodes, 0);
+    tbb::enumerable_thread_specific<size_t> local_max_edge_size(0UL);
     tbb::parallel_for(ID(0), num_hyperedges, [&](const size_t pos) {
       Counter& num_incident_nets_per_vertex = local_incident_nets_per_vertex.local();
       num_pins_per_hyperedge[pos] = edge_vector[pos].size();
+      local_max_edge_size.local() = std::max(
+        local_max_edge_size.local(), edge_vector[pos].size());
       for ( const HypernodeID& pin : edge_vector[pos] ) {
         ASSERT(pin < num_hypernodes);
         ++num_incident_nets_per_vertex[pin];
       }
     });
+    hypergraph._max_edge_size = local_max_edge_size.combine(
+      [&](const size_t lhs, const size_t rhs) {
+        return std::max(lhs, rhs);
+      });
 
     // We sum up the number of incident nets per vertex only thread local.
     // To obtain the global number of incident nets per vertex, we iterate
@@ -230,9 +237,12 @@ class StaticHypergraphFactory {
     Counter edges_on_this_numa_node(num_hyperedges, 0);
     Counter num_pins_per_hyperedge(num_hyperedges, 0);
     ThreadLocalCounter local_incident_nets_per_vertex(num_hypernodes, 0);
+    tbb::enumerable_thread_specific<size_t> local_max_edge_size(0UL);
     tbb::parallel_for(ID(0), num_hyperedges, [&](const size_t pos) {
       if ( edges_to_numa_node[pos] == node ) {
         num_pins_per_hyperedge[pos] = edge_vector[pos].size();
+        local_max_edge_size.local() = std::max(
+          local_max_edge_size.local(), edge_vector[pos].size());
         edges_on_this_numa_node[pos] = 1UL;
       }
 
@@ -244,6 +254,10 @@ class StaticHypergraphFactory {
         }
       }
     });
+    hypergraph._max_edge_size = local_max_edge_size.combine(
+      [&](const size_t lhs, const size_t rhs) {
+        return std::max(lhs, rhs);
+      });
 
     // We sum up the number of incident nets per vertex only thread local.
     // To obtain the global number of incident nets per vertex, we iterate

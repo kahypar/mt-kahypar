@@ -568,9 +568,9 @@ class RecursiveInitialPartitionerT : public IInitialPartitioner {
       _hg.doParallelForAllNodes(_task_group_id, [&](const HypernodeID& hn) {
         PartitionID part_id = best.partitioned_hypergraph.partID(hn);
         ASSERT(part_id != kInvalidPartition && part_id < _hg.k());
-        _hg.setNodePart(hn, part_id);
+        _hg.setOnlyNodePart(hn, part_id);
       });
-      _hg.initializeNumCutHyperedges();
+      _hg.initializePartition(_task_group_id);
 
       // The hypergraph is now partitioned into the number of blocks of the recursive context (best.context.partition.k).
       // Based on wheter we reduced k in recursion, we have to bisect the blocks of the partition
