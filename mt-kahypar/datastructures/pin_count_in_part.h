@@ -31,7 +31,7 @@ namespace mt_kahypar {
 namespace ds {
 
 /*!
- * Data structure to store the pin count in a block of the partition
+ * Data structure to stores the pin count in a block of the partition
  * per hyperedge in a memory efficient way. The data structure is initialized
  * with the maximum value of a pin count entry (which is the maximum size
  * of a hyperedge). The pin counts are than stored in a compressed form where
