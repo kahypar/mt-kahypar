@@ -63,14 +63,16 @@ class PinCountInPart {
   PinCountInPart(const HyperedgeID num_hyperedges,
                  const PartitionID k,
                  const HypernodeID max_value) :
-    _num_hyperedges(num_hyperedges),
-    _k(k),
-    _max_value(max_value),
-    _bits_per_element(num_bits_per_element(max_value)),
-    _entries_per_value(num_entries_per_value(k, max_value)),
-    _values_per_hyperedge(num_values_per_hyperedge(k, max_value)),
-    _extraction_mask(std::pow(2UL, _bits_per_element) - 1UL),
-    _pin_count_in_part(num_hyperedges * _values_per_hyperedge, 0) { }
+    _num_hyperedges(0),
+    _k(0),
+    _max_value(0),
+    _bits_per_element(0),
+    _entries_per_value(0),
+    _values_per_hyperedge(0),
+    _extraction_mask(0),
+    _pin_count_in_part(0) {
+    initialize(num_hyperedges, k, max_value);
+  }
 
   PinCountInPart(const PinCountInPart&) = delete;
   PinCountInPart & operator= (const PinCountInPart &) = delete;
@@ -102,14 +104,16 @@ class PinCountInPart {
                   const PartitionID k,
                   const HypernodeID max_value) {
     ASSERT(_num_hyperedges == 0);
-    _num_hyperedges = num_hyperedges;
-    _k = k;
-    _max_value = max_value;
-    _bits_per_element = num_bits_per_element(max_value);
-    _entries_per_value = num_entries_per_value(k, max_value);
-    _values_per_hyperedge = num_values_per_hyperedge(k, max_value);
-    _extraction_mask = std::pow(2UL, _bits_per_element) - 1UL;
-    _pin_count_in_part.assign(num_hyperedges * _values_per_hyperedge, 0);
+    if ( num_hyperedges > 0 ) {
+      _num_hyperedges = num_hyperedges;
+      _k = k;
+      _max_value = max_value;
+      _bits_per_element = num_bits_per_element(max_value);
+      _entries_per_value = num_entries_per_value(k, max_value);
+      _values_per_hyperedge = num_values_per_hyperedge(k, max_value);
+      _extraction_mask = std::pow(2UL, _bits_per_element) - 1UL;
+      _pin_count_in_part.assign(num_hyperedges * _values_per_hyperedge, 0);
+    }
   }
 
   parallel::scalable_vector<Value>& data() {
