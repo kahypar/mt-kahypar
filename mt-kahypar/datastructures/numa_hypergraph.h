@@ -435,6 +435,15 @@ class NumaHypergraph {
     return hypergraph_of_edge(e).edgeSize(e);
   }
 
+  // ! Maximum size of a hyperedge
+  HypernodeID maxEdgeSize() const {
+    HypernodeID max_edge_size = 0;
+    for ( const Hypergraph& hypergraph : _hypergraphs ) {
+      max_edge_size = std::max(max_edge_size, hypergraph.maxEdgeSize());
+    }
+    return max_edge_size;
+  }
+
   // ! Hash value defined over the pins of a hyperedge
   size_t edgeHash(const HyperedgeID e) const {
     return hypergraph_of_edge(e).edgeHash(e);
@@ -1034,6 +1043,7 @@ class NumaHypergraph {
 
         utils::Timer::instance().start_timer("setup_incidence_array", "Setup Incidence Array", true);
         // Write hyperedges from temporary buffers to incidence array
+        tbb::enumerable_thread_specific<size_t> local_max_edge_size(0UL);
         tbb::parallel_for(ID(0), _hypergraphs[node]._num_hyperedges, [&](const HyperedgeID& local_id) {
           if ( he_mapping[node].value(local_id) /* hyperedge is valid */ ) {
             const size_t he_pos = he_mapping[node][local_id];
@@ -1042,15 +1052,21 @@ class NumaHypergraph {
             Hyperedge& e = hypergraph._hypergraphs[node]._hyperedges[he_pos];
             e = std::move(tmp_hyperedges[local_id]);
             const size_t tmp_incidence_array_start = e.firstEntry();
+            const size_t edge_size = e.size();
+            local_max_edge_size.local() = std::max(local_max_edge_size.local(), edge_size);
             std::memcpy(hypergraph._hypergraphs[node]._incidence_array.data() + incidence_array_start,
                         tmp_incidence_array.data() + tmp_incidence_array_start,
-                        sizeof(HypernodeID) * e.size());
+                        sizeof(HypernodeID) * edge_size);
             e.setFirstEntry(incidence_array_start);
             e.setOriginalEdgeID(original_he_id);
             ASSERT(original_he_id < hypergraph._edge_mapping.size());
             hypergraph._edge_mapping[original_he_id] = common::get_global_edge_id(node, he_pos);
           }
         });
+        hypergraph._hypergraphs[node]._max_edge_size = local_max_edge_size.combine(
+          [&](const size_t lhs, const size_t rhs) {
+            return std::max(lhs, rhs);
+          });
         utils::Timer::instance().stop_timer("setup_incidence_array");
         utils::Timer::instance().stop_timer("setup_hyperedges");
       }, [&, node] {

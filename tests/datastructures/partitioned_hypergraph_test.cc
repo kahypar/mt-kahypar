@@ -510,6 +510,7 @@ TYPED_TEST(APartitionedHypergraph, ExtractBlockZeroWithCutNetSplitting) {
   ASSERT_EQ(3, hg.initialNumNodes());
   ASSERT_EQ(2, hg.initialNumEdges());
   ASSERT_EQ(4, hg.initialNumPins());
+  ASSERT_EQ(2, hg.maxEdgeSize());
 
   auto map_from_original_to_extracted_hg = [&](const HypernodeID hn) {
     return hg.globalNodeID(hn_mapping[this->hypergraph.originalNodeID(hn)]);
@@ -538,6 +539,7 @@ TYPED_TEST(APartitionedHypergraph, ExtractBlockOneWithCutNetSplitting) {
   ASSERT_EQ(2, hg.initialNumNodes());
   ASSERT_EQ(2, hg.initialNumEdges());
   ASSERT_EQ(4, hg.initialNumPins());
+  ASSERT_EQ(2, hg.maxEdgeSize());
 
   auto map_from_original_to_extracted_hg = [&](const HypernodeID hn) {
     return hg.globalNodeID(hn_mapping[this->hypergraph.originalNodeID(hn)]);
@@ -564,6 +566,7 @@ TYPED_TEST(APartitionedHypergraph, ExtractBlockTwoWithCutNetSplitting) {
   ASSERT_EQ(2, hg.initialNumNodes());
   ASSERT_EQ(1, hg.initialNumEdges());
   ASSERT_EQ(2, hg.initialNumPins());
+  ASSERT_EQ(2, hg.maxEdgeSize());
 
   auto map_from_original_to_extracted_hg = [&](const HypernodeID hn) {
     return hg.globalNodeID(hn_mapping[this->hypergraph.originalNodeID(hn)]);
@@ -590,6 +593,7 @@ TYPED_TEST(APartitionedHypergraph, ExtractBlockZeroWithCutNetRemoval) {
   ASSERT_EQ(3, hg.initialNumNodes());
   ASSERT_EQ(1, hg.initialNumEdges());
   ASSERT_EQ(2, hg.initialNumPins());
+  ASSERT_EQ(2, hg.maxEdgeSize());
 
   auto map_from_original_to_extracted_hg = [&](const HypernodeID hn) {
     return hg.globalNodeID(hn_mapping[this->hypergraph.originalNodeID(hn)]);
@@ -619,6 +623,7 @@ TYPED_TEST(APartitionedHypergraph, ExtractBlockOneWithCutNetRemoval) {
   ASSERT_EQ(3, hg.initialNumNodes());
   ASSERT_EQ(1, hg.initialNumEdges());
   ASSERT_EQ(3, hg.initialNumPins());
+  ASSERT_EQ(3, hg.maxEdgeSize());
 
   auto map_from_original_to_extracted_hg = [&](const HypernodeID hn) {
     return hg.globalNodeID(hn_mapping[this->hypergraph.originalNodeID(hn)]);
@@ -648,6 +653,7 @@ TYPED_TEST(APartitionedHypergraph, ExtractBlockTwoWithCutNetRemoval) {
   ASSERT_EQ(3, hg.initialNumNodes());
   ASSERT_EQ(1, hg.initialNumEdges());
   ASSERT_EQ(3, hg.initialNumPins());
+  ASSERT_EQ(3, hg.maxEdgeSize());
 
   auto map_from_original_to_extracted_hg = [&](const HypernodeID hn) {
     return hg.globalNodeID(hn_mapping[this->hypergraph.originalNodeID(hn)]);
