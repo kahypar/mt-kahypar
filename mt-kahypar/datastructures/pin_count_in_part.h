@@ -75,11 +75,33 @@ class PinCountInPart {
   PinCountInPart(const PinCountInPart&) = delete;
   PinCountInPart & operator= (const PinCountInPart &) = delete;
 
+  PinCountInPart(PinCountInPart&& other) :
+    _num_hyperedges(other._num_hyperedges),
+    _k(other._k),
+    _max_value(other._max_value),
+    _bits_per_element(other._bits_per_element),
+    _entries_per_value(other._entries_per_value),
+    _values_per_hyperedge(other._values_per_hyperedge),
+    _extraction_mask(other._extraction_mask),
+    _pin_count_in_part(std::move(other._pin_count_in_part)) { }
+
+  PinCountInPart & operator= (PinCountInPart&& other) {
+    _num_hyperedges = other._num_hyperedges;
+    _k = other._k;
+    _max_value = other._max_value;
+    _bits_per_element = other._bits_per_element;
+    _entries_per_value = other._entries_per_value;
+    _values_per_hyperedge = other._values_per_hyperedge;
+    _extraction_mask = other._extraction_mask;
+    _pin_count_in_part = std::move(other._pin_count_in_part);
+    return *this;
+  }
+
   // ! Initializes the data structure
   void initialize(const HyperedgeID num_hyperedges,
                   const PartitionID k,
                   const HypernodeID max_value) {
-    ASSERT(num_hyperedges == 0);
+    ASSERT(_num_hyperedges == 0);
     _num_hyperedges = num_hyperedges;
     _k = k;
     _max_value = max_value;
@@ -88,6 +110,10 @@ class PinCountInPart {
     _values_per_hyperedge = num_values_per_hyperedge(k, max_value);
     _extraction_mask = std::pow(2UL, _bits_per_element) - 1UL;
     _pin_count_in_part.assign(num_hyperedges * _values_per_hyperedge, 0);
+  }
+
+  parallel::scalable_vector<Value>& data() {
+    return _pin_count_in_part;
   }
 
   // ! Returns the pin count of the hyperedge in the corresponding block
@@ -140,6 +166,11 @@ class PinCountInPart {
     ASSERT(pin_count_in_part > 0UL);
     updateEntry(current_value, bit_pos, pin_count_in_part - 1);
     return pin_count_in_part - 1;
+  }
+
+  // ! Returns the size in bytes of this data structure
+  size_t size_in_bytes() const {
+    return sizeof(Value) * _pin_count_in_part.size();
   }
 
  private:

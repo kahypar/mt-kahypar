@@ -30,6 +30,7 @@
 #include "mt-kahypar/datastructures/hypergraph_common.h"
 #include "mt-kahypar/datastructures/connectivity_set.h"
 #include "mt-kahypar/datastructures/partition_info.h"
+#include "mt-kahypar/datastructures/pin_count_in_part.h"
 #include "mt-kahypar/parallel/atomic_wrapper.h"
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
 #include "mt-kahypar/utils/range.h"
@@ -120,7 +121,7 @@ class PartitionedHypergraph {
     _is_init_num_cut_hyperedges(false),
     _part_info(k),
     _vertex_part_info(hypergraph.initialNumNodes()),
-    _pins_in_part(static_cast<size_t>(hypergraph.initialNumEdges()) * k, PinCountAtomic(0)),
+    _pins_in_part(hypergraph.initialNumEdges(), k, hypergraph.maxEdgeSize()),
     _connectivity_sets(hypergraph.initialNumEdges(), k),
     _pin_count_update_ownership(hypergraph.initialNumEdges(), AtomicFlag(false)),
     _failed_pin_count_updates() { }
@@ -141,7 +142,7 @@ class PartitionedHypergraph {
     tbb::parallel_invoke([&] {
       _vertex_part_info.resize(hypergraph.initialNumNodes());
     }, [&] {
-      _pins_in_part.assign(static_cast<size_t>(hypergraph.initialNumEdges()) * k, PinCountAtomic(0));
+      _pins_in_part.initialize(hypergraph.initialNumEdges(), k, hypergraph.maxEdgeSize());
     }, [&] {
       _connectivity_sets = ConnectivitySets(hypergraph.initialNumEdges(), k);
     }, [&] {
@@ -1050,7 +1051,7 @@ class PartitionedHypergraph {
     ASSERT(local_id < _hg->initialNumEdges(), "Hyperedge" << e << "does not exist");
     ASSERT(_node == common::get_numa_node_of_edge(e),
            "Hyperedge" << e << "is not part of numa node" << _node);
-    return _pins_in_part[local_id * _k + id];;
+    return _pins_in_part.pinCountInPart(local_id, id);
   }
 
   // ! Weight of a block
@@ -1077,7 +1078,7 @@ class PartitionedHypergraph {
     for ( const HyperedgeID& he : edges() ) {
       const size_t local_id = common::get_local_position_of_edge(he);
       for ( const PartitionID& block : connectivitySet(he) ) {
-        _pins_in_part[local_id * _k + block] = 0;
+        _pins_in_part.setPinCountInPart(local_id, block, 0);
       }
       _connectivity_sets.clear(local_id);
     }
@@ -1095,7 +1096,7 @@ class PartitionedHypergraph {
     if ( _k > 0 ) {
       tbb::parallel_invoke([&] {
         parallel::parallel_free(_vertex_part_info,
-          _pins_in_part, _pin_count_update_ownership);
+          _pins_in_part.data(), _pin_count_update_ownership);
       }, [&] {
         _connectivity_sets.freeInternalData();
       });
@@ -1116,7 +1117,7 @@ class PartitionedHypergraph {
 
     parent->addChild("Part Info", sizeof(BlockInfo) * _k);
     parent->addChild("Vertex Part Info", sizeof(VertexPartInfo) * _hg->initialNumNodes());
-    parent->addChild("Pin Count In Part", sizeof(PinCountAtomic) * _k * static_cast<size_t>(_hg->initialNumEdges()));
+    parent->addChild("Pin Count In Part", _pins_in_part.size_in_bytes());
     parent->addChild("HE Ownership", sizeof(AtomicFlag) * _hg->initialNumNodes());
   }
 
@@ -1335,8 +1336,8 @@ class PartitionedHypergraph {
     ASSERT(local_id < _hg->initialNumEdges(), "Hyperedge" << e << "does not exist");
     ASSERT(_node == common::get_numa_node_of_edge(e),
            "Hyperedge" << e << "is not part of numa node" << _node);
-    const HypernodeID pin_count_before = _pins_in_part[local_id * _k + id];
-    _pins_in_part[local_id * _k + id] = pin_count;
+    const HypernodeID pin_count_before = _pins_in_part.pinCountInPart(local_id, id);
+    _pins_in_part.setPinCountInPart(local_id, id, pin_count);
     if ( pin_count_before == 0 && pin_count > 0 ) {
       // Connectivity of hyperedge decreased
       _connectivity_sets.add(local_id, id);
@@ -1353,7 +1354,7 @@ class PartitionedHypergraph {
     ASSERT(local_id < _hg->initialNumEdges(), "Hyperedge" << e << "does not exist");
     ASSERT(_node == common::get_numa_node_of_edge(e),
            "Hyperedge" << e << "is not part of numa node" << _node);
-    const HypernodeID pin_count_after = --_pins_in_part[local_id * _k + id];
+    const HypernodeID pin_count_after = _pins_in_part.decrementPinCountInPart(local_id, id);
     if ( pin_count_after == 0 ) {
       // Connectivity of hyperedge decreased
       _connectivity_sets.remove(local_id, id);
@@ -1369,7 +1370,7 @@ class PartitionedHypergraph {
     ASSERT(local_id < _hg->initialNumEdges(), "Hyperedge" << e << "does not exist");
     ASSERT(_node == common::get_numa_node_of_edge(e),
            "Hyperedge" << e << "is not part of numa node" << _node);
-    const HypernodeID pin_count_after = ++_pins_in_part[local_id * _k + id];
+    const HypernodeID pin_count_after = _pins_in_part.incrementPinCountInPart(local_id, id);
     if ( pin_count_after == 1 ) {
       // Connectivity of hyperedge increased
       _connectivity_sets.add(local_id, id);
@@ -1393,7 +1394,7 @@ class PartitionedHypergraph {
   parallel::scalable_vector<VertexPartInfo> _vertex_part_info;
   // ! For each hyperedge and each block, _pins_in_part stores the
   // ! number of pins in that block
-  parallel::scalable_vector<PinCountAtomic> _pins_in_part;
+  PinCountInPart _pins_in_part;
   // ! For each hyperedge, _connectivity_sets stores the connectivity and the set of block ids
   // ! which the pins of the hyperedge belongs to
   ConnectivitySets _connectivity_sets;
