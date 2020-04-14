@@ -55,48 +55,44 @@ public:
     reinitialize();
     uint32_t movesWithNonPositiveGain = 0;
     insertOrUpdatePQ(phg, initialBorderNode, sharedData.nodeTracker);
+    updateBlock(phg, phg.partID(initialBorderNode));
 
     Move m;
     while (movesWithNonPositiveGain < context.refinement.fm.max_number_of_fruitless_moves && findNextMove(phg, m)) {
+      sharedData.nodeTracker.deactivateNode(m.node, thisSearch);
+      deactivatedNodes.push_back(m.node);
+
       MoveID move_id = 0;
       const bool moved = phg.changeNodePartFullUpdate(m.node, m.from, m.to, max_part_weight, [&] { move_id = sharedData.moveTracker.insertMove(m); });
       if (moved) {
         updateAfterSuccessfulMove(phg, sharedData, m, move_id);
         movesWithNonPositiveGain = m.gain > 0 ? 0 : movesWithNonPositiveGain + 1;
       }
-      updateAfterMoveExtraction(phg, sharedData, m, moved);
+      updateAfterMoveExtraction(phg, m);
     }
     LOG << V(movesWithNonPositiveGain) << V(context.refinement.fm.max_number_of_fruitless_moves);
   }
 
-  void updateAfterMoveExtraction(PartitionedHypergraph& phg, FMSharedData& sharedData, Move& m, bool moved) {
-    sharedData.nodeTracker.deactivateNode(m.node, thisSearch);
-    deactivatedNodes.push_back(m.node);
+  void updateBlock(PartitionedHypergraph& phg, PartitionID i) {
+    const bool underloaded = vertexPQs[i].empty() || phg.partWeight(i) <= min_part_weight;
+    if (!underloaded) {
+      blockPQ.insertOrAdjustKey(i, vertexPQs[i].topKey());
+    } else if (blockPQ.contains(i)) {
+      blockPQ.remove(i);
+    }
+  }
 
+  void updateAfterMoveExtraction(PartitionedHypergraph& phg, Move& m) {
     if (updateDeduplicator.size() >= numParts) {
       for (PartitionID i = 0; i < numParts; ++i) {
-        if (blockPQ.contains(i)) {
-          if (vertexPQs[i].empty() || phg.partWeight(i) <= min_part_weight) {
-            blockPQ.remove(i);
-          } else {
-            blockPQ.adjustKey(i, vertexPQs[i].topKey());
-          }
-        } else if (!vertexPQs[i].empty() && phg.partWeight(i) > min_part_weight) {
-          blockPQ.insert(i, vertexPQs[i].topKey());
-        }
+        updateBlock(phg, i);
       }
     } else {
-      // only update from PQ no matter whether the move happened or not.
-      PartitionID from = m.from;
-      if (vertexPQs[from].empty()) {
-        if (blockPQ.contains(from)) { // the additional check is necessary, in case an earlier update already deleted the block
-          blockPQ.remove(from);
-        }
-      } else {
-        blockPQ.adjustKey(from, vertexPQs[from].topKey());
+      updateBlock(phg, m.from);
+      for (const HypernodeID v : updateDeduplicator.keys()) {
+        updateBlock(phg, phg.partID(v));
       }
     }
-
     updateDeduplicator.clear();
   }
 
@@ -137,26 +133,12 @@ public:
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
   void insertOrUpdatePQ(PartitionedHypergraph& phg, HypernodeID u, NodeTracker& nt) {
     SearchID searchOfU = nt.searchOfNode[u].load(std::memory_order_acq_rel);
-    // Note. Deactivated nodes have a special inactive search ID
-
+    // Note. Deactivated nodes have a special active search ID so that neither branch is executed
     if (nt.isSearchInactive(searchOfU)) {
       if (nt.searchOfNode[u].compare_exchange_strong(searchOfU, thisSearch, std::memory_order_acq_rel)) {
         const PartitionID from = phg.partID(u);
         auto [to, gain] = bestDestinationBlock(phg, u);
-        vertexPQs[from].insert(u, gain);
-
-        // optimization: skip blockPQ updates if more than numParts update calls were done.
-        // in this case we do them once for each block after all calls to this function are done
-        if (updateDeduplicator.size() < numParts) {
-          if (!blockPQ.contains(from)) {
-            if (phg.partWeight(from) > min_part_weight) {
-              blockPQ.insert(from, gain);
-              LOG << "insert" << V(from) << "into block PQ";
-            }
-          } else if (gain > blockPQ.keyOf(from)) {
-            blockPQ.increaseKey(from, gain);
-          }
-        }
+        vertexPQs[from].insert(u, gain);  // blockPQ updates are done later, collectively.
       }
 
     } else if (searchOfU == thisSearch) {
@@ -169,13 +151,6 @@ public:
       // or if phg.partID(u) == from/to part
       auto [to, gain] = bestDestinationBlock(phg, u);
       vertexPQs[from].adjustKey(u, gain);
-
-      // optimization as above
-      if (updateDeduplicator.size() < numParts) {
-        if (blockPQ.contains(from) && gain > blockPQ.keyOf(from)) {
-          blockPQ.increaseKey(from, gain);
-        }
-      }
     }
 
   }
@@ -197,7 +172,7 @@ public:
       if (gain >= estimated_gain) { // accept any gain that is at least as good
         m.node = u; m.to = to; m.from = from;
         m.gain = gain;
-        vertexPQs[from].deleteTop();  // update block PQ later due to potential updates
+        vertexPQs[from].deleteTop();  // blockPQ updates are done later, collectively.
         return true;
       } else {
         vertexPQs[from].adjustKey(u, gain);
@@ -209,6 +184,10 @@ public:
   }
 
   void reinitialize() {
+    blockPQ.clear();
+    for (PartitionID i = 0; i < numParts; ++i) {
+      vertexPQs[i].clear();
+    }
     localMoves.clear();
   }
 

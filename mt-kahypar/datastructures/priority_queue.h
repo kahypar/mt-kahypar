@@ -114,6 +114,21 @@ public:
     }
   }
 
+  void insertOrAdjustKey(const IdT e, const KeyT newKey) {
+    if (contains(e)) {
+      adjustKey(e, newKey);
+    } else {
+      insert(e, newKey);
+    }
+  }
+
+  void clear() {
+    for (HeapElement& el : heap) {
+      positions[el.id] = invalid_position;   // should work without resetting positions but no harm in doing it
+    }
+    heap.clear();
+  }
+
   bool contains(const IdT e) const {
     assert(fits(e));
     return positions[e] != invalid_position && heap[positions[e]].id == e;
