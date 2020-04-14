@@ -163,10 +163,14 @@ public:
       const Gain estimated_gain = vertexPQs[from].topKey();
       auto [to, gain] = bestDestinationBlock(phg, u);
       if (gain >= estimated_gain) { // accept any gain that is at least as good
-        vertexPQs[from].deleteTop();
-        blockPQ.adjustKey(from, vertexPQs[from].topKey());
         m.node = u; m.to = to; m.from = from;
         m.gain = gain;
+        vertexPQs[from].deleteTop();
+        if (vertexPQs[from].empty()) {
+          blockPQ.deleteTop();
+        } else {
+          blockPQ.adjustKey(from, vertexPQs[from].topKey());
+        }
         return true;
       } else {
         vertexPQs[from].adjustKey(u, gain);
