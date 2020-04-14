@@ -80,7 +80,9 @@ void printGains(PartitionedHypergraph& phg, PartitionID k) {
 TEST_F(FMCoreTest, PQInsertAndUpdate) {
   //printGains(phg, k);
   LocalizedKWayFM fm(context, hg.initialNumNodes(), &sharedData.vertexPQHandles);
-  fm.findMoves(phg, 23, sharedData, 0);
+  HypernodeID initialNode = 23;
+  SearchID searchID = 1;
+  fm.findMoves(phg, initialNode, sharedData, searchID);
   for (MoveID move_id = 0; move_id < sharedData.moveTracker.numPerformedMoves(); ++move_id) {
     Move& m = sharedData.moveTracker.globalMoveOrder[move_id];
     LOG << V(move_id) << V(m.node) << V(m.from) << V(m.to) << V(m.gain);
