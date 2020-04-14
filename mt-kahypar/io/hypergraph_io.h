@@ -92,7 +92,9 @@ static inline int64_t read_number(char* mapped_file, size_t& pos, const size_t l
   int64_t number = 0;
   for ( ; pos < length; ++pos ) {
     if ( mapped_file[pos] == ' ' || mapped_file[pos] == '\n' ) {
-      ++pos;
+      while ( mapped_file[pos] == ' ' || mapped_file[pos] == '\n' ) {
+        ++pos;
+      }
       break;
     }
     ASSERT(mapped_file[pos] >= '0' && mapped_file[pos] <= '9');
@@ -241,9 +243,13 @@ static HyperedgeID readHyperedges(char* mapped_file,
 
         Hyperedge& hyperedge = hyperedges[current_id];
         // Note, a hyperedge line must contain at least one pin
-        hyperedge.push_back(read_number(mapped_file, current_pos, current_end) - 1);
+        HypernodeID pin = read_number(mapped_file, current_pos, current_end);
+        ASSERT(pin > 0, V(current_id));
+        hyperedge.push_back(pin - 1);
         while ( mapped_file[current_pos - 1] != '\n' ) {
-          hyperedge.push_back(read_number(mapped_file, current_pos, current_end) - 1);
+          pin = read_number(mapped_file, current_pos, current_end);
+          ASSERT(pin > 0, V(current_id));
+          hyperedge.push_back(pin - 1);
         }
         ASSERT(hyperedge.size() >= 2);
         ++current_id;
