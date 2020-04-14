@@ -95,7 +95,7 @@ public:
     siftUp(pos);
   }
 
-  // assumes semantics of comp = std::less, i.e. we have a MaxHeap and decreaseKey moves the element up the tree
+  // assumes semantics of comp = std::less, i.e. we have a MaxHeap and decreaseKey moves the element down the tree
   void decreaseKey(const IdT e, const KeyT newKey) {
     assert(contains(e));
     const PosT pos = positions[e];
@@ -109,7 +109,7 @@ public:
     const PosT pos = positions[e];
     if (comp(heap[pos].key, newKey)) {
       increaseKey(e, newKey);
-    } else {
+    } else if (comp(newKey, heap[pos].key)) {
       decreaseKey(e, newKey);
     }
   }
