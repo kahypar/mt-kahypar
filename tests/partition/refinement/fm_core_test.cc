@@ -27,6 +27,7 @@
 
 #include <mt-kahypar/partition/refinement/fm/localized_kway_fm_core.h>
 #include <mt-kahypar/io/hypergraph_io.h>
+#include <mt-kahypar/partition/metrics.h>
 
 namespace mt_kahypar {
 namespace refinement {
@@ -51,11 +52,6 @@ public:
     context.partition.k = k;
     context.partition.epsilon = 0.03;
     context.setupPartWeights(hg.totalWeight());
-
-    // ignore balance in this test
-    for (PartitionID i = 0; i < k; ++i) {
-      context.partition.max_part_weights[i] = hg.totalWeight();
-    }
   }
 
   Hypergraph hg;
@@ -80,14 +76,21 @@ void printGains(PartitionedHypergraph& phg, PartitionID k) {
 TEST_F(FMCoreTest, PQInsertAndUpdate) {
   //printGains(phg, k);
   LocalizedKWayFM fm(context, hg.initialNumNodes(), &sharedData.vertexPQHandles);
+  HyperedgeWeight initial_km1 = metrics::km1(phg);
   HypernodeID initialNode = 23;
   SearchID searchID = 1;
   fm.findMoves(phg, initialNode, sharedData, searchID);
+
+  HyperedgeWeight accumulated_gain = 0;
   for (MoveID move_id = 0; move_id < sharedData.moveTracker.numPerformedMoves(); ++move_id) {
     Move& m = sharedData.moveTracker.globalMoveOrder[move_id];
+    accumulated_gain += m.gain;
     LOG << V(move_id) << V(m.node) << V(m.from) << V(m.to) << V(m.gain);
   }
 
+  LOG << V(accumulated_gain);
+  HyperedgeWeight km1_after_fm = metrics::km1(phg);
+  ASSERT_EQ(km1_after_fm, initial_km1 - accumulated_gain);
 }
 
 }

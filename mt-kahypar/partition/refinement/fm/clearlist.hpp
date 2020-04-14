@@ -34,6 +34,10 @@ public:
 				f(e);
 	}
 
+	size_t size() const {
+		return contained_keys.size();
+	}
+
 	void clear() {
 		for (T& e : keys())
 			remove(e);
