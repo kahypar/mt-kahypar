@@ -72,10 +72,10 @@ public:
     for (HyperedgeID e : phg.incidentEdges(u)) {
       sharedData.performHyperedgeSpecificMoveUpdates(m, move_id, e);
       // activate neighbors of u and update their gains
-      if (phg.edgeSize(e) < context.partition.hyperedge_size_threshold) {
+      if (true || phg.edgeSize(e) < context.partition.hyperedge_size_threshold) {
         for (HypernodeID v : phg.pins(e)) {
-          if (!updateDeduplicator.contains(u)) {
-            updateDeduplicator.insert(u);
+          if (!updateDeduplicator.contains(v)) {
+            updateDeduplicator.insert(v);
             insertOrUpdatePQ(phg, v, sharedData.nodeTracker);
           }
         }
@@ -111,10 +111,8 @@ public:
     // Note. Deactivated nodes have a special inactive search ID
 
     if (nt.isSearchInactive(searchOfU)) {
-
       // try to claim node u
       if (nt.searchOfNode[u].compare_exchange_strong(searchOfU, thisSearch, std::memory_order_acq_rel)) {
-
         // if that was successful, we insert it into the vertices ready to move in its current block
         const PartitionID from = phg.partID(u);
         auto [to, gain] = bestDestinationBlock(phg, u);
