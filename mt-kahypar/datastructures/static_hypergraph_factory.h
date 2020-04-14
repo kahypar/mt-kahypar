@@ -79,7 +79,7 @@ class StaticHypergraphFactory {
       local_max_edge_size.local() = std::max(
         local_max_edge_size.local(), edge_vector[pos].size());
       for ( const HypernodeID& pin : edge_vector[pos] ) {
-        ASSERT(pin < num_hypernodes);
+        ASSERT(pin < num_hypernodes, V(pin) << V(num_hypernodes));
         ++num_incident_nets_per_vertex[pin];
       }
     });

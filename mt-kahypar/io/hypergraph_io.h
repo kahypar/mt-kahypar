@@ -23,11 +23,17 @@
 #include <cstring>
 #include <fstream>
 #include <iostream>
+#include <thread>
 #include <memory>
 #include <sstream>
 #include <string>
 #include <unordered_map>
 #include <vector>
+#include <fcntl.h>
+#include <sys/stat.h>
+#include <sys/mman.h>
+
+#include "tbb/parallel_for.h"
 
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/context_enum_classes.h"
@@ -41,121 +47,241 @@ namespace {
 using Hyperedge = parallel::scalable_vector<HypernodeID>;
 using HyperedgeVector = parallel::scalable_vector<Hyperedge>;
 
-static inline void readHGRHeader(std::ifstream& file, HyperedgeID& num_hyperedges,
-                                 HypernodeID& num_hypernodes, mt_kahypar::Type& hypergraph_type) {
-  std::string line;
-  std::getline(file, line);
-
-  // skip any comments
-  while (line[0] == '%') {
-    std::getline(file, line);
+static int open_file(const std::string& filename) {
+  int fd = open(filename.c_str(), O_RDONLY);
+  if ( fd == -1 ) {
+    ERROR("Could not open:" << filename);
   }
-
-  std::istringstream sstream(line);
-  int i = 0;
-  sstream >> num_hyperedges >> num_hypernodes >> i;
-  hypergraph_type = static_cast<mt_kahypar::Type>(i);
+  return fd;
 }
 
-static inline void readStringAsHyperedge(const std::string& hyperedge_line,
-                                         const bool has_hyperedge_weights,
-                                         Hyperedge& hyperedge,
-                                         HyperedgeWeight& hyperedge_weight) {
-  std::istringstream line_stream(hyperedge_line);
-
-  // Read weight of hyperedge
-  hyperedge_weight = 1;
-  if (has_hyperedge_weights) {
-    line_stream >> hyperedge_weight;
+static size_t file_size(int fd) {
+  struct stat file_info;
+  if ( fstat(fd, &file_info) == -1 ) {
+    ERROR("Error while getting file stats");
   }
+  return static_cast<size_t>(file_info.st_size);
+}
 
-  // Read pins of hyperedges
-  HypernodeID pin;
-  while (line_stream >> pin) {
-    hyperedge.push_back(--pin);
+static char* mmap_file(int fd, const size_t length) {
+  char* mapped_file = (char*) mmap(0, length, PROT_READ, MAP_SHARED, fd, 0);
+  if ( mapped_file == MAP_FAILED ) {
+    close(fd);
+    ERROR("Error while mapping file to memory");
+  }
+  return mapped_file;
+}
+
+static void munmap_file(char* mapped_file, int fd, const size_t length) {
+  if ( munmap(mapped_file, length) == -1 ) {
+    close(fd);
+    ERROR("Error while unmapping file from memory");
   }
 }
 
-static inline bool isSinglePinHyperedge(const std::string& hyperedge_line,
+static inline void goto_next_line(char* mapped_file, size_t& pos, const size_t length) {
+  for ( ; ; ++pos ) {
+    if ( pos == length || mapped_file[pos] == '\n' ) {
+      ++pos;
+      break;
+    }
+  }
+}
+
+static inline int64_t read_number(char* mapped_file, size_t& pos, const size_t length) {
+  int64_t number = 0;
+  for ( ; pos < length; ++pos ) {
+    if ( mapped_file[pos] == ' ' || mapped_file[pos] == '\n' ) {
+      while ( mapped_file[pos] == ' ' || mapped_file[pos] == '\n' ) {
+        ++pos;
+      }
+      break;
+    }
+    ASSERT(mapped_file[pos] >= '0' && mapped_file[pos] <= '9');
+    number = number * 10 + (mapped_file[pos] - '0');
+  }
+  return number;
+}
+
+static void readHGRHeader(char* mapped_file,
+                          size_t& pos,
+                          const size_t length,
+                          HyperedgeID& num_hyperedges,
+                          HypernodeID& num_hypernodes,
+                          mt_kahypar::Type& type) {
+  // Skip comments
+  while ( mapped_file[pos] == '%' ) {
+    goto_next_line(mapped_file, pos, length);
+  }
+
+  num_hyperedges = read_number(mapped_file, pos, length);
+  num_hypernodes = read_number(mapped_file, pos, length);
+  if ( mapped_file[pos - 1] != '\n' ) {
+    type = static_cast<mt_kahypar::Type>(read_number(mapped_file, pos, length));
+  }
+  ASSERT(mapped_file[pos - 1] == '\n');
+}
+
+struct HyperedgeRange {
+  const size_t start;
+  const size_t end;
+  const HyperedgeID start_id;
+  const HyperedgeID num_hyperedges;
+};
+
+static inline bool isSinglePinHyperedge(char* mapped_file,
+                                        size_t pos,
+                                        const size_t length,
                                         const bool has_hyperedge_weights) {
   size_t num_spaces = 0;
-  for ( size_t i = 0; i < hyperedge_line.size(); ++i) {
-    if ( hyperedge_line[i] == ' ' ) {
+  for ( ; pos < length; ++pos ) {
+    if ( mapped_file[pos] == '\n' ) {
+      break;
+    } else if ( mapped_file[pos] == ' ' ) {
       ++num_spaces;
-      if ( num_spaces == 2 ) {
-        break;
-      }
+    }
+
+    if ( num_spaces == 2 ) {
+      break;
     }
   }
   return has_hyperedge_weights ? num_spaces == 1 : num_spaces == 0;
 }
 
-static inline HyperedgeID readHyperedges(std::ifstream& file,
-                                         const HyperedgeID num_hyperedges,
-                                         const mt_kahypar::Type type,
-                                         HyperedgeVector& hyperedges,
-                                         parallel::scalable_vector<HyperedgeWeight>& hyperedges_weight) {
-  // Read input file line by line
-  utils::Timer::instance().start_timer("parse_hyperedges", "Parse Hyperedges");
+static HyperedgeID readHyperedges(char* mapped_file,
+                                  size_t& pos,
+                                  const size_t length,
+                                  const HyperedgeID num_hyperedges,
+                                  const mt_kahypar::Type type,
+                                  HyperedgeVector& hyperedges,
+                                  parallel::scalable_vector<HyperedgeWeight>& hyperedges_weight) {
+  utils::Timer::instance().start_timer("read_hyperedges", "Read Hyperedges");
+  HyperedgeID num_removed_single_pin_hyperedges = 0;
   const bool has_hyperedge_weights = type == mt_kahypar::Type::EdgeWeights ||
                                      type == mt_kahypar::Type::EdgeAndNodeWeights ?
                                      true : false;
-  HyperedgeID num_removed_single_pin_hyperedges = 0;
-  parallel::scalable_vector<std::string> lines;
+
+  parallel::scalable_vector<HyperedgeRange> hyperedge_ranges;
   tbb::parallel_invoke([&] {
-    lines.reserve(num_hyperedges);
-    std::string he_line;
-    while (lines.size() < num_hyperedges - num_removed_single_pin_hyperedges) {
-      std::getline(file, he_line);
-      // skip any comments
-      while (he_line[0] == '%') {
-        std::getline(file, he_line);
+    utils::Timer::instance().start_timer("preprocess_hyperedges", "Preprocess Hyperedges", true);
+    // Sequential pass over all hyperedges to determine ranges in the
+    // input file that are read in parallel.
+    size_t current_range_start = pos;
+    HyperedgeID current_range_start_id = 0;
+    HyperedgeID current_range_num_hyperedges = 0;
+    HyperedgeID current_num_hyperedges = 0;
+    const HyperedgeID num_hyperedges_per_range = std::max(
+      (num_hyperedges / ( 2 * std::thread::hardware_concurrency())), ID(1));
+    while ( current_num_hyperedges < num_hyperedges ) {
+      // Skip Comments
+      ASSERT(pos < length);
+      while ( mapped_file[pos] == '%' ) {
+        goto_next_line(mapped_file, pos, length);
+        ASSERT(pos < length);
       }
-      if ( !isSinglePinHyperedge(he_line, has_hyperedge_weights) ) {
-        lines.push_back(he_line);
+
+      ASSERT(mapped_file[pos - 1] == '\n');
+      if ( !isSinglePinHyperedge(mapped_file, pos, length, has_hyperedge_weights) ) {
+        ++current_range_num_hyperedges;
       } else {
         ++num_removed_single_pin_hyperedges;
       }
+      ++current_num_hyperedges;
+      goto_next_line(mapped_file, pos, length);
+
+      // If there are enough hyperedges in the current scanned range
+      // we store that range, which will be later processed in parallel
+      if ( current_range_num_hyperedges == num_hyperedges_per_range ) {
+        hyperedge_ranges.push_back(HyperedgeRange {
+          current_range_start, pos, current_range_start_id, current_range_num_hyperedges});
+        current_range_start = pos;
+        current_range_start_id += current_range_num_hyperedges;
+        current_range_num_hyperedges = 0;
+      }
     }
+    if ( current_range_num_hyperedges > 0 ) {
+      hyperedge_ranges.push_back(HyperedgeRange {
+        current_range_start, pos, current_range_start_id, current_range_num_hyperedges});
+    }
+    utils::Timer::instance().stop_timer("preprocess_hyperedges");
   }, [&] {
+    utils::Timer::instance().start_timer("allocate_hyperedges", "Allocate Hyperedges", true);
     hyperedges.resize(num_hyperedges);
-    hyperedges_weight.resize(num_hyperedges);
+    utils::Timer::instance().stop_timer("allocate_hyperedges");
+  }, [&] {
+    utils::Timer::instance().start_timer("allocate_hyperedge_weights", "Allocate Hyperedge Weights", true);
+    hyperedges_weight.assign(num_hyperedges, 1);
+    utils::Timer::instance().stop_timer("allocate_hyperedge_weights");
   });
 
-  HyperedgeID tmp_num_hyperedges = num_hyperedges - num_removed_single_pin_hyperedges;
+  const HyperedgeID tmp_num_hyperedges = num_hyperedges - num_removed_single_pin_hyperedges;
   hyperedges.resize(tmp_num_hyperedges);
   hyperedges_weight.resize(tmp_num_hyperedges);
-  ASSERT(lines.size() == tmp_num_hyperedges);
-  tbb::parallel_for(ID(0), tmp_num_hyperedges, [&](const HyperedgeID i) {
-    readStringAsHyperedge(lines[i], has_hyperedge_weights,
-      hyperedges[i], hyperedges_weight[i]);
+
+  utils::Timer::instance().start_timer("parse_hyperedges", "Parse Hyperedges");
+  // Process all ranges in parallel and build hyperedge vector
+  tbb::parallel_for(0UL, hyperedge_ranges.size(), [&](const size_t i) {
+    HyperedgeRange& range = hyperedge_ranges[i];
+    size_t current_pos = range.start;
+    const size_t current_end = range.end;
+    HyperedgeID current_id = range.start_id;
+    const HyperedgeID last_id = current_id + range.num_hyperedges;
+
+    while ( current_id < last_id ) {
+      // Skip Comments
+      ASSERT(current_pos < current_end);
+      while ( mapped_file[pos] == '%' ) {
+        goto_next_line(mapped_file, current_pos, current_end);
+        ASSERT(current_pos < current_end);
+      }
+
+      if ( !isSinglePinHyperedge(mapped_file, current_pos, current_end, has_hyperedge_weights) ) {
+        ASSERT(current_id < hyperedges.size());
+        if ( has_hyperedge_weights ) {
+          hyperedges_weight[current_id] = read_number(mapped_file, current_pos, current_end);
+        }
+
+        Hyperedge& hyperedge = hyperedges[current_id];
+        // Note, a hyperedge line must contain at least one pin
+        HypernodeID pin = read_number(mapped_file, current_pos, current_end);
+        ASSERT(pin > 0, V(current_id));
+        hyperedge.push_back(pin - 1);
+        while ( mapped_file[current_pos - 1] != '\n' ) {
+          pin = read_number(mapped_file, current_pos, current_end);
+          ASSERT(pin > 0, V(current_id));
+          hyperedge.push_back(pin - 1);
+        }
+        ASSERT(hyperedge.size() >= 2);
+        ++current_id;
+      } else {
+        goto_next_line(mapped_file, current_pos, current_end);
+      }
+    }
   });
   utils::Timer::instance().stop_timer("parse_hyperedges");
+
+  utils::Timer::instance().stop_timer("read_hyperedges");
   return num_removed_single_pin_hyperedges;
 }
 
-static inline void readHypernodeWeights(std::ifstream& file,
-                                        const HypernodeID num_hypernodes,
-                                        const mt_kahypar::Type type,
-                                        parallel::scalable_vector<HypernodeWeight>& hypernodes_weight) {
+static void readHypernodeWeights(char* mapped_file,
+                                 size_t& pos,
+                                 const size_t length,
+                                 const HypernodeID num_hypernodes,
+                                 const mt_kahypar::Type type,
+                                 parallel::scalable_vector<HypernodeWeight>& hypernodes_weight) {
   utils::Timer::instance().start_timer("parse_hypernode_weights", "Parse Hypernode Weights");
   bool has_hypernode_weights = type == mt_kahypar::Type::NodeWeights ||
                                type == mt_kahypar::Type::EdgeAndNodeWeights ?
                                true : false;
   hypernodes_weight.assign(num_hypernodes, 1);
-  if (has_hypernode_weights) {
-    std::string line;
-    for (HypernodeID hn = 0; hn < num_hypernodes; ++hn) {
-      std::getline(file, line);
-      // skip any comments
-      while (line[0] == '%') {
-        std::getline(file, line);
-      }
-      std::istringstream line_stream(line);
-      line_stream >> hypernodes_weight[hn];
+  if ( has_hypernode_weights ) {
+    for ( HypernodeID hn = 0; hn < num_hypernodes; ++hn ) {
+      ASSERT(pos > 0 && pos < length);
+      ASSERT(mapped_file[pos - 1] == '\n');
+      hypernodes_weight[hn] = read_number(mapped_file, pos, length);
     }
   }
-
   utils::Timer::instance().stop_timer("parse_hypernode_weights");
 }
 
@@ -168,25 +294,31 @@ static inline HyperGraph readHypergraphFile(const std::string& filename,
   ASSERT(!filename.empty(), "No filename for hypergraph file specified");
   utils::Timer::instance().start_timer("construct_hypergraph_from_file", "Construct Hypergraph from File");
 
-  // Read Hypergraph file
-  std::ifstream file(filename);
+  int fd = open_file(filename);
+  const size_t length = file_size(fd);
+  char* mapped_file = mmap_file(fd, length);
+  size_t pos = 0;
+
+  // Read Hypergraph Header
   HyperedgeID num_hyperedges = 0;
   HypernodeID num_hypernodes = 0;
+  mt_kahypar::Type type = mt_kahypar::Type::Unweighted;
+  readHGRHeader(mapped_file, pos, length, num_hyperedges, num_hypernodes, type);
+
+  // Read Hyperedges
   HyperedgeVector hyperedges;
   parallel::scalable_vector<HyperedgeWeight> hyperedges_weight;
+  HyperedgeID num_removed_single_pin_hyperedges =
+    readHyperedges(mapped_file, pos, length, num_hyperedges, type, hyperedges, hyperedges_weight);
+  num_hyperedges -= num_removed_single_pin_hyperedges;
+
+  // Read Hypernode Weights
   parallel::scalable_vector<HypernodeWeight> hypernodes_weight;
-  mt_kahypar::Type type = mt_kahypar::Type::Unweighted;
-  HyperedgeID num_removed_single_pin_hyperedges = 0;
-  if (file) {
-    readHGRHeader(file, num_hyperedges, num_hypernodes, type);
-    num_removed_single_pin_hyperedges = readHyperedges(
-      file, num_hyperedges, type, hyperedges, hyperedges_weight);
-    num_hyperedges -= num_removed_single_pin_hyperedges;
-    readHypernodeWeights(file, num_hypernodes, type, hypernodes_weight);
-    file.close();
-  } else {
-    ERROR("Error: File not found: " + filename);
-  }
+  readHypernodeWeights(mapped_file, pos, length, num_hypernodes, type, hypernodes_weight);
+  ASSERT(pos == length);
+
+  munmap_file(mapped_file, fd, length);
+  close(fd);
 
   // Construct Hypergraph
   utils::Timer::instance().start_timer("construct_hypergraph", "Construct Hypergraph");
