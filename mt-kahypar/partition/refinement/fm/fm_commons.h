@@ -53,11 +53,13 @@ struct GlobalMoveTracker {
 
   MoveID insertMove(Move &m) {
     const MoveID move_id = runningMoveID.fetch_add(1, std::memory_order_relaxed);
+    assert(move_id - firstMoveID < globalMoveOrder.size());
     globalMoveOrder[move_id - firstMoveID] = m;
     return move_id;
   }
 
   Move& getMove(MoveID move_id) {
+    assert(move_id - firstMoveID < globalMoveOrder.size());
     return globalMoveOrder[move_id - firstMoveID];
   }
 

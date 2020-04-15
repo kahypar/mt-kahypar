@@ -36,6 +36,7 @@ using ::testing::Test;
 class FMCoreTest : public Test {
 public:
   FMCoreTest() {
+    tbb::task_scheduler_init tsi(1);  // hypergraph construction in parallel does some remapping of edge ids depending on scheduling --> results not reproducible
     hg = io::readHypergraphFile<Hypergraph, HypergraphFactory>("../test_instances/ibm01.hgr", 0);
     phg = PartitionedHypergraph(k, hg);
     HypernodeID nodes_per_part = hg.initialNumNodes() / k;
@@ -71,6 +72,26 @@ void printGains(PartitionedHypergraph& phg, PartitionID k) {
     }
     std::cout << std::endl;
   }
+}
+
+void printHypergraph(PartitionedHypergraph& phg) {
+  std::cout << "Vertices\n";
+  for (HypernodeID u = 0; u < phg.initialNumNodes(); ++u) {
+    std::cout << "u=" << u << " -> ";
+    for (HyperedgeID he : phg.incidentEdges(u)) {
+      std::cout << he << " ";
+    }
+    std::cout << "\n";
+  }
+  std::cout << "Hyperedges\n";
+  for (HyperedgeID e = 0; e < phg.initialNumEdges(); ++e) {
+    std::cout << "e=" << e << " -> ";
+    for (HypernodeID v : phg.pins(e)) {
+      std::cout << v << " ";
+    }
+    std::cout << "\n";
+  }
+  std::cout << std::flush;
 }
 
 TEST_F(FMCoreTest, PQInsertAndUpdate) {
