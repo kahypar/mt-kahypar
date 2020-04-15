@@ -57,7 +57,9 @@ int main(int argc, char* argv[]) {
   // Read Hypergraph
   mt_kahypar::Hypergraph hypergraph = mt_kahypar::io::readHypergraphFile<
     mt_kahypar::Hypergraph, mt_kahypar::HypergraphFactory>(
-      context.partition.graph_filename, mt_kahypar::TBBNumaArena::GLOBAL_TASK_GROUP);
+      context.partition.graph_filename,
+      mt_kahypar::TBBNumaArena::GLOBAL_TASK_GROUP,
+      context.preprocessing.stable_construction_of_incident_edges);
 
   if ( context.partition.enable_profiler ) {
     mt_kahypar::utils::Profiler::instance(context.partition.snapshot_interval).start();

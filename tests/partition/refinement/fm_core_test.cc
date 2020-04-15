@@ -36,8 +36,9 @@ using ::testing::Test;
 class FMCoreTest : public Test {
 public:
   FMCoreTest() {
-    tbb::task_scheduler_init tsi(1);  // hypergraph construction in parallel does some remapping of edge ids depending on scheduling --> results not reproducible
-    hg = io::readHypergraphFile<Hypergraph, HypergraphFactory>("../test_instances/ibm01.hgr", 0);
+    // hypergraph construction in parallel does some reordering of incident edges depending on scheduling --> results not reproducible
+    // --> sort incident edges --> constructed as in sequential
+    hg = io::readHypergraphFile<Hypergraph, HypergraphFactory>("../test_instances/ibm01.hgr", 0, true /* enable stable construction */);
     phg = PartitionedHypergraph(k, hg);
     HypernodeID nodes_per_part = hg.initialNumNodes() / k;
     for (PartitionID i = 0; i < k; ++i) {

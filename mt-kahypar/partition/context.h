@@ -98,6 +98,7 @@ inline std::ostream & operator<< (std::ostream& str, const CommunityRedistributi
 }
 
 struct PreprocessingParameters {
+  bool stable_construction_of_incident_edges = false;
   bool use_community_detection = false;
   bool use_community_redistribution = false;
   CommunityDetectionParameters community_detection = { };

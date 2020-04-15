@@ -58,7 +58,8 @@ class StaticHypergraphFactory {
                                     const HyperedgeID num_hyperedges,
                                     const HyperedgeVector& edge_vector,
                                     const HyperedgeWeight* hyperedge_weight = nullptr,
-                                    const HypernodeWeight* hypernode_weight = nullptr) {
+                                    const HypernodeWeight* hypernode_weight = nullptr,
+                                    const bool stable_construction_of_incident_edges = false) {
     StaticHypergraph hypergraph;
     hypergraph._num_hypernodes = num_hypernodes;
     hypergraph._num_hyperedges = num_hyperedges;
@@ -160,6 +161,16 @@ class StaticHypergraphFactory {
         }
       });
     });
+
+    if (stable_construction_of_incident_edges) {
+      // sort incident hyperedges of each node, so their ordering is independent of scheduling (and the same as a typical sequential implementation)
+      tbb::parallel_for(ID(0), num_hypernodes, [&](HypernodeID u) {
+        auto b = hypergraph._incident_nets.begin() + hypergraph.hypernode(u).firstEntry();
+        auto e = hypergraph._incident_nets.begin() + hypergraph.hypernode(u).firstInvalidEntry();
+        std::sort(b, e);
+      });
+    }
+
     // Add Sentinels
     hypergraph._hypernodes.back() = StaticHypergraph::Hypernode(hypergraph._incident_nets.size());
     hypergraph._hyperedges.back() = StaticHypergraph::Hyperedge(hypergraph._incidence_array.size());

@@ -164,7 +164,8 @@ static inline void readHypernodeWeights(std::ifstream& file,
 template <typename HyperGraph,
           typename HyperGraphFactory>
 static inline HyperGraph readHypergraphFile(const std::string& filename,
-                                            const TaskGroupID task_group_id) {
+                                            const TaskGroupID task_group_id,
+                                            const bool stable_construction_of_incident_edges = false) {
   ASSERT(!filename.empty(), "No filename for hypergraph file specified");
   utils::Timer::instance().start_timer("construct_hypergraph_from_file", "Construct Hypergraph from File");
 
@@ -190,9 +191,10 @@ static inline HyperGraph readHypergraphFile(const std::string& filename,
 
   // Construct Hypergraph
   utils::Timer::instance().start_timer("construct_hypergraph", "Construct Hypergraph");
-  HyperGraph hypergraph = HyperGraphFactory::construct(task_group_id,
-    num_hypernodes, num_hyperedges, hyperedges,
-    hyperedges_weight.data(), hypernodes_weight.data());
+  HyperGraph hypergraph = HyperGraphFactory::construct(
+          task_group_id, num_hypernodes, num_hyperedges,
+          hyperedges, hyperedges_weight.data(), hypernodes_weight.data(),
+          stable_construction_of_incident_edges);
   hypergraph.setNumRemovedHyperedges(num_removed_single_pin_hyperedges);
   utils::Timer::instance().stop_timer("construct_hypergraph");
   utils::Timer::instance().stop_timer("construct_hypergraph_from_file");

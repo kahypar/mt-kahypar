@@ -111,11 +111,11 @@ po::options_description createGenericOptionsDescription(Context& context,
     ("show-memory-consumption", po::value<bool>(&context.partition.show_memory_consumption)->value_name("<bool>"),
     "If true, memory consumption overview is shown")
     ("enable-progress-bar", po::value<bool>(&context.partition.enable_progress_bar)->value_name("<bool>"),
-    "If true, than progress bar is displayed")
+    "If true, then progress bar is displayed")
     ("enable-profiler", po::value<bool>(&context.partition.enable_profiler)->value_name("<bool>"),
-    "If true, than profiler is activated")
+    "If true, then profiler is activated")
     ("profiler-snapshot-interval", po::value<int>(&context.partition.snapshot_interval)->value_name("<int>"),
-    "Interval in milliseconds for which profiler makes a snapshot of system stats")
+    "Interval in milliseconds for which profiler takes a snapshot of system stats")
     ("time-limit", po::value<int>(&context.partition.time_limit)->value_name("<int>"),
     "Time limit in seconds")
     ("sp-process,s", po::value<bool>(&context.partition.sp_process_output)->value_name("<bool>"),
@@ -127,6 +127,10 @@ po::options_description createGenericOptionsDescription(Context& context,
 po::options_description createPreprocessingOptionsDescription(Context& context, const int num_columns) {
   po::options_description options("Preprocessing Options", num_columns);
   options.add_options()
+    ("p-stable-io",
+    po::value<bool>(&context.preprocessing.stable_construction_of_incident_edges)->value_name("<bool>"),
+    "If true, the incident edges of a vertex are sorted after construction, so that the hypergraph "
+    "data structure is independent of scheduling during construction. Default: false")
     ("p-enable-community-detection",
     po::value<bool>(&context.preprocessing.use_community_detection)->value_name("<bool>"),
     "If true, community detection is used as preprocessing step to guide contractions in coarsening phase")
