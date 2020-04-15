@@ -42,6 +42,7 @@ struct PartitioningParameters {
   bool verbose_output = false;
   bool quiet_mode = false;
   bool show_detailed_timings = false;
+  bool show_detailed_clustering_timings = false;
   bool show_memory_consumption = false;
   bool show_modularity = false;
   bool enable_progress_bar = false;

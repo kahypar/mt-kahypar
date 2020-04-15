@@ -45,7 +45,7 @@ std::unordered_map<std::string, std::string> target_struct_prefix =
     {"LabelPropagationParameters", "lp_"}, {"RefinementParameters", ""}, {"SharedMemoryParameters", ""} };
 
 std::set<std::string> excluded_members =
-  { "verbose_output", "quiet_mode", "show_detailed_timings", "show_memory_consumption", "enable_progress_bar", "sp_process_output",
+  { "verbose_output", "quiet_mode", "show_detailed_timings", "show_detailed_clustering_timings", "show_memory_consumption", "enable_progress_bar", "sp_process_output",
     "show_modularity", "write_partition_file", "graph_partition_filename", "graph_community_filename", "community_detection",
     "community_redistribution", "coarsening_rating", "label_propagation", "lp_execute_sequential",
     "enable_profiler", "snapshot_interval", "initial_partitioning_refinement", "initial_partitioning_sparsification" };

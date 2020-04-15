@@ -189,6 +189,9 @@ class MultilevelCoarsenerT : public ICoarsenerT<TypeTraits>,
       // weights of the resulting clusters and keep track of the number of nodes left, if we would
       // contract all matched vertices.
       utils::Timer::instance().start_timer("parallel_clustering", "Parallel Clustering");
+      if ( _context.partition.show_detailed_clustering_timings ) {
+        utils::Timer::instance().start_timer("clustering_level_" + std::to_string(pass_nr), "Level " + std::to_string(pass_nr));
+      }
       _rater.resetMatches();
       const HypernodeID num_hns_before_pass = current_hg.initialNumNodes() - current_hg.numRemovedHypernodes();
       const HypernodeID num_pins_before_pass = current_hg.initialNumPins();
@@ -241,6 +244,9 @@ class MultilevelCoarsenerT : public ICoarsenerT<TypeTraits>,
           }
         });
       });
+      if ( _context.partition.show_detailed_clustering_timings ) {
+        utils::Timer::instance().stop_timer("clustering_level_" + std::to_string(pass_nr));
+      }
       utils::Timer::instance().stop_timer("parallel_clustering");
       current_num_nodes = num_hns_before_pass -
         contracted_nodes.combine(std::plus<HypernodeID>());

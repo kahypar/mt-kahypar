@@ -108,6 +108,8 @@ po::options_description createGenericOptionsDescription(Context& context,
     "Quiet Mode: Completely suppress console output")
     ("show-detailed-timings", po::value<bool>(&context.partition.show_detailed_timings)->value_name("<bool>"),
     "If true, detailed timings overview is shown")
+    ("show-detailed-clustering-timings", po::value<bool>(&context.partition.show_detailed_clustering_timings)->value_name("<bool>"),
+    "If true, detailed clustering timings overview is shown")
     ("show-memory-consumption", po::value<bool>(&context.partition.show_memory_consumption)->value_name("<bool>"),
     "If true, memory consumption overview is shown")
     ("show-modularity", po::value<bool>(&context.partition.show_modularity)->value_name("<bool>"),
