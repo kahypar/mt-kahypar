@@ -164,6 +164,24 @@ public:
 
 protected:
 
+  bool isHeap() const {
+    for (PosT i = 1; i < size(); ++i) {
+      if (comp(heap[parent(i)].key, heap[i].key)) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  bool positionsMatch() const {
+    for (PosT i = 0; i < size(); ++i) {
+      if (positions[heap[i].id] != i) {
+        return false;
+      }
+    }
+    return true;
+  }
+
   bool fits(const IdT id) const {
     return static_cast<size_t>(id) < positions.size();
   }
@@ -190,6 +208,9 @@ protected:
     positions[id] = pos;
     heap[pos].id = id;
     heap[pos].key = k;
+
+    HEAVY_REFINEMENT_ASSERT(isHeap());
+    HEAVY_REFINEMENT_ASSERT(positionsMatch());
   }
 
   void siftDown(PosT pos) {
@@ -242,6 +263,9 @@ protected:
       heap[pos].key = k;
       heap[pos].id = id;
     }
+
+    HEAVY_REFINEMENT_ASSERT(isHeap());
+    HEAVY_REFINEMENT_ASSERT(positionsMatch());
   }
 
   struct HeapElement {
@@ -269,7 +293,7 @@ public:
 };
 
 template<typename KeyT, typename IdT>
-using MaxHeap = Heap<KeyT, IdT, std::less<KeyT>, 4>;
+using MaxHeap = Heap<KeyT, IdT, std::less<KeyT>, 2>;
 
 }
 }

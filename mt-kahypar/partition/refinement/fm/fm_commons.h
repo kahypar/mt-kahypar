@@ -29,12 +29,6 @@ namespace mt_kahypar {
 namespace refinement {
 
 using BlockPriorityQueue = ds::ExclusiveHandleHeap< ds::MaxHeap<Gain, PartitionID> >;
-
-struct MoveTo { // TODO should we store the target block in the PQ as well, or should we perform another call to bestDestinationBlock upon extraction
-  HypernodeID node = invalidNode;
-  PartitionID toBlock = kInvalidPartition;
-};
-
 using VertexPriorityQueue = ds::MaxHeap<Gain, HypernodeID>;    // these need external handles
 
 

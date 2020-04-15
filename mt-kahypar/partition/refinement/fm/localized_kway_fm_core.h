@@ -23,6 +23,7 @@
 
 #include <mt-kahypar/definitions.h>
 #include <mt-kahypar/partition/context.h>
+#include <mt-kahypar/partition/metrics.h>
 
 #include "fm_commons.h"
 #include "clearlist.hpp"
@@ -30,7 +31,6 @@
 
 namespace mt_kahypar {
 namespace refinement {
-
 
 class LocalizedKWayFM {
 public:
@@ -50,7 +50,6 @@ public:
 
 
   void findMoves(PartitionedHypergraph& phg, const HypernodeID initialBorderNode, FMSharedData& sharedData, SearchID search_id) {
-    LOG << V(min_part_weight) << V(perfect_balance_part_weight) << V(max_part_weight) << V(phg.totalWeight()) << V(context.partition.epsilon);
     this->thisSearch = search_id;
     reinitialize();
     uint32_t movesWithNonPositiveGain = 0;
@@ -61,7 +60,6 @@ public:
     while (movesWithNonPositiveGain < context.refinement.fm.max_number_of_fruitless_moves && findNextMove(phg, m)) {
       sharedData.nodeTracker.deactivateNode(m.node, thisSearch);
       deactivatedNodes.push_back(m.node);
-
       MoveID move_id = 0;
       const bool moved = phg.changeNodePartFullUpdate(m.node, m.from, m.to, max_part_weight, [&] { move_id = sharedData.moveTracker.insertMove(m); });
       if (moved) {
@@ -70,7 +68,6 @@ public:
       }
       updateAfterMoveExtraction(phg, m);
     }
-    LOG << V(movesWithNonPositiveGain) << V(context.refinement.fm.max_number_of_fruitless_moves);
   }
 
   void updateBlock(PartitionedHypergraph& phg, PartitionID i) {
@@ -83,7 +80,7 @@ public:
   }
 
   void updateAfterMoveExtraction(PartitionedHypergraph& phg, Move& m) {
-    if (updateDeduplicator.size() >= numParts) {
+    if (updateDeduplicator.size() >= size_t(numParts)) {
       for (PartitionID i = 0; i < numParts; ++i) {
         updateBlock(phg, i);
       }
@@ -157,18 +154,14 @@ public:
 
   bool findNextMove(PartitionedHypergraph& phg, Move& m) {
     if (blockPQ.empty()) {
-      LOG << "Block queue empty";
-      for (PartitionID i = 0; i < numParts; ++i) {
-        LOG << V(vertexPQs[i].size()) << V(phg.partWeight(i)) << V(min_part_weight);
-      }
       return false;
     }
     while (true) {
       const PartitionID from = blockPQ.top();
       const HypernodeID u = vertexPQs[from].top();
       const Gain estimated_gain = vertexPQs[from].topKey();
+      assert(estimated_gain == blockPQ.topKey());
       auto [to, gain] = bestDestinationBlock(phg, u);
-      if (gain != estimated_gain) { LOG << "false estimate" << V(gain) << V(estimated_gain); }
       if (gain >= estimated_gain) { // accept any gain that is at least as good
         m.node = u; m.to = to; m.from = from;
         m.gain = gain;
@@ -215,7 +208,6 @@ private:
 
   const Context& context;
   HypernodeWeight max_part_weight, perfect_balance_part_weight, min_part_weight;
-
 
 public:
   vec<Move> localMoves;
