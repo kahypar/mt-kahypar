@@ -193,6 +193,7 @@ class MultilevelCoarsenerT : public ICoarsenerT<TypeTraits>,
         utils::Timer::instance().start_timer("clustering_level_" + std::to_string(pass_nr), "Level " + std::to_string(pass_nr));
       }
       _rater.resetMatches();
+      _rater.setCurrentNumberOfNodes(current_hg.initialNumNodes());
       const HypernodeID num_hns_before_pass = current_hg.initialNumNodes() - current_hg.numRemovedHypernodes();
       const HypernodeID num_pins_before_pass = current_hg.initialNumPins();
       const HypernodeID hierarchy_contraction_limit = hierarchyContractionLimit(current_hg);

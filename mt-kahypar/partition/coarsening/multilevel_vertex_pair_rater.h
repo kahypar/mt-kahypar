@@ -30,7 +30,6 @@
 #include "kahypar/datastructure/fast_reset_flag_array.h"
 #include "kahypar/meta/mandatory.h"
 
-#include "kahypar/datastructure/sparse_map.h"
 #include "mt-kahypar/datastructures/sparse_map.h"
 
 #include "mt-kahypar/definitions.h"
@@ -43,7 +42,7 @@ template <typename TypeTraits = Mandatory,
           typename AcceptancePolicy = Mandatory>
 class MultilevelVertexPairRater {
   using HyperGraph = typename TypeTraits::HyperGraph;
-  using LargeTmpRatingMap = kahypar::ds::SparseMap<HypernodeID, RatingType>;
+  using LargeTmpRatingMap = ds::SparseMap<HypernodeID, RatingType>;
   using CacheEfficientRatingMap = ds::FixedSizeSparseMap<HypernodeID, RatingType>;
   using ThreadLocalLargeTmpRatingMap = tbb::enumerable_thread_specific<LargeTmpRatingMap>;
   using ThreadLocalCacheEfficientRatingMap = tbb::enumerable_thread_specific<CacheEfficientRatingMap>;
@@ -82,8 +81,11 @@ class MultilevelVertexPairRater {
   MultilevelVertexPairRater(HyperGraph& hypergraph,
                            const Context& context) :
     _context(context),
+    _current_num_nodes(hypergraph.initialNumNodes()),
     _local_cache_efficient_rating_map(0.0),
-    _local_large_rating_map(hypergraph.initialNumNodes(), 0.0),
+    _local_large_rating_map([&] {
+      return construct_large_tmp_rating_map();
+    }),
     _local_visited_representatives(hypergraph.initialNumNodes()),
     _already_matched(hypergraph.initialNumNodes()) { }
 
@@ -102,7 +104,9 @@ class MultilevelVertexPairRater {
       return rate(hypergraph, u, _local_cache_efficient_rating_map.local(),
         cluster_ids, cluster_weight, max_allowed_node_weight);
     } else {
-      return rate(hypergraph, u, _local_large_rating_map.local(),
+      LargeTmpRatingMap& large_tmp_rating_map = _local_large_rating_map.local();
+      large_tmp_rating_map.setMaxSize(_current_num_nodes);
+      return rate(hypergraph, u, large_tmp_rating_map,
         cluster_ids, cluster_weight, max_allowed_node_weight);
     }
   }
@@ -117,6 +121,10 @@ class MultilevelVertexPairRater {
   // ! Note, this function is not thread safe
   void resetMatches() {
     _already_matched.reset();
+  }
+
+  void setCurrentNumberOfNodes(const HypernodeID current_num_nodes) {
+    _current_num_nodes = current_num_nodes;
   }
 
  private:
@@ -188,6 +196,12 @@ class MultilevelVertexPairRater {
 
   inline bool ratingsFitIntoSmallSparseMap(const HyperGraph& hypergraph,
                                            const HypernodeID u)  {
+    // In case the current number of nodes is smaller than size
+    // of the cache-efficient sparse map, the large tmp rating map
+    // consumes less memory
+    if ( _current_num_nodes < CacheEfficientRatingMap::MAP_SIZE ) {
+      return false;
+    }
     // Compute estimation for the upper bound of neighbors of u
     HypernodeID ub_neighbors_u = 0;
     for ( const HyperedgeID& he : hypergraph.incidentEdges(u) ) {
@@ -205,7 +219,12 @@ class MultilevelVertexPairRater {
     return true;
   }
 
+  LargeTmpRatingMap construct_large_tmp_rating_map() {
+    return LargeTmpRatingMap(_current_num_nodes, 0.0);
+  }
+
   const Context& _context;
+  HypernodeID _current_num_nodes;
   ThreadLocalCacheEfficientRatingMap _local_cache_efficient_rating_map;
   ThreadLocalLargeTmpRatingMap _local_large_rating_map;
   ThreadLocalFastResetFlagArray _local_visited_representatives;
