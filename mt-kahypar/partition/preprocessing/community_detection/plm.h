@@ -24,7 +24,6 @@
 
 #include <tbb/enumerable_thread_specific.h>
 
-#include "kahypar/datastructure/sparse_map.h"
 #include "mt-kahypar/datastructures/sparse_map.h"
 
 #include "mt-kahypar/definitions.h"
@@ -43,7 +42,7 @@ class PLM {
   using ArcWeight = typename G::ArcWeight;
   using AtomicArcWeight = parallel::AtomicWrapper<ArcWeight>;
   using Arc = typename G::Arc;
-  using LargeIncidentClusterWeights = kahypar::ds::SparseMap<PartitionID, ArcWeight>;
+  using LargeIncidentClusterWeights = ds::SparseMap<PartitionID, ArcWeight>;
   using CacheEfficientIncidentClusterWeights = ds::FixedSizeSparseMap<PartitionID, ArcWeight>;
 
  public:
@@ -54,12 +53,16 @@ class PLM {
                size_t numNodes,
                const bool disable_randomization = false) :
     _context(context),
+    _num_nodes(numNodes),
     _cluster_volumes(numNodes),
     _local_small_incident_cluster_weight(0),
-    _local_large_incident_cluster_weight(numNodes, 0),
+    _local_large_incident_cluster_weight([&] {
+      return construct_large_incident_cluster_weight_map();
+    }),
     _disable_randomization(disable_randomization) { }
 
   bool localMoving(G& graph, ds::Clustering& communities) {
+    _num_nodes = graph.numNodes();
     _reciprocal_total_volume = 1.0 / graph.totalVolume();
     _vol_multiplier_div_by_node_vol = _reciprocal_total_volume;
 
@@ -96,9 +99,11 @@ class PLM {
               graph, communities, u,
               _local_small_incident_cluster_weight.local());
           } else {
+            LargeIncidentClusterWeights& large_incident_cluster_weight =
+              _local_large_incident_cluster_weight.local();
+            large_incident_cluster_weight.setMaxSize(_num_nodes);
             best_cluster = computeMaxGainCluster(
-              graph, communities, u,
-              _local_large_incident_cluster_weight.local());
+              graph, communities, u, large_incident_cluster_weight);
           }
 
           if (best_cluster != from) {
@@ -141,6 +146,10 @@ class PLM {
   KAHYPAR_ATTRIBUTE_ALWAYS_INLINE bool ratingsFitIntoSmallSparseMap(const G& graph,
                                                                     const HypernodeID u)  {
     return graph.degree(u) <= CacheEfficientIncidentClusterWeights::MAP_SIZE / 3UL;
+  }
+
+  LargeIncidentClusterWeights construct_large_incident_cluster_weight_map() {
+    return LargeIncidentClusterWeights(_num_nodes, 0);
   }
 
   // ! Only for testing
@@ -305,6 +314,7 @@ class PLM {
   }
 
   const Context& _context;
+  size_t _num_nodes;
   double _reciprocal_total_volume = 0.0;
   double _vol_multiplier_div_by_node_vol = 0.0;
   std::vector<AtomicArcWeight> _cluster_volumes;
