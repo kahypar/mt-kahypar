@@ -52,11 +52,11 @@ public:
   void findMoves(PartitionedHypergraph& phg, const HypernodeID initialBorderNode, FMSharedData& sharedData, SearchID search_id) {
     this->thisSearch = search_id;
     reinitialize();
-    Move m;
-    uint32_t movesWithNonPositiveGain = 0;
-    insertOrUpdatePQ(phg, initialBorderNode, sharedData.nodeTracker, m);
+    insertOrUpdatePQ(phg, initialBorderNode, sharedData.nodeTracker);
     updateBlock(phg, phg.partID(initialBorderNode));
 
+    Move m;
+    uint32_t movesWithNonPositiveGain = 0;
     while (movesWithNonPositiveGain < context.refinement.fm.max_number_of_fruitless_moves && findNextMove(phg, m)) {
       sharedData.nodeTracker.deactivateNode(m.node, thisSearch);
       deactivatedNodes.push_back(m.node);
@@ -102,7 +102,7 @@ public:
         for (HypernodeID v : phg.pins(e)) {
           if (!updateDeduplicator.contains(v)) {
             updateDeduplicator.insert(v);
-            insertOrUpdatePQ(phg, v, sharedData.nodeTracker, m);
+            insertOrUpdatePQ(phg, v, sharedData.nodeTracker);
           }
         }
       }
@@ -127,19 +127,8 @@ public:
     return std::make_pair(to, phg.moveFromBenefit(u, phg.partID(u)) - to_penalty);
   };
 
-  Gain gainForNeighborInUninvolvedBlock(PartitionedHypergraph& phg, HypernodeID v, PartitionID pv, Move& m) {
-    Gain g = vertexPQs[pv].keyOf(v);
-    if (phg.partWeight(m.from) + phg.nodeWeight(v) <= max_part_weight) {
-      g = std::max(g, phg.km1Gain(v, pv, m.from));
-    }
-    if (phg.partWeight(m.to) + phg.nodeWeight(v) <= max_part_weight) {
-      g = std::max(g, phg.km1Gain(v, pv, m.to));
-    }
-    return g;
-  }
-
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
-  void insertOrUpdatePQ(PartitionedHypergraph& phg, HypernodeID v, NodeTracker& nt, Move& m) {
+  void insertOrUpdatePQ(PartitionedHypergraph& phg, HypernodeID v, NodeTracker& nt) {
     SearchID searchOfV = nt.searchOfNode[v].load(std::memory_order_acq_rel);
     // Note. Deactivated nodes have a special active search ID so that neither branch is executed
     if (nt.isSearchInactive(searchOfV)) {
@@ -151,10 +140,13 @@ public:
     } else if (searchOfV == thisSearch) {
       const PartitionID pv = phg.partID(v);
       assert(vertexPQs[pv].contains(v));
-      const Gain gain = pv == m.from || pv == m.to
-                        ? bestDestinationBlock(phg, v).second
-                        : gainForNeighborInUninvolvedBlock(phg, v, pv, m);
+      const Gain gain = bestDestinationBlock(phg, v).second;
       vertexPQs[pv].adjustKey(v, gain);
+
+      // if pv == move.from or pv == move.to only the gains of move.from and move.to could change
+      // if these gains are better than vertexPQ[pv].keyOf(v), we could increase the key
+      // however, this is incorrect if this entry is for the target move.from or move.to.
+      // since we don't store this information (on purpose), we can't easily figure that out
     }
   }
 
