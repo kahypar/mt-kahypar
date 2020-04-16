@@ -52,11 +52,11 @@ public:
   void findMoves(PartitionedHypergraph& phg, const HypernodeID initialBorderNode, FMSharedData& sharedData, SearchID search_id) {
     this->thisSearch = search_id;
     reinitialize();
+    Move m;
     uint32_t movesWithNonPositiveGain = 0;
-    insertOrUpdatePQ(phg, initialBorderNode, sharedData.nodeTracker);
+    insertOrUpdatePQ(phg, initialBorderNode, sharedData.nodeTracker, m);
     updateBlock(phg, phg.partID(initialBorderNode));
 
-    Move m;
     while (movesWithNonPositiveGain < context.refinement.fm.max_number_of_fruitless_moves && findNextMove(phg, m)) {
       sharedData.nodeTracker.deactivateNode(m.node, thisSearch);
       deactivatedNodes.push_back(m.node);
@@ -102,7 +102,7 @@ public:
         for (HypernodeID v : phg.pins(e)) {
           if (!updateDeduplicator.contains(v)) {
             updateDeduplicator.insert(v);
-            insertOrUpdatePQ(phg, v, sharedData.nodeTracker);
+            insertOrUpdatePQ(phg, v, sharedData.nodeTracker, m);
           }
         }
       }
@@ -127,29 +127,35 @@ public:
     return std::make_pair(to, phg.moveFromBenefit(u, phg.partID(u)) - to_penalty);
   };
 
-  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
-  void insertOrUpdatePQ(PartitionedHypergraph& phg, HypernodeID u, NodeTracker& nt) {
-    SearchID searchOfU = nt.searchOfNode[u].load(std::memory_order_acq_rel);
-    // Note. Deactivated nodes have a special active search ID so that neither branch is executed
-    if (nt.isSearchInactive(searchOfU)) {
-      if (nt.searchOfNode[u].compare_exchange_strong(searchOfU, thisSearch, std::memory_order_acq_rel)) {
-        const PartitionID from = phg.partID(u);
-        auto [to, gain] = bestDestinationBlock(phg, u);
-        vertexPQs[from].insert(u, gain);  // blockPQ updates are done later, collectively.
-      }
-
-    } else if (searchOfU == thisSearch) {
-      const PartitionID from = phg.partID(u);
-      // TODO is this call to bestDestinationBlock(..) really necessary?
-      // it provides decent updates from other cores but seems somewhat expensive
-      // maybe do it infrequently
-      // can we prune updates?
-      // only gains to from and to part can change --> it makes sense to store the best destination block per vertex and update it
-      // or if phg.partID(u) == from/to part
-      auto [to, gain] = bestDestinationBlock(phg, u);
-      vertexPQs[from].adjustKey(u, gain);
+  Gain gainForNeighborInUninvolvedBlock(PartitionedHypergraph& phg, HypernodeID v, PartitionID pv, Move& m) {
+    Gain g = vertexPQs[pv].keyOf(v);
+    if (phg.partWeight(m.from) + phg.nodeWeight(v) <= max_part_weight) {
+      g = std::max(g, phg.km1Gain(v, pv, m.from));
     }
+    if (phg.partWeight(m.to) + phg.nodeWeight(v) <= max_part_weight) {
+      g = std::max(g, phg.km1Gain(v, pv, m.to));
+    }
+    return g;
+  }
 
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
+  void insertOrUpdatePQ(PartitionedHypergraph& phg, HypernodeID v, NodeTracker& nt, Move& m) {
+    SearchID searchOfV = nt.searchOfNode[v].load(std::memory_order_acq_rel);
+    // Note. Deactivated nodes have a special active search ID so that neither branch is executed
+    if (nt.isSearchInactive(searchOfV)) {
+      if (nt.searchOfNode[v].compare_exchange_strong(searchOfV, thisSearch, std::memory_order_acq_rel)) {
+        const PartitionID pv = phg.partID(v);
+        const Gain gain = bestDestinationBlock(phg, v).second;
+        vertexPQs[pv].insert(v, gain);  // blockPQ updates are done later, collectively.
+      }
+    } else if (searchOfV == thisSearch) {
+      const PartitionID pv = phg.partID(v);
+      assert(vertexPQs[pv].contains(v));
+      const Gain gain = pv == m.from || pv == m.to
+                        ? bestDestinationBlock(phg, v).second
+                        : gainForNeighborInUninvolvedBlock(phg, v, pv, m);
+      vertexPQs[pv].adjustKey(v, gain);
+    }
   }
 
   bool findNextMove(PartitionedHypergraph& phg, Move& m) {
