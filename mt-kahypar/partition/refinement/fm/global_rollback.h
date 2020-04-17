@@ -62,10 +62,18 @@ struct BestIndexReduceBody {
 };
 
 
-class GlobalRollBack {
+class GlobalRollback {
 public:
 
-  explicit GlobalRollBack(size_t numNodes) : gains(numNodes, 0) { }
+  explicit GlobalRollback(size_t numNodes, size_t numHyperedges, PartitionID numParts) :
+          numParts(numParts),
+          remaining_original_pins(numHyperedges * numParts),
+          first_move_in(numHyperedges * numParts),
+          last_move_out(numHyperedges * numParts),
+          gains(numNodes, 0)
+  {
+    resetStoredMoveIDs();
+  }
 
   HyperedgeWeight globalRollbackToBestPrefix(PartitionedHypergraph& phg, FMSharedData& sharedData) {
     recalculateGains(phg, sharedData);
@@ -76,14 +84,13 @@ public:
     tbb::parallel_reduce(tbb::blocked_range<MoveID>(0, numMoves), b, tbb::static_partitioner());
 
     const auto& move_order = sharedData.moveTracker.globalMoveOrder;
-    const PartitionID numParts = sharedData.numParts;
 
     // revert rejected moves
     tbb::parallel_for(b.best_index + 1, numMoves, [&](const MoveID moveID) {
       const Move& m = move_order[moveID];
       phg.changeNodePartFullUpdate(m.node, m.to, m.from, std::numeric_limits<HypernodeWeight>::max(), []{/* do nothing */});
       for (HyperedgeID e : phg.incidentEdges(m.node)) {
-        sharedData.remaining_original_pins[e * numParts + m.from].fetch_add(1, std::memory_order_relaxed);
+        remaining_original_pins[e * numParts + m.from].fetch_add(1, std::memory_order_relaxed);
       }
     });
 
@@ -91,13 +98,13 @@ public:
     tbb::parallel_for(MoveID(0), b.best_index + 1, [&](const MoveID moveID) {
       const PartitionID to = move_order[moveID].to;
       for (HyperedgeID e : phg.incidentEdges(move_order[moveID].node)) {
-        sharedData.remaining_original_pins[e * numParts + to].fetch_add(1, std::memory_order_relaxed);
+        remaining_original_pins[e * numParts + to].fetch_add(1, std::memory_order_relaxed);
       }
     });
-    ASSERT(sharedData.remaining_original_pins == phg.getPinCountInPartVector());
+    HEAVY_REFINEMENT_ASSERT(remaining_original_pins == phg.getPinCountInPartVector());
 
     if (sharedData.moveTracker.reset()) {
-      sharedData.resetStoredMoveIDs();
+      resetStoredMoveIDs();
     }
 
     return b.best_sum;
@@ -105,30 +112,97 @@ public:
 
 
   void recalculateGains(PartitionedHypergraph& phg, FMSharedData& sharedData) {
-    const auto& move_order = sharedData.moveTracker.globalMoveOrder;
-    const MoveID firstMoveID = sharedData.moveTracker.firstMoveID;
+    const vec<Move>& move_order = sharedData.moveTracker.globalMoveOrder;
+    MoveID firstMoveID = sharedData.moveTracker.firstMoveID;
 
+    // since we can do the flagging this late, maybe there are some more optimizations we can do
     tbb::parallel_for(0U, sharedData.moveTracker.numPerformedMoves(), [&](MoveID localMoveID) {
+      const Move& m = move_order[localMoveID];
+      const MoveID globalMoveID = localMoveID + firstMoveID;
+
+      for (HyperedgeID e : phg.incidentEdges(m.node)) {
+        CAtomic<MoveID>& fmi = first_move_in[e * numParts + m.to];
+        MoveID expected = fmi.load(std::memory_order_acq_rel);
+        while ((sharedData.moveTracker.isIDStale(expected) || expected > globalMoveID)
+               && !fmi.compare_exchange_weak(expected, globalMoveID, std::memory_order_acq_rel)) { }
+
+        // update last move out
+        CAtomic<MoveID>& lmo = last_move_out[e * numParts + m.from];
+        expected = lmo.load(std::memory_order_acq_rel);
+        while (expected < globalMoveID && !lmo.compare_exchange_weak(expected, globalMoveID, std::memory_order_acq_rel)) { }
+
+        remaining_original_pins[e * numParts + m.from].fetch_sub(1, std::memory_order_relaxed);
+      }
+    });
+
+    //tbb::parallel_for(0U, sharedData.moveTracker.numPerformedMoves(), [&](MoveID localMoveID) {
+    for (MoveID localMoveID = 0; localMoveID < sharedData.moveTracker.numPerformedMoves(); ++localMoveID) {
       MoveID moveID = firstMoveID + localMoveID;
       Gain gain = 0;
       const Move& m = move_order[localMoveID];
       const HypernodeID u = m.node;
       for (HyperedgeID e : phg.incidentEdges(u)) {
-        const MoveID firstInFrom = sharedData.firstMoveIn(e, m.from);
-        if (sharedData.remainingPinsFromBeginningOfMovePhase(e, m.from) == 0  && sharedData.lastMoveOut(e, m.from) == moveID
+        const MoveID firstInFrom = firstMoveIn(e, m.from);
+        if (remainingPinsFromBeginningOfMovePhase(e, m.from) == 0  && lastMoveOut(e, m.from) == moveID
             && (firstInFrom > moveID || firstInFrom < firstMoveID)) {
           gain += phg.edgeWeight(e);
         }
 
-        const MoveID lastOutTo = sharedData.lastMoveOut(e, m.to);
-        if (sharedData.remainingPinsFromBeginningOfMovePhase(e, m.to) == 0 && sharedData.firstMoveIn(e, m.to) == moveID
+        const MoveID lastOutTo = lastMoveOut(e, m.to);
+        if (remainingPinsFromBeginningOfMovePhase(e, m.to) == 0 && firstMoveIn(e, m.to) == moveID
             && lastOutTo >= firstMoveID && lastOutTo < moveID) {
           gain -= phg.edgeWeight(e);
         }
       }
       gains[localMoveID] = gain;
-    });
+      if (gain != move_order[localMoveID].gain) {
+        LOG << V(u) << V(phg.nodeDegree(u)) << V(gain) << V(move_order[localMoveID].gain);
+      }
+    }
+    //);
   }
+
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
+  void performHyperedgeSpecificMoveUpdates(const Move& m, MoveID move_id, HyperedgeID e) {
+    // update first move in
+
+  }
+
+
+  MoveID lastMoveOut(HyperedgeID he, PartitionID block) const {
+    return last_move_out[he * numParts + block].load(std::memory_order_relaxed);
+  }
+
+  MoveID firstMoveIn(HyperedgeID he, PartitionID block) const {
+    return first_move_in[he * numParts + block].load(std::memory_order_relaxed);
+  }
+
+
+  HypernodeID remainingPinsFromBeginningOfMovePhase(HyperedgeID he, PartitionID block) const {
+    return remaining_original_pins[he * numParts + block].load(std::memory_order_relaxed);
+  }
+
+  void resetStoredMoveIDs() {
+    for (auto &x : last_move_out)
+      x.store(0, std::memory_order_relaxed);
+    for (auto &x : first_move_in)
+      x.store(0, std::memory_order_relaxed);
+  }
+
+  void setRemainingOriginalPins(PartitionedHypergraph& phg) {
+    assert(remaining_original_pins.size() == phg.getPinCountInPartVector().size());
+    size_t n = phg.getPinCountInPartVector().size();
+    std::copy_n(phg.getPinCountInPartVector().begin(), n, remaining_original_pins.begin());
+  }
+
+
+
+  PartitionID numParts;
+
+  // ! For each hyperedge and block, the number of pins_in_part at the beginning of a move phase minus the number of moved out pins
+  vec<CAtomic<HypernodeID>> remaining_original_pins;
+  // ! For each hyperedge and each block, the ID of the first move to place a pin in that block / the last move to remove a pin from that block
+  vec<CAtomic<MoveID>> first_move_in, last_move_out;
 
   vec<Gain> gains;
 

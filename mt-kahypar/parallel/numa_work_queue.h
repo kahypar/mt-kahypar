@@ -123,6 +123,10 @@ public:
     return tryPop(dest, socket);
   }
 
+  void clear() {
+    for (auto& q : queues) q.clear();
+  }
+
   size_t unsafe_size() const {
     size_t s = 0;
     for (size_t i = 0; i < queues.size(); ++i) s += queues[i].unsafe_size();

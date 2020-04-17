@@ -56,18 +56,23 @@ public:
     updateBlock(phg, phg.partID(initialBorderNode));
 
     Move m;
-    uint32_t movesWithNonPositiveGain = 0;
-    while (movesWithNonPositiveGain < context.refinement.fm.max_number_of_fruitless_moves && findNextMove(phg, m)) {
+    uint32_t consecutiveMovesWithNonPositiveGain = 0;
+    Gain estimated_improvement = 0;
+    while (consecutiveMovesWithNonPositiveGain < context.refinement.fm.max_number_of_fruitless_moves && findNextMove(phg, m)) {
+      //LOG << "found move" << V(m.node) << V(m.from) << V(m.to) << V(m.gain);
       sharedData.nodeTracker.deactivateNode(m.node, thisSearch);
       deactivatedNodes.push_back(m.node);
       MoveID move_id = 0;
       const bool moved = phg.changeNodePartFullUpdate(m.node, m.from, m.to, max_part_weight, [&] { move_id = sharedData.moveTracker.insertMove(m); });
       if (moved) {
         updateAfterSuccessfulMove(phg, sharedData, m, move_id);
-        movesWithNonPositiveGain = m.gain > 0 ? 0 : movesWithNonPositiveGain + 1;
+        consecutiveMovesWithNonPositiveGain = m.gain > 0 ? 0 : consecutiveMovesWithNonPositiveGain + 1;
+        estimated_improvement += m.gain;
       }
       updateAfterMoveExtraction(phg, m);
     }
+    LOG << "finish localized FM phase on" << V(initialBorderNode)
+        << V(consecutiveMovesWithNonPositiveGain) << V(context.refinement.fm.max_number_of_fruitless_moves) << V(estimated_improvement);
   }
 
   void updateBlock(PartitionedHypergraph& phg, PartitionID i) {
@@ -96,8 +101,6 @@ public:
   void updateAfterSuccessfulMove(PartitionedHypergraph& phg, FMSharedData& sharedData, Move& m, MoveID move_id) {
     const HypernodeID u = m.node;
     for (HyperedgeID e : phg.incidentEdges(u)) {
-      sharedData.performHyperedgeSpecificMoveUpdates(m, move_id, e);
-      // activate neighbors of u and update their gains
       if (true || phg.edgeSize(e) < context.partition.hyperedge_size_threshold) {
         for (HypernodeID v : phg.pins(e)) {
           if (!updateDeduplicator.contains(v)) {
@@ -142,7 +145,6 @@ public:
       assert(vertexPQs[pv].contains(v));
       const Gain gain = bestDestinationBlock(phg, v).second;
       vertexPQs[pv].adjustKey(v, gain);
-
       // if pv == move.from or pv == move.to only the gains of move.from and move.to could change
       // if these gains are better than vertexPQ[pv].keyOf(v), we could increase the key
       // however, this is incorrect if this entry is for the target move.from or move.to.

@@ -42,7 +42,7 @@ public:
           taskGroupID(taskGroupID),
           sharedData(numNodes, numHyperedges, context.partition.k, context.shared_memory.num_threads),
           refinementNodes(numNodes),
-          globalRollBack(numNodes),
+          globalRollback(numNodes, numHyperedges, context.partition.k),
           ets_fm(context, numNodes, &sharedData.vertexPQHandles)
   { }
 
@@ -50,7 +50,7 @@ public:
   bool refine(PartitionedHypergraph& phg) {
     // initialization only as long as LP refiner does not use these datastructures
     phg.initializeGainInformation();
-    sharedData.setRemainingOriginalPins(phg);
+    globalRollback.setRemainingOriginalPins(phg);
     //sharedData.partition_weight_budgets.initialize(phg, context.partition.max_part_weights);          // only for version with budgets
 
     bool overall_improved = false;
@@ -61,13 +61,20 @@ public:
         unused(socket_local_task_id); unused(task_id);
         HypernodeID u = std::numeric_limits<HypernodeID>::max();
         LocalizedKWayFM& fm = ets_fm.local();
-        while (refinementNodes.tryPop(u, socket) && sharedData.nodeTracker.canNodeStartNewSearch(u)) {
-          fm.findMoves(phg, u, sharedData, ++sharedData.nodeTracker.highestActiveSearchID);
+        LOG << "start new task";
+        while (refinementNodes.tryPop(u, socket)) {
+          if (sharedData.nodeTracker.canNodeStartNewSearch(u)) {
+            fm.findMoves(phg, u, sharedData, ++sharedData.nodeTracker.highestActiveSearchID);
+          }
         }
       };
-      TBBNumaArena::instance().run_max_concurrency_tasks_on_all_sockets(taskGroupID, task);
+      //TBBNumaArena::instance().run_max_concurrency_tasks_on_all_sockets(taskGroupID, task);
+      task(0, 0, 0);
+      refinementNodes.clear();  // calling clear is necessary since tryPop will reduce the size to -(num calling threads)
 
-      HyperedgeWeight improvement = globalRollBack.globalRollbackToBestPrefix(phg, sharedData);
+      LOG << "Done. start rollback";
+      HyperedgeWeight improvement = globalRollback.globalRollbackToBestPrefix(phg, sharedData);
+      LOG << "Rollback done. " << V(improvement);
 
       if (improvement > 0) {
         overall_improved = true;
@@ -82,8 +89,6 @@ public:
   }
 
   void initialize(PartitionedHypergraph& phg) {
-    assert(refinementNodes.empty());
-
     // TODO: another special value for search IDs instead of manual reset.
     // if that doesn't work, reset can still be parallelized...
     for (LocalizedKWayFM& local_fm : ets_fm) {
@@ -108,13 +113,13 @@ public:
     }
 
   }
-protected:
+//protected:
 
   const Context& context;
   const TaskGroupID taskGroupID;
   FMSharedData sharedData;
   NumaWorkQueue<HypernodeID> refinementNodes;
-  GlobalRollBack globalRollBack;
+  GlobalRollback globalRollback;
   tbb::enumerable_thread_specific<LocalizedKWayFM> ets_fm;
 };
 

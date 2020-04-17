@@ -120,11 +120,6 @@ struct FMSharedData {
 
   //PartitionWeightBudgets partition_weight_budgets;
 
-  // ! For each hyperedge and block, the number of pins_in_part at the beginning of a move phase minus the number of moved out pins
-  vec<CAtomic<HypernodeID>> remaining_original_pins;
-
-  // ! For each hyperedge and each block, the ID of the first move to place a pin in that block / the last move to remove a pin from that block
-  vec<CAtomic<MoveID>> first_move_in, last_move_out;
 
   vec<PosT> vertexPQHandles;
 
@@ -136,16 +131,12 @@ struct FMSharedData {
 
   FMSharedData(size_t numNodes = 0, size_t numHyperedges = 0, PartitionID numParts = 0, size_t maxNumThreads = 0) :
           //partition_weight_budgets(static_cast<size_t>(numParts), maxNumThreads),
-          remaining_original_pins(numHyperedges * numParts),
-          first_move_in(numHyperedges * numParts),
-          last_move_out(numHyperedges * numParts),
           vertexPQHandles(numNodes, invalid_position),
           numParts(numParts),
           moveTracker(numNodes),
           nodeTracker(numNodes)
   {
     unused(maxNumThreads);
-    resetStoredMoveIDs();
   }
 
   /*
@@ -158,50 +149,6 @@ struct FMSharedData {
   }
   */
 
-  MoveID lastMoveOut(HyperedgeID he, PartitionID block) const {
-    return last_move_out[he * numParts + block].load(std::memory_order_relaxed);
-  }
-
-  MoveID firstMoveIn(HyperedgeID he, PartitionID block) const {
-    return first_move_in[he * numParts + block].load(std::memory_order_relaxed);
-  }
-
-  bool isPartUnremovableFromHyperedge(HyperedgeID he, PartitionID block) const {
-    return !moveTracker.isIDStale(firstMoveIn(he, block));
-  }
-
-  HypernodeID remainingPinsFromBeginningOfMovePhase(HyperedgeID he, PartitionID block) const {
-    return remaining_original_pins[he * numParts + block].load(std::memory_order_relaxed);
-  }
-
-  void resetStoredMoveIDs() {
-    for (auto &x : last_move_out)
-      x.store(0, std::memory_order_relaxed);
-    for (auto &x : first_move_in)
-      x.store(0, std::memory_order_relaxed);
-  }
-
-  void setRemainingOriginalPins(PartitionedHypergraph& phg) {
-    assert(remaining_original_pins.size() == phg.getPinCountInPartVector().size());
-    size_t n = phg.getPinCountInPartVector().size();
-    std::copy_n(phg.getPinCountInPartVector().begin(), n, remaining_original_pins.begin());
-  }
-
-  void performHyperedgeSpecificMoveUpdates(Move& m, MoveID move_id, HyperedgeID e) {
-    // TODO more pruning!
-    // update first move in
-    CAtomic<MoveID>& fmi = first_move_in[e * numParts + m.to];
-    MoveID expected = fmi.load(std::memory_order_acq_rel);
-    while ((moveTracker.isIDStale(expected) || expected > move_id)
-           && !fmi.compare_exchange_weak(expected, move_id, std::memory_order_acq_rel)) { }
-
-    // update last move out
-    CAtomic<MoveID>& lmo = last_move_out[e * numParts + m.from];
-    expected = lmo.load(std::memory_order_acq_rel);
-    while (expected < move_id && !lmo.compare_exchange_weak(expected, move_id, std::memory_order_acq_rel)) { }
-
-    remaining_original_pins[e * numParts + m.from].fetch_sub(1, std::memory_order_relaxed);
-  }
 };
 
 }

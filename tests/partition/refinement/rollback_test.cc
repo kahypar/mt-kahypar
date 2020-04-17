@@ -121,7 +121,7 @@ TEST(RollbackTests, GainRecalculationAndRollsbackCorrectly) {
   ASSERT_EQ(1, phg.km1Gain(3, 0, 1));
   performMove({0, 1,  3,  1});
 
-  GlobalRollBack grb(hg.initialNumNodes());
+  GlobalRollback grb(hg.initialNumNodes());
   grb.recalculateGains(phg, sharedData);
   for (MoveID round_local_move_id = 0; round_local_move_id < 4; ++round_local_move_id) {
     ASSERT_EQ(sharedData.moveTracker.globalMoveOrder[round_local_move_id].gain, grb.gains[round_local_move_id]);
@@ -177,7 +177,7 @@ TEST(RollbackTests, GainRecalculation2) {
   performUpdates(move_0);
   performUpdates(move_2);
 
-  GlobalRollBack grb(hg.initialNumNodes());
+  GlobalRollback grb(hg.initialNumNodes());
   grb.recalculateGains(phg, sharedData);
   for (MoveID round_local_move_id = 0; round_local_move_id < sharedData.moveTracker.numPerformedMoves(); ++round_local_move_id) {
     ASSERT_EQ(grb.gains[round_local_move_id], expected_gains[round_local_move_id]);
