@@ -401,6 +401,14 @@ private:
     return move_to_penalty[common::get_local_position_of_vertex(u) * _k + p].load(std::memory_order_relaxed);
   }
 
+  HypernodeID pinCountInPartRecomputed(const HyperedgeID e, PartitionID p) const {
+    HypernodeID pcip = 0;
+    for (HypernodeID u : pins(e))
+      if (partID(u) == p)
+        pcip++;
+    return pcip;
+  }
+
   HyperedgeWeight moveFromBenefitRecomputed(const HypernodeID u, PartitionID p) const {
     HyperedgeWeight w = 0;
     for (HyperedgeID e : incidentEdges(u))
@@ -415,6 +423,23 @@ private:
       if (pinCountInPart(e, p) == 0)
         w += edgeWeight(e);
     return w;
+  }
+
+  bool checkTrackedPartitionInformation() {
+    for (HyperedgeID e : edges()) {
+      for (PartitionID i = 0; i < k(); ++i) {
+        assert(pinCountInPart(e, i) == pinCountInPartRecomputed(e, i));
+      }
+    }
+    for (HypernodeID u : nodes()) {
+      for (PartitionID i = 0; i < k(); ++i) {
+        if (partID(u) != i) {
+          assert(moveFromBenefit(u, i) == moveFromBenefitRecomputed(u, i));
+          assert(moveToPenalty(u, i) == moveToPenaltyRecomputed(u, i));
+        }
+      }
+    }
+    return true;
   }
 
   HyperedgeWeight km1Gain(const HypernodeID u, PartitionID from, PartitionID to) const {
