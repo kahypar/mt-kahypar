@@ -129,7 +129,7 @@ struct FMSharedData {
 
   NodeTracker nodeTracker;
 
-  FMSharedData(size_t numNodes = 0, size_t numHyperedges = 0, PartitionID numParts = 0, size_t maxNumThreads = 0) :
+  FMSharedData(size_t numNodes = 0, PartitionID numParts = 0, size_t maxNumThreads = 0) :
           //partition_weight_budgets(static_cast<size_t>(numParts), maxNumThreads),
           vertexPQHandles(numNodes, invalid_position),
           numParts(numParts),

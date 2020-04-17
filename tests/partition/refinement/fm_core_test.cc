@@ -48,7 +48,7 @@ public:
     }
     phg.initializeGainInformation();
 
-    sharedData = FMSharedData(hg.initialNumNodes(), hg.initialNumEdges(), k, 4);
+    sharedData = FMSharedData(hg.initialNumNodes(), k, 4);
 
     context.partition.k = k;
     context.partition.epsilon = 0.03;

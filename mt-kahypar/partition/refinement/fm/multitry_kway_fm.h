@@ -40,7 +40,7 @@ public:
   MultiTryKWayFM(const Context& context, TaskGroupID taskGroupID, size_t numNodes, size_t numHyperedges) :
           context(context),
           taskGroupID(taskGroupID),
-          sharedData(numNodes, numHyperedges, context.partition.k, context.shared_memory.num_threads),
+          sharedData(numNodes, context.partition.k, context.shared_memory.num_threads),
           refinementNodes(numNodes),
           globalRollback(numNodes, numHyperedges, context.partition.k),
           ets_fm(context, numNodes, &sharedData.vertexPQHandles)
@@ -48,9 +48,8 @@ public:
 
 
   bool refine(PartitionedHypergraph& phg) {
-    // initialization only as long as LP refiner does not use these datastructures
-    phg.initializeGainInformation();
-    globalRollback.setRemainingOriginalPins(phg);
+    phg.initializeGainInformation();                // initialization only as long as LP refiner does not use these datastructures
+    globalRollback.setRemainingOriginalPins(phg);   // initialization only as long as LP refiner does not use these datastructures
     //sharedData.partition_weight_budgets.initialize(phg, context.partition.max_part_weights);          // only for version with budgets
 
     bool overall_improved = false;

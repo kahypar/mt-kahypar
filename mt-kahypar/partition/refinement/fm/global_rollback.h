@@ -80,8 +80,7 @@ public:
 
     const MoveID numMoves = sharedData.moveTracker.numPerformedMoves();
     BestIndexReduceBody b(gains);
-    // find best index
-    tbb::parallel_reduce(tbb::blocked_range<MoveID>(0, numMoves), b, tbb::static_partitioner());
+    tbb::parallel_reduce(tbb::blocked_range<MoveID>(0, numMoves), b, tbb::static_partitioner()); // find best index
 
     const auto& move_order = sharedData.moveTracker.globalMoveOrder;
 
@@ -101,17 +100,19 @@ public:
         remaining_original_pins[e * numParts + to].fetch_add(1, std::memory_order_relaxed);
       }
     });
-    HEAVY_REFINEMENT_ASSERT(remaining_original_pins == phg.getPinCountInPartVector());
 
     if (sharedData.moveTracker.reset()) {
       resetStoredMoveIDs();
     }
 
+    HEAVY_REFINEMENT_ASSERT(remaining_original_pins == phg.getPinCountInPartVector());
+    HEAVY_REFINEMENT_ASSERT(phg.checkTrackedPartitionInformation());
     return b.best_sum;
   }
 
 
   void recalculateGains(PartitionedHypergraph& phg, FMSharedData& sharedData) {
+    HEAVY_REFINEMENT_ASSERT(phg.checkTrackedPartitionInformation());
     const vec<Move>& move_order = sharedData.moveTracker.globalMoveOrder;
     MoveID firstMoveID = sharedData.moveTracker.firstMoveID;
 
@@ -162,11 +163,7 @@ public:
     //);
   }
 
-  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
-  void performHyperedgeSpecificMoveUpdates(const Move& m, MoveID move_id, HyperedgeID e) {
-    // update first move in
 
-  }
 
 
   MoveID lastMoveOut(HyperedgeID he, PartitionID block) const {

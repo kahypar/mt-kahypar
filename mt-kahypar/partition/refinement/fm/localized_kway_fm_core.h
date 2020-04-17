@@ -62,10 +62,9 @@ public:
       //LOG << "found move" << V(m.node) << V(m.from) << V(m.to) << V(m.gain);
       sharedData.nodeTracker.deactivateNode(m.node, thisSearch);
       deactivatedNodes.push_back(m.node);
-      MoveID move_id = 0;
-      const bool moved = phg.changeNodePartFullUpdate(m.node, m.from, m.to, max_part_weight, [&] { move_id = sharedData.moveTracker.insertMove(m); });
+      const bool moved = phg.changeNodePartFullUpdate(m.node, m.from, m.to, max_part_weight, [&] { sharedData.moveTracker.insertMove(m); });
       if (moved) {
-        updateAfterSuccessfulMove(phg, sharedData, m, move_id);
+        updateAfterSuccessfulMove(phg, sharedData, m);
         consecutiveMovesWithNonPositiveGain = m.gain > 0 ? 0 : consecutiveMovesWithNonPositiveGain + 1;
         estimated_improvement += m.gain;
       }
@@ -98,7 +97,7 @@ public:
     updateDeduplicator.clear();
   }
 
-  void updateAfterSuccessfulMove(PartitionedHypergraph& phg, FMSharedData& sharedData, Move& m, MoveID move_id) {
+  void updateAfterSuccessfulMove(PartitionedHypergraph& phg, FMSharedData& sharedData, Move& m) {
     const HypernodeID u = m.node;
     for (HyperedgeID e : phg.incidentEdges(u)) {
       if (true || phg.edgeSize(e) < context.partition.hyperedge_size_threshold) {
