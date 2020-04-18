@@ -168,13 +168,13 @@ public:
     for (MoveID localMoveID = 0; localMoveID < sharedData.moveTracker.numPerformedMoves(); ++localMoveID) {
       const Move& m = sharedData.moveTracker.globalMoveOrder[localMoveID];
       const Gain estimated_gain = phg.km1Gain(m.node, m.from, m.to);
-      assert(estimated_gain == gains[localMoveID]);
       if (tbb::this_task_arena::max_concurrency() == 1) {
         assert(estimated_gain == m.gain);
       }
       const HyperedgeWeight km1_before_move = metrics::km1(phg, false);
       phg.changeNodePartFullUpdate(m.node, m.from, m.to, std::numeric_limits<HypernodeWeight>::max(), []{});
       assert(metrics::km1(phg, false) + estimated_gain == km1_before_move);
+      assert(estimated_gain == gains[localMoveID]);
     }
 #endif
   }
