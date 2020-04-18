@@ -136,8 +136,7 @@ public:
       }
     });
 
-    //tbb::parallel_for(0U, sharedData.moveTracker.numPerformedMoves(), [&](MoveID localMoveID) {
-    for (MoveID localMoveID = 0; localMoveID < sharedData.moveTracker.numPerformedMoves(); ++localMoveID) {
+    tbb::parallel_for(0U, sharedData.moveTracker.numPerformedMoves(), [&](MoveID localMoveID) {
       MoveID moveID = firstMoveID + localMoveID;
       Gain gain = 0;
       const Move& m = move_order[localMoveID];
@@ -156,11 +155,28 @@ public:
         }
       }
       gains[localMoveID] = gain;
-      if (gain != move_order[localMoveID].gain) {
-        LOG << V(u) << V(phg.nodeDegree(u)) << V(gain) << V(move_order[localMoveID].gain);
-      }
+    });
+
+
+#ifndef NDEBUG
+    // recheck all gains
+    for (MoveID localMoveID = 0; localMoveID < sharedData.moveTracker.numPerformedMoves(); ++localMoveID) {
+      const Move& m = sharedData.moveTracker.globalMoveOrder[localMoveID];
+      phg.changeNodePartFullUpdate(m.node, m.to, m.from, std::numeric_limits<HypernodeWeight>::max(), []{});
     }
-    //);
+
+    for (MoveID localMoveID = 0; localMoveID < sharedData.moveTracker.numPerformedMoves(); ++localMoveID) {
+      const Move& m = sharedData.moveTracker.globalMoveOrder[localMoveID];
+      const Gain estimated_gain = phg.km1Gain(m.node, m.from, m.to);
+      assert(estimated_gain == gains[localMoveID]);
+      if (tbb::this_task_arena::max_concurrency() == 1) {
+        assert(estimated_gain == m.gain);
+      }
+      const HyperedgeWeight km1_before_move = metrics::km1(phg, false);
+      phg.changeNodePartFullUpdate(m.node, m.from, m.to, std::numeric_limits<HypernodeWeight>::max(), []{});
+      assert(metrics::km1(phg, false) + estimated_gain == km1_before_move);
+    }
+#endif
   }
 
 
