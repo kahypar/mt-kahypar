@@ -117,7 +117,6 @@ public:
     const vec<Move>& move_order = sharedData.moveTracker.globalMoveOrder;
     MoveID firstMoveID = sharedData.moveTracker.firstMoveID;
 
-    // since we can do the flagging this late, maybe there are some more optimizations we can do
     tbb::parallel_for(0U, sharedData.moveTracker.numPerformedMoves(), [&](MoveID localMoveID) {
       const Move& m = move_order[localMoveID];
       const MoveID globalMoveID = localMoveID + firstMoveID;
@@ -128,7 +127,6 @@ public:
         while ((sharedData.moveTracker.isIDStale(expected) || expected > globalMoveID)
                && !fmi.compare_exchange_weak(expected, globalMoveID, std::memory_order_acq_rel)) { }
 
-        // update last move out
         CAtomic<MoveID>& lmo = last_move_out[e * numParts + m.from];
         expected = lmo.load(std::memory_order_acq_rel);
         while (expected < globalMoveID && !lmo.compare_exchange_weak(expected, globalMoveID, std::memory_order_acq_rel)) { }
