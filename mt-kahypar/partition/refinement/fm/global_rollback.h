@@ -21,6 +21,7 @@
 #pragma once
 
 #include <atomic>
+#include <mt-kahypar/partition/metrics.h>
 
 #include "fm_commons.h"
 
