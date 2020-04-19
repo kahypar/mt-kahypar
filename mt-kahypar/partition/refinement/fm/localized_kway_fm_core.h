@@ -207,7 +207,6 @@ private:
 
 public:
   vec<Move> localMoves;
-  vec<HypernodeID> deactivatedNodes;
 };
 
 }
