@@ -70,8 +70,6 @@ public:
       }
       updateAfterMoveExtraction(phg, m);
     }
-    LOG << "finish localized FM phase on" << V(initialBorderNode)
-        << V(consecutiveMovesWithNonPositiveGain) << V(context.refinement.fm.max_number_of_fruitless_moves) << V(estimated_improvement);
   }
 
   void updateBlock(PartitionedHypergraph& phg, PartitionID i) {
