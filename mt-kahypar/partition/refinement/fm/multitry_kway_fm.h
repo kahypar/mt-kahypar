@@ -84,22 +84,16 @@ public:
   }
 
   void initialize(PartitionedHypergraph& phg) {
-    // TODO: another special value for search IDs instead of manual reset.
-    // if that doesn't work, reset can still be parallelized...
-    for (LocalizedKWayFM& local_fm : ets_fm) {
-      for (HypernodeID u : local_fm.deactivatedNodes) {
-        sharedData.nodeTracker.activateNode(u);
-      }
-      local_fm.deactivatedNodes.clear();
-    }
-
     // insert border nodes into work queues
+    refinementNodes.clear();
     tbb::parallel_for(HypernodeID(0), phg.initialNumNodes(), [&](const HypernodeID u) {
       if (phg.isBorderNode(u)) {
         refinementNodes.push(u, common::get_numa_node_of_vertex(u));
       }
     });
 
+    // requesting new searches activates all nodes by raising the deactivated node marker
+    // also clears the array tracking search IDs in case of overflow
     sharedData.nodeTracker.requestNewSearches(static_cast<SearchID>(refinementNodes.unsafe_size()));
 
     // shuffle work queues if requested

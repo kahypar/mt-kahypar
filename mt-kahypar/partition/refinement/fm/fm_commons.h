@@ -75,8 +75,7 @@ struct GlobalMoveTracker {
 struct NodeTracker {
   vec<std::atomic<SearchID>> searchOfNode;
 
-  static constexpr SearchID deactivatedNodeMarker = std::numeric_limits<SearchID>::max();
-  SearchID lowestActiveSearchID = 1;
+  SearchID deactivatedNodeMarker = 0;
   CAtomic<SearchID> highestActiveSearchID { 0 };
 
   explicit NodeTracker(size_t numNodes) : searchOfNode(numNodes) {
@@ -97,7 +96,7 @@ struct NodeTracker {
   }
 
   bool isSearchInactive(SearchID search_id) const {
-    return search_id < lowestActiveSearchID;
+    return search_id < deactivatedNodeMarker;
   }
 
   bool canNodeStartNewSearch(HypernodeID u) const {
@@ -111,7 +110,7 @@ struct NodeTracker {
       }
       highestActiveSearchID.store(0, std::memory_order_relaxed);
     }
-    lowestActiveSearchID = highestActiveSearchID + 1;
+    deactivatedNodeMarker = ++highestActiveSearchID;
   }
 };
 
