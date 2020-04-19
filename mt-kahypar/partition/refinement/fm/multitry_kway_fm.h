@@ -60,7 +60,6 @@ public:
         unused(socket_local_task_id); unused(task_id);
         HypernodeID u = std::numeric_limits<HypernodeID>::max();
         LocalizedKWayFM& fm = ets_fm.local();
-        LOG << "start new task";
         while (refinementNodes.tryPop(u, socket)) {
           if (sharedData.nodeTracker.canNodeStartNewSearch(u)) {
             fm.findMoves(phg, u, sharedData, ++sharedData.nodeTracker.highestActiveSearchID);
@@ -70,9 +69,7 @@ public:
       TBBNumaArena::instance().run_max_concurrency_tasks_on_all_sockets(taskGroupID, task);
       refinementNodes.clear();  // calling clear is necessary since tryPop will reduce the size to -(num calling threads)
 
-      LOG << "Done. start rollback";
       HyperedgeWeight improvement = globalRollback.globalRollbackToBestPrefix(phg, sharedData);
-      LOG << "Rollback done. " << V(improvement);
 
       if (improvement > 0) {
         overall_improved = true;
