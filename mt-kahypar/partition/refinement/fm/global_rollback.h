@@ -167,6 +167,8 @@ public:
     for (MoveID localMoveID = 0; localMoveID < sharedData.moveTracker.numPerformedMoves(); ++localMoveID) {
       const Move& m = sharedData.moveTracker.globalMoveOrder[localMoveID];
       const Gain estimated_gain = phg.km1Gain(m.node, m.from, m.to);
+      assert(phg.moveFromBenefit(m.node, m.from) == phg.moveFromBenefitRecomputed(m.node, m.from));
+      assert(phg.moveToPenalty(m.node, m.to) == phg.moveToPenaltyRecomputed(m.node, m.to));
       if (tbb::this_task_arena::max_concurrency() == 1) {
         assert(estimated_gain == m.gain);
       }
