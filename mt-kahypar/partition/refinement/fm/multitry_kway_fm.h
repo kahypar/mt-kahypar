@@ -67,8 +67,7 @@ public:
           }
         }
       };
-      //TBBNumaArena::instance().run_max_concurrency_tasks_on_all_sockets(taskGroupID, task);
-      task(0, 0, 0);
+      TBBNumaArena::instance().run_max_concurrency_tasks_on_all_sockets(taskGroupID, task);
       refinementNodes.clear();  // calling clear is necessary since tryPop will reduce the size to -(num calling threads)
 
       LOG << "Done. start rollback";
