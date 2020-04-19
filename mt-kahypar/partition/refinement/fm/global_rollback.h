@@ -136,20 +136,18 @@ public:
     });
 
     tbb::parallel_for(0U, sharedData.moveTracker.numPerformedMoves(), [&](MoveID localMoveID) {
-      MoveID moveID = firstMoveID + localMoveID;
+      MoveID globalMoveID = firstMoveID + localMoveID;
       Gain gain = 0;
       const Move& m = move_order[localMoveID];
-      const HypernodeID u = m.node;
-      for (HyperedgeID e : phg.incidentEdges(u)) {
+      for (HyperedgeID e : phg.incidentEdges(m.node)) {
         const MoveID firstInFrom = firstMoveIn(e, m.from);
-        if (remainingPinsFromBeginningOfMovePhase(e, m.from) == 0  && lastMoveOut(e, m.from) == moveID
-            && (firstInFrom > moveID || firstInFrom < firstMoveID)) {
+        if (remainingPinsFromBeginningOfMovePhase(e, m.from) == 0  && lastMoveOut(e, m.from) == globalMoveID
+            && (firstInFrom > globalMoveID || firstInFrom < firstMoveID)) {
           gain += phg.edgeWeight(e);
         }
 
         const MoveID lastOutTo = lastMoveOut(e, m.to);
-        if (remainingPinsFromBeginningOfMovePhase(e, m.to) == 0 && firstMoveIn(e, m.to) == moveID
-            && lastOutTo >= firstMoveID && lastOutTo < moveID) {
+        if (remainingPinsFromBeginningOfMovePhase(e, m.to) == 0 && firstMoveIn(e, m.to) == globalMoveID && lastOutTo < globalMoveID) {
           gain -= phg.edgeWeight(e);
         }
       }
