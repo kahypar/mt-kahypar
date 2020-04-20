@@ -442,6 +442,8 @@ class StaticHypergraph {
     parallel::scalable_vector<size_t> valid_hyperedges;
   };
 
+
+ public:
   // Contains buffers that are needed during graph construction and contraction.
   // Struct is constructed on top level hypergraph and passed to each graph during
   // preprocessing.
@@ -449,20 +451,27 @@ class StaticHypergraph {
 
     explicit TmpGraphBuffer(const HypernodeID num_hypernodes,
                             const HyperedgeID num_hyperedges,
-                            const HyperedgeID num_pins) :
+                            const HyperedgeID num_pins,
+                            const bool is_graph) :
       is_initialized(false) {
+      const size_t num_nodes = num_hypernodes + (is_graph ? 0 : num_hyperedges);
+      const size_t num_edges = is_graph ? num_pins : (2UL * num_pins);
       tbb::parallel_invoke([&] {
-        indices.resize(num_hypernodes + num_hyperedges + 1);
+        indices.resize(num_nodes + 1);
       }, [&] {
-        tmp_indices.resize(num_hypernodes + num_hyperedges + 1);
+        tmp_indices.assign(num_nodes + 1, parallel::IntegralAtomicWrapper<size_t>(0));
       }, [&] {
-        arcs.resize(2 * num_pins);
+        tmp_pos.assign(num_nodes, parallel::IntegralAtomicWrapper<size_t>(0));
       }, [&] {
-        tmp_arcs.resize(2 * num_pins);
+        arcs.resize(num_edges);
       }, [&] {
-        node_volumes.resize(num_hypernodes + num_hyperedges + 1);
+        tmp_arcs.resize(num_edges);
       }, [&] {
-        tmp_node_volumes.resize(num_hypernodes + num_hyperedges + 1);
+        valid_arcs.resize(num_edges);
+      }, [&] {
+        node_volumes.resize(num_nodes);
+      }, [&] {
+        tmp_node_volumes.resize(num_nodes);
       });
       is_initialized = true;
     }
@@ -472,7 +481,8 @@ class StaticHypergraph {
         tbb::parallel_invoke([&] {
           parallel::parallel_free(indices, arcs, node_volumes);
         }, [&] {
-          parallel::parallel_free(tmp_indices, tmp_arcs, tmp_node_volumes);
+          parallel::parallel_free(tmp_indices, tmp_pos,
+            tmp_arcs, valid_arcs, tmp_node_volumes);
         });
         is_initialized = false;
       }
@@ -482,12 +492,13 @@ class StaticHypergraph {
     parallel::scalable_vector<size_t> indices;
     parallel::scalable_vector<Arc> arcs;
     parallel::scalable_vector<ArcWeight> node_volumes;
-    parallel::scalable_vector<size_t> tmp_indices;
+    parallel::scalable_vector<parallel::IntegralAtomicWrapper<size_t>> tmp_indices;
+    parallel::scalable_vector<parallel::IntegralAtomicWrapper<size_t>> tmp_pos;
     parallel::scalable_vector<Arc> tmp_arcs;
-    parallel::scalable_vector<ArcWeight> tmp_node_volumes;
+    parallel::scalable_vector<size_t> valid_arcs;
+    parallel::scalable_vector<parallel::AtomicWrapper<ArcWeight>> tmp_node_volumes;
   };
 
- public:
   static constexpr bool is_static_hypergraph = true;
   static constexpr bool is_numa_aware = false;
   static constexpr bool is_partitioned = false;
@@ -1672,11 +1683,16 @@ class StaticHypergraph {
     }
   }
 
+  TmpGraphBuffer* tmpGraphBuffer() {
+    return _tmp_graph_buffer;
+  }
+
   // ! Allocate the temporary graph buffer
   void allocateTmpGraphBuffer() {
     if ( !_tmp_graph_buffer ) {
+      const bool is_graph = maxEdgeSize() == 2;
       _tmp_graph_buffer = new TmpGraphBuffer(
-        _num_hypernodes, _num_hyperedges, _num_pins);
+        _num_hypernodes, _num_hyperedges, _num_pins, is_graph);
     }
   }
 

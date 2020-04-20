@@ -208,6 +208,7 @@ TEST_F(AGraph, ConstructsAHypergraphWhichIsAGraph) {
   StaticHypergraph graph_hg = Factory::construct(
     TBBNumaArena::GLOBAL_TASK_GROUP, 5, 6,
     { { 0, 1 }, { 0, 2 }, {1, 2}, { 2, 3 }, { 2, 4 }, { 3, 4 } } );
+  graph_hg.allocateTmpGraphBuffer();
   Graph graph(graph_hg, LouvainEdgeWeight::uniform);
   verifyArcIterator(graph, 0, {1, 2}, {1.0, 1.0});
   verifyArcIterator(graph, 1, {0, 2}, {1.0, 1.0});
@@ -216,42 +217,6 @@ TEST_F(AGraph, ConstructsAHypergraphWhichIsAGraph) {
   verifyArcIterator(graph, 4, {2, 3}, {1.0, 1.0});
 }
 
-TEST_F(AGraph, ConstructGraphWithSeveralAdjacenceArrayBlocks) {
-  using HyperedgeVector = parallel::scalable_vector<parallel::scalable_vector<HypernodeID>>;
-  const HypernodeID num_hypernodes = 4000;
-  HyperedgeVector edge_vector;
-  // Construct hyperedges of size 4
-  for ( HypernodeID start_hn = 0; start_hn < num_hypernodes; start_hn += 4 ) {
-    edge_vector.emplace_back();
-    for ( HypernodeID hn = start_hn; hn < std::min(start_hn + ID(4), num_hypernodes); ++hn ) {
-      edge_vector.back().push_back(hn);
-    }
-  }
-  const HyperedgeID num_hyperedges = edge_vector.size();
-  HyperGraph hg = Factory::construct(TBBNumaArena::GLOBAL_TASK_GROUP,
-    num_hypernodes, num_hyperedges, edge_vector);
-  Graph graph(hg, LouvainEdgeWeight::uniform);
-
-  ASSERT_EQ(num_hypernodes + num_hyperedges, graph.numNodes());
-  ASSERT_EQ(2 * hg.initialNumPins(), graph.numArcs());
-  ASSERT_EQ(2 * hg.initialNumPins(), graph.totalVolume());
-
-  for ( const NodeID u : graph.nodes() ) {
-    if ( u < num_hypernodes ) {
-      ASSERT(1, graph.degree(u));
-      ASSERT(1, graph.nodeVolume(u));
-      const NodeID adjacent_he = u / 4U + num_hypernodes;
-      verifyArcIterator(graph, u, { adjacent_he }, { 1.0 });
-    } else {
-      ASSERT(4, graph.degree(u));
-      ASSERT(4, graph.nodeVolume(u));
-      const NodeID he = u - num_hypernodes;
-      verifyArcIterator(graph, u,
-        { 4U * he, 4U * he + 1U, 4U * he + 2U, 4U * he + 3U },
-        { 1.0, 1.0, 1.0, 1.0 });
-    }
-  }
-}
 
 Clustering clustering(const std::vector<PartitionID>& communities) {
   Clustering c(communities.size());
@@ -354,52 +319,5 @@ TEST_F(AGraph, HasSameTotalVolumeAfterTwoContractions) {
   ASSERT_EQ(6,  coarse_coarse_graph.nodeVolume(2));
 }
 
-TEST_F(AGraph, ContractGraphWithSeveralAdjacenceArrayBlocks) {
-  using HyperedgeVector = parallel::scalable_vector<parallel::scalable_vector<HypernodeID>>;
-  const HypernodeID num_hypernodes = 4000;
-  HyperedgeVector edge_vector;
-  // Construct hyperedges of size 4
-  for ( HypernodeID start_hn = 0; start_hn < num_hypernodes; start_hn += 4 ) {
-    edge_vector.emplace_back();
-    for ( HypernodeID hn = start_hn; hn < std::min(start_hn + ID(4), num_hypernodes); ++hn ) {
-      edge_vector.back().push_back(hn);
-    }
-  }
-  const HyperedgeID num_hyperedges = edge_vector.size();
-  HyperGraph hg = Factory::construct(TBBNumaArena::GLOBAL_TASK_GROUP,
-    num_hypernodes, num_hyperedges, edge_vector);
-  Graph graph(hg, LouvainEdgeWeight::uniform);
-  ds::Clustering communities(0);
-  for ( NodeID u = 0; u < num_hypernodes; u += 8 ) {
-    for ( NodeID i = u; i < std::min(u + 8U, static_cast<NodeID>(num_hypernodes)); ++i ) {
-      communities.push_back(u);
-    }
-  }
-  for ( NodeID u = num_hypernodes; u < graph.numNodes(); u += 2 ) {
-    for ( NodeID i = u; i < std::min(u + 2U, static_cast<NodeID>(graph.numNodes())); ++i ) {
-      communities.push_back(u);
-    }
-  }
-
-  Graph coarse_graph = graph.contract(communities);
-
-
-  ASSERT_EQ(num_hypernodes / 8UL + num_hyperedges / 2UL, coarse_graph.numNodes());
-  ASSERT_EQ(hg.initialNumPins() / 4UL, coarse_graph.numArcs());
-  ASSERT_EQ(2 * hg.initialNumPins(), coarse_graph.totalVolume());
-
-  for ( const NodeID u : coarse_graph.nodes() ) {
-    if ( u < num_hypernodes / 8UL ) {
-      ASSERT(1, coarse_graph.degree(u));
-      ASSERT(8, coarse_graph.nodeVolume(u));
-      const NodeID adjacent_he = u + num_hypernodes / 8UL;
-      verifyArcIterator(coarse_graph, u, { adjacent_he }, { 8.0 });
-    } else {
-      ASSERT(1, coarse_graph.degree(u));
-      ASSERT(8, coarse_graph.nodeVolume(u));
-      verifyArcIterator(coarse_graph, u, { u - static_cast<NodeID>(num_hypernodes / 8UL) }, { 8.0 });
-    }
-  }
-}
 } // namespace ds
 } // namespace mt_kahypar

@@ -66,6 +66,7 @@ class HypergraphFixture : public Test {
     for ( const HypernodeID& hn : hypergraph.nodes() ) {
       id[hypergraph.originalNodeID(hn)] = hn;
     }
+    hypergraph.allocateTmpGraphBuffer();
   }
 
   static void SetUpTestSuite() {

@@ -206,7 +206,7 @@ class TBBPrefixSum {
   }
 
   T value(const size_t i) const {
-    ASSERT(i < _data.size());
+    ASSERT(i < _data.size(), V(i) << V(_data.size()));
     if ( i > 0 ) {
       return _data[i] - _data[i - 1];
     } else {
