@@ -537,16 +537,14 @@ private:
       const HyperedgeWeight we = edgeWeight(e);
       for (HypernodeID u : pins(e)) {
         nodeGainAssertions(u, p);
-        const HypernodeID u_local = common::get_local_position_of_vertex(u);
         if (partID(u) == p)
-          move_from_benefit[u_local].fetch_add(we, std::memory_order_relaxed);
+          move_from_benefit[common::get_local_position_of_vertex(u)].fetch_add(we, std::memory_order_relaxed);
       }
     } else if (pin_count_after == 0) {
       const HyperedgeWeight we = edgeWeight(e);
       for (HypernodeID u : pins(e)) {
         nodeGainAssertions(u, p);
-        const HypernodeID u_local = common::get_local_position_of_vertex(u);
-        move_to_penalty[u_local *_k + p].fetch_add(we, std::memory_order_relaxed);
+        move_to_penalty[common::get_local_position_of_vertex(u) *_k + p].fetch_add(we, std::memory_order_relaxed);
       }
     }
     return pin_count_after;
@@ -559,16 +557,14 @@ private:
       const HyperedgeWeight we = edgeWeight(e);
       for (HypernodeID u : pins(e)) {
         nodeGainAssertions(u, p);
-        const HypernodeID u_local = common::get_local_position_of_vertex(u);
-        move_to_penalty[u_local * _k + p].fetch_sub(we, std::memory_order_relaxed);
+        move_to_penalty[common::get_local_position_of_vertex(u) * _k + p].fetch_sub(we, std::memory_order_relaxed);
       }
     } else if (pin_count_after == 2) {
       const HyperedgeWeight we = edgeWeight(e);
       for (HypernodeID u : pins(e)) {
         nodeGainAssertions(u, p);
-        const HypernodeID u_local = common::get_local_position_of_vertex(u);
         if (partID(u) == p)
-          move_from_benefit[u_local].fetch_sub(we, std::memory_order_relaxed);
+          move_from_benefit[common::get_local_position_of_vertex(u)].fetch_sub(we, std::memory_order_relaxed);
       }
     }
     return pin_count_after;
