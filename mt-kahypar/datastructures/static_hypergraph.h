@@ -1683,6 +1683,7 @@ class StaticHypergraph {
     }
   }
 
+  // ! Returns the temporary graph buffer
   TmpGraphBuffer* tmpGraphBuffer() {
     return _tmp_graph_buffer;
   }
@@ -1693,6 +1694,13 @@ class StaticHypergraph {
       const bool is_graph = maxEdgeSize() == 2;
       _tmp_graph_buffer = new TmpGraphBuffer(
         _num_hypernodes, _num_hyperedges, _num_pins, is_graph);
+    }
+  }
+
+  // ! Frees the internal graph buffer
+  void freeTmpGraphBuffer() {
+    if ( _tmp_graph_buffer ) {
+      _tmp_graph_buffer->freeInternalData();
     }
   }
 
