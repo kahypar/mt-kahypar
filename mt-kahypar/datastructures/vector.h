@@ -27,19 +27,10 @@
 
 #include "mt-kahypar/macros.h"
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
+#include "mt-kahypar/parallel/stl/scalable_unique_ptr.h"
 
 namespace mt_kahypar {
 namespace ds {
-
-template<typename T>
-struct tbb_deleter {
-  void operator()(T *p) {
-    scalable_free(p);
-  }
-};
-
-template<typename T>
-using tbb_unique_ptr = std::unique_ptr<T, tbb_deleter<T>>;
 
 template <typename T>
 class Vector {
@@ -259,14 +250,13 @@ class Vector {
  private:
   void allocate_data(const size_type size) {
     ASSERT(!_data, "Memory already allocated");
-    value_type* ptr = (value_type*) scalable_malloc(sizeof(value_type) * size);
-    _data = tbb_unique_ptr<value_type>(ptr, tbb_deleter<value_type>());
+    _data = parallel::make_unique<value_type>(size);
     _underlying_data = _data.get();
     _size = size;
   }
 
   size_type _size;
-  tbb_unique_ptr<value_type> _data;
+  parallel::tbb_unique_ptr<value_type> _data;
   value_type* _underlying_data;
 };
 

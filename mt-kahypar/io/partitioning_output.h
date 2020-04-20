@@ -260,10 +260,7 @@ inline void printHypergraphInfo(const HyperGraph& hypergraph,
   }
 }
 
-inline void printCommunityInformation(const Hypergraph& hypergraph,
-                                      const ds::GraphT<Hypergraph>& graph,
-                                      const ds::Clustering& communities,
-                                      const bool show_modularity = true) {
+inline void printCommunityInformation(const Hypergraph& hypergraph) {
   PartitionID num_communities = hypergraph.numCommunities();
   std::vector<HypernodeID> community_sizes;
   std::vector<HypernodeID> community_pins;
@@ -303,9 +300,6 @@ inline void printCommunityInformation(const Hypergraph& hypergraph,
 
   LOG << "Community Information:";
   LOG << "# Communities:" << num_communities;
-  if ( show_modularity ) {
-    LOG << "# Modularity:" << metrics::modularity(graph, communities);
-  }
   internal::printCommunityStats(
     internal::createStats(community_sizes, avg_community_size, stdev_community_size),
     internal::createStats(community_pins, avg_community_pins, stdev_community_pins),

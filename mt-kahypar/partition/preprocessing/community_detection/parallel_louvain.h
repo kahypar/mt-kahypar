@@ -46,14 +46,13 @@ class ParallelModularityLouvain {
     utils::Timer::instance().stop_timer("local_moving");
 
     if (communities_changed) {
-      DBG << "Modularity after PLM:" << metrics::modularity(fine_graph, communities);
+      DBG << "Current Modularity:" << metrics::modularity(fine_graph, communities);
       utils::Timer::instance().start_timer("contraction", "Contraction");
       // Contract Communities
       G coarse_graph = fine_graph.contract(communities);
       ASSERT(coarse_graph.totalVolume() == fine_graph.totalVolume(),
         V(coarse_graph.totalVolume()) << V(fine_graph.totalVolume()));
       utils::Timer::instance().stop_timer("contraction");
-      DBG << "Modularity after Contraction:" << metrics::modularity(fine_graph, communities);
 
       // Recurse on contracted graph
       ds::Clustering coarse_communities =
@@ -66,8 +65,6 @@ class ParallelModularityLouvain {
         communities[u] = coarse_communities[communities[u]];
       }
       utils::Timer::instance().stop_timer("prolong");
-
-      DBG << "Modularity after Prolong:" << metrics::modularity(fine_graph, communities);
     }
 
     return communities;

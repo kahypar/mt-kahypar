@@ -28,7 +28,6 @@
 
 #include <algorithm>
 #include <limits>
-#include <memory>
 #include <utility>
 #include <vector>
 #include <cmath>
@@ -38,6 +37,7 @@
 
 #include "mt-kahypar/macros.h"
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
+#include "mt-kahypar/parallel/stl/scalable_unique_ptr.h"
 
 namespace mt_kahypar {
 namespace ds {
@@ -69,7 +69,7 @@ class SparseMapBase {
   }
 
   void setMaxSize(const size_t max_size) {
-    _dense = reinterpret_cast<MapElement*>(_sparse.get() + max_size);
+    _dense = reinterpret_cast<MapElement*>(_data.get() + max_size);
   }
 
   bool contains(const Key key) const {
@@ -116,14 +116,25 @@ class SparseMapBase {
     return _dense[_sparse[key]].value;
   }
 
+  void freeInternalData() {
+    size_t* data = _data.release();
+    scalable_free(data);
+    _size = 0;
+    _data = nullptr;
+    _sparse = nullptr;
+    _dense = nullptr;
+  }
+
  protected:
   explicit SparseMapBase(const size_t max_size,
                          const Value initial_value = 0) :
     _size(0),
-    _sparse(std::make_unique<size_t[]>((max_size * sizeof(MapElement) +
-                                        max_size * sizeof(size_t)) / sizeof(size_t))),
+    _data(parallel::make_unique<size_t>((max_size * sizeof(MapElement) +
+                                         max_size * sizeof(size_t)) / sizeof(size_t))),
+    _sparse(nullptr),
     _dense(nullptr) {
-    _dense = reinterpret_cast<MapElement*>(_sparse.get() + max_size);
+    _sparse = reinterpret_cast<size_t*>(_data.get());
+    _dense = reinterpret_cast<MapElement*>(_data.get() + max_size);
     for (size_t i = 0; i < max_size; ++i) {
       _sparse[i] = std::numeric_limits<size_t>::max();
       _dense[i] = MapElement { std::numeric_limits<Key>::max(), initial_value };
@@ -134,15 +145,18 @@ class SparseMapBase {
 
   SparseMapBase(SparseMapBase&& other) :
     _size(other._size),
+    _data(std::move(other._data)),
     _sparse(std::move(other._sparse)),
     _dense(std::move(other._dense)) {
     other._size = 0;
+    other._data = nullptr;
     other._sparse = nullptr;
     other._dense = nullptr;
   }
 
   size_t _size;
-  std::unique_ptr<size_t[]> _sparse;
+  parallel::tbb_unique_ptr<size_t> _data;
+  size_t* _sparse;
   MapElement* _dense;
 };
 
@@ -165,10 +179,12 @@ class SparseMap final : public SparseMapBase<Key, Value, SparseMap<Key, Value> >
     Base(std::move(other)) { }
 
   SparseMap& operator= (SparseMap&& other) {
+    _data = std::move(other._data);
     _sparse = std::move(other._sparse);
     _size = 0;
     _dense = std::move(other._dense);
     other._size = 0;
+    other._data = nullptr;
     other._sparse = nullptr;
     other._dense = nullptr;
     return *this;
@@ -204,6 +220,7 @@ class SparseMap final : public SparseMapBase<Key, Value, SparseMap<Key, Value> >
     _size = 0;
   }
 
+  using Base::_data;
   using Base::_sparse;
   using Base::_dense;
   using Base::_size;
@@ -235,25 +252,55 @@ class FixedSizeSparseMap {
   };
 
  public:
+
   static constexpr size_t MAP_SIZE = 32768; // Size of sparse map is approx. 1 MB
 
   static_assert(MAP_SIZE && ((MAP_SIZE & (MAP_SIZE - 1)) == 0UL), "Size of map is not a power of two!");
 
   explicit FixedSizeSparseMap(const Value initial_value) :
+    _map_size(0),
     _initial_value(initial_value),
-    _data(std::make_unique<uint8_t[]>(
-      MAP_SIZE * sizeof(MapElement) + MAP_SIZE * sizeof(SparseElement))),
+    _data(nullptr),
     _size(0),
     _timestamp(1),
-    _sparse(reinterpret_cast<SparseElement*>(_data.get())),
-    _dense(reinterpret_cast<MapElement*>(_data.get() +  + sizeof(SparseElement) * MAP_SIZE)) {
-    memset(_data.get(), 0, MAP_SIZE * (sizeof(MapElement) + sizeof(SparseElement)));
+    _sparse(nullptr),
+    _dense(nullptr) {
+    allocate(MAP_SIZE);
+  }
+
+  explicit FixedSizeSparseMap(const size_t max_size,
+                              const Value initial_value) :
+    _map_size(0),
+    _initial_value(initial_value),
+    _data(nullptr),
+    _size(0),
+    _timestamp(1),
+    _sparse(nullptr),
+    _dense(nullptr) {
+    allocate(max_size);
   }
 
   FixedSizeSparseMap(const FixedSizeSparseMap&) = delete;
   FixedSizeSparseMap& operator= (const FixedSizeSparseMap& other) = delete;
 
+  FixedSizeSparseMap(FixedSizeSparseMap&& other) :
+    _map_size(other._map_size),
+    _initial_value(other._initial_value),
+    _data(std::move(other._data)),
+    _size(other._size),
+    _timestamp(other._timestamp),
+    _sparse(std::move(other._sparse)),
+    _dense(std::move(other._dense)) {
+    other._data = nullptr;
+    other._sparse = nullptr;
+    other._dense = nullptr;
+  }
+
   ~FixedSizeSparseMap() = default;
+
+  size_t capacity() const {
+    return _map_size;
+  }
 
   size_t size() const {
     return _size;
@@ -273,6 +320,13 @@ class FixedSizeSparseMap {
 
   MapElement* end() {
     return _dense + _size;
+  }
+
+  void setMaxSize(const size_t max_size) {
+    if ( max_size > _map_size ) {
+      freeInternalData();
+      allocate(max_size);
+    }
   }
 
   bool contains(const Key key) const {
@@ -300,16 +354,26 @@ class FixedSizeSparseMap {
     ++_timestamp;
   }
 
+  void freeInternalData() {
+    uint8_t* data = _data.release();
+    free(data);
+    _size = 0;
+    _timestamp = 0;
+    _data = nullptr;
+    _sparse = nullptr;
+    _dense = nullptr;
+  }
+
  private:
   inline SparseElement* find(const Key key) const {
-    ASSERT(_size < MAP_SIZE);
-    size_t hash = key & ( MAP_SIZE - 1 );
+    ASSERT(_size < _map_size);
+    size_t hash = key & ( _map_size - 1 );
     while ( _sparse[hash].timestamp == _timestamp ) {
       ASSERT(_sparse[hash].element);
       if ( _sparse[hash].element->key == key ) {
         return &_sparse[hash];
       }
-      hash = (hash + 1) & ( MAP_SIZE - 1 );
+      hash = (hash + 1) & ( _map_size - 1 );
     }
     return &_sparse[hash];
   }
@@ -332,6 +396,25 @@ class FixedSizeSparseMap {
     return s->element;
   }
 
+  void allocate(const size_t size) {
+    if ( _data == nullptr ) {
+      _map_size = align_to_next_power_of_two(size);
+      _data = std::make_unique<uint8_t[]>(
+        _map_size * sizeof(MapElement) + _map_size * sizeof(SparseElement));
+      _size = 0;
+      _timestamp = 1;
+      _sparse = reinterpret_cast<SparseElement*>(_data.get());
+      _dense = reinterpret_cast<MapElement*>(_data.get() +  + sizeof(SparseElement) * _map_size);
+      memset(_data.get(), 0, _map_size * (sizeof(MapElement) + sizeof(SparseElement)));
+    }
+
+  }
+
+  size_t align_to_next_power_of_two(const size_t size) const {
+    return std::pow(2.0, std::ceil(std::log2(static_cast<double>(size))));
+  }
+
+  size_t _map_size;
   const Value _initial_value;
   std::unique_ptr<uint8_t[]> _data;
 

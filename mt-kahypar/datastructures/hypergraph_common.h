@@ -43,7 +43,23 @@ using HypernodeWeight = int32_t;
 using HyperedgeWeight = int32_t;
 using PartitionID = int32_t;
 using Gain = HyperedgeWeight;
+
+// Graph Types
 using NodeID = uint32_t;
+using ArcWeight = double;
+
+struct Arc {
+  NodeID head;
+  ArcWeight weight;
+
+  Arc() :
+    head(0),
+    weight(0) { }
+
+  Arc(NodeID head, ArcWeight weight) :
+    head(head),
+    weight(weight) { }
+};
 
 // Constant Declarations
 static constexpr PartitionID kInvalidPartition = -1;
