@@ -260,9 +260,7 @@ inline void printHypergraphInfo(const HyperGraph& hypergraph,
   }
 }
 
-inline void printCommunityInformation(const Hypergraph& hypergraph,
-                                      const ds::GraphT<Hypergraph>& graph,
-                                      const ds::Clustering& communities) {
+inline void printCommunityInformation(const Hypergraph& hypergraph) {
   PartitionID num_communities = hypergraph.numCommunities();
   std::vector<HypernodeID> community_sizes;
   std::vector<HypernodeID> community_pins;
