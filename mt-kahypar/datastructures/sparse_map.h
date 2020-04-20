@@ -258,32 +258,43 @@ class FixedSizeSparseMap {
   static_assert(MAP_SIZE && ((MAP_SIZE & (MAP_SIZE - 1)) == 0UL), "Size of map is not a power of two!");
 
   explicit FixedSizeSparseMap(const Value initial_value) :
-    _map_size(MAP_SIZE),
+    _map_size(0),
     _initial_value(initial_value),
-    _data(std::make_unique<uint8_t[]>(
-      MAP_SIZE * sizeof(MapElement) + MAP_SIZE * sizeof(SparseElement))),
+    _data(nullptr),
     _size(0),
     _timestamp(1),
-    _sparse(reinterpret_cast<SparseElement*>(_data.get())),
-    _dense(reinterpret_cast<MapElement*>(_data.get() +  + sizeof(SparseElement) * MAP_SIZE)) {
-    memset(_data.get(), 0, MAP_SIZE * (sizeof(MapElement) + sizeof(SparseElement)));
+    _sparse(nullptr),
+    _dense(nullptr) {
+    allocate(MAP_SIZE);
   }
 
   explicit FixedSizeSparseMap(const size_t max_size,
                               const Value initial_value) :
-    _map_size(align_to_next_power_of_two(max_size)),
+    _map_size(0),
     _initial_value(initial_value),
-    _data(std::make_unique<uint8_t[]>(
-      _map_size * sizeof(MapElement) + _map_size * sizeof(SparseElement))),
+    _data(nullptr),
     _size(0),
     _timestamp(1),
-    _sparse(reinterpret_cast<SparseElement*>(_data.get())),
-    _dense(reinterpret_cast<MapElement*>(_data.get() +  + sizeof(SparseElement) * _map_size)) {
-    memset(_data.get(), 0, _map_size * (sizeof(MapElement) + sizeof(SparseElement)));
+    _sparse(nullptr),
+    _dense(nullptr) {
+    allocate(max_size);
   }
 
   FixedSizeSparseMap(const FixedSizeSparseMap&) = delete;
   FixedSizeSparseMap& operator= (const FixedSizeSparseMap& other) = delete;
+
+  FixedSizeSparseMap(FixedSizeSparseMap&& other) :
+    _map_size(other._map_size),
+    _initial_value(other._initial_value),
+    _data(std::move(other._data)),
+    _size(other._size),
+    _timestamp(other._timestamp),
+    _sparse(std::move(other._sparse)),
+    _dense(std::move(other._dense)) {
+    other._data = nullptr;
+    other._sparse = nullptr;
+    other._dense = nullptr;
+  }
 
   ~FixedSizeSparseMap() = default;
 
@@ -309,6 +320,13 @@ class FixedSizeSparseMap {
 
   MapElement* end() {
     return _dense + _size;
+  }
+
+  void setMaxSize(const size_t max_size) {
+    if ( max_size > _map_size ) {
+      freeInternalData();
+      allocate(max_size);
+    }
   }
 
   bool contains(const Key key) const {
@@ -378,11 +396,25 @@ class FixedSizeSparseMap {
     return s->element;
   }
 
+  void allocate(const size_t size) {
+    if ( _data == nullptr ) {
+      _map_size = align_to_next_power_of_two(size);
+      _data = std::make_unique<uint8_t[]>(
+        _map_size * sizeof(MapElement) + _map_size * sizeof(SparseElement));
+      _size = 0;
+      _timestamp = 1;
+      _sparse = reinterpret_cast<SparseElement*>(_data.get());
+      _dense = reinterpret_cast<MapElement*>(_data.get() +  + sizeof(SparseElement) * _map_size);
+      memset(_data.get(), 0, _map_size * (sizeof(MapElement) + sizeof(SparseElement)));
+    }
+
+  }
+
   size_t align_to_next_power_of_two(const size_t size) const {
     return std::pow(2.0, std::ceil(std::log2(static_cast<double>(size))));
   }
 
-  const size_t _map_size;
+  size_t _map_size;
   const Value _initial_value;
   std::unique_ptr<uint8_t[]> _data;
 

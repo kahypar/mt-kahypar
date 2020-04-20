@@ -116,6 +116,7 @@ class PLM {
           } else {
             LargeIncidentClusterWeights& large_incident_cluster_weight =
               _local_large_incident_cluster_weight.local();
+            large_incident_cluster_weight.setMaxSize(3UL * _max_degree);
             best_cluster = computeMaxGainCluster(
               graph, communities, u, large_incident_cluster_weight);
           }
