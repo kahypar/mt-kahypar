@@ -59,6 +59,7 @@ TEST_F(AGraph, HasCorrectNumNodesAndArcs) {
   Graph graph(hypergraph, LouvainEdgeWeight::uniform);
   ASSERT_EQ(11, graph.numNodes());
   ASSERT_EQ(24, graph.numArcs());
+  ASSERT_EQ(4,  graph.max_degree());
 }
 
 TEST_F(AGraph, IteratesOverAllNodes) {
@@ -210,6 +211,7 @@ TEST_F(AGraph, ConstructsAHypergraphWhichIsAGraph) {
     { { 0, 1 }, { 0, 2 }, {1, 2}, { 2, 3 }, { 2, 4 }, { 3, 4 } } );
   graph_hg.allocateTmpGraphBuffer();
   Graph graph(graph_hg, LouvainEdgeWeight::uniform);
+  ASSERT_EQ(4, graph.max_degree());
   verifyArcIterator(graph, 0, {1, 2}, {1.0, 1.0});
   verifyArcIterator(graph, 1, {0, 2}, {1.0, 1.0});
   verifyArcIterator(graph, 2, {0, 1, 3, 4}, {1.0, 1.0, 1.0, 1.0});
@@ -232,6 +234,7 @@ TEST_F(AGraph, ContractCommunities1) {
   Graph coarse_graph = graph.contract(communities);
 
   ASSERT_EQ(graph.totalVolume(), coarse_graph.totalVolume());
+  ASSERT_EQ(2, coarse_graph.max_degree());
   ASSERT_EQ(7,  coarse_graph.nodeVolume(0));
   ASSERT_EQ(11, coarse_graph.nodeVolume(1));
   ASSERT_EQ(6,  coarse_graph.nodeVolume(2));
@@ -247,6 +250,7 @@ TEST_F(AGraph, ContractCommunities2) {
   Graph coarse_graph = graph.contract(communities);
 
   ASSERT_EQ(graph.totalVolume(), coarse_graph.totalVolume());
+  ASSERT_EQ(2, coarse_graph.max_degree());
   ASSERT_EQ(8,  coarse_graph.nodeVolume(0));
   ASSERT_EQ(5,  coarse_graph.nodeVolume(1));
   ASSERT_EQ(11, coarse_graph.nodeVolume(2));
@@ -262,6 +266,7 @@ TEST_F(AGraph, ContractCommunities3) {
   Graph coarse_graph = graph.contract(communities);
 
   ASSERT_EQ(graph.totalVolume(), coarse_graph.totalVolume());
+  ASSERT_EQ(2, coarse_graph.max_degree());
   ASSERT_EQ(7, coarse_graph.nodeVolume(0));
   ASSERT_EQ(7, coarse_graph.nodeVolume(1));
   ASSERT_EQ(4, coarse_graph.nodeVolume(2));
@@ -279,6 +284,7 @@ TEST_F(AGraph, ContractCommunities4) {
   Graph coarse_graph = graph.contract(communities);
 
   ASSERT_EQ(graph.totalVolume(), coarse_graph.totalVolume());
+  ASSERT_EQ(3, coarse_graph.max_degree());
   ASSERT_EQ(3, coarse_graph.nodeVolume(0));
   ASSERT_EQ(4, coarse_graph.nodeVolume(1));
   ASSERT_EQ(3, coarse_graph.nodeVolume(2));
@@ -300,6 +306,7 @@ TEST_F(AGraph, ContractCommunities5) {
   Graph coarse_graph = graph.contract(communities);
 
   ASSERT_EQ(graph.totalVolume(), coarse_graph.totalVolume());
+  ASSERT_EQ(0,  coarse_graph.max_degree());
   ASSERT_EQ(1,  coarse_graph.numNodes());
   ASSERT_EQ(0,  coarse_graph.numArcs());
   ASSERT_EQ(24, coarse_graph.nodeVolume(0));

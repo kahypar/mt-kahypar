@@ -69,6 +69,7 @@ class GraphT {
     _num_nodes(0),
     _num_arcs(0),
     _total_volume(0),
+    _max_degree(0),
     _indices(hypergraph.tmpGraphBuffer()->indices),
     _arcs(hypergraph.tmpGraphBuffer()->arcs),
     _node_volumes(hypergraph.tmpGraphBuffer()->node_volumes),
@@ -135,6 +136,11 @@ class GraphT {
   size_t degree(const NodeID u) const {
     ASSERT(u < _num_nodes);
     return _indices[u + 1] - _indices[u];
+  }
+
+  // ! Maximum degree of a vertex
+  size_t max_degree() const {
+    return _max_degree;
   }
 
   // ! Total Volume of the graph
@@ -234,6 +240,7 @@ class GraphT {
     // Therefore, we sort the arcs according to their endpoints
     // and aggregate weight of arcs with equal endpoints.
     utils::Timer::instance().start_timer("contract_arcs", "Contract Arcs");
+    tbb::enumerable_thread_specific<size_t> local_max_degree(0);
     tbb::parallel_for(0U, static_cast<NodeID>(coarse_graph._num_nodes), [&](const NodeID u) {
       const size_t tmp_arc_start = tmp_indices_prefix_sum[u];
       const size_t tmp_arc_end = tmp_indices_prefix_sum[u + 1];
@@ -243,15 +250,22 @@ class GraphT {
         });
 
       size_t arc_rep = tmp_arc_start;
+      size_t degree = tmp_arc_start < tmp_arc_end ? 1 : 0;
       for ( size_t pos = tmp_arc_start + 1; pos < tmp_arc_end; ++pos ) {
         if ( tmp_arcs[arc_rep].head == tmp_arcs[pos].head ) {
           tmp_arcs[arc_rep].weight += tmp_arcs[pos].weight;
           valid_arcs[pos] = 0UL;
         } else {
           arc_rep = pos;
+          ++degree;
         }
       }
+      local_max_degree.local() = std::max(local_max_degree.local(), degree);
     });
+    coarse_graph._max_degree = local_max_degree.combine(
+      [&](const size_t& lhs, const size_t& rhs) {
+        return std::max(lhs, rhs);
+      });
 
     // Write all arcs to coarse graph
     parallel::TBBPrefixSum<size_t> valid_arcs_prefix_sum(valid_arcs);
@@ -288,6 +302,7 @@ class GraphT {
     _num_nodes(0),
     _num_arcs(0),
     _total_volume(0),
+    _max_degree(0),
     _indices(tmp_graph_buffer->indices),
     _arcs(tmp_graph_buffer->arcs),
     _node_volumes(tmp_graph_buffer->node_volumes),
@@ -364,12 +379,15 @@ class GraphT {
     utils::Timer::instance().stop_timer("compute_node_degrees");
 
     utils::Timer::instance().start_timer("construct_arcs", "Construct Arcs");
+    tbb::enumerable_thread_specific<size_t> local_max_degree(0);
     tbb::parallel_invoke([&] {
       tbb::parallel_for(ID(0), num_hypernodes, [&](const HypernodeID u) {
         ASSERT(u + 1 < _indices.size());
         size_t pos = _indices[u];
         const HypernodeID hn = hypergraph.globalNodeID(u);
         const HyperedgeID node_degree = hypergraph.nodeDegree(hn);
+        local_max_degree.local() = std::max(
+          local_max_degree.local(), static_cast<size_t>(node_degree));
         for ( const HyperedgeID& he : hypergraph.incidentEdges(hn) ) {
           const NodeID v = hypergraph.originalEdgeID(he) + num_hypernodes;
           const HyperedgeWeight edge_weight = hypergraph.edgeWeight(he);
@@ -385,6 +403,8 @@ class GraphT {
         const HyperedgeID he = hypergraph.globalEdgeID(u - num_hypernodes);
         const HyperedgeWeight edge_weight = hypergraph.edgeWeight(he);
         const HypernodeID edge_size = hypergraph.edgeSize(he);
+        local_max_degree.local() = std::max(
+          local_max_degree.local(), static_cast<size_t>(edge_size));
         for ( const HypernodeID& pin : hypergraph.pins(he) ) {
           const NodeID v = hypergraph.originalNodeID(pin);
           const HyperedgeID node_degree = hypergraph.nodeDegree(pin);
@@ -392,6 +412,9 @@ class GraphT {
           _arcs[pos++] = Arc(v, edge_weight_func(edge_weight, edge_size, node_degree));
         }
       });
+    });
+    _max_degree = local_max_degree.combine([&](const size_t& lhs, const size_t& rhs) {
+      return std::max(lhs, rhs);
     });
     utils::Timer::instance().stop_timer("construct_arcs");
   }
@@ -413,11 +436,14 @@ class GraphT {
     utils::Timer::instance().stop_timer("compute_node_degrees");
 
     utils::Timer::instance().start_timer("construct_arcs", "Construct Arcs");
+    tbb::enumerable_thread_specific<size_t> local_max_degree(0);
     tbb::parallel_for(ID(0), num_hypernodes, [&](const HypernodeID u) {
       ASSERT(u + 1 < _indices.size());
       size_t pos = _indices[u];
       const HypernodeID hn = hypergraph.globalNodeID(u);
       const HyperedgeID node_degree = hypergraph.nodeDegree(hn);
+      local_max_degree.local() = std::max(
+        local_max_degree.local(), static_cast<size_t>(node_degree));
       for ( const HyperedgeID& he : hypergraph.incidentEdges(hn) ) {
         const HyperedgeWeight edge_weight = hypergraph.edgeWeight(he);
         NodeID v = std::numeric_limits<NodeID>::max();
@@ -431,6 +457,9 @@ class GraphT {
         ASSERT(pos < _indices[u + 1]);
         _arcs[pos++] = Arc(v, edge_weight_func(edge_weight, ID(2), node_degree));
       }
+    });
+    _max_degree = local_max_degree.combine([&](const size_t& lhs, const size_t& rhs) {
+      return std::max(lhs, rhs);
     });
     utils::Timer::instance().stop_timer("construct_arcs");
   }
@@ -449,6 +478,8 @@ class GraphT {
   size_t _num_arcs;
   // ! Total volume of the graph (= sum of arc weights)
   ArcWeight _total_volume;
+  // ! Maximum degree of a node
+  size_t _max_degree;
 
   // ! Index Vector
   parallel::scalable_vector<size_t>& _indices;
