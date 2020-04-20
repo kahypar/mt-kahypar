@@ -60,6 +60,22 @@ class PLM {
     }),
     _disable_randomization(disable_randomization) { }
 
+  ~PLM() {
+    tbb::parallel_invoke([&] {
+      parallel::parallel_free_thread_local_internal_data(
+        _local_small_incident_cluster_weight, [&](CacheEfficientIncidentClusterWeights& data) {
+          data.freeInternalData();
+        });
+    }, [&] {
+      parallel::parallel_free_thread_local_internal_data(
+        _local_large_incident_cluster_weight, [&](LargeIncidentClusterWeights& data) {
+          data.freeInternalData();
+        });
+    }, [&] {
+      parallel::free(_cluster_volumes);
+    });
+  }
+
   bool localMoving(G& graph, ds::Clustering& communities) {
     _num_nodes = graph.numNodes();
     _reciprocal_total_volume = 1.0 / graph.totalVolume();
@@ -316,7 +332,7 @@ class PLM {
   size_t _num_nodes;
   double _reciprocal_total_volume = 0.0;
   double _vol_multiplier_div_by_node_vol = 0.0;
-  std::vector<AtomicArcWeight> _cluster_volumes;
+  parallel::scalable_vector<AtomicArcWeight> _cluster_volumes;
   tbb::enumerable_thread_specific<CacheEfficientIncidentClusterWeights> _local_small_incident_cluster_weight;
   tbb::enumerable_thread_specific<LargeIncidentClusterWeights> _local_large_incident_cluster_weight;
   const bool _disable_randomization;

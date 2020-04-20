@@ -116,6 +116,14 @@ class SparseMapBase {
     return _dense[_sparse[key]].value;
   }
 
+  void freeInternalData() {
+    size_t* data = _sparse.release();
+    free(data);
+    _size = 0;
+    _sparse = nullptr;
+    _dense = nullptr;
+  }
+
  protected:
   explicit SparseMapBase(const size_t max_size,
                          const Value initial_value = 0) :
@@ -298,6 +306,16 @@ class FixedSizeSparseMap {
   void clear() {
     _size = 0;
     ++_timestamp;
+  }
+
+  void freeInternalData() {
+    uint8_t* data = _data.release();
+    free(data);
+    _size = 0;
+    _timestamp = 0;
+    _data = nullptr;
+    _sparse = nullptr;
+    _dense = nullptr;
   }
 
  private:
