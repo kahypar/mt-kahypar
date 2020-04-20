@@ -99,7 +99,7 @@ private:
     pins_in_part(hypergraph.initialNumEdges() * k, CAtomic<HypernodeID>(0)),
     connectivity_sets(hypergraph.initialNumEdges(), k),
     move_to_penalty(hypergraph.initialNumNodes() * k, CAtomic<HyperedgeWeight>(0)),
-    move_from_benefit(hypergraph.initialNumNodes() * k, CAtomic<HyperedgeWeight>(0))
+    move_from_benefit(hypergraph.initialNumNodes(), CAtomic<HyperedgeWeight>(0))
   {
 
   }
@@ -313,32 +313,32 @@ private:
     // or recompute the gain information from scratch, which would be independent but requires more memory volume
     // since the LP refiner currently does not use and update the gain information, we rely on pinCountInPart being up to date
     // as we have to call initializeGainInformation() before every FM call
-    tbb::enumerable_thread_specific< vec<HyperedgeWeight> > ets_mfb(_k, 0), ets_mtp(_k, 0);
+    tbb::enumerable_thread_specific< vec<HyperedgeWeight> > ets_mtp(_k, 0);
 
     auto accumulate_and_assign = [&](tbb::blocked_range<HypernodeID>& r) {
 
-      vec<HyperedgeWeight>& l_move_from_benefit = ets_mfb.local();
       vec<HyperedgeWeight>& l_move_to_penalty = ets_mtp.local();
 
       for (HypernodeID u = r.begin(); u < r.end(); ++u) {
+        HyperedgeWeight l_move_from_benefit = 0;
         for (HyperedgeID he : incidentEdges(u)) {
           HyperedgeWeight we = edgeWeight(he);
+          if (pinCountInPart(he, partID(u)) == 1) {
+            l_move_from_benefit += we;
+          }
           for (PartitionID p = 0; p < _k; ++p) {
             const HypernodeID pcip = pinCountInPart(he, p);
             if (pcip == 0) {
               l_move_to_penalty[p] += we;
-            } else if (pcip == 1) {
-              l_move_from_benefit[p] += we;
             }
           }
         }
 
+        move_from_benefit[u].store(l_move_from_benefit, std::memory_order_relaxed);
         for (PartitionID p = 0; p < _k; ++p) {
           move_to_penalty[u * _k + p].store(l_move_to_penalty[p], std::memory_order_relaxed);
-          move_from_benefit[u * _k + p].store(l_move_from_benefit[p], std::memory_order_relaxed);
           // reset for next round
           l_move_to_penalty[p] = 0;
-          l_move_from_benefit[p] = 0;
         }
       }
 
@@ -393,8 +393,8 @@ private:
     return part_weight[p].load(std::memory_order_relaxed);
   }
 
-  HyperedgeWeight moveFromBenefit(const HypernodeID u, PartitionID p) const {
-    return move_from_benefit[common::get_local_position_of_vertex(u) * _k + p].load(std::memory_order_relaxed);
+  HyperedgeWeight moveFromBenefit(const HypernodeID u) const {
+    return move_from_benefit[common::get_local_position_of_vertex(u)].load(std::memory_order_relaxed);
   }
 
   HyperedgeWeight moveToPenalty(const HypernodeID u, PartitionID p) const {
@@ -409,7 +409,8 @@ private:
     return pcip;
   }
 
-  HyperedgeWeight moveFromBenefitRecomputed(const HypernodeID u, PartitionID p) const {
+  HyperedgeWeight moveFromBenefitRecomputed(const HypernodeID u) const {
+    const PartitionID p = partID(u);
     HyperedgeWeight w = 0;
     for (HyperedgeID e : incidentEdges(u))
       if (pinCountInPart(e, p) == 1)
@@ -425,6 +426,10 @@ private:
     return w;
   }
 
+  void recomputeMoveFromBenefit(const HypernodeID u) {
+    move_from_benefit[common::get_local_position_of_vertex(u)].store(moveFromBenefitRecomputed(u));
+  }
+
   bool checkTrackedPartitionInformation() {
     for (HyperedgeID e : edges()) {
       for (PartitionID i = 0; i < k(); ++i) {
@@ -432,9 +437,9 @@ private:
       }
     }
     for (HypernodeID u : nodes()) {
+      assert(moveFromBenefit(u) == moveFromBenefitRecomputed(u));
       for (PartitionID i = 0; i < k(); ++i) {
         if (partID(u) != i) {
-          assert(moveFromBenefit(u, i) == moveFromBenefitRecomputed(u, i));
           assert(moveToPenalty(u, i) == moveToPenaltyRecomputed(u, i));
         }
       }
@@ -445,7 +450,7 @@ private:
   HyperedgeWeight km1Gain(const HypernodeID u, PartitionID from, PartitionID to) const {
     ASSERT(from == partID(u), "While gain computation works for from != partID(u), such a query makes no sense");
     ASSERT(from != to, "The gain computation doesn't work for from = to");
-    return moveFromBenefit(u, from) - moveToPenalty(u, to);
+    return moveFromBenefit(u) - moveToPenalty(u, to);
   }
 
   // ! Reset partition (not thread-safe)
@@ -499,7 +504,8 @@ private:
   void nodeGainAssertions(const HypernodeID u, const PartitionID p) const {
     nodeAssertions(u);
     partAssertions(p);
-    ASSERT(common::get_local_position_of_vertex(u) * _k + p < move_from_benefit.size());
+    ASSERT(common::get_local_position_of_vertex(u) * _k + p < move_to_penalty.size());
+    ASSERT(common::get_local_position_of_vertex(u) < move_from_benefit.size());
   }
 
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
@@ -532,16 +538,14 @@ private:
       for (HypernodeID u : pins(e)) {
         nodeGainAssertions(u, p);
         const HypernodeID u_local = common::get_local_position_of_vertex(u);
-        //if (partID(u) == p)
-          move_from_benefit[u_local * _k + p].fetch_add(we, std::memory_order_relaxed);
+        if (partID(u) == p)
+          move_from_benefit[u_local].fetch_add(we, std::memory_order_relaxed);
       }
     } else if (pin_count_after == 0) {
       const HyperedgeWeight we = edgeWeight(e);
       for (HypernodeID u : pins(e)) {
         nodeGainAssertions(u, p);
         const HypernodeID u_local = common::get_local_position_of_vertex(u);
-        //if (partID(u) == p)
-          move_from_benefit[u_local * _k + p].fetch_sub(we, std::memory_order_relaxed);
         move_to_penalty[u_local *_k + p].fetch_add(we, std::memory_order_relaxed);
       }
     }
@@ -556,8 +560,6 @@ private:
       for (HypernodeID u : pins(e)) {
         nodeGainAssertions(u, p);
         const HypernodeID u_local = common::get_local_position_of_vertex(u);
-        //if (partID(u) == p)
-          move_from_benefit[u_local * _k + p].fetch_add(we, std::memory_order_relaxed);
         move_to_penalty[u_local * _k + p].fetch_sub(we, std::memory_order_relaxed);
       }
     } else if (pin_count_after == 2) {
@@ -565,8 +567,8 @@ private:
       for (HypernodeID u : pins(e)) {
         nodeGainAssertions(u, p);
         const HypernodeID u_local = common::get_local_position_of_vertex(u);
-        //if (partID(u) == p)
-          move_from_benefit[u_local * _k + p].fetch_sub(we, std::memory_order_relaxed);
+        if (partID(u) == p)
+          move_from_benefit[u_local].fetch_sub(we, std::memory_order_relaxed);
       }
     }
     return pin_count_after;

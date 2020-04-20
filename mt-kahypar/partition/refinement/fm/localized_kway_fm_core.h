@@ -123,7 +123,7 @@ public:
         }
       }
     }
-    return std::make_pair(to, phg.moveFromBenefit(u, phg.partID(u)) - to_penalty);
+    return std::make_pair(to, phg.moveFromBenefit(u) - to_penalty);
   };
 
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE

@@ -124,7 +124,7 @@ TEST(RollbackTests, GainRecalculationAndRollsbackCorrectly) {
   GlobalRollback grb(hg.initialNumNodes());
   grb.recalculateGains(phg, sharedData);
   for (MoveID round_local_move_id = 0; round_local_move_id < 4; ++round_local_move_id) {
-    ASSERT_EQ(sharedData.moveTracker.globalMoveOrder[round_local_move_id].gain, grb.gains[round_local_move_id]);
+    ASSERT_EQ(sharedData.moveTracker.moveOrder[round_local_move_id].gain, grb.gains[round_local_move_id]);
   }
 
   ASSERT_EQ(phg.km1Gain(4, 0, 1), -1);

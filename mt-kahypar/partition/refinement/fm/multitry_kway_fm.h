@@ -66,7 +66,8 @@ public:
           }
         }
       };
-      TBBNumaArena::instance().run_max_concurrency_tasks_on_all_sockets(taskGroupID, task);
+      //TBBNumaArena::instance().run_max_concurrency_tasks_on_all_sockets(taskGroupID, task);
+      task(0,0,0);
       refinementNodes.clear();  // calling clear is necessary since tryPop will reduce the size to -(num calling threads)
 
       HyperedgeWeight improvement = globalRollback.globalRollbackToBestPrefix(phg, sharedData);

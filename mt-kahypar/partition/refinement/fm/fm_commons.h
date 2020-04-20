@@ -25,6 +25,8 @@
 #include <mt-kahypar/datastructures/priority_queue.h>
 #include "partition_weight_budgets.h"
 
+#include <tbb/parallel_for.h>
+
 namespace mt_kahypar {
 namespace refinement {
 
@@ -33,15 +35,15 @@ using VertexPriorityQueue = ds::MaxHeap<Gain, HypernodeID>;    // these need ext
 
 
 struct GlobalMoveTracker {
-  vec<Move> globalMoveOrder;
+  vec<Move> moveOrder;
   CAtomic<MoveID> runningMoveID;
   MoveID firstMoveID = 1;
 
-  explicit GlobalMoveTracker(size_t numNodes) : globalMoveOrder(numNodes), runningMoveID(1) {}
+  explicit GlobalMoveTracker(size_t numNodes) : moveOrder(numNodes), runningMoveID(1) {}
 
   // Returns true if stored move IDs should be reset
   bool reset() {
-    if (runningMoveID.load() >= std::numeric_limits<MoveID>::max() - globalMoveOrder.size() - 20) {
+    if (runningMoveID.load() >= std::numeric_limits<MoveID>::max() - moveOrder.size() - 20) {
       firstMoveID = 1;
       runningMoveID.store(1);
       return true;
@@ -53,14 +55,14 @@ struct GlobalMoveTracker {
 
   MoveID insertMove(Move &m) {
     const MoveID move_id = runningMoveID.fetch_add(1, std::memory_order_relaxed);
-    assert(move_id - firstMoveID < globalMoveOrder.size());
-    globalMoveOrder[move_id - firstMoveID] = m;
+    assert(move_id - firstMoveID < moveOrder.size());
+    moveOrder[move_id - firstMoveID] = m;
     return move_id;
   }
 
   Move& getMove(MoveID move_id) {
-    assert(move_id - firstMoveID < globalMoveOrder.size());
-    return globalMoveOrder[move_id - firstMoveID];
+    assert(move_id - firstMoveID < moveOrder.size());
+    return moveOrder[move_id - firstMoveID];
   }
 
   MoveID numPerformedMoves() const {
@@ -142,7 +144,7 @@ struct FMSharedData {
   ~FMSharedData() {
     tbb::parallel_invoke(
             [&]() { parallel::parallel_free(remaining_original_pins, first_move_in, last_move_out); },
-            [&]() { parallel::parallel_free(vertexPQHandles, moveTracker.globalMoveOrder); }
+            [&]() { parallel::parallel_free(vertexPQHandles, moveTracker.moveOrder); }
     );
 
   }
