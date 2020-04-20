@@ -41,7 +41,7 @@ class PLM {
   static constexpr bool advancedGainAdjustment = false;
 
   using AtomicArcWeight = parallel::AtomicWrapper<ArcWeight>;
-  using LargeIncidentClusterWeights = ds::SparseMap<PartitionID, ArcWeight>;
+  using LargeIncidentClusterWeights = ds::FixedSizeSparseMap<PartitionID, ArcWeight>;
   using CacheEfficientIncidentClusterWeights = ds::FixedSizeSparseMap<PartitionID, ArcWeight>;
 
  public:
@@ -52,7 +52,7 @@ class PLM {
                size_t numNodes,
                const bool disable_randomization = false) :
     _context(context),
-    _num_nodes(numNodes),
+    _max_degree(numNodes),
     _cluster_volumes(numNodes),
     _local_small_incident_cluster_weight(0),
     _local_large_incident_cluster_weight([&] {
@@ -77,7 +77,7 @@ class PLM {
   }
 
   bool localMoving(G& graph, ds::Clustering& communities) {
-    _num_nodes = graph.numNodes();
+    _max_degree = graph.max_degree();
     _reciprocal_total_volume = 1.0 / graph.totalVolume();
     _vol_multiplier_div_by_node_vol = _reciprocal_total_volume;
 
@@ -116,7 +116,6 @@ class PLM {
           } else {
             LargeIncidentClusterWeights& large_incident_cluster_weight =
               _local_large_incident_cluster_weight.local();
-            large_incident_cluster_weight.setMaxSize(_num_nodes);
             best_cluster = computeMaxGainCluster(
               graph, communities, u, large_incident_cluster_weight);
           }
@@ -164,7 +163,7 @@ class PLM {
   }
 
   LargeIncidentClusterWeights construct_large_incident_cluster_weight_map() {
-    return LargeIncidentClusterWeights(_num_nodes, 0);
+    return LargeIncidentClusterWeights(3UL * _max_degree, 0);
   }
 
   // ! Only for testing
@@ -329,7 +328,7 @@ class PLM {
   }
 
   const Context& _context;
-  size_t _num_nodes;
+  size_t _max_degree;
   double _reciprocal_total_volume = 0.0;
   double _vol_multiplier_div_by_node_vol = 0.0;
   parallel::scalable_vector<AtomicArcWeight> _cluster_volumes;

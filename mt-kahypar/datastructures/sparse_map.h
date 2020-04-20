@@ -252,11 +252,13 @@ class FixedSizeSparseMap {
   };
 
  public:
+
   static constexpr size_t MAP_SIZE = 32768; // Size of sparse map is approx. 1 MB
 
   static_assert(MAP_SIZE && ((MAP_SIZE & (MAP_SIZE - 1)) == 0UL), "Size of map is not a power of two!");
 
   explicit FixedSizeSparseMap(const Value initial_value) :
+    _map_size(MAP_SIZE),
     _initial_value(initial_value),
     _data(std::make_unique<uint8_t[]>(
       MAP_SIZE * sizeof(MapElement) + MAP_SIZE * sizeof(SparseElement))),
@@ -267,10 +269,27 @@ class FixedSizeSparseMap {
     memset(_data.get(), 0, MAP_SIZE * (sizeof(MapElement) + sizeof(SparseElement)));
   }
 
+  explicit FixedSizeSparseMap(const size_t max_size,
+                              const Value initial_value) :
+    _map_size(align_to_next_power_of_two(max_size)),
+    _initial_value(initial_value),
+    _data(std::make_unique<uint8_t[]>(
+      _map_size * sizeof(MapElement) + _map_size * sizeof(SparseElement))),
+    _size(0),
+    _timestamp(1),
+    _sparse(reinterpret_cast<SparseElement*>(_data.get())),
+    _dense(reinterpret_cast<MapElement*>(_data.get() +  + sizeof(SparseElement) * _map_size)) {
+    memset(_data.get(), 0, _map_size * (sizeof(MapElement) + sizeof(SparseElement)));
+  }
+
   FixedSizeSparseMap(const FixedSizeSparseMap&) = delete;
   FixedSizeSparseMap& operator= (const FixedSizeSparseMap& other) = delete;
 
   ~FixedSizeSparseMap() = default;
+
+  size_t capacity() const {
+    return _map_size;
+  }
 
   size_t size() const {
     return _size;
@@ -329,14 +348,14 @@ class FixedSizeSparseMap {
 
  private:
   inline SparseElement* find(const Key key) const {
-    ASSERT(_size < MAP_SIZE);
-    size_t hash = key & ( MAP_SIZE - 1 );
+    ASSERT(_size < _map_size);
+    size_t hash = key & ( _map_size - 1 );
     while ( _sparse[hash].timestamp == _timestamp ) {
       ASSERT(_sparse[hash].element);
       if ( _sparse[hash].element->key == key ) {
         return &_sparse[hash];
       }
-      hash = (hash + 1) & ( MAP_SIZE - 1 );
+      hash = (hash + 1) & ( _map_size - 1 );
     }
     return &_sparse[hash];
   }
@@ -359,6 +378,11 @@ class FixedSizeSparseMap {
     return s->element;
   }
 
+  size_t align_to_next_power_of_two(const size_t size) const {
+    return std::pow(2.0, std::ceil(std::log2(static_cast<double>(size))));
+  }
+
+  const size_t _map_size;
   const Value _initial_value;
   std::unique_ptr<uint8_t[]> _data;
 
