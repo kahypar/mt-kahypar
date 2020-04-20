@@ -55,9 +55,19 @@ int main(int argc, char* argv[]) {
   mt_kahypar::TBBNumaArena::instance(context.shared_memory.num_threads);
 
   // Read Hypergraph
+  mt_kahypar::utils::Timer::instance().start_timer(
+    "construct_hypergraph_from_file", "Construct Hypergraph from File");
   mt_kahypar::Hypergraph hypergraph = mt_kahypar::io::readHypergraphFile<
     mt_kahypar::Hypergraph, mt_kahypar::HypergraphFactory>(
       context.partition.graph_filename, mt_kahypar::TBBNumaArena::GLOBAL_TASK_GROUP);
+
+  if ( context.preprocessing.use_community_detection ) {
+    mt_kahypar::utils::Timer::instance().start_timer(
+      "allocate_tmp_graph_buffer", "Alloc Tmp Graph Buffer");
+    hypergraph.allocateTmpGraphBuffer();
+    mt_kahypar::utils::Timer::instance().stop_timer("allocate_tmp_graph_buffer");
+  }
+  mt_kahypar::utils::Timer::instance().stop_timer("construct_hypergraph_from_file");
 
   if ( context.partition.enable_profiler ) {
     mt_kahypar::utils::Profiler::instance(context.partition.snapshot_interval).start();

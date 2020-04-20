@@ -384,7 +384,7 @@ class StaticHypergraph {
   using IncidenceArray = Vector<HypernodeID>;
   using IncidentNets = Vector<HyperedgeID>;
 
-  // ! Contains data structures that are needed during multilevel contractions.
+  // ! Contains buffers that are needed during multilevel contractions.
   // ! Struct is allocated on top level hypergraph and passed to each contracted
   // ! hypergraph such that memory can be reused in consecutive contractions.
   struct TmpContractionBuffer {
@@ -442,6 +442,51 @@ class StaticHypergraph {
     parallel::scalable_vector<size_t> valid_hyperedges;
   };
 
+  // Contains buffers that are needed during graph construction and contraction.
+  // Struct is constructed on top level hypergraph and passed to each graph during
+  // preprocessing.
+  struct TmpGraphBuffer {
+
+    explicit TmpGraphBuffer(const HypernodeID num_hypernodes,
+                            const HyperedgeID num_hyperedges,
+                            const HyperedgeID num_pins) :
+      is_initialized(false) {
+      tbb::parallel_invoke([&] {
+        indices.resize(num_hypernodes + num_hyperedges + 1);
+      }, [&] {
+        tmp_indices.resize(num_hypernodes + num_hyperedges + 1);
+      }, [&] {
+        arcs.resize(2 * num_pins);
+      }, [&] {
+        tmp_arcs.resize(2 * num_pins);
+      }, [&] {
+        node_volumes.resize(num_hypernodes + num_hyperedges + 1);
+      }, [&] {
+        tmp_node_volumes.resize(num_hypernodes + num_hyperedges + 1);
+      });
+      is_initialized = true;
+    }
+
+    void freeInternalData() {
+      if ( is_initialized ) {
+        tbb::parallel_invoke([&] {
+          parallel::parallel_free(indices, arcs, node_volumes);
+        }, [&] {
+          parallel::parallel_free(tmp_indices, tmp_arcs, tmp_node_volumes);
+        });
+        is_initialized = false;
+      }
+    }
+
+    bool is_initialized;
+    parallel::scalable_vector<size_t> indices;
+    parallel::scalable_vector<Arc> arcs;
+    parallel::scalable_vector<ArcWeight> node_volumes;
+    parallel::scalable_vector<size_t> tmp_indices;
+    parallel::scalable_vector<Arc> tmp_arcs;
+    parallel::scalable_vector<ArcWeight> tmp_node_volumes;
+  };
+
  public:
   static constexpr bool is_static_hypergraph = true;
   static constexpr bool is_numa_aware = false;
@@ -474,6 +519,7 @@ class StaticHypergraph {
     _incidence_array(),
     _community_support(),
     _tmp_contraction_buffer(nullptr),
+    _tmp_graph_buffer(nullptr),
     _is_root_allocator(false) { }
 
   StaticHypergraph(const StaticHypergraph&) = delete;
@@ -495,6 +541,7 @@ class StaticHypergraph {
     _incidence_array(std::move(other._incidence_array)),
     _community_support(std::move(other._community_support)),
     _tmp_contraction_buffer(std::move(other._tmp_contraction_buffer)),
+    _tmp_graph_buffer(std::move(other._tmp_graph_buffer)),
     _is_root_allocator(other._is_root_allocator) {
     other._is_root_allocator = false;
   }
@@ -515,6 +562,7 @@ class StaticHypergraph {
     _incidence_array = std::move(other._incidence_array);
     _community_support = std::move(other._community_support);
     _tmp_contraction_buffer = std::move(other._tmp_contraction_buffer);
+    _tmp_graph_buffer = std::move(other._tmp_graph_buffer);
     _is_root_allocator = other._is_root_allocator;
     other._is_root_allocator = false;
     return *this;
@@ -1624,6 +1672,14 @@ class StaticHypergraph {
     }
   }
 
+  // ! Allocate the temporary graph buffer
+  void allocateTmpGraphBuffer() {
+    if ( !_tmp_graph_buffer ) {
+      _tmp_graph_buffer = new TmpGraphBuffer(
+        _num_hypernodes, _num_hyperedges, _num_pins);
+    }
+  }
+
   // ! Free internal data in parallel
   void freeInternalData() {
     if ( _num_hypernodes > 0 || _num_hyperedges > 0 ) {
@@ -1634,6 +1690,12 @@ class StaticHypergraph {
           _tmp_contraction_buffer->freeInternalData();
           free(_tmp_contraction_buffer);
           _tmp_contraction_buffer = nullptr;
+        }
+      }, [&] {
+        if ( _tmp_graph_buffer ) {
+          _tmp_graph_buffer->freeInternalData();
+          free(_tmp_graph_buffer);
+          _tmp_graph_buffer = nullptr;
         }
       });
     }
@@ -1777,6 +1839,9 @@ class StaticHypergraph {
   // ! Data that is reused throughout the multilevel hierarchy
   // ! to contract the hypergraph and to prevent expensive allocations
   TmpContractionBuffer* _tmp_contraction_buffer;
+  // ! Data that is reused throughout the louvain method
+  // ! to construct and contract a graph and to prevent expensive allocations
+  TmpGraphBuffer* _tmp_graph_buffer;
   // ! If true, than the contraction buffer was allocated within this hypergraph
   bool _is_root_allocator;
 };
