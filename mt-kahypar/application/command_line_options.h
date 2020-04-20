@@ -112,8 +112,6 @@ po::options_description createGenericOptionsDescription(Context& context,
     "If true, detailed clustering timings overview is shown")
     ("show-memory-consumption", po::value<bool>(&context.partition.show_memory_consumption)->value_name("<bool>"),
     "If true, memory consumption overview is shown")
-    ("show-modularity", po::value<bool>(&context.partition.show_modularity)->value_name("<bool>"),
-    "If true, modularity is shown")
     ("enable-progress-bar", po::value<bool>(&context.partition.enable_progress_bar)->value_name("<bool>"),
     "If true, than progress bar is displayed")
     ("enable-profiler", po::value<bool>(&context.partition.enable_profiler)->value_name("<bool>"),
