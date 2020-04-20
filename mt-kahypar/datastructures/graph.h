@@ -44,13 +44,7 @@ namespace mt_kahypar {
 namespace ds {
 
 /*!
- * Scalable CSR Graph Data Structure
- * In our graph data structure the nodes are partitioned into equal-sized blocks.
- * For each block, we construct an adjacence array separately. Idea behind this is that,
- * expensive allocations are scattered among several blocks during construction and
- * contraction and can be therefore implemented in a scalable way. Furthermore, it still
- * has the advantages of a traditional adjacence array graph representation in terms
- * of cache-efficiency and memory-consumption.
+ * CSR Graph Data Structure
  */
 template<typename HyperGraph>
 class GraphT {
