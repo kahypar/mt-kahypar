@@ -34,8 +34,6 @@ using HyperGraph = StaticHypergraph;
 using Factory = StaticHypergraphFactory;
 using AGraph = HypergraphFixture<HyperGraph, Factory>;
 using Graph = GraphT<HyperGraph>;
-using Arc = typename Graph::Arc;
-using ArcWeight = typename Graph::ArcWeight;
 
 void verifyArcIterator(const Graph& graph,
                        const NodeID u,

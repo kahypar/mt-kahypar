@@ -65,21 +65,6 @@ class GraphT {
   static constexpr bool enable_heavy_assert = false;
 
  public:
-  using ArcWeight = double;
-
-  struct Arc {
-    NodeID head;
-    ArcWeight weight;
-
-    Arc() :
-      head(0),
-      weight(0) { }
-
-    Arc(NodeID head, ArcWeight weight) :
-      head(head),
-      weight(weight) { }
-  };
-
   using AdjacenceIterator = typename parallel::scalable_vector<Arc>::const_iterator;
 
  private:

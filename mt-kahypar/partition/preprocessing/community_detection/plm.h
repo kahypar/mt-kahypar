@@ -28,6 +28,7 @@
 
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/macros.h"
+#include "mt-kahypar/datastructures/hypergraph_common.h"
 #include "mt-kahypar/datastructures/clustering.h"
 #include "mt-kahypar/partition/metrics.h"
 #include "mt-kahypar/parallel/atomic_wrapper.h"
@@ -39,9 +40,7 @@ class PLM {
  private:
   static constexpr bool advancedGainAdjustment = false;
 
-  using ArcWeight = typename G::ArcWeight;
   using AtomicArcWeight = parallel::AtomicWrapper<ArcWeight>;
-  using Arc = typename G::Arc;
   using LargeIncidentClusterWeights = ds::SparseMap<PartitionID, ArcWeight>;
   using CacheEfficientIncidentClusterWeights = ds::FixedSizeSparseMap<PartitionID, ArcWeight>;
 
