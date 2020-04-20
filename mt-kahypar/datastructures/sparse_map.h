@@ -28,7 +28,6 @@
 
 #include <algorithm>
 #include <limits>
-#include <memory>
 #include <utility>
 #include <vector>
 #include <cmath>
@@ -38,6 +37,7 @@
 
 #include "mt-kahypar/macros.h"
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
+#include "mt-kahypar/parallel/stl/scalable_unique_ptr.h"
 
 namespace mt_kahypar {
 namespace ds {
@@ -69,7 +69,7 @@ class SparseMapBase {
   }
 
   void setMaxSize(const size_t max_size) {
-    _dense = reinterpret_cast<MapElement*>(_sparse.get() + max_size);
+    _dense = reinterpret_cast<MapElement*>(_data.get() + max_size);
   }
 
   bool contains(const Key key) const {
@@ -117,9 +117,10 @@ class SparseMapBase {
   }
 
   void freeInternalData() {
-    size_t* data = _sparse.release();
-    free(data);
+    size_t* data = _data.release();
+    scalable_free(data);
     _size = 0;
+    _data = nullptr;
     _sparse = nullptr;
     _dense = nullptr;
   }
@@ -128,10 +129,12 @@ class SparseMapBase {
   explicit SparseMapBase(const size_t max_size,
                          const Value initial_value = 0) :
     _size(0),
-    _sparse(std::make_unique<size_t[]>((max_size * sizeof(MapElement) +
-                                        max_size * sizeof(size_t)) / sizeof(size_t))),
+    _data(parallel::make_unique<size_t>((max_size * sizeof(MapElement) +
+                                         max_size * sizeof(size_t)) / sizeof(size_t))),
+    _sparse(nullptr),
     _dense(nullptr) {
-    _dense = reinterpret_cast<MapElement*>(_sparse.get() + max_size);
+    _sparse = reinterpret_cast<size_t*>(_data.get());
+    _dense = reinterpret_cast<MapElement*>(_data.get() + max_size);
     for (size_t i = 0; i < max_size; ++i) {
       _sparse[i] = std::numeric_limits<size_t>::max();
       _dense[i] = MapElement { std::numeric_limits<Key>::max(), initial_value };
@@ -142,15 +145,18 @@ class SparseMapBase {
 
   SparseMapBase(SparseMapBase&& other) :
     _size(other._size),
+    _data(std::move(other._data)),
     _sparse(std::move(other._sparse)),
     _dense(std::move(other._dense)) {
     other._size = 0;
+    other._data = nullptr;
     other._sparse = nullptr;
     other._dense = nullptr;
   }
 
   size_t _size;
-  std::unique_ptr<size_t[]> _sparse;
+  parallel::tbb_unique_ptr<size_t> _data;
+  size_t* _sparse;
   MapElement* _dense;
 };
 
@@ -173,10 +179,12 @@ class SparseMap final : public SparseMapBase<Key, Value, SparseMap<Key, Value> >
     Base(std::move(other)) { }
 
   SparseMap& operator= (SparseMap&& other) {
+    _data = std::move(other._data);
     _sparse = std::move(other._sparse);
     _size = 0;
     _dense = std::move(other._dense);
     other._size = 0;
+    other._data = nullptr;
     other._sparse = nullptr;
     other._dense = nullptr;
     return *this;
@@ -212,6 +220,7 @@ class SparseMap final : public SparseMapBase<Key, Value, SparseMap<Key, Value> >
     _size = 0;
   }
 
+  using Base::_data;
   using Base::_sparse;
   using Base::_dense;
   using Base::_size;
