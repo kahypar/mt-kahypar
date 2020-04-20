@@ -133,10 +133,6 @@ inline void Partitioner::preprocess(Hypergraph& hypergraph) {
     utils::Timer::instance().stop_timer("construct_graph");
     communities = ParallelModularityLouvain<Graph>::run(graph, _context,
       _context.shared_memory.num_threads);
-    _degree_zero_hn_remover.assignAllDegreeZeroHypernodesToSameCommunity(hypergraph, communities);
-    utils::Timer::instance().start_timer("free_tmp_graph_buffer", "Free Tmp Graph Buffer");
-    hypergraph.freeTmpGraphBuffer();
-    utils::Timer::instance().stop_timer("free_tmp_graph_buffer");
     utils::Timer::instance().stop_timer("perform_community_detection");
 
     // Stream community ids into hypergraph
