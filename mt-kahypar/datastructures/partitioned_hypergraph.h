@@ -461,7 +461,8 @@ private:
     connectivity_sets.reset();
   }
 
-  auto& getPinCountInPartVector() {
+  vec< CAtomic<HypernodeID> >& getPinCountInPartVector() {
+    LOG << "getPinCountInPartVector" << V(pins_in_part.size());
     return pins_in_part;
   }
 

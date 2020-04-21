@@ -62,7 +62,8 @@ public:
     while (consecutiveMovesWithNonPositiveGain < context.refinement.fm.max_number_of_fruitless_moves && findNextMove(phg, m)) {
       //LOG << "found move" << V(m.node) << V(m.from) << V(m.to) << V(m.gain);
       sharedData.nodeTracker.deactivateNode(m.node, thisSearch);
-      const bool moved = phg.changeNodePartFullUpdate(m.node, m.from, m.to, max_part_weight, [&] { sharedData.moveTracker.insertMove(m); });
+      const bool moved = m.to != kInvalidPartition
+                         && phg.changeNodePartFullUpdate(m.node, m.from, m.to, max_part_weight, [&] { sharedData.moveTracker.insertMove(m); });
       if (moved) {
         updateAfterSuccessfulMove(phg, sharedData, m);
         consecutiveMovesWithNonPositiveGain = m.gain > 0 ? 0 : consecutiveMovesWithNonPositiveGain + 1;
