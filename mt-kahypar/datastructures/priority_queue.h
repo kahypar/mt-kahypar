@@ -41,10 +41,7 @@ class Heap {
 public:
   static_assert(arity > 1);
 
-
-  explicit Heap(vec<PosT>& external_positions) : comp(), heap(), positions(external_positions) {
-    heap.reserve(1024);
-  }
+  explicit Heap(PosT* positions, size_t positions_size) : comp(), heap(), positions(positions), positions_size(positions_size) { }
 
   IdT top() const {
     return heap[0].id;
@@ -65,6 +62,7 @@ public:
 
   void insert(const IdT e, const KeyT k) {
     ASSERT(!contains(e), V(e) << V(positions[e]) << V(heap[positions[e]].id) << V(heap.size()));
+    ASSERT(size() < positions_size);
     const PosT pos = size();
     positions[e] = pos;
     heap.push_back({k, e});
@@ -184,7 +182,7 @@ protected:
   }
 
   bool fits(const IdT id) const {
-    return static_cast<size_t>(id) < positions.size();
+    return static_cast<size_t>(id) < positions_size;
   }
 
   PosT parent(const PosT pos) const {
@@ -277,7 +275,8 @@ protected:
   Comparator comp;                // comp(heap[parent(pos)].key, heap[pos].key) returns true if the element at pos should move upward --> comp = std::less for MaxHeaps
                                   // similarly comp(heap[child(pos)].key, heap[pos].key) returns false if the element at pos should move downward
   vec<HeapElement> heap;
-  vec<PosT>& positions;           // this is ref because BlockQueues need to share handles
+  PosT* positions;
+  size_t positions_size;
 };
 
 
@@ -290,8 +289,10 @@ struct HandlesPBase {
 template<typename HeapT>
 class ExclusiveHandleHeap : protected HandlesPBase, public HeapT {
 public:
-  explicit ExclusiveHandleHeap(size_t nHandles) : HandlesPBase(nHandles), HeapT(this->handles) { }
-  ExclusiveHandleHeap(const ExclusiveHandleHeap& other) : HandlesPBase(other), HeapT(this->handles) { }
+  explicit ExclusiveHandleHeap(size_t nHandles) : HandlesPBase(nHandles), HeapT(this->handles.data(), this->handles.size()) { }
+
+                                                                              //at this point this->handles is already a deep copy of other.handles
+  ExclusiveHandleHeap(const ExclusiveHandleHeap& other) : HandlesPBase(other), HeapT(this->handles.data(), this->handles.size()) { }
 };
 
 template<typename KeyT, typename IdT>
