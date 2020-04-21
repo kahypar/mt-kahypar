@@ -162,6 +162,7 @@ protected:
   bool isHeap() const {
     for (PosT i = 1; i < size(); ++i) {
       if (comp(heap[parent(i)].key, heap[i].key)) {
+        LOG << "heap property violation" << V(i) << V(parent(i)) << V(arity) << V(heap[i].key) << V(heap[parent(i)].key);
         return false;
       }
     }
@@ -170,8 +171,9 @@ protected:
 
   bool positionsMatch() const {
     for (PosT i = 0; i < size(); ++i) {
-      assert(size_t(heap[i].id) < positions.size());
+      assert(size_t(heap[i].id) < positions_size);
       if (positions[heap[i].id] != i) {
+        LOG << "position mismatch" << V(heap.size()) << V(i) << V(heap[i].id) << V(positions[heap[i].id]) << V(positions_size);
         return false;
       }
     }
