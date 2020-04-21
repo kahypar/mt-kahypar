@@ -26,6 +26,7 @@
 #include "mt-kahypar/mt_kahypar.h"
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/partition/partitioner.h"
+#include "mt-kahypar/partition/registries/register_memory_pool.h"
 
 using ::testing::Test;
 
@@ -219,6 +220,8 @@ typedef ::testing::Types<MultiLevelCutConfig<2,
 TYPED_TEST_CASE(MtKaHyPar, TestConfigs);
 
 void partitionHypergraph(Hypergraph& hypergraph, Context& context) {
+  mt_kahypar::register_memory_pool(hypergraph, context);
+
   // Partition Hypergraph
   HighResClockTimepoint start = std::chrono::high_resolution_clock::now();
   PartitionedHypergraph<> partitioned_hypergraph =
@@ -293,6 +296,8 @@ void partitionHypergraph(Hypergraph& hypergraph, Context& context) {
     ++num_hyperedges;
   }
   ASSERT_EQ(hypergraph.initialNumEdges(), num_hyperedges);
+
+  mt_kahypar::parallel::MemoryPool::instance().free_memory_chunks();
 }
 
 TYPED_TEST(MtKaHyPar, PartitionsAVLSIInstance) {

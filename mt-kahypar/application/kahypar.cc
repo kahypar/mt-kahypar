@@ -96,6 +96,7 @@ int main(int argc, char* argv[]) {
       partitioned_hypergraph, context.partition.graph_partition_filename);
   }
 
+  mt_kahypar::parallel::MemoryPool::instance().free_memory_chunks();
   mt_kahypar::TBBNumaArena::instance().terminate();
   return 0;
 }
