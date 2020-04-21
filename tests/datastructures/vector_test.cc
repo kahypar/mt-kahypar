@@ -181,5 +181,79 @@ TEST(AVector, MemcopiesContentToVector) {
   }
 }
 
+TEST(AVector, IsInitializedWithMemoryChunkFromMemoryPool) {
+  parallel::MemoryPool::instance().register_memory_chunk("TEST_GROUP", "TEST_CHUNK", 5, sizeof(size_t));
+  parallel::MemoryPool::instance().allocate_memory_chunks();
+
+  Vector<size_t> vec("TEST_GROUP", "TEST_CHUNK", 5);
+  ASSERT_EQ(parallel::MemoryPool::instance().mem_chunk("TEST_GROUP", "TEST_CHUNK"), (char *) vec.data());
+
+  parallel::MemoryPool::instance().free_memory_chunks();
+}
+
+TEST(AVector, IsInitializedWithSeveralMemoryChunksFromMemoryPool) {
+  parallel::MemoryPool::instance().register_memory_chunk("TEST_GROUP", "TEST_CHUNK_1", 5, sizeof(size_t));
+  parallel::MemoryPool::instance().register_memory_chunk("TEST_GROUP", "TEST_CHUNK_2", 5, sizeof(size_t));
+  parallel::MemoryPool::instance().allocate_memory_chunks();
+
+  Vector<size_t> vec_1("TEST_GROUP", "TEST_CHUNK_1", 5);
+  Vector<size_t> vec_2("TEST_GROUP", "TEST_CHUNK_2", 5);
+  ASSERT_EQ(parallel::MemoryPool::instance().mem_chunk("TEST_GROUP", "TEST_CHUNK_1"), (char *) vec_1.data());
+  ASSERT_EQ(parallel::MemoryPool::instance().mem_chunk("TEST_GROUP", "TEST_CHUNK_2"), (char *) vec_2.data());
+  ASSERT_NE(vec_1.data(), vec_2.data());
+
+  parallel::MemoryPool::instance().free_memory_chunks();
+}
+
+TEST(AVector, ReleasesMemoryChunkFromMemoryPoolInDestructor) {
+  parallel::MemoryPool::instance().register_memory_chunk("TEST_GROUP", "TEST_CHUNK", 5, sizeof(size_t));
+  parallel::MemoryPool::instance().allocate_memory_chunks();
+
+  {
+    Vector<size_t> vec("TEST_GROUP", "TEST_CHUNK", 5);
+    ASSERT_EQ(parallel::MemoryPool::instance().mem_chunk("TEST_GROUP", "TEST_CHUNK"), (char *) vec.data());
+    ASSERT_EQ(nullptr, parallel::MemoryPool::instance().request_mem_chunk("TEST_GROUP", "TEST_CHUNK", 5, sizeof(size_t)));
+  }
+
+  ASSERT_NE(nullptr, parallel::MemoryPool::instance().request_mem_chunk("TEST_GROUP", "TEST_CHUNK", 5, sizeof(size_t)));
+
+  parallel::MemoryPool::instance().free_memory_chunks();
+}
+
+TEST(AVector, AllocatesOwnMemoryIfNotAvailableInMemoryPool) {
+  parallel::MemoryPool::instance().register_memory_chunk("TEST_GROUP", "TEST_CHUNK", 5, sizeof(size_t));
+  parallel::MemoryPool::instance().allocate_memory_chunks();
+
+  Vector<size_t> vec("TEST_GROUP", "OTHER_CHUNK", 5);
+  ASSERT_NE(nullptr, vec.data());
+  ASSERT_NE(parallel::MemoryPool::instance().mem_chunk("TEST_GROUP", "TEST_CHUNK"), (char *) vec.data());
+
+  parallel::MemoryPool::instance().free_memory_chunks();
+}
+
+TEST(AVector, AllocatesOwnMemoryOnOverAllocationInMemoryPool) {
+  parallel::MemoryPool::instance().register_memory_chunk("TEST_GROUP", "TEST_CHUNK", 5, sizeof(size_t));
+  parallel::MemoryPool::instance().allocate_memory_chunks();
+
+  Vector<size_t> vec("TEST_GROUP", "TEST_CHUNK", 10);
+  ASSERT_NE(nullptr, vec.data());
+  ASSERT_NE(parallel::MemoryPool::instance().mem_chunk("TEST_GROUP", "TEST_CHUNK"), (char *) vec.data());
+
+  parallel::MemoryPool::instance().free_memory_chunks();
+}
+
+TEST(AVector, AllocatesOwnMemoryIfAlreadyRequestedInMemoryPool) {
+  parallel::MemoryPool::instance().register_memory_chunk("TEST_GROUP", "TEST_CHUNK", 5, sizeof(size_t));
+  parallel::MemoryPool::instance().allocate_memory_chunks();
+
+  Vector<size_t> vec_1("TEST_GROUP", "TEST_CHUNK", 5);
+  Vector<size_t> vec_2("TEST_GROUP", "TEST_CHUNK", 5);
+  ASSERT_EQ(parallel::MemoryPool::instance().mem_chunk("TEST_GROUP", "TEST_CHUNK"), (char *) vec_1.data());
+  ASSERT_NE(nullptr, vec_2.data());
+  ASSERT_NE(parallel::MemoryPool::instance().mem_chunk("TEST_GROUP", "TEST_CHUNK"), (char *) vec_2.data());
+
+  parallel::MemoryPool::instance().free_memory_chunks();
+}
+
 }  // namespace ds
 }  // namespace mt_kahypar
