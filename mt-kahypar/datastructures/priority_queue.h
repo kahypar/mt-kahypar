@@ -291,6 +291,7 @@ template<typename HeapT>
 class ExclusiveHandleHeap : protected HandlesPBase, public HeapT {
 public:
   explicit ExclusiveHandleHeap(size_t nHandles) : HandlesPBase(nHandles), HeapT(this->handles) { }
+  ExclusiveHandleHeap(const ExclusiveHandleHeap& other) : HandlesPBase(other), HeapT(this->handles) { }
 };
 
 template<typename KeyT, typename IdT>
