@@ -175,6 +175,7 @@ protected:
 
   bool positionsMatch() const {
     for (PosT i = 0; i < size(); ++i) {
+      assert(size_t(heap[i].id) < positions.size());
       if (positions[heap[i].id] != i) {
         return false;
       }
