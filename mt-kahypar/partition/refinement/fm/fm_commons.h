@@ -77,8 +77,8 @@ struct GlobalMoveTracker {
 struct NodeTracker {
   vec<std::atomic<SearchID>> searchOfNode;
 
-  SearchID deactivatedNodeMarker = 0;
-  CAtomic<SearchID> highestActiveSearchID { 0 };
+  SearchID deactivatedNodeMarker = 1;
+  CAtomic<SearchID> highestActiveSearchID { 1 };
 
   explicit NodeTracker(size_t numNodes) : searchOfNode(numNodes) {
     for (auto& x : searchOfNode) {
