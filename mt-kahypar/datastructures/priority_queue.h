@@ -64,7 +64,7 @@ public:
   }
 
   void insert(const IdT e, const KeyT k) {
-    assert(!contains(e));
+    ASSERT(!contains(e), V(e) << V(positions[e]) << V(heap[positions[e]].id) << V(heap.size()));
     const PosT pos = size();
     positions[e] = pos;
     heap.push_back({k, e});
@@ -131,7 +131,7 @@ public:
 
   bool contains(const IdT e) const {
     assert(fits(e));
-    return positions[e] != invalid_position && heap[positions[e]].id == e;
+    return positions[e] < heap.size() && heap[positions[e]].id == e;
   }
 
   PosT size() const {
