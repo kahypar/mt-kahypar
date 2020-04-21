@@ -174,13 +174,7 @@ class Vector {
     _size(size),
     _data(nullptr),
     _underlying_data(nullptr) {
-    char* data = parallel::MemoryPool::instance().request_mem_chunk(
-      group, key, size, sizeof(value_type));
-    if ( data ) {
-      _underlying_data = reinterpret_cast<value_type*>(data);
-    } else {
-      resize(size, value_type());
-    }
+    resize(group, key, size);
   }
 
   Vector(const Vector&) = delete;
@@ -191,7 +185,7 @@ class Vector {
     _key(std::move(other._key)),
     _size(other._size),
     _data(std::move(other._data)),
-    _underlying_data(std::move(_underlying_data)) {
+    _underlying_data(std::move(other._underlying_data)) {
     other._size = 0;
     other._data = nullptr;
     other._underlying_data = nullptr;
@@ -206,6 +200,7 @@ class Vector {
     other._size = 0;
     other._data = nullptr;
     other._underlying_data = nullptr;
+    return *this;
   }
 
   ~Vector() {
@@ -292,6 +287,21 @@ class Vector {
 
     allocate_data(size);
     assign(size, init_value);
+  }
+
+  void resize(const std::string& group,
+              const std::string& key,
+              const size_type size) {
+    _group = group;
+    _key = key;
+    _size = size;
+    char* data = parallel::MemoryPool::instance().request_mem_chunk(
+      group, key, size, sizeof(value_type));
+    if ( data ) {
+      _underlying_data = reinterpret_cast<value_type*>(data);
+    } else {
+      resize(size, value_type());
+    }
   }
 
   // ! Replaces the contents of the container

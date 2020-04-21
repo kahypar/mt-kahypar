@@ -217,6 +217,7 @@ inline PartitionedHypergraph<> Partitioner::partition(Hypergraph& hypergraph) {
   setupContext(hypergraph, _context);
 
   io::printContext(_context);
+  io::printMemoryPoolConsumption(_context);
   io::printInputInformation(_context, hypergraph);
 
   // ################## PREPROCESSING ##################

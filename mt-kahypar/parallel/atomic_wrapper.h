@@ -49,6 +49,14 @@ class AtomicWrapper : public std::atomic<T> {
   explicit AtomicWrapper(const T value = T()) :
     std::atomic<T>(value) { }
 
+  AtomicWrapper(const AtomicWrapper& other) :
+    std::atomic<T>(other.load()) { }
+
+  AtomicWrapper & operator= (const AtomicWrapper& other) {
+    this->store(other.load());
+    return *this;
+  }
+
   AtomicWrapper(AtomicWrapper&& other) {
     this->store(other.load());
   }

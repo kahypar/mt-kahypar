@@ -28,6 +28,7 @@
 #include "tbb/enumerable_thread_specific.h"
 
 #include "mt-kahypar/parallel/tbb_numa_arena.h"
+#include "mt-kahypar/parallel/memory_pool.h"
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/partition/metrics.h"
@@ -344,6 +345,16 @@ static inline void printPartitioningResults(const PartitionedHypergraph<>& hyper
 static inline void printContext(const Context& context) {
   if (context.partition.verbose_output) {
     LOG << context;
+  }
+}
+
+static inline void printMemoryPoolConsumption(const Context& context) {
+  if ( context.partition.verbose_output && context.partition.show_memory_consumption ) {
+    utils::MemoryTreeNode memory_pool_consumption("Memory Pool", utils::OutputType::MEGABYTE);
+    parallel::MemoryPool::instance().memory_consumption(&memory_pool_consumption);
+    memory_pool_consumption.finalize();
+    LOG << "\n Memory Pool Consumption:";
+    LOG << memory_pool_consumption;
   }
 }
 

@@ -84,8 +84,6 @@ class NumaHypergraph {
   using CommunityIterator = typename Hypergraph::CommunityIterator;
   // ! Buffer used for contractions
   using TmpContractionBuffer = typename Hypergraph::TmpContractionBuffer;
-  // ! Buffer used for community detection
-  using TmpGraphBuffer = typename Hypergraph::TmpGraphBuffer;
 
   explicit NumaHypergraph() :
     _num_hypernodes(0),
@@ -97,8 +95,7 @@ class NumaHypergraph {
     _hypergraphs(),
     _node_mapping(),
     _edge_mapping(),
-    _community_node_mapping(),
-    _tmp_graph_buffer(nullptr) { }
+    _community_node_mapping() { }
 
   NumaHypergraph(const NumaHypergraph&) = delete;
   NumaHypergraph & operator= (const NumaHypergraph &) = delete;
@@ -113,8 +110,7 @@ class NumaHypergraph {
     _hypergraphs(std::move(other._hypergraphs)),
     _node_mapping(std::move(other._node_mapping)),
     _edge_mapping(std::move(other._edge_mapping)),
-    _community_node_mapping(std::move(other._community_node_mapping)),
-    _tmp_graph_buffer(std::move(other._tmp_graph_buffer)) { }
+    _community_node_mapping(std::move(other._community_node_mapping)) { }
 
   NumaHypergraph & operator= (NumaHypergraph&& other) {
     _num_hypernodes = other._num_hypernodes;
@@ -127,7 +123,6 @@ class NumaHypergraph {
     _node_mapping = std::move(other._node_mapping);
     _edge_mapping = std::move(other._edge_mapping);
     _community_node_mapping = std::move(other._community_node_mapping);
-    _tmp_graph_buffer = std::move(other._tmp_graph_buffer);
     return *this;
   }
 
@@ -1375,27 +1370,6 @@ class NumaHypergraph {
     return hypergraph;
   }
 
-  // ! Returns the temporary graph buffer
-  TmpGraphBuffer* tmpGraphBuffer() {
-    return _tmp_graph_buffer;
-  }
-
-  // ! Allocate the temporary graph buffer
-  void allocateTmpGraphBuffer() {
-    if ( !_tmp_graph_buffer ) {
-      const bool is_graph = maxEdgeSize() == 2;
-      _tmp_graph_buffer = new TmpGraphBuffer(
-        _num_hypernodes, _num_hyperedges, _num_pins, is_graph);
-    }
-  }
-
-  // ! Frees the internal graph buffer
-  void freeTmpGraphBuffer() {
-    if ( _tmp_graph_buffer ) {
-      _tmp_graph_buffer->freeInternalData();
-    }
-  }
-
   // Free internal data in parallel
   void freeInternalData() {
     if ( _num_hypernodes > 0 || _num_hyperedges > 0 ) {
@@ -1406,12 +1380,6 @@ class NumaHypergraph {
       }, [&] {
         parallel::parallel_free(_node_mapping,
           _edge_mapping, _community_node_mapping);
-      }, [&] {
-        if ( _tmp_graph_buffer ) {
-          _tmp_graph_buffer->freeInternalData();
-          free(_tmp_graph_buffer);
-          _tmp_graph_buffer = nullptr;
-        }
       });
     }
     _num_hypernodes = 0;
@@ -1485,10 +1453,6 @@ class NumaHypergraph {
   parallel::scalable_vector<HyperedgeID> _edge_mapping;
   // ! Mapping from community id to its NUMA node which they are assigned to
   parallel::scalable_vector<PartitionID> _community_node_mapping;
-
-  // ! Data that is reused throughout the louvain method
-  // ! to construct and contract a graph and to prevent expensive allocations
-  TmpGraphBuffer* _tmp_graph_buffer;
 };
 
 } // namespace ds
