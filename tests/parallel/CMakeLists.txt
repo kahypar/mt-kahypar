@@ -1,1 +1,2 @@
 add_gmock_test(tbb_task_arena_test tbb_task_arena_test.cc)
+add_gmock_test(memory_pool_test memory_pool_test.cc)
