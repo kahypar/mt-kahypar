@@ -35,10 +35,10 @@ namespace refinement {
 class LocalizedKWayFM {
 public:
   // unfortunately the compiler thinks we're trying to pass a const-ref for the pq_handles, which we don't. therefore it had to be a pointer :(
-  explicit LocalizedKWayFM(const Context& context, HypernodeID numNodes, vec<PosT>* pq_handles) :
+  explicit LocalizedKWayFM(const Context& context, HypernodeID numNodes, PosT* pq_handles) :
           numParts(context.partition.k),
           blockPQ(static_cast<size_t>(numParts)),
-          vertexPQs(static_cast<size_t>(numParts), VertexPriorityQueue(*pq_handles)),
+          vertexPQs(static_cast<size_t>(numParts), VertexPriorityQueue(pq_handles, numNodes)),
           updateDeduplicator(numNodes),
           context(context),
           max_part_weight(context.partition.max_part_weights[0]),

@@ -43,7 +43,7 @@ public:
           sharedData(numNodes, context.partition.k, context.shared_memory.num_threads),
           refinementNodes(numNodes),
           globalRollback(numNodes, numHyperedges, context.partition.k),
-          ets_fm(context, numNodes, &sharedData.vertexPQHandles)
+          ets_fm(context, numNodes, sharedData.vertexPQHandles.data())
   { }
 
 
@@ -67,9 +67,11 @@ public:
         }
       };
       TBBNumaArena::instance().run_max_concurrency_tasks_on_all_sockets(taskGroupID, task);
+      //task(0,0,0);
       refinementNodes.clear();  // calling clear is necessary since tryPop will reduce the size to -(num calling threads)
 
       HyperedgeWeight improvement = globalRollback.globalRollbackToBestPrefix(phg, sharedData);
+      LOG << V(improvement);
 
       if (improvement > 0) {
         overall_improved = true;
@@ -86,11 +88,12 @@ public:
   void initialize(PartitionedHypergraph& phg) {
     // insert border nodes into work queues
     refinementNodes.clear();
-    tbb::parallel_for(HypernodeID(0), phg.initialNumNodes(), [&](const HypernodeID u) {
+    //tbb::parallel_for(HypernodeID(0), phg.initialNumNodes(), [&](const HypernodeID u) {
+    for (NodeID u = 0; u < phg.initialNumNodes(); ++u)
       if (phg.isBorderNode(u)) {
         refinementNodes.push(u, common::get_numa_node_of_vertex(u));
       }
-    });
+    //});
 
     // requesting new searches activates all nodes by raising the deactivated node marker
     // also clears the array tracking search IDs in case of overflow

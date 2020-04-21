@@ -33,7 +33,6 @@ namespace refinement {
 using BlockPriorityQueue = ds::ExclusiveHandleHeap< ds::MaxHeap<Gain, PartitionID> >;
 using VertexPriorityQueue = ds::MaxHeap<Gain, HypernodeID>;    // these need external handles
 
-
 struct GlobalMoveTracker {
   vec<Move> moveOrder;
   CAtomic<MoveID> runningMoveID;
