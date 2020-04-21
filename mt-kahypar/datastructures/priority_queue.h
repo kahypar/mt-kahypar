@@ -121,9 +121,6 @@ public:
   }
 
   void clear() {
-    for (HeapElement& el : heap) {
-      positions[el.id] = invalid_position;   // should work without resetting positions but no harm in doing it
-    }
     heap.clear();
   }
 
