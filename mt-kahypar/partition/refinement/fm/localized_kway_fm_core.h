@@ -50,13 +50,15 @@ public:
 
 
   void findMoves(PartitionedHypergraph& phg, const HypernodeID initialBorderNode, FMSharedData& sharedData, SearchID search_id) {
-    this->thisSearch = search_id;
+    thisSearch = search_id;
     reinitialize();
     insertOrUpdatePQ(phg, initialBorderNode, sharedData.nodeTracker);
     updateBlock(phg, phg.partID(initialBorderNode));
 
     Move m;
     uint32_t consecutiveMovesWithNonPositiveGain = 0;
+    uint32_t numMoves = 0;
+    uint32_t numTrials = 0;
     Gain estimated_improvement = 0;
     while (consecutiveMovesWithNonPositiveGain < context.refinement.fm.max_number_of_fruitless_moves && findNextMove(phg, m)) {
       //LOG << "found move" << V(m.node) << V(m.from) << V(m.to) << V(m.gain);
@@ -66,9 +68,13 @@ public:
         updateAfterSuccessfulMove(phg, sharedData, m);
         consecutiveMovesWithNonPositiveGain = m.gain > 0 ? 0 : consecutiveMovesWithNonPositiveGain + 1;
         estimated_improvement += m.gain;
+        numMoves++;
       }
+      numTrials++;
       updateAfterMoveExtraction(phg, m);
     }
+
+    //LOG << V(estimated_improvement) << V(numMoves) << V(numTrials);
   }
 
   void updateBlock(PartitionedHypergraph& phg, PartitionID i) {
