@@ -61,7 +61,7 @@ int main(int argc, char* argv[]) {
       context.partition.graph_filename, mt_kahypar::TBBNumaArena::GLOBAL_TASK_GROUP);
 
   // Initialize Memory Pool
-  mt_kahypar::register_memory_pool(hypergraph);
+  mt_kahypar::register_memory_pool(hypergraph, context);
 
   if ( context.partition.enable_profiler ) {
     mt_kahypar::utils::Profiler::instance(context.partition.snapshot_interval).start();

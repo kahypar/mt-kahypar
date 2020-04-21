@@ -28,28 +28,62 @@
 
 namespace mt_kahypar {
 
-static void register_memory_pool(const Hypergraph& hypergraph) {
+static void register_memory_pool(const Hypergraph& hypergraph,
+                                 const Context& context) {
 
-  const HypernodeID num_hypernodes = hypergraph.initialNumNodes();
-  const HyperedgeID num_hyperedges = hypergraph.initialNumEdges();
-  const HypernodeID num_pins = hypergraph.initialNumPins();
+  // ########## Preprocessing Memory ##########
 
-  // ########## Community Detection Memory ##########
-  const bool is_graph = hypergraph.maxEdgeSize() == 2;
-  const size_t num_nodes = num_hypernodes + (is_graph ? 0 : num_hyperedges);
-  const size_t num_edges = is_graph ? num_pins : (2UL * num_pins);
+  if ( context.preprocessing.use_community_detection ) {
+    const HypernodeID num_hypernodes = hypergraph.initialNumNodes();
+    const HyperedgeID num_hyperedges = hypergraph.initialNumEdges();
+    const HypernodeID num_pins = hypergraph.initialNumPins();
+    const bool is_graph = hypergraph.maxEdgeSize() == 2;
+    const size_t num_nodes = num_hypernodes + (is_graph ? 0 : num_hyperedges);
+    const size_t num_edges = is_graph ? num_pins : (2UL * num_pins);
 
-  parallel::MemoryPool::instance().register_memory_chunk("Preprocessing", "indices", num_nodes + 1, sizeof(size_t));
-  parallel::MemoryPool::instance().register_memory_chunk("Preprocessing", "arcs", num_edges, sizeof(Arc));
-  parallel::MemoryPool::instance().register_memory_chunk("Preprocessing", "node_volumes", num_nodes, sizeof(ArcWeight));
-  parallel::MemoryPool::instance().register_memory_chunk("Preprocessing", "tmp_indices",
-    num_nodes + 1, sizeof(parallel::IntegralAtomicWrapper<size_t>));
-  parallel::MemoryPool::instance().register_memory_chunk("Preprocessing", "tmp_pos",
-    num_nodes, sizeof(parallel::IntegralAtomicWrapper<size_t>));
-  parallel::MemoryPool::instance().register_memory_chunk("Preprocessing", "tmp_arcs", num_edges, sizeof(Arc));
-  parallel::MemoryPool::instance().register_memory_chunk("Preprocessing", "valid_arcs", num_edges, sizeof(size_t));
-  parallel::MemoryPool::instance().register_memory_chunk("Preprocessing", "tmp_node_volumes",
-    num_nodes, sizeof(parallel::AtomicWrapper<ArcWeight>));
+    parallel::MemoryPool::instance().register_memory_chunk("Preprocessing", "indices", num_nodes + 1, sizeof(size_t));
+    parallel::MemoryPool::instance().register_memory_chunk("Preprocessing", "arcs", num_edges, sizeof(Arc));
+    parallel::MemoryPool::instance().register_memory_chunk("Preprocessing", "node_volumes", num_nodes, sizeof(ArcWeight));
+    parallel::MemoryPool::instance().register_memory_chunk("Preprocessing", "tmp_indices",
+      num_nodes + 1, sizeof(parallel::IntegralAtomicWrapper<size_t>));
+    parallel::MemoryPool::instance().register_memory_chunk("Preprocessing", "tmp_pos",
+      num_nodes, sizeof(parallel::IntegralAtomicWrapper<size_t>));
+    parallel::MemoryPool::instance().register_memory_chunk("Preprocessing", "tmp_arcs", num_edges, sizeof(Arc));
+    parallel::MemoryPool::instance().register_memory_chunk("Preprocessing", "valid_arcs", num_edges, sizeof(size_t));
+    parallel::MemoryPool::instance().register_memory_chunk("Preprocessing", "tmp_node_volumes",
+      num_nodes, sizeof(parallel::AtomicWrapper<ArcWeight>));
+  }
+
+  // ########## Coarsening Memory ##########
+
+  const bool is_numa_aware = Hypergraph::is_numa_aware;
+  for ( size_t node = 0; node < hypergraph.numNumaHypergraphs(); ++node ) {
+    const HypernodeID num_hypernodes = hypergraph.initialNumNodes(node);
+    const HyperedgeID num_hyperedges = hypergraph.initialNumEdges(node);
+    const HypernodeID num_pins = hypergraph.initialNumPins(node);
+    parallel::MemoryPool::instance().register_memory_chunk(
+      "Coarsening", "mapping_" + std::to_string(node), num_hypernodes, sizeof(size_t));
+    parallel::MemoryPool::instance().register_memory_chunk(
+      "Coarsening", "tmp_hypernodes_" + std::to_string(node), num_hypernodes, Hypergraph::SIZE_OF_HYPERNODE);
+    if ( !is_numa_aware ) {
+      parallel::MemoryPool::instance().register_memory_chunk(
+        "Coarsening", "tmp_incident_nets_" + std::to_string(node), num_pins, sizeof(HyperedgeID));
+    }
+    parallel::MemoryPool::instance().register_memory_chunk(
+      "Coarsening", "tmp_num_incident_nets_" + std::to_string(node),
+      num_hypernodes, sizeof(parallel::IntegralAtomicWrapper<size_t>));
+    parallel::MemoryPool::instance().register_memory_chunk(
+      "Coarsening", "hn_weights_" + std::to_string(node),
+      num_hypernodes, sizeof(parallel::IntegralAtomicWrapper<HypernodeWeight>));
+    parallel::MemoryPool::instance().register_memory_chunk(
+      "Coarsening", "tmp_hyperedges_" + std::to_string(node), num_hyperedges, Hypergraph::SIZE_OF_HYPEREDGE);
+    parallel::MemoryPool::instance().register_memory_chunk(
+      "Coarsening", "tmp_incidence_array_" + std::to_string(node), num_pins, sizeof(HypernodeID));
+    parallel::MemoryPool::instance().register_memory_chunk(
+      "Coarsening", "he_sizes_" + std::to_string(node), num_hyperedges, sizeof(size_t));
+    parallel::MemoryPool::instance().register_memory_chunk(
+      "Coarsening", "valid_hyperedges_" + std::to_string(node), num_hyperedges, sizeof(size_t));
+  }
 
   // Allocate Memory
   utils::Timer::instance().start_timer("memory_pool_allocation", "Memory Pool Allocation");

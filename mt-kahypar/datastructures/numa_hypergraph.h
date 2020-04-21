@@ -66,6 +66,8 @@ class NumaHypergraph {
   static constexpr bool is_static_hypergraph = Hypergraph::is_static_hypergraph;
   static constexpr bool is_numa_aware = true;
   static constexpr bool is_partitioned = false;
+  static constexpr size_t SIZE_OF_HYPERNODE = Hypergraph::SIZE_OF_HYPERNODE;
+  static constexpr size_t SIZE_OF_HYPEREDGE = Hypergraph::SIZE_OF_HYPEREDGE;
 
   static_assert(sizeof(HypernodeID) == 8, "Hypernode ID must be 8 byte");
   static_assert(std::is_unsigned<HypernodeID>::value, "Hypernode ID must be unsigned");

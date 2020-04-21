@@ -174,13 +174,6 @@ class StaticHypergraphFactory {
     // Compute total weight of hypergraph
     hypergraph.updateTotalWeight(task_group_id);
     utils::Timer::instance().stop_timer("setup_hypergraph");
-
-
-    utils::Timer::instance().start_timer("allocate_tmp_contraction_buffer", "Alloc Tmp Contraction Buffer", true);
-    // Allocates temporary contraction buffer
-    hypergraph.allocateTmpContractionBuffer();
-    utils::Timer::instance().stop_timer("allocate_tmp_contraction_buffer");
-
     return hypergraph;
   }
 
@@ -388,11 +381,6 @@ class StaticHypergraphFactory {
         return weight;
       }, std::plus<HypernodeWeight>());
     utils::Timer::instance().stop_timer("setup_numa_hypergraph");
-
-    utils::Timer::instance().start_timer("allocate_tmp_contraction_buffer", "Alloc Tmp Contraction Buffer", true);
-    // Allocates temporary contraction buffer
-    hypergraph.allocateTmpContractionBuffer(true);
-    utils::Timer::instance().stop_timer("allocate_tmp_contraction_buffer");
     return hypergraph;
   }
 
