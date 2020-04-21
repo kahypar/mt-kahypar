@@ -51,7 +51,6 @@ public:
 
   void findMoves(PartitionedHypergraph& phg, const HypernodeID initialBorderNode, FMSharedData& sharedData, SearchID search_id) {
     thisSearch = search_id;
-    reinitialize();
     insertOrUpdatePQ(phg, initialBorderNode, sharedData.nodeTracker);
     updateBlock(phg, phg.partID(initialBorderNode));
 
@@ -74,6 +73,7 @@ public:
       updateAfterMoveExtraction(phg, m);
     }
 
+    reinitialize();
     //LOG << V(estimated_improvement) << V(numMoves) << V(numTrials);
   }
 
