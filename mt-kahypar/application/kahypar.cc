@@ -23,6 +23,7 @@
 #include "mt-kahypar/application/command_line_options.h"
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/mt_kahypar.h"
+#include "mt-kahypar/partition/registries/register_memory_pool.h"
 #include "mt-kahypar/io/hypergraph_io.h"
 #include "mt-kahypar/io/sql_plottools_serializer.h"
 #include "mt-kahypar/partition/context.h"
@@ -55,19 +56,12 @@ int main(int argc, char* argv[]) {
   mt_kahypar::TBBNumaArena::instance(context.shared_memory.num_threads);
 
   // Read Hypergraph
-  mt_kahypar::utils::Timer::instance().start_timer(
-    "construct_hypergraph_from_file", "Construct Hypergraph from File");
   mt_kahypar::Hypergraph hypergraph = mt_kahypar::io::readHypergraphFile<
     mt_kahypar::Hypergraph, mt_kahypar::HypergraphFactory>(
       context.partition.graph_filename, mt_kahypar::TBBNumaArena::GLOBAL_TASK_GROUP);
 
-  if ( context.preprocessing.use_community_detection ) {
-    mt_kahypar::utils::Timer::instance().start_timer(
-      "allocate_tmp_graph_buffer", "Alloc Tmp Graph Buffer");
-    hypergraph.allocateTmpGraphBuffer();
-    mt_kahypar::utils::Timer::instance().stop_timer("allocate_tmp_graph_buffer");
-  }
-  mt_kahypar::utils::Timer::instance().stop_timer("construct_hypergraph_from_file");
+  // Initialize Memory Pool
+  mt_kahypar::register_memory_pool(hypergraph, context);
 
   if ( context.partition.enable_profiler ) {
     mt_kahypar::utils::Profiler::instance(context.partition.snapshot_interval).start();
@@ -102,6 +96,7 @@ int main(int argc, char* argv[]) {
       partitioned_hypergraph, context.partition.graph_partition_filename);
   }
 
+  mt_kahypar::parallel::MemoryPool::instance().free_memory_chunks();
   mt_kahypar::TBBNumaArena::instance().terminate();
   return 0;
 }

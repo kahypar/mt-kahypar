@@ -171,6 +171,8 @@ inline void Partitioner::preprocess(Hypergraph& hypergraph) {
     hypergraph.setCommunityNodeMapping(std::move(community_node_mapping));
     utils::Timer::instance().enable();
   }
+
+  parallel::MemoryPool::instance().release_mem_group("Preprocessing");
 }
 
 inline void Partitioner::redistribution(Hypergraph& hypergraph) {
@@ -217,6 +219,7 @@ inline PartitionedHypergraph<> Partitioner::partition(Hypergraph& hypergraph) {
   setupContext(hypergraph, _context);
 
   io::printContext(_context);
+  io::printMemoryPoolConsumption(_context);
   io::printInputInformation(_context, hypergraph);
 
   // ################## PREPROCESSING ##################

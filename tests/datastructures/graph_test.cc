@@ -209,7 +209,6 @@ TEST_F(AGraph, ConstructsAHypergraphWhichIsAGraph) {
   StaticHypergraph graph_hg = Factory::construct(
     TBBNumaArena::GLOBAL_TASK_GROUP, 5, 6,
     { { 0, 1 }, { 0, 2 }, {1, 2}, { 2, 3 }, { 2, 4 }, { 3, 4 } } );
-  graph_hg.allocateTmpGraphBuffer();
   Graph graph(graph_hg, LouvainEdgeWeight::uniform);
   ASSERT_EQ(4, graph.max_degree());
   verifyArcIterator(graph, 0, {1, 2}, {1.0, 1.0});

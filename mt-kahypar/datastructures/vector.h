@@ -26,6 +26,7 @@
 #include "tbb/scalable_allocator.h"
 
 #include "mt-kahypar/macros.h"
+#include "mt-kahypar/parallel/memory_pool.h"
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
 #include "mt-kahypar/parallel/stl/scalable_unique_ptr.h"
 
@@ -149,16 +150,65 @@ class Vector {
   using const_iterator  = const VectorIterator;
 
   Vector() :
+    _group(""),
+    _key(""),
     _size(0),
     _data(nullptr),
     _underlying_data(nullptr) { }
 
   Vector(const size_type size,
-                 const value_type init_value = value_type()) :
+         const value_type init_value = value_type()) :
+    _group(""),
+    _key(""),
     _size(0),
     _data(nullptr),
     _underlying_data(nullptr) {
     resize(size, init_value);
+  }
+
+  Vector(const std::string& group,
+         const std::string& key,
+         const size_type size) :
+    _group(group),
+    _key(key),
+    _size(size),
+    _data(nullptr),
+    _underlying_data(nullptr) {
+    resize(group, key, size);
+  }
+
+  Vector(const Vector&) = delete;
+  Vector & operator= (const Vector &) = delete;
+
+  Vector(Vector&& other) :
+    _group(std::move(other._group)),
+    _key(std::move(other._key)),
+    _size(other._size),
+    _data(std::move(other._data)),
+    _underlying_data(std::move(other._underlying_data)) {
+    other._size = 0;
+    other._data = nullptr;
+    other._underlying_data = nullptr;
+  }
+
+  Vector & operator=(Vector&& other) {
+    _group = std::move(other._group);
+    _key = std::move(other._key);
+    _size = other._size;
+    _data = std::move(other._data);
+    _underlying_data = std::move(other._underlying_data);
+    other._size = 0;
+    other._data = nullptr;
+    other._underlying_data = nullptr;
+    return *this;
+  }
+
+  ~Vector() {
+    if ( !_data && _underlying_data ) {
+      // Memory was allocated from memory pool
+      // => Release Memory
+      parallel::MemoryPool::instance().release_mem_chunk(_group, _key);
+    }
   }
 
   // ####################### Access Operators #######################
@@ -231,8 +281,27 @@ class Vector {
 
   void resize(const size_type size,
               const value_type init_value = value_type()) {
+    if ( _data || _underlying_data ) {
+      ERROR("Memory of vector already allocated");
+    }
+
     allocate_data(size);
     assign(size, init_value);
+  }
+
+  void resize(const std::string& group,
+              const std::string& key,
+              const size_type size) {
+    _group = group;
+    _key = key;
+    _size = size;
+    char* data = parallel::MemoryPool::instance().request_mem_chunk(
+      group, key, size, sizeof(value_type));
+    if ( data ) {
+      _underlying_data = reinterpret_cast<value_type*>(data);
+    } else {
+      resize(size, value_type());
+    }
   }
 
   // ! Replaces the contents of the container
@@ -249,12 +318,13 @@ class Vector {
 
  private:
   void allocate_data(const size_type size) {
-    ASSERT(!_data, "Memory already allocated");
     _data = parallel::make_unique<value_type>(size);
     _underlying_data = _data.get();
     _size = size;
   }
 
+  std::string _group;
+  std::string _key;
   size_type _size;
   parallel::tbb_unique_ptr<value_type> _data;
   value_type* _underlying_data;

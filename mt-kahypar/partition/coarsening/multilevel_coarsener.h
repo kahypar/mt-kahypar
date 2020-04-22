@@ -77,8 +77,11 @@ class MultilevelCoarsenerT : public ICoarsenerT<TypeTraits>,
   static constexpr HypernodeID kInvalidHypernode = std::numeric_limits<HypernodeID>::max();
 
  public:
-  MultilevelCoarsenerT(HyperGraph& hypergraph, const Context& context, const TaskGroupID task_group_id) :
-    Base(hypergraph, context, task_group_id),
+  MultilevelCoarsenerT(HyperGraph& hypergraph,
+                       const Context& context,
+                       const TaskGroupID task_group_id,
+                       const bool top_level) :
+    Base(hypergraph, context, task_group_id, top_level),
     _rater(hypergraph, context),
     _matching_state(),
     _cluster_weight(),

@@ -28,6 +28,7 @@
 #include <tbb/task_group.h>
 #include <tbb/tick_count.h>
 
+#include "mt-kahypar/datastructures/vector.h"
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
 
 namespace mt_kahypar {
@@ -176,11 +177,12 @@ class PrefixSum {
   }
 };
 
-template<typename T>
+template<typename T,
+         template<class> class V = parallel::scalable_vector>
 class TBBPrefixSum {
 
  public:
-  TBBPrefixSum(parallel::scalable_vector<T>& data) :
+  TBBPrefixSum(V<T>& data) :
     _sum(0),
     _data(data) { }
 
@@ -236,8 +238,7 @@ class TBBPrefixSum {
 
  private:
   T _sum;
-  parallel::scalable_vector<T>& _data;
+  V<T>& _data;
 };
-
 }  // namespace parallel
 }  // namespace mt_kahypar

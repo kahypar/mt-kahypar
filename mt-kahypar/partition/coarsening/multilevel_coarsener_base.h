@@ -27,6 +27,7 @@
 #include "mt-kahypar/partition/metrics.h"
 #include "mt-kahypar/partition/refinement/i_refiner.h"
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
+#include "mt-kahypar/parallel/memory_pool.h"
 #include "mt-kahypar/utils/progress_bar.h"
 #include "mt-kahypar/utils/stats.h"
 
@@ -105,12 +106,16 @@ class MultilevelCoarsenerBase {
   };
 
  public:
-  MultilevelCoarsenerBase(HyperGraph& hypergraph, const Context& context, const TaskGroupID task_group_id) :
+  MultilevelCoarsenerBase(HyperGraph& hypergraph,
+                          const Context& context,
+                          const TaskGroupID task_group_id,
+                          const bool top_level) :
     _is_finalized(false),
     _hg(hypergraph),
     _partitioned_hg(),
     _context(context),
     _task_group_id(task_group_id),
+    _top_level(top_level),
     _hierarchies() {
     size_t estimated_number_of_levels = 1UL;
     if ( _hg.initialNumNodes() > _context.coarsening.contraction_limit ) {
@@ -162,6 +167,13 @@ class MultilevelCoarsenerBase {
 
   void finalize() {
     utils::Timer::instance().start_timer("finalize_multilevel_hierarchy", "Finalize Multilevel Hierarchy");
+    // Free memory of temporary contraction buffer and
+    // release coarsening memory in memory pool
+    currentHypergraph().freeTmpContractionBuffer();
+    if ( _top_level ) {
+      parallel::MemoryPool::instance().release_mem_group("Coarsening");
+    }
+
     // Construct partitioned hypergraphs parallel
     tbb::task_group group;
     // Construct top level partitioned hypergraph
@@ -287,6 +299,7 @@ class MultilevelCoarsenerBase {
   PartitionedHyperGraph _partitioned_hg;
   const Context& _context;
   const TaskGroupID _task_group_id;
+  const bool _top_level;
   parallel::scalable_vector<Hierarchy> _hierarchies;
 };
 }  // namespace mt_kahypar

@@ -66,6 +66,8 @@ class NumaHypergraph {
   static constexpr bool is_static_hypergraph = Hypergraph::is_static_hypergraph;
   static constexpr bool is_numa_aware = true;
   static constexpr bool is_partitioned = false;
+  static constexpr size_t SIZE_OF_HYPERNODE = Hypergraph::SIZE_OF_HYPERNODE;
+  static constexpr size_t SIZE_OF_HYPEREDGE = Hypergraph::SIZE_OF_HYPEREDGE;
 
   static_assert(sizeof(HypernodeID) == 8, "Hypernode ID must be 8 byte");
   static_assert(std::is_unsigned<HypernodeID>::value, "Hypernode ID must be unsigned");
@@ -84,8 +86,6 @@ class NumaHypergraph {
   using CommunityIterator = typename Hypergraph::CommunityIterator;
   // ! Buffer used for contractions
   using TmpContractionBuffer = typename Hypergraph::TmpContractionBuffer;
-  // ! Buffer used for community detection
-  using TmpGraphBuffer = typename Hypergraph::TmpGraphBuffer;
 
   explicit NumaHypergraph() :
     _num_hypernodes(0),
@@ -97,8 +97,7 @@ class NumaHypergraph {
     _hypergraphs(),
     _node_mapping(),
     _edge_mapping(),
-    _community_node_mapping(),
-    _tmp_graph_buffer(nullptr) { }
+    _community_node_mapping() { }
 
   NumaHypergraph(const NumaHypergraph&) = delete;
   NumaHypergraph & operator= (const NumaHypergraph &) = delete;
@@ -113,8 +112,7 @@ class NumaHypergraph {
     _hypergraphs(std::move(other._hypergraphs)),
     _node_mapping(std::move(other._node_mapping)),
     _edge_mapping(std::move(other._edge_mapping)),
-    _community_node_mapping(std::move(other._community_node_mapping)),
-    _tmp_graph_buffer(std::move(other._tmp_graph_buffer)) { }
+    _community_node_mapping(std::move(other._community_node_mapping)) { }
 
   NumaHypergraph & operator= (NumaHypergraph&& other) {
     _num_hypernodes = other._num_hypernodes;
@@ -127,7 +125,6 @@ class NumaHypergraph {
     _node_mapping = std::move(other._node_mapping);
     _edge_mapping = std::move(other._edge_mapping);
     _community_node_mapping = std::move(other._community_node_mapping);
-    _tmp_graph_buffer = std::move(other._tmp_graph_buffer);
     return *this;
   }
 
@@ -592,7 +589,7 @@ class NumaHypergraph {
    * \param task_group_id Task Group ID
    */
   NumaHypergraph contract(parallel::scalable_vector<HypernodeID>& communities,
-                          const TaskGroupID task_group_id) const {
+                          const TaskGroupID task_group_id) {
     using Hypernode = typename Hypergraph::Hypernode;
     using Hyperedge = typename Hypergraph::Hyperedge;
     ASSERT(communities.size() == _num_hypernodes);
@@ -601,7 +598,9 @@ class NumaHypergraph {
 
     parallel::scalable_vector<TmpContractionBuffer*> tmp_contraction_buffer;
     for ( int node = 0; node < num_numa_nodes; ++node ) {
-      ASSERT(_hypergraphs[node]._tmp_contraction_buffer);
+      if ( !_hypergraphs[node]._tmp_contraction_buffer ) {
+        _hypergraphs[node].allocateTmpContractionBuffer(true);
+      }
       tmp_contraction_buffer.push_back(_hypergraphs[node]._tmp_contraction_buffer);
 
       ASSERT(static_cast<size_t>(_hypergraphs[node]._num_hypernodes) <=
@@ -773,7 +772,7 @@ class NumaHypergraph {
       // temporary incident nets array with a parallel prefix sum
       parallel::scalable_vector<Vector<parallel::IntegralAtomicWrapper<size_t>>> tmp_incident_nets_pos(num_numa_nodes);
       parallel::scalable_vector<parallel::TBBPrefixSum<
-        parallel::IntegralAtomicWrapper<size_t>>> tmp_incident_nets_prefix_sum;
+        parallel::IntegralAtomicWrapper<size_t>, Vector>> tmp_incident_nets_prefix_sum;
       for ( int node = 0; node < num_numa_nodes; ++node ) {
         tmp_incident_nets_prefix_sum.emplace_back(tmp_contraction_buffer[node]->tmp_num_incident_nets);
       }
@@ -984,7 +983,7 @@ class NumaHypergraph {
       });
 
     // Compute number of hyperedges in coarse graph (those flagged as valid)
-    parallel::scalable_vector<parallel::TBBPrefixSum<size_t>> he_mapping;
+    parallel::scalable_vector<parallel::TBBPrefixSum<size_t, Vector>> he_mapping;
     parallel::scalable_vector<HyperedgeID> num_numa_hyperedges_prefix_sum(num_numa_nodes + 1, 0);
     for ( int node = 0; node < num_numa_nodes; ++node ) {
       he_mapping.emplace_back(tmp_contraction_buffer[node]->valid_hyperedges);
@@ -1024,8 +1023,8 @@ class NumaHypergraph {
         // Compute start position of each hyperedge in incidence array
         const HyperedgeID num_hyperedges_on_numa_node =
           num_numa_hyperedges_prefix_sum[node + 1] - num_numa_hyperedges_prefix_sum[node];
-        parallel::scalable_vector<size_t>& he_sizes = tmp_contraction_buffer[node]->he_sizes;
-        parallel::TBBPrefixSum<size_t> num_pins_prefix_sum(he_sizes);
+        Vector<size_t>& he_sizes = tmp_contraction_buffer[node]->he_sizes;
+        parallel::TBBPrefixSum<size_t, Vector> num_pins_prefix_sum(he_sizes);
         tbb::parallel_invoke([&] {
           tbb::parallel_for(ID(0), _hypergraphs[node]._num_hyperedges, [&](const HyperedgeID& local_id) {
             if ( he_mapping[node].value(local_id) /* valid hyperedge contained in coarse graph */ ) {
@@ -1104,7 +1103,7 @@ class NumaHypergraph {
 
         // Compute start position of the incident nets for each vertex inside
         // the coarsened incident net array
-        parallel::TBBPrefixSum<parallel::IntegralAtomicWrapper<size_t>>
+        parallel::TBBPrefixSum<parallel::IntegralAtomicWrapper<size_t>, Vector>
           num_incident_nets_prefix_sum(tmp_contraction_buffer[node]->tmp_num_incident_nets);
         tbb::parallel_scan(tbb::blocked_range<size_t>(
           0UL, UI64(num_hypernodes_on_numa_node)), num_incident_nets_prefix_sum);
@@ -1160,6 +1159,7 @@ class NumaHypergraph {
     // Pass contraction buffer to contracted hypergraph
     for ( int node = 0; node < num_numa_nodes; ++node ) {
       hypergraph._hypergraphs[node]._tmp_contraction_buffer = _hypergraphs[node]._tmp_contraction_buffer;
+      _hypergraphs[node]._tmp_contraction_buffer = nullptr;
     }
     return hypergraph;
   }
@@ -1375,27 +1375,6 @@ class NumaHypergraph {
     return hypergraph;
   }
 
-  // ! Returns the temporary graph buffer
-  TmpGraphBuffer* tmpGraphBuffer() {
-    return _tmp_graph_buffer;
-  }
-
-  // ! Allocate the temporary graph buffer
-  void allocateTmpGraphBuffer() {
-    if ( !_tmp_graph_buffer ) {
-      const bool is_graph = maxEdgeSize() == 2;
-      _tmp_graph_buffer = new TmpGraphBuffer(
-        _num_hypernodes, _num_hyperedges, _num_pins, is_graph);
-    }
-  }
-
-  // ! Frees the internal graph buffer
-  void freeTmpGraphBuffer() {
-    if ( _tmp_graph_buffer ) {
-      _tmp_graph_buffer->freeInternalData();
-    }
-  }
-
   // Free internal data in parallel
   void freeInternalData() {
     if ( _num_hypernodes > 0 || _num_hyperedges > 0 ) {
@@ -1406,16 +1385,16 @@ class NumaHypergraph {
       }, [&] {
         parallel::parallel_free(_node_mapping,
           _edge_mapping, _community_node_mapping);
-      }, [&] {
-        if ( _tmp_graph_buffer ) {
-          _tmp_graph_buffer->freeInternalData();
-          free(_tmp_graph_buffer);
-          _tmp_graph_buffer = nullptr;
-        }
       });
     }
     _num_hypernodes = 0;
     _num_hyperedges = 0;
+  }
+
+  void freeTmpContractionBuffer() {
+    for ( Hypergraph& hypergraph : _hypergraphs ) {
+      hypergraph.freeTmpContractionBuffer();
+    }
   }
 
   void memoryConsumption(utils::MemoryTreeNode* parent) const {
@@ -1485,10 +1464,6 @@ class NumaHypergraph {
   parallel::scalable_vector<HyperedgeID> _edge_mapping;
   // ! Mapping from community id to its NUMA node which they are assigned to
   parallel::scalable_vector<PartitionID> _community_node_mapping;
-
-  // ! Data that is reused throughout the louvain method
-  // ! to construct and contract a graph and to prevent expensive allocations
-  TmpGraphBuffer* _tmp_graph_buffer;
 };
 
 } // namespace ds
