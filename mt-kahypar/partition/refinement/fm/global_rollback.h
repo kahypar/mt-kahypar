@@ -112,7 +112,7 @@ public:
       resetStoredMoveIDs();
     }
 
-    HEAVY_REFINEMENT_ASSERT(remaining_original_pins == phg.getPinCountInPartVector());
+    HEAVY_REFINEMENT_ASSERT(std::equal(phg.getPinCountInPartVector().begin(), phg.getPinCountInPartVector().end(), remaining_original_pins.begin()));
     HEAVY_REFINEMENT_ASSERT(phg.checkTrackedPartitionInformation());
     return b.best_sum;
   }
@@ -224,7 +224,7 @@ public:
   }
 
   void setRemainingOriginalPins(PartitionedHypergraph& phg) {
-    assert(remaining_original_pins.size() == phg.getPinCountInPartVector().size());
+    assert(remaining_original_pins.size() >= phg.getPinCountInPartVector().size());
     size_t n = phg.getPinCountInPartVector().size();
     std::copy_n(phg.getPinCountInPartVector().begin(), n, remaining_original_pins.begin());
   }
