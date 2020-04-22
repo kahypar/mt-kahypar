@@ -279,15 +279,17 @@ class MemoryPool {
 
   char* request_unused_mem_chunk(const size_t num_elements,
                                  const size_t size) {
-    std::shared_lock<std::shared_timed_mutex> lock(_memory_mutex);
-    DBG << "Request unused memory chunk of"
-        << size_in_megabyte(num_elements * size) << "MB";
-    for ( const size_t memory_id : _active_memory_chunks ) {
-      ASSERT(memory_id < _memory_chunks.size());
-      char* data = _memory_chunks[memory_id].request_unused_chunk(num_elements * size);
-      if ( data ) {
-        DBG << "Memory chunk request for an unsed memory chunk was successful";
-        return data;
+    if ( _use_unused_memory_chunks ) {
+      std::shared_lock<std::shared_timed_mutex> lock(_memory_mutex);
+      DBG << "Request unused memory chunk of"
+          << size_in_megabyte(num_elements * size) << "MB";
+      for ( const size_t memory_id : _active_memory_chunks ) {
+        ASSERT(memory_id < _memory_chunks.size());
+        char* data = _memory_chunks[memory_id].request_unused_chunk(num_elements * size);
+        if ( data ) {
+          DBG << "Memory chunk request for an unsed memory chunk was successful";
+          return data;
+        }
       }
     }
     DBG << "Memory chunk request for an unsed memory chunk failed";
@@ -369,6 +371,14 @@ class MemoryPool {
     });
     _memory_chunks.clear();
     _memory_groups.clear();
+  }
+
+  void activate_unused_memory_allocations() {
+    _use_unused_memory_chunks = true;
+  }
+
+  void deactivate_unused_memory_allocations() {
+    _use_unused_memory_chunks = false;
   }
 
   // ! Returns the size in bytes of the memory chunk under the
@@ -460,7 +470,9 @@ class MemoryPool {
   explicit MemoryPool() :
     _memory_mutex(),
     _memory_groups(),
-    _memory_chunks() { }
+    _memory_chunks(),
+    _active_memory_chunks(),
+    _use_unused_memory_chunks(true) { }
 
   // ! Returns a pointer to memory chunk under the corresponding group with
   // ! the specified key.
@@ -599,6 +611,7 @@ class MemoryPool {
   std::vector<MemoryChunk> _memory_chunks;
   // ! Active memory chunks (with allocated memory)
   std::vector<size_t> _active_memory_chunks;
+  bool _use_unused_memory_chunks;
 };
 
 }  // namespace parallel
