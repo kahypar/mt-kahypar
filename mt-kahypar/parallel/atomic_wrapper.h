@@ -32,17 +32,17 @@ public:
 
   explicit CAtomic(const T value = T()) : Base(value) { }
 
-  CAtomic(const CAtomic& other) : Base(other.load()) { }
+  CAtomic(const CAtomic& other) : Base(other.load(std::memory_order_relaxed)) { }
 
   CAtomic& operator=(const CAtomic& other) {
-    Base::store(other.load());
+    Base::store(other.load(std::memory_order_relaxed), std::memory_order_relaxed);
     return *this;
   }
 
-  CAtomic(CAtomic&& other) : Base(other.load()) { }
+  CAtomic(CAtomic&& other) : Base(other.load(std::memory_order_relaxed)) { }
 
   CAtomic& operator=(CAtomic&& other) {
-    Base::store(other.load());
+    Base::store(other.load(std::memory_order_relaxed), std::memory_order_relaxed);
     return *this;
   }
 
