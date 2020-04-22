@@ -206,7 +206,7 @@ class Vector {
   }
 
   ~Vector() {
-    if ( !_data && _underlying_data ) {
+    if ( !_data && _underlying_data && !_group.empty() && !_key.empty() ) {
       // Memory was allocated from memory pool
       // => Release Memory
       parallel::MemoryPool::instance().release_mem_chunk(_group, _key);
@@ -297,18 +297,27 @@ class Vector {
               const size_type size,
               const bool zero_initialize = false,
               const bool assign_parallel = true) {
-    _group = group;
-    _key = key;
     _size = size;
     char* data = parallel::MemoryPool::instance().request_mem_chunk(
       group, key, size, sizeof(value_type));
     if ( data ) {
+      _group = group;
+      _key = key;
       _underlying_data = reinterpret_cast<value_type*>(data);
       if ( zero_initialize ) {
         assign(size, value_type(), assign_parallel);
       }
     } else {
-      resize(size, value_type(), assign_parallel);
+      // Try to get unused memory in memory pool
+      data = parallel::MemoryPool::instance().request_unused_mem_chunk(size, sizeof(value_type));
+      if ( data ) {
+        _underlying_data = reinterpret_cast<value_type*>(data);
+        if ( zero_initialize ) {
+          assign(size, value_type(), assign_parallel);
+        }
+      } else {
+        resize(size, value_type(), assign_parallel);
+      }
     }
   }
 
@@ -319,7 +328,7 @@ class Vector {
     if ( _underlying_data ) {
       ASSERT(count <= _size);
       if ( assign_parallel ) {
-        const size_t step = count / std::thread::hardware_concurrency();
+        const size_t step = std::max(count / std::thread::hardware_concurrency(), 1UL);
         tbb::parallel_for(0UL, count, step, [&](const size_type i) {
           for ( size_t j = i; j < std::min(i + step, count); ++j ) {
             _underlying_data[j] = value;

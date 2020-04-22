@@ -23,6 +23,7 @@
 
 #include "gmock/gmock.h"
 
+#include "mt-kahypar/parallel/stl/scalable_vector.h"
 #include "mt-kahypar/datastructures/vector.h"
 
 using ::testing::Test;

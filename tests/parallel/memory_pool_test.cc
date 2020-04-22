@@ -269,6 +269,72 @@ TEST(AMemoryPool, MemoryIsTransferedToNextGroupIfGroupIsReleased2) {
   MemoryPool::instance().free_memory_chunks();
 }
 
+TEST(AMemoryPool, RequestsAnUnsedChunk1) {
+  MemoryPool::instance().register_memory_group("TEST_GROUP_1", 1);
+  MemoryPool::instance().register_memory_chunk("TEST_GROUP_1", "TEST_CHUNK_1", 10, sizeof(char));
+  MemoryPool::instance().register_memory_chunk("TEST_GROUP_1", "TEST_CHUNK_2", 3, sizeof(char));
+  MemoryPool::instance().register_memory_chunk("TEST_GROUP_1", "TEST_CHUNK_3", 5, sizeof(char));
+  MemoryPool::instance().register_memory_group("TEST_GROUP_2", 2);
+  MemoryPool::instance().register_memory_chunk("TEST_GROUP_2", "TEST_CHUNK_1", 4, sizeof(char));
+  MemoryPool::instance().register_memory_chunk("TEST_GROUP_2", "TEST_CHUNK_2", 14, sizeof(char));
+  MemoryPool::instance().register_memory_group("TEST_GROUP_3", 3);
+  MemoryPool::instance().register_memory_chunk("TEST_GROUP_3", "TEST_CHUNK_1", 10, sizeof(char));
+  MemoryPool::instance().register_memory_chunk("TEST_GROUP_3", "TEST_CHUNK_2", 10, sizeof(char));
+  MemoryPool::instance().register_memory_chunk("TEST_GROUP_3", "TEST_CHUNK_3", 4, sizeof(char));
+  MemoryPool::instance().allocate_memory_chunks(true);
+
+  ASSERT_NE(nullptr, MemoryPool::instance().request_unused_mem_chunk(5, sizeof(char)));
+  ASSERT_NE(nullptr, MemoryPool::instance().request_unused_mem_chunk(4, sizeof(char)));
+  ASSERT_NE(nullptr, MemoryPool::instance().request_unused_mem_chunk(1, sizeof(char)));
+  ASSERT_EQ(nullptr, MemoryPool::instance().request_unused_mem_chunk(1, sizeof(char)));
+
+  MemoryPool::instance().free_memory_chunks();
+}
+
+TEST(AMemoryPool, RequestsAnUnsedChunk2) {
+  MemoryPool::instance().register_memory_group("TEST_GROUP_1", 1);
+  MemoryPool::instance().register_memory_chunk("TEST_GROUP_1", "TEST_CHUNK_1", 10, sizeof(char));
+  MemoryPool::instance().register_memory_chunk("TEST_GROUP_1", "TEST_CHUNK_2", 3, sizeof(char));
+  MemoryPool::instance().register_memory_chunk("TEST_GROUP_1", "TEST_CHUNK_3", 5, sizeof(char));
+  MemoryPool::instance().register_memory_group("TEST_GROUP_2", 2);
+  MemoryPool::instance().register_memory_chunk("TEST_GROUP_2", "TEST_CHUNK_1", 4, sizeof(char));
+  MemoryPool::instance().register_memory_chunk("TEST_GROUP_2", "TEST_CHUNK_2", 14, sizeof(char));
+  MemoryPool::instance().register_memory_group("TEST_GROUP_3", 3);
+  MemoryPool::instance().register_memory_chunk("TEST_GROUP_3", "TEST_CHUNK_1", 10, sizeof(char));
+  MemoryPool::instance().register_memory_chunk("TEST_GROUP_3", "TEST_CHUNK_2", 10, sizeof(char));
+  MemoryPool::instance().register_memory_chunk("TEST_GROUP_3", "TEST_CHUNK_3", 4, sizeof(char));
+  MemoryPool::instance().allocate_memory_chunks(true);
+
+  MemoryPool::instance().release_mem_group("TEST_GROUP_1");
+
+  ASSERT_NE(nullptr, MemoryPool::instance().request_unused_mem_chunk(6, sizeof(char)));
+  ASSERT_EQ(nullptr, MemoryPool::instance().request_unused_mem_chunk(1, sizeof(char)));
+
+  MemoryPool::instance().free_memory_chunks();
+}
+
+TEST(AMemoryPool, RequestsAnUnsedChunk3) {
+  MemoryPool::instance().register_memory_group("TEST_GROUP_1", 1);
+  MemoryPool::instance().register_memory_chunk("TEST_GROUP_1", "TEST_CHUNK_1", 10, sizeof(char));
+  MemoryPool::instance().register_memory_chunk("TEST_GROUP_1", "TEST_CHUNK_2", 3, sizeof(char));
+  MemoryPool::instance().register_memory_chunk("TEST_GROUP_1", "TEST_CHUNK_3", 5, sizeof(char));
+  MemoryPool::instance().register_memory_group("TEST_GROUP_2", 2);
+  MemoryPool::instance().register_memory_chunk("TEST_GROUP_2", "TEST_CHUNK_1", 4, sizeof(char));
+  MemoryPool::instance().register_memory_chunk("TEST_GROUP_2", "TEST_CHUNK_2", 14, sizeof(char));
+  MemoryPool::instance().allocate_memory_chunks(true);
+
+  ASSERT_NE(nullptr, MemoryPool::instance().request_unused_mem_chunk(4, sizeof(char)));
+  ASSERT_EQ(nullptr, MemoryPool::instance().request_unused_mem_chunk(1, sizeof(char)));
+
+  MemoryPool::instance().release_mem_group("TEST_GROUP_1");
+
+  ASSERT_NE(nullptr, MemoryPool::instance().request_unused_mem_chunk(3, sizeof(char)));
+  ASSERT_NE(nullptr, MemoryPool::instance().request_unused_mem_chunk(1, sizeof(char)));
+  ASSERT_EQ(nullptr, MemoryPool::instance().request_unused_mem_chunk(1, sizeof(char)));
+
+  MemoryPool::instance().free_memory_chunks();
+}
+
 
 }  // namespace parallel
 }  // namespace mt_kahypar

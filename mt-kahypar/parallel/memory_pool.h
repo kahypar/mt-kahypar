@@ -76,6 +76,8 @@ class MemoryPool {
       _num_elements(num_elements),
       _size(size),
       _initial_size(size * num_elements),
+      _used_size(size * num_elements),
+      _total_size(size * num_elements),
       _data(nullptr),
       _next_memory_chunk_id(kInvalidMemoryChunk),
       _defer_allocation(false),
@@ -86,6 +88,8 @@ class MemoryPool {
       _num_elements(other._num_elements),
       _size(other._size),
       _initial_size(other._initial_size),
+      _used_size(other._used_size),
+      _total_size(other._total_size),
       _data(std::move(other._data)),
       _next_memory_chunk_id(other._next_memory_chunk_id),
       _defer_allocation(other._defer_allocation),
@@ -107,6 +111,19 @@ class MemoryPool {
       } else {
         return nullptr;
       }
+    }
+
+    char* request_unused_chunk(const size_t size) {
+      if ( _data && size <= _total_size - _used_size ) {
+        std::lock_guard<std::mutex> lock(_chunk_mutex);
+        // Double check
+        if ( _data && size <= _total_size - _used_size ) {
+          char* data = _data + _used_size;
+          _used_size += size;
+          return data;
+        }
+      }
+      return nullptr;
     }
 
     // ! Releases the memory chunks
@@ -150,6 +167,10 @@ class MemoryPool {
     size_t _size;
     // ! Initial size in bytes of the memory chunk
     const size_t _initial_size;
+    // ! Used size in bytes of the memory chunk
+    size_t _used_size;
+    // ! Total size in bytes of the memory chunk
+    size_t _total_size;
     // ! Memory chunk
     char* _data;
     // ! Memory chunk id where this memory chunk is transfered
@@ -216,7 +237,7 @@ class MemoryPool {
 
   // ! Allocates all registered memory chunks in parallel
   void allocate_memory_chunks(const bool optimize_allocations = true) {
-    std::shared_lock<std::shared_timed_mutex> lock(_memory_mutex);
+    std::unique_lock<std::shared_timed_mutex> lock(_memory_mutex);
     if ( optimize_allocations ) {
       optimize_memory_allocations();
     }
@@ -227,6 +248,7 @@ class MemoryPool {
             << size_in_megabyte(_memory_chunks[i].size_in_bytes()) << "MB";
       }
     });
+    update_active_memory_chunks();
   }
 
   // ! Returns the memory chunk registered under the corresponding
@@ -252,6 +274,23 @@ class MemoryPool {
       }
     }
     DBG << "Memory chunk request (" << group << "," << key << ") failed";
+    return nullptr;
+  }
+
+  char* request_unused_mem_chunk(const size_t num_elements,
+                                 const size_t size) {
+    std::shared_lock<std::shared_timed_mutex> lock(_memory_mutex);
+    DBG << "Request unused memory chunk of"
+        << size_in_megabyte(num_elements * size) << "MB";
+    for ( const size_t memory_id : _active_memory_chunks ) {
+      ASSERT(memory_id < _memory_chunks.size());
+      char* data = _memory_chunks[memory_id].request_unused_chunk(num_elements * size);
+      if ( data ) {
+        DBG << "Memory chunk request for an unsed memory chunk was successful";
+        return data;
+      }
+    }
+    DBG << "Memory chunk request for an unsed memory chunk failed";
     return nullptr;
   }
 
@@ -310,8 +349,14 @@ class MemoryPool {
           MemoryChunk& rhs = _memory_chunks[lhs._next_memory_chunk_id];
           rhs._data = lhs._data;
           lhs._data = nullptr;
+        } else {
+          // Memory chunk is not required any more
+          // => make it available for unused memory requests
+          lhs._used_size = 0;
+          lhs._is_assigned = true;
         }
       }
+      update_active_memory_chunks();
     }
   }
 
@@ -431,6 +476,15 @@ class MemoryPool {
     return nullptr;
   }
 
+  void update_active_memory_chunks() {
+    _active_memory_chunks.clear();
+    for ( size_t memory_id = 0; memory_id < _memory_chunks.size(); ++memory_id ) {
+      if ( _memory_chunks[memory_id]._data ) {
+        _active_memory_chunks.push_back(memory_id);
+      }
+    }
+  }
+
   static double size_in_megabyte(const size_t size_in_bytes) {
     return static_cast<double>(size_in_bytes) / 1000000.0;
   }
@@ -522,6 +576,7 @@ class MemoryPool {
         while ( !s.empty() ) {
           s.back()->_num_elements = max_num_elements;
           s.back()->_size = max_size;
+          s.back()->_total_size = max_size * max_num_elements;
           s.pop_back();
         }
       }
@@ -542,6 +597,8 @@ class MemoryPool {
   std::unordered_map<std::string, MemoryGroup> _memory_groups;
   // ! Memory chunks
   std::vector<MemoryChunk> _memory_chunks;
+  // ! Active memory chunks (with allocated memory)
+  std::vector<size_t> _active_memory_chunks;
 };
 
 }  // namespace parallel

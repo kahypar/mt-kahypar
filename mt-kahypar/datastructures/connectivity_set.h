@@ -23,6 +23,7 @@
 #include <atomic>
 #include <type_traits>
 
+#include "mt-kahypar/parallel/stl/scalable_vector.h"
 #include "mt-kahypar/datastructures/vector.h"
 #include "mt-kahypar/parallel/atomic_wrapper.h"
 #include "mt-kahypar/utils/bit_ops.h"
