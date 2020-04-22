@@ -41,6 +41,7 @@ static void register_memory_pool(const Hypergraph& hypergraph,
     const size_t num_nodes = num_hypernodes + (is_graph ? 0 : num_hyperedges);
     const size_t num_edges = is_graph ? num_pins : (2UL * num_pins);
 
+    parallel::MemoryPool::instance().register_memory_group("Preprocessing", 1);
     parallel::MemoryPool::instance().register_memory_chunk("Preprocessing", "indices", num_nodes + 1, sizeof(size_t));
     parallel::MemoryPool::instance().register_memory_chunk("Preprocessing", "arcs", num_edges, sizeof(Arc));
     parallel::MemoryPool::instance().register_memory_chunk("Preprocessing", "node_volumes", num_nodes, sizeof(ArcWeight));
@@ -56,6 +57,7 @@ static void register_memory_pool(const Hypergraph& hypergraph,
 
   // ########## Coarsening Memory ##########
 
+  parallel::MemoryPool::instance().register_memory_group("Coarsening", 2);
   const bool is_numa_aware = Hypergraph::is_numa_aware;
   for ( size_t node = 0; node < hypergraph.numNumaHypergraphs(); ++node ) {
     const HypernodeID num_hypernodes = hypergraph.initialNumNodes(node);

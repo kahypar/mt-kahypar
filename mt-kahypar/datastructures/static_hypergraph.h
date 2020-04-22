@@ -1617,14 +1617,18 @@ class StaticHypergraph {
       tbb::parallel_invoke([&] {
         _community_support.freeInternalData();
       }, [&] {
-        if ( _tmp_contraction_buffer ) {
-          delete(_tmp_contraction_buffer);
-          _tmp_contraction_buffer = nullptr;
-        }
+        freeTmpContractionBuffer();
       });
     }
     _num_hypernodes = 0;
     _num_hyperedges = 0;
+  }
+
+  void freeTmpContractionBuffer() {
+    if ( _tmp_contraction_buffer ) {
+      delete(_tmp_contraction_buffer);
+      _tmp_contraction_buffer = nullptr;
+    }
   }
 
   void memoryConsumption(utils::MemoryTreeNode* parent) const {

@@ -50,16 +50,18 @@ void executeConcurrent(F f1, K f2) {
   group.wait();
 }
 
-static void setupMemoryPool() {
+static void setupMemoryPool(const bool optimize_allocations) {
+  MemoryPool::instance().register_memory_group("TEST_GROUP_1", 1);
   MemoryPool::instance().register_memory_chunk("TEST_GROUP_1", "TEST_CHUNK_1", 5, sizeof(size_t));
   MemoryPool::instance().register_memory_chunk("TEST_GROUP_1", "TEST_CHUNK_2", 5, sizeof(int));
+  MemoryPool::instance().register_memory_group("TEST_GROUP_2", 2);
   MemoryPool::instance().register_memory_chunk("TEST_GROUP_2", "TEST_CHUNK_1", 5, sizeof(double));
   MemoryPool::instance().register_memory_chunk("TEST_GROUP_2", "TEST_CHUNK_2", 5, sizeof(size_t));
-  MemoryPool::instance().allocate_memory_chunks();
+  MemoryPool::instance().allocate_memory_chunks(optimize_allocations);
 }
 
 TEST(AMemoryPool, AllocatesMemory) {
- setupMemoryPool();
+  setupMemoryPool(false);
 
   ASSERT_NE(nullptr, MemoryPool::instance().mem_chunk("TEST_GROUP_1", "TEST_CHUNK_1"));
   ASSERT_NE(nullptr, MemoryPool::instance().mem_chunk("TEST_GROUP_1", "TEST_CHUNK_2"));
@@ -70,7 +72,7 @@ TEST(AMemoryPool, AllocatesMemory) {
 }
 
 TEST(AMemoryPool, CanHandleARequest) {
- setupMemoryPool();
+  setupMemoryPool(false);
 
   ASSERT_EQ(MemoryPool::instance().mem_chunk("TEST_GROUP_1", "TEST_CHUNK_1"),
             MemoryPool::instance().request_mem_chunk("TEST_GROUP_1", "TEST_CHUNK_1", 5, sizeof(size_t)));
@@ -79,7 +81,7 @@ TEST(AMemoryPool, CanHandleARequest) {
 }
 
 TEST(AMemoryPool, CanHandleSeveralRequests) {
- setupMemoryPool();
+  setupMemoryPool(false);
 
   ASSERT_EQ(MemoryPool::instance().mem_chunk("TEST_GROUP_1", "TEST_CHUNK_1"),
             MemoryPool::instance().request_mem_chunk("TEST_GROUP_1", "TEST_CHUNK_1", 5, sizeof(size_t)));
@@ -90,7 +92,7 @@ TEST(AMemoryPool, CanHandleSeveralRequests) {
 }
 
 TEST(AMemoryPool, ReturnsNullptrIfMemoryChunkAlreadyRequested) {
- setupMemoryPool();
+  setupMemoryPool(false);
 
   ASSERT_EQ(MemoryPool::instance().mem_chunk("TEST_GROUP_1", "TEST_CHUNK_1"),
             MemoryPool::instance().request_mem_chunk("TEST_GROUP_1", "TEST_CHUNK_1", 5, sizeof(size_t)));
@@ -102,7 +104,7 @@ TEST(AMemoryPool, ReturnsNullptrIfMemoryChunkAlreadyRequested) {
 
 
 TEST(AMemoryPool, ReturnsNullptrOnOverallocation) {
- setupMemoryPool();
+  setupMemoryPool(false);
 
   ASSERT_EQ(nullptr,
             MemoryPool::instance().request_mem_chunk("TEST_GROUP_1", "TEST_CHUNK_1", 10, sizeof(size_t)));
@@ -111,7 +113,7 @@ TEST(AMemoryPool, ReturnsNullptrOnOverallocation) {
 }
 
 TEST(AMemoryPool, ReturnsNullptrIfMemoryChunkIsNotAvailable) {
- setupMemoryPool();
+  setupMemoryPool(false);
 
   ASSERT_EQ(nullptr,
             MemoryPool::instance().request_mem_chunk("TEST_GROUP_1", "TEST_CHUNK_3", 5, sizeof(size_t)));
@@ -120,7 +122,7 @@ TEST(AMemoryPool, ReturnsNullptrIfMemoryChunkIsNotAvailable) {
 }
 
 TEST(AMemoryPool, RequestMemoryAfterRelease) {
- setupMemoryPool();
+  setupMemoryPool(false);
 
   ASSERT_EQ(MemoryPool::instance().mem_chunk("TEST_GROUP_1", "TEST_CHUNK_1"),
             MemoryPool::instance().request_mem_chunk("TEST_GROUP_1", "TEST_CHUNK_1", 5, sizeof(size_t)));
@@ -132,7 +134,7 @@ TEST(AMemoryPool, RequestMemoryAfterRelease) {
 }
 
 TEST(AMemoryPool, OnlyOneRequestSucceedsOnConcurrentAccess) {
- setupMemoryPool();
+  setupMemoryPool(false);
 
   char* chunk_1 = nullptr;
   char* chunk_2 = nullptr;
@@ -150,6 +152,119 @@ TEST(AMemoryPool, OnlyOneRequestSucceedsOnConcurrentAccess) {
     ASSERT_EQ(nullptr, chunk_1);
     ASSERT_EQ(expected_chunk, chunk_2);
   }
+
+  MemoryPool::instance().free_memory_chunks();
+}
+
+TEST(AMemoryPool, AllocatesMemoryWithOptimizedAllocationUsage) {
+  MemoryPool::instance().register_memory_group("TEST_GROUP_1", 1);
+  MemoryPool::instance().register_memory_chunk("TEST_GROUP_1", "TEST_CHUNK_1", 10, sizeof(char));
+  MemoryPool::instance().register_memory_chunk("TEST_GROUP_1", "TEST_CHUNK_2", 3, sizeof(char));
+  MemoryPool::instance().register_memory_chunk("TEST_GROUP_1", "TEST_CHUNK_3", 5, sizeof(char));
+  MemoryPool::instance().register_memory_group("TEST_GROUP_2", 2);
+  MemoryPool::instance().register_memory_chunk("TEST_GROUP_2", "TEST_CHUNK_1", 4, sizeof(char));
+  MemoryPool::instance().register_memory_chunk("TEST_GROUP_2", "TEST_CHUNK_2", 14, sizeof(char));
+  MemoryPool::instance().register_memory_group("TEST_GROUP_3", 3);
+  MemoryPool::instance().register_memory_chunk("TEST_GROUP_3", "TEST_CHUNK_1", 10, sizeof(char));
+  MemoryPool::instance().register_memory_chunk("TEST_GROUP_3", "TEST_CHUNK_2", 10, sizeof(char));
+  MemoryPool::instance().register_memory_chunk("TEST_GROUP_3", "TEST_CHUNK_3", 4, sizeof(char));
+  MemoryPool::instance().allocate_memory_chunks(true);
+
+  ASSERT_NE(nullptr, MemoryPool::instance().mem_chunk("TEST_GROUP_1", "TEST_CHUNK_1"));
+  ASSERT_EQ(14, MemoryPool::instance().size_in_bytes("TEST_GROUP_1", "TEST_CHUNK_1"));
+  ASSERT_NE(nullptr, MemoryPool::instance().mem_chunk("TEST_GROUP_1", "TEST_CHUNK_2"));
+  ASSERT_EQ(4, MemoryPool::instance().size_in_bytes("TEST_GROUP_1", "TEST_CHUNK_2"));
+  ASSERT_NE(nullptr, MemoryPool::instance().mem_chunk("TEST_GROUP_1", "TEST_CHUNK_3"));
+  ASSERT_EQ(10, MemoryPool::instance().size_in_bytes("TEST_GROUP_1", "TEST_CHUNK_3"));
+
+  ASSERT_EQ(nullptr, MemoryPool::instance().mem_chunk("TEST_GROUP_2", "TEST_CHUNK_1"));
+  ASSERT_EQ(0, MemoryPool::instance().size_in_bytes("TEST_GROUP_2", "TEST_CHUNK_1"));
+  ASSERT_EQ(nullptr, MemoryPool::instance().mem_chunk("TEST_GROUP_2", "TEST_CHUNK_2"));
+  ASSERT_EQ(0, MemoryPool::instance().size_in_bytes("TEST_GROUP_2", "TEST_CHUNK_2"));
+
+  ASSERT_EQ(nullptr, MemoryPool::instance().mem_chunk("TEST_GROUP_3", "TEST_CHUNK_1"));
+  ASSERT_EQ(0, MemoryPool::instance().size_in_bytes("TEST_GROUP_3", "TEST_CHUNK_1"));
+  ASSERT_EQ(nullptr, MemoryPool::instance().mem_chunk("TEST_GROUP_3", "TEST_CHUNK_2"));
+  ASSERT_EQ(0, MemoryPool::instance().size_in_bytes("TEST_GROUP_3", "TEST_CHUNK_2"));
+  ASSERT_EQ(nullptr, MemoryPool::instance().mem_chunk("TEST_GROUP_3", "TEST_CHUNK_3"));
+  ASSERT_EQ(0, MemoryPool::instance().size_in_bytes("TEST_GROUP_3", "TEST_CHUNK_3"));
+
+  MemoryPool::instance().free_memory_chunks();
+}
+
+TEST(AMemoryPool, MemoryIsTransferedToNextGroupIfGroupIsReleased1) {
+  MemoryPool::instance().register_memory_group("TEST_GROUP_1", 1);
+  MemoryPool::instance().register_memory_chunk("TEST_GROUP_1", "TEST_CHUNK_1", 10, sizeof(char));
+  MemoryPool::instance().register_memory_chunk("TEST_GROUP_1", "TEST_CHUNK_2", 3, sizeof(char));
+  MemoryPool::instance().register_memory_chunk("TEST_GROUP_1", "TEST_CHUNK_3", 5, sizeof(char));
+  MemoryPool::instance().register_memory_group("TEST_GROUP_2", 2);
+  MemoryPool::instance().register_memory_chunk("TEST_GROUP_2", "TEST_CHUNK_1", 4, sizeof(char));
+  MemoryPool::instance().register_memory_chunk("TEST_GROUP_2", "TEST_CHUNK_2", 14, sizeof(char));
+  MemoryPool::instance().register_memory_group("TEST_GROUP_3", 3);
+  MemoryPool::instance().register_memory_chunk("TEST_GROUP_3", "TEST_CHUNK_1", 10, sizeof(char));
+  MemoryPool::instance().register_memory_chunk("TEST_GROUP_3", "TEST_CHUNK_2", 10, sizeof(char));
+  MemoryPool::instance().register_memory_chunk("TEST_GROUP_3", "TEST_CHUNK_3", 4, sizeof(char));
+  MemoryPool::instance().allocate_memory_chunks(true);
+
+  MemoryPool::instance().release_mem_group("TEST_GROUP_1");
+
+  ASSERT_EQ(nullptr, MemoryPool::instance().mem_chunk("TEST_GROUP_1", "TEST_CHUNK_1"));
+  ASSERT_EQ(0, MemoryPool::instance().size_in_bytes("TEST_GROUP_1", "TEST_CHUNK_1"));
+  ASSERT_EQ(nullptr, MemoryPool::instance().mem_chunk("TEST_GROUP_1", "TEST_CHUNK_2"));
+  ASSERT_EQ(0, MemoryPool::instance().size_in_bytes("TEST_GROUP_1", "TEST_CHUNK_2"));
+  ASSERT_EQ(nullptr, MemoryPool::instance().mem_chunk("TEST_GROUP_1", "TEST_CHUNK_3"));
+  ASSERT_EQ(0, MemoryPool::instance().size_in_bytes("TEST_GROUP_1", "TEST_CHUNK_3"));
+
+  ASSERT_NE(nullptr, MemoryPool::instance().mem_chunk("TEST_GROUP_2", "TEST_CHUNK_1"));
+  ASSERT_EQ(10, MemoryPool::instance().size_in_bytes("TEST_GROUP_2", "TEST_CHUNK_1"));
+  ASSERT_NE(nullptr, MemoryPool::instance().mem_chunk("TEST_GROUP_2", "TEST_CHUNK_2"));
+  ASSERT_EQ(14, MemoryPool::instance().size_in_bytes("TEST_GROUP_2", "TEST_CHUNK_2"));
+
+  ASSERT_EQ(nullptr, MemoryPool::instance().mem_chunk("TEST_GROUP_3", "TEST_CHUNK_1"));
+  ASSERT_EQ(0, MemoryPool::instance().size_in_bytes("TEST_GROUP_3", "TEST_CHUNK_1"));
+  ASSERT_EQ(nullptr, MemoryPool::instance().mem_chunk("TEST_GROUP_3", "TEST_CHUNK_2"));
+  ASSERT_EQ(0, MemoryPool::instance().size_in_bytes("TEST_GROUP_3", "TEST_CHUNK_2"));
+  ASSERT_NE(nullptr, MemoryPool::instance().mem_chunk("TEST_GROUP_3", "TEST_CHUNK_3"));
+  ASSERT_EQ(4, MemoryPool::instance().size_in_bytes("TEST_GROUP_3", "TEST_CHUNK_3"));
+
+  MemoryPool::instance().free_memory_chunks();
+}
+
+TEST(AMemoryPool, MemoryIsTransferedToNextGroupIfGroupIsReleased2) {
+  MemoryPool::instance().register_memory_group("TEST_GROUP_1", 1);
+  MemoryPool::instance().register_memory_chunk("TEST_GROUP_1", "TEST_CHUNK_1", 10, sizeof(char));
+  MemoryPool::instance().register_memory_chunk("TEST_GROUP_1", "TEST_CHUNK_2", 3, sizeof(char));
+  MemoryPool::instance().register_memory_chunk("TEST_GROUP_1", "TEST_CHUNK_3", 5, sizeof(char));
+  MemoryPool::instance().register_memory_group("TEST_GROUP_2", 2);
+  MemoryPool::instance().register_memory_chunk("TEST_GROUP_2", "TEST_CHUNK_1", 4, sizeof(char));
+  MemoryPool::instance().register_memory_chunk("TEST_GROUP_2", "TEST_CHUNK_2", 14, sizeof(char));
+  MemoryPool::instance().register_memory_group("TEST_GROUP_3", 3);
+  MemoryPool::instance().register_memory_chunk("TEST_GROUP_3", "TEST_CHUNK_1", 10, sizeof(char));
+  MemoryPool::instance().register_memory_chunk("TEST_GROUP_3", "TEST_CHUNK_2", 10, sizeof(char));
+  MemoryPool::instance().register_memory_chunk("TEST_GROUP_3", "TEST_CHUNK_3", 4, sizeof(char));
+  MemoryPool::instance().allocate_memory_chunks(true);
+
+  MemoryPool::instance().release_mem_group("TEST_GROUP_1");
+  MemoryPool::instance().release_mem_group("TEST_GROUP_2");
+
+  ASSERT_EQ(nullptr, MemoryPool::instance().mem_chunk("TEST_GROUP_1", "TEST_CHUNK_1"));
+  ASSERT_EQ(0, MemoryPool::instance().size_in_bytes("TEST_GROUP_1", "TEST_CHUNK_1"));
+  ASSERT_EQ(nullptr, MemoryPool::instance().mem_chunk("TEST_GROUP_1", "TEST_CHUNK_2"));
+  ASSERT_EQ(0, MemoryPool::instance().size_in_bytes("TEST_GROUP_1", "TEST_CHUNK_2"));
+  ASSERT_EQ(nullptr, MemoryPool::instance().mem_chunk("TEST_GROUP_1", "TEST_CHUNK_3"));
+  ASSERT_EQ(0, MemoryPool::instance().size_in_bytes("TEST_GROUP_1", "TEST_CHUNK_3"));
+
+  ASSERT_EQ(nullptr, MemoryPool::instance().mem_chunk("TEST_GROUP_2", "TEST_CHUNK_1"));
+  ASSERT_EQ(0, MemoryPool::instance().size_in_bytes("TEST_GROUP_2", "TEST_CHUNK_1"));
+  ASSERT_EQ(nullptr, MemoryPool::instance().mem_chunk("TEST_GROUP_2", "TEST_CHUNK_2"));
+  ASSERT_EQ(0, MemoryPool::instance().size_in_bytes("TEST_GROUP_2", "TEST_CHUNK_2"));
+
+  ASSERT_NE(nullptr, MemoryPool::instance().mem_chunk("TEST_GROUP_3", "TEST_CHUNK_1"));
+  ASSERT_EQ(10, MemoryPool::instance().size_in_bytes("TEST_GROUP_3", "TEST_CHUNK_1"));
+  ASSERT_NE(nullptr, MemoryPool::instance().mem_chunk("TEST_GROUP_3", "TEST_CHUNK_2"));
+  ASSERT_EQ(14, MemoryPool::instance().size_in_bytes("TEST_GROUP_3", "TEST_CHUNK_2"));
+  ASSERT_NE(nullptr, MemoryPool::instance().mem_chunk("TEST_GROUP_3", "TEST_CHUNK_3"));
+  ASSERT_EQ(4, MemoryPool::instance().size_in_bytes("TEST_GROUP_3", "TEST_CHUNK_3"));
 
   MemoryPool::instance().free_memory_chunks();
 }

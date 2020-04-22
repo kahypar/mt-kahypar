@@ -1391,6 +1391,12 @@ class NumaHypergraph {
     _num_hyperedges = 0;
   }
 
+  void freeTmpContractionBuffer() {
+    for ( Hypergraph& hypergraph : _hypergraphs ) {
+      hypergraph.freeTmpContractionBuffer();
+    }
+  }
+
   void memoryConsumption(utils::MemoryTreeNode* parent) const {
     ASSERT(parent);
 

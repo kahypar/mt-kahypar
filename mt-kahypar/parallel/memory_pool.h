@@ -40,7 +40,32 @@ namespace parallel {
  * chunks can be collectively allocated in parallel.
  */
 class MemoryPool {
+
   static constexpr bool debug = false;
+  static constexpr size_t kInvalidMemoryChunk = std::numeric_limits<size_t>::max();
+
+  // ! Represents a memory group.
+  struct MemoryGroup {
+
+    explicit MemoryGroup(const size_t stage) :
+      _stage(stage),
+      _key_to_memory_id() { }
+
+    void insert(const std::string& key, const size_t memory_id) {
+      _key_to_memory_id.insert(std::make_pair(key, memory_id));
+    }
+
+    size_t getKey(const std::string& key) const {
+      return _key_to_memory_id.at(key);
+    }
+
+    bool containsKey(const std::string& key) const {
+      return _key_to_memory_id.find(key) != _key_to_memory_id.end();
+    }
+
+    const size_t _stage;
+    std::unordered_map<std::string, size_t> _key_to_memory_id;
+  };
 
   // ! Represents a memory chunk.
   struct MemoryChunk {
@@ -51,6 +76,8 @@ class MemoryPool {
       _num_elements(num_elements),
       _size(size),
       _data(nullptr),
+      _next_memory_chunk_id(kInvalidMemoryChunk),
+      _defer_allocation(false),
       _is_assigned(false) { }
 
     MemoryChunk(MemoryChunk&& other) :
@@ -58,8 +85,12 @@ class MemoryPool {
       _num_elements(other._num_elements),
       _size(other._size),
       _data(std::move(other._data)),
+      _next_memory_chunk_id(other._next_memory_chunk_id),
+      _defer_allocation(other._defer_allocation),
       _is_assigned(other._is_assigned) {
       other._data = nullptr;
+      other._next_memory_chunk_id = kInvalidMemoryChunk;
+      other._defer_allocation = true;
       other._is_assigned = false;
     }
 
@@ -68,10 +99,7 @@ class MemoryPool {
     // ! nullptr until release_chunk() is called.
     char* request_chunk() {
       std::lock_guard<std::mutex> lock(_chunk_mutex);
-      if ( !_data ) {
-        allocate();
-      }
-      if ( !_is_assigned ) {
+      if ( _data && !_is_assigned ) {
         _is_assigned = true;
         return _data;
       } else {
@@ -87,9 +115,12 @@ class MemoryPool {
 
     // ! Allocates the memory chunk
     // ! Note, the memory chunk is zero initialized.
-    void allocate() {
-      if ( !_data ) {
+    bool allocate() {
+      if ( !_data && !_defer_allocation ) {
         _data = (char*) scalable_calloc(_num_elements, _size);
+        return true;
+      } else {
+        return false;
       }
     }
 
@@ -111,10 +142,21 @@ class MemoryPool {
     }
 
     std::mutex _chunk_mutex;
-    const size_t _num_elements; // Number of elements to allocate
-    const size_t _size; // Data type size in bytes
+    // ! Number of elements to allocate
+    size_t _num_elements;
+    // ! Data type size in bytes
+    size_t _size;
+    // ! Memory chunk
     char* _data;
-    bool _is_assigned; // True, if already assigned to a vector
+    // ! Memory chunk id where this memory chunk is transfered
+    // ! to if memory is not needed any more
+    size_t _next_memory_chunk_id;
+    // ! Memory chunk is not initialized if allocate_memory_chunks()
+    // ! is called, because memory is transfered from an other stage
+    // ! to this memory chunk.
+    bool _defer_allocation;
+    // ! True, if already assigned to a vector
+    bool _is_assigned;
   };
 
 
@@ -134,6 +176,18 @@ class MemoryPool {
     return instance;
   }
 
+  // ! Registers a memory group in the memory pool. A memory
+  // ! group is associated with a stage. Assumption is that, if
+  // ! a stage is completed, than memory is not needed any more
+  // ! and can be reused in a consecutive stage.
+  void register_memory_group(const std::string& group,
+                             const size_t stage) {
+    if ( _memory_groups.find(group) == _memory_groups.end() ) {
+      _memory_groups.emplace(std::piecewise_construct,
+        std::forward_as_tuple(group), std::forward_as_tuple(stage));
+    }
+  }
+
   // ! Registers a memory chunk in the memory pool. The memory chunk is
   // ! associated with a memory group and a unique key within that group.
   // ! Note, that the memory chunk is not immediatly allocated. One has to call
@@ -143,23 +197,31 @@ class MemoryPool {
                              const size_t num_elements,
                              const size_t size) {
     std::unique_lock<std::shared_timed_mutex> lock(_memory_mutex);
-    const size_t memory_id = _memory_chunks.size();
-    if ( _memory_id_map.find(group) == _memory_id_map.end() ) {
-      _memory_id_map.insert(std::make_pair(
-        group, std::unordered_map<std::string, size_t>()));
+    if ( _memory_groups.find(group) != _memory_groups.end() ) {
+      MemoryGroup& mem_group = _memory_groups.at(group);
+      const size_t memory_id = _memory_chunks.size();
+      if ( !mem_group.containsKey(key) ) {
+        mem_group.insert(key, memory_id);
+        _memory_chunks.emplace_back(num_elements, size);
+        DBG << "Registers memory chunk (" << group << "," << key << ")"
+            << "of" <<  size_in_megabyte(num_elements * size) << "MB"
+            << "in memory pool";
+      }
     }
-    std::unordered_map<std::string, size_t>& key_to_memory_id = _memory_id_map[group];
-    ASSERT(key_to_memory_id.find(key) == key_to_memory_id.end());
-    key_to_memory_id.insert(std::make_pair(key, memory_id));
-    _memory_chunks.emplace_back(num_elements, size);
   }
 
   // ! Allocates all registered memory chunks in parallel
-  void allocate_memory_chunks() {
+  void allocate_memory_chunks(const bool optimize_allocations = true) {
     std::shared_lock<std::shared_timed_mutex> lock(_memory_mutex);
+    if ( optimize_allocations ) {
+      optimize_memory_allocations();
+    }
     const size_t num_memory_segments = _memory_chunks.size();
     tbb::parallel_for(0UL, num_memory_segments, [&](const size_t i) {
-      _memory_chunks[i].allocate();
+      if ( _memory_chunks[i].allocate() ) {
+        DBG << "Allocate memory chunk of size"
+            << size_in_megabyte(_memory_chunks[i].size_in_bytes()) << "MB";
+      }
     });
   }
 
@@ -174,22 +236,19 @@ class MemoryPool {
                           const size_t size) {
     std::shared_lock<std::shared_timed_mutex> lock(_memory_mutex);
     MemoryChunk* chunk = find_memory_chunk(group, key);
+    DBG << "Requests memory chunk (" << group << "," << key << ")"
+        << "of" <<  size_in_megabyte(num_elements * size) << "MB"
+        << "in memory pool";
     if ( chunk && num_elements * size <= chunk->size_in_bytes() ) {
-      return chunk->request_chunk();
+      char* data = chunk->request_chunk();
+      if ( data ) {
+        DBG << "Memory chunk request (" << group << "," << key << ")"
+            << "was successful";
+        return data;
+      }
     }
+    DBG << "Memory chunk request (" << group << "," << key << ") failed";
     return nullptr;
-  }
-
-  // ! Releases the memory chunk under the corresponding group with
-  // ! the specified key. Afterwards, memory chunk is available for
-  // ! further requests.
-  void release_mem_chunk(const std::string& group,
-                         const std::string& key) {
-    std::shared_lock<std::shared_timed_mutex> lock(_memory_mutex);
-    MemoryChunk* chunk = find_memory_chunk(group, key);
-    if ( chunk ) {
-      chunk->release_chunk();
-    }
   }
 
   // ! Returns the memory chunk under the corresponding group with
@@ -206,6 +265,52 @@ class MemoryPool {
     }
   }
 
+  // ! Releases the memory chunk under the corresponding group with
+  // ! the specified key. Afterwards, memory chunk is available for
+  // ! further requests.
+  void release_mem_chunk(const std::string& group,
+                         const std::string& key) {
+    std::shared_lock<std::shared_timed_mutex> lock(_memory_mutex);
+    MemoryChunk* chunk = find_memory_chunk(group, key);
+    if ( chunk ) {
+      DBG << "Release memory chunk (" << group << "," << key << ")";
+      chunk->release_chunk();
+    }
+  }
+
+  // ! Signals that the memory of the corresponding group is not
+  // ! required any more. If an optimized memory allocation strategy
+  // ! was calculated before, the memory is passed to next group.
+  void release_mem_group(const std::string& group) {
+    std::unique_lock<std::shared_timed_mutex> lock(_memory_mutex);
+    if ( _memory_groups.find(group) != _memory_groups.end() ) {
+      ASSERT([&] {
+        for ( const auto& key : _memory_groups.at(group)._key_to_memory_id ) {
+          const size_t memory_id = key.second;
+          if ( _memory_chunks[memory_id]._is_assigned ) {
+            LOG << "(" << group << "," << key.first << ")"
+                << "is assigned";
+            return false;
+          }
+        }
+        return true;
+      }(), "Some memory chunks of group '" << group << "' are still assigned");
+
+      DBG << "Release memory of group '" << group << "'";
+      for ( const auto& key : _memory_groups.at(group)._key_to_memory_id ) {
+        const size_t memory_id = key.second;
+        MemoryChunk& lhs = _memory_chunks[memory_id];
+        ASSERT(lhs._data);
+        if ( lhs._next_memory_chunk_id != kInvalidMemoryChunk ) {
+          ASSERT(lhs._next_memory_chunk_id < _memory_chunks.size());
+          MemoryChunk& rhs = _memory_chunks[lhs._next_memory_chunk_id];
+          rhs._data = lhs._data;
+          lhs._data = nullptr;
+        }
+      }
+    }
+  }
+
   // ! Frees all memory chunks in parallel
   void free_memory_chunks() {
     std::unique_lock<std::shared_timed_mutex> lock(_memory_mutex);
@@ -214,7 +319,20 @@ class MemoryPool {
       _memory_chunks[i].free();
     });
     _memory_chunks.clear();
-    _memory_id_map.clear();
+    _memory_groups.clear();
+  }
+
+  // ! Returns the size in bytes of the memory chunk under the
+  // ! corresponding group with the specified key.
+  size_t size_in_bytes(const std::string& group,
+                       const std::string& key) {
+    std::shared_lock<std::shared_timed_mutex> lock(_memory_mutex);
+    MemoryChunk* chunk = find_memory_chunk(group, key);
+    if ( chunk )   {
+      return chunk->size_in_bytes();
+    } else {
+      return 0;
+    }
   }
 
   // ! Builds a memory tree that reflects the memory
@@ -222,15 +340,16 @@ class MemoryPool {
   void memory_consumption(utils::MemoryTreeNode* parent) const {
     ASSERT(parent);
     std::shared_lock<std::shared_timed_mutex> lock(_memory_mutex);
-    for ( const auto& group_element : _memory_id_map ) {
+    for ( const auto& group_element : _memory_groups ) {
       const std::string& group = group_element.first;
-      const auto& key_to_memory_id = group_element.second;
+      const auto& key_to_memory_id = group_element.second._key_to_memory_id;
       utils::MemoryTreeNode* group_node = parent->addChild(group);
       for ( const auto& element : key_to_memory_id ) {
         const std::string& key = element.first;
         const size_t memory_id = element.second;
         ASSERT(memory_id < _memory_chunks.size());
-        group_node->addChild(key, _memory_chunks[memory_id].size_in_bytes());
+        group_node->addChild(key,
+          std::max(_memory_chunks[memory_id].size_in_bytes(), 1UL));
       }
     }
   }
@@ -238,7 +357,7 @@ class MemoryPool {
  private:
   explicit MemoryPool() :
     _memory_mutex(),
-    _memory_id_map(),
+    _memory_groups(),
     _memory_chunks() { }
 
   // ! Returns a pointer to memory chunk under the corresponding group with
@@ -246,20 +365,124 @@ class MemoryPool {
   MemoryChunk* find_memory_chunk(const std::string& group,
                                  const std::string& key) {
 
-    if ( _memory_id_map.find(group) != _memory_id_map.end() &&
-         _memory_id_map[group].find(key) != _memory_id_map[group].end() ) {
-      const size_t memory_id = _memory_id_map[group][key];
+    if ( _memory_groups.find(group) != _memory_groups.end() &&
+         _memory_groups.at(group).containsKey(key) ) {
+      const size_t memory_id = _memory_groups.at(group).getKey(key);
       ASSERT(memory_id < _memory_chunks.size());
       return &_memory_chunks[memory_id];
     }
     return nullptr;
   }
 
+  static double size_in_megabyte(const size_t size_in_bytes) {
+    return static_cast<double>(size_in_bytes) / 1000000.0;
+  }
+
+  // ! Tries to match memory chunks between different groups.
+  // ! If a memory chunk is matched with an other memory chunk of
+  // ! an other group of an earlier stage, than allocation of that
+  // ! chunk is deferred. Once the memory pool is signaled that
+  // ! the memory chunks of a group are not required any more
+  // ! (release_memory_group), than the memory chunks are transfered
+  // ! to next group.
+  void optimize_memory_allocations() {
+    using MemGroup = std::pair<std::string, size_t>; // <Group ID, Stage>
+    using MemChunk = std::pair<size_t, size_t>; // <Memory ID, Size in Bytes>
+
+    // Sort memory groups according to stage
+    std::vector<MemGroup> mem_groups;
+    for ( const auto& mem_group : _memory_groups ) {
+      mem_groups.push_back(std::make_pair(mem_group.first, mem_group.second._stage));
+    }
+    std::sort(mem_groups.begin(), mem_groups.end(),
+      [&](const MemGroup& lhs, const MemGroup& rhs) {
+      return lhs.second < rhs.second;
+    });
+
+    auto fill_mem_chunks = [&](std::vector<MemChunk>& mem_chunks,
+                               const std::string group) {
+      for ( const auto& key : _memory_groups.at(group)._key_to_memory_id ) {
+        const size_t memory_id = key.second;
+        const MemoryChunk& memory_chunk = _memory_chunks[memory_id];
+        const size_t size_in_bytes = memory_chunk._num_elements * memory_chunk._size;
+        mem_chunks.push_back(std::make_pair(memory_id, size_in_bytes));
+      }
+      std::sort(mem_chunks.begin(), mem_chunks.end(),
+        [&](const MemChunk& lhs, const MemChunk& rhs) {
+          return lhs.second < rhs.second || (lhs.second == rhs.second && lhs.first < rhs.first );
+        });
+    };
+
+    if ( !mem_groups.empty() ) {
+      std::vector<MemChunk> lhs_mem_chunks;
+      fill_mem_chunks(lhs_mem_chunks, mem_groups[0].first);
+      for ( size_t i = 1; i < mem_groups.size(); ++i /* i = stage */ ) {
+        // lhs_mem_chunks contains all memory chunks corresponding
+        // to a stage j with j < i that are not matched (in increasing
+        // order of its size in bytes). rhs_mem_chunks contains all memory
+        // chunks of stage i (in increasing order of its size in bytes).
+        // Memory chunks are matched greedily according to their size
+        // in bytes => to biggest memory chunks of both groups are
+        // matched.
+        std::vector<MemChunk> rhs_mem_chunks;
+        fill_mem_chunks(rhs_mem_chunks, mem_groups[i].first);
+        while ( !lhs_mem_chunks.empty() && !rhs_mem_chunks.empty() ) {
+          const size_t lhs_mem_id = lhs_mem_chunks.back().first;
+          const size_t rhs_mem_id = rhs_mem_chunks.back().first;
+          ASSERT(lhs_mem_id != rhs_mem_id);
+          ASSERT(lhs_mem_id < _memory_chunks.size());
+          ASSERT(rhs_mem_id < _memory_chunks.size());
+          _memory_chunks[lhs_mem_id]._next_memory_chunk_id = rhs_mem_id;
+          _memory_chunks[rhs_mem_id]._defer_allocation = true;
+          lhs_mem_chunks.pop_back();
+          rhs_mem_chunks.pop_back();
+        }
+        fill_mem_chunks(lhs_mem_chunks, mem_groups[i].first);
+      }
+    }
+
+    auto augment_memory = [&](const size_t memory_id) {
+      ASSERT(memory_id < _memory_chunks.size());
+      MemoryChunk& memory_chunk = _memory_chunks[memory_id];
+      if ( !memory_chunk._defer_allocation ) {
+        std::vector<MemoryChunk*> s;
+        s.push_back(&memory_chunk);
+        size_t max_num_elements = memory_chunk._num_elements;
+        size_t max_size = memory_chunk._size;
+        while ( s.back()->_next_memory_chunk_id != kInvalidMemoryChunk ) {
+          const size_t next_memory_id = s.back()->_next_memory_chunk_id;
+          ASSERT(next_memory_id < _memory_chunks.size());
+          MemoryChunk& next_memory_chunk = _memory_chunks[next_memory_id];
+          const size_t num_elements = next_memory_chunk._num_elements;
+          const size_t size = next_memory_chunk._size;
+          if ( num_elements * size > max_num_elements * max_size ) {
+            max_num_elements = num_elements;
+            max_size = size;
+          }
+          s.push_back(&next_memory_chunk);
+        }
+
+        while ( !s.empty() ) {
+          s.back()->_num_elements = max_num_elements;
+          s.back()->_size = max_size;
+          s.pop_back();
+        }
+      }
+    };
+
+    // Adapts the allocation sizes along path of matched memory chunks.
+    // Allocation size must be the maximum size along that path.
+    for ( size_t memory_id = 0; memory_id < _memory_chunks.size(); ++memory_id ) {
+      augment_memory(memory_id);
+    }
+
+  }
+
   // ! Read-Write Lock for memory pool
   mutable std::shared_timed_mutex _memory_mutex;
   // ! Mapping from group-key to a memory chunk id
   // ! The memory chunk id maps points to the memory chunk vector
-  std::unordered_map<std::string, std::unordered_map<std::string, size_t>> _memory_id_map;
+  std::unordered_map<std::string, MemoryGroup> _memory_groups;
   // ! Memory chunks
   std::vector<MemoryChunk> _memory_chunks;
 };

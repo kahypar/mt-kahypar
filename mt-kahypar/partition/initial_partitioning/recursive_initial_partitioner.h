@@ -145,7 +145,7 @@ class RecursiveInitialPartitionerT : public IInitialPartitioner {
       _result(result),
       _task_group_id(task_group_id) {
       _coarsener = CoarsenerFactory::getInstance().createObject(
-        _result.context.coarsening.algorithm, _result.hypergraph, _result.context, _task_group_id);
+        _result.context.coarsening.algorithm, _result.hypergraph, _result.context, _task_group_id, false);
       _sparsifier = HypergraphSparsifierFactory::getInstance().createObject(
         _result.context.sparsification.similiar_net_combiner_strategy, _result.context, _task_group_id);
     }

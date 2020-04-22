@@ -56,7 +56,7 @@ class RefinementTask : public tbb::task {
     // Must be empty, because final partitioned hypergraph
     // is moved into this object
     _coarsener = CoarsenerFactory::getInstance().createObject(
-      _context.coarsening.algorithm, _hg, _context, _task_group_id);
+      _context.coarsening.algorithm, _hg, _context, _task_group_id, _top_level);
     _sparsifier = HypergraphSparsifierFactory::getInstance().createObject(
       _context.sparsification.similiar_net_combiner_strategy, _context, _task_group_id);
   }
