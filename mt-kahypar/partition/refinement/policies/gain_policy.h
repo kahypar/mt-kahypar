@@ -169,7 +169,7 @@ class Km1Policy : public GainPolicy<Km1Policy<HyperGraph>, HyperGraph> {
       }
     }
 
-    Move best_move { from, from, 0 };
+    Move best_move { from, from, hn, 0 };
     HypernodeWeight hn_weight = hypergraph.nodeWeight(hn);
     int cpu_id = sched_getcpu();
     utils::Randomize& rand = utils::Randomize::instance();
@@ -254,7 +254,7 @@ class CutPolicy : public GainPolicy<CutPolicy<HyperGraph>, HyperGraph> {
       }
     }
 
-    Move best_move { from, from, 0 };
+    Move best_move { from, from, hn, 0 };
     HypernodeWeight hn_weight = hypergraph.nodeWeight(hn);
     int cpu_id = sched_getcpu();
     utils::Randomize& rand = utils::Randomize::instance();
