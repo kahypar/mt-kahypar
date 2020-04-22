@@ -75,6 +75,7 @@ class MemoryPool {
       _chunk_mutex(),
       _num_elements(num_elements),
       _size(size),
+      _initial_size(size * num_elements),
       _data(nullptr),
       _next_memory_chunk_id(kInvalidMemoryChunk),
       _defer_allocation(false),
@@ -84,6 +85,7 @@ class MemoryPool {
       _chunk_mutex(),
       _num_elements(other._num_elements),
       _size(other._size),
+      _initial_size(other._initial_size),
       _data(std::move(other._data)),
       _next_memory_chunk_id(other._next_memory_chunk_id),
       _defer_allocation(other._defer_allocation),
@@ -146,6 +148,8 @@ class MemoryPool {
     size_t _num_elements;
     // ! Data type size in bytes
     size_t _size;
+    // ! Initial size in bytes of the memory chunk
+    const size_t _initial_size;
     // ! Memory chunk
     char* _data;
     // ! Memory chunk id where this memory chunk is transfered
@@ -352,6 +356,59 @@ class MemoryPool {
           std::max(_memory_chunks[memory_id].size_in_bytes(), 1UL));
       }
     }
+  }
+
+  void explain_optimizations() const {
+    std::unique_lock<std::shared_timed_mutex> lock(_memory_mutex);
+    using GroupKey = std::pair<std::string, std::string>;
+    size_t total_size = 0;
+    size_t allocated_size = 0;
+    LOG << BOLD << "Explanation of Memory Usage Optimization:" << END;
+    LOG << "  An arrow indicates that memory is transfered to the following memory chunk,"
+        << "\n  if corresponding memory group is released.\n";
+
+    std::unordered_map<size_t, GroupKey> memory_id_to_group_key;
+    for ( const auto& mem_group : _memory_groups ) {
+      const std::string& group = mem_group.first;
+      for ( const auto& mem_key : mem_group.second._key_to_memory_id ) {
+        const std::string& key = mem_key.first;
+        const size_t memory_id = mem_key.second;
+        memory_id_to_group_key.emplace(std::piecewise_construct,
+          std::forward_as_tuple(memory_id), std::forward_as_tuple(group, key));
+      }
+    }
+
+    for ( size_t memory_id = 0; memory_id < _memory_chunks.size(); ++memory_id ) {
+      if ( !_memory_chunks[memory_id]._defer_allocation ) {
+        size_t current_memory_id = memory_id;
+        std::string memory_path_desc = "  ";
+        size_t path_total_size = 0;
+        const size_t path_allocation_size = _memory_chunks[memory_id].size_in_bytes();
+        while ( current_memory_id != kInvalidMemoryChunk ) {
+          const MemoryChunk& mem_chunk = _memory_chunks[current_memory_id];
+          path_total_size += mem_chunk._initial_size;
+          const std::string& group = memory_id_to_group_key[current_memory_id].first;
+          const std::string& key = memory_id_to_group_key[current_memory_id].second;
+          memory_path_desc += "(" + group + "," + key + ") = "
+                                  + std::to_string(size_in_megabyte(mem_chunk._initial_size))
+                                  + " MB";
+          current_memory_id = mem_chunk._next_memory_chunk_id;
+          if ( current_memory_id != kInvalidMemoryChunk ) {
+            memory_path_desc += " -> ";
+          }
+        }
+        total_size += path_total_size;
+        allocated_size += path_allocation_size;
+        LOG << "  Allocated" << size_in_megabyte(path_allocation_size) << "MB for the following memory path"
+            << "and saved" << size_in_megabyte(path_total_size - path_allocation_size) << "MB:";
+        LOG << memory_path_desc << "\n";
+      }
+    }
+
+    LOG << BOLD << "Summary:" << END;
+    LOG << "  Size of registered memory chunks         =" << size_in_megabyte(total_size) << "MB";
+    LOG << "  Initial allocated size of memory chunks  =" << size_in_megabyte(allocated_size) << "MB";
+    LOG << "  Saved memory due to memory optimizations =" << size_in_megabyte(total_size - allocated_size) << "MB";
   }
 
  private:

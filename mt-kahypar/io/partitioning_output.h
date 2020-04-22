@@ -354,7 +354,8 @@ static inline void printMemoryPoolConsumption(const Context& context) {
     parallel::MemoryPool::instance().memory_consumption(&memory_pool_consumption);
     memory_pool_consumption.finalize();
     LOG << "\n Memory Pool Consumption:";
-    LOG << memory_pool_consumption;
+    LOG << memory_pool_consumption << "\n";
+    parallel::MemoryPool::instance().explain_optimizations();
   }
 }
 
