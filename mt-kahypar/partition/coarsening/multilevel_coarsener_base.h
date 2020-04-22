@@ -149,7 +149,7 @@ class MultilevelCoarsenerBase {
     }
   }
 
-  HyperGraph& currentHypergraph() {
+  HyperGraph& coarsestHypergraph() {
     if ( _hierarchies.empty() ) {
       return _hg;
     } else {
@@ -157,7 +157,7 @@ class MultilevelCoarsenerBase {
     }
   }
 
-  PartitionedHyperGraph& currentPartitionedHypergraph() {
+  PartitionedHyperGraph& coarsestPartitionedHypergraph() {
     ASSERT(_is_finalized);
     if ( _hierarchies.empty() ) {
       return _partitioned_hg;
@@ -197,15 +197,15 @@ class MultilevelCoarsenerBase {
 
   void performMultilevelContraction(parallel::scalable_vector<HypernodeID>&& communities) {
     ASSERT(!_is_finalized);
-    HyperGraph& current_hg = currentHypergraph();
+    HyperGraph& current_hg = coarsestHypergraph();
     ASSERT(current_hg.initialNumNodes() == communities.size());
     HyperGraph contracted_hg = current_hg.contract(communities, _task_group_id);
     _hierarchies.emplace_back(std::move(contracted_hg), std::move(communities));
   }
 
   PartitionedHyperGraph&& doUncoarsen(std::unique_ptr<Refiner>& label_propagation) {
-    initialize();
-    PartitionedHyperGraph& coarsest_hg = currentPartitionedHypergraph();
+    PartitionedHyperGraph& coarsest_hg = coarsestPartitionedHypergraph();
+    initialize(coarsest_hg);
 
     // Refine Coarsest Partitioned Hypergraph
     refine(coarsest_hg, label_propagation, current_metrics);
@@ -252,18 +252,15 @@ class MultilevelCoarsenerBase {
 
  protected:
 
-  void computeMetrics() {
-    PartitionedHypergraph& current_hg = currentPartitionedHypergraph();
+  void computeMetrics(PartitionedHypergraph& phg) {
     HyperedgeWeight cut = 0;
     HyperedgeWeight km1 = 0;
-    tbb::parallel_invoke([&] { cut = metrics::hyperedgeCut(current_hg); }, [&] { km1 = metrics::km1(current_hg); });
-    current_metrics = { cut, km1, metrics::imbalance(current_hg, _context) };
+    tbb::parallel_invoke([&] { cut = metrics::hyperedgeCut(phg); }, [&] { km1 = metrics::km1(phg); });
+    current_metrics = { cut, km1, metrics::imbalance(phg, _context) };
   }
 
-  void initialize() {
-    computeMetrics();
-
-    PartitionedHypergraph& current_hg = currentPartitionedHypergraph();
+  void initialize(PartitionedHypergraph& current_hg) {
+    computeMetrics(current_hg);
     int64_t num_nodes = current_hg.initialNumNodes();
     int64_t num_edges = current_hg.initialNumEdges();
     utils::Stats::instance().add_stat("initial_num_nodes", num_nodes);
@@ -298,7 +295,7 @@ class MultilevelCoarsenerBase {
       refinement::MultiTryKWayFM fm_refiner(_context, _task_group_id, partitioned_hypergraph.initialNumNodes(), partitioned_hypergraph.initialNumEdges());
       fm_refiner.refine(partitioned_hypergraph);
     }
-    computeMetrics();   // TODO let fm_refiner update the actual value
+    computeMetrics(partitioned_hypergraph);   // TODO let fm_refiner update the actual value
 
   }
 

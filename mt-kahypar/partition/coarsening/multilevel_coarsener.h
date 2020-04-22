@@ -148,7 +148,7 @@ class MultilevelCoarsenerT : public ICoarsenerT<TypeTraits>,
     const HypernodeID initial_num_nodes = Base::currentNumNodes();
     parallel::scalable_vector<parallel::scalable_vector<HypernodeID>> current_vertices(TBB::instance().num_used_numa_nodes());
     while ( Base::currentNumNodes() > _context.coarsening.contraction_limit ) {
-      HyperGraph& current_hg = Base::currentHypergraph();
+      HyperGraph& current_hg = Base::coarsestHypergraph();
       DBG << V(pass_nr)
           << V(current_hg.initialNumNodes())
           << V(current_hg.initialNumEdges())
@@ -294,7 +294,7 @@ class MultilevelCoarsenerT : public ICoarsenerT<TypeTraits>,
         // with other nodes, which prevents some high score contractions.
         const double reduction_pins_percentage =
           static_cast<double>(num_pins_before_pass) /
-          static_cast<double>(Base::currentHypergraph().initialNumPins());
+          static_cast<double>(Base::coarsestHypergraph().initialNumPins());
         const bool reduction_vertices_below_threshold = reduction_vertices_percentage <
           _context.coarsening.adaptive_node_weight_shrink_factor_threshold;
         const bool reduction_pins_below_threshold = reduction_pins_percentage <
@@ -429,11 +429,11 @@ class MultilevelCoarsenerT : public ICoarsenerT<TypeTraits>,
   }
 
   HyperGraph& coarsestHypergraphImpl() override {
-    return Base::currentHypergraph();
+    return Base::coarsestHypergraph();
   }
 
   PartitionedHyperGraph& coarsestPartitionedHypergraphImpl() override {
-    return Base::currentPartitionedHypergraph();
+    return Base::coarsestPartitionedHypergraph();
   }
 
   HypernodeID hierarchyContractionLimit(const HyperGraph& hypergraph) const {
