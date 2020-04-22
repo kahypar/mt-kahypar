@@ -135,8 +135,10 @@ class LabelPropagationRefinerT final : public IRefinerT<TypeTraits> {
   void labelPropagation(HyperGraph& hypergraph,
                         NumaNextActiveNodes& next_active_nodes,
                         const int node) {
+    DBG << "LP refinement" << V(_context.partition.k) << V(_context.partition.objective) << V(hypergraph.initialNumNodes()) << V(TBB::instance().total_number_of_threads());
     for (size_t i = 0; i < _context.refinement.label_propagation.maximum_iterations; ++i) {
-      DBG << "Starting Label Propagation Round" << i << "on NUMA Node" << node;
+      DBG << "Starting Label Propagation Round" << i << "on NUMA Node" << node << V(_active_nodes[node].size())
+              << V(metrics::km1(hypergraph)) << V(metrics::hyperedgeCut(hypergraph));
 
       utils::Timer::instance().start_timer(
         "lp_round_" + std::to_string(i) + (node != -1 ? "_" + std::to_string(node) : ""),
@@ -235,7 +237,8 @@ class LabelPropagationRefinerT final : public IRefinerT<TypeTraits> {
         PartitionID to = best_move.to;
 
         Gain delta_before = _gain.localDelta();
-        if (hypergraph.changeNodePart(hn, from, to, objective_delta)) {
+        bool changed_part = hypergraph.changeNodePart(hn, from, to, objective_delta);
+        if (changed_part) {
           // In case the move to block 'to' was successful, we verify that the "real" gain
           // of the move is either equal to our computed gain or if not, still improves
           // the solution quality.
