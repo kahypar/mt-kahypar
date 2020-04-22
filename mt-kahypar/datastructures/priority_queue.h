@@ -37,7 +37,7 @@ namespace ds {
 
 template<typename KeyT, typename IdT, typename Comparator = std::less<KeyT>, uint32_t arity = 4>
 class Heap {
-
+static constexpr bool enable_heavy_assert = false;
 public:
   static_assert(arity > 1);
 

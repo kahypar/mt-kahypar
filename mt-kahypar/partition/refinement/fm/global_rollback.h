@@ -64,6 +64,7 @@ struct BestIndexReduceBody {
 
 
 class GlobalRollback {
+  static constexpr bool enable_heavy_assert = false;
 public:
 
   explicit GlobalRollback(size_t numNodes, size_t numHyperedges, PartitionID numParts) :
