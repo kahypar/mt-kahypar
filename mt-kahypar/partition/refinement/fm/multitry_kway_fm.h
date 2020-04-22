@@ -26,6 +26,7 @@
 #include <mt-kahypar/partition/context.h>
 
 #include <atomic>
+#include <external_tools/kahypar/kahypar/partition/metrics.h>
 
 #include "localized_kway_fm_core.h"
 #include "global_rollback.h"
@@ -46,13 +47,18 @@ public:
           ets_fm(context, numNodes, sharedData.vertexPQHandles.data())
   { }
 
+  bool refine(PartitionedHypergraph& phg, kahypar::Metrics& metrics) {
+    Gain improvement = refine(phg);
+    metrics.km1 -= improvement;
+    return improvement > 0;
+  }
 
-  bool refine(PartitionedHypergraph& phg) {
+  Gain refine(PartitionedHypergraph& phg) {
     phg.initializeGainInformation();                // initialization only as long as LP refiner does not use these datastructures
     globalRollback.setRemainingOriginalPins(phg);   // initialization only as long as LP refiner does not use these datastructures
     //sharedData.partition_weight_budgets.initialize(phg, context.partition.max_part_weights);          // only for version with budgets
 
-    bool overall_improved = false;
+    Gain overall_improvement = 0;
     for (size_t round = 0; round < context.refinement.fm.multitry_rounds; ++round) {                    // global multi try rounds
       initialize(phg);
 
@@ -72,17 +78,15 @@ public:
 
       HyperedgeWeight improvement = globalRollback.globalRollbackToBestPrefix(phg, sharedData);
       LOG << V(improvement);
+      overall_improvement += improvement;
 
-      if (improvement > 0) {
-        overall_improved = true;
-      }
-      else {
+      if (improvement <= 0) {
         break;
       }
     }
 
     // sharedData.partition_weight_budgets.updatePartWeights(phg, context.partition.max_part_weights);  // only for version with budgets
-    return overall_improved;
+    return overall_improvement;
   }
 
   void initialize(PartitionedHypergraph& phg) {

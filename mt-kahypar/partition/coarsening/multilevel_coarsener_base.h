@@ -42,7 +42,7 @@ class MultilevelCoarsenerBase {
 
   using Refiner = IRefinerT<TypeTraits>;
 
-  static constexpr bool debug = false;
+  static constexpr bool debug = true;
 
   class Hierarchy {
 
@@ -207,8 +207,10 @@ class MultilevelCoarsenerBase {
     PartitionedHyperGraph& coarsest_hg = coarsestPartitionedHypergraph();
     initialize(coarsest_hg);
 
+    refinement::MultiTryKWayFM fm_refiner(_context, _task_group_id, _hg.initialNumNodes(), _hg.initialNumEdges());
+
     // Refine Coarsest Partitioned Hypergraph
-    refine(coarsest_hg, label_propagation, current_metrics);
+    refine(coarsest_hg, label_propagation, fm_refiner, current_metrics);
 
     for ( int i = _hierarchies.size() - 1; i >= 0; --i ) {
       // Project partition to next level finer hypergraph
@@ -236,7 +238,7 @@ class MultilevelCoarsenerBase {
 
 
       // Refinement
-      refine(representative_hg, label_propagation, current_metrics);
+      refine(representative_hg, label_propagation, fm_refiner, current_metrics);
 
       // Update Progress Bar
       uncontraction_progress.setObjective(current_metrics.getMetric(_context.partition.mode, _context.partition.objective));
@@ -253,10 +255,8 @@ class MultilevelCoarsenerBase {
  protected:
 
   void computeMetrics(PartitionedHypergraph& phg) {
-    HyperedgeWeight cut = 0;
-    HyperedgeWeight km1 = 0;
-    tbb::parallel_invoke([&] { cut = metrics::hyperedgeCut(phg); }, [&] { km1 = metrics::km1(phg); });
-    current_metrics = { cut, km1, metrics::imbalance(phg, _context) };
+    tbb::parallel_invoke([&] { current_metrics.cut = metrics::hyperedgeCut(phg); }, [&] { current_metrics.km1 = metrics::km1(phg); });
+    current_metrics.imbalance = metrics::imbalance(phg, _context);
   }
 
   void initialize(PartitionedHypergraph& current_hg) {
@@ -278,7 +278,7 @@ class MultilevelCoarsenerBase {
 
   void refine(PartitionedHyperGraph& partitioned_hypergraph,
               std::unique_ptr<Refiner>& label_propagation,
-
+              refinement::MultiTryKWayFM& fm_refiner,
               kahypar::Metrics& current_metrics) {
     if ( label_propagation ) {
       utils::Timer::instance().start_timer("initialize_lp_refiner", "Initialize LP Refiner");
@@ -292,10 +292,8 @@ class MultilevelCoarsenerBase {
 
 
     if (_context.type == kahypar::ContextType::main) {
-      refinement::MultiTryKWayFM fm_refiner(_context, _task_group_id, partitioned_hypergraph.initialNumNodes(), partitioned_hypergraph.initialNumEdges());
-      fm_refiner.refine(partitioned_hypergraph);
+      fm_refiner.refine(partitioned_hypergraph, current_metrics);
     }
-    computeMetrics(partitioned_hypergraph);   // TODO let fm_refiner update the actual value
 
   }
 
