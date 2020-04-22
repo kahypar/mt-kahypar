@@ -168,13 +168,15 @@ class Vector {
 
   Vector(const std::string& group,
          const std::string& key,
-         const size_type size) :
+         const size_type size,
+         const bool zero_initialize = false,
+         const bool assign_parallel = true) :
     _group(group),
     _key(key),
     _size(size),
     _data(nullptr),
     _underlying_data(nullptr) {
-    resize(group, key, size);
+    resize(group, key, size, zero_initialize, assign_parallel);
   }
 
   Vector(const Vector&) = delete;
@@ -280,18 +282,21 @@ class Vector {
   // ####################### Initialization #######################
 
   void resize(const size_type size,
-              const value_type init_value = value_type()) {
+              const value_type init_value = value_type(),
+              const bool assign_parallel = true) {
     if ( _data || _underlying_data ) {
       ERROR("Memory of vector already allocated");
     }
 
     allocate_data(size);
-    assign(size, init_value);
+    assign(size, init_value, assign_parallel);
   }
 
   void resize(const std::string& group,
               const std::string& key,
-              const size_type size) {
+              const size_type size,
+              const bool zero_initialize = false,
+              const bool assign_parallel = true) {
     _group = group;
     _key = key;
     _size = size;
@@ -299,20 +304,34 @@ class Vector {
       group, key, size, sizeof(value_type));
     if ( data ) {
       _underlying_data = reinterpret_cast<value_type*>(data);
+      if ( zero_initialize ) {
+        assign(size, value_type(), assign_parallel);
+      }
     } else {
-      resize(size, value_type());
+      resize(size, value_type(), assign_parallel);
     }
   }
 
   // ! Replaces the contents of the container
-  void assign(const size_type count, const value_type value) {
+  void assign(const size_type count,
+              const value_type value,
+              const bool assign_parallel = true) {
     if ( _underlying_data ) {
       ASSERT(count <= _size);
-      tbb::parallel_for(0UL, count, [&](const size_type i) {
-        _underlying_data[i] = value;
-      });
+      if ( assign_parallel ) {
+        const size_t step = count / std::thread::hardware_concurrency();
+        tbb::parallel_for(0UL, count, step, [&](const size_type i) {
+          for ( size_t j = i; j < std::min(i + step, count); ++j ) {
+            _underlying_data[j] = value;
+          }
+        });
+      } else {
+        for ( size_t i = 0; i < count; ++i ) {
+          _underlying_data[i] = value;
+        }
+      }
     } else {
-      resize(count, value);
+      resize(count, value, assign_parallel);
     }
   }
 

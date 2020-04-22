@@ -25,7 +25,7 @@
 
 #include "mt-kahypar/macros.h"
 #include "mt-kahypar/datastructures/hypergraph_common.h"
-#include "mt-kahypar/parallel/stl/scalable_vector.h"
+#include "mt-kahypar/datastructures/vector.h"
 
 namespace mt_kahypar {
 namespace ds {
@@ -46,9 +46,8 @@ class PinCountInPart {
 
   static constexpr bool debug = false;
 
-  using Value = uint64_t;
-
  public:
+  using Value = uint64_t;
 
   PinCountInPart() :
     _num_hyperedges(0),
@@ -58,11 +57,13 @@ class PinCountInPart {
     _entries_per_value(0),
     _values_per_hyperedge(0),
     _extraction_mask(0),
-    _pin_count_in_part(0) { }
+    _pin_count_in_part() { }
 
   PinCountInPart(const HyperedgeID num_hyperedges,
                  const PartitionID k,
-                 const HypernodeID max_value) :
+                 const HypernodeID max_value,
+                 const int node = 0,
+                 const bool assign_parallel = true) :
     _num_hyperedges(0),
     _k(0),
     _max_value(0),
@@ -70,8 +71,8 @@ class PinCountInPart {
     _entries_per_value(0),
     _values_per_hyperedge(0),
     _extraction_mask(0),
-    _pin_count_in_part(0) {
-    initialize(num_hyperedges, k, max_value);
+    _pin_count_in_part() {
+    initialize(num_hyperedges, k, max_value, node, assign_parallel);
   }
 
   PinCountInPart(const PinCountInPart&) = delete;
@@ -102,7 +103,9 @@ class PinCountInPart {
   // ! Initializes the data structure
   void initialize(const HyperedgeID num_hyperedges,
                   const PartitionID k,
-                  const HypernodeID max_value) {
+                  const HypernodeID max_value,
+                  const int node = 0,
+                  const bool assign_parallel = true) {
     ASSERT(_num_hyperedges == 0);
     if ( num_hyperedges > 0 ) {
       _num_hyperedges = num_hyperedges;
@@ -112,11 +115,13 @@ class PinCountInPart {
       _entries_per_value = num_entries_per_value(k, max_value);
       _values_per_hyperedge = num_values_per_hyperedge(k, max_value);
       _extraction_mask = std::pow(2UL, _bits_per_element) - 1UL;
-      _pin_count_in_part.assign(num_hyperedges * _values_per_hyperedge, 0);
+      _pin_count_in_part.resize("Refinement",
+        "pin_count_in_part_" + std::to_string(node),
+        num_hyperedges * _values_per_hyperedge, true, assign_parallel);
     }
   }
 
-  parallel::scalable_vector<Value>& data() {
+  Vector<Value>& data() {
     return _pin_count_in_part;
   }
 
@@ -177,6 +182,12 @@ class PinCountInPart {
     return sizeof(Value) * _pin_count_in_part.size();
   }
 
+  static size_t num_elements(const HyperedgeID num_hyperedges,
+                             const PartitionID k,
+                             const HypernodeID max_value) {
+    return num_hyperedges * num_values_per_hyperedge(k, max_value);
+  }
+
  private:
   inline void updateEntry(Value& value,
                           const size_t bit_pos,
@@ -187,22 +198,22 @@ class PinCountInPart {
     value = (value & zero_mask) | value_mask;
   }
 
-  size_t num_values_per_hyperedge(const PartitionID k,
-                                  const HypernodeID max_value) {
+  static size_t num_values_per_hyperedge(const PartitionID k,
+                                         const HypernodeID max_value) {
     const size_t entries_per_value = num_entries_per_value(k, max_value);
     ASSERT(entries_per_value <= static_cast<size_t>(k));
     return k / entries_per_value + (k % entries_per_value!= 0);
   }
 
-  size_t num_entries_per_value(const PartitionID k,
-                               const HypernodeID max_value) {
+  static size_t num_entries_per_value(const PartitionID k,
+                                      const HypernodeID max_value) {
     const size_t bits_per_element = num_bits_per_element(max_value);
     const size_t bits_per_value = sizeof(Value) * 8UL;
     ASSERT(bits_per_element <= bits_per_value);
     return std::min(bits_per_value / bits_per_element, static_cast<size_t>(k));
   }
 
-  size_t num_bits_per_element(const HypernodeID max_value) {
+  static size_t num_bits_per_element(const HypernodeID max_value) {
     return std::ceil(std::log2(static_cast<double>(max_value + 1)));
   }
 
@@ -213,7 +224,7 @@ class PinCountInPart {
   size_t _entries_per_value;
   size_t _values_per_hyperedge;
   Value _extraction_mask;
-  parallel::scalable_vector<Value> _pin_count_in_part;
+  Vector<Value> _pin_count_in_part;
 };
 }  // namespace ds
 }  // namespace mt_kahypar
