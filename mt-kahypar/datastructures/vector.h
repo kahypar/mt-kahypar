@@ -308,16 +308,7 @@ class Vector {
         assign(size, value_type(), assign_parallel);
       }
     } else {
-      // Try to get unused memory in memory pool
-      data = parallel::MemoryPool::instance().request_unused_mem_chunk(size, sizeof(value_type));
-      if ( data ) {
-        _underlying_data = reinterpret_cast<value_type*>(data);
-        if ( zero_initialize ) {
-          assign(size, value_type(), assign_parallel);
-        }
-      } else {
-        resize(size, value_type(), assign_parallel);
-      }
+      resize(size, value_type(), assign_parallel);
     }
   }
 
