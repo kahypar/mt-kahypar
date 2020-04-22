@@ -462,7 +462,6 @@ private:
   }
 
   vec< CAtomic<HypernodeID> >& getPinCountInPartVector() {
-    LOG << "getPinCountInPartVector" << V(pins_in_part.size());
     return pins_in_part;
   }
 
