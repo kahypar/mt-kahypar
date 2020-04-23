@@ -88,6 +88,7 @@ struct NodeTracker {
   // only the search that owns u is allowed to call this
   void deactivateNode(HypernodeID u, SearchID search_id) {
     assert(searchOfNode[u].load() == search_id);
+    unused(search_id);
     searchOfNode[u].store(deactivatedNodeMarker, std::memory_order_acq_rel);
   }
 

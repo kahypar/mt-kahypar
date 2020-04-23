@@ -24,12 +24,14 @@
 
 #include <mt-kahypar/parallel/numa_work_queue.h>
 #include <mt-kahypar/partition/context.h>
+#include <mt-kahypar/utils/timer.h>
 
 #include <atomic>
 #include <external_tools/kahypar/kahypar/partition/metrics.h>
 
 #include "localized_kway_fm_core.h"
 #include "global_rollback.h"
+
 
 namespace mt_kahypar {
 namespace refinement {
@@ -58,13 +60,25 @@ public:
   }
 
   Gain refine(PartitionedHypergraph& phg) {
+    utils::Timer& timer = utils::Timer::instance();
+    timer.start_timer("fm", "FM");
+    timer.start_timer("fm_unnecessary_init", "Initialize FM datastructures that could also be updated by LP Refiner ");
+
     phg.initializeGainInformation();                // initialization only as long as LP refiner does not use these datastructures
     globalRollback.setRemainingOriginalPins(phg);   // initialization only as long as LP refiner does not use these datastructures
+
+    timer.stop_timer("fm_unnecessary_init");
     //sharedData.partition_weight_budgets.initialize(phg, context.partition.max_part_weights);          // only for version with budgets
 
     Gain overall_improvement = 0;
     for (size_t round = 0; round < context.refinement.fm.multitry_rounds; ++round) {                    // global multi try rounds
+      timer.start_timer("fm_round_" + std::to_string(round), "FM Round " + std::to_string(round));
+      timer.start_timer("collect_border_nodes", "Collect Border Nodes");
+
       initialize(phg);
+
+      timer.stop_timer("collect_border_nodes");
+      timer.start_timer("find_moves", "Find Moves");
 
       auto task = [&](const int socket, const int socket_local_task_id, const int task_id) {
         unused(socket_local_task_id); unused(task_id);
@@ -81,15 +95,22 @@ public:
       refinementNodes.clear();  // calling clear is necessary since tryPop will reduce the size to -(num calling threads)
       LOG << V(round) << "multitry fm" << V(metrics::km1(phg));
 
+      timer.stop_timer("find_moves");
+      timer.start_timer("rollback", "Rollback to Best Solution");
+
       HyperedgeWeight improvement = globalRollback.globalRollbackToBestPrefix(phg, sharedData);
       LOG << V(improvement) << "after rollback" << V(metrics::km1(phg));
       overall_improvement += improvement;
+
+      timer.stop_timer("rollback");
+      timer.stop_timer("fm_round_" + std::to_string(round));
 
       if (improvement <= 0) {
         break;
       }
     }
 
+    timer.stop_timer("fm");
     // sharedData.partition_weight_budgets.updatePartWeights(phg, context.partition.max_part_weights);  // only for version with budgets
     return overall_improvement;
   }

@@ -22,6 +22,7 @@
 
 #include <atomic>
 #include <mt-kahypar/partition/metrics.h>
+#include <mt-kahypar/utils/timer.h>
 
 #include "fm_commons.h"
 
@@ -81,9 +82,15 @@ public:
 
     recalculateGains(phg, sharedData);
 
+    utils::Timer& timer = utils::Timer::instance();
+    timer.start_timer("find_best_prefix", "Find Best Prefix");
+
     const MoveID numMoves = sharedData.moveTracker.numPerformedMoves();
     BestIndexReduceBody b(gains);
     tbb::parallel_reduce(tbb::blocked_range<MoveID>(0, numMoves), b, tbb::static_partitioner()); // find best index
+
+    timer.stop_timer("find_best_prefix");
+    timer.start_timer("revert_and_rem_orig_pin_updates", "Revert Moves and apply updates");
 
     const auto& move_order = sharedData.moveTracker.moveOrder;
 
@@ -106,10 +113,15 @@ public:
       });
     } );
 
+    timer.stop_timer("revert_and_rem_orig_pin_updates");
+    timer.start_timer("recompute_move_from_benefits", "Recompute Move-From Benefits");
+
     // recompute moveFromBenefit values since they are potentially invalid
     tbb::parallel_for(0U, sharedData.moveTracker.numPerformedMoves(), [&](MoveID localMoveID) {
       phg.recomputeMoveFromBenefit(move_order[localMoveID].node);
     });
+
+    timer.stop_timer("recompute_move_from_benefits");
 
     if (sharedData.moveTracker.reset()) {
       resetStoredMoveIDs();
@@ -132,6 +144,8 @@ public:
     phg.checkTrackedPartitionInformation();
 #endif
 
+    utils::Timer& timer = utils::Timer::instance();
+    timer.start_timer("move_id_flagging", "Move Flagging");
 
     tbb::parallel_for(0U, sharedData.moveTracker.numPerformedMoves(), [&](MoveID localMoveID) {
       const Move& m = move_order[localMoveID];
@@ -150,6 +164,9 @@ public:
         remaining_original_pins[e * numParts + m.from].fetch_sub(1, std::memory_order_relaxed);
       }
     });
+
+    timer.stop_timer("move_id_flagging");
+    timer.start_timer("gain_recalculation", "Recalculate Gains");
 
     tbb::parallel_for(0U, sharedData.moveTracker.numPerformedMoves(), [&](MoveID localMoveID) {
       MoveID globalMoveID = firstMoveID + localMoveID;
@@ -170,6 +187,7 @@ public:
       gains[localMoveID] = gain;
     });
 
+    timer.stop_timer("gain_recalculation");
 
 #ifndef NDEBUG
     // recheck all gains
