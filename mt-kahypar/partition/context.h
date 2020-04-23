@@ -192,7 +192,7 @@ inline std::ostream & operator<< (std::ostream& str, const LabelPropagationParam
 struct FMParameters {
   bool numa_aware = false;
   bool shuffle = true;
-  uint32_t max_number_of_fruitless_moves = 100;
+  size_t max_number_of_fruitless_moves = 100;
   size_t multitry_rounds = 3;
 };
 

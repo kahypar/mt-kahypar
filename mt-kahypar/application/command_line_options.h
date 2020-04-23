@@ -267,6 +267,12 @@ po::options_description createRefinementOptionsDescription(Context& context,
       &context.initial_partitioning.refinement.label_propagation.rebalancing))->value_name("<bool>"),
     "If true, zero gain moves are used to rebalance solution\n"
     "(default true)")
+    (( initial_partitioning ? "i-r-fm-rounds" : "r-fm-rounds"),
+    po::value<size_t>((initial_partitioning ? &context.initial_partitioning.refinement.fm.multitry_rounds : &context.refinement.fm.multitry_rounds))->value_name("size_t"),
+    "Number of multitry rounds. Default 3")
+    (( initial_partitioning ? "i-r-fm-fruitless-moves" : "r-fm-fruitless-moves"),
+    po::value<size_t>((initial_partitioning ? &context.initial_partitioning.refinement.fm.max_number_of_fruitless_moves : &context.refinement.fm.max_number_of_fruitless_moves))->value_name("size_t"),
+    "Number of multitry rounds. Default 3")
     (( initial_partitioning ? "i-r-lp-he-size-activation-threshold" : "r-lp-he-size-activation-threshold"),
     po::value<size_t>((!initial_partitioning ? &context.refinement.label_propagation.hyperedge_size_activation_threshold :
       &context.initial_partitioning.refinement.label_propagation.hyperedge_size_activation_threshold))->value_name("<size_t>"),
