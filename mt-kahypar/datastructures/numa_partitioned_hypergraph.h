@@ -86,6 +86,7 @@ class NumaPartitionedHypergraph {
   static constexpr bool is_static_hypergraph = Hypergraph::is_static_hypergraph;
   static constexpr bool is_numa_aware = true;
   static constexpr bool is_partitioned = true;
+  static constexpr size_t SIZE_OF_VERTEX_PART_INFO = Hypergraph::SIZE_OF_VERTEX_PART_INFO;
 
   explicit NumaPartitionedHypergraph() :
     _k(kInvalidPartition),

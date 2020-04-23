@@ -36,6 +36,7 @@
 #include "kahypar/meta/mandatory.h"
 
 #include "mt-kahypar/macros.h"
+#include "mt-kahypar/parallel/memory_pool.h"
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
 #include "mt-kahypar/parallel/stl/scalable_unique_ptr.h"
 
@@ -69,7 +70,8 @@ class SparseMapBase {
   }
 
   void setMaxSize(const size_t max_size) {
-    _dense = reinterpret_cast<MapElement*>(_data.get() + max_size);
+    ASSERT(_sparse);
+    _dense = reinterpret_cast<MapElement*>(_sparse + max_size);
   }
 
   bool contains(const Key key) const {
@@ -117,8 +119,10 @@ class SparseMapBase {
   }
 
   void freeInternalData() {
-    size_t* data = _data.release();
-    scalable_free(data);
+    if ( _data ) {
+      size_t* data = _data.release();
+      scalable_free(data);
+    }
     _size = 0;
     _data = nullptr;
     _sparse = nullptr;
@@ -126,19 +130,12 @@ class SparseMapBase {
   }
 
  protected:
-  explicit SparseMapBase(const size_t max_size,
-                         const Value initial_value = 0) :
+  explicit SparseMapBase(const size_t max_size) :
     _size(0),
-    _data(parallel::make_unique<size_t>((max_size * sizeof(MapElement) +
-                                         max_size * sizeof(size_t)) / sizeof(size_t))),
+    _data(nullptr),
     _sparse(nullptr),
     _dense(nullptr) {
-    _sparse = reinterpret_cast<size_t*>(_data.get());
-    _dense = reinterpret_cast<MapElement*>(_data.get() + max_size);
-    for (size_t i = 0; i < max_size; ++i) {
-      _sparse[i] = std::numeric_limits<size_t>::max();
-      _dense[i] = MapElement { std::numeric_limits<Key>::max(), initial_value };
-    }
+    allocate_data(max_size);
   }
 
   ~SparseMapBase() = default;
@@ -152,6 +149,19 @@ class SparseMapBase {
     other._data = nullptr;
     other._sparse = nullptr;
     other._dense = nullptr;
+  }
+
+  void allocate_data(const size_t max_size) {
+    ASSERT(!_data && !_sparse);
+    const size_t num_elements = (max_size * sizeof(MapElement) + max_size * sizeof(size_t)) / sizeof(size_t);
+    char* data = parallel::MemoryPool::instance().request_unused_mem_chunk(num_elements, sizeof(size_t));
+    if ( data ) {
+      _sparse = reinterpret_cast<size_t*>(data);
+    } else {
+      _data = parallel::make_unique<size_t>(num_elements);
+      _sparse = reinterpret_cast<size_t*>(_data.get());
+    }
+    _dense = reinterpret_cast<MapElement*>(_sparse + max_size);
   }
 
   size_t _size;
@@ -168,9 +178,8 @@ class SparseMap final : public SparseMapBase<Key, Value, SparseMap<Key, Value> >
   friend Base;
 
  public:
-  explicit SparseMap(const Key max_size,
-                     const Value initial_value = 0) :
-    Base(max_size, initial_value) { }
+  explicit SparseMap(const Key max_size) :
+    Base(max_size) { }
 
   SparseMap(const SparseMap&) = delete;
   SparseMap& operator= (const SparseMap& other) = delete;

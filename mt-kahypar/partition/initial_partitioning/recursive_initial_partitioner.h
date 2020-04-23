@@ -621,6 +621,7 @@ class RecursiveInitialPartitionerT : public IInitialPartitioner {
  private:
   void initialPartitionImpl() override final {
     if (_top_level) {
+      parallel::MemoryPool::instance().deactivate_unused_memory_allocations();
       utils::Timer::instance().disable();
       utils::Stats::instance().disable();
     }
@@ -631,6 +632,7 @@ class RecursiveInitialPartitionerT : public IInitialPartitioner {
     tbb::task::spawn_root_and_wait(root_recursive_task);
 
     if (_top_level) {
+      parallel::MemoryPool::instance().activate_unused_memory_allocations();
       utils::Timer::instance().enable();
       utils::Stats::instance().enable();
     }

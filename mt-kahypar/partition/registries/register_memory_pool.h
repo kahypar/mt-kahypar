@@ -20,6 +20,8 @@
 
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/datastructures/hypergraph_common.h"
+#include "mt-kahypar/datastructures/pin_count_in_part.h"
+#include "mt-kahypar/datastructures/connectivity_set.h"
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/parallel/memory_pool.h"
 #include "mt-kahypar/parallel/atomic_wrapper.h"
@@ -85,6 +87,30 @@ static void register_memory_pool(const Hypergraph& hypergraph,
       "Coarsening", "he_sizes_" + std::to_string(node), num_hyperedges, sizeof(size_t));
     parallel::MemoryPool::instance().register_memory_chunk(
       "Coarsening", "valid_hyperedges_" + std::to_string(node), num_hyperedges, sizeof(size_t));
+  }
+
+  // ########## Refinement Memory ##########
+
+  parallel::MemoryPool::instance().register_memory_group("Refinement", 3);
+
+  for ( size_t node = 0; node < hypergraph.numNumaHypergraphs(); ++node ) {
+    const HypernodeID num_hypernodes = hypergraph.initialNumNodes(node);
+    const HyperedgeID num_hyperedges = hypergraph.initialNumEdges(node);
+    const HypernodeID max_he_size = hypergraph.maxEdgeSize();
+    parallel::MemoryPool::instance().register_memory_chunk(
+      "Refinement", "vertex_part_info_" + std::to_string(node),
+      num_hypernodes, sizeof(PartitionedHypergraph<>::SIZE_OF_VERTEX_PART_INFO));
+    parallel::MemoryPool::instance().register_memory_chunk(
+      "Refinement", "pin_count_in_part_" + std::to_string(node),
+      ds::PinCountInPart::num_elements(num_hyperedges, context.partition.k, max_he_size),
+      sizeof(ds::PinCountInPart::Value));
+    parallel::MemoryPool::instance().register_memory_chunk(
+      "Refinement", "connectivity_set_" + std::to_string(node),
+      ds::ConnectivitySets::num_elements(num_hyperedges, context.partition.k),
+      sizeof(ds::ConnectivitySets::UnsafeBlock));
+    parallel::MemoryPool::instance().register_memory_chunk(
+      "Refinement", "pin_count_update_ownership_" + std::to_string(node),
+      num_hyperedges, sizeof(parallel::IntegralAtomicWrapper<bool>));
   }
 
   // Allocate Memory

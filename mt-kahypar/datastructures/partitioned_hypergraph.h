@@ -100,6 +100,7 @@ class PartitionedHypergraph {
   static constexpr bool is_static_hypergraph = Hypergraph::is_static_hypergraph;
   static constexpr bool is_numa_aware = false;
   static constexpr bool is_partitioned = true;
+  static constexpr size_t SIZE_OF_VERTEX_PART_INFO = sizeof(VertexPartInfo);
 
   explicit PartitionedHypergraph() :
     _k(0),
@@ -120,10 +121,14 @@ class PartitionedHypergraph {
     _hg(&hypergraph),
     _is_init_num_cut_hyperedges(false),
     _part_info(k),
-    _vertex_part_info(hypergraph.initialNumNodes()),
-    _pins_in_part(hypergraph.initialNumEdges(), k, hypergraph.maxEdgeSize()),
-    _connectivity_sets(hypergraph.initialNumEdges(), k),
-    _pin_count_update_ownership(hypergraph.initialNumEdges(), AtomicFlag(false)),
+    _vertex_part_info(
+        "Refinement", "vertex_part_info_" + std::to_string(_node),
+        hypergraph.initialNumNodes(), true, false),
+    _pins_in_part(hypergraph.initialNumEdges(), k, hypergraph.maxEdgeSize(), _node, false),
+    _connectivity_sets(hypergraph.initialNumEdges(), k, _node, false),
+    _pin_count_update_ownership(
+        "Refinement", "pin_count_update_ownership_" + std::to_string(_node),
+        hypergraph.initialNumEdges(), true, false),
     _failed_pin_count_updates() { }
 
   explicit PartitionedHypergraph(const PartitionID k,
@@ -140,13 +145,17 @@ class PartitionedHypergraph {
     _pin_count_update_ownership(),
     _failed_pin_count_updates() {
     tbb::parallel_invoke([&] {
-      _vertex_part_info.resize(hypergraph.initialNumNodes());
+      _vertex_part_info.resize(
+        "Refinement", "vertex_part_info_" + std::to_string(_node),
+        hypergraph.initialNumNodes(), true);
     }, [&] {
-      _pins_in_part.initialize(hypergraph.initialNumEdges(), k, hypergraph.maxEdgeSize());
+      _pins_in_part.initialize(hypergraph.initialNumEdges(), k, hypergraph.maxEdgeSize(), _node);
     }, [&] {
-      _connectivity_sets = ConnectivitySets(hypergraph.initialNumEdges(), k);
+      _connectivity_sets = ConnectivitySets(hypergraph.initialNumEdges(), k, _node);
     }, [&] {
-      _pin_count_update_ownership.assign(hypergraph.initialNumEdges(), AtomicFlag(false));
+      _pin_count_update_ownership.resize(
+        "Refinement", "pin_count_update_ownership_" + std::to_string(_node),
+        hypergraph.initialNumEdges(), true);
     });
   }
 
@@ -1095,8 +1104,9 @@ class PartitionedHypergraph {
   void freeInternalData() {
     if ( _k > 0 ) {
       tbb::parallel_invoke([&] {
-        parallel::parallel_free(_vertex_part_info,
-          _pins_in_part.data(), _pin_count_update_ownership);
+        parallel::parallel_free(_vertex_part_info, _pin_count_update_ownership);
+      }, [&] {
+        parallel::free(_pins_in_part.data());
       }, [&] {
         _connectivity_sets.freeInternalData();
       });
@@ -1391,7 +1401,7 @@ class PartitionedHypergraph {
   parallel::scalable_vector<BlockInfo> _part_info;
   // ! Contains for each vertex the block and the number of
   // ! incident cut hyperedges
-  parallel::scalable_vector<VertexPartInfo> _vertex_part_info;
+  Array<VertexPartInfo> _vertex_part_info;
   // ! For each hyperedge and each block, _pins_in_part stores the
   // ! number of pins in that block
   PinCountInPart _pins_in_part;
@@ -1400,7 +1410,7 @@ class PartitionedHypergraph {
   ConnectivitySets _connectivity_sets;
   // ! In order to update the pin count of a hyperedge thread-safe, a thread must acquire
   // ! the ownership of a hyperedge via a CAS operation.
-  parallel::scalable_vector<AtomicFlag> _pin_count_update_ownership;
+  Array<AtomicFlag> _pin_count_update_ownership;
   // ! It can happen that some pin count updates are failing during changeNodePart(...)
   // ! due to concurrent updates. Each thread gathers its hyperedges which failed and
   // ! try them again at the end.

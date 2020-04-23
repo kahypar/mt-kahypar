@@ -32,6 +32,7 @@
 #include "mt-kahypar/macros.h"
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/partition/initial_partitioning/i_initial_partitioner.h"
+#include "mt-kahypar/parallel/memory_pool.h"
 #include "mt-kahypar/utils/randomize.h"
 #include "mt-kahypar/utils/stats.h"
 #include "mt-kahypar/utils/timer.h"
@@ -486,6 +487,7 @@ class RecursiveBisectionInitialPartitionerT : public IInitialPartitioner {
  private:
   void initialPartitionImpl() override final {
     if (_top_level) {
+      parallel::MemoryPool::instance().deactivate_unused_memory_allocations();
       utils::Timer::instance().disable();
       utils::Stats::instance().disable();
     }
@@ -496,6 +498,7 @@ class RecursiveBisectionInitialPartitionerT : public IInitialPartitioner {
     tbb::task::spawn_root_and_wait(root_bisection_task);
 
     if (_top_level) {
+      parallel::MemoryPool::instance().activate_unused_memory_allocations();
       utils::Timer::instance().enable();
       utils::Stats::instance().enable();
     }

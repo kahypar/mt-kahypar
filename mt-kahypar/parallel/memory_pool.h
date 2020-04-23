@@ -23,6 +23,7 @@
 #include <shared_mutex>
 #include <memory>
 #include <unordered_map>
+#include <atomic>
 
 #include "tbb/parallel_for.h"
 #include "tbb/scalable_allocator.h"
@@ -43,6 +44,8 @@ class MemoryPool {
 
   static constexpr bool debug = false;
   static constexpr size_t kInvalidMemoryChunk = std::numeric_limits<size_t>::max();
+
+  static constexpr size_t MINIMUM_ALLOCATION_SIZE = 10000000; // 10 MB
 
   // ! Represents a memory group.
   struct MemoryGroup {
@@ -76,6 +79,8 @@ class MemoryPool {
       _num_elements(num_elements),
       _size(size),
       _initial_size(size * num_elements),
+      _used_size(size * num_elements),
+      _total_size(size * num_elements),
       _data(nullptr),
       _next_memory_chunk_id(kInvalidMemoryChunk),
       _defer_allocation(false),
@@ -86,6 +91,8 @@ class MemoryPool {
       _num_elements(other._num_elements),
       _size(other._size),
       _initial_size(other._initial_size),
+      _used_size(other._used_size),
+      _total_size(other._total_size),
       _data(std::move(other._data)),
       _next_memory_chunk_id(other._next_memory_chunk_id),
       _defer_allocation(other._defer_allocation),
@@ -107,6 +114,23 @@ class MemoryPool {
       } else {
         return nullptr;
       }
+    }
+
+    char* request_unused_chunk(const size_t size, const size_t page_size) {
+      size_t aligned_used_size = align_with_page_size(_used_size, page_size);
+      if ( _data && aligned_used_size < _total_size &&
+            size <= _total_size - aligned_used_size ) {
+        std::lock_guard<std::mutex> lock(_chunk_mutex);
+        // Double check
+        aligned_used_size = align_with_page_size(_used_size, page_size);
+        if ( _data && aligned_used_size < _total_size &&
+             size <= _total_size - aligned_used_size ) {
+          char* data = _data + aligned_used_size;
+          _used_size = aligned_used_size + size;
+          return data;
+        }
+      }
+      return nullptr;
     }
 
     // ! Releases the memory chunks
@@ -143,6 +167,15 @@ class MemoryPool {
       return size;
     }
 
+    // Align with page size to minimize cache effects
+    size_t align_with_page_size(const size_t size, const size_t page_size) {
+      if ( page_size > 1 ) {
+        return 2 * page_size * ( size / ( 2 * page_size ) + ( ( size % ( 2 * page_size ) ) != 0 ) );
+      } else {
+        return size;
+      }
+    }
+
     std::mutex _chunk_mutex;
     // ! Number of elements to allocate
     size_t _num_elements;
@@ -150,6 +183,10 @@ class MemoryPool {
     size_t _size;
     // ! Initial size in bytes of the memory chunk
     const size_t _initial_size;
+    // ! Used size in bytes of the memory chunk
+    size_t _used_size;
+    // ! Total size in bytes of the memory chunk
+    size_t _total_size;
     // ! Memory chunk
     char* _data;
     // ! Memory chunk id where this memory chunk is transfered
@@ -216,7 +253,7 @@ class MemoryPool {
 
   // ! Allocates all registered memory chunks in parallel
   void allocate_memory_chunks(const bool optimize_allocations = true) {
-    std::shared_lock<std::shared_timed_mutex> lock(_memory_mutex);
+    std::unique_lock<std::shared_timed_mutex> lock(_memory_mutex);
     if ( optimize_allocations ) {
       optimize_memory_allocations();
     }
@@ -227,6 +264,7 @@ class MemoryPool {
             << size_in_megabyte(_memory_chunks[i].size_in_bytes()) << "MB";
       }
     });
+    update_active_memory_chunks();
   }
 
   // ! Returns the memory chunk registered under the corresponding
@@ -238,20 +276,60 @@ class MemoryPool {
                           const std::string& key,
                           const size_t num_elements,
                           const size_t size) {
-    std::shared_lock<std::shared_timed_mutex> lock(_memory_mutex);
-    MemoryChunk* chunk = find_memory_chunk(group, key);
+    const size_t size_in_bytes = num_elements * size;
     DBG << "Requests memory chunk (" << group << "," << key << ")"
-        << "of" <<  size_in_megabyte(num_elements * size) << "MB"
+        << "of" <<  size_in_megabyte(size_in_bytes) << "MB"
         << "in memory pool";
-    if ( chunk && num_elements * size <= chunk->size_in_bytes() ) {
-      char* data = chunk->request_chunk();
-      if ( data ) {
-        DBG << "Memory chunk request (" << group << "," << key << ")"
-            << "was successful";
-        return data;
+    if ( !_use_minimum_allocation_size || size_in_bytes > MINIMUM_ALLOCATION_SIZE ) {
+      std::shared_lock<std::shared_timed_mutex> lock(_memory_mutex);
+      MemoryChunk* chunk = find_memory_chunk(group, key);
+
+      if ( chunk && size_in_bytes <= chunk->size_in_bytes() ) {
+        char* data = chunk->request_chunk();
+        if ( data ) {
+          DBG << "Memory chunk request (" << group << "," << key << ")"
+              << "was successful";
+          return data;
+        }
       }
     }
     DBG << "Memory chunk request (" << group << "," << key << ") failed";
+    return nullptr;
+  }
+
+  // ! Requests an unused memory chunk. If memory usage optimization are
+  // ! activated some memory chunks have unused memory segments due to
+  // ! overallocations.
+  char* request_unused_mem_chunk(const size_t num_elements,
+                                 const size_t size,
+                                 const bool align_with_page_size = true) {
+    DBG << "Request unused memory chunk of"
+        << size_in_megabyte(num_elements * size) << "MB";
+    const size_t size_in_bytes = num_elements * size;
+    if ( _use_unused_memory_chunks &&
+         ( !_use_minimum_allocation_size || size_in_bytes > MINIMUM_ALLOCATION_SIZE ) ) {
+      std::shared_lock<std::shared_timed_mutex> lock(_memory_mutex);
+      const size_t n = _active_memory_chunks.size();
+      const size_t end = _next_active_memory_chunk.load() % n;
+      const size_t start = ( end + 1 ) % n;
+      for ( size_t i = start; ; i = (i + 1) % n ) {
+        size_t memory_id = _active_memory_chunks[i];
+        ASSERT(memory_id < _memory_chunks.size());
+        char* data = _memory_chunks[memory_id].request_unused_chunk(
+          size_in_bytes, align_with_page_size ? _page_size : 1UL);
+        if ( data ) {
+          DBG << "Memory chunk request for an unsed memory chunk was successful";
+          if ( _use_round_robin_assignment ) {
+            ++_next_active_memory_chunk;
+          }
+          return data;
+        }
+        if ( i == end ) {
+          break;
+        }
+      }
+    }
+    DBG << "Memory chunk request for an unsed memory chunk failed";
     return nullptr;
   }
 
@@ -310,8 +388,14 @@ class MemoryPool {
           MemoryChunk& rhs = _memory_chunks[lhs._next_memory_chunk_id];
           rhs._data = lhs._data;
           lhs._data = nullptr;
+        } else {
+          // Memory chunk is not required any more
+          // => make it available for unused memory requests
+          lhs._used_size = 0;
+          lhs._is_assigned = true;
         }
       }
+      update_active_memory_chunks();
     }
   }
 
@@ -324,6 +408,24 @@ class MemoryPool {
     });
     _memory_chunks.clear();
     _memory_groups.clear();
+  }
+
+  // ! Only for testing
+  void deactivate_round_robin_assignment() {
+    _use_round_robin_assignment = false;
+  }
+
+  // ! Only for testing
+  void deactivate_minimum_allocation_size() {
+    _use_minimum_allocation_size = false;
+  }
+
+  void activate_unused_memory_allocations() {
+    _use_unused_memory_chunks = true;
+  }
+
+  void deactivate_unused_memory_allocations() {
+    _use_unused_memory_chunks = false;
   }
 
   // ! Returns the size in bytes of the memory chunk under the
@@ -414,8 +516,14 @@ class MemoryPool {
  private:
   explicit MemoryPool() :
     _memory_mutex(),
+    _page_size(sysconf(_SC_PAGE_SIZE)),
     _memory_groups(),
-    _memory_chunks() { }
+    _memory_chunks(),
+    _next_active_memory_chunk(0),
+    _active_memory_chunks(),
+    _use_round_robin_assignment(true),
+    _use_minimum_allocation_size(true),
+    _use_unused_memory_chunks(true) { }
 
   // ! Returns a pointer to memory chunk under the corresponding group with
   // ! the specified key.
@@ -429,6 +537,16 @@ class MemoryPool {
       return &_memory_chunks[memory_id];
     }
     return nullptr;
+  }
+
+  void update_active_memory_chunks() {
+    _active_memory_chunks.clear();
+    for ( size_t memory_id = 0; memory_id < _memory_chunks.size(); ++memory_id ) {
+      if ( _memory_chunks[memory_id]._data ) {
+        _active_memory_chunks.push_back(memory_id);
+      }
+    }
+    _next_active_memory_chunk = 0;
   }
 
   static double size_in_megabyte(const size_t size_in_bytes) {
@@ -522,6 +640,7 @@ class MemoryPool {
         while ( !s.empty() ) {
           s.back()->_num_elements = max_num_elements;
           s.back()->_size = max_size;
+          s.back()->_total_size = max_size * max_num_elements;
           s.pop_back();
         }
       }
@@ -532,16 +651,25 @@ class MemoryPool {
     for ( size_t memory_id = 0; memory_id < _memory_chunks.size(); ++memory_id ) {
       augment_memory(memory_id);
     }
-
   }
 
   // ! Read-Write Lock for memory pool
   mutable std::shared_timed_mutex _memory_mutex;
+  // ! Page size of the system
+  size_t _page_size;
   // ! Mapping from group-key to a memory chunk id
   // ! The memory chunk id maps points to the memory chunk vector
   std::unordered_map<std::string, MemoryGroup> _memory_groups;
   // ! Memory chunks
   std::vector<MemoryChunk> _memory_chunks;
+  // ! Next active memory chunk for unused memory allocation (round-robin fashion)
+  std::atomic<size_t> _next_active_memory_chunk;
+  // ! Active memory chunks (with allocated memory)
+  std::vector<size_t> _active_memory_chunks;
+
+  bool _use_round_robin_assignment;
+  bool _use_minimum_allocation_size;
+  bool _use_unused_memory_chunks;
 };
 
 }  // namespace parallel
