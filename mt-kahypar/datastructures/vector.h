@@ -308,7 +308,7 @@ class Vector {
         assign(size, value_type(), assign_parallel);
       }
     } else {
-      resize_with_unused_memory(size, zero_initialize, assign_parallel);
+      resize(size, value_type(), assign_parallel);
     }
   }
 
