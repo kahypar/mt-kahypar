@@ -72,7 +72,6 @@ public:
 
     Gain overall_improvement = 0;
     for (size_t round = 0; round < context.refinement.fm.multitry_rounds; ++round) {                    // global multi try rounds
-      timer.start_timer("fm_round_" + std::to_string(round), "FM Round " + std::to_string(round));
       timer.start_timer("collect_border_nodes", "Collect Border Nodes");
 
       initialize(phg);
@@ -103,7 +102,6 @@ public:
       overall_improvement += improvement;
 
       timer.stop_timer("rollback");
-      timer.stop_timer("fm_round_" + std::to_string(round));
 
       if (improvement <= 0) {
         break;
