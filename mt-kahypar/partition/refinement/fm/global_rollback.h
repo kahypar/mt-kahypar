@@ -79,13 +79,14 @@ public:
   }
 
   HyperedgeWeight globalRollbackToBestPrefix(PartitionedHypergraph& phg, FMSharedData& sharedData) {
+    const MoveID numMoves = sharedData.moveTracker.numPerformedMoves();
+    if (numMoves == 0) return 0;
 
     recalculateGains(phg, sharedData);
 
     utils::Timer& timer = utils::Timer::instance();
     timer.start_timer("find_best_prefix", "Find Best Prefix");
 
-    const MoveID numMoves = sharedData.moveTracker.numPerformedMoves();
     BestIndexReduceBody b(gains);
     tbb::parallel_reduce(tbb::blocked_range<MoveID>(0, numMoves), b, tbb::static_partitioner()); // find best index
 
