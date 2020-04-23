@@ -294,9 +294,8 @@ class MultilevelCoarsenerBase {
     }
 
 
-    if (_context.type == kahypar::ContextType::main) {
-      fm_refiner.refine(partitioned_hypergraph, current_metrics);
-    }
+    fm_refiner.refine(partitioned_hypergraph, current_metrics);
+
 
   }
 

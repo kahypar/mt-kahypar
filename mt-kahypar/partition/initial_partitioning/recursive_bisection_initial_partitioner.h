@@ -150,6 +150,7 @@ class RecursiveBisectionInitialPartitionerT : public IInitialPartitioner {
       ASSERT(k >= 2);
       Context rb_context(_context);
       rb_context.partition.k = k;
+      rb_context.type = kahypar::ContextType::initial_partitioning;
 
       rb_context.partition.perfect_balance_part_weights.assign(k, 0);
       rb_context.partition.max_part_weights.assign(k, 0);
