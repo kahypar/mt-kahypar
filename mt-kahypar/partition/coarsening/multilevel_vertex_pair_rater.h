@@ -220,7 +220,7 @@ class MultilevelVertexPairRater {
   }
 
   LargeTmpRatingMap construct_large_tmp_rating_map() {
-    return LargeTmpRatingMap(_current_num_nodes, 0.0);
+    return LargeTmpRatingMap(_current_num_nodes);
   }
 
   const Context& _context;

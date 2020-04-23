@@ -274,12 +274,12 @@ class MemoryPool {
                           const size_t num_elements,
                           const size_t size) {
     const size_t size_in_bytes = num_elements * size;
+    DBG << "Requests memory chunk (" << group << "," << key << ")"
+        << "of" <<  size_in_megabyte(size_in_bytes) << "MB"
+        << "in memory pool";
     if ( !_use_minimum_allocation_size || size_in_bytes > MINIMUM_ALLOCATION_SIZE ) {
       std::shared_lock<std::shared_timed_mutex> lock(_memory_mutex);
       MemoryChunk* chunk = find_memory_chunk(group, key);
-      DBG << "Requests memory chunk (" << group << "," << key << ")"
-          << "of" <<  size_in_megabyte(size_in_bytes) << "MB"
-          << "in memory pool";
 
       if ( chunk && size_in_bytes <= chunk->size_in_bytes() ) {
         char* data = chunk->request_chunk();
@@ -300,12 +300,12 @@ class MemoryPool {
   char* request_unused_mem_chunk(const size_t num_elements,
                                  const size_t size,
                                  const bool align_with_page_size = true) {
+    DBG << "Request unused memory chunk of"
+        << size_in_megabyte(num_elements * size) << "MB";
     const size_t size_in_bytes = num_elements * size;
     if ( _use_unused_memory_chunks &&
          ( !_use_minimum_allocation_size || size_in_bytes > MINIMUM_ALLOCATION_SIZE ) ) {
       std::shared_lock<std::shared_timed_mutex> lock(_memory_mutex);
-      DBG << "Request unused memory chunk of"
-          << size_in_megabyte(num_elements * size) << "MB";
       const size_t n = _active_memory_chunks.size();
       const size_t end = _next_active_memory_chunk.load() % n;
       const size_t start = ( end + 1 ) % n;
