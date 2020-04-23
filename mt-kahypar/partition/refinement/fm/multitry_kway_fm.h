@@ -109,6 +109,13 @@ public:
     }
 
     timer.stop_timer("fm");
+
+    FMStats stats;
+    for (auto& fm : ets_fm) {
+      fm.stats.merge(stats);
+    }
+    LOG << stats.serialize();
+
     // sharedData.partition_weight_budgets.updatePartWeights(phg, context.partition.max_part_weights);  // only for version with budgets
     return overall_improvement;
   }

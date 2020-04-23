@@ -152,5 +152,24 @@ struct FMSharedData {
 
 };
 
+struct FMStats {
+  size_t retries = 0;
+
+  void clear() {
+    retries = 0;
+  }
+
+  void merge(FMStats& other) {
+    other.retries += retries;
+    clear();
+  }
+
+  std::string serialize() {
+    std::stringstream os;
+    os << V(retries);
+    return os.str();
+  }
+};
+
 }
 }

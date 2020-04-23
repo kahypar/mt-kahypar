@@ -56,11 +56,8 @@ public:
 
     Move m;
     uint32_t consecutiveMovesWithNonPositiveGain = 0;
-    uint32_t numMoves = 0;
-    uint32_t numTrials = 0;
     Gain estimated_improvement = 0;
     while (consecutiveMovesWithNonPositiveGain < context.refinement.fm.max_number_of_fruitless_moves && findNextMove(phg, m)) {
-      //LOG << "found move" << V(m.node) << V(m.from) << V(m.to) << V(m.gain);
       sharedData.nodeTracker.deactivateNode(m.node, thisSearch);
       const bool moved = m.to != kInvalidPartition
                          && phg.changeNodePartFullUpdate(m.node, m.from, m.to, max_part_weight, [&] { sharedData.moveTracker.insertMove(m); });
@@ -68,14 +65,12 @@ public:
         updateAfterSuccessfulMove(phg, sharedData, m);
         consecutiveMovesWithNonPositiveGain = m.gain > 0 ? 0 : consecutiveMovesWithNonPositiveGain + 1;
         estimated_improvement += m.gain;
-        numMoves++;
       }
-      numTrials++;
       updateAfterMoveExtraction(phg, m);
     }
 
     reinitialize();
-    //LOG << V(estimated_improvement) << V(numMoves) << V(numTrials);
+    //LOG << V(estimated_improvement);
   }
 
   void updateBlock(PartitionedHypergraph& phg, PartitionID i) {
@@ -171,6 +166,7 @@ public:
         vertexPQs[from].deleteTop();  // blockPQ updates are done later, collectively.
         return true;
       } else {
+        stats.retries++;
         vertexPQs[from].adjustKey(u, gain);
         if (vertexPQs[from].topKey() != blockPQ.keyOf(from)) {
           blockPQ.adjustKey(from, vertexPQs[from].topKey());
@@ -216,6 +212,8 @@ private:
 
 public:
   vec<Move> localMoves;
+
+  FMStats stats;
 };
 
 }
