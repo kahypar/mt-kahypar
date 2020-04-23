@@ -87,22 +87,24 @@ public:
 
     const auto& move_order = sharedData.moveTracker.moveOrder;
 
-    // revert rejected moves
-    tbb::parallel_for(b.best_index, numMoves, [&](const MoveID moveID) {
-      const Move& m = move_order[moveID];
-      phg.changeNodePartFullUpdate(m.node, m.to, m.from, std::numeric_limits<HypernodeWeight>::max(), []{/* do nothing */});
-      for (HyperedgeID e : phg.incidentEdges(m.node)) {
-        remaining_original_pins[e * numParts + m.from].fetch_add(1, std::memory_order_relaxed);
-      }
-    });
-
-    // apply updates to remaining original pins
-    tbb::parallel_for(MoveID(0), b.best_index, [&](const MoveID moveID) {
-      const PartitionID to = move_order[moveID].to;
-      for (HyperedgeID e : phg.incidentEdges(move_order[moveID].node)) {
-        remaining_original_pins[e * numParts + to].fetch_add(1, std::memory_order_relaxed);
-      }
-    });
+    tbb::parallel_invoke([&] {
+      // revert rejected moves
+      tbb::parallel_for(b.best_index, numMoves, [&](const MoveID moveID) {
+        const Move& m = move_order[moveID];
+        phg.changeNodePartFullUpdate(m.node, m.to, m.from, std::numeric_limits<HypernodeWeight>::max(), []{/* do nothing */});
+        for (HyperedgeID e : phg.incidentEdges(m.node)) {
+          remaining_original_pins[e * numParts + m.from].fetch_add(1, std::memory_order_relaxed);
+        }
+      });
+    }, [&] {
+      // apply updates to remaining original pins
+      tbb::parallel_for(MoveID(0), b.best_index, [&](const MoveID moveID) {
+        const PartitionID to = move_order[moveID].to;
+        for (HyperedgeID e : phg.incidentEdges(move_order[moveID].node)) {
+          remaining_original_pins[e * numParts + to].fetch_add(1, std::memory_order_relaxed);
+        }
+      });
+    } );
 
     // recompute moveFromBenefit values since they are potentially invalid
     tbb::parallel_for(0U, sharedData.moveTracker.numPerformedMoves(), [&](MoveID localMoveID) {

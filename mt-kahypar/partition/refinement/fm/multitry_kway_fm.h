@@ -97,12 +97,12 @@ public:
   void initialize(PartitionedHypergraph& phg) {
     // insert border nodes into work queues
     refinementNodes.clear();
-    //tbb::parallel_for(HypernodeID(0), phg.initialNumNodes(), [&](const HypernodeID u) {
-    for (NodeID u = 0; u < phg.initialNumNodes(); ++u)
+    tbb::parallel_for(HypernodeID(0), phg.initialNumNodes(), [&](const HypernodeID u) {
+    //for (NodeID u = 0; u < phg.initialNumNodes(); ++u)
       if (phg.isBorderNode(u)) {
         refinementNodes.push(u, common::get_numa_node_of_vertex(u));
       }
-    //});
+    });
 
     // requesting new searches activates all nodes by raising the deactivated node marker
     // also clears the array tracking search IDs in case of overflow
