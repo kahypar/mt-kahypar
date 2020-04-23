@@ -176,8 +176,8 @@ class Timer {
                    const std::string& description,
                    bool is_parallel_context = false,
                    bool force = false) {
-    std::lock_guard<std::mutex> lock(_timing_mutex);
     if (_is_enabled || force) {
+      std::lock_guard<std::mutex> lock(_timing_mutex);
       if (force || is_parallel_context) {
         _local_active_timings.local().emplace_back(key, description, std::chrono::high_resolution_clock::now());
       } else {
@@ -188,9 +188,9 @@ class Timer {
 
   void stop_timer(const std::string& key, bool force = false) {
     unused(key);
-    std::lock_guard<std::mutex> lock(_timing_mutex);
 
     if (_is_enabled || force) {
+      std::lock_guard<std::mutex> lock(_timing_mutex);
       HighResClockTimepoint end = std::chrono::high_resolution_clock::now();
       ASSERT(!force || !_local_active_timings.local().empty());
       ActiveTiming current_timing;
