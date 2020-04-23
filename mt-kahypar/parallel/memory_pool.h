@@ -23,6 +23,7 @@
 #include <shared_mutex>
 #include <memory>
 #include <unordered_map>
+#include <atomic>
 
 #include "tbb/parallel_for.h"
 #include "tbb/scalable_allocator.h"
@@ -117,11 +118,13 @@ class MemoryPool {
 
     char* request_unused_chunk(const size_t size, const size_t page_size) {
       size_t aligned_used_size = align_with_page_size(_used_size, page_size);
-      if ( _data && size <= _total_size - aligned_used_size ) {
+      if ( _data && aligned_used_size < _total_size &&
+            size <= _total_size - aligned_used_size ) {
         std::lock_guard<std::mutex> lock(_chunk_mutex);
         // Double check
         aligned_used_size = align_with_page_size(_used_size, page_size);
-        if ( _data && size <= _total_size - aligned_used_size ) {
+        if ( _data && aligned_used_size < _total_size &&
+             size <= _total_size - aligned_used_size ) {
           char* data = _data + aligned_used_size;
           _used_size = aligned_used_size + size;
           return data;

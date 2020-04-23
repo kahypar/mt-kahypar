@@ -70,7 +70,8 @@ class SparseMapBase {
   }
 
   void setMaxSize(const size_t max_size) {
-    _dense = reinterpret_cast<MapElement*>(_data.get() + max_size);
+    ASSERT(_sparse);
+    _dense = reinterpret_cast<MapElement*>(_sparse + max_size);
   }
 
   bool contains(const Key key) const {
@@ -135,7 +136,6 @@ class SparseMapBase {
     _sparse(nullptr),
     _dense(nullptr) {
     allocate_data(max_size);
-    _dense = reinterpret_cast<MapElement*>(_sparse + max_size);
   }
 
   ~SparseMapBase() = default;
@@ -161,6 +161,7 @@ class SparseMapBase {
       _data = parallel::make_unique<size_t>(num_elements);
       _sparse = reinterpret_cast<size_t*>(_data.get());
     }
+    _dense = reinterpret_cast<MapElement*>(_sparse + max_size);
   }
 
   size_t _size;
