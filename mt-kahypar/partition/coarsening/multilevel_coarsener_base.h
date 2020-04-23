@@ -210,6 +210,7 @@ class MultilevelCoarsenerBase {
     refinement::MultiTryKWayFM fm_refiner(_context, _task_group_id, _hg.initialNumNodes(), _hg.initialNumEdges());
 
     // Refine Coarsest Partitioned Hypergraph
+    LOG << "Refine coarsest HG" << V(_context.partition.k) << V(coarsest_hg.initialNumNodes());
     refine(coarsest_hg, label_propagation, fm_refiner, current_metrics);
 
     for ( int i = _hierarchies.size() - 1; i >= 0; --i ) {
@@ -235,6 +236,8 @@ class MultilevelCoarsenerBase {
              V(metrics::imbalance(representative_hg, _context)) <<
              V(metrics::imbalance(contracted_hg, _context)));
       utils::Timer::instance().stop_timer("projecting_partition");
+
+      LOG << "Projecting partition" << V(i) << V(representative_hg.initialNumNodes()) << V(metrics::km1(contracted_hg)) << V(metrics::km1(representative_hg)) << V(current_metrics.km1) << "now refine";
 
 
       // Refinement
