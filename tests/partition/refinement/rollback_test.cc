@@ -40,7 +40,7 @@ TEST(RollbackTests, FindsBestPrefix) {
   tbb::parallel_reduce(tbb::blocked_range<MoveID>(0, gains.size()), b, tbb::static_partitioner());
   ASSERT_EQ(b.best_sum,  -42 + 5 + 4 - 20 + 1 + 99);
   ASSERT_EQ(b.sum, -42 + 5 + 4 - 20 + 1 + 99 - 100 + 50);
-  ASSERT_EQ(b.best_index, 5);
+  ASSERT_EQ(b.best_index, 6);
 }
 
 TEST(RollbackTests, FindsBestPrefixLargeRandom) {
@@ -65,7 +65,7 @@ TEST(RollbackTests, FindsBestPrefixLargeRandom) {
     sum += gains[i];
     if (sum > best_sum) {
       best_sum = sum;
-      best_index = i;
+      best_index = i + 1;
     }
   }
   if (display_timing) LOG << "Finish sequential  reduce in " << (tbb::tick_count::now() - start_reduce_sequential).seconds() << "seconds";
@@ -101,15 +101,13 @@ TEST(RollbackTests, GainRecalculationAndRollsbackCorrectly) {
     phg.setNodePart(u, 1);
   }
   phg.initializeGainInformation();
-  FMSharedData sharedData(hg.initialNumNodes(), hg.initialNumEdges(), k, 4);
-  sharedData.setRemainingOriginalPins(phg);
+  FMSharedData sharedData(hg.initialNumNodes(), k, 4);
+
+  GlobalRollback grb(hg.initialNumNodes(), hg.initialNumEdges(), k);
+  grb.setRemainingOriginalPins(phg);
 
   auto performMove = [&](Move m) {
-    phg.changeNodePartFullUpdate(m.node, m.from, m.to, std::numeric_limits<HypernodeWeight>::max(), []{});
-    MoveID move_id = sharedData.moveTracker.insertMove(m);
-    for (HyperedgeID e : phg.incidentEdges(m.node)) {
-      sharedData.performHyperedgeSpecificMoveUpdates(m, move_id, e);
-    }
+    phg.changeNodePartFullUpdate(m.node, m.from, m.to, std::numeric_limits<HypernodeWeight>::max(), [&]{sharedData.moveTracker.insertMove(m);});
   };
 
   ASSERT_EQ(3, phg.km1Gain(0, 1, 0));
@@ -121,12 +119,6 @@ TEST(RollbackTests, GainRecalculationAndRollsbackCorrectly) {
   ASSERT_EQ(1, phg.km1Gain(3, 0, 1));
   performMove({0, 1,  3,  1});
 
-  GlobalRollback grb(hg.initialNumNodes());
-  grb.recalculateGains(phg, sharedData);
-  for (MoveID round_local_move_id = 0; round_local_move_id < 4; ++round_local_move_id) {
-    ASSERT_EQ(sharedData.moveTracker.moveOrder[round_local_move_id].gain, grb.gains[round_local_move_id]);
-  }
-
   ASSERT_EQ(phg.km1Gain(4, 0, 1), -1);
   performMove({0, 1, 4, -1});
   ASSERT_EQ(phg.km1Gain(5, 0, 1), 0);
@@ -136,6 +128,10 @@ TEST(RollbackTests, GainRecalculationAndRollsbackCorrectly) {
   // revert last two moves
   ASSERT_EQ(phg.partID(4), 0);
   ASSERT_EQ(phg.partID(5), 0);
+
+  for (MoveID round_local_move_id = 0; round_local_move_id < 4; ++round_local_move_id) {
+    ASSERT_EQ(sharedData.moveTracker.moveOrder[round_local_move_id].gain, grb.gains[round_local_move_id]);
+  }
 }
 
 
@@ -154,14 +150,13 @@ TEST(RollbackTests, GainRecalculation2) {
     phg.setNodePart(u, 1);
   }
   phg.initializeGainInformation();
-  FMSharedData sharedData(hg.initialNumNodes(), hg.initialNumEdges(), k, 4);
-  sharedData.setRemainingOriginalPins(phg);
+  FMSharedData sharedData(hg.initialNumNodes(), k, 4);
+
+  GlobalRollback grb(hg.initialNumNodes(), hg.initialNumEdges(), k);
+  grb.setRemainingOriginalPins(phg);
 
   auto performUpdates = [&](Move& m) {
-    MoveID move_id = sharedData.moveTracker.insertMove(m);
-    for ( HyperedgeID e : phg.incidentEdges(m.node) ){
-      sharedData.performHyperedgeSpecificMoveUpdates(m, move_id, e);
-    }
+   sharedData.moveTracker.insertMove(m);
   };
 
   vec<Gain> expected_gains = { 3, 1 };
@@ -177,7 +172,6 @@ TEST(RollbackTests, GainRecalculation2) {
   performUpdates(move_0);
   performUpdates(move_2);
 
-  GlobalRollback grb(hg.initialNumNodes());
   grb.recalculateGains(phg, sharedData);
   for (MoveID round_local_move_id = 0; round_local_move_id < sharedData.moveTracker.numPerformedMoves(); ++round_local_move_id) {
     ASSERT_EQ(grb.gains[round_local_move_id], expected_gains[round_local_move_id]);

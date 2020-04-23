@@ -190,8 +190,9 @@ public:
       }
       const HyperedgeWeight km1_before_move = metrics::km1(phg, false);
       phg.changeNodePartFullUpdate(m.node, m.from, m.to, std::numeric_limits<HypernodeWeight>::max(), []{});
-      assert(metrics::km1(phg, false) + estimated_gain == km1_before_move);
-      assert(metrics::km1(phg, false) + gains[localMoveID] == km1_before_move);
+      const HyperedgeWeight km1_after_move = metrics::km1(phg, false);
+      assert(km1_after_move + estimated_gain == km1_before_move);
+      assert(km1_after_move + gains[localMoveID] == km1_before_move);
       assert(estimated_gain == gains[localMoveID]);
     }
 
