@@ -1401,7 +1401,7 @@ class PartitionedHypergraph {
   parallel::scalable_vector<BlockInfo> _part_info;
   // ! Contains for each vertex the block and the number of
   // ! incident cut hyperedges
-  Vector<VertexPartInfo> _vertex_part_info;
+  Array<VertexPartInfo> _vertex_part_info;
   // ! For each hyperedge and each block, _pins_in_part stores the
   // ! number of pins in that block
   PinCountInPart _pins_in_part;
@@ -1410,7 +1410,7 @@ class PartitionedHypergraph {
   ConnectivitySets _connectivity_sets;
   // ! In order to update the pin count of a hyperedge thread-safe, a thread must acquire
   // ! the ownership of a hyperedge via a CAS operation.
-  Vector<AtomicFlag> _pin_count_update_ownership;
+  Array<AtomicFlag> _pin_count_update_ownership;
   // ! It can happen that some pin count updates are failing during changeNodePart(...)
   // ! due to concurrent updates. Each thread gathers its hyperedges which failed and
   // ! try them again at the end.

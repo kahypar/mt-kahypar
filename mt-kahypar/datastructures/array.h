@@ -34,9 +34,9 @@ namespace mt_kahypar {
 namespace ds {
 
 template <typename T>
-class Vector {
+class Array {
 
-  class VectorIterator : public std::iterator<std::random_access_iterator_tag, T> {
+  class ArrayIterator : public std::iterator<std::random_access_iterator_tag, T> {
 
     using Base = std::iterator<std::random_access_iterator_tag, T>;
 
@@ -46,9 +46,9 @@ class Vector {
       using pointer = typename Base::pointer;
       using difference_type = typename Base::difference_type;
 
-      VectorIterator() : _ptr(nullptr) { }
-      VectorIterator(T* ptr) : _ptr(ptr) { }
-      VectorIterator(const VectorIterator& other) : _ptr(other._ptr) { }
+      ArrayIterator() : _ptr(nullptr) { }
+      ArrayIterator(T* ptr) : _ptr(ptr) { }
+      ArrayIterator(const ArrayIterator& other) : _ptr(other._ptr) { }
 
       reference operator*() const {
         return *_ptr;
@@ -58,42 +58,42 @@ class Vector {
         return _ptr;
       }
 
-      VectorIterator& operator++() {
+      ArrayIterator& operator++() {
         ++_ptr;
         return *this;
       }
 
-      VectorIterator& operator--() {
+      ArrayIterator& operator--() {
         --_ptr;
         return *this;
       }
 
-      VectorIterator operator++(int) {
-        VectorIterator tmp_it(_ptr);
+      ArrayIterator operator++(int) {
+        ArrayIterator tmp_it(_ptr);
         ++_ptr;
         return tmp_it;
       }
 
-      VectorIterator operator--(int) {
-        VectorIterator tmp_it(_ptr);
+      ArrayIterator operator--(int) {
+        ArrayIterator tmp_it(_ptr);
         --_ptr;
         return tmp_it;
       }
 
-      VectorIterator operator+(const difference_type& n) const {
-        return VectorIterator(_ptr + n);
+      ArrayIterator operator+(const difference_type& n) const {
+        return ArrayIterator(_ptr + n);
       }
 
-      VectorIterator& operator+=(const difference_type& n) {
+      ArrayIterator& operator+=(const difference_type& n) {
         _ptr += n;
         return *this;
       }
 
-      VectorIterator operator-(const difference_type& n) const {
-        return VectorIterator(_ptr - n);
+      ArrayIterator operator-(const difference_type& n) const {
+        return ArrayIterator(_ptr - n);
       }
 
-      VectorIterator& operator-=(const difference_type& n) {
+      ArrayIterator& operator-=(const difference_type& n) {
         _ptr -= n;
         return *this;
       }
@@ -102,35 +102,35 @@ class Vector {
         return *_ptr[n];
       }
 
-      bool operator==(const VectorIterator& other) const {
+      bool operator==(const ArrayIterator& other) const {
         return _ptr == other._ptr;
       }
 
-      bool operator!=(const VectorIterator& other) const {
+      bool operator!=(const ArrayIterator& other) const {
         return _ptr != other._ptr;
       }
 
-      bool operator<(const VectorIterator& other) const {
+      bool operator<(const ArrayIterator& other) const {
         return _ptr < other._ptr;
       }
 
-      bool operator>(const VectorIterator& other) const {
+      bool operator>(const ArrayIterator& other) const {
         return _ptr > other._ptr;
       }
 
-      bool operator<=(const VectorIterator& other) const {
+      bool operator<=(const ArrayIterator& other) const {
         return _ptr <= other._ptr;
       }
 
-      bool operator>=(const VectorIterator& other) const {
+      bool operator>=(const ArrayIterator& other) const {
         return _ptr >= other._ptr;
       }
 
-      difference_type operator+(const VectorIterator& other) const {
+      difference_type operator+(const ArrayIterator& other) const {
         return ( _ptr + other._ptr );
       }
 
-      difference_type operator-(const VectorIterator& other) const {
+      difference_type operator-(const ArrayIterator& other) const {
         return (_ptr - other._ptr);
       }
 
@@ -146,17 +146,17 @@ class Vector {
   using size_type       = size_t;
   using reference       = T&;
   using const_reference = const T&;
-  using iterator        = VectorIterator;
-  using const_iterator  = const VectorIterator;
+  using iterator        = ArrayIterator;
+  using const_iterator  = const ArrayIterator;
 
-  Vector() :
+  Array() :
     _group(""),
     _key(""),
     _size(0),
     _data(nullptr),
     _underlying_data(nullptr) { }
 
-  Vector(const size_type size,
+  Array(const size_type size,
          const value_type init_value = value_type()) :
     _group(""),
     _key(""),
@@ -166,7 +166,7 @@ class Vector {
     resize(size, init_value);
   }
 
-  Vector(const std::string& group,
+  Array(const std::string& group,
          const std::string& key,
          const size_type size,
          const bool zero_initialize = false,
@@ -179,10 +179,10 @@ class Vector {
     resize(group, key, size, zero_initialize, assign_parallel);
   }
 
-  Vector(const Vector&) = delete;
-  Vector & operator= (const Vector &) = delete;
+  Array(const Array&) = delete;
+  Array & operator= (const Array &) = delete;
 
-  Vector(Vector&& other) :
+  Array(Array&& other) :
     _group(std::move(other._group)),
     _key(std::move(other._key)),
     _size(other._size),
@@ -193,7 +193,7 @@ class Vector {
     other._underlying_data = nullptr;
   }
 
-  Vector & operator=(Vector&& other) {
+  Array & operator=(Array&& other) {
     _group = std::move(other._group);
     _key = std::move(other._key);
     _size = other._size;
@@ -205,7 +205,7 @@ class Vector {
     return *this;
   }
 
-  ~Vector() {
+  ~Array() {
     if ( !_data && _underlying_data && !_group.empty() && !_key.empty() ) {
       // Memory was allocated from memory pool
       // => Release Memory

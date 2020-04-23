@@ -24,7 +24,7 @@
 #include <type_traits>
 
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
-#include "mt-kahypar/datastructures/vector.h"
+#include "mt-kahypar/datastructures/array.h"
 #include "mt-kahypar/parallel/atomic_wrapper.h"
 #include "mt-kahypar/utils/bit_ops.h"
 #include "mt-kahypar/utils/memory_tree.h"
@@ -121,13 +121,13 @@ public:
 private:
   static constexpr int BITS_PER_BLOCK = std::numeric_limits<UnsafeBlock>::digits;
   using Block = parallel::IntegralAtomicWrapper<UnsafeBlock>;
-  using BlockIterator = Vector<Block>::const_iterator;
+  using BlockIterator = Array<Block>::const_iterator;
 
 
 	PartitionID _k;
 	HyperedgeID _num_hyperedges;
 	PartitionID _num_blocks_per_hyperedge;
-	Vector<Block> _bits;
+	Array<Block> _bits;
 
 	void toggle(const HyperedgeID he, const PartitionID p) {
 	  assert(p < _k);

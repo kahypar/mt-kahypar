@@ -26,7 +26,7 @@
 
 #include "mt-kahypar/datastructures/hypergraph_common.h"
 #include "mt-kahypar/datastructures/concurrent_bucket_map.h"
-#include "mt-kahypar/datastructures/vector.h"
+#include "mt-kahypar/datastructures/array.h"
 #include "mt-kahypar/utils/range.h"
 
 namespace mt_kahypar {
@@ -702,7 +702,7 @@ class NumaHypergraph {
     // that parallel and single-pin hyperedges are not removed from the incident nets (will be done
     // in a postprocessing step).
     utils::Timer::instance().start_timer("contract_incidence_structure", "Contract Incidence Structures");
-    parallel::scalable_vector<Vector<HyperedgeID>> tmp_incident_nets(num_numa_nodes);
+    parallel::scalable_vector<Array<HyperedgeID>> tmp_incident_nets(num_numa_nodes);
     ConcurrentBucketMap<HyperedgeHash> hyperedge_hash_map;
     hyperedge_hash_map.reserve_for_estimated_number_of_insertions(_num_hyperedges);
     tbb::parallel_invoke([&] {
@@ -770,9 +770,9 @@ class NumaHypergraph {
 
       // Compute start position the incident nets of a coarse vertex in the
       // temporary incident nets array with a parallel prefix sum
-      parallel::scalable_vector<Vector<parallel::IntegralAtomicWrapper<size_t>>> tmp_incident_nets_pos(num_numa_nodes);
+      parallel::scalable_vector<Array<parallel::IntegralAtomicWrapper<size_t>>> tmp_incident_nets_pos(num_numa_nodes);
       parallel::scalable_vector<parallel::TBBPrefixSum<
-        parallel::IntegralAtomicWrapper<size_t>, Vector>> tmp_incident_nets_prefix_sum;
+        parallel::IntegralAtomicWrapper<size_t>, Array>> tmp_incident_nets_prefix_sum;
       for ( int node = 0; node < num_numa_nodes; ++node ) {
         tmp_incident_nets_prefix_sum.emplace_back(tmp_contraction_buffer[node]->tmp_num_incident_nets);
       }
@@ -983,7 +983,7 @@ class NumaHypergraph {
       });
 
     // Compute number of hyperedges in coarse graph (those flagged as valid)
-    parallel::scalable_vector<parallel::TBBPrefixSum<size_t, Vector>> he_mapping;
+    parallel::scalable_vector<parallel::TBBPrefixSum<size_t, Array>> he_mapping;
     parallel::scalable_vector<HyperedgeID> num_numa_hyperedges_prefix_sum(num_numa_nodes + 1, 0);
     for ( int node = 0; node < num_numa_nodes; ++node ) {
       he_mapping.emplace_back(tmp_contraction_buffer[node]->valid_hyperedges);
@@ -1023,8 +1023,8 @@ class NumaHypergraph {
         // Compute start position of each hyperedge in incidence array
         const HyperedgeID num_hyperedges_on_numa_node =
           num_numa_hyperedges_prefix_sum[node + 1] - num_numa_hyperedges_prefix_sum[node];
-        Vector<size_t>& he_sizes = tmp_contraction_buffer[node]->he_sizes;
-        parallel::TBBPrefixSum<size_t, Vector> num_pins_prefix_sum(he_sizes);
+        Array<size_t>& he_sizes = tmp_contraction_buffer[node]->he_sizes;
+        parallel::TBBPrefixSum<size_t, Array> num_pins_prefix_sum(he_sizes);
         tbb::parallel_invoke([&] {
           tbb::parallel_for(ID(0), _hypergraphs[node]._num_hyperedges, [&](const HyperedgeID& local_id) {
             if ( he_mapping[node].value(local_id) /* valid hyperedge contained in coarse graph */ ) {
@@ -1103,7 +1103,7 @@ class NumaHypergraph {
 
         // Compute start position of the incident nets for each vertex inside
         // the coarsened incident net array
-        parallel::TBBPrefixSum<parallel::IntegralAtomicWrapper<size_t>, Vector>
+        parallel::TBBPrefixSum<parallel::IntegralAtomicWrapper<size_t>, Array>
           num_incident_nets_prefix_sum(tmp_contraction_buffer[node]->tmp_num_incident_nets);
         tbb::parallel_scan(tbb::blocked_range<size_t>(
           0UL, UI64(num_hypernodes_on_numa_node)), num_incident_nets_prefix_sum);

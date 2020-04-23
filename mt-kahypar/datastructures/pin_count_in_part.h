@@ -25,7 +25,7 @@
 
 #include "mt-kahypar/macros.h"
 #include "mt-kahypar/datastructures/hypergraph_common.h"
-#include "mt-kahypar/datastructures/vector.h"
+#include "mt-kahypar/datastructures/array.h"
 
 namespace mt_kahypar {
 namespace ds {
@@ -121,7 +121,7 @@ class PinCountInPart {
     }
   }
 
-  Vector<Value>& data() {
+  Array<Value>& data() {
     return _pin_count_in_part;
   }
 
@@ -224,7 +224,7 @@ class PinCountInPart {
   size_t _entries_per_value;
   size_t _values_per_hyperedge;
   Value _extraction_mask;
-  Vector<Value> _pin_count_in_part;
+  Array<Value> _pin_count_in_part;
 };
 }  // namespace ds
 }  // namespace mt_kahypar

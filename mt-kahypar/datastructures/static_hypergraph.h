@@ -32,7 +32,7 @@
 #include "mt-kahypar/datastructures/community_support.h"
 #include "mt-kahypar/datastructures/hypergraph_common.h"
 #include "mt-kahypar/datastructures/concurrent_bucket_map.h"
-#include "mt-kahypar/datastructures/vector.h"
+#include "mt-kahypar/datastructures/array.h"
 #include "mt-kahypar/parallel/parallel_prefix_sum.h"
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
 #include "mt-kahypar/utils/memory_tree.h"
@@ -381,8 +381,8 @@ class StaticHypergraph {
   static_assert(std::is_trivially_copyable<Hypernode>::value, "Hypernode is not trivially copyable");
   static_assert(std::is_trivially_copyable<Hyperedge>::value, "Hyperedge is not trivially copyable");
 
-  using IncidenceArray = Vector<HypernodeID>;
-  using IncidentNets = Vector<HyperedgeID>;
+  using IncidenceArray = Array<HypernodeID>;
+  using IncidentNets = Array<HyperedgeID>;
 
   // ! Contains buffers that are needed during multilevel contractions.
   // ! Struct is allocated on top level hypergraph and passed to each contracted
@@ -425,15 +425,15 @@ class StaticHypergraph {
       });
     }
 
-    Vector<size_t> mapping;
-    Vector<Hypernode> tmp_hypernodes;
+    Array<size_t> mapping;
+    Array<Hypernode> tmp_hypernodes;
     IncidentNets tmp_incident_nets;
-    Vector<parallel::IntegralAtomicWrapper<size_t>> tmp_num_incident_nets;
-    Vector<parallel::IntegralAtomicWrapper<HypernodeWeight>> hn_weights;
-    Vector<Hyperedge> tmp_hyperedges;
+    Array<parallel::IntegralAtomicWrapper<size_t>> tmp_num_incident_nets;
+    Array<parallel::IntegralAtomicWrapper<HypernodeWeight>> hn_weights;
+    Array<Hyperedge> tmp_hyperedges;
     IncidenceArray tmp_incidence_array;
-    Vector<size_t> he_sizes;
-    Vector<size_t> valid_hyperedges;
+    Array<size_t> he_sizes;
+    Array<size_t> valid_hyperedges;
   };
 
 
@@ -965,17 +965,17 @@ class StaticHypergraph {
     }
 
     // AUXILLIARY BUFFERS - Reused during multilevel hierarchy to prevent expensive allocations
-    Vector<size_t>& mapping = _tmp_contraction_buffer->mapping;
-    Vector<Hypernode>& tmp_hypernodes = _tmp_contraction_buffer->tmp_hypernodes;
+    Array<size_t>& mapping = _tmp_contraction_buffer->mapping;
+    Array<Hypernode>& tmp_hypernodes = _tmp_contraction_buffer->tmp_hypernodes;
     IncidentNets& tmp_incident_nets = _tmp_contraction_buffer->tmp_incident_nets;
-    Vector<parallel::IntegralAtomicWrapper<size_t>>& tmp_num_incident_nets =
+    Array<parallel::IntegralAtomicWrapper<size_t>>& tmp_num_incident_nets =
       _tmp_contraction_buffer->tmp_num_incident_nets;
-    Vector<parallel::IntegralAtomicWrapper<HypernodeWeight>>& hn_weights =
+    Array<parallel::IntegralAtomicWrapper<HypernodeWeight>>& hn_weights =
       _tmp_contraction_buffer->hn_weights;
-    Vector<Hyperedge>& tmp_hyperedges = _tmp_contraction_buffer->tmp_hyperedges;
+    Array<Hyperedge>& tmp_hyperedges = _tmp_contraction_buffer->tmp_hyperedges;
     IncidenceArray& tmp_incidence_array = _tmp_contraction_buffer->tmp_incidence_array;
-    Vector<size_t>& he_sizes = _tmp_contraction_buffer->he_sizes;
-    Vector<size_t>& valid_hyperedges = _tmp_contraction_buffer->valid_hyperedges;
+    Array<size_t>& he_sizes = _tmp_contraction_buffer->he_sizes;
+    Array<size_t>& valid_hyperedges = _tmp_contraction_buffer->valid_hyperedges;
 
     ASSERT(static_cast<size_t>(_num_hypernodes) <= mapping.size());
     ASSERT(static_cast<size_t>(_num_hypernodes) <= tmp_hypernodes.size());
@@ -998,7 +998,7 @@ class StaticHypergraph {
     });
 
     // Prefix sum determines vertex ids in coarse hypergraph
-    parallel::TBBPrefixSum<size_t, Vector> mapping_prefix_sum(mapping);
+    parallel::TBBPrefixSum<size_t, Array> mapping_prefix_sum(mapping);
     tbb::parallel_scan(tbb::blocked_range<size_t>(0UL, _num_hypernodes), mapping_prefix_sum);
     HypernodeID num_hypernodes = mapping_prefix_sum.total_sum();
 
@@ -1111,7 +1111,7 @@ class StaticHypergraph {
       // Compute start position the incident nets of a coarse vertex in the
       // temporary incident nets array with a parallel prefix sum
       parallel::scalable_vector<parallel::IntegralAtomicWrapper<size_t>> tmp_incident_nets_pos;
-      parallel::TBBPrefixSum<parallel::IntegralAtomicWrapper<size_t>, Vector>
+      parallel::TBBPrefixSum<parallel::IntegralAtomicWrapper<size_t>, Array>
         tmp_incident_nets_prefix_sum(tmp_num_incident_nets);
       tbb::parallel_invoke([&] {
         tbb::parallel_scan(tbb::blocked_range<size_t>(
@@ -1284,7 +1284,7 @@ class StaticHypergraph {
     StaticHypergraph hypergraph;
 
     // Compute number of hyperedges in coarse graph (those flagged as valid)
-    parallel::TBBPrefixSum<size_t, Vector> he_mapping(valid_hyperedges);
+    parallel::TBBPrefixSum<size_t, Array> he_mapping(valid_hyperedges);
     tbb::parallel_invoke([&] {
       tbb::parallel_scan(tbb::blocked_range<size_t>(
         0UL, UI64(_num_hyperedges)), he_mapping);
@@ -1300,7 +1300,7 @@ class StaticHypergraph {
       utils::Timer::instance().start_timer("setup_hyperedges", "Setup Hyperedges", true);
       utils::Timer::instance().start_timer("compute_he_pointer", "Compute HE Pointer", true);
       // Compute start position of each hyperedge in incidence array
-      parallel::TBBPrefixSum<size_t, Vector> num_pins_prefix_sum(he_sizes);
+      parallel::TBBPrefixSum<size_t, Array> num_pins_prefix_sum(he_sizes);
       tbb::parallel_invoke([&] {
         tbb::parallel_for(ID(0), _num_hyperedges, [&](const HyperedgeID& id) {
           if ( he_mapping.value(id) ) {
@@ -1369,7 +1369,7 @@ class StaticHypergraph {
 
       // Compute start position of the incident nets for each vertex inside
       // the coarsened incident net array
-      parallel::TBBPrefixSum<parallel::IntegralAtomicWrapper<size_t>, Vector>
+      parallel::TBBPrefixSum<parallel::IntegralAtomicWrapper<size_t>, Array>
         num_incident_nets_prefix_sum(tmp_num_incident_nets);
       tbb::parallel_scan(tbb::blocked_range<size_t>(
         0UL, UI64(num_hypernodes)), num_incident_nets_prefix_sum);
@@ -1761,11 +1761,11 @@ class StaticHypergraph {
   HypernodeWeight _total_weight;
 
   // ! Hypernodes
-  Vector<Hypernode> _hypernodes;
+  Array<Hypernode> _hypernodes;
   // ! Pins of hyperedges
   IncidentNets _incident_nets;
   // ! Hyperedges
-  Vector<Hyperedge> _hyperedges;
+  Array<Hyperedge> _hyperedges;
   // ! Incident nets of hypernodes
   IncidenceArray _incidence_array;
 

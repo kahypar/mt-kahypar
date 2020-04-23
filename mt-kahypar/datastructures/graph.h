@@ -33,7 +33,7 @@
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/parallel/parallel_prefix_sum.h"
 #include "mt-kahypar/parallel/atomic_wrapper.h"
-#include "mt-kahypar/datastructures/vector.h"
+#include "mt-kahypar/datastructures/array.h"
 #include "mt-kahypar/datastructures/hypergraph_common.h"
 #include "mt-kahypar/datastructures/clustering.h"
 #include "mt-kahypar/partition/context_enum_classes.h"
@@ -61,15 +61,15 @@ class GraphT {
       tmp_arcs("Preprocessing", "tmp_arcs", num_arcs),
       valid_arcs("Preprocessing", "valid_arcs", num_arcs) { }
 
-    ds::Vector<parallel::IntegralAtomicWrapper<size_t>> tmp_indices;
-    ds::Vector<parallel::IntegralAtomicWrapper<size_t>> tmp_pos;
-    ds::Vector<parallel::AtomicWrapper<ArcWeight>> tmp_node_volumes;
-    ds::Vector<Arc> tmp_arcs;
-    ds::Vector<size_t> valid_arcs;
+    ds::Array<parallel::IntegralAtomicWrapper<size_t>> tmp_indices;
+    ds::Array<parallel::IntegralAtomicWrapper<size_t>> tmp_pos;
+    ds::Array<parallel::AtomicWrapper<ArcWeight>> tmp_node_volumes;
+    ds::Array<Arc> tmp_arcs;
+    ds::Array<size_t> valid_arcs;
   };
 
  public:
-  using AdjacenceIterator = typename ds::Vector<Arc>::const_iterator;
+  using AdjacenceIterator = typename ds::Array<Arc>::const_iterator;
 
  public:
   explicit GraphT(HyperGraph& hypergraph,
@@ -217,9 +217,9 @@ class GraphT {
     // Compute node ids of coarse graph with a parallel prefix sum
     utils::Timer::instance().start_timer("compute_cluster_mapping", "Compute Cluster Mapping");
     parallel::scalable_vector<size_t> mapping(_num_nodes, 0UL);
-    ds::Vector<parallel::IntegralAtomicWrapper<size_t>>& tmp_pos = _tmp_graph_buffer->tmp_pos;
-    ds::Vector<parallel::IntegralAtomicWrapper<size_t>>& tmp_indices = _tmp_graph_buffer->tmp_indices;
-    ds::Vector<parallel::AtomicWrapper<ArcWeight>>& coarse_node_volumes = _tmp_graph_buffer->tmp_node_volumes;
+    ds::Array<parallel::IntegralAtomicWrapper<size_t>>& tmp_pos = _tmp_graph_buffer->tmp_pos;
+    ds::Array<parallel::IntegralAtomicWrapper<size_t>>& tmp_indices = _tmp_graph_buffer->tmp_indices;
+    ds::Array<parallel::AtomicWrapper<ArcWeight>>& coarse_node_volumes = _tmp_graph_buffer->tmp_node_volumes;
     tbb::parallel_for(0U, static_cast<NodeID>(_num_nodes), [&](const NodeID u) {
       ASSERT(static_cast<size_t>(communities[u]) < _num_nodes);
       mapping[communities[u]] = 1UL;
@@ -259,12 +259,12 @@ class GraphT {
       }
     });
 
-    parallel::TBBPrefixSum<parallel::IntegralAtomicWrapper<size_t>, ds::Vector> tmp_indices_prefix_sum(tmp_indices);
+    parallel::TBBPrefixSum<parallel::IntegralAtomicWrapper<size_t>, ds::Array> tmp_indices_prefix_sum(tmp_indices);
     tbb::parallel_scan(tbb::blocked_range<size_t>(0UL, _num_nodes), tmp_indices_prefix_sum);
 
     // Write all arcs into corresponding tmp adjacence array blocks
-    ds::Vector<Arc>& tmp_arcs = _tmp_graph_buffer->tmp_arcs;
-    ds::Vector<size_t>& valid_arcs = _tmp_graph_buffer->valid_arcs;
+    ds::Array<Arc>& tmp_arcs = _tmp_graph_buffer->tmp_arcs;
+    ds::Array<size_t>& valid_arcs = _tmp_graph_buffer->valid_arcs;
     tbb::parallel_for(0U, static_cast<NodeID>(_num_nodes), [&](const NodeID u) {
       const NodeID coarse_u = communities[u];
       ASSERT(static_cast<size_t>(coarse_u) < coarse_graph._num_nodes);
@@ -313,7 +313,7 @@ class GraphT {
       });
 
     // Write all arcs to coarse graph
-    parallel::TBBPrefixSum<size_t, ds::Vector> valid_arcs_prefix_sum(valid_arcs);
+    parallel::TBBPrefixSum<size_t, ds::Array> valid_arcs_prefix_sum(valid_arcs);
     tbb::parallel_scan(tbb::blocked_range<size_t>(0UL,
       tmp_indices_prefix_sum.total_sum()), valid_arcs_prefix_sum);
     coarse_graph._num_arcs = valid_arcs_prefix_sum.total_sum();
@@ -430,7 +430,7 @@ class GraphT {
       });
     });
 
-    parallel::TBBPrefixSum<size_t, ds::Vector> indices_prefix_sum(_indices);
+    parallel::TBBPrefixSum<size_t, ds::Array> indices_prefix_sum(_indices);
     tbb::parallel_scan(tbb::blocked_range<size_t>(0UL, _indices.size()), indices_prefix_sum);
     utils::Timer::instance().stop_timer("compute_node_degrees");
 
@@ -492,7 +492,7 @@ class GraphT {
       _indices[u + 1] = hypergraph.nodeDegree(hn);
     });
 
-    parallel::TBBPrefixSum<size_t, ds::Vector> indices_prefix_sum(_indices);
+    parallel::TBBPrefixSum<size_t, ds::Array> indices_prefix_sum(_indices);
     tbb::parallel_scan(tbb::blocked_range<size_t>(0UL, num_hypernodes + 1), indices_prefix_sum);
     utils::Timer::instance().stop_timer("compute_node_degrees");
 
@@ -543,11 +543,11 @@ class GraphT {
   size_t _max_degree;
 
   // ! Index Vector
-  ds::Vector<size_t> _indices;
+  ds::Array<size_t> _indices;
   // ! Arcs
-  ds::Vector<Arc> _arcs;
+  ds::Array<Arc> _arcs;
   // ! Node Volumes (= sum of arc weights for each node)
-  ds::Vector<ArcWeight> _node_volumes;
+  ds::Array<ArcWeight> _node_volumes;
   // ! Data that is reused throughout the louvain method
   // ! to construct and contract a graph and to prevent expensive allocations
   TmpGraphBuffer* _tmp_graph_buffer;

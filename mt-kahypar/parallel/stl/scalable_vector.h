@@ -28,7 +28,7 @@
 #include "tbb/enumerable_thread_specific.h"
 
 #include "mt-kahypar/macros.h"
-#include "mt-kahypar/datastructures/vector.h"
+#include "mt-kahypar/datastructures/array.h"
 
 namespace mt_kahypar {
 namespace parallel {
@@ -42,8 +42,8 @@ static void free(scalable_vector<T>& vec) {
 }
 
 template<typename T>
-static void free(ds::Vector<T>& vec) {
-  ds::Vector<T> tmp_vec;
+static void free(ds::Array<T>& vec) {
+  ds::Array<T> tmp_vec;
   vec = std::move(tmp_vec);
 }
 
@@ -67,8 +67,8 @@ MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE static void parallel_free(scalable_vector<T1>
 
 template<typename T1,
          typename T2>
-MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE static void parallel_free(ds::Vector<T1>& vec1,
-                                                             ds::Vector<T2>& vec2) {
+MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE static void parallel_free(ds::Array<T1>& vec1,
+                                                             ds::Array<T2>& vec2) {
   tbb::parallel_invoke([&] {
     free(vec1);
   }, [&] {
@@ -94,9 +94,9 @@ MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE static void parallel_free(scalable_vector<T1>
 template<typename T1,
          typename T2,
          typename T3>
-MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE static void parallel_free(ds::Vector<T1>& vec1,
-                                                             ds::Vector<T2>& vec2,
-                                                             ds::Vector<T3>& vec3) {
+MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE static void parallel_free(ds::Array<T1>& vec1,
+                                                             ds::Array<T2>& vec2,
+                                                             ds::Array<T3>& vec3) {
   tbb::parallel_invoke([&] {
     free(vec1);
   }, [&] {
@@ -129,10 +129,10 @@ template<typename T1,
          typename T2,
          typename T3,
          typename T4>
-MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE static void parallel_free(ds::Vector<T1>& vec1,
-                                                             ds::Vector<T2>& vec2,
-                                                             ds::Vector<T3>& vec3,
-                                                             ds::Vector<T4>& vec4) {
+MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE static void parallel_free(ds::Array<T1>& vec1,
+                                                             ds::Array<T2>& vec2,
+                                                             ds::Array<T3>& vec3,
+                                                             ds::Array<T4>& vec4) {
   tbb::parallel_invoke([&] {
     free(vec1);
   }, [&] {
@@ -172,11 +172,11 @@ template<typename T1,
          typename T3,
          typename T4,
          typename T5>
-MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE static void parallel_free(ds::Vector<T1>& vec1,
-                                                             ds::Vector<T2>& vec2,
-                                                             ds::Vector<T3>& vec3,
-                                                             ds::Vector<T4>& vec4,
-                                                             ds::Vector<T5>& vec5) {
+MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE static void parallel_free(ds::Array<T1>& vec1,
+                                                             ds::Array<T2>& vec2,
+                                                             ds::Array<T3>& vec3,
+                                                             ds::Array<T4>& vec4,
+                                                             ds::Array<T5>& vec5) {
   tbb::parallel_invoke([&] {
     free(vec1);
   }, [&] {
@@ -223,12 +223,12 @@ template<typename T1,
          typename T4,
          typename T5,
          typename T6>
-MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE static void parallel_free(ds::Vector<T1>& vec1,
-                                                             ds::Vector<T2>& vec2,
-                                                             ds::Vector<T3>& vec3,
-                                                             ds::Vector<T4>& vec4,
-                                                             ds::Vector<T5>& vec5,
-                                                             ds::Vector<T6>& vec6) {
+MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE static void parallel_free(ds::Array<T1>& vec1,
+                                                             ds::Array<T2>& vec2,
+                                                             ds::Array<T3>& vec3,
+                                                             ds::Array<T4>& vec4,
+                                                             ds::Array<T5>& vec5,
+                                                             ds::Array<T6>& vec6) {
   tbb::parallel_invoke([&] {
     free(vec1);
   }, [&] {
