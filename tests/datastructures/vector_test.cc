@@ -183,6 +183,7 @@ TEST(AVector, MemcopiesContentToVector) {
 }
 
 TEST(AVector, IsInitializedWithMemoryChunkFromMemoryPool) {
+  parallel::MemoryPool::instance().deactivate_minimum_allocation_size();
   parallel::MemoryPool::instance().register_memory_group("TEST_GROUP", 1);
   parallel::MemoryPool::instance().register_memory_chunk("TEST_GROUP", "TEST_CHUNK", 5, sizeof(size_t));
   parallel::MemoryPool::instance().allocate_memory_chunks();
@@ -194,6 +195,7 @@ TEST(AVector, IsInitializedWithMemoryChunkFromMemoryPool) {
 }
 
 TEST(AVector, IsInitializedWithSeveralMemoryChunksFromMemoryPool) {
+  parallel::MemoryPool::instance().deactivate_minimum_allocation_size();
   parallel::MemoryPool::instance().register_memory_group("TEST_GROUP", 1);
   parallel::MemoryPool::instance().register_memory_chunk("TEST_GROUP", "TEST_CHUNK_1", 5, sizeof(size_t));
   parallel::MemoryPool::instance().register_memory_chunk("TEST_GROUP", "TEST_CHUNK_2", 5, sizeof(size_t));
@@ -209,6 +211,7 @@ TEST(AVector, IsInitializedWithSeveralMemoryChunksFromMemoryPool) {
 }
 
 TEST(AVector, ReleasesMemoryChunkFromMemoryPoolInDestructor) {
+  parallel::MemoryPool::instance().deactivate_minimum_allocation_size();
   parallel::MemoryPool::instance().register_memory_group("TEST_GROUP", 1);
   parallel::MemoryPool::instance().register_memory_chunk("TEST_GROUP", "TEST_CHUNK", 5, sizeof(size_t));
   parallel::MemoryPool::instance().allocate_memory_chunks();
@@ -225,6 +228,7 @@ TEST(AVector, ReleasesMemoryChunkFromMemoryPoolInDestructor) {
 }
 
 TEST(AVector, AllocatesOwnMemoryIfNotAvailableInMemoryPool) {
+  parallel::MemoryPool::instance().deactivate_minimum_allocation_size();
   parallel::MemoryPool::instance().register_memory_group("TEST_GROUP", 1);
   parallel::MemoryPool::instance().register_memory_chunk("TEST_GROUP", "TEST_CHUNK", 5, sizeof(size_t));
   parallel::MemoryPool::instance().allocate_memory_chunks();
@@ -237,6 +241,7 @@ TEST(AVector, AllocatesOwnMemoryIfNotAvailableInMemoryPool) {
 }
 
 TEST(AVector, AllocatesOwnMemoryOnOverAllocationInMemoryPool) {
+  parallel::MemoryPool::instance().deactivate_minimum_allocation_size();
   parallel::MemoryPool::instance().register_memory_group("TEST_GROUP", 1);
   parallel::MemoryPool::instance().register_memory_chunk("TEST_GROUP", "TEST_CHUNK", 5, sizeof(size_t));
   parallel::MemoryPool::instance().allocate_memory_chunks();
@@ -249,6 +254,7 @@ TEST(AVector, AllocatesOwnMemoryOnOverAllocationInMemoryPool) {
 }
 
 TEST(AVector, AllocatesOwnMemoryIfAlreadyRequestedInMemoryPool) {
+  parallel::MemoryPool::instance().deactivate_minimum_allocation_size();
   parallel::MemoryPool::instance().register_memory_group("TEST_GROUP", 1);
   parallel::MemoryPool::instance().register_memory_chunk("TEST_GROUP", "TEST_CHUNK", 5, sizeof(size_t));
   parallel::MemoryPool::instance().allocate_memory_chunks();
