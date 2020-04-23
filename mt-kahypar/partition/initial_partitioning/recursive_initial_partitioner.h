@@ -251,6 +251,8 @@ class RecursiveInitialPartitionerT : public IInitialPartitioner {
       ASSERT(_num_threads >= 1);
       Context context(_context);
 
+      context.type = kahypar::ContextType::initial_partitioning;
+
       // Shared Memory Parameters
       context.shared_memory.num_threads = _num_threads;
 
