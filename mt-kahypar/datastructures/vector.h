@@ -171,8 +171,8 @@ class Vector {
          const size_type size,
          const bool zero_initialize = false,
          const bool assign_parallel = true) :
-    _group(group),
-    _key(key),
+    _group(""),
+    _key(""),
     _size(size),
     _data(nullptr),
     _underlying_data(nullptr) {
@@ -303,6 +303,21 @@ class Vector {
     if ( data ) {
       _group = group;
       _key = key;
+      _underlying_data = reinterpret_cast<value_type*>(data);
+      if ( zero_initialize ) {
+        assign(size, value_type(), assign_parallel);
+      }
+    } else {
+      resize_with_unused_memory(size, zero_initialize, assign_parallel);
+    }
+  }
+
+  void resize_with_unused_memory(const size_type size,
+                                 const bool zero_initialize = false,
+                                 const bool assign_parallel = true) {
+    _size = size;
+    char* data = parallel::MemoryPool::instance().request_unused_mem_chunk(size, sizeof(value_type));
+    if ( data ) {
       _underlying_data = reinterpret_cast<value_type*>(data);
       if ( zero_initialize ) {
         assign(size, value_type(), assign_parallel);

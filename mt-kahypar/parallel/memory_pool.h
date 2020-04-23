@@ -44,6 +44,8 @@ class MemoryPool {
   static constexpr bool debug = false;
   static constexpr size_t kInvalidMemoryChunk = std::numeric_limits<size_t>::max();
 
+  static constexpr size_t MINIMUM_ALLOCATION_SIZE = 10000000; // 10 MB
+
   // ! Represents a memory group.
   struct MemoryGroup {
 
@@ -260,34 +262,46 @@ class MemoryPool {
                           const std::string& key,
                           const size_t num_elements,
                           const size_t size) {
-    std::shared_lock<std::shared_timed_mutex> lock(_memory_mutex);
-    MemoryChunk* chunk = find_memory_chunk(group, key);
-    DBG << "Requests memory chunk (" << group << "," << key << ")"
-        << "of" <<  size_in_megabyte(num_elements * size) << "MB"
-        << "in memory pool";
-    if ( chunk && num_elements * size <= chunk->size_in_bytes() ) {
-      char* data = chunk->request_chunk();
-      if ( data ) {
-        DBG << "Memory chunk request (" << group << "," << key << ")"
-            << "was successful";
-        return data;
+    const size_t size_in_bytes = num_elements * size;
+    if ( size_in_bytes > MINIMUM_ALLOCATION_SIZE ) {
+      std::shared_lock<std::shared_timed_mutex> lock(_memory_mutex);
+      MemoryChunk* chunk = find_memory_chunk(group, key);
+      DBG << "Requests memory chunk (" << group << "," << key << ")"
+          << "of" <<  size_in_megabyte(size_in_bytes) << "MB"
+          << "in memory pool";
+      if ( chunk && size_in_bytes <= chunk->size_in_bytes() ) {
+        char* data = chunk->request_chunk();
+        if ( data ) {
+          DBG << "Memory chunk request (" << group << "," << key << ")"
+              << "was successful";
+          return data;
+        }
       }
+      DBG << "Memory chunk request (" << group << "," << key << ") failed";
     }
-    DBG << "Memory chunk request (" << group << "," << key << ") failed";
     return nullptr;
   }
 
+  // ! Requests an unused memory chunk. If memory usage optimization are
+  // ! activated some memory chunks have unused memory segments due to
+  // ! overallocations.
   char* request_unused_mem_chunk(const size_t num_elements,
                                  const size_t size) {
-    if ( _use_unused_memory_chunks ) {
+    const size_t size_in_bytes = num_elements * size;
+    if ( _use_unused_memory_chunks && size_in_bytes > MINIMUM_ALLOCATION_SIZE ) {
       std::shared_lock<std::shared_timed_mutex> lock(_memory_mutex);
       DBG << "Request unused memory chunk of"
           << size_in_megabyte(num_elements * size) << "MB";
-      for ( const size_t memory_id : _active_memory_chunks ) {
+      const size_t n = _active_memory_chunks.size();
+      const size_t end = _next_active_memory_chunk.load() % n;
+      const size_t start = ( end + 1 ) % n;
+      for ( size_t i = start; i != end; i = (i + 1) % n ) {
+        size_t memory_id = _active_memory_chunks[i];
         ASSERT(memory_id < _memory_chunks.size());
-        char* data = _memory_chunks[memory_id].request_unused_chunk(num_elements * size);
+        char* data = _memory_chunks[memory_id].request_unused_chunk(size_in_bytes);
         if ( data ) {
           DBG << "Memory chunk request for an unsed memory chunk was successful";
+          ++_next_active_memory_chunk;
           return data;
         }
       }
@@ -471,6 +485,7 @@ class MemoryPool {
     _memory_mutex(),
     _memory_groups(),
     _memory_chunks(),
+    _next_active_memory_chunk(0),
     _active_memory_chunks(),
     _use_unused_memory_chunks(true) { }
 
@@ -495,6 +510,7 @@ class MemoryPool {
         _active_memory_chunks.push_back(memory_id);
       }
     }
+    _next_active_memory_chunk = 0;
   }
 
   static double size_in_megabyte(const size_t size_in_bytes) {
@@ -609,6 +625,8 @@ class MemoryPool {
   std::unordered_map<std::string, MemoryGroup> _memory_groups;
   // ! Memory chunks
   std::vector<MemoryChunk> _memory_chunks;
+  // ! Next active memory chunk for unused memory allocation (round-robin fashion)
+  std::atomic<size_t> _next_active_memory_chunk;
   // ! Active memory chunks (with allocated memory)
   std::vector<size_t> _active_memory_chunks;
   bool _use_unused_memory_chunks;
