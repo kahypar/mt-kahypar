@@ -99,7 +99,7 @@ public:
   void updateAfterSuccessfulMove(PartitionedHypergraph& phg, FMSharedData& sharedData, Move& m) {
     const HypernodeID u = m.node;
     for (HyperedgeID e : phg.incidentEdges(u)) {
-      if (true || phg.edgeSize(e) < context.partition.hyperedge_size_threshold) {
+      if (phg.edgeSize(e) < context.partition.hyperedge_size_threshold) {
         for (HypernodeID v : phg.pins(e)) {
           if (!updateDeduplicator.contains(v)) {
             updateDeduplicator.insert(v);

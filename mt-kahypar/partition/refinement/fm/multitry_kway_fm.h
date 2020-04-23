@@ -62,7 +62,7 @@ public:
   Gain refine(PartitionedHypergraph& phg) {
     utils::Timer& timer = utils::Timer::instance();
     timer.start_timer("fm", "FM");
-    timer.start_timer("fm_unnecessary_init", "Initialize FM datastructures that could also be updated by LP Refiner ");
+    timer.start_timer("fm_unnecessary_init", "FM Init");
 
     phg.initializeGainInformation();                // initialization only as long as LP refiner does not use these datastructures
     globalRollback.setRemainingOriginalPins(phg);   // initialization only as long as LP refiner does not use these datastructures
