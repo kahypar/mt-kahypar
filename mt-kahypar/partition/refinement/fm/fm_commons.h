@@ -68,7 +68,7 @@ struct GlobalMoveTracker {
     return getMove(move_id).gain != invalidGain;
   }
 
-  bool isMoveStillValid(Move& m) const {
+  bool isMoveStillValid(const Move& m) const {
     return m.gain != invalidGain;
   }
 

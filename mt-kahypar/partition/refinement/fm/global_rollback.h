@@ -100,17 +100,18 @@ public:
       tbb::parallel_for(b.best_index, numMoves, [&](const MoveID moveID) {
         const Move& m = move_order[moveID];
         phg.changeNodePartFullUpdate(m.node, m.to, m.from, std::numeric_limits<HypernodeWeight>::max(), []{/* do nothing */});
-        for (HyperedgeID e : phg.incidentEdges(m.node)) {
-          remaining_original_pins[e * numParts + m.from].fetch_add(1, std::memory_order_relaxed);
-        }
+        if (sharedData.moveTracker.isMoveStillValid(m))
+          for (HyperedgeID e : phg.incidentEdges(m.node))
+            remaining_original_pins[e * numParts + m.from].fetch_add(1, std::memory_order_relaxed);
       });
     }, [&] {
       // apply updates to remaining original pins
       tbb::parallel_for(MoveID(0), b.best_index, [&](const MoveID moveID) {
-        const PartitionID to = move_order[moveID].to;
-        for (HyperedgeID e : phg.incidentEdges(move_order[moveID].node)) {
-          remaining_original_pins[e * numParts + to].fetch_add(1, std::memory_order_relaxed);
-        }
+        const Move& m = move_order[moveID];
+        const PartitionID to = m.to;
+        if (sharedData.moveTracker.isMoveStillValid(m))
+          for (HyperedgeID e : phg.incidentEdges(move_order[moveID].node))
+            remaining_original_pins[e * numParts + to].fetch_add(1, std::memory_order_relaxed);
       });
     } );
 
@@ -150,8 +151,9 @@ public:
 
     tbb::parallel_for(0U, sharedData.moveTracker.numPerformedMoves(), [&](MoveID localMoveID) {
       const Move& m = move_order[localMoveID];
-      const MoveID globalMoveID = localMoveID + firstMoveID;
+      if (!sharedData.moveTracker.isMoveStillValid(m)) return;
 
+      const MoveID globalMoveID = localMoveID + firstMoveID;
       for (HyperedgeID e : phg.incidentEdges(m.node)) {
         CAtomic<MoveID>& fmi = first_move_in[e * numParts + m.to];
         MoveID expected = fmi.load(std::memory_order_acq_rel);
@@ -170,9 +172,14 @@ public:
     timer.start_timer("gain_recalculation", "Recalculate Gains");
 
     tbb::parallel_for(0U, sharedData.moveTracker.numPerformedMoves(), [&](MoveID localMoveID) {
+      const Move& m = move_order[localMoveID];
+      if (!sharedData.moveTracker.isMoveStillValid(m)) {
+        gains[localMoveID] = invalidGain;
+        return;
+      }
+
       MoveID globalMoveID = firstMoveID + localMoveID;
       Gain gain = 0;
-      const Move& m = move_order[localMoveID];
       for (HyperedgeID e : phg.incidentEdges(m.node)) {
         const MoveID firstInFrom = firstMoveIn(e, m.from);
         if (remainingPinsFromBeginningOfMovePhase(e, m.from) == 0  && lastMoveOut(e, m.from) == globalMoveID
@@ -194,15 +201,20 @@ public:
     // recheck all gains
     for (MoveID localMoveID = 0; localMoveID < sharedData.moveTracker.numPerformedMoves(); ++localMoveID) {
       const Move& m = sharedData.moveTracker.moveOrder[localMoveID];
-      phg.changeNodePartFullUpdate(m.node, m.to, m.from, std::numeric_limits<HypernodeWeight>::max(), []{});
+      if (sharedData.moveTracker.isMoveStillValid(m))
+        phg.changeNodePartFullUpdate(m.node, m.to, m.from, std::numeric_limits<HypernodeWeight>::max(), []{});
     }
 
     for (MoveID localMoveID = 0; localMoveID < sharedData.moveTracker.numPerformedMoves(); ++localMoveID) {
-      phg.recomputeMoveFromBenefit(move_order[localMoveID].node);
+      if (sharedData.moveTracker.isMoveStillValid(move_order[localMoveID]))
+        phg.recomputeMoveFromBenefit(move_order[localMoveID].node);
     }
 
     for (MoveID localMoveID = 0; localMoveID < sharedData.moveTracker.numPerformedMoves(); ++localMoveID) {
       const Move& m = sharedData.moveTracker.moveOrder[localMoveID];
+      if (!sharedData.moveTracker.isMoveStillValid(m))
+        continue;
+
       const Gain estimated_gain = phg.km1Gain(m.node, m.from, m.to);
       assert(phg.moveFromBenefit(m.node) == phg.moveFromBenefitRecomputed(m.node));
       assert(phg.moveToPenalty(m.node, m.to) == phg.moveToPenaltyRecomputed(m.node, m.to));
