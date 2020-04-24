@@ -170,11 +170,18 @@ class GraphT {
     return boost::irange<NodeID>(0, static_cast<NodeID>(numNodes()));
   }
 
-    // ! Iterator over all adjacent vertices of u
-  IteratorRange<AdjacenceIterator> arcsOf(const NodeID u) const {
+  // ! Iterator over all adjacent vertices of u
+  // ! If 'n' is set, than only an iterator over the first n elements is returned
+  IteratorRange<AdjacenceIterator> arcsOf(const NodeID u,
+                                          const size_t n = std::numeric_limits<size_t>::max()) const {
     ASSERT(u < _num_nodes);
+    const size_t start = _indices[u];
+    size_t end = _indices[u + 1];
+    if ( n < ( end - start ) ) {
+      end = start + n;
+    }
     return IteratorRange<AdjacenceIterator>(
-      _arcs.cbegin() + _indices[u], _arcs.cbegin() + _indices[u + 1]);
+      _arcs.cbegin() + start, _arcs.cbegin() + end);
   }
 
   // ! Degree of vertex u

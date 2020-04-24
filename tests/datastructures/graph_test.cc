@@ -38,10 +38,11 @@ using Graph = GraphT<HyperGraph>;
 void verifyArcIterator(const Graph& graph,
                        const NodeID u,
                        const std::vector<NodeID>& arcs,
-                       const std::vector<ArcWeight>& weights) {
+                       const std::vector<ArcWeight>& weights,
+                       const size_t n = std::numeric_limits<size_t>::max()) {
   size_t size = 0;
   std::vector<bool> vis(arcs.size(), false);
-  for ( const Arc& arc : graph.arcsOf(u) ) {
+  for ( const Arc& arc : graph.arcsOf(u, n) ) {
     for ( size_t pos = 0; pos < arcs.size(); ++pos ) {
       if ( arcs[pos] == arc.head ) {
         ASSERT_FALSE(vis[pos]);
@@ -130,6 +131,11 @@ TEST_F(AGraph, HasCorrectAdjacentVertices1c) {
   verifyArcIterator(graph, 0, {7, 8}, {1.0, 0.5});
 }
 
+TEST_F(AGraph, HasCorrectAdjacentVertices1d) {
+  Graph graph(hypergraph, LouvainEdgeWeight::uniform);
+  verifyArcIterator(graph, 0, {7}, {1.0}, 1);
+}
+
 TEST_F(AGraph, HasCorrectAdjacentVertices2a) {
   Graph graph(hypergraph, LouvainEdgeWeight::uniform);
   verifyArcIterator(graph, 2, {7, 10}, {1.0, 1.0});
@@ -143,6 +149,11 @@ TEST_F(AGraph, HasCorrectAdjacentVertices2b) {
 TEST_F(AGraph, HasCorrectAdjacentVertices2c) {
   Graph graph(hypergraph, LouvainEdgeWeight::degree);
   verifyArcIterator(graph, 2, {7, 10}, {1.0, 2.0 / 3.0});
+}
+
+TEST_F(AGraph, HasCorrectAdjacentVertices2d) {
+  Graph graph(hypergraph, LouvainEdgeWeight::uniform);
+  verifyArcIterator(graph, 2, {7}, {1.0}, 1);
 }
 
 TEST_F(AGraph, HasCorrectAdjacentVertices3a) {
@@ -160,6 +171,11 @@ TEST_F(AGraph, HasCorrectAdjacentVertices3c) {
   verifyArcIterator(graph, 5, {10}, {1.0 / 3.0});
 }
 
+TEST_F(AGraph, HasCorrectAdjacentVertices3d) {
+  Graph graph(hypergraph, LouvainEdgeWeight::uniform);
+  verifyArcIterator(graph, 5, {10}, {1.0}, 2);
+}
+
 TEST_F(AGraph, HasCorrectAdjacentVertices4a) {
   Graph graph(hypergraph, LouvainEdgeWeight::uniform);
   verifyArcIterator(graph, 6, {9, 10}, {1.0, 1.0});
@@ -173,6 +189,11 @@ TEST_F(AGraph, HasCorrectAdjacentVertices4b) {
 TEST_F(AGraph, HasCorrectAdjacentVertices4c) {
   Graph graph(hypergraph, LouvainEdgeWeight::degree);
   verifyArcIterator(graph, 6, {9, 10}, {2.0 / 3.0, 2.0 / 3.0});
+}
+
+TEST_F(AGraph, HasCorrectAdjacentVertices4d) {
+  Graph graph(hypergraph, LouvainEdgeWeight::uniform);
+  verifyArcIterator(graph, 6, {9, 10}, {1.0, 1.0}, 1000);
 }
 
 TEST_F(AGraph, HasCorrectAdjacentVertices5a) {
@@ -190,6 +211,11 @@ TEST_F(AGraph, HasCorrectAdjacentVertices5c) {
   verifyArcIterator(graph, 7, {0, 2}, {1.0, 1.0});
 }
 
+TEST_F(AGraph, HasCorrectAdjacentVertices5d) {
+  Graph graph(hypergraph, LouvainEdgeWeight::uniform);
+  verifyArcIterator(graph, 7, {0}, {1.0}, 1);
+}
+
 TEST_F(AGraph, HasCorrectAdjacentVertices6a) {
   Graph graph(hypergraph, LouvainEdgeWeight::uniform);
   verifyArcIterator(graph, 8, {0, 1, 3, 4}, {1.0, 1.0, 1.0, 1.0});
@@ -203,6 +229,11 @@ TEST_F(AGraph, HasCorrectAdjacentVertices6b) {
 TEST_F(AGraph, HasCorrectAdjacentVertices6c) {
   Graph graph(hypergraph, LouvainEdgeWeight::degree);
   verifyArcIterator(graph, 8, {0, 1, 3, 4}, {0.5, 0.25, 0.5, 0.5});
+}
+
+TEST_F(AGraph, HasCorrectAdjacentVertices6d) {
+  Graph graph(hypergraph, LouvainEdgeWeight::uniform);
+  verifyArcIterator(graph, 8, {0, 1}, {1.0, 1.0}, 2);
 }
 
 TEST_F(AGraph, ConstructsAHypergraphWhichIsAGraph) {

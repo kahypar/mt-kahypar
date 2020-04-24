@@ -53,6 +53,7 @@ class PLM {
                const bool disable_randomization = false) :
     _context(context),
     _max_degree(numNodes),
+    _vertex_degree_sampling_threshold(context.preprocessing.community_detection.vertex_degree_sampling_threshold),
     _cluster_volumes(numNodes),
     _local_small_incident_cluster_weight(0),
     _local_large_incident_cluster_weight([&] {
@@ -116,7 +117,8 @@ class PLM {
           } else {
             LargeIncidentClusterWeights& large_incident_cluster_weight =
               _local_large_incident_cluster_weight.local();
-            large_incident_cluster_weight.setMaxSize(3UL * _max_degree);
+            large_incident_cluster_weight.setMaxSize(
+              3UL * std::min(_max_degree, _vertex_degree_sampling_threshold));
             best_cluster = computeMaxGainCluster(
               graph, communities, u, large_incident_cluster_weight);
           }
@@ -160,11 +162,13 @@ class PLM {
 
   KAHYPAR_ATTRIBUTE_ALWAYS_INLINE bool ratingsFitIntoSmallSparseMap(const G& graph,
                                                                     const HypernodeID u)  {
-    return graph.degree(u) <= CacheEfficientIncidentClusterWeights::MAP_SIZE / 3UL;
+    const size_t cache_efficient_map_size = CacheEfficientIncidentClusterWeights::MAP_SIZE / 3UL;
+    return std::min(_vertex_degree_sampling_threshold, _max_degree) > cache_efficient_map_size &&
+           graph.degree(u) <= cache_efficient_map_size;
   }
 
   LargeIncidentClusterWeights construct_large_incident_cluster_weight_map() {
-    return LargeIncidentClusterWeights(3UL * _max_degree, 0);
+    return LargeIncidentClusterWeights(3UL * std::min(_max_degree, _vertex_degree_sampling_threshold), 0);
   }
 
   // ! Only for testing
@@ -186,7 +190,7 @@ class PLM {
     PartitionID from = communities[u];
     PartitionID bestCluster = communities[u];
 
-    for (const Arc& arc : graph.arcsOf(u)) {
+    for (const Arc& arc : graph.arcsOf(u, _vertex_degree_sampling_threshold)) {
       incident_cluster_weights[communities[arc.head]] += arc.weight;
     }
 
@@ -330,6 +334,7 @@ class PLM {
 
   const Context& _context;
   size_t _max_degree;
+  const size_t _vertex_degree_sampling_threshold;
   double _reciprocal_total_volume = 0.0;
   double _vol_multiplier_div_by_node_vol = 0.0;
   parallel::scalable_vector<AtomicArcWeight> _cluster_volumes;
