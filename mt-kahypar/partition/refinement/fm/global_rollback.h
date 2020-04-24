@@ -46,10 +46,12 @@ struct BestIndexReduceBody {
       best_index = r.begin(); // initialize if the range was split
     }
     for (MoveID i = r.begin(); i < r.end(); ++i) {
-      sum += gains[i];
-      if (sum > best_sum && in_balance[i]) {       // TODO consider using >= for more diversification. But be careful with locally reverted moves!
-        best_sum = sum;
-        best_index = i + 1;
+      if (gains[i] != invalidGain) {  // skip locally reverted moves
+        sum += gains[i];
+        if (sum > best_sum && in_balance[i]) {       // TODO consider using >= for more diversification. But be careful with locally reverted moves!
+          best_sum = sum;
+          best_index = i + 1;
+        }
       }
     }
   }
