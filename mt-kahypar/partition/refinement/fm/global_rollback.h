@@ -44,7 +44,7 @@ struct BestIndexReduceBody {
     }
     for (MoveID i = r.begin(); i < r.end(); ++i) {
       sum += gains[i];
-      if (sum > best_sum) {
+      if (sum > best_sum) {       // TODO consider using >= for more diversification. But be careful with locally reverted moves!
         best_sum = sum;
         best_index = i + 1;
       }

@@ -51,26 +51,42 @@ public:
 
   void findMoves(PartitionedHypergraph& phg, const HypernodeID initialBorderNode, FMSharedData& sharedData, SearchID search_id) {
     thisSearch = search_id;
+    localMoves.clear();
     insertOrUpdatePQ(phg, initialBorderNode, sharedData.nodeTracker);
     updateBlock(phg, phg.partID(initialBorderNode));
 
     Move m;
-    uint32_t consecutiveMovesWithNonPositiveGain = 0;
-    Gain estimated_improvement = 0;
-    while (consecutiveMovesWithNonPositiveGain < context.refinement.fm.max_number_of_fruitless_moves && findNextMove(phg, m)) {
+    size_t consecutiveNonPositiveGainMoves = 0, consecutiveMovesWithNegativeOverallGain = 0, bestImprovementIndex = 0;
+    Gain estimatedImprovement = 0, bestImprovement = 0;
+    while (consecutiveNonPositiveGainMoves < context.refinement.fm.max_number_of_fruitless_moves && findNextMove(phg, m)) {
       sharedData.nodeTracker.deactivateNode(m.node, thisSearch);
+      MoveID move_id = std::numeric_limits<MoveID>::max();
       const bool moved = m.to != kInvalidPartition
-                         && phg.changeNodePartFullUpdate(m.node, m.from, m.to, max_part_weight, [&] { sharedData.moveTracker.insertMove(m); });
+                         && phg.changeNodePartFullUpdate(m.node, m.from, m.to, max_part_weight, [&] { move_id = sharedData.moveTracker.insertMove(m); });
       if (moved) {
         updateAfterSuccessfulMove(phg, sharedData, m);
-        consecutiveMovesWithNonPositiveGain = m.gain > 0 ? 0 : consecutiveMovesWithNonPositiveGain + 1;
-        estimated_improvement += m.gain;
+
+        estimatedImprovement += m.gain;
+
+        if (estimatedImprovement >= bestImprovement) {
+          bestImprovement = estimatedImprovement;
+          bestImprovementIndex = localMoves.size();
+        }
+        localMoves.push_back(move_id);
+
+        consecutiveNonPositiveGainMoves = m.gain > 0 ? 0 : consecutiveNonPositiveGainMoves + 1;
+        consecutiveMovesWithNegativeOverallGain = estimatedImprovement >= 0 ? 0 : consecutiveMovesWithNegativeOverallGain + 1;
       }
       updateAfterMoveExtraction(phg, m);
     }
 
-    reinitialize();
-    //LOG << V(estimated_improvement);
+    revertToBestLocalPrefix(phg, sharedData, bestImprovementIndex);
+
+    blockPQ.clear();
+    for (PartitionID i = 0; i < numParts; ++i) {
+      vertexPQs[i].clear();
+    }
+    //LOG << V(estimatedImprovement);
   }
 
   void updateBlock(PartitionedHypergraph& phg, PartitionID i) {
@@ -175,18 +191,11 @@ public:
     }
   }
 
-  void reinitialize() {
-    blockPQ.clear();
-    for (PartitionID i = 0; i < numParts; ++i) {
-      vertexPQs[i].clear();
-    }
-    localMoves.clear();
-  }
-
-  void revertToBestLocalPrefix(PartitionedHypergraph &phg, size_t bestGainIndex) {
+  void revertToBestLocalPrefix(PartitionedHypergraph& phg, FMSharedData& sharedData, size_t bestGainIndex) {
     while (localMoves.size() > bestGainIndex) {
-      Move& m = localMoves.back();
-      phg.changeNodePart(m.node, m.to, m.from);
+      Move& m = sharedData.moveTracker.getMove(localMoves.back());
+      phg.changeNodePartFullUpdate(m.node, m.to, m.from, std::numeric_limits<HypernodeWeight>::max(), []{/* do nothing */});
+      sharedData.moveTracker.invalidateMove(m);
       localMoves.pop_back();
     }
   }
@@ -211,7 +220,7 @@ private:
   HypernodeWeight max_part_weight, perfect_balance_part_weight, min_part_weight;
 
 public:
-  vec<Move> localMoves;
+  vec<MoveID> localMoves;
 
   FMStats stats;
 };
