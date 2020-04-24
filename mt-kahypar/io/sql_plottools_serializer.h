@@ -60,6 +60,7 @@ static inline std::string serialize(const PartitionedHypergraph<>& hypergraph,
         << " community_edge_weight_function=" << context.preprocessing.community_detection.edge_weight_function
         << " community_max_pass_iterations=" << context.preprocessing.community_detection.max_pass_iterations
         << " community_min_eps_improvement=" << context.preprocessing.community_detection.min_eps_improvement
+        << " community_vertex_degree_sampling_threshold=" << context.preprocessing.community_detection.vertex_degree_sampling_threshold
         << " use_community_redistribution=" << std::boolalpha << context.preprocessing.use_community_redistribution
         << " community_redistribution_assignment_strategy=" << context.preprocessing.community_redistribution.assignment_strategy
         << " community_redistribution_assignment_objective=" << context.preprocessing.community_redistribution.assignment_objective
@@ -72,6 +73,7 @@ static inline std::string serialize(const PartitionedHypergraph<>& hypergraph,
         << " coarsening_minimum_shrink_factor=" << context.coarsening.minimum_shrink_factor
         << " coarsening_maximum_shrink_factor=" << context.coarsening.maximum_shrink_factor
         << " coarsening_max_allowed_node_weight=" << context.coarsening.max_allowed_node_weight
+        << " coarsening_vertex_degree_sampling_threshold=" << context.coarsening.vertex_degree_sampling_threshold
         << " coarsening_contraction_limit=" << context.coarsening.contraction_limit
         << " rating_function=" << context.coarsening.rating.rating_function
         << " rating_heavy_node_penalty_policy=" << context.coarsening.rating.heavy_node_penalty_policy

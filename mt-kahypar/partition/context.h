@@ -22,6 +22,7 @@
 
 #include "kahypar/definitions.h"
 #include "kahypar/partition/context_enum_classes.h"
+
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/context_enum_classes.h"
 
@@ -76,6 +77,7 @@ struct CommunityDetectionParameters {
   LouvainEdgeWeight edge_weight_function = LouvainEdgeWeight::UNDEFINED;
   uint32_t max_pass_iterations = std::numeric_limits<uint32_t>::max();
   long double min_eps_improvement = std::numeric_limits<long double>::max();
+  size_t vertex_degree_sampling_threshold = std::numeric_limits<size_t>::max();
 };
 
 inline std::ostream & operator<< (std::ostream& str, const CommunityDetectionParameters& params) {
@@ -83,6 +85,7 @@ inline std::ostream & operator<< (std::ostream& str, const CommunityDetectionPar
   str << "    Edge Weight Function:             " << params.edge_weight_function << std::endl;
   str << "    Maximum Louvain-Pass Iterations:  " << params.max_pass_iterations << std::endl;
   str << "    Minimum Quality Improvement:      " << params.min_eps_improvement << std::endl;
+  str << "    Vertex Degree Sampling Threshold: " << params.vertex_degree_sampling_threshold << std::endl;
   return str;
 }
 
@@ -142,6 +145,7 @@ struct CoarseningParameters {
   double max_allowed_weight_multiplier = std::numeric_limits<double>::max();
   double minimum_shrink_factor = std::numeric_limits<double>::max();
   double maximum_shrink_factor = std::numeric_limits<double>::max();
+  size_t vertex_degree_sampling_threshold = std::numeric_limits<size_t>::max();
 
   // Those will be determined dynamically
   HypernodeWeight max_allowed_node_weight = 0;
@@ -166,6 +170,7 @@ inline std::ostream & operator<< (std::ostream& str, const CoarseningParameters&
     str << "  minimum shrink factor:              " << params.minimum_shrink_factor << std::endl;
     str << "  maximum shrink factor:              " << params.maximum_shrink_factor << std::endl;
   }
+  str << "  vertex degree sampling threshold:   " << params.vertex_degree_sampling_threshold << std::endl;
   str << std::endl << params.rating;
   return str;
 }

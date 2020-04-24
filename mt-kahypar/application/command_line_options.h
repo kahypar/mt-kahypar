@@ -148,6 +148,9 @@ po::options_description createPreprocessingOptionsDescription(Context& context, 
     ("p-louvain-min-eps-improvement",
     po::value<long double>(&context.preprocessing.community_detection.min_eps_improvement)->value_name("<long double>"),
     "Minimum improvement of quality during a louvain pass which leads to further passes")
+    ("p-vertex-degree-sampling-threshold",
+    po::value<size_t>(&context.preprocessing.community_detection.vertex_degree_sampling_threshold)->value_name("<size_t>"),
+    "If set, than neighbors of a vertex are sampled during rating if its degree is greater than this threshold.")
     ("p-enable-community-redistribution",
     po::value<bool>(&context.preprocessing.use_community_redistribution)->value_name("<bool>"),
     "If true, hypergraph is redistributed based on community information to numa nodes")
@@ -231,7 +234,10 @@ po::options_description createCoarseningOptionsDescription(Context& context,
     }),
     "Acceptance/Tiebreaking criterion for contraction partners having the same score:\n"
     "- best\n"
-    "- best_prefer_unmatched");
+    "- best_prefer_unmatched")
+    ("c-vertex-degree-sampling-threshold",
+    po::value<size_t>(&context.coarsening.vertex_degree_sampling_threshold)->value_name("<size_t>"),
+    "If set, than neighbors of a vertex are sampled during rating if its degree is greater than this threshold.");
   return options;
 }
 
