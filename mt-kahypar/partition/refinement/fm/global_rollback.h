@@ -26,17 +26,20 @@
 
 #include "fm_commons.h"
 
+#include <boost/dynamic_bitset.hpp>
+
 namespace mt_kahypar {
 namespace refinement {
 
 struct BestIndexReduceBody {
   const vec<Gain>& gains;
+  const boost::dynamic_bitset<>& in_balance;
   MoveID best_index = std::numeric_limits<MoveID>::max();
   HyperedgeWeight sum = 0, best_sum = 0;
 
-  BestIndexReduceBody(const vec<Gain>& gains) : gains(gains) { }
+  BestIndexReduceBody(const vec<Gain>& gains, const boost::dynamic_bitset& in_balance) : gains(gains), in_balance(in_balance) { }
 
-  BestIndexReduceBody(BestIndexReduceBody& b, tbb::split) : gains(b.gains) { }
+  BestIndexReduceBody(BestIndexReduceBody& b, tbb::split) : gains(b.gains), in_balance(in_balance) { }
 
   void operator()(const tbb::blocked_range<MoveID>& r) {
     if (best_index == std::numeric_limits<MoveID>::max()) {
@@ -44,7 +47,7 @@ struct BestIndexReduceBody {
     }
     for (MoveID i = r.begin(); i < r.end(); ++i) {
       sum += gains[i];
-      if (sum > best_sum) {       // TODO consider using >= for more diversification. But be careful with locally reverted moves!
+      if (sum > best_sum && in_balance[i]) {       // TODO consider using >= for more diversification. But be careful with locally reverted moves!
         best_sum = sum;
         best_index = i + 1;
       }
@@ -73,27 +76,47 @@ public:
           remaining_original_pins(numHyperedges * numParts),
           first_move_in(numHyperedges * numParts),
           last_move_out(numHyperedges * numParts),
-          gains(numNodes, 0)
+          gains(numNodes, 0),
+          in_balance(numNodes)
   {
     resetStoredMoveIDs();
   }
 
-  HyperedgeWeight globalRollbackToBestPrefix(PartitionedHypergraph& phg, FMSharedData& sharedData) {
+  HyperedgeWeight revertToBestPrefix(PartitionedHypergraph& phg, FMSharedData& sharedData,
+                                     vec <HypernodeWeight>& partWeights, HypernodeWeight maxPartWeight) {
+    const auto& move_order = sharedData.moveTracker.moveOrder;
     const MoveID numMoves = sharedData.moveTracker.numPerformedMoves();
     if (numMoves == 0) return 0;
 
+    utils::Timer& timer = utils::Timer::instance();
+    timer.start_timer("balance_recalculation", "Balance Recalculation");
+
+    for (MoveID moveID = 0; moveID < numMoves; ++moveID) {
+      const Move& m = move_order[moveID];
+      if (sharedData.moveTracker.isMoveStillValid(m)) {
+        partWeights[m.to] += phg.nodeWeight(m.node);
+        partWeights[m.from] -= phg.nodeWeight(m.node);
+        if (partWeights[m.to] <= maxPartWeight) {
+          in_balance.set(moveID);
+        } else {
+          in_balance.reset(moveID);
+        }
+      } else {
+        in_balance.reset(moveID);
+      }
+    }
+
+    timer.stop_timer("balance_recalculation");
+
     recalculateGains(phg, sharedData);
 
-    utils::Timer& timer = utils::Timer::instance();
     timer.start_timer("find_best_prefix", "Find Best Prefix");
 
-    BestIndexReduceBody b(gains);
+    BestIndexReduceBody b(gains, in_balance);
     tbb::parallel_reduce(tbb::blocked_range<MoveID>(0, numMoves), b, tbb::static_partitioner()); // find best index
 
     timer.stop_timer("find_best_prefix");
     timer.start_timer("revert_and_rem_orig_pin_updates", "Revert Moves and apply updates");
-
-    const auto& move_order = sharedData.moveTracker.moveOrder;
 
     tbb::parallel_invoke([&] {
       // revert rejected moves
@@ -272,6 +295,8 @@ public:
   vec<CAtomic<MoveID>> first_move_in, last_move_out;
 
   vec<Gain> gains;
+
+  boost::dynamic_bitset<> in_balance;
 
 };
 }

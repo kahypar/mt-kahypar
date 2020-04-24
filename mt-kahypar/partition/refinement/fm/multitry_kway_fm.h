@@ -79,6 +79,9 @@ public:
       timer.stop_timer("collect_border_nodes");
       timer.start_timer("find_moves", "Find Moves");
 
+      vec<HypernodeWeight> initialPartWeights(size_t(sharedData.numParts));
+      for (PartitionID i = 0; i < sharedData.numParts; ++i) initialPartWeights[i] = phg.partWeight(i);
+
       auto task = [&](const int socket, const int socket_local_task_id, const int task_id) {
         unused(socket_local_task_id); unused(task_id);
         HypernodeID u = std::numeric_limits<HypernodeID>::max();
@@ -97,7 +100,8 @@ public:
       timer.stop_timer("find_moves");
       timer.start_timer("rollback", "Rollback to Best Solution");
 
-      HyperedgeWeight improvement = globalRollback.globalRollbackToBestPrefix(phg, sharedData);
+      HyperedgeWeight improvement = globalRollback.revertToBestPrefix(phg, sharedData, initialPartWeights,
+                                                                      context.partition.max_part_weights[0]);
       LOG << V(improvement) << "after rollback" << V(metrics::km1(phg));
       overall_improvement += improvement;
 

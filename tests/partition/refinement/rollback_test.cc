@@ -124,7 +124,7 @@ TEST(RollbackTests, GainRecalculationAndRollsbackCorrectly) {
   ASSERT_EQ(phg.km1Gain(5, 0, 1), 0);
   performMove({0, 1, 5, 0});
 
-  grb.globalRollbackToBestPrefix(phg, sharedData);
+    grb.revertToBestPrefix(phg, sharedData);
   // revert last two moves
   ASSERT_EQ(phg.partID(4), 0);
   ASSERT_EQ(phg.partID(5), 0);
