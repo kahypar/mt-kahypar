@@ -95,7 +95,10 @@ class MultilevelVertexPairRater {
     _local_large_rating_map([&] {
       return construct_large_tmp_rating_map();
     }),
-    _local_visited_representatives(hypergraph.initialNumNodes()),
+    // Should give a false positive rate < 1%
+    _bloom_filter_mask(align_to_next_power_of_two(
+      std::min(ID(10) * hypergraph.maxEdgeSize(), _current_num_nodes)) - 1),
+    _local_bloom_filter(_bloom_filter_mask + 1),
     _already_matched(hypergraph.initialNumNodes()) { }
 
   MultilevelVertexPairRater(const MultilevelVertexPairRater&) = delete;
@@ -202,7 +205,7 @@ class MultilevelVertexPairRater {
                      const HypernodeID u,
                      RatingMap& tmp_ratings,
                      const parallel::scalable_vector<HypernodeID>& cluster_ids) {
-    kahypar::ds::FastResetFlagArray<>& visited_representatives = _local_visited_representatives.local();
+    kahypar::ds::FastResetFlagArray<>& bloom_filter = _local_bloom_filter.local();
     for ( const HyperedgeID& he : hypergraph.incidentEdges(u) ) {
       ASSERT(hypergraph.edgeSize(he) > 1, V(he));
       if ( hypergraph.edgeSize(he) < _context.partition.hyperedge_size_threshold ) {
@@ -211,12 +214,13 @@ class MultilevelVertexPairRater {
           const HypernodeID original_v_id = hypergraph.originalNodeID(v);
           const HypernodeID representative = cluster_ids[original_v_id];
           ASSERT(representative < hypergraph.initialNumNodes());
-          if ( !visited_representatives[representative] ) {
+          const HypernodeID bloom_filter_rep = representative & _bloom_filter_mask;
+          if ( !bloom_filter[bloom_filter_rep] ) {
             tmp_ratings[representative] += score;
-            visited_representatives.set(representative, true);
+            bloom_filter.set(bloom_filter_rep, true);
           }
         }
-        visited_representatives.reset();
+        bloom_filter.reset();
       }
     }
   }
@@ -226,7 +230,7 @@ class MultilevelVertexPairRater {
                                  const HypernodeID u,
                                  RatingMap& tmp_ratings,
                                  const parallel::scalable_vector<HypernodeID>& cluster_ids) {
-    kahypar::ds::FastResetFlagArray<>& visited_representatives = _local_visited_representatives.local();
+    kahypar::ds::FastResetFlagArray<>& bloom_filter = _local_bloom_filter.local();
     size_t num_tmp_rating_map_accesses = 0;
     for ( const HyperedgeID& he : hypergraph.incidentEdges(u) ) {
       const HypernodeID edge_size = hypergraph.edgeSize(he);
@@ -242,13 +246,14 @@ class MultilevelVertexPairRater {
           const HypernodeID original_v_id = hypergraph.originalNodeID(v);
           const HypernodeID representative = cluster_ids[original_v_id];
           ASSERT(representative < hypergraph.initialNumNodes());
-          if ( !visited_representatives[representative] ) {
+          const HypernodeID bloom_filter_rep = representative & _bloom_filter_mask;
+          if ( !bloom_filter[bloom_filter_rep] ) {
             tmp_ratings[representative] += score;
-            visited_representatives.set(representative, true);
+            bloom_filter.set(bloom_filter_rep, true);
             ++num_tmp_rating_map_accesses;
           }
         }
-        visited_representatives.reset();
+        bloom_filter.reset();
       }
     }
   }
@@ -296,11 +301,16 @@ class MultilevelVertexPairRater {
     return LargeTmpRatingMap(_current_num_nodes);
   }
 
+  size_t align_to_next_power_of_two(const size_t size) const {
+    return std::pow(2.0, std::ceil(std::log2(static_cast<double>(size))));
+  }
+
   const Context& _context;
   // ! Number of nodes of the current hypergraph
   HypernodeID _current_num_nodes;
   // ! Maximum number of neighbors that are considered for rating
   size_t _vertex_degree_sampling_threshold;
+
   // ! Cache efficient rating map (with linear probing) that is used if the
   // ! estimated number of neighbors smaller than 10922 (= 32768 / 3)
   ThreadLocalCacheEfficientRatingMap _local_cache_efficient_rating_map;
@@ -312,7 +322,13 @@ class MultilevelVertexPairRater {
   // ! into the previous rating maps (fallback -> size is current number of nodes)
   ThreadLocalLargeTmpRatingMap _local_large_rating_map;
 
-  ThreadLocalFastResetFlagArray _local_visited_representatives;
+  // ! If we iterate over the pins of a hyperedge to accumulate its ratings,
+  // ! we have to make sure that we do not rate one cluster id twice. To do so
+  // ! we use this bloom filter.
+  size_t _bloom_filter_mask;
+  ThreadLocalFastResetFlagArray _local_bloom_filter;
+
+  // ! Marks all matched vertices
   kahypar::ds::FastResetFlagArray<> _already_matched;
 };
 }  // namespace mt_kahypar
