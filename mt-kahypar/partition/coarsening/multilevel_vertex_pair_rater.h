@@ -150,6 +150,7 @@ class MultilevelVertexPairRater {
                         const parallel::scalable_vector<AtomicWeight>& cluster_weight,
                         const HypernodeWeight max_allowed_node_weight,
                         const bool use_vertex_degree_sampling) {
+
     if ( use_vertex_degree_sampling ) {
       fillRatingMapWithSampling(hypergraph, u, tmp_ratings, cluster_ids);
     } else {
@@ -226,14 +227,14 @@ class MultilevelVertexPairRater {
                                  RatingMap& tmp_ratings,
                                  const parallel::scalable_vector<HypernodeID>& cluster_ids) {
     kahypar::ds::FastResetFlagArray<>& visited_representatives = _local_visited_representatives.local();
+    size_t num_tmp_rating_map_accesses = 0;
     for ( const HyperedgeID& he : hypergraph.incidentEdges(u) ) {
       const HypernodeID edge_size = hypergraph.edgeSize(he);
       if ( edge_size < _context.partition.hyperedge_size_threshold ) {
         ASSERT(edge_size > 1, V(he));
-        // Break if number of elements in rating map would exceed the vertex
-        // sampling threshold (possibly only an estimation, since all pins
-        // of the hyperedge could be already contained in rating map)
-        if ( tmp_ratings.size() + edge_size > _vertex_degree_sampling_threshold  ) {
+        // Break if number of accesses to the tmp rating map would exceed
+        // vertex degree sampling threshold
+        if ( num_tmp_rating_map_accesses + edge_size > _vertex_degree_sampling_threshold  ) {
           break;
         }
         const RatingType score = ScorePolicy::score(hypergraph, he);
@@ -244,6 +245,7 @@ class MultilevelVertexPairRater {
           if ( !visited_representatives[representative] ) {
             tmp_ratings[representative] += score;
             visited_representatives.set(representative, true);
+            ++num_tmp_rating_map_accesses;
           }
         }
         visited_representatives.reset();
