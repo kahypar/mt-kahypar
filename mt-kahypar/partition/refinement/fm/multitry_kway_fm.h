@@ -50,9 +50,7 @@ public:
   { }
 
   Gain refine(PartitionedHypergraph& phg, kahypar::Metrics& metrics) {
-    LOG << "before FM" << V(metrics::km1(phg));
     Gain improvement = refine(phg);
-    LOG << V(metrics.km1) << V(improvement) << V(metrics::km1(phg));
     metrics.km1 -= improvement;
     metrics.imbalance = metrics::imbalance(phg, context);
     assert(metrics.km1 == metrics::km1(phg));
@@ -95,14 +93,12 @@ public:
       TBBNumaArena::instance().run_max_concurrency_tasks_on_all_sockets(taskGroupID, task);
       //task(0,0,0);
       refinementNodes.clear();  // calling clear is necessary since tryPop will reduce the size to -(num calling threads)
-      LOG << V(round) << "multitry fm" << V(metrics::km1(phg));
 
       timer.stop_timer("find_moves");
       timer.start_timer("rollback", "Rollback to Best Solution");
 
       HyperedgeWeight improvement = globalRollback.revertToBestPrefix(phg, sharedData, initialPartWeights,
                                                                       context.partition.max_part_weights[0]);
-      LOG << V(improvement) << "after rollback" << V(metrics::km1(phg));
       overall_improvement += improvement;
 
       timer.stop_timer("rollback");

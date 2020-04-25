@@ -56,26 +56,26 @@ public:
     updateBlock(phg, phg.partID(initialBorderNode));
 
     Move m;
-    size_t consecutiveNonPositiveGainMoves = 0, consecutiveMovesWithNegativeOverallGain = 0, bestImprovementIndex = 0;
+    size_t consecutiveNonPositiveGainMoves = 0, consecutiveMovesWithNegativeOverallGain = 0, bestImprovementIndex = 0, queue_extractions = 0;
     Gain estimatedImprovement = 0, bestImprovement = 0;
     while (consecutiveNonPositiveGainMoves < context.refinement.fm.max_number_of_fruitless_moves && findNextMove(phg, m)) {
+      ++queue_extractions;
       sharedData.nodeTracker.deactivateNode(m.node, thisSearch);
       MoveID move_id = std::numeric_limits<MoveID>::max();
       const bool moved = m.to != kInvalidPartition
                          && phg.changeNodePartFullUpdate(m.node, m.from, m.to, max_part_weight, [&] { move_id = sharedData.moveTracker.insertMove(m); });
       if (moved) {
         updateAfterSuccessfulMove(phg, sharedData, m);
-
         estimatedImprovement += m.gain;
-
+        localMoves.push_back(move_id);
         if (estimatedImprovement >= bestImprovement) {
           bestImprovement = estimatedImprovement;
           bestImprovementIndex = localMoves.size();
         }
-        localMoves.push_back(move_id);
-
         consecutiveNonPositiveGainMoves = m.gain > 0 ? 0 : consecutiveNonPositiveGainMoves + 1;
         consecutiveMovesWithNegativeOverallGain = estimatedImprovement >= 0 ? 0 : consecutiveMovesWithNegativeOverallGain + 1;
+
+        LOG << V(m.gain) << V(estimatedImprovement) << V(bestImprovement);
       }
       updateAfterMoveExtraction(phg, m);
     }
@@ -86,7 +86,7 @@ public:
     for (PartitionID i = 0; i < numParts; ++i) {
       vertexPQs[i].clear();
     }
-    //LOG << V(estimatedImprovement);
+    LOG << V(bestImprovement) << V(bestImprovementIndex) << V(consecutiveNonPositiveGainMoves) << V(queue_extractions);
   }
 
   void updateBlock(PartitionedHypergraph& phg, PartitionID i) {
