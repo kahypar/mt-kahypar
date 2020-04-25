@@ -197,6 +197,8 @@ private:
   template<typename F>
   bool changeNodePartFullUpdate(
           const HypernodeID u, PartitionID from, PartitionID to, HypernodeWeight max_weight_to, F&& report_success) {
+    assert(partID(u) == from);
+    assert(from != to);
     const HypernodeWeight wu = nodeWeight(u);
     const HypernodeWeight to_weight_after = part_weight[to].add_fetch(wu, std::memory_order_relaxed);
     if (to_weight_after <= max_weight_to) {

@@ -117,6 +117,8 @@ public:
     BestIndexReduceBody b(gains, in_balance);
     tbb::parallel_reduce(tbb::blocked_range<MoveID>(0, numMoves), b, tbb::static_partitioner()); // find best index
 
+    LOG << V(b.best_index) << V(b.best_sum);
+
     timer.stop_timer("find_best_prefix");
     timer.start_timer("revert_and_rem_orig_pin_updates", "Revert Moves and apply updates");
 
@@ -124,10 +126,11 @@ public:
       // revert rejected moves
       tbb::parallel_for(b.best_index, numMoves, [&](const MoveID moveID) {
         const Move& m = move_order[moveID];
-        phg.changeNodePartFullUpdate(m.node, m.to, m.from, std::numeric_limits<HypernodeWeight>::max(), []{/* do nothing */});
-        if (sharedData.moveTracker.isMoveStillValid(m))
+        if (sharedData.moveTracker.isMoveStillValid(m)) {
+          phg.changeNodePartFullUpdate(m.node, m.to, m.from, std::numeric_limits<HypernodeWeight>::max(), []{/* do nothing */});
           for (HyperedgeID e : phg.incidentEdges(m.node))
             remaining_original_pins[e * numParts + m.from].fetch_add(1, std::memory_order_relaxed);
+        }
       });
     }, [&] {
       // apply updates to remaining original pins
