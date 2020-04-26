@@ -80,25 +80,42 @@ public:
       vec<HypernodeWeight> initialPartWeights(size_t(sharedData.numParts));
       for (PartitionID i = 0; i < sharedData.numParts; ++i) initialPartWeights[i] = phg.partWeight(i);
 
-      auto task = [&](const int socket, const int socket_local_task_id, const int task_id) {
-        unused(socket_local_task_id); unused(task_id);
-        HypernodeID u = std::numeric_limits<HypernodeID>::max();
-        LocalizedKWayFM& fm = ets_fm.local();
-        while (refinementNodes.tryPop(u, socket)) {
-          if (sharedData.nodeTracker.canNodeStartNewSearch(u)) {
-            fm.findMoves(phg, u, sharedData, ++sharedData.nodeTracker.highestActiveSearchID);
+      if (context.refinement.fm.init_neighbors) {
+        auto task = [&](const int socket, const int socket_local_task_id, const int task_id) {
+          unused(socket_local_task_id); unused(task_id);
+          HypernodeID u = std::numeric_limits<HypernodeID>::max();
+          LocalizedKWayFM& fm = ets_fm.local();
+          while (refinementNodes.tryPop(u, socket)) {
+            if (sharedData.nodeTracker.canNodeStartNewSearch(u)) {
+              fm.findMoves(phg, sharedData, ++sharedData.nodeTracker.highestActiveSearchID, u);
+            }
           }
-        }
-      };
-      TBBNumaArena::instance().run_max_concurrency_tasks_on_all_sockets(taskGroupID, task);
-      //task(0,0,0);
+        };
+        TBBNumaArena::instance().run_max_concurrency_tasks_on_all_sockets(taskGroupID, task);
+        //task(0,0,0);
+      } else {
+        // Try boundary FM
+        LOG << "start FM" << V(sharedData.moveTracker.numPerformedMoves());
+        vec<HypernodeID> test_refinement_nodes;
+        for (HypernodeID u = 0; u < phg.initialNumNodes(); ++u)
+          if (context.refinement.fm.all_nodes || phg.isBorderNode(u))
+            test_refinement_nodes.push_back(u);
+        LocalizedKWayFM& fm = ets_fm.local();
+        fm.findMoves(phg, sharedData, ++sharedData.nodeTracker.highestActiveSearchID, test_refinement_nodes);
+      }
+
+      FMStats stats;
+      for (auto& fm : ets_fm) {
+        fm.stats.merge(stats);
+      }
+      LOG << "Overall stats" << stats.serialize() << V(sharedData.moveTracker.numPerformedMoves());
+
       refinementNodes.clear();  // calling clear is necessary since tryPop will reduce the size to -(num calling threads)
 
       timer.stop_timer("find_moves");
       timer.start_timer("rollback", "Rollback to Best Solution");
 
-      HyperedgeWeight improvement = globalRollback.revertToBestPrefix(phg, sharedData, initialPartWeights,
-                                                                      context.partition.max_part_weights[0]);
+      HyperedgeWeight improvement = globalRollback.revertToBestPrefix(phg, sharedData, initialPartWeights, context.partition.max_part_weights[0]);
       overall_improvement += improvement;
 
       timer.stop_timer("rollback");
@@ -109,12 +126,6 @@ public:
     }
 
     timer.stop_timer("fm");
-
-    FMStats stats;
-    for (auto& fm : ets_fm) {
-      fm.stats.merge(stats);
-    }
-    LOG << stats.serialize();
 
     // sharedData.partition_weight_budgets.updatePartWeights(phg, context.partition.max_part_weights);  // only for version with budgets
     return overall_improvement;
