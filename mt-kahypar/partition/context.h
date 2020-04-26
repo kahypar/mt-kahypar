@@ -194,6 +194,7 @@ struct FMParameters {
   bool shuffle = true;
   size_t max_number_of_fruitless_moves = 250;
   size_t multitry_rounds = 4;
+  bool init_neighbors = false;
 };
 
 inline std::ostream& operator<<(std::ostream& out, const FMParameters& params) {
