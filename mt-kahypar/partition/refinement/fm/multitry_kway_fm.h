@@ -69,7 +69,7 @@ public:
     //sharedData.partition_weight_budgets.initialize(phg, context.partition.max_part_weights);          // only for version with budgets
 
     Gain overall_improvement = 0;
-    for (size_t round = 0; round < context.refinement.fm.multitry_rounds; ++round) {                    // global multi try rounds
+    for (size_t round = 0; round < context.refinement.fm.rounds; ++round) {                    // global multi try rounds
       timer.start_timer("collect_border_nodes", "Collect Border Nodes");
 
       initialize(phg);
