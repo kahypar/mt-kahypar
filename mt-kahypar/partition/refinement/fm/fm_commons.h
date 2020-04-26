@@ -109,7 +109,7 @@ struct NodeTracker {
   }
 
   // should not be called when searches try to claim nodes
-  void activateNode(HypernodeID u) {
+  void releaseNode(HypernodeID u) {
     searchOfNode[u].store(0, std::memory_order_relaxed);
   }
 
@@ -170,19 +170,29 @@ struct FMSharedData {
 
 struct FMStats {
   size_t retries = 0;
+  size_t extractions = 0;
+  size_t pushes = 0;
+  size_t moves = 0;
+
 
   void clear() {
     retries = 0;
+    extractions = 0;
+    pushes = 0;
+    moves = 0;
   }
 
   void merge(FMStats& other) {
     other.retries += retries;
+    other.extractions += extractions;
+    other.pushes += pushes;
+    other.moves += moves;
     clear();
   }
 
   std::string serialize() {
     std::stringstream os;
-    os << V(retries);
+    os << V(retries) << " " << V(extractions) << " " << V(moves);
     return os.str();
   }
 };
