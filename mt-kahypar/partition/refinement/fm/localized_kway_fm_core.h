@@ -138,18 +138,14 @@ public:
     updateDeduplicator.clear();
   }
 
-  void updateAfterSuccessfulMove(PartitionedHypergraph& phg, FMSharedData& sharedData, Move& m) {
-    const HypernodeID u = m.node;
-    for (HyperedgeID e : phg.incidentEdges(u)) {
-      if (phg.edgeSize(e) < context.partition.hyperedge_size_threshold) {
-        for (HypernodeID v : phg.pins(e)) {
+  void insertOrUpdateNeighbors(PartitionedHypergraph& phg, FMSharedData& sharedData, HypernodeID u) {
+    for (HyperedgeID e : phg.incidentEdges(u))
+      if (phg.edgeSize(e) < context.partition.hyperedge_size_threshold)
+        for (HypernodeID v : phg.pins(e))
           if (!updateDeduplicator.contains(v)) {
             updateDeduplicator.insert(v);
             insertOrUpdatePQ(phg, v, sharedData.nodeTracker);
           }
-        }
-      }
-    }
   }
 
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
@@ -171,7 +167,7 @@ public:
   };
 
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
-  void insertOrUpdatePQ(PartitionedHypergraph& phg, HypernodeID v, NodeTracker& nt) {
+  bool insertOrUpdatePQ(PartitionedHypergraph& phg, HypernodeID v, NodeTracker& nt) {
     SearchID searchOfV = nt.searchOfNode[v].load(std::memory_order_acq_rel);
     // Note. Deactivated nodes have a special active search ID so that neither branch is executed
     if (nt.isSearchInactive(searchOfV)) {
@@ -179,6 +175,8 @@ public:
         const PartitionID pv = phg.partID(v);
         const Gain gain = bestDestinationBlock(phg, v).second;
         vertexPQs[pv].insert(v, gain);  // blockPQ updates are done later, collectively.
+        runStats.pushes++;
+        return true;
       }
     } else if (searchOfV == thisSearch) {
       const PartitionID pv = phg.partID(v);
@@ -189,7 +187,9 @@ public:
       // if these gains are better than vertexPQ[pv].keyOf(v), we could increase the key
       // however, this is incorrect if this entry is for the target move.from or move.to.
       // since we don't store this information (on purpose), we can't easily figure that out
+      return true;
     }
+    return false;
   }
 
   bool findNextMove(PartitionedHypergraph& phg, Move& m) {
