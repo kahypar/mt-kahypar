@@ -124,13 +124,13 @@ public:
     }
   }
 
-  void updateAfterMoveExtraction(PartitionedHypergraph& phg, Move& m) {
+  void updateBlocks(PartitionedHypergraph& phg, PartitionID moved_from) {
     if (updateDeduplicator.size() >= size_t(numParts)) {
       for (PartitionID i = 0; i < numParts; ++i) {
         updateBlock(phg, i);
       }
     } else {
-      updateBlock(phg, m.from);
+      updateBlock(phg, moved_from);
       for (const HypernodeID v : updateDeduplicator.keys()) {
         updateBlock(phg, phg.partID(v));
       }
