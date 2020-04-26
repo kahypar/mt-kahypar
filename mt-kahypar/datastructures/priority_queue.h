@@ -145,7 +145,7 @@ public:
     return heap[positions[id]].key;
   }
 
-  IdT id(const PosT pos) const {
+  IdT at(const PosT pos) const {
     return heap[pos].id;
   }
 
