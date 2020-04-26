@@ -115,6 +115,7 @@ enum class LabelPropagationAlgorithm : uint8_t {
   do_nothing
 };
 
+
 std::ostream & operator<< (std::ostream& os, const Type& type) {
   switch (type) {
     case Type::Unweighted: return os << "unweighted";
