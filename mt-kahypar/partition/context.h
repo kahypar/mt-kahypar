@@ -193,15 +193,16 @@ struct FMParameters {
   bool numa_aware = false;
   bool shuffle = true;
   size_t max_number_of_fruitless_moves = 250;
-  size_t multitry_rounds = 4;
+  size_t rounds = 4;
   bool init_neighbors = false;
+  bool all_nodes = false;
 };
 
 inline std::ostream& operator<<(std::ostream& out, const FMParameters& params) {
   out << "  FM Parameters: \n";
   out << "    Numa Aware:                       " << std::boolalpha << params.numa_aware << "\n";
   out << "    Shuffle:                          " << std::boolalpha << params.shuffle << "\n";
-  out << "    Multiy-Try Rounds:                " << params.multitry_rounds << "\n";
+  out << "    Rounds:                           " << params.rounds << "\n";
   out << std::flush;
   return out;
 }
