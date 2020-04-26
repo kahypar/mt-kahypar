@@ -205,10 +205,11 @@ public:
       if (gain >= estimated_gain) { // accept any gain that is at least as good
         m.node = u; m.to = to; m.from = from;
         m.gain = gain;
+        runStats.extractions++;
         vertexPQs[from].deleteTop();  // blockPQ updates are done later, collectively.
         return true;
       } else {
-        stats.retries++;
+        runStats.retries++;
         vertexPQs[from].adjustKey(u, gain);
         if (vertexPQs[from].topKey() != blockPQ.keyOf(from)) {
           blockPQ.adjustKey(from, vertexPQs[from].topKey());
@@ -245,9 +246,9 @@ private:
   const Context& context;
   HypernodeWeight max_part_weight, perfect_balance_part_weight, min_part_weight;
 
+  FMStats runStats;
 public:
   vec<MoveID> localMoves;
-
   FMStats stats;
 };
 
