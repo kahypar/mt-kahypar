@@ -99,18 +99,20 @@ public:
         consecutiveNonPositiveGainMoves = m.gain > 0 ? 0 : consecutiveNonPositiveGainMoves + 1;
         consecutiveMovesWithNegativeOverallGain = estimatedImprovement >= 0 ? 0 : consecutiveMovesWithNegativeOverallGain + 1;
 
-        LOG << V(m.gain) << V(estimatedImprovement) << V(bestImprovement);
+        //LOG << V(m.gain) << V(estimatedImprovement) << V(bestImprovement);
       }
-      updateAfterMoveExtraction(phg, m);
+      updateBlocks(phg, m.from);
     }
 
     revertToBestLocalPrefix(phg, sharedData, bestImprovementIndex);
 
     blockPQ.clear();
     for (PartitionID i = 0; i < numParts; ++i) {
+      //for (PosT j = 0; j < vertexPQs[i].size(); ++j) sharedData.nodeTracker.releaseNode(vertexPQs[i].at(j));
       vertexPQs[i].clear();
     }
-    LOG << V(bestImprovement) << V(bestImprovementIndex) << V(consecutiveNonPositiveGainMoves) << V(queue_extractions);
+    //LOG << V(bestImprovement) << V(bestImprovementIndex) << V(consecutiveNonPositiveGainMoves) << runStats.serialize();
+    runStats.merge(stats);
   }
 
   void updateBlock(PartitionedHypergraph& phg, PartitionID i) {
