@@ -48,24 +48,48 @@ public:
 
   }
 
-
-  void findMoves(PartitionedHypergraph& phg, const HypernodeID initialBorderNode, FMSharedData& sharedData, SearchID search_id) {
+  void findMoves(PartitionedHypergraph& phg, FMSharedData& sharedData, SearchID search_id, vec<HypernodeID>& initialNodes) {
     thisSearch = search_id;
-    localMoves.clear();
-    insertOrUpdatePQ(phg, initialBorderNode, sharedData.nodeTracker);
-    updateBlock(phg, phg.partID(initialBorderNode));
 
+    for (HypernodeID u : initialNodes)
+      insertOrUpdatePQ(phg, u, sharedData.nodeTracker);
+
+    for (PartitionID i = 0; i < numParts; ++i)
+      updateBlock(phg, i);
+
+    internal__findMoves(phg, sharedData);
+  }
+
+  void findMoves(PartitionedHypergraph& phg, FMSharedData& sharedData, SearchID search_id, HypernodeID initialBorderNode) {
+    thisSearch = search_id;
+    if (insertOrUpdatePQ(phg, initialBorderNode, sharedData.nodeTracker)) {
+      if (context.refinement.fm.init_neighbors) {
+        updateDeduplicator.insert(initialBorderNode);
+        insertOrUpdateNeighbors(phg, sharedData, initialBorderNode);
+        updateBlocks(phg, phg.partID(initialBorderNode));
+      } else {
+        updateBlock(phg, phg.partID(initialBorderNode));
+      }
+      internal__findMoves(phg, sharedData);
+    }
+  }
+
+  // assumes the PQs have been initialized
+  void internal__findMoves(PartitionedHypergraph& phg, FMSharedData& sharedData) {
+    localMoves.clear();
     Move m;
-    size_t consecutiveNonPositiveGainMoves = 0, consecutiveMovesWithNegativeOverallGain = 0, bestImprovementIndex = 0, queue_extractions = 0;
+    size_t consecutiveNonPositiveGainMoves = 0, consecutiveMovesWithNegativeOverallGain = 0, bestImprovementIndex = 0;
     Gain estimatedImprovement = 0, bestImprovement = 0;
-    while (consecutiveNonPositiveGainMoves < context.refinement.fm.max_number_of_fruitless_moves && findNextMove(phg, m)) {
-      ++queue_extractions;
+    while (consecutiveNonPositiveGainMoves < context.refinement.fm.max_number_of_fruitless_moves
+           && estimatedImprovement > -100   // TODO parameter? --> start work on stopping rule on Monday
+           && findNextMove(phg, m)) {
       sharedData.nodeTracker.deactivateNode(m.node, thisSearch);
       MoveID move_id = std::numeric_limits<MoveID>::max();
       const bool moved = m.to != kInvalidPartition
                          && phg.changeNodePartFullUpdate(m.node, m.from, m.to, max_part_weight, [&] { move_id = sharedData.moveTracker.insertMove(m); });
       if (moved) {
-        updateAfterSuccessfulMove(phg, sharedData, m);
+        runStats.moves++;
+        insertOrUpdateNeighbors(phg, sharedData, m.node);
         estimatedImprovement += m.gain;
         localMoves.push_back(move_id);
         if (estimatedImprovement >= bestImprovement) {
