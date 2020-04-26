@@ -87,6 +87,9 @@ public:
           LocalizedKWayFM& fm = ets_fm.local();
           while (refinementNodes.tryPop(u, socket)) {
             if (sharedData.nodeTracker.canNodeStartNewSearch(u)) {
+              // TODO for tomorrow: insert a certain number of boundary nodes at once --> needs support in the initialization code
+              // could be something like while (runStats.pushes <= limit && refinementNodes.tryPop(u)) { insert(u); if (initNeighbors) insertNeighbors(u); }
+              // parameter choices? constant fraction of |V| ? constant number ? dependent on num threads ? 
               fm.findMoves(phg, sharedData, ++sharedData.nodeTracker.highestActiveSearchID, u);
             }
           }
