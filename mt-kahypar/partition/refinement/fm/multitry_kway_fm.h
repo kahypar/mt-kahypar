@@ -22,7 +22,6 @@
 
 #include <tbb/parallel_for_each.h>
 
-#include <mt-kahypar/parallel/numa_work_queue.h>
 #include <mt-kahypar/partition/context.h>
 #include <mt-kahypar/utils/timer.h>
 
@@ -44,7 +43,6 @@ public:
           context(context),
           taskGroupID(taskGroupID),
           sharedData(numNodes, context.partition.k, context.shared_memory.num_threads),
-          refinementNodes(numNodes),
           globalRollback(numNodes, numHyperedges, context.partition.k),
           ets_fm(context, numNodes, sharedData.vertexPQHandles.data())
   { }
@@ -85,7 +83,7 @@ public:
           unused(socket_local_task_id); unused(task_id);
           HypernodeID u = std::numeric_limits<HypernodeID>::max();
           LocalizedKWayFM& fm = ets_fm.local();
-          while (refinementNodes.tryPop(u, socket)) {
+          while (sharedData.refinementNodes.tryPop(u, socket)) {
             if (sharedData.nodeTracker.canNodeStartNewSearch(u)) {
               // TODO for tomorrow: insert a certain number of boundary nodes at once --> needs support in the initialization code
               // could be something like while (runStats.pushes <= limit && refinementNodes.tryPop(u)) { insert(u); if (initNeighbors) insertNeighbors(u); }
@@ -113,7 +111,7 @@ public:
       }
       LOG << "Overall stats" << stats.serialize() << V(sharedData.moveTracker.numPerformedMoves());
 
-      refinementNodes.clear();  // calling clear is necessary since tryPop will reduce the size to -(num calling threads)
+      sharedData.refinementNodes.clear();  // calling clear is necessary since tryPop will reduce the size to -(num calling threads)
 
       timer.stop_timer("find_moves");
       timer.start_timer("rollback", "Rollback to Best Solution");
@@ -136,21 +134,21 @@ public:
 
   void initialize(PartitionedHypergraph& phg) {
     // insert border nodes into work queues
-    refinementNodes.clear();
+    sharedData.refinementNodes.clear();
     tbb::parallel_for(HypernodeID(0), phg.initialNumNodes(), [&](const HypernodeID u) {
     //for (NodeID u = 0; u < phg.initialNumNodes(); ++u)
       if (phg.isBorderNode(u)) {
-        refinementNodes.push(u, common::get_numa_node_of_vertex(u));
+        sharedData.refinementNodes.push(u, common::get_numa_node_of_vertex(u));
       }
     });
 
     // requesting new searches activates all nodes by raising the deactivated node marker
     // also clears the array tracking search IDs in case of overflow
-    sharedData.nodeTracker.requestNewSearches(static_cast<SearchID>(refinementNodes.unsafe_size()));
+    sharedData.nodeTracker.requestNewSearches(static_cast<SearchID>(sharedData.refinementNodes.unsafe_size()));
 
     // shuffle work queues if requested
     if (context.refinement.fm.shuffle) {
-      refinementNodes.shuffleQueues();
+      sharedData.refinementNodes.shuffleQueues();
     }
 
   }
@@ -159,7 +157,6 @@ public:
   const Context& context;
   const TaskGroupID taskGroupID;
   FMSharedData sharedData;
-  NumaWorkQueue<HypernodeID> refinementNodes;
   GlobalRollback globalRollback;
   tbb::enumerable_thread_specific<LocalizedKWayFM> ets_fm;
 };

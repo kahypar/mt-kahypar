@@ -23,6 +23,8 @@
 
 #include <mt-kahypar/definitions.h>
 #include <mt-kahypar/datastructures/priority_queue.h>
+#include <mt-kahypar/parallel/numa_work_queue.h>
+
 #include "partition_weight_budgets.h"
 
 #include <tbb/parallel_for.h>
@@ -137,6 +139,7 @@ struct FMSharedData {
 
   //PartitionWeightBudgets partition_weight_budgets;
 
+  NumaWorkQueue<HypernodeID> refinementNodes;
 
   vec<PosT> vertexPQHandles;
 
@@ -148,6 +151,7 @@ struct FMSharedData {
 
   FMSharedData(size_t numNodes = 0, PartitionID numParts = 0, size_t maxNumThreads = 0) :
           //partition_weight_budgets(static_cast<size_t>(numParts), maxNumThreads),
+          refinementNodes(numNodes),
           vertexPQHandles(numNodes, invalid_position),
           numParts(numParts),
           moveTracker(numNodes),
