@@ -27,7 +27,7 @@
 
 #include "fm_commons.h"
 #include "clearlist.hpp"
-
+#include "stop_rule.h"
 
 namespace mt_kahypar {
 namespace refinement {
@@ -77,12 +77,11 @@ public:
   // assumes the PQs have been initialized
   void internal__findMoves(PartitionedHypergraph& phg, FMSharedData& sharedData) {
     localMoves.clear();
+    StopRule stopRule(phg.initialNumNodes());
     Move m;
-    size_t consecutiveNonPositiveGainMoves = 0, consecutiveMovesWithNegativeOverallGain = 0, bestImprovementIndex = 0;
+    size_t bestImprovementIndex = 0;
     Gain estimatedImprovement = 0, bestImprovement = 0;
-    while (consecutiveNonPositiveGainMoves < context.refinement.fm.max_number_of_fruitless_moves
-           && estimatedImprovement > -100   // TODO parameter? --> start work on stopping rule on Monday
-           && findNextMove(phg, m)) {
+    while (!stopRule.searchShouldStop() && findNextMove(phg, m)) {
       sharedData.nodeTracker.deactivateNode(m.node, thisSearch);
       MoveID move_id = std::numeric_limits<MoveID>::max();
       const bool moved = m.to != kInvalidPartition
@@ -93,11 +92,10 @@ public:
         estimatedImprovement += m.gain;
         localMoves.push_back(move_id);
         if (estimatedImprovement >= bestImprovement) {
+          stopRule.reset();
           bestImprovement = estimatedImprovement;
           bestImprovementIndex = localMoves.size();
         }
-        consecutiveNonPositiveGainMoves = m.gain > 0 ? 0 : consecutiveNonPositiveGainMoves + 1;
-        consecutiveMovesWithNegativeOverallGain = estimatedImprovement >= 0 ? 0 : consecutiveMovesWithNegativeOverallGain + 1;
 
         //LOG << V(m.gain) << V(estimatedImprovement) << V(bestImprovement);
       }
