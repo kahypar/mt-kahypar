@@ -194,6 +194,7 @@ struct FMParameters {
   bool shuffle = true;
   size_t max_number_of_fruitless_moves = 250;
   size_t rounds = 4;
+  size_t initial_nodes = 20;
   bool init_neighbors = false;
   bool all_nodes = false;
 };
