@@ -26,7 +26,7 @@
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/partition/factories.h"
 #include "mt-kahypar/partition/refinement/do_nothing_refiner.h"
-#include "mt-kahypar/partition/refinement/label_propagation_refiner.h"
+#include "mt-kahypar/partition/refinement/label_propagation/label_propagation_refiner.h"
 
 #define REGISTER_LP_REFINER(id, refiner, t)                                                                          \
   static kahypar::meta::Registrar<LabelPropagationFactory> JOIN(register_ ## refiner, t)(                            \

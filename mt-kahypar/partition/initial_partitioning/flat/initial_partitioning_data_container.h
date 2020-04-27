@@ -27,7 +27,7 @@
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/partition/metrics.h"
 #include "mt-kahypar/partition/refinement/i_refiner.h"
-#include "mt-kahypar/partition/refinement/label_propagation_refiner.h"
+#include "mt-kahypar/partition/refinement/label_propagation/label_propagation_refiner.h"
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
 #include "mt-kahypar/utils/initial_partitioning_stats.h"
 
@@ -128,7 +128,7 @@ class InitialPartitioningDataContainerT {
 
       if ( _label_propagation ) {
         _label_propagation->initialize(_partitioned_hypergraph);
-        _label_propagation->refine(_partitioned_hypergraph, {}, current_metric);
+        _label_propagation->refine(_partitioned_hypergraph, current_metric);
       }
 
       PartitioningResult result(algorithm,

@@ -90,7 +90,6 @@ class LabelPropagationRefinerT final : public IRefinerT<TypeTraits, track_border
 
  private:
   bool refineImpl(HyperGraph& hypergraph,
-                  const parallel::scalable_vector<HypernodeID>&,
                   kahypar::Metrics& best_metrics) override final {
     _gain.reset();
 

@@ -25,7 +25,7 @@
 #include "mt-kahypar/io/hypergraph_io.h"
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/partition/initial_partitioning/flat/bfs_initial_partitioner.h"
-#include "mt-kahypar/partition/refinement/label_propagation_refiner.h"
+#include "mt-kahypar/partition/refinement/label_propagation/label_propagation_refiner.h"
 #include "mt-kahypar/partition/refinement/policies/gain_policy.h"
 #include "mt-kahypar/utils/randomize.h"
 
@@ -152,24 +152,24 @@ typedef ::testing::Types<TestConfig<2, kahypar::Objective::cut>,
 TYPED_TEST_CASE(ALabelPropagationRefiner, TestConfigs);
 
 TYPED_TEST(ALabelPropagationRefiner, UpdatesImbalanceCorrectly) {
-  this->refiner->refine(this->partitioned_hypergraph, { }, this->metrics);
+  this->refiner->refine(this->partitioned_hypergraph, this->metrics);
   ASSERT_DOUBLE_EQ(metrics::imbalance(this->partitioned_hypergraph, this->context), this->metrics.imbalance);
 }
 
 TYPED_TEST(ALabelPropagationRefiner, DoesNotViolateBalanceConstraint) {
-  this->refiner->refine(this->partitioned_hypergraph, { }, this->metrics);
+  this->refiner->refine(this->partitioned_hypergraph, this->metrics);
   ASSERT_LE(this->metrics.imbalance, this->context.partition.epsilon + EPS);
 }
 
 TYPED_TEST(ALabelPropagationRefiner, UpdatesMetricsCorrectly) {
-  this->refiner->refine(this->partitioned_hypergraph, { }, this->metrics);
+  this->refiner->refine(this->partitioned_hypergraph, this->metrics);
   ASSERT_EQ(metrics::objective(this->partitioned_hypergraph, this->context.partition.objective),
             this->metrics.getMetric(kahypar::Mode::direct_kway, this->context.partition.objective));
 }
 
 TYPED_TEST(ALabelPropagationRefiner, DoesNotWorsenSolutionQuality) {
   HyperedgeWeight objective_before = metrics::objective(this->partitioned_hypergraph, this->context.partition.objective);
-  this->refiner->refine(this->partitioned_hypergraph, { }, this->metrics);
+  this->refiner->refine(this->partitioned_hypergraph, this->metrics);
   ASSERT_LE(this->metrics.getMetric(kahypar::Mode::direct_kway, this->context.partition.objective), objective_before);
 }
 }  // namespace mt_kahypar

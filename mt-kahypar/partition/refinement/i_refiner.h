@@ -50,9 +50,8 @@ class IRefinerT {
   }
 
   bool refine(HyperGraph& hypergraph,
-              const parallel::scalable_vector<HypernodeID>& refinement_nodes,
               kahypar::Metrics& best_metrics) {
-    return refineImpl(hypergraph, refinement_nodes, best_metrics);
+    return refineImpl(hypergraph, best_metrics);
   }
 
  protected:
@@ -62,7 +61,6 @@ class IRefinerT {
   virtual void initializeImpl(HyperGraph& hypergraph) = 0;
 
   virtual bool refineImpl(HyperGraph& hypergraph,
-                          const parallel::scalable_vector<HypernodeID>& refinement_nodes,
                           kahypar::Metrics& best_metrics) = 0;
 };
 
