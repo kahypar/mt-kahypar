@@ -69,7 +69,7 @@ class TBBNumaArena {
   TBBNumaArena(TBBNumaArena&&) = delete;
   TBBNumaArena & operator= (TBBNumaArena &&) = delete;
 
-  static TBBNumaArena& instance(const size_t num_threads = 1) {
+  static TBBNumaArena& instance(const size_t num_threads = std::thread::hardware_concurrency()) {
     static TBBNumaArena instance(num_threads);
     return instance;
   }
