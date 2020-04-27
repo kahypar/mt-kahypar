@@ -91,6 +91,7 @@ public:
         insertOrUpdateNeighbors(phg, sharedData, m.node);
         estimatedImprovement += m.gain;
         localMoves.push_back(move_id);
+        stopRule.update(m.gain);
         if (estimatedImprovement >= bestImprovement) {
           stopRule.reset();
           bestImprovement = estimatedImprovement;
