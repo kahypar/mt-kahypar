@@ -78,19 +78,11 @@ public:
       vec<HypernodeWeight> initialPartWeights(size_t(sharedData.numParts));
       for (PartitionID i = 0; i < sharedData.numParts; ++i) initialPartWeights[i] = phg.partWeight(i);
 
-      if (context.refinement.fm.init_neighbors) {
+      if (context.refinement.fm.multitry) {
         auto task = [&](const int socket, const int socket_local_task_id, const int task_id) {
           unused(socket_local_task_id); unused(task_id);
-          HypernodeID u = std::numeric_limits<HypernodeID>::max();
           LocalizedKWayFM& fm = ets_fm.local();
-          while (sharedData.refinementNodes.tryPop(u, socket)) {
-            if (sharedData.nodeTracker.canNodeStartNewSearch(u)) {
-              // TODO for tomorrow: insert a certain number of boundary nodes at once --> needs support in the initialization code
-              // could be something like while (runStats.pushes <= limit && refinementNodes.tryPop(u)) { insert(u); if (initNeighbors) insertNeighbors(u); }
-              // parameter choices? constant fraction of |V| ? constant number ? dependent on num threads ?
-              fm.findMoves(phg, sharedData, ++sharedData.nodeTracker.highestActiveSearchID, u);
-            }
-          }
+          while(fm.findMoves(phg, sharedData)) { /* keep running */ }
         };
         TBBNumaArena::instance().run_max_concurrency_tasks_on_all_sockets(taskGroupID, task);
         //task(0,0,0);
@@ -102,7 +94,7 @@ public:
           if (context.refinement.fm.all_nodes || phg.isBorderNode(u))
             test_refinement_nodes.push_back(u);
         LocalizedKWayFM& fm = ets_fm.local();
-        fm.findMoves(phg, sharedData, ++sharedData.nodeTracker.highestActiveSearchID, test_refinement_nodes);
+        fm.findMoves(phg, sharedData, test_refinement_nodes);
       }
 
       FMStats stats;
