@@ -48,8 +48,8 @@ public:
 
   }
 
-  void findMoves(PartitionedHypergraph& phg, FMSharedData& sharedData, SearchID search_id, vec<HypernodeID>& initialNodes) {
-    thisSearch = search_id;
+  bool findMoves(PartitionedHypergraph& phg, FMSharedData& sharedData, vec<HypernodeID>& initialNodes) {
+    thisSearch = ++sharedData.nodeTracker.highestActiveSearchID;
 
     for (HypernodeID u : initialNodes)
       insertOrUpdatePQ(phg, u, sharedData.nodeTracker);
@@ -58,19 +58,39 @@ public:
       updateBlock(phg, i);
 
     internal__findMoves(phg, sharedData);
+
+    return true;
   }
 
-  void findMoves(PartitionedHypergraph& phg, FMSharedData& sharedData, SearchID search_id, HypernodeID initialBorderNode) {
-    thisSearch = search_id;
-    if (insertOrUpdatePQ(phg, initialBorderNode, sharedData.nodeTracker)) {
-      if (context.refinement.fm.init_neighbors) {
-        updateDeduplicator.insert(initialBorderNode);
-        insertOrUpdateNeighbors(phg, sharedData, initialBorderNode);
-        updateBlocks(phg, phg.partID(initialBorderNode));
-      } else {
-        updateBlock(phg, phg.partID(initialBorderNode));
+  bool findMoves(PartitionedHypergraph& phg, FMSharedData& sharedData, HypernodeID initialBorderNode = invalidNode) {
+    thisSearch = ++sharedData.nodeTracker.highestActiveSearchID;
+
+    if (initialBorderNode == invalidNode) {
+      while (runStats.pushes <= context.refinement.fm.initial_nodes && sharedData.refinementNodes.tryPop(initialBorderNode)) {
+        if (!updateDeduplicator.contains(initialBorderNode)
+            && insertOrUpdatePQ(phg, initialBorderNode, sharedData.nodeTracker) && context.refinement.fm.init_neighbors) {
+          updateDeduplicator.insert(initialBorderNode);
+          insertOrUpdateNeighbors(phg, sharedData, initialBorderNode);
+        }
       }
+      updateBlocks(phg, kInvalidPartition);
+    } else {
+      if (insertOrUpdatePQ(phg, initialBorderNode, sharedData.nodeTracker)) {
+        if (context.refinement.fm.init_neighbors) {
+          updateDeduplicator.insert(initialBorderNode);
+          insertOrUpdateNeighbors(phg, sharedData, initialBorderNode);
+          updateBlocks(phg, phg.partID(initialBorderNode));
+        } else {
+          updateBlock(phg, phg.partID(initialBorderNode));
+        }
+      }
+    }
+
+    if (runStats.pushes > 0) {
       internal__findMoves(phg, sharedData);
+      return true;
+    } else {
+      return false;
     }
   }
 
@@ -124,7 +144,7 @@ public:
   }
 
   void updateBlocks(PartitionedHypergraph& phg, PartitionID moved_from) {
-    if (updateDeduplicator.size() >= size_t(numParts)) {
+    if (moved_from == kInvalidPartition || updateDeduplicator.size() >= size_t(numParts)) {
       for (PartitionID i = 0; i < numParts; ++i) {
         updateBlock(phg, i);
       }
