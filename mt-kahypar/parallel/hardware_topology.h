@@ -230,6 +230,16 @@ class HardwareTopology {
     return cpu_id;
   }
 
+  // ! Set membind policy to interleaved allocations on used NUMA nodes
+  void set_interleaved_membind_policy() const {
+    hwloc_nodeset_t nodeset = hwloc_bitmap_alloc();
+    for ( size_t node = 0; node < num_numa_nodes(); ++node ) {
+      hwloc_bitmap_set(nodeset, node);
+    }
+    hwloc_set_membind(_topology, nodeset, HWLOC_MEMBIND_INTERLEAVE, HWLOC_MEMBIND_BYNODESET);
+    hwloc_bitmap_free(nodeset);
+  }
+
  private:
   HardwareTopology() :
     _num_cpus(0),
