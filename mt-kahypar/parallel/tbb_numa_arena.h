@@ -19,6 +19,7 @@
  ******************************************************************************/
 #pragma once
 
+#include <hwloc.h>
 #include <mutex>
 #include <memory>
 #include <shared_mutex>
@@ -85,6 +86,16 @@ class TBBNumaArena {
 
   int num_used_numa_nodes() const {
     return _arenas.size();
+  }
+
+  hwloc_cpuset_t used_cpuset() const {
+    hwloc_cpuset_t cpuset = hwloc_bitmap_alloc();
+    for ( const auto& numa_node : _numa_node_to_cpu_id ) {
+      for ( const int cpu_id : numa_node ) {
+        hwloc_bitmap_set(cpuset, cpu_id);
+      }
+    }
+    return cpuset;
   }
 
   int choose_random_numa_node() const {
@@ -193,7 +204,7 @@ class TBBNumaArena {
     _task_group_read_write_mutex(),
     _groups(1),
     _observer(),
-    _cpus_to_numa_node() {
+    _numa_node_to_cpu_id() {
     HwTopology& topology = HwTopology::instance();
     int num_numa_nodes = topology.num_numa_nodes();
     DBG << "Initialize TBB with" << num_threads << "threads";
@@ -223,14 +234,14 @@ class TBBNumaArena {
     }
     _global_observer = std::make_unique<ThreadPinningObserver>(cpus);
 
-    _cpus_to_numa_node.resize(num_numa_nodes);
+    _numa_node_to_cpu_id.resize(num_numa_nodes);
     for ( const int cpu_id : cpus ) {
       int node = topology.numa_node_of_cpu(cpu_id);
-      ASSERT(node < static_cast<int>(_cpus_to_numa_node.size()));
-      _cpus_to_numa_node[node].push_back(cpu_id);
+      ASSERT(node < static_cast<int>(_numa_node_to_cpu_id.size()));
+      _numa_node_to_cpu_id[node].push_back(cpu_id);
     }
-    while( !_cpus_to_numa_node.empty() && _cpus_to_numa_node.back().empty() ) {
-      _cpus_to_numa_node.pop_back();
+    while( !_numa_node_to_cpu_id.empty() && _numa_node_to_cpu_id.back().empty() ) {
+      _numa_node_to_cpu_id.pop_back();
     }
 
     initialize_tbb_numa_arenas();
@@ -238,8 +249,8 @@ class TBBNumaArena {
 
   void initialize_tbb_numa_arenas() {
     _groups.reserve(1024);
-    for (size_t node = 0; node < _cpus_to_numa_node.size(); ++node) {
-      int num_cpus_on_numa_node = _cpus_to_numa_node[node].size();
+    for (size_t node = 0; node < _numa_node_to_cpu_id.size(); ++node) {
+      int num_cpus_on_numa_node = _numa_node_to_cpu_id[node].size();
       ASSERT(num_cpus_on_numa_node <= HwTopology::instance().num_cpus_on_numa_node(node));
       if (num_cpus_on_numa_node > 0) {
         DBG << "Initialize TBB task arena on numa node" << node
@@ -251,7 +262,7 @@ class TBBNumaArena {
         #endif
         _groups[GLOBAL_TASK_GROUP].emplace_back();
         _arenas.back().initialize();
-        _observer.emplace_back(_arenas.back(), node, _cpus_to_numa_node[node]);
+        _observer.emplace_back(_arenas.back(), node, _numa_node_to_cpu_id[node]);
       }
     }
   }
@@ -263,7 +274,7 @@ class TBBNumaArena {
   std::shared_timed_mutex _task_group_read_write_mutex;
   std::vector<NumaTaskGroups> _groups;
   std::vector<ThreadPinningObserver> _observer;
-  std::vector<std::vector<int>> _cpus_to_numa_node;
+  std::vector<std::vector<int>> _numa_node_to_cpu_id;
 };
 
 template <typename HwTopology>
