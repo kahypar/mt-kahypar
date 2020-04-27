@@ -279,9 +279,12 @@ po::options_description createRefinementOptionsDescription(Context& context,
     (( initial_partitioning ? "i-r-fm-all-nodes" : "r-fm-all-nodes"),
     po::value<bool>((initial_partitioning ? &context.initial_partitioning.refinement.fm.all_nodes : &context.refinement.fm.all_nodes))->value_name("<bool>"),
     "Add all nodes into FM. Default false")
-    (( initial_partitioning ? "i-r-fm-all-nodes" : "r-fm-all-nodes"),
+    (( initial_partitioning ? "i-r-fm-initial-nodes" : "r-fm-initial-nodes"),
     po::value<size_t>((initial_partitioning ? &context.initial_partitioning.refinement.fm.initial_nodes : &context.refinement.fm.initial_nodes))->value_name("<size_t>"),
     "Number of nodes to initially place into the PQ of a localized search. Default 20")
+    (( initial_partitioning ? "i-r-fm-multitry" : "r-fm-multitry"),
+    po::value<bool>((initial_partitioning ? &context.initial_partitioning.refinement.fm.multitry : &context.refinement.fm.multitry))->value_name("<bool>"),
+    "Set to true for MultiTryFM, false for BoundaryFM/FullFM. Default true")
     (( initial_partitioning ? "i-r-lp-he-size-activation-threshold" : "r-lp-he-size-activation-threshold"),
     po::value<size_t>((!initial_partitioning ? &context.refinement.label_propagation.hyperedge_size_activation_threshold :
       &context.initial_partitioning.refinement.label_propagation.hyperedge_size_activation_threshold))->value_name("<size_t>"),
