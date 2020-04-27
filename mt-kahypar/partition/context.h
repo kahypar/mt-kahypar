@@ -197,6 +197,7 @@ struct FMParameters {
   size_t initial_nodes = 20;
   bool init_neighbors = false;
   bool all_nodes = false;
+  bool multitry = true;
 };
 
 inline std::ostream& operator<<(std::ostream& out, const FMParameters& params) {
