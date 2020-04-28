@@ -90,16 +90,29 @@ public:
     utils::Timer& timer = utils::Timer::instance();
     timer.start_timer("balance_recalculation", "Balance Recalculation");
 
+    boost::dynamic_bitset<> overloaded(numParts);
+    size_t numOverloaded = 0;
+    for (PartitionID i = 0; i < numParts; ++i) {
+      if (partWeights[i] > maxPartWeight) {
+        overloaded.set(i);
+        numOverloaded++;
+      }
+    }
+
     for (MoveID moveID = 0; moveID < numMoves; ++moveID) {
       const Move& m = move_order[moveID];
-      if (sharedData.moveTracker.isMoveStillValid(m)) {
+      if (m.gain != invalidGain /* still valid */) {
         partWeights[m.to] += phg.nodeWeight(m.node);
         partWeights[m.from] -= phg.nodeWeight(m.node);
-        if (partWeights[m.to] <= maxPartWeight) {
-          in_balance.set(moveID);
-        } else {
-          in_balance.reset(moveID);
+        if (!overloaded[m.to] && partWeights[m.to] > maxPartWeight) {
+          numOverloaded++;
+          overloaded.set(m.to);
         }
+        if (overloaded[m.from] && partWeights[m.from] <= maxPartWeight) {
+          numOverloaded--;
+          overloaded.reset(m.from);
+        }
+        in_balance.set(moveID, numOverloaded == 0);
       } else {
         in_balance.reset(moveID);
       }
