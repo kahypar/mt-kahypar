@@ -32,21 +32,14 @@ using ::testing::Test;
 
 namespace mt_kahypar {
 
-using TestTypeTraits = ds::TestTypeTraits<2>;
-using HyperGraph = typename TestTypeTraits::HyperGraph;
-using HyperGraphFactory = typename TestTypeTraits::HyperGraphFactory;
-using PartitionedHyperGraph = typename TestTypeTraits::PartitionedHyperGraph<>;
-using PartitionedHyperGraphWithoutBorderVertices = typename TestTypeTraits::PartitionedHyperGraph<false>;
-using TBB = typename TestTypeTraits::TBB;
+using PartitionedHyperGraph = PartitionedHypergraph<true>;
+using PartitionedHyperGraphWithoutBorderVertices = PartitionedHypergraph<false>;
 
-class AInitialPartitioningDataContainer :
-  public ds::HypergraphFixture<HyperGraph, HyperGraphFactory, TBB> {
+class AInitialPartitioningDataContainer : public ds::HypergraphFixture{
  private:
-  using Base = ds::HypergraphFixture<HyperGraph, HyperGraphFactory, TBB>;
+  using Base = ds::HypergraphFixture;
 
  public:
-  using InitialPartitioningDataContainer = InitialPartitioningDataContainerT<TestTypeTraits>;
-
   AInitialPartitioningDataContainer() :
     Base(),
     context() {
@@ -59,11 +52,10 @@ class AInitialPartitioningDataContainer :
   }
 
   static void TearDownTestSuite() {
-    TBB::instance().terminate();
+    TBBNumaArena::instance().terminate();
   }
 
   using Base::hypergraph;
-  using Base::id;
   Context context;
 };
 
@@ -71,7 +63,7 @@ TEST_F(AInitialPartitioningDataContainer, ReturnsAnUnassignedLocalHypernode1) {
   PartitionedHyperGraph partitioned_hypergraph(
     context.partition.k, hypergraph);
   InitialPartitioningDataContainer ip_data(
-    partitioned_hypergraph, context, TBB::GLOBAL_TASK_GROUP);
+    partitioned_hypergraph, context, TBBNumaArena::GLOBAL_TASK_GROUP);
   PartitionedHyperGraphWithoutBorderVertices& local_hg = ip_data.local_partitioned_hypergraph();
   ip_data.reset_unassigned_hypernodes();
   ASSERT_EQ(-1, local_hg.partID(ip_data.get_unassigned_hypernode()));
@@ -81,7 +73,7 @@ TEST_F(AInitialPartitioningDataContainer, ReturnsAnUnassignedLocalHypernode2) {
   PartitionedHyperGraph partitioned_hypergraph(
     context.partition.k, hypergraph);
   InitialPartitioningDataContainer ip_data(
-    partitioned_hypergraph, context, TBB::GLOBAL_TASK_GROUP);
+    partitioned_hypergraph, context, TBBNumaArena::GLOBAL_TASK_GROUP);
   PartitionedHyperGraphWithoutBorderVertices& local_hg = ip_data.local_partitioned_hypergraph();
   ip_data.reset_unassigned_hypernodes();
 
@@ -102,7 +94,7 @@ TEST_F(AInitialPartitioningDataContainer, ReturnsAnUnassignedLocalHypernode3) {
   PartitionedHyperGraph partitioned_hypergraph(
     context.partition.k, hypergraph);
   InitialPartitioningDataContainer ip_data(
-    partitioned_hypergraph, context, TBB::GLOBAL_TASK_GROUP);
+    partitioned_hypergraph, context, TBBNumaArena::GLOBAL_TASK_GROUP);
   PartitionedHyperGraphWithoutBorderVertices& local_hg = ip_data.local_partitioned_hypergraph();
   ip_data.reset_unassigned_hypernodes();
 
@@ -123,7 +115,7 @@ TEST_F(AInitialPartitioningDataContainer, ReturnsAnUnassignedLocalHypernode4) {
   PartitionedHyperGraph partitioned_hypergraph(
     context.partition.k, hypergraph);
   InitialPartitioningDataContainer ip_data(
-    partitioned_hypergraph, context, TBB::GLOBAL_TASK_GROUP);
+    partitioned_hypergraph, context, TBBNumaArena::GLOBAL_TASK_GROUP);
   PartitionedHyperGraphWithoutBorderVertices& local_hg = ip_data.local_partitioned_hypergraph();
   ip_data.reset_unassigned_hypernodes();
 
@@ -144,7 +136,7 @@ TEST_F(AInitialPartitioningDataContainer, ReturnsInvalidHypernodeIfAllHypernodes
   PartitionedHyperGraph partitioned_hypergraph(
     context.partition.k, hypergraph);
   InitialPartitioningDataContainer ip_data(
-    partitioned_hypergraph, context, TBB::GLOBAL_TASK_GROUP);
+    partitioned_hypergraph, context, TBBNumaArena::GLOBAL_TASK_GROUP);
   PartitionedHyperGraphWithoutBorderVertices& local_hg = ip_data.local_partitioned_hypergraph();
   ip_data.reset_unassigned_hypernodes();
 
@@ -160,7 +152,7 @@ TEST_F(AInitialPartitioningDataContainer, ReturnsValidUnassignedHypernodeIfParti
   PartitionedHyperGraph partitioned_hypergraph(
     context.partition.k, hypergraph);
   InitialPartitioningDataContainer ip_data(
-    partitioned_hypergraph, context, TBB::GLOBAL_TASK_GROUP);
+    partitioned_hypergraph, context, TBBNumaArena::GLOBAL_TASK_GROUP);
   PartitionedHyperGraphWithoutBorderVertices& local_hg = ip_data.local_partitioned_hypergraph();
   ip_data.reset_unassigned_hypernodes();
 
@@ -180,192 +172,192 @@ TEST_F(AInitialPartitioningDataContainer, AppliesPartitionToHypergraph) {
   PartitionedHyperGraph partitioned_hypergraph(
     context.partition.k, hypergraph);
   InitialPartitioningDataContainer ip_data(
-    partitioned_hypergraph, context, TBB::GLOBAL_TASK_GROUP);
+    partitioned_hypergraph, context, TBBNumaArena::GLOBAL_TASK_GROUP);
   PartitionedHyperGraphWithoutBorderVertices& local_hg = ip_data.local_partitioned_hypergraph();
 
   // Cut = 2
-  local_hg.setNodePart(id[0], 0);
-  local_hg.setNodePart(id[1], 0);
-  local_hg.setNodePart(id[2], 0);
-  local_hg.setNodePart(id[3], 1);
-  local_hg.setNodePart(id[4], 1);
-  local_hg.setNodePart(id[5], 1);
-  local_hg.setNodePart(id[6], 1);
+  local_hg.setNodePart(0, 0);
+  local_hg.setNodePart(1, 0);
+  local_hg.setNodePart(2, 0);
+  local_hg.setNodePart(3, 1);
+  local_hg.setNodePart(4, 1);
+  local_hg.setNodePart(5, 1);
+  local_hg.setNodePart(6, 1);
   ip_data.commit(InitialPartitioningAlgorithm::random);
 
   ip_data.apply();
 
   ASSERT_EQ(2, metrics::objective(partitioned_hypergraph, context.partition.objective));
-  ASSERT_EQ(0, partitioned_hypergraph.partID(id[0]));
-  ASSERT_EQ(0, partitioned_hypergraph.partID(id[1]));
-  ASSERT_EQ(0, partitioned_hypergraph.partID(id[2]));
-  ASSERT_EQ(1, partitioned_hypergraph.partID(id[3]));
-  ASSERT_EQ(1, partitioned_hypergraph.partID(id[4]));
-  ASSERT_EQ(1, partitioned_hypergraph.partID(id[5]));
-  ASSERT_EQ(1, partitioned_hypergraph.partID(id[6]));
+  ASSERT_EQ(0, partitioned_hypergraph.partID(0));
+  ASSERT_EQ(0, partitioned_hypergraph.partID(1));
+  ASSERT_EQ(0, partitioned_hypergraph.partID(2));
+  ASSERT_EQ(1, partitioned_hypergraph.partID(3));
+  ASSERT_EQ(1, partitioned_hypergraph.partID(4));
+  ASSERT_EQ(1, partitioned_hypergraph.partID(5));
+  ASSERT_EQ(1, partitioned_hypergraph.partID(6));
 }
 
 TEST_F(AInitialPartitioningDataContainer, AppliesBestPartitionToHypergraph) {
   PartitionedHyperGraph partitioned_hypergraph(
     context.partition.k, hypergraph);
   InitialPartitioningDataContainer ip_data(
-    partitioned_hypergraph, context, TBB::GLOBAL_TASK_GROUP);
+    partitioned_hypergraph, context, TBBNumaArena::GLOBAL_TASK_GROUP);
   PartitionedHyperGraphWithoutBorderVertices& local_hg = ip_data.local_partitioned_hypergraph();
 
   // Cut = 3
-  local_hg.setNodePart(id[0], 0);
-  local_hg.setNodePart(id[1], 0);
-  local_hg.setNodePart(id[2], 0);
-  local_hg.setNodePart(id[3], 0);
-  local_hg.setNodePart(id[4], 1);
-  local_hg.setNodePart(id[5], 1);
-  local_hg.setNodePart(id[6], 1);
+  local_hg.setNodePart(0, 0);
+  local_hg.setNodePart(1, 0);
+  local_hg.setNodePart(2, 0);
+  local_hg.setNodePart(3, 0);
+  local_hg.setNodePart(4, 1);
+  local_hg.setNodePart(5, 1);
+  local_hg.setNodePart(6, 1);
   ip_data.commit(InitialPartitioningAlgorithm::random);
 
   // Cut = 2
-  local_hg.setNodePart(id[0], 0);
-  local_hg.setNodePart(id[1], 0);
-  local_hg.setNodePart(id[2], 0);
-  local_hg.setNodePart(id[3], 1);
-  local_hg.setNodePart(id[4], 1);
-  local_hg.setNodePart(id[5], 1);
-  local_hg.setNodePart(id[6], 1);
+  local_hg.setNodePart(0, 0);
+  local_hg.setNodePart(1, 0);
+  local_hg.setNodePart(2, 0);
+  local_hg.setNodePart(3, 1);
+  local_hg.setNodePart(4, 1);
+  local_hg.setNodePart(5, 1);
+  local_hg.setNodePart(6, 1);
   ip_data.commit(InitialPartitioningAlgorithm::random);
 
   ip_data.apply();
 
   ASSERT_EQ(2, metrics::objective(partitioned_hypergraph, context.partition.objective));
-  ASSERT_EQ(0, partitioned_hypergraph.partID(id[0]));
-  ASSERT_EQ(0, partitioned_hypergraph.partID(id[1]));
-  ASSERT_EQ(0, partitioned_hypergraph.partID(id[2]));
-  ASSERT_EQ(1, partitioned_hypergraph.partID(id[3]));
-  ASSERT_EQ(1, partitioned_hypergraph.partID(id[4]));
-  ASSERT_EQ(1, partitioned_hypergraph.partID(id[5]));
-  ASSERT_EQ(1, partitioned_hypergraph.partID(id[6]));
+  ASSERT_EQ(0, partitioned_hypergraph.partID(0));
+  ASSERT_EQ(0, partitioned_hypergraph.partID(1));
+  ASSERT_EQ(0, partitioned_hypergraph.partID(2));
+  ASSERT_EQ(1, partitioned_hypergraph.partID(3));
+  ASSERT_EQ(1, partitioned_hypergraph.partID(4));
+  ASSERT_EQ(1, partitioned_hypergraph.partID(5));
+  ASSERT_EQ(1, partitioned_hypergraph.partID(6));
 }
 
 TEST_F(AInitialPartitioningDataContainer, AppliesBestPartitionWithImbalancedPartitionToHypergraph1) {
   PartitionedHyperGraph partitioned_hypergraph(
     context.partition.k, hypergraph);
   InitialPartitioningDataContainer ip_data(
-    partitioned_hypergraph, context, TBB::GLOBAL_TASK_GROUP);
+    partitioned_hypergraph, context, TBBNumaArena::GLOBAL_TASK_GROUP);
   PartitionedHyperGraphWithoutBorderVertices& local_hg = ip_data.local_partitioned_hypergraph();
 
   // Cut = 1, but imbalanced
-  local_hg.setNodePart(id[0], 1);
-  local_hg.setNodePart(id[1], 0);
-  local_hg.setNodePart(id[2], 1);
-  local_hg.setNodePart(id[3], 1);
-  local_hg.setNodePart(id[4], 1);
-  local_hg.setNodePart(id[5], 1);
-  local_hg.setNodePart(id[6], 1);
+  local_hg.setNodePart(0, 1);
+  local_hg.setNodePart(1, 0);
+  local_hg.setNodePart(2, 1);
+  local_hg.setNodePart(3, 1);
+  local_hg.setNodePart(4, 1);
+  local_hg.setNodePart(5, 1);
+  local_hg.setNodePart(6, 1);
   ip_data.commit(InitialPartitioningAlgorithm::random);
 
   // Cut = 2
-  local_hg.setNodePart(id[0], 0);
-  local_hg.setNodePart(id[1], 0);
-  local_hg.setNodePart(id[2], 0);
-  local_hg.setNodePart(id[3], 1);
-  local_hg.setNodePart(id[4], 1);
-  local_hg.setNodePart(id[5], 1);
-  local_hg.setNodePart(id[6], 1);
+  local_hg.setNodePart(0, 0);
+  local_hg.setNodePart(1, 0);
+  local_hg.setNodePart(2, 0);
+  local_hg.setNodePart(3, 1);
+  local_hg.setNodePart(4, 1);
+  local_hg.setNodePart(5, 1);
+  local_hg.setNodePart(6, 1);
   ip_data.commit(InitialPartitioningAlgorithm::random);
 
   ip_data.apply();
 
   ASSERT_EQ(2, metrics::objective(partitioned_hypergraph, context.partition.objective));
-  ASSERT_EQ(0, partitioned_hypergraph.partID(id[0]));
-  ASSERT_EQ(0, partitioned_hypergraph.partID(id[1]));
-  ASSERT_EQ(0, partitioned_hypergraph.partID(id[2]));
-  ASSERT_EQ(1, partitioned_hypergraph.partID(id[3]));
-  ASSERT_EQ(1, partitioned_hypergraph.partID(id[4]));
-  ASSERT_EQ(1, partitioned_hypergraph.partID(id[5]));
-  ASSERT_EQ(1, partitioned_hypergraph.partID(id[6]));
+  ASSERT_EQ(0, partitioned_hypergraph.partID(0));
+  ASSERT_EQ(0, partitioned_hypergraph.partID(1));
+  ASSERT_EQ(0, partitioned_hypergraph.partID(2));
+  ASSERT_EQ(1, partitioned_hypergraph.partID(3));
+  ASSERT_EQ(1, partitioned_hypergraph.partID(4));
+  ASSERT_EQ(1, partitioned_hypergraph.partID(5));
+  ASSERT_EQ(1, partitioned_hypergraph.partID(6));
 }
 
 TEST_F(AInitialPartitioningDataContainer, AppliesBestPartitionWithImbalancedPartitionToHypergraph2) {
   PartitionedHyperGraph partitioned_hypergraph(
     context.partition.k, hypergraph);
   InitialPartitioningDataContainer ip_data(
-    partitioned_hypergraph, context, TBB::GLOBAL_TASK_GROUP);
+    partitioned_hypergraph, context, TBBNumaArena::GLOBAL_TASK_GROUP);
   PartitionedHyperGraphWithoutBorderVertices& local_hg = ip_data.local_partitioned_hypergraph();
 
   // Cut = 1, but imbalanced
-  local_hg.setNodePart(id[0], 1);
-  local_hg.setNodePart(id[1], 0);
-  local_hg.setNodePart(id[2], 1);
-  local_hg.setNodePart(id[3], 1);
-  local_hg.setNodePart(id[4], 1);
-  local_hg.setNodePart(id[5], 1);
-  local_hg.setNodePart(id[6], 1);
+  local_hg.setNodePart(0, 1);
+  local_hg.setNodePart(1, 0);
+  local_hg.setNodePart(2, 1);
+  local_hg.setNodePart(3, 1);
+  local_hg.setNodePart(4, 1);
+  local_hg.setNodePart(5, 1);
+  local_hg.setNodePart(6, 1);
   ip_data.commit(InitialPartitioningAlgorithm::random);
 
   // Cut = 2, also imbalanced but better balance
-  local_hg.setNodePart(id[0], 0);
-  local_hg.setNodePart(id[1], 0);
-  local_hg.setNodePart(id[2], 1);
-  local_hg.setNodePart(id[3], 1);
-  local_hg.setNodePart(id[4], 1);
-  local_hg.setNodePart(id[5], 1);
-  local_hg.setNodePart(id[6], 1);
+  local_hg.setNodePart(0, 0);
+  local_hg.setNodePart(1, 0);
+  local_hg.setNodePart(2, 1);
+  local_hg.setNodePart(3, 1);
+  local_hg.setNodePart(4, 1);
+  local_hg.setNodePart(5, 1);
+  local_hg.setNodePart(6, 1);
   ip_data.commit(InitialPartitioningAlgorithm::random);
 
   ip_data.apply();
 
   ASSERT_EQ(2, metrics::objective(partitioned_hypergraph, context.partition.objective));
-  ASSERT_EQ(0, partitioned_hypergraph.partID(id[0]));
-  ASSERT_EQ(0, partitioned_hypergraph.partID(id[1]));
-  ASSERT_EQ(1, partitioned_hypergraph.partID(id[2]));
-  ASSERT_EQ(1, partitioned_hypergraph.partID(id[3]));
-  ASSERT_EQ(1, partitioned_hypergraph.partID(id[4]));
-  ASSERT_EQ(1, partitioned_hypergraph.partID(id[5]));
-  ASSERT_EQ(1, partitioned_hypergraph.partID(id[6]));
+  ASSERT_EQ(0, partitioned_hypergraph.partID(0));
+  ASSERT_EQ(0, partitioned_hypergraph.partID(1));
+  ASSERT_EQ(1, partitioned_hypergraph.partID(2));
+  ASSERT_EQ(1, partitioned_hypergraph.partID(3));
+  ASSERT_EQ(1, partitioned_hypergraph.partID(4));
+  ASSERT_EQ(1, partitioned_hypergraph.partID(5));
+  ASSERT_EQ(1, partitioned_hypergraph.partID(6));
 }
 
 TEST_F(AInitialPartitioningDataContainer, AppliesBestPartitionWithImbalancedPartitionToHypergraph3) {
   PartitionedHyperGraph partitioned_hypergraph(
     context.partition.k, hypergraph);
   InitialPartitioningDataContainer ip_data(
-    partitioned_hypergraph, context, TBB::GLOBAL_TASK_GROUP);
+    partitioned_hypergraph, context, TBBNumaArena::GLOBAL_TASK_GROUP);
   PartitionedHyperGraphWithoutBorderVertices& local_hg = ip_data.local_partitioned_hypergraph();
 
   // Cut = 1
-  local_hg.setNodePart(id[0], 1);
-  local_hg.setNodePart(id[1], 0);
-  local_hg.setNodePart(id[2], 1);
-  local_hg.setNodePart(id[3], 1);
-  local_hg.setNodePart(id[4], 1);
-  local_hg.setNodePart(id[5], 1);
-  local_hg.setNodePart(id[6], 1);
+  local_hg.setNodePart(0, 1);
+  local_hg.setNodePart(1, 0);
+  local_hg.setNodePart(2, 1);
+  local_hg.setNodePart(3, 1);
+  local_hg.setNodePart(4, 1);
+  local_hg.setNodePart(5, 1);
+  local_hg.setNodePart(6, 1);
   ip_data.commit(InitialPartitioningAlgorithm::random);
 
   // Cut = 2
-  local_hg.setNodePart(id[0], 0);
-  local_hg.setNodePart(id[1], 1);
-  local_hg.setNodePart(id[2], 1);
-  local_hg.setNodePart(id[3], 1);
-  local_hg.setNodePart(id[4], 1);
-  local_hg.setNodePart(id[5], 1);
-  local_hg.setNodePart(id[6], 1);
+  local_hg.setNodePart(0, 0);
+  local_hg.setNodePart(1, 1);
+  local_hg.setNodePart(2, 1);
+  local_hg.setNodePart(3, 1);
+  local_hg.setNodePart(4, 1);
+  local_hg.setNodePart(5, 1);
+  local_hg.setNodePart(6, 1);
   ip_data.commit(InitialPartitioningAlgorithm::random);
 
   ip_data.apply();
 
   ASSERT_EQ(1, metrics::objective(partitioned_hypergraph, context.partition.objective));
-  ASSERT_EQ(1, partitioned_hypergraph.partID(id[0]));
-  ASSERT_EQ(0, partitioned_hypergraph.partID(id[1]));
-  ASSERT_EQ(1, partitioned_hypergraph.partID(id[2]));
-  ASSERT_EQ(1, partitioned_hypergraph.partID(id[3]));
-  ASSERT_EQ(1, partitioned_hypergraph.partID(id[4]));
-  ASSERT_EQ(1, partitioned_hypergraph.partID(id[5]));
-  ASSERT_EQ(1, partitioned_hypergraph.partID(id[6]));
+  ASSERT_EQ(1, partitioned_hypergraph.partID(0));
+  ASSERT_EQ(0, partitioned_hypergraph.partID(1));
+  ASSERT_EQ(1, partitioned_hypergraph.partID(2));
+  ASSERT_EQ(1, partitioned_hypergraph.partID(3));
+  ASSERT_EQ(1, partitioned_hypergraph.partID(4));
+  ASSERT_EQ(1, partitioned_hypergraph.partID(5));
+  ASSERT_EQ(1, partitioned_hypergraph.partID(6));
 }
 
 TEST_F(AInitialPartitioningDataContainer, AppliesBestPartitionToHypergraphInParallel1) {
   PartitionedHyperGraph partitioned_hypergraph(
     context.partition.k, hypergraph);
   InitialPartitioningDataContainer ip_data(
-    partitioned_hypergraph, context, TBB::GLOBAL_TASK_GROUP);
+    partitioned_hypergraph, context, TBBNumaArena::GLOBAL_TASK_GROUP);
 
   std::atomic<size_t> cnt(0);
   tbb::parallel_invoke([&] {
@@ -373,46 +365,46 @@ TEST_F(AInitialPartitioningDataContainer, AppliesBestPartitionToHypergraphInPara
     while(cnt < 2) { }
     PartitionedHyperGraphWithoutBorderVertices& local_hg = ip_data.local_partitioned_hypergraph();
     // Cut = 3
-    local_hg.setNodePart(id[0], 0);
-    local_hg.setNodePart(id[1], 0);
-    local_hg.setNodePart(id[2], 0);
-    local_hg.setNodePart(id[3], 0);
-    local_hg.setNodePart(id[4], 1);
-    local_hg.setNodePart(id[5], 1);
-    local_hg.setNodePart(id[6], 1);
+    local_hg.setNodePart(0, 0);
+    local_hg.setNodePart(1, 0);
+    local_hg.setNodePart(2, 0);
+    local_hg.setNodePart(3, 0);
+    local_hg.setNodePart(4, 1);
+    local_hg.setNodePart(5, 1);
+    local_hg.setNodePart(6, 1);
     ip_data.commit(InitialPartitioningAlgorithm::random);
   }, [&] {
     ++cnt;
     while(cnt < 2) { }
     PartitionedHyperGraphWithoutBorderVertices& local_hg = ip_data.local_partitioned_hypergraph();
     // Cut = 2
-    local_hg.setNodePart(id[0], 0);
-    local_hg.setNodePart(id[1], 0);
-    local_hg.setNodePart(id[2], 0);
-    local_hg.setNodePart(id[3], 1);
-    local_hg.setNodePart(id[4], 1);
-    local_hg.setNodePart(id[5], 1);
-    local_hg.setNodePart(id[6], 1);
+    local_hg.setNodePart(0, 0);
+    local_hg.setNodePart(1, 0);
+    local_hg.setNodePart(2, 0);
+    local_hg.setNodePart(3, 1);
+    local_hg.setNodePart(4, 1);
+    local_hg.setNodePart(5, 1);
+    local_hg.setNodePart(6, 1);
     ip_data.commit(InitialPartitioningAlgorithm::random);
   });
 
   ip_data.apply();
 
   ASSERT_EQ(2, metrics::objective(partitioned_hypergraph, context.partition.objective));
-  ASSERT_EQ(0, partitioned_hypergraph.partID(id[0]));
-  ASSERT_EQ(0, partitioned_hypergraph.partID(id[1]));
-  ASSERT_EQ(0, partitioned_hypergraph.partID(id[2]));
-  ASSERT_EQ(1, partitioned_hypergraph.partID(id[3]));
-  ASSERT_EQ(1, partitioned_hypergraph.partID(id[4]));
-  ASSERT_EQ(1, partitioned_hypergraph.partID(id[5]));
-  ASSERT_EQ(1, partitioned_hypergraph.partID(id[6]));
+  ASSERT_EQ(0, partitioned_hypergraph.partID(0));
+  ASSERT_EQ(0, partitioned_hypergraph.partID(1));
+  ASSERT_EQ(0, partitioned_hypergraph.partID(2));
+  ASSERT_EQ(1, partitioned_hypergraph.partID(3));
+  ASSERT_EQ(1, partitioned_hypergraph.partID(4));
+  ASSERT_EQ(1, partitioned_hypergraph.partID(5));
+  ASSERT_EQ(1, partitioned_hypergraph.partID(6));
 }
 
 TEST_F(AInitialPartitioningDataContainer, AppliesBestPartitionToHypergraphInParallel2) {
   PartitionedHyperGraph partitioned_hypergraph(
     context.partition.k, hypergraph);
   InitialPartitioningDataContainer ip_data(
-    partitioned_hypergraph, context, TBB::GLOBAL_TASK_GROUP);
+    partitioned_hypergraph, context, TBBNumaArena::GLOBAL_TASK_GROUP);
 
   std::atomic<size_t> cnt(0);
   tbb::parallel_invoke([&] {
@@ -420,46 +412,46 @@ TEST_F(AInitialPartitioningDataContainer, AppliesBestPartitionToHypergraphInPara
     while(cnt < 2) { }
     PartitionedHyperGraphWithoutBorderVertices& local_hg = ip_data.local_partitioned_hypergraph();
     // Cut = 1, but imbalanced
-    local_hg.setNodePart(id[0], 1);
-    local_hg.setNodePart(id[1], 0);
-    local_hg.setNodePart(id[2], 1);
-    local_hg.setNodePart(id[3], 1);
-    local_hg.setNodePart(id[4], 1);
-    local_hg.setNodePart(id[5], 1);
-    local_hg.setNodePart(id[6], 1);
+    local_hg.setNodePart(0, 1);
+    local_hg.setNodePart(1, 0);
+    local_hg.setNodePart(2, 1);
+    local_hg.setNodePart(3, 1);
+    local_hg.setNodePart(4, 1);
+    local_hg.setNodePart(5, 1);
+    local_hg.setNodePart(6, 1);
     ip_data.commit(InitialPartitioningAlgorithm::random);
   }, [&] {
     ++cnt;
     while(cnt < 2) { }
     PartitionedHyperGraphWithoutBorderVertices& local_hg = ip_data.local_partitioned_hypergraph();
     // Cut = 2, but balanced
-    local_hg.setNodePart(id[0], 0);
-    local_hg.setNodePart(id[1], 0);
-    local_hg.setNodePart(id[2], 0);
-    local_hg.setNodePart(id[3], 1);
-    local_hg.setNodePart(id[4], 1);
-    local_hg.setNodePart(id[5], 1);
-    local_hg.setNodePart(id[6], 1);
+    local_hg.setNodePart(0, 0);
+    local_hg.setNodePart(1, 0);
+    local_hg.setNodePart(2, 0);
+    local_hg.setNodePart(3, 1);
+    local_hg.setNodePart(4, 1);
+    local_hg.setNodePart(5, 1);
+    local_hg.setNodePart(6, 1);
     ip_data.commit(InitialPartitioningAlgorithm::random);
   });
 
   ip_data.apply();
 
   ASSERT_EQ(2, metrics::objective(partitioned_hypergraph, context.partition.objective));
-  ASSERT_EQ(0, partitioned_hypergraph.partID(id[0]));
-  ASSERT_EQ(0, partitioned_hypergraph.partID(id[1]));
-  ASSERT_EQ(0, partitioned_hypergraph.partID(id[2]));
-  ASSERT_EQ(1, partitioned_hypergraph.partID(id[3]));
-  ASSERT_EQ(1, partitioned_hypergraph.partID(id[4]));
-  ASSERT_EQ(1, partitioned_hypergraph.partID(id[5]));
-  ASSERT_EQ(1, partitioned_hypergraph.partID(id[6]));
+  ASSERT_EQ(0, partitioned_hypergraph.partID(0));
+  ASSERT_EQ(0, partitioned_hypergraph.partID(1));
+  ASSERT_EQ(0, partitioned_hypergraph.partID(2));
+  ASSERT_EQ(1, partitioned_hypergraph.partID(3));
+  ASSERT_EQ(1, partitioned_hypergraph.partID(4));
+  ASSERT_EQ(1, partitioned_hypergraph.partID(5));
+  ASSERT_EQ(1, partitioned_hypergraph.partID(6));
 }
 
 TEST_F(AInitialPartitioningDataContainer, AppliesBestPartitionToHypergraphInParallel3) {
   PartitionedHyperGraph partitioned_hypergraph(
     context.partition.k, hypergraph);
   InitialPartitioningDataContainer ip_data(
-    partitioned_hypergraph, context, TBB::GLOBAL_TASK_GROUP);
+    partitioned_hypergraph, context, TBBNumaArena::GLOBAL_TASK_GROUP);
 
   std::atomic<size_t> cnt(0);
   tbb::parallel_invoke([&] {
@@ -467,39 +459,39 @@ TEST_F(AInitialPartitioningDataContainer, AppliesBestPartitionToHypergraphInPara
     while(cnt < 2) { }
     PartitionedHyperGraphWithoutBorderVertices& local_hg = ip_data.local_partitioned_hypergraph();
     // Cut = 3
-    local_hg.setNodePart(id[0], 0);
-    local_hg.setNodePart(id[1], 0);
-    local_hg.setNodePart(id[2], 0);
-    local_hg.setNodePart(id[3], 0);
-    local_hg.setNodePart(id[4], 1);
-    local_hg.setNodePart(id[5], 1);
-    local_hg.setNodePart(id[6], 1);
+    local_hg.setNodePart(0, 0);
+    local_hg.setNodePart(1, 0);
+    local_hg.setNodePart(2, 0);
+    local_hg.setNodePart(3, 0);
+    local_hg.setNodePart(4, 1);
+    local_hg.setNodePart(5, 1);
+    local_hg.setNodePart(6, 1);
     ip_data.commit(InitialPartitioningAlgorithm::random);
   }, [&] {
     ++cnt;
     while(cnt < 2) { }
     PartitionedHyperGraphWithoutBorderVertices& local_hg = ip_data.local_partitioned_hypergraph();
     // Cut = 2
-    local_hg.setNodePart(id[0], 0);
-    local_hg.setNodePart(id[1], 0);
-    local_hg.setNodePart(id[2], 1);
-    local_hg.setNodePart(id[3], 0);
-    local_hg.setNodePart(id[4], 0);
-    local_hg.setNodePart(id[5], 1);
-    local_hg.setNodePart(id[6], 1);
+    local_hg.setNodePart(0, 0);
+    local_hg.setNodePart(1, 0);
+    local_hg.setNodePart(2, 1);
+    local_hg.setNodePart(3, 0);
+    local_hg.setNodePart(4, 0);
+    local_hg.setNodePart(5, 1);
+    local_hg.setNodePart(6, 1);
     ip_data.commit(InitialPartitioningAlgorithm::random);
   });
 
   ip_data.apply();
 
   ASSERT_EQ(2, metrics::objective(partitioned_hypergraph, context.partition.objective));
-  ASSERT_EQ(0, partitioned_hypergraph.partID(id[0]));
-  ASSERT_EQ(0, partitioned_hypergraph.partID(id[1]));
-  ASSERT_EQ(1, partitioned_hypergraph.partID(id[2]));
-  ASSERT_EQ(0, partitioned_hypergraph.partID(id[3]));
-  ASSERT_EQ(0, partitioned_hypergraph.partID(id[4]));
-  ASSERT_EQ(1, partitioned_hypergraph.partID(id[5]));
-  ASSERT_EQ(1, partitioned_hypergraph.partID(id[6]));
+  ASSERT_EQ(0, partitioned_hypergraph.partID(0));
+  ASSERT_EQ(0, partitioned_hypergraph.partID(1));
+  ASSERT_EQ(1, partitioned_hypergraph.partID(2));
+  ASSERT_EQ(0, partitioned_hypergraph.partID(3));
+  ASSERT_EQ(0, partitioned_hypergraph.partID(4));
+  ASSERT_EQ(1, partitioned_hypergraph.partID(5));
+  ASSERT_EQ(1, partitioned_hypergraph.partID(6));
 }
 
 

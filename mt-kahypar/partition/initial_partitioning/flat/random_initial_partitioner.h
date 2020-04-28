@@ -27,16 +27,14 @@
 #include "mt-kahypar/utils/randomize.h"
 
 namespace mt_kahypar {
-template<typename TypeTraits>
-class RandomInitialPartitionerT : public tbb::task {
-  using HyperGraph = typename TypeTraits::template PartitionedHyperGraph<false>;
-  using InitialPartitioningDataContainer = InitialPartitioningDataContainerT<TypeTraits>;
+class RandomInitialPartitioner : public tbb::task {
+  using HyperGraph = PartitionedHypergraph<false>;
 
   static constexpr bool debug = false;
   static PartitionID kInvalidPartition;
 
  public:
-  RandomInitialPartitionerT(const InitialPartitioningAlgorithm,
+  RandomInitialPartitioner(const InitialPartitioningAlgorithm,
                             InitialPartitioningDataContainer& ip_data,
                             const Context& context) :
     _ip_data(ip_data),
@@ -85,9 +83,7 @@ class RandomInitialPartitionerT : public tbb::task {
   InitialPartitioningDataContainer& _ip_data;
   const Context& _context;
 };
-template <typename TypeTraits>
-PartitionID RandomInitialPartitionerT<TypeTraits>::kInvalidPartition = -1;
 
-using RandomInitialPartitioner = RandomInitialPartitionerT<GlobalTypeTraits>;
+PartitionID RandomInitialPartitioner::kInvalidPartition = -1;
 
 } // namespace mt_kahypar

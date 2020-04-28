@@ -32,57 +32,53 @@
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
 
 namespace mt_kahypar {
-template<typename TypeTraits>
-class IHypergraphSparsifierT {
-  using HyperGraph = typename TypeTraits::HyperGraph;
-  using PartitionedHyperGraph = typename TypeTraits::template PartitionedHyperGraph<>;
+
+class IHypergraphSparsifier {
 
  public:
-  IHypergraphSparsifierT(const IHypergraphSparsifierT&) = delete;
-  IHypergraphSparsifierT(IHypergraphSparsifierT&&) = delete;
-  IHypergraphSparsifierT & operator= (const IHypergraphSparsifierT &) = delete;
-  IHypergraphSparsifierT & operator= (IHypergraphSparsifierT &&) = delete;
+  IHypergraphSparsifier(const IHypergraphSparsifier&) = delete;
+  IHypergraphSparsifier(IHypergraphSparsifier&&) = delete;
+  IHypergraphSparsifier & operator= (const IHypergraphSparsifier &) = delete;
+  IHypergraphSparsifier & operator= (IHypergraphSparsifier &&) = delete;
 
-  virtual ~IHypergraphSparsifierT() = default;
+  virtual ~IHypergraphSparsifier() = default;
 
   bool isSparsified() const {
     return _is_sparsified;
   }
 
-  HyperGraph& sparsifiedHypergraph() {
+  Hypergraph& sparsifiedHypergraph() {
     ASSERT(_is_sparsified);
     return sparsifiedHypergraphImpl();
   }
 
-  PartitionedHyperGraph& sparsifiedPartitionedHypergraph() {
+  PartitionedHypergraph<>& sparsifiedPartitionedHypergraph() {
     ASSERT(_is_sparsified);
     return sparsifiedPartitionedHypergraphImpl();
   }
 
-  void sparsify(const HyperGraph& hypergraph) {
+  void sparsify(const Hypergraph& hypergraph) {
     ASSERT(!_is_sparsified);
     sparsifyImpl(hypergraph);
     _is_sparsified = true;
   }
 
-  void undoSparsification(PartitionedHyperGraph& hypergraph) {
+  void undoSparsification(PartitionedHypergraph<>& hypergraph) {
     ASSERT(_is_sparsified);
     undoSparsificationImpl(hypergraph);
   }
 
  protected:
-  IHypergraphSparsifierT() :
+  IHypergraphSparsifier() :
     _is_sparsified(false) { }
 
  private:
-  virtual HyperGraph& sparsifiedHypergraphImpl() = 0;
-  virtual PartitionedHyperGraph& sparsifiedPartitionedHypergraphImpl() = 0;
-  virtual void sparsifyImpl(const HyperGraph& hypergraph) = 0;
-  virtual void undoSparsificationImpl(PartitionedHyperGraph& hypergraph) = 0;
+  virtual Hypergraph& sparsifiedHypergraphImpl() = 0;
+  virtual PartitionedHypergraph<>& sparsifiedPartitionedHypergraphImpl() = 0;
+  virtual void sparsifyImpl(const Hypergraph& hypergraph) = 0;
+  virtual void undoSparsificationImpl(PartitionedHypergraph<>& hypergraph) = 0;
 
   bool _is_sparsified;
 };
-
-using IHypergraphSparsifier = IHypergraphSparsifierT<GlobalTypeTraits>;
 
 }  // namespace mt_kahypar

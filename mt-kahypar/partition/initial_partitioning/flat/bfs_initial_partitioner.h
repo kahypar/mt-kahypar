@@ -29,19 +29,17 @@
 #include "mt-kahypar/utils/randomize.h"
 
 namespace mt_kahypar {
-template<typename TypeTraits>
-class BFSInitialPartitionerT : public tbb::task {
-  using HyperGraph = typename TypeTraits::template PartitionedHyperGraph<false>;
-  using InitialPartitioningDataContainer = InitialPartitioningDataContainerT<TypeTraits>;
-  using Queue = parallel::scalable_queue<HypernodeID>;
 
+class BFSInitialPartitioner : public tbb::task {
+  using HyperGraph = PartitionedHypergraph<false>;
+  using Queue = parallel::scalable_queue<HypernodeID>;
 
   static constexpr bool debug = false;
   static PartitionID kInvalidPartition;
   static HypernodeID kInvalidHypernode;
 
  public:
-  BFSInitialPartitionerT(const InitialPartitioningAlgorithm,
+  BFSInitialPartitioner(const InitialPartitioningAlgorithm,
                          InitialPartitioningDataContainer& ip_data,
                          const Context& context) :
     _ip_data(ip_data),
@@ -56,7 +54,7 @@ class BFSInitialPartitionerT : public tbb::task {
       _ip_data.local_hyperedge_fast_reset_flag_array();
 
     parallel::scalable_vector<HypernodeID> start_nodes =
-      PseudoPeripheralStartNodes<TypeTraits>::computeStartNodes(_ip_data, _context);
+      PseudoPeripheralStartNodes::computeStartNodes(_ip_data, _context);
 
     // Insert each start node for each block into its corresponding queue
     hypernodes_in_queue.reset();
@@ -141,12 +139,10 @@ class BFSInitialPartitionerT : public tbb::task {
                                               const PartitionID block) {
     ASSERT(hn != kInvalidHypernode && block != kInvalidPartition);
     for ( const HyperedgeID& he : hypergraph.incidentEdges(hn) ) {
-      const HyperedgeID original_he_id = hypergraph.originalEdgeID(he);
-      if ( !hyperedges_in_queue[block * hypergraph.initialNumEdges() + original_he_id] ) {
+      if ( !hyperedges_in_queue[block * hypergraph.initialNumEdges() + he] ) {
         if ( hypergraph.edgeSize(he) <= context.partition.hyperedge_size_threshold ) {
           for ( const HypernodeID& pin : hypergraph.pins(he) ) {
-            const HypernodeID original_pin_id = hypergraph.originalNodeID(pin);
-            if ( !hypernodes_in_queue[block * hypergraph.initialNumNodes() + original_pin_id] &&
+            if ( !hypernodes_in_queue[block * hypergraph.initialNumNodes() + pin] &&
                  hypergraph.partID(pin) == kInvalidPartition ) {
               queue.push(pin);
               markHypernodeAsInQueue(hypergraph, hypernodes_in_queue, pin, block);
@@ -162,27 +158,21 @@ class BFSInitialPartitionerT : public tbb::task {
                                      kahypar::ds::FastResetFlagArray<>& hypernodes_in_queue,
                                      const HypernodeID hn,
                                      const PartitionID block) {
-    hypernodes_in_queue.set(block * hypergraph.initialNumNodes() +
-      hypergraph.originalNodeID(hn), true);
+    hypernodes_in_queue.set(block * hypergraph.initialNumNodes() + hn, true);
   }
 
   inline void markHyperedgeAsInQueue(const HyperGraph& hypergraph,
                                      kahypar::ds::FastResetFlagArray<>& hyperedges_in_queue,
                                      const HyperedgeID he,
                                      const PartitionID block) {
-    hyperedges_in_queue.set(block * hypergraph.initialNumEdges() +
-      hypergraph.originalEdgeID(he), true);
+    hyperedges_in_queue.set(block * hypergraph.initialNumEdges() + he, true);
   }
 
   InitialPartitioningDataContainer& _ip_data;
   const Context& _context;
 };
 
-template <typename TypeTraits>
-PartitionID BFSInitialPartitionerT<TypeTraits>::kInvalidPartition = -1;
-template <typename TypeTraits>
-HypernodeID BFSInitialPartitionerT<TypeTraits>::kInvalidHypernode = std::numeric_limits<HypernodeID>::max();
-
-using BFSInitialPartitioner = BFSInitialPartitionerT<GlobalTypeTraits>;
+PartitionID BFSInitialPartitioner::kInvalidPartition = -1;
+HypernodeID BFSInitialPartitioner::kInvalidHypernode = std::numeric_limits<HypernodeID>::max();
 
 } // namespace mt_kahypar

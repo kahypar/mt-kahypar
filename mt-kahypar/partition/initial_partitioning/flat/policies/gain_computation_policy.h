@@ -28,11 +28,12 @@ namespace mt_kahypar {
 
 class CutGainPolicy {
 
+ using HyperGraph = PartitionedHypergraph<false>;
+
  static constexpr bool enable_heavy_assert = false;
  static PartitionID kInvalidPartition;
 
  public:
-  template<typename HyperGraph>
   static inline Gain calculateGain(const HyperGraph& hypergraph,
                                    const HypernodeID hn,
                                    const PartitionID to) {
@@ -43,7 +44,6 @@ class CutGainPolicy {
     }
   }
 
-  template<typename HyperGraph>
   static inline Gain calculateGainForInvalidBlock(const HyperGraph& hypergraph,
                                                   const HypernodeID hn,
                                                   const PartitionID to) {
@@ -59,7 +59,6 @@ class CutGainPolicy {
     return gain;
   }
 
-  template<typename HyperGraph>
   static inline Gain calculateGainForValidBlock(const HyperGraph& hypergraph,
                                                 const HypernodeID hn,
                                                 const PartitionID to) {
@@ -93,7 +92,6 @@ class CutGainPolicy {
     return gain;
   }
 
-  template<typename HyperGraph>
   static inline void deltaGainUpdate(const HyperGraph& hypergraph,
                                      KWayPriorityQueue& pq,
                                      const HypernodeID hn,
@@ -109,18 +107,17 @@ class CutGainPolicy {
         for (const HyperedgeID& he : hypergraph.incidentEdges(hn)) {
           for (const HypernodeID& pin : hypergraph.pins(he)) {
             if (pin != hn) {
-              const HypernodeID original_pin_id = hypergraph.originalNodeID(pin);
               for (PartitionID block = 0; block < hypergraph.k(); ++block) {
-                if (pq.contains(original_pin_id, block)) {
+                if (pq.contains(pin, block)) {
                   const Gain gain = calculateGain(hypergraph, pin, block);
-                  if (pq.key(original_pin_id, block) != gain) {
+                  if (pq.key(pin, block) != gain) {
                     LOG << V(hn);
                     LOG << V(to);
                     LOG << V(he);
                     LOG << V(pin);
                     LOG << V(block);
                     LOG << V(gain);
-                    LOG << V(pq.key(original_pin_id, block));
+                    LOG << V(pq.key(pin, block));
                     return false;
                   }
                 }
@@ -132,7 +129,6 @@ class CutGainPolicy {
       } (), "Delta Gain Update failed!");
   }
 
-  template<typename HyperGraph>
   static inline void deltaGainUpdateForInvalidBlock(const HyperGraph& hypergraph,
                                                     KWayPriorityQueue& pq,
                                                     const HypernodeID hn,
@@ -149,10 +145,9 @@ class CutGainPolicy {
           // Connectivity changed from 0 to 1 => Each move to an other block (except to)
           // would make hyperedge he cut
           for ( const HypernodeID& pin : hypergraph.pins(he) ) {
-            const HypernodeID original_pin_id = hypergraph.originalNodeID(pin);
             for ( PartitionID block = 0; block < hypergraph.k(); ++block ) {
-              if ( pin != hn && block != to && pq.contains(original_pin_id, block) ) {
-                pq.updateKeyBy(original_pin_id, block, -he_weight);
+              if ( pin != hn && block != to && pq.contains(pin, block) ) {
+                pq.updateKeyBy(pin, block, -he_weight);
               }
             }
           }
@@ -162,9 +157,8 @@ class CutGainPolicy {
           for ( PartitionID block = 0; block < hypergraph.k(); ++block ) {
             if ( block == to || hypergraph.pinCountInPart(he, block) == 0 ) {
               for ( const HypernodeID& pin : hypergraph.pins(he) ) {
-                const HypernodeID original_pin_id = hypergraph.originalNodeID(pin);
-                if ( pin != hn && pq.contains(original_pin_id, block) ) {
-                  pq.updateKeyBy(original_pin_id, block, he_weight);
+                if ( pin != hn && pq.contains(pin, block) ) {
+                  pq.updateKeyBy(pin, block, he_weight);
                 }
               }
             }
@@ -174,7 +168,6 @@ class CutGainPolicy {
     }
   }
 
-  template<typename HyperGraph>
   static inline void deltaGainUpdateForValidBlock(const HyperGraph& hypergraph,
                                                   KWayPriorityQueue& pq,
                                                   const HypernodeID hn,
@@ -199,10 +192,9 @@ class CutGainPolicy {
           // more. Therefore, we increase the gain of all pins that are contained
           // in PQs different from block from.
           for ( const HypernodeID& pin : hypergraph.pins(he) ) {
-            const HypernodeID original_pin_id = hypergraph.originalNodeID(pin);
             for ( PartitionID block = 0; block < hypergraph.k(); ++block ) {
-              if ( pin != hn && block != from && pq.contains(original_pin_id, block) ) {
-                pq.updateKeyBy(original_pin_id, block, he_weight);
+              if ( pin != hn && block != from && pq.contains(pin, block) ) {
+                pq.updateKeyBy(pin, block, he_weight);
               }
             }
           }
@@ -214,9 +206,8 @@ class CutGainPolicy {
           // hyperedge by moving the only pin left in the from block to block to.
           // Therefore, we increase the gain of that pin.
           for ( const HypernodeID& pin : hypergraph.pins(he) ) {
-            const HypernodeID original_pin_id = hypergraph.originalNodeID(pin);
-            if ( pin != hn && hypergraph.partID(pin) != to && pq.contains(original_pin_id, to) ) {
-              pq.updateKeyBy(original_pin_id, to, he_weight);
+            if ( pin != hn && hypergraph.partID(pin) != to && pq.contains(pin, to) ) {
+              pq.updateKeyBy(pin, to, he_weight);
             }
           }
         }
@@ -230,11 +221,12 @@ PartitionID CutGainPolicy::kInvalidPartition = -1;
 
 class MaxNetGainPolicy {
 
+ using HyperGraph = PartitionedHypergraph<false>;
+
  static constexpr bool enable_heavy_assert = false;
  static PartitionID kInvalidPartition;
 
  public:
-  template<typename HyperGraph>
   static inline Gain calculateGain(const HyperGraph& hypergraph,
                                    const HypernodeID hn,
                                    const PartitionID to) {
@@ -249,7 +241,6 @@ class MaxNetGainPolicy {
     return gain;
   }
 
-  template<typename HyperGraph>
   static inline void deltaGainUpdate(const HyperGraph& hypergraph,
                                      KWayPriorityQueue& pq,
                                      const HypernodeID hn,
@@ -263,9 +254,8 @@ class MaxNetGainPolicy {
         // Block to was not part of hyperedge he before
         // => Update gain of all pins in hyperedge to block to
         for ( const HypernodeID pin : hypergraph.pins(he) ) {
-          const HypernodeID original_pin_id = hypergraph.originalNodeID(pin);
-          if ( pq.contains(original_pin_id, to) ) {
-            pq.updateKeyBy(original_pin_id, to, he_weight);
+          if ( pq.contains(pin, to) ) {
+            pq.updateKeyBy(pin, to, he_weight);
           }
         }
       }
@@ -275,18 +265,17 @@ class MaxNetGainPolicy {
         for (const HyperedgeID& he : hypergraph.incidentEdges(hn)) {
           for (const HypernodeID& pin : hypergraph.pins(he)) {
             if (pin != hn) {
-              const HypernodeID original_pin_id = hypergraph.originalNodeID(pin);
               for (PartitionID block = 0; block < hypergraph.k(); ++block) {
-                if (pq.contains(original_pin_id, block)) {
+                if (pq.contains(pin, block)) {
                   const Gain gain = calculateGain(hypergraph, pin, block);
-                  if (pq.key(original_pin_id, block) != gain) {
+                  if (pq.key(pin, block) != gain) {
                     LOG << V(hn);
                     LOG << V(to);
                     LOG << V(he);
                     LOG << V(pin);
                     LOG << V(block);
                     LOG << V(gain);
-                    LOG << V(pq.key(original_pin_id, block));
+                    LOG << V(pq.key(pin, block));
                     return false;
                   }
                 }

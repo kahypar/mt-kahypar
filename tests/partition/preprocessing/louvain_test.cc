@@ -30,9 +30,9 @@ using ::testing::Test;
 
 namespace mt_kahypar {
 
-class ALouvain : public ds::HypergraphFixture<ds::StaticHypergraph, ds::StaticHypergraphFactory> {
+class ALouvain : public ds::HypergraphFixture {
 
-  using Base = ds::HypergraphFixture<ds::StaticHypergraph, ds::StaticHypergraphFactory>;
+  using Base = ds::HypergraphFixture;
 
  public:
   using Graph = ds::GraphT<ds::StaticHypergraph>;
@@ -50,7 +50,7 @@ class ALouvain : public ds::HypergraphFixture<ds::StaticHypergraph, ds::StaticHy
     context.shared_memory.num_threads = 1;
 
     graph = std::make_unique<Graph>(hypergraph, LouvainEdgeWeight::uniform);
-    karate_club_hg = io::readHypergraphFile<ds::StaticHypergraph, ds::StaticHypergraphFactory>(
+    karate_club_hg = io::readHypergraphFile(
       context.partition.graph_filename, TBBNumaArena::GLOBAL_TASK_GROUP);
     karate_club_graph = std::make_unique<Graph>(karate_club_hg, LouvainEdgeWeight::uniform);
   }

@@ -150,25 +150,7 @@ po::options_description createPreprocessingOptionsDescription(Context& context, 
     "Minimum improvement of quality during a louvain pass which leads to further passes")
     ("p-vertex-degree-sampling-threshold",
     po::value<size_t>(&context.preprocessing.community_detection.vertex_degree_sampling_threshold)->value_name("<size_t>"),
-    "If set, than neighbors of a vertex are sampled during rating if its degree is greater than this threshold.")
-    ("p-enable-community-redistribution",
-    po::value<bool>(&context.preprocessing.use_community_redistribution)->value_name("<bool>"),
-    "If true, hypergraph is redistributed based on community information to numa nodes")
-    ("p-community-redistribution-objective",
-    po::value<std::string>()->value_name("<string>")->notifier(
-      [&](const std::string& objective) {
-      context.preprocessing.community_redistribution.assignment_objective = mt_kahypar::communityAssignmentObjectiveFromString(objective);
-    }),
-    "Objective used during community redistribution of hypergraph: \n"
-    " - vertex_objective \n"
-    " - pin_objective")
-    ("p-community-redistribution-strategy",
-    po::value<std::string>()->value_name("<string>")->notifier(
-      [&](const std::string& strategy) {
-      context.preprocessing.community_redistribution.assignment_strategy = mt_kahypar::communityAssignmentStrategyFromString(strategy);
-    }),
-    "Strategy used during community redistribution of hypergraph: \n"
-    " - bin_packing");
+    "If set, than neighbors of a vertex are sampled during rating if its degree is greater than this threshold.");
   return options;
 }
 
@@ -276,14 +258,6 @@ po::options_description createRefinementOptionsDescription(Context& context,
       &context.initial_partitioning.refinement.label_propagation.hyperedge_size_activation_threshold))->value_name("<size_t>"),
     "If a vertex moves during LP only neighbors that are part of hyperedge with size less\n"
     "this threshold are activated.");
-
-  if ( !initial_partitioning ) {
-    options.add_options()
-      ("r-lp-numa-aware",
-      po::value<bool>(&context.refinement.label_propagation.numa_aware)->value_name("<bool>"),
-      "If true, label propagation is executed numa friendly (which means that nodes are processed on its numa nodes)\n"
-      "(default false)");
-  }
   return options;
 }
 

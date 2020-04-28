@@ -29,12 +29,13 @@ namespace mt_kahypar {
 // ! Selects the PQs in a round-robin fashion.
 class RoundRobinPQSelectionPolicy {
 
+ using HyperGraph = PartitionedHypergraph<false>;
+
  static HypernodeID kInvalidHypernode;
  static PartitionID kInvalidPartition;
  static Gain kInvalidGain;
 
  public:
-  template<typename HyperGraph>
   static inline bool pop(const HyperGraph& hypergraph,
                          KWayPriorityQueue& pq,
                          HypernodeID& hn,
@@ -59,7 +60,6 @@ class RoundRobinPQSelectionPolicy {
     ASSERT(pq.isEnabled(to));
     pq.deleteMaxFromPartition(hn, gain, to);
     ASSERT(hn != kInvalidHypernode);
-    hn = hypergraph.globalNodeID(hn);
     return true;
   }
 
@@ -79,13 +79,14 @@ Gain RoundRobinPQSelectionPolicy::kInvalidGain = std::numeric_limits<Gain>::min(
 // ! Selects the PQ which contains the maximum gain move
 class GlobalPQSelectionPolicy {
 
+ using HyperGraph = PartitionedHypergraph<false>;
+
  static HypernodeID kInvalidHypernode;
  static PartitionID kInvalidPartition;
  static Gain kInvalidGain;
 
  public:
-  template<typename HyperGraph>
-  static inline bool pop(const HyperGraph& hypergraph,
+  static inline bool pop(const HyperGraph&,
                          KWayPriorityQueue& pq,
                          HypernodeID& hn,
                          PartitionID& to,
@@ -98,7 +99,6 @@ class GlobalPQSelectionPolicy {
     if ( pq.numNonEmptyParts() > 0 && pq.numEnabledParts() > 0 ) {
       pq.deleteMax(hn, gain, to);
       ASSERT(hn != kInvalidHypernode);
-      hn = hypergraph.globalNodeID(hn);
       return true;
     } else {
       return false;
@@ -121,12 +121,13 @@ Gain GlobalPQSelectionPolicy::kInvalidGain = std::numeric_limits<Gain>::min();
 // ! Selects the PQs one by one until they are disabled
 class SequentialPQSelectionPolicy {
 
+ using HyperGraph = PartitionedHypergraph<false>;
+
  static HypernodeID kInvalidHypernode;
  static PartitionID kInvalidPartition;
  static Gain kInvalidGain;
 
  public:
-  template<typename HyperGraph>
   static inline bool pop(const HyperGraph& hypergraph,
                          KWayPriorityQueue& pq,
                          HypernodeID& hn,
@@ -149,7 +150,6 @@ class SequentialPQSelectionPolicy {
         ASSERT(pq.size(to) > 0);
         pq.deleteMaxFromPartition(hn, gain, to);
         ASSERT(hn != kInvalidHypernode);
-        hn = hypergraph.globalNodeID(hn);
         return true;
       } else {
         return false;

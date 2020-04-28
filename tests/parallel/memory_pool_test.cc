@@ -35,7 +35,7 @@ namespace parallel {
 
 using TopoMock = mt_kahypar::parallel::TopologyMock<2>;
 using HwTopology = mt_kahypar::parallel::HardwareTopology<TopoMock, parallel::topology_t, parallel::node_t>;
-using TBB = mt_kahypar::parallel::TBBNumaArena<HwTopology>;
+using TBB = mt_kahypar::parallel::TBBNumaArena<HwTopology, false>;
 
 
 template <class F, class K>

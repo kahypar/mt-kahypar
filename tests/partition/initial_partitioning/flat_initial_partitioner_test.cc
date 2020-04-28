@@ -38,19 +38,11 @@ using ::testing::Test;
 
 namespace mt_kahypar {
 
-using TestTypeTraits = ds::TestTypeTraits<2>;
-using HyperGraph = typename TestTypeTraits::HyperGraph;
-using HyperGraphFactory = typename TestTypeTraits::HyperGraphFactory;
-using PartitionedHyperGraph = typename TestTypeTraits::PartitionedHyperGraph<>;
-using HwTopology = typename TestTypeTraits::HwTopology;
-using TBB = typename TestTypeTraits::TBB;
-
-
-template<template<typename> class InitialPartitionerT,
+template<class InitialPartitioner,
          InitialPartitioningAlgorithm algorithm,
          PartitionID k, size_t runs>
 struct TestConfig {
-  using InitialPartitionerTask = InitialPartitionerT<TestTypeTraits>;
+  using InitialPartitionerTask = InitialPartitioner;
   static constexpr InitialPartitioningAlgorithm ALGORITHM = algorithm;
   static constexpr PartitionID K = k;
   static constexpr size_t RUNS = runs;
@@ -58,14 +50,13 @@ struct TestConfig {
 
 template<class InitialPartitionerTask>
 class InitialPartitionerRootTaskT : public tbb::task {
-  using InitialPartitioningDataContainer = InitialPartitioningDataContainerT<TestTypeTraits>;
 
  public:
-  InitialPartitionerRootTaskT(PartitionedHyperGraph& hypergraph,
+  InitialPartitionerRootTaskT(PartitionedHypergraph<>& hypergraph,
                               const Context& context,
                               const InitialPartitioningAlgorithm algorithm,
                               const size_t runs) :
-    _ip_data(hypergraph, context, TBB::GLOBAL_TASK_GROUP),
+    _ip_data(hypergraph, context, TBBNumaArena::GLOBAL_TASK_GROUP),
     _context(context),
     _algorithm(algorithm),
     _runs(runs) {}
@@ -103,16 +94,16 @@ class AFlatInitialPartitionerTest : public Test {
     context.partition.objective = kahypar::Objective::km1;
     context.initial_partitioning.lp_initial_block_size = 5;
     context.initial_partitioning.lp_maximum_iterations = 100;
-    hypergraph = io::readHypergraphFile<HyperGraph, HyperGraphFactory>(
-      "../test_instances/test_instance.hgr", TBB::GLOBAL_TASK_GROUP);
-    partitioned_hypergraph = PartitionedHyperGraph(
-      context.partition.k, TBB::GLOBAL_TASK_GROUP, hypergraph);
+    hypergraph = io::readHypergraphFile(
+      "../test_instances/test_instance.hgr", TBBNumaArena::GLOBAL_TASK_GROUP);
+    partitioned_hypergraph = PartitionedHypergraph<>(
+      context.partition.k, TBBNumaArena::GLOBAL_TASK_GROUP, hypergraph);
     context.setupPartWeights(hypergraph.totalWeight());
     utils::Timer::instance().disable();
   }
 
   static void SetUpTestSuite() {
-    TBB::instance(HwTopology::instance().num_cpus());
+    TBBNumaArena::instance(HardwareTopology::instance().num_cpus());
   }
 
   void execute() {
@@ -121,132 +112,126 @@ class AFlatInitialPartitionerTest : public Test {
     tbb::task::spawn_root_and_wait(root_ip_task);
   }
 
-  HyperGraph hypergraph;
-  PartitionedHyperGraph partitioned_hypergraph;
+  Hypergraph hypergraph;
+  PartitionedHypergraph<> partitioned_hypergraph;
   Context context;
 };
 
-template<typename TypeTraits>
-using GreedyRoundRobinFMInitialPartitionerT = GreedyInitialPartitionerT<TypeTraits, CutGainPolicy, RoundRobinPQSelectionPolicy>;
-template<typename TypeTraits>
-using GreedyGlobalFMInitialPartitionerT = GreedyInitialPartitionerT<TypeTraits, CutGainPolicy, GlobalPQSelectionPolicy>;
-template<typename TypeTraits>
-using GreedySequentialFMInitialPartitionerT = GreedyInitialPartitionerT<TypeTraits, CutGainPolicy, SequentialPQSelectionPolicy>;
-template<typename TypeTraits>
-using GreedyRoundRobinMaxNetInitialPartitionerT = GreedyInitialPartitionerT<TypeTraits, MaxNetGainPolicy, RoundRobinPQSelectionPolicy>;
-template<typename TypeTraits>
-using GreedyGlobalMaxNetInitialPartitionerT = GreedyInitialPartitionerT<TypeTraits, MaxNetGainPolicy, GlobalPQSelectionPolicy>;
-template<typename TypeTraits>
-using GreedySequentialMaxNetInitialPartitionerT = GreedyInitialPartitionerT<TypeTraits, MaxNetGainPolicy, SequentialPQSelectionPolicy>;
+using GreedyRoundRobinFMInitialPartitioner = GreedyInitialPartitioner<CutGainPolicy, RoundRobinPQSelectionPolicy>;
+using GreedyGlobalFMInitialPartitioner = GreedyInitialPartitioner<CutGainPolicy, GlobalPQSelectionPolicy>;
+using GreedySequentialFMInitialPartitioner = GreedyInitialPartitioner<CutGainPolicy, SequentialPQSelectionPolicy>;
+using GreedyRoundRobinMaxNetInitialPartitioner = GreedyInitialPartitioner<MaxNetGainPolicy, RoundRobinPQSelectionPolicy>;
+using GreedyGlobalMaxNetInitialPartitioner = GreedyInitialPartitioner<MaxNetGainPolicy, GlobalPQSelectionPolicy>;
+using GreedySequentialMaxNetInitialPartitioner = GreedyInitialPartitioner<MaxNetGainPolicy, SequentialPQSelectionPolicy>;
 
-typedef ::testing::Types<TestConfig<RandomInitialPartitionerT, InitialPartitioningAlgorithm::random, 2, 1>,
-                         TestConfig<RandomInitialPartitionerT, InitialPartitioningAlgorithm::random, 2, 2>,
-                         TestConfig<RandomInitialPartitionerT, InitialPartitioningAlgorithm::random, 2, 5>,
-                         TestConfig<RandomInitialPartitionerT, InitialPartitioningAlgorithm::random, 3, 1>,
-                         TestConfig<RandomInitialPartitionerT, InitialPartitioningAlgorithm::random, 3, 2>,
-                         TestConfig<RandomInitialPartitionerT, InitialPartitioningAlgorithm::random, 3, 5>,
-                         TestConfig<RandomInitialPartitionerT, InitialPartitioningAlgorithm::random, 4, 1>,
-                         TestConfig<RandomInitialPartitionerT, InitialPartitioningAlgorithm::random, 4, 2>,
-                         TestConfig<RandomInitialPartitionerT, InitialPartitioningAlgorithm::random, 4, 5>,
-                         TestConfig<RandomInitialPartitionerT, InitialPartitioningAlgorithm::random, 5, 1>,
-                         TestConfig<RandomInitialPartitionerT, InitialPartitioningAlgorithm::random, 5, 2>,
-                         TestConfig<RandomInitialPartitionerT, InitialPartitioningAlgorithm::random, 5, 5>,
-                         TestConfig<BFSInitialPartitionerT, InitialPartitioningAlgorithm::bfs, 2, 1>,
-                         TestConfig<BFSInitialPartitionerT, InitialPartitioningAlgorithm::bfs, 2, 2>,
-                         TestConfig<BFSInitialPartitionerT, InitialPartitioningAlgorithm::bfs, 2, 5>,
-                         TestConfig<BFSInitialPartitionerT, InitialPartitioningAlgorithm::bfs, 3, 1>,
-                         TestConfig<BFSInitialPartitionerT, InitialPartitioningAlgorithm::bfs, 3, 2>,
-                         TestConfig<BFSInitialPartitionerT, InitialPartitioningAlgorithm::bfs, 3, 5>,
-                         TestConfig<BFSInitialPartitionerT, InitialPartitioningAlgorithm::bfs, 4, 1>,
-                         TestConfig<BFSInitialPartitionerT, InitialPartitioningAlgorithm::bfs, 4, 2>,
-                         TestConfig<BFSInitialPartitionerT, InitialPartitioningAlgorithm::bfs, 4, 5>,
-                         TestConfig<BFSInitialPartitionerT, InitialPartitioningAlgorithm::bfs, 5, 1>,
-                         TestConfig<BFSInitialPartitionerT, InitialPartitioningAlgorithm::bfs, 5, 2>,
-                         TestConfig<BFSInitialPartitionerT, InitialPartitioningAlgorithm::bfs, 5, 5>,
-                         TestConfig<GreedyRoundRobinFMInitialPartitionerT, InitialPartitioningAlgorithm::greedy_round_robin_fm, 2, 1>,
-                         TestConfig<GreedyRoundRobinFMInitialPartitionerT, InitialPartitioningAlgorithm::greedy_round_robin_fm, 2, 2>,
-                         TestConfig<GreedyRoundRobinFMInitialPartitionerT, InitialPartitioningAlgorithm::greedy_round_robin_fm, 2, 5>,
-                         TestConfig<GreedyRoundRobinFMInitialPartitionerT, InitialPartitioningAlgorithm::greedy_round_robin_fm, 3, 1>,
-                         TestConfig<GreedyRoundRobinFMInitialPartitionerT, InitialPartitioningAlgorithm::greedy_round_robin_fm, 3, 2>,
-                         TestConfig<GreedyRoundRobinFMInitialPartitionerT, InitialPartitioningAlgorithm::greedy_round_robin_fm, 3, 5>,
-                         TestConfig<GreedyRoundRobinFMInitialPartitionerT, InitialPartitioningAlgorithm::greedy_round_robin_fm, 4, 1>,
-                         TestConfig<GreedyRoundRobinFMInitialPartitionerT, InitialPartitioningAlgorithm::greedy_round_robin_fm, 4, 2>,
-                         TestConfig<GreedyRoundRobinFMInitialPartitionerT, InitialPartitioningAlgorithm::greedy_round_robin_fm, 4, 5>,
-                         TestConfig<GreedyRoundRobinFMInitialPartitionerT, InitialPartitioningAlgorithm::greedy_round_robin_fm, 5, 1>,
-                         TestConfig<GreedyRoundRobinFMInitialPartitionerT, InitialPartitioningAlgorithm::greedy_round_robin_fm, 5, 2>,
-                         TestConfig<GreedyRoundRobinFMInitialPartitionerT, InitialPartitioningAlgorithm::greedy_round_robin_fm, 5, 5>,
-                         TestConfig<GreedyGlobalFMInitialPartitionerT, InitialPartitioningAlgorithm::greedy_global_fm, 2, 1>,
-                         TestConfig<GreedyGlobalFMInitialPartitionerT, InitialPartitioningAlgorithm::greedy_global_fm, 2, 2>,
-                         TestConfig<GreedyGlobalFMInitialPartitionerT, InitialPartitioningAlgorithm::greedy_global_fm, 2, 5>,
-                         TestConfig<GreedyGlobalFMInitialPartitionerT, InitialPartitioningAlgorithm::greedy_global_fm, 3, 1>,
-                         TestConfig<GreedyGlobalFMInitialPartitionerT, InitialPartitioningAlgorithm::greedy_global_fm, 3, 2>,
-                         TestConfig<GreedyGlobalFMInitialPartitionerT, InitialPartitioningAlgorithm::greedy_global_fm, 3, 5>,
-                         TestConfig<GreedyGlobalFMInitialPartitionerT, InitialPartitioningAlgorithm::greedy_global_fm, 4, 1>,
-                         TestConfig<GreedyGlobalFMInitialPartitionerT, InitialPartitioningAlgorithm::greedy_global_fm, 4, 2>,
-                         TestConfig<GreedyGlobalFMInitialPartitionerT, InitialPartitioningAlgorithm::greedy_global_fm, 4, 5>,
-                         TestConfig<GreedyGlobalFMInitialPartitionerT, InitialPartitioningAlgorithm::greedy_global_fm, 5, 1>,
-                         TestConfig<GreedyGlobalFMInitialPartitionerT, InitialPartitioningAlgorithm::greedy_global_fm, 5, 2>,
-                         TestConfig<GreedyGlobalFMInitialPartitionerT, InitialPartitioningAlgorithm::greedy_global_fm, 5, 5>,
-                         TestConfig<GreedySequentialFMInitialPartitionerT, InitialPartitioningAlgorithm::greedy_sequential_fm, 2, 1>,
-                         TestConfig<GreedySequentialFMInitialPartitionerT, InitialPartitioningAlgorithm::greedy_sequential_fm, 2, 2>,
-                         TestConfig<GreedySequentialFMInitialPartitionerT, InitialPartitioningAlgorithm::greedy_sequential_fm, 2, 5>,
-                         TestConfig<GreedySequentialFMInitialPartitionerT, InitialPartitioningAlgorithm::greedy_sequential_fm, 3, 1>,
-                         TestConfig<GreedySequentialFMInitialPartitionerT, InitialPartitioningAlgorithm::greedy_sequential_fm, 3, 2>,
-                         TestConfig<GreedySequentialFMInitialPartitionerT, InitialPartitioningAlgorithm::greedy_sequential_fm, 3, 5>,
-                         TestConfig<GreedySequentialFMInitialPartitionerT, InitialPartitioningAlgorithm::greedy_sequential_fm, 4, 1>,
-                         TestConfig<GreedySequentialFMInitialPartitionerT, InitialPartitioningAlgorithm::greedy_sequential_fm, 4, 2>,
-                         TestConfig<GreedySequentialFMInitialPartitionerT, InitialPartitioningAlgorithm::greedy_sequential_fm, 4, 5>,
-                         TestConfig<GreedySequentialFMInitialPartitionerT, InitialPartitioningAlgorithm::greedy_sequential_fm, 5, 1>,
-                         TestConfig<GreedySequentialFMInitialPartitionerT, InitialPartitioningAlgorithm::greedy_sequential_fm, 5, 2>,
-                         TestConfig<GreedySequentialFMInitialPartitionerT, InitialPartitioningAlgorithm::greedy_sequential_fm, 5, 5>,
-                         TestConfig<GreedyRoundRobinMaxNetInitialPartitionerT, InitialPartitioningAlgorithm::greedy_round_robin_max_net, 2, 1>,
-                         TestConfig<GreedyRoundRobinMaxNetInitialPartitionerT, InitialPartitioningAlgorithm::greedy_round_robin_max_net, 2, 2>,
-                         TestConfig<GreedyRoundRobinMaxNetInitialPartitionerT, InitialPartitioningAlgorithm::greedy_round_robin_max_net, 2, 5>,
-                         TestConfig<GreedyRoundRobinMaxNetInitialPartitionerT, InitialPartitioningAlgorithm::greedy_round_robin_max_net, 3, 1>,
-                         TestConfig<GreedyRoundRobinMaxNetInitialPartitionerT, InitialPartitioningAlgorithm::greedy_round_robin_max_net, 3, 2>,
-                         TestConfig<GreedyRoundRobinMaxNetInitialPartitionerT, InitialPartitioningAlgorithm::greedy_round_robin_max_net, 3, 5>,
-                         TestConfig<GreedyRoundRobinMaxNetInitialPartitionerT, InitialPartitioningAlgorithm::greedy_round_robin_max_net, 4, 1>,
-                         TestConfig<GreedyRoundRobinMaxNetInitialPartitionerT, InitialPartitioningAlgorithm::greedy_round_robin_max_net, 4, 2>,
-                         TestConfig<GreedyRoundRobinMaxNetInitialPartitionerT, InitialPartitioningAlgorithm::greedy_round_robin_max_net, 4, 5>,
-                         TestConfig<GreedyRoundRobinMaxNetInitialPartitionerT, InitialPartitioningAlgorithm::greedy_round_robin_max_net, 5, 1>,
-                         TestConfig<GreedyRoundRobinMaxNetInitialPartitionerT, InitialPartitioningAlgorithm::greedy_round_robin_max_net, 5, 2>,
-                         TestConfig<GreedyRoundRobinMaxNetInitialPartitionerT, InitialPartitioningAlgorithm::greedy_round_robin_max_net, 5, 5>,
-                         TestConfig<GreedyGlobalMaxNetInitialPartitionerT, InitialPartitioningAlgorithm::greedy_global_max_net, 2, 1>,
-                         TestConfig<GreedyGlobalMaxNetInitialPartitionerT, InitialPartitioningAlgorithm::greedy_global_max_net, 2, 2>,
-                         TestConfig<GreedyGlobalMaxNetInitialPartitionerT, InitialPartitioningAlgorithm::greedy_global_max_net, 2, 5>,
-                         TestConfig<GreedyGlobalMaxNetInitialPartitionerT, InitialPartitioningAlgorithm::greedy_global_max_net, 3, 1>,
-                         TestConfig<GreedyGlobalMaxNetInitialPartitionerT, InitialPartitioningAlgorithm::greedy_global_max_net, 3, 2>,
-                         TestConfig<GreedyGlobalMaxNetInitialPartitionerT, InitialPartitioningAlgorithm::greedy_global_max_net, 3, 5>,
-                         TestConfig<GreedyGlobalMaxNetInitialPartitionerT, InitialPartitioningAlgorithm::greedy_global_max_net, 4, 1>,
-                         TestConfig<GreedyGlobalMaxNetInitialPartitionerT, InitialPartitioningAlgorithm::greedy_global_max_net, 4, 2>,
-                         TestConfig<GreedyGlobalMaxNetInitialPartitionerT, InitialPartitioningAlgorithm::greedy_global_max_net, 4, 5>,
-                         TestConfig<GreedyGlobalMaxNetInitialPartitionerT, InitialPartitioningAlgorithm::greedy_global_max_net, 5, 1>,
-                         TestConfig<GreedyGlobalMaxNetInitialPartitionerT, InitialPartitioningAlgorithm::greedy_global_max_net, 5, 2>,
-                         TestConfig<GreedyGlobalMaxNetInitialPartitionerT, InitialPartitioningAlgorithm::greedy_global_max_net, 5, 5>,
-                         TestConfig<GreedySequentialMaxNetInitialPartitionerT, InitialPartitioningAlgorithm::greedy_sequential_max_net, 2, 1>,
-                         TestConfig<GreedySequentialMaxNetInitialPartitionerT, InitialPartitioningAlgorithm::greedy_sequential_max_net, 2, 2>,
-                         TestConfig<GreedySequentialMaxNetInitialPartitionerT, InitialPartitioningAlgorithm::greedy_sequential_max_net, 2, 5>,
-                         TestConfig<GreedySequentialMaxNetInitialPartitionerT, InitialPartitioningAlgorithm::greedy_sequential_max_net, 3, 1>,
-                         TestConfig<GreedySequentialMaxNetInitialPartitionerT, InitialPartitioningAlgorithm::greedy_sequential_max_net, 3, 2>,
-                         TestConfig<GreedySequentialMaxNetInitialPartitionerT, InitialPartitioningAlgorithm::greedy_sequential_max_net, 3, 5>,
-                         TestConfig<GreedySequentialMaxNetInitialPartitionerT, InitialPartitioningAlgorithm::greedy_sequential_max_net, 4, 1>,
-                         TestConfig<GreedySequentialMaxNetInitialPartitionerT, InitialPartitioningAlgorithm::greedy_sequential_max_net, 4, 2>,
-                         TestConfig<GreedySequentialMaxNetInitialPartitionerT, InitialPartitioningAlgorithm::greedy_sequential_max_net, 4, 5>,
-                         TestConfig<GreedySequentialMaxNetInitialPartitionerT, InitialPartitioningAlgorithm::greedy_sequential_max_net, 5, 1>,
-                         TestConfig<GreedySequentialMaxNetInitialPartitionerT, InitialPartitioningAlgorithm::greedy_sequential_max_net, 5, 2>,
-                         TestConfig<GreedySequentialMaxNetInitialPartitionerT, InitialPartitioningAlgorithm::greedy_sequential_max_net, 5, 5>,
-                         TestConfig<LabelPropagationInitialPartitionerT, InitialPartitioningAlgorithm::label_propagation, 2, 1>,
-                         TestConfig<LabelPropagationInitialPartitionerT, InitialPartitioningAlgorithm::label_propagation, 2, 2>,
-                         TestConfig<LabelPropagationInitialPartitionerT, InitialPartitioningAlgorithm::label_propagation, 2, 5>,
-                         TestConfig<LabelPropagationInitialPartitionerT, InitialPartitioningAlgorithm::label_propagation, 3, 1>,
-                         TestConfig<LabelPropagationInitialPartitionerT, InitialPartitioningAlgorithm::label_propagation, 3, 2>,
-                         TestConfig<LabelPropagationInitialPartitionerT, InitialPartitioningAlgorithm::label_propagation, 3, 5>,
-                         TestConfig<LabelPropagationInitialPartitionerT, InitialPartitioningAlgorithm::label_propagation, 4, 1>,
-                         TestConfig<LabelPropagationInitialPartitionerT, InitialPartitioningAlgorithm::label_propagation, 4, 2>,
-                         TestConfig<LabelPropagationInitialPartitionerT, InitialPartitioningAlgorithm::label_propagation, 4, 5>,
-                         TestConfig<LabelPropagationInitialPartitionerT, InitialPartitioningAlgorithm::label_propagation, 5, 1>,
-                         TestConfig<LabelPropagationInitialPartitionerT, InitialPartitioningAlgorithm::label_propagation, 5, 2>,
-                         TestConfig<LabelPropagationInitialPartitionerT, InitialPartitioningAlgorithm::label_propagation, 5, 5> > TestConfigs;
+typedef ::testing::Types<TestConfig<RandomInitialPartitioner, InitialPartitioningAlgorithm::random, 2, 1>,
+                         TestConfig<RandomInitialPartitioner, InitialPartitioningAlgorithm::random, 2, 2>,
+                         TestConfig<RandomInitialPartitioner, InitialPartitioningAlgorithm::random, 2, 5>,
+                         TestConfig<RandomInitialPartitioner, InitialPartitioningAlgorithm::random, 3, 1>,
+                         TestConfig<RandomInitialPartitioner, InitialPartitioningAlgorithm::random, 3, 2>,
+                         TestConfig<RandomInitialPartitioner, InitialPartitioningAlgorithm::random, 3, 5>,
+                         TestConfig<RandomInitialPartitioner, InitialPartitioningAlgorithm::random, 4, 1>,
+                         TestConfig<RandomInitialPartitioner, InitialPartitioningAlgorithm::random, 4, 2>,
+                         TestConfig<RandomInitialPartitioner, InitialPartitioningAlgorithm::random, 4, 5>,
+                         TestConfig<RandomInitialPartitioner, InitialPartitioningAlgorithm::random, 5, 1>,
+                         TestConfig<RandomInitialPartitioner, InitialPartitioningAlgorithm::random, 5, 2>,
+                         TestConfig<RandomInitialPartitioner, InitialPartitioningAlgorithm::random, 5, 5>,
+                         TestConfig<BFSInitialPartitioner, InitialPartitioningAlgorithm::bfs, 2, 1>,
+                         TestConfig<BFSInitialPartitioner, InitialPartitioningAlgorithm::bfs, 2, 2>,
+                         TestConfig<BFSInitialPartitioner, InitialPartitioningAlgorithm::bfs, 2, 5>,
+                         TestConfig<BFSInitialPartitioner, InitialPartitioningAlgorithm::bfs, 3, 1>,
+                         TestConfig<BFSInitialPartitioner, InitialPartitioningAlgorithm::bfs, 3, 2>,
+                         TestConfig<BFSInitialPartitioner, InitialPartitioningAlgorithm::bfs, 3, 5>,
+                         TestConfig<BFSInitialPartitioner, InitialPartitioningAlgorithm::bfs, 4, 1>,
+                         TestConfig<BFSInitialPartitioner, InitialPartitioningAlgorithm::bfs, 4, 2>,
+                         TestConfig<BFSInitialPartitioner, InitialPartitioningAlgorithm::bfs, 4, 5>,
+                         TestConfig<BFSInitialPartitioner, InitialPartitioningAlgorithm::bfs, 5, 1>,
+                         TestConfig<BFSInitialPartitioner, InitialPartitioningAlgorithm::bfs, 5, 2>,
+                         TestConfig<BFSInitialPartitioner, InitialPartitioningAlgorithm::bfs, 5, 5>,
+                         TestConfig<GreedyRoundRobinFMInitialPartitioner, InitialPartitioningAlgorithm::greedy_round_robin_fm, 2, 1>,
+                         TestConfig<GreedyRoundRobinFMInitialPartitioner, InitialPartitioningAlgorithm::greedy_round_robin_fm, 2, 2>,
+                         TestConfig<GreedyRoundRobinFMInitialPartitioner, InitialPartitioningAlgorithm::greedy_round_robin_fm, 2, 5>,
+                         TestConfig<GreedyRoundRobinFMInitialPartitioner, InitialPartitioningAlgorithm::greedy_round_robin_fm, 3, 1>,
+                         TestConfig<GreedyRoundRobinFMInitialPartitioner, InitialPartitioningAlgorithm::greedy_round_robin_fm, 3, 2>,
+                         TestConfig<GreedyRoundRobinFMInitialPartitioner, InitialPartitioningAlgorithm::greedy_round_robin_fm, 3, 5>,
+                         TestConfig<GreedyRoundRobinFMInitialPartitioner, InitialPartitioningAlgorithm::greedy_round_robin_fm, 4, 1>,
+                         TestConfig<GreedyRoundRobinFMInitialPartitioner, InitialPartitioningAlgorithm::greedy_round_robin_fm, 4, 2>,
+                         TestConfig<GreedyRoundRobinFMInitialPartitioner, InitialPartitioningAlgorithm::greedy_round_robin_fm, 4, 5>,
+                         TestConfig<GreedyRoundRobinFMInitialPartitioner, InitialPartitioningAlgorithm::greedy_round_robin_fm, 5, 1>,
+                         TestConfig<GreedyRoundRobinFMInitialPartitioner, InitialPartitioningAlgorithm::greedy_round_robin_fm, 5, 2>,
+                         TestConfig<GreedyRoundRobinFMInitialPartitioner, InitialPartitioningAlgorithm::greedy_round_robin_fm, 5, 5>,
+                         TestConfig<GreedyGlobalFMInitialPartitioner, InitialPartitioningAlgorithm::greedy_global_fm, 2, 1>,
+                         TestConfig<GreedyGlobalFMInitialPartitioner, InitialPartitioningAlgorithm::greedy_global_fm, 2, 2>,
+                         TestConfig<GreedyGlobalFMInitialPartitioner, InitialPartitioningAlgorithm::greedy_global_fm, 2, 5>,
+                         TestConfig<GreedyGlobalFMInitialPartitioner, InitialPartitioningAlgorithm::greedy_global_fm, 3, 1>,
+                         TestConfig<GreedyGlobalFMInitialPartitioner, InitialPartitioningAlgorithm::greedy_global_fm, 3, 2>,
+                         TestConfig<GreedyGlobalFMInitialPartitioner, InitialPartitioningAlgorithm::greedy_global_fm, 3, 5>,
+                         TestConfig<GreedyGlobalFMInitialPartitioner, InitialPartitioningAlgorithm::greedy_global_fm, 4, 1>,
+                         TestConfig<GreedyGlobalFMInitialPartitioner, InitialPartitioningAlgorithm::greedy_global_fm, 4, 2>,
+                         TestConfig<GreedyGlobalFMInitialPartitioner, InitialPartitioningAlgorithm::greedy_global_fm, 4, 5>,
+                         TestConfig<GreedyGlobalFMInitialPartitioner, InitialPartitioningAlgorithm::greedy_global_fm, 5, 1>,
+                         TestConfig<GreedyGlobalFMInitialPartitioner, InitialPartitioningAlgorithm::greedy_global_fm, 5, 2>,
+                         TestConfig<GreedyGlobalFMInitialPartitioner, InitialPartitioningAlgorithm::greedy_global_fm, 5, 5>,
+                         TestConfig<GreedySequentialFMInitialPartitioner, InitialPartitioningAlgorithm::greedy_sequential_fm, 2, 1>,
+                         TestConfig<GreedySequentialFMInitialPartitioner, InitialPartitioningAlgorithm::greedy_sequential_fm, 2, 2>,
+                         TestConfig<GreedySequentialFMInitialPartitioner, InitialPartitioningAlgorithm::greedy_sequential_fm, 2, 5>,
+                         TestConfig<GreedySequentialFMInitialPartitioner, InitialPartitioningAlgorithm::greedy_sequential_fm, 3, 1>,
+                         TestConfig<GreedySequentialFMInitialPartitioner, InitialPartitioningAlgorithm::greedy_sequential_fm, 3, 2>,
+                         TestConfig<GreedySequentialFMInitialPartitioner, InitialPartitioningAlgorithm::greedy_sequential_fm, 3, 5>,
+                         TestConfig<GreedySequentialFMInitialPartitioner, InitialPartitioningAlgorithm::greedy_sequential_fm, 4, 1>,
+                         TestConfig<GreedySequentialFMInitialPartitioner, InitialPartitioningAlgorithm::greedy_sequential_fm, 4, 2>,
+                         TestConfig<GreedySequentialFMInitialPartitioner, InitialPartitioningAlgorithm::greedy_sequential_fm, 4, 5>,
+                         TestConfig<GreedySequentialFMInitialPartitioner, InitialPartitioningAlgorithm::greedy_sequential_fm, 5, 1>,
+                         TestConfig<GreedySequentialFMInitialPartitioner, InitialPartitioningAlgorithm::greedy_sequential_fm, 5, 2>,
+                         TestConfig<GreedySequentialFMInitialPartitioner, InitialPartitioningAlgorithm::greedy_sequential_fm, 5, 5>,
+                         TestConfig<GreedyRoundRobinMaxNetInitialPartitioner, InitialPartitioningAlgorithm::greedy_round_robin_max_net, 2, 1>,
+                         TestConfig<GreedyRoundRobinMaxNetInitialPartitioner, InitialPartitioningAlgorithm::greedy_round_robin_max_net, 2, 2>,
+                         TestConfig<GreedyRoundRobinMaxNetInitialPartitioner, InitialPartitioningAlgorithm::greedy_round_robin_max_net, 2, 5>,
+                         TestConfig<GreedyRoundRobinMaxNetInitialPartitioner, InitialPartitioningAlgorithm::greedy_round_robin_max_net, 3, 1>,
+                         TestConfig<GreedyRoundRobinMaxNetInitialPartitioner, InitialPartitioningAlgorithm::greedy_round_robin_max_net, 3, 2>,
+                         TestConfig<GreedyRoundRobinMaxNetInitialPartitioner, InitialPartitioningAlgorithm::greedy_round_robin_max_net, 3, 5>,
+                         TestConfig<GreedyRoundRobinMaxNetInitialPartitioner, InitialPartitioningAlgorithm::greedy_round_robin_max_net, 4, 1>,
+                         TestConfig<GreedyRoundRobinMaxNetInitialPartitioner, InitialPartitioningAlgorithm::greedy_round_robin_max_net, 4, 2>,
+                         TestConfig<GreedyRoundRobinMaxNetInitialPartitioner, InitialPartitioningAlgorithm::greedy_round_robin_max_net, 4, 5>,
+                         TestConfig<GreedyRoundRobinMaxNetInitialPartitioner, InitialPartitioningAlgorithm::greedy_round_robin_max_net, 5, 1>,
+                         TestConfig<GreedyRoundRobinMaxNetInitialPartitioner, InitialPartitioningAlgorithm::greedy_round_robin_max_net, 5, 2>,
+                         TestConfig<GreedyRoundRobinMaxNetInitialPartitioner, InitialPartitioningAlgorithm::greedy_round_robin_max_net, 5, 5>,
+                         TestConfig<GreedyGlobalMaxNetInitialPartitioner, InitialPartitioningAlgorithm::greedy_global_max_net, 2, 1>,
+                         TestConfig<GreedyGlobalMaxNetInitialPartitioner, InitialPartitioningAlgorithm::greedy_global_max_net, 2, 2>,
+                         TestConfig<GreedyGlobalMaxNetInitialPartitioner, InitialPartitioningAlgorithm::greedy_global_max_net, 2, 5>,
+                         TestConfig<GreedyGlobalMaxNetInitialPartitioner, InitialPartitioningAlgorithm::greedy_global_max_net, 3, 1>,
+                         TestConfig<GreedyGlobalMaxNetInitialPartitioner, InitialPartitioningAlgorithm::greedy_global_max_net, 3, 2>,
+                         TestConfig<GreedyGlobalMaxNetInitialPartitioner, InitialPartitioningAlgorithm::greedy_global_max_net, 3, 5>,
+                         TestConfig<GreedyGlobalMaxNetInitialPartitioner, InitialPartitioningAlgorithm::greedy_global_max_net, 4, 1>,
+                         TestConfig<GreedyGlobalMaxNetInitialPartitioner, InitialPartitioningAlgorithm::greedy_global_max_net, 4, 2>,
+                         TestConfig<GreedyGlobalMaxNetInitialPartitioner, InitialPartitioningAlgorithm::greedy_global_max_net, 4, 5>,
+                         TestConfig<GreedyGlobalMaxNetInitialPartitioner, InitialPartitioningAlgorithm::greedy_global_max_net, 5, 1>,
+                         TestConfig<GreedyGlobalMaxNetInitialPartitioner, InitialPartitioningAlgorithm::greedy_global_max_net, 5, 2>,
+                         TestConfig<GreedyGlobalMaxNetInitialPartitioner, InitialPartitioningAlgorithm::greedy_global_max_net, 5, 5>,
+                         TestConfig<GreedySequentialMaxNetInitialPartitioner, InitialPartitioningAlgorithm::greedy_sequential_max_net, 2, 1>,
+                         TestConfig<GreedySequentialMaxNetInitialPartitioner, InitialPartitioningAlgorithm::greedy_sequential_max_net, 2, 2>,
+                         TestConfig<GreedySequentialMaxNetInitialPartitioner, InitialPartitioningAlgorithm::greedy_sequential_max_net, 2, 5>,
+                         TestConfig<GreedySequentialMaxNetInitialPartitioner, InitialPartitioningAlgorithm::greedy_sequential_max_net, 3, 1>,
+                         TestConfig<GreedySequentialMaxNetInitialPartitioner, InitialPartitioningAlgorithm::greedy_sequential_max_net, 3, 2>,
+                         TestConfig<GreedySequentialMaxNetInitialPartitioner, InitialPartitioningAlgorithm::greedy_sequential_max_net, 3, 5>,
+                         TestConfig<GreedySequentialMaxNetInitialPartitioner, InitialPartitioningAlgorithm::greedy_sequential_max_net, 4, 1>,
+                         TestConfig<GreedySequentialMaxNetInitialPartitioner, InitialPartitioningAlgorithm::greedy_sequential_max_net, 4, 2>,
+                         TestConfig<GreedySequentialMaxNetInitialPartitioner, InitialPartitioningAlgorithm::greedy_sequential_max_net, 4, 5>,
+                         TestConfig<GreedySequentialMaxNetInitialPartitioner, InitialPartitioningAlgorithm::greedy_sequential_max_net, 5, 1>,
+                         TestConfig<GreedySequentialMaxNetInitialPartitioner, InitialPartitioningAlgorithm::greedy_sequential_max_net, 5, 2>,
+                         TestConfig<GreedySequentialMaxNetInitialPartitioner, InitialPartitioningAlgorithm::greedy_sequential_max_net, 5, 5>,
+                         TestConfig<LabelPropagationInitialPartitioner, InitialPartitioningAlgorithm::label_propagation, 2, 1>,
+                         TestConfig<LabelPropagationInitialPartitioner, InitialPartitioningAlgorithm::label_propagation, 2, 2>,
+                         TestConfig<LabelPropagationInitialPartitioner, InitialPartitioningAlgorithm::label_propagation, 2, 5>,
+                         TestConfig<LabelPropagationInitialPartitioner, InitialPartitioningAlgorithm::label_propagation, 3, 1>,
+                         TestConfig<LabelPropagationInitialPartitioner, InitialPartitioningAlgorithm::label_propagation, 3, 2>,
+                         TestConfig<LabelPropagationInitialPartitioner, InitialPartitioningAlgorithm::label_propagation, 3, 5>,
+                         TestConfig<LabelPropagationInitialPartitioner, InitialPartitioningAlgorithm::label_propagation, 4, 1>,
+                         TestConfig<LabelPropagationInitialPartitioner, InitialPartitioningAlgorithm::label_propagation, 4, 2>,
+                         TestConfig<LabelPropagationInitialPartitioner, InitialPartitioningAlgorithm::label_propagation, 4, 5>,
+                         TestConfig<LabelPropagationInitialPartitioner, InitialPartitioningAlgorithm::label_propagation, 5, 1>,
+                         TestConfig<LabelPropagationInitialPartitioner, InitialPartitioningAlgorithm::label_propagation, 5, 2>,
+                         TestConfig<LabelPropagationInitialPartitioner, InitialPartitioningAlgorithm::label_propagation, 5, 5> > TestConfigs;
 
 TYPED_TEST_CASE(AFlatInitialPartitionerTest, TestConfigs);
 

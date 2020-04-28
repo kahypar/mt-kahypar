@@ -34,37 +34,21 @@
 
 #include "mt-kahypar/datastructures/static_hypergraph.h"
 #include "mt-kahypar/datastructures/static_hypergraph_factory.h"
-#include "mt-kahypar/datastructures/numa_hypergraph.h"
-#include "mt-kahypar/datastructures/numa_hypergraph_factory.h"
 #include "mt-kahypar/datastructures/partitioned_hypergraph.h"
-#include "mt-kahypar/datastructures/numa_partitioned_hypergraph.h"
 
 using ::testing::Test;
 
 namespace mt_kahypar {
 namespace ds {
-template <typename PartitionedHG,
-          typename HG,
-          typename HGFactory,
-          typename TBBArena,
-          PartitionID k,
+template <PartitionID k,
           kahypar::Objective objective>
 struct TestConfig {
-  using PartitionedHyperGraph = PartitionedHG;
-  using Hypergraph = HG;
-  using Factory = HGFactory;
-  using TBB = TBBArena;
   static constexpr PartitionID K = k;
   static constexpr kahypar::Objective OBJECTIVE = objective;
 };
 
 template <typename Config>
 class AConcurrentHypergraph : public Test {
-
- using PartitionedHyperGraph = typename Config::PartitionedHyperGraph;
- using Hypergraph = typename Config::Hypergraph;
- using Factory = typename Config::Factory;
- using TBB = typename Config::TBB;
 
  public:
   AConcurrentHypergraph() :
@@ -73,177 +57,41 @@ class AConcurrentHypergraph : public Test {
     underlying_hypergraph(),
     hypergraph() {
     int cpu_id = sched_getcpu();
-    underlying_hypergraph = io::readHypergraphFile<Hypergraph, Factory>(
-      "../partition/test_instances/ibm01.hgr", TBB::GLOBAL_TASK_GROUP);
-    hypergraph = PartitionedHyperGraph(k, TBB::GLOBAL_TASK_GROUP, underlying_hypergraph);
+    underlying_hypergraph = io::readHypergraphFile(
+      "../partition/test_instances/ibm01.hgr", TBBNumaArena::GLOBAL_TASK_GROUP);
+    hypergraph = mt_kahypar::PartitionedHypergraph<>(k, TBBNumaArena::GLOBAL_TASK_GROUP, underlying_hypergraph);
     for (const HypernodeID& hn : hypergraph.nodes()) {
       PartitionID id = utils::Randomize::instance().getRandomInt(0, k - 1, cpu_id);
       hypergraph.setNodePart(hn, id);
     }
-    hypergraph.initializeNumCutHyperedges(TBB::GLOBAL_TASK_GROUP);
+    hypergraph.initializeNumCutHyperedges(TBBNumaArena::GLOBAL_TASK_GROUP);
   }
 
   static void SetUpTestSuite() {
-    TBB::instance(HardwareTopology::instance().num_cpus());
+    TBBNumaArena::instance(HardwareTopology::instance().num_cpus());
     utils::Randomize::instance().setSeed(0);
   }
 
   PartitionID k;
   kahypar::Objective objective;
   Hypergraph underlying_hypergraph;
-  PartitionedHyperGraph hypergraph;
+  mt_kahypar::PartitionedHypergraph<> hypergraph;
 };
 
-// Mocking Numa Architecture (=> 2 NUMA Nodes)
-using TypeTraits = TestTypeTraits<2>;
-using HwTopology = typename TypeTraits::HwTopology;
-using TBB = typename TypeTraits::TBB;
-
-// Define NUMA Hypergraph and Factory
-using NumaHyperGraph = NumaHypergraph<StaticHypergraph, HwTopology, TBB>;
-using NumaHyperGraphFactory = NumaHypergraphFactory<
-  StaticHypergraph, StaticHypergraphFactory, HwTopology, TBB>;
-
-typedef ::testing::Types<TestConfig<PartitionedHypergraph<StaticHypergraph, StaticHypergraphFactory>,
-                                    StaticHypergraph,
-                                    StaticHypergraphFactory,
-                                    TBBNumaArena,
-                                    2, kahypar::Objective::cut>,
-                        TestConfig<PartitionedHypergraph<StaticHypergraph, StaticHypergraphFactory>,
-                                    StaticHypergraph,
-                                    StaticHypergraphFactory,
-                                    TBBNumaArena,
-                                    4, kahypar::Objective::cut>,
-                        TestConfig<PartitionedHypergraph<StaticHypergraph, StaticHypergraphFactory>,
-                                    StaticHypergraph,
-                                    StaticHypergraphFactory,
-                                    TBBNumaArena,
-                                    8, kahypar::Objective::cut>,
-                        TestConfig<PartitionedHypergraph<StaticHypergraph, StaticHypergraphFactory>,
-                                    StaticHypergraph,
-                                    StaticHypergraphFactory,
-                                    TBBNumaArena,
-                                    16, kahypar::Objective::cut>,
-                        TestConfig<PartitionedHypergraph<StaticHypergraph, StaticHypergraphFactory>,
-                                    StaticHypergraph,
-                                    StaticHypergraphFactory,
-                                    TBBNumaArena,
-                                    32, kahypar::Objective::cut>,
-                        TestConfig<PartitionedHypergraph<StaticHypergraph, StaticHypergraphFactory>,
-                                    StaticHypergraph,
-                                    StaticHypergraphFactory,
-                                    TBBNumaArena,
-                                    64, kahypar::Objective::cut>,
-                        TestConfig<PartitionedHypergraph<StaticHypergraph, StaticHypergraphFactory>,
-                                    StaticHypergraph,
-                                    StaticHypergraphFactory,
-                                    TBBNumaArena,
-                                    128, kahypar::Objective::cut>,
-                        TestConfig<PartitionedHypergraph<StaticHypergraph, StaticHypergraphFactory>,
-                                    StaticHypergraph,
-                                    StaticHypergraphFactory,
-                                    TBBNumaArena,
-                                    2, kahypar::Objective::km1>,
-                        TestConfig<PartitionedHypergraph<StaticHypergraph, StaticHypergraphFactory>,
-                                    StaticHypergraph,
-                                    StaticHypergraphFactory,
-                                    TBBNumaArena,
-                                    4, kahypar::Objective::km1>,
-                        TestConfig<PartitionedHypergraph<StaticHypergraph, StaticHypergraphFactory>,
-                                    StaticHypergraph,
-                                    StaticHypergraphFactory,
-                                    TBBNumaArena,
-                                    8, kahypar::Objective::km1>,
-                        TestConfig<PartitionedHypergraph<StaticHypergraph, StaticHypergraphFactory>,
-                                    StaticHypergraph,
-                                    StaticHypergraphFactory,
-                                    TBBNumaArena,
-                                    16, kahypar::Objective::km1>,
-                        TestConfig<PartitionedHypergraph<StaticHypergraph, StaticHypergraphFactory>,
-                                    StaticHypergraph,
-                                    StaticHypergraphFactory,
-                                    TBBNumaArena,
-                                    32, kahypar::Objective::km1>,
-                        TestConfig<PartitionedHypergraph<StaticHypergraph, StaticHypergraphFactory>,
-                                    StaticHypergraph,
-                                    StaticHypergraphFactory,
-                                    TBBNumaArena,
-                                    64, kahypar::Objective::km1>,
-                        TestConfig<PartitionedHypergraph<StaticHypergraph, StaticHypergraphFactory>,
-                                    StaticHypergraph,
-                                    StaticHypergraphFactory,
-                                    TBBNumaArena,
-                                    128, kahypar::Objective::km1>,
-                        TestConfig<NumaPartitionedHypergraph<NumaHyperGraph, NumaHyperGraphFactory>,
-                                    NumaHyperGraph,
-                                    NumaHyperGraphFactory,
-                                    TBB,
-                                    2, kahypar::Objective::cut>,
-                        TestConfig<NumaPartitionedHypergraph<NumaHyperGraph, NumaHyperGraphFactory>,
-                                    NumaHyperGraph,
-                                    NumaHyperGraphFactory,
-                                    TBB,
-                                    4, kahypar::Objective::cut>,
-                        TestConfig<NumaPartitionedHypergraph<NumaHyperGraph, NumaHyperGraphFactory>,
-                                    NumaHyperGraph,
-                                    NumaHyperGraphFactory,
-                                    TBB,
-                                    8, kahypar::Objective::cut>,
-                        TestConfig<NumaPartitionedHypergraph<NumaHyperGraph, NumaHyperGraphFactory>,
-                                    NumaHyperGraph,
-                                    NumaHyperGraphFactory,
-                                    TBB,
-                                    16, kahypar::Objective::cut>,
-                        TestConfig<NumaPartitionedHypergraph<NumaHyperGraph, NumaHyperGraphFactory>,
-                                    NumaHyperGraph,
-                                    NumaHyperGraphFactory,
-                                    TBB,
-                                    32, kahypar::Objective::cut>,
-                        TestConfig<NumaPartitionedHypergraph<NumaHyperGraph, NumaHyperGraphFactory>,
-                                    NumaHyperGraph,
-                                    NumaHyperGraphFactory,
-                                    TBB,
-                                    64, kahypar::Objective::cut>,
-                        TestConfig<NumaPartitionedHypergraph<NumaHyperGraph, NumaHyperGraphFactory>,
-                                    NumaHyperGraph,
-                                    NumaHyperGraphFactory,
-                                    TBB,
-                                    128, kahypar::Objective::cut>,
-                        TestConfig<NumaPartitionedHypergraph<NumaHyperGraph, NumaHyperGraphFactory>,
-                                    NumaHyperGraph,
-                                    NumaHyperGraphFactory,
-                                    TBB,
-                                    2, kahypar::Objective::km1>,
-                        TestConfig<NumaPartitionedHypergraph<NumaHyperGraph, NumaHyperGraphFactory>,
-                                    NumaHyperGraph,
-                                    NumaHyperGraphFactory,
-                                    TBB,
-                                    4, kahypar::Objective::km1>,
-                        TestConfig<NumaPartitionedHypergraph<NumaHyperGraph, NumaHyperGraphFactory>,
-                                    NumaHyperGraph,
-                                    NumaHyperGraphFactory,
-                                    TBB,
-                                    8, kahypar::Objective::km1>,
-                        TestConfig<NumaPartitionedHypergraph<NumaHyperGraph, NumaHyperGraphFactory>,
-                                    NumaHyperGraph,
-                                    NumaHyperGraphFactory,
-                                    TBB,
-                                    16, kahypar::Objective::km1>,
-                        TestConfig<NumaPartitionedHypergraph<NumaHyperGraph, NumaHyperGraphFactory>,
-                                    NumaHyperGraph,
-                                    NumaHyperGraphFactory,
-                                    TBB,
-                                    32, kahypar::Objective::km1>,
-                        TestConfig<NumaPartitionedHypergraph<NumaHyperGraph, NumaHyperGraphFactory>,
-                                    NumaHyperGraph,
-                                    NumaHyperGraphFactory,
-                                    TBB,
-                                    64, kahypar::Objective::km1>,
-                        TestConfig<NumaPartitionedHypergraph<NumaHyperGraph, NumaHyperGraphFactory>,
-                                    NumaHyperGraph,
-                                    NumaHyperGraphFactory,
-                                    TBB,
-                                    128, kahypar::Objective::km1>> TestConfigs;
+typedef ::testing::Types<TestConfig<2, kahypar::Objective::cut>,
+                         TestConfig<4, kahypar::Objective::cut>,
+                         TestConfig<8, kahypar::Objective::cut>,
+                         TestConfig<16, kahypar::Objective::cut>,
+                         TestConfig<32, kahypar::Objective::cut>,
+                         TestConfig<64, kahypar::Objective::cut>,
+                         TestConfig<128, kahypar::Objective::cut>,
+                         TestConfig<2, kahypar::Objective::km1>,
+                         TestConfig<4, kahypar::Objective::km1>,
+                         TestConfig<8, kahypar::Objective::km1>,
+                         TestConfig<16, kahypar::Objective::km1>,
+                         TestConfig<32, kahypar::Objective::km1>,
+                         TestConfig<64, kahypar::Objective::km1>,
+                         TestConfig<128, kahypar::Objective::km1>> TestConfigs;
 
 TYPED_TEST_CASE(AConcurrentHypergraph, TestConfigs);
 
@@ -271,9 +119,8 @@ void moveAllNodesOfHypergraphRandom(HyperGraph& hypergraph,
   HyperedgeWeight metric_before = metrics::objective(hypergraph, objective);
 
   HighResClockTimepoint start = std::chrono::high_resolution_clock::now();
-  tbb::parallel_for(0UL, hypergraph.initialNumNodes(), [&](const HypernodeID& node) {
+  tbb::parallel_for(ID(0), hypergraph.initialNumNodes(), [&](const HypernodeID& hn) {
     int cpu_id = sched_getcpu();
-    const HypernodeID hn = hypergraph.globalNodeID(node);
     const PartitionID from = hypergraph.partID(hn);
     PartitionID to = -1;
     while (to == -1 || to == from) {

@@ -44,8 +44,8 @@ option(KAHYPAR_ENABLE_HEAVY_INITIAL_PARTITIONING_ASSERTIONS
 option(KAHYPAR_ENABLE_HEAVY_REFINEMENT_ASSERTIONS
   "Enable heavy assertions in refinement phase." OFF)
 
-option(KAHYPAR_ENABLE_NUMA_AWARE_PARTITIONING
-  "Enable heavy assertions in refinement phase." OFF)
+option(KAHYPAR_USE_64_BIT_IDS
+  "Enables 64-bit vertex and hyperedge IDs." OFF)
 
 option(KAHYPAR_TRAVIS_BUILD
   "Indicate that this build is executed on Travis CI." OFF)
@@ -74,9 +74,9 @@ if(KAHYPAR_ENABLE_HEAVY_REFINEMENT_ASSERTIONS)
   add_compile_definitions(KAHYPAR_ENABLE_HEAVY_REFINEMENT_ASSERTIONS)
 endif(KAHYPAR_ENABLE_HEAVY_REFINEMENT_ASSERTIONS)
 
-if(KAHYPAR_ENABLE_NUMA_AWARE_PARTITIONING)
-  add_compile_definitions(KAHYPAR_ENABLE_NUMA_AWARE_PARTITIONING)
-endif(KAHYPAR_ENABLE_NUMA_AWARE_PARTITIONING)
+if(KAHYPAR_USE_64_BIT_IDS)
+  add_compile_definitions(KAHYPAR_USE_64_BIT_IDS)
+endif(KAHYPAR_USE_64_BIT_IDS)
 
 if(KAHYPAR_TRAVIS_BUILD)
   add_compile_definitions(KAHYPAR_TRAVIS_BUILD)

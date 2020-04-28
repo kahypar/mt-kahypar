@@ -24,8 +24,6 @@
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/datastructures/static_hypergraph.h"
 #include "mt-kahypar/datastructures/static_hypergraph_factory.h"
-#include "mt-kahypar/datastructures/numa_hypergraph.h"
-#include "mt-kahypar/datastructures/numa_hypergraph_factory.h"
 #include "mt-kahypar/io/hypergraph_io.h"
 
 using ::testing::Test;
@@ -34,12 +32,10 @@ namespace mt_kahypar {
 namespace io {
 
 template< typename HyperGraph,
-          typename HyperGraphFactory,
-          typename TBBArena>
+          typename HyperGraphFactory>
 struct HypergraphTypeTraits {
   using Hypergraph = HyperGraph;
   using HypergraphFactory = HyperGraphFactory;
-  using TBB = TBBArena;
 };
 
 template<typename TypeTraits>
@@ -47,42 +43,27 @@ class AHypergraphReader : public Test {
 
  using Hypergraph = typename TypeTraits::Hypergraph;
  using HypergraphFactory = typename TypeTraits::HypergraphFactory;
- using TBB = typename TypeTraits::TBB;
 
  public:
   AHypergraphReader() :
-    hypergraph(),
-    node_id(),
-    edge_id() { }
+    hypergraph() { }
 
   static void SetUpTestSuite() {
-    TBB::instance(HardwareTopology::instance().num_cpus());
+    TBBNumaArena::instance(HardwareTopology::instance().num_cpus());
   }
 
   void readHypergraph(const std::string& filename) {
-    hypergraph = readHypergraphFile<Hypergraph, HypergraphFactory>(
-      filename, TBB::GLOBAL_TASK_GROUP);
-
-    node_id.resize(hypergraph.initialNumNodes());
-    for ( const HypernodeID& hn : hypergraph.nodes() ) {
-      node_id[hypergraph.originalNodeID(hn)] = hn;
-    }
-
-    edge_id.resize(hypergraph.initialNumEdges());
-    for ( const HyperedgeID& he : hypergraph.edges() ) {
-      edge_id[hypergraph.originalEdgeID(he)] = he;
-    }
+    hypergraph = readHypergraphFile(
+      filename, TBBNumaArena::GLOBAL_TASK_GROUP);
   }
 
   void verifyIncidentNets(const std::vector< std::set<HyperedgeID> >& references) {
     ASSERT(hypergraph.initialNumNodes() == references.size());
-    for (HypernodeID id = 0; id < hypergraph.initialNumNodes(); ++id) {
-      const HypernodeID hn = hypergraph.globalNodeID(id);
-      const std::set<HyperedgeID>& reference = references[id];
+    for (HypernodeID hn = 0; hn < hypergraph.initialNumNodes(); ++hn) {
+      const std::set<HyperedgeID>& reference = references[hn];
       size_t count = 0;
       for (const HyperedgeID& he : hypergraph.incidentEdges(hn)) {
-        const HyperedgeID original_he = hypergraph.originalEdgeID(he);
-        ASSERT_TRUE(reference.find(original_he) != reference.end()) << V(hn) << V(he);
+        ASSERT_TRUE(reference.find(he) != reference.end()) << V(hn) << V(he);
         count++;
       }
       ASSERT_EQ(count, reference.size());
@@ -91,13 +72,11 @@ class AHypergraphReader : public Test {
 
   void verifyPins(const std::vector< std::set<HypernodeID> >& references) {
     ASSERT(hypergraph.initialNumEdges() == references.size());
-    for (HyperedgeID id = 0; id < hypergraph.initialNumEdges(); ++id) {
-      const HyperedgeID he = hypergraph.globalEdgeID(id);
-      const std::set<HypernodeID>& reference = references[id];
+    for (HyperedgeID he = 0; he < hypergraph.initialNumEdges(); ++he) {
+      const std::set<HypernodeID>& reference = references[he];
       size_t count = 0;
       for (const HypernodeID& pin : hypergraph.pins(he)) {
-        const HypernodeID original_pin = hypergraph.originalNodeID(pin);
-        ASSERT_TRUE(reference.find(original_pin) != reference.end()) << V(he) << V(pin);
+        ASSERT_TRUE(reference.find(pin) != reference.end()) << V(he) << V(pin);
         count++;
       }
       ASSERT_EQ(count, reference.size());
@@ -105,30 +84,15 @@ class AHypergraphReader : public Test {
   }
 
   Hypergraph hypergraph;
-  std::vector<HypernodeID> node_id;
-  std::vector<HypernodeID> edge_id;
 };
-
-// Mocking Numa Architecture (=> 2 NUMA Nodes)
-using TypeTraits = ds::TestTypeTraits<2>;
-using HwTopology = typename TypeTraits::HwTopology;
-using TBB = typename TypeTraits::TBB;
 
 // Define NUMA Hypergraph and Factory
 using StaticHypergraph = ds::StaticHypergraph;
 using StaticHypergraphFactory = ds::StaticHypergraphFactory;
-using NumaHypergraph = ds::NumaHypergraph<StaticHypergraph, HwTopology, TBB>;
-using NumaHypergraphFactory = ds::NumaHypergraphFactory<
-  StaticHypergraph, StaticHypergraphFactory, HwTopology, TBB>;
 
 typedef ::testing::Types<HypergraphTypeTraits<
                           StaticHypergraph,
-                          StaticHypergraphFactory,
-                          TBBNumaArena>,
-                        HypergraphTypeTraits<
-                          NumaHypergraph,
-                          NumaHypergraphFactory,
-                          TBB>> HypergraphTestTypes;
+                          StaticHypergraphFactory>> HypergraphTestTypes;
 
 
 TYPED_TEST_CASE(AHypergraphReader, HypergraphTestTypes);
@@ -146,19 +110,19 @@ TYPED_TEST(AHypergraphReader, ReadsAnUnweightedHypergraph) {
     { 3, 4, 6 }, { 2, 5, 6 } });
 
   // Verify Node Weights
-  ASSERT_EQ(1, this->hypergraph.nodeWeight(this->node_id[0]));
-  ASSERT_EQ(1, this->hypergraph.nodeWeight(this->node_id[1]));
-  ASSERT_EQ(1, this->hypergraph.nodeWeight(this->node_id[2]));
-  ASSERT_EQ(1, this->hypergraph.nodeWeight(this->node_id[3]));
-  ASSERT_EQ(1, this->hypergraph.nodeWeight(this->node_id[4]));
-  ASSERT_EQ(1, this->hypergraph.nodeWeight(this->node_id[5]));
-  ASSERT_EQ(1, this->hypergraph.nodeWeight(this->node_id[6]));
+  ASSERT_EQ(1, this->hypergraph.nodeWeight(0));
+  ASSERT_EQ(1, this->hypergraph.nodeWeight(1));
+  ASSERT_EQ(1, this->hypergraph.nodeWeight(2));
+  ASSERT_EQ(1, this->hypergraph.nodeWeight(3));
+  ASSERT_EQ(1, this->hypergraph.nodeWeight(4));
+  ASSERT_EQ(1, this->hypergraph.nodeWeight(5));
+  ASSERT_EQ(1, this->hypergraph.nodeWeight(6));
 
   // Verify Edge Weights
-  ASSERT_EQ(1, this->hypergraph.edgeWeight(this->edge_id[0]));
-  ASSERT_EQ(1, this->hypergraph.edgeWeight(this->edge_id[1]));
-  ASSERT_EQ(1, this->hypergraph.edgeWeight(this->edge_id[2]));
-  ASSERT_EQ(1, this->hypergraph.edgeWeight(this->edge_id[3]));
+  ASSERT_EQ(1, this->hypergraph.edgeWeight(0));
+  ASSERT_EQ(1, this->hypergraph.edgeWeight(1));
+  ASSERT_EQ(1, this->hypergraph.edgeWeight(2));
+  ASSERT_EQ(1, this->hypergraph.edgeWeight(3));
 }
 
 TYPED_TEST(AHypergraphReader, ReadsAnHypergraphWithEdgeWeights) {
@@ -174,19 +138,19 @@ TYPED_TEST(AHypergraphReader, ReadsAnHypergraphWithEdgeWeights) {
     { 3, 4, 6 }, { 2, 5, 6 } });
 
   // Verify Node Weights
-  ASSERT_EQ(1, this->hypergraph.nodeWeight(this->node_id[0]));
-  ASSERT_EQ(1, this->hypergraph.nodeWeight(this->node_id[1]));
-  ASSERT_EQ(1, this->hypergraph.nodeWeight(this->node_id[2]));
-  ASSERT_EQ(1, this->hypergraph.nodeWeight(this->node_id[3]));
-  ASSERT_EQ(1, this->hypergraph.nodeWeight(this->node_id[4]));
-  ASSERT_EQ(1, this->hypergraph.nodeWeight(this->node_id[5]));
-  ASSERT_EQ(1, this->hypergraph.nodeWeight(this->node_id[6]));
+  ASSERT_EQ(1, this->hypergraph.nodeWeight(0));
+  ASSERT_EQ(1, this->hypergraph.nodeWeight(1));
+  ASSERT_EQ(1, this->hypergraph.nodeWeight(2));
+  ASSERT_EQ(1, this->hypergraph.nodeWeight(3));
+  ASSERT_EQ(1, this->hypergraph.nodeWeight(4));
+  ASSERT_EQ(1, this->hypergraph.nodeWeight(5));
+  ASSERT_EQ(1, this->hypergraph.nodeWeight(6));
 
   // Verify Edge Weights
-  ASSERT_EQ(4, this->hypergraph.edgeWeight(this->edge_id[0]));
-  ASSERT_EQ(2, this->hypergraph.edgeWeight(this->edge_id[1]));
-  ASSERT_EQ(3, this->hypergraph.edgeWeight(this->edge_id[2]));
-  ASSERT_EQ(8, this->hypergraph.edgeWeight(this->edge_id[3]));
+  ASSERT_EQ(4, this->hypergraph.edgeWeight(0));
+  ASSERT_EQ(2, this->hypergraph.edgeWeight(1));
+  ASSERT_EQ(3, this->hypergraph.edgeWeight(2));
+  ASSERT_EQ(8, this->hypergraph.edgeWeight(3));
 }
 
 TYPED_TEST(AHypergraphReader, ReadsAnHypergraphWithNodeWeights) {
@@ -202,19 +166,19 @@ TYPED_TEST(AHypergraphReader, ReadsAnHypergraphWithNodeWeights) {
     { 3, 4, 6 }, { 2, 5, 6 } });
 
   // Verify Node Weights
-  ASSERT_EQ(5, this->hypergraph.nodeWeight(this->node_id[0]));
-  ASSERT_EQ(8, this->hypergraph.nodeWeight(this->node_id[1]));
-  ASSERT_EQ(2, this->hypergraph.nodeWeight(this->node_id[2]));
-  ASSERT_EQ(3, this->hypergraph.nodeWeight(this->node_id[3]));
-  ASSERT_EQ(4, this->hypergraph.nodeWeight(this->node_id[4]));
-  ASSERT_EQ(9, this->hypergraph.nodeWeight(this->node_id[5]));
-  ASSERT_EQ(8, this->hypergraph.nodeWeight(this->node_id[6]));
+  ASSERT_EQ(5, this->hypergraph.nodeWeight(0));
+  ASSERT_EQ(8, this->hypergraph.nodeWeight(1));
+  ASSERT_EQ(2, this->hypergraph.nodeWeight(2));
+  ASSERT_EQ(3, this->hypergraph.nodeWeight(3));
+  ASSERT_EQ(4, this->hypergraph.nodeWeight(4));
+  ASSERT_EQ(9, this->hypergraph.nodeWeight(5));
+  ASSERT_EQ(8, this->hypergraph.nodeWeight(6));
 
   // Verify Edge Weights
-  ASSERT_EQ(1, this->hypergraph.edgeWeight(this->edge_id[0]));
-  ASSERT_EQ(1, this->hypergraph.edgeWeight(this->edge_id[1]));
-  ASSERT_EQ(1, this->hypergraph.edgeWeight(this->edge_id[2]));
-  ASSERT_EQ(1, this->hypergraph.edgeWeight(this->edge_id[3]));
+  ASSERT_EQ(1, this->hypergraph.edgeWeight(0));
+  ASSERT_EQ(1, this->hypergraph.edgeWeight(1));
+  ASSERT_EQ(1, this->hypergraph.edgeWeight(2));
+  ASSERT_EQ(1, this->hypergraph.edgeWeight(3));
 }
 
 TYPED_TEST(AHypergraphReader, ReadsAnHypergraphWithNodeAndEdgeWeights) {
@@ -230,19 +194,19 @@ TYPED_TEST(AHypergraphReader, ReadsAnHypergraphWithNodeAndEdgeWeights) {
     { 3, 4, 6 }, { 2, 5, 6 } });
 
   // Verify Node Weights
-  ASSERT_EQ(5, this->hypergraph.nodeWeight(this->node_id[0]));
-  ASSERT_EQ(8, this->hypergraph.nodeWeight(this->node_id[1]));
-  ASSERT_EQ(2, this->hypergraph.nodeWeight(this->node_id[2]));
-  ASSERT_EQ(3, this->hypergraph.nodeWeight(this->node_id[3]));
-  ASSERT_EQ(4, this->hypergraph.nodeWeight(this->node_id[4]));
-  ASSERT_EQ(9, this->hypergraph.nodeWeight(this->node_id[5]));
-  ASSERT_EQ(8, this->hypergraph.nodeWeight(this->node_id[6]));
+  ASSERT_EQ(5, this->hypergraph.nodeWeight(0));
+  ASSERT_EQ(8, this->hypergraph.nodeWeight(1));
+  ASSERT_EQ(2, this->hypergraph.nodeWeight(2));
+  ASSERT_EQ(3, this->hypergraph.nodeWeight(3));
+  ASSERT_EQ(4, this->hypergraph.nodeWeight(4));
+  ASSERT_EQ(9, this->hypergraph.nodeWeight(5));
+  ASSERT_EQ(8, this->hypergraph.nodeWeight(6));
 
   // Verify Edge Weights
-  ASSERT_EQ(4, this->hypergraph.edgeWeight(this->edge_id[0]));
-  ASSERT_EQ(2, this->hypergraph.edgeWeight(this->edge_id[1]));
-  ASSERT_EQ(3, this->hypergraph.edgeWeight(this->edge_id[2]));
-  ASSERT_EQ(8, this->hypergraph.edgeWeight(this->edge_id[3]));
+  ASSERT_EQ(4, this->hypergraph.edgeWeight(0));
+  ASSERT_EQ(2, this->hypergraph.edgeWeight(1));
+  ASSERT_EQ(3, this->hypergraph.edgeWeight(2));
+  ASSERT_EQ(8, this->hypergraph.edgeWeight(3));
 }
 }  // namespace io
 }  // namespace mt_kahypar

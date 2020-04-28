@@ -34,9 +34,6 @@ using ::testing::Test;
 
 namespace mt_kahypar {
 
-using TBB = typename GlobalTypeTraits::TBB;
-using PoolInitialPartitioner = PoolInitialPartitionerT<GlobalTypeTraits>;
-
 template<PartitionID k, size_t runs>
 struct TestConfig {
   static constexpr PartitionID K = k;
@@ -45,14 +42,7 @@ struct TestConfig {
 
 template<typename Config>
 class APoolInitialPartitionerTest : public Test {
- private:
-  using HyperGraph = typename GlobalTypeTraits::HyperGraph;
-  using HyperGraphFactory = typename GlobalTypeTraits::HyperGraphFactory;
-  using PartitionedHyperGraph = typename GlobalTypeTraits::template PartitionedHyperGraph<>;
-  using HwTopology = typename GlobalTypeTraits::HwTopology;
-
  public:
-
   APoolInitialPartitionerTest() :
     hypergraph(),
     partitioned_hypergraph(),
@@ -65,20 +55,20 @@ class APoolInitialPartitionerTest : public Test {
       LabelPropagationAlgorithm::label_propagation_km1;
     context.initial_partitioning.refinement.label_propagation.algorithm =
       LabelPropagationAlgorithm::label_propagation_km1;
-    hypergraph = io::readHypergraphFile<HyperGraph, HyperGraphFactory>(
-      "../test_instances/test_instance.hgr", TBB::GLOBAL_TASK_GROUP);
-    partitioned_hypergraph = PartitionedHyperGraph(
-      context.partition.k, TBB::GLOBAL_TASK_GROUP, hypergraph);
+    hypergraph = io::readHypergraphFile(
+      "../test_instances/test_instance.hgr", TBBNumaArena::GLOBAL_TASK_GROUP);
+    partitioned_hypergraph = PartitionedHypergraph<>(
+      context.partition.k, TBBNumaArena::GLOBAL_TASK_GROUP, hypergraph);
     context.setupPartWeights(hypergraph.totalWeight());
     utils::Timer::instance().disable();
   }
 
   static void SetUpTestSuite() {
-    TBB::instance(HwTopology::instance().num_cpus());
+    TBBNumaArena::instance(HardwareTopology::instance().num_cpus());
   }
 
-  HyperGraph hypergraph;
-  PartitionedHyperGraph partitioned_hypergraph;
+  Hypergraph hypergraph;
+  PartitionedHypergraph<> partitioned_hypergraph;
   Context context;
 };
 
@@ -99,7 +89,7 @@ TYPED_TEST_CASE(APoolInitialPartitionerTest, TestConfigs);
 
 TYPED_TEST(APoolInitialPartitionerTest, HasValidImbalance) {
   PoolInitialPartitioner& initial_partitioner = *new(tbb::task::allocate_root())
-    PoolInitialPartitioner(this->partitioned_hypergraph, this->context, TBB::GLOBAL_TASK_GROUP);
+    PoolInitialPartitioner(this->partitioned_hypergraph, this->context, TBBNumaArena::GLOBAL_TASK_GROUP);
   tbb::task::spawn_root_and_wait(initial_partitioner);
 
   ASSERT_LE(metrics::imbalance(this->partitioned_hypergraph, this->context),
@@ -108,7 +98,7 @@ TYPED_TEST(APoolInitialPartitionerTest, HasValidImbalance) {
 
 TYPED_TEST(APoolInitialPartitionerTest, AssginsEachHypernode) {
   PoolInitialPartitioner& initial_partitioner = *new(tbb::task::allocate_root())
-    PoolInitialPartitioner(this->partitioned_hypergraph, this->context, TBB::GLOBAL_TASK_GROUP);
+    PoolInitialPartitioner(this->partitioned_hypergraph, this->context, TBBNumaArena::GLOBAL_TASK_GROUP);
   tbb::task::spawn_root_and_wait(initial_partitioner);
 
   for ( const HypernodeID& hn : this->partitioned_hypergraph.nodes() ) {
@@ -118,7 +108,7 @@ TYPED_TEST(APoolInitialPartitionerTest, AssginsEachHypernode) {
 
 TYPED_TEST(APoolInitialPartitionerTest, HasNoSignificantLowPartitionWeights) {
   PoolInitialPartitioner& initial_partitioner = *new(tbb::task::allocate_root())
-    PoolInitialPartitioner(this->partitioned_hypergraph, this->context, TBB::GLOBAL_TASK_GROUP);
+    PoolInitialPartitioner(this->partitioned_hypergraph, this->context, TBBNumaArena::GLOBAL_TASK_GROUP);
   tbb::task::spawn_root_and_wait(initial_partitioner);
 
   // Each block should have a weight greater or equal than 20% of the average

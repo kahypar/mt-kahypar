@@ -27,29 +27,26 @@
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
 
 namespace mt_kahypar {
-template<typename TypeTraits>
-class DegreeZeroHypernodeRemoverT {
 
-  using HyperGraph = typename TypeTraits::HyperGraph;
-  using PartitionedHyperGraph = typename TypeTraits::template PartitionedHyperGraph<>;
+class DegreeZeroHypernodeRemover {
 
  public:
-  DegreeZeroHypernodeRemoverT(const Context& context) :
+  DegreeZeroHypernodeRemover(const Context& context) :
     _context(context),
     _removed_hns(),
     _mapping() { }
 
-  DegreeZeroHypernodeRemoverT(const DegreeZeroHypernodeRemoverT&) = delete;
-  DegreeZeroHypernodeRemoverT & operator= (const DegreeZeroHypernodeRemoverT &) = delete;
+  DegreeZeroHypernodeRemover(const DegreeZeroHypernodeRemover&) = delete;
+  DegreeZeroHypernodeRemover & operator= (const DegreeZeroHypernodeRemover &) = delete;
 
-  DegreeZeroHypernodeRemoverT(DegreeZeroHypernodeRemoverT&&) = delete;
-  DegreeZeroHypernodeRemoverT & operator= (DegreeZeroHypernodeRemoverT &&) = delete;
+  DegreeZeroHypernodeRemover(DegreeZeroHypernodeRemover&&) = delete;
+  DegreeZeroHypernodeRemover & operator= (DegreeZeroHypernodeRemover &&) = delete;
 
   // ! Contracts degree-zero vertices to degree-zero supervertices
   // ! We contract sets of degree-zero vertices such that the weight of
   // ! each supervertex is less than or equal than the maximum allowed
   // ! node weight for a vertex during coarsening.
-  HypernodeID contractDegreeZeroHypernodes(HyperGraph& hypergraph) {
+  HypernodeID contractDegreeZeroHypernodes(Hypergraph& hypergraph) {
     _mapping.assign(hypergraph.initialNumNodes(), kInvalidHypernode);
     HypernodeID current_num_nodes = hypergraph.initialNumNodes() - hypergraph.numRemovedHypernodes();
     HypernodeID num_removed_degree_zero_hypernodes = 0;
@@ -71,7 +68,7 @@ class DegreeZeroHypernodeRemoverT {
             hypergraph.removeHypernode(hn);
             _removed_hns.push_back(hn);
             was_removed = true;
-            _mapping[hypergraph.originalNodeID(hn)] = last_degree_zero_representative;
+            _mapping[hn] = last_degree_zero_representative;
             last_degree_zero_weight += weight;
             hypergraph.setNodeWeight(last_degree_zero_representative, last_degree_zero_weight);
           }
@@ -88,11 +85,10 @@ class DegreeZeroHypernodeRemoverT {
 
   // ! Restore degree-zero vertices
   // ! Each removed degree-zero vertex is assigned to the block of its supervertex.
-  void restoreDegreeZeroHypernodes(PartitionedHyperGraph& hypergraph) {
+  void restoreDegreeZeroHypernodes(PartitionedHypergraph<>& hypergraph) {
     for ( const HypernodeID& hn : _removed_hns ) {
-      const HypernodeID original_id = hypergraph.originalNodeID(hn);
-      ASSERT(original_id < _mapping.size());
-      const HypernodeID representative = _mapping[original_id];
+      ASSERT(hn < _mapping.size());
+      const HypernodeID representative = _mapping[hn];
       ASSERT(representative != kInvalidHypernode);
       // Restore degree-zero vertex and assign it to the block
       // of its supervertex
@@ -103,15 +99,15 @@ class DegreeZeroHypernodeRemoverT {
     }
   }
 
-  void assignAllDegreeZeroHypernodesToSameCommunity(HyperGraph& hypergraph, ds::Clustering& clustering) {
+  void assignAllDegreeZeroHypernodesToSameCommunity(Hypergraph& hypergraph, ds::Clustering& clustering) {
     ASSERT(hypergraph.initialNumNodes() <= clustering.size());
     PartitionID community_id = kInvalidPartition;
     for ( const HypernodeID& hn : hypergraph.nodes() ) {
       if ( hypergraph.nodeDegree(hn) == 0 ) {
         if ( community_id != kInvalidPartition ) {
-          clustering[hypergraph.originalNodeID(hn)] = community_id;
+          clustering[hn] = community_id;
         } else {
-          community_id = clustering[hypergraph.originalNodeID(hn)];
+          community_id = clustering[hn];
         }
       }
     }
@@ -122,7 +118,5 @@ class DegreeZeroHypernodeRemoverT {
   parallel::scalable_vector<HypernodeID> _removed_hns;
   parallel::scalable_vector<HypernodeID> _mapping;
 };
-
-using DegreeZeroHypernodeRemover = DegreeZeroHypernodeRemoverT<GlobalTypeTraits>;
 
 }  // namespace mt_kahypar

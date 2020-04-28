@@ -208,10 +208,9 @@ inline void printHypergraphInfo(const HyperGraph& hypergraph,
 
   HypernodeID num_hypernodes = hypergraph.initialNumNodes();
   const double avg_hn_degree = metrics::avgHypernodeDegree(hypergraph);
-  hypergraph.doParallelForAllNodes(TBBNumaArena::GLOBAL_TASK_GROUP, [&](const HypernodeID& hn) {
-    const HypernodeID original_id = hypergraph.originalNodeID(hn);
-    hn_degrees[original_id] = hypergraph.nodeDegree(hn);
-    hn_weights[original_id] = hypergraph.nodeWeight(hn);
+  hypergraph.doParallelForAllNodes([&](const HypernodeID& hn) {
+    hn_degrees[hn] = hypergraph.nodeDegree(hn);
+    hn_weights[hn] = hypergraph.nodeWeight(hn);
   });
   const double avg_hn_weight = internal::parallel_avg(hn_weights, num_hypernodes);
   const double stdev_hn_degree = internal::parallel_stdev(hn_degrees, avg_hn_degree, num_hypernodes);
@@ -220,10 +219,9 @@ inline void printHypergraphInfo(const HyperGraph& hypergraph,
   HyperedgeID num_hyperedges = hypergraph.initialNumEdges();
   HypernodeID num_pins = hypergraph.initialNumPins();
   const double avg_he_size = metrics::avgHyperedgeDegree(hypergraph);
-  hypergraph.doParallelForAllEdges(TBBNumaArena::GLOBAL_TASK_GROUP, [&](const HyperedgeID& he) {
-    const HyperedgeID original_id = hypergraph.originalEdgeID(he);
-    he_sizes[original_id] = hypergraph.edgeSize(he);
-    he_weights[original_id] = hypergraph.edgeWeight(he);
+  hypergraph.doParallelForAllEdges([&](const HyperedgeID& he) {
+    he_sizes[he] = hypergraph.edgeSize(he);
+    he_weights[he] = hypergraph.edgeWeight(he);
   });
   const double avg_he_weight = internal::parallel_avg(he_weights, num_hyperedges);
   const double stdev_he_size = internal::parallel_stdev(he_sizes, avg_he_size, num_hyperedges);

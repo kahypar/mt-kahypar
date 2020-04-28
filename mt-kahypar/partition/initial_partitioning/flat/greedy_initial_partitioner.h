@@ -26,12 +26,10 @@
 #include "mt-kahypar/partition/initial_partitioning/flat/initial_partitioning_data_container.h"
 
 namespace mt_kahypar {
-template<typename TypeTraits,
-         typename GainPolicy,
+template<typename GainPolicy,
          typename PQSelectionPolicy>
-class GreedyInitialPartitionerT : public tbb::task {
-  using HyperGraph = typename TypeTraits::template PartitionedHyperGraph<false>;
-  using InitialPartitioningDataContainer = InitialPartitioningDataContainerT<TypeTraits>;
+class GreedyInitialPartitioner : public tbb::task {
+  using HyperGraph = PartitionedHypergraph<false>;
 
   using DeltaFunction = std::function<void (const HyperedgeID, const HyperedgeWeight, const HypernodeID, const HypernodeID, const HypernodeID)>;
   #define NOOP_FUNC [] (const HyperedgeID, const HyperedgeWeight, const HypernodeID, const HypernodeID, const HypernodeID) { }
@@ -43,7 +41,7 @@ class GreedyInitialPartitionerT : public tbb::task {
   static Gain kInvalidGain;
 
  public:
-  GreedyInitialPartitionerT(const InitialPartitioningAlgorithm algorithm,
+  GreedyInitialPartitioner(const InitialPartitioningAlgorithm algorithm,
                             InitialPartitioningDataContainer& ip_data,
                             const Context& context) :
     _algorithm(algorithm),
@@ -73,7 +71,7 @@ class GreedyInitialPartitionerT : public tbb::task {
 
     // Insert start vertices into its corresponding PQs
     parallel::scalable_vector<HypernodeID> start_nodes =
-      PseudoPeripheralStartNodes<TypeTraits>::computeStartNodes(_ip_data, _context);
+      PseudoPeripheralStartNodes::computeStartNodes(_ip_data, _context);
     ASSERT(static_cast<size_t>(_context.partition.k) == start_nodes.size());
     kway_pq.clear();
     for ( PartitionID block = 0; block < _context.partition.k; ++block ) {
@@ -132,7 +130,7 @@ class GreedyInitialPartitionerT : public tbb::task {
         }
         insertAndUpdateVerticesAfterMove(hg, kway_pq, hyperedges_in_queue, hn, _default_block, to);
       } else {
-        kway_pq.insert(hg.originalNodeID(hn), to, gain);
+        kway_pq.insert(hn, to, gain);
         kway_pq.disablePart(to);
       }
     }
@@ -159,18 +157,17 @@ class GreedyInitialPartitionerT : public tbb::task {
                           KWayPriorityQueue& pq,
                           const HypernodeID hn,
                           const PartitionID to) {
-    const HypernodeID original_id = hypergraph.originalNodeID(hn);
     ASSERT(to != kInvalidPartition && to < _context.partition.k);
     ASSERT(hypergraph.partID(hn) == _default_block, V(hypergraph.partID(hn)) << V(_default_block));
-    ASSERT(!pq.contains(original_id, to));
+    ASSERT(!pq.contains(hn, to));
 
     const Gain gain = GainPolicy::calculateGain(hypergraph, hn, to);
-    pq.insert(original_id, to, gain);
+    pq.insert(hn, to, gain);
     if ( !pq.isEnabled(to) ) {
       pq.enablePart(to);
     }
 
-    ASSERT(pq.contains(original_id, to));
+    ASSERT(pq.contains(hn, to));
     ASSERT(pq.isEnabled(to));
   }
 
@@ -197,30 +194,27 @@ class GreedyInitialPartitionerT : public tbb::task {
     GainPolicy::deltaGainUpdate(hypergraph, pq, hn, from, to);
 
     // Remove moved hypernode hn from all PQs
-    const HypernodeID original_id = hypergraph.originalNodeID(hn);
     for ( PartitionID block = 0; block < hypergraph.k(); ++block ) {
-      if ( pq.contains(original_id, block) ) {
+      if ( pq.contains(hn, block) ) {
 
         // Prevent that PQ becomes empty
         if ( to != block && pq.size(block) == 1 ) {
           insertUnassignedVertexIntoPQ(hypergraph, pq, block);
         }
 
-        pq.remove(original_id, block);
+        pq.remove(hn, block);
       }
     }
 
     // Insert all adjacent hypernodes of the moved vertex into PQ of block to
     for ( const HyperedgeID& he : hypergraph.incidentEdges(hn)) {
-      const HyperedgeID original_he_id = hypergraph.originalEdgeID(he);
-      if ( !hyperedges_in_queue[to * hypergraph.initialNumEdges() + original_he_id] ) {
+      if ( !hyperedges_in_queue[to * hypergraph.initialNumEdges() + he] ) {
         for ( const HypernodeID& pin : hypergraph.pins(he) ) {
-          const HypernodeID original_pin_id = hypergraph.originalNodeID(pin);
-          if ( hypergraph.partID(pin) == _default_block && !pq.contains(original_pin_id, to) ) {
+          if ( hypergraph.partID(pin) == _default_block && !pq.contains(pin, to) ) {
             insertVertexIntoPQ(hypergraph, pq, pin, to);
           }
         }
-        hyperedges_in_queue.set(to * hypergraph.initialNumEdges() + original_he_id, true);
+        hyperedges_in_queue.set(to * hypergraph.initialNumEdges() + he, true);
       }
     }
 
@@ -244,14 +238,11 @@ class GreedyInitialPartitionerT : public tbb::task {
   const PartitionID _default_block;
 };
 
-template <typename TypeTraits, typename GainPolicy, typename PQSelectionPolicy>
-PartitionID GreedyInitialPartitionerT<TypeTraits, GainPolicy, PQSelectionPolicy>::kInvalidPartition = -1;
-template <typename TypeTraits, typename GainPolicy, typename PQSelectionPolicy>
-HypernodeID GreedyInitialPartitionerT<TypeTraits, GainPolicy, PQSelectionPolicy>::kInvalidHypernode = std::numeric_limits<HypernodeID>::max();
-template <typename TypeTraits, typename GainPolicy, typename PQSelectionPolicy>
-Gain GreedyInitialPartitionerT<TypeTraits, GainPolicy, PQSelectionPolicy>::kInvalidGain = std::numeric_limits<Gain>::min();
-
 template <typename GainPolicy, typename PQSelectionPolicy>
-using GreedyInitialPartitioner = GreedyInitialPartitionerT<GlobalTypeTraits, GainPolicy, PQSelectionPolicy>;
+PartitionID GreedyInitialPartitioner<GainPolicy, PQSelectionPolicy>::kInvalidPartition = -1;
+template <typename GainPolicy, typename PQSelectionPolicy>
+HypernodeID GreedyInitialPartitioner<GainPolicy, PQSelectionPolicy>::kInvalidHypernode = std::numeric_limits<HypernodeID>::max();
+template <typename GainPolicy, typename PQSelectionPolicy>
+Gain GreedyInitialPartitioner<GainPolicy, PQSelectionPolicy>::kInvalidGain = std::numeric_limits<Gain>::min();
 
 } // namespace mt_kahypar

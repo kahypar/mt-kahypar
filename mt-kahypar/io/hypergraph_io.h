@@ -287,9 +287,7 @@ static void readHypernodeWeights(char* mapped_file,
 
 }  // namespace
 
-template <typename HyperGraph,
-          typename HyperGraphFactory>
-static inline HyperGraph readHypergraphFile(const std::string& filename,
+static inline Hypergraph readHypergraphFile(const std::string& filename,
                                             const TaskGroupID task_group_id) {
   ASSERT(!filename.empty(), "No filename for hypergraph file specified");
   mt_kahypar::utils::Timer::instance().start_timer(
@@ -322,7 +320,7 @@ static inline HyperGraph readHypergraphFile(const std::string& filename,
 
   // Construct Hypergraph
   utils::Timer::instance().start_timer("construct_hypergraph", "Construct Hypergraph");
-  HyperGraph hypergraph = HyperGraphFactory::construct(task_group_id,
+  Hypergraph hypergraph = HypergraphFactory::construct(task_group_id,
     num_hypernodes, num_hyperedges, hyperedges,
     hyperedges_weight.data(), hypernodes_weight.data());
   hypergraph.setNumRemovedHyperedges(num_removed_single_pin_hyperedges);
@@ -354,8 +352,8 @@ static inline void writePartitionFile(const HyperGraph& hypergraph, const std::s
     std::ofstream out_stream(filename.c_str());
     std::vector<PartitionID> partition(hypergraph.initialNumNodes(), -1);
     for (const HypernodeID& hn : hypergraph.nodes()) {
-      ASSERT(hypergraph.originalNodeID(hn) < partition.size());
-      partition[hypergraph.originalNodeID(hn)] = hypergraph.partID(hn);
+      ASSERT(hn < partition.size());
+      partition[hn] = hypergraph.partID(hn);
     }
     for (const PartitionID& part : partition) {
       out_stream << part << std::endl;

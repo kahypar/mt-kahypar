@@ -36,12 +36,10 @@
 #include "mt-kahypar/partition/context.h"
 
 namespace mt_kahypar {
-template <typename TypeTraits = Mandatory,
-          typename ScorePolicy = Mandatory,
+template <typename ScorePolicy = Mandatory,
           typename HeavyNodePenaltyPolicy = Mandatory,
           typename AcceptancePolicy = Mandatory>
 class MultilevelVertexPairRater {
-  using HyperGraph = typename TypeTraits::HyperGraph;
   using LargeTmpRatingMap = ds::SparseMap<HypernodeID, RatingType>;
   using CacheEfficientRatingMap = ds::FixedSizeSparseMap<HypernodeID, RatingType>;
   using ThreadLocalCacheEfficientRatingMap = tbb::enumerable_thread_specific<CacheEfficientRatingMap>;
@@ -85,7 +83,7 @@ class MultilevelVertexPairRater {
  public:
   using Rating = VertexPairRating;
 
-  MultilevelVertexPairRater(HyperGraph& hypergraph,
+  MultilevelVertexPairRater(Hypergraph& hypergraph,
                            const Context& context) :
     _context(context),
     _current_num_nodes(hypergraph.initialNumNodes()),
@@ -107,7 +105,7 @@ class MultilevelVertexPairRater {
   MultilevelVertexPairRater(MultilevelVertexPairRater&&) = delete;
   MultilevelVertexPairRater & operator= (MultilevelVertexPairRater &&) = delete;
 
-  VertexPairRating rate(const HyperGraph& hypergraph,
+  VertexPairRating rate(const Hypergraph& hypergraph,
                         const HypernodeID u,
                         const parallel::scalable_vector<HypernodeID>& cluster_ids,
                         const parallel::scalable_vector<AtomicWeight>& cluster_weight,
@@ -146,7 +144,7 @@ class MultilevelVertexPairRater {
 
  private:
   template<typename RatingMap>
-  VertexPairRating rate(const HyperGraph& hypergraph,
+  VertexPairRating rate(const Hypergraph& hypergraph,
                         const HypernodeID u,
                         RatingMap& tmp_ratings,
                         const parallel::scalable_vector<HypernodeID>& cluster_ids,
@@ -161,15 +159,14 @@ class MultilevelVertexPairRater {
     }
 
     int cpu_id = sched_getcpu();
-    const HypernodeID original_u_id = hypergraph.originalNodeID(u);
-    const HypernodeWeight weight_u = cluster_weight[original_u_id];
+    const HypernodeWeight weight_u = cluster_weight[u];
     const PartitionID community_u_id = hypergraph.communityID(u);
     RatingType max_rating = std::numeric_limits<RatingType>::min();
     HypernodeID target = std::numeric_limits<HypernodeID>::max();
     HypernodeID target_id = std::numeric_limits<HypernodeID>::max();
     for (auto it = tmp_ratings.end() - 1; it >= tmp_ratings.begin(); --it) {
       const HypernodeID tmp_target_id = it->key;
-      const HypernodeID tmp_target = hypergraph.globalNodeID(tmp_target_id);
+      const HypernodeID tmp_target = tmp_target_id;
       const HypernodeWeight target_weight = cluster_weight[tmp_target_id];
 
       if ( tmp_target != u && weight_u + target_weight <= max_allowed_node_weight ) {
@@ -201,7 +198,7 @@ class MultilevelVertexPairRater {
   }
 
   template<typename RatingMap>
-  void fillRatingMap(const HyperGraph& hypergraph,
+  void fillRatingMap(const Hypergraph& hypergraph,
                      const HypernodeID u,
                      RatingMap& tmp_ratings,
                      const parallel::scalable_vector<HypernodeID>& cluster_ids) {
@@ -211,8 +208,7 @@ class MultilevelVertexPairRater {
       if ( hypergraph.edgeSize(he) < _context.partition.hyperedge_size_threshold ) {
         const RatingType score = ScorePolicy::score(hypergraph, he);
         for ( const HypernodeID& v : hypergraph.pins(he) ) {
-          const HypernodeID original_v_id = hypergraph.originalNodeID(v);
-          const HypernodeID representative = cluster_ids[original_v_id];
+          const HypernodeID representative = cluster_ids[v];
           ASSERT(representative < hypergraph.initialNumNodes());
           const HypernodeID bloom_filter_rep = representative & _bloom_filter_mask;
           if ( !bloom_filter[bloom_filter_rep] ) {
@@ -226,7 +222,7 @@ class MultilevelVertexPairRater {
   }
 
   template<typename RatingMap>
-  void fillRatingMapWithSampling(const HyperGraph& hypergraph,
+  void fillRatingMapWithSampling(const Hypergraph& hypergraph,
                                  const HypernodeID u,
                                  RatingMap& tmp_ratings,
                                  const parallel::scalable_vector<HypernodeID>& cluster_ids) {
@@ -243,8 +239,7 @@ class MultilevelVertexPairRater {
         }
         const RatingType score = ScorePolicy::score(hypergraph, he);
         for ( const HypernodeID& v : hypergraph.pins(he) ) {
-          const HypernodeID original_v_id = hypergraph.originalNodeID(v);
-          const HypernodeID representative = cluster_ids[original_v_id];
+          const HypernodeID representative = cluster_ids[v];
           ASSERT(representative < hypergraph.initialNumNodes());
           const HypernodeID bloom_filter_rep = representative & _bloom_filter_mask;
           if ( !bloom_filter[bloom_filter_rep] ) {
@@ -258,7 +253,7 @@ class MultilevelVertexPairRater {
     }
   }
 
-  inline RatingMapType getRatingMapTypeForRatingOfHypernode(const HyperGraph& hypergraph,
+  inline RatingMapType getRatingMapTypeForRatingOfHypernode(const Hypergraph& hypergraph,
                                                             const HypernodeID u) {
     const bool use_vertex_degree_sampling =
       _vertex_degree_sampling_threshold != std::numeric_limits<size_t>::max();

@@ -30,17 +30,13 @@ using ::testing::Test;
 namespace mt_kahypar {
 namespace ds {
 
-using AStaticHypergraph = HypergraphFixture<StaticHypergraph, StaticHypergraphFactory>;
+using AStaticHypergraph = HypergraphFixture;
 
 TEST_F(AStaticHypergraph, HasCorrectStats) {
   ASSERT_EQ(7,  hypergraph.initialNumNodes());
   ASSERT_EQ(4,  hypergraph.initialNumEdges());
   ASSERT_EQ(12, hypergraph.initialNumPins());
   ASSERT_EQ(12, hypergraph.initialTotalVertexDegree());
-  ASSERT_EQ(7,  hypergraph.initialNumNodes(0));
-  ASSERT_EQ(4,  hypergraph.initialNumEdges(0));
-  ASSERT_EQ(12, hypergraph.initialNumPins(0));
-  ASSERT_EQ(12, hypergraph.initialTotalVertexDegree(0));
   ASSERT_EQ(7,  hypergraph.totalWeight());
   ASSERT_EQ(4,  hypergraph.maxEdgeSize());
 }
@@ -86,8 +82,7 @@ TEST_F(AStaticHypergraph, HasCorrectEdgeIteratorIfVerticesAreDisabled) {
 
 TEST_F(AStaticHypergraph, IteratesParallelOverAllNodes) {
   std::vector<uint8_t> visited(7, false);
-  hypergraph.doParallelForAllNodes(TBBNumaArena::GLOBAL_TASK_GROUP,
-    [&](const HypernodeID hn) {
+  hypergraph.doParallelForAllNodes([&](const HypernodeID hn) {
       visited[hn] = true;
     });
 
@@ -98,8 +93,7 @@ TEST_F(AStaticHypergraph, IteratesParallelOverAllNodes) {
 
 TEST_F(AStaticHypergraph, IteratesParallelOverAllEdges) {
   std::vector<uint8_t> visited(4, false);
-  hypergraph.doParallelForAllEdges(TBBNumaArena::GLOBAL_TASK_GROUP,
-    [&](const HyperedgeID he) {
+  hypergraph.doParallelForAllEdges([&](const HyperedgeID he) {
       visited[he] = true;
     });
 
@@ -127,12 +121,6 @@ TEST_F(AStaticHypergraph, VerifiesIncidentNets4) {
 TEST_F(AStaticHypergraph, VerifiesPinsOfHyperedges) {
   verifyPins({ 0, 1, 2, 3 },
     { {0, 2}, {0, 1, 3, 4}, {3, 4, 6}, {2, 5, 6} });
-}
-
-TEST_F(AStaticHypergraph, VerifiesOriginalNodeIDs) {
-  for ( const HypernodeID& hn : hypergraph.nodes() ) {
-    ASSERT_EQ(hn, hypergraph.originalNodeID(hn));
-  }
 }
 
 TEST_F(AStaticHypergraph, VerifiesVertexWeights) {
@@ -165,12 +153,6 @@ TEST_F(AStaticHypergraph, RemovesVertices) {
   hypergraph.removeHypernode(0);
   hypergraph.removeHypernode(5);
   ASSERT_EQ(2, hypergraph.numRemovedHypernodes());
-}
-
-TEST_F(AStaticHypergraph, VerifiesOriginalEdgeIDs) {
-  for ( const HyperedgeID& he : hypergraph.edges() ) {
-    ASSERT_EQ(he, hypergraph.originalEdgeID(he));
-  }
 }
 
 TEST_F(AStaticHypergraph, VerifiesEdgeWeights) {

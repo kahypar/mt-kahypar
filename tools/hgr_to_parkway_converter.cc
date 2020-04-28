@@ -53,14 +53,12 @@ static void writeParkwayHypergraphForProc(const Hypergraph& hypergraph,
     (rank + 1) * hyperedges_per_proc : num_edges;
 
   std::vector<int> hypernode_weight;
-  for ( HypernodeID id = hn_start; id < hn_end; ++id ) {
-    const HypernodeID hn = hypergraph.originalNodeID(id);
+  for ( HypernodeID hn = hn_start; hn < hn_end; ++hn ) {
     hypernode_weight.push_back(hypergraph.nodeWeight(hn));
   }
 
   std::vector<int> hyperedge_data;
-  for ( HyperedgeID id = he_start; id < he_end; ++id ) {
-    const HyperedgeID he = hypergraph.globalEdgeID(id);
+  for ( HyperedgeID he = he_start; he < he_end; ++he ) {
     hyperedge_data.push_back(static_cast<int>(hypergraph.edgeSize(he)) + 2);
     hyperedge_data.push_back(static_cast<int>(hypergraph.edgeWeight(he)));
     for ( const HypernodeID& pin : hypergraph.pins(he) ) {
@@ -105,7 +103,7 @@ int main(int argc, char* argv[]) {
   po::notify(cmd_vm);
 
   Hypergraph hypergraph =
-    mt_kahypar::io::readHypergraphFile<Hypergraph, Factory>(hgr_filename, 0);
+    mt_kahypar::io::readHypergraphFile(hgr_filename, 0);
 
   for ( int p = 0; p < num_procs; ++p ) {
     writeParkwayHypergraphForProc(hypergraph, out_filename, num_procs, p);

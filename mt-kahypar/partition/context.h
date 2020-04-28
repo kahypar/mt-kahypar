@@ -89,34 +89,16 @@ inline std::ostream & operator<< (std::ostream& str, const CommunityDetectionPar
   return str;
 }
 
-struct CommunityRedistributionParameters {
-  CommunityAssignmentObjective assignment_objective = CommunityAssignmentObjective::UNDEFINED;
-  CommunityAssignmentStrategy assignment_strategy = CommunityAssignmentStrategy::UNDEFINED;
-};
-
-inline std::ostream & operator<< (std::ostream& str, const CommunityRedistributionParameters& params) {
-  str << "  Community Detection Parameters:" << std::endl;
-  str << "    Community Assignment Objective:   " << params.assignment_objective << std::endl;
-  str << "    Community Assignment Strategy:    " << params.assignment_strategy << std::endl;
-  return str;
-}
-
 struct PreprocessingParameters {
   bool use_community_detection = false;
-  bool use_community_redistribution = false;
   CommunityDetectionParameters community_detection = { };
-  CommunityRedistributionParameters community_redistribution = { };
 };
 
 inline std::ostream & operator<< (std::ostream& str, const PreprocessingParameters& params) {
   str << "Preprocessing Parameters:" << std::endl;
   str << "  Use Community Detection:            " << std::boolalpha << params.use_community_detection << std::endl;
-  str << "  Use Community Redistribution:       " << std::boolalpha << params.use_community_redistribution << std::endl;
   if (params.use_community_detection) {
     str << std::endl << params.community_detection;
-  }
-  if ( params.use_community_redistribution ) {
-    str << std::endl << params.community_redistribution;
   }
   return str;
 }
@@ -178,7 +160,6 @@ inline std::ostream & operator<< (std::ostream& str, const CoarseningParameters&
 struct LabelPropagationParameters {
   LabelPropagationAlgorithm algorithm = LabelPropagationAlgorithm::do_nothing;
   size_t maximum_iterations = 1;
-  bool numa_aware = false;
   bool rebalancing = true;
   bool execute_sequential = false;
   size_t hyperedge_size_activation_threshold = std::numeric_limits<size_t>::max();
@@ -188,7 +169,6 @@ inline std::ostream & operator<< (std::ostream& str, const LabelPropagationParam
   str << "  Label Propagation Parameters:" << std::endl;
   str << "    Algorithm:                        " << params.algorithm << std::endl;
   str << "    Maximum Iterations:               " << params.maximum_iterations << std::endl;
-  str << "    Numa Aware:                       " << std::boolalpha << params.numa_aware << std::endl;
   str << "    Rebalancing:                      " << std::boolalpha << params.rebalancing << std::endl;
   str << "    HE Size Activation Threshold:     " << std::boolalpha << params.hyperedge_size_activation_threshold << std::endl;
   return str;
@@ -395,16 +375,6 @@ class Context {
                                          << "refiner in combination with km1 metric is not possible!",
                   initial_partitioning.refinement.label_propagation.algorithm,
                   LabelPropagationAlgorithm::label_propagation_km1);
-    }
-
-    if ( !preprocessing.use_community_detection ) {
-      if ( preprocessing.use_community_redistribution ) {
-        ALGO_SWITCH("Community redistribution only works if community detection is enabled."
-                    << "Do you want to enable community detection (Y/N)?",
-                    "Community redistribution without community detection is not possible!",
-                    preprocessing.use_community_detection,
-                    true);
-      }
     }
   }
 };

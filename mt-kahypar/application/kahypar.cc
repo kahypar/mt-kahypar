@@ -55,18 +55,14 @@ int main(int argc, char* argv[]) {
   // Initialize TBB task arenas on numa nodes
   mt_kahypar::TBBNumaArena::instance(context.shared_memory.num_threads);
 
-  #if !KAHYPAR_ENABLE_NUMA_AWARE_PARTITIONING
-  // In case, we have compiled KaHyPar in non NUMA-aware mode we set the membind policy
-  // to interleaved allocations in order to distribute allocations evenly across
-  // NUMA nodes
+  // We set the membind policy to interleaved allocations in order to
+  // distribute allocations evenly across NUMA nodes
   hwloc_cpuset_t cpuset = mt_kahypar::TBBNumaArena::instance().used_cpuset();
   mt_kahypar::parallel::HardwareTopology<>::instance().activate_interleaved_membind_policy(cpuset);
   hwloc_bitmap_free(cpuset);
-  #endif
 
   // Read Hypergraph
-  mt_kahypar::Hypergraph hypergraph = mt_kahypar::io::readHypergraphFile<
-    mt_kahypar::Hypergraph, mt_kahypar::HypergraphFactory>(
+  mt_kahypar::Hypergraph hypergraph = mt_kahypar::io::readHypergraphFile(
       context.partition.graph_filename, mt_kahypar::TBBNumaArena::GLOBAL_TASK_GROUP);
 
   // Initialize Memory Pool

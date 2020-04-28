@@ -85,16 +85,14 @@ class NetImportanceCombiner {
   KAHYPAR_ATTRIBUTE_ALWAYS_INLINE static inline Hyperedge combine(
     const Hypergraph& hypergraph, const Hyperedge& lhs, const Hyperedge& rhs) {
     HyperedgeWeight score_lhs = 0;
-    for ( const HypernodeID& id : lhs ) {
-      const HypernodeID pin = hypergraph.globalNodeID(id);
+    for ( const HypernodeID& pin : lhs ) {
       for ( const HyperedgeID& he : hypergraph.incidentEdges(pin) ) {
         score_lhs += hypergraph.edgeWeight(he);
       }
     }
 
     HyperedgeWeight score_rhs = 0;
-    for ( const HypernodeID& id : rhs ) {
-      const HypernodeID pin = hypergraph.globalNodeID(id);
+    for ( const HypernodeID& pin : rhs ) {
       for ( const HyperedgeID& he : hypergraph.incidentEdges(pin) ) {
         score_rhs += hypergraph.edgeWeight(he);
       }
