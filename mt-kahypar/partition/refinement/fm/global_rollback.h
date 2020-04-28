@@ -82,7 +82,7 @@ public:
   }
 
   HyperedgeWeight revertToBestPrefix(PartitionedHypergraph& phg, FMSharedData& sharedData,
-                                     vec <HypernodeWeight>& partWeights, HypernodeWeight maxPartWeight) {
+                                     vec<HypernodeWeight>& partWeights, HypernodeWeight maxPartWeight) {
     const auto& move_order = sharedData.moveTracker.moveOrder;
     const MoveID numMoves = sharedData.moveTracker.numPerformedMoves();
     if (numMoves == 0) return 0;
