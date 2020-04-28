@@ -34,7 +34,8 @@ namespace refinement {
 struct BestIndexReduceBody {
   const vec<Gain>& gains;
   const boost::dynamic_bitset<>& in_balance;
-  MoveID best_index = std::numeric_limits<MoveID>::max();
+
+  MoveID best_index = 0;   /** local ID of first move to revert */
   HyperedgeWeight sum = 0, best_sum = 0;
 
   BestIndexReduceBody(const vec<Gain>& gains, const boost::dynamic_bitset<>& in_balance) : gains(gains), in_balance(in_balance) { }
@@ -42,9 +43,6 @@ struct BestIndexReduceBody {
   BestIndexReduceBody(BestIndexReduceBody& b, tbb::split) : gains(b.gains), in_balance(b.in_balance) { }
 
   void operator()(const tbb::blocked_range<MoveID>& r) {
-    if (best_index == std::numeric_limits<MoveID>::max()) {
-      best_index = r.begin(); // initialize if the range was split
-    }
     for (MoveID i = r.begin(); i < r.end(); ++i) {
       if (gains[i] != invalidGain) {  // skip locally reverted moves
         sum += gains[i];
@@ -57,13 +55,12 @@ struct BestIndexReduceBody {
   }
 
   void join(BestIndexReduceBody& rhs) {
-    const HyperedgeWeight rhs_sum = sum + rhs.sum;
     const HyperedgeWeight rhs_best_sum = sum + rhs.best_sum;
-    if (rhs_best_sum > best_sum) {
+    if (rhs_best_sum > best_sum && rhs.best_index != 0) {
       best_index = rhs.best_index;
       best_sum = rhs_best_sum;
     }
-    sum = rhs_sum;
+    sum += rhs.sum;
   }
 
 };
