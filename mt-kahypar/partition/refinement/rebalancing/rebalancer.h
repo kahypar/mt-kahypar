@@ -77,7 +77,7 @@ class Rebalancer {
                             };
 
       // We first try to perform moves that does not worsen solution quality of the partition
-      _hg.doParallelForAllNodes(_task_group_id, [&](const HypernodeID& hn) {
+      _hg.doParallelForAllNodes([&](const HypernodeID& hn) {
         const PartitionID from = _hg.partID(hn);
         if ( _hg.isBorderNode(hn) && _hg.partWeight(from) > _context.partition.max_part_weights[from] ) {
           Move rebalance_move = _gain.computeMaxGainMove(_hg, hn, true /* rebalance move */);
@@ -99,7 +99,7 @@ class Rebalancer {
       // If partition is still imbalanced, we just move the first vertices we find
       // from an overloaded block to an other block that maximizes the objective function.
       if ( metrics::imbalance(_hg, _context) > _context.partition.epsilon ) {
-        _hg.doParallelForAllNodes(_task_group_id, [&](const HypernodeID& hn) {
+        _hg.doParallelForAllNodes([&](const HypernodeID& hn) {
           const PartitionID from = _hg.partID(hn);
           if ( _hg.partWeight(from) > _context.partition.max_part_weights[from] ) {
             moveVertex(hn, _gain.computeMaxGainMove(_hg, hn, true /* rebalance move */), objective_delta);

@@ -135,7 +135,7 @@ inline void Partitioner::preprocess(Hypergraph& hypergraph) {
 
     // Initialize Communities
     utils::Timer::instance().start_timer("initialize_communities", "Initialize Communities");
-    hypergraph.initializeCommunities(TBBNumaArena::GLOBAL_TASK_GROUP);
+    hypergraph.initializeCommunities();
     utils::Timer::instance().stop_timer("initialize_communities");
 
     utils::Stats::instance().add_stat("num_communities", hypergraph.numCommunities());
@@ -148,7 +148,7 @@ inline void Partitioner::preprocess(Hypergraph& hypergraph) {
   } else {
     // Per default all communities are assigned to community 0
     utils::Timer::instance().disable();
-    hypergraph.initializeCommunities(TBBNumaArena::GLOBAL_TASK_GROUP);
+    hypergraph.initializeCommunities();
     utils::Timer::instance().enable();
   }
 

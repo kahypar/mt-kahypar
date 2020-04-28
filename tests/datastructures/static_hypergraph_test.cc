@@ -82,8 +82,7 @@ TEST_F(AStaticHypergraph, HasCorrectEdgeIteratorIfVerticesAreDisabled) {
 
 TEST_F(AStaticHypergraph, IteratesParallelOverAllNodes) {
   std::vector<uint8_t> visited(7, false);
-  hypergraph.doParallelForAllNodes(TBBNumaArena::GLOBAL_TASK_GROUP,
-    [&](const HypernodeID hn) {
+  hypergraph.doParallelForAllNodes([&](const HypernodeID hn) {
       visited[hn] = true;
     });
 
@@ -94,8 +93,7 @@ TEST_F(AStaticHypergraph, IteratesParallelOverAllNodes) {
 
 TEST_F(AStaticHypergraph, IteratesParallelOverAllEdges) {
   std::vector<uint8_t> visited(4, false);
-  hypergraph.doParallelForAllEdges(TBBNumaArena::GLOBAL_TASK_GROUP,
-    [&](const HyperedgeID he) {
+  hypergraph.doParallelForAllEdges([&](const HyperedgeID he) {
       visited[he] = true;
     });
 

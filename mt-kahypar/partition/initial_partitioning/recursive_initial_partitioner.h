@@ -381,7 +381,7 @@ class RecursiveInitialPartitioner: public IInitialPartitioner {
     tbb::task* execute() override {
       // Apply all bisections to current hypergraph
       PartitionID unbisected_block = (_context.partition.k % 2 == 1 ? (PartitionID) _results.size() : kInvalidPartition);
-      _hg.doParallelForAllNodes(_task_group_id, [&](const HypernodeID& hn) {
+      _hg.doParallelForAllNodes([&](const HypernodeID& hn) {
         const PartitionID from = _hg.partID(hn);
         PartitionID to = kInvalidPartition;
         if ( from != unbisected_block ) {
@@ -551,7 +551,7 @@ class RecursiveInitialPartitioner: public IInitialPartitioner {
         metrics::objective(best.partitioned_hypergraph, _context.partition.objective));
 
       // Apply best partition to hypergraph
-      _hg.doParallelForAllNodes(_task_group_id, [&](const HypernodeID& hn) {
+      _hg.doParallelForAllNodes([&](const HypernodeID& hn) {
         PartitionID part_id = best.partitioned_hypergraph.partID(hn);
         ASSERT(part_id != kInvalidPartition && part_id < _hg.k());
         _hg.setOnlyNodePart(hn, part_id);

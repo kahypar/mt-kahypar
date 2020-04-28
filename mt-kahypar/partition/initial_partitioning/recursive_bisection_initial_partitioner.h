@@ -200,7 +200,7 @@ class RecursiveBisectionInitialPartitioner : public IInitialPartitioner {
       // 'part_id' in the original hypergraph are moved to the block defined in
       // _rb_partitioned_hg.
       ASSERT(_original_hg.initialNumNodes() == _mapping.size());
-      _original_hg.doParallelForAllNodes(_task_group_id, [&](const HypernodeID& hn) {
+      _original_hg.doParallelForAllNodes([&](const HypernodeID& hn) {
         if ( _original_hg.partID(hn) == _part_id ) {
           ASSERT(hn < _mapping.size());
           PartitionID to = _part_id + _rb_partitioned_hg.partID(_mapping[hn]);
@@ -292,7 +292,7 @@ class RecursiveBisectionInitialPartitioner : public IInitialPartitioner {
       // Apply partition to hypergraph
       const PartitionID block_0 = 0;
       const PartitionID block_1 = _context.partition.k / 2 + (_context.partition.k % 2 != 0 ? 1 : 0);
-      _hg.doParallelForAllNodes(_task_group_id, [&](const HypernodeID& hn) {
+      _hg.doParallelForAllNodes([&](const HypernodeID& hn) {
         PartitionID part_id = _bisection_partitioned_hg.partID(hn);
         ASSERT(part_id != kInvalidPartition && part_id < _hg.k());
         if ( part_id == 0 ) {

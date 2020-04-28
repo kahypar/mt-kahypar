@@ -237,7 +237,7 @@ class MultilevelCoarsenerBase {
       utils::Timer::instance().start_timer("projecting_partition", "Projecting Partition");
       PartitionedHypergraph<>& representative_hg = _hierarchies[i].representativeHypergraph();
       PartitionedHypergraph<>& contracted_hg = _hierarchies[i].contractedPartitionedHypergraph();
-      representative_hg.doParallelForAllNodes(_task_group_id, [&](const HypernodeID hn) {
+      representative_hg.doParallelForAllNodes([&](const HypernodeID hn) {
         const HypernodeID coarse_hn = _hierarchies[i].mapToContractedHypergraph(hn);
         const PartitionID block = contracted_hg.partID(coarse_hn);
         ASSERT(block != kInvalidPartition && block < representative_hg.k());

@@ -227,29 +227,29 @@ class PartitionedHypergraph {
   // ! Iterates in parallel over all active nodes and calls function f
   // ! for each vertex
   template<typename F>
-  void doParallelForAllNodes(const TaskGroupID task_group_id, const F& f) {
-    static_cast<const PartitionedHypergraph&>(*this).doParallelForAllNodes(task_group_id, f);
+  void doParallelForAllNodes(const F& f) {
+    static_cast<const PartitionedHypergraph&>(*this).doParallelForAllNodes(f);
   }
 
   // ! Iterates in parallel over all active nodes and calls function f
   // ! for each vertex
   template<typename F>
-  void doParallelForAllNodes(const TaskGroupID task_group_id, const F& f) const {
-    _hg->doParallelForAllNodes(task_group_id, f);
+  void doParallelForAllNodes(const F& f) const {
+    _hg->doParallelForAllNodes(f);
   }
 
   // ! Iterates in parallel over all active edges and calls function f
   // ! for each net
   template<typename F>
-  void doParallelForAllEdges(const TaskGroupID task_group_id, const F& f) {
-    static_cast<const PartitionedHypergraph&>(*this).doParallelForAllEdges(task_group_id, f);
+  void doParallelForAllEdges(const F& f) {
+    static_cast<const PartitionedHypergraph&>(*this).doParallelForAllEdges(f);
   }
 
   // ! Iterates in parallel over all active edges and calls function f
   // ! for each net
   template<typename F>
-  void doParallelForAllEdges(const TaskGroupID task_group_id, const F& f) const {
-    _hg->doParallelForAllEdges(task_group_id, f);
+  void doParallelForAllEdges(const F& f) const {
+    _hg->doParallelForAllEdges(f);
   }
 
   // ! Returns an iterator over the set of active nodes of the hypergraph
@@ -648,7 +648,7 @@ class PartitionedHypergraph {
     tbb::parallel_invoke([&] {
       // Compute Part Infos
       parallel::scalable_vector<tbb::enumerable_thread_specific<BlockInfo>> local_part_info(_k);
-      _hg->doParallelForAllNodes(task_group_id, [&](const HypernodeID hn) {
+      _hg->doParallelForAllNodes([&](const HypernodeID hn) {
         const PartitionID block = partID(hn);
         ASSERT(block != kInvalidPartition && block < _k);
         BlockInfo& block_info = local_part_info[block].local();
@@ -670,7 +670,7 @@ class PartitionedHypergraph {
       // Compute Pin Count In Parts
       tbb::enumerable_thread_specific<parallel::scalable_vector<HypernodeID>> local_pin_count_in_part(
         parallel::scalable_vector<HypernodeID>(_k, 0));
-      _hg->doParallelForAllEdges(task_group_id, [&](const HyperedgeID he) {
+      _hg->doParallelForAllEdges([&](const HyperedgeID he) {
         parallel::scalable_vector<HypernodeID>& pin_counts = local_pin_count_in_part.local();
         for ( const HypernodeID& pin : pins(he) ) {
           const PartitionID block = partID(pin);
@@ -724,9 +724,9 @@ class PartitionedHypergraph {
   // ! Initializes the number of cut hyperedges for each vertex
   // ! NOTE, this function have to be called after initial partitioning
   // ! and before local search.
-  TRUE_SPECIALIZATION(track_border_vertices, void) initializeNumCutHyperedges(const TaskGroupID task_group_id) {
+  TRUE_SPECIALIZATION(track_border_vertices, void) initializeNumCutHyperedges(const TaskGroupID) {
     ASSERT(!_is_init_num_cut_hyperedges);
-    _hg->doParallelForAllNodes(task_group_id, [&](const HypernodeID hn) {
+    _hg->doParallelForAllNodes([&](const HypernodeID hn) {
       ASSERT(partID(hn) != kInvalidPartition, V(hn) << V(partID(hn)));
       for ( const HyperedgeID& he : incidentEdges(hn)) {
         const PartitionID he_connectivity = connectivity(he);
@@ -889,7 +889,7 @@ class PartitionedHypergraph {
     tbb::parallel_invoke([&] {
       edge_vector.resize(num_hyperedges);
       hyperedge_weight.resize(num_hyperedges);
-      doParallelForAllEdges(task_group_id, [&](const HyperedgeID he) {
+      doParallelForAllEdges([&](const HyperedgeID he) {
         if ( pinCountInPart(he, block) > 1 &&
              (cut_net_splitting || connectivity(he) == 1) ) {
           hyperedge_weight[he_mapping[he]] = edgeWeight(he);
@@ -902,7 +902,7 @@ class PartitionedHypergraph {
       });
     }, [&] {
       hypernode_weight.resize(num_hypernodes);
-      doParallelForAllNodes(task_group_id, [&](const HypernodeID hn) {
+      doParallelForAllNodes([&](const HypernodeID hn) {
         if ( partID(hn) == block ) {
           hypernode_weight[hn_mapping[hn]] = nodeWeight(hn);
         }
@@ -915,13 +915,13 @@ class PartitionedHypergraph {
       edge_vector, hyperedge_weight.data(), hypernode_weight.data());
 
     // Set community ids
-    doParallelForAllNodes(task_group_id, [&](const HypernodeID& hn) {
+    doParallelForAllNodes([&](const HypernodeID& hn) {
       if ( partID(hn) == block ) {
         const HypernodeID extracted_hn = hn_mapping[hn];
         extracted_hypergraph.setCommunityID(extracted_hn, _hg->communityID(hn));
       }
     });
-    extracted_hypergraph.initializeCommunities(task_group_id);
+    extracted_hypergraph.initializeCommunities();
 
     return std::make_pair(std::move(extracted_hypergraph), std::move(hn_mapping));
   }

@@ -157,7 +157,7 @@ class MultilevelCoarsener : public ICoarsener,
       utils::Timer::instance().start_timer("shuffle_vertices", "Shuffle Vertices");
       _current_vertices.resize(current_hg.initialNumNodes());
       parallel::scalable_vector<HypernodeID> cluster_ids(current_hg.initialNumNodes());
-      current_hg.doParallelForAllNodes(_task_group_id, [&](const HypernodeID& hn) {
+      current_hg.doParallelForAllNodes([&](const HypernodeID& hn) {
         ASSERT(hn < _current_vertices.size());
         _current_vertices[hn] = hn;
         // Reset clustering

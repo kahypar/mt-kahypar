@@ -543,14 +543,14 @@ class StaticHypergraph {
   // ! Iterates in parallel over all active nodes and calls function f
   // ! for each vertex
   template<typename F>
-  void doParallelForAllNodes(const TaskGroupID task_group_id, const F& f) {
-    static_cast<const StaticHypergraph&>(*this).doParallelForAllNodes(task_group_id, f);
+  void doParallelForAllNodes(const F& f) {
+    static_cast<const StaticHypergraph&>(*this).doParallelForAllNodes(f);
   }
 
   // ! Iterates in parallel over all active nodes and calls function f
   // ! for each vertex
   template<typename F>
-  void doParallelForAllNodes(const TaskGroupID, const F& f) const {
+  void doParallelForAllNodes(const F& f) const {
     tbb::parallel_for(ID(0), _num_hypernodes, [&](const HypernodeID& hn) {
       if ( nodeIsEnabled(hn) ) {
         f(hn);
@@ -561,14 +561,14 @@ class StaticHypergraph {
   // ! Iterates in parallel over all active edges and calls function f
   // ! for each net
   template<typename F>
-  void doParallelForAllEdges(const TaskGroupID task_group_id, const F& f) {
-    static_cast<const StaticHypergraph&>(*this).doParallelForAllEdges(task_group_id, f);
+  void doParallelForAllEdges(const F& f) {
+    static_cast<const StaticHypergraph&>(*this).doParallelForAllEdges(f);
   }
 
   // ! Iterates in parallel over all active edges and calls function f
   // ! for each net
   template<typename F>
-  void doParallelForAllEdges(const TaskGroupID, const F& f) const {
+  void doParallelForAllEdges(const F& f) const {
     tbb::parallel_for(ID(0), _num_hyperedges, [&](const HyperedgeID& he) {
       if ( edgeIsEnabled(he) ) {
         f(he);
@@ -851,7 +851,7 @@ class StaticHypergraph {
     utils::Timer::instance().start_timer("preprocess_contractions", "Preprocess Contractions");
     mapping.assign(_num_hypernodes, 0);
 
-    doParallelForAllNodes(task_group_id, [&](const HypernodeID& hn) {
+    doParallelForAllNodes([&](const HypernodeID& hn) {
       ASSERT(static_cast<size_t>(communities[hn]) < mapping.size());
       mapping[communities[hn]] = 1UL;
     });
@@ -884,7 +884,7 @@ class StaticHypergraph {
       return communities[hn];
     };
 
-    doParallelForAllNodes(task_group_id, [&](const HypernodeID& hn) {
+    doParallelForAllNodes([&](const HypernodeID& hn) {
       const HypernodeID coarse_hn = map_to_coarse_hypergraph(hn);
       ASSERT(coarse_hn < num_hypernodes, V(coarse_hn) << V(num_hypernodes));
       // Weight vector is atomic => thread-safe
@@ -979,7 +979,7 @@ class StaticHypergraph {
       });
 
       // Write the incident nets of each contracted vertex to the temporary incident net array
-      doParallelForAllNodes(task_group_id, [&](const HypernodeID& hn) {
+      doParallelForAllNodes([&](const HypernodeID& hn) {
         const HypernodeID coarse_hn = map_to_coarse_hypergraph(hn);
         const HyperedgeID node_degree = nodeDegree(hn);
         size_t incident_nets_pos = tmp_incident_nets_prefix_sum[coarse_hn] +
@@ -1256,7 +1256,7 @@ class StaticHypergraph {
     utils::Timer::instance().start_timer("setup_communities", "Setup Communities");
     tbb::parallel_invoke([&] {
       if ( _community_support.isInitialized() ) {
-        hypergraph.initializeCommunities(task_group_id);
+        hypergraph.initializeCommunities();
         if ( _community_support.areCommunityHyperedgesInitialized() ) {
           hypergraph.initializeCommunityHyperedges(task_group_id);
         }
@@ -1316,8 +1316,8 @@ class StaticHypergraph {
    *  4.) For each hypernode v of community C, we compute a unique id within
    *      that community in the range [0, |C|)
    */
-  void initializeCommunities(const TaskGroupID task_group_id) {
-    _community_support.initialize(*this, task_group_id);
+  void initializeCommunities() {
+    _community_support.initialize(*this);
   }
 
   /*!

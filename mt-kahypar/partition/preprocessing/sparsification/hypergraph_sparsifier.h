@@ -152,7 +152,7 @@ class HypergraphSparsifier : public IHypergraphSparsifier {
   }
 
   void undoSparsificationImpl(PartitionedHypergraph<>& hypergraph) override final {
-    hypergraph.doParallelForAllNodes(_task_group_id, [&](const HypernodeID hn) {
+    hypergraph.doParallelForAllNodes([&](const HypernodeID hn) {
       ASSERT(hn < _mapping.size());
       const HypernodeID sparsified_hn = _mapping[hn];
       ASSERT(_sparsified_partitioned_hg.nodeIsEnabled(sparsified_hn));

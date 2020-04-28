@@ -344,7 +344,7 @@ class InitialPartitioningDataContainer {
     DBG << "Partition with Best Objective [" << best_objective->_result.str() << "]";
 
     // Applies best partition to hypergraph
-    _partitioned_hg.doParallelForAllNodes(_task_group_id, [&](const HypernodeID hn) {
+    _partitioned_hg.doParallelForAllNodes([&](const HypernodeID hn) {
       ASSERT(hn < best->_partition.size());
       const PartitionID part_id = best->_partition[hn];
       ASSERT(part_id != kInvalidPartition && part_id < _partitioned_hg.k());

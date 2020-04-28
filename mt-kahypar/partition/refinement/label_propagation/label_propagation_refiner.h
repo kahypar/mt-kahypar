@@ -260,7 +260,7 @@ class LabelPropagationRefiner final : public IRefiner<track_border_vertices> {
         tmp_active_nodes.stream(hn);
       };
 
-      hypergraph.doParallelForAllNodes(_task_group_id, [&](const HypernodeID& hn) {
+      hypergraph.doParallelForAllNodes([&](const HypernodeID& hn) {
         if ( _context.refinement.label_propagation.rebalancing ||
              hypergraph.isBorderNode(hn) ) {
           add_vertex(hn);

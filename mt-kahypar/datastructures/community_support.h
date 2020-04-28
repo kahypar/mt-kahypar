@@ -313,8 +313,7 @@ class CommunitySupport {
    *  4.) For each hypernode v of community C, we compute a unique id within
    *      that community in the range [0, |C|)
    */
-  void initialize(const Hypergraph& hypergraph,
-                  const TaskGroupID task_group_id) {
+  void initialize(const Hypergraph& hypergraph) {
     // Compute number of communities
     computeNumberOfCommunities(hypergraph);
 
@@ -328,7 +327,7 @@ class CommunitySupport {
       // sequential in the member vector.
       tbb::parallel_invoke([&] {
         _vertex_to_community_node_id.resize(hypergraph.initialNumNodes());
-        hypergraph.doParallelForAllNodes(task_group_id, [&](const HypernodeID hn) {
+        hypergraph.doParallelForAllNodes([&](const HypernodeID hn) {
           Counter& community_degree = local_community_degree.local();
           const PartitionID community_id = hypergraph.communityID(hn);
           ASSERT(community_id < _num_communities);
@@ -337,7 +336,7 @@ class CommunitySupport {
           community_degree[community_id] += hypergraph.nodeDegree(hn);
         });
       }, [&] {
-        hypergraph.doParallelForAllEdges(task_group_id, [&](const HyperedgeID he) {
+        hypergraph.doParallelForAllEdges([&](const HyperedgeID he) {
           Counter& communities_num_pins = local_communities_num_pins.local();
           for ( const HypernodeID& pin : hypergraph.pins(he) ) {
             PartitionID community_id = hypergraph.communityID(pin);
