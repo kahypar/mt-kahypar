@@ -127,7 +127,6 @@ public:
     BestIndexReduceBody b(gains, in_balance);
     tbb::parallel_reduce(tbb::blocked_range<MoveID>(0, numMoves), b, tbb::static_partitioner()); // find best index
 
-    LOG << V(b.best_index) << V(b.best_sum);
 
     timer.stop_timer("find_best_prefix");
     timer.start_timer("revert_and_rem_orig_pin_updates", "Revert Moves and apply updates");
