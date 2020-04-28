@@ -66,7 +66,7 @@ public:
     thisSearch = ++sharedData.nodeTracker.highestActiveSearchID;
 
     if (initialBorderNode == invalidNode) {
-      while (runStats.pushes <= context.refinement.fm.initial_nodes && sharedData.refinementNodes.tryPop(initialBorderNode)) {
+      while (runStats.pushes <= context.refinement.fm.initial_nodes && sharedData.refinementNodes.try_pop(initialBorderNode)) {
         if (!updateDeduplicator.contains(initialBorderNode)
             && insertOrUpdatePQ(phg, initialBorderNode, sharedData.nodeTracker) && context.refinement.fm.init_neighbors) {
           updateDeduplicator.insert(initialBorderNode);

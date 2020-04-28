@@ -27,13 +27,12 @@
 
 namespace mt_kahypar {
 
-// TODO better name
-// Supports a sequence of concurrent push_back followed by a sequence of concurrent try_pop but not both at the same time
+
 template<typename T>
-class ConcurrentDataContainer {
+class WorkStack {
 public:
 
-  ConcurrentDataContainer(size_t maxNumElements) : size(0), elements(maxNumElements, T()) { }
+  WorkStack(size_t maxNumElements, int seed) : size(0), elements(maxNumElements, T()), rng(seed) { }
 
   void push_back(const T& el) {
     const size_t old_size = size.fetch_add(1, std::memory_order_acq_rel);
@@ -76,74 +75,15 @@ public:
     elements.shrink_to_fit();
   }
 
+  void shuffle() {
+    std::shuffle(elements.begin(), elements.end(), rng);
+  }
+
 private:
   CAtomic<size_t> size;
   vec<T> elements;
+  std::mt19937 rng;
 };
 
-template<typename Work>
-class NumaWorkQueue {
-public:
-  explicit NumaWorkQueue(size_t numSockets, size_t maxNumElements) : queues(numSockets, ConcurrentDataContainer<Work>(maxNumElements)) { }
-  explicit NumaWorkQueue(size_t maxNumElements) : NumaWorkQueue(static_cast<size_t>(TBBNumaArena::instance().num_used_numa_nodes()), maxNumElements) { }
-
-  bool empty() const {
-    return std::all_of(queues.begin(), queues.end(), [](const auto& q) { return q.empty(); });
-  }
-
-  void push(const Work& w, const int socket) {
-    queues[socket].push_back(w);
-  }
-
-  bool tryPop(Work& dest, int preferredSocket) {
-    if (queues[preferredSocket].try_pop(dest)) {
-      return true;
-    }
-    while (!empty()) {
-      // steal from the largest queue
-      size_t maxIndex = 0;
-      size_t maxSize = 0;
-      for (size_t i = 0; i < queues.size(); ++i) {
-        size_t size = queues[i].unsafe_size();
-        if (!queues[i].empty() && size > maxSize) {
-          maxSize = size;
-          maxIndex = i;
-        }
-      }
-      if (queues[maxIndex].try_pop(dest)) {
-        return true;
-      }
-    }
-
-    return false;
-  }
-
-  bool tryPop(Work& dest) {
-    int socket = HardwareTopology::instance().numa_node_of_cpu(sched_getcpu());
-    return tryPop(dest, socket);
-  }
-
-  void clear() {
-    for (auto& q : queues) q.clear();
-  }
-
-  size_t unsafe_size() const {
-    size_t s = 0;
-    for (size_t i = 0; i < queues.size(); ++i) s += queues[i].unsafe_size();
-    return s;
-  }
-
-  void shuffleQueues() {
-    tbb::parallel_for(0UL, queues.size(), [&](size_t i) {
-      std::mt19937 rng(queues[i].unsafe_size() + i);
-      auto& data = queues[i].get_underlying_container();
-      std::shuffle(data.begin(), data.end(), rng);  // TODO parallelize?
-    });
-  }
-
-private:
-  vec<ConcurrentDataContainer<Work>> queues;
-
-};
 
 }

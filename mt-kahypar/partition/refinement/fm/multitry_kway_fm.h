@@ -42,7 +42,7 @@ public:
   MultiTryKWayFM(const Context& context, TaskGroupID taskGroupID, size_t numNodes, size_t numHyperedges) :
           context(context),
           taskGroupID(taskGroupID),
-          sharedData(numNodes, context.partition.k, context.shared_memory.num_threads),
+          sharedData(numNodes, context),
           globalRollback(numNodes, numHyperedges, context.partition.k),
           ets_fm(context, numNodes, sharedData.vertexPQHandles.data())
   { }
@@ -130,7 +130,7 @@ public:
     tbb::parallel_for(HypernodeID(0), phg.initialNumNodes(), [&](const HypernodeID u) {
     //for (NodeID u = 0; u < phg.initialNumNodes(); ++u)
       if (phg.isBorderNode(u)) {
-        sharedData.refinementNodes.push(u, common::get_numa_node_of_vertex(u));
+        sharedData.refinementNodes.push_back(u);
       }
     });
 
@@ -140,7 +140,7 @@ public:
 
     // shuffle work queues if requested
     if (context.refinement.fm.shuffle) {
-      sharedData.refinementNodes.shuffleQueues();
+      sharedData.refinementNodes.shuffle();
     }
 
   }

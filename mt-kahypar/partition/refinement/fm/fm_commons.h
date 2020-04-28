@@ -139,7 +139,7 @@ struct FMSharedData {
 
   //PartitionWeightBudgets partition_weight_budgets;
 
-  NumaWorkQueue<HypernodeID> refinementNodes;
+  WorkStack<HypernodeID> refinementNodes;
 
   vec<PosT> vertexPQHandles;
 
@@ -149,15 +149,15 @@ struct FMSharedData {
 
   NodeTracker nodeTracker;
 
-  FMSharedData(size_t numNodes = 0, PartitionID numParts = 0, size_t maxNumThreads = 0) :
-          //partition_weight_budgets(static_cast<size_t>(numParts), maxNumThreads),
-          refinementNodes(numNodes),
+  FMSharedData(size_t numNodes, const Context& context) :
+          //partition_weight_budgets(static_cast<size_t>(numParts), context.shared_memory.num_threads),
+          refinementNodes(numNodes, context.partition.seed),
           vertexPQHandles(numNodes, invalid_position),
           numParts(numParts),
           moveTracker(numNodes),
           nodeTracker(numNodes)
   {
-    unused(maxNumThreads);
+
   }
 
   /*
