@@ -156,7 +156,8 @@ public:
     timer.start_timer("recompute_move_from_benefits", "Recompute Move-From Benefits");
 
     // recompute moveFromBenefit values since they are potentially invalid
-    tbb::parallel_for(0U, sharedData.moveTracker.numPerformedMoves(), [&](MoveID localMoveID) {
+    // TODO think of a way to update them
+    tbb::parallel_for(MoveID(0), numMoves, [&](MoveID localMoveID) {
       phg.recomputeMoveFromBenefit(move_order[localMoveID].node);
     });
 
