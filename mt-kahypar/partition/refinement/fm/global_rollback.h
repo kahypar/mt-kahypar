@@ -160,6 +160,7 @@ public:
     utils::Timer& timer = utils::Timer::instance();
     timer.start_timer("move_id_flagging", "Move Flagging");
 
+    // TODO could be split into second loop (backward) for writing last_move_out. this should reduce the number of writes significantly
     tbb::parallel_for(0U, sharedData.moveTracker.numPerformedMoves(), [&](MoveID localMoveID) {
       const Move& m = move_order[localMoveID];
       if (!sharedData.moveTracker.isMoveStillValid(m)) return;
