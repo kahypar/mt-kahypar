@@ -110,8 +110,7 @@ class MultilevelCoarsenerT : public ICoarsenerT<TypeTraits>,
       tbb::blocked_range<HypernodeID>(ID(0), hypergraph.initialNumNodes()), 0,
       [&](const tbb::blocked_range<HypernodeID>& range, HypernodeWeight init) {
         HypernodeWeight weight = init;
-        for (HypernodeID id = range.begin(); id < range.end(); ++id) {
-          const HypernodeID hn = hypergraph.globalNodeID(id);
+        for (HypernodeID hn = range.begin(); hn < range.end(); ++hn) {
           if ( hypergraph.nodeIsEnabled(hn) ) {
             weight = std::max(weight, hypergraph.nodeWeight(hn));
           }
@@ -171,11 +170,10 @@ class MultilevelCoarsenerT : public ICoarsenerT<TypeTraits>,
         ASSERT(local_id < current_vertices[node].size());
         current_vertices[node][local_id] = hn;
         // Reset clustering
-        const HypernodeID original_id = current_hg.originalNodeID(hn);
-        _matching_state[original_id] = STATE(MatchingState::UNMATCHED);
-        _cluster_weight[original_id] = current_hg.nodeWeight(hn);
-        _matching_partner[original_id] = original_id;
-        cluster_ids[original_id] = original_id;
+        _matching_state[hn] = STATE(MatchingState::UNMATCHED);
+        _cluster_weight[hn] = current_hg.nodeWeight(hn);
+        _matching_partner[hn] = hn;
+        cluster_ids[hn] = hn;
       });
 
       if ( _enable_randomization ) {
@@ -208,7 +206,7 @@ class MultilevelCoarsenerT : public ICoarsenerT<TypeTraits>,
         tbb::parallel_for(ID(0), current_hg.initialNumNodes(node), [&, node](const HypernodeID id) {
           ASSERT(id < current_vertices[node].size());
           const HypernodeID hn = current_vertices[node][id];
-          const HypernodeID u = current_hg.originalNodeID(hn);
+          const HypernodeID u = hn;
 
           // We perform rating if ...
           //  1.) The contraction limit of the current level is not reached
@@ -219,7 +217,7 @@ class MultilevelCoarsenerT : public ICoarsenerT<TypeTraits>,
               const Rating rating = _rater.rate(current_hg, hn,
                 cluster_ids, _cluster_weight, _max_allowed_node_weight);
               if ( rating.target != kInvalidHypernode ) {
-                const HypernodeID v = current_hg.originalNodeID(rating.target);
+                const HypernodeID v = rating.target;
                 HypernodeID& local_contracted_nodes = contracted_nodes.local();
                 matchVertices(current_hg, u, v, cluster_ids, local_contracted_nodes);
 
@@ -260,7 +258,7 @@ class MultilevelCoarsenerT : public ICoarsenerT<TypeTraits>,
         parallel::scalable_vector<HypernodeWeight> expected_weights(current_hg.initialNumNodes());
         // Verify that clustering is correct
         for ( const HypernodeID& hn : current_hg.nodes() ) {
-          const HypernodeID u = current_hg.originalNodeID(hn);
+          const HypernodeID u = hn;
           const HypernodeID root_u = cluster_ids[u];
           if ( root_u != cluster_ids[root_u] ) {
             LOG << "Hypernode" << u << "is part of cluster" << root_u << ", but cluster"
@@ -272,7 +270,7 @@ class MultilevelCoarsenerT : public ICoarsenerT<TypeTraits>,
 
         // Verify that cluster weights are aggregated correct
         for ( const HypernodeID& hn : current_hg.nodes() ) {
-          const HypernodeID u = current_hg.originalNodeID(hn);
+          const HypernodeID u = hn;
           const HypernodeID root_u = cluster_ids[u];
           if ( root_u == u && expected_weights[u] != _cluster_weight[u] ) {
             LOG << "The expected weight of cluster" << u << "is" << expected_weights[u]
@@ -355,7 +353,7 @@ class MultilevelCoarsenerT : public ICoarsenerT<TypeTraits>,
     // Will be important later for conflict resolution.
     bool success = false;
     _matching_partner[u] = v;
-    const HypernodeWeight weight_u = hypergraph.nodeWeight(hypergraph.globalNodeID(u));
+    const HypernodeWeight weight_u = hypergraph.nodeWeight(u);
     HypernodeWeight weight_v = _cluster_weight[v];
     if ( weight_u + weight_v <= _max_allowed_node_weight ) {
 

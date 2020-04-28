@@ -147,11 +147,10 @@ class InitialPartitioningDataContainerT {
 
       if ( _result.is_other_better(result, _context.partition.epsilon) ) {
         for ( const HypernodeID& hn : _partitioned_hypergraph.nodes() ) {
-          const HypernodeID original_id = _partitioned_hypergraph.originalNodeID(hn);
           const PartitionID part_id = _partitioned_hypergraph.partID(hn);
-          ASSERT(original_id < _partition.size());
+          ASSERT(hn < _partition.size());
           ASSERT(part_id != kInvalidPartition);
-          _partition[original_id] = part_id;
+          _partition[hn] = part_id;
         }
         _result = std::move(result);
       }
@@ -349,9 +348,8 @@ class InitialPartitioningDataContainerT {
 
     // Applies best partition to hypergraph
     _partitioned_hg.doParallelForAllNodes(_task_group_id, [&](const HypernodeID hn) {
-      const HypernodeID original_id = _partitioned_hg.originalNodeID(hn);
-      ASSERT(original_id < best->_partition.size());
-      const PartitionID part_id = best->_partition[original_id];
+      ASSERT(hn < best->_partition.size());
+      const PartitionID part_id = best->_partition[hn];
       ASSERT(part_id != kInvalidPartition && part_id < _partitioned_hg.k());
       _partitioned_hg.setOnlyNodePart(hn, part_id);
     });

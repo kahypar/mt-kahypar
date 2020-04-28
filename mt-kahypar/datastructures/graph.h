@@ -377,8 +377,7 @@ class GraphT {
       ID(0), hypergraph.initialNumEdges()), true, [&](const tbb::blocked_range<HyperedgeID>& range, bool isGraph) {
         if ( isGraph ) {
           bool tmp_is_graph = isGraph;
-          for (HyperedgeID id = range.begin(); id < range.end(); ++id) {
-            const HyperedgeID he = hypergraph.globalEdgeID(id);
+          for (HyperedgeID he = range.begin(); he < range.end(); ++he) {
             if ( hypergraph.edgeIsEnabled(he) ) {
               tmp_is_graph &= (hypergraph.edgeSize(he) == 2);
             }
@@ -426,13 +425,12 @@ class GraphT {
     tbb::parallel_invoke([&] {
       tbb::parallel_for(ID(0), num_hypernodes, [&](const HypernodeID u) {
         ASSERT(u + 1 < _indices.size());
-        const HypernodeID hn = hypergraph.globalNodeID(u);
-        _indices[u + 1] = hypergraph.nodeDegree(hn);
+        _indices[u + 1] = hypergraph.nodeDegree(u);
       });
     }, [&] {
       tbb::parallel_for(num_hypernodes, num_hypernodes + num_hyperedges, [&](const HyperedgeID u) {
         ASSERT(u + 1 < _indices.size());
-        const HyperedgeID he = hypergraph.globalEdgeID(u - num_hypernodes);
+        const HyperedgeID he = u - num_hypernodes;
         _indices[u + 1] = hypergraph.edgeSize(he);
       });
     });
@@ -447,12 +445,12 @@ class GraphT {
       tbb::parallel_for(ID(0), num_hypernodes, [&](const HypernodeID u) {
         ASSERT(u + 1 < _indices.size());
         size_t pos = _indices[u];
-        const HypernodeID hn = hypergraph.globalNodeID(u);
+        const HypernodeID hn = u;
         const HyperedgeID node_degree = hypergraph.nodeDegree(hn);
         local_max_degree.local() = std::max(
           local_max_degree.local(), static_cast<size_t>(node_degree));
         for ( const HyperedgeID& he : hypergraph.incidentEdges(hn) ) {
-          const NodeID v = hypergraph.originalEdgeID(he) + num_hypernodes;
+          const NodeID v = he + num_hypernodes;
           const HyperedgeWeight edge_weight = hypergraph.edgeWeight(he);
           const HypernodeID edge_size = hypergraph.edgeSize(he);
           ASSERT(pos < _indices[u + 1]);
@@ -463,13 +461,13 @@ class GraphT {
       tbb::parallel_for(num_hypernodes, num_hypernodes + num_hyperedges, [&](const HyperedgeID u) {
         ASSERT(u + 1 < _indices.size());
         size_t pos = _indices[u];
-        const HyperedgeID he = hypergraph.globalEdgeID(u - num_hypernodes);
+        const HyperedgeID he = u - num_hypernodes;
         const HyperedgeWeight edge_weight = hypergraph.edgeWeight(he);
         const HypernodeID edge_size = hypergraph.edgeSize(he);
         local_max_degree.local() = std::max(
           local_max_degree.local(), static_cast<size_t>(edge_size));
         for ( const HypernodeID& pin : hypergraph.pins(he) ) {
-          const NodeID v = hypergraph.originalNodeID(pin);
+          const NodeID v = pin;
           const HyperedgeID node_degree = hypergraph.nodeDegree(pin);
           ASSERT(pos < _indices[u + 1]);
           _arcs[pos++] = Arc(v, edge_weight_func(edge_weight, edge_size, node_degree));
@@ -495,8 +493,7 @@ class GraphT {
     const HypernodeID num_hypernodes = hypergraph.initialNumNodes();
     tbb::parallel_for(ID(0), num_hypernodes, [&](const HypernodeID u) {
       ASSERT(u + 1 < _indices.size());
-      const HypernodeID hn = hypergraph.globalNodeID(u);
-      _indices[u + 1] = hypergraph.nodeDegree(hn);
+      _indices[u + 1] = hypergraph.nodeDegree(u);
     });
 
     parallel::TBBPrefixSum<size_t, ds::Array> indices_prefix_sum(_indices);
@@ -508,7 +505,7 @@ class GraphT {
     tbb::parallel_for(ID(0), num_hypernodes, [&](const HypernodeID u) {
       ASSERT(u + 1 < _indices.size());
       size_t pos = _indices[u];
-      const HypernodeID hn = hypergraph.globalNodeID(u);
+      const HypernodeID hn = u;
       const HyperedgeID node_degree = hypergraph.nodeDegree(hn);
       local_max_degree.local() = std::max(
         local_max_degree.local(), static_cast<size_t>(node_degree));
@@ -517,7 +514,7 @@ class GraphT {
         NodeID v = std::numeric_limits<NodeID>::max();
         for ( const HypernodeID& pin : hypergraph.pins(he) ) {
           if ( pin != hn ) {
-            v = hypergraph.originalNodeID(pin);
+            v = pin;
             break;
           }
         }

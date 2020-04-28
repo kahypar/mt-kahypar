@@ -396,11 +396,10 @@ class RecursiveInitialPartitionerT : public IInitialPartitioner {
         const PartitionID from = _hg.partID(hn);
         PartitionID to = kInvalidPartition;
         if ( from != unbisected_block ) {
-          const HypernodeID original_hn_id = _hg.originalNodeID(hn);
           ASSERT(from != kInvalidPartition && static_cast<size_t>(from) < _results.size());
-          ASSERT(original_hn_id < _results[from].mapping.size());
+          ASSERT(hn < _results[from].mapping.size());
           const PartitionedHyperGraph& from_hg = _results[from].partitioned_hypergraph;
-          to = from_hg.partID(from_hg.globalNodeID(_results[from].mapping[original_hn_id])) == 0 ? 2 * from : 2 * from + 1;
+          to = from_hg.partID(_results[from].mapping[hn]) == 0 ? 2 * from : 2 * from + 1;
         } else {
           to = _context.partition.k - 1;
         }

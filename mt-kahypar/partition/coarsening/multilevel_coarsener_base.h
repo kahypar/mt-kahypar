@@ -78,10 +78,8 @@ class MultilevelCoarsenerBase {
     // ! Maps a global vertex id of the representative hypergraph
     // ! to its global vertex id in the contracted hypergraph
     HypernodeID mapToContractedHypergraph(const HypernodeID hn) const {
-      ASSERT(_representative_hypergraph);
-      const HypernodeID original_id = _representative_hypergraph->originalNodeID(hn);
-      ASSERT(original_id < _communities.size());
-      return _communities[original_id];
+      ASSERT(hn < _communities.size());
+      return _communities[hn];
     }
 
     void freeInternalData() {

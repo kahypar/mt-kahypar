@@ -101,7 +101,7 @@ class AInitialPartitionerTest : public Test {
     io::readPartitionFile(context.partition.graph_community_filename, communities);
 
     for ( const HypernodeID& hn : hypergraph.nodes() ) {
-      hypergraph.setCommunityID(hn, communities[hypergraph.originalNodeID(hn)]);
+      hypergraph.setCommunityID(hn, communities[hn]);
     }
     hypergraph.initializeCommunities(TBB::GLOBAL_TASK_GROUP);
   }

@@ -129,12 +129,6 @@ TEST_F(AStaticHypergraph, VerifiesPinsOfHyperedges) {
     { {0, 2}, {0, 1, 3, 4}, {3, 4, 6}, {2, 5, 6} });
 }
 
-TEST_F(AStaticHypergraph, VerifiesOriginalNodeIDs) {
-  for ( const HypernodeID& hn : hypergraph.nodes() ) {
-    ASSERT_EQ(hn, hypergraph.originalNodeID(hn));
-  }
-}
-
 TEST_F(AStaticHypergraph, VerifiesVertexWeights) {
   for ( const HypernodeID& hn : hypergraph.nodes() ) {
     ASSERT_EQ(1, hypergraph.nodeWeight(hn));
@@ -165,12 +159,6 @@ TEST_F(AStaticHypergraph, RemovesVertices) {
   hypergraph.removeHypernode(0);
   hypergraph.removeHypernode(5);
   ASSERT_EQ(2, hypergraph.numRemovedHypernodes());
-}
-
-TEST_F(AStaticHypergraph, VerifiesOriginalEdgeIDs) {
-  for ( const HyperedgeID& he : hypergraph.edges() ) {
-    ASSERT_EQ(he, hypergraph.originalEdgeID(he));
-  }
 }
 
 TEST_F(AStaticHypergraph, VerifiesEdgeWeights) {

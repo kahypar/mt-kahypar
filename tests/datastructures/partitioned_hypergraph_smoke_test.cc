@@ -119,9 +119,8 @@ void moveAllNodesOfHypergraphRandom(HyperGraph& hypergraph,
   HyperedgeWeight metric_before = metrics::objective(hypergraph, objective);
 
   HighResClockTimepoint start = std::chrono::high_resolution_clock::now();
-  tbb::parallel_for(ID(0), hypergraph.initialNumNodes(), [&](const HypernodeID& node) {
+  tbb::parallel_for(ID(0), hypergraph.initialNumNodes(), [&](const HypernodeID& hn) {
     int cpu_id = sched_getcpu();
-    const HypernodeID hn = hypergraph.globalNodeID(node);
     const PartitionID from = hypergraph.partID(hn);
     PartitionID to = -1;
     while (to == -1 || to == from) {

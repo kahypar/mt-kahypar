@@ -354,8 +354,8 @@ static inline void writePartitionFile(const HyperGraph& hypergraph, const std::s
     std::ofstream out_stream(filename.c_str());
     std::vector<PartitionID> partition(hypergraph.initialNumNodes(), -1);
     for (const HypernodeID& hn : hypergraph.nodes()) {
-      ASSERT(hypergraph.originalNodeID(hn) < partition.size());
-      partition[hypergraph.originalNodeID(hn)] = hypergraph.partID(hn);
+      ASSERT(hn < partition.size());
+      partition[hn] = hypergraph.partID(hn);
     }
     for (const PartitionID& part : partition) {
       out_stream << part << std::endl;

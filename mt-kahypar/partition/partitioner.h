@@ -136,9 +136,8 @@ inline void Partitioner::preprocess(Hypergraph& hypergraph) {
     utils::Timer::instance().start_timer("stream_community_ids", "Stream Community IDs");
     tbb::parallel_for(tbb::blocked_range<HypernodeID>(0UL, hypergraph.initialNumNodes()),
                       [&](const tbb::blocked_range<HypernodeID>& range) {
-          for (HypernodeID id = range.begin(); id < range.end(); ++id) {
-            const HypernodeID hn = hypergraph.globalNodeID(id);
-            hypergraph.setCommunityID(hn, communities[id]);
+          for (HypernodeID hn = range.begin(); hn < range.end(); ++hn) {
+            hypergraph.setCommunityID(hn, communities[hn]);
           }
         });
     utils::Timer::instance().stop_timer("stream_community_ids");

@@ -48,7 +48,7 @@ class AGainPolicy : public Test {
     HypernodeID hn = 0;
     for (const PartitionID& part : part_ids) {
       ASSERT(part < K);
-      hypergraph.setNodePart(hypergraph.globalNodeID(hn++), part);
+      hypergraph.setNodePart(hn++, part);
     }
     hypergraph.initializeNumCutHyperedges();
   }
@@ -63,7 +63,7 @@ using AKm1PolicyK2 = AGainPolicy<Km1Policy, 2>;
 
 TEST_F(AKm1PolicyK2, ComputesCorrectMoveGainForVertex1) {
   assignPartitionIDs({ 1, 0, 0, 0, 0, 1, 1 });
-  Move move = gain->computeMaxGainMove(hypergraph, hypergraph.globalNodeID(0));
+  Move move = gain->computeMaxGainMove(hypergraph, 0);
   ASSERT_EQ(1, move.from);
   ASSERT_EQ(0, move.to);
   ASSERT_EQ(-2, move.gain);
@@ -71,7 +71,7 @@ TEST_F(AKm1PolicyK2, ComputesCorrectMoveGainForVertex1) {
 
 TEST_F(AKm1PolicyK2, ComputesCorrectObjectiveDelta1) {
   assignPartitionIDs({ 1, 0, 0, 0, 0, 1, 1 });
-  ASSERT_TRUE(hypergraph.changeNodePart(hypergraph.globalNodeID(0), 1, 0,
+  ASSERT_TRUE(hypergraph.changeNodePart(0, 1, 0,
                                         [&](const HyperedgeID he,
                                             const HyperedgeWeight edge_weight,
                                             const HypernodeID edge_size,
@@ -85,7 +85,7 @@ TEST_F(AKm1PolicyK2, ComputesCorrectObjectiveDelta1) {
 
 TEST_F(AKm1PolicyK2, ComputesCorrectMoveGainForVertex2) {
   assignPartitionIDs({ 0, 0, 0, 1, 0, 1, 1 });
-  Move move = gain->computeMaxGainMove(hypergraph, hypergraph.globalNodeID(3));
+  Move move = gain->computeMaxGainMove(hypergraph, 3);
   ASSERT_EQ(1, move.from);
   ASSERT_EQ(0, move.to);
   ASSERT_EQ(-1, move.gain);
@@ -93,7 +93,7 @@ TEST_F(AKm1PolicyK2, ComputesCorrectMoveGainForVertex2) {
 
 TEST_F(AKm1PolicyK2, ComputesCorrectObjectiveDelta2) {
   assignPartitionIDs({ 0, 0, 0, 1, 0, 1, 1 });
-  ASSERT_TRUE(hypergraph.changeNodePart(hypergraph.globalNodeID(3), 1, 0,
+  ASSERT_TRUE(hypergraph.changeNodePart(3, 1, 0,
                                         [&](const HyperedgeID he,
                                             const HyperedgeWeight edge_weight,
                                             const HypernodeID edge_size,
@@ -107,7 +107,7 @@ TEST_F(AKm1PolicyK2, ComputesCorrectObjectiveDelta2) {
 
 TEST_F(AKm1PolicyK2, ComputesCorrectMoveGainForVertex3) {
   assignPartitionIDs({ 0, 0, 0, 0, 0, 1, 1 });
-  Move move = gain->computeMaxGainMove(hypergraph, hypergraph.globalNodeID(4));
+  Move move = gain->computeMaxGainMove(hypergraph, 4);
   ASSERT_EQ(0, move.from);
   ASSERT_EQ(0, move.to);
   ASSERT_EQ(0, move.gain);
@@ -117,7 +117,7 @@ using ACutPolicyK2 = AGainPolicy<CutPolicy, 2>;
 
 TEST_F(ACutPolicyK2, ComputesCorrectMoveGainForVertex1) {
   assignPartitionIDs({ 1, 0, 0, 0, 0, 1, 1 });
-  Move move = gain->computeMaxGainMove(hypergraph, hypergraph.globalNodeID(0));
+  Move move = gain->computeMaxGainMove(hypergraph, 0);
   ASSERT_EQ(1, move.from);
   ASSERT_EQ(0, move.to);
   ASSERT_EQ(-2, move.gain);
@@ -125,7 +125,7 @@ TEST_F(ACutPolicyK2, ComputesCorrectMoveGainForVertex1) {
 
 TEST_F(ACutPolicyK2, ComputesCorrectObjectiveDelta1) {
   assignPartitionIDs({ 1, 0, 0, 0, 0, 1, 1 });
-  ASSERT_TRUE(hypergraph.changeNodePart(hypergraph.globalNodeID(0), 1, 0,
+  ASSERT_TRUE(hypergraph.changeNodePart(0, 1, 0,
                                         [&](const HyperedgeID he,
                                             const HyperedgeWeight edge_weight,
                                             const HypernodeID edge_size,
@@ -139,7 +139,7 @@ TEST_F(ACutPolicyK2, ComputesCorrectObjectiveDelta1) {
 
 TEST_F(ACutPolicyK2, ComputesCorrectMoveGainForVertex2) {
   assignPartitionIDs({ 0, 0, 0, 1, 0, 1, 1 });
-  Move move = gain->computeMaxGainMove(hypergraph, hypergraph.globalNodeID(3));
+  Move move = gain->computeMaxGainMove(hypergraph, 3);
   ASSERT_EQ(1, move.from);
   ASSERT_EQ(0, move.to);
   ASSERT_EQ(-1, move.gain);
@@ -147,7 +147,7 @@ TEST_F(ACutPolicyK2, ComputesCorrectMoveGainForVertex2) {
 
 TEST_F(ACutPolicyK2, ComputesCorrectObjectiveDelta2) {
   assignPartitionIDs({ 0, 0, 0, 1, 0, 1, 1 });
-  ASSERT_TRUE(hypergraph.changeNodePart(hypergraph.globalNodeID(3), 1, 0,
+  ASSERT_TRUE(hypergraph.changeNodePart(3, 1, 0,
                                         [&](const HyperedgeID he,
                                             const HyperedgeWeight edge_weight,
                                             const HypernodeID edge_size,
@@ -161,7 +161,7 @@ TEST_F(ACutPolicyK2, ComputesCorrectObjectiveDelta2) {
 
 TEST_F(ACutPolicyK2, ComputesCorrectMoveGainForVertex3) {
   assignPartitionIDs({ 0, 0, 0, 0, 0, 1, 1 });
-  Move move = gain->computeMaxGainMove(hypergraph, hypergraph.globalNodeID(4));
+  Move move = gain->computeMaxGainMove(hypergraph, 4);
   ASSERT_EQ(0, move.from);
   ASSERT_EQ(0, move.to);
   ASSERT_EQ(0, move.gain);
@@ -171,7 +171,7 @@ using AKm1PolicyK4 = AGainPolicy<Km1Policy, 4>;
 
 TEST_F(AKm1PolicyK4, ComputesCorrectMoveGainForVertex1) {
   assignPartitionIDs({ 0, 1, 2, 3, 3, 1, 2 });
-  Move move = gain->computeMaxGainMove(hypergraph, hypergraph.globalNodeID(0));
+  Move move = gain->computeMaxGainMove(hypergraph, 0);
   ASSERT_EQ(0, move.from);
   ASSERT_EQ(1, move.to);
   ASSERT_EQ(-1, move.gain);
@@ -179,7 +179,7 @@ TEST_F(AKm1PolicyK4, ComputesCorrectMoveGainForVertex1) {
 
 TEST_F(AKm1PolicyK4, ComputesCorrectObjectiveDelta1) {
   assignPartitionIDs({ 0, 1, 2, 3, 3, 1, 2 });
-  ASSERT_TRUE(hypergraph.changeNodePart(hypergraph.globalNodeID(0), 0, 1,
+  ASSERT_TRUE(hypergraph.changeNodePart(0, 0, 1,
                                         [&](const HyperedgeID he,
                                             const HyperedgeWeight edge_weight,
                                             const HypernodeID edge_size,
@@ -193,7 +193,7 @@ TEST_F(AKm1PolicyK4, ComputesCorrectObjectiveDelta1) {
 
 TEST_F(AKm1PolicyK4, ComputesCorrectMoveGainForVertex2) {
   assignPartitionIDs({ 0, 3, 1, 2, 2, 0, 3 });
-  Move move = gain->computeMaxGainMove(hypergraph, hypergraph.globalNodeID(6));
+  Move move = gain->computeMaxGainMove(hypergraph, 6);
   ASSERT_EQ(3, move.from);
   ASSERT_EQ(0, move.to);
   ASSERT_EQ(-1, move.gain);
@@ -201,7 +201,7 @@ TEST_F(AKm1PolicyK4, ComputesCorrectMoveGainForVertex2) {
 
 TEST_F(AKm1PolicyK4, ComputesCorrectObjectiveDelta2) {
   assignPartitionIDs({ 0, 3, 1, 2, 2, 0, 3 });
-  ASSERT_TRUE(hypergraph.changeNodePart(hypergraph.globalNodeID(6), 3, 0,
+  ASSERT_TRUE(hypergraph.changeNodePart(6, 3, 0,
                                         [&](const HyperedgeID he,
                                             const HyperedgeWeight edge_weight,
                                             const HypernodeID edge_size,
@@ -215,7 +215,7 @@ TEST_F(AKm1PolicyK4, ComputesCorrectObjectiveDelta2) {
 
 TEST_F(AKm1PolicyK4, ComputesCorrectMoveGainForVertex3) {
   assignPartitionIDs({ 0, 3, 1, 2, 2, 0, 3 });
-  Move move = gain->computeMaxGainMove(hypergraph, hypergraph.globalNodeID(3));
+  Move move = gain->computeMaxGainMove(hypergraph, 3);
   ASSERT_EQ(2, move.from);
   ASSERT_EQ(2, move.to);
   ASSERT_EQ(0, move.gain);
@@ -225,7 +225,7 @@ using ACutPolicyK4 = AGainPolicy<CutPolicy, 4>;
 
 TEST_F(ACutPolicyK4, ComputesCorrectMoveGainForVertex1) {
   assignPartitionIDs({ 0, 1, 2, 3, 3, 1, 2 });
-  Move move = gain->computeMaxGainMove(hypergraph, hypergraph.globalNodeID(0));
+  Move move = gain->computeMaxGainMove(hypergraph, 0);
   ASSERT_EQ(0, move.from);
   ASSERT_EQ(2, move.to);
   ASSERT_EQ(-1, move.gain);
@@ -233,7 +233,7 @@ TEST_F(ACutPolicyK4, ComputesCorrectMoveGainForVertex1) {
 
 TEST_F(ACutPolicyK4, ComputesCorrectObjectiveDelta1) {
   assignPartitionIDs({ 0, 1, 2, 3, 3, 1, 2 });
-  ASSERT_TRUE(hypergraph.changeNodePart(hypergraph.globalNodeID(0), 0, 2,
+  ASSERT_TRUE(hypergraph.changeNodePart(0, 0, 2,
                                         [&](const HyperedgeID he,
                                             const HyperedgeWeight edge_weight,
                                             const HypernodeID edge_size,
@@ -247,7 +247,7 @@ TEST_F(ACutPolicyK4, ComputesCorrectObjectiveDelta1) {
 
 TEST_F(ACutPolicyK4, ComputesCorrectMoveGainForVertex2) {
   assignPartitionIDs({ 0, 3, 1, 2, 2, 0, 3 });
-  Move move = gain->computeMaxGainMove(hypergraph, hypergraph.globalNodeID(6));
+  Move move = gain->computeMaxGainMove(hypergraph, 6);
   ASSERT_EQ(3, move.from);
   ASSERT_EQ(2, move.to);
   ASSERT_EQ(-1, move.gain);
@@ -255,7 +255,7 @@ TEST_F(ACutPolicyK4, ComputesCorrectMoveGainForVertex2) {
 
 TEST_F(ACutPolicyK4, ComputesCorrectObjectiveDelta2) {
   assignPartitionIDs({ 0, 3, 1, 2, 2, 0, 3 });
-  ASSERT_TRUE(hypergraph.changeNodePart(hypergraph.globalNodeID(6), 3, 2,
+  ASSERT_TRUE(hypergraph.changeNodePart(6, 3, 2,
                                         [&](const HyperedgeID he,
                                             const HyperedgeWeight edge_weight,
                                             const HypernodeID edge_size,
@@ -269,7 +269,7 @@ TEST_F(ACutPolicyK4, ComputesCorrectObjectiveDelta2) {
 
 TEST_F(ACutPolicyK4, ComputesCorrectMoveGainForVertex3) {
   assignPartitionIDs({ 0, 3, 1, 2, 2, 0, 3 });
-  Move move = gain->computeMaxGainMove(hypergraph, hypergraph.globalNodeID(3));
+  Move move = gain->computeMaxGainMove(hypergraph, 3);
   ASSERT_EQ(2, move.from);
   ASSERT_EQ(2, move.to);
   ASSERT_EQ(0, move.gain);

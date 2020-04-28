@@ -85,20 +85,16 @@ void verifyThatHypergraphsAreEquivalent(const Hypergraph& hypergraph,
                                         const Hypergraph& reference) {
   // Verify equivallence of hypernodes and incident nets
   for (const HypernodeID& hn : reference.nodes()) {
-    const HypernodeID original_id = reference.originalNodeID(hn);
-    const HypernodeID u = hypergraph.globalNodeID(original_id);
-    ASSERT_TRUE(hypergraph.nodeIsEnabled(u));
+    ASSERT_TRUE(hypergraph.nodeIsEnabled(hn));
 
     std::set<HyperedgeID> incident_nets;
     for (const HyperedgeID& he : reference.incidentEdges(hn)) {
-      const HyperedgeID original_edge_id = reference.originalEdgeID(he);
-      incident_nets.insert(original_edge_id);
+      incident_nets.insert(he);
     }
 
     size_t num_incident_nets = 0;
-    for (const HyperedgeID& he : hypergraph.incidentEdges(u)) {
-      const HyperedgeID original_edge_id = hypergraph.originalEdgeID(he);
-      ASSERT_TRUE(incident_nets.find(original_edge_id) != incident_nets.end()) << V(u) << V(original_edge_id);
+    for (const HyperedgeID& he : hypergraph.incidentEdges(hn)) {
+      ASSERT_TRUE(incident_nets.find(he) != incident_nets.end()) << V(hn) << V(he);
       ++num_incident_nets;
     }
     ASSERT_EQ(num_incident_nets, incident_nets.size());
@@ -106,20 +102,16 @@ void verifyThatHypergraphsAreEquivalent(const Hypergraph& hypergraph,
 
   // Verify equivallence of hyperedges and pins
   for (const HyperedgeID& he : reference.edges()) {
-    const HyperedgeID original_id = reference.originalEdgeID(he);
-    const HyperedgeID e = hypergraph.globalEdgeID(original_id);
-    ASSERT_TRUE(hypergraph.edgeIsEnabled(e));
+    ASSERT_TRUE(hypergraph.edgeIsEnabled(he));
 
     std::set<HypernodeID> pins;
     for (const HypernodeID& pin : reference.pins(he)) {
-      const HypernodeID original_pin_id = reference.originalNodeID(pin);
-      pins.insert(original_pin_id);
+      pins.insert(pin);
     }
 
     size_t num_pins = 0;
-    for (const HypernodeID& pin : hypergraph.pins(e)) {
-      const HypernodeID original_pin_id = hypergraph.originalNodeID(pin);
-      ASSERT_TRUE(pins.find(original_pin_id) != pins.end()) << V(e) << V(original_pin_id);
+    for (const HypernodeID& pin : hypergraph.pins(he)) {
+      ASSERT_TRUE(pins.find(pin) != pins.end()) << V(he) << V(pin);
       ++num_pins;
     }
     ASSERT_EQ(num_pins, pins.size());

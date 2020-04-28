@@ -71,7 +71,6 @@ class StaticHypergraph {
     Hypernode() :
       _begin(0),
       _size(0),
-      _original_id(kInvalidHypernode),
       _weight(1),
       _community_id(0),
       _valid(false) { }
@@ -79,7 +78,6 @@ class StaticHypergraph {
     Hypernode(const bool valid) :
       _begin(0),
       _size(0),
-      _original_id(kInvalidHypernode),
       _weight(1),
       _community_id(0),
       _valid(valid) { }
@@ -88,7 +86,6 @@ class StaticHypergraph {
     Hypernode(const size_t begin) :
       _begin(begin),
       _size(0),
-      _original_id(kInvalidHypernode),
       _weight(1),
       _community_id(0),
       _valid(false) { }
@@ -133,14 +130,6 @@ class StaticHypergraph {
       _size = size;
     }
 
-    HypernodeID originalNodeID() const {
-      return _original_id;
-    }
-
-    void setOriginalNodeID(const HypernodeID original_id) {
-      _original_id = original_id;
-    }
-
     HyperedgeWeight weight() const {
       ASSERT(!isDisabled());
       return _weight;
@@ -166,8 +155,6 @@ class StaticHypergraph {
     size_t _begin;
     // ! Number of incident nets
     size_t _size;
-    // ! Original id of hypernode
-    HypernodeID _original_id;
     // ! Hypernode weight
     HyperedgeWeight _weight;
     // ! Community id
@@ -187,7 +174,6 @@ class StaticHypergraph {
     Hyperedge() :
       _begin(0),
       _size(0),
-      _original_id(kInvalidHyperedge),
       _weight(1),
       _hash(kEdgeHashSeed),
       _valid(false) { }
@@ -196,7 +182,6 @@ class StaticHypergraph {
     Hyperedge(const size_t begin) :
       _begin(begin),
       _size(0),
-      _original_id(kInvalidHyperedge),
       _weight(1),
       _hash(kEdgeHashSeed),
       _valid(false) { }
@@ -243,14 +228,6 @@ class StaticHypergraph {
       _size = size;
     }
 
-    HyperedgeID originalEdgeID() const {
-      return _original_id;
-    }
-
-    void setOriginalEdgeID(const HyperedgeID original_id) {
-      _original_id = original_id;
-    }
-
     HyperedgeWeight weight() const {
       ASSERT(!isDisabled());
       return _weight;
@@ -282,8 +259,6 @@ class StaticHypergraph {
     size_t _begin;
     // ! Number of pins
     size_t _size;
-    // ! Original id of hyperedge
-    HyperedgeID _original_id;
     // ! hyperedge weight
     HyperedgeWeight _weight;
     // ! Hash of pins
@@ -724,19 +699,6 @@ class StaticHypergraph {
 
   // ####################### Hypernode Information #######################
 
-  // ! Returns for a vertex of the hypergraph its original vertex id
-  // ! Can be used to map the global vertex ids to a consecutive range
-  // ! of nodes between [0,|V|).
-  HypernodeID originalNodeID(const HypernodeID u) const {
-    return hypernode(u).originalNodeID();
-  }
-
-  // ! Reverse operation of originalNodeID(u)
-  HypernodeID globalNodeID(const HypernodeID u) const {
-    ASSERT(u < _num_hypernodes);
-    return u;
-  }
-
   // ! Weight of a vertex
   HypernodeWeight nodeWeight(const HypernodeID u) const {
     ASSERT(!hypernode(u).isDisabled(), "Hypernode" << u << "is disabled");
@@ -789,19 +751,6 @@ class StaticHypergraph {
   }
 
   // ####################### Hyperedge Information #######################
-
-  // ! Returns for a edge of the hypergraph its original edge id
-  // ! Can be used to map the global edge ids to a consecutive range
-  // ! of edges between [0,|E|).
-  HyperedgeID originalEdgeID(const HyperedgeID e) const {
-    return hyperedge(e).originalEdgeID();
-  }
-
-  // ! Reverse operation of originalEdgeID(e)
-  HypernodeID globalEdgeID(const HyperedgeID e) const {
-    ASSERT(e < _num_hyperedges);
-    return e;
-  }
 
   // ! Weight of a hyperedge
   HypernodeWeight edgeWeight(const HyperedgeID e) const {
@@ -993,7 +942,7 @@ class StaticHypergraph {
     mapping.assign(_num_hypernodes, 0);
 
     doParallelForAllNodes(task_group_id, [&](const HypernodeID& hn) {
-      ASSERT(static_cast<size_t>(communities[originalNodeID(hn)]) < mapping.size());
+      ASSERT(static_cast<size_t>(communities[hn]) < mapping.size());
       mapping[communities[hn]] = 1UL;
     });
 
@@ -1053,19 +1002,18 @@ class StaticHypergraph {
     tbb::parallel_invoke([&] {
       // Contract Hyperedges
       utils::Timer::instance().start_timer("contract_hyperedges", "Contract Hyperedges", true);
-      tbb::parallel_for(ID(0), _num_hyperedges, [&](const HyperedgeID& id) {
-        const HyperedgeID he = globalEdgeID(id);
+      tbb::parallel_for(ID(0), _num_hyperedges, [&](const HyperedgeID& he) {
         if ( edgeIsEnabled(he) ) {
           // Copy hyperedge and pins to temporary buffer
-          const Hyperedge& e = _hyperedges[id];
-          ASSERT(static_cast<size_t>(id) < tmp_hyperedges.size());
+          const Hyperedge& e = _hyperedges[he];
+          ASSERT(static_cast<size_t>(he) < tmp_hyperedges.size());
           ASSERT(e.firstInvalidEntry() <= tmp_incidence_array.size());
-          tmp_hyperedges[id] = e;
-          valid_hyperedges[id] = 1;
+          tmp_hyperedges[he] = e;
+          valid_hyperedges[he] = 1;
 
           // Map pins to vertex ids in coarse graph
-          const size_t incidence_array_start = tmp_hyperedges[id].firstEntry();
-          const size_t incidence_array_end = tmp_hyperedges[id].firstInvalidEntry();
+          const size_t incidence_array_start = tmp_hyperedges[he].firstEntry();
+          const size_t incidence_array_end = tmp_hyperedges[he].firstInvalidEntry();
           for ( size_t pos = incidence_array_start; pos < incidence_array_end; ++pos ) {
             const HypernodeID pin = _incidence_array[pos];
             ASSERT(pos < tmp_incidence_array.size());
@@ -1083,7 +1031,7 @@ class StaticHypergraph {
           // Update size of hyperedge in temporary hyperedge buffer
           const size_t contracted_size = std::distance(
             tmp_incidence_array.begin() + incidence_array_start, first_invalid_entry_it);
-          tmp_hyperedges[id].setSize(contracted_size);
+          tmp_hyperedges[he].setSize(contracted_size);
 
 
           if ( contracted_size > 1 ) {
@@ -1093,14 +1041,14 @@ class StaticHypergraph {
               he_hash += kahypar::math::hash(tmp_incidence_array[pos]);
             }
             hyperedge_hash_map.insert(he_hash,
-              HyperedgeHash { id, he_hash, contracted_size, true });
+              HyperedgeHash { he, he_hash, contracted_size, true });
           } else {
             // Hyperedge becomes a single-pin hyperedge
-            valid_hyperedges[id] = 0;
-            tmp_hyperedges[id].disable();
+            valid_hyperedges[he] = 0;
+            tmp_hyperedges[he].disable();
           }
         } else {
-          valid_hyperedges[id] = 0;
+          valid_hyperedges[he] = 0;
         }
       });
       utils::Timer::instance().stop_timer("contract_hyperedges");
@@ -1128,7 +1076,7 @@ class StaticHypergraph {
           tmp_incident_nets_pos[coarse_hn].fetch_add(node_degree);
         ASSERT(incident_nets_pos + node_degree <= tmp_incident_nets_prefix_sum[coarse_hn + 1]);
         memcpy(tmp_incident_nets.data() + incident_nets_pos,
-               _incident_nets.data() + _hypernodes[originalNodeID(hn)].firstEntry(),
+               _incident_nets.data() + _hypernodes[hn].firstEntry(),
                sizeof(HyperedgeID) * node_degree);
       });
 
@@ -1156,7 +1104,6 @@ class StaticHypergraph {
         }
         tmp_hypernodes[coarse_hn].setWeight(hn_weights[coarse_hn]);
         tmp_hypernodes[coarse_hn].setFirstEntry(incident_nets_start);
-        tmp_hypernodes[coarse_hn].setOriginalNodeID(coarse_hn);
       });
 
       if ( !high_degree_vertices.empty() ) {
@@ -1337,7 +1284,6 @@ class StaticHypergraph {
                       tmp_incidence_array.data() + tmp_incidence_array_start,
                       sizeof(HypernodeID) * edge_size);
           he.setFirstEntry(incidence_array_start);
-          he.setOriginalEdgeID(he_pos);
         }
       });
       hypergraph._max_edge_size = local_max_edge_size.combine(

@@ -286,20 +286,17 @@ class SparsifierHypergraph {
         _node_degrees.assign(_num_nodes, parallel::IntegralAtomicWrapper<HyperedgeID>(0));
       });
 
-      tbb::parallel_for(ID(0), hypergraph.initialNumEdges(), [&](const HyperedgeID id) {
-        const HyperedgeID he = hypergraph.globalEdgeID(id);
+      tbb::parallel_for(ID(0), hypergraph.initialNumEdges(), [&](const HyperedgeID he) {
         if ( hypergraph.edgeIsEnabled(he) ) {
-          _hyperedge_weight[id] = hypergraph.edgeWeight(he);
-          _edge_vector[id].reserve(hypergraph.edgeSize(he));
+          _hyperedge_weight[he] = hypergraph.edgeWeight(he);
+          _edge_vector[he].reserve(hypergraph.edgeSize(he));
           for ( const HypernodeID& pin : hypergraph.pins(he) ) {
-            const HypernodeID original_pin_id = hypergraph.originalNodeID(pin);
-            ASSERT(original_pin_id < _num_nodes);
-            _edge_vector[id].push_back(original_pin_id);
-            ++_node_degrees[original_pin_id];
+            _edge_vector[he].push_back(pin);
+            ++_node_degrees[pin];
           }
-          std::sort(_edge_vector[id].begin(), _edge_vector[id].end());
+          std::sort(_edge_vector[he].begin(), _edge_vector[he].end());
         } else {
-          _he_included_in_sparsified_hg[id] = 0;
+          _he_included_in_sparsified_hg[he] = 0;
         }
       });
     }, [&] {
@@ -313,14 +310,13 @@ class SparsifierHypergraph {
         _hn_included_in_sparsified_hg.assign(_num_nodes, 1);
       });
 
-      tbb::parallel_for(ID(0), hypergraph.initialNumNodes(), [&](const HypernodeID id) {
-        const HypernodeID hn = hypergraph.globalNodeID(id);
-        _mapping[id] = id;
-        _vertices_to_numa_node[id] = common::get_numa_node_of_vertex(hn);
+      tbb::parallel_for(ID(0), hypergraph.initialNumNodes(), [&](const HypernodeID hn) {
+        _mapping[hn] = hn;
+        _vertices_to_numa_node[hn] = common::get_numa_node_of_vertex(hn);
         if ( hypergraph.nodeIsEnabled(hn) ) {
-          _hypernode_weight[id] = hypergraph.nodeWeight(hn);
+          _hypernode_weight[hn] = hypergraph.nodeWeight(hn);
         } else {
-          _hn_included_in_sparsified_hg[id] = 0;
+          _hn_included_in_sparsified_hg[hn] = 0;
           ++_num_removed_nodes.local();
         }
       });

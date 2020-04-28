@@ -45,7 +45,7 @@ class ACoarsener : public Test {
     context(),
     nullptr_refiner(nullptr) {
     for ( const HypernodeID& hn : hypergraph.nodes() ) {
-      hypergraph.setCommunityID(hn, hypergraph.originalNodeID(hn) / 4);
+      hypergraph.setCommunityID(hn, hn / 4);
     }
     hypergraph.initializeCommunities(TBBNumaArena::GLOBAL_TASK_GROUP);
     hypergraph.setCommunityNodeMapping({ 0, 0, 1, 1 });

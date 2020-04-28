@@ -32,9 +32,6 @@ using ::testing::Test;
 
 namespace mt_kahypar {
 namespace ds {
-#define GLOBAL_ID(hypergraph, id) hypergraph.globalNodeID(id)
-#define GLOBAL_NODE_ID(hypergraph, id) hypergraph.globalNodeID(id)
-#define GLOBAL_EDGE_ID(hypergraph, id) hypergraph.globalEdgeID(id)
 
 auto identity = [](const HypernodeID& id) { return id; };
 
@@ -43,10 +40,6 @@ class HypergraphFixture : public Test {
   HypergraphFixture() :
     hypergraph(HypergraphFactory::construct(TBBNumaArena::GLOBAL_TASK_GROUP,
       7 , 4, { {0, 2}, {0, 1, 3, 4}, {3, 4, 6}, {2, 5, 6} })) {
-    id.resize(7);
-    for ( const HypernodeID& hn : hypergraph.nodes() ) {
-      id[hypergraph.originalNodeID(hn)] = hn;
-    }
   }
 
   static void SetUpTestSuite() {
@@ -127,18 +120,17 @@ class HypergraphFixture : public Test {
   }
 
   void assignCommunityIds() {
-    hypergraph.setCommunityID(id[0], 0);
-    hypergraph.setCommunityID(id[1], 0);
-    hypergraph.setCommunityID(id[2], 0);
-    hypergraph.setCommunityID(id[3], 1);
-    hypergraph.setCommunityID(id[4], 1);
-    hypergraph.setCommunityID(id[5], 2);
-    hypergraph.setCommunityID(id[6], 2);
+    hypergraph.setCommunityID(0, 0);
+    hypergraph.setCommunityID(1, 0);
+    hypergraph.setCommunityID(2, 0);
+    hypergraph.setCommunityID(3, 1);
+    hypergraph.setCommunityID(4, 1);
+    hypergraph.setCommunityID(5, 2);
+    hypergraph.setCommunityID(6, 2);
     hypergraph.initializeCommunities(TBBNumaArena::GLOBAL_TASK_GROUP);
   }
 
   Hypergraph hypergraph;
-  std::vector<HypernodeID> id;
 };
 
 }  // namespace ds

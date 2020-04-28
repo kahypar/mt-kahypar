@@ -206,10 +206,8 @@ class RecursiveBisectionInitialPartitionerT : public IInitialPartitioner {
       ASSERT(_original_hg.initialNumNodes() == _mapping.size());
       _original_hg.doParallelForAllNodes(_task_group_id, [&](const HypernodeID& hn) {
         if ( _original_hg.partID(hn) == _part_id ) {
-          const HypernodeID original_id = _original_hg.originalNodeID(hn);
-          ASSERT(original_id < _mapping.size());
-          PartitionID to = _part_id + _rb_partitioned_hg.partID(
-            _rb_partitioned_hg.globalNodeID(_mapping[original_id]));
+          ASSERT(hn < _mapping.size());
+          PartitionID to = _part_id + _rb_partitioned_hg.partID(_mapping[hn]);
           ASSERT(to != kInvalidPartition && to < _original_hg.k());
           if ( _part_id != to ) {
             _original_hg.changeNodePart(hn, _part_id, to, NOOP_FUNC);
@@ -299,9 +297,7 @@ class RecursiveBisectionInitialPartitionerT : public IInitialPartitioner {
       const PartitionID block_0 = 0;
       const PartitionID block_1 = _context.partition.k / 2 + (_context.partition.k % 2 != 0 ? 1 : 0);
       _hg.doParallelForAllNodes(_task_group_id, [&](const HypernodeID& hn) {
-        const HypernodeID original_id = _hg.originalNodeID(hn);
-        PartitionID part_id = _bisection_partitioned_hg.partID(
-          _bisection_partitioned_hg.globalNodeID(original_id));
+        PartitionID part_id = _bisection_partitioned_hg.partID(hn);
         ASSERT(part_id != kInvalidPartition && part_id < _hg.k());
         if ( part_id == 0 ) {
           _hg.setOnlyNodePart(hn, block_0);

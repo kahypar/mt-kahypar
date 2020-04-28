@@ -71,7 +71,7 @@ class DegreeZeroHypernodeRemoverT {
             hypergraph.removeHypernode(hn);
             _removed_hns.push_back(hn);
             was_removed = true;
-            _mapping[hypergraph.originalNodeID(hn)] = last_degree_zero_representative;
+            _mapping[hn] = last_degree_zero_representative;
             last_degree_zero_weight += weight;
             hypergraph.setNodeWeight(last_degree_zero_representative, last_degree_zero_weight);
           }
@@ -90,9 +90,8 @@ class DegreeZeroHypernodeRemoverT {
   // ! Each removed degree-zero vertex is assigned to the block of its supervertex.
   void restoreDegreeZeroHypernodes(PartitionedHyperGraph& hypergraph) {
     for ( const HypernodeID& hn : _removed_hns ) {
-      const HypernodeID original_id = hypergraph.originalNodeID(hn);
-      ASSERT(original_id < _mapping.size());
-      const HypernodeID representative = _mapping[original_id];
+      ASSERT(hn < _mapping.size());
+      const HypernodeID representative = _mapping[hn];
       ASSERT(representative != kInvalidHypernode);
       // Restore degree-zero vertex and assign it to the block
       // of its supervertex
@@ -109,9 +108,9 @@ class DegreeZeroHypernodeRemoverT {
     for ( const HypernodeID& hn : hypergraph.nodes() ) {
       if ( hypergraph.nodeDegree(hn) == 0 ) {
         if ( community_id != kInvalidPartition ) {
-          clustering[hypergraph.originalNodeID(hn)] = community_id;
+          clustering[hn] = community_id;
         } else {
-          community_id = clustering[hypergraph.originalNodeID(hn)];
+          community_id = clustering[hn];
         }
       }
     }

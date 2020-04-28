@@ -132,7 +132,7 @@ class GreedyInitialPartitionerT : public tbb::task {
         }
         insertAndUpdateVerticesAfterMove(hg, kway_pq, hyperedges_in_queue, hn, _default_block, to);
       } else {
-        kway_pq.insert(hg.originalNodeID(hn), to, gain);
+        kway_pq.insert(hn, to, gain);
         kway_pq.disablePart(to);
       }
     }
@@ -159,18 +159,17 @@ class GreedyInitialPartitionerT : public tbb::task {
                           KWayPriorityQueue& pq,
                           const HypernodeID hn,
                           const PartitionID to) {
-    const HypernodeID original_id = hypergraph.originalNodeID(hn);
     ASSERT(to != kInvalidPartition && to < _context.partition.k);
     ASSERT(hypergraph.partID(hn) == _default_block, V(hypergraph.partID(hn)) << V(_default_block));
-    ASSERT(!pq.contains(original_id, to));
+    ASSERT(!pq.contains(hn, to));
 
     const Gain gain = GainPolicy::calculateGain(hypergraph, hn, to);
-    pq.insert(original_id, to, gain);
+    pq.insert(hn, to, gain);
     if ( !pq.isEnabled(to) ) {
       pq.enablePart(to);
     }
 
-    ASSERT(pq.contains(original_id, to));
+    ASSERT(pq.contains(hn, to));
     ASSERT(pq.isEnabled(to));
   }
 
@@ -197,30 +196,27 @@ class GreedyInitialPartitionerT : public tbb::task {
     GainPolicy::deltaGainUpdate(hypergraph, pq, hn, from, to);
 
     // Remove moved hypernode hn from all PQs
-    const HypernodeID original_id = hypergraph.originalNodeID(hn);
     for ( PartitionID block = 0; block < hypergraph.k(); ++block ) {
-      if ( pq.contains(original_id, block) ) {
+      if ( pq.contains(hn, block) ) {
 
         // Prevent that PQ becomes empty
         if ( to != block && pq.size(block) == 1 ) {
           insertUnassignedVertexIntoPQ(hypergraph, pq, block);
         }
 
-        pq.remove(original_id, block);
+        pq.remove(hn, block);
       }
     }
 
     // Insert all adjacent hypernodes of the moved vertex into PQ of block to
     for ( const HyperedgeID& he : hypergraph.incidentEdges(hn)) {
-      const HyperedgeID original_he_id = hypergraph.originalEdgeID(he);
-      if ( !hyperedges_in_queue[to * hypergraph.initialNumEdges() + original_he_id] ) {
+      if ( !hyperedges_in_queue[to * hypergraph.initialNumEdges() + he] ) {
         for ( const HypernodeID& pin : hypergraph.pins(he) ) {
-          const HypernodeID original_pin_id = hypergraph.originalNodeID(pin);
-          if ( hypergraph.partID(pin) == _default_block && !pq.contains(original_pin_id, to) ) {
+          if ( hypergraph.partID(pin) == _default_block && !pq.contains(pin, to) ) {
             insertVertexIntoPQ(hypergraph, pq, pin, to);
           }
         }
-        hyperedges_in_queue.set(to * hypergraph.initialNumEdges() + original_he_id, true);
+        hyperedges_in_queue.set(to * hypergraph.initialNumEdges() + he, true);
       }
     }
 

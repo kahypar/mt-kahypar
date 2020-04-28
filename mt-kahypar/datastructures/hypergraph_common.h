@@ -134,7 +134,6 @@ struct Memento {
 
 namespace common {
 
-
 MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE static HypernodeID get_global_vertex_id(const int, const size_t vertex_pos) {
   return vertex_pos;
 }

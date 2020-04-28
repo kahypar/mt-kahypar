@@ -336,18 +336,6 @@ class PartitionedHypergraph {
 
   // ####################### Hypernode Information #######################
 
-  // ! Returns for a vertex of the hypergraph its original vertex id
-  // ! Can be used to map the global vertex ids to a consecutive range
-  // ! of nodes between [0,|V|).
-  HypernodeID originalNodeID(const HypernodeID u) const {
-    return _hg->originalNodeID(u);
-  }
-
-  // ! Reverse operation of originalNodeID(u)
-  HypernodeID globalNodeID(const HypernodeID u) const {
-    return _hg->globalNodeID(u);
-  }
-
   // ! Weight of a vertex
   HypernodeWeight nodeWeight(const HypernodeID u) const {
     return _hg->nodeWeight(u);
@@ -386,18 +374,6 @@ class PartitionedHypergraph {
   }
 
   // ####################### Hyperedge Information #######################
-
-  // ! Returns for a edge of the hypergraph its original edge id
-  // ! Can be used to map the global edge ids to a consecutive range
-  // ! of edges between [0,|E|).
-  HypernodeID originalEdgeID(const HyperedgeID e) const {
-    return _hg->originalEdgeID(e);
-  }
-
-  // ! Reverse operation of originalEdgeID(e)
-  HypernodeID globalEdgeID(const HyperedgeID e) const {
-    return _hg->globalEdgeID(e);
-  }
 
   // ! Weight of a hyperedge
   HypernodeWeight edgeWeight(const HyperedgeID e) const {
@@ -1153,14 +1129,14 @@ class PartitionedHypergraph {
     tbb::parallel_invoke([&] {
       for ( const HypernodeID& hn : nodes() ) {
         if ( partID(hn) == block ) {
-          hn_mapping[originalNodeID(hn)] = num_hypernodes++;
+          hn_mapping[hn] = num_hypernodes++;
         }
       }
     }, [&] {
       for ( const HyperedgeID& he : edges() ) {
         if ( pinCountInPart(he, block) > 1 &&
              (cut_net_splitting || connectivity(he) == 1) ) {
-          he_mapping[originalEdgeID(he)] = num_hyperedges++;
+          he_mapping[he] = num_hyperedges++;
         }
       }
     });
@@ -1176,11 +1152,10 @@ class PartitionedHypergraph {
       doParallelForAllEdges(task_group_id, [&](const HyperedgeID he) {
         if ( pinCountInPart(he, block) > 1 &&
              (cut_net_splitting || connectivity(he) == 1) ) {
-          const HyperedgeID original_id = originalEdgeID(he);
-          hyperedge_weight[he_mapping[original_id]] = edgeWeight(he);
+          hyperedge_weight[he_mapping[he]] = edgeWeight(he);
           for ( const HypernodeID& pin : pins(he) ) {
             if ( partID(pin) == block ) {
-              edge_vector[he_mapping[original_id]].push_back(hn_mapping[originalNodeID(pin)]);
+              edge_vector[he_mapping[he]].push_back(hn_mapping[pin]);
             }
           }
         }
@@ -1189,7 +1164,7 @@ class PartitionedHypergraph {
       hypernode_weight.resize(num_hypernodes);
       doParallelForAllNodes(task_group_id, [&](const HypernodeID hn) {
         if ( partID(hn) == block ) {
-          hypernode_weight[hn_mapping[originalNodeID(hn)]] = nodeWeight(hn);
+          hypernode_weight[hn_mapping[hn]] = nodeWeight(hn);
         }
       });
     });
@@ -1202,8 +1177,7 @@ class PartitionedHypergraph {
     // Set community ids
     doParallelForAllNodes(task_group_id, [&](const HypernodeID& hn) {
       if ( partID(hn) == block ) {
-        const HypernodeID extracted_hn =
-          extracted_hypergraph.globalNodeID(hn_mapping[originalNodeID(hn)]);
+        const HypernodeID extracted_hn = hn_mapping[hn];
         extracted_hypergraph.setCommunityID(extracted_hn, _hg->communityID(hn));
       }
     });

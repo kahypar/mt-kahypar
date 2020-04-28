@@ -216,7 +216,6 @@ class LabelPropagationRefinerT final : public IRefinerT<TypeTraits, track_border
     ASSERT(hn != kInvalidHypernode);
     if ( hypergraph.isBorderNode(hn) ) {
       ASSERT(hypergraph.nodeIsEnabled(hn));
-      const HypernodeID original_id = hypergraph.originalNodeID(hn);
       ASSERT(!_is_numa_aware || common::get_numa_node_of_vertex(hn) == node);
 
       Move best_move = _gain.computeMaxGainMove(hypergraph, hn);
@@ -249,26 +248,24 @@ class LabelPropagationRefinerT final : public IRefinerT<TypeTraits, track_border
             for (const HyperedgeID& he : hypergraph.incidentEdges(hn)) {
               if ( hypergraph.edgeSize(he) <=
                     ID(_context.refinement.label_propagation.hyperedge_size_activation_threshold) ) {
-                const HyperedgeID original_he_id = hypergraph.originalEdgeID(he);
-                if ( !_visited_he[node][original_he_id] ) {
+                if ( !_visited_he[node][he] ) {
                   for (const HypernodeID& pin : hypergraph.pins(he)) {
-                    const HypernodeID original_pin_id = hypergraph.originalNodeID(pin);
                     int pin_numa_node = _is_numa_aware ?
                       common::get_numa_node_of_vertex(pin) : 0;
                     if ( (_context.refinement.label_propagation.rebalancing ||
                            hypergraph.isBorderNode(hn)) &&
-                         !_next_active[pin_numa_node][original_pin_id] ) {
+                         !_next_active[pin_numa_node][pin] ) {
                       next_active_nodes[pin_numa_node].stream(pin);
-                      _next_active[pin_numa_node].set(original_pin_id, true);
+                      _next_active[pin_numa_node].set(pin, true);
                     }
                   }
-                  _visited_he[node].set(original_he_id, true);
+                  _visited_he[node].set(he, true);
                 }
               }
             }
-            if ( _next_active[node][original_id] ) {
+            if ( _next_active[node][hn] ) {
               next_active_nodes[node].stream(hn);
-              _next_active[node].set(original_id, true);
+              _next_active[node].set(hn, true);
             }
             is_moved = true;
           } else {

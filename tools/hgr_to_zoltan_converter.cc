@@ -46,7 +46,7 @@ static void writeZoltanHypergraph(const Hypergraph& hypergraph,
   for (const HyperedgeID& he : hypergraph.edges()) {
     out_stream << hypergraph.edgeWeight(he) << " ";
     for (const HypernodeID& pin : hypergraph.pins(he)) {
-      out_stream << hypergraph.originalNodeID(pin) << " ";
+      out_stream << pin << " ";
     }
     out_stream << "\n";
   }
