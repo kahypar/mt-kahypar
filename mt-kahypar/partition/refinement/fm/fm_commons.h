@@ -177,6 +177,7 @@ struct FMStats {
   size_t extractions = 0;
   size_t pushes = 0;
   size_t moves = 0;
+  size_t local_reverts = 0;
 
 
   void clear() {
@@ -184,6 +185,7 @@ struct FMStats {
     extractions = 0;
     pushes = 0;
     moves = 0;
+    local_reverts = 0;
   }
 
   void merge(FMStats& other) {
@@ -191,12 +193,13 @@ struct FMStats {
     other.extractions += extractions;
     other.pushes += pushes;
     other.moves += moves;
+    other.local_reverts += local_reverts;
     clear();
   }
 
   std::string serialize() {
     std::stringstream os;
-    os << V(retries) << " " << V(extractions) << " " << V(moves);
+    os << V(retries) << " " << V(extractions) << " " << V(pushes) << " " << V(moves) << " " << V(local_reverts);
     return os.str();
   }
 };
