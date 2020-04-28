@@ -23,7 +23,7 @@
 
 #include <mt-kahypar/definitions.h>
 #include <mt-kahypar/datastructures/priority_queue.h>
-#include <mt-kahypar/parallel/numa_work_queue.h>
+#include <mt-kahypar/parallel/work_stack.h>
 
 #include "partition_weight_budgets.h"
 

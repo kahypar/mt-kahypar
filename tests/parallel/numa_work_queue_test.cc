@@ -20,7 +20,7 @@
 
 #include "gmock/gmock.h"
 
-#include <mt-kahypar/parallel/numa_work_queue.h>
+#include <mt-kahypar/parallel/work_stack.h>
 
 using ::testing::Test;
 
