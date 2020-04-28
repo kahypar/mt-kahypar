@@ -83,19 +83,18 @@ public:
 
   HyperedgeWeight revertToBestPrefix(PartitionedHypergraph& phg, FMSharedData& sharedData,
                                      vec<HypernodeWeight>& partWeights, HypernodeWeight maxPartWeight) {
-    const vec<Move>& move_order = sharedData.moveTracker.moveOrder;
     const MoveID numMoves = sharedData.moveTracker.numPerformedMoves();
     if (numMoves == 0) return 0;
 
+    const vec<Move>& move_order = sharedData.moveTracker.moveOrder;
     utils::Timer& timer = utils::Timer::instance();
-    timer.start_timer("balance_recalculation", "Balance Recalculation");
 
-    recalculateBalance(phg, partWeights, maxPartWeight, move_order, numMoves);
-
-    timer.stop_timer("balance_recalculation");
-
-    recalculateGains(phg, sharedData);
-
+    timer.start_timer("recalculate_balance_and_gains", "Recalculate Balance and Gains");
+    tbb::parallel_invoke(
+            [&]{ recalculateBalance(phg, partWeights, maxPartWeight, move_order, numMoves); },
+            [&]{ recalculateGains(phg, sharedData); }
+    );
+    timer.stop_timer("recalculate_balance_and_gains");
     timer.start_timer("find_best_prefix", "Find Best Prefix");
 
     BestIndexReduceBody b(gains, in_balance);
