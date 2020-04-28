@@ -79,8 +79,7 @@ public:
       for (PartitionID i = 0; i < sharedData.numParts; ++i) initialPartWeights[i] = phg.partWeight(i);
 
       if (context.refinement.fm.multitry) {
-        auto task = [&](const int socket, const int socket_local_task_id, const int task_id) {
-          unused(socket_local_task_id); unused(task_id);
+        auto task = [&](const int , const int , const int ) {
           LocalizedKWayFM& fm = ets_fm.local();
           while(fm.findMoves(phg, sharedData)) { /* keep running */ }
         };
