@@ -238,6 +238,7 @@ public:
   }
 
   void revertToBestLocalPrefix(PartitionedHypergraph& phg, FMSharedData& sharedData, size_t bestGainIndex) {
+    runStats.local_reverts += localMoves.size() - bestGainIndex;
     while (localMoves.size() > bestGainIndex) {
       Move& m = sharedData.moveTracker.getMove(localMoves.back());
       phg.changeNodePartFullUpdate(m.node, m.to, m.from, std::numeric_limits<HypernodeWeight>::max(), []{/* do nothing */});
