@@ -38,19 +38,11 @@ using ::testing::Test;
 
 namespace mt_kahypar {
 
-using TestTypeTraits = ds::TestTypeTraits<2>;
-using HyperGraph = typename TestTypeTraits::HyperGraph;
-using HyperGraphFactory = typename TestTypeTraits::HyperGraphFactory;
-using PartitionedHyperGraph = typename TestTypeTraits::PartitionedHyperGraph<>;
-using HwTopology = typename TestTypeTraits::HwTopology;
-using TBB = typename TestTypeTraits::TBB;
-
-
 template<template<typename> class InitialPartitionerT,
          InitialPartitioningAlgorithm algorithm,
          PartitionID k, size_t runs>
 struct TestConfig {
-  using InitialPartitionerTask = InitialPartitionerT<TestTypeTraits>;
+  using InitialPartitionerTask = InitialPartitionerT<GlobalTypeTraits>;
   static constexpr InitialPartitioningAlgorithm ALGORITHM = algorithm;
   static constexpr PartitionID K = k;
   static constexpr size_t RUNS = runs;
@@ -58,14 +50,14 @@ struct TestConfig {
 
 template<class InitialPartitionerTask>
 class InitialPartitionerRootTaskT : public tbb::task {
-  using InitialPartitioningDataContainer = InitialPartitioningDataContainerT<TestTypeTraits>;
+  using InitialPartitioningDataContainer = InitialPartitioningDataContainerT<GlobalTypeTraits>;
 
  public:
-  InitialPartitionerRootTaskT(PartitionedHyperGraph& hypergraph,
+  InitialPartitionerRootTaskT(PartitionedHypergraph<>& hypergraph,
                               const Context& context,
                               const InitialPartitioningAlgorithm algorithm,
                               const size_t runs) :
-    _ip_data(hypergraph, context, TBB::GLOBAL_TASK_GROUP),
+    _ip_data(hypergraph, context, TBBNumaArena::GLOBAL_TASK_GROUP),
     _context(context),
     _algorithm(algorithm),
     _runs(runs) {}
@@ -103,16 +95,16 @@ class AFlatInitialPartitionerTest : public Test {
     context.partition.objective = kahypar::Objective::km1;
     context.initial_partitioning.lp_initial_block_size = 5;
     context.initial_partitioning.lp_maximum_iterations = 100;
-    hypergraph = io::readHypergraphFile<HyperGraph, HyperGraphFactory>(
-      "../test_instances/test_instance.hgr", TBB::GLOBAL_TASK_GROUP);
-    partitioned_hypergraph = PartitionedHyperGraph(
-      context.partition.k, TBB::GLOBAL_TASK_GROUP, hypergraph);
+    hypergraph = io::readHypergraphFile<Hypergraph, HypergraphFactory>(
+      "../test_instances/test_instance.hgr", TBBNumaArena::GLOBAL_TASK_GROUP);
+    partitioned_hypergraph = PartitionedHypergraph<>(
+      context.partition.k, TBBNumaArena::GLOBAL_TASK_GROUP, hypergraph);
     context.setupPartWeights(hypergraph.totalWeight());
     utils::Timer::instance().disable();
   }
 
   static void SetUpTestSuite() {
-    TBB::instance(HwTopology::instance().num_cpus());
+    TBBNumaArena::instance(HardwareTopology::instance().num_cpus());
   }
 
   void execute() {
@@ -121,8 +113,8 @@ class AFlatInitialPartitionerTest : public Test {
     tbb::task::spawn_root_and_wait(root_ip_task);
   }
 
-  HyperGraph hypergraph;
-  PartitionedHyperGraph partitioned_hypergraph;
+  Hypergraph hypergraph;
+  PartitionedHypergraph<> partitioned_hypergraph;
   Context context;
 };
 

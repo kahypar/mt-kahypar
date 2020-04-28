@@ -30,19 +30,14 @@ using ::testing::Le;
 
 namespace mt_kahypar {
 
-using TestTypeTraits = ds::TestTypeTraits<2>;
-using HyperGraph = typename TestTypeTraits::HyperGraph;
-using HyperGraphFactory = typename TestTypeTraits::HyperGraphFactory;
-using PartitionedHyperGraph = typename TestTypeTraits::template PartitionedHyperGraph<>;
-using HwTopology = typename TestTypeTraits::HwTopology;
-using TBB = typename TestTypeTraits::TBB;
+using PartitionedHyperGraph = mt_kahypar::PartitionedHypergraph<>;
 
 class ACoarsener : public Test {
  private:
 
  public:
   ACoarsener() :
-    hypergraph(HyperGraphFactory::construct(TBB::GLOBAL_TASK_GROUP,
+    hypergraph(HypergraphFactory::construct(TBBNumaArena::GLOBAL_TASK_GROUP,
       16, 18, { { 0, 1 }, { 0, 1, 3 }, { 1, 2, 3 }, { 2, 3, 4 }, { 2, 4 },
                 { 4, 5 }, { 4, 5, 7 }, { 5, 6, 7 }, { 6, 7, 8 }, { 6, 8 },
                 { 8, 9 }, { 8, 9, 11 }, { 9, 10, 11 }, { 10, 11, 12 }, { 10, 12 },
@@ -52,7 +47,7 @@ class ACoarsener : public Test {
     for ( const HypernodeID& hn : hypergraph.nodes() ) {
       hypergraph.setCommunityID(hn, hypergraph.originalNodeID(hn) / 4);
     }
-    hypergraph.initializeCommunities(TBB::GLOBAL_TASK_GROUP);
+    hypergraph.initializeCommunities(TBBNumaArena::GLOBAL_TASK_GROUP);
     hypergraph.setCommunityNodeMapping({ 0, 0, 1, 1 });
 
     context.partition.k = 2;
@@ -66,25 +61,25 @@ class ACoarsener : public Test {
   }
 
   static void SetUpTestSuite() {
-    TBB::instance(HwTopology::instance().num_cpus());
+    TBBNumaArena::instance(HardwareTopology::instance().num_cpus());
   }
 
-  HyperGraph hypergraph;
+  Hypergraph hypergraph;
   Context context;
-  std::unique_ptr<IRefinerT<TestTypeTraits>> nullptr_refiner;
+  std::unique_ptr<IRefinerT<GlobalTypeTraits>> nullptr_refiner;
 };
 
-template <class HyperGraph>
-void assignPartitionIDs(HyperGraph& hypergraph) {
+template <class Hypergraph>
+void assignPartitionIDs(Hypergraph& hypergraph) {
   for (const HypernodeID& hn : hypergraph.nodes()) {
     PartitionID part_id = common::get_numa_node_of_vertex(hn);
     hypergraph.setNodePart(hn, part_id);
   }
-  hypergraph.initializeNumCutHyperedges(TBB::GLOBAL_TASK_GROUP);
+  hypergraph.initializeNumCutHyperedges(TBBNumaArena::GLOBAL_TASK_GROUP);
 }
 
-template <class HyperGraph>
-HypernodeID currentNumNodes(HyperGraph& hypergraph) {
+template <class Hypergraph>
+HypernodeID currentNumNodes(Hypergraph& hypergraph) {
   HypernodeID num_nodes = 0;
   for (const HypernodeID& hn : hypergraph.nodes()) {
     unused(hn);
@@ -93,8 +88,8 @@ HypernodeID currentNumNodes(HyperGraph& hypergraph) {
   return num_nodes;
 }
 
-template <class HyperGraph>
-HyperedgeID currentNumEdges(HyperGraph& hypergraph) {
+template <class Hypergraph>
+HyperedgeID currentNumEdges(Hypergraph& hypergraph) {
   HyperedgeID num_edges = 0;
   for (const HyperedgeID& he : hypergraph.edges()) {
     unused(he);
@@ -103,8 +98,8 @@ HyperedgeID currentNumEdges(HyperGraph& hypergraph) {
   return num_edges;
 }
 
-template <class HyperGraph>
-HypernodeID currentNumPins(HyperGraph& hypergraph) {
+template <class Hypergraph>
+HypernodeID currentNumPins(Hypergraph& hypergraph) {
   HypernodeID num_pins = 0;
   for (const HypernodeID& he : hypergraph.edges()) {
     num_pins += hypergraph.edgeSize(he);
@@ -132,9 +127,9 @@ void decreasesNumberOfHyperedges(Coarsener& coarsener,
   ASSERT_THAT(currentNumEdges(coarsener.coarsestHypergraph()), Eq(num_hyperedges));
 }
 
-template <class Coarsener, class HyperGraph>
+template <class Coarsener, class Hypergraph>
 void removesHyperedgesOfSizeOneDuringCoarsening(Coarsener& coarsener,
-                                                HyperGraph& hypergraph,
+                                                Hypergraph& hypergraph,
                                                 const std::vector<HyperedgeID>& single_node_hes) {
   doCoarsening(coarsener);
   for (const HyperedgeID& he : single_node_hes) {
@@ -142,10 +137,10 @@ void removesHyperedgesOfSizeOneDuringCoarsening(Coarsener& coarsener,
   }
 }
 
-template <class Coarsener, class HyperGraph, class TypeTraits>
+template <class Coarsener, class Hypergraph, class TypeTraits>
 void reAddsHyperedgesOfSizeOneDuringUncoarsening(Coarsener& coarsener,
                                                  std::unique_ptr<IRefinerT<TypeTraits>>& refiner,
-                                                 HyperGraph& hypergraph,
+                                                 Hypergraph& hypergraph,
                                                  const std::vector<HyperedgeID>& single_node_hes) {
   doCoarsening(coarsener);
   for (const HyperedgeID& he : single_node_hes) {
@@ -159,9 +154,9 @@ void reAddsHyperedgesOfSizeOneDuringUncoarsening(Coarsener& coarsener,
   }
 }
 
-template <class Coarsener, class HyperGraph>
+template <class Coarsener, class Hypergraph>
 void removesParallelHyperedgesDuringCoarsening(Coarsener& coarsener,
-                                               HyperGraph& hypergraph,
+                                               Hypergraph& hypergraph,
                                                const std::vector<HyperedgeID>& parallel_hes) {
   doCoarsening(coarsener);
   for (const HyperedgeID& he : parallel_hes) {
@@ -169,9 +164,9 @@ void removesParallelHyperedgesDuringCoarsening(Coarsener& coarsener,
   }
 }
 
-template <class Coarsener, class HyperGraph>
+template <class Coarsener, class Hypergraph>
 void updatesEdgeWeightOfRepresentativeHyperedgeOnParallelHyperedgeRemoval(Coarsener& coarsener,
-                                                                          HyperGraph& hypergraph,
+                                                                          Hypergraph& hypergraph,
                                                                           const std::vector<std::pair<HyperedgeID, HyperedgeWeight> >& he_weights) {
   doCoarsening(coarsener);
   for (const auto& he_weight : he_weights) {
@@ -182,10 +177,10 @@ void updatesEdgeWeightOfRepresentativeHyperedgeOnParallelHyperedgeRemoval(Coarse
   }
 }
 
-template <class Coarsener, class HyperGraph, class TypeTraits>
+template <class Coarsener, class Hypergraph, class TypeTraits>
 void restoresParallelHyperedgesDuringUncoarsening(Coarsener& coarsener,
                                                   std::unique_ptr<IRefinerT<TypeTraits>>& refiner,
-                                                  HyperGraph& hypergraph,
+                                                  Hypergraph& hypergraph,
                                                   const std::vector<HyperedgeID>& parallel_hes) {
   doCoarsening(coarsener);
   for (const HyperedgeID& he : parallel_hes) {
@@ -199,9 +194,9 @@ void restoresParallelHyperedgesDuringUncoarsening(Coarsener& coarsener,
   }
 }
 
-template <class Coarsener, class HyperGraph>
+template <class Coarsener, class Hypergraph>
 void doesNotCoarsenUntilCoarseningLimit(Coarsener& coarsener,
-                                        HyperGraph& hypergraph,
+                                        Hypergraph& hypergraph,
                                         Context& context,
                                         const HypernodeID contraction_limit,
                                         const HypernodeWeight max_allowed_node_weight,

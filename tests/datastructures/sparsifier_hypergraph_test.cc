@@ -30,7 +30,7 @@ using ::testing::Test;
 namespace mt_kahypar {
 namespace ds {
 
-using ASparsifierHypergraph = HypergraphFixture<StaticHypergraph, StaticHypergraphFactory>;
+using ASparsifierHypergraph = HypergraphFixture;
 using SparsifierHyperGraph = SparsifierHypergraph<StaticHypergraph, StaticHypergraphFactory, TBBNumaArena>;
 
 void verifyPinsOfSparsifiedHypergraph(SparsifierHyperGraph& s_hypergraph,

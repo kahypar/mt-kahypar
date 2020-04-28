@@ -26,10 +26,7 @@
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/datastructures/static_hypergraph.h"
 #include "mt-kahypar/datastructures/static_hypergraph_factory.h"
-#include "mt-kahypar/datastructures/numa_hypergraph.h"
-#include "mt-kahypar/datastructures/numa_hypergraph_factory.h"
 #include "mt-kahypar/datastructures/partitioned_hypergraph.h"
-#include "mt-kahypar/datastructures/numa_partitioned_hypergraph.h"
 
 using ::testing::Test;
 
@@ -38,13 +35,11 @@ namespace ds {
 
 template< typename PartitionedHG,
           typename HG,
-          typename HGFactory,
-          typename TBBArena>
+          typename HGFactory>
 struct PartitionedHypergraphTypeTraits {
   using PartitionedHyperGraph = PartitionedHG;
   using Hypergraph = HG;
   using Factory = HGFactory;
-  using TBB = TBBArena;
 };
 
 template<typename TypeTraits>
@@ -55,12 +50,11 @@ class APartitionedHypergraph : public Test {
 
  public:
  using Hypergraph = typename TypeTraits::Hypergraph;
- using TBB = typename TypeTraits::TBB;
 
   APartitionedHypergraph() :
-    hypergraph(Factory::construct(TBB::GLOBAL_TASK_GROUP,
+    hypergraph(Factory::construct(TBBNumaArena::GLOBAL_TASK_GROUP,
       7 , 4, { {0, 2}, {0, 1, 3, 4}, {3, 4, 6}, {2, 5, 6} })),
-    partitioned_hypergraph(3, TBB::GLOBAL_TASK_GROUP, hypergraph),
+    partitioned_hypergraph(3, TBBNumaArena::GLOBAL_TASK_GROUP, hypergraph),
     id() {
     id.resize(7);
     for ( const HypernodeID& hn : hypergraph.nodes() ) {
@@ -74,11 +68,11 @@ class APartitionedHypergraph : public Test {
     partitioned_hypergraph.setNodePart(id[4], 1);
     partitioned_hypergraph.setNodePart(id[5], 2);
     partitioned_hypergraph.setNodePart(id[6], 2);
-    partitioned_hypergraph.initializeNumCutHyperedges(TBB::GLOBAL_TASK_GROUP);
+    partitioned_hypergraph.initializeNumCutHyperedges(TBBNumaArena::GLOBAL_TASK_GROUP);
   }
 
   static void SetUpTestSuite() {
-    TBB::instance(HardwareTopology::instance().num_cpus());
+    TBBNumaArena::instance(HardwareTopology::instance().num_cpus());
   }
 
   void verifyPartitionPinCounts(const HyperedgeID he,
@@ -137,36 +131,14 @@ void executeConcurrent(const F1& f1, const F2& f2) {
   });
 }
 
-// Mocking Numa Architecture (=> 2 NUMA Nodes)
-using TypeTraits = TestTypeTraits<2>;
-using HwTopology = typename TypeTraits::HwTopology;
-using TBB = typename TypeTraits::TBB;
-
-// Define NUMA Hypergraph and Factory
-using NumaHyperGraph = NumaHypergraph<StaticHypergraph, HwTopology, TBB>;
-using NumaHyperGraphFactory = NumaHypergraphFactory<
-  StaticHypergraph, StaticHypergraphFactory, HwTopology, TBB>;
-
 typedef ::testing::Types<PartitionedHypergraphTypeTraits<
                           PartitionedHypergraph<StaticHypergraph, StaticHypergraphFactory, true>,
                           StaticHypergraph,
-                          StaticHypergraphFactory,
-                          TBBNumaArena>,
+                          StaticHypergraphFactory>,
                         PartitionedHypergraphTypeTraits<
                           PartitionedHypergraph<StaticHypergraph, StaticHypergraphFactory, false>,
                           StaticHypergraph,
-                          StaticHypergraphFactory,
-                          TBBNumaArena>,
-                        PartitionedHypergraphTypeTraits<
-                          NumaPartitionedHypergraph<NumaHyperGraph, NumaHyperGraphFactory, true>,
-                          NumaHyperGraph,
-                          NumaHyperGraphFactory,
-                          TBB>,
-                        PartitionedHypergraphTypeTraits<
-                          NumaPartitionedHypergraph<NumaHyperGraph, NumaHyperGraphFactory, false>,
-                          NumaHyperGraph,
-                          NumaHyperGraphFactory,
-                          TBB>> PartitionedHypergraphTestTypes;
+                          StaticHypergraphFactory>> PartitionedHypergraphTestTypes;
 
 TYPED_TEST_CASE(APartitionedHypergraph, PartitionedHypergraphTestTypes);
 
@@ -503,7 +475,7 @@ TYPED_TEST(APartitionedHypergraph, HasCorrectBorderNodesIfNodesAreMovingConcurre
 }
 
 TYPED_TEST(APartitionedHypergraph, ExtractBlockZeroWithCutNetSplitting) {
-  auto extracted_hg = this->partitioned_hypergraph.extract(TBB::GLOBAL_TASK_GROUP, 0, true);
+  auto extracted_hg = this->partitioned_hypergraph.extract(TBBNumaArena::GLOBAL_TASK_GROUP, 0, true);
   auto& hg = extracted_hg.first;
   auto& hn_mapping = extracted_hg.second;
 
@@ -532,7 +504,7 @@ TYPED_TEST(APartitionedHypergraph, ExtractBlockZeroWithCutNetSplitting) {
 }
 
 TYPED_TEST(APartitionedHypergraph, ExtractBlockOneWithCutNetSplitting) {
-  auto extracted_hg = this->partitioned_hypergraph.extract(TBB::GLOBAL_TASK_GROUP, 1, true);
+  auto extracted_hg = this->partitioned_hypergraph.extract(TBBNumaArena::GLOBAL_TASK_GROUP, 1, true);
   auto& hg = extracted_hg.first;
   auto& hn_mapping = extracted_hg.second;
 
@@ -559,7 +531,7 @@ TYPED_TEST(APartitionedHypergraph, ExtractBlockOneWithCutNetSplitting) {
 }
 
 TYPED_TEST(APartitionedHypergraph, ExtractBlockTwoWithCutNetSplitting) {
-  auto extracted_hg = this->partitioned_hypergraph.extract(TBB::GLOBAL_TASK_GROUP, 2, true);
+  auto extracted_hg = this->partitioned_hypergraph.extract(TBBNumaArena::GLOBAL_TASK_GROUP, 2, true);
   auto& hg = extracted_hg.first;
   auto& hn_mapping = extracted_hg.second;
 
@@ -586,7 +558,7 @@ TYPED_TEST(APartitionedHypergraph, ExtractBlockTwoWithCutNetSplitting) {
 }
 
 TYPED_TEST(APartitionedHypergraph, ExtractBlockZeroWithCutNetRemoval) {
-  auto extracted_hg = this->partitioned_hypergraph.extract(TBB::GLOBAL_TASK_GROUP, 0, false);
+  auto extracted_hg = this->partitioned_hypergraph.extract(TBBNumaArena::GLOBAL_TASK_GROUP, 0, false);
   auto& hg = extracted_hg.first;
   auto& hn_mapping = extracted_hg.second;
 
@@ -616,7 +588,7 @@ TYPED_TEST(APartitionedHypergraph, ExtractBlockZeroWithCutNetRemoval) {
 
 TYPED_TEST(APartitionedHypergraph, ExtractBlockOneWithCutNetRemoval) {
   this->partitioned_hypergraph.changeNodePart(this->id[6], 2, 1);
-  auto extracted_hg = this->partitioned_hypergraph.extract(TBB::GLOBAL_TASK_GROUP, 1, false);
+  auto extracted_hg = this->partitioned_hypergraph.extract(TBBNumaArena::GLOBAL_TASK_GROUP, 1, false);
   auto& hg = extracted_hg.first;
   auto& hn_mapping = extracted_hg.second;
 
@@ -646,7 +618,7 @@ TYPED_TEST(APartitionedHypergraph, ExtractBlockOneWithCutNetRemoval) {
 
 TYPED_TEST(APartitionedHypergraph, ExtractBlockTwoWithCutNetRemoval) {
   this->partitioned_hypergraph.changeNodePart(this->id[2], 0, 2);
-  auto extracted_hg = this->partitioned_hypergraph.extract(TBB::GLOBAL_TASK_GROUP, 2, false);
+  auto extracted_hg = this->partitioned_hypergraph.extract(TBBNumaArena::GLOBAL_TASK_GROUP, 2, false);
   auto& hg = extracted_hg.first;
   auto& hn_mapping = extracted_hg.second;
 
@@ -682,9 +654,9 @@ TYPED_TEST(APartitionedHypergraph, ExtractBlockZeroWithCommunityInformation) {
   this->hypergraph.setCommunityID(this->id[4], 3);
   this->hypergraph.setCommunityID(this->id[5], 4);
   this->hypergraph.setCommunityID(this->id[6], 5);
-  this->hypergraph.initializeCommunities(TBB::GLOBAL_TASK_GROUP);
+  this->hypergraph.initializeCommunities(TBBNumaArena::GLOBAL_TASK_GROUP);
 
-  auto extracted_hg = this->partitioned_hypergraph.extract(TBB::GLOBAL_TASK_GROUP, 0, true);
+  auto extracted_hg = this->partitioned_hypergraph.extract(TBBNumaArena::GLOBAL_TASK_GROUP, 0, true);
   auto& hg = extracted_hg.first;
   auto& hn_mapping = extracted_hg.second;
 
@@ -705,9 +677,9 @@ TYPED_TEST(APartitionedHypergraph, ExtractBlockOneWithCommunityInformation) {
   this->hypergraph.setCommunityID(this->id[4], 3);
   this->hypergraph.setCommunityID(this->id[5], 4);
   this->hypergraph.setCommunityID(this->id[6], 5);
-  this->hypergraph.initializeCommunities(TBB::GLOBAL_TASK_GROUP);
+  this->hypergraph.initializeCommunities(TBBNumaArena::GLOBAL_TASK_GROUP);
 
-  auto extracted_hg = this->partitioned_hypergraph.extract(TBB::GLOBAL_TASK_GROUP, 1, true);
+  auto extracted_hg = this->partitioned_hypergraph.extract(TBBNumaArena::GLOBAL_TASK_GROUP, 1, true);
   auto& hg = extracted_hg.first;
   auto& hn_mapping = extracted_hg.second;
 
@@ -727,9 +699,9 @@ TYPED_TEST(APartitionedHypergraph, ExtractBlockTwoWithCommunityInformation) {
   this->hypergraph.setCommunityID(this->id[4], 3);
   this->hypergraph.setCommunityID(this->id[5], 4);
   this->hypergraph.setCommunityID(this->id[6], 5);
-  this->hypergraph.initializeCommunities(TBB::GLOBAL_TASK_GROUP);
+  this->hypergraph.initializeCommunities(TBBNumaArena::GLOBAL_TASK_GROUP);
 
-  auto extracted_hg = this->partitioned_hypergraph.extract(TBB::GLOBAL_TASK_GROUP, 2, true);
+  auto extracted_hg = this->partitioned_hypergraph.extract(TBBNumaArena::GLOBAL_TASK_GROUP, 2, true);
   auto& hg = extracted_hg.first;
   auto& hn_mapping = extracted_hg.second;
 
@@ -750,7 +722,7 @@ TYPED_TEST(APartitionedHypergraph, ComputesPartInfoCorrectIfNodePartsAreSetOnly)
   this->partitioned_hypergraph.setOnlyNodePart(this->id[4], 1);
   this->partitioned_hypergraph.setOnlyNodePart(this->id[5], 2);
   this->partitioned_hypergraph.setOnlyNodePart(this->id[6], 2);
-  this->partitioned_hypergraph.initializePartition(TBB::GLOBAL_TASK_GROUP);
+  this->partitioned_hypergraph.initializePartition(TBBNumaArena::GLOBAL_TASK_GROUP);
 
   ASSERT_EQ(3, this->partitioned_hypergraph.partWeight(0));
   ASSERT_EQ(3, this->partitioned_hypergraph.partSize(0));
@@ -769,7 +741,7 @@ TYPED_TEST(APartitionedHypergraph, SetPinCountsInPartCorrectIfNodePartsAreSetOnl
   this->partitioned_hypergraph.setOnlyNodePart(this->id[4], 1);
   this->partitioned_hypergraph.setOnlyNodePart(this->id[5], 2);
   this->partitioned_hypergraph.setOnlyNodePart(this->id[6], 2);
-  this->partitioned_hypergraph.initializePartition(TBB::GLOBAL_TASK_GROUP);
+  this->partitioned_hypergraph.initializePartition(TBBNumaArena::GLOBAL_TASK_GROUP);
 
   this->verifyPartitionPinCounts(GLOBAL_EDGE_ID(this->hypergraph, 0), { 2, 0, 0 });
   this->verifyPartitionPinCounts(GLOBAL_EDGE_ID(this->hypergraph, 1), { 2, 2, 0 });
@@ -786,7 +758,7 @@ TYPED_TEST(APartitionedHypergraph, ComputesConnectivitySetCorrectIfNodePartsAreS
   this->partitioned_hypergraph.setOnlyNodePart(this->id[4], 1);
   this->partitioned_hypergraph.setOnlyNodePart(this->id[5], 2);
   this->partitioned_hypergraph.setOnlyNodePart(this->id[6], 2);
-  this->partitioned_hypergraph.initializePartition(TBB::GLOBAL_TASK_GROUP);
+  this->partitioned_hypergraph.initializePartition(TBBNumaArena::GLOBAL_TASK_GROUP);
 
   this->verifyConnectivitySet(GLOBAL_EDGE_ID(this->hypergraph, 0), { 0 });
   this->verifyConnectivitySet(GLOBAL_EDGE_ID(this->hypergraph, 1), { 0, 1 });
@@ -803,7 +775,7 @@ TYPED_TEST(APartitionedHypergraph, ComputesBorderNodesCorrectIfNodePartsAreSetOn
   this->partitioned_hypergraph.setOnlyNodePart(this->id[4], 1);
   this->partitioned_hypergraph.setOnlyNodePart(this->id[5], 2);
   this->partitioned_hypergraph.setOnlyNodePart(this->id[6], 2);
-  this->partitioned_hypergraph.initializePartition(TBB::GLOBAL_TASK_GROUP);
+  this->partitioned_hypergraph.initializePartition(TBBNumaArena::GLOBAL_TASK_GROUP);
 
   ASSERT_EQ(1, this->partitioned_hypergraph.numIncidentCutHyperedges(this->id[0]));
   ASSERT_EQ(1, this->partitioned_hypergraph.numIncidentCutHyperedges(this->id[1]));

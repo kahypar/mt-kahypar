@@ -70,12 +70,6 @@ class AInitialPartitionerTest : public Test {
     // Shared Memory
     context.shared_memory.num_threads = num_threads;
 
-    // Community Assignment Strategy
-    context.preprocessing.community_redistribution.assignment_objective =
-      CommunityAssignmentObjective::pin_objective;
-    context.preprocessing.community_redistribution.assignment_strategy =
-      CommunityAssignmentStrategy::bin_packing;
-
     // Initial Partitioning
     context.initial_partitioning.runs = 1;
     context.sparsification.use_degree_zero_contractions = false;

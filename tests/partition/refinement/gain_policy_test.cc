@@ -28,26 +28,20 @@ using ::testing::Test;
 
 namespace mt_kahypar {
 
-using TypeTraits = ds::TestTypeTraits<2>;
-using HyperGraph = typename TypeTraits::HyperGraph;
-using HyperGraphFactory = typename TypeTraits::HyperGraphFactory;
-using PartitionedHyperGraph = typename TypeTraits::template PartitionedHyperGraph<>;
-using TBB = typename TypeTraits::TBB;
-
 template <template <typename> class GainPolicy, PartitionID K>
 class AGainPolicy : public Test {
  public:
-  using GainCalculator = GainPolicy<PartitionedHyperGraph>;
+  using GainCalculator = GainPolicy<PartitionedHypergraph<>>;
 
   AGainPolicy() :
-    hg(HyperGraphFactory::construct(TBB::GLOBAL_TASK_GROUP,
+    hg(HypergraphFactory::construct(TBBNumaArena::GLOBAL_TASK_GROUP,
       7 , 4, { {0, 2}, {0, 1, 3, 4}, {3, 4, 6}, {2, 5, 6} })),
     context(),
     gain(nullptr) {
     context.partition.k = K;
     context.partition.max_part_weights.assign(K, std::numeric_limits<HypernodeWeight>::max());
     gain = std::make_unique<GainCalculator>(context, true  /* disable randomization */);
-    hypergraph = PartitionedHyperGraph(K, TBB::GLOBAL_TASK_GROUP, hg);
+    hypergraph = PartitionedHypergraph<>(K, TBBNumaArena::GLOBAL_TASK_GROUP, hg);
   }
 
   void assignPartitionIDs(const std::vector<PartitionID>& part_ids) {
@@ -59,8 +53,8 @@ class AGainPolicy : public Test {
     hypergraph.initializeNumCutHyperedges();
   }
 
-  HyperGraph hg;
-  PartitionedHyperGraph hypergraph;
+  Hypergraph hg;
+  PartitionedHypergraph<> hypergraph;
   Context context;
   std::unique_ptr<GainCalculator> gain;
 };

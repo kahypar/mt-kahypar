@@ -24,8 +24,6 @@
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/datastructures/static_hypergraph.h"
 #include "mt-kahypar/datastructures/static_hypergraph_factory.h"
-#include "mt-kahypar/datastructures/numa_hypergraph.h"
-#include "mt-kahypar/datastructures/numa_hypergraph_factory.h"
 #include "mt-kahypar/io/hypergraph_io.h"
 
 using ::testing::Test;
@@ -34,12 +32,10 @@ namespace mt_kahypar {
 namespace io {
 
 template< typename HyperGraph,
-          typename HyperGraphFactory,
-          typename TBBArena>
+          typename HyperGraphFactory>
 struct HypergraphTypeTraits {
   using Hypergraph = HyperGraph;
   using HypergraphFactory = HyperGraphFactory;
-  using TBB = TBBArena;
 };
 
 template<typename TypeTraits>
@@ -47,7 +43,6 @@ class AHypergraphReader : public Test {
 
  using Hypergraph = typename TypeTraits::Hypergraph;
  using HypergraphFactory = typename TypeTraits::HypergraphFactory;
- using TBB = typename TypeTraits::TBB;
 
  public:
   AHypergraphReader() :
@@ -56,12 +51,12 @@ class AHypergraphReader : public Test {
     edge_id() { }
 
   static void SetUpTestSuite() {
-    TBB::instance(HardwareTopology::instance().num_cpus());
+    TBBNumaArena::instance(HardwareTopology::instance().num_cpus());
   }
 
   void readHypergraph(const std::string& filename) {
     hypergraph = readHypergraphFile<Hypergraph, HypergraphFactory>(
-      filename, TBB::GLOBAL_TASK_GROUP);
+      filename, TBBNumaArena::GLOBAL_TASK_GROUP);
 
     node_id.resize(hypergraph.initialNumNodes());
     for ( const HypernodeID& hn : hypergraph.nodes() ) {
@@ -109,26 +104,13 @@ class AHypergraphReader : public Test {
   std::vector<HypernodeID> edge_id;
 };
 
-// Mocking Numa Architecture (=> 2 NUMA Nodes)
-using TypeTraits = ds::TestTypeTraits<2>;
-using HwTopology = typename TypeTraits::HwTopology;
-using TBB = typename TypeTraits::TBB;
-
 // Define NUMA Hypergraph and Factory
 using StaticHypergraph = ds::StaticHypergraph;
 using StaticHypergraphFactory = ds::StaticHypergraphFactory;
-using NumaHypergraph = ds::NumaHypergraph<StaticHypergraph, HwTopology, TBB>;
-using NumaHypergraphFactory = ds::NumaHypergraphFactory<
-  StaticHypergraph, StaticHypergraphFactory, HwTopology, TBB>;
 
 typedef ::testing::Types<HypergraphTypeTraits<
                           StaticHypergraph,
-                          StaticHypergraphFactory,
-                          TBBNumaArena>,
-                        HypergraphTypeTraits<
-                          NumaHypergraph,
-                          NumaHypergraphFactory,
-                          TBB>> HypergraphTestTypes;
+                          StaticHypergraphFactory>> HypergraphTestTypes;
 
 
 TYPED_TEST_CASE(AHypergraphReader, HypergraphTestTypes);
