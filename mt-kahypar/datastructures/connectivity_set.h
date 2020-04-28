@@ -58,14 +58,13 @@ public:
 
   ConnectivitySets(const HyperedgeID num_hyperedges,
                    const PartitionID k,
-                   const int node = 0,
                    const bool assign_parallel = true) :
     _k(k),
     _num_hyperedges(num_hyperedges),
     _num_blocks_per_hyperedge(k / BITS_PER_BLOCK + (k % BITS_PER_BLOCK != 0)),
     _bits() {
       if ( num_hyperedges > 0 ) {
-        _bits.resize("Refinement", "connectivity_set_" + std::to_string(node),
+        _bits.resize("Refinement", "connectivity_set",
           num_hyperedges * _num_blocks_per_hyperedge, true, assign_parallel);
       }
     }

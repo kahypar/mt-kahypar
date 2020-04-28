@@ -110,15 +110,6 @@ inline void Partitioner::sanitize(Hypergraph& hypergraph) {
 }
 
 inline void Partitioner::preprocess(Hypergraph& hypergraph) {
-  for (int node = 0; node < TBBNumaArena::instance().num_used_numa_nodes(); ++node) {
-    utils::Stats::instance().add_stat("initial_hns_on_numa_node_" + std::to_string(node),
-                                      (int64_t)hypergraph.initialNumNodes(node));
-    utils::Stats::instance().add_stat("initial_hes_on_numa_node_" + std::to_string(node),
-                                      (int64_t)hypergraph.initialNumEdges(node));
-    utils::Stats::instance().add_stat("initial_pins_on_numa_node_" + std::to_string(node),
-                                      (int64_t)hypergraph.initialNumPins(node));
-  }
-
   if ( _context.preprocessing.use_community_detection ) {
     io::printTopLevelPreprocessingBanner(_context);
 

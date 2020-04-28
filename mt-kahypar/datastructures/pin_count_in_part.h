@@ -62,7 +62,6 @@ class PinCountInPart {
   PinCountInPart(const HyperedgeID num_hyperedges,
                  const PartitionID k,
                  const HypernodeID max_value,
-                 const int node = 0,
                  const bool assign_parallel = true) :
     _num_hyperedges(0),
     _k(0),
@@ -72,7 +71,7 @@ class PinCountInPart {
     _values_per_hyperedge(0),
     _extraction_mask(0),
     _pin_count_in_part() {
-    initialize(num_hyperedges, k, max_value, node, assign_parallel);
+    initialize(num_hyperedges, k, max_value, assign_parallel);
   }
 
   PinCountInPart(const PinCountInPart&) = delete;
@@ -104,7 +103,6 @@ class PinCountInPart {
   void initialize(const HyperedgeID num_hyperedges,
                   const PartitionID k,
                   const HypernodeID max_value,
-                  const int node = 0,
                   const bool assign_parallel = true) {
     ASSERT(_num_hyperedges == 0);
     if ( num_hyperedges > 0 ) {
@@ -115,8 +113,7 @@ class PinCountInPart {
       _entries_per_value = num_entries_per_value(k, max_value);
       _values_per_hyperedge = num_values_per_hyperedge(k, max_value);
       _extraction_mask = std::pow(2UL, _bits_per_element) - 1UL;
-      _pin_count_in_part.resize("Refinement",
-        "pin_count_in_part_" + std::to_string(node),
+      _pin_count_in_part.resize("Refinement", "pin_count_in_part",
         num_hyperedges * _values_per_hyperedge, true, assign_parallel);
     }
   }

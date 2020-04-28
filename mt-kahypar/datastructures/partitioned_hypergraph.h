@@ -104,7 +104,6 @@ class PartitionedHypergraph {
 
   explicit PartitionedHypergraph() :
     _k(0),
-    _node(0),
     _hg(nullptr),
     _is_init_num_cut_hyperedges(false),
     _part_info(),
@@ -117,25 +116,21 @@ class PartitionedHypergraph {
   explicit PartitionedHypergraph(const PartitionID k,
                                  Hypergraph& hypergraph) :
     _k(k),
-    _node(hypergraph.numaNode()),
     _hg(&hypergraph),
     _is_init_num_cut_hyperedges(false),
     _part_info(k),
     _vertex_part_info(
-        "Refinement", "vertex_part_info_" + std::to_string(_node),
-        hypergraph.initialNumNodes(), true, false),
-    _pins_in_part(hypergraph.initialNumEdges(), k, hypergraph.maxEdgeSize(), _node, false),
-    _connectivity_sets(hypergraph.initialNumEdges(), k, _node, false),
+        "Refinement", "vertex_part_info", hypergraph.initialNumNodes(), true, false),
+    _pins_in_part(hypergraph.initialNumEdges(), k, hypergraph.maxEdgeSize(), false),
+    _connectivity_sets(hypergraph.initialNumEdges(), k, false),
     _pin_count_update_ownership(
-        "Refinement", "pin_count_update_ownership_" + std::to_string(_node),
-        hypergraph.initialNumEdges(), true, false),
+        "Refinement", "pin_count_update_ownership", hypergraph.initialNumEdges(), true, false),
     _failed_pin_count_updates() { }
 
   explicit PartitionedHypergraph(const PartitionID k,
                                  const TaskGroupID,
                                  Hypergraph& hypergraph) :
     _k(k),
-    _node(hypergraph.numaNode()),
     _hg(&hypergraph),
     _is_init_num_cut_hyperedges(false),
     _part_info(k),
@@ -146,16 +141,14 @@ class PartitionedHypergraph {
     _failed_pin_count_updates() {
     tbb::parallel_invoke([&] {
       _vertex_part_info.resize(
-        "Refinement", "vertex_part_info_" + std::to_string(_node),
-        hypergraph.initialNumNodes(), true);
+        "Refinement", "vertex_part_info", hypergraph.initialNumNodes(), true);
     }, [&] {
-      _pins_in_part.initialize(hypergraph.initialNumEdges(), k, hypergraph.maxEdgeSize(), _node);
+      _pins_in_part.initialize(hypergraph.initialNumEdges(), k, hypergraph.maxEdgeSize());
     }, [&] {
-      _connectivity_sets = ConnectivitySets(hypergraph.initialNumEdges(), k, _node);
+      _connectivity_sets = ConnectivitySets(hypergraph.initialNumEdges(), k);
     }, [&] {
       _pin_count_update_ownership.resize(
-        "Refinement", "pin_count_update_ownership_" + std::to_string(_node),
-        hypergraph.initialNumEdges(), true);
+        "Refinement", "pin_count_update_ownership", hypergraph.initialNumEdges(), true);
     });
   }
 
@@ -164,7 +157,6 @@ class PartitionedHypergraph {
 
   PartitionedHypergraph(PartitionedHypergraph&& other) :
     _k(other._k),
-    _node(other._node),
     _hg(other._hg),
     _is_init_num_cut_hyperedges(other._is_init_num_cut_hyperedges),
     _part_info(std::move(other._part_info)),
@@ -176,7 +168,6 @@ class PartitionedHypergraph {
 
   PartitionedHypergraph & operator= (PartitionedHypergraph&& other) {
     _k = other._k;
-    _node = other._node;
     _hg = other._hg;
     _is_init_num_cut_hyperedges = other._is_init_num_cut_hyperedges;
     _part_info = std::move(other._part_info);
@@ -214,11 +205,6 @@ class PartitionedHypergraph {
     return _hg->initialNumNodes();
   }
 
-  // ! Initial number of hypernodes on numa node
-  HypernodeID initialNumNodes(const int node) const {
-    return _hg->initialNumNodes(node);
-  }
-
   // ! Number of removed hypernodes
   HypernodeID numRemovedHypernodes() const {
     return _hg->numRemovedHypernodes();
@@ -229,29 +215,14 @@ class PartitionedHypergraph {
     return _hg->initialNumEdges();
   }
 
-  // ! Initial number of hyperedges on numa node
-  HyperedgeID initialNumEdges(const int node) const {
-    return _hg->initialNumEdges(node);
-  }
-
   // ! Initial number of pins
   HypernodeID initialNumPins() const {
     return _hg->initialNumPins();
   }
 
-  // ! Initial number of pins on numa node
-  HypernodeID initialNumPins(const int node) const {
-    return _hg->initialNumPins(node);
-  }
-
   // ! Initial sum of the degree of all vertices
   HypernodeID initialTotalVertexDegree() const {
     return _hg->initialTotalVertexDegree();
-  }
-
-  // ! Initial sum of the degree of all vertices on numa node
-  HypernodeID initialTotalVertexDegree(const int node) const {
-    return _hg->initialTotalVertexDegree(node);
   }
 
   // ! Total weight of hypergraph
@@ -299,18 +270,8 @@ class PartitionedHypergraph {
     return _hg->nodes();
   }
 
-  // ! Returns an iterator over the set of active nodes of the hypergraph on a numa node
-  IteratorRange<HypernodeIterator> nodes(const int node) const {
-    return _hg->nodes(node);
-  }
-
   // ! Returns an iterator over the set of active edges of the hypergraph
   IteratorRange<HyperedgeIterator> edges() const {
-    return _hg->edges();
-  }
-
-  // ! Returns an iterator over the set of active nodes of the hypergraph on a numa node
-  IteratorRange<HyperedgeIterator> edges(const int node) const {
     return _hg->edges();
   }
 
@@ -1117,8 +1078,6 @@ class PartitionedHypergraph {
 
   // ! Number of blocks
   PartitionID _k;
-  // ! NUMA node of this partitioned hypergraph
-  int _node;
   // ! Hypergraph object around this partitioned hypergraph is wrapped
   Hypergraph* _hg;
 

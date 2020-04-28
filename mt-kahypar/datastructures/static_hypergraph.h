@@ -365,38 +365,25 @@ class StaticHypergraph {
   struct TmpContractionBuffer {
     explicit TmpContractionBuffer(const HypernodeID num_hypernodes,
                                   const HyperedgeID num_hyperedges,
-                                  const HyperedgeID num_pins,
-                                  const int node,
-                                  const bool is_numa_buffer = false) {
+                                  const HyperedgeID num_pins) {
       tbb::parallel_invoke([&] {
-        mapping.resize(
-          "Coarsening", "mapping_" + std::to_string(node), num_hypernodes);
+        mapping.resize("Coarsening", "mapping", num_hypernodes);
       }, [&] {
-        tmp_hypernodes.resize(
-          "Coarsening", "tmp_hypernodes_" + std::to_string(node), num_hypernodes);
+        tmp_hypernodes.resize("Coarsening", "tmp_hypernodes", num_hypernodes);
       }, [&] {
-        if ( !is_numa_buffer ) {
-          tmp_incident_nets.resize(
-            "Coarsening", "tmp_incident_nets_" + std::to_string(node), num_pins);
-        }
+        tmp_incident_nets.resize("Coarsening", "tmp_incident_nets", num_pins);
       }, [&] {
-        tmp_num_incident_nets.resize(
-          "Coarsening", "tmp_num_incident_nets_" + std::to_string(node), num_hypernodes);
+        tmp_num_incident_nets.resize("Coarsening", "tmp_num_incident_nets", num_hypernodes);
       }, [&] {
-        hn_weights.resize(
-          "Coarsening", "hn_weights_" + std::to_string(node), num_hypernodes);
+        hn_weights.resize("Coarsening", "hn_weights", num_hypernodes);
       }, [&] {
-        tmp_hyperedges.resize(
-          "Coarsening", "tmp_hyperedges_" + std::to_string(node), num_hyperedges);
+        tmp_hyperedges.resize("Coarsening", "tmp_hyperedges", num_hyperedges);
       }, [&] {
-        tmp_incidence_array.resize(
-          "Coarsening", "tmp_incidence_array_" + std::to_string(node), num_pins);
+        tmp_incidence_array.resize("Coarsening", "tmp_incidence_array", num_pins);
       }, [&] {
-        he_sizes.resize(
-          "Coarsening", "he_sizes_" + std::to_string(node), num_hyperedges);
+        he_sizes.resize("Coarsening", "he_sizes", num_hyperedges);
       }, [&] {
-        valid_hyperedges.resize(
-          "Coarsening", "valid_hyperedges_" + std::to_string(node), num_hyperedges);
+        valid_hyperedges.resize("Coarsening", "valid_hyperedges", num_hyperedges);
       });
     }
 
@@ -431,7 +418,6 @@ class StaticHypergraph {
   using CommunityIterator = typename CommunitySupport<StaticHypergraph>::CommunityIterator;
 
   explicit StaticHypergraph() :
-    _node(0),
     _num_hypernodes(0),
     _num_removed_hypernodes(0),
     _num_hyperedges(0),
@@ -451,7 +437,6 @@ class StaticHypergraph {
   StaticHypergraph & operator= (const StaticHypergraph &) = delete;
 
   StaticHypergraph(StaticHypergraph&& other) :
-    _node(other._node),
     _num_hypernodes(other._num_hypernodes),
     _num_removed_hypernodes(other._num_removed_hypernodes),
     _num_hyperedges(other._num_hyperedges),
@@ -470,7 +455,6 @@ class StaticHypergraph {
   }
 
   StaticHypergraph & operator= (StaticHypergraph&& other) {
-    _node = other._node;
     _num_hypernodes = other._num_hypernodes;
     _num_removed_hypernodes = other._num_removed_hypernodes;
     _num_hyperedges = other._num_hyperedges;
@@ -500,17 +484,8 @@ class StaticHypergraph {
     return 1UL;
   }
 
-  int numaNode() const {
-    return _node;
-  }
-
   // ! Initial number of hypernodes
   HypernodeID initialNumNodes() const {
-    return _num_hypernodes;
-  }
-
-  // ! Initial number of hypernodes on numa node
-  HypernodeID initialNumNodes(const int) const {
     return _num_hypernodes;
   }
 
@@ -521,11 +496,6 @@ class StaticHypergraph {
 
   // ! Initial number of hyperedges
   HyperedgeID initialNumEdges() const {
-    return _num_hyperedges;
-  }
-
-  // ! Initial number of hyperedges on numa node
-  HyperedgeID initialNumEdges(const int) const {
     return _num_hyperedges;
   }
 
@@ -544,18 +514,8 @@ class StaticHypergraph {
     return _num_pins;
   }
 
-  // ! Initial number of pins on numa node
-  HypernodeID initialNumPins(const int) const {
-    return _num_pins;
-  }
-
   // ! Initial sum of the degree of all vertices
   HypernodeID initialTotalVertexDegree() const {
-    return _total_degree;
-  }
-
-  // ! Initial sum of the degree of all vertices on numa node
-  HypernodeID initialTotalVertexDegree(const int) const {
     return _total_degree;
   }
 
@@ -629,23 +589,12 @@ class StaticHypergraph {
       HypernodeIterator(_hypernodes.data() + _num_hypernodes, _num_hypernodes, _num_hypernodes));
   }
 
-  // ! Returns an iterator over the set of active nodes of the hypergraph on a numa node
-  IteratorRange<HypernodeIterator> nodes(const int) const {
-    return nodes();
-  }
-
   // ! Returns a range of the active edges of the hypergraph
   IteratorRange<HyperedgeIterator> edges() const {
     return IteratorRange<HyperedgeIterator>(
       HyperedgeIterator(_hyperedges.data(), ID(0), _num_hyperedges),
       HyperedgeIterator(_hyperedges.data() + _num_hyperedges, _num_hyperedges, _num_hyperedges));
   }
-
-  // ! Returns an iterator over the set of active nodes of the hypergraph on a numa node
-  IteratorRange<HyperedgeIterator> edges(const int) const {
-    return edges();
-  }
-
 
   // ! Returns a range to loop over the incident nets of hypernode u.
   IteratorRange<IncidentNetsIterator> incidentEdges(const HypernodeID u) const {
@@ -1421,7 +1370,6 @@ class StaticHypergraph {
   StaticHypergraph copy(const TaskGroupID task_group_id) {
     StaticHypergraph hypergraph;
 
-    hypergraph._node = _node;
     hypergraph._num_hypernodes = _num_hypernodes;
     hypergraph._num_removed_hypernodes = _num_removed_hypernodes;
     hypergraph._num_hyperedges = _num_hyperedges;
@@ -1457,7 +1405,6 @@ class StaticHypergraph {
   StaticHypergraph copy() {
     StaticHypergraph hypergraph;
 
-    hypergraph._node = _node;
     hypergraph._num_hypernodes = _num_hypernodes;
     hypergraph._num_removed_hypernodes = _num_removed_hypernodes;
     hypergraph._num_hyperedges = _num_hyperedges;
@@ -1596,15 +1543,13 @@ class StaticHypergraph {
   }
 
   // ! Allocate the temporary contraction buffer
-  void allocateTmpContractionBuffer(const bool is_numa_buffer = false) {
+  void allocateTmpContractionBuffer() {
     if ( !_tmp_contraction_buffer ) {
       _tmp_contraction_buffer = new TmpContractionBuffer(
-        _num_hypernodes, _num_hyperedges, _num_pins, _node, is_numa_buffer);
+        _num_hypernodes, _num_hyperedges, _num_pins);
     }
   }
 
-  // ! NUMA node of hypergraph
-  int _node;
   // ! Number of hypernodes
   HypernodeID _num_hypernodes;
   // ! Number of removed hypernodes

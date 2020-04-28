@@ -171,7 +171,6 @@ class CommunitySupport {
   using CommunityIterator = parallel::scalable_vector<PartitionID>::const_iterator;
 
   explicit CommunitySupport() :
-    _node(0),
     _is_initialized(false),
     _num_communities(0),
     _communities_num_hypernodes(),
@@ -186,7 +185,6 @@ class CommunitySupport {
   CommunitySupport & operator= (const CommunitySupport &) = delete;
 
   CommunitySupport(CommunitySupport&& other) :
-    _node(other._node),
     _is_initialized(other._is_initialized),
     _num_communities(other._num_communities),
     _communities_num_hypernodes(std::move(other._communities_num_hypernodes)),
@@ -198,7 +196,6 @@ class CommunitySupport {
     _vertex_to_community_node_id(std::move(other._vertex_to_community_node_id)) { }
 
   CommunitySupport & operator= (CommunitySupport&& other) {
-    _node = other._node;
     _is_initialized = other._is_initialized;
     _num_communities = other._num_communities;
     _communities_num_hypernodes = std::move(other._communities_num_hypernodes);
@@ -323,7 +320,6 @@ class CommunitySupport {
    */
   void initialize(const Hypergraph& hypergraph,
                   const TaskGroupID task_group_id) {
-    _node = hypergraph.numaNode();
     // Compute number of communities
     computeNumberOfCommunities(hypergraph);
 
@@ -490,7 +486,6 @@ class CommunitySupport {
   // ! Copy community support in parallel
   CommunitySupport copy(const TaskGroupID) {
     CommunitySupport community_support;
-    community_support._node = _node;
     community_support._is_initialized = _is_initialized;
     community_support._num_communities = _num_communities;
     community_support._are_community_hyperedges_initialized =
@@ -564,7 +559,6 @@ class CommunitySupport {
   // Copy community support sequential
   CommunitySupport copy() {
     CommunitySupport community_support;
-    community_support._node = _node;
     community_support._is_initialized = _is_initialized;
     community_support._num_communities = _num_communities;
 
@@ -665,8 +659,6 @@ class CommunitySupport {
     return const_cast<CommunityHyperedge&>(static_cast<const CommunitySupport&>(*this).community_hyperedge(e, community_id));
   }
 
-  // ! NUMA node over which this class is constructed
-  int _node;
   // ! Indicates, if community information are initialized
   bool _is_initialized;
   // ! Number of communities
