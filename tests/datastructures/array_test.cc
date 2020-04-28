@@ -36,7 +36,7 @@ namespace ds {
 
 using TopoMock = mt_kahypar::parallel::TopologyMock<2>;
 using HwTopology = mt_kahypar::parallel::HardwareTopology<TopoMock, parallel::topology_t, parallel::node_t>;
-using TBB = mt_kahypar::parallel::TBBNumaArena<HwTopology>;
+using TBB = mt_kahypar::parallel::TBBNumaArena<HwTopology, false>;
 
 TEST(AArray, WritesAnValueToStrippedVector1) {
   Array<int> vec(256, 0);

@@ -127,7 +127,7 @@ class HypergraphFixture : public Test {
     hypergraph.setCommunityID(4, 1);
     hypergraph.setCommunityID(5, 2);
     hypergraph.setCommunityID(6, 2);
-    hypergraph.initializeCommunities(TBBNumaArena::GLOBAL_TASK_GROUP);
+    hypergraph.initializeCommunities();
   }
 
   Hypergraph hypergraph;

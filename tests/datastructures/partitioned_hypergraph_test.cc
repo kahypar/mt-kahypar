@@ -614,7 +614,7 @@ TYPED_TEST(APartitionedHypergraph, ExtractBlockZeroWithCommunityInformation) {
   this->hypergraph.setCommunityID(4, 3);
   this->hypergraph.setCommunityID(5, 4);
   this->hypergraph.setCommunityID(6, 5);
-  this->hypergraph.initializeCommunities(TBBNumaArena::GLOBAL_TASK_GROUP);
+  this->hypergraph.initializeCommunities();
 
   auto extracted_hg = this->partitioned_hypergraph.extract(TBBNumaArena::GLOBAL_TASK_GROUP, 0, true);
   auto& hg = extracted_hg.first;
@@ -637,7 +637,7 @@ TYPED_TEST(APartitionedHypergraph, ExtractBlockOneWithCommunityInformation) {
   this->hypergraph.setCommunityID(4, 3);
   this->hypergraph.setCommunityID(5, 4);
   this->hypergraph.setCommunityID(6, 5);
-  this->hypergraph.initializeCommunities(TBBNumaArena::GLOBAL_TASK_GROUP);
+  this->hypergraph.initializeCommunities();
 
   auto extracted_hg = this->partitioned_hypergraph.extract(TBBNumaArena::GLOBAL_TASK_GROUP, 1, true);
   auto& hg = extracted_hg.first;
@@ -659,7 +659,7 @@ TYPED_TEST(APartitionedHypergraph, ExtractBlockTwoWithCommunityInformation) {
   this->hypergraph.setCommunityID(4, 3);
   this->hypergraph.setCommunityID(5, 4);
   this->hypergraph.setCommunityID(6, 5);
-  this->hypergraph.initializeCommunities(TBBNumaArena::GLOBAL_TASK_GROUP);
+  this->hypergraph.initializeCommunities();
 
   auto extracted_hg = this->partitioned_hypergraph.extract(TBBNumaArena::GLOBAL_TASK_GROUP, 2, true);
   auto& hg = extracted_hg.first;

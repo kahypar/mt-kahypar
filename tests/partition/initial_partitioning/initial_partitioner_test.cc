@@ -96,7 +96,7 @@ class AInitialPartitionerTest : public Test {
     for ( const HypernodeID& hn : hypergraph.nodes() ) {
       hypergraph.setCommunityID(hn, communities[hn]);
     }
-    hypergraph.initializeCommunities(TBBNumaArena::GLOBAL_TASK_GROUP);
+    hypergraph.initializeCommunities();
   }
 
   static void SetUpTestSuite() {
