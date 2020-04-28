@@ -20,8 +20,6 @@
 
 #include "gmock/gmock.h"
 
-#define HYPERGRAPH_UNIT_TEST true
-
 #include "kahypar/definitions.h"
 #include "mt-kahypar/datastructures/static_hypergraph.h"
 #include "mt-kahypar/datastructures/static_hypergraph_factory.h"
