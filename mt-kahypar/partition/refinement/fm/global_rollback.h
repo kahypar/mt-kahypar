@@ -161,7 +161,7 @@ public:
     utils::Timer& timer = utils::Timer::instance();
     timer.start_timer("move_id_flagging", "Move Flagging");
 
-    
+
 
     tbb::parallel_for(0U, numMoves, [&](MoveID localMoveID) {
       const Move& m = move_order[localMoveID];
