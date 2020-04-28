@@ -149,8 +149,6 @@ inline void Partitioner::preprocess(Hypergraph& hypergraph) {
     // Per default all communities are assigned to community 0
     utils::Timer::instance().disable();
     hypergraph.initializeCommunities(TBBNumaArena::GLOBAL_TASK_GROUP);
-    parallel::scalable_vector<PartitionID> community_node_mapping(1, 0);
-    hypergraph.setCommunityNodeMapping(std::move(community_node_mapping));
     utils::Timer::instance().enable();
   }
 

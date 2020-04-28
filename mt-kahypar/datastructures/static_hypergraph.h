@@ -401,7 +401,6 @@ class StaticHypergraph {
 
  public:
   static constexpr bool is_static_hypergraph = true;
-  static constexpr bool is_numa_aware = false;
   static constexpr bool is_partitioned = false;
   static constexpr size_t SIZE_OF_HYPERNODE = sizeof(Hypernode);
   static constexpr size_t SIZE_OF_HYPEREDGE = sizeof(Hyperedge);
@@ -478,11 +477,6 @@ class StaticHypergraph {
   }
 
   // ####################### General Hypergraph Stats #######################
-
-  // ! Number of NUMA hypergraphs
-  size_t numNumaHypergraphs() const {
-    return 1UL;
-  }
 
   // ! Initial number of hypernodes
   HypernodeID initialNumNodes() const {
@@ -807,23 +801,6 @@ class StaticHypergraph {
   // ! Number of communities which pins of hyperedge belongs to
   size_t numCommunitiesInHyperedge(const HyperedgeID e) const {
     return _community_support.numCommunitiesInHyperedge(e);
-  }
-
-  bool hasCommunityNodeMapping() const {
-    return false;
-  }
-
-  // ! Numa node to which community is assigned to
-  PartitionID communityNumaNode(const PartitionID) const {
-    return 0;
-  }
-
-  // ! Sets the community to numa node mapping
-  void setCommunityNodeMapping(parallel::scalable_vector<PartitionID>&&) { }
-
-  // ! Returns a copy of community to numa node mapping
-  parallel::scalable_vector<PartitionID> communityNodeMapping() const {
-    return { 0 };
   }
 
   // ####################### Contract / Uncontract #######################
@@ -1469,10 +1446,6 @@ class StaticHypergraph {
   friend class StaticHypergraphFactory;
   template<typename Hypergraph>
   friend class CommunitySupport;
-  template <typename Hypergraph,
-            typename HardwareTopology,
-            typename TBBNumaArena>
-  friend class NumaHypergraph;
 
   // ####################### Hypernode Information #######################
 

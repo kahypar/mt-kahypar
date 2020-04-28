@@ -36,21 +36,12 @@
 namespace mt_kahypar {
 namespace ds {
 
-// Forward
-template <typename Hypergraph,
-          typename Factory,
-          typename HardwareTopology,
-          typename TBBNumaArena>
-class NumaHypergraphFactory;
-
 class StaticHypergraphFactory {
 
   using HyperedgeVector = parallel::scalable_vector<parallel::scalable_vector<HypernodeID>>;
   using Counter = parallel::scalable_vector<size_t>;
   using AtomicCounter = parallel::scalable_vector<parallel::IntegralAtomicWrapper<size_t>>;
   using ThreadLocalCounter = tbb::enumerable_thread_specific<Counter>;
-  template<typename T>
-  using NumaNodeMapping = parallel::scalable_vector<T>;
 
  public:
   static StaticHypergraph construct(const TaskGroupID task_group_id,
@@ -176,12 +167,6 @@ class StaticHypergraphFactory {
   }
 
  private:
-  template <typename Hypergraph,
-            typename Factory,
-            typename HardwareTopology,
-            typename TBBNumaArena>
-  friend class NumaHypergraphFactory;
-
   StaticHypergraphFactory() { }
 };
 

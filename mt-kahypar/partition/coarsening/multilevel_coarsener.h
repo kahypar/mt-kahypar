@@ -180,8 +180,7 @@ class MultilevelCoarsenerT : public ICoarsenerT<TypeTraits>,
       }
       utils::Timer::instance().stop_timer("shuffle_vertices");
 
-      // We iterate in parallel over all vertices of the hypergraph and compute its contraction
-      // partner. The vertices are processed on the numa node which they are placed on.
+      // We iterate in parallel over all vertices of the hypergraph and compute its contraction partner.
       // Matched vertices are linked in a concurrent union find data structure, that also aggregates
       // weights of the resulting clusters and keep track of the number of nodes left, if we would
       // contract all matched vertices.

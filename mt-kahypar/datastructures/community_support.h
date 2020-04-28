@@ -43,7 +43,6 @@ class CommunitySupport {
 
  static constexpr bool enable_heavy_assert = false;
 
- static_assert(!Hypergraph::is_numa_aware,  "Only non-numa-aware hypergraphs are allowed");
  static_assert(!Hypergraph::is_partitioned, "Only unpartitioned hypergraphs are allowed");
 
  using Counter = parallel::scalable_vector<HypernodeID>;
@@ -314,9 +313,6 @@ class CommunitySupport {
    *  3.) Number of Pins per Community
    *  4.) For each hypernode v of community C, we compute a unique id within
    *      that community in the range [0, |C|)
-   * Note, in case 'hypergraph' is part of numa hypergraph, than 'hypergraphs' is
-   * not empty and used to gather some information about communities, which 'hypergraph'
-   * is not able to.
    */
   void initialize(const Hypergraph& hypergraph,
                   const TaskGroupID task_group_id) {
@@ -383,8 +379,6 @@ class CommunitySupport {
       _community_degree.assign(1, hypergraph.initialTotalVertexDegree());
     }
 
-    // In case 'hypergraph' is part of a numa-aware hypergraph, finalizeCommunityNodeIds
-    // have to be called in order to initialize the community node ids.
     _is_initialized = true;
   }
 

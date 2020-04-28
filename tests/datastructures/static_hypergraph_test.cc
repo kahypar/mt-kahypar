@@ -37,10 +37,6 @@ TEST_F(AStaticHypergraph, HasCorrectStats) {
   ASSERT_EQ(4,  hypergraph.initialNumEdges());
   ASSERT_EQ(12, hypergraph.initialNumPins());
   ASSERT_EQ(12, hypergraph.initialTotalVertexDegree());
-  ASSERT_EQ(7,  hypergraph.initialNumNodes(0));
-  ASSERT_EQ(4,  hypergraph.initialNumEdges(0));
-  ASSERT_EQ(12, hypergraph.initialNumPins(0));
-  ASSERT_EQ(12, hypergraph.initialTotalVertexDegree(0));
   ASSERT_EQ(7,  hypergraph.totalWeight());
   ASSERT_EQ(4,  hypergraph.maxEdgeSize());
 }

@@ -38,19 +38,12 @@
 namespace mt_kahypar {
 namespace ds {
 
-// Forward
-template <typename Hypergraph,
-          typename HypergraphFactory,
-          bool track_border_vertices>
-class NumaPartitionedHypergraph;
-
 template <typename Hypergraph = Mandatory,
           typename HypergraphFactory = Mandatory,
           bool track_border_vertices = true>
 class PartitionedHypergraph {
 
   static_assert(!Hypergraph::is_partitioned,  "Only unpartitioned hypergraphs are allowed");
-  static_assert(!Hypergraph::is_numa_aware,  "Only non-numa-aware hypergraphs are allowed");
 
   // ! Iterator to iterate over the hypernodes
   using HypernodeIterator = typename Hypergraph::HypernodeIterator;
@@ -98,7 +91,6 @@ class PartitionedHypergraph {
 
  public:
   static constexpr bool is_static_hypergraph = Hypergraph::is_static_hypergraph;
-  static constexpr bool is_numa_aware = false;
   static constexpr bool is_partitioned = true;
   static constexpr size_t SIZE_OF_VERTEX_PART_INFO = sizeof(VertexPartInfo);
 
@@ -193,11 +185,6 @@ class PartitionedHypergraph {
 
   void setHypergraph(Hypergraph& hypergraph) {
     _hg = &hypergraph;
-  }
-
-  // ! Number of NUMA hypergraphs
-  size_t numNumaHypergraphs() const {
-    return _hg->numNumaHypergraphs();
   }
 
   // ! Initial number of hypernodes
@@ -935,19 +922,11 @@ class PartitionedHypergraph {
       }
     });
     extracted_hypergraph.initializeCommunities(task_group_id);
-    if ( _hg->hasCommunityNodeMapping() ) {
-      extracted_hypergraph.setCommunityNodeMapping(_hg->communityNodeMapping());
-    }
 
     return std::make_pair(std::move(extracted_hypergraph), std::move(hn_mapping));
   }
 
  private:
-  template <typename HyperGraph,
-            typename HyperGraphFactory,
-            bool track_border_hns>
-  friend class NumaPartitionedHypergraph;
-
   // ! Accessor for partition information of a vertex
   KAHYPAR_ATTRIBUTE_ALWAYS_INLINE const VertexPartInfo& vertexPartInfo(const HypernodeID u) const {
     ASSERT(u < _hg->initialNumNodes(), "Hypernode" << u << "does not exist");

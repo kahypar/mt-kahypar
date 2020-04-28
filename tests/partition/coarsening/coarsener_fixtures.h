@@ -48,7 +48,6 @@ class ACoarsener : public Test {
       hypergraph.setCommunityID(hn, hn / 4);
     }
     hypergraph.initializeCommunities(TBBNumaArena::GLOBAL_TASK_GROUP);
-    hypergraph.setCommunityNodeMapping({ 0, 0, 1, 1 });
 
     context.partition.k = 2;
     context.partition.objective = kahypar::Objective::km1;
