@@ -148,7 +148,8 @@ public:
 
   void recalculateGains(PartitionedHypergraph& phg, FMSharedData& sharedData) {
     const vec<Move>& move_order = sharedData.moveTracker.moveOrder;
-    MoveID firstMoveID = sharedData.moveTracker.firstMoveID;
+    const MoveID numMoves = sharedData.moveTracker.numPerformedMoves();
+    const MoveID firstMoveID = sharedData.moveTracker.firstMoveID;
 
 #ifndef NDEBUG
     for (MoveID localMoveID = 0; localMoveID < sharedData.moveTracker.numPerformedMoves(); ++localMoveID) {
@@ -160,8 +161,9 @@ public:
     utils::Timer& timer = utils::Timer::instance();
     timer.start_timer("move_id_flagging", "Move Flagging");
 
-    // TODO could be split into second loop (backward) for writing last_move_out. this should reduce the number of writes significantly
-    tbb::parallel_for(0U, sharedData.moveTracker.numPerformedMoves(), [&](MoveID localMoveID) {
+    
+
+    tbb::parallel_for(0U, numMoves, [&](MoveID localMoveID) {
       const Move& m = move_order[localMoveID];
       if (!sharedData.moveTracker.isMoveStillValid(m)) return;
 
@@ -179,6 +181,42 @@ public:
         remaining_original_pins[e * numParts + m.from].fetch_sub(1, std::memory_order_relaxed);
       }
     });
+
+/*
+    tbb::parallel_invoke(
+            [&]{
+              tbb::parallel_for(0U, numMoves, [&](MoveID localMoveID) {
+                const Move& m = move_order[localMoveID];
+                if (!sharedData.moveTracker.isMoveStillValid(m)) return;
+
+                const MoveID globalMoveID = localMoveID + firstMoveID;
+                for (HyperedgeID e : phg.incidentEdges(m.node)) {
+                  CAtomic<MoveID>& fmi = first_move_in[e * numParts + m.to];
+                  MoveID expected = fmi.load(std::memory_order_acq_rel);
+                  while ((sharedData.moveTracker.isIDStale(expected) || expected > globalMoveID)
+                         && !fmi.compare_exchange_weak(expected, globalMoveID, std::memory_order_acq_rel)) { }
+
+                  remaining_original_pins[e * numParts + m.from].fetch_sub(1, std::memory_order_relaxed);
+                }
+              });
+            },
+            [&] {
+              tbb::parallel_for(0U, numMoves, [&](MoveID reverseLocalMoveID) {
+                const MoveID localMoveID = numMoves - reverseLocalMoveID;
+                const Move& m = move_order[localMoveID];
+                if (!sharedData.moveTracker.isMoveStillValid(m)) return;
+
+                const MoveID globalMoveID = localMoveID + firstMoveID;
+                for (HyperedgeID e : phg.incidentEdges(m.node)) {
+                  CAtomic<MoveID>& lmo = last_move_out[e * numParts + m.from];
+                  MoveID expected = lmo.load(std::memory_order_acq_rel);
+                  while (expected < globalMoveID && !lmo.compare_exchange_weak(expected, globalMoveID, std::memory_order_acq_rel)) { }
+                }
+              });
+            }
+    );
+    */
+
 
     timer.stop_timer("move_id_flagging");
     timer.start_timer("gain_recalculation", "Recalculate Gains");
