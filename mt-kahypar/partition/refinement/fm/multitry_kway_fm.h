@@ -87,7 +87,6 @@ public:
         //task(0,0,0);
       } else {
         // Try boundary FM
-        LOG << "start FM" << V(sharedData.moveTracker.numPerformedMoves());
         vec<HypernodeID> test_refinement_nodes;
         for (HypernodeID u = 0; u < phg.initialNumNodes(); ++u)
           if (context.refinement.fm.all_nodes || phg.isBorderNode(u))
@@ -100,7 +99,7 @@ public:
       for (auto& fm : ets_fm) {
         fm.stats.merge(stats);
       }
-      LOG << "Overall stats" << stats.serialize() << V(sharedData.moveTracker.numPerformedMoves());
+      //LOG << stats.serialize();
 
       sharedData.refinementNodes.clear();  // calling clear is necessary since tryPop will reduce the size to -(num calling threads)
 
