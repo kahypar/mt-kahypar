@@ -28,16 +28,6 @@
 #include "mt-kahypar/partition/preprocessing/sparsification/hypergraph_sparsifier.h"
 #include "mt-kahypar/partition/preprocessing/sparsification/policies/similiar_net_combine.h"
 
-#define REGISTER_DISPATCHED_COMMUNITY_ASSIGNER(id, dispatcher, ...)               \
-  static kahypar::meta::Registrar<RedistributionFactory> register_ ## dispatcher( \
-    id,                                                                           \
-    [](Hypergraph& hypergraph, const Context& context) {                          \
-    return dispatcher::create(                                                    \
-      std::forward_as_tuple(hypergraph, context),                                 \
-      __VA_ARGS__                                                                 \
-      );                                                                          \
-  })
-
 #define REGISTER_HYPERGRAPH_SPARSIFIER(id, sparsifier)                                      \
   static kahypar::meta::Registrar<HypergraphSparsifierFactory> register_ ## sparsifier(     \
     id,                                                                                     \
@@ -47,11 +37,6 @@
   })
 
 namespace mt_kahypar {
-REGISTER_DISPATCHED_COMMUNITY_ASSIGNER(CommunityAssignmentStrategy::bin_packing,
-                                       BinPackingCommunityAssignmentDispatcher,
-                                       kahypar::meta::PolicyRegistry<CommunityAssignmentObjective>::getInstance().getPolicy(
-                                         context.preprocessing.community_redistribution.assignment_objective));
-
 using HypergraphUnionSparsifier = HypergraphSparsifier<UnionCombiner>;
 REGISTER_HYPERGRAPH_SPARSIFIER(SimiliarNetCombinerStrategy::union_nets, HypergraphUnionSparsifier);
 using HypergraphMaxSizeSparsifier = HypergraphSparsifier<MaxSizeCombiner>;

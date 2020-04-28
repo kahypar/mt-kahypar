@@ -28,23 +28,12 @@
 #include "mt-kahypar/partition/coarsening/policies/rating_heavy_node_penalty_policy.h"
 #include "mt-kahypar/partition/coarsening/policies/rating_score_policy.h"
 #include "mt-kahypar/partition/context_enum_classes.h"
-#include "mt-kahypar/partition/preprocessing/community_reassignment/policies/community_assignment_objective.h"
 
 #define REGISTER_POLICY(policy, id, policy_class)                                                    \
   static kahypar::meta::Registrar<kahypar::meta::PolicyRegistry<policy> > register_ ## policy_class( \
     id, new policy_class())
 
 namespace mt_kahypar {
-// //////////////////////////////////////////////////////////////////////////////
-//                        Community Assignment Strategy
-// //////////////////////////////////////////////////////////////////////////////
-REGISTER_POLICY(CommunityAssignmentObjective, CommunityAssignmentObjective::vertex_objective,
-                VertexObjectivePolicy);
-REGISTER_POLICY(CommunityAssignmentObjective, CommunityAssignmentObjective::vertex_degree_objective,
-                VertexDegreeObjectivePolicy);
-REGISTER_POLICY(CommunityAssignmentObjective, CommunityAssignmentObjective::pin_objective,
-                PinObjectivePolicy);
-
 // //////////////////////////////////////////////////////////////////////////////
 //                       Coarsening / Rating Policies
 // //////////////////////////////////////////////////////////////////////////////

@@ -110,13 +110,6 @@ class AInitialPartitionerTest : public Test {
       hypergraph.setCommunityID(hn, communities[hypergraph.originalNodeID(hn)]);
     }
     hypergraph.initializeCommunities(TBB::GLOBAL_TASK_GROUP);
-
-    std::unique_ptr<preprocessing::ICommunityAssignment> community_assignment =
-      RedistributionFactory::getInstance().createObject(
-        context.preprocessing.community_redistribution.assignment_strategy, hypergraph, context);
-    parallel::scalable_vector<PartitionID> community_node_mapping =
-      community_assignment->computeAssignment();
-    hypergraph.setCommunityNodeMapping(std::move(community_node_mapping));
   }
 
   static void SetUpTestSuite() {
