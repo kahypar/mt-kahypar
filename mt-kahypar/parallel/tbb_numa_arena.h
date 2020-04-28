@@ -38,11 +38,10 @@ namespace parallel {
  * to a unique NUMA node. Each task arena can then be used to execute tasks
  * on specific NUMA node.
  */
-template <typename HwTopology>
+template <typename HwTopology, bool is_numa_aware>
 class TBBNumaArena {
-  static constexpr bool debug = false;
 
- private:
+  static constexpr bool debug = false;
 
   struct MovableTaskGroup {
     MovableTaskGroup() :
@@ -54,7 +53,7 @@ class TBBNumaArena {
     tbb::task_group task_group;
   };
 
-  using Self = TBBNumaArena<HwTopology>;
+  using Self = TBBNumaArena<HwTopology, is_numa_aware>;
   using ThreadPinningObserver = mt_kahypar::parallel::ThreadPinningObserver<HwTopology>;
   using NumaTaskGroups = std::vector<MovableTaskGroup>;
 
@@ -79,12 +78,16 @@ class TBBNumaArena {
     return _num_threads;
   }
 
-  int number_of_threads_on_numa_node(const int node) const {
-    ASSERT(static_cast<size_t>(node) < _arenas.size());
-    return _arenas[node].max_concurrency();
+  int number_of_used_cpus_on_numa_node(const int node) const {
+    ASSERT(static_cast<size_t>(node) < _numa_node_to_cpu_id.size());
+    return _numa_node_to_cpu_id[node].size();
   }
 
   int num_used_numa_nodes() const {
+    return _numa_node_to_cpu_id.size();
+  }
+
+  int num_numa_arenas() const {
     return _arenas.size();
   }
 
@@ -96,19 +99,6 @@ class TBBNumaArena {
       }
     }
     return cpuset;
-  }
-
-  int choose_random_numa_node() const {
-    int rand = utils::Randomize::instance().getRandomInt(
-      0, total_number_of_threads() - 1, sched_getcpu());
-    int node = 0;
-    for ( ; node < num_used_numa_nodes(); ++node ) {
-      if ( rand < number_of_threads_on_numa_node(node) ) {
-        break;
-      }
-      rand -= number_of_threads_on_numa_node(node);
-    }
-    return node;
   }
 
   tbb::task_arena& numa_task_arena(const int node) {
@@ -130,7 +120,7 @@ class TBBNumaArena {
     _groups.emplace_back();
     task_group_2 = _groups.size();
     _groups.emplace_back();
-    for ( int node = 0; node < num_used_numa_nodes(); ++node ) {
+    for ( int node = 0; node < num_numa_arenas(); ++node ) {
       _groups[task_group_1].emplace_back();
       _groups[task_group_2].emplace_back();
     }
@@ -140,7 +130,7 @@ class TBBNumaArena {
 
   template <typename F>
   void execute_sequential_on_all_numa_nodes(const TaskGroupID task_group_id, F&& func) {
-    for (int node = 0; node < num_used_numa_nodes(); ++node) {
+    for (int node = 0; node < num_numa_arenas(); ++node) {
       numa_task_arena(node).execute([&] {
             numa_task_group(task_group_id, node).run([&, node] {
               func(node);
@@ -152,7 +142,7 @@ class TBBNumaArena {
 
   template <typename F>
   void execute_parallel_on_all_numa_nodes(const TaskGroupID task_group_id, F&& func) {
-    for (int node = 0; node < num_used_numa_nodes(); ++node) {
+    for (int node = 0; node < num_numa_arenas(); ++node) {
       numa_task_arena(node).execute([&, node] {
             numa_task_group(task_group_id, node).run([&, node] {
               func(node);
@@ -163,7 +153,7 @@ class TBBNumaArena {
   }
 
   void wait(const TaskGroupID task_group_id) {
-    for (int node = 0; node < num_used_numa_nodes(); ++node) {
+    for (int node = 0; node < num_numa_arenas(); ++node) {
       _arenas[node].execute([&, node] {
             numa_task_group(task_group_id, node).wait();
           });
@@ -204,6 +194,7 @@ class TBBNumaArena {
     _task_group_read_write_mutex(),
     _groups(1),
     _observer(),
+    _cpus(),
     _numa_node_to_cpu_id() {
     HwTopology& topology = HwTopology::instance();
     int num_numa_nodes = topology.num_numa_nodes();
@@ -212,13 +203,13 @@ class TBBNumaArena {
     // TODO(heuer): fix copy constructor of observer
     _observer.reserve(num_numa_nodes);
 
-    std::vector<int> cpus = topology.get_all_cpus();
+    _cpus = topology.get_all_cpus();
     // Sort cpus in the following order
     // 1.) Non-hyperthread first
     // 2.) Increasing order of numa node
     // 3.) Increasing order of cpu id
     // ...
-    std::sort(cpus.begin(), cpus.end(),
+    std::sort(_cpus.begin(), _cpus.end(),
               [&](const int& lhs, const int& rhs) {
           int node_lhs = topology.numa_node_of_cpu(lhs);
           int node_rhs = topology.numa_node_of_cpu(rhs);
@@ -229,13 +220,13 @@ class TBBNumaArena {
           (is_hyperthread_lhs == is_hyperthread_rhs && node_lhs == node_rhs && lhs < rhs);
         });
     // ... this ensure that we first pop nodes in hyperthreading
-    while (static_cast<int>(cpus.size()) > _num_threads) {
-      cpus.pop_back();
+    while (static_cast<int>(_cpus.size()) > _num_threads) {
+      _cpus.pop_back();
     }
-    _global_observer = std::make_unique<ThreadPinningObserver>(cpus);
+    _global_observer = std::make_unique<ThreadPinningObserver>(_cpus);
 
     _numa_node_to_cpu_id.resize(num_numa_nodes);
-    for ( const int cpu_id : cpus ) {
+    for ( const int cpu_id : _cpus ) {
       int node = topology.numa_node_of_cpu(cpu_id);
       ASSERT(node < static_cast<int>(_numa_node_to_cpu_id.size()));
       _numa_node_to_cpu_id[node].push_back(cpu_id);
@@ -244,26 +235,31 @@ class TBBNumaArena {
       _numa_node_to_cpu_id.pop_back();
     }
 
-    initialize_tbb_numa_arenas();
+    if ( is_numa_aware ) {
+      for ( size_t node = 0; node < _numa_node_to_cpu_id.size(); ++node ) {
+        initialize_tbb_numa_arena(node, _numa_node_to_cpu_id[node]);
+      }
+    } else {
+      initialize_tbb_numa_arena(0, _cpus);
+    }
   }
 
-  void initialize_tbb_numa_arenas() {
+  void initialize_tbb_numa_arena(const int node,
+                                 const std::vector<int>& cpus_on_numa_node) {
+    unused(node);
     _groups.reserve(1024);
-    for (size_t node = 0; node < _numa_node_to_cpu_id.size(); ++node) {
-      int num_cpus_on_numa_node = _numa_node_to_cpu_id[node].size();
-      ASSERT(num_cpus_on_numa_node <= HwTopology::instance().num_cpus_on_numa_node(node));
-      if (num_cpus_on_numa_node > 0) {
-        DBG << "Initialize TBB task arena on numa node" << node
-            << "with" << num_cpus_on_numa_node << "threads";
-        #ifndef KAHYPAR_TRAVIS_BUILD
-        _arenas.emplace_back(num_cpus_on_numa_node, 0);
-        #else
-        _arenas.emplace_back(num_cpus_on_numa_node, 1 /* reserve for master */);
-        #endif
-        _groups[GLOBAL_TASK_GROUP].emplace_back();
-        _arenas.back().initialize();
-        _observer.emplace_back(_arenas.back(), node, _numa_node_to_cpu_id[node]);
-      }
+    int num_cpus_on_numa_node = cpus_on_numa_node.size();
+    if (num_cpus_on_numa_node > 0) {
+      DBG << "Initialize TBB task arena on numa node" << node
+          << "with" << num_cpus_on_numa_node << "threads";
+      #ifndef KAHYPAR_TRAVIS_BUILD
+      _arenas.emplace_back(num_cpus_on_numa_node, 0);
+      #else
+      _arenas.emplace_back(num_cpus_on_numa_node, 1 /* reserve for master */);
+      #endif
+      _groups[GLOBAL_TASK_GROUP].emplace_back();
+      _arenas.back().initialize();
+      _observer.emplace_back(_arenas.back(), node, cpus_on_numa_node);
     }
   }
 
@@ -274,12 +270,13 @@ class TBBNumaArena {
   std::shared_timed_mutex _task_group_read_write_mutex;
   std::vector<NumaTaskGroups> _groups;
   std::vector<ThreadPinningObserver> _observer;
+  std::vector<int> _cpus;
   std::vector<std::vector<int>> _numa_node_to_cpu_id;
 };
 
-template <typename HwTopology>
-typename TBBNumaArena<HwTopology>::TaskGroupID TBBNumaArena<HwTopology>::GLOBAL_TASK_GROUP = 0;
-template <typename HwTopology>
-typename TBBNumaArena<HwTopology>::TaskGroupID TBBNumaArena<HwTopology>::INVALID_TASK_GROUP = std::numeric_limits<TaskGroupID>::max();
+template <typename HwTopology, bool is_numa_aware>
+typename TBBNumaArena<HwTopology, is_numa_aware>::TaskGroupID TBBNumaArena<HwTopology, is_numa_aware>::GLOBAL_TASK_GROUP = 0;
+template <typename HwTopology, bool is_numa_aware>
+typename TBBNumaArena<HwTopology, is_numa_aware>::TaskGroupID TBBNumaArena<HwTopology, is_numa_aware>::INVALID_TASK_GROUP = std::numeric_limits<TaskGroupID>::max();
 }  // namespace parallel
 }  // namespace mt_kahypar

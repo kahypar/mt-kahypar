@@ -34,17 +34,21 @@
 #include "mt-kahypar/datastructures/partitioned_hypergraph.h"
 #include "tests/parallel/topology_mock.h"
 
+#define USE_HARDWARE_MOCK false
 #define TRACK_BORDER_VERTICES true
 
 namespace mt_kahypar {
 
-static constexpr int NUM_NUMA_NODES = 1;
-
+#if USE_HARDWARE_MOCK
+static constexpr int NUM_NUMA_NODES = 2;
 using TopoMock = mt_kahypar::parallel::TopologyMock<NUM_NUMA_NODES>;
 using topology_t = mt_kahypar::parallel::topology_t;
 using node_t = mt_kahypar::parallel::node_t;
 using HardwareTopology = mt_kahypar::parallel::HardwareTopology<TopoMock, topology_t, node_t>;
-using TBBNumaArena = mt_kahypar::parallel::TBBNumaArena<HardwareTopology>;
+#else
+using HardwareTopology = mt_kahypar::parallel::HardwareTopology<>;
+#endif
+using TBBNumaArena = mt_kahypar::parallel::TBBNumaArena<HardwareTopology, false>;
 
 using ThreadLocalFastResetFlagArray = tbb::enumerable_thread_specific<kahypar::ds::FastResetFlagArray<> >;
 using KWayPriorityQueue = kahypar::ds::KWayPriorityQueue<HypernodeID, Gain, std::numeric_limits<Gain>, true>;

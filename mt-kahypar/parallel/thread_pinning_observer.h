@@ -57,17 +57,6 @@ class ThreadPinningObserver : public tbb::task_scheduler_observer {
     _cpu_before() {
     ASSERT(cpus.size() > 0 && cpus.size() == static_cast<size_t>(arena.max_concurrency()),
       V(cpus.size()) << V(arena.max_concurrency()));
-    ASSERT([&] {
-      for ( const int cpu_id : cpus ) {
-        int node = HwTopology::instance().numa_node_of_cpu(cpu_id);
-        if ( node != _numa_node ) {
-          LOG << "CPU" << cpu_id << "is on numa node" << node
-              << ", but should be on node" << _numa_node;
-          return false;
-        }
-      }
-      return true;
-    }());
 
     // In case we have a task arena of size one, it can sometimes happen that master threads
     // joins the arena regardless if there are an other worker thread already inside.
