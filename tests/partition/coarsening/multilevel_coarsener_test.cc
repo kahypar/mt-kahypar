@@ -26,8 +26,7 @@ using ::testing::Test;
 
 namespace mt_kahypar {
 using PartitionedHyperGraph = mt_kahypar::PartitionedHypergraph<>;
-using Coarsener = MultilevelCoarsenerT<GlobalTypeTraits, HeavyEdgeScore,
-                                       NoWeightPenalty, BestRatingWithoutTieBreaking>;
+using Coarsener = MultilevelCoarsener<HeavyEdgeScore, NoWeightPenalty, BestRatingWithoutTieBreaking>;
 
 TEST_F(ACoarsener, DecreasesNumberOfPins) {
   context.coarsening.contraction_limit = 4;

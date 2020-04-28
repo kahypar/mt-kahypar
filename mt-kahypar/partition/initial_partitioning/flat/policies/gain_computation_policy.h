@@ -28,11 +28,12 @@ namespace mt_kahypar {
 
 class CutGainPolicy {
 
+ using HyperGraph = PartitionedHypergraph<false>;
+
  static constexpr bool enable_heavy_assert = false;
  static PartitionID kInvalidPartition;
 
  public:
-  template<typename HyperGraph>
   static inline Gain calculateGain(const HyperGraph& hypergraph,
                                    const HypernodeID hn,
                                    const PartitionID to) {
@@ -43,7 +44,6 @@ class CutGainPolicy {
     }
   }
 
-  template<typename HyperGraph>
   static inline Gain calculateGainForInvalidBlock(const HyperGraph& hypergraph,
                                                   const HypernodeID hn,
                                                   const PartitionID to) {
@@ -59,7 +59,6 @@ class CutGainPolicy {
     return gain;
   }
 
-  template<typename HyperGraph>
   static inline Gain calculateGainForValidBlock(const HyperGraph& hypergraph,
                                                 const HypernodeID hn,
                                                 const PartitionID to) {
@@ -93,7 +92,6 @@ class CutGainPolicy {
     return gain;
   }
 
-  template<typename HyperGraph>
   static inline void deltaGainUpdate(const HyperGraph& hypergraph,
                                      KWayPriorityQueue& pq,
                                      const HypernodeID hn,
@@ -131,7 +129,6 @@ class CutGainPolicy {
       } (), "Delta Gain Update failed!");
   }
 
-  template<typename HyperGraph>
   static inline void deltaGainUpdateForInvalidBlock(const HyperGraph& hypergraph,
                                                     KWayPriorityQueue& pq,
                                                     const HypernodeID hn,
@@ -171,7 +168,6 @@ class CutGainPolicy {
     }
   }
 
-  template<typename HyperGraph>
   static inline void deltaGainUpdateForValidBlock(const HyperGraph& hypergraph,
                                                   KWayPriorityQueue& pq,
                                                   const HypernodeID hn,
@@ -225,11 +221,12 @@ PartitionID CutGainPolicy::kInvalidPartition = -1;
 
 class MaxNetGainPolicy {
 
+ using HyperGraph = PartitionedHypergraph<false>;
+
  static constexpr bool enable_heavy_assert = false;
  static PartitionID kInvalidPartition;
 
  public:
-  template<typename HyperGraph>
   static inline Gain calculateGain(const HyperGraph& hypergraph,
                                    const HypernodeID hn,
                                    const PartitionID to) {
@@ -244,7 +241,6 @@ class MaxNetGainPolicy {
     return gain;
   }
 
-  template<typename HyperGraph>
   static inline void deltaGainUpdate(const HyperGraph& hypergraph,
                                      KWayPriorityQueue& pq,
                                      const HypernodeID hn,

@@ -27,10 +27,9 @@
 #include "mt-kahypar/partition/initial_partitioning/flat/policies/gain_computation_policy.h"
 
 namespace mt_kahypar {
-template<typename TypeTraits>
-class LabelPropagationInitialPartitionerT : public tbb::task {
-  using HyperGraph = typename TypeTraits::template PartitionedHyperGraph<false>;
-  using InitialPartitioningDataContainer = InitialPartitioningDataContainerT<TypeTraits>;
+
+class LabelPropagationInitialPartitioner : public tbb::task {
+  using HyperGraph = PartitionedHypergraph<false>;
 
   using DeltaFunction = std::function<void (const HyperedgeID, const HyperedgeWeight, const HypernodeID, const HypernodeID, const HypernodeID)>;
   #define NOOP_FUNC [] (const HyperedgeID, const HyperedgeWeight, const HypernodeID, const HypernodeID, const HypernodeID) { }
@@ -46,7 +45,7 @@ class LabelPropagationInitialPartitionerT : public tbb::task {
   };
 
  public:
-  LabelPropagationInitialPartitionerT(const InitialPartitioningAlgorithm,
+  LabelPropagationInitialPartitioner(const InitialPartitioningAlgorithm,
                                       InitialPartitioningDataContainer& ip_data,
                                       const Context& context) :
     _ip_data(ip_data),
@@ -60,7 +59,7 @@ class LabelPropagationInitialPartitionerT : public tbb::task {
     _ip_data.reset_unassigned_hypernodes();
 
     parallel::scalable_vector<HypernodeID> start_nodes =
-      PseudoPeripheralStartNodes<TypeTraits>::computeStartNodes(_ip_data, _context);
+      PseudoPeripheralStartNodes::computeStartNodes(_ip_data, _context);
     for ( PartitionID block = 0; block < _context.partition.k; ++block ) {
       if ( hg.partID(start_nodes[block]) == kInvalidPartition ) {
         hg.setNodePart(start_nodes[block], block);
@@ -323,11 +322,7 @@ class LabelPropagationInitialPartitionerT : public tbb::task {
   parallel::scalable_vector<Gain> _tmp_scores;
 };
 
-template <typename TypeTraits>
-PartitionID LabelPropagationInitialPartitionerT<TypeTraits>::kInvalidPartition = -1;
-template <typename TypeTraits>
-HypernodeID LabelPropagationInitialPartitionerT<TypeTraits>::kInvalidHypernode = std::numeric_limits<HypernodeID>::max();
-
-using LabelPropagationInitialPartitioner = LabelPropagationInitialPartitionerT<GlobalTypeTraits>;
+PartitionID LabelPropagationInitialPartitioner::kInvalidPartition = -1;
+HypernodeID LabelPropagationInitialPartitioner::kInvalidHypernode = std::numeric_limits<HypernodeID>::max();
 
 } // namespace mt_kahypar

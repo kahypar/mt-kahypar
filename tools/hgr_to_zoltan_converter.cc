@@ -76,7 +76,7 @@ int main(int argc, char* argv[]) {
   po::notify(cmd_vm);
 
   Hypergraph hypergraph =
-    mt_kahypar::io::readHypergraphFile<Hypergraph, Factory>(hgr_filename, 0);
+    mt_kahypar::io::readHypergraphFile(hgr_filename, 0);
 
   writeZoltanHypergraph(hypergraph, out_filename);
   return 0;

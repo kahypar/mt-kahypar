@@ -40,8 +40,7 @@ namespace ds {
  * same vertex or hyperedge.
  */
 template<typename Hypergraph,
-         typename HypergraphFactory,
-         typename TBB>
+         typename HypergraphFactory>
 class SparsifierHypergraph {
 
   using HyperedgeVector = parallel::scalable_vector<parallel::scalable_vector<HypernodeID>>;

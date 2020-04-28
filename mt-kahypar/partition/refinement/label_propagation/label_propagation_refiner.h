@@ -43,14 +43,11 @@
 #include "mt-kahypar/utils/stats.h"
 
 namespace mt_kahypar {
-template <typename TypeTraits,
-          template <typename> class GainPolicy,
+template <template <typename> class GainPolicy,
           bool track_border_vertices = TRACK_BORDER_VERTICES>
-class LabelPropagationRefinerT final : public IRefinerT<TypeTraits, track_border_vertices> {
+class LabelPropagationRefiner final : public IRefiner<track_border_vertices> {
  private:
-  using HyperGraph = typename TypeTraits::template PartitionedHyperGraph<track_border_vertices>;
-  using TBB = typename TypeTraits::TBB;
-  using HwTopology = typename TypeTraits::HwTopology;
+  using HyperGraph = PartitionedHypergraph<track_border_vertices>;
   using GainCalculator = GainPolicy<HyperGraph>;
   using ActiveNodes = parallel::scalable_vector<HypernodeID>;
   using NextActiveNodes = ds::StreamingVector<HypernodeID>;
@@ -59,7 +56,7 @@ class LabelPropagationRefinerT final : public IRefinerT<TypeTraits, track_border
   static constexpr bool enable_heavy_assert = false;
 
  public:
-  explicit LabelPropagationRefinerT(HyperGraph&,
+  explicit LabelPropagationRefiner(HyperGraph&,
                                     const Context& context,
                                     const TaskGroupID task_group_id) :
     _context(context),
@@ -71,11 +68,11 @@ class LabelPropagationRefinerT final : public IRefinerT<TypeTraits, track_border
     _next_active(),
     _visited_he() { }
 
-  LabelPropagationRefinerT(const LabelPropagationRefinerT&) = delete;
-  LabelPropagationRefinerT(LabelPropagationRefinerT&&) = delete;
+  LabelPropagationRefiner(const LabelPropagationRefiner&) = delete;
+  LabelPropagationRefiner(LabelPropagationRefiner&&) = delete;
 
-  LabelPropagationRefinerT & operator= (const LabelPropagationRefinerT &) = delete;
-  LabelPropagationRefinerT & operator= (LabelPropagationRefinerT &&) = delete;
+  LabelPropagationRefiner & operator= (const LabelPropagationRefiner &) = delete;
+  LabelPropagationRefiner & operator= (LabelPropagationRefiner &&) = delete;
 
  private:
   bool refineImpl(HyperGraph& hypergraph,
@@ -296,6 +293,6 @@ class LabelPropagationRefinerT final : public IRefinerT<TypeTraits, track_border
   kahypar::ds::FastResetFlagArray<> _visited_he;
 };
 
-using LabelPropagationKm1Refiner = LabelPropagationRefinerT<GlobalTypeTraits, Km1Policy>;
-using LabelPropagationCutRefiner = LabelPropagationRefinerT<GlobalTypeTraits, CutPolicy>;
+using LabelPropagationKm1Refiner = LabelPropagationRefiner<Km1Policy>;
+using LabelPropagationCutRefiner = LabelPropagationRefiner<CutPolicy>;
 }  // namespace kahypar

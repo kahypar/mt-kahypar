@@ -37,7 +37,7 @@ struct TestConfig { };
 
 template <PartitionID k>
 struct TestConfig<k, kahypar::Objective::km1> {
-  using Refiner = LabelPropagationRefinerT<GlobalTypeTraits, Km1Policy>;
+  using Refiner = LabelPropagationKm1Refiner;
   static constexpr PartitionID K = k;
   static constexpr kahypar::Objective OBJECTIVE = kahypar::Objective::km1;
   static constexpr LabelPropagationAlgorithm LP_ALGO = LabelPropagationAlgorithm::label_propagation_km1;
@@ -45,7 +45,7 @@ struct TestConfig<k, kahypar::Objective::km1> {
 
 template <PartitionID k>
 struct TestConfig<k, kahypar::Objective::cut> {
-  using Refiner = LabelPropagationRefinerT<GlobalTypeTraits, CutPolicy>;
+  using Refiner = LabelPropagationCutRefiner;
   static constexpr PartitionID K = k;
   static constexpr kahypar::Objective OBJECTIVE = kahypar::Objective::cut;
   static constexpr LabelPropagationAlgorithm LP_ALGO = LabelPropagationAlgorithm::label_propagation_cut;
@@ -84,7 +84,7 @@ class ALabelPropagationRefiner : public Test {
     context.initial_partitioning.refinement.label_propagation.algorithm = Config::LP_ALGO;
 
     // Read hypergraph
-    hypergraph = io::readHypergraphFile<Hypergraph, HypergraphFactory>(
+    hypergraph = io::readHypergraphFile(
       "../test_instances/unweighted_ibm01.hgr", TBBNumaArena::GLOBAL_TASK_GROUP);
     partitioned_hypergraph = PartitionedHypergraph<>(
       context.partition.k, TBBNumaArena::GLOBAL_TASK_GROUP, hypergraph);
@@ -102,9 +102,9 @@ class ALabelPropagationRefiner : public Test {
   void initialPartition() {
     Context ip_context(context);
     ip_context.refinement.label_propagation.algorithm = LabelPropagationAlgorithm::do_nothing;
-    InitialPartitioningDataContainerT<GlobalTypeTraits> ip_data(partitioned_hypergraph, ip_context, TBBNumaArena::GLOBAL_TASK_GROUP);
-    BFSInitialPartitionerT<GlobalTypeTraits>& initial_partitioner = *new(tbb::task::allocate_root())
-      BFSInitialPartitionerT<GlobalTypeTraits>(InitialPartitioningAlgorithm::bfs, ip_data, ip_context);
+    InitialPartitioningDataContainer ip_data(partitioned_hypergraph, ip_context, TBBNumaArena::GLOBAL_TASK_GROUP);
+    BFSInitialPartitioner& initial_partitioner = *new(tbb::task::allocate_root())
+      BFSInitialPartitioner(InitialPartitioningAlgorithm::bfs, ip_data, ip_context);
     tbb::task::spawn_root_and_wait(initial_partitioner);
     ip_data.apply();
     metrics.km1 = metrics::km1(partitioned_hypergraph);

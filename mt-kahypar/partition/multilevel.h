@@ -97,7 +97,7 @@ class RefinementTask : public tbb::task {
     }
 
     utils::Timer::instance().start_timer("refinement", "Refinement");
-    std::unique_ptr<IRefiner> label_propagation =
+    std::unique_ptr<IRefiner<>> label_propagation =
       LabelPropagationFactory::getInstance().createObject(
         _context.refinement.label_propagation.algorithm,
         coarsest_partitioned_hypergraph, _context, _task_group_id);
@@ -134,7 +134,6 @@ class RefinementTask : public tbb::task {
 };
 
 class CoarseningTask : public tbb::task {
-  using PoolInitialPartitionerContinuation = PoolInitialPartitionerContinuationT<GlobalTypeTraits>;
 
  public:
   CoarseningTask(Hypergraph& hypergraph,

@@ -57,14 +57,5 @@ using PartitionedHypergraph = ds::PartitionedHypergraph<
   Hypergraph, HypergraphFactory, track_border_vertices>;
 using Graph = ds::GraphT<Hypergraph>;
 
-struct GlobalTypeTraits {
-  using HyperGraph = Hypergraph;
-  using HyperGraphFactory = HypergraphFactory;
-  template<bool track_border_vertices = TRACK_BORDER_VERTICES>
-  using PartitionedHyperGraph = PartitionedHypergraph<track_border_vertices>;
-  using TBB = TBBNumaArena;
-  using HwTopology = HardwareTopology;
-};
-
 using HighResClockTimepoint = std::chrono::time_point<std::chrono::high_resolution_clock>;
 }  // namespace mt_kahypar

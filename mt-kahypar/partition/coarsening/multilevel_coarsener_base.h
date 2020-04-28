@@ -33,45 +33,40 @@
 #include "mt-kahypar/utils/stats.h"
 
 namespace mt_kahypar {
-template <typename TypeTraits>
+
 class MultilevelCoarsenerBase {
  private:
-  using HyperGraph = typename TypeTraits::HyperGraph;
-  using PartitionedHyperGraph = typename TypeTraits::template PartitionedHyperGraph<>;
-  using TBB = typename TypeTraits::TBB;
-
-  using Refiner = IRefinerT<TypeTraits>;
 
   static constexpr bool debug = false;
 
   class Hierarchy {
 
    public:
-    explicit Hierarchy(HyperGraph&& contracted_hypergraph,
+    explicit Hierarchy(Hypergraph&& contracted_hypergraph,
                        parallel::scalable_vector<HypernodeID>&& communities) :
       _representative_hypergraph(nullptr),
       _contracted_hypergraph(std::move(contracted_hypergraph)),
       _contracted_partitioned_hypergraph(),
       _communities(std::move(communities)) { }
 
-    void setRepresentativeHypergraph(PartitionedHyperGraph* representative_hypergraph) {
+    void setRepresentativeHypergraph(PartitionedHypergraph<>* representative_hypergraph) {
       _representative_hypergraph = representative_hypergraph;
     }
 
-    PartitionedHyperGraph& representativeHypergraph() {
+    PartitionedHypergraph<>& representativeHypergraph() {
       ASSERT(_representative_hypergraph);
       return *_representative_hypergraph;
     }
 
-    HyperGraph& contractedHypergraph() {
+    Hypergraph& contractedHypergraph() {
       return _contracted_hypergraph;
     }
 
-    PartitionedHyperGraph& contractedPartitionedHypergraph() {
+    PartitionedHypergraph<>& contractedPartitionedHypergraph() {
       return _contracted_partitioned_hypergraph;
     }
 
-    const HyperGraph& contractedHypergraph() const {
+    const Hypergraph& contractedHypergraph() const {
       return _contracted_hypergraph;
     }
 
@@ -94,18 +89,18 @@ class MultilevelCoarsenerBase {
 
    private:
     // ! Hypergraph on the next finer level
-    PartitionedHyperGraph* _representative_hypergraph;
+    PartitionedHypergraph<>* _representative_hypergraph;
     // ! Contracted Hypergraph
-    HyperGraph _contracted_hypergraph;
+    Hypergraph _contracted_hypergraph;
     // ! Partitioned Hypergraph
-    PartitionedHyperGraph _contracted_partitioned_hypergraph;
+    PartitionedHypergraph<> _contracted_partitioned_hypergraph;
     // ! Defines the communities that are contracted
     // ! in the coarse hypergraph
     parallel::scalable_vector<HypernodeID> _communities;
   };
 
  public:
-  MultilevelCoarsenerBase(HyperGraph& hypergraph,
+  MultilevelCoarsenerBase(Hypergraph& hypergraph,
                           const Context& context,
                           const TaskGroupID task_group_id,
                           const bool top_level) :
@@ -147,7 +142,7 @@ class MultilevelCoarsenerBase {
     }
   }
 
-  HyperGraph& currentHypergraph() {
+  Hypergraph& currentHypergraph() {
     if ( _hierarchies.empty() ) {
       return _hg;
     } else {
@@ -155,7 +150,7 @@ class MultilevelCoarsenerBase {
     }
   }
 
-  PartitionedHyperGraph& currentPartitionedHypergraph() {
+  PartitionedHypergraph<>& currentPartitionedHypergraph() {
     ASSERT(_is_finalized);
     if ( _hierarchies.empty() ) {
       return _partitioned_hg;
@@ -174,7 +169,7 @@ class MultilevelCoarsenerBase {
     }
 
     // Construct top level partitioned hypergraph (memory is taken from memory pool)
-    _partitioned_hg = PartitionedHyperGraph(
+    _partitioned_hg = PartitionedHypergraph<>(
       _context.partition.k, _task_group_id, _hg);
 
     // Construct partitioned hypergraphs parallel
@@ -182,7 +177,7 @@ class MultilevelCoarsenerBase {
     // Construct partitioned hypergraph for each coarsened hypergraph in the hierarchy
     for ( size_t i = 0; i < _hierarchies.size(); ++i ) {
       group.run([&, i] {
-        _hierarchies[i].contractedPartitionedHypergraph() = PartitionedHyperGraph(
+        _hierarchies[i].contractedPartitionedHypergraph() = PartitionedHypergraph<>(
            _context.partition.k, _task_group_id, _hierarchies[i].contractedHypergraph());
       });
     }
@@ -202,14 +197,14 @@ class MultilevelCoarsenerBase {
 
   void performMultilevelContraction(parallel::scalable_vector<HypernodeID>&& communities) {
     ASSERT(!_is_finalized);
-    HyperGraph& current_hg = currentHypergraph();
+    Hypergraph& current_hg = currentHypergraph();
     ASSERT(current_hg.initialNumNodes() == communities.size());
-    HyperGraph contracted_hg = current_hg.contract(communities, _task_group_id);
+    Hypergraph contracted_hg = current_hg.contract(communities, _task_group_id);
     _hierarchies.emplace_back(std::move(contracted_hg), std::move(communities));
   }
 
-  PartitionedHyperGraph&& doUncoarsen(std::unique_ptr<Refiner>& label_propagation) {
-    PartitionedHyperGraph& current_hg = currentPartitionedHypergraph();
+  PartitionedHypergraph<>&& doUncoarsen(std::unique_ptr<IRefiner<>>& label_propagation) {
+    PartitionedHypergraph<>& current_hg = currentPartitionedHypergraph();
     int64_t num_nodes = current_hg.initialNumNodes();
     int64_t num_edges = current_hg.initialNumEdges();
     HyperedgeWeight cut = 0;
@@ -240,8 +235,8 @@ class MultilevelCoarsenerBase {
     for ( int i = _hierarchies.size() - 1; i >= 0; --i ) {
       // Project partition to next level finer hypergraph
       utils::Timer::instance().start_timer("projecting_partition", "Projecting Partition");
-      PartitionedHyperGraph& representative_hg = _hierarchies[i].representativeHypergraph();
-      PartitionedHyperGraph& contracted_hg = _hierarchies[i].contractedPartitionedHypergraph();
+      PartitionedHypergraph<>& representative_hg = _hierarchies[i].representativeHypergraph();
+      PartitionedHypergraph<>& contracted_hg = _hierarchies[i].contractedPartitionedHypergraph();
       representative_hg.doParallelForAllNodes(_task_group_id, [&](const HypernodeID hn) {
         const HypernodeID coarse_hn = _hierarchies[i].mapToContractedHypergraph(hn);
         const PartitionID block = contracted_hg.partID(coarse_hn);
@@ -282,10 +277,10 @@ class MultilevelCoarsenerBase {
 
       utils::Timer::instance().start_timer("rebalance", "Rebalance");
       if ( _context.partition.objective == kahypar::Objective::km1 ) {
-        Km1Rebalancer<TypeTraits> rebalancer(_partitioned_hg, _context, _task_group_id);
+        Km1Rebalancer rebalancer(_partitioned_hg, _context, _task_group_id);
         rebalancer.rebalance(current_metrics);
       } else if ( _context.partition.objective == kahypar::Objective::cut ) {
-        CutRebalancer<TypeTraits> rebalancer(_partitioned_hg, _context, _task_group_id);
+        CutRebalancer rebalancer(_partitioned_hg, _context, _task_group_id);
         rebalancer.rebalance(current_metrics);
       }
       utils::Timer::instance().stop_timer("rebalance");
@@ -312,11 +307,11 @@ class MultilevelCoarsenerBase {
   }
 
  protected:
-  void refine(PartitionedHyperGraph& partitioned_hypergraph,
-              std::unique_ptr<Refiner>& label_propagation,
+  void refine(PartitionedHypergraph<>& partitioned_hypergraph,
+              std::unique_ptr<IRefiner<>>& label_propagation,
               kahypar::Metrics& current_metrics) {
     if ( label_propagation ) {
-      utils::Timer::instance().start_timer("initialize_lp_refiner", "Initialize LP Refiner");
+      utils::Timer::instance().start_timer("initialize_lp_refiner", "Initialize LP IRefiner<>");
       label_propagation->initialize(partitioned_hypergraph);
       utils::Timer::instance().stop_timer("initialize_lp_refiner");
 
@@ -327,8 +322,8 @@ class MultilevelCoarsenerBase {
   }
 
   bool _is_finalized;
-  HyperGraph& _hg;
-  PartitionedHyperGraph _partitioned_hg;
+  Hypergraph& _hg;
+  PartitionedHypergraph<> _partitioned_hg;
   const Context& _context;
   const TaskGroupID _task_group_id;
   const bool _top_level;

@@ -35,14 +35,11 @@ namespace mt_kahypar {
 using PartitionedHyperGraph = PartitionedHypergraph<true>;
 using PartitionedHyperGraphWithoutBorderVertices = PartitionedHypergraph<false>;
 
-class AInitialPartitioningDataContainer :
-  public ds::HypergraphFixture{
+class AInitialPartitioningDataContainer : public ds::HypergraphFixture{
  private:
   using Base = ds::HypergraphFixture;
 
  public:
-  using InitialPartitioningDataContainer = InitialPartitioningDataContainerT<GlobalTypeTraits>;
-
   AInitialPartitioningDataContainer() :
     Base(),
     context() {

@@ -29,10 +29,8 @@
 
 namespace mt_kahypar {
 
-template<typename TypeTraits>
 class PseudoPeripheralStartNodes {
-  using HyperGraph = typename TypeTraits::template PartitionedHyperGraph<false>;
-  using InitialPartitioningDataContainer = InitialPartitioningDataContainerT<TypeTraits>;
+  using HyperGraph = PartitionedHypergraph<false>;
   using StartNodes = parallel::scalable_vector<HypernodeID>;
   using Queue = parallel::scalable_queue<HypernodeID>;
 
@@ -121,9 +119,7 @@ class PseudoPeripheralStartNodes {
   }
 };
 
-template <typename TypeTraits>
-PartitionID PseudoPeripheralStartNodes<TypeTraits>::kInvalidPartition = -1;
-template <typename TypeTraits>
-HypernodeID PseudoPeripheralStartNodes<TypeTraits>::kInvalidHypernode = std::numeric_limits<HypernodeID>::max();
+PartitionID PseudoPeripheralStartNodes::kInvalidPartition = -1;
+HypernodeID PseudoPeripheralStartNodes::kInvalidHypernode = std::numeric_limits<HypernodeID>::max();
 
 } // namespace mt_kahypar

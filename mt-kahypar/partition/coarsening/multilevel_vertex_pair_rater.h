@@ -36,12 +36,10 @@
 #include "mt-kahypar/partition/context.h"
 
 namespace mt_kahypar {
-template <typename TypeTraits = Mandatory,
-          typename ScorePolicy = Mandatory,
+template <typename ScorePolicy = Mandatory,
           typename HeavyNodePenaltyPolicy = Mandatory,
           typename AcceptancePolicy = Mandatory>
 class MultilevelVertexPairRater {
-  using HyperGraph = typename TypeTraits::HyperGraph;
   using LargeTmpRatingMap = ds::SparseMap<HypernodeID, RatingType>;
   using CacheEfficientRatingMap = ds::FixedSizeSparseMap<HypernodeID, RatingType>;
   using ThreadLocalCacheEfficientRatingMap = tbb::enumerable_thread_specific<CacheEfficientRatingMap>;
@@ -85,7 +83,7 @@ class MultilevelVertexPairRater {
  public:
   using Rating = VertexPairRating;
 
-  MultilevelVertexPairRater(HyperGraph& hypergraph,
+  MultilevelVertexPairRater(Hypergraph& hypergraph,
                            const Context& context) :
     _context(context),
     _current_num_nodes(hypergraph.initialNumNodes()),
@@ -107,7 +105,7 @@ class MultilevelVertexPairRater {
   MultilevelVertexPairRater(MultilevelVertexPairRater&&) = delete;
   MultilevelVertexPairRater & operator= (MultilevelVertexPairRater &&) = delete;
 
-  VertexPairRating rate(const HyperGraph& hypergraph,
+  VertexPairRating rate(const Hypergraph& hypergraph,
                         const HypernodeID u,
                         const parallel::scalable_vector<HypernodeID>& cluster_ids,
                         const parallel::scalable_vector<AtomicWeight>& cluster_weight,
@@ -146,7 +144,7 @@ class MultilevelVertexPairRater {
 
  private:
   template<typename RatingMap>
-  VertexPairRating rate(const HyperGraph& hypergraph,
+  VertexPairRating rate(const Hypergraph& hypergraph,
                         const HypernodeID u,
                         RatingMap& tmp_ratings,
                         const parallel::scalable_vector<HypernodeID>& cluster_ids,
@@ -200,7 +198,7 @@ class MultilevelVertexPairRater {
   }
 
   template<typename RatingMap>
-  void fillRatingMap(const HyperGraph& hypergraph,
+  void fillRatingMap(const Hypergraph& hypergraph,
                      const HypernodeID u,
                      RatingMap& tmp_ratings,
                      const parallel::scalable_vector<HypernodeID>& cluster_ids) {
@@ -224,7 +222,7 @@ class MultilevelVertexPairRater {
   }
 
   template<typename RatingMap>
-  void fillRatingMapWithSampling(const HyperGraph& hypergraph,
+  void fillRatingMapWithSampling(const Hypergraph& hypergraph,
                                  const HypernodeID u,
                                  RatingMap& tmp_ratings,
                                  const parallel::scalable_vector<HypernodeID>& cluster_ids) {
@@ -255,7 +253,7 @@ class MultilevelVertexPairRater {
     }
   }
 
-  inline RatingMapType getRatingMapTypeForRatingOfHypernode(const HyperGraph& hypergraph,
+  inline RatingMapType getRatingMapTypeForRatingOfHypernode(const Hypergraph& hypergraph,
                                                             const HypernodeID u) {
     const bool use_vertex_degree_sampling =
       _vertex_degree_sampling_threshold != std::numeric_limits<size_t>::max();

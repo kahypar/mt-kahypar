@@ -42,25 +42,18 @@
 #include "mt-kahypar/utils/stats.h"
 
 namespace mt_kahypar {
-template <typename TypeTraits,
-          class ScorePolicy = HeavyEdgeScore,
+template <class ScorePolicy = HeavyEdgeScore,
           class HeavyNodePenaltyPolicy = MultiplicativePenalty,
           class AcceptancePolicy = BestRatingPreferringUnmatched>
-class MultilevelCoarsenerT : public ICoarsenerT<TypeTraits>,
-                             private MultilevelCoarsenerBase<TypeTraits> {
+class MultilevelCoarsener : public ICoarsener,
+                            private MultilevelCoarsenerBase {
  private:
-  using HyperGraph = typename TypeTraits::HyperGraph;
-  using PartitionedHyperGraph = typename TypeTraits::template PartitionedHyperGraph<>;
-  using TBB = typename TypeTraits::TBB;
-  using HwTopology = typename TypeTraits::HwTopology;
 
-  using Base = MultilevelCoarsenerBase<TypeTraits>;
-  using Rater = MultilevelVertexPairRater<TypeTraits,
-                                          ScorePolicy,
+  using Base = MultilevelCoarsenerBase;
+  using Rater = MultilevelVertexPairRater<ScorePolicy,
                                           HeavyNodePenaltyPolicy,
                                           AcceptancePolicy>;
   using Rating = typename Rater::Rating;
-  using Refiner = IRefinerT<TypeTraits>;
 
   enum class MatchingState : uint8_t {
     UNMATCHED = 0,
@@ -77,10 +70,10 @@ class MultilevelCoarsenerT : public ICoarsenerT<TypeTraits>,
   static constexpr HypernodeID kInvalidHypernode = std::numeric_limits<HypernodeID>::max();
 
  public:
-  MultilevelCoarsenerT(HyperGraph& hypergraph,
-                       const Context& context,
-                       const TaskGroupID task_group_id,
-                       const bool top_level) :
+  MultilevelCoarsener(Hypergraph& hypergraph,
+                      const Context& context,
+                      const TaskGroupID task_group_id,
+                      const bool top_level) :
     Base(hypergraph, context, task_group_id, top_level),
     _rater(hypergraph, context),
     _current_vertices(),
@@ -130,12 +123,12 @@ class MultilevelCoarsenerT : public ICoarsenerT<TypeTraits>,
     }
   }
 
-  MultilevelCoarsenerT(const MultilevelCoarsenerT&) = delete;
-  MultilevelCoarsenerT(MultilevelCoarsenerT&&) = delete;
-  MultilevelCoarsenerT & operator= (const MultilevelCoarsenerT &) = delete;
-  MultilevelCoarsenerT & operator= (MultilevelCoarsenerT &&) = delete;
+  MultilevelCoarsener(const MultilevelCoarsener&) = delete;
+  MultilevelCoarsener(MultilevelCoarsener&&) = delete;
+  MultilevelCoarsener & operator= (const MultilevelCoarsener &) = delete;
+  MultilevelCoarsener & operator= (MultilevelCoarsener &&) = delete;
 
-  ~MultilevelCoarsenerT() {
+  ~MultilevelCoarsener() {
     parallel::parallel_free(
       _current_vertices, _matching_state,
       _cluster_weight, _matching_partner);
@@ -154,7 +147,7 @@ class MultilevelCoarsenerT : public ICoarsenerT<TypeTraits>,
     int pass_nr = 0;
     const HypernodeID initial_num_nodes = Base::currentNumNodes();
     while ( Base::currentNumNodes() > _context.coarsening.contraction_limit ) {
-      HyperGraph& current_hg = Base::currentHypergraph();
+      Hypergraph& current_hg = Base::currentHypergraph();
       DBG << V(pass_nr)
           << V(current_hg.initialNumNodes())
           << V(current_hg.initialNumEdges())
@@ -332,7 +325,7 @@ class MultilevelCoarsenerT : public ICoarsenerT<TypeTraits>,
    * The following functions guarantees that our invariant is fullfilled, if
    * vertices are matched concurrently.
    */
-  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE bool matchVertices(const HyperGraph& hypergraph,
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE bool matchVertices(const Hypergraph& hypergraph,
                                                         const HypernodeID u,
                                                         const HypernodeID v,
                                                         parallel::scalable_vector<HypernodeID>& cluster_ids,
@@ -426,19 +419,19 @@ class MultilevelCoarsenerT : public ICoarsenerT<TypeTraits>,
     return success;
   }
 
-  PartitionedHyperGraph&& uncoarsenImpl(std::unique_ptr<Refiner>& label_propagation) override {
+  PartitionedHypergraph<>&& uncoarsenImpl(std::unique_ptr<IRefiner<>>& label_propagation) override {
     return Base::doUncoarsen(label_propagation);
   }
 
-  HyperGraph& coarsestHypergraphImpl() override {
+  Hypergraph& coarsestHypergraphImpl() override {
     return Base::currentHypergraph();
   }
 
-  PartitionedHyperGraph& coarsestPartitionedHypergraphImpl() override {
+  PartitionedHypergraph<>& coarsestPartitionedHypergraphImpl() override {
     return Base::currentPartitionedHypergraph();
   }
 
-  HypernodeID hierarchyContractionLimit(const HyperGraph& hypergraph) const {
+  HypernodeID hierarchyContractionLimit(const Hypergraph& hypergraph) const {
     return std::max( static_cast<HypernodeID>( static_cast<double>(hypergraph.initialNumNodes() -
       hypergraph.numRemovedHypernodes()) / _context.coarsening.maximum_shrink_factor ),
       _context.coarsening.contraction_limit );
@@ -467,9 +460,4 @@ class MultilevelCoarsenerT : public ICoarsenerT<TypeTraits>,
   bool _enable_randomization;
 };
 
-template <class ScorePolicy = HeavyEdgeScore,
-          class HeavyNodePenaltyPolicy = MultiplicativePenalty,
-          class AcceptancePolicy = BestRatingPreferringUnmatched>
-using MultilevelCoarsener = MultilevelCoarsenerT<GlobalTypeTraits, ScorePolicy,
-                                                 HeavyNodePenaltyPolicy, AcceptancePolicy>;
 }  // namespace mt_kahypar

@@ -32,22 +32,15 @@ using ::testing::Test;
 namespace mt_kahypar {
 
 
-template <template<typename> class InitialPartitioner, InitialPartitioningMode mode, PartitionID k>
+template <class InitialPartitioner, InitialPartitioningMode mode, PartitionID k>
 struct TestConfig {
-  using TypeTraits = GlobalTypeTraits;
-  using Partitioner = InitialPartitioner<TypeTraits>;
+  using Partitioner = InitialPartitioner;
   static constexpr InitialPartitioningMode MODE = mode;
   static constexpr PartitionID K = k;
 };
 
 template <typename Config>
 class AInitialPartitionerTest : public Test {
-  using TypeTraits = typename Config::TypeTraits;
-  using HyperGraph = typename TypeTraits::HyperGraph;
-  using PartitionedHyperGraph = typename TypeTraits::template PartitionedHyperGraph<>;
-  using HyperGraphFactory = typename TypeTraits::HyperGraphFactory;
-  using TBB = typename TypeTraits::TBB;
-  using HwTopology = typename TypeTraits::HwTopology;
   using InitialPartitioner = typename Config::Partitioner;
 
   static size_t num_threads;
@@ -84,16 +77,16 @@ class AInitialPartitionerTest : public Test {
     context.initial_partitioning.refinement.label_propagation.algorithm = LabelPropagationAlgorithm::do_nothing;
 
     // Read hypergraph
-    hypergraph = io::readHypergraphFile<HyperGraph, HyperGraphFactory>(
-      "../test_instances/unweighted_ibm01.hgr", TBB::GLOBAL_TASK_GROUP);
-    partitioned_hypergraph = PartitionedHyperGraph(
-      context.partition.k, TBB::GLOBAL_TASK_GROUP, hypergraph);
+    hypergraph = io::readHypergraphFile(
+      "../test_instances/unweighted_ibm01.hgr", TBBNumaArena::GLOBAL_TASK_GROUP);
+    partitioned_hypergraph = PartitionedHypergraph<>(
+      context.partition.k, TBBNumaArena::GLOBAL_TASK_GROUP, hypergraph);
     context.setupPartWeights(hypergraph.totalWeight());
     context.setupContractionLimit(hypergraph.totalWeight());
     assignCommunities();
 
     initial_partitioner = std::make_unique<InitialPartitioner>(
-      partitioned_hypergraph, context, true, TBB::GLOBAL_TASK_GROUP);
+      partitioned_hypergraph, context, true, TBBNumaArena::GLOBAL_TASK_GROUP);
   }
 
   void assignCommunities() {
@@ -103,32 +96,32 @@ class AInitialPartitionerTest : public Test {
     for ( const HypernodeID& hn : hypergraph.nodes() ) {
       hypergraph.setCommunityID(hn, communities[hn]);
     }
-    hypergraph.initializeCommunities(TBB::GLOBAL_TASK_GROUP);
+    hypergraph.initializeCommunities(TBBNumaArena::GLOBAL_TASK_GROUP);
   }
 
   static void SetUpTestSuite() {
-    TBB::instance(num_threads);
+    TBBNumaArena::instance(num_threads);
   }
 
-  HyperGraph hypergraph;
-  PartitionedHyperGraph partitioned_hypergraph;
+  Hypergraph hypergraph;
+  PartitionedHypergraph<> partitioned_hypergraph;
   Context context;
   std::unique_ptr<InitialPartitioner> initial_partitioner;
 };
 
 template <typename Config>
-size_t AInitialPartitionerTest<Config>::num_threads = HwTopology::instance().num_cpus();
+size_t AInitialPartitionerTest<Config>::num_threads = HardwareTopology::instance().num_cpus();
 
 static constexpr double EPS = 0.05;
 
-typedef ::testing::Types<TestConfig<RecursiveInitialPartitionerT, InitialPartitioningMode::recursive, 2>,
-                         TestConfig<RecursiveInitialPartitionerT, InitialPartitioningMode::recursive, 3>,
-                         TestConfig<RecursiveInitialPartitionerT, InitialPartitioningMode::recursive, 4>,
-                         TestConfig<RecursiveInitialPartitionerT, InitialPartitioningMode::recursive, 5>,
-                         TestConfig<RecursiveBisectionInitialPartitionerT, InitialPartitioningMode::recursive_bisection, 2>,
-                         TestConfig<RecursiveBisectionInitialPartitionerT, InitialPartitioningMode::recursive_bisection, 3>,
-                         TestConfig<RecursiveBisectionInitialPartitionerT, InitialPartitioningMode::recursive_bisection, 4>,
-                         TestConfig<RecursiveBisectionInitialPartitionerT, InitialPartitioningMode::recursive_bisection, 5> > TestConfigs;
+typedef ::testing::Types<TestConfig<RecursiveInitialPartitioner, InitialPartitioningMode::recursive, 2>,
+                         TestConfig<RecursiveInitialPartitioner, InitialPartitioningMode::recursive, 3>,
+                         TestConfig<RecursiveInitialPartitioner, InitialPartitioningMode::recursive, 4>,
+                         TestConfig<RecursiveInitialPartitioner, InitialPartitioningMode::recursive, 5>,
+                         TestConfig<RecursiveBisectionInitialPartitioner, InitialPartitioningMode::recursive_bisection, 2>,
+                         TestConfig<RecursiveBisectionInitialPartitioner, InitialPartitioningMode::recursive_bisection, 3>,
+                         TestConfig<RecursiveBisectionInitialPartitioner, InitialPartitioningMode::recursive_bisection, 4>,
+                         TestConfig<RecursiveBisectionInitialPartitioner, InitialPartitioningMode::recursive_bisection, 5> > TestConfigs;
 
 TYPED_TEST_CASE(AInitialPartitionerTest, TestConfigs);
 

@@ -26,12 +26,10 @@
 #include "mt-kahypar/partition/initial_partitioning/flat/initial_partitioning_data_container.h"
 
 namespace mt_kahypar {
-template<typename TypeTraits,
-         typename GainPolicy,
+template<typename GainPolicy,
          typename PQSelectionPolicy>
-class GreedyInitialPartitionerT : public tbb::task {
-  using HyperGraph = typename TypeTraits::template PartitionedHyperGraph<false>;
-  using InitialPartitioningDataContainer = InitialPartitioningDataContainerT<TypeTraits>;
+class GreedyInitialPartitioner : public tbb::task {
+  using HyperGraph = PartitionedHypergraph<false>;
 
   using DeltaFunction = std::function<void (const HyperedgeID, const HyperedgeWeight, const HypernodeID, const HypernodeID, const HypernodeID)>;
   #define NOOP_FUNC [] (const HyperedgeID, const HyperedgeWeight, const HypernodeID, const HypernodeID, const HypernodeID) { }
@@ -43,7 +41,7 @@ class GreedyInitialPartitionerT : public tbb::task {
   static Gain kInvalidGain;
 
  public:
-  GreedyInitialPartitionerT(const InitialPartitioningAlgorithm algorithm,
+  GreedyInitialPartitioner(const InitialPartitioningAlgorithm algorithm,
                             InitialPartitioningDataContainer& ip_data,
                             const Context& context) :
     _algorithm(algorithm),
@@ -73,7 +71,7 @@ class GreedyInitialPartitionerT : public tbb::task {
 
     // Insert start vertices into its corresponding PQs
     parallel::scalable_vector<HypernodeID> start_nodes =
-      PseudoPeripheralStartNodes<TypeTraits>::computeStartNodes(_ip_data, _context);
+      PseudoPeripheralStartNodes::computeStartNodes(_ip_data, _context);
     ASSERT(static_cast<size_t>(_context.partition.k) == start_nodes.size());
     kway_pq.clear();
     for ( PartitionID block = 0; block < _context.partition.k; ++block ) {
@@ -240,14 +238,11 @@ class GreedyInitialPartitionerT : public tbb::task {
   const PartitionID _default_block;
 };
 
-template <typename TypeTraits, typename GainPolicy, typename PQSelectionPolicy>
-PartitionID GreedyInitialPartitionerT<TypeTraits, GainPolicy, PQSelectionPolicy>::kInvalidPartition = -1;
-template <typename TypeTraits, typename GainPolicy, typename PQSelectionPolicy>
-HypernodeID GreedyInitialPartitionerT<TypeTraits, GainPolicy, PQSelectionPolicy>::kInvalidHypernode = std::numeric_limits<HypernodeID>::max();
-template <typename TypeTraits, typename GainPolicy, typename PQSelectionPolicy>
-Gain GreedyInitialPartitionerT<TypeTraits, GainPolicy, PQSelectionPolicy>::kInvalidGain = std::numeric_limits<Gain>::min();
-
 template <typename GainPolicy, typename PQSelectionPolicy>
-using GreedyInitialPartitioner = GreedyInitialPartitionerT<GlobalTypeTraits, GainPolicy, PQSelectionPolicy>;
+PartitionID GreedyInitialPartitioner<GainPolicy, PQSelectionPolicy>::kInvalidPartition = -1;
+template <typename GainPolicy, typename PQSelectionPolicy>
+HypernodeID GreedyInitialPartitioner<GainPolicy, PQSelectionPolicy>::kInvalidHypernode = std::numeric_limits<HypernodeID>::max();
+template <typename GainPolicy, typename PQSelectionPolicy>
+Gain GreedyInitialPartitioner<GainPolicy, PQSelectionPolicy>::kInvalidGain = std::numeric_limits<Gain>::min();
 
 } // namespace mt_kahypar

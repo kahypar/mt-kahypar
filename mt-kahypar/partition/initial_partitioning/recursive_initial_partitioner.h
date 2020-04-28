@@ -53,7 +53,7 @@ namespace mt_kahypar {
  * best partition of both recursions and further bisect each block of the partition to obtain a 4-way
  * partition and continue uncontraction with 2 threads until 8 * c hypernodes. This is repeated until
  * we obtain a k-way partition of the hypergraph.
- * Note, the recursive initial partitioner is written in TBB continuation style. The TBB continuation
+ * Note, the recursive initial partitioner is written in TBBNumaArena continuation style. The TBBNumaArena continuation
  * style is especially useful for recursive patterns. Each task defines its continuation task. A continuation
  * task defines how computation should continue, if all its child tasks are completed. As a consequence,
  * tasks can be spawned without waiting for their completion, because the continuation task is automatically
@@ -72,13 +72,8 @@ namespace mt_kahypar {
  * partition. Once all BisectionTasks terminates, the BisectionContinuationTask starts and applies all bisections to the
  * current hypergraph.
  */
-template <typename TypeTraits>
-class RecursiveInitialPartitionerT : public IInitialPartitioner {
+class RecursiveInitialPartitioner: public IInitialPartitioner {
  private:
-  using HyperGraph = typename TypeTraits::HyperGraph;
-  using PartitionedHyperGraph = typename TypeTraits::template PartitionedHyperGraph<>;
-  using TBB = typename TypeTraits::TBB;
-  using HwTopology = typename TypeTraits::HwTopology;
 
   static constexpr bool debug = false;
   static constexpr bool enable_heavy_assert = false;
@@ -111,8 +106,8 @@ class RecursiveInitialPartitionerT : public IInitialPartitioner {
       objective(std::numeric_limits<HyperedgeWeight>::max()),
       imbalance(1.0) { }
 
-    HyperGraph hypergraph;
-    PartitionedHyperGraph partitioned_hypergraph;
+    Hypergraph hypergraph;
+    PartitionedHypergraph<> partitioned_hypergraph;
     parallel::scalable_vector<HypernodeID> mapping;
     Context context;
     HyperedgeWeight objective;
@@ -160,7 +155,7 @@ class RecursiveInitialPartitionerT : public IInitialPartitioner {
       }
 
       // Uncontraction
-      std::unique_ptr<IRefiner> label_propagation =
+      std::unique_ptr<IRefiner<>> label_propagation =
         LabelPropagationFactory::getInstance().createObject(
           _result.context.refinement.label_propagation.algorithm, _coarsener->coarsestPartitionedHypergraph(),
           _result.context, _task_group_id);
@@ -189,7 +184,7 @@ class RecursiveInitialPartitionerT : public IInitialPartitioner {
 
    public:
     RecursiveChildTask(const OriginalHypergraphInfo original_hypergraph_info,
-                       PartitionedHyperGraph& hypergraph,
+                       PartitionedHypergraph<>& hypergraph,
                        const Context& context,
                        RecursivePartitionResult& result,
                        const bool top_level,
@@ -238,7 +233,7 @@ class RecursiveInitialPartitionerT : public IInitialPartitioner {
     }
 
    private:
-    void recursivePartition(PartitionedHyperGraph& partitioned_hypergraph,
+    void recursivePartition(PartitionedHypergraph<>& partitioned_hypergraph,
                             RecursiveChildContinuationTask& child_continuation) {
       RecursiveTask& recursive_task = *new(child_continuation.allocate_child()) RecursiveTask(
         _original_hypergraph_info, partitioned_hypergraph, _result.context, false, _task_group_id);
@@ -297,7 +292,7 @@ class RecursiveInitialPartitionerT : public IInitialPartitioner {
     }
 
     const OriginalHypergraphInfo _original_hypergraph_info;
-    PartitionedHyperGraph& _hg;
+    PartitionedHypergraph<>& _hg;
     const Context& _context;
     RecursivePartitionResult& _result;
     const bool _top_level;
@@ -312,10 +307,8 @@ class RecursiveInitialPartitionerT : public IInitialPartitioner {
    */
   class BisectionTask : public tbb::task {
 
-  using PoolInitialPartitionerContinuation = PoolInitialPartitionerContinuationT<TypeTraits>;
-
    public:
-    BisectionTask(PartitionedHyperGraph& hypergraph,
+    BisectionTask(PartitionedHypergraph<>& hypergraph,
                   const TaskGroupID task_group_id,
                   const PartitionID block,
                   RecursivePartitionResult& result) :
@@ -341,7 +334,7 @@ class RecursiveInitialPartitionerT : public IInitialPartitioner {
       auto tmp_hypergraph = _hg.extract(_task_group_id, _block, cut_net_splitting);
       _result.hypergraph = std::move(tmp_hypergraph.first);
       _result.mapping = std::move(tmp_hypergraph.second);
-      _result.partitioned_hypergraph = PartitionedHyperGraph(
+      _result.partitioned_hypergraph = PartitionedHypergraph<>(
         2, _task_group_id, _result.hypergraph);
 
       if ( _result.hypergraph.initialNumNodes() > 0 ) {
@@ -355,7 +348,7 @@ class RecursiveInitialPartitionerT : public IInitialPartitioner {
     }
 
    private:
-    PartitionedHyperGraph& _hg;
+    PartitionedHypergraph<>& _hg;
     const TaskGroupID _task_group_id;
     const PartitionID _block;
     RecursivePartitionResult& _result;
@@ -369,7 +362,7 @@ class RecursiveInitialPartitionerT : public IInitialPartitioner {
   class BisectionContinuationTask : public tbb::task {
 
    public:
-    BisectionContinuationTask(PartitionedHyperGraph& hypergraph,
+    BisectionContinuationTask(PartitionedHypergraph<>& hypergraph,
                               const Context& context,
                               const TaskGroupID task_group_id,
                               const HyperedgeWeight current_objective,
@@ -394,7 +387,7 @@ class RecursiveInitialPartitionerT : public IInitialPartitioner {
         if ( from != unbisected_block ) {
           ASSERT(from != kInvalidPartition && static_cast<size_t>(from) < _results.size());
           ASSERT(hn < _results[from].mapping.size());
-          const PartitionedHyperGraph& from_hg = _results[from].partitioned_hypergraph;
+          const PartitionedHypergraph<>& from_hg = _results[from].partitioned_hypergraph;
           to = from_hg.partID(_results[from].mapping[hn]) == 0 ? 2 * from : 2 * from + 1;
         } else {
           to = _context.partition.k - 1;
@@ -425,7 +418,7 @@ class RecursiveInitialPartitionerT : public IInitialPartitioner {
     }
 
    private:
-    PartitionedHyperGraph& _hg;
+    PartitionedHypergraph<>& _hg;
     const Context& _context;
     const TaskGroupID _task_group_id;
     const HyperedgeWeight _current_objective;
@@ -440,11 +433,9 @@ class RecursiveInitialPartitionerT : public IInitialPartitioner {
    */
   class RecursiveTask : public tbb::task {
 
-  using PoolInitialPartitionerContinuation = PoolInitialPartitionerContinuationT<TypeTraits>;
-
    public:
     RecursiveTask(const OriginalHypergraphInfo original_hypergraph_info,
-                  PartitionedHyperGraph& hypergraph,
+                  PartitionedHypergraph<>& hypergraph,
                   const Context& context,
                   const bool top_level,
                   const TaskGroupID task_group_id) :
@@ -473,7 +464,7 @@ class RecursiveInitialPartitionerT : public IInitialPartitioner {
           // Perform parallel recursion
           size_t num_threads_1 = std::ceil(((double) std::max(_context.shared_memory.num_threads, 2UL)) / 2.0);
           size_t num_threads_2 = std::floor(((double) std::max(_context.shared_memory.num_threads, 2UL)) / 2.0);
-          auto tbb_recursion_task_groups = TBB::instance().create_tbb_task_groups_for_recursion();
+          auto tbb_recursion_task_groups = TBBNumaArena::instance().create_tbb_task_groups_for_recursion();
 
           RecursiveContinuationTask& recursive_continuation = *new(allocate_continuation())
             RecursiveContinuationTask(_original_hypergraph_info, _hg, _context, _top_level, _task_group_id, true);
@@ -501,7 +492,7 @@ class RecursiveInitialPartitionerT : public IInitialPartitioner {
 
    private:
     const OriginalHypergraphInfo _original_hypergraph_info;
-    PartitionedHyperGraph& _hg;
+    PartitionedHypergraph<>& _hg;
     const Context& _context;
     const bool _top_level;
     const TaskGroupID _task_group_id;
@@ -518,7 +509,7 @@ class RecursiveInitialPartitionerT : public IInitialPartitioner {
 
    public:
     RecursiveContinuationTask(const OriginalHypergraphInfo original_hypergraph_info,
-                              PartitionedHyperGraph& hypergraph,
+                              PartitionedHypergraph<>& hypergraph,
                               const Context& context,
                               const bool top_level,
                               const TaskGroupID task_group_id,
@@ -591,7 +582,7 @@ class RecursiveInitialPartitionerT : public IInitialPartitioner {
 
    private:
     const OriginalHypergraphInfo _original_hypergraph_info;
-    PartitionedHyperGraph& _hg;
+    PartitionedHypergraph<>& _hg;
     const Context& _context;
     const bool _top_level;
     const TaskGroupID _task_group_id;
@@ -599,7 +590,7 @@ class RecursiveInitialPartitionerT : public IInitialPartitioner {
   };
 
  public:
-  RecursiveInitialPartitionerT(PartitionedHyperGraph& hypergraph,
+  RecursiveInitialPartitioner(PartitionedHypergraph<>& hypergraph,
                                const Context& context,
                                const bool top_level,
                                const TaskGroupID task_group_id) :
@@ -608,10 +599,10 @@ class RecursiveInitialPartitionerT : public IInitialPartitioner {
     _top_level(top_level),
     _task_group_id(task_group_id) { }
 
-  RecursiveInitialPartitionerT(const RecursiveInitialPartitionerT&) = delete;
-  RecursiveInitialPartitionerT(RecursiveInitialPartitionerT&&) = delete;
-  RecursiveInitialPartitionerT & operator= (const RecursiveInitialPartitionerT &) = delete;
-  RecursiveInitialPartitionerT & operator= (RecursiveInitialPartitionerT &&) = delete;
+  RecursiveInitialPartitioner(const RecursiveInitialPartitioner&) = delete;
+  RecursiveInitialPartitioner(RecursiveInitialPartitioner&&) = delete;
+  RecursiveInitialPartitioner & operator= (const RecursiveInitialPartitioner &) = delete;
+  RecursiveInitialPartitioner & operator= (RecursiveInitialPartitioner &&) = delete;
 
  private:
   void initialPartitionImpl() override final {
@@ -634,16 +625,12 @@ class RecursiveInitialPartitionerT : public IInitialPartitioner {
   }
 
  private:
-  PartitionedHyperGraph& _hg;
+  PartitionedHypergraph<>& _hg;
   const Context& _context;
   const bool _top_level;
   const TaskGroupID _task_group_id;
 };
 
-template <typename TypeTraits>
-PartitionID RecursiveInitialPartitionerT<TypeTraits>::kInvalidPartition = -1;
-template <typename TypeTraits>
-HypernodeID RecursiveInitialPartitionerT<TypeTraits>::kInvalidHypernode = std::numeric_limits<HypernodeID>::max();
-
-using RecursiveInitialPartitioner = RecursiveInitialPartitionerT<GlobalTypeTraits>;
+PartitionID RecursiveInitialPartitioner::kInvalidPartition = -1;
+HypernodeID RecursiveInitialPartitioner::kInvalidHypernode = std::numeric_limits<HypernodeID>::max();
 }  // namespace mt_kahypar

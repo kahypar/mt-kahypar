@@ -65,7 +65,7 @@ class ACoarsener : public Test {
 
   Hypergraph hypergraph;
   Context context;
-  std::unique_ptr<IRefinerT<GlobalTypeTraits>> nullptr_refiner;
+  std::unique_ptr<IRefiner<>> nullptr_refiner;
 };
 
 template <class Hypergraph>
@@ -138,7 +138,7 @@ void removesHyperedgesOfSizeOneDuringCoarsening(Coarsener& coarsener,
 
 template <class Coarsener, class Hypergraph, class TypeTraits>
 void reAddsHyperedgesOfSizeOneDuringUncoarsening(Coarsener& coarsener,
-                                                 std::unique_ptr<IRefinerT<TypeTraits>>& refiner,
+                                                 std::unique_ptr<IRefiner<>>& refiner,
                                                  Hypergraph& hypergraph,
                                                  const std::vector<HyperedgeID>& single_node_hes) {
   doCoarsening(coarsener);
@@ -178,7 +178,7 @@ void updatesEdgeWeightOfRepresentativeHyperedgeOnParallelHyperedgeRemoval(Coarse
 
 template <class Coarsener, class Hypergraph, class TypeTraits>
 void restoresParallelHyperedgesDuringUncoarsening(Coarsener& coarsener,
-                                                  std::unique_ptr<IRefinerT<TypeTraits>>& refiner,
+                                                  std::unique_ptr<IRefiner<>>& refiner,
                                                   Hypergraph& hypergraph,
                                                   const std::vector<HyperedgeID>& parallel_hes) {
   doCoarsening(coarsener);

@@ -28,7 +28,7 @@
 #include "mt-kahypar/partition/refinement/i_refiner.h"
 
 namespace mt_kahypar {
-class DoNothingRefiner final : public IRefiner {
+class DoNothingRefiner final : public IRefiner<> {
  public:
   template <typename ... Args>
   explicit DoNothingRefiner(Args&& ...) noexcept { }

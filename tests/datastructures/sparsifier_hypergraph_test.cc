@@ -31,7 +31,7 @@ namespace mt_kahypar {
 namespace ds {
 
 using ASparsifierHypergraph = HypergraphFixture;
-using SparsifierHyperGraph = SparsifierHypergraph<StaticHypergraph, StaticHypergraphFactory, TBBNumaArena>;
+using SparsifierHyperGraph = SparsifierHypergraph<StaticHypergraph, StaticHypergraphFactory>;
 
 void verifyPinsOfSparsifiedHypergraph(SparsifierHyperGraph& s_hypergraph,
                                       const HyperedgeID he,

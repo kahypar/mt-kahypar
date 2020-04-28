@@ -29,19 +29,17 @@
 #include "mt-kahypar/utils/randomize.h"
 
 namespace mt_kahypar {
-template<typename TypeTraits>
-class BFSInitialPartitionerT : public tbb::task {
-  using HyperGraph = typename TypeTraits::template PartitionedHyperGraph<false>;
-  using InitialPartitioningDataContainer = InitialPartitioningDataContainerT<TypeTraits>;
-  using Queue = parallel::scalable_queue<HypernodeID>;
 
+class BFSInitialPartitioner : public tbb::task {
+  using HyperGraph = PartitionedHypergraph<false>;
+  using Queue = parallel::scalable_queue<HypernodeID>;
 
   static constexpr bool debug = false;
   static PartitionID kInvalidPartition;
   static HypernodeID kInvalidHypernode;
 
  public:
-  BFSInitialPartitionerT(const InitialPartitioningAlgorithm,
+  BFSInitialPartitioner(const InitialPartitioningAlgorithm,
                          InitialPartitioningDataContainer& ip_data,
                          const Context& context) :
     _ip_data(ip_data),
@@ -56,7 +54,7 @@ class BFSInitialPartitionerT : public tbb::task {
       _ip_data.local_hyperedge_fast_reset_flag_array();
 
     parallel::scalable_vector<HypernodeID> start_nodes =
-      PseudoPeripheralStartNodes<TypeTraits>::computeStartNodes(_ip_data, _context);
+      PseudoPeripheralStartNodes::computeStartNodes(_ip_data, _context);
 
     // Insert each start node for each block into its corresponding queue
     hypernodes_in_queue.reset();
@@ -174,11 +172,7 @@ class BFSInitialPartitionerT : public tbb::task {
   const Context& _context;
 };
 
-template <typename TypeTraits>
-PartitionID BFSInitialPartitionerT<TypeTraits>::kInvalidPartition = -1;
-template <typename TypeTraits>
-HypernodeID BFSInitialPartitionerT<TypeTraits>::kInvalidHypernode = std::numeric_limits<HypernodeID>::max();
-
-using BFSInitialPartitioner = BFSInitialPartitionerT<GlobalTypeTraits>;
+PartitionID BFSInitialPartitioner::kInvalidPartition = -1;
+HypernodeID BFSInitialPartitioner::kInvalidHypernode = std::numeric_limits<HypernodeID>::max();
 
 } // namespace mt_kahypar

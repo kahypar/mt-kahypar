@@ -31,21 +31,17 @@
 #include "mt-kahypar/partition/refinement/policies/gain_policy.h"
 
 namespace mt_kahypar {
-template <typename TypeTraits,
-          template <typename> class GainPolicy>
-class RebalancerT {
+template <template <typename> class GainPolicy>
+class Rebalancer {
  private:
-  using HyperGraph = typename TypeTraits::template PartitionedHyperGraph<>;
-  using TBB = typename TypeTraits::TBB;
-  using HwTopology = typename TypeTraits::HwTopology;
-  using GainCalculator = GainPolicy<HyperGraph>;
+  using GainCalculator = GainPolicy<PartitionedHypergraph<>>;
   using AtomicWeight = parallel::IntegralAtomicWrapper<HypernodeWeight>;
 
   static constexpr bool debug = false;
   static constexpr bool enable_heavy_assert = false;
 
  public:
-  explicit RebalancerT(HyperGraph& hypergraph,
+  explicit Rebalancer(PartitionedHypergraph<>& hypergraph,
                        const Context& context,
                        const TaskGroupID task_group_id) :
     _hg(hypergraph),
@@ -54,11 +50,11 @@ class RebalancerT {
     _gain(context),
     _part_weights(_context.partition.k) { }
 
-  RebalancerT(const RebalancerT&) = delete;
-  RebalancerT(RebalancerT&&) = delete;
+  Rebalancer(const Rebalancer&) = delete;
+  Rebalancer(Rebalancer&&) = delete;
 
-  RebalancerT & operator= (const RebalancerT &) = delete;
-  RebalancerT & operator= (RebalancerT &&) = delete;
+  Rebalancer & operator= (const Rebalancer &) = delete;
+  Rebalancer & operator= (Rebalancer &&) = delete;
 
   void rebalance(kahypar::Metrics& best_metrics) {
     // If partition is imbalanced, rebalancer is activated
@@ -147,15 +143,13 @@ class RebalancerT {
     return false;
   }
 
-  HyperGraph& _hg;
+  PartitionedHypergraph<>& _hg;
   const Context& _context;
   const TaskGroupID _task_group_id;
   GainCalculator _gain;
   parallel::scalable_vector<AtomicWeight> _part_weights;
 };
 
-template<typename TypeTraits>
-using Km1Rebalancer = RebalancerT<TypeTraits, Km1Policy>;
-template<typename TypeTraits>
-using CutRebalancer = RebalancerT<TypeTraits, CutPolicy>;
+using Km1Rebalancer = Rebalancer<Km1Policy>;
+using CutRebalancer = Rebalancer<CutPolicy>;
 }  // namespace kahypar

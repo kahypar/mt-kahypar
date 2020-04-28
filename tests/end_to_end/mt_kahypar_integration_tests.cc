@@ -222,7 +222,7 @@ void partitionHypergraph(Hypergraph& hypergraph, Context& context) {
 
   // Verify that partitioned hypergraph is
   // equivalent with input hypergraph
-  Hypergraph reference = io::readHypergraphFile<Hypergraph, HypergraphFactory>(
+  Hypergraph reference = io::readHypergraphFile(
     context.partition.graph_filename, TBBNumaArena::GLOBAL_TASK_GROUP);
   verifyThatHypergraphsAreEquivalent(hypergraph, reference);
 
@@ -292,7 +292,7 @@ void partitionHypergraph(Hypergraph& hypergraph, Context& context) {
 TYPED_TEST(MtKaHyPar, PartitionsAVLSIInstance) {
   // Read Hypergraph
   this->context.partition.graph_filename = "test_instances/ibm01.hgr";
-  Hypergraph hypergraph = io::readHypergraphFile<Hypergraph, HypergraphFactory>(
+  Hypergraph hypergraph = io::readHypergraphFile(
     this->context.partition.graph_filename, TBBNumaArena::GLOBAL_TASK_GROUP);
 
   partitionHypergraph(hypergraph, this->context);
@@ -301,7 +301,7 @@ TYPED_TEST(MtKaHyPar, PartitionsAVLSIInstance) {
 TYPED_TEST(MtKaHyPar, PartitionsASparseMatrixInstance) {
   // Read Hypergraph
   this->context.partition.graph_filename = "test_instances/powersim.mtx.hgr";
-  Hypergraph hypergraph = io::readHypergraphFile<Hypergraph, HypergraphFactory>(
+  Hypergraph hypergraph = io::readHypergraphFile(
     this->context.partition.graph_filename, TBBNumaArena::GLOBAL_TASK_GROUP);
 
   partitionHypergraph(hypergraph, this->context);
@@ -310,7 +310,7 @@ TYPED_TEST(MtKaHyPar, PartitionsASparseMatrixInstance) {
 TYPED_TEST(MtKaHyPar, PartitionsASATInstance) {
   // Read Hypergraph
   this->context.partition.graph_filename = "test_instances/sat14_atco_enc1_opt2_10_16.cnf.primal.hgr";
-  Hypergraph hypergraph = io::readHypergraphFile<Hypergraph, HypergraphFactory>(
+  Hypergraph hypergraph = io::readHypergraphFile(
     this->context.partition.graph_filename, TBBNumaArena::GLOBAL_TASK_GROUP);
 
   partitionHypergraph(hypergraph, this->context);

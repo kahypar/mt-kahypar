@@ -53,7 +53,7 @@ class AHypergraphReader : public Test {
   }
 
   void readHypergraph(const std::string& filename) {
-    hypergraph = readHypergraphFile<Hypergraph, HypergraphFactory>(
+    hypergraph = readHypergraphFile(
       filename, TBBNumaArena::GLOBAL_TASK_GROUP);
   }
 

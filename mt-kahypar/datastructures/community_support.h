@@ -30,6 +30,7 @@
 #include "kahypar/utils/math.h"
 
 #include "mt-kahypar/datastructures/hypergraph_common.h"
+#include "mt-kahypar/datastructures/static_hypergraph.h"
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
 #include "mt-kahypar/parallel/atomic_wrapper.h"
 #include "mt-kahypar/utils/memory_tree.h"
@@ -42,8 +43,6 @@ template<class Hypergraph>
 class CommunitySupport {
 
  static constexpr bool enable_heavy_assert = false;
-
- static_assert(!Hypergraph::is_partitioned, "Only unpartitioned hypergraphs are allowed");
 
  using Counter = parallel::scalable_vector<HypernodeID>;
  using AtomicCounter = parallel::scalable_vector<parallel::IntegralAtomicWrapper<HypernodeID>>;
