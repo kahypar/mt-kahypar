@@ -216,7 +216,6 @@ class LabelPropagationRefinerT final : public IRefinerT<TypeTraits, track_border
     ASSERT(hn != kInvalidHypernode);
     if ( hypergraph.isBorderNode(hn) ) {
       ASSERT(hypergraph.nodeIsEnabled(hn));
-      ASSERT(!_is_numa_aware || common::get_numa_node_of_vertex(hn) == node);
 
       Move best_move = _gain.computeMaxGainMove(hypergraph, hn);
       // We perform a move if it either improves the solution quality or, in case of a
@@ -250,8 +249,7 @@ class LabelPropagationRefinerT final : public IRefinerT<TypeTraits, track_border
                     ID(_context.refinement.label_propagation.hyperedge_size_activation_threshold) ) {
                 if ( !_visited_he[node][he] ) {
                   for (const HypernodeID& pin : hypergraph.pins(he)) {
-                    int pin_numa_node = _is_numa_aware ?
-                      common::get_numa_node_of_vertex(pin) : 0;
+                    int pin_numa_node = 0;
                     if ( (_context.refinement.label_propagation.rebalancing ||
                            hypergraph.isBorderNode(hn)) &&
                          !_next_active[pin_numa_node][pin] ) {
@@ -302,8 +300,7 @@ class LabelPropagationRefinerT final : public IRefinerT<TypeTraits, track_border
       NumaNextActiveNodes tmp_active_nodes(num_numa_nodes);
 
       auto add_vertex = [&](const HypernodeID& hn) {
-        const int node =  _is_numa_aware ?
-          common::get_numa_node_of_vertex(hn) : 0;
+        const int node =  0;
         ASSERT(node < static_cast<int>(tmp_active_nodes.size()));
         tmp_active_nodes[node].stream(hn);
       };

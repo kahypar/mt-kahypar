@@ -264,22 +264,18 @@ class CommunitySupport {
   // ! Returns a range to loop over the set of communities contained in hyperedge e.
   IteratorRange<CommunityIterator> communities(const HyperedgeID e) const {
     ASSERT(_are_community_hyperedges_initialized);
-    HyperedgeID local_id = common::get_local_position_of_edge(e);
-    ASSERT(local_id < _community_hyperedge_ids.size(), "Hyperedge" << e << "does not exist");
-    ASSERT(_node == common::get_numa_node_of_edge(e), "Hyperedge" << e << "is not part of NUMA node" << _node);
+    ASSERT(e < _community_hyperedge_ids.size(), "Hyperedge" << e << "does not exist");
     return IteratorRange<CommunityIterator>(
-      _community_hyperedge_ids[local_id].cbegin(),
-      _community_hyperedge_ids[local_id].cend());
+      _community_hyperedge_ids[e].cbegin(),
+      _community_hyperedge_ids[e].cend());
   }
 
   // ! Consider hypernode u is part of community C = {v_1, ..., v_n},
   // ! than this function returns a unique id for hypernode u in the
   // ! range [0,n).
   HypernodeID communityNodeId(const HypernodeID u) const {
-    const HypernodeID local_id = common::get_local_position_of_vertex(u);
-    ASSERT(local_id < _vertex_to_community_node_id.size(), "Hypernode" << u << "does not exist");
-    ASSERT(_node == common::get_numa_node_of_vertex(u), "Hypernode" << u << "is not part of NUMA node" << _node);
-    return _vertex_to_community_node_id[local_id];
+    ASSERT(u < _vertex_to_community_node_id.size(), "Hypernode" << u << "does not exist");
+    return _vertex_to_community_node_id[u];
   }
 
   // ! Weight of a community hyperedge
@@ -309,9 +305,8 @@ class CommunitySupport {
   // ! Number of communities which pins of hyperedge belongs to
   size_t numCommunitiesInHyperedge(const HyperedgeID e) const {
     ASSERT(_are_community_hyperedges_initialized);
-    const HyperedgeID local_pos = common::get_local_position_of_edge(e);
-    ASSERT(local_pos < _community_hyperedges.size());
-    return _community_hyperedges[local_pos].size();
+    ASSERT(e < _community_hyperedges.size());
+    return _community_hyperedges[e].size();
   }
 
   /*!
@@ -346,9 +341,8 @@ class CommunitySupport {
           Counter& community_degree = local_community_degree.local();
           const PartitionID community_id = hypergraph.communityID(hn);
           ASSERT(community_id < _num_communities);
-          const HypernodeID local_id = common::get_local_position_of_vertex(hn);
-          ASSERT(local_id < _vertex_to_community_node_id.size());
-          _vertex_to_community_node_id[local_id] = tmp_communities_num_hypernodes[community_id]++;
+          ASSERT(hn < _vertex_to_community_node_id.size());
+          _vertex_to_community_node_id[hn] = tmp_communities_num_hypernodes[community_id]++;
           community_degree[community_id] += hypergraph.nodeDegree(hn);
         });
       }, [&] {
@@ -632,14 +626,12 @@ class CommunitySupport {
   }
 
  private:
-  void computeNumberOfCommunities(const Hypergraph& hypergraph,
-                                  const int node = 0) {
+  void computeNumberOfCommunities(const Hypergraph& hypergraph) {
     // The number of communities is the maximum community id plus 1
     _num_communities = tbb::parallel_reduce(tbb::blocked_range<HypernodeID>(ID(0), hypergraph.initialNumNodes()),
       _num_communities, [&](const tbb::blocked_range<HypernodeID>& range, PartitionID init) {
         PartitionID num_communities = init;
-        for (HypernodeID id = range.begin(); id < range.end(); ++id) {
-          const HypernodeID hn = common::get_global_vertex_id(node, id);
+        for (HypernodeID hn = range.begin(); hn < range.end(); ++hn) {
           if ( hypergraph.nodeIsEnabled(hn) ) {
             num_communities = std::max(num_communities, hypergraph.communityID(hn) + 1);
           }
@@ -654,20 +646,18 @@ class CommunitySupport {
 
   // ! Accessor for community hyperedge-related information
   KAHYPAR_ATTRIBUTE_ALWAYS_INLINE const CommunityHyperedge& community_hyperedge(const HyperedgeID e, const PartitionID community_id) const {
-    const HypernodeID local_id = common::get_local_position_of_edge(e);
-    ASSERT(local_id < _community_hyperedges.size(), "Hyperedge" << e << "does not exist");
-    ASSERT(_node == common::get_numa_node_of_edge(e), "Hyperedge" << e << "is not part of NUMA node" << _node);
+    ASSERT(e < _community_hyperedges.size(), "Hyperedge" << e << "does not exist");
 
     size_t community_hyperedge_pos = 0;
-    for ( ; community_hyperedge_pos < _community_hyperedges[local_id].size(); ++community_hyperedge_pos ) {
-      if ( _community_hyperedges[local_id][community_hyperedge_pos].communityID() == community_id ) {
+    for ( ; community_hyperedge_pos < _community_hyperedges[e].size(); ++community_hyperedge_pos ) {
+      if ( _community_hyperedges[e][community_hyperedge_pos].communityID() == community_id ) {
         break;
       }
     }
 
-    ASSERT(community_hyperedge_pos < _community_hyperedges[local_id].size(),
+    ASSERT(community_hyperedge_pos < _community_hyperedges[e].size(),
            "Community hyperedge" << e << "with community id" << community_id << "not found");
-    return _community_hyperedges[local_id][community_hyperedge_pos];
+    return _community_hyperedges[e][community_hyperedge_pos];
   }
 
   // ! To avoid code duplication we implement non-const version in terms of const version

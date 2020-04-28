@@ -70,7 +70,7 @@ TEST_F(ACoarsener, ProjectsPartitionBackToOriginalHypergraph) {
   assignPartitionIDs(coarsest_partitioned_hypergraph);
   PartitionedHyperGraph partitioned_hypergraph = coarsener.uncoarsen(nullptr_refiner);
   for ( const HypernodeID& hn : partitioned_hypergraph.nodes() ) {
-    PartitionID part_id = common::get_numa_node_of_vertex(hn);
+    PartitionID part_id = 0;
     ASSERT_EQ(part_id, partitioned_hypergraph.partID(hn));
   }
 }

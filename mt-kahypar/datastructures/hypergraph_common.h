@@ -132,32 +132,4 @@ struct Memento {
     bool valid;
   };
 
-namespace common {
-
-MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE static HypernodeID get_global_vertex_id(const int, const size_t vertex_pos) {
-  return vertex_pos;
-}
-
-MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE static HypernodeID get_local_position_of_vertex(const HypernodeID u) {
-  return u;
-}
-
-MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE static int get_numa_node_of_vertex(const HypernodeID) {
-  return 0;
-}
-
-MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE static HyperedgeID get_global_edge_id(const int, const size_t edge_pos) {
-  return edge_pos;
-}
-
-MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE static HyperedgeID get_local_position_of_edge(const HyperedgeID e) {
-  return e;
-}
-
-MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE static int get_numa_node_of_edge(const HyperedgeID) {
-  return 0;
-}
-
-} // namespace common
-
 } // namespace mt_kahypar

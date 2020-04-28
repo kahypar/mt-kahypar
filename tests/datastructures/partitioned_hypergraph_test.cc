@@ -486,10 +486,6 @@ TYPED_TEST(APartitionedHypergraph, ExtractBlockZeroWithCutNetSplitting) {
     map_from_original_to_extracted_hg(2)
   };
 
-  ASSERT_EQ(common::get_numa_node_of_vertex(0), common::get_numa_node_of_vertex(node_id[0]));
-  ASSERT_EQ(common::get_numa_node_of_vertex(1), common::get_numa_node_of_vertex(node_id[1]));
-  ASSERT_EQ(common::get_numa_node_of_vertex(2), common::get_numa_node_of_vertex(node_id[2]));
-
   this->verifyPins(hg, {0, 1},
     { {node_id[0], node_id[2]}, {node_id[0], node_id[1]} });
 }
@@ -512,9 +508,6 @@ TYPED_TEST(APartitionedHypergraph, ExtractBlockOneWithCutNetSplitting) {
     map_from_original_to_extracted_hg(4)
   };
 
-  ASSERT_EQ(common::get_numa_node_of_vertex(3), common::get_numa_node_of_vertex(node_id[0]));
-  ASSERT_EQ(common::get_numa_node_of_vertex(4), common::get_numa_node_of_vertex(node_id[1]));
-
   this->verifyPins(hg, {0, 1},
     { {node_id[0], node_id[1]}, {node_id[0], node_id[1]} });
 }
@@ -536,9 +529,6 @@ TYPED_TEST(APartitionedHypergraph, ExtractBlockTwoWithCutNetSplitting) {
     map_from_original_to_extracted_hg(5),
     map_from_original_to_extracted_hg(6)
   };
-
-  ASSERT_EQ(common::get_numa_node_of_vertex(5), common::get_numa_node_of_vertex(node_id[0]));
-  ASSERT_EQ(common::get_numa_node_of_vertex(6), common::get_numa_node_of_vertex(node_id[1]));
 
   this->verifyPins(hg, {0},
     { {node_id[0], node_id[1]} });
@@ -564,10 +554,6 @@ TYPED_TEST(APartitionedHypergraph, ExtractBlockZeroWithCutNetRemoval) {
   };
   parallel::scalable_vector<HypernodeID> edge_id = { 0 };
 
-  ASSERT_EQ(common::get_numa_node_of_vertex(0), common::get_numa_node_of_vertex(node_id[0]));
-  ASSERT_EQ(common::get_numa_node_of_vertex(1), common::get_numa_node_of_vertex(node_id[1]));
-  ASSERT_EQ(common::get_numa_node_of_vertex(2), common::get_numa_node_of_vertex(node_id[2]));
-
   this->verifyPins(hg, {0},
     { {node_id[0], node_id[2]} });
 }
@@ -592,10 +578,6 @@ TYPED_TEST(APartitionedHypergraph, ExtractBlockOneWithCutNetRemoval) {
     map_from_original_to_extracted_hg(6)
   };
 
-  ASSERT_EQ(common::get_numa_node_of_vertex(3), common::get_numa_node_of_vertex(node_id[0]));
-  ASSERT_EQ(common::get_numa_node_of_vertex(4), common::get_numa_node_of_vertex(node_id[1]));
-  ASSERT_EQ(common::get_numa_node_of_vertex(6), common::get_numa_node_of_vertex(node_id[2]));
-
   this->verifyPins(hg, {0},
     { {node_id[0], node_id[1], node_id[2]} });
 }
@@ -619,10 +601,6 @@ TYPED_TEST(APartitionedHypergraph, ExtractBlockTwoWithCutNetRemoval) {
     map_from_original_to_extracted_hg(5),
     map_from_original_to_extracted_hg(6)
   };
-
-  ASSERT_EQ(common::get_numa_node_of_vertex(2), common::get_numa_node_of_vertex(node_id[0]));
-  ASSERT_EQ(common::get_numa_node_of_vertex(5), common::get_numa_node_of_vertex(node_id[1]));
-  ASSERT_EQ(common::get_numa_node_of_vertex(6), common::get_numa_node_of_vertex(node_id[2]));
 
   this->verifyPins(hg, {0},
     { {node_id[0], node_id[1], node_id[2]} });

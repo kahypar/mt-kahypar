@@ -597,8 +597,7 @@ class StaticHypergraph {
   // ! for each vertex
   template<typename F>
   void doParallelForAllNodes(const TaskGroupID, const F& f) const {
-    tbb::parallel_for(ID(0), _num_hypernodes, [&](const HypernodeID& id) {
-      const HypernodeID hn = common::get_global_vertex_id(_node, id);
+    tbb::parallel_for(ID(0), _num_hypernodes, [&](const HypernodeID& hn) {
       if ( nodeIsEnabled(hn) ) {
         f(hn);
       }
@@ -616,8 +615,7 @@ class StaticHypergraph {
   // ! for each net
   template<typename F>
   void doParallelForAllEdges(const TaskGroupID, const F& f) const {
-    tbb::parallel_for(ID(0), _num_hyperedges, [&](const HyperedgeID& id) {
-      const HyperedgeID he = common::get_global_edge_id(_node, id);
+    tbb::parallel_for(ID(0), _num_hyperedges, [&](const HyperedgeID& he) {
       if ( edgeIsEnabled(he) ) {
         f(he);
       }
@@ -626,11 +624,9 @@ class StaticHypergraph {
 
   // ! Returns a range of the active nodes of the hypergraph
   IteratorRange<HypernodeIterator> nodes() const {
-    const HypernodeID start = common::get_global_vertex_id(_node, 0);
-    const HypernodeID end = common::get_global_vertex_id(_node, _num_hypernodes);
     return IteratorRange<HypernodeIterator>(
-      HypernodeIterator(_hypernodes.data(), start, end),
-      HypernodeIterator(_hypernodes.data() + _num_hypernodes, end, end));
+      HypernodeIterator(_hypernodes.data(), ID(0), _num_hypernodes),
+      HypernodeIterator(_hypernodes.data() + _num_hypernodes, _num_hypernodes, _num_hypernodes));
   }
 
   // ! Returns an iterator over the set of active nodes of the hypergraph on a numa node
@@ -640,11 +636,9 @@ class StaticHypergraph {
 
   // ! Returns a range of the active edges of the hypergraph
   IteratorRange<HyperedgeIterator> edges() const {
-    const HyperedgeID start = common::get_global_edge_id(_node, 0);
-    const HyperedgeID end = common::get_global_edge_id(_node, _num_hyperedges);
     return IteratorRange<HyperedgeIterator>(
-      HyperedgeIterator(_hyperedges.data(), start, end),
-      HyperedgeIterator(_hyperedges.data() + _num_hyperedges, end, end));
+      HyperedgeIterator(_hyperedges.data(), ID(0), _num_hyperedges),
+      HyperedgeIterator(_hyperedges.data() + _num_hyperedges, _num_hyperedges, _num_hyperedges));
   }
 
   // ! Returns an iterator over the set of active nodes of the hypergraph on a numa node
@@ -1537,11 +1531,8 @@ class StaticHypergraph {
 
   // ! Accessor for hypernode-related information
   KAHYPAR_ATTRIBUTE_ALWAYS_INLINE const Hypernode& hypernode(const HypernodeID u) const {
-    const HyperedgeID local_pos = common::get_local_position_of_vertex(u);
-    ASSERT(_node == common::get_numa_node_of_vertex(u),
-      "Hypernode" << u << "is not part of hypergraph on numa node" << _node);
-    ASSERT(local_pos <= _num_hypernodes, "Hypernode" << u << "does not exist");
-    return _hypernodes[local_pos];
+    ASSERT(u <= _num_hypernodes, "Hypernode" << u << "does not exist");
+    return _hypernodes[u];
   }
 
   // ! To avoid code duplication we implement non-const version in terms of const version
@@ -1553,11 +1544,8 @@ class StaticHypergraph {
 
   // ! Accessor for hyperedge-related information
   KAHYPAR_ATTRIBUTE_ALWAYS_INLINE const Hyperedge& hyperedge(const HyperedgeID e) const {
-    const HyperedgeID local_pos = common::get_local_position_of_edge(e);
-    ASSERT(_node == common::get_numa_node_of_edge(e),
-      "Hyperedge" << e << "is not part of hypergraph on numa node" << _node);
-    ASSERT(local_pos <= _num_hyperedges, "Hyperedge" << e << "does not exist");
-    return _hyperedges[local_pos];
+    ASSERT(e <= _num_hyperedges, "Hyperedge" << e << "does not exist");
+    return _hyperedges[e];
   }
 
   // ! To avoid code duplication we implement non-const version in terms of const version

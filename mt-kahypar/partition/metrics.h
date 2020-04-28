@@ -32,34 +32,7 @@
 
 namespace mt_kahypar {
 namespace metrics {
-/**
- * Counts the number of pins which refers to an other numa node than the numa
- * node which its corresponding hyperedge belongs to
- */
-template <typename HyperGraph>
-static inline HyperedgeWeight remotePinCount(const HyperGraph& hypergraph) {
-  int used_numa_nodes = TBBNumaArena::instance().num_used_numa_nodes();
-  HyperedgeWeight remote_pin_count = 0;
-  for (const HyperedgeID& he : hypergraph.edges()) {
-    int he_node = common::get_numa_node_of_edge(he);
-    std::vector<size_t> pin_count_on_node(used_numa_nodes, 0);
-    for (const HypernodeID& pin : hypergraph.pins(he)) {
-      int hn_node = common::get_numa_node_of_vertex(pin);
-      ASSERT(hn_node < used_numa_nodes);
-      ++pin_count_on_node[hn_node];
-    }
 
-    HyperedgeWeight he_remote_pin_count = 0;
-    for (int node = 0; node < used_numa_nodes; ++node) {
-      if (he_node != node) {
-        he_remote_pin_count += pin_count_on_node[node];
-      }
-    }
-
-    remote_pin_count += he_remote_pin_count;
-  }
-  return remote_pin_count;
-}
 
 template<typename HyperGraph>
 static inline double modularity(const ds::GraphT<HyperGraph>& graph, ds::Clustering communities) {

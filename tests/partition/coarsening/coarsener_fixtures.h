@@ -72,7 +72,7 @@ class ACoarsener : public Test {
 template <class Hypergraph>
 void assignPartitionIDs(Hypergraph& hypergraph) {
   for (const HypernodeID& hn : hypergraph.nodes()) {
-    PartitionID part_id = common::get_numa_node_of_vertex(hn);
+    PartitionID part_id = 0;
     hypergraph.setNodePart(hn, part_id);
   }
   hypergraph.initializeNumCutHyperedges(TBBNumaArena::GLOBAL_TASK_GROUP);

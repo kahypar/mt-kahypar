@@ -59,7 +59,6 @@ class SparsifierHypergraph {
     _hyperedge_weight(),
     _he_included_in_sparsified_hg(),
     _mapping(),
-    _vertices_to_numa_node(),
     _hypernode_weight(),
     _node_degrees(),
     _hn_included_in_sparsified_hg() {
@@ -77,7 +76,6 @@ class SparsifierHypergraph {
     _hyperedge_weight(),
     _he_included_in_sparsified_hg(),
     _mapping(),
-    _vertices_to_numa_node(),
     _hypernode_weight(),
     _node_degrees(),
     _hn_included_in_sparsified_hg() {
@@ -85,8 +83,6 @@ class SparsifierHypergraph {
       _edge_vector.resize(num_hyperedges);
     }, [&] {
       _hyperedge_weight.resize(num_hyperedges);
-    }, [&] {
-      _vertices_to_numa_node.resize(num_hypernodes);
     }, [&] {
       _hypernode_weight.resize(num_hypernodes);
     });
@@ -97,7 +93,7 @@ class SparsifierHypergraph {
       parallel::parallel_free(_edge_vector);
     }, [&] {
       parallel::parallel_free(_hyperedge_weight,
-        _he_included_in_sparsified_hg, _vertices_to_numa_node,
+        _he_included_in_sparsified_hg,
         _hypernode_weight, _node_degrees,
         _hn_included_in_sparsified_hg);
     });
@@ -246,7 +242,6 @@ class SparsifierHypergraph {
       tbb::parallel_for(ID(0), _num_nodes, [&](const HypernodeID u) {
         if ( hn_prefix_sum.value(u) ) {
           const HyperedgeID sparsified_id = hn_prefix_sum[u];
-          sparsified_hypergraph._vertices_to_numa_node[sparsified_id] = _vertices_to_numa_node[u];
           sparsified_hypergraph._hypernode_weight[sparsified_id] = _hypernode_weight[u];
         }
       });
@@ -294,8 +289,6 @@ class SparsifierHypergraph {
       tbb::parallel_invoke([&] {
         _mapping.resize(_num_nodes);
       }, [&] {
-        _vertices_to_numa_node.resize(_num_nodes);
-      }, [&] {
         _hypernode_weight.resize(_num_nodes);
       }, [&] {
         _hn_included_in_sparsified_hg.assign(_num_nodes, 1);
@@ -303,7 +296,6 @@ class SparsifierHypergraph {
 
       tbb::parallel_for(ID(0), hypergraph.initialNumNodes(), [&](const HypernodeID hn) {
         _mapping[hn] = hn;
-        _vertices_to_numa_node[hn] = common::get_numa_node_of_vertex(hn);
         if ( hypergraph.nodeIsEnabled(hn) ) {
           _hypernode_weight[hn] = hypergraph.nodeWeight(hn);
         } else {
@@ -327,7 +319,6 @@ class SparsifierHypergraph {
 
   // Hypernodes
   parallel::scalable_vector<HypernodeID> _mapping;
-  parallel::scalable_vector<int> _vertices_to_numa_node;
   parallel::scalable_vector<HypernodeWeight> _hypernode_weight;
   AtomicNodeDegreeVector _node_degrees;
   parallel::scalable_vector<HypernodeID> _hn_included_in_sparsified_hg;

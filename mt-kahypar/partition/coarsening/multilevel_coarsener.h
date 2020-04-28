@@ -165,10 +165,9 @@ class MultilevelCoarsenerT : public ICoarsenerT<TypeTraits>,
 
       parallel::scalable_vector<HypernodeID> cluster_ids(current_hg.initialNumNodes());
       current_hg.doParallelForAllNodes(_task_group_id, [&](const HypernodeID& hn) {
-        const int node = common::get_numa_node_of_vertex(hn);
-        const HypernodeID local_id = common::get_local_position_of_vertex(hn);
-        ASSERT(local_id < current_vertices[node].size());
-        current_vertices[node][local_id] = hn;
+        const int node = 0;
+        ASSERT(hn < current_vertices[node].size());
+        current_vertices[node][hn] = hn;
         // Reset clustering
         _matching_state[hn] = STATE(MatchingState::UNMATCHED);
         _cluster_weight[hn] = current_hg.nodeWeight(hn);
