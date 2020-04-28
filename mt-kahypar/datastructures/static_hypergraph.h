@@ -885,16 +885,6 @@ class StaticHypergraph {
 
   // ####################### Contract / Uncontract #######################
 
-  Memento contract(const HypernodeID, const HypernodeID) {
-    ERROR("contract(u,v) is not supported in static hypergraph");
-    return Memento();
-  }
-
-  Memento contract(const HypernodeID, const HypernodeID, const PartitionID) {
-    ERROR("contract(u,v,c) is not supported in static hypergraph");
-    return Memento();
-  }
-
   /*!
    * Contracts a given community structure. All vertices with the same label
    * are collapsed into the same vertex. The resulting single-pin and parallel
@@ -1361,34 +1351,6 @@ class StaticHypergraph {
     return hypergraph;
   }
 
-  void uncontract(const Memento&, parallel::scalable_vector<HyperedgeID>&) {
-    ERROR("uncontract(memento,parallel_he) is not supported in static hypergraph");
-  }
-
-  void uncontract(const std::vector<Memento>&,
-                  parallel::scalable_vector<HyperedgeID>&,
-                  const kahypar::ds::FastResetFlagArray<>&,
-                  const bool) {
-    ERROR("uncontract(...) is not supported in static hypergraph");
-  }
-
-  void restoreDisabledHyperedgesThatBecomeNonParallel(
-    const Memento&,
-    parallel::scalable_vector<HyperedgeID>&,
-    const kahypar::ds::FastResetFlagArray<>&) {
-    ERROR("restoreDisabledHyperedgesThatBecomeNonParallel(...) is not supported"
-          << "in static hypergraph");
-  }
-
-  parallel::scalable_vector<HyperedgeID> findDisabledHyperedgesThatBecomeNonParallel(
-    const Memento&,
-    parallel::scalable_vector<HyperedgeID>&,
-    const kahypar::ds::FastResetFlagArray<>&) {
-    ERROR("findDisabledHyperedgesThatBecomeNonParallel(...) is not supported"
-          << "in static hypergraph");
-    return parallel::scalable_vector<HyperedgeID>();
-  }
-
   // ####################### Remove / Restore Hyperedges #######################
 
   /*!
@@ -1407,14 +1369,6 @@ class StaticHypergraph {
     disableHyperedge(he);
   }
 
-  void removeSinglePinCommunityEdge(const HyperedgeID, const PartitionID) {
-    ERROR("removeSinglePinCommunityEdge(e,c) is not supported in static hypergraph");
-  }
-
-  void removeParallelEdge(const HyperedgeID, const PartitionID) {
-    ERROR("removeParallelEdge(e,c) is not supported in static hypergraph");
-  }
-
   // ! Restores an hyperedge of a certain size.
   void restoreEdge(const HyperedgeID he, const size_t,
                    const HyperedgeID representative = kInvalidHyperedge) {
@@ -1431,14 +1385,6 @@ class StaticHypergraph {
     restoreEdge(he, 1);
   }
 
-  void restoreParallelHyperedge(const HyperedgeID,
-                                const Memento&,
-                                parallel::scalable_vector<HyperedgeID>&,
-                                const kahypar::ds::FastResetFlagArray<>* batch_hypernodes = nullptr) {
-    unused(batch_hypernodes);
-    ERROR("restoreParallelHyperedge(...) is not supported in static hypergraph");
-  }
-
   // ####################### Initialization / Reset Functions #######################
 
   /*!
@@ -1450,9 +1396,8 @@ class StaticHypergraph {
    *  4.) For each hypernode v of community C, we compute a unique id within
    *      that community in the range [0, |C|)
    */
-  void initializeCommunities(const TaskGroupID task_group_id,
-                             const parallel::scalable_vector<StaticHypergraph>& hypergraphs = {}) {
-    _community_support.initialize(*this, hypergraphs, task_group_id);
+  void initializeCommunities(const TaskGroupID task_group_id) {
+    _community_support.initialize(*this, task_group_id);
   }
 
   /*!
@@ -1463,9 +1408,8 @@ class StaticHypergraph {
   *       community hyperedge pointing to a range of consecutive pins with
   *       same community in that hyperedge
   */
-  void initializeCommunityHyperedges(const TaskGroupID,
-                                     const parallel::scalable_vector<StaticHypergraph>& hypergraphs = {}) {
-    _community_support.initializeCommunityHyperedges(*this, hypergraphs);
+  void initializeCommunityHyperedges(const TaskGroupID) {
+    _community_support.initializeCommunityHyperedges(*this);
   }
 
   /*!
@@ -1473,17 +1417,8 @@ class StaticHypergraph {
    * coarsening terminates.
    */
   void removeCommunityHyperedges(const TaskGroupID,
-                                 const parallel::scalable_vector<HypernodeID>& contraction_index = {},
-                                 const parallel::scalable_vector<StaticHypergraph>& hypergraphs = {}) {
-    _community_support.removeCommunityHyperedges(contraction_index, hypergraphs);
-  }
-
-  void buildContractionHierarchy(const std::vector<Memento>&) {
-    ERROR("buildContractionHierarchy(mementos) is not supported in static hypergraph");
-  }
-
-  void invalidateDisabledHyperedgesFromIncidentNets(const TaskGroupID) {
-    ERROR("invalidateDisabledHyperedgesFromIncidentNets(id) is not supported in static hypergraph");
+                                 const parallel::scalable_vector<HypernodeID>& contraction_index = {}) {
+    _community_support.removeCommunityHyperedges(contraction_index);
   }
 
   // ####################### Copy #######################
@@ -1628,13 +1563,6 @@ class StaticHypergraph {
   // ! To avoid code duplication we implement non-const version in terms of const version
   KAHYPAR_ATTRIBUTE_ALWAYS_INLINE Hyperedge& hyperedge(const HyperedgeID e) {
     return const_cast<Hyperedge&>(static_cast<const StaticHypergraph&>(*this).hyperedge(e));
-  }
-
-  // ####################### Initialization / Reset Functions #######################
-
-  void finalizeCommunityNodeIds(const parallel::scalable_vector<StaticHypergraph>& hypergraphs,
-                                const TaskGroupID task_group_id) {
-    _community_support.finalizeCommunityNodeIds(*this, hypergraphs, task_group_id);
   }
 
   // ####################### Remove / Restore Hyperedges #######################

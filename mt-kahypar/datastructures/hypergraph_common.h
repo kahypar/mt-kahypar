@@ -158,42 +158,6 @@ MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE static int get_numa_node_of_edge(const Hypere
   return 0;
 }
 
-template<typename Hypergraph>
-MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE static const Hypergraph& hypergraph_of_vertex(
-  const HypernodeID u,
-  const parallel::scalable_vector<Hypergraph>& hypergraphs) {
-  int node = get_numa_node_of_vertex(u);
-  ASSERT(node < static_cast<int>(hypergraphs.size()));
-  return hypergraphs[node];
-}
-
-template<typename Hypergraph>
-MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE static Hypergraph& hypergraph_of_vertex(
-  const HypernodeID u,
-  parallel::scalable_vector<Hypergraph>& hypergraphs) {
-  int node = get_numa_node_of_vertex(u);
-  ASSERT(node < static_cast<int>(hypergraphs.size()));
-  return hypergraphs[node];
-}
-
-template<typename Hypergraph>
-MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE static const Hypergraph& hypergraph_of_edge(
-  const HyperedgeID e,
-  const parallel::scalable_vector<Hypergraph>& hypergraphs) {
-  int node = get_numa_node_of_edge(e);
-  ASSERT(node < static_cast<int>(hypergraphs.size()));
-  return hypergraphs[node];
-}
-
-template<typename Hypergraph>
-MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE static Hypergraph& hypergraph_of_edge(
-  const HyperedgeID e,
-  parallel::scalable_vector<Hypergraph>& hypergraphs) {
-  int node = get_numa_node_of_edge(e);
-  ASSERT(node < static_cast<int>(hypergraphs.size()));
-  return hypergraphs[node];
-}
-
 } // namespace common
 
 } // namespace mt_kahypar

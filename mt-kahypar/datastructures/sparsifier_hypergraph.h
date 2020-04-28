@@ -252,20 +252,11 @@ class SparsifierHypergraph {
       });
     });
 
-    if ( !Hypergraph::is_numa_aware ) {
-      return HypergraphFactory::construct(
-        _task_group_id, num_hypernodes, num_hyperedges,
-        sparsified_hypergraph._edge_vector,
-        sparsified_hypergraph._hyperedge_weight.data(),
-        sparsified_hypergraph._hypernode_weight.data());
-    } else {
-      return HypergraphFactory::construct(
-        _task_group_id, num_hypernodes, num_hyperedges,
-        sparsified_hypergraph._edge_vector,
-        std::move(sparsified_hypergraph._vertices_to_numa_node),
-        sparsified_hypergraph._hyperedge_weight.data(),
-        sparsified_hypergraph._hypernode_weight.data());
-    }
+    return HypergraphFactory::construct(
+      _task_group_id, num_hypernodes, num_hyperedges,
+      sparsified_hypergraph._edge_vector,
+      sparsified_hypergraph._hyperedge_weight.data(),
+      sparsified_hypergraph._hypernode_weight.data());
   }
 
   // ! Returns a mapping from the sparsified hypergraph

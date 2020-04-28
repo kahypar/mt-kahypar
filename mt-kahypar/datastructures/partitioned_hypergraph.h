@@ -541,29 +541,6 @@ class PartitionedHypergraph {
 
   // ! Sets the block id of an unassigned vertex u.
   // ! Returns true, if assignment of unassigned vertex u to block id succeeds.
-  bool setNodePart(const HypernodeID u,
-                   PartitionID id,
-                   parallel::scalable_vector<PartitionedHypergraph>& hypergraphs) {
-    ASSERT(id != kInvalidPartition && id < _k);
-
-    // Sets the node part of vertex u to id. The operation succeeds
-    // if CAS operation on part_id of vertex u succeeds
-    PartitionID invalid_id = kInvalidPartition;
-    if ( vertexPartInfo(u).part_id.compare_and_exchange_strong(invalid_id, id) ) {
-
-      // Update Pin Count Part of all incident edges
-      for ( const HyperedgeID& he : incidentEdges(u) ) {
-        common::hypergraph_of_edge(he, hypergraphs).incrementPinCountInPart(he, id);
-      }
-
-      return true;
-    } else {
-      return false;
-    }
-  }
-
-  // ! Sets the block id of an unassigned vertex u.
-  // ! Returns true, if assignment of unassigned vertex u to block id succeeds.
   // ! Note, that in contrast to setNodePart the block weights and sizes and also
   // ! the pin count in part of all incident hyperedges is not updated. In order to
   // ! update those stats, one has to call initializePartition(...) after all
@@ -638,66 +615,6 @@ class PartitionedHypergraph {
 
   // ! Changes the block id of vertex u from block 'from' to block 'to'
   // ! Returns true, if move of vertex u to corresponding block succeeds.
-  TRUE_SPECIALIZATION(track_border_vertices, bool)
-  changeNodePart(const HypernodeID u,
-                 PartitionID from,
-                 PartitionID to,
-                 parallel::scalable_vector<PartitionedHypergraph>& hypergraphs,
-                 const DeltaFunction& delta_func = NOOP_FUNC) {
-    ASSERT(_hg->nodeIsEnabled(u), "Hypernode" << u << "is disabled");
-    ASSERT(from != kInvalidPartition && from < _k);
-    ASSERT(to != kInvalidPartition && to < _k);
-    ASSERT(from != to);
-    ASSERT(_is_init_num_cut_hyperedges);
-
-    if ( vertexPartInfo(u).part_id.compare_and_exchange_strong(from, to) ) {
-
-      // Update Pin Count Part of all incident edges
-      auto& failed_pin_count_updates = _failed_pin_count_updates.local();
-      HypernodeID pin_count_in_from_part_after = kInvalidHypernode;
-      HypernodeID pin_count_in_to_part_after = kInvalidHypernode;
-      for ( const HyperedgeID& he : incidentEdges(u) ) {
-        PartitionedHypergraph& hypergraph_of_he = common::hypergraph_of_edge(he, hypergraphs);
-        if ( updatePinCountOfHyperedge(he,
-              hypergraph_of_he, from, to,
-              pin_count_in_from_part_after,
-              pin_count_in_to_part_after,
-              delta_func) ) {
-          updateNumIncidentCutHyperedges(he, hypergraph_of_he,
-            hypergraphs, pin_count_in_from_part_after,
-            pin_count_in_to_part_after);
-        } else {
-          // If pin count update failed, remember hyperedge for
-          // later retry
-          failed_pin_count_updates.push_back(he);
-        }
-      }
-
-      // Retry pin count update on all hyperedges where update failed in
-      // the first try
-      while ( !failed_pin_count_updates.empty() ) {
-        const HyperedgeID he = failed_pin_count_updates.back();
-        PartitionedHypergraph& hypergraph_of_he = common::hypergraph_of_edge(he, hypergraphs);
-        if ( updatePinCountOfHyperedge(he,
-              hypergraph_of_he, from, to,
-              pin_count_in_from_part_after,
-              pin_count_in_to_part_after,
-              delta_func) ) {
-          updateNumIncidentCutHyperedges(he, hypergraph_of_he,
-            hypergraphs, pin_count_in_from_part_after,
-            pin_count_in_to_part_after);
-          failed_pin_count_updates.pop_back();
-        }
-      }
-
-      return true;
-    } else {
-      return false;
-    }
-  }
-
-  // ! Changes the block id of vertex u from block 'from' to block 'to'
-  // ! Returns true, if move of vertex u to corresponding block succeeds.
   FALSE_SPECIALIZATION(track_border_vertices, bool)
   changeNodePart(const HypernodeID u,
                  PartitionID from,
@@ -741,58 +658,6 @@ class PartitionedHypergraph {
           failed_pin_count_updates.pop_back();
         }
       }
-      return true;
-    } else {
-      return false;
-    }
-  }
-
-  // ! Changes the block id of vertex u from block 'from' to block 'to'
-  // ! Returns true, if move of vertex u to corresponding block succeeds.
-  FALSE_SPECIALIZATION(track_border_vertices, bool)
-  changeNodePart(const HypernodeID u,
-                 PartitionID from,
-                 PartitionID to,
-                 parallel::scalable_vector<PartitionedHypergraph>& hypergraphs,
-                 const DeltaFunction& delta_func = NOOP_FUNC) {
-    ASSERT(_hg->nodeIsEnabled(u), "Hypernode" << u << "is disabled");
-    ASSERT(from != kInvalidPartition && from < _k);
-    ASSERT(to != kInvalidPartition && to < _k);
-    ASSERT(from != to);
-
-    if ( vertexPartInfo(u).part_id.compare_and_exchange_strong(from, to) ) {
-
-      // Update Pin Count Part of all incident edges
-      auto& failed_pin_count_updates = _failed_pin_count_updates.local();
-      HypernodeID pin_count_in_from_part_after = kInvalidHypernode;
-      HypernodeID pin_count_in_to_part_after = kInvalidHypernode;
-      for ( const HyperedgeID& he : incidentEdges(u) ) {
-        PartitionedHypergraph& hypergraph_of_he = common::hypergraph_of_edge(he, hypergraphs);
-        if ( !updatePinCountOfHyperedge(he,
-              hypergraph_of_he, from, to,
-              pin_count_in_from_part_after,
-              pin_count_in_to_part_after,
-              delta_func) ) {
-          // If pin count update failed, remember hyperedge for
-          // later retry
-          failed_pin_count_updates.push_back(he);
-        }
-      }
-
-      // Retry pin count update on all hyperedges where update failed in
-      // the first try
-      while ( !failed_pin_count_updates.empty() ) {
-        const HyperedgeID he = failed_pin_count_updates.back();
-        PartitionedHypergraph& hypergraph_of_he = common::hypergraph_of_edge(he, hypergraphs);
-        if ( updatePinCountOfHyperedge(he,
-              hypergraph_of_he, from, to,
-              pin_count_in_from_part_after,
-              pin_count_in_to_part_after,
-              delta_func) ) {
-          failed_pin_count_updates.pop_back();
-        }
-      }
-
       return true;
     } else {
       return false;
@@ -881,36 +746,6 @@ class PartitionedHypergraph {
     });
   }
 
-  // ! Initializes the partition of the hypergraph, if block ids are assigned with
-  // ! setOnlyNodePart(...). In that case, part info, pin counts in part and border
-  // ! vertices have to be computed in a postprocessing step.
-  // ! Note, this function is called from the numa partitioned hypergraph, which maintains
-  // ! part infos. Furthermore, border vertices can only be computed if pin count information
-  // ! on all partitioned hypergraphs are available. Therefore, we only compute pin count
-  // ! in part for each hyperedge here.
-  void initializePartition(const TaskGroupID task_group_id,
-                           const parallel::scalable_vector<PartitionedHypergraph>& hypergraphs) {
-    // Compute Pin Count In Parts
-    tbb::enumerable_thread_specific<parallel::scalable_vector<HypernodeID>> local_pin_count_in_part(
-      parallel::scalable_vector<HypernodeID>(_k, 0));
-    _hg->doParallelForAllEdges(task_group_id, [&](const HyperedgeID he) {
-      parallel::scalable_vector<HypernodeID>& pin_counts = local_pin_count_in_part.local();
-      for ( const HypernodeID& pin : pins(he) ) {
-        const PartitionID block = common::hypergraph_of_vertex(pin, hypergraphs).partID(pin);
-        ASSERT(block != kInvalidPartition && block < _k);
-        ++pin_counts[block];
-      }
-
-      for ( PartitionID block = 0; block < _k; ++block ) {
-        if ( pin_counts[block] > 0 ) {
-          ASSERT(pinCountInPart(he, block) == 0);
-          setPinCountInPart(he, block, pin_counts[block]);
-          pin_counts[block] = 0;
-        }
-      }
-    });
-  }
-
   // ! Returns, whether hypernode u is adjacent to a least one cut hyperedge.
   TRUE_SPECIALIZATION(track_border_vertices, bool) isBorderNode(const HypernodeID u) const {
     ASSERT(_is_init_num_cut_hyperedges);
@@ -921,18 +756,6 @@ class PartitionedHypergraph {
   FALSE_SPECIALIZATION(track_border_vertices, bool) isBorderNode(const HypernodeID u) const {
     for ( const HyperedgeID& he : incidentEdges(u) ) {
       if ( connectivity(he) > 1 ) {
-        return true;
-      }
-    }
-    return false;
-  }
-
-  // ! Returns, whether hypernode u is adjacent to a least one cut hyperedge.
-  FALSE_SPECIALIZATION(track_border_vertices, bool) isBorderNode(
-    const HypernodeID u,
-    const parallel::scalable_vector<PartitionedHypergraph>& hypergraphs) const {
-    for ( const HyperedgeID& he : incidentEdges(u) ) {
-      if ( common::hypergraph_of_edge(he, hypergraphs).connectivity(he) > 1 ) {
         return true;
       }
     }
@@ -953,29 +776,15 @@ class PartitionedHypergraph {
     return num_incident_cut_hyperedges;
   }
 
-  // ! Number of incident cut hyperedges of vertex u
-  FALSE_SPECIALIZATION(track_border_vertices, HyperedgeID) numIncidentCutHyperedges(
-    const HypernodeID u,
-    const parallel::scalable_vector<PartitionedHypergraph>& hypergraphs) const {
-    HyperedgeID num_incident_cut_hyperedges = 0;
-    for ( const HyperedgeID& he : incidentEdges(u) ) {
-      num_incident_cut_hyperedges += ( common::hypergraph_of_edge(he, hypergraphs).connectivity(he) > 1 );
-    }
-    return num_incident_cut_hyperedges;
-  }
-
   // ! Initializes the number of cut hyperedges for each vertex
   // ! NOTE, this function have to be called after initial partitioning
   // ! and before local search.
-  TRUE_SPECIALIZATION(track_border_vertices, void) initializeNumCutHyperedges(
-    const TaskGroupID task_group_id,
-    const parallel::scalable_vector<PartitionedHypergraph>& hypergraphs = {}) {
+  TRUE_SPECIALIZATION(track_border_vertices, void) initializeNumCutHyperedges(const TaskGroupID task_group_id) {
     ASSERT(!_is_init_num_cut_hyperedges);
     _hg->doParallelForAllNodes(task_group_id, [&](const HypernodeID hn) {
       ASSERT(partID(hn) != kInvalidPartition, V(hn) << V(partID(hn)));
       for ( const HyperedgeID& he : incidentEdges(hn)) {
-        const PartitionID he_connectivity = hypergraphs.empty() ? connectivity(he) :
-          common::hypergraph_of_edge(he, hypergraphs).connectivity(he);
+        const PartitionID he_connectivity = connectivity(he);
         if ( he_connectivity > 1 ) {
           incrementIncidentNumCutHyperedges(hn);
         }
@@ -987,14 +796,12 @@ class PartitionedHypergraph {
   // ! Initializes the number of cut hyperedges for each vertex
   // ! NOTE, this function have to be called after initial partitioning
   // ! and before local search.
-  TRUE_SPECIALIZATION(track_border_vertices, void) initializeNumCutHyperedges(
-    const parallel::scalable_vector<PartitionedHypergraph>& hypergraphs = {}) {
+  TRUE_SPECIALIZATION(track_border_vertices, void) initializeNumCutHyperedges() {
     ASSERT(!_is_init_num_cut_hyperedges);
     for ( const HypernodeID& hn : nodes() ) {
       ASSERT(partID(hn) != kInvalidPartition);
       for ( const HyperedgeID& he : incidentEdges(hn)) {
-        const PartitionID he_connectivity = hypergraphs.empty() ? connectivity(he) :
-          common::hypergraph_of_edge(he, hypergraphs).connectivity(he);
+        const PartitionID he_connectivity = connectivity(he);
         if ( he_connectivity > 1 ) {
           incrementIncidentNumCutHyperedges(hn);
         }
@@ -1004,17 +811,12 @@ class PartitionedHypergraph {
   }
 
   // ! NOOP, in case border vertices should be not explicitly tracked
-  FALSE_SPECIALIZATION(track_border_vertices, void) initializeNumCutHyperedges(
-    const TaskGroupID,
-    const parallel::scalable_vector<PartitionedHypergraph>& hypergraphs = {}) {
-    unused(hypergraphs);
+  FALSE_SPECIALIZATION(track_border_vertices, void) initializeNumCutHyperedges(const TaskGroupID) {
     _is_init_num_cut_hyperedges = true;
   }
 
   // ! NOOP, in case border vertices should be not explicitly tracked
-  FALSE_SPECIALIZATION(track_border_vertices, void) initializeNumCutHyperedges(
-    const parallel::scalable_vector<PartitionedHypergraph>& hypergraphs = {}) {
-    unused(hypergraphs);
+  FALSE_SPECIALIZATION(track_border_vertices, void) initializeNumCutHyperedges() {
     _is_init_num_cut_hyperedges = true;
   }
 
@@ -1271,32 +1073,6 @@ class PartitionedHypergraph {
       // In that case, hyperedge he becomes an cut hyperede
       for (const HypernodeID& pin : pins(he)) {
         incrementIncidentNumCutHyperedges(pin);
-      }
-    }
-  }
-
-  // ! If hyperedge he becomes cut or internal, the number of incident cut
-  // ! hyperedges of all its pins is incremented resp. decremented.
-  KAHYPAR_ATTRIBUTE_ALWAYS_INLINE void updateNumIncidentCutHyperedges(const HyperedgeID he,
-                                                                      PartitionedHypergraph& hypergraph_of_he,
-                                                                      parallel::scalable_vector<PartitionedHypergraph>& hypergraphs,
-                                                                      const HypernodeID pin_count_in_from_part_after,
-                                                                      const HypernodeID pin_count_in_to_part_after) {
-    bool no_pins_left_in_source_part = pin_count_in_from_part_after == 0;
-    bool only_one_pin_in_to_part = pin_count_in_to_part_after == 1;
-
-    HypernodeID edge_size = hypergraph_of_he.edgeSize(he);
-    if (no_pins_left_in_source_part && !only_one_pin_in_to_part &&
-        pin_count_in_to_part_after == edge_size) {
-      // In that case, hyperedge he becomes an internal hyperedge
-      for (const HypernodeID& pin : hypergraph_of_he.pins(he)) {
-        common::hypergraph_of_vertex(pin, hypergraphs).decrementIncidentNumCutHyperedges(pin);
-      }
-    } else if (!no_pins_left_in_source_part && only_one_pin_in_to_part &&
-               pin_count_in_from_part_after == edge_size - 1) {
-      // In that case, hyperedge he becomes an cut hyperede
-      for (const HypernodeID& pin : hypergraph_of_he.pins(he)) {
-        common::hypergraph_of_vertex(pin, hypergraphs).incrementIncidentNumCutHyperedges(pin);
       }
     }
   }
