@@ -61,9 +61,6 @@ class MtKaHyPar : public Test {
     context.partition.verbose_output = true;
     context.partition.show_detailed_timings = true;
     context.preprocessing.use_community_detection = Config::USE_COMMUNITY_DETECTION;
-    if ( !context.preprocessing.use_community_detection ) {
-      context.preprocessing.use_community_redistribution = false;
-    }
     context.coarsening.algorithm = CoarseningAlgorithm::multilevel_coarsener;
     context.initial_partitioning.mode = Config::INITIAL_PARTITIONING_MODE;
     context.initial_partitioning.refinement.label_propagation.algorithm = Config::LP_ALGORITHM;

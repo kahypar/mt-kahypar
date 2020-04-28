@@ -52,9 +52,8 @@ class LabelPropagationRefinerT final : public IRefinerT<TypeTraits, track_border
   using TBB = typename TypeTraits::TBB;
   using HwTopology = typename TypeTraits::HwTopology;
   using GainCalculator = GainPolicy<HyperGraph>;
-  using NumaActiveNodes = parallel::scalable_vector<parallel::scalable_vector<HypernodeID>>;
-  using NumaNextActiveNodes = parallel::scalable_vector<ds::StreamingVector<HypernodeID>>;
-  using NumaFastResetFlagArray = parallel::scalable_vector<kahypar::ds::FastResetFlagArray<>>;
+  using ActiveNodes = parallel::scalable_vector<HypernodeID>;
+  using NextActiveNodes = ds::StreamingVector<HypernodeID>;
 
   static constexpr bool debug = false;
   static constexpr bool enable_heavy_assert = false;
@@ -65,18 +64,12 @@ class LabelPropagationRefinerT final : public IRefinerT<TypeTraits, track_border
                                     const TaskGroupID task_group_id) :
     _context(context),
     _task_group_id(task_group_id),
-    _is_numa_aware(false),
     _current_num_nodes(kInvalidHypernode),
     _current_num_edges(kInvalidHyperedge),
     _gain(context),
     _active_nodes(),
     _next_active(),
-    _visited_he(),
-    _numa_lp_round_synchronization(0) {
-    _is_numa_aware = _context.refinement.label_propagation.numa_aware &&
-                     !_context.refinement.label_propagation.execute_sequential &&
-                     TBB::instance().num_used_numa_nodes() > 1;
-  }
+    _visited_he() { }
 
   LabelPropagationRefinerT(const LabelPropagationRefinerT&) = delete;
   LabelPropagationRefinerT(LabelPropagationRefinerT&&) = delete;
@@ -84,36 +77,14 @@ class LabelPropagationRefinerT final : public IRefinerT<TypeTraits, track_border
   LabelPropagationRefinerT & operator= (const LabelPropagationRefinerT &) = delete;
   LabelPropagationRefinerT & operator= (LabelPropagationRefinerT &&) = delete;
 
-  ~LabelPropagationRefinerT() {
-    parallel::parallel_free(_active_nodes, _next_active, _visited_he);
-  }
-
  private:
   bool refineImpl(HyperGraph& hypergraph,
                   kahypar::Metrics& best_metrics) override final {
     _gain.reset();
+    _next_active.reset();
 
-    _numa_lp_round_synchronization = 0;
-    for ( int node = 0; node < static_cast<int>(_next_active.size()); ++node ) {
-      _next_active[node].reset();
-    }
-
-    NumaNextActiveNodes next_active_nodes;
-    if (_is_numa_aware) {
-      // Execute label propagation on all numa nodes
-      next_active_nodes.resize(TBB::instance().num_used_numa_nodes());
-      TBB::instance().execute_parallel_on_all_numa_nodes(_task_group_id, [&](const int node) {
-          // In case we execute numa-aware label propagation, we perform
-          // label propagation on all nodes of the current numa node.
-          ASSERT(node < static_cast<int>(_active_nodes.size()));
-          labelPropagation(hypergraph, next_active_nodes, node);
-        });
-    } else {
-      // In case, we execute non-numa-aware label propagation, we
-      // perform label propagation on all vertices
-      next_active_nodes.resize(1);
-      labelPropagation(hypergraph, next_active_nodes, 0);
-    }
+    // Perform Label Propagation
+    labelPropagation(hypergraph);
 
     // Update global part weight and sizes
     best_metrics.imbalance = metrics::imbalance(hypergraph, _context);
@@ -132,45 +103,37 @@ class LabelPropagationRefinerT final : public IRefinerT<TypeTraits, track_border
     return delta < 0;
   }
 
-  void labelPropagation(HyperGraph& hypergraph,
-                        NumaNextActiveNodes& next_active_nodes,
-                        const int node) {
+  void labelPropagation(HyperGraph& hypergraph) {
+    NextActiveNodes next_active_nodes;
     for (size_t i = 0; i < _context.refinement.label_propagation.maximum_iterations; ++i) {
-      DBG << "Starting Label Propagation Round" << i << "on NUMA Node" << node;
+      DBG << "Starting Label Propagation Round" << i;
 
       utils::Timer::instance().start_timer(
-        "lp_round_" + std::to_string(i) + (node != -1 ? "_" + std::to_string(node) : ""),
-        "Label Propagation Round " + std::to_string(i) + (node != -1 ? " - " + std::to_string(node) : ""), true);
+        "lp_round_" + std::to_string(i), "Label Propagation Round " + std::to_string(i), true);
 
-      if ( _active_nodes[node].size() > 0 ) {
-        labelPropagationRound(hypergraph, next_active_nodes, node);
-      }
-
-      if ( _is_numa_aware ) {
-        // In case, we execute numa-aware label propagation, we need to synchronize
-        // the rounds in order that swapping the active node set is thread-safe
-        ++_numa_lp_round_synchronization;
-        const size_t synchro_barrier = ( i + 1 ) * TBB::instance().num_used_numa_nodes();
-        while ( _numa_lp_round_synchronization.load() < synchro_barrier) { }
+      if ( _active_nodes.size() > 0 ) {
+        labelPropagationRound(hypergraph, next_active_nodes);
       }
 
       if ( _context.refinement.label_propagation.execute_sequential ) {
-        _active_nodes[node] = next_active_nodes[node].copy_sequential();
-        next_active_nodes[node].clear_sequential();
+        _active_nodes = next_active_nodes.copy_sequential();
+        next_active_nodes.clear_sequential();
       } else {
-        _active_nodes[node] = next_active_nodes[node].copy_parallel();
-        next_active_nodes[node].clear_parallel();
+        _active_nodes = next_active_nodes.copy_parallel();
+        next_active_nodes.clear_parallel();
       }
-      utils::Timer::instance().stop_timer(
-        "lp_round_" + std::to_string(i) + (node != -1 ? "_" + std::to_string(node) : ""));
+      utils::Timer::instance().stop_timer("lp_round_" + std::to_string(i));
+
+      if ( _active_nodes.size() == 0 ) {
+        break;
+      }
     }
   }
 
   bool labelPropagationRound(HyperGraph& hypergraph,
-                             NumaNextActiveNodes& next_active_nodes,
-                             const int node) {
-    _visited_he[node].reset();
-    _next_active[node].reset();
+                             NextActiveNodes& next_active_nodes) {
+    _visited_he.reset();
+    _next_active.reset();
     // This function is passed as lambda to the changeNodePart function and used
     // to calculate the "real" delta of a move (in terms of the used objective function).
     auto objective_delta = [&](const HyperedgeID he,
@@ -186,21 +149,21 @@ class LabelPropagationRefinerT final : public IRefinerT<TypeTraits, track_border
     bool converged = true;
     if ( _context.refinement.label_propagation.execute_sequential ) {
       utils::Randomize::instance().shuffleVector(
-        _active_nodes[node], 0UL, _active_nodes[node].size(), sched_getcpu());
+        _active_nodes, 0UL, _active_nodes.size(), sched_getcpu());
 
-      for ( size_t j = 0; j < _active_nodes[node].size(); ++j ) {
-        const HypernodeID hn = _active_nodes[node][j];
+      for ( size_t j = 0; j < _active_nodes.size(); ++j ) {
+        const HypernodeID hn = _active_nodes[j];
         converged &= !moveVertex(hypergraph, hn,
-          next_active_nodes, node, objective_delta);
+          next_active_nodes, objective_delta);
       }
     } else {
       utils::Randomize::instance().parallelShuffleVector(
-        _active_nodes[node], 0UL, _active_nodes[node].size());
+        _active_nodes, 0UL, _active_nodes.size());
 
-      tbb::parallel_for(0UL, _active_nodes[node].size(), [&](const size_t& j) {
-          const HypernodeID hn = _active_nodes[node][j];
+      tbb::parallel_for(0UL, _active_nodes.size(), [&](const size_t& j) {
+          const HypernodeID hn = _active_nodes[j];
           converged &= !moveVertex(hypergraph, hn,
-            next_active_nodes, node, objective_delta);
+            next_active_nodes, objective_delta);
         });
     }
     return converged;
@@ -209,8 +172,7 @@ class LabelPropagationRefinerT final : public IRefinerT<TypeTraits, track_border
   template<typename F>
   bool moveVertex(HyperGraph& hypergraph,
                   const HypernodeID hn,
-                  NumaNextActiveNodes& next_active_nodes,
-                  const int node,
+                  NextActiveNodes& next_active_nodes,
                   const F& objective_delta) {
     bool is_moved = false;
     ASSERT(hn != kInvalidHypernode);
@@ -247,23 +209,22 @@ class LabelPropagationRefinerT final : public IRefinerT<TypeTraits, track_border
             for (const HyperedgeID& he : hypergraph.incidentEdges(hn)) {
               if ( hypergraph.edgeSize(he) <=
                     ID(_context.refinement.label_propagation.hyperedge_size_activation_threshold) ) {
-                if ( !_visited_he[node][he] ) {
+                if ( !_visited_he[he] ) {
                   for (const HypernodeID& pin : hypergraph.pins(he)) {
-                    int pin_numa_node = 0;
                     if ( (_context.refinement.label_propagation.rebalancing ||
                            hypergraph.isBorderNode(hn)) &&
-                         !_next_active[pin_numa_node][pin] ) {
-                      next_active_nodes[pin_numa_node].stream(pin);
-                      _next_active[pin_numa_node].set(pin, true);
+                         !_next_active[pin] ) {
+                      next_active_nodes.stream(pin);
+                      _next_active.set(pin, true);
                     }
                   }
-                  _visited_he[node].set(he, true);
+                  _visited_he.set(he, true);
                 }
               }
             }
-            if ( _next_active[node][hn] ) {
-              next_active_nodes[node].stream(hn);
-              _next_active[node].set(hn, true);
+            if ( _next_active[hn] ) {
+              next_active_nodes.stream(hn);
+              _next_active.set(hn, true);
             }
             is_moved = true;
           } else {
@@ -282,8 +243,7 @@ class LabelPropagationRefinerT final : public IRefinerT<TypeTraits, track_border
   }
 
   void initializeImpl(HyperGraph& hypergraph) override final {
-    const int num_numa_nodes = _is_numa_aware ? TBB::instance().num_used_numa_nodes() : 1;
-    NumaActiveNodes tmp_active_nodes(num_numa_nodes);
+    ActiveNodes tmp_active_nodes;
     _active_nodes = std::move(tmp_active_nodes);
 
     if ( _context.refinement.label_propagation.execute_sequential ) {
@@ -291,18 +251,16 @@ class LabelPropagationRefinerT final : public IRefinerT<TypeTraits, track_border
       for ( const HypernodeID hn : hypergraph.nodes() ) {
         if ( _context.refinement.label_propagation.rebalancing ||
              hypergraph.isBorderNode(hn) ) {
-          _active_nodes[0].push_back(hn);
+          _active_nodes.push_back(hn);
         }
       }
     } else {
       // Setup active nodes in parallel
       // A node is active, if it is a border vertex.
-      NumaNextActiveNodes tmp_active_nodes(num_numa_nodes);
+      NextActiveNodes tmp_active_nodes;
 
       auto add_vertex = [&](const HypernodeID& hn) {
-        const int node =  0;
-        ASSERT(node < static_cast<int>(tmp_active_nodes.size()));
-        tmp_active_nodes[node].stream(hn);
+        tmp_active_nodes.stream(hn);
       };
 
       hypergraph.doParallelForAllNodes(_task_group_id, [&](const HypernodeID& hn) {
@@ -312,45 +270,30 @@ class LabelPropagationRefinerT final : public IRefinerT<TypeTraits, track_border
         }
       });
 
-      if ( _is_numa_aware ) {
-        TBB::instance().execute_parallel_on_all_numa_nodes(_task_group_id, [&](const int node) {
-          ASSERT(node < static_cast<int>(_active_nodes.size()));
-          _active_nodes[node] = tmp_active_nodes[node].copy_parallel();
-        });
-      } else {
-        _active_nodes[0] = tmp_active_nodes[0].copy_parallel();
-      }
+      _active_nodes = tmp_active_nodes.copy_parallel();
     }
 
     const HypernodeID new_num_nodes = hypergraph.initialNumNodes();
     if ( new_num_nodes > _current_num_nodes || _current_num_nodes == kInvalidHypernode ) {
-      _next_active.clear();
-      for ( int node = 0; node < num_numa_nodes; ++node ) {
-        _next_active.emplace_back(hypergraph.initialNumNodes());
-      }
+      _next_active = kahypar::ds::FastResetFlagArray<>(hypergraph.initialNumNodes());
       _current_num_nodes = new_num_nodes;
     }
 
     const HypernodeID new_num_edges = hypergraph.initialNumEdges();
     if ( new_num_edges > _current_num_edges || _current_num_edges == kInvalidHyperedge ) {
-      _visited_he.clear();
-      for ( int node = 0; node < num_numa_nodes; ++node ) {
-        _visited_he.emplace_back(hypergraph.initialNumEdges());
-      }
+      _visited_he = kahypar::ds::FastResetFlagArray<>(hypergraph.initialNumEdges());
       _current_num_edges = new_num_edges;
     }
   }
 
   const Context& _context;
   const TaskGroupID _task_group_id;
-  bool _is_numa_aware;
   HypernodeID _current_num_nodes;
   HyperedgeID _current_num_edges;
   GainCalculator _gain;
-  NumaActiveNodes _active_nodes;
-  NumaFastResetFlagArray _next_active;
-  NumaFastResetFlagArray _visited_he;
-  std::atomic<size_t> _numa_lp_round_synchronization;
+  ActiveNodes _active_nodes;
+  kahypar::ds::FastResetFlagArray<> _next_active;
+  kahypar::ds::FastResetFlagArray<> _visited_he;
 };
 
 using LabelPropagationKm1Refiner = LabelPropagationRefinerT<GlobalTypeTraits, Km1Policy>;

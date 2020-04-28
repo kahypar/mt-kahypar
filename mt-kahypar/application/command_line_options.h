@@ -258,14 +258,6 @@ po::options_description createRefinementOptionsDescription(Context& context,
       &context.initial_partitioning.refinement.label_propagation.hyperedge_size_activation_threshold))->value_name("<size_t>"),
     "If a vertex moves during LP only neighbors that are part of hyperedge with size less\n"
     "this threshold are activated.");
-
-  if ( !initial_partitioning ) {
-    options.add_options()
-      ("r-lp-numa-aware",
-      po::value<bool>(&context.refinement.label_propagation.numa_aware)->value_name("<bool>"),
-      "If true, label propagation is executed numa friendly (which means that nodes are processed on its numa nodes)\n"
-      "(default false)");
-  }
   return options;
 }
 

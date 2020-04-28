@@ -82,11 +82,6 @@ class ALabelPropagationRefiner : public Test {
     // Label Propagation
     context.refinement.label_propagation.algorithm = Config::LP_ALGO;
     context.initial_partitioning.refinement.label_propagation.algorithm = Config::LP_ALGO;
-    #ifdef KAHYPAR_TRAVIS_BUILD
-    context.refinement.label_propagation.numa_aware = false;
-    #else
-    context.refinement.label_propagation.numa_aware = true;
-    #endif
 
     // Read hypergraph
     hypergraph = io::readHypergraphFile<Hypergraph, HypergraphFactory>(
