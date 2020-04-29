@@ -38,9 +38,7 @@ namespace mt_kahypar {
 
 class MultiTryKWayFM final : public IRefiner {
 public:
-  MultiTryKWayFM(Hypergraph& hypergraph,
-                 const Context& context,
-                 const TaskGroupID taskGroupID) :
+  MultiTryKWayFM(Hypergraph& hypergraph, const Context& context, const TaskGroupID taskGroupID) :
           context(context),
           taskGroupID(taskGroupID),
           sharedData(hypergraph.initialNumNodes(), context),
@@ -57,20 +55,15 @@ public:
   }
 
   Gain refine(PartitionedHypergraph& phg) {
+    if (!is_initialized) throw std::runtime_error("Call initialize on fm before calling refine");
+    
     utils::Timer& timer = utils::Timer::instance();
-    timer.start_timer("fm_unnecessary_init", "FM Init");
-
-    phg.initializeGainInformation();                // initialization only as long as LP refiner does not use these datastructures
-    globalRollback.setRemainingOriginalPins(phg);   // initialization only as long as LP refiner does not use these datastructures
-
-    timer.stop_timer("fm_unnecessary_init");
     //sharedData.partition_weight_budgets.initialize(phg, context.partition.max_part_weights);          // only for version with budgets
-
     Gain overall_improvement = 0;
     for (size_t round = 0; round < context.refinement.fm.multitry_rounds; ++round) {                    // global multi try rounds
       timer.start_timer("collect_border_nodes", "Collect Border Nodes");
 
-      initialize(phg);
+      roundInitialization(phg);
 
       timer.stop_timer("collect_border_nodes");
       timer.start_timer("find_moves", "Find Moves");
@@ -117,10 +110,17 @@ public:
     }
 
     // sharedData.partition_weight_budgets.updatePartWeights(phg, context.partition.max_part_weights);  // only for version with budgets
+    is_initialized = false;
     return overall_improvement;
   }
 
   void initializeImpl(PartitionedHypergraph& phg) override final {
+    phg.initializeGainInformation();                // initialization only as long as LP refiner does not use these datastructures TODO consolidate at some point
+    globalRollback.setRemainingOriginalPins(phg);   // initialization only as long as LP refiner does not use these datastructures
+    is_initialized = true;
+  }
+
+  void roundInitialization(PartitionedHypergraph& phg) {
     // insert border nodes into work queues
     sharedData.refinementNodes.clear();
     tbb::parallel_for(HypernodeID(0), phg.initialNumNodes(), [&](const HypernodeID u) {
@@ -142,6 +142,7 @@ public:
   }
 //protected:
 
+  bool is_initialized = false;
   const Context& context;
   const TaskGroupID taskGroupID;
   FMSharedData sharedData;
