@@ -73,7 +73,8 @@ public:
   }
 
   void shuffle() {
-    std::shuffle(elements.begin(), elements.end(), rng);
+    //std::shuffle(elements.begin(), elements.begin() + unsafe_size(), rng);
+    utils::Randomize::instance().parallelShuffleVector(elements, 0, unsafe_size());
   }
 
 private:
