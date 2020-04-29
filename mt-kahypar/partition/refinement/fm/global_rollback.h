@@ -34,7 +34,8 @@ namespace refinement {
 struct BestIndexReduceBody {
   const vec<Gain>& gains;
   const boost::dynamic_bitset<>& in_balance;
-  MoveID best_index = std::numeric_limits<MoveID>::max();
+
+  MoveID best_index = 0;   /** local ID of first move to revert */
   HyperedgeWeight sum = 0, best_sum = 0;
 
   BestIndexReduceBody(const vec<Gain>& gains, const boost::dynamic_bitset<>& in_balance) : gains(gains), in_balance(in_balance) { }
@@ -42,9 +43,6 @@ struct BestIndexReduceBody {
   BestIndexReduceBody(BestIndexReduceBody& b, tbb::split) : gains(b.gains), in_balance(b.in_balance) { }
 
   void operator()(const tbb::blocked_range<MoveID>& r) {
-    if (best_index == std::numeric_limits<MoveID>::max()) {
-      best_index = r.begin(); // initialize if the range was split
-    }
     for (MoveID i = r.begin(); i < r.end(); ++i) {
       if (gains[i] != invalidGain) {  // skip locally reverted moves
         sum += gains[i];
@@ -57,13 +55,12 @@ struct BestIndexReduceBody {
   }
 
   void join(BestIndexReduceBody& rhs) {
-    const HyperedgeWeight rhs_sum = sum + rhs.sum;
     const HyperedgeWeight rhs_best_sum = sum + rhs.best_sum;
-    if (rhs_best_sum > best_sum) {
+    if (rhs_best_sum > best_sum && rhs.best_index != 0) {
       best_index = rhs.best_index;
       best_sum = rhs_best_sum;
     }
-    sum = rhs_sum;
+    sum += rhs.sum;
   }
 
 };
@@ -85,39 +82,24 @@ public:
   }
 
   HyperedgeWeight revertToBestPrefix(PartitionedHypergraph& phg, FMSharedData& sharedData,
-                                     vec <HypernodeWeight>& partWeights, HypernodeWeight maxPartWeight) {
-    const auto& move_order = sharedData.moveTracker.moveOrder;
+                                     vec<HypernodeWeight>& partWeights, HypernodeWeight maxPartWeight) {
     const MoveID numMoves = sharedData.moveTracker.numPerformedMoves();
     if (numMoves == 0) return 0;
 
+    const vec<Move>& move_order = sharedData.moveTracker.moveOrder;
     utils::Timer& timer = utils::Timer::instance();
-    timer.start_timer("balance_recalculation", "Balance Recalculation");
 
-    for (MoveID moveID = 0; moveID < numMoves; ++moveID) {
-      const Move& m = move_order[moveID];
-      if (sharedData.moveTracker.isMoveStillValid(m)) {
-        partWeights[m.to] += phg.nodeWeight(m.node);
-        partWeights[m.from] -= phg.nodeWeight(m.node);
-        if (partWeights[m.to] <= maxPartWeight) {
-          in_balance.set(moveID);
-        } else {
-          in_balance.reset(moveID);
-        }
-      } else {
-        in_balance.reset(moveID);
-      }
-    }
-
-    timer.stop_timer("balance_recalculation");
-
-    recalculateGains(phg, sharedData);
-
+    timer.start_timer("recalculate_balance_and_gains", "Recalculate Balance and Gains");
+    tbb::parallel_invoke(
+            [&]{ recalculateBalance(phg, partWeights, maxPartWeight, move_order, numMoves); },
+            [&]{ recalculateGains(phg, sharedData); }
+    );
+    timer.stop_timer("recalculate_balance_and_gains");
     timer.start_timer("find_best_prefix", "Find Best Prefix");
 
     BestIndexReduceBody b(gains, in_balance);
     tbb::parallel_reduce(tbb::blocked_range<MoveID>(0, numMoves), b, tbb::static_partitioner()); // find best index
 
-    LOG << V(b.best_index) << V(b.best_sum);
 
     timer.stop_timer("find_best_prefix");
     timer.start_timer("revert_and_rem_orig_pin_updates", "Revert Moves and apply updates");
@@ -147,7 +129,8 @@ public:
     timer.start_timer("recompute_move_from_benefits", "Recompute Move-From Benefits");
 
     // recompute moveFromBenefit values since they are potentially invalid
-    tbb::parallel_for(0U, sharedData.moveTracker.numPerformedMoves(), [&](MoveID localMoveID) {
+    // TODO think of a way to update them
+    tbb::parallel_for(MoveID(0), numMoves, [&](MoveID localMoveID) {
       phg.recomputeMoveFromBenefit(move_order[localMoveID].node);
     });
 
@@ -180,7 +163,8 @@ public:
 
   void recalculateGains(PartitionedHypergraph& phg, FMSharedData& sharedData) {
     const vec<Move>& move_order = sharedData.moveTracker.moveOrder;
-    MoveID firstMoveID = sharedData.moveTracker.firstMoveID;
+    const MoveID numMoves = sharedData.moveTracker.numPerformedMoves();
+    const MoveID firstMoveID = sharedData.moveTracker.firstMoveID;
 
 #ifndef NDEBUG
     for (MoveID localMoveID = 0; localMoveID < sharedData.moveTracker.numPerformedMoves(); ++localMoveID) {
@@ -192,7 +176,9 @@ public:
     utils::Timer& timer = utils::Timer::instance();
     timer.start_timer("move_id_flagging", "Move Flagging");
 
-    tbb::parallel_for(0U, sharedData.moveTracker.numPerformedMoves(), [&](MoveID localMoveID) {
+
+
+    tbb::parallel_for(0U, numMoves, [&](MoveID localMoveID) {
       const Move& m = move_order[localMoveID];
       if (!sharedData.moveTracker.isMoveStillValid(m)) return;
 
@@ -210,6 +196,42 @@ public:
         remaining_original_pins[e * numParts + m.from].fetch_sub(1, std::memory_order_relaxed);
       }
     });
+
+/*
+    tbb::parallel_invoke(
+            [&]{
+              tbb::parallel_for(0U, numMoves, [&](MoveID localMoveID) {
+                const Move& m = move_order[localMoveID];
+                if (!sharedData.moveTracker.isMoveStillValid(m)) return;
+
+                const MoveID globalMoveID = localMoveID + firstMoveID;
+                for (HyperedgeID e : phg.incidentEdges(m.node)) {
+                  CAtomic<MoveID>& fmi = first_move_in[e * numParts + m.to];
+                  MoveID expected = fmi.load(std::memory_order_acq_rel);
+                  while ((sharedData.moveTracker.isIDStale(expected) || expected > globalMoveID)
+                         && !fmi.compare_exchange_weak(expected, globalMoveID, std::memory_order_acq_rel)) { }
+
+                  remaining_original_pins[e * numParts + m.from].fetch_sub(1, std::memory_order_relaxed);
+                }
+              });
+            },
+            [&] {
+              tbb::parallel_for(0U, numMoves, [&](MoveID reverseLocalMoveID) {
+                const MoveID localMoveID = numMoves - reverseLocalMoveID;
+                const Move& m = move_order[localMoveID];
+                if (!sharedData.moveTracker.isMoveStillValid(m)) return;
+
+                const MoveID globalMoveID = localMoveID + firstMoveID;
+                for (HyperedgeID e : phg.incidentEdges(m.node)) {
+                  CAtomic<MoveID>& lmo = last_move_out[e * numParts + m.from];
+                  MoveID expected = lmo.load(std::memory_order_acq_rel);
+                  while (expected < globalMoveID && !lmo.compare_exchange_weak(expected, globalMoveID, std::memory_order_acq_rel)) { }
+                }
+              });
+            }
+    );
+    */
+
 
     timer.stop_timer("move_id_flagging");
     timer.start_timer("gain_recalculation", "Recalculate Gains");
@@ -278,7 +300,36 @@ public:
 #endif
   }
 
+  void recalculateBalance(PartitionedHypergraph& phg, vec<HypernodeWeight>& partWeights, HypernodeWeight maxPartWeight,
+                          const vec<Move>& move_order, MoveID numMoves) {
+    boost::dynamic_bitset<> overloaded(numParts);
+    size_t numOverloaded = 0;
+    for (PartitionID i = 0; i < numParts; ++i) {
+      if (partWeights[i] > maxPartWeight) {
+        overloaded.set(i);
+        numOverloaded++;
+      }
+    }
 
+    for (MoveID moveID = 0; moveID < numMoves; ++moveID) {
+      const Move& m = move_order[moveID];
+      if (m.gain != invalidGain /* still valid */) {
+        partWeights[m.to] += phg.nodeWeight(m.node);
+        partWeights[m.from] -= phg.nodeWeight(m.node);
+        if (!overloaded[m.to] && partWeights[m.to] > maxPartWeight) {
+          numOverloaded++;
+          overloaded.set(m.to);
+        }
+        if (overloaded[m.from] && partWeights[m.from] <= maxPartWeight) {
+          numOverloaded--;
+          overloaded.reset(m.from);
+        }
+        in_balance.set(moveID, numOverloaded == 0);
+      } else {
+        in_balance.reset(moveID);
+      }
+    }
+  }
 
 
   MoveID lastMoveOut(HyperedgeID he, PartitionID block) const {

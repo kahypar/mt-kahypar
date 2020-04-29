@@ -20,7 +20,7 @@
 
 #include "gmock/gmock.h"
 
-#include <mt-kahypar/parallel/work_queue.h>
+#include <mt-kahypar/parallel/work_stack.h>
 
 using ::testing::Test;
 
@@ -32,7 +32,7 @@ size_t nSockets = 9;
 
 TEST(NumaWorkQueueContainer, HasCorrectSizeAfterParallelInsertion) {
   int m = 75000;
-  ConcurrentDataContainer<int> cdc(n);
+  WorkStack<int> cdc(n);
   tbb::parallel_for(0, m, [&](int i) {
     cdc.push_back(i);
   });
@@ -59,7 +59,7 @@ TEST(NumaWorkQueueContainer, HasCorrectSizeAfterParallelInsertion) {
 }
 
 TEST(NumaWorkQueueContainer, ClearWorks) {
-  ConcurrentDataContainer<int> cdc(n);
+  WorkStack<int> cdc(n);
   cdc.push_back(5);
   cdc.push_back(420);
   ASSERT_EQ(cdc.unsafe_size(), 2);

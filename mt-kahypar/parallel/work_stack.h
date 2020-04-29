@@ -24,17 +24,15 @@
 #include <vector>
 
 #include "../definitions.h"
-#include "mt-kahypar/utils/randomize.h"
 
 namespace mt_kahypar {
 
-// TODO better name
-// Supports a sequence of concurrent push_back followed by a sequence of concurrent try_pop but not both at the same time
+
 template<typename T>
-class ConcurrentDataContainer {
+class WorkStack {
 public:
 
-  ConcurrentDataContainer(size_t maxNumElements) : size(0), elements(maxNumElements, T()) { }
+  WorkStack(size_t maxNumElements, int seed) : size(0), elements(maxNumElements, T()), rng(seed) { }
 
   void push_back(const T& el) {
     const size_t old_size = size.fetch_add(1, std::memory_order_acq_rel);
@@ -64,6 +62,10 @@ public:
     return elements.size();
   }
 
+  vec<T>& get_underlying_container() {
+    return elements;
+  }
+
   void clear() {
     size.store(0);
   }
@@ -73,13 +75,15 @@ public:
     elements.shrink_to_fit();
   }
 
-  void shuffleQueue() {
-    utils::Randomize::instance().parallelShuffleVector(elements, 0UL, size.load());
+  void shuffle() {
+    std::shuffle(elements.begin(), elements.end(), rng);
   }
 
 private:
   CAtomic<size_t> size;
   vec<T> elements;
+  std::mt19937 rng;
 };
+
 
 }

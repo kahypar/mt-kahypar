@@ -270,8 +270,8 @@ po::options_description createRefinementOptionsDescription(Context& context,
     po::value<bool>((initial_partitioning ? &context.initial_partitioning.refinement.fm.all_nodes : &context.refinement.fm.all_nodes))->value_name("<bool>"),
     "Add all nodes into FM. Default false")
     (( initial_partitioning ? "i-r-fm-initial-nodes" : "r-fm-initial-nodes"),
-    po::value<size_t>((initial_partitioning ? &context.initial_partitioning.refinement.fm.initial_nodes : &context.refinement.fm.initial_nodes))->value_name("<size_t>"),
-    "Number of nodes to initially place into the PQ of a localized search. Default 20")
+    po::value<double>((initial_partitioning ? &context.initial_partitioning.refinement.fm.seed_node_fraction : &context.refinement.fm.seed_node_fraction))->value_name("<double>"),
+    "Number of nodes to initially place into the PQ of a localized search is set to max(50, seed_node_fraction * num_nodes / num_threads). Default 0.005")
     (( initial_partitioning ? "i-r-fm-multitry" : "r-fm-multitry"),
     po::value<bool>((initial_partitioning ? &context.initial_partitioning.refinement.fm.multitry : &context.refinement.fm.multitry))->value_name("<bool>"),
     "Set to true for MultiTryFM, false for BoundaryFM/FullFM. Default true")

@@ -40,12 +40,11 @@ public:
           blockPQ(static_cast<size_t>(numParts)),
           vertexPQs(static_cast<size_t>(numParts), VertexPriorityQueue(pq_handles, numNodes)),
           updateDeduplicator(numNodes),
-          context(context),
-          max_part_weight(context.partition.max_part_weights[0]),
-          perfect_balance_part_weight(context.partition.perfect_balance_part_weights[0]),
-          min_part_weight(static_cast<HypernodeWeight>(std::floor(perfect_balance_part_weight * (1 - context.partition.epsilon))))
+          context(context)
   {
-
+    maxPartWeight = context.partition.max_part_weights[0];
+    perfectBalancePartWeight = context.partition.perfect_balance_part_weights[0];
+    minPartWeight = static_cast<HypernodeWeight>(std::floor(perfectBalancePartWeight * (1 - context.partition.epsilon)));
   }
 
   bool findMoves(PartitionedHypergraph& phg, FMSharedData& sharedData, vec<HypernodeID>& initialNodes) {
@@ -66,7 +65,8 @@ public:
     thisSearch = ++sharedData.nodeTracker.highestActiveSearchID;
 
     if (initialBorderNode == invalidNode) {
-      while (runStats.pushes <= context.refinement.fm.initial_nodes && sharedData.refinementNodes.try_pop(initialBorderNode)) {
+      const size_t nSeeds = numberOfSeedNodes(phg.initialNumNodes());
+      while (runStats.pushes <= nSeeds && sharedData.refinementNodes.try_pop(initialBorderNode)) {
         if (!updateDeduplicator.contains(initialBorderNode)
             && insertOrUpdatePQ(phg, initialBorderNode, sharedData.nodeTracker) && context.refinement.fm.init_neighbors) {
           updateDeduplicator.insert(initialBorderNode);
@@ -105,7 +105,7 @@ public:
       sharedData.nodeTracker.deactivateNode(m.node, thisSearch);
       MoveID move_id = std::numeric_limits<MoveID>::max();
       const bool moved = m.to != kInvalidPartition
-                         && phg.changeNodePartFullUpdate(m.node, m.from, m.to, max_part_weight, [&] { move_id = sharedData.moveTracker.insertMove(m); });
+                         && phg.changeNodePartFullUpdate(m.node, m.from, m.to, maxPartWeight, [&] { move_id = sharedData.moveTracker.insertMove(m); });
       if (moved) {
         runStats.moves++;
         insertOrUpdateNeighbors(phg, sharedData, m.node);
@@ -135,7 +135,7 @@ public:
   }
 
   void updateBlock(PartitionedHypergraph& phg, PartitionID i) {
-    const bool underloaded = vertexPQs[i].empty() || phg.partWeight(i) <= min_part_weight;
+    const bool underloaded = vertexPQs[i].empty() || phg.partWeight(i) <= minPartWeight;
     if (!underloaded) {
       blockPQ.insertOrAdjustKey(i, vertexPQs[i].topKey());
     } else if (blockPQ.contains(i)) {
@@ -176,7 +176,7 @@ public:
     for (PartitionID i = 0; i < numParts; ++i) {
       if (i != pu) {
         const HyperedgeWeight penalty = phg.moveToPenalty(u, i);
-        if (penalty < to_penalty && phg.partWeight(i) + wu <= max_part_weight) {
+        if (penalty < to_penalty && phg.partWeight(i) + wu <= maxPartWeight) {
           to_penalty = penalty;
           to = i;
         }
@@ -238,12 +238,18 @@ public:
   }
 
   void revertToBestLocalPrefix(PartitionedHypergraph& phg, FMSharedData& sharedData, size_t bestGainIndex) {
+    runStats.local_reverts += localMoves.size() - bestGainIndex;
     while (localMoves.size() > bestGainIndex) {
       Move& m = sharedData.moveTracker.getMove(localMoves.back());
       phg.changeNodePartFullUpdate(m.node, m.to, m.from, std::numeric_limits<HypernodeWeight>::max(), []{/* do nothing */});
       sharedData.moveTracker.invalidateMove(m);
       localMoves.pop_back();
     }
+  }
+
+  size_t numberOfSeedNodes(HypernodeID numNodes) {
+    const double x = context.refinement.fm.seed_node_fraction * numNodes / context.shared_memory.num_threads;
+    return std::max(size_t(50), size_t(std::ceil(x)));
   }
 
 private:
@@ -263,8 +269,7 @@ private:
   // consider using cache-friendly hashmaps for heap positions?
 
   const Context& context;
-  HypernodeWeight max_part_weight, perfect_balance_part_weight, min_part_weight;
-
+  HypernodeWeight maxPartWeight = 0, perfectBalancePartWeight = 0, minPartWeight = 0;
   FMStats runStats;
 public:
   vec<MoveID> localMoves;

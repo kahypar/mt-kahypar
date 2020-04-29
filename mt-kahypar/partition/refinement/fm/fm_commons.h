@@ -23,7 +23,7 @@
 
 #include <mt-kahypar/definitions.h>
 #include <mt-kahypar/datastructures/priority_queue.h>
-#include <mt-kahypar/parallel/work_queue.h>
+#include <mt-kahypar/parallel/work_stack.h>
 
 #include "partition_weight_budgets.h"
 
@@ -139,7 +139,7 @@ struct FMSharedData {
 
   //PartitionWeightBudgets partition_weight_budgets;
 
-  ConcurrentDataContainer<HypernodeID> refinementNodes;
+  WorkStack<HypernodeID> refinementNodes;
 
   vec<PosT> vertexPQHandles;
 
@@ -149,15 +149,15 @@ struct FMSharedData {
 
   NodeTracker nodeTracker;
 
-  FMSharedData(size_t numNodes = 0, PartitionID numParts = 0, size_t maxNumThreads = 0) :
-          //partition_weight_budgets(static_cast<size_t>(numParts), maxNumThreads),
-          refinementNodes(numNodes),
+  FMSharedData(size_t numNodes, const Context& context) :
+          //partition_weight_budgets(static_cast<size_t>(numParts), context.shared_memory.num_threads),
+          refinementNodes(numNodes, context.partition.seed),
           vertexPQHandles(numNodes, invalid_position),
-          numParts(numParts),
+          numParts(context.partition.k),
           moveTracker(numNodes),
           nodeTracker(numNodes)
   {
-    unused(maxNumThreads);
+
   }
 
   /*
@@ -177,6 +177,7 @@ struct FMStats {
   size_t extractions = 0;
   size_t pushes = 0;
   size_t moves = 0;
+  size_t local_reverts = 0;
 
 
   void clear() {
@@ -184,6 +185,7 @@ struct FMStats {
     extractions = 0;
     pushes = 0;
     moves = 0;
+    local_reverts = 0;
   }
 
   void merge(FMStats& other) {
@@ -191,12 +193,13 @@ struct FMStats {
     other.extractions += extractions;
     other.pushes += pushes;
     other.moves += moves;
+    other.local_reverts += local_reverts;
     clear();
   }
 
   std::string serialize() {
     std::stringstream os;
-    os << V(retries) << " " << V(extractions) << " " << V(moves);
+    os << V(retries) << " " << V(extractions) << " " << V(pushes) << " " << V(moves) << " " << V(local_reverts);
     return os.str();
   }
 };

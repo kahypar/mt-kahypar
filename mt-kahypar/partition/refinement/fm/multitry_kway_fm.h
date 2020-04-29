@@ -42,7 +42,7 @@ public:
   MultiTryKWayFM(const Context& context, TaskGroupID taskGroupID, size_t numNodes, size_t numHyperedges) :
           context(context),
           taskGroupID(taskGroupID),
-          sharedData(numNodes, context.partition.k, context.shared_memory.num_threads),
+          sharedData(numNodes, context),
           globalRollback(numNodes, numHyperedges, context.partition.k),
           ets_fm(context, numNodes, sharedData.vertexPQHandles.data())
   { }
@@ -79,8 +79,7 @@ public:
       for (PartitionID i = 0; i < sharedData.numParts; ++i) initialPartWeights[i] = phg.partWeight(i);
 
       if (context.refinement.fm.multitry) {
-        auto task = [&](const int, const int socket_local_task_id, const int task_id) {
-          unused(socket_local_task_id); unused(task_id);
+        auto task = [&](const int , const int , const int ) {
           LocalizedKWayFM& fm = ets_fm.local();
           while(fm.findMoves(phg, sharedData)) { /* keep running */ }
         };
@@ -88,7 +87,6 @@ public:
         //task(0,0,0);
       } else {
         // Try boundary FM
-        LOG << "start FM" << V(sharedData.moveTracker.numPerformedMoves());
         vec<HypernodeID> test_refinement_nodes;
         for (HypernodeID u = 0; u < phg.initialNumNodes(); ++u)
           if (context.refinement.fm.all_nodes || phg.isBorderNode(u))
@@ -101,7 +99,7 @@ public:
       for (auto& fm : ets_fm) {
         fm.stats.merge(stats);
       }
-      LOG << "Overall stats" << stats.serialize() << V(sharedData.moveTracker.numPerformedMoves());
+      //LOG << stats.serialize();
 
       sharedData.refinementNodes.clear();  // calling clear is necessary since tryPop will reduce the size to -(num calling threads)
 
@@ -140,7 +138,7 @@ public:
 
     // shuffle work queues if requested
     if (context.refinement.fm.shuffle) {
-      sharedData.refinementNodes.shuffleQueue();
+      sharedData.refinementNodes.shuffle();
     }
 
   }
