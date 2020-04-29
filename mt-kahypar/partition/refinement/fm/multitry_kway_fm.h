@@ -53,7 +53,7 @@ public:
     metrics.km1 -= improvement;
     metrics.imbalance = metrics::imbalance(phg, context);
     assert(metrics.km1 == metrics::km1(phg));
-    return improvement;
+    return improvement > 0;
   }
 
   Gain refine(PartitionedHypergraph& phg) {
