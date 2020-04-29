@@ -25,6 +25,7 @@
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/initial_partitioning/flat/initial_partitioning_data_container.h"
 #include "mt-kahypar/partition/initial_partitioning/flat/policies/gain_computation_policy.h"
+#include "mt-kahypar/partition/refinement/policies/gain_policy.h"
 
 namespace mt_kahypar {
 
@@ -120,7 +121,7 @@ class LabelPropagationInitialPartitioner : public tbb::task {
                     ++adjusted_edge_size;
                   }
                 }
-                expected_gain -= PartitionedHypergraph::cutDelta(he, edge_weight, adjusted_edge_size,
+                expected_gain -= cutDelta(he, edge_weight, adjusted_edge_size,
                   pin_count_in_from_part_after, pin_count_in_to_part_after);
               };
               hg.changeNodePart(hn, from, to, cut_delta);
