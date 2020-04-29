@@ -141,6 +141,7 @@ public:
     }
 
     // TODO(lars): Do not expose internal data members, because you can somehow write an assertion more elegant
+    // REVIEW NOTE: Yes I will. This assertion horrendously bloats the code readability
     HEAVY_REFINEMENT_ASSERT([&] {
       for ( const HyperedgeID& he : phg.edges() ) {
         for ( PartitionID block = 0; block < phg.k(); ++block ) {

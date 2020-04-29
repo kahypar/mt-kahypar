@@ -39,13 +39,15 @@
 namespace mt_kahypar {
 namespace ds {
 
+  // REVIEW NOTE do we still need these templates. we only have one hypergraph type now, right?
+
 template <typename Hypergraph = Mandatory,
           typename HypergraphFactory = Mandatory>
 class PartitionedHypergraph {
 private:
   template <typename HyperGraph,
           typename HyperGraphFactory>
-  friend class NumaPartitionedHypergraph;
+  friend class NumaPartitionedHypergraph;   // REVIEW NOTE does this still exist? if no --> remove plz
   static_assert(!Hypergraph::is_partitioned,  "Only unpartitioned hypergraphs are allowed");
 
   using HypernodeIterator = typename Hypergraph::HypernodeIterator;
@@ -64,11 +66,18 @@ private:
   using DeltaFunction = std::function<void (const HyperedgeID, const HyperedgeWeight, const HypernodeID, const HypernodeID, const HypernodeID)>;
   #define NOOP_FUNC [] (const HyperedgeID, const HyperedgeWeight, const HypernodeID, const HypernodeID, const HypernodeID) { }
 
+  // REVIEW NOTE: Can't we use a lambda in changeNodePart. And write a second function that calls the first with a lambda that does nothing.
+  // Then we could guarantee inlining
+  // This would also reduce the code/documentation copy-pasta for with or without gain updates
+
 
  public:
   static constexpr bool is_static_hypergraph = Hypergraph::is_static_hypergraph;
   static constexpr bool is_partitioned = true;
 
+
+  // REVIEW NOTE this constructor is superfluous and could be replaced by default initialization of the members
+  // It's another thing I have to adapt if I add one member
   explicit PartitionedHypergraph() :
     _k(0),
     _hg(nullptr),
@@ -130,8 +139,10 @@ private:
     });
   }
 
+  // REVIEW NOTE why do we delete copy assignment/construction? wouldn't it be useful to make a copy, e.g. for initial partitioning
   PartitionedHypergraph(const PartitionedHypergraph&) = delete;
   PartitionedHypergraph & operator= (const PartitionedHypergraph &) = delete;
+
 
   PartitionedHypergraph(PartitionedHypergraph&& other) :
     _k(other._k),
@@ -143,6 +154,9 @@ private:
     _move_to_penalty(std::move(other._move_to_penalty)),
     _move_from_benefit(std::move(other._move_from_benefit)),
     _pin_count_update_ownership(std::move(other._pin_count_update_ownership)) { }
+
+    // REVIEW NOTE In my version the default generated move constructor/assignment operator worked just fine
+    // Is there any reason why we need to write what the default version would do anyways?
 
   PartitionedHypergraph & operator= (PartitionedHypergraph&& other) {
     _k = other._k;
@@ -331,6 +345,8 @@ private:
     _hg->enableHyperedge(e);
   }
 
+  // REVIEW NOTE Do we still need disable/enable Hyperedge/Node
+
   // ! Disabled a hyperedge (must be enabled before)
   void disableHyperedge(const HyperedgeID e) {
     _hg->disableHyperedge(e);
@@ -384,6 +400,7 @@ private:
                       const DeltaFunction& delta_func = NOOP_FUNC) {
     changeOnlyNodePart(u, from,  to);
     for ( const HyperedgeID& he : incidentEdges(u) ) {
+      // REVIEW NOTE wouldn't it be more elegant to write this with a spinlock directly?
       while ( !updatePinCountOfHyperedgeWithoutGainUpdates(he, from, to, delta_func) );
     }
     return true;
@@ -409,6 +426,8 @@ private:
       return false;
     }
   }
+
+  // REVIEW NOTE what's this weird line breaking?
 
   // Additionally rejects the requested move if it violates balance
   // must recompute part_weights once finished moving nodes
@@ -493,8 +512,7 @@ private:
   }
 
   // ! Initializes the partition of the hypergraph, if block ids are assigned with
-  // ! setOnlyNodePart(...). In that case, part info, pin counts in part and border
-  // ! vertices have to be computed in a postprocessing step.
+  // ! setOnlyNodePart(...). In that case, part info and pin counts in part
   void initializePartition(const TaskGroupID ) {
     tbb::parallel_invoke(
             [&] { initializeBlockWeights(); },
@@ -848,6 +866,10 @@ private:
     }
     return pin_count_after;
   }
+
+
+  // REVIEW NOTE documentation duplicated. no more copy-pasta please
+  // if you can guarantee that the function call for delta_func is inlined, it's even the same code
 
   // ! Updates pin count in part if border vertices should be tracked.
   // ! The update process of the border vertices rely that
