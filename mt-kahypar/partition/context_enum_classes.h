@@ -355,7 +355,7 @@ static LabelPropagationAlgorithm labelPropagationAlgorithmFromString(const std::
 static FMAlgorithm fmAlgorithmFromString(const std::string& type) {
   if (type == "fm_multitry") {
     return FMAlgorithm::fm_multitry;
-  } else if (type == "label_propagation_cut") {
+  } else if (type == "fm_boundary") {
     return FMAlgorithm::fm_multitry;
   } else if (type == "do_nothing") {
     return FMAlgorithm::do_nothing;
