@@ -786,14 +786,14 @@ private:
     bool expected = 0;
     bool desired = 1;
     ASSERT(he < _pin_count_update_ownership.size());
-    if ( _pin_count_update_ownership[he].compare_exchange_strong(expected, desired) ) {
+    if ( _pin_count_update_ownership[he].compare_exchange_strong(expected, desired, std::memory_order_acq_rel) ) {
       // In that case, the current thread acquires the ownership of the hyperedge and can
       // safely update the pin counts in from and to part.
       const HypernodeID pin_count_in_from_part_after = decrementPinCountInPartWithoutGainUpdate(he, from);
       const HypernodeID pin_count_in_to_part_after = incrementPinCountInPartWithoutGainUpdate(he, to);
       delta_func(he, edgeWeight(he), edgeSize(he),
         pin_count_in_from_part_after, pin_count_in_to_part_after);
-      _pin_count_update_ownership[he] = false;
+      _pin_count_update_ownership[he].store(false, std::memory_order_acq_rel);
       return true;
     }
 
@@ -846,12 +846,12 @@ private:
     bool expected = 0;
     bool desired = 1;
     ASSERT(he < _pin_count_update_ownership.size());
-    if ( _pin_count_update_ownership[he].compare_exchange_strong(expected, desired) ) {
+    if ( _pin_count_update_ownership[he].compare_exchange_strong(expected, desired, std::memory_order_acq_rel) ) {
       // In that case, the current thread acquires the ownership of the hyperedge and can
       // safely update the pin counts in from and to part.
       decrementPinCountInPartWithGainUpdate(he, from);
       incrementPinCountInPartWithGainUpdate(he, to);
-      _pin_count_update_ownership[he] = false;
+      _pin_count_update_ownership[he].store(false, std::memory_order_acq_rel);
       return true;
     }
 
