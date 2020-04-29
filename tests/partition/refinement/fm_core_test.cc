@@ -30,7 +30,6 @@
 #include <mt-kahypar/partition/metrics.h>
 
 namespace mt_kahypar {
-namespace refinement {
 
 using ::testing::Test;
 class FMCoreTest : public Test {
@@ -114,5 +113,4 @@ TEST_F(FMCoreTest, PQInsertAndUpdate) {
   ASSERT_EQ(km1_after_fm, initial_km1 - accumulated_gain);
 }
 
-}
 }

@@ -34,8 +34,7 @@ class RoundRobinPQSelectionPolicy {
  static Gain kInvalidGain;
 
  public:
-  template<typename HyperGraph>
-  static inline bool pop(const HyperGraph& hypergraph,
+  static inline bool pop(const PartitionedHypergraph& hypergraph,
                          KWayPriorityQueue& pq,
                          HypernodeID& hn,
                          PartitionID& to,
@@ -59,7 +58,6 @@ class RoundRobinPQSelectionPolicy {
     ASSERT(pq.isEnabled(to));
     pq.deleteMaxFromPartition(hn, gain, to);
     ASSERT(hn != kInvalidHypernode);
-    hn = hypergraph.globalNodeID(hn);
     return true;
   }
 
@@ -84,8 +82,7 @@ class GlobalPQSelectionPolicy {
  static Gain kInvalidGain;
 
  public:
-  template<typename HyperGraph>
-  static inline bool pop(const HyperGraph& hypergraph,
+  static inline bool pop(const PartitionedHypergraph&,
                          KWayPriorityQueue& pq,
                          HypernodeID& hn,
                          PartitionID& to,
@@ -98,7 +95,6 @@ class GlobalPQSelectionPolicy {
     if ( pq.numNonEmptyParts() > 0 && pq.numEnabledParts() > 0 ) {
       pq.deleteMax(hn, gain, to);
       ASSERT(hn != kInvalidHypernode);
-      hn = hypergraph.globalNodeID(hn);
       return true;
     } else {
       return false;
@@ -126,8 +122,7 @@ class SequentialPQSelectionPolicy {
  static Gain kInvalidGain;
 
  public:
-  template<typename HyperGraph>
-  static inline bool pop(const HyperGraph& hypergraph,
+  static inline bool pop(const PartitionedHypergraph& hypergraph,
                          KWayPriorityQueue& pq,
                          HypernodeID& hn,
                          PartitionID& to,
@@ -149,7 +144,6 @@ class SequentialPQSelectionPolicy {
         ASSERT(pq.size(to) > 0);
         pq.deleteMaxFromPartition(hn, gain, to);
         ASSERT(hn != kInvalidHypernode);
-        hn = hypergraph.globalNodeID(hn);
         return true;
       } else {
         return false;

@@ -27,10 +27,8 @@
 #include "mt-kahypar/partition/initial_partitioning/flat/policies/gain_computation_policy.h"
 
 namespace mt_kahypar {
-template<typename TypeTraits>
-class LabelPropagationInitialPartitionerT : public tbb::task {
-  using HyperGraph = typename TypeTraits::PartitionedHyperGraph;
-  using InitialPartitioningDataContainer = InitialPartitioningDataContainerT<TypeTraits>;
+
+class LabelPropagationInitialPartitioner : public tbb::task {
 
   using DeltaFunction = std::function<void (const HyperedgeID, const HyperedgeWeight, const HypernodeID, const HypernodeID, const HypernodeID)>;
   #define NOOP_FUNC [] (const HyperedgeID, const HyperedgeWeight, const HypernodeID, const HypernodeID, const HypernodeID) { }
@@ -46,7 +44,7 @@ class LabelPropagationInitialPartitionerT : public tbb::task {
   };
 
  public:
-  LabelPropagationInitialPartitionerT(const InitialPartitioningAlgorithm,
+  LabelPropagationInitialPartitioner(const InitialPartitioningAlgorithm,
                                       InitialPartitioningDataContainer& ip_data,
                                       const Context& context) :
     _ip_data(ip_data),
@@ -56,11 +54,11 @@ class LabelPropagationInitialPartitionerT : public tbb::task {
 
   tbb::task* execute() override {
     HighResClockTimepoint start = std::chrono::high_resolution_clock::now();
-    HyperGraph& hg = _ip_data.local_partitioned_hypergraph();
+    PartitionedHypergraph& hg = _ip_data.local_partitioned_hypergraph();
     _ip_data.reset_unassigned_hypernodes();
 
     parallel::scalable_vector<HypernodeID> start_nodes =
-      PseudoPeripheralStartNodes<TypeTraits>::computeStartNodes(_ip_data, _context);
+      PseudoPeripheralStartNodes::computeStartNodes(_ip_data, _context);
     for ( PartitionID block = 0; block < _context.partition.k; ++block ) {
       if ( hg.partID(start_nodes[block]) == kInvalidPartition ) {
         hg.setNodePart(start_nodes[block], block);
@@ -122,7 +120,7 @@ class LabelPropagationInitialPartitionerT : public tbb::task {
                     ++adjusted_edge_size;
                   }
                 }
-                expected_gain -= HyperGraph::cutDelta(he, edge_weight, adjusted_edge_size,
+                expected_gain -= PartitionedHypergraph::cutDelta(he, edge_weight, adjusted_edge_size,
                   pin_count_in_from_part_after, pin_count_in_to_part_after);
               };
               hg.changeNodePart(hn, from, to, cut_delta);
@@ -156,7 +154,7 @@ class LabelPropagationInitialPartitionerT : public tbb::task {
   }
 
  private:
-  bool fitsIntoBlock(HyperGraph& hypergraph,
+  bool fitsIntoBlock(PartitionedHypergraph& hypergraph,
                      const HypernodeID hn,
                      const PartitionID block) const {
     ASSERT(block != kInvalidPartition && block < _context.partition.k);
@@ -164,7 +162,7 @@ class LabelPropagationInitialPartitionerT : public tbb::task {
       _context.partition.max_part_weights[block];
   }
 
-  MaxGainMove computeMaxGainMove(HyperGraph& hypergraph,
+  MaxGainMove computeMaxGainMove(PartitionedHypergraph& hypergraph,
                                  const HypernodeID hn) {
     if ( hypergraph.partID(hn) == kInvalidPartition ) {
       return computeMaxGainMoveForUnassignedVertex(hypergraph, hn);
@@ -173,7 +171,7 @@ class LabelPropagationInitialPartitionerT : public tbb::task {
     }
   }
 
-  MaxGainMove computeMaxGainMoveForUnassignedVertex(HyperGraph& hypergraph,
+  MaxGainMove computeMaxGainMoveForUnassignedVertex(PartitionedHypergraph& hypergraph,
                                                     const HypernodeID hn) {
     ASSERT(hypergraph.partID(hn) == kInvalidPartition);
     ASSERT(std::all_of(_tmp_scores.begin(), _tmp_scores.end(), [](Gain i) { return i == 0; }),
@@ -203,7 +201,7 @@ class LabelPropagationInitialPartitionerT : public tbb::task {
     return findMaxGainMove(hypergraph, hn, internal_weight);
   }
 
-  MaxGainMove computeMaxGainMoveForAssignedVertex(HyperGraph& hypergraph,
+  MaxGainMove computeMaxGainMoveForAssignedVertex(PartitionedHypergraph& hypergraph,
                                                   const HypernodeID hn) {
     ASSERT(hypergraph.partID(hn) != kInvalidPartition);
     ASSERT(std::all_of(_tmp_scores.begin(), _tmp_scores.end(), [](Gain i) { return i == 0; }),
@@ -243,7 +241,7 @@ class LabelPropagationInitialPartitionerT : public tbb::task {
     return findMaxGainMove(hypergraph, hn, internal_weight);
   }
 
-  MaxGainMove findMaxGainMove(HyperGraph& hypergraph,
+  MaxGainMove findMaxGainMove(PartitionedHypergraph& hypergraph,
                               const HypernodeID hn,
                               const HypernodeWeight internal_weight) {
     const PartitionID from = hypergraph.partID(hn);
@@ -265,7 +263,7 @@ class LabelPropagationInitialPartitionerT : public tbb::task {
     return MaxGainMove { best_block, best_score };
   }
 
-  void extendBlockToInitialBlockSize(HyperGraph& hypergraph,
+  void extendBlockToInitialBlockSize(PartitionedHypergraph& hypergraph,
                                      HypernodeID seed_vertex,
                                      const PartitionID block) {
     ASSERT(hypergraph.partID(seed_vertex) == block);
@@ -305,7 +303,7 @@ class LabelPropagationInitialPartitionerT : public tbb::task {
 
   }
 
-  void assignVertexToBlockWithMinimumWeight(HyperGraph& hypergraph, const HypernodeID hn) {
+  void assignVertexToBlockWithMinimumWeight(PartitionedHypergraph& hypergraph, const HypernodeID hn) {
     ASSERT(hypergraph.partID(hn) == kInvalidPartition);
     PartitionID minimum_weight_block = kInvalidPartition;
     HypernodeWeight minimum_weight = std::numeric_limits<HypernodeWeight>::max();
@@ -326,11 +324,7 @@ class LabelPropagationInitialPartitionerT : public tbb::task {
   parallel::scalable_vector<Gain> _tmp_scores;
 };
 
-template <typename TypeTraits>
-PartitionID LabelPropagationInitialPartitionerT<TypeTraits>::kInvalidPartition = -1;
-template <typename TypeTraits>
-HypernodeID LabelPropagationInitialPartitionerT<TypeTraits>::kInvalidHypernode = std::numeric_limits<HypernodeID>::max();
-
-using LabelPropagationInitialPartitioner = LabelPropagationInitialPartitionerT<GlobalTypeTraits>;
+PartitionID LabelPropagationInitialPartitioner::kInvalidPartition = -1;
+HypernodeID LabelPropagationInitialPartitioner::kInvalidHypernode = std::numeric_limits<HypernodeID>::max();
 
 } // namespace mt_kahypar

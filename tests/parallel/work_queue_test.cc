@@ -70,7 +70,7 @@ TEST(NumaWorkQueueContainer, ClearWorks) {
 }
 
 
-TEST(NumaWorkQueue, WorkStealingWorks) {
+/*TEST(NumaWorkQueue, WorkStealingWorks) {
   NumaWorkQueue<int> wq(nSockets, n);
   wq.push(5, 2);
   wq.push(4, 0);
@@ -96,7 +96,7 @@ TEST(NumaWorkQueue, WorkStealingWorks) {
   ASSERT_EQ(res, 5);
 
   ASSERT_FALSE(wq.tryPop(res, 0));
-}
+}*/
 
 
 }  // namespace parallel

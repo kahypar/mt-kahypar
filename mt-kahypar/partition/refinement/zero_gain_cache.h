@@ -67,16 +67,14 @@ class ZeroGainCache {
     _cache(context.partition.k, vector<vector<HypernodeID>>(context.partition.k)),
     _cache_entry(num_nodes, VertexCacheEntry(context.partition.k)) { }
 
-  void insert(const HyperGraph& hg,
-              const HypernodeID hn,
+  void insert(const HypernodeID hn,
               const PartitionID from,
               const PartitionID to) {
-    const HypernodeID original_id = hg.originalNodeID(hn);
-    ASSERT(original_id < _cache_entry.size());
+    ASSERT(hn < _cache_entry.size());
     ASSERT(from != kInvalidPartition && from < _context.partition.k);
     ASSERT(to != kInvalidPartition && to < _context.partition.k);
 
-    VertexCacheEntry& cache_entry = _cache_entry[original_id];
+    VertexCacheEntry& cache_entry = _cache_entry[hn];
     // In case there exists a cache entry for vertex hn in an other block,
     // the block of the vertex changed and the current entry is therefore
     // invalid => reset corresponding entry
@@ -207,9 +205,8 @@ class ZeroGainCache {
           // Remove vertex u from cache, because it was either moved
           // successfully to an other block or it is no longer a
           // zero gain move.
-          const HypernodeID original_id = hg.originalNodeID(u);
-          ASSERT(original_id < _cache_entry.size());
-          _cache_entry[original_id].valid_to[from] = false;
+          ASSERT(u < _cache_entry.size());
+          _cache_entry[u].valid_to[from] = false;
           std::swap(_cache[to][from][pos--], _cache[to][from][--end]);
           _cache[to][from].pop_back();
 
@@ -264,11 +261,10 @@ class ZeroGainCache {
       const PartitionID part_id = hg.partID(hn);
       if ( part_id == from && hg.changeNodePart(hn, from, to, objective_delta) ) {
         // Revert move and reinsert vertex hn to cache
-        const HypernodeID original_id = hg.originalNodeID(hn);
-        ASSERT(original_id < _cache_entry.size());
-        ASSERT(!_cache_entry[original_id].valid_to[from]);
+        ASSERT(hn < _cache_entry.size());
+        ASSERT(!_cache_entry[hn].valid_to[from]);
         _cache[to][from].emplace_back(hn);
-        _cache_entry[original_id].valid_to[from] = true;
+        _cache_entry[hn].valid_to[from] = true;
       }
     }
   }

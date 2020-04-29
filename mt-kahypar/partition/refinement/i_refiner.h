@@ -32,39 +32,33 @@
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
 
 namespace mt_kahypar {
-template<typename TypeTraits>
-class IRefinerT {
-  using HyperGraph = typename TypeTraits::PartitionedHyperGraph;
+class IRefiner {
 
  public:
-  IRefinerT(const IRefinerT&) = delete;
-  IRefinerT(IRefinerT&&) = delete;
-  IRefinerT & operator= (const IRefinerT &) = delete;
-  IRefinerT & operator= (IRefinerT &&) = delete;
+  IRefiner(const IRefiner&) = delete;
+  IRefiner(IRefiner&&) = delete;
+  IRefiner & operator= (const IRefiner &) = delete;
+  IRefiner & operator= (IRefiner &&) = delete;
 
-  virtual ~IRefinerT() = default;
+  virtual ~IRefiner() = default;
 
-  void initialize(HyperGraph& hypergraph) {
+  void initialize(PartitionedHypergraph& hypergraph) {
     initializeImpl(hypergraph);
   }
 
-  bool refine(HyperGraph& hypergraph,
-              const parallel::scalable_vector<HypernodeID>& refinement_nodes,
+  bool refine(PartitionedHypergraph& hypergraph,
               kahypar::Metrics& best_metrics) {
-    return refineImpl(hypergraph, refinement_nodes, best_metrics);
+    return refineImpl(hypergraph, best_metrics);
   }
 
  protected:
-  IRefinerT() = default;
+  IRefiner() = default;
 
  private:
-  virtual void initializeImpl(HyperGraph& hypergraph) = 0;
+  virtual void initializeImpl(PartitionedHypergraph& hypergraph) = 0;
 
-  virtual bool refineImpl(HyperGraph& hypergraph,
-                          const parallel::scalable_vector<HypernodeID>& refinement_nodes,
+  virtual bool refineImpl(PartitionedHypergraph& hypergraph,
                           kahypar::Metrics& best_metrics) = 0;
 };
-
-using IRefiner = IRefinerT<GlobalTypeTraits>;
 
 }  // namespace mt_kahypar

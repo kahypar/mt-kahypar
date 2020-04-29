@@ -77,8 +77,10 @@ class GainPolicy : public kahypar::meta::PolicyBase {
     _deltas(0),
     _tmp_scores(context.partition.k, 0) { }
 
-  Move computeMaxGainMove(HyperGraph& hypergraph, const HypernodeID hn) {
-    return static_cast<Derived*>(this)->computeMaxGainMoveImpl(hypergraph, hn);
+  Move computeMaxGainMove(HyperGraph& hypergraph,
+                          const HypernodeID hn,
+                          const bool rebalance = false) {
+    return static_cast<Derived*>(this)->computeMaxGainMoveImpl(hypergraph, hn, rebalance);
   }
 
   inline void computeDeltaForHyperedge(const HyperedgeID he,
@@ -132,7 +134,9 @@ class Km1Policy : public GainPolicy<Km1Policy<HyperGraph>, HyperGraph> {
     Base(context),
     _disable_randomization(disable_randomization) { }
 
-  Move computeMaxGainMoveImpl(HyperGraph& hypergraph, const HypernodeID hn) {
+  Move computeMaxGainMoveImpl(HyperGraph& hypergraph,
+                              const HypernodeID hn,
+                              const bool rebalance) {
     HEAVY_REFINEMENT_ASSERT([&] {
         for (PartitionID k = 0; k < _context.partition.k; ++k) {
           if (_tmp_scores.local()[k] != 0) {
@@ -169,7 +173,7 @@ class Km1Policy : public GainPolicy<Km1Policy<HyperGraph>, HyperGraph> {
       }
     }
 
-    Move best_move { from, from, hn, 0 };
+    Move best_move { from, from, hn, rebalance ? std::numeric_limits<Gain>::max() : 0 };
     HypernodeWeight hn_weight = hypergraph.nodeWeight(hn);
     int cpu_id = sched_getcpu();
     utils::Randomize& rand = utils::Randomize::instance();
@@ -219,7 +223,9 @@ class CutPolicy : public GainPolicy<CutPolicy<HyperGraph>, HyperGraph> {
     Base(context),
     _disable_randomization(disable_randomization) { }
 
-  Move computeMaxGainMoveImpl(HyperGraph& hypergraph, const HypernodeID hn) {
+  Move computeMaxGainMoveImpl(HyperGraph& hypergraph,
+                              const HypernodeID hn,
+                              const bool rebalance) {
     HEAVY_REFINEMENT_ASSERT([&] {
         for (PartitionID k = 0; k < _context.partition.k; ++k) {
           if (_tmp_scores.local()[k] != 0) {
@@ -254,7 +260,7 @@ class CutPolicy : public GainPolicy<CutPolicy<HyperGraph>, HyperGraph> {
       }
     }
 
-    Move best_move { from, from, hn, 0 };
+    Move best_move { from, from, hn, rebalance ? std::numeric_limits<Gain>::max() : 0 };
     HypernodeWeight hn_weight = hypergraph.nodeWeight(hn);
     int cpu_id = sched_getcpu();
     utils::Randomize& rand = utils::Randomize::instance();

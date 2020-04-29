@@ -60,9 +60,7 @@ static inline std::string serialize(const PartitionedHypergraph& hypergraph,
         << " community_edge_weight_function=" << context.preprocessing.community_detection.edge_weight_function
         << " community_max_pass_iterations=" << context.preprocessing.community_detection.max_pass_iterations
         << " community_min_eps_improvement=" << context.preprocessing.community_detection.min_eps_improvement
-        << " use_community_redistribution=" << std::boolalpha << context.preprocessing.use_community_redistribution
-        << " community_redistribution_assignment_strategy=" << context.preprocessing.community_redistribution.assignment_strategy
-        << " community_redistribution_assignment_objective=" << context.preprocessing.community_redistribution.assignment_objective
+        << " community_vertex_degree_sampling_threshold=" << context.preprocessing.community_detection.vertex_degree_sampling_threshold
         << " coarsening_algorithm=" << context.coarsening.algorithm
         << " coarsening_contraction_limit_multiplier=" << context.coarsening.contraction_limit_multiplier
         << " coarsening_use_adaptive_max_allowed_node_weight=" << std::boolalpha << context.coarsening.use_adaptive_max_allowed_node_weight
@@ -72,6 +70,7 @@ static inline std::string serialize(const PartitionedHypergraph& hypergraph,
         << " coarsening_minimum_shrink_factor=" << context.coarsening.minimum_shrink_factor
         << " coarsening_maximum_shrink_factor=" << context.coarsening.maximum_shrink_factor
         << " coarsening_max_allowed_node_weight=" << context.coarsening.max_allowed_node_weight
+        << " coarsening_vertex_degree_sampling_threshold=" << context.coarsening.vertex_degree_sampling_threshold
         << " coarsening_contraction_limit=" << context.coarsening.contraction_limit
         << " rating_function=" << context.coarsening.rating.rating_function
         << " rating_heavy_node_penalty_policy=" << context.coarsening.rating.heavy_node_penalty_policy
@@ -91,11 +90,17 @@ static inline std::string serialize(const PartitionedHypergraph& hypergraph,
         << " sparsification_similiar_net_combiner_strategy=" << context.sparsification.similiar_net_combiner_strategy
         << " lp_algorithm=" << context.refinement.label_propagation.algorithm
         << " lp_maximum_iterations=" << context.refinement.label_propagation.maximum_iterations
-        << " lp_numa_aware=" << std::boolalpha << context.refinement.label_propagation.numa_aware
         << " lp_rebalancing=" << std::boolalpha << context.refinement.label_propagation.rebalancing
         << " lp_hyperedge_size_activation_threshold=" << context.refinement.label_propagation.hyperedge_size_activation_threshold
+        << " fm_algorithm=" << context.refinement.fm.algorithm
+        << " fm_multitry_rounds=" << context.refinement.fm.multitry_rounds
+        << " fm_max_number_of_fruitless_moves=" << context.refinement.fm.max_number_of_fruitless_moves
+        << " fm_seed_node_fraction=" << context.refinement.fm.seed_node_fraction
+        << " fm_init_localized_search_with_neighbors=" << std::boolalpha << context.refinement.fm.init_localized_search_with_neighbors
+        << " fm_init_boundary_fm_with_all_nodes=" << std::boolalpha << context.refinement.fm.init_boundary_fm_with_all_nodes
+        << " fm_shuffle=" << std::boolalpha << context.refinement.fm.shuffle
         << " num_threads=" << context.shared_memory.num_threads
-        << " use_localized_random_shuffle=" << context.shared_memory.use_localized_random_shuffle
+        << " use_localized_random_shuffle=" << std::boolalpha << context.shared_memory.use_localized_random_shuffle
         << " shuffle_block_size=" << context.shared_memory.shuffle_block_size;
 
     // Metrics
@@ -108,7 +113,7 @@ static inline std::string serialize(const PartitionedHypergraph& hypergraph,
     oss << " totalPartitionTime=" << elapsed_seconds.count();
 
     // Timings
-    utils::Timer::instance(context.partition.detailed_timings).serialize(oss);
+    utils::Timer::instance(context.partition.show_detailed_timings).serialize(oss);
 
     // Stats
     oss << utils::Stats::instance();

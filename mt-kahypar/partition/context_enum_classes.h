@@ -38,18 +38,6 @@ enum class Paradigm : int8_t {
   multilevel
 };
 
-enum class CommunityAssignmentObjective : uint8_t {
-  vertex_objective,
-  vertex_degree_objective,
-  pin_objective,
-  UNDEFINED
-};
-
-enum class CommunityAssignmentStrategy : uint8_t {
-  bin_packing,
-  UNDEFINED
-};
-
 enum class LouvainEdgeWeight : uint8_t {
   hybrid,
   uniform,
@@ -115,6 +103,11 @@ enum class LabelPropagationAlgorithm : uint8_t {
   do_nothing
 };
 
+enum class FMAlgorithm : uint8_t {
+  fm_multitry,
+  fm_boundary,
+  do_nothing
+};
 
 std::ostream & operator<< (std::ostream& os, const Type& type) {
   switch (type) {
@@ -133,26 +126,6 @@ std::ostream & operator<< (std::ostream& os, const Paradigm& paradigm) {
       // omit default case to trigger compiler warning for missing cases
   }
   return os << static_cast<uint8_t>(paradigm);
-}
-
-std::ostream & operator<< (std::ostream& os, const CommunityAssignmentObjective& objective) {
-  switch (objective) {
-    case CommunityAssignmentObjective::vertex_objective: return os << "vertex_objective";
-    case CommunityAssignmentObjective::vertex_degree_objective: return os << "vertex_degree_objective";
-    case CommunityAssignmentObjective::pin_objective: return os << "pin_objective";
-    case CommunityAssignmentObjective::UNDEFINED: return os << "UNDEFINED";
-      // omit default case to trigger compiler warning for missing cases
-  }
-  return os << static_cast<uint8_t>(objective);
-}
-
-std::ostream & operator<< (std::ostream& os, const CommunityAssignmentStrategy& strategy) {
-  switch (strategy) {
-    case CommunityAssignmentStrategy::bin_packing: return os << "bin_packing";
-    case CommunityAssignmentStrategy::UNDEFINED: return os << "UNDEFINED";
-      // omit default case to trigger compiler warning for missing cases
-  }
-  return os << static_cast<uint8_t>(strategy);
 }
 
 std::ostream & operator<< (std::ostream& os, const LouvainEdgeWeight& type) {
@@ -255,24 +228,14 @@ std::ostream & operator<< (std::ostream& os, const LabelPropagationAlgorithm& al
   return os << static_cast<uint8_t>(algo);
 }
 
-static CommunityAssignmentObjective communityAssignmentObjectiveFromString(const std::string& objective) {
-  if (objective == "vertex_objective") {
-    return CommunityAssignmentObjective::vertex_objective;
-  } else if (objective == "vertex_degree_objective") {
-    return CommunityAssignmentObjective::vertex_degree_objective;
-  } else if (objective == "pin_objective") {
-    return CommunityAssignmentObjective::pin_objective;
+std::ostream & operator<< (std::ostream& os, const FMAlgorithm& algo) {
+  switch (algo) {
+    case FMAlgorithm::fm_multitry: return os << "fm_multitry";
+    case FMAlgorithm::fm_boundary: return os << "fm_boundary";
+    case FMAlgorithm::do_nothing: return os << "do_nothing";
+      // omit default case to trigger compiler warning for missing cases
   }
-  ERROR("No valid community assignment objective.");
-  return CommunityAssignmentObjective::UNDEFINED;
-}
-
-static CommunityAssignmentStrategy communityAssignmentStrategyFromString(const std::string& strategy) {
-  if (strategy == "bin_packing") {
-    return CommunityAssignmentStrategy::bin_packing;
-  }
-  ERROR("No valid community assignment strategy.");
-  return CommunityAssignmentStrategy::UNDEFINED;
+  return os << static_cast<uint8_t>(algo);
 }
 
 static LouvainEdgeWeight louvainEdgeWeightFromString(const std::string& type) {
@@ -387,6 +350,18 @@ static LabelPropagationAlgorithm labelPropagationAlgorithmFromString(const std::
   }
   ERROR("Illegal option: " + type);
   return LabelPropagationAlgorithm::do_nothing;
+}
+
+static FMAlgorithm fmAlgorithmFromString(const std::string& type) {
+  if (type == "fm_multitry") {
+    return FMAlgorithm::fm_multitry;
+  } else if (type == "label_propagation_cut") {
+    return FMAlgorithm::fm_multitry;
+  } else if (type == "do_nothing") {
+    return FMAlgorithm::do_nothing;
+  }
+  ERROR("Illegal option: " + type);
+  return FMAlgorithm::do_nothing;
 }
 
 }  // namesapce mt_kahypar

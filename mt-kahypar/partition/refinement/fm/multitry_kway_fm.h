@@ -28,26 +28,27 @@
 #include <atomic>
 #include <external_tools/kahypar/kahypar/partition/metrics.h>
 
-#include "localized_kway_fm_core.h"
-#include "global_rollback.h"
+#include "mt-kahypar/partition/refinement/i_refiner.h"
+#include "mt-kahypar/partition/refinement/fm/localized_kway_fm_core.h"
+#include "mt-kahypar/partition/refinement/fm/global_rollback.h"
 
 
 namespace mt_kahypar {
-namespace refinement {
-
 // TODO try variant in which, a bunch of searches are stored in a PQ, findMoves(..) yields frequently, and then the most promising search is scheduled next
 
-class MultiTryKWayFM {
+class MultiTryKWayFM final : public IRefiner {
 public:
-  MultiTryKWayFM(const Context& context, TaskGroupID taskGroupID, size_t numNodes, size_t numHyperedges) :
+  MultiTryKWayFM(Hypergraph& hypergraph,
+                 const Context& context,
+                 const TaskGroupID taskGroupID) :
           context(context),
           taskGroupID(taskGroupID),
-          sharedData(numNodes, context),
-          globalRollback(numNodes, numHyperedges, context.partition.k),
-          ets_fm(context, numNodes, sharedData.vertexPQHandles.data())
-  { }
+          sharedData(hypergraph.initialNumNodes(), context),
+          globalRollback(hypergraph.initialNumNodes(), hypergraph.initialNumEdges(), context.partition.k),
+          ets_fm(context, hypergraph.initialNumNodes(), sharedData.vertexPQHandles.data()) { }
 
-  Gain refine(PartitionedHypergraph& phg, kahypar::Metrics& metrics) {
+  bool refineImpl(PartitionedHypergraph& phg,
+                  kahypar::Metrics& metrics) override final {
     Gain improvement = refine(phg);
     metrics.km1 -= improvement;
     metrics.imbalance = metrics::imbalance(phg, context);
@@ -57,7 +58,6 @@ public:
 
   Gain refine(PartitionedHypergraph& phg) {
     utils::Timer& timer = utils::Timer::instance();
-    timer.start_timer("fm", "FM");
     timer.start_timer("fm_unnecessary_init", "FM Init");
 
     phg.initializeGainInformation();                // initialization only as long as LP refiner does not use these datastructures
@@ -67,7 +67,7 @@ public:
     //sharedData.partition_weight_budgets.initialize(phg, context.partition.max_part_weights);          // only for version with budgets
 
     Gain overall_improvement = 0;
-    for (size_t round = 0; round < context.refinement.fm.rounds; ++round) {                    // global multi try rounds
+    for (size_t round = 0; round < context.refinement.fm.multitry_rounds; ++round) {                    // global multi try rounds
       timer.start_timer("collect_border_nodes", "Collect Border Nodes");
 
       initialize(phg);
@@ -78,18 +78,18 @@ public:
       vec<HypernodeWeight> initialPartWeights(size_t(sharedData.numParts));
       for (PartitionID i = 0; i < sharedData.numParts; ++i) initialPartWeights[i] = phg.partWeight(i);
 
-      if (context.refinement.fm.multitry) {
+      if (context.refinement.fm.algorithm == FMAlgorithm::fm_multitry) {
         auto task = [&](const int , const int , const int ) {
           LocalizedKWayFM& fm = ets_fm.local();
           while(fm.findMoves(phg, sharedData)) { /* keep running */ }
         };
         TBBNumaArena::instance().run_max_concurrency_tasks_on_all_sockets(taskGroupID, task);
         //task(0,0,0);
-      } else {
+      } else if (context.refinement.fm.algorithm == FMAlgorithm::fm_boundary){
         // Try boundary FM
         vec<HypernodeID> test_refinement_nodes;
         for (HypernodeID u = 0; u < phg.initialNumNodes(); ++u)
-          if (context.refinement.fm.all_nodes || phg.isBorderNode(u))
+          if (context.refinement.fm.init_boundary_fm_with_all_nodes || phg.isBorderNode(u))
             test_refinement_nodes.push_back(u);
         LocalizedKWayFM& fm = ets_fm.local();
         fm.findMoves(phg, sharedData, test_refinement_nodes);
@@ -116,13 +116,11 @@ public:
       }
     }
 
-    timer.stop_timer("fm");
-
     // sharedData.partition_weight_budgets.updatePartWeights(phg, context.partition.max_part_weights);  // only for version with budgets
     return overall_improvement;
   }
 
-  void initialize(PartitionedHypergraph& phg) {
+  void initializeImpl(PartitionedHypergraph& phg) override final {
     // insert border nodes into work queues
     sharedData.refinementNodes.clear();
     tbb::parallel_for(HypernodeID(0), phg.initialNumNodes(), [&](const HypernodeID u) {
@@ -151,5 +149,4 @@ public:
   tbb::enumerable_thread_specific<LocalizedKWayFM> ets_fm;
 };
 
-}
 }

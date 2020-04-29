@@ -37,12 +37,10 @@ class DoNothingContinuation : public tbb::task {
   }
 };
 
-template<typename TypeTraits>
-class SpawnInitialPartitionerTaskListT : public tbb::task {
-  using InitialPartitioningDataContainer = InitialPartitioningDataContainerT<TypeTraits>;
+class SpawnInitialPartitionerTaskList : public tbb::task {
 
  public:
-  SpawnInitialPartitionerTaskListT(InitialPartitioningDataContainer& ip_data,
+  SpawnInitialPartitionerTaskList(InitialPartitioningDataContainer& ip_data,
                                    const Context& context,
                                    parallel::scalable_vector<InitialPartitioningAlgorithm> ip_tasks) :
     _ip_data(ip_data),
@@ -71,13 +69,10 @@ class SpawnInitialPartitionerTaskListT : public tbb::task {
 
 } // namespace
 
-template<typename TypeTraits>
-class PoolInitialPartitionerContinuationT : public tbb::task {
-  using HyperGraph = typename TypeTraits::PartitionedHyperGraph;
-  using InitialPartitioningDataContainer = InitialPartitioningDataContainerT<TypeTraits>;
+class PoolInitialPartitionerContinuation : public tbb::task {
 
   public:
-  PoolInitialPartitionerContinuationT(HyperGraph& hypergraph,
+  PoolInitialPartitionerContinuation(PartitionedHypergraph& hypergraph,
                                       const Context& context,
                                       const TaskGroupID task_group_id) :
     _ip_data(hypergraph, context, task_group_id),
@@ -107,8 +102,7 @@ class PoolInitialPartitionerContinuationT : public tbb::task {
   parallel::scalable_vector<parallel::scalable_vector<InitialPartitioningAlgorithm>> _ip_task_lists;
 };
 
-template<typename TypeTraits>
-static void spawn_initial_partitioner(PoolInitialPartitionerContinuationT<TypeTraits>& continuation_task ) {
+static void spawn_initial_partitioner(PoolInitialPartitionerContinuation& continuation_task ) {
   // Spawn Initial Partitioner
   const Context& context = continuation_task._context;
   continuation_task.set_ref_count(context.shared_memory.num_threads);
@@ -121,7 +115,7 @@ static void spawn_initial_partitioner(PoolInitialPartitionerContinuationT<TypeTr
     // Therefore, we introduce that indirection such that the initial partitioner
     // tasks are more evenly distributed among the tbb task queues of all threads.
     tbb::task::spawn(*new(continuation_task.allocate_child())
-      SpawnInitialPartitionerTaskListT<TypeTraits>(
+      SpawnInitialPartitionerTaskList(
         continuation_task._ip_data, context, continuation_task._ip_task_lists[i]));
   }
 }
@@ -132,15 +126,12 @@ static void spawn_initial_partitioner(PoolInitialPartitionerContinuationT<TypeTr
  * an invocation of the pool initial partitioner is exactly ( num IP runs ) * (num IP algos).
  * The best partition is applied to the hypergraph.
  */
-template<typename TypeTraits>
-class PoolInitialPartitionerT : public tbb::task {
-  using HyperGraph = typename TypeTraits::PartitionedHyperGraph;
-  using PoolInitialPartitionerContinuation = PoolInitialPartitionerContinuationT<TypeTraits>;
+class PoolInitialPartitioner : public tbb::task {
 
   static constexpr bool debug = false;
 
  public:
-  PoolInitialPartitionerT(HyperGraph& hypergraph,
+  PoolInitialPartitioner(PartitionedHypergraph& hypergraph,
                          const Context& context,
                          const TaskGroupID task_group_id) :
     _hg(hypergraph),
@@ -155,7 +146,7 @@ class PoolInitialPartitionerT : public tbb::task {
   }
 
  private:
-  HyperGraph& _hg;
+  PartitionedHypergraph& _hg;
   const Context& _context;
   const TaskGroupID _task_group_id;
 };

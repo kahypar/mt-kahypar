@@ -27,19 +27,13 @@
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/partition/metrics.h"
 #include "mt-kahypar/partition/refinement/i_refiner.h"
-#include "mt-kahypar/partition/refinement/label_propagation_refiner.h"
+#include "mt-kahypar/partition/refinement/label_propagation/label_propagation_refiner.h"
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
 #include "mt-kahypar/utils/initial_partitioning_stats.h"
 
 namespace mt_kahypar {
 
-template <typename TypeTraits>
-class InitialPartitioningDataContainerT {
-  using HyperGraph = typename TypeTraits::HyperGraph;
-  using PartitionedHyperGraph = typename TypeTraits::PartitionedHyperGraph;
-  using PartitionedHyperGraphWithoutBorderVertices = typename TypeTraits::PartitionedHyperGraph;
-  using TBB = typename TypeTraits::TBB;
-  using Refiner = IRefinerT<TypeTraits>;
+class InitialPartitioningDataContainer {
 
   static constexpr bool debug = false;
   static PartitionID kInvalidPartition;
@@ -79,10 +73,10 @@ class InitialPartitioningDataContainerT {
   };
 
   struct LocalInitialPartitioningHypergraph {
-    using LabelPropagationKm1Refiner = LabelPropagationRefinerT<TypeTraits, Km1Policy>;
-    using LabelPropagationCutRefiner = LabelPropagationRefinerT<TypeTraits, CutPolicy>;
+    using LabelPropagationKm1Refiner = LabelPropagationRefiner<Km1Policy>;
+    using LabelPropagationCutRefiner = LabelPropagationRefiner<CutPolicy>;
 
-    LocalInitialPartitioningHypergraph(HyperGraph& hypergraph,
+    LocalInitialPartitioningHypergraph(Hypergraph& hypergraph,
                                        const Context& context,
                                        const TaskGroupID task_group_id) :
       _partitioned_hypergraph(context.partition.k, hypergraph),
@@ -101,10 +95,10 @@ class InitialPartitioningDataContainerT {
       if ( _context.refinement.label_propagation.algorithm != LabelPropagationAlgorithm::do_nothing ) {
         if ( _context.partition.objective == kahypar::Objective::km1 ) {
           _label_propagation = std::make_unique<LabelPropagationKm1Refiner>(
-            _partitioned_hypergraph, _context, task_group_id);
+            hypergraph, _context, task_group_id);
         } else if ( _context.partition.objective == kahypar::Objective::cut ) {
           _label_propagation = std::make_unique<LabelPropagationCutRefiner>(
-            _partitioned_hypergraph, _context, task_group_id);
+            hypergraph, _context, task_group_id);
         }
       }
     }
@@ -127,7 +121,7 @@ class InitialPartitioningDataContainerT {
 
       if ( _label_propagation ) {
         _label_propagation->initialize(_partitioned_hypergraph);
-        _label_propagation->refine(_partitioned_hypergraph, {}, current_metric);
+        _label_propagation->refine(_partitioned_hypergraph, current_metric);
       }
 
       PartitioningResult result(algorithm,
@@ -146,11 +140,10 @@ class InitialPartitioningDataContainerT {
 
       if ( _result.is_other_better(result, _context.partition.epsilon) ) {
         for ( const HypernodeID& hn : _partitioned_hypergraph.nodes() ) {
-          const HypernodeID original_id = _partitioned_hypergraph.originalNodeID(hn);
           const PartitionID part_id = _partitioned_hypergraph.partID(hn);
-          ASSERT(original_id < _partition.size());
+          ASSERT(hn < _partition.size());
           ASSERT(part_id != kInvalidPartition);
-          _partition[original_id] = part_id;
+          _partition[hn] = part_id;
         }
         _result = std::move(result);
       }
@@ -173,11 +166,11 @@ class InitialPartitioningDataContainerT {
       });
     }
 
-    PartitionedHyperGraphWithoutBorderVertices _partitioned_hypergraph;
+    PartitionedHypergraph _partitioned_hypergraph;
     const Context& _context;
     parallel::scalable_vector<PartitionID> _partition;
     PartitioningResult _result;
-    std::unique_ptr<Refiner> _label_propagation;
+    std::unique_ptr<IRefiner> _label_propagation;
     parallel::scalable_vector<utils::InitialPartitionerSummary> _stats;
   };
 
@@ -185,7 +178,7 @@ class InitialPartitioningDataContainerT {
   using ThreadLocalUnassignedHypernodes = tbb::enumerable_thread_specific<parallel::scalable_vector<HypernodeID>>;
 
  public:
-  InitialPartitioningDataContainerT(PartitionedHyperGraph& hypergraph,
+  InitialPartitioningDataContainer(PartitionedHypergraph& hypergraph,
                                     const Context& context,
                                     const TaskGroupID task_group_id) :
     _partitioned_hg(hypergraph),
@@ -200,18 +193,18 @@ class InitialPartitioningDataContainerT {
     _local_he_visited(_context.partition.k * hypergraph.initialNumEdges()),
     _local_unassigned_hypernodes(),
     _local_unassigned_hypernode_pointer(std::numeric_limits<size_t>::max())  {
-    // Setup Label Propagation Refiner Config for Initial Partitioning
+    // Setup Label Propagation IRefiner Config for Initial Partitioning
     _context.refinement = _context.initial_partitioning.refinement;
     _context.refinement.label_propagation.execute_sequential = true;
   }
 
-  InitialPartitioningDataContainerT(const InitialPartitioningDataContainerT&) = delete;
-  InitialPartitioningDataContainerT & operator= (const InitialPartitioningDataContainerT &) = delete;
+  InitialPartitioningDataContainer(const InitialPartitioningDataContainer&) = delete;
+  InitialPartitioningDataContainer & operator= (const InitialPartitioningDataContainer &) = delete;
 
-  InitialPartitioningDataContainerT(InitialPartitioningDataContainerT&&) = delete;
-  InitialPartitioningDataContainerT & operator= (InitialPartitioningDataContainerT &&) = delete;
+  InitialPartitioningDataContainer(InitialPartitioningDataContainer&&) = delete;
+  InitialPartitioningDataContainer & operator= (InitialPartitioningDataContainer &&) = delete;
 
-  ~InitialPartitioningDataContainerT() {
+  ~InitialPartitioningDataContainer() {
     tbb::parallel_invoke([&] {
       parallel::parallel_free_thread_local_internal_data(
         _local_hg, [&](LocalInitialPartitioningHypergraph& local_hg) {
@@ -225,11 +218,11 @@ class InitialPartitioningDataContainerT {
     });
   }
 
-  PartitionedHyperGraph& global_partitioned_hypergraph() {
+  PartitionedHypergraph& global_partitioned_hypergraph() {
     return _partitioned_hg;
   }
 
-  PartitionedHyperGraphWithoutBorderVertices& local_partitioned_hypergraph() {
+  PartitionedHypergraph& local_partitioned_hypergraph() {
     return _local_hg.local()._partitioned_hypergraph;
   }
 
@@ -258,7 +251,7 @@ class InitialPartitioningDataContainerT {
     if ( unassigned_hypernode_pointer == std::numeric_limits<size_t>::max() ) {
       // In case the local unassigned hypernode vector was not initialized before
       // we initialize it here
-      const PartitionedHyperGraphWithoutBorderVertices& hypergraph = local_partitioned_hypergraph();
+      const PartitionedHypergraph& hypergraph = local_partitioned_hypergraph();
       for ( const HypernodeID& hn : hypergraph.nodes() ) {
         unassigned_hypernodes.push_back(hn);
       }
@@ -267,7 +260,7 @@ class InitialPartitioningDataContainerT {
   }
 
   HypernodeID get_unassigned_hypernode(const PartitionID unassigned_block = kInvalidPartition) {
-    const PartitionedHyperGraphWithoutBorderVertices& hypergraph = local_partitioned_hypergraph();
+    const PartitionedHypergraph& hypergraph = local_partitioned_hypergraph();
     parallel::scalable_vector<HypernodeID>& unassigned_hypernodes =
       _local_unassigned_hypernodes.local();
     size_t& unassigned_hypernode_pointer = _local_unassigned_hypernode_pointer.local();
@@ -347,10 +340,9 @@ class InitialPartitioningDataContainerT {
     DBG << "Partition with Best Objective [" << best_objective->_result.str() << "]";
 
     // Applies best partition to hypergraph
-    _partitioned_hg.doParallelForAllNodes(_task_group_id, [&](const HypernodeID hn) {
-      const HypernodeID original_id = _partitioned_hg.originalNodeID(hn);
-      ASSERT(original_id < best->_partition.size());
-      const PartitionID part_id = best->_partition[original_id];
+    _partitioned_hg.doParallelForAllNodes([&](const HypernodeID hn) {
+      ASSERT(hn < best->_partition.size());
+      const PartitionID part_id = best->_partition[hn];
       ASSERT(part_id != kInvalidPartition && part_id < _partitioned_hg.k());
       _partitioned_hg.setOnlyNodePart(hn, part_id);
     });
@@ -367,7 +359,7 @@ class InitialPartitioningDataContainerT {
     return LocalInitialPartitioningHypergraph(_partitioned_hg.hypergraph(), _context, _task_group_id);
   }
 
-  PartitionedHyperGraph& _partitioned_hg;
+  PartitionedHypergraph& _partitioned_hg;
   Context _context;
   const TaskGroupID _task_group_id;
 
@@ -380,10 +372,6 @@ class InitialPartitioningDataContainerT {
   tbb::enumerable_thread_specific<size_t> _local_unassigned_hypernode_pointer;
 };
 
-template <typename TypeTraits>
-PartitionID InitialPartitioningDataContainerT<TypeTraits>::kInvalidPartition = -1;
-template <typename TypeTraits>
-HypernodeID InitialPartitioningDataContainerT<TypeTraits>::kInvalidHypernode = std::numeric_limits<HypernodeID>::max();
-
-using InitialPartitioningDataContainer = InitialPartitioningDataContainerT<GlobalTypeTraits>;
+PartitionID InitialPartitioningDataContainer::kInvalidPartition = -1;
+HypernodeID InitialPartitioningDataContainer::kInvalidHypernode = std::numeric_limits<HypernodeID>::max();
 } // namespace mt_kahypar

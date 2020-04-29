@@ -29,7 +29,7 @@
 #include <boost/dynamic_bitset.hpp>
 
 namespace mt_kahypar {
-namespace refinement {
+
 
 struct BestIndexReduceBody {
   const vec<Gain>& gains;
@@ -140,7 +140,22 @@ public:
       resetStoredMoveIDs();
     }
 
-    HEAVY_REFINEMENT_ASSERT(std::equal(phg.getPinCountInPartVector().begin(), phg.getPinCountInPartVector().end(), remaining_original_pins.begin()));
+    // TODO(lars): Do not expose internal data members, because you can somehow write an assertion more elegant
+    HEAVY_REFINEMENT_ASSERT([&] {
+      for ( const HyperedgeID& he : phg.edges() ) {
+        for ( PartitionID block = 0; block < phg.k(); ++block ) {
+          if ( phg.pinCountInPart(he, block) != remaining_original_pins[he * phg.k() + block] ) {
+            LOG << "Pin Count In Part does not match remaining original pins";
+            LOG << V(he);
+            LOG << V(block);
+            LOG << V(phg.pinCountInPart(he, block));
+            LOG << V(remaining_original_pins[he * phg.k() + block]);
+            return false;
+          }
+        }
+      }
+      return true;
+    }());
     HEAVY_REFINEMENT_ASSERT(phg.checkTrackedPartitionInformation());
     return b.best_sum;
   }
@@ -338,9 +353,12 @@ public:
   }
 
   void setRemainingOriginalPins(PartitionedHypergraph& phg) {
-    assert(remaining_original_pins.size() >= phg.getPinCountInPartVector().size());
-    size_t n = phg.getPinCountInPartVector().size();
-    std::copy_n(phg.getPinCountInPartVector().begin(), n, remaining_original_pins.begin());
+    phg.doParallelForAllEdges([&](const HyperedgeID& he) {
+      for ( PartitionID block = 0; block < phg.k(); ++block ) {
+        remaining_original_pins[he * phg.k() + block].store(
+          phg.pinCountInPart(he, block), std::memory_order_relaxed);
+      }
+    });
   }
 
   PartitionID numParts;
@@ -355,5 +373,5 @@ public:
   boost::dynamic_bitset<> in_balance;
 
 };
-}
+
 }

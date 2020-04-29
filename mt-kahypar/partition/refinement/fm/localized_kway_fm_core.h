@@ -30,7 +30,6 @@
 #include "stop_rule.h"
 
 namespace mt_kahypar {
-namespace refinement {
 
 class LocalizedKWayFM {
 public:
@@ -67,8 +66,9 @@ public:
     if (initialBorderNode == invalidNode) {
       const size_t nSeeds = numberOfSeedNodes(phg.initialNumNodes());
       while (runStats.pushes <= nSeeds && sharedData.refinementNodes.try_pop(initialBorderNode)) {
-        if (!updateDeduplicator.contains(initialBorderNode)
-            && insertOrUpdatePQ(phg, initialBorderNode, sharedData.nodeTracker) && context.refinement.fm.init_neighbors) {
+        if (!updateDeduplicator.contains(initialBorderNode) &&
+            insertOrUpdatePQ(phg, initialBorderNode, sharedData.nodeTracker) &&
+            context.refinement.fm.init_localized_search_with_neighbors) {
           updateDeduplicator.insert(initialBorderNode);
           insertOrUpdateNeighbors(phg, sharedData, initialBorderNode);
         }
@@ -76,7 +76,7 @@ public:
       updateBlocks(phg, kInvalidPartition);
     } else {
       if (insertOrUpdatePQ(phg, initialBorderNode, sharedData.nodeTracker)) {
-        if (context.refinement.fm.init_neighbors) {
+        if (context.refinement.fm.init_localized_search_with_neighbors) {
           updateDeduplicator.insert(initialBorderNode);
           insertOrUpdateNeighbors(phg, sharedData, initialBorderNode);
           updateBlocks(phg, phg.partID(initialBorderNode));
@@ -276,5 +276,4 @@ public:
   FMStats stats;
 };
 
-}
 }

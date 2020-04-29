@@ -29,10 +29,7 @@
 
 namespace mt_kahypar {
 
-template<typename TypeTraits>
 class PseudoPeripheralStartNodes {
-  using HyperGraph = typename TypeTraits::PartitionedHyperGraph;
-  using InitialPartitioningDataContainer = InitialPartitioningDataContainerT<TypeTraits>;
   using StartNodes = parallel::scalable_vector<HypernodeID>;
   using Queue = parallel::scalable_queue<HypernodeID>;
 
@@ -43,7 +40,7 @@ class PseudoPeripheralStartNodes {
  public:
   static inline StartNodes computeStartNodes(InitialPartitioningDataContainer& ip_data,
                                              const Context& context) {
-    HyperGraph& hypergraph = ip_data.local_partitioned_hypergraph();
+    PartitionedHypergraph& hypergraph = ip_data.local_partitioned_hypergraph();
     kahypar::ds::FastResetFlagArray<>& hypernodes_in_queue =
       ip_data.local_hypernode_fast_reset_flag_array();
     kahypar::ds::FastResetFlagArray<>& hyperedges_in_queue =
@@ -51,8 +48,8 @@ class PseudoPeripheralStartNodes {
     int cpu_id = sched_getcpu();
 
     StartNodes start_nodes;
-    HypernodeID start_hn = hypergraph.globalNodeID(
-      utils::Randomize::instance().getRandomInt(0, hypergraph.initialNumNodes() - 1, cpu_id));
+    HypernodeID start_hn =
+      utils::Randomize::instance().getRandomInt(0, hypergraph.initialNumNodes() - 1, cpu_id);
     ASSERT(hypergraph.nodeIsEnabled(start_hn));
     start_nodes.push_back(start_hn);
 
@@ -65,7 +62,7 @@ class PseudoPeripheralStartNodes {
       Queue queue;
       hypernodes_in_queue.reset();
       hyperedges_in_queue.reset();
-      initializeQueue(hypergraph, queue, start_nodes, hypernodes_in_queue);
+      initializeQueue(queue, start_nodes, hypernodes_in_queue);
 
       HypernodeID last_hypernode_touched = kInvalidHypernode;
       HypernodeID num_touched_hypernodes = 0;
@@ -78,18 +75,16 @@ class PseudoPeripheralStartNodes {
         // Add all adjacent non-visited vertices of the current visited hypernode
         // to queue.
         for ( const HyperedgeID& he : hypergraph.incidentEdges(last_hypernode_touched) ) {
-          const HyperedgeID original_he_id = hypergraph.originalEdgeID(he);
-          if ( !hyperedges_in_queue[original_he_id] ) {
+          if ( !hyperedges_in_queue[he] ) {
             if ( hypergraph.edgeSize(he) <= context.partition.hyperedge_size_threshold ) {
               for ( const HypernodeID& pin : hypergraph.pins(he) ) {
-                const HypernodeID original_pin_id = hypergraph.originalNodeID(pin);
-                if ( !hypernodes_in_queue[original_pin_id] ) {
+                if ( !hypernodes_in_queue[pin] ) {
                   queue.push(pin);
-                  hypernodes_in_queue.set(original_pin_id, true);
+                  hypernodes_in_queue.set(pin, true);
                 }
               }
             }
-            hyperedges_in_queue.set(original_he_id, true);
+            hyperedges_in_queue.set(he, true);
           }
         }
 
@@ -97,10 +92,9 @@ class PseudoPeripheralStartNodes {
         // add non-visited vertex to the queue (can happen if the hypergraph is not connected)
         if ( queue.empty() && num_touched_hypernodes < hypergraph.initialNumNodes() ) {
           for ( const HypernodeID& hn : hypergraph.nodes() ) {
-            const HypernodeID original_hn_id = hypergraph.originalNodeID(hn);
-            if ( !hypernodes_in_queue[original_hn_id] ) {
+            if ( !hypernodes_in_queue[hn] ) {
               queue.push(hn);
-              hypernodes_in_queue.set(original_hn_id, true);
+              hypernodes_in_queue.set(hn, true);
             }
           }
         }
@@ -115,18 +109,16 @@ class PseudoPeripheralStartNodes {
   }
 
  private:
-  static inline void initializeQueue(HyperGraph& hypergraph, Queue& queue, StartNodes& start_nodes,
+  static inline void initializeQueue(Queue& queue, StartNodes& start_nodes,
                                      kahypar::ds::FastResetFlagArray<>& hypernodes_in_queue) {
     for ( const HypernodeID& hn : start_nodes ) {
       queue.push(hn);
-      hypernodes_in_queue.set(hypergraph.originalNodeID(hn), true);
+      hypernodes_in_queue.set(hn, true);
     }
   }
 };
 
-template <typename TypeTraits>
-PartitionID PseudoPeripheralStartNodes<TypeTraits>::kInvalidPartition = -1;
-template <typename TypeTraits>
-HypernodeID PseudoPeripheralStartNodes<TypeTraits>::kInvalidHypernode = std::numeric_limits<HypernodeID>::max();
+PartitionID PseudoPeripheralStartNodes::kInvalidPartition = -1;
+HypernodeID PseudoPeripheralStartNodes::kInvalidHypernode = std::numeric_limits<HypernodeID>::max();
 
 } // namespace mt_kahypar

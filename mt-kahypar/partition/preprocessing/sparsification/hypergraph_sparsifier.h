@@ -36,16 +36,11 @@
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
 
 namespace mt_kahypar {
-template<typename TypeTraits,
-         typename SimiliarNetCombiner>
-class HypergraphSparsifierT : public IHypergraphSparsifierT<TypeTraits> {
+template<typename SimiliarNetCombiner>
+class HypergraphSparsifier : public IHypergraphSparsifier {
 
-  using Base = IHypergraphSparsifierT<TypeTraits>;
-  using HyperGraph = typename TypeTraits::HyperGraph;
-  using PartitionedHyperGraph = typename TypeTraits::PartitionedHyperGraph;
-  using HyperGraphFactory = typename TypeTraits::HyperGraphFactory;
-  using TBB = typename TypeTraits::TBB;
-  using SparsifierHypergraph = ds::SparsifierHypergraph<HyperGraph, HyperGraphFactory, TBB>;
+  using Base = IHypergraphSparsifier;
+  using SparsifierHypergraph = ds::SparsifierHypergraph<Hypergraph, HypergraphFactory>;
 
   using HashFunc = kahypar::math::MurmurHash<HypernodeID>;
   using HashValue = typename HashFunc::HashValue;
@@ -86,7 +81,7 @@ class HypergraphSparsifierT : public IHypergraphSparsifierT<TypeTraits> {
   static constexpr bool enable_heavy_assert = false;
 
  public:
-  HypergraphSparsifierT(const Context& context,
+  HypergraphSparsifier(const Context& context,
                         const TaskGroupID task_group_id) :
     Base(),
     _context(context),
@@ -95,26 +90,26 @@ class HypergraphSparsifierT : public IHypergraphSparsifierT<TypeTraits> {
     _sparsified_partitioned_hg(),
     _mapping() { }
 
-  HypergraphSparsifierT(const HypergraphSparsifierT&) = delete;
-  HypergraphSparsifierT & operator= (const HypergraphSparsifierT &) = delete;
+  HypergraphSparsifier(const HypergraphSparsifier&) = delete;
+  HypergraphSparsifier & operator= (const HypergraphSparsifier &) = delete;
 
-  HypergraphSparsifierT(HypergraphSparsifierT&&) = delete;
-  HypergraphSparsifierT & operator= (HypergraphSparsifierT &&) = delete;
+  HypergraphSparsifier(HypergraphSparsifier&&) = delete;
+  HypergraphSparsifier & operator= (HypergraphSparsifier &&) = delete;
 
 
  private:
 
   // ####################### Sparsification Functions #######################
 
-  HyperGraph& sparsifiedHypergraphImpl() override final {
+  Hypergraph& sparsifiedHypergraphImpl() override final {
     return _sparsified_hg;
   }
 
-  PartitionedHyperGraph& sparsifiedPartitionedHypergraphImpl() override final {
+  PartitionedHypergraph& sparsifiedPartitionedHypergraphImpl() override final {
     return _sparsified_partitioned_hg;
   }
 
-  void sparsifyImpl(const HyperGraph& hypergraph) override final {
+  void sparsifyImpl(const Hypergraph& hypergraph) override final {
     ASSERT(_context.useSparsification());
     SparsifierHypergraph sparsified_hypergraph(hypergraph, _task_group_id);
 
@@ -151,17 +146,15 @@ class HypergraphSparsifierT : public IHypergraphSparsifierT<TypeTraits> {
     utils::Timer::instance().start_timer("construct_sparsified_hypergraph", "Construct Sparsified HG");
     _sparsified_hg = sparsified_hypergraph.sparsify();
     _mapping = sparsified_hypergraph.getMapping();
-    _sparsified_partitioned_hg = PartitionedHyperGraph(
+    _sparsified_partitioned_hg = PartitionedHypergraph(
       _context.partition.k, _task_group_id, _sparsified_hg);
     utils::Timer::instance().stop_timer("construct_sparsified_hypergraph");
   }
 
-  void undoSparsificationImpl(PartitionedHyperGraph& hypergraph) override final {
-    hypergraph.doParallelForAllNodes(_task_group_id, [&](const HypernodeID hn) {
-      const HypernodeID original_id = hypergraph.originalNodeID(hn);
-      ASSERT(original_id < _mapping.size());
-      const HypernodeID original_sparsified_id = _mapping[original_id];
-      const HypernodeID sparsified_hn = _sparsified_partitioned_hg.globalNodeID(original_sparsified_id);
+  void undoSparsificationImpl(PartitionedHypergraph& hypergraph) override final {
+    hypergraph.doParallelForAllNodes([&](const HypernodeID hn) {
+      ASSERT(hn < _mapping.size());
+      const HypernodeID sparsified_hn = _mapping[hn];
       ASSERT(_sparsified_partitioned_hg.nodeIsEnabled(sparsified_hn));
       hypergraph.setNodePart(hn, _sparsified_partitioned_hg.partID(sparsified_hn));
     });
@@ -219,7 +212,7 @@ class HypergraphSparsifierT : public IHypergraphSparsifierT<TypeTraits> {
     });
   }
 
-  void similiarHyperedgeRemoval(const HyperGraph& original_hg, SparsifierHypergraph& hypergraph) {
+  void similiarHyperedgeRemoval(const Hypergraph& original_hg, SparsifierHypergraph& hypergraph) {
     HashFuncVector hash_functions(_context.sparsification.min_hash_footprint_size,
       utils::Randomize::instance().getRandomInt(0, 1000, sched_getcpu()));
 
@@ -325,12 +318,9 @@ class HypergraphSparsifierT : public IHypergraphSparsifierT<TypeTraits> {
   const Context& _context;
   const TaskGroupID _task_group_id;
 
-  HyperGraph _sparsified_hg;
-  PartitionedHyperGraph _sparsified_partitioned_hg;
+  Hypergraph _sparsified_hg;
+  PartitionedHypergraph _sparsified_partitioned_hg;
   parallel::scalable_vector<HypernodeID> _mapping;
 };
-
-template<typename SimiliarNetCombiner>
-using HypergraphSparsifier = HypergraphSparsifierT<GlobalTypeTraits, SimiliarNetCombiner>;
 
 }  // namespace mt_kahypar

@@ -30,18 +30,15 @@ using ::testing::Test;
 namespace mt_kahypar {
 namespace ds {
 
-using AStaticHypergraph = HypergraphFixture<StaticHypergraph, StaticHypergraphFactory>;
+using AStaticHypergraph = HypergraphFixture;
 
 TEST_F(AStaticHypergraph, HasCorrectStats) {
   ASSERT_EQ(7,  hypergraph.initialNumNodes());
   ASSERT_EQ(4,  hypergraph.initialNumEdges());
   ASSERT_EQ(12, hypergraph.initialNumPins());
   ASSERT_EQ(12, hypergraph.initialTotalVertexDegree());
-  ASSERT_EQ(7,  hypergraph.initialNumNodes(0));
-  ASSERT_EQ(4,  hypergraph.initialNumEdges(0));
-  ASSERT_EQ(12, hypergraph.initialNumPins(0));
-  ASSERT_EQ(12, hypergraph.initialTotalVertexDegree(0));
   ASSERT_EQ(7,  hypergraph.totalWeight());
+  ASSERT_EQ(4,  hypergraph.maxEdgeSize());
 }
 
 TEST_F(AStaticHypergraph, HasCorrectInitialNodeIterator) {
@@ -85,8 +82,7 @@ TEST_F(AStaticHypergraph, HasCorrectEdgeIteratorIfVerticesAreDisabled) {
 
 TEST_F(AStaticHypergraph, IteratesParallelOverAllNodes) {
   std::vector<uint8_t> visited(7, false);
-  hypergraph.doParallelForAllNodes(TBBNumaArena::GLOBAL_TASK_GROUP,
-    [&](const HypernodeID hn) {
+  hypergraph.doParallelForAllNodes([&](const HypernodeID hn) {
       visited[hn] = true;
     });
 
@@ -97,8 +93,7 @@ TEST_F(AStaticHypergraph, IteratesParallelOverAllNodes) {
 
 TEST_F(AStaticHypergraph, IteratesParallelOverAllEdges) {
   std::vector<uint8_t> visited(4, false);
-  hypergraph.doParallelForAllEdges(TBBNumaArena::GLOBAL_TASK_GROUP,
-    [&](const HyperedgeID he) {
+  hypergraph.doParallelForAllEdges([&](const HyperedgeID he) {
       visited[he] = true;
     });
 
@@ -126,12 +121,6 @@ TEST_F(AStaticHypergraph, VerifiesIncidentNets4) {
 TEST_F(AStaticHypergraph, VerifiesPinsOfHyperedges) {
   verifyPins({ 0, 1, 2, 3 },
     { {0, 2}, {0, 1, 3, 4}, {3, 4, 6}, {2, 5, 6} });
-}
-
-TEST_F(AStaticHypergraph, VerifiesOriginalNodeIDs) {
-  for ( const HypernodeID& hn : hypergraph.nodes() ) {
-    ASSERT_EQ(hn, hypergraph.originalNodeID(hn));
-  }
 }
 
 TEST_F(AStaticHypergraph, VerifiesVertexWeights) {
@@ -164,12 +153,6 @@ TEST_F(AStaticHypergraph, RemovesVertices) {
   hypergraph.removeHypernode(0);
   hypergraph.removeHypernode(5);
   ASSERT_EQ(2, hypergraph.numRemovedHypernodes());
-}
-
-TEST_F(AStaticHypergraph, VerifiesOriginalEdgeIDs) {
-  for ( const HyperedgeID& he : hypergraph.edges() ) {
-    ASSERT_EQ(he, hypergraph.originalEdgeID(he));
-  }
 }
 
 TEST_F(AStaticHypergraph, VerifiesEdgeWeights) {
@@ -415,42 +398,6 @@ TEST_F(AStaticHypergraph, RemovesAHyperedgeFromTheHypergraph4) {
   }
 }
 
-TEST_F(AStaticHypergraph, RestoresARemovedHyperedge1) {
-  hypergraph.removeEdge(0);
-  hypergraph.restoreEdge(0, 2);
-  verifyIncidentNets(0, { 0, 1 });
-  verifyIncidentNets(2, { 0, 3 });
-  verifyPins({ 0 }, { {0, 2} });
-}
-
-TEST_F(AStaticHypergraph, RestoresARemovedHyperedge2) {
-  hypergraph.removeEdge(1);
-  hypergraph.restoreEdge(1, 4);
-  verifyIncidentNets(0, { 0, 1 });
-  verifyIncidentNets(1, { 1 });
-  verifyIncidentNets(3, { 1, 2 });
-  verifyIncidentNets(4, { 1, 2 });
-  verifyPins({ 1 }, { {0, 1, 3, 4} });
-}
-
-TEST_F(AStaticHypergraph, RestoresARemovedHyperedge3) {
-  hypergraph.removeEdge(2);
-  hypergraph.restoreEdge(2, 3);
-  verifyIncidentNets(3, { 1, 2 });
-  verifyIncidentNets(4, { 1, 2 });
-  verifyIncidentNets(6, { 2, 3 });
-  verifyPins({ 2 }, { {3, 4, 6} });
-}
-
-TEST_F(AStaticHypergraph, RestoresARemovedHyperedge4) {
-  hypergraph.removeEdge(3);
-  hypergraph.restoreEdge(3, 3);
-  verifyIncidentNets(2, { 0, 3 });
-  verifyIncidentNets(5, { 3 });
-  verifyIncidentNets(6, { 2, 3 });
-  verifyPins({ 3 }, { {2, 5, 6} });
-}
-
 TEST_F(AStaticHypergraph, ComparesStatsIfCopiedParallel) {
   StaticHypergraph copy_hg = hypergraph.copy(TBBNumaArena::GLOBAL_TASK_GROUP);
   ASSERT_EQ(hypergraph.initialNumNodes(), copy_hg.initialNumNodes());
@@ -458,6 +405,7 @@ TEST_F(AStaticHypergraph, ComparesStatsIfCopiedParallel) {
   ASSERT_EQ(hypergraph.initialNumPins(), copy_hg.initialNumPins());
   ASSERT_EQ(hypergraph.initialTotalVertexDegree(), copy_hg.initialTotalVertexDegree());
   ASSERT_EQ(hypergraph.totalWeight(), copy_hg.totalWeight());
+  ASSERT_EQ(hypergraph.maxEdgeSize(), copy_hg.maxEdgeSize());
 }
 
 TEST_F(AStaticHypergraph, ComparesStatsIfCopiedSequential) {
@@ -467,6 +415,7 @@ TEST_F(AStaticHypergraph, ComparesStatsIfCopiedSequential) {
   ASSERT_EQ(hypergraph.initialNumPins(), copy_hg.initialNumPins());
   ASSERT_EQ(hypergraph.initialTotalVertexDegree(), copy_hg.initialTotalVertexDegree());
   ASSERT_EQ(hypergraph.totalWeight(), copy_hg.totalWeight());
+  ASSERT_EQ(hypergraph.maxEdgeSize(), copy_hg.maxEdgeSize());
 }
 
 TEST_F(AStaticHypergraph, ComparesIncidentNetsIfCopiedParallel) {
@@ -618,6 +567,7 @@ TEST_F(AStaticHypergraph, ContractsCommunities1) {
   ASSERT_EQ(1, c_hypergraph.initialNumEdges());
   ASSERT_EQ(3, c_hypergraph.initialNumPins());
   ASSERT_EQ(7, c_hypergraph.totalWeight());
+  ASSERT_EQ(3, c_hypergraph.maxEdgeSize());
 
   // Verify Vertex Weights
   ASSERT_EQ(2, c_hypergraph.nodeWeight(0));
@@ -653,6 +603,7 @@ TEST_F(AStaticHypergraph, ContractsCommunities2) {
   ASSERT_EQ(2, c_hypergraph.initialNumEdges());
   ASSERT_EQ(6, c_hypergraph.initialNumPins());
   ASSERT_EQ(7, c_hypergraph.totalWeight());
+  ASSERT_EQ(3, c_hypergraph.maxEdgeSize());
 
   // Verify Vertex Weights
   ASSERT_EQ(2, c_hypergraph.nodeWeight(0));
@@ -691,6 +642,7 @@ TEST_F(AStaticHypergraph, ContractsCommunities3) {
   ASSERT_EQ(4, c_hypergraph.initialNumEdges());
   ASSERT_EQ(8, c_hypergraph.initialNumPins());
   ASSERT_EQ(7, c_hypergraph.totalWeight());
+  ASSERT_EQ(2, c_hypergraph.maxEdgeSize());
 
   // Verify Vertex Weights
   ASSERT_EQ(1, c_hypergraph.nodeWeight(0));
@@ -733,6 +685,7 @@ TEST_F(AStaticHypergraph, ContractsCommunitiesWithDisabledHypernodes) {
   ASSERT_EQ(1, c_hypergraph.initialNumEdges());
   ASSERT_EQ(2, c_hypergraph.initialNumPins());
   ASSERT_EQ(5, c_hypergraph.totalWeight());
+  ASSERT_EQ(2, c_hypergraph.maxEdgeSize());
 
   // Verify Vertex Weights
   ASSERT_EQ(2, c_hypergraph.nodeWeight(0));
@@ -768,6 +721,7 @@ TEST_F(AStaticHypergraph, ContractsCommunitiesWithDisabledHyperedges) {
   ASSERT_EQ(2, c_hypergraph.initialNumEdges());
   ASSERT_EQ(4, c_hypergraph.initialNumPins());
   ASSERT_EQ(7, c_hypergraph.totalWeight());
+  ASSERT_EQ(2, c_hypergraph.maxEdgeSize());
 
   // Verify Vertex Weights
   ASSERT_EQ(3, c_hypergraph.nodeWeight(0));
