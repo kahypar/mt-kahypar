@@ -28,6 +28,7 @@
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/partition/factories.h"
 #include "mt-kahypar/partition/initial_partitioning/flat/pool_initial_partitioner.h"
+#include "mt-kahypar/parallel/memory_pool.h"
 #include "mt-kahypar/utils/initial_partitioning_stats.h"
 #include "mt-kahypar/utils/profiler.h"
 
@@ -56,7 +57,7 @@ class RefinementTask : public tbb::task {
     // Must be empty, because final partitioned hypergraph
     // is moved into this object
     _coarsener = CoarsenerFactory::getInstance().createObject(
-      _context.coarsening.algorithm, _hg, _context, _task_group_id);
+      _context.coarsening.algorithm, _hg, _context, _task_group_id, _top_level);
     _sparsifier = HypergraphSparsifierFactory::getInstance().createObject(
       _context.sparsification.similiar_net_combiner_strategy, _context, _task_group_id);
   }
@@ -119,6 +120,7 @@ class RefinementTask : public tbb::task {
  private:
   void enableTimerAndStats() {
     if ( _top_level ) {
+      parallel::MemoryPool::instance().activate_unused_memory_allocations();
       utils::Timer::instance().enable();
       utils::Stats::instance().enable();
     }
@@ -132,7 +134,6 @@ class RefinementTask : public tbb::task {
 };
 
 class CoarseningTask : public tbb::task {
-  using PoolInitialPartitionerContinuation = PoolInitialPartitionerContinuationT<GlobalTypeTraits>;
 
  public:
   CoarseningTask(Hypergraph& hypergraph,
@@ -218,6 +219,7 @@ class CoarseningTask : public tbb::task {
 
   void disableTimerAndStats() {
     if ( _top_level ) {
+      parallel::MemoryPool::instance().deactivate_unused_memory_allocations();
       utils::Timer::instance().disable();
       utils::Stats::instance().disable();
     }

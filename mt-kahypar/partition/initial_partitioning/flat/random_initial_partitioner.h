@@ -27,16 +27,13 @@
 #include "mt-kahypar/utils/randomize.h"
 
 namespace mt_kahypar {
-template<typename TypeTraits>
-class RandomInitialPartitionerT : public tbb::task {
-  using HyperGraph = typename TypeTraits::PartitionedHyperGraph;
-  using InitialPartitioningDataContainer = InitialPartitioningDataContainerT<TypeTraits>;
+class RandomInitialPartitioner : public tbb::task {
 
   static constexpr bool debug = false;
   static PartitionID kInvalidPartition;
 
  public:
-  RandomInitialPartitionerT(const InitialPartitioningAlgorithm,
+  RandomInitialPartitioner(const InitialPartitioningAlgorithm,
                             InitialPartitioningDataContainer& ip_data,
                             const Context& context) :
     _ip_data(ip_data),
@@ -44,7 +41,7 @@ class RandomInitialPartitionerT : public tbb::task {
 
   tbb::task* execute() override {
     HighResClockTimepoint start = std::chrono::high_resolution_clock::now();
-    HyperGraph& hg = _ip_data.local_partitioned_hypergraph();
+    PartitionedHypergraph& hg = _ip_data.local_partitioned_hypergraph();
     int cpu_id = sched_getcpu();
 
     for ( const HypernodeID& hn : hg.nodes() ) {
@@ -74,7 +71,7 @@ class RandomInitialPartitionerT : public tbb::task {
   }
 
  private:
-  bool fitsIntoBlock(HyperGraph& hypergraph,
+  bool fitsIntoBlock(PartitionedHypergraph& hypergraph,
                      const HypernodeID hn,
                      const PartitionID block) const {
     ASSERT(block != kInvalidPartition && block < _context.partition.k);
@@ -85,9 +82,7 @@ class RandomInitialPartitionerT : public tbb::task {
   InitialPartitioningDataContainer& _ip_data;
   const Context& _context;
 };
-template <typename TypeTraits>
-PartitionID RandomInitialPartitionerT<TypeTraits>::kInvalidPartition = -1;
 
-using RandomInitialPartitioner = RandomInitialPartitionerT<GlobalTypeTraits>;
+PartitionID RandomInitialPartitioner::kInvalidPartition = -1;
 
 } // namespace mt_kahypar

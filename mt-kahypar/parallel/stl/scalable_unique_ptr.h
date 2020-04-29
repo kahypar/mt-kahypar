@@ -20,28 +20,28 @@
 
 #pragma once
 
-#include "mt-kahypar/definitions.h"
+#include <memory>
+
+#include "tbb/scalable_allocator.h"
 
 namespace mt_kahypar {
-namespace preprocessing {
-class ICommunityAssignment {
- public:
-  ICommunityAssignment(const ICommunityAssignment&) = delete;
-  ICommunityAssignment & operator= (const ICommunityAssignment &) = delete;
-  ICommunityAssignment(ICommunityAssignment&&) = delete;
-  ICommunityAssignment & operator= (ICommunityAssignment &&) = delete;
+namespace parallel {
 
-  virtual ~ICommunityAssignment() = default;
-
-  parallel::scalable_vector<PartitionID> computeAssignment() {
-    return computeAssignmentImpl();
+template<typename T>
+struct tbb_deleter {
+  void operator()(T *p) {
+    scalable_free(p);
   }
-
- protected:
-  ICommunityAssignment() = default;
-
- private:
-  virtual parallel::scalable_vector<PartitionID> computeAssignmentImpl() = 0;
 };
-}  // namespace preprocessing
+
+template<typename T>
+using tbb_unique_ptr = std::unique_ptr<T, tbb_deleter<T>>;
+
+template<typename T>
+static tbb_unique_ptr<T> make_unique(const size_t size) {
+  T* ptr = (T*) scalable_malloc(sizeof(T) * size);
+  return tbb_unique_ptr<T>(ptr, parallel::tbb_deleter<T>());
+}
+
+}  // namespace parallel
 }  // namespace mt_kahypar

@@ -23,7 +23,7 @@
 
 #include <mt-kahypar/definitions.h>
 #include <mt-kahypar/datastructures/priority_queue.h>
-#include <mt-kahypar/parallel/numa_work_queue.h>
+#include <mt-kahypar/parallel/work_queue.h>
 
 #include "partition_weight_budgets.h"
 
@@ -139,7 +139,7 @@ struct FMSharedData {
 
   //PartitionWeightBudgets partition_weight_budgets;
 
-  NumaWorkQueue<HypernodeID> refinementNodes;
+  ConcurrentDataContainer<HypernodeID> refinementNodes;
 
   vec<PosT> vertexPQHandles;
 

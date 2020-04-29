@@ -20,6 +20,16 @@
 
 #pragma once
 
+#include "tbb/blocked_range.h"
+#include "tbb/parallel_invoke.h"
+#include "tbb/parallel_sort.h"
+#include "tbb/parallel_reduce.h"
+#include "tbb/parallel_for.h"
+#include "tbb/enumerable_thread_specific.h"
+
+#include "mt-kahypar/parallel/tbb_numa_arena.h"
+#include "mt-kahypar/parallel/memory_pool.h"
+#include "mt-kahypar/parallel/stl/scalable_vector.h"
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/partition/metrics.h"
 #include "mt-kahypar/utils/memory_tree.h"
@@ -52,6 +62,32 @@ Statistic createStats(const std::vector<T>& vec, const double avg, const double 
     stats.sd = stdev;
   }
   return stats;
+}
+
+template<typename T>
+double parallel_stdev(const std::vector<T>& data, const double avg, const size_t n) {
+  return std::sqrt(tbb::parallel_reduce(
+    tbb::blocked_range<size_t>(0UL, data.size()), 0.0,
+    [&](tbb::blocked_range<size_t>& range, double init) -> double {
+      double tmp_stdev = init;
+      for ( size_t i = range.begin(); i < range.end(); ++i ) {
+        tmp_stdev += (data[i] - avg) * (data[i] - avg);
+      }
+      return tmp_stdev;
+    }, std::plus<double>()) / ( n- 1 ));
+}
+
+template<typename T>
+double parallel_avg(const std::vector<T>& data, const size_t n) {
+  return tbb::parallel_reduce(
+    tbb::blocked_range<size_t>(0UL, data.size()), 0.0,
+    [&](tbb::blocked_range<size_t>& range, double init) -> double {
+      double tmp_avg = init;
+      for ( size_t i = range.begin(); i < range.end(); ++i ) {
+        tmp_avg += static_cast<double>(data[i]);
+      }
+      return tmp_avg;
+    }, std::plus<double>()) / static_cast<double>(n);
 }
 
 void printHypergraphStats(const Statistic& he_size_stats,
@@ -159,58 +195,47 @@ inline void printHypergraphInfo(const HyperGraph& hypergraph,
   std::vector<HyperedgeWeight> he_weights;
   std::vector<HyperedgeID> hn_degrees;
   std::vector<HypernodeWeight> hn_weights;
-  he_sizes.reserve(hypergraph.initialNumEdges());
-  he_weights.reserve(hypergraph.initialNumEdges());
-  hn_degrees.reserve(hypergraph.initialNumNodes());
-  hn_weights.reserve(hypergraph.initialNumNodes());
 
-  HypernodeID num_hypernodes = 0;
+  tbb::parallel_invoke([&] {
+    he_sizes.resize(hypergraph.initialNumEdges());
+  }, [&] {
+    he_weights.resize(hypergraph.initialNumEdges());
+  }, [&] {
+    hn_degrees.resize(hypergraph.initialNumNodes());
+  }, [&] {
+    hn_weights.resize(hypergraph.initialNumNodes());
+  });
+
+  HypernodeID num_hypernodes = hypergraph.initialNumNodes();
   const double avg_hn_degree = metrics::avgHypernodeDegree(hypergraph);
-  double stdev_hn_degree = 0.0;
-  for (const auto& hn : hypergraph.nodes()) {
-    ++num_hypernodes;
-    hn_degrees.push_back(hypergraph.nodeDegree(hn));
-    hn_weights.push_back(hypergraph.nodeWeight(hn));
-    stdev_hn_degree += (hypergraph.nodeDegree(hn) - avg_hn_degree) *
-                       (hypergraph.nodeDegree(hn) - avg_hn_degree);
-  }
-  stdev_hn_degree = std::sqrt(stdev_hn_degree / (num_hypernodes - 1));
+  hypergraph.doParallelForAllNodes([&](const HypernodeID& hn) {
+    hn_degrees[hn] = hypergraph.nodeDegree(hn);
+    hn_weights[hn] = hypergraph.nodeWeight(hn);
+  });
+  const double avg_hn_weight = internal::parallel_avg(hn_weights, num_hypernodes);
+  const double stdev_hn_degree = internal::parallel_stdev(hn_degrees, avg_hn_degree, num_hypernodes);
+  const double stdev_hn_weight = internal::parallel_stdev(hn_weights, avg_hn_weight, num_hypernodes);
 
-  HyperedgeID num_hyperedges = 0;
-  HypernodeID num_pins = 0;
+  HyperedgeID num_hyperedges = hypergraph.initialNumEdges();
+  HypernodeID num_pins = hypergraph.initialNumPins();
   const double avg_he_size = metrics::avgHyperedgeDegree(hypergraph);
-  double stdev_he_size = 0.0;
-  for (const auto& he : hypergraph.edges()) {
-    ++num_hyperedges;
-    num_pins += hypergraph.edgeSize(he);
-    he_sizes.push_back(hypergraph.edgeSize(he));
-    he_weights.push_back(hypergraph.edgeWeight(he));
-    stdev_he_size += (hypergraph.edgeSize(he) - avg_he_size) *
-                     (hypergraph.edgeSize(he) - avg_he_size);
-  }
-  stdev_he_size = std::sqrt(stdev_he_size / (num_hyperedges - 1));
+  hypergraph.doParallelForAllEdges([&](const HyperedgeID& he) {
+    he_sizes[he] = hypergraph.edgeSize(he);
+    he_weights[he] = hypergraph.edgeWeight(he);
+  });
+  const double avg_he_weight = internal::parallel_avg(he_weights, num_hyperedges);
+  const double stdev_he_size = internal::parallel_stdev(he_sizes, avg_he_size, num_hyperedges);
+  const double stdev_he_weight = internal::parallel_stdev(he_weights, avg_he_weight, num_hyperedges);
 
-  std::sort(he_sizes.begin(), he_sizes.end());
-  std::sort(he_weights.begin(), he_weights.end());
-  std::sort(hn_degrees.begin(), hn_degrees.end());
-  std::sort(hn_weights.begin(), hn_weights.end());
-
-  const double avg_hn_weight = std::accumulate(hn_weights.begin(), hn_weights.end(), 0.0) /
-                               static_cast<double>(hn_weights.size());
-  const double avg_he_weight = std::accumulate(he_weights.begin(), he_weights.end(), 0.0) /
-                               static_cast<double>(he_weights.size());
-
-  double stdev_hn_weight = 0.0;
-  for (const HypernodeWeight& hn_weight : hn_weights) {
-    stdev_hn_weight += (hn_weight - avg_hn_weight) * (hn_weight - avg_hn_weight);
-  }
-  stdev_hn_weight = std::sqrt(stdev_hn_weight / (num_hypernodes - 1));
-
-  double stdev_he_weight = 0.0;
-  for (const HyperedgeWeight& he_weight : he_weights) {
-    stdev_he_weight += (he_weight - avg_he_weight) * (he_weight - avg_he_weight);
-  }
-  stdev_he_weight = std::sqrt(stdev_he_weight / (num_hyperedges - 1));
+  tbb::parallel_invoke([&] {
+    tbb::parallel_sort(he_sizes.begin(), he_sizes.end());
+  }, [&] {
+    tbb::parallel_sort(he_weights.begin(), he_weights.end());
+  }, [&] {
+    tbb::parallel_sort(hn_degrees.begin(), hn_degrees.end());
+  }, [&] {
+    tbb::parallel_sort(hn_weights.begin(), hn_weights.end());
+  });
 
   LOG << "Hypergraph Information";
   LOG << "Name :" << name;
@@ -234,9 +259,7 @@ inline void printHypergraphInfo(const HyperGraph& hypergraph,
   }
 }
 
-inline void printCommunityInformation(const Hypergraph& hypergraph,
-                                      const ds::GraphT<Hypergraph>& graph,
-                                      const ds::Clustering& communities) {
+inline void printCommunityInformation(const Hypergraph& hypergraph) {
   PartitionID num_communities = hypergraph.numCommunities();
   std::vector<HypernodeID> community_sizes;
   std::vector<HypernodeID> community_pins;
@@ -276,7 +299,6 @@ inline void printCommunityInformation(const Hypergraph& hypergraph,
 
   LOG << "Community Information:";
   LOG << "# Communities:" << num_communities;
-  LOG << "# Modularity:" << metrics::modularity(graph, communities);
   internal::printCommunityStats(
     internal::createStats(community_sizes, avg_community_size, stdev_community_size),
     internal::createStats(community_pins, avg_community_pins, stdev_community_pins),
@@ -320,6 +342,17 @@ static inline void printPartitioningResults(const PartitionedHypergraph& hypergr
 static inline void printContext(const Context& context) {
   if (context.partition.verbose_output) {
     LOG << context;
+  }
+}
+
+static inline void printMemoryPoolConsumption(const Context& context) {
+  if ( context.partition.verbose_output && context.partition.show_memory_consumption ) {
+    utils::MemoryTreeNode memory_pool_consumption("Memory Pool", utils::OutputType::MEGABYTE);
+    parallel::MemoryPool::instance().memory_consumption(&memory_pool_consumption);
+    memory_pool_consumption.finalize();
+    LOG << "\n Memory Pool Consumption:";
+    LOG << memory_pool_consumption << "\n";
+    parallel::MemoryPool::instance().explain_optimizations();
   }
 }
 
@@ -391,7 +424,7 @@ inline void printPartitioningResults(const PartitionedHypergraph& hypergraph,
     printPartWeights(hypergraph, context);
 
     LOG << "\nTimings:";
-    LOG << utils::Timer::instance(context.partition.detailed_timings);
+    LOG << utils::Timer::instance(context.partition.show_detailed_timings);
   }
 }
 

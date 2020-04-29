@@ -80,6 +80,21 @@ void fetch_sub(std::atomic<T>& x, T y) {
 template <class T>
 class AtomicWrapper : public std::atomic<T> {
  public:
+  explicit AtomicWrapper(const T value = T()) :
+    std::atomic<T>(value) { }
+
+  AtomicWrapper(const AtomicWrapper& other) :
+    std::atomic<T>(other.load()) { }
+
+  AtomicWrapper & operator= (const AtomicWrapper& other) {
+    this->store(other.load());
+    return *this;
+  }
+
+  AtomicWrapper(AtomicWrapper&& other) {
+    this->store(other.load());
+  }
+
   void operator+= (T other) {
     fetch_add(*this, other);
   }
@@ -95,7 +110,7 @@ class AtomicWrapper : public std::atomic<T> {
 template <typename T>
 class IntegralAtomicWrapper {
   static_assert(std::is_integral<T>::value, "Value must be of integral type");
-  static_assert( std::atomic<T>::is_always_lock_free, "Atomic must be lock free" );
+  // static_assert( std::atomic<T>::is_always_lock_free, "Atomic must be lock free" );
 
  public:
   explicit IntegralAtomicWrapper(const T value = T()) :

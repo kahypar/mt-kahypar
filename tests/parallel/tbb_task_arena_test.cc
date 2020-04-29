@@ -42,7 +42,7 @@ class ATBBNumaArenaTest : public Test {
  private:
   using TopoMock = mt_kahypar::parallel::TopologyMock<Numa::NUMA_NODES>;
   using HwTopology = mt_kahypar::parallel::HardwareTopology<TopoMock, topology_t, node_t>;
-  using TBBArena = mt_kahypar::parallel::TBBNumaArena<HwTopology>;
+  using TBBArena = mt_kahypar::parallel::TBBNumaArena<HwTopology, true>;
 
  public:
   ATBBNumaArenaTest() :
@@ -72,8 +72,8 @@ class ATBBNumaArenaTest : public Test {
     return TBBArena::instance(num_threads).total_number_of_threads();
   }
 
-  int number_of_threads_on_numa_node(int node) const {
-    return TBBArena::instance(num_threads).number_of_threads_on_numa_node(node);
+  int number_of_used_cpus_on_numa_node(int node) const {
+    return TBBArena::instance(num_threads).number_of_used_cpus_on_numa_node(node);
   }
 
   tbb::task_arena& numa_task_arena(int node) {
@@ -110,8 +110,8 @@ TYPED_TEST(ATBBNumaArenaTest, ChecksTBBArenaInitialization) {
   ASSERT_EQ(this->expected_number_of_threads(), this->total_number_of_threads());
   int total_threads = 0;
   for (int node = 0; node < this->expected_num_numa_nodes(); ++node) {
-    ASSERT_EQ(this->num_cpus_on_numa_node(node), this->number_of_threads_on_numa_node(node));
-    total_threads += this->number_of_threads_on_numa_node(node);
+    ASSERT_EQ(this->num_cpus_on_numa_node(node), this->number_of_used_cpus_on_numa_node(node));
+    total_threads += this->number_of_used_cpus_on_numa_node(node);
   }
   ASSERT_EQ(this->expected_number_of_threads(), total_threads);
 }

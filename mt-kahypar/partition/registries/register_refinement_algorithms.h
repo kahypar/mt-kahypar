@@ -26,13 +26,13 @@
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/partition/factories.h"
 #include "mt-kahypar/partition/refinement/do_nothing_refiner.h"
-#include "mt-kahypar/partition/refinement/label_propagation_refiner.h"
+#include "mt-kahypar/partition/refinement/label_propagation/label_propagation_refiner.h"
 
-#define REGISTER_LP_REFINER(id, refiner, t)                                                                          \
-  static kahypar::meta::Registrar<LabelPropagationFactory> JOIN(register_ ## refiner, t)(                            \
-    id,                                                                                                              \
+#define REGISTER_LP_REFINER(id, refiner, t)                                                                            \
+  static kahypar::meta::Registrar<LabelPropagationFactory> JOIN(register_ ## refiner, t)(                              \
+    id,                                                                                                                \
     [](PartitionedHypergraph& hypergraph, const Context& context, const TaskGroupID task_group_id) -> IRefiner* {  \
-    return new refiner(hypergraph, context, task_group_id);                                                          \
+    return new refiner(hypergraph, context, task_group_id);                                                            \
   })
 
 namespace mt_kahypar {

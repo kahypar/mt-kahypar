@@ -30,6 +30,7 @@
 #include "kahypar/utils/math.h"
 
 #include "mt-kahypar/datastructures/hypergraph_common.h"
+#include "mt-kahypar/datastructures/static_hypergraph.h"
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
 #include "mt-kahypar/parallel/atomic_wrapper.h"
 #include "mt-kahypar/utils/memory_tree.h"
@@ -43,9 +44,6 @@ template<class Hypergraph>
 class CommunitySupport {
 
  static constexpr bool enable_heavy_assert = false;
-
- static_assert(!Hypergraph::is_numa_aware,  "Only non-numa-aware hypergraphs are allowed");
- static_assert(!Hypergraph::is_partitioned, "Only unpartitioned hypergraphs are allowed");
 
  using Counter = parallel::scalable_vector<HypernodeID>;
  using AtomicCounter = parallel::scalable_vector<parallel::IntegralAtomicWrapper<HypernodeID>>;
@@ -172,7 +170,6 @@ class CommunitySupport {
   using CommunityIterator = parallel::scalable_vector<PartitionID>::const_iterator;
 
   explicit CommunitySupport() :
-    _node(0),
     _is_initialized(false),
     _num_communities(0),
     _communities_num_hypernodes(),
@@ -187,7 +184,6 @@ class CommunitySupport {
   CommunitySupport & operator= (const CommunitySupport &) = delete;
 
   CommunitySupport(CommunitySupport&& other) :
-    _node(other._node),
     _is_initialized(other._is_initialized),
     _num_communities(other._num_communities),
     _communities_num_hypernodes(std::move(other._communities_num_hypernodes)),
@@ -199,7 +195,6 @@ class CommunitySupport {
     _vertex_to_community_node_id(std::move(other._vertex_to_community_node_id)) { }
 
   CommunitySupport & operator= (CommunitySupport&& other) {
-    _node = other._node;
     _is_initialized = other._is_initialized;
     _num_communities = other._num_communities;
     _communities_num_hypernodes = std::move(other._communities_num_hypernodes);
@@ -265,22 +260,18 @@ class CommunitySupport {
   // ! Returns a range to loop over the set of communities contained in hyperedge e.
   IteratorRange<CommunityIterator> communities(const HyperedgeID e) const {
     ASSERT(_are_community_hyperedges_initialized);
-    HyperedgeID local_id = common::get_local_position_of_edge(e);
-    ASSERT(local_id < _community_hyperedge_ids.size(), "Hyperedge" << e << "does not exist");
-    ASSERT(_node == common::get_numa_node_of_edge(e), "Hyperedge" << e << "is not part of NUMA node" << _node);
+    ASSERT(e < _community_hyperedge_ids.size(), "Hyperedge" << e << "does not exist");
     return IteratorRange<CommunityIterator>(
-      _community_hyperedge_ids[local_id].cbegin(),
-      _community_hyperedge_ids[local_id].cend());
+      _community_hyperedge_ids[e].cbegin(),
+      _community_hyperedge_ids[e].cend());
   }
 
   // ! Consider hypernode u is part of community C = {v_1, ..., v_n},
   // ! than this function returns a unique id for hypernode u in the
   // ! range [0,n).
   HypernodeID communityNodeId(const HypernodeID u) const {
-    const HypernodeID local_id = common::get_local_position_of_vertex(u);
-    ASSERT(local_id < _vertex_to_community_node_id.size(), "Hypernode" << u << "does not exist");
-    ASSERT(_node == common::get_numa_node_of_vertex(u), "Hypernode" << u << "is not part of NUMA node" << _node);
-    return _vertex_to_community_node_id[local_id];
+    ASSERT(u < _vertex_to_community_node_id.size(), "Hypernode" << u << "does not exist");
+    return _vertex_to_community_node_id[u];
   }
 
   // ! Weight of a community hyperedge
@@ -310,9 +301,8 @@ class CommunitySupport {
   // ! Number of communities which pins of hyperedge belongs to
   size_t numCommunitiesInHyperedge(const HyperedgeID e) const {
     ASSERT(_are_community_hyperedges_initialized);
-    const HyperedgeID local_pos = common::get_local_position_of_edge(e);
-    ASSERT(local_pos < _community_hyperedges.size());
-    return _community_hyperedges[local_pos].size();
+    ASSERT(e < _community_hyperedges.size());
+    return _community_hyperedges[e].size();
   }
 
   /*!
@@ -323,20 +313,10 @@ class CommunitySupport {
    *  3.) Number of Pins per Community
    *  4.) For each hypernode v of community C, we compute a unique id within
    *      that community in the range [0, |C|)
-   * Note, in case 'hypergraph' is part of numa hypergraph, than 'hypergraphs' is
-   * not empty and used to gather some information about communities, which 'hypergraph'
-   * is not able to.
    */
-  void initialize(const Hypergraph& hypergraph,
-                  const parallel::scalable_vector<Hypergraph>& hypergraphs,
-                  const TaskGroupID task_group_id) {
-    _node = hypergraph.numaNode();
+  void initialize(const Hypergraph& hypergraph) {
     // Compute number of communities
-    if ( hypergraphs.empty() ) {
-      computeNumberOfCommunities(hypergraph);
-    } else {
-      computeNumberOfCommunities(hypergraphs);
-    }
+    computeNumberOfCommunities(hypergraph);
 
     if ( _num_communities > 1 ) {
       AtomicCounter tmp_communities_num_hypernodes(_num_communities,
@@ -348,30 +328,19 @@ class CommunitySupport {
       // sequential in the member vector.
       tbb::parallel_invoke([&] {
         _vertex_to_community_node_id.resize(hypergraph.initialNumNodes());
-        hypergraph.doParallelForAllNodes(task_group_id, [&](const HypernodeID hn) {
+        hypergraph.doParallelForAllNodes([&](const HypernodeID hn) {
           Counter& community_degree = local_community_degree.local();
           const PartitionID community_id = hypergraph.communityID(hn);
           ASSERT(community_id < _num_communities);
-          const HypernodeID local_id = common::get_local_position_of_vertex(hn);
-          ASSERT(local_id < _vertex_to_community_node_id.size());
-          _vertex_to_community_node_id[local_id] = tmp_communities_num_hypernodes[community_id]++;
+          ASSERT(hn < _vertex_to_community_node_id.size());
+          _vertex_to_community_node_id[hn] = tmp_communities_num_hypernodes[community_id]++;
           community_degree[community_id] += hypergraph.nodeDegree(hn);
         });
       }, [&] {
-        hypergraph.doParallelForAllEdges(task_group_id, [&](const HyperedgeID he) {
+        hypergraph.doParallelForAllEdges([&](const HyperedgeID he) {
           Counter& communities_num_pins = local_communities_num_pins.local();
           for ( const HypernodeID& pin : hypergraph.pins(he) ) {
-            const int hn_node = common::get_numa_node_of_vertex(pin);
-            PartitionID community_id = kInvalidPartition;
-            if ( hn_node != _node ) {
-              // In case the current pin is on an other NUMA node, we look up
-              // its community id on the corresponding hypergraph, otherwise ...
-              ASSERT(hn_node < static_cast<int>(hypergraphs.size()));
-              community_id = hypergraphs[hn_node].communityID(pin);
-            } else {
-              // we look it up on the hypergraph this class is responsible for
-              community_id = hypergraph.communityID(pin);
-            }
+            PartitionID community_id = hypergraph.communityID(pin);
             ASSERT(community_id != kInvalidPartition && community_id < _num_communities);
             ++communities_num_pins[community_id];
           }
@@ -409,40 +378,6 @@ class CommunitySupport {
       _community_degree.assign(1, hypergraph.initialTotalVertexDegree());
     }
 
-    // In case 'hypergraph' is part of a numa-aware hypergraph, finalizeCommunityNodeIds
-    // have to be called in order to initialize the community node ids.
-    _is_initialized = true;
-  }
-
-  // ! In order to get unique community node ids in case 'hypergraph' is part of a numa-aware
-  // ! hypergraph, we have to add the prefix sum over the number of nodes in each community
-  // ! of hypergraphs on a numa node with an id smaller than the current hypergraph to all
-  // ! local community node ids.
-  void finalizeCommunityNodeIds(const Hypergraph& hypergraph,
-                                const parallel::scalable_vector<Hypergraph>& hypergraphs,
-                                const TaskGroupID task_group_id) {
-    ASSERT(_is_initialized);
-    ASSERT(!hypergraphs.empty());
-    if ( hypergraph.numaNode() == 0 ) {
-      return;
-    }
-
-    parallel::scalable_vector<HypernodeID> num_hypernodes_prefix_sum(_num_communities, 0);
-    tbb::parallel_for(0, _num_communities, [&](const PartitionID community_id) {
-      for ( const Hypergraph& hg : hypergraphs ) {
-        if ( hg.numaNode() < hypergraph.numaNode() ) {
-          num_hypernodes_prefix_sum[community_id] += hg.numCommunityHypernodes(community_id);
-        }
-      }
-    });
-
-    hypergraph.doParallelForAllNodes(task_group_id, [&](const HypernodeID hn) {
-      const PartitionID community_id = hypergraph.communityID(hn);
-      const HypernodeID local_id = common::get_local_position_of_vertex(hn);
-      ASSERT(local_id < _vertex_to_community_node_id.size());
-      _vertex_to_community_node_id[local_id] += num_hypernodes_prefix_sum[community_id];
-    });
-
     _is_initialized = true;
   }
 
@@ -454,15 +389,10 @@ class CommunitySupport {
   *       community hyperedge pointing to a range of consecutive pins with
   *       same community in that hyperedge
   */
-  void initializeCommunityHyperedges(Hypergraph& hypergraph,
-                                     const parallel::scalable_vector<Hypergraph>& hypergraphs) {
+  void initializeCommunityHyperedges(Hypergraph& hypergraph) {
     auto get_community_id =
       [&](const HypernodeID& hn) {
-      if ( hypergraphs.empty() ) {
         return hypergraph.communityID(hn);
-      } else {
-        return common::hypergraph_of_vertex(hn, hypergraphs).communityID(hn);
-      }
     };
 
     auto add_community_hyperedge =
@@ -536,15 +466,9 @@ class CommunitySupport {
     _are_community_hyperedges_initialized = true;
   }
 
-  void removeCommunityHyperedges(const parallel::scalable_vector<HypernodeID>& contraction_index,
-                                 const parallel::scalable_vector<Hypergraph>& hypergraphs) {
+  void removeCommunityHyperedges(const parallel::scalable_vector<HypernodeID>& contraction_index) {
     ASSERT(_are_community_hyperedges_initialized);
     unused(contraction_index);
-    unused(hypergraphs);
-    if (!Hypergraph::is_static_hypergraph) {
-      // TODO(heuer): implement removal of community hyperedges for dynamic hypergraph here
-    }
-
     CommunitiesOfHyperedges tmp_community_hyperedge_ids;
     CommunityHyperedges tmp_community_hyperedges;
     _community_hyperedge_ids = std::move(tmp_community_hyperedge_ids);
@@ -555,7 +479,6 @@ class CommunitySupport {
   // ! Copy community support in parallel
   CommunitySupport copy(const TaskGroupID) {
     CommunitySupport community_support;
-    community_support._node = _node;
     community_support._is_initialized = _is_initialized;
     community_support._num_communities = _num_communities;
     community_support._are_community_hyperedges_initialized =
@@ -629,7 +552,6 @@ class CommunitySupport {
   // Copy community support sequential
   CommunitySupport copy() {
     CommunitySupport community_support;
-    community_support._node = _node;
     community_support._is_initialized = _is_initialized;
     community_support._num_communities = _num_communities;
 
@@ -691,14 +613,12 @@ class CommunitySupport {
   }
 
  private:
-  void computeNumberOfCommunities(const Hypergraph& hypergraph,
-                                  const int node = 0) {
+  void computeNumberOfCommunities(const Hypergraph& hypergraph) {
     // The number of communities is the maximum community id plus 1
     _num_communities = tbb::parallel_reduce(tbb::blocked_range<HypernodeID>(ID(0), hypergraph.initialNumNodes()),
       _num_communities, [&](const tbb::blocked_range<HypernodeID>& range, PartitionID init) {
         PartitionID num_communities = init;
-        for (HypernodeID id = range.begin(); id < range.end(); ++id) {
-          const HypernodeID hn = common::get_global_vertex_id(node, id);
+        for (HypernodeID hn = range.begin(); hn < range.end(); ++hn) {
           if ( hypergraph.nodeIsEnabled(hn) ) {
             num_communities = std::max(num_communities, hypergraph.communityID(hn) + 1);
           }
@@ -711,31 +631,20 @@ class CommunitySupport {
     _num_communities = std::max(_num_communities, 1);
   }
 
-  void computeNumberOfCommunities(const parallel::scalable_vector<Hypergraph>& hypergraphs) {
-    ASSERT(hypergraphs.size() > 0);
-    int node = 0;
-    for ( const Hypergraph& hypergraph : hypergraphs ) {
-      computeNumberOfCommunities(hypergraph, node);
-      ++node;
-    }
-  }
-
   // ! Accessor for community hyperedge-related information
   KAHYPAR_ATTRIBUTE_ALWAYS_INLINE const CommunityHyperedge& community_hyperedge(const HyperedgeID e, const PartitionID community_id) const {
-    const HypernodeID local_id = common::get_local_position_of_edge(e);
-    ASSERT(local_id < _community_hyperedges.size(), "Hyperedge" << e << "does not exist");
-    ASSERT(_node == common::get_numa_node_of_edge(e), "Hyperedge" << e << "is not part of NUMA node" << _node);
+    ASSERT(e < _community_hyperedges.size(), "Hyperedge" << e << "does not exist");
 
     size_t community_hyperedge_pos = 0;
-    for ( ; community_hyperedge_pos < _community_hyperedges[local_id].size(); ++community_hyperedge_pos ) {
-      if ( _community_hyperedges[local_id][community_hyperedge_pos].communityID() == community_id ) {
+    for ( ; community_hyperedge_pos < _community_hyperedges[e].size(); ++community_hyperedge_pos ) {
+      if ( _community_hyperedges[e][community_hyperedge_pos].communityID() == community_id ) {
         break;
       }
     }
 
-    ASSERT(community_hyperedge_pos < _community_hyperedges[local_id].size(),
+    ASSERT(community_hyperedge_pos < _community_hyperedges[e].size(),
            "Community hyperedge" << e << "with community id" << community_id << "not found");
-    return _community_hyperedges[local_id][community_hyperedge_pos];
+    return _community_hyperedges[e][community_hyperedge_pos];
   }
 
   // ! To avoid code duplication we implement non-const version in terms of const version
@@ -743,8 +652,6 @@ class CommunitySupport {
     return const_cast<CommunityHyperedge&>(static_cast<const CommunitySupport&>(*this).community_hyperedge(e, community_id));
   }
 
-  // ! NUMA node over which this class is constructed
-  int _node;
   // ! Indicates, if community information are initialized
   bool _is_initialized;
   // ! Number of communities

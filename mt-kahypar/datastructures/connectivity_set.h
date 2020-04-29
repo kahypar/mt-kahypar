@@ -25,8 +25,9 @@
 #include <limits>
 #include <cassert>
 
-#include "mt-kahypar/parallel/atomic_wrapper.h"
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
+#include "mt-kahypar/datastructures/array.h"
+#include "mt-kahypar/parallel/atomic_wrapper.h"
 #include "mt-kahypar/utils/bit_ops.h"
 #include "mt-kahypar/utils/memory_tree.h"
 #include "mt-kahypar/utils/range.h"
@@ -53,14 +54,23 @@ class ConnectivitySets {
 public:
 
   static constexpr bool debug = false;
+  using PartitionID = uint32_t;
+  using HyperedgeID = uint64_t;	// TODO how to keep synced with definitions.h, other than templates?
+  using UnsafeBlock = uint64_t;
 
-  ConnectivitySets(const HyperedgeID numEdges, const PartitionID k) : k(k),
-                                                                      numEdges(numEdges),
-                                                                      numBlocksPerHyperedge(k / BITS_PER_BLOCK + (k % BITS_PER_BLOCK != 0)),
-                                                                      bits(numEdges * numBlocksPerHyperedge)
-  {
 
-  }
+  ConnectivitySets(const HyperedgeID num_hyperedges,
+                   const PartitionID k,
+                   const bool assign_parallel = true) :
+    _k(k),
+    _num_hyperedges(num_hyperedges),
+    _num_blocks_per_hyperedge(k / BITS_PER_BLOCK + (k % BITS_PER_BLOCK != 0)),
+    _bits() {
+      if ( num_hyperedges > 0 ) {
+        _bits.resize("Refinement", "connectivity_set",
+          num_hyperedges * _num_blocks_per_hyperedge, true, assign_parallel);
+      }
+    }
 
   void add(const HyperedgeID he, const PartitionID p) {
     toggle(he, p);
@@ -73,70 +83,74 @@ public:
   bool contains(const HyperedgeID he, const PartitionID p) const {
     const size_t div = p / BITS_PER_BLOCK;
     const size_t rem = p % BITS_PER_BLOCK;
-    const size_t pos = static_cast<size_t>(he) * numBlocksPerHyperedge + div;
-    return bits[pos].load(std::memory_order_relaxed) & (UnsafeBlock(1) << rem);
+    const size_t pos = static_cast<size_t>(he) * _num_blocks_per_hyperedge + div;
+    return _bits[pos].load(std::memory_order_relaxed) & (UnsafeBlock(1) << rem);
   }
 
   // not threadsafe
   void clear(const HyperedgeID he) {
-    const size_t start = static_cast<size_t>(he) * numBlocksPerHyperedge;
-    const size_t end = ( static_cast<size_t>(he) + 1 ) * numBlocksPerHyperedge;
+    const size_t start = static_cast<size_t>(he) * _num_blocks_per_hyperedge;
+    const size_t end = ( static_cast<size_t>(he) + 1 ) * _num_blocks_per_hyperedge;
     for (size_t i = start; i < end; ++i) {
-      bits[i].store(0, std::memory_order_relaxed);
+      _bits[i].store(0, std::memory_order_relaxed);
     }
   }
 
   void reset() {
-    for (size_t i = 0; i < bits.size(); ++i) {
-      bits[i].store(0, std::memory_order_relaxed);
+    for (size_t i = 0; i < _bits.size(); ++i) {
+      _bits[i].store(0, std::memory_order_relaxed);
     }
   }
 
   PartitionID connectivity(const HyperedgeID he) const {
     PartitionID conn = 0;
-    const size_t start = static_cast<size_t>(he) * numBlocksPerHyperedge;
-    const size_t end = ( static_cast<size_t>(he) + 1 ) * numBlocksPerHyperedge;
+    const size_t start = static_cast<size_t>(he) * _num_blocks_per_hyperedge;
+    const size_t end = ( static_cast<size_t>(he) + 1 ) * _num_blocks_per_hyperedge;
     for (size_t i = start; i < end; ++i) {
-      conn += utils::popcount_64(bits[i].load(std::memory_order_relaxed));
+      conn += utils::popcount_64(_bits[i].load(std::memory_order_relaxed));
     }
     return conn;
   }
 
   void freeInternalData() {
-    parallel::free(bits);
+    parallel::free(_bits);
   }
 
   void memoryConsumption(utils::MemoryTreeNode* parent) const {
     ASSERT(parent);
-    parent->addChild("Connectivity Bit Vector", sizeof(Block) * bits.size());
+    parent->addChild("Connectivity Bit Vector", sizeof(Block) * _bits.size());
+  }
+
+  static size_t num_elements(const HyperedgeID num_hyperedges,
+                             const PartitionID k) {
+    return num_hyperedges * (k / BITS_PER_BLOCK + (k % BITS_PER_BLOCK != 0));
   }
 
 private:
-  using UnsafeBlock = uint64_t;
   static constexpr int BITS_PER_BLOCK = std::numeric_limits<UnsafeBlock>::digits;
   using Block = parallel::IntegralAtomicWrapper<UnsafeBlock>;
-  using BlockIterator = parallel::scalable_vector<Block>::const_iterator;
+  using BlockIterator = Array<Block>::const_iterator;
 
 
-	PartitionID k;
-	HyperedgeID numEdges;
-	PartitionID numBlocksPerHyperedge;
-	parallel::scalable_vector<Block> bits;
+	PartitionID _k;
+	HyperedgeID _num_hyperedges;
+	PartitionID _num_blocks_per_hyperedge;
+	Array<Block> _bits;
 
 	void toggle(const HyperedgeID he, const PartitionID p) {
-	  assert(p < k);
-	  assert(he < numEdges);
+	  assert(p < _k);
+	  assert(he < _num_hyperedges);
     const size_t div = p / BITS_PER_BLOCK, rem = p % BITS_PER_BLOCK;
-    const size_t idx = static_cast<size_t>(he) * numBlocksPerHyperedge + div;
-    assert(idx < bits.size());
-	  bits[idx].fetch_xor(UnsafeBlock(1) << rem, std::memory_order_relaxed);
+    const size_t idx = static_cast<size_t>(he) * _num_blocks_per_hyperedge + div;
+    assert(idx < _bits.size());
+	  _bits[idx].fetch_xor(UnsafeBlock(1) << rem, std::memory_order_relaxed);
 	}
 
 public:
 
   class Iterator : public std::iterator<std::forward_iterator_tag, PartitionID, std::ptrdiff_t, const PartitionID*, PartitionID> {
   public:
-    Iterator(BlockIterator first, PartitionID part, PartitionID k) : currentPartition(part), k(k), firstBlockIt(first) {
+    Iterator(BlockIterator first, PartitionID part, PartitionID k) : currentPartition(part), _k(k), firstBlockIt(first) {
       findNextBit();
     }
 
@@ -165,20 +179,20 @@ public:
 
   private:
     PartitionID currentPartition;
-    PartitionID k;
+    PartitionID _k;
     BlockIterator firstBlockIt;
 
     void findNextBit() {
       ++currentPartition;
       UnsafeBlock b = currentBlock()->load(std::memory_order_release);
-      while (b >> (currentPartition % BITS_PER_BLOCK) == 0 && currentPartition < k) {
+      while (b >> (currentPartition % BITS_PER_BLOCK) == 0 && currentPartition < _k) {
         currentPartition += (BITS_PER_BLOCK - (currentPartition % BITS_PER_BLOCK));   // skip rest of block
         b = currentBlock()->load(std::memory_order_release);
       }
-      if (currentPartition < k) {
+      if (currentPartition < _k) {
         currentPartition += utils::lowest_set_bit_64(b >> (currentPartition % BITS_PER_BLOCK));
       } else {
-        currentPartition = k;
+        currentPartition = _k;
       }
     }
 
@@ -189,11 +203,11 @@ public:
   };
 
 	Iterator hyperedgeBegin(const HyperedgeID he) const {
-	  return Iterator(bits.begin() + static_cast<size_t>(he) * numBlocksPerHyperedge, -1, k);
+	  return Iterator(_bits.cbegin() + static_cast<size_t>(he) * _num_blocks_per_hyperedge, -1, _k);
 	}
 
 	Iterator hyperedgeEnd(const HyperedgeID he) const {
-	  return Iterator(bits.begin() + static_cast<size_t>(he) * numBlocksPerHyperedge, k-1, k);
+	  return Iterator(_bits.cbegin() + static_cast<size_t>(he) * _num_blocks_per_hyperedge, _k-1, _k);
 	}
 
 

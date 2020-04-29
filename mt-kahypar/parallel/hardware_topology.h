@@ -230,6 +230,12 @@ class HardwareTopology {
     return cpu_id;
   }
 
+  // ! Set membind policy to interleaved allocations on used NUMA nodes
+  // ! covered by cpuset
+  void activate_interleaved_membind_policy(hwloc_cpuset_t cpuset) const {
+    hwloc_set_membind(_topology, cpuset, HWLOC_MEMBIND_INTERLEAVE, HWLOC_MEMBIND_MIGRATE);
+  }
+
  private:
   HardwareTopology() :
     _num_cpus(0),

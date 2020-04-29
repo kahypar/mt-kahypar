@@ -27,46 +27,41 @@
 #include "mt-kahypar/partition/refinement/i_refiner.h"
 
 namespace mt_kahypar {
-template<typename TypeTraits>
-class ICoarsenerT {
 
-  using HyperGraph = typename TypeTraits::HyperGraph;
-  using PartitionedHyperGraph = typename TypeTraits::PartitionedHyperGraph;
-  using Refiner = IRefinerT<TypeTraits>;
+class ICoarsener {
 
  public:
-  ICoarsenerT(const ICoarsenerT&) = delete;
-  ICoarsenerT(ICoarsenerT&&) = delete;
-  ICoarsenerT & operator= (const ICoarsenerT &) = delete;
-  ICoarsenerT & operator= (ICoarsenerT &&) = delete;
+  ICoarsener(const ICoarsener&) = delete;
+  ICoarsener(ICoarsener&&) = delete;
+  ICoarsener & operator= (const ICoarsener &) = delete;
+  ICoarsener & operator= (ICoarsener &&) = delete;
 
   void coarsen() {
     coarsenImpl();
   }
 
-  PartitionedHyperGraph&& uncoarsen(std::unique_ptr<Refiner>& label_propagation) {
+  PartitionedHypergraph&& uncoarsen(std::unique_ptr<IRefiner>& label_propagation) {
     return uncoarsenImpl(label_propagation);
   }
 
-  HyperGraph& coarsestHypergraph() {
+  Hypergraph& coarsestHypergraph() {
     return coarsestHypergraphImpl();
   }
 
-  PartitionedHyperGraph& coarsestPartitionedHypergraph() {
+  PartitionedHypergraph& coarsestPartitionedHypergraph() {
     return coarsestPartitionedHypergraphImpl();
   }
 
-  virtual ~ICoarsenerT() = default;
+  virtual ~ICoarsener() = default;
 
  protected:
-  ICoarsenerT() = default;
+  ICoarsener() = default;
 
  private:
   virtual void coarsenImpl() = 0;
-  virtual PartitionedHyperGraph&& uncoarsenImpl(std::unique_ptr<Refiner>& label_propagation) = 0;
-  virtual HyperGraph& coarsestHypergraphImpl() = 0;
-  virtual PartitionedHyperGraph& coarsestPartitionedHypergraphImpl() = 0;
+  virtual PartitionedHypergraph&& uncoarsenImpl(std::unique_ptr<IRefiner>& label_propagation) = 0;
+  virtual Hypergraph& coarsestHypergraphImpl() = 0;
+  virtual PartitionedHypergraph& coarsestPartitionedHypergraphImpl() = 0;
 };
 
-using ICoarsener = ICoarsenerT<GlobalTypeTraits>;
 }  // namespace kahypar

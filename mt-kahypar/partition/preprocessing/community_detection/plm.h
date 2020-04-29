@@ -25,12 +25,13 @@
 
 #include <tbb/enumerable_thread_specific.h>
 
-#include "kahypar/datastructure/sparse_map.h"
+#include "mt-kahypar/datastructures/sparse_map.h"
 
 #include "mt-kahypar/datastructures/sparse_map.h"
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/utils/floating_point_comparisons.h"
 #include "mt-kahypar/macros.h"
+#include "mt-kahypar/datastructures/hypergraph_common.h"
 #include "mt-kahypar/datastructures/clustering.h"
 #include "mt-kahypar/partition/metrics.h"
 #include "mt-kahypar/parallel/atomic_wrapper.h"
@@ -42,10 +43,8 @@ class PLM {
  private:
   static constexpr bool advancedGainAdjustment = false;
 
-  using ArcWeight = typename G::ArcWeight;
   using AtomicArcWeight = parallel::AtomicWrapper<ArcWeight>;
-  using Arc = typename G::Arc;
-  using LargeIncidentClusterWeights = kahypar::ds::SparseMap<PartitionID, ArcWeight>;
+  using LargeIncidentClusterWeights = ds::FixedSizeSparseMap<PartitionID, ArcWeight>;
   using CacheEfficientIncidentClusterWeights = ds::FixedSizeSparseMap<PartitionID, ArcWeight>;
 
  public:
@@ -56,12 +55,33 @@ class PLM {
                size_t numNodes,
                const bool disable_randomization = false) :
     _context(context),
+    _max_degree(numNodes),
+    _vertex_degree_sampling_threshold(context.preprocessing.community_detection.vertex_degree_sampling_threshold),
     _cluster_volumes(numNodes),
     _local_small_incident_cluster_weight(0),
-    _local_large_incident_cluster_weight(numNodes, 0),
+    _local_large_incident_cluster_weight([&] {
+      return construct_large_incident_cluster_weight_map();
+    }),
     _disable_randomization(disable_randomization) { }
 
+  ~PLM() {
+    tbb::parallel_invoke([&] {
+      parallel::parallel_free_thread_local_internal_data(
+        _local_small_incident_cluster_weight, [&](CacheEfficientIncidentClusterWeights& data) {
+          data.freeInternalData();
+        });
+    }, [&] {
+      parallel::parallel_free_thread_local_internal_data(
+        _local_large_incident_cluster_weight, [&](LargeIncidentClusterWeights& data) {
+          data.freeInternalData();
+        });
+    }, [&] {
+      parallel::free(_cluster_volumes);
+    });
+  }
+
   bool localMoving(G& graph, ds::Clustering& communities) {
+    _max_degree = graph.max_degree();
     _reciprocal_total_volume = 1.0 / graph.totalVolume();
     _vol_multiplier_div_by_node_vol = _reciprocal_total_volume;
 
@@ -97,9 +117,12 @@ class PLM {
               graph, communities, u,
               _local_small_incident_cluster_weight.local());
           } else {
+            LargeIncidentClusterWeights& large_incident_cluster_weight =
+              _local_large_incident_cluster_weight.local();
+            large_incident_cluster_weight.setMaxSize(
+              3UL * std::min(_max_degree, _vertex_degree_sampling_threshold));
             best_cluster = computeMaxGainCluster(
-              graph, communities, u,
-              _local_large_incident_cluster_weight.local());
+              graph, communities, u, large_incident_cluster_weight);
           }
 
           if (best_cluster != from) {
@@ -141,7 +164,13 @@ class PLM {
 
   KAHYPAR_ATTRIBUTE_ALWAYS_INLINE bool ratingsFitIntoSmallSparseMap(const G& graph,
                                                                     const HypernodeID u)  {
-    return graph.degree(u) <= CacheEfficientIncidentClusterWeights::MAP_SIZE / 3UL;
+    const size_t cache_efficient_map_size = CacheEfficientIncidentClusterWeights::MAP_SIZE / 3UL;
+    return std::min(_vertex_degree_sampling_threshold, _max_degree) > cache_efficient_map_size &&
+           graph.degree(u) <= cache_efficient_map_size;
+  }
+
+  LargeIncidentClusterWeights construct_large_incident_cluster_weight_map() {
+    return LargeIncidentClusterWeights(3UL * std::min(_max_degree, _vertex_degree_sampling_threshold), 0);
   }
 
   // ! Only for testing
@@ -162,7 +191,7 @@ class PLM {
     PartitionID from = communities[u];
     PartitionID bestCluster = communities[u];
 
-    for (const Arc& arc : graph.arcsOf(u)) {
+    for (const Arc& arc : graph.arcsOf(u, _vertex_degree_sampling_threshold)) {
       incident_cluster_weights[communities[arc.head]] += arc.weight;
     }
 
@@ -295,9 +324,11 @@ class PLM {
   }
 
   const Context& _context;
+  size_t _max_degree;
+  const size_t _vertex_degree_sampling_threshold;
   double _reciprocal_total_volume = 0.0;
   double _vol_multiplier_div_by_node_vol = 0.0;
-  std::vector<AtomicArcWeight> _cluster_volumes;
+  parallel::scalable_vector<AtomicArcWeight> _cluster_volumes;
   tbb::enumerable_thread_specific<CacheEfficientIncidentClusterWeights> _local_small_incident_cluster_weight;
   tbb::enumerable_thread_specific<LargeIncidentClusterWeights> _local_large_incident_cluster_weight;
   const bool _disable_randomization;

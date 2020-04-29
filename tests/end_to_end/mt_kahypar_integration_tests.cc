@@ -26,6 +26,7 @@
 #include "mt-kahypar/mt_kahypar.h"
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/partition/partitioner.h"
+#include "mt-kahypar/partition/registries/register_memory_pool.h"
 
 using ::testing::Test;
 
@@ -58,11 +59,8 @@ class MtKaHyPar : public Test {
     context.partition.epsilon = 0.03;
     context.partition.seed = 42;
     context.partition.verbose_output = true;
-    context.partition.detailed_timings = true;
+    context.partition.show_detailed_timings = true;
     context.preprocessing.use_community_detection = Config::USE_COMMUNITY_DETECTION;
-    if ( !context.preprocessing.use_community_detection ) {
-      context.preprocessing.use_community_redistribution = false;
-    }
     context.coarsening.algorithm = CoarseningAlgorithm::multilevel_coarsener;
     context.initial_partitioning.mode = Config::INITIAL_PARTITIONING_MODE;
     context.initial_partitioning.refinement.label_propagation.algorithm = Config::LP_ALGORITHM;
@@ -84,20 +82,16 @@ void verifyThatHypergraphsAreEquivalent(const Hypergraph& hypergraph,
                                         const Hypergraph& reference) {
   // Verify equivallence of hypernodes and incident nets
   for (const HypernodeID& hn : reference.nodes()) {
-    const HypernodeID original_id = reference.originalNodeID(hn);
-    const HypernodeID u = hypergraph.globalNodeID(original_id);
-    ASSERT_TRUE(hypergraph.nodeIsEnabled(u));
+    ASSERT_TRUE(hypergraph.nodeIsEnabled(hn));
 
     std::set<HyperedgeID> incident_nets;
     for (const HyperedgeID& he : reference.incidentEdges(hn)) {
-      const HyperedgeID original_edge_id = reference.originalEdgeID(he);
-      incident_nets.insert(original_edge_id);
+      incident_nets.insert(he);
     }
 
     size_t num_incident_nets = 0;
-    for (const HyperedgeID& he : hypergraph.incidentEdges(u)) {
-      const HyperedgeID original_edge_id = hypergraph.originalEdgeID(he);
-      ASSERT_TRUE(incident_nets.find(original_edge_id) != incident_nets.end()) << V(u) << V(original_edge_id);
+    for (const HyperedgeID& he : hypergraph.incidentEdges(hn)) {
+      ASSERT_TRUE(incident_nets.find(he) != incident_nets.end()) << V(hn) << V(he);
       ++num_incident_nets;
     }
     ASSERT_EQ(num_incident_nets, incident_nets.size());
@@ -105,20 +99,16 @@ void verifyThatHypergraphsAreEquivalent(const Hypergraph& hypergraph,
 
   // Verify equivallence of hyperedges and pins
   for (const HyperedgeID& he : reference.edges()) {
-    const HyperedgeID original_id = reference.originalEdgeID(he);
-    const HyperedgeID e = hypergraph.globalEdgeID(original_id);
-    ASSERT_TRUE(hypergraph.edgeIsEnabled(e));
+    ASSERT_TRUE(hypergraph.edgeIsEnabled(he));
 
     std::set<HypernodeID> pins;
     for (const HypernodeID& pin : reference.pins(he)) {
-      const HypernodeID original_pin_id = reference.originalNodeID(pin);
-      pins.insert(original_pin_id);
+      pins.insert(pin);
     }
 
     size_t num_pins = 0;
-    for (const HypernodeID& pin : hypergraph.pins(e)) {
-      const HypernodeID original_pin_id = hypergraph.originalNodeID(pin);
-      ASSERT_TRUE(pins.find(original_pin_id) != pins.end()) << V(e) << V(original_pin_id);
+    for (const HypernodeID& pin : hypergraph.pins(he)) {
+      ASSERT_TRUE(pins.find(pin) != pins.end()) << V(he) << V(pin);
       ++num_pins;
     }
     ASSERT_EQ(num_pins, pins.size());
@@ -219,9 +209,11 @@ typedef ::testing::Types<MultiLevelCutConfig<2,
 TYPED_TEST_CASE(MtKaHyPar, TestConfigs);
 
 void partitionHypergraph(Hypergraph& hypergraph, Context& context) {
+  mt_kahypar::register_memory_pool(hypergraph, context);
+
   // Partition Hypergraph
   HighResClockTimepoint start = std::chrono::high_resolution_clock::now();
-  PartitionedHypergraph<> partitioned_hypergraph =
+  PartitionedHypergraph partitioned_hypergraph =
     partition::Partitioner(context).partition(hypergraph);
   HighResClockTimepoint end = std::chrono::high_resolution_clock::now();
 
@@ -230,7 +222,7 @@ void partitionHypergraph(Hypergraph& hypergraph, Context& context) {
 
   // Verify that partitioned hypergraph is
   // equivalent with input hypergraph
-  Hypergraph reference = io::readHypergraphFile<Hypergraph, HypergraphFactory>(
+  Hypergraph reference = io::readHypergraphFile(
     context.partition.graph_filename, TBBNumaArena::GLOBAL_TASK_GROUP);
   verifyThatHypergraphsAreEquivalent(hypergraph, reference);
 
@@ -292,12 +284,14 @@ void partitionHypergraph(Hypergraph& hypergraph, Context& context) {
     ++num_hyperedges;
   }
   ASSERT_EQ(hypergraph.initialNumEdges(), num_hyperedges);
+
+  mt_kahypar::parallel::MemoryPool::instance().free_memory_chunks();
 }
 
 TYPED_TEST(MtKaHyPar, PartitionsAVLSIInstance) {
   // Read Hypergraph
   this->context.partition.graph_filename = "test_instances/ibm01.hgr";
-  Hypergraph hypergraph = io::readHypergraphFile<Hypergraph, HypergraphFactory>(
+  Hypergraph hypergraph = io::readHypergraphFile(
     this->context.partition.graph_filename, TBBNumaArena::GLOBAL_TASK_GROUP);
 
   partitionHypergraph(hypergraph, this->context);
@@ -306,7 +300,7 @@ TYPED_TEST(MtKaHyPar, PartitionsAVLSIInstance) {
 TYPED_TEST(MtKaHyPar, PartitionsASparseMatrixInstance) {
   // Read Hypergraph
   this->context.partition.graph_filename = "test_instances/powersim.mtx.hgr";
-  Hypergraph hypergraph = io::readHypergraphFile<Hypergraph, HypergraphFactory>(
+  Hypergraph hypergraph = io::readHypergraphFile(
     this->context.partition.graph_filename, TBBNumaArena::GLOBAL_TASK_GROUP);
 
   partitionHypergraph(hypergraph, this->context);
@@ -315,7 +309,7 @@ TYPED_TEST(MtKaHyPar, PartitionsASparseMatrixInstance) {
 TYPED_TEST(MtKaHyPar, PartitionsASATInstance) {
   // Read Hypergraph
   this->context.partition.graph_filename = "test_instances/sat14_atco_enc1_opt2_10_16.cnf.primal.hgr";
-  Hypergraph hypergraph = io::readHypergraphFile<Hypergraph, HypergraphFactory>(
+  Hypergraph hypergraph = io::readHypergraphFile(
     this->context.partition.graph_filename, TBBNumaArena::GLOBAL_TASK_GROUP);
 
   partitionHypergraph(hypergraph, this->context);
