@@ -256,13 +256,16 @@ class MultilevelCoarsenerBase {
     }
 
     // If we reach the original hypergraph and partition is imbalanced, we try to rebalance it
-    if ( _top_level && metrics::imbalance(_partitioned_hg, _context) > _context.partition.epsilon) {
+    if ( _top_level && !metrics::isBalanced(_partitioned_hg, _context)) {
       const HyperedgeWeight quality_before = current_metrics.getMetric(
         kahypar::Mode::direct_kway, _context.partition.objective);
       if ( _context.partition.verbose_output ) {
         LOG << RED << "Partition is imbalanced (Current Imbalance:"
             << metrics::imbalance(_partitioned_hg, _context) << ") ->"
             << "Rebalancer is activated" << END;
+
+        LOG << "Part weights: (violations in red)";
+        io::printPartWeights(_partitioned_hg, _context);
       }
 
       utils::Timer::instance().start_timer("rebalance", "Rebalance");

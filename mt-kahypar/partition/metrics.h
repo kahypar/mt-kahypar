@@ -157,6 +157,15 @@ static inline double imbalance(const HyperGraph& hypergraph, const Context& cont
   return max_balance - 1.0;
 }
 
+static inline bool isBalanced(const PartitionedHypergraph& phg, const Context& context) {
+  for (PartitionID i = 0; i < context.partition.k; ++i) {
+    if (phg.partWeight(i) > context.partition.max_part_weights[i]) {
+      return false;
+    }
+  }
+  return true;
+}
+
 template <typename HyperGraph>
 static inline double avgHyperedgeDegree(const HyperGraph& hypergraph) {
   return static_cast<double>(hypergraph.initialNumPins()) / hypergraph.initialNumEdges();
