@@ -58,6 +58,11 @@ public:
   using HyperedgeID = uint64_t;	// TODO how to keep synced with definitions.h, other than templates?
   using UnsafeBlock = uint64_t;
 
+  ConnectivitySets() :
+    _k(0),
+    _num_hyperedges(0),
+    _num_blocks_per_hyperedge(0),
+    _bits() { }
 
   ConnectivitySets(const HyperedgeID num_hyperedges,
                    const PartitionID k,

@@ -67,24 +67,11 @@ private:
   // Then we could guarantee inlining
   // This would also reduce the code/documentation copy-pasta for with or without gain updates
 
-
  public:
   static constexpr bool is_static_hypergraph = Hypergraph::is_static_hypergraph;
   static constexpr bool is_partitioned = true;
 
-
-  // REVIEW NOTE this constructor is superfluous and could be replaced by default initialization of the members
-  // It's another thing I have to adapt if I add one member
-  explicit PartitionedHypergraph() :
-    _k(0),
-    _hg(nullptr),
-    _part_weights(),
-    _part_ids(),
-    _pins_in_part(),
-    _connectivity_set(0, 0),
-    _move_to_penalty(),
-    _move_from_benefit(),
-    _pin_count_update_ownership() { }
+  PartitionedHypergraph() = default;
 
   explicit PartitionedHypergraph(const PartitionID k,
                                  Hypergraph& hypergraph) :
@@ -140,33 +127,8 @@ private:
   PartitionedHypergraph(const PartitionedHypergraph&) = delete;
   PartitionedHypergraph & operator= (const PartitionedHypergraph &) = delete;
 
-
-  PartitionedHypergraph(PartitionedHypergraph&& other) :
-    _k(other._k),
-    _hg(other._hg),
-    _part_weights(std::move(other._part_weights)),
-    _part_ids(std::move(other._part_ids)),
-    _pins_in_part(std::move(other._pins_in_part)),
-    _connectivity_set(std::move(other._connectivity_set)),
-    _move_to_penalty(std::move(other._move_to_penalty)),
-    _move_from_benefit(std::move(other._move_from_benefit)),
-    _pin_count_update_ownership(std::move(other._pin_count_update_ownership)) { }
-
-    // REVIEW NOTE In my version the default generated move constructor/assignment operator worked just fine
-    // Is there any reason why we need to write what the default version would do anyways?
-
-  PartitionedHypergraph & operator= (PartitionedHypergraph&& other) {
-    _k = other._k;
-    _hg = other._hg;
-    _part_weights = std::move(other._part_weights);
-    _part_ids = std::move(other._part_ids);
-    _pins_in_part = std::move(other._pins_in_part);
-    _connectivity_set = std::move(other._connectivity_set);
-    _move_to_penalty = std::move(other._move_to_penalty);
-    _move_from_benefit = std::move(other._move_from_benefit);
-    _pin_count_update_ownership = std::move(other._pin_count_update_ownership);
-    return *this;
-  }
+  PartitionedHypergraph(PartitionedHypergraph&& other) = default;
+  PartitionedHypergraph & operator= (PartitionedHypergraph&& other) = default;
 
   ~PartitionedHypergraph() {
     freeInternalData();
@@ -342,8 +304,6 @@ private:
     _hg->enableHyperedge(e);
   }
 
-  // REVIEW NOTE Do we still need disable/enable Hyperedge/Node
-
   // ! Disabled a hyperedge (must be enabled before)
   void disableHyperedge(const HyperedgeID e) {
     _hg->disableHyperedge(e);
@@ -424,14 +384,14 @@ private:
     }
   }
 
-  // REVIEW NOTE what's this weird line breaking?
 
   // Additionally rejects the requested move if it violates balance
   // must recompute part_weights once finished moving nodes
-  bool changeNodePartWithBalanceCheckAndGainUpdatesWithoutPartWeightUpdates(
-          const HypernodeID u, PartitionID from,
-          CAtomic<HypernodeWeight>& budget_from, PartitionID to,
-          CAtomic<HypernodeWeight>& budget_to) {
+  bool changeNodePartWithBalanceCheckAndGainUpdatesWithoutPartWeightUpdates(const HypernodeID u,
+                                                                            PartitionID from,
+                                                                            CAtomic<HypernodeWeight>& budget_from,
+                                                                            PartitionID to,
+                                                                            CAtomic<HypernodeWeight>& budget_to) {
     const bool success = setOnlyNodePartWithBalanceCheck(u, to, budget_to);
     if (success) {
       budget_from.fetch_add(nodeWeight(u), std::memory_order_relaxed);
