@@ -39,7 +39,7 @@ namespace mt_kahypar {
 class MultilevelCoarsenerBase {
  private:
 
-  static constexpr bool debug = true;
+  static constexpr bool debug = false;
 
   class Hierarchy {
 
@@ -205,11 +205,10 @@ class MultilevelCoarsenerBase {
     _hierarchies.emplace_back(std::move(contracted_hg), std::move(communities));
   }
 
-  PartitionedHypergraph&& doUncoarsen(std::unique_ptr<IRefiner>& label_propagation) {
+  PartitionedHypergraph&& doUncoarsen(std::unique_ptr<IRefiner>& label_propagation,
+                                      std::unique_ptr<IRefiner>& fm) {
     PartitionedHypergraph& coarsest_hg = currentPartitionedHypergraph();
     kahypar::Metrics current_metrics = initialize(coarsest_hg);
-
-    refinement::MultiTryKWayFM fm_refiner(_context, _task_group_id, _hg.initialNumNodes(), _hg.initialNumEdges());
 
     utils::ProgressBar uncontraction_progress(_hg.initialNumNodes(),
       _context.partition.objective == kahypar::Objective::km1 ? current_metrics.km1 : current_metrics.cut,
@@ -217,8 +216,8 @@ class MultilevelCoarsenerBase {
     uncontraction_progress += coarsest_hg.initialNumNodes();
 
     // Refine Coarsest Partitioned Hypergraph
-    LOG << "Refine coarsest HG" << V(_context.partition.k) << V(coarsest_hg.initialNumNodes());
-    refine(coarsest_hg, label_propagation, fm_refiner, current_metrics);
+    DBG << "Refine coarsest HG" << V(_context.partition.k) << V(coarsest_hg.initialNumNodes());
+    refine(coarsest_hg, label_propagation, fm, current_metrics);
 
     for ( int i = _hierarchies.size() - 1; i >= 0; --i ) {
       // Project partition to next level finer hypergraph
@@ -243,11 +242,13 @@ class MultilevelCoarsenerBase {
              V(metrics::imbalance(contracted_hg, _context)));
       utils::Timer::instance().stop_timer("projecting_partition");
 
-      LOG << "Projecting partition" << V(i) << V(representative_hg.initialNumNodes()) << V(metrics::km1(contracted_hg)) << V(metrics::km1(representative_hg)) << V(current_metrics.km1) << "now refine";
+      DBG << "Projecting partition" << V(i) << V(representative_hg.initialNumNodes())
+          << V(metrics::km1(contracted_hg)) << V(metrics::km1(representative_hg))
+          << V(current_metrics.km1) << "now refine";
 
 
       // Refinement
-      refine(representative_hg, label_propagation, fm_refiner, current_metrics);
+      refine(representative_hg, label_propagation, fm, current_metrics);
 
       // Update Progress Bar
       uncontraction_progress.setObjective(current_metrics.getMetric(_context.partition.mode, _context.partition.objective));
@@ -322,11 +323,11 @@ class MultilevelCoarsenerBase {
 
   void refine(PartitionedHypergraph& partitioned_hypergraph,
               std::unique_ptr<IRefiner>& label_propagation,
-              refinement::MultiTryKWayFM& fm_refiner,
+              std::unique_ptr<IRefiner>& fm,
               kahypar::Metrics& current_metrics) {
 
-    if ( label_propagation ) {
-      utils::Timer::instance().start_timer("initialize_lp_refiner", "Initialize LP IRefiner");
+    if ( label_propagation && _context.refinement.label_propagation.algorithm != LabelPropagationAlgorithm::do_nothing ) {
+      utils::Timer::instance().start_timer("initialize_lp_refiner", "Initialize LP Refiner");
       label_propagation->initialize(partitioned_hypergraph);
       utils::Timer::instance().stop_timer("initialize_lp_refiner");
 
@@ -335,7 +336,16 @@ class MultilevelCoarsenerBase {
       utils::Timer::instance().stop_timer("label_propagation");
     }
 
-    fm_refiner.refine(partitioned_hypergraph, current_metrics);
+    if ( fm && _context.refinement.fm.algorithm != FMAlgorithm::do_nothing ) {
+      utils::Timer::instance().start_timer("initialize_fm_refiner", "Initialize FM Refiner");
+      fm->initialize(partitioned_hypergraph);
+      utils::Timer::instance().stop_timer("initialize_fm_refiner");
+
+      utils::Timer::instance().start_timer("fm", "FM");
+      fm->refine(partitioned_hypergraph, current_metrics);
+      utils::Timer::instance().stop_timer("fm");
+    }
+
   }
 
   bool _is_finalized;

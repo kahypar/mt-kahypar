@@ -22,7 +22,7 @@
 
 #include <mt-kahypar/datastructures/hypergraph_common.h>
 
-namespace mt_kahypar::refinement {
+namespace mt_kahypar {
 
 // adaptive random walk stopping rule from KaHyPar
 class StopRule {

@@ -257,29 +257,44 @@ po::options_description createRefinementOptionsDescription(Context& context,
       &context.initial_partitioning.refinement.label_propagation.rebalancing))->value_name("<bool>"),
     "If true, zero gain moves are used to rebalance solution\n"
     "(default true)")
-    (( initial_partitioning ? "i-r-fm-rounds" : "r-fm-rounds"),
-    po::value<size_t>((initial_partitioning ? &context.initial_partitioning.refinement.fm.rounds : &context.refinement.fm.rounds))->value_name("<size_t>"),
-    "Number of multitry rounds. Default 3")
-    (( initial_partitioning ? "i-r-fm-fruitless-moves" : "r-fm-fruitless-moves"),
-    po::value<size_t>((initial_partitioning ? &context.initial_partitioning.refinement.fm.max_number_of_fruitless_moves : &context.refinement.fm.max_number_of_fruitless_moves))->value_name("<size_t>"),
-    "Number of non-positive gain moves after which to cancel FM. Default 250")
-    (( initial_partitioning ? "i-r-fm-init-neighbors" : "r-fm-init-neighbors"),
-    po::value<bool>((initial_partitioning ? &context.initial_partitioning.refinement.fm.init_neighbors : &context.refinement.fm.init_neighbors))->value_name("<bool>"),
-    "Add neighbors of boundary node to localized FM search before performing a move. Default false")
-    (( initial_partitioning ? "i-r-fm-all-nodes" : "r-fm-all-nodes"),
-    po::value<bool>((initial_partitioning ? &context.initial_partitioning.refinement.fm.all_nodes : &context.refinement.fm.all_nodes))->value_name("<bool>"),
-    "Add all nodes into FM. Default false")
-    (( initial_partitioning ? "i-r-fm-initial-nodes" : "r-fm-initial-nodes"),
-    po::value<double>((initial_partitioning ? &context.initial_partitioning.refinement.fm.seed_node_fraction : &context.refinement.fm.seed_node_fraction))->value_name("<double>"),
-    "Number of nodes to initially place into the PQ of a localized search is set to max(50, seed_node_fraction * num_nodes / num_threads). Default 0.005")
-    (( initial_partitioning ? "i-r-fm-multitry" : "r-fm-multitry"),
-    po::value<bool>((initial_partitioning ? &context.initial_partitioning.refinement.fm.multitry : &context.refinement.fm.multitry))->value_name("<bool>"),
-    "Set to true for MultiTryFM, false for BoundaryFM/FullFM. Default true")
     (( initial_partitioning ? "i-r-lp-he-size-activation-threshold" : "r-lp-he-size-activation-threshold"),
     po::value<size_t>((!initial_partitioning ? &context.refinement.label_propagation.hyperedge_size_activation_threshold :
       &context.initial_partitioning.refinement.label_propagation.hyperedge_size_activation_threshold))->value_name("<size_t>"),
     "If a vertex moves during LP only neighbors that are part of hyperedge with size less\n"
-    "this threshold are activated.");
+    "this threshold are activated.")
+    (( initial_partitioning ? "i-r-fm-type" : "r-fm-type"),
+    po::value<std::string>()->value_name("<string>")->notifier(
+      [&, initial_partitioning](const std::string& type) {
+      if ( initial_partitioning ) {
+        context.initial_partitioning.refinement.fm.algorithm = fmAlgorithmFromString(type);
+      } else {
+        context.refinement.fm.algorithm = fmAlgorithmFromString(type);
+      }
+    }),
+    "FM Algorithm:\n"
+    "- fm_multitry\n"
+    "- fm_boundary\n"
+    "- do_nothing")
+    (( initial_partitioning ? "i-r-fm-multitry-rounds" : "r-fm-multitry-rounds"),
+    po::value<size_t>((initial_partitioning ? &context.initial_partitioning.refinement.fm.multitry_rounds :
+      &context.refinement.fm.multitry_rounds))->value_name("<size_t>"),
+    "Number of multitry rounds. Default 4")
+    (( initial_partitioning ? "i-r-fm-fruitless-moves" : "r-fm-fruitless-moves"),
+    po::value<size_t>((initial_partitioning ? &context.initial_partitioning.refinement.fm.max_number_of_fruitless_moves :
+      &context.refinement.fm.max_number_of_fruitless_moves))->value_name("<size_t>"),
+    "Number of non-positive gain moves after which to cancel FM. Default 250")
+    (( initial_partitioning ? "i-r-fm-init-neighbors" : "r-fm-init-neighbors"),
+    po::value<bool>((initial_partitioning ? &context.initial_partitioning.refinement.fm.init_localized_search_with_neighbors :
+      &context.refinement.fm.init_localized_search_with_neighbors))->value_name("<bool>"),
+    "Add neighbors of boundary node to localized FM search before performing a move. Default false")
+    (( initial_partitioning ? "i-r-fm-all-nodes" : "r-fm-all-nodes"),
+    po::value<bool>((initial_partitioning ? &context.initial_partitioning.refinement.fm.init_boundary_fm_with_all_nodes :
+      &context.refinement.fm.init_boundary_fm_with_all_nodes))->value_name("<bool>"),
+    "Add all nodes into Boundary FM. Default false")
+    (( initial_partitioning ? "i-r-fm-seed-node-fraction" : "r-fm-seed-node-fraction"),
+    po::value<double>((initial_partitioning ? &context.initial_partitioning.refinement.fm.seed_node_fraction :
+      &context.refinement.fm.seed_node_fraction))->value_name("<double>"),
+    "Number of nodes to initially place into the PQ of a localized search is set to max(50, seed_node_fraction * num_nodes / num_threads). Default 0.005");
   return options;
 }
 

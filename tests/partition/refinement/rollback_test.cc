@@ -31,7 +31,6 @@
 using ::testing::Test;
 
 namespace mt_kahypar {
-namespace refinement {
 
 TEST(RollbackTests, FindsBestPrefix) {
 
@@ -179,5 +178,4 @@ TEST(RollbackTests, GainRecalculation2) {
 
 }
 
-}   // namespace refinement
 }   // namespace mt_kahypar

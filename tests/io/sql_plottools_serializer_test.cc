@@ -36,13 +36,15 @@ namespace io {
 std::vector<std::string> target_structs =
   { "PartitioningParameters", "CommunityDetectionParameters", "CommunityRedistributionParameters",
     "PreprocessingParameters", "RatingParameters", "CoarseningParameters", "InitialPartitioningParameters",
-    "SparsificationParameters", "LabelPropagationParameters", "RefinementParameters", "SharedMemoryParameters" };
+    "SparsificationParameters", "LabelPropagationParameters", "FMParameters" "RefinementParameters",
+    "SharedMemoryParameters" };
 
 std::unordered_map<std::string, std::string> target_struct_prefix =
   { {"PartitioningParameters", ""}, {"CommunityDetectionParameters", "community_"}, {"CommunityRedistributionParameters", "community_redistribution_"},
     {"PreprocessingParameters", ""}, {"RatingParameters", "rating_"}, {"CoarseningParameters", "coarsening_"},
     {"InitialPartitioningParameters", "initial_partitioning_"}, {"SparsificationParameters", "sparsification_"},
-    {"LabelPropagationParameters", "lp_"}, {"RefinementParameters", ""}, {"SharedMemoryParameters", ""} };
+    {"LabelPropagationParameters", "lp_"}, {"FMParameters", "fm_"}, {"RefinementParameters", ""},
+    {"SharedMemoryParameters", ""} };
 
 std::set<std::string> excluded_members =
   { "verbose_output", "quiet_mode", "show_detailed_timings", "show_detailed_clustering_timings", "show_memory_consumption", "enable_progress_bar", "sp_process_output",

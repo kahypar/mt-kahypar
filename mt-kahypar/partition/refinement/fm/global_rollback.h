@@ -29,7 +29,7 @@
 #include <boost/dynamic_bitset.hpp>
 
 namespace mt_kahypar {
-namespace refinement {
+
 
 struct BestIndexReduceBody {
   const vec<Gain>& gains;
@@ -374,5 +374,5 @@ public:
   boost::dynamic_bitset<> in_balance;
 
 };
-}
+
 }

@@ -24,7 +24,7 @@
 
 
 namespace mt_kahypar {
-namespace refinement {
+
 class PartitionWeightBudgets {
 public:
 
@@ -128,5 +128,4 @@ private:
 
 };
 
-}
 }

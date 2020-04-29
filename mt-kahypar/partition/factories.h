@@ -58,5 +58,8 @@ using InitialPartitionerFactory = kahypar::meta::Factory<InitialPartitioningMode
                                                          IInitialPartitioner* (*)(PartitionedHypergraph&, const Context&, const bool, const TaskGroupID)>;
 
 using LabelPropagationFactory = kahypar::meta::Factory<LabelPropagationAlgorithm,
-                                                       IRefiner* (*)(PartitionedHypergraph&, const Context&, const TaskGroupID)>;
+                                                       IRefiner* (*)(Hypergraph&, const Context&, const TaskGroupID)>;
+
+using FMFactory = kahypar::meta::Factory<FMAlgorithm,
+                                         IRefiner* (*)(Hypergraph&, const Context&, const TaskGroupID)>;
 }  // namespace mt_kahypar

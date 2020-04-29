@@ -45,9 +45,6 @@ template <typename Hypergraph = Mandatory,
           typename HypergraphFactory = Mandatory>
 class PartitionedHypergraph {
 private:
-  template <typename HyperGraph,
-          typename HyperGraphFactory>
-  friend class NumaPartitionedHypergraph;   // REVIEW NOTE does this still exist? if no --> remove plz
   static_assert(!Hypergraph::is_partitioned,  "Only unpartitioned hypergraphs are allowed");
 
   using HypernodeIterator = typename Hypergraph::HypernodeIterator;

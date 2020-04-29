@@ -95,10 +95,10 @@ class InitialPartitioningDataContainer {
       if ( _context.refinement.label_propagation.algorithm != LabelPropagationAlgorithm::do_nothing ) {
         if ( _context.partition.objective == kahypar::Objective::km1 ) {
           _label_propagation = std::make_unique<LabelPropagationKm1Refiner>(
-            _partitioned_hypergraph, _context, task_group_id);
+            hypergraph, _context, task_group_id);
         } else if ( _context.partition.objective == kahypar::Objective::cut ) {
           _label_propagation = std::make_unique<LabelPropagationCutRefiner>(
-            _partitioned_hypergraph, _context, task_group_id);
+            hypergraph, _context, task_group_id);
         }
       }
     }

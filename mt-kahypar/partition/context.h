@@ -176,21 +176,24 @@ inline std::ostream & operator<< (std::ostream& str, const LabelPropagationParam
 }
 
 struct FMParameters {
-  bool numa_aware = false;
+  FMAlgorithm algorithm = FMAlgorithm::do_nothing;
+  size_t multitry_rounds = 0;
+  size_t max_number_of_fruitless_moves = 0;
+  double seed_node_fraction = std::numeric_limits<double>::max();
+  bool init_localized_search_with_neighbors = false;
+  bool init_boundary_fm_with_all_nodes = false;
   bool shuffle = true;
-  size_t max_number_of_fruitless_moves = 250;
-  size_t rounds = 4;
-  double seed_node_fraction = 0.005;
-  bool init_neighbors = false;
-  bool all_nodes = false;
-  bool multitry = true;
 };
 
 inline std::ostream& operator<<(std::ostream& out, const FMParameters& params) {
   out << "  FM Parameters: \n";
-  out << "    Numa Aware:                       " << std::boolalpha << params.numa_aware << "\n";
-  out << "    Shuffle:                          " << std::boolalpha << params.shuffle << "\n";
-  out << "    Rounds:                           " << params.rounds << "\n";
+  out << "    Algorithm:                        " << params.algorithm << std::endl;
+  out << "    Multitry Rounds:                  " << params.multitry_rounds << std::endl;
+  out << "    Max Number of Fruitless Moves:    " << params.max_number_of_fruitless_moves << std::endl;
+  out << "    Seed Node Fraction:               " << params.seed_node_fraction << std::endl;
+  out << "    Init Local Search With Neighbors: " << std::boolalpha << params.init_localized_search_with_neighbors << std::endl;
+  out << "    Init Boundary FM With All Nodes:  " << std::boolalpha << params.init_boundary_fm_with_all_nodes << std::endl;
+  out << "    Enable Random Shuffle:            " << std::boolalpha << params.shuffle << std::endl;
   out << std::flush;
   return out;
 }

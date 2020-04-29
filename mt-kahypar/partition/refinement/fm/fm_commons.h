@@ -30,7 +30,6 @@
 #include <tbb/parallel_for.h>
 
 namespace mt_kahypar {
-namespace refinement {
 
 using BlockPriorityQueue = ds::ExclusiveHandleHeap< ds::MaxHeap<Gain, PartitionID> >;
 using VertexPriorityQueue = ds::MaxHeap<Gain, HypernodeID>;    // these need external handles
@@ -204,5 +203,4 @@ struct FMStats {
   }
 };
 
-}
 }

@@ -54,9 +54,9 @@ class LabelPropagationRefiner final : public IRefiner {
   static constexpr bool enable_heavy_assert = false;
 
  public:
-  explicit LabelPropagationRefiner(PartitionedHypergraph&,
-                                    const Context& context,
-                                    const TaskGroupID task_group_id) :
+  explicit LabelPropagationRefiner(Hypergraph&,
+                                   const Context& context,
+                                   const TaskGroupID task_group_id) :
     _context(context),
     _task_group_id(task_group_id),
     _current_num_nodes(kInvalidHypernode),
