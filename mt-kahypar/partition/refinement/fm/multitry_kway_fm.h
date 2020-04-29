@@ -57,6 +57,7 @@ public:
   Gain refine(PartitionedHypergraph& phg) {
     if (!is_initialized) throw std::runtime_error("Call initialize on fm before calling refine");
 
+
     utils::Timer& timer = utils::Timer::instance();
     //sharedData.partition_weight_budgets.initialize(phg, context.partition.max_part_weights);          // only for version with budgets
     Gain overall_improvement = 0;

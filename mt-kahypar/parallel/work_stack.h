@@ -20,9 +20,6 @@
 
 #pragma once
 
-#include <tbb/concurrent_queue.h>
-#include <vector>
-
 #include "../definitions.h"
 
 namespace mt_kahypar {
