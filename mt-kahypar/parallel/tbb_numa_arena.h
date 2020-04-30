@@ -104,7 +104,7 @@ class TBBNumaArena {
   }
 
   tbb::task_arena& numa_task_arena(const int node) {
-    ASSERT(static_cast<size_t>(node) < _arenas.size());
+    ASSERT(static_cast<size_t>(node) < _arenas.size(), V(node) << V(_arenas.size()));
     return _arenas[node];
   }
 
@@ -161,7 +161,7 @@ class TBBNumaArena {
   template<typename Functor>
   void run_max_concurrency_tasks_on_all_sockets(const TaskGroupID task_group_id, Functor&& f) {
     int overall_task_id = 0;
-    for (int socket = 0; socket < num_used_numa_nodes(); ++socket) {
+    for (int socket = 0; socket < num_numa_arenas(); ++socket) {
       tbb::task_arena& this_arena = numa_task_arena(socket);
       const int n_tasks = this_arena.max_concurrency();
       this_arena.execute([&, socket] {

@@ -35,7 +35,6 @@
 #include "tests/parallel/topology_mock.h"
 
 #define USE_HARDWARE_MOCK false
-#define KAHYPAR_ENABLE_NUMA_AWARE_PARTITIONING false
 
 namespace mt_kahypar {
 
