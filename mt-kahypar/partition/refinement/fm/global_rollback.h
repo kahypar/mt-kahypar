@@ -355,8 +355,7 @@ public:
   void setRemainingOriginalPins(PartitionedHypergraph& phg) {
     phg.doParallelForAllEdges([&](const HyperedgeID& he) {
       for ( PartitionID block = 0; block < phg.k(); ++block ) {
-        remaining_original_pins[he * phg.k() + block].store(
-          phg.pinCountInPart(he, block), std::memory_order_relaxed);
+        remaining_original_pins[he * phg.k() + block].store(phg.pinCountInPart(he, block), std::memory_order_relaxed);
       }
     });
   }
