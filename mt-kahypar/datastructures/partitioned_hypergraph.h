@@ -88,7 +88,7 @@ private:
         "Refinement", "move_from_benefit", hypergraph.initialNumNodes(), true, false),
     _pin_count_update_ownership(
         "Refinement", "pin_count_update_ownership", hypergraph.initialNumEdges(), true, false) {
-    _part_ids.assign(hypergraph.initialNumNodes(), kInvalidPartition);
+    _part_ids.assign(hypergraph.initialNumNodes(), kInvalidPartition, false);
   }
 
   explicit PartitionedHypergraph(const PartitionID k,
@@ -441,25 +441,27 @@ private:
       vec<HyperedgeWeight>& l_move_to_penalty = ets_mtp.local();
 
       for (HypernodeID u = r.begin(); u < r.end(); ++u) {
-        HyperedgeWeight l_move_from_benefit = 0;
-        for (HyperedgeID he : incidentEdges(u)) {
-          HyperedgeWeight we = edgeWeight(he);
-          if (pinCountInPart(he, partID(u)) == 1) {
-            l_move_from_benefit += we;
-          }
-          for (PartitionID p = 0; p < _k; ++p) {
-            const HypernodeID pcip = pinCountInPart(he, p);
-            if (pcip == 0) {
-              l_move_to_penalty[p] += we;
+        if ( nodeIsEnabled(u) ) {
+          HyperedgeWeight l_move_from_benefit = 0;
+          for (HyperedgeID he : incidentEdges(u)) {
+            HyperedgeWeight we = edgeWeight(he);
+            if (pinCountInPart(he, partID(u)) == 1) {
+              l_move_from_benefit += we;
+            }
+            for (PartitionID p = 0; p < _k; ++p) {
+              const HypernodeID pcip = pinCountInPart(he, p);
+              if (pcip == 0) {
+                l_move_to_penalty[p] += we;
+              }
             }
           }
-        }
 
-        _move_from_benefit[u].store(l_move_from_benefit, std::memory_order_relaxed);
-        for (PartitionID p = 0; p < _k; ++p) {
-          _move_to_penalty[u * _k + p].store(l_move_to_penalty[p], std::memory_order_relaxed);
-          // reset for next round
-          l_move_to_penalty[p] = 0;
+          _move_from_benefit[u].store(l_move_from_benefit, std::memory_order_relaxed);
+          for (PartitionID p = 0; p < _k; ++p) {
+            _move_to_penalty[u * _k + p].store(l_move_to_penalty[p], std::memory_order_relaxed);
+            // reset for next round
+            l_move_to_penalty[p] = 0;
+          }
         }
       }
 
@@ -533,7 +535,7 @@ private:
 
   // ! Reset partition (not thread-safe)
   void resetPartition() {
-    _part_ids.assign(_part_ids.size(), kInvalidPartition);
+    _part_ids.assign(_part_ids.size(), kInvalidPartition, false);
     for (auto& x : _part_weights) x.store(0, std::memory_order_relaxed);
 
     // Reset pin count in part and connectivity set
@@ -708,9 +710,11 @@ private:
     auto accumulate = [&](tbb::blocked_range<HypernodeID>& r) {
       vec<HypernodeWeight> pws(_k, 0);  // this is not enumerable_thread_specific because of the static partitioner
       for (HypernodeID u = r.begin(); u < r.end(); ++u) {
-        const PartitionID pu = partID( u );
-        const HypernodeWeight wu = nodeWeight( u );
-        pws[pu] += wu;
+        if ( nodeIsEnabled(u) ) {
+          const PartitionID pu = partID( u );
+          const HypernodeWeight wu = nodeWeight( u );
+          pws[pu] += wu;
+        }
       }
       applyPartWeightUpdates(pws);
     };

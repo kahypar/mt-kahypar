@@ -119,10 +119,10 @@ class InitialPartitioningDataContainer {
         metrics::km1(_partitioned_hypergraph, false),
         metrics::imbalance(_partitioned_hypergraph, _context) };
 
-      if ( _label_propagation ) {
-        _label_propagation->initialize(_partitioned_hypergraph);
-        _label_propagation->refine(_partitioned_hypergraph, current_metric);
-      }
+      // if ( _label_propagation ) {
+      //   _label_propagation->initialize(_partitioned_hypergraph);
+      //   _label_propagation->refine(_partitioned_hypergraph, current_metric);
+      // }
 
       PartitioningResult result(algorithm,
         current_metric.getMetric(kahypar::Mode::direct_kway, _context.partition.objective),
