@@ -155,11 +155,8 @@ class TBBNumaArena {
   }
 
 
-  // TODO find a better name
-  // could reimplement with parallel_do instead of specifying a fixed number of tasks, whi h is kind of bad.
-  // however parallel_do suggests that each body should perform significant amount of work, and preferably spawns more than one subsequent entry
   template<typename Functor>
-  void run_max_concurrency_tasks_on_all_sockets(const TaskGroupID task_group_id, Functor&& f) {
+  void execute_task_on_each_thread(const TaskGroupID task_group_id, Functor&& f) {
     int overall_task_id = 0;
     for (int socket = 0; socket < num_numa_arenas(); ++socket) {
       tbb::task_arena& this_arena = numa_task_arena(socket);

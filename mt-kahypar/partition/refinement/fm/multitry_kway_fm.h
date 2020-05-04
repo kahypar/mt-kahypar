@@ -75,7 +75,7 @@ public:
           LocalizedKWayFM& fm = ets_fm.local();
           while(fm.findMoves(phg, sharedData)) { /* keep running */ }
         };
-        TBBNumaArena::instance().run_max_concurrency_tasks_on_all_sockets(taskGroupID, task);
+        TBBNumaArena::instance().execute_task_on_each_thread(taskGroupID, task);
         //task(0,0,0);
       } else if (context.refinement.fm.algorithm == FMAlgorithm::fm_boundary){
         // Try boundary FM

@@ -33,7 +33,7 @@ public:
           size(0),
           elements(maxNumElements, T())
   {
-    
+
   }
 
   void push_back(const T& el) {
