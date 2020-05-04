@@ -136,8 +136,6 @@ struct NodeTracker {
 
 struct FMSharedData {
 
-  //PartitionWeightBudgets partition_weight_budgets;
-
   WorkStack<HypernodeID> refinementNodes;
 
   vec<PosT> vertexPQHandles;
