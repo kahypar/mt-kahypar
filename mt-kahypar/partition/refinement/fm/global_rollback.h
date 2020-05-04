@@ -362,10 +362,15 @@ public:
 
   PartitionID numParts;
 
-  // ! For each hyperedge and block, the number of pins_in_part at the beginning of a move phase minus the number of moved out pins
+  // ! For each hyperedge and block, the number of pins_in_part
+  // ! at the beginning of a move phase minus the number of moved out pins
+  // ! A value of zero means at some point a gain improvement might have occured, which then has to be checked
+  // ! with the move ID flagging
   vec<CAtomic<HypernodeID>> remaining_original_pins;
-  // ! For each hyperedge and each block, the ID of the first move to place a pin in that block / the last move to remove a pin from that block
-  vec<CAtomic<MoveID>> first_move_in, last_move_out;
+  // ! For each hyperedge and each block, the ID of the first move to place a pin in that block
+  vec<CAtomic<MoveID>> first_move_in;
+  // ! For each hyperedge and each block, the ID of the last move to remove a pin from that block
+  vec<CAtomic<MoveID>> last_move_out;
 
   vec<Gain> gains;
 
