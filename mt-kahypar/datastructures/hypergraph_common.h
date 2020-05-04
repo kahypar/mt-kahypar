@@ -72,7 +72,8 @@ static constexpr HypernodeID invalidNode = std::numeric_limits<HypernodeID>::max
 static constexpr Gain invalidGain = std::numeric_limits<Gain>::min();
 
 struct Move {
-  PartitionID from = -1, to = -1;
+  PartitionID from = -1;
+  PartitionID to = -1;
   HypernodeID node = invalidNode;
   Gain gain = invalidGain;
 };
