@@ -55,7 +55,7 @@ public:
     for (PartitionID i = 0; i < numParts; ++i)
       updateBlock(phg, i);
 
-    internal__findMoves(phg, sharedData);
+    internalFindMoves(phg, sharedData);
 
     return true;
   }
@@ -87,15 +87,17 @@ public:
     }
 
     if (runStats.pushes > 0) {
-      internal__findMoves(phg, sharedData);
+      internalFindMoves(phg, sharedData);
       return true;
     } else {
       return false;
     }
   }
 
+private:
+
   // assumes the PQs have been initialized
-  void internal__findMoves(PartitionedHypergraph& phg, FMSharedData& sharedData) {
+  void internalFindMoves(PartitionedHypergraph& phg, FMSharedData& sharedData) {
     localMoves.clear();
     StopRule stopRule(phg.initialNumNodes());
     Move m;
@@ -260,8 +262,6 @@ public:
       return context.refinement.fm.num_seed_nodes;
     }
   }
-
-private:
 
   SearchID thisSearch;
   PartitionID numParts;
