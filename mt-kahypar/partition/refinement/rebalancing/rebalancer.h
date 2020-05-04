@@ -34,14 +34,14 @@ namespace mt_kahypar {
 template <template <typename> class GainPolicy>
 class Rebalancer {
  private:
-  using GainCalculator = GainPolicy<PartitionedHypergraph<>>;
+  using GainCalculator = GainPolicy<PartitionedHypergraph>;
   using AtomicWeight = parallel::IntegralAtomicWrapper<HypernodeWeight>;
 
   static constexpr bool debug = false;
   static constexpr bool enable_heavy_assert = false;
 
  public:
-  explicit Rebalancer(PartitionedHypergraph<>& hypergraph,
+  explicit Rebalancer(PartitionedHypergraph& hypergraph,
                        const Context& context,
                        const TaskGroupID task_group_id) :
     _hg(hypergraph),
@@ -143,7 +143,7 @@ class Rebalancer {
     return false;
   }
 
-  PartitionedHypergraph<>& _hg;
+  PartitionedHypergraph& _hg;
   const Context& _context;
   const TaskGroupID _task_group_id;
   GainCalculator _gain;

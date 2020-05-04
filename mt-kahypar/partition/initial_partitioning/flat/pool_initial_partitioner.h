@@ -70,10 +70,9 @@ class SpawnInitialPartitionerTaskList : public tbb::task {
 } // namespace
 
 class PoolInitialPartitionerContinuation : public tbb::task {
-  using HyperGraph = PartitionedHypergraph<>;
 
   public:
-  PoolInitialPartitionerContinuation(HyperGraph& hypergraph,
+  PoolInitialPartitionerContinuation(PartitionedHypergraph& hypergraph,
                                       const Context& context,
                                       const TaskGroupID task_group_id) :
     _ip_data(hypergraph, context, task_group_id),
@@ -128,12 +127,11 @@ static void spawn_initial_partitioner(PoolInitialPartitionerContinuation& contin
  * The best partition is applied to the hypergraph.
  */
 class PoolInitialPartitioner : public tbb::task {
-  using HyperGraph = PartitionedHypergraph<>;
 
   static constexpr bool debug = false;
 
  public:
-  PoolInitialPartitioner(HyperGraph& hypergraph,
+  PoolInitialPartitioner(PartitionedHypergraph& hypergraph,
                          const Context& context,
                          const TaskGroupID task_group_id) :
     _hg(hypergraph),
@@ -148,7 +146,7 @@ class PoolInitialPartitioner : public tbb::task {
   }
 
  private:
-  HyperGraph& _hg;
+  PartitionedHypergraph& _hg;
   const Context& _context;
   const TaskGroupID _task_group_id;
 };

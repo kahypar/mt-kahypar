@@ -25,8 +25,42 @@
 #include <atomic>
 #include <type_traits>
 
+template<typename T>
+class CAtomic : public std::__atomic_base<T> {
+public:
+  using Base = std::__atomic_base<T>;
+
+  explicit CAtomic(const T value = T()) : Base(value) { }
+
+  CAtomic(const CAtomic& other) : Base(other.load(std::memory_order_relaxed)) { }
+
+  CAtomic& operator=(const CAtomic& other) {
+    Base::store(other.load(std::memory_order_relaxed), std::memory_order_relaxed);
+    return *this;
+  }
+
+  CAtomic(CAtomic&& other) : Base(other.load(std::memory_order_relaxed)) { }
+
+  CAtomic& operator=(CAtomic&& other) {
+    Base::store(other.load(std::memory_order_relaxed), std::memory_order_relaxed);
+    return *this;
+  }
+
+  // unfortunately the internal value M_i is private, so we cannot issue __atomic_add_fetch( &M_i, i, int(m) ) ourselves
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE T add_fetch(T i, std::memory_order m = std::memory_order_seq_cst) {
+    return Base::fetch_add(i, m) + i;
+  }
+
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE T sub_fetch(T i, std::memory_order m = std::memory_order_seq_cst) {
+    return Base::fetch_sub(i, m) - i;
+  }
+};
+
+
 namespace mt_kahypar {
 namespace parallel {
+
+// For non-integral types, e.g. floating point
 template <typename T>
 void fetch_add(std::atomic<T>& x, T y) {
   T cur_x = x.load();
@@ -69,6 +103,9 @@ class AtomicWrapper : public std::atomic<T> {
     fetch_sub(*this, other);
   }
 };
+
+//template<typename T> using IntegralAtomicWrapper = CAtomic<T>;
+
 
 template <typename T>
 class IntegralAtomicWrapper {
@@ -116,11 +153,11 @@ class IntegralAtomicWrapper {
     return _value.exchange(desired, order);
   }
 
-  bool compare_and_exchange_weak(T& expected, T& desired, std::memory_order order = std::memory_order_seq_cst) noexcept {
+  bool compare_exchange_weak(T &expected, T &desired, std::memory_order order = std::memory_order_seq_cst) noexcept {
     return _value.compare_exchange_weak(expected, desired, order);
   }
 
-  bool compare_and_exchange_strong(T& expected, T& desired, std::memory_order order = std::memory_order_seq_cst) noexcept {
+  bool compare_exchange_strong(T &expected, T &desired, std::memory_order order = std::memory_order_seq_cst) noexcept {
     return _value.compare_exchange_strong(expected, desired, order);
   }
 
@@ -161,28 +198,31 @@ class IntegralAtomicWrapper {
   }
 
   T operator+= (T arg) noexcept {
-    return _value.fetch_add(arg) + arg;
+    return _value.operator+=(arg);
   }
 
   T operator-= (T arg) noexcept {
-    return _value.fetch_sub(arg) - arg;
+    return _value.operator-=(arg);
   }
 
   T operator&= (T arg) noexcept {
-    return _value.fetch_and(arg) & arg;
+    return _value.operator&=(arg);
   }
 
   T operator|= (T arg) noexcept {
-    return _value.fetch_or(arg) | arg;
+    return _value.operator|=(arg);
   }
 
   T operator^= (T arg) noexcept {
-    return _value.fetch_xor(arg) ^ arg;
+    return _value.operator^=(arg);
   }
 
  private:
   std::atomic<T> _value;
 };
+
+
+
 
 #pragma GCC diagnostic pop
 }  // namespace parallel

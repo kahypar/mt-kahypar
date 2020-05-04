@@ -31,6 +31,10 @@
 #include "mt-kahypar/datastructures/array.h"
 
 namespace mt_kahypar {
+
+template<typename T>
+using vec = std::vector<T, tbb::scalable_allocator<T> >;  // shorter name
+
 namespace parallel {
 template <typename T>
 using scalable_vector = std::vector<T, tbb::scalable_allocator<T> >;
@@ -274,4 +278,8 @@ static void parallel_free_thread_local_internal_data(ThreadLocal<T>& local,
 }
 
 }  // namespace parallel
+
+  template<typename T>
+  using tls_enumerable_thread_specific = tbb::enumerable_thread_specific<T, tbb::cache_aligned_allocator<T>, tbb::ets_key_per_instance>;
+
 }  // namespace mt_kahypar

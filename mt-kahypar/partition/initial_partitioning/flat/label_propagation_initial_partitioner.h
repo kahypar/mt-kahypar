@@ -25,11 +25,11 @@
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/initial_partitioning/flat/initial_partitioning_data_container.h"
 #include "mt-kahypar/partition/initial_partitioning/flat/policies/gain_computation_policy.h"
+#include "mt-kahypar/partition/refinement/policies/gain_policy.h"
 
 namespace mt_kahypar {
 
 class LabelPropagationInitialPartitioner : public tbb::task {
-  using HyperGraph = PartitionedHypergraph<false>;
 
   using DeltaFunction = std::function<void (const HyperedgeID, const HyperedgeWeight, const HypernodeID, const HypernodeID, const HypernodeID)>;
   #define NOOP_FUNC [] (const HyperedgeID, const HyperedgeWeight, const HypernodeID, const HypernodeID, const HypernodeID) { }
@@ -55,7 +55,7 @@ class LabelPropagationInitialPartitioner : public tbb::task {
 
   tbb::task* execute() override {
     HighResClockTimepoint start = std::chrono::high_resolution_clock::now();
-    HyperGraph& hg = _ip_data.local_partitioned_hypergraph();
+    PartitionedHypergraph& hg = _ip_data.local_partitioned_hypergraph();
     _ip_data.reset_unassigned_hypernodes();
 
     parallel::scalable_vector<HypernodeID> start_nodes =
@@ -121,7 +121,7 @@ class LabelPropagationInitialPartitioner : public tbb::task {
                     ++adjusted_edge_size;
                   }
                 }
-                expected_gain -= HyperGraph::cutDelta(he, edge_weight, adjusted_edge_size,
+                expected_gain -= cutDelta(he, edge_weight, adjusted_edge_size,
                   pin_count_in_from_part_after, pin_count_in_to_part_after);
               };
               hg.changeNodePart(hn, from, to, cut_delta);
@@ -155,7 +155,7 @@ class LabelPropagationInitialPartitioner : public tbb::task {
   }
 
  private:
-  bool fitsIntoBlock(HyperGraph& hypergraph,
+  bool fitsIntoBlock(PartitionedHypergraph& hypergraph,
                      const HypernodeID hn,
                      const PartitionID block) const {
     ASSERT(block != kInvalidPartition && block < _context.partition.k);
@@ -164,7 +164,7 @@ class LabelPropagationInitialPartitioner : public tbb::task {
       std::min(1.005, _context.partition.epsilon);
   }
 
-  MaxGainMove computeMaxGainMove(HyperGraph& hypergraph,
+  MaxGainMove computeMaxGainMove(PartitionedHypergraph& hypergraph,
                                  const HypernodeID hn) {
     if ( hypergraph.partID(hn) == kInvalidPartition ) {
       return computeMaxGainMoveForUnassignedVertex(hypergraph, hn);
@@ -173,7 +173,7 @@ class LabelPropagationInitialPartitioner : public tbb::task {
     }
   }
 
-  MaxGainMove computeMaxGainMoveForUnassignedVertex(HyperGraph& hypergraph,
+  MaxGainMove computeMaxGainMoveForUnassignedVertex(PartitionedHypergraph& hypergraph,
                                                     const HypernodeID hn) {
     ASSERT(hypergraph.partID(hn) == kInvalidPartition);
     ASSERT(std::all_of(_tmp_scores.begin(), _tmp_scores.end(), [](Gain i) { return i == 0; }),
@@ -203,7 +203,7 @@ class LabelPropagationInitialPartitioner : public tbb::task {
     return findMaxGainMove(hypergraph, hn, internal_weight);
   }
 
-  MaxGainMove computeMaxGainMoveForAssignedVertex(HyperGraph& hypergraph,
+  MaxGainMove computeMaxGainMoveForAssignedVertex(PartitionedHypergraph& hypergraph,
                                                   const HypernodeID hn) {
     ASSERT(hypergraph.partID(hn) != kInvalidPartition);
     ASSERT(std::all_of(_tmp_scores.begin(), _tmp_scores.end(), [](Gain i) { return i == 0; }),
@@ -243,7 +243,7 @@ class LabelPropagationInitialPartitioner : public tbb::task {
     return findMaxGainMove(hypergraph, hn, internal_weight);
   }
 
-  MaxGainMove findMaxGainMove(HyperGraph& hypergraph,
+  MaxGainMove findMaxGainMove(PartitionedHypergraph& hypergraph,
                               const HypernodeID hn,
                               const HypernodeWeight internal_weight) {
     const PartitionID from = hypergraph.partID(hn);
@@ -265,44 +265,47 @@ class LabelPropagationInitialPartitioner : public tbb::task {
     return MaxGainMove { best_block, best_score };
   }
 
-  void extendBlockToInitialBlockSize(HyperGraph& hypergraph,
-                                     const HypernodeID seed_vertex,
+  void extendBlockToInitialBlockSize(PartitionedHypergraph& hypergraph,
+                                     HypernodeID seed_vertex,
                                      const PartitionID block) {
     ASSERT(hypergraph.partID(seed_vertex) == block);
-    // We search for _context.initial_partitioning.lp_initial_block_size vertices
-    // around the seed vertex to extend the corresponding block
-    for ( const HyperedgeID& he : hypergraph.incidentEdges(seed_vertex) ) {
-      for ( const HypernodeID& pin : hypergraph.pins(he) ) {
-        if ( hypergraph.partID(pin) == kInvalidPartition ) {
-          hypergraph.setNodePart(pin, block);
-          if ( hypergraph.partSize(block) ==
-              _context.initial_partitioning.lp_initial_block_size ) {
-            break;
+    size_t block_size = 1;
+
+    while (block_size < _context.initial_partitioning.lp_initial_block_size) {
+
+      // We search for _context.initial_partitioning.lp_initial_block_size vertices
+      // around the seed vertex to extend the corresponding block
+      for ( const HyperedgeID& he : hypergraph.incidentEdges(seed_vertex) ) {
+        for ( const HypernodeID& pin : hypergraph.pins(he) ) {
+          if ( hypergraph.partID(pin) == kInvalidPartition ) {
+            hypergraph.setNodePart(pin, block);
+            block_size++;
+            if ( block_size >= _context.initial_partitioning.lp_initial_block_size ) {
+              break;
+            }
           }
         }
+        if ( block_size >= _context.initial_partitioning.lp_initial_block_size ) {
+          break;
+        }
       }
-      if ( hypergraph.partSize(block) ==
-           _context.initial_partitioning.lp_initial_block_size ) {
-        break;
-      }
-    }
 
-    // If there are last than _context.initial_partitioning.lp_initial_block_size
-    // adjacent vertices to the seed vertex, we find a new seed vertex and call
-    // this function recursive
-    const HypernodeID part_size = hypergraph.partSize(block);
-    if ( part_size < _context.initial_partitioning.lp_initial_block_size ) {
-      const HypernodeID new_seed_vertex = _ip_data.get_unassigned_hypernode();
-      if ( new_seed_vertex != kInvalidHypernode  ) {
-        hypergraph.setNodePart(new_seed_vertex, block);
-        if ( part_size + 1 < _context.initial_partitioning.lp_initial_block_size ) {
-          extendBlockToInitialBlockSize(hypergraph, new_seed_vertex, block);
+
+      // If there are less than _context.initial_partitioning.lp_initial_block_size
+      // adjacent vertices to the seed vertex, we find a new seed vertex and call
+      // this function recursive
+      if ( block_size < _context.initial_partitioning.lp_initial_block_size ) {
+        seed_vertex = _ip_data.get_unassigned_hypernode();
+        if ( seed_vertex != kInvalidHypernode  ) {
+          hypergraph.setNodePart(seed_vertex, block);
+          block_size++;
         }
       }
     }
+
   }
 
-  void assignVertexToBlockWithMinimumWeight(HyperGraph& hypergraph, const HypernodeID hn) {
+  void assignVertexToBlockWithMinimumWeight(PartitionedHypergraph& hypergraph, const HypernodeID hn) {
     ASSERT(hypergraph.partID(hn) == kInvalidPartition);
     PartitionID minimum_weight_block = kInvalidPartition;
     HypernodeWeight minimum_weight = std::numeric_limits<HypernodeWeight>::max();

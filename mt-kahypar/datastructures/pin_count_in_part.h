@@ -27,14 +27,15 @@
 #include "mt-kahypar/datastructures/hypergraph_common.h"
 #include "mt-kahypar/datastructures/array.h"
 
+
 namespace mt_kahypar {
 namespace ds {
 
 /*!
- * Data structure to stores the pin count in a block of the partition
+ * Data structure to store the pin count in a block of the partition
  * per hyperedge in a memory efficient way. The data structure is initialized
  * with the maximum value of a pin count entry (which is the maximum size
- * of a hyperedge). The pin counts are than stored in a compressed form where
+ * of a hyperedge). The pin counts are then stored in a compressed form where
  * each entry occupies exactly the number of bits it requires to store the
  * maximum value. To do so, we store several pin count entries in a 64-bit unsigned
  * integer.

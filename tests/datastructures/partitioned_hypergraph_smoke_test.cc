@@ -18,14 +18,16 @@
  *
  ******************************************************************************/
 
+#include "tests/datastructures/hypergraph_fixtures.h"
+
+#include <boost/range/irange.hpp>
+#include <mt-kahypar/partition/refinement/policies/gain_policy.h>
 #include "gmock/gmock.h"
 
 #include "tbb/blocked_range.h"
 #include "tbb/enumerable_thread_specific.h"
 #include "tbb/task_arena.h"
 #include "tbb/task_group.h"
-
-#include "tests/datastructures/hypergraph_fixtures.h"
 
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/io/hypergraph_io.h"
@@ -55,16 +57,18 @@ class AConcurrentHypergraph : public Test {
     k(Config::K),
     objective(Config::OBJECTIVE),
     underlying_hypergraph(),
-    hypergraph() {
+    hypergraph()
+  {
     int cpu_id = sched_getcpu();
     underlying_hypergraph = io::readHypergraphFile(
       "../partition/test_instances/ibm01.hgr", TBBNumaArena::GLOBAL_TASK_GROUP);
-    hypergraph = mt_kahypar::PartitionedHypergraph<>(k, TBBNumaArena::GLOBAL_TASK_GROUP, underlying_hypergraph);
+    hypergraph = mt_kahypar::PartitionedHypergraph(k, TBBNumaArena::GLOBAL_TASK_GROUP, underlying_hypergraph);
     for (const HypernodeID& hn : hypergraph.nodes()) {
       PartitionID id = utils::Randomize::instance().getRandomInt(0, k - 1, cpu_id);
       hypergraph.setNodePart(hn, id);
     }
-    hypergraph.initializeNumCutHyperedges(TBBNumaArena::GLOBAL_TASK_GROUP);
+
+    hypergraph.initializeGainInformation();
   }
 
   static void SetUpTestSuite() {
@@ -75,7 +79,7 @@ class AConcurrentHypergraph : public Test {
   PartitionID k;
   kahypar::Objective objective;
   Hypergraph underlying_hypergraph;
-  mt_kahypar::PartitionedHypergraph<> hypergraph;
+  mt_kahypar::PartitionedHypergraph hypergraph;
 };
 
 typedef ::testing::Types<TestConfig<2, kahypar::Objective::cut>,
@@ -100,7 +104,8 @@ void moveAllNodesOfHypergraphRandom(HyperGraph& hypergraph,
                                     const PartitionID k,
                                     const kahypar::Objective objective,
                                     const bool show_timings) {
-  tbb::enumerable_thread_specific<HyperedgeWeight> deltas;
+
+  tbb::enumerable_thread_specific<HyperedgeWeight> deltas(0);
 
   auto objective_delta = [&](const HyperedgeID he,
                              const HyperedgeWeight edge_weight,
@@ -108,16 +113,15 @@ void moveAllNodesOfHypergraphRandom(HyperGraph& hypergraph,
                              const HypernodeID pin_count_in_from_part_after,
                              const HypernodeID pin_count_in_to_part_after) {
                            if (objective == kahypar::Objective::km1) {
-                             deltas.local() += HyperGraph::km1Delta(
+                             deltas.local() += km1Delta(
                                he, edge_weight, edge_size, pin_count_in_from_part_after, pin_count_in_to_part_after);
                            } else if (objective == kahypar::Objective::cut) {
-                             deltas.local() += HyperGraph::cutDelta(
+                             deltas.local() += cutDelta(
                                he, edge_weight, edge_size, pin_count_in_from_part_after, pin_count_in_to_part_after);
                            }
                          };
 
   HyperedgeWeight metric_before = metrics::objective(hypergraph, objective);
-
   HighResClockTimepoint start = std::chrono::high_resolution_clock::now();
   tbb::parallel_for(ID(0), hypergraph.initialNumNodes(), [&](const HypernodeID& hn) {
     int cpu_id = sched_getcpu();
@@ -128,7 +132,9 @@ void moveAllNodesOfHypergraphRandom(HyperGraph& hypergraph,
     }
     ASSERT((to >= 0 && to < k) && to != from);
     hypergraph.changeNodePart(hn, from, to, objective_delta);
-  });
+  } );
+
+  hypergraph.recomputePartWeights();
 
   HighResClockTimepoint end = std::chrono::high_resolution_clock::now();
   double timing = std::chrono::duration<double>(end - start).count();
@@ -149,15 +155,12 @@ template<typename HyperGraph>
 void verifyBlockWeightsAndSizes(HyperGraph& hypergraph,
                                 const PartitionID k) {
   std::vector<HypernodeWeight> block_weight(k, 0);
-  std::vector<size_t> block_size(k, 0);
   for (const HypernodeID& hn : hypergraph.nodes()) {
     block_weight[hypergraph.partID(hn)] += hypergraph.nodeWeight(hn);
-    ++block_size[hypergraph.partID(hn)];
   }
 
   for (PartitionID i = 0; i < k; ++i) {
     ASSERT_EQ(block_weight[i], hypergraph.partWeight(i));
-    ASSERT_EQ(block_size[i], hypergraph.partSize(i));
   }
 }
 
@@ -235,5 +238,7 @@ TYPED_TEST(AConcurrentHypergraph, VerifyBorderNodesSmokeTest) {
   moveAllNodesOfHypergraphRandom(this->hypergraph, this->k, this->objective, false);
   verifyBorderNodes(this->hypergraph);
 }
+
+
 }  // namespace ds
 }  // namespace mt_kahypar

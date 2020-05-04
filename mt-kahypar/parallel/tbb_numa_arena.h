@@ -2,6 +2,7 @@
  * This file is part of KaHyPar.
  *
  * Copyright (C) 2019 Tobias Heuer <tobias.heuer@kit.edu>
+ * Copyright (C) 2020 Lars Gottesbüren <lars.gottesbueren@kit.edu>
  *
  * KaHyPar is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -23,6 +24,7 @@
 #include <mutex>
 #include <memory>
 #include <shared_mutex>
+#include <functional>
 
 #include "tbb/task_arena.h"
 #include "tbb/task_group.h"
@@ -102,7 +104,7 @@ class TBBNumaArena {
   }
 
   tbb::task_arena& numa_task_arena(const int node) {
-    ASSERT(static_cast<size_t>(node) < _arenas.size());
+    ASSERT(static_cast<size_t>(node) < _arenas.size(), V(node) << V(_arenas.size()));
     return _arenas[node];
   }
 
@@ -152,11 +154,28 @@ class TBBNumaArena {
     wait(task_group_id);
   }
 
+
+  template<typename Functor>
+  void execute_task_on_each_thread(const TaskGroupID task_group_id, Functor&& f) {
+    int overall_task_id = 0;
+    for (int socket = 0; socket < num_numa_arenas(); ++socket) {
+      tbb::task_arena& this_arena = numa_task_arena(socket);
+      const int n_tasks = this_arena.max_concurrency();
+      this_arena.execute([&, socket] {
+        tbb::task_group& tg = numa_task_group(task_group_id, socket);
+        for (int task_id = 0 ; task_id < n_tasks; ++task_id, ++overall_task_id) {
+          tg.run( std::bind(f, socket, overall_task_id, task_id) );
+        }
+      });
+    }
+    wait(task_group_id);
+  }
+
   void wait(const TaskGroupID task_group_id) {
     for (int node = 0; node < num_numa_arenas(); ++node) {
       _arenas[node].execute([&, node] {
             numa_task_group(task_group_id, node).wait();
-          });
+      });
     }
   }
 
@@ -164,7 +183,7 @@ class TBBNumaArena {
     ASSERT(static_cast<size_t>(node) < _arenas.size());
     _arenas[node].execute([&] {
           group.wait();
-        });
+    });
   }
 
   void terminate() {

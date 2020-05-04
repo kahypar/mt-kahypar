@@ -85,7 +85,7 @@ class DegreeZeroHypernodeRemover {
 
   // ! Restore degree-zero vertices
   // ! Each removed degree-zero vertex is assigned to the block of its supervertex.
-  void restoreDegreeZeroHypernodes(PartitionedHypergraph<>& hypergraph) {
+  void restoreDegreeZeroHypernodes(PartitionedHypergraph& hypergraph) {
     for ( const HypernodeID& hn : _removed_hns ) {
       ASSERT(hn < _mapping.size());
       const HypernodeID representative = _mapping[hn];

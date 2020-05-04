@@ -24,6 +24,7 @@
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/io/hypergraph_io.h"
 #include "mt-kahypar/partition/context.h"
+#include "mt-kahypar/partition/registries/register_refinement_algorithms.h"
 #include "mt-kahypar/partition/initial_partitioning/flat/bfs_initial_partitioner.h"
 #include "mt-kahypar/partition/refinement/label_propagation/label_propagation_refiner.h"
 #include "mt-kahypar/partition/refinement/policies/gain_policy.h"
@@ -86,12 +87,12 @@ class ALabelPropagationRefiner : public Test {
     // Read hypergraph
     hypergraph = io::readHypergraphFile(
       "../test_instances/unweighted_ibm01.hgr", TBBNumaArena::GLOBAL_TASK_GROUP);
-    partitioned_hypergraph = PartitionedHypergraph<>(
+    partitioned_hypergraph = PartitionedHypergraph(
       context.partition.k, TBBNumaArena::GLOBAL_TASK_GROUP, hypergraph);
     context.setupPartWeights(hypergraph.totalWeight());
     initialPartition();
 
-    refiner = std::make_unique<Refiner>(partitioned_hypergraph, context, TBBNumaArena::GLOBAL_TASK_GROUP);
+    refiner = std::make_unique<Refiner>(hypergraph, context, TBBNumaArena::GLOBAL_TASK_GROUP);
     refiner->initialize(partitioned_hypergraph);
   }
 
@@ -113,7 +114,7 @@ class ALabelPropagationRefiner : public Test {
   }
 
   Hypergraph hypergraph;
-  PartitionedHypergraph<> partitioned_hypergraph;
+  PartitionedHypergraph partitioned_hypergraph;
   Context context;
   std::unique_ptr<Refiner> refiner;
   kahypar::Metrics metrics;

@@ -229,7 +229,7 @@ class TBBPrefixSum {
   }
 
   void reverse_join(TBBPrefixSum& prefix_sum) {
-    _sum = prefix_sum._sum + _sum;
+    _sum += prefix_sum._sum;
   }
 
   void assign(TBBPrefixSum& prefix_sum) {

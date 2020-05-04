@@ -213,7 +213,7 @@ void partitionHypergraph(Hypergraph& hypergraph, Context& context) {
 
   // Partition Hypergraph
   HighResClockTimepoint start = std::chrono::high_resolution_clock::now();
-  PartitionedHypergraph<> partitioned_hypergraph =
+  PartitionedHypergraph partitioned_hypergraph =
     partition::Partitioner(context).partition(hypergraph);
   HighResClockTimepoint end = std::chrono::high_resolution_clock::now();
 
@@ -254,7 +254,6 @@ void partitionHypergraph(Hypergraph& hypergraph, Context& context) {
   // Verify block weights and sizes
   for ( PartitionID k = 0; k < partitioned_hypergraph.k(); ++k ) {
     ASSERT_EQ(weights[k], partitioned_hypergraph.partWeight(k));
-    ASSERT_EQ(sizes[k], partitioned_hypergraph.partSize(k));
   }
 
   // Verify connectivity (sets) and pin count in part

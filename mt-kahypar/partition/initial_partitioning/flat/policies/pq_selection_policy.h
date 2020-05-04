@@ -29,14 +29,12 @@ namespace mt_kahypar {
 // ! Selects the PQs in a round-robin fashion.
 class RoundRobinPQSelectionPolicy {
 
- using HyperGraph = PartitionedHypergraph<false>;
-
  static HypernodeID kInvalidHypernode;
  static PartitionID kInvalidPartition;
  static Gain kInvalidGain;
 
  public:
-  static inline bool pop(const HyperGraph& hypergraph,
+  static inline bool pop(const PartitionedHypergraph& hypergraph,
                          KWayPriorityQueue& pq,
                          HypernodeID& hn,
                          PartitionID& to,
@@ -79,14 +77,12 @@ Gain RoundRobinPQSelectionPolicy::kInvalidGain = std::numeric_limits<Gain>::min(
 // ! Selects the PQ which contains the maximum gain move
 class GlobalPQSelectionPolicy {
 
- using HyperGraph = PartitionedHypergraph<false>;
-
  static HypernodeID kInvalidHypernode;
  static PartitionID kInvalidPartition;
  static Gain kInvalidGain;
 
  public:
-  static inline bool pop(const HyperGraph&,
+  static inline bool pop(const PartitionedHypergraph&,
                          KWayPriorityQueue& pq,
                          HypernodeID& hn,
                          PartitionID& to,
@@ -121,14 +117,12 @@ Gain GlobalPQSelectionPolicy::kInvalidGain = std::numeric_limits<Gain>::min();
 // ! Selects the PQs one by one until they are disabled
 class SequentialPQSelectionPolicy {
 
- using HyperGraph = PartitionedHypergraph<false>;
-
  static HypernodeID kInvalidHypernode;
  static PartitionID kInvalidPartition;
  static Gain kInvalidGain;
 
  public:
-  static inline bool pop(const HyperGraph& hypergraph,
+  static inline bool pop(const PartitionedHypergraph& hypergraph,
                          KWayPriorityQueue& pq,
                          HypernodeID& hn,
                          PartitionID& to,

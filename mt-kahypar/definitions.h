@@ -35,7 +35,6 @@
 #include "tests/parallel/topology_mock.h"
 
 #define USE_HARDWARE_MOCK false
-#define TRACK_BORDER_VERTICES true
 
 namespace mt_kahypar {
 
@@ -56,9 +55,7 @@ using ThreadLocalKWayPriorityQueue = tbb::enumerable_thread_specific<KWayPriorit
 
 using Hypergraph = ds::StaticHypergraph;
 using HypergraphFactory = ds::StaticHypergraphFactory;
-template<bool track_border_vertices = TRACK_BORDER_VERTICES>
-using PartitionedHypergraph = ds::PartitionedHypergraph<
-  Hypergraph, HypergraphFactory, track_border_vertices>;
+using PartitionedHypergraph = ds::PartitionedHypergraph<Hypergraph, HypergraphFactory>;
 using Graph = ds::GraphT<Hypergraph>;
 
 using HighResClockTimepoint = std::chrono::time_point<std::chrono::high_resolution_clock>;

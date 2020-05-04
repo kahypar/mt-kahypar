@@ -1,5 +1,6 @@
 .idea
 cmake-build-debug/*
+clang-debug/*
 *.hpp~
 *.cpp~
 *.a

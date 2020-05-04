@@ -23,6 +23,7 @@
 #include "tbb/task_group.h"
 
 #include "mt-kahypar/definitions.h"
+#include "mt-kahypar/io/partitioning_output.h"
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/partition/metrics.h"
 #include "mt-kahypar/partition/refinement/i_refiner.h"
@@ -49,11 +50,11 @@ class MultilevelCoarsenerBase {
       _contracted_partitioned_hypergraph(),
       _communities(std::move(communities)) { }
 
-    void setRepresentativeHypergraph(PartitionedHypergraph<>* representative_hypergraph) {
+    void setRepresentativeHypergraph(PartitionedHypergraph* representative_hypergraph) {
       _representative_hypergraph = representative_hypergraph;
     }
 
-    PartitionedHypergraph<>& representativeHypergraph() {
+    PartitionedHypergraph& representativeHypergraph() {
       ASSERT(_representative_hypergraph);
       return *_representative_hypergraph;
     }
@@ -62,7 +63,7 @@ class MultilevelCoarsenerBase {
       return _contracted_hypergraph;
     }
 
-    PartitionedHypergraph<>& contractedPartitionedHypergraph() {
+    PartitionedHypergraph& contractedPartitionedHypergraph() {
       return _contracted_partitioned_hypergraph;
     }
 
@@ -89,11 +90,11 @@ class MultilevelCoarsenerBase {
 
    private:
     // ! Hypergraph on the next finer level
-    PartitionedHypergraph<>* _representative_hypergraph;
+    PartitionedHypergraph* _representative_hypergraph;
     // ! Contracted Hypergraph
     Hypergraph _contracted_hypergraph;
     // ! Partitioned Hypergraph
-    PartitionedHypergraph<> _contracted_partitioned_hypergraph;
+    PartitionedHypergraph _contracted_partitioned_hypergraph;
     // ! Defines the communities that are contracted
     // ! in the coarse hypergraph
     parallel::scalable_vector<HypernodeID> _communities;
@@ -150,7 +151,7 @@ class MultilevelCoarsenerBase {
     }
   }
 
-  PartitionedHypergraph<>& currentPartitionedHypergraph() {
+  PartitionedHypergraph& currentPartitionedHypergraph() {
     ASSERT(_is_finalized);
     if ( _hierarchies.empty() ) {
       return _partitioned_hg;
@@ -169,7 +170,7 @@ class MultilevelCoarsenerBase {
     }
 
     // Construct top level partitioned hypergraph (memory is taken from memory pool)
-    _partitioned_hg = PartitionedHypergraph<>(
+    _partitioned_hg = PartitionedHypergraph(
       _context.partition.k, _task_group_id, _hg);
 
     // Construct partitioned hypergraphs parallel
@@ -177,7 +178,7 @@ class MultilevelCoarsenerBase {
     // Construct partitioned hypergraph for each coarsened hypergraph in the hierarchy
     for ( size_t i = 0; i < _hierarchies.size(); ++i ) {
       group.run([&, i] {
-        _hierarchies[i].contractedPartitionedHypergraph() = PartitionedHypergraph<>(
+        _hierarchies[i].contractedPartitionedHypergraph() = PartitionedHypergraph(
            _context.partition.k, _task_group_id, _hierarchies[i].contractedHypergraph());
       });
     }
@@ -203,40 +204,25 @@ class MultilevelCoarsenerBase {
     _hierarchies.emplace_back(std::move(contracted_hg), std::move(communities));
   }
 
-  PartitionedHypergraph<>&& doUncoarsen(std::unique_ptr<IRefiner<>>& label_propagation) {
-    PartitionedHypergraph<>& current_hg = currentPartitionedHypergraph();
-    int64_t num_nodes = current_hg.initialNumNodes();
-    int64_t num_edges = current_hg.initialNumEdges();
-    HyperedgeWeight cut = 0;
-    HyperedgeWeight km1 = 0;
-    tbb::parallel_invoke([&] {
-        // Cut metric
-        cut = metrics::hyperedgeCut(current_hg);
-      }, [&] {
-        // Km1 metric
-        km1 = metrics::km1(current_hg);
-      });
-
-    kahypar::Metrics current_metrics = { cut, km1, metrics::imbalance(current_hg, _context) };
-    utils::Stats::instance().add_stat("initial_num_nodes", num_nodes);
-    utils::Stats::instance().add_stat("initial_num_edges", num_edges);
-    utils::Stats::instance().add_stat("initial_cut", current_metrics.cut);
-    utils::Stats::instance().add_stat("initial_km1", current_metrics.km1);
-    utils::Stats::instance().add_stat("initial_imbalance", current_metrics.imbalance);
+  PartitionedHypergraph&& doUncoarsen(std::unique_ptr<IRefiner>& label_propagation,
+                                      std::unique_ptr<IRefiner>& fm) {
+    PartitionedHypergraph& coarsest_hg = currentPartitionedHypergraph();
+    kahypar::Metrics current_metrics = initialize(coarsest_hg);
 
     utils::ProgressBar uncontraction_progress(_hg.initialNumNodes(),
       _context.partition.objective == kahypar::Objective::km1 ? current_metrics.km1 : current_metrics.cut,
       _context.partition.verbose_output && _context.partition.enable_progress_bar);
-    uncontraction_progress += num_nodes;
+    uncontraction_progress += coarsest_hg.initialNumNodes();
 
     // Refine Coarsest Partitioned Hypergraph
-    refine(current_hg, label_propagation, current_metrics);
+    DBG << "Refine coarsest HG" << V(_context.partition.k) << V(coarsest_hg.initialNumNodes());
+    refine(coarsest_hg, label_propagation, fm, current_metrics);
 
     for ( int i = _hierarchies.size() - 1; i >= 0; --i ) {
       // Project partition to next level finer hypergraph
       utils::Timer::instance().start_timer("projecting_partition", "Projecting Partition");
-      PartitionedHypergraph<>& representative_hg = _hierarchies[i].representativeHypergraph();
-      PartitionedHypergraph<>& contracted_hg = _hierarchies[i].contractedPartitionedHypergraph();
+      PartitionedHypergraph& representative_hg = _hierarchies[i].representativeHypergraph();
+      PartitionedHypergraph& contracted_hg = _hierarchies[i].contractedPartitionedHypergraph();
       representative_hg.doParallelForAllNodes([&](const HypernodeID hn) {
         const HypernodeID coarse_hn = _hierarchies[i].mapToContractedHypergraph(hn);
         const PartitionID block = contracted_hg.partID(coarse_hn);
@@ -255,24 +241,30 @@ class MultilevelCoarsenerBase {
              V(metrics::imbalance(contracted_hg, _context)));
       utils::Timer::instance().stop_timer("projecting_partition");
 
+      DBG << "Projecting partition" << V(i) << V(representative_hg.initialNumNodes())
+          << V(metrics::km1(contracted_hg)) << V(metrics::km1(representative_hg))
+          << V(current_metrics.km1) << "now refine";
+
+
       // Refinement
-      refine(representative_hg, label_propagation, current_metrics);
+      refine(representative_hg, label_propagation, fm, current_metrics);
 
       // Update Progress Bar
-      uncontraction_progress.setObjective(
-        _context.partition.objective == kahypar::Objective::km1 ?
-        current_metrics.km1 : current_metrics.cut);
+      uncontraction_progress.setObjective(current_metrics.getMetric(_context.partition.mode, _context.partition.objective));
       uncontraction_progress += representative_hg.initialNumNodes() - contracted_hg.initialNumNodes();
     }
 
     // If we reach the original hypergraph and partition is imbalanced, we try to rebalance it
-    if ( _top_level && metrics::imbalance(_partitioned_hg, _context) > _context.partition.epsilon) {
+    if ( _top_level && !metrics::isBalanced(_partitioned_hg, _context)) {
       const HyperedgeWeight quality_before = current_metrics.getMetric(
         kahypar::Mode::direct_kway, _context.partition.objective);
       if ( _context.partition.verbose_output ) {
         LOG << RED << "Partition is imbalanced (Current Imbalance:"
             << metrics::imbalance(_partitioned_hg, _context) << ") ->"
             << "Rebalancer is activated" << END;
+
+        LOG << "Part weights: (violations in red)";
+        io::printPartWeightsAndSizes(_partitioned_hg, _context);
       }
 
       utils::Timer::instance().start_timer("rebalance", "Rebalance");
@@ -307,10 +299,36 @@ class MultilevelCoarsenerBase {
   }
 
  protected:
-  void refine(PartitionedHypergraph<>& partitioned_hypergraph,
-              std::unique_ptr<IRefiner<>>& label_propagation,
+
+  kahypar::Metrics computeMetrics(PartitionedHypergraph& phg) {
+    HyperedgeWeight cut = 0;
+    HyperedgeWeight km1 = 0;
+    tbb::parallel_invoke([&] {
+      cut = metrics::hyperedgeCut(phg);
+    }, [&] {
+      km1 = metrics::km1(phg);
+    });
+    return { cut, km1,  metrics::imbalance(phg, _context) };
+  }
+
+  kahypar::Metrics initialize(PartitionedHypergraph& current_hg) {
+    kahypar::Metrics current_metrics = computeMetrics(current_hg);
+    int64_t num_nodes = current_hg.initialNumNodes();
+    int64_t num_edges = current_hg.initialNumEdges();
+    utils::Stats::instance().add_stat("initial_num_nodes", num_nodes);
+    utils::Stats::instance().add_stat("initial_num_edges", num_edges);
+    utils::Stats::instance().add_stat("initial_cut", current_metrics.cut);
+    utils::Stats::instance().add_stat("initial_km1", current_metrics.km1);
+    utils::Stats::instance().add_stat("initial_imbalance", current_metrics.imbalance);
+    return current_metrics;
+  }
+
+  void refine(PartitionedHypergraph& partitioned_hypergraph,
+              std::unique_ptr<IRefiner>& label_propagation,
+              std::unique_ptr<IRefiner>& fm,
               kahypar::Metrics& current_metrics) {
-    if ( label_propagation ) {
+
+    if ( label_propagation && _context.refinement.label_propagation.algorithm != LabelPropagationAlgorithm::do_nothing ) {
       utils::Timer::instance().start_timer("initialize_lp_refiner", "Initialize LP Refiner");
       label_propagation->initialize(partitioned_hypergraph);
       utils::Timer::instance().stop_timer("initialize_lp_refiner");
@@ -319,11 +337,22 @@ class MultilevelCoarsenerBase {
       label_propagation->refine(partitioned_hypergraph, current_metrics);
       utils::Timer::instance().stop_timer("label_propagation");
     }
+
+    if ( fm && _context.refinement.fm.algorithm != FMAlgorithm::do_nothing ) {
+      utils::Timer::instance().start_timer("initialize_fm_refiner", "Initialize FM Refiner");
+      fm->initialize(partitioned_hypergraph);
+      utils::Timer::instance().stop_timer("initialize_fm_refiner");
+
+      utils::Timer::instance().start_timer("fm", "FM");
+      fm->refine(partitioned_hypergraph, current_metrics);
+      utils::Timer::instance().stop_timer("fm");
+    }
+
   }
 
   bool _is_finalized;
   Hypergraph& _hg;
-  PartitionedHypergraph<> _partitioned_hg;
+  PartitionedHypergraph _partitioned_hg;
   const Context& _context;
   const TaskGroupID _task_group_id;
   const bool _top_level;

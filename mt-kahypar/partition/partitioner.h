@@ -53,7 +53,7 @@ class Partitioner {
   Partitioner(Partitioner&&) = delete;
   Partitioner & operator= (Partitioner &&) = delete;
 
-  inline PartitionedHypergraph<> partition(Hypergraph& hypergraph);
+  inline PartitionedHypergraph partition(Hypergraph& hypergraph);
 
  private:
   static inline void setupContext(Hypergraph& hypergraph, Context& context);
@@ -64,7 +64,7 @@ class Partitioner {
 
   inline void preprocess(Hypergraph& hypergraph);
 
-  inline void postprocess(PartitionedHypergraph<>& hypergraph);
+  inline void postprocess(PartitionedHypergraph& hypergraph);
 
   Context& _context;
   DegreeZeroHypernodeRemover _degree_zero_hn_remover;
@@ -155,11 +155,11 @@ inline void Partitioner::preprocess(Hypergraph& hypergraph) {
   parallel::MemoryPool::instance().release_mem_group("Preprocessing");
 }
 
-inline void Partitioner::postprocess(PartitionedHypergraph<>& hypergraph) {
+inline void Partitioner::postprocess(PartitionedHypergraph& hypergraph) {
   _degree_zero_hn_remover.restoreDegreeZeroHypernodes(hypergraph);
 }
 
-inline PartitionedHypergraph<> Partitioner::partition(Hypergraph& hypergraph) {
+inline PartitionedHypergraph Partitioner::partition(Hypergraph& hypergraph) {
   configurePreprocessing(hypergraph, _context);
   setupContext(hypergraph, _context);
 
@@ -176,7 +176,7 @@ inline PartitionedHypergraph<> Partitioner::partition(Hypergraph& hypergraph) {
   utils::Profiler::instance().deactivate("Preprocessing");
 
   // ################## MULTILEVEL ##################
-  PartitionedHypergraph<> partitioned_hypergraph = multilevel::partition(
+  PartitionedHypergraph partitioned_hypergraph = multilevel::partition(
     hypergraph, _context, true, TBBNumaArena::GLOBAL_TASK_GROUP);
 
   postprocess(partitioned_hypergraph);

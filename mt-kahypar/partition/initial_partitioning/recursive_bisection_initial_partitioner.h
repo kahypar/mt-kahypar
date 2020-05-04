@@ -101,7 +101,7 @@ class RecursiveBisectionInitialPartitioner : public IInitialPartitioner {
 
    public:
     RecursiveBisectionChildTask(const OriginalHypergraphInfo original_hypergraph_info,
-                                PartitionedHypergraph<>& hypergraph,
+                                PartitionedHypergraph& hypergraph,
                                 const Context& context,
                                 const PartitionID block,
                                 const BlockRange range,
@@ -147,6 +147,7 @@ class RecursiveBisectionInitialPartitioner : public IInitialPartitioner {
       ASSERT(k >= 2);
       Context rb_context(_context);
       rb_context.partition.k = k;
+      rb_context.type = kahypar::ContextType::initial_partitioning;
 
       rb_context.partition.perfect_balance_part_weights.assign(k, 0);
       rb_context.partition.max_part_weights.assign(k, 0);
@@ -161,7 +162,7 @@ class RecursiveBisectionInitialPartitioner : public IInitialPartitioner {
     }
 
     const OriginalHypergraphInfo _original_hypergraph_info;
-    PartitionedHypergraph<>& _hg;
+    PartitionedHypergraph& _hg;
     const Context _context;
     const PartitionID _block;
     const BlockRange _range;
@@ -179,7 +180,7 @@ class RecursiveBisectionInitialPartitioner : public IInitialPartitioner {
     #define NOOP_FUNC [] (const HyperedgeID, const HyperedgeWeight, const HypernodeID, const HypernodeID, const HypernodeID) { }
 
    public:
-    RecursiveBisectionChildContinuationTask(PartitionedHypergraph<>& original_hypergraph,
+    RecursiveBisectionChildContinuationTask(PartitionedHypergraph& original_hypergraph,
                                             Context&& context,
                                             Hypergraph&& rb_hypergraph,
                                             parallel::scalable_vector<HypernodeID>&& mapping,
@@ -213,7 +214,7 @@ class RecursiveBisectionInitialPartitioner : public IInitialPartitioner {
       return nullptr;
     }
 
-    PartitionedHypergraph<>& recursivePartitionedHypergraph() {
+    PartitionedHypergraph& recursivePartitionedHypergraph() {
       return _rb_partitioned_hg;
     }
 
@@ -222,10 +223,10 @@ class RecursiveBisectionInitialPartitioner : public IInitialPartitioner {
     }
 
    private:
-    PartitionedHypergraph<>& _original_hg;
+    PartitionedHypergraph& _original_hg;
     const Context _context;
     Hypergraph _rb_hg;
-    PartitionedHypergraph<> _rb_partitioned_hg;
+    PartitionedHypergraph _rb_partitioned_hg;
     const parallel::scalable_vector<HypernodeID> _mapping;
     const TaskGroupID _task_group_id;
     const PartitionID _part_id;
@@ -237,9 +238,9 @@ class RecursiveBisectionInitialPartitioner : public IInitialPartitioner {
    */
   class MultilevelBisectionTask : public tbb::task {
    public:
-    MultilevelBisectionTask(PartitionedHypergraph<>& original_hypergraph,
+    MultilevelBisectionTask(PartitionedHypergraph& original_hypergraph,
                             Hypergraph& bisection_hypergraph,
-                            PartitionedHypergraph<>& bisection_partitioned_hypergraph,
+                            PartitionedHypergraph& bisection_partitioned_hypergraph,
                             const Context& bisection_context,
                             const TaskGroupID task_group_id) :
       _original_hg(original_hypergraph),
@@ -257,9 +258,9 @@ class RecursiveBisectionInitialPartitioner : public IInitialPartitioner {
     }
 
    private:
-    PartitionedHypergraph<>& _original_hg;
+    PartitionedHypergraph& _original_hg;
     Hypergraph& _bisection_hg;
-    PartitionedHypergraph<>& _bisection_partitioned_hg;
+    PartitionedHypergraph& _bisection_partitioned_hg;
     const Context& _bisection_context;
     const TaskGroupID _task_group_id;
   };
@@ -274,7 +275,7 @@ class RecursiveBisectionInitialPartitioner : public IInitialPartitioner {
 
    public:
     MultilevelBisectionContinuationTask(const OriginalHypergraphInfo original_hypergraph_info,
-                                        PartitionedHypergraph<>& hypergraph,
+                                        PartitionedHypergraph& hypergraph,
                                         const Context& context,
                                         const TaskGroupID task_group_id) :
       _bisection_hg(),
@@ -346,7 +347,7 @@ class RecursiveBisectionInitialPartitioner : public IInitialPartitioner {
     }
 
     Hypergraph _bisection_hg;
-    PartitionedHypergraph<> _bisection_partitioned_hg;
+    PartitionedHypergraph _bisection_partitioned_hg;
     Context _bisection_context;
 
    private:
@@ -411,7 +412,7 @@ class RecursiveBisectionInitialPartitioner : public IInitialPartitioner {
     }
 
     const OriginalHypergraphInfo _original_hypergraph_info;
-    PartitionedHypergraph<>& _hg;
+    PartitionedHypergraph& _hg;
     const Context& _context;
     const TaskGroupID _task_group_id;
   };
@@ -424,7 +425,7 @@ class RecursiveBisectionInitialPartitioner : public IInitialPartitioner {
 
    public:
     RecursiveMultilevelBisectionTask(const OriginalHypergraphInfo original_hypergraph_info,
-                                     PartitionedHypergraph<>& hypergraph,
+                                     PartitionedHypergraph& hypergraph,
                                      const Context& context,
                                      const TaskGroupID task_group_id) :
       _original_hypergraph_info(original_hypergraph_info),
@@ -448,7 +449,7 @@ class RecursiveBisectionInitialPartitioner : public IInitialPartitioner {
 
    private:
     const OriginalHypergraphInfo _original_hypergraph_info;
-    PartitionedHypergraph<>& _hg;
+    PartitionedHypergraph& _hg;
     const Context& _context;
     const TaskGroupID _task_group_id;
   };
@@ -461,7 +462,7 @@ class RecursiveBisectionInitialPartitioner : public IInitialPartitioner {
   };
 
  public:
-  RecursiveBisectionInitialPartitioner(PartitionedHypergraph<>& hypergraph,
+  RecursiveBisectionInitialPartitioner(PartitionedHypergraph& hypergraph,
                                         const Context& context,
                                         const bool top_level,
                                         const TaskGroupID task_group_id) :
@@ -495,7 +496,7 @@ class RecursiveBisectionInitialPartitioner : public IInitialPartitioner {
     }
   }
 
-  PartitionedHypergraph<>& _hg;
+  PartitionedHypergraph& _hg;
   const Context& _context;
   const bool _top_level;
   const TaskGroupID _task_group_id;

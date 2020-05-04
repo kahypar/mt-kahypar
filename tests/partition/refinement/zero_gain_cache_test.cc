@@ -30,7 +30,7 @@ namespace mt_kahypar {
 
 class AZeroGainCache : public Test {
  public:
-  using Cache = ZeroGainCache<PartitionedHypergraph<>>;
+  using Cache = ZeroGainCache<PartitionedHypergraph>;
 
   AZeroGainCache() :
     hg(HypergraphFactory::construct(TBBNumaArena::GLOBAL_TASK_GROUP,
@@ -45,13 +45,12 @@ class AZeroGainCache : public Test {
     context.partition.k = 4;
     context.partition.epsilon = 0.0;
     context.setupPartWeights(16);
-    hypergraph = PartitionedHypergraph<>(4, TBBNumaArena::GLOBAL_TASK_GROUP, hg);
+    hypergraph = PartitionedHypergraph(4, TBBNumaArena::GLOBAL_TASK_GROUP, hg);
 
     // Assign part ids
     for ( HypernodeID hn = 0; hn < 16; ++hn ) {
       hypergraph.setNodePart(hn, hn / 4);
     }
-    hypergraph.initializeNumCutHyperedges();
 
     zero_gain_cache = std::make_unique<Cache>(hypergraph.initialNumNodes(), context);
   }
@@ -68,7 +67,7 @@ class AZeroGainCache : public Test {
   }
 
   Hypergraph hg;
-  PartitionedHypergraph<> hypergraph;
+  PartitionedHypergraph hypergraph;
   Context context;
   std::unique_ptr<Cache> zero_gain_cache;
   Gain delta;

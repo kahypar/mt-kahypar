@@ -25,7 +25,6 @@
 #include "tbb/concurrent_queue.h"
 #include "tbb/task_group.h"
 #include "tbb/parallel_for.h"
-#include "tbb/atomic.h"
 
 #include "kahypar/meta/mandatory.h"
 
@@ -343,7 +342,7 @@ class MultilevelCoarsener : public ICoarsener,
     HypernodeWeight weight_v = _cluster_weight[v];
     if ( weight_u + weight_v <= _max_allowed_node_weight ) {
 
-      if ( _matching_state[u].compare_and_exchange_strong(unmatched, match_in_progress) ) {
+      if ( _matching_state[u].compare_exchange_strong(unmatched, match_in_progress) ) {
         // Current thread gets "ownership" for vertex u. Only threads with "ownership"
         // can change the cluster id of a vertex.
 
@@ -371,7 +370,7 @@ class MultilevelCoarsener : public ICoarsener,
               success = true;
             }
           }
-        } else if ( _matching_state[v].compare_and_exchange_strong(unmatched, match_in_progress) ) {
+        } else if ( _matching_state[v].compare_exchange_strong(unmatched, match_in_progress) ) {
           // Current thread has the "ownership" for u and v and can change the cluster id
           // of both vertices thread-safe.
           cluster_ids[u] = v;
@@ -419,15 +418,16 @@ class MultilevelCoarsener : public ICoarsener,
     return success;
   }
 
-  PartitionedHypergraph<>&& uncoarsenImpl(std::unique_ptr<IRefiner<>>& label_propagation) override {
-    return Base::doUncoarsen(label_propagation);
+  PartitionedHypergraph&& uncoarsenImpl(std::unique_ptr<IRefiner>& label_propagation,
+                                        std::unique_ptr<IRefiner>& fm) override {
+    return Base::doUncoarsen(label_propagation, fm);
   }
 
   Hypergraph& coarsestHypergraphImpl() override {
     return Base::currentHypergraph();
   }
 
-  PartitionedHypergraph<>& coarsestPartitionedHypergraphImpl() override {
+  PartitionedHypergraph& coarsestPartitionedHypergraphImpl() override {
     return Base::currentPartitionedHypergraph();
   }
 

@@ -22,6 +22,8 @@
 
 #include <atomic>
 #include <type_traits>
+#include <limits>
+#include <cassert>
 
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
 #include "mt-kahypar/datastructures/array.h"
@@ -31,6 +33,7 @@
 #include "mt-kahypar/utils/range.h"
 
 #include "mt-kahypar/macros.h"
+#include "hypergraph_common.h"
 
 namespace mt_kahypar {
 namespace ds {
@@ -55,6 +58,11 @@ public:
   using HyperedgeID = uint64_t;	// TODO how to keep synced with definitions.h, other than templates?
   using UnsafeBlock = uint64_t;
 
+  ConnectivitySets() :
+    _k(0),
+    _num_hyperedges(0),
+    _num_blocks_per_hyperedge(0),
+    _bits() { }
 
   ConnectivitySets(const HyperedgeID num_hyperedges,
                    const PartitionID k,
@@ -89,6 +97,12 @@ public:
     const size_t start = static_cast<size_t>(he) * _num_blocks_per_hyperedge;
     const size_t end = ( static_cast<size_t>(he) + 1 ) * _num_blocks_per_hyperedge;
     for (size_t i = start; i < end; ++i) {
+      _bits[i].store(0, std::memory_order_relaxed);
+    }
+  }
+
+  void reset() {
+    for (size_t i = 0; i < _bits.size(); ++i) {
       _bits[i].store(0, std::memory_order_relaxed);
     }
   }

@@ -25,7 +25,7 @@
 using ::testing::Test;
 
 namespace mt_kahypar {
-using PartitionedHyperGraph = mt_kahypar::PartitionedHypergraph<>;
+using PartitionedHyperGraph = mt_kahypar::PartitionedHypergraph;
 using Coarsener = MultilevelCoarsener<HeavyEdgeScore, NoWeightPenalty, BestRatingWithoutTieBreaking>;
 
 TEST_F(ACoarsener, DecreasesNumberOfPins) {
@@ -67,7 +67,7 @@ TEST_F(ACoarsener, ProjectsPartitionBackToOriginalHypergraph) {
   PartitionedHyperGraph& coarsest_partitioned_hypergraph =
     coarsener.coarsestPartitionedHypergraph();
   assignPartitionIDs(coarsest_partitioned_hypergraph);
-  PartitionedHyperGraph partitioned_hypergraph = coarsener.uncoarsen(nullptr_refiner);
+  PartitionedHyperGraph partitioned_hypergraph = coarsener.uncoarsen(nullptr_refiner, nullptr_refiner);
   for ( const HypernodeID& hn : partitioned_hypergraph.nodes() ) {
     PartitionID part_id = 0;
     ASSERT_EQ(part_id, partitioned_hypergraph.partID(hn));

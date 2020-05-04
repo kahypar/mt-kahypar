@@ -43,12 +43,10 @@
 #include "mt-kahypar/utils/stats.h"
 
 namespace mt_kahypar {
-template <template <typename> class GainPolicy,
-          bool track_border_vertices = TRACK_BORDER_VERTICES>
-class LabelPropagationRefiner final : public IRefiner<track_border_vertices> {
+template <template <typename> class GainPolicy>
+class LabelPropagationRefiner final : public IRefiner {
  private:
-  using HyperGraph = PartitionedHypergraph<track_border_vertices>;
-  using GainCalculator = GainPolicy<HyperGraph>;
+  using GainCalculator = GainPolicy<PartitionedHypergraph>;
   using ActiveNodes = parallel::scalable_vector<HypernodeID>;
   using NextActiveNodes = ds::StreamingVector<HypernodeID>;
 
@@ -56,9 +54,9 @@ class LabelPropagationRefiner final : public IRefiner<track_border_vertices> {
   static constexpr bool enable_heavy_assert = false;
 
  public:
-  explicit LabelPropagationRefiner(HyperGraph&,
-                                    const Context& context,
-                                    const TaskGroupID task_group_id) :
+  explicit LabelPropagationRefiner(Hypergraph&,
+                                   const Context& context,
+                                   const TaskGroupID task_group_id) :
     _context(context),
     _task_group_id(task_group_id),
     _current_num_nodes(kInvalidHypernode),
@@ -75,7 +73,7 @@ class LabelPropagationRefiner final : public IRefiner<track_border_vertices> {
   LabelPropagationRefiner & operator= (LabelPropagationRefiner &&) = delete;
 
  private:
-  bool refineImpl(HyperGraph& hypergraph,
+  bool refineImpl(PartitionedHypergraph& hypergraph,
                   kahypar::Metrics& best_metrics) override final {
     _gain.reset();
     _next_active.reset();
@@ -91,16 +89,20 @@ class LabelPropagationRefiner final : public IRefiner<track_border_vertices> {
       kahypar::Mode::direct_kway, _context.partition.objective);
     Gain delta = _gain.delta();
     ASSERT(delta <= 0, "LP refiner worsen solution quality");
+
     HEAVY_REFINEMENT_ASSERT(current_metric + delta ==
-      metrics::objective(hypergraph, _context.partition.objective),
-      V(current_metric) << V(delta) <<
-      V(metrics::objective(hypergraph, _context.partition.objective)));
+                            metrics::objective(hypergraph, _context.partition.objective,
+                                               !_context.refinement.label_propagation.execute_sequential),
+                            V(current_metric) << V(delta) <<
+                            V(metrics::objective(hypergraph, _context.partition.objective,
+                                                 _context.refinement.label_propagation.execute_sequential)));
+
     best_metrics.updateMetric(current_metric + delta, kahypar::Mode::direct_kway, _context.partition.objective);
     utils::Stats::instance().update_stat("lp_improvement", std::abs(delta));
     return delta < 0;
   }
 
-  void labelPropagation(HyperGraph& hypergraph) {
+  void labelPropagation(PartitionedHypergraph& hypergraph) {
     NextActiveNodes next_active_nodes;
     for (size_t i = 0; i < _context.refinement.label_propagation.maximum_iterations; ++i) {
       DBG << "Starting Label Propagation Round" << i;
@@ -127,7 +129,7 @@ class LabelPropagationRefiner final : public IRefiner<track_border_vertices> {
     }
   }
 
-  bool labelPropagationRound(HyperGraph& hypergraph,
+  bool labelPropagationRound(PartitionedHypergraph& hypergraph,
                              NextActiveNodes& next_active_nodes) {
     _visited_he.reset();
     _next_active.reset();
@@ -167,7 +169,7 @@ class LabelPropagationRefiner final : public IRefiner<track_border_vertices> {
   }
 
   template<typename F>
-  bool moveVertex(HyperGraph& hypergraph,
+  bool moveVertex(PartitionedHypergraph& hypergraph,
                   const HypernodeID hn,
                   NextActiveNodes& next_active_nodes,
                   const F& objective_delta) {
@@ -192,7 +194,8 @@ class LabelPropagationRefiner final : public IRefiner<track_border_vertices> {
         PartitionID to = best_move.to;
 
         Gain delta_before = _gain.localDelta();
-        if (hypergraph.changeNodePart(hn, from, to, objective_delta)) {
+        bool changed_part = hypergraph.changeNodePart(hn, from, to, objective_delta);
+        if (changed_part) {
           // In case the move to block 'to' was successful, we verify that the "real" gain
           // of the move is either equal to our computed gain or if not, still improves
           // the solution quality.
@@ -239,7 +242,7 @@ class LabelPropagationRefiner final : public IRefiner<track_border_vertices> {
     return is_moved;
   }
 
-  void initializeImpl(HyperGraph& hypergraph) override final {
+  void initializeImpl(PartitionedHypergraph& hypergraph) override final {
     ActiveNodes tmp_active_nodes;
     _active_nodes = std::move(tmp_active_nodes);
 

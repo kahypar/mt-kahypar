@@ -52,7 +52,7 @@ template<class InitialPartitionerTask>
 class InitialPartitionerRootTaskT : public tbb::task {
 
  public:
-  InitialPartitionerRootTaskT(PartitionedHypergraph<>& hypergraph,
+  InitialPartitionerRootTaskT(PartitionedHypergraph& hypergraph,
                               const Context& context,
                               const InitialPartitioningAlgorithm algorithm,
                               const size_t runs) :
@@ -96,7 +96,7 @@ class AFlatInitialPartitionerTest : public Test {
     context.initial_partitioning.lp_maximum_iterations = 100;
     hypergraph = io::readHypergraphFile(
       "../test_instances/test_instance.hgr", TBBNumaArena::GLOBAL_TASK_GROUP);
-    partitioned_hypergraph = PartitionedHypergraph<>(
+    partitioned_hypergraph = PartitionedHypergraph(
       context.partition.k, TBBNumaArena::GLOBAL_TASK_GROUP, hypergraph);
     context.setupPartWeights(hypergraph.totalWeight());
     utils::Timer::instance().disable();
@@ -113,7 +113,7 @@ class AFlatInitialPartitionerTest : public Test {
   }
 
   Hypergraph hypergraph;
-  PartitionedHypergraph<> partitioned_hypergraph;
+  PartitionedHypergraph partitioned_hypergraph;
   Context context;
 };
 

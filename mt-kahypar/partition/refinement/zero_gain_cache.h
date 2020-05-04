@@ -22,6 +22,8 @@
 
 #include <vector>
 
+#include <mt-kahypar/partition/refinement/policies/gain_policy.h>
+
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
@@ -147,10 +149,10 @@ class ZeroGainCache {
                                const HypernodeID pin_count_in_from_part_after,
                                const HypernodeID pin_count_in_to_part_after) {
                               if ( _context.partition.objective == kahypar::Objective::cut ) {
-                                delta += HyperGraph::cutDelta(he, edge_weight, edge_size,
+                                delta += cutDelta(he, edge_weight, edge_size,
                                   pin_count_in_from_part_after, pin_count_in_to_part_after);
                               } else {
-                                delta += HyperGraph::km1Delta(he, edge_weight, edge_size,
+                                delta += km1Delta(he, edge_weight, edge_size,
                                   pin_count_in_from_part_after, pin_count_in_to_part_after);
                               }
                            };
@@ -247,10 +249,10 @@ class ZeroGainCache {
                                const HypernodeID pin_count_in_from_part_after,
                                const HypernodeID pin_count_in_to_part_after) {
                               if ( _context.partition.objective == kahypar::Objective::cut ) {
-                                delta += HyperGraph::cutDelta(he, edge_weight, edge_size,
+                                delta += cutDelta(he, edge_weight, edge_size,
                                   pin_count_in_from_part_after, pin_count_in_to_part_after);
                               } else {
-                                delta += HyperGraph::km1Delta(he, edge_weight, edge_size,
+                                delta += km1Delta(he, edge_weight, edge_size,
                                   pin_count_in_from_part_after, pin_count_in_to_part_after);
                               }
                            };

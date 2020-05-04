@@ -28,13 +28,11 @@ namespace mt_kahypar {
 
 class CutGainPolicy {
 
- using HyperGraph = PartitionedHypergraph<false>;
-
  static constexpr bool enable_heavy_assert = false;
  static PartitionID kInvalidPartition;
 
  public:
-  static inline Gain calculateGain(const HyperGraph& hypergraph,
+  static inline Gain calculateGain(const PartitionedHypergraph& hypergraph,
                                    const HypernodeID hn,
                                    const PartitionID to) {
     if ( hypergraph.partID(hn) == kInvalidPartition ) {
@@ -44,7 +42,7 @@ class CutGainPolicy {
     }
   }
 
-  static inline Gain calculateGainForInvalidBlock(const HyperGraph& hypergraph,
+  static inline Gain calculateGainForInvalidBlock(const PartitionedHypergraph& hypergraph,
                                                   const HypernodeID hn,
                                                   const PartitionID to) {
     ASSERT(hypergraph.partID(hn) == kInvalidPartition);
@@ -59,7 +57,7 @@ class CutGainPolicy {
     return gain;
   }
 
-  static inline Gain calculateGainForValidBlock(const HyperGraph& hypergraph,
+  static inline Gain calculateGainForValidBlock(const PartitionedHypergraph& hypergraph,
                                                 const HypernodeID hn,
                                                 const PartitionID to) {
     ASSERT(hypergraph.partID(hn) != kInvalidPartition);
@@ -92,7 +90,7 @@ class CutGainPolicy {
     return gain;
   }
 
-  static inline void deltaGainUpdate(const HyperGraph& hypergraph,
+  static inline void deltaGainUpdate(const PartitionedHypergraph& hypergraph,
                                      KWayPriorityQueue& pq,
                                      const HypernodeID hn,
                                      const PartitionID from,
@@ -129,7 +127,7 @@ class CutGainPolicy {
       } (), "Delta Gain Update failed!");
   }
 
-  static inline void deltaGainUpdateForInvalidBlock(const HyperGraph& hypergraph,
+  static inline void deltaGainUpdateForInvalidBlock(const PartitionedHypergraph& hypergraph,
                                                     KWayPriorityQueue& pq,
                                                     const HypernodeID hn,
                                                     const PartitionID,
@@ -168,7 +166,7 @@ class CutGainPolicy {
     }
   }
 
-  static inline void deltaGainUpdateForValidBlock(const HyperGraph& hypergraph,
+  static inline void deltaGainUpdateForValidBlock(const PartitionedHypergraph& hypergraph,
                                                   KWayPriorityQueue& pq,
                                                   const HypernodeID hn,
                                                   const PartitionID from,
@@ -221,13 +219,11 @@ PartitionID CutGainPolicy::kInvalidPartition = -1;
 
 class MaxNetGainPolicy {
 
- using HyperGraph = PartitionedHypergraph<false>;
-
  static constexpr bool enable_heavy_assert = false;
  static PartitionID kInvalidPartition;
 
  public:
-  static inline Gain calculateGain(const HyperGraph& hypergraph,
+  static inline Gain calculateGain(const PartitionedHypergraph& hypergraph,
                                    const HypernodeID hn,
                                    const PartitionID to) {
     ASSERT(to != kInvalidPartition);
@@ -241,7 +237,7 @@ class MaxNetGainPolicy {
     return gain;
   }
 
-  static inline void deltaGainUpdate(const HyperGraph& hypergraph,
+  static inline void deltaGainUpdate(const PartitionedHypergraph& hypergraph,
                                      KWayPriorityQueue& pq,
                                      const HypernodeID hn,
                                      const PartitionID,

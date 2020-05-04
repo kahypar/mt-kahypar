@@ -1289,22 +1289,6 @@ class StaticHypergraph {
     disableHyperedge(he);
   }
 
-  // ! Restores an hyperedge of a certain size.
-  void restoreEdge(const HyperedgeID he, const size_t,
-                   const HyperedgeID representative = kInvalidHyperedge) {
-    unused(representative);
-    ASSERT(!edgeIsEnabled(he), "Hyperedge" << he << "already enabled");
-    enableHyperedge(he);
-    for ( const HypernodeID& pin : pins(he) ) {
-      insertIncidentEdgeToHypernode(he, pin);
-    }
-  }
-
-  // ! Restores a single-pin hyperedge
-  void restoreSinglePinHyperedge(const HyperedgeID he) {
-    restoreEdge(he, 1);
-  }
-
   // ####################### Initialization / Reset Functions #######################
 
   /*!

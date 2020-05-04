@@ -29,7 +29,6 @@ namespace mt_kahypar {
 template<typename GainPolicy,
          typename PQSelectionPolicy>
 class GreedyInitialPartitioner : public tbb::task {
-  using HyperGraph = PartitionedHypergraph<false>;
 
   using DeltaFunction = std::function<void (const HyperedgeID, const HyperedgeWeight, const HypernodeID, const HypernodeID, const HypernodeID)>;
   #define NOOP_FUNC [] (const HyperedgeID, const HyperedgeWeight, const HypernodeID, const HypernodeID, const HypernodeID) { }
@@ -51,7 +50,7 @@ class GreedyInitialPartitioner : public tbb::task {
 
   tbb::task* execute() override {
     HighResClockTimepoint start = std::chrono::high_resolution_clock::now();
-    HyperGraph& hg = _ip_data.local_partitioned_hypergraph();
+    PartitionedHypergraph& hg = _ip_data.local_partitioned_hypergraph();
     KWayPriorityQueue& kway_pq = _ip_data.local_kway_priority_queue();
     kahypar::ds::FastResetFlagArray<>& hyperedges_in_queue =
       _ip_data.local_hyperedge_fast_reset_flag_array();
@@ -142,7 +141,7 @@ class GreedyInitialPartitioner : public tbb::task {
   }
 
  private:
-  bool fitsIntoBlock(HyperGraph& hypergraph,
+  bool fitsIntoBlock(PartitionedHypergraph& hypergraph,
                      const HypernodeID hn,
                      const PartitionID block,
                      const bool use_perfect_balanced_as_upper_bound) const {
@@ -153,7 +152,7 @@ class GreedyInitialPartitioner : public tbb::task {
       upper_bound;
   }
 
-  void insertVertexIntoPQ(const HyperGraph& hypergraph,
+  void insertVertexIntoPQ(const PartitionedHypergraph& hypergraph,
                           KWayPriorityQueue& pq,
                           const HypernodeID hn,
                           const PartitionID to) {
@@ -171,7 +170,7 @@ class GreedyInitialPartitioner : public tbb::task {
     ASSERT(pq.isEnabled(to));
   }
 
-  void insertUnassignedVertexIntoPQ(const HyperGraph& hypergraph,
+  void insertUnassignedVertexIntoPQ(const PartitionedHypergraph& hypergraph,
                                     KWayPriorityQueue& pq,
                                     const PartitionID to) {
     ASSERT(to != _default_block);
@@ -181,7 +180,7 @@ class GreedyInitialPartitioner : public tbb::task {
     }
   }
 
-  void insertAndUpdateVerticesAfterMove(const HyperGraph& hypergraph,
+  void insertAndUpdateVerticesAfterMove(const PartitionedHypergraph& hypergraph,
                                         KWayPriorityQueue& pq,
                                         kahypar::ds::FastResetFlagArray<>& hyperedges_in_queue,
                                         const HypernodeID hn,

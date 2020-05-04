@@ -23,6 +23,7 @@
 
 #include "mt-kahypar/macros.h"
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
+#include "mt-kahypar/parallel/atomic_wrapper.h"
 
 namespace mt_kahypar {
 
@@ -67,11 +68,19 @@ static constexpr HypernodeID kInvalidHypernode = std::numeric_limits<HypernodeID
 static constexpr HypernodeID kInvalidHyperedge = std::numeric_limits<HyperedgeID>::max();
 static constexpr size_t kEdgeHashSeed = 42;
 
+static constexpr HypernodeID invalidNode = std::numeric_limits<HypernodeID>::max();
+static constexpr Gain invalidGain = std::numeric_limits<Gain>::min();
+
 struct Move {
-  PartitionID from;
-  PartitionID to;
-  Gain gain;
+  PartitionID from = -1;
+  PartitionID to = -1;
+  HypernodeID node = invalidNode;
+  Gain gain = invalidGain;
 };
+
+using MoveID = uint32_t;
+using SearchID = uint32_t;
+
 
 /*!
 * A memento stores all information necessary to undo the contraction operation

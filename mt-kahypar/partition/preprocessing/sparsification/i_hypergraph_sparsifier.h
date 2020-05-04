@@ -52,7 +52,7 @@ class IHypergraphSparsifier {
     return sparsifiedHypergraphImpl();
   }
 
-  PartitionedHypergraph<>& sparsifiedPartitionedHypergraph() {
+  PartitionedHypergraph& sparsifiedPartitionedHypergraph() {
     ASSERT(_is_sparsified);
     return sparsifiedPartitionedHypergraphImpl();
   }
@@ -63,7 +63,7 @@ class IHypergraphSparsifier {
     _is_sparsified = true;
   }
 
-  void undoSparsification(PartitionedHypergraph<>& hypergraph) {
+  void undoSparsification(PartitionedHypergraph& hypergraph) {
     ASSERT(_is_sparsified);
     undoSparsificationImpl(hypergraph);
   }
@@ -74,9 +74,9 @@ class IHypergraphSparsifier {
 
  private:
   virtual Hypergraph& sparsifiedHypergraphImpl() = 0;
-  virtual PartitionedHypergraph<>& sparsifiedPartitionedHypergraphImpl() = 0;
+  virtual PartitionedHypergraph& sparsifiedPartitionedHypergraphImpl() = 0;
   virtual void sparsifyImpl(const Hypergraph& hypergraph) = 0;
-  virtual void undoSparsificationImpl(PartitionedHypergraph<>& hypergraph) = 0;
+  virtual void undoSparsificationImpl(PartitionedHypergraph& hypergraph) = 0;
 
   bool _is_sparsified;
 };

@@ -28,7 +28,7 @@
 #include "mt-kahypar/partition/refinement/i_refiner.h"
 
 namespace mt_kahypar {
-class DoNothingRefiner final : public IRefiner<> {
+class DoNothingRefiner final : public IRefiner {
  public:
   template <typename ... Args>
   explicit DoNothingRefiner(Args&& ...) noexcept { }
@@ -38,9 +38,9 @@ class DoNothingRefiner final : public IRefiner<> {
   DoNothingRefiner & operator= (DoNothingRefiner &&) = delete;
 
  private:
-  void initializeImpl(PartitionedHypergraph<>&) override final { }
+  void initializeImpl(PartitionedHypergraph&) override final { }
 
-  bool refineImpl(PartitionedHypergraph<>&,
+  bool refineImpl(PartitionedHypergraph&,
                   kahypar::Metrics &) override final {
     return false;
   }

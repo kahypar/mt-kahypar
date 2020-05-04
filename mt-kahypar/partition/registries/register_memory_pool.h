@@ -79,14 +79,17 @@ static void register_memory_pool(const Hypergraph& hypergraph,
 
   parallel::MemoryPool::instance().register_memory_group("Refinement", 3);
   const HypernodeID max_he_size = hypergraph.maxEdgeSize();
-  parallel::MemoryPool::instance().register_memory_chunk("Refinement", "vertex_part_info",
-    num_hypernodes, PartitionedHypergraph<>::SIZE_OF_VERTEX_PART_INFO);
+  parallel::MemoryPool::instance().register_memory_chunk("Refinement", "part_ids", num_hypernodes, sizeof(PartitionID));
   parallel::MemoryPool::instance().register_memory_chunk("Refinement", "pin_count_in_part",
     ds::PinCountInPart::num_elements(num_hyperedges, context.partition.k, max_he_size),
     sizeof(ds::PinCountInPart::Value));
   parallel::MemoryPool::instance().register_memory_chunk("Refinement", "connectivity_set",
     ds::ConnectivitySets::num_elements(num_hyperedges, context.partition.k),
     sizeof(ds::ConnectivitySets::UnsafeBlock));
+  parallel::MemoryPool::instance().register_memory_chunk("Refinement", "move_to_penalty",
+    num_hypernodes * context.partition.k, sizeof(CAtomic<HyperedgeWeight>));
+  parallel::MemoryPool::instance().register_memory_chunk("Refinement", "move_from_penalty",
+    num_hypernodes, sizeof(CAtomic<HyperedgeWeight>));
   parallel::MemoryPool::instance().register_memory_chunk("Refinement", "pin_count_update_ownership",
     num_hyperedges, sizeof(parallel::IntegralAtomicWrapper<bool>));
 

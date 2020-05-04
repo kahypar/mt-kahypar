@@ -105,7 +105,7 @@ class HypergraphSparsifier : public IHypergraphSparsifier {
     return _sparsified_hg;
   }
 
-  PartitionedHypergraph<>& sparsifiedPartitionedHypergraphImpl() override final {
+  PartitionedHypergraph& sparsifiedPartitionedHypergraphImpl() override final {
     return _sparsified_partitioned_hg;
   }
 
@@ -146,19 +146,18 @@ class HypergraphSparsifier : public IHypergraphSparsifier {
     utils::Timer::instance().start_timer("construct_sparsified_hypergraph", "Construct Sparsified HG");
     _sparsified_hg = sparsified_hypergraph.sparsify();
     _mapping = sparsified_hypergraph.getMapping();
-    _sparsified_partitioned_hg = PartitionedHypergraph<>(
+    _sparsified_partitioned_hg = PartitionedHypergraph(
       _context.partition.k, _task_group_id, _sparsified_hg);
     utils::Timer::instance().stop_timer("construct_sparsified_hypergraph");
   }
 
-  void undoSparsificationImpl(PartitionedHypergraph<>& hypergraph) override final {
+  void undoSparsificationImpl(PartitionedHypergraph& hypergraph) override final {
     hypergraph.doParallelForAllNodes([&](const HypernodeID hn) {
       ASSERT(hn < _mapping.size());
       const HypernodeID sparsified_hn = _mapping[hn];
       ASSERT(_sparsified_partitioned_hg.nodeIsEnabled(sparsified_hn));
       hypergraph.setNodePart(hn, _sparsified_partitioned_hg.partID(sparsified_hn));
     });
-    hypergraph.initializeNumCutHyperedges(_task_group_id);
   }
 
  private:
@@ -320,7 +319,7 @@ class HypergraphSparsifier : public IHypergraphSparsifier {
   const TaskGroupID _task_group_id;
 
   Hypergraph _sparsified_hg;
-  PartitionedHypergraph<> _sparsified_partitioned_hg;
+  PartitionedHypergraph _sparsified_partitioned_hg;
   parallel::scalable_vector<HypernodeID> _mapping;
 };
 

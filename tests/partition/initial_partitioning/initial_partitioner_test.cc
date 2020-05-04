@@ -79,7 +79,7 @@ class AInitialPartitionerTest : public Test {
     // Read hypergraph
     hypergraph = io::readHypergraphFile(
       "../test_instances/unweighted_ibm01.hgr", TBBNumaArena::GLOBAL_TASK_GROUP);
-    partitioned_hypergraph = PartitionedHypergraph<>(
+    partitioned_hypergraph = PartitionedHypergraph(
       context.partition.k, TBBNumaArena::GLOBAL_TASK_GROUP, hypergraph);
     context.setupPartWeights(hypergraph.totalWeight());
     context.setupContractionLimit(hypergraph.totalWeight());
@@ -104,7 +104,7 @@ class AInitialPartitionerTest : public Test {
   }
 
   Hypergraph hypergraph;
-  PartitionedHypergraph<> partitioned_hypergraph;
+  PartitionedHypergraph partitioned_hypergraph;
   Context context;
   std::unique_ptr<InitialPartitioner> initial_partitioner;
 };
@@ -129,23 +129,20 @@ TYPED_TEST(AInitialPartitionerTest, VerifiesThatAllPartsAreNonEmpty) {
   this->initial_partitioner->initialPartition();
 
   for ( PartitionID part_id = 0; part_id < this->context.partition.k; ++part_id ) {
-    ASSERT_GT(this->partitioned_hypergraph.partSize(part_id), 0);
+    ASSERT_GT(this->partitioned_hypergraph.partWeight(part_id), 0);
   }
 }
 
 TYPED_TEST(AInitialPartitionerTest, VerifiesThatPartSizesAndWeightsAreCorrect) {
   this->initial_partitioner->initialPartition();
 
-  std::vector<HypernodeID> part_size(this->context.partition.k, 0);
   std::vector<HypernodeWeight> part_weight(this->context.partition.k, 0);
   for ( const HypernodeID& hn : this->hypergraph.nodes() ) {
     PartitionID part_id = this->partitioned_hypergraph.partID(hn);
-    ++part_size[part_id];
     part_weight[part_id] += this->partitioned_hypergraph.nodeWeight(hn);
   }
 
   for ( PartitionID part_id = 0; part_id < this->context.partition.k; ++part_id ) {
-    ASSERT_EQ(this->partitioned_hypergraph.partSize(part_id), part_size[part_id]);
     ASSERT_EQ(this->partitioned_hypergraph.partWeight(part_id), part_weight[part_id]);
   }
 }

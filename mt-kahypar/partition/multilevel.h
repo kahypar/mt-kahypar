@@ -37,7 +37,7 @@ namespace multilevel {
 
 namespace {
 
-using PartitionedHypergraph = mt_kahypar::PartitionedHypergraph<>;
+using PartitionedHypergraph = mt_kahypar::PartitionedHypergraph;
 
 class RefinementTask : public tbb::task {
 
@@ -97,12 +97,16 @@ class RefinementTask : public tbb::task {
     }
 
     utils::Timer::instance().start_timer("refinement", "Refinement");
-    std::unique_ptr<IRefiner<>> label_propagation =
+    std::unique_ptr<IRefiner> label_propagation =
       LabelPropagationFactory::getInstance().createObject(
         _context.refinement.label_propagation.algorithm,
-        coarsest_partitioned_hypergraph, _context, _task_group_id);
+        _hg, _context, _task_group_id);
+    std::unique_ptr<IRefiner> fm =
+      FMFactory::getInstance().createObject(
+        _context.refinement.fm.algorithm,
+        _hg, _context, _task_group_id);
 
-    _partitioned_hg = _coarsener->uncoarsen(label_propagation);
+    _partitioned_hg = _coarsener->uncoarsen(label_propagation, fm);
     utils::Timer::instance().stop_timer("refinement");
 
     if ( _top_level ) {

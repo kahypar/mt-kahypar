@@ -288,7 +288,8 @@ static void readHypernodeWeights(char* mapped_file,
 }  // namespace
 
 static inline Hypergraph readHypergraphFile(const std::string& filename,
-                                            const TaskGroupID task_group_id) {
+                                            const TaskGroupID task_group_id,
+                                            const bool stable_construction_of_incident_edges = false) {
   ASSERT(!filename.empty(), "No filename for hypergraph file specified");
   mt_kahypar::utils::Timer::instance().start_timer(
     "construct_hypergraph_from_file", "Construct Hypergraph from File");
@@ -320,9 +321,10 @@ static inline Hypergraph readHypergraphFile(const std::string& filename,
 
   // Construct Hypergraph
   utils::Timer::instance().start_timer("construct_hypergraph", "Construct Hypergraph");
-  Hypergraph hypergraph = HypergraphFactory::construct(task_group_id,
-    num_hypernodes, num_hyperedges, hyperedges,
-    hyperedges_weight.data(), hypernodes_weight.data());
+  Hypergraph hypergraph = HypergraphFactory::construct(
+          task_group_id, num_hypernodes, num_hyperedges,
+          hyperedges, hyperedges_weight.data(), hypernodes_weight.data(),
+          stable_construction_of_incident_edges);
   hypergraph.setNumRemovedHyperedges(num_removed_single_pin_hyperedges);
   utils::Timer::instance().stop_timer("construct_hypergraph");
   mt_kahypar::utils::Timer::instance().stop_timer("construct_hypergraph_from_file");

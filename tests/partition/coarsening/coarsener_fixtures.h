@@ -30,7 +30,7 @@ using ::testing::Le;
 
 namespace mt_kahypar {
 
-using PartitionedHyperGraph = mt_kahypar::PartitionedHypergraph<>;
+using PartitionedHyperGraph = mt_kahypar::PartitionedHypergraph;
 
 class ACoarsener : public Test {
  private:
@@ -50,6 +50,7 @@ class ACoarsener : public Test {
     hypergraph.initializeCommunities();
 
     context.partition.k = 2;
+    context.partition.mode = kahypar::Mode::direct_kway;
     context.partition.objective = kahypar::Objective::km1;
     context.coarsening.max_allowed_node_weight = std::numeric_limits<HypernodeWeight>::max();
     context.coarsening.contraction_limit = 8;
@@ -65,7 +66,7 @@ class ACoarsener : public Test {
 
   Hypergraph hypergraph;
   Context context;
-  std::unique_ptr<IRefiner<>> nullptr_refiner;
+  std::unique_ptr<IRefiner> nullptr_refiner;
 };
 
 template <class Hypergraph>
@@ -74,7 +75,6 @@ void assignPartitionIDs(Hypergraph& hypergraph) {
     PartitionID part_id = 0;
     hypergraph.setNodePart(hn, part_id);
   }
-  hypergraph.initializeNumCutHyperedges(TBBNumaArena::GLOBAL_TASK_GROUP);
 }
 
 template <class Hypergraph>
@@ -138,7 +138,7 @@ void removesHyperedgesOfSizeOneDuringCoarsening(Coarsener& coarsener,
 
 template <class Coarsener, class Hypergraph, class TypeTraits>
 void reAddsHyperedgesOfSizeOneDuringUncoarsening(Coarsener& coarsener,
-                                                 std::unique_ptr<IRefiner<>>& refiner,
+                                                 std::unique_ptr<IRefiner>& refiner,
                                                  Hypergraph& hypergraph,
                                                  const std::vector<HyperedgeID>& single_node_hes) {
   doCoarsening(coarsener);
@@ -178,7 +178,7 @@ void updatesEdgeWeightOfRepresentativeHyperedgeOnParallelHyperedgeRemoval(Coarse
 
 template <class Coarsener, class Hypergraph, class TypeTraits>
 void restoresParallelHyperedgesDuringUncoarsening(Coarsener& coarsener,
-                                                  std::unique_ptr<IRefiner<>>& refiner,
+                                                  std::unique_ptr<IRefiner>& refiner,
                                                   Hypergraph& hypergraph,
                                                   const std::vector<HyperedgeID>& parallel_hes) {
   doCoarsening(coarsener);

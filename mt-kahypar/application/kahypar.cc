@@ -63,7 +63,9 @@ int main(int argc, char* argv[]) {
 
   // Read Hypergraph
   mt_kahypar::Hypergraph hypergraph = mt_kahypar::io::readHypergraphFile(
-      context.partition.graph_filename, mt_kahypar::TBBNumaArena::GLOBAL_TASK_GROUP);
+      context.partition.graph_filename,
+      mt_kahypar::TBBNumaArena::GLOBAL_TASK_GROUP,
+      context.preprocessing.stable_construction_of_incident_edges);
 
   // Initialize Memory Pool
   mt_kahypar::register_memory_pool(hypergraph, context);
@@ -74,8 +76,7 @@ int main(int argc, char* argv[]) {
 
   // Partition Hypergraph
   mt_kahypar::HighResClockTimepoint start = std::chrono::high_resolution_clock::now();
-  mt_kahypar::PartitionedHypergraph<> partitioned_hypergraph =
-    mt_kahypar::partition::Partitioner(context).partition(hypergraph);
+  mt_kahypar::PartitionedHypergraph partitioned_hypergraph = mt_kahypar::partition::Partitioner(context).partition(hypergraph);
   mt_kahypar::HighResClockTimepoint end = std::chrono::high_resolution_clock::now();
 
   if ( context.partition.enable_profiler ) {

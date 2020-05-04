@@ -398,42 +398,6 @@ TEST_F(AStaticHypergraph, RemovesAHyperedgeFromTheHypergraph4) {
   }
 }
 
-TEST_F(AStaticHypergraph, RestoresARemovedHyperedge1) {
-  hypergraph.removeEdge(0);
-  hypergraph.restoreEdge(0, 2);
-  verifyIncidentNets(0, { 0, 1 });
-  verifyIncidentNets(2, { 0, 3 });
-  verifyPins({ 0 }, { {0, 2} });
-}
-
-TEST_F(AStaticHypergraph, RestoresARemovedHyperedge2) {
-  hypergraph.removeEdge(1);
-  hypergraph.restoreEdge(1, 4);
-  verifyIncidentNets(0, { 0, 1 });
-  verifyIncidentNets(1, { 1 });
-  verifyIncidentNets(3, { 1, 2 });
-  verifyIncidentNets(4, { 1, 2 });
-  verifyPins({ 1 }, { {0, 1, 3, 4} });
-}
-
-TEST_F(AStaticHypergraph, RestoresARemovedHyperedge3) {
-  hypergraph.removeEdge(2);
-  hypergraph.restoreEdge(2, 3);
-  verifyIncidentNets(3, { 1, 2 });
-  verifyIncidentNets(4, { 1, 2 });
-  verifyIncidentNets(6, { 2, 3 });
-  verifyPins({ 2 }, { {3, 4, 6} });
-}
-
-TEST_F(AStaticHypergraph, RestoresARemovedHyperedge4) {
-  hypergraph.removeEdge(3);
-  hypergraph.restoreEdge(3, 3);
-  verifyIncidentNets(2, { 0, 3 });
-  verifyIncidentNets(5, { 3 });
-  verifyIncidentNets(6, { 2, 3 });
-  verifyPins({ 3 }, { {2, 5, 6} });
-}
-
 TEST_F(AStaticHypergraph, ComparesStatsIfCopiedParallel) {
   StaticHypergraph copy_hg = hypergraph.copy(TBBNumaArena::GLOBAL_TASK_GROUP);
   ASSERT_EQ(hypergraph.initialNumNodes(), copy_hg.initialNumNodes());
