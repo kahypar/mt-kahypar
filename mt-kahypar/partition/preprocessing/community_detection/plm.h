@@ -93,9 +93,9 @@ class PLM {
     bool clustering_changed = false;
     size_t number_of_nodes_moved = graph.numNodes();
     for (size_t currentRound = 0;
-         number_of_nodes_moved >=
-         _context.preprocessing.community_detection.min_eps_improvement * graph.numNodes() &&
-         currentRound < _context.preprocessing.community_detection.max_pass_iterations; currentRound++) {
+         number_of_nodes_moved >= _context.preprocessing.community_detection.min_eps_improvement * graph.numNodes()
+         && currentRound < _context.preprocessing.community_detection.max_pass_iterations;
+         currentRound++) {
 
       if ( !_disable_randomization ) {
         utils::Timer::instance().start_timer("random_shuffle", "Random Shuffle");
@@ -108,19 +108,14 @@ class PLM {
         [&](const NodeID u) {         // get rid of named lambda after testing?
           const ArcWeight volU = graph.nodeVolume(u);
           const PartitionID from = communities[u];
-          PartitionID best_cluster = kInvalidPartition;
+          PartitionID best_cluster;
 
           if ( ratingsFitIntoSmallSparseMap(graph, u) ) {
-            best_cluster = computeMaxGainCluster(
-              graph, communities, u,
-              _local_small_incident_cluster_weight.local());
+            best_cluster = computeMaxGainCluster(graph, communities, u, _local_small_incident_cluster_weight.local());
           } else {
-            LargeIncidentClusterWeights& large_incident_cluster_weight =
-              _local_large_incident_cluster_weight.local();
-            large_incident_cluster_weight.setMaxSize(
-              3UL * std::min(_max_degree, _vertex_degree_sampling_threshold));
-            best_cluster = computeMaxGainCluster(
-              graph, communities, u, large_incident_cluster_weight);
+            LargeIncidentClusterWeights& large_incident_cluster_weight = _local_large_incident_cluster_weight.local();
+            large_incident_cluster_weight.setMaxSize(3UL * std::min(_max_degree, _vertex_degree_sampling_threshold));
+            best_cluster = computeMaxGainCluster(graph, communities, u, large_incident_cluster_weight);
           }
 
           if (best_cluster != from) {
@@ -162,7 +157,7 @@ class PLM {
 
   KAHYPAR_ATTRIBUTE_ALWAYS_INLINE bool ratingsFitIntoSmallSparseMap(const G& graph,
                                                                     const HypernodeID u)  {
-    const size_t cache_efficient_map_size = CacheEfficientIncidentClusterWeights::MAP_SIZE / 3UL;
+    static constexpr size_t cache_efficient_map_size = CacheEfficientIncidentClusterWeights::MAP_SIZE / 3UL;
     return std::min(_vertex_degree_sampling_threshold, _max_degree) > cache_efficient_map_size &&
            graph.degree(u) <= cache_efficient_map_size;
   }
@@ -175,7 +170,7 @@ class PLM {
   void initializeClusterVolunes(G& graph,
                                 ds::Clustering& communities) {
     _reciprocal_total_volume = 1.0 / graph.totalVolume();
-    _vol_multiplier_div_by_node_vol = _reciprocal_total_volume;
+    _vol_multiplier_div_by_node_vol =  _reciprocal_total_volume;
     tbb::parallel_for(0U, static_cast<NodeID>(graph.numNodes()), [&](const NodeID u) {
       const PartitionID community_id = communities[u];
       _cluster_volumes[community_id] += graph.nodeVolume(u);
@@ -199,7 +194,7 @@ class PLM {
     const ArcWeight weight_from = incident_cluster_weights[from];
 
     const double volMultiplier = _vol_multiplier_div_by_node_vol * volU;
-    double bestGain = weight_from + volMultiplier * (volume_from - volU);
+    double bestGain = weight_from - volMultiplier * (volume_from - volU);
     for (const auto& clusterWeight : incident_cluster_weights) {
       PartitionID to = clusterWeight.key;
       // if from == to, we would have to remove volU from volume_to as well.
@@ -232,6 +227,7 @@ class PLM {
                                const ArcWeight volume_to,
                                const double multiplier) {
     return weight_to - multiplier * volume_to;
+    // missing term is - weight_from + multiplier * (volume_from - volume_node)
   }
 
   inline long double adjustAdvancedModGain(double gain,
@@ -252,12 +248,10 @@ class PLM {
                   const Map& icw) {
     const PartitionID from = communities[u];
 
-    long double adjustedGain = adjustAdvancedModGain(
-      gain, icw.get(from), _cluster_volumes[from], graph.nodeVolume(u));
+    long double adjustedGain = adjustAdvancedModGain(gain, icw.get(from), _cluster_volumes[from], graph.nodeVolume(u));
     const double volMultiplier = _vol_multiplier_div_by_node_vol * graph.nodeVolume(u);
-    long double adjustedGainRecomputed = adjustAdvancedModGain(
-      modularityGain(icw.get(to), _cluster_volumes[to], volMultiplier),
-      icw.get(from), _cluster_volumes[from], graph.nodeVolume(u));
+    long double adjustedGainRecomputed = adjustAdvancedModGain(modularityGain(icw.get(to), _cluster_volumes[to], volMultiplier),
+                                                               icw.get(from), _cluster_volumes[from], graph.nodeVolume(u));
     unused(adjustedGainRecomputed);
 
     if (from == to) {
