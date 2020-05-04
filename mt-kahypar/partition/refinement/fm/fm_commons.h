@@ -39,7 +39,9 @@ struct GlobalMoveTracker {
   CAtomic<MoveID> runningMoveID;
   MoveID firstMoveID = 1;
 
-  explicit GlobalMoveTracker(size_t numNodes) : moveOrder(numNodes), runningMoveID(1) {}
+  explicit GlobalMoveTracker(size_t numNodes) :
+          moveOrder(numNodes),
+          runningMoveID(1) { }
 
   // Returns true if stored move IDs should be reset
   bool reset() {
@@ -96,7 +98,9 @@ struct NodeTracker {
   SearchID deactivatedNodeMarker = 1;
   CAtomic<SearchID> highestActiveSearchID { 1 };
 
-  explicit NodeTracker(size_t numNodes) : searchOfNode(numNodes) {
+  explicit NodeTracker(size_t numNodes) :
+          searchOfNode(numNodes)
+  {
     for (auto& x : searchOfNode) {
       x.store(0, std::memory_order_relaxed);
     }
