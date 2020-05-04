@@ -128,7 +128,7 @@ public:
 
     blockPQ.clear();
     for (PartitionID i = 0; i < numParts; ++i) {
-      //for (PosT j = 0; j < vertexPQs[i].size(); ++j) sharedData.nodeTracker.releaseNode(vertexPQs[i].at(j));
+      for (PosT j = 0; j < vertexPQs[i].size(); ++j) sharedData.nodeTracker.releaseNode(vertexPQs[i].at(j));
       vertexPQs[i].clear();
     }
     //LOG << V(bestImprovement) << V(bestImprovementIndex) << V(consecutiveNonPositiveGainMoves) << runStats.serialize();
