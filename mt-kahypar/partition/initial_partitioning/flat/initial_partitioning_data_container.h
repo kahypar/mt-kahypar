@@ -30,7 +30,6 @@
 #include "mt-kahypar/partition/factories.h"
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
 #include "mt-kahypar/utils/initial_partitioning_stats.h"
-#include "initial_boundary_fm.h"
 
 namespace mt_kahypar {
 
@@ -176,9 +175,23 @@ class InitialPartitioningDataContainer {
           current_metric.getMetric(kahypar::Mode::direct_kway, _context.partition.objective) ==
           metrics::objective(_partitioned_hypergraph, _context.partition.objective));
 
-        Gain improvement = InitialPartitioningBoundaryFM().refine(_partitioned_hypergraph, _context);
+        _partitioned_hypergraph.initializeGainInformation();
+        FMSharedData sharedData(_partitioned_hypergraph.initialNumNodes(), _context);
+        LocalizedKWayFM fm(_context, _partitioned_hypergraph.initialNumNodes(), sharedData.vertexPQHandles.data());
+
+        vec<HypernodeID> initialNodes;
+        for (HypernodeID u : _partitioned_hypergraph.nodes()) {
+          if (_partitioned_hypergraph.isBorderNode(u)) {
+            initialNodes.push_back(u);
+          }
+        }
+
+        fm.findMoves(_partitioned_hypergraph, sharedData, initialNodes);
+
         ASSERT(_context.partition.k == 2);
-        current_metric.km1 -= improvement; current_metric.cut -= improvement;
+        // since the FM call is single-threaded the improvements are exact
+        current_metric.km1 -= fm.stats.estimated_improvement;
+        current_metric.cut -= fm.stats.estimated_improvement;
         current_metric.imbalance = metrics::imbalance(_partitioned_hypergraph, _context);
         ASSERT(current_metric.km1 == metrics::km1(_partitioned_hypergraph, false));
 
