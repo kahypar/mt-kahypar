@@ -136,14 +136,19 @@ struct NodeTracker {
 
 struct FMSharedData {
 
+  // ! Nodes to initialize the localized FM searches with
   WorkStack<HypernodeID> refinementNodes;
 
+  // ! PQ handles shared by all threads (each vertex is only held by one thread)
   vec<PosT> vertexPQHandles;
 
+  // ! num parts
   PartitionID numParts;
 
+  // ! Stores the sequence of performed moves and assigns IDs to moves that can be used in the global rollback code
   GlobalMoveTracker moveTracker;
 
+  // ! Tracks the current search of a node, and if a node can still be added to an active search
   NodeTracker nodeTracker;
 
   FMSharedData(size_t numNodes = 0, PartitionID numParts = 0) :
