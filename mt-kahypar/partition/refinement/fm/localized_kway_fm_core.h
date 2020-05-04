@@ -249,8 +249,12 @@ public:
   }
 
   size_t numberOfSeedNodes(HypernodeID numNodes) {
-    const double x = context.refinement.fm.seed_node_fraction * numNodes / context.shared_memory.num_threads;
-    return std::max(size_t(50), size_t(std::ceil(x)));
+    if (context.refinement.fm.use_seed_node_fraction) {
+      const double x = context.refinement.fm.seed_node_fraction * numNodes / context.shared_memory.num_threads;
+      return std::max(size_t(50), size_t(std::ceil(x)));
+    } else {
+      return context.refinement.fm.num_seed_nodes;
+    }
   }
 
 private:

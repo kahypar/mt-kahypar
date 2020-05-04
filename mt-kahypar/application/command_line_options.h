@@ -290,7 +290,13 @@ po::options_description createRefinementOptionsDescription(Context& context,
     (( initial_partitioning ? "i-r-fm-seed-node-fraction" : "r-fm-seed-node-fraction"),
     po::value<double>((initial_partitioning ? &context.initial_partitioning.refinement.fm.seed_node_fraction :
       &context.refinement.fm.seed_node_fraction))->value_name("<double>"),
-    "Number of nodes to initially place into the PQ of a localized search is set to max(50, seed_node_fraction * num_nodes / num_threads). Default 0.005");
+    "Number of nodes to initially place into the PQ of a localized search is set to max(50, seed_node_fraction * num_nodes / num_threads). Default 0.005")
+    (( initial_partitioning ? "i-r-fm-seed-nodes" : "r-fm-seed-nodes"),
+    po::value<size_t>((initial_partitioning ? &context.initial_partitioning.refinement.fm.num_seed_nodes : &context.refinement.fm.num_seed_nodes))->value_name("<size_t>"),
+    "Number of nodes to initially place into the PQ of a localized search. Activate this option via --r-fm-use-seed-fraction false")
+    (( initial_partitioning ? "i-r-fm-use-seed-fraction" : "r-fm-use-seed-fraction"),
+    po::value<bool>((initial_partitioning ? &context.initial_partitioning.refinement.fm.use_seed_node_fraction : &context.refinement.fm.use_seed_node_fraction))->value_name("<bool>"),
+     "If set to true, set number of seed nodes in the PQs as described for --r-fm-seed-node-fraction. If set to false, use --r-fm--seed-nodes");
   return options;
 }
 
