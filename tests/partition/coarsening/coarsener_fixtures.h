@@ -50,6 +50,7 @@ class ACoarsener : public Test {
     hypergraph.initializeCommunities();
 
     context.partition.k = 2;
+    context.partition.mode = kahypar::Mode::direct_kway;
     context.partition.objective = kahypar::Objective::km1;
     context.coarsening.max_allowed_node_weight = std::numeric_limits<HypernodeWeight>::max();
     context.coarsening.contraction_limit = 8;

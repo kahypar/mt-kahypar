@@ -28,6 +28,7 @@
 #include "mt-kahypar/utils/timer.h"
 #include "mt-kahypar/io/hypergraph_io.h"
 #include "mt-kahypar/partition/registries/register_flat_initial_partitioning_algorithms.h"
+#include "mt-kahypar/partition/registries/register_refinement_algorithms.h"
 #include "mt-kahypar/partition/initial_partitioning/flat/pool_initial_partitioner.h"
 
 using ::testing::Test;

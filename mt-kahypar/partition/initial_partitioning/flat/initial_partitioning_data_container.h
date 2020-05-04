@@ -92,8 +92,10 @@ class InitialPartitioningDataContainer {
         _stats.emplace_back(static_cast<InitialPartitioningAlgorithm>(algo));
       }
 
-      _label_propagation = LabelPropagationFactory::getInstance().createObject(
-        _context.refinement.label_propagation.algorithm, hypergraph, _context, task_group_id);
+      if ( _context.refinement.label_propagation.algorithm != LabelPropagationAlgorithm::do_nothing ) {
+        _label_propagation = LabelPropagationFactory::getInstance().createObject(
+          _context.refinement.label_propagation.algorithm, hypergraph, _context, task_group_id);
+      }
     }
 
     void commit(const InitialPartitioningAlgorithm algorithm,

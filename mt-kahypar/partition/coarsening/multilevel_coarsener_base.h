@@ -23,6 +23,7 @@
 #include "tbb/task_group.h"
 
 #include "mt-kahypar/definitions.h"
+#include "mt-kahypar/io/partitioning_output.h"
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/partition/metrics.h"
 #include "mt-kahypar/partition/refinement/i_refiner.h"
