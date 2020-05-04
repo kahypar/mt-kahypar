@@ -46,7 +46,7 @@ struct BestIndexReduceBody {
     for (MoveID i = r.begin(); i < r.end(); ++i) {
       if (gains[i] != invalidGain) {  // skip locally reverted moves
         sum += gains[i];
-        if (sum > best_sum && in_balance[i]) {       // TODO consider using >= for more diversification. But be careful with locally reverted moves!
+        if (sum > best_sum && in_balance[i]) {
           best_sum = sum;
           best_index = i + 1;
         }
