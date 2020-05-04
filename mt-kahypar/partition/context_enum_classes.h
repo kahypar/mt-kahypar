@@ -356,7 +356,7 @@ static FMAlgorithm fmAlgorithmFromString(const std::string& type) {
   if (type == "fm_multitry") {
     return FMAlgorithm::fm_multitry;
   } else if (type == "fm_boundary") {
-    return FMAlgorithm::fm_multitry;
+    return FMAlgorithm::fm_boundary;
   } else if (type == "do_nothing") {
     return FMAlgorithm::do_nothing;
   }
