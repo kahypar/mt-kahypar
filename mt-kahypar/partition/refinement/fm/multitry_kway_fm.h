@@ -58,7 +58,6 @@ public:
     if (!is_initialized) throw std::runtime_error("Call initialize on fm before calling refine");
 
     utils::Timer& timer = utils::Timer::instance();
-    //sharedData.partition_weight_budgets.initialize(phg, context.partition.max_part_weights);          // only for version with budgets
     Gain overall_improvement = 0;
     for (size_t round = 0; round < context.refinement.fm.multitry_rounds; ++round) {                    // global multi try rounds
       timer.start_timer("collect_border_nodes", "Collect Border Nodes");
@@ -109,7 +108,6 @@ public:
       }
     }
 
-    // sharedData.partition_weight_budgets.updatePartWeights(phg, context.partition.max_part_weights);  // only for version with budgets
     is_initialized = false;
     return overall_improvement;
   }
@@ -131,7 +129,6 @@ public:
     // insert border nodes into work queues
     sharedData.refinementNodes.clear();
     tbb::parallel_for(HypernodeID(0), phg.initialNumNodes(), [&](const HypernodeID u) {
-    //for (NodeID u = 0; u < phg.initialNumNodes(); ++u)
       if (phg.isBorderNode(u)) {
         sharedData.refinementNodes.push_back(u);
       }
