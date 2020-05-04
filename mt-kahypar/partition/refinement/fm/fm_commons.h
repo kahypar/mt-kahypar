@@ -149,7 +149,6 @@ struct FMSharedData {
   NodeTracker nodeTracker;
 
   FMSharedData(size_t numNodes = 0, PartitionID numParts = 0) :
-          //partition_weight_budgets(static_cast<size_t>(numParts), context.shared_memory.num_threads),
           refinementNodes(numNodes),
           vertexPQHandles(numNodes, invalid_position),
           numParts(numParts),
@@ -157,16 +156,6 @@ struct FMSharedData {
           nodeTracker(numNodes) { }
 
   FMSharedData(size_t numNodes, const Context& context) : FMSharedData(numNodes, context.partition.k) { }
-
-  /*
-  ~FMSharedData() {
-    tbb::parallel_invoke(
-            [&]() { parallel::parallel_free(remaining_original_pins, first_move_in, last_move_out); },
-            [&]() { parallel::parallel_free(vertexPQHandles, moveTracker.moveOrder); }
-    );
-
-  }
-  */
 
 };
 
