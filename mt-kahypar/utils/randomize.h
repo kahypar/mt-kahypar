@@ -37,6 +37,8 @@ class Randomize {
   static constexpr bool debug = false;
   static constexpr size_t PRECOMPUTED_FLIP_COINS = 128;
 
+  using SwapBlock = std::pair<size_t, size_t>;
+
   class RandomFunctions {
    public:
     RandomFunctions() :
@@ -166,9 +168,10 @@ class Randomize {
   template <typename T>
   void parallelShuffleVector(parallel::scalable_vector<T>& vector, const size_t i, const size_t j) {
     ASSERT(i <= j && j <= vector.size());
-    const size_t P = std::thread::hardware_concurrency();
+    const size_t P = 2 * std::thread::hardware_concurrency();
     const size_t N = j - i;
     const size_t step = N / P;
+
     if ( _perform_localized_random_shuffle ) {
       tbb::parallel_for(0UL, P, [&](const size_t k) {
         const size_t start = i + k * step;
@@ -176,11 +179,35 @@ class Randomize {
         localizedShuffleVector(vector, start, end, sched_getcpu());
       });
     } else {
-      tbb::parallel_for(0UL, P, [&](const size_t k) {
-        const size_t start = i + k * step;
-        const size_t end = i + (k == P - 1 ? N : (k + 1) * step);
+      // Compute blocks that should be swapped before
+      // random shuffling
+      parallel::scalable_vector<SwapBlock> swap_blocks;
+      parallel::scalable_vector<bool> matched_blocks(P, false);
+      int cpu_id = sched_getcpu();
+      for ( size_t i = 0; i < P; ++i ) {
+        if ( !matched_blocks[i] ) {
+          matched_blocks[i] = true;
+          size_t j = getRandomInt(0, P - 1, cpu_id);
+          while ( matched_blocks[j] ) {
+            j = ( j + 1 ) % P;
+          }
+          matched_blocks[j] = true;
+          swap_blocks.push_back(std::make_pair(i, j));
+        }
+      }
+      ASSERT(swap_blocks.size() == P / 2, V(swap_blocks.size()) << V(P));
+
+      tbb::parallel_for(0UL, P / 2, [&](const size_t k) {
+        const size_t block_1 = swap_blocks[k].first;
+        const size_t block_2 = swap_blocks[k].second;
+        const size_t start_1 = i + block_1 * step;
+        const size_t end_1 = i + (block_1 == P - 1 ? N : (block_1 + 1) * step);
+        const size_t start_2 = i + block_2 * step;
+        const size_t end_2 = i + (block_2 == P - 1 ? N : (block_2 + 1) * step);
         const int cpu_id = sched_getcpu();
-        std::shuffle(vector.begin() + start, vector.begin() + end, _rand[cpu_id].getGenerator());
+        swapBlocks(vector, start_1, end_1, start_2, end_2);
+        std::shuffle(vector.begin() + start_1, vector.begin() + end_1, _rand[cpu_id].getGenerator());
+        std::shuffle(vector.begin() + start_2, vector.begin() + end_2, _rand[cpu_id].getGenerator());
       });
     }
   }
@@ -207,6 +234,22 @@ class Randomize {
     _rand(std::thread::hardware_concurrency()),
     _perform_localized_random_shuffle(false),
     _localized_random_shuffle_block_size(1024) { }
+
+  template <typename T>
+  void swapBlocks(parallel::scalable_vector<T>& vector,
+                  const size_t start_1,
+                  const size_t end_1,
+                  const size_t start_2,
+                  const size_t end_2) {
+    ASSERT(start_1 <= end_1);
+    ASSERT(start_2 <= end_2);
+    ASSERT(end_1 <= vector.size());
+    ASSERT(end_2 <= vector.size());
+    size_t N = std::min(end_1 - start_1, end_2 - start_2);
+    for ( size_t i = 0; i < N; ++i ) {
+      std::swap(vector[start_1 + i], vector[start_2 + i]);
+    }
+  }
 
   template <typename T>
   void localizedShuffleVector(parallel::scalable_vector<T>& vector, const size_t i, const size_t j, const int cpu_id) {
