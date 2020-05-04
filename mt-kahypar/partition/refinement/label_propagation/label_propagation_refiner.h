@@ -89,10 +89,14 @@ class LabelPropagationRefiner final : public IRefiner {
       kahypar::Mode::direct_kway, _context.partition.objective);
     Gain delta = _gain.delta();
     ASSERT(delta <= 0, "LP refiner worsen solution quality");
+
     HEAVY_REFINEMENT_ASSERT(current_metric + delta ==
-      metrics::objective(hypergraph, _context.partition.objective),
-      V(current_metric) << V(delta) <<
-      V(metrics::objective(hypergraph, _context.partition.objective)));
+                            metrics::objective(hypergraph, _context.partition.objective,
+                                               !_context.refinement.label_propagation.execute_sequential),
+                            V(current_metric) << V(delta) <<
+                            V(metrics::objective(hypergraph, _context.partition.objective,
+                                                 _context.refinement.label_propagation.execute_sequential)));
+
     best_metrics.updateMetric(current_metric + delta, kahypar::Mode::direct_kway, _context.partition.objective);
     utils::Stats::instance().update_stat("lp_improvement", std::abs(delta));
     return delta < 0;
