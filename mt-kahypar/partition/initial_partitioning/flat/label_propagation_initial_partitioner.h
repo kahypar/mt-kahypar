@@ -160,7 +160,8 @@ class LabelPropagationInitialPartitioner : public tbb::task {
                      const PartitionID block) const {
     ASSERT(block != kInvalidPartition && block < _context.partition.k);
     return hypergraph.partWeight(block) + hypergraph.nodeWeight(hn) <=
-      _context.partition.max_part_weights[block];
+      _context.partition.perfect_balance_part_weights[block] *
+      std::min(1.005, _context.partition.epsilon);
   }
 
   MaxGainMove computeMaxGainMove(HyperGraph& hypergraph,

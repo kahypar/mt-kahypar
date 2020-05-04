@@ -125,7 +125,7 @@ class BFSInitialPartitioner : public tbb::task {
                      const PartitionID block) const {
     ASSERT(block != kInvalidPartition && block < _context.partition.k);
     return hypergraph.partWeight(block) + hypergraph.nodeWeight(hn) <=
-      _context.partition.max_part_weights[block];
+      _context.partition.perfect_balance_part_weights[block];
   }
 
   // ! Pushes all adjacent hypernodes (not visited before) of hypernode hn
