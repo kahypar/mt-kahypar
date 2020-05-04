@@ -33,8 +33,6 @@
 #include "mt-kahypar/utils/progress_bar.h"
 #include "mt-kahypar/utils/stats.h"
 
-#include "mt-kahypar/partition/refinement/fm/multitry_kway_fm.h"  // for now. include it in registries later
-
 namespace mt_kahypar {
 
 class MultilevelCoarsenerBase {
