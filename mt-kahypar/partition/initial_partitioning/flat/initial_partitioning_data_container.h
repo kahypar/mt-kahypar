@@ -30,6 +30,7 @@
 #include "mt-kahypar/partition/factories.h"
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
 #include "mt-kahypar/utils/initial_partitioning_stats.h"
+#include "initial_boundary_fm.h"
 
 namespace mt_kahypar {
 
@@ -85,7 +86,6 @@ class InitialPartitioningDataContainer {
               std::numeric_limits<HypernodeWeight>::max(),
               std::numeric_limits<double>::max()),
       _label_propagation(nullptr),
-      _fm(nullptr),
       _stats() {
 
       for ( uint8_t algo = 0; algo < static_cast<size_t>(InitialPartitioningAlgorithm::UNDEFINED); ++algo ) {
@@ -94,8 +94,6 @@ class InitialPartitioningDataContainer {
 
       _label_propagation = LabelPropagationFactory::getInstance().createObject(
         _context.refinement.label_propagation.algorithm, hypergraph, _context, task_group_id);
-      _fm = FMFactory::getInstance().createObject(
-        _context.refinement.fm.algorithm, hypergraph, _context, task_group_id);
     }
 
     void commit(const InitialPartitioningAlgorithm algorithm,
@@ -159,7 +157,7 @@ class InitialPartitioningDataContainer {
     }
 
     void performFMRefinement() {
-      if ( _fm && _context.refinement.fm.algorithm != FMAlgorithm::do_nothing ) {
+      if ( _context.refinement.fm.algorithm != FMAlgorithm::do_nothing ) {  // TODO (Tobi) set appropriate parameter
 
         kahypar::Metrics current_metric = {
           _result._objective,
@@ -176,8 +174,11 @@ class InitialPartitioningDataContainer {
           current_metric.getMetric(kahypar::Mode::direct_kway, _context.partition.objective) ==
           metrics::objective(_partitioned_hypergraph, _context.partition.objective));
 
-        _fm->initialize(_partitioned_hypergraph);
-        _fm->refine(_partitioned_hypergraph, current_metric);
+        Gain improvement = InitialPartitioningBoundaryFM().refine(_partitioned_hypergraph, _context);
+        ASSERT(_context.partition.k == 2);
+        current_metric.km1 -= improvement; current_metric.cut -= improvement;
+        current_metric.imbalance = metrics::imbalance(_partitioned_hypergraph, _context);
+        ASSERT(current_metric.km1 == metrics::km1(_partitioned_hypergraph, false));
 
         commit(_result._algorithm, current_metric, 0.0, true);
       }
@@ -203,7 +204,6 @@ class InitialPartitioningDataContainer {
     parallel::scalable_vector<PartitionID> _partition;
     PartitioningResult _result;
     std::unique_ptr<IRefiner> _label_propagation;
-    std::unique_ptr<IRefiner> _fm;
     parallel::scalable_vector<utils::InitialPartitionerSummary> _stats;
   };
 

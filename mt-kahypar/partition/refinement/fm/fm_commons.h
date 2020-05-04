@@ -148,23 +148,15 @@ struct FMSharedData {
 
   NodeTracker nodeTracker;
 
-  FMSharedData(size_t numNodes, const Context& context) :
+  FMSharedData(size_t numNodes = 0, PartitionID numParts = 0) :
           //partition_weight_budgets(static_cast<size_t>(numParts), context.shared_memory.num_threads),
           refinementNodes(numNodes),
           vertexPQHandles(numNodes, invalid_position),
-          numParts(context.partition.k),
+          numParts(numParts),
           moveTracker(numNodes),
-          nodeTracker(numNodes)
-  {
+          nodeTracker(numNodes) { }
 
-  }
-
-  FMSharedData() :
-          refinementNodes(0),
-          vertexPQHandles(0, invalid_position),
-          numParts(0),
-          moveTracker(0),
-          nodeTracker(0) { }
+  FMSharedData(size_t numNodes, const Context& context) : FMSharedData(numNodes, context.partition.k) { }
 
   /*
   ~FMSharedData() {
@@ -184,6 +176,7 @@ struct FMStats {
   size_t pushes = 0;
   size_t moves = 0;
   size_t local_reverts = 0;
+  Gain estimated_improvement = 0;
 
 
   void clear() {
@@ -192,6 +185,7 @@ struct FMStats {
     pushes = 0;
     moves = 0;
     local_reverts = 0;
+    estimated_improvement = 0;
   }
 
   void merge(FMStats& other) {
@@ -200,6 +194,7 @@ struct FMStats {
     other.pushes += pushes;
     other.moves += moves;
     other.local_reverts += local_reverts;
+    other.estimated_improvement += estimated_improvement;
     clear();
   }
 

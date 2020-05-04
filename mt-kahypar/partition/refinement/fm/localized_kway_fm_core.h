@@ -124,6 +124,7 @@ public:
     }
 
     revertToBestLocalPrefix(phg, sharedData, bestImprovementIndex);
+    runStats.estimated_improvement = bestImprovement;
 
     blockPQ.clear();
     for (PartitionID i = 0; i < numParts; ++i) {
