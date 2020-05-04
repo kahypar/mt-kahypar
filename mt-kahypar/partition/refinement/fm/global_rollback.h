@@ -243,13 +243,14 @@ public:
       Gain gain = 0;
       for (HyperedgeID e : phg.incidentEdges(m.node)) {
         const MoveID firstInFrom = firstMoveIn(e, m.from);
-        if (remainingPinsFromBeginningOfMovePhase(e, m.from) == 0  && lastMoveOut(e, m.from) == globalMoveID
+        if (remainingPinsFromBeginningOfMovePhase(e, m.from) == 0 && lastMoveOut(e, m.from) == globalMoveID
             && (firstInFrom > globalMoveID || firstInFrom < firstMoveID)) {
           gain += phg.edgeWeight(e);
         }
 
         const MoveID lastOutTo = lastMoveOut(e, m.to);
-        if (remainingPinsFromBeginningOfMovePhase(e, m.to) == 0 && firstMoveIn(e, m.to) == globalMoveID && lastOutTo < globalMoveID) {
+        if (remainingPinsFromBeginningOfMovePhase(e, m.to) == 0
+            && firstMoveIn(e, m.to) == globalMoveID && lastOutTo < globalMoveID) {
           gain -= phg.edgeWeight(e);
         }
       }
