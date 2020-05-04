@@ -140,16 +140,12 @@ public:
       resetStoredMoveIDs();
     }
 
-    // TODO(lars): Do not expose internal data members, because you can somehow write an assertion more elegant
     HEAVY_REFINEMENT_ASSERT([&] {
       for ( const HyperedgeID& he : phg.edges() ) {
         for ( PartitionID block = 0; block < phg.k(); ++block ) {
           if ( phg.pinCountInPart(he, block) != remaining_original_pins[he * phg.k() + block] ) {
-            LOG << "Pin Count In Part does not match remaining original pins";
-            LOG << V(he);
-            LOG << V(block);
-            LOG << V(phg.pinCountInPart(he, block));
-            LOG << V(remaining_original_pins[he * phg.k() + block]);
+            LOG << "Pin Count In Part does not match remaining original pins" << V(he) << V(block)
+                << V(phg.pinCountInPart(he, block)) << V(remaining_original_pins[he * phg.k() + block]);
             return false;
           }
         }

@@ -35,7 +35,8 @@ namespace mt_kahypar {
 TEST(RollbackTests, FindsBestPrefix) {
 
   vec<Gain> gains = { -42, 5, 4, -20, 1, 99, -100, 50 };
-  BestIndexReduceBody b(gains);
+  boost::dynamic_bitset<> in_balance(gains.size()); in_balance.set();
+  BestIndexReduceBody b(gains, in_balance);
   tbb::parallel_reduce(tbb::blocked_range<MoveID>(0, gains.size()), b, tbb::static_partitioner());
   ASSERT_EQ(b.best_sum,  -42 + 5 + 4 - 20 + 1 + 99);
   ASSERT_EQ(b.sum, -42 + 5 + 4 - 20 + 1 + 99 - 100 + 50);
@@ -70,12 +71,13 @@ TEST(RollbackTests, FindsBestPrefixLargeRandom) {
   if (display_timing) LOG << "Finish sequential  reduce in " << (tbb::tick_count::now() - start_reduce_sequential).seconds() << "seconds";
 
   auto start_reduce = tbb::tick_count::now();
-  BestIndexReduceBody b(gains);
+  boost::dynamic_bitset<> in_balance(gains.size()); in_balance.set();
+  BestIndexReduceBody b(gains, in_balance);
   tbb::parallel_reduce(tbb::blocked_range<MoveID>(0, gains.size()), b);
   if (display_timing) LOG << "Finish reduce in " << (tbb::tick_count::now() - start_reduce).seconds() << "seconds";
 
   auto start_reduce_static = tbb::tick_count::now();
-  BestIndexReduceBody b2(gains);
+  BestIndexReduceBody b2(gains, in_balance);
   tbb::parallel_reduce(tbb::blocked_range<MoveID>(0, gains.size()), b2, tbb::static_partitioner());
   if (display_timing) LOG << "Finish reduce with static partitioner in " << (tbb::tick_count::now() - start_reduce_static).seconds() << "seconds";
 
@@ -86,7 +88,7 @@ TEST(RollbackTests, FindsBestPrefixLargeRandom) {
 
 
 TEST(RollbackTests, GainRecalculationAndRollsbackCorrectly) {
-  Hypergraph hg = io::readHypergraphFile<Hypergraph, HypergraphFactory>("../test_instances/twocenters.hgr", 0);
+  Hypergraph hg = io::readHypergraphFile("../test_instances/twocenters.hgr", 0);
   PartitionID k = 2;
   PartitionedHypergraph phg(k, hg);
   phg.setNodePart(0, 1);
@@ -100,7 +102,10 @@ TEST(RollbackTests, GainRecalculationAndRollsbackCorrectly) {
     phg.setNodePart(u, 1);
   }
   phg.initializeGainInformation();
-  FMSharedData sharedData(hg.initialNumNodes(), k, 4);
+
+  Context context;
+  context.partition.k = k;
+  FMSharedData sharedData(hg.initialNumNodes(), context);
 
   GlobalRollback grb(hg.initialNumNodes(), hg.initialNumEdges(), k);
   grb.setRemainingOriginalPins(phg);
@@ -123,7 +128,9 @@ TEST(RollbackTests, GainRecalculationAndRollsbackCorrectly) {
   ASSERT_EQ(phg.km1Gain(5, 0, 1), 0);
   performMove({0, 1, 5, 0});
 
-    grb.revertToBestPrefix(phg, sharedData);
+  vec<HypernodeWeight> dummy_part_weights(k, 0);
+  HypernodeWeight dummy_max_part_weight = std::numeric_limits<HypernodeWeight>::max();
+  grb.revertToBestPrefix(phg, sharedData, dummy_part_weights, dummy_max_part_weight);
   // revert last two moves
   ASSERT_EQ(phg.partID(4), 0);
   ASSERT_EQ(phg.partID(5), 0);
@@ -135,7 +142,7 @@ TEST(RollbackTests, GainRecalculationAndRollsbackCorrectly) {
 
 
 TEST(RollbackTests, GainRecalculation2) {
-  Hypergraph hg = io::readHypergraphFile<Hypergraph, HypergraphFactory>("../test_instances/twocenters.hgr", 0);
+  Hypergraph hg = io::readHypergraphFile("../test_instances/twocenters.hgr", 0);
   PartitionID k = 2;
   PartitionedHypergraph phg(k, hg);
   phg.setNodePart(0, 1);
@@ -149,7 +156,9 @@ TEST(RollbackTests, GainRecalculation2) {
     phg.setNodePart(u, 1);
   }
   phg.initializeGainInformation();
-  FMSharedData sharedData(hg.initialNumNodes(), k, 4);
+
+  Context context; context.partition.k = k;
+  FMSharedData sharedData(hg.initialNumNodes(), context);
 
   GlobalRollback grb(hg.initialNumNodes(), hg.initialNumEdges(), k);
   grb.setRemainingOriginalPins(phg);
