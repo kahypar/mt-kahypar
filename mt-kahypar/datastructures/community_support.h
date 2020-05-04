@@ -274,7 +274,7 @@ class CommunitySupport {
   }
 
   // ! Weight of a community hyperedge
-  HypernodeWeight edgeWeight(const HyperedgeID e, const PartitionID community_id) const {
+  HyperedgeWeight edgeWeight(const HyperedgeID e, const PartitionID community_id) const {
     ASSERT(_are_community_hyperedges_initialized);
     return community_hyperedge(e, community_id).weight();
   }

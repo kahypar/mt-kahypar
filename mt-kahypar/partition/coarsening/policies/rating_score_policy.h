@@ -28,33 +28,17 @@
 namespace mt_kahypar {
 class HeavyEdgeScore final : public kahypar::meta::PolicyBase {
  public:
-  template <typename HyperGraph>
-  KAHYPAR_ATTRIBUTE_ALWAYS_INLINE static inline RatingType score(const HyperGraph& hypergraph,
-                                                                 const HyperedgeID he) {
-    return static_cast<RatingType>(hypergraph.edgeWeight(he)) / (hypergraph.edgeSize(he) - 1);
-  }
-
-  template <typename HyperGraph>
-  KAHYPAR_ATTRIBUTE_ALWAYS_INLINE static inline RatingType score(const HyperGraph& hypergraph,
-                                                                 const HyperedgeID he,
-                                                                 const PartitionID community_id) {
-    return static_cast<RatingType>(hypergraph.edgeWeight(he, community_id)) / (hypergraph.edgeSize(he) - 1);
+  KAHYPAR_ATTRIBUTE_ALWAYS_INLINE static inline RatingType score(const HyperedgeWeight edge_weight,
+                                                                 const HypernodeID edge_size) {
+    return static_cast<RatingType>(edge_weight) / (edge_size - 1);
   }
 };
 
 class SamenessScore final : public kahypar::meta::PolicyBase {
  public:
-  template <typename HyperGraph>
-  KAHYPAR_ATTRIBUTE_ALWAYS_INLINE static inline RatingType score(const HyperGraph& hypergraph,
-                                                                 const HyperedgeID he) {
-    return static_cast<RatingType>(hypergraph.edgeWeight(he));
-  }
-
-  template <typename HyperGraph>
-  KAHYPAR_ATTRIBUTE_ALWAYS_INLINE static inline RatingType score(const HyperGraph& hypergraph,
-                                                                 const HyperedgeID he,
-                                                                 const PartitionID community_id) {
-    return static_cast<RatingType>(hypergraph.edgeWeight(he, community_id));
+  KAHYPAR_ATTRIBUTE_ALWAYS_INLINE static inline RatingType score(const HyperedgeWeight edge_weight,
+                                                                 const HypernodeID edge_size) {
+    return static_cast<RatingType>(edge_weight) / (edge_size - 1);
   }
 };
 

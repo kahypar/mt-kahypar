@@ -121,6 +121,7 @@ struct CoarseningParameters {
   CoarseningAlgorithm algorithm = CoarseningAlgorithm::UNDEFINED;
   RatingParameters rating = { };
   HypernodeID contraction_limit_multiplier = std::numeric_limits<HypernodeID>::max();
+  bool use_adaptive_edge_size = false;
   bool use_adaptive_max_allowed_node_weight = false;
   double max_allowed_weight_fraction = std::numeric_limits<double>::max();
   double adaptive_node_weight_shrink_factor_threshold = std::numeric_limits<double>::max();
@@ -137,6 +138,7 @@ struct CoarseningParameters {
 inline std::ostream & operator<< (std::ostream& str, const CoarseningParameters& params) {
   str << "Coarsening Parameters:" << std::endl;
   str << "  Algorithm:                          " << params.algorithm << std::endl;
+  str << "  use adaptive edge size:             " << std::boolalpha << params.use_adaptive_edge_size << std::endl;
   str << "  use adaptive max node weight:       " << std::boolalpha << params.use_adaptive_max_allowed_node_weight << std::endl;
   if ( params.use_adaptive_max_allowed_node_weight ) {
     str << "  max allowed weight fraction:        " << params.max_allowed_weight_fraction << std::endl;

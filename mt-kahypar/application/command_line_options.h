@@ -166,6 +166,10 @@ po::options_description createCoarseningOptionsDescription(Context& context,
     "Coarsening Algorithm:\n"
     " - community_coarsener\n"
     " - multilevel_coarsener")
+    ("c-use-adaptive-edge-size",
+    po::value<bool>(&context.coarsening.use_adaptive_edge_size)->value_name("<bool>"),
+    "If true, than edge size is calculated based on current clustering rather than on input edge size\n"
+    "during multilevel coarsing")
     ("c-use-adaptive-max-node-weight",
     po::value<bool>(&context.coarsening.use_adaptive_max_allowed_node_weight)->value_name("<bool>"),
     "If true, than the maximum allowed node weight is adapted based on the reduction ratio\n"
