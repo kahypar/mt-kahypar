@@ -91,7 +91,7 @@ public:
       for (auto& fm : ets_fm) {
         fm.stats.merge(stats);
       }
-      //LOG << stats.serialize();
+      DBG << stats.serialize();
 
       sharedData.refinementNodes.clear();  // calling clear is necessary since tryPop will reduce the size to -(num calling threads)
 
@@ -144,8 +144,8 @@ public:
     }
 
   }
-//protected:
 
+  static constexpr bool debug = false;
   bool is_initialized = false;
   const Context& context;
   const TaskGroupID taskGroupID;
