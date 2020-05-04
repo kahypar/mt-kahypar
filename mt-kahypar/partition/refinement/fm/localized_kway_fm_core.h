@@ -68,9 +68,9 @@ public:
     if (initialBorderNode == invalidNode) {
       const size_t nSeeds = numberOfSeedNodes(phg.initialNumNodes());
       while (runStats.pushes <= nSeeds && sharedData.refinementNodes.try_pop(initialBorderNode)) {
-        if (!updateDeduplicator.contains(initialBorderNode) &&
-            insertOrUpdatePQ(phg, initialBorderNode, sharedData.nodeTracker) &&
-            context.refinement.fm.init_localized_search_with_neighbors) {
+        if (!updateDeduplicator.contains(initialBorderNode)
+            && insertOrUpdatePQ(phg, initialBorderNode, sharedData.nodeTracker)
+            && context.refinement.fm.init_localized_search_with_neighbors) {
           updateDeduplicator.insert(initialBorderNode);
           insertOrUpdateNeighbors(phg, sharedData, initialBorderNode);
         }
