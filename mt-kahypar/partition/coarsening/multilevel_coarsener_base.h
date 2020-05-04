@@ -311,7 +311,7 @@ class MultilevelCoarsenerBase {
               std::unique_ptr<IRefiner<>>& label_propagation,
               kahypar::Metrics& current_metrics) {
     if ( label_propagation ) {
-      utils::Timer::instance().start_timer("initialize_lp_refiner", "Initialize LP IRefiner<>");
+      utils::Timer::instance().start_timer("initialize_lp_refiner", "Initialize LP Refiner");
       label_propagation->initialize(partitioned_hypergraph);
       utils::Timer::instance().stop_timer("initialize_lp_refiner");
 
