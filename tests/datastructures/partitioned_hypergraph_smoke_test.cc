@@ -131,28 +131,6 @@ void moveAllNodesOfHypergraphRandom(HyperGraph& hypergraph,
       to = utils::Randomize::instance().getRandomInt(0, k - 1, cpu_id);
     }
     ASSERT((to >= 0 && to < k) && to != from);
-
-    CAtomic<HypernodeWeight> budget_from(5000000), budget_to(5000000);
-
-    Gain gain = hypergraph.km1Gain(hn, from, to);
-
-    if (tbb::this_task_arena::max_concurrency() == 1) {
-      Gain move_from_benefit = 0;
-      Gain move_to_penalty = 0;
-      for (HyperedgeID he : hypergraph.incidentEdges(hn)) {
-        if (hypergraph.pinCountInPart(he, to) == 0) {
-          move_to_penalty += hypergraph.edgeWeight(he);
-        }
-        if (hypergraph.pinCountInPart(he, from) == 1) {
-          move_from_benefit += hypergraph.edgeWeight(he);
-        }
-      }
-      ASSERT_EQ(move_from_benefit, hypergraph.moveFromBenefit(hn));
-      ASSERT_EQ(move_to_penalty, hypergraph.moveToPenalty(hn, to));
-      const Gain recomputed_gain = move_from_benefit - move_to_penalty;
-      ASSERT_EQ(recomputed_gain, gain);
-    }
-
     hypergraph.changeNodePart(hn, from, to, objective_delta);
   } );
 
