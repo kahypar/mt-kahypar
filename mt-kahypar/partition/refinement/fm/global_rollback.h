@@ -166,12 +166,13 @@ public:
     const MoveID numMoves = sharedData.moveTracker.numPerformedMoves();
     const MoveID firstMoveID = sharedData.moveTracker.firstMoveID;
 
-#ifndef NDEBUG
-    for (MoveID localMoveID = 0; localMoveID < sharedData.moveTracker.numPerformedMoves(); ++localMoveID) {
-      phg.recomputeMoveFromBenefit(move_order[localMoveID].node);
-    }
-    phg.checkTrackedPartitionInformation();
-#endif
+
+    HEAVY_REFINEMENT_ASSERT([&] {
+      for (MoveID localMoveID = 0; localMoveID < sharedData.moveTracker.numPerformedMoves(); ++localMoveID) {
+        phg.recomputeMoveFromBenefit(move_order[localMoveID].node);
+      }
+      return phg.checkTrackedPartitionInformation();
+    }());
 
     utils::Timer& timer = utils::Timer::instance();
     timer.start_timer("move_id_flagging", "Move Flagging");
@@ -225,42 +226,43 @@ public:
 
     timer.stop_timer("gain_recalculation");
 
-#ifndef NDEBUG
-    // recheck all gains
-    for (MoveID localMoveID = 0; localMoveID < sharedData.moveTracker.numPerformedMoves(); ++localMoveID) {
-      const Move& m = sharedData.moveTracker.moveOrder[localMoveID];
-      if (sharedData.moveTracker.isMoveStillValid(m))
-        phg.changeNodePartFullUpdate(m.node, m.to, m.from, std::numeric_limits<HypernodeWeight>::max(), []{});
-    }
-
-    for (MoveID localMoveID = 0; localMoveID < sharedData.moveTracker.numPerformedMoves(); ++localMoveID) {
-      if (sharedData.moveTracker.isMoveStillValid(move_order[localMoveID]))
-        phg.recomputeMoveFromBenefit(move_order[localMoveID].node);
-    }
-
-    for (MoveID localMoveID = 0; localMoveID < sharedData.moveTracker.numPerformedMoves(); ++localMoveID) {
-      const Move& m = sharedData.moveTracker.moveOrder[localMoveID];
-      if (!sharedData.moveTracker.isMoveStillValid(m))
-        continue;
-
-      const Gain estimated_gain = phg.km1Gain(m.node, m.from, m.to);
-      assert(phg.moveFromBenefit(m.node) == phg.moveFromBenefitRecomputed(m.node));
-      assert(phg.moveToPenalty(m.node, m.to) == phg.moveToPenaltyRecomputed(m.node, m.to));
-      if (tbb::this_task_arena::max_concurrency() == 1) {
-        assert(estimated_gain == m.gain);
+    HEAVY_REFINEMENT_ASSERT([&] {
+      // recheck all gains
+      for (MoveID localMoveID = 0; localMoveID < sharedData.moveTracker.numPerformedMoves(); ++localMoveID) {
+        const Move& m = sharedData.moveTracker.moveOrder[localMoveID];
+        if (sharedData.moveTracker.isMoveStillValid(m))
+          phg.changeNodePartFullUpdate(m.node, m.to, m.from, std::numeric_limits<HypernodeWeight>::max(), []{});
       }
-      const HyperedgeWeight km1_before_move = metrics::km1(phg, false);
-      phg.changeNodePartFullUpdate(m.node, m.from, m.to, std::numeric_limits<HypernodeWeight>::max(), []{});
-      const HyperedgeWeight km1_after_move = metrics::km1(phg, false);
-      assert(km1_after_move + estimated_gain == km1_before_move);
-      assert(km1_after_move + gains[localMoveID] == km1_before_move);
-      assert(estimated_gain == gains[localMoveID]);
-    }
 
-    for (MoveID localMoveID = 0; localMoveID < sharedData.moveTracker.numPerformedMoves(); ++localMoveID) {
-      phg.recomputeMoveFromBenefit(move_order[localMoveID].node);
-    }
-#endif
+      for (MoveID localMoveID = 0; localMoveID < sharedData.moveTracker.numPerformedMoves(); ++localMoveID) {
+        if (sharedData.moveTracker.isMoveStillValid(move_order[localMoveID]))
+          phg.recomputeMoveFromBenefit(move_order[localMoveID].node);
+      }
+
+      for (MoveID localMoveID = 0; localMoveID < sharedData.moveTracker.numPerformedMoves(); ++localMoveID) {
+        const Move& m = sharedData.moveTracker.moveOrder[localMoveID];
+        if (!sharedData.moveTracker.isMoveStillValid(m))
+          continue;
+
+        const Gain estimated_gain = phg.km1Gain(m.node, m.from, m.to);
+        assert(phg.moveFromBenefit(m.node) == phg.moveFromBenefitRecomputed(m.node));
+        assert(phg.moveToPenalty(m.node, m.to) == phg.moveToPenaltyRecomputed(m.node, m.to));
+        if (tbb::this_task_arena::max_concurrency() == 1) {
+          assert(estimated_gain == m.gain);
+        }
+        const HyperedgeWeight km1_before_move = metrics::km1(phg, false);
+        phg.changeNodePartFullUpdate(m.node, m.from, m.to, std::numeric_limits<HypernodeWeight>::max(), []{});
+        const HyperedgeWeight km1_after_move = metrics::km1(phg, false);
+        assert(km1_after_move + estimated_gain == km1_before_move);
+        assert(km1_after_move + gains[localMoveID] == km1_before_move);
+        assert(estimated_gain == gains[localMoveID]);
+      }
+
+      for (MoveID localMoveID = 0; localMoveID < sharedData.moveTracker.numPerformedMoves(); ++localMoveID) {
+        phg.recomputeMoveFromBenefit(move_order[localMoveID].node);
+      }
+      return true;
+    }());
   }
 
   void recalculateBalance(PartitionedHypergraph& phg, vec<HypernodeWeight>& partWeights, HypernodeWeight maxPartWeight,
