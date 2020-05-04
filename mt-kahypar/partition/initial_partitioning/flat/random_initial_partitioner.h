@@ -56,8 +56,7 @@ class RandomInitialPartitioner : public tbb::task {
         current_block = ( current_block + 1 ) % _context.partition.k;
         if ( current_block == block ) {
           // In case, we find no valid block to assign the current hypernode
-          // to, we assign it to random selected block (Note, will violate
-          // balance constraint)
+          // to, we assign it to random selected block
           break;
         }
       }
@@ -76,7 +75,7 @@ class RandomInitialPartitioner : public tbb::task {
                      const PartitionID block) const {
     ASSERT(block != kInvalidPartition && block < _context.partition.k);
     return hypergraph.partWeight(block) + hypergraph.nodeWeight(hn) <=
-      _context.partition.max_part_weights[block];
+      _context.partition.perfect_balance_part_weights[block];
   }
 
   InitialPartitioningDataContainer& _ip_data;
