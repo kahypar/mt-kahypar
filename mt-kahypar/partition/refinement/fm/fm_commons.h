@@ -25,8 +25,6 @@
 #include <mt-kahypar/datastructures/priority_queue.h>
 #include <mt-kahypar/parallel/work_stack.h>
 
-#include "partition_weight_budgets.h"
-
 #include <tbb/parallel_for.h>
 
 namespace mt_kahypar {
