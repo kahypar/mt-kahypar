@@ -119,8 +119,6 @@ private:
           bestImprovement = estimatedImprovement;
           bestImprovementIndex = localMoves.size();
         }
-
-        //LOG << V(m.gain) << V(estimatedImprovement) << V(bestImprovement);
       }
       updateBlocks(phg, m.from);
     }
@@ -133,7 +131,6 @@ private:
       for (PosT j = 0; j < vertexPQs[i].size(); ++j) sharedData.nodeTracker.releaseNode(vertexPQs[i].at(j));
       vertexPQs[i].clear();
     }
-    //LOG << V(bestImprovement) << V(bestImprovementIndex) << V(consecutiveNonPositiveGainMoves) << runStats.serialize();
     runStats.merge(stats);
   }
 
