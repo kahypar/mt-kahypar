@@ -8,7 +8,12 @@ namespace ldc {
 template<class T>
 class ClearListSet {
 public:
-	ClearListSet(size_t n) : contained_keys(), set(n)  {}
+	ClearListSet(size_t n) :
+					contained_keys(),
+					set(n)
+	{
+
+	}
 public:
 
 	void insert(const T e) {
@@ -53,7 +58,13 @@ private:
 template<class K, class V>
 class ClearListMap {
 public:
-	ClearListMap(size_t size, V defaultValue) : defaultValue(defaultValue), contained_keys(), map(size, defaultValue) {}
+	ClearListMap(size_t size, V defaultValue) :
+					defaultValue(defaultValue),
+					contained_keys(),
+					map(size, defaultValue)
+	{
+
+	}
 
 	void insert(const K k, const V v) {
 		contained_keys.push_back(k);
