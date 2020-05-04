@@ -23,7 +23,6 @@
 
 #include <atomic>
 #include <type_traits>
-#include <external_tools/kahypar/kahypar/datastructure/fast_reset_flag_array.h>
 
 #include "tbb/parallel_invoke.h"
 
