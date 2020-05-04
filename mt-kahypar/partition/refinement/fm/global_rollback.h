@@ -38,9 +38,13 @@ struct BestIndexReduceBody {
   MoveID best_index = 0;   /** local ID of first move to revert */
   HyperedgeWeight sum = 0, best_sum = 0;
 
-  BestIndexReduceBody(const vec<Gain>& gains, const boost::dynamic_bitset<>& in_balance) : gains(gains), in_balance(in_balance) { }
+  BestIndexReduceBody(const vec<Gain>& gains, const boost::dynamic_bitset<>& in_balance) :
+          gains(gains),
+          in_balance(in_balance) { }
 
-  BestIndexReduceBody(BestIndexReduceBody& b, tbb::split) : gains(b.gains), in_balance(b.in_balance) { }
+  BestIndexReduceBody(BestIndexReduceBody& b, tbb::split) :
+          gains(b.gains),
+          in_balance(b.in_balance) { }
 
   void operator()(const tbb::blocked_range<MoveID>& r) {
     for (MoveID i = r.begin(); i < r.end(); ++i) {
