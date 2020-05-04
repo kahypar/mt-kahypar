@@ -159,13 +159,17 @@ public:
   }
 
   void insertOrUpdateNeighbors(PartitionedHypergraph& phg, FMSharedData& sharedData, HypernodeID u) {
-    for (HyperedgeID e : phg.incidentEdges(u))
-      if (phg.edgeSize(e) < context.partition.hyperedge_size_threshold)
-        for (HypernodeID v : phg.pins(e))
+    for (HyperedgeID e : phg.incidentEdges(u)) {
+      if (phg.edgeSize(e) < context.partition.hyperedge_size_threshold) {
+        for (HypernodeID v : phg.pins(e)) {
           if (!updateDeduplicator.contains(v)) {
             updateDeduplicator.insert(v);
             insertOrUpdatePQ(phg, v, sharedData.nodeTracker);
           }
+        }
+      }
+    }
+
   }
 
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
