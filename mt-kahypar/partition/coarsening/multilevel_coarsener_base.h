@@ -264,7 +264,7 @@ class MultilevelCoarsenerBase {
             << "Rebalancer is activated" << END;
 
         LOG << "Part weights: (violations in red)";
-        io::printPartWeights(_partitioned_hg, _context);
+        io::printPartWeightsAndSizes(_partitioned_hg, _context);
       }
 
       utils::Timer::instance().start_timer("rebalance", "Rebalance");
