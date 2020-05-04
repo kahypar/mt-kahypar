@@ -37,7 +37,7 @@ public:
   FMCoreTest() {
     // hypergraph construction in parallel does some reordering of incident edges depending on scheduling --> results not reproducible
     // --> sort incident edges --> constructed as in sequential
-    hg = io::readHypergraphFile<Hypergraph, HypergraphFactory>("../test_instances/ibm01.hgr", 0, true /* enable stable construction */);
+    hg = io::readHypergraphFile("../test_instances/ibm01.hgr", 0, true /* enable stable construction */);
     phg = PartitionedHypergraph(k, hg);
     HypernodeID nodes_per_part = hg.initialNumNodes() / k;
     for (PartitionID i = 0; i < k; ++i) {
@@ -47,11 +47,11 @@ public:
     }
     phg.initializeGainInformation();
 
-    sharedData = FMSharedData(hg.initialNumNodes(), k, 4);
-
     context.partition.k = k;
     context.partition.epsilon = 0.03;
     context.setupPartWeights(hg.totalWeight());
+
+    sharedData = FMSharedData(hg.initialNumNodes(), context);
   }
 
   Hypergraph hg;
@@ -95,20 +95,20 @@ void printHypergraph(PartitionedHypergraph& phg) {
 
 TEST_F(FMCoreTest, PQInsertAndUpdate) {
   //printGains(phg, k);
-  LocalizedKWayFM fm(context, hg.initialNumNodes(), &sharedData.vertexPQHandles);
+  LocalizedKWayFM fm(context, hg.initialNumNodes(), sharedData.vertexPQHandles.data());
   HyperedgeWeight initial_km1 = metrics::km1(phg, false);
   HypernodeID initialNode = 23;
-  SearchID searchID = 1;
-  fm.findMoves(phg, initialNode, sharedData, searchID);
+  fm.findMoves(phg, sharedData, initialNode);
 
   HyperedgeWeight accumulated_gain = 0;
   for (MoveID move_id = 0; move_id < sharedData.moveTracker.numPerformedMoves(); ++move_id) {
     Move& m = sharedData.moveTracker.moveOrder[move_id];
-    accumulated_gain += m.gain;
+    if (m.gain != invalidGain) {  // skip reverted moves
+      accumulated_gain += m.gain;
+    }
     //LOG << V(move_id) << V(m.node) << V(m.from) << V(m.to) << V(m.gain);
   }
 
-  LOG << V(accumulated_gain);
   HyperedgeWeight km1_after_fm = metrics::km1(phg, false);
   ASSERT_EQ(km1_after_fm, initial_km1 - accumulated_gain);
 }

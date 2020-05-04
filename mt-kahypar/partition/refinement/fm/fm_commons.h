@@ -159,6 +159,8 @@ struct FMSharedData {
 
   }
 
+  FMSharedData() : refinementNodes(0), vertexPQHandles(0, invalid_position), numParts(0), moveTracker(0), nodeTracker(0) { }
+
   /*
   ~FMSharedData() {
     tbb::parallel_invoke(
