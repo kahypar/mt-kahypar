@@ -117,10 +117,12 @@ public:
   void initializeImpl(PartitionedHypergraph& phg) override final {
     utils::Timer& timer = utils::Timer::instance();
     timer.start_timer("init_gain_info", "Initialize Gain Information");
-    phg.initializeGainInformation();                // initialization only as long as LP refiner does not use these datastructures TODO consolidate at some point
+    // initialization only as long as LP refiner does not use these datastructures TODO consolidate at some point
+    phg.initializeGainInformation();
     timer.stop_timer("init_gain_info");
     timer.start_timer("set_remaining_original_pins", "Set remaining original pins");
-    globalRollback.setRemainingOriginalPins(phg);   // initialization only as long as LP refiner does not use these datastructures
+    // initialization only as long as LP refiner does not use these datastructures
+    globalRollback.setRemainingOriginalPins(phg);
     timer.stop_timer("set_remaining_original_pins");
     is_initialized = true;
   }
