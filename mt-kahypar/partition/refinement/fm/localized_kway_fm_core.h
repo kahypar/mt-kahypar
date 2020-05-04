@@ -49,11 +49,13 @@ public:
   bool findMoves(PartitionedHypergraph& phg, FMSharedData& sharedData, vec<HypernodeID>& initialNodes) {
     thisSearch = ++sharedData.nodeTracker.highestActiveSearchID;
 
-    for (HypernodeID u : initialNodes)
+    for (HypernodeID u : initialNodes) {
       insertOrUpdatePQ(phg, u, sharedData.nodeTracker);
+    }
 
-    for (PartitionID i = 0; i < numParts; ++i)
+    for (PartitionID i = 0; i < numParts; ++i) {
       updateBlock(phg, i);
+    }
 
     internalFindMoves(phg, sharedData);
 
