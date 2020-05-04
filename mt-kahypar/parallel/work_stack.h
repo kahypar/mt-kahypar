@@ -29,7 +29,12 @@ template<typename T>
 class WorkStack {
 public:
 
-  WorkStack(size_t maxNumElements) : size(0), elements(maxNumElements, T()) { }
+  WorkStack(size_t maxNumElements) :
+          size(0),
+          elements(maxNumElements, T())
+  {
+    
+  }
 
   void push_back(const T& el) {
     const size_t old_size = size.fetch_add(1, std::memory_order_acq_rel);
