@@ -28,9 +28,8 @@ namespace mt_kahypar {
 namespace parallel {
 
 size_t n = 100000;
-size_t nSockets = 9;
 
-TEST(NumaWorkQueueContainer, HasCorrectSizeAfterParallelInsertion) {
+TEST(WorkContainer, HasCorrectSizeAfterParallelInsertion) {
   int m = 75000;
   WorkStack<int> cdc(n);
   tbb::parallel_for(0, m, [&](int i) {
@@ -58,7 +57,7 @@ TEST(NumaWorkQueueContainer, HasCorrectSizeAfterParallelInsertion) {
   ASSERT_TRUE(cdc.empty());
 }
 
-TEST(NumaWorkQueueContainer, ClearWorks) {
+TEST(WorkContainer, ClearWorks) {
   WorkStack<int> cdc(n);
   cdc.push_back(5);
   cdc.push_back(420);
@@ -68,35 +67,6 @@ TEST(NumaWorkQueueContainer, ClearWorks) {
   cdc.shrink_to_fit();
   ASSERT_EQ(cdc.capacity(), 0);
 }
-
-
-/*TEST(NumaWorkQueue, WorkStealingWorks) {
-  NumaWorkQueue<int> wq(nSockets, n);
-  wq.push(5, 2);
-  wq.push(4, 0);
-  wq.push(919, 0);
-  wq.push(9, 1);
-  wq.push(1613, 2);
-
-
-  int res = -1;
-  ASSERT_TRUE(wq.tryPop(res, 0));
-  ASSERT_EQ(res, 919);
-
-  ASSERT_TRUE(wq.tryPop(res, 0));
-  ASSERT_EQ(res, 4);
-
-  ASSERT_TRUE(wq.tryPop(res, 0));  // this one should steal from socket 2
-  ASSERT_EQ(res, 1613);
-
-  ASSERT_TRUE(wq.tryPop(res, 0));  // steal from socket 1
-  ASSERT_EQ(res, 9);
-
-  ASSERT_TRUE(wq.tryPop(res, 0));  // steal again from socket 2
-  ASSERT_EQ(res, 5);
-
-  ASSERT_FALSE(wq.tryPop(res, 0));
-}*/
 
 
 }  // namespace parallel
