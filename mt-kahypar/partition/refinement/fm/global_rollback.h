@@ -346,10 +346,14 @@ public:
   }
 
   void resetStoredMoveIDs() {
-    for (auto &x : last_move_out)
-      x.store(0, std::memory_order_relaxed);
-    for (auto &x : first_move_in)
-      x.store(0, std::memory_order_relaxed);
+    tbb::parallel_invoke(
+            [&] {
+              tbb::parallel_for_each(last_move_out, [](auto& x) { x.store(0, std::memory_order_relaxed); });
+            },
+            [&] {
+              tbb::parallel_for_each(first_move_in, [](auto& x) { x.store(0, std::memory_order_relaxed); });
+            }
+    );
   }
 
   void setRemainingOriginalPins(PartitionedHypergraph& phg) {
