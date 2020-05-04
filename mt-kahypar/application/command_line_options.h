@@ -279,10 +279,6 @@ po::options_description createRefinementOptionsDescription(Context& context,
     po::value<size_t>((initial_partitioning ? &context.initial_partitioning.refinement.fm.multitry_rounds :
       &context.refinement.fm.multitry_rounds))->value_name("<size_t>"),
     "Number of multitry rounds. Default 4")
-    (( initial_partitioning ? "i-r-fm-fruitless-moves" : "r-fm-fruitless-moves"),
-    po::value<size_t>((initial_partitioning ? &context.initial_partitioning.refinement.fm.max_number_of_fruitless_moves :
-      &context.refinement.fm.max_number_of_fruitless_moves))->value_name("<size_t>"),
-    "Number of non-positive gain moves after which to cancel FM. Default 250")
     (( initial_partitioning ? "i-r-fm-init-neighbors" : "r-fm-init-neighbors"),
     po::value<bool>((initial_partitioning ? &context.initial_partitioning.refinement.fm.init_localized_search_with_neighbors :
       &context.refinement.fm.init_localized_search_with_neighbors))->value_name("<bool>"),
