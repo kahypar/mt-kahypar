@@ -42,7 +42,7 @@ option(KAHYPAR_ENABLE_HEAVY_INITIAL_PARTITIONING_ASSERTIONS
   "Enable heavy assertions in initial partitioning phase." OFF)
 
 option(KAHYPAR_ENABLE_HEAVY_REFINEMENT_ASSERTIONS
-  "Enable heavy assertions in refinement phase." ON)
+  "Enable heavy assertions in refinement phase." OFF)
 
 option(KAHYPAR_USE_64_BIT_IDS
   "Enables 64-bit vertex and hyperedge IDs." OFF)
