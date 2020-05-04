@@ -107,7 +107,8 @@ private:
       sharedData.nodeTracker.deactivateNode(m.node, thisSearch);
       MoveID move_id = std::numeric_limits<MoveID>::max();
       const bool moved = m.to != kInvalidPartition
-                         && phg.changeNodePartFullUpdate(m.node, m.from, m.to, maxPartWeight, [&] { move_id = sharedData.moveTracker.insertMove(m); });
+                         && phg.changeNodePartFullUpdate(m.node, m.from, m.to, maxPartWeight,
+                                                         [&] { move_id = sharedData.moveTracker.insertMove(m); });
       if (moved) {
         runStats.moves++;
         insertOrUpdateNeighbors(phg, sharedData, m.node);
