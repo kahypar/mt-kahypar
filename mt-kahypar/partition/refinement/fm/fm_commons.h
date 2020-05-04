@@ -150,7 +150,7 @@ struct FMSharedData {
 
   FMSharedData(size_t numNodes, const Context& context) :
           //partition_weight_budgets(static_cast<size_t>(numParts), context.shared_memory.num_threads),
-          refinementNodes(numNodes, context.partition.seed),
+          refinementNodes(numNodes),
           vertexPQHandles(numNodes, invalid_position),
           numParts(context.partition.k),
           moveTracker(numNodes),

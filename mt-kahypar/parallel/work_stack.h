@@ -29,7 +29,7 @@ template<typename T>
 class WorkStack {
 public:
 
-  WorkStack(size_t maxNumElements, int seed) : size(0), elements(maxNumElements, T()), rng(seed) { }
+  WorkStack(size_t maxNumElements) : size(0), elements(maxNumElements, T()) { }
 
   void push_back(const T& el) {
     const size_t old_size = size.fetch_add(1, std::memory_order_acq_rel);
@@ -73,14 +73,12 @@ public:
   }
 
   void shuffle() {
-    //std::shuffle(elements.begin(), elements.begin() + unsafe_size(), rng);
     utils::Randomize::instance().parallelShuffleVector(elements, 0, unsafe_size());
   }
 
 private:
   CAtomic<size_t> size;
   vec<T> elements;
-  std::mt19937 rng;
 };
 
 
