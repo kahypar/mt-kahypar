@@ -131,12 +131,12 @@ static inline HyperedgeWeight soed(const HyperGraph& hypergraph, const bool para
 }
 
 template <typename HyperGraph>
-static inline HyperedgeWeight objective(const HyperGraph& hg, const kahypar::Objective& objective) {
+static inline HyperedgeWeight objective(const HyperGraph& hg, const kahypar::Objective& objective, const bool parallel = true) {
   switch (objective) {
-    case kahypar::Objective::cut: return hyperedgeCut(hg);
-    case kahypar::Objective::km1: return km1(hg);
+    case kahypar::Objective::cut: return hyperedgeCut(hg, parallel);
+    case kahypar::Objective::km1: return km1(hg, parallel);
     default:
-      ERROR("Unknown Objective");
+    ERROR("Unknown Objective");
   }
 }
 
