@@ -126,9 +126,9 @@ struct NodeTracker {
 
   void requestNewSearches(SearchID max_num_searches) {
     if (highestActiveSearchID.load(std::memory_order_relaxed) >= std::numeric_limits<SearchID>::max() - max_num_searches - 20) {
-      for (auto& x : searchOfNode) {
-        x.store(0, std::memory_order_relaxed);
-      }
+      tbb::parallel_for(0UL, searchOfNode.size(), [&](const size_t i) {
+        searchOfNode[i].store(0, std::memory_order_relaxed);
+      });
       highestActiveSearchID.store(0, std::memory_order_relaxed);
     }
     deactivatedNodeMarker = ++highestActiveSearchID;

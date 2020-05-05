@@ -28,6 +28,7 @@
 #include <atomic>
 #include <external_tools/kahypar/kahypar/partition/metrics.h>
 
+#include "mt-kahypar/datastructures/streaming_vector.h"
 #include "mt-kahypar/partition/refinement/i_refiner.h"
 #include "mt-kahypar/partition/refinement/fm/localized_kway_fm_core.h"
 #include "mt-kahypar/partition/refinement/fm/global_rollback.h"
@@ -128,11 +129,14 @@ public:
   void roundInitialization(PartitionedHypergraph& phg) {
     // insert border nodes into work queues
     sharedData.refinementNodes.clear();
-    tbb::parallel_for(HypernodeID(0), phg.initialNumNodes(), [&](const HypernodeID u) {
-      if (phg.isBorderNode(u)) {
-        sharedData.refinementNodes.push_back(u);
+    ds::StreamingVector<HypernodeID> tmpRefinementNodes;
+    phg.doParallelForAllNodes([&](const HypernodeID& hn) {
+      if (phg.isBorderNode(hn)) {
+        tmpRefinementNodes.stream(hn);
       }
     });
+    sharedData.refinementNodes.size.store(tmpRefinementNodes.size());
+    tmpRefinementNodes.copy_parallel(sharedData.refinementNodes.elements);
 
     // requesting new searches activates all nodes by raising the deactivated node marker
     // also clears the array tracking search IDs in case of overflow
@@ -142,7 +146,6 @@ public:
     if (context.refinement.fm.shuffle) {
       sharedData.refinementNodes.shuffle();
     }
-
   }
 
   static constexpr bool debug = false;
