@@ -249,9 +249,6 @@ public:
         const Gain estimated_gain = phg.km1Gain(m.node, m.from, m.to);
         assert(phg.moveFromBenefit(m.node) == phg.moveFromBenefitRecomputed(m.node));
         assert(phg.moveToPenalty(m.node, m.to) == phg.moveToPenaltyRecomputed(m.node, m.to));
-        if (tbb::this_task_arena::max_concurrency() == 1) {
-          assert(estimated_gain == m.gain);
-        }
         const HyperedgeWeight km1_before_move = metrics::km1(phg, false);
         phg.changeNodePartFullUpdate(m.node, m.from, m.to, std::numeric_limits<HypernodeWeight>::max(), []{});
         const HyperedgeWeight km1_after_move = metrics::km1(phg, false);
