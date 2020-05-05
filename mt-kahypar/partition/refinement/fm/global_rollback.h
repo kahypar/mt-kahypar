@@ -28,45 +28,118 @@
 
 #include <boost/dynamic_bitset.hpp>
 
+#include "tbb/parallel_scan.h"
+
 namespace mt_kahypar {
 
+struct BalanceAndBestIndexScan {
+  const PartitionedHypergraph& phg;
+  const vec<Move>& moves;
 
-struct BestIndexReduceBody {
-  const vec<Gain>& gains;
-  const boost::dynamic_bitset<>& in_balance;
+  struct GainIndex {
+    Gain gain = 0;          /** gain when using all (still valid) moves up to best_index */
+    MoveID best_index = 0;  /** local ID of first move to revert */
+  };
 
-  MoveID best_index = 0;   /** local ID of first move to revert */
-  HyperedgeWeight sum = 0, best_sum = 0;
+  std::shared_ptr< tbb::enumerable_thread_specific<GainIndex> > local_best;
 
-  BestIndexReduceBody(const vec<Gain>& gains, const boost::dynamic_bitset<>& in_balance) :
-          gains(gains),
-          in_balance(in_balance) { }
+  Gain gain_sum = 0;
 
-  BestIndexReduceBody(BestIndexReduceBody& b, tbb::split) :
-          gains(b.gains),
-          in_balance(b.in_balance) { }
+  vec<HypernodeWeight> part_weights;
+  HypernodeWeight max_part_weight;
 
-  void operator()(const tbb::blocked_range<MoveID>& r) {
+  BalanceAndBestIndexScan(BalanceAndBestIndexScan& b, tbb::split) :
+          phg(b.phg),
+          moves(b.moves),
+          local_best(b.local_best),
+          part_weights(b.part_weights.size(), 0),
+          max_part_weight(b.max_part_weight) { }
+
+  BalanceAndBestIndexScan(const PartitionedHypergraph& phg, const vec<Move>& moves,
+                          vec<HypernodeWeight>& part_weights, HypernodeWeight max_part_weight) :
+          phg(phg),
+          moves(moves),
+          local_best(std::make_shared< tbb::enumerable_thread_specific<GainIndex> >()),
+          part_weights(part_weights),
+          max_part_weight(max_part_weight) { }
+
+
+  void operator()(const tbb::blocked_range<MoveID>& r, tbb::pre_scan_tag ) {
     for (MoveID i = r.begin(); i < r.end(); ++i) {
-      if (gains[i] != invalidGain) {  // skip locally reverted moves
-        sum += gains[i];
-        if (sum > best_sum && in_balance[i]) {
-          best_sum = sum;
-          best_index = i + 1;
-        }
+      const Move& m = moves[i];
+      if (m.gain != invalidGain) {  // skip locally reverted moves
+        gain_sum += m.gain;
+        part_weights[m.from] -= phg.nodeWeight(m.node);
+        part_weights[m.to] += phg.nodeWeight(m.node);
       }
     }
   }
 
-  void join(BestIndexReduceBody& rhs) {
-    const HyperedgeWeight rhs_best_sum = sum + rhs.best_sum;
-    if (rhs_best_sum > best_sum && rhs.best_index != 0) {
-      best_index = rhs.best_index;
-      best_sum = rhs_best_sum;
+  // subranges a | b | c | d . assuming this ran pre_scan on c,
+  // then lhs ran pre_scan on b and final_scan of this will be on d
+  void reverse_join(BalanceAndBestIndexScan& lhs) {
+    for (size_t i = 0; i < part_weights.size(); ++i) {
+      part_weights[i] += lhs.part_weights[i];
     }
-    sum += rhs.sum;
+    gain_sum += lhs.gain_sum;
   }
 
+  void operator()(const tbb::blocked_range<MoveID>& r, tbb::final_scan_tag ) {
+    size_t overloaded = 0;
+    for (size_t i = 0; i < part_weights.size(); ++i) {
+      if (part_weights[i] > max_part_weight) {
+        overloaded++;
+      }
+    }
+
+    Gain best_gain_sum = 0;
+    MoveID best_index = 0;
+    for (MoveID i = r.begin(); i < r.end(); ++i) {
+      const Move& m = moves[i];
+
+      if (m.gain != invalidGain) {  // skip locally reverted moves
+        const bool from_overloaded = part_weights[m.from] > max_part_weight;
+        part_weights[m.from] -= phg.nodeWeight(m.node);
+        if (from_overloaded && part_weights[m.from] <= max_part_weight) {
+          overloaded--;
+        }
+
+        const bool to_overloaded = part_weights[m.to] > max_part_weight;
+        part_weights[m.to] += phg.nodeWeight(m.node);
+        if (!to_overloaded && part_weights[m.to] > max_part_weight) {
+          overloaded++;
+        }
+
+        gain_sum += m.gain;
+        if (overloaded == 0 /* in balance */ && gain_sum > best_gain_sum /* better solution */) {
+          best_gain_sum = gain_sum;
+          best_index = i + 1;
+        }
+      }
+    }
+
+    if (best_index != 0) {
+      GainIndex& lb = local_best->local();
+      if (best_gain_sum > lb.gain) {
+        lb.gain = best_gain_sum;
+        lb.best_index = best_index;
+      }
+    }
+  }
+
+  void assign(BalanceAndBestIndexScan& ) {
+
+  }
+
+  GainIndex finalize() {
+    GainIndex res = { 0, 0 };
+    for (const GainIndex& x : *local_best) {
+      if (x.gain > res.gain || (x.gain == res.gain && x.best_index < res.best_index)) {
+        res = x;
+      }
+    }
+    return res;
+  }
 };
 
 
@@ -78,10 +151,9 @@ public:
           numParts(numParts),
           remaining_original_pins(numHyperedges * numParts),
           first_move_in(numHyperedges * numParts),
-          last_move_out(numHyperedges * numParts),
-          gains(numNodes, 0),
-          in_balance(numNodes)
+          last_move_out(numHyperedges * numParts)
   {
+    unused(numNodes);
     resetStoredMoveIDs();
   }
 
@@ -90,22 +162,22 @@ public:
     const MoveID numMoves = sharedData.moveTracker.numPerformedMoves();
     if (numMoves == 0) return 0;
 
+    vec<HypernodeWeight> partWeightCopy = partWeights;
+    vec<HypernodeWeight> pws = partWeights;
+
     const vec<Move>& move_order = sharedData.moveTracker.moveOrder;
     utils::Timer& timer = utils::Timer::instance();
 
-    timer.start_timer("recalculate_balance_and_gains", "Recalculate Balance and Gains");
-    tbb::parallel_invoke(
-            [&]{ recalculateBalance(phg, partWeights, maxPartWeight, move_order, numMoves); },
-            [&]{ recalculateGains(phg, sharedData); }
-    );
-    timer.stop_timer("recalculate_balance_and_gains");
-    timer.start_timer("find_best_prefix", "Find Best Prefix");
+    timer.start_timer("recalculate_gains", "Recalculate Gains");
+    recalculateGains(phg, sharedData);
+    timer.stop_timer("recalculate_gains");
 
-    BestIndexReduceBody b(gains, in_balance);
-    tbb::parallel_reduce(tbb::blocked_range<MoveID>(0, numMoves), b, tbb::static_partitioner()); // find best index
+    timer.start_timer("find_best_prefix_and_balance", "Find Best Balanced Prefix");
+    BalanceAndBestIndexScan s(phg, move_order, partWeightCopy, maxPartWeight);
+    tbb::parallel_scan(tbb::blocked_range<MoveID>(0, numMoves), s);
+    BalanceAndBestIndexScan::GainIndex b = s.finalize();
+    timer.stop_timer("find_best_prefix_and_balance");
 
-
-    timer.stop_timer("find_best_prefix");
     timer.start_timer("revert_and_rem_orig_pin_updates", "Revert Moves and apply updates");
 
     tbb::parallel_invoke([&] {
@@ -130,14 +202,13 @@ public:
     } );
 
     timer.stop_timer("revert_and_rem_orig_pin_updates");
-    timer.start_timer("recompute_move_from_benefits", "Recompute Move-From Benefits");
 
+    timer.start_timer("recompute_move_from_benefits", "Recompute Move-From Benefits");
     // recompute moveFromBenefit values since they are potentially invalid
     // TODO think of a way to update them
     tbb::parallel_for(MoveID(0), numMoves, [&](MoveID localMoveID) {
       phg.recomputeMoveFromBenefit(move_order[localMoveID].node);
     });
-
     timer.stop_timer("recompute_move_from_benefits");
 
     if (sharedData.moveTracker.reset()) {
@@ -157,12 +228,12 @@ public:
       return true;
     }());
     HEAVY_REFINEMENT_ASSERT(phg.checkTrackedPartitionInformation());
-    return b.best_sum;
+    return b.gain;
   }
 
 
   void recalculateGains(PartitionedHypergraph& phg, FMSharedData& sharedData) {
-    const vec<Move>& move_order = sharedData.moveTracker.moveOrder;
+    vec<Move>& move_order = sharedData.moveTracker.moveOrder;
     const MoveID numMoves = sharedData.moveTracker.numPerformedMoves();
     const MoveID firstMoveID = sharedData.moveTracker.firstMoveID;
 
@@ -202,9 +273,8 @@ public:
     timer.start_timer("gain_recalculation", "Recalculate Gains");
 
     tbb::parallel_for(0U, sharedData.moveTracker.numPerformedMoves(), [&](MoveID localMoveID) {
-      const Move& m = move_order[localMoveID];
+      Move& m = move_order[localMoveID];
       if (!sharedData.moveTracker.isMoveStillValid(m)) {
-        gains[localMoveID] = invalidGain;
         return;
       }
 
@@ -223,7 +293,8 @@ public:
           gain -= phg.edgeWeight(e);
         }
       }
-      gains[localMoveID] = gain;
+
+      m.gain = gain;
     });
 
     timer.stop_timer("gain_recalculation");
@@ -253,8 +324,8 @@ public:
         phg.changeNodePartFullUpdate(m.node, m.from, m.to, std::numeric_limits<HypernodeWeight>::max(), []{});
         const HyperedgeWeight km1_after_move = metrics::km1(phg, false);
         assert(km1_after_move + estimated_gain == km1_before_move);
-        assert(km1_after_move + gains[localMoveID] == km1_before_move);
-        assert(estimated_gain == gains[localMoveID]);
+        assert(km1_after_move + m.gain == km1_before_move);
+        assert(estimated_gain == m.gain);
       }
 
       for (MoveID localMoveID = 0; localMoveID < sharedData.moveTracker.numPerformedMoves(); ++localMoveID) {
@@ -263,38 +334,6 @@ public:
       return true;
     }());
   }
-
-  void recalculateBalance(PartitionedHypergraph& phg, vec<HypernodeWeight>& partWeights, HypernodeWeight maxPartWeight,
-                          const vec<Move>& move_order, MoveID numMoves) {
-    boost::dynamic_bitset<> overloaded(numParts);
-    size_t numOverloaded = 0;
-    for (PartitionID i = 0; i < numParts; ++i) {
-      if (partWeights[i] > maxPartWeight) {
-        overloaded.set(i);
-        numOverloaded++;
-      }
-    }
-
-    for (MoveID moveID = 0; moveID < numMoves; ++moveID) {
-      const Move& m = move_order[moveID];
-      if (m.gain != invalidGain /* still valid */) {
-        partWeights[m.to] += phg.nodeWeight(m.node);
-        partWeights[m.from] -= phg.nodeWeight(m.node);
-        if (!overloaded[m.to] && partWeights[m.to] > maxPartWeight) {
-          numOverloaded++;
-          overloaded.set(m.to);
-        }
-        if (overloaded[m.from] && partWeights[m.from] <= maxPartWeight) {
-          numOverloaded--;
-          overloaded.reset(m.from);
-        }
-        in_balance.set(moveID, numOverloaded == 0);
-      } else {
-        in_balance.reset(moveID);
-      }
-    }
-  }
-
 
   MoveID lastMoveOut(HyperedgeID he, PartitionID block) const {
     return last_move_out[he * numParts + block].load(std::memory_order_relaxed);
@@ -339,11 +378,6 @@ public:
   vec<CAtomic<MoveID>> first_move_in;
   // ! For each hyperedge and each block, the ID of the last move to remove a pin from that block
   vec<CAtomic<MoveID>> last_move_out;
-
-  vec<Gain> gains;
-
-  boost::dynamic_bitset<> in_balance;
-
 };
 
 }
