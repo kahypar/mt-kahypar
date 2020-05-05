@@ -204,10 +204,11 @@ class MultilevelVertexPairRater {
                      const parallel::scalable_vector<HypernodeID>& cluster_ids) {
     kahypar::ds::FastResetFlagArray<>& bloom_filter = _local_bloom_filter.local();
     for ( const HyperedgeID& he : hypergraph.incidentEdges(u) ) {
-      const HypernodeID edge_size = _context.coarsening.use_adaptive_edge_size ?
-        adaptiveEdgeSize(hypergraph, he, bloom_filter, cluster_ids) : hypergraph.edgeSize(he);
+      HypernodeID edge_size = hypergraph.edgeSize(he);
       ASSERT(edge_size > 1, V(he));
-      if ( edge_size > 1 && edge_size < _context.partition.hyperedge_size_threshold ) {
+      if ( edge_size < _context.partition.hyperedge_size_threshold ) {
+        edge_size = _context.coarsening.use_adaptive_edge_size ?
+          std::max(adaptiveEdgeSize(hypergraph, he, bloom_filter, cluster_ids), ID(2)) : edge_size;
         const RatingType score = ScorePolicy::score(
           hypergraph.edgeWeight(he), edge_size);
         for ( const HypernodeID& v : hypergraph.pins(he) ) {
@@ -232,9 +233,10 @@ class MultilevelVertexPairRater {
     kahypar::ds::FastResetFlagArray<>& bloom_filter = _local_bloom_filter.local();
     size_t num_tmp_rating_map_accesses = 0;
     for ( const HyperedgeID& he : hypergraph.incidentEdges(u) ) {
-      const HypernodeID edge_size = _context.coarsening.use_adaptive_edge_size ?
-        adaptiveEdgeSize(hypergraph, he, bloom_filter, cluster_ids) : hypergraph.edgeSize(he);
-      if ( edge_size > 1 && edge_size < _context.partition.hyperedge_size_threshold ) {
+      HypernodeID edge_size = hypergraph.edgeSize(he);
+      if ( edge_size < _context.partition.hyperedge_size_threshold ) {
+        edge_size = _context.coarsening.use_adaptive_edge_size ?
+          std::max(adaptiveEdgeSize(hypergraph, he, bloom_filter, cluster_ids), ID(2)) : edge_size;
         // Break if number of accesses to the tmp rating map would exceed
         // vertex degree sampling threshold
         if ( num_tmp_rating_map_accesses + edge_size > _vertex_degree_sampling_threshold  ) {
