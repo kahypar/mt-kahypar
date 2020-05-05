@@ -328,26 +328,34 @@ class MultilevelCoarsenerBase {
               std::unique_ptr<IRefiner>& fm,
               kahypar::Metrics& current_metrics) {
 
-    if ( label_propagation && _context.refinement.label_propagation.algorithm != LabelPropagationAlgorithm::do_nothing ) {
-      utils::Timer::instance().start_timer("initialize_lp_refiner", "Initialize LP Refiner");
-      label_propagation->initialize(partitioned_hypergraph);
-      utils::Timer::instance().stop_timer("initialize_lp_refiner");
+    bool improvement_found = true;
+    while( improvement_found ) {
+      improvement_found = false;
 
-      utils::Timer::instance().start_timer("label_propagation", "Label Propagation");
-      label_propagation->refine(partitioned_hypergraph, current_metrics);
-      utils::Timer::instance().stop_timer("label_propagation");
+      if ( label_propagation && _context.refinement.label_propagation.algorithm != LabelPropagationAlgorithm::do_nothing ) {
+        utils::Timer::instance().start_timer("initialize_lp_refiner", "Initialize LP Refiner");
+        label_propagation->initialize(partitioned_hypergraph);
+        utils::Timer::instance().stop_timer("initialize_lp_refiner");
+
+        utils::Timer::instance().start_timer("label_propagation", "Label Propagation");
+        improvement_found |= label_propagation->refine(partitioned_hypergraph, current_metrics);
+        utils::Timer::instance().stop_timer("label_propagation");
+      }
+
+      if ( fm && _context.refinement.fm.algorithm != FMAlgorithm::do_nothing ) {
+        utils::Timer::instance().start_timer("initialize_fm_refiner", "Initialize FM Refiner");
+        fm->initialize(partitioned_hypergraph);
+        utils::Timer::instance().stop_timer("initialize_fm_refiner");
+
+        utils::Timer::instance().start_timer("fm", "FM");
+        improvement_found |= fm->refine(partitioned_hypergraph, current_metrics);
+        utils::Timer::instance().stop_timer("fm");
+      }
+
+      if ( !_context.refinement.refine_until_no_improvement ) {
+        break;
+      }
     }
-
-    if ( fm && _context.refinement.fm.algorithm != FMAlgorithm::do_nothing ) {
-      utils::Timer::instance().start_timer("initialize_fm_refiner", "Initialize FM Refiner");
-      fm->initialize(partitioned_hypergraph);
-      utils::Timer::instance().stop_timer("initialize_fm_refiner");
-
-      utils::Timer::instance().start_timer("fm", "FM");
-      fm->refine(partitioned_hypergraph, current_metrics);
-      utils::Timer::instance().stop_timer("fm");
-    }
-
   }
 
   bool _is_finalized;

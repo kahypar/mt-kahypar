@@ -205,10 +205,12 @@ inline std::ostream& operator<<(std::ostream& out, const FMParameters& params) {
 struct RefinementParameters {
   LabelPropagationParameters label_propagation;
   FMParameters fm;
+  bool refine_until_no_improvement = false;
 };
 
 inline std::ostream & operator<< (std::ostream& str, const RefinementParameters& params) {
   str << "Refinement Parameters:" << std::endl;
+  str << "  Refine until no improvement:        " << std::boolalpha << params.refine_until_no_improvement << std::endl;
   str << std::endl << params.label_propagation;
   str << "\n" << params.fm;
   return str;

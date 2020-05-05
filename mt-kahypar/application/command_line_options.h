@@ -236,6 +236,10 @@ po::options_description createRefinementOptionsDescription(Context& context,
                                                            const bool initial_partitioning) {
   po::options_description options("Refinement Options", num_columns);
   options.add_options()
+    (( initial_partitioning ? "i-refine-until-no-improvement" : "r-refine-until-no-improvement"),
+    po::value<bool>((!initial_partitioning ? &context.refinement.refine_until_no_improvement :
+      &context.initial_partitioning.refinement.refine_until_no_improvement))->value_name("<bool>"),
+    "Refines a partitition until all refiner can not find an improvement any more")
     (( initial_partitioning ? "i-r-lp-type" : "r-lp-type"),
     po::value<std::string>()->value_name("<string>")->notifier(
       [&, initial_partitioning](const std::string& type) {
