@@ -185,11 +185,13 @@ public:
       for (HyperedgeID e : phg.incidentEdges(m.node)) {
         CAtomic<MoveID>& fmi = first_move_in[e * numParts + m.to];
         MoveID expected = fmi.load(std::memory_order_acq_rel);
+        // first_move_in = min(first_move_in, this_move)
         while ((sharedData.moveTracker.isIDStale(expected) || expected > globalMoveID)
                && !fmi.compare_exchange_weak(expected, globalMoveID, std::memory_order_acq_rel)) { }
 
         CAtomic<MoveID>& lmo = last_move_out[e * numParts + m.from];
         expected = lmo.load(std::memory_order_acq_rel);
+        // last_move_out = max(last_move_out, this_move)
         while (expected < globalMoveID && !lmo.compare_exchange_weak(expected, globalMoveID, std::memory_order_acq_rel)) { }
 
         remaining_original_pins[e * numParts + m.from].fetch_sub(1, std::memory_order_relaxed);
