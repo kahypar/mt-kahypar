@@ -19,6 +19,7 @@
  ******************************************************************************/
 
 #include <iostream>
+#include <mt-kahypar/io/csv_output.h>
 
 #include "mt-kahypar/application/command_line_options.h"
 #include "mt-kahypar/definitions.h"
@@ -95,6 +96,10 @@ int main(int argc, char* argv[]) {
   if ( context.partition.sp_process_output ) {
     std::cout << mt_kahypar::io::serializer::serialize(
       partitioned_hypergraph, context, elapsed_seconds) << std::endl;
+  }
+
+  if ( context.partition.csv_output ) {
+    std::cout << mt_kahypar::io::csv::serialize(partitioned_hypergraph, context, elapsed_seconds) << std::endl;
   }
 
   if (context.partition.write_partition_file) {

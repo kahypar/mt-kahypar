@@ -270,6 +270,16 @@ class Timer {
 
   friend std::ostream & operator<< (std::ostream& str, const Timer& timer);
 
+  double get(std::string key) const {
+    for (const auto& x : _timings) {
+      // unfortunately it has to be linear search because the parent (which we can't lookup at this stage) is part of the map key
+      if (x.first.key == key) {
+        return x.second.timing();
+      }
+    }
+    return 0.0;
+  }
+
  private:
   explicit Timer() :
     _timing_mutex(),

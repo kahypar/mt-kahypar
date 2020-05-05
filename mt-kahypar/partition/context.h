@@ -47,6 +47,7 @@ struct PartitioningParameters {
   bool show_memory_consumption = false;
   bool enable_progress_bar = false;
   bool sp_process_output = false;
+  bool csv_output = false;
   bool write_partition_file = false;
 
   bool enable_profiler = false;
@@ -55,6 +56,7 @@ struct PartitioningParameters {
   std::string graph_filename { };
   std::string graph_partition_filename { };
   std::string graph_community_filename { };
+  std::string preset_file { };
 };
 
 inline std::ostream & operator<< (std::ostream& str, const PartitioningParameters& params) {

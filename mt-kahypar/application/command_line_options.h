@@ -122,7 +122,9 @@ po::options_description createGenericOptionsDescription(Context& context,
     "Time limit in seconds")
     ("sp-process,s", po::value<bool>(&context.partition.sp_process_output)->value_name("<bool>"),
     "Summarize partitioning results in RESULT line compatible with sqlplottools "
-    "(https://github.com/bingmann/sqlplottools)");
+    "(https://github.com/bingmann/sqlplottools)")
+    ("csv", po::value<bool>(&context.partition.csv_output)->value_name("<bool>"),
+    "Summarize results in CSV");
   return generic_options;
 }
 
@@ -408,10 +410,9 @@ void processCommandLineInput(Context& context, int argc, char* argv[]) {
     po::value<double>(&context.partition.epsilon)->value_name("<double>")->required(),
     "Imbalance parameter epsilon");
 
-  std::string context_path;
   po::options_description preset_options("Preset Options", num_columns);
   preset_options.add_options()
-    ("preset,p", po::value<std::string>(&context_path)->value_name("<string>"),
+    ("preset,p", po::value<std::string>(&context.partition.preset_file)->value_name("<string>"),
     "Context Presets (see config directory):\n"
     " - <path-to-custom-ini-file>");
 
@@ -455,9 +456,9 @@ void processCommandLineInput(Context& context, int argc, char* argv[]) {
 
   po::notify(cmd_vm);
 
-  std::ifstream file(context_path.c_str());
+  std::ifstream file(context.partition.preset_file.c_str());
   if (!file) {
-    ERROR("Could not load context file at: " + context_path);
+    ERROR("Could not load context file at: " + context.partition.preset_file);
   }
 
   po::options_description ini_line_options;
