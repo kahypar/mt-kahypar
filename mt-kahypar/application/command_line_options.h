@@ -238,6 +238,10 @@ po::options_description createRefinementOptionsDescription(Context& context,
                                                            const bool initial_partitioning) {
   po::options_description options("Refinement Options", num_columns);
   options.add_options()
+    (( initial_partitioning ? "i-refine-until-no-improvement" : "r-refine-until-no-improvement"),
+    po::value<bool>((!initial_partitioning ? &context.refinement.refine_until_no_improvement :
+      &context.initial_partitioning.refinement.refine_until_no_improvement))->value_name("<bool>"),
+    "Refines a partitition until all refiner can not find an improvement any more")
     (( initial_partitioning ? "i-r-lp-type" : "r-lp-type"),
     po::value<std::string>()->value_name("<string>")->notifier(
       [&, initial_partitioning](const std::string& type) {
@@ -298,10 +302,12 @@ po::options_description createRefinementOptionsDescription(Context& context,
       &context.refinement.fm.seed_node_fraction))->value_name("<double>"),
     "Number of nodes to initially place into the PQ of a localized search is set to max(50, seed_node_fraction * num_nodes / num_threads). Default 0.005")
     (( initial_partitioning ? "i-r-fm-seed-nodes" : "r-fm-seed-nodes"),
-    po::value<size_t>((initial_partitioning ? &context.initial_partitioning.refinement.fm.num_seed_nodes : &context.refinement.fm.num_seed_nodes))->value_name("<size_t>"),
+    po::value<size_t>((initial_partitioning ? &context.initial_partitioning.refinement.fm.num_seed_nodes :
+      &context.refinement.fm.num_seed_nodes))->value_name("<size_t>"),
     "Number of nodes to initially place into the PQ of a localized search. Activate this option via --r-fm-use-seed-fraction false")
     (( initial_partitioning ? "i-r-fm-use-seed-fraction" : "r-fm-use-seed-fraction"),
-    po::value<bool>((initial_partitioning ? &context.initial_partitioning.refinement.fm.use_seed_node_fraction : &context.refinement.fm.use_seed_node_fraction))->value_name("<bool>"),
+    po::value<bool>((initial_partitioning ? &context.initial_partitioning.refinement.fm.use_seed_node_fraction :
+      &context.refinement.fm.use_seed_node_fraction))->value_name("<bool>"),
      "If set to true, set number of seed nodes in the PQs as described for --r-fm-seed-node-fraction. If set to false, use --r-fm--seed-nodes");
   return options;
 }

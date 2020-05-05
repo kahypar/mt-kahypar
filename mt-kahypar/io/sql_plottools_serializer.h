@@ -89,12 +89,14 @@ static inline std::string serialize(const PartitionedHypergraph& hypergraph,
         << " sparsification_min_hash_footprint_size=" << context.sparsification.min_hash_footprint_size
         << " sparsification_jaccard_threshold=" << context.sparsification.jaccard_threshold
         << " sparsification_similiar_net_combiner_strategy=" << context.sparsification.similiar_net_combiner_strategy
+        << " refine_until_no_improvement=" << std::boolalpha << context.refinement.refine_until_no_improvement
         << " lp_algorithm=" << context.refinement.label_propagation.algorithm
         << " lp_maximum_iterations=" << context.refinement.label_propagation.maximum_iterations
         << " lp_rebalancing=" << std::boolalpha << context.refinement.label_propagation.rebalancing
         << " lp_hyperedge_size_activation_threshold=" << context.refinement.label_propagation.hyperedge_size_activation_threshold
         << " fm_algorithm=" << context.refinement.fm.algorithm
         << " fm_multitry_rounds=" << context.refinement.fm.multitry_rounds
+        << " fm_num_seed_nodes=" << context.refinement.fm.num_seed_nodes
         << " fm_seed_node_fraction=" << context.refinement.fm.seed_node_fraction
         << " fm_init_localized_search_with_neighbors=" << std::boolalpha << context.refinement.fm.init_localized_search_with_neighbors
         << " fm_init_boundary_fm_with_all_nodes=" << std::boolalpha << context.refinement.fm.init_boundary_fm_with_all_nodes

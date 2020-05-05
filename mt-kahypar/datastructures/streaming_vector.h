@@ -89,6 +89,14 @@ class StreamingVector {
     return values;
   }
 
+  void copy_parallel(parallel::scalable_vector<Value>& values) {
+    ASSERT(size() <= values.size());
+    init_prefix_sum();
+    tbb::parallel_for(0, static_cast<int>(_cpu_buffer.size()), [&](const int cpu_id) {
+      memcpy_from_cpu_buffer_to_destination(values, cpu_id, _prefix_sum[cpu_id]);
+    });
+  }
+
   const Value& value(const size_t cpu_id, const size_t idx) {
     ASSERT(cpu_id < _cpu_buffer.size());
     ASSERT(idx < _cpu_buffer[cpu_id].size());

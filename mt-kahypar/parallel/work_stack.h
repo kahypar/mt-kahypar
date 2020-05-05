@@ -81,7 +81,6 @@ public:
     utils::Randomize::instance().parallelShuffleVector(elements, 0, unsafe_size());
   }
 
-private:
   CAtomic<size_t> size;
   vec<T> elements;
 };

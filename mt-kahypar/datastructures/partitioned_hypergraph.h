@@ -440,25 +440,27 @@ private:
       vec<HyperedgeWeight>& l_move_to_penalty = ets_mtp.local();
 
       for (HypernodeID u = r.begin(); u < r.end(); ++u) {
+        const PartitionID from = partID(u);
+        HyperedgeWeight incident_edges_weight = 0;
         if ( nodeIsEnabled(u) ) {
           HyperedgeWeight l_move_from_benefit = 0;
           for (HyperedgeID he : incidentEdges(u)) {
-            HyperedgeWeight we = edgeWeight(he);
-            if (pinCountInPart(he, partID(u)) == 1) {
-              l_move_from_benefit += we;
+
+            HyperedgeWeight edge_weight = edgeWeight(he);
+            if (pinCountInPart(he, from) == 1) {
+              l_move_from_benefit += edge_weight;
             }
-            for (PartitionID p = 0; p < _k; ++p) {
-              const HypernodeID pcip = pinCountInPart(he, p);
-              if (pcip == 0) {
-                l_move_to_penalty[p] += we;
-              }
+
+            for (const PartitionID block : connectivitySet(he)) {
+              l_move_to_penalty[block] -= edge_weight;
             }
+            incident_edges_weight += edge_weight;
           }
 
           _move_from_benefit[u].store(l_move_from_benefit, std::memory_order_relaxed);
           for (PartitionID p = 0; p < _k; ++p) {
-            _move_to_penalty[u * _k + p].store(l_move_to_penalty[p], std::memory_order_relaxed);
-            // reset for next round
+            _move_to_penalty[u * _k + p].store(
+              l_move_to_penalty[p] + incident_edges_weight, std::memory_order_relaxed);
             l_move_to_penalty[p] = 0;
           }
         }
