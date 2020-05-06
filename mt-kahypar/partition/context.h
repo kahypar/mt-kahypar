@@ -182,7 +182,7 @@ struct FMParameters {
   size_t multitry_rounds = 0;
   double seed_node_fraction = 0.0;
   size_t num_seed_nodes = 0;
-  bool use_seed_node_fraction = true;
+  bool use_seed_node_fraction = false;
   bool init_localized_search_with_neighbors = false;
   bool init_boundary_fm_with_all_nodes = false;
   bool shuffle = true;
