@@ -113,6 +113,7 @@ private:
                                                          [&] { move_id = sharedData.moveTracker.insertMove(m); });
       if (moved) {
         runStats.moves++;
+        sharedData.moveTracker.moveOfNode[m.node] = move_id;
         insertOrUpdateNeighbors(phg, sharedData, m.node);
         estimatedImprovement += m.gain;
         localMoves.push_back(move_id);

@@ -41,11 +41,11 @@ class MultiTryKWayFM final : public IRefiner {
   static constexpr bool debug = false;
 
 public:
-  MultiTryKWayFM(Hypergraph& hypergraph, const Context& context, const TaskGroupID taskGroupID) :
+  MultiTryKWayFM(const Hypergraph& hypergraph, const Context& context, const TaskGroupID taskGroupID) :
           context(context),
           taskGroupID(taskGroupID),
           sharedData(hypergraph.initialNumNodes(), context),
-          globalRollback(hypergraph.initialNumNodes(), hypergraph.initialNumEdges(), context.partition.k),
+          globalRollback(hypergraph, context.partition.k),
           ets_fm(context, hypergraph.initialNumNodes(), sharedData.vertexPQHandles.data()) { }
 
   bool refineImpl(PartitionedHypergraph& phg,

@@ -34,16 +34,19 @@ using VertexPriorityQueue = ds::MaxHeap<Gain, HypernodeID>;    // these need ext
 
 struct GlobalMoveTracker {
   vec<Move> moveOrder;
+  vec<MoveID> moveOfNode;
   CAtomic<MoveID> runningMoveID;
   MoveID firstMoveID = 1;
 
   explicit GlobalMoveTracker(size_t numNodes) :
           moveOrder(numNodes),
+          moveOfNode(numNodes, 0),
           runningMoveID(1) { }
 
   // Returns true if stored move IDs should be reset
   bool reset() {
     if (runningMoveID.load() >= std::numeric_limits<MoveID>::max() - moveOrder.size() - 20) {
+      tbb::parallel_for(0UL, moveOfNode.size(), [&](size_t i) { moveOfNode[i] = 0; }, tbb::static_partitioner());
       firstMoveID = 1;
       runningMoveID.store(1);
       return true;
@@ -85,7 +88,7 @@ struct GlobalMoveTracker {
     return runningMoveID.load(std::memory_order_relaxed) - firstMoveID;
   }
 
-  bool isIDStale(const MoveID move_id) const {
+  bool isMoveStale(const MoveID move_id) const {
     return move_id < firstMoveID;
   }
 };

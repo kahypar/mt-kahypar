@@ -146,14 +146,12 @@ struct BalanceAndBestIndexScan {
 class GlobalRollback {
   static constexpr bool enable_heavy_assert = false;
 public:
-
-  explicit GlobalRollback(size_t numNodes, size_t numHyperedges, PartitionID numParts) :
+  explicit GlobalRollback(const Hypergraph& hg, PartitionID numParts) :
           numParts(numParts),
-          remaining_original_pins(numHyperedges * numParts),
-          first_move_in(numHyperedges * numParts),
-          last_move_out(numHyperedges * numParts)
+          remaining_original_pins(hg.numNonGraphEdges() * numParts),
+          first_move_in(hg.numNonGraphEdges() * numParts),
+          last_move_out(hg.numNonGraphEdges() * numParts)
   {
-    unused(numNodes);
     resetStoredMoveIDs();
   }
 
@@ -186,18 +184,24 @@ public:
         const Move& m = move_order[moveID];
         if (sharedData.moveTracker.isMoveStillValid(m)) {
           phg.changeNodePartFullUpdate(m.node, m.to, m.from, std::numeric_limits<HypernodeWeight>::max(), []{/* do nothing */});
-          for (HyperedgeID e : phg.incidentEdges(m.node))
-            remaining_original_pins[e * numParts + m.from].fetch_add(1, std::memory_order_relaxed);
+          for (HyperedgeID e : phg.incidentEdges(m.node)) {
+            if (phg.edgeSize(e) > 2) {
+              remaining_original_pins[phg.nonGraphEdgeID(e) * numParts + m.from].fetch_add(1, std::memory_order_relaxed);
+            }
+          }
         }
       });
     }, [&] {
       // apply updates to remaining original pins
       tbb::parallel_for(MoveID(0), b.best_index, [&](const MoveID moveID) {
         const Move& m = move_order[moveID];
-        const PartitionID to = m.to;
-        if (sharedData.moveTracker.isMoveStillValid(m))
-          for (HyperedgeID e : phg.incidentEdges(move_order[moveID].node))
-            remaining_original_pins[e * numParts + to].fetch_add(1, std::memory_order_relaxed);
+        if (sharedData.moveTracker.isMoveStillValid(m)) {
+          for (HyperedgeID e : phg.incidentEdges(move_order[moveID].node)) {
+            if (phg.edgeSize(e) > 2) {
+              remaining_original_pins[phg.nonGraphEdgeID(e) * numParts + m.to].fetch_add(1, std::memory_order_relaxed);
+            }
+          }
+        }
       });
     } );
 
@@ -217,10 +221,13 @@ public:
 
     HEAVY_REFINEMENT_ASSERT([&] {
       for ( const HyperedgeID& he : phg.edges() ) {
-        for ( PartitionID block = 0; block < phg.k(); ++block ) {
-          if ( phg.pinCountInPart(he, block) != remaining_original_pins[he * phg.k() + block] ) {
+        if (phg.edgeSize(he) == 2) {
+          continue;
+        }
+        for ( PartitionID block = 0; block < numParts; ++block ) {
+          if ( phg.pinCountInPart(he, block) != remaining_original_pins[phg.nonGraphEdgeID(he) * numParts + block] ) {
             LOG << "Pin Count In Part does not match remaining original pins" << V(he) << V(block)
-                << V(phg.pinCountInPart(he, block)) << V(remaining_original_pins[he * phg.k() + block]);
+                << V(phg.pinCountInPart(he, block)) << V(remaining_original_pins[phg.nonGraphEdgeID(he) * numParts + block]);
             return false;
           }
         }
@@ -233,9 +240,10 @@ public:
 
 
   void recalculateGains(PartitionedHypergraph& phg, FMSharedData& sharedData) {
-    vec<Move>& move_order = sharedData.moveTracker.moveOrder;
-    const MoveID numMoves = sharedData.moveTracker.numPerformedMoves();
-    const MoveID firstMoveID = sharedData.moveTracker.firstMoveID;
+    GlobalMoveTracker& tracker = sharedData.moveTracker;
+    vec<Move>& move_order = tracker.moveOrder;
+    const MoveID numMoves = tracker.numPerformedMoves();
+    const MoveID firstMoveID = tracker.firstMoveID;
 
     utils::Timer& timer = utils::Timer::instance();
     timer.start_timer("move_id_flagging", "Move Flagging");
@@ -245,45 +253,82 @@ public:
       if (!sharedData.moveTracker.isMoveStillValid(m)) return;
 
       const MoveID globalMoveID = localMoveID + firstMoveID;
-      for (HyperedgeID e : phg.incidentEdges(m.node)) {
-        CAtomic<MoveID>& fmi = first_move_in[e * numParts + m.to];
-        MoveID expected = fmi.load(std::memory_order_acq_rel);
-        // first_move_in = min(first_move_in, this_move)
-        while ((sharedData.moveTracker.isIDStale(expected) || expected > globalMoveID)
-               && !fmi.compare_exchange_weak(expected, globalMoveID, std::memory_order_acq_rel)) { }
+      for (HyperedgeID e_global : phg.incidentEdges(m.node)) {
+        if (phg.edgeSize(e_global) > 2) {
+          const HyperedgeID e = phg.nonGraphEdgeID(e_global);
+          CAtomic<MoveID>& fmi = first_move_in[e * numParts + m.to];
+          MoveID expected = fmi.load(std::memory_order_acq_rel);
+          // first_move_in = min(first_move_in, this_move)
+          while ((tracker.isMoveStale(expected) || expected > globalMoveID)
+                 && !fmi.compare_exchange_weak(expected, globalMoveID, std::memory_order_acq_rel)) { }
 
-        CAtomic<MoveID>& lmo = last_move_out[e * numParts + m.from];
-        expected = lmo.load(std::memory_order_acq_rel);
-        // last_move_out = max(last_move_out, this_move)
-        while (expected < globalMoveID && !lmo.compare_exchange_weak(expected, globalMoveID, std::memory_order_acq_rel)) { }
+          CAtomic<MoveID>& lmo = last_move_out[e * numParts + m.from];
+          expected = lmo.load(std::memory_order_acq_rel);
+          // last_move_out = max(last_move_out, this_move)
+          while (expected < globalMoveID && !lmo.compare_exchange_weak(expected, globalMoveID, std::memory_order_acq_rel)) { }
 
-        remaining_original_pins[e * numParts + m.from].fetch_sub(1, std::memory_order_relaxed);
+          remaining_original_pins[e * numParts + m.from].fetch_sub(1, std::memory_order_relaxed);
+        }
       }
     });
 
     timer.stop_timer("move_id_flagging");
     timer.start_timer("gain_recalculation", "Recalculate Gains");
 
-    tbb::parallel_for(0U, sharedData.moveTracker.numPerformedMoves(), [&](MoveID localMoveID) {
+    tbb::parallel_for(0U, numMoves, [&](MoveID localMoveID) {
       Move& m = move_order[localMoveID];
-      if (!sharedData.moveTracker.isMoveStillValid(m)) {
+      if (!tracker.isMoveStillValid(m)) {
         return;
       }
 
       MoveID globalMoveID = firstMoveID + localMoveID;
       Gain gain = 0;
-      for (HyperedgeID e : phg.incidentEdges(m.node)) {
-        const MoveID firstInFrom = firstMoveIn(e, m.from);
-        if (remainingPinsFromBeginningOfMovePhase(e, m.from) == 0 && lastMoveOut(e, m.from) == globalMoveID
-            && (firstInFrom > globalMoveID || firstInFrom < firstMoveID)) {
-          gain += phg.edgeWeight(e);
+      for (HyperedgeID e_global : phg.incidentEdges(m.node)) {
+        const HyperedgeWeight edgeWeight = phg.edgeWeight(e_global);
+
+        if (phg.edgeSize(e_global) > 2) {
+          const HyperedgeID e = phg.nonGraphEdgeID(e_global);
+
+          const MoveID firstInFrom = firstMoveIn(e, m.from);
+          if (remainingPinsFromBeginningOfMovePhase(e, m.from) == 0 && lastMoveOut(e, m.from) == globalMoveID
+              && (firstInFrom > globalMoveID || firstInFrom < firstMoveID)) {
+            gain += edgeWeight;
+          }
+
+          const MoveID lastOutTo = lastMoveOut(e, m.to);
+          if (remainingPinsFromBeginningOfMovePhase(e, m.to) == 0
+              && firstMoveIn(e, m.to) == globalMoveID && lastOutTo < globalMoveID) {
+            gain -= edgeWeight;
+          }
+
+        } else {
+
+          const HypernodeID u = m.node;
+          const HypernodeID v = phg.graphEdgeHead(e_global, u);
+          const MoveID move_id_of_v = tracker.moveOfNode[v];
+          const bool v_moved = !tracker.isMoveStale(move_id_of_v) && tracker.isMoveStillValid(move_id_of_v);
+
+          PartitionID pv;
+          if (v_moved) {
+            const MoveID local_move_id_of_v = move_id_of_v - firstMoveID;
+            const Move& move_of_v = move_order[local_move_id_of_v];
+            if (local_move_id_of_v < localMoveID) {
+              pv = move_of_v.to;
+            } else {
+              pv = move_of_v.from;
+            }
+          } else {
+            pv = phg.partID(v);
+          }
+
+          if (pv == m.to) {
+            gain += edgeWeight;
+          } else if (pv == m.from) {
+            gain -= edgeWeight;
+          }
+
         }
 
-        const MoveID lastOutTo = lastMoveOut(e, m.to);
-        if (remainingPinsFromBeginningOfMovePhase(e, m.to) == 0
-            && firstMoveIn(e, m.to) == globalMoveID && lastOutTo < globalMoveID) {
-          gain -= phg.edgeWeight(e);
-        }
       }
 
       m.gain = gain;
@@ -359,9 +404,16 @@ public:
   }
 
   void setRemainingOriginalPins(PartitionedHypergraph& phg) {
+    if (phg.hypergraph().maxEdgeSize() <= 2) {
+      return;
+    }
+
     phg.doParallelForAllEdges([&](const HyperedgeID& he) {
-      for ( PartitionID block = 0; block < phg.k(); ++block ) {
-        remaining_original_pins[he * phg.k() + block].store(phg.pinCountInPart(he, block), std::memory_order_relaxed);
+      if (phg.edgeSize(he) > 2) {
+        const HyperedgeID he_local = phg.nonGraphEdgeID(he);
+        for ( PartitionID block = 0; block < numParts; ++block ) {
+          remaining_original_pins[he_local * numParts + block].store(phg.pinCountInPart(he, block), std::memory_order_relaxed);
+        }
       }
     });
   }
