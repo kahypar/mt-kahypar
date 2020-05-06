@@ -308,6 +308,18 @@ private:
     _hg->disableHyperedge(e);
   }
 
+  HyperedgeID graphEdgeID(const HyperedgeID e) const {
+    return _hg->graphEdgeID(e);
+  }
+
+  HyperedgeID nonGraphEdgeID(const HyperedgeID e) const {
+    return _hg->nonGraphEdgeID(e);
+  }
+
+  HypernodeID graphEdgeHead(const HyperedgeID e, const HypernodeID tail) const {
+    return _hg->graphEdgeHead(e, tail);
+  }
+
   // ####################### Partition Information #######################
 
   void setOnlyNodePart(const HypernodeID u, PartitionID p) {

@@ -739,6 +739,26 @@ class StaticHypergraph {
     hyperedge(e).disable();
   }
 
+  HyperedgeID graphEdgeID(const HyperedgeID e) const {
+    ASSERT(edgeSize(e) == 2);
+    ASSERT(e < _num_hyperedges);
+    return _num_graph_edges_up_to[e];
+  }
+
+  HyperedgeID nonGraphEdgeID(const HyperedgeID e) const {
+    ASSERT(edgeSize(e) > 2);
+    ASSERT(e < _num_hyperedges);
+    return e - _num_graph_edges_up_to[e];
+  }
+
+  HypernodeID graphEdgeHead(const HyperedgeID e, const HypernodeID tail) const {
+    ASSERT(edgeSize(e) == 2);
+    const size_t f = hyperedge(e).firstEntry();
+    const size_t first_matches = static_cast<size_t>(_incidence_array[f] == tail);
+    return _incidence_array[f + first_matches];
+  }
+
+
   // ####################### Community Hyperedge Information #######################
 
   // ! Weight of a community hyperedge
