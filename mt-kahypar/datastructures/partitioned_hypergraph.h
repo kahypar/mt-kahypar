@@ -447,7 +447,17 @@ private:
   // requires pinCountInPart to be computed
   void initializeGainInformation() {
     // check whether part has been initialized
-    ASSERT( std::all_of(_part_ids.begin(), _part_ids.end(), [&](const PartitionID p) { return p != kInvalidPartition; }) );
+    ASSERT([&] {
+      if (_part_ids.size() != initialNumNodes()) {
+        return false;
+      }
+      for (HypernodeID u : nodes()) {
+        if (partID(u) == kInvalidPartition || partID(u) > k()) {
+          return false;
+        }
+      }
+      return true;
+    });
 
     // we can either assume that pinCountInPart has been initialized and use this information
     // or recompute the gain information from scratch, which would be independent but requires more memory volume
@@ -460,9 +470,9 @@ private:
       vec<HyperedgeWeight>& l_move_to_penalty = ets_mtp.local();
 
       for (HypernodeID u = r.begin(); u < r.end(); ++u) {
-        const PartitionID from = partID(u);
-        HyperedgeWeight incident_edges_weight = 0;
         if ( nodeIsEnabled(u) ) {
+          const PartitionID from = partID(u);
+          HyperedgeWeight incident_edges_weight = 0;
           HyperedgeWeight l_move_from_benefit = 0;
           for (HyperedgeID he : incidentEdges(u)) {
 
@@ -479,8 +489,7 @@ private:
 
           _move_from_benefit[u].store(l_move_from_benefit, std::memory_order_relaxed);
           for (PartitionID p = 0; p < _k; ++p) {
-            _move_to_penalty[u * _k + p].store(
-              l_move_to_penalty[p] + incident_edges_weight, std::memory_order_relaxed);
+            _move_to_penalty[u * _k + p].store(l_move_to_penalty[p] + incident_edges_weight, std::memory_order_relaxed);
             l_move_to_penalty[p] = 0;
           }
         }
