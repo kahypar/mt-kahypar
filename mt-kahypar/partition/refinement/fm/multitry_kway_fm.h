@@ -35,7 +35,6 @@
 
 
 namespace mt_kahypar {
-// TODO try variant in which, a bunch of searches are stored in a PQ, findMoves(..) yields frequently, and then the most promising search is scheduled next
 
 class MultiTryKWayFM final : public IRefiner {
 
