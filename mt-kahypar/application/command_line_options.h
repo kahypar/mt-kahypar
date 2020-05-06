@@ -330,6 +330,10 @@ po::options_description createInitialPartitioningOptionsDescription(Context& con
     po::value<bool>(&context.initial_partitioning.use_adaptive_epsilon)->value_name("<bool>"),
     "If true, adaptive epsilon is used during recursive initial partitioning \n"
     "(default: false)")
+    ("i-perform-fm-refinement",
+    po::value<bool>(&context.initial_partitioning.perform_fm_refinement)->value_name("<bool>"),
+    "If true, the best partitions produced by a thread is refined with an boundary FM \n"
+    "(default: false)")
     ("i-lp-maximum-iterations",
     po::value<size_t>(&context.initial_partitioning.lp_maximum_iterations)->value_name("<size_t>"),
     "Maximum number of iterations of label propagation initial partitioner \n"
