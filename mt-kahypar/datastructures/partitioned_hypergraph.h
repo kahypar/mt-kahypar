@@ -457,7 +457,7 @@ private:
         }
       }
       return true;
-    });
+    } ());
 
     // we can either assume that pinCountInPart has been initialized and use this information
     // or recompute the gain information from scratch, which would be independent but requires more memory volume
