@@ -499,6 +499,14 @@ class StaticHypergraph {
     return _num_hyperedges;
   }
 
+  HyperedgeID numGraphEdges() const {
+    return _num_graph_edges;
+  }
+
+  HyperedgeID numNonGraphEdges() const {
+    return initialNumEdges() - _num_graph_edges;
+  }
+
   // ! Number of removed hyperedges
   HyperedgeID numRemovedHyperedges() const {
     return _num_removed_hyperedges;
