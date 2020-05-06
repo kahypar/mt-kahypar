@@ -174,7 +174,7 @@ public:
 
     timer.start_timer("find_best_prefix_and_balance", "Find Best Balanced Prefix");
     BalanceAndBestIndexScan s(phg, move_order, partWeightCopy, maxPartWeight);
-    tbb::parallel_scan(tbb::blocked_range<MoveID>(0, numMoves), s);
+    tbb::parallel_scan(tbb::blocked_range<MoveID>(0, numMoves, 2500), s);
     BalanceAndBestIndexScan::GainIndex b = s.finalize();
     timer.stop_timer("find_best_prefix_and_balance");
 
