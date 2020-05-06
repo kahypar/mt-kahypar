@@ -79,7 +79,6 @@ public:
           while(fm.findMoves(phg, sharedData)) { /* keep running */ }
         };
         TBBNumaArena::instance().execute_task_on_each_thread(taskGroupID, task);
-        //task(0,0,0);
       } else if (context.refinement.fm.algorithm == FMAlgorithm::fm_boundary){
         // Try boundary FM
         vec<HypernodeID> test_refinement_nodes;
