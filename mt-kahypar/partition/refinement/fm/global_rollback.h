@@ -237,14 +237,6 @@ public:
     const MoveID numMoves = sharedData.moveTracker.numPerformedMoves();
     const MoveID firstMoveID = sharedData.moveTracker.firstMoveID;
 
-
-    HEAVY_REFINEMENT_ASSERT([&] {
-      for (MoveID localMoveID = 0; localMoveID < sharedData.moveTracker.numPerformedMoves(); ++localMoveID) {
-        phg.recomputeMoveFromBenefit(move_order[localMoveID].node);
-      }
-      return phg.checkTrackedPartitionInformation();
-    }());
-
     utils::Timer& timer = utils::Timer::instance();
     timer.start_timer("move_id_flagging", "Move Flagging");
 
@@ -300,7 +292,13 @@ public:
     timer.stop_timer("gain_recalculation");
 
     HEAVY_REFINEMENT_ASSERT([&] {
-      // recheck all gains
+      // verify that all updates were correct (except moveFromBenefit of moved nodes)
+      for (MoveID localMoveID = 0; localMoveID < sharedData.moveTracker.numPerformedMoves(); ++localMoveID) {
+        phg.recomputeMoveFromBenefit(move_order[localMoveID].node);
+      }
+      phg.checkTrackedPartitionInformation();
+
+      // revert all moves
       for (MoveID localMoveID = 0; localMoveID < sharedData.moveTracker.numPerformedMoves(); ++localMoveID) {
         const Move& m = sharedData.moveTracker.moveOrder[localMoveID];
         if (sharedData.moveTracker.isMoveStillValid(m))
@@ -312,6 +310,7 @@ public:
           phg.recomputeMoveFromBenefit(move_order[localMoveID].node);
       }
 
+      // roll forward sequentially and check gains
       for (MoveID localMoveID = 0; localMoveID < sharedData.moveTracker.numPerformedMoves(); ++localMoveID) {
         const Move& m = sharedData.moveTracker.moveOrder[localMoveID];
         if (!sharedData.moveTracker.isMoveStillValid(m))
