@@ -46,7 +46,7 @@ class ALouvain : public ds::HypergraphFixture {
     context.partition.graph_filename = "../test_instances/karate_club.graph.hgr";
     context.preprocessing.community_detection.edge_weight_function = LouvainEdgeWeight::uniform;
     context.preprocessing.community_detection.max_pass_iterations = 100;
-    context.preprocessing.community_detection.min_eps_improvement = 0.0001;
+    context.preprocessing.community_detection.min_vertex_move_fraction = 0.0001;
     context.shared_memory.num_threads = 1;
 
     graph = std::make_unique<Graph>(hypergraph, LouvainEdgeWeight::uniform);

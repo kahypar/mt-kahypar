@@ -76,7 +76,7 @@ inline std::ostream & operator<< (std::ostream& str, const PartitioningParameter
 struct CommunityDetectionParameters {
   LouvainEdgeWeight edge_weight_function = LouvainEdgeWeight::UNDEFINED;
   uint32_t max_pass_iterations = std::numeric_limits<uint32_t>::max();
-  long double min_eps_improvement = std::numeric_limits<long double>::max();
+  long double min_vertex_move_fraction = std::numeric_limits<long double>::max();
   size_t vertex_degree_sampling_threshold = std::numeric_limits<size_t>::max();
 };
 
@@ -84,7 +84,7 @@ inline std::ostream & operator<< (std::ostream& str, const CommunityDetectionPar
   str << "  Community Detection Parameters:" << std::endl;
   str << "    Edge Weight Function:             " << params.edge_weight_function << std::endl;
   str << "    Maximum Louvain-Pass Iterations:  " << params.max_pass_iterations << std::endl;
-  str << "    Minimum Quality Improvement:      " << params.min_eps_improvement << std::endl;
+  str << "    Minimum Vertex Move Fraction:     " << params.min_vertex_move_fraction << std::endl;
   str << "    Vertex Degree Sampling Threshold: " << params.vertex_degree_sampling_threshold << std::endl;
   return str;
 }

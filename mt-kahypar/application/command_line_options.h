@@ -149,9 +149,9 @@ po::options_description createPreprocessingOptionsDescription(Context& context, 
     ("p-max-louvain-pass-iterations",
     po::value<uint32_t>(&context.preprocessing.community_detection.max_pass_iterations)->value_name("<uint32_t>"),
     "Maximum number of iterations over all nodes of one louvain pass")
-    ("p-louvain-min-eps-improvement",
-    po::value<long double>(&context.preprocessing.community_detection.min_eps_improvement)->value_name("<long double>"),
-    "Minimum improvement of quality during a louvain pass which leads to further passes")
+    ("p-louvain-min-vertex-move-fraction",
+    po::value<long double>(&context.preprocessing.community_detection.min_vertex_move_fraction)->value_name("<long double>"),
+    "Louvain pass terminates if less than that fraction of nodes moves during a pass")
     ("p-vertex-degree-sampling-threshold",
     po::value<size_t>(&context.preprocessing.community_detection.vertex_degree_sampling_threshold)->value_name("<size_t>"),
     "If set, than neighbors of a vertex are sampled during rating if its degree is greater than this threshold.");
