@@ -59,7 +59,7 @@ static inline std::string serialize(const PartitionedHypergraph& hypergraph,
         << " use_community_detection=" << std::boolalpha << context.preprocessing.use_community_detection
         << " community_edge_weight_function=" << context.preprocessing.community_detection.edge_weight_function
         << " community_max_pass_iterations=" << context.preprocessing.community_detection.max_pass_iterations
-        << " community_min_eps_improvement=" << context.preprocessing.community_detection.min_eps_improvement
+        << " community_min_vertex_move_fraction=" << context.preprocessing.community_detection.min_vertex_move_fraction
         << " community_vertex_degree_sampling_threshold=" << context.preprocessing.community_detection.vertex_degree_sampling_threshold
         << " coarsening_algorithm=" << context.coarsening.algorithm
         << " coarsening_contraction_limit_multiplier=" << context.coarsening.contraction_limit_multiplier
@@ -79,6 +79,7 @@ static inline std::string serialize(const PartitionedHypergraph& hypergraph,
         << " initial_partitioning_mode=" << context.initial_partitioning.mode
         << " initial_partitioning_runs=" << context.initial_partitioning.runs
         << " initial_partitioning_use_adaptive_epsilon=" << std::boolalpha << context.initial_partitioning.use_adaptive_epsilon
+        << " initial_partitioning_perform_fm_refinement=" << std::boolalpha << context.initial_partitioning.perform_fm_refinement
         << " initial_partitioning_lp_maximum_iterations=" << context.initial_partitioning.lp_maximum_iterations
         << " initial_partitioning_lp_initial_block_size=" << context.initial_partitioning.lp_initial_block_size
         << " sparsification_use_degree_zero_contractions=" << std::boolalpha << context.sparsification.use_degree_zero_contractions

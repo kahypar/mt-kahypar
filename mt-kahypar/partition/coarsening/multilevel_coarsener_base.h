@@ -211,11 +211,10 @@ class MultilevelCoarsenerBase {
 
     utils::ProgressBar uncontraction_progress(_hg.initialNumNodes(),
       _context.partition.objective == kahypar::Objective::km1 ? current_metrics.km1 : current_metrics.cut,
-      _context.partition.verbose_output && _context.partition.enable_progress_bar);
+      _context.partition.verbose_output && _context.partition.enable_progress_bar && !debug);
     uncontraction_progress += coarsest_hg.initialNumNodes();
 
     // Refine Coarsest Partitioned Hypergraph
-    DBG << "Refine coarsest HG" << V(_context.partition.k) << V(coarsest_hg.initialNumNodes());
     refine(coarsest_hg, label_propagation, fm, current_metrics);
 
     for ( int i = _hierarchies.size() - 1; i >= 0; --i ) {
@@ -240,11 +239,6 @@ class MultilevelCoarsenerBase {
              V(metrics::imbalance(representative_hg, _context)) <<
              V(metrics::imbalance(contracted_hg, _context)));
       utils::Timer::instance().stop_timer("projecting_partition");
-
-      DBG << "Projecting partition" << V(i) << V(representative_hg.initialNumNodes())
-          << V(metrics::km1(contracted_hg)) << V(metrics::km1(representative_hg))
-          << V(current_metrics.km1) << "now refine";
-
 
       // Refinement
       refine(representative_hg, label_propagation, fm, current_metrics);
@@ -328,6 +322,12 @@ class MultilevelCoarsenerBase {
               std::unique_ptr<IRefiner>& fm,
               kahypar::Metrics& current_metrics) {
 
+    if ( debug ) {
+      io::printHypergraphInfo(partitioned_hypergraph, "Refinement Hypergraph", false);
+    }
+    DBG << "Start Refinement - km1 = " << current_metrics.km1
+        << ", imbalance = " << current_metrics.imbalance;
+
     bool improvement_found = true;
     while( improvement_found ) {
       improvement_found = false;
@@ -342,6 +342,9 @@ class MultilevelCoarsenerBase {
         utils::Timer::instance().stop_timer("label_propagation");
       }
 
+      DBG << "After Label Propagation Refiner - km1 = " << current_metrics.km1
+          << ", imbalance = " << current_metrics.imbalance;
+
       if ( fm && _context.refinement.fm.algorithm != FMAlgorithm::do_nothing ) {
         utils::Timer::instance().start_timer("initialize_fm_refiner", "Initialize FM Refiner");
         fm->initialize(partitioned_hypergraph);
@@ -352,10 +355,15 @@ class MultilevelCoarsenerBase {
         utils::Timer::instance().stop_timer("fm");
       }
 
+      DBG << "After FM Refiner - km1 = " << current_metrics.km1
+          << ", imbalance = " << current_metrics.imbalance;
+
       if ( !_context.refinement.refine_until_no_improvement ) {
         break;
       }
     }
+
+    DBG << "--------------------------------------------------\n";
   }
 
   bool _is_finalized;

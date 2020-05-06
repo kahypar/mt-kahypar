@@ -159,7 +159,7 @@ class InitialPartitioningDataContainer {
     }
 
     void performFMRefinement() {
-      if ( _context.refinement.fm.algorithm != FMAlgorithm::do_nothing ) {  // TODO (Tobi) set appropriate parameter
+      if ( _context.initial_partitioning.perform_fm_refinement ) {
 
         kahypar::Metrics current_metric = {
           _result._objective,

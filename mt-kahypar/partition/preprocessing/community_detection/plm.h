@@ -96,7 +96,7 @@ class PLM {
     bool clustering_changed = false;
     size_t number_of_nodes_moved = graph.numNodes();
     for (size_t currentRound = 0;
-         number_of_nodes_moved >= _context.preprocessing.community_detection.min_eps_improvement * graph.numNodes()
+         number_of_nodes_moved >= _context.preprocessing.community_detection.min_vertex_move_fraction * graph.numNodes()
          && currentRound < _context.preprocessing.community_detection.max_pass_iterations;
          currentRound++) {
 

@@ -78,7 +78,7 @@ inline std::ostream & operator<< (std::ostream& str, const PartitioningParameter
 struct CommunityDetectionParameters {
   LouvainEdgeWeight edge_weight_function = LouvainEdgeWeight::UNDEFINED;
   uint32_t max_pass_iterations = std::numeric_limits<uint32_t>::max();
-  long double min_eps_improvement = std::numeric_limits<long double>::max();
+  long double min_vertex_move_fraction = std::numeric_limits<long double>::max();
   size_t vertex_degree_sampling_threshold = std::numeric_limits<size_t>::max();
 };
 
@@ -86,7 +86,7 @@ inline std::ostream & operator<< (std::ostream& str, const CommunityDetectionPar
   str << "  Community Detection Parameters:" << std::endl;
   str << "    Edge Weight Function:             " << params.edge_weight_function << std::endl;
   str << "    Maximum Louvain-Pass Iterations:  " << params.max_pass_iterations << std::endl;
-  str << "    Minimum Quality Improvement:      " << params.min_eps_improvement << std::endl;
+  str << "    Minimum Vertex Move Fraction:     " << params.min_vertex_move_fraction << std::endl;
   str << "    Vertex Degree Sampling Threshold: " << params.vertex_degree_sampling_threshold << std::endl;
   return str;
 }
@@ -184,7 +184,7 @@ struct FMParameters {
   size_t multitry_rounds = 0;
   double seed_node_fraction = 0.0;
   size_t num_seed_nodes = 0;
-  bool use_seed_node_fraction = true;
+  bool use_seed_node_fraction = false;
   bool init_localized_search_with_neighbors = false;
   bool init_boundary_fm_with_all_nodes = false;
   bool shuffle = true;
@@ -252,6 +252,7 @@ struct InitialPartitioningParameters {
   RefinementParameters refinement = { };
   size_t runs = 1;
   bool use_adaptive_epsilon = false;
+  bool perform_fm_refinement = false;
   size_t lp_maximum_iterations = 1;
   size_t lp_initial_block_size = 1;
 };
@@ -261,6 +262,7 @@ inline std::ostream & operator<< (std::ostream& str, const InitialPartitioningPa
   str << "  Initial Partitioning Mode:          " << params.mode << std::endl;
   str << "  Number of Runs:                     " << params.runs << std::endl;
   str << "  Use Adaptive Epsilon:               " << std::boolalpha << params.use_adaptive_epsilon << std::endl;
+  str << "  Perform FM Refinement:              " << std::boolalpha << params.perform_fm_refinement << std::endl;
   str << "  Maximum Iterations of LP IP:        " << params.lp_maximum_iterations << std::endl;
   str << "  Initial Block Size of LP IP:        " << params.lp_initial_block_size << std::endl;
   str << "\nInitial Partitioning ";

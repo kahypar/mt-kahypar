@@ -38,6 +38,9 @@ namespace mt_kahypar {
 // TODO try variant in which, a bunch of searches are stored in a PQ, findMoves(..) yields frequently, and then the most promising search is scheduled next
 
 class MultiTryKWayFM final : public IRefiner {
+
+  static constexpr bool debug = false;
+
 public:
   MultiTryKWayFM(Hypergraph& hypergraph, const Context& context, const TaskGroupID taskGroupID) :
           context(context),
@@ -148,7 +151,6 @@ public:
     }
   }
 
-  static constexpr bool debug = false;
   bool is_initialized = false;
   const Context& context;
   const TaskGroupID taskGroupID;
