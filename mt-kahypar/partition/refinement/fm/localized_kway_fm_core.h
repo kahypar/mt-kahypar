@@ -204,14 +204,14 @@ private:
     // Note. Deactivated nodes have a special active search ID so that neither branch is executed
     if (nt.isSearchInactive(searchOfV)) {
       if (nt.searchOfNode[v].compare_exchange_strong(searchOfV, thisSearch, std::memory_order_acq_rel)) {
-        const PartitionID pv = phg.partID(v);
+        const PartitionID pv = delta_phg.partID(v);
         const Gain gain = bestDestinationBlock(phg, v).second;
         vertexPQs[pv].insert(v, gain);  // blockPQ updates are done later, collectively.
         runStats.pushes++;
         return true;
       }
     } else if (searchOfV == thisSearch) {
-      const PartitionID pv = phg.partID(v);
+      const PartitionID pv = delta_phg.partID(v);
       assert(vertexPQs[pv].contains(v));
       const Gain gain = bestDestinationBlock(phg, v).second;
       vertexPQs[pv].adjustKey(v, gain);
