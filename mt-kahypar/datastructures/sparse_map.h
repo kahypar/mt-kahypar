@@ -517,7 +517,7 @@ class DynamicSparseMap {
       ASSERT(s->element);
       return s->element->value;
     } else {
-      if ( _size + 1 > _capacity / 3UL ) {
+      if ( _size + 1 > _capacity / 5UL ) {
         grow();
         s = find(key, _sparse, _capacity);
       }
@@ -528,6 +528,15 @@ class DynamicSparseMap {
   const Value & get(const Key key) const {
     ASSERT(contains(key));
     return find(key, _sparse, _capacity)->element->value;
+  }
+
+  const Value* get_if_contained(const Key key) const {
+    SparseElement* s = find(key, _sparse, _capacity);
+    if ( containsValidElement(key, s) ) {
+      return &s->element->value;
+    } else {
+      return nullptr;
+    }
   }
 
   void clear() {

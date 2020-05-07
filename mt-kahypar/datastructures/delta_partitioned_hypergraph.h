@@ -104,11 +104,8 @@ private:
   // ! Returns the block of hypernode u
   PartitionID partID(const HypernodeID u) const {
     ASSERT(_phg);
-    if ( _part_ids_delta.contains(u) ) {
-      return _part_ids_delta.get(u);
-    } else {
-      return _phg->partID(u);
-    }
+    const PartitionID* part_id = _part_ids_delta.get_if_contained(u);
+    return part_id ? *part_id : _phg->partID(u);
   }
 
   // ! Returns the total weight of block p
@@ -122,23 +119,18 @@ private:
   HypernodeID pinCountInPart(const HyperedgeID e, const PartitionID p) const {
     ASSERT(_phg);
     ASSERT(p != kInvalidPartition && p < _k);
-    uint64_t pin_count_delta = 0;
-    if ( _pins_in_part_delta.contains(e * _k + p) ) {
-      pin_count_delta = _pins_in_part_delta.get(e * _k + p);
-    }
+    const uint64_t* pin_count_delta = _pins_in_part_delta.get_if_contained(e * _k + p);
     return std::max(static_cast<uint64_t>(_phg->pinCountInPart(e, p)) +
-      pin_count_delta, static_cast<uint64_t>(0));
+      ( pin_count_delta ? *pin_count_delta : 0 ), static_cast<uint64_t>(0));
   }
 
   // ! Returns the sum of all edges incident to u, where u is the last remaining
   // ! pin in its block
   HyperedgeWeight moveFromBenefit(const HypernodeID u) const {
     ASSERT(_phg);
-    HyperedgeWeight move_from_benefit_delta = 0;
-    if ( _move_from_benefit_delta.contains(u) ) {
-      move_from_benefit_delta = _move_from_benefit_delta.get(u);
-    }
-    return _phg->moveFromBenefit(u) + move_from_benefit_delta;
+    const HyperedgeWeight* move_from_benefit_delta =
+      _move_from_benefit_delta.get_if_contained(u);
+    return _phg->moveFromBenefit(u) + ( move_from_benefit_delta ? *move_from_benefit_delta : 0 );
   }
 
   // ! Returns the sum of all edges incident to u, where p is not part of
@@ -146,11 +138,9 @@ private:
   HyperedgeWeight moveToPenalty(const HypernodeID u, const PartitionID p) const {
     ASSERT(_phg);
     ASSERT(p != kInvalidPartition && p < _k);
-    HyperedgeWeight move_to_penalty_delta = 0;
-    if ( _move_to_penalty_delta.contains(u * _k + p) ) {
-      move_to_penalty_delta = _move_to_penalty_delta.get(u * _k + p);
-    }
-    return _phg->moveToPenalty(u, p) + move_to_penalty_delta;
+    const HyperedgeWeight* move_to_penalty_delta =
+      _move_to_penalty_delta.get_if_contained(u * _k + p);
+    return _phg->moveToPenalty(u, p) + ( move_to_penalty_delta ? *move_to_penalty_delta : 0 );
   }
 
   // ! Clears all deltas applied to the partitioned hypergraph
