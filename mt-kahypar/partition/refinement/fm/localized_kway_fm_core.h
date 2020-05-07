@@ -112,9 +112,8 @@ private:
     Gain estimatedImprovement = 0, bestImprovement = 0;
     while (!stopRule.searchShouldStop() && findNextMove(phg, m)) {
       sharedData.nodeTracker.deactivateNode(m.node, thisSearch);
-      const bool moved = m.to != kInvalidPartition
-                         && delta_phg.changeNodePart(m.node, m.from, m.to, maxPartWeight,
-                                                     [&] { });
+      const bool moved = m.to != kInvalidPartition &&
+        delta_phg.changeNodePart(m.node, m.from, m.to, maxPartWeight);
       if (moved) {
         runStats.moves++;
         insertOrUpdateNeighbors(phg, sharedData, m.node);

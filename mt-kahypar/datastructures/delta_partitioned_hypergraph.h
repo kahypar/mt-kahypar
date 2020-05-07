@@ -33,7 +33,22 @@
 namespace mt_kahypar {
 namespace ds {
 
-
+/*!
+ * Special hypergraph data structure for the FM algorithm.
+ * In order to perform frequent moves on the hypergraph without affecting other
+ * local searches one can wrap this hypergraph around a partitioned hypergraph and
+ * perform those moves locally on this hypergraph. The changes are not reflected
+ * in the global partitioned hypergraph. Instead, the data structure stores deltas
+ * relative to the global partitioned hypergraph for each internal member such that
+ * by applying those deltas to the original partitioned hypergraph it would reflect the
+ * global state of the partitioned hypergraph after all local moves would be applied
+ * to it.
+ * The rationale behind this is that the majority of local searches to not yield to
+ * an improvement and are immediatly reverted. However, applying them directly to global
+ * partitioned hypergraph would affect other local searches running concurrently, which build
+ * upon that state. This special partitioned hypergraph allows a local search to hide its
+ * current search state from other searches in a space efficient manner.
+ */
 template <typename PartitionedHypergraph = Mandatory>
 class DeltaPartitionedHypergraph {
 private:
@@ -61,18 +76,18 @@ private:
     _phg = phg;
   }
 
-  template<typename F>
+  // ! Changes the block of hypernode u from 'from' to 'to'.
+  // ! Move is successful, if it is not violating the balance
+  // ! constraint specified by 'max_weight_to'.
   bool changeNodePart(const HypernodeID u,
                       const PartitionID from,
                       const PartitionID to,
-                      const HypernodeWeight max_weight_to,
-                      F&& report_success) {
+                      const HypernodeWeight max_weight_to) {
     ASSERT(_phg);
     assert(partID(u) == from);
     assert(from != to);
     const HypernodeWeight wu = _phg->nodeWeight(u);
     if ( partWeight(to) + wu <= max_weight_to ) {
-      report_success();
       _part_ids_delta[u] = to;
       _part_weights_delta[to] += wu;
       _part_weights_delta[from] -= wu;
@@ -86,6 +101,7 @@ private:
     }
   }
 
+  // ! Returns the block of hypernode u
   PartitionID partID(const HypernodeID u) const {
     ASSERT(_phg);
     if ( _part_ids_delta.contains(u) ) {
@@ -95,12 +111,14 @@ private:
     }
   }
 
+  // ! Returns the total weight of block p
   HypernodeWeight partWeight(const PartitionID p) const {
     ASSERT(_phg);
     ASSERT(p != kInvalidPartition && p < _k);
     return _phg->partWeight(p) + _part_weights_delta[p];
   }
 
+  // ! Returns the number of pins of hyperedge e in block p
   HypernodeID pinCountInPart(const HyperedgeID e, const PartitionID p) const {
     ASSERT(_phg);
     ASSERT(p != kInvalidPartition && p < _k);
@@ -112,27 +130,34 @@ private:
       pin_count_delta, static_cast<uint64_t>(0));
   }
 
+  // ! Returns the sum of all edges incident to u, where u is the last remaining
+  // ! pin in its block
   HyperedgeWeight moveFromBenefit(const HypernodeID u) const {
     ASSERT(_phg);
-    uint64_t move_from_benefit_delta = 0;
+    HyperedgeWeight move_from_benefit_delta = 0;
     if ( _move_from_benefit_delta.contains(u) ) {
       move_from_benefit_delta = _move_from_benefit_delta.get(u);
     }
     return _phg->moveFromBenefit(u) + move_from_benefit_delta;
   }
 
+  // ! Returns the sum of all edges incident to u, where p is not part of
+  // ! their connectivity set.
   HyperedgeWeight moveToPenalty(const HypernodeID u, const PartitionID p) const {
     ASSERT(_phg);
     ASSERT(p != kInvalidPartition && p < _k);
-    uint64_t move_to_penalty_delta = 0;
+    HyperedgeWeight move_to_penalty_delta = 0;
     if ( _move_to_penalty_delta.contains(u * _k + p) ) {
       move_to_penalty_delta = _move_to_penalty_delta.get(u * _k + p);
     }
     return _phg->moveToPenalty(u, p) + move_to_penalty_delta;
   }
 
+  // ! Clears all deltas applied to the partitioned hypergraph
   void clear() {
+    // O(k)
     _part_weights_delta.assign(_k, 0);
+    // Constant Time
     _part_ids_delta.clear();
     _pins_in_part_delta.clear();
     _move_to_penalty_delta.clear();
@@ -140,6 +165,7 @@ private:
   }
 
  private:
+
 
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
   HypernodeID decrementPinCountInPartWithGainUpdate(const HyperedgeID e, const PartitionID p) {
@@ -181,12 +207,28 @@ private:
     return pin_count_after;
   }
 
+  // ! Number of blocks
   const PartitionID _k;
+
+  // ! Partitioned hypergraph where all deltas are stored relative to
   PartitionedHypergraph* _phg;
+
+  // ! Delta for block weights
   vec< HypernodeWeight > _part_weights_delta;
+
+  // ! Stores for each locally moved node, its new block id
   DynamicSparseMap<HypernodeID, PartitionID> _part_ids_delta;
+
+  // ! Stores the delta of each locally touched pin count entry
+  // ! relative to the _pins_in_part member in '_phg'
   DynamicSparseMap<size_t, uint64_t> _pins_in_part_delta;
+
+  // ! Stores the delta of each locally touched move to penalty entry
+  // ! relative to the _move_to_penalty member in '_phg'
   DynamicSparseMap<size_t, HyperedgeWeight> _move_to_penalty_delta;
+
+  // ! Stores the delta of each locally touched move from benefit entry
+  // ! relative to the _move_from_benefit member in '_phg'
   DynamicSparseMap<HypernodeID, HyperedgeWeight> _move_from_benefit_delta;
 };
 
