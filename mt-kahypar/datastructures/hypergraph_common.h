@@ -141,4 +141,31 @@ struct Memento {
     bool valid;
   };
 
+// ! Helper function to compute delta for cut-metric after changeNodePart
+static HyperedgeWeight cutDelta(const HyperedgeID,
+                                const HyperedgeWeight edge_weight,
+                                const HypernodeID edge_size,
+                                const HypernodeID pin_count_in_from_part_after,
+                                const HypernodeID pin_count_in_to_part_after) {
+  if ( edge_size > 1 ) {
+    if (pin_count_in_to_part_after == edge_size) {
+      return -edge_weight;
+    } else if (pin_count_in_from_part_after == edge_size - 1 &&
+               pin_count_in_to_part_after == 1) {
+      return edge_weight;
+    }
+  }
+  return 0;
+}
+
+// ! Helper function to compute delta for km1-metric after changeNodePart
+static HyperedgeWeight km1Delta(const HyperedgeID,
+                                const HyperedgeWeight edge_weight,
+                                const HypernodeID,
+                                const HypernodeID pin_count_in_from_part_after,
+                                const HypernodeID pin_count_in_to_part_after) {
+  return (pin_count_in_to_part_after == 1 ? edge_weight : 0) +
+         (pin_count_in_from_part_after == 0 ? -edge_weight : 0);
+}
+
 } // namespace mt_kahypar

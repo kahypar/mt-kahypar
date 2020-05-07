@@ -129,7 +129,7 @@ private:
       updateBlocks(m.from);
     }
 
-    revertToBestLocalPrefix(phg, sharedData, bestImprovementIndex);
+    applyMovesToGlobalHypergraph(phg, sharedData, bestImprovementIndex, bestImprovement);
     runStats.estimated_improvement = bestImprovement;
 
     blockPQ.clear();
@@ -176,7 +176,6 @@ private:
         }
       }
     }
-
   }
 
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
@@ -249,13 +248,47 @@ private:
     }
   }
 
-  void revertToBestLocalPrefix(PartitionedHypergraph& phg, FMSharedData& sharedData, size_t bestGainIndex) {
+  void applyMovesToGlobalHypergraph(PartitionedHypergraph& phg, FMSharedData& sharedData, size_t bestGainIndex, Gain bestImprovement2) {
+    localAppliedMoves.clear();
     runStats.local_reverts += localMoves.size() - bestGainIndex;
-    // Apply move sequence to original hypergraph
+    Gain estimatedImprovement = 0;
+    Gain lastGain = 0;
+
+    auto delta_gain_func = [&](const HyperedgeID he,
+                               const HyperedgeWeight edge_weight,
+                               const HypernodeID edge_size,
+                               const HypernodeID pin_count_in_from_part_after,
+                               const HypernodeID pin_count_in_to_part_after) {
+      lastGain = km1Delta(he, edge_weight, edge_size,
+        pin_count_in_from_part_after, pin_count_in_to_part_after);
+      estimatedImprovement -= lastGain;
+    };
+
+    // Apply move sequence to original hypergraph and update gain values
+    Gain bestImprovement = 0;
+    size_t bestIndex = 0;
     for ( size_t i = 0; i < bestGainIndex; ++i ) {
       Move& m = localMoves[i];
+      MoveID m_id = std::numeric_limits<MoveID>::max();
       phg.changeNodePartFullUpdate(m.node, m.from, m.to, std::numeric_limits<HypernodeWeight>::max(),
-        [&] { sharedData.moveTracker.insertMove(m); });
+        [&] { m_id = sharedData.moveTracker.insertMove(m); }, delta_gain_func);
+      ASSERT(m_id != std::numeric_limits<MoveID>::max());
+      Move& move = sharedData.moveTracker.getMove(m_id);
+      move.gain = lastGain; // Update gain value based on hypergraph delta
+      localAppliedMoves.push_back(m_id);
+      if ( estimatedImprovement >= bestImprovement ) {
+        bestImprovement = estimatedImprovement;
+        bestIndex = i;
+      }
+    }
+
+    // Kind of double rollback, if gain values are not correct
+    ASSERT(localAppliedMoves.size() == bestGainIndex);
+    for ( size_t i = bestIndex + 1; i < bestGainIndex; ++i ) {
+      Move& m = sharedData.moveTracker.getMove(localAppliedMoves[i]);
+      phg.changeNodePartFullUpdate(m.node, m.to, m.from,
+        std::numeric_limits<HypernodeWeight>::max(), []{/* do nothing */});
+      sharedData.moveTracker.invalidateMove(m);
     }
   }
 
@@ -287,8 +320,9 @@ private:
   const Context& context;
   HypernodeWeight maxPartWeight = 0, perfectBalancePartWeight = 0, minPartWeight = 0;
   FMStats runStats;
-public:
   vec<Move> localMoves;
+  vec<MoveID> localAppliedMoves;
+public:
   FMStats stats;
 };
 
