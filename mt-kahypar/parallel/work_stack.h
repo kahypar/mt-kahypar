@@ -55,19 +55,17 @@ struct SingleProducerMultipleConsumerDeque {
       size_t old_front = front.load(std::memory_order_acq_rel);
       while (front.compare_exchange_weak(old_front, in_reallocation, std::memory_order_acq_rel)) { /* spin */ }
       elements.push_back(el); // causes reallocation
-      back.fetch_add(1, std::memory_order_acq_rel);
       front.store(old_front, std::memory_order_acq_rel);
     } else {
       elements.push_back(el);
-      back.fetch_add(1, std::memory_order_acq_rel);
     }
   }
 
   // reserved for the owning thread
   bool pop_back(T& el) {
     if (!empty()) {
-      back.fetch_sub(1, std::memory_order_acq_rel);
-      el = elements.pop_back();
+      el = elements.back();
+      elements.pop_back();
       return true;
     }
     return false;
@@ -167,7 +165,7 @@ struct WorkStealingContainer {
     size_t avg_size = sz / tls_deques.size();
     size_t num_queues_with_one_more = sz % tls_deques.size();
 
-    auto desired_size = [&](const size_t j) { return avg_size + (i < num_queues_with_one_more ? 1 : 0); };
+    auto desired_size = [&](const size_t j) { return avg_size + (j < num_queues_with_one_more ? 1 : 0); };
 
     vec<size_t> underloaded_queues;
     for (size_t i = 0; i < tls_deques.size(); ++i) {
@@ -184,7 +182,8 @@ struct WorkStealingContainer {
         SingleProducerMultipleConsumerDeque<T>& underloaded_queue = tls_deques.begin()[underloaded_queues.back()];
         const size_t odsz = desired_size(underloaded_queues.back());
         while (tlq.elements.size() > dsz && underloaded_queue.elements.size() < odsz) {
-          underloaded_queue.elements.push_back(tlq.elements.pop_back());
+          underloaded_queue.elements.push_back(tlq.elements.back());
+          tlq.elements.pop_back();
         }
       }
     }
