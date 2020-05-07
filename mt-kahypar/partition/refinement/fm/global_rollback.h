@@ -160,9 +160,6 @@ public:
     const MoveID numMoves = sharedData.moveTracker.numPerformedMoves();
     if (numMoves == 0) return 0;
 
-    vec<HypernodeWeight> partWeightCopy = partWeights;
-    vec<HypernodeWeight> pws = partWeights;
-
     const vec<Move>& move_order = sharedData.moveTracker.moveOrder;
     utils::Timer& timer = utils::Timer::instance();
 
@@ -171,7 +168,7 @@ public:
     timer.stop_timer("recalculate_gains");
 
     timer.start_timer("find_best_prefix_and_balance", "Find Best Balanced Prefix");
-    BalanceAndBestIndexScan s(phg, move_order, partWeightCopy, maxPartWeight);
+    BalanceAndBestIndexScan s(phg, move_order, partWeights, maxPartWeight);
     tbb::parallel_scan(tbb::blocked_range<MoveID>(0, numMoves, 2500), s);
     BalanceAndBestIndexScan::GainIndex b = s.finalize();
     timer.stop_timer("find_best_prefix_and_balance");

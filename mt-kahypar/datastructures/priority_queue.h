@@ -207,8 +207,8 @@ protected:
     heap[pos].id = id;
     heap[pos].key = k;
 
-    HEAVY_REFINEMENT_ASSERT(isHeap());
-    HEAVY_REFINEMENT_ASSERT(positionsMatch());
+    //HEAVY_REFINEMENT_ASSERT(isHeap());
+    //HEAVY_REFINEMENT_ASSERT(positionsMatch());
   }
 
   void siftDown(PosT pos) {
@@ -262,8 +262,8 @@ protected:
       heap[pos].id = id;
     }
 
-    HEAVY_REFINEMENT_ASSERT(isHeap());
-    HEAVY_REFINEMENT_ASSERT(positionsMatch());
+    //HEAVY_REFINEMENT_ASSERT(isHeap());
+    //HEAVY_REFINEMENT_ASSERT(positionsMatch());
   }
 
   struct HeapElement {
