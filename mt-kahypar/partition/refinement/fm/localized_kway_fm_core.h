@@ -133,7 +133,14 @@ private:
     blockPQ.clear();
     for (PartitionID i = 0; i < numParts; ++i) {
       for (PosT j = 0; j < vertexPQs[i].size(); ++j) {
-        sharedData.nodeTracker.releaseNode(vertexPQs[i].at(j));
+        const HypernodeID node = vertexPQs[i].at(j);
+        sharedData.nodeTracker.releaseNode(node);
+        if (sharedData.refinementNodes.was_pushed_and_removed(node)) {
+          sharedData.refinementNodes.push_back(node);
+        }
+        // TODO put back into refinementNodes if it was in there at some point, and is currently not
+        // use two timestamps per multitry fm round ? one for was placed in there, one for was removed in the current round
+        // only the thread owning the node will write the time stamp to inserted again
       }
       vertexPQs[i].clear();
     }

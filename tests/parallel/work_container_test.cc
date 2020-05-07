@@ -31,7 +31,7 @@ size_t n = 100000;
 
 TEST(WorkContainer, HasCorrectSizeAfterParallelInsertion) {
   int m = 75000;
-  WorkStack<int> cdc(n);
+  WorkStealingContainer<int> cdc(n);
   tbb::parallel_for(0, m, [&](int i) {
     cdc.push_back(i);
   });
@@ -58,7 +58,7 @@ TEST(WorkContainer, HasCorrectSizeAfterParallelInsertion) {
 }
 
 TEST(WorkContainer, ClearWorks) {
-  WorkStack<int> cdc(n);
+  WorkStealingContainer<int> cdc(n);
   cdc.push_back(5);
   cdc.push_back(420);
   ASSERT_EQ(cdc.unsafe_size(), 2);

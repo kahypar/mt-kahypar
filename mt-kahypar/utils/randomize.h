@@ -229,6 +229,11 @@ class Randomize {
     return _rand[cpu_id].getNormalDistributedFloat(mean, std_dev);
   }
 
+  std::mt19937& getGenerator() {
+    int cpu_id = sched_getcpu();
+    return _rand[cpu_id].getGenerator();
+  }
+
  private:
   explicit Randomize() :
     _rand(std::thread::hardware_concurrency()),

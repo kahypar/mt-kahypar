@@ -142,7 +142,7 @@ struct NodeTracker {
 struct FMSharedData {
 
   // ! Nodes to initialize the localized FM searches with
-  WorkStack<HypernodeID> refinementNodes;
+  WorkStealingContainer<HypernodeID> refinementNodes;
 
   // ! PQ handles shared by all threads (each vertex is only held by one thread)
   vec<PosT> vertexPQHandles;
