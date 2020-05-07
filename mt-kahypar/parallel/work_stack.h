@@ -35,7 +35,7 @@ struct SingleProducerMultipleConsumerDeque {
   }
 
   vec<T> elements;
-  CAtomic<size_t> front, back;
+  CAtomic<size_t> front;
 
   void clear() {
     elements.clear();
@@ -47,7 +47,6 @@ struct SingleProducerMultipleConsumerDeque {
   }
 
   void finalize_after_unchecked_pushes() {
-    back.store(elements.size(), std::memory_order_relaxed);
     front.store(0, std::memory_order_relaxed);
   }
 
@@ -78,12 +77,10 @@ struct SingleProducerMultipleConsumerDeque {
   // in our scenario it is not problematic if the same element gets popped by the producer and one consumer
   // since we have a secondary locking mechanism in place for them
   bool pop_front(T& el) {
-    if (front.load(std::memory_order_acq_rel) < back.load(std::memory_order_acq_rel)) { // extra check observes the spin lock
-      size_t slot = front.fetch_add(1, std::memory_order_acq_rel);
-      if (slot < back.load(std::memory_order_acq_rel)) {
-        el = elements[slot];
-        return true;
-      }
+    size_t slot = front.fetch_add(1, std::memory_order_acq_rel);
+    if (slot < elements.size()) {
+      el = elements[slot];
+      return true;
     }
     return false;
   }
@@ -93,7 +90,7 @@ struct SingleProducerMultipleConsumerDeque {
   }
 
   size_t unsafe_size() const {
-    const size_t f = front.load(std::memory_order_acq_rel), b = back.load(std::memory_order_acq_rel);
+    const size_t f = front.load(std::memory_order_acq_rel), b = elements.size();
     return b >= f ? b - f : 0;
   }
 
