@@ -188,6 +188,7 @@ struct FMParameters {
   bool init_localized_search_with_neighbors = false;
   bool init_boundary_fm_with_all_nodes = false;
   bool shuffle = true;
+  bool revert_parallel = true;
 };
 
 inline std::ostream& operator<<(std::ostream& out, const FMParameters& params) {

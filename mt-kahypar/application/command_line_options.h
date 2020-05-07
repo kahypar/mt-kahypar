@@ -308,7 +308,11 @@ po::options_description createRefinementOptionsDescription(Context& context,
     (( initial_partitioning ? "i-r-fm-use-seed-fraction" : "r-fm-use-seed-fraction"),
     po::value<bool>((initial_partitioning ? &context.initial_partitioning.refinement.fm.use_seed_node_fraction :
       &context.refinement.fm.use_seed_node_fraction))->value_name("<bool>"),
-     "If set to true, set number of seed nodes in the PQs as described for --r-fm-seed-node-fraction. If set to false, use --r-fm--seed-nodes");
+     "If set to true, set number of seed nodes in the PQs as described for --r-fm-seed-node-fraction. If set to false, use --r-fm--seed-nodes")
+     (( initial_partitioning ? "i-r-fm-revert-parallel" : "r-fm-revert-parallel"),
+     po::value<bool>((initial_partitioning ? &context.initial_partitioning.refinement.fm.revert_parallel :
+     &context.refinement.fm.revert_parallel))->value_name("<bool>"),
+     "Perform gain and balance recalculation, and reverting to best prefix in parallel. Default true");
   return options;
 }
 
