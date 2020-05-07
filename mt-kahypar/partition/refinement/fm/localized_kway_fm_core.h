@@ -129,7 +129,7 @@ private:
       updateBlocks(m.from);
     }
 
-    applyMovesToGlobalHypergraph(phg, sharedData, bestImprovementIndex, bestImprovement);
+    applyMovesToGlobalHypergraph(phg, sharedData, bestImprovementIndex);
     runStats.estimated_improvement = bestImprovement;
 
     blockPQ.clear();
@@ -248,7 +248,7 @@ private:
     }
   }
 
-  void applyMovesToGlobalHypergraph(PartitionedHypergraph& phg, FMSharedData& sharedData, size_t bestGainIndex, Gain bestImprovement2) {
+  void applyMovesToGlobalHypergraph(PartitionedHypergraph& phg, FMSharedData& sharedData, size_t bestGainIndex) {
     localAppliedMoves.clear();
     runStats.local_reverts += localMoves.size() - bestGainIndex;
     Gain estimatedImprovement = 0;
