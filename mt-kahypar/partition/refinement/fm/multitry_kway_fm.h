@@ -95,8 +95,6 @@ public:
       }
       DBG << stats.serialize();
 
-      sharedData.refinementNodes.clear();  // calling clear is necessary since tryPop will reduce the size to -(num calling threads)
-
       timer.stop_timer("find_moves");
       timer.start_timer("rollback", "Rollback to Best Solution");
 
@@ -133,14 +131,12 @@ public:
   void roundInitialization(PartitionedHypergraph& phg) {
     // insert border nodes into work queues
     sharedData.refinementNodes.clear();
-    ds::StreamingVector<HypernodeID> tmpRefinementNodes;
     phg.doParallelForAllNodes([&](const HypernodeID& hn) {
       if (phg.isBorderNode(hn)) {
-        tmpRefinementNodes.stream(hn);
+        sharedData.refinementNodes.unchecked_push_back(hn);
       }
     });
-    sharedData.refinementNodes.size.store(tmpRefinementNodes.size());
-    tmpRefinementNodes.copy_parallel(sharedData.refinementNodes.elements);
+    sharedData.refinementNodes.finalize();
 
     // requesting new searches activates all nodes by raising the deactivated node marker
     // also clears the array tracking search IDs in case of overflow

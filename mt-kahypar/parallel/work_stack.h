@@ -38,9 +38,17 @@ struct SingleProducerMultipleConsumerDeque {
   CAtomic<size_t> front, back;
 
   void clear() {
-    front.store(0);
-    back.store(0);
     elements.clear();
+    finalize_after_unchecked_pushes();
+  }
+
+  void unchecked_push_back(const T& el) {
+    elements.push_back(el);
+  }
+
+  void finalize_after_unchecked_pushes() {
+    back.store(elements.size(), std::memory_order_relaxed);
+    front.store(0, std::memory_order_relaxed);
   }
 
   void push_back(const T& el) {
@@ -101,6 +109,19 @@ struct WorkStealingContainer {
 
   WorkStealingContainer(size_t maxNumElements) : timestamps(maxNumElements, 0) { }
 
+  size_t unsafe_size() const {
+    size_t sz = 0;
+    for (const SingleProducerMultipleConsumerDeque<T>& x : tls_deques) {
+      sz += x.unsafe_size();
+    }
+    return sz;
+  }
+
+  void unchecked_push_back(const T el) {
+    tls_deques.local().unchecked_push_back(el);
+    timestamps[el] = current;
+  }
+
   void push_back(const T el) {
     tls_deques.local().push_back(el);
     timestamps[el] = current;
@@ -141,7 +162,41 @@ struct WorkStealingContainer {
   }
 
   void balance() {
+    size_t sz = 0;
+    for (SingleProducerMultipleConsumerDeque<T>& tlq : tls_deques) {
+      sz += tlq.elements.size();
+    }
 
+    size_t avg_size = sz / tls_deques.size();
+    size_t num_queues_with_one_more = sz % tls_deques.size();
+
+    auto desired_size = [&](const size_t j) { return avg_size + (i < num_queues_with_one_more ? 1 : 0); };
+
+    vec<size_t> underloaded_queues;
+    for (size_t i = 0; i < tls_deques.size(); ++i) {
+      const SingleProducerMultipleConsumerDeque<T>& tlq = tls_deques.begin()[i];
+      if (tlq.elements.size() < desired_size(i)) {
+        underloaded_queues.push_back(i);
+      }
+    }
+
+    for (size_t i = 0; i < tls_deques.size(); ++i) {
+      const SingleProducerMultipleConsumerDeque<T>& tlq = tls_deques.begin()[i];
+      const size_t dsz = desired_size(i);
+      while (tlq.elements.size() > dsz) {
+        SingleProducerMultipleConsumerDeque<T>& underloaded_queue = tls_deques.begin()[underloaded_queues.back()];
+        const size_t odsz = desired_size(underloaded_queues.back());
+        while (tlq.elements.size() > dsz && underloaded_queue.elements.size() < odsz) {
+          underloaded_queue.elements.push_back(tlq.elements.pop_back());
+        }
+      }
+    }
+  }
+
+  void finalize() {
+    for (SingleProducerMultipleConsumerDeque<T>& tlq : tls_deques) {
+      tlq.finalize_after_unchecked_pushes();
+    }
   }
 
   void shuffle() {
