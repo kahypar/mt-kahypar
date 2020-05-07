@@ -433,5 +433,203 @@ class FixedSizeSparseMap {
   MapElement* _dense;
 };
 
+template <typename Key = Mandatory,
+          typename Value = Mandatory>
+class DynamicSparseMap {
+
+  struct MapElement {
+    Key key;
+    Value value;
+  };
+
+  struct SparseElement {
+    MapElement* element;
+    size_t timestamp;
+  };
+
+ public:
+
+  static constexpr size_t MAP_SIZE = 32768; // Size of sparse map is approx. 1 MB
+
+  static_assert(MAP_SIZE && ((MAP_SIZE & (MAP_SIZE - 1)) == 0UL), "Size of map is not a power of two!");
+
+  explicit DynamicSparseMap() :
+    _capacity(0),
+    _initial_value(),
+    _data(nullptr),
+    _size(0),
+    _timestamp(1),
+    _sparse(nullptr),
+    _dense(nullptr) {
+    allocate(MAP_SIZE);
+  }
+
+  DynamicSparseMap(const DynamicSparseMap&) = delete;
+  DynamicSparseMap& operator= (const DynamicSparseMap& other) = delete;
+
+  DynamicSparseMap(DynamicSparseMap&& other) :
+    _capacity(other._capacity),
+    _initial_value(other._initial_value),
+    _data(std::move(other._data)),
+    _size(other._size),
+    _timestamp(other._timestamp),
+    _sparse(std::move(other._sparse)),
+    _dense(std::move(other._dense)) {
+    other._data = nullptr;
+    other._sparse = nullptr;
+    other._dense = nullptr;
+  }
+
+  ~DynamicSparseMap() = default;
+
+  size_t capacity() const {
+    return _capacity;
+  }
+
+  size_t size() const {
+    return _size;
+  }
+
+  const MapElement* begin() const {
+    return _dense;
+  }
+
+  const MapElement* end() const {
+    return _dense + _size;
+  }
+
+  MapElement* begin() {
+    return _dense;
+  }
+
+  MapElement* end() {
+    return _dense + _size;
+  }
+
+  bool contains(const Key key) const {
+    SparseElement* s = find(key, _sparse, _capacity);
+    return containsValidElement(key, s);
+  }
+
+  Value& operator[] (const Key key) {
+    SparseElement* s = find(key, _sparse, _capacity);
+    if ( containsValidElement(key, s) ) {
+      ASSERT(s->element);
+      return s->element->value;
+    } else {
+      if ( _size + 1 > _capacity / 3UL ) {
+        grow();
+        s = find(key, _sparse, _capacity);
+      }
+      return addElement(key, _initial_value, s, _dense, _size)->value;
+    }
+  }
+
+  const Value & get(const Key key) const {
+    ASSERT(contains(key));
+    return find(key, _sparse, _capacity)->element->value;
+  }
+
+  void clear() {
+    _size = 0;
+    ++_timestamp;
+  }
+
+  void freeInternalData() {
+    uint8_t* data = _data.release();
+    free(data);
+    _size = 0;
+    _timestamp = 0;
+    _data = nullptr;
+    _sparse = nullptr;
+    _dense = nullptr;
+  }
+
+ private:
+  inline SparseElement* find(const Key key,
+                             SparseElement* sparse,
+                             const size_t capacity) const {
+    size_t hash = key & ( capacity - 1 );
+    while ( sparse[hash].timestamp == _timestamp ) {
+      ASSERT(sparse[hash].element);
+      if ( sparse[hash].element->key == key ) {
+        return &sparse[hash];
+      }
+      hash = (hash + 1) & ( capacity - 1 );
+    }
+    return &sparse[hash];
+  }
+
+  inline bool containsValidElement(const Key key,
+                                   const SparseElement* s) const {
+    unused(key);
+    ASSERT(s);
+    const bool is_contained = s->timestamp == _timestamp;
+    ASSERT(!is_contained || s->element->key == key);
+    return is_contained;
+  }
+
+  inline MapElement* addElement(const Key key,
+                                const Value value,
+                                SparseElement* s,
+                                MapElement* dense,
+                                size_t& size) {
+    dense[size] = MapElement { key, value };
+    *s = SparseElement { &dense[size++], _timestamp };
+    return s->element;
+  }
+
+  void allocate(const size_t size) {
+    if ( _data == nullptr ) {
+      _capacity = align_to_next_power_of_two(size);
+      _data = std::make_unique<uint8_t[]>(
+        _capacity * sizeof(MapElement) + _capacity * sizeof(SparseElement));
+      _size = 0;
+      _timestamp = 1;
+      _sparse = reinterpret_cast<SparseElement*>(_data.get());
+      _dense = reinterpret_cast<MapElement*>(_data.get() + sizeof(SparseElement) * _capacity);
+      memset(_data.get(), 0, _capacity * (sizeof(MapElement) + sizeof(SparseElement)));
+    }
+  }
+
+  void grow() {
+    const size_t capacity = 2UL * _capacity;
+    std::unique_ptr<uint8_t[]> data = std::make_unique<uint8_t[]>(
+      capacity * sizeof(MapElement) + capacity * sizeof(SparseElement));
+    SparseElement* sparse = reinterpret_cast<SparseElement*>(data.get());
+    MapElement* dense = reinterpret_cast<MapElement*>(data.get() + sizeof(SparseElement) * capacity);
+    memset(data.get(), 0, capacity * (sizeof(MapElement) + sizeof(SparseElement)));
+
+    rehash(sparse, dense, capacity);
+
+    _data = std::move(data);
+    _sparse = sparse;
+    _dense = dense;
+    _capacity = capacity;
+  }
+
+  void rehash(SparseElement* sparse, MapElement* dense, const size_t capacity) {
+    size_t size = 0;
+    for ( const MapElement& element : *this ) {
+      SparseElement* slot = find(element.key, sparse, capacity);
+      addElement(element.key, element.value, slot, dense, size);
+    }
+    ASSERT(size == _size);
+  }
+
+  size_t align_to_next_power_of_two(const size_t size) const {
+    return std::pow(2.0, std::ceil(std::log2(static_cast<double>(size))));
+  }
+
+  size_t _capacity;
+  const Value _initial_value;
+  std::unique_ptr<uint8_t[]> _data;
+
+  size_t _size;
+  size_t _timestamp;
+  SparseElement* _sparse;
+  MapElement* _dense;
+};
+
 } // namespace ds
 } // namespace mt_kahypar
