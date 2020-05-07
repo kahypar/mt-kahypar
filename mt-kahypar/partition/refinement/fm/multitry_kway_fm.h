@@ -28,7 +28,6 @@
 #include <atomic>
 #include <external_tools/kahypar/kahypar/partition/metrics.h>
 
-#include "mt-kahypar/datastructures/streaming_vector.h"
 #include "mt-kahypar/partition/refinement/i_refiner.h"
 #include "mt-kahypar/partition/refinement/fm/localized_kway_fm_core.h"
 #include "mt-kahypar/partition/refinement/fm/global_rollback.h"

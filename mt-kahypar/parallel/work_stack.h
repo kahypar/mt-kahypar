@@ -218,64 +218,8 @@ struct WorkStealingContainer {
   vec<TimestampT> timestamps;
   CAtomic<size_t> steal_failures { 0 };
   tls_enumerable_thread_specific<SingleProducerMultipleConsumerDeque<T>> tls_deques;
-  //tls_enumerable_thread_specific<tbb::concurrent_queue<T>> tls_queues;
+  //tls_enumerable_thread_specific<tbb::concurrent_queue<T>> tls_queues; TODO try using these maybe? less extra code
 
-  /*
-
-  WorkStealingContainer(size_t maxNumElements) :
-          size(0),
-          elements(maxNumElements, T())
-  {
-
-  }
-
-
-
-  void push_back(const T& el) {
-    const size_t old_size = size.fetch_add(1, std::memory_order_acq_rel);
-    assert(old_size < elements.size());
-    elements[old_size] = el;
-  }
-
-  bool try_pop(T& dest) {
-    const size_t old_size = size.fetch_sub(1, std::memory_order_acq_rel);
-    if (old_size > 0 && old_size < capacity()) {
-      dest = elements[old_size - 1];
-      return true;
-    }
-    return false;
-  }
-
-  bool empty() const {
-    const size_t s = unsafe_size();
-    return s == 0 || s >= capacity();
-  }
-
-  size_t unsafe_size() const {
-    return size.load(std::memory_order_acq_rel);
-  }
-
-  size_t capacity() const {
-    return elements.size();
-  }
-
-  vec<T>& get_underlying_container() {
-    return elements;
-  }
-
-  void clear() {
-    size.store(0);
-  }
-
-  void shrink_to_fit() {
-    elements.resize(size);
-    elements.shrink_to_fit();
-  }
-
-  void shuffle() {
-    utils::Randomize::instance().parallelShuffleVector(elements, 0, unsafe_size());
-  }
-  */
 };
 
 
