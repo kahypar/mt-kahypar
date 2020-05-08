@@ -143,6 +143,34 @@ TEST(WorkContainer, QueueBlocksOnReallocation) {
   producer.join();
 }
 
+TEST(WorkContainer, MovingUpAfterReallocationWorksCorrectly) {
+  if constexpr (SPMCQueue<int>::move_to_front_after_reallocation) {
+    SPMCQueue<int> q;
+    for (int i = 0; i < (1 << 13); ++i) {
+      q.template push_back<false>(i);
+    }
+
+    int p;
+    for (int i = 0; i < 1337; ++i) {
+      q.try_pop_front(p);
+      ASSERT_EQ(p, i);
+    }
+
+    ASSERT_TRUE(q.next_push_causes_reallocation());
+    q.template push_back<false>((1 << 13));
+
+    ASSERT_EQ(q.load_front(), 0);
+    ASSERT_EQ(q.unsafe_size(), (1<<13) - 1337 + 1);
+
+    int first_element = 1337;
+    for (int i = 0; i < q.unsafe_size(); ++i) {
+      ASSERT_EQ(q.elements[i], first_element);
+      first_element++;
+    }
+
+  }
+}
+
 
 }  // namespace parallel
 }  // namespace mt_kahypar
