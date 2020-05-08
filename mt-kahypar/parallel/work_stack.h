@@ -32,7 +32,7 @@ namespace mt_kahypar {
 template<typename T>
 struct SPMCQueue {
   static constexpr size_t in_reallocation = std::numeric_limits<size_t>::max() / 2;
-  static constexpr bool move_to_front_after_reallocation = false;
+  static constexpr bool move_to_front_after_reallocation = true;
 
 
   SPMCQueue() {
@@ -57,24 +57,24 @@ struct SPMCQueue {
       // another counter-measure against incrementing beyond size
       // it's not terribly bad to lose some of these elements since it means we're at the end of the move phase
       // still try to counter act.
-      if (front.load(std::memory_order_acq_rel) > elements.size()) {
+      if (load_front() > elements.size()) {
         front.store(elements.size(), std::memory_order_acq_rel);
       }
 
       if (elements.size() < elements.capacity()) {
         elements.push_back(el);
       } else {
-        size_t old_front = front.load(std::memory_order_acq_rel);
-        size_t spin_variable = old_front;   // necessary to protect old_front in case of spurious cas_weak fails
-        while (front.compare_exchange_weak(spin_variable, in_reallocation, std::memory_order_acq_rel)) { /* spin */ }
+        size_t old_front = load_front();
+        size_t front_spin_variable = std::min(elements.size(), old_front);
+        while (front.compare_exchange_weak(front_spin_variable, in_reallocation, std::memory_order_acq_rel)) { /* spin */ }
         elements.push_back(el); // causes reallocation
         if constexpr (move_to_front_after_reallocation) {
-
-          // I don't think this works currently. since there may be a lot of failing try_pop calls that drive up the front
-          for (size_t i = 0; i < old_front; ++i) {
-            elements[i] = elements.back();
-            elements.pop_back();
+          old_front = std::min(elements.size() - 1, old_front);
+          size_t elements_in_queue = elements.size() - old_front;
+          for (size_t i = 0, j = old_front; i < elements_in_queue; ++i, ++j) {
+            elements[i] = elements[j];
           }
+          elements.erase(elements.begin() + elements_in_queue, elements.end());
           front.store(0, std::memory_order_acq_rel);          // release
         } else {
           front.store(old_front, std::memory_order_acq_rel);  // release
@@ -85,7 +85,7 @@ struct SPMCQueue {
   }
 
   bool try_pop_front(T& el) {
-    size_t f = front.load(std::memory_order_acq_rel);
+    size_t f = load_front();
     // this extra check still allows #threads fetch_add beyond size()
     // but it should reduce that amount.
     if (f < in_reallocation && f < elements.size()) {
@@ -102,6 +102,10 @@ struct SPMCQueue {
 
   bool currently_blocked() const {
     return front.load(std::memory_order_acq_rel) >= std::numeric_limits<size_t>::max() / 2;
+  }
+
+  size_t load_front() const {
+    return front.load(std::memory_order_acq_rel);
   }
 
   size_t unsafe_size() const {
