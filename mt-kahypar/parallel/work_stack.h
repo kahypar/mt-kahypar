@@ -191,41 +191,6 @@ struct WorkContainer {
     return timestamps[el] == current+1;
   }
 
-  /*
-  void balance() {
-    size_t sz = 0;
-    for (SingleProducerMultipleConsumerDeque<T>& tlq : tls_queues) {
-      sz += tlq.elements.size();
-    }
-
-    size_t avg_size = sz / tls_queues.size();
-    size_t num_queues_with_one_more = sz % tls_queues.size();
-
-    auto desired_size = [&](const size_t j) { return avg_size + (j < num_queues_with_one_more ? 1 : 0); };
-
-    vec<size_t> underloaded_queues;
-    for (size_t i = 0; i < tls_queues.size(); ++i) {
-      const SingleProducerMultipleConsumerDeque<T>& tlq = tls_queues.begin()[i];
-      if (tlq.elements.size() < desired_size(i)) {
-        underloaded_queues.push_back(i);
-      }
-    }
-
-    for (size_t i = 0; i < tls_queues.size(); ++i) {
-      const SingleProducerMultipleConsumerDeque<T>& tlq = tls_queues.begin()[i];
-      const size_t dsz = desired_size(i);
-      while (tlq.elements.size() > dsz) {
-        SingleProducerMultipleConsumerDeque<T>& underloaded_queue = tls_queues.begin()[underloaded_queues.back()];
-        const size_t odsz = desired_size(underloaded_queues.back());
-        while (tlq.elements.size() > dsz && underloaded_queue.elements.size() < odsz) {
-          underloaded_queue.elements.push_back(tlq.elements.back());
-          tlq.elements.pop_back();
-        }
-      }
-    }
-  }
-  */
-
   void shuffle() {
     tbb::parallel_for_each(tls_queues, [&](Queue& tlq) {
       assert(tlq.front == 0);
