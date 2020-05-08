@@ -204,6 +204,7 @@ struct WorkContainer {
 
   void shuffle() {
     tbb::parallel_for_each(tls_queues, [&](Queue& tlq) {
+      assert(tlq.front == 0);
       std::shuffle(tlq.elements.begin(), tlq.elements.end(), utils::Randomize::instance().getGenerator());
     });
 
