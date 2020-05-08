@@ -122,16 +122,18 @@ TEST(WorkContainer, QueueBlocksOnReallocation) {
     // this one causes the reallocation
     stage.fetch_add(1, std::memory_order_acq_rel);
     q.template push_back<false>(420);
-    stage.fetch_add(1, std::memory_order_acq_rel); // races the consumer thread for getting stage 2
+    stage.fetch_add(1, std::memory_order_acq_rel); // races the consumer thread for incrementing stage to 2
   });
 
   std::thread consumer([&] {
     while (stage.load(std::memory_order_acq_rel) < 1) { } //spin
     int front_element;
-    const bool hit_the_realloc = !q.try_pop_front(front_element);
-    size_t s = stage.fetch_add(1, std::memory_order_acq_rel); // races the producer thread for getting stage 2
+    usleep(5);
+    const bool queue_blocked = q.currently_blocked();
+    const bool pop_failed = !q.try_pop_front(front_element);
+    size_t s = stage.fetch_add(1, std::memory_order_acq_rel); // races the producer thread for incrementing stage to 2
     if (s == 1) {
-      ASSERT_TRUE(hit_the_realloc);
+      ASSERT_TRUE(queue_blocked || pop_failed);
     } else {
       LOG << "could not verify whether queue blocked. realloc was too fast. try again if you'd like";
     }
