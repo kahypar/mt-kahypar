@@ -136,7 +136,6 @@ public:
         sharedData.refinementNodes.push_back(hn);
       }
     });
-    sharedData.refinementNodes.finalize();
 
     // requesting new searches activates all nodes by raising the deactivated node marker
     // also clears the array tracking search IDs in case of overflow

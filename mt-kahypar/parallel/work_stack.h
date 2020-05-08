@@ -45,10 +45,6 @@ struct SPMCQueue {
 
   void clear() {
     elements.clear();
-    finalize_after_unchecked_pushes();
-  }
-
-  void finalize_after_unchecked_pushes() {
     front.store(0, std::memory_order_relaxed);
   }
 
@@ -137,8 +133,8 @@ struct WorkContainer {
   }
 
   bool try_pop(T& dest) {
+    // use pop_front even on the thread local queue to avoid immediately reusing a just released node
     if (tls_queues.local().try_pop_front(dest)) {
-      // use pop_front even on the thread local queue to avoid immediately reusing a just released node
       timestamps[dest] = current+1;
       return true;
     } else {
@@ -205,10 +201,6 @@ struct WorkContainer {
     }
   }
   */
-
-  void finalize() {
-
-  }
 
   void shuffle() {
     tbb::parallel_for_each(tls_queues, [&](Queue& tlq) {
