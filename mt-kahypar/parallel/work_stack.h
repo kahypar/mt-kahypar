@@ -159,16 +159,19 @@ struct WorkContainer {
       timestamps[dest] = current+1;
       return true;
     } else {
+
       // try stealing
-      for (Queue& other : tls_queues) {
-        if (other.try_pop_front(dest)) {
+      bool some_are_blocked = false;
+      for (Queue& other_queue : tls_queues) {
+        if (other_queue.try_pop_front(dest)) {
           timestamps[dest] = current+1;
           return true;
+        } else {
+          some_are_blocked |= other_queue.currently_blocked();
         }
       }
 
-      size_t fails = steal_failures.fetch_add(1, std::memory_order_relaxed);
-      if (fails < 1024) {
+      if (some_are_blocked && steal_failures.fetch_add(1, std::memory_order_relaxed) < 1024) {
         // stealing failed --> check if any of them are currently blocked. if so spin. otherwise return false
         for (Queue& other : tls_queues) {
           if (other.currently_blocked()) {
