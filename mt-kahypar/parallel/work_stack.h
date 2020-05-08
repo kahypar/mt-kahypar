@@ -54,14 +54,23 @@ struct SPMCQueue {
       elements.push_back(el);
     } else {
 
+      // another counter-measure against incrementing beyond size
+      // it's not terribly bad to lose some of these elements since it means we're at the end of the move phase
+      // still try to counter act.
+      if (front.load(std::memory_order_acq_rel) > elements.size()) {
+        front.store(elements.size(), std::memory_order_acq_rel);
+      }
+
       if (elements.size() < elements.capacity()) {
         elements.push_back(el);
       } else {
         size_t old_front = front.load(std::memory_order_acq_rel);
-        while (front.compare_exchange_weak(old_front, in_reallocation, std::memory_order_acq_rel)) { /* spin */ }
+        size_t spin_variable = old_front;   // necessary to protect old_front in case of spurious cas_weak fails
+        while (front.compare_exchange_weak(spin_variable, in_reallocation, std::memory_order_acq_rel)) { /* spin */ }
         elements.push_back(el); // causes reallocation
-
         if constexpr (move_to_front_after_reallocation) {
+
+          // I don't think this works currently. since there may be a lot of failing try_pop calls that drive up the front
           for (size_t i = 0; i < old_front; ++i) {
             elements[i] = elements.back();
             elements.pop_back();
@@ -71,6 +80,7 @@ struct SPMCQueue {
           front.store(old_front, std::memory_order_acq_rel);  // release
         }
       }
+
     }
   }
 
