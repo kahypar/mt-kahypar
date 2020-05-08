@@ -84,19 +84,6 @@ struct SPMCQueue {
     }
   }
 
-  /*
-  // reserved for the owning thread. don't use to avoid rerunning border nodes with probably negative gains
-  // if used, can pop the same element from back and front --> needs external ownership management (which we have)
-  bool pop_back(T& el) {
-    if (!empty()) {
-      el = elements.back();
-      elements.pop_back();
-      return true;
-    }
-    return false;
-  }
-   */
-
   bool try_pop_front(T& el) {
     size_t f = front.load(std::memory_order_acq_rel);
     // this extra check still allows #threads fetch_add beyond size()
