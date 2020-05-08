@@ -48,9 +48,9 @@ struct SPMCQueue {
     front.store(0, std::memory_order_relaxed);
   }
 
-  template<bool unchecked>
+  template<bool unchecked_push>
   void push_back(const T& el) {
-    if constexpr (unchecked) {
+    if constexpr (unchecked_push) {
       elements.push_back(el);
     } else {
 
@@ -126,9 +126,9 @@ struct WorkContainer {
     return sz;
   }
 
-  template<bool unchecked = false>
+  template<bool unchecked_push>
   void push_back(const T el) {
-    tls_queues.local().push_back<unchecked>(el);
+    tls_queues.local().template push_back<unchecked_push>(el);
     timestamps[el] = current;
   }
 

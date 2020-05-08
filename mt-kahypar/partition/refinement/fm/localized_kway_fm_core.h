@@ -132,7 +132,7 @@ private:
         const HypernodeID node = vertexPQs[i].at(j);
         sharedData.nodeTracker.releaseNode(node);
         if (sharedData.refinementNodes.was_pushed_and_removed(node)) {
-          sharedData.refinementNodes.push_back(node);
+          sharedData.refinementNodes.template push_back<false>(node);
         }
         // TODO put back into refinementNodes if it was in there at some point, and is currently not
         // use two timestamps per multitry fm round ? one for was placed in there, one for was removed in the current round

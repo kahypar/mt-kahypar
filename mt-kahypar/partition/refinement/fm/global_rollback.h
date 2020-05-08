@@ -166,7 +166,7 @@ public:
   }
 
   HyperedgeWeight revertToBestPrefixSequential(PartitionedHypergraph& phg, FMSharedData& sharedData,
-                                     vec<HypernodeWeight>& partWeights, HypernodeWeight maxPartWeight) {
+                                     vec<HypernodeWeight>& , HypernodeWeight maxPartWeight) {
 
 
     GlobalMoveTracker& tracker = sharedData.moveTracker;

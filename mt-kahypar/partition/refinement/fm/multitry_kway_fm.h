@@ -133,7 +133,7 @@ public:
     sharedData.refinementNodes.clear();
     phg.doParallelForAllNodes([&](const HypernodeID& hn) {
       if (phg.isBorderNode(hn)) {
-        sharedData.refinementNodes.push_back<true /* unchecked */>(hn);
+        sharedData.refinementNodes.template push_back<true>(hn);
       }
     });
 
