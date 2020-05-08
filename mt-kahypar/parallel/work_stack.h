@@ -98,10 +98,17 @@ struct SPMCQueue {
    */
 
   bool try_pop_front(T& el) {
-    size_t slot = front.fetch_add(1, std::memory_order_acq_rel);
-    if (slot < in_reallocation && slot < elements.size()) { // elements.size() can be completely broken during reallocation
-      el = elements[slot];
-      return true;
+    size_t f = front.load(std::memory_order_acq_rel);
+    // this extra check still allows #threads fetch_add beyond size()
+    // but it should reduce that amount.
+    if (f < in_reallocation && f < elements.size()) {
+      size_t slot = front.fetch_add(1, std::memory_order_acq_rel);
+      if (slot < in_reallocation) {
+        if (slot < elements.size()) { // elements.size() can be completely broken during reallocation
+          el = elements[slot];
+          return true;
+        }
+      }
     }
     return false;
   }
