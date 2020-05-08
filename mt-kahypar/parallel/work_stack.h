@@ -125,6 +125,10 @@ struct SPMCQueue {
   bool empty() const {
     return unsafe_size() > 0;
   }
+
+  bool next_push_causes_reallocation() {
+    return elements.size() == elements.capacity();
+  }
 };
 
 template<typename T>
