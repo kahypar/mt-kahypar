@@ -75,6 +75,7 @@ public:
       if (context.refinement.fm.algorithm == FMAlgorithm::fm_multitry) {
         auto task = [&](const int , const int , const int ) {
           LocalizedKWayFM& fm = ets_fm.local();
+          // TODO could use task ID here to eliminate tls.local() calls
           while(fm.findMoves(phg, sharedData)) { /* keep running */ }
         };
         TBBNumaArena::instance().execute_task_on_each_thread(taskGroupID, task);
@@ -132,7 +133,7 @@ public:
     sharedData.refinementNodes.clear();
     phg.doParallelForAllNodes([&](const HypernodeID& hn) {
       if (phg.isBorderNode(hn)) {
-        sharedData.refinementNodes.unchecked_push_back(hn);
+        sharedData.refinementNodes.push_back(hn);
       }
     });
     sharedData.refinementNodes.finalize();

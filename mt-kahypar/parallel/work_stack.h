@@ -25,13 +25,19 @@
 
 namespace mt_kahypar {
 
-template<typename T>
-struct SingleProducerMultipleConsumerDeque {
-  static constexpr size_t in_reallocation = std::numeric_limits<size_t>::max() / 2;
+// scheduling the same refinement node directly in the next round is no bueno since it is unlikely to have a positive gain --> make it an actual queue not a dequeue
 
-  SingleProducerMultipleConsumerDeque() {
+// SingleProducerMultipleConsumerQueue (actually Deque but we don't want to use that functionality)
+
+template<typename T>
+struct SPMCQueue {
+  static constexpr size_t in_reallocation = std::numeric_limits<size_t>::max() / 2;
+  static constexpr bool move_to_front_after_reallocation = false;
+
+
+  SPMCQueue() {
     clear();
-    elements.reserve(1 << 13);
+    //elements.reserve(1 << 13);
   }
 
   vec<T> elements;
@@ -42,26 +48,39 @@ struct SingleProducerMultipleConsumerDeque {
     finalize_after_unchecked_pushes();
   }
 
-  void unchecked_push_back(const T& el) {
-    elements.push_back(el);
-  }
-
   void finalize_after_unchecked_pushes() {
     front.store(0, std::memory_order_relaxed);
   }
 
+  template<bool unchecked>
   void push_back(const T& el) {
-    if (elements.size() == elements.capacity()) {
-      size_t old_front = front.load(std::memory_order_acq_rel);
-      while (front.compare_exchange_weak(old_front, in_reallocation, std::memory_order_acq_rel)) { /* spin */ }
-      elements.push_back(el); // causes reallocation
-      front.store(old_front, std::memory_order_acq_rel);
-    } else {
+    if constexpr (unchecked) {
       elements.push_back(el);
+    } else {
+
+      if (elements.size() < elements.capacity()) {
+        elements.push_back(el);
+      } else {
+        size_t old_front = front.load(std::memory_order_acq_rel);
+        while (front.compare_exchange_weak(old_front, in_reallocation, std::memory_order_acq_rel)) { /* spin */ }
+        elements.push_back(el); // causes reallocation
+
+        if constexpr (move_to_front_after_reallocation) {
+          for (size_t i = 0; i < old_front; ++i) {
+            elements[i] = elements.back();
+            elements.pop_back();
+          }
+          front.store(0, std::memory_order_acq_rel);          // release
+        } else {
+          front.store(old_front, std::memory_order_acq_rel);  // release
+        }
+      }
     }
   }
 
-  // reserved for the owning thread
+  /*
+  // reserved for the owning thread. don't use to avoid rerunning border nodes with probably negative gains
+  // if used, can pop the same element from back and front --> needs external ownership management (which we have)
   bool pop_back(T& el) {
     if (!empty()) {
       el = elements.back();
@@ -70,13 +89,11 @@ struct SingleProducerMultipleConsumerDeque {
     }
     return false;
   }
+   */
 
-  // designated for other threads
-  // in our scenario it is not problematic if the same element gets popped by the producer and one consumer
-  // since we have a secondary locking mechanism in place for them
-  bool pop_front(T& el) {
+  bool try_pop_front(T& el) {
     size_t slot = front.fetch_add(1, std::memory_order_acq_rel);
-    if (slot < elements.size()) {
+    if (slot < in_reallocation && slot < elements.size()) { // elements.size() can be completely broken during reallocation
       el = elements[slot];
       return true;
     }
@@ -98,38 +115,36 @@ struct SingleProducerMultipleConsumerDeque {
 };
 
 template<typename T>
-struct WorkStealingContainer {
+struct WorkContainer {
 
   using TimestampT = uint32_t;
+  using Queue = SPMCQueue<T>;
 
-  WorkStealingContainer(size_t maxNumElements) : timestamps(maxNumElements, 0) { }
+  WorkContainer(size_t maxNumElements) : timestamps(maxNumElements, 0) { }
 
   size_t unsafe_size() const {
     size_t sz = 0;
-    for (const SingleProducerMultipleConsumerDeque<T>& x : tls_deques) {
+    for (const Queue& x : tls_queues) {
       sz += x.unsafe_size();
     }
     return sz;
   }
 
-  void unchecked_push_back(const T el) {
-    tls_deques.local().unchecked_push_back(el);
-    timestamps[el] = current;
-  }
-
+  template<bool unchecked = false>
   void push_back(const T el) {
-    tls_deques.local().push_back(el);
+    tls_queues.local().push_back<unchecked>(el);
     timestamps[el] = current;
   }
 
   bool try_pop(T& dest) {
-    if (tls_deques.local().pop_back(dest)) {
+    if (tls_queues.local().try_pop_front(dest)) {
+      // use pop_front even on the thread local queue to avoid immediately reusing a just released node
       timestamps[dest] = current+1;
       return true;
     } else {
       // try stealing
-      for (SingleProducerMultipleConsumerDeque<T>& other : tls_deques) {
-        if (other.pop_front(dest)) {
+      for (Queue& other : tls_queues) {
+        if (other.try_pop_front(dest)) {
           timestamps[dest] = current+1;
           return true;
         }
@@ -138,10 +153,10 @@ struct WorkStealingContainer {
       size_t fails = steal_failures.fetch_add(1, std::memory_order_relaxed);
       if (fails < 1024) {
         // stealing failed --> check if any of them are currently blocked. if so spin. otherwise return false
-        for (SingleProducerMultipleConsumerDeque<T>& other : tls_deques) {
+        for (Queue& other : tls_queues) {
           if (other.currently_blocked()) {
             while (other.currently_blocked()) { /* spin */ }
-            if (other.pop_front(dest)) {
+            if (other.try_pop_front(dest)) {
               timestamps[dest] = current+1;
               return true;
             }
@@ -156,30 +171,31 @@ struct WorkStealingContainer {
     return timestamps[el] == current+1;
   }
 
+  /*
   void balance() {
     size_t sz = 0;
-    for (SingleProducerMultipleConsumerDeque<T>& tlq : tls_deques) {
+    for (SingleProducerMultipleConsumerDeque<T>& tlq : tls_queues) {
       sz += tlq.elements.size();
     }
 
-    size_t avg_size = sz / tls_deques.size();
-    size_t num_queues_with_one_more = sz % tls_deques.size();
+    size_t avg_size = sz / tls_queues.size();
+    size_t num_queues_with_one_more = sz % tls_queues.size();
 
     auto desired_size = [&](const size_t j) { return avg_size + (j < num_queues_with_one_more ? 1 : 0); };
 
     vec<size_t> underloaded_queues;
-    for (size_t i = 0; i < tls_deques.size(); ++i) {
-      const SingleProducerMultipleConsumerDeque<T>& tlq = tls_deques.begin()[i];
+    for (size_t i = 0; i < tls_queues.size(); ++i) {
+      const SingleProducerMultipleConsumerDeque<T>& tlq = tls_queues.begin()[i];
       if (tlq.elements.size() < desired_size(i)) {
         underloaded_queues.push_back(i);
       }
     }
 
-    for (size_t i = 0; i < tls_deques.size(); ++i) {
-      const SingleProducerMultipleConsumerDeque<T>& tlq = tls_deques.begin()[i];
+    for (size_t i = 0; i < tls_queues.size(); ++i) {
+      const SingleProducerMultipleConsumerDeque<T>& tlq = tls_queues.begin()[i];
       const size_t dsz = desired_size(i);
       while (tlq.elements.size() > dsz) {
-        SingleProducerMultipleConsumerDeque<T>& underloaded_queue = tls_deques.begin()[underloaded_queues.back()];
+        SingleProducerMultipleConsumerDeque<T>& underloaded_queue = tls_queues.begin()[underloaded_queues.back()];
         const size_t odsz = desired_size(underloaded_queues.back());
         while (tlq.elements.size() > dsz && underloaded_queue.elements.size() < odsz) {
           underloaded_queue.elements.push_back(tlq.elements.back());
@@ -188,23 +204,26 @@ struct WorkStealingContainer {
       }
     }
   }
+  */
 
   void finalize() {
-    for (SingleProducerMultipleConsumerDeque<T>& tlq : tls_deques) {
-      tlq.finalize_after_unchecked_pushes();
-    }
+
   }
 
   void shuffle() {
-    tbb::parallel_for_each(tls_deques, [&](SingleProducerMultipleConsumerDeque<T>& tlq) {
-      std::shuffle(tlq.elements.begin() + tlq.front, tlq.elements.begin() + tlq.back, utils::Randomize::instance().getGenerator());
+    tbb::parallel_for_each(tls_queues, [&](Queue& tlq) {
+      std::shuffle(tlq.elements.begin(), tlq.elements.end(), utils::Randomize::instance().getGenerator());
     });
+
   }
 
   void clear() {
     if (current >= std::numeric_limits<TimestampT>::max() - 2) {
       tbb::parallel_for_each(timestamps, [](TimestampT& x) { x = 0; });
       current = 0;
+    }
+    for (SPMCQueue<T>& tlq : tls_queues) {
+      tlq.clear();
     }
     current += 2;
     steal_failures.store(0, std::memory_order_relaxed);
@@ -213,8 +232,7 @@ struct WorkStealingContainer {
   TimestampT current = 2;
   vec<TimestampT> timestamps;
   CAtomic<size_t> steal_failures { 0 };
-  tls_enumerable_thread_specific<SingleProducerMultipleConsumerDeque<T>> tls_deques;
-  //tls_enumerable_thread_specific<tbb::concurrent_queue<T>> tls_queues; TODO try using these maybe? less extra code
+  tls_enumerable_thread_specific<Queue> tls_queues;
 
 };
 
