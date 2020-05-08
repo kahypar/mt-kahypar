@@ -37,7 +37,7 @@ struct SPMCQueue {
 
   SPMCQueue() {
     clear();
-    //elements.reserve(1 << 13);
+    elements.reserve(1 << 13);
   }
 
   vec<T> elements;
