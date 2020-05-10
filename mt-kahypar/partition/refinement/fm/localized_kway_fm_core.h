@@ -127,20 +127,29 @@ private:
     revertToBestLocalPrefix(phg, sharedData, bestImprovementIndex);
     runStats.estimated_improvement = bestImprovement;
 
-    blockPQ.clear();
+    // release all nodes that were not moved
+    // reinsert into task queue only if we're doing multitry and at least one node was moved
+    const bool shall_reinsert = context.refinement.fm.algorithm == FMAlgorithm::fm_multitry
+                                && runStats.moves > 0;
+    const bool reinsert_seeds = bestImprovement > 0;
+
+
     for (PartitionID i = 0; i < numParts; ++i) {
       for (PosT j = 0; j < vertexPQs[i].size(); ++j) {
         const HypernodeID node = vertexPQs[i].at(j);
-        sharedData.nodeTracker.releaseNode(node);
-        if (sharedData.refinementNodes.was_pushed_and_removed(node)) {
+        if (shall_reinsert && sharedData.refinementNodes.was_pushed_and_removed(node)
+            && (reinsert_seeds || seeds.find(node) == seeds.end())) {
           sharedData.refinementNodes.template push_back<false>(node);
         }
-        // TODO put back into refinementNodes if it was in there at some point, and is currently not
-        // use two timestamps per multitry fm round ? one for was placed in there, one for was removed in the current round
-        // only the thread owning the node will write the time stamp to inserted again
+        sharedData.nodeTracker.releaseNode(node);
       }
-      vertexPQs[i].clear();
     }
+
+    seeds.clear();
+    for (PartitionID i = 0; i < numParts; ++i)
+      vertexPQs[i].clear();
+    blockPQ.clear();
+
     runStats.merge(stats);
   }
 
@@ -287,6 +296,7 @@ private:
   const Context& context;
   HypernodeWeight maxPartWeight = 0, perfectBalancePartWeight = 0, minPartWeight = 0;
   FMStats runStats;
+  std::unordered_set<HypernodeID> seeds;
 public:
   vec<MoveID> localMoves;
   FMStats stats;
