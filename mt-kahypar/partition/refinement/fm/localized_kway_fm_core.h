@@ -298,8 +298,6 @@ private:
   // SparseSet takes 2 * numNodes * 32 bit
   // where numInsertedNodes is presumably much smaller than numNodes
   ldc::ClearListSet<HypernodeID> updateDeduplicator;
-  // TODO if we're sharing PQ positions which causes HEAVY cache invalidation problems, why aren't we also sharing the bitset?
-  // consider using cache-friendly hashmaps for heap positions?
 
   const Context& context;
   HypernodeWeight maxPartWeight = 0;
