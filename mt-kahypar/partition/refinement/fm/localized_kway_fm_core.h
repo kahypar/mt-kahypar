@@ -21,6 +21,8 @@
 
 #pragma once
 
+#include <unordered_set>
+
 #include <mt-kahypar/definitions.h>
 #include <mt-kahypar/partition/context.h>
 #include <mt-kahypar/partition/metrics.h>
