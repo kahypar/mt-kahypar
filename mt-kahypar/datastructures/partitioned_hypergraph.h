@@ -389,16 +389,17 @@ private:
     assert(from != to);
     const HypernodeWeight wu = nodeWeight(u);
     const HypernodeWeight to_weight_after = _part_weights[to].add_fetch(wu, std::memory_order_relaxed);
-    if (to_weight_after <= max_weight_to) {
+    const HypernodeWeight from_weight_after = _part_weights[from].fetch_sub(wu, std::memory_order_relaxed);
+    if (to_weight_after <= max_weight_to & from_weight_after > 0) {
       report_success();
       _part_ids[u] = to;
-      _part_weights[from].fetch_sub(wu, std::memory_order_relaxed);
       for (HyperedgeID he: incidentEdges(u)) {
         while ( !updatePinCountOfHyperedgeWithGainUpdates(he, from, to) );
       }
       return true;
     } else {
       _part_weights[to].fetch_sub(wu, std::memory_order_relaxed);
+      _part_weights[from].fetch_add(wu, std::memory_order_relaxed);
       return false;
     }
   }
