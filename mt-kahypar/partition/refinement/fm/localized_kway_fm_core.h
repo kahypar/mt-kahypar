@@ -129,23 +129,25 @@ private:
 
     // release all nodes that were not moved
     // reinsert into task queue only if we're doing multitry and at least one node was moved
-    const bool shall_reinsert = context.refinement.fm.algorithm == FMAlgorithm::fm_multitry
-                                && runStats.moves > 0;
-    const bool reinsert_seeds = bestImprovement > 0;
+    // unless a node was moved, only seed nodes are in the pqs
+    const bool shall_release = context.refinement.fm.algorithm == FMAlgorithm::fm_multitry && runStats.moves > 0;
+    const bool release_seeds = bestImprovement > 0;
 
-    if (shall_reinsert && !reinsert_seeds) {
-      std::sort(seeds.begin(), seeds.end());
-    }
+    if (shall_release) {
+      if (!release_seeds) {
+        std::sort(seeds.begin(), seeds.end());
+      }
 
-
-    for (PartitionID i = 0; i < numParts; ++i) {
-      for (PosT j = 0; j < vertexPQs[i].size(); ++j) {
-        const HypernodeID node = vertexPQs[i].at(j);
-        if (shall_reinsert && sharedData.refinementNodes.was_pushed_and_removed(node)
-            && (reinsert_seeds || *std::lower_bound(seeds.begin(), seeds.end(), node) != node)) {
-          sharedData.refinementNodes.template push_back<false>(node);
+      for (PartitionID i = 0; i < numParts; ++i) {
+        for (PosT j = 0; j < vertexPQs[i].size(); ++j) {
+          const HypernodeID node = vertexPQs[i].at(j);
+          if (release_seeds || !isSeedNode(node)) {
+            sharedData.nodeTracker.releaseNode(node);
+            if (sharedData.refinementNodes.was_pushed_and_removed(node)) {
+              sharedData.refinementNodes.template push_back<false>(node);
+            }
+          }
         }
-        sharedData.nodeTracker.releaseNode(node);
       }
     }
 
@@ -281,6 +283,12 @@ private:
     } else {
       return context.refinement.fm.num_seed_nodes;
     }
+  }
+
+  bool isSeedNode(HypernodeID node) const {
+    assert(std::is_sorted(seeds.begin(), seeds.end()));
+    const auto iter = std::lower_bound(seeds.begin(), seeds.end(), node);
+    return iter != seeds.end() && *iter == node;
   }
 
   SearchID thisSearch;
