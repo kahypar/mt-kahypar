@@ -114,6 +114,10 @@ struct NodeTracker {
     searchOfNode[u].store(deactivatedNodeMarker, std::memory_order_acq_rel);
   }
 
+  bool isLocked(HypernodeID u) {
+    return searchOfNode[u].load(std::memory_order_relaxed) == deactivatedNodeMarker;
+  }
+
   // should not be called when searches try to claim nodes
   void releaseNode(HypernodeID u) {
     searchOfNode[u].store(0, std::memory_order_relaxed);
