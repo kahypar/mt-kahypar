@@ -45,9 +45,9 @@ public:
     minPartWeight = static_cast<HypernodeWeight>(std::floor(perfectBalancePartWeight * (1 - context.partition.epsilon)));
   }
 
-  bool findMoves(PartitionedHypergraph& phg, FMSharedData& sharedData, vec<HypernodeID>& initialNodes) {
+  bool findMoves(PartitionedHypergraph& phg, FMSharedData& sharedData, vec<HypernodeID>& seedNodes) {
     thisSearch = ++sharedData.nodeTracker.highestActiveSearchID;
-    for (HypernodeID u : initialNodes) {
+    for (HypernodeID u : seedNodes) {
       insertOrUpdatePQ(phg, u, sharedData.nodeTracker);
     }
     for (PartitionID i = 0; i < numParts; ++i) {
