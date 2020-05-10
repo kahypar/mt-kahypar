@@ -42,7 +42,6 @@ public:
   {
     maxPartWeight = context.partition.max_part_weights[0];
     perfectBalancePartWeight = context.partition.perfect_balance_part_weights[0];
-    minPartWeight = static_cast<HypernodeWeight>(std::floor(perfectBalancePartWeight * (1 - context.partition.epsilon)));
   }
 
   bool findMoves(PartitionedHypergraph& phg, FMSharedData& sharedData, vec<HypernodeID>& seedNodes) {
@@ -159,8 +158,7 @@ private:
   }
 
   void updateBlock(PartitionedHypergraph& phg, PartitionID i) {
-    const bool underloaded = vertexPQs[i].empty() || phg.partWeight(i) <= minPartWeight;
-    if (!underloaded) {
+    if (!vertexPQs[i].empty()) {
       blockPQ.insertOrAdjustKey(i, vertexPQs[i].topKey());
     } else if (blockPQ.contains(i)) {
       blockPQ.remove(i);
@@ -305,7 +303,7 @@ private:
   // consider using cache-friendly hashmaps for heap positions?
 
   const Context& context;
-  HypernodeWeight maxPartWeight = 0, perfectBalancePartWeight = 0, minPartWeight = 0;
+  HypernodeWeight maxPartWeight = 0, perfectBalancePartWeight = 0;
   FMStats runStats;
   std::vector<HypernodeID> seeds;
 public:
