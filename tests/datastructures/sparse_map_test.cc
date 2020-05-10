@@ -58,25 +58,25 @@ TEST(ADynamicSparseMap, ModifiesAnExistingValue) {
 TEST(ADynamicSparseMap, IsForcedToGrow) {
   DynamicSparseMap<size_t, size_t> map;
   const size_t n = map.capacity();
-  for ( size_t i = 0; i < n / 3; ++i ) {
+  for ( size_t i = 0; i < n / 5; ++i ) {
     map[i] = i;
   }
   const size_t initial_capacity = DynamicSparseMap<size_t, size_t>::MAP_SIZE;
   ASSERT_EQ(initial_capacity, map.capacity());
-  ASSERT_EQ(n / 3, map.size());
+  ASSERT_EQ(n / 5, map.size());
 
   // Forces map to dynamically grow
   map[n] = n;
 
   ASSERT_EQ(2 * initial_capacity, map.capacity());
-  ASSERT_EQ(n / 3 + 1, map.size());
+  ASSERT_EQ(n / 5 + 1, map.size());
   ASSERT_EQ(n, map[n]++);
-  for ( size_t i = 0; i < n / 3; ++i ) {
+  for ( size_t i = 0; i < n / 5; ++i ) {
     ASSERT_EQ(i, map[i]++);
   }
 
   ASSERT_EQ(n + 1, map[n]);
-  for ( size_t i = 0; i < n / 3; ++i ) {
+  for ( size_t i = 0; i < n / 5; ++i ) {
     ASSERT_EQ(i + 1, map[i]);
   }
 }

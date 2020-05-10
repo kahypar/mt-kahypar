@@ -259,9 +259,8 @@ private:
                                const HypernodeID edge_size,
                                const HypernodeID pin_count_in_from_part_after,
                                const HypernodeID pin_count_in_to_part_after) {
-      lastGain = km1Delta(he, edge_weight, edge_size,
+      lastGain += km1Delta(he, edge_weight, edge_size,
         pin_count_in_from_part_after, pin_count_in_to_part_after);
-      estimatedImprovement -= lastGain;
     };
 
     // Apply move sequence to original hypergraph and update gain values
@@ -270,11 +269,13 @@ private:
     for ( size_t i = 0; i < bestGainIndex; ++i ) {
       Move& m = localMoves[i];
       MoveID m_id = std::numeric_limits<MoveID>::max();
+      lastGain = 0;
       phg.changeNodePartFullUpdate(m.node, m.from, m.to, std::numeric_limits<HypernodeWeight>::max(),
         [&] { m_id = sharedData.moveTracker.insertMove(m); }, delta_gain_func);
+      estimatedImprovement -= lastGain;
       ASSERT(m_id != std::numeric_limits<MoveID>::max());
       Move& move = sharedData.moveTracker.getMove(m_id);
-      move.gain = lastGain; // Update gain value based on hypergraph delta
+      move.gain = -lastGain; // Update gain value based on hypergraph delta
       localAppliedMoves.push_back(m_id);
       if ( estimatedImprovement >= bestImprovement ) {
         bestImprovement = estimatedImprovement;
