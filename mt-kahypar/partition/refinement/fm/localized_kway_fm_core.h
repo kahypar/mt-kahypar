@@ -41,7 +41,6 @@ public:
           context(context)
   {
     maxPartWeight = context.partition.max_part_weights[0];
-    perfectBalancePartWeight = context.partition.perfect_balance_part_weights[0];
   }
 
   bool findMoves(PartitionedHypergraph& phg, FMSharedData& sharedData, vec<HypernodeID>& seedNodes) {
@@ -303,7 +302,7 @@ private:
   // consider using cache-friendly hashmaps for heap positions?
 
   const Context& context;
-  HypernodeWeight maxPartWeight = 0, perfectBalancePartWeight = 0;
+  HypernodeWeight maxPartWeight = 0;
   FMStats runStats;
   std::vector<HypernodeID> seeds;
 public:
