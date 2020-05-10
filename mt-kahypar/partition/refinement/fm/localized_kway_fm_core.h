@@ -57,29 +57,29 @@ public:
     return true;
   }
 
-  bool findMoves(PartitionedHypergraph& phg, FMSharedData& sharedData, HypernodeID initialBorderNode = invalidNode) {
+  bool findMoves(PartitionedHypergraph& phg, FMSharedData& sharedData, HypernodeID seedNode = invalidNode) {
     thisSearch = ++sharedData.nodeTracker.highestActiveSearchID;
 
-    if (initialBorderNode == invalidNode) {
+    if (seedNode == invalidNode) {
       const size_t nSeeds = numberOfSeedNodes(phg.initialNumNodes());
-      while (runStats.pushes < nSeeds && sharedData.refinementNodes.try_pop(initialBorderNode)) {
-        if (!updateDeduplicator.contains(initialBorderNode) && insertOrUpdatePQ(phg, initialBorderNode, sharedData.nodeTracker)) {
-          seeds.push_back(initialBorderNode);
+      while (runStats.pushes < nSeeds && sharedData.refinementNodes.try_pop(seedNode)) {
+        if (!updateDeduplicator.contains(seedNode) && insertOrUpdatePQ(phg, seedNode, sharedData.nodeTracker)) {
+          seeds.push_back(seedNode);
           if (context.refinement.fm.init_localized_search_with_neighbors) {
-            updateDeduplicator.insert(initialBorderNode);
-            insertOrUpdateNeighbors(phg, sharedData, initialBorderNode);
+            updateDeduplicator.insert(seedNode);
+            insertOrUpdateNeighbors(phg, sharedData, seedNode);
           }
         }
       }
       updateBlocks(phg, kInvalidPartition);
     } else {
-      if (insertOrUpdatePQ(phg, initialBorderNode, sharedData.nodeTracker)) {
+      if (insertOrUpdatePQ(phg, seedNode, sharedData.nodeTracker)) {
         if (context.refinement.fm.init_localized_search_with_neighbors) {
-          updateDeduplicator.insert(initialBorderNode);
-          insertOrUpdateNeighbors(phg, sharedData, initialBorderNode);
-          updateBlocks(phg, phg.partID(initialBorderNode));
+          updateDeduplicator.insert(seedNode);
+          insertOrUpdateNeighbors(phg, sharedData, seedNode);
+          updateBlocks(phg, phg.partID(seedNode));
         } else {
-          updateBlock(phg, phg.partID(initialBorderNode));
+          updateBlock(phg, phg.partID(seedNode));
         }
       }
     }
