@@ -36,6 +36,7 @@ public:
   // unfortunately the compiler thinks we're trying to pass a const-ref for the pq_handles, which we don't. therefore it had to be a pointer :(
   explicit LocalizedKWayFM(const Context& context, HypernodeID numNodes, PosT* pq_handles) :
           numParts(context.partition.k),
+          delta_phg(context.partition.k),
           blockPQ(static_cast<size_t>(numParts)),
           vertexPQs(static_cast<size_t>(numParts), VertexPriorityQueue(pq_handles, numNodes)),
           updateDeduplicator(numNodes),
@@ -48,13 +49,15 @@ public:
 
   bool findMoves(PartitionedHypergraph& phg, FMSharedData& sharedData, vec<HypernodeID>& initialNodes) {
     thisSearch = ++sharedData.nodeTracker.highestActiveSearchID;
+    delta_phg.clear();
+    delta_phg.setPartitionedHypergraph(&phg);
 
     for (HypernodeID u : initialNodes) {
       insertOrUpdatePQ(phg, u, sharedData.nodeTracker);
     }
 
     for (PartitionID i = 0; i < numParts; ++i) {
-      updateBlock(phg, i);
+      updateBlock(i);
     }
 
     internalFindMoves(phg, sharedData);
@@ -64,6 +67,8 @@ public:
 
   bool findMoves(PartitionedHypergraph& phg, FMSharedData& sharedData, HypernodeID initialBorderNode = invalidNode) {
     thisSearch = ++sharedData.nodeTracker.highestActiveSearchID;
+    delta_phg.clear();
+    delta_phg.setPartitionedHypergraph(&phg);
 
     if (initialBorderNode == invalidNode) {
       const size_t nSeeds = numberOfSeedNodes(phg.initialNumNodes());
@@ -75,15 +80,15 @@ public:
           insertOrUpdateNeighbors(phg, sharedData, initialBorderNode);
         }
       }
-      updateBlocks(phg, kInvalidPartition);
+      updateBlocks(kInvalidPartition);
     } else {
       if (insertOrUpdatePQ(phg, initialBorderNode, sharedData.nodeTracker)) {
         if (context.refinement.fm.init_localized_search_with_neighbors) {
           updateDeduplicator.insert(initialBorderNode);
           insertOrUpdateNeighbors(phg, sharedData, initialBorderNode);
-          updateBlocks(phg, phg.partID(initialBorderNode));
+          updateBlocks(delta_phg.partID(initialBorderNode));
         } else {
-          updateBlock(phg, phg.partID(initialBorderNode));
+          updateBlock(delta_phg.partID(initialBorderNode));
         }
       }
     }
@@ -107,15 +112,13 @@ private:
     Gain estimatedImprovement = 0, bestImprovement = 0;
     while (!stopRule.searchShouldStop() && findNextMove(phg, m)) {
       sharedData.nodeTracker.deactivateNode(m.node, thisSearch);
-      MoveID move_id = std::numeric_limits<MoveID>::max();
-      const bool moved = m.to != kInvalidPartition
-                         && phg.changeNodePartFullUpdate(m.node, m.from, m.to, maxPartWeight,
-                                                         [&] { move_id = sharedData.moveTracker.insertMove(m); });
+      const bool moved = m.to != kInvalidPartition &&
+        delta_phg.changeNodePart(m.node, m.from, m.to, maxPartWeight);
       if (moved) {
         runStats.moves++;
         insertOrUpdateNeighbors(phg, sharedData, m.node);
         estimatedImprovement += m.gain;
-        localMoves.push_back(move_id);
+        localMoves.push_back(m);
         stopRule.update(m.gain);
         if (estimatedImprovement >= bestImprovement) {
           stopRule.reset();
@@ -123,10 +126,10 @@ private:
           bestImprovementIndex = localMoves.size();
         }
       }
-      updateBlocks(phg, m.from);
+      updateBlocks(m.from);
     }
 
-    revertToBestLocalPrefix(phg, sharedData, bestImprovementIndex);
+    applyMovesToGlobalHypergraph(phg, sharedData, bestImprovementIndex);
     runStats.estimated_improvement = bestImprovement;
 
     blockPQ.clear();
@@ -139,8 +142,8 @@ private:
     runStats.merge(stats);
   }
 
-  void updateBlock(PartitionedHypergraph& phg, PartitionID i) {
-    const bool underloaded = vertexPQs[i].empty() || phg.partWeight(i) <= minPartWeight;
+  void updateBlock(PartitionID i) {
+    const bool underloaded = vertexPQs[i].empty() || delta_phg.partWeight(i) <= minPartWeight;
     if (!underloaded) {
       blockPQ.insertOrAdjustKey(i, vertexPQs[i].topKey());
     } else if (blockPQ.contains(i)) {
@@ -148,15 +151,15 @@ private:
     }
   }
 
-  void updateBlocks(PartitionedHypergraph& phg, PartitionID moved_from) {
+  void updateBlocks(PartitionID moved_from) {
     if (moved_from == kInvalidPartition || updateDeduplicator.size() >= size_t(numParts)) {
       for (PartitionID i = 0; i < numParts; ++i) {
-        updateBlock(phg, i);
+        updateBlock(i);
       }
     } else {
-      updateBlock(phg, moved_from);
+      updateBlock(moved_from);
       for (const HypernodeID v : updateDeduplicator.keys()) {
-        updateBlock(phg, phg.partID(v));
+        updateBlock(delta_phg.partID(v));
       }
     }
     updateDeduplicator.clear();
@@ -173,25 +176,24 @@ private:
         }
       }
     }
-
   }
 
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
   std::pair<PartitionID, HyperedgeWeight> bestDestinationBlock(PartitionedHypergraph& phg, HypernodeID u) {
     const HypernodeWeight wu = phg.nodeWeight(u);
-    const PartitionID pu = phg.partID(u);
+    const PartitionID pu = delta_phg.partID(u);
     PartitionID to = kInvalidPartition;
     HyperedgeWeight to_penalty = std::numeric_limits<HyperedgeWeight>::max();
     for (PartitionID i = 0; i < numParts; ++i) {
       if (i != pu) {
-        const HyperedgeWeight penalty = phg.moveToPenalty(u, i);
-        if (penalty < to_penalty && phg.partWeight(i) + wu <= maxPartWeight) {
+        const HyperedgeWeight penalty = delta_phg.moveToPenalty(u, i);
+        if (penalty < to_penalty && delta_phg.partWeight(i) + wu <= maxPartWeight) {
           to_penalty = penalty;
           to = i;
         }
       }
     }
-    return std::make_pair(to, phg.moveFromBenefit(u) - to_penalty);
+    return std::make_pair(to, delta_phg.moveFromBenefit(u) - to_penalty);
   };
 
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
@@ -200,14 +202,14 @@ private:
     // Note. Deactivated nodes have a special active search ID so that neither branch is executed
     if (nt.isSearchInactive(searchOfV)) {
       if (nt.searchOfNode[v].compare_exchange_strong(searchOfV, thisSearch, std::memory_order_acq_rel)) {
-        const PartitionID pv = phg.partID(v);
+        const PartitionID pv = delta_phg.partID(v);
         const Gain gain = bestDestinationBlock(phg, v).second;
         vertexPQs[pv].insert(v, gain);  // blockPQ updates are done later, collectively.
         runStats.pushes++;
         return true;
       }
     } else if (searchOfV == thisSearch) {
-      const PartitionID pv = phg.partID(v);
+      const PartitionID pv = delta_phg.partID(v);
       assert(vertexPQs[pv].contains(v));
       const Gain gain = bestDestinationBlock(phg, v).second;
       vertexPQs[pv].adjustKey(v, gain);
@@ -246,13 +248,48 @@ private:
     }
   }
 
-  void revertToBestLocalPrefix(PartitionedHypergraph& phg, FMSharedData& sharedData, size_t bestGainIndex) {
+  void applyMovesToGlobalHypergraph(PartitionedHypergraph& phg, FMSharedData& sharedData, size_t bestGainIndex) {
+    localAppliedMoves.clear();
     runStats.local_reverts += localMoves.size() - bestGainIndex;
-    while (localMoves.size() > bestGainIndex) {
-      Move& m = sharedData.moveTracker.getMove(localMoves.back());
-      phg.changeNodePartFullUpdate(m.node, m.to, m.from, std::numeric_limits<HypernodeWeight>::max(), []{/* do nothing */});
+    Gain estimatedImprovement = 0;
+    Gain lastGain = 0;
+
+    auto delta_gain_func = [&](const HyperedgeID he,
+                               const HyperedgeWeight edge_weight,
+                               const HypernodeID edge_size,
+                               const HypernodeID pin_count_in_from_part_after,
+                               const HypernodeID pin_count_in_to_part_after) {
+      lastGain += km1Delta(he, edge_weight, edge_size,
+        pin_count_in_from_part_after, pin_count_in_to_part_after);
+    };
+
+    // Apply move sequence to original hypergraph and update gain values
+    Gain bestImprovement = 0;
+    size_t bestIndex = 0;
+    for ( size_t i = 0; i < bestGainIndex; ++i ) {
+      Move& m = localMoves[i];
+      MoveID m_id = std::numeric_limits<MoveID>::max();
+      lastGain = 0;
+      phg.changeNodePartFullUpdate(m.node, m.from, m.to, std::numeric_limits<HypernodeWeight>::max(),
+        [&] { m_id = sharedData.moveTracker.insertMove(m); }, delta_gain_func);
+      estimatedImprovement -= lastGain;
+      ASSERT(m_id != std::numeric_limits<MoveID>::max());
+      Move& move = sharedData.moveTracker.getMove(m_id);
+      move.gain = -lastGain; // Update gain value based on hypergraph delta
+      localAppliedMoves.push_back(m_id);
+      if ( estimatedImprovement >= bestImprovement ) {
+        bestImprovement = estimatedImprovement;
+        bestIndex = i;
+      }
+    }
+
+    // Kind of double rollback, if gain values are not correct
+    ASSERT(localAppliedMoves.size() == bestGainIndex);
+    for ( size_t i = bestIndex + 1; i < bestGainIndex; ++i ) {
+      Move& m = sharedData.moveTracker.getMove(localAppliedMoves[i]);
+      phg.changeNodePartFullUpdate(m.node, m.to, m.from,
+        std::numeric_limits<HypernodeWeight>::max(), []{/* do nothing */});
       sharedData.moveTracker.invalidateMove(m);
-      localMoves.pop_back();
     }
   }
 
@@ -268,6 +305,8 @@ private:
   SearchID thisSearch;
   PartitionID numParts;
 
+  DeltaPartitionedHypergraph delta_phg;
+
   BlockPriorityQueue blockPQ;
   vec<VertexPriorityQueue> vertexPQs;
 
@@ -282,8 +321,9 @@ private:
   const Context& context;
   HypernodeWeight maxPartWeight = 0, perfectBalancePartWeight = 0, minPartWeight = 0;
   FMStats runStats;
+  vec<Move> localMoves;
+  vec<MoveID> localAppliedMoves;
 public:
-  vec<MoveID> localMoves;
   FMStats stats;
 };
 

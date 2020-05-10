@@ -42,9 +42,10 @@ public:
     HypernodeID nodes_per_part = hg.initialNumNodes() / k;
     for (PartitionID i = 0; i < k; ++i) {
       for (HypernodeID u = i * nodes_per_part; u < (i+1) * nodes_per_part; ++u) {
-        phg.setNodePart(u, i);
+        phg.setOnlyNodePart(u, i);
       }
     }
+    phg.initializePartition(TBBNumaArena::GLOBAL_TASK_GROUP);
     phg.initializeGainInformation();
 
     context.partition.k = k;
