@@ -21,8 +21,6 @@
 
 #pragma once
 
-#include <unordered_set>
-
 #include <mt-kahypar/definitions.h>
 #include <mt-kahypar/partition/context.h>
 #include <mt-kahypar/partition/metrics.h>
@@ -67,7 +65,7 @@ public:
       const size_t nSeeds = numberOfSeedNodes(phg.initialNumNodes());
       while (runStats.pushes < nSeeds && sharedData.refinementNodes.try_pop(initialBorderNode)) {
         if (!updateDeduplicator.contains(initialBorderNode) && insertOrUpdatePQ(phg, initialBorderNode, sharedData.nodeTracker)) {
-          seeds.emplace(initialBorderNode);
+          seeds.push_back(initialBorderNode);
           if (context.refinement.fm.init_localized_search_with_neighbors) {
             updateDeduplicator.insert(initialBorderNode);
             insertOrUpdateNeighbors(phg, sharedData, initialBorderNode);
@@ -135,12 +133,16 @@ private:
                                 && runStats.moves > 0;
     const bool reinsert_seeds = bestImprovement > 0;
 
+    if (shall_reinsert && !reinsert_seeds) {
+      std::sort(seeds.begin(), seeds.end());
+    }
+
 
     for (PartitionID i = 0; i < numParts; ++i) {
       for (PosT j = 0; j < vertexPQs[i].size(); ++j) {
         const HypernodeID node = vertexPQs[i].at(j);
         if (shall_reinsert && sharedData.refinementNodes.was_pushed_and_removed(node)
-            && (reinsert_seeds || seeds.find(node) == seeds.end())) {
+            && (reinsert_seeds || *std::lower_bound(seeds.begin(), seeds.end(), node) != node)) {
           sharedData.refinementNodes.template push_back<false>(node);
         }
         sharedData.nodeTracker.releaseNode(node);
@@ -298,7 +300,7 @@ private:
   const Context& context;
   HypernodeWeight maxPartWeight = 0, perfectBalancePartWeight = 0, minPartWeight = 0;
   FMStats runStats;
-  std::unordered_set<HypernodeID> seeds;
+  std::vector<HypernodeID> seeds;
 public:
   vec<MoveID> localMoves;
   FMStats stats;
