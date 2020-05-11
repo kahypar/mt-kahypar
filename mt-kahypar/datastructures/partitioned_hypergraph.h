@@ -46,12 +46,6 @@ class PartitionedHypergraph {
 private:
   static_assert(!Hypergraph::is_partitioned,  "Only unpartitioned hypergraphs are allowed");
 
-  using HypernodeIterator = typename Hypergraph::HypernodeIterator;
-  using HyperedgeIterator = typename Hypergraph::HyperedgeIterator;
-  using IncidenceIterator = typename Hypergraph::IncidenceIterator;
-  using IncidentNetsIterator = typename Hypergraph::IncidentNetsIterator;
-  using CommunityIterator = typename Hypergraph::CommunityIterator;
-
   using AtomicFlag = parallel::IntegralAtomicWrapper<bool>;
   template<typename T>
   using ThreadLocalVector = tbb::enumerable_thread_specific<parallel::scalable_vector<T>>;
@@ -69,6 +63,12 @@ private:
  public:
   static constexpr bool is_static_hypergraph = Hypergraph::is_static_hypergraph;
   static constexpr bool is_partitioned = true;
+
+  using HypernodeIterator = typename Hypergraph::HypernodeIterator;
+  using HyperedgeIterator = typename Hypergraph::HyperedgeIterator;
+  using IncidenceIterator = typename Hypergraph::IncidenceIterator;
+  using IncidentNetsIterator = typename Hypergraph::IncidentNetsIterator;
+  using CommunityIterator = typename Hypergraph::CommunityIterator;
 
   PartitionedHypergraph() = default;
 
@@ -372,7 +372,9 @@ private:
 
   // ! Changes the block id of vertex u from block 'from' to block 'to'
   // ! Returns true, if move of vertex u to corresponding block succeeds.
-  bool changeNodePart(const HypernodeID u, PartitionID from, PartitionID to,
+  bool changeNodePart(const HypernodeID u,
+                      PartitionID from,
+                      PartitionID to,
                       const DeltaFunction& delta_func = NOOP_FUNC) {
     changeOnlyNodePart(u, from,  to);
     for ( const HyperedgeID& he : incidentEdges(u) ) {
@@ -383,8 +385,12 @@ private:
   }
 
   template<typename F>
-  bool changeNodePartFullUpdate(
-          const HypernodeID u, PartitionID from, PartitionID to, HypernodeWeight max_weight_to, F&& report_success) {
+  bool changeNodePartFullUpdate(const HypernodeID u,
+                                PartitionID from,
+                                PartitionID to,
+                                HypernodeWeight max_weight_to,
+                                F&& report_success,
+                                const DeltaFunction& delta_func = NOOP_FUNC) {
     assert(partID(u) == from);
     assert(from != to);
     const HypernodeWeight wu = nodeWeight(u);
@@ -394,7 +400,7 @@ private:
       report_success();
       _part_ids[u] = to;
       for (HyperedgeID he: incidentEdges(u)) {
-        while ( !updatePinCountOfHyperedgeWithGainUpdates(he, from, to) );
+        while ( !updatePinCountOfHyperedgeWithGainUpdates(he, from, to, delta_func) );
       }
       return true;
     } else {
@@ -871,7 +877,8 @@ private:
   // ! try to acquire the ownership of the hyperedge and on success, pin counts are updated.
   KAHYPAR_ATTRIBUTE_ALWAYS_INLINE bool updatePinCountOfHyperedgeWithGainUpdates(const HyperedgeID& he,
                                                                                 const PartitionID from,
-                                                                                const PartitionID to) {
+                                                                                const PartitionID to,
+                                                                                const DeltaFunction& delta_func) {
     // In order to safely update the number of incident cut hyperedges and to compute
     // the delta of a move we need a stable snapshot of the pin count in from and to
     // part before and after the move. If we not do so, it can happen that due to concurrent
@@ -884,8 +891,10 @@ private:
     if ( _pin_count_update_ownership[he].compare_exchange_strong(expected, desired, std::memory_order_acq_rel) ) {
       // In that case, the current thread acquires the ownership of the hyperedge and can
       // safely update the pin counts in from and to part.
-      decrementPinCountInPartWithGainUpdate(he, from);
-      incrementPinCountInPartWithGainUpdate(he, to);
+      const HypernodeID pin_count_in_from_part_after = decrementPinCountInPartWithGainUpdate(he, from);
+      const HypernodeID pin_count_in_to_part_after = incrementPinCountInPartWithGainUpdate(he, to);
+      delta_func(he, edgeWeight(he), edgeSize(he),
+        pin_count_in_from_part_after, pin_count_in_to_part_after);
       _pin_count_update_ownership[he].store(false, std::memory_order_acq_rel);
       return true;
     }

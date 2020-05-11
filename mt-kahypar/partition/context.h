@@ -182,6 +182,7 @@ inline std::ostream & operator<< (std::ostream& str, const LabelPropagationParam
 struct FMParameters {
   FMAlgorithm algorithm = FMAlgorithm::do_nothing;
   size_t multitry_rounds = 0;
+  bool perform_moves_global = false;
   double seed_node_fraction = 0.0;
   size_t num_seed_nodes = 0;
   bool use_seed_node_fraction = false;
@@ -195,9 +196,10 @@ inline std::ostream& operator<<(std::ostream& out, const FMParameters& params) {
   out << "  FM Parameters: \n";
   out << "    Algorithm:                        " << params.algorithm << std::endl;
   out << "    Multitry Rounds:                  " << params.multitry_rounds << std::endl;
+  out << "    Perform Moves Globally:           " << std::boolalpha << params.perform_moves_global << std::endl;
   out << "    Seed Node Fraction:               " << params.seed_node_fraction << std::endl;
   out << "    Num Seed Nodes:                   " << params.num_seed_nodes << std::endl;
-  out << "    Use Seed Node Fraction            " << std::boolalpha << params.use_seed_node_fraction << std::endl;
+  out << "    Use Seed Node Fraction:           " << std::boolalpha << params.use_seed_node_fraction << std::endl;
   out << "    Init Local Search With Neighbors: " << std::boolalpha << params.init_localized_search_with_neighbors << std::endl;
   out << "    Init Boundary FM With All Nodes:  " << std::boolalpha << params.init_boundary_fm_with_all_nodes << std::endl;
   out << "    Enable Random Shuffle:            " << std::boolalpha << params.shuffle << std::endl;
