@@ -81,6 +81,10 @@ struct Move {
 using MoveID = uint32_t;
 using SearchID = uint32_t;
 
+struct NoOpDeltaFunc {
+  void operator() (const HyperedgeID, const HyperedgeWeight, const HypernodeID, const HypernodeID, const HypernodeID) { }
+};
+
 
 /*!
 * A memento stores all information necessary to undo the contraction operation

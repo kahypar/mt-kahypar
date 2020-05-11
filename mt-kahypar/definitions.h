@@ -61,4 +61,5 @@ using DeltaPartitionedHypergraph = ds::DeltaPartitionedHypergraph<PartitionedHyp
 using Graph = ds::GraphT<Hypergraph>;
 
 using HighResClockTimepoint = std::chrono::time_point<std::chrono::high_resolution_clock>;
+
 }  // namespace mt_kahypar

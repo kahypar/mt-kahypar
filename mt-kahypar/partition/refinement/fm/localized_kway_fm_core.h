@@ -161,10 +161,15 @@ private:
     Gain estimatedImprovement = 0, bestImprovement = 0;
     while (!stopRule.searchShouldStop() && findNextMove(phg, m)) {
       sharedData.nodeTracker.deactivateNode(m.node, thisSearch);
+
       MoveID move_id = std::numeric_limits<MoveID>::max();
-      const bool moved = m.to != kInvalidPartition
-                         && phg.changeNodePartFullUpdate(m.node, m.from, m.to, maxPartWeight,
-                                                         [&] { move_id = sharedData.moveTracker.insertMove(m); });
+      auto report_success = [&] { move_id = sharedData.moveTracker.insertMove(m); };
+
+      bool moved = false;
+      if (m.to != kInvalidPartition) {
+        moved = phg.changeNodePartFullUpdate(m.node, m.from, m.to, maxPartWeight, report_success);
+      }
+
       if (moved) {
         runStats.moves++;
         sharedData.moveTracker.moveOfNode[m.node] = move_id;
@@ -377,8 +382,7 @@ private:
     ASSERT(localAppliedMoves.size() == bestGainIndex);
     for ( size_t i = bestIndex + 1; i < bestGainIndex; ++i ) {
       Move& m = sharedData.moveTracker.getMove(localAppliedMoves[i]);
-      phg.changeNodePartFullUpdate(m.node, m.to, m.from,
-        std::numeric_limits<HypernodeWeight>::max(), []{/* do nothing */});
+      phg.changeNodePartFullUpdate(m.node, m.to, m.from);
       sharedData.moveTracker.invalidateMove(m);
     }
   }
@@ -389,7 +393,7 @@ private:
     runStats.local_reverts += localAppliedMoves.size() - bestGainIndex;
     while (localAppliedMoves.size() > bestGainIndex) {
       Move& m = sharedData.moveTracker.getMove(localAppliedMoves.back());
-      phg.changeNodePartFullUpdate(m.node, m.to, m.from, std::numeric_limits<HypernodeWeight>::max(), []{/* do nothing */});
+      phg.changeNodePartFullUpdate(m.node, m.to, m.from);
       sharedData.moveTracker.invalidateMove(m);
       localAppliedMoves.pop_back();
     }

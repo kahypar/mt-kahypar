@@ -384,13 +384,13 @@ private:
     return true;
   }
 
-  template<typename F>
+  template<typename F, typename DeltaFunc>
   bool changeNodePartFullUpdate(const HypernodeID u,
                                 PartitionID from,
                                 PartitionID to,
                                 HypernodeWeight max_weight_to,
                                 F&& report_success,
-                                const DeltaFunction& delta_func = NOOP_FUNC) {
+                                DeltaFunc&& delta_func) {
     assert(partID(u) == from);
     assert(from != to);
     const HypernodeWeight wu = nodeWeight(u);
@@ -410,6 +410,17 @@ private:
     }
   }
 
+  // curry
+  bool changeNodePartFullUpdate(const HypernodeID u, PartitionID from, PartitionID to) {
+    return changeNodePartFullUpdate(u, from, to, std::numeric_limits<HypernodeWeight>::max(), []{}, NoOpDeltaFunc());
+  }
+
+  // curry
+  template<typename F>
+  bool changeNodePartFullUpdate(const HypernodeID u, PartitionID from, PartitionID to,
+                                HypernodeWeight max_weight_to, F&& report_success) {
+    return changeNodePartFullUpdate(u, from, to, max_weight_to, report_success, NoOpDeltaFunc());
+  }
 
   // Additionally rejects the requested move if it violates balance
   // must recompute part_weights once finished moving nodes
@@ -875,10 +886,11 @@ private:
   // ! some intermediate state of the pin counts when several vertices move in parallel.
   // ! Therefore, the current thread, which tries to modify the pin counts of the hyperedge,
   // ! try to acquire the ownership of the hyperedge and on success, pin counts are updated.
+  template<typename DeltaFunc>
   KAHYPAR_ATTRIBUTE_ALWAYS_INLINE bool updatePinCountOfHyperedgeWithGainUpdates(const HyperedgeID& he,
                                                                                 const PartitionID from,
                                                                                 const PartitionID to,
-                                                                                const DeltaFunction& delta_func) {
+                                                                                DeltaFunc&& delta_func) {
     // In order to safely update the number of incident cut hyperedges and to compute
     // the delta of a move we need a stable snapshot of the pin count in from and to
     // part before and after the move. If we not do so, it can happen that due to concurrent
