@@ -46,12 +46,6 @@ class PartitionedHypergraph {
 private:
   static_assert(!Hypergraph::is_partitioned,  "Only unpartitioned hypergraphs are allowed");
 
-  using HypernodeIterator = typename Hypergraph::HypernodeIterator;
-  using HyperedgeIterator = typename Hypergraph::HyperedgeIterator;
-  using IncidenceIterator = typename Hypergraph::IncidenceIterator;
-  using IncidentNetsIterator = typename Hypergraph::IncidentNetsIterator;
-  using CommunityIterator = typename Hypergraph::CommunityIterator;
-
   using AtomicFlag = parallel::IntegralAtomicWrapper<bool>;
   template<typename T>
   using ThreadLocalVector = tbb::enumerable_thread_specific<parallel::scalable_vector<T>>;
@@ -69,6 +63,12 @@ private:
  public:
   static constexpr bool is_static_hypergraph = Hypergraph::is_static_hypergraph;
   static constexpr bool is_partitioned = true;
+
+  using HypernodeIterator = typename Hypergraph::HypernodeIterator;
+  using HyperedgeIterator = typename Hypergraph::HyperedgeIterator;
+  using IncidenceIterator = typename Hypergraph::IncidenceIterator;
+  using IncidentNetsIterator = typename Hypergraph::IncidentNetsIterator;
+  using CommunityIterator = typename Hypergraph::CommunityIterator;
 
   PartitionedHypergraph() = default;
 

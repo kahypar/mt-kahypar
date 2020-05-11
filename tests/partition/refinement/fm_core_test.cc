@@ -95,7 +95,6 @@ void printHypergraph(PartitionedHypergraph& phg) {
 }
 
 TEST_F(FMCoreTest, PQInsertAndUpdate) {
-  //printGains(phg, k);
   LocalizedKWayFM fm(context, hg.initialNumNodes(), sharedData.vertexPQHandles.data());
   HyperedgeWeight initial_km1 = metrics::km1(phg, false);
   HypernodeID initialNode = 23;
@@ -107,7 +106,6 @@ TEST_F(FMCoreTest, PQInsertAndUpdate) {
     if (m.gain != invalidGain) {  // skip reverted moves
       accumulated_gain += m.gain;
     }
-    //LOG << V(move_id) << V(m.node) << V(m.from) << V(m.to) << V(m.gain);
   }
 
   HyperedgeWeight km1_after_fm = metrics::km1(phg, false);

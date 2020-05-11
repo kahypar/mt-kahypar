@@ -287,6 +287,11 @@ po::options_description createRefinementOptionsDescription(Context& context,
     po::value<size_t>((initial_partitioning ? &context.initial_partitioning.refinement.fm.multitry_rounds :
       &context.refinement.fm.multitry_rounds))->value_name("<size_t>"),
     "Number of multitry rounds. Default 4")
+    (( initial_partitioning ? "i-r-fm-perform-moves-global" : "r-fm-perform-moves-global"),
+    po::value<bool>((initial_partitioning ? &context.initial_partitioning.refinement.fm.perform_moves_global :
+      &context.refinement.fm.perform_moves_global))->value_name("<bool>"),
+    "If true, than all moves performed during FM are immediatly visible to other local search.\n"
+    "Otherwise, only move sequences that yield an improvement are applied to the global hypergraph. Default false")
     (( initial_partitioning ? "i-r-fm-init-neighbors" : "r-fm-init-neighbors"),
     po::value<bool>((initial_partitioning ? &context.initial_partitioning.refinement.fm.init_localized_search_with_neighbors :
       &context.refinement.fm.init_localized_search_with_neighbors))->value_name("<bool>"),

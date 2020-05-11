@@ -51,7 +51,12 @@ namespace ds {
  */
 template <typename PartitionedHypergraph = Mandatory>
 class DeltaPartitionedHypergraph {
-private:
+ private:
+
+  using HypernodeIterator = typename PartitionedHypergraph::HypernodeIterator;
+  using HyperedgeIterator = typename PartitionedHypergraph::HyperedgeIterator;
+  using IncidenceIterator = typename PartitionedHypergraph::IncidenceIterator;
+  using IncidentNetsIterator = typename PartitionedHypergraph::IncidentNetsIterator;
 
  public:
   DeltaPartitionedHypergraph(const PartitionID k) :
@@ -75,6 +80,49 @@ private:
   void setPartitionedHypergraph(PartitionedHypergraph* phg) {
     _phg = phg;
   }
+
+  // ####################### Iterators #######################
+
+  // ! Returns an iterator over the set of active nodes of the hypergraph
+  IteratorRange<HypernodeIterator> nodes() const {
+    ASSERT(_phg);
+    return _phg->nodes();
+  }
+
+  // ! Returns an iterator over the set of active edges of the hypergraph
+  IteratorRange<HyperedgeIterator> edges() const {
+    ASSERT(_phg);
+    return _phg->edges();
+  }
+
+  // ! Returns a range to loop over the incident nets of hypernode u.
+  IteratorRange<IncidentNetsIterator> incidentEdges(const HypernodeID u) const {
+    ASSERT(_phg);
+    return _phg->incidentEdges(u);
+  }
+
+  // ! Returns a range to loop over the pins of hyperedge e.
+  IteratorRange<IncidenceIterator> pins(const HyperedgeID e) const {
+    ASSERT(_phg);
+    return _phg->pins(e);
+  }
+
+  // ####################### Hypernode Information #######################
+
+  HypernodeWeight nodeWeight(const HypernodeID u) const {
+    ASSERT(_phg);
+    return _phg->nodeWeight(u);
+  }
+
+  // ####################### Hyperedge Information #######################
+
+  // ! Number of pins of a hyperedge
+  HypernodeID edgeSize(const HyperedgeID e) const {
+    ASSERT(_phg);
+    return _phg->edgeSize(e);
+  }
+
+  // ####################### Partition Information #######################
 
   // ! Changes the block of hypernode u from 'from' to 'to'.
   // ! Move is successful, if it is not violating the balance
