@@ -301,7 +301,7 @@ po::options_description createRefinementOptionsDescription(Context& context,
     (( initial_partitioning ? "i-r-fm-all-nodes" : "r-fm-all-nodes"),
     po::value<bool>((initial_partitioning ? &context.initial_partitioning.refinement.fm.init_boundary_fm_with_all_nodes :
       &context.refinement.fm.init_boundary_fm_with_all_nodes))->value_name("<bool>"),
-    "Add all nodes into Boundary FM. Default false")
+    "Add all nodes into Boundary FM (i.e. make it full FM). Default false")
     (( initial_partitioning ? "i-r-fm-seed-node-fraction" : "r-fm-seed-node-fraction"),
     po::value<double>((initial_partitioning ? &context.initial_partitioning.refinement.fm.seed_node_fraction :
       &context.refinement.fm.seed_node_fraction))->value_name("<double>"),
@@ -309,7 +309,7 @@ po::options_description createRefinementOptionsDescription(Context& context,
     (( initial_partitioning ? "i-r-fm-seed-nodes" : "r-fm-seed-nodes"),
     po::value<size_t>((initial_partitioning ? &context.initial_partitioning.refinement.fm.num_seed_nodes :
       &context.refinement.fm.num_seed_nodes))->value_name("<size_t>"),
-    "Number of nodes to initially place into the PQ of a localized search. Activate this option via --r-fm-use-seed-fraction false")
+    "Use a fraction of the number of nodes as the number of seed nodes instead of a constant number. Default false")
     (( initial_partitioning ? "i-r-fm-use-seed-fraction" : "r-fm-use-seed-fraction"),
     po::value<bool>((initial_partitioning ? &context.initial_partitioning.refinement.fm.use_seed_node_fraction :
       &context.refinement.fm.use_seed_node_fraction))->value_name("<bool>"),
