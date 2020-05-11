@@ -337,7 +337,6 @@ private:
   // ! Makes moves applied on delta hypergraph visible on the global partitioned hypergraph.
   void applyMovesOnGlobalHypergraph(PartitionedHypergraph& phg, FMSharedData& sharedData, size_t bestGainIndex) {
     localAppliedMoves.clear();
-    runStats.local_reverts += localMoves.size() - bestGainIndex;
     Gain estimatedImprovement = 0;
     Gain lastGain = 0;
 
@@ -370,6 +369,8 @@ private:
         bestIndex = i;
       }
     }
+
+    runStats.local_reverts += localMoves.size() - bestIndex;
 
     // Kind of double rollback, if gain values are not correct
     ASSERT(localAppliedMoves.size() == bestGainIndex);
