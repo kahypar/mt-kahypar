@@ -126,8 +126,7 @@ private:
 
     std::tie(bestImprovement, bestImprovementIndex) = applyMovesOnGlobalHypergraph(phg, sharedData, bestImprovementIndex);
     runStats.estimated_improvement = bestImprovement;
-    const bool release_seeds = bestImprovementIndex > 0;
-    clearPQs(sharedData, release_seeds);
+    clearPQs(sharedData, bestImprovementIndex);
     runStats.merge(stats);
   }
 
@@ -170,16 +169,16 @@ private:
 
     revertToBestLocalPrefix(phg, sharedData, bestImprovementIndex);
     runStats.estimated_improvement = bestImprovement;
-    const bool release_seeds = bestImprovementIndex > 0;
-    clearPQs(sharedData, release_seeds);
+    clearPQs(sharedData, bestImprovementIndex);
     runStats.merge(stats);
   }
 
-  void clearPQs(FMSharedData& sharedData, const bool release_seeds) {
+  void clearPQs(FMSharedData& sharedData, size_t bestImprovementIndex) {
     // release all nodes that were not moved
     // reinsert into task queue only if we're doing multitry and at least one node was moved
     // unless a node was moved, only seed nodes are in the pqs
     const bool shall_release = context.refinement.fm.algorithm == FMAlgorithm::fm_multitry && runStats.moves > 0;
+    const bool release_seeds = bestImprovementIndex > 0;
 
     if (shall_release) {
       if (!release_seeds) {
