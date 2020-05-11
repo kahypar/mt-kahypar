@@ -95,18 +95,12 @@ struct GlobalMoveTracker {
 };
 
 struct NodeTracker {
-  vec<std::atomic<SearchID>> searchOfNode;
+  vec<CAtomic<SearchID>> searchOfNode;
 
   SearchID deactivatedNodeMarker = 1;
   CAtomic<SearchID> highestActiveSearchID { 1 };
 
-  explicit NodeTracker(size_t numNodes) :
-          searchOfNode(numNodes)
-  {
-    for (auto& x : searchOfNode) {
-      x.store(0, std::memory_order_relaxed);
-    }
-  }
+  explicit NodeTracker(size_t numNodes) : searchOfNode(numNodes, CAtomic<SearchID>(0)) { }
 
   // only the search that owns u is allowed to call this
   void deactivateNode(HypernodeID u, SearchID search_id) {
