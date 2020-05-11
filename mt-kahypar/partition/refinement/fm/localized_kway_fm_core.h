@@ -54,13 +54,8 @@ public:
       updateBlock(i);
     }
 
-    if ( context.refinement.fm.perform_moves_global ) {
-      internalFindMovesOnGlobalHypergraph(phg, sharedData);
-    } else {
-      delta_phg.clear();
-      delta_phg.setPartitionedHypergraph(&phg);
-      internalFindMovesOnDeltaHypergraph(phg, sharedData);
-    }
+    // this is boundary FM, so it's sequential. no need for delta hypergraph
+    internalFindMovesOnGlobalHypergraph(phg, sharedData);
     return true;
   }
 
