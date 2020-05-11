@@ -182,17 +182,17 @@ private:
 
     if (release) {
       if (!reinsert_seeds) {
-        std::sort(seeds.begin(), seeds.end());
+        for (HypernodeID u : seeds) {
+          sharedData.fruitlessSeed.set(u, true);
+        }
       }
 
       for (PartitionID i = 0; i < numParts; ++i) {
         for (PosT j = 0; j < vertexPQs[i].size(); ++j) {
           const HypernodeID node = vertexPQs[i].at(j);
           sharedData.nodeTracker.releaseNode(node);
-          if (reinsert_seeds || !isSeedNode(node)) {
-            if (sharedData.refinementNodes.was_pushed_and_removed(node)) {
-              sharedData.refinementNodes.template push_back<false>(node);
-            }
+          if (!sharedData.fruitlessSeed[node] && sharedData.refinementNodes.was_pushed_and_removed(node)) {
+            sharedData.refinementNodes.template push_back<false>(node);
           }
         }
       }

@@ -23,7 +23,10 @@
 
 #include <mt-kahypar/definitions.h>
 #include <mt-kahypar/datastructures/priority_queue.h>
+#include <mt-kahypar/partition/context.h>
 #include <mt-kahypar/parallel/work_stack.h>
+
+#include "external_tools/kahypar/kahypar/datastructure/fast_reset_flag_array.h"
 
 #include <tbb/parallel_for.h>
 
@@ -155,12 +158,18 @@ struct FMSharedData {
   // ! Tracks the current search of a node, and if a node can still be added to an active search
   NodeTracker nodeTracker;
 
+  // ! Indicates whether a node was a seed in a localized search that found no improvement.
+  // ! Used to distinguish whether or not the node should be reinserted into the task queue
+  // ! (if it was removed but could not be claimed for a search)
+  kahypar::ds::FastResetFlagArray<> fruitlessSeed;
+
   FMSharedData(size_t numNodes = 0, PartitionID numParts = 0) :
           refinementNodes(numNodes),
           vertexPQHandles(numNodes, invalid_position),
           numParts(numParts),
           moveTracker(numNodes),
-          nodeTracker(numNodes) { }
+          nodeTracker(numNodes),
+          fruitlessSeed(numNodes) { }
 
   FMSharedData(size_t numNodes, const Context& context) : FMSharedData(numNodes, context.partition.k) { }
 
