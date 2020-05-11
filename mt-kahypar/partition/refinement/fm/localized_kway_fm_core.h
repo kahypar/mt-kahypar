@@ -126,7 +126,7 @@ private:
 
     std::tie(bestImprovement, bestImprovementIndex) = applyMovesOnGlobalHypergraph(phg, sharedData, bestImprovementIndex);
     runStats.estimated_improvement = bestImprovement;
-    const bool release_seeds = bestImprovement > 0;
+    const bool release_seeds = bestImprovementIndex > 0;
     clearPQs(sharedData, release_seeds);
     runStats.merge(stats);
   }
