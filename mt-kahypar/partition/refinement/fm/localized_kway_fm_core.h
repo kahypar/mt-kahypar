@@ -61,34 +61,21 @@ public:
 
 
 
-  bool findMoves(PartitionedHypergraph& phg,
-                 FMSharedData& sharedData,
-                 HypernodeID seedNode = invalidNode) {
-    thisSearch = ++sharedData.nodeTracker.highestActiveSearchID;
+  bool findMoves(PartitionedHypergraph& phg, FMSharedData& sharedData) {
 
-    if (seedNode == invalidNode) {
-      const size_t nSeeds = numberOfSeedNodes(phg.initialNumNodes());
-      while (runStats.pushes < nSeeds && sharedData.refinementNodes.try_pop(seedNode)) {
-        if (!updateDeduplicator.contains(seedNode) && insertOrUpdatePQ(phg, seedNode, sharedData.nodeTracker)) {
-          seeds.push_back(seedNode);
-          if (context.refinement.fm.init_localized_search_with_neighbors) {
-            updateDeduplicator.insert(seedNode);
-            insertOrUpdateNeighbors(phg, sharedData, seedNode);
-          }
-        }
-      }
-      updateBlocks(phg, kInvalidPartition);
-    } else {
-      if (insertOrUpdatePQ(phg, seedNode, sharedData.nodeTracker)) {
+    thisSearch = ++sharedData.nodeTracker.highestActiveSearchID;
+    const size_t nSeeds = numberOfSeedNodes(phg.initialNumNodes());
+    HypernodeID seedNode;
+    while (runStats.pushes < nSeeds && sharedData.refinementNodes.try_pop(seedNode)) {
+      if (!updateDeduplicator.contains(seedNode) && insertOrUpdatePQ(phg, seedNode, sharedData.nodeTracker)) {
+        seeds.push_back(seedNode);
         if (context.refinement.fm.init_localized_search_with_neighbors) {
           updateDeduplicator.insert(seedNode);
           insertOrUpdateNeighbors(phg, sharedData, seedNode);
-          updateBlocks(phg, phg.partID(seedNode));
-        } else {
-          updateBlock(phg.partID(seedNode));
         }
       }
     }
+    updateBlocks(phg, kInvalidPartition);
 
     if (runStats.pushes > 0) {
       if ( context.refinement.fm.perform_moves_global ) {
@@ -102,6 +89,7 @@ public:
     } else {
       return false;
     }
+
   }
 
 private:
