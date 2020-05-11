@@ -358,11 +358,12 @@ private:
       lastGain = 0;
       phg.changeNodePartFullUpdate(m.node, m.from, m.to, std::numeric_limits<HypernodeWeight>::max(),
         [&] { m_id = sharedData.moveTracker.insertMove(m); }, delta_gain_func);
-      estimatedImprovement -= lastGain;
+      lastGain = -lastGain; // delta func yields negative sum of improvements, i.e. negative values mean improvements
+      estimatedImprovement += lastGain;
       ASSERT(m_id != std::numeric_limits<MoveID>::max());
       sharedData.moveTracker.moveOfNode[m.node] = m_id;
       Move& move = sharedData.moveTracker.getMove(m_id);
-      move.gain = -lastGain; // Update gain value based on hypergraph delta
+      move.gain = lastGain; // Update gain value based on hypergraph delta
       localAppliedMoves.push_back(m_id);
       if ( estimatedImprovement >= bestImprovement ) {
         bestImprovement = estimatedImprovement;
