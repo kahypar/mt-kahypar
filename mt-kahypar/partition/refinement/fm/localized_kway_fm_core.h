@@ -177,11 +177,11 @@ private:
     // release all nodes that were not moved
     // reinsert into task queue only if we're doing multitry and at least one node was moved
     // unless a node was moved, only seed nodes are in the pqs
-    const bool shall_release = context.refinement.fm.algorithm == FMAlgorithm::fm_multitry && runStats.moves > 0;
-    const bool release_seeds = bestImprovementIndex > 0;
+    const bool release = context.refinement.fm.algorithm == FMAlgorithm::fm_multitry && runStats.moves > 0;
+    const bool reinsert_seeds = bestImprovementIndex > 0;
 
-    if (shall_release) {
-      if (!release_seeds) {
+    if (release) {
+      if (!reinsert_seeds) {
         std::sort(seeds.begin(), seeds.end());
       }
 
@@ -189,7 +189,7 @@ private:
         for (PosT j = 0; j < vertexPQs[i].size(); ++j) {
           const HypernodeID node = vertexPQs[i].at(j);
           sharedData.nodeTracker.releaseNode(node);
-          if (release_seeds || !isSeedNode(node)) {
+          if (reinsert_seeds || !isSeedNode(node)) {
             if (sharedData.refinementNodes.was_pushed_and_removed(node)) {
               sharedData.refinementNodes.template push_back<false>(node);
             }
