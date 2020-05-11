@@ -38,7 +38,7 @@ namespace mt_kahypar {
 class MultilevelCoarsenerBase {
  private:
 
-  static constexpr bool debug = true;
+  static constexpr bool debug = false;
 
   class Hierarchy {
 

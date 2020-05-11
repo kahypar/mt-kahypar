@@ -390,7 +390,7 @@ private:
     const HypernodeWeight wu = nodeWeight(u);
     const HypernodeWeight to_weight_after = _part_weights[to].add_fetch(wu, std::memory_order_relaxed);
     const HypernodeWeight from_weight_after = _part_weights[from].fetch_sub(wu, std::memory_order_relaxed);
-    if (to_weight_after <= max_weight_to & from_weight_after > 0) {
+    if (to_weight_after <= max_weight_to && from_weight_after > 0) {
       report_success();
       _part_ids[u] = to;
       for (HyperedgeID he: incidentEdges(u)) {

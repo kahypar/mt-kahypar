@@ -49,7 +49,7 @@ public:
       insertOrUpdatePQ(phg, u, sharedData.nodeTracker);
     }
     for (PartitionID i = 0; i < numParts; ++i) {
-      updateBlock(phg, i);
+      updateBlock(i);
     }
     internalFindMoves(phg, sharedData);
     return true;
@@ -77,7 +77,7 @@ public:
           insertOrUpdateNeighbors(phg, sharedData, seedNode);
           updateBlocks(phg, phg.partID(seedNode));
         } else {
-          updateBlock(phg, phg.partID(seedNode));
+          updateBlock(phg.partID(seedNode));
         }
       }
     }
@@ -156,7 +156,7 @@ private:
     runStats.merge(stats);
   }
 
-  void updateBlock(PartitionedHypergraph& phg, PartitionID i) {
+  void updateBlock(PartitionID i) {
     if (!vertexPQs[i].empty()) {
       blockPQ.insertOrAdjustKey(i, vertexPQs[i].topKey());
     } else if (blockPQ.contains(i)) {
@@ -167,12 +167,12 @@ private:
   void updateBlocks(PartitionedHypergraph& phg, PartitionID moved_from) {
     if (moved_from == kInvalidPartition || updateDeduplicator.size() >= size_t(numParts)) {
       for (PartitionID i = 0; i < numParts; ++i) {
-        updateBlock(phg, i);
+        updateBlock(i);
       }
     } else {
-      updateBlock(phg, moved_from);
+      updateBlock(moved_from);
       for (const HypernodeID v : updateDeduplicator.keys()) {
-        updateBlock(phg, phg.partID(v));
+        updateBlock(phg.partID(v));
       }
     }
     updateDeduplicator.clear();
