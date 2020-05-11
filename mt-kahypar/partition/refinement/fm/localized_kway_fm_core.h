@@ -188,8 +188,8 @@ private:
       for (PartitionID i = 0; i < numParts; ++i) {
         for (PosT j = 0; j < vertexPQs[i].size(); ++j) {
           const HypernodeID node = vertexPQs[i].at(j);
+          sharedData.nodeTracker.releaseNode(node);
           if (release_seeds || !isSeedNode(node)) {
-            sharedData.nodeTracker.releaseNode(node);
             if (sharedData.refinementNodes.was_pushed_and_removed(node)) {
               sharedData.refinementNodes.template push_back<false>(node);
             }
