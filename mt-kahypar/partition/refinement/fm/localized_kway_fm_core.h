@@ -172,7 +172,6 @@ private:
 
       if (moved) {
         runStats.moves++;
-        sharedData.moveTracker.moveOfNode[m.node] = move_id;
         insertOrUpdateNeighbors(phg, sharedData, m.node);
         estimatedImprovement += m.gain;
         localAppliedMoves.push_back(move_id);
@@ -366,7 +365,6 @@ private:
       lastGain = -lastGain; // delta func yields negative sum of improvements, i.e. negative values mean improvements
       estimatedImprovement += lastGain;
       ASSERT(m_id != std::numeric_limits<MoveID>::max());
-      sharedData.moveTracker.moveOfNode[m.node] = m_id;
       Move& move = sharedData.moveTracker.getMove(m_id);
       move.gain = lastGain; // Update gain value based on hypergraph delta
       localAppliedMoves.push_back(m_id);
