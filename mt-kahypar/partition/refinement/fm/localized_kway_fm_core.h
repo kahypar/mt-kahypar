@@ -46,8 +46,6 @@ public:
 
   bool findMoves(PartitionedHypergraph& phg, FMSharedData& sharedData, vec<HypernodeID>& seedNodes) {
     thisSearch = ++sharedData.nodeTracker.highestActiveSearchID;
-    delta_phg.clear();
-    delta_phg.setPartitionedHypergraph(&phg);
 
     for (HypernodeID u : seedNodes) {
       insertOrUpdatePQ(phg, u, sharedData.nodeTracker);
@@ -59,6 +57,8 @@ public:
     if ( context.refinement.fm.perform_moves_global ) {
       internalFindMovesOnGlobalHypergraph(phg, sharedData);
     } else {
+      delta_phg.clear();
+      delta_phg.setPartitionedHypergraph(&phg);
       internalFindMovesOnDeltaHypergraph(phg, sharedData);
     }
     return true;
@@ -70,8 +70,6 @@ public:
                  FMSharedData& sharedData,
                  HypernodeID seedNode = invalidNode) {
     thisSearch = ++sharedData.nodeTracker.highestActiveSearchID;
-    delta_phg.clear();
-    delta_phg.setPartitionedHypergraph(&phg);
 
     if (seedNode == invalidNode) {
       const size_t nSeeds = numberOfSeedNodes(phg.initialNumNodes());
@@ -101,6 +99,8 @@ public:
       if ( context.refinement.fm.perform_moves_global ) {
         internalFindMovesOnGlobalHypergraph(phg, sharedData);
       } else {
+        delta_phg.clear();
+        delta_phg.setPartitionedHypergraph(&phg);
         internalFindMovesOnDeltaHypergraph(phg, sharedData);
       }
       return true;
