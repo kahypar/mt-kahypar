@@ -322,7 +322,7 @@ private:
   }
 
   // ! Makes moves applied on delta hypergraph visible on the global partitioned hypergraph.
-  void applyMovesOnGlobalHypergraph(PartitionedHypergraph& phg, FMSharedData& sharedData, size_t bestGainIndex) {
+  std::pair<Gain, size_t> applyMovesOnGlobalHypergraph(PartitionedHypergraph& phg, FMSharedData& sharedData, size_t bestGainIndex) {
     localAppliedMoves.clear();
     Gain estimatedImprovement = 0;
     Gain lastGain = 0;
@@ -366,6 +366,8 @@ private:
       phg.changeNodePartFullUpdate(m.node, m.to, m.from);
       sharedData.moveTracker.invalidateMove(m);
     }
+
+    return std::make_pair(bestImprovement, bestIndex);
   }
 
   // ! Rollback to the best improvement found during local search in case we applied moves
