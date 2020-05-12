@@ -941,7 +941,7 @@ class StaticHypergraph {
     // that parallel and single-pin hyperedges are not removed from the incident nets (will be done
     // in a postprocessing step).
     utils::Timer::instance().start_timer("contract_incidence_structure", "Contract Incidence Structures");
-    ConcurrentBucketMap<HyperedgeHash> hyperedge_hash_map;
+    ConcurrentBucketMap<ContractedHyperedgeInformation> hyperedge_hash_map;
     hyperedge_hash_map.reserve_for_estimated_number_of_insertions(_num_hyperedges);
     tbb::parallel_invoke([&] {
       // Contract Hyperedges
@@ -984,7 +984,7 @@ class StaticHypergraph {
             for ( size_t pos = incidence_array_start; pos < incidence_array_start + contracted_size; ++pos ) {
               footprint += kahypar::math::hash(tmp_incidence_array[pos]);
             }
-            hyperedge_hash_map.insert(footprint, HyperedgeHash{ he, footprint, contracted_size, true });
+            hyperedge_hash_map.insert(footprint, ContractedHyperedgeInformation{ he, footprint, contracted_size, true });
           } else {
             // Hyperedge becomes a single-pin hyperedge
             valid_hyperedges[he] = 0;
@@ -1128,18 +1128,18 @@ class StaticHypergraph {
     tbb::parallel_for(0UL, hyperedge_hash_map.numBuckets(), [&](const size_t bucket) {
       auto& hyperedge_bucket = hyperedge_hash_map.getBucket(bucket);
       std::sort(hyperedge_bucket.begin(), hyperedge_bucket.end(),
-        [&](const HyperedgeHash& lhs, const HyperedgeHash& rhs) {
+        [&](const ContractedHyperedgeInformation& lhs, const ContractedHyperedgeInformation& rhs) {
           return lhs.hash < rhs.hash || (lhs.hash == rhs.hash && lhs.size < rhs.size);
         });
 
       // Parallel Hyperedge Detection
       for ( size_t i = 0; i < hyperedge_bucket.size(); ++i ) {
-        HyperedgeHash& contracted_he_lhs = hyperedge_bucket[i];
+        ContractedHyperedgeInformation& contracted_he_lhs = hyperedge_bucket[i];
         if ( contracted_he_lhs.valid ) {
           const HyperedgeID lhs_he = contracted_he_lhs.he;
           HyperedgeWeight lhs_weight = tmp_hyperedges[lhs_he].weight();
           for ( size_t j = i + 1; j < hyperedge_bucket.size(); ++j ) {
-            HyperedgeHash& contracted_he_rhs = hyperedge_bucket[j];
+            ContractedHyperedgeInformation& contracted_he_rhs = hyperedge_bucket[j];
             const HyperedgeID rhs_he = contracted_he_rhs.he;
             if ( contracted_he_rhs.valid &&
                  contracted_he_lhs.hash == contracted_he_rhs.hash &&

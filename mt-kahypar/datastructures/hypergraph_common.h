@@ -90,7 +90,7 @@ struct NoOpDeltaFunc {
   * This struct is used during multilevel coarsening to efficiently
   * detect parallel hyperedges.
   */
-  struct HyperedgeHash {
+  struct ContractedHyperedgeInformation {
     HyperedgeID he = kInvalidHyperedge;
     size_t hash = kEdgeHashSeed;
     size_t size = std::numeric_limits<size_t>::max();
