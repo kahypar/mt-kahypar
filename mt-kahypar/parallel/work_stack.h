@@ -29,7 +29,6 @@ template<typename T>
 struct WorkContainer {
 
   using TimestampT = uint32_t;
-  //using Queue = SPMCQueue<T>;
   using Queue = tbb::concurrent_queue<T>;
 
   WorkContainer(size_t maxNumElements) : timestamps(maxNumElements, 0) { }
