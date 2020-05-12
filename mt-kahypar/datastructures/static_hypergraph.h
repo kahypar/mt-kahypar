@@ -1285,17 +1285,6 @@ class StaticHypergraph {
     });
     utils::Timer::instance().stop_timer("contract_hypergraph");
 
-    // graph edge ID mapping
-    hypergraph._num_graph_edges_up_to.resize(num_hyperedges + 1);
-    tbb::parallel_for(0U, num_hyperedges, [&](const HyperedgeID e) {
-      hypergraph._num_graph_edges_up_to[e+1] = static_cast<HyperedgeID>(hypergraph.edgeSize(e) == 2);
-    }, tbb::static_partitioner());
-    hypergraph._num_graph_edges_up_to[0] = 0;
-
-    parallel::TBBPrefixSum<HyperedgeID, Array> scan_graph_edges(hypergraph._num_graph_edges_up_to);
-    tbb::parallel_scan(tbb::blocked_range<size_t>(0, num_hyperedges + 1), scan_graph_edges);
-    hypergraph._num_graph_edges = scan_graph_edges.total_sum();
-
     // Initialize Communities and Update Total Weight
     utils::Timer::instance().start_timer("setup_communities", "Setup Communities");
     tbb::parallel_invoke([&] {
@@ -1307,6 +1296,17 @@ class StaticHypergraph {
       }
     }, [&] {
       hypergraph.updateTotalWeight(task_group_id);
+    }, [&] {
+      // graph edge ID mapping
+      hypergraph._num_graph_edges_up_to.resize(num_hyperedges + 1);
+      tbb::parallel_for(0U, num_hyperedges, [&](const HyperedgeID e) {
+        hypergraph._num_graph_edges_up_to[e+1] = static_cast<HyperedgeID>(hypergraph.edgeSize(e) == 2);
+      }, tbb::static_partitioner());
+      hypergraph._num_graph_edges_up_to[0] = 0;
+
+      parallel::TBBPrefixSum<HyperedgeID, Array> scan_graph_edges(hypergraph._num_graph_edges_up_to);
+      tbb::parallel_scan(tbb::blocked_range<size_t>(0, num_hyperedges + 1), scan_graph_edges);
+      hypergraph._num_graph_edges = scan_graph_edges.total_sum();
     });
     utils::Timer::instance().stop_timer("setup_communities");
 
