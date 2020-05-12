@@ -364,8 +364,6 @@ class FixedSizeSparseMap {
   }
 
   void freeInternalData() {
-    uint8_t* data = _data.release();
-    free(data);
     _size = 0;
     _timestamp = 0;
     _data = nullptr;
@@ -545,8 +543,6 @@ class DynamicSparseMap {
   }
 
   void freeInternalData() {
-    uint8_t* data = _data.release();
-    free(data);
     _size = 0;
     _timestamp = 0;
     _data = nullptr;
