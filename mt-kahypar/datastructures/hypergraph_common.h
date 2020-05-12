@@ -87,16 +87,10 @@ using SearchID = uint32_t;
   * detect parallel hyperedges.
   */
   struct HyperedgeHash {
-    HyperedgeHash() :
-      he(kInvalidHyperedge),
-      hash(kEdgeHashSeed),
-      size(std::numeric_limits<size_t>::max()),
-      valid(false) { }
-
-    HyperedgeID he;
-    size_t hash;
-    size_t size;
-    bool valid;
+    HyperedgeID he = kInvalidHyperedge;
+    size_t hash = kEdgeHashSeed;
+    size_t size = std::numeric_limits<size_t>::max();
+    bool valid = false;
   };
 
 // ! Helper function to compute delta for cut-metric after changeNodePart
