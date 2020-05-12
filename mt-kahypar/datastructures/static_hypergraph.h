@@ -1291,20 +1291,10 @@ class StaticHypergraph {
       hypergraph._num_graph_edges_up_to[e+1] = static_cast<HyperedgeID>(hypergraph.edgeSize(e) == 2);
     }, tbb::static_partitioner());
     hypergraph._num_graph_edges_up_to[0] = 0;
-    hypergraph._num_graph_edges = tbb::parallel_scan(
-            tbb::blocked_range<HyperedgeID>(0, num_hyperedges + 1, 10000) /* range */, 0U /* neutral element */,
-            [&](const tbb::blocked_range<HyperedgeID>& r, HyperedgeID sum, bool is_final) -> HyperedgeID {
-              for (HyperedgeID i = r.begin(); i < r.end(); i++) {
-                sum += hypergraph._num_graph_edges_up_to[i];
-                if (is_final) {
-                  hypergraph._num_graph_edges_up_to[i] = sum;
-                }
-              }
-              return sum;
-            } /* scan */,
-            std::plus<HyperedgeID>() /* join */);
 
-
+    parallel::TBBPrefixSum<HyperedgeID, Array> scan_graph_edges(hypergraph._num_graph_edges_up_to);
+    tbb::parallel_scan(tbb::blocked_range<size_t>(0, num_hyperedges + 1), scan_graph_edges);
+    hypergraph._num_graph_edges = scan_graph_edges.total_sum();
 
     // Initialize Communities and Update Total Weight
     utils::Timer::instance().start_timer("setup_communities", "Setup Communities");
