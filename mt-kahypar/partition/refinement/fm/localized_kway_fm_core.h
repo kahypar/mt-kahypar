@@ -192,7 +192,7 @@ private:
           const HypernodeID node = vertexPQs[i].at(j);
           sharedData.nodeTracker.releaseNode(node);
           if (!sharedData.fruitlessSeed[node] && sharedData.refinementNodes.was_pushed_and_removed(node)) {
-            sharedData.refinementNodes.template push_back<false>(node);
+            sharedData.refinementNodes.push(node);
           }
         }
       }
