@@ -119,9 +119,6 @@ class SparseMapBase {
   }
 
   void freeInternalData() {
-    if ( _data ) {
-      _data.release();
-    }
     _size = 0;
     _data = nullptr;
     _sparse = nullptr;
@@ -363,7 +360,6 @@ class FixedSizeSparseMap {
   }
 
   void freeInternalData() {
-    _data.release();
     _size = 0;
     _timestamp = 0;
     _data = nullptr;
@@ -543,7 +539,6 @@ class DynamicSparseMap {
   }
 
   void freeInternalData() {
-    _data.release();
     _size = 0;
     _timestamp = 0;
     _data = nullptr;
