@@ -35,18 +35,24 @@ struct WorkContainer {
 
   size_t unsafe_size() const {
     size_t sz = 0;
+    /*
     for (const Queue& x : tls_queues) {
       sz += x.unsafe_size();
     }
+     */
+    sz = q.unsafe_size();
     return sz;
   }
 
   void push(const T el) {
-    tls_queues.local().push(el);
+    //tls_queues.local().push(el);
+    q.push(el);
     timestamps[el] = current;
   }
 
   bool try_pop(T& dest) {
+    return q.try_pop(dest);
+    /*
     // use pop_front even on the thread local queue to avoid immediately reusing a just released node
     if (tls_queues.local().try_pop(dest)) {
       timestamps[dest] = current+1;
@@ -62,6 +68,7 @@ struct WorkContainer {
       }
     }
     return false;
+     */
   }
 
   bool was_pushed_and_removed(const T el) const {
@@ -77,9 +84,12 @@ struct WorkContainer {
       tbb::parallel_for_each(timestamps, [](TimestampT& x) { x = 0; });
       current = 0;
     }
+    q.clear();
+    /*
     for (Queue& tlq : tls_queues) {
       tlq.clear();
     }
+     */
     current += 2;
     steal_failures.store(0, std::memory_order_relaxed);
   }
@@ -87,7 +97,8 @@ struct WorkContainer {
   TimestampT current = 2;
   vec<TimestampT> timestamps;
   CAtomic<size_t> steal_failures { 0 };
-  tls_enumerable_thread_specific<Queue> tls_queues;
+  //tls_enumerable_thread_specific<Queue> tls_queues;
+  Queue q;
 };
 
 
