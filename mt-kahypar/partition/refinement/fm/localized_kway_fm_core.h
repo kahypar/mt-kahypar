@@ -103,32 +103,39 @@ private:
     localMoves.clear();
     StopRule stopRule(phg.initialNumNodes());
     Move m;
+
     size_t bestImprovementIndex = 0;
     Gain estimatedImprovement = 0;
     Gain bestImprovement = 0;
-    double bestImbalance = metrics::imbalance(phg, context);
+
+    HypernodeWeight heaviestPartWeight = 0;
+    HypernodeWeight toWeight = 0;
+
     while (!stopRule.searchShouldStop() && findNextMove(delta_phg, m)) {
       sharedData.nodeTracker.deactivateNode(m.node, thisSearch);
-      const HypernodeWeight fromWeight = delta_phg.partWeight(m.from);
-      const bool moved = m.to != kInvalidPartition &&
-        delta_phg.changeNodePart(m.node, m.from, m.to, std::max(maxPartWeight, fromWeight));
+
+      bool moved = false;
+      if (m.to != kInvalidPartition) {
+        heaviestPartWeight = metrics::heaviestPartAndWeight(delta_phg).second;
+        const HypernodeWeight fromWeight = delta_phg.partWeight(m.from);
+        toWeight = delta_phg.partWeight(m.to);
+        moved = delta_phg.changeNodePart(m.node, m.from, m.to, std::max(maxPartWeight, fromWeight));
+      }
+
       if (moved) {
         runStats.moves++;
         estimatedImprovement += m.gain;
         localMoves.push_back(m);
 
         // Check if move improves current best solution
-        double currentImbalance = metrics::imbalance(delta_phg, context);
-        const bool improved_km1_within_balance = (currentImbalance <= context.partition.epsilon) &&
-                                                 (estimatedImprovement >= bestImprovement);
-        const bool improved_balance_less_equal_km1 = (currentImbalance <= bestImbalance) &&
-                                                     (estimatedImprovement >= bestImprovement);
+        const bool improved_km1 = estimatedImprovement > bestImprovement;
+        const bool improved_balance_less_equal_km1 = estimatedImprovement >= bestImprovement &&
+                                                     toWeight + phg.nodeWeight(m.node) < heaviestPartWeight;
 
-        if (improved_km1_within_balance || improved_balance_less_equal_km1) {
+        if (improved_km1 || improved_balance_less_equal_km1) {
           stopRule.reset();
           bestImprovement = estimatedImprovement;
           bestImprovementIndex = localMoves.size();
-          bestImbalance = currentImbalance;
         }
 
         // Update PQs and Stopping Rule
@@ -154,21 +161,25 @@ private:
     localAppliedMoves.clear();
     StopRule stopRule(phg.initialNumNodes());
     Move m;
+
     size_t bestImprovementIndex = 0;
     Gain estimatedImprovement = 0;
     Gain bestImprovement = 0;
-    double bestImbalance = metrics::imbalance(phg, context);
+
+    HypernodeWeight heaviestPartWeight = 0;
+    HypernodeWeight toWeight = 0;
+
     while (!stopRule.searchShouldStop() && findNextMove(phg, m)) {
       sharedData.nodeTracker.deactivateNode(m.node, thisSearch);
-
       MoveID move_id = std::numeric_limits<MoveID>::max();
       auto report_success = [&] { move_id = sharedData.moveTracker.insertMove(m); };
 
       bool moved = false;
       if (m.to != kInvalidPartition) {
+        heaviestPartWeight = metrics::heaviestPartAndWeight(phg).second;
         const HypernodeWeight fromWeight = phg.partWeight(m.from);
-        moved = phg.changeNodePartFullUpdate(m.node, m.from, m.to,
-          std::max(maxPartWeight, fromWeight), report_success);
+        toWeight = phg.partWeight(m.to);
+        moved = phg.changeNodePartFullUpdate(m.node, m.from, m.to, std::max(maxPartWeight, fromWeight), report_success);
       }
 
       if (moved) {
@@ -177,17 +188,14 @@ private:
         localAppliedMoves.push_back(move_id);
 
         // Check if move improves current best solution
-        double currentImbalance = metrics::imbalance(phg, context);
-        const bool improved_km1_within_balance = (currentImbalance <= context.partition.epsilon) &&
-                                                 (estimatedImprovement >= bestImprovement);
-        const bool improved_balance_less_equal_km1 = (currentImbalance <= bestImbalance) &&
-                                                     (estimatedImprovement >= bestImprovement);
+        const bool improved_km1 = estimatedImprovement > bestImprovement;
+        const bool improved_balance_less_equal_km1 = estimatedImprovement >= bestImprovement &&
+                                                     toWeight + phg.nodeWeight(m.node) < heaviestPartWeight;
 
-        if (improved_km1_within_balance || improved_balance_less_equal_km1) {
+        if (improved_km1 || improved_balance_less_equal_km1) {
           stopRule.reset();
           bestImprovement = estimatedImprovement;
           bestImprovementIndex = localAppliedMoves.size();
-          bestImbalance = currentImbalance;
         }
 
         // Update PQs and Stopping Rule

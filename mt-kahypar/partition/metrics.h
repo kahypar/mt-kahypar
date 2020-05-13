@@ -157,6 +157,19 @@ static inline double imbalance(const HyperGraph& hypergraph, const Context& cont
   return max_balance - 1.0;
 }
 
+template<typename Partition>
+static inline std::pair<PartitionID, HypernodeWeight> heaviestPartAndWeight(const Partition& partition) {
+  PartitionID p = kInvalidPartition;
+  HypernodeWeight w = std::numeric_limits<HypernodeWeight>::min();
+  for (PartitionID i = 0; i < partition.k(); ++i) {
+    if (partition.partWeight(i) > w) {
+      w = partition.partWeight(i);
+      p = i;
+    }
+  }
+  return std::make_pair(p, w);
+}
+
 static inline bool isBalanced(const PartitionedHypergraph& phg, const Context& context) {
   for (PartitionID i = 0; i < context.partition.k; ++i) {
     if (phg.partWeight(i) > context.partition.max_part_weights[i]) {

@@ -202,6 +202,10 @@ class DeltaPartitionedHypergraph {
     _move_from_benefit_delta.clear();
   }
 
+  PartitionID k() const {
+    return _k;
+  }
+
  private:
 
 
