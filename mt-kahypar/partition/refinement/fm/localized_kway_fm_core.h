@@ -126,6 +126,7 @@ private:
         runStats.moves++;
         estimatedImprovement += m.gain;
         localMoves.push_back(m);
+        stopRule.update(m.gain);
 
         // Check if move improves current best solution
         const bool improved_km1 = estimatedImprovement > bestImprovement;
@@ -138,9 +139,7 @@ private:
           bestImprovementIndex = localMoves.size();
         }
 
-        // Update PQs and Stopping Rule
         insertOrUpdateNeighbors(delta_phg, sharedData, m.node);
-        stopRule.update(m.gain);
       }
       updateBlocks(delta_phg, m.from);
     }
@@ -186,6 +185,7 @@ private:
         runStats.moves++;
         estimatedImprovement += m.gain;
         localAppliedMoves.push_back(move_id);
+        stopRule.update(m.gain);
 
         // Check if move improves current best solution
         const bool improved_km1 = estimatedImprovement > bestImprovement;
@@ -198,9 +198,7 @@ private:
           bestImprovementIndex = localAppliedMoves.size();
         }
 
-        // Update PQs and Stopping Rule
         insertOrUpdateNeighbors(phg, sharedData, m.node);
-        stopRule.update(m.gain);
       }
       updateBlocks(phg, m.from);
     }
