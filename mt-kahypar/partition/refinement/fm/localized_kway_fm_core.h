@@ -318,7 +318,7 @@ private:
     const HypernodeWeight from_weight = phg.partWeight(from);
     PartitionID to = kInvalidPartition;
     HyperedgeWeight to_penalty = std::numeric_limits<HyperedgeWeight>::max();
-    HypernodeWeight best_to_weight = from_weight;
+    HypernodeWeight best_to_weight = from_weight - wu;
     for (PartitionID i = 0; i < numParts; ++i) {
       if (i != from) {
         const HypernodeWeight to_weight = phg.partWeight(i);
