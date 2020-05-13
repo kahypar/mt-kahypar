@@ -362,6 +362,7 @@ private:
   void changeOnlyNodePart(const HypernodeID u, PartitionID from, PartitionID to) {
     nodeGainAssertions(u, from);
     nodeGainAssertions(u, to);
+    ASSERT(partID(u) == from);
     ASSERT(from != to);
 
     const HypernodeWeight wu = nodeWeight(u);

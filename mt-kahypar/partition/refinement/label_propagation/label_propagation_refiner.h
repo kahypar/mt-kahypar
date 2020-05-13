@@ -34,6 +34,7 @@
 
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/datastructures/streaming_vector.h"
+#include "mt-kahypar/datastructures/thread_safe_fast_reset_flag_array.h"
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/partition/metrics.h"
@@ -54,7 +55,7 @@ class LabelPropagationRefiner final : public IRefiner {
   static constexpr bool enable_heavy_assert = false;
 
  public:
-  explicit LabelPropagationRefiner(Hypergraph&,
+  explicit LabelPropagationRefiner(Hypergraph& hypergraph,
                                    const Context& context,
                                    const TaskGroupID task_group_id) :
     _context(context),
@@ -63,8 +64,8 @@ class LabelPropagationRefiner final : public IRefiner {
     _current_num_edges(kInvalidHyperedge),
     _gain(context),
     _active_nodes(),
-    _next_active(),
-    _visited_he() { }
+    _next_active(hypergraph.initialNumNodes()),
+    _visited_he(hypergraph.initialNumEdges()) { }
 
   LabelPropagationRefiner(const LabelPropagationRefiner&) = delete;
   LabelPropagationRefiner(LabelPropagationRefiner&&) = delete;
@@ -213,9 +214,8 @@ class LabelPropagationRefiner final : public IRefiner {
                   for (const HypernodeID& pin : hypergraph.pins(he)) {
                     if ( (_context.refinement.label_propagation.rebalancing ||
                            hypergraph.isBorderNode(hn)) &&
-                         !_next_active[pin] ) {
+                          _next_active.compare_and_set_to_true(pin) ) {
                       next_active_nodes.stream(pin);
-                      _next_active.set(pin, true);
                     }
                   }
                   _visited_he.set(he, true);
@@ -272,18 +272,6 @@ class LabelPropagationRefiner final : public IRefiner {
 
       _active_nodes = tmp_active_nodes.copy_parallel();
     }
-
-    const HypernodeID new_num_nodes = hypergraph.initialNumNodes();
-    if ( new_num_nodes > _current_num_nodes || _current_num_nodes == kInvalidHypernode ) {
-      _next_active = kahypar::ds::FastResetFlagArray<>(hypergraph.initialNumNodes());
-      _current_num_nodes = new_num_nodes;
-    }
-
-    const HypernodeID new_num_edges = hypergraph.initialNumEdges();
-    if ( new_num_edges > _current_num_edges || _current_num_edges == kInvalidHyperedge ) {
-      _visited_he = kahypar::ds::FastResetFlagArray<>(hypergraph.initialNumEdges());
-      _current_num_edges = new_num_edges;
-    }
   }
 
   const Context& _context;
@@ -292,7 +280,7 @@ class LabelPropagationRefiner final : public IRefiner {
   HyperedgeID _current_num_edges;
   GainCalculator _gain;
   ActiveNodes _active_nodes;
-  kahypar::ds::FastResetFlagArray<> _next_active;
+  ds::ThreadSafeFastResetFlagArray<> _next_active;
   kahypar::ds::FastResetFlagArray<> _visited_he;
 };
 

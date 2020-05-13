@@ -984,7 +984,8 @@ class StaticHypergraph {
             for ( size_t pos = incidence_array_start; pos < incidence_array_start + contracted_size; ++pos ) {
               footprint += kahypar::math::hash(tmp_incidence_array[pos]);
             }
-            hyperedge_hash_map.insert(footprint, ContractedHyperedgeInformation{ he, footprint, contracted_size, true });
+            hyperedge_hash_map.insert(footprint,
+              ContractedHyperedgeInformation{ he, footprint, contracted_size, true });
           } else {
             // Hyperedge becomes a single-pin hyperedge
             valid_hyperedges[he] = 0;
