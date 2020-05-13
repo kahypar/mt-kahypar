@@ -213,7 +213,7 @@ class LabelPropagationRefiner final : public IRefiner {
                 if ( !_visited_he[he] ) {
                   for (const HypernodeID& pin : hypergraph.pins(he)) {
                     if ( (_context.refinement.label_propagation.rebalancing ||
-                           hypergraph.isBorderNode(hn)) &&
+                           hypergraph.isBorderNode(pin)) &&
                           _next_active.compare_and_set_to_true(pin) ) {
                       next_active_nodes.stream(pin);
                     }
@@ -224,7 +224,6 @@ class LabelPropagationRefiner final : public IRefiner {
             }
             if ( _next_active.compare_and_set_to_true(hn) ) {
               next_active_nodes.stream(hn);
-              _next_active.set(hn, true);
             }
             is_moved = true;
           } else {
