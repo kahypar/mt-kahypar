@@ -79,7 +79,7 @@ class Rebalancer {
 
   void rebalance(kahypar::Metrics& best_metrics) {
     // If partition is imbalanced, rebalancer is activated
-    if ( metrics::imbalance(_hg, _context) > _context.partition.epsilon ) {
+    if ( !metrics::isBalanced(_hg, _context) ) {
       _gain.reset();
       for ( PartitionID block = 0; block < _context.partition.k; ++block ) {
         _part_weights[block] = _hg.partWeight(block);
@@ -127,7 +127,7 @@ class Rebalancer {
 
       // If partition is still imbalanced, we try execute moves stored into
       // the thread local priority queue which could possibly worsen solution quality
-      if ( metrics::imbalance(_hg, _context) > _context.partition.epsilon ) {
+      if ( !metrics::isBalanced(_hg, _context) ) {
 
         // Initialize minimum gain value of each priority queue
         parallel::scalable_vector<Gain> min_pq_gain(idx.load(),
