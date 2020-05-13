@@ -222,7 +222,7 @@ class LabelPropagationRefiner final : public IRefiner {
                 }
               }
             }
-            if ( _next_active[hn] ) {
+            if ( _next_active.compare_and_set_to_true(hn) ) {
               next_active_nodes.stream(hn);
               _next_active.set(hn, true);
             }
