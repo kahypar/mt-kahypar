@@ -44,7 +44,7 @@ public:
           context(context),
           taskGroupID(taskGroupID),
           sharedData(hypergraph.initialNumNodes(), context),
-          globalRollback(hypergraph, context.partition.k),
+          globalRollback(hypergraph, context, context.partition.k),
           ets_fm(context, hypergraph.initialNumNodes(), sharedData.vertexPQHandles.data()) { }
 
   bool refineImpl(PartitionedHypergraph& phg,

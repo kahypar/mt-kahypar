@@ -146,7 +146,8 @@ struct BalanceAndBestIndexScan {
 class GlobalRollback {
   static constexpr bool enable_heavy_assert = false;
 public:
-  explicit GlobalRollback(const Hypergraph& hg, PartitionID numParts) :
+  explicit GlobalRollback(const Hypergraph& hg, const Context& context, PartitionID numParts) :
+          maxPartWeightScaling(context.refinement.fm.rollback_balance_violation_factor),
           numParts(numParts),
           remaining_original_pins(hg.numNonGraphEdges() * numParts),
           first_move_in(hg.numNonGraphEdges() * numParts),
@@ -158,6 +159,13 @@ public:
   HyperedgeWeight revertToBestPrefix(PartitionedHypergraph& phg, FMSharedData& sharedData,
                                      vec<HypernodeWeight>& partWeights, HypernodeWeight maxPartWeight,
                                      bool parallel = true) {
+
+    if (maxPartWeightScaling == 0.0) {
+      maxPartWeight = std::numeric_limits<HypernodeWeight>::max();
+    } else if (maxPartWeightScaling > 1.00001) {
+      maxPartWeight *= maxPartWeightScaling;
+    }
+
     if (parallel) {
       return revertToBestPrefixParallel(phg, sharedData, partWeights, maxPartWeight);
     } else {
@@ -503,6 +511,9 @@ public:
       }
     });
   }
+
+  // ! Factor to multiply max part weight with, in order to relax or disable the balance criterion. Set to zero for disabling
+  double maxPartWeightScaling;
 
   PartitionID numParts;
 

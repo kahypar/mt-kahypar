@@ -190,6 +190,7 @@ struct FMParameters {
   bool init_boundary_fm_with_all_nodes = false;
   bool shuffle = true;
   bool revert_parallel = true;
+  double rollback_balance_violation_factor = 1.0;
 };
 
 inline std::ostream& operator<<(std::ostream& out, const FMParameters& params) {

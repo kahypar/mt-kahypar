@@ -317,7 +317,13 @@ po::options_description createRefinementOptionsDescription(Context& context,
      (( initial_partitioning ? "i-r-fm-revert-parallel" : "r-fm-revert-parallel"),
      po::value<bool>((initial_partitioning ? &context.initial_partitioning.refinement.fm.revert_parallel :
      &context.refinement.fm.revert_parallel))->value_name("<bool>"),
-     "Perform gain and balance recalculation, and reverting to best prefix in parallel. Default true");
+     "Perform gain and balance recalculation, and reverting to best prefix in parallel. Default true")
+     (( initial_partitioning ? "i-r-fm-revert-balance" : "r-fm-revert-balance"),
+     po::value<double>((initial_partitioning ? &context.initial_partitioning.refinement.fm.rollback_balance_violation_factor :
+     &context.refinement.fm.rollback_balance_violation_factor))->value_name("<double>"),
+     "Used to relax or disable the balance constraint during the rollback phase of parallel FM."
+     "Set to 0 for disabling. Set to a value > 1.0 to multiply the max part weight with this value."
+     "Default 1.0 (enabled, no relaxation)");
   return options;
 }
 
