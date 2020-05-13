@@ -437,12 +437,6 @@ private:
     }
   }
 
-  bool isSeedNode(HypernodeID node) const {
-    assert(std::is_sorted(seeds.begin(), seeds.end()));
-    const auto iter = std::lower_bound(seeds.begin(), seeds.end(), node);
-    return iter != seeds.end() && *iter == node;
-  }
-
   SearchID thisSearch;
   PartitionID numParts;
 
