@@ -183,14 +183,14 @@ struct FMParameters {
   FMAlgorithm algorithm = FMAlgorithm::do_nothing;
   size_t multitry_rounds = 0;
   bool perform_moves_global = false;
+  bool revert_parallel = true;
+  double rollback_balance_violation_factor = std::numeric_limits<double>::max();
   double seed_node_fraction = 0.0;
   size_t num_seed_nodes = 0;
   bool use_seed_node_fraction = false;
   bool init_localized_search_with_neighbors = false;
   bool init_boundary_fm_with_all_nodes = false;
   bool shuffle = true;
-  bool revert_parallel = true;
-  double rollback_balance_violation_factor = 1.0;
 };
 
 inline std::ostream& operator<<(std::ostream& out, const FMParameters& params) {
@@ -198,6 +198,8 @@ inline std::ostream& operator<<(std::ostream& out, const FMParameters& params) {
   out << "    Algorithm:                        " << params.algorithm << std::endl;
   out << "    Multitry Rounds:                  " << params.multitry_rounds << std::endl;
   out << "    Perform Moves Globally:           " << std::boolalpha << params.perform_moves_global << std::endl;
+  out << "    Parallel Global Rollbacks:        " << std::boolalpha << params.revert_parallel << std::endl;
+  out << "    Rollback Bal. Violation Factor:   " << params.rollback_balance_violation_factor << std::endl;
   out << "    Seed Node Fraction:               " << params.seed_node_fraction << std::endl;
   out << "    Num Seed Nodes:                   " << params.num_seed_nodes << std::endl;
   out << "    Use Seed Node Fraction:           " << std::boolalpha << params.use_seed_node_fraction << std::endl;

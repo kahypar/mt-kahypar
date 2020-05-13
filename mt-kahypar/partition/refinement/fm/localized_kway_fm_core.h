@@ -104,27 +104,42 @@ private:
     StopRule stopRule(phg.initialNumNodes());
     Move m;
     size_t bestImprovementIndex = 0;
-    Gain estimatedImprovement = 0, bestImprovement = 0;
+    Gain estimatedImprovement = 0;
+    Gain bestImprovement = 0;
+    double bestImbalance = metrics::imbalance(phg, context);
     while (!stopRule.searchShouldStop() && findNextMove(delta_phg, m)) {
       sharedData.nodeTracker.deactivateNode(m.node, thisSearch);
+      const HypernodeWeight fromWeight = delta_phg.partWeight(m.from);
       const bool moved = m.to != kInvalidPartition &&
-        delta_phg.changeNodePart(m.node, m.from, m.to, maxPartWeight);
+        delta_phg.changeNodePart(m.node, m.from, m.to, std::max(maxPartWeight, fromWeight));
       if (moved) {
         runStats.moves++;
-        insertOrUpdateNeighbors(delta_phg, sharedData, m.node);
         estimatedImprovement += m.gain;
         localMoves.push_back(m);
-        stopRule.update(m.gain);
-        if (estimatedImprovement >= bestImprovement) {
+
+        // Check if move improves current best solution
+        double currentImbalance = metrics::imbalance(delta_phg, context);
+        const bool improved_km1_within_balance = (currentImbalance <= context.partition.epsilon) &&
+                                                 (estimatedImprovement >= bestImprovement);
+        const bool improved_balance_less_equal_km1 = (currentImbalance <= bestImbalance) &&
+                                                     (estimatedImprovement >= bestImprovement);
+
+        if (improved_km1_within_balance || improved_balance_less_equal_km1) {
           stopRule.reset();
           bestImprovement = estimatedImprovement;
           bestImprovementIndex = localMoves.size();
+          bestImbalance = currentImbalance;
         }
+
+        // Update PQs and Stopping Rule
+        insertOrUpdateNeighbors(delta_phg, sharedData, m.node);
+        stopRule.update(m.gain);
       }
       updateBlocks(delta_phg, m.from);
     }
 
-    std::tie(bestImprovement, bestImprovementIndex) = applyMovesOnGlobalHypergraph(phg, sharedData, bestImprovementIndex);
+    std::tie(bestImprovement, bestImprovementIndex) =
+      applyMovesOnGlobalHypergraph(phg, sharedData, bestImprovementIndex, bestImprovement);
     runStats.estimated_improvement = bestImprovement;
     clearPQs(sharedData, bestImprovementIndex);
     runStats.merge(stats);
@@ -140,7 +155,9 @@ private:
     StopRule stopRule(phg.initialNumNodes());
     Move m;
     size_t bestImprovementIndex = 0;
-    Gain estimatedImprovement = 0, bestImprovement = 0;
+    Gain estimatedImprovement = 0;
+    Gain bestImprovement = 0;
+    double bestImbalance = metrics::imbalance(phg, context);
     while (!stopRule.searchShouldStop() && findNextMove(phg, m)) {
       sharedData.nodeTracker.deactivateNode(m.node, thisSearch);
 
@@ -149,20 +166,33 @@ private:
 
       bool moved = false;
       if (m.to != kInvalidPartition) {
-        moved = phg.changeNodePartFullUpdate(m.node, m.from, m.to, maxPartWeight, report_success);
+        const HypernodeWeight fromWeight = phg.partWeight(m.from);
+        moved = phg.changeNodePartFullUpdate(m.node, m.from, m.to,
+          std::max(maxPartWeight, fromWeight), report_success);
       }
 
       if (moved) {
         runStats.moves++;
-        insertOrUpdateNeighbors(phg, sharedData, m.node);
         estimatedImprovement += m.gain;
         localAppliedMoves.push_back(move_id);
-        stopRule.update(m.gain);
-        if (estimatedImprovement >= bestImprovement) {
+
+        // Check if move improves current best solution
+        double currentImbalance = metrics::imbalance(phg, context);
+        const bool improved_km1_within_balance = (currentImbalance <= context.partition.epsilon) &&
+                                                 (estimatedImprovement >= bestImprovement);
+        const bool improved_balance_less_equal_km1 = (currentImbalance <= bestImbalance) &&
+                                                     (estimatedImprovement >= bestImprovement);
+
+        if (improved_km1_within_balance || improved_balance_less_equal_km1) {
           stopRule.reset();
           bestImprovement = estimatedImprovement;
           bestImprovementIndex = localAppliedMoves.size();
+          bestImbalance = currentImbalance;
         }
+
+        // Update PQs and Stopping Rule
+        insertOrUpdateNeighbors(phg, sharedData, m.node);
+        stopRule.update(m.gain);
       }
       updateBlocks(phg, m.from);
     }
@@ -278,15 +308,20 @@ private:
   std::pair<PartitionID, HyperedgeWeight> bestDestinationBlock(const PHG& phg,
                                                                const HypernodeID u) {
     const HypernodeWeight wu = phg.nodeWeight(u);
-    const PartitionID pu = phg.partID(u);
+    const PartitionID from = phg.partID(u);
+    const HypernodeWeight from_weight = phg.partWeight(from);
     PartitionID to = kInvalidPartition;
     HyperedgeWeight to_penalty = std::numeric_limits<HyperedgeWeight>::max();
+    HypernodeWeight best_to_weight = from_weight;
     for (PartitionID i = 0; i < numParts; ++i) {
-      if (i != pu) {
+      if (i != from) {
+        const HypernodeWeight to_weight = phg.partWeight(i);
         const HyperedgeWeight penalty = phg.moveToPenalty(u, i);
-        if (penalty < to_penalty && phg.partWeight(i) + wu <= maxPartWeight) {
+        if ( ( penalty < to_penalty || ( penalty == to_penalty && to_weight < best_to_weight ) ) &&
+              ( to_weight + wu <= maxPartWeight || to_weight < std::max(best_to_weight, maxPartWeight + 1) ) ) {
           to_penalty = penalty;
           to = i;
+          best_to_weight = to_weight;
         }
       }
     }
@@ -321,7 +356,10 @@ private:
   }
 
   // ! Makes moves applied on delta hypergraph visible on the global partitioned hypergraph.
-  std::pair<Gain, size_t> applyMovesOnGlobalHypergraph(PartitionedHypergraph& phg, FMSharedData& sharedData, size_t bestGainIndex) {
+  std::pair<Gain, size_t> applyMovesOnGlobalHypergraph(PartitionedHypergraph& phg,
+                                                       FMSharedData& sharedData,
+                                                       const size_t bestGainIndex,
+                                                       const Gain bestEstimatedImprovement) {
     localAppliedMoves.clear();
     Gain estimatedImprovement = 0;
     Gain lastGain = 0;
@@ -360,13 +398,16 @@ private:
 
     // Kind of double rollback, if gain values are not correct
     ASSERT(localAppliedMoves.size() == bestGainIndex);
-    for ( size_t i = bestIndex + 1; i < bestGainIndex; ++i ) {
-      Move& m = sharedData.moveTracker.getMove(localAppliedMoves[i]);
-      phg.changeNodePartFullUpdate(m.node, m.to, m.from);
-      sharedData.moveTracker.invalidateMove(m);
+    if ( estimatedImprovement < 0 ) {
+      for ( size_t i = bestIndex + 1; i < bestGainIndex; ++i ) {
+        Move& m = sharedData.moveTracker.getMove(localAppliedMoves[i]);
+        phg.changeNodePartFullUpdate(m.node, m.to, m.from);
+        sharedData.moveTracker.invalidateMove(m);
+      }
+      return std::make_pair(bestImprovement, bestIndex);
+    } else {
+      return std::make_pair(bestEstimatedImprovement, bestGainIndex);
     }
-
-    return std::make_pair(bestImprovement, bestIndex);
   }
 
   // ! Rollback to the best improvement found during local search in case we applied moves
