@@ -26,49 +26,68 @@
 namespace mt_kahypar {
 
 template<typename T>
+struct ThreadQueue {
+  vec<T> elements;
+  CAtomic<size_t> front { 0 };
+
+  ThreadQueue() {
+    elements.reserve(1 << 13);
+  }
+
+  void clear() {
+    elements.clear();
+    front.store(0);
+  }
+
+  bool try_pop(T& dest) {
+    size_t slot = front.fetch_add(1, std::memory_order_acq_rel);
+    if (slot < elements.size()) {
+      dest= elements[slot];
+      return true;
+    }
+    return false;
+  }
+};
+
+template<typename T>
 struct WorkContainer {
 
   using TimestampT = uint32_t;
-  using Queue = tbb::concurrent_queue<T>;
 
-  WorkContainer(size_t maxNumElements) : timestamps(maxNumElements, 0) { }
+  WorkContainer(size_t maxNumElements) :
+          timestamps(maxNumElements, 0) { }
 
   size_t unsafe_size() const {
     size_t sz = 0;
-    /*
-    for (const Queue& x : tls_queues) {
-      sz += x.unsafe_size();
+    for (const ThreadQueue<T>& q : tls_queues) {
+      sz += q.elements.size() - q.front.load(std::memory_order_relaxed);
     }
-     */
-    sz = q.unsafe_size();
+    sz += conc_queue.unsafe_size();
     return sz;
   }
 
-  void push(const T el) {
-    //tls_queues.local().push(el);
-    q.push(el);
+  void concurrent_push(const T el) {
+    conc_queue.push(el);
+    timestamps[el] = current;
+  }
+
+  // assumes that no thread is currently calling try_pop
+  void safe_push(const T el) {
+    tls_queues.local().elements.push_back(el);
     timestamps[el] = current;
   }
 
   bool try_pop(T& dest) {
-    return q.try_pop(dest);
-    /*
-    // use pop_front even on the thread local queue to avoid immediately reusing a just released node
-    if (tls_queues.local().try_pop(dest)) {
-      timestamps[dest] = current+1;
-      return true;
-    } else {
+    return tls_queues.local().try_pop(dest) || conc_queue.try_pop(dest) || steal_work(dest);
+  }
 
-      // try stealing
-      for (Queue& other_queue : tls_queues) {
-        if (other_queue.try_pop(dest)) {
-          timestamps[dest] = current+1;
-          return true;
-        }
+  bool steal_work(T& dest) {
+    for (ThreadQueue<T>& q : tls_queues) {
+      if (q.try_pop(dest)) {
+        return true;
       }
     }
     return false;
-     */
   }
 
   bool was_pushed_and_removed(const T el) const {
@@ -76,7 +95,9 @@ struct WorkContainer {
   }
 
   void shuffle() {
-
+    tbb::parallel_for_each(tls_queues, [&](ThreadQueue<T>& q) {
+      utils::Randomize::instance().shuffleVector(q.elements);
+    });
   }
 
   void clear() {
@@ -84,21 +105,17 @@ struct WorkContainer {
       tbb::parallel_for_each(timestamps, [](TimestampT& x) { x = 0; });
       current = 0;
     }
-    q.clear();
-    /*
-    for (Queue& tlq : tls_queues) {
-      tlq.clear();
+    for (ThreadQueue<T>& q : tls_queues) {
+      q.clear();
     }
-     */
+    conc_queue.clear();
     current += 2;
-    steal_failures.store(0, std::memory_order_relaxed);
   }
 
   TimestampT current = 2;
   vec<TimestampT> timestamps;
-  CAtomic<size_t> steal_failures { 0 };
-  //tls_enumerable_thread_specific<Queue> tls_queues;
-  Queue q;
+  tls_enumerable_thread_specific<ThreadQueue<T>> tls_queues;
+  tbb::concurrent_queue<T> conc_queue;
 };
 
 
