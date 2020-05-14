@@ -171,6 +171,22 @@ class TBBNumaArena {
     wait(task_group_id);
   }
 
+  template<typename index, typename Functor>
+  void parallel_for_with_task_id(const TaskGroupID task_group_id, const index first, const index last,
+                                 Functor&& f, const index grain_size = 1) {
+    std::atomic<index> a_first(first);
+    execute_task_on_each_thread(task_group_id, [&](const int, const int task_id, const int) {
+      index t_first = a_first.fetch_add(grain_size, std::memory_order_acq_rel);
+      while (t_first < last) {
+        index t_last = std::min(last, t_first + grain_size);
+        for (index i = first; i < t_last; ++i) {
+          f(i, task_id);
+        }
+        t_first = a_first.fetch_add(grain_size, std::memory_order_acq_rel);
+      }
+    });
+  }
+
   void wait(const TaskGroupID task_group_id) {
     for (int node = 0; node < num_numa_arenas(); ++node) {
       _arenas[node].execute([&, node] {
