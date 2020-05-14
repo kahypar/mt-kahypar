@@ -42,7 +42,7 @@ struct ThreadQueue {
   bool try_pop(T& dest) {
     size_t slot = front.fetch_add(1, std::memory_order_acq_rel);
     if (slot < elements.size()) {
-      dest= elements[slot];
+      dest = elements[slot];
       return true;
     }
     return false;
