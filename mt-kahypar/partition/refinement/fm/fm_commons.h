@@ -163,15 +163,16 @@ struct FMSharedData {
   // ! (if it was removed but could not be claimed for a search)
   kahypar::ds::FastResetFlagArray<> fruitlessSeed;
 
-  FMSharedData(size_t numNodes = 0, PartitionID numParts = 0) :
-          refinementNodes(numNodes),
+  FMSharedData(size_t numNodes = 0, PartitionID numParts = 0, size_t numThreads = 0) :
+          refinementNodes(numNodes, numThreads),
           vertexPQHandles(numNodes, invalid_position),
           numParts(numParts),
           moveTracker(numNodes),
           nodeTracker(numNodes),
           fruitlessSeed(numNodes) { }
 
-  FMSharedData(size_t numNodes, const Context& context) : FMSharedData(numNodes, context.partition.k) { }
+  FMSharedData(size_t numNodes, const Context& context) :
+          FMSharedData(numNodes, context.partition.k, context.shared_memory.num_threads)  { }
 
 };
 

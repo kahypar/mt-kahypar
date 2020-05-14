@@ -55,8 +55,12 @@ struct WorkContainer {
 
   using TimestampT = uint32_t;
 
-  WorkContainer(size_t maxNumElements) :
-          timestamps(maxNumElements, 0) { }
+  WorkContainer(size_t maxNumElements, size_t maxNumThreads) :
+          timestamps(maxNumElements, 0),
+          tls_queues(maxNumThreads)
+  {
+
+  }
 
   size_t unsafe_size() const {
     size_t sz = 0;
@@ -74,15 +78,17 @@ struct WorkContainer {
   }
 
   // assumes that no thread is currently calling try_pop
-  void safe_push(const T el) {
-    tls_queues.local().elements.push_back(el);
-    ASSERT(tls_queues.local().front.load() == 0);
+  void safe_push(const T el, size_t thread_id) {
+    ASSERT(thread_id < tls_queues.size());
+    tls_queues[thread_id].elements.push_back(el);
+    ASSERT(tls_queues[thread_id].front.load() == 0);
     ASSERT(el < timestamps.size());
     timestamps[el] = current;
   }
 
-  bool try_pop(T& dest) {
-    return tls_queues.local().try_pop(dest) || conc_queue.try_pop(dest) || steal_work(dest);
+  bool try_pop(T& dest, size_t thread_id) {
+    ASSERT(thread_id < tls_queues.size());
+    return tls_queues[thread_id].try_pop(dest) || conc_queue.try_pop(dest) || steal_work(dest);
   }
 
   bool steal_work(T& dest) {
@@ -119,7 +125,7 @@ struct WorkContainer {
 
   TimestampT current = 2;
   vec<TimestampT> timestamps;
-  tls_enumerable_thread_specific<ThreadQueue<T>> tls_queues;
+  vec<ThreadQueue<T>> tls_queues;
   tbb::concurrent_queue<T> conc_queue;
 };
 

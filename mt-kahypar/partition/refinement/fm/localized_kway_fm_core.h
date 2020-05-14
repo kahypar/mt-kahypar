@@ -61,12 +61,12 @@ public:
 
 
 
-  bool findMoves(PartitionedHypergraph& phg, FMSharedData& sharedData) {
+  bool findMoves(PartitionedHypergraph& phg, FMSharedData& sharedData, size_t taskID) {
 
     thisSearch = ++sharedData.nodeTracker.highestActiveSearchID;
     const size_t nSeeds = context.refinement.fm.num_seed_nodes;
     HypernodeID seedNode;
-    while (runStats.pushes < nSeeds && sharedData.refinementNodes.try_pop(seedNode)) {
+    while (runStats.pushes < nSeeds && sharedData.refinementNodes.try_pop(seedNode, taskID)) {
       if (!updateDeduplicator.contains(seedNode) && insertOrUpdatePQ(phg, seedNode, sharedData.nodeTracker)) {
         seeds.push_back(seedNode);
       }

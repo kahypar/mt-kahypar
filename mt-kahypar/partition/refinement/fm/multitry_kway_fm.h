@@ -73,14 +73,12 @@ public:
       for (PartitionID i = 0; i < sharedData.numParts; ++i) initialPartWeights[i] = phg.partWeight(i);
 
       if (context.refinement.fm.algorithm == FMAlgorithm::fm_multitry) {
-        auto task = [&](const int , const int , const int ) {
+        auto task = [&](const int , const int task_id, const int ) {
           LocalizedKWayFM& fm = ets_fm.local();
-          // TODO could use task ID here to eliminate tls.local() calls
-          while(fm.findMoves(phg, sharedData)) { /* keep running */ }
+          while(fm.findMoves(phg, sharedData, static_cast<size_t>(task_id))) { /* keep running */ }
         };
         TBBNumaArena::instance().execute_task_on_each_thread(taskGroupID, task);
       } else if (context.refinement.fm.algorithm == FMAlgorithm::fm_boundary){
-        // Try boundary FM
         vec<HypernodeID> refinement_nodes;
         for (HypernodeID u = 0; u < phg.initialNumNodes(); ++u) {
           if (phg.isBorderNode(u)) {
@@ -131,24 +129,35 @@ public:
   }
 
   void roundInitialization(PartitionedHypergraph& phg) {
-    // insert border nodes into work queues
+    // clear border nodes
     sharedData.refinementNodes.clear();
-    phg.doParallelForAllNodes([&](const HypernodeID& hn) {
-      if (phg.isBorderNode(hn)) {
-        sharedData.refinementNodes.safe_push(hn);
+
+    // obtain thread local task ids
+    std::atomic<size_t> atomic_task_id(0);
+    tbb::enumerable_thread_specific<size_t> ets_task_id([&] {
+      return atomic_task_id.fetch_add(1, std::memory_order_acq_rel);
+    });
+
+    // iterate over all nodes and insert border nodes into task queue
+    tbb::parallel_for(tbb::blocked_range(0U, phg.initialNumNodes()), [&](const tbb::blocked_range<HypernodeID>& r) {
+      size_t task_id = ets_task_id.local();
+      for (HypernodeID u = r.begin(); u < r.end(); ++u) {
+        if (phg.nodeIsEnabled(u) && phg.isBorderNode(u)) {
+          sharedData.refinementNodes.safe_push(u, task_id);
+        }
       }
     });
+
+    // shuffle task queue if requested
+    if (context.refinement.fm.shuffle) {
+      sharedData.refinementNodes.shuffle();
+    }
 
     // requesting new searches activates all nodes by raising the deactivated node marker
     // also clears the array tracking search IDs in case of overflow
     sharedData.nodeTracker.requestNewSearches(static_cast<SearchID>(sharedData.refinementNodes.unsafe_size()));
 
     sharedData.fruitlessSeed.reset();
-
-    // shuffle work queues if requested
-    if (context.refinement.fm.shuffle) {
-      sharedData.refinementNodes.shuffle();
-    }
   }
 
   bool is_initialized = false;
