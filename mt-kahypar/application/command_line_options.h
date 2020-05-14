@@ -323,7 +323,11 @@ po::options_description createRefinementOptionsDescription(Context& context,
      &context.refinement.fm.rollback_balance_violation_factor))->value_name("<double>"),
      "Used to relax or disable the balance constraint during the rollback phase of parallel FM."
      "Set to 0 for disabling. Set to a value > 1.0 to multiply the max part weight with this value."
-     "Default 1.0 (enabled, no relaxation)");
+     "Default 1.0 (enabled, no relaxation)")
+     (( initial_partitioning ? "i-r-fm-allow-zero-gain-moves" : "r-fm-allow-zero-gain-moves"),
+     po::value<bool>((initial_partitioning ? &context.initial_partitioning.refinement.fm.allow_zero_gain_moves :
+     &context.refinement.fm.allow_zero_gain_moves))->value_name("<bool>"),
+     "If true, than zero gain improvements are used in FM to pertubate solution. Default true");
   return options;
 }
 
