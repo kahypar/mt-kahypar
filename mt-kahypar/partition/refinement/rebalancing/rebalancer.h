@@ -130,17 +130,20 @@ class Rebalancer {
       if ( !metrics::isBalanced(_hg, _context) ) {
 
         // Initialize minimum gain value of each priority queue
+        parallel::scalable_vector<uint8_t> active_pqs(idx.load(), false);
         parallel::scalable_vector<Gain> min_pq_gain(idx.load(),
           std::numeric_limits<Gain>::max() - MIN_PQ_GAIN_THRESHOLD);
         for ( const IndexedMovePQ& idx_pq : move_pqs ) {
-          min_pq_gain[idx_pq.idx] = idx_pq.pq.top().gain;
+          if ( !idx_pq.pq.empty() ) {
+            min_pq_gain[idx_pq.idx] = idx_pq.pq.top().gain;
+          }
         }
 
         // Function returns minimum gain value of all priority queues
-        auto global_pq_min_gain = [&]() {
-          Gain min_gain = std::numeric_limits<Gain>::max();
+        auto global_pq_min_gain = [&](const bool only_active_pqs) {
+          Gain min_gain = std::numeric_limits<Gain>::max() - MIN_PQ_GAIN_THRESHOLD;
           for ( size_t i = 0; i < min_pq_gain.size(); ++i ) {
-            if ( min_pq_gain[i] < min_gain ) {
+            if ( (!only_active_pqs || active_pqs[i]) && min_pq_gain[i] < min_gain ) {
               min_gain = min_pq_gain[i];
             }
           }
@@ -155,17 +158,18 @@ class Rebalancer {
         tbb::parallel_for_each(move_pqs, [&](IndexedMovePQ& idx_pq) {
           const size_t idx = idx_pq.idx;
           MovePQ& pq = idx_pq.pq;
-          Gain current_global_min_pq_gain = global_pq_min_gain();
+          active_pqs[idx] = true;
+          Gain current_global_min_pq_gain = global_pq_min_gain(false);
           while ( !pq.empty() ) {
-            min_pq_gain[idx] = pq.top().gain;
             Move move = pq.top();
+            min_pq_gain[idx] = move.gain;
             pq.pop();
 
             // If the minimum gain value of the local priority queue is not within
             // a certain threshold of the global priority queue, we perform busy waiting
             // until all moves with a better gain of other pqs are performed.
             while ( move.gain > current_global_min_pq_gain + MIN_PQ_GAIN_THRESHOLD ) {
-              current_global_min_pq_gain = global_pq_min_gain();
+              current_global_min_pq_gain = global_pq_min_gain(true);
             }
 
             const PartitionID from = move.from;
@@ -178,6 +182,7 @@ class Rebalancer {
               }
             }
           }
+          active_pqs[idx] = false;
           min_pq_gain[idx] = std::numeric_limits<Gain>::max() - MIN_PQ_GAIN_THRESHOLD;
         });
       }
