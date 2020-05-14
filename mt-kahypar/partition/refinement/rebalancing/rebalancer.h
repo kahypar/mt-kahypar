@@ -110,7 +110,7 @@ class Rebalancer {
           Move rebalance_move = _gain.computeMaxGainMove(_hg, hn, true /* rebalance move */);
           if ( rebalance_move.gain <= 0 ) {
             moveVertex(hn, rebalance_move, objective_delta);
-          } else {
+          } else if ( rebalance_move.gain != std::numeric_limits<Gain>::max() ) {
             move_pqs.local().pq.emplace(std::move(rebalance_move));
           }
         }
@@ -157,6 +157,7 @@ class Rebalancer {
           MovePQ& pq = idx_pq.pq;
           Gain current_global_min_pq_gain = global_pq_min_gain();
           while ( !pq.empty() ) {
+            min_pq_gain[idx] = pq.top().gain;
             Move move = pq.top();
             pq.pop();
 
@@ -172,11 +173,10 @@ class Rebalancer {
               Move real_move = _gain.computeMaxGainMove(_hg, move.node, true /* rebalance move */);
               if ( real_move.gain <= move.gain ) {
                 moveVertex(real_move.node, real_move, objective_delta);
-              } else {
+              } else if ( real_move.gain != std::numeric_limits<Gain>::max() ) {
                 pq.emplace(std::move(real_move));
               }
             }
-            min_pq_gain[idx] = pq.top().gain;
           }
           min_pq_gain[idx] = std::numeric_limits<Gain>::max() - MIN_PQ_GAIN_THRESHOLD;
         });
