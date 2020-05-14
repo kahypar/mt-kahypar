@@ -163,7 +163,7 @@ class TBBNumaArena {
       const int n_tasks = this_arena.max_concurrency();
       this_arena.execute([&, socket] {
         tbb::task_group& tg = numa_task_group(task_group_id, socket);
-        for (int task_id = 0 ; task_id < n_tasks; ++task_id, ++overall_task_id) {
+        for (int task_id = 0; task_id < n_tasks; ++task_id, ++overall_task_id) {
           tg.run( std::bind(f, socket, overall_task_id, task_id) );
         }
       });
