@@ -177,7 +177,6 @@ class InitialPartitioningDataContainer {
           metrics::objective(_partitioned_hypergraph, _context.partition.objective));
 
         _partitioned_hypergraph.initializeGainInformation();
-        LOG << V(_context.partition.k);
         FMSharedData sharedData(_partitioned_hypergraph.initialNumNodes(), _context.partition.k, 1);
         LocalizedKWayFM fm(_context, _partitioned_hypergraph.initialNumNodes(), sharedData.vertexPQHandles.data());
 
