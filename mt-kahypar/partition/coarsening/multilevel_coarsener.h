@@ -381,16 +381,28 @@ class MultilevelCoarsener : public ICoarsener,
         } else {
           // State of v must be either MATCHING_IN_PROGRESS or an other thread changed the state
           // in the meantime to MATCHED. We have to wait until the state of v changed to
-          // MATCHED or resolve the conflict if u is matched to v and v is matched to u and both
-          // are in state MATCHING_IN_PROGRESS
+          // MATCHED or resolve the conflict if u is matched within a cyclic matching dependency
 
           // Conflict Resolution
           while ( _matching_state[v] == STATE(MatchingState::MATCHING_IN_PROGRESS) ) {
-            if ( _matching_partner[v] == u && u < v) {
+
+            // Check if current vertex is in a cyclic matching dependency
+            HypernodeID cur_u = u;
+            HypernodeID smallest_node_id_in_cycle = cur_u;
+            while ( _matching_partner[cur_u] != u && _matching_partner[cur_u] != cur_u ) {
+              cur_u = _matching_partner[cur_u];
+              smallest_node_id_in_cycle = std::min(smallest_node_id_in_cycle, cur_u);
+            }
+
+            // Resolve cyclic matching dependency
+            // Vertex with smallest id starts to resolve conflict
+            const bool is_in_cyclic_dependency = _matching_partner[cur_u] == u;
+            if ( is_in_cyclic_dependency && u == smallest_node_id_in_cycle) {
               cluster_ids[u] = v;
               _cluster_weight[v] += weight_u;
               ++contracted_nodes;
               _matching_state[v] = STATE(MatchingState::MATCHED);
+              _matching_state[u] = STATE(MatchingState::MATCHED);
               success = true;
             }
           }
