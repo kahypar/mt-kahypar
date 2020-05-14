@@ -294,26 +294,10 @@ po::options_description createRefinementOptionsDescription(Context& context,
       &context.refinement.fm.perform_moves_global))->value_name("<bool>"),
     "If true, than all moves performed during FM are immediatly visible to other local search.\n"
     "Otherwise, only move sequences that yield an improvement are applied to the global hypergraph. Default false")
-    (( initial_partitioning ? "i-r-fm-init-neighbors" : "r-fm-init-neighbors"),
-    po::value<bool>((initial_partitioning ? &context.initial_partitioning.refinement.fm.init_localized_search_with_neighbors :
-      &context.refinement.fm.init_localized_search_with_neighbors))->value_name("<bool>"),
-    "Add neighbors of boundary node to localized FM search before performing a move. Default false")
-    (( initial_partitioning ? "i-r-fm-all-nodes" : "r-fm-all-nodes"),
-    po::value<bool>((initial_partitioning ? &context.initial_partitioning.refinement.fm.init_boundary_fm_with_all_nodes :
-      &context.refinement.fm.init_boundary_fm_with_all_nodes))->value_name("<bool>"),
-    "Add all nodes into Boundary FM (i.e. make it full FM). Default false")
-    (( initial_partitioning ? "i-r-fm-seed-node-fraction" : "r-fm-seed-node-fraction"),
-    po::value<double>((initial_partitioning ? &context.initial_partitioning.refinement.fm.seed_node_fraction :
-      &context.refinement.fm.seed_node_fraction))->value_name("<double>"),
-    "Number of nodes to initially place into the PQ of a localized search is set to max(50, seed_node_fraction * num_nodes / num_threads). Default 0.005")
     (( initial_partitioning ? "i-r-fm-seed-nodes" : "r-fm-seed-nodes"),
     po::value<size_t>((initial_partitioning ? &context.initial_partitioning.refinement.fm.num_seed_nodes :
       &context.refinement.fm.num_seed_nodes))->value_name("<size_t>"),
     "Use a fraction of the number of nodes as the number of seed nodes instead of a constant number. Default false")
-    (( initial_partitioning ? "i-r-fm-use-seed-fraction" : "r-fm-use-seed-fraction"),
-    po::value<bool>((initial_partitioning ? &context.initial_partitioning.refinement.fm.use_seed_node_fraction :
-      &context.refinement.fm.use_seed_node_fraction))->value_name("<bool>"),
-     "If set to true, set number of seed nodes in the PQs as described for --r-fm-seed-node-fraction. If set to false, use --r-fm--seed-nodes")
      (( initial_partitioning ? "i-r-fm-revert-parallel" : "r-fm-revert-parallel"),
      po::value<bool>((initial_partitioning ? &context.initial_partitioning.refinement.fm.revert_parallel :
      &context.refinement.fm.revert_parallel))->value_name("<bool>"),

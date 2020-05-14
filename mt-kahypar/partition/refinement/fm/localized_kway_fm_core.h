@@ -64,15 +64,11 @@ public:
   bool findMoves(PartitionedHypergraph& phg, FMSharedData& sharedData) {
 
     thisSearch = ++sharedData.nodeTracker.highestActiveSearchID;
-    const size_t nSeeds = numberOfSeedNodes(phg.initialNumNodes());
+    const size_t nSeeds = context.refinement.fm.num_seed_nodes;
     HypernodeID seedNode;
     while (runStats.pushes < nSeeds && sharedData.refinementNodes.try_pop(seedNode)) {
       if (!updateDeduplicator.contains(seedNode) && insertOrUpdatePQ(phg, seedNode, sharedData.nodeTracker)) {
         seeds.push_back(seedNode);
-        if (context.refinement.fm.init_localized_search_with_neighbors) {
-          updateDeduplicator.insert(seedNode);
-          insertOrUpdateNeighbors(phg, sharedData, seedNode);
-        }
       }
     }
     updateBlocks(phg, kInvalidPartition);
@@ -437,15 +433,6 @@ private:
       phg.changeNodePartFullUpdate(m.node, m.to, m.from);
       sharedData.moveTracker.invalidateMove(m);
       localAppliedMoves.pop_back();
-    }
-  }
-
-  size_t numberOfSeedNodes(HypernodeID numNodes) {
-    if (context.refinement.fm.use_seed_node_fraction) {
-      const double x = context.refinement.fm.seed_node_fraction * numNodes / context.shared_memory.num_threads;
-      return std::max(size_t(50), size_t(std::ceil(x)));
-    } else {
-      return context.refinement.fm.num_seed_nodes;
     }
   }
 

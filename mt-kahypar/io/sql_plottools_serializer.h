@@ -102,8 +102,6 @@ static inline std::string serialize(const PartitionedHypergraph& hypergraph,
         << " fm_rollback_balance_violation_factor" << context.refinement.fm.rollback_balance_violation_factor
         << " fm_allow_zero_gain_moves=" << std::boolalpha << context.refinement.fm.allow_zero_gain_moves
         << " fm_num_seed_nodes=" << context.refinement.fm.num_seed_nodes
-        << " fm_seed_node_fraction=" << context.refinement.fm.seed_node_fraction
-        << " fm_init_localized_search_with_neighbors=" << std::boolalpha << context.refinement.fm.init_localized_search_with_neighbors
         << " fm_init_boundary_fm_with_all_nodes=" << std::boolalpha << context.refinement.fm.init_boundary_fm_with_all_nodes
         << " fm_shuffle=" << std::boolalpha << context.refinement.fm.shuffle
         << " num_threads=" << context.shared_memory.num_threads

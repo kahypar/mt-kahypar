@@ -81,12 +81,14 @@ public:
         TBBNumaArena::instance().execute_task_on_each_thread(taskGroupID, task);
       } else if (context.refinement.fm.algorithm == FMAlgorithm::fm_boundary){
         // Try boundary FM
-        vec<HypernodeID> test_refinement_nodes;
-        for (HypernodeID u = 0; u < phg.initialNumNodes(); ++u)
-          if (context.refinement.fm.init_boundary_fm_with_all_nodes || phg.isBorderNode(u))
-            test_refinement_nodes.push_back(u);
+        vec<HypernodeID> refinement_nodes;
+        for (HypernodeID u = 0; u < phg.initialNumNodes(); ++u) {
+          if (phg.isBorderNode(u)) {
+            refinement_nodes.push_back(u);
+          }
+        }
         LocalizedKWayFM& fm = ets_fm.local();
-        fm.findMoves(phg, sharedData, test_refinement_nodes);
+        fm.findMoves(phg, sharedData, refinement_nodes);
       }
 
       FMStats stats;
