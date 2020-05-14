@@ -76,6 +76,7 @@ struct WorkContainer {
   // assumes that no thread is currently calling try_pop
   void safe_push(const T el) {
     tls_queues.local().elements.push_back(el);
+    ASSERT(tls_queues.local().front.load() == 0);
     ASSERT(el < timestamps.size());
     timestamps[el] = current;
   }
