@@ -337,12 +337,12 @@ class MultilevelCoarsener : public ICoarsener,
     // Indicates that u wants to join the cluster of v.
     // Will be important later for conflict resolution.
     bool success = false;
-    _matching_partner[u] = v;
     const HypernodeWeight weight_u = hypergraph.nodeWeight(u);
     HypernodeWeight weight_v = _cluster_weight[v];
     if ( weight_u + weight_v <= _max_allowed_node_weight ) {
 
       if ( _matching_state[u].compare_exchange_strong(unmatched, match_in_progress) ) {
+        _matching_partner[u] = v;
         // Current thread gets "ownership" for vertex u. Only threads with "ownership"
         // can change the cluster id of a vertex.
 
@@ -424,6 +424,7 @@ class MultilevelCoarsener : public ICoarsener,
         }
         _rater.markAsMatched(u);
         _rater.markAsMatched(v);
+        _matching_partner[u] = u;
         _matching_state[u] = STATE(MatchingState::MATCHED);
       }
     }
