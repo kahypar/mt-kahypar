@@ -332,7 +332,7 @@ private:
         const HypernodeWeight to_weight = phg.partWeight(i);
         const HyperedgeWeight penalty = phg.moveToPenalty(u, i);
         if ( ( penalty < to_penalty || ( penalty == to_penalty && to_weight < best_to_weight ) ) &&
-              ( to_weight + wu <= maxPartWeight || to_weight < std::max(best_to_weight, maxPartWeight + 1) ) ) {
+              ( to_weight + wu <= maxPartWeight || to_weight < best_to_weight ) ) {
           to_penalty = penalty;
           to = i;
           best_to_weight = to_weight;

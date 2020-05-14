@@ -187,7 +187,6 @@ struct FMParameters {
   double rollback_balance_violation_factor = std::numeric_limits<double>::max();
   bool allow_zero_gain_moves = false;
   size_t num_seed_nodes = 0;
-  bool init_boundary_fm_with_all_nodes = false;
   bool shuffle = true;
 };
 
@@ -200,7 +199,6 @@ inline std::ostream& operator<<(std::ostream& out, const FMParameters& params) {
   out << "    Rollback Bal. Violation Factor:   " << params.rollback_balance_violation_factor << std::endl;
   out << "    Allow Zero Gain Moves:            " << std::boolalpha << params.allow_zero_gain_moves << std::endl;
   out << "    Num Seed Nodes:                   " << params.num_seed_nodes << std::endl;
-  out << "    Init Boundary FM With All Nodes:  " << std::boolalpha << params.init_boundary_fm_with_all_nodes << std::endl;
   out << "    Enable Random Shuffle:            " << std::boolalpha << params.shuffle << std::endl;
   out << std::flush;
   return out;
