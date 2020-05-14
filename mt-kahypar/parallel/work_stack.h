@@ -28,10 +28,11 @@ namespace mt_kahypar {
 template<typename T>
 struct ThreadQueue {
   vec<T> elements;
-  CAtomic<size_t> front { 0 };
+  CAtomic<size_t> front;
 
   ThreadQueue() {
     elements.reserve(1 << 13);
+    front.store(0);
   }
 
   void clear() {
