@@ -68,12 +68,14 @@ struct WorkContainer {
 
   void concurrent_push(const T el) {
     conc_queue.push(el);
+    ASSERT(el < timestamps.size());
     timestamps[el] = current;
   }
 
   // assumes that no thread is currently calling try_pop
   void safe_push(const T el) {
     tls_queues.local().elements.push_back(el);
+    ASSERT(el < timestamps.size());
     timestamps[el] = current;
   }
 
@@ -91,6 +93,7 @@ struct WorkContainer {
   }
 
   bool was_pushed_and_removed(const T el) const {
+    ASSERT(el < timestamps.size());
     return timestamps[el] == current+1;
   }
 
