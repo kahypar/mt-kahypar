@@ -44,10 +44,10 @@ public:
     maxPartWeight = context.partition.max_part_weights[0];
   }
 
-  bool findMoves(PartitionedHypergraph& phg, FMSharedData& sharedData, vec<HypernodeID>& seedNodes) {
+  bool findMovesUsingFullBoundary(PartitionedHypergraph& phg, FMSharedData& sharedData) {
     thisSearch = ++sharedData.nodeTracker.highestActiveSearchID;
 
-    for (HypernodeID u : seedNodes) {
+    for (HypernodeID u : sharedData.refinementNodes.safely_inserted_range()) {
       insertOrUpdatePQ(phg, u, sharedData.nodeTracker);
     }
     for (PartitionID i = 0; i < numParts; ++i) {
@@ -61,7 +61,7 @@ public:
 
 
 
-  bool findMoves(PartitionedHypergraph& phg, FMSharedData& sharedData, size_t taskID) {
+  bool findMovesLocalized(PartitionedHypergraph& phg, FMSharedData& sharedData, size_t taskID) {
 
     thisSearch = ++sharedData.nodeTracker.highestActiveSearchID;
     const size_t nSeeds = context.refinement.fm.num_seed_nodes;

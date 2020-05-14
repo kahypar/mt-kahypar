@@ -127,6 +127,17 @@ struct WorkContainer {
   vec<TimestampT> timestamps;
   vec<ThreadQueue<T>> tls_queues;
   tbb::concurrent_queue<T> conc_queue;
+
+  using SubRange = IteratorRange< typename vec<T>::const_iterator >;
+  using Range = ConcatenatedRange<SubRange>;
+
+  Range safely_inserted_range() const {
+    Range r;
+    for (const ThreadQueue<T>& q : tls_queues) {
+      r.concat( SubRange(q.elements.cbegin(), q.elements.cend()) );
+    }
+    return r;
+  }
 };
 
 

@@ -75,18 +75,12 @@ public:
       if (context.refinement.fm.algorithm == FMAlgorithm::fm_multitry) {
         auto task = [&](const int , const int task_id, const int ) {
           LocalizedKWayFM& fm = ets_fm.local();
-          while(fm.findMoves(phg, sharedData, static_cast<size_t>(task_id))) { /* keep running */ }
+          while(fm.findMovesLocalized(phg, sharedData, static_cast<size_t>(task_id))) { /* keep running */ }
         };
         TBBNumaArena::instance().execute_task_on_each_thread(taskGroupID, task);
       } else if (context.refinement.fm.algorithm == FMAlgorithm::fm_boundary){
-        vec<HypernodeID> refinement_nodes;
-        for (HypernodeID u = 0; u < phg.initialNumNodes(); ++u) {
-          if (phg.isBorderNode(u)) {
-            refinement_nodes.push_back(u);
-          }
-        }
         LocalizedKWayFM& fm = ets_fm.local();
-        fm.findMoves(phg, sharedData, refinement_nodes);
+        fm.findMovesUsingFullBoundary(phg, sharedData);
       }
 
       FMStats stats;
