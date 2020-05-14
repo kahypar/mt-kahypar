@@ -139,8 +139,6 @@ public:
       }
     });
 
-    sharedData.refinementNodes.shuffle();
-
     // requesting new searches activates all nodes by raising the deactivated node marker
     // also clears the array tracking search IDs in case of overflow
     sharedData.nodeTracker.requestNewSearches(static_cast<SearchID>(sharedData.refinementNodes.unsafe_size()));
