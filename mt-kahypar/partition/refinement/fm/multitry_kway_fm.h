@@ -124,15 +124,11 @@ public:
     // clear border nodes
     sharedData.refinementNodes.clear();
 
-    // obtain thread local task ids
-    std::atomic<size_t> atomic_task_id(0);
-    tbb::enumerable_thread_specific<size_t> ets_task_id([&] {
-      return atomic_task_id.fetch_add(1, std::memory_order_acq_rel);
-    });
-
     // iterate over all nodes and insert border nodes into task queue
-    tbb::parallel_for(tbb::blocked_range(0U, phg.initialNumNodes()), [&](const tbb::blocked_range<HypernodeID>& r) {
-      size_t task_id = ets_task_id.local();
+    tbb::parallel_for(tbb::blocked_range<HypernodeID>(ID(0), phg.initialNumNodes()),
+      [&](const tbb::blocked_range<HypernodeID>& r) {
+      const int task_id = tbb::this_task_arena::current_thread_index();
+      ASSERT(task_id >= 0 && task_id < context.shared_memory.num_threads);
       for (HypernodeID u = r.begin(); u < r.end(); ++u) {
         if (phg.nodeIsEnabled(u) && phg.isBorderNode(u)) {
           sharedData.refinementNodes.safe_push(u, task_id);
@@ -147,7 +143,8 @@ public:
 
     // requesting new searches activates all nodes by raising the deactivated node marker
     // also clears the array tracking search IDs in case of overflow
-    sharedData.nodeTracker.requestNewSearches(static_cast<SearchID>(sharedData.refinementNodes.unsafe_size()));
+    sharedData.nodeTracker.requestNewSearches(
+      static_cast<SearchID>(sharedData.refinementNodes.unsafe_size()));
 
     sharedData.fruitlessSeed.reset();
   }
