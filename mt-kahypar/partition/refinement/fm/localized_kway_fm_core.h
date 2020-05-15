@@ -27,7 +27,6 @@
 
 #include "mt-kahypar/datastructures/sparse_map.h"
 #include "mt-kahypar/partition/refinement/fm/fm_commons.h"
-#include "mt-kahypar/partition/refinement/fm/clearlist.hpp"
 #include "mt-kahypar/partition/refinement/fm/stop_rule.h"
 
 namespace mt_kahypar {
@@ -62,7 +61,7 @@ class LocalizedKWayFM {
           deltaPhg(context.partition.k),
           blockPQ(static_cast<size_t>(k)),
           vertexPQs(static_cast<size_t>(k), VertexPriorityQueue(pq_handles, numNodes)),
-          updateDeduplicator(numNodes),
+          updateDeduplicator(),
           validHyperedges() { }
 
 
@@ -318,8 +317,8 @@ private:
       }
     } else {
       updateBlock(moved_from);
-      for (const HypernodeID v : updateDeduplicator.keys()) {
-        updateBlock(phg.partID(v));
+      for (const auto& sparse_map_element : updateDeduplicator) {
+        updateBlock(phg.partID(sparse_map_element.key));
       }
     }
     updateDeduplicator.clear();
@@ -333,7 +332,7 @@ private:
       if (phg.edgeSize(e) < context.partition.hyperedge_size_threshold && !validHyperedges[e]) {
         for (HypernodeID v : phg.pins(e)) {
           if (!updateDeduplicator.contains(v)) {
-            updateDeduplicator.insert(v);
+            updateDeduplicator[v] = { };  // insert
             insertOrUpdatePQ(phg, v, sharedData.nodeTracker);
           }
         }
@@ -520,7 +519,7 @@ private:
   vec<VertexPriorityQueue> vertexPQs;
 
   // ! After a move it collects all neighbors of the moved vertex
-  ldc::ClearListSet<HypernodeID> updateDeduplicator;
+  ds::DynamicSparseSet<HypernodeID> updateDeduplicator;
 
   // ! Marks all hyperedges that are visited during the local search
   // ! and where the gain of its pin is expected to be equal to gain value

@@ -632,5 +632,9 @@ class DynamicSparseMap {
   MapElement* _dense;
 };
 
+struct EmptyStruct { };
+
+template<typename Key> using DynamicSparseSet = DynamicSparseMap<Key, EmptyStruct>;
+
 } // namespace ds
 } // namespace mt_kahypar
