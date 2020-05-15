@@ -127,10 +127,12 @@ class DeltaPartitionedHypergraph {
   // ! Changes the block of hypernode u from 'from' to 'to'.
   // ! Move is successful, if it is not violating the balance
   // ! constraint specified by 'max_weight_to'.
+  template<typename DeltaFunc>
   bool changeNodePart(const HypernodeID u,
                       const PartitionID from,
                       const PartitionID to,
-                      const HypernodeWeight max_weight_to) {
+                      const HypernodeWeight max_weight_to,
+                      DeltaFunc&& delta_func) {
     ASSERT(_phg);
     assert(partID(u) == from);
     assert(from != to);
@@ -140,13 +142,25 @@ class DeltaPartitionedHypergraph {
       _part_weights_delta[to] += wu;
       _part_weights_delta[from] -= wu;
       for ( const HyperedgeID& he : _phg->incidentEdges(u) ) {
-        decrementPinCountInPartWithGainUpdate(he, from);
-        incrementPinCountInPartWithGainUpdate(he, to);
+        const HypernodeID pin_count_in_from_part_after =
+          decrementPinCountInPartWithGainUpdate(he, from);
+        const HypernodeID pin_count_in_to_part_after =
+          incrementPinCountInPartWithGainUpdate(he, to);
+        delta_func(he, _phg->edgeWeight(he), _phg->edgeSize(he),
+          pin_count_in_from_part_after, pin_count_in_to_part_after);
       }
       return true;
     } else {
       return false;
     }
+  }
+
+  // curry
+  bool changeNodePart(const HypernodeID u,
+                      const PartitionID from,
+                      const PartitionID to,
+                      const HypernodeWeight max_weight_to) {
+    return changeNodePart(u, from, to, max_weight_to, NoOpDeltaFunc());
   }
 
   // ! Returns the block of hypernode u

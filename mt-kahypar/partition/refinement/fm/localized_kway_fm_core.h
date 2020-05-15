@@ -25,9 +25,10 @@
 #include <mt-kahypar/partition/context.h>
 #include <mt-kahypar/partition/metrics.h>
 
-#include "fm_commons.h"
-#include "clearlist.hpp"
-#include "stop_rule.h"
+#include "mt-kahypar/datastructures/sparse_map.h"
+#include "mt-kahypar/partition/refinement/fm/fm_commons.h"
+#include "mt-kahypar/partition/refinement/fm/clearlist.hpp"
+#include "mt-kahypar/partition/refinement/fm/stop_rule.h"
 
 namespace mt_kahypar {
 
@@ -61,11 +62,13 @@ class LocalizedKWayFM {
           deltaPhg(context.partition.k),
           blockPQ(static_cast<size_t>(k)),
           vertexPQs(static_cast<size_t>(k), VertexPriorityQueue(pq_handles, numNodes)),
-          updateDeduplicator(numNodes) { }
+          updateDeduplicator(numNodes),
+          validHyperedges() { }
 
 
   bool findMovesUsingFullBoundary(PartitionedHypergraph& phg, FMSharedData& sharedData) {
     localData.clear();
+    validHyperedges.clear();
     thisSearch = ++sharedData.nodeTracker.highestActiveSearchID;
 
     for (HypernodeID u : sharedData.refinementNodes.safely_inserted_range()) {
@@ -82,6 +85,7 @@ class LocalizedKWayFM {
 
   bool findMovesLocalized(PartitionedHypergraph& phg, FMSharedData& sharedData, size_t taskID) {
     localData.clear();
+    validHyperedges.clear();
     thisSearch = ++sharedData.nodeTracker.highestActiveSearchID;
     const size_t nSeeds = context.refinement.fm.num_seed_nodes;
     HypernodeID seedNode;
@@ -118,6 +122,20 @@ private:
     StopRule stopRule(phg.initialNumNodes());
     Move m;
 
+    auto hes_to_update_func = [&](const HyperedgeID he,
+                                  const HyperedgeWeight,
+                                  const HypernodeID,
+                                  const HypernodeID pin_count_in_from_part_after,
+                                  const HypernodeID pin_count_in_to_part_after) {
+      // Gains of the pins of a hyperedge can only change in the following situation.
+      // In such cases, we mark the hyperedge as invalid and update the gain of all
+      // pins afterwards.
+      if ( pin_count_in_from_part_after == 0 || pin_count_in_from_part_after == 1 ||
+           pin_count_in_to_part_after == 1 || pin_count_in_to_part_after == 2 ) {
+        validHyperedges[he] = false;
+      }
+    };
+
     size_t bestImprovementIndex = 0;
     Gain estimatedImprovement = 0;
     Gain bestImprovement = 0;
@@ -134,7 +152,7 @@ private:
         const HypernodeWeight fromWeight = deltaPhg.partWeight(m.from);
         toWeight = deltaPhg.partWeight(m.to);
         moved = deltaPhg.changeNodePart(m.node, m.from, m.to, std::max(
-          context.partition.max_part_weights[m.to], fromWeight));
+          context.partition.max_part_weights[m.to], fromWeight), hes_to_update_func);
       }
 
       if (moved) {
@@ -181,6 +199,21 @@ private:
     StopRule stopRule(phg.initialNumNodes());
     Move m;
 
+
+    auto hes_to_update_func = [&](const HyperedgeID he,
+                                  const HyperedgeWeight,
+                                  const HypernodeID,
+                                  const HypernodeID pin_count_in_from_part_after,
+                                  const HypernodeID pin_count_in_to_part_after) {
+      // Gains of the pins of a hyperedge can only change in the following situations.
+      // In such cases, we mark the hyperedge as invalid and update the gain of all
+      // pins afterwards.
+      if ( pin_count_in_from_part_after == 0 || pin_count_in_from_part_after == 1 ||
+           pin_count_in_to_part_after == 1 || pin_count_in_to_part_after == 2 ) {
+        validHyperedges[he] = false;
+      }
+    };
+
     size_t bestImprovementIndex = 0;
     Gain estimatedImprovement = 0;
     Gain bestImprovement = 0;
@@ -199,7 +232,8 @@ private:
         const HypernodeWeight fromWeight = phg.partWeight(m.from);
         toWeight = phg.partWeight(m.to);
         moved = phg.changeNodePartFullUpdate(m.node, m.from, m.to, std::max(
-          context.partition.max_part_weights[m.to], fromWeight), report_success);
+          context.partition.max_part_weights[m.to], fromWeight),
+          report_success, hes_to_update_func);
       }
 
       if (moved) {
@@ -296,13 +330,14 @@ private:
                                FMSharedData& sharedData,
                                const HypernodeID u) {
     for (HyperedgeID e : phg.incidentEdges(u)) {
-      if (phg.edgeSize(e) < context.partition.hyperedge_size_threshold) {
+      if (phg.edgeSize(e) < context.partition.hyperedge_size_threshold && !validHyperedges[e]) {
         for (HypernodeID v : phg.pins(e)) {
           if (!updateDeduplicator.contains(v)) {
             updateDeduplicator.insert(v);
             insertOrUpdatePQ(phg, v, sharedData.nodeTracker);
           }
         }
+        validHyperedges[e] = true;
       }
     }
   }
@@ -486,6 +521,12 @@ private:
 
   // ! After a move it collects all neighbors of the moved vertex
   ldc::ClearListSet<HypernodeID> updateDeduplicator;
+
+  // ! Marks all hyperedges that are visited during the local search
+  // ! and where the gain of its pin is expected to be equal to gain value
+  // ! inside the PQs. A hyperedge can become invalid if a move changes the
+  // ! gain values of its pins.
+  ds::DynamicSparseMap<HyperedgeID, bool> validHyperedges;
 };
 
 }
