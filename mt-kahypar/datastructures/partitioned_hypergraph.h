@@ -971,7 +971,6 @@ private:
   // ! number of pins in that block
   PinCountInPart _pins_in_part;
 
-  // TODO we probably don't need connectivity sets any more, except in the IP hypergraphs which don't need parallelism support
   // ! For each hyperedge, _connectivity_set stores the set of blocks that the hyperedge spans
   ConnectivitySets _connectivity_set;
 
