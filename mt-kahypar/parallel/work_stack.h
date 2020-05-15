@@ -55,7 +55,7 @@ struct WorkContainer {
 
   using TimestampT = uint32_t;
 
-  WorkContainer(size_t maxNumElements, size_t maxNumThreads) :
+  WorkContainer(size_t maxNumElements = 0, size_t maxNumThreads = 0) :
           timestamps(maxNumElements, 0),
           tls_queues(maxNumThreads)
   {

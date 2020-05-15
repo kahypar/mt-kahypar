@@ -41,7 +41,7 @@ struct GlobalMoveTracker {
   CAtomic<MoveID> runningMoveID;
   MoveID firstMoveID = 1;
 
-  explicit GlobalMoveTracker(size_t numNodes) :
+  explicit GlobalMoveTracker(size_t numNodes = 0) :
           moveOrder(numNodes),
           moveOfNode(numNodes, 0),
           runningMoveID(1) { }
@@ -103,7 +103,7 @@ struct NodeTracker {
   SearchID deactivatedNodeMarker = 1;
   CAtomic<SearchID> highestActiveSearchID { 1 };
 
-  explicit NodeTracker(size_t numNodes) : searchOfNode(numNodes, CAtomic<SearchID>(0)) { }
+  explicit NodeTracker(size_t numNodes = 0) : searchOfNode(numNodes, CAtomic<SearchID>(0)) { }
 
   // only the search that owns u is allowed to call this
   void deactivateNode(HypernodeID u, SearchID search_id) {
@@ -164,12 +164,26 @@ struct FMSharedData {
   kahypar::ds::FastResetFlagArray<> fruitlessSeed;
 
   FMSharedData(size_t numNodes = 0, PartitionID numParts = 0, size_t numThreads = 0) :
-          refinementNodes(numNodes, numThreads),
-          vertexPQHandles(numNodes, invalid_position),
+          refinementNodes(), //numNodes, numThreads),
+          vertexPQHandles(), //numNodes, invalid_position),
           numParts(numParts),
-          moveTracker(numNodes),
-          nodeTracker(numNodes),
-          fruitlessSeed(numNodes) { }
+          moveTracker(), //numNodes),
+          nodeTracker(), //numNodes),
+          fruitlessSeed(numNodes)
+  {
+    tbb::parallel_invoke([&] {
+      moveTracker.moveOrder.resize(numNodes);
+    }, [&] {
+      moveTracker.moveOfNode.resize(numNodes);
+    }, [&] {
+      nodeTracker.searchOfNode.resize(numNodes, CAtomic<SearchID>(0));
+    }, [&] {
+      vertexPQHandles.resize(numNodes, invalid_position);
+    }, [&] {
+      refinementNodes.tls_queues.resize(numThreads);
+      refinementNodes.timestamps.resize(numNodes, 0);
+    });
+  }
 
   FMSharedData(size_t numNodes, const Context& context) :
           FMSharedData(numNodes, context.partition.k, context.shared_memory.num_threads)  { }
