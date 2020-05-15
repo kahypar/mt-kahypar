@@ -93,6 +93,15 @@ static void register_memory_pool(const Hypergraph& hypergraph,
   parallel::MemoryPool::instance().register_memory_chunk("Refinement", "pin_count_update_ownership",
     num_hyperedges, sizeof(parallel::IntegralAtomicWrapper<bool>));
 
+  if ( context.refinement.fm.revert_parallel ) {
+    parallel::MemoryPool::instance().register_memory_chunk("Refinement", "remaining_original_pins",
+      hypergraph.numNonGraphEdges() * context.partition.k, sizeof(CAtomic<HypernodeID>));
+    parallel::MemoryPool::instance().register_memory_chunk("Refinement", "first_move_in",
+      hypergraph.numNonGraphEdges() * context.partition.k, sizeof(CAtomic<MoveID>));
+    parallel::MemoryPool::instance().register_memory_chunk("Refinement", "last_move_out",
+      hypergraph.numNonGraphEdges() * context.partition.k, sizeof(CAtomic<MoveID>));
+  }
+
   // Allocate Memory
   utils::Timer::instance().start_timer("memory_pool_allocation", "Memory Pool Allocation");
   parallel::MemoryPool::instance().allocate_memory_chunks<TBBNumaArena>();

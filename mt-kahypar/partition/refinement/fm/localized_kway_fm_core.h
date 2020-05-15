@@ -484,7 +484,7 @@ private:
   // ! with their gain values
   vec<VertexPriorityQueue> vertexPQs;
 
-  // ! During a moves it collects all neighbors of the moved vertex
+  // ! After a move it collects all neighbors of the moved vertex
   ldc::ClearListSet<HypernodeID> updateDeduplicator;
 };
 

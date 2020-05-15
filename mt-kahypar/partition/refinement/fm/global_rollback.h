@@ -21,14 +21,16 @@
 #pragma once
 
 #include <atomic>
-#include <mt-kahypar/partition/metrics.h>
-#include <mt-kahypar/utils/timer.h>
-
-#include "fm_commons.h"
 
 #include <boost/dynamic_bitset.hpp>
 
+#include "tbb/parallel_invoke.h"
 #include "tbb/parallel_scan.h"
+
+#include "mt-kahypar/datastructures/array.h"
+#include "mt-kahypar/partition/refinement/fm/fm_commons.h"
+#include "mt-kahypar/partition/metrics.h"
+#include "mt-kahypar/utils/timer.h"
 
 namespace mt_kahypar {
 
@@ -147,18 +149,34 @@ class GlobalRollback {
   static constexpr bool enable_heavy_assert = false;
 public:
   explicit GlobalRollback(const Hypergraph& hg, const Context& context, PartitionID numParts) :
-          maxPartWeightScaling(context.refinement.fm.rollback_balance_violation_factor),
-          numParts(numParts),
-          remaining_original_pins(hg.numNonGraphEdges() * numParts),
-          first_move_in(hg.numNonGraphEdges() * numParts),
-          last_move_out(hg.numNonGraphEdges() * numParts)
-  {
-    resetStoredMoveIDs();
+    context(context),
+    maxPartWeightScaling(context.refinement.fm.rollback_balance_violation_factor),
+    numParts(numParts),
+    remaining_original_pins(),
+    first_move_in(),
+    last_move_out() {
+
+    // In case we perform parallel rollback we need
+    // some additional data structures
+    if ( context.refinement.fm.revert_parallel ) {
+      tbb::parallel_invoke([&] {
+        remaining_original_pins.resize("Refinement", "remaining_original_pins",
+          hg.numNonGraphEdges() * numParts);
+      }, [&] {
+        first_move_in.resize("Refinement", "first_move_in",
+          hg.numNonGraphEdges() * numParts);
+      }, [&] {
+        last_move_out.resize("Refinement", "last_move_out",
+          hg.numNonGraphEdges() * numParts);
+      });
+      resetStoredMoveIDs();
+    }
   }
 
-  HyperedgeWeight revertToBestPrefix(PartitionedHypergraph& phg, FMSharedData& sharedData,
-                                     vec<HypernodeWeight>& partWeights, HypernodeWeight maxPartWeight,
-                                     bool parallel = true) {
+  HyperedgeWeight revertToBestPrefix(PartitionedHypergraph& phg,
+                                     FMSharedData& sharedData,
+                                     vec<HypernodeWeight>& partWeights,
+                                     HypernodeWeight maxPartWeight) {
 
     if (maxPartWeightScaling == 0.0) {
       maxPartWeight = std::numeric_limits<HypernodeWeight>::max();
@@ -166,15 +184,17 @@ public:
       maxPartWeight *= maxPartWeightScaling;
     }
 
-    if (parallel) {
+    if (context.refinement.fm.revert_parallel) {
       return revertToBestPrefixParallel(phg, sharedData, partWeights, maxPartWeight);
     } else {
       return revertToBestPrefixSequential(phg, sharedData, partWeights, maxPartWeight);
     }
   }
 
-  HyperedgeWeight revertToBestPrefixSequential(PartitionedHypergraph& phg, FMSharedData& sharedData,
-                                     vec<HypernodeWeight>& , HypernodeWeight maxPartWeight) {
+  HyperedgeWeight revertToBestPrefixSequential(PartitionedHypergraph& phg,
+                                               FMSharedData& sharedData,
+                                               vec<HypernodeWeight>& ,
+                                               HypernodeWeight maxPartWeight) {
 
 
     GlobalMoveTracker& tracker = sharedData.moveTracker;
@@ -217,7 +237,8 @@ public:
       }
       gain_sum += gain;
 
-      const bool from_overloaded = phg.partWeight(m.from) > maxPartWeight, to_overloaded = phg.partWeight(m.to) > maxPartWeight;
+      const bool from_overloaded = phg.partWeight(m.from) > maxPartWeight;
+      const bool to_overloaded = phg.partWeight(m.to) > maxPartWeight;
       phg.changeNodePartFullUpdate(m.node, m.from, m.to);
       if (from_overloaded && phg.partWeight(m.from) <= maxPartWeight) {
         overloaded--;
@@ -252,8 +273,10 @@ public:
     return best_gain;
   }
 
-  HyperedgeWeight revertToBestPrefixParallel(PartitionedHypergraph& phg, FMSharedData& sharedData,
-                                     vec<HypernodeWeight>& partWeights, HypernodeWeight maxPartWeight) {
+  HyperedgeWeight revertToBestPrefixParallel(PartitionedHypergraph& phg,
+                                             FMSharedData& sharedData,
+                                             vec<HypernodeWeight>& partWeights,
+                                             HypernodeWeight maxPartWeight) {
     const MoveID numMoves = sharedData.moveTracker.numPerformedMoves();
     if (numMoves == 0) return 0;
 
@@ -487,30 +510,28 @@ public:
   }
 
   void resetStoredMoveIDs() {
-    tbb::parallel_invoke(
-            [&] {
-              tbb::parallel_for_each(last_move_out, [](auto& x) { x.store(0, std::memory_order_relaxed); });
-            },
-            [&] {
-              tbb::parallel_for_each(first_move_in, [](auto& x) { x.store(0, std::memory_order_relaxed); });
-            }
+    tbb::parallel_invoke([&] {
+        tbb::parallel_for_each(last_move_out, [](auto& x) { x.store(0, std::memory_order_relaxed); });
+      }, [&] {
+        tbb::parallel_for_each(first_move_in, [](auto& x) { x.store(0, std::memory_order_relaxed); });
+      }
     );
   }
 
   void setRemainingOriginalPins(PartitionedHypergraph& phg) {
-    if (phg.hypergraph().maxEdgeSize() <= 2) {
-      return;
-    }
-
-    phg.doParallelForAllEdges([&](const HyperedgeID& he) {
-      if (phg.edgeSize(he) > 2) {
-        const HyperedgeID he_local = phg.nonGraphEdgeID(he);
-        for ( PartitionID block = 0; block < numParts; ++block ) {
-          remaining_original_pins[he_local * numParts + block].store(phg.pinCountInPart(he, block), std::memory_order_relaxed);
+    if (phg.hypergraph().maxEdgeSize() > 2 && context.refinement.fm.revert_parallel) {
+      phg.doParallelForAllEdges([&](const HyperedgeID& he) {
+        if (phg.edgeSize(he) > 2) {
+          const HyperedgeID he_local = phg.nonGraphEdgeID(he);
+          for ( PartitionID block = 0; block < numParts; ++block ) {
+            remaining_original_pins[he_local * numParts + block].store(phg.pinCountInPart(he, block), std::memory_order_relaxed);
+          }
         }
-      }
-    });
+      });
+    }
   }
+
+  const Context& context;
 
   // ! Factor to multiply max part weight with, in order to relax or disable the balance criterion. Set to zero for disabling
   double maxPartWeightScaling;
@@ -521,11 +542,11 @@ public:
   // ! at the beginning of a move phase minus the number of moved out pins
   // ! A value of zero means at some point a gain improvement might have occured, which then has to be checked
   // ! with the move ID flagging
-  vec<CAtomic<HypernodeID>> remaining_original_pins;
+  ds::Array<CAtomic<HypernodeID>> remaining_original_pins;
   // ! For each hyperedge and each block, the ID of the first move to place a pin in that block
-  vec<CAtomic<MoveID>> first_move_in;
+  ds::Array<CAtomic<MoveID>> first_move_in;
   // ! For each hyperedge and each block, the ID of the last move to remove a pin from that block
-  vec<CAtomic<MoveID>> last_move_out;
+  ds::Array<CAtomic<MoveID>> last_move_out;
 };
 
 }

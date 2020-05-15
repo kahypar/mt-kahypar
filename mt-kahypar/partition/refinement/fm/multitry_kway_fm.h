@@ -92,10 +92,8 @@ public:
       timer.stop_timer("find_moves");
       timer.start_timer("rollback", "Rollback to Best Solution");
 
-      HyperedgeWeight improvement = globalRollback.revertToBestPrefix(phg, sharedData,
-                                                                      initialPartWeights,
-                                                                      context.partition.max_part_weights[0],
-                                                                      context.refinement.fm.revert_parallel);
+      HyperedgeWeight improvement = globalRollback.revertToBestPrefix(
+        phg, sharedData, initialPartWeights, context.partition.max_part_weights[0]);
       overall_improvement += improvement;
 
       timer.stop_timer("rollback");
