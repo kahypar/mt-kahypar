@@ -25,7 +25,6 @@
 #include <mt-kahypar/partition/context.h>
 #include <mt-kahypar/utils/timer.h>
 
-#include <atomic>
 #include <external_tools/kahypar/kahypar/partition/metrics.h>
 
 #include "mt-kahypar/partition/refinement/i_refiner.h"
@@ -125,7 +124,7 @@ public:
     sharedData.refinementNodes.clear();
 
     // iterate over all nodes and insert border nodes into task queue
-    tbb::parallel_for(tbb::blocked_range<HypernodeID>(ID(0), phg.initialNumNodes()),
+    tbb::parallel_for(tbb::blocked_range<HypernodeID>(0, phg.initialNumNodes()),
       [&](const tbb::blocked_range<HypernodeID>& r) {
       const int task_id = tbb::this_task_arena::current_thread_index();
       ASSERT(task_id >= 0 && task_id < context.shared_memory.num_threads);
