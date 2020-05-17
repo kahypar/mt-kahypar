@@ -71,7 +71,7 @@ class LocalizedKWayFM {
     thisSearch = ++sharedData.nodeTracker.highestActiveSearchID;
 
     for (HypernodeID u : sharedData.refinementNodes.safely_inserted_range()) {
-      insertOrUpdatePQ(phg, u, sharedData.nodeTracker);
+      insertOrUpdatePQ(phg, u, sharedData);
     }
     for (PartitionID i = 0; i < k; ++i) {
       updateBlock(i);
@@ -89,7 +89,7 @@ class LocalizedKWayFM {
     const size_t nSeeds = context.refinement.fm.num_seed_nodes;
     HypernodeID seedNode;
     while (localData.runStats.pushes < nSeeds && sharedData.refinementNodes.try_pop(seedNode, taskID)) {
-      if (insertOrUpdatePQ(phg, seedNode, sharedData.nodeTracker)) {
+      if (insertOrUpdatePQ(phg, seedNode, sharedData)) {
         localData.seedVertices.push_back(seedNode);
       }
     }
@@ -326,7 +326,7 @@ private:
         for (HypernodeID v : phg.pins(e)) {
           if (!updateDeduplicator.contains(v)) {
             updateDeduplicator[v] = { };  // insert
-            insertOrUpdatePQ(phg, v, sharedData.nodeTracker);
+            insertOrUpdatePQ(phg, v, sharedData);
           }
         }
         validHyperedges[e] = true;
@@ -339,7 +339,8 @@ private:
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
   bool insertOrUpdatePQ(const PHG& phg,
                         const HypernodeID v,
-                        NodeTracker& nt) {
+                        FMSharedData& sharedData) {
+    NodeTracker& nt = sharedData.nodeTracker;
     SearchID searchOfV = nt.searchOfNode[v].load(std::memory_order_acq_rel);
     // Note. Deactivated nodes have a special active search ID so that neither branch is executed
     if (nt.isSearchInactive(searchOfV)) {
