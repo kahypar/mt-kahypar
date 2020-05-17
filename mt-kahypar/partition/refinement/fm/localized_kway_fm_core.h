@@ -375,7 +375,7 @@ private:
       Gain gain = 0;
       PartitionID newTarget = kInvalidPartition;
 
-      if (designatedTargetV == move.from || designatedTargetV == move.to) {
+      if (k < 4 || designatedTargetV == move.from || designatedTargetV == move.to) {
         // moveToPenalty of designatedTargetV is affected.
         // and may now be greater than that of other blocks --> recompute full
         std::tie(newTarget, gain) = bestDestinationBlock(phg, v);
