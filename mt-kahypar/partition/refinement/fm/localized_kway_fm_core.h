@@ -89,11 +89,13 @@ class LocalizedKWayFM {
     const size_t nSeeds = context.refinement.fm.num_seed_nodes;
     HypernodeID seedNode;
     while (localData.runStats.pushes < nSeeds && sharedData.refinementNodes.try_pop(seedNode, taskID)) {
-      if (!updateDeduplicator.contains(seedNode) && insertOrUpdatePQ(phg, seedNode, sharedData.nodeTracker)) {
+      if (insertOrUpdatePQ(phg, seedNode, sharedData.nodeTracker)) {
         localData.seedVertices.push_back(seedNode);
       }
     }
-    updateBlocks(phg, kInvalidPartition);
+    for (PartitionID i = 0; i < k; ++i) {
+      updateBlock(i);
+    }
 
     if (localData.runStats.pushes > 0) {
       if ( context.refinement.fm.perform_moves_global ) {
@@ -179,7 +181,10 @@ private:
 
         insertOrUpdateNeighbors(deltaPhg, sharedData, m.node);
       }
-      updateBlocks(deltaPhg, m.from);
+
+      for (PartitionID i = 0; i < k; ++i) {
+        updateBlock(i);
+      }
     }
 
     std::tie(bestImprovement, bestImprovementIndex) =
@@ -260,7 +265,10 @@ private:
 
         insertOrUpdateNeighbors(phg, sharedData, m.node);
       }
-      updateBlocks(phg, m.from);
+
+      for (PartitionID i = 0; i < k; ++i) {
+        updateBlock(i);
+      }
     }
 
     revertToBestLocalPrefix(phg, sharedData, bestImprovementIndex);
@@ -310,21 +318,6 @@ private:
   }
 
   template<typename PHG>
-  void updateBlocks(const PHG& phg, const PartitionID moved_from) {
-    if (moved_from == kInvalidPartition || updateDeduplicator.size() >= size_t(k)) {
-      for (PartitionID i = 0; i < k; ++i) {
-        updateBlock(i);
-      }
-    } else {
-      updateBlock(moved_from);
-      for (const auto& sparse_map_element : updateDeduplicator) {
-        updateBlock(phg.partID(sparse_map_element.key));
-      }
-    }
-    updateDeduplicator.clear();
-  }
-
-  template<typename PHG>
   void insertOrUpdateNeighbors(const PHG& phg,
                                FMSharedData& sharedData,
                                const HypernodeID u) {
@@ -339,6 +332,7 @@ private:
         validHyperedges[e] = true;
       }
     }
+    updateDeduplicator.clear();
   }
 
   template<typename PHG>
