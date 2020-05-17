@@ -71,7 +71,7 @@ class LocalizedKWayFM {
     thisSearch = ++sharedData.nodeTracker.highestActiveSearchID;
 
     for (HypernodeID u : sharedData.refinementNodes.safely_inserted_range()) {
-      insertOrUpdatePQ(phg, u, sharedData);
+      insertPQ(phg, u, sharedData);
     }
     for (PartitionID i = 0; i < k; ++i) {
       updateBlock(i);
@@ -89,7 +89,7 @@ class LocalizedKWayFM {
     const size_t nSeeds = context.refinement.fm.num_seed_nodes;
     HypernodeID seedNode;
     while (localData.runStats.pushes < nSeeds && sharedData.refinementNodes.try_pop(seedNode, taskID)) {
-      if (insertOrUpdatePQ(phg, seedNode, sharedData)) {
+      if (insertPQ(phg, seedNode, sharedData)) {
         localData.seedVertices.push_back(seedNode);
       }
     }
@@ -120,7 +120,7 @@ private:
   void internalFindMovesOnDeltaHypergraph(PartitionedHypergraph& phg,
                                           FMSharedData& sharedData) {
     StopRule stopRule(phg.initialNumNodes());
-    Move m;
+    Move move;
 
     auto hes_to_update_func = [&](const HyperedgeID he,
                                   const HyperedgeWeight,
@@ -143,23 +143,23 @@ private:
     HypernodeWeight heaviestPartWeight = 0;
     HypernodeWeight toWeight = 0;
 
-    while (!stopRule.searchShouldStop() && findNextMove(deltaPhg, m)) {
-      sharedData.nodeTracker.deactivateNode(m.node, thisSearch);
+    while (!stopRule.searchShouldStop() && findNextMove(deltaPhg, move)) {
+      sharedData.nodeTracker.deactivateNode(move.node, thisSearch);
 
       bool moved = false;
-      if (m.to != kInvalidPartition) {
+      if (move.to != kInvalidPartition) {
         heaviestPartWeight = metrics::heaviestPartAndWeight(deltaPhg).second;
-        const HypernodeWeight fromWeight = deltaPhg.partWeight(m.from);
-        toWeight = deltaPhg.partWeight(m.to);
-        moved = deltaPhg.changeNodePart(m.node, m.from, m.to, std::max(
-          context.partition.max_part_weights[m.to], fromWeight), hes_to_update_func);
+        const HypernodeWeight fromWeight = deltaPhg.partWeight(move.from);
+        toWeight = deltaPhg.partWeight(move.to);
+        moved = deltaPhg.changeNodePart(move.node, move.from, move.to, std::max(
+          context.partition.max_part_weights[move.to], fromWeight), hes_to_update_func);
       }
 
       if (moved) {
         localData.runStats.moves++;
-        estimatedImprovement += m.gain;
-        localData.localMoves.push_back(m);
-        stopRule.update(m.gain);
+        estimatedImprovement += move.gain;
+        localData.localMoves.push_back(move);
+        stopRule.update(move.gain);
 
         // Check if move improves current best solution
         bool move_improved_quality = false;
@@ -168,7 +168,7 @@ private:
         } else {
           const bool improved_km1 = estimatedImprovement > bestImprovement;
           const bool improved_balance_less_equal_km1 = estimatedImprovement >= bestImprovement &&
-                                                       toWeight + phg.nodeWeight(m.node) < heaviestPartWeight;
+                                                       toWeight + phg.nodeWeight(move.node) < heaviestPartWeight;
           move_improved_quality = improved_km1 || improved_balance_less_equal_km1;
         }
 
@@ -178,7 +178,7 @@ private:
           bestImprovementIndex = localData.localMoves.size();
         }
 
-        insertOrUpdateNeighbors(deltaPhg, sharedData, m.node);
+        insertOrUpdateNeighbors(deltaPhg, sharedData, move);
       }
 
       for (PartitionID i = 0; i < k; ++i) {
@@ -199,7 +199,7 @@ private:
   void internalFindMovesOnGlobalHypergraph(PartitionedHypergraph& phg,
                                            FMSharedData& sharedData) {
     StopRule stopRule(phg.initialNumNodes());
-    Move m;
+    Move move;
 
 
     auto hes_to_update_func = [&](const HyperedgeID he,
@@ -223,26 +223,26 @@ private:
     HypernodeWeight heaviestPartWeight = 0;
     HypernodeWeight toWeight = 0;
 
-    while (!stopRule.searchShouldStop() && findNextMove(phg, m)) {
-      sharedData.nodeTracker.deactivateNode(m.node, thisSearch);
+    while (!stopRule.searchShouldStop() && findNextMove(phg, move)) {
+      sharedData.nodeTracker.deactivateNode(move.node, thisSearch);
       MoveID move_id = std::numeric_limits<MoveID>::max();
-      auto report_success = [&] { move_id = sharedData.moveTracker.insertMove(m); };
+      auto report_success = [&] { move_id = sharedData.moveTracker.insertMove(move); };
 
       bool moved = false;
-      if (m.to != kInvalidPartition) {
+      if (move.to != kInvalidPartition) {
         heaviestPartWeight = metrics::heaviestPartAndWeight(phg).second;
-        const HypernodeWeight fromWeight = phg.partWeight(m.from);
-        toWeight = phg.partWeight(m.to);
-        moved = phg.changeNodePartFullUpdate(m.node, m.from, m.to, std::max(
-          context.partition.max_part_weights[m.to], fromWeight),
+        const HypernodeWeight fromWeight = phg.partWeight(move.from);
+        toWeight = phg.partWeight(move.to);
+        moved = phg.changeNodePartFullUpdate(move.node, move.from, move.to, std::max(
+          context.partition.max_part_weights[move.to], fromWeight),
           report_success, hes_to_update_func);
       }
 
       if (moved) {
         localData.runStats.moves++;
-        estimatedImprovement += m.gain;
+        estimatedImprovement += move.gain;
         localData.localMoveIDs.push_back(move_id);
-        stopRule.update(m.gain);
+        stopRule.update(move.gain);
 
         // Check if move improves current best solution
         bool move_improved_quality = false;
@@ -251,7 +251,7 @@ private:
         } else {
           const bool improved_km1 = estimatedImprovement > bestImprovement;
           const bool improved_balance_less_equal_km1 = estimatedImprovement >= bestImprovement &&
-                                                      toWeight + phg.nodeWeight(m.node) < heaviestPartWeight;
+                                                      toWeight + phg.nodeWeight(move.node) < heaviestPartWeight;
           move_improved_quality = improved_km1 || improved_balance_less_equal_km1;
         }
 
@@ -261,7 +261,7 @@ private:
           bestImprovementIndex = localData.localMoveIDs.size();
         }
 
-        insertOrUpdateNeighbors(phg, sharedData, m.node);
+        insertOrUpdateNeighbors(phg, sharedData, move);
       }
 
       for (PartitionID i = 0; i < k; ++i) {
@@ -318,13 +318,13 @@ private:
   template<typename PHG>
   void insertOrUpdateNeighbors(const PHG& phg,
                                FMSharedData& sharedData,
-                               const HypernodeID u) {
-    for (HyperedgeID e : phg.incidentEdges(u)) {
+                               const Move& move) {
+    for (HyperedgeID e : phg.incidentEdges(move.node)) {
       if (phg.edgeSize(e) < context.partition.hyperedge_size_threshold && !validHyperedges[e]) {
         for (HypernodeID v : phg.pins(e)) {
           if (!updateDeduplicator.contains(v)) {
             updateDeduplicator[v] = { };  // insert
-            insertOrUpdatePQ(phg, v, sharedData);
+            insertOrUpdatePQ(phg, v, sharedData, move);
           }
         }
         validHyperedges[e] = true;
@@ -333,13 +333,29 @@ private:
     updateDeduplicator.clear();
   }
 
+  bool insertPQ(const PartitionedHypergraph& phg, const HypernodeID v, FMSharedData& sharedData) {
+    NodeTracker& nt = sharedData.nodeTracker;
+    SearchID searchOfV = nt.searchOfNode[v].load(std::memory_order_acq_rel);
+    if (nt.isSearchInactive(searchOfV)) {
+      if (nt.searchOfNode[v].compare_exchange_strong(searchOfV, thisSearch, std::memory_order_acq_rel)) {
+        const PartitionID pv = phg.partID(v);
+        auto [target, gain] = bestDestinationBlock(phg, v);
+        sharedData.targetPart[v] = target;
+        vertexPQs[pv].insert(v, gain);  // blockPQ updates are done later, collectively.
+        localData.runStats.pushes++;
+        return true;
+      }
+    }
+    return false;
+  }
+
   template<typename PHG>
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
   bool insertOrUpdatePQ(const PHG& phg,
                         const HypernodeID v,
                         FMSharedData& sharedData,
-                        const Move& m) {
-
+                        const Move& move) {
+    assert(move.from != kInvalidPartition && move.to != kInvalidPartition);
     NodeTracker& nt = sharedData.nodeTracker;
     SearchID searchOfV = nt.searchOfNode[v].load(std::memory_order_acq_rel);
     // Note. Deactivated nodes have a special active search ID so that neither branch is executed
@@ -355,33 +371,34 @@ private:
     } else if (searchOfV == thisSearch) {
       const PartitionID pv = phg.partID(v);
       assert(vertexPQs[pv].contains(v));
-
       const PartitionID designatedTargetV = sharedData.targetPart[v];
       Gain gain = 0;
       PartitionID newTarget = -1;
-      if (designatedTargetV == m.from || designatedTargetV == m.to) {
+
+      if (designatedTargetV == move.from || designatedTargetV == move.to) {
         // moveToPenalty of designatedTargetV is affected.
         // and may now be greater than that of other blocks --> recompute full
         std::tie(newTarget, gain) = bestDestinationBlock(phg, v);
       } else {
         // moveToPenalty of designatedTargetV is not affected.
-        // only m.from and m.to may be better
+        // only move.from and move.to may be better
         newTarget = designatedTargetV;
         gain = phg.km1Gain(v, pv, designatedTargetV);
 
-        const Gain gainFrom = phg.km1Gain(v, pv, m.from);
-        const Gain gainTo = phg.km1Gain(v, pv, m.to);
+        const Gain gainFrom = phg.km1Gain(v, pv, move.from);
+        const Gain gainTo = phg.km1Gain(v, pv, move.to);
         if (gainFrom > gain) {
           gain = gainFrom;
-          newTarget = m.from;
+          newTarget = move.from;
         }
         if (gainTo > gain) {
           gain = gainTo;
-          newTarget = m.to;
+          newTarget = move.to;
         }
       }
       sharedData.targetPart[v] = newTarget;
       vertexPQs[pv].adjustKey(v, gain);
+
       return true;
     }
     return false;
