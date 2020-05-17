@@ -205,6 +205,13 @@ class DeltaPartitionedHypergraph {
     return _phg->moveToPenalty(u, p) + ( move_to_penalty_delta ? *move_to_penalty_delta : 0 );
   }
 
+  Gain km1Gain(const HypernodeID u, const PartitionID from, const PartitionID to) const {
+    unused(from);
+    ASSERT(from == partID(u), "While gain computation works for from != partID(u), such a query makes no sense");
+    ASSERT(from != to, "The gain computation doesn't work for from = to");
+    return moveFromBenefit(u) - moveToPenalty(u, to);
+  }
+
   // ! Clears all deltas applied to the partitioned hypergraph
   void clear() {
     // O(k)
