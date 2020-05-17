@@ -346,7 +346,8 @@ private:
     if (nt.isSearchInactive(searchOfV)) {
       if (nt.searchOfNode[v].compare_exchange_strong(searchOfV, thisSearch, std::memory_order_acq_rel)) {
         const PartitionID pv = phg.partID(v);
-        const Gain gain = bestDestinationBlock(phg, v).second;
+        auto [target, gain] = bestDestinationBlock(phg, v);
+        sharedData.targetPart[v] = target;
         vertexPQs[pv].insert(v, gain);  // blockPQ updates are done later, collectively.
         localData.runStats.pushes++;
         return true;
@@ -357,16 +358,29 @@ private:
 
       const PartitionID designatedTargetV = sharedData.targetPart[v];
       Gain gain = 0;
+      PartitionID newTarget = -1;
       if (designatedTargetV == m.from || designatedTargetV == m.to) {
         // moveToPenalty of designatedTargetV is affected.
         // and may now be greater than that of other blocks --> recompute full
-        gain = bestDestinationBlock(phg, v).second;
+        std::tie(newTarget, gain) = bestDestinationBlock(phg, v);
       } else {
         // moveToPenalty of designatedTargetV is not affected.
         // only m.from and m.to may be better
-        gain = std::max(phg.km1Gain(v, pv, m.from), phg.km1Gain(v, pv, designatedTargetV));
-        gain = std::max(phg.km1Gain(v, pv, m.to), gain);
+        newTarget = designatedTargetV;
+        gain = phg.km1Gain(v, pv, designatedTargetV);
+
+        const Gain gainFrom = phg.km1Gain(v, pv, m.from);
+        const Gain gainTo = phg.km1Gain(v, pv, m.to);
+        if (gainFrom > gain) {
+          gain = gainFrom;
+          newTarget = m.from;
+        }
+        if (gainTo > gain) {
+          gain = gainTo;
+          newTarget = m.to;
+        }
       }
+      sharedData.targetPart[v] = newTarget;
       vertexPQs[pv].adjustKey(v, gain);
       return true;
     }
