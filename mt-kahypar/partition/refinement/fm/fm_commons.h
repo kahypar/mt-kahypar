@@ -163,13 +163,16 @@ struct FMSharedData {
   // ! (if it was removed but could not be claimed for a search)
   kahypar::ds::FastResetFlagArray<> fruitlessSeed;
 
+  vec<PartitionID> targetPart;
+
   FMSharedData(size_t numNodes = 0, PartitionID numParts = 0, size_t numThreads = 0) :
           refinementNodes(), //numNodes, numThreads),
           vertexPQHandles(), //numNodes, invalid_position),
           numParts(numParts),
           moveTracker(), //numNodes),
           nodeTracker(), //numNodes),
-          fruitlessSeed(numNodes)
+          fruitlessSeed(numNodes),
+          targetPart()
   {
     tbb::parallel_invoke([&] {
       moveTracker.moveOrder.resize(numNodes);
@@ -182,6 +185,8 @@ struct FMSharedData {
     }, [&] {
       refinementNodes.tls_queues.resize(numThreads);
       refinementNodes.timestamps.resize(numNodes, 0);
+    }, [&] {
+      targetPart.resize(numNodes, kInvalidPartition);
     });
   }
 
