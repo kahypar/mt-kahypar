@@ -373,7 +373,7 @@ private:
       assert(vertexPQs[pv].contains(v));
       const PartitionID designatedTargetV = sharedData.targetPart[v];
       Gain gain = 0;
-      PartitionID newTarget = -1;
+      PartitionID newTarget = kInvalidPartition;
 
       if (designatedTargetV == move.from || designatedTargetV == move.to) {
         // moveToPenalty of designatedTargetV is affected.
@@ -382,19 +382,7 @@ private:
       } else {
         // moveToPenalty of designatedTargetV is not affected.
         // only move.from and move.to may be better
-        newTarget = designatedTargetV;
-        gain = phg.km1Gain(v, pv, designatedTargetV);
-
-        const Gain gainFrom = phg.km1Gain(v, pv, move.from);
-        const Gain gainTo = phg.km1Gain(v, pv, move.to);
-        if (gainFrom > gain) {
-          gain = gainFrom;
-          newTarget = move.from;
-        }
-        if (gainTo > gain) {
-          gain = gainTo;
-          newTarget = move.to;
-        }
+        std::tie(newTarget, gain) = bestOfThree(phg, v, pv, { designatedTargetV, move.from, move.to });
       }
       sharedData.targetPart[v] = newTarget;
       vertexPQs[pv].adjustKey(v, gain);
@@ -426,7 +414,36 @@ private:
         }
       }
     }
-    return std::make_pair(to, phg.moveFromBenefit(u) - to_penalty);
+    const Gain gain = to != kInvalidPartition ? phg.moveFromBenefit(u) - to_penalty
+                      : std::numeric_limits<HyperedgeWeight>::min();
+    return std::make_pair(to, gain);
+  }
+
+  template<typename PHG>
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
+  std::pair<PartitionID, HyperedgeWeight> bestOfThree(const PHG& phg, HypernodeID u, PartitionID from,
+                                                      std::array<PartitionID, 3> parts) {
+
+    const HypernodeWeight wu = phg.nodeWeight(u);
+    const HypernodeWeight from_weight = phg.partWeight(from);
+    PartitionID to = kInvalidPartition;
+    HyperedgeWeight to_penalty = std::numeric_limits<HyperedgeWeight>::max();
+    HypernodeWeight best_to_weight = from_weight - wu;
+    for (PartitionID i : parts) {
+      if (i != from && i != kInvalidPartition) {
+        const HypernodeWeight to_weight = phg.partWeight(i);
+        const HyperedgeWeight penalty = phg.moveToPenalty(u, i);
+        if ( ( penalty < to_penalty || ( penalty == to_penalty && to_weight < best_to_weight ) ) &&
+             ( to_weight + wu <= context.partition.max_part_weights[i] || to_weight < best_to_weight ) ) {
+          to_penalty = penalty;
+          to = i;
+          best_to_weight = to_weight;
+        }
+      }
+    }
+    const Gain gain = to != kInvalidPartition ? phg.moveFromBenefit(u) - to_penalty
+                                              : std::numeric_limits<HyperedgeWeight>::min();
+    return std::make_pair(to, gain);
   }
 
   template<typename PHG>
