@@ -337,7 +337,9 @@ private:
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
   bool insertOrUpdatePQ(const PHG& phg,
                         const HypernodeID v,
-                        FMSharedData& sharedData) {
+                        FMSharedData& sharedData,
+                        const Move& m) {
+
     NodeTracker& nt = sharedData.nodeTracker;
     SearchID searchOfV = nt.searchOfNode[v].load(std::memory_order_acq_rel);
     // Note. Deactivated nodes have a special active search ID so that neither branch is executed
@@ -352,12 +354,20 @@ private:
     } else if (searchOfV == thisSearch) {
       const PartitionID pv = phg.partID(v);
       assert(vertexPQs[pv].contains(v));
-      const Gain gain = bestDestinationBlock(phg, v).second;
+
+      const PartitionID designatedTargetV = sharedData.targetPart[v];
+      Gain gain = 0;
+      if (designatedTargetV == m.from || designatedTargetV == m.to) {
+        // moveToPenalty of designatedTargetV is affected.
+        // and may now be greater than that of other blocks --> recompute full
+        gain = bestDestinationBlock(phg, v).second;
+      } else {
+        // moveToPenalty of designatedTargetV is not affected.
+        // only m.from and m.to may be better
+        gain = std::max(phg.km1Gain(v, pv, m.from), phg.km1Gain(v, pv, designatedTargetV));
+        gain = std::max(phg.km1Gain(v, pv, m.to), gain);
+      }
       vertexPQs[pv].adjustKey(v, gain);
-      // if pv == move.from or pv == move.to only the gains of move.from and move.to could change
-      // if these gains are better than vertexPQ[pv].keyOf(v), we could increase the key
-      // however, this is incorrect if this entry is for the target move.from or move.to.
-      // since we don't store this information (on purpose), we can't easily figure that out
       return true;
     }
     return false;
