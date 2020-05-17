@@ -114,10 +114,9 @@ class LocalizedKWayFM {
 
 private:
 
-  // ! Starts a localized FM search on the delta partitioned hypergraph. Moves
-  // ! that are made by this local search are not immediatly visible to other
-  // ! concurrent running local searches. Moves are applied to global hypergraph,
-  // ! if search yield to an improvement.
+  // ! Performs localized FM local search on the delta partitioned hypergraph.
+  // ! Moves made by this search are not immediately visible to other concurrent local searches.
+  // ! The best prefix of moves is applied to the global partitioned hypergraph after the search finishes.
   void internalFindMovesOnDeltaHypergraph(PartitionedHypergraph& phg,
                                           FMSharedData& sharedData) {
     StopRule stopRule(phg.initialNumNodes());
@@ -194,10 +193,9 @@ private:
     localData.runStats.merge(stats);
   }
 
-  // ! Starts a localized FM search on the global partitioned hypergraph. Moves
-  // ! that are made by this local search are immediatly visible to other concurrent
-  // ! running local searches. Moves are rollbacked to best improvement found during
-  // ! that search.
+  // ! Performs FM local search on the global partitioned hypergraph (localized or full boundary).
+  // ! Moves made by this search are immediately visible to other concurrent local searches.
+  // ! After the search finishes, the moves are rolled back to the best prefix of moves found.
   void internalFindMovesOnGlobalHypergraph(PartitionedHypergraph& phg,
                                            FMSharedData& sharedData) {
     StopRule stopRule(phg.initialNumNodes());
