@@ -319,12 +319,13 @@ private:
   void insertOrUpdateNeighbors(const PHG& phg,
                                FMSharedData& sharedData,
                                const Move& move) {
+    const bool is_high_degree_vertex = phg.nodeDegree(move.node) > PHG::HIGH_DEGREE_THRESHOLD;
     for (HyperedgeID e : phg.incidentEdges(move.node)) {
       if (phg.edgeSize(e) < context.partition.hyperedge_size_threshold && !validHyperedges[e]) {
         for (HypernodeID v : phg.pins(e)) {
           if (!updateDeduplicator.contains(v)) {
             updateDeduplicator[v] = { };  // insert
-            insertOrUpdatePQ(phg, v, sharedData, move);
+            insertOrUpdatePQ(phg, v, sharedData, move, is_high_degree_vertex);
           }
         }
         validHyperedges[e] = true;
@@ -354,12 +355,13 @@ private:
   bool insertOrUpdatePQ(const PHG& phg,
                         const HypernodeID v,
                         FMSharedData& sharedData,
-                        const Move& move) {
+                        const Move& move,
+                        const bool update_only = false) {
     assert(move.from != kInvalidPartition && move.to != kInvalidPartition);
     NodeTracker& nt = sharedData.nodeTracker;
     SearchID searchOfV = nt.searchOfNode[v].load(std::memory_order_acq_rel);
     // Note. Deactivated nodes have a special active search ID so that neither branch is executed
-    if (nt.isSearchInactive(searchOfV)) {
+    if (!update_only && nt.isSearchInactive(searchOfV)) {
       if (nt.searchOfNode[v].compare_exchange_strong(searchOfV, thisSearch, std::memory_order_acq_rel)) {
         const PartitionID pv = phg.partID(v);
         auto [target, gain] = bestDestinationBlock(phg, v);
