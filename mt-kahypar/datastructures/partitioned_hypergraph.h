@@ -591,9 +591,9 @@ private:
       return false;
     } else {
       // In case u is a high degree vertex, we omit the border node check and
-      // and return true anyway. Assumption is that such vertices are with high
-      // propability a border node and an explicit check would increase complexity.
-      return true;
+      // and return false. Assumption is that it is very unlikely that such a
+      // vertex can change its block.
+      return false;
     }
   }
 
