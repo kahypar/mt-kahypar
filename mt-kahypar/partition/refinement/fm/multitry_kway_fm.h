@@ -60,10 +60,11 @@ public:
 
     utils::Timer& timer = utils::Timer::instance();
     Gain overall_improvement = 0;
-    for (size_t round = 0; round < context.refinement.fm.multitry_rounds; ++round) {                    // global multi try rounds
+    for (size_t round = 0; round < context.refinement.fm.multitry_rounds; ++round) { // global multi try rounds
       timer.start_timer("collect_border_nodes", "Collect Border Nodes");
 
       roundInitialization(phg);
+      size_t numBorderNodes = sharedData.refinementNodes.unsafe_size(); unused(numBorderNodes);
 
       timer.stop_timer("collect_border_nodes");
       timer.start_timer("find_moves", "Find Moves");
@@ -90,13 +91,12 @@ public:
       timer.stop_timer("find_moves");
       timer.start_timer("rollback", "Rollback to Best Solution");
 
-      HyperedgeWeight improvement = globalRollback.revertToBestPrefix(
-        phg, sharedData, initialPartWeights, context.partition.max_part_weights[0]);
+      HyperedgeWeight improvement = globalRollback.revertToBestPrefix(phg, sharedData, initialPartWeights);
       overall_improvement += improvement;
 
       timer.stop_timer("rollback");
 
-      DBG << V(round) << V(improvement) << V(metrics::imbalance(phg, context)) << stats.serialize();
+      DBG << V(round) << V(improvement) << V(metrics::imbalance(phg, context)) << V(numBorderNodes) << stats.serialize();
 
       if (improvement <= 0) {
         break;
