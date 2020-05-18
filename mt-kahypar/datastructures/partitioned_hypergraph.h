@@ -82,7 +82,7 @@ private:
     _pins_in_part(hypergraph.initialNumEdges(), k, hypergraph.maxEdgeSize(), false),
     _connectivity_set(hypergraph.initialNumEdges(), k, false),
     _move_to_penalty(
-        "Refinement", "move_to_penalty", hypergraph.initialNumNodes() * k, true, false),
+        "Refinement", "move_to_penalty", size_t(hypergraph.initialNumNodes()) * size_t(k), true, false),
     _move_from_benefit(
         "Refinement", "move_from_benefit", hypergraph.initialNumNodes(), true, false),
     _pin_count_update_ownership(
@@ -112,7 +112,7 @@ private:
       _connectivity_set = ConnectivitySets(hypergraph.initialNumEdges(), k);
     }, [&] {
       _move_to_penalty.resize(
-        "Refinement", "move_to_penalty", hypergraph.initialNumNodes() * k, true);
+        "Refinement", "move_to_penalty", size_t(hypergraph.initialNumNodes()) * size_t(k), true);
     }, [&] {
       _move_from_benefit.resize(
         "Refinement", "move_from_benefit", hypergraph.initialNumNodes(), true);
@@ -508,7 +508,7 @@ private:
 
           _move_from_benefit[u].store(l_move_from_benefit, std::memory_order_relaxed);
           for (PartitionID p = 0; p < _k; ++p) {
-            _move_to_penalty[u * _k + p].store(l_move_to_penalty[p] + incident_edges_weight, std::memory_order_relaxed);
+            _move_to_penalty[penalty_index(u,p)].store(l_move_to_penalty[p] + incident_edges_weight, std::memory_order_relaxed);
             l_move_to_penalty[p] = 0;
           }
         }
@@ -572,7 +572,7 @@ private:
   }
 
   HyperedgeWeight moveToPenalty(const HypernodeID u, PartitionID p) const {
-    return _move_to_penalty[u * _k + p].load(std::memory_order_relaxed);
+    return _move_to_penalty[penalty_index(u, p)].load(std::memory_order_relaxed);
   }
 
   HyperedgeWeight km1Gain(const HypernodeID u, PartitionID from, PartitionID to) const {
@@ -594,6 +594,11 @@ private:
       }
       _connectivity_set.clear(he);
     }
+  }
+
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
+  size_t penalty_index(const HypernodeID u, const PartitionID p) const {
+    return size_t(u) * _k + p;
   }
 
   // ! Only for testing
@@ -816,7 +821,7 @@ private:
     ASSERT(u < initialNumNodes(), "Hypernode" << u << "does not exist");
     ASSERT(nodeIsEnabled(u), "Hypernode" << u << "is disabled");
     ASSERT(p != kInvalidPartition && p < _k);
-    ASSERT(u * _k + p < _move_to_penalty.size());
+    ASSERT(penalty_index(u, p) < _move_to_penalty.size());
     ASSERT(u < _move_from_benefit.size());
   }
 
@@ -942,7 +947,7 @@ private:
       const HyperedgeWeight we = edgeWeight(e);
       for (HypernodeID u : pins(e)) {
         nodeGainAssertions(u, p);
-        _move_to_penalty[u * _k + p].fetch_sub(we, std::memory_order_relaxed);
+        _move_to_penalty[penalty_index(u, p)].fetch_sub(we, std::memory_order_relaxed);
       }
     } else if (pin_count_after == 2) {
       const HyperedgeWeight we = edgeWeight(e);
