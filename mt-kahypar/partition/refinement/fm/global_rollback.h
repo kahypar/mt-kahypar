@@ -48,7 +48,7 @@ struct BalanceAndBestIndexScan {
   Gain gain_sum = 0;
 
   vec<HypernodeWeight> part_weights;
-  const std::vector<HypernodeWeight> max_part_weights;
+  const std::vector<HypernodeWeight>& max_part_weights;
 
   BalanceAndBestIndexScan(BalanceAndBestIndexScan& b, tbb::split) :
           phg(b.phg),
