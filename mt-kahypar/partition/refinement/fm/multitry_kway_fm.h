@@ -86,7 +86,6 @@ public:
       for (auto& fm : ets_fm) {
         fm.stats.merge(stats);
       }
-      DBG << stats.serialize();
 
       timer.stop_timer("find_moves");
       timer.start_timer("rollback", "Rollback to Best Solution");
@@ -96,6 +95,8 @@ public:
       overall_improvement += improvement;
 
       timer.stop_timer("rollback");
+
+      DBG << V(round) << V(improvement) << V(metrics::imbalance(phg, context)) << stats.serialize();
 
       if (improvement <= 0) {
         break;
