@@ -61,11 +61,10 @@ private:
   // Then we could guarantee inlining
   // This would also reduce the code/documentation copy-pasta for with or without gain updates
 
-  static constexpr HyperedgeID HIGH_DEGREE_THRESHOLD = ID(100000);
-
  public:
   static constexpr bool is_static_hypergraph = Hypergraph::is_static_hypergraph;
   static constexpr bool is_partitioned = true;
+  static constexpr HyperedgeID HIGH_DEGREE_THRESHOLD = ID(100000);
 
   using HypernodeIterator = typename Hypergraph::HypernodeIterator;
   using HyperedgeIterator = typename Hypergraph::HyperedgeIterator;
@@ -583,12 +582,19 @@ private:
 
   // ! Returns, whether hypernode u is adjacent to a least one cut hyperedge.
   bool isBorderNode(const HypernodeID u) const {
-    for ( const HyperedgeID& he : incidentEdges(u) ) {
-      if ( connectivity(he) > 1 ) {
-        return true;
+    if ( nodeDegree(u) <= HIGH_DEGREE_THRESHOLD ) {
+      for ( const HyperedgeID& he : incidentEdges(u) ) {
+        if ( connectivity(he) > 1 ) {
+          return true;
+        }
       }
+      return false;
+    } else {
+      // In case u is a high degree vertex, we omit the border node check and
+      // and return true anyway. Assumption is that such vertices are with high
+      // propability a border node and an explicit check would increase complexity.
+      return true;
     }
-    return false;
   }
 
   HypernodeID numIncidentCutHyperedges(const HypernodeID u) const {
