@@ -21,6 +21,7 @@
 #pragma once
 
 #include <queue>
+#include <boost/dynamic_bitset.hpp>
 
 #include "tbb/enumerable_thread_specific.h"
 #include "tbb/parallel_for.h"
@@ -50,7 +51,7 @@ class Rebalancer {
     }
   };
 
-  using MovePQ = std::priority_queue<Move, std::vector<Move>, MoveGainComparator>;
+  using MovePQ = std::priority_queue<Move, vec<Move>, MoveGainComparator>;
 
   struct IndexedMovePQ {
     explicit IndexedMovePQ(const size_t idx) :
@@ -81,9 +82,6 @@ class Rebalancer {
     // If partition is imbalanced, rebalancer is activated
     if ( !metrics::isBalanced(_hg, _context) ) {
       _gain.reset();
-      for ( PartitionID block = 0; block < _context.partition.k; ++block ) {
-        _part_weights[block] = _hg.partWeight(block);
-      }
 
       // This function is passed as lambda to the changeNodePart function and used
       // to calculate the "real" delta of a move (in terms of the used objective function).
@@ -96,6 +94,14 @@ class Rebalancer {
                                                               pin_count_in_from_part_after,
                                                               pin_count_in_to_part_after);
                             };
+
+
+
+
+      vec<Move> moves_to_empty_blocks = repairEmptyBlocks();
+      for (Move& m : moves_to_empty_blocks) {
+        moveVertex(m.node, m, objective_delta);
+      }
 
       // We first try to perform moves that does not worsen solution quality of the partition
       // Moves that would worsen the solution quality are gathered in a thread local priority queue
@@ -200,6 +206,94 @@ class Rebalancer {
   }
 
  private:
+
+  vec<Move> repairEmptyBlocks() {
+    // First detect if there are any empty blocks.
+    boost::dynamic_bitset<> is_empty(_context.partition.k);
+    for ( PartitionID block = 0; block < _context.partition.k; ++block ) {
+      _part_weights[block] = _hg.partWeight(block);
+      if (_hg.partWeight(block) == 0) {
+        is_empty.set(block, true);
+      }
+    }
+
+    vec<Move> moves_to_empty_blocks;
+
+    // If so, find the best vertices to move to that block
+    while (is_empty.any()) {
+      const PartitionID k = _context.partition.k;
+      tbb::enumerable_thread_specific< vec<Gain> > ets_scores(k, 0);
+
+      // positive gain values correspond to "good" improvement. MovePQ uses std::greater (MinHeap)
+      // --> stores worst gains at the top where we can eject them
+      tbb::enumerable_thread_specific< vec< vec<Move> > > ets_best_move(k);
+
+      _hg.doParallelForAllNodes([&](const HypernodeID u) {
+        vec<Gain>& scores = ets_scores.local();
+        vec< vec<Move> >& move_proposals = ets_best_move.local();
+
+        const PartitionID pu = _hg.partID(u);
+        Gain unremovable = 0;
+        for (HyperedgeID e : _hg.incidentEdges(u)) {
+          const HyperedgeWeight edge_weight = _hg.edgeWeight(e);
+          if (_hg.pinCountInPart(e, pu) > 1) {
+            unremovable += edge_weight;
+          }
+          for (PartitionID i : _hg.connectivitySet(e)) {
+            scores[i] += edge_weight;
+          }
+        }
+
+        // maintain thread local priority queues of up to k best gains
+        for (PartitionID i = 0; i < k; ++i) {
+          if (i != pu && is_empty[i]) {
+            const Gain gain = unremovable - scores[i];
+            vec<Move>& c = move_proposals[i];
+            if (c.size() < k) {
+              c.push_back(Move { pu, i, u, gain });
+              std::push_heap(c.begin(), c.end(), MoveGainComparator());
+            } else if (c.front().gain < gain) {
+              std::pop_heap(c.begin(), c.end(), MoveGainComparator());
+              c.back() = { pu, i, u, gain };
+              std::push_heap(c.begin(), c.end(), MoveGainComparator());
+            }
+          }
+          scores[i] = 0;
+        }
+      });
+
+      vec< vec<Move> > best_moves_per_part(k);
+
+      for (vec<vec<Move>> tlpq : ets_best_move) {
+        size_t i = is_empty.find_first();
+        while (i != is_empty.npos) {
+          std::copy(tlpq[i].begin(), tlpq[i].end(), std::back_inserter(best_moves_per_part[i]));
+          i = is_empty.find_next(i);
+        }
+      }
+
+      auto prefer_highest_gain = [&](const Move& lhs, const Move& rhs) {
+        return lhs.gain > rhs.gain || (lhs.gain == rhs.gain &&
+                                       _hg.partWeight(_hg.partID(lhs.node) > _hg.partWeight(_hg.partID(rhs.node))));
+
+      };
+
+      size_t i = is_empty.find_first();
+      while (i != is_empty.npos) {
+        vec<Move>& c = best_moves_per_part[i];
+        std::nth_element(c.begin(), c.begin() + k, c.end(), prefer_highest_gain);
+        c.erase(c.begin() + k, c.end());
+        i = is_empty.find_next(i);
+      }
+
+      // do greedy matching
+
+
+
+    }
+    return moves_to_empty_blocks;
+  }
+
   template<typename F>
   bool moveVertex(const HypernodeID hn, const Move& move, const F& objective_delta) {
     ASSERT(_hg.partID(hn) == move.from);
