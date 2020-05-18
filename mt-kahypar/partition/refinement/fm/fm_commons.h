@@ -191,7 +191,8 @@ struct FMSharedData {
   }
 
   FMSharedData(size_t numNodes, const Context& context) :
-          FMSharedData(numNodes, context.partition.k, context.shared_memory.num_threads)  { }
+    FMSharedData(numNodes, context.partition.k,
+      TBBNumaArena::instance().total_number_of_threads())  { }
 
 };
 
