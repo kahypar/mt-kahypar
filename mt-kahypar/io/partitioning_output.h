@@ -227,6 +227,14 @@ inline void printHypergraphInfo(const HyperGraph& hypergraph,
   const double stdev_he_size = internal::parallel_stdev(he_sizes, avg_he_size, num_hyperedges);
   const double stdev_he_weight = internal::parallel_stdev(he_weights, avg_he_weight, num_hyperedges);
 
+  tbb::enumerable_thread_specific<size_t> graph_edge_count(0);
+  hypergraph.doParallelForAllEdges([&](const HyperedgeID& he) {
+    if (hypergraph.edgeSize(he) == 2) {
+      graph_edge_count.local() += 1;
+    }
+  });
+
+
   tbb::parallel_invoke([&] {
     tbb::parallel_sort(he_sizes.begin(), he_sizes.end());
   }, [&] {
@@ -241,7 +249,8 @@ inline void printHypergraphInfo(const HyperGraph& hypergraph,
   LOG << "Name :" << name;
   LOG << "# HNs :" << num_hypernodes
       << "# HEs :" << num_hyperedges
-      << "# pins:" << num_pins;
+      << "# pins:" << num_pins
+      << "# graph edges:" << graph_edge_count.combine(std::plus<size_t>());
 
   internal::printHypergraphStats(
     internal::createStats(he_sizes, avg_he_size, stdev_he_size),

@@ -47,6 +47,7 @@ struct PartitioningParameters {
   bool show_memory_consumption = false;
   bool enable_progress_bar = false;
   bool sp_process_output = false;
+  bool csv_output = false;
   bool write_partition_file = false;
 
   bool enable_profiler = false;
@@ -55,6 +56,7 @@ struct PartitioningParameters {
   std::string graph_filename { };
   std::string graph_partition_filename { };
   std::string graph_community_filename { };
+  std::string preset_file { };
 };
 
 inline std::ostream & operator<< (std::ostream& str, const PartitioningParameters& params) {
@@ -181,11 +183,10 @@ struct FMParameters {
   FMAlgorithm algorithm = FMAlgorithm::do_nothing;
   size_t multitry_rounds = 0;
   bool perform_moves_global = false;
-  double seed_node_fraction = 0.0;
+  bool revert_parallel = true;
+  double rollback_balance_violation_factor = std::numeric_limits<double>::max();
+  bool allow_zero_gain_moves = false;
   size_t num_seed_nodes = 0;
-  bool use_seed_node_fraction = false;
-  bool init_localized_search_with_neighbors = false;
-  bool init_boundary_fm_with_all_nodes = false;
   bool shuffle = true;
 };
 
@@ -194,11 +195,10 @@ inline std::ostream& operator<<(std::ostream& out, const FMParameters& params) {
   out << "    Algorithm:                        " << params.algorithm << std::endl;
   out << "    Multitry Rounds:                  " << params.multitry_rounds << std::endl;
   out << "    Perform Moves Globally:           " << std::boolalpha << params.perform_moves_global << std::endl;
-  out << "    Seed Node Fraction:               " << params.seed_node_fraction << std::endl;
+  out << "    Parallel Global Rollbacks:        " << std::boolalpha << params.revert_parallel << std::endl;
+  out << "    Rollback Bal. Violation Factor:   " << params.rollback_balance_violation_factor << std::endl;
+  out << "    Allow Zero Gain Moves:            " << std::boolalpha << params.allow_zero_gain_moves << std::endl;
   out << "    Num Seed Nodes:                   " << params.num_seed_nodes << std::endl;
-  out << "    Use Seed Node Fraction:           " << std::boolalpha << params.use_seed_node_fraction << std::endl;
-  out << "    Init Local Search With Neighbors: " << std::boolalpha << params.init_localized_search_with_neighbors << std::endl;
-  out << "    Init Boundary FM With All Nodes:  " << std::boolalpha << params.init_boundary_fm_with_all_nodes << std::endl;
   out << "    Enable Random Shuffle:            " << std::boolalpha << params.shuffle << std::endl;
   out << std::flush;
   return out;

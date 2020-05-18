@@ -25,28 +25,25 @@
 #include <mt-kahypar/partition/context.h>
 #include <mt-kahypar/utils/timer.h>
 
-#include <atomic>
 #include <external_tools/kahypar/kahypar/partition/metrics.h>
 
-#include "mt-kahypar/datastructures/streaming_vector.h"
 #include "mt-kahypar/partition/refinement/i_refiner.h"
 #include "mt-kahypar/partition/refinement/fm/localized_kway_fm_core.h"
 #include "mt-kahypar/partition/refinement/fm/global_rollback.h"
 
 
 namespace mt_kahypar {
-// TODO try variant in which, a bunch of searches are stored in a PQ, findMoves(..) yields frequently, and then the most promising search is scheduled next
 
 class MultiTryKWayFM final : public IRefiner {
 
   static constexpr bool debug = false;
 
 public:
-  MultiTryKWayFM(Hypergraph& hypergraph, const Context& context, const TaskGroupID taskGroupID) :
+  MultiTryKWayFM(const Hypergraph& hypergraph, const Context& context, const TaskGroupID taskGroupID) :
           context(context),
           taskGroupID(taskGroupID),
           sharedData(hypergraph.initialNumNodes(), context),
-          globalRollback(hypergraph.initialNumNodes(), hypergraph.initialNumEdges(), context.partition.k),
+          globalRollback(hypergraph, context, context.partition.k),
           ets_fm(context, hypergraph.initialNumNodes(), sharedData.vertexPQHandles.data()) { }
 
   bool refineImpl(PartitionedHypergraph& phg,
@@ -75,37 +72,31 @@ public:
       for (PartitionID i = 0; i < sharedData.numParts; ++i) initialPartWeights[i] = phg.partWeight(i);
 
       if (context.refinement.fm.algorithm == FMAlgorithm::fm_multitry) {
-        auto task = [&](const int , const int , const int ) {
+        auto task = [&](const int , const int task_id, const int ) {
           LocalizedKWayFM& fm = ets_fm.local();
-          while(fm.findMoves(phg, sharedData)) { /* keep running */ }
+          while(fm.findMovesLocalized(phg, sharedData, static_cast<size_t>(task_id))) { /* keep running */ }
         };
         TBBNumaArena::instance().execute_task_on_each_thread(taskGroupID, task);
-        //task(0,0,0);
       } else if (context.refinement.fm.algorithm == FMAlgorithm::fm_boundary){
-        // Try boundary FM
-        vec<HypernodeID> test_refinement_nodes;
-        for (HypernodeID u = 0; u < phg.initialNumNodes(); ++u)
-          if (context.refinement.fm.init_boundary_fm_with_all_nodes || phg.isBorderNode(u))
-            test_refinement_nodes.push_back(u);
         LocalizedKWayFM& fm = ets_fm.local();
-        fm.findMoves(phg, sharedData, test_refinement_nodes);
+        fm.findMovesUsingFullBoundary(phg, sharedData);
       }
 
       FMStats stats;
       for (auto& fm : ets_fm) {
         fm.stats.merge(stats);
       }
-      DBG << stats.serialize();
-
-      sharedData.refinementNodes.clear();  // calling clear is necessary since tryPop will reduce the size to -(num calling threads)
 
       timer.stop_timer("find_moves");
       timer.start_timer("rollback", "Rollback to Best Solution");
 
-      HyperedgeWeight improvement = globalRollback.revertToBestPrefix(phg, sharedData, initialPartWeights, context.partition.max_part_weights[0]);
+      HyperedgeWeight improvement = globalRollback.revertToBestPrefix(
+        phg, sharedData, initialPartWeights, context.partition.max_part_weights[0]);
       overall_improvement += improvement;
 
       timer.stop_timer("rollback");
+
+      DBG << V(round) << V(improvement) << V(metrics::imbalance(phg, context)) << stats.serialize();
 
       if (improvement <= 0) {
         break;
@@ -130,25 +121,32 @@ public:
   }
 
   void roundInitialization(PartitionedHypergraph& phg) {
-    // insert border nodes into work queues
+    // clear border nodes
     sharedData.refinementNodes.clear();
-    ds::StreamingVector<HypernodeID> tmpRefinementNodes;
-    phg.doParallelForAllNodes([&](const HypernodeID& hn) {
-      if (phg.isBorderNode(hn)) {
-        tmpRefinementNodes.stream(hn);
+
+    // iterate over all nodes and insert border nodes into task queue
+    tbb::parallel_for(tbb::blocked_range<HypernodeID>(0, phg.initialNumNodes()),
+      [&](const tbb::blocked_range<HypernodeID>& r) {
+      const int task_id = tbb::this_task_arena::current_thread_index();
+      ASSERT(task_id >= 0 && task_id < context.shared_memory.num_threads);
+      for (HypernodeID u = r.begin(); u < r.end(); ++u) {
+        if (phg.nodeIsEnabled(u) && phg.isBorderNode(u)) {
+          sharedData.refinementNodes.safe_push(u, task_id);
+        }
       }
     });
-    sharedData.refinementNodes.size.store(tmpRefinementNodes.size());
-    tmpRefinementNodes.copy_parallel(sharedData.refinementNodes.elements);
 
-    // requesting new searches activates all nodes by raising the deactivated node marker
-    // also clears the array tracking search IDs in case of overflow
-    sharedData.nodeTracker.requestNewSearches(static_cast<SearchID>(sharedData.refinementNodes.unsafe_size()));
-
-    // shuffle work queues if requested
+    // shuffle task queue if requested
     if (context.refinement.fm.shuffle) {
       sharedData.refinementNodes.shuffle();
     }
+
+    // requesting new searches activates all nodes by raising the deactivated node marker
+    // also clears the array tracking search IDs in case of overflow
+    sharedData.nodeTracker.requestNewSearches(
+      static_cast<SearchID>(sharedData.refinementNodes.unsafe_size()));
+
+    sharedData.fruitlessSeed.reset();
   }
 
   bool is_initialized = false;

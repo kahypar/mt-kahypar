@@ -156,6 +156,18 @@ class StaticHypergraphFactory {
           hypernode.setWeight(hypernode_weight[pos]);
         }
       });
+    }, [&] {
+      // graph edge ID mapping
+      hypergraph._num_graph_edges_up_to.resize(num_hyperedges + 1);
+      tbb::parallel_for(0U, num_hyperedges, [&](const HyperedgeID e) {
+        const size_t edge_size = edge_vector[e].size();   // hypergraph.edgeSize(e) is not yet constructed
+        hypergraph._num_graph_edges_up_to[e+1] = static_cast<HyperedgeID>(edge_size == 2);
+      }, tbb::static_partitioner());
+      hypergraph._num_graph_edges_up_to[0] = 0;
+
+      parallel::TBBPrefixSum<HyperedgeID, Array> scan_graph_edges(hypergraph._num_graph_edges_up_to);
+      tbb::parallel_scan(tbb::blocked_range<size_t>(0, num_hyperedges + 1), scan_graph_edges);
+      hypergraph._num_graph_edges = scan_graph_edges.total_sum();
     });
 
     if (stable_construction_of_incident_edges) {

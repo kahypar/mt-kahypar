@@ -240,5 +240,6 @@ class TBBPrefixSum {
   T _sum;
   V<T>& _data;
 };
+
 }  // namespace parallel
 }  // namespace mt_kahypar

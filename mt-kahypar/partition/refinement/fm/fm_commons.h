@@ -23,7 +23,10 @@
 
 #include <mt-kahypar/definitions.h>
 #include <mt-kahypar/datastructures/priority_queue.h>
+#include <mt-kahypar/partition/context.h>
 #include <mt-kahypar/parallel/work_stack.h>
+
+#include "external_tools/kahypar/kahypar/datastructure/fast_reset_flag_array.h"
 
 #include <tbb/parallel_for.h>
 
@@ -34,16 +37,19 @@ using VertexPriorityQueue = ds::MaxHeap<Gain, HypernodeID>;    // these need ext
 
 struct GlobalMoveTracker {
   vec<Move> moveOrder;
+  vec<MoveID> moveOfNode;
   CAtomic<MoveID> runningMoveID;
   MoveID firstMoveID = 1;
 
-  explicit GlobalMoveTracker(size_t numNodes) :
+  explicit GlobalMoveTracker(size_t numNodes = 0) :
           moveOrder(numNodes),
+          moveOfNode(numNodes, 0),
           runningMoveID(1) { }
 
   // Returns true if stored move IDs should be reset
   bool reset() {
     if (runningMoveID.load() >= std::numeric_limits<MoveID>::max() - moveOrder.size() - 20) {
+      tbb::parallel_for(0UL, moveOfNode.size(), [&](size_t i) { moveOfNode[i] = 0; }, tbb::static_partitioner());
       firstMoveID = 1;
       runningMoveID.store(1);
       return true;
@@ -57,6 +63,7 @@ struct GlobalMoveTracker {
     const MoveID move_id = runningMoveID.fetch_add(1, std::memory_order_relaxed);
     assert(move_id - firstMoveID < moveOrder.size());
     moveOrder[move_id - firstMoveID] = m;
+    moveOfNode[m.node] = move_id;
     return move_id;
   }
 
@@ -85,30 +92,28 @@ struct GlobalMoveTracker {
     return runningMoveID.load(std::memory_order_relaxed) - firstMoveID;
   }
 
-  bool isIDStale(const MoveID move_id) const {
+  bool isMoveStale(const MoveID move_id) const {
     return move_id < firstMoveID;
   }
 };
 
 struct NodeTracker {
-  vec<std::atomic<SearchID>> searchOfNode;
+  vec<CAtomic<SearchID>> searchOfNode;
 
   SearchID deactivatedNodeMarker = 1;
   CAtomic<SearchID> highestActiveSearchID { 1 };
 
-  explicit NodeTracker(size_t numNodes) :
-          searchOfNode(numNodes)
-  {
-    for (auto& x : searchOfNode) {
-      x.store(0, std::memory_order_relaxed);
-    }
-  }
+  explicit NodeTracker(size_t numNodes = 0) : searchOfNode(numNodes, CAtomic<SearchID>(0)) { }
 
   // only the search that owns u is allowed to call this
   void deactivateNode(HypernodeID u, SearchID search_id) {
     assert(searchOfNode[u].load() == search_id);
     unused(search_id);
     searchOfNode[u].store(deactivatedNodeMarker, std::memory_order_acq_rel);
+  }
+
+  bool isLocked(HypernodeID u) {
+    return searchOfNode[u].load(std::memory_order_relaxed) == deactivatedNodeMarker;
   }
 
   // should not be called when searches try to claim nodes
@@ -139,7 +144,7 @@ struct NodeTracker {
 struct FMSharedData {
 
   // ! Nodes to initialize the localized FM searches with
-  WorkStack<HypernodeID> refinementNodes;
+  WorkContainer<HypernodeID> refinementNodes;
 
   // ! PQ handles shared by all threads (each vertex is only held by one thread)
   vec<PosT> vertexPQHandles;
@@ -153,14 +158,40 @@ struct FMSharedData {
   // ! Tracks the current search of a node, and if a node can still be added to an active search
   NodeTracker nodeTracker;
 
-  FMSharedData(size_t numNodes = 0, PartitionID numParts = 0) :
-          refinementNodes(numNodes),
-          vertexPQHandles(numNodes, invalid_position),
-          numParts(numParts),
-          moveTracker(numNodes),
-          nodeTracker(numNodes) { }
+  // ! Indicates whether a node was a seed in a localized search that found no improvement.
+  // ! Used to distinguish whether or not the node should be reinserted into the task queue
+  // ! (if it was removed but could not be claimed for a search)
+  kahypar::ds::FastResetFlagArray<> fruitlessSeed;
 
-  FMSharedData(size_t numNodes, const Context& context) : FMSharedData(numNodes, context.partition.k) { }
+  vec<PartitionID> targetPart;
+
+  FMSharedData(size_t numNodes = 0, PartitionID numParts = 0, size_t numThreads = 0) :
+          refinementNodes(), //numNodes, numThreads),
+          vertexPQHandles(), //numNodes, invalid_position),
+          numParts(numParts),
+          moveTracker(), //numNodes),
+          nodeTracker(), //numNodes),
+          fruitlessSeed(numNodes),
+          targetPart()
+  {
+    tbb::parallel_invoke([&] {
+      moveTracker.moveOrder.resize(numNodes);
+    }, [&] {
+      moveTracker.moveOfNode.resize(numNodes);
+    }, [&] {
+      nodeTracker.searchOfNode.resize(numNodes, CAtomic<SearchID>(0));
+    }, [&] {
+      vertexPQHandles.resize(numNodes, invalid_position);
+    }, [&] {
+      refinementNodes.tls_queues.resize(numThreads);
+      refinementNodes.timestamps.resize(numNodes, 0);
+    }, [&] {
+      targetPart.resize(numNodes, kInvalidPartition);
+    });
+  }
+
+  FMSharedData(size_t numNodes, const Context& context) :
+          FMSharedData(numNodes, context.partition.k, context.shared_memory.num_threads)  { }
 
 };
 

@@ -122,7 +122,9 @@ po::options_description createGenericOptionsDescription(Context& context,
     "Time limit in seconds")
     ("sp-process,s", po::value<bool>(&context.partition.sp_process_output)->value_name("<bool>"),
     "Summarize partitioning results in RESULT line compatible with sqlplottools "
-    "(https://github.com/bingmann/sqlplottools)");
+    "(https://github.com/bingmann/sqlplottools)")
+    ("csv", po::value<bool>(&context.partition.csv_output)->value_name("<bool>"),
+    "Summarize results in CSV");
   return generic_options;
 }
 
@@ -292,26 +294,24 @@ po::options_description createRefinementOptionsDescription(Context& context,
       &context.refinement.fm.perform_moves_global))->value_name("<bool>"),
     "If true, than all moves performed during FM are immediatly visible to other local search.\n"
     "Otherwise, only move sequences that yield an improvement are applied to the global hypergraph. Default false")
-    (( initial_partitioning ? "i-r-fm-init-neighbors" : "r-fm-init-neighbors"),
-    po::value<bool>((initial_partitioning ? &context.initial_partitioning.refinement.fm.init_localized_search_with_neighbors :
-      &context.refinement.fm.init_localized_search_with_neighbors))->value_name("<bool>"),
-    "Add neighbors of boundary node to localized FM search before performing a move. Default false")
-    (( initial_partitioning ? "i-r-fm-all-nodes" : "r-fm-all-nodes"),
-    po::value<bool>((initial_partitioning ? &context.initial_partitioning.refinement.fm.init_boundary_fm_with_all_nodes :
-      &context.refinement.fm.init_boundary_fm_with_all_nodes))->value_name("<bool>"),
-    "Add all nodes into Boundary FM. Default false")
-    (( initial_partitioning ? "i-r-fm-seed-node-fraction" : "r-fm-seed-node-fraction"),
-    po::value<double>((initial_partitioning ? &context.initial_partitioning.refinement.fm.seed_node_fraction :
-      &context.refinement.fm.seed_node_fraction))->value_name("<double>"),
-    "Number of nodes to initially place into the PQ of a localized search is set to max(50, seed_node_fraction * num_nodes / num_threads). Default 0.005")
     (( initial_partitioning ? "i-r-fm-seed-nodes" : "r-fm-seed-nodes"),
     po::value<size_t>((initial_partitioning ? &context.initial_partitioning.refinement.fm.num_seed_nodes :
       &context.refinement.fm.num_seed_nodes))->value_name("<size_t>"),
-    "Number of nodes to initially place into the PQ of a localized search. Activate this option via --r-fm-use-seed-fraction false")
-    (( initial_partitioning ? "i-r-fm-use-seed-fraction" : "r-fm-use-seed-fraction"),
-    po::value<bool>((initial_partitioning ? &context.initial_partitioning.refinement.fm.use_seed_node_fraction :
-      &context.refinement.fm.use_seed_node_fraction))->value_name("<bool>"),
-     "If set to true, set number of seed nodes in the PQs as described for --r-fm-seed-node-fraction. If set to false, use --r-fm--seed-nodes");
+    "Use a fraction of the number of nodes as the number of seed nodes instead of a constant number. Default false")
+     (( initial_partitioning ? "i-r-fm-revert-parallel" : "r-fm-revert-parallel"),
+     po::value<bool>((initial_partitioning ? &context.initial_partitioning.refinement.fm.revert_parallel :
+     &context.refinement.fm.revert_parallel))->value_name("<bool>"),
+     "Perform gain and balance recalculation, and reverting to best prefix in parallel. Default true")
+     (( initial_partitioning ? "i-r-fm-rollback-balance-violation-factor" : "r-fm-rollback-balance-violation-factor"),
+     po::value<double>((initial_partitioning ? &context.initial_partitioning.refinement.fm.rollback_balance_violation_factor :
+     &context.refinement.fm.rollback_balance_violation_factor))->value_name("<double>"),
+     "Used to relax or disable the balance constraint during the rollback phase of parallel FM."
+     "Set to 0 for disabling. Set to a value > 1.0 to multiply the max part weight with this value."
+     "Default 1.0 (enabled, no relaxation)")
+     (( initial_partitioning ? "i-r-fm-allow-zero-gain-moves" : "r-fm-allow-zero-gain-moves"),
+     po::value<bool>((initial_partitioning ? &context.initial_partitioning.refinement.fm.allow_zero_gain_moves :
+     &context.refinement.fm.allow_zero_gain_moves))->value_name("<bool>"),
+     "If true, than zero gain improvements are used in FM to pertubate solution. Default true");
   return options;
 }
 
@@ -423,10 +423,9 @@ void processCommandLineInput(Context& context, int argc, char* argv[]) {
     po::value<double>(&context.partition.epsilon)->value_name("<double>")->required(),
     "Imbalance parameter epsilon");
 
-  std::string context_path;
   po::options_description preset_options("Preset Options", num_columns);
   preset_options.add_options()
-    ("preset,p", po::value<std::string>(&context_path)->value_name("<string>"),
+    ("preset,p", po::value<std::string>(&context.partition.preset_file)->value_name("<string>"),
     "Context Presets (see config directory):\n"
     " - <path-to-custom-ini-file>");
 
@@ -470,9 +469,9 @@ void processCommandLineInput(Context& context, int argc, char* argv[]) {
 
   po::notify(cmd_vm);
 
-  std::ifstream file(context_path.c_str());
+  std::ifstream file(context.partition.preset_file.c_str());
   if (!file) {
-    ERROR("Could not load context file at: " + context_path);
+    ERROR("Could not load context file at: " + context.partition.preset_file);
   }
 
   po::options_description ini_line_options;

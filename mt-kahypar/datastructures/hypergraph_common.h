@@ -81,17 +81,21 @@ struct Move {
 using MoveID = uint32_t;
 using SearchID = uint32_t;
 
+struct NoOpDeltaFunc {
+  void operator() (const HyperedgeID, const HyperedgeWeight, const HypernodeID, const HypernodeID, const HypernodeID) { }
+};
+
 
 /*!
   * This struct is used during multilevel coarsening to efficiently
   * detect parallel hyperedges.
   */
-  struct HyperedgeHash {
-    HyperedgeID he = kInvalidHyperedge;
-    size_t hash = kEdgeHashSeed;
-    size_t size = std::numeric_limits<size_t>::max();
-    bool valid = false;
-  };
+struct ContractedHyperedgeInformation {
+  HyperedgeID he = kInvalidHyperedge;
+  size_t hash = kEdgeHashSeed;
+  size_t size = std::numeric_limits<size_t>::max();
+  bool valid = false;
+};
 
 // ! Helper function to compute delta for cut-metric after changeNodePart
 static HyperedgeWeight cutDelta(const HyperedgeID,

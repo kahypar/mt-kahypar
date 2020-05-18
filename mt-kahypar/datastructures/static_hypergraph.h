@@ -423,12 +423,14 @@ class StaticHypergraph {
     _num_removed_hyperedges(0),
     _max_edge_size(0),
     _num_pins(0),
+    _num_graph_edges(0),
     _total_degree(0),
     _total_weight(0),
     _hypernodes(),
     _incident_nets(),
     _hyperedges(),
     _incidence_array(),
+    _num_graph_edges_up_to(),
     _community_support(),
     _tmp_contraction_buffer(nullptr) { }
 
@@ -442,12 +444,14 @@ class StaticHypergraph {
     _num_removed_hyperedges(other._num_removed_hyperedges),
     _max_edge_size(other._max_edge_size),
     _num_pins(other._num_pins),
+    _num_graph_edges(other._num_graph_edges),
     _total_degree(other._total_degree),
     _total_weight(other._total_weight),
     _hypernodes(std::move(other._hypernodes)),
     _incident_nets(std::move(other._incident_nets)),
     _hyperedges(std::move(other._hyperedges)),
     _incidence_array(std::move(other._incidence_array)),
+    _num_graph_edges_up_to(std::move(other._num_graph_edges_up_to)),
     _community_support(std::move(other._community_support)),
     _tmp_contraction_buffer(std::move(other._tmp_contraction_buffer)) {
     other._tmp_contraction_buffer = nullptr;
@@ -460,12 +464,14 @@ class StaticHypergraph {
     _num_removed_hyperedges = other._num_removed_hyperedges;
     _max_edge_size = other._max_edge_size;
     _num_pins = other._num_pins;
+    _num_graph_edges = other._num_graph_edges;
     _total_degree = other._total_degree;
     _total_weight = other._total_weight;
     _hypernodes = std::move(other._hypernodes);
     _incident_nets = std::move(other._incident_nets);
     _hyperedges = std::move(other._hyperedges);
     _incidence_array = std::move(other._incidence_array);
+    _num_graph_edges_up_to = std::move(other._num_graph_edges_up_to),
     _community_support = std::move(other._community_support);
     _tmp_contraction_buffer = std::move(other._tmp_contraction_buffer);
     other._tmp_contraction_buffer = nullptr;
@@ -491,6 +497,14 @@ class StaticHypergraph {
   // ! Initial number of hyperedges
   HyperedgeID initialNumEdges() const {
     return _num_hyperedges;
+  }
+
+  HyperedgeID numGraphEdges() const {
+    return _num_graph_edges;
+  }
+
+  HyperedgeID numNonGraphEdges() const {
+    return initialNumEdges() - _num_graph_edges;
   }
 
   // ! Number of removed hyperedges
@@ -733,6 +747,26 @@ class StaticHypergraph {
     hyperedge(e).disable();
   }
 
+  HyperedgeID graphEdgeID(const HyperedgeID e) const {
+    ASSERT(edgeSize(e) == 2);
+    ASSERT(e < _num_hyperedges);
+    return _num_graph_edges_up_to[e];
+  }
+
+  HyperedgeID nonGraphEdgeID(const HyperedgeID e) const {
+    ASSERT(edgeSize(e) > 2);
+    ASSERT(e < _num_hyperedges);
+    return e - _num_graph_edges_up_to[e];
+  }
+
+  HypernodeID graphEdgeHead(const HyperedgeID e, const HypernodeID tail) const {
+    ASSERT(edgeSize(e) == 2);
+    const size_t f = hyperedge(e).firstEntry();
+    const size_t first_matches = static_cast<size_t>(_incidence_array[f] == tail);
+    return _incidence_array[f + first_matches];
+  }
+
+
   // ####################### Community Hyperedge Information #######################
 
   // ! Weight of a community hyperedge
@@ -907,7 +941,7 @@ class StaticHypergraph {
     // that parallel and single-pin hyperedges are not removed from the incident nets (will be done
     // in a postprocessing step).
     utils::Timer::instance().start_timer("contract_incidence_structure", "Contract Incidence Structures");
-    ConcurrentBucketMap<HyperedgeHash> hyperedge_hash_map;
+    ConcurrentBucketMap<ContractedHyperedgeInformation> hyperedge_hash_map;
     hyperedge_hash_map.reserve_for_estimated_number_of_insertions(_num_hyperedges);
     tbb::parallel_invoke([&] {
       // Contract Hyperedges
@@ -950,7 +984,8 @@ class StaticHypergraph {
             for ( size_t pos = incidence_array_start; pos < incidence_array_start + contracted_size; ++pos ) {
               footprint += kahypar::math::hash(tmp_incidence_array[pos]);
             }
-            hyperedge_hash_map.insert(footprint, HyperedgeHash{ he, footprint, contracted_size, true });
+            hyperedge_hash_map.insert(footprint,
+              ContractedHyperedgeInformation{ he, footprint, contracted_size, true });
           } else {
             // Hyperedge becomes a single-pin hyperedge
             valid_hyperedges[he] = 0;
@@ -1094,18 +1129,18 @@ class StaticHypergraph {
     tbb::parallel_for(0UL, hyperedge_hash_map.numBuckets(), [&](const size_t bucket) {
       auto& hyperedge_bucket = hyperedge_hash_map.getBucket(bucket);
       std::sort(hyperedge_bucket.begin(), hyperedge_bucket.end(),
-        [&](const HyperedgeHash& lhs, const HyperedgeHash& rhs) {
+        [&](const ContractedHyperedgeInformation& lhs, const ContractedHyperedgeInformation& rhs) {
           return lhs.hash < rhs.hash || (lhs.hash == rhs.hash && lhs.size < rhs.size);
         });
 
       // Parallel Hyperedge Detection
       for ( size_t i = 0; i < hyperedge_bucket.size(); ++i ) {
-        HyperedgeHash& contracted_he_lhs = hyperedge_bucket[i];
+        ContractedHyperedgeInformation& contracted_he_lhs = hyperedge_bucket[i];
         if ( contracted_he_lhs.valid ) {
           const HyperedgeID lhs_he = contracted_he_lhs.he;
           HyperedgeWeight lhs_weight = tmp_hyperedges[lhs_he].weight();
           for ( size_t j = i + 1; j < hyperedge_bucket.size(); ++j ) {
-            HyperedgeHash& contracted_he_rhs = hyperedge_bucket[j];
+            ContractedHyperedgeInformation& contracted_he_rhs = hyperedge_bucket[j];
             const HyperedgeID rhs_he = contracted_he_rhs.he;
             if ( contracted_he_rhs.valid &&
                  contracted_he_lhs.hash == contracted_he_rhs.hash &&
@@ -1250,7 +1285,6 @@ class StaticHypergraph {
     });
     utils::Timer::instance().stop_timer("contract_hypergraph");
 
-
     // Initialize Communities and Update Total Weight
     utils::Timer::instance().start_timer("setup_communities", "Setup Communities");
     tbb::parallel_invoke([&] {
@@ -1262,6 +1296,17 @@ class StaticHypergraph {
       }
     }, [&] {
       hypergraph.updateTotalWeight(task_group_id);
+    }, [&] {
+      // graph edge ID mapping
+      hypergraph._num_graph_edges_up_to.resize(num_hyperedges + 1);
+      tbb::parallel_for(0U, num_hyperedges, [&](const HyperedgeID e) {
+        hypergraph._num_graph_edges_up_to[e+1] = static_cast<HyperedgeID>(hypergraph.edgeSize(e) == 2);
+      }, tbb::static_partitioner());
+      hypergraph._num_graph_edges_up_to[0] = 0;
+
+      parallel::TBBPrefixSum<HyperedgeID, Array> scan_graph_edges(hypergraph._num_graph_edges_up_to);
+      tbb::parallel_scan(tbb::blocked_range<size_t>(0, num_hyperedges + 1), scan_graph_edges);
+      hypergraph._num_graph_edges = scan_graph_edges.total_sum();
     });
     utils::Timer::instance().stop_timer("setup_communities");
 
@@ -1336,6 +1381,7 @@ class StaticHypergraph {
     hypergraph._num_removed_hyperedges = _num_removed_hyperedges;
     hypergraph._max_edge_size = _max_edge_size;
     hypergraph._num_pins = _num_pins;
+    hypergraph._num_graph_edges = _num_graph_edges;
     hypergraph._total_degree = _total_degree;
     hypergraph._total_weight = _total_weight;
 
@@ -1356,6 +1402,10 @@ class StaticHypergraph {
       memcpy(hypergraph._incidence_array.data(), _incidence_array.data(),
         sizeof(HypernodeID) * _incidence_array.size());
     }, [&] {
+      hypergraph._num_graph_edges_up_to.resize(_num_graph_edges_up_to.size());
+      memcpy(hypergraph._num_graph_edges_up_to.data(), _num_graph_edges_up_to.data(),
+             sizeof(HyperedgeID) * _num_graph_edges_up_to.size());
+    }, [&] {
       hypergraph._community_support = _community_support.copy(task_group_id);
     });
     return hypergraph;
@@ -1371,6 +1421,7 @@ class StaticHypergraph {
     hypergraph._num_removed_hyperedges = _num_removed_hyperedges;
     hypergraph._max_edge_size = _max_edge_size;
     hypergraph._num_pins = _num_pins;
+    hypergraph._num_graph_edges = _num_graph_edges;
     hypergraph._total_degree = _total_degree;
     hypergraph._total_weight = _total_weight;
 
@@ -1387,6 +1438,9 @@ class StaticHypergraph {
     hypergraph._incidence_array.resize(_incidence_array.size());
     memcpy(hypergraph._incidence_array.data(), _incidence_array.data(),
       sizeof(HypernodeID) * _incidence_array.size());
+    hypergraph._num_graph_edges_up_to.resize(_num_graph_edges_up_to.size());
+    memcpy(hypergraph._num_graph_edges_up_to.data(), _num_graph_edges_up_to.data(),
+           sizeof(HyperedgeID) * _num_graph_edges_up_to.size());
 
     hypergraph._community_support = _community_support.copy();
 
@@ -1420,6 +1474,7 @@ class StaticHypergraph {
     parent->addChild("Incident Nets", sizeof(HyperedgeID) * _incident_nets.size());
     parent->addChild("Hyperedges", sizeof(Hyperedge) * _hyperedges.size());
     parent->addChild("Incidence Array", sizeof(HypernodeID) * _incidence_array.size());
+    parent->addChild("Graph Edge ID Mapping", sizeof(HyperedgeID) * _num_graph_edges_up_to.size());
 
     utils::MemoryTreeNode* community_support_node = parent->addChild("Community Support");
     _community_support.memoryConsumption(community_support_node);
@@ -1518,6 +1573,8 @@ class StaticHypergraph {
   HypernodeID _max_edge_size;
   // ! Number of pins
   HypernodeID _num_pins;
+  // ! Number of graph edges (hyperedges of size two)
+  HyperedgeID _num_graph_edges;
   // ! Total degree of all vertices
   HypernodeID _total_degree;
   // ! Total weight of hypergraph
@@ -1531,6 +1588,9 @@ class StaticHypergraph {
   Array<Hyperedge> _hyperedges;
   // ! Incident nets of hypernodes
   IncidenceArray _incidence_array;
+
+  // ! Number of graph edges with smaller ID than the access ID
+  Array<HyperedgeID> _num_graph_edges_up_to;
 
   // ! Community Information and Stats
   CommunitySupport<StaticHypergraph> _community_support;

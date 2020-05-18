@@ -20,6 +20,8 @@
 
 #pragma once
 
+#include <queue>
+
 #include "tbb/enumerable_thread_specific.h"
 #include "tbb/parallel_for.h"
 
@@ -40,6 +42,25 @@ class Rebalancer {
   static constexpr bool debug = false;
   static constexpr bool enable_heavy_assert = false;
 
+  static constexpr Gain MIN_PQ_GAIN_THRESHOLD = 5;
+
+  struct MoveGainComparator {
+    bool operator()(const Move& lhs, const Move& rhs) {
+      return lhs.gain > rhs.gain || (lhs.gain == rhs.gain && lhs.node < rhs.node);
+    }
+  };
+
+  using MovePQ = std::priority_queue<Move, std::vector<Move>, MoveGainComparator>;
+
+  struct IndexedMovePQ {
+    explicit IndexedMovePQ(const size_t idx) :
+      idx(idx),
+      pq() { }
+
+    size_t idx;
+    MovePQ pq;
+  };
+
  public:
   explicit Rebalancer(PartitionedHypergraph& hypergraph,
                        const Context& context,
@@ -58,7 +79,7 @@ class Rebalancer {
 
   void rebalance(kahypar::Metrics& best_metrics) {
     // If partition is imbalanced, rebalancer is activated
-    if ( metrics::imbalance(_hg, _context) > _context.partition.epsilon ) {
+    if ( !metrics::isBalanced(_hg, _context) ) {
       _gain.reset();
       for ( PartitionID block = 0; block < _context.partition.k; ++block ) {
         _part_weights[block] = _hg.partWeight(block);
@@ -77,12 +98,20 @@ class Rebalancer {
                             };
 
       // We first try to perform moves that does not worsen solution quality of the partition
+      // Moves that would worsen the solution quality are gathered in a thread local priority queue
+      // and processed afterwards if partition is still imbalanced
+      std::atomic<size_t> idx(0);
+      tbb::enumerable_thread_specific<IndexedMovePQ> move_pqs([&] {
+        return IndexedMovePQ(idx++);
+      });
       _hg.doParallelForAllNodes([&](const HypernodeID& hn) {
         const PartitionID from = _hg.partID(hn);
         if ( _hg.isBorderNode(hn) && _hg.partWeight(from) > _context.partition.max_part_weights[from] ) {
           Move rebalance_move = _gain.computeMaxGainMove(_hg, hn, true /* rebalance move */);
           if ( rebalance_move.gain <= 0 ) {
             moveVertex(hn, rebalance_move, objective_delta);
+          } else if ( rebalance_move.gain != std::numeric_limits<Gain>::max() ) {
+            move_pqs.local().pq.emplace(std::move(rebalance_move));
           }
         }
       });
@@ -96,14 +125,65 @@ class Rebalancer {
         return true;
       }(), "Rebalancer part weights are wrong");
 
-      // If partition is still imbalanced, we just move the first vertices we find
-      // from an overloaded block to an other block that maximizes the objective function.
-      if ( metrics::imbalance(_hg, _context) > _context.partition.epsilon ) {
-        _hg.doParallelForAllNodes([&](const HypernodeID& hn) {
-          const PartitionID from = _hg.partID(hn);
-          if ( _hg.partWeight(from) > _context.partition.max_part_weights[from] ) {
-            moveVertex(hn, _gain.computeMaxGainMove(_hg, hn, true /* rebalance move */), objective_delta);
+      // If partition is still imbalanced, we try execute moves stored into
+      // the thread local priority queue which could possibly worsen solution quality
+      if ( !metrics::isBalanced(_hg, _context) ) {
+
+        // Initialize minimum gain value of each priority queue
+        parallel::scalable_vector<uint8_t> active_pqs(idx.load(), false);
+        parallel::scalable_vector<Gain> min_pq_gain(idx.load(),
+          std::numeric_limits<Gain>::max() - MIN_PQ_GAIN_THRESHOLD);
+        for ( const IndexedMovePQ& idx_pq : move_pqs ) {
+          if ( !idx_pq.pq.empty() ) {
+            min_pq_gain[idx_pq.idx] = idx_pq.pq.top().gain;
           }
+        }
+
+        // Function returns minimum gain value of all priority queues
+        auto global_pq_min_gain = [&](const bool only_active_pqs) {
+          Gain min_gain = std::numeric_limits<Gain>::max() - MIN_PQ_GAIN_THRESHOLD;
+          for ( size_t i = 0; i < min_pq_gain.size(); ++i ) {
+            if ( (!only_active_pqs || active_pqs[i]) && min_pq_gain[i] < min_gain ) {
+              min_gain = min_pq_gain[i];
+            }
+          }
+          return min_gain;
+        };
+
+        // We process each priority queue in parallel. When we perform
+        // a move we make sure that the current minimum gain value of the local
+        // PQ is within a certain threshold of the global minimum gain value.
+        // Otherwise, we perform busy waiting until all moves with a better gain
+        // are processed.
+        tbb::parallel_for_each(move_pqs, [&](IndexedMovePQ& idx_pq) {
+          const size_t idx = idx_pq.idx;
+          MovePQ& pq = idx_pq.pq;
+          active_pqs[idx] = true;
+          Gain current_global_min_pq_gain = global_pq_min_gain(false);
+          while ( !pq.empty() ) {
+            Move move = pq.top();
+            min_pq_gain[idx] = move.gain;
+            pq.pop();
+
+            // If the minimum gain value of the local priority queue is not within
+            // a certain threshold of the global priority queue, we perform busy waiting
+            // until all moves with a better gain of other pqs are performed.
+            while ( move.gain > current_global_min_pq_gain + MIN_PQ_GAIN_THRESHOLD ) {
+              current_global_min_pq_gain = global_pq_min_gain(true);
+            }
+
+            const PartitionID from = move.from;
+            if ( _hg.partWeight(from) > _context.partition.max_part_weights[from] ) {
+              Move real_move = _gain.computeMaxGainMove(_hg, move.node, true /* rebalance move */);
+              if ( real_move.gain <= move.gain ) {
+                moveVertex(real_move.node, real_move, objective_delta);
+              } else if ( real_move.gain != std::numeric_limits<Gain>::max() ) {
+                pq.emplace(std::move(real_move));
+              }
+            }
+          }
+          active_pqs[idx] = false;
+          min_pq_gain[idx] = std::numeric_limits<Gain>::max() - MIN_PQ_GAIN_THRESHOLD;
         });
       }
 

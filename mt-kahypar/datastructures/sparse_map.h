@@ -119,10 +119,6 @@ class SparseMapBase {
   }
 
   void freeInternalData() {
-    if ( _data ) {
-      size_t* data = _data.release();
-      scalable_free(data);
-    }
     _size = 0;
     _data = nullptr;
     _sparse = nullptr;
@@ -635,6 +631,10 @@ class DynamicSparseMap {
   SparseElement* _sparse;
   MapElement* _dense;
 };
+
+struct EmptyStruct { };
+
+template<typename Key> using DynamicSparseSet = DynamicSparseMap<Key, EmptyStruct>;
 
 } // namespace ds
 } // namespace mt_kahypar

@@ -163,12 +163,28 @@ class TBBNumaArena {
       const int n_tasks = this_arena.max_concurrency();
       this_arena.execute([&, socket] {
         tbb::task_group& tg = numa_task_group(task_group_id, socket);
-        for (int task_id = 0 ; task_id < n_tasks; ++task_id, ++overall_task_id) {
+        for (int task_id = 0; task_id < n_tasks; ++task_id, ++overall_task_id) {
           tg.run( std::bind(f, socket, overall_task_id, task_id) );
         }
       });
     }
     wait(task_group_id);
+  }
+
+  template<typename index, typename Functor>
+  void parallel_for_with_task_id(const TaskGroupID task_group_id, const index first, const index last,
+                                 Functor&& f, const index grain_size = 1) {
+    std::atomic<index> a_first(first);
+    execute_task_on_each_thread(task_group_id, [&](const int, const int task_id, const int) {
+      index t_first = a_first.fetch_add(grain_size, std::memory_order_acq_rel);
+      while (t_first < last) {
+        index t_last = std::min(last, t_first + grain_size);
+        for (index i = first; i < t_last; ++i) {
+          f(i, task_id);
+        }
+        t_first = a_first.fetch_add(grain_size, std::memory_order_acq_rel);
+      }
+    });
   }
 
   void wait(const TaskGroupID task_group_id) {

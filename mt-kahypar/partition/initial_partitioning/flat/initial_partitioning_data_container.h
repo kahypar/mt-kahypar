@@ -177,17 +177,16 @@ class InitialPartitioningDataContainer {
           metrics::objective(_partitioned_hypergraph, _context.partition.objective));
 
         _partitioned_hypergraph.initializeGainInformation();
-        FMSharedData sharedData(_partitioned_hypergraph.initialNumNodes(), _context);
+        FMSharedData sharedData(_partitioned_hypergraph.initialNumNodes(), _context.partition.k, 1);
         LocalizedKWayFM fm(_context, _partitioned_hypergraph.initialNumNodes(), sharedData.vertexPQHandles.data());
 
-        vec<HypernodeID> initialNodes;
         for (HypernodeID u : _partitioned_hypergraph.nodes()) {
           if (_partitioned_hypergraph.isBorderNode(u)) {
-            initialNodes.push_back(u);
+            sharedData.refinementNodes.safe_push(u, 0);
           }
         }
 
-        fm.findMoves(_partitioned_hypergraph, sharedData, initialNodes);
+        fm.findMovesUsingFullBoundary(_partitioned_hypergraph, sharedData);
 
         ASSERT(_context.partition.k == 2);
         // since the FM call is single-threaded the improvements are exact

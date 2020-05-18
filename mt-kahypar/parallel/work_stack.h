@@ -20,69 +20,124 @@
 
 #pragma once
 
+#include <tbb/concurrent_queue.h>
 #include "../definitions.h"
 
 namespace mt_kahypar {
 
-
 template<typename T>
-class WorkStack {
-public:
+struct ThreadQueue {
+  vec<T> elements;
+  CAtomic<size_t> front;
 
-  WorkStack(size_t maxNumElements) :
-          size(0),
-          elements(maxNumElements, T())
-  {
-
+  ThreadQueue() {
+    elements.reserve(1 << 13);
+    front.store(0);
   }
 
-  void push_back(const T& el) {
-    const size_t old_size = size.fetch_add(1, std::memory_order_acq_rel);
-    assert(old_size < elements.size());
-    elements[old_size] = el;
+  void clear() {
+    elements.clear();
+    front.store(0);
   }
 
   bool try_pop(T& dest) {
-    const size_t old_size = size.fetch_sub(1, std::memory_order_acq_rel);
-    if (old_size > 0 && old_size < capacity()) {
-      dest = elements[old_size - 1];
+    size_t slot = front.fetch_add(1, std::memory_order_acq_rel);
+    if (slot < elements.size()) {
+      dest = elements[slot];
       return true;
     }
     return false;
   }
+};
 
-  bool empty() const {
-    const size_t s = unsafe_size();
-    return s == 0 || s >= capacity();
+template<typename T>
+struct WorkContainer {
+
+  using TimestampT = uint32_t;
+
+  WorkContainer(size_t maxNumElements = 0, size_t maxNumThreads = 0) :
+          timestamps(maxNumElements, 0),
+          tls_queues(maxNumThreads)
+  {
+
   }
 
   size_t unsafe_size() const {
-    return size.load(std::memory_order_acq_rel);
+    size_t sz = 0;
+    for (const ThreadQueue<T>& q : tls_queues) {
+      sz += q.elements.size() - q.front.load(std::memory_order_relaxed);
+    }
+    sz += conc_queue.unsafe_size();
+    return sz;
   }
 
-  size_t capacity() const {
-    return elements.size();
+  void concurrent_push(const T el) {
+    conc_queue.push(el);
+    ASSERT(el < timestamps.size());
+    timestamps[el] = current;
   }
 
-  vec<T>& get_underlying_container() {
-    return elements;
+  // assumes that no thread is currently calling try_pop
+  void safe_push(const T el, size_t thread_id) {
+    ASSERT(thread_id < tls_queues.size());
+    tls_queues[thread_id].elements.push_back(el);
+    ASSERT(tls_queues[thread_id].front.load() == 0);
+    ASSERT(el < timestamps.size());
+    timestamps[el] = current;
   }
 
-  void clear() {
-    size.store(0);
+  bool try_pop(T& dest, size_t thread_id) {
+    ASSERT(thread_id < tls_queues.size());
+    return tls_queues[thread_id].try_pop(dest) || conc_queue.try_pop(dest) || steal_work(dest);
   }
 
-  void shrink_to_fit() {
-    elements.resize(size);
-    elements.shrink_to_fit();
+  bool steal_work(T& dest) {
+    for (ThreadQueue<T>& q : tls_queues) {
+      if (q.try_pop(dest)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  bool was_pushed_and_removed(const T el) const {
+    ASSERT(el < timestamps.size());
+    return timestamps[el] == current+1;
   }
 
   void shuffle() {
-    utils::Randomize::instance().parallelShuffleVector(elements, 0, unsafe_size());
+    tbb::parallel_for_each(tls_queues, [&](ThreadQueue<T>& q) {
+      utils::Randomize::instance().shuffleVector(q.elements);
+    });
   }
 
-  CAtomic<size_t> size;
-  vec<T> elements;
+  void clear() {
+    if (current >= std::numeric_limits<TimestampT>::max() - 2) {
+      tbb::parallel_for_each(timestamps, [](TimestampT& x) { x = 0; });
+      current = 0;
+    }
+    for (ThreadQueue<T>& q : tls_queues) {
+      q.clear();
+    }
+    conc_queue.clear();
+    current += 2;
+  }
+
+  TimestampT current = 2;
+  vec<TimestampT> timestamps;
+  vec<ThreadQueue<T>> tls_queues;
+  tbb::concurrent_queue<T> conc_queue;
+
+  using SubRange = IteratorRange< typename vec<T>::const_iterator >;
+  using Range = ConcatenatedRange<SubRange>;
+
+  Range safely_inserted_range() const {
+    Range r;
+    for (const ThreadQueue<T>& q : tls_queues) {
+      r.concat( SubRange(q.elements.cbegin(), q.elements.cend()) );
+    }
+    return r;
+  }
 };
 
 

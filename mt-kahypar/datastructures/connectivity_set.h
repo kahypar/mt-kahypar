@@ -54,8 +54,6 @@ class ConnectivitySets {
 public:
 
   static constexpr bool debug = false;
-  using PartitionID = uint32_t;
-  using HyperedgeID = uint64_t;	// TODO how to keep synced with definitions.h, other than templates?
   using UnsafeBlock = uint64_t;
 
   ConnectivitySets() :
