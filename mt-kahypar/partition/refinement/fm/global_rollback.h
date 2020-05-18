@@ -48,22 +48,25 @@ struct BalanceAndBestIndexScan {
   Gain gain_sum = 0;
 
   vec<HypernodeWeight> part_weights;
-  HypernodeWeight max_part_weight;
+  const std::vector<HypernodeWeight>& max_part_weights;
 
   BalanceAndBestIndexScan(BalanceAndBestIndexScan& b, tbb::split) :
           phg(b.phg),
           moves(b.moves),
           local_best(b.local_best),
           part_weights(b.part_weights.size(), 0),
-          max_part_weight(b.max_part_weight) { }
+          max_part_weights(b.max_part_weights) { }
+
 
   BalanceAndBestIndexScan(const PartitionedHypergraph& phg, const vec<Move>& moves,
-                          vec<HypernodeWeight>& part_weights, HypernodeWeight max_part_weight) :
+                          vec<HypernodeWeight>& part_weights, const std::vector<HypernodeWeight>& max_part_weights) :
           phg(phg),
           moves(moves),
           local_best(std::make_shared< tbb::enumerable_thread_specific<GainIndex> >()),
           part_weights(part_weights),
-          max_part_weight(max_part_weight) { }
+          max_part_weights(max_part_weights)
+  {
+  }
 
 
   void operator()(const tbb::blocked_range<MoveID>& r, tbb::pre_scan_tag ) {
@@ -89,7 +92,7 @@ struct BalanceAndBestIndexScan {
   void operator()(const tbb::blocked_range<MoveID>& r, tbb::final_scan_tag ) {
     size_t overloaded = 0;
     for (size_t i = 0; i < part_weights.size(); ++i) {
-      if (part_weights[i] > max_part_weight) {
+      if (part_weights[i] > max_part_weights[i]) {
         overloaded++;
       }
     }
@@ -100,20 +103,20 @@ struct BalanceAndBestIndexScan {
       const Move& m = moves[i];
 
       if (m.gain != invalidGain) {  // skip locally reverted moves
-        const bool from_overloaded = part_weights[m.from] > max_part_weight;
+        const bool from_overloaded = part_weights[m.from] > max_part_weights[m.from];
         part_weights[m.from] -= phg.nodeWeight(m.node);
-        if (from_overloaded && part_weights[m.from] <= max_part_weight) {
+        if (from_overloaded && part_weights[m.from] <= max_part_weights[m.from]) {
           overloaded--;
         }
 
-        const bool to_overloaded = part_weights[m.to] > max_part_weight;
+        const bool to_overloaded = part_weights[m.to] > max_part_weights[m.to];
         part_weights[m.to] += phg.nodeWeight(m.node);
-        if (!to_overloaded && part_weights[m.to] > max_part_weight) {
+        if (!to_overloaded && part_weights[m.to] > max_part_weights[m.to]) {
           overloaded++;
         }
 
         gain_sum += m.gain;
-        if (overloaded == 0 /* in balance */ && gain_sum > best_gain_sum /* better solution */) {
+        if (overloaded == 0 && gain_sum > best_gain_sum) {
           best_gain_sum = gain_sum;
           best_index = i + 1;
         }
@@ -175,26 +178,30 @@ public:
 
   HyperedgeWeight revertToBestPrefix(PartitionedHypergraph& phg,
                                      FMSharedData& sharedData,
-                                     vec<HypernodeWeight>& partWeights,
-                                     HypernodeWeight maxPartWeight) {
+                                     vec<HypernodeWeight>& partWeights) {
 
+    std::vector<HypernodeWeight> maxPartWeights = context.partition.max_part_weights;
     if (maxPartWeightScaling == 0.0) {
-      maxPartWeight = std::numeric_limits<HypernodeWeight>::max();
+      for (PartitionID i = 0; i < numParts; ++i) {
+        maxPartWeights[i] = std::numeric_limits<HypernodeWeight>::max();
+      }
     } else if (maxPartWeightScaling > 1.00001) {
-      maxPartWeight *= maxPartWeightScaling;
+      for (PartitionID i = 0; i < numParts; ++i) {
+        maxPartWeights[i] *= maxPartWeightScaling;
+      }
     }
 
     if (context.refinement.fm.revert_parallel) {
-      return revertToBestPrefixParallel(phg, sharedData, partWeights, maxPartWeight);
+      return revertToBestPrefixParallel(phg, sharedData, partWeights, maxPartWeights);
     } else {
-      return revertToBestPrefixSequential(phg, sharedData, partWeights, maxPartWeight);
+      return revertToBestPrefixSequential(phg, sharedData, partWeights, maxPartWeights);
     }
   }
 
   HyperedgeWeight revertToBestPrefixSequential(PartitionedHypergraph& phg,
                                                FMSharedData& sharedData,
-                                               vec<HypernodeWeight>& ,
-                                               HypernodeWeight maxPartWeight) {
+                                               vec<HypernodeWeight>&,
+                                               const std::vector<HypernodeWeight>& maxPartWeights) {
 
 
     GlobalMoveTracker& tracker = sharedData.moveTracker;
@@ -214,7 +221,7 @@ public:
 
     size_t overloaded = 0;
     for (PartitionID i = 0; i < numParts; ++i) {
-      if (phg.partWeight(i) > maxPartWeight) {
+      if (phg.partWeight(i) > maxPartWeights[i]) {
         overloaded++;
       }
     }
@@ -237,13 +244,13 @@ public:
       }
       gain_sum += gain;
 
-      const bool from_overloaded = phg.partWeight(m.from) > maxPartWeight;
-      const bool to_overloaded = phg.partWeight(m.to) > maxPartWeight;
+      const bool from_overloaded = phg.partWeight(m.from) > maxPartWeights[m.from];
+      const bool to_overloaded = phg.partWeight(m.to) > maxPartWeights[m.to];
       phg.changeNodePartFullUpdate(m.node, m.from, m.to);
-      if (from_overloaded && phg.partWeight(m.from) <= maxPartWeight) {
+      if (from_overloaded && phg.partWeight(m.from) <= maxPartWeights[m.from]) {
         overloaded--;
       }
-      if (!to_overloaded && phg.partWeight(m.to) > maxPartWeight) {
+      if (!to_overloaded && phg.partWeight(m.to) > maxPartWeights[m.to]) {
         overloaded++;
       }
 
@@ -276,7 +283,7 @@ public:
   HyperedgeWeight revertToBestPrefixParallel(PartitionedHypergraph& phg,
                                              FMSharedData& sharedData,
                                              vec<HypernodeWeight>& partWeights,
-                                             HypernodeWeight maxPartWeight) {
+                                             const std::vector<HypernodeWeight>& maxPartWeights) {
     const MoveID numMoves = sharedData.moveTracker.numPerformedMoves();
     if (numMoves == 0) return 0;
 
@@ -288,7 +295,7 @@ public:
     timer.stop_timer("recalculate_gains");
 
     timer.start_timer("find_best_prefix_and_balance", "Find Best Balanced Prefix");
-    BalanceAndBestIndexScan s(phg, move_order, partWeights, maxPartWeight);
+    BalanceAndBestIndexScan s(phg, move_order, partWeights, maxPartWeights);
     tbb::parallel_scan(tbb::blocked_range<MoveID>(0, numMoves, 2500), s);
     BalanceAndBestIndexScan::GainIndex b = s.finalize();
     timer.stop_timer("find_best_prefix_and_balance");
