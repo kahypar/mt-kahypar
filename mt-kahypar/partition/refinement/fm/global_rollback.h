@@ -303,7 +303,7 @@ public:
           phg.changeNodePartFullUpdate(m.node, m.to, m.from);
           for (HyperedgeID e : phg.incidentEdges(m.node)) {
             if (phg.edgeSize(e) > 2) {
-              remaining_original_pins[phg.nonGraphEdgeID(e) * numParts + m.from].fetch_add(1, std::memory_order_relaxed);
+              remaining_original_pins[size_t(phg.nonGraphEdgeID(e)) * numParts + m.from].fetch_add(1, std::memory_order_relaxed);
             }
           }
         }
@@ -315,7 +315,7 @@ public:
         if (sharedData.moveTracker.isMoveStillValid(m)) {
           for (HyperedgeID e : phg.incidentEdges(move_order[moveID].node)) {
             if (phg.edgeSize(e) > 2) {
-              remaining_original_pins[phg.nonGraphEdgeID(e) * numParts + m.to].fetch_add(1, std::memory_order_relaxed);
+              remaining_original_pins[size_t(phg.nonGraphEdgeID(e)) * numParts + m.to].fetch_add(1, std::memory_order_relaxed);
             }
           }
         }
@@ -373,18 +373,18 @@ public:
       for (HyperedgeID e_global : phg.incidentEdges(m.node)) {
         if (phg.edgeSize(e_global) > 2) {
           const HyperedgeID e = phg.nonGraphEdgeID(e_global);
-          CAtomic<MoveID>& fmi = first_move_in[e * numParts + m.to];
+          CAtomic<MoveID>& fmi = first_move_in[size_t(e) * numParts + m.to];
           MoveID expected = fmi.load(std::memory_order_acq_rel);
           // first_move_in = min(first_move_in, this_move)
           while ((tracker.isMoveStale(expected) || expected > globalMoveID)
                  && !fmi.compare_exchange_weak(expected, globalMoveID, std::memory_order_acq_rel)) { }
 
-          CAtomic<MoveID>& lmo = last_move_out[e * numParts + m.from];
+          CAtomic<MoveID>& lmo = last_move_out[size_t(e) * numParts + m.from];
           expected = lmo.load(std::memory_order_acq_rel);
           // last_move_out = max(last_move_out, this_move)
           while (expected < globalMoveID && !lmo.compare_exchange_weak(expected, globalMoveID, std::memory_order_acq_rel)) { }
 
-          remaining_original_pins[e * numParts + m.from].fetch_sub(1, std::memory_order_relaxed);
+          remaining_original_pins[size_t(e) * numParts + m.from].fetch_sub(1, std::memory_order_relaxed);
         }
       }
     });
@@ -497,16 +497,15 @@ public:
   }
 
   MoveID lastMoveOut(HyperedgeID he, PartitionID block) const {
-    return last_move_out[he * numParts + block].load(std::memory_order_relaxed);
+    return last_move_out[size_t(he) * numParts + block].load(std::memory_order_relaxed);
   }
 
   MoveID firstMoveIn(HyperedgeID he, PartitionID block) const {
-    return first_move_in[he * numParts + block].load(std::memory_order_relaxed);
+    return first_move_in[size_t(he) * numParts + block].load(std::memory_order_relaxed);
   }
 
-
   HypernodeID remainingPinsFromBeginningOfMovePhase(HyperedgeID he, PartitionID block) const {
-    return remaining_original_pins[he * numParts + block].load(std::memory_order_relaxed);
+    return remaining_original_pins[size_t(he) * numParts + block].load(std::memory_order_relaxed);
   }
 
   void resetStoredMoveIDs() {
@@ -524,7 +523,8 @@ public:
         if (phg.edgeSize(he) > 2) {
           const HyperedgeID he_local = phg.nonGraphEdgeID(he);
           for ( PartitionID block = 0; block < numParts; ++block ) {
-            remaining_original_pins[he_local * numParts + block].store(phg.pinCountInPart(he, block), std::memory_order_relaxed);
+            remaining_original_pins[size_t(he_local) * numParts + block]
+                    .store(phg.pinCountInPart(he, block), std::memory_order_relaxed);
           }
         }
       });
