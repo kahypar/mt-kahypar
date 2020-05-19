@@ -273,9 +273,10 @@ class Rebalancer {
       }
 
       auto prefer_highest_gain = [&](const Move& lhs, const Move& rhs) {
-        return lhs.gain > rhs.gain || (lhs.gain == rhs.gain &&
-                                       _hg.partWeight(_hg.partID(lhs.node) > _hg.partWeight(_hg.partID(rhs.node))));
-
+        const HypernodeWeight pwl = _hg.partWeight(_hg.partID(lhs.node));
+        const HypernodeWeight pwr = _hg.partWeight(_hg.partID(rhs.node));
+        return std::tie(lhs.gain, pwl, lhs.node)
+               > std::tie(rhs.gain, pwr, rhs.node);
       };
 
       size_t i = is_empty.find_first();
