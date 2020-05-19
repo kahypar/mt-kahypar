@@ -298,6 +298,7 @@ private:
           sharedData.nodeTracker.releaseNode(node);
           if (!sharedData.fruitlessSeed[node] && sharedData.refinementNodes.was_pushed_and_removed(node)) {
             sharedData.refinementNodes.concurrent_push(node);
+            stats.task_queue_reinsertions++;
           }
         }
       }

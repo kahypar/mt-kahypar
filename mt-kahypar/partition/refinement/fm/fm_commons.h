@@ -200,6 +200,17 @@ struct FMSharedData {
     FMSharedData(numNodes, context.partition.k,
       TBBNumaArena::instance().total_number_of_threads())  { }
 
+  std::unordered_map<std::string, size_t> memory_consumption() const {
+    std::unordered_map<std::string, size_t> r;
+    r["pq handles"] = vertexPQHandles.capacity() * sizeof(PosT);
+    r["move tracker"] = moveTracker.moveOrder.capacity() * sizeof(Move)
+                        + moveTracker.moveOfNode.capacity() * sizeof(MoveID);
+    r["node tracker"] = nodeTracker.searchOfNode.capacity() * sizeof(SearchID);
+    r["fruitless seed"] = moveTracker.moveOrder.size() * sizeof(uint16_t);
+    r["task queue"] = refinementNodes.memory_consumption();
+    return r;
+  }
+
 };
 
 struct FMStats {
@@ -208,6 +219,7 @@ struct FMStats {
   size_t pushes = 0;
   size_t moves = 0;
   size_t local_reverts = 0;
+  size_t task_queue_reinsertions = 0;
   Gain estimated_improvement = 0;
 
 
@@ -217,6 +229,7 @@ struct FMStats {
     pushes = 0;
     moves = 0;
     local_reverts = 0;
+    task_queue_reinsertions = 0;
     estimated_improvement = 0;
   }
 
@@ -226,6 +239,7 @@ struct FMStats {
     other.pushes += pushes;
     other.moves += moves;
     other.local_reverts += local_reverts;
+    other.task_queue_reinsertions += task_queue_reinsertions;
     other.estimated_improvement += estimated_improvement;
     clear();
   }

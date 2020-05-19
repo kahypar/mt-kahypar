@@ -138,6 +138,14 @@ struct WorkContainer {
     }
     return r;
   }
+
+  size_t memory_consumption() const {
+    size_t m = timestamps.capacity() * sizeof(TimestampT);
+    for (const ThreadQueue<T>& q : tls_queues) {
+      m += q.elements.capacity() * sizeof(T);
+    }
+    return m;
+  }
 };
 
 

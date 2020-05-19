@@ -97,6 +97,7 @@ public:
       for (auto& fm : ets_fm) {
         fm.stats.merge(stats);
       }
+      peak_reinsertions = std::max(peak_reinsertions, stats.task_queue_reinsertions);
 
       timer.stop_timer("find_moves");
       timer.start_timer("rollback", "Rollback to Best Solution");
@@ -111,6 +112,10 @@ public:
       if (improvement <= 0) {
         break;
       }
+    }
+
+    if (context.partition.show_memory_consumption && context.type == kahypar::ContextType::main) {
+      printMemoryConsumption();
     }
 
     is_initialized = false;
@@ -165,6 +170,30 @@ public:
   FMSharedData sharedData;
   GlobalRollback globalRollback;
   tbb::enumerable_thread_specific<LocalizedKWayFM> ets_fm;
+  size_t peak_reinsertions = 0;
+
+public:
+  void printMemoryConsumption() {
+    std::unordered_map<std::string, size_t> r;
+    r["global rollback"] = globalRollback.memory_consumption();
+    for (const LocalizedKWayFM& fm : ets_fm) {
+      auto local_mem = fm.memory_consumption();
+      for (const auto& it : local_mem) {
+        r[it.first] += it.second;
+      }
+    }
+    r["tbb concurrent task queue >="] = peak_reinsertions * sizeof(HypernodeID);
+    for (const auto& it : sharedData.memory_consumption()) {
+      r[it.first] += it.second;
+    }
+    LOG << "---------------------";
+    LOG << "FM Memory Consumption";
+    LOG << "---------------------";
+    for (const auto& it : r) {
+      LOG << it.first << it.second / (1024*1024) << "MB";
+    }
+    LOG << "---------------------";
+  }
 };
 
 }
