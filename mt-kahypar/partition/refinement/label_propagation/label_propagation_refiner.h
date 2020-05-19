@@ -212,9 +212,7 @@ class LabelPropagationRefiner final : public IRefiner {
                     ID(_context.refinement.label_propagation.hyperedge_size_activation_threshold) ) {
                 if ( !_visited_he[he] ) {
                   for (const HypernodeID& pin : hypergraph.pins(he)) {
-                    if ( (_context.refinement.label_propagation.rebalancing ||
-                           hypergraph.isBorderNode(pin)) &&
-                          _next_active.compare_and_set_to_true(pin) ) {
+                    if ( _next_active.compare_and_set_to_true(pin) ) {
                       next_active_nodes.stream(pin);
                     }
                   }

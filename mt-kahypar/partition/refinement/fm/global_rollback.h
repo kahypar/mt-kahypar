@@ -180,14 +180,14 @@ public:
                                      FMSharedData& sharedData,
                                      vec<HypernodeWeight>& partWeights) {
 
-    std::vector<HypernodeWeight> maxPartWeights = context.partition.max_part_weights;
+    std::vector<HypernodeWeight> maxPartWeights = context.partition.perfect_balance_part_weights;
     if (maxPartWeightScaling == 0.0) {
       for (PartitionID i = 0; i < numParts; ++i) {
         maxPartWeights[i] = std::numeric_limits<HypernodeWeight>::max();
       }
-    } else if (maxPartWeightScaling > 1.00001) {
+    } else {
       for (PartitionID i = 0; i < numParts; ++i) {
-        maxPartWeights[i] *= maxPartWeightScaling;
+        maxPartWeights[i] *= ( 1.0 + context.partition.epsilon * maxPartWeightScaling );
       }
     }
 
