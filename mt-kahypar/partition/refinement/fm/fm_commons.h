@@ -163,6 +163,7 @@ struct FMSharedData {
   // ! (if it was removed but could not be claimed for a search)
   kahypar::ds::FastResetFlagArray<> fruitlessSeed;
 
+  // ! Stores the designated target part of a vertex, i.e. the part with the highest gain to which moving is feasible
   vec<PartitionID> targetPart;
 
   FMSharedData(size_t numNodes = 0, PartitionID numParts = 0, size_t numThreads = 0) :
