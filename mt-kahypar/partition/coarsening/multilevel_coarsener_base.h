@@ -322,11 +322,11 @@ class MultilevelCoarsenerBase {
               std::unique_ptr<IRefiner>& fm,
               kahypar::Metrics& current_metrics) {
 
-    if ( debug ) {
+    if ( debug && _top_level ) {
       io::printHypergraphInfo(partitioned_hypergraph, "Refinement Hypergraph", false);
+      DBG << "Start Refinement - km1 = " << current_metrics.km1
+          << ", imbalance = " << current_metrics.imbalance;
     }
-    DBG << "Start Refinement - km1 = " << current_metrics.km1
-        << ", imbalance = " << current_metrics.imbalance;
 
     bool improvement_found = true;
     while( improvement_found ) {
@@ -342,8 +342,10 @@ class MultilevelCoarsenerBase {
         utils::Timer::instance().stop_timer("label_propagation");
       }
 
-      DBG << "After Label Propagation Refiner - km1 = " << current_metrics.km1
-          << ", imbalance = " << current_metrics.imbalance;
+      if ( _top_level) {
+        DBG << "After Label Propagation Refiner - km1 = " << current_metrics.km1
+            << ", imbalance = " << current_metrics.imbalance;
+      }
 
       if ( fm && _context.refinement.fm.algorithm != FMAlgorithm::do_nothing ) {
         utils::Timer::instance().start_timer("initialize_fm_refiner", "Initialize FM Refiner");
@@ -355,15 +357,18 @@ class MultilevelCoarsenerBase {
         utils::Timer::instance().stop_timer("fm");
       }
 
-      DBG << "After FM Refiner - km1 = " << current_metrics.km1
-          << ", imbalance = " << current_metrics.imbalance;
-
+      if ( _top_level) {
+        DBG << "After FM Refiner - km1 = " << current_metrics.km1
+            << ", imbalance = " << current_metrics.imbalance;
+      }
       if ( !_context.refinement.refine_until_no_improvement ) {
         break;
       }
     }
 
-    DBG << "--------------------------------------------------\n";
+    if ( _top_level) {
+      DBG << "--------------------------------------------------\n";
+    }
   }
 
   bool _is_finalized;
