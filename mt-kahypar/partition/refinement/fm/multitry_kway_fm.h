@@ -134,7 +134,7 @@ public:
     tbb::parallel_for(tbb::blocked_range<HypernodeID>(0, phg.initialNumNodes()),
       [&](const tbb::blocked_range<HypernodeID>& r) {
       const int task_id = tbb::this_task_arena::current_thread_index();
-      ASSERT(task_id >= 0 && task_id < context.shared_memory.num_threads);
+      ASSERT(task_id >= 0 && task_id < static_cast<int>(context.shared_memory.num_threads));
       for (HypernodeID u = r.begin(); u < r.end(); ++u) {
         if (phg.nodeIsEnabled(u) && phg.isBorderNode(u)) {
           sharedData.refinementNodes.safe_push(u, task_id);
