@@ -263,10 +263,10 @@ class MultilevelCoarsenerBase {
 
       utils::Timer::instance().start_timer("rebalance", "Rebalance");
       if ( _context.partition.objective == kahypar::Objective::km1 ) {
-        Km1Rebalancer rebalancer(_partitioned_hg, _context, _task_group_id);
+        Km1Rebalancer rebalancer(_partitioned_hg, _context);
         rebalancer.rebalance(current_metrics);
       } else if ( _context.partition.objective == kahypar::Objective::cut ) {
-        CutRebalancer rebalancer(_partitioned_hg, _context, _task_group_id);
+        CutRebalancer rebalancer(_partitioned_hg, _context);
         rebalancer.rebalance(current_metrics);
       }
       utils::Timer::instance().stop_timer("rebalance");

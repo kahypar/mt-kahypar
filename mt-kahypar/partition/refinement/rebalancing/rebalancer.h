@@ -62,13 +62,9 @@ class Rebalancer {
     MovePQ pq;
   };
 
- public:
-  explicit Rebalancer(PartitionedHypergraph& hypergraph,
-                       const Context& context,
-                       const TaskGroupID task_group_id) :
+  explicit Rebalancer(PartitionedHypergraph& hypergraph, const Context& context) :
     _hg(hypergraph),
     _context(context),
-    _task_group_id(task_group_id),
     _gain(context),
     _part_weights(_context.partition.k) { }
 
@@ -331,7 +327,6 @@ class Rebalancer {
 
   PartitionedHypergraph& _hg;
   const Context& _context;
-  const TaskGroupID _task_group_id;
   GainCalculator _gain;
   parallel::scalable_vector<AtomicWeight> _part_weights;
 };
