@@ -246,7 +246,7 @@ class Rebalancer {
 
         // maintain thread local priority queues of up to k best gains
         for (PartitionID i = 0; i < k; ++i) {
-          if (i != pu && is_empty[i]) {
+          if (i != pu && is_empty[i] && _hg.partWeight(pu) > _hg.nodeWeight(u)) {
             const Gain gain = unremovable - scores[i];
             vec<Move>& c = move_proposals[i];
             if (c.size() < k) {
