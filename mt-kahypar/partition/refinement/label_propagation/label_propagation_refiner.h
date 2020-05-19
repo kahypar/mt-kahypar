@@ -212,9 +212,7 @@ class LabelPropagationRefiner final : public IRefiner {
                     ID(_context.refinement.label_propagation.hyperedge_size_activation_threshold) ) {
                 if ( !_visited_he[he] ) {
                   for (const HypernodeID& pin : hypergraph.pins(he)) {
-                    if ( (_context.refinement.label_propagation.rebalancing ||
-                           hypergraph.isBorderNode(pin)) &&
-                          _next_active.compare_and_set_to_true(pin) ) {
+                    if ( _next_active.compare_and_set_to_true(pin) ) {
                       next_active_nodes.stream(pin);
                     }
                   }
@@ -245,11 +243,11 @@ class LabelPropagationRefiner final : public IRefiner {
     ActiveNodes tmp_active_nodes;
     _active_nodes = std::move(tmp_active_nodes);
 
+    utils::Timer::instance().start_timer("collect_border_nodes", "Collect Border Nodes");
     if ( _context.refinement.label_propagation.execute_sequential ) {
       // Setup active nodes sequential
       for ( const HypernodeID hn : hypergraph.nodes() ) {
-        if ( _context.refinement.label_propagation.rebalancing ||
-             hypergraph.isBorderNode(hn) ) {
+        if ( hypergraph.isBorderNode(hn) ) {
           _active_nodes.push_back(hn);
         }
       }
@@ -263,14 +261,14 @@ class LabelPropagationRefiner final : public IRefiner {
       };
 
       hypergraph.doParallelForAllNodes([&](const HypernodeID& hn) {
-        if ( _context.refinement.label_propagation.rebalancing ||
-             hypergraph.isBorderNode(hn) ) {
+        if ( hypergraph.isBorderNode(hn) ) {
           add_vertex(hn);
         }
       });
 
       _active_nodes = tmp_active_nodes.copy_parallel();
     }
+    utils::Timer::instance().stop_timer("Collect Border Nodes");
   }
 
   const Context& _context;
