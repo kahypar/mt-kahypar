@@ -545,6 +545,23 @@ private:
  public:
   FMStats stats;
 
+  std::unordered_map<std::string, size_t> memory_consumption() const {
+    std::unordered_map<std::string, size_t> r;
+    r["deduplicator"] = updateDeduplicator.memory_consumption();
+    r["valid_hes"] = validHyperedges.memory_consumption();
+    r["delta_phg"] = deltaPhg.memory_consumption();
+    size_t pq_consumption = blockPQ.memory_consumption();
+    for (const VertexPriorityQueue& vpq : vertexPQs)
+      pq_consumption += vpq.memory_consumption();
+    r["PQs"] = pq_consumption;
+
+    r["local_data"] = localData.seedVertices.capacity() * sizeof(HypernodeID)
+                      + localData.localMoveIDs.capacity() * sizeof(MoveID)
+                      + localData.localMoves.capacity() * sizeof(Move)
+                      + sizeof (FMStats);
+    return r;
+  };
+
  private:
 
   const Context& context;

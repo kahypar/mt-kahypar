@@ -234,6 +234,14 @@ class DeltaPartitionedHypergraph {
     return _k;
   }
 
+  size_t memory_consumption() const {
+    return _part_ids_delta.memory_consumption()
+           + _pins_in_part_delta.memory_consumption()
+           + _move_from_benefit_delta.memory_consumption()
+           + _move_to_penalty_delta.memory_consumption()
+           + _part_weights_delta.capacity() * sizeof(HypernodeWeight);
+  }
+
  private:
 
 

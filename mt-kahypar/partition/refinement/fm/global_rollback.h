@@ -554,6 +554,13 @@ public:
   ds::Array<CAtomic<MoveID>> first_move_in;
   // ! For each hyperedge and each block, the ID of the last move to remove a pin from that block
   ds::Array<CAtomic<MoveID>> last_move_out;
+
+public:
+  size_t memory_consumption() const {
+    return remaining_original_pins.size() * sizeof(HypernodeID)
+           + first_move_in.size() * sizeof(MoveID)
+           + last_move_out.size() * sizeof(MoveID);
+  }
 };
 
 }
