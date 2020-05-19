@@ -279,17 +279,28 @@ class Rebalancer {
                > std::tie(rhs.gain, pwr, rhs.node);
       };
 
+      auto node_already_used = [&](HypernodeID node) {
+        return std::any_of(moves_to_empty_blocks.begin(),
+                           moves_to_empty_blocks.end(),
+                           [node](const Move& m) { return m.node == node; }
+                           );
+      };
+
       size_t i = is_empty.find_first();
       while (i != is_empty.npos) {
         vec<Move>& c = best_moves_per_part[i];
-        std::nth_element(c.begin(), c.begin() + k, c.end(), prefer_highest_gain);
-        c.erase(c.begin() + k, c.end());
+        std::sort(c.begin(), c.end(), prefer_highest_gain);
+
+        size_t j = 0;
+        while (j < c.size() && node_already_used(c[j].node)) { ++j; }
+        if (j == c.size()) {
+          // Error
+        } else {
+          moves_to_empty_blocks.push_back(c[j]);
+        }
+
         i = is_empty.find_next(i);
       }
-
-      // do greedy matching
-
-
 
     }
     return moves_to_empty_blocks;
