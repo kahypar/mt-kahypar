@@ -81,6 +81,10 @@ public:
     if ( !metrics::isBalanced(_hg, _context) ) {
       _gain.reset();
 
+      for ( PartitionID block = 0; block < _context.partition.k; ++block ) {
+        _part_weights[block] = _hg.partWeight(block);
+      }
+
       // This function is passed as lambda to the changeNodePart function and used
       // to calculate the "real" delta of a move (in terms of the used objective function).
       auto objective_delta = [&](const HyperedgeID he,
@@ -203,15 +207,14 @@ public:
     }
   }
 
- private:
 
   vec<Move> repairEmptyBlocks() {
     // First detect if there are any empty blocks.
-    boost::dynamic_bitset<> is_empty(_context.partition.k);
-    for ( PartitionID block = 0; block < _context.partition.k; ++block ) {
-      _part_weights[block] = _hg.partWeight(block);
-      if (_hg.partWeight(block) == 0) {
-        is_empty.set(block, true);
+    const size_t k = size_t(_context.partition.k);
+    boost::dynamic_bitset<> is_empty(k);
+    for (size_t i = 0; i < k; ++i) {
+      if (_hg.partWeight(PartitionID(i)) == 0) {
+        is_empty.set(i, true);
       }
     }
 
@@ -219,7 +222,7 @@ public:
 
     // If so, find the best vertices to move to that block
     while (is_empty.any()) {
-      const PartitionID k = _context.partition.k;
+
       tbb::enumerable_thread_specific< vec<Gain> > ets_scores(k, 0);
 
       // positive gain values correspond to "good" improvement. MovePQ uses std::greater (MinHeap)
@@ -291,10 +294,11 @@ public:
 
         size_t j = 0;
         while (j < c.size() && node_already_used(c[j].node)) { ++j; }
-        if (j == c.size()) {
-          // Error
-        } else {
+        if (j != c.size()) {
           moves_to_empty_blocks.push_back(c[j]);
+          is_empty.set(i, false);
+        } else {
+          // Error. No move found
         }
 
         i = is_empty.find_next(i);

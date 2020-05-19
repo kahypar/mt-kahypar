@@ -3,5 +3,6 @@ add_gmock_test(label_propagation_refiner_test label_propagation_refiner_test.cc)
 add_gmock_test(zero_gain_cache_test zero_gain_cache_test.cc)
 add_gmock_test(rollback_test rollback_test.cc)
 add_gmock_test(fm_core_test fm_core_test.cc)
+add_gmock_test(rebalance_test rebalance_test.cc)
 
 # add_executable(FMRefiner fm_refiner.cc)
