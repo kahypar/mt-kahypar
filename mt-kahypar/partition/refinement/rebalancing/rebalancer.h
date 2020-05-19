@@ -298,8 +298,6 @@ public:
         if (j != c.size()) {
           moves_to_empty_blocks.push_back(c[j]);
           is_empty.set(i, false);
-        } else {
-          // Error. No move found
         }
 
         i = is_empty.find_next(i);
