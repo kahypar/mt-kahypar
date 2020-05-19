@@ -45,6 +45,8 @@ class Rebalancer {
 
   static constexpr Gain MIN_PQ_GAIN_THRESHOLD = 5;
 
+public:
+
   struct MoveGainComparator {
     bool operator()(const Move& lhs, const Move& rhs) {
       return lhs.gain > rhs.gain || (lhs.gain == rhs.gain && lhs.node < rhs.node);
@@ -301,6 +303,8 @@ class Rebalancer {
     }
     return moves_to_empty_blocks;
   }
+
+private:
 
   template<typename F>
   bool moveVertex(const HypernodeID hn, const Move& move, const F& objective_delta) {
