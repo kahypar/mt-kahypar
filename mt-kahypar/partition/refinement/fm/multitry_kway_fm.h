@@ -73,9 +73,15 @@ public:
       for (PartitionID i = 0; i < sharedData.numParts; ++i) initialPartWeights[i] = phg.partWeight(i);
 
       if (context.refinement.fm.algorithm == FMAlgorithm::fm_multitry) {
+        sharedData.finishedTasks.store(0, std::memory_order_relaxed);
+        sharedData.finishedTasksLimit = std::min(8UL, context.shared_memory.num_threads);
         auto task = [&](const int , const int task_id, const int ) {
           LocalizedKWayFM& fm = ets_fm.local();
-          while(fm.findMovesLocalized(phg, sharedData, static_cast<size_t>(task_id))) { /* keep running */ }
+          while(sharedData.finishedTasks.load(std::memory_order_relaxed) < sharedData.finishedTasksLimit
+                && fm.findMovesLocalized(phg, sharedData, static_cast<size_t>(task_id))) {
+            /* keep running */
+          }
+          sharedData.finishedTasks.fetch_add(1, std::memory_order_relaxed);
         };
         TBBNumaArena::instance().execute_task_on_each_thread(taskGroupID, task);
       } else if (context.refinement.fm.algorithm == FMAlgorithm::fm_boundary){

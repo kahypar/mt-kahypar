@@ -143,7 +143,9 @@ private:
     HypernodeWeight heaviestPartWeight = 0;
     HypernodeWeight toWeight = 0;
 
-    while (!stopRule.searchShouldStop() && findNextMove(deltaPhg, move)) {
+    while (!stopRule.searchShouldStop()
+           && sharedData.finishedTasks.load(std::memory_order_relaxed) < sharedData.finishedTasksLimit
+           && findNextMove(deltaPhg, move)) {
       sharedData.nodeTracker.deactivateNode(move.node, thisSearch);
 
       bool moved = false;
@@ -223,7 +225,9 @@ private:
     HypernodeWeight heaviestPartWeight = 0;
     HypernodeWeight toWeight = 0;
 
-    while (!stopRule.searchShouldStop() && findNextMove(phg, move)) {
+    while (!stopRule.searchShouldStop()
+           && sharedData.finishedTasks.load(std::memory_order_relaxed) < sharedData.finishedTasksLimit
+           && findNextMove(phg, move)) {
       sharedData.nodeTracker.deactivateNode(move.node, thisSearch);
       MoveID move_id = std::numeric_limits<MoveID>::max();
       auto report_success = [&] { move_id = sharedData.moveTracker.insertMove(move); };
