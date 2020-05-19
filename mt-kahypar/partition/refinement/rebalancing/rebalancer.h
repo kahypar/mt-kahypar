@@ -264,7 +264,7 @@ class Rebalancer {
 
       vec< vec<Move> > best_moves_per_part(k);
 
-      for (vec<vec<Move>> tlpq : ets_best_move) {
+      for (vec<vec<Move>>& tlpq : ets_best_move) {
         size_t i = is_empty.find_first();
         while (i != is_empty.npos) {
           std::copy(tlpq[i].begin(), tlpq[i].end(), std::back_inserter(best_moves_per_part[i]));
