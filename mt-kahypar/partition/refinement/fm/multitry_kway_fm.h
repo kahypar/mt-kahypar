@@ -44,7 +44,12 @@ public:
           taskGroupID(taskGroupID),
           sharedData(hypergraph.initialNumNodes(), context),
           globalRollback(hypergraph, context, context.partition.k),
-          ets_fm(context, hypergraph.initialNumNodes(), sharedData.vertexPQHandles.data()) { }
+          ets_fm(context, hypergraph.initialNumNodes(), sharedData.vertexPQHandles.data())
+  {
+    if (context.refinement.fm.obey_minimal_parallelism) {
+      sharedData.finishedTasksLimit = std::min(8UL, context.shared_memory.num_threads);
+    }
+  }
 
   bool refineImpl(PartitionedHypergraph& phg,
                   kahypar::Metrics& metrics) override final {
@@ -74,7 +79,6 @@ public:
 
       if (context.refinement.fm.algorithm == FMAlgorithm::fm_multitry) {
         sharedData.finishedTasks.store(0, std::memory_order_relaxed);
-        sharedData.finishedTasksLimit = std::min(8UL, context.shared_memory.num_threads);
         auto task = [&](const int , const int task_id, const int ) {
           LocalizedKWayFM& fm = ets_fm.local();
           while(sharedData.finishedTasks.load(std::memory_order_relaxed) < sharedData.finishedTasksLimit

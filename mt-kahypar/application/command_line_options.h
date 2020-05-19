@@ -311,7 +311,11 @@ po::options_description createRefinementOptionsDescription(Context& context,
      (( initial_partitioning ? "i-r-fm-allow-zero-gain-moves" : "r-fm-allow-zero-gain-moves"),
      po::value<bool>((initial_partitioning ? &context.initial_partitioning.refinement.fm.allow_zero_gain_moves :
      &context.refinement.fm.allow_zero_gain_moves))->value_name("<bool>"),
-     "If true, than zero gain improvements are used in FM to pertubate solution. Default true");
+     "If true, then zero gain improvements are used in FM to pertubate solution. Default true")
+     (( initial_partitioning ? "i-r-fm-obey-minimal-parallelism" : "r-fm-obey-minimal-parallelism"),
+     po::value<bool>((initial_partitioning ? &context.initial_partitioning.refinement.fm.obey_minimal_parallelism :
+     &context.refinement.fm.obey_minimal_parallelism))->value_name("<bool>"),
+     "If true, then parallel FM refinement stops if more than a certain number of threads are finished. Default false");
   return options;
 }
 
