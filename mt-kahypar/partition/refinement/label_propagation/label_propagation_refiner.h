@@ -243,11 +243,11 @@ class LabelPropagationRefiner final : public IRefiner {
     ActiveNodes tmp_active_nodes;
     _active_nodes = std::move(tmp_active_nodes);
 
-    utils::Timer::instance().start_timer("collect_border_nodes", "Collect Border Nodes");
     if ( _context.refinement.label_propagation.execute_sequential ) {
       // Setup active nodes sequential
       for ( const HypernodeID hn : hypergraph.nodes() ) {
-        if ( hypergraph.isBorderNode(hn) ) {
+        if ( _context.refinement.label_propagation.rebalancing ||
+             hypergraph.isBorderNode(hn) ) {
           _active_nodes.push_back(hn);
         }
       }
@@ -261,14 +261,14 @@ class LabelPropagationRefiner final : public IRefiner {
       };
 
       hypergraph.doParallelForAllNodes([&](const HypernodeID& hn) {
-        if ( hypergraph.isBorderNode(hn) ) {
+        if ( _context.refinement.label_propagation.rebalancing ||
+             hypergraph.isBorderNode(hn) ) {
           add_vertex(hn);
         }
       });
 
       _active_nodes = tmp_active_nodes.copy_parallel();
     }
-    utils::Timer::instance().stop_timer("Collect Border Nodes");
   }
 
   const Context& _context;
