@@ -234,12 +234,14 @@ class DeltaPartitionedHypergraph {
     return _k;
   }
 
-  size_t memory_consumption() const {
-    return _part_ids_delta.memory_consumption()
-           + _pins_in_part_delta.memory_consumption()
-           + _move_from_benefit_delta.memory_consumption()
-           + _move_to_penalty_delta.memory_consumption()
-           + _part_weights_delta.capacity() * sizeof(HypernodeWeight);
+  std::unordered_map<std::string, size_t> memory_consumption() const {
+    std::unordered_map<std::string, size_t> r;
+    r["delta part ids"] = _part_ids_delta.memory_consumption();
+    r["delta pins in part"] = _pins_in_part_delta.memory_consumption();
+    r["delta move from benefit"] = _move_from_benefit_delta.memory_consumption();
+    r["delta move to penalty"] = _move_to_penalty_delta.memory_consumption();
+    r["delta part weights"] = _part_weights_delta.capacity() * sizeof(HypernodeWeight);
+    return r;
   }
 
  private:
