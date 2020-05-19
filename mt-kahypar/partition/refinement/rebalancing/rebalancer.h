@@ -246,9 +246,10 @@ public:
         }
 
         // maintain thread local priority queues of up to k best gains
-        for (PartitionID i = 0; i < k; ++i) {
-          if (i != pu && is_empty[i] && _hg.partWeight(pu) > _hg.nodeWeight(u)) {
-            const Gain gain = unremovable - scores[i];
+        for (PartitionID i = 0; i < PartitionID(k); ++i) {
+          if (i != pu && is_empty[i] && _hg.partWeight(pu) > _hg.nodeWeight(u)
+              && _hg.nodeWeight(u) <= _context.partition.max_part_weights[i]) {
+            const Gain gain = scores[i] - unremovable;
             vec<Move>& c = move_proposals[i];
             if (c.size() < k) {
               c.push_back(Move { pu, i, u, gain });
