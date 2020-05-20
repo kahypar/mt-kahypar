@@ -114,7 +114,9 @@ public:
       }
     }
 
-    if (context.partition.show_memory_consumption && context.type == kahypar::ContextType::main) {
+    if (context.partition.show_memory_consumption
+        && context.type == kahypar::ContextType::main
+        && phg.initialNumNodes() == sharedData.moveTracker.moveOrder.size() /* top level */) {
       printMemoryConsumption();
     }
 
