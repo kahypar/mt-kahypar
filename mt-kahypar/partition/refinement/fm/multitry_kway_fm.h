@@ -191,8 +191,14 @@ public:
     LOG << "---------------------";
     LOG << "FM Memory Consumption";
     LOG << "---------------------";
+
+    size_t left_width = 35; size_t right_width = 10;
     for (const auto& it : r) {
-      LOG << it.first << it.second / (1024*1024) << "MB";
+      std::string right_word = std::to_string(it.second / (1024*1024));
+      size_t pad = (left_width - it.first.length()) + (right_width - right_word.length());
+      std::cout << it.first;
+      for (size_t i = 0; i < pad; ++i) std::cout << " ";
+      std::cout << right_word << "MB\n";
     }
     LOG << "---------------------";
   }
