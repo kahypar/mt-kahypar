@@ -23,6 +23,7 @@
 
 #include <atomic>
 #include <type_traits>
+#include <mutex>
 
 #include "tbb/parallel_invoke.h"
 
@@ -63,6 +64,7 @@ private:
  public:
   static constexpr bool is_static_hypergraph = Hypergraph::is_static_hypergraph;
   static constexpr bool is_partitioned = true;
+  static constexpr HyperedgeID HIGH_DEGREE_THRESHOLD = ID(100000);
 
   using HypernodeIterator = typename Hypergraph::HypernodeIterator;
   using HyperedgeIterator = typename Hypergraph::HyperedgeIterator;
@@ -463,7 +465,10 @@ private:
   }
 
 
-  // requires pinCountInPart to be computed
+  // ! Initialize gain informations for all hypernodes such that the km1 gain of a vertex
+  // ! moving to a specific block of the partition can be calculated in constant time.
+  // ! NOTE: Requires that pin counts are already initialized and reflect the
+  // ! current state of the partition
   void initializeGainInformation() {
     // check whether part has been initialized
     ASSERT([&] {
@@ -478,45 +483,92 @@ private:
       return true;
     } ());
 
-    // we can either assume that pinCountInPart has been initialized and use this information
-    // or recompute the gain information from scratch, which would be independent but requires more memory volume
-    // since the LP refiner currently does not use and update the gain information, we rely on pinCountInPart being up to date
-    // as we have to call initializeGainInformation() before every FM call
-    tbb::enumerable_thread_specific< vec<HyperedgeWeight> > ets_mtp(_k, 0);
 
-    auto accumulate_and_assign = [&](tbb::blocked_range<HypernodeID>& r) {
-
-      vec<HyperedgeWeight>& l_move_to_penalty = ets_mtp.local();
-
-      for (HypernodeID u = r.begin(); u < r.end(); ++u) {
-        if ( nodeIsEnabled(u) ) {
-          const PartitionID from = partID(u);
-          HyperedgeWeight incident_edges_weight = 0;
-          HyperedgeWeight l_move_from_benefit = 0;
-          for (HyperedgeID he : incidentEdges(u)) {
-
-            HyperedgeWeight edge_weight = edgeWeight(he);
-            if (pinCountInPart(he, from) == 1) {
-              l_move_from_benefit += edge_weight;
-            }
-
-            for (const PartitionID block : connectivitySet(he)) {
-              l_move_to_penalty[block] -= edge_weight;
-            }
-            incident_edges_weight += edge_weight;
-          }
-
-          _move_from_benefit[u].store(l_move_from_benefit, std::memory_order_relaxed);
-          for (PartitionID p = 0; p < _k; ++p) {
-            _move_to_penalty[penalty_index(u,p)].store(l_move_to_penalty[p] + incident_edges_weight, std::memory_order_relaxed);
-            l_move_to_penalty[p] = 0;
-          }
-        }
+    auto aggregate_contribution_of_he_for_vertex =
+      [&](const PartitionID block_of_u,
+          const HyperedgeID he,
+          HyperedgeWeight& l_move_from_benefit,
+          HyperedgeWeight& incident_edges_weight,
+          vec<HyperedgeWeight>& l_move_to_penalty) {
+      HyperedgeWeight edge_weight = edgeWeight(he);
+      if (pinCountInPart(he, block_of_u) == 1) {
+        l_move_from_benefit += edge_weight;
       }
 
+      for (const PartitionID block : connectivitySet(he)) {
+        l_move_to_penalty[block] -= edge_weight;
+      }
+      incident_edges_weight += edge_weight;
     };
 
-    tbb::parallel_for(tbb::blocked_range<HypernodeID>(HypernodeID(0), initialNumNodes()), accumulate_and_assign);
+    // Gain calculation consist of two stages
+    //  1. Compute gain of all low degree vertices sequential (with a parallel for over all vertices)
+    //  2. Compute gain of all high degree vertices parallel (with a sequential for over all high degree vertices)
+    tbb::enumerable_thread_specific< vec<HyperedgeWeight> > ets_mtp(_k, 0);
+    std::mutex high_degree_vertex_mutex;
+    parallel::scalable_vector<HypernodeID> high_degree_vertices;
+
+    // Compute gain of all low degree vertices sequential (parallel for over all vertices)
+    tbb::parallel_for(tbb::blocked_range<HypernodeID>(HypernodeID(0), initialNumNodes()),
+      [&](tbb::blocked_range<HypernodeID>& r) {
+        vec<HyperedgeWeight>& l_move_to_penalty = ets_mtp.local();
+        for (HypernodeID u = r.begin(); u < r.end(); ++u) {
+          if ( nodeIsEnabled(u)) {
+            if ( nodeDegree(u) <= HIGH_DEGREE_THRESHOLD ) {
+              const PartitionID from = partID(u);
+              HyperedgeWeight incident_edges_weight = 0;
+              HyperedgeWeight l_move_from_benefit = 0;
+              for (HyperedgeID he : incidentEdges(u)) {
+                aggregate_contribution_of_he_for_vertex(from, he,
+                  l_move_from_benefit, incident_edges_weight, l_move_to_penalty);
+              }
+
+              _move_from_benefit[u].store(l_move_from_benefit, std::memory_order_relaxed);
+              for (PartitionID p = 0; p < _k; ++p) {
+                _move_to_penalty[penalty_index(u,p)].store(l_move_to_penalty[p] + incident_edges_weight, std::memory_order_relaxed);
+                l_move_to_penalty[p] = 0;
+              }
+            } else {
+              // Collect high degree vertex for subsequent parallel gain computation
+              std::lock_guard<std::mutex> lock(high_degree_vertex_mutex);
+              high_degree_vertices.push_back(u);
+            }
+          }
+        }
+      });
+
+    // Compute gain of all high degree vertices parallel (sequential for over all high degree vertices)
+    for ( const HypernodeID& u : high_degree_vertices ) {
+      tbb::enumerable_thread_specific<HyperedgeWeight> ets_mfb(0);
+      tbb::enumerable_thread_specific<HyperedgeWeight> ets_iew(0);
+      const PartitionID from = partID(u);
+      const size_t incident_nets_start = _hg->_hypernodes[u].firstEntry();
+      const size_t incident_nets_end = _hg->_hypernodes[u].firstInvalidEntry();
+      tbb::parallel_for(tbb::blocked_range<HypernodeID>(incident_nets_start, incident_nets_end),
+        [&](tbb::blocked_range<HypernodeID>& r) {
+        vec<HyperedgeWeight>& l_move_to_penalty = ets_mtp.local();
+        HyperedgeWeight& l_move_from_benefit = ets_mfb.local();
+        HyperedgeWeight& l_incident_edges_weight = ets_iew.local();
+        for ( size_t incident_nets_pos = r.begin(); incident_nets_pos < r.end(); ++incident_nets_pos ) {
+          const HyperedgeID he = _hg->_incident_nets[incident_nets_pos];
+          aggregate_contribution_of_he_for_vertex(from, he,
+            l_move_from_benefit, l_incident_edges_weight, l_move_to_penalty);
+        }
+      });
+
+      // Aggregate thread locals to compute overall gain of the high degree vertex
+      _move_from_benefit[u].store(ets_mfb.combine(std::plus<HyperedgeWeight>()), std::memory_order_relaxed);
+      const HyperedgeWeight incident_edges_weight = ets_iew.combine(std::plus<HyperedgeWeight>());
+      for (PartitionID p = 0; p < _k; ++p) {
+        HyperedgeWeight move_to_penalty = 0;
+        for ( auto& l_move_to_penalty : ets_mtp ) {
+          move_to_penalty += l_move_to_penalty[p];
+          l_move_to_penalty[p] = 0;
+        }
+        _move_to_penalty[penalty_index(u, p)].store(move_to_penalty +
+          incident_edges_weight, std::memory_order_relaxed);
+      }
+    }
   }
 
   // ! Initializes the partition of the hypergraph, if block ids are assigned with
@@ -530,12 +582,19 @@ private:
 
   // ! Returns, whether hypernode u is adjacent to a least one cut hyperedge.
   bool isBorderNode(const HypernodeID u) const {
-    for ( const HyperedgeID& he : incidentEdges(u) ) {
-      if ( connectivity(he) > 1 ) {
-        return true;
+    if ( nodeDegree(u) <= HIGH_DEGREE_THRESHOLD ) {
+      for ( const HyperedgeID& he : incidentEdges(u) ) {
+        if ( connectivity(he) > 1 ) {
+          return true;
+        }
       }
+      return false;
+    } else {
+      // In case u is a high degree vertex, we omit the border node check and
+      // and return false. Assumption is that it is very unlikely that such a
+      // vertex can change its block.
+      return false;
     }
-    return false;
   }
 
   HypernodeID numIncidentCutHyperedges(const HypernodeID u) const {

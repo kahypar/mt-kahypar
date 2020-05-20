@@ -59,6 +59,8 @@ class DeltaPartitionedHypergraph {
   using IncidentNetsIterator = typename PartitionedHypergraph::IncidentNetsIterator;
 
  public:
+  static constexpr HyperedgeID HIGH_DEGREE_THRESHOLD = PartitionedHypergraph::HIGH_DEGREE_THRESHOLD;
+
   DeltaPartitionedHypergraph(const PartitionID k) :
     _k(k),
     _phg(nullptr),
@@ -112,6 +114,11 @@ class DeltaPartitionedHypergraph {
   HypernodeWeight nodeWeight(const HypernodeID u) const {
     ASSERT(_phg);
     return _phg->nodeWeight(u);
+  }
+
+  HyperedgeID nodeDegree(const HypernodeID u) const {
+    ASSERT(_phg);
+    return _phg->nodeDegree(u);
   }
 
   // ####################### Hyperedge Information #######################

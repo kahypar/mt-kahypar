@@ -149,10 +149,9 @@ private:
       bool moved = false;
       if (move.to != kInvalidPartition) {
         heaviestPartWeight = metrics::heaviestPartAndWeight(deltaPhg).second;
-        const HypernodeWeight fromWeight = deltaPhg.partWeight(move.from);
         toWeight = deltaPhg.partWeight(move.to);
-        moved = deltaPhg.changeNodePart(move.node, move.from, move.to, std::max(
-          context.partition.max_part_weights[move.to], fromWeight), hes_to_update_func);
+        moved = deltaPhg.changeNodePart(move.node, move.from, move.to,
+          context.partition.max_part_weights[move.to], hes_to_update_func);
       }
 
       if (moved) {
@@ -231,10 +230,9 @@ private:
       bool moved = false;
       if (move.to != kInvalidPartition) {
         heaviestPartWeight = metrics::heaviestPartAndWeight(phg).second;
-        const HypernodeWeight fromWeight = phg.partWeight(move.from);
         toWeight = phg.partWeight(move.to);
-        moved = phg.changeNodePartFullUpdate(move.node, move.from, move.to, std::max(
-          context.partition.max_part_weights[move.to], fromWeight),
+        moved = phg.changeNodePartFullUpdate(move.node, move.from, move.to,
+          context.partition.max_part_weights[move.to],
           report_success, hes_to_update_func);
       }
 
@@ -407,7 +405,7 @@ private:
         const HypernodeWeight to_weight = phg.partWeight(i);
         const HyperedgeWeight penalty = phg.moveToPenalty(u, i);
         if ( ( penalty < to_penalty || ( penalty == to_penalty && to_weight < best_to_weight ) ) &&
-              ( to_weight + wu <= context.partition.max_part_weights[i] || to_weight < best_to_weight ) ) {
+              to_weight + wu <= context.partition.max_part_weights[i] ) {
           to_penalty = penalty;
           to = i;
           best_to_weight = to_weight;
@@ -434,7 +432,7 @@ private:
         const HypernodeWeight to_weight = phg.partWeight(i);
         const HyperedgeWeight penalty = phg.moveToPenalty(u, i);
         if ( ( penalty < to_penalty || ( penalty == to_penalty && to_weight < best_to_weight ) ) &&
-             ( to_weight + wu <= context.partition.max_part_weights[i] || to_weight < best_to_weight ) ) {
+             to_weight + wu <= context.partition.max_part_weights[i] ) {
           to_penalty = penalty;
           to = i;
           best_to_weight = to_weight;
