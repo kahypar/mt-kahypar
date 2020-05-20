@@ -382,29 +382,31 @@ public:
     utils::Timer& timer = utils::Timer::instance();
     timer.start_timer("move_id_flagging", "Move Flagging");
 
-    tbb::parallel_for(0U, numMoves, [&](MoveID localMoveID) {
-      const Move& m = move_order[localMoveID];
-      if (!sharedData.moveTracker.isMoveStillValid(m)) return;
+    if (phg.hypergraph().maxEdgeSize() > 2) {
+      tbb::parallel_for(0U, numMoves, [&](MoveID localMoveID) {
+        const Move& m = move_order[localMoveID];
+        if (!sharedData.moveTracker.isMoveStillValid(m)) return;
 
-      const MoveID globalMoveID = localMoveID + firstMoveID;
-      for (HyperedgeID e_global : phg.incidentEdges(m.node)) {
-        if (phg.edgeSize(e_global) > 2) {
-          const HyperedgeID e = phg.nonGraphEdgeID(e_global);
-          CAtomic<MoveID>& fmi = first_move_in[size_t(e) * numParts + m.to];
-          MoveID expected = fmi.load(std::memory_order_acq_rel);
-          // first_move_in = min(first_move_in, this_move)
-          while ((tracker.isMoveStale(expected) || expected > globalMoveID)
-                 && !fmi.compare_exchange_weak(expected, globalMoveID, std::memory_order_acq_rel)) { }
+        const MoveID globalMoveID = localMoveID + firstMoveID;
+        for (HyperedgeID e_global : phg.incidentEdges(m.node)) {
+          if (phg.edgeSize(e_global) > 2) {
+            const HyperedgeID e = phg.nonGraphEdgeID(e_global);
+            CAtomic<MoveID>& fmi = first_move_in[size_t(e) * numParts + m.to];
+            MoveID expected = fmi.load(std::memory_order_acq_rel);
+            // first_move_in = min(first_move_in, this_move)
+            while ((tracker.isMoveStale(expected) || expected > globalMoveID)
+                   && !fmi.compare_exchange_weak(expected, globalMoveID, std::memory_order_acq_rel)) { }
 
-          CAtomic<MoveID>& lmo = last_move_out[size_t(e) * numParts + m.from];
-          expected = lmo.load(std::memory_order_acq_rel);
-          // last_move_out = max(last_move_out, this_move)
-          while (expected < globalMoveID && !lmo.compare_exchange_weak(expected, globalMoveID, std::memory_order_acq_rel)) { }
+            CAtomic<MoveID>& lmo = last_move_out[size_t(e) * numParts + m.from];
+            expected = lmo.load(std::memory_order_acq_rel);
+            // last_move_out = max(last_move_out, this_move)
+            while (expected < globalMoveID && !lmo.compare_exchange_weak(expected, globalMoveID, std::memory_order_acq_rel)) { }
 
-          remaining_original_pins[size_t(e) * numParts + m.from].fetch_sub(1, std::memory_order_relaxed);
+            remaining_original_pins[size_t(e) * numParts + m.from].fetch_sub(1, std::memory_order_relaxed);
+          }
         }
-      }
-    });
+      });
+    }
 
     timer.stop_timer("move_id_flagging");
     timer.start_timer("gain_recalculation", "Recalculate Gains");
