@@ -374,9 +374,9 @@ private:
       const HypernodeWeight to_weight_after = _part_weights[to].add_fetch(wu, std::memory_order_relaxed);
       const HypernodeWeight from_weight_after = _part_weights[from].fetch_sub(wu, std::memory_order_relaxed);
     if ( to_weight_after <= max_weight_to && from_weight_after > 0 ) {
+      _part_ids[u] = to;
       for ( const HyperedgeID& he : incidentEdges(u) ) {
         // REVIEW NOTE wouldn't it be more elegant to write this with a spinlock directly?
-        _part_ids[u] = to;
         while ( !updatePinCountOfHyperedgeWithoutGainUpdates(he, from, to, delta_func) );
       }
       return true;
