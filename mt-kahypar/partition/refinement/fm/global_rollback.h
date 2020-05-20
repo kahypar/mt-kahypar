@@ -302,38 +302,48 @@ public:
 
     timer.start_timer("revert_and_rem_orig_pin_updates", "Revert Moves and apply updates");
 
-    tbb::parallel_invoke([&] {
-      // revert rejected moves
+    if (phg.hypergraph().maxEdgeSize() > 2) {
+      // revert and apply updates (full version for hypergraphs)
+      tbb::parallel_invoke([&] {
+        // revert rejected moves
+        tbb::parallel_for(b.best_index, numMoves, [&](const MoveID moveID) {
+          const Move& m = move_order[moveID];
+          if (sharedData.moveTracker.isMoveStillValid(m)) {
+            phg.changeNodePartFullUpdate(m.node, m.to, m.from);
+            for (HyperedgeID e : phg.incidentEdges(m.node)) {
+              if (phg.edgeSize(e) > 2) {
+                remaining_original_pins[size_t(phg.nonGraphEdgeID(e)) * numParts + m.from].fetch_add(1, std::memory_order_relaxed);
+              }
+            }
+          }
+        });
+      }, [&] {
+        // apply updates to remaining original pins
+        tbb::parallel_for(MoveID(0), b.best_index, [&](const MoveID moveID) {
+          const Move& m = move_order[moveID];
+          if (sharedData.moveTracker.isMoveStillValid(m)) {
+            for (HyperedgeID e : phg.incidentEdges(move_order[moveID].node)) {
+              if (phg.edgeSize(e) > 2) {
+                remaining_original_pins[size_t(phg.nonGraphEdgeID(e)) * numParts + m.to].fetch_add(1, std::memory_order_relaxed);
+              }
+            }
+          }
+        });
+      } );
+
+    } else {
+      // faster special case for graphs
       tbb::parallel_for(b.best_index, numMoves, [&](const MoveID moveID) {
         const Move& m = move_order[moveID];
-        if (sharedData.moveTracker.isMoveStillValid(m)) {
-          phg.changeNodePartFullUpdate(m.node, m.to, m.from);
-          for (HyperedgeID e : phg.incidentEdges(m.node)) {
-            if (phg.edgeSize(e) > 2) {
-              remaining_original_pins[size_t(phg.nonGraphEdgeID(e)) * numParts + m.from].fetch_add(1, std::memory_order_relaxed);
-            }
-          }
-        }
+        phg.changeNodePartFullUpdate(m.node, m.to, m.from);
       });
-    }, [&] {
-      // apply updates to remaining original pins
-      tbb::parallel_for(MoveID(0), b.best_index, [&](const MoveID moveID) {
-        const Move& m = move_order[moveID];
-        if (sharedData.moveTracker.isMoveStillValid(m)) {
-          for (HyperedgeID e : phg.incidentEdges(move_order[moveID].node)) {
-            if (phg.edgeSize(e) > 2) {
-              remaining_original_pins[size_t(phg.nonGraphEdgeID(e)) * numParts + m.to].fetch_add(1, std::memory_order_relaxed);
-            }
-          }
-        }
-      });
-    } );
+
+    }
 
     timer.stop_timer("revert_and_rem_orig_pin_updates");
 
     timer.start_timer("recompute_move_from_benefits", "Recompute Move-From Benefits");
     // recompute moveFromBenefit values since they are potentially invalid
-    // TODO think of a way to update them
     tbb::parallel_for(MoveID(0), numMoves, [&](MoveID localMoveID) {
       phg.recomputeMoveFromBenefit(move_order[localMoveID].node);
     });
