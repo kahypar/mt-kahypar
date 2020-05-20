@@ -361,30 +361,39 @@ private:
     }
   }
 
-  void changeOnlyNodePart(const HypernodeID u, PartitionID from, PartitionID to) {
-    nodeGainAssertions(u, from);
-    nodeGainAssertions(u, to);
-    ASSERT(partID(u) == from);
-    ASSERT(from != to);
-
-    const HypernodeWeight wu = nodeWeight(u);
-    _part_weights[to].fetch_add(wu, std::memory_order_relaxed);
-    _part_weights[from].fetch_sub(wu, std::memory_order_relaxed);
-    _part_ids[u] = to;
-  }
-
   // ! Changes the block id of vertex u from block 'from' to block 'to'
   // ! Returns true, if move of vertex u to corresponding block succeeds.
   bool changeNodePart(const HypernodeID u,
                       PartitionID from,
                       PartitionID to,
+                      HypernodeWeight max_weight_to,
                       const DeltaFunction& delta_func = NOOP_FUNC) {
-    changeOnlyNodePart(u, from,  to);
-    for ( const HyperedgeID& he : incidentEdges(u) ) {
-      // REVIEW NOTE wouldn't it be more elegant to write this with a spinlock directly?
-      while ( !updatePinCountOfHyperedgeWithoutGainUpdates(he, from, to, delta_func) );
+      assert(partID(u) == from);
+      assert(from != to);
+      const HypernodeWeight wu = nodeWeight(u);
+      const HypernodeWeight to_weight_after = _part_weights[to].add_fetch(wu, std::memory_order_relaxed);
+      const HypernodeWeight from_weight_after = _part_weights[from].fetch_sub(wu, std::memory_order_relaxed);
+    if ( to_weight_after <= max_weight_to && from_weight_after > 0 ) {
+      for ( const HyperedgeID& he : incidentEdges(u) ) {
+        // REVIEW NOTE wouldn't it be more elegant to write this with a spinlock directly?
+        _part_ids[u] = to;
+        while ( !updatePinCountOfHyperedgeWithoutGainUpdates(he, from, to, delta_func) );
+      }
+      return true;
+    } else {
+      _part_weights[to].fetch_sub(wu, std::memory_order_relaxed);
+      _part_weights[from].fetch_add(wu, std::memory_order_relaxed);
+      return false;
     }
-    return true;
+  }
+
+  // curry
+  bool changeNodePart(const HypernodeID u,
+                      PartitionID from,
+                      PartitionID to,
+                      const DeltaFunction& delta_func = NOOP_FUNC) {
+    return changeNodePart(u, from, to,
+      std::numeric_limits<HypernodeWeight>::max(), delta_func);
   }
 
   template<typename F, typename DeltaFunc>

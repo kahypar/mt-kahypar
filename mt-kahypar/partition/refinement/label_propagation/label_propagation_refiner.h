@@ -195,7 +195,8 @@ class LabelPropagationRefiner final : public IRefiner {
         PartitionID to = best_move.to;
 
         Gain delta_before = _gain.localDelta();
-        bool changed_part = hypergraph.changeNodePart(hn, from, to, objective_delta);
+        bool changed_part = hypergraph.changeNodePart(hn, from, to,
+          _context.partition.max_part_weights[to], objective_delta);
         if (changed_part) {
           // In case the move to block 'to' was successful, we verify that the "real" gain
           // of the move is either equal to our computed gain or if not, still improves
