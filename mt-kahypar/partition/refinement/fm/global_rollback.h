@@ -38,12 +38,17 @@ struct BalanceAndBestIndexScan {
   const PartitionedHypergraph& phg;
   const vec<Move>& moves;
 
-  struct GainIndex {
-    Gain gain = 0;          /** gain when using all (still valid) moves up to best_index */
-    MoveID best_index = 0;  /** local ID of first move to revert */
-  };
+  struct Prefix {
+    Gain gain = 0;                           /** negative of the gain when using valid moves up to best_index */
+    MoveID best_index = 0;                   /** local ID of first move to revert */
+    HypernodeWeight heaviest_weight =
+            std::numeric_limits<HypernodeWeight>::max();   /** weight of the heaviest part */
 
-  std::shared_ptr< tbb::enumerable_thread_specific<GainIndex> > local_best;
+    bool operator<(const Prefix& o) const {
+      return std::tie(gain, heaviest_weight, best_index) < std::tie(o.gain, o.heaviest_weight, o.best_index);
+    }
+  };
+  std::shared_ptr< tbb::enumerable_thread_specific<Prefix> > local_best;
 
   Gain gain_sum = 0;
 
@@ -58,11 +63,13 @@ struct BalanceAndBestIndexScan {
           max_part_weights(b.max_part_weights) { }
 
 
-  BalanceAndBestIndexScan(const PartitionedHypergraph& phg, const vec<Move>& moves,
-                          vec<HypernodeWeight>& part_weights, const std::vector<HypernodeWeight>& max_part_weights) :
+  BalanceAndBestIndexScan(const PartitionedHypergraph& phg,
+                          const vec<Move>& moves,
+                          const vec<HypernodeWeight>& part_weights,
+                          const std::vector<HypernodeWeight>& max_part_weights) :
           phg(phg),
           moves(moves),
-          local_best(std::make_shared< tbb::enumerable_thread_specific<GainIndex> >()),
+          local_best(std::make_shared< tbb::enumerable_thread_specific<Prefix> >()),
           part_weights(part_weights),
           max_part_weights(max_part_weights)
   {
@@ -73,7 +80,7 @@ struct BalanceAndBestIndexScan {
     for (MoveID i = r.begin(); i < r.end(); ++i) {
       const Move& m = moves[i];
       if (m.gain != invalidGain) {  // skip locally reverted moves
-        gain_sum += m.gain;
+        gain_sum -= m.gain;
         part_weights[m.from] -= phg.nodeWeight(m.node);
         part_weights[m.to] += phg.nodeWeight(m.node);
       }
@@ -86,7 +93,7 @@ struct BalanceAndBestIndexScan {
     for (size_t i = 0; i < part_weights.size(); ++i) {
       part_weights[i] += lhs.part_weights[i];
     }
-    gain_sum += lhs.gain_sum;
+    gain_sum -= lhs.gain_sum;
   }
 
   void operator()(const tbb::blocked_range<MoveID>& r, tbb::final_scan_tag ) {
@@ -97,8 +104,7 @@ struct BalanceAndBestIndexScan {
       }
     }
 
-    Gain best_gain_sum = 0;
-    MoveID best_index = 0;
+    Prefix current;
     for (MoveID i = r.begin(); i < r.end(); ++i) {
       const Move& m = moves[i];
 
@@ -115,20 +121,18 @@ struct BalanceAndBestIndexScan {
           overloaded++;
         }
 
-        gain_sum += m.gain;
-        if (overloaded == 0 && gain_sum > best_gain_sum) {
-          best_gain_sum = gain_sum;
-          best_index = i + 1;
+        gain_sum -= m.gain;
+
+        if (overloaded == 0 && gain_sum <= current.gain /* gain_sum is the negative! */) {
+          Prefix new_prefix = { gain_sum, i + 1, *std::max_element(part_weights.begin(), part_weights.end()) };
+          current = std::min(current, new_prefix);
         }
       }
     }
 
-    if (best_index != 0) {
-      GainIndex& lb = local_best->local();
-      if (best_gain_sum > lb.gain) {
-        lb.gain = best_gain_sum;
-        lb.best_index = best_index;
-      }
+    if (current.best_index != 0) {
+      Prefix& lb = local_best->local();
+      lb = std::min(lb, current);
     }
   }
 
@@ -136,13 +140,12 @@ struct BalanceAndBestIndexScan {
 
   }
 
-  GainIndex finalize() {
-    GainIndex res = { 0, 0 };
-    for (const GainIndex& x : *local_best) {
-      if (x.gain > res.gain || (x.gain == res.gain && x.best_index < res.best_index)) {
-        res = x;
-      }
+  Prefix finalize(const vec<HypernodeWeight>& initial_part_weights) {
+    Prefix res { 0, 0, *std::max_element(initial_part_weights.begin(), initial_part_weights.end()) };
+    for (const Prefix& x : *local_best) {
+      res = std::min(res, x);
     }
+    res.gain = -res.gain; // we worked with the negative gains to make the comparison work
     return res;
   }
 };
@@ -178,7 +181,7 @@ public:
 
   HyperedgeWeight revertToBestPrefix(PartitionedHypergraph& phg,
                                      FMSharedData& sharedData,
-                                     vec<HypernodeWeight>& partWeights) {
+                                     const vec<HypernodeWeight>& partWeights) {
 
     std::vector<HypernodeWeight> maxPartWeights = context.partition.perfect_balance_part_weights;
     if (maxPartWeightScaling == 0.0) {
@@ -200,7 +203,7 @@ public:
 
   HyperedgeWeight revertToBestPrefixSequential(PartitionedHypergraph& phg,
                                                FMSharedData& sharedData,
-                                               vec<HypernodeWeight>&,
+                                               const vec<HypernodeWeight>&,
                                                const std::vector<HypernodeWeight>& maxPartWeights) {
 
 
@@ -282,7 +285,7 @@ public:
 
   HyperedgeWeight revertToBestPrefixParallel(PartitionedHypergraph& phg,
                                              FMSharedData& sharedData,
-                                             vec<HypernodeWeight>& partWeights,
+                                             const vec<HypernodeWeight>& partWeights,
                                              const std::vector<HypernodeWeight>& maxPartWeights) {
     const MoveID numMoves = sharedData.moveTracker.numPerformedMoves();
     if (numMoves == 0) return 0;
@@ -297,7 +300,7 @@ public:
     timer.start_timer("find_best_prefix_and_balance", "Find Best Balanced Prefix");
     BalanceAndBestIndexScan s(phg, move_order, partWeights, maxPartWeights);
     tbb::parallel_scan(tbb::blocked_range<MoveID>(0, numMoves, 2500), s);
-    BalanceAndBestIndexScan::GainIndex b = s.finalize();
+    BalanceAndBestIndexScan::Prefix b = s.finalize(partWeights);
     timer.stop_timer("find_best_prefix_and_balance");
 
     timer.start_timer("revert_and_rem_orig_pin_updates", "Revert Moves and apply updates");
