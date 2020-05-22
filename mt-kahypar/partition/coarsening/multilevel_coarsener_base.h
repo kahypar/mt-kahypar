@@ -38,7 +38,7 @@ namespace mt_kahypar {
 class MultilevelCoarsenerBase {
  private:
 
-  static constexpr bool debug = false;
+  static constexpr bool debug = true;
 
   class Hierarchy {
 
@@ -345,6 +345,12 @@ class MultilevelCoarsenerBase {
       if ( _top_level) {
         DBG << "After Label Propagation Refiner - km1 = " << current_metrics.km1
             << ", imbalance = " << current_metrics.imbalance;
+
+        if (current_metrics.km1 != metrics::km1(partitioned_hypergraph)) {
+          LOG << V(current_metrics.km1) << "after LP does not match actual value" << V(metrics::km1(partitioned_hypergraph));
+          std::exit(0);
+        }
+
       }
 
       if ( fm && _context.refinement.fm.algorithm != FMAlgorithm::do_nothing ) {
@@ -360,7 +366,14 @@ class MultilevelCoarsenerBase {
       if ( _top_level) {
         DBG << "After FM Refiner - km1 = " << current_metrics.km1
             << ", imbalance = " << current_metrics.imbalance;
+
+
+        if (current_metrics.km1 != metrics::km1(partitioned_hypergraph)) {
+          LOG << V(current_metrics.km1) << "after FM does not match actual value" << V(metrics::km1(partitioned_hypergraph));
+          std::exit(0);
+        }
       }
+
       if ( !_context.refinement.refine_until_no_improvement ) {
         break;
       }
