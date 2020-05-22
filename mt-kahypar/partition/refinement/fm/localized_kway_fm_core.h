@@ -159,20 +159,14 @@ private:
         estimatedImprovement += move.gain;
         localData.localMoves.push_back(move);
         stopRule.update(move.gain);
-
-        // Check if move improves current best solution
-        bool move_improved_quality = false;
-        if ( context.refinement.fm.allow_zero_gain_moves ) {
-          move_improved_quality = estimatedImprovement >= bestImprovement;
-        } else {
-          const bool improved_km1 = estimatedImprovement > bestImprovement;
-          const bool improved_balance_less_equal_km1 = estimatedImprovement >= bestImprovement &&
+        const bool improved_km1 = estimatedImprovement > bestImprovement;
+        const bool improved_balance_less_equal_km1 = estimatedImprovement >= bestImprovement &&
                                                        toWeight + phg.nodeWeight(move.node) < heaviestPartWeight;
-          move_improved_quality = improved_km1 || improved_balance_less_equal_km1;
-        }
 
-        if (move_improved_quality) {
+        if (improved_km1) {
           stopRule.reset();
+        }
+        if (improved_km1 || improved_balance_less_equal_km1) {
           bestImprovement = estimatedImprovement;
           bestImprovementIndex = localData.localMoves.size();
         }
@@ -242,19 +236,14 @@ private:
         localData.localMoveIDs.push_back(move_id);
         stopRule.update(move.gain);
 
-        // Check if move improves current best solution
-        bool move_improved_quality = false;
-        if ( context.refinement.fm.allow_zero_gain_moves ) {
-          move_improved_quality = estimatedImprovement >= bestImprovement;
-        } else {
-          const bool improved_km1 = estimatedImprovement > bestImprovement;
-          const bool improved_balance_less_equal_km1 = estimatedImprovement >= bestImprovement &&
-                                                      toWeight + phg.nodeWeight(move.node) < heaviestPartWeight;
-          move_improved_quality = improved_km1 || improved_balance_less_equal_km1;
-        }
+        const bool improved_km1 = estimatedImprovement > bestImprovement;
+        const bool improved_balance_less_equal_km1 = estimatedImprovement >= bestImprovement &&
+                                                     toWeight + phg.nodeWeight(move.node) < heaviestPartWeight;
 
-        if (move_improved_quality) {
+        if (improved_km1) {
           stopRule.reset();
+        }
+        if (improved_km1 || improved_balance_less_equal_km1) {
           bestImprovement = estimatedImprovement;
           bestImprovementIndex = localData.localMoveIDs.size();
         }
