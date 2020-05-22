@@ -152,7 +152,7 @@ private:
     Gain bestImprovement = 0;
 
     HypernodeWeight heaviestPartWeight = 0;
-    HypernodeWeight toWeight = 0;
+    HypernodeWeight fromWeight = 0, toWeight = 0;
 
     while (!stopRule.searchShouldStop()
            && sharedData.finishedTasks.load(std::memory_order_relaxed) < sharedData.finishedTasksLimit
@@ -162,6 +162,7 @@ private:
       bool moved = false;
       if (move.to != kInvalidPartition) {
         heaviestPartWeight = metrics::heaviestPartAndWeight(deltaPhg).second;
+        fromWeight = deltaPhg.partWeight(move.from);
         toWeight = deltaPhg.partWeight(move.to);
         moved = deltaPhg.changeNodePart(move.node, move.from, move.to,
           context.partition.max_part_weights[move.to], hes_to_update_func);
@@ -173,8 +174,9 @@ private:
         localData.localMoves.push_back(move);
         stopRule.update(move.gain);
         const bool improved_km1 = estimatedImprovement > bestImprovement;
-        const bool improved_balance_less_equal_km1 = estimatedImprovement >= bestImprovement &&
-                                                       toWeight + phg.nodeWeight(move.node) < heaviestPartWeight;
+        const bool improved_balance_less_equal_km1 = estimatedImprovement >= bestImprovement
+                                                     && fromWeight == heaviestPartWeight
+                                                     && toWeight + phg.nodeWeight(move.node) < heaviestPartWeight;
 
         if (improved_km1) {
           stopRule.reset();
@@ -227,7 +229,7 @@ private:
     Gain bestImprovement = 0;
 
     HypernodeWeight heaviestPartWeight = 0;
-    HypernodeWeight toWeight = 0;
+    HypernodeWeight fromWeight = 0, toWeight = 0;
 
     while (!stopRule.searchShouldStop()
            && sharedData.finishedTasks.load(std::memory_order_relaxed) < sharedData.finishedTasksLimit
@@ -239,6 +241,7 @@ private:
       bool moved = false;
       if (move.to != kInvalidPartition) {
         heaviestPartWeight = metrics::heaviestPartAndWeight(phg).second;
+        fromWeight = phg.partWeight(move.from);
         toWeight = phg.partWeight(move.to);
         moved = phg.changeNodePartFullUpdate(move.node, move.from, move.to,
           context.partition.max_part_weights[move.to],
@@ -252,8 +255,9 @@ private:
         stopRule.update(move.gain);
 
         const bool improved_km1 = estimatedImprovement > bestImprovement;
-        const bool improved_balance_less_equal_km1 = estimatedImprovement >= bestImprovement &&
-                                                     toWeight + phg.nodeWeight(move.node) < heaviestPartWeight;
+        const bool improved_balance_less_equal_km1 = estimatedImprovement >= bestImprovement
+                                                     && fromWeight == heaviestPartWeight
+                                                     && toWeight + phg.nodeWeight(move.node) < heaviestPartWeight;
 
         if (improved_km1) {
           stopRule.reset();
