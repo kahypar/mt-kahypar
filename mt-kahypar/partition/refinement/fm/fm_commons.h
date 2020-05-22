@@ -166,8 +166,10 @@ struct FMSharedData {
   // ! Stores the designated target part of a vertex, i.e. the part with the highest gain to which moving is feasible
   vec<PartitionID> targetPart;
 
+  // ! Stop parallel refinement if finishedTasks > finishedTasksLimit to avoid long-running single searches
   CAtomic<size_t> finishedTasks;
   size_t finishedTasksLimit = std::numeric_limits<size_t>::max();
+
 
   FMSharedData(size_t numNodes = 0, PartitionID numParts = 0, size_t numThreads = 0) :
           refinementNodes(), //numNodes, numThreads),

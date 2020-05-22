@@ -85,7 +85,9 @@ class LocalizedKWayFM {
   bool findMovesLocalized(PartitionedHypergraph& phg, FMSharedData& sharedData, size_t taskID) {
     localData.clear();
     validHyperedges.clear();
+
     thisSearch = ++sharedData.nodeTracker.highestActiveSearchID;
+
     const size_t nSeeds = context.refinement.fm.num_seed_nodes;
     HypernodeID seedNode;
     while (localData.runStats.pushes < nSeeds && sharedData.refinementNodes.try_pop(seedNode, taskID)) {
