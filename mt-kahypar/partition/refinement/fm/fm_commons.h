@@ -186,7 +186,7 @@ struct FMSharedData {
     finishedTasks.store(0, std::memory_order_relaxed);
 
     // 128 * 3/2 GB --> roughly 1.5 GB per thread on our biggest machine
-    deltaMemoryLimitPerThread = 128 * (1 << 30) * 3 / ( 2 * std::max(1UL, numThreads) );
+    deltaMemoryLimitPerThread = 128UL * (1UL << 30) * 3 / ( 2 * std::max(1UL, numThreads) );
 
     tbb::parallel_invoke([&] {
       moveTracker.moveOrder.resize(numNodes);
