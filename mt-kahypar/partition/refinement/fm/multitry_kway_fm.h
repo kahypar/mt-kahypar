@@ -36,7 +36,7 @@ namespace mt_kahypar {
 
 class MultiTryKWayFM final : public IRefiner {
 
-  static constexpr bool debug = false;
+  static constexpr bool debug = true;
 
 public:
   MultiTryKWayFM(const Hypergraph& hypergraph, const Context& context, const TaskGroupID taskGroupID) :
@@ -107,7 +107,8 @@ public:
 
       timer.stop_timer("rollback");
 
-      DBG << V(round) << V(improvement) << V(metrics::imbalance(phg, context)) << V(numBorderNodes) << stats.serialize();
+      if (context.type == kahypar::ContextType::main)
+	      DBG << V(round) << V(improvement) << V(metrics::imbalance(phg, context)) << V(numBorderNodes) << stats.serialize();
 
       if (improvement <= 0) {
         break;
