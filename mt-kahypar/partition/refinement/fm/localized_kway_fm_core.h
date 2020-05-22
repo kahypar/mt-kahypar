@@ -509,7 +509,7 @@ private:
       Move& move = sharedData.moveTracker.getMove(m_id);
       move.gain = lastGain; // Update gain value based on hypergraph delta
       localData.localMoveIDs.push_back(m_id);
-      if ( estimatedImprovement >= bestImprovement ) {
+      if ( estimatedImprovement >= bestImprovement ) {  // TODO also incorporate balance into this
         bestImprovement = estimatedImprovement;
         bestIndex = i;
       }
@@ -517,7 +517,7 @@ private:
 
     // Kind of double rollback, if gain values are not correct
     ASSERT(localData.localMoveIDs.size() == bestGainIndex);
-    if ( estimatedImprovement < 0 ) {
+    if ( estimatedImprovement < 0 ) { // TODO why this condition? shouldn't we just always do that?
       localData.runStats.local_reverts += localData.localMoves.size() - bestIndex;
       for ( size_t i = bestIndex + 1; i < bestGainIndex; ++i ) {
         Move& m = sharedData.moveTracker.getMove(localData.localMoveIDs[i]);
