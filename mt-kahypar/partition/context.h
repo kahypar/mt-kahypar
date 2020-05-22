@@ -185,7 +185,6 @@ struct FMParameters {
   bool perform_moves_global = false;
   bool revert_parallel = true;
   double rollback_balance_violation_factor = std::numeric_limits<double>::max();
-  bool allow_zero_gain_moves = false;
   size_t num_seed_nodes = 0;
   bool shuffle = true;
   bool obey_minimal_parallelism = false;
@@ -198,7 +197,6 @@ inline std::ostream& operator<<(std::ostream& out, const FMParameters& params) {
   out << "    Perform Moves Globally:           " << std::boolalpha << params.perform_moves_global << std::endl;
   out << "    Parallel Global Rollbacks:        " << std::boolalpha << params.revert_parallel << std::endl;
   out << "    Rollback Bal. Violation Factor:   " << params.rollback_balance_violation_factor << std::endl;
-  out << "    Allow Zero Gain Moves:            " << std::boolalpha << params.allow_zero_gain_moves << std::endl;
   out << "    Num Seed Nodes:                   " << params.num_seed_nodes << std::endl;
   out << "    Enable Random Shuffle:            " << std::boolalpha << params.shuffle << std::endl;
   out << "    Obey Minimal Parallelism:         " << std::boolalpha << params.obey_minimal_parallelism << std::endl;
