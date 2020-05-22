@@ -100,7 +100,16 @@ class LocalizedKWayFM {
     }
 
     if (localData.runStats.pushes > 0) {
-      if ( context.refinement.fm.perform_moves_global ) {
+      if (!context.refinement.fm.perform_moves_global
+          && deltaPhg.combinedMemoryConsumption() > sharedData.deltaMemoryLimitPerThread) {
+        sharedData.deltaExceededMemoryConstraints = true;
+      }
+
+      if (sharedData.deltaExceededMemoryConstraints) {
+        deltaPhg.dropMemory();
+      }
+
+      if (context.refinement.fm.perform_moves_global || sharedData.deltaExceededMemoryConstraints) {
         internalFindMovesOnGlobalHypergraph(phg, sharedData);
       } else {
         deltaPhg.clear();
