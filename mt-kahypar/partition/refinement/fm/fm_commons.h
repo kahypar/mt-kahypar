@@ -170,6 +170,9 @@ struct FMSharedData {
   CAtomic<size_t> finishedTasks;
   size_t finishedTasksLimit = std::numeric_limits<size_t>::max();
 
+  // ! Switch to applying moves directly if the use of local delta partitions exceeded a memory limit
+  bool deltaExceededMemoryConstraints = false;
+  size_t deltaMemoryLimitPerThread = 0;
 
   FMSharedData(size_t numNodes = 0, PartitionID numParts = 0, size_t numThreads = 0) :
           refinementNodes(), //numNodes, numThreads),
@@ -181,6 +184,9 @@ struct FMSharedData {
           targetPart()
   {
     finishedTasks.store(0, std::memory_order_relaxed);
+
+    // 128 * 3/2 GB --> roughly 1.5 GB per thread on our biggest machine
+    deltaMemoryLimitPerThread = 128 * (1 << 30) * 3 / ( 2 * std::max(1UL, numThreads) );
 
     tbb::parallel_invoke([&] {
       moveTracker.moveOrder.resize(numNodes);
