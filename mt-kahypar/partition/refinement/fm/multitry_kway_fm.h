@@ -56,7 +56,7 @@ public:
     Gain improvement = refine(phg);
     metrics.km1 -= improvement;
     metrics.imbalance = metrics::imbalance(phg, context);
-    assert(metrics.km1 == metrics::km1(phg));
+    ASSERT(metrics.km1 == metrics::km1(phg), V(metrics.km1) << V(metrics::km1(phg)));
     return improvement > 0;
   }
 
@@ -107,8 +107,10 @@ public:
 
       timer.stop_timer("rollback");
 
-      if (context.type == kahypar::ContextType::main)
-	      DBG << V(round) << V(improvement) << V(metrics::imbalance(phg, context)) << V(numBorderNodes) << stats.serialize();
+      if (debug && context.type == kahypar::ContextType::main) {
+        LOG << V(round) << V(improvement) << V(metrics::km1(phg)) << V(metrics::imbalance(phg, context))
+            << V(numBorderNodes) << stats.serialize();
+      }
 
       if (improvement <= 0) {
         break;

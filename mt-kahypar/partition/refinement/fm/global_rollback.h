@@ -39,13 +39,14 @@ struct BalanceAndBestIndexScan {
   const vec<Move>& moves;
 
   struct Prefix {
-    Gain gain = 0;                           /** negative of the gain when using valid moves up to best_index */
+    Gain gain = 0;                           /** gain when using valid moves up to best_index */
     MoveID best_index = 0;                   /** local ID of first move to revert */
     HypernodeWeight heaviest_weight =
             std::numeric_limits<HypernodeWeight>::max();   /** weight of the heaviest part */
 
     bool operator<(const Prefix& o) const {
-      return std::tie(gain, heaviest_weight, best_index) < std::tie(o.gain, o.heaviest_weight, o.best_index);
+      return gain > o.gain ||
+             (gain == o.gain && std::tie(heaviest_weight, best_index) < std::tie(o.heaviest_weight, o.best_index));
     }
   };
   std::shared_ptr< tbb::enumerable_thread_specific<Prefix> > local_best;
@@ -59,6 +60,7 @@ struct BalanceAndBestIndexScan {
           phg(b.phg),
           moves(b.moves),
           local_best(b.local_best),
+          gain_sum(0),
           part_weights(b.part_weights.size(), 0),
           max_part_weights(b.max_part_weights) { }
 
@@ -80,7 +82,7 @@ struct BalanceAndBestIndexScan {
     for (MoveID i = r.begin(); i < r.end(); ++i) {
       const Move& m = moves[i];
       if (m.gain != invalidGain) {  // skip locally reverted moves
-        gain_sum -= m.gain;
+        gain_sum += m.gain;
         part_weights[m.from] -= phg.nodeWeight(m.node);
         part_weights[m.to] += phg.nodeWeight(m.node);
       }
@@ -93,7 +95,7 @@ struct BalanceAndBestIndexScan {
     for (size_t i = 0; i < part_weights.size(); ++i) {
       part_weights[i] += lhs.part_weights[i];
     }
-    gain_sum -= lhs.gain_sum;
+    gain_sum += lhs.gain_sum;
   }
 
   void operator()(const tbb::blocked_range<MoveID>& r, tbb::final_scan_tag ) {
@@ -109,21 +111,20 @@ struct BalanceAndBestIndexScan {
       const Move& m = moves[i];
 
       if (m.gain != invalidGain) {  // skip locally reverted moves
+        gain_sum += m.gain;
+
         const bool from_overloaded = part_weights[m.from] > max_part_weights[m.from];
         part_weights[m.from] -= phg.nodeWeight(m.node);
         if (from_overloaded && part_weights[m.from] <= max_part_weights[m.from]) {
           overloaded--;
         }
-
         const bool to_overloaded = part_weights[m.to] > max_part_weights[m.to];
         part_weights[m.to] += phg.nodeWeight(m.node);
         if (!to_overloaded && part_weights[m.to] > max_part_weights[m.to]) {
           overloaded++;
         }
 
-        gain_sum -= m.gain;
-
-        if (overloaded == 0 && gain_sum <= current.gain /* gain_sum is the negative! */) {
+        if (overloaded == 0 && gain_sum >= current.gain) {
           Prefix new_prefix = { gain_sum, i + 1, *std::max_element(part_weights.begin(), part_weights.end()) };
           current = std::min(current, new_prefix);
         }
@@ -136,8 +137,8 @@ struct BalanceAndBestIndexScan {
     }
   }
 
-  void assign(BalanceAndBestIndexScan& ) {
-
+  void assign(BalanceAndBestIndexScan& b) {
+    gain_sum = b.gain_sum;
   }
 
   Prefix finalize(const vec<HypernodeWeight>& initial_part_weights) {
@@ -145,7 +146,6 @@ struct BalanceAndBestIndexScan {
     for (const Prefix& x : *local_best) {
       res = std::min(res, x);
     }
-    res.gain = -res.gain; // we worked with the negative gains to make the comparison work
     return res;
   }
 };
@@ -299,7 +299,8 @@ public:
 
     timer.start_timer("find_best_prefix_and_balance", "Find Best Balanced Prefix");
     BalanceAndBestIndexScan s(phg, move_order, partWeights, maxPartWeights);
-    tbb::parallel_scan(tbb::blocked_range<MoveID>(0, numMoves, 2500), s);
+    //tbb::parallel_scan(tbb::blocked_range<MoveID>(0, numMoves, 2500), s);
+    tbb::parallel_scan(tbb::blocked_range<MoveID>(0, numMoves), s); // debug version to invoke reverse_join more frequently
     BalanceAndBestIndexScan::Prefix b = s.finalize(partWeights);
     timer.stop_timer("find_best_prefix_and_balance");
 
@@ -501,14 +502,14 @@ public:
           continue;
 
         const Gain estimated_gain = phg.km1Gain(m.node, m.from, m.to);
-        assert(phg.moveFromBenefit(m.node) == phg.moveFromBenefitRecomputed(m.node));
-        assert(phg.moveToPenalty(m.node, m.to) == phg.moveToPenaltyRecomputed(m.node, m.to));
+        ASSERT(phg.moveFromBenefit(m.node) == phg.moveFromBenefitRecomputed(m.node));
+        ASSERT(phg.moveToPenalty(m.node, m.to) == phg.moveToPenaltyRecomputed(m.node, m.to));
         const HyperedgeWeight km1_before_move = metrics::km1(phg, false);
         phg.changeNodePartFullUpdate(m.node, m.from, m.to);
         const HyperedgeWeight km1_after_move = metrics::km1(phg, false);
-        assert(km1_after_move + estimated_gain == km1_before_move);
-        assert(km1_after_move + m.gain == km1_before_move);
-        assert(estimated_gain == m.gain);
+        ASSERT(km1_after_move + estimated_gain == km1_before_move);
+        ASSERT(km1_after_move + m.gain == km1_before_move);
+        ASSERT(estimated_gain == m.gain);
       }
 
       for (MoveID localMoveID = 0; localMoveID < sharedData.moveTracker.numPerformedMoves(); ++localMoveID) {
