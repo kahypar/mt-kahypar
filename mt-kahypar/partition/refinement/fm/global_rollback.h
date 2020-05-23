@@ -299,8 +299,7 @@ public:
 
     timer.start_timer("find_best_prefix_and_balance", "Find Best Balanced Prefix");
     BalanceAndBestIndexScan s(phg, move_order, partWeights, maxPartWeights);
-    //tbb::parallel_scan(tbb::blocked_range<MoveID>(0, numMoves, 2500), s);
-    tbb::parallel_scan(tbb::blocked_range<MoveID>(0, numMoves), s); // debug version to invoke reverse_join more frequently
+    tbb::parallel_scan(tbb::blocked_range<MoveID>(0, numMoves), s);
     BalanceAndBestIndexScan::Prefix b = s.finalize(partWeights);
     timer.stop_timer("find_best_prefix_and_balance");
 
