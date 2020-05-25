@@ -41,6 +41,7 @@ static inline std::string serialize(const PartitionedHypergraph& hypergraph,
   if (context.partition.sp_process_output) {
     std::stringstream oss;
     oss << "RESULT"
+        << " algorithm=" << context.algorithm_name
         << " graph=" << context.partition.graph_filename.substr(
       context.partition.graph_filename.find_last_of('/') + 1)
         << " numHNs=" << hypergraph.initialNumNodes()

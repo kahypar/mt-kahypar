@@ -124,7 +124,9 @@ po::options_description createGenericOptionsDescription(Context& context,
     "Summarize partitioning results in RESULT line compatible with sqlplottools "
     "(https://github.com/bingmann/sqlplottools)")
     ("csv", po::value<bool>(&context.partition.csv_output)->value_name("<bool>"),
-    "Summarize results in CSV");
+    "Summarize results in CSV")
+    ("algorithm-name", po::value<std::string>(&context.algorithm_name)->value_name("<std::string>"),
+    "An algorithm name to print into the summarized output (csv or sqlplottools). ");
   return generic_options;
 }
 

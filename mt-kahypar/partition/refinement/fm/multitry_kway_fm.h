@@ -175,6 +175,14 @@ public:
   tbb::enumerable_thread_specific<LocalizedKWayFM> ets_fm;
   size_t peak_reinsertions = 0;
 
+
+  struct Stats {
+    Gain gain = 0;
+    size_t work = 0;
+  };
+  vec<Stats> roundStats;
+  vec<Stats> levelStats;
+
 public:
   void printMemoryConsumption() {
     std::unordered_map<std::string, size_t> r;
