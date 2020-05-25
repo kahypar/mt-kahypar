@@ -36,7 +36,7 @@ namespace mt_kahypar {
 
 class MultiTryKWayFM final : public IRefiner {
 
-  static constexpr bool debug = true;
+  static constexpr bool debug = false;
 
 public:
   MultiTryKWayFM(const Hypergraph& hypergraph, const Context& context, const TaskGroupID taskGroupID) :
