@@ -142,13 +142,14 @@ public:
     timer.start_timer("set_remaining_original_pins", "Set remaining original pins");
     globalRollback.setRemainingOriginalPins(phg);
     timer.stop_timer("set_remaining_original_pins");
+
+    // clear gain tracking for the next level
+    roundImprovementFractions.clear();
+
     is_initialized = true;
   }
 
   void roundInitialization(PartitionedHypergraph& phg) {
-    // clear gain tracking for the next level
-    roundImprovementFractions.clear();
-
     // clear border nodes
     sharedData.refinementNodes.clear();
 
