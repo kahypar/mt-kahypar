@@ -294,7 +294,7 @@ po::options_description createRefinementOptionsDescription(Context& context,
     (( initial_partitioning ? "i-r-fm-perform-moves-global" : "r-fm-perform-moves-global"),
     po::value<bool>((initial_partitioning ? &context.initial_partitioning.refinement.fm.perform_moves_global :
       &context.refinement.fm.perform_moves_global))->value_name("<bool>"),
-    "If true, than all moves performed during FM are immediatly visible to other local search.\n"
+    "If true, then all moves performed during FM are immediately visible to other local search.\n"
     "Otherwise, only move sequences that yield an improvement are applied to the global hypergraph.")
     (( initial_partitioning ? "i-r-fm-seed-nodes" : "r-fm-seed-nodes"),
     po::value<size_t>((initial_partitioning ? &context.initial_partitioning.refinement.fm.num_seed_nodes :
