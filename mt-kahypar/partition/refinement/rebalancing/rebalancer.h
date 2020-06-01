@@ -21,6 +21,7 @@
 #pragma once
 
 #include <queue>
+#include <boost/dynamic_bitset.hpp>
 
 #include "tbb/enumerable_thread_specific.h"
 #include "tbb/parallel_for.h"
@@ -44,13 +45,15 @@ class Rebalancer {
 
   static constexpr Gain MIN_PQ_GAIN_THRESHOLD = 5;
 
+public:
+
   struct MoveGainComparator {
     bool operator()(const Move& lhs, const Move& rhs) {
       return lhs.gain > rhs.gain || (lhs.gain == rhs.gain && lhs.node < rhs.node);
     }
   };
 
-  using MovePQ = std::priority_queue<Move, std::vector<Move>, MoveGainComparator>;
+  using MovePQ = std::priority_queue<Move, vec<Move>, MoveGainComparator>;
 
   struct IndexedMovePQ {
     explicit IndexedMovePQ(const size_t idx) :
@@ -61,13 +64,9 @@ class Rebalancer {
     MovePQ pq;
   };
 
- public:
-  explicit Rebalancer(PartitionedHypergraph& hypergraph,
-                       const Context& context,
-                       const TaskGroupID task_group_id) :
+  explicit Rebalancer(PartitionedHypergraph& hypergraph, const Context& context) :
     _hg(hypergraph),
     _context(context),
-    _task_group_id(task_group_id),
     _gain(context),
     _part_weights(_context.partition.k) { }
 
@@ -81,6 +80,7 @@ class Rebalancer {
     // If partition is imbalanced, rebalancer is activated
     if ( !metrics::isBalanced(_hg, _context) ) {
       _gain.reset();
+
       for ( PartitionID block = 0; block < _context.partition.k; ++block ) {
         _part_weights[block] = _hg.partWeight(block);
       }
@@ -96,6 +96,14 @@ class Rebalancer {
                                                               pin_count_in_from_part_after,
                                                               pin_count_in_to_part_after);
                             };
+
+
+
+
+      vec<Move> moves_to_empty_blocks = repairEmptyBlocks();
+      for (Move& m : moves_to_empty_blocks) {
+        moveVertex(m.node, m, objective_delta);
+      }
 
       // We first try to perform moves that does not worsen solution quality of the partition
       // Moves that would worsen the solution quality are gathered in a thread local priority queue
@@ -199,7 +207,108 @@ class Rebalancer {
     }
   }
 
- private:
+
+  vec<Move> repairEmptyBlocks() {
+    // First detect if there are any empty blocks.
+    const size_t k = size_t(_context.partition.k);
+    boost::dynamic_bitset<> is_empty(k);
+    for (size_t i = 0; i < k; ++i) {
+      if (_hg.partWeight(PartitionID(i)) == 0) {
+        is_empty.set(i, true);
+      }
+    }
+
+    vec<Move> moves_to_empty_blocks;
+
+    // If so, find the best vertices to move to that block
+    while (is_empty.any()) {
+
+      tbb::enumerable_thread_specific< vec<Gain> > ets_scores(k, 0);
+
+      // positive gain values correspond to "good" improvement. MovePQ uses std::greater (MinHeap)
+      // --> stores worst gains at the top where we can eject them
+      tbb::enumerable_thread_specific< vec< vec<Move> > > ets_best_move(k);
+
+      _hg.doParallelForAllNodes([&](const HypernodeID u) {
+        vec<Gain>& scores = ets_scores.local();
+        vec< vec<Move> >& move_proposals = ets_best_move.local();
+
+        const PartitionID pu = _hg.partID(u);
+        Gain unremovable = 0;
+        for (HyperedgeID e : _hg.incidentEdges(u)) {
+          const HyperedgeWeight edge_weight = _hg.edgeWeight(e);
+          if (_hg.pinCountInPart(e, pu) > 1) {
+            unremovable += edge_weight;
+          }
+          for (PartitionID i : _hg.connectivitySet(e)) {
+            scores[i] += edge_weight;
+          }
+        }
+
+        // maintain thread local priority queues of up to k best gains
+        for (PartitionID i = 0; i < PartitionID(k); ++i) {
+          if (i != pu && is_empty[i] && _hg.partWeight(pu) > _hg.nodeWeight(u)
+              && _hg.nodeWeight(u) <= _context.partition.max_part_weights[i]) {
+            const Gain gain = scores[i] - unremovable;
+            vec<Move>& c = move_proposals[i];
+            if (c.size() < k) {
+              c.push_back(Move { pu, i, u, gain });
+              std::push_heap(c.begin(), c.end(), MoveGainComparator());
+            } else if (c.front().gain < gain) {
+              std::pop_heap(c.begin(), c.end(), MoveGainComparator());
+              c.back() = { pu, i, u, gain };
+              std::push_heap(c.begin(), c.end(), MoveGainComparator());
+            }
+          }
+          scores[i] = 0;
+        }
+      });
+
+      vec< vec<Move> > best_moves_per_part(k);
+
+      for (vec<vec<Move>>& tlpq : ets_best_move) {
+        size_t i = is_empty.find_first();
+        while (i != is_empty.npos) {
+          std::copy(tlpq[i].begin(), tlpq[i].end(), std::back_inserter(best_moves_per_part[i]));
+          i = is_empty.find_next(i);
+        }
+      }
+
+      auto prefer_highest_gain = [&](const Move& lhs, const Move& rhs) {
+        const HypernodeWeight pwl = _hg.partWeight(_hg.partID(lhs.node));
+        const HypernodeWeight pwr = _hg.partWeight(_hg.partID(rhs.node));
+        return std::tie(lhs.gain, pwl, lhs.node)
+               > std::tie(rhs.gain, pwr, rhs.node);
+      };
+
+      auto node_already_used = [&](HypernodeID node) {
+        return std::any_of(moves_to_empty_blocks.begin(),
+                           moves_to_empty_blocks.end(),
+                           [node](const Move& m) { return m.node == node; }
+                           );
+      };
+
+      size_t i = is_empty.find_first();
+      while (i != is_empty.npos) {
+        vec<Move>& c = best_moves_per_part[i];
+        std::sort(c.begin(), c.end(), prefer_highest_gain);
+
+        size_t j = 0;
+        while (j < c.size() && node_already_used(c[j].node)) { ++j; }
+        if (j != c.size()) {
+          moves_to_empty_blocks.push_back(c[j]);
+          is_empty.set(i, false);
+        }
+
+        i = is_empty.find_next(i);
+      }
+
+    }
+    return moves_to_empty_blocks;
+  }
+
+private:
+
   template<typename F>
   bool moveVertex(const HypernodeID hn, const Move& move, const F& objective_delta) {
     ASSERT(_hg.partID(hn) == move.from);
@@ -225,7 +334,6 @@ class Rebalancer {
 
   PartitionedHypergraph& _hg;
   const Context& _context;
-  const TaskGroupID _task_group_id;
   GainCalculator _gain;
   parallel::scalable_vector<AtomicWeight> _part_weights;
 };

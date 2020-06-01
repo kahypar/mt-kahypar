@@ -172,7 +172,7 @@ static inline std::pair<PartitionID, HypernodeWeight> heaviestPartAndWeight(cons
 
 static inline bool isBalanced(const PartitionedHypergraph& phg, const Context& context) {
   for (PartitionID i = 0; i < context.partition.k; ++i) {
-    if (phg.partWeight(i) > context.partition.max_part_weights[i]) {
+    if (phg.partWeight(i) > context.partition.max_part_weights[i] || phg.partWeight(i) == 0) {
       return false;
     }
   }

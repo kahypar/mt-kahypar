@@ -124,7 +124,9 @@ po::options_description createGenericOptionsDescription(Context& context,
     "Summarize partitioning results in RESULT line compatible with sqlplottools "
     "(https://github.com/bingmann/sqlplottools)")
     ("csv", po::value<bool>(&context.partition.csv_output)->value_name("<bool>"),
-    "Summarize results in CSV");
+    "Summarize results in CSV")
+    ("algorithm-name", po::value<std::string>(&context.algorithm_name)->value_name("<std::string>"),
+    "An algorithm name to print into the summarized output (csv or sqlplottools). ");
   return generic_options;
 }
 
@@ -156,7 +158,7 @@ po::options_description createPreprocessingOptionsDescription(Context& context, 
     "Louvain pass terminates if less than that fraction of nodes moves during a pass")
     ("p-vertex-degree-sampling-threshold",
     po::value<size_t>(&context.preprocessing.community_detection.vertex_degree_sampling_threshold)->value_name("<size_t>"),
-    "If set, than neighbors of a vertex are sampled during rating if its degree is greater than this threshold.");
+    "If set, then neighbors of a vertex are sampled during rating if its degree is greater than this threshold.");
   return options;
 }
 
@@ -174,11 +176,11 @@ po::options_description createCoarseningOptionsDescription(Context& context,
     " - multilevel_coarsener")
     ("c-use-adaptive-edge-size",
     po::value<bool>(&context.coarsening.use_adaptive_edge_size)->value_name("<bool>"),
-    "If true, than edge size is calculated based on current clustering rather than on input edge size\n"
+    "If true, then edge size is calculated based on current clustering rather than on input edge size\n"
     "during multilevel coarsing")
     ("c-use-adaptive-max-node-weight",
     po::value<bool>(&context.coarsening.use_adaptive_max_allowed_node_weight)->value_name("<bool>"),
-    "If true, than the maximum allowed node weight is adapted based on the reduction ratio\n"
+    "If true, then the maximum allowed node weight is adapted based on the reduction ratio\n"
     "during multilevel coarsing")
     ("c-adaptive-s",
     po::value<double>(&context.coarsening.max_allowed_weight_fraction)->value_name("<double>"),
@@ -229,7 +231,7 @@ po::options_description createCoarseningOptionsDescription(Context& context,
     "- best_prefer_unmatched")
     ("c-vertex-degree-sampling-threshold",
     po::value<size_t>(&context.coarsening.vertex_degree_sampling_threshold)->value_name("<size_t>"),
-    "If set, than neighbors of a vertex are sampled during rating if its degree is greater than this threshold.");
+    "If set, then neighbors of a vertex are sampled during rating if its degree is greater than this threshold.");
   return options;
 }
 
@@ -288,30 +290,37 @@ po::options_description createRefinementOptionsDescription(Context& context,
     (( initial_partitioning ? "i-r-fm-multitry-rounds" : "r-fm-multitry-rounds"),
     po::value<size_t>((initial_partitioning ? &context.initial_partitioning.refinement.fm.multitry_rounds :
       &context.refinement.fm.multitry_rounds))->value_name("<size_t>"),
-    "Number of multitry rounds. Default 4")
+    "Number of multitry rounds.")
     (( initial_partitioning ? "i-r-fm-perform-moves-global" : "r-fm-perform-moves-global"),
     po::value<bool>((initial_partitioning ? &context.initial_partitioning.refinement.fm.perform_moves_global :
       &context.refinement.fm.perform_moves_global))->value_name("<bool>"),
-    "If true, than all moves performed during FM are immediatly visible to other local search.\n"
-    "Otherwise, only move sequences that yield an improvement are applied to the global hypergraph. Default false")
+    "If true, then all moves performed during FM are immediately visible to other searches.\n"
+    "Otherwise, only move sequences that yield an improvement are applied to the global view of the partition.")
     (( initial_partitioning ? "i-r-fm-seed-nodes" : "r-fm-seed-nodes"),
     po::value<size_t>((initial_partitioning ? &context.initial_partitioning.refinement.fm.num_seed_nodes :
       &context.refinement.fm.num_seed_nodes))->value_name("<size_t>"),
-    "Use a fraction of the number of nodes as the number of seed nodes instead of a constant number. Default false")
+    "Number of nodes to start the 'highly localized FM' with.")
      (( initial_partitioning ? "i-r-fm-revert-parallel" : "r-fm-revert-parallel"),
      po::value<bool>((initial_partitioning ? &context.initial_partitioning.refinement.fm.revert_parallel :
      &context.refinement.fm.revert_parallel))->value_name("<bool>"),
-     "Perform gain and balance recalculation, and reverting to best prefix in parallel. Default true")
+     "Perform gain and balance recalculation, and reverting to best prefix in parallel.")
      (( initial_partitioning ? "i-r-fm-rollback-balance-violation-factor" : "r-fm-rollback-balance-violation-factor"),
      po::value<double>((initial_partitioning ? &context.initial_partitioning.refinement.fm.rollback_balance_violation_factor :
      &context.refinement.fm.rollback_balance_violation_factor))->value_name("<double>"),
      "Used to relax or disable the balance constraint during the rollback phase of parallel FM."
-     "Set to 0 for disabling. Set to a value > 1.0 to multiply the max part weight with this value."
-     "Default 1.0 (enabled, no relaxation)")
-     (( initial_partitioning ? "i-r-fm-allow-zero-gain-moves" : "r-fm-allow-zero-gain-moves"),
-     po::value<bool>((initial_partitioning ? &context.initial_partitioning.refinement.fm.allow_zero_gain_moves :
-     &context.refinement.fm.allow_zero_gain_moves))->value_name("<bool>"),
-     "If true, than zero gain improvements are used in FM to pertubate solution. Default true");
+     "Set to 0 for disabling. Set to a value > 1.0 to multiply epsilon with this value.")
+     (( initial_partitioning ? "i-r-fm-min-improvement" : "r-fm-min-improvement"),
+     po::value<double>((initial_partitioning ? &context.initial_partitioning.refinement.fm.min_improvement :
+     &context.refinement.fm.min_improvement))->value_name("<double>"),
+     "Min improvement for FM.")
+     (( initial_partitioning ? "i-r-fm-release-nodes" : "r-fm-release-nodes"),
+     po::value<bool>((initial_partitioning ? &context.initial_partitioning.refinement.fm.release_nodes :
+     &context.refinement.fm.release_nodes))->value_name("<bool>"),
+     "FM releases nodes that weren't moved, so they might be found by another search.")
+     (( initial_partitioning ? "i-r-fm-obey-minimal-parallelism" : "r-fm-obey-minimal-parallelism"),
+     po::value<bool>((initial_partitioning ? &context.initial_partitioning.refinement.fm.obey_minimal_parallelism :
+     &context.refinement.fm.obey_minimal_parallelism))->value_name("<bool>"),
+     "If true, then parallel FM refinement stops if more than a certain number of threads are finished.");
   return options;
 }
 
@@ -357,13 +366,13 @@ po::options_description createSparsificationOptionsDescription(Context& context,
   sparsification_options.add_options()
     ("sp-use-degree-zero-contractions",
     po::value<bool>(&context.sparsification.use_degree_zero_contractions)->value_name("<bool>"),
-    "If true, than vertices with degree zero are contracted to supervertices")
+    "If true, then vertices with degree zero are contracted to supervertices")
     ("sp-use-heavy-net-removal",
     po::value<bool>(&context.sparsification.use_heavy_net_removal)->value_name("<bool>"),
-    "If true, than hyperedges with a weight greater than a certain threshold are removed before IP")
+    "If true, then hyperedges with a weight greater than a certain threshold are removed before IP")
     ("sp-use-similiar-net-removal",
     po::value<bool>(&context.sparsification.use_similiar_net_removal)->value_name("<bool>"),
-    "If true, than hyperedges with a jaccard similiarity greater than a certain threshold are removed before IP")
+    "If true, then hyperedges with a jaccard similiarity greater than a certain threshold are removed before IP")
     ("sp-hyperedge-pin-weight-fraction",
     po::value<double>(&context.sparsification.hyperedge_pin_weight_fraction)->value_name("<double>"),
     "Hyperedges where the sum of the weights of all pins are greater than ((1 + eps)|V|/k) / fraction are removed before IP")

@@ -156,6 +156,10 @@ public:
     std::cout << std::endl;
   }
 
+  size_t memory_consumption() const {
+    return heap.capacity() * sizeof(HeapElement);
+  }
+
 
 protected:
 

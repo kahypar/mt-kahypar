@@ -328,7 +328,8 @@ inline void printPartWeightsAndSizes(const PartitionedHypergraph& hypergraph, co
   const uint8_t part_digits = kahypar::math::digits(max_part_weight);
   const uint8_t k_digits = kahypar::math::digits(hypergraph.k());
   for (PartitionID i = 0; i != hypergraph.k(); ++i) {
-    bool is_imbalanced = hypergraph.partWeight(i) > context.partition.max_part_weights[i];
+    bool is_imbalanced =
+            hypergraph.partWeight(i) > context.partition.max_part_weights[i] || hypergraph.partWeight(i) == 0;
     if ( is_imbalanced ) std::cout << RED;
     std::cout << "|block " << std::left  << std::setw(k_digits) << i
               << std::setw(1) << "| = "  << std::right << std::setw(part_digits) << part_sizes[i]

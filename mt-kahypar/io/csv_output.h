@@ -45,11 +45,13 @@ namespace mt_kahypar :: io :: csv {
     const char sep = ',';
     std::stringstream s;
 
-    s << "MT-KaHyPar";
-    if (context.partition.preset_file.find("fast") != std::string::npos) {
-      s << "-Fast";
-    } else if (context.partition.preset_file.find("quality") != std::string::npos) {
-      s << "-Eco";
+    s << context.algorithm_name;
+    if (context.algorithm_name == "MT-KaHyPar") {
+      if (context.partition.preset_file.find("fast") != std::string::npos) {
+        s << "-Fast";
+      } else if (context.partition.preset_file.find("quality") != std::string::npos) {
+        s << "-Eco";
+      }
     }
     s << sep;
 

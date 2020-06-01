@@ -85,7 +85,9 @@ class LocalizedKWayFM {
   bool findMovesLocalized(PartitionedHypergraph& phg, FMSharedData& sharedData, size_t taskID) {
     localData.clear();
     validHyperedges.clear();
+
     thisSearch = ++sharedData.nodeTracker.highestActiveSearchID;
+
     const size_t nSeeds = context.refinement.fm.num_seed_nodes;
     HypernodeID seedNode;
     while (localData.runStats.pushes < nSeeds && sharedData.refinementNodes.try_pop(seedNode, taskID)) {
@@ -98,7 +100,16 @@ class LocalizedKWayFM {
     }
 
     if (localData.runStats.pushes > 0) {
-      if ( context.refinement.fm.perform_moves_global ) {
+      if (!context.refinement.fm.perform_moves_global
+          && deltaPhg.combinedMemoryConsumption() > sharedData.deltaMemoryLimitPerThread) {
+        sharedData.deltaExceededMemoryConstraints = true;
+      }
+
+      if (sharedData.deltaExceededMemoryConstraints) {
+        deltaPhg.dropMemory();
+      }
+
+      if (context.refinement.fm.perform_moves_global || sharedData.deltaExceededMemoryConstraints) {
         internalFindMovesOnGlobalHypergraph(phg, sharedData);
       } else {
         deltaPhg.clear();
@@ -141,14 +152,17 @@ private:
     Gain bestImprovement = 0;
 
     HypernodeWeight heaviestPartWeight = 0;
-    HypernodeWeight toWeight = 0;
+    HypernodeWeight fromWeight = 0, toWeight = 0;
 
-    while (!stopRule.searchShouldStop() && findNextMove(deltaPhg, move)) {
+    while (!stopRule.searchShouldStop()
+           && sharedData.finishedTasks.load(std::memory_order_relaxed) < sharedData.finishedTasksLimit
+           && findNextMove(deltaPhg, move)) {
       sharedData.nodeTracker.deactivateNode(move.node, thisSearch);
 
       bool moved = false;
       if (move.to != kInvalidPartition) {
         heaviestPartWeight = metrics::heaviestPartAndWeight(deltaPhg).second;
+        fromWeight = deltaPhg.partWeight(move.from);
         toWeight = deltaPhg.partWeight(move.to);
         moved = deltaPhg.changeNodePart(move.node, move.from, move.to,
           context.partition.max_part_weights[move.to], hes_to_update_func);
@@ -159,19 +173,12 @@ private:
         estimatedImprovement += move.gain;
         localData.localMoves.push_back(move);
         stopRule.update(move.gain);
+        const bool improved_km1 = estimatedImprovement > bestImprovement;
+        const bool improved_balance_less_equal_km1 = estimatedImprovement >= bestImprovement
+                                                     && fromWeight == heaviestPartWeight
+                                                     && toWeight + phg.nodeWeight(move.node) < heaviestPartWeight;
 
-        // Check if move improves current best solution
-        bool move_improved_quality = false;
-        if ( context.refinement.fm.allow_zero_gain_moves ) {
-          move_improved_quality = estimatedImprovement >= bestImprovement;
-        } else {
-          const bool improved_km1 = estimatedImprovement > bestImprovement;
-          const bool improved_balance_less_equal_km1 = estimatedImprovement >= bestImprovement &&
-                                                       toWeight + phg.nodeWeight(move.node) < heaviestPartWeight;
-          move_improved_quality = improved_km1 || improved_balance_less_equal_km1;
-        }
-
-        if (move_improved_quality) {
+        if (improved_km1 || improved_balance_less_equal_km1) {
           stopRule.reset();
           bestImprovement = estimatedImprovement;
           bestImprovementIndex = localData.localMoves.size();
@@ -220,9 +227,11 @@ private:
     Gain bestImprovement = 0;
 
     HypernodeWeight heaviestPartWeight = 0;
-    HypernodeWeight toWeight = 0;
+    HypernodeWeight fromWeight = 0, toWeight = 0;
 
-    while (!stopRule.searchShouldStop() && findNextMove(phg, move)) {
+    while (!stopRule.searchShouldStop()
+           && sharedData.finishedTasks.load(std::memory_order_relaxed) < sharedData.finishedTasksLimit
+           && findNextMove(phg, move)) {
       sharedData.nodeTracker.deactivateNode(move.node, thisSearch);
       MoveID move_id = std::numeric_limits<MoveID>::max();
       auto report_success = [&] { move_id = sharedData.moveTracker.insertMove(move); };
@@ -230,6 +239,7 @@ private:
       bool moved = false;
       if (move.to != kInvalidPartition) {
         heaviestPartWeight = metrics::heaviestPartAndWeight(phg).second;
+        fromWeight = phg.partWeight(move.from);
         toWeight = phg.partWeight(move.to);
         moved = phg.changeNodePartFullUpdate(move.node, move.from, move.to,
           context.partition.max_part_weights[move.to],
@@ -241,22 +251,15 @@ private:
         estimatedImprovement += move.gain;
         localData.localMoveIDs.push_back(move_id);
         stopRule.update(move.gain);
+        const bool improved_km1 = estimatedImprovement > bestImprovement;
+        const bool improved_balance_less_equal_km1 = estimatedImprovement >= bestImprovement
+                                                     && fromWeight == heaviestPartWeight
+                                                     && toWeight + phg.nodeWeight(move.node) < heaviestPartWeight;
 
-        // Check if move improves current best solution
-        bool move_improved_quality = false;
-        if ( context.refinement.fm.allow_zero_gain_moves ) {
-          move_improved_quality = estimatedImprovement >= bestImprovement;
-        } else {
-          const bool improved_km1 = estimatedImprovement > bestImprovement;
-          const bool improved_balance_less_equal_km1 = estimatedImprovement >= bestImprovement &&
-                                                      toWeight + phg.nodeWeight(move.node) < heaviestPartWeight;
-          move_improved_quality = improved_km1 || improved_balance_less_equal_km1;
-        }
-
-        if (move_improved_quality) {
+        if (improved_km1 || improved_balance_less_equal_km1) {
           stopRule.reset();
           bestImprovement = estimatedImprovement;
-          bestImprovementIndex = localData.localMoveIDs.size();
+          bestImprovementIndex = localData.localMoves.size();
         }
 
         insertOrUpdateNeighbors(phg, sharedData, move);
@@ -278,7 +281,9 @@ private:
     // release all nodes that were not moved
     // reinsert into task queue only if we're doing multitry and at least one node was moved
     // unless a node was moved, only seed nodes are in the pqs
-    const bool release = context.refinement.fm.algorithm == FMAlgorithm::fm_multitry && localData.runStats.moves > 0;
+    const bool release = context.refinement.fm.release_nodes
+                         && context.refinement.fm.algorithm == FMAlgorithm::fm_multitry
+                         && localData.runStats.moves > 0;
     const bool reinsert_seeds = bestImprovementIndex > 0;
 
     if (release) {
@@ -294,6 +299,7 @@ private:
           sharedData.nodeTracker.releaseNode(node);
           if (!sharedData.fruitlessSeed[node] && sharedData.refinementNodes.was_pushed_and_removed(node)) {
             sharedData.refinementNodes.concurrent_push(node);
+            stats.task_queue_reinsertions++;
           }
         }
       }
@@ -504,7 +510,7 @@ private:
       Move& move = sharedData.moveTracker.getMove(m_id);
       move.gain = lastGain; // Update gain value based on hypergraph delta
       localData.localMoveIDs.push_back(m_id);
-      if ( estimatedImprovement >= bestImprovement ) {
+      if ( estimatedImprovement >= bestImprovement ) {  // TODO also incorporate balance into this
         bestImprovement = estimatedImprovement;
         bestIndex = i;
       }
@@ -540,6 +546,24 @@ private:
 
  public:
   FMStats stats;
+
+  std::unordered_map<std::string, size_t> memory_consumption() const {
+    std::unordered_map<std::string, size_t> r;
+    r["deduplicator"] = updateDeduplicator.memory_consumption();
+    r["valid_hes"] = validHyperedges.memory_consumption();
+    size_t pq_consumption = blockPQ.memory_consumption();
+    for (const VertexPriorityQueue& vpq : vertexPQs)
+      pq_consumption += vpq.memory_consumption();
+    r["PQs"] = pq_consumption;
+
+    r["local_data"] = localData.seedVertices.capacity() * sizeof(HypernodeID)
+                      + localData.localMoveIDs.capacity() * sizeof(MoveID)
+                      + localData.localMoves.capacity() * sizeof(Move)
+                      + sizeof (FMStats);
+
+    r.merge(deltaPhg.memory_consumption());
+    return r;
+  };
 
  private:
 

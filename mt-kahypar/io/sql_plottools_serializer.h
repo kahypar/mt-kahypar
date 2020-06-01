@@ -41,6 +41,7 @@ static inline std::string serialize(const PartitionedHypergraph& hypergraph,
   if (context.partition.sp_process_output) {
     std::stringstream oss;
     oss << "RESULT"
+        << " algorithm=" << context.algorithm_name
         << " graph=" << context.partition.graph_filename.substr(
       context.partition.graph_filename.find_last_of('/') + 1)
         << " numHNs=" << hypergraph.initialNumNodes()
@@ -100,9 +101,11 @@ static inline std::string serialize(const PartitionedHypergraph& hypergraph,
         << " fm_perform_moves_global=" << std::boolalpha << context.refinement.fm.perform_moves_global
         << " fm_revert_parallel=" << std::boolalpha << context.refinement.fm.revert_parallel
         << " fm_rollback_balance_violation_factor" << context.refinement.fm.rollback_balance_violation_factor
-        << " fm_allow_zero_gain_moves=" << std::boolalpha << context.refinement.fm.allow_zero_gain_moves
+        << " fm_min_improvement" << context.refinement.fm.min_improvement
+        << " fm_release_nodes" << context.refinement.fm.release_nodes
         << " fm_num_seed_nodes=" << context.refinement.fm.num_seed_nodes
         << " fm_shuffle=" << std::boolalpha << context.refinement.fm.shuffle
+        << " fm_obey_minimal_parallelism=" << std::boolalpha << context.refinement.fm.obey_minimal_parallelism
         << " num_threads=" << context.shared_memory.num_threads
         << " use_localized_random_shuffle=" << std::boolalpha << context.shared_memory.use_localized_random_shuffle
         << " shuffle_block_size=" << context.shared_memory.shuffle_block_size;
