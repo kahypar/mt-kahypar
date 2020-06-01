@@ -36,7 +36,7 @@ namespace mt_kahypar {
 
 class MultiTryKWayFM final : public IRefiner {
 
-  static constexpr bool debug = false;
+  static constexpr bool debug = true;
 
 public:
   MultiTryKWayFM(const Hypergraph& hypergraph, const Context& context, const TaskGroupID taskGroupID) :
@@ -53,16 +53,19 @@ public:
 
   bool refineImpl(PartitionedHypergraph& phg,
                   kahypar::Metrics& metrics) override final {
-    Gain improvement = refine(phg);
+    if (shouldStopSearchAltogether()) {
+      return false;
+    }
+    Gain improvement = refine(phg, metrics);
+    levelImprovementFractions.push_back( improvementFraction(improvement, metrics.km1) );
     metrics.km1 -= improvement;
     metrics.imbalance = metrics::imbalance(phg, context);
     ASSERT(metrics.km1 == metrics::km1(phg), V(metrics.km1) << V(metrics::km1(phg)));
     return improvement > 0;
   }
 
-  Gain refine(PartitionedHypergraph& phg) {
+  Gain refine(PartitionedHypergraph& phg, const kahypar::Metrics& metrics) {
     if (!is_initialized) throw std::runtime_error("Call initialize on fm before calling refine");
-
     utils::Timer& timer = utils::Timer::instance();
     Gain overall_improvement = 0;
     for (size_t round = 0; round < context.refinement.fm.multitry_rounds; ++round) { // global multi try rounds
@@ -103,16 +106,17 @@ public:
       timer.start_timer("rollback", "Rollback to Best Solution");
 
       HyperedgeWeight improvement = globalRollback.revertToBestPrefix(phg, sharedData, initialPartWeights);
+      roundImprovementFractions.push_back( improvementFraction(improvement, metrics.km1 - overall_improvement) );
       overall_improvement += improvement;
 
       timer.stop_timer("rollback");
 
       if (debug && context.type == kahypar::ContextType::main) {
         LOG << V(round) << V(improvement) << V(metrics::km1(phg)) << V(metrics::imbalance(phg, context))
-            << V(numBorderNodes) << stats.serialize();
+            << V(numBorderNodes) << V(roundImprovementFractions.back()) << stats.serialize();
       }
 
-      if (improvement <= 0) {
+      if (improvement <= 0 || shouldStopSearchOnThisLevel()) {
         break;
       }
     }
@@ -139,6 +143,13 @@ public:
   }
 
   void roundInitialization(PartitionedHypergraph& phg) {
+    if (shouldStopSearchAltogether()) {
+      return;
+    }
+
+    // clear gain tracking for the next level
+    roundImprovementFractions.clear();
+
     // clear border nodes
     sharedData.refinementNodes.clear();
 
@@ -174,16 +185,47 @@ public:
   GlobalRollback globalRollback;
   tbb::enumerable_thread_specific<LocalizedKWayFM> ets_fm;
   size_t peak_reinsertions = 0;
+  HyperedgeWeight current_km1 = 0;
 
 
-  struct Stats {
-    Gain gain = 0;
-    size_t work = 0;
-  };
-  vec<Stats> roundStats;
-  vec<Stats> levelStats;
+  double improvementFraction(Gain gain, HyperedgeWeight old_km1) {
+    if (old_km1 == 0)
+      return 0;
+    else
+      return static_cast<double>(gain) / static_cast<double>(old_km1);
+  }
 
-public:
+  bool shouldStopSearch(const vec<double>& improvement_fractions, double threshold, size_t n) const {
+    if (roundImprovementFractions.size() < n) {
+      return false;
+    } else {
+      bool any_above = false;
+      for (size_t i = improvement_fractions.size() - n; i < improvement_fractions.size(); ++i) {
+        any_above |= improvement_fractions[i] >= threshold;
+      }
+      return any_above;
+    }
+  }
+
+  bool shouldStopSearchAltogether() const {
+    static constexpr size_t levels_to_consider = 3;
+    double level_improvement_fraction_threshold = context.refinement.fm.min_improvement;
+    return shouldStopSearch(levelImprovementFractions, level_improvement_fraction_threshold, levels_to_consider)
+            && context.type == kahypar::ContextType::main;
+  }
+
+  bool shouldStopSearchOnThisLevel() const {
+    static constexpr size_t rounds_to_consider = 2;
+    double round_improvement_fraction_threshold = context.refinement.fm.min_improvement;
+    return shouldStopSearch(roundImprovementFractions, round_improvement_fraction_threshold, rounds_to_consider)
+           && context.type == kahypar::ContextType::main;
+  }
+
+
+
+  vec<double> roundImprovementFractions;
+  vec<double> levelImprovementFractions;
+
   void printMemoryConsumption() {
     std::unordered_map<std::string, size_t> r;
     r["global rollback"] = globalRollback.memory_consumption();

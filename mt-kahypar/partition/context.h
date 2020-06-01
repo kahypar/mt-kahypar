@@ -188,6 +188,7 @@ struct FMParameters {
   size_t num_seed_nodes = 0;
   bool shuffle = true;
   bool obey_minimal_parallelism = false;
+  double min_improvement = 0.005;
 };
 
 inline std::ostream& operator<<(std::ostream& out, const FMParameters& params) {

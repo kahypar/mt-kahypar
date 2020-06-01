@@ -206,7 +206,7 @@ public:
                                                const vec<HypernodeWeight>&,
                                                const std::vector<HypernodeWeight>& maxPartWeights) {
 
-
+    // TODO remove?
     GlobalMoveTracker& tracker = sharedData.moveTracker;
     const MoveID numMoves = tracker.numPerformedMoves();
     const vec<Move>& move_order = tracker.moveOrder;
