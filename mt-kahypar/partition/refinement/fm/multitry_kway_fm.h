@@ -117,7 +117,6 @@ public:
       }
 
       if (improvement <= 0 || shouldStopSearchOnThisLevel()) {
-        LOG << "Search terminated" << V(improvement) << V(shouldStopSearchOnThisLevel()) << V(round);
         break;
       }
     }
@@ -213,6 +212,9 @@ public:
   }
 
   bool shouldStopSearchOnThisLevel() const {
+    if (context.type == kahypar::ContextType::main) {
+      LOG << "call should stop search";
+    }
     static constexpr size_t rounds_to_consider = 2;
     double round_improvement_fraction_threshold = context.refinement.fm.min_improvement;
     return shouldStopSearch(roundImprovementFractions, round_improvement_fraction_threshold, rounds_to_consider);
