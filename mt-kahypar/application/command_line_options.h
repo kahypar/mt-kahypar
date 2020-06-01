@@ -299,7 +299,7 @@ po::options_description createRefinementOptionsDescription(Context& context,
     (( initial_partitioning ? "i-r-fm-seed-nodes" : "r-fm-seed-nodes"),
     po::value<size_t>((initial_partitioning ? &context.initial_partitioning.refinement.fm.num_seed_nodes :
       &context.refinement.fm.num_seed_nodes))->value_name("<size_t>"),
-    "Use a fraction of the number of nodes as the number of seed nodes instead of a constant number.")
+    "Number of nodes to start the 'highly localized FM' with.")
      (( initial_partitioning ? "i-r-fm-revert-parallel" : "r-fm-revert-parallel"),
      po::value<bool>((initial_partitioning ? &context.initial_partitioning.refinement.fm.revert_parallel :
      &context.refinement.fm.revert_parallel))->value_name("<bool>"),
