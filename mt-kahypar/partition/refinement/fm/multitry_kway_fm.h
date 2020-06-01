@@ -199,11 +199,11 @@ public:
     if (roundImprovementFractions.size() < n) {
       return false;
     } else {
-      bool any_below = false;
+      bool all_below = true;
       for (size_t i = improvement_fractions.size() - n; i < improvement_fractions.size(); ++i) {
-        any_below |= improvement_fractions[i] < threshold;
+        all_below &= improvement_fractions[i] < threshold;
       }
-      return any_below;
+      return all_below;
     }
   }
 
