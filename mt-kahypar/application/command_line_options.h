@@ -316,7 +316,7 @@ po::options_description createRefinementOptionsDescription(Context& context,
      (( initial_partitioning ? "i-r-fm-release-nodes" : "r-fm-release-nodes"),
      po::value<bool>((initial_partitioning ? &context.initial_partitioning.refinement.fm.release_nodes :
      &context.refinement.fm.release_nodes))->value_name("<bool>"),
-     "FM releases nodes that weren't moved, so they might be found by another search. Default true")
+     "FM releases nodes that weren't moved, so they might be found by another search.")
      (( initial_partitioning ? "i-r-fm-obey-minimal-parallelism" : "r-fm-obey-minimal-parallelism"),
      po::value<bool>((initial_partitioning ? &context.initial_partitioning.refinement.fm.obey_minimal_parallelism :
      &context.refinement.fm.obey_minimal_parallelism))->value_name("<bool>"),
