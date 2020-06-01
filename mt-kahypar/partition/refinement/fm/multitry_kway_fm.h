@@ -196,7 +196,7 @@ public:
   bool shouldStopSearch(const vec<double>& improvement_fractions, double threshold, size_t n) const {
     if (context.type == kahypar::ContextType::main)
 	    LOG << V(threshold) << V(n) << V(improvement_fractions.size());
-    if (roundImprovementFractions.size() < n || context.type != kahypar::ContextType::main) {
+    if (improvement_fractions.size() < n || context.type != kahypar::ContextType::main) {
       return false;
     } else {
       bool all_below = true;
