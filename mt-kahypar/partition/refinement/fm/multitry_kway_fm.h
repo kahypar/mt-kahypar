@@ -117,6 +117,7 @@ public:
       }
 
       if (improvement <= 0 || shouldStopSearchOnThisLevel()) {
+        LOG << "Search terminated" << V(improvement) << V(shouldStopSearchOnThisLevel()) << V(round);
         break;
       }
     }
@@ -132,6 +133,9 @@ public:
   }
 
   void initializeImpl(PartitionedHypergraph& phg) override final {
+    if (shouldStopSearchAltogether()) {
+      return;
+    }
     utils::Timer& timer = utils::Timer::instance();
     timer.start_timer("init_gain_info", "Initialize Gain Information");
     phg.initializeGainInformation();
@@ -143,10 +147,6 @@ public:
   }
 
   void roundInitialization(PartitionedHypergraph& phg) {
-    if (shouldStopSearchAltogether()) {
-      return;
-    }
-
     // clear gain tracking for the next level
     roundImprovementFractions.clear();
 
@@ -185,8 +185,6 @@ public:
   GlobalRollback globalRollback;
   tbb::enumerable_thread_specific<LocalizedKWayFM> ets_fm;
   size_t peak_reinsertions = 0;
-  HyperedgeWeight current_km1 = 0;
-
 
   double improvementFraction(Gain gain, HyperedgeWeight old_km1) {
     if (old_km1 == 0)
@@ -196,13 +194,14 @@ public:
   }
 
   bool shouldStopSearch(const vec<double>& improvement_fractions, double threshold, size_t n) const {
-    if (roundImprovementFractions.size() < n) {
+    if (roundImprovementFractions.size() < n || context.type != kahypar::ContextType::main) {
       return false;
     } else {
       bool all_below = true;
       for (size_t i = improvement_fractions.size() - n; i < improvement_fractions.size(); ++i) {
         all_below &= improvement_fractions[i] < threshold;
       }
+      LOG << V(threshold) << V(all_below);
       return all_below;
     }
   }
@@ -210,15 +209,13 @@ public:
   bool shouldStopSearchAltogether() const {
     static constexpr size_t levels_to_consider = 3;
     double level_improvement_fraction_threshold = context.refinement.fm.min_improvement;
-    return shouldStopSearch(levelImprovementFractions, level_improvement_fraction_threshold, levels_to_consider)
-            && context.type == kahypar::ContextType::main;
+    return shouldStopSearch(levelImprovementFractions, level_improvement_fraction_threshold, levels_to_consider);
   }
 
   bool shouldStopSearchOnThisLevel() const {
     static constexpr size_t rounds_to_consider = 2;
     double round_improvement_fraction_threshold = context.refinement.fm.min_improvement;
-    return shouldStopSearch(roundImprovementFractions, round_improvement_fraction_threshold, rounds_to_consider)
-           && context.type == kahypar::ContextType::main;
+    return shouldStopSearch(roundImprovementFractions, round_improvement_fraction_threshold, rounds_to_consider);
   }
 
 
