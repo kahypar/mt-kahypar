@@ -203,7 +203,7 @@ public:
       for (size_t i = improvement_fractions.size() - n; i < improvement_fractions.size(); ++i) {
         any_above |= improvement_fractions[i] >= threshold;
       }
-      return any_above;
+      return !any_above;
     }
   }
 
