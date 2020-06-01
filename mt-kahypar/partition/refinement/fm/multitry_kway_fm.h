@@ -64,6 +64,7 @@ public:
     if (!is_initialized) throw std::runtime_error("Call initialize on fm before calling refine");
     utils::Timer& timer = utils::Timer::instance();
     Gain overall_improvement = 0;
+    size_t consecutive_rounds_with_too_little_improvement = 0;
     for (size_t round = 0; round < context.refinement.fm.multitry_rounds; ++round) { // global multi try rounds
       timer.start_timer("collect_border_nodes", "Collect Border Nodes");
 
@@ -102,17 +103,23 @@ public:
       timer.start_timer("rollback", "Rollback to Best Solution");
 
       HyperedgeWeight improvement = globalRollback.revertToBestPrefix(phg, sharedData, initialPartWeights);
-      roundImprovementFractions.push_back( improvementFraction(improvement, metrics.km1 - overall_improvement) );
+      const double roundImprovementFraction = improvementFraction(improvement, metrics.km1 - overall_improvement);
       overall_improvement += improvement;
 
       timer.stop_timer("rollback");
 
-      if (debug && context.type == kahypar::ContextType::main) {
-        LOG << V(round) << V(improvement) << V(metrics::km1(phg)) << V(metrics::imbalance(phg, context))
-            << V(numBorderNodes) << V(roundImprovementFractions.back()) << stats.serialize();
+      if (roundImprovementFraction < context.refinement.fm.min_improvement) {
+        consecutive_rounds_with_too_little_improvement++;
+      } else {
+        consecutive_rounds_with_too_little_improvement = 0;
       }
 
-      if (improvement <= 0 || shouldStopRoundsOnThisLevel()) {
+      if (debug && context.type == kahypar::ContextType::main) {
+        LOG << V(round) << V(improvement) << V(metrics::km1(phg)) << V(metrics::imbalance(phg, context))
+            << V(numBorderNodes) << V(roundImprovementFraction) << stats.serialize();
+      }
+
+      if (improvement <= 0 || consecutive_rounds_with_too_little_improvement >= 2) {
         break;
       }
     }
@@ -135,9 +142,6 @@ public:
     timer.start_timer("set_remaining_original_pins", "Set remaining original pins");
     globalRollback.setRemainingOriginalPins(phg);
     timer.stop_timer("set_remaining_original_pins");
-
-    // clear gain tracking for the next level
-    roundImprovementFractions.clear();
 
     is_initialized = true;
   }
@@ -196,14 +200,6 @@ public:
       return all_below;
     }
   }
-
-  bool shouldStopRoundsOnThisLevel() const {
-    static constexpr size_t rounds_to_consider = 2;
-    double round_improvement_fraction_threshold = context.refinement.fm.min_improvement;
-    return shouldStopSearch(roundImprovementFractions, round_improvement_fraction_threshold, rounds_to_consider);
-  }
-
-  vec<double> roundImprovementFractions;
 
   void printMemoryConsumption() {
     std::unordered_map<std::string, size_t> r;
