@@ -158,7 +158,7 @@ po::options_description createPreprocessingOptionsDescription(Context& context, 
     "Louvain pass terminates if less than that fraction of nodes moves during a pass")
     ("p-vertex-degree-sampling-threshold",
     po::value<size_t>(&context.preprocessing.community_detection.vertex_degree_sampling_threshold)->value_name("<size_t>"),
-    "If set, than neighbors of a vertex are sampled during rating if its degree is greater than this threshold.");
+    "If set, then neighbors of a vertex are sampled during rating if its degree is greater than this threshold.");
   return options;
 }
 
@@ -176,11 +176,11 @@ po::options_description createCoarseningOptionsDescription(Context& context,
     " - multilevel_coarsener")
     ("c-use-adaptive-edge-size",
     po::value<bool>(&context.coarsening.use_adaptive_edge_size)->value_name("<bool>"),
-    "If true, than edge size is calculated based on current clustering rather than on input edge size\n"
+    "If true, then edge size is calculated based on current clustering rather than on input edge size\n"
     "during multilevel coarsing")
     ("c-use-adaptive-max-node-weight",
     po::value<bool>(&context.coarsening.use_adaptive_max_allowed_node_weight)->value_name("<bool>"),
-    "If true, than the maximum allowed node weight is adapted based on the reduction ratio\n"
+    "If true, then the maximum allowed node weight is adapted based on the reduction ratio\n"
     "during multilevel coarsing")
     ("c-adaptive-s",
     po::value<double>(&context.coarsening.max_allowed_weight_fraction)->value_name("<double>"),
@@ -231,7 +231,7 @@ po::options_description createCoarseningOptionsDescription(Context& context,
     "- best_prefer_unmatched")
     ("c-vertex-degree-sampling-threshold",
     po::value<size_t>(&context.coarsening.vertex_degree_sampling_threshold)->value_name("<size_t>"),
-    "If set, than neighbors of a vertex are sampled during rating if its degree is greater than this threshold.");
+    "If set, then neighbors of a vertex are sampled during rating if its degree is greater than this threshold.");
   return options;
 }
 
@@ -366,13 +366,13 @@ po::options_description createSparsificationOptionsDescription(Context& context,
   sparsification_options.add_options()
     ("sp-use-degree-zero-contractions",
     po::value<bool>(&context.sparsification.use_degree_zero_contractions)->value_name("<bool>"),
-    "If true, than vertices with degree zero are contracted to supervertices")
+    "If true, then vertices with degree zero are contracted to supervertices")
     ("sp-use-heavy-net-removal",
     po::value<bool>(&context.sparsification.use_heavy_net_removal)->value_name("<bool>"),
-    "If true, than hyperedges with a weight greater than a certain threshold are removed before IP")
+    "If true, then hyperedges with a weight greater than a certain threshold are removed before IP")
     ("sp-use-similiar-net-removal",
     po::value<bool>(&context.sparsification.use_similiar_net_removal)->value_name("<bool>"),
-    "If true, than hyperedges with a jaccard similiarity greater than a certain threshold are removed before IP")
+    "If true, then hyperedges with a jaccard similiarity greater than a certain threshold are removed before IP")
     ("sp-hyperedge-pin-weight-fraction",
     po::value<double>(&context.sparsification.hyperedge_pin_weight_fraction)->value_name("<double>"),
     "Hyperedges where the sum of the weights of all pins are greater than ((1 + eps)|V|/k) / fraction are removed before IP")
