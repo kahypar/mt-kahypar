@@ -310,10 +310,14 @@ po::options_description createRefinementOptionsDescription(Context& context,
      "Used to relax or disable the balance constraint during the rollback phase of parallel FM."
      "Set to 0 for disabling. Set to a value > 1.0 to multiply the max part weight with this value."
      "Default 1.0 (enabled, no relaxation)")
-          (( initial_partitioning ? "i-r-fm-min-improvement" : "r-fm-min-improvement"),
-           po::value<double>((initial_partitioning ? &context.initial_partitioning.refinement.fm.min_improvement :
-                            &context.refinement.fm.min_improvement))->value_name("<double>"),
-           "Min improvement for FM. Default 0.005")
+     (( initial_partitioning ? "i-r-fm-min-improvement" : "r-fm-min-improvement"),
+     po::value<double>((initial_partitioning ? &context.initial_partitioning.refinement.fm.min_improvement :
+     &context.refinement.fm.min_improvement))->value_name("<double>"),
+     "Min improvement for FM. Default 0.005")
+     (( initial_partitioning ? "i-r-fm-release-nodes" : "r-fm-release-nodes"),
+     po::value<bool>((initial_partitioning ? &context.initial_partitioning.refinement.fm.release_nodes :
+     &context.refinement.fm.release_nodes))->value_name("<bool>"),
+     "FM releases nodes that weren't moved, so they might be found by another search. Default true")
      (( initial_partitioning ? "i-r-fm-obey-minimal-parallelism" : "r-fm-obey-minimal-parallelism"),
      po::value<bool>((initial_partitioning ? &context.initial_partitioning.refinement.fm.obey_minimal_parallelism :
      &context.refinement.fm.obey_minimal_parallelism))->value_name("<bool>"),

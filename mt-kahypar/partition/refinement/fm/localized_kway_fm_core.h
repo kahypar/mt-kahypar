@@ -282,7 +282,9 @@ private:
     // release all nodes that were not moved
     // reinsert into task queue only if we're doing multitry and at least one node was moved
     // unless a node was moved, only seed nodes are in the pqs
-    const bool release = context.refinement.fm.algorithm == FMAlgorithm::fm_multitry && localData.runStats.moves > 0;
+    const bool release = context.refinement.fm.release_nodes
+                         && context.refinement.fm.algorithm == FMAlgorithm::fm_multitry
+                         && localData.runStats.moves > 0;
     const bool reinsert_seeds = bestImprovementIndex > 0;
 
     if (release) {
@@ -517,7 +519,7 @@ private:
 
     // Kind of double rollback, if gain values are not correct
     ASSERT(localData.localMoveIDs.size() == bestGainIndex);
-    if ( estimatedImprovement < 0 ) { // TODO why this condition? shouldn't we just always do that?
+    if ( estimatedImprovement < 0 ) {
       localData.runStats.local_reverts += localData.localMoves.size() - bestIndex;
       for ( size_t i = bestIndex + 1; i < bestGainIndex; ++i ) {
         Move& m = sharedData.moveTracker.getMove(localData.localMoveIDs[i]);

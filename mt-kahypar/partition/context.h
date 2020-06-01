@@ -189,6 +189,7 @@ struct FMParameters {
   bool shuffle = true;
   bool obey_minimal_parallelism = false;
   double min_improvement = 0.005;
+  bool release_nodes = true;
 };
 
 inline std::ostream& operator<<(std::ostream& out, const FMParameters& params) {
