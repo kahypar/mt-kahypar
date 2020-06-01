@@ -193,12 +193,14 @@ public:
   }
 
   bool shouldStopSearch(const vec<double>& improvement_fractions, double threshold, size_t n) const {
+    if (context.type == kahypar::ContextType::main)
+	    LOG << V(threshold) << V(n) << V(improvement_fractions.size());
     if (roundImprovementFractions.size() < n || context.type != kahypar::ContextType::main) {
       return false;
     } else {
       bool all_below = true;
       for (size_t i = improvement_fractions.size() - n; i < improvement_fractions.size(); ++i) {
-        all_below &= improvement_fractions[i] < threshold;
+        all_below &= (improvement_fractions[i] < threshold);
       }
       LOG << V(threshold) << V(all_below);
       return all_below;
@@ -212,9 +214,6 @@ public:
   }
 
   bool shouldStopSearchOnThisLevel() const {
-    if (context.type == kahypar::ContextType::main) {
-      LOG << "call should stop search";
-    }
     static constexpr size_t rounds_to_consider = 2;
     double round_improvement_fraction_threshold = context.refinement.fm.min_improvement;
     return shouldStopSearch(roundImprovementFractions, round_improvement_fraction_threshold, rounds_to_consider);
