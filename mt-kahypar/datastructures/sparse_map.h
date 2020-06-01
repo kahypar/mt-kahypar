@@ -546,6 +546,10 @@ class DynamicSparseMap {
     _dense = nullptr;
   }
 
+  size_t memory_consumption() const {
+    return _capacity * (sizeof(SparseElement) + sizeof(MapElement));
+  }
+
  private:
   inline SparseElement* find(const Key key,
                              SparseElement* sparse,

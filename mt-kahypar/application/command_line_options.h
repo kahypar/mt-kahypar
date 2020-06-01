@@ -124,7 +124,9 @@ po::options_description createGenericOptionsDescription(Context& context,
     "Summarize partitioning results in RESULT line compatible with sqlplottools "
     "(https://github.com/bingmann/sqlplottools)")
     ("csv", po::value<bool>(&context.partition.csv_output)->value_name("<bool>"),
-    "Summarize results in CSV");
+    "Summarize results in CSV")
+    ("algorithm-name", po::value<std::string>(&context.algorithm_name)->value_name("<std::string>"),
+    "An algorithm name to print into the summarized output (csv or sqlplottools). ");
   return generic_options;
 }
 
@@ -288,26 +290,37 @@ po::options_description createRefinementOptionsDescription(Context& context,
     (( initial_partitioning ? "i-r-fm-multitry-rounds" : "r-fm-multitry-rounds"),
     po::value<size_t>((initial_partitioning ? &context.initial_partitioning.refinement.fm.multitry_rounds :
       &context.refinement.fm.multitry_rounds))->value_name("<size_t>"),
-    "Number of multitry rounds. Default 4")
+    "Number of multitry rounds.")
     (( initial_partitioning ? "i-r-fm-perform-moves-global" : "r-fm-perform-moves-global"),
     po::value<bool>((initial_partitioning ? &context.initial_partitioning.refinement.fm.perform_moves_global :
       &context.refinement.fm.perform_moves_global))->value_name("<bool>"),
     "If true, than all moves performed during FM are immediatly visible to other local search.\n"
-    "Otherwise, only move sequences that yield an improvement are applied to the global hypergraph. Default false")
+    "Otherwise, only move sequences that yield an improvement are applied to the global hypergraph.")
     (( initial_partitioning ? "i-r-fm-seed-nodes" : "r-fm-seed-nodes"),
     po::value<size_t>((initial_partitioning ? &context.initial_partitioning.refinement.fm.num_seed_nodes :
       &context.refinement.fm.num_seed_nodes))->value_name("<size_t>"),
-    "Use a fraction of the number of nodes as the number of seed nodes instead of a constant number. Default false")
+    "Use a fraction of the number of nodes as the number of seed nodes instead of a constant number.")
      (( initial_partitioning ? "i-r-fm-revert-parallel" : "r-fm-revert-parallel"),
      po::value<bool>((initial_partitioning ? &context.initial_partitioning.refinement.fm.revert_parallel :
      &context.refinement.fm.revert_parallel))->value_name("<bool>"),
-     "Perform gain and balance recalculation, and reverting to best prefix in parallel. Default true")
+     "Perform gain and balance recalculation, and reverting to best prefix in parallel.")
      (( initial_partitioning ? "i-r-fm-rollback-balance-violation-factor" : "r-fm-rollback-balance-violation-factor"),
      po::value<double>((initial_partitioning ? &context.initial_partitioning.refinement.fm.rollback_balance_violation_factor :
      &context.refinement.fm.rollback_balance_violation_factor))->value_name("<double>"),
      "Used to relax or disable the balance constraint during the rollback phase of parallel FM."
-     "Set to 0 for disabling. Set to a value > 1.0 to multiply the max part weight with this value."
-     "Default 1.0 (enabled, no relaxation)");
+     "Set to 0 for disabling. Set to a value > 1.0 to multiply the max part weight with this value.")
+     (( initial_partitioning ? "i-r-fm-min-improvement" : "r-fm-min-improvement"),
+     po::value<double>((initial_partitioning ? &context.initial_partitioning.refinement.fm.min_improvement :
+     &context.refinement.fm.min_improvement))->value_name("<double>"),
+     "Min improvement for FM.")
+     (( initial_partitioning ? "i-r-fm-release-nodes" : "r-fm-release-nodes"),
+     po::value<bool>((initial_partitioning ? &context.initial_partitioning.refinement.fm.release_nodes :
+     &context.refinement.fm.release_nodes))->value_name("<bool>"),
+     "FM releases nodes that weren't moved, so they might be found by another search. Default true")
+     (( initial_partitioning ? "i-r-fm-obey-minimal-parallelism" : "r-fm-obey-minimal-parallelism"),
+     po::value<bool>((initial_partitioning ? &context.initial_partitioning.refinement.fm.obey_minimal_parallelism :
+     &context.refinement.fm.obey_minimal_parallelism))->value_name("<bool>"),
+     "If true, then parallel FM refinement stops if more than a certain number of threads are finished.");
   return options;
 }
 

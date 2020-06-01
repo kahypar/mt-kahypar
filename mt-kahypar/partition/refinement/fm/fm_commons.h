@@ -163,7 +163,16 @@ struct FMSharedData {
   // ! (if it was removed but could not be claimed for a search)
   kahypar::ds::FastResetFlagArray<> fruitlessSeed;
 
+  // ! Stores the designated target part of a vertex, i.e. the part with the highest gain to which moving is feasible
   vec<PartitionID> targetPart;
+
+  // ! Stop parallel refinement if finishedTasks > finishedTasksLimit to avoid long-running single searches
+  CAtomic<size_t> finishedTasks;
+  size_t finishedTasksLimit = std::numeric_limits<size_t>::max();
+
+  // ! Switch to applying moves directly if the use of local delta partitions exceeded a memory limit
+  bool deltaExceededMemoryConstraints = false;
+  size_t deltaMemoryLimitPerThread = 0;
 
   FMSharedData(size_t numNodes = 0, PartitionID numParts = 0, size_t numThreads = 0) :
           refinementNodes(), //numNodes, numThreads),
@@ -174,6 +183,11 @@ struct FMSharedData {
           fruitlessSeed(numNodes),
           targetPart()
   {
+    finishedTasks.store(0, std::memory_order_relaxed);
+
+    // 128 * 3/2 GB --> roughly 1.5 GB per thread on our biggest machine
+    deltaMemoryLimitPerThread = 128UL * (1UL << 30) * 3 / ( 2 * std::max(1UL, numThreads) );
+
     tbb::parallel_invoke([&] {
       moveTracker.moveOrder.resize(numNodes);
     }, [&] {
@@ -194,6 +208,17 @@ struct FMSharedData {
     FMSharedData(numNodes, context.partition.k,
       TBBNumaArena::instance().total_number_of_threads())  { }
 
+  std::unordered_map<std::string, size_t> memory_consumption() const {
+    std::unordered_map<std::string, size_t> r;
+    r["pq handles"] = vertexPQHandles.capacity() * sizeof(PosT);
+    r["move tracker"] = moveTracker.moveOrder.capacity() * sizeof(Move)
+                        + moveTracker.moveOfNode.capacity() * sizeof(MoveID);
+    r["node tracker"] = nodeTracker.searchOfNode.capacity() * sizeof(SearchID);
+    r["fruitless seed"] = moveTracker.moveOrder.size() * sizeof(uint16_t);
+    r["task queue"] = refinementNodes.memory_consumption();
+    return r;
+  }
+
 };
 
 struct FMStats {
@@ -202,6 +227,7 @@ struct FMStats {
   size_t pushes = 0;
   size_t moves = 0;
   size_t local_reverts = 0;
+  size_t task_queue_reinsertions = 0;
   Gain estimated_improvement = 0;
 
 
@@ -211,6 +237,7 @@ struct FMStats {
     pushes = 0;
     moves = 0;
     local_reverts = 0;
+    task_queue_reinsertions = 0;
     estimated_improvement = 0;
   }
 
@@ -220,6 +247,7 @@ struct FMStats {
     other.pushes += pushes;
     other.moves += moves;
     other.local_reverts += local_reverts;
+    other.task_queue_reinsertions += task_queue_reinsertions;
     other.estimated_improvement += estimated_improvement;
     clear();
   }

@@ -187,6 +187,9 @@ struct FMParameters {
   double rollback_balance_violation_factor = std::numeric_limits<double>::max();
   size_t num_seed_nodes = 0;
   bool shuffle = true;
+  bool obey_minimal_parallelism = false;
+  double min_improvement = 0.003;
+  bool release_nodes = true;
 };
 
 inline std::ostream& operator<<(std::ostream& out, const FMParameters& params) {
@@ -198,6 +201,7 @@ inline std::ostream& operator<<(std::ostream& out, const FMParameters& params) {
   out << "    Rollback Bal. Violation Factor:   " << params.rollback_balance_violation_factor << std::endl;
   out << "    Num Seed Nodes:                   " << params.num_seed_nodes << std::endl;
   out << "    Enable Random Shuffle:            " << std::boolalpha << params.shuffle << std::endl;
+  out << "    Obey Minimal Parallelism:         " << std::boolalpha << params.obey_minimal_parallelism << std::endl;
   out << std::flush;
   return out;
 }
@@ -293,6 +297,8 @@ class Context {
   SparsificationParameters sparsification { };
   SharedMemoryParameters shared_memory { };
   kahypar::ContextType type = kahypar::ContextType::main;
+
+  std::string algorithm_name = "MT-KaHyPar";
 
   Context() { }
 

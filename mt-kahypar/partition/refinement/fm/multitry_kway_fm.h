@@ -44,22 +44,27 @@ public:
           taskGroupID(taskGroupID),
           sharedData(hypergraph.initialNumNodes(), context),
           globalRollback(hypergraph, context, context.partition.k),
-          ets_fm(context, hypergraph.initialNumNodes(), sharedData.vertexPQHandles.data()) { }
+          ets_fm(context, hypergraph.initialNumNodes(), sharedData.vertexPQHandles.data())
+  {
+    if (context.refinement.fm.obey_minimal_parallelism) {
+      sharedData.finishedTasksLimit = std::min(8UL, context.shared_memory.num_threads);
+    }
+  }
 
   bool refineImpl(PartitionedHypergraph& phg,
                   kahypar::Metrics& metrics) override final {
-    Gain improvement = refine(phg);
+    Gain improvement = refine(phg, metrics);
     metrics.km1 -= improvement;
     metrics.imbalance = metrics::imbalance(phg, context);
-    assert(metrics.km1 == metrics::km1(phg));
+    ASSERT(metrics.km1 == metrics::km1(phg), V(metrics.km1) << V(metrics::km1(phg)));
     return improvement > 0;
   }
 
-  Gain refine(PartitionedHypergraph& phg) {
+  Gain refine(PartitionedHypergraph& phg, const kahypar::Metrics& metrics) {
     if (!is_initialized) throw std::runtime_error("Call initialize on fm before calling refine");
-
     utils::Timer& timer = utils::Timer::instance();
     Gain overall_improvement = 0;
+    size_t consecutive_rounds_with_too_little_improvement = 0;
     for (size_t round = 0; round < context.refinement.fm.multitry_rounds; ++round) { // global multi try rounds
       timer.start_timer("collect_border_nodes", "Collect Border Nodes");
 
@@ -73,9 +78,14 @@ public:
       for (PartitionID i = 0; i < sharedData.numParts; ++i) initialPartWeights[i] = phg.partWeight(i);
 
       if (context.refinement.fm.algorithm == FMAlgorithm::fm_multitry) {
+        sharedData.finishedTasks.store(0, std::memory_order_relaxed);
         auto task = [&](const int , const int task_id, const int ) {
           LocalizedKWayFM& fm = ets_fm.local();
-          while(fm.findMovesLocalized(phg, sharedData, static_cast<size_t>(task_id))) { /* keep running */ }
+          while(sharedData.finishedTasks.load(std::memory_order_relaxed) < sharedData.finishedTasksLimit
+                && fm.findMovesLocalized(phg, sharedData, static_cast<size_t>(task_id))) {
+            /* keep running */
+          }
+          sharedData.finishedTasks.fetch_add(1, std::memory_order_relaxed);
         };
         TBBNumaArena::instance().execute_task_on_each_thread(taskGroupID, task);
       } else if (context.refinement.fm.algorithm == FMAlgorithm::fm_boundary){
@@ -87,20 +97,37 @@ public:
       for (auto& fm : ets_fm) {
         fm.stats.merge(stats);
       }
+      peak_reinsertions = std::max(peak_reinsertions, stats.task_queue_reinsertions);
 
       timer.stop_timer("find_moves");
       timer.start_timer("rollback", "Rollback to Best Solution");
 
       HyperedgeWeight improvement = globalRollback.revertToBestPrefix(phg, sharedData, initialPartWeights);
+      const double roundImprovementFraction = improvementFraction(improvement, metrics.km1 - overall_improvement);
       overall_improvement += improvement;
 
       timer.stop_timer("rollback");
 
-      DBG << V(round) << V(improvement) << V(metrics::imbalance(phg, context)) << V(numBorderNodes) << stats.serialize();
+      if (roundImprovementFraction < context.refinement.fm.min_improvement) {
+        consecutive_rounds_with_too_little_improvement++;
+      } else {
+        consecutive_rounds_with_too_little_improvement = 0;
+      }
 
-      if (improvement <= 0) {
+      if (debug && context.type == kahypar::ContextType::main) {
+        LOG << V(round) << V(improvement) << V(metrics::km1(phg)) << V(metrics::imbalance(phg, context))
+            << V(numBorderNodes) << V(roundImprovementFraction) << stats.serialize();
+      }
+
+      if (improvement <= 0 || consecutive_rounds_with_too_little_improvement >= 2) {
         break;
       }
+    }
+
+    if (context.partition.show_memory_consumption && context.partition.verbose_output
+        && context.type == kahypar::ContextType::main
+        && phg.initialNumNodes() == sharedData.moveTracker.moveOrder.size() /* top level */) {
+      printMemoryConsumption();
     }
 
     is_initialized = false;
@@ -110,13 +137,12 @@ public:
   void initializeImpl(PartitionedHypergraph& phg) override final {
     utils::Timer& timer = utils::Timer::instance();
     timer.start_timer("init_gain_info", "Initialize Gain Information");
-    // initialization only as long as LP refiner does not use these datastructures TODO consolidate at some point
     phg.initializeGainInformation();
     timer.stop_timer("init_gain_info");
     timer.start_timer("set_remaining_original_pins", "Set remaining original pins");
-    // initialization only as long as LP refiner does not use these datastructures
     globalRollback.setRemainingOriginalPins(phg);
     timer.stop_timer("set_remaining_original_pins");
+
     is_initialized = true;
   }
 
@@ -143,8 +169,7 @@ public:
 
     // requesting new searches activates all nodes by raising the deactivated node marker
     // also clears the array tracking search IDs in case of overflow
-    sharedData.nodeTracker.requestNewSearches(
-      static_cast<SearchID>(sharedData.refinementNodes.unsafe_size()));
+    sharedData.nodeTracker.requestNewSearches(static_cast<SearchID>(sharedData.refinementNodes.unsafe_size()));
 
     sharedData.fruitlessSeed.reset();
   }
@@ -155,6 +180,54 @@ public:
   FMSharedData sharedData;
   GlobalRollback globalRollback;
   tbb::enumerable_thread_specific<LocalizedKWayFM> ets_fm;
+  size_t peak_reinsertions = 0;
+
+  double improvementFraction(Gain gain, HyperedgeWeight old_km1) {
+    if (old_km1 == 0)
+      return 0;
+    else
+      return static_cast<double>(gain) / static_cast<double>(old_km1);
+  }
+
+  bool shouldStopSearch(const vec<double>& improvement_fractions, double threshold, size_t n) const {
+    if (improvement_fractions.size() < n || context.type != kahypar::ContextType::main) {
+      return false;
+    } else {
+      bool all_below = true;
+      for (size_t i = improvement_fractions.size() - n; i < improvement_fractions.size(); ++i) {
+        all_below &= (improvement_fractions[i] < threshold);
+      }
+      return all_below;
+    }
+  }
+
+  void printMemoryConsumption() {
+    std::unordered_map<std::string, size_t> r;
+    r["global rollback"] = globalRollback.memory_consumption();
+    for (const LocalizedKWayFM& fm : ets_fm) {
+      auto local_mem = fm.memory_consumption();
+      for (const auto& it : local_mem) {
+        r[it.first] += it.second;
+      }
+    }
+    r["tbb concurrent task queue >="] = peak_reinsertions * sizeof(HypernodeID);
+    for (const auto& it : sharedData.memory_consumption()) {
+      r[it.first] += it.second;
+    }
+    LOG << "---------------------";
+    LOG << "FM Memory Consumption";
+    LOG << "---------------------";
+
+    size_t left_width = 35; size_t right_width = 10;
+    for (const auto& it : r) {
+      std::string right_word = std::to_string(it.second / (1024*1024));
+      size_t pad = (left_width - it.first.length()) + (right_width - right_word.length());
+      std::cout << it.first;
+      for (size_t i = 0; i < pad; ++i) std::cout << " ";
+      std::cout << right_word << "MB\n";
+    }
+    LOG << "---------------------";
+  }
 };
 
 }

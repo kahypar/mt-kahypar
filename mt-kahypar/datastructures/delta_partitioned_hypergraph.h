@@ -230,8 +230,35 @@ class DeltaPartitionedHypergraph {
     _move_from_benefit_delta.clear();
   }
 
+  void dropMemory() {
+    if (!_memory_dropped) {
+      _memory_dropped = true;
+      _part_ids_delta.freeInternalData();
+      _pins_in_part_delta.freeInternalData();
+      _move_to_penalty_delta.freeInternalData();
+      _move_from_benefit_delta.freeInternalData();
+    }
+  }
+
+  size_t combinedMemoryConsumption() const {
+    return _pins_in_part_delta.memory_consumption()
+           + _move_from_benefit_delta.memory_consumption()
+           + _move_to_penalty_delta.memory_consumption()
+           + _part_ids_delta.memory_consumption();
+  }
+
   PartitionID k() const {
     return _k;
+  }
+
+  std::unordered_map<std::string, size_t> memory_consumption() const {
+    std::unordered_map<std::string, size_t> r;
+    r["delta part ids"] = _part_ids_delta.memory_consumption();
+    r["delta pins in part"] = _pins_in_part_delta.memory_consumption();
+    r["delta move from benefit"] = _move_from_benefit_delta.memory_consumption();
+    r["delta move to penalty"] = _move_to_penalty_delta.memory_consumption();
+    r["delta part weights"] = _part_weights_delta.capacity() * sizeof(HypernodeWeight);
+    return r;
   }
 
  private:
@@ -276,6 +303,8 @@ class DeltaPartitionedHypergraph {
     }
     return pin_count_after;
   }
+
+  bool _memory_dropped = false;
 
   // ! Number of blocks
   const PartitionID _k;
