@@ -53,18 +53,7 @@ public:
 
   bool refineImpl(PartitionedHypergraph& phg,
                   kahypar::Metrics& metrics) override final {
-    if (remainingLevelsToSkip > 0) {
-      remainingLevelsToSkip--;
-      return false;
-    }
     Gain improvement = refine(phg, metrics);
-    levelImprovementFractions.push_back( improvementFraction(improvement, metrics.km1) );
-    if (shouldSkipSomeLevels()) {
-      remainingLevelsToSkip = nextNumLevelsToSkip;
-      nextNumLevelsToSkip *= 2;
-    } else {
-      nextNumLevelsToSkip = 1;
-    }
     metrics.km1 -= improvement;
     metrics.imbalance = metrics::imbalance(phg, context);
     ASSERT(metrics.km1 == metrics::km1(phg), V(metrics.km1) << V(metrics::km1(phg)));
@@ -139,9 +128,6 @@ public:
   }
 
   void initializeImpl(PartitionedHypergraph& phg) override final {
-    if (remainingLevelsToSkip > 0) {
-      return;
-    }
     utils::Timer& timer = utils::Timer::instance();
     timer.start_timer("init_gain_info", "Initialize Gain Information");
     phg.initializeGainInformation();
@@ -215,24 +201,13 @@ public:
     }
   }
 
-  bool shouldSkipSomeLevels() const {
-    static constexpr size_t levels_to_consider = 3;
-    double level_improvement_fraction_threshold = context.refinement.fm.min_improvement;
-    return shouldStopSearch(levelImprovementFractions, level_improvement_fraction_threshold, levels_to_consider);
-  }
-
   bool shouldStopRoundsOnThisLevel() const {
     static constexpr size_t rounds_to_consider = 2;
     double round_improvement_fraction_threshold = context.refinement.fm.min_improvement;
     return shouldStopSearch(roundImprovementFractions, round_improvement_fraction_threshold, rounds_to_consider);
   }
 
-
-
   vec<double> roundImprovementFractions;
-  vec<double> levelImprovementFractions;
-  size_t nextNumLevelsToSkip = 1;
-  size_t remainingLevelsToSkip = 0;
 
   void printMemoryConsumption() {
     std::unordered_map<std::string, size_t> r;
