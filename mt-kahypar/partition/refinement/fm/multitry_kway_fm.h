@@ -187,7 +187,6 @@ public:
   }
 
   bool shouldStopSearch(const vec<double>& improvement_fractions, double threshold, size_t n) const {
-    if (context.type == kahypar::ContextType::main)
     if (improvement_fractions.size() < n || context.type != kahypar::ContextType::main) {
       return false;
     } else {
