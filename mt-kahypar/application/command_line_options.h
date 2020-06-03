@@ -72,9 +72,12 @@ po::options_description createGeneralOptionsDescription(Context& context, const 
     po::value<int>(&context.partition.seed)->value_name("<int>"),
     "Seed for random number generator \n"
     "(default: -1)")
-    ("cmaxnet",
-    po::value<HyperedgeID>(&context.partition.hyperedge_size_threshold)->value_name("<uint64_t>"),
-    "Hyperedges larger than cmaxnet are ignored during partitioning process.")
+    ("maxnet-remove-factor",
+    po::value<double>(&context.partition.large_hyperedge_size_threshold_factor)->value_name("<double>"),
+    "Hyperedges larger than |V| * (this factor) are removed before partitioning process.")
+    ("maxnet-ignore",
+    po::value<HyperedgeID>(&context.partition.ignore_hyperedge_size_threshold)->value_name("<uint64_t>"),
+    "Hyperedges larger than this threshold are ignored during partitioning process.")
     ("objective,o",
     po::value<std::string>()->value_name("<string>")->required()->notifier([&](const std::string& s) {
       if (s == "cut") {

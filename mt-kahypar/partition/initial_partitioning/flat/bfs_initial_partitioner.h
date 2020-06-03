@@ -139,7 +139,7 @@ class BFSInitialPartitioner : public tbb::task {
     ASSERT(hn != kInvalidHypernode && block != kInvalidPartition);
     for ( const HyperedgeID& he : hypergraph.incidentEdges(hn) ) {
       if ( !hyperedges_in_queue[block * hypergraph.initialNumEdges() + he] ) {
-        if ( hypergraph.edgeSize(he) <= context.partition.hyperedge_size_threshold ) {
+        if ( hypergraph.edgeSize(he) <= context.partition.ignore_hyperedge_size_threshold ) {
           for ( const HypernodeID& pin : hypergraph.pins(he) ) {
             if ( !hypernodes_in_queue[block * hypergraph.initialNumNodes() + pin] &&
                  hypergraph.partID(pin) == kInvalidPartition ) {

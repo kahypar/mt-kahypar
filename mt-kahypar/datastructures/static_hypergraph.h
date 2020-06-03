@@ -1336,6 +1336,39 @@ class StaticHypergraph {
     disableHyperedge(he);
   }
 
+  /*!
+  * Removes a hyperedge from the hypergraph. This includes the removal of he from all
+  * of its pins and to disable the hyperedge. Noze, in contrast to removeEdge, this function
+  * removes hyperedge from all its pins in parallel.
+  *
+  * NOTE, this function is not thread-safe and should only be called in a single-threaded
+  * setting.
+  */
+  void removeLargeEdge(const HyperedgeID he) {
+    ASSERT(edgeIsEnabled(he), "Hyperedge" << he << "is disabled");
+    const size_t incidence_array_start = hyperedge(he).firstEntry();
+    const size_t incidence_array_end = hyperedge(he).firstInvalidEntry();
+    tbb::parallel_for(incidence_array_start, incidence_array_end, [&](const size_t pos) {
+      const HypernodeID pin = _incidence_array[pos];
+      removeIncidentEdgeFromHypernode(he, pin);
+    });
+    disableHyperedge(he);
+  }
+
+  /*!
+   * Restores a large hyperedge previously removed from the hypergraph.
+   */
+  void restoreLargeEdge(const HyperedgeID& he) {
+    ASSERT(!edgeIsEnabled(he), "Hyperedge" << he << "is enabled");
+    enableHyperedge(he);
+    const size_t incidence_array_start = hyperedge(he).firstEntry();
+    const size_t incidence_array_end = hyperedge(he).firstInvalidEntry();
+    tbb::parallel_for(incidence_array_start, incidence_array_end, [&](const size_t pos) {
+      const HypernodeID pin = _incidence_array[pos];
+      insertIncidentEdgeToHypernode(he, pin);
+    });
+  }
+
   // ####################### Initialization / Reset Functions #######################
 
   /*!

@@ -38,7 +38,9 @@ struct PartitioningParameters {
   int time_limit = 0;
   std::vector<HypernodeWeight> perfect_balance_part_weights;
   std::vector<HypernodeWeight> max_part_weights;
-  HyperedgeID hyperedge_size_threshold = 1000;
+  double large_hyperedge_size_threshold_factor = std::numeric_limits<double>::max();
+  HypernodeID large_hyperedge_size_threshold = std::numeric_limits<HypernodeID>::max();
+  HypernodeID ignore_hyperedge_size_threshold = std::numeric_limits<HypernodeID>::max();
 
   bool verbose_output = false;
   bool quiet_mode = false;
@@ -71,7 +73,8 @@ inline std::ostream & operator<< (std::ostream& str, const PartitioningParameter
   str << "  epsilon:                            " << params.epsilon << std::endl;
   str << "  seed:                               " << params.seed << std::endl;
   str << "  time limit:                         " << params.time_limit << "s" << std::endl;
-  str << "  hyperedge size threshold:           " << params.hyperedge_size_threshold << std::endl;
+  str << "  large hyperedge size threshold:     " << params.large_hyperedge_size_threshold << std::endl;
+  str << "  ignore hyperedge size threshold:    " << params.ignore_hyperedge_size_threshold << std::endl;
   return str;
 }
 

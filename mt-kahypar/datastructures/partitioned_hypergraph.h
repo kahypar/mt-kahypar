@@ -330,6 +330,38 @@ private:
     return _hg->graphEdgeHead(e, tail);
   }
 
+  // ####################### Restore Hyperedges #######################
+
+  /*!
+   * Restores a large hyperedge previously removed from the hypergraph.
+   */
+  void restoreLargeEdge(const HyperedgeID& he) {
+    _hg->restoreLargeEdge(he);
+
+    // Recalculate pin count in parts
+    const size_t incidence_array_start = _hg->hyperedge(he).firstEntry();
+    const size_t incidence_array_end = _hg->hyperedge(he).firstInvalidEntry();
+    tls_enumerable_thread_specific< vec<HypernodeID> > ets_pin_count_in_part(_k, 0);
+    tbb::parallel_for(incidence_array_start, incidence_array_end, [&](const size_t pos) {
+      const HypernodeID pin = _hg->_incidence_array[pos];
+      const PartitionID block = partID(pin);
+      ++ets_pin_count_in_part.local()[block];
+    });
+
+    // Aggregate local pin count for each block
+    for ( PartitionID block = 0; block < _k; ++block ) {
+      HypernodeID pin_count_in_part = 0;
+      for ( const vec<HypernodeID>& local_pin_count : ets_pin_count_in_part ) {
+        pin_count_in_part += local_pin_count[block];
+      }
+
+      if ( pin_count_in_part > 0 ) {
+        _pins_in_part.setPinCountInPart(he, block, pin_count_in_part);
+        _connectivity_set.add(he, block);
+      }
+    }
+  }
+
   // ####################### Partition Information #######################
 
   void setOnlyNodePart(const HypernodeID u, PartitionID p) {
@@ -853,20 +885,20 @@ private:
     auto assign = [&](tbb::blocked_range<HyperedgeID>& r) {
       vec<HypernodeID>& pin_counts = ets_pin_count_in_part.local();
       for (HyperedgeID he = r.begin(); he < r.end(); ++he) {
-
-        for (HypernodeID pin : pins(he)) {
-          ++pin_counts[partID(pin)];
-        }
-
-        for (PartitionID p = 0; p < _k; ++p) {
-          assert(pinCountInPart(he, p) == 0);
-          if (pin_counts[p] > 0) {
-            _connectivity_set.add(he, p);
-            _pins_in_part.setPinCountInPart(he, p, pin_counts[p]);
+        if ( edgeIsEnabled(he) ) {
+          for (HypernodeID pin : pins(he)) {
+            ++pin_counts[partID(pin)];
           }
-          pin_counts[p] = 0;
-        }
 
+          for (PartitionID p = 0; p < _k; ++p) {
+            assert(pinCountInPart(he, p) == 0);
+            if (pin_counts[p] > 0) {
+              _connectivity_set.add(he, p);
+              _pins_in_part.setPinCountInPart(he, p, pin_counts[p]);
+            }
+            pin_counts[p] = 0;
+          }
+        }
       }
     };
 

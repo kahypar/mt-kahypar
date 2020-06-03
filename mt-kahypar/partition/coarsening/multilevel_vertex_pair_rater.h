@@ -206,7 +206,7 @@ class MultilevelVertexPairRater {
     for ( const HyperedgeID& he : hypergraph.incidentEdges(u) ) {
       HypernodeID edge_size = hypergraph.edgeSize(he);
       ASSERT(edge_size > 1, V(he));
-      if ( edge_size < _context.partition.hyperedge_size_threshold ) {
+      if ( edge_size < _context.partition.ignore_hyperedge_size_threshold ) {
         edge_size = _context.coarsening.use_adaptive_edge_size ?
           std::max(adaptiveEdgeSize(hypergraph, he, bloom_filter, cluster_ids), ID(2)) : edge_size;
         const RatingType score = ScorePolicy::score(
@@ -234,7 +234,7 @@ class MultilevelVertexPairRater {
     size_t num_tmp_rating_map_accesses = 0;
     for ( const HyperedgeID& he : hypergraph.incidentEdges(u) ) {
       HypernodeID edge_size = hypergraph.edgeSize(he);
-      if ( edge_size < _context.partition.hyperedge_size_threshold ) {
+      if ( edge_size < _context.partition.ignore_hyperedge_size_threshold ) {
         edge_size = _context.coarsening.use_adaptive_edge_size ?
           std::max(adaptiveEdgeSize(hypergraph, he, bloom_filter, cluster_ids), ID(2)) : edge_size;
         // Break if number of accesses to the tmp rating map would exceed
@@ -299,7 +299,7 @@ class MultilevelVertexPairRater {
     for ( const HyperedgeID& he : hypergraph.incidentEdges(u) ) {
       const HypernodeID edge_size = hypergraph.edgeSize(he);
       // Ignore large hyperedges
-      ub_neighbors_u += edge_size < _context.partition.hyperedge_size_threshold ? edge_size : 0;
+      ub_neighbors_u += edge_size < _context.partition.ignore_hyperedge_size_threshold ? edge_size : 0;
       // If the number of estimated neighbors is greater than the size of the cache efficient rating map / 3, we
       // use the large sparse map. The division by 3 also ensures that the fill grade
       // of the cache efficient sparse map would be small enough such that linear probing

@@ -33,6 +33,7 @@
 #include "mt-kahypar/partition/metrics.h"
 #include "mt-kahypar/partition/multilevel.h"
 #include "mt-kahypar/partition/preprocessing/sparsification/degree_zero_hn_remover.h"
+#include "mt-kahypar/partition/preprocessing/sparsification/large_he_remover.h"
 #include "mt-kahypar/partition/preprocessing/community_detection/parallel_louvain.h"
 #include "mt-kahypar/utils/stats.h"
 
@@ -45,7 +46,8 @@ class Partitioner {
  public:
   Partitioner(Context& context) :
     _context(context),
-    _degree_zero_hn_remover(context) { }
+    _degree_zero_hn_remover(context),
+    _large_he_remover(context) { }
 
   Partitioner(const Partitioner&) = delete;
   Partitioner & operator= (const Partitioner &) = delete;
@@ -68,9 +70,12 @@ class Partitioner {
 
   Context& _context;
   DegreeZeroHypernodeRemover _degree_zero_hn_remover;
+  LargeHyperedgeRemover _large_he_remover;
 };
 
 inline void Partitioner::setupContext(Hypergraph& hypergraph, Context& context) {
+  context.partition.large_hyperedge_size_threshold = hypergraph.initialNumNodes() *
+    context.partition.large_hyperedge_size_threshold_factor;
   context.setupPartWeights(hypergraph.totalWeight());
   context.setupContractionLimit(hypergraph.totalWeight());
   context.sanityCheck();
@@ -95,13 +100,22 @@ inline void Partitioner::sanitize(Hypergraph& hypergraph) {
     _degree_zero_hn_remover.contractDegreeZeroHypernodes(hypergraph);
   utils::Timer::instance().stop_timer("degree_zero_hypernode_removal");
 
+  utils::Timer::instance().start_timer("large_hyperedge_removal", "Large Hyperedge Removal");
+  const HypernodeID num_removed_large_hyperedges =
+    _large_he_remover.removeLargeHyperedges(hypergraph);
+  utils::Timer::instance().stop_timer("large_hyperedge_removal");
+
   const HyperedgeID num_removed_single_node_hes = hypergraph.numRemovedHyperedges();
   if (_context.partition.verbose_output &&
-      ( num_removed_single_node_hes > 0 || num_removed_degree_zero_hypernodes > 0 )) {
-    LOG << "Performed single-node HE removal and degree-zero HN contractions:";
+      ( num_removed_single_node_hes > 0 ||
+        num_removed_degree_zero_hypernodes > 0 ||
+        num_removed_large_hyperedges > 0 )) {
+    LOG << "Performed single-node/large HE removal and degree-zero HN contractions:";
     LOG << "\033[1m\033[31m" << " # removed"
-        << num_removed_single_node_hes << "hyperedges with |e| = 1 during hypergraph file parsing"
+        << num_removed_single_node_hes << "single-pin hyperedges during hypergraph file parsing"
         << "\033[0m";
+    LOG << "\033[1m\033[31m" << " # removed"
+        << num_removed_large_hyperedges << "large hyperedges with |e| >" << _large_he_remover.largeHyperedgeThreshold() << "\033[0m";
     LOG << "\033[1m\033[31m" << " # contracted"
         << num_removed_degree_zero_hypernodes << "hypernodes with d(v) = 0 to supervertices"
         << "\033[0m";
@@ -156,6 +170,7 @@ inline void Partitioner::preprocess(Hypergraph& hypergraph) {
 }
 
 inline void Partitioner::postprocess(PartitionedHypergraph& hypergraph) {
+  _large_he_remover.restoreLargeHyperedges(hypergraph);
   _degree_zero_hn_remover.restoreDegreeZeroHypernodes(hypergraph);
 }
 
@@ -179,7 +194,9 @@ inline PartitionedHypergraph Partitioner::partition(Hypergraph& hypergraph) {
   PartitionedHypergraph partitioned_hypergraph = multilevel::partition(
     hypergraph, _context, true, TBBNumaArena::GLOBAL_TASK_GROUP);
 
+  utils::Timer::instance().start_timer("postprocessing", "Postprocessing");
   postprocess(partitioned_hypergraph);
+  utils::Timer::instance().stop_timer("postprocessing");
 
   if (_context.partition.verbose_output) {
     io::printHypergraphInfo(partitioned_hypergraph, "Uncoarsened Hypergraph",

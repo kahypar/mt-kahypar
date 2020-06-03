@@ -76,7 +76,7 @@ class PseudoPeripheralStartNodes {
         // to queue.
         for ( const HyperedgeID& he : hypergraph.incidentEdges(last_hypernode_touched) ) {
           if ( !hyperedges_in_queue[he] ) {
-            if ( hypergraph.edgeSize(he) <= context.partition.hyperedge_size_threshold ) {
+            if ( hypergraph.edgeSize(he) <= context.partition.ignore_hyperedge_size_threshold ) {
               for ( const HypernodeID& pin : hypergraph.pins(he) ) {
                 if ( !hypernodes_in_queue[pin] ) {
                   queue.push(pin);
