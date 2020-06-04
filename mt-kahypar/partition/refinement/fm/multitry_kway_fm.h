@@ -129,6 +129,19 @@ public:
 
       HighResClockTimepoint fm_timestamp = std::chrono::high_resolution_clock::now();
       const double elapsed_time = std::chrono::duration<double>(fm_timestamp - fm_start).count();
+      if (debug && context.type == kahypar::ContextType::main) {
+        LOG << V(round) << V(improvement) << V(metrics::km1(phg)) << V(metrics::imbalance(phg, context))
+            << V(numBorderNodes) << V(roundImprovementFraction) << V(elapsed_time) << V(current_time_limit)
+            << stats.serialize();
+      }
+
+      // We enforce during FM a time limit, which is calculated based on k and the coarsening time of
+      // the current hypergraph. Especially for instances with low density, we observed that FM time
+      // dominates. The root cause for this is that for such instances (with large hyperedges) maintaining
+      // the gain cache inside the partitioned hypergraph becomes expensive.
+      // After the FM reaches the time limit the first time, we switch to a light FM variant. Here, we do not
+      // release vertices that are within a local PQ at the end of a localized search. If the time limit is
+      // reached a second time we immediatly abort FM refinement.
       if ( elapsed_time > current_time_limit ) {
         if ( !enable_light_fm ) {
           DBG << RED << "Multitry FM reached time limit => switch to Light FM Configuration" << END;
@@ -139,12 +152,6 @@ public:
           DBG << RED << "Light version of Multitry FM reached time limit => ABORT" << END;
           break;
         }
-      }
-
-      if (debug && context.type == kahypar::ContextType::main) {
-        LOG << V(round) << V(improvement) << V(metrics::km1(phg)) << V(metrics::imbalance(phg, context))
-            << V(numBorderNodes) << V(roundImprovementFraction) << V(elapsed_time) << V(current_time_limit)
-            << stats.serialize();
       }
 
       if (improvement <= 0 || consecutive_rounds_with_too_little_improvement >= 2) {
