@@ -75,7 +75,8 @@ class LabelPropagationRefiner final : public IRefiner {
 
  private:
   bool refineImpl(PartitionedHypergraph& hypergraph,
-                  kahypar::Metrics& best_metrics) override final {
+                  kahypar::Metrics& best_metrics,
+                  const double) override final {
     _gain.reset();
     _next_active.reset();
 

@@ -108,6 +108,7 @@ static inline std::string serialize(const PartitionedHypergraph& hypergraph,
         << " fm_num_seed_nodes=" << context.refinement.fm.num_seed_nodes
         << " fm_shuffle=" << std::boolalpha << context.refinement.fm.shuffle
         << " fm_obey_minimal_parallelism=" << std::boolalpha << context.refinement.fm.obey_minimal_parallelism
+        << " fm_time_limit_factor=" << context.refinement.fm.time_limit_factor
         << " num_threads=" << context.shared_memory.num_threads
         << " use_localized_random_shuffle=" << std::boolalpha << context.shared_memory.use_localized_random_shuffle
         << " shuffle_block_size=" << context.shared_memory.shuffle_block_size;

@@ -47,8 +47,9 @@ class IRefiner {
   }
 
   bool refine(PartitionedHypergraph& hypergraph,
-              kahypar::Metrics& best_metrics) {
-    return refineImpl(hypergraph, best_metrics);
+              kahypar::Metrics& best_metrics,
+              const double time_limit) {
+    return refineImpl(hypergraph, best_metrics, time_limit);
   }
 
  protected:
@@ -58,7 +59,8 @@ class IRefiner {
   virtual void initializeImpl(PartitionedHypergraph& hypergraph) = 0;
 
   virtual bool refineImpl(PartitionedHypergraph& hypergraph,
-                          kahypar::Metrics& best_metrics) = 0;
+                          kahypar::Metrics& best_metrics,
+                          const double time_limit) = 0;
 };
 
 }  // namespace mt_kahypar

@@ -146,6 +146,7 @@ class MultilevelCoarsener : public ICoarsener,
     int pass_nr = 0;
     const HypernodeID initial_num_nodes = Base::currentNumNodes();
     while ( Base::currentNumNodes() > _context.coarsening.contraction_limit ) {
+      HighResClockTimepoint round_start = std::chrono::high_resolution_clock::now();
       Hypergraph& current_hg = Base::currentHypergraph();
       DBG << V(pass_nr)
           << V(current_hg.initialNumNodes())
@@ -276,7 +277,7 @@ class MultilevelCoarsener : public ICoarsener,
 
       utils::Timer::instance().start_timer("parallel_multilevel_contraction", "Parallel Multilevel Contraction");
       // Perform parallel contraction
-      Base::performMultilevelContraction(std::move(cluster_ids));
+      Base::performMultilevelContraction(std::move(cluster_ids), round_start);
       utils::Timer::instance().stop_timer("parallel_multilevel_contraction");
 
       if ( _context.coarsening.use_adaptive_max_allowed_node_weight ) {

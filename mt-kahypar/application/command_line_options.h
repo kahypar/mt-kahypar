@@ -323,7 +323,13 @@ po::options_description createRefinementOptionsDescription(Context& context,
      (( initial_partitioning ? "i-r-fm-obey-minimal-parallelism" : "r-fm-obey-minimal-parallelism"),
      po::value<bool>((initial_partitioning ? &context.initial_partitioning.refinement.fm.obey_minimal_parallelism :
      &context.refinement.fm.obey_minimal_parallelism))->value_name("<bool>"),
-     "If true, then parallel FM refinement stops if more than a certain number of threads are finished.");
+     "If true, then parallel FM refinement stops if more than a certain number of threads are finished.")
+     (( initial_partitioning ? "i-r-fm-time-limit-factor" : "r-fm-time-limit-factor"),
+     po::value<double>((initial_partitioning ? &context.initial_partitioning.refinement.fm.time_limit_factor :
+     &context.refinement.fm.time_limit_factor))->value_name("<double>"),
+     "If the FM time exceeds time_limit := k * factor * coarsening_time, than the FM config is switched into a light version."
+     "If the FM refiner exceeds 2 * time_limit, than the current multitry FM run is aborted and the algorithm proceeds to"
+     "the next finer level.");
   return options;
 }
 

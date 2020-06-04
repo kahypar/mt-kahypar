@@ -41,7 +41,8 @@ class DoNothingRefiner final : public IRefiner {
   void initializeImpl(PartitionedHypergraph&) override final { }
 
   bool refineImpl(PartitionedHypergraph&,
-                  kahypar::Metrics &) override final {
+                  kahypar::Metrics &,
+                  const double) override final {
     return false;
   }
 };

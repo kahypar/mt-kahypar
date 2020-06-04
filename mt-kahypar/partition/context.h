@@ -191,8 +191,9 @@ struct FMParameters {
   size_t num_seed_nodes = 0;
   bool shuffle = true;
   bool obey_minimal_parallelism = false;
-  double min_improvement = 0.003;
+  double min_improvement = -1.0;
   bool release_nodes = true;
+  double time_limit_factor = std::numeric_limits<double>::max();
 };
 
 inline std::ostream& operator<<(std::ostream& out, const FMParameters& params) {
@@ -205,6 +206,9 @@ inline std::ostream& operator<<(std::ostream& out, const FMParameters& params) {
   out << "    Num Seed Nodes:                   " << params.num_seed_nodes << std::endl;
   out << "    Enable Random Shuffle:            " << std::boolalpha << params.shuffle << std::endl;
   out << "    Obey Minimal Parallelism:         " << std::boolalpha << params.obey_minimal_parallelism << std::endl;
+  out << "    Minimum Improvement Factor:       " << params.min_improvement << std::endl;
+  out << "    Release Nodes:                    " << std::boolalpha << params.release_nodes << std::endl;
+  out << "    Time Limit Factor:                " << params.time_limit_factor << std::endl;
   out << std::flush;
   return out;
 }

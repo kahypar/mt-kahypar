@@ -40,32 +40,44 @@ class MultiTryKWayFM final : public IRefiner {
   static constexpr bool debug = false;
 
 public:
-  MultiTryKWayFM(const Hypergraph& hypergraph, const Context& context, const TaskGroupID taskGroupID) :
-          context(context),
-          taskGroupID(taskGroupID),
-          sharedData(hypergraph.initialNumNodes(), context),
-          globalRollback(hypergraph, context, context.partition.k),
-          ets_fm(context, hypergraph.initialNumNodes(), sharedData.vertexPQHandles.data())
-  {
+  MultiTryKWayFM(const Hypergraph& hypergraph,
+                 const Context& c,
+                 const TaskGroupID taskGroupID) :
+    initial_num_nodes(hypergraph.initialNumNodes()),
+    original_context(c),
+    context(c),
+    taskGroupID(taskGroupID),
+    sharedData(hypergraph.initialNumNodes(), context),
+    globalRollback(hypergraph, context, context.partition.k),
+    ets_fm([&] {
+      return constructLocalizedKWayFMSearch();
+    }) {
     if (context.refinement.fm.obey_minimal_parallelism) {
       sharedData.finishedTasksLimit = std::min(8UL, context.shared_memory.num_threads);
     }
   }
 
   bool refineImpl(PartitionedHypergraph& phg,
-                  kahypar::Metrics& metrics) override final {
-    Gain improvement = refine(phg, metrics);
+                  kahypar::Metrics& metrics,
+                  const double time_limit) override final {
+    Gain improvement = refine(phg, metrics, time_limit);
     metrics.km1 -= improvement;
     metrics.imbalance = metrics::imbalance(phg, context);
     ASSERT(metrics.km1 == metrics::km1(phg), V(metrics.km1) << V(metrics::km1(phg)));
     return improvement > 0;
   }
 
-  Gain refine(PartitionedHypergraph& phg, const kahypar::Metrics& metrics) {
+  Gain refine(PartitionedHypergraph& phg,
+              const kahypar::Metrics& metrics,
+              const double time_limit) {
     if (!is_initialized) throw std::runtime_error("Call initialize on fm before calling refine");
     utils::Timer& timer = utils::Timer::instance();
     Gain overall_improvement = 0;
     size_t consecutive_rounds_with_too_little_improvement = 0;
+    context = original_context;
+    enable_light_fm = false;
+    double current_time_limit = time_limit;
+    HighResClockTimepoint fm_start = std::chrono::high_resolution_clock::now();
     for (size_t round = 0; round < context.refinement.fm.multitry_rounds; ++round) { // global multi try rounds
       timer.start_timer("collect_border_nodes", "Collect Border Nodes");
 
@@ -115,9 +127,24 @@ public:
         consecutive_rounds_with_too_little_improvement = 0;
       }
 
+      HighResClockTimepoint fm_timestamp = std::chrono::high_resolution_clock::now();
+      const double elapsed_time = std::chrono::duration<double>(fm_timestamp - fm_start).count();
+      if ( elapsed_time > current_time_limit ) {
+        if ( !enable_light_fm ) {
+          DBG << RED << "Multitry FM reached time limit => switch to Light FM Configuration" << END;
+          context.refinement.fm.release_nodes = false;
+          current_time_limit *= 2;
+          enable_light_fm = true;
+        } else {
+          DBG << RED << "Light version of Multitry FM reached time limit => ABORT" << END;
+          break;
+        }
+      }
+
       if (debug && context.type == kahypar::ContextType::main) {
         LOG << V(round) << V(improvement) << V(metrics::km1(phg)) << V(metrics::imbalance(phg, context))
-            << V(numBorderNodes) << V(roundImprovementFraction) << stats.serialize();
+            << V(numBorderNodes) << V(roundImprovementFraction) << V(elapsed_time) << V(current_time_limit)
+            << stats.serialize();
       }
 
       if (improvement <= 0 || consecutive_rounds_with_too_little_improvement >= 2) {
@@ -175,8 +202,15 @@ public:
     sharedData.fruitlessSeed.reset();
   }
 
+  LocalizedKWayFM constructLocalizedKWayFMSearch() {
+    return LocalizedKWayFM(context, initial_num_nodes, sharedData.vertexPQHandles.data());
+  }
+
   bool is_initialized = false;
-  const Context& context;
+  bool enable_light_fm = false;
+  const HypernodeID initial_num_nodes;
+  const Context& original_context;
+  Context context;
   const TaskGroupID taskGroupID;
   FMSharedData sharedData;
   GlobalRollback globalRollback;

@@ -117,7 +117,8 @@ class InitialPartitioningDataContainer {
 
       if ( _label_propagation ) {
         _label_propagation->initialize(_partitioned_hypergraph);
-        _label_propagation->refine(_partitioned_hypergraph, current_metric);
+        _label_propagation->refine(_partitioned_hypergraph,
+          current_metric, std::numeric_limits<double>::max());
       }
 
       commit(algorithm, current_metric, time, false);
