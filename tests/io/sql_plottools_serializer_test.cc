@@ -51,7 +51,7 @@ std::set<std::string> excluded_members =
     "write_partition_file", "graph_partition_filename", "graph_community_filename", "community_detection",
     "community_redistribution", "coarsening_rating", "label_propagation", "lp_execute_sequential",
     "enable_profiler", "snapshot_interval", "initial_partitioning_refinement", "initial_partitioning_sparsification",
-    "stable_construction_of_incident_edges", "fm" };
+    "stable_construction_of_incident_edges", "fm", "csv_output", "preset_file" };
 
 bool is_target_struct(const std::string& line) {
   for ( const std::string& target_struct : target_structs ) {
