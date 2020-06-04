@@ -42,6 +42,17 @@ class LocalizedKWayFM {
      runStats.clear();
    }
 
+   void memoryConsumption(utils::MemoryTreeNode* parent) const {
+    ASSERT(parent);
+    utils::MemoryTreeNode* local_data_node = parent->addChild("Local FM Data");
+    utils::MemoryTreeNode* seed_vertices_node = local_data_node->addChild("Seed Vertices");
+    seed_vertices_node->updateSize(seedVertices.capacity() * sizeof(HypernodeID));
+    utils::MemoryTreeNode* local_moves_node = local_data_node->addChild("Local Moves");
+    local_moves_node->updateSize(localMoves.capacity() * sizeof(Move));
+    utils::MemoryTreeNode* local_move_ids_node = local_data_node->addChild("Local Move IDs");
+    local_move_ids_node->updateSize(localMoveIDs.capacity() * sizeof(MoveID));
+   }
+
    // ! Contains all seed vertices of the current local search
    vec<HypernodeID> seedVertices;
    // ! Contains all moves performed during the current local search
@@ -547,23 +558,24 @@ private:
  public:
   FMStats stats;
 
-  std::unordered_map<std::string, size_t> memory_consumption() const {
-    std::unordered_map<std::string, size_t> r;
-    r["deduplicator"] = updateDeduplicator.memory_consumption();
-    r["valid_hes"] = validHyperedges.memory_consumption();
-    size_t pq_consumption = blockPQ.memory_consumption();
-    for (const VertexPriorityQueue& vpq : vertexPQs)
-      pq_consumption += vpq.memory_consumption();
-    r["PQs"] = pq_consumption;
+  void memoryConsumption(utils::MemoryTreeNode* parent) const {
+    ASSERT(parent);
 
-    r["local_data"] = localData.seedVertices.capacity() * sizeof(HypernodeID)
-                      + localData.localMoveIDs.capacity() * sizeof(MoveID)
-                      + localData.localMoves.capacity() * sizeof(Move)
-                      + sizeof (FMStats);
+    utils::MemoryTreeNode* localized_fm_node = parent->addChild("Localized k-Way FM");
 
-    r.merge(deltaPhg.memory_consumption());
-    return r;
-  };
+    utils::MemoryTreeNode* deduplicator_node = localized_fm_node->addChild("Deduplicator");
+    deduplicator_node->updateSize(updateDeduplicator.size_in_bytes());
+    utils::MemoryTreeNode* valid_hyperedges_node = localized_fm_node->addChild("Valid Hyperedges");
+    valid_hyperedges_node->updateSize(validHyperedges.size_in_bytes());
+    utils::MemoryTreeNode* block_pq_node = localized_fm_node->addChild("Block PQ");
+    block_pq_node->updateSize(blockPQ.size_in_bytes());
+    utils::MemoryTreeNode* vertex_pq_node = localized_fm_node->addChild("Vertex PQ");
+    for ( const VertexPriorityQueue& pq : vertexPQs ) {
+      vertex_pq_node->updateSize(pq.size_in_bytes());
+    }
+    localData.memoryConsumption(localized_fm_node);
+    deltaPhg.memoryConsumption(localized_fm_node);
+  }
 
  private:
 

@@ -139,12 +139,16 @@ struct WorkContainer {
     return r;
   }
 
-  size_t memory_consumption() const {
-    size_t m = timestamps.capacity() * sizeof(TimestampT);
+  void memoryConsumption(utils::MemoryTreeNode* parent) const {
+    ASSERT(parent);
+
+    utils::MemoryTreeNode* work_container_node = parent->addChild("Work Container");
+    utils::MemoryTreeNode* local_work_queue_node = work_container_node->addChild("Local Work Queue");
     for (const ThreadQueue<T>& q : tls_queues) {
-      m += q.elements.capacity() * sizeof(T);
+      local_work_queue_node->updateSize(q.elements.capacity() * sizeof(T));
     }
-    return m;
+    utils::MemoryTreeNode* timestamps_node = work_container_node->addChild("Timestamps");
+    timestamps_node->updateSize(timestamps.capacity() * sizeof(TimestampT));
   }
 };
 

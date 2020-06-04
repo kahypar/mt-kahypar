@@ -241,28 +241,33 @@ class DeltaPartitionedHypergraph {
   }
 
   size_t combinedMemoryConsumption() const {
-    return _pins_in_part_delta.memory_consumption()
-           + _move_from_benefit_delta.memory_consumption()
-           + _move_to_penalty_delta.memory_consumption()
-           + _part_ids_delta.memory_consumption();
+    return _pins_in_part_delta.size_in_bytes()
+           + _move_from_benefit_delta.size_in_bytes()
+           + _move_to_penalty_delta.size_in_bytes()
+           + _part_ids_delta.size_in_bytes();
   }
 
   PartitionID k() const {
     return _k;
   }
 
-  std::unordered_map<std::string, size_t> memory_consumption() const {
-    std::unordered_map<std::string, size_t> r;
-    r["delta part ids"] = _part_ids_delta.memory_consumption();
-    r["delta pins in part"] = _pins_in_part_delta.memory_consumption();
-    r["delta move from benefit"] = _move_from_benefit_delta.memory_consumption();
-    r["delta move to penalty"] = _move_to_penalty_delta.memory_consumption();
-    r["delta part weights"] = _part_weights_delta.capacity() * sizeof(HypernodeWeight);
-    return r;
+  void memoryConsumption(utils::MemoryTreeNode* parent) const {
+    ASSERT(parent);
+
+    utils::MemoryTreeNode* delta_phg_node = parent->addChild("Delta Partitioned Hypergraph");
+    utils::MemoryTreeNode* part_weights_node = delta_phg_node->addChild("Delta Part Weights");
+    part_weights_node->updateSize(_part_weights_delta.capacity() * sizeof(HypernodeWeight));
+    utils::MemoryTreeNode* part_ids_node = delta_phg_node->addChild("Delta Part IDs");
+    part_ids_node->updateSize(_part_ids_delta.size_in_bytes());
+    utils::MemoryTreeNode* pins_in_part_node = delta_phg_node->addChild("Delta Pins In Part");
+    pins_in_part_node->updateSize(_pins_in_part_delta.size_in_bytes());
+    utils::MemoryTreeNode* move_from_benefit_node = delta_phg_node->addChild("Delta Move From Benefit");
+    move_from_benefit_node->updateSize(_move_from_benefit_delta.size_in_bytes());
+    utils::MemoryTreeNode* move_to_penalty_node = delta_phg_node->addChild("Delta Move To Penalty");
+    move_to_penalty_node->updateSize(_move_to_penalty_delta.size_in_bytes());
   }
 
  private:
-
 
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
   HypernodeID decrementPinCountInPartWithGainUpdate(const HyperedgeID e, const PartitionID p) {

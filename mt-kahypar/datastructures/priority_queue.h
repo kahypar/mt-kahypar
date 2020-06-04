@@ -156,7 +156,7 @@ public:
     std::cout << std::endl;
   }
 
-  size_t memory_consumption() const {
+  size_t size_in_bytes() const {
     return heap.capacity() * sizeof(HeapElement);
   }
 

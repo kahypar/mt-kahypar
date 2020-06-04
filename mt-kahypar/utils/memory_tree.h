@@ -61,6 +61,10 @@ class MemoryTreeNode {
     }
   }
 
+  void updateSize(const size_t delta) {
+    _size_in_bytes += delta;
+  }
+
   void finalize() {
     for ( auto& child : _childs ) {
       child.second->finalize();

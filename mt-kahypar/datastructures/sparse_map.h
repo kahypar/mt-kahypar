@@ -546,7 +546,7 @@ class DynamicSparseMap {
     _dense = nullptr;
   }
 
-  size_t memory_consumption() const {
+  size_t size_in_bytes() const {
     return _capacity * (sizeof(SparseElement) + sizeof(MapElement));
   }
 

@@ -571,10 +571,16 @@ public:
   ds::Array<CAtomic<MoveID>> last_move_out;
 
 public:
-  size_t memory_consumption() const {
-    return remaining_original_pins.size() * sizeof(HypernodeID)
-           + first_move_in.size() * sizeof(MoveID)
-           + last_move_out.size() * sizeof(MoveID);
+  void memoryConsumption(utils::MemoryTreeNode* parent) const {
+    ASSERT(parent);
+
+    utils::MemoryTreeNode* global_rollback_node = parent->addChild("Global Rollback");
+    utils::MemoryTreeNode* remaining_original_pins_node = global_rollback_node->addChild("Remaining Original Pins");
+    remaining_original_pins_node->updateSize(remaining_original_pins.size() * sizeof(HypernodeID));
+    utils::MemoryTreeNode* first_move_in_node = global_rollback_node->addChild("First Move In");
+    first_move_in_node->updateSize(first_move_in.size() * sizeof(MoveID));
+    utils::MemoryTreeNode* last_move_out_node = global_rollback_node->addChild("Last Move Out");
+    last_move_out_node->updateSize(last_move_out.size() * sizeof(MoveID));
   }
 };
 

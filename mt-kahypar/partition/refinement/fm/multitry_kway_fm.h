@@ -30,6 +30,7 @@
 #include "mt-kahypar/partition/refinement/i_refiner.h"
 #include "mt-kahypar/partition/refinement/fm/localized_kway_fm_core.h"
 #include "mt-kahypar/partition/refinement/fm/global_rollback.h"
+#include "mt-kahypar/utils/memory_tree.h"
 
 
 namespace mt_kahypar {
@@ -202,31 +203,22 @@ public:
   }
 
   void printMemoryConsumption() {
-    std::unordered_map<std::string, size_t> r;
-    r["global rollback"] = globalRollback.memory_consumption();
-    for (const LocalizedKWayFM& fm : ets_fm) {
-      auto local_mem = fm.memory_consumption();
-      for (const auto& it : local_mem) {
-        r[it.first] += it.second;
-      }
-    }
-    r["tbb concurrent task queue >="] = peak_reinsertions * sizeof(HypernodeID);
-    for (const auto& it : sharedData.memory_consumption()) {
-      r[it.first] += it.second;
-    }
-    LOG << "---------------------";
-    LOG << "FM Memory Consumption";
-    LOG << "---------------------";
+    utils::MemoryTreeNode fm_memory("Multitry k-Way FM", utils::OutputType::MEGABYTE);
 
-    size_t left_width = 35; size_t right_width = 10;
-    for (const auto& it : r) {
-      std::string right_word = std::to_string(it.second / (1024*1024));
-      size_t pad = (left_width - it.first.length()) + (right_width - right_word.length());
-      std::cout << it.first;
-      for (size_t i = 0; i < pad; ++i) std::cout << " ";
-      std::cout << right_word << "MB\n";
+    // Localized k-Way FM Memory Consumption
+    for (const LocalizedKWayFM& fm : ets_fm) {
+      fm.memoryConsumption(&fm_memory);
     }
-    LOG << "---------------------";
+
+    // Global Rollback
+    globalRollback.memoryConsumption(&fm_memory);
+
+    // Shared Data
+    sharedData.memoryConsumption(&fm_memory);
+
+    fm_memory.finalize();
+    LOG << BOLD << "\n FM Memory Consumption" << END;
+    LOG << fm_memory;
   }
 };
 

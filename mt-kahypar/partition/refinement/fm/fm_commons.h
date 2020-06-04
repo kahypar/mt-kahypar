@@ -208,17 +208,21 @@ struct FMSharedData {
     FMSharedData(numNodes, context.partition.k,
       TBBNumaArena::instance().total_number_of_threads())  { }
 
-  std::unordered_map<std::string, size_t> memory_consumption() const {
-    std::unordered_map<std::string, size_t> r;
-    r["pq handles"] = vertexPQHandles.capacity() * sizeof(PosT);
-    r["move tracker"] = moveTracker.moveOrder.capacity() * sizeof(Move)
-                        + moveTracker.moveOfNode.capacity() * sizeof(MoveID);
-    r["node tracker"] = nodeTracker.searchOfNode.capacity() * sizeof(SearchID);
-    r["fruitless seed"] = moveTracker.moveOrder.size() * sizeof(uint16_t);
-    r["task queue"] = refinementNodes.memory_consumption();
-    return r;
-  }
 
+  void memoryConsumption(utils::MemoryTreeNode* parent) const {
+    ASSERT(parent);
+
+    utils::MemoryTreeNode* shared_fm_data_node = parent->addChild("Shared FM Data");
+
+    utils::MemoryTreeNode* pq_handles_node = shared_fm_data_node->addChild("PQ Handles");
+    pq_handles_node->updateSize(vertexPQHandles.capacity() * sizeof(PosT));
+    utils::MemoryTreeNode* move_tracker_node = shared_fm_data_node->addChild("Move Tracker");
+    move_tracker_node->updateSize(moveTracker.moveOrder.capacity() * sizeof(Move) +
+                                  moveTracker.moveOfNode.capacity() * sizeof(MoveID));
+    utils::MemoryTreeNode* node_tracker_node = shared_fm_data_node->addChild("Node Tracker");
+    node_tracker_node->updateSize(nodeTracker.searchOfNode.capacity() * sizeof(SearchID));
+    refinementNodes.memoryConsumption(shared_fm_data_node);
+  }
 };
 
 struct FMStats {
