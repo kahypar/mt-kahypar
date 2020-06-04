@@ -47,14 +47,14 @@ class MemoryTreeNode {
     _name(name),
     _size_in_bytes(0),
     _output_type(output_type),
-    _childs() { }
+    _children() { }
 
   MemoryTreeNode* addChild(const std::string& name, const size_t size_in_bytes = 0) {
-    auto child_iter = _childs.find(name);
-    if ( child_iter == _childs.end() ) {
+    auto child_iter = _children.find(name);
+    if ( child_iter == _children.end() ) {
       MemoryTreeNode* child = new MemoryTreeNode(name, _output_type);
       child->_size_in_bytes = size_in_bytes;
-      _childs[name] = std::unique_ptr<MemoryTreeNode>(child);
+      _children[name] = std::unique_ptr<MemoryTreeNode>(child);
       return child;
     } else {
       return (*child_iter).second.get();
@@ -66,12 +66,12 @@ class MemoryTreeNode {
   }
 
   void finalize() {
-    for ( auto& child : _childs ) {
+    for ( auto& child : _children ) {
       child.second->finalize();
     }
 
     // Aggregate size of childs
-    for ( auto& child : _childs ) {
+    for ( auto& child : _children ) {
       _size_in_bytes += child.second->_size_in_bytes;
     }
   }
@@ -82,7 +82,7 @@ class MemoryTreeNode {
   std::string _name;
   size_t _size_in_bytes;
   OutputType _output_type;
-  map_type _childs;
+  map_type _children;
 };
 
 static std::string serialize_in_bytes(const size_t size_in_bytes) {
@@ -165,7 +165,7 @@ std::ostream & operator<< (std::ostream& str, const MemoryTreeNode& memory_tree_
         int level) {
       if ( parent._size_in_bytes > 0 ) {
         print(str, parent_size_in_bytes, parent, level);
-        for (const auto& child : parent._childs) {
+        for (const auto& child : parent._children) {
           dfs(str, parent._size_in_bytes, *child.second.get(), level + 1);
         }
       }
