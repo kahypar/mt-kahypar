@@ -25,14 +25,14 @@
 
 #include "mt-kahypar/macros.h"
 
-#include <mt-kahypar/partition/refinement/fm/global_rollback.h>
-#include <mt-kahypar/io/hypergraph_io.h>
+/*#include <mt-kahypar/partition/refinement/fm/global_rollback.h>
+#include <mt-kahypar/io/hypergraph_io.h>*/
 
 using ::testing::Test;
 
 namespace mt_kahypar {
 
-TEST(RollbackTests, FindsBestPrefix) {
+/*TEST(RollbackTests, FindsBestPrefix) {
 
   vec<Gain> gains = { -42, 5, 4, -20, 1, 99, -100, 50 };
   boost::dynamic_bitset<> in_balance(gains.size()); in_balance.set();
@@ -185,6 +185,6 @@ TEST(RollbackTests, GainRecalculation2) {
     ASSERT_EQ(grb.gains[round_local_move_id], expected_gains[round_local_move_id]);
   }
 
-}
+}*/
 
 }   // namespace mt_kahypar

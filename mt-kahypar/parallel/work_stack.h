@@ -73,7 +73,7 @@ struct WorkContainer {
 
   void concurrent_push(const T el) {
     conc_queue.push(el);
-    ASSERT(el < timestamps.size());
+    ASSERT(static_cast<size_t>(el) < timestamps.size());
     timestamps[el] = current;
   }
 
@@ -82,7 +82,7 @@ struct WorkContainer {
     ASSERT(thread_id < tls_queues.size());
     tls_queues[thread_id].elements.push_back(el);
     ASSERT(tls_queues[thread_id].front.load() == 0);
-    ASSERT(el < timestamps.size());
+    ASSERT(static_cast<size_t>(el) < timestamps.size());
     timestamps[el] = current;
   }
 

@@ -62,7 +62,7 @@ TEST_F(ACoarsener, RemovesParallelHyperedgesDuringCoarsening) {
 
 TEST_F(ACoarsener, ProjectsPartitionBackToOriginalHypergraph) {
   context.coarsening.contraction_limit = 4;
-  Coarsener coarsener(hypergraph, context, TBBNumaArena::GLOBAL_TASK_GROUP, true);
+  Coarsener coarsener(hypergraph, context, TBBNumaArena::GLOBAL_TASK_GROUP, false);
   doCoarsening(coarsener);
   PartitionedHyperGraph& coarsest_partitioned_hypergraph =
     coarsener.coarsestPartitionedHypergraph();
