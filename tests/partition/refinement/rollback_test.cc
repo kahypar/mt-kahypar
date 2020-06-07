@@ -25,71 +25,20 @@
 
 #include "mt-kahypar/macros.h"
 
-/*#include <mt-kahypar/partition/refinement/fm/global_rollback.h>
-#include <mt-kahypar/io/hypergraph_io.h>*/
+
+#include "mt-kahypar/io/hypergraph_io.h"
+
+#include "mt-kahypar/partition/refinement/fm/global_rollback.h"
 
 using ::testing::Test;
 
 namespace mt_kahypar {
 
-/*TEST(RollbackTests, FindsBestPrefix) {
-
-  vec<Gain> gains = { -42, 5, 4, -20, 1, 99, -100, 50 };
-  boost::dynamic_bitset<> in_balance(gains.size()); in_balance.set();
-  BestIndexReduceBody b(gains, in_balance);
-  tbb::parallel_reduce(tbb::blocked_range<MoveID>(0, gains.size()), b, tbb::static_partitioner());
-  ASSERT_EQ(b.best_sum,  -42 + 5 + 4 - 20 + 1 + 99);
-  ASSERT_EQ(b.sum, -42 + 5 + 4 - 20 + 1 + 99 - 100 + 50);
-  ASSERT_EQ(b.best_index, 6);
-}
-
-TEST(RollbackTests, FindsBestPrefixLargeRandom) {
-  bool display_timing = false;
-
-  tbb::task_scheduler_init tsi(4);
-  size_t n = 1000 * 100;
-  vec<Gain> gains(n, 0);
-  std::mt19937 rng(420);
-  std::uniform_int_distribution<Gain> distr(-5000, 5000);
-
-  auto start_init = tbb::tick_count::now();
-  for (MoveID i = 0; i < n; ++i) {
-    gains[i] = distr(rng);
-  }
-  if (display_timing) LOG << "Finish init in " << (tbb::tick_count::now() - start_init).seconds() << "seconds";
-
-  auto start_reduce_sequential = tbb::tick_count::now();
-  Gain sum = 0, best_sum = 0;
-  MoveID best_index = 0;
-  for (MoveID i = 0; i < n; ++i) {
-    sum += gains[i];
-    if (sum > best_sum) {
-      best_sum = sum;
-      best_index = i + 1;
-    }
-  }
-  if (display_timing) LOG << "Finish sequential  reduce in " << (tbb::tick_count::now() - start_reduce_sequential).seconds() << "seconds";
-
-  auto start_reduce = tbb::tick_count::now();
-  boost::dynamic_bitset<> in_balance(gains.size()); in_balance.set();
-  BestIndexReduceBody b(gains, in_balance);
-  tbb::parallel_reduce(tbb::blocked_range<MoveID>(0, gains.size()), b);
-  if (display_timing) LOG << "Finish reduce in " << (tbb::tick_count::now() - start_reduce).seconds() << "seconds";
-
-  auto start_reduce_static = tbb::tick_count::now();
-  BestIndexReduceBody b2(gains, in_balance);
-  tbb::parallel_reduce(tbb::blocked_range<MoveID>(0, gains.size()), b2, tbb::static_partitioner());
-  if (display_timing) LOG << "Finish reduce with static partitioner in " << (tbb::tick_count::now() - start_reduce_static).seconds() << "seconds";
-
-  ASSERT_EQ(best_sum, b.best_sum);
-  ASSERT_EQ(sum, b.sum);
-  ASSERT_EQ(best_index, b.best_index);
-}
-
-
 TEST(RollbackTests, GainRecalculationAndRollsbackCorrectly) {
   Hypergraph hg = io::readHypergraphFile("../test_instances/twocenters.hgr", 0);
   PartitionID k = 2;
+
+
   PartitionedHypergraph phg(k, hg);
   phg.setNodePart(0, 1);
   phg.setNodePart(1, 1);
@@ -105,11 +54,15 @@ TEST(RollbackTests, GainRecalculationAndRollsbackCorrectly) {
 
   Context context;
   context.partition.k = k;
+  context.setupPartWeights(phg.totalWeight());
+  context.partition.max_part_weights = { std::numeric_limits<HypernodeWeight>::max(), std::numeric_limits<HypernodeWeight>::max()};
+  context.refinement.fm.rollback_balance_violation_factor = 0.0;
+
+
   FMSharedData sharedData(hg.initialNumNodes(), context);
 
-  GlobalRollback grb(hg.initialNumNodes(), hg.initialNumEdges(), k);
+  GlobalRollback grb(hg, context, k);
   grb.setRemainingOriginalPins(phg);
-
   auto performMove = [&](Move m) {
     phg.changeNodePartFullUpdate(m.node, m.from, m.to, std::numeric_limits<HypernodeWeight>::max(), [&]{sharedData.moveTracker.insertMove(m);});
   };
@@ -129,15 +82,11 @@ TEST(RollbackTests, GainRecalculationAndRollsbackCorrectly) {
   performMove({0, 1, 5, 0});
 
   vec<HypernodeWeight> dummy_part_weights(k, 0);
-  HypernodeWeight dummy_max_part_weight = std::numeric_limits<HypernodeWeight>::max();
-  grb.revertToBestPrefix(phg, sharedData, dummy_part_weights, dummy_max_part_weight);
+  grb.revertToBestPrefix(phg, sharedData, dummy_part_weights);
   // revert last two moves
   ASSERT_EQ(phg.partID(4), 0);
   ASSERT_EQ(phg.partID(5), 0);
-
-  for (MoveID round_local_move_id = 0; round_local_move_id < 4; ++round_local_move_id) {
-    ASSERT_EQ(sharedData.moveTracker.moveOrder[round_local_move_id].gain, grb.gains[round_local_move_id]);
-  }
+  ASSERT_EQ(metrics::km1(phg, false), 2);
 }
 
 
@@ -157,10 +106,15 @@ TEST(RollbackTests, GainRecalculation2) {
   }
   phg.initializeGainInformation();
 
-  Context context; context.partition.k = k;
+  Context context;
+  context.partition.k = k;
+  context.setupPartWeights(phg.totalWeight());
+  context.partition.max_part_weights = { std::numeric_limits<HypernodeWeight>::max(), std::numeric_limits<HypernodeWeight>::max()};
+  context.refinement.fm.rollback_balance_violation_factor = 0.0;
+
   FMSharedData sharedData(hg.initialNumNodes(), context);
 
-  GlobalRollback grb(hg.initialNumNodes(), hg.initialNumEdges(), k);
+  GlobalRollback grb(hg, context, k);
   grb.setRemainingOriginalPins(phg);
 
   auto performUpdates = [&](Move& m) {
@@ -181,10 +135,8 @@ TEST(RollbackTests, GainRecalculation2) {
   performUpdates(move_2);
 
   grb.recalculateGains(phg, sharedData);
-  for (MoveID round_local_move_id = 0; round_local_move_id < sharedData.moveTracker.numPerformedMoves(); ++round_local_move_id) {
-    ASSERT_EQ(grb.gains[round_local_move_id], expected_gains[round_local_move_id]);
-  }
+}
 
-}*/
+
 
 }   // namespace mt_kahypar
