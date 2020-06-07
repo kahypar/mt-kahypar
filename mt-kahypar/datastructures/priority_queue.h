@@ -61,7 +61,7 @@ public:
   }
 
   void insert(const IdT e, const KeyT k) {
-    ASSERT(!contains(e), V(e) << V(positions[e]) << V(heap[positions[e]].id) << V(heap.size()));
+    ASSERT(!contains(e));
     ASSERT(size() < positions_size);
     const PosT pos = size();
     positions[e] = pos;
