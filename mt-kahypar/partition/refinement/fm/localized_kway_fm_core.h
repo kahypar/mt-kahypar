@@ -270,7 +270,7 @@ private:
         if (improved_km1 || improved_balance_less_equal_km1) {
           stopRule.reset();
           bestImprovement = estimatedImprovement;
-          bestImprovementIndex = localData.localMoves.size();
+          bestImprovementIndex = localData.localMoveIDs.size();
         }
 
         insertOrUpdateNeighbors(phg, sharedData, move);
@@ -310,7 +310,7 @@ private:
           sharedData.nodeTracker.releaseNode(node);
           if (!sharedData.fruitlessSeed[node] && sharedData.refinementNodes.was_pushed_and_removed(node)) {
             sharedData.refinementNodes.concurrent_push(node);
-            stats.task_queue_reinsertions++;
+            localData.runStats.task_queue_reinsertions++;
           }
         }
       }

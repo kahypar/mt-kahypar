@@ -194,6 +194,7 @@ class InitialPartitioningDataContainer {
         current_metric.km1 -= fm.stats.estimated_improvement;
         current_metric.cut -= fm.stats.estimated_improvement;
         current_metric.imbalance = metrics::imbalance(_partitioned_hypergraph, _context);
+
         ASSERT(current_metric.km1 == metrics::km1(_partitioned_hypergraph, false));
 
         commit(_result._algorithm, current_metric, 0.0, true);
