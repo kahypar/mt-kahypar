@@ -357,17 +357,6 @@ class MultilevelCoarsenerBase {
         utils::Timer::instance().stop_timer("label_propagation");
       }
 
-      if ( _top_level) {
-        DBG << "After Label Propagation Refiner - km1 = " << current_metrics.km1
-            << ", imbalance = " << current_metrics.imbalance;
-
-        if (current_metrics.km1 != metrics::km1(partitioned_hypergraph)) {
-          LOG << V(current_metrics.km1) << "after LP does not match actual value" << V(metrics::km1(partitioned_hypergraph));
-          std::exit(0);
-        }
-
-      }
-
       if ( fm && _context.refinement.fm.algorithm != FMAlgorithm::do_nothing ) {
         utils::Timer::instance().start_timer("initialize_fm_refiner", "Initialize FM Refiner");
         fm->initialize(partitioned_hypergraph);
@@ -378,15 +367,9 @@ class MultilevelCoarsenerBase {
         utils::Timer::instance().stop_timer("fm");
       }
 
-      if ( _top_level) {
-        DBG << "After FM Refiner - km1 = " << current_metrics.km1
-            << ", imbalance = " << current_metrics.imbalance;
-
-
-        if (current_metrics.km1 != metrics::km1(partitioned_hypergraph)) {
-          LOG << V(current_metrics.km1) << "after FM does not match actual value" << V(metrics::km1(partitioned_hypergraph));
-          std::exit(0);
-        }
+      if ( _top_level ) {
+        ASSERT(current_metrics.km1 == metrics::km1(partitioned_hypergraph),
+               V(current_metrics.km1) << V(metrics::km1(partitioned_hypergraph)));
       }
 
       if ( !_context.refinement.refine_until_no_improvement ) {
