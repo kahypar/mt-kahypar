@@ -369,7 +369,8 @@ class MultilevelCoarsenerBase {
 
       if ( _top_level ) {
         ASSERT(current_metrics.km1 == metrics::km1(partitioned_hypergraph),
-               V(current_metrics.km1) << V(metrics::km1(partitioned_hypergraph)));
+               "Actual metric" << V(metrics::km1(partitioned_hypergraph))
+                               << "does not match the metric updated by the refiners" << V(current_metrics.km1));
       }
 
       if ( !_context.refinement.refine_until_no_improvement ) {
