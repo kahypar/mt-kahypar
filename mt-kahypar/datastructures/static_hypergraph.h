@@ -1405,6 +1405,20 @@ class StaticHypergraph {
     _community_support.removeCommunityHyperedges(contraction_index);
   }
 
+  // ! Reset internal community information
+  void setCommunityIDs(const parallel::scalable_vector<PartitionID>& community_ids) {
+    if ( _community_support.isInitialized() ) {
+      _community_support.freeInternalData();
+    }
+
+    ASSERT(community_ids.size() == UI64(_num_hypernodes));
+    doParallelForAllNodes([&](const HypernodeID& hn) {
+      hypernode(hn).setCommunityID(community_ids[hn]);
+    });
+
+    initializeCommunities();
+  }
+
   // ####################### Copy #######################
 
   // ! Copy static hypergraph in parallel
