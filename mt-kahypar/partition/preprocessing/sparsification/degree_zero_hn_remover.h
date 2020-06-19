@@ -113,6 +113,11 @@ class DegreeZeroHypernodeRemover {
     }
   }
 
+  void reset() {
+    _removed_hns.clear();
+    _mapping.clear();
+  }
+
  private:
   const Context& _context;
   parallel::scalable_vector<HypernodeID> _removed_hns;
