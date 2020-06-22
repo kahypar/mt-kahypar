@@ -223,6 +223,11 @@ class MemoryPool {
     return instance;
   }
 
+  // ! Returns wheater memory pool is already initialized
+  bool isInitialized() const {
+    return _is_initialized;
+  }
+
   // ! Registers a memory group in the memory pool. A memory
   // ! group is associated with a stage. Assumption is that, if
   // ! a stage is completed, than memory is not needed any more
@@ -277,6 +282,7 @@ class MemoryPool {
         });
       });
     update_active_memory_chunks();
+    _is_initialized = true;
   }
 
   // ! Returns the memory chunk registered under the corresponding
@@ -455,6 +461,8 @@ class MemoryPool {
     });
     _memory_chunks.clear();
     _memory_groups.clear();
+    _active_memory_chunks.clear();
+    _is_initialized = false;
   }
 
   // ! Only for testing
@@ -563,6 +571,7 @@ class MemoryPool {
  private:
   explicit MemoryPool() :
     _memory_mutex(),
+    _is_initialized(false),
     _page_size(sysconf(_SC_PAGE_SIZE)),
     _memory_groups(),
     _memory_chunks(),
@@ -708,6 +717,8 @@ class MemoryPool {
 
   // ! Read-Write Lock for memory pool
   mutable std::shared_timed_mutex _memory_mutex;
+  // ! Initialize Flag
+  bool _is_initialized;
   // ! Page size of the system
   size_t _page_size;
   // ! Mapping from group-key to a memory chunk id
