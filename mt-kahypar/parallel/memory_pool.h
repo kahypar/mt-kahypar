@@ -412,6 +412,40 @@ class MemoryPool {
     }
   }
 
+  // Resets the memory pool to the state after all memory chunks are allocated
+  void reset() {
+    std::unique_lock<std::shared_timed_mutex> lock(_memory_mutex);
+
+    // Find all root memory chunks of an optimization path
+    std::vector<size_t> in_degree(_memory_chunks.size(), 0);
+    for ( const MemoryChunk& chunk : _memory_chunks ) {
+      if ( chunk._next_memory_chunk_id != kInvalidMemoryChunk ) {
+        ++in_degree[chunk._next_memory_chunk_id];
+      }
+    }
+
+    // Move memory chunks back to root memory chunks
+    for ( size_t i = 0; i < _memory_chunks.size(); ++i ) {
+      if ( in_degree[i] == 0 && !_memory_chunks[i]._data ) {
+        size_t current_mem_chunk = i;
+        while ( !_memory_chunks[current_mem_chunk]._data ) {
+          ASSERT(_memory_chunks[current_mem_chunk]._next_memory_chunk_id != kInvalidMemoryChunk);
+          current_mem_chunk = _memory_chunks[current_mem_chunk]._next_memory_chunk_id;
+        }
+        ASSERT(_memory_chunks[current_mem_chunk]._data);
+        ASSERT(i != current_mem_chunk);
+        _memory_chunks[i]._data = _memory_chunks[current_mem_chunk]._data;
+        _memory_chunks[current_mem_chunk]._data = nullptr;
+      }
+
+      // Reset stats
+      _memory_chunks[i]._used_size = _memory_chunks[i]._initial_size;
+      _memory_chunks[i]._is_assigned = false;
+    }
+
+    update_active_memory_chunks();
+  }
+
   // ! Frees all memory chunks in parallel
   void free_memory_chunks() {
     std::unique_lock<std::shared_timed_mutex> lock(_memory_mutex);

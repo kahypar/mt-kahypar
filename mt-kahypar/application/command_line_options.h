@@ -72,6 +72,10 @@ po::options_description createGeneralOptionsDescription(Context& context, const 
     po::value<int>(&context.partition.seed)->value_name("<int>"),
     "Seed for random number generator \n"
     "(default: -1)")
+    ("num-vcycles",
+    po::value<size_t>(&context.partition.num_vcycles)->value_name("<size_t>"),
+    "Number of V-Cycles \n"
+    "(default: 0)")
     ("maxnet-remove-factor",
     po::value<double>(&context.partition.large_hyperedge_size_threshold_factor)->value_name("<double>"),
     "Hyperedges larger than |V| * (this factor) are removed before partitioning process.")

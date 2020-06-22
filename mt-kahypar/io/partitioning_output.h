@@ -416,6 +416,19 @@ static inline void printLocalSearchBanner(const Context& context) {
   }
 }
 
+static inline void printVCycleBanner(const Context& context, const size_t vcycle_num) {
+  if (context.partition.verbose_output) {
+    LOG << "\n********************************************************************************";
+    std::cout << "*                                  V-Cycle  " << vcycle_num;
+    if ( vcycle_num < 10 ) {
+      std::cout << "                                  *\n";
+    } else {
+      std::cout << "                                 *\n";
+    }
+    LOG << "********************************************************************************";
+  }
+}
+
 inline void printObjectives(const PartitionedHypergraph& hypergraph,
                             const Context& context,
                             const std::chrono::duration<double>& elapsed_seconds) {

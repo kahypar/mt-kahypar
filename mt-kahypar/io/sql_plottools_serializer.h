@@ -52,6 +52,7 @@ static inline std::string serialize(const PartitionedHypergraph& hypergraph,
         << " k=" << context.partition.k
         << " epsilon=" << context.partition.epsilon
         << " seed=" << context.partition.seed
+        << " num_vcycles=" << context.partition.num_vcycles
         << " large_hyperedge_size_threshold_factor=" << context.partition.large_hyperedge_size_threshold_factor
         << " large_hyperedge_size_threshold=" << context.partition.large_hyperedge_size_threshold
         << " ignore_hyperedge_size_threshold=" << context.partition.ignore_hyperedge_size_threshold

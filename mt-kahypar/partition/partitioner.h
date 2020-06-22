@@ -68,6 +68,8 @@ class Partitioner {
 
   inline void postprocess(PartitionedHypergraph& hypergraph);
 
+  inline PartitionedHypergraph partitionVCycle(Hypergraph& hypergraph, PartitionedHypergraph&& partitioned_hypergraph);
+
   Context& _context;
   DegreeZeroHypernodeRemover _degree_zero_hn_remover;
   LargeHyperedgeRemover _large_he_remover;
@@ -174,6 +176,32 @@ inline void Partitioner::postprocess(PartitionedHypergraph& hypergraph) {
   _degree_zero_hn_remover.restoreDegreeZeroHypernodes(hypergraph);
 }
 
+inline PartitionedHypergraph Partitioner::partitionVCycle(Hypergraph& hypergraph,
+                                                          PartitionedHypergraph&& partitioned_hypergraph) {
+  ASSERT(_context.partition.num_vcycles > 0);
+  parallel::scalable_vector<PartitionID> part_ids(hypergraph.initialNumNodes(), kInvalidPartition);
+
+  for ( size_t i = 0; i < _context.partition.num_vcycles; ++i ) {
+    // Reset memory pool
+    parallel::MemoryPool::instance().reset();
+    parallel::MemoryPool::instance().release_mem_group("Preprocessing");
+
+    // Store partition and assign it as community ids in order to
+    // restrict contractions in v-cycle to partition ids
+    hypergraph.doParallelForAllNodes([&](const HypernodeID& hn) {
+      part_ids[hn] = partitioned_hypergraph.partID(hn);
+    });
+    hypergraph.setCommunityIDs(part_ids);
+
+    // V-Cycle Multilevel Partitioning
+    io::printVCycleBanner(_context, i + 1);
+    partitioned_hypergraph = multilevel::partition(
+      hypergraph, _context, true, TBBNumaArena::GLOBAL_TASK_GROUP, true /* vcycle */);
+  }
+
+  return std::move(partitioned_hypergraph);
+}
+
 inline PartitionedHypergraph Partitioner::partition(Hypergraph& hypergraph) {
   configurePreprocessing(hypergraph, _context);
   setupContext(hypergraph, _context);
@@ -194,6 +222,13 @@ inline PartitionedHypergraph Partitioner::partition(Hypergraph& hypergraph) {
   PartitionedHypergraph partitioned_hypergraph = multilevel::partition(
     hypergraph, _context, true, TBBNumaArena::GLOBAL_TASK_GROUP);
 
+  // ################## V-Cycle s##################
+  if ( _context.partition.num_vcycles > 0 ) {
+    partitioned_hypergraph = partitionVCycle(
+      hypergraph, std::move(partitioned_hypergraph));
+  }
+
+  // ################## POSTPROCESSING ##################
   utils::Timer::instance().start_timer("postprocessing", "Postprocessing");
   postprocess(partitioned_hypergraph);
   utils::Timer::instance().stop_timer("postprocessing");

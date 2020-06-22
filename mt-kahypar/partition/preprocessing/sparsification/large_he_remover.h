@@ -77,6 +77,10 @@ class LargeHyperedgeRemover {
     return _context.partition.large_hyperedge_size_threshold;
   }
 
+  void reset() {
+    _removed_hes.clear();
+  }
+
  private:
   const Context& _context;
   parallel::scalable_vector<HypernodeID> _removed_hes;
