@@ -287,9 +287,13 @@ static void readHypernodeWeights(char* mapped_file,
 
 }  // namespace
 
-static inline Hypergraph readHypergraphFile(const std::string& filename,
-                                            const TaskGroupID task_group_id,
-                                            const bool stable_construction_of_incident_edges = false) {
+static inline void readHypergraphFile(const std::string& filename,
+                                      HyperedgeID& num_hyperedges,
+                                      HypernodeID& num_hypernodes,
+                                      HyperedgeID& num_removed_single_pin_hyperedges,
+                                      HyperedgeVector& hyperedges,
+                                      parallel::scalable_vector<HyperedgeWeight>& hyperedges_weight,
+                                      parallel::scalable_vector<HypernodeWeight>& hypernodes_weight) {
   ASSERT(!filename.empty(), "No filename for hypergraph file specified");
   mt_kahypar::utils::Timer::instance().start_timer(
     "construct_hypergraph_from_file", "Construct Hypergraph from File");
@@ -299,25 +303,34 @@ static inline Hypergraph readHypergraphFile(const std::string& filename,
   size_t pos = 0;
 
   // Read Hypergraph Header
-  HyperedgeID num_hyperedges = 0;
-  HypernodeID num_hypernodes = 0;
   mt_kahypar::Type type = mt_kahypar::Type::Unweighted;
   readHGRHeader(mapped_file, pos, length, num_hyperedges, num_hypernodes, type);
 
   // Read Hyperedges
-  HyperedgeVector hyperedges;
-  parallel::scalable_vector<HyperedgeWeight> hyperedges_weight;
-  HyperedgeID num_removed_single_pin_hyperedges =
+  num_removed_single_pin_hyperedges =
     readHyperedges(mapped_file, pos, length, num_hyperedges, type, hyperedges, hyperedges_weight);
   num_hyperedges -= num_removed_single_pin_hyperedges;
 
   // Read Hypernode Weights
-  parallel::scalable_vector<HypernodeWeight> hypernodes_weight;
   readHypernodeWeights(mapped_file, pos, length, num_hypernodes, type, hypernodes_weight);
   ASSERT(pos == length);
 
   munmap_file(mapped_file, fd, length);
   close(fd);
+}
+
+static inline Hypergraph readHypergraphFile(const std::string& filename,
+                                            const TaskGroupID task_group_id,
+                                            const bool stable_construction_of_incident_edges = false) {
+  // Read Hypergraph File
+  HyperedgeID num_hyperedges = 0;
+  HypernodeID num_hypernodes = 0;
+  HyperedgeID num_removed_single_pin_hyperedges = 0;
+  HyperedgeVector hyperedges;
+  parallel::scalable_vector<HyperedgeWeight> hyperedges_weight;
+  parallel::scalable_vector<HypernodeWeight> hypernodes_weight;
+  readHypergraphFile(filename, num_hyperedges, num_hypernodes,
+    num_removed_single_pin_hyperedges, hyperedges, hyperedges_weight, hypernodes_weight);
 
   // Construct Hypergraph
   utils::Timer::instance().start_timer("construct_hypergraph", "Construct Hypergraph");

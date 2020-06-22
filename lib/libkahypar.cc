@@ -22,6 +22,7 @@
 #include "libkahypar.h"
 
 #include "tbb/parallel_for.h"
+#include "tbb/parallel_invoke.h"
 
 #include "mt-kahypar/application/command_line_options.h"
 #include "mt-kahypar/macros.h"
@@ -29,9 +30,11 @@
 #include "mt-kahypar/mt_kahypar.h"
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/parallel/memory_pool.h"
+#include "mt-kahypar/parallel/parallel_prefix_sum.h"
 #include "mt-kahypar/partition/partitioner.h"
 #include "mt-kahypar/partition/registries/register_memory_pool.h"
 #include "mt-kahypar/partition/metrics.h"
+#include "mt-kahypar/io/hypergraph_io.h"
 #include "mt-kahypar/utils/randomize.h"
 
 namespace {
@@ -78,6 +81,63 @@ void mt_kahypar_initialize_thread_pool(const size_t num_threads,
     mt_kahypar::parallel::HardwareTopology<>::instance().activate_interleaved_membind_policy(cpuset);
     hwloc_bitmap_free(cpuset);
   }
+}
+
+
+void mt_kahypar_read_hypergraph_from_file(const char* file_name,
+                                          mt_kahypar_hypernode_id_t* num_vertices,
+                                          mt_kahypar_hyperedge_id_t* num_hyperedges,
+                                          size_t** hyperedge_indices,
+                                          mt_kahypar_hyperedge_id_t** hyperedges,
+                                          mt_kahypar_hyperedge_weight_t** hyperedge_weights,
+                                          mt_kahypar_hypernode_weight_t** vertex_weights) {
+  mt_kahypar::HypernodeID num_nodes = 0;
+  mt_kahypar::HyperedgeID num_edges = 0;
+  mt_kahypar::HyperedgeID num_removed_hyperedges = 0;
+  vec<vec<mt_kahypar::HypernodeID>> edge_vector;
+  vec<mt_kahypar::HypernodeWeight> hypernodes_weight;
+  vec<mt_kahypar::HyperedgeWeight> net_weight;
+  mt_kahypar::io::readHypergraphFile(file_name, num_edges, num_nodes,
+    num_removed_hyperedges, edge_vector, net_weight, hypernodes_weight);
+  ASSERT(num_edges == edge_vector.size());
+  ASSERT(num_edges == net_weight.size());
+  ASSERT(num_nodes == hypernodes_weight.size());
+
+  *num_vertices = num_nodes;
+  *num_hyperedges = num_edges;
+  tbb::parallel_invoke([&] {
+    *hyperedge_indices = new size_t[num_edges + 1];
+
+    // Compute index vector with parallel prefix sum
+    vec<size_t> indices(num_edges + 1, 0);
+    tbb::parallel_for(0UL, static_cast<size_t>(num_edges), [&](const size_t i) {
+      indices[i + 1] = edge_vector[i].size();
+    });
+    mt_kahypar::parallel::TBBPrefixSum<size_t, vec> index_prefix_sum(indices);
+    tbb::parallel_scan(tbb::blocked_range<size_t>(
+      0UL, UI64(num_edges + 1)), index_prefix_sum);
+
+    // Setup Incidence Array
+    tbb::parallel_invoke([&] {
+      *hyperedges = new mt_kahypar_hyperedge_id_t[index_prefix_sum.total_sum()];
+      tbb::parallel_for(0UL, static_cast<size_t>(num_edges), [&](const size_t i) {
+        for ( size_t j = 0; j < edge_vector[i].size(); ++j ) {
+          ASSERT(indices[i] + j < indices[i + 1]);
+          *(*hyperedges + (indices[i] + j)) = edge_vector[i][j];
+        }
+      });
+    }, [&] {
+      memcpy(*hyperedge_indices, indices.data(), sizeof(size_t) * (num_edges + 1));
+    });
+  }, [&] {
+    *hyperedge_weights = new mt_kahypar_hyperedge_weight_t[num_edges];
+    memcpy(*hyperedge_weights, net_weight.data(),
+      sizeof(mt_kahypar_hyperedge_weight_t) * num_edges);
+  }, [&] {
+    *vertex_weights = new mt_kahypar_hypernode_weight_t[num_nodes];
+    memcpy(*vertex_weights, hypernodes_weight.data(),
+      sizeof(mt_kahypar_hypernode_weight_t) * num_nodes);
+  });
 }
 
 void mt_kahypar_partition(const mt_kahypar_hypernode_id_t num_vertices,
