@@ -299,10 +299,11 @@ class LabelPropagationInitialPartitioner : public tbb::task {
         if ( seed_vertex != kInvalidHypernode  ) {
           hypergraph.setNodePart(seed_vertex, block);
           block_size++;
+        } else {
+          break;
         }
       }
     }
-
   }
 
   void assignVertexToBlockWithMinimumWeight(PartitionedHypergraph& hypergraph, const HypernodeID hn) {
