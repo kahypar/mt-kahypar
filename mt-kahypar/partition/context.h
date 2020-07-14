@@ -43,7 +43,7 @@ struct PartitioningParameters {
   HypernodeID large_hyperedge_size_threshold = std::numeric_limits<HypernodeID>::max();
   HypernodeID ignore_hyperedge_size_threshold = std::numeric_limits<HypernodeID>::max();
 
-  bool verbose_output = false;
+  bool verbose_output = true;
   bool quiet_mode = false;
   bool show_detailed_timings = false;
   bool show_detailed_clustering_timings = false;
@@ -51,7 +51,7 @@ struct PartitioningParameters {
   bool enable_progress_bar = false;
   bool sp_process_output = false;
   bool csv_output = false;
-  bool write_partition_file = false;
+  bool write_partition_file = true;
 
   bool enable_profiler = false;
   int snapshot_interval = std::numeric_limits<int>::max();

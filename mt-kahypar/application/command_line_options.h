@@ -413,7 +413,7 @@ po::options_description createSharedMemoryOptionsDescription(Context& context,
                                                              const int num_columns) {
   po::options_description shared_memory_options("Shared Memory Options", num_columns);
   shared_memory_options.add_options()
-    ("s-num-threads",
+    ("s-num-threads,t",
     po::value<size_t>(&context.shared_memory.num_threads)->value_name("<size_t>"),
     "Number of threads used during shared memory hypergraph partitioning\n"
     "(default 1)")
