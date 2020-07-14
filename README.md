@@ -6,8 +6,8 @@ License|Linux Build|Code Coverage
 
 What is a Hypergraph? What is Hypergraph Partitioning?
 -----------
-[Hypergraphs][HYPERGRAPHWIKI] are a generalization of graphs, where each (hyper)edge (also called net) can
-connect more than two vertices. The *k*-way hypergraph partitioning problem is the generalization of the well-known [graph partitioning][GraphPartition] problem: partition the vertex set into *k* disjoint
+Hypergraphs are a generalization of graphs, where each (hyper)edge (also called net) can
+connect more than two vertices. The *k*-way hypergraph partitioning problem is the generalization of the well-known graph partitioning problem: partition the vertex set into *k* disjoint
 blocks of bounded size (at most 1 + ε times the average block size), while minimizing an
 objective function defined on the nets.
 
@@ -32,7 +32,7 @@ Building MT-KaHyPar
 3. Run cmake: `cmake .. -DCMAKE_BUILD_TYPE=RELEASE`
 4. Run make: `make KaHyPar`
 
-The binary will be located in `build/mt-kahypar/application/`. Per default, MT-KaHyPar uses 32-bit vertex and hyperedge IDs. If you want to partition hypergraphs with more than 4.294.967.295 vertices or hyperedges, you have to add option `-DKAHYPAR_USE_64_BIT_IDS=ON` to the `cmake` build command.
+The binary will be located in `build/mt-kahypar/application/`. Per default, MT-KaHyPar uses 32-bit vertex and hyperedge IDs. If you want to partition hypergraphs with more than 4.294.967.295 vertices or hyperedges, add option `-DKAHYPAR_USE_64_BIT_IDS=ON` to the `cmake` build command.
 
 Running MT-KaHyPar
 -----------
@@ -43,7 +43,7 @@ To run Mt-KaHyPar, you can use the following command:
 
     ./KaHyPar -h <path-to-hgr> -t <# threads> -k <# blocks> -e <imbalance (e.g. 0.03)> -o km1 -m direct -p <path-to-config>
 
-The partition output file will be placed in the same folder than the input hypergraph file. Further, there are several useful options that gives you additional insights on the partitioning process:
-- `--show-detailed-timings=true`: MT-KaHyPar shows detailed subtimings of each multilevel phase at the end of the partitioning process
-- `--show-memory-consumption=true`: MT-KaHyPar gives detailed information on how much memory was allocated and how memory is reused throughout the algorithm
-- `--enable-progress-bar=true`: MT-KaHyPar shows a progess bar during the coarsening and refinement phase
+The partition output file will be placed in the same folder than the input hypergraph file. Further, there are several useful options that can provide you with additional insight during and after the partitioning process:
+- `--show-detailed-timings=true`: Shows detailed subtimings of each multilevel phase at the end of the partitioning process
+- `--show-memory-consumption=true`: Gives detailed information on how much memory was allocated and how memory is reused throughout the algorithm
+- `--enable-progress-bar=true`: Shows a progess bar during the coarsening and refinement phase
