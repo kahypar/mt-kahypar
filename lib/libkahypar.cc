@@ -156,6 +156,8 @@ void mt_kahypar_partition(const mt_kahypar_hypernode_id_t num_vertices,
   mt_kahypar::Context context = *reinterpret_cast<mt_kahypar::Context*>(kahypar_context);
   context.partition.k = num_blocks;
   context.partition.epsilon = epsilon;
+  context.partition.mode = kahypar::Mode::direct_kway;
+  context.partition.objective = kahypar::Objective::km1;
   context.partition.seed = seed;
   context.partition.verbose_output = verbose;
   context.partition.write_partition_file = false;

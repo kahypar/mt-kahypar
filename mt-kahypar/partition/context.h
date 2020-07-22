@@ -65,7 +65,9 @@ struct PartitioningParameters {
 inline std::ostream & operator<< (std::ostream& str, const PartitioningParameters& params) {
   str << "Partitioning Parameters:" << std::endl;
   str << "  Hypergraph:                         " << params.graph_filename << std::endl;
-  str << "  Partition File:                     " << params.graph_partition_filename << std::endl;
+  if ( params.write_partition_file ) {
+    str << "  Partition File:                     " << params.graph_partition_filename << std::endl;
+  }
   str << "  Paradigm:                           " << params.paradigm << std::endl;
   str << "  Mode:                               " << params.mode << std::endl;
   str << "  Objective:                          " << params.objective << std::endl;
