@@ -147,7 +147,9 @@ inline std::ostream & operator<< (std::ostream& str, const CoarseningParameters&
   str << "Coarsening Parameters:" << std::endl;
   str << "  Algorithm:                          " << params.algorithm << std::endl;
   str << "  Use Adaptive Edge Size:             " << std::boolalpha << params.use_adaptive_edge_size << std::endl;
+  #ifdef KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES
   str << "  Use Adaptive Max Node Weight:       " << std::boolalpha << params.use_adaptive_max_allowed_node_weight << std::endl;
+  #endif
   if ( params.use_adaptive_max_allowed_node_weight ) {
     str << "  Max Allowed Weight Fraction:        " << params.max_allowed_weight_fraction << std::endl;
     str << "  Adaptive Node Weight Threshold:     " << params.adaptive_node_weight_shrink_factor_threshold << std::endl;
@@ -472,8 +474,10 @@ inline std::ostream & operator<< (std::ostream& str, const Context& context) {
       << "-------------------------------------------------------------------------------\n"
       << context.refinement
       << "-------------------------------------------------------------------------------\n"
+      #ifdef KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES
       << context.sparsification
       << "-------------------------------------------------------------------------------\n"
+      #endif
       << context.shared_memory
       << "-------------------------------------------------------------------------------";
   return str;

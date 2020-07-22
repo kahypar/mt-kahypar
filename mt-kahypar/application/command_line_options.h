@@ -22,13 +22,7 @@
 
 #include <filesystem>
 #include <boost/program_options.hpp>
-
-#if defined(_MSC_VER)
-#include <process.h>
-#include <Windows.h>
-#else
 #include <sys/ioctl.h>
-#endif
 
 #include <cctype>
 #include <fstream>
@@ -45,24 +39,14 @@ namespace mt_kahypar {
 namespace platform {
 int getTerminalWidth() {
   int columns = 0;
-#if defined(_MSC_VER)
-  CONSOLE_SCREEN_BUFFER_INFO csbi;
-  GetConsoleScreenBufferInfo(GetStdHandle(STD_OUTPUT_HANDLE), &csbi);
-  columns = csbi.srWindow.Right - csbi.srWindow.Left + 1;
-#else
   struct winsize w = { };
   ioctl(0, TIOCGWINSZ, &w);
   columns = w.ws_col;
-#endif
   return columns;
 }
 
 int getProcessID() {
-#if defined(_MSC_VER)
-  return _getpid();
-#else
   return getpid();
-#endif
 }
 }  // namespace platform
 
@@ -158,6 +142,7 @@ po::options_description createCoarseningOptionsDescription(Context& context,
     po::value<bool>(&context.coarsening.use_adaptive_edge_size)->value_name("<bool>")->default_value(true),
     "If true, the rating function uses the number of distinct cluster IDs of a net as edge size rather\n"
     "than its original size during multilevel coarsing")
+    #ifdef KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES
     ("c-use-adaptive-max-node-weight",
     po::value<bool>(&context.coarsening.use_adaptive_max_allowed_node_weight)->value_name("<bool>")->default_value(false),
     "If true, we double the maximum allowed node weight each time if we are not able\n"
@@ -170,6 +155,7 @@ po::options_description createCoarseningOptionsDescription(Context& context,
     po::value<double>(&context.coarsening.adaptive_node_weight_shrink_factor_threshold)->value_name("<double>"),
     "The maximum allowed node weight is adapted, if the reduction ratio of vertices or pins\n"
     "is lower than this threshold\n")
+    #endif
     ("c-s",
     po::value<double>(&context.coarsening.max_allowed_weight_multiplier)->value_name("<double>")->default_value(1),
     "The maximum weight of a vertex in the coarsest hypergraph H is:\n"
@@ -340,6 +326,7 @@ po::options_description createInitialPartitioningOptionsDescription(Context& con
   return options;
 }
 
+#ifdef KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES
 po::options_description createSparsificationOptionsDescription(Context& context,
                                                                const int num_columns) {
   po::options_description sparsification_options("Sparsification Options", num_columns);
@@ -375,6 +362,7 @@ po::options_description createSparsificationOptionsDescription(Context& context,
 
   return sparsification_options;
 }
+#endif
 
 po::options_description createSharedMemoryOptionsDescription(Context& context,
                                                              const int num_columns) {
@@ -445,8 +433,10 @@ void processCommandLineInput(Context& context, int argc, char* argv[]) {
     createInitialPartitioningOptionsDescription(context, num_columns);
   po::options_description refinement_options =
     createRefinementOptionsDescription(context, num_columns, false);
+  #ifdef KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES
   po::options_description sparsification_options =
     createSparsificationOptionsDescription(context, num_columns);
+  #endif
   po::options_description shared_memory_options =
     createSharedMemoryOptionsDescription(context, num_columns);
 
@@ -459,7 +449,9 @@ void processCommandLineInput(Context& context, int argc, char* argv[]) {
   .add(coarsening_options)
   .add(initial_paritioning_options)
   .add(refinement_options)
+  #ifdef KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES
   .add(sparsification_options)
+  #endif
   .add(shared_memory_options);
 
   po::variables_map cmd_vm;
@@ -486,7 +478,9 @@ void processCommandLineInput(Context& context, int argc, char* argv[]) {
   .add(coarsening_options)
   .add(initial_paritioning_options)
   .add(refinement_options)
+  #ifdef KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES
   .add(sparsification_options)
+  #endif
   .add(shared_memory_options);
 
   po::store(po::parse_config_file(file, ini_line_options, true), cmd_vm);
@@ -537,8 +531,10 @@ void parseIniToContext(Context& context, const std::string& ini_filename) {
     createInitialPartitioningOptionsDescription(context, num_columns);
   po::options_description refinement_options =
     createRefinementOptionsDescription(context, num_columns, false);
+  #ifdef KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES
   po::options_description sparsification_options =
     createSparsificationOptionsDescription(context, num_columns);
+  #endif
   po::options_description shared_memory_options =
     createSharedMemoryOptionsDescription(context, num_columns);
 
@@ -549,7 +545,9 @@ void parseIniToContext(Context& context, const std::string& ini_filename) {
   .add(coarsening_options)
   .add(initial_paritioning_options)
   .add(refinement_options)
+  #ifdef KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES
   .add(sparsification_options)
+  #endif
   .add(shared_memory_options);
 
   po::store(po::parse_config_file(file, ini_line_options, true), cmd_vm);

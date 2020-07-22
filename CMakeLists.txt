@@ -47,6 +47,9 @@ option(KAHYPAR_ENABLE_HEAVY_REFINEMENT_ASSERTIONS
 option(KAHYPAR_USE_64_BIT_IDS
   "Enables 64-bit vertex and hyperedge IDs." OFF)
 
+option(KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES
+  "Enables experimental and non-evaluated features." OFF)
+
 option(KAHYPAR_TRAVIS_BUILD
   "Indicate that this build is executed on Travis CI." OFF)
 
@@ -77,6 +80,10 @@ endif(KAHYPAR_ENABLE_HEAVY_REFINEMENT_ASSERTIONS)
 if(KAHYPAR_USE_64_BIT_IDS)
   add_compile_definitions(KAHYPAR_USE_64_BIT_IDS)
 endif(KAHYPAR_USE_64_BIT_IDS)
+
+if(KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES)
+  add_compile_definitions(KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES)
+endif(KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES)
 
 if(KAHYPAR_TRAVIS_BUILD)
   add_compile_definitions(KAHYPAR_TRAVIS_BUILD)
