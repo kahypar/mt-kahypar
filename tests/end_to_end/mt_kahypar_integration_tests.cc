@@ -52,7 +52,7 @@ class MtKaHyPar : public Test {
  public:
   MtKaHyPar() :
     context() {
-    parseIniToContext(context, "../../../config/fast_preset.ini");
+    parseIniToContext(context, "../../../config/speed_preset.ini");
     context.partition.graph_filename = "test_instances/ibm01.hgr";
     context.partition.k = Config::K;
     context.partition.objective = Config::OBJECTIVE;
