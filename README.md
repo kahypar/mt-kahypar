@@ -80,7 +80,7 @@ with 94 large hypergraph (see [Benchmark Statistics][SetB]), we compare us again
 Note that increasing number of threads does not negatively affect solution quality of Mt-KaHyPar.
 
 <img src="https://user-images.githubusercontent.com/9654047/88182577-a6f82c00-cc30-11ea-9234-752149cab2a9.png" alt="alt text" width="100%" height="100%">
-<img src="https://user-images.githubusercontent.com/9654047/88183057-43223300-cc31-11ea-987f-3243ee652771.png" alt="alt text" width="50%" height="50%"><img src="https://user-images.githubusercontent.com/9654047/88183060-44536000-cc31-11ea-8415-ce5938e329a9.png" alt="alt text" width="50%" height="50%">
+<img src="https://user-images.githubusercontent.com/9654047/88183057-43223300-cc31-11ea-987f-3243ee652771.png" alt="alt text" width="45%" height="45%"><img src="https://user-images.githubusercontent.com/9654047/88183060-44536000-cc31-11ea-8415-ce5938e329a9.png" alt="alt text" width="45%" height="45%">
 
 Requirements
 -----------
