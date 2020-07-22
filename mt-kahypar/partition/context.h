@@ -44,7 +44,6 @@ struct PartitioningParameters {
   HypernodeID ignore_hyperedge_size_threshold = std::numeric_limits<HypernodeID>::max();
 
   bool verbose_output = true;
-  bool quiet_mode = false;
   bool show_detailed_timings = false;
   bool show_detailed_clustering_timings = false;
   bool show_memory_consumption = false;
@@ -66,7 +65,6 @@ inline std::ostream & operator<< (std::ostream& str, const PartitioningParameter
   str << "Partitioning Parameters:" << std::endl;
   str << "  Hypergraph:                         " << params.graph_filename << std::endl;
   str << "  Partition File:                     " << params.graph_partition_filename << std::endl;
-  str << "  Community File:                     " << params.graph_community_filename << std::endl;
   str << "  Paradigm:                           " << params.paradigm << std::endl;
   str << "  Mode:                               " << params.mode << std::endl;
   str << "  Objective:                          " << params.objective << std::endl;
@@ -74,9 +72,8 @@ inline std::ostream & operator<< (std::ostream& str, const PartitioningParameter
   str << "  epsilon:                            " << params.epsilon << std::endl;
   str << "  seed:                               " << params.seed << std::endl;
   str << "  Number of V-Cycles:                 " << params.num_vcycles << std::endl;
-  str << "  time limit:                         " << params.time_limit << "s" << std::endl;
-  str << "  large hyperedge size threshold:     " << params.large_hyperedge_size_threshold << std::endl;
-  str << "  ignore hyperedge size threshold:    " << params.ignore_hyperedge_size_threshold << std::endl;
+  str << "  Ignore HE Size Threshold:           " << params.ignore_hyperedge_size_threshold << std::endl;
+  str << "  Large HE Size Threshold:            " << params.large_hyperedge_size_threshold << std::endl;
   return str;
 }
 
@@ -146,23 +143,23 @@ struct CoarseningParameters {
 inline std::ostream & operator<< (std::ostream& str, const CoarseningParameters& params) {
   str << "Coarsening Parameters:" << std::endl;
   str << "  Algorithm:                          " << params.algorithm << std::endl;
-  str << "  use adaptive edge size:             " << std::boolalpha << params.use_adaptive_edge_size << std::endl;
-  str << "  use adaptive max node weight:       " << std::boolalpha << params.use_adaptive_max_allowed_node_weight << std::endl;
+  str << "  Use Adaptive Edge Size:             " << std::boolalpha << params.use_adaptive_edge_size << std::endl;
+  str << "  Use Adaptive Max Node Weight:       " << std::boolalpha << params.use_adaptive_max_allowed_node_weight << std::endl;
   if ( params.use_adaptive_max_allowed_node_weight ) {
-    str << "  max allowed weight fraction:        " << params.max_allowed_weight_fraction << std::endl;
-    str << "  adaptive node weight threshold:     " << params.adaptive_node_weight_shrink_factor_threshold << std::endl;
-    str << "  initial max hypernode weight:       " << params.max_allowed_node_weight << std::endl;
+    str << "  Max Allowed Weight Fraction:        " << params.max_allowed_weight_fraction << std::endl;
+    str << "  Adaptive Node Weight Threshold:     " << params.adaptive_node_weight_shrink_factor_threshold << std::endl;
+    str << "  Initial Max Hypernode Weight:       " << params.max_allowed_node_weight << std::endl;
   } else {
-    str << "  max allowed weight multiplier:      " << params.max_allowed_weight_multiplier << std::endl;
-    str << "  maximum allowed hypernode weight:   " << params.max_allowed_node_weight << std::endl;
+    str << "  Max Allowed Weight Multiplier:      " << params.max_allowed_weight_multiplier << std::endl;
+    str << "  Maximum Allowed Hypernode Weight:   " << params.max_allowed_node_weight << std::endl;
   }
-  str << "  contraction limit multiplier:       " << params.contraction_limit_multiplier << std::endl;
-  str << "  contraction limit:                  " << params.contraction_limit << std::endl;
+  str << "  Contraction Limit Multiplier:       " << params.contraction_limit_multiplier << std::endl;
+  str << "  Contraction Limit:                  " << params.contraction_limit << std::endl;
   if ( params.algorithm == CoarseningAlgorithm::multilevel_coarsener ) {
-    str << "  minimum shrink factor:              " << params.minimum_shrink_factor << std::endl;
-    str << "  maximum shrink factor:              " << params.maximum_shrink_factor << std::endl;
+    str << "  Minimum Shrink Factor:              " << params.minimum_shrink_factor << std::endl;
+    str << "  Maximum Shrink Factor:              " << params.maximum_shrink_factor << std::endl;
   }
-  str << "  vertex degree sampling threshold:   " << params.vertex_degree_sampling_threshold << std::endl;
+  str << "  Vertex Degree Sampling Threshold:   " << params.vertex_degree_sampling_threshold << std::endl;
   str << std::endl << params.rating;
   return str;
 }
@@ -223,7 +220,7 @@ struct RefinementParameters {
 
 inline std::ostream & operator<< (std::ostream& str, const RefinementParameters& params) {
   str << "Refinement Parameters:" << std::endl;
-  str << "  Refine until no improvement:        " << std::boolalpha << params.refine_until_no_improvement << std::endl;
+  str << "  Refine Until No Improvement:        " << std::boolalpha << params.refine_until_no_improvement << std::endl;
   str << std::endl << params.label_propagation;
   str << "\n" << params.fm;
   return str;
@@ -243,17 +240,17 @@ struct SparsificationParameters {
 
 inline std::ostream & operator<< (std::ostream& str, const SparsificationParameters& params) {
   str << "Sparsification Parameters:" << std::endl;
-  str << "  use degree-zero HN contractions:    " << std::boolalpha << params.use_degree_zero_contractions << std::endl;
-  str << "  use heavy net removal:              " << std::boolalpha << params.use_heavy_net_removal << std::endl;
-  str << "  use similiar net removal:           " << std::boolalpha << params.use_similiar_net_removal << std::endl;
+  str << "  Use Degree-Zero HN Contractions:    " << std::boolalpha << params.use_degree_zero_contractions << std::endl;
+  str << "  Use Heavy Net Removal:              " << std::boolalpha << params.use_heavy_net_removal << std::endl;
+  str << "  Use Similiar Net Removal:           " << std::boolalpha << params.use_similiar_net_removal << std::endl;
   if ( params.use_heavy_net_removal ) {
-    str << "  hyperedge pin weight fraction:      " << params.hyperedge_pin_weight_fraction << std::endl;
-    str << "  maximum hyperedge pin weight:       " << params.max_hyperedge_pin_weight << std::endl;
+    str << "  Hyperedge Pin Weight Fraction:      " << params.hyperedge_pin_weight_fraction << std::endl;
+    str << "  Maximum Hyperedge Pin Weight:       " << params.max_hyperedge_pin_weight << std::endl;
   }
   if ( params.use_similiar_net_removal ) {
-    str << "  min-hash footprint size:            " << params.min_hash_footprint_size << std::endl;
-    str << "  jaccard threshold:                  " << params.jaccard_threshold << std::endl;
-    str << "  similiar net combiner strategy:     " << params.similiar_net_combiner_strategy << std::endl;
+    str << "  Min-Hash Footprint Size:            " << params.min_hash_footprint_size << std::endl;
+    str << "  Jaccard Threshold:                  " << params.jaccard_threshold << std::endl;
+    str << "  Similiar Net Combiner Strategy:     " << params.similiar_net_combiner_strategy << std::endl;
   }
   return str;
 }

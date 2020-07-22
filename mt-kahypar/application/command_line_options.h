@@ -111,8 +111,6 @@ po::options_description createGenericOptionsDescription(Context& context,
     ("help", "show help message")
     ("verbose,v", po::value<bool>(&context.partition.verbose_output)->value_name("<bool>"),
     "Verbose main partitioning output")
-    ("quiet,q", po::value<bool>(&context.partition.quiet_mode)->value_name("<bool>"),
-    "Quiet Mode: Completely suppress console output")
     ("show-detailed-timings", po::value<bool>(&context.partition.show_detailed_timings)->value_name("<bool>"),
     "If true, detailed timings overview is shown")
     ("show-detailed-clustering-timings", po::value<bool>(&context.partition.show_detailed_clustering_timings)->value_name("<bool>"),
