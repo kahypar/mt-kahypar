@@ -74,7 +74,7 @@ instances that could not be partitioned within the time limit are shown with a c
 To compare us against different sequential hypergraph partitioner, we use a benchmark set consisting of 488 hypergraphs (see [Benchmark Statistics][SetA]). In the figures, we compare Mt-KaHyPar with the sequential hypergraph partitioners
 PaToH 3.3 in quality (PaToH-Q), default (PaToH-D) and speed mode (PaToH-S), the recursive bisection variant (hMETIS-R) of hMETIS 2.0 and
 KaHyPar-CA (similiar algorithmic components as Mt-KaHyPar) and KaHyPar-HFC (extends KaHyPar-CA with flow-based refinement) of the
-[KaHyPar](https://kahypar.org/) framework. On same benchmark set on which we performed our scalability experiments
+[KaHyPar](https://kahypar.org/) framework. On the same benchmark set on which we performed our scalability experiments
 with 94 large hypergraph (see [Benchmark Statistics][SetB]), we compare us against the distributed hypergraph partitioner Zoltan 3.83 and the default mode of PaToH 3.3.
 
 Note that increasing number of threads does not negatively affect solution quality of Mt-KaHyPar.
@@ -119,7 +119,7 @@ To run Mt-KaHyPar, you can use the following command:
 
     ./KaHyPar -h <path-to-hgr> -t <# threads> -k <# blocks> -e <imbalance (e.g. 0.03)> -o km1 -m direct -p <path-to-config>
 
-The partition output file will be placed in the same folder than the input hypergraph file. If you want to change the default partition output folder, add command line parameter `--partition-output-folder=path/to/folder`. Further, there are several useful options that can provide you with additional insight during and after the partitioning process:
+The partition output file will be placed in the same folder than the input hypergraph file. If you want to change the default partition output folder, add command line parameter `--partition-output-folder=path/to/folder`. Further, there are several useful options that can provide you with additional insights during and after the partitioning process:
 - `--show-detailed-timings=true`: Shows detailed subtimings of each multilevel phase at the end of the partitioning process
 - `--show-memory-consumption=true`: Gives detailed information on how much memory was allocated and how memory is reused throughout the algorithm
 - `--enable-progress-bar=true`: Shows a progess bar during the coarsening and refinement phase
