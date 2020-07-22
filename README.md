@@ -64,11 +64,6 @@ The partition output file will be placed in the same folder than the input hyper
 - `--show-memory-consumption=true`: Gives detailed information on how much memory was allocated and how memory is reused throughout the algorithm
 - `--enable-progress-bar=true`: Shows a progess bar during the coarsening and refinement phase
 
-[cmake]: http://www.cmake.org/ "CMake tool"
-[Boost.Program_options]: http://www.boost.org/doc/libs/1_58_0/doc/html/program_options.html
-[tbb]: https://software.intel.com/content/www/us/en/develop/tools/threading-building-blocks.html
-[hwloc]: https://www.open-mpi.org/projects/hwloc/
-
 Using the Library Interfaces
 -----------
 
@@ -172,3 +167,29 @@ To remove the library from your system use the provided uninstall target:
 ```sh
 make uninstall-kahypar
 ```
+
+Bug Reports
+-----------
+
+We encourage you to report any problems with Mt-KaHyPar via the [github issue tracking system](https://github.com/kittobi1992/mt-kahypar/issues) of the project.
+
+Licensing
+---------
+
+Mt-KaHyPar is free software provided under the GNU General Public License (GPLv3).
+For more information see the [LICENSE file][LF].
+We distribute this framework freely to foster the use and development of hypergraph partitioning tools.
+If you use Mt-KaHyPar in an academic setting please cite the appropriate papers (upcoming soon).
+If you are interested in a commercial license, please contact me.
+
+Contributing
+------------
+If you are interested in contributing to the Mt-KaHyPar framework
+feel free to contact me or create an issue on the
+[issue tracking system](https://github.com/kittobi1992/mt-kahypar/issues).
+
+[cmake]: http://www.cmake.org/ "CMake tool"
+[Boost.Program_options]: http://www.boost.org/doc/libs/1_58_0/doc/html/program_options.html
+[tbb]: https://software.intel.com/content/www/us/en/develop/tools/threading-building-blocks.html
+[hwloc]: https://www.open-mpi.org/projects/hwloc/
+[LF]: https://github.com/kittobi1992/mt-kahypar/blob/master/LICENSE "Licence"
