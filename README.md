@@ -47,6 +47,41 @@ single-threaded running time >= 100s, we achieve a harmonic mean speedup of 23.5
 
 <img src="https://user-images.githubusercontent.com/9654047/88180477-bb86f500-cc2d-11ea-8bbe-834bc1b70142.png" alt="alt text" width="100%" height="100%">
 
+Quality of Mt-KaHyPar
+-----------
+
+We use the [*performance profiles*](https://link.springer.com/article/10.1007/s101070100263) to compare Mt-KaHyPar to other partitioning algorithms in terms of solution quality.
+  For a set of <img src="https://user-images.githubusercontent.com/484403/80751017-55f10400-8b29-11ea-9d73-be63c0727d39.jpg"/> algorithms and a benchmark set <img src="https://user-images.githubusercontent.com/484403/80751742-a452d280-8b2a-11ea-9f8d-47cbdd9cfccf.jpg"/> containing <img src="https://user-images.githubusercontent.com/484403/80751744-a452d280-8b2a-11ea-9049-5c3fb2d3cc76.jpg"/> instances, the *performance ratio* <img src="https://user-images.githubusercontent.com/484403/80751746-a4eb6900-8b2a-11ea-8413-ff75bccc2296.jpg"/> relates the cut computed by
+  partitioner *p* for instance *i* to the smallest minimum cut of *all* algorithms, i.e.,
+  <p align="center">
+<img src="https://user-images.githubusercontent.com/484403/80750749-f09d1300-8b28-11ea-859d-e3b72f543ed1.png"/>. </p>
+
+The *performance profile* <img src="https://user-images.githubusercontent.com/484403/80751752-a583ff80-8b2a-11ea-8f67-b88625b9e958.jpg"/> of algorithm *p* is then given by the function
+  <p align="center">
+<img src="https://user-images.githubusercontent.com/484403/80750914-35c14500-8b29-11ea-8e2c-3203b1776a96.jpg"/>.</p>
+
+For connectivity optimization, the performance ratios are computed using the connectivity values <img src="https://user-images.githubusercontent.com/484403/80751741-a3ba3c00-8b2a-11ea-9509-6aafec2ca490.jpg"/> instead of the cut values.
+    The value of <img src="https://user-images.githubusercontent.com/484403/80751750-a583ff80-8b2a-11ea-8782-3d44ee478d54.png"/> corresponds to the fraction of instances for which partitioner *p* computed the best solution, while  <img src="https://user-images.githubusercontent.com/484403/80751750-a583ff80-8b2a-11ea-8782-3d44ee478d54.png"/> is the probability
+    that a performance ratio <img src="https://user-images.githubusercontent.com/484403/80751746-a4eb6900-8b2a-11ea-8413-ff75bccc2296.jpg"/> is within a factor of <img src="https://user-images.githubusercontent.com/484403/80752228-70c47800-8b2b-11ea-99e5-4524298c8620.jpg"/> of the best possible ratio.
+    Note that since performance profiles only allow to assess the performance of each algorithm relative to the *best* algorithm, the <img src="https://user-images.githubusercontent.com/484403/80751747-a4eb6900-8b2a-11ea-846f-1265085ad086.jpg"/> values
+    cannot be used to rank algorithms (i.e., to determine which algorithm is the second best etc.).
+
+In our experimental analysis, the performance profile plots are based on the *best* solutions (i.e., *minimum* connectivity/cut) each algorithm found for each instance.
+    Furthermore, we choose parameters <img src="https://user-images.githubusercontent.com/484403/80751754-a61c9600-8b2a-11ea-8fdb-3ba461bfe626.jpg"/> for all *p*, *i*, and <img src="https://user-images.githubusercontent.com/484403/80751762-a6b52c80-8b2a-11ea-9f6c-8fb9d00130d3.jpg"/> such that a performance ratio <img src="https://user-images.githubusercontent.com/484403/80751756-a61c9600-8b2a-11ea-88fe-22e2bdd511aa.jpg"/> if and only if algorithm *p* computed an infeasible solution
+    for instance *i*, and <img src="https://user-images.githubusercontent.com/484403/80751759-a6b52c80-8b2a-11ea-9cbc-527965565037.jpg"/> if and only if the algorithm could not compute a solution for instance *i* within the given time limit. In our performance profile plots, performance ratios corresponding to *infeasible* solutions will be shown on the x-tick with a x-symbol, while
+instances that could not be partitioned within the time limit are shown with a clock symbol.
+
+To compare us against different sequential hypergraph partitioner, we use a benchmark set consisting of 488 hypergraphs (see [Benchmark Statistics][SetA]). In the figures, we compare Mt-KaHyPar with the sequential hypergraph partitioners
+PaToH 3.3 in quality (PaToH-Q), default (PaToH-D) and speed mode (PaToH-S), the recursive bisection variant (hMETIS-R) of hMETIS 2.0 and
+KaHyPar-CA (similiar algorithmic components as Mt-KaHyPar) and KaHyPar-HFC (extends KaHyPar-CA with flow-based refinement) of the
+[KaHyPar](https://kahypar.org/) framework. On same benchmark set on which we performed our scalability experiments
+with 94 large hypergraph (see [Benchmark Statistics][SetB]), we compare us against the distributed hypergraph partitioner Zoltan 3.83 and the default mode of PaToH 3.3.
+
+Note that increasing number of threads does not negatively affect solution quality of Mt-KaHyPar.
+
+<img src="https://user-images.githubusercontent.com/9654047/88182577-a6f82c00-cc30-11ea-9234-752149cab2a9.png" alt="alt text" width="100%" height="100%">
+<img src="https://user-images.githubusercontent.com/9654047/88183057-43223300-cc31-11ea-987f-3243ee652771.png" alt="alt text" width="50%" height="50%"><img src="https://user-images.githubusercontent.com/9654047/88183060-44536000-cc31-11ea-8415-ce5938e329a9.png" alt="alt text" width="50%" height="50%">
+
 Requirements
 -----------
 
@@ -218,4 +253,5 @@ feel free to contact me or create an issue on the
 [tbb]: https://software.intel.com/content/www/us/en/develop/tools/threading-building-blocks.html
 [hwloc]: https://www.open-mpi.org/projects/hwloc/
 [LF]: https://github.com/kittobi1992/mt-kahypar/blob/master/LICENSE "Licence"
+[SetA]: http://algo2.iti.kit.edu/heuer/alenex21/instances.html?benchmark=set_a
 [SetB]: http://algo2.iti.kit.edu/heuer/alenex21/instances.html?benchmark=set_b
