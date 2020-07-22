@@ -22,6 +22,31 @@ to edge-cut for plain graphs.
 
 <img src="https://cloud.githubusercontent.com/assets/484403/25314222/3a3bdbda-2840-11e7-9961-3bbc59b59177.png" alt="alt text" width="50%" height="50%"><img src="https://cloud.githubusercontent.com/assets/484403/25314225/3e061e42-2840-11e7-860c-028a345d1641.png" alt="alt text" width="50%" height="50%">
 
+What is Mt-KaHyPar?
+-----------
+Mt-KaHyPar is a shared-memory direct k-way multilevel hypergraph partitioning framework
+for optimizing the (λ − 1)-metric.
+As a multilevel algorithm, it consist of three phases: In the *coarsening phase*, the
+hypergraph is coarsened to obtain a hierarchy of smaller hypergraphs. After applying an
+*initial partitioning* algorithm to the smallest hypergraph in the second phase, coarsening is
+undone and, at each level, several *local search* method are used to improve the partition induced by
+the coarser level. Additionally, we use a hypergraph clustering algorithm as preprocessing
+to restrict contractions to densly coupled regions of the hypergraph during the coarsening phase.
+
+Scalability of Mt-KaHyPar
+-----------
+To evaluate speedups of Mt-KaHyPar, we used a benchmark set consisting of 94 large hypergraphs (see [Benchmark Statistics][SetB]) derived from
+three different application domains (VLSI design, sparse matrices and SAT formulas). In the plot below, we summarize the speedups of Mt-KaHyPar
+with varying number of threads (p = {4,16,64}) and different number of blocks (k = {2,8,16,64}) for each algorithmic component. We represent
+the speedup of each instance as a point and the cumulative harmonic mean speedup over all instances with a single-threaded running time >= x
+seconds with a line.
+
+The overall harmonic mean speedup of Mt-KaHyPar is 3.4 for p = 4, 10.8 for p = 16 and 18.4 for p = 64. If we only consider instances with a
+single-threaded running time >= 100s, we achieve a harmonic mean speedup of 23.5 for p = 64. For p = 4, the speedup is at least 3 on over
+90% of our instances.
+
+<img src="https://user-images.githubusercontent.com/9654047/88180477-bb86f500-cc2d-11ea-8bbe-834bc1b70142.png" alt="alt text" width="100%" height="100%">
+
 Requirements
 -----------
 
@@ -193,3 +218,4 @@ feel free to contact me or create an issue on the
 [tbb]: https://software.intel.com/content/www/us/en/develop/tools/threading-building-blocks.html
 [hwloc]: https://www.open-mpi.org/projects/hwloc/
 [LF]: https://github.com/kittobi1992/mt-kahypar/blob/master/LICENSE "Licence"
+[SetB]: http://algo2.iti.kit.edu/heuer/alenex21/instances.html?benchmark=set_b
