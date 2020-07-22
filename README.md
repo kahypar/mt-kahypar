@@ -68,3 +68,107 @@ The partition output file will be placed in the same folder than the input hyper
 [Boost.Program_options]: http://www.boost.org/doc/libs/1_58_0/doc/html/program_options.html
 [tbb]: https://software.intel.com/content/www/us/en/develop/tools/threading-building-blocks.html
 [hwloc]: https://www.open-mpi.org/projects/hwloc/
+
+Using the Library Interfaces
+-----------
+
+We provide a simple C-style interface to use Mt-KaHyPar as a library.  The library can be built and installed via
+
+```sh
+make install.library
+```
+
+and can be used like this:
+
+```cpp
+#include <memory>
+#include <vector>
+#include <iostream>
+
+#include <libkahypar.h>
+
+int main(int argc, char* argv[]) {
+
+  // Initialize thread pool with 8 threads and NUMA allocation policy INTERLEAVED
+  mt_kahypar_initialize_thread_pool(8, true /* activate interleaved NUMA allocation policy */ );
+
+  // Load context from file
+  mt_kahypar_context_t* context = mt_kahypar_context_new();
+  mt_kahypar_configure_context_from_file(context, "path/to/config/file");
+
+  // Setup Hypergraph
+  const mt_kahypar_hypernode_id_t num_vertices = 7;
+  const mt_kahypar_hyperedge_id_t num_hyperedges = 4;
+
+  std::unique_ptr<mt_kahypar_hyperedge_weight_t[]> hyperedge_weights =
+    std::make_unique<mt_kahypar_hyperedge_weight_t[]>(4);
+
+  // force the cut to contain hyperedge 0 and 2
+  hyperedge_weights[0] = 1;  hyperedge_weights[1] = 1000;
+  hyperedge_weights[2] = 1;  hyperedge_weights[3] = 1000;
+
+  std::unique_ptr<size_t[]> hyperedge_indices = std::make_unique<size_t[]>(5);
+
+  hyperedge_indices[0] = 0; hyperedge_indices[1] = 2;
+  hyperedge_indices[2] = 6; hyperedge_indices[3] = 9;
+  hyperedge_indices[4] = 12;
+
+  std::unique_ptr<mt_kahypar_hyperedge_id_t[]> hyperedges = std::make_unique<mt_kahypar_hyperedge_id_t[]>(12);
+
+  // hypergraph from hMetis manual page 14
+  hyperedges[0] = 0;  hyperedges[1] = 2;
+  hyperedges[2] = 0;  hyperedges[3] = 1;
+  hyperedges[4] = 3;  hyperedges[5] = 4;
+  hyperedges[6] = 3;  hyperedges[7] = 4;
+  hyperedges[8] = 6;  hyperedges[9] = 2;
+  hyperedges[10] = 5; hyperedges[11] = 6;
+
+  const double imbalance = 0.03;
+  const mt_kahypar_partition_id_t k = 2;
+
+  mt_kahypar_hyperedge_weight_t objective = 0;
+
+  std::vector<mt_kahypar_partition_id_t> partition(num_vertices, -1);
+
+  // Partition Hypergraph
+  mt_kahypar_partition(num_vertices, num_hyperedges,
+       	               imbalance, k, 0 /* seed */,
+               	       nullptr /* unit vertex_weights */, hyperedge_weights.get(),
+               	       hyperedge_indices.get(), hyperedges.get(),
+       	               &objective, context, partition.data(),
+                       false /* verbose output */ );
+
+  // Print objective and block of each vertex
+  std::cout << "Objective: " << objective << std::endl;
+  for ( int i = 0; i != num_vertices; ++i ) {
+    std::cout << "Vertex " << i << " = " << partition[i] << std::endl;
+  }
+
+  mt_kahypar_context_free(context);
+}
+```
+
+If you want to load a hypergraph from a file, you can use the following code snippet:
+
+```cpp
+mt_kahypar_hypernode_id_t num_vertices = 0;
+mt_kahypar_hyperedge_id_t num_hyperedges = 0;
+size_t* hyperedge_indices(nullptr);
+mt_kahypar_hyperedge_id_t* hyperedges(nullptr);
+mt_kahypar_hypernode_weight_t* hypernode_weights(nullptr);
+mt_kahypar_hyperedge_weight_t* hyperedge_weights(nullptr);
+mt_kahypar_read_hypergraph_from_file("path/to/hypergraph/file", &num_vertices, &num_hyperedges,
+  &hyperedge_indices, &hyperedges, &hyperedge_weights, &hypernode_weights);
+```
+
+To compile the program using `g++` run:
+
+```sh
+g++ -std=c++17 -DNDEBUG -O3 your_program.cc -o your_program -lkahypar
+```
+
+To remove the library from your system use the provided uninstall target:
+
+```sh
+make uninstall-kahypar
+```
