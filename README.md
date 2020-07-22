@@ -22,6 +22,22 @@ to edge-cut for plain graphs.
 
 <img src="https://cloud.githubusercontent.com/assets/484403/25314222/3a3bdbda-2840-11e7-9961-3bbc59b59177.png" alt="alt text" width="50%" height="50%"><img src="https://cloud.githubusercontent.com/assets/484403/25314225/3e061e42-2840-11e7-860c-028a345d1641.png" alt="alt text" width="50%" height="50%">
 
+Requirements
+-----------
+
+The Multi-Threaded Karlsruhe Hypergraph Partitioning Framework requires:
+
+  - A 64-bit Linux operating system.
+  - A modern, ![C++14](https://img.shields.io/badge/C++-17-blue.svg?style=flat)-ready compiler such as `g++` version 9 or higher or `clang` version 11.0.3 or higher.
+ - The [cmake][cmake] build system (>= 3.10).
+ - The [Boost - Program Options][Boost.Program_options] library and the boost header files (>= 1.48).
+ - The [Intel Thread Building Blocks][tbb] library (TBB)
+ - The [Portable Hardware Locality][hwloc] library (hwloc)
+
+The following command will install most of the required dependencies:
+
+    sudo apt-get install libboost-program-options-dev libnuma-dev numactl libhwloc-dev moreutils linux-tools-common linux-tools-generic libtbb-dev
+
 Building MT-KaHyPar
 -----------
 
@@ -48,3 +64,8 @@ The partition output file will be placed in the same folder than the input hyper
 - `--show-detailed-timings=true`: Shows detailed subtimings of each multilevel phase at the end of the partitioning process
 - `--show-memory-consumption=true`: Gives detailed information on how much memory was allocated and how memory is reused throughout the algorithm
 - `--enable-progress-bar=true`: Shows a progess bar during the coarsening and refinement phase
+
+[cmake]: http://www.cmake.org/ "CMake tool"
+[Boost.Program_options]: http://www.boost.org/doc/libs/1_58_0/doc/html/program_options.html
+[tbb]: https://software.intel.com/content/www/us/en/develop/tools/threading-building-blocks.html
+[hwloc]: https://www.open-mpi.org/projects/hwloc/
