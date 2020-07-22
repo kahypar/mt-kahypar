@@ -56,6 +56,8 @@ po::options_description createGeneralOptionsDescription(Context& context, const 
     ("help", "show help message")
     ("verbose,v", po::value<bool>(&context.partition.verbose_output)->value_name("<bool>")->default_value(true),
     "Verbose main partitioning output")
+    ("write-partition-file", po::value<bool>(&context.partition.write_partition_file)->value_name("<bool>")->default_value(true),
+    "If true, then partition output file is generated")
     ("partition-output-folder",
     po::value<std::string>(&context.partition.graph_partition_output_folder)->value_name("<string>"),
     "Output folder for partition file")
