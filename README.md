@@ -44,6 +44,7 @@ To run Mt-KaHyPar, you can use the following command:
     ./KaHyPar -h <path-to-hgr> -t <# threads> -k <# blocks> -e <imbalance (e.g. 0.03)> -o km1 -m direct -p <path-to-config>
 
 The partition output file will be placed in the same folder than the input hypergraph file. Further, there are several useful options that can provide you with additional insight during and after the partitioning process:
+- `--partition-output-folder=path/to/folder`: Specifies the output folder for the partition file
 - `--show-detailed-timings=true`: Shows detailed subtimings of each multilevel phase at the end of the partitioning process
 - `--show-memory-consumption=true`: Gives detailed information on how much memory was allocated and how memory is reused throughout the algorithm
 - `--enable-progress-bar=true`: Shows a progess bar during the coarsening and refinement phase

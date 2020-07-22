@@ -20,6 +20,7 @@
 
 #pragma once
 
+#include <filesystem>
 #include <boost/program_options.hpp>
 
 #if defined(_MSC_VER)
@@ -100,7 +101,10 @@ po::options_description createGeneralOptionsDescription(Context& context, const 
     }),
     "Partitioning mode: \n"
     " - (recursive) bisection \n"
-    " - (direct) k-way");
+    " - (direct) k-way")
+    ("partition-output-folder",
+    po::value<std::string>(&context.partition.graph_partition_output_folder)->value_name("<string>"),
+    "Output folder of the partition file");
   return options;
 }
 
@@ -429,7 +433,6 @@ po::options_description createSharedMemoryOptionsDescription(Context& context,
 void processCommandLineInput(Context& context, int argc, char* argv[]) {
   const int num_columns = platform::getTerminalWidth();
 
-  po::options_description generic_options = createGenericOptionsDescription(context, num_columns);
 
   po::options_description required_options("Required Options", num_columns);
   required_options.add_options()
@@ -449,6 +452,7 @@ void processCommandLineInput(Context& context, int argc, char* argv[]) {
     "Context Presets (see config directory):\n"
     " - <path-to-custom-ini-file>");
 
+  po::options_description generic_options = createGenericOptionsDescription(context, num_columns);
   po::options_description general_options = createGeneralOptionsDescription(context, num_columns);
 
   po::options_description preprocessing_options =
@@ -465,9 +469,10 @@ void processCommandLineInput(Context& context, int argc, char* argv[]) {
     createSharedMemoryOptionsDescription(context, num_columns);
 
   po::options_description cmd_line_options;
-  cmd_line_options.add(generic_options)
+  cmd_line_options
   .add(required_options)
   .add(preset_options)
+  .add(generic_options)
   .add(general_options)
   .add(preprocessing_options)
   .add(coarsening_options)
@@ -509,8 +514,20 @@ void processCommandLineInput(Context& context, int argc, char* argv[]) {
   std::string epsilon_str = std::to_string(context.partition.epsilon);
   epsilon_str.erase(epsilon_str.find_last_not_of('0') + 1, std::string::npos);
 
+  if (  context.partition.graph_partition_output_folder != "" ) {
+    std::filesystem::path output_folder =
+      context.partition.graph_partition_output_folder;
+    std::filesystem::path graph_path =
+      context.partition.graph_filename;
+    context.partition.graph_partition_filename =
+      std::filesystem::absolute(output_folder).u8string() + "/" +
+      graph_path.filename().u8string();
+  } else {
+    context.partition.graph_partition_filename =
+      context.partition.graph_filename;
+  }
   context.partition.graph_partition_filename =
-    context.partition.graph_filename
+    context.partition.graph_partition_filename
     + ".part"
     + std::to_string(context.partition.k)
     + ".epsilon"
