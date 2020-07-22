@@ -25,7 +25,7 @@ matrix:
           sources:
             - ubuntu-toolchain-r-test
           packages:
-            - g++-7
+            - g++-8
             - lcov
             - gcovr
             - libboost-program-options-dev
@@ -37,7 +37,7 @@ matrix:
             - linux-tools-common
             - linux-tools-generic
 
-    # gcc 7 - Linux Debug Build
+    # gcc 8 - Linux Debug Build
     - env:
        - CMAKE_CC="gcc-8"
        - CMAKE_CXX="g++-8"
