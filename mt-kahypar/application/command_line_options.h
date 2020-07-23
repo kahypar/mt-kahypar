@@ -20,7 +20,6 @@
 
 #pragma once
 
-#include <filesystem>
 #include <boost/program_options.hpp>
 #include <sys/ioctl.h>
 
@@ -492,13 +491,10 @@ void processCommandLineInput(Context& context, int argc, char* argv[]) {
   epsilon_str.erase(epsilon_str.find_last_not_of('0') + 1, std::string::npos);
 
   if (  context.partition.graph_partition_output_folder != "" ) {
-    std::filesystem::path output_folder =
-      context.partition.graph_partition_output_folder;
-    std::filesystem::path graph_path =
-      context.partition.graph_filename;
+    std::string graph_base_name = context.partition.graph_filename.substr(
+      context.partition.graph_filename.find_last_of("/") + 1);
     context.partition.graph_partition_filename =
-      std::filesystem::absolute(output_folder).u8string() + "/" +
-      graph_path.filename().u8string();
+      context.partition.graph_partition_output_folder + "/" + graph_base_name;
   } else {
     context.partition.graph_partition_filename =
       context.partition.graph_filename;
