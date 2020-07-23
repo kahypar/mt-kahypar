@@ -29,8 +29,6 @@
 #include <mt-kahypar/datastructures/partitioned_hypergraph.h>
 #include <mt-kahypar/io/hypergraph_io.h>
 
-#include <filesystem>
-
 using ::testing::Test;
 
 namespace mt_kahypar {
