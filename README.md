@@ -1,4 +1,4 @@
-<h1 align="center">MT-KaHyPar - Multi-Threaded Karlsruhe Hypergraph Partitioning</h1>
+<h1 align="center">MT-KaHyPar - Multi-Threaded Karlsruhe Hypergraph Partitioner</h1>
 
 License|Linux Build|Code Coverage
 :--:|:--:|:--:
