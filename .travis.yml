@@ -8,10 +8,10 @@ dist: bionic
 
 matrix:
   include:
-    # gcc 9 - Linux Release Build
+    # gcc 7 - Linux Release Build
     - env:
-      - CMAKE_CC="gcc-9"
-      - CMAKE_CXX="g++-9"
+      - CMAKE_CC="gcc-7"
+      - CMAKE_CXX="g++-7"
       - BUILD_TYPE="Release"
       - COV="OFF"
       - KAHYPAR_ENABLE_HEAVY_PREPROCESSING_ASSERTIONS="OFF"
@@ -20,12 +20,12 @@ matrix:
       - KAHYPAR_ENABLE_HEAVY_REFINEMENT_ASSERTIONS="OFF"
       - KAHYPAR_USE_64_BIT_IDS="OFF"
       os: linux
-      addons: &gcc9
+      addons: &gcc7
         apt:
           sources:
             - ubuntu-toolchain-r-test
           packages:
-            - g++-9
+            - g++-7
             - lcov
             - gcovr
             - libboost-program-options-dev
@@ -37,10 +37,10 @@ matrix:
             - linux-tools-common
             - linux-tools-generic
 
-    # gcc 9 - Linux Debug Build
+    # gcc 7 - Linux Debug Build
     - env:
-       - CMAKE_CC="gcc-9"
-       - CMAKE_CXX="g++-9"
+       - CMAKE_CC="gcc-7"
+       - CMAKE_CXX="g++-7"
        - BUILD_TYPE="Debug"
        - COV="ON"
        - KAHYPAR_ENABLE_HEAVY_PREPROCESSING_ASSERTIONS="ON"
@@ -49,7 +49,7 @@ matrix:
        - KAHYPAR_ENABLE_HEAVY_REFINEMENT_ASSERTIONS="ON"
        - KAHYPAR_USE_64_BIT_IDS="OFF"
       os: linux
-      addons: *gcc9
+      addons: *gcc7
 
 install:
   - DEPS_DIR="${HOME}/deps"

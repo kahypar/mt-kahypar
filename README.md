@@ -88,7 +88,7 @@ Requirements
 The Multi-Threaded Karlsruhe Hypergraph Partitioning Framework requires:
 
   - A 64-bit Linux operating system.
-  - A modern, ![C++14](https://img.shields.io/badge/C++-17-blue.svg?style=flat)-ready compiler such as `g++` version 9 or higher or `clang` version 11.0.3 or higher.
+  - A modern, ![C++14](https://img.shields.io/badge/C++-17-blue.svg?style=flat)-ready compiler such as `g++` version 7 or higher or `clang` version 11.0.3 or higher.
  - The [cmake][cmake] build system (>= 3.10).
  - The [Boost - Program Options][Boost.Program_options] library and the boost header files (>= 1.48).
  - The [Intel Thread Building Blocks][tbb] library (TBB)
