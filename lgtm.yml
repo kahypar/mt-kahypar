@@ -2,9 +2,11 @@ path_classifiers:
   library:
     - external_tools
     - codestyle
+
 queries:
   - exclude: external_tools/
   - exclude: codestyle/
+
 extraction:
   cpp:
      index:
