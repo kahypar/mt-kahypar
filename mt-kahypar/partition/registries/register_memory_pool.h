@@ -18,6 +18,8 @@
  *
  ******************************************************************************/
 
+#pragma once
+
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/datastructures/hypergraph_common.h"
 #include "mt-kahypar/datastructures/pin_count_in_part.h"
@@ -87,7 +89,7 @@ static void register_memory_pool(const Hypergraph& hypergraph,
     ds::ConnectivitySets::num_elements(num_hyperedges, context.partition.k),
     sizeof(ds::ConnectivitySets::UnsafeBlock));
   parallel::MemoryPool::instance().register_memory_chunk("Refinement", "move_to_penalty",
-    num_hypernodes * context.partition.k, sizeof(CAtomic<HyperedgeWeight>));
+    static_cast<size_t>(num_hypernodes) * context.partition.k, sizeof(CAtomic<HyperedgeWeight>));
   parallel::MemoryPool::instance().register_memory_chunk("Refinement", "move_from_penalty",
     num_hypernodes, sizeof(CAtomic<HyperedgeWeight>));
   parallel::MemoryPool::instance().register_memory_chunk("Refinement", "pin_count_update_ownership",
@@ -95,11 +97,11 @@ static void register_memory_pool(const Hypergraph& hypergraph,
 
   if ( context.refinement.fm.revert_parallel ) {
     parallel::MemoryPool::instance().register_memory_chunk("Refinement", "remaining_original_pins",
-      hypergraph.numNonGraphEdges() * context.partition.k, sizeof(CAtomic<HypernodeID>));
+      static_cast<size_t>(hypergraph.numNonGraphEdges()) * context.partition.k, sizeof(CAtomic<HypernodeID>));
     parallel::MemoryPool::instance().register_memory_chunk("Refinement", "first_move_in",
-      hypergraph.numNonGraphEdges() * context.partition.k, sizeof(CAtomic<MoveID>));
+      static_cast<size_t>(hypergraph.numNonGraphEdges()) * context.partition.k, sizeof(CAtomic<MoveID>));
     parallel::MemoryPool::instance().register_memory_chunk("Refinement", "last_move_out",
-      hypergraph.numNonGraphEdges() * context.partition.k, sizeof(CAtomic<MoveID>));
+      static_cast<size_t>(hypergraph.numNonGraphEdges()) * context.partition.k, sizeof(CAtomic<MoveID>));
   }
 
   // Allocate Memory

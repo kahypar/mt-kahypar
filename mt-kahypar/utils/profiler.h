@@ -333,7 +333,7 @@ class Profiler {
     while (*p <'0' || *p > '9') p++;
     line[i-3] = '\0';
     i = atoi(p);
-    free(line);
+    delete line;
     return i;
   }
 
