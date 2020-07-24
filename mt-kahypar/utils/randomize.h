@@ -184,15 +184,15 @@ class Randomize {
       parallel::scalable_vector<SwapBlock> swap_blocks;
       parallel::scalable_vector<bool> matched_blocks(P, false);
       int cpu_id = sched_getcpu();
-      for ( size_t i = 0; i < P; ++i ) {
-        if ( !matched_blocks[i] ) {
-          matched_blocks[i] = true;
-          size_t j = getRandomInt(0, P - 1, cpu_id);
-          while ( matched_blocks[j] ) {
-            j = ( j + 1 ) % P;
+      for ( size_t a = 0; a < P; ++a ) {
+        if ( !matched_blocks[a] ) {
+          matched_blocks[a] = true;
+          size_t b = getRandomInt(0, P - 1, cpu_id);
+          while ( matched_blocks[b] ) {
+            b = ( b + 1 ) % P;
           }
-          matched_blocks[j] = true;
-          swap_blocks.push_back(std::make_pair(i, j));
+          matched_blocks[b] = true;
+          swap_blocks.push_back(std::make_pair(a, b));
         }
       }
       ASSERT(swap_blocks.size() == P / 2, V(swap_blocks.size()) << V(P));

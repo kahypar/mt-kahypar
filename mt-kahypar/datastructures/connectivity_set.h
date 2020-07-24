@@ -71,7 +71,7 @@ public:
     _bits() {
       if ( num_hyperedges > 0 ) {
         _bits.resize("Refinement", "connectivity_set",
-          num_hyperedges * _num_blocks_per_hyperedge, true, assign_parallel);
+          static_cast<size_t>(num_hyperedges) * _num_blocks_per_hyperedge, true, assign_parallel);
       }
     }
 
@@ -126,7 +126,7 @@ public:
 
   static size_t num_elements(const HyperedgeID num_hyperedges,
                              const PartitionID k) {
-    return num_hyperedges * (k / BITS_PER_BLOCK + (k % BITS_PER_BLOCK != 0));
+    return static_cast<size_t>(num_hyperedges) * (k / BITS_PER_BLOCK + (k % BITS_PER_BLOCK != 0));
   }
 
 private:

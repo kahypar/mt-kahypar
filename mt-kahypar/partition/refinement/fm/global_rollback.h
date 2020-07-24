@@ -167,13 +167,13 @@ public:
     if ( context.refinement.fm.revert_parallel ) {
       tbb::parallel_invoke([&] {
         remaining_original_pins.resize("Refinement", "remaining_original_pins",
-          hg.numNonGraphEdges() * numParts);
+          static_cast<size_t>(hg.numNonGraphEdges()) * numParts);
       }, [&] {
         first_move_in.resize("Refinement", "first_move_in",
-          hg.numNonGraphEdges() * numParts);
+          static_cast<size_t>(hg.numNonGraphEdges()) * numParts);
       }, [&] {
         last_move_out.resize("Refinement", "last_move_out",
-          hg.numNonGraphEdges() * numParts);
+          static_cast<size_t>(hg.numNonGraphEdges()) * numParts);
       });
       resetStoredMoveIDs();
     }
