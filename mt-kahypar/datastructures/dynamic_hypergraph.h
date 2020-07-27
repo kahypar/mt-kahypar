@@ -707,16 +707,53 @@ class DynamicHypergraph {
 
   // ####################### Remove / Restore Hyperedges #######################
 
-  void removeEdge(const HyperedgeID) {
-    ERROR("removeEdge(e) is not supported in dynamic hypergraph");
+  /*!
+  * Removes a hyperedge from the hypergraph. This includes the removal of he from all
+  * of its pins and to disable the hyperedge.
+  *
+  * NOTE, this function is not thread-safe and should only be called in a single-threaded
+  * setting.
+  */
+  void removeEdge(const HyperedgeID he) {
+    ASSERT(edgeIsEnabled(he), "Hyperedge" << he << "is disabled");
+    for ( const HypernodeID& pin : pins(he) ) {
+      removeIncidentEdgeFromHypernode(he, pin);
+    }
+    ++_num_removed_hyperedges;
+    disableHyperedge(he);
   }
 
-  void removeLargeEdge(const HyperedgeID) {
-    ERROR("removeLargeEdge(e) is not supported in dynamic hypergraph");
+  /*!
+  * Removes a hyperedge from the hypergraph. This includes the removal of he from all
+  * of its pins and to disable the hyperedge. Noze, in contrast to removeEdge, this function
+  * removes hyperedge from all its pins in parallel.
+  *
+  * NOTE, this function is not thread-safe and should only be called in a single-threaded
+  * setting.
+  */
+  void removeLargeEdge(const HyperedgeID he) {
+    ASSERT(edgeIsEnabled(he), "Hyperedge" << he << "is disabled");
+    const size_t incidence_array_start = hyperedge(he).firstEntry();
+    const size_t incidence_array_end = hyperedge(he).firstInvalidEntry();
+    tbb::parallel_for(incidence_array_start, incidence_array_end, [&](const size_t pos) {
+      const HypernodeID pin = _incidence_array[pos];
+      removeIncidentEdgeFromHypernode(he, pin);
+    });
+    disableHyperedge(he);
   }
 
-  void restoreLargeEdge(const HyperedgeID&) {
-    ERROR("restoreLargeEdge(e) is not supported in dynamic hypergraph");
+  /*!
+   * Restores a large hyperedge previously removed from the hypergraph.
+   */
+  void restoreLargeEdge(const HyperedgeID& he) {
+    ASSERT(!edgeIsEnabled(he), "Hyperedge" << he << "is enabled");
+    enableHyperedge(he);
+    const size_t incidence_array_start = hyperedge(he).firstEntry();
+    const size_t incidence_array_end = hyperedge(he).firstInvalidEntry();
+    tbb::parallel_for(incidence_array_start, incidence_array_end, [&](const size_t pos) {
+      const HypernodeID pin = _incidence_array[pos];
+      coneectHypernodeWithIncidentEdge(he, pin);
+    });
   }
 
   // ####################### Initialization / Reset Functions #######################
@@ -898,6 +935,37 @@ class DynamicHypergraph {
   // ! To avoid code duplication we implement non-const version in terms of const version
   KAHYPAR_ATTRIBUTE_ALWAYS_INLINE Hyperedge& hyperedge(const HyperedgeID e) {
     return const_cast<Hyperedge&>(static_cast<const DynamicHypergraph&>(*this).hyperedge(e));
+  }
+
+  // ####################### Remove / Restore Hyperedges #######################
+
+  // ! Removes hyperedge e from the incident nets of vertex hn
+  KAHYPAR_ATTRIBUTE_ALWAYS_INLINE void removeIncidentEdgeFromHypernode(const HyperedgeID e,
+                                                                       const HypernodeID u) {
+    using std::swap;
+    ASSERT(!hypernode(u).isDisabled(), "Hypernode" << u << "is disabled");
+
+    parallel::scalable_vector<HyperedgeID>& incident_nets_of_u = _incident_nets[u];
+    size_t pos = 0;
+    for ( ; pos < incident_nets_of_u.size(); ++pos ) {
+      if ( incident_nets_of_u[pos] == e ) {
+        break;
+      }
+    }
+    ASSERT(pos < incident_nets_of_u.size());
+    swap(incident_nets_of_u[pos], incident_nets_of_u.back());
+    incident_nets_of_u.pop_back();
+  }
+
+  // ! Inserts hyperedge he to incident nets array of vertex hn
+  KAHYPAR_ATTRIBUTE_ALWAYS_INLINE void coneectHypernodeWithIncidentEdge(const HyperedgeID e,
+                                                                        const HypernodeID u) {
+    using std::swap;
+    ASSERT(!hypernode(u).isDisabled(), "Hypernode" << u << "is disabled");
+    parallel::scalable_vector<HyperedgeID>& incident_nets_of_u = _incident_nets[u];
+    HEAVY_REFINEMENT_ASSERT(std::count(incident_nets_of_u.cbegin(), incident_nets_of_u.cend(), e) == 0,
+                        "HN" << u << "is already connected to HE" << e);
+    incident_nets_of_u.push_back(e);
   }
 
   // ! Number of hypernodes

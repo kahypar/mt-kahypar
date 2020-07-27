@@ -357,6 +357,46 @@ TEST_F(ADynamicHypergraph, CanIterateOverThePinsOfASpecificCommunityInAHyperedge
     { {6}, {5, 6} });
 }
 
+TEST_F(ADynamicHypergraph, RemovesAHyperedgeFromTheHypergraph1) {
+  hypergraph.removeEdge(0);
+  verifyIncidentNets(0, { 1 });
+  verifyIncidentNets(2, { 3 });
+  for ( const HyperedgeID& he : hypergraph.edges() ) {
+    ASSERT_NE(0, he);
+  }
+}
+
+TEST_F(ADynamicHypergraph, RemovesAHyperedgeFromTheHypergraph2) {
+  hypergraph.removeEdge(1);
+  verifyIncidentNets(0, { 0 });
+  verifyIncidentNets(1, { });
+  verifyIncidentNets(3, { 2 });
+  verifyIncidentNets(4, { 2 });
+  for ( const HyperedgeID& he : hypergraph.edges() ) {
+    ASSERT_NE(1, he);
+  }
+}
+
+TEST_F(ADynamicHypergraph, RemovesAHyperedgeFromTheHypergraph3) {
+  hypergraph.removeEdge(2);
+  verifyIncidentNets(3, { 1 });
+  verifyIncidentNets(4, { 1 });
+  verifyIncidentNets(6, { 3 });
+  for ( const HyperedgeID& he : hypergraph.edges() ) {
+    ASSERT_NE(2, he);
+  }
+}
+
+TEST_F(ADynamicHypergraph, RemovesAHyperedgeFromTheHypergraph4) {
+  hypergraph.removeEdge(3);
+  verifyIncidentNets(2, { 0 });
+  verifyIncidentNets(5, { });
+  verifyIncidentNets(6, { 2 });
+  for ( const HyperedgeID& he : hypergraph.edges() ) {
+    ASSERT_NE(3, he);
+  }
+}
+
 TEST_F(ADynamicHypergraph, ComparesStatsIfCopiedParallel) {
   DynamicHypergraph copy_hg = hypergraph.copy(TBBNumaArena::GLOBAL_TASK_GROUP);
   ASSERT_EQ(hypergraph.initialNumNodes(), copy_hg.initialNumNodes());
