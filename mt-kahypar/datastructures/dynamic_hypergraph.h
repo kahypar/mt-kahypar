@@ -55,11 +55,13 @@ class DynamicHypergraph {
     using IDType = HypernodeID;
 
     Hypernode() :
+      _size(0),
       _weight(1),
       _community_id(0),
       _valid(false) { }
 
     Hypernode(const bool valid) :
+      _size(),
       _weight(1),
       _community_id(0),
       _valid(valid) { }
@@ -76,6 +78,25 @@ class DynamicHypergraph {
     void disable() {
       ASSERT(!isDisabled());
       _valid = false;
+    }
+
+    size_t size() const {
+      ASSERT(!isDisabled());
+      return _size;
+    }
+
+    void setSize(const size_t size) {
+      _size = size;
+    }
+
+    void decrementSize() {
+      ASSERT(!isDisabled());
+      --_size;
+    }
+
+    void incrementSize() {
+      ASSERT(!isDisabled());
+      ++_size;
     }
 
     HyperedgeWeight weight() const {
@@ -99,6 +120,8 @@ class DynamicHypergraph {
     }
 
    private:
+    // ! Number of incident nets
+    size_t _size;
     // ! Hypernode weight
     HyperedgeWeight _weight;
     // ! Community id
@@ -502,7 +525,7 @@ class DynamicHypergraph {
   IteratorRange<IncidentNetsIterator> incidentEdges(const HypernodeID u) const {
     ASSERT(!hypernode(u).isDisabled(), "Hypernode" << u << "is disabled");
     return IteratorRange<IncidentNetsIterator>(
-      _incident_nets[u].cbegin(), _incident_nets[u].cend());
+      _incident_nets[u].cbegin(), _incident_nets[u].cbegin() + hypernode(u).size());
   }
 
   // ! Returns a range to loop over the pins of hyperedge e.
@@ -542,7 +565,7 @@ class DynamicHypergraph {
   // ! Degree of a hypernode
   HyperedgeID nodeDegree(const HypernodeID u) const {
     ASSERT(!hypernode(u).isDisabled(), "Hypernode" << u << "is disabled");
-    return _incident_nets[u].size();
+    return hypernode(u).size();
   }
 
   // ! Returns, whether a hypernode is enabled or not
@@ -752,7 +775,7 @@ class DynamicHypergraph {
     const size_t incidence_array_end = hyperedge(he).firstInvalidEntry();
     tbb::parallel_for(incidence_array_start, incidence_array_end, [&](const size_t pos) {
       const HypernodeID pin = _incidence_array[pos];
-      coneectHypernodeWithIncidentEdge(he, pin);
+      connectHypernodeWithIncidentEdge(he, pin);
     });
   }
 
@@ -954,11 +977,11 @@ class DynamicHypergraph {
     }
     ASSERT(pos < incident_nets_of_u.size());
     swap(incident_nets_of_u[pos], incident_nets_of_u.back());
-    incident_nets_of_u.pop_back();
+    hypernode(u).decrementSize();
   }
 
   // ! Inserts hyperedge he to incident nets array of vertex hn
-  KAHYPAR_ATTRIBUTE_ALWAYS_INLINE void coneectHypernodeWithIncidentEdge(const HyperedgeID e,
+  KAHYPAR_ATTRIBUTE_ALWAYS_INLINE void connectHypernodeWithIncidentEdge(const HyperedgeID e,
                                                                         const HypernodeID u) {
     using std::swap;
     ASSERT(!hypernode(u).isDisabled(), "Hypernode" << u << "is disabled");
@@ -966,6 +989,7 @@ class DynamicHypergraph {
     HEAVY_REFINEMENT_ASSERT(std::count(incident_nets_of_u.cbegin(), incident_nets_of_u.cend(), e) == 0,
                         "HN" << u << "is already connected to HE" << e);
     incident_nets_of_u.push_back(e);
+    hypernode(u).incrementSize();
   }
 
   // ! Number of hypernodes
