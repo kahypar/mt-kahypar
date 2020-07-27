@@ -32,7 +32,7 @@ namespace ds {
 
 using HyperGraph = StaticHypergraph;
 using Factory = StaticHypergraphFactory;
-using AGraph = HypergraphFixture;
+using AGraph = HypergraphFixture<HyperGraph, Factory>;
 using Graph = GraphT<HyperGraph>;
 
 void verifyArcIterator(const Graph& graph,

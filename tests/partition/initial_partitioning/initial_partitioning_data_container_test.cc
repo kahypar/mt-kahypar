@@ -25,6 +25,8 @@
 #include "tbb/parallel_invoke.h"
 
 #include "tests/datastructures/hypergraph_fixtures.h"
+#include "mt-kahypar/datastructures/static_hypergraph.h"
+#include "mt-kahypar/datastructures/static_hypergraph_factory.h"
 #include "mt-kahypar/utils/timer.h"
 #include "mt-kahypar/partition/initial_partitioning/flat/initial_partitioning_data_container.h"
 
@@ -32,9 +34,10 @@ using ::testing::Test;
 
 namespace mt_kahypar {
 
-class AInitialPartitioningDataContainer : public ds::HypergraphFixture{
+class AInitialPartitioningDataContainer : public ds::HypergraphFixture<ds::StaticHypergraph,
+                                                                       ds::StaticHypergraphFactory> {
  private:
-  using Base = ds::HypergraphFixture;
+  using Base = ds::HypergraphFixture<ds::StaticHypergraph, ds::StaticHypergraphFactory>;
 
  public:
   AInitialPartitioningDataContainer() :

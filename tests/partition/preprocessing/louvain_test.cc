@@ -30,9 +30,10 @@ using ::testing::Test;
 
 namespace mt_kahypar {
 
-class ALouvain : public ds::HypergraphFixture {
+class ALouvain : public ds::HypergraphFixture<ds::StaticHypergraph,
+                                              ds::StaticHypergraphFactory> {
 
-  using Base = ds::HypergraphFixture;
+ using Base = ds::HypergraphFixture<ds::StaticHypergraph, ds::StaticHypergraphFactory>;
 
  public:
   using Graph = ds::GraphT<ds::StaticHypergraph>;

@@ -620,21 +620,6 @@ class StaticHypergraph {
       _incident_nets.cbegin() + hn.firstInvalidEntry());
   }
 
-  // ! Returns a range to loop over all active multi-pin hyperedges of hypernode u.
-  IteratorRange<IncidentNetsIterator> multiPinIncidentEdges(const HypernodeID, const PartitionID) const {
-    ERROR("multiPinIncidentEdges(u,c) is not supported in static hypergraph");
-    return IteratorRange<IncidentNetsIterator>(
-      _incident_nets.cend(), _incident_nets.cend());
-  }
-
-  // ! Returns a range to loop over the set of all active incident
-  // ! hyperedges of hypernode u that are not single-pin community hyperedges.
-  IteratorRange<IncidentNetsIterator> activeIncidentEdges(const HypernodeID, const PartitionID) const {
-    ERROR("activeIncidentEdges(u,c) is not supported in static hypergraph");
-    return IteratorRange<IncidentNetsIterator>(
-      _incident_nets.cend(), _incident_nets.cend());
-  }
-
   // ! Returns a range to loop over the pins of hyperedge e.
   IteratorRange<IncidenceIterator> pins(const HyperedgeID e) const {
     ASSERT(!hyperedge(e).isDisabled(), "Hyperedge" << e << "is disabled");
@@ -673,18 +658,6 @@ class StaticHypergraph {
   HyperedgeID nodeDegree(const HypernodeID u) const {
     ASSERT(!hypernode(u).isDisabled(), "Hypernode" << u << "is disabled");
     return hypernode(u).size();
-  }
-
-  // ! Number of invalid incident nets
-  HyperedgeID numInvalidIncidentNets(const HypernodeID) const {
-    ERROR("numInvalidIncidentNets(u) is not supported in static hypergraph");
-    return kInvalidHyperedge;
-  }
-
-  // ! Contraction index of the vertex in the contraction hierarchy
-  HypernodeID contractionIndex(const HypernodeID) const {
-    ERROR("contractionIndex(u) is not supported in static hypergraph");
-    return kInvalidHypernode;
   }
 
   // ! Returns, whether a hypernode is enabled or not

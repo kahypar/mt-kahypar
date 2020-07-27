@@ -1,5 +1,6 @@
 add_gmock_test(graph_test graph_test.cc)
 add_gmock_test(static_hypergraph_test static_hypergraph_test.cc)
+add_gmock_test(dynamic_hypergraph_test dynamic_hypergraph_test.cc)
 add_gmock_test(partitioned_hypergraph_test partitioned_hypergraph_test.cc)
 add_gmock_test(delta_partitioned_hypergraph_test delta_partitioned_hypergraph_test.cc)
 add_gmock_test(partitioned_hypergraph_smoke_test partitioned_hypergraph_smoke_test.cc)
