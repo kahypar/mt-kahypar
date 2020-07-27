@@ -482,6 +482,10 @@ class StaticHypergraph {
   }
 
   ~StaticHypergraph() {
+    if ( _tmp_contraction_buffer ) {
+      delete(_tmp_contraction_buffer);
+      _tmp_contraction_buffer = nullptr;
+    }
     freeInternalData();
   }
 
