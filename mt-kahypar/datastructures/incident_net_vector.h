@@ -52,10 +52,12 @@ class IncidentNetVector : public parallel::scalable_vector<T> {
   static constexpr bool debug = false;
   using Base = parallel::scalable_vector<T>;
 
-  template<typename BaseIterator>
-  class IncidentNetIterator : public std::iterator<std::random_access_iterator_tag, T> {
+  template<typename V,
+           typename BaseIterator,
+           typename IncidentNetVectorType>
+  class IncidentNetIterator : public std::iterator<std::random_access_iterator_tag, V> {
 
-    using Base = std::iterator<std::random_access_iterator_tag, T>;
+    using Base = std::iterator<std::random_access_iterator_tag, V>;
 
     public:
       using value_type = typename Base::value_type;
@@ -63,7 +65,7 @@ class IncidentNetVector : public parallel::scalable_vector<T> {
       using pointer = typename Base::pointer;
       using difference_type = typename Base::difference_type;
 
-      IncidentNetIterator(BaseIterator it, IncidentNetVector* vec) :
+      IncidentNetIterator(BaseIterator it, IncidentNetVectorType* vec) :
         _it(it),
         _vec(vec) {
         ++_vec->_ref_count;
@@ -186,12 +188,12 @@ class IncidentNetVector : public parallel::scalable_vector<T> {
 
     private:
       BaseIterator _it;
-      IncidentNetVector* _vec;
+      IncidentNetVectorType* _vec;
   };
 
  public:
-  using iterator        = IncidentNetIterator<typename Base::iterator>;
-  using const_iterator  = const IncidentNetIterator<typename Base::const_iterator>;
+  using iterator        = IncidentNetIterator<T, typename Base::iterator, IncidentNetVector>;
+  using const_iterator  = const IncidentNetIterator<const T, typename Base::const_iterator, const IncidentNetVector>;
 
   IncidentNetVector() :
     Base(),
@@ -208,6 +210,17 @@ class IncidentNetVector : public parallel::scalable_vector<T> {
     _rw_mutex(),
     _ref_count(0) {  }
 
+  IncidentNetVector(IncidentNetVector&& other) :
+    Base(std::move(other)),
+    _rw_mutex(),
+    _ref_count(0) { }
+
+  IncidentNetVector & operator=(IncidentNetVector&& other) {
+    _rw_mutex = std::shared_timed_mutex();
+    _ref_count = parallel::IntegralAtomicWrapper(0);
+    Base::operator=(std::move(other));
+    return *this;
+  }
 
   void bulk_insert(const parallel::scalable_vector<T>& values) {
     std::lock_guard<std::shared_timed_mutex> unique_lock(_rw_mutex);
@@ -225,7 +238,7 @@ class IncidentNetVector : public parallel::scalable_vector<T> {
     return iterator(Base::begin(), this);
   }
 
-  const_iterator cbegin() {
+  const_iterator cbegin() const {
     std::shared_lock<std::shared_timed_mutex> read_lock(_rw_mutex);
     return const_iterator(Base::cbegin(), this);
   }
@@ -235,7 +248,7 @@ class IncidentNetVector : public parallel::scalable_vector<T> {
     return iterator(Base::end(), this);
   }
 
-  const_iterator cend() {
+  const_iterator cend() const {
     std::shared_lock<std::shared_timed_mutex> read_lock(_rw_mutex);
     return const_iterator(Base::cend(), this);
   }
@@ -247,9 +260,9 @@ class IncidentNetVector : public parallel::scalable_vector<T> {
 
  private:
   // ! Read-Write lock to protect iterators from bulk inserts
-  std::shared_timed_mutex _rw_mutex;
+  mutable std::shared_timed_mutex _rw_mutex;
   // ! Number of active iterators
-  parallel::IntegralAtomicWrapper<size_t> _ref_count;
+  mutable parallel::IntegralAtomicWrapper<size_t> _ref_count;
 };
 }  // namespace ds
 }  // namespace mt_kahypar

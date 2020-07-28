@@ -30,7 +30,7 @@
 
 #include "mt-kahypar/datastructures/community_support.h"
 #include "mt-kahypar/datastructures/hypergraph_common.h"
-#include "mt-kahypar/datastructures/array.h"
+#include "mt-kahypar/datastructures/incident_net_vector.h"
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
 
 namespace mt_kahypar {
@@ -324,7 +324,7 @@ class DynamicHypergraph {
   static_assert(std::is_trivially_copyable<Hyperedge>::value, "Hyperedge is not trivially copyable");
 
   using IncidenceArray = Array<HypernodeID>;
-  using IncidentNets = parallel::scalable_vector<parallel::scalable_vector<HyperedgeID>>;
+  using IncidentNets = parallel::scalable_vector<IncidentNetVector<HyperedgeID>>;
 
  public:
   static constexpr bool is_static_hypergraph = true;
@@ -339,7 +339,7 @@ class DynamicHypergraph {
   // ! Iterator to iterate over the pins of a hyperedge
   using IncidenceIterator = typename IncidenceArray::const_iterator;
   // ! Iterator to iterate over the incident nets of a hypernode
-  using IncidentNetsIterator = typename parallel::scalable_vector<HyperedgeID>::const_iterator;
+  using IncidentNetsIterator = typename IncidentNetVector<HyperedgeID>::const_iterator;
   // ! Iterator to iterate over the set of communities contained in a hyperedge
   using CommunityIterator = typename CommunitySupport<StaticHypergraph>::CommunityIterator;
 
@@ -907,11 +907,7 @@ class DynamicHypergraph {
   // ! Free internal data in parallel
   void freeInternalData() {
     if ( _num_hypernodes > 0 || _num_hyperedges > 0 ) {
-      tbb::parallel_invoke([&] {
-        _community_support.freeInternalData();
-      }, [&] {
-        parallel::parallel_free(_incident_nets);
-      });
+      _community_support.freeInternalData();
     }
     _num_hypernodes = 0;
     _num_hyperedges = 0;
