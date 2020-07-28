@@ -38,7 +38,13 @@ namespace mt_kahypar {
 namespace ds {
 
 /**
+ * Special vector that allows to perform bulk inserts and concurrently iterate over
+ * the vector without invalidating pointers. Each iterator increments a reference count
+ * and bulk insert is only allowed if corresponding thread hold a unique lock and that
+ * reference counter is equal to zero.
  *
+ * Note, that this data structure supports all operation of a std::vector, but they are not
+ * thread-safe and should be used carefully.
  */
 template <typename T>
 class IncidentNetVector : public parallel::scalable_vector<T> {
@@ -46,23 +52,140 @@ class IncidentNetVector : public parallel::scalable_vector<T> {
   static constexpr bool debug = false;
   using Base = parallel::scalable_vector<T>;
 
-  using base_iterator = typename Base::iterator;
-
   template<typename BaseIterator>
-  class IncidentNetIterator : public BaseIterator {
+  class IncidentNetIterator : public std::iterator<std::random_access_iterator_tag, T> {
+
+    using Base = std::iterator<std::random_access_iterator_tag, T>;
 
     public:
+      using value_type = typename Base::value_type;
+      using reference = typename Base::reference;
+      using pointer = typename Base::pointer;
+      using difference_type = typename Base::difference_type;
+
       IncidentNetIterator(BaseIterator it, IncidentNetVector* vec) :
-        BaseIterator(it),
+        _it(it),
         _vec(vec) {
         ++_vec->_ref_count;
       }
 
+      IncidentNetIterator(const IncidentNetIterator& other) :
+        _it(other._it),
+        _vec(other._vec) {
+        ++_vec->_ref_count;
+      }
+
+      IncidentNetIterator & operator= (const IncidentNetIterator & other) {
+        _it = other._it;
+        _vec = other._vec;
+        return *this;
+      }
+
+      IncidentNetIterator(IncidentNetIterator&& other) :
+        _it(std::move(other._it)),
+        _vec(other._vec) {
+        other._vec = nullptr;
+      }
+
+      IncidentNetIterator & operator=(IncidentNetIterator&& other) {
+        _it = std::move(other._it);
+        _vec = other._vec;
+        other._vec = nullptr;
+        return *this;
+      }
+
       ~IncidentNetIterator() {
-        --_vec->_ref_count;
+        if ( _vec ) {
+          --_vec->_ref_count;
+        }
+      }
+
+      reference operator*() const {
+        return *_it;
+      }
+
+      pointer operator->() const {
+        return _it;
+      }
+
+      IncidentNetIterator& operator++() {
+        ++_it;
+        return *this;
+      }
+
+      IncidentNetIterator& operator--() {
+        --_it;
+        return *this;
+      }
+
+      IncidentNetIterator operator++(int) {
+        IncidentNetIterator tmp_it(_it, _vec);
+        ++_it;
+        return tmp_it;
+      }
+
+      IncidentNetIterator operator--(int) {
+        IncidentNetIterator tmp_it(_it, _vec);
+        --_it;
+        return tmp_it;
+      }
+
+      IncidentNetIterator operator+(const difference_type& n) const {
+        return IncidentNetIterator(_it + n, _vec);
+      }
+
+      IncidentNetIterator& operator+=(const difference_type& n) {
+        _it += n;
+        return *this;
+      }
+
+      IncidentNetIterator operator-(const difference_type& n) const {
+        return IncidentNetIterator(_it - n, _vec);
+      }
+
+      IncidentNetIterator& operator-=(const difference_type& n) {
+        _it -= n;
+        return *this;
+      }
+
+      reference operator[](const difference_type& n) const {
+        return *_it[n];
+      }
+
+      bool operator==(const IncidentNetIterator& other) const {
+        return _it == other._it;
+      }
+
+      bool operator!=(const IncidentNetIterator& other) const {
+        return _it != other._it;
+      }
+
+      bool operator<(const IncidentNetIterator& other) const {
+        return _it < other._it;
+      }
+
+      bool operator>(const IncidentNetIterator& other) const {
+        return _it > other._it;
+      }
+
+      bool operator<=(const IncidentNetIterator& other) const {
+        return _it <= other._it;
+      }
+
+      bool operator>=(const IncidentNetIterator& other) const {
+        return _it >= other._it;
+      }
+
+      difference_type operator+(const IncidentNetIterator& other) const {
+        return ( _it + other._it );
+      }
+
+      difference_type operator-(const IncidentNetIterator& other) const {
+        return (_it - other._it);
       }
 
     private:
+      BaseIterator _it;
       IncidentNetVector* _vec;
   };
 
@@ -102,7 +225,7 @@ class IncidentNetVector : public parallel::scalable_vector<T> {
     return iterator(Base::begin(), this);
   }
 
-  const_iterator cbegin() const {
+  const_iterator cbegin() {
     std::shared_lock<std::shared_timed_mutex> read_lock(_rw_mutex);
     return const_iterator(Base::cbegin(), this);
   }
@@ -112,9 +235,14 @@ class IncidentNetVector : public parallel::scalable_vector<T> {
     return iterator(Base::end(), this);
   }
 
-  const_iterator cend() const {
+  const_iterator cend() {
     std::shared_lock<std::shared_timed_mutex> read_lock(_rw_mutex);
     return const_iterator(Base::cend(), this);
+  }
+
+  // ! Only for testing
+  size_t active_iterators() const {
+    return _ref_count;
   }
 
  private:
