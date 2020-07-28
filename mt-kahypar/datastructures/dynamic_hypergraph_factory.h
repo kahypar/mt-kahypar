@@ -97,7 +97,6 @@ class DynamicHypergraphFactory {
       tbb::parallel_for(ID(0), num_hypernodes, [&](const size_t pos) {
         num_incident_nets_per_vertex[pos] += c[pos];
         if ( allocate_incident_nets ) {
-          hypergraph.hypernode(pos).setSize(num_incident_nets_per_vertex[pos]);
           hypergraph._incident_nets[pos].resize(num_incident_nets_per_vertex[pos]);
         }
       });
