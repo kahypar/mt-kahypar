@@ -302,6 +302,7 @@ class DynamicHypergraph {
 
   using IncidenceArray = Array<HypernodeID>;
   using IncidentNets = parallel::scalable_vector<IncidentNetVector<HyperedgeID>>;
+  using OwnershipVector = parallel::scalable_vector<parallel::IntegralAtomicWrapper<bool>>;
 
  public:
   static constexpr bool is_static_hypergraph = true;
@@ -320,6 +321,7 @@ class DynamicHypergraph {
   // ! Iterator to iterate over the set of communities contained in a hyperedge
   using CommunityIterator = typename CommunitySupport<StaticHypergraph>::CommunityIterator;
 
+
   explicit DynamicHypergraph() :
     _num_hypernodes(0),
     _num_removed_hypernodes(0),
@@ -331,8 +333,10 @@ class DynamicHypergraph {
     _total_weight(0),
     _hypernodes(),
     _incident_nets(),
+    _acquired_hns(),
     _hyperedges(),
     _incidence_array(),
+    _acquired_hes(),
     _community_support() { }
 
   DynamicHypergraph(const DynamicHypergraph&) = delete;
@@ -349,8 +353,10 @@ class DynamicHypergraph {
     _total_weight(other._total_weight),
     _hypernodes(std::move(other._hypernodes)),
     _incident_nets(std::move(other._incident_nets)),
+    _acquired_hns(std::move(other._acquired_hns)),
     _hyperedges(std::move(other._hyperedges)),
     _incidence_array(std::move(other._incidence_array)),
+    _acquired_hes(std::move(other._acquired_hes)),
     _community_support(std::move(other._community_support)) { }
 
   DynamicHypergraph & operator= (DynamicHypergraph&& other) {
@@ -364,8 +370,10 @@ class DynamicHypergraph {
     _total_weight = other._total_weight;
     _hypernodes = std::move(other._hypernodes);
     _incident_nets = std::move(other._incident_nets);
+    _acquired_hns = std::move(other._acquired_hns);
     _hyperedges = std::move(other._hyperedges);
     _incidence_array = std::move(other._incidence_array);
+    _acquired_hes = std::move(other._acquired_hes);
     _community_support = std::move(other._community_support);
     return *this;
   }
@@ -827,8 +835,10 @@ class DynamicHypergraph {
         sizeof(Hypernode) * _hypernodes.size());
     }, [&] {
       hypergraph._incident_nets.resize(_incident_nets.size());
+      hypergraph._acquired_hns.resize(_num_hypernodes);
       tbb::parallel_for(ID(0), _num_hypernodes, [&](const HypernodeID& hn) {
         hypergraph._incident_nets[hn].resize(_incident_nets[hn].size());
+        hypergraph._acquired_hns[hn] = _acquired_hns[hn];
         memcpy(hypergraph._incident_nets[hn].data(), _incident_nets[hn].data(),
           sizeof(HyperedgeID) * _incident_nets[hn].size());
       });
@@ -840,6 +850,11 @@ class DynamicHypergraph {
       hypergraph._incidence_array.resize(_incidence_array.size());
       memcpy(hypergraph._incidence_array.data(), _incidence_array.data(),
         sizeof(HypernodeID) * _incidence_array.size());
+    }, [&] {
+      hypergraph._acquired_hes.resize(_num_hyperedges);
+      tbb::parallel_for(ID(0), _num_hyperedges, [&](const HyperedgeID& he) {
+        hypergraph._acquired_hes[he] = _acquired_hes[he];
+      });
     }, [&] {
       hypergraph._community_support = _community_support.copy(task_group_id);
     });
@@ -863,8 +878,10 @@ class DynamicHypergraph {
     memcpy(hypergraph._hypernodes.data(), _hypernodes.data(),
       sizeof(Hypernode) * _hypernodes.size());
     hypergraph._incident_nets.resize(_incident_nets.size());
+    hypergraph._acquired_hns.resize(_num_hypernodes);
     for ( HypernodeID hn = 0; hn < _num_hypernodes; ++hn ) {
       hypergraph._incident_nets[hn].resize(_incident_nets[hn].size());
+      hypergraph._acquired_hns[hn] = _acquired_hns[hn];
       memcpy(hypergraph._incident_nets[hn].data(), _incident_nets[hn].data(),
         sizeof(HyperedgeID) * _incident_nets[hn].size());
     }
@@ -875,6 +892,10 @@ class DynamicHypergraph {
     hypergraph._incidence_array.resize(_incidence_array.size());
     memcpy(hypergraph._incidence_array.data(), _incidence_array.data(),
       sizeof(HypernodeID) * _incidence_array.size());
+    hypergraph._acquired_hes.resize(_num_hyperedges);
+    for ( HyperedgeID he = 0; he < _num_hyperedges; ++he ) {
+      hypergraph._acquired_hes[he] = _acquired_hes[he];
+    }
 
     hypergraph._community_support = _community_support.copy();
 
@@ -895,8 +916,10 @@ class DynamicHypergraph {
 
     parent->addChild("Hypernodes", sizeof(Hypernode) * _hypernodes.size());
     parent->addChild("Incident Nets", sizeof(HyperedgeID) * _incidence_array.size());
+    parent->addChild("Hypernode Ownership Vector", sizeof(bool) * _acquired_hns.size());
     parent->addChild("Hyperedges", sizeof(Hyperedge) * _hyperedges.size());
     parent->addChild("Incidence Array", sizeof(HypernodeID) * _incidence_array.size());
+    parent->addChild("Hyperedge Ownership Vector", sizeof(bool) * _acquired_hes.size());
 
     utils::MemoryTreeNode* community_support_node = parent->addChild("Community Support");
     _community_support.memoryConsumption(community_support_node);
@@ -906,6 +929,52 @@ class DynamicHypergraph {
   friend class DynamicHypergraphFactory;
   template<typename Hypergraph>
   friend class CommunitySupport;
+
+  // ####################### Acquiring / Releasing Ownership #######################
+
+  KAHYPAR_ATTRIBUTE_ALWAYS_INLINE void acquireHypernode(const HypernodeID u) {
+    ASSERT(u < _num_hypernodes, "Hypernode" << u << "does not exist");
+    bool expected = false;
+    bool desired = true;
+    while ( !_acquired_hns[u].compare_exchange_strong(expected, desired) ) {
+      expected = false;
+    }
+  }
+
+  KAHYPAR_ATTRIBUTE_ALWAYS_INLINE bool tryAcquireHypernode(const HypernodeID u) {
+    ASSERT(u < _num_hypernodes, "Hypernode" << u << "does not exist");
+    bool expected = false;
+    bool desired = true;
+    return _acquired_hns[u].compare_exchange_strong(expected, desired);
+  }
+
+  KAHYPAR_ATTRIBUTE_ALWAYS_INLINE void releaseHypernode(const HypernodeID u) {
+    ASSERT(u < _num_hypernodes, "Hypernode" << u << "does not exist");
+    ASSERT(_acquired_hns[u], "Hypernode" << u << "is not acquired!");
+    _acquired_hns[u] = false;
+  }
+
+  KAHYPAR_ATTRIBUTE_ALWAYS_INLINE void acquireHyperedge(const HyperedgeID e) {
+    ASSERT(e < _num_hyperedges, "Hyperedge" << e << "does not exist");
+    bool expected = false;
+    bool desired = true;
+    while ( !_acquired_hes[e].compare_exchange_strong(expected, desired) ) {
+      expected = false;
+    }
+  }
+
+  KAHYPAR_ATTRIBUTE_ALWAYS_INLINE bool tryAcquireHyperedge(const HyperedgeID e) {
+    ASSERT(e < _num_hyperedges, "Hyperedge" << e << "does not exist");
+    bool expected = false;
+    bool desired = true;
+    return _acquired_hes[e].compare_exchange_strong(expected, desired);
+  }
+
+  KAHYPAR_ATTRIBUTE_ALWAYS_INLINE void releaseHyperedge(const HyperedgeID e) {
+    ASSERT(e < _num_hyperedges, "Hyperedge" << e << "does not exist");
+    ASSERT(_acquired_hes[e], "Hyperedge" << e << "is not acquired!");
+    _acquired_hes[e] = false;
+  }
 
   // ####################### Hypernode Information #######################
 
@@ -985,13 +1054,18 @@ class DynamicHypergraph {
   Array<Hypernode> _hypernodes;
   // ! Pins of hyperedges
   IncidentNets _incident_nets;
+  // ! Atomic bool vector used to acquire unique ownership of hypernodes
+  OwnershipVector _acquired_hns;
   // ! Hyperedges
   Array<Hyperedge> _hyperedges;
   // ! Incident nets of hypernodes
   IncidenceArray _incidence_array;
+  // ! Atomic bool vector used to acquire unique ownership of hyperedges
+  OwnershipVector _acquired_hes;
 
   // ! Community Information and Stats
   CommunitySupport<DynamicHypergraph> _community_support;
+
 };
 
 } // namespace ds

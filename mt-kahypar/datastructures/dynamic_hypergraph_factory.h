@@ -119,6 +119,8 @@ class DynamicHypergraphFactory {
     hypergraph._incidence_array.resize(hypergraph._num_pins);
 
     tbb::parallel_invoke([&] {
+      hypergraph._acquired_hes.assign(
+        num_hyperedges, parallel::IntegralAtomicWrapper<bool>(false));
       tbb::parallel_for(ID(0), num_hyperedges, [&](const size_t pos) {
         // Setup hyperedges
         DynamicHypergraph::Hyperedge& hyperedge = hypergraph._hyperedges[pos];
@@ -147,6 +149,8 @@ class DynamicHypergraphFactory {
         hyperedge.hash() = hash;
       });
     }, [&] {
+      hypergraph._acquired_hns.assign(
+        num_hypernodes, parallel::IntegralAtomicWrapper<bool>(false));
       tbb::parallel_for(ID(0), num_hypernodes, [&](const size_t pos) {
         // Setup hypernodes
         DynamicHypergraph::Hypernode& hypernode = hypergraph._hypernodes[pos];
