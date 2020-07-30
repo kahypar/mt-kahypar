@@ -149,14 +149,22 @@ class DynamicHypergraphFactory {
         hyperedge.hash() = hash;
       });
     }, [&] {
-      hypergraph._acquired_hns.assign(
-        num_hypernodes, parallel::IntegralAtomicWrapper<bool>(false));
-      tbb::parallel_for(ID(0), num_hypernodes, [&](const size_t pos) {
+      tbb::parallel_invoke([&] {
+        hypergraph._acquired_hns.assign(
+          num_hypernodes, parallel::IntegralAtomicWrapper<bool>(false));
+      }, [&] {
+        hypergraph._hn_ref_count.assign(
+          num_hypernodes, parallel::IntegralAtomicWrapper<HypernodeID>(0));
+      }, [&] {
+        hypergraph._contraction_tree.assign(num_hypernodes, kInvalidHypernode);
+      });
+      tbb::parallel_for(ID(0), num_hypernodes, [&](const HypernodeID hn) {
         // Setup hypernodes
-        DynamicHypergraph::Hypernode& hypernode = hypergraph._hypernodes[pos];
+        DynamicHypergraph::Hypernode& hypernode = hypergraph._hypernodes[hn];
+        hypergraph._contraction_tree[hn] = hn;
         hypernode.enable();
         if ( hypernode_weight ) {
-          hypernode.setWeight(hypernode_weight[pos]);
+          hypernode.setWeight(hypernode_weight[hn]);
         }
       });
     }, [&] {

@@ -303,6 +303,7 @@ class DynamicHypergraph {
   using IncidenceArray = Array<HypernodeID>;
   using IncidentNets = parallel::scalable_vector<IncidentNetVector<HyperedgeID>>;
   using OwnershipVector = parallel::scalable_vector<parallel::IntegralAtomicWrapper<bool>>;
+  using ReferenceCountVector = parallel::scalable_vector<parallel::IntegralAtomicWrapper<HypernodeID>>;
 
  public:
   static constexpr bool is_static_hypergraph = true;
@@ -334,6 +335,8 @@ class DynamicHypergraph {
     _hypernodes(),
     _incident_nets(),
     _acquired_hns(),
+    _hn_ref_count(),
+    _contraction_tree(),
     _hyperedges(),
     _incidence_array(),
     _acquired_hes(),
@@ -354,6 +357,8 @@ class DynamicHypergraph {
     _hypernodes(std::move(other._hypernodes)),
     _incident_nets(std::move(other._incident_nets)),
     _acquired_hns(std::move(other._acquired_hns)),
+    _hn_ref_count(std::move(other._hn_ref_count)),
+    _contraction_tree(std::move(other._contraction_tree)),
     _hyperedges(std::move(other._hyperedges)),
     _incidence_array(std::move(other._incidence_array)),
     _acquired_hes(std::move(other._acquired_hes)),
@@ -371,6 +376,8 @@ class DynamicHypergraph {
     _hypernodes = std::move(other._hypernodes);
     _incident_nets = std::move(other._incident_nets);
     _acquired_hns = std::move(other._acquired_hns);
+    _hn_ref_count = std::move(other._hn_ref_count);
+    _contraction_tree = std::move(other._contraction_tree);
     _hyperedges = std::move(other._hyperedges);
     _incidence_array = std::move(other._incidence_array);
     _acquired_hes = std::move(other._acquired_hes);
@@ -834,14 +841,24 @@ class DynamicHypergraph {
       memcpy(hypergraph._hypernodes.data(), _hypernodes.data(),
         sizeof(Hypernode) * _hypernodes.size());
     }, [&] {
-      hypergraph._incident_nets.resize(_incident_nets.size());
-      hypergraph._acquired_hns.resize(_num_hypernodes);
+      tbb::parallel_invoke([&] {
+        hypergraph._incident_nets.resize(_incident_nets.size());
+      }, [&] {
+        hypergraph._acquired_hns.resize(_acquired_hns.size());
+      }, [&] {
+        hypergraph._hn_ref_count.resize(_hn_ref_count.size());
+      });
       tbb::parallel_for(ID(0), _num_hypernodes, [&](const HypernodeID& hn) {
         hypergraph._incident_nets[hn].resize(_incident_nets[hn].size());
         hypergraph._acquired_hns[hn] = _acquired_hns[hn];
+        hypergraph._hn_ref_count[hn] = _hn_ref_count[hn];
         memcpy(hypergraph._incident_nets[hn].data(), _incident_nets[hn].data(),
           sizeof(HyperedgeID) * _incident_nets[hn].size());
       });
+    }, [&] {
+      hypergraph._contraction_tree.resize(_contraction_tree.size());
+      memcpy(hypergraph._contraction_tree.data(), _contraction_tree.data(),
+        sizeof(HypernodeID) * _contraction_tree.size());
     }, [&] {
       hypergraph._hyperedges.resize(_hyperedges.size());
       memcpy(hypergraph._hyperedges.data(), _hyperedges.data(),
@@ -879,13 +896,17 @@ class DynamicHypergraph {
       sizeof(Hypernode) * _hypernodes.size());
     hypergraph._incident_nets.resize(_incident_nets.size());
     hypergraph._acquired_hns.resize(_num_hypernodes);
+    hypergraph._hn_ref_count.resize(_num_hypernodes);
     for ( HypernodeID hn = 0; hn < _num_hypernodes; ++hn ) {
       hypergraph._incident_nets[hn].resize(_incident_nets[hn].size());
       hypergraph._acquired_hns[hn] = _acquired_hns[hn];
+      hypergraph._hn_ref_count[hn] = _hn_ref_count[hn];
       memcpy(hypergraph._incident_nets[hn].data(), _incident_nets[hn].data(),
         sizeof(HyperedgeID) * _incident_nets[hn].size());
     }
-
+    hypergraph._contraction_tree.resize(_contraction_tree.size());
+    memcpy(hypergraph._contraction_tree.data(), _contraction_tree.data(),
+      sizeof(HypernodeID) * _contraction_tree.size());
     hypergraph._hyperedges.resize(_hyperedges.size());
     memcpy(hypergraph._hyperedges.data(), _hyperedges.data(),
       sizeof(Hyperedge) * _hyperedges.size());
@@ -917,6 +938,8 @@ class DynamicHypergraph {
     parent->addChild("Hypernodes", sizeof(Hypernode) * _hypernodes.size());
     parent->addChild("Incident Nets", sizeof(HyperedgeID) * _incidence_array.size());
     parent->addChild("Hypernode Ownership Vector", sizeof(bool) * _acquired_hns.size());
+    parent->addChild("Hypernode Reference Counts", sizeof(HypernodeID) * _hn_ref_count.size());
+    parent->addChild("Contraction Tree", sizeof(HypernodeID) * _contraction_tree.size());
     parent->addChild("Hyperedges", sizeof(Hyperedge) * _hyperedges.size());
     parent->addChild("Incidence Array", sizeof(HypernodeID) * _incidence_array.size());
     parent->addChild("Hyperedge Ownership Vector", sizeof(bool) * _acquired_hes.size());
@@ -1056,6 +1079,12 @@ class DynamicHypergraph {
   IncidentNets _incident_nets;
   // ! Atomic bool vector used to acquire unique ownership of hypernodes
   OwnershipVector _acquired_hns;
+  // ! Indicates how many contractions are currently registered on a hypernode
+  ReferenceCountVector _hn_ref_count;
+  // ! Tracks the contraction tree of the hypergraph
+  parallel::scalable_vector<HypernodeID> _contraction_tree;
+
+
   // ! Hyperedges
   Array<Hyperedge> _hyperedges;
   // ! Incident nets of hypernodes
