@@ -153,6 +153,7 @@ TEST(AIncidentVector, BulkInsertInParallel2) {
   ASSERT_EQ(0, vec.active_iterators());
 }
 
+#ifndef KAHYPAR_TRAVIS_BUILD
 TEST(AIncidentVector, BulkInsertWhileIteratorsAreActive) {
   IncidentNetVector<int> vec;
   std::atomic<size_t> cnt(0);
@@ -181,6 +182,7 @@ TEST(AIncidentVector, BulkInsertWhileIteratorsAreActive) {
   });
   ASSERT_EQ(0, vec.active_iterators());
 }
+#endif
 
 }  // namespace ds
 }  // namespace mt_kahypar
