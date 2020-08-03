@@ -30,7 +30,6 @@
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/partition/partitioner.h"
 
-#include "mt-kahypar/utils/profiler.h"
 #include "mt-kahypar/utils/randomize.h"
 #include "mt-kahypar/utils/timer.h"
 
@@ -71,27 +70,15 @@ int main(int argc, char* argv[]) {
   // Initialize Memory Pool
   mt_kahypar::register_memory_pool(hypergraph, context);
 
-  if ( context.partition.enable_profiler ) {
-    mt_kahypar::utils::Profiler::instance(context.partition.snapshot_interval).start();
-  }
-
   // Partition Hypergraph
   mt_kahypar::HighResClockTimepoint start = std::chrono::high_resolution_clock::now();
   mt_kahypar::PartitionedHypergraph partitioned_hypergraph = mt_kahypar::partition::Partitioner(context).partition(hypergraph);
   mt_kahypar::HighResClockTimepoint end = std::chrono::high_resolution_clock::now();
 
-  if ( context.partition.enable_profiler ) {
-    mt_kahypar::utils::Profiler::instance().stop();
-  }
-
   // Print Stats
   std::chrono::duration<double> elapsed_seconds(end - start);
   mt_kahypar::io::printPartitioningResults(
     partitioned_hypergraph, context, elapsed_seconds);
-
-  if ( context.partition.enable_profiler ) {
-    std::cout << mt_kahypar::utils::Profiler::instance() << std::endl;
-  }
 
   if ( context.partition.sp_process_output ) {
     std::cout << mt_kahypar::io::serializer::serialize(

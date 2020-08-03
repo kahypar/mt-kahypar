@@ -80,10 +80,6 @@ po::options_description createGeneralOptionsDescription(Context& context, const 
     "If true, shows detailed information on how much memory was allocated and how memory was reused throughout partitioning.")
     ("enable-progress-bar", po::value<bool>(&context.partition.enable_progress_bar)->value_name("<bool>")->default_value(false),
     "If true, shows a progress bar during coarsening and refinement phase.")
-    ("enable-profiler", po::value<bool>(&context.partition.enable_profiler)->value_name("<bool>")->default_value(false),
-    "If true, shows detailed information on CPU utilization for each multilevel phase at the end of the partitioning process.")
-    ("profiler-snapshot-interval", po::value<int>(&context.partition.snapshot_interval)->value_name("<int>")->default_value(100),
-    "Interval in milliseconds for which profiler takes a snapshot of system stats")
     ("time-limit", po::value<int>(&context.partition.time_limit)->value_name("<int>"),
     "Time limit in seconds (currently not supported)")
     ("sp-process,s", po::value<bool>(&context.partition.sp_process_output)->value_name("<bool>")->default_value(false),

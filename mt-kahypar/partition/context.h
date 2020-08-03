@@ -52,7 +52,6 @@ struct PartitioningParameters {
   bool csv_output = false;
   bool write_partition_file = true;
 
-  bool enable_profiler = false;
   int snapshot_interval = std::numeric_limits<int>::max();
 
   std::string graph_filename { };
