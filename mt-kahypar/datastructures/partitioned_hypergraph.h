@@ -48,8 +48,6 @@ private:
   static_assert(!Hypergraph::is_partitioned,  "Only unpartitioned hypergraphs are allowed");
 
   using AtomicFlag = parallel::IntegralAtomicWrapper<bool>;
-  template<typename T>
-  using ThreadLocalVector = tbb::enumerable_thread_specific<parallel::scalable_vector<T>>;
 
   // ! Function that will be called for each incident hyperedge of a moved vertex with the following arguments
   // !  1) hyperedge ID, 2) weight, 3) size, 4) pin count in from-block after move, 5) pin count in to-block after move
