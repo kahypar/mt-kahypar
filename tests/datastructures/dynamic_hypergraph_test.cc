@@ -935,5 +935,241 @@ TEST_F(ADynamicHypergraph, RegisterContractionsThatInducesACycleInParallel3) {
   }
 }
 
+
+using MementoVector = parallel::scalable_vector<Memento>;
+
+void assertEqual(MementoVector actual, MementoVector expected) {
+  auto compare = [&](const Memento& lhs, const Memento& rhs) {
+    return lhs.u < rhs.u || (lhs.u == rhs.u && lhs.v < rhs.v);
+  };
+  std::sort(actual.begin(), actual.end(), compare);
+  std::sort(expected.begin(), expected.end(), compare);
+
+  ASSERT_EQ(actual.size(), expected.size());
+  for ( size_t i = 0; i < actual.size(); ++i ) {
+    ASSERT_EQ(actual[i].u, expected[i].u);
+    ASSERT_EQ(actual[i].v, expected[i].v);
+  }
+}
+
+bool assertEqualToOneAlternative(MementoVector actual,
+                                 MementoVector alternative_1,
+                                 MementoVector alternative_2) {
+  auto compare = [&](const Memento& lhs, const Memento& rhs) {
+    return lhs.u < rhs.u || (lhs.u == rhs.u && lhs.v < rhs.v);
+  };
+  std::sort(actual.begin(), actual.end(), compare);
+  std::sort(alternative_1.begin(), alternative_1.end(), compare);
+  std::sort(alternative_2.begin(), alternative_2.end(), compare);
+
+  bool equal_to_alternative_1 = actual.size() == alternative_1.size();
+  bool equal_to_alternative_2 = actual.size() == alternative_2.size();
+  if ( equal_to_alternative_1 ) {
+    for ( size_t i = 0; i < actual.size(); ++i ) {
+      equal_to_alternative_1 = equal_to_alternative_1 &&
+        actual[i].u == alternative_1[i].u && actual[i].v == alternative_1[i].v;
+    }
+  }
+
+  if ( equal_to_alternative_2 ) {
+    for ( size_t i = 0; i < actual.size(); ++i ) {
+      equal_to_alternative_2 = equal_to_alternative_2 &&
+        actual[i].u == alternative_2[i].u && actual[i].v == alternative_2[i].v;
+    }
+  }
+
+  const size_t num_equal = UI64(equal_to_alternative_1) + UI64(equal_to_alternative_2);
+  if ( num_equal == 1 ) {
+    return true;
+  } else {
+    return false;
+  }
+}
+
+TEST_F(ADynamicHypergraph, PerformsAContraction1) {
+  ASSERT_TRUE(hypergraph.registerContraction(1, 0));
+  assertEqual(hypergraph.contract(0), { Memento { 1, 0 } });
+
+  ASSERT_FALSE(hypergraph.nodeIsEnabled(0));
+  ASSERT_EQ(2, hypergraph.nodeWeight(1));
+  ASSERT_EQ(0, hypergraph.referenceCount(1));
+}
+
+TEST_F(ADynamicHypergraph, PerformsAContraction2) {
+  ASSERT_TRUE(hypergraph.registerContraction(1, 0));
+  ASSERT_TRUE(hypergraph.registerContraction(2, 1));
+  assertEqual(hypergraph.contract(1), { });
+  assertEqual(hypergraph.contract(0), { Memento { 1, 0 },  Memento { 2, 1 } });
+
+  ASSERT_FALSE(hypergraph.nodeIsEnabled(0));
+  ASSERT_FALSE(hypergraph.nodeIsEnabled(1));
+  ASSERT_EQ(3, hypergraph.nodeWeight(2));
+  ASSERT_EQ(0, hypergraph.referenceCount(2));
+}
+
+TEST_F(ADynamicHypergraph, PerformsAContraction3) {
+  ASSERT_TRUE(hypergraph.registerContraction(2, 0));
+  ASSERT_TRUE(hypergraph.registerContraction(2, 1));
+  ASSERT_TRUE(hypergraph.registerContraction(3, 2));
+
+  assertEqual(hypergraph.contract(1), { Memento { 2, 1 } });
+  ASSERT_FALSE(hypergraph.nodeIsEnabled(1));
+  ASSERT_EQ(2, hypergraph.nodeWeight(2));
+  ASSERT_EQ(1, hypergraph.referenceCount(2));
+
+  assertEqual(hypergraph.contract(0), { Memento { 2, 0 },  Memento { 3, 2 } });
+  ASSERT_FALSE(hypergraph.nodeIsEnabled(0));
+  ASSERT_FALSE(hypergraph.nodeIsEnabled(2));
+  ASSERT_EQ(4, hypergraph.nodeWeight(3));
+  ASSERT_EQ(0, hypergraph.referenceCount(3));
+}
+
+TEST_F(ADynamicHypergraph, PerformsAContraction4) {
+  ASSERT_TRUE(hypergraph.registerContraction(2, 0));
+  ASSERT_TRUE(hypergraph.registerContraction(2, 1));
+  ASSERT_TRUE(hypergraph.registerContraction(3, 2));
+  ASSERT_TRUE(hypergraph.registerContraction(3, 4));
+
+  assertEqual(hypergraph.contract(1), { Memento { 2, 1 } });
+  assertEqual(hypergraph.contract(4), { Memento { 3, 4 } });
+  ASSERT_FALSE(hypergraph.nodeIsEnabled(1));
+  ASSERT_FALSE(hypergraph.nodeIsEnabled(4));
+  ASSERT_EQ(2, hypergraph.nodeWeight(2));
+  ASSERT_EQ(2, hypergraph.nodeWeight(3));
+  ASSERT_EQ(1, hypergraph.referenceCount(2));
+  ASSERT_EQ(1, hypergraph.referenceCount(3));
+
+  assertEqual(hypergraph.contract(0), { Memento { 2, 0 },  Memento { 3, 2 } });
+  ASSERT_FALSE(hypergraph.nodeIsEnabled(0));
+  ASSERT_FALSE(hypergraph.nodeIsEnabled(2));
+  ASSERT_EQ(5, hypergraph.nodeWeight(3));
+  ASSERT_EQ(0, hypergraph.referenceCount(3));
+}
+
+TEST_F(ADynamicHypergraph, PerformsAContraction5) {
+  ASSERT_TRUE(hypergraph.registerContraction(2, 0));
+  ASSERT_TRUE(hypergraph.registerContraction(2, 1));
+  ASSERT_TRUE(hypergraph.registerContraction(3, 2));
+  ASSERT_TRUE(hypergraph.registerContraction(3, 4));
+  ASSERT_TRUE(hypergraph.registerContraction(6, 3));
+
+  assertEqual(hypergraph.contract(1), { Memento { 2, 1 } });
+  assertEqual(hypergraph.contract(4), { Memento { 3, 4 } });
+  assertEqual(hypergraph.contract(0), { Memento { 2, 0 },  Memento { 3, 2 }, Memento { 6, 3 } });
+  ASSERT_EQ(6, hypergraph.nodeWeight(6));
+}
+
+TEST_F(ADynamicHypergraph, PerformsAContractionWithWeightGreaterThanMaxNodeWeight1) {
+  ASSERT_TRUE(hypergraph.registerContraction(1, 0));
+  ASSERT_EQ(1, hypergraph.contractionTree(0));
+  ASSERT_EQ(1, hypergraph.referenceCount(1));
+  assertEqual(hypergraph.contract(0, 1), { });
+  ASSERT_TRUE(hypergraph.nodeIsEnabled(0));
+  ASSERT_TRUE(hypergraph.nodeIsEnabled(1));
+  ASSERT_EQ(0, hypergraph.contractionTree(0));
+  ASSERT_EQ(0, hypergraph.referenceCount(1));
+}
+
+TEST_F(ADynamicHypergraph, PerformsAContractionWithWeightGreaterThanMaxNodeWeight2) {
+  ASSERT_TRUE(hypergraph.registerContraction(1, 0));
+  assertEqual(hypergraph.contract(0, 2), { Memento { 1, 0 } });
+
+  ASSERT_TRUE(hypergraph.registerContraction(2, 1));
+  ASSERT_TRUE(hypergraph.registerContraction(3, 2));
+  ASSERT_EQ(2, hypergraph.contractionTree(1));
+  ASSERT_EQ(3, hypergraph.contractionTree(2));
+  ASSERT_EQ(1, hypergraph.referenceCount(2));
+  ASSERT_EQ(1, hypergraph.referenceCount(3));
+  assertEqual(hypergraph.contract(1, 2), { Memento { 3, 2 } });
+  ASSERT_EQ(1, hypergraph.contractionTree(1));
+  ASSERT_EQ(0, hypergraph.referenceCount(3));
+}
+
+TEST_F(ADynamicHypergraph, PerformAContractionsInParallel1) {
+  ASSERT_TRUE(hypergraph.registerContraction(2, 0));
+  ASSERT_TRUE(hypergraph.registerContraction(2, 1));
+  executeParallel([&] {
+    assertEqual(hypergraph.contract(0), { Memento { 2, 0 } });
+  }, [&] {
+    assertEqual(hypergraph.contract(1), { Memento { 2, 1 } });
+  });
+  ASSERT_FALSE(hypergraph.nodeIsEnabled(0));
+  ASSERT_FALSE(hypergraph.nodeIsEnabled(1));
+  ASSERT_EQ(3, hypergraph.nodeWeight(2));
+  ASSERT_EQ(0, hypergraph.referenceCount(2));
+}
+
+TEST_F(ADynamicHypergraph, PerformAContractionsInParallel2) {
+  ASSERT_TRUE(hypergraph.registerContraction(2, 0));
+  ASSERT_TRUE(hypergraph.registerContraction(2, 1));
+  ASSERT_TRUE(hypergraph.registerContraction(3, 2));
+  MementoVector mementos_1;
+  MementoVector mementos_2;
+  executeParallel([&] {
+    mementos_1 = hypergraph.contract(0);
+    ASSERT_TRUE(
+      assertEqualToOneAlternative(
+        mementos_1,
+        { Memento { 2, 0 } },
+        { Memento { 2, 0 }, Memento { 3, 2 } }));
+  }, [&] {
+    mementos_2 = hypergraph.contract(1);
+    ASSERT_TRUE(
+      assertEqualToOneAlternative(
+        mementos_2,
+        { Memento { 2, 1 } },
+        { Memento { 2, 1 }, Memento { 3, 2 } }));
+  });
+  MementoVector mementos;
+  mementos.insert(mementos.end(), mementos_1.begin(), mementos_1.end());
+  mementos.insert(mementos.end(), mementos_2.begin(), mementos_2.end());
+  assertEqual(mementos, { Memento { 2, 0 }, Memento { 2, 1 }, Memento { 3, 2 } });
+  ASSERT_FALSE(hypergraph.nodeIsEnabled(0));
+  ASSERT_FALSE(hypergraph.nodeIsEnabled(1));
+  ASSERT_FALSE(hypergraph.nodeIsEnabled(2));
+  ASSERT_EQ(4, hypergraph.nodeWeight(3));
+  ASSERT_EQ(0, hypergraph.referenceCount(3));
+}
+
+TEST_F(ADynamicHypergraph, PerformAContractionsInParallel3) {
+  ASSERT_TRUE(hypergraph.registerContraction(2, 0));
+  ASSERT_TRUE(hypergraph.registerContraction(2, 1));
+  ASSERT_TRUE(hypergraph.registerContraction(3, 2));
+  ASSERT_TRUE(hypergraph.registerContraction(3, 4));
+  ASSERT_TRUE(hypergraph.registerContraction(6, 3));
+  MementoVector mementos_1;
+  MementoVector mementos_2;
+  std::atomic<size_t> cnt(2);
+  executeParallel([&] {
+    mementos_1 = hypergraph.contract(0);
+    ASSERT_TRUE(
+      assertEqualToOneAlternative(
+        mementos_1,
+        { Memento { 2, 0 } },
+        { Memento { 2, 0 }, Memento { 3, 2 } }));
+    ++cnt;
+  }, [&] {
+    mementos_2 = hypergraph.contract(1);
+    ASSERT_TRUE(
+      assertEqualToOneAlternative(
+        mementos_2,
+        { Memento { 2, 1 } },
+        { Memento { 2, 1 }, Memento { 3, 2 } }));
+    ++cnt;
+    while ( cnt < 2 ) { }
+    assertEqual(hypergraph.contract(4), { Memento { 3, 4 }, Memento { 6, 3 } });
+  });
+  MementoVector mementos;
+  mementos.insert(mementos.end(), mementos_1.begin(), mementos_1.end());
+  mementos.insert(mementos.end(), mementos_2.begin(), mementos_2.end());
+  assertEqual(mementos, { Memento { 2, 0 }, Memento { 2, 1 }, Memento { 3, 2 } });
+  ASSERT_FALSE(hypergraph.nodeIsEnabled(0));
+  ASSERT_FALSE(hypergraph.nodeIsEnabled(1));
+  ASSERT_FALSE(hypergraph.nodeIsEnabled(2));
+  ASSERT_FALSE(hypergraph.nodeIsEnabled(3));
+  ASSERT_FALSE(hypergraph.nodeIsEnabled(4));
+  ASSERT_EQ(6, hypergraph.nodeWeight(6));
+  ASSERT_EQ(0, hypergraph.referenceCount(6));
+}
 } // namespace ds
 } // namespace mt_kahypar

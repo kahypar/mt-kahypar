@@ -361,6 +361,7 @@ class StaticHypergraph {
 
   using IncidenceArray = Array<HypernodeID>;
   using IncidentNets = Array<HyperedgeID>;
+  using MementoVector = parallel::scalable_vector<Memento>;
 
   // ! Contains buffers that are needed during multilevel contractions.
   // ! Struct is allocated on top level hypergraph and passed to each contracted
@@ -400,7 +401,6 @@ class StaticHypergraph {
     Array<size_t> he_sizes;
     Array<size_t> valid_hyperedges;
   };
-
 
  public:
   static constexpr bool is_static_hypergraph = true;
@@ -1293,6 +1293,17 @@ class StaticHypergraph {
     hypergraph._tmp_contraction_buffer = _tmp_contraction_buffer;
     _tmp_contraction_buffer = nullptr;
     return hypergraph;
+  }
+
+  bool registerContraction(const HypernodeID, const HypernodeID) {
+    ERROR("registerContraction(u, v) is not supported in static hypergraph");
+    return false;
+  }
+
+  MementoVector contract(const HypernodeID,
+                         const HypernodeWeight max_node_weight = std::numeric_limits<HypernodeWeight>::max()) {
+    unused(max_node_weight);
+    ERROR("contract(v, max_node_weight) is not supported in static hypergraph");
   }
 
   // ####################### Remove / Restore Hyperedges #######################

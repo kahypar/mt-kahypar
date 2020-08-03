@@ -79,7 +79,6 @@ class DynamicHypergraph {
     }
 
     HyperedgeWeight weight() const {
-      ASSERT(!isDisabled());
       return _weight;
     }
 
@@ -300,10 +299,17 @@ class DynamicHypergraph {
   static_assert(std::is_trivially_copyable<Hypernode>::value, "Hypernode is not trivially copyable");
   static_assert(std::is_trivially_copyable<Hyperedge>::value, "Hyperedge is not trivially copyable");
 
+  enum class ContractionResult : uint8_t {
+    CONTRACTED = 0,
+    PENDING_CONTRACTIONS = 1,
+    WEIGHT_LIMIT_REACHED = 2
+  };
+
   using IncidenceArray = Array<HypernodeID>;
   using IncidentNets = parallel::scalable_vector<IncidentNetVector<HyperedgeID>>;
   using OwnershipVector = parallel::scalable_vector<parallel::IntegralAtomicWrapper<bool>>;
   using ReferenceCountVector = parallel::scalable_vector<HypernodeID>;
+  using MementoVector = parallel::scalable_vector<Memento>;
 
  public:
   static constexpr bool is_static_hypergraph = true;
@@ -816,6 +822,37 @@ class DynamicHypergraph {
     }
   }
 
+  /**!
+   * Contracts a previously registered contraction. Representative u of vertex v is looked up
+   * in the contraction tree and performed if there are no pending contractions in the subtree
+   * of v and the contractions respects the maximum allowed node weight. If (u,v) is the last
+   * pending contraction in the subtree of u then the function recursively contracts also
+   * u (if any contraction is registered). Therefore, function can return several contractions
+   * or also return an empty contraction vector.
+   */
+  MementoVector contract(const HypernodeID v,
+                         const HypernodeWeight max_node_weight = std::numeric_limits<HypernodeWeight>::max()) {
+    ASSERT(_contraction_tree[v] != v, "No contraction registered for hypernode" << v);
+
+    MementoVector mementos;
+    HypernodeID x = _contraction_tree[v];
+    HypernodeID y = v;
+    ContractionResult res = ContractionResult::CONTRACTED;
+    // We perform all contractions registered in the contraction tree
+    // as long as there are no pending contractions (_hn_ref_count[y] == 0
+    // is equivalent with no pending contractions)
+    while ( x != y && res != ContractionResult::PENDING_CONTRACTIONS) {
+      // Perform Contraction
+      res = contract(x, y, max_node_weight);
+      if ( res == ContractionResult::CONTRACTED ) {
+        mementos.emplace_back(Memento { x, y });
+      }
+      y = x;
+      x = _contraction_tree[y];
+    }
+    return mementos;
+  }
+
   // ! Only for testing
   HypernodeID contractionTree(const HypernodeID u) const {
     ASSERT(!hypernode(u).isDisabled(), "Hypernode" << u << "is disabled");
@@ -1139,6 +1176,63 @@ class DynamicHypergraph {
   // ! To avoid code duplication we implement non-const version in terms of const version
   KAHYPAR_ATTRIBUTE_ALWAYS_INLINE Hyperedge& hyperedge(const HyperedgeID e) {
     return const_cast<Hyperedge&>(static_cast<const DynamicHypergraph&>(*this).hyperedge(e));
+  }
+
+  // ####################### Contract / Uncontract #######################
+
+  /**!
+   * Contracts a previously registered contraction. The contraction of u and v is
+   * performed if there are no pending contractions in the subtree of v and the
+   * contractions respects the maximum allowed node weight. In case the contraction
+   * was performed successfully, enum type CONTRACTED is returned. If contraction
+   * was not performed either WEIGHT_LIMIT_REACHED (in case sum of both vertices is
+   * greater than the maximum allowed node weight) or PENDING_CONTRACTIONS (in case
+   * there are some unfinished contractions in the subtree of v) is returned.
+   */
+  ContractionResult contract(const HypernodeID u,
+                             const HypernodeID v,
+                             const HypernodeWeight max_node_weight) {
+
+    // Acquire ownership in correct order to prevent deadlocks
+    if ( u < v ) {
+      acquireHypernode(u);
+      acquireHypernode(v);
+    } else {
+      acquireHypernode(v);
+      acquireHypernode(u);
+    }
+
+    // Contraction is valid if
+    //  1.) Contraction partner v is enabled
+    //  2.) There are no pending contractions on v
+    //  3.) Resulting node weight is less or equal than a predefined upper bound
+    const bool contraction_partner_valid = nodeIsEnabled(v) && _hn_ref_count[v] == 0;
+    const bool less_or_equal_than_max_node_weight =
+      hypernode(u).weight() + hypernode(v).weight() <= max_node_weight;
+    if ( contraction_partner_valid && less_or_equal_than_max_node_weight ) {
+      ASSERT(nodeIsEnabled(u), "Hypernode" << u << "is disabled!");
+      hypernode(u).setWeight(nodeWeight(u) + nodeWeight(v));
+      hypernode(v).disable();
+      releaseHypernode(u);
+      releaseHypernode(v);
+
+      // [TODO] Perform contraction here
+
+      acquireHypernode(u);
+      --_hn_ref_count[u];
+      releaseHypernode(u);
+      return ContractionResult::CONTRACTED;
+    } else {
+      ContractionResult res = ContractionResult::PENDING_CONTRACTIONS;
+      if ( !less_or_equal_than_max_node_weight ) {
+        --_hn_ref_count[u];
+        _contraction_tree[v] = v;
+        res = ContractionResult::WEIGHT_LIMIT_REACHED;
+      }
+      releaseHypernode(u);
+      releaseHypernode(v);
+      return res;
+    }
   }
 
   // ####################### Remove / Restore Hyperedges #######################

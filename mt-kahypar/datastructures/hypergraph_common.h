@@ -78,6 +78,11 @@ struct Move {
   Gain gain = invalidGain;
 };
 
+struct Memento {
+  HypernodeID u; // representative
+  HypernodeID v; // contraction partner
+};
+
 using MoveID = uint32_t;
 using SearchID = uint32_t;
 
