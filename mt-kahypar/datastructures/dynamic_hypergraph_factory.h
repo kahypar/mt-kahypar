@@ -153,8 +153,7 @@ class DynamicHypergraphFactory {
         hypergraph._acquired_hns.assign(
           num_hypernodes, parallel::IntegralAtomicWrapper<bool>(false));
       }, [&] {
-        hypergraph._hn_ref_count.assign(
-          num_hypernodes, parallel::IntegralAtomicWrapper<HypernodeID>(0));
+        hypergraph._hn_ref_count.assign(num_hypernodes, 0);
       }, [&] {
         hypergraph._contraction_tree.assign(num_hypernodes, kInvalidHypernode);
       });
