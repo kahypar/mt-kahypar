@@ -207,7 +207,7 @@ class TBBNumaArena {
       arena.terminate();
     }
 
-    for (ThreadPinningObserver& observer : _observer) {
+    for (ThreadPinningObserver& observer : _observers) {
       observer.observe(false);
     }
 
@@ -228,7 +228,7 @@ class TBBNumaArena {
     _arenas(),
     _task_group_read_write_mutex(),
     _groups(1),
-    _observer(),
+    _observers(),
     _cpus(),
     _numa_node_to_cpu_id() {
     HwTopology& topology = HwTopology::instance();
@@ -236,7 +236,7 @@ class TBBNumaArena {
     DBG << "Initialize TBB with" << num_threads << "threads";
     _arenas.reserve(num_numa_nodes);
     // TODO(heuer): fix copy constructor of observer
-    _observer.reserve(num_numa_nodes);
+    _observers.reserve(num_numa_nodes);
 
     _cpus = topology.get_all_cpus();
     // Sort cpus in the following order
@@ -294,7 +294,7 @@ class TBBNumaArena {
       #endif
       _groups[GLOBAL_TASK_GROUP].emplace_back();
       _arenas.back().initialize();
-      _observer.emplace_back(_arenas.back(), node, cpus_on_numa_node);
+      _observers.emplace_back(_arenas.back(), node, cpus_on_numa_node);
     }
   }
 
@@ -304,7 +304,7 @@ class TBBNumaArena {
   std::vector<tbb::task_arena> _arenas;
   std::shared_timed_mutex _task_group_read_write_mutex;
   std::vector<NumaTaskGroups> _groups;
-  std::vector<ThreadPinningObserver> _observer;
+  std::vector<ThreadPinningObserver> _observers;
   std::vector<int> _cpus;
   std::vector<std::vector<int>> _numa_node_to_cpu_id;
 };
