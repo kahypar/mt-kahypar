@@ -172,6 +172,13 @@ class Timer {
     _is_enabled = false;
   }
 
+  void clear() {
+    std::lock_guard<std::mutex> lock(_timing_mutex);
+    _timings.clear();
+    _active_timings.clear();
+    _index = 0;
+  }
+
   void start_timer(const std::string& key,
                    const std::string& description,
                    bool is_parallel_context = false,

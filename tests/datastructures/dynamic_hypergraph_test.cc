@@ -26,6 +26,7 @@
 #include "tests/datastructures/hypergraph_fixtures.h"
 #include "mt-kahypar/datastructures/dynamic_hypergraph.h"
 #include "mt-kahypar/datastructures/dynamic_hypergraph_factory.h"
+#include "mt-kahypar/utils/randomize.h"
 
 namespace mt_kahypar {
 namespace ds {
@@ -1208,5 +1209,131 @@ TEST_F(ADynamicHypergraph, PerformAContractionsInParallel3) {
   verifyPins({ 0, 1, 2, 3 },
     { {6}, {6}, {6}, {5, 6} });
 }
+
+TEST_F(ADynamicHypergraph, ContractionSmokeTest) {
+  const HypernodeID num_hypernodes = 1000;
+  const HypernodeID num_hyperedges = 1000;
+  const HypernodeID max_edge_size = 30;
+  HypernodeID num_contractions = 900;
+  const bool show_timings = false;
+  const bool debug = false;
+
+  if ( debug ) LOG << "Generate Hypergraph";
+  parallel::scalable_vector<parallel::scalable_vector<HypernodeID>> hyperedges;
+  utils::Randomize& rand = utils::Randomize::instance();
+  for ( size_t i = 0; i < num_hyperedges; ++i ) {
+    parallel::scalable_vector<HypernodeID> net;
+    const size_t edge_size = rand.getRandomInt(2, max_edge_size, sched_getcpu());
+    for ( size_t i = 0; i < edge_size; ++i ) {
+      const HypernodeID pin = rand.getRandomInt(0, num_hypernodes - 1, sched_getcpu());
+      if ( std::find(net.begin(), net.end(), pin) == net.end() ) {
+        net.push_back(pin);
+      }
+    }
+    hyperedges.emplace_back(std::move(net));
+  }
+  DynamicHypergraph tmp_sequential_hg = DynamicHypergraphFactory::construct(
+    TBBNumaArena::GLOBAL_TASK_GROUP, num_hypernodes, num_hyperedges, hyperedges);
+  DynamicHypergraph sequential_hg = DynamicHypergraphFactory::construct(
+    TBBNumaArena::GLOBAL_TASK_GROUP, num_hypernodes, num_hyperedges, hyperedges);
+  DynamicHypergraph parallel_hg = DynamicHypergraphFactory::construct(
+    TBBNumaArena::GLOBAL_TASK_GROUP, num_hypernodes, num_hyperedges, hyperedges);
+
+  if ( debug ) LOG << "Determine random contractions";
+  parallel::scalable_vector<Memento> mementos;
+  while ( mementos.size() < num_contractions ) {
+    for ( const HypernodeID& u : tmp_sequential_hg.nodes() ) {
+      HypernodeID v = kInvalidHypernode;
+      for ( const HyperedgeID& he : tmp_sequential_hg.incidentEdges(u) ) {
+        for ( const HypernodeID& pin : tmp_sequential_hg.pins(he) ) {
+          if ( pin != u ) {
+            v = pin;
+            break;
+          }
+        }
+        if ( v != kInvalidHypernode ) {
+          break;
+        }
+      }
+
+      if ( v != kInvalidHypernode ) {
+        tmp_sequential_hg.registerContraction(u, v);
+        auto memento = tmp_sequential_hg.contract(v);
+        ASSERT_EQ(1, memento.size());
+        mementos.push_back(memento[0]);
+        if ( mementos.size() == num_contractions ) {
+          break;
+        }
+      }
+    }
+  }
+
+  if ( debug ) LOG << "Perform contractions sequentially";
+  utils::Timer::instance().clear();
+  utils::Timer::instance().start_timer("sequential_contractions", "Sequential Contractions");
+  for ( size_t i = 0; i < mementos.size(); ++i ) {
+    Memento& memento = mementos[i];
+    sequential_hg.registerContraction(memento.u, memento.v);
+    sequential_hg.contract(memento.v);
+  }
+  utils::Timer::instance().stop_timer("sequential_contractions");
+
+  if ( debug ) LOG << "Perform contractions in parallel";
+  utils::Timer::instance().start_timer("parallel_contractions", "Parallel Contractions");
+  tbb::parallel_for(0UL, mementos.size(), [&](const size_t i) {
+    Memento& memento = mementos[i];
+    parallel_hg.registerContraction(memento.u, memento.v);
+    parallel_hg.contract(memento.v);
+  });
+  utils::Timer::instance().stop_timer("parallel_contractions");
+
+  if ( debug ) LOG << "Verify incident edges of each hypernode";
+  parallel::scalable_vector<HyperedgeID> expected_incident_edges;
+  parallel::scalable_vector<HyperedgeID> actual_incident_edges;
+  for ( const HypernodeID& hn : sequential_hg.nodes() ) {
+    ASSERT_TRUE(parallel_hg.nodeIsEnabled(hn));
+    ASSERT_EQ(sequential_hg.nodeWeight(hn), parallel_hg.nodeWeight(hn));
+    ASSERT_EQ(sequential_hg.nodeDegree(hn), parallel_hg.nodeDegree(hn));
+    for ( const HyperedgeID he : sequential_hg.incidentEdges(hn) ) {
+      expected_incident_edges.push_back(he);
+    }
+    for ( const HyperedgeID he : parallel_hg.incidentEdges(hn) ) {
+      actual_incident_edges.push_back(he);
+    }
+    std::sort(expected_incident_edges.begin(), expected_incident_edges.end());
+    std::sort(actual_incident_edges.begin(), actual_incident_edges.end());
+    ASSERT_EQ(expected_incident_edges.size(), actual_incident_edges.size());
+    for ( size_t i = 0; i < expected_incident_edges.size(); ++i ) {
+      ASSERT_EQ(expected_incident_edges[i], actual_incident_edges[i]);
+    }
+    expected_incident_edges.clear();
+    actual_incident_edges.clear();
+  }
+
+  if ( debug ) LOG << "Verify pins of each hyperedge";
+  parallel::scalable_vector<HypernodeID> expected_pins;
+  parallel::scalable_vector<HypernodeID> actual_pins;
+  for ( const HyperedgeID& he : sequential_hg.edges() ) {
+    for ( const HyperedgeID he : sequential_hg.pins(he) ) {
+      expected_pins.push_back(he);
+    }
+    for ( const HyperedgeID he : parallel_hg.pins(he) ) {
+      actual_pins.push_back(he);
+    }
+    std::sort(expected_pins.begin(), expected_pins.end());
+    std::sort(actual_pins.begin(), actual_pins.end());
+    ASSERT_EQ(expected_pins.size(), actual_pins.size());
+    for ( size_t i = 0; i < expected_pins.size(); ++i ) {
+      ASSERT_EQ(expected_pins[i], actual_pins[i]);
+    }
+    expected_pins.clear();
+    actual_pins.clear();
+  }
+
+  if ( show_timings ) {
+    LOG << utils::Timer::instance(true);
+  }
+}
+
 } // namespace ds
 } // namespace mt_kahypar
