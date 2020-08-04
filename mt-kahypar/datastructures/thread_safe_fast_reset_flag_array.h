@@ -40,7 +40,7 @@ class ThreadSafeFastResetFlagArray {
 
   using UnderlyingType = CAtomic<Type>;
 
- public:
+  public:
   explicit ThreadSafeFastResetFlagArray(const size_t size) :
     _v(std::make_unique<UnderlyingType[]>(size)),
     _threshold(1),
