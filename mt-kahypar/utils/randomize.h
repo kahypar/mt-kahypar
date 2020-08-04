@@ -33,6 +33,27 @@
 
 namespace mt_kahypar {
 namespace utils {
+
+class UniformRandomSelector {
+public:
+  UniformRandomSelector(std::mt19937& rng) : rng(rng) { }
+
+  bool acceptElement() {
+    std::uniform_int_distribution<size_t> dist(0, counter);
+    counter++;
+    return (dist(rng) == 0);
+  }
+
+  void reset() {
+    counter = 0;
+  }
+
+private:
+  std::mt19937& rng;
+  size_t counter = 0;
+};
+
+
 class Randomize {
   static constexpr bool debug = false;
   static constexpr size_t PRECOMPUTED_FLIP_COINS = 128;
