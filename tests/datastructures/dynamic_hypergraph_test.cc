@@ -993,6 +993,10 @@ TEST_F(ADynamicHypergraph, PerformsAContraction1) {
   ASSERT_FALSE(hypergraph.nodeIsEnabled(0));
   ASSERT_EQ(2, hypergraph.nodeWeight(1));
   ASSERT_EQ(0, hypergraph.referenceCount(1));
+
+  verifyIncidentNets(1, {0, 1});
+  verifyPins({ 0, 1, 2, 3 },
+    { {1, 2}, {1, 3, 4}, {3, 4, 6}, {2, 5, 6} });
 }
 
 TEST_F(ADynamicHypergraph, PerformsAContraction2) {
@@ -1005,6 +1009,10 @@ TEST_F(ADynamicHypergraph, PerformsAContraction2) {
   ASSERT_FALSE(hypergraph.nodeIsEnabled(1));
   ASSERT_EQ(3, hypergraph.nodeWeight(2));
   ASSERT_EQ(0, hypergraph.referenceCount(2));
+
+  verifyIncidentNets(2, {0, 1, 3});
+  verifyPins({ 0, 1, 2, 3 },
+    { {2}, {2, 3, 4}, {3, 4, 6}, {2, 5, 6} });
 }
 
 TEST_F(ADynamicHypergraph, PerformsAContraction3) {
@@ -1022,6 +1030,10 @@ TEST_F(ADynamicHypergraph, PerformsAContraction3) {
   ASSERT_FALSE(hypergraph.nodeIsEnabled(2));
   ASSERT_EQ(4, hypergraph.nodeWeight(3));
   ASSERT_EQ(0, hypergraph.referenceCount(3));
+
+  verifyIncidentNets(3, {0, 1, 2, 3});
+  verifyPins({ 0, 1, 2, 3 },
+    { {3}, {3, 4}, {3, 4, 6}, {3, 5, 6} });
 }
 
 TEST_F(ADynamicHypergraph, PerformsAContraction4) {
@@ -1044,6 +1056,10 @@ TEST_F(ADynamicHypergraph, PerformsAContraction4) {
   ASSERT_FALSE(hypergraph.nodeIsEnabled(2));
   ASSERT_EQ(5, hypergraph.nodeWeight(3));
   ASSERT_EQ(0, hypergraph.referenceCount(3));
+
+  verifyIncidentNets(3, {0, 1, 2, 3});
+  verifyPins({ 0, 1, 2, 3 },
+    { {3}, {3}, {3, 6}, {3, 5, 6} });
 }
 
 TEST_F(ADynamicHypergraph, PerformsAContraction5) {
@@ -1057,6 +1073,10 @@ TEST_F(ADynamicHypergraph, PerformsAContraction5) {
   assertEqual(hypergraph.contract(4), { Memento { 3, 4 } });
   assertEqual(hypergraph.contract(0), { Memento { 2, 0 },  Memento { 3, 2 }, Memento { 6, 3 } });
   ASSERT_EQ(6, hypergraph.nodeWeight(6));
+
+  verifyIncidentNets(6, {0, 1, 2, 3});
+  verifyPins({ 0, 1, 2, 3 },
+    { {6}, {6}, {6}, {5, 6} });
 }
 
 TEST_F(ADynamicHypergraph, PerformsAContractionWithWeightGreaterThanMaxNodeWeight1) {
@@ -1083,6 +1103,11 @@ TEST_F(ADynamicHypergraph, PerformsAContractionWithWeightGreaterThanMaxNodeWeigh
   assertEqual(hypergraph.contract(1, 2), { Memento { 3, 2 } });
   ASSERT_EQ(1, hypergraph.contractionTree(1));
   ASSERT_EQ(0, hypergraph.referenceCount(3));
+
+  verifyIncidentNets(1, {0, 1});
+  verifyIncidentNets(3, {0, 1, 2, 3});
+  verifyPins({ 0, 1, 2, 3 },
+    { {1, 3}, {1, 3, 4}, {3, 4, 6}, {3, 5, 6} });
 }
 
 TEST_F(ADynamicHypergraph, PerformAContractionsInParallel1) {
@@ -1097,6 +1122,10 @@ TEST_F(ADynamicHypergraph, PerformAContractionsInParallel1) {
   ASSERT_FALSE(hypergraph.nodeIsEnabled(1));
   ASSERT_EQ(3, hypergraph.nodeWeight(2));
   ASSERT_EQ(0, hypergraph.referenceCount(2));
+
+  verifyIncidentNets(2, {0, 1, 3});
+  verifyPins({ 0, 1, 2, 3 },
+    { {2}, {2, 3, 4}, {3, 4, 6}, {2, 5, 6} });
 }
 
 TEST_F(ADynamicHypergraph, PerformAContractionsInParallel2) {
@@ -1129,6 +1158,10 @@ TEST_F(ADynamicHypergraph, PerformAContractionsInParallel2) {
   ASSERT_FALSE(hypergraph.nodeIsEnabled(2));
   ASSERT_EQ(4, hypergraph.nodeWeight(3));
   ASSERT_EQ(0, hypergraph.referenceCount(3));
+
+  verifyIncidentNets(3, {0, 1, 2, 3});
+  verifyPins({ 0, 1, 2, 3 },
+    { {3}, {3, 4}, {3, 4, 6}, {3, 5, 6} });
 }
 
 TEST_F(ADynamicHypergraph, PerformAContractionsInParallel3) {
@@ -1170,6 +1203,10 @@ TEST_F(ADynamicHypergraph, PerformAContractionsInParallel3) {
   ASSERT_FALSE(hypergraph.nodeIsEnabled(4));
   ASSERT_EQ(6, hypergraph.nodeWeight(6));
   ASSERT_EQ(0, hypergraph.referenceCount(6));
+
+  verifyIncidentNets(6, {0, 1, 2, 3});
+  verifyPins({ 0, 1, 2, 3 },
+    { {6}, {6}, {6}, {5, 6} });
 }
 } // namespace ds
 } // namespace mt_kahypar

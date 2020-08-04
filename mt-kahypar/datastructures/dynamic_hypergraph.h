@@ -41,6 +41,7 @@ class DynamicHypergraphFactory;
 
 class DynamicHypergraph {
 
+  static constexpr bool debug = false;
   static constexpr bool enable_heavy_assert = false;
 
   static_assert(std::is_unsigned<HypernodeID>::value, "Hypernode ID must be unsigned");
@@ -169,6 +170,11 @@ class DynamicHypergraph {
     void setSize(size_t size) {
       ASSERT(!isDisabled());
       _size = size;
+    }
+
+    void decrementSize() {
+      ASSERT(!isDisabled());
+      --_size;
     }
 
     HyperedgeWeight weight() const {
@@ -310,6 +316,7 @@ class DynamicHypergraph {
   using OwnershipVector = parallel::scalable_vector<parallel::IntegralAtomicWrapper<bool>>;
   using ReferenceCountVector = parallel::scalable_vector<HypernodeID>;
   using MementoVector = parallel::scalable_vector<Memento>;
+  using ThreadLocalHyperedgeVector = tbb::enumerable_thread_specific<parallel::scalable_vector<HyperedgeID>>;
 
  public:
   static constexpr bool is_static_hypergraph = true;
@@ -346,6 +353,8 @@ class DynamicHypergraph {
     _hyperedges(),
     _incidence_array(),
     _acquired_hes(),
+    _tmp_incident_nets(),
+    _failed_hyperedge_contractions(),
     _community_support() { }
 
   DynamicHypergraph(const DynamicHypergraph&) = delete;
@@ -368,6 +377,8 @@ class DynamicHypergraph {
     _hyperedges(std::move(other._hyperedges)),
     _incidence_array(std::move(other._incidence_array)),
     _acquired_hes(std::move(other._acquired_hes)),
+    _tmp_incident_nets(std::move(other._tmp_incident_nets)),
+    _failed_hyperedge_contractions(std::move(other._failed_hyperedge_contractions)),
     _community_support(std::move(other._community_support)) { }
 
   DynamicHypergraph & operator= (DynamicHypergraph&& other) {
@@ -387,6 +398,8 @@ class DynamicHypergraph {
     _hyperedges = std::move(other._hyperedges);
     _incidence_array = std::move(other._incidence_array);
     _acquired_hes = std::move(other._acquired_hes);
+    _tmp_incident_nets = std::move(other._tmp_incident_nets);
+    _failed_hyperedge_contractions = std::move(other._failed_hyperedge_contractions);
     _community_support = std::move(other._community_support);
     return *this;
   }
@@ -520,8 +533,9 @@ class DynamicHypergraph {
   }
 
   // ! Returns a range to loop over the incident nets of hypernode u.
-  IteratorRange<IncidentNetsIterator> incidentEdges(const HypernodeID u) const {
-    ASSERT(!hypernode(u).isDisabled(), "Hypernode" << u << "is disabled");
+  IteratorRange<IncidentNetsIterator> incidentEdges(const HypernodeID u, const bool is_disabled = false) const {
+    ASSERT(u < _num_hypernodes, "Hypernode" << u << "does not exist");
+    ASSERT(is_disabled || !hypernode(u).isDisabled(), "Hypernode" << u << "is disabled");
     return IteratorRange<IncidentNetsIterator>(
       _incident_nets[u].cbegin(), _incident_nets[u].cend());
   }
@@ -1216,7 +1230,34 @@ class DynamicHypergraph {
       releaseHypernode(u);
       releaseHypernode(v);
 
-      // [TODO] Perform contraction here
+      parallel::scalable_vector<HyperedgeID>& tmp_incident_nets = _tmp_incident_nets.local();
+      parallel::scalable_vector<HyperedgeID>& failed_hyperedge_contractions = _failed_hyperedge_contractions.local();
+      for ( const HyperedgeID& he : incidentEdges(v, true) ) {
+        // Try to acquire ownership of hyperedge. In case of success, we perform the
+        // contraction and otherwise, we remember the hyperedge and try later again.
+        if ( tryAcquireHyperedge(he) ) {
+          contractHyperedge(u, v, he, tmp_incident_nets);
+          releaseHyperedge(he);
+        } else {
+          failed_hyperedge_contractions.push_back(he);
+        }
+      }
+
+      // Perform contraction on which we failed to acquire ownership on the first try
+      for ( const HyperedgeID& he : failed_hyperedge_contractions ) {
+        acquireHyperedge(he);
+        contractHyperedge(u, v, he, tmp_incident_nets);
+        releaseHyperedge(he);
+      }
+
+      // tmp_incident_nets contains all hyperedges to which vertex u is
+      // adjacent after the contraction, we use a special insert function to make
+      // sure that iterators are not invalidated while inserting into the vector.
+      if ( tmp_incident_nets.size() > 0 ) {
+        _incident_nets[u].bulk_insert(tmp_incident_nets);
+      }
+      tmp_incident_nets.clear();
+      failed_hyperedge_contractions.clear();
 
       acquireHypernode(u);
       --_hn_ref_count[u];
@@ -1232,6 +1273,46 @@ class DynamicHypergraph {
       releaseHypernode(u);
       releaseHypernode(v);
       return res;
+    }
+  }
+
+  // ! Performs the contraction of (u,v) inside hyperedge he
+  KAHYPAR_ATTRIBUTE_ALWAYS_INLINE void contractHyperedge(const HypernodeID u, const HypernodeID v, const HyperedgeID he,
+                                                         parallel::scalable_vector<HyperedgeID>& tmp_incident_nets) {
+    Hyperedge& e = hyperedge(he);
+    const HypernodeID pins_begin = e.firstEntry();
+    const HypernodeID pins_end = e.firstInvalidEntry();
+    HypernodeID slot_of_u = pins_end - 1;
+    HypernodeID last_pin_slot = pins_end - 1;
+
+    for (HypernodeID idx = pins_begin; idx != last_pin_slot; ++idx) {
+      const HypernodeID pin = _incidence_array[idx];
+      if (pin == v) {
+        std::swap(_incidence_array[idx], _incidence_array[last_pin_slot]);
+        --idx;
+      } else if (pin == u) {
+        slot_of_u = idx;
+      }
+    }
+
+    ASSERT(_incidence_array[last_pin_slot] == v, "v is not last entry in adjacency array!");
+
+    if (slot_of_u != last_pin_slot) {
+      // Case 1:
+      // Hyperedge e contains both u and v. Thus we don't need to connect u to e and
+      // can just cut off the last entry in the edge array of e that now contains v.
+      DBG << V(he) << ": Case 1";
+      e.hash() -= kahypar::math::hash(v);
+      e.decrementSize();
+    } else {
+      DBG << V(he) << ": Case 2";
+      // Case 2:
+      // Hyperedge e does not contain u. Therefore we  have to connect e to the representative u.
+      // This reuses the pin slot of v in e's incidence array (i.e. last_pin_slot!)
+      e.hash() -= kahypar::math::hash(v);
+      e.hash() += kahypar::math::hash(u);
+      _incidence_array[last_pin_slot] = u;
+      tmp_incident_nets.push_back(he);
     }
   }
 
@@ -1301,6 +1382,10 @@ class DynamicHypergraph {
   IncidenceArray _incidence_array;
   // ! Atomic bool vector used to acquire unique ownership of hyperedges
   OwnershipVector _acquired_hes;
+  // ! Collects hyperedes that will be adjacent to a vertex after a contraction
+  ThreadLocalHyperedgeVector _tmp_incident_nets;
+  // ! Collects hyperedge contractions that failed due to failed acquired ownership
+  ThreadLocalHyperedgeVector _failed_hyperedge_contractions;
 
   // ! Community Information and Stats
   CommunitySupport<DynamicHypergraph> _community_support;
