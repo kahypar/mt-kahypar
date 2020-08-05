@@ -108,6 +108,43 @@ class DynamicHypergraph {
   };
 
   /**
+   * Represents a node in contraction tree and contains all information
+   * associated with that node.
+   */
+  class ContractionTreeNode {
+    public:
+      ContractionTreeNode() :
+        _parent(0),
+        _reference_count(0) { }
+
+      HypernodeID parent() const {
+        return _parent;
+      }
+
+      void setParent(const HypernodeID parent) {
+        _parent = parent;
+      }
+
+      HypernodeID referenceCount() const {
+        return _reference_count;
+      }
+
+      void incrementReferenceCount() {
+        ++_reference_count;
+      }
+
+      void decrementReferenceCount() {
+        --_reference_count;
+      }
+
+    private:
+      // ! Parent in the contraction tree
+      HypernodeID _parent;
+      // ! Number of active contractions
+      HypernodeID _reference_count;
+  };
+
+  /**
    * Represents a hyperedge of the hypergraph and contains all information
    * associated with a net (except connectivity information).
    */
@@ -303,6 +340,7 @@ class DynamicHypergraph {
   };
 
   static_assert(std::is_trivially_copyable<Hypernode>::value, "Hypernode is not trivially copyable");
+  static_assert(std::is_trivially_copyable<ContractionTreeNode>::value, "ContractionTreeNode is not trivially copyable");
   static_assert(std::is_trivially_copyable<Hyperedge>::value, "Hyperedge is not trivially copyable");
 
   enum class ContractionResult : uint8_t {
@@ -314,7 +352,6 @@ class DynamicHypergraph {
   using IncidenceArray = Array<HypernodeID>;
   using IncidentNets = parallel::scalable_vector<IncidentNetVector<HyperedgeID>>;
   using OwnershipVector = parallel::scalable_vector<parallel::IntegralAtomicWrapper<bool>>;
-  using ReferenceCountVector = parallel::scalable_vector<HypernodeID>;
   using MementoVector = parallel::scalable_vector<Memento>;
   using ThreadLocalHyperedgeVector = tbb::enumerable_thread_specific<parallel::scalable_vector<HyperedgeID>>;
 
@@ -346,10 +383,9 @@ class DynamicHypergraph {
     _total_degree(0),
     _total_weight(0),
     _hypernodes(),
+    _contraction_tree(),
     _incident_nets(),
     _acquired_hns(),
-    _hn_ref_count(),
-    _contraction_tree(),
     _hyperedges(),
     _incidence_array(),
     _acquired_hes(),
@@ -370,10 +406,9 @@ class DynamicHypergraph {
     _total_degree(other._total_degree),
     _total_weight(other._total_weight),
     _hypernodes(std::move(other._hypernodes)),
+    _contraction_tree(std::move(other._contraction_tree)),
     _incident_nets(std::move(other._incident_nets)),
     _acquired_hns(std::move(other._acquired_hns)),
-    _hn_ref_count(std::move(other._hn_ref_count)),
-    _contraction_tree(std::move(other._contraction_tree)),
     _hyperedges(std::move(other._hyperedges)),
     _incidence_array(std::move(other._incidence_array)),
     _acquired_hes(std::move(other._acquired_hes)),
@@ -391,10 +426,9 @@ class DynamicHypergraph {
     _total_degree = other._total_degree;
     _total_weight = other._total_weight;
     _hypernodes = std::move(other._hypernodes);
+    _contraction_tree = std::move(other._contraction_tree);
     _incident_nets = std::move(other._incident_nets);
     _acquired_hns = std::move(other._acquired_hns);
-    _hn_ref_count = std::move(other._hn_ref_count);
-    _contraction_tree = std::move(other._contraction_tree);
     _hyperedges = std::move(other._hyperedges);
     _incidence_array = std::move(other._incidence_array);
     _acquired_hes = std::move(other._acquired_hes);
@@ -754,7 +788,8 @@ class DynamicHypergraph {
 
     // If there is no other contraction registered for vertex v
     // we try to determine its representative in the contraction tree
-    if ( _contraction_tree[v] == v ) {
+    ContractionTreeNode& v_ct = contraction_tree(v);
+    if ( v_ct.parent() == v ) {
 
       HypernodeID w = u;
       bool cycle_detected = false;
@@ -764,8 +799,9 @@ class DynamicHypergraph {
         // with a reference count greater than zero, which indicates
         // that there are still ongoing contractions on this node that
         // have to be processed.
-        while ( _contraction_tree[w] != w && _hn_ref_count[w] == 0 ) {
-          w = _contraction_tree[w];
+        while ( contraction_tree(w).parent() != w &&
+                contraction_tree(w).referenceCount() == 0 ) {
+          w = contraction_tree(w).parent();
           if ( w == v ) {
             cycle_detected = true;
             break;
@@ -780,7 +816,7 @@ class DynamicHypergraph {
             releaseHypernode(v);
             acquireHypernode(w);
             acquireHypernode(v);
-            if ( _contraction_tree[v] != v ) {
+            if ( v_ct.parent() != v ) {
               releaseHypernode(v);
               return false;
             }
@@ -790,7 +826,8 @@ class DynamicHypergraph {
 
           // Double-check condition of while loop above after acquiring
           // ownership of w
-          if ( _contraction_tree[w] != w && _hn_ref_count[w] == 0 ) {
+          if ( contraction_tree(w).parent() != w &&
+               contraction_tree(w).referenceCount() == 0 ) {
             // In case something changed, we release ownership of w and
             // search again for the representative of u.
             releaseHypernode(w);
@@ -799,12 +836,12 @@ class DynamicHypergraph {
             // contraction of u and v will not introduce any new cycle.
             HypernodeID x = w;
             do {
-              x = _contraction_tree[x];
+              x = contraction_tree(x).parent();
               if ( x == v ) {
                 cycle_detected = true;
                 break;
               }
-            } while ( _contraction_tree[x] != x );
+            } while ( contraction_tree(x).parent() != x );
 
             if ( cycle_detected ) {
               releaseHypernode(w);
@@ -824,8 +861,8 @@ class DynamicHypergraph {
 
       // Increment reference count of w indicating that there pending
       // contraction at vertex w and update contraction tree.
-      ++_hn_ref_count[w];
-      _contraction_tree[v] = w;
+      contraction_tree(w).incrementReferenceCount();
+      v_ct.setParent(w);
 
       releaseHypernode(w);
       releaseHypernode(v);
@@ -846,10 +883,10 @@ class DynamicHypergraph {
    */
   MementoVector contract(const HypernodeID v,
                          const HypernodeWeight max_node_weight = std::numeric_limits<HypernodeWeight>::max()) {
-    ASSERT(_contraction_tree[v] != v, "No contraction registered for hypernode" << v);
+    ASSERT(contraction_tree(v).parent() != v, "No contraction registered for hypernode" << v);
 
     MementoVector mementos;
-    HypernodeID x = _contraction_tree[v];
+    HypernodeID x = contraction_tree(v).parent();
     HypernodeID y = v;
     ContractionResult res = ContractionResult::CONTRACTED;
     // We perform all contractions registered in the contraction tree
@@ -862,7 +899,7 @@ class DynamicHypergraph {
         mementos.emplace_back(Memento { x, y });
       }
       y = x;
-      x = _contraction_tree[y];
+      x = contraction_tree(y).parent();
     }
     return mementos;
   }
@@ -870,19 +907,19 @@ class DynamicHypergraph {
   // ! Only for testing
   HypernodeID contractionTree(const HypernodeID u) const {
     ASSERT(!hypernode(u).isDisabled(), "Hypernode" << u << "is disabled");
-    return _contraction_tree[u];
+    return contraction_tree(u).parent();
   }
 
   // ! Only for testing
   HypernodeID referenceCount(const HypernodeID u) const {
     ASSERT(!hypernode(u).isDisabled(), "Hypernode" << u << "is disabled");
-    return _hn_ref_count[u];
+    return contraction_tree(u).referenceCount();
   }
 
   // ! Only for testing
   void decrementReferenceCount(const HypernodeID u) {
     ASSERT(!hypernode(u).isDisabled(), "Hypernode" << u << "is disabled");
-    --_hn_ref_count[u];
+    contraction_tree(u).decrementReferenceCount();
   }
 
   // ####################### Remove / Restore Hyperedges #######################
@@ -1018,13 +1055,9 @@ class DynamicHypergraph {
           sizeof(HyperedgeID) * _incident_nets[hn].size());
       });
     }, [&] {
-      hypergraph._hn_ref_count.resize(_hn_ref_count.size());
-      memcpy(hypergraph._hn_ref_count.data(), _hn_ref_count.data(),
-        sizeof(HypernodeID) * _hn_ref_count.size());
-    }, [&] {
       hypergraph._contraction_tree.resize(_contraction_tree.size());
       memcpy(hypergraph._contraction_tree.data(), _contraction_tree.data(),
-        sizeof(HypernodeID) * _contraction_tree.size());
+        sizeof(ContractionTreeNode) * _contraction_tree.size());
     }, [&] {
       hypergraph._hyperedges.resize(_hyperedges.size());
       memcpy(hypergraph._hyperedges.data(), _hyperedges.data(),
@@ -1068,12 +1101,9 @@ class DynamicHypergraph {
       memcpy(hypergraph._incident_nets[hn].data(), _incident_nets[hn].data(),
         sizeof(HyperedgeID) * _incident_nets[hn].size());
     }
-    hypergraph._hn_ref_count.resize(_hn_ref_count.size());
-    memcpy(hypergraph._hn_ref_count.data(), _hn_ref_count.data(),
-      sizeof(HypernodeID) * _hn_ref_count.size());
     hypergraph._contraction_tree.resize(_contraction_tree.size());
     memcpy(hypergraph._contraction_tree.data(), _contraction_tree.data(),
-      sizeof(HypernodeID) * _contraction_tree.size());
+      sizeof(ContractionTreeNode) * _contraction_tree.size());
     hypergraph._hyperedges.resize(_hyperedges.size());
     memcpy(hypergraph._hyperedges.data(), _hyperedges.data(),
       sizeof(Hyperedge) * _hyperedges.size());
@@ -1105,8 +1135,7 @@ class DynamicHypergraph {
     parent->addChild("Hypernodes", sizeof(Hypernode) * _hypernodes.size());
     parent->addChild("Incident Nets", sizeof(HyperedgeID) * _incidence_array.size());
     parent->addChild("Hypernode Ownership Vector", sizeof(bool) * _acquired_hns.size());
-    parent->addChild("Hypernode Reference Counts", sizeof(HypernodeID) * _hn_ref_count.size());
-    parent->addChild("Contraction Tree", sizeof(HypernodeID) * _contraction_tree.size());
+    parent->addChild("Contraction Tree", sizeof(ContractionTreeNode) * _contraction_tree.size());
     parent->addChild("Hyperedges", sizeof(Hyperedge) * _hyperedges.size());
     parent->addChild("Incidence Array", sizeof(HypernodeID) * _incidence_array.size());
     parent->addChild("Hyperedge Ownership Vector", sizeof(bool) * _acquired_hes.size());
@@ -1179,6 +1208,17 @@ class DynamicHypergraph {
     return const_cast<Hypernode&>(static_cast<const DynamicHypergraph&>(*this).hypernode(u));
   }
 
+  // ! Accessor for contraction tree-related information
+  KAHYPAR_ATTRIBUTE_ALWAYS_INLINE const ContractionTreeNode& contraction_tree(const HypernodeID u) const {
+    ASSERT(u <= _num_hypernodes, "Hypernode" << u << "does not exist");
+    return _contraction_tree[u];
+  }
+
+  // ! To avoid code duplication we implement non-const version in terms of const version
+  KAHYPAR_ATTRIBUTE_ALWAYS_INLINE ContractionTreeNode& contraction_tree(const HypernodeID u) {
+    return const_cast<ContractionTreeNode&>(static_cast<const DynamicHypergraph&>(*this).contraction_tree(u));
+  }
+
   // ####################### Hyperedge Information #######################
 
   // ! Accessor for hyperedge-related information
@@ -1220,7 +1260,7 @@ class DynamicHypergraph {
     //  1.) Contraction partner v is enabled
     //  2.) There are no pending contractions on v
     //  3.) Resulting node weight is less or equal than a predefined upper bound
-    const bool contraction_partner_valid = nodeIsEnabled(v) && _hn_ref_count[v] == 0;
+    const bool contraction_partner_valid = nodeIsEnabled(v) && contraction_tree(v).referenceCount() == 0;
     const bool less_or_equal_than_max_node_weight =
       hypernode(u).weight() + hypernode(v).weight() <= max_node_weight;
     if ( contraction_partner_valid && less_or_equal_than_max_node_weight ) {
@@ -1260,14 +1300,14 @@ class DynamicHypergraph {
       failed_hyperedge_contractions.clear();
 
       acquireHypernode(u);
-      --_hn_ref_count[u];
+      contraction_tree(u).decrementReferenceCount();
       releaseHypernode(u);
       return ContractionResult::CONTRACTED;
     } else {
       ContractionResult res = ContractionResult::PENDING_CONTRACTIONS;
       if ( !less_or_equal_than_max_node_weight ) {
-        --_hn_ref_count[u];
-        _contraction_tree[v] = v;
+        contraction_tree(u).decrementReferenceCount();
+        contraction_tree(v).setParent(v);
         res = ContractionResult::WEIGHT_LIMIT_REACHED;
       }
       releaseHypernode(u);
@@ -1366,14 +1406,12 @@ class DynamicHypergraph {
 
   // ! Hypernodes
   Array<Hypernode> _hypernodes;
+  // ! Contraction Tree
+  Array<ContractionTreeNode> _contraction_tree;
   // ! Pins of hyperedges
   IncidentNets _incident_nets;
   // ! Atomic bool vector used to acquire unique ownership of hypernodes
   OwnershipVector _acquired_hns;
-  // ! Indicates how many contractions are currently registered on a hypernode
-  ReferenceCountVector _hn_ref_count;
-  // ! Tracks the contraction tree of the hypergraph
-  parallel::scalable_vector<HypernodeID> _contraction_tree;
 
 
   // ! Hyperedges
