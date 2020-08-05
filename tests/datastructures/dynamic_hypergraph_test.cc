@@ -568,16 +568,16 @@ TEST_F(ADynamicHypergraph, RegistersAContraction1) {
   ASSERT_TRUE(hypergraph.registerContraction(1, 0));
   ASSERT_EQ(1, hypergraph.contractionTree(0));
   ASSERT_EQ(1, hypergraph.contractionTree(1));
-  ASSERT_EQ(0, hypergraph.referenceCount(0));
-  ASSERT_EQ(1, hypergraph.referenceCount(1));
+  ASSERT_EQ(0, hypergraph.pendingContractions(0));
+  ASSERT_EQ(1, hypergraph.pendingContractions(1));
 }
 
 TEST_F(ADynamicHypergraph, RegistersAContraction2) {
   ASSERT_TRUE(hypergraph.registerContraction(4, 3));
   ASSERT_EQ(4, hypergraph.contractionTree(3));
   ASSERT_EQ(4, hypergraph.contractionTree(4));
-  ASSERT_EQ(0, hypergraph.referenceCount(3));
-  ASSERT_EQ(1, hypergraph.referenceCount(4));
+  ASSERT_EQ(0, hypergraph.pendingContractions(3));
+  ASSERT_EQ(1, hypergraph.pendingContractions(4));
 }
 
 TEST_F(ADynamicHypergraph, RegistersAContraction3) {
@@ -586,9 +586,9 @@ TEST_F(ADynamicHypergraph, RegistersAContraction3) {
   ASSERT_EQ(4, hypergraph.contractionTree(2));
   ASSERT_EQ(4, hypergraph.contractionTree(3));
   ASSERT_EQ(4, hypergraph.contractionTree(4));
-  ASSERT_EQ(0, hypergraph.referenceCount(2));
-  ASSERT_EQ(0, hypergraph.referenceCount(3));
-  ASSERT_EQ(2, hypergraph.referenceCount(4));
+  ASSERT_EQ(0, hypergraph.pendingContractions(2));
+  ASSERT_EQ(0, hypergraph.pendingContractions(3));
+  ASSERT_EQ(2, hypergraph.pendingContractions(4));
 }
 
 TEST_F(ADynamicHypergraph, RegistersAContraction4) {
@@ -599,10 +599,10 @@ TEST_F(ADynamicHypergraph, RegistersAContraction4) {
   ASSERT_EQ(4, hypergraph.contractionTree(3));
   ASSERT_EQ(6, hypergraph.contractionTree(4));
   ASSERT_EQ(6, hypergraph.contractionTree(6));
-  ASSERT_EQ(0, hypergraph.referenceCount(2));
-  ASSERT_EQ(0, hypergraph.referenceCount(3));
-  ASSERT_EQ(2, hypergraph.referenceCount(4));
-  ASSERT_EQ(1, hypergraph.referenceCount(6));
+  ASSERT_EQ(0, hypergraph.pendingContractions(2));
+  ASSERT_EQ(0, hypergraph.pendingContractions(3));
+  ASSERT_EQ(2, hypergraph.pendingContractions(4));
+  ASSERT_EQ(1, hypergraph.pendingContractions(6));
 }
 
 TEST_F(ADynamicHypergraph, RegistersAContraction5) {
@@ -613,10 +613,10 @@ TEST_F(ADynamicHypergraph, RegistersAContraction5) {
   ASSERT_EQ(6, hypergraph.contractionTree(3));
   ASSERT_EQ(6, hypergraph.contractionTree(4));
   ASSERT_EQ(6, hypergraph.contractionTree(6));
-  ASSERT_EQ(0, hypergraph.referenceCount(2));
-  ASSERT_EQ(0, hypergraph.referenceCount(3));
-  ASSERT_EQ(0, hypergraph.referenceCount(4));
-  ASSERT_EQ(3, hypergraph.referenceCount(6));
+  ASSERT_EQ(0, hypergraph.pendingContractions(2));
+  ASSERT_EQ(0, hypergraph.pendingContractions(3));
+  ASSERT_EQ(0, hypergraph.pendingContractions(4));
+  ASSERT_EQ(3, hypergraph.pendingContractions(6));
 }
 
 TEST_F(ADynamicHypergraph, RegistersAContraction6) {
@@ -627,10 +627,10 @@ TEST_F(ADynamicHypergraph, RegistersAContraction6) {
   ASSERT_EQ(4, hypergraph.contractionTree(3));
   ASSERT_EQ(6, hypergraph.contractionTree(4));
   ASSERT_EQ(6, hypergraph.contractionTree(6));
-  ASSERT_EQ(0, hypergraph.referenceCount(2));
-  ASSERT_EQ(0, hypergraph.referenceCount(3));
-  ASSERT_EQ(2, hypergraph.referenceCount(4));
-  ASSERT_EQ(1, hypergraph.referenceCount(6));
+  ASSERT_EQ(0, hypergraph.pendingContractions(2));
+  ASSERT_EQ(0, hypergraph.pendingContractions(3));
+  ASSERT_EQ(2, hypergraph.pendingContractions(4));
+  ASSERT_EQ(1, hypergraph.pendingContractions(6));
 }
 
 TEST_F(ADynamicHypergraph, RegistersAContraction7) {
@@ -641,10 +641,10 @@ TEST_F(ADynamicHypergraph, RegistersAContraction7) {
   ASSERT_EQ(2, hypergraph.contractionTree(1));
   ASSERT_EQ(3, hypergraph.contractionTree(2));
   ASSERT_EQ(3, hypergraph.contractionTree(3));
-  ASSERT_EQ(0, hypergraph.referenceCount(0));
-  ASSERT_EQ(1, hypergraph.referenceCount(1));
-  ASSERT_EQ(1, hypergraph.referenceCount(2));
-  ASSERT_EQ(1, hypergraph.referenceCount(3));
+  ASSERT_EQ(0, hypergraph.pendingContractions(0));
+  ASSERT_EQ(1, hypergraph.pendingContractions(1));
+  ASSERT_EQ(1, hypergraph.pendingContractions(2));
+  ASSERT_EQ(1, hypergraph.pendingContractions(3));
 }
 
 TEST_F(ADynamicHypergraph, RegistersAContractionThatInducesACycle1) {
@@ -655,7 +655,7 @@ TEST_F(ADynamicHypergraph, RegistersAContractionThatInducesACycle1) {
 TEST_F(ADynamicHypergraph, RegistersAContractionThatInducesACycle2) {
   ASSERT_TRUE(hypergraph.registerContraction(1, 0));
   ASSERT_TRUE(hypergraph.registerContraction(2, 1));
-  hypergraph.decrementReferenceCount(1);
+  hypergraph.decrementPendingContractions(1);
   ASSERT_FALSE(hypergraph.registerContraction(0, 2));
 }
 
@@ -663,8 +663,8 @@ TEST_F(ADynamicHypergraph, RegistersAContractionThatInducesACycle3) {
   ASSERT_TRUE(hypergraph.registerContraction(1, 0));
   ASSERT_TRUE(hypergraph.registerContraction(2, 1));
   ASSERT_TRUE(hypergraph.registerContraction(3, 2));
-  hypergraph.decrementReferenceCount(1);
-  hypergraph.decrementReferenceCount(2);
+  hypergraph.decrementPendingContractions(1);
+  hypergraph.decrementPendingContractions(2);
   ASSERT_FALSE(hypergraph.registerContraction(0, 3));
 }
 
@@ -695,16 +695,16 @@ TEST_F(ADynamicHypergraph, RegisterContractionsInParallel1) {
     ( hypergraph.contractionTree(0) == 1 &&
       hypergraph.contractionTree(1) == 2 &&
       hypergraph.contractionTree(2) == 2 &&
-      hypergraph.referenceCount(0) == 0 &&
-      hypergraph.referenceCount(1) == 1 &&
-      hypergraph.referenceCount(2) == 1 ) ||
+      hypergraph.pendingContractions(0) == 0 &&
+      hypergraph.pendingContractions(1) == 1 &&
+      hypergraph.pendingContractions(2) == 1 ) ||
     // In case (1,2) is executed before (0,1)
     ( hypergraph.contractionTree(0) == 2 &&
       hypergraph.contractionTree(1) == 2 &&
       hypergraph.contractionTree(2) == 2 &&
-      hypergraph.referenceCount(0) == 0 &&
-      hypergraph.referenceCount(1) == 0 &&
-      hypergraph.referenceCount(2) == 2 )
+      hypergraph.pendingContractions(0) == 0 &&
+      hypergraph.pendingContractions(1) == 0 &&
+      hypergraph.pendingContractions(2) == 2 )
   ) << V(hypergraph.contractionTree(0)) << " "
     << V(hypergraph.contractionTree(1)) << " "
     << V(hypergraph.contractionTree(2)) << " "
@@ -721,9 +721,9 @@ TEST_F(ADynamicHypergraph, RegisterContractionsInParallel2) {
   ASSERT_EQ(2, hypergraph.contractionTree(0));
   ASSERT_EQ(2, hypergraph.contractionTree(1));
   ASSERT_EQ(2, hypergraph.contractionTree(2));
-  ASSERT_EQ(0, hypergraph.referenceCount(0));
-  ASSERT_EQ(0, hypergraph.referenceCount(1));
-  ASSERT_EQ(2, hypergraph.referenceCount(2));
+  ASSERT_EQ(0, hypergraph.pendingContractions(0));
+  ASSERT_EQ(0, hypergraph.pendingContractions(1));
+  ASSERT_EQ(2, hypergraph.pendingContractions(2));
 }
 
 TEST_F(ADynamicHypergraph, RegisterContractionsInParallel3) {
@@ -740,19 +740,19 @@ TEST_F(ADynamicHypergraph, RegisterContractionsInParallel3) {
       hypergraph.contractionTree(1) == 2 &&
       hypergraph.contractionTree(2) == 3 &&
       hypergraph.contractionTree(3) == 3 &&
-      hypergraph.referenceCount(0) == 0 &&
-      hypergraph.referenceCount(1) == 0 &&
-      hypergraph.referenceCount(2) == 2 &&
-      hypergraph.referenceCount(3) == 1 ) ||
+      hypergraph.pendingContractions(0) == 0 &&
+      hypergraph.pendingContractions(1) == 0 &&
+      hypergraph.pendingContractions(2) == 2 &&
+      hypergraph.pendingContractions(3) == 1 ) ||
     // In case (2,3) is executed before (0,2)
     ( hypergraph.contractionTree(0) == 3 &&
       hypergraph.contractionTree(1) == 3 &&
       hypergraph.contractionTree(2) == 3 &&
       hypergraph.contractionTree(3) == 3 &&
-      hypergraph.referenceCount(0) == 0 &&
-      hypergraph.referenceCount(1) == 0 &&
-      hypergraph.referenceCount(2) == 0 &&
-      hypergraph.referenceCount(3) == 3  )
+      hypergraph.pendingContractions(0) == 0 &&
+      hypergraph.pendingContractions(1) == 0 &&
+      hypergraph.pendingContractions(2) == 0 &&
+      hypergraph.pendingContractions(3) == 3  )
   ) << V(hypergraph.contractionTree(0)) << " "
     << V(hypergraph.contractionTree(1)) << " "
     << V(hypergraph.contractionTree(2)) << " "
@@ -775,44 +775,44 @@ TEST_F(ADynamicHypergraph, RegisterContractionsInParallel4) {
       hypergraph.contractionTree(2) == 4 &&
       hypergraph.contractionTree(3) == 4 &&
       hypergraph.contractionTree(4) == 4 &&
-      hypergraph.referenceCount(0) == 0 &&
-      hypergraph.referenceCount(1) == 0 &&
-      hypergraph.referenceCount(2) == 2 &&
-      hypergraph.referenceCount(3) == 0 &&
-      hypergraph.referenceCount(4) == 2) ||
+      hypergraph.pendingContractions(0) == 0 &&
+      hypergraph.pendingContractions(1) == 0 &&
+      hypergraph.pendingContractions(2) == 2 &&
+      hypergraph.pendingContractions(3) == 0 &&
+      hypergraph.pendingContractions(4) == 2) ||
     // Execution order 0, 2, 1, 3
     ( hypergraph.contractionTree(0) == 2 &&
       hypergraph.contractionTree(1) == 4 &&
       hypergraph.contractionTree(2) == 3 &&
       hypergraph.contractionTree(3) == 4 &&
       hypergraph.contractionTree(4) == 4 &&
-      hypergraph.referenceCount(0) == 0 &&
-      hypergraph.referenceCount(1) == 0 &&
-      hypergraph.referenceCount(2) == 1 &&
-      hypergraph.referenceCount(3) == 1 &&
-      hypergraph.referenceCount(4) == 2) ||
+      hypergraph.pendingContractions(0) == 0 &&
+      hypergraph.pendingContractions(1) == 0 &&
+      hypergraph.pendingContractions(2) == 1 &&
+      hypergraph.pendingContractions(3) == 1 &&
+      hypergraph.pendingContractions(4) == 2) ||
     // Execution order 0, 2, 3, 1
     ( hypergraph.contractionTree(0) == 2 &&
       hypergraph.contractionTree(1) == 2 &&
       hypergraph.contractionTree(2) == 3 &&
       hypergraph.contractionTree(3) == 4 &&
       hypergraph.contractionTree(4) == 4 &&
-      hypergraph.referenceCount(0) == 0 &&
-      hypergraph.referenceCount(1) == 0 &&
-      hypergraph.referenceCount(2) == 2 &&
-      hypergraph.referenceCount(3) == 1 &&
-      hypergraph.referenceCount(4) == 1) ||
+      hypergraph.pendingContractions(0) == 0 &&
+      hypergraph.pendingContractions(1) == 0 &&
+      hypergraph.pendingContractions(2) == 2 &&
+      hypergraph.pendingContractions(3) == 1 &&
+      hypergraph.pendingContractions(4) == 1) ||
     // Execution order 2, 0, 1, 3 or 2, 0, 3, 1 or 2, 3, 0, 1
     ( hypergraph.contractionTree(0) == 3 &&
       hypergraph.contractionTree(1) == 3 &&
       hypergraph.contractionTree(2) == 3 &&
       hypergraph.contractionTree(3) == 4 &&
       hypergraph.contractionTree(4) == 4 &&
-      hypergraph.referenceCount(0) == 0 &&
-      hypergraph.referenceCount(1) == 0 &&
-      hypergraph.referenceCount(2) == 0 &&
-      hypergraph.referenceCount(3) == 3 &&
-      hypergraph.referenceCount(4) == 1)
+      hypergraph.pendingContractions(0) == 0 &&
+      hypergraph.pendingContractions(1) == 0 &&
+      hypergraph.pendingContractions(2) == 0 &&
+      hypergraph.pendingContractions(3) == 3 &&
+      hypergraph.pendingContractions(4) == 1)
   ) << V(hypergraph.contractionTree(0)) << " "
     << V(hypergraph.contractionTree(1)) << " "
     << V(hypergraph.contractionTree(2)) << " "
@@ -833,13 +833,13 @@ TEST_F(ADynamicHypergraph, RegisterContractionsThatInducesACycleInParallel1) {
   if ( succeded_1 ) {
     ASSERT_EQ(0, hypergraph.contractionTree(0));
     ASSERT_EQ(0, hypergraph.contractionTree(1));
-    ASSERT_EQ(1, hypergraph.referenceCount(0));
-    ASSERT_EQ(0, hypergraph.referenceCount(1));
+    ASSERT_EQ(1, hypergraph.pendingContractions(0));
+    ASSERT_EQ(0, hypergraph.pendingContractions(1));
   } else {
     ASSERT_EQ(1, hypergraph.contractionTree(0));
     ASSERT_EQ(1, hypergraph.contractionTree(1));
-    ASSERT_EQ(0, hypergraph.referenceCount(0));
-    ASSERT_EQ(1, hypergraph.referenceCount(1));
+    ASSERT_EQ(0, hypergraph.pendingContractions(0));
+    ASSERT_EQ(1, hypergraph.pendingContractions(1));
   }
 }
 
@@ -861,19 +861,19 @@ TEST_F(ADynamicHypergraph, RegisterContractionsThatInducesACycleInParallel2) {
     ASSERT_EQ(1, hypergraph.contractionTree(1));
     ASSERT_EQ(3, hypergraph.contractionTree(2));
     ASSERT_EQ(1, hypergraph.contractionTree(3));
-    ASSERT_EQ(0, hypergraph.referenceCount(0));
-    ASSERT_EQ(2, hypergraph.referenceCount(1));
-    ASSERT_EQ(0, hypergraph.referenceCount(2));
-    ASSERT_EQ(1, hypergraph.referenceCount(3));
+    ASSERT_EQ(0, hypergraph.pendingContractions(0));
+    ASSERT_EQ(2, hypergraph.pendingContractions(1));
+    ASSERT_EQ(0, hypergraph.pendingContractions(2));
+    ASSERT_EQ(1, hypergraph.pendingContractions(3));
   } else {
     ASSERT_EQ(1, hypergraph.contractionTree(0));
     ASSERT_EQ(3, hypergraph.contractionTree(1));
     ASSERT_EQ(3, hypergraph.contractionTree(2));
     ASSERT_EQ(3, hypergraph.contractionTree(3));
-    ASSERT_EQ(0, hypergraph.referenceCount(0));
-    ASSERT_EQ(1, hypergraph.referenceCount(1));
-    ASSERT_EQ(0, hypergraph.referenceCount(2));
-    ASSERT_EQ(2, hypergraph.referenceCount(3));
+    ASSERT_EQ(0, hypergraph.pendingContractions(0));
+    ASSERT_EQ(1, hypergraph.pendingContractions(1));
+    ASSERT_EQ(0, hypergraph.pendingContractions(2));
+    ASSERT_EQ(2, hypergraph.pendingContractions(3));
   }
 }
 
@@ -901,22 +901,22 @@ TEST_F(ADynamicHypergraph, RegisterContractionsThatInducesACycleInParallel3) {
       hypergraph.contractionTree(2) == 4 &&
       hypergraph.contractionTree(3) == 4 &&
       hypergraph.contractionTree(4) == 4 &&
-      hypergraph.referenceCount(0) == 0 &&
-      hypergraph.referenceCount(1) == 1 &&
-      hypergraph.referenceCount(2) == 1 &&
-      hypergraph.referenceCount(3) == 0 &&
-      hypergraph.referenceCount(4) == 2 ) ||
+      hypergraph.pendingContractions(0) == 0 &&
+      hypergraph.pendingContractions(1) == 1 &&
+      hypergraph.pendingContractions(2) == 1 &&
+      hypergraph.pendingContractions(3) == 0 &&
+      hypergraph.pendingContractions(4) == 2 ) ||
     // In case (2,3) is executed before (1,2)
     ( hypergraph.contractionTree(0) == 1 &&
       hypergraph.contractionTree(1) == 4 &&
       hypergraph.contractionTree(2) == 4 &&
       hypergraph.contractionTree(3) == 4 &&
       hypergraph.contractionTree(4) == 4 &&
-      hypergraph.referenceCount(0) == 0 &&
-      hypergraph.referenceCount(1) == 1 &&
-      hypergraph.referenceCount(2) == 0 &&
-      hypergraph.referenceCount(3) == 0 &&
-      hypergraph.referenceCount(4) == 3 )
+      hypergraph.pendingContractions(0) == 0 &&
+      hypergraph.pendingContractions(1) == 1 &&
+      hypergraph.pendingContractions(2) == 0 &&
+      hypergraph.pendingContractions(3) == 0 &&
+      hypergraph.pendingContractions(4) == 3 )
   ) << V(hypergraph.contractionTree(0)) << " "
     << V(hypergraph.contractionTree(1)) << " "
     << V(hypergraph.contractionTree(2)) << " "
@@ -928,11 +928,11 @@ TEST_F(ADynamicHypergraph, RegisterContractionsThatInducesACycleInParallel3) {
     ASSERT_EQ(4, hypergraph.contractionTree(2));
     ASSERT_EQ(4, hypergraph.contractionTree(3));
     ASSERT_EQ(1, hypergraph.contractionTree(4));
-    ASSERT_EQ(0, hypergraph.referenceCount(0));
-    ASSERT_EQ(2, hypergraph.referenceCount(1));
-    ASSERT_EQ(0, hypergraph.referenceCount(2));
-    ASSERT_EQ(0, hypergraph.referenceCount(3));
-    ASSERT_EQ(2, hypergraph.referenceCount(4));
+    ASSERT_EQ(0, hypergraph.pendingContractions(0));
+    ASSERT_EQ(2, hypergraph.pendingContractions(1));
+    ASSERT_EQ(0, hypergraph.pendingContractions(2));
+    ASSERT_EQ(0, hypergraph.pendingContractions(3));
+    ASSERT_EQ(2, hypergraph.pendingContractions(4));
   }
 }
 
@@ -993,7 +993,7 @@ TEST_F(ADynamicHypergraph, PerformsAContraction1) {
 
   ASSERT_FALSE(hypergraph.nodeIsEnabled(0));
   ASSERT_EQ(2, hypergraph.nodeWeight(1));
-  ASSERT_EQ(0, hypergraph.referenceCount(1));
+  ASSERT_EQ(0, hypergraph.pendingContractions(1));
 
   verifyIncidentNets(1, {0, 1});
   verifyPins({ 0, 1, 2, 3 },
@@ -1009,7 +1009,7 @@ TEST_F(ADynamicHypergraph, PerformsAContraction2) {
   ASSERT_FALSE(hypergraph.nodeIsEnabled(0));
   ASSERT_FALSE(hypergraph.nodeIsEnabled(1));
   ASSERT_EQ(3, hypergraph.nodeWeight(2));
-  ASSERT_EQ(0, hypergraph.referenceCount(2));
+  ASSERT_EQ(0, hypergraph.pendingContractions(2));
 
   verifyIncidentNets(2, {0, 1, 3});
   verifyPins({ 0, 1, 2, 3 },
@@ -1024,13 +1024,13 @@ TEST_F(ADynamicHypergraph, PerformsAContraction3) {
   assertEqual(hypergraph.contract(1), { Memento { 2, 1 } });
   ASSERT_FALSE(hypergraph.nodeIsEnabled(1));
   ASSERT_EQ(2, hypergraph.nodeWeight(2));
-  ASSERT_EQ(1, hypergraph.referenceCount(2));
+  ASSERT_EQ(1, hypergraph.pendingContractions(2));
 
   assertEqual(hypergraph.contract(0), { Memento { 2, 0 },  Memento { 3, 2 } });
   ASSERT_FALSE(hypergraph.nodeIsEnabled(0));
   ASSERT_FALSE(hypergraph.nodeIsEnabled(2));
   ASSERT_EQ(4, hypergraph.nodeWeight(3));
-  ASSERT_EQ(0, hypergraph.referenceCount(3));
+  ASSERT_EQ(0, hypergraph.pendingContractions(3));
 
   verifyIncidentNets(3, {0, 1, 2, 3});
   verifyPins({ 0, 1, 2, 3 },
@@ -1049,14 +1049,14 @@ TEST_F(ADynamicHypergraph, PerformsAContraction4) {
   ASSERT_FALSE(hypergraph.nodeIsEnabled(4));
   ASSERT_EQ(2, hypergraph.nodeWeight(2));
   ASSERT_EQ(2, hypergraph.nodeWeight(3));
-  ASSERT_EQ(1, hypergraph.referenceCount(2));
-  ASSERT_EQ(1, hypergraph.referenceCount(3));
+  ASSERT_EQ(1, hypergraph.pendingContractions(2));
+  ASSERT_EQ(1, hypergraph.pendingContractions(3));
 
   assertEqual(hypergraph.contract(0), { Memento { 2, 0 },  Memento { 3, 2 } });
   ASSERT_FALSE(hypergraph.nodeIsEnabled(0));
   ASSERT_FALSE(hypergraph.nodeIsEnabled(2));
   ASSERT_EQ(5, hypergraph.nodeWeight(3));
-  ASSERT_EQ(0, hypergraph.referenceCount(3));
+  ASSERT_EQ(0, hypergraph.pendingContractions(3));
 
   verifyIncidentNets(3, {0, 1, 2, 3});
   verifyPins({ 0, 1, 2, 3 },
@@ -1083,12 +1083,12 @@ TEST_F(ADynamicHypergraph, PerformsAContraction5) {
 TEST_F(ADynamicHypergraph, PerformsAContractionWithWeightGreaterThanMaxNodeWeight1) {
   ASSERT_TRUE(hypergraph.registerContraction(1, 0));
   ASSERT_EQ(1, hypergraph.contractionTree(0));
-  ASSERT_EQ(1, hypergraph.referenceCount(1));
+  ASSERT_EQ(1, hypergraph.pendingContractions(1));
   assertEqual(hypergraph.contract(0, 1), { });
   ASSERT_TRUE(hypergraph.nodeIsEnabled(0));
   ASSERT_TRUE(hypergraph.nodeIsEnabled(1));
   ASSERT_EQ(0, hypergraph.contractionTree(0));
-  ASSERT_EQ(0, hypergraph.referenceCount(1));
+  ASSERT_EQ(0, hypergraph.pendingContractions(1));
 }
 
 TEST_F(ADynamicHypergraph, PerformsAContractionWithWeightGreaterThanMaxNodeWeight2) {
@@ -1099,11 +1099,11 @@ TEST_F(ADynamicHypergraph, PerformsAContractionWithWeightGreaterThanMaxNodeWeigh
   ASSERT_TRUE(hypergraph.registerContraction(3, 2));
   ASSERT_EQ(2, hypergraph.contractionTree(1));
   ASSERT_EQ(3, hypergraph.contractionTree(2));
-  ASSERT_EQ(1, hypergraph.referenceCount(2));
-  ASSERT_EQ(1, hypergraph.referenceCount(3));
+  ASSERT_EQ(1, hypergraph.pendingContractions(2));
+  ASSERT_EQ(1, hypergraph.pendingContractions(3));
   assertEqual(hypergraph.contract(1, 2), { Memento { 3, 2 } });
   ASSERT_EQ(1, hypergraph.contractionTree(1));
-  ASSERT_EQ(0, hypergraph.referenceCount(3));
+  ASSERT_EQ(0, hypergraph.pendingContractions(3));
 
   verifyIncidentNets(1, {0, 1});
   verifyIncidentNets(3, {0, 1, 2, 3});
@@ -1122,7 +1122,7 @@ TEST_F(ADynamicHypergraph, PerformAContractionsInParallel1) {
   ASSERT_FALSE(hypergraph.nodeIsEnabled(0));
   ASSERT_FALSE(hypergraph.nodeIsEnabled(1));
   ASSERT_EQ(3, hypergraph.nodeWeight(2));
-  ASSERT_EQ(0, hypergraph.referenceCount(2));
+  ASSERT_EQ(0, hypergraph.pendingContractions(2));
 
   verifyIncidentNets(2, {0, 1, 3});
   verifyPins({ 0, 1, 2, 3 },
@@ -1158,7 +1158,7 @@ TEST_F(ADynamicHypergraph, PerformAContractionsInParallel2) {
   ASSERT_FALSE(hypergraph.nodeIsEnabled(1));
   ASSERT_FALSE(hypergraph.nodeIsEnabled(2));
   ASSERT_EQ(4, hypergraph.nodeWeight(3));
-  ASSERT_EQ(0, hypergraph.referenceCount(3));
+  ASSERT_EQ(0, hypergraph.pendingContractions(3));
 
   verifyIncidentNets(3, {0, 1, 2, 3});
   verifyPins({ 0, 1, 2, 3 },
@@ -1203,7 +1203,7 @@ TEST_F(ADynamicHypergraph, PerformAContractionsInParallel3) {
   ASSERT_FALSE(hypergraph.nodeIsEnabled(3));
   ASSERT_FALSE(hypergraph.nodeIsEnabled(4));
   ASSERT_EQ(6, hypergraph.nodeWeight(6));
-  ASSERT_EQ(0, hypergraph.referenceCount(6));
+  ASSERT_EQ(0, hypergraph.pendingContractions(6));
 
   verifyIncidentNets(6, {0, 1, 2, 3});
   verifyPins({ 0, 1, 2, 3 },

@@ -153,12 +153,11 @@ class DynamicHypergraphFactory {
         hypergraph._acquired_hns.assign(
           num_hypernodes, parallel::IntegralAtomicWrapper<bool>(false));
       }, [&] {
-        hypergraph._contraction_tree.resize(num_hypernodes);
+        hypergraph._contraction_tree.initialize(num_hypernodes);
       });
       tbb::parallel_for(ID(0), num_hypernodes, [&](const HypernodeID hn) {
         // Setup hypernodes
         DynamicHypergraph::Hypernode& hypernode = hypergraph._hypernodes[hn];
-        hypergraph._contraction_tree[hn].setParent(hn);
         hypernode.enable();
         if ( hypernode_weight ) {
           hypernode.setWeight(hypernode_weight[hn]);
