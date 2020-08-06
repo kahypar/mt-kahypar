@@ -989,7 +989,7 @@ bool assertEqualToOneAlternative(MementoVector actual,
 
 TEST_F(ADynamicHypergraph, PerformsAContraction1) {
   ASSERT_TRUE(hypergraph.registerContraction(1, 0));
-  assertEqual(hypergraph.contract(0), { Memento { 1, 0 } });
+  hypergraph.contract(0);
 
   ASSERT_FALSE(hypergraph.nodeIsEnabled(0));
   ASSERT_EQ(2, hypergraph.nodeWeight(1));
@@ -1003,8 +1003,8 @@ TEST_F(ADynamicHypergraph, PerformsAContraction1) {
 TEST_F(ADynamicHypergraph, PerformsAContraction2) {
   ASSERT_TRUE(hypergraph.registerContraction(1, 0));
   ASSERT_TRUE(hypergraph.registerContraction(2, 1));
-  assertEqual(hypergraph.contract(1), { });
-  assertEqual(hypergraph.contract(0), { Memento { 1, 0 },  Memento { 2, 1 } });
+  hypergraph.contract(1);
+  hypergraph.contract(0);
 
   ASSERT_FALSE(hypergraph.nodeIsEnabled(0));
   ASSERT_FALSE(hypergraph.nodeIsEnabled(1));
@@ -1021,12 +1021,12 @@ TEST_F(ADynamicHypergraph, PerformsAContraction3) {
   ASSERT_TRUE(hypergraph.registerContraction(2, 1));
   ASSERT_TRUE(hypergraph.registerContraction(3, 2));
 
-  assertEqual(hypergraph.contract(1), { Memento { 2, 1 } });
+  hypergraph.contract(1);
   ASSERT_FALSE(hypergraph.nodeIsEnabled(1));
   ASSERT_EQ(2, hypergraph.nodeWeight(2));
   ASSERT_EQ(1, hypergraph.pendingContractions(2));
 
-  assertEqual(hypergraph.contract(0), { Memento { 2, 0 },  Memento { 3, 2 } });
+  hypergraph.contract(0);
   ASSERT_FALSE(hypergraph.nodeIsEnabled(0));
   ASSERT_FALSE(hypergraph.nodeIsEnabled(2));
   ASSERT_EQ(4, hypergraph.nodeWeight(3));
@@ -1043,8 +1043,8 @@ TEST_F(ADynamicHypergraph, PerformsAContraction4) {
   ASSERT_TRUE(hypergraph.registerContraction(3, 2));
   ASSERT_TRUE(hypergraph.registerContraction(3, 4));
 
-  assertEqual(hypergraph.contract(1), { Memento { 2, 1 } });
-  assertEqual(hypergraph.contract(4), { Memento { 3, 4 } });
+  hypergraph.contract(1);
+  hypergraph.contract(4);
   ASSERT_FALSE(hypergraph.nodeIsEnabled(1));
   ASSERT_FALSE(hypergraph.nodeIsEnabled(4));
   ASSERT_EQ(2, hypergraph.nodeWeight(2));
@@ -1052,7 +1052,7 @@ TEST_F(ADynamicHypergraph, PerformsAContraction4) {
   ASSERT_EQ(1, hypergraph.pendingContractions(2));
   ASSERT_EQ(1, hypergraph.pendingContractions(3));
 
-  assertEqual(hypergraph.contract(0), { Memento { 2, 0 },  Memento { 3, 2 } });
+  hypergraph.contract(0);
   ASSERT_FALSE(hypergraph.nodeIsEnabled(0));
   ASSERT_FALSE(hypergraph.nodeIsEnabled(2));
   ASSERT_EQ(5, hypergraph.nodeWeight(3));
@@ -1070,9 +1070,9 @@ TEST_F(ADynamicHypergraph, PerformsAContraction5) {
   ASSERT_TRUE(hypergraph.registerContraction(3, 4));
   ASSERT_TRUE(hypergraph.registerContraction(6, 3));
 
-  assertEqual(hypergraph.contract(1), { Memento { 2, 1 } });
-  assertEqual(hypergraph.contract(4), { Memento { 3, 4 } });
-  assertEqual(hypergraph.contract(0), { Memento { 2, 0 },  Memento { 3, 2 }, Memento { 6, 3 } });
+  hypergraph.contract(1);
+  hypergraph.contract(4);
+  hypergraph.contract(0);
   ASSERT_EQ(6, hypergraph.nodeWeight(6));
 
   verifyIncidentNets(6, {0, 1, 2, 3});
@@ -1084,7 +1084,7 @@ TEST_F(ADynamicHypergraph, PerformsAContractionWithWeightGreaterThanMaxNodeWeigh
   ASSERT_TRUE(hypergraph.registerContraction(1, 0));
   ASSERT_EQ(1, hypergraph.contractionTree(0));
   ASSERT_EQ(1, hypergraph.pendingContractions(1));
-  assertEqual(hypergraph.contract(0, 1), { });
+  hypergraph.contract(0, 1);
   ASSERT_TRUE(hypergraph.nodeIsEnabled(0));
   ASSERT_TRUE(hypergraph.nodeIsEnabled(1));
   ASSERT_EQ(0, hypergraph.contractionTree(0));
@@ -1093,7 +1093,7 @@ TEST_F(ADynamicHypergraph, PerformsAContractionWithWeightGreaterThanMaxNodeWeigh
 
 TEST_F(ADynamicHypergraph, PerformsAContractionWithWeightGreaterThanMaxNodeWeight2) {
   ASSERT_TRUE(hypergraph.registerContraction(1, 0));
-  assertEqual(hypergraph.contract(0, 2), { Memento { 1, 0 } });
+  hypergraph.contract(0, 2);
 
   ASSERT_TRUE(hypergraph.registerContraction(2, 1));
   ASSERT_TRUE(hypergraph.registerContraction(3, 2));
@@ -1101,7 +1101,7 @@ TEST_F(ADynamicHypergraph, PerformsAContractionWithWeightGreaterThanMaxNodeWeigh
   ASSERT_EQ(3, hypergraph.contractionTree(2));
   ASSERT_EQ(1, hypergraph.pendingContractions(2));
   ASSERT_EQ(1, hypergraph.pendingContractions(3));
-  assertEqual(hypergraph.contract(1, 2), { Memento { 3, 2 } });
+  hypergraph.contract(1, 2);
   ASSERT_EQ(1, hypergraph.contractionTree(1));
   ASSERT_EQ(0, hypergraph.pendingContractions(3));
 
@@ -1115,9 +1115,9 @@ TEST_F(ADynamicHypergraph, PerformAContractionsInParallel1) {
   ASSERT_TRUE(hypergraph.registerContraction(2, 0));
   ASSERT_TRUE(hypergraph.registerContraction(2, 1));
   executeParallel([&] {
-    assertEqual(hypergraph.contract(0), { Memento { 2, 0 } });
+    hypergraph.contract(0);
   }, [&] {
-    assertEqual(hypergraph.contract(1), { Memento { 2, 1 } });
+    hypergraph.contract(1);
   });
   ASSERT_FALSE(hypergraph.nodeIsEnabled(0));
   ASSERT_FALSE(hypergraph.nodeIsEnabled(1));
@@ -1133,27 +1133,11 @@ TEST_F(ADynamicHypergraph, PerformAContractionsInParallel2) {
   ASSERT_TRUE(hypergraph.registerContraction(2, 0));
   ASSERT_TRUE(hypergraph.registerContraction(2, 1));
   ASSERT_TRUE(hypergraph.registerContraction(3, 2));
-  MementoVector mementos_1;
-  MementoVector mementos_2;
   executeParallel([&] {
-    mementos_1 = hypergraph.contract(0);
-    ASSERT_TRUE(
-      assertEqualToOneAlternative(
-        mementos_1,
-        { Memento { 2, 0 } },
-        { Memento { 2, 0 }, Memento { 3, 2 } }));
+    hypergraph.contract(0);
   }, [&] {
-    mementos_2 = hypergraph.contract(1);
-    ASSERT_TRUE(
-      assertEqualToOneAlternative(
-        mementos_2,
-        { Memento { 2, 1 } },
-        { Memento { 2, 1 }, Memento { 3, 2 } }));
+    hypergraph.contract(1);
   });
-  MementoVector mementos;
-  mementos.insert(mementos.end(), mementos_1.begin(), mementos_1.end());
-  mementos.insert(mementos.end(), mementos_2.begin(), mementos_2.end());
-  assertEqual(mementos, { Memento { 2, 0 }, Memento { 2, 1 }, Memento { 3, 2 } });
   ASSERT_FALSE(hypergraph.nodeIsEnabled(0));
   ASSERT_FALSE(hypergraph.nodeIsEnabled(1));
   ASSERT_FALSE(hypergraph.nodeIsEnabled(2));
@@ -1171,32 +1155,16 @@ TEST_F(ADynamicHypergraph, PerformAContractionsInParallel3) {
   ASSERT_TRUE(hypergraph.registerContraction(3, 2));
   ASSERT_TRUE(hypergraph.registerContraction(3, 4));
   ASSERT_TRUE(hypergraph.registerContraction(6, 3));
-  MementoVector mementos_1;
-  MementoVector mementos_2;
   std::atomic<size_t> cnt(2);
   executeParallel([&] {
-    mementos_1 = hypergraph.contract(0);
-    ASSERT_TRUE(
-      assertEqualToOneAlternative(
-        mementos_1,
-        { Memento { 2, 0 } },
-        { Memento { 2, 0 }, Memento { 3, 2 } }));
+    hypergraph.contract(0);
     ++cnt;
   }, [&] {
-    mementos_2 = hypergraph.contract(1);
-    ASSERT_TRUE(
-      assertEqualToOneAlternative(
-        mementos_2,
-        { Memento { 2, 1 } },
-        { Memento { 2, 1 }, Memento { 3, 2 } }));
+    hypergraph.contract(1);
     ++cnt;
     while ( cnt < 2 ) { }
-    assertEqual(hypergraph.contract(4), { Memento { 3, 4 }, Memento { 6, 3 } });
+    hypergraph.contract(4);
   });
-  MementoVector mementos;
-  mementos.insert(mementos.end(), mementos_1.begin(), mementos_1.end());
-  mementos.insert(mementos.end(), mementos_2.begin(), mementos_2.end());
-  assertEqual(mementos, { Memento { 2, 0 }, Memento { 2, 1 }, Memento { 3, 2 } });
   ASSERT_FALSE(hypergraph.nodeIsEnabled(0));
   ASSERT_FALSE(hypergraph.nodeIsEnabled(1));
   ASSERT_FALSE(hypergraph.nodeIsEnabled(2));
@@ -1258,9 +1226,8 @@ TEST_F(ADynamicHypergraph, ContractionSmokeTest) {
 
       if ( v != kInvalidHypernode ) {
         tmp_sequential_hg.registerContraction(u, v);
-        auto memento = tmp_sequential_hg.contract(v);
-        ASSERT_EQ(1, memento.size());
-        mementos.push_back(memento[0]);
+        tmp_sequential_hg.contract(v);
+        mementos.push_back(Memento { u, v });
         if ( mementos.size() == num_contractions ) {
           break;
         }
@@ -1333,6 +1300,155 @@ TEST_F(ADynamicHypergraph, ContractionSmokeTest) {
   if ( show_timings ) {
     LOG << utils::Timer::instance(true);
   }
+}
+
+void verifyBatchUncontractionHierarchy(ContractionTree& tree,
+                                       const parallel::scalable_vector<parallel::scalable_vector<Memento>>& batches,
+                                       const size_t batch_size) {
+  tree.finalize();
+  std::vector<bool> enabled_vertices(tree.num_hypernodes(), false);
+  size_t expected_uncontractions = 0;
+  for ( const HypernodeID& root : tree.roots() ) {
+    enabled_vertices[root] = true;
+    expected_uncontractions += tree.subtreeSize(root);
+  }
+
+  size_t actual_uncontractions = 0;
+  for ( int i = batches.size() - 1; i >= 0; --i ) {
+    actual_uncontractions += batches[i].size();
+    ASSERT_LE(batches[i].size(), batch_size);
+    for ( const Memento& memento : batches[i] ) {
+      ASSERT_TRUE(enabled_vertices[memento.u]) << "Memento: (" << memento.u << "," << memento.v << ")";
+      ASSERT_FALSE(enabled_vertices[memento.v]) << "Memento: (" << memento.u << "," << memento.v << ")";
+    }
+    for ( const Memento& memento : batches[i] ) {
+      enabled_vertices[memento.v] = true;
+    }
+  }
+  ASSERT_EQ(expected_uncontractions, actual_uncontractions);
+}
+
+TEST_F(ADynamicHypergraph, CreateBatchUncontractionHierarchy1) {
+  ContractionTree tree;
+  tree.initialize(7);
+  tree.setParent(1, 0);
+  tree.setParent(2, 0);
+  tree.setParent(4, 3);
+  tree.setParent(5, 3);
+  tree.setParent(6, 1);
+  auto batches = hypergraph.createBatchUncontractionHierarchy(tree.copy(), 2);
+  verifyBatchUncontractionHierarchy(tree, batches, 2);
+}
+
+TEST_F(ADynamicHypergraph, CreateBatchUncontractionHierarchy2) {
+  ContractionTree tree;
+  tree.initialize(10);
+  tree.setParent(1, 0);
+  tree.setParent(2, 1);
+  tree.setParent(3, 2);
+  tree.setParent(4, 3);
+  tree.setParent(5, 4);
+  tree.setParent(7, 6);
+  tree.setParent(8, 7);
+  tree.setParent(9, 8);
+  auto batches = hypergraph.createBatchUncontractionHierarchy(tree.copy(), 3);
+  verifyBatchUncontractionHierarchy(tree, batches, 3);
+}
+
+TEST_F(ADynamicHypergraph, CreateBatchUncontractionHierarchy3) {
+  ContractionTree tree;
+  // Complete binary tree
+  tree.initialize(15);
+  tree.setParent(1, 0);
+  tree.setParent(2, 0);
+  tree.setParent(3, 1);
+  tree.setParent(4, 1);
+  tree.setParent(5, 2);
+  tree.setParent(6, 2);
+  tree.setParent(7, 3);
+  tree.setParent(8, 3);
+  tree.setParent(9, 4);
+  tree.setParent(10, 4);
+  tree.setParent(11, 5);
+  tree.setParent(12, 5);
+  tree.setParent(13, 6);
+  tree.setParent(14, 6);
+  auto batches = hypergraph.createBatchUncontractionHierarchy(tree.copy(), 4);
+  verifyBatchUncontractionHierarchy(tree, batches, 4);
+}
+
+TEST_F(ADynamicHypergraph, CreateBatchUncontractionHierarchy4) {
+  ContractionTree tree;
+  // 4 chains of size 4
+  tree.initialize(16);
+  tree.setParent(1, 0);
+  tree.setParent(2, 1);
+  tree.setParent(3, 2);
+  tree.setParent(5, 4);
+  tree.setParent(6, 5);
+  tree.setParent(7, 6);
+  tree.setParent(9, 8);
+  tree.setParent(10, 9);
+  tree.setParent(11, 10);
+  tree.setParent(13, 12);
+  tree.setParent(14, 13);
+  tree.setParent(15, 14);
+  auto batches = hypergraph.createBatchUncontractionHierarchy(tree.copy(), 4);
+  for ( size_t i = 0; i < batches.size(); ++i ) {
+    ASSERT_EQ(4, batches[i].size());
+  }
+  verifyBatchUncontractionHierarchy(tree, batches, 4);
+}
+
+TEST_F(ADynamicHypergraph, CreateBatchUncontractionHierarchy5) {
+  ContractionTree tree;
+  // 3 complete binary trees
+  tree.initialize(23);
+  tree.setParent(1, 0);
+  tree.setParent(2, 0);
+  tree.setParent(3, 1);
+  tree.setParent(4, 1);
+  tree.setParent(5, 2);
+  tree.setParent(6, 2);
+  tree.setParent(8, 7);
+  tree.setParent(9, 7);
+  tree.setParent(10, 8);
+  tree.setParent(11, 8);
+  tree.setParent(14, 9);
+  tree.setParent(15, 9);
+  tree.setParent(17, 16);
+  tree.setParent(18, 16);
+  tree.setParent(19, 17);
+  tree.setParent(20, 17);
+  tree.setParent(21, 18);
+  tree.setParent(22, 18);
+  auto batches = hypergraph.createBatchUncontractionHierarchy(tree.copy(), 6);
+  verifyBatchUncontractionHierarchy(tree, batches, 6);
+}
+
+TEST_F(ADynamicHypergraph, CreateBatchUncontractionHierarchy6) {
+  ContractionTree tree;
+  // Binary Tree where each left child has exactly two childrens
+  tree.initialize(15);
+  tree.setParent(1, 0);
+  tree.setParent(2, 0);
+  tree.setParent(3, 1);
+  tree.setParent(4, 1);
+  tree.setParent(5, 3);
+  tree.setParent(6, 3);
+  tree.setParent(7, 5);
+  tree.setParent(8, 5);
+  tree.setParent(9, 7);
+  tree.setParent(10, 7);
+  tree.setParent(11, 9);
+  tree.setParent(12, 9);
+  tree.setParent(13, 11);
+  tree.setParent(14, 11);
+  auto batches = hypergraph.createBatchUncontractionHierarchy(tree.copy(), 4);
+  for ( size_t i = 0; i < batches.size(); ++i ) {
+    ASSERT_EQ(2, batches[i].size());
+  }
+  verifyBatchUncontractionHierarchy(tree, batches, 4);
 }
 
 } // namespace ds

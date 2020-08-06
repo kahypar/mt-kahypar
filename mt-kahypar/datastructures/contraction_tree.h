@@ -126,6 +126,10 @@ class ContractionTree {
 
   // ####################### Tree Node Information #######################
 
+  HypernodeID num_hypernodes() const {
+    return _num_hypernodes;
+  }
+
   // ! Returns the parent of node u
   KAHYPAR_ATTRIBUTE_ALWAYS_INLINE HypernodeID parent(const HypernodeID u) const {
     return node(u).parent();
@@ -212,6 +216,7 @@ class ContractionTree {
   // ! such that the contraction tree can be traversed in a top-down fashion and
   // ! computing the subtree sizes.
   void finalize() {
+    ASSERT(!_finalized, "Contraction tree already finalized");
     // Compute out degrees of each tree node
     utils::Timer::instance().start_timer("compute_out_degrees", "Compute Out-Degree of Tree Nodes");
     tbb::parallel_for(ID(0), _num_hypernodes, [&](const HypernodeID hn) {
