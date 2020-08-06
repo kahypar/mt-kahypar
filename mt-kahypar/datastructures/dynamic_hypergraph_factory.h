@@ -148,6 +148,9 @@ class DynamicHypergraphFactory {
         }
         hyperedge.hash() = hash;
       });
+      // Sentinel
+      hypergraph._hyperedges[num_hyperedges].enable();
+      hypergraph._hyperedges[num_hyperedges].setFirstEntry(hypergraph._num_pins);
     }, [&] {
       tbb::parallel_invoke([&] {
         hypergraph._acquired_hns.assign(

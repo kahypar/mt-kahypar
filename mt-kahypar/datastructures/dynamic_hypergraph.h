@@ -63,11 +63,13 @@ class DynamicHypergraph {
     Hypernode() :
       _weight(1),
       _community_id(0),
+      _batch_idx(std::numeric_limits<HypernodeID>::max()),
       _valid(false) { }
 
     Hypernode(const bool valid) :
       _weight(1),
       _community_id(0),
+      _batch_idx(std::numeric_limits<HypernodeID>::max()),
       _valid(valid) { }
 
     bool isDisabled() const {
@@ -103,11 +105,21 @@ class DynamicHypergraph {
       _community_id = community_id;
     }
 
+    HypernodeID batchIndex() const {
+      return _batch_idx;
+    }
+
+    void setBatchIndex(const HypernodeID batch_idx) {
+      _batch_idx = batch_idx;
+    }
+
    private:
     // ! Hypernode weight
     HyperedgeWeight _weight;
     // ! Community id
     PartitionID _community_id;
+    // ! Index of the uncontraction batch in which this hypernode is contained in
+    HypernodeID _batch_idx;
     // ! Flag indicating whether or not the element is active.
     bool _valid;
   };
@@ -1005,7 +1017,8 @@ class DynamicHypergraph {
    * vertices have a certain distance to each other and parallel local searches do not disturb each other).
    */
   BatchVector createBatchUncontractionHierarchy(const TaskGroupID task_group_id,
-                                                const size_t batch_size) {
+                                                const size_t batch_size,
+                                                const bool test = false) {
     utils::Timer::instance().start_timer("finalize_contraction_tree", "Finalize Contraction Tree");
     // Finalizes the contraction tree such that it is traversable in a top-down fashion
     // and contains subtree size for each  tree node
@@ -1035,7 +1048,13 @@ class DynamicHypergraph {
 
         if ( q.empty() ) {
           std::swap(q, next_q);
-          utils::Randomize::instance().shuffleVector(root_batches[i].back());
+          // Sort mementos in increasing order of their subtree size such that heavier
+          // vertices are pushed earlier into the global batch vector which leads to that the
+          // maximum node weight of the hypergraph degrades faster.
+          std::sort(root_batches[i].back().begin(), root_batches[i].back().end(),
+            [&](const Memento& lhs, const Memento& rhs) {
+            return _contraction_tree.subtreeSize(lhs.v) < _contraction_tree.subtreeSize(rhs.v);
+          });
           root_batches[i].emplace_back();
         }
       }
@@ -1144,6 +1163,33 @@ class DynamicHypergraph {
     BatchVector batches = std::move(tmp_batch_vec.get());
     utils::Timer::instance().stop_timer("merge_root_batches");
 
+    if ( !test ) {
+      utils::Timer::instance().start_timer("prepare_hg_for_uncontraction", "Prepare HG For Uncontraction");
+
+      // Store the batch index of each vertex in its hypernode data structure
+      tbb::parallel_for(0UL, batches.size(), [&](const size_t batch_idx) {
+        for ( const Memento& memento : batches[batch_idx] ) {
+          hypernode(memento.v).setBatchIndex(batch_idx);
+        }
+      });
+
+      // Sort the invalid part of each hyperedge according to the batch indices of its pins
+      tbb::parallel_for(ID(0), _num_hyperedges, [&](const HyperedgeID& he) {
+        const size_t first_invalid_entry = hyperedge(he).firstInvalidEntry();
+        const size_t last_invalid_entry = hyperedge(he + 1).firstEntry();
+        std::sort(_incidence_array.begin() + first_invalid_entry,
+                  _incidence_array.begin() + last_invalid_entry,
+                  [&](const HypernodeID u, const HypernodeID v) {
+                    ASSERT(hypernode(u).batchIndex() != std::numeric_limits<HypernodeID>::max(),
+                      "Hypernode" << u << "is not contained in the uncontraction hierarchy");
+                    ASSERT(hypernode(v).batchIndex() != std::numeric_limits<HypernodeID>::max(),
+                      "Hypernode" << v << "is not contained in the uncontraction hierarchy");
+                    return hypernode(u).batchIndex() > hypernode(v).batchIndex();
+                  });
+      });
+      utils::Timer::instance().stop_timer("prepare_hg_for_uncontraction");
+    }
+
     return batches;
   }
 
@@ -1151,7 +1197,7 @@ class DynamicHypergraph {
   BatchVector createBatchUncontractionHierarchy(ContractionTree&& tree,
                                                 const size_t batch_size) {
     _contraction_tree = std::move(tree);
-    return createBatchUncontractionHierarchy(TBBNumaArena::GLOBAL_TASK_GROUP, batch_size);
+    return createBatchUncontractionHierarchy(TBBNumaArena::GLOBAL_TASK_GROUP, batch_size, true);
   }
 
   // ! Only for testing
