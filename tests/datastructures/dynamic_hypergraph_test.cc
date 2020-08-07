@@ -1423,5 +1423,63 @@ TEST_F(ADynamicHypergraph, PerformsBatchUncontractions5) {
       Memento { 1, 4 }, Memento { 0, 1 }, Memento { 0, 2 } }, 2);
 }
 
+TEST_F(ADynamicHypergraph, RemovesSinglePinAndParallelNets1) {
+  const parallel::scalable_vector<Memento> contractions =
+   { Memento { 0, 2 }, Memento { 0, 1 }, Memento { 3, 6 }, Memento { 4, 5 } };
+
+  for ( const Memento& memento : contractions ) {
+    hypergraph.registerContraction(memento.u, memento.v);
+    hypergraph.contract(memento.v);
+  }
+
+  verifyPins( { 0, 1, 2, 3 },
+    { { 0 }, { 0, 3, 4 }, { 3, 4 }, { 0, 3, 4 } } );
+
+  auto removed_hyperedges = hypergraph.removeSinglePinAndParallelHyperedges();
+  std::sort(removed_hyperedges.begin(), removed_hyperedges.end());
+
+  ASSERT_EQ(2, removed_hyperedges.size());
+  ASSERT_EQ(0, removed_hyperedges[0]);
+  ASSERT_EQ(3, removed_hyperedges[1]);
+  ASSERT_FALSE(hypergraph.edgeIsEnabled(0));
+  ASSERT_FALSE(hypergraph.edgeIsEnabled(3));
+  ASSERT_EQ(2, hypergraph.edgeWeight(1));
+  verifyPins( { 1, 2 },
+    { { 0, 3, 4 }, { 3, 4 } } );
+  verifyIncidentNets(0, { 1 });
+  verifyIncidentNets(3, { 1, 2 });
+  verifyIncidentNets(4, { 1, 2 });
+}
+
+TEST_F(ADynamicHypergraph, RemovesSinglePinAndParallelNets2) {
+  const parallel::scalable_vector<Memento> contractions =
+   { Memento { 0, 2 }, Memento { 1, 5 }, Memento { 6, 3 }, Memento { 6, 4 } };
+
+  for ( const Memento& memento : contractions ) {
+    hypergraph.registerContraction(memento.u, memento.v);
+    hypergraph.contract(memento.v);
+  }
+
+  verifyPins( { 0, 1, 2, 3 },
+    { { 0 }, { 0, 1, 6 }, { 6 }, { 0, 1, 6 } } );
+
+  auto removed_hyperedges = hypergraph.removeSinglePinAndParallelHyperedges();
+  std::sort(removed_hyperedges.begin(), removed_hyperedges.end());
+
+  ASSERT_EQ(3, removed_hyperedges.size());
+  ASSERT_EQ(0, removed_hyperedges[0]);
+  ASSERT_EQ(2, removed_hyperedges[1]);
+  ASSERT_EQ(3, removed_hyperedges[2]);
+  ASSERT_FALSE(hypergraph.edgeIsEnabled(0));
+  ASSERT_FALSE(hypergraph.edgeIsEnabled(2));
+  ASSERT_FALSE(hypergraph.edgeIsEnabled(3));
+  ASSERT_EQ(2, hypergraph.edgeWeight(1));
+  verifyPins( { 1 },
+    { { 0, 1, 6 } } );
+  verifyIncidentNets(0, { 1 });
+  verifyIncidentNets(1, { 1 });
+  verifyIncidentNets(6, { 1 });
+}
+
 } // namespace ds
 } // namespace mt_kahypar

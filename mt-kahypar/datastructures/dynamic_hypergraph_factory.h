@@ -61,6 +61,9 @@ class DynamicHypergraphFactory {
       hypergraph._incident_nets.resize(num_hypernodes);
     }, [&] {
       hypergraph._hyperedges.resize(num_hyperedges + 1);
+    }, [&] {
+      hypergraph._removable_single_pin_and_parallel_nets =
+        kahypar::ds::FastResetFlagArray<>(num_hyperedges);
     });
     hypergraph._removable_incident_nets = ThreadLocalBitset(num_hyperedges, false);
 
