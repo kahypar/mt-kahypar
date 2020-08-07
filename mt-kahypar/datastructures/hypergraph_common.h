@@ -102,6 +102,11 @@ struct ContractedHyperedgeInformation {
   bool valid = false;
 };
 
+struct ParallelHyperedge {
+  HyperedgeID removed_hyperedge;
+  HyperedgeID representative;
+};
+
 // ! Helper function to compute delta for cut-metric after changeNodePart
 static HyperedgeWeight cutDelta(const HyperedgeID,
                                 const HyperedgeWeight edge_weight,

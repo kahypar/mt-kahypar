@@ -1347,13 +1347,13 @@ class DynamicHypergraph {
    * of a set of identical nets is aggregated in one representative hyperedge
    * and single-pin hyperedges are removed. Returns a vector of removed hyperedges.
    */
-  parallel::scalable_vector<HyperedgeID> removeSinglePinAndParallelHyperedges() {
+  parallel::scalable_vector<ParallelHyperedge> removeSinglePinAndParallelHyperedges() {
     _removable_single_pin_and_parallel_nets.reset();
     // Remove singple-pin hyperedges directly from the hypergraph and
     // insert all other hyperedges into a bucket data structure such that
     // hyperedges with the same hash/footprint are placed in the same bucket.
     utils::Timer::instance().start_timer("preprocess_hyperedges", "Preprocess Hyperedges");
-    StreamingVector<HyperedgeID> tmp_removed_hyperedges;
+    StreamingVector<ParallelHyperedge> tmp_removed_hyperedges;
     ConcurrentBucketMap<ContractedHyperedgeInformation> hyperedge_hash_map;
     hyperedge_hash_map.reserve_for_estimated_number_of_insertions(_num_hyperedges);
     doParallelForAllEdges([&](const HyperedgeID& he) {
@@ -1368,7 +1368,7 @@ class DynamicHypergraph {
       } else {
         hyperedge(he).disable();
         _removable_single_pin_and_parallel_nets.set(he, true);
-        tmp_removed_hyperedges.stream(he);
+        tmp_removed_hyperedges.stream(ParallelHyperedge { he, kInvalidHyperedge });
       }
     });
     utils::Timer::instance().stop_timer("preprocess_hyperedges");
@@ -1427,7 +1427,7 @@ class DynamicHypergraph {
                 hyperedge(rhs_he).disable();
                 _removable_single_pin_and_parallel_nets.set(rhs_he, true);
                 contracted_he_rhs.valid = false;
-                tmp_removed_hyperedges.stream(rhs_he);
+                tmp_removed_hyperedges.stream( ParallelHyperedge { rhs_he, lhs_he } );
             } else if ( contracted_he_lhs.hash != contracted_he_rhs.hash  ) {
               // In case, hash of both are not equal we go to the next hyperedge
               // because we compared it with all hyperedges that had an equal hash
@@ -1456,7 +1456,7 @@ class DynamicHypergraph {
     utils::Timer::instance().stop_timer("postprocess_incident_nets");
 
     utils::Timer::instance().start_timer("store_removed_hyperedges", "Store Removed Hyperedges");
-    parallel::scalable_vector<HyperedgeID> removed_hyperedges = tmp_removed_hyperedges.copy_parallel();
+    parallel::scalable_vector<ParallelHyperedge> removed_hyperedges = tmp_removed_hyperedges.copy_parallel();
     tmp_removed_hyperedges.clear_parallel();
     utils::Timer::instance().stop_timer("store_removed_hyperedges");
 

@@ -1436,11 +1436,14 @@ TEST_F(ADynamicHypergraph, RemovesSinglePinAndParallelNets1) {
     { { 0 }, { 0, 3, 4 }, { 3, 4 }, { 0, 3, 4 } } );
 
   auto removed_hyperedges = hypergraph.removeSinglePinAndParallelHyperedges();
-  std::sort(removed_hyperedges.begin(), removed_hyperedges.end());
+  std::sort(removed_hyperedges.begin(), removed_hyperedges.end(),
+    [&](const ParallelHyperedge& lhs, const ParallelHyperedge& rhs) {
+      return lhs.removed_hyperedge < rhs.removed_hyperedge;
+    });
 
   ASSERT_EQ(2, removed_hyperedges.size());
-  ASSERT_EQ(0, removed_hyperedges[0]);
-  ASSERT_EQ(3, removed_hyperedges[1]);
+  ASSERT_EQ(0, removed_hyperedges[0].removed_hyperedge);
+  ASSERT_EQ(3, removed_hyperedges[1].removed_hyperedge);
   ASSERT_FALSE(hypergraph.edgeIsEnabled(0));
   ASSERT_FALSE(hypergraph.edgeIsEnabled(3));
   ASSERT_EQ(2, hypergraph.edgeWeight(1));
@@ -1464,12 +1467,15 @@ TEST_F(ADynamicHypergraph, RemovesSinglePinAndParallelNets2) {
     { { 0 }, { 0, 1, 6 }, { 6 }, { 0, 1, 6 } } );
 
   auto removed_hyperedges = hypergraph.removeSinglePinAndParallelHyperedges();
-  std::sort(removed_hyperedges.begin(), removed_hyperedges.end());
+  std::sort(removed_hyperedges.begin(), removed_hyperedges.end(),
+    [&](const ParallelHyperedge& lhs, const ParallelHyperedge& rhs) {
+      return lhs.removed_hyperedge < rhs.removed_hyperedge;
+    });
 
   ASSERT_EQ(3, removed_hyperedges.size());
-  ASSERT_EQ(0, removed_hyperedges[0]);
-  ASSERT_EQ(2, removed_hyperedges[1]);
-  ASSERT_EQ(3, removed_hyperedges[2]);
+  ASSERT_EQ(0, removed_hyperedges[0].removed_hyperedge);
+  ASSERT_EQ(2, removed_hyperedges[1].removed_hyperedge);
+  ASSERT_EQ(3, removed_hyperedges[2].removed_hyperedge);
   ASSERT_FALSE(hypergraph.edgeIsEnabled(0));
   ASSERT_FALSE(hypergraph.edgeIsEnabled(2));
   ASSERT_FALSE(hypergraph.edgeIsEnabled(3));
