@@ -167,9 +167,9 @@ DynamicHypergraph simulateNLevel(DynamicHypergraph& hypergraph,
 TEST(ANlevel, SimulatesContractionsAndBatchUncontractions) {
   const HypernodeID num_hypernodes = 10000;
   const HypernodeID num_hyperedges = 10000;
-  const HypernodeID max_edge_size = 10;
+  const HypernodeID max_edge_size = 30;
   const HypernodeID num_contractions = 9950;
-  const size_t batch_size = 25;
+  const size_t batch_size = 100;
   const bool show_timings = false;
   const bool debug = false;
 
