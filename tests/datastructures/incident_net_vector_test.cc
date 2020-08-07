@@ -83,6 +83,18 @@ TEST(AIncidentVector, UpdatesActiveIterators3) {
   ASSERT_EQ(0, vec.active_iterators());
 }
 
+TEST(AIncidentVector, UpdatesActiveIterators4) {
+  IncidentNetVector<int> vec;
+  vec.push_back(1);
+  vec.push_back(2);
+  for ( const int elem : vec ) {
+    unused(elem);
+    ASSERT_EQ(2, vec.active_iterators());
+    ASSERT_EQ(2, vec.active_iterators());
+  }
+  ASSERT_EQ(0, vec.active_iterators());
+}
+
 TEST(AIncidentVector, UpdatesActiveIteratorsInParallel1) {
   IncidentNetVector<int> vec;
   std::atomic<size_t> cnt(0);

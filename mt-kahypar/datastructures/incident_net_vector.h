@@ -33,6 +33,7 @@
 #include "mt-kahypar/macros.h"
 #include "mt-kahypar/parallel/atomic_wrapper.h"
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
+#include "mt-kahypar/utils/range.h"
 
 namespace mt_kahypar {
 namespace ds {
@@ -231,6 +232,18 @@ class IncidentNetVector : public parallel::scalable_vector<T> {
     for ( const T& value : values ) {
       this->push_back(value);
     }
+  }
+
+  IteratorRange<const_iterator> it() {
+    std::shared_lock<std::shared_timed_mutex> read_lock(_rw_mutex);
+    return IteratorRange<iterator>(
+      const_iterator(Base::begin(), this), const_iterator(Base::end(), this));
+  }
+
+  IteratorRange<const_iterator> c_it() const {
+    std::shared_lock<std::shared_timed_mutex> read_lock(_rw_mutex);
+    return IteratorRange<const_iterator>(
+      const_iterator(Base::cbegin(), this), const_iterator(Base::cend(), this));
   }
 
   iterator begin() {

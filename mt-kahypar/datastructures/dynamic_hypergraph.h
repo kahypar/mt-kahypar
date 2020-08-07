@@ -96,7 +96,6 @@ class DynamicHypergraph {
     }
 
     PartitionID communityID() const {
-      ASSERT(!isDisabled());
       return _community_id;
     }
 
@@ -674,11 +673,9 @@ class DynamicHypergraph {
   }
 
   // ! Returns a range to loop over the incident nets of hypernode u.
-  IteratorRange<IncidentNetsIterator> incidentEdges(const HypernodeID u, const bool is_disabled = false) const {
+  IteratorRange<IncidentNetsIterator> incidentEdges(const HypernodeID u) const {
     ASSERT(u < _num_hypernodes, "Hypernode" << u << "does not exist");
-    ASSERT(is_disabled || !hypernode(u).isDisabled(), "Hypernode" << u << "is disabled");
-    return IteratorRange<IncidentNetsIterator>(
-      _incident_nets[u].cbegin(), _incident_nets[u].cend());
+    return _incident_nets[u].c_it();
   }
 
   // ! Returns a range to loop over the pins of hyperedge e.
@@ -705,7 +702,7 @@ class DynamicHypergraph {
 
   // ! Weight of a vertex
   HypernodeWeight nodeWeight(const HypernodeID u) const {
-    ASSERT(!hypernode(u).isDisabled(), "Hypernode" << u << "is disabled");
+    ASSERT(u < _num_hypernodes, "Hypernode" << u << "does not exist");
     return hypernode(u).weight();
   }
 
@@ -717,7 +714,7 @@ class DynamicHypergraph {
 
   // ! Degree of a hypernode
   HyperedgeID nodeDegree(const HypernodeID u) const {
-    ASSERT(!hypernode(u).isDisabled(), "Hypernode" << u << "is disabled");
+    ASSERT(u < _num_hypernodes, "Hypernode" << u << "does not exist");
     return _incident_nets[u].size();
   }
 
@@ -834,7 +831,7 @@ class DynamicHypergraph {
 
   // ! Community id which hypernode u is assigned to
   PartitionID communityID(const HypernodeID u) const {
-    ASSERT(!hypernode(u).isDisabled(), "Hypernode" << u << "is disabled");
+    ASSERT(u < _num_hypernodes, "Hypernode" << u << "does not exist");
     return hypernode(u).communityID();
   }
 
@@ -1027,7 +1024,7 @@ class DynamicHypergraph {
 
       parallel::scalable_vector<HyperedgeID>& failed_hyperedge_uncontractions = _failed_hyperedge_contractions.local();
       parallel::scalable_vector<bool>& removable_incident_nets_of_u = _removable_incident_nets.local();
-      for ( const HyperedgeID& he : incidentEdges(memento.v, true) ) {
+      for ( const HyperedgeID& he : incidentEdges(memento.v) ) {
         // Try to acquire ownership of hyperedge. In case of success, we perform the
         // uncontraction and otherwise, we remember the hyperedge and try later again.
         if ( tryAcquireHyperedge(he) ) {
@@ -1630,7 +1627,7 @@ class DynamicHypergraph {
 
       parallel::scalable_vector<HyperedgeID>& tmp_incident_nets = _tmp_incident_nets.local();
       parallel::scalable_vector<HyperedgeID>& failed_hyperedge_contractions = _failed_hyperedge_contractions.local();
-      for ( const HyperedgeID& he : incidentEdges(v, true) ) {
+      for ( const HyperedgeID& he : incidentEdges(v) ) {
         // Try to acquire ownership of hyperedge. In case of success, we perform the
         // contraction and otherwise, we remember the hyperedge and try later again.
         if ( tryAcquireHyperedge(he) ) {
