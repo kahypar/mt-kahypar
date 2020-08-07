@@ -233,23 +233,6 @@ class IncidentNetVector : public parallel::scalable_vector<T> {
     }
   }
 
-  void bulk_delete(const parallel::scalable_vector<bool>& values_to_delete) {
-    std::lock_guard<std::shared_timed_mutex> unique_lock(_rw_mutex);
-    // Wait until destructors of all iterators are called
-    // Note, at this point bulk_insert function holds unique lock
-    // all calls to iterators have to wait.
-    while ( _ref_count.load() > 0 ) { }
-    size_t current_size = this->size();
-    for ( size_t i = 0; i < current_size; ++i ) {
-      const T& value = this->operator[](i);
-      ASSERT(static_cast<size_t>(value) < values_to_delete.size());
-      if ( values_to_delete[value] ) {
-        std::swap(this->operator[](i--), this->operator[](--current_size));
-        this->pop_back();
-      }
-    }
-  }
-
   iterator begin() {
     std::shared_lock<std::shared_timed_mutex> read_lock(_rw_mutex);
     return iterator(Base::begin(), this);

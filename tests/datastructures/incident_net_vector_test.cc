@@ -153,38 +153,6 @@ TEST(AIncidentVector, BulkInsertInParallel2) {
   ASSERT_EQ(0, vec.active_iterators());
 }
 
-TEST(AIncidentVector, BulkDelete1) {
-  IncidentNetVector<int> vec;
-  vec.bulk_insert({2,1,3,4,5});
-  vec.bulk_delete({ false, false, true, false, true, false });
-  compare_equal(vec, {1,3,5});
-}
-
-TEST(AIncidentVector, BulkDelete2) {
-  IncidentNetVector<int> vec;
-  vec.bulk_insert({2,1,3,4,5});
-  vec.bulk_delete({ false, false, true, false, true, false });
-  vec.bulk_delete({ false, true, false, false, false, false });
-  compare_equal(vec, {3,5});
-}
-
-TEST(AIncidentVector, BulkDeleteInParallel1) {
-  IncidentNetVector<int> vec;
-  std::atomic<size_t> cnt(0);
-  vec.bulk_insert({0,1,2,3,4,5,6,7,8,9});
-  tbb::parallel_invoke([&] {
-    ++cnt;
-    while ( cnt < 2 ) { }
-    vec.bulk_delete({0,0,0,1,0,0,1,0,0,1});
-  }, [&] {
-    ++cnt;
-    while ( cnt < 2 ) { }
-    vec.bulk_delete({1,0,0,0,0,0,0,1,0,0});
-  });
-  compare_equal(vec, {1,2,4,5,8});
-  ASSERT_EQ(0, vec.active_iterators());
-}
-
 #ifndef KAHYPAR_TRAVIS_BUILD
 TEST(AIncidentVector, BulkInsertWhileIteratorsAreActive) {
   IncidentNetVector<int> vec;

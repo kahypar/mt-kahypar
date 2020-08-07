@@ -1327,6 +1327,103 @@ TEST_F(ADynamicHypergraph, CreateBatchUncontractionHierarchy6) {
   verifyBatchUncontractionHierarchy(tree, batches, 4);
 }
 
+void verifyEqualityOfHypergraphs(const DynamicHypergraph& expected_hypergraph,
+                                 const DynamicHypergraph& actual_hypergraph) {
+  parallel::scalable_vector<HyperedgeID> expected_incident_edges;
+  parallel::scalable_vector<HyperedgeID> actual_incident_edges;
+  for ( const HypernodeID& hn : expected_hypergraph.nodes() ) {
+    ASSERT_TRUE(actual_hypergraph.nodeIsEnabled(hn));
+    ASSERT_EQ(expected_hypergraph.nodeWeight(hn), actual_hypergraph.nodeWeight(hn));
+    ASSERT_EQ(expected_hypergraph.nodeDegree(hn), actual_hypergraph.nodeDegree(hn));
+    for ( const HyperedgeID he : expected_hypergraph.incidentEdges(hn) ) {
+      expected_incident_edges.push_back(he);
+    }
+    for ( const HyperedgeID he : actual_hypergraph.incidentEdges(hn) ) {
+      actual_incident_edges.push_back(he);
+    }
+    std::sort(expected_incident_edges.begin(), expected_incident_edges.end());
+    std::sort(actual_incident_edges.begin(), actual_incident_edges.end());
+    ASSERT_EQ(expected_incident_edges.size(), actual_incident_edges.size());
+    for ( size_t i = 0; i < expected_incident_edges.size(); ++i ) {
+      ASSERT_EQ(expected_incident_edges[i], actual_incident_edges[i]);
+    }
+    expected_incident_edges.clear();
+    actual_incident_edges.clear();
+  }
+
+  parallel::scalable_vector<HypernodeID> expected_pins;
+  parallel::scalable_vector<HypernodeID> actual_pins;
+  for ( const HyperedgeID& he : expected_hypergraph.edges() ) {
+    for ( const HyperedgeID he : expected_hypergraph.pins(he) ) {
+      expected_pins.push_back(he);
+    }
+    for ( const HyperedgeID he : actual_hypergraph.pins(he) ) {
+      actual_pins.push_back(he);
+    }
+    std::sort(expected_pins.begin(), expected_pins.end());
+    std::sort(actual_pins.begin(), actual_pins.end());
+    ASSERT_EQ(expected_pins.size(), actual_pins.size());
+    for ( size_t i = 0; i < expected_pins.size(); ++i ) {
+      ASSERT_EQ(expected_pins[i], actual_pins[i]);
+    }
+    expected_pins.clear();
+    actual_pins.clear();
+  }
+}
+
+void verifyBatchUncontractions(DynamicHypergraph& hypergraph,
+                               const parallel::scalable_vector<Memento>& contractions,
+                               const size_t batch_size) {
+  DynamicHypergraph expected_hypergraph = hypergraph.copy();
+
+  // Perform contractions
+  for ( const Memento& memento : contractions ) {
+    hypergraph.registerContraction(memento.u, memento.v);
+    hypergraph.contract(memento.v);
+  }
+
+  auto batches = hypergraph.createBatchUncontractionHierarchy(
+    TBBNumaArena::GLOBAL_TASK_GROUP, batch_size);
+
+  while ( !batches.empty() ) {
+    const parallel::scalable_vector<Memento> batch = batches.back();
+    hypergraph.uncontract(batch);
+    batches.pop_back();
+  }
+
+  verifyEqualityOfHypergraphs(expected_hypergraph, hypergraph);
+}
+
+TEST_F(ADynamicHypergraph, PerformsBatchUncontractions1) {
+  verifyBatchUncontractions(hypergraph,
+    { Memento { 0, 2 }, Memento { 3, 4 }, Memento { 5, 6 } }, 3);
+}
+
+TEST_F(ADynamicHypergraph, PerformsBatchUncontractions2) {
+  verifyBatchUncontractions(hypergraph,
+    { Memento { 1, 0 }, Memento { 2, 1 }, Memento { 3, 2 } }, 3);
+}
+
+TEST_F(ADynamicHypergraph, PerformsBatchUncontractions3) {
+  verifyBatchUncontractions(hypergraph,
+    { Memento { 1, 0 }, Memento { 1, 2 }, Memento { 3, 1 },
+      Memento { 4, 6 }, Memento { 4, 5 } }, 3);
+}
+
+TEST_F(ADynamicHypergraph, PerformsBatchUncontractions4) {
+  verifyBatchUncontractions(hypergraph,
+    { Memento { 5, 6 }, Memento { 4, 5 }, Memento { 3, 4 },
+      Memento { 2, 3 }, Memento { 1, 2 }, Memento { 0, 1 } }, 3);
+}
+
+
+TEST_F(ADynamicHypergraph, PerformsBatchUncontractions5) {
+  verifyBatchUncontractions(hypergraph,
+    { Memento { 2, 6 }, Memento { 2, 5 }, Memento { 1, 3 },
+      Memento { 1, 4 }, Memento { 0, 1 }, Memento { 0, 2 } }, 2);
+}
+
+
 TEST_F(ADynamicHypergraph, NLevelSmokeTest) {
   const HypernodeID num_hypernodes = 1000;
   const HypernodeID num_hyperedges = 1000;
@@ -1403,48 +1500,8 @@ TEST_F(ADynamicHypergraph, NLevelSmokeTest) {
   });
   utils::Timer::instance().stop_timer("parallel_contractions");
 
-  if ( debug ) LOG << "Verify incident edges of each hypernode";
-  parallel::scalable_vector<HyperedgeID> expected_incident_edges;
-  parallel::scalable_vector<HyperedgeID> actual_incident_edges;
-  for ( const HypernodeID& hn : sequential_hg.nodes() ) {
-    ASSERT_TRUE(parallel_hg.nodeIsEnabled(hn));
-    ASSERT_EQ(sequential_hg.nodeWeight(hn), parallel_hg.nodeWeight(hn));
-    ASSERT_EQ(sequential_hg.nodeDegree(hn), parallel_hg.nodeDegree(hn));
-    for ( const HyperedgeID he : sequential_hg.incidentEdges(hn) ) {
-      expected_incident_edges.push_back(he);
-    }
-    for ( const HyperedgeID he : parallel_hg.incidentEdges(hn) ) {
-      actual_incident_edges.push_back(he);
-    }
-    std::sort(expected_incident_edges.begin(), expected_incident_edges.end());
-    std::sort(actual_incident_edges.begin(), actual_incident_edges.end());
-    ASSERT_EQ(expected_incident_edges.size(), actual_incident_edges.size());
-    for ( size_t i = 0; i < expected_incident_edges.size(); ++i ) {
-      ASSERT_EQ(expected_incident_edges[i], actual_incident_edges[i]);
-    }
-    expected_incident_edges.clear();
-    actual_incident_edges.clear();
-  }
-
-  if ( debug ) LOG << "Verify pins of each hyperedge";
-  parallel::scalable_vector<HypernodeID> expected_pins;
-  parallel::scalable_vector<HypernodeID> actual_pins;
-  for ( const HyperedgeID& he : sequential_hg.edges() ) {
-    for ( const HyperedgeID he : sequential_hg.pins(he) ) {
-      expected_pins.push_back(he);
-    }
-    for ( const HyperedgeID he : parallel_hg.pins(he) ) {
-      actual_pins.push_back(he);
-    }
-    std::sort(expected_pins.begin(), expected_pins.end());
-    std::sort(actual_pins.begin(), actual_pins.end());
-    ASSERT_EQ(expected_pins.size(), actual_pins.size());
-    for ( size_t i = 0; i < expected_pins.size(); ++i ) {
-      ASSERT_EQ(expected_pins[i], actual_pins[i]);
-    }
-    expected_pins.clear();
-    actual_pins.clear();
-  }
+  if ( debug ) LOG << "Verify equality of sequential and parallel contracted hypergraph";
+  verifyEqualityOfHypergraphs(sequential_hg, parallel_hg);
 
   if ( debug ) LOG << "Create n-level Batch Uncontraction Hierarchy";
   utils::Timer::instance().start_timer("create_batch_uncontraction_hierarchy", "Create n-Level Hierarchy");

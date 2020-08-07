@@ -42,6 +42,7 @@ class DynamicHypergraphFactory {
   using Counter = parallel::scalable_vector<size_t>;
   using AtomicCounter = parallel::scalable_vector<parallel::IntegralAtomicWrapper<size_t>>;
   using ThreadLocalCounter = tbb::enumerable_thread_specific<Counter>;
+  using ThreadLocalBitset = tbb::enumerable_thread_specific<parallel::scalable_vector<bool>>;
 
  public:
   static DynamicHypergraph construct(const TaskGroupID task_group_id,
@@ -61,6 +62,7 @@ class DynamicHypergraphFactory {
     }, [&] {
       hypergraph._hyperedges.resize(num_hyperedges + 1);
     });
+    hypergraph._removable_incident_nets = ThreadLocalBitset(num_hyperedges, false);
 
     ASSERT(edge_vector.size() == num_hyperedges);
 

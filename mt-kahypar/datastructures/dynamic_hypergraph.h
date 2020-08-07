@@ -189,6 +189,11 @@ class DynamicHypergraph {
       _size = size;
     }
 
+    void incrementSize() {
+      ASSERT(!isDisabled());
+      ++_size;
+    }
+
     void decrementSize() {
       ASSERT(!isDisabled());
       --_size;
@@ -452,8 +457,7 @@ class DynamicHypergraph {
   using IncidentNets = parallel::scalable_vector<IncidentNetVector<HyperedgeID>>;
   using OwnershipVector = parallel::scalable_vector<parallel::IntegralAtomicWrapper<bool>>;
   using ThreadLocalHyperedgeVector = tbb::enumerable_thread_specific<parallel::scalable_vector<HyperedgeID>>;
-  using UncontractionPQ = std::priority_queue<Uncontraction,
-    parallel::scalable_vector<Uncontraction>, UncontractionComparator>;
+  using ThreadLocalBitset = tbb::enumerable_thread_specific<parallel::scalable_vector<bool>>;
 
  public:
   static constexpr bool is_static_hypergraph = true;
@@ -491,6 +495,7 @@ class DynamicHypergraph {
     _acquired_hes(),
     _tmp_incident_nets(),
     _failed_hyperedge_contractions(),
+    _removable_incident_nets(),
     _community_support() { }
 
   DynamicHypergraph(const DynamicHypergraph&) = delete;
@@ -514,6 +519,7 @@ class DynamicHypergraph {
     _acquired_hes(std::move(other._acquired_hes)),
     _tmp_incident_nets(std::move(other._tmp_incident_nets)),
     _failed_hyperedge_contractions(std::move(other._failed_hyperedge_contractions)),
+    _removable_incident_nets(std::move(other._removable_incident_nets)),
     _community_support(std::move(other._community_support)) { }
 
   DynamicHypergraph & operator= (DynamicHypergraph&& other) {
@@ -534,6 +540,7 @@ class DynamicHypergraph {
     _acquired_hes = std::move(other._acquired_hes);
     _tmp_incident_nets = std::move(other._tmp_incident_nets);
     _failed_hyperedge_contractions = std::move(other._failed_hyperedge_contractions);
+    _removable_incident_nets = std::move(other._removable_incident_nets);
     _community_support = std::move(other._community_support);
     return *this;
   }
@@ -998,6 +1005,71 @@ class DynamicHypergraph {
   }
 
   /**
+   * Uncontracts a batch of contractions in parallel. The batches must be uncontracted exactly
+   * in the order computed by the function createBatchUncontractionHierarchy(...).
+   */
+  void uncontract(const Batch& batch) {
+    ASSERT(batch.size() > 0UL);
+    ASSERT([&] {
+      const HypernodeID expected_batch_index = hypernode(batch[0].v).batchIndex();
+      for ( const Memento& memento : batch ) {
+        if ( hypernode(memento.v).batchIndex() != expected_batch_index ) {
+          return false;
+        }
+      }
+      return true;
+    }(), "Batch contains uncontractions from different batches");
+
+    tbb::parallel_for(0UL, batch.size(), [&](const size_t i) {
+      const Memento& memento = batch[i];
+      ASSERT(!hypernode(memento.u).isDisabled(), "Hypernode" << memento.u << "is disabled");
+      ASSERT(hypernode(memento.v).isDisabled(), "Hypernode" << memento.v << "is not invalid");
+
+      parallel::scalable_vector<HyperedgeID>& failed_hyperedge_uncontractions = _failed_hyperedge_contractions.local();
+      parallel::scalable_vector<bool>& removable_incident_nets_of_u = _removable_incident_nets.local();
+      for ( const HyperedgeID& he : incidentEdges(memento.v, true) ) {
+        // Try to acquire ownership of hyperedge. In case of success, we perform the
+        // uncontraction and otherwise, we remember the hyperedge and try later again.
+        if ( tryAcquireHyperedge(he) ) {
+          uncontractHyperedge(memento.u, memento.v, he, removable_incident_nets_of_u);
+          releaseHyperedge(he);
+        } else {
+          failed_hyperedge_uncontractions.push_back(he);
+        }
+      }
+
+      // Perform uncontractions on which we failed to acquire ownership on the first try
+      for ( const HyperedgeID& he : failed_hyperedge_uncontractions ) {
+        acquireHyperedge(he);
+        uncontractHyperedge(memento.u, memento.v, he, removable_incident_nets_of_u);
+        releaseHyperedge(he);
+      }
+
+      failed_hyperedge_uncontractions.clear();
+      acquireHypernode(memento.u);
+      // Restore hypernode v which includes enabling it and subtract its weight
+      // from its representative
+      hypernode(memento.v).enable();
+      hypernode(memento.u).setWeight(hypernode(memento.u).weight() - hypernode(memento.v).weight());
+
+      // Remove all incident nets of u marked as removable
+      IncidentNetVector<HyperedgeID>& incident_nets_of_u = _incident_nets[memento.u];
+      size_t incident_nets_size = incident_nets_of_u.size();
+      ASSERT(incident_nets_of_u.active_iterators() == 0);
+      for ( size_t i = 0; i < incident_nets_size; ++i ) {
+        const HyperedgeID he = incident_nets_of_u[i];
+        ASSERT(he < removable_incident_nets_of_u.size());
+        if ( removable_incident_nets_of_u[he] ) {
+          std::swap(incident_nets_of_u[i--], incident_nets_of_u[--incident_nets_size]);
+          incident_nets_of_u.pop_back();
+          removable_incident_nets_of_u[he] = false;
+        }
+      }
+      releaseHypernode(memento.u);
+    });
+  }
+
+  /**
    * Computes a batch uncontraction hierarchy. A batch is a vector of mementos
    * (uncontractions) that are uncontracted in parallel.
    * A batch of uncontractions must satisfy the condition that all representative of uncontractions
@@ -1366,6 +1438,8 @@ class DynamicHypergraph {
         hypergraph._acquired_hes[he] = _acquired_hes[he];
       });
     }, [&] {
+      hypergraph._removable_incident_nets = _removable_incident_nets;
+    }, [&] {
       hypergraph._community_support = _community_support.copy(task_group_id);
     });
     return hypergraph;
@@ -1406,6 +1480,7 @@ class DynamicHypergraph {
     for ( HyperedgeID he = 0; he < _num_hyperedges; ++he ) {
       hypergraph._acquired_hes[he] = _acquired_hes[he];
     }
+    hypergraph._removable_incident_nets = _removable_incident_nets;
 
     hypergraph._community_support = _community_support.copy();
 
@@ -1430,6 +1505,7 @@ class DynamicHypergraph {
     parent->addChild("Hyperedges", sizeof(Hyperedge) * _hyperedges.size());
     parent->addChild("Incidence Array", sizeof(HypernodeID) * _incidence_array.size());
     parent->addChild("Hyperedge Ownership Vector", sizeof(bool) * _acquired_hes.size());
+    parent->addChild("Bitset", ( _num_hyperedges * _removable_incident_nets.size() ) / 8UL );
 
     utils::MemoryTreeNode* contraction_tree_node = parent->addChild("Contraction Tree");
     _contraction_tree.memoryConsumption(contraction_tree_node);
@@ -1597,6 +1673,60 @@ class DynamicHypergraph {
     }
   }
 
+  // ! Uncontracts u and v in hyperedge he.
+  KAHYPAR_ATTRIBUTE_ALWAYS_INLINE void uncontractHyperedge(const HypernodeID u,
+                                                           const HypernodeID v,
+                                                           const HyperedgeID he,
+                                                           parallel::scalable_vector<bool>& removable_incident_nets_of_u) {
+    const HypernodeID batch_index = hypernode(v).batchIndex();
+
+    // We search for hypernode v in the invalid part of hyperedge he. Note, that
+    // pins in the invalid part of the hyperedge are sorted in decreasing order
+    // of their batch index which they are contained in as contraction partner.
+    // Therefore, we only visit the pins that have the same batch index as v
+    // in the invalid part.
+    const size_t first_invalid_entry = hyperedge(he).firstInvalidEntry();
+    const size_t last_invalid_entry = hyperedge(he + 1).firstEntry();
+    size_t slot_of_v = last_invalid_entry;
+    for ( size_t pos = first_invalid_entry; pos < last_invalid_entry; ++pos ) {
+      const HypernodeID pin = _incidence_array[pos];
+      ASSERT(hypernode(pin).batchIndex() <= batch_index);
+      if ( pin == v ) {
+        slot_of_v = pos;
+        break;
+      } else if ( hypernode(pin).batchIndex() != batch_index ) {
+        break;
+      }
+    }
+
+    if ( slot_of_v != last_invalid_entry ) {
+      // In that case v was found in the invalid part and u and v were part of hyperedge
+      // he also before its contraction. Therefore, we swap v to the first invalid
+      // entry and increment the size of the hyperedge.
+      std::swap(_incidence_array[first_invalid_entry], _incidence_array[slot_of_v]);
+      hyperedge(he).incrementSize();
+    } else {
+      // In that case v was not found in the invalid part of hyperedge he, which means that
+      // u was not incident to hyperedge he before the contraction. Therefore, we have to find
+      // u and replace it with v.
+      const size_t first_valid_entry = hyperedge(he).firstEntry();
+      size_t slot_of_u = first_invalid_entry;
+      for ( size_t pos = first_invalid_entry - 1; pos != first_valid_entry - 1; --pos ) {
+        if ( u == _incidence_array[pos] ) {
+          slot_of_u = pos;
+          break;
+        }
+      }
+
+      ASSERT(slot_of_u != first_invalid_entry, "Hypernode" << u << "is not incident to hyperedge" << he);
+
+      _incidence_array[slot_of_u] = v;
+      // u is not incident to hyperedge he after this uncontraction
+      // => we mark hyperedge he as removable and remove it in a postprocessing step
+      removable_incident_nets_of_u[he] = true;
+    }
+  }
+
   // ! Performs the contraction of (u,v) inside hyperedge he
   KAHYPAR_ATTRIBUTE_ALWAYS_INLINE void contractHyperedge(const HypernodeID u, const HypernodeID v, const HyperedgeID he,
                                                          parallel::scalable_vector<HyperedgeID>& tmp_incident_nets) {
@@ -1705,6 +1835,8 @@ class DynamicHypergraph {
   ThreadLocalHyperedgeVector _tmp_incident_nets;
   // ! Collects hyperedge contractions that failed due to failed acquired ownership
   ThreadLocalHyperedgeVector _failed_hyperedge_contractions;
+  // ! Marks incident nets that have to be removed from vertex u after an uncontraction (u,v)
+  ThreadLocalBitset _removable_incident_nets;
 
   // ! Community Information and Stats
   CommunitySupport<DynamicHypergraph> _community_support;
