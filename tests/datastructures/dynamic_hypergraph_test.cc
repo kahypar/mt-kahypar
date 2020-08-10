@@ -1487,5 +1487,51 @@ TEST_F(ADynamicHypergraph, RemovesSinglePinAndParallelNets2) {
   verifyIncidentNets(6, { 1 });
 }
 
+TEST_F(ADynamicHypergraph, RestoreSinglePinAndParallelNets1) {
+  const parallel::scalable_vector<Memento> contractions =
+   { Memento { 0, 2 }, Memento { 0, 1 }, Memento { 3, 6 }, Memento { 4, 5 } };
+
+  for ( const Memento& memento : contractions ) {
+    hypergraph.registerContraction(memento.u, memento.v);
+    hypergraph.contract(memento.v);
+  }
+
+  auto removed_hyperedges = hypergraph.removeSinglePinAndParallelHyperedges();
+  hypergraph.restoreSinglePinAndParallelNets(removed_hyperedges);
+
+  verifyIncidentNets(0, { 0, 1, 3 });
+  verifyIncidentNets(3, { 1, 2, 3 });
+  verifyIncidentNets(4, { 1, 2, 3 });
+  verifyPins( { 0, 1, 2, 3 },
+    { { 0 }, { 0, 3, 4 }, { 3, 4 }, { 0, 3, 4 } } );
+  ASSERT_EQ(1, hypergraph.edgeWeight(0));
+  ASSERT_EQ(1, hypergraph.edgeWeight(1));
+  ASSERT_EQ(1, hypergraph.edgeWeight(2));
+  ASSERT_EQ(1, hypergraph.edgeWeight(3));
+}
+
+TEST_F(ADynamicHypergraph, RestoresSinglePinAndParallelNets2) {
+  const parallel::scalable_vector<Memento> contractions =
+   { Memento { 0, 2 }, Memento { 1, 5 }, Memento { 6, 3 }, Memento { 6, 4 } };
+
+  for ( const Memento& memento : contractions ) {
+    hypergraph.registerContraction(memento.u, memento.v);
+    hypergraph.contract(memento.v);
+  }
+
+  auto removed_hyperedges = hypergraph.removeSinglePinAndParallelHyperedges();
+  hypergraph.restoreSinglePinAndParallelNets(removed_hyperedges);
+
+  verifyIncidentNets(0, { 0, 1, 3 });
+  verifyIncidentNets(1, { 1, 3 });
+  verifyIncidentNets(6, { 1, 2, 3 });
+  verifyPins( { 0, 1, 2, 3 },
+    { { 0 }, { 0, 1, 6 }, { 6 }, { 0, 1, 6 } } );
+  ASSERT_EQ(1, hypergraph.edgeWeight(0));
+  ASSERT_EQ(1, hypergraph.edgeWeight(1));
+  ASSERT_EQ(1, hypergraph.edgeWeight(2));
+  ASSERT_EQ(1, hypergraph.edgeWeight(3));
+}
+
 } // namespace ds
 } // namespace mt_kahypar

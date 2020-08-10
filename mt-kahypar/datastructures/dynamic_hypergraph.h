@@ -1395,7 +1395,7 @@ class DynamicHypergraph {
       }
     };
 
-    // In the step before we aggregated hyperedges within a bucket data structure.
+    // In the step before we placed hyperedges within a bucket data structure.
     // Hyperedges with the same hash/footprint are stored inside the same bucket.
     // We iterate now in parallel over each bucket and sort each bucket
     // after its hash. A bucket is processed by one thread and parallel
@@ -1461,6 +1461,56 @@ class DynamicHypergraph {
     utils::Timer::instance().stop_timer("store_removed_hyperedges");
 
     return removed_hyperedges;
+  }
+
+  /**
+   * Restores a previously removed set of singple-pin and parallel hyperedges. Note, that hes_to_restore
+   * must be exactly the same and given in the reverse order as returned by removeSinglePinAndParallelNets(...).
+   */
+  void restoreSinglePinAndParallelNets(const parallel::scalable_vector<ParallelHyperedge>& hes_to_restore) {
+    // Restores all previously removed hyperedges
+    ConcurrentBucketMap<Memento> incident_net_map;
+    tbb::parallel_for(0UL, hes_to_restore.size(), [&](const size_t i) {
+      const ParallelHyperedge& parallel_he = hes_to_restore[i];
+      const HyperedgeID he = parallel_he.removed_hyperedge;
+      ASSERT(!edgeIsEnabled(he), "Hyperedge" << he << "should be disabled");
+      const bool is_parallel_net = parallel_he.representative != kInvalidHyperedge;
+      hyperedge(he).enable();
+      if ( is_parallel_net ) {
+        const HyperedgeID rep = parallel_he.representative;
+        ASSERT(edgeIsEnabled(rep), "Hyperedge" << rep << "should be enabled");
+        Hyperedge& rep_he = hyperedge(rep);
+        acquireHyperedge(rep);
+        rep_he.setWeight(rep_he.weight() - hyperedge(he).weight());
+        releaseHyperedge(rep);
+      }
+
+      for ( const HypernodeID& pin : pins(he) ) {
+        incident_net_map.insert(pin, Memento { pin, he });
+      }
+    });
+
+    // Adds all restored hyperedges as incident net to its contained pins.
+    // In the previous step we inserted all pins together with its hyperedges
+    // into a bucket data structure. All hyperedges of the same pin are placed
+    // within the same bucket and can be processed sequentially here without
+    // locking.
+    tbb::parallel_for(0UL, incident_net_map.numBuckets(), [&](const size_t bucket) {
+      auto& incident_net_bucket = incident_net_map.getBucket(bucket);
+      std::sort(incident_net_bucket.begin(), incident_net_bucket.end(),
+        [&](const Memento& lhs, const Memento& rhs) {
+          return lhs.u < rhs.u || ( lhs.u == rhs.u || lhs.v < rhs.v);
+        });
+
+      // No locking required since vertex u can only occur in one bucket
+      for ( const Memento& memento : incident_net_bucket ) {
+        const HypernodeID u = memento.u;
+        const HyperedgeID he = memento.v;
+        _incident_nets[u].push_back(he);
+      }
+
+      incident_net_map.free(bucket);
+    });
   }
 
   // ####################### Initialization / Reset Functions #######################
