@@ -69,6 +69,7 @@ TEST(AContractionTree, IsConstructedCorrectly1) {
   ASSERT_EQ(0, tree.subtreeSize(4));
 
   verifyRoots(tree.roots(), { 0 });
+  verifyRoots(tree.roots_of_version(0), { 0 });
 }
 
 TEST(AContractionTree, IsConstructedCorrectly2) {
@@ -107,6 +108,7 @@ TEST(AContractionTree, IsConstructedCorrectly2) {
   ASSERT_EQ(0, tree.subtreeSize(9));
 
   verifyRoots(tree.roots(), { 0, 5 });
+  verifyRoots(tree.roots_of_version(0), { 0, 5 });
 }
 
 TEST(AContractionTree, IsConstructedCorrectly3) {
@@ -146,6 +148,7 @@ TEST(AContractionTree, IsConstructedCorrectly3) {
   ASSERT_EQ(0, tree.subtreeSize(9));
 
   verifyRoots(tree.roots(), { 0 });
+  verifyRoots(tree.roots_of_version(0), { 0 });
 }
 
 TEST(AContractionTree, IsConstructedCorrectly4) {
@@ -212,6 +215,7 @@ TEST(AContractionTree, IsConstructedCorrectly4) {
   ASSERT_EQ(0, tree.subtreeSize(20));
 
   verifyRoots(tree.roots(), { 0, 3, 6, 9, 12, 15, 18 });
+  verifyRoots(tree.roots_of_version(0), { 0, 3, 6, 9, 12, 15, 18 });
 }
 
 TEST(AContractionTree, ContainsCorrectRootsInPresenceOfSingletonRoots) {
@@ -222,7 +226,111 @@ TEST(AContractionTree, ContainsCorrectRootsInPresenceOfSingletonRoots) {
   tree.finalize();
 
   verifyRoots(tree.roots(), { 0 });
+  verifyRoots(tree.roots_of_version(0), { 0 });
 }
+
+void verifyChildsOfVersion(const ContractionTree& tree,
+                           const HypernodeID u,
+                           const size_t version,
+                           const std::set<HypernodeID>& expected_childs) {
+  size_t num_childs = 0;
+  tree.doForEachChildOfVersion(u, version, [&](const HypernodeID& v) {
+    ASSERT_TRUE(expected_childs.find(v) != expected_childs.end())
+      << "Node " << v << " not contained in expected childs of node " << u
+      << " for version " << version;
+    ++num_childs;
+  });
+  ASSERT_EQ(num_childs, expected_childs.size());
+}
+
+TEST(AContractionTree, ContainsCorrectVersionRoots1) {
+  ContractionTree tree;
+  tree.initialize(5);
+  tree.setParent(1, 0, 1);
+  tree.setParent(2, 0, 1);
+  tree.setParent(3, 1, 0);
+  tree.setParent(4, 1, 0);
+  tree.finalize(2);
+
+  verifyRoots(tree.roots(), { 0 });
+  verifyRoots(tree.roots_of_version(0), { 1 });
+  verifyRoots(tree.roots_of_version(1), { 0 });
+  verifyChildsOfVersion(tree, 0, 0, { });
+  verifyChildsOfVersion(tree, 0, 1, { 1, 2 });
+  verifyChildsOfVersion(tree, 1, 0, { 3, 4 });
+  verifyChildsOfVersion(tree, 1, 1, { });
+}
+
+TEST(AContractionTree, ContainsCorrectVersionRoots2) {
+  ContractionTree tree;
+  tree.initialize(7);
+  tree.setParent(1, 0, 2);
+  tree.setParent(2, 0, 1);
+  tree.setParent(3, 1, 0);
+  tree.setParent(4, 1, 1);
+  tree.setParent(5, 2, 0);
+  tree.setParent(6, 2, 1);
+  tree.finalize(3);
+
+  verifyRoots(tree.roots(), { 0 });
+  verifyRoots(tree.roots_of_version(0), { 1, 2 });
+  verifyRoots(tree.roots_of_version(1), { 0, 1 });
+  verifyRoots(tree.roots_of_version(2), { 0 });
+  verifyChildsOfVersion(tree, 0, 1, { 2 });
+  verifyChildsOfVersion(tree, 0, 2, { 1 });
+  verifyChildsOfVersion(tree, 1, 0, { 3 });
+  verifyChildsOfVersion(tree, 1, 1, { 4 });
+  verifyChildsOfVersion(tree, 2, 0, { 5 });
+  verifyChildsOfVersion(tree, 2, 1, { 6 });
+}
+
+TEST(AContractionTree, ContainsCorrectVersionRoots3) {
+  ContractionTree tree;
+  tree.initialize(6);
+  tree.setParent(1, 0, 2);
+  tree.setParent(2, 0, 1);
+  tree.setParent(4, 3, 0);
+  tree.setParent(5, 3, 1);
+  tree.finalize(3);
+
+  verifyRoots(tree.roots(), { 0, 3 });
+  verifyRoots(tree.roots_of_version(0), { 3 });
+  verifyRoots(tree.roots_of_version(1), { 0, 3 });
+  verifyRoots(tree.roots_of_version(2), { 0 });
+  verifyChildsOfVersion(tree, 0, 1, { 2 });
+  verifyChildsOfVersion(tree, 0, 2, { 1 });
+  verifyChildsOfVersion(tree, 3, 0, { 4 });
+  verifyChildsOfVersion(tree, 3, 1, { 5 });
+}
+
+TEST(AContractionTree, ContainsCorrectVersionRoots4) {
+  ContractionTree tree;
+  tree.initialize(10);
+  tree.setParent(1, 0, 4);
+  tree.setParent(2, 0, 4);
+  tree.setParent(3, 1, 1);
+  tree.setParent(4, 2, 2);
+  tree.setParent(6, 5, 3);
+  tree.setParent(7, 5, 4);
+  tree.setParent(8, 6, 0);
+  tree.setParent(9, 7, 2);
+  tree.finalize(5);
+
+  verifyRoots(tree.roots(), { 0, 5 });
+  verifyRoots(tree.roots_of_version(0), { 6 });
+  verifyRoots(tree.roots_of_version(1), { 1 });
+  verifyRoots(tree.roots_of_version(2), { 2, 7 });
+  verifyRoots(tree.roots_of_version(3), { 5 });
+  verifyRoots(tree.roots_of_version(4), { 0, 5 });
+  verifyChildsOfVersion(tree, 0, 4, { 1, 2 });
+  verifyChildsOfVersion(tree, 1, 1, { 3 });
+  verifyChildsOfVersion(tree, 2, 2, { 4 });
+  verifyChildsOfVersion(tree, 5, 3, { 6 });
+  verifyChildsOfVersion(tree, 5, 4, { 7 });
+  verifyChildsOfVersion(tree, 6, 0, { 8 });
+  verifyChildsOfVersion(tree, 7, 2, { 9 });
+}
+
 
 } // namespace ds
 } // namespace mt_kahypar

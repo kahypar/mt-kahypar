@@ -41,6 +41,7 @@ class ContractionTree {
 
   static constexpr bool debug = false;
   static constexpr bool enable_heavy_assert = false;
+  static constexpr size_t kInvalidVersion = std::numeric_limits<size_t>::max();
 
   /**
    * Represents a node in contraction tree and contains all information
@@ -51,7 +52,8 @@ class ContractionTree {
       Node() :
         _parent(0),
         _pending_contractions(0),
-        _subtree_size(0) { }
+        _subtree_size(0),
+        _version(kInvalidVersion) { }
 
       inline HypernodeID parent() const {
         return _parent;
@@ -81,6 +83,14 @@ class ContractionTree {
         _subtree_size = subtree_size;
       }
 
+      inline size_t version() const {
+        return _version;
+      }
+
+      inline void setVersion(const size_t version) {
+        _version = version;
+      }
+
     private:
       // ! Parent in the contraction tree
       HypernodeID _parent;
@@ -88,6 +98,8 @@ class ContractionTree {
       HypernodeID _pending_contractions;
       // ! Size of the subtree
       HypernodeID _subtree_size;
+      // ! Version number of the hypergraph for which contract the corresponding vertex
+      size_t _version;
   };
 
   static_assert(std::is_trivially_copyable<Node>::value, "Node is not trivially copyable");
@@ -101,6 +113,8 @@ class ContractionTree {
     _num_hypernodes(0),
     _finalized(false),
     _tree(),
+    _roots(),
+    _version_roots(),
     _out_degrees(),
     _incidence_array() { }
 
@@ -108,6 +122,8 @@ class ContractionTree {
     _num_hypernodes(other._num_hypernodes),
     _finalized(other._finalized),
     _tree(std::move(other._tree)),
+    _roots(std::move(other._roots)),
+    _version_roots(std::move(other._version_roots)),
     _out_degrees(std::move(other._out_degrees)),
     _incidence_array(std::move(other._incidence_array)) { }
 
@@ -115,6 +131,8 @@ class ContractionTree {
     _num_hypernodes = other._num_hypernodes;
     _finalized = other._finalized;
     _tree = std::move(other._tree);
+    _roots = std::move(other._roots);
+    _version_roots = std::move(other._version_roots);
     _out_degrees = std::move(other._out_degrees);
     _incidence_array = std::move(other._incidence_array);
     return *this;
@@ -157,6 +175,11 @@ class ContractionTree {
     return _roots;
   }
 
+  const parallel::scalable_vector<HypernodeID>& roots_of_version(const size_t version) const {
+    ASSERT(version < _version_roots.size());
+    return _version_roots[version];
+  }
+
   // ####################### Iterators #######################
 
   // ! Returns a range to loop over the childs of a tree node u.
@@ -168,12 +191,25 @@ class ContractionTree {
       _incidence_array.cbegin() + _out_degrees[u + 1]);
   }
 
+  // ! Calls function f for each child of vertex u with the corresponding version
+  template<typename F>
+  void doForEachChildOfVersion(const HypernodeID u, const size_t version, const F& f) const {
+    ASSERT(_finalized, "Information currently not available");
+    ASSERT(u < _num_hypernodes, "Hypernode" << u << "does not exist");
+    for ( const HypernodeID& v : childs(u) ) {
+      if ( _tree[v].version() == version ) {
+        f(v);
+      }
+    }
+  }
+
   // ####################### Contraction Functions #######################
 
   // ! Registers a contraction in the contraction tree
-  void registerContraction(const HypernodeID u, const HypernodeID v) {
+  void registerContraction(const HypernodeID u, const HypernodeID v, const size_t version = 0) {
     node(u).incrementPendingContractions();
     node(v).setParent(u);
+    node(v).setVersion(version);
   }
 
   // ! Unregisters a contraction in the contraction tree
@@ -181,12 +217,14 @@ class ContractionTree {
     node(u).decrementPendingContractions();
     if ( failed ) {
       node(v).setParent(v);
+      node(v).setVersion(kInvalidVersion);
     }
   }
 
   // ! Only for testing
-  void setParent(const HypernodeID u, const HypernodeID v) {
+  void setParent(const HypernodeID u, const HypernodeID v, const size_t version = 0) {
     node(u).setParent(v);
+    node(u).setVersion(version);
   }
 
 
@@ -215,7 +253,7 @@ class ContractionTree {
   // ! Finalizes the contraction tree which involve reversing the parent pointers
   // ! such that the contraction tree can be traversed in a top-down fashion and
   // ! computing the subtree sizes.
-  void finalize() {
+  void finalize(const size_t num_versions = 1) {
     ASSERT(!_finalized, "Contraction tree already finalized");
     // Compute out degrees of each tree node
     utils::Timer::instance().start_timer("compute_out_degrees", "Compute Out-Degree of Tree Nodes");
@@ -262,6 +300,41 @@ class ContractionTree {
     utils::Timer::instance().stop_timer("reverse_contraction_tree");
 
     _finalized = true;
+
+    // Compute roots for each version
+    // Each contraction/edge in the contraction tree is associated with a version.
+    // Later we want to be able to traverse the contraction tree for a specific version
+    // in a top-down fashion. Therefore, we compute for each version the corresponding roots.
+    // A vertex is a root of a version if contains a child with that version less than
+    // the version number of the vertex itself. Note, that for all vertices in the contraction
+    // tree version(u) <= version(parent(u)).
+    utils::Timer::instance().start_timer("compute_version_roots", "Compute Roots for each Version");
+    parallel::scalable_vector<StreamingVector<HypernodeID>> tmp_version_roots(num_versions);
+    tbb::parallel_for(ID(0), _num_hypernodes, [&](const HypernodeID u) {
+      std::sort(_incidence_array.begin() + _out_degrees[u],
+                _incidence_array.begin() + _out_degrees[u + 1],
+                [&](const HypernodeID& lhs, const HypernodeID& rhs) {
+                  return _tree[lhs].version() < _tree[rhs].version();
+                });
+
+      size_t version_u = _tree[u].version();
+      ASSERT(version_u <= _tree[_tree[u].parent()].version());
+      size_t last_version = kInvalidVersion;
+      for ( const HypernodeID& v : childs(u) ) {
+        size_t version_v = _tree[v].version();
+        ASSERT(version_v < num_versions, V(version_v) << V(num_versions));
+        if ( version_v != last_version && version_v < version_u ) {
+          tmp_version_roots[version_v].stream(u);
+        }
+        last_version = version_v;
+      }
+    });
+    _version_roots.resize(num_versions);
+    tbb::parallel_for(0UL, num_versions, [&](const size_t i) {
+      _version_roots[i] = tmp_version_roots[i].copy_parallel();
+      tmp_version_roots[i].clear_parallel();
+    });
+    utils::Timer::instance().stop_timer("compute_version_roots");
 
     // Compute subtree sizes of each root in parallel via dfs
     utils::Timer::instance().start_timer("compute_subtree_sizes", "Compute Subtree Sizes");
@@ -315,6 +388,14 @@ class ContractionTree {
       memcpy(tree._roots.data(), _roots.data(),
         sizeof(HypernodeID) * _roots.size());
     }, [&] {
+      const size_t num_versions = _version_roots.size();
+      tree._version_roots.resize(num_versions);
+      tbb::parallel_for(0UL, num_versions, [&](const size_t i) {
+        tree._version_roots[i].resize(_version_roots[i].size());
+        memcpy(tree._version_roots[i].data(), _version_roots[i].data(),
+          sizeof(HypernodeID) * _version_roots[i].size());
+      });
+    }, [&] {
       tree._out_degrees.resize(_out_degrees.size());
       for ( size_t i = 0; i < _out_degrees.size(); ++i ) {
         tree._out_degrees[i] = _out_degrees[i];
@@ -341,6 +422,13 @@ class ContractionTree {
     tree._roots.resize(_roots.size());
     memcpy(tree._roots.data(), _roots.data(),
       sizeof(HypernodeID) * _roots.size());
+    const size_t num_versions = _version_roots.size();
+    tree._version_roots.resize(num_versions);
+    for ( size_t i = 0; i < num_versions; ++i ) {
+      tree._version_roots[i].resize(_version_roots[i].size());
+      memcpy(tree._version_roots[i].data(), _version_roots[i].data(),
+        sizeof(HypernodeID) * _version_roots[i].size());
+    }
     tree._out_degrees.resize(_out_degrees.size());
     for ( size_t i = 0; i < _out_degrees.size(); ++i ) {
       tree._out_degrees[i] = _out_degrees[i];
@@ -386,6 +474,7 @@ class ContractionTree {
   bool _finalized;
   parallel::scalable_vector<Node> _tree;
   parallel::scalable_vector<HypernodeID> _roots;
+  parallel::scalable_vector<parallel::scalable_vector<HypernodeID>> _version_roots;
   parallel::scalable_vector<parallel::IntegralAtomicWrapper<HypernodeID>> _out_degrees;
   parallel::scalable_vector<HypernodeID> _incidence_array;
 };
