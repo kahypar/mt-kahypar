@@ -99,6 +99,43 @@ protected:
   std::array<std::mt19937::result_type, num_buckets> seeds;
 };
 
+template<class T>
+class DeterministicParallelUniformRandomShuffler : public ParallelSeeding {
+public:
+  DeterministicParallelUniformRandomShuffler(vec<T>&& external_elements) :
+          elements(std::move(external_elements)),
+          shuffled_elements(elements.size(), T())
+  {
+
+  }
+
+  template<typename F>
+  void shuffle(F get_bucket, size_t num_tasks, std::mt19937& rng) {    // TODO implement get_bucket as deterministic pseudorandom number generator
+    if (elements.size() < 1 << 17) {
+      std::copy_n(elements.begin(), elements.size(), shuffled_elements.begin());
+      std::shuffle(shuffled_elements.begin(), shuffled_elements.end(), rng);
+      return;
+    }
+
+    vec<uint32_t> bucket_bounds = parallel::counting_sort(elements, shuffled_elements, num_buckets, get_bucket, num_tasks);
+    ASSERT(bucket_bounds.size() == num_buckets + 1);
+
+    fill_seeds(rng);
+
+    tbb::parallel_for(0UL, num_buckets, [&](size_t i) {
+      std::mt19937 local_rng(seeds[i]);
+      std::shuffle(shuffled_elements.begin() + bucket_bounds[i], shuffled_elements.begin() + bucket_bounds[i] + 1, local_rng);
+    });
+  }
+
+  vec<T> elements;
+  vec<T> shuffled_elements;
+
+  // convenience
+  vec<T>::const_iterator begin() const { return shuffled_elements.cbegin(); }
+  vec<T>::const_iterator end() const { return shuffled_elements.cend(); }
+};
+
 
 class Randomize {
   static constexpr bool debug = false;
