@@ -98,48 +98,67 @@ DynamicHypergraph generateRandomHypergraph(const HypernodeID num_hypernodes,
     TBBNumaArena::GLOBAL_TASK_GROUP, num_hypernodes, num_hyperedges, hyperedges);
 }
 
-parallel::scalable_vector<Memento> generateRandomContractions(const HypernodeID num_hypernodes,
-                                                              const HypernodeID num_contractions) {
+using Batch = parallel::scalable_vector<Memento>;
+using BatchVector = parallel::scalable_vector<Batch>;
+
+BatchVector generateRandomContractions(const HypernodeID num_hypernodes,
+                                       const HypernodeID num_contractions,
+                                       const bool multi_versioned = true) {
  ASSERT(num_contractions < num_hypernodes);
- parallel::scalable_vector<Memento> contractions;
+ HypernodeID tmp_num_contractions = num_contractions;
+ BatchVector contractions;
  parallel::scalable_vector<HypernodeID> active_hns(num_hypernodes);
  std::iota(active_hns.begin(), active_hns.end(), 0);
  utils::Randomize& rand = utils::Randomize::instance();
  const int cpu_id = sched_getcpu();
- for ( size_t i = 0; i < num_contractions; ++i ) {
-   ASSERT(active_hns.size() >= 2UL);
-   int idx_1 = rand.getRandomInt(0, static_cast<int>(active_hns.size() - 1), cpu_id);
-   int idx_2 = rand.getRandomInt(0, static_cast<int>(active_hns.size() - 1), cpu_id);
-    if ( idx_1 == idx_2 ) {
-      idx_2 = (idx_2 + 1) % active_hns.size();
+ while ( tmp_num_contractions > 0 ) {
+   HypernodeID current_num_contractions = tmp_num_contractions;
+   if ( multi_versioned && current_num_contractions > 25 ) current_num_contractions /= 2;
+   contractions.emplace_back();
+   for ( size_t i = 0; i < current_num_contractions; ++i ) {
+    ASSERT(active_hns.size() >= 2UL);
+    int idx_1 = rand.getRandomInt(0, static_cast<int>(active_hns.size() - 1), cpu_id);
+    int idx_2 = rand.getRandomInt(0, static_cast<int>(active_hns.size() - 1), cpu_id);
+      if ( idx_1 == idx_2 ) {
+        idx_2 = (idx_2 + 1) % active_hns.size();
+      }
+      contractions.back().push_back(Memento { active_hns[idx_1], active_hns[idx_2] });
+      std::swap(active_hns[idx_2], active_hns.back());
+      active_hns.pop_back();
     }
-    contractions.push_back(Memento { active_hns[idx_1], active_hns[idx_2] });
-    std::swap(active_hns[idx_2], active_hns.back());
-    active_hns.pop_back();
+   tmp_num_contractions -= current_num_contractions;
  }
  return contractions;
 }
 
 DynamicHypergraph simulateNLevel(DynamicHypergraph& hypergraph,
-                                 const parallel::scalable_vector<Memento>& contractions,
+                                 const BatchVector& contraction_batches,
                                  const size_t batch_size,
                                  const bool parallel) {
 
-  utils::Timer::instance().start_timer("contractions", "Contractions");
-  if ( parallel ) {
-    tbb::parallel_for(0UL, contractions.size(), [&](const size_t i) {
-      const Memento& memento = contractions[i];
-      hypergraph.registerContraction(memento.u, memento.v);
-      hypergraph.contract(memento.v);
-    });
-  } else {
-    for ( size_t i = 0; i < contractions.size(); ++i ) {
-      const Memento& memento = contractions[i];
-      hypergraph.registerContraction(memento.u, memento.v);
-      hypergraph.contract(memento.v);
+  parallel::scalable_vector<parallel::scalable_vector<ParallelHyperedge>> removed_hyperedges;
+  for ( size_t i = 0; i < contraction_batches.size(); ++i ) {
+    utils::Timer::instance().start_timer("contractions", "Contractions");
+    const parallel::scalable_vector<Memento>& contractions = contraction_batches[i];
+    if ( parallel ) {
+      tbb::parallel_for(0UL, contractions.size(), [&](const size_t j) {
+        const Memento& memento = contractions[j];
+        hypergraph.registerContraction(memento.u, memento.v);
+        hypergraph.contract(memento.v);
+      });
+    } else {
+      for ( size_t j = 0; j < contractions.size(); ++j ) {
+        const Memento& memento = contractions[j];
+        hypergraph.registerContraction(memento.u, memento.v);
+        hypergraph.contract(memento.v);
+      }
     }
+    utils::Timer::instance().stop_timer("contractions");
+
+    utils::Timer::instance().start_timer("remove_parallel_nets", "Parallel Net Detection");
+    removed_hyperedges.emplace_back(hypergraph.removeSinglePinAndParallelHyperedges());
+    utils::Timer::instance().stop_timer("remove_parallel_nets");
   }
-  utils::Timer::instance().stop_timer("contractions");
 
   utils::Timer::instance().start_timer("copy_coarsest_hypergraph", "Copy Coarsest Hypergraph");
   DynamicHypergraph coarsest_hypergraph;
@@ -157,16 +176,24 @@ DynamicHypergraph simulateNLevel(DynamicHypergraph& hypergraph,
   auto versioned_batches = hypergraph.createBatchUncontractionHierarchy(TBBNumaArena::GLOBAL_TASK_GROUP, tmp_batch_size);
   utils::Timer::instance().stop_timer(key);
 
-
   utils::Timer::instance().start_timer("batch_uncontractions", "Batch Uncontractions");
   while ( !versioned_batches.empty() ) {
     BatchVector& batches = versioned_batches.back();
     while ( !batches.empty() ) {
-      const parallel::scalable_vector<Memento> batch = batches.back();
-      hypergraph.uncontract(batch);
+      const Batch& batch = batches.back();
+      if ( !batch.empty() ) {
+        hypergraph.uncontract(batch);
+      }
       batches.pop_back();
     }
     versioned_batches.pop_back();
+
+    if ( !removed_hyperedges.empty() ) {
+      utils::Timer::instance().start_timer("restore_parallel_nets", "Restore Parallel Nets");
+      hypergraph.restoreSinglePinAndParallelNets(removed_hyperedges.back());
+      removed_hyperedges.pop_back();
+      utils::Timer::instance().stop_timer("restore_parallel_nets");
+    }
   }
   utils::Timer::instance().stop_timer("batch_uncontractions");
 
@@ -188,7 +215,7 @@ TEST(ANlevel, SimulatesContractionsAndBatchUncontractions) {
   DynamicHypergraph parallel_hg = original_hypergraph.copy(TBBNumaArena::GLOBAL_TASK_GROUP);
 
   if ( debug ) LOG << "Determine random contractions";
-  parallel::scalable_vector<Memento> contractions = generateRandomContractions(num_hypernodes, num_contractions);
+  BatchVector contractions = generateRandomContractions(num_hypernodes, num_contractions);
 
   utils::Timer::instance().clear();
 
@@ -225,7 +252,7 @@ TEST(ANlevel, SimulatesParallelContractionsAndAccessToHypergraph) {
   DynamicHypergraph tmp_hypergraph = hypergraph.copy(TBBNumaArena::GLOBAL_TASK_GROUP);
 
   if ( debug ) LOG << "Determine random contractions";
-  parallel::scalable_vector<Memento> contractions = generateRandomContractions(num_hypernodes, num_contractions);
+  BatchVector contractions = generateRandomContractions(num_hypernodes, num_contractions, false);
 
   utils::Timer::instance().clear();
 
@@ -251,8 +278,8 @@ TEST(ANlevel, SimulatesParallelContractionsAndAccessToHypergraph) {
     }
   }, [&] {
     // Perform contractions in parallel
-    tbb::parallel_for(0UL, contractions.size(), [&](const size_t i) {
-      const Memento& memento = contractions[i];
+    tbb::parallel_for(0UL, contractions.back().size(), [&](const size_t i) {
+      const Memento& memento = contractions.back()[i];
       hypergraph.registerContraction(memento.u, memento.v);
       hypergraph.contract(memento.v);
     });
@@ -262,8 +289,8 @@ TEST(ANlevel, SimulatesParallelContractionsAndAccessToHypergraph) {
 
   if ( debug ) LOG << "Perform Parallel Contractions Without Parallel Access";
   utils::Timer::instance().start_timer("contractions_without_access", "Contractions Without Access");
-  tbb::parallel_for(0UL, contractions.size(), [&](const size_t i) {
-    const Memento& memento = contractions[i];
+  tbb::parallel_for(0UL, contractions.back().size(), [&](const size_t i) {
+    const Memento& memento = contractions.back()[i];
     tmp_hypergraph.registerContraction(memento.u, memento.v);
     tmp_hypergraph.contract(memento.v);
   });

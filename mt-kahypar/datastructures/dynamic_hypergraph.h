@@ -1108,9 +1108,9 @@ class DynamicHypergraph {
     for ( size_t version = 0; version < num_versions; ++version ) {
       versioned_batches[version] =
         createBatchUncontractionHierarchyForVersion(task_group_id, batch_size, version);
-      if ( version > 1 ) {
+      if ( version > 0 ) {
         batch_sizes_prefix_sum[version] =
-          batch_sizes_prefix_sum[version - 1] + versioned_batches[version].size();
+          batch_sizes_prefix_sum[version - 1] + versioned_batches[version - 1].size();
       }
     }
     utils::Timer::instance().stop_timer("create_versioned_batches");
@@ -1355,6 +1355,7 @@ class DynamicHypergraph {
    */
   void restoreSinglePinAndParallelNets(const parallel::scalable_vector<ParallelHyperedge>& hes_to_restore) {
     // Restores all previously removed hyperedges
+    utils::Timer::instance().start_timer("restore_removed_nets", "Restore Removed Hyperedges");
     ConcurrentBucketMap<Memento> incident_net_map;
     tbb::parallel_for(0UL, hes_to_restore.size(), [&](const size_t i) {
       const ParallelHyperedge& parallel_he = hes_to_restore[i];
@@ -1375,17 +1376,19 @@ class DynamicHypergraph {
         incident_net_map.insert(pin, Memento { pin, he });
       }
     });
+    utils::Timer::instance().stop_timer("restore_removed_nets");
 
     // Adds all restored hyperedges as incident net to its contained pins.
     // In the previous step we inserted all pins together with its hyperedges
     // into a bucket data structure. All hyperedges of the same pin are placed
     // within the same bucket and can be processed sequentially here without
     // locking.
+    utils::Timer::instance().start_timer("add_to_incident_nets", "Add Restored HEs to Incident Nets");
     tbb::parallel_for(0UL, incident_net_map.numBuckets(), [&](const size_t bucket) {
       auto& incident_net_bucket = incident_net_map.getBucket(bucket);
       std::sort(incident_net_bucket.begin(), incident_net_bucket.end(),
         [&](const Memento& lhs, const Memento& rhs) {
-          return lhs.u < rhs.u || ( lhs.u == rhs.u || lhs.v < rhs.v);
+          return lhs.u < rhs.u || ( lhs.u == rhs.u && lhs.v < rhs.v);
         });
 
       // No locking required since vertex u can only occur in one bucket
@@ -1397,6 +1400,7 @@ class DynamicHypergraph {
 
       incident_net_map.free(bucket);
     });
+    utils::Timer::instance().stop_timer("add_to_incident_nets");
 
     --_version;
   }
@@ -1756,7 +1760,7 @@ class DynamicHypergraph {
     size_t slot_of_v = last_invalid_entry;
     for ( size_t pos = first_invalid_entry; pos < last_invalid_entry; ++pos ) {
       const HypernodeID pin = _incidence_array[pos];
-      ASSERT(hypernode(pin).batchIndex() <= batch_index);
+      ASSERT(hypernode(pin).batchIndex() <= batch_index, V(he));
       if ( pin == v ) {
         slot_of_v = pos;
         break;
