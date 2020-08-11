@@ -217,8 +217,12 @@ struct HashRNG {
   using result_type = Hash::hash_type;
 
   explicit HashRNG(result_type seed) {
-    hash.init(seed);
+    rehash(seed);
     init(seed);
+  }
+
+  void rehash(result_type seed) {
+    hash.init(seed);
   }
 
   // allow reinit. with tabulation hashing we don't want to recompute the full table
