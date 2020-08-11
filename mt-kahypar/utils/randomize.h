@@ -37,14 +37,14 @@
 namespace mt_kahypar {
 namespace utils {
 
+
+
 class UniformRandomSelector {
 public:
   UniformRandomSelector(std::mt19937& rng) : rng(rng) { }
 
   bool acceptElement() {
-    std::uniform_int_distribution<size_t> dist(0, counter);
-    counter++;
-    return (dist(rng) == 0);
+    return (dist(rng, std::uniform_int_distribution<size_t>::param_type(0, ++counter)) == 0);
   }
 
   void reset() {
