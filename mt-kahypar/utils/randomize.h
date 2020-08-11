@@ -86,47 +86,6 @@ private:
   size_t counter = 0;
 };
 
-template<class T>
-class DeterministicParallelUniformRandomPermutation : public ParallelSeeding  {
-public:
-  struct IntegerRange {
-    size_t a, b;
-    using value_type = size_t;
-    size_t operator[](size_t i) const { return a + i;  }
-    size_t size() const { return b - a; }
-  };
-
-  template<typename F>
-  void create_permutation(size_t n, F get_bucket, size_t num_tasks, std::mt19937& rng) {
-    if (permutation.size() < n) {
-      permutation.resize(n);
-    }
-
-    if (n < 1 << 17) {
-      std::iota(permutation.begin(), permutation.end(), 0);
-      std::shuffle(permutation.begin(), permutation.end(), rng);
-      return;
-    }
-
-    vec<uint32_t> bucket_bounds = parallel::counting_sort(IntegerRange{0, n}, permutation, num_buckets, get_bucket, num_tasks);
-    ASSERT(bucket_bounds.size() == num_buckets + 1);
-
-    fill_seeds(rng);
-
-    tbb::parallel_for(0UL, num_buckets, [&](size_t i) {
-      std::mt19937 local_rng(seeds[i]);
-      std::shuffle(permutation.begin() + bucket_bounds[i], permutation.begin() + bucket_bounds[i] + 1, local_rng);
-    });
-  }
-
-  vec<T> permutation;
-
-  // convenience
-  vec<T>::const_iterator begin() const { return permutation.cbegin(); }
-  vec<T>::const_iterator end() const { return permutation.cend(); }
-};
-
-
 class ParallelSeeding {
 protected:
   void fill_seeds(std::mt19937& rng) {
@@ -175,6 +134,47 @@ public:
   vec<T>::const_iterator begin() const { return shuffled_elements.cbegin(); }
   vec<T>::const_iterator end() const { return shuffled_elements.cend(); }
 };
+
+template<class T>
+class DeterministicParallelUniformRandomPermutation : public ParallelSeeding  {
+public:
+  struct IntegerRange {
+    size_t a, b;
+    using value_type = size_t;
+    size_t operator[](size_t i) const { return a + i;  }
+    size_t size() const { return b - a; }
+  };
+
+  template<typename F>
+  void create_permutation(size_t n, F get_bucket, size_t num_tasks, std::mt19937& rng) {
+    if (permutation.size() < n) {
+      permutation.resize(n);
+    }
+
+    if (n < 1 << 17) {
+      std::iota(permutation.begin(), permutation.end(), 0);
+      std::shuffle(permutation.begin(), permutation.end(), rng);
+      return;
+    }
+
+    vec<uint32_t> bucket_bounds = parallel::counting_sort(IntegerRange{0, n}, permutation, num_buckets, get_bucket, num_tasks);
+    ASSERT(bucket_bounds.size() == num_buckets + 1);
+
+    fill_seeds(rng);
+
+    tbb::parallel_for(0UL, num_buckets, [&](size_t i) {
+      std::mt19937 local_rng(seeds[i]);
+      std::shuffle(permutation.begin() + bucket_bounds[i], permutation.begin() + bucket_bounds[i] + 1, local_rng);
+    });
+  }
+
+  vec<T> permutation;
+
+  // convenience
+  vec<T>::const_iterator begin() const { return permutation.cbegin(); }
+  vec<T>::const_iterator end() const { return permutation.cend(); }
+};
+
 
 
 class Randomize {
