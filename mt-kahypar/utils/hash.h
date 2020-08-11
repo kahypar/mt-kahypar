@@ -245,7 +245,10 @@ private:
   Hash hash;
 };
 
-using SimpleHashRNG = HashRNG<SimpleIntHash<uint32_t>>;
-using TabulationHashRNG = HashRNG<HashTabulated<uint32_t, uint32_t>>;
+template<typename T>
+using SimpleHashRNG = HashRNG<SimpleIntHash<T>>;
+
+template<typename T>
+using TabulationHashRNG = HashRNG<HashTabulated<T, T>>;
 
 } // namespace mt_kahypar::hashing
