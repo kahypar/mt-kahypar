@@ -361,7 +361,6 @@ class StaticHypergraph {
 
   using IncidenceArray = Array<HypernodeID>;
   using IncidentNets = Array<HyperedgeID>;
-  using MementoVector = parallel::scalable_vector<Memento>;
 
   // ! Contains buffers that are needed during multilevel contractions.
   // ! Struct is allocated on top level hypergraph and passed to each contracted
@@ -1300,10 +1299,20 @@ class StaticHypergraph {
     return false;
   }
 
-  MementoVector contract(const HypernodeID,
-                         const HypernodeWeight max_node_weight = std::numeric_limits<HypernodeWeight>::max()) {
+  Batch contract(const HypernodeID,
+                 const HypernodeWeight max_node_weight = std::numeric_limits<HypernodeWeight>::max()) {
     unused(max_node_weight);
     ERROR("contract(v, max_node_weight) is not supported in static hypergraph");
+    return { };
+  }
+
+  void uncontract(const Batch&) {
+    ERROR("uncontract(batch) is not supported in static hypergraph");
+  }
+
+  VersionedBatchVector createBatchUncontractionHierarchy(const TaskGroupID, const size_t) {
+    ERROR("createBatchUncontractionHierarchy(task_group_id, batch_size) is not supported in static hypergraph");
+    return { };
   }
 
   // ####################### Remove / Restore Hyperedges #######################
@@ -1355,6 +1364,15 @@ class StaticHypergraph {
       const HypernodeID pin = _incidence_array[pos];
       insertIncidentEdgeToHypernode(he, pin);
     });
+  }
+
+  parallel::scalable_vector<ParallelHyperedge> removeSinglePinAndParallelHyperedges() {
+    ERROR("removeSinglePinAndParallelHyperedges() is not supported in static hypergraph");
+    return { };
+  }
+
+  void restoreSinglePinAndParallelNets(const parallel::scalable_vector<ParallelHyperedge>&) {
+    ERROR("restoreSinglePinAndParallelNets(hes_to_restore) is not supported in static hypergraph");
   }
 
   // ####################### Initialization / Reset Functions #######################

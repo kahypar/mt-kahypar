@@ -346,10 +346,6 @@ class DynamicHypergraph {
     }
   };
 
-  using Batch = parallel::scalable_vector<Memento>;
-  using BatchVector = parallel::scalable_vector<Batch>;
-  using VersionedBatchVector = parallel::scalable_vector<BatchVector>;
-
   /**
    * Container used to create a vector of batches in parallel.
    * A batch is a vector of mementos (uncontractions) that are uncontracted in
@@ -614,7 +610,9 @@ class DynamicHypergraph {
       [this](const tbb::blocked_range<HypernodeID>& range, HypernodeWeight init) {
         HypernodeWeight weight = init;
         for (HypernodeID hn = range.begin(); hn < range.end(); ++hn) {
-          weight += this->_hypernodes[hn].weight();
+          if ( nodeIsEnabled(hn) ) {
+            weight += this->_hypernodes[hn].weight();
+          }
         }
         return weight;
       }, std::plus<HypernodeWeight>());
@@ -624,7 +622,9 @@ class DynamicHypergraph {
   void updateTotalWeight() {
     _total_weight = 0;
     for ( const HypernodeID& hn : nodes() ) {
-      _total_weight += nodeWeight(hn);
+      if ( nodeIsEnabled(hn) ) {
+        _total_weight += nodeWeight(hn);
+      }
     }
   }
 
@@ -1563,6 +1563,10 @@ class DynamicHypergraph {
     }
     _num_hypernodes = 0;
     _num_hyperedges = 0;
+  }
+
+  void freeTmpContractionBuffer() {
+    ERROR("freeTmpContractionBuffer() is not supported in dynamic hypergraph");
   }
 
   void memoryConsumption(utils::MemoryTreeNode* parent) const {

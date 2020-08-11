@@ -30,10 +30,6 @@
 namespace mt_kahypar {
 namespace ds {
 
-using Batch = parallel::scalable_vector<Memento>;
-using BatchVector = parallel::scalable_vector<Batch>;
-using VersionedBatchVector = parallel::scalable_vector<BatchVector>;
-
 void verifyEqualityOfHypergraphs(const DynamicHypergraph& expected_hypergraph,
                                  const DynamicHypergraph& actual_hypergraph) {
   parallel::scalable_vector<HyperedgeID> expected_incident_edges;
@@ -97,9 +93,6 @@ DynamicHypergraph generateRandomHypergraph(const HypernodeID num_hypernodes,
   return DynamicHypergraphFactory::construct(
     TBBNumaArena::GLOBAL_TASK_GROUP, num_hypernodes, num_hyperedges, hyperedges);
 }
-
-using Batch = parallel::scalable_vector<Memento>;
-using BatchVector = parallel::scalable_vector<Batch>;
 
 BatchVector generateRandomContractions(const HypernodeID num_hypernodes,
                                        const HypernodeID num_contractions,

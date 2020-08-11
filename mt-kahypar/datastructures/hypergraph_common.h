@@ -83,6 +83,10 @@ struct Memento {
   HypernodeID v; // contraction partner
 };
 
+using Batch = parallel::scalable_vector<Memento>;
+using BatchVector = parallel::scalable_vector<Batch>;
+using VersionedBatchVector = parallel::scalable_vector<BatchVector>;
+
 using MoveID = uint32_t;
 using SearchID = uint32_t;
 

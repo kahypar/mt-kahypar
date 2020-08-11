@@ -1178,11 +1178,6 @@ TEST_F(ADynamicHypergraph, PerformAContractionsInParallel3) {
     { {6}, {6}, {6}, {5, 6} });
 }
 
-
-using Batch = parallel::scalable_vector<Memento>;
-using BatchVector = parallel::scalable_vector<Batch>;
-using VersionedBatchVector = parallel::scalable_vector<BatchVector>;
-
 void verifyBatchUncontractionHierarchy(ContractionTree& tree,
                                        const VersionedBatchVector& versioned_batches,
                                        const size_t batch_size,
