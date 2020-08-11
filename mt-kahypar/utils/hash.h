@@ -214,8 +214,7 @@ struct SimpleIntHash {
 // implements the rng interface required for std::uniform_int_distribution
 template<typename Hash>
 struct HashRNG {
-  using result_type = uint32_t;
-  static_assert(std::is_same<result_type, Hash::hash_type>::value);   // we don't have 64 bit combine
+  using result_type = Hash::hash_type;
 
   explicit HashRNG(result_type seed) {
     hash.init(seed);
