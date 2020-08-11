@@ -37,6 +37,9 @@
 namespace mt_kahypar {
 namespace utils {
 
+/*!
+ * Combines a global seed and an iteration of a loop to initialize an RNG for that iteration
+ */
 size_t seed_iteration(size_t seed, size_t iteration) {
   return hashing::integer::combine(seed, hashing::integer::hash(iteration));
 }
