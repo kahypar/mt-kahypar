@@ -109,7 +109,7 @@ template<typename T> uint64_t combine(T left, T hashed_right) {
     return combine64(left, hashed_right);
   } else {
     static_assert(false);
-    return left;
+    return left + hashed_right;
   }
 }
 
