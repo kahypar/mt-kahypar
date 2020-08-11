@@ -348,6 +348,7 @@ class DynamicHypergraph {
 
   using Batch = parallel::scalable_vector<Memento>;
   using BatchVector = parallel::scalable_vector<Batch>;
+  using VersionedBatchVector = parallel::scalable_vector<BatchVector>;
 
   /**
    * Container used to create a vector of batches in parallel.
@@ -486,6 +487,7 @@ class DynamicHypergraph {
     _num_pins(0),
     _total_degree(0),
     _total_weight(0),
+    _version(0),
     _hypernodes(),
     _contraction_tree(),
     _incident_nets(),
@@ -511,6 +513,7 @@ class DynamicHypergraph {
     _num_pins(other._num_pins),
     _total_degree(other._total_degree),
     _total_weight(other._total_weight),
+    _version(other._version),
     _hypernodes(std::move(other._hypernodes)),
     _contraction_tree(std::move(other._contraction_tree)),
     _incident_nets(std::move(other._incident_nets)),
@@ -533,6 +536,7 @@ class DynamicHypergraph {
     _num_pins = other._num_pins;
     _total_degree = other._total_degree;
     _total_weight = other._total_weight;
+    _version = other._version;
     _hypernodes = std::move(other._hypernodes);
     _contraction_tree = std::move(other._contraction_tree);
     _incident_nets = std::move(other._incident_nets);
@@ -968,7 +972,7 @@ class DynamicHypergraph {
 
       // Increment reference count of w indicating that there pending
       // contraction at vertex w and update contraction tree.
-      _contraction_tree.registerContraction(w, v);
+      _contraction_tree.registerContraction(w, v, _version);
 
       releaseHypernode(w);
       releaseHypernode(v);
@@ -1015,11 +1019,20 @@ class DynamicHypergraph {
       const HypernodeID expected_batch_index = hypernode(batch[0].v).batchIndex();
       for ( const Memento& memento : batch ) {
         if ( hypernode(memento.v).batchIndex() != expected_batch_index ) {
+          LOG << "Batch contains uncontraction from different batches."
+              << "Hypernode" << memento.v << "with version" << hypernode(memento.v).batchIndex()
+              << "but expected is" << expected_batch_index;
+          return false;
+        }
+        if ( _contraction_tree.version(memento.v) != _version ) {
+          LOG << "Batch contains uncontraction from a different version."
+              << "Hypernode" << memento.v << "with version" << _contraction_tree.version(memento.v)
+              << "but expected is" << _version;
           return false;
         }
       }
       return true;
-    }(), "Batch contains uncontractions from different batches");
+    }(), "Batch contains uncontractions from different batches or from a different hypergraph version");
 
     tbb::parallel_for(0UL, batch.size(), [&](const size_t i) {
       const Memento& memento = batch[i];
@@ -1072,178 +1085,47 @@ class DynamicHypergraph {
 
   /**
    * Computes a batch uncontraction hierarchy. A batch is a vector of mementos
-   * (uncontractions) that are uncontracted in parallel.
-   * A batch of uncontractions must satisfy the condition that all representative of uncontractions
-   * are active vertices of the hypergraph. Once a batch is uncontracted all contraction partners
-   * of uncontractions within the batch become active. Our algorithm works in two stages. First,
-   * we create for each root of the contraction tree a local batch uncontraction order in parallel. Note,
-   * that the batches of the local uncontraction hierarchy are not constraint by the maximum batch
-   * size. In a second step, we merge the local batch uncontraction orders into one vector of batches
-   * that respect the maximum allowed batch size. Note that uncontractions originate from different roots
-   * can be interleaved arbitrary as long as we do not add two uncontractions from different local batches
-   * of the same root into the same global batch. Our merging step aims to interleave the local batches
-   * of different roots in a round-robin fashion. There might be also different merging strategies and
-   * our implementation might be not the most efficient parallel implementation. However, the reason
-   * of interleaving the batches in a round-robin fashion is that this lead to batches which contains
-   * a maximum number of different representatives. This might be beneficial for local searches, because
-   * it should lead to mostly indepedent local searches in the hypergraph (meaning that the uncontracted
-   * vertices have a certain distance to each other and parallel local searches do not disturb each other).
+   * (uncontractions) that are uncontracted in parallel. The function returns a vector
+   * of versioned batch vectors. A new version of the hypergraph is induced if we perform
+   * single-pin and parallel net detection. Once we process all batches of a versioned
+   * batch vector, we have to restore all previously removed single-pin and parallel nets
+   * in order to uncontract the next batch vector. We create for each version of the
+   * hypergraph a seperate batch uncontraction hierarchy (see createBatchUncontractionHierarchyOfVersion(...))
    */
-  BatchVector createBatchUncontractionHierarchy(const TaskGroupID task_group_id,
-                                                const size_t batch_size,
-                                                const bool test = false) {
+  VersionedBatchVector createBatchUncontractionHierarchy(const TaskGroupID task_group_id,
+                                                         const size_t batch_size,
+                                                         const bool test = false) {
+    const size_t num_versions = _version + 1;
     utils::Timer::instance().start_timer("finalize_contraction_tree", "Finalize Contraction Tree");
     // Finalizes the contraction tree such that it is traversable in a top-down fashion
     // and contains subtree size for each  tree node
-    _contraction_tree.finalize();
+    _contraction_tree.finalize(num_versions);
     utils::Timer::instance().stop_timer("finalize_contraction_tree");
 
-    utils::Timer::instance().start_timer("compute_root_batches", "Compute Batches For Each Root");
-    const parallel::scalable_vector<HypernodeID>& roots = _contraction_tree.roots();
-    parallel::scalable_vector<BatchVector> root_batches(roots.size(), BatchVector());
-    tbb::parallel_for(0UL, roots.size(), [&](const size_t i) {
-      // We create the local uncontraction order for a root of the contraction
-      // tree by a simple BFS. Each BFS level induces a new batch. The representative
-      // are the vertices contained in that level and the contraction partners are their childs.
-      parallel::scalable_queue<HypernodeID> q;
-      parallel::scalable_queue<HypernodeID> next_q;
-      q.push(roots[i]);
-
-      root_batches[i].emplace_back();
-      while ( !q.empty() ) {
-        const HypernodeID u = q.front();
-        q.pop();
-
-        for ( const HypernodeID v : _contraction_tree.childs(u) ) {
-          root_batches[i].back().push_back(Memento { u, v });
-          next_q.push(v);
-        }
-
-        if ( q.empty() ) {
-          std::swap(q, next_q);
-          // Sort mementos in increasing order of their subtree size such that heavier
-          // vertices are pushed earlier into the global batch vector which leads to that the
-          // maximum node weight of the hypergraph degrades faster.
-          std::sort(root_batches[i].back().begin(), root_batches[i].back().end(),
-            [&](const Memento& lhs, const Memento& rhs) {
-            return _contraction_tree.subtreeSize(lhs.v) < _contraction_tree.subtreeSize(rhs.v);
-          });
-          root_batches[i].emplace_back();
-        }
+    utils::Timer::instance().start_timer("create_versioned_batches", "Create Versioned Batches");
+    VersionedBatchVector versioned_batches(num_versions);
+    parallel::scalable_vector<size_t> batch_sizes_prefix_sum(num_versions, 0);
+    for ( size_t version = 0; version < num_versions; ++version ) {
+      versioned_batches[version] =
+        createBatchUncontractionHierarchyForVersion(task_group_id, batch_size, version);
+      if ( version > 1 ) {
+        batch_sizes_prefix_sum[version] =
+          batch_sizes_prefix_sum[version - 1] + versioned_batches[version].size();
       }
-
-      // Remove empty batches at the end of the batch vector
-      while ( root_batches[i].back().empty() ) {
-        root_batches[i].pop_back();
-      }
-      std::reverse(root_batches[i].begin(), root_batches[i].end());
-    });
-    utils::Timer::instance().stop_timer("compute_root_batches");
-
-
-    utils::Timer::instance().start_timer("merge_root_batches", "Merge Root Batches");
-    // Push root indices into a global task queue
-    tbb::concurrent_queue<size_t> root_index_queue;
-    tbb::parallel_for(0UL, roots.size(), [&](const size_t i) {
-      root_index_queue.push(i);
-    });
-
-    ConcurrentBatchVector tmp_batch_vec(batch_size);
-    parallel::scalable_vector<uint8_t> active_tasks(std::thread::hardware_concurrency(), false);
-    TBBNumaArena::instance().execute_task_on_each_thread(task_group_id,
-      [&](const int, const int, const int) {
-      int slot_idx = tbb::this_task_arena::current_thread_index();
-      active_tasks[slot_idx] = true;
-      // Indices of the roots this thread is repsonsible for
-      parallel::scalable_vector<size_t> root_indices;
-      // Last active batch index in which we merged a vertex of the corresponding root
-      parallel::scalable_vector<size_t> last_batch_indices;
-
-      // Try to pop roots from the global task queue. On success the current
-      // thread is responsible for merging the local uncontraction order of
-      // that root into the global batch vector
-      size_t idx = 0;
-      while ( root_index_queue.try_pop(idx) ) {
-        root_indices.push_back(idx);
-        last_batch_indices.push_back(0);
-      }
-
-      // Number of roots with unmerged batches
-      size_t remaining_roots = root_indices.size();
-      // Last index of the batch we merged into
-      size_t last_merge_batch_idx = 0;
-      while ( remaining_roots > 0 ) {
-        bool still_active = false;
-
-        // We visit each active root and merge at most one memento of their current batch
-        // into the current global active batch (round-robin fashion)
-        for ( size_t i = 0; i < remaining_roots; ++i ) {
-          const size_t root_idx = root_indices[i];
-          parallel::scalable_vector<Batch>& batches = root_batches[root_idx];
-          ASSERT(batches.size() > 0);
-
-          // If the current batch of the corresponding root is empty, we have to wait until the index
-          // of the current active global batch is greater than the last global batch index in which
-          // we merged a memento of the corresponding root. It ensures that no two mementos from different
-          // local batches are merged into same global batch.
-          if ( batches.back().empty() && tmp_batch_vec.activeBatchIndex() > last_batch_indices[i] ) {
-            ASSERT(batches.size() > 1);
-            batches.pop_back();
-          }
-
-          if ( !batches.back().empty() ) {
-            const Memento memento = batches.back().back();
-            still_active = true;
-            batches.back().pop_back();
-            last_merge_batch_idx = tmp_batch_vec.push(memento);
-            last_batch_indices[i] = last_merge_batch_idx;
-
-            // If we finish processing all batches of the current root,
-            // we remove it from our local task list.
-            if ( batches.back().empty() && batches.size() == 1 ) {
-              batches.pop_back();
-              std::swap(root_indices[i], root_indices[--remaining_roots]);
-              std::swap(last_batch_indices[i--], last_batch_indices[remaining_roots]);
-              root_indices.pop_back();
-              last_batch_indices.pop_back();
-            }
-          }
-        }
-
-        // If we were not able to merge at least one memento into the global batch vector,
-        // we perform busy-waiting until a new batch is available and inside the busy-waiting
-        // loop we check if all active threads are idle. If all threads are idle, we force the
-        // creation of new batch in the global batch vector.
-        if ( !still_active && remaining_roots > 0 ) {
-          active_tasks[slot_idx] = false;
-          while ( last_merge_batch_idx == tmp_batch_vec.activeBatchIndex() ) {
-            bool all_idle = true;
-            for ( uint32_t i = 0; i < std::thread::hardware_concurrency(); ++i ) {
-              all_idle &= !active_tasks[i];
-            }
-
-            if ( all_idle ) {
-              tmp_batch_vec.addEmptyBatch(last_merge_batch_idx);
-            }
-          }
-          active_tasks[slot_idx] = true;
-        }
-      }
-
-      active_tasks[slot_idx] = false;
-    });
-
-    BatchVector batches = std::move(tmp_batch_vec.get());
-    utils::Timer::instance().stop_timer("merge_root_batches");
+    }
+    utils::Timer::instance().stop_timer("create_versioned_batches");
 
     if ( !test ) {
       utils::Timer::instance().start_timer("prepare_hg_for_uncontraction", "Prepare HG For Uncontraction");
 
       // Store the batch index of each vertex in its hypernode data structure
-      tbb::parallel_for(0UL, batches.size(), [&](const size_t batch_idx) {
-        for ( const Memento& memento : batches[batch_idx] ) {
-          hypernode(memento.v).setBatchIndex(batch_idx);
-        }
+      tbb::parallel_for(0UL, num_versions, [&](const size_t version) {
+        tbb::parallel_for(0UL, versioned_batches[version].size(), [&](const size_t local_batch_idx) {
+          const size_t batch_idx = batch_sizes_prefix_sum[version] + local_batch_idx;
+          for ( const Memento& memento : versioned_batches[version][local_batch_idx] ) {
+            hypernode(memento.v).setBatchIndex(batch_idx);
+          }
+        });
       });
 
       // Sort the invalid part of each hyperedge according to the batch indices of its pins
@@ -1263,12 +1145,15 @@ class DynamicHypergraph {
       utils::Timer::instance().stop_timer("prepare_hg_for_uncontraction");
     }
 
-    return batches;
+    return versioned_batches;
   }
 
   // ! Only for testing
-  BatchVector createBatchUncontractionHierarchy(ContractionTree&& tree,
-                                                const size_t batch_size) {
+  VersionedBatchVector createBatchUncontractionHierarchy(ContractionTree&& tree,
+                                                         const size_t batch_size,
+                                                         const size_t num_versions = 1) {
+    ASSERT(num_versions > 0);
+    _version = num_versions - 1;
     _contraction_tree = std::move(tree);
     return createBatchUncontractionHierarchy(TBBNumaArena::GLOBAL_TASK_GROUP, batch_size, true);
   }
@@ -1460,6 +1345,7 @@ class DynamicHypergraph {
     tmp_removed_hyperedges.clear_parallel();
     utils::Timer::instance().stop_timer("store_removed_hyperedges");
 
+    ++_version;
     return removed_hyperedges;
   }
 
@@ -1511,6 +1397,8 @@ class DynamicHypergraph {
 
       incident_net_map.free(bucket);
     });
+
+    --_version;
   }
 
   // ####################### Initialization / Reset Functions #######################
@@ -1945,6 +1833,171 @@ class DynamicHypergraph {
     }
   }
 
+  /**
+   * Computes a batch uncontraction hierarchy for a specific version of the hypergraph.
+   * A batch is a vector of mementos (uncontractions) that are uncontracted in parallel.
+   * Each time we perform single-pin and parallel net detection we create a new version of
+   * the hypergraph.
+   * A batch of uncontractions must satisfy the condition that all representative of uncontractions
+   * are active vertices of the hypergraph. Once a batch is uncontracted all contraction partners
+   * of uncontractions within the batch become active. Our algorithm works in two stages. First,
+   * we create for each root of the contraction tree a local batch uncontraction order in parallel. Note,
+   * that the batches of the local uncontraction hierarchy are not constraint by the maximum batch
+   * size. In a second step, we merge the local batch uncontraction orders into one vector of batches
+   * that respect the maximum allowed batch size. Note that uncontractions originate from different roots
+   * can be interleaved arbitrary as long as we do not add two uncontractions from different local batches
+   * of the same root into the same global batch. Our merging step aims to interleave the local batches
+   * of different roots in a round-robin fashion. There might be also different merging strategies and
+   * our implementation might be not the most efficient parallel implementation. However, the reason
+   * of interleaving the batches in a round-robin fashion is that this lead to batches which contains
+   * a maximum number of different representatives. This might be beneficial for local searches, because
+   * it should lead to mostly indepedent local searches in the hypergraph (meaning that the uncontracted
+   * vertices have a certain distance to each other and parallel local searches do not disturb each other).
+   */
+  BatchVector createBatchUncontractionHierarchyForVersion(const TaskGroupID task_group_id,
+                                                          const size_t batch_size,
+                                                          const size_t version) {
+    utils::Timer::instance().start_timer("compute_root_batches", "Compute Batches For Each Root");
+    const parallel::scalable_vector<HypernodeID>& roots = _contraction_tree.roots_of_version(version);
+    parallel::scalable_vector<BatchVector> root_batches(roots.size(), BatchVector());
+    tbb::parallel_for(0UL, roots.size(), [&](const size_t i) {
+      // We create the local uncontraction order for a root of the contraction
+      // tree by a simple BFS. Each BFS level induces a new batch. The representative
+      // are the vertices contained in that level and the contraction partners are their childs.
+      parallel::scalable_queue<HypernodeID> q;
+      parallel::scalable_queue<HypernodeID> next_q;
+      q.push(roots[i]);
+
+      root_batches[i].emplace_back();
+      while ( !q.empty() ) {
+        const HypernodeID u = q.front();
+        q.pop();
+
+        _contraction_tree.doForEachChildOfVersion(u, version, [&](const HypernodeID v) {
+          root_batches[i].back().push_back(Memento { u, v });
+          next_q.push(v);
+        });
+
+        if ( q.empty() ) {
+          std::swap(q, next_q);
+          // Sort mementos in increasing order of their subtree size such that heavier
+          // vertices are pushed earlier into the global batch vector which leads to that the
+          // maximum node weight of the hypergraph degrades faster.
+          std::sort(root_batches[i].back().begin(), root_batches[i].back().end(),
+            [&](const Memento& lhs, const Memento& rhs) {
+            return _contraction_tree.subtreeSize(lhs.v) < _contraction_tree.subtreeSize(rhs.v);
+          });
+          root_batches[i].emplace_back();
+        }
+      }
+
+      // Remove empty batches at the end of the batch vector
+      while ( root_batches[i].back().empty() ) {
+        root_batches[i].pop_back();
+      }
+      std::reverse(root_batches[i].begin(), root_batches[i].end());
+    });
+    utils::Timer::instance().stop_timer("compute_root_batches");
+
+
+    utils::Timer::instance().start_timer("merge_root_batches", "Merge Root Batches");
+    // Push root indices into a global task queue
+    tbb::concurrent_queue<size_t> root_index_queue;
+    tbb::parallel_for(0UL, roots.size(), [&](const size_t i) {
+      root_index_queue.push(i);
+    });
+
+    ConcurrentBatchVector tmp_batch_vec(batch_size);
+    parallel::scalable_vector<uint8_t> active_tasks(std::thread::hardware_concurrency(), false);
+    TBBNumaArena::instance().execute_task_on_each_thread(task_group_id,
+      [&](const int, const int, const int) {
+      int slot_idx = tbb::this_task_arena::current_thread_index();
+      active_tasks[slot_idx] = true;
+      // Indices of the roots this thread is repsonsible for
+      parallel::scalable_vector<size_t> root_indices;
+      // Last active batch index in which we merged a vertex of the corresponding root
+      parallel::scalable_vector<size_t> last_batch_indices;
+
+      // Try to pop roots from the global task queue. On success the current
+      // thread is responsible for merging the local uncontraction order of
+      // that root into the global batch vector
+      size_t idx = 0;
+      while ( root_index_queue.try_pop(idx) ) {
+        root_indices.push_back(idx);
+        last_batch_indices.push_back(0);
+      }
+
+      // Number of roots with unmerged batches
+      size_t remaining_roots = root_indices.size();
+      // Last index of the batch we merged into
+      size_t last_merge_batch_idx = 0;
+      while ( remaining_roots > 0 ) {
+        bool still_active = false;
+
+        // We visit each active root and merge at most one memento of their current batch
+        // into the current global active batch (round-robin fashion)
+        for ( size_t i = 0; i < remaining_roots; ++i ) {
+          const size_t root_idx = root_indices[i];
+          parallel::scalable_vector<Batch>& batches = root_batches[root_idx];
+          ASSERT(batches.size() > 0);
+
+          // If the current batch of the corresponding root is empty, we have to wait until the index
+          // of the current active global batch is greater than the last global batch index in which
+          // we merged a memento of the corresponding root. It ensures that no two mementos from different
+          // local batches are merged into same global batch.
+          if ( batches.back().empty() && tmp_batch_vec.activeBatchIndex() > last_batch_indices[i] ) {
+            ASSERT(batches.size() > 1);
+            batches.pop_back();
+          }
+
+          if ( !batches.back().empty() ) {
+            const Memento memento = batches.back().back();
+            still_active = true;
+            batches.back().pop_back();
+            last_merge_batch_idx = tmp_batch_vec.push(memento);
+            last_batch_indices[i] = last_merge_batch_idx;
+
+            // If we finish processing all batches of the current root,
+            // we remove it from our local task list.
+            if ( batches.back().empty() && batches.size() == 1 ) {
+              batches.pop_back();
+              std::swap(root_indices[i], root_indices[--remaining_roots]);
+              std::swap(last_batch_indices[i--], last_batch_indices[remaining_roots]);
+              root_indices.pop_back();
+              last_batch_indices.pop_back();
+            }
+          }
+        }
+
+        // If we were not able to merge at least one memento into the global batch vector,
+        // we perform busy-waiting until a new batch is available and inside the busy-waiting
+        // loop we check if all active threads are idle. If all threads are idle, we force the
+        // creation of new batch in the global batch vector.
+        if ( !still_active && remaining_roots > 0 ) {
+          active_tasks[slot_idx] = false;
+          while ( last_merge_batch_idx == tmp_batch_vec.activeBatchIndex() ) {
+            bool all_idle = true;
+            for ( uint32_t i = 0; i < std::thread::hardware_concurrency(); ++i ) {
+              all_idle &= !active_tasks[i];
+            }
+
+            if ( all_idle ) {
+              tmp_batch_vec.addEmptyBatch(last_merge_batch_idx);
+            }
+          }
+          active_tasks[slot_idx] = true;
+        }
+      }
+
+      active_tasks[slot_idx] = false;
+    });
+
+    BatchVector batches = std::move(tmp_batch_vec.get());
+    utils::Timer::instance().stop_timer("merge_root_batches");
+
+    return batches;
+  }
+
   // ####################### Remove / Restore Hyperedges #######################
 
   // ! Removes hyperedge e from the incident nets of vertex hn
@@ -1992,6 +2045,9 @@ class DynamicHypergraph {
   HypernodeID _total_degree;
   // ! Total weight of hypergraph
   HypernodeWeight _total_weight;
+  // ! Version of the hypergraph, each time we remove a single-pin and parallel nets,
+  // ! we create a new version
+  size_t _version;
 
   // ! Hypernodes
   Array<Hypernode> _hypernodes;

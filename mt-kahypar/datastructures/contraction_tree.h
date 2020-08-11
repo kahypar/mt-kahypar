@@ -164,6 +164,12 @@ class ContractionTree {
     return node(u).subtreeSize();
   }
 
+
+  size_t version(const HypernodeID u) const {
+    ASSERT(u < _num_hypernodes, "Hypernode" << u << "does not exist");
+    return _tree[u].version();
+  }
+
   // ! Degree/Number of childs of node u
   HypernodeID degree(const HypernodeID u) const {
     ASSERT(_finalized, "Information currently not available");

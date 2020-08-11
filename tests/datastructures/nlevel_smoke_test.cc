@@ -30,6 +30,10 @@
 namespace mt_kahypar {
 namespace ds {
 
+using Batch = parallel::scalable_vector<Memento>;
+using BatchVector = parallel::scalable_vector<Batch>;
+using VersionedBatchVector = parallel::scalable_vector<BatchVector>;
+
 void verifyEqualityOfHypergraphs(const DynamicHypergraph& expected_hypergraph,
                                  const DynamicHypergraph& actual_hypergraph) {
   parallel::scalable_vector<HyperedgeID> expected_incident_edges;
@@ -150,14 +154,19 @@ DynamicHypergraph simulateNLevel(DynamicHypergraph& hypergraph,
   if ( parallel ) key = "create_parallel_batch_uncontraction_hierarchy";
   utils::Timer::instance().start_timer(key, "Create n-Level Hierarchy");
   const size_t tmp_batch_size = parallel ? batch_size : 1;
-  auto batches = hypergraph.createBatchUncontractionHierarchy(TBBNumaArena::GLOBAL_TASK_GROUP, tmp_batch_size);
+  auto versioned_batches = hypergraph.createBatchUncontractionHierarchy(TBBNumaArena::GLOBAL_TASK_GROUP, tmp_batch_size);
   utils::Timer::instance().stop_timer(key);
 
 
   utils::Timer::instance().start_timer("batch_uncontractions", "Batch Uncontractions");
-  while ( !batches.empty() ) {
-    hypergraph.uncontract(batches.back());
-    batches.pop_back();
+  while ( !versioned_batches.empty() ) {
+    BatchVector& batches = versioned_batches.back();
+    while ( !batches.empty() ) {
+      const parallel::scalable_vector<Memento> batch = batches.back();
+      hypergraph.uncontract(batch);
+      batches.pop_back();
+    }
+    versioned_batches.pop_back();
   }
   utils::Timer::instance().stop_timer("batch_uncontractions");
 

@@ -1178,10 +1178,16 @@ TEST_F(ADynamicHypergraph, PerformAContractionsInParallel3) {
     { {6}, {6}, {6}, {5, 6} });
 }
 
+
+using Batch = parallel::scalable_vector<Memento>;
+using BatchVector = parallel::scalable_vector<Batch>;
+using VersionedBatchVector = parallel::scalable_vector<BatchVector>;
+
 void verifyBatchUncontractionHierarchy(ContractionTree& tree,
-                                       const parallel::scalable_vector<parallel::scalable_vector<Memento>>& batches,
-                                       const size_t batch_size) {
-  tree.finalize();
+                                       const VersionedBatchVector& versioned_batches,
+                                       const size_t batch_size,
+                                       const size_t num_versions = 1) {
+  tree.finalize(num_versions);
   std::vector<bool> enabled_vertices(tree.num_hypernodes(), false);
   size_t expected_uncontractions = 0;
   for ( const HypernodeID& root : tree.roots() ) {
@@ -1189,17 +1195,32 @@ void verifyBatchUncontractionHierarchy(ContractionTree& tree,
     expected_uncontractions += tree.subtreeSize(root);
   }
 
+  parallel::scalable_vector<size_t> expected_uncontractions_of_version(num_versions, 0);
+  for ( size_t version = 0; version < num_versions; ++version ) {
+    for ( HypernodeID hn = 0; hn < tree.num_hypernodes(); ++hn ) {
+      tree.doForEachChildOfVersion(hn, version, [&](const HypernodeID) {
+        ++expected_uncontractions_of_version[version];
+      });
+    }
+  }
+
   size_t actual_uncontractions = 0;
-  for ( int i = batches.size() - 1; i >= 0; --i ) {
-    actual_uncontractions += batches[i].size();
-    ASSERT_LE(batches[i].size(), batch_size);
-    for ( const Memento& memento : batches[i] ) {
-      ASSERT_TRUE(enabled_vertices[memento.u]) << "Memento: (" << memento.u << "," << memento.v << ")";
-      ASSERT_FALSE(enabled_vertices[memento.v]) << "Memento: (" << memento.u << "," << memento.v << ")";
+  for ( int version = versioned_batches.size() - 1; version >= 0; --version ) {
+    size_t actual_uncontractions_of_version = 0;
+    const BatchVector& batches = versioned_batches[version];
+    for ( int i = batches.size() - 1; i >= 0; --i ) {
+      actual_uncontractions_of_version += batches[i].size();
+      ASSERT_LE(batches[i].size(), batch_size);
+      for ( const Memento& memento : batches[i] ) {
+        ASSERT_TRUE(enabled_vertices[memento.u]) << "Memento: (" << memento.u << "," << memento.v << ")";
+        ASSERT_FALSE(enabled_vertices[memento.v]) << "Memento: (" << memento.u << "," << memento.v << ")";
+      }
+      for ( const Memento& memento : batches[i] ) {
+        enabled_vertices[memento.v] = true;
+      }
     }
-    for ( const Memento& memento : batches[i] ) {
-      enabled_vertices[memento.v] = true;
-    }
+    ASSERT_EQ(expected_uncontractions_of_version[version], actual_uncontractions_of_version);
+    actual_uncontractions += actual_uncontractions_of_version;
   }
   ASSERT_EQ(expected_uncontractions, actual_uncontractions);
 }
@@ -1212,8 +1233,9 @@ TEST_F(ADynamicHypergraph, CreateBatchUncontractionHierarchy1) {
   tree.setParent(4, 3);
   tree.setParent(5, 3);
   tree.setParent(6, 1);
-  auto batches = hypergraph.createBatchUncontractionHierarchy(tree.copy(), 2);
-  verifyBatchUncontractionHierarchy(tree, batches, 2);
+  auto versioned_batches = hypergraph.createBatchUncontractionHierarchy(tree.copy(), 2);
+  ASSERT_EQ(1, versioned_batches.size());
+  verifyBatchUncontractionHierarchy(tree, versioned_batches, 2);
 }
 
 TEST_F(ADynamicHypergraph, CreateBatchUncontractionHierarchy2) {
@@ -1227,8 +1249,9 @@ TEST_F(ADynamicHypergraph, CreateBatchUncontractionHierarchy2) {
   tree.setParent(7, 6);
   tree.setParent(8, 7);
   tree.setParent(9, 8);
-  auto batches = hypergraph.createBatchUncontractionHierarchy(tree.copy(), 3);
-  verifyBatchUncontractionHierarchy(tree, batches, 3);
+  auto versioned_batches = hypergraph.createBatchUncontractionHierarchy(tree.copy(), 3);
+  ASSERT_EQ(1, versioned_batches.size());
+  verifyBatchUncontractionHierarchy(tree, versioned_batches, 3);
 }
 
 TEST_F(ADynamicHypergraph, CreateBatchUncontractionHierarchy3) {
@@ -1249,8 +1272,9 @@ TEST_F(ADynamicHypergraph, CreateBatchUncontractionHierarchy3) {
   tree.setParent(12, 5);
   tree.setParent(13, 6);
   tree.setParent(14, 6);
-  auto batches = hypergraph.createBatchUncontractionHierarchy(tree.copy(), 4);
-  verifyBatchUncontractionHierarchy(tree, batches, 4);
+  auto versioned_batches = hypergraph.createBatchUncontractionHierarchy(tree.copy(), 4);
+  ASSERT_EQ(1, versioned_batches.size());
+  verifyBatchUncontractionHierarchy(tree, versioned_batches, 4);
 }
 
 TEST_F(ADynamicHypergraph, CreateBatchUncontractionHierarchy4) {
@@ -1269,11 +1293,12 @@ TEST_F(ADynamicHypergraph, CreateBatchUncontractionHierarchy4) {
   tree.setParent(13, 12);
   tree.setParent(14, 13);
   tree.setParent(15, 14);
-  auto batches = hypergraph.createBatchUncontractionHierarchy(tree.copy(), 4);
-  for ( size_t i = 0; i < batches.size(); ++i ) {
-    ASSERT_EQ(4, batches[i].size());
+  auto versioned_batches = hypergraph.createBatchUncontractionHierarchy(tree.copy(), 4);
+  ASSERT_EQ(1, versioned_batches.size());
+  for ( size_t i = 0; i < versioned_batches.size(); ++i ) {
+    ASSERT_EQ(4, versioned_batches.back()[i].size());
   }
-  verifyBatchUncontractionHierarchy(tree, batches, 4);
+  verifyBatchUncontractionHierarchy(tree, versioned_batches, 4);
 }
 
 TEST_F(ADynamicHypergraph, CreateBatchUncontractionHierarchy5) {
@@ -1298,8 +1323,9 @@ TEST_F(ADynamicHypergraph, CreateBatchUncontractionHierarchy5) {
   tree.setParent(20, 17);
   tree.setParent(21, 18);
   tree.setParent(22, 18);
-  auto batches = hypergraph.createBatchUncontractionHierarchy(tree.copy(), 6);
-  verifyBatchUncontractionHierarchy(tree, batches, 6);
+  auto versioned_batches = hypergraph.createBatchUncontractionHierarchy(tree.copy(), 6);
+  ASSERT_EQ(1, versioned_batches.size());
+  verifyBatchUncontractionHierarchy(tree, versioned_batches, 6);
 }
 
 TEST_F(ADynamicHypergraph, CreateBatchUncontractionHierarchy6) {
@@ -1320,11 +1346,92 @@ TEST_F(ADynamicHypergraph, CreateBatchUncontractionHierarchy6) {
   tree.setParent(12, 9);
   tree.setParent(13, 11);
   tree.setParent(14, 11);
-  auto batches = hypergraph.createBatchUncontractionHierarchy(tree.copy(), 4);
-  for ( size_t i = 0; i < batches.size(); ++i ) {
-    ASSERT_EQ(2, batches[i].size());
+  auto versioned_batches = hypergraph.createBatchUncontractionHierarchy(tree.copy(), 4);
+  ASSERT_EQ(1, versioned_batches.size());
+  for ( size_t i = 0; i < versioned_batches.size(); ++i ) {
+    ASSERT_EQ(2, versioned_batches.back()[i].size());
   }
-  verifyBatchUncontractionHierarchy(tree, batches, 4);
+  verifyBatchUncontractionHierarchy(tree, versioned_batches, 4);
+}
+
+TEST_F(ADynamicHypergraph, CreateBatchUncontractionHierarchyWithDifferentVersions1) {
+  ContractionTree tree;
+  tree.initialize(7);
+  tree.setParent(1, 0, 1);
+  tree.setParent(2, 0, 1);
+  tree.setParent(4, 3, 0);
+  tree.setParent(5, 3, 0);
+  tree.setParent(6, 1, 0);
+  auto versioned_batches = hypergraph.createBatchUncontractionHierarchy(tree.copy(), 2, 2);
+  ASSERT_EQ(2, versioned_batches.size());
+  verifyBatchUncontractionHierarchy(tree, versioned_batches, 2, 2);
+}
+
+TEST_F(ADynamicHypergraph, CreateBatchUncontractionHierarchyWithDifferentVersions2) {
+  ContractionTree tree;
+  tree.initialize(5);
+  tree.setParent(1, 0, 1);
+  tree.setParent(2, 0, 1);
+  tree.setParent(3, 1, 0);
+  tree.setParent(4, 1, 0);
+  auto versioned_batches = hypergraph.createBatchUncontractionHierarchy(tree.copy(), 2, 2);
+  ASSERT_EQ(2, versioned_batches.size());
+  verifyBatchUncontractionHierarchy(tree, versioned_batches, 2, 2);
+}
+
+TEST_F(ADynamicHypergraph, CreateBatchUncontractionHierarchyWithDifferentVersions3) {
+  ContractionTree tree;
+  tree.initialize(7);
+  tree.setParent(1, 0, 2);
+  tree.setParent(2, 0, 1);
+  tree.setParent(3, 1, 0);
+  tree.setParent(4, 1, 1);
+  tree.setParent(5, 2, 0);
+  tree.setParent(6, 2, 1);
+  auto versioned_batches = hypergraph.createBatchUncontractionHierarchy(tree.copy(), 2, 3);
+  ASSERT_EQ(3, versioned_batches.size());
+  verifyBatchUncontractionHierarchy(tree, versioned_batches, 2, 3);
+}
+
+TEST_F(ADynamicHypergraph, CreateBatchUncontractionHierarchyWithDifferentVersions4) {
+  ContractionTree tree;
+  tree.initialize(6);
+  tree.setParent(1, 0, 2);
+  tree.setParent(2, 0, 1);
+  tree.setParent(4, 3, 0);
+  tree.setParent(5, 3, 1);
+  auto versioned_batches = hypergraph.createBatchUncontractionHierarchy(tree.copy(), 2, 3);
+  ASSERT_EQ(3, versioned_batches.size());
+  verifyBatchUncontractionHierarchy(tree, versioned_batches, 2, 3);
+}
+
+TEST_F(ADynamicHypergraph, CreateBatchUncontractionHierarchyWithDifferentVersions5) {
+  ContractionTree tree;
+  tree.initialize(10);
+  tree.setParent(1, 0, 4);
+  tree.setParent(2, 0, 4);
+  tree.setParent(3, 1, 1);
+  tree.setParent(4, 2, 2);
+  tree.setParent(6, 5, 3);
+  tree.setParent(7, 5, 4);
+  tree.setParent(8, 6, 0);
+  tree.setParent(9, 7, 2);
+  auto versioned_batches = hypergraph.createBatchUncontractionHierarchy(tree.copy(), 2, 5);
+  ASSERT_EQ(5, versioned_batches.size());
+  verifyBatchUncontractionHierarchy(tree, versioned_batches, 2, 5);
+}
+
+TEST_F(ADynamicHypergraph, CreateBatchUncontractionHierarchyWithEmptyVersionBatch) {
+  ContractionTree tree;
+  tree.initialize(6);
+  tree.setParent(1, 0, 2);
+  tree.setParent(2, 0, 0);
+  tree.setParent(4, 3, 0);
+  tree.setParent(5, 3, 0);
+  auto versioned_batches = hypergraph.createBatchUncontractionHierarchy(tree.copy(), 2, 3);
+  ASSERT_EQ(3, versioned_batches.size());
+  ASSERT_TRUE(versioned_batches[1].back().empty());
+  verifyBatchUncontractionHierarchy(tree, versioned_batches, 2, 3);
 }
 
 void verifyEqualityOfHypergraphs(const DynamicHypergraph& expected_hypergraph,
@@ -1382,13 +1489,17 @@ void verifyBatchUncontractions(DynamicHypergraph& hypergraph,
     hypergraph.contract(memento.v);
   }
 
-  auto batches = hypergraph.createBatchUncontractionHierarchy(
+  auto versioned_batches = hypergraph.createBatchUncontractionHierarchy(
     TBBNumaArena::GLOBAL_TASK_GROUP, batch_size);
 
-  while ( !batches.empty() ) {
-    const parallel::scalable_vector<Memento> batch = batches.back();
-    hypergraph.uncontract(batch);
-    batches.pop_back();
+  while ( !versioned_batches.empty() ) {
+    BatchVector& batches = versioned_batches.back();
+    while ( !batches.empty() ) {
+      const parallel::scalable_vector<Memento> batch = batches.back();
+      hypergraph.uncontract(batch);
+      batches.pop_back();
+    }
+    versioned_batches.pop_back();
   }
 
   verifyEqualityOfHypergraphs(expected_hypergraph, hypergraph);
