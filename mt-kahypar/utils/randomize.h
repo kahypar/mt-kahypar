@@ -31,6 +31,9 @@
 #include "mt-kahypar/macros.h"
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
 
+#include "mt-kahypar/parallel/parallel_counting_sort.h"
+#include "hash.h"
+
 namespace mt_kahypar {
 namespace utils {
 
