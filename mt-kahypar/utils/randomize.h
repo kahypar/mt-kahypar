@@ -37,7 +37,9 @@
 namespace mt_kahypar {
 namespace utils {
 
-
+size_t seed_iteration(size_t seed, size_t iteration) {
+  return hashing::integer::combine(seed, hashing::integer::hash(iteration));
+}
 
 class UniformRandomSelector {
 public:
