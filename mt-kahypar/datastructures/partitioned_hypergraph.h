@@ -39,8 +39,6 @@
 namespace mt_kahypar {
 namespace ds {
 
-  // REVIEW NOTE do we still need these templates. we only have one hypergraph type now, right?
-
 template <typename Hypergraph = Mandatory,
           typename HypergraphFactory = Mandatory>
 class PartitionedHypergraph {

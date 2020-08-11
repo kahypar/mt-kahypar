@@ -44,6 +44,9 @@ namespace ds {
 
 // Forward
 class DynamicHypergraphFactory;
+template <typename Hypergraph,
+          typename HypergraphFactory>
+class PartitionedHypergraph;
 
 class DynamicHypergraph {
 
@@ -457,7 +460,7 @@ class DynamicHypergraph {
   using ThreadLocalBitset = tbb::enumerable_thread_specific<parallel::scalable_vector<bool>>;
 
  public:
-  static constexpr bool is_static_hypergraph = true;
+  static constexpr bool is_static_hypergraph = false;
   static constexpr bool is_partitioned = false;
   static constexpr size_t SIZE_OF_HYPERNODE = sizeof(Hypernode);
   static constexpr size_t SIZE_OF_HYPEREDGE = sizeof(Hyperedge);
@@ -1149,13 +1152,14 @@ class DynamicHypergraph {
   }
 
   // ! Only for testing
-  VersionedBatchVector createBatchUncontractionHierarchy(ContractionTree&& tree,
+  VersionedBatchVector createBatchUncontractionHierarchy(const TaskGroupID task_group_id,
+                                                         ContractionTree&& tree,
                                                          const size_t batch_size,
                                                          const size_t num_versions = 1) {
     ASSERT(num_versions > 0);
     _version = num_versions - 1;
     _contraction_tree = std::move(tree);
-    return createBatchUncontractionHierarchy(TBBNumaArena::GLOBAL_TASK_GROUP, batch_size, true);
+    return createBatchUncontractionHierarchy(task_group_id, batch_size, true);
   }
 
   // ! Only for testing
@@ -1591,6 +1595,9 @@ class DynamicHypergraph {
   friend class DynamicHypergraphFactory;
   template<typename Hypergraph>
   friend class CommunitySupport;
+  template <typename Hypergraph,
+            typename HypergraphFactory>
+  friend class PartitionedHypergraph;
 
   // ####################### Acquiring / Releasing Ownership #######################
 

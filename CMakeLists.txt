@@ -53,6 +53,9 @@ option(KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES
 option(KAHYPAR_TRAVIS_BUILD
   "Indicate that this build is executed on Travis CI." OFF)
 
+option(KAHYPAR_USE_N_LEVEL_PARADIGM
+  "Enables n-level hypergraph partitioning. Otherwise, multilevel paradigm is used." OFF)
+
 if(KAHYPAR_DISABLE_ASSERTIONS)
   add_compile_definitions(KAHYPAR_DISABLE_ASSERTIONS)
 endif(KAHYPAR_DISABLE_ASSERTIONS)
@@ -88,6 +91,10 @@ endif(KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES)
 if(KAHYPAR_TRAVIS_BUILD)
   add_compile_definitions(KAHYPAR_TRAVIS_BUILD)
 endif(KAHYPAR_TRAVIS_BUILD)
+
+if(KAHYPAR_USE_N_LEVEL_PARADIGM)
+  add_compile_definitions(KAHYPAR_USE_N_LEVEL_PARADIGM)
+endif(KAHYPAR_USE_N_LEVEL_PARADIGM)
 
 if(KAHYPAR_USE_MINIMAL_BOOST)
   include(ExternalProject)
