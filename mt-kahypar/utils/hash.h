@@ -206,13 +206,7 @@ struct SimpleIntHash {
   }
 
   T operator()(T x) {
-    if constexpr (sizeof(T) == 4) {
-      return integer::hash32(x);
-    } else if constexpr (sizeof(T) == 8) {
-      return integer::hash64(x);
-    } else {
-      return x;
-    }
+    return integer::hash(x);
   }
 };
 
