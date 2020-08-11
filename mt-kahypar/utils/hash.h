@@ -77,11 +77,11 @@ inline uint64_t hash64_2(uint64_t x) {
 }
 
 // from boost::hash_combine
-inline uint32_t combine(uint32_t left, uint32_t hashed_right) {
+inline uint32_t combine32(uint32_t left, uint32_t hashed_right) {
   return left ^ (hashed_right + 0x9e3779b9 + (left << 6) + (left >> 2));
 }
 
-inline uint32_t combine2(uint32_t left, uint32_t hashed_right) {
+inline uint32_t combine32_2(uint32_t left, uint32_t hashed_right) {
   constexpr uint32_t c1 = 0xcc9e2d51;
   constexpr uint32_t c2 = 0x1b873593;
   constexpr auto rotate_left = [](uint32_t x, uint32_t r) -> uint32_t {
@@ -97,6 +97,33 @@ inline uint32_t combine2(uint32_t left, uint32_t hashed_right) {
   left = left * 5 + 0xe6546b64;
   return left;
 }
+
+inline uint64_t combine64(uint64_t left, uint64_t hashed_right) {
+  return left ^ (hashed_right + 0x9e3779b97f4a7c15 + (left << 12) + (left >> 4));
+}
+
+template<typename T> uint64_t combine(T left, T hashed_right) {
+  if constexpr (sizeof(T) == 4) {
+    return combine32(left, hashed_right);
+  } else if constexpr (sizeof(T) == 8) {
+    return combine64(left, hashed_right);
+  } else {
+    static_assert(false);
+    return left;
+  }
+}
+
+template<typename T> uint64_t hash(T x) {
+  if constexpr (sizeof(T) == 4) {
+    return hash32(x);
+  } else if constexpr (sizeof(T) == 8) {
+    return hash64(x);
+  } else {
+    static_assert(false);
+    return x;
+  }
+}
+
 
 } // namespace integer
 
