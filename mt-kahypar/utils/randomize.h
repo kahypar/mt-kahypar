@@ -175,6 +175,38 @@ public:
   vec<T>::const_iterator end() const { return permutation.cend(); }
 };
 
+class BucketPrecomputation {
+public:
+
+  void compute_buckets(size_t n) {
+    // generate more seeds with one starting seed and then generate a bunch of small random numbers from each thread
+    precomputed_buckets.resize(n);
+  }
+
+  size_t operator()(size_t i) const {
+    return precomputed_buckets[i];
+  }
+
+
+  vec<uint8_t> precomputed_buckets;
+};
+
+class BucketHashing {
+
+  void compute_buckets(size_t n, uint32_t seed) {
+    hash.init(seed);
+    state = hashing::integer::hash32(seed);
+  }
+
+  size_t operator()(uint32_t i) const {
+    return hashing::integer::combine(state, hashing::integer::hash32(i));
+  }
+
+  hashing::HashTabulated<uint32_t, uint32_t> hash;
+  uint32_t state;
+};
+
+
 
 
 class Randomize {
