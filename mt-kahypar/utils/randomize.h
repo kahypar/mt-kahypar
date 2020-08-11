@@ -46,18 +46,43 @@ size_t seed_iteration(size_t seed, size_t iteration) {
 
 class UniformRandomSelector {
 public:
-  UniformRandomSelector(std::mt19937& rng) : rng(rng) { }
+  UniformRandomSelector(size_t hash_function_seed) : rng(hash_function_seed) { }
 
-  bool acceptElement() {
+  /*!
+   * Call when you find an element with the same score as the current best.
+   * Selects one of the elements with best score uniformly at random.
+   */
+  bool replace_sample() {
     return (dist(rng, std::uniform_int_distribution<size_t>::param_type(0, ++counter)) == 0);
   }
 
-  void reset() {
+  /*!
+   * Call when you find an element with better score for the first time
+   */
+  void replace() {
     counter = 0;
   }
 
+  /*!
+   * Does not reseed the hash function but reseeds the RNG, so that it can be used
+   */
+  void reset(size_t seed) {
+    replace();
+    rng.init(seed);
+  }
+
+  /*!
+   * Use this function to get reproducible pseudorandom numbers in each iteration of a parallel-for loop
+   */
+  void reset(size_t seed, size_t iteration) {
+    reset(seed_iteration(seed, iteration));
+  }
+
 private:
-  std::mt19937& rng;
+  // We want reproducible random numbers with work-stealing. There are two options:
+  // Since it is too slow to initialize a std::mt19937 for every vertex, we use a hashing-based RNG
+  hashing::SimpleHashRNG<size_t> rng;
+  std::uniform_int_distribution<size_t> dist;
   size_t counter = 0;
 };
 
