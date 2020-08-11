@@ -87,6 +87,19 @@ private:
 };
 
 
+class ParallelSeeding {
+protected:
+  void fill_seeds(std::mt19937& rng) {
+    for (size_t i = 0; i < num_buckets; ++i) {
+      seeds[i] = rng();
+    }
+  }
+
+  static constexpr size_t num_buckets = 256;
+  std::array<std::mt19937::result_type, num_buckets> seeds;
+};
+
+
 class Randomize {
   static constexpr bool debug = false;
   static constexpr size_t PRECOMPUTED_FLIP_COINS = 128;
