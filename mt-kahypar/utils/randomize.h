@@ -21,7 +21,6 @@
 #pragma once
 
 #include <limits>
-#include <mutex>
 #include <random>
 #include <thread>
 #include <vector>
