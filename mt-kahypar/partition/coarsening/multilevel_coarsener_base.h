@@ -258,7 +258,7 @@ class MultilevelCoarsenerBase {
       refine(representative_hg, label_propagation, fm, current_metrics, time_limit);
 
       // Update Progress Bar
-      uncontraction_progress.setObjective(current_metrics.getMetric(_context.partition.mode, _context.partition.objective));
+      uncontraction_progress.setObjective(current_metrics.getMetric(kahypar::Mode::direct_kway, _context.partition.objective));
       uncontraction_progress += representative_hg.initialNumNodes() - contracted_hg.initialNumNodes();
     }
 
@@ -368,7 +368,8 @@ class MultilevelCoarsenerBase {
       }
 
       if ( _top_level ) {
-        ASSERT(current_metrics.km1 == metrics::km1(partitioned_hypergraph),
+        ASSERT(current_metrics.getMetric(kahypar::Mode::direct_kway, _context.partition.objective)
+               == metrics::objective(partitioned_hypergraph, _context.partition.objective),
                "Actual metric" << V(metrics::km1(partitioned_hypergraph))
                                << "does not match the metric updated by the refiners" << V(current_metrics.km1));
       }
