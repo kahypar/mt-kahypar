@@ -147,9 +147,7 @@ public:
 
   template<typename F>
   void create_permutation(size_t n, F get_bucket, size_t num_tasks, std::mt19937& rng) {
-    if (permutation.size() < n) {
-      permutation.resize(n);
-    }
+    permutation.resize(n);
 
     if (n < 1 << 17) {
       std::iota(permutation.begin(), permutation.end(), 0);
