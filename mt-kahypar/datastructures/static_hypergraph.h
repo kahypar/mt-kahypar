@@ -517,7 +517,9 @@ class StaticHypergraph {
       [this](const tbb::blocked_range<HypernodeID>& range, HypernodeWeight init) {
         HypernodeWeight weight = init;
         for (HypernodeID hn = range.begin(); hn < range.end(); ++hn) {
-          weight += this->_hypernodes[hn].weight();
+          if (nodeIsEnabled(hn)) {
+            weight += this->_hypernodes[hn].weight();
+          }
         }
         return weight;
       }, std::plus<HypernodeWeight>());
@@ -641,7 +643,7 @@ class StaticHypergraph {
   }
 
   // ! Returns, whether a hypernode is enabled or not
-  bool nodeIsEnabled(const HypernodeID u) const {
+  bool nodeIsEnabled(const HypernodeID u) const {   // TODO kick these!
     return !hypernode(u).isDisabled();
   }
 
