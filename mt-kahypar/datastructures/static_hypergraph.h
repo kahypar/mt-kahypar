@@ -21,6 +21,7 @@
 #pragma once
 
 #include <mutex>
+#include <tbb/parallel_reduce.h>
 
 #include "tbb/blocked_range.h"
 #include "tbb/parallel_for.h"
@@ -522,8 +523,8 @@ class StaticHypergraph {
     return _total_weight;
   }
 
-  // ! Recomputes the total weight of the hypergraph (parallel)
-  void updateTotalWeight(const TaskGroupID) {
+  // ! Computes the total node weight of the hypergraph
+  void setTotalNodeWeight(const TaskGroupID) {
     _total_weight = tbb::parallel_reduce(tbb::blocked_range<HypernodeID>(ID(0), _num_hypernodes), 0,
       [this](const tbb::blocked_range<HypernodeID>& range, HypernodeWeight init) {
         HypernodeWeight weight = init;
@@ -532,14 +533,6 @@ class StaticHypergraph {
         }
         return weight;
       }, std::plus<HypernodeWeight>());
-  }
-
-  // ! Recomputes the total weight of the hypergraph (sequential)
-  void updateTotalWeight() {
-    _total_weight = 0;
-    for ( const HypernodeID& hn : nodes() ) {
-      _total_weight += nodeWeight(hn);
-    }
   }
 
   // ####################### Iterators #######################

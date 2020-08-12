@@ -234,7 +234,6 @@ inline void printHypergraphInfo(const HyperGraph& hypergraph,
     }
   });
 
-
   tbb::parallel_invoke([&] {
     tbb::parallel_sort(he_sizes.begin(), he_sizes.end());
   }, [&] {
