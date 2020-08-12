@@ -116,9 +116,9 @@ class StaticHypergraphFactory {
 
     AtomicCounter incident_nets_position(num_hypernodes,
       parallel::IntegralAtomicWrapper<size_t>(0));
-    tbb::parallel_invoke([&] {
+
+    auto setup_hyperedges = [&] {
       tbb::parallel_for(ID(0), num_hyperedges, [&](const size_t pos) {
-        // Setup hyperedges
         StaticHypergraph::Hyperedge& hyperedge = hypergraph._hyperedges[pos];
         hyperedge.enable();
         hyperedge.setFirstEntry(pin_prefix_sum[pos]);
@@ -139,15 +139,16 @@ class StaticHypergraphFactory {
           hypergraph._incidence_array[incidence_array_pos++] = pin;
           // Add hyperedge he as a incident net to pin
           const size_t incident_nets_pos = incident_net_prefix_sum[pin] +
-            incident_nets_position[pin]++;
+                                           incident_nets_position[pin]++;
           ASSERT(incident_nets_pos < incident_net_prefix_sum[pin + 1]);
           hypergraph._incident_nets[incident_nets_pos] = he;
         }
         hyperedge.hash() = hash;
       });
-    }, [&] {
+    };
+
+    auto setup_hypernodes = [&] {
       tbb::parallel_for(ID(0), num_hypernodes, [&](const size_t pos) {
-        // Setup hypernodes
         StaticHypergraph::Hypernode& hypernode = hypergraph._hypernodes[pos];
         hypernode.enable();
         hypernode.setFirstEntry(incident_net_prefix_sum[pos]);
@@ -156,8 +157,9 @@ class StaticHypergraphFactory {
           hypernode.setWeight(hypernode_weight[pos]);
         }
       });
-    }, [&] {
-      // graph edge ID mapping
+    };
+
+    auto small_edge_id_mapping = [&] {
       hypergraph._num_graph_edges_up_to.resize(num_hyperedges + 1);
       tbb::parallel_for(0U, num_hyperedges, [&](const HyperedgeID e) {
         const size_t edge_size = edge_vector[e].size();   // hypergraph.edgeSize(e) is not yet constructed
@@ -168,10 +170,13 @@ class StaticHypergraphFactory {
       parallel::TBBPrefixSum<HyperedgeID, Array> scan_graph_edges(hypergraph._num_graph_edges_up_to);
       tbb::parallel_scan(tbb::blocked_range<size_t>(0, num_hyperedges + 1), scan_graph_edges);
       hypergraph._num_graph_edges = scan_graph_edges.total_sum();
-    }, [&] {
-      // init communities
+    };
+
+    auto init_communities = [&] {
       hypergraph._community_ids.resize(num_hypernodes, 0);
-    });
+    };
+
+    tbb::parallel_invoke(setup_hyperedges, setup_hypernodes, small_edge_id_mapping, init_communities);
 
     if (stable_construction_of_incident_edges) {
       // sort incident hyperedges of each node, so their ordering is independent of scheduling (and the same as a typical sequential implementation)
