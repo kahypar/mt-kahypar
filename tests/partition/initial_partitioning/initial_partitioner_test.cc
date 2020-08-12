@@ -96,7 +96,6 @@ class AInitialPartitionerTest : public Test {
     for ( const HypernodeID& hn : hypergraph.nodes() ) {
       hypergraph.setCommunityID(hn, communities[hn]);
     }
-    hypergraph.initializeCommunities();
   }
 
   static void SetUpTestSuite() {
