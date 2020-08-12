@@ -793,6 +793,7 @@ class StaticHypergraph {
     ASSERT(static_cast<size_t>(_num_hyperedges) <= he_sizes.size());
     ASSERT(static_cast<size_t>(_num_hyperedges) <= valid_hyperedges.size());
 
+
     // #################### STAGE 1 ####################
     // Compute vertex ids of coarse hypergraph with a parallel prefix sum
     utils::Timer::instance().start_timer("preprocess_contractions", "Preprocess Contractions");
@@ -831,6 +832,7 @@ class StaticHypergraph {
       return communities[hn];
     };
 
+
     doParallelForAllNodes([&](const HypernodeID& hn) {
       const HypernodeID coarse_hn = map_to_coarse_hypergraph(hn);
       ASSERT(coarse_hn < num_hypernodes, V(coarse_hn) << V(num_hypernodes));
@@ -839,7 +841,6 @@ class StaticHypergraph {
       // In case community detection is enabled all vertices matched to one vertex
       // in the contracted hypergraph belong to same community. Otherwise, all communities
       // are default assigned to community 0
-      tmp_hypernodes[coarse_hn].setCommunityID(communityID(hn));
       // Aggregate upper bound for number of incident nets of the contracted vertex
       tmp_num_incident_nets[coarse_hn] += nodeDegree(hn);
     });
@@ -1085,6 +1086,7 @@ class StaticHypergraph {
     // Incident nets are also written to the incident nets array with the help of a prefix
     // sum over the node degrees.
     utils::Timer::instance().start_timer("contract_hypergraph", "Contract Hypergraph");
+
     StaticHypergraph hypergraph;
 
     // Compute number of hyperedges in coarse graph (those flagged as valid)
@@ -1100,7 +1102,14 @@ class StaticHypergraph {
     hypergraph._num_hypernodes = num_hypernodes;
     hypergraph._num_hyperedges = num_hyperedges;
 
-    tbb::parallel_invoke([&] {
+    auto assign_communities = [&] {
+      hypergraph._community_ids.resize(num_hypernodes, 0);
+      doParallelForAllNodes([&](HypernodeID fine_hn) {
+        hypergraph.setCommunityID(map_to_coarse_hypergraph(fine_hn), communityID(fine_hn));
+      });
+    };
+
+    auto setup_hyperedges = [&] {
       utils::Timer::instance().start_timer("setup_hyperedges", "Setup Hyperedges", true);
       utils::Timer::instance().start_timer("compute_he_pointer", "Compute HE Pointer", true);
       // Compute start position of each hyperedge in incidence array
@@ -1114,8 +1123,7 @@ class StaticHypergraph {
           }
         });
 
-        tbb::parallel_scan(tbb::blocked_range<size_t>(
-          0UL, UI64(_num_hyperedges)), num_pins_prefix_sum);
+        tbb::parallel_scan(tbb::blocked_range<size_t>(0UL, UI64(_num_hyperedges)), num_pins_prefix_sum);
 
         const size_t num_pins = num_pins_prefix_sum.total_sum();
         hypergraph._num_pins = num_pins;
@@ -1144,12 +1152,14 @@ class StaticHypergraph {
         }
       });
       hypergraph._max_edge_size = local_max_edge_size.combine(
-        [&](const size_t lhs, const size_t rhs) {
-          return std::max(lhs, rhs);
-        });
+              [&](const size_t lhs, const size_t rhs) {
+                return std::max(lhs, rhs);
+              });
       utils::Timer::instance().stop_timer("setup_incidence_array");
       utils::Timer::instance().stop_timer("setup_hyperedges");
-    }, [&] {
+    };
+
+    auto setup_hypernodes = [&] {
       utils::Timer::instance().start_timer("setup_hypernodes", "Setup Hypernodes", true);
       utils::Timer::instance().start_timer("compute_num_incident_nets", "Compute Num Incident Nets", true);
       // Remap hyperedge ids in temporary incident nets to hyperedge ids of the
@@ -1173,9 +1183,9 @@ class StaticHypergraph {
       // Compute start position of the incident nets for each vertex inside
       // the coarsened incident net array
       parallel::TBBPrefixSum<parallel::IntegralAtomicWrapper<size_t>, Array>
-        num_incident_nets_prefix_sum(tmp_num_incident_nets);
+              num_incident_nets_prefix_sum(tmp_num_incident_nets);
       tbb::parallel_scan(tbb::blocked_range<size_t>(
-        0UL, UI64(num_hypernodes)), num_incident_nets_prefix_sum);
+              0UL, UI64(num_hypernodes)), num_incident_nets_prefix_sum);
       const size_t total_degree = num_incident_nets_prefix_sum.total_sum();
       hypergraph._total_degree = total_degree;
       hypergraph._incident_nets.resize(total_degree);
@@ -1195,7 +1205,9 @@ class StaticHypergraph {
       });
       utils::Timer::instance().stop_timer("setup_incident_nets");
       utils::Timer::instance().stop_timer("setup_hypernodes");
-    });
+    };
+
+    tbb::parallel_invoke( assign_communities, setup_hyperedges, setup_hypernodes);
     utils::Timer::instance().stop_timer("contract_hypergraph");
 
     hypergraph._total_weight = _total_weight;   // didn't lose any vertices
