@@ -56,7 +56,7 @@ static inline double modularity(const ds::GraphT<HyperGraph>& graph, ds::Cluster
 
   tbb::enumerable_thread_specific<double> local_modularity(0.0);
   tbb::parallel_for(0U, static_cast<NodeID>(graph.numNodes()), [&](const NodeID u) {
-    if ( total_volume[u] > 0.0 ) {
+    if ( total_volume[u].load(std::memory_order_relaxed) > 0.0 ) {
       local_modularity.local() += internal_volume[u] -
         (total_volume[u] * total_volume[u]) / graph.totalVolume();
     }
