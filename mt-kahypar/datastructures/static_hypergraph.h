@@ -159,7 +159,7 @@ class StaticHypergraph {
     // ! Number of incident nets
     size_t _size;
     // ! Hypernode weight
-    HyperedgeWeight _weight;
+    HypernodeWeight _weight;
     // ! Community id
     PartitionID _community_id;
     // ! Flag indicating whether or not the element is active.
