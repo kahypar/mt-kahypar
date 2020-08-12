@@ -763,7 +763,7 @@ class StaticHypergraph {
    * \param task_group_id Task Group ID
    */
   StaticHypergraph contract(parallel::scalable_vector<HypernodeID>& communities,
-                            const TaskGroupID task_group_id) {
+                            const TaskGroupID /* task_group_id */) {
     ASSERT(communities.size() == _num_hypernodes);
 
     if ( !_tmp_contraction_buffer ) {
@@ -1300,7 +1300,7 @@ class StaticHypergraph {
   // ####################### Copy #######################
 
   // ! Copy static hypergraph in parallel
-  StaticHypergraph copy(const TaskGroupID task_group_id) {
+  StaticHypergraph copy(const TaskGroupID /* task_group_id */) {
     StaticHypergraph hypergraph;
 
     hypergraph._num_hypernodes = _num_hypernodes;
