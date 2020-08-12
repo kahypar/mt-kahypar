@@ -831,8 +831,6 @@ private:
         extracted_hypergraph.setCommunityID(extracted_hn, _hg->communityID(hn));
       }
     });
-    extracted_hypergraph.initializeCommunities();
-
     return std::make_pair(std::move(extracted_hypergraph), std::move(hn_mapping));
   }
 
