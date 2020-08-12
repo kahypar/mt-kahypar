@@ -168,6 +168,9 @@ class StaticHypergraphFactory {
       parallel::TBBPrefixSum<HyperedgeID, Array> scan_graph_edges(hypergraph._num_graph_edges_up_to);
       tbb::parallel_scan(tbb::blocked_range<size_t>(0, num_hyperedges + 1), scan_graph_edges);
       hypergraph._num_graph_edges = scan_graph_edges.total_sum();
+    }, [&] {
+      // init communities
+      hypergraph._community_ids.resize(num_hypernodes, 0);
     });
 
     if (stable_construction_of_incident_edges) {
