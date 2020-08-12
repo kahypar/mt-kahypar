@@ -68,7 +68,6 @@ private:
   using HyperedgeIterator = typename Hypergraph::HyperedgeIterator;
   using IncidenceIterator = typename Hypergraph::IncidenceIterator;
   using IncidentNetsIterator = typename Hypergraph::IncidentNetsIterator;
-  using CommunityIterator = typename Hypergraph::CommunityIterator;
 
   PartitionedHypergraph() = default;
 
