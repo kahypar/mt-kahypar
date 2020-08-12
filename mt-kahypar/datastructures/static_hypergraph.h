@@ -722,13 +722,11 @@ class StaticHypergraph {
 
   // ! Community id which hypernode u is assigned to
   PartitionID communityID(const HypernodeID u) const {
-    ASSERT(!hypernode(u).isDisabled(), "Hypernode" << u << "is disabled");
     return _community_ids[u];
   }
 
   // ! Assign a community to a hypernode
   void setCommunityID(const HypernodeID u, const PartitionID community_id) {
-    ASSERT(!hypernode(u).isDisabled(), "Hypernode" << u << "is disabled");
     _community_ids[u] = community_id;
   }
 
