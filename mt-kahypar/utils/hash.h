@@ -102,13 +102,15 @@ inline uint64_t combine64(uint64_t left, uint64_t hashed_right) {
   return left ^ (hashed_right + 0x9e3779b97f4a7c15 + (left << 12) + (left >> 4));
 }
 
+template <class T> struct dependent_false : std::false_type {};
+
 template<typename T> uint64_t combine(T left, T hashed_right) {
   if constexpr (sizeof(T) == 4) {
     return combine32(left, hashed_right);
   } else if constexpr (sizeof(T) == 8) {
     return combine64(left, hashed_right);
   } else {
-    static_assert(false);
+    static_assert(dependent_false<T>::value, "hashing::integer::combine not intended for other sizes than 32bit and 64bit int");
     return left + hashed_right;
   }
 }
@@ -119,7 +121,7 @@ template<typename T> uint64_t hash(T x) {
   } else if constexpr (sizeof(T) == 8) {
     return hash64(x);
   } else {
-    static_assert(false);
+    static_assert(dependent_false<T>::value, "hashing::integer::hash combine not intended for other sizes than 32bit and 64bit int");
     return x;
   }
 }
@@ -181,22 +183,6 @@ protected:
 template <typename T, typename hash_t = uint32_t>
 using HashTabulated = TabulationHashing<sizeof(T), hash_t>;
 
-template <typename ValueType, size_t bits = 32, typename Hash = HashTabulated>
-struct masked_hash {
-  static constexpr size_t Bits = bits;  // export
-  using hash_t = decltype(std::declval<Hash>()(std::declval<ValueType>()));
-
-  static_assert(bits <= 8 * sizeof(hash_t), "Not enough bits in Hash");
-  static constexpr hash_t mask = static_cast<hash_t>((1UL << bits) - 1);
-
-  inline hash_t operator () (const ValueType& val) const {
-    return hash(val) & mask;
-  }
-
-private:
-  Hash hash;
-};
-
 template<typename T>
 struct SimpleIntHash {
   using hash_type = T;
@@ -214,7 +200,7 @@ struct SimpleIntHash {
 // implements the rng interface required for std::uniform_int_distribution
 template<typename Hash>
 struct HashRNG {
-  using result_type = Hash::hash_type;
+  using result_type = typename Hash::hash_type;
 
   explicit HashRNG(result_type seed) {
     rehash(seed);
