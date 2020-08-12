@@ -1218,6 +1218,8 @@ class StaticHypergraph {
     });
     utils::Timer::instance().stop_timer("contract_hypergraph");
 
+    hypergraph._total_weight = _total_weight;   // didn't lose any vertices
+
     // Initialize Communities and Update Total Weight
     utils::Timer::instance().start_timer("setup_small_edge_id_mapping", "Setup SmallEdgeIDMapping");
     // graph edge ID mapping
