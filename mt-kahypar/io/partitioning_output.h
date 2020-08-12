@@ -269,6 +269,8 @@ inline void printHypergraphInfo(const HyperGraph& hypergraph,
 }
 
 inline void printCommunityInformation(const Hypergraph& hypergraph) {
+  // TODO put back in later so that we don't use any cached stats
+  /*
   PartitionID num_communities = hypergraph.numCommunities();
   std::vector<HypernodeID> community_sizes;
   std::vector<HypernodeID> community_pins;
@@ -312,6 +314,7 @@ inline void printCommunityInformation(const Hypergraph& hypergraph) {
     internal::createStats(community_sizes, avg_community_size, stdev_community_size),
     internal::createStats(community_pins, avg_community_pins, stdev_community_pins),
     internal::createStats(community_degrees, avg_community_degree, stdev_community_degree));
+    */
 }
 
 inline void printPartWeightsAndSizes(const PartitionedHypergraph& hypergraph, const Context& context) {
