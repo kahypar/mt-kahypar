@@ -1658,6 +1658,10 @@ class DynamicHypergraph {
     return const_cast<Hypernode&>(static_cast<const DynamicHypergraph&>(*this).hypernode(u));
   }
 
+  KAHYPAR_ATTRIBUTE_ALWAYS_INLINE const IncidentNetsIterator incident_nets_of(const HypernodeID u) const {
+    return _incident_nets[u].cbegin();
+  }
+
   // ####################### Hyperedge Information #######################
 
   // ! Accessor for hyperedge-related information

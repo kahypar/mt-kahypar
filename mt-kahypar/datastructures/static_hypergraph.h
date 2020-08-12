@@ -1557,6 +1557,11 @@ class StaticHypergraph {
     return const_cast<Hypernode&>(static_cast<const StaticHypergraph&>(*this).hypernode(u));
   }
 
+
+  KAHYPAR_ATTRIBUTE_ALWAYS_INLINE const IncidentNetsIterator incident_nets_of(const HypernodeID u) const {
+    return _incident_nets.cbegin() + hypernode(u).firstEntry();
+  }
+
   // ####################### Hyperedge Information #######################
 
   // ! Accessor for hyperedge-related information

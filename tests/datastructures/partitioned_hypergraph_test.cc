@@ -27,7 +27,10 @@
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/datastructures/static_hypergraph.h"
 #include "mt-kahypar/datastructures/static_hypergraph_factory.h"
+#include "mt-kahypar/datastructures/dynamic_hypergraph.h"
+#include "mt-kahypar/datastructures/dynamic_hypergraph_factory.h"
 #include "mt-kahypar/datastructures/partitioned_hypergraph.h"
+#include "mt-kahypar/partition/metrics.h"
 
 using ::testing::Test;
 
@@ -56,17 +59,21 @@ class APartitionedHypergraph : public Test {
     hypergraph(Factory::construct(TBBNumaArena::GLOBAL_TASK_GROUP,
       7 , 4, { {0, 2}, {0, 1, 3, 4}, {3, 4, 6}, {2, 5, 6} })),
     partitioned_hypergraph(3, TBBNumaArena::GLOBAL_TASK_GROUP, hypergraph) {
-    partitioned_hypergraph.setNodePart(0, 0);
-    partitioned_hypergraph.setNodePart(1, 0);
-    partitioned_hypergraph.setNodePart(2, 0);
-    partitioned_hypergraph.setNodePart(3, 1);
-    partitioned_hypergraph.setNodePart(4, 1);
-    partitioned_hypergraph.setNodePart(5, 2);
-    partitioned_hypergraph.setNodePart(6, 2);
+    initializePartition();
   }
 
   static void SetUpTestSuite() {
     TBBNumaArena::instance(HardwareTopology::instance().num_cpus());
+  }
+
+  void initializePartition() {
+    if ( hypergraph.nodeIsEnabled(0) ) partitioned_hypergraph.setNodePart(0, 0);
+    if ( hypergraph.nodeIsEnabled(1) ) partitioned_hypergraph.setNodePart(1, 0);
+    if ( hypergraph.nodeIsEnabled(2) ) partitioned_hypergraph.setNodePart(2, 0);
+    if ( hypergraph.nodeIsEnabled(3) ) partitioned_hypergraph.setNodePart(3, 1);
+    if ( hypergraph.nodeIsEnabled(4) ) partitioned_hypergraph.setNodePart(4, 1);
+    if ( hypergraph.nodeIsEnabled(5) ) partitioned_hypergraph.setNodePart(5, 2);
+    if ( hypergraph.nodeIsEnabled(6) ) partitioned_hypergraph.setNodePart(6, 2);
   }
 
   void verifyPartitionPinCounts(const HyperedgeID he,
@@ -106,6 +113,22 @@ class APartitionedHypergraph : public Test {
     }
   }
 
+  void verifyAllKm1GainValues() {
+    for ( const HypernodeID hn : hypergraph.nodes() ) {
+      const PartitionID from = partitioned_hypergraph.partID(hn);
+      for ( PartitionID to = 0; to < partitioned_hypergraph.k(); ++to ) {
+        if ( from != to ) {
+          const HyperedgeWeight km1_before = metrics::km1(partitioned_hypergraph, false);
+          const HyperedgeWeight km1_gain = partitioned_hypergraph.km1Gain(hn, from, to);
+          partitioned_hypergraph.changeNodePart(hn, from, to);
+          const HyperedgeWeight km1_after = metrics::km1(partitioned_hypergraph, false);
+          ASSERT_EQ(km1_gain, km1_before - km1_after);
+          partitioned_hypergraph.changeNodePart(hn, to, from);
+        }
+      }
+    }
+  }
+
   Hypergraph hypergraph;
   PartitionedHyperGraph partitioned_hypergraph;
 };
@@ -129,7 +152,11 @@ using PartitionedHypergraphTestTypes =
           PartitionedHypergraphTypeTraits<
                           PartitionedHypergraph<StaticHypergraph, StaticHypergraphFactory>,
                           StaticHypergraph,
-                          StaticHypergraphFactory>>;
+                          StaticHypergraphFactory>,
+          PartitionedHypergraphTypeTraits<
+                          PartitionedHypergraph<DynamicHypergraph, DynamicHypergraphFactory>,
+                          DynamicHypergraph,
+                          DynamicHypergraphFactory>>;
 
 TYPED_TEST_CASE(APartitionedHypergraph, PartitionedHypergraphTestTypes);
 
@@ -723,6 +750,119 @@ TYPED_TEST(APartitionedHypergraph, ComputesBorderNodesCorrectIfNodePartsAreSetOn
   ASSERT_TRUE(this->partitioned_hypergraph.isBorderNode(6));
 }
 
+using ADynamicPartitionedHypergraph = APartitionedHypergraph<
+                                        PartitionedHypergraphTypeTraits<
+                                          PartitionedHypergraph<DynamicHypergraph, DynamicHypergraphFactory>,
+                                          DynamicHypergraph,
+                                          DynamicHypergraphFactory>>;
+
+TEST_F(ADynamicPartitionedHypergraph, InitializesGainCorrectIfAlreadyContracted1) {
+  hypergraph.registerContraction(0, 2);
+  hypergraph.contract(2);
+  hypergraph.removeSinglePinAndParallelHyperedges();
+
+  partitioned_hypergraph.initializeGainInformation();
+  verifyAllKm1GainValues();
+}
+
+TEST_F(ADynamicPartitionedHypergraph, InitializesGainCorrectIfAlreadyContracted2) {
+  partitioned_hypergraph.resetPartition();
+  hypergraph.registerContraction(1, 2);
+  hypergraph.registerContraction(0, 1);
+  hypergraph.registerContraction(4, 5);
+  hypergraph.registerContraction(3, 4);
+  hypergraph.registerContraction(6, 3);
+  hypergraph.contract(2);
+  hypergraph.contract(5);
+  hypergraph.removeSinglePinAndParallelHyperedges();
+  ASSERT_FALSE(hypergraph.edgeIsEnabled(0));
+  ASSERT_EQ(2, hypergraph.edgeWeight(1));
+  ASSERT_FALSE(hypergraph.edgeIsEnabled(2));
+  ASSERT_FALSE(hypergraph.edgeIsEnabled(3));
+
+  initializePartition();
+  partitioned_hypergraph.initializeGainInformation();
+  verifyAllKm1GainValues();
+}
+
+TEST_F(ADynamicPartitionedHypergraph, ComputesPinCountsCorrectlyIfWeRestoreSinglePinAndParallelNets1) {
+  partitioned_hypergraph.resetPartition();
+  hypergraph.registerContraction(0, 2);
+  hypergraph.contract(2);
+  auto removed_hyperedges = hypergraph.removeSinglePinAndParallelHyperedges();
+  ASSERT_EQ(1, removed_hyperedges.size());
+  ASSERT_EQ(0, removed_hyperedges[0].removed_hyperedge);
+
+  initializePartition();
+  partitioned_hypergraph.restoreSinglePinAndParallelNets(removed_hyperedges);
+  verifyPartitionPinCounts(0, { 1, 0, 0 });
+}
+
+TEST_F(ADynamicPartitionedHypergraph, ComputesPinCountsCorrectlyIfWeRestoreSinglePinAndParallelNets2) {
+  partitioned_hypergraph.resetPartition();
+  hypergraph.registerContraction(1, 2);
+  hypergraph.registerContraction(0, 1);
+  hypergraph.registerContraction(4, 5);
+  hypergraph.registerContraction(3, 4);
+  hypergraph.registerContraction(6, 3);
+  hypergraph.contract(2);
+  hypergraph.contract(5);
+  auto removed_hyperedges = hypergraph.removeSinglePinAndParallelHyperedges();
+
+  initializePartition();
+  partitioned_hypergraph.restoreSinglePinAndParallelNets(removed_hyperedges);
+  verifyPartitionPinCounts(0, { 1, 0, 0 });
+  verifyPartitionPinCounts(1, { 1, 0, 1 });
+  verifyPartitionPinCounts(2, { 0, 0, 1 });
+  verifyPartitionPinCounts(3, { 1, 0, 1 });
+}
+
+TEST_F(ADynamicPartitionedHypergraph, UpdatesGainCacheCorrectlyIfWeRestoreSinglePinAndParallelNets1) {
+  partitioned_hypergraph.resetPartition();
+  hypergraph.registerContraction(0, 2);
+  hypergraph.contract(2);
+  auto removed_hyperedges = hypergraph.removeSinglePinAndParallelHyperedges();
+
+  initializePartition();
+  partitioned_hypergraph.initializeGainInformation();
+  ASSERT_EQ(1, partitioned_hypergraph.moveFromBenefit(0));
+  ASSERT_EQ(1, partitioned_hypergraph.moveToPenalty(0, 1));
+  ASSERT_EQ(1, partitioned_hypergraph.moveToPenalty(0, 2));
+  partitioned_hypergraph.restoreSinglePinAndParallelNets(removed_hyperedges);
+  ASSERT_EQ(2, partitioned_hypergraph.moveFromBenefit(0));
+  ASSERT_EQ(2, partitioned_hypergraph.moveToPenalty(0, 1));
+  ASSERT_EQ(2, partitioned_hypergraph.moveToPenalty(0, 2));
+  verifyAllKm1GainValues();
+}
+
+TEST_F(ADynamicPartitionedHypergraph, UpdatesGainCacheCorrectlyIfWeRestoreSinglePinAndParallelNets2) {
+  partitioned_hypergraph.resetPartition();
+  hypergraph.registerContraction(1, 2);
+  hypergraph.registerContraction(0, 1);
+  hypergraph.registerContraction(4, 5);
+  hypergraph.registerContraction(3, 4);
+  hypergraph.registerContraction(6, 3);
+  hypergraph.contract(2);
+  hypergraph.contract(5);
+  auto removed_hyperedges = hypergraph.removeSinglePinAndParallelHyperedges();
+
+  initializePartition();
+  partitioned_hypergraph.initializeGainInformation();
+  ASSERT_EQ(2, partitioned_hypergraph.moveFromBenefit(0));
+  ASSERT_EQ(2, partitioned_hypergraph.moveToPenalty(0, 1));
+  ASSERT_EQ(0, partitioned_hypergraph.moveToPenalty(0, 2));
+  ASSERT_EQ(2, partitioned_hypergraph.moveFromBenefit(6));
+  ASSERT_EQ(0, partitioned_hypergraph.moveToPenalty(6, 0));
+  ASSERT_EQ(2, partitioned_hypergraph.moveToPenalty(6, 1));
+  partitioned_hypergraph.restoreSinglePinAndParallelNets(removed_hyperedges);
+  ASSERT_EQ(3, partitioned_hypergraph.moveFromBenefit(0));
+  ASSERT_EQ(3, partitioned_hypergraph.moveToPenalty(0, 1));
+  ASSERT_EQ(1, partitioned_hypergraph.moveToPenalty(0, 2));
+  ASSERT_EQ(3, partitioned_hypergraph.moveFromBenefit(6));
+  ASSERT_EQ(1, partitioned_hypergraph.moveToPenalty(6, 0));
+  ASSERT_EQ(3, partitioned_hypergraph.moveToPenalty(6, 1));
+  verifyAllKm1GainValues();
+}
 
 }  // namespace ds
 }  // namespace mt_kahypar
