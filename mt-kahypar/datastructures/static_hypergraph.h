@@ -1315,6 +1315,8 @@ class StaticHypergraph {
       hypergraph._num_graph_edges_up_to.resize(_num_graph_edges_up_to.size());
       memcpy(hypergraph._num_graph_edges_up_to.data(), _num_graph_edges_up_to.data(),
              sizeof(HyperedgeID) * _num_graph_edges_up_to.size());
+    }, [&] {
+      hypergraph._community_ids = _community_ids;
     });
     return hypergraph;
   }
@@ -1349,6 +1351,8 @@ class StaticHypergraph {
     hypergraph._num_graph_edges_up_to.resize(_num_graph_edges_up_to.size());
     memcpy(hypergraph._num_graph_edges_up_to.data(), _num_graph_edges_up_to.data(),
            sizeof(HyperedgeID) * _num_graph_edges_up_to.size());
+
+    hypergraph._community_ids = _community_ids;
 
     return hypergraph;
   }
