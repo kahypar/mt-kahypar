@@ -1395,8 +1395,7 @@ class StaticHypergraph {
     parent->addChild("Hyperedges", sizeof(Hyperedge) * _hyperedges.size());
     parent->addChild("Incidence Array", sizeof(HypernodeID) * _incidence_array.size());
     parent->addChild("Graph Edge ID Mapping", sizeof(HyperedgeID) * _num_graph_edges_up_to.size());
-
-    utils::MemoryTreeNode* community_support_node = parent->addChild("Community Support");
+    parent->addChild("Communities", sizeof(PartitionID) * _community_ids.capacity());
   }
 
  private:
