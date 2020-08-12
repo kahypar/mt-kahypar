@@ -134,7 +134,7 @@ TEST_F(AStaticHypergraph, ModifiesNodeWeight) {
   hypergraph.setNodeWeight(6, 2);
   ASSERT_EQ(2, hypergraph.nodeWeight(0));
   ASSERT_EQ(2, hypergraph.nodeWeight(6));
-  hypergraph.updateTotalWeight(TBBNumaArena::GLOBAL_TASK_GROUP);
+    hypergraph.computeAndSetTotalNodeWeight(TBBNumaArena::GLOBAL_TASK_GROUP);
   ASSERT_EQ(9, hypergraph.totalWeight());
 }
 

@@ -135,8 +135,7 @@ class StaticHypergraphFactory {
           // Add pin to incidence array
           hypergraph._incidence_array[incidence_array_pos++] = pin;
           // Add hyperedge he as a incident net to pin
-          const size_t incident_nets_pos = incident_net_prefix_sum[pin] +
-                                           incident_nets_position[pin]++;
+          const size_t incident_nets_pos = incident_net_prefix_sum[pin] + incident_nets_position[pin]++;
           ASSERT(incident_nets_pos < incident_net_prefix_sum[pin + 1]);
           hypergraph._incident_nets[incident_nets_pos] = he;
         }
@@ -187,7 +186,7 @@ class StaticHypergraphFactory {
     hypergraph._hypernodes.back() = StaticHypergraph::Hypernode(hypergraph._incident_nets.size());
     hypergraph._hyperedges.back() = StaticHypergraph::Hyperedge(hypergraph._incidence_array.size());
 
-    hypergraph.setTotalNodeWeight(task_group_id);
+    hypergraph.computeAndSetTotalNodeWeight(task_group_id);
 
     utils::Timer::instance().stop_timer("setup_hypergraph");
     return hypergraph;

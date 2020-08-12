@@ -512,7 +512,7 @@ class StaticHypergraph {
   }
 
   // ! Computes the total node weight of the hypergraph
-  void setTotalNodeWeight(const TaskGroupID) {
+  void computeAndSetTotalNodeWeight(const TaskGroupID) {
     _total_weight = tbb::parallel_reduce(tbb::blocked_range<HypernodeID>(ID(0), _num_hypernodes), 0,
       [this](const tbb::blocked_range<HypernodeID>& range, HypernodeWeight init) {
         HypernodeWeight weight = init;
