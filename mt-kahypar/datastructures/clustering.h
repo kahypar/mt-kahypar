@@ -52,20 +52,16 @@ class Clustering : public std::vector<PartitionID> {
   }
 
   size_t shrinkAndCompactify(const size_t size,
-                             PartitionID upperIDBound,
-                             size_t numTasks) {
+                             PartitionID upperIDBound) {
     Base::resize(size);
     Base::shrink_to_fit();
-    return compactify(upperIDBound, numTasks);
+    return compactify(upperIDBound);
   }
 
-  size_t compactify(PartitionID upperIDBound = -1, size_t numTasks = 1) {
+  size_t compactify(PartitionID upperIDBound = -1) {
     if (upperIDBound < 0)
       upperIDBound = static_cast<PartitionID>(size()) - 1;
-    const PartitionID res = numTasks > 1 ?
-      parallelCompactify(upperIDBound, numTasks) :
-      sequentialCompactify(upperIDBound);
-    return static_cast<size_t>(res);
+    return static_cast<size_t>(parallelCompactify(upperIDBound));
   }
 
  private:
@@ -80,7 +76,7 @@ class Clustering : public std::vector<PartitionID> {
     return i;
   }
 
-  PartitionID parallelCompactify(PartitionID upperIDBound, size_t numTasks) {
+  PartitionID parallelCompactify(PartitionID upperIDBound) {
 #ifdef KAHYPAR_ENABLE_HEAVY_PREPROCESSING_ASSERTIONS
     Clustering seq = *this;
     PartitionID numClustersFromSeq = seq.sequentialCompactify(upperIDBound);
@@ -92,7 +88,7 @@ class Clustering : public std::vector<PartitionID> {
           mapping[c] = 1;
         });
 
-    parallel::PrefixSum::parallelTwoPhase(mapping.begin(), mapping.end(), mapping.begin(), std::plus<PartitionID>(), PartitionID(0), numTasks);
+    parallel_prefix_sum(mapping.begin(), mapping.end(), mapping.begin(), std::plus<PartitionID>(), PartitionID(0));
     // PrefixSum::parallelTBBNative(mapping.begin(), mapping.end(), mapping.begin(), std::plus<PartitionID>(), PartitionID(0), numTasks);
     // NOTE Benchmark!
 
