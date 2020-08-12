@@ -34,8 +34,7 @@ class ParallelModularityLouvain {
   using ParallelLouvainMethod = PLM<G>;
 
   static ds::Clustering localMovingContractRecurse(G& fine_graph,
-                                                   ParallelLouvainMethod& mlv,
-                                                   const size_t num_tasks) {
+                                                   ParallelLouvainMethod& mlv) {
     DBG << V(fine_graph.numNodes())
         << V(fine_graph.numArcs())
         << V(fine_graph.totalVolume());
@@ -56,7 +55,7 @@ class ParallelModularityLouvain {
 
       // Recurse on contracted graph
       ds::Clustering coarse_communities =
-        localMovingContractRecurse(coarse_graph, mlv, num_tasks);
+        localMovingContractRecurse(coarse_graph, mlv);
 
       utils::Timer::instance().start_timer("prolong", "Prolong");
       // Prolong Clustering
@@ -73,10 +72,9 @@ class ParallelModularityLouvain {
  public:
   static ds::Clustering run(G& graph,
                             const Context& context,
-                            const size_t num_tasks,
                             const bool disable_randomization = false) {
     ParallelLouvainMethod mlv(context, graph.numNodes(), disable_randomization);
-    ds::Clustering communities = localMovingContractRecurse(graph, mlv, num_tasks);
+    ds::Clustering communities = localMovingContractRecurse(graph, mlv);
     return communities;
   }
 };

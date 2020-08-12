@@ -207,6 +207,10 @@ class GraphT {
     return _node_volumes[u];
   }
 
+  void restrictClusteringToHypernodes(const HyperGraph& hg, ds::Clustering& C) {
+    C.resize(hg.initialNumNodes());
+  }
+
   /*!
    * Contracts the graph based on the community structure passed as argument.
    * In the first step the community ids are compactified (via parallel prefix sum)
