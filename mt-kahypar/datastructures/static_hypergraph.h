@@ -164,7 +164,6 @@ class StaticHypergraph {
       _begin(0),
       _size(0),
       _weight(1),
-      _hash(kEdgeHashSeed),
       _valid(false) { }
 
     // Sentinel Constructor
@@ -172,7 +171,6 @@ class StaticHypergraph {
       _begin(begin),
       _size(0),
       _weight(1),
-      _hash(kEdgeHashSeed),
       _valid(false) { }
 
     // ! Disables the hypernode/hyperedge. Disable hypernodes/hyperedges will be skipped
@@ -227,14 +225,6 @@ class StaticHypergraph {
       _weight = weight;
     }
 
-    size_t& hash() {
-      return _hash;
-    }
-
-    size_t hash() const {
-      return _hash;
-    }
-
     bool operator== (const Hyperedge& rhs) const {
       return _begin == rhs._begin && _size == rhs._size && _weight == rhs._weight;
     }
@@ -250,8 +240,6 @@ class StaticHypergraph {
     size_t _size;
     // ! hyperedge weight
     HyperedgeWeight _weight;
-    // ! Hash of pins
-    size_t _hash;
     // ! Flag indicating whether or not the element is active.
     bool _valid;
   };
@@ -696,12 +684,6 @@ class StaticHypergraph {
   // ! Maximum size of a hyperedge
   HypernodeID maxEdgeSize() const {
     return _max_edge_size;
-  }
-
-  // ! Hash value defined over the pins of a hyperedge
-  size_t edgeHash(const HyperedgeID e) const {
-    ASSERT(!hyperedge(e).isDisabled(), "Hyperedge" << e << "is disabled");
-    return hyperedge(e).hash();
   }
 
   // ! Returns, whether a hyperedge is enabled or not

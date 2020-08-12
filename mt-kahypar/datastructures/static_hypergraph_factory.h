@@ -129,12 +129,9 @@ class StaticHypergraphFactory {
 
         const HyperedgeID he = pos;
         size_t incidence_array_pos = hyperedge.firstEntry();
-        size_t hash = kEdgeHashSeed;
         for ( const HypernodeID& pin : edge_vector[pos] ) {
           ASSERT(incidence_array_pos < hyperedge.firstInvalidEntry());
           ASSERT(pin < num_hypernodes);
-          // Compute hash of hyperedge
-          hash += kahypar::math::hash(pin);
           // Add pin to incidence array
           hypergraph._incidence_array[incidence_array_pos++] = pin;
           // Add hyperedge he as a incident net to pin
@@ -143,7 +140,6 @@ class StaticHypergraphFactory {
           ASSERT(incident_nets_pos < incident_net_prefix_sum[pin + 1]);
           hypergraph._incident_nets[incident_nets_pos] = he;
         }
-        hyperedge.hash() = hash;
       });
     };
 
