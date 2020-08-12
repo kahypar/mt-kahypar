@@ -431,6 +431,7 @@ TEST_F(AStaticHypergraph, ContractsCommunities3) {
 TEST_F(AStaticHypergraph, ContractsCommunitiesWithDisabledHypernodes) {
   hypergraph.disableHypernode(0);
   hypergraph.disableHypernode(6);
+  hypergraph.computeAndSetTotalNodeWeight(TBBNumaArena::GLOBAL_TASK_GROUP);
 
   parallel::scalable_vector<HypernodeID> c_mapping = {0, 1, 1, 2, 2, 2, 6};
   StaticHypergraph c_hypergraph = hypergraph.contract(
