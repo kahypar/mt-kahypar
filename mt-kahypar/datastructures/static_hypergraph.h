@@ -763,8 +763,6 @@ class StaticHypergraph {
   }
 
   // ! Assign a community to a hypernode
-  // ! Note, in order to use all community-related functions, initializeCommunities()
-  // ! have to be called after assigning to each vertex a community id
   void setCommunityID(const HypernodeID u, const PartitionID community_id) {
     ASSERT(!hypernode(u).isDisabled(), "Hypernode" << u << "is disabled");
     return hypernode(u).setCommunityID(community_id);
@@ -1291,29 +1289,6 @@ class StaticHypergraph {
   }
 
   // ####################### Initialization / Reset Functions #######################
-
-  /*!
-   * Initializes community-related information after all vertices are assigned to a community.
-   * This includes:
-   *  1.) Number of Communities
-   *  2.) Number of Vertices per Community
-   *  3.) Number of Pins per Community
-   *  4.) For each hypernode v of community C, we compute a unique id within
-   *      that community in the range [0, |C|)
-   */
-  void initializeCommunities() {
-  }
-
-  /*!
-  * Initializes community hyperedges.
-  * This includes:
-  *   1.) Sort the pins of each hyperedge in increasing order of their community id
-  *   2.) Introduce for each community id contained in a hyperedge a seperate
-  *       community hyperedge pointing to a range of consecutive pins with
-  *       same community in that hyperedge
-  */
-  void initializeCommunityHyperedges(const TaskGroupID) {
-  }
 
   // ! Reset internal community information
   void setCommunityIDs(const parallel::scalable_vector<PartitionID>& community_ids) {
