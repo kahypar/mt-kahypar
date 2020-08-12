@@ -39,7 +39,7 @@ template <class InputRange, class OutputRange, class KeyFunc>
 vec<uint32_t> counting_sort(const InputRange& input, OutputRange& output,
                             size_t max_num_buckets, KeyFunc& get_bucket, size_t num_tasks) {
   using T = typename InputRange::value_type;
-  static_assert(std::is_same<OutputRange::value_type, T>::value);
+  static_assert(std::is_same<typename OutputRange::value_type, T>::value);
 
   vec<uint32_t> global_bucket_begins(max_num_buckets + 2, 0);
 
