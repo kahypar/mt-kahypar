@@ -159,7 +159,6 @@ inline void Partitioner::postprocess(PartitionedHypergraph& hypergraph) {
 inline PartitionedHypergraph Partitioner::partitionVCycle(Hypergraph& hypergraph,
                                                           PartitionedHypergraph&& partitioned_hypergraph) {
   ASSERT(_context.partition.num_vcycles > 0);
-  parallel::scalable_vector<PartitionID> part_ids(hypergraph.initialNumNodes(), kInvalidPartition);
 
   for ( size_t i = 0; i < _context.partition.num_vcycles; ++i ) {
     // Reset memory pool
@@ -169,9 +168,8 @@ inline PartitionedHypergraph Partitioner::partitionVCycle(Hypergraph& hypergraph
     // Store partition and assign it as community ids in order to
     // restrict contractions in v-cycle to partition ids
     hypergraph.doParallelForAllNodes([&](const HypernodeID& hn) {
-      part_ids[hn] = partitioned_hypergraph.partID(hn);
+      hypergraph.setCommunityID(hn, partitioned_hypergraph.partID(hn));
     });
-    hypergraph.copyCommunityIDs(part_ids);
 
     // V-Cycle Multilevel Partitioning
     io::printVCycleBanner(_context, i + 1);
