@@ -29,7 +29,6 @@
 #include "kahypar/meta/mandatory.h"
 #include "kahypar/datastructure/fast_reset_flag_array.h"
 
-#include "mt-kahypar/datastructures/community_support.h"
 #include "mt-kahypar/datastructures/hypergraph_common.h"
 #include "mt-kahypar/datastructures/concurrent_bucket_map.h"
 #include "mt-kahypar/datastructures/array.h"
@@ -416,8 +415,6 @@ class StaticHypergraph {
   using IncidenceIterator = typename IncidenceArray::const_iterator;
   // ! Iterator to iterate over the incident nets of a hypernode
   using IncidentNetsIterator = typename IncidentNets::const_iterator;
-  // ! Iterator to iterate over the set of communities contained in a hyperedge
-  using CommunityIterator = typename CommunitySupport<StaticHypergraph>::CommunityIterator;
 
   explicit StaticHypergraph() :
     _num_hypernodes(0),
@@ -434,7 +431,6 @@ class StaticHypergraph {
     _hyperedges(),
     _incidence_array(),
     _num_graph_edges_up_to(),
-    _community_support(),
     _tmp_contraction_buffer(nullptr) { }
 
   StaticHypergraph(const StaticHypergraph&) = delete;
@@ -455,7 +451,6 @@ class StaticHypergraph {
     _hyperedges(std::move(other._hyperedges)),
     _incidence_array(std::move(other._incidence_array)),
     _num_graph_edges_up_to(std::move(other._num_graph_edges_up_to)),
-    _community_support(std::move(other._community_support)),
     _tmp_contraction_buffer(std::move(other._tmp_contraction_buffer)) {
     other._tmp_contraction_buffer = nullptr;
   }
@@ -475,7 +470,6 @@ class StaticHypergraph {
     _hyperedges = std::move(other._hyperedges);
     _incidence_array = std::move(other._incidence_array);
     _num_graph_edges_up_to = std::move(other._num_graph_edges_up_to),
-    _community_support = std::move(other._community_support);
     _tmp_contraction_buffer = std::move(other._tmp_contraction_buffer);
     other._tmp_contraction_buffer = nullptr;
     return *this;
@@ -644,18 +638,7 @@ class StaticHypergraph {
       _incidence_array.cbegin() + he.firstInvalidEntry());
   }
 
-  // ! Returns a range to loop over the pins of hyperedge e that belong to a certain community.
-  // ! Note, this function fails if community hyperedges are not initialized.
-  IteratorRange<IncidenceIterator> pins(const HyperedgeID e, const PartitionID community_id) const {
-    return _community_support.pins(*this, e, community_id);
-  }
-
-  // ! Returns a range to loop over the set of communities contained in hyperedge e.
-  IteratorRange<CommunityIterator> communities(const HyperedgeID e) const {
-    return _community_support.communities(e);
-  }
-
-  // ####################### Hypernode Information #######################
+    // ####################### Hypernode Information #######################
 
   // ! Weight of a vertex
   HypernodeWeight nodeWeight(const HypernodeID u) const {
@@ -773,36 +756,6 @@ class StaticHypergraph {
     return _incidence_array[f + first_matches];
   }
 
-
-  // ####################### Community Hyperedge Information #######################
-
-  // ! Weight of a community hyperedge
-  HypernodeWeight edgeWeight(const HyperedgeID e, const PartitionID community_id) const {
-    return _community_support.edgeWeight(e, community_id);
-  }
-
-  // ! Sets the weight of a community hyperedge
-  void setEdgeWeight(const HyperedgeID e, const PartitionID community_id, const HyperedgeWeight weight) {
-    _community_support.setEdgeWeight(e, community_id, weight);
-  }
-
-  // ! Number of pins of a hyperedge that are assigned to a community
-  HypernodeID edgeSize(const HyperedgeID e, const PartitionID community_id) const {
-    return _community_support.edgeSize(e, community_id);
-  }
-
-  // ! Hash value defined over the pins of a hyperedge that belongs to a community
-  size_t edgeHash(const HyperedgeID e, const PartitionID community_id) const {
-    return _community_support.edgeHash(e, community_id);
-  }
-
-  // ####################### Community Information #######################
-
-  // ! Number of communities
-  PartitionID numCommunities() const {
-    return _community_support.numCommunities();
-  }
-
   // ! Community id which hypernode u is assigned to
   PartitionID communityID(const HypernodeID u) const {
     ASSERT(!hypernode(u).isDisabled(), "Hypernode" << u << "is disabled");
@@ -815,33 +768,6 @@ class StaticHypergraph {
   void setCommunityID(const HypernodeID u, const PartitionID community_id) {
     ASSERT(!hypernode(u).isDisabled(), "Hypernode" << u << "is disabled");
     return hypernode(u).setCommunityID(community_id);
-  }
-
-  // ! Consider hypernode u is part of community C = {v_1, ..., v_n},
-  // ! than this function returns a unique id for hypernode u in the
-  // ! range [0,n).
-  HypernodeID communityNodeId(const HypernodeID u) const {
-    return _community_support.communityNodeId(u);
-  }
-
-  // ! Number of hypernodes in community
-  HypernodeID numCommunityHypernodes(const PartitionID community) const {
-    return _community_support.numCommunityHypernodes(community);
-  }
-
-  // ! Number of pins in community
-  HypernodeID numCommunityPins(const PartitionID community) const {
-    return _community_support.numCommunityPins(community);
-  }
-
-  // ! Total degree of community
-  HyperedgeID communityDegree(const PartitionID community) const {
-    return _community_support.communityDegree(community);
-  }
-
-  // ! Number of communities which pins of hyperedge belongs to
-  size_t numCommunitiesInHyperedge(const HyperedgeID e) const {
-    return _community_support.numCommunitiesInHyperedge(e);
   }
 
   // ####################### Contract / Uncontract #######################
@@ -1293,29 +1219,18 @@ class StaticHypergraph {
     utils::Timer::instance().stop_timer("contract_hypergraph");
 
     // Initialize Communities and Update Total Weight
-    utils::Timer::instance().start_timer("setup_communities", "Setup Communities");
-    tbb::parallel_invoke([&] {
-      if ( _community_support.isInitialized() ) {
-        hypergraph.initializeCommunities();
-        if ( _community_support.areCommunityHyperedgesInitialized() ) {
-          hypergraph.initializeCommunityHyperedges(task_group_id);
-        }
-      }
-    }, [&] {
-      hypergraph.updateTotalWeight(task_group_id);
-    }, [&] {
-      // graph edge ID mapping
-      hypergraph._num_graph_edges_up_to.resize(num_hyperedges + 1);
-      tbb::parallel_for(0U, num_hyperedges, [&](const HyperedgeID e) {
-        hypergraph._num_graph_edges_up_to[e+1] = static_cast<HyperedgeID>(hypergraph.edgeSize(e) == 2);
-      }, tbb::static_partitioner());
-      hypergraph._num_graph_edges_up_to[0] = 0;
+    utils::Timer::instance().start_timer("setup_small_edge_id_mapping", "Setup SmallEdgeIDMapping");
+    // graph edge ID mapping
+    hypergraph._num_graph_edges_up_to.resize(num_hyperedges + 1);
+    tbb::parallel_for(0U, num_hyperedges, [&](const HyperedgeID e) {
+      hypergraph._num_graph_edges_up_to[e+1] = static_cast<HyperedgeID>(hypergraph.edgeSize(e) == 2);
+    }, tbb::static_partitioner());
+    hypergraph._num_graph_edges_up_to[0] = 0;
 
-      parallel::TBBPrefixSum<HyperedgeID, Array> scan_graph_edges(hypergraph._num_graph_edges_up_to);
-      tbb::parallel_scan(tbb::blocked_range<size_t>(0, num_hyperedges + 1), scan_graph_edges);
-      hypergraph._num_graph_edges = scan_graph_edges.total_sum();
-    });
-    utils::Timer::instance().stop_timer("setup_communities");
+    parallel::TBBPrefixSum<HyperedgeID, Array> scan_graph_edges(hypergraph._num_graph_edges_up_to);
+    tbb::parallel_scan(tbb::blocked_range<size_t>(0, num_hyperedges + 1), scan_graph_edges);
+    hypergraph._num_graph_edges = scan_graph_edges.total_sum();
+    utils::Timer::instance().stop_timer("setup_small_edge_id_mapping");
 
     hypergraph._tmp_contraction_buffer = _tmp_contraction_buffer;
     _tmp_contraction_buffer = nullptr;
@@ -1385,7 +1300,6 @@ class StaticHypergraph {
    *      that community in the range [0, |C|)
    */
   void initializeCommunities() {
-    _community_support.initialize(*this);
   }
 
   /*!
@@ -1397,30 +1311,14 @@ class StaticHypergraph {
   *       same community in that hyperedge
   */
   void initializeCommunityHyperedges(const TaskGroupID) {
-    _community_support.initializeCommunityHyperedges(*this);
-  }
-
-  /*!
-   * Removes all community hyperedges from the hypergraph after parallel community
-   * coarsening terminates.
-   */
-  void removeCommunityHyperedges(const TaskGroupID,
-                                 const parallel::scalable_vector<HypernodeID>& contraction_index = {}) {
-    _community_support.removeCommunityHyperedges(contraction_index);
   }
 
   // ! Reset internal community information
   void setCommunityIDs(const parallel::scalable_vector<PartitionID>& community_ids) {
-    if ( _community_support.isInitialized() ) {
-      _community_support.freeInternalData();
-    }
-
     ASSERT(community_ids.size() == UI64(_num_hypernodes));
     doParallelForAllNodes([&](const HypernodeID& hn) {
       hypernode(hn).setCommunityID(community_ids[hn]);
     });
-
-    initializeCommunities();
   }
 
   // ####################### Copy #######################
@@ -1459,8 +1357,6 @@ class StaticHypergraph {
       hypergraph._num_graph_edges_up_to.resize(_num_graph_edges_up_to.size());
       memcpy(hypergraph._num_graph_edges_up_to.data(), _num_graph_edges_up_to.data(),
              sizeof(HyperedgeID) * _num_graph_edges_up_to.size());
-    }, [&] {
-      hypergraph._community_support = _community_support.copy(task_group_id);
     });
     return hypergraph;
   }
@@ -1496,19 +1392,13 @@ class StaticHypergraph {
     memcpy(hypergraph._num_graph_edges_up_to.data(), _num_graph_edges_up_to.data(),
            sizeof(HyperedgeID) * _num_graph_edges_up_to.size());
 
-    hypergraph._community_support = _community_support.copy();
-
     return hypergraph;
   }
 
   // ! Free internal data in parallel
   void freeInternalData() {
     if ( _num_hypernodes > 0 || _num_hyperedges > 0 ) {
-      tbb::parallel_invoke([&] {
-        _community_support.freeInternalData();
-      }, [&] {
-        freeTmpContractionBuffer();
-      });
+      freeTmpContractionBuffer();
     }
     _num_hypernodes = 0;
     _num_hyperedges = 0;
@@ -1531,7 +1421,6 @@ class StaticHypergraph {
     parent->addChild("Graph Edge ID Mapping", sizeof(HyperedgeID) * _num_graph_edges_up_to.size());
 
     utils::MemoryTreeNode* community_support_node = parent->addChild("Community Support");
-    _community_support.memoryConsumption(community_support_node);
   }
 
  private:
@@ -1648,9 +1537,6 @@ class StaticHypergraph {
 
   // ! Number of graph edges with smaller ID than the access ID
   Array<HyperedgeID> _num_graph_edges_up_to;
-
-  // ! Community Information and Stats
-  CommunitySupport<StaticHypergraph> _community_support;
 
   // ! Data that is reused throughout the multilevel hierarchy
   // ! to contract the hypergraph and to prevent expensive allocations
