@@ -173,6 +173,7 @@ inline PartitionedHypergraph Partitioner::partitionVCycle(Hypergraph& hypergraph
 
     // V-Cycle Multilevel Partitioning
     io::printVCycleBanner(_context, i + 1);
+    // TODO why does this have to make a copy
     partitioned_hypergraph = multilevel::partition(
       hypergraph, _context, true, TBBNumaArena::GLOBAL_TASK_GROUP, true /* vcycle */);
   }
