@@ -171,7 +171,7 @@ inline PartitionedHypergraph Partitioner::partitionVCycle(Hypergraph& hypergraph
     hypergraph.doParallelForAllNodes([&](const HypernodeID& hn) {
       part_ids[hn] = partitioned_hypergraph.partID(hn);
     });
-    hypergraph.setCommunityIDs(part_ids);
+    hypergraph.copyCommunityIDs(part_ids);
 
     // V-Cycle Multilevel Partitioning
     io::printVCycleBanner(_context, i + 1);
