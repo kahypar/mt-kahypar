@@ -37,6 +37,7 @@
 #include "mt-kahypar/utils/memory_tree.h"
 #include "mt-kahypar/utils/range.h"
 #include "mt-kahypar/utils/timer.h"
+#include "clustering.h"
 
 namespace mt_kahypar {
 namespace ds {
@@ -74,14 +75,12 @@ class StaticHypergraph {
       _begin(0),
       _size(0),
       _weight(1),
-      _community_id(0),
       _valid(false) { }
 
     Hypernode(const bool valid) :
       _begin(0),
       _size(0),
       _weight(1),
-      _community_id(0),
       _valid(valid) { }
 
     // Sentinel Constructor
@@ -89,7 +88,6 @@ class StaticHypergraph {
       _begin(begin),
       _size(0),
       _weight(1),
-      _community_id(0),
       _valid(false) { }
 
     bool isDisabled() const {
@@ -142,16 +140,6 @@ class StaticHypergraph {
       _weight = weight;
     }
 
-    PartitionID communityID() const {
-      ASSERT(!isDisabled());
-      return _community_id;
-    }
-
-    void setCommunityID(const PartitionID community_id) {
-      ASSERT(!isDisabled());
-      _community_id = community_id;
-    }
-
    private:
     // ! Index of the first element in _incident_nets
     size_t _begin;
@@ -159,10 +147,8 @@ class StaticHypergraph {
     size_t _size;
     // ! Hypernode weight
     HypernodeWeight _weight;
-    // ! Community id
-    PartitionID _community_id;
     // ! Flag indicating whether or not the element is active.
-    bool _valid;
+    bool _valid;  // TODO what are we using this for?
   };
 
   /**
@@ -431,6 +417,7 @@ class StaticHypergraph {
     _hyperedges(),
     _incidence_array(),
     _num_graph_edges_up_to(),
+    _community_ids(0),
     _tmp_contraction_buffer(nullptr) { }
 
   StaticHypergraph(const StaticHypergraph&) = delete;
@@ -451,6 +438,7 @@ class StaticHypergraph {
     _hyperedges(std::move(other._hyperedges)),
     _incidence_array(std::move(other._incidence_array)),
     _num_graph_edges_up_to(std::move(other._num_graph_edges_up_to)),
+    _community_ids(std::move(other._community_ids)),
     _tmp_contraction_buffer(std::move(other._tmp_contraction_buffer)) {
     other._tmp_contraction_buffer = nullptr;
   }
@@ -470,6 +458,7 @@ class StaticHypergraph {
     _hyperedges = std::move(other._hyperedges);
     _incidence_array = std::move(other._incidence_array);
     _num_graph_edges_up_to = std::move(other._num_graph_edges_up_to),
+    _community_ids = std::move(other._community_ids),
     _tmp_contraction_buffer = std::move(other._tmp_contraction_buffer);
     other._tmp_contraction_buffer = nullptr;
     return *this;
@@ -759,13 +748,13 @@ class StaticHypergraph {
   // ! Community id which hypernode u is assigned to
   PartitionID communityID(const HypernodeID u) const {
     ASSERT(!hypernode(u).isDisabled(), "Hypernode" << u << "is disabled");
-    return hypernode(u).communityID();
+    return _community_ids[u];
   }
 
   // ! Assign a community to a hypernode
   void setCommunityID(const HypernodeID u, const PartitionID community_id) {
     ASSERT(!hypernode(u).isDisabled(), "Hypernode" << u << "is disabled");
-    return hypernode(u).setCommunityID(community_id);
+    _community_ids[u] = community_id;
   }
 
   // ####################### Contract / Uncontract #######################
@@ -1291,11 +1280,16 @@ class StaticHypergraph {
   // ####################### Initialization / Reset Functions #######################
 
   // ! Reset internal community information
-  void setCommunityIDs(const parallel::scalable_vector<PartitionID>& community_ids) {
+  void copyCommunityIDs(const parallel::scalable_vector<PartitionID>& community_ids) {
     ASSERT(community_ids.size() == UI64(_num_hypernodes));
     doParallelForAllNodes([&](const HypernodeID& hn) {
-      hypernode(hn).setCommunityID(community_ids[hn]);
+      _community_ids[hn] = community_ids[hn];
     });
+  }
+
+  void setCommunityIDs(ds::Clustering&& communities) {
+    ASSERT(communities.size() == initialNumNodes());
+    _community_ids = std::move(communities);
   }
 
   // ####################### Copy #######################
@@ -1514,6 +1508,9 @@ class StaticHypergraph {
 
   // ! Number of graph edges with smaller ID than the access ID
   Array<HyperedgeID> _num_graph_edges_up_to;
+
+  // ! Communities
+  ds::Clustering _community_ids;
 
   // ! Data that is reused throughout the multilevel hierarchy
   // ! to contract the hypergraph and to prevent expensive allocations
