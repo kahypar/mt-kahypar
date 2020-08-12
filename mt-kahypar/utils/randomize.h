@@ -131,8 +131,8 @@ public:
   vec<T> shuffled_elements;
 
   // convenience
-  vec<T>::const_iterator begin() const { return shuffled_elements.cbegin(); }
-  vec<T>::const_iterator end() const { return shuffled_elements.cend(); }
+  typename vec<T>::const_iterator begin() const { return shuffled_elements.cbegin(); }
+  typename vec<T>::const_iterator end() const { return shuffled_elements.cend(); }
 };
 
 template<class T>
@@ -169,8 +169,8 @@ public:
   vec<T> permutation;
 
   // convenience
-  vec<T>::const_iterator begin() const { return permutation.cbegin(); }
-  vec<T>::const_iterator end() const { return permutation.cend(); }
+  typename vec<T>::const_iterator begin() const { return permutation.cbegin(); }
+  typename vec<T>::const_iterator end() const { return permutation.cend(); }
 };
 
 class BucketPrecomputation {
