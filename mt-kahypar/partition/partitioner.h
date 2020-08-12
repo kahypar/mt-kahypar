@@ -140,34 +140,18 @@ inline void Partitioner::preprocess(Hypergraph& hypergraph) {
     utils::Timer::instance().stop_timer("perform_community_detection");
 
     // Stream community ids into hypergraph
-    utils::Timer::instance().start_timer("stream_community_ids", "Stream Community IDs");
-    tbb::parallel_for(tbb::blocked_range<HypernodeID>(0UL, hypergraph.initialNumNodes()),
-                      [&](const tbb::blocked_range<HypernodeID>& range) {
-          for (HypernodeID hn = range.begin(); hn < range.end(); ++hn) {
-            hypergraph.setCommunityID(hn, communities[hn]);
-          }
-        });
-    utils::Timer::instance().stop_timer("stream_community_ids");
+    tbb::parallel_for(0U, hypergraph.initialNumNodes(), [&](HypernodeID hn) {
+      hypergraph.setCommunityID(hn, communities[hn]);
+    });
 
-    // Initialize Communities
-    utils::Timer::instance().start_timer("initialize_communities", "Initialize Communities");
-    hypergraph.initializeCommunities();
-    utils::Timer::instance().stop_timer("initialize_communities");
-
-    utils::Stats::instance().add_stat("num_communities", hypergraph.numCommunities());
+    //utils::Stats::instance().add_stat("num_communities", hypergraph.numCommunities());  TODO put back in later
     utils::Timer::instance().stop_timer("community_detection");
 
     if (_context.partition.verbose_output) {
       io::printCommunityInformation(hypergraph);
       io::printStripe();
     }
-  } else {
-    // Per default all communities are assigned to community 0
-    utils::Timer::instance().disable();
-    hypergraph.initializeCommunities();
-    utils::Timer::instance().enable();
   }
-
   parallel::MemoryPool::instance().release_mem_group("Preprocessing");
 }
 
