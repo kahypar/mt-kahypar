@@ -35,7 +35,8 @@ enum class Type : int8_t {
 };
 
 enum class Paradigm : int8_t {
-  multilevel
+  multilevel,
+  nlevel
 };
 
 enum class LouvainEdgeWeight : uint8_t {
@@ -55,6 +56,7 @@ enum class SimiliarNetCombinerStrategy : uint8_t {
 
 enum class CoarseningAlgorithm : uint8_t {
   multilevel_coarsener,
+  nlevel_coarsener,
   UNDEFINED
 };
 
@@ -123,6 +125,7 @@ std::ostream & operator<< (std::ostream& os, const Type& type) {
 std::ostream & operator<< (std::ostream& os, const Paradigm& paradigm) {
   switch (paradigm) {
     case Paradigm::multilevel: return os << "multilevel";
+    case Paradigm::nlevel: return os << "nlevel";
       // omit default case to trigger compiler warning for missing cases
   }
   return os << static_cast<uint8_t>(paradigm);
@@ -154,6 +157,7 @@ std::ostream & operator<< (std::ostream& os, const SimiliarNetCombinerStrategy& 
 std::ostream & operator<< (std::ostream& os, const CoarseningAlgorithm& algo) {
   switch (algo) {
     case CoarseningAlgorithm::multilevel_coarsener: return os << "multilevel_coarsener";
+    case CoarseningAlgorithm::nlevel_coarsener: return os << "nlevel_coarsener";
     case CoarseningAlgorithm::UNDEFINED: return os << "UNDEFINED";
       // omit default case to trigger compiler warning for missing cases
   }
@@ -267,6 +271,8 @@ static SimiliarNetCombinerStrategy similiarNetCombinerStrategyFromString(const s
 static CoarseningAlgorithm coarseningAlgorithmFromString(const std::string& type) {
   if (type == "multilevel_coarsener") {
     return CoarseningAlgorithm::multilevel_coarsener;
+  } else if (type == "nlevel_coarsener") {
+    return CoarseningAlgorithm::nlevel_coarsener;
   }
   ERROR("Illegal option: " + type);
   return CoarseningAlgorithm::UNDEFINED;

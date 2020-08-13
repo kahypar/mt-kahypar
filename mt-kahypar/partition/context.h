@@ -28,7 +28,11 @@
 
 namespace mt_kahypar {
 struct PartitioningParameters {
+  #ifdef KAHYPAR_USE_N_LEVEL_PARADIGM
+  Paradigm paradigm = Paradigm::nlevel;
+  #else
   Paradigm paradigm = Paradigm::multilevel;
+  #endif
   kahypar::Mode mode = kahypar::Mode::UNDEFINED;
   kahypar::Objective objective = kahypar::Objective::UNDEFINED;
   double epsilon = std::numeric_limits<double>::max();
@@ -180,9 +184,11 @@ struct LabelPropagationParameters {
 inline std::ostream & operator<< (std::ostream& str, const LabelPropagationParameters& params) {
   str << "  Label Propagation Parameters:" << std::endl;
   str << "    Algorithm:                        " << params.algorithm << std::endl;
-  str << "    Maximum Iterations:               " << params.maximum_iterations << std::endl;
-  str << "    Rebalancing:                      " << std::boolalpha << params.rebalancing << std::endl;
-  str << "    HE Size Activation Threshold:     " << std::boolalpha << params.hyperedge_size_activation_threshold << std::endl;
+  if ( params.algorithm != LabelPropagationAlgorithm::do_nothing ) {
+    str << "    Maximum Iterations:               " << params.maximum_iterations << std::endl;
+    str << "    Rebalancing:                      " << std::boolalpha << params.rebalancing << std::endl;
+    str << "    HE Size Activation Threshold:     " << std::boolalpha << params.hyperedge_size_activation_threshold << std::endl;
+  }
   return str;
 }
 
@@ -203,16 +209,18 @@ struct FMParameters {
 inline std::ostream& operator<<(std::ostream& out, const FMParameters& params) {
   out << "  FM Parameters: \n";
   out << "    Algorithm:                        " << params.algorithm << std::endl;
-  out << "    Multitry Rounds:                  " << params.multitry_rounds << std::endl;
-  out << "    Perform Moves Globally:           " << std::boolalpha << params.perform_moves_global << std::endl;
-  out << "    Parallel Global Rollbacks:        " << std::boolalpha << params.revert_parallel << std::endl;
-  out << "    Rollback Bal. Violation Factor:   " << params.rollback_balance_violation_factor << std::endl;
-  out << "    Num Seed Nodes:                   " << params.num_seed_nodes << std::endl;
-  out << "    Enable Random Shuffle:            " << std::boolalpha << params.shuffle << std::endl;
-  out << "    Obey Minimal Parallelism:         " << std::boolalpha << params.obey_minimal_parallelism << std::endl;
-  out << "    Minimum Improvement Factor:       " << params.min_improvement << std::endl;
-  out << "    Release Nodes:                    " << std::boolalpha << params.release_nodes << std::endl;
-  out << "    Time Limit Factor:                " << params.time_limit_factor << std::endl;
+  if ( params.algorithm != FMAlgorithm::do_nothing ) {
+    out << "    Multitry Rounds:                  " << params.multitry_rounds << std::endl;
+    out << "    Perform Moves Globally:           " << std::boolalpha << params.perform_moves_global << std::endl;
+    out << "    Parallel Global Rollbacks:        " << std::boolalpha << params.revert_parallel << std::endl;
+    out << "    Rollback Bal. Violation Factor:   " << params.rollback_balance_violation_factor << std::endl;
+    out << "    Num Seed Nodes:                   " << params.num_seed_nodes << std::endl;
+    out << "    Enable Random Shuffle:            " << std::boolalpha << params.shuffle << std::endl;
+    out << "    Obey Minimal Parallelism:         " << std::boolalpha << params.obey_minimal_parallelism << std::endl;
+    out << "    Minimum Improvement Factor:       " << params.min_improvement << std::endl;
+    out << "    Release Nodes:                    " << std::boolalpha << params.release_nodes << std::endl;
+    out << "    Time Limit Factor:                " << params.time_limit_factor << std::endl;
+  }
   out << std::flush;
   return out;
 }
