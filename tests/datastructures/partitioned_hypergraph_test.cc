@@ -864,5 +864,131 @@ TEST_F(ADynamicPartitionedHypergraph, UpdatesGainCacheCorrectlyIfWeRestoreSingle
   verifyAllKm1GainValues();
 }
 
+TEST_F(ADynamicPartitionedHypergraph, ComputesCorrectPinCountsAfterUncontraction1) {
+  partitioned_hypergraph.resetPartition();
+  hypergraph.registerContraction(0, 2);
+  hypergraph.contract(2);
+
+  VersionedBatchVector hierarchy = hypergraph.createBatchUncontractionHierarchy(
+    TBBNumaArena::GLOBAL_TASK_GROUP, 2);
+
+  initializePartition();
+  partitioned_hypergraph.uncontract(hierarchy.back().back());
+  ASSERT_EQ(0, partitioned_hypergraph.partID(2));
+  verifyPartitionPinCounts(0, { 2, 0, 0 });
+  verifyPartitionPinCounts(1, { 2, 2, 0 });
+  verifyPartitionPinCounts(2, { 0, 2, 1 });
+  verifyPartitionPinCounts(3, { 1, 0, 2 });
+}
+
+TEST_F(ADynamicPartitionedHypergraph, ComputesCorrectPinCountsAfterUncontraction2) {
+  partitioned_hypergraph.resetPartition();
+  hypergraph.registerContraction(1, 2);
+  hypergraph.registerContraction(0, 1);
+  hypergraph.registerContraction(4, 5);
+  hypergraph.registerContraction(3, 4);
+  hypergraph.registerContraction(6, 3);
+  hypergraph.contract(2);
+  hypergraph.contract(5);
+
+  VersionedBatchVector hierarchy = hypergraph.createBatchUncontractionHierarchy(
+    TBBNumaArena::GLOBAL_TASK_GROUP, 2);
+
+  initializePartition();
+
+  while ( !hierarchy.empty() ) {
+    BatchVector& batches = hierarchy.back();
+    while ( !batches.empty() ) {
+      const Batch& batch = batches.back();
+      partitioned_hypergraph.uncontract(batch);
+      batches.pop_back();
+    }
+    hierarchy.pop_back();
+  }
+
+  ASSERT_EQ(0, partitioned_hypergraph.partID(0));
+  ASSERT_EQ(0, partitioned_hypergraph.partID(1));
+  ASSERT_EQ(0, partitioned_hypergraph.partID(2));
+  ASSERT_EQ(2, partitioned_hypergraph.partID(3));
+  ASSERT_EQ(2, partitioned_hypergraph.partID(4));
+  ASSERT_EQ(2, partitioned_hypergraph.partID(5));
+  ASSERT_EQ(2, partitioned_hypergraph.partID(6));
+  verifyPartitionPinCounts(0, { 2, 0, 0 });
+  verifyPartitionPinCounts(1, { 2, 0, 2 });
+  verifyPartitionPinCounts(2, { 0, 0, 3 });
+  verifyPartitionPinCounts(3, { 1, 0, 2 });
+}
+
+TEST_F(ADynamicPartitionedHypergraph, UpdatesGainCacheCorrectlyAfterUncontraction1) {
+  partitioned_hypergraph.resetPartition();
+  hypergraph.registerContraction(0, 2);
+  hypergraph.contract(2);
+
+  VersionedBatchVector hierarchy = hypergraph.createBatchUncontractionHierarchy(
+    TBBNumaArena::GLOBAL_TASK_GROUP, 2);
+
+  initializePartition();
+  partitioned_hypergraph.initializeGainInformation();
+  partitioned_hypergraph.uncontract(hierarchy.back().back());
+  ASSERT_EQ(0, partitioned_hypergraph.moveFromBenefit(0));
+  ASSERT_EQ(1, partitioned_hypergraph.moveToPenalty(0, 1));
+  ASSERT_EQ(2, partitioned_hypergraph.moveToPenalty(0, 2));
+  ASSERT_EQ(1, partitioned_hypergraph.moveFromBenefit(2));
+  ASSERT_EQ(2, partitioned_hypergraph.moveToPenalty(2, 1));
+  ASSERT_EQ(1, partitioned_hypergraph.moveToPenalty(2, 2));
+  verifyAllKm1GainValues();
+}
+
+TEST_F(ADynamicPartitionedHypergraph, UpdatesGainCacheCorrectlyAfterUncontraction2) {
+  partitioned_hypergraph.resetPartition();
+  hypergraph.registerContraction(1, 2);
+  hypergraph.registerContraction(0, 1);
+  hypergraph.registerContraction(4, 5);
+  hypergraph.registerContraction(3, 4);
+  hypergraph.registerContraction(6, 3);
+  hypergraph.contract(2);
+  hypergraph.contract(5);
+
+  VersionedBatchVector hierarchy = hypergraph.createBatchUncontractionHierarchy(
+    TBBNumaArena::GLOBAL_TASK_GROUP, 2);
+
+  initializePartition();
+  partitioned_hypergraph.initializeGainInformation();
+
+  while ( !hierarchy.empty() ) {
+    BatchVector& batches = hierarchy.back();
+    while ( !batches.empty() ) {
+      const Batch& batch = batches.back();
+      partitioned_hypergraph.uncontract(batch);
+      batches.pop_back();
+    }
+    hierarchy.pop_back();
+  }
+
+  ASSERT_EQ(0, partitioned_hypergraph.moveFromBenefit(0));
+  ASSERT_EQ(2, partitioned_hypergraph.moveToPenalty(0, 1));
+  ASSERT_EQ(1, partitioned_hypergraph.moveToPenalty(0, 2));
+  ASSERT_EQ(0, partitioned_hypergraph.moveFromBenefit(1));
+  ASSERT_EQ(1, partitioned_hypergraph.moveToPenalty(1, 1));
+  ASSERT_EQ(0, partitioned_hypergraph.moveToPenalty(1, 2));
+  ASSERT_EQ(1, partitioned_hypergraph.moveFromBenefit(2));
+  ASSERT_EQ(2, partitioned_hypergraph.moveToPenalty(2, 1));
+  ASSERT_EQ(1, partitioned_hypergraph.moveToPenalty(2, 2));
+  ASSERT_EQ(0, partitioned_hypergraph.moveFromBenefit(3));
+  ASSERT_EQ(1, partitioned_hypergraph.moveToPenalty(3, 0));
+  ASSERT_EQ(2, partitioned_hypergraph.moveToPenalty(3, 1));
+  ASSERT_EQ(0, partitioned_hypergraph.moveFromBenefit(4));
+  ASSERT_EQ(1, partitioned_hypergraph.moveToPenalty(4, 0));
+  ASSERT_EQ(2, partitioned_hypergraph.moveToPenalty(4, 1));
+  ASSERT_EQ(0, partitioned_hypergraph.moveFromBenefit(5));
+  ASSERT_EQ(0, partitioned_hypergraph.moveToPenalty(5, 0));
+  ASSERT_EQ(1, partitioned_hypergraph.moveToPenalty(5, 1));
+  ASSERT_EQ(0, partitioned_hypergraph.moveFromBenefit(6));
+  ASSERT_EQ(1, partitioned_hypergraph.moveToPenalty(6, 0));
+  ASSERT_EQ(2, partitioned_hypergraph.moveToPenalty(6, 1));
+  verifyAllKm1GainValues();
+}
+
+
 }  // namespace ds
 }  // namespace mt_kahypar

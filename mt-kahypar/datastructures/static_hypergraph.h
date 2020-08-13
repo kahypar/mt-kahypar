@@ -63,6 +63,9 @@ class StaticHypergraph {
   static_assert(std::is_unsigned<HypernodeID>::value, "Hypernode ID must be unsigned");
   static_assert(std::is_unsigned<HyperedgeID>::value, "Hyperedge ID must be unsigned");
 
+  using UncontractionFunction = std::function<void (const HypernodeID, const HypernodeID, const HyperedgeID)>;
+  #define NOOP_BATCH_FUNC [] (const HypernodeID, const HypernodeID, const HyperedgeID) { }
+
   /**
    * Represents a hypernode of the hypergraph and contains all information
    * associated with a vertex.
@@ -1306,7 +1309,11 @@ class StaticHypergraph {
     return { };
   }
 
-  void uncontract(const Batch&) {
+  void uncontract(const Batch&,
+                  const UncontractionFunction& case_one_func = NOOP_BATCH_FUNC,
+                  const UncontractionFunction& case_two_func = NOOP_BATCH_FUNC) {
+    unused(case_one_func);
+    unused(case_two_func);
     ERROR("uncontract(batch) is not supported in static hypergraph");
   }
 

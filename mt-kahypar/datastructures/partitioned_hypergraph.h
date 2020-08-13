@@ -331,6 +331,89 @@ private:
     return _hg->graphEdgeHead(e, tail);
   }
 
+  // ####################### Uncontraction #######################
+
+  /**
+   * Uncontracts a batch of contractions in parallel. The batches must be uncontracted exactly
+   * in the order computed by the function createBatchUncontractionHierarchy(...).
+   */
+  void uncontract(const Batch& batch) {
+    // Set block ids of contraction partners
+    tbb::parallel_for(0UL, batch.size(), [&](const size_t i) {
+      const Memento& memento = batch[i];
+      const PartitionID part_id = partID(memento.u);
+      ASSERT(part_id != kInvalidPartition && part_id < _k);
+      setOnlyNodePart(memento.v, part_id);
+    });
+
+    _hg->uncontract(batch,
+      [&](const HypernodeID u, const HypernodeID v, const HyperedgeID he) {
+        // In this case, u and v are incident to hyperedge he after uncontraction
+        const PartitionID block = partID(u);
+        const HypernodeID pin_count_in_part_after = incrementPinCountInPartWithoutGainUpdate(he, block);
+
+        if ( _is_gain_cache_initialized ) {
+          // If u was the only pin of hyperedge he in its block before then moving out vertex u
+          // of hyperedge he does not decrease the connectivity any more after the
+          // uncontraction => b(u) -= w(he)
+          const HyperedgeWeight edge_weight = edgeWeight(he);
+          if ( pin_count_in_part_after == 2 ) {
+            _move_from_benefit[u].sub_fetch(edge_weight, std::memory_order_relaxed);
+          }
+
+          // For all blocks not contained in the connectivity set of hyperedge he
+          // we increase the the move_to_penalty for vertex v by w(e) => Moving
+          // v to all those blocks would increase connectivity in hyperedge he.
+          PartitionID current_block = 0;
+          for ( const PartitionID block : _connectivity_set.connectivitySet(he) ) {
+            for ( ; current_block < block; ++current_block ) {
+              _move_to_penalty[penalty_index(v, current_block)].add_fetch(
+                edge_weight, std::memory_order_relaxed);
+            }
+            ++current_block;
+          }
+          for ( ; current_block < _k; ++current_block ) {
+            _move_to_penalty[penalty_index(v, current_block)].add_fetch(
+              edge_weight, std::memory_order_relaxed);
+          }
+        }
+      },
+      [&](const HypernodeID u, const HypernodeID v, const HyperedgeID he) {
+        // In this case, u is replaced by v in hyperedge he
+        // => Pin counts of hyperedge he does not change
+        if ( _is_gain_cache_initialized ) {
+          const PartitionID block = partID(u);
+          const HyperedgeWeight edge_weight = edgeWeight(he);
+          // Since u is no longer incident to hyperedge he its contribution for decreasing
+          // the connectivity of he is shifted to vertex v => b(u) -= w(e), b(v) += w(e).
+          if ( pinCountInPart(he, block) == 1 ) {
+            _move_from_benefit[u].sub_fetch(edge_weight, std::memory_order_relaxed);
+            _move_from_benefit[v].add_fetch(edge_weight, std::memory_order_relaxed);
+          }
+
+          // For all blocks not contained in the connectivity set of hyperedge he
+          // we decrease the the move_to_penalty for vertex u and increase it for
+          // vertex v by w(e)
+          PartitionID current_block = 0;
+          for ( const PartitionID block : _connectivity_set.connectivitySet(he) ) {
+            for ( ; current_block < block; ++current_block ) {
+              _move_to_penalty[penalty_index(u, current_block)].sub_fetch(
+                edge_weight, std::memory_order_relaxed);
+              _move_to_penalty[penalty_index(v, current_block)].add_fetch(
+                edge_weight, std::memory_order_relaxed);
+            }
+            ++current_block;
+          }
+          for ( ; current_block < _k; ++current_block ) {
+            _move_to_penalty[penalty_index(u, current_block)].sub_fetch(
+              edge_weight, std::memory_order_relaxed);
+            _move_to_penalty[penalty_index(v, current_block)].add_fetch(
+              edge_weight, std::memory_order_relaxed);
+          }
+        }
+      });
+  }
+
   // ####################### Restore Hyperedges #######################
 
   /*!
