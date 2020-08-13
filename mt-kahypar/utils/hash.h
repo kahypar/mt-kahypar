@@ -180,8 +180,8 @@ protected:
 };
 
 //! Tabulation hashing
-template <typename T, typename hash_t = uint32_t>
-using HashTabulated = TabulationHashing<sizeof(T), hash_t>;
+template <typename T>
+using HashTabulated = TabulationHashing<sizeof(T), T>;
 
 template<typename T>
 struct SimpleIntHash {
@@ -191,50 +191,31 @@ struct SimpleIntHash {
     // intentionally unimplemented
   }
 
-  T operator()(T x) {
+  T operator()(const T& x) const {
     return integer::hash(x);
   }
 };
 
 
 // implements the rng interface required for std::uniform_int_distribution
-template<typename Hash>
+template<typename HashFunction>
 struct HashRNG {
-  using result_type = typename Hash::hash_type;
-
-  explicit HashRNG(result_type seed) {
-    rehash(seed);
-    init(seed);
-  }
-
-  void rehash(result_type seed) {
-    hash.init(seed);
-  }
-
-  // allow reinit. with tabulation hashing we don't want to recompute the full table
-  // since we want to reinit on every new neighbor
-  void init(result_type seed) {
-    state = seed;
-  }
-
+  using result_type = typename HashFunction::hash_type;
+  explicit HashRNG(HashFunction& hash, result_type seed) : hash(hash), state(hash(seed)), counter(0) { }
   constexpr result_type min() { return std::numeric_limits<result_type>::min(); }
   constexpr result_type max() { return std::numeric_limits<result_type>::max(); }
 
-  // don't do too many calls of this without calls to init
+  // don't do too many calls of this
   result_type operator()() {
-    state = hash(state);
+    //state = hash(state);
+    state = integer::combine(state, integer::hash(counter++));
     return state;
   }
 
 private:
+  HashFunction& hash; // Hash function copy is expensive in case of tabulation hashing.
   result_type state;
-  Hash hash;
+  result_type counter;
 };
-
-template<typename T>
-using SimpleHashRNG = HashRNG<SimpleIntHash<T>>;
-
-template<typename T>
-using TabulationHashRNG = HashRNG<HashTabulated<T, T>>;
 
 } // namespace mt_kahypar::hashing

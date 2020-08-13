@@ -44,9 +44,14 @@ size_t seed_iteration(size_t seed, size_t iteration) {
   return hashing::integer::combine(seed, hashing::integer::hash(iteration));
 }
 
+template< template<typename> typename UnqualifiedHashFunction >
 class UniformRandomSelector {
 public:
-  UniformRandomSelector(size_t hash_function_seed) : rng(hash_function_seed) { }
+  using int_type = size_t;
+  using HashFunction = UnqualifiedHashFunction<int_type>;
+  using RNG = hashing::HashRNG<HashFunction>;
+
+  UniformRandomSelector(const HashFunction& hash_function, int_type seed) : rng(hash_function, seed) { }
 
   /*!
    * Call when you find an element with the same score as the current best.
@@ -64,25 +69,16 @@ public:
   }
 
   /*!
-   * Does not reseed the hash function but reseeds the RNG, so that it can be used
+   * Does not reseed the hash function but reseeds the RNG, so that it can be used for neighbor rating in coarsening
    */
   void reset(size_t seed) {
     replace();
     rng.init(seed);
   }
 
-  /*!
-   * Use this function to get reproducible pseudorandom numbers in each iteration of a parallel-for loop
-   */
-  void reset(size_t seed, size_t iteration) {
-    reset(seed_iteration(seed, iteration));
-  }
-
 private:
-  // We want reproducible random numbers with work-stealing. There are two options:
-  // Since it is too slow to initialize a std::mt19937 for every vertex, we use a hashing-based RNG
-  hashing::SimpleHashRNG<size_t> rng;
-  std::uniform_int_distribution<size_t> dist;
+  RNG rng;
+  std::uniform_int_distribution<int_type> dist;
   size_t counter = 0;
 };
 
@@ -173,8 +169,7 @@ public:
   typename vec<T>::const_iterator end() const { return permutation.cend(); }
 };
 
-class BucketPrecomputation {
-public:
+struct BucketPrecomputation {
 
   void compute_buckets(size_t n) {
     // generate more seeds with one starting seed and then generate a bunch of small random numbers from each thread
@@ -185,11 +180,10 @@ public:
     return precomputed_buckets[i];
   }
 
-
   vec<uint8_t> precomputed_buckets;
 };
 
-class BucketHashing {
+struct BucketHashing {
 
   void compute_buckets(size_t n, uint32_t seed) {
     hash.init(seed);
@@ -200,7 +194,7 @@ class BucketHashing {
     return hashing::integer::combine(state, hashing::integer::hash32(i));
   }
 
-  hashing::HashTabulated<uint32_t, uint32_t> hash;
+  hashing::HashTabulated<uint32_t> hash;
   uint32_t state;
 };
 
