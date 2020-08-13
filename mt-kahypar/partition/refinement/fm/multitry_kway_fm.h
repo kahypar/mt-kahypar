@@ -231,18 +231,6 @@ public:
       return static_cast<double>(gain) / static_cast<double>(old_km1);
   }
 
-  bool shouldStopSearch(const vec<double>& improvement_fractions, double threshold, size_t n) const {
-    if (improvement_fractions.size() < n || context.type != kahypar::ContextType::main) {
-      return false;
-    } else {
-      bool all_below = true;
-      for (size_t i = improvement_fractions.size() - n; i < improvement_fractions.size(); ++i) {
-        all_below &= (improvement_fractions[i] < threshold);
-      }
-      return all_below;
-    }
-  }
-
   void printMemoryConsumption() {
     utils::MemoryTreeNode fm_memory("Multitry k-Way FM", utils::OutputType::MEGABYTE);
 
