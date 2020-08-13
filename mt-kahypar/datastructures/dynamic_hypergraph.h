@@ -581,12 +581,12 @@ class DynamicHypergraph {
   }
 
   HyperedgeID numGraphEdges() const {
-    ERROR("numGraphEdges() is not supported in dynamic hypergraph");
+    // ERROR("numGraphEdges() is not supported in dynamic hypergraph");
     return 0;
   }
 
   HyperedgeID numNonGraphEdges() const {
-    ERROR("numNonGraphEdges() is not supported in dynamic hypergraph");
+    // ERROR("numNonGraphEdges() is not supported in dynamic hypergraph");
     return initialNumEdges();
   }
 
