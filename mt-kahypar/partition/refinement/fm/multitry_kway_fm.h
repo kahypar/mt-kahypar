@@ -59,7 +59,7 @@ public:
 
   bool refineImpl(PartitionedHypergraph& phg,
                   kahypar::Metrics& metrics,
-                  const double time_limit) override final {
+                  const double time_limit) final {
     Gain improvement = refine(phg, metrics, time_limit);
     metrics.km1 -= improvement;
     metrics.imbalance = metrics::imbalance(phg, context);
@@ -169,7 +169,7 @@ public:
     return overall_improvement;
   }
 
-  void initializeImpl(PartitionedHypergraph& phg) override final {
+  void initializeImpl(PartitionedHypergraph& phg) final {
     utils::Timer& timer = utils::Timer::instance();
     timer.start_timer("init_gain_info", "Initialize Gain Information");
     phg.initializeGainInformation();
@@ -224,7 +224,7 @@ public:
   tbb::enumerable_thread_specific<LocalizedKWayFM> ets_fm;
   size_t peak_reinsertions = 0;
 
-  double improvementFraction(Gain gain, HyperedgeWeight old_km1) {
+  static double improvementFraction(Gain gain, HyperedgeWeight old_km1) {
     if (old_km1 == 0)
       return 0;
     else
