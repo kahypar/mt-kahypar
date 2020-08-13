@@ -189,6 +189,13 @@ class StaticHypergraphFactory {
     return hypergraph;
   }
 
+  static std::pair<StaticHypergraph,
+                   parallel::scalable_vector<HypernodeID> > compactify(const TaskGroupID,
+                                                                       const StaticHypergraph&) {
+    ERROR("compactify(task_group_id, hypergraph) is not supported in static hypergraph factory");
+    return std::make_pair(StaticHypergraph(), parallel::scalable_vector<HypernodeID>());
+  }
+
  private:
   StaticHypergraphFactory() { }
 };

@@ -198,6 +198,98 @@ class DynamicHypergraphFactory {
     return hypergraph;
   }
 
+  /**
+   * Compactifies a given hypergraph such that it only contains enabled vertices and hyperedges within
+   * a consecutive range of IDs.
+   */
+  static std::pair<DynamicHypergraph,
+                   parallel::scalable_vector<HypernodeID> > compactify(const TaskGroupID task_group_id,
+                                                                       const DynamicHypergraph& hypergraph) {
+    HypernodeID num_hypernodes = 0;
+    HyperedgeID num_hyperedges = 0;
+    parallel::scalable_vector<HypernodeID> hn_mapping;
+    parallel::scalable_vector<HyperedgeID> he_mapping;
+    // Computes a mapping for vertices and hyperedges to a consecutive range of IDs
+    // in the compactified hypergraph via a parallel prefix sum
+    utils::Timer::instance().start_timer("compactify_hn_and_he_ids", "Compactify HN and HE IDs");
+    tbb::parallel_invoke([&] {
+      hn_mapping.assign(hypergraph._num_hypernodes + 1, 0);
+      hypergraph.doParallelForAllNodes([&](const HypernodeID hn) {
+        hn_mapping[hn + 1] = ID(1);
+      });
+
+      parallel::TBBPrefixSum<HypernodeID, parallel::scalable_vector> hn_mapping_prefix_sum(hn_mapping);
+      tbb::parallel_scan(tbb::blocked_range<size_t>(
+        0UL, hypergraph._num_hypernodes + 1), hn_mapping_prefix_sum);
+      num_hypernodes = hn_mapping_prefix_sum.total_sum();
+      hn_mapping.resize(hypergraph._num_hypernodes);
+    }, [&] {
+      he_mapping.assign(hypergraph._num_hyperedges + 1, 0);
+      hypergraph.doParallelForAllEdges([&](const HyperedgeID& he) {
+        he_mapping[he + 1] = ID(1);
+      });
+
+      parallel::TBBPrefixSum<HyperedgeID, parallel::scalable_vector> he_mapping_prefix_sum(he_mapping);
+      tbb::parallel_scan(tbb::blocked_range<size_t>(
+        0UL, hypergraph._num_hyperedges + 1), he_mapping_prefix_sum);
+      num_hyperedges = he_mapping_prefix_sum.total_sum();
+      he_mapping.resize(hypergraph._num_hyperedges);
+    });
+    utils::Timer::instance().stop_timer("compactify_hn_and_he_ids");
+
+    // Remap pins of each hyperedge
+    utils::Timer::instance().start_timer("remap_pins", "Remap Pins");
+    using HyperedgeVector = parallel::scalable_vector<parallel::scalable_vector<HypernodeID>>;
+    HyperedgeVector edge_vector;
+    parallel::scalable_vector<HyperedgeWeight> hyperedge_weights;
+    parallel::scalable_vector<HypernodeWeight> hypernode_weights;
+    tbb::parallel_invoke([&] {
+      hypernode_weights.resize(num_hypernodes);
+      hypergraph.doParallelForAllNodes([&](const HypernodeID hn) {
+        const HypernodeID mapped_hn = hn_mapping[hn];
+        ASSERT(mapped_hn < num_hypernodes);
+        hypernode_weights[mapped_hn] = hypergraph.nodeWeight(hn);
+      });
+    }, [&] {
+      edge_vector.resize(num_hyperedges);
+      hyperedge_weights.resize(num_hyperedges);
+      hypergraph.doParallelForAllEdges([&](const HyperedgeID he) {
+        const HyperedgeID mapped_he = he_mapping[he];
+        ASSERT(mapped_he < num_hyperedges);
+        hyperedge_weights[mapped_he] = hypergraph.edgeWeight(he);
+        for ( const HypernodeID pin : hypergraph.pins(he) ) {
+          edge_vector[mapped_he].push_back(hn_mapping[pin]);
+        }
+      });
+    });
+    utils::Timer::instance().stop_timer("remap_pins");
+
+    // Construct compactified hypergraph
+    utils::Timer::instance().start_timer("construct_compactified_hypergraph", "Construct Compactified Hypergraph");
+    DynamicHypergraph compactified_hypergraph = DynamicHypergraphFactory::construct(
+      task_group_id, num_hypernodes, num_hyperedges,
+      edge_vector, hyperedge_weights.data(), hypernode_weights.data());
+    utils::Timer::instance().stop_timer("construct_compactified_hypergraph");
+
+    // Set community ids
+    utils::Timer::instance().start_timer("initialize_communities", "Initialized Communities");
+    hypergraph.doParallelForAllNodes([&](const HypernodeID& hn) {
+      const HypernodeID mapped_hn = hn_mapping[hn];
+      compactified_hypergraph.setCommunityID(mapped_hn, hypergraph.communityID(hn));
+    });
+    compactified_hypergraph.initializeCommunities();
+    utils::Timer::instance().stop_timer("initialize_communities");
+
+    tbb::parallel_invoke([&] {
+      parallel::parallel_free(he_mapping,
+        hyperedge_weights, hypernode_weights);
+    }, [&] {
+      parallel::parallel_free(edge_vector);
+    });
+
+    return std::make_pair(std::move(compactified_hypergraph), std::move(hn_mapping));
+  }
+
  private:
   DynamicHypergraphFactory() { }
 };

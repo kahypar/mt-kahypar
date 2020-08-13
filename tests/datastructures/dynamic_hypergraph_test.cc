@@ -1651,5 +1651,44 @@ TEST_F(ADynamicHypergraph, RestoresSinglePinAndParallelNets2) {
   ASSERT_EQ(1, hypergraph.edgeWeight(3));
 }
 
+TEST_F(ADynamicHypergraph, GeneratesACompactifiedHypergraph1) {
+  const parallel::scalable_vector<Memento> contractions =
+   { Memento { 0, 2 } };
+
+  for ( const Memento& memento : contractions ) {
+    hypergraph.registerContraction(memento.u, memento.v);
+    hypergraph.contract(memento.v);
+  }
+  hypergraph.removeSinglePinAndParallelHyperedges();
+
+  auto res = DynamicHypergraphFactory::compactify(TBBNumaArena::GLOBAL_TASK_GROUP, hypergraph);
+  DynamicHypergraph& compactified_hg = res.first;
+  ASSERT_EQ(6, compactified_hg.initialNumNodes());
+  ASSERT_EQ(3, compactified_hg.initialNumEdges());
+  verifyPins(compactified_hg, {0, 1, 2},
+    { {0, 1, 2, 3}, {2, 3, 5}, {0, 4, 5} } );
+}
+
+TEST_F(ADynamicHypergraph, GeneratesACompactifiedHypergraph2) {
+  const parallel::scalable_vector<Memento> contractions =
+   { Memento { 0, 2 }, Memento { 1, 5 }, Memento { 6, 3 }, Memento { 6, 4 } };
+
+  for ( const Memento& memento : contractions ) {
+    hypergraph.registerContraction(memento.u, memento.v);
+    hypergraph.contract(memento.v);
+  }
+  hypergraph.removeSinglePinAndParallelHyperedges();
+
+  auto res = DynamicHypergraphFactory::compactify(TBBNumaArena::GLOBAL_TASK_GROUP, hypergraph);
+  DynamicHypergraph& compactified_hg = res.first;
+  ASSERT_EQ(3, compactified_hg.initialNumNodes());
+  ASSERT_EQ(1, compactified_hg.initialNumEdges());
+  ASSERT_EQ(2, compactified_hg.edgeWeight(0));
+  ASSERT_EQ(2, compactified_hg.nodeWeight(0));
+  ASSERT_EQ(2, compactified_hg.nodeWeight(1));
+  ASSERT_EQ(3, compactified_hg.nodeWeight(2));
+  verifyPins(compactified_hg, {0}, { {0, 1, 2} });
+}
+
 } // namespace ds
 } // namespace mt_kahypar

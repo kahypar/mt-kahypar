@@ -202,9 +202,25 @@ DynamicHypergraph simulateNLevel(DynamicHypergraph& hypergraph,
 
   utils::Timer::instance().start_timer(timer_key("initial_partition"), "Initial Partition");
 
-  utils::Timer::instance().start_timer(timer_key("generate_random_partition"), "Generate Random Partition");
-  generateRandomPartition(partitioned_hypergraph);
-  utils::Timer::instance().stop_timer(timer_key("generate_random_partition"));
+  {
+    utils::Timer::instance().start_timer(timer_key("compactify_hypergraph"), "Compactify Hypergraph");
+    auto res = DynamicHypergraphFactory::compactify(TBBNumaArena::GLOBAL_TASK_GROUP, hypergraph);
+    DynamicHypergraph& compactified_hg = res.first;
+    auto& hn_mapping = res.second;
+    DynamicPartitionedHypergraph compactified_phg(
+      partitioned_hypergraph.k(), TBBNumaArena::GLOBAL_TASK_GROUP, compactified_hg);
+    utils::Timer::instance().stop_timer(timer_key("compactify_hypergraph"));
+
+    utils::Timer::instance().start_timer(timer_key("generate_random_partition"), "Generate Random Partition");
+    generateRandomPartition(compactified_phg);
+    utils::Timer::instance().stop_timer(timer_key("generate_random_partition"));
+
+    utils::Timer::instance().start_timer(timer_key("project_partition"), "Project Partition");
+    partitioned_hypergraph.doParallelForAllNodes([&](const HypernodeID hn) {
+      partitioned_hypergraph.setOnlyNodePart(hn, compactified_phg.partID(hn_mapping[hn]));
+    });
+    utils::Timer::instance().stop_timer(timer_key("project_partition"));
+  }
 
   utils::Timer::instance().start_timer(timer_key("initialize_partition"), "Initialize Partition");
   partitioned_hypergraph.initializePartition(TBBNumaArena::GLOBAL_TASK_GROUP);
