@@ -218,7 +218,7 @@ class IncidentNetVector : public parallel::scalable_vector<T> {
 
   IncidentNetVector & operator=(IncidentNetVector&& other) {
     _rw_mutex = std::shared_timed_mutex();
-    _ref_count = parallel::IntegralAtomicWrapper(0);
+    _ref_count = parallel::IntegralAtomicWrapper<size_t>(0);
     Base::operator=(std::move(other));
     return *this;
   }
