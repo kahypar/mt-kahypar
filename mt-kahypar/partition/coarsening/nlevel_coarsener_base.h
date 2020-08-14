@@ -28,6 +28,7 @@
 #include "mt-kahypar/partition/refinement/i_refiner.h"
 #include "mt-kahypar/partition/refinement/rebalancing/rebalancer.h"
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
+#include "mt-kahypar/io/partitioning_output.h"
 #include "mt-kahypar/utils/progress_bar.h"
 #include "mt-kahypar/utils/timer.h"
 #include "mt-kahypar/utils/stats.h"
@@ -143,7 +144,9 @@ class NLevelCoarsenerBase {
     uncontraction_progress += _compactified_hg.initialNumNodes();
 
     // Initialize Refiner
-    label_propagation->initialize(_phg);
+    if ( label_propagation ) {
+      label_propagation->initialize(_phg);
+    }
 
     // Perform batch uncontractions
     utils::Timer::instance().start_timer("batch_uncontractions", "Batch Uncontractions");
