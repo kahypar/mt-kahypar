@@ -65,17 +65,19 @@ static void register_memory_pool(const Hypergraph& hypergraph,
   const HypernodeID num_hypernodes = hypergraph.initialNumNodes();
   const HyperedgeID num_hyperedges = hypergraph.initialNumEdges();
   const HypernodeID num_pins = hypergraph.initialNumPins();
-  parallel::MemoryPool::instance().register_memory_chunk("Coarsening", "mapping", num_hypernodes, sizeof(size_t));
-  parallel::MemoryPool::instance().register_memory_chunk("Coarsening", "tmp_hypernodes", num_hypernodes, Hypergraph::SIZE_OF_HYPERNODE);
-  parallel::MemoryPool::instance().register_memory_chunk("Coarsening", "tmp_incident_nets", num_pins, sizeof(HyperedgeID));
-  parallel::MemoryPool::instance().register_memory_chunk("Coarsening", "tmp_num_incident_nets",
-    num_hypernodes, sizeof(parallel::IntegralAtomicWrapper<size_t>));
-  parallel::MemoryPool::instance().register_memory_chunk("Coarsening", "hn_weights",
-    num_hypernodes, sizeof(parallel::IntegralAtomicWrapper<HypernodeWeight>));
-  parallel::MemoryPool::instance().register_memory_chunk("Coarsening", "tmp_hyperedges", num_hyperedges, Hypergraph::SIZE_OF_HYPEREDGE);
-  parallel::MemoryPool::instance().register_memory_chunk("Coarsening", "tmp_incidence_array", num_pins, sizeof(HypernodeID));
-  parallel::MemoryPool::instance().register_memory_chunk("Coarsening", "he_sizes", num_hyperedges, sizeof(size_t));
-  parallel::MemoryPool::instance().register_memory_chunk("Coarsening", "valid_hyperedges", num_hyperedges, sizeof(size_t));
+  if ( context.coarsening.algorithm == CoarseningAlgorithm::multilevel_coarsener ) {
+    parallel::MemoryPool::instance().register_memory_chunk("Coarsening", "mapping", num_hypernodes, sizeof(size_t));
+    parallel::MemoryPool::instance().register_memory_chunk("Coarsening", "tmp_hypernodes", num_hypernodes, Hypergraph::SIZE_OF_HYPERNODE);
+    parallel::MemoryPool::instance().register_memory_chunk("Coarsening", "tmp_incident_nets", num_pins, sizeof(HyperedgeID));
+    parallel::MemoryPool::instance().register_memory_chunk("Coarsening", "tmp_num_incident_nets",
+      num_hypernodes, sizeof(parallel::IntegralAtomicWrapper<size_t>));
+    parallel::MemoryPool::instance().register_memory_chunk("Coarsening", "hn_weights",
+      num_hypernodes, sizeof(parallel::IntegralAtomicWrapper<HypernodeWeight>));
+    parallel::MemoryPool::instance().register_memory_chunk("Coarsening", "tmp_hyperedges", num_hyperedges, Hypergraph::SIZE_OF_HYPEREDGE);
+    parallel::MemoryPool::instance().register_memory_chunk("Coarsening", "tmp_incidence_array", num_pins, sizeof(HypernodeID));
+    parallel::MemoryPool::instance().register_memory_chunk("Coarsening", "he_sizes", num_hyperedges, sizeof(size_t));
+    parallel::MemoryPool::instance().register_memory_chunk("Coarsening", "valid_hyperedges", num_hyperedges, sizeof(size_t));
+  }
 
   // ########## Refinement Memory ##########
 
@@ -95,7 +97,7 @@ static void register_memory_pool(const Hypergraph& hypergraph,
   parallel::MemoryPool::instance().register_memory_chunk("Refinement", "pin_count_update_ownership",
     num_hyperedges, sizeof(parallel::IntegralAtomicWrapper<bool>));
 
-  if ( context.refinement.fm.revert_parallel ) {
+  if ( context.refinement.fm.algorithm != FMAlgorithm::do_nothing && context.refinement.fm.revert_parallel ) {
     parallel::MemoryPool::instance().register_memory_chunk("Refinement", "remaining_original_pins",
       static_cast<size_t>(hypergraph.numNonGraphEdges()) * context.partition.k, sizeof(CAtomic<HypernodeID>));
     parallel::MemoryPool::instance().register_memory_chunk("Refinement", "first_move_in",
