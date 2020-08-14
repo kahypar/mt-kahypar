@@ -353,7 +353,7 @@ class MultilevelCoarsenerBase {
         utils::Timer::instance().stop_timer("initialize_lp_refiner");
 
         utils::Timer::instance().start_timer("label_propagation", "Label Propagation");
-        improvement_found |= label_propagation->refine(partitioned_hypergraph, current_metrics, time_limit);
+        improvement_found |= label_propagation->refine(partitioned_hypergraph, {}, current_metrics, time_limit);
         utils::Timer::instance().stop_timer("label_propagation");
       }
 
@@ -363,7 +363,7 @@ class MultilevelCoarsenerBase {
         utils::Timer::instance().stop_timer("initialize_fm_refiner");
 
         utils::Timer::instance().start_timer("fm", "FM");
-        improvement_found |= fm->refine(partitioned_hypergraph, current_metrics, time_limit);
+        improvement_found |= fm->refine(partitioned_hypergraph, {}, current_metrics, time_limit);
         utils::Timer::instance().stop_timer("fm");
       }
 

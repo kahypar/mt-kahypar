@@ -102,7 +102,7 @@ class NLevelCoarsenerBase {
     utils::Timer::instance().stop_timer("remove_single_pin_and_parallel_nets");
   }
 
-  PartitionedHypergraph&& doUncoarsen(std::unique_ptr<IRefiner>&,
+  PartitionedHypergraph&& doUncoarsen(std::unique_ptr<IRefiner>& label_propagation,
                                       std::unique_ptr<IRefiner>&) {
     ASSERT(_is_finalized);
     kahypar::Metrics current_metrics = initialize(_compactified_phg);
@@ -142,6 +142,9 @@ class NLevelCoarsenerBase {
       _context.partition.verbose_output && _context.partition.enable_progress_bar && !debug);
     uncontraction_progress += _compactified_hg.initialNumNodes();
 
+    // Initialize Refiner
+    label_propagation->initialize(_phg);
+
     // Perform batch uncontractions
     utils::Timer::instance().start_timer("batch_uncontractions", "Batch Uncontractions");
     size_t num_batches = 0;
@@ -155,10 +158,14 @@ class NLevelCoarsenerBase {
         if ( batch.size() > 0 ) {
           _phg.uncontract(batch);
 
-          // TODO(heuer): Perform refinement HERE
+          // Perform refinement
+          refine(_phg, batch, label_propagation, current_metrics);
 
           ++num_batches;
           total_batches_size += batch.size();
+          // Update Progress Bar
+          uncontraction_progress.setObjective(current_metrics.getMetric(
+            _context.partition.mode, _context.partition.objective));
           uncontraction_progress += batch.size();
         }
         batches.pop_back();
@@ -247,6 +254,41 @@ class NLevelCoarsenerBase {
     utils::Stats::instance().add_stat("initial_km1", current_metrics.km1);
     utils::Stats::instance().add_stat("initial_imbalance", current_metrics.imbalance);
     return current_metrics;
+  }
+
+  void refine(PartitionedHypergraph& partitioned_hypergraph,
+              const Batch& batch,
+              std::unique_ptr<IRefiner>& label_propagation,
+              kahypar::Metrics& current_metrics) {
+    if ( debug && _top_level ) {
+      io::printHypergraphInfo(partitioned_hypergraph, "Refinement Hypergraph", false);
+      DBG << "Start Refinement - km1 = " << current_metrics.km1
+          << ", imbalance = " << current_metrics.imbalance;
+    }
+
+    bool improvement_found = true;
+    while( improvement_found ) {
+      improvement_found = false;
+
+      if ( label_propagation &&
+           _context.refinement.label_propagation.algorithm != LabelPropagationAlgorithm::do_nothing ) {
+        improvement_found |= label_propagation->refine(partitioned_hypergraph, batch, current_metrics, 0); // TODO: set correct time limit
+      }
+
+      if ( _top_level ) {
+        ASSERT(current_metrics.km1 == metrics::km1(partitioned_hypergraph),
+               "Actual metric" << V(metrics::km1(partitioned_hypergraph))
+                               << "does not match the metric updated by the refiners" << V(current_metrics.km1));
+      }
+
+      if ( !_context.refinement.refine_until_no_improvement ) {
+        break;
+      }
+    }
+
+    if ( _top_level) {
+      DBG << "--------------------------------------------------\n";
+    }
   }
 
   // ! True, if coarsening terminates and finalize function was called

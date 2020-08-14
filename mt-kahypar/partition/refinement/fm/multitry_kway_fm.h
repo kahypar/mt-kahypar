@@ -58,6 +58,7 @@ public:
   }
 
   bool refineImpl(PartitionedHypergraph& phg,
+                  const Batch&,
                   kahypar::Metrics& metrics,
                   const double time_limit) override final {
     Gain improvement = refine(phg, metrics, time_limit);

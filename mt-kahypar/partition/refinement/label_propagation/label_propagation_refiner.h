@@ -75,10 +75,14 @@ class LabelPropagationRefiner final : public IRefiner {
 
  private:
   bool refineImpl(PartitionedHypergraph& hypergraph,
+                  const Batch& refinement_nodes,
                   kahypar::Metrics& best_metrics,
                   const double) override final {
     _gain.reset();
     _next_active.reset();
+
+    // Initialize set of active vertices
+    initializeActiveNodes(hypergraph, refinement_nodes);
 
     // Perform Label Propagation
     labelPropagation(hypergraph);
@@ -109,9 +113,6 @@ class LabelPropagationRefiner final : public IRefiner {
     for (size_t i = 0; i < _context.refinement.label_propagation.maximum_iterations; ++i) {
       DBG << "Starting Label Propagation Round" << i;
 
-      utils::Timer::instance().start_timer(
-        "lp_round_" + std::to_string(i), "Label Propagation Round " + std::to_string(i), true);
-
       if ( _active_nodes.size() > 0 ) {
         labelPropagationRound(hypergraph, next_active_nodes);
       }
@@ -123,7 +124,6 @@ class LabelPropagationRefiner final : public IRefiner {
         _active_nodes = next_active_nodes.copy_parallel();
         next_active_nodes.clear_parallel();
       }
-      utils::Timer::instance().stop_timer("lp_round_" + std::to_string(i));
 
       if ( _active_nodes.size() == 0 ) {
         break;
@@ -241,16 +241,30 @@ class LabelPropagationRefiner final : public IRefiner {
     return is_moved;
   }
 
-  void initializeImpl(PartitionedHypergraph& hypergraph) override final {
+  void initializeActiveNodes(PartitionedHypergraph& hypergraph,
+                             const Batch& refinement_nodes) {
     ActiveNodes tmp_active_nodes;
     _active_nodes = std::move(tmp_active_nodes);
 
     if ( _context.refinement.label_propagation.execute_sequential ) {
       // Setup active nodes sequential
-      for ( const HypernodeID hn : hypergraph.nodes() ) {
-        if ( _context.refinement.label_propagation.rebalancing ||
-             hypergraph.isBorderNode(hn) ) {
-          _active_nodes.push_back(hn);
+      if ( refinement_nodes.empty() ) {
+        for ( const HypernodeID hn : hypergraph.nodes() ) {
+          if ( _context.refinement.label_propagation.rebalancing ||
+              hypergraph.isBorderNode(hn) ) {
+            _active_nodes.push_back(hn);
+          }
+        }
+      } else {
+        for ( const Memento& memento : refinement_nodes ) {
+          if ( _context.refinement.label_propagation.rebalancing ||
+              hypergraph.isBorderNode(memento.u) ) {
+            _active_nodes.push_back(memento.u);
+          }
+          if ( _context.refinement.label_propagation.rebalancing ||
+              hypergraph.isBorderNode(memento.v) ) {
+            _active_nodes.push_back(memento.v);
+          }
         }
       }
     } else {
@@ -262,16 +276,32 @@ class LabelPropagationRefiner final : public IRefiner {
         tmp_active_nodes.stream(hn);
       };
 
-      hypergraph.doParallelForAllNodes([&](const HypernodeID& hn) {
-        if ( _context.refinement.label_propagation.rebalancing ||
-             hypergraph.isBorderNode(hn) ) {
-          add_vertex(hn);
-        }
-      });
+      if ( refinement_nodes.empty() ) {
+        hypergraph.doParallelForAllNodes([&](const HypernodeID& hn) {
+          if ( _context.refinement.label_propagation.rebalancing ||
+              hypergraph.isBorderNode(hn) ) {
+            add_vertex(hn);
+          }
+        });
+      } else {
+        tbb::parallel_for(0UL, refinement_nodes.size(), [&](const size_t i) {
+          const Memento& memento = refinement_nodes[i];
+          if ( _context.refinement.label_propagation.rebalancing ||
+              hypergraph.isBorderNode(memento.u) ) {
+            add_vertex(memento.u);
+          }
+          if ( _context.refinement.label_propagation.rebalancing ||
+              hypergraph.isBorderNode(memento.v) ) {
+            add_vertex(memento.v);
+          }
+        });
+      }
 
       _active_nodes = tmp_active_nodes.copy_parallel();
     }
   }
+
+  void initializeImpl(PartitionedHypergraph&) override final { }
 
   const Context& _context;
   const TaskGroupID _task_group_id;
