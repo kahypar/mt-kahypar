@@ -34,6 +34,8 @@ using ::testing::Test;
 
 namespace mt_kahypar {
 
+#ifndef KAHYPAR_USE_N_LEVEL_PARADIGM
+
 TEST(RollbackTests, GainRecalculationAndRollsbackCorrectly) {
   Hypergraph hg = io::readHypergraphFile("../test_instances/twocenters.hgr", 0);
   PartitionID k = 2;
@@ -137,6 +139,6 @@ TEST(RollbackTests, GainRecalculation2) {
   grb.recalculateGains(phg, sharedData);
 }
 
-
+#endif
 
 }   // namespace mt_kahypar

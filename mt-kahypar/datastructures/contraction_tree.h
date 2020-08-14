@@ -221,6 +221,8 @@ class ContractionTree {
 
   // ! Unregisters a contraction in the contraction tree
   void unregisterContraction(const HypernodeID u, const HypernodeID v, const bool failed = false) {
+    ASSERT(node(v).parent() == u, "Node" << u << "is not parent of node" << v);
+    ASSERT(node(u).pendingContractions() > 0, "There are no pending contractions for node" << u);
     node(u).decrementPendingContractions();
     if ( failed ) {
       node(v).setParent(v);
@@ -265,7 +267,8 @@ class ContractionTree {
     // Compute out degrees of each tree node
     utils::Timer::instance().start_timer("compute_out_degrees", "Compute Out-Degree of Tree Nodes");
     tbb::parallel_for(ID(0), _num_hypernodes, [&](const HypernodeID hn) {
-      ASSERT(node(hn).pendingContractions() == 0, "There are pending contractions for node" << hn);
+      ASSERT(node(hn).pendingContractions() == 0, "There are"
+        << node(hn).pendingContractions() << "pending contractions for node" << hn);
       const HypernodeID parent = node(hn).parent();
       if ( parent != hn ) {
         ASSERT(parent + 1 <= _num_hypernodes, "Parent" << parent << "does not exist!");

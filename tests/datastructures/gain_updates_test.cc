@@ -25,8 +25,7 @@
 
 #include "mt-kahypar/macros.h"
 
-#include <mt-kahypar/datastructures/static_hypergraph.h>
-#include <mt-kahypar/datastructures/partitioned_hypergraph.h>
+#include <mt-kahypar/definitions.h>
 #include <mt-kahypar/io/hypergraph_io.h>
 
 using ::testing::Test;
@@ -37,9 +36,9 @@ namespace ds {
 TEST(GainUpdates, Example1) {
   TBBNumaArena::instance(HardwareTopology::instance().num_cpus());
 
-  StaticHypergraph hg = io::readHypergraphFile("../partition/test_instances/twocenters.hgr", 0);
+  Hypergraph hg = io::readHypergraphFile("../partition/test_instances/twocenters.hgr", 0);
   PartitionID k = 2;
-  PartitionedHypergraph<StaticHypergraph, StaticHypergraphFactory> phg(k, hg);
+  PartitionedHypergraph<Hypergraph, HypergraphFactory> phg(k, hg);
 
   phg.setNodePart(0, 0);
   phg.setNodePart(1, 0);

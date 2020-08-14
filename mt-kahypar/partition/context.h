@@ -229,11 +229,17 @@ struct RefinementParameters {
   LabelPropagationParameters label_propagation;
   FMParameters fm;
   bool refine_until_no_improvement = false;
+  size_t max_batch_size = std::numeric_limits<size_t>::max();
+  bool initialize_gain_cache = false;
 };
 
 inline std::ostream & operator<< (std::ostream& str, const RefinementParameters& params) {
   str << "Refinement Parameters:" << std::endl;
   str << "  Refine Until No Improvement:        " << std::boolalpha << params.refine_until_no_improvement << std::endl;
+  #ifdef KAHYPAR_USE_N_LEVEL_PARADIGM
+  str << "  Maximum Batch Size:                 " << params.max_batch_size << std::endl;
+  str << "  Initialize Gain Cache:              " << std::boolalpha << params.initialize_gain_cache << std::endl;
+  #endif
   str << std::endl << params.label_propagation;
   str << "\n" << params.fm;
   return str;

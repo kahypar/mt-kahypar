@@ -1,1 +1,1 @@
-add_gmock_test(multilevel_coarsener_test multilevel_coarsener_test.cc)
+add_gmock_test(coarsener_test coarsener_test.cc)

@@ -86,13 +86,17 @@ void read_all_members_of_target_struct(std::ifstream& context_file,
 
     char* input = new char[line.length() + 1];
     std::strcpy(input, line.c_str());
-    char* token = std::strtok(input, " ;");
-    // Second value is member name
-    token = std::strtok(NULL, " ;");
-    if ( strcmp(token, "double") == 0 ) { // long double
+    if ( strcmp(input, "  #else") != 0 &&
+         strcmp(input, "  #endif") != 0 &&
+         strcmp(input, "  #ifdef KAHYPAR_USE_N_LEVEL_PARADIGM") != 0 ) {
+      char* token = std::strtok(input, " ;");
+      // Second value is member name
       token = std::strtok(NULL, " ;");
+      if ( strcmp(token, "double") == 0 ) { // long double
+        token = std::strtok(NULL, " ;");
+      }
+      members.emplace_back(prefix + std::string(token));
     }
-    members.emplace_back(prefix + std::string(token));
     std::getline(context_file, line);
   }
 }

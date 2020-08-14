@@ -21,8 +21,6 @@
 #include "gmock/gmock.h"
 
 #include "mt-kahypar/definitions.h"
-#include "mt-kahypar/datastructures/static_hypergraph.h"
-#include "mt-kahypar/datastructures/static_hypergraph_factory.h"
 #include "mt-kahypar/partition/preprocessing/sparsification/policies/similiar_net_combine.h"
 
 using ::testing::Test;
@@ -33,9 +31,9 @@ namespace {
   using Hyperedge = parallel::scalable_vector<HypernodeID>;
 } // namespace
 
-ds::StaticHypergraph createTestHypergraph() {
+Hypergraph createTestHypergraph() {
   const std::vector<HyperedgeWeight> hyperedge_weight = { 2, 3, 1, 4, 5, 6 };
-  return ds::StaticHypergraphFactory::construct(TBBNumaArena::GLOBAL_TASK_GROUP,
+  return HypergraphFactory::construct(TBBNumaArena::GLOBAL_TASK_GROUP,
     7, 6, { {0, 2}, {0, 1, 3, 4}, {3, 4, 6}, {2, 5, 6}, {0, 3, 5}, {0, 1, 2} },
     hyperedge_weight.data());
 }

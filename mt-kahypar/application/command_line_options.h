@@ -211,6 +211,14 @@ po::options_description createRefinementOptionsDescription(Context& context,
     po::value<bool>((!initial_partitioning ? &context.refinement.refine_until_no_improvement :
       &context.initial_partitioning.refinement.refine_until_no_improvement))->value_name("<bool>")->default_value(false),
     "Executes all refinement algorithm as long as they find an improvement on the current partition.")
+    (( initial_partitioning ? "i-r-max-batch-size" : "r-max-batch-size"),
+    po::value<size_t>((!initial_partitioning ? &context.refinement.max_batch_size :
+      &context.initial_partitioning.refinement.max_batch_size))->value_name("<size_t>")->default_value(1000),
+    "Maximum size of an uncontraction batch.")
+    (( initial_partitioning ? "i-r-initialize-gain-cache" : "r-initialize-gain-cache"),
+    po::value<bool>((!initial_partitioning ? &context.refinement.initialize_gain_cache :
+      &context.initial_partitioning.refinement.initialize_gain_cache))->value_name("<bool>")->default_value(false),
+    "Initializes the gain cache before uncontraction.")
     (( initial_partitioning ? "i-r-lp-type" : "r-lp-type"),
     po::value<std::string>()->value_name("<string>")->notifier(
       [&, initial_partitioning](const std::string& type) {

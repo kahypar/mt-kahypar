@@ -21,8 +21,7 @@
 #include "gmock/gmock.h"
 
 #include "tests/datastructures/hypergraph_fixtures.h"
-#include "mt-kahypar/datastructures/static_hypergraph.h"
-#include "mt-kahypar/datastructures/static_hypergraph_factory.h"
+#include "mt-kahypar/definitions.h"
 #include "mt-kahypar/datastructures/graph.h"
 
 using ::testing::Test;
@@ -30,10 +29,8 @@ using ::testing::Test;
 namespace mt_kahypar {
 namespace ds {
 
-using HyperGraph = StaticHypergraph;
-using Factory = StaticHypergraphFactory;
-using AGraph = HypergraphFixture<HyperGraph, Factory>;
-using Graph = GraphT<HyperGraph>;
+using AGraph = HypergraphFixture<Hypergraph, HypergraphFactory>;
+using Graph = GraphT<Hypergraph>;
 
 void verifyArcIterator(const Graph& graph,
                        const NodeID u,
@@ -237,7 +234,7 @@ TEST_F(AGraph, HasCorrectAdjacentVertices6d) {
 }
 
 TEST_F(AGraph, ConstructsAHypergraphWhichIsAGraph) {
-  StaticHypergraph graph_hg = Factory::construct(
+  Hypergraph graph_hg = HypergraphFactory::construct(
     TBBNumaArena::GLOBAL_TASK_GROUP, 5, 6,
     { { 0, 1 }, { 0, 2 }, {1, 2}, { 2, 3 }, { 2, 4 }, { 3, 4 } } );
   Graph graph(graph_hg, LouvainEdgeWeight::uniform);

@@ -34,10 +34,6 @@
 #include "mt-kahypar/partition/metrics.h"
 #include "mt-kahypar/utils/randomize.h"
 
-#include "mt-kahypar/datastructures/static_hypergraph.h"
-#include "mt-kahypar/datastructures/static_hypergraph_factory.h"
-#include "mt-kahypar/datastructures/partitioned_hypergraph.h"
-
 using ::testing::Test;
 
 namespace mt_kahypar {

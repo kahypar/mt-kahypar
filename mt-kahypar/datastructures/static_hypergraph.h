@@ -1302,11 +1302,11 @@ class StaticHypergraph {
     return false;
   }
 
-  Batch contract(const HypernodeID,
-                 const HypernodeWeight max_node_weight = std::numeric_limits<HypernodeWeight>::max()) {
+  size_t contract(const HypernodeID,
+                  const HypernodeWeight max_node_weight = std::numeric_limits<HypernodeWeight>::max()) {
     unused(max_node_weight);
     ERROR("contract(v, max_node_weight) is not supported in static hypergraph");
-    return { };
+    return 0;
   }
 
   void uncontract(const Batch&,

@@ -63,6 +63,14 @@ class AInitialPartitionerTest : public Test {
     // Shared Memory
     context.shared_memory.num_threads = num_threads;
 
+    // Coarsening
+    if ( context.partition.paradigm == Paradigm::multilevel ) {
+      context.coarsening.algorithm = CoarseningAlgorithm::multilevel_coarsener;
+    } else {
+      context.coarsening.algorithm = CoarseningAlgorithm::nlevel_coarsener;
+      context.refinement.max_batch_size = 100;
+    }
+
     // Initial Partitioning
     context.initial_partitioning.runs = 1;
     context.sparsification.use_degree_zero_contractions = false;

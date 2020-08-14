@@ -26,6 +26,7 @@
 #include "kahypar/meta/static_multi_dispatch_factory.h"
 #include "kahypar/meta/typelist.h"
 
+#include "mt-kahypar/partition/coarsening/nlevel_coarsener.h"
 #include "mt-kahypar/partition/coarsening/multilevel_coarsener.h"
 #include "mt-kahypar/partition/coarsening/i_coarsener.h"
 #include "mt-kahypar/partition/coarsening/policies/rating_acceptance_policy.h"
@@ -51,6 +52,12 @@ using MultilevelCoarsenerDispatcher = kahypar::meta::StaticMultiDispatchFactory<
                                                                                 kahypar::meta::Typelist<RatingScorePolicies,
                                                                                                         HeavyNodePenaltyPolicies,
                                                                                                         AcceptancePolicies> >;
+using NLevelCoarsenerDispatcher = kahypar::meta::StaticMultiDispatchFactory<NLevelCoarsener,
+                                                                            ICoarsener,
+                                                                            kahypar::meta::Typelist<RatingScorePolicies,
+                                                                                                        HeavyNodePenaltyPolicies,
+                                                                                                        AcceptancePolicies> >;
+
 
 using FlatInitialPartitionerFactory = kahypar::meta::Factory<InitialPartitioningAlgorithm,
                                                              tbb::task* (*)(tbb::task*, const InitialPartitioningAlgorithm, InitialPartitioningDataContainer&, const Context&)>;

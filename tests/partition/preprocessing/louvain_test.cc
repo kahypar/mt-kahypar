@@ -30,13 +30,12 @@ using ::testing::Test;
 
 namespace mt_kahypar {
 
-class ALouvain : public ds::HypergraphFixture<ds::StaticHypergraph,
-                                              ds::StaticHypergraphFactory> {
+class ALouvain : public ds::HypergraphFixture<Hypergraph, HypergraphFactory> {
 
- using Base = ds::HypergraphFixture<ds::StaticHypergraph, ds::StaticHypergraphFactory>;
+ using Base = ds::HypergraphFixture<Hypergraph, HypergraphFactory>;
 
  public:
-  using Graph = ds::GraphT<ds::StaticHypergraph>;
+  using Graph = ds::GraphT<Hypergraph>;
 
   ALouvain() :
     Base(),
@@ -67,7 +66,7 @@ class ALouvain : public ds::HypergraphFixture<ds::StaticHypergraph,
   using Base::hypergraph;
   std::unique_ptr<Graph> graph;
   Context context;
-  ds::StaticHypergraph karate_club_hg;
+  Hypergraph karate_club_hg;
   std::unique_ptr<Graph> karate_club_graph;
 };
 

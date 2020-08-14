@@ -25,16 +25,11 @@
 #include <string>
 
 #include "mt-kahypar/macros.h"
-#include "mt-kahypar/datastructures/static_hypergraph.h"
-#include "mt-kahypar/datastructures/static_hypergraph_factory.h"
+#include "mt-kahypar/definitions.h"
 #include "mt-kahypar/io/hypergraph_io.h"
 
+using namespace mt_kahypar;
 namespace po = boost::program_options;
-
-using HypernodeID = mt_kahypar::HypernodeID;
-using HyperedgeID = mt_kahypar::HyperedgeID;
-using Hypergraph = mt_kahypar::ds::StaticHypergraph;
-using Factory = mt_kahypar::ds::StaticHypergraphFactory;
 
 static void writeZoltanHypergraph(const Hypergraph& hypergraph,
                                   const std::string& hgr_filename) {

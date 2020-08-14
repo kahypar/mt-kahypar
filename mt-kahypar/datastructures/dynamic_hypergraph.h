@@ -554,7 +554,7 @@ class DynamicHypergraph {
     _tmp_incident_nets = std::move(other._tmp_incident_nets);
     _failed_hyperedge_contractions = std::move(other._failed_hyperedge_contractions);
     _removable_incident_nets = std::move(other._removable_incident_nets);
-    _removable_single_pin_and_parallel_nets = std::move(_removable_single_pin_and_parallel_nets);
+    _removable_single_pin_and_parallel_nets = std::move(other._removable_single_pin_and_parallel_nets);
     _community_support = std::move(other._community_support);
     return *this;
   }
@@ -940,6 +940,7 @@ class DynamicHypergraph {
             acquireHypernode(v);
             if ( _contraction_tree.parent(v) != v ) {
               releaseHypernode(v);
+              releaseHypernode(w);
               return false;
             }
           } else {
@@ -1002,22 +1003,26 @@ class DynamicHypergraph {
    * u (if any contraction is registered). Therefore, function can return several contractions
    * or also return an empty contraction vector.
    */
-  void contract(const HypernodeID v,
-                const HypernodeWeight max_node_weight = std::numeric_limits<HypernodeWeight>::max()) {
+  size_t contract(const HypernodeID v,
+                  const HypernodeWeight max_node_weight = std::numeric_limits<HypernodeWeight>::max()) {
     ASSERT(_contraction_tree.parent(v) != v, "No contraction registered for hypernode" << v);
 
     HypernodeID x = _contraction_tree.parent(v);
     HypernodeID y = v;
     ContractionResult res = ContractionResult::CONTRACTED;
+    size_t num_contractions = 0;
     // We perform all contractions registered in the contraction tree
-    // as long as there are no pending contractions (_hn_ref_count[y] == 0
-    // is equivalent with no pending contractions)
+    // as long as there are no pending contractions
     while ( x != y && res != ContractionResult::PENDING_CONTRACTIONS) {
       // Perform Contraction
       res = contract(x, y, max_node_weight);
+      if ( res == ContractionResult::CONTRACTED ) {
+        ++num_contractions;
+      }
       y = x;
       x = _contraction_tree.parent(y);
     }
+    return num_contractions;
   }
 
   /**
@@ -1716,7 +1721,7 @@ class DynamicHypergraph {
     // Contraction is valid if
     //  1.) Contraction partner v is enabled
     //  2.) There are no pending contractions on v
-    //  3.) Resulting node weight is less or equal than a predefined upper bound
+    //  4.) Resulting node weight is less or equal than a predefined upper bound
     const bool contraction_partner_valid = nodeIsEnabled(v) && _contraction_tree.pendingContractions(v) == 0;
     const bool less_or_equal_than_max_node_weight =
       hypernode(u).weight() + hypernode(v).weight() <= max_node_weight;
@@ -1762,7 +1767,7 @@ class DynamicHypergraph {
       return ContractionResult::CONTRACTED;
     } else {
       ContractionResult res = ContractionResult::PENDING_CONTRACTIONS;
-      if ( !less_or_equal_than_max_node_weight ) {
+      if ( !less_or_equal_than_max_node_weight && nodeIsEnabled(v) ) {
         _contraction_tree.unregisterContraction(u, v, true /* failed */);
         res = ContractionResult::WEIGHT_LIMIT_REACHED;
       }

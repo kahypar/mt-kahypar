@@ -25,9 +25,7 @@
 
 #include "tests/datastructures/hypergraph_fixtures.h"
 #include "mt-kahypar/definitions.h"
-#include "mt-kahypar/datastructures/static_hypergraph.h"
-#include "mt-kahypar/datastructures/static_hypergraph_factory.h"
-#include "mt-kahypar/datastructures/partitioned_hypergraph.h"
+#include "mt-kahypar/datastructures/hypergraph_common.h"
 #include "mt-kahypar/datastructures/delta_partitioned_hypergraph.h"
 
 using ::testing::Test;
@@ -37,15 +35,12 @@ namespace ds {
 
 class ADeltaPartitionedHypergraph : public Test {
 
- using PartitionedHyperGraph = PartitionedHypergraph<
-  StaticHypergraph, StaticHypergraphFactory>;
- using DeltaPartitionedHyperGraph = DeltaPartitionedHypergraph<PartitionedHyperGraph>;
-
+ using DeltaPartitionedHyperGraph = DeltaPartitionedHypergraph<mt_kahypar::PartitionedHypergraph>;
 
  public:
 
   ADeltaPartitionedHypergraph() :
-    hg(StaticHypergraphFactory::construct(TBBNumaArena::GLOBAL_TASK_GROUP,
+    hg(mt_kahypar::HypergraphFactory::construct(TBBNumaArena::GLOBAL_TASK_GROUP,
       7 , 4, { {0, 2}, {0, 1, 3, 4}, {3, 4, 6}, {2, 5, 6} })),
     phg(3, TBBNumaArena::GLOBAL_TASK_GROUP, hg),
     delta_phg(3) {
@@ -82,7 +77,7 @@ class ADeltaPartitionedHypergraph : public Test {
   }
 
   Hypergraph hg;
-  PartitionedHyperGraph phg;
+  mt_kahypar::PartitionedHypergraph phg;
   DeltaPartitionedHyperGraph delta_phg;
 };
 
