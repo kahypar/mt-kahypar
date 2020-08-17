@@ -134,9 +134,9 @@ static std::string serialize_metric(const OutputType& type,
   return "";
 }
 
-char MemoryTreeNode::LINE_PREFIX[] = " + ";
+inline char MemoryTreeNode::LINE_PREFIX[] = " + ";
 
-std::ostream & operator<< (std::ostream& str, const MemoryTreeNode& memory_tree_node) {
+inline std::ostream & operator<< (std::ostream& str, const MemoryTreeNode& memory_tree_node) {
 
   auto print = [&](std::ostream& str,
                    const size_t parent_size_in_bytes,

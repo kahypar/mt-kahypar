@@ -90,7 +90,7 @@ double parallel_avg(const std::vector<T>& data, const size_t n) {
     }, std::plus<double>()) / static_cast<double>(n);
 }
 
-void printHypergraphStats(const Statistic& he_size_stats,
+inline void printHypergraphStats(const Statistic& he_size_stats,
                           const Statistic& he_weight_stats,
                           const Statistic& hn_deg_stats,
                           const Statistic& hn_weight_stats) {
@@ -135,7 +135,7 @@ void printHypergraphStats(const Statistic& he_size_stats,
       << " | sd =" << std::left << std::setw(hn_weight_width) << hn_weight_stats.sd;
 }
 
-void printCommunityStats(const Statistic& community_size_stats,
+inline void printCommunityStats(const Statistic& community_size_stats,
                          const Statistic& community_pins_stats,
                          const Statistic& community_degree_stats) {
   // default double precision is 7

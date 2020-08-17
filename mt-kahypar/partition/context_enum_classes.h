@@ -55,6 +55,7 @@ enum class SimiliarNetCombinerStrategy : uint8_t {
 
 enum class CoarseningAlgorithm : uint8_t {
   multilevel_coarsener,
+  extended_clustering,
   UNDEFINED
 };
 
@@ -109,7 +110,7 @@ enum class FMAlgorithm : uint8_t {
   do_nothing
 };
 
-std::ostream & operator<< (std::ostream& os, const Type& type) {
+inline std::ostream & operator<< (std::ostream& os, const Type& type) {
   switch (type) {
     case Type::Unweighted: return os << "unweighted";
     case Type::EdgeWeights: return os << "edge_weights";
@@ -120,7 +121,7 @@ std::ostream & operator<< (std::ostream& os, const Type& type) {
   return os << static_cast<uint8_t>(type);
 }
 
-std::ostream & operator<< (std::ostream& os, const Paradigm& paradigm) {
+inline std::ostream & operator<< (std::ostream& os, const Paradigm& paradigm) {
   switch (paradigm) {
     case Paradigm::multilevel: return os << "multilevel";
       // omit default case to trigger compiler warning for missing cases
@@ -128,7 +129,7 @@ std::ostream & operator<< (std::ostream& os, const Paradigm& paradigm) {
   return os << static_cast<uint8_t>(paradigm);
 }
 
-std::ostream & operator<< (std::ostream& os, const LouvainEdgeWeight& type) {
+inline std::ostream & operator<< (std::ostream& os, const LouvainEdgeWeight& type) {
   switch (type) {
     case LouvainEdgeWeight::hybrid: return os << "hybrid";
     case LouvainEdgeWeight::uniform: return os << "uniform";
@@ -140,7 +141,7 @@ std::ostream & operator<< (std::ostream& os, const LouvainEdgeWeight& type) {
   return os << static_cast<uint8_t>(type);
 }
 
-std::ostream & operator<< (std::ostream& os, const SimiliarNetCombinerStrategy& strategy) {
+inline std::ostream & operator<< (std::ostream& os, const SimiliarNetCombinerStrategy& strategy) {
   switch (strategy) {
     case SimiliarNetCombinerStrategy::union_nets: return os << "union";
     case SimiliarNetCombinerStrategy::max_size: return os << "max_size";
@@ -151,16 +152,17 @@ std::ostream & operator<< (std::ostream& os, const SimiliarNetCombinerStrategy& 
   return os << static_cast<uint8_t>(strategy);
 }
 
-std::ostream & operator<< (std::ostream& os, const CoarseningAlgorithm& algo) {
+inline std::ostream & operator<< (std::ostream& os, const CoarseningAlgorithm& algo) {
   switch (algo) {
     case CoarseningAlgorithm::multilevel_coarsener: return os << "multilevel_coarsener";
+    case CoarseningAlgorithm::extended_clustering: return os << "extended_clustering";
     case CoarseningAlgorithm::UNDEFINED: return os << "UNDEFINED";
       // omit default case to trigger compiler warning for missing cases
   }
   return os << static_cast<uint8_t>(algo);
 }
 
-std::ostream & operator<< (std::ostream& os, const HeavyNodePenaltyPolicy& heavy_hn_policy) {
+inline std::ostream & operator<< (std::ostream& os, const HeavyNodePenaltyPolicy& heavy_hn_policy) {
   switch (heavy_hn_policy) {
     case HeavyNodePenaltyPolicy::multiplicative_penalty: return os << "multiplicative";
     case HeavyNodePenaltyPolicy::no_penalty: return os << "no_penalty";
@@ -170,7 +172,7 @@ std::ostream & operator<< (std::ostream& os, const HeavyNodePenaltyPolicy& heavy
   return os << static_cast<uint8_t>(heavy_hn_policy);
 }
 
-std::ostream & operator<< (std::ostream& os, const AcceptancePolicy& acceptance_policy) {
+inline std::ostream & operator<< (std::ostream& os, const AcceptancePolicy& acceptance_policy) {
   switch (acceptance_policy) {
     case AcceptancePolicy::best: return os << "best";
     case AcceptancePolicy::best_prefer_unmatched: return os << "best_prefer_unmatched";
@@ -180,7 +182,7 @@ std::ostream & operator<< (std::ostream& os, const AcceptancePolicy& acceptance_
   return os << static_cast<uint8_t>(acceptance_policy);
 }
 
-std::ostream & operator<< (std::ostream& os, const RatingFunction& func) {
+inline std::ostream & operator<< (std::ostream& os, const RatingFunction& func) {
   switch (func) {
     case RatingFunction::heavy_edge: return os << "heavy_edge";
     case RatingFunction::sameness: return os << "sameness";
@@ -190,7 +192,7 @@ std::ostream & operator<< (std::ostream& os, const RatingFunction& func) {
   return os << static_cast<uint8_t>(func);
 }
 
-std::ostream & operator<< (std::ostream& os, const InitialPartitioningAlgorithm& algo) {
+inline std::ostream & operator<< (std::ostream& os, const InitialPartitioningAlgorithm& algo) {
   switch (algo) {
     case InitialPartitioningAlgorithm::random: return os << "random";
     case InitialPartitioningAlgorithm::bfs: return os << "bfs";
@@ -207,7 +209,7 @@ std::ostream & operator<< (std::ostream& os, const InitialPartitioningAlgorithm&
   return os << static_cast<uint8_t>(algo);
 }
 
-std::ostream & operator<< (std::ostream& os, const InitialPartitioningMode& mode) {
+inline std::ostream & operator<< (std::ostream& os, const InitialPartitioningMode& mode) {
   switch (mode) {
     case InitialPartitioningMode::direct: return os << "direct";
     case InitialPartitioningMode::recursive: return os << "recursive";
@@ -218,7 +220,7 @@ std::ostream & operator<< (std::ostream& os, const InitialPartitioningMode& mode
   return os << static_cast<uint8_t>(mode);
 }
 
-std::ostream & operator<< (std::ostream& os, const LabelPropagationAlgorithm& algo) {
+inline std::ostream & operator<< (std::ostream& os, const LabelPropagationAlgorithm& algo) {
   switch (algo) {
     case LabelPropagationAlgorithm::label_propagation_km1: return os << "label_propagation_km1";
     case LabelPropagationAlgorithm::label_propagation_cut: return os << "label_propagation_cut";
@@ -228,7 +230,7 @@ std::ostream & operator<< (std::ostream& os, const LabelPropagationAlgorithm& al
   return os << static_cast<uint8_t>(algo);
 }
 
-std::ostream & operator<< (std::ostream& os, const FMAlgorithm& algo) {
+inline std::ostream & operator<< (std::ostream& os, const FMAlgorithm& algo) {
   switch (algo) {
     case FMAlgorithm::fm_multitry: return os << "fm_multitry";
     case FMAlgorithm::fm_boundary: return os << "fm_boundary";

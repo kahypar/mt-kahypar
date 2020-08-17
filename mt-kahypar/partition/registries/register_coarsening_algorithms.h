@@ -26,6 +26,9 @@
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/partition/factories.h"
 
+#include "mt-kahypar/partition/coarsening/extended_clustering.h"
+
+
 #define REGISTER_DISPATCHED_COARSENER(id, dispatcher, ...)                                                      \
   static kahypar::meta::Registrar<CoarsenerFactory> register_ ## dispatcher(                                    \
     id,                                                                                                         \
@@ -36,6 +39,14 @@
       );                                                                                                        \
   })
 
+#define REGISTER_COARSENER(id, coarsener)                                                                            \
+  static kahypar::meta::Registrar<CoarsenerFactory> register_ ## coarsener(                                            \
+    id,                                                                                                                \
+    [](Hypergraph& hypergraph, const Context& context, const TaskGroupID task_group_id, const bool top_level) -> ICoarsener* {                 \
+    return new coarsener(hypergraph, context, task_group_id, top_level);                                                            \
+  })
+
+
 namespace mt_kahypar {
 REGISTER_DISPATCHED_COARSENER(CoarseningAlgorithm::multilevel_coarsener,
                               MultilevelCoarsenerDispatcher,
@@ -45,4 +56,7 @@ REGISTER_DISPATCHED_COARSENER(CoarseningAlgorithm::multilevel_coarsener,
                                 context.coarsening.rating.heavy_node_penalty_policy),
                               kahypar::meta::PolicyRegistry<AcceptancePolicy>::getInstance().getPolicy(
                                 context.coarsening.rating.acceptance_policy));
+
+REGISTER_COARSENER(CoarseningAlgorithm::extended_clustering, ExtendedClustering);
+
 }  // namespace mt_kahypar
