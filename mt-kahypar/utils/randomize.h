@@ -34,8 +34,7 @@
 #include "mt-kahypar/parallel/parallel_counting_sort.h"
 #include "hash.h"
 
-namespace mt_kahypar {
-namespace utils {
+namespace mt_kahypar::utils {
 
 /*!
  * Combines a global seed and an iteration of a loop to initialize an RNG for that iteration
@@ -82,7 +81,7 @@ private:
   size_t counter = 0;
 };
 
-class ParallelSeeding {
+class BucketSeeding {
 protected:
   void fill_seeds(std::mt19937& rng) {
     for (size_t i = 0; i < num_buckets; ++i) {
@@ -95,7 +94,7 @@ protected:
 };
 
 template<class T>
-class DeterministicParallelUniformRandomShuffler : public ParallelSeeding {
+class DeterministicParallelUniformRandomShuffler : public BucketSeeding {
 public:
   DeterministicParallelUniformRandomShuffler(vec<T>&& external_elements) :
           elements(std::move(external_elements)),
@@ -132,7 +131,7 @@ public:
 };
 
 template<class T>
-class DeterministicParallelUniformRandomPermutation : public ParallelSeeding  {
+class DeterministicParallelUniformRandomPermutation : public BucketSeeding  {
 public:
   struct IntegerRange {
     size_t a, b;
@@ -437,5 +436,5 @@ class Randomize {
   bool _perform_localized_random_shuffle;
   size_t _localized_random_shuffle_block_size;
 };
-}  // namespace utils
-}  // namespace mt_kahypar
+
+}  // namespace mt_kahypar::utils
