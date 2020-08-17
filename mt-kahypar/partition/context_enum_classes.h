@@ -269,6 +269,8 @@ static SimiliarNetCombinerStrategy similiarNetCombinerStrategyFromString(const s
 static CoarseningAlgorithm coarseningAlgorithmFromString(const std::string& type) {
   if (type == "multilevel_coarsener") {
     return CoarseningAlgorithm::multilevel_coarsener;
+  } else if (type == "extended_clustering") {
+    return CoarseningAlgorithm::extended_clustering;
   }
   ERROR("Illegal option: " + type);
   return CoarseningAlgorithm::UNDEFINED;

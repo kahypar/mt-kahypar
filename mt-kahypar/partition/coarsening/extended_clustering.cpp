@@ -25,12 +25,12 @@
 namespace mt_kahypar {
 
 
-/*
+
 PartitionedHypergraph&& ExtendedClustering::uncoarsenImpl(std::unique_ptr<IRefiner>& label_propagation,
                                       std::unique_ptr<IRefiner>& fm) {
   return Base::doUncoarsen(label_propagation, fm);
 }
-*/
+
 
 
 void ExtendedClustering::coarsenImpl() {

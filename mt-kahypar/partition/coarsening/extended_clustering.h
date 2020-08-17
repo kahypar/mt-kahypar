@@ -49,12 +49,9 @@ private:
     return Base::currentPartitionedHypergraph();
   }
 
-  PartitionedHypergraph&& uncoarsenImpl(std::unique_ptr<IRefiner>& label_propagation, std::unique_ptr<IRefiner>& fm) {
-    return Base::doUncoarsen(label_propagation, fm);
-  }
+  PartitionedHypergraph&& uncoarsenImpl(std::unique_ptr<IRefiner>& label_propagation, std::unique_ptr<IRefiner>& fm) override ;
 
   void coarsenImpl() override ;
-
 };
 
 /*
