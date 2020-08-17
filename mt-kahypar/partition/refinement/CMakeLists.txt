@@ -1,1 +1,1 @@
-target_sources(KaHyPar PRIVATE fm/multitry_kway_fm.cpp)
+target_sources(KaHyPar PRIVATE fm/multitry_kway_fm.cpp fm/localized_kway_fm_core.cpp)
