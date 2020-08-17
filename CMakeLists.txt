@@ -294,3 +294,4 @@ add_subdirectory(lib)
 add_subdirectory(tests)
 
 add_subdirectory(mt-kahypar/partition/coarsening)
+add_subdirectory(mt-kahypar/partition/refinement)
