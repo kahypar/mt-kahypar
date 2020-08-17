@@ -263,6 +263,7 @@ public:
 
       if (overloaded == 0 && gain_sum > best_gain) {
         best_index = localMoveID + 1;
+        best_gain = gain_sum;
       }
     }
 
@@ -280,6 +281,7 @@ public:
 
     tracker.reset();
 
+    HEAVY_REFINEMENT_ASSERT(phg.checkTrackedPartitionInformation());
     return best_gain;
   }
 

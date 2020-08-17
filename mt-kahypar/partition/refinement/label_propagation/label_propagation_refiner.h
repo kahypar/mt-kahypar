@@ -196,8 +196,7 @@ class LabelPropagationRefiner final : public IRefiner {
         PartitionID to = best_move.to;
 
         Gain delta_before = _gain.localDelta();
-        bool changed_part = hypergraph.changeNodePart(hn, from, to,
-          _context.partition.max_part_weights[to], objective_delta);
+        bool changed_part = changeNodePart(hypergraph, hn, from, to, objective_delta);
         if (changed_part) {
           // In case the move to block 'to' was successful, we verify that the "real" gain
           // of the move is either equal to our computed gain or if not, still improves
@@ -232,7 +231,7 @@ class LabelPropagationRefiner final : public IRefiner {
             // In case, the real gain is not equal with the computed gain and
             // worsen the solution quality we revert the move.
             ASSERT(hypergraph.partID(hn) == to);
-            hypergraph.changeNodePart(hn, to, from, objective_delta);
+            changeNodePart(hypergraph, hn, from, to, objective_delta);
           }
         }
       }
@@ -302,6 +301,26 @@ class LabelPropagationRefiner final : public IRefiner {
   }
 
   void initializeImpl(PartitionedHypergraph&) override final { }
+
+  template<typename F>
+  bool changeNodePart(PartitionedHypergraph& phg,
+                      const HypernodeID hn,
+                      const PartitionID from,
+                      const PartitionID to,
+                      const F& objective_delta) {
+    bool success = false;
+    if ( _context.partition.paradigm == Paradigm::nlevel && phg.isGainCacheInitialized()) {
+      success = phg.changeNodePartFullUpdate(hn, from, to,
+        _context.partition.max_part_weights[to], [&] { }, objective_delta);
+      if ( success ) {
+        phg.recomputeMoveFromBenefit(hn);
+      }
+    } else {
+      success = phg.changeNodePart(hn, from, to,
+        _context.partition.max_part_weights[to], objective_delta);
+    }
+    return success;
+  }
 
   const Context& _context;
   const TaskGroupID _task_group_id;

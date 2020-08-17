@@ -39,6 +39,7 @@ class NLevelCoarsenerBase {
  private:
 
   static constexpr bool debug = false;
+  static constexpr bool enable_heavy_assert = false;
 
   using ParallelHyperedgeVector = parallel::scalable_vector<parallel::scalable_vector<ParallelHyperedge>>;
 
@@ -104,7 +105,7 @@ class NLevelCoarsenerBase {
   }
 
   PartitionedHypergraph&& doUncoarsen(std::unique_ptr<IRefiner>& label_propagation,
-                                      std::unique_ptr<IRefiner>&) {
+                                      std::unique_ptr<IRefiner>& fm) {
     ASSERT(_is_finalized);
     kahypar::Metrics current_metrics = initialize(_compactified_phg);
 
@@ -119,12 +120,7 @@ class NLevelCoarsenerBase {
       _phg.setOnlyNodePart(hn, block_id);
     });
     _phg.initializePartition(_task_group_id);
-
-    // TODO(heuer): Currently only for testing the overhead of
-    // maintaining the gain cache over the n-level hierarchy. Should
-    // be later initialized based on refiner or maybe we refactor LP refiner
-    // to also use the gain cache.
-    if ( _context.refinement.initialize_gain_cache ) {
+    if ( _context.refinement.fm.algorithm != FMAlgorithm::do_nothing ) {
       _phg.initializeGainInformation();
     }
 
@@ -147,6 +143,9 @@ class NLevelCoarsenerBase {
     if ( label_propagation ) {
       label_propagation->initialize(_phg);
     }
+    if ( fm ) {
+      fm->initialize(_phg);
+    }
 
     // Perform batch uncontractions
     utils::Timer::instance().start_timer("batch_uncontractions", "Batch Uncontractions");
@@ -160,9 +159,10 @@ class NLevelCoarsenerBase {
         const Batch& batch = batches.back();
         if ( batch.size() > 0 ) {
           _phg.uncontract(batch);
+          HEAVY_REFINEMENT_ASSERT(_phg.checkTrackedPartitionInformation());
 
           // Perform refinement
-          refine(_phg, batch, label_propagation, current_metrics);
+          refine(_phg, batch, label_propagation, fm, current_metrics);
 
           ++num_batches;
           total_batches_size += batch.size();
@@ -262,11 +262,18 @@ class NLevelCoarsenerBase {
   void refine(PartitionedHypergraph& partitioned_hypergraph,
               const Batch& batch,
               std::unique_ptr<IRefiner>& label_propagation,
+              std::unique_ptr<IRefiner>& fm,
               kahypar::Metrics& current_metrics) {
     if ( debug && _top_level ) {
       io::printHypergraphInfo(partitioned_hypergraph, "Refinement Hypergraph", false);
       DBG << "Start Refinement - km1 = " << current_metrics.km1
           << ", imbalance = " << current_metrics.imbalance;
+    }
+
+    bool is_timer_disabled = false;
+    if ( utils::Timer::instance().isEnabled() ) {
+      utils::Timer::instance().disable();
+      is_timer_disabled = true;
     }
 
     bool improvement_found = true;
@@ -275,7 +282,12 @@ class NLevelCoarsenerBase {
 
       if ( label_propagation &&
            _context.refinement.label_propagation.algorithm != LabelPropagationAlgorithm::do_nothing ) {
-        improvement_found |= label_propagation->refine(partitioned_hypergraph, batch, current_metrics, 0); // TODO: set correct time limit
+        improvement_found |= label_propagation->refine(partitioned_hypergraph, batch, current_metrics, std::numeric_limits<double>::max());
+      }
+
+      if ( fm &&
+           _context.refinement.fm.algorithm != FMAlgorithm::do_nothing ) {
+        improvement_found |= fm->refine(partitioned_hypergraph, batch, current_metrics, std::numeric_limits<double>::max());
       }
 
       if ( _top_level ) {
@@ -287,6 +299,10 @@ class NLevelCoarsenerBase {
       if ( !_context.refinement.refine_until_no_improvement ) {
         break;
       }
+    }
+
+    if ( is_timer_disabled ) {
+      utils::Timer::instance().enable();
     }
 
     if ( _top_level) {

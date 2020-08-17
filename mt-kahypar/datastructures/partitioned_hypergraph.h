@@ -362,7 +362,15 @@ private:
           // uncontraction => b(u) -= w(he)
           const HyperedgeWeight edge_weight = edgeWeight(he);
           if ( pin_count_in_part_after == 2 ) {
-            _move_from_benefit[u].sub_fetch(edge_weight, std::memory_order_relaxed);
+            // u might be replaced by an other vertex in the batch
+            // => search for other pin of the corresponding block and
+            // substract edge weight.
+            for ( const HypernodeID& pin : pins(he) ) {
+              if ( pin != v && partID(pin) == block ) {
+                _move_from_benefit[pin].sub_fetch(edge_weight, std::memory_order_relaxed);
+                break;
+              }
+            }
           }
 
           // For all blocks not contained in the connectivity set of hyperedge he
@@ -521,7 +529,6 @@ private:
   // ! Block that vertex u belongs to
   PartitionID partID(const HypernodeID u) const {
     ASSERT(u < initialNumNodes(), "Hypernode" << u << "does not exist");
-    ASSERT(nodeIsEnabled(u), "Hypernode" << u << "is disabled");
     return _part_ids[u];
   }
 
@@ -687,6 +694,10 @@ private:
     );
   }
 
+  bool isGainCacheInitialized() const {
+    return _is_gain_cache_initialized;
+  }
+
   // ! Initialize gain informations for all hypernodes such that the km1 gain of a vertex
   // ! moving to a specific block of the partition can be calculated in constant time.
   // ! NOTE: Requires that pin counts are already initialized and reflect the
@@ -850,20 +861,37 @@ private:
 
   // ! Only for testing
   bool checkTrackedPartitionInformation() {
+    bool success = true;
     for (HyperedgeID e : edges()) {
       for (PartitionID i = 0; i < k(); ++i) {
-        assert(pinCountInPart(e, i) == pinCountInPartRecomputed(e, i));
-      }
-    }
-    for (HypernodeID u : nodes()) {
-      assert(moveFromBenefit(u) == moveFromBenefitRecomputed(u));
-      for (PartitionID i = 0; i < k(); ++i) {
-        if (partID(u) != i) {
-          assert(moveToPenalty(u, i) == moveToPenaltyRecomputed(u, i));
+        if ( pinCountInPart(e, i) != pinCountInPartRecomputed(e, i) ) {
+          LOG << "Pin count of hyperedge" << e << "in block" << i << "=>" <<
+          "Expected:" << V(pinCountInPartRecomputed(e, i)) << ","
+          "Actual:" <<  V(pinCountInPart(e, i));
+          success = false;
         }
       }
     }
-    return true;
+    for (HypernodeID u : nodes()) {
+      if ( moveFromBenefit(u) != moveFromBenefitRecomputed(u) ) {
+        LOG << "Move from benefit of hypernode" << u << "=>" <<
+          "Expected:" << V(moveFromBenefitRecomputed(u)) << ", "
+          "Actual:" <<  V(moveFromBenefit(u));
+        success = false;
+      }
+
+      for (PartitionID i = 0; i < k(); ++i) {
+        if (partID(u) != i) {
+          if ( moveToPenalty(u, i) != moveToPenaltyRecomputed(u, i) ) {
+            LOG << "Move to penalty of hypernode" << u << "in block" << i << "=>" <<
+            "Expected:" << V(moveToPenaltyRecomputed(u, i)) << ", "
+            "Actual:" <<  V(moveToPenalty(u, i));
+            success = false;
+          }
+        }
+      }
+    }
+    return success;
   }
 
   // ####################### Memory Consumption #######################

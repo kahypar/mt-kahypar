@@ -38,6 +38,7 @@ namespace mt_kahypar {
 class MultiTryKWayFM final : public IRefiner {
 
   static constexpr bool debug = false;
+  static constexpr bool enable_heavy_assert = false;
 
 public:
   MultiTryKWayFM(const Hypergraph& hypergraph,
@@ -58,10 +59,10 @@ public:
   }
 
   bool refineImpl(PartitionedHypergraph& phg,
-                  const Batch&,
+                  const Batch& batch,
                   kahypar::Metrics& metrics,
                   const double time_limit) override final {
-    Gain improvement = refine(phg, metrics, time_limit);
+    Gain improvement = refine(phg, batch, metrics, time_limit);
     metrics.km1 -= improvement;
     metrics.imbalance = metrics::imbalance(phg, context);
     ASSERT(metrics.km1 == metrics::km1(phg), V(metrics.km1) << V(metrics::km1(phg)));
@@ -69,9 +70,12 @@ public:
   }
 
   Gain refine(PartitionedHypergraph& phg,
+              const Batch& batch,
               const kahypar::Metrics& metrics,
               const double time_limit) {
     if (!is_initialized) throw std::runtime_error("Call initialize on fm before calling refine");
+    HEAVY_REFINEMENT_ASSERT(phg.checkTrackedPartitionInformation());
+
     utils::Timer& timer = utils::Timer::instance();
     Gain overall_improvement = 0;
     size_t consecutive_rounds_with_too_little_improvement = 0;
@@ -82,7 +86,7 @@ public:
     for (size_t round = 0; round < context.refinement.fm.multitry_rounds; ++round) { // global multi try rounds
       timer.start_timer("collect_border_nodes", "Collect Border Nodes");
 
-      roundInitialization(phg);
+      roundInitialization(phg, batch);
       size_t numBorderNodes = sharedData.refinementNodes.unsafe_size(); unused(numBorderNodes);
 
       timer.stop_timer("collect_border_nodes");
@@ -166,37 +170,56 @@ public:
       printMemoryConsumption();
     }
 
-    is_initialized = false;
     return overall_improvement;
   }
 
   void initializeImpl(PartitionedHypergraph& phg) override final {
     utils::Timer& timer = utils::Timer::instance();
-    timer.start_timer("init_gain_info", "Initialize Gain Information");
-    phg.initializeGainInformation();
-    timer.stop_timer("init_gain_info");
-    timer.start_timer("set_remaining_original_pins", "Set remaining original pins");
-    globalRollback.setRemainingOriginalPins(phg);
-    timer.stop_timer("set_remaining_original_pins");
+    if ( !phg.isGainCacheInitialized() ) {
+      timer.start_timer("init_gain_info", "Initialize Gain Information");
+        phg.initializeGainInformation();
+      timer.stop_timer("init_gain_info");
+    }
+
+    if ( context.refinement.fm.revert_parallel ) {
+      timer.start_timer("set_remaining_original_pins", "Set remaining original pins");
+      globalRollback.setRemainingOriginalPins(phg);
+      timer.stop_timer("set_remaining_original_pins");
+    }
 
     is_initialized = true;
   }
 
-  void roundInitialization(PartitionedHypergraph& phg) {
+  void roundInitialization(PartitionedHypergraph& phg, const Batch& batch) {
     // clear border nodes
     sharedData.refinementNodes.clear();
 
     // iterate over all nodes and insert border nodes into task queue
-    tbb::parallel_for(tbb::blocked_range<HypernodeID>(0, phg.initialNumNodes()),
-      [&](const tbb::blocked_range<HypernodeID>& r) {
-      const int task_id = tbb::this_task_arena::current_thread_index();
-      ASSERT(task_id >= 0 && task_id < TBBNumaArena::instance().total_number_of_threads());
-      for (HypernodeID u = r.begin(); u < r.end(); ++u) {
+    if ( batch.empty() ) {
+      tbb::parallel_for(tbb::blocked_range<HypernodeID>(0, phg.initialNumNodes()),
+        [&](const tbb::blocked_range<HypernodeID>& r) {
+        const int task_id = tbb::this_task_arena::current_thread_index();
+        ASSERT(task_id >= 0 && task_id < TBBNumaArena::instance().total_number_of_threads());
+        for (HypernodeID u = r.begin(); u < r.end(); ++u) {
+          if (phg.nodeIsEnabled(u) && phg.isBorderNode(u)) {
+            sharedData.refinementNodes.safe_push(u, task_id);
+          }
+        }
+      });
+    } else {
+      tbb::parallel_for(0UL, batch.size(), [&](const size_t i) {
+        const HypernodeID u = batch[i].u;
+        const HypernodeID v = batch[i].v;
+        const int task_id = tbb::this_task_arena::current_thread_index();
+        ASSERT(task_id >= 0 && task_id < TBBNumaArena::instance().total_number_of_threads());
         if (phg.nodeIsEnabled(u) && phg.isBorderNode(u)) {
           sharedData.refinementNodes.safe_push(u, task_id);
         }
-      }
-    });
+        if (phg.nodeIsEnabled(v) && phg.isBorderNode(v)) {
+          sharedData.refinementNodes.safe_push(v, task_id);
+        }
+      });
+    }
 
     // shuffle task queue if requested
     if (context.refinement.fm.shuffle) {
