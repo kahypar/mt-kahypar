@@ -40,6 +40,7 @@ namespace mt_kahypar {
                                  const HypernodeID edge_size,
                                  const HypernodeID pin_count_in_from_part_after,
                                  const HypernodeID pin_count_in_to_part_after) {
+
         _gain.computeDeltaForHyperedge(he, edge_weight, edge_size,
                                        pin_count_in_from_part_after,
                                        pin_count_in_to_part_after);
@@ -225,8 +226,7 @@ namespace mt_kahypar {
       auto prefer_highest_gain = [&](const Move& lhs, const Move& rhs) {
         const HypernodeWeight pwl = _hg.partWeight(_hg.partID(lhs.node));
         const HypernodeWeight pwr = _hg.partWeight(_hg.partID(rhs.node));
-        return std::tie(lhs.gain, pwl, lhs.node)
-               > std::tie(rhs.gain, pwr, rhs.node);
+        return std::tie(lhs.gain, pwl, lhs.node) > std::tie(rhs.gain, pwr, rhs.node);
       };
 
       auto node_already_used = [&](HypernodeID node) {
