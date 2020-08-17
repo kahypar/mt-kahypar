@@ -34,8 +34,7 @@ namespace mt_kahypar {
 namespace metrics {
 
 
-template<typename HyperGraph>
-static inline double modularity(const ds::GraphT<HyperGraph>& graph, ds::Clustering communities) {
+static inline double modularity(const Graph& graph, ds::Clustering communities) {
   ASSERT(graph.numNodes(), communities.size());
   parallel::scalable_vector<parallel::AtomicWrapper<double>> internal_volume(graph.numNodes());
   parallel::scalable_vector<parallel::AtomicWrapper<double>> total_volume(graph.numNodes());

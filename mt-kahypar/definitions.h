@@ -28,7 +28,6 @@
 
 #include "mt-kahypar/parallel/hardware_topology.h"
 #include "mt-kahypar/parallel/tbb_numa_arena.h"
-#include "mt-kahypar/datastructures/graph.h"
 #include "mt-kahypar/datastructures/static_hypergraph.h"
 #include "mt-kahypar/datastructures/static_hypergraph_factory.h"
 #include "mt-kahypar/datastructures/partitioned_hypergraph.h"
@@ -58,7 +57,6 @@ using Hypergraph = ds::StaticHypergraph;
 using HypergraphFactory = ds::StaticHypergraphFactory;
 using PartitionedHypergraph = ds::PartitionedHypergraph<Hypergraph, HypergraphFactory>;
 using DeltaPartitionedHypergraph = ds::DeltaPartitionedHypergraph<PartitionedHypergraph>;
-using Graph = ds::GraphT<Hypergraph>;
 
 using HighResClockTimepoint = std::chrono::time_point<std::chrono::high_resolution_clock>;
 

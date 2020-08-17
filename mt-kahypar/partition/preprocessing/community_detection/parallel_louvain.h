@@ -20,11 +20,8 @@
 
 #pragma once
 
-#include "mt-kahypar/definitions.h"
-#include "mt-kahypar/datastructures/clustering.h"
 #include "mt-kahypar/partition/preprocessing/community_detection/local_moving_modularity.h"
 #include "mt-kahypar/partition/metrics.h"
-#include "mt-kahypar/utils/timer.h"
 
 namespace mt_kahypar::community_detection {
   ds::Clustering local_moving_contract_recurse(Graph& fine_graph, ParallelLocalMovingModularity& mlv);
