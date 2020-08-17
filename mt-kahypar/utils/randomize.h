@@ -185,6 +185,7 @@ struct BucketPrecomputation {
 struct BucketHashing {
 
   void compute_buckets(size_t n, uint32_t seed) {
+    unused(n);
     hash.init(seed);
     state = hashing::integer::hash32(seed);
   }
