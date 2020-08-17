@@ -331,6 +331,7 @@ private:
   }
 
   template<typename PHG>
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
   void insertOrUpdateNeighbors(const PHG& phg,
                                FMSharedData& sharedData,
                                const Move& move) {
@@ -348,6 +349,7 @@ private:
     updateDeduplicator.clear();
   }
 
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
   bool insertPQ(const PartitionedHypergraph& phg, const HypernodeID v, FMSharedData& sharedData) {
     NodeTracker& nt = sharedData.nodeTracker;
     SearchID searchOfV = nt.searchOfNode[v].load(std::memory_order_acq_rel);
@@ -462,6 +464,7 @@ private:
   }
 
   template<typename PHG>
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
   bool findNextMove(const PHG& phg, Move& m) {
     if (blockPQ.empty()) {
       return false;
