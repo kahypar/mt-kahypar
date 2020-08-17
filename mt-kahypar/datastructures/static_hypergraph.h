@@ -729,6 +729,13 @@ class StaticHypergraph {
     hyperedge(e).disable();
   }
 
+  bool isGraphEdge(const HyperedgeID e) const {
+    ASSERT(!hyperedge(e).isDisabled(), "Hyperedge" << e << "is disabled");
+    const bool is_initial_graph_edge = _num_graph_edges_up_to[e + 1] - _num_graph_edges_up_to[e];
+    ASSERT(!is_initial_graph_edge || edgeSize(e) == 2);
+    return is_initial_graph_edge;
+  }
+
   HyperedgeID graphEdgeID(const HyperedgeID e) const {
     ASSERT(edgeSize(e) == 2);
     ASSERT(e < _num_hyperedges);

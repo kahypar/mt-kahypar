@@ -425,7 +425,7 @@ public:
       for (HyperedgeID e_global : phg.incidentEdges(m.node)) {
         const HyperedgeWeight edgeWeight = phg.edgeWeight(e_global);
 
-        if (phg.edgeSize(e_global) > 2) {
+        if ( !phg.isGraphEdge(e_global) ) {
           const HyperedgeID e = phg.nonGraphEdgeID(e_global);
 
           const MoveID firstInFrom = firstMoveIn(e, m.from);
@@ -440,7 +440,7 @@ public:
             gain -= edgeWeight;
           }
 
-        } else {
+        } else if ( phg.edgeSize(e_global) == 2 /* n-level hypergraph can contain single-pin hyperedges */ ) {
 
           const HypernodeID u = m.node;
           const HypernodeID v = phg.graphEdgeHead(e_global, u);

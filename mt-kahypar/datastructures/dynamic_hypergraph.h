@@ -492,6 +492,7 @@ class DynamicHypergraph {
     _num_removed_hyperedges(0),
     _max_edge_size(0),
     _num_pins(0),
+    _num_graph_edges(0),
     _total_degree(0),
     _total_weight(0),
     _version(0),
@@ -506,6 +507,7 @@ class DynamicHypergraph {
     _failed_hyperedge_contractions(),
     _removable_incident_nets(),
     _removable_single_pin_and_parallel_nets(),
+    _num_graph_edges_up_to(),
     _community_support() { }
 
   DynamicHypergraph(const DynamicHypergraph&) = delete;
@@ -518,6 +520,7 @@ class DynamicHypergraph {
     _num_removed_hyperedges(other._num_removed_hyperedges),
     _max_edge_size(other._max_edge_size),
     _num_pins(other._num_pins),
+    _num_graph_edges(other._num_graph_edges),
     _total_degree(other._total_degree),
     _total_weight(other._total_weight),
     _version(other._version),
@@ -532,6 +535,7 @@ class DynamicHypergraph {
     _failed_hyperedge_contractions(std::move(other._failed_hyperedge_contractions)),
     _removable_incident_nets(std::move(other._removable_incident_nets)),
     _removable_single_pin_and_parallel_nets(std::move(other._removable_single_pin_and_parallel_nets)),
+    _num_graph_edges_up_to(std::move(other._num_graph_edges_up_to)),
     _community_support(std::move(other._community_support)) { }
 
   DynamicHypergraph & operator= (DynamicHypergraph&& other) {
@@ -541,6 +545,7 @@ class DynamicHypergraph {
     _num_removed_hyperedges = other._num_removed_hyperedges;
     _max_edge_size = other._max_edge_size;
     _num_pins = other._num_pins;
+    _num_graph_edges = other._num_graph_edges;
     _total_degree = other._total_degree;
     _total_weight = other._total_weight;
     _version = other._version;
@@ -555,6 +560,7 @@ class DynamicHypergraph {
     _failed_hyperedge_contractions = std::move(other._failed_hyperedge_contractions);
     _removable_incident_nets = std::move(other._removable_incident_nets);
     _removable_single_pin_and_parallel_nets = std::move(other._removable_single_pin_and_parallel_nets);
+    _num_graph_edges_up_to = std::move(other._num_graph_edges_up_to);
     _community_support = std::move(other._community_support);
     return *this;
   }
@@ -581,13 +587,11 @@ class DynamicHypergraph {
   }
 
   HyperedgeID numGraphEdges() const {
-    // ERROR("numGraphEdges() is not supported in dynamic hypergraph");
-    return 0;
+    return _num_graph_edges;
   }
 
   HyperedgeID numNonGraphEdges() const {
-    // ERROR("numNonGraphEdges() is not supported in dynamic hypergraph");
-    return initialNumEdges();
+    return initialNumEdges() - _num_graph_edges;
   }
 
   // ! Number of removed hyperedges
@@ -804,19 +808,31 @@ class DynamicHypergraph {
     hyperedge(e).disable();
   }
 
-  HyperedgeID graphEdgeID(const HyperedgeID) const {
-    ERROR("graphEdgeID(e) is not supported in dynamic hypergraph");
-    return kInvalidHyperedge;
+  bool isGraphEdge(const HyperedgeID e) const {
+    ASSERT(!hyperedge(e).isDisabled(), "Hyperedge" << e << "is disabled");
+    const bool is_initial_graph_edge = _num_graph_edges_up_to[e + 1] - _num_graph_edges_up_to[e];
+    ASSERT(!is_initial_graph_edge || edgeSize(e) <= 2);
+    return is_initial_graph_edge && edgeSize(e) == 2;
   }
 
-  HyperedgeID nonGraphEdgeID(const HyperedgeID) const {
-    ERROR("nonGraphEdgeID(e) is not supported in dynamic hypergraph");
-    return kInvalidHyperedge;
+  HyperedgeID graphEdgeID(const HyperedgeID e) const {
+    ASSERT(!hyperedge(e).isDisabled(), "Hyperedge" << e << "is disabled");
+    ASSERT(edgeSize(e) == 2);
+    return _num_graph_edges_up_to[e];
   }
 
-  HypernodeID graphEdgeHead(const HyperedgeID, const HypernodeID) const {
-    ERROR("nonGraphEdgeID(e) is not supported in dynamic hypergraph");
-    return kInvalidHyperedge;
+  HyperedgeID nonGraphEdgeID(const HyperedgeID e) const {
+    ASSERT(!hyperedge(e).isDisabled(), "Hyperedge" << e << "is disabled");
+    ASSERT(edgeSize(e) > 2);
+    return e - _num_graph_edges_up_to[e];
+  }
+
+  HypernodeID graphEdgeHead(const HyperedgeID e, const HypernodeID tail) const {
+    ASSERT(!hyperedge(e).isDisabled(), "Hyperedge" << e << "is disabled");
+    ASSERT(edgeSize(e) == 2);
+    const size_t f = hyperedge(e).firstEntry();
+    const size_t first_matches = static_cast<size_t>(_incidence_array[f] == tail);
+    return _incidence_array[f + first_matches];
   }
 
   // ####################### Community Hyperedge Information #######################
@@ -1490,6 +1506,7 @@ class DynamicHypergraph {
     hypergraph._num_removed_hyperedges = _num_removed_hyperedges;
     hypergraph._max_edge_size = _max_edge_size;
     hypergraph._num_pins = _num_pins;
+    hypergraph._num_graph_edges = _num_graph_edges;
     hypergraph._total_degree = _total_degree;
     hypergraph._total_weight = _total_weight;
 
@@ -1530,6 +1547,10 @@ class DynamicHypergraph {
       hypergraph._removable_single_pin_and_parallel_nets =
         kahypar::ds::FastResetFlagArray<>(_num_hyperedges);
     }, [&] {
+      hypergraph._num_graph_edges_up_to.resize(_num_graph_edges_up_to.size());
+      memcpy(hypergraph._num_graph_edges_up_to.data(), _num_graph_edges_up_to.data(),
+             sizeof(HyperedgeID) * _num_graph_edges_up_to.size());
+    }, [&] {
       hypergraph._community_support = _community_support.copy(task_group_id);
     });
     return hypergraph;
@@ -1545,6 +1566,7 @@ class DynamicHypergraph {
     hypergraph._num_removed_hyperedges = _num_removed_hyperedges;
     hypergraph._max_edge_size = _max_edge_size;
     hypergraph._num_pins = _num_pins;
+    hypergraph._num_graph_edges = _num_graph_edges;
     hypergraph._total_degree = _total_degree;
     hypergraph._total_weight = _total_weight;
 
@@ -1573,6 +1595,9 @@ class DynamicHypergraph {
     hypergraph._removable_incident_nets = _removable_incident_nets;
     hypergraph._removable_single_pin_and_parallel_nets =
       kahypar::ds::FastResetFlagArray<>(_num_hyperedges);
+    hypergraph._num_graph_edges_up_to.resize(_num_graph_edges_up_to.size());
+    memcpy(hypergraph._num_graph_edges_up_to.data(), _num_graph_edges_up_to.data(),
+            sizeof(HyperedgeID) * _num_graph_edges_up_to.size());
 
     hypergraph._community_support = _community_support.copy();
 
@@ -1603,6 +1628,7 @@ class DynamicHypergraph {
     parent->addChild("Hyperedge Ownership Vector", sizeof(bool) * _acquired_hes.size());
     parent->addChild("Bitsets",
       ( _num_hyperedges * _removable_incident_nets.size() ) / 8UL + sizeof(uint16_t) * _num_hyperedges);
+    parent->addChild("Graph Edge ID Mapping", sizeof(HyperedgeID) * _num_graph_edges_up_to.size());
 
     utils::MemoryTreeNode* contraction_tree_node = parent->addChild("Contraction Tree");
     _contraction_tree.memoryConsumption(contraction_tree_node);
@@ -2083,6 +2109,8 @@ class DynamicHypergraph {
   HypernodeID _max_edge_size;
   // ! Number of pins
   HypernodeID _num_pins;
+  // ! Number of graph edges (hyperedges of size two)
+  HyperedgeID _num_graph_edges;
   // ! Total degree of all vertices
   HypernodeID _total_degree;
   // ! Total weight of hypergraph
@@ -2115,6 +2143,8 @@ class DynamicHypergraph {
   ThreadLocalBitset _removable_incident_nets;
   // ! Single-pin and parallel nets are marked within that vector during the algorithm
   kahypar::ds::FastResetFlagArray<> _removable_single_pin_and_parallel_nets;
+  // ! Number of graph edges with smaller ID than the access ID
+  Array<HyperedgeID> _num_graph_edges_up_to;
 
   // ! Community Information and Stats
   CommunitySupport<DynamicHypergraph> _community_support;
