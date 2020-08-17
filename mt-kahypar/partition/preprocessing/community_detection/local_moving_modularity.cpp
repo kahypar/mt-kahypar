@@ -21,6 +21,37 @@
 #include "local_moving_modularity.h"
 
 
+namespace mt_kahypar::metrics {
+  double modularity(const Graph& graph, ds::Clustering communities) {
+    ASSERT(graph.numNodes(), communities.size());
+    parallel::scalable_vector<parallel::AtomicWrapper<double>> internal_volume(graph.numNodes());
+    parallel::scalable_vector<parallel::AtomicWrapper<double>> total_volume(graph.numNodes());
+    tbb::parallel_for(0U, static_cast<NodeID>(graph.numNodes()), [&](const NodeID u) {
+      const PartitionID community_u = communities[u];
+      ASSERT(community_u < static_cast<PartitionID>(graph.numNodes()));
+      total_volume[community_u] += graph.nodeVolume(u);
+      internal_volume[community_u] += graph.nodeVolume(u);
+      for ( const Arc& arc : graph.arcsOf(u) ) {
+        const NodeID v = arc.head;
+        const PartitionID community_v = communities[v];
+        ASSERT(community_v < static_cast<PartitionID>(graph.numNodes()));
+        if ( community_u != community_v ) {
+          internal_volume[community_u] -= arc.weight;
+        }
+      }
+    });
+
+    tbb::enumerable_thread_specific<double> local_modularity(0.0);
+    tbb::parallel_for(0U, static_cast<NodeID>(graph.numNodes()), [&](const NodeID u) {
+      if ( total_volume[u].load(std::memory_order_relaxed) > 0.0 ) {
+        local_modularity.local() += internal_volume[u] -
+                                    (total_volume[u] * total_volume[u]) / graph.totalVolume();
+      }
+    });
+    return local_modularity.combine(std::plus<double>()) / graph.totalVolume();
+  }
+}
+
 namespace mt_kahypar::community_detection {
 
   bool ParallelLocalMovingModularity::localMoving(Graph& graph, ds::Clustering& communities) {

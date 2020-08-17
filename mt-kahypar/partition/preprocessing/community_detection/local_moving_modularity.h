@@ -37,7 +37,12 @@
 #include "mt-kahypar/parallel/atomic_wrapper.h"
 #include "mt-kahypar/utils/randomize.h"
 
+namespace mt_kahypar::metrics {
+  double modularity(const Graph& graph, ds::Clustering communities);
+}
+
 namespace mt_kahypar::community_detection {
+
 
 class ParallelLocalMovingModularity {
  private:
