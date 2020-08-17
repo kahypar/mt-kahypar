@@ -39,7 +39,7 @@
     [](tbb::task* parent, const InitialPartitioningAlgorithm algorithm,                              \
        InitialPartitioningDataContainer& ip_hypergraph, const Context& context, const int seed)      \
     -> tbb::task* {                                                                                  \
-    return new(parent->allocate_child()) partitioner(algorithm, ip_hypergraph, context, seed);        \
+    return new(parent->allocate_child()) partitioner(algorithm, ip_hypergraph, context, seed);       \
   })
 
 namespace mt_kahypar {

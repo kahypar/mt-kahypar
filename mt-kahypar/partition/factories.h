@@ -53,7 +53,7 @@ using MultilevelCoarsenerDispatcher = kahypar::meta::StaticMultiDispatchFactory<
                                                                                                         AcceptancePolicies> >;
 
 using FlatInitialPartitionerFactory = kahypar::meta::Factory<InitialPartitioningAlgorithm,
-                                                             tbb::task* (*)(tbb::task*, const InitialPartitioningAlgorithm, InitialPartitioningDataContainer&, const Context&)>;
+                                                             tbb::task* (*)(tbb::task*, const InitialPartitioningAlgorithm, InitialPartitioningDataContainer&, const Context&, const int)>;
 
 using InitialPartitionerFactory = kahypar::meta::Factory<InitialPartitioningMode,
                                                          IInitialPartitioner* (*)(PartitionedHypergraph&, const Context&, const bool, const TaskGroupID)>;

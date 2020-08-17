@@ -37,12 +37,15 @@ class DoNothingContinuation : public tbb::task {
   }
 };
 
+// IP algorithm and random seed
+using IPTaskList = vec< std::pair<InitialPartitioningAlgorithm, int> >;
+
 class SpawnInitialPartitionerTaskList : public tbb::task {
 
  public:
   SpawnInitialPartitionerTaskList(InitialPartitioningDataContainer& ip_data,
                                    const Context& context,
-                                   parallel::scalable_vector<InitialPartitioningAlgorithm> ip_tasks) :
+                                   IPTaskList ip_tasks) :
     _ip_data(ip_data),
     _context(context),
     _ip_tasks(ip_tasks) { }
@@ -51,10 +54,10 @@ class SpawnInitialPartitionerTaskList : public tbb::task {
     DoNothingContinuation& task_continuation = *new(allocate_continuation()) DoNothingContinuation();
     task_continuation.set_ref_count(_ip_tasks.size());
     // Spawn Initial Partitioner Tasks
-    for ( const InitialPartitioningAlgorithm& algorithm : _ip_tasks ) {
+    for ( const auto& [algorithm, seed] : _ip_tasks ) {
       std::unique_ptr<tbb::task> initial_partitioner_ptr =
             FlatInitialPartitionerFactory::getInstance().createObject(
-              algorithm, &task_continuation, algorithm, _ip_data, _context);
+              algorithm, &task_continuation, algorithm, _ip_data, _context, seed);
       tbb::task* initial_partitioner = initial_partitioner_ptr.release();
       tbb::task::spawn(*initial_partitioner);
     }
@@ -64,7 +67,7 @@ class SpawnInitialPartitionerTaskList : public tbb::task {
  private:
   InitialPartitioningDataContainer& _ip_data;
   const Context& _context;
-  parallel::scalable_vector<InitialPartitioningAlgorithm> _ip_tasks;
+  IPTaskList _ip_tasks;
 };
 
 } // namespace
@@ -83,10 +86,11 @@ class PoolInitialPartitionerContinuation : public tbb::task {
     // Initial Partitioner tasks are evenly distributed among different task list. For an
     // explanation why we do this, see spawn_initial_partitioner(...)
     size_t task_list_idx = 0;
+    std::mt19937 rng(context.partition.seed);
     for ( uint8_t i = 0; i < static_cast<uint8_t>(InitialPartitioningAlgorithm::UNDEFINED); ++i ) {
-      InitialPartitioningAlgorithm algorithm = static_cast<InitialPartitioningAlgorithm>(i);
+      auto algorithm = static_cast<InitialPartitioningAlgorithm>(i);
       for ( size_t j = 0; j < _context.initial_partitioning.runs; ++j ) {
-        _ip_task_lists[task_list_idx].push_back(algorithm);
+        _ip_task_lists[task_list_idx].emplace_back(algorithm, rng());
         task_list_idx = (task_list_idx + 1) % _context.shared_memory.num_threads;
       }
     }
@@ -99,7 +103,7 @@ class PoolInitialPartitionerContinuation : public tbb::task {
 
   InitialPartitioningDataContainer _ip_data;
   const Context& _context;
-  parallel::scalable_vector<parallel::scalable_vector<InitialPartitioningAlgorithm>> _ip_task_lists;
+  vec<IPTaskList> _ip_task_lists;
 };
 
 static void spawn_initial_partitioner(PoolInitialPartitionerContinuation& continuation_task ) {
