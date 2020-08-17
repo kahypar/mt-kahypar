@@ -81,7 +81,6 @@ class DynamicHypergraphFactory {
       local_max_edge_size.local() = std::max(
         local_max_edge_size.local(), edge_vector[pos].size());
       for ( const HypernodeID& pin : edge_vector[pos] ) {
-        ASSERT(pin < num_hypernodes, V(pin) << V(num_hypernodes));
         ++num_incident_nets_per_vertex[pin];
       }
     });
@@ -120,7 +119,6 @@ class DynamicHypergraphFactory {
     utils::Timer::instance().start_timer("setup_hypergraph", "Setup hypergraph", true);
     hypergraph._num_pins = pin_prefix_sum.total_sum();
     hypergraph._total_degree = pin_prefix_sum.total_sum();
-    hypergraph._incident_nets.resize(hypergraph._num_pins);
     hypergraph._incidence_array.resize(hypergraph._num_pins);
 
     tbb::parallel_invoke([&] {

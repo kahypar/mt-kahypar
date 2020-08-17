@@ -1504,8 +1504,8 @@ class DynamicHypergraph {
         hypergraph._acquired_hns.resize(_acquired_hns.size());
       });
       tbb::parallel_for(ID(0), _num_hypernodes, [&](const HypernodeID& hn) {
-        hypergraph._incident_nets[hn].resize(_incident_nets[hn].size());
         hypergraph._acquired_hns[hn] = _acquired_hns[hn];
+        hypergraph._incident_nets[hn].resize(_incident_nets[hn].size());
         memcpy(hypergraph._incident_nets[hn].data(), _incident_nets[hn].data(),
           sizeof(HyperedgeID) * _incident_nets[hn].size());
       });
