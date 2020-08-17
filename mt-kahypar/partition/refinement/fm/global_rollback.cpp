@@ -248,6 +248,7 @@ namespace mt_kahypar {
       ASSERT(km1_after_move + estimated_gain == km1_before_move);
       ASSERT(km1_after_move + m.gain == km1_before_move);
       ASSERT(estimated_gain == m.gain);
+      unused(estimated_gain); unused(km1_before_move); unused(km1_after_move);  // for release mode
     }
 
     for (MoveID localMoveID = 0; localMoveID < sharedData.moveTracker.numPerformedMoves(); ++localMoveID) {

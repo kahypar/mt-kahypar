@@ -729,6 +729,7 @@ private:
   // ! Only for testing
   bool checkTrackedPartitionInformation() {
     for (HyperedgeID e : edges()) {
+      unused(e);  // for release mode
       for (PartitionID i = 0; i < k(); ++i) {
         assert(pinCountInPart(e, i) == pinCountInPartRecomputed(e, i));
       }
