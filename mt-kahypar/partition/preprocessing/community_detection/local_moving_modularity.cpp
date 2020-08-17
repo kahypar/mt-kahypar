@@ -48,7 +48,7 @@ namespace mt_kahypar::metrics {
                                     (total_volume[u] * total_volume[u]) / graph.totalVolume();
       }
     });
-    return local_modularity.combine(std::plus<double>()) / graph.totalVolume();
+    return local_modularity.combine(std::plus<>()) / graph.totalVolume();
   }
 }
 
@@ -110,7 +110,7 @@ namespace mt_kahypar::community_detection {
       tbb::parallel_for_each(nodes, moveNode);
 #endif
 
-      number_of_nodes_moved = local_number_of_nodes_moved.combine(std::plus<size_t>());
+      number_of_nodes_moved = local_number_of_nodes_moved.combine(std::plus<>());
       clustering_changed |= number_of_nodes_moved > 0;
       utils::Timer::instance().stop_timer("local_moving_round");
 

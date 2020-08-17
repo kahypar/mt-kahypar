@@ -175,7 +175,7 @@ class ParallelLocalMovingModularity {
   inline long double adjustAdvancedModGain(double gain,
                                            const ArcWeight weight_from,
                                            const ArcWeight volume_from,
-                                           const ArcWeight volume_node) {
+                                           const ArcWeight volume_node) const {
     return 2.0L * _reciprocal_total_volume *
       (gain - weight_from + _reciprocal_total_volume *
         volume_node * (volume_from - volume_node));
