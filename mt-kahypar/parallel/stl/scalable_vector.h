@@ -40,13 +40,13 @@ template <typename T>
 using scalable_vector = std::vector<T, tbb::scalable_allocator<T> >;
 
 template<typename T>
-static void free(scalable_vector<T>& vec) {
+static inline void free(scalable_vector<T>& vec) {
   scalable_vector<T> tmp_vec;
   vec = std::move(tmp_vec);
 }
 
 template<typename T>
-static void free(ds::Array<T>& vec) {
+static inline void free(ds::Array<T>& vec) {
   ds::Array<T> tmp_vec;
   vec = std::move(tmp_vec);
 }
