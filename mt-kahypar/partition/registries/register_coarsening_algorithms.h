@@ -39,11 +39,11 @@
       );                                                                                                        \
   })
 
-#define REGISTER_COARSENER(id, coarsener)                                                                            \
-  static kahypar::meta::Registrar<CoarsenerFactory> register_ ## coarsener(                                            \
-    id,                                                                                                                \
-    [](Hypergraph& hypergraph, const Context& context, const TaskGroupID task_group_id, const bool top_level) -> ICoarsener* {                 \
-    return new coarsener(hypergraph, context, task_group_id, top_level);                                                            \
+#define REGISTER_COARSENER(id, coarsener)                                                                                        \
+  static kahypar::meta::Registrar<CoarsenerFactory> register_ ## coarsener(                                                      \
+    id,                                                                                                                          \
+    [](Hypergraph& hypergraph, const Context& context, const TaskGroupID task_group_id, const bool top_level) -> ICoarsener* {   \
+    return new coarsener(hypergraph, context, task_group_id, top_level);                                                         \
   })
 
 
