@@ -130,8 +130,8 @@ namespace mt_kahypar::community_detection {
 
     long double adjustedGain = adjustAdvancedModGain(gain, icw.get(from), _cluster_volumes[from], graph.nodeVolume(u));
     const double volMultiplier = _vol_multiplier_div_by_node_vol * graph.nodeVolume(u);
-    long double adjustedGainRecomputed = adjustAdvancedModGain(modularityGain(icw.get(to), _cluster_volumes[to], volMultiplier),
-                                                               icw.get(from), _cluster_volumes[from], graph.nodeVolume(u));
+    double modGain = modularityGain(icw.get(to), _cluster_volumes[to], volMultiplier);
+    long double adjustedGainRecomputed = adjustAdvancedModGain(modGain, icw.get(from), _cluster_volumes[from], graph.nodeVolume(u));
     unused(adjustedGainRecomputed);
 
     if (from == to) {
