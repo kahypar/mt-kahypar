@@ -27,7 +27,6 @@
 
 #include "kahypar/meta/policy_registry.h"
 #include "kahypar/meta/typelist.h"
-#include "kahypar/partition/context_enum_classes.h"
 #include "kahypar/partition/metrics.h"
 
 #include "mt-kahypar/definitions.h"
