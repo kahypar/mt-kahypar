@@ -1,1 +1,1 @@
-target_sources(KaHyPar PRIVATE extended_clustering.cpp)
+target_sources(KaHyPar PRIVATE extended_clustering.cpp uncoarsening.cpp)
