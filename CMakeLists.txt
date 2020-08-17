@@ -293,5 +293,6 @@ add_subdirectory(tools)
 add_subdirectory(lib)
 add_subdirectory(tests)
 
+add_subdirectory(mt-kahypar/datastructures)
 add_subdirectory(mt-kahypar/partition/coarsening)
 add_subdirectory(mt-kahypar/partition/refinement)
