@@ -51,7 +51,7 @@ class ParallelLocalMovingModularity {
   static constexpr bool debug = false;
   static constexpr bool enable_heavy_assert = false;
 
-  explicit ParallelLocalMovingModularity(const Context& context,
+  ParallelLocalMovingModularity(const Context& context,
                                          size_t numNodes,
                                          const bool disable_randomization = false) :
     _context(context),
