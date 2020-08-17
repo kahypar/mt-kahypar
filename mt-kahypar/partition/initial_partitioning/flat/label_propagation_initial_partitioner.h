@@ -52,7 +52,8 @@ class LabelPropagationInitialPartitioner : public tbb::task {
     _ip_data(ip_data),
     _context(context),
     _valid_blocks(context.partition.k),
-    _tmp_scores(context.partition.k) { }
+    _tmp_scores(context.partition.k),
+    _rng(seed) { }
 
   tbb::task* execute() override {
     HighResClockTimepoint start = std::chrono::high_resolution_clock::now();
@@ -60,7 +61,7 @@ class LabelPropagationInitialPartitioner : public tbb::task {
     _ip_data.reset_unassigned_hypernodes();
 
     parallel::scalable_vector<HypernodeID> start_nodes =
-      PseudoPeripheralStartNodes::computeStartNodes(_ip_data, _context);
+      PseudoPeripheralStartNodes::computeStartNodes(_ip_data, _context, _rng);
     for ( PartitionID block = 0; block < _context.partition.k; ++block ) {
       if ( hg.partID(start_nodes[block]) == kInvalidPartition ) {
         hg.setNodePart(start_nodes[block], block);
@@ -326,6 +327,7 @@ class LabelPropagationInitialPartitioner : public tbb::task {
   const Context& _context;
   kahypar::ds::FastResetFlagArray<> _valid_blocks;
   parallel::scalable_vector<Gain> _tmp_scores;
+  std::mt19937 _rng;
 };
 
 PartitionID LabelPropagationInitialPartitioner::kInvalidPartition = -1;

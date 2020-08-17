@@ -47,7 +47,8 @@ class GreedyInitialPartitioner : public tbb::task {
     _algorithm(algorithm),
     _ip_data(ip_data),
     _context(context),
-    _default_block(PQSelectionPolicy::getDefaultBlock()) { }
+    _default_block(PQSelectionPolicy::getDefaultBlock()),
+    _rng(seed) { }
 
   tbb::task* execute() override {
     HighResClockTimepoint start = std::chrono::high_resolution_clock::now();
@@ -71,7 +72,7 @@ class GreedyInitialPartitioner : public tbb::task {
 
     // Insert start vertices into its corresponding PQs
     parallel::scalable_vector<HypernodeID> start_nodes =
-      PseudoPeripheralStartNodes::computeStartNodes(_ip_data, _context);
+      PseudoPeripheralStartNodes::computeStartNodes(_ip_data, _context, _rng);
     ASSERT(static_cast<size_t>(_context.partition.k) == start_nodes.size());
     kway_pq.clear();
     for ( PartitionID block = 0; block < _context.partition.k; ++block ) {
@@ -236,6 +237,7 @@ class GreedyInitialPartitioner : public tbb::task {
   InitialPartitioningDataContainer& _ip_data;
   const Context& _context;
   const PartitionID _default_block;
+  std::mt19937 _rng;
 };
 
 template <typename GainPolicy, typename PQSelectionPolicy>
