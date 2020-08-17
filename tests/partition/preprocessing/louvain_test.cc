@@ -79,7 +79,7 @@ ds::Clustering clustering(const std::vector<PartitionID>& communities) {
 }
 
 TEST_F(ALouvain, ComputesMaxGainMove1) {
-  PLM<Graph> plm(context, graph->numNodes());
+  ParallelLocalMovingModularity<Graph> plm(context, graph->numNodes());
   ds::Clustering communities = clustering( { 0, 1, 0, 2, 3, 4, 5, 1, 2, 3, 4 } );
   plm.initializeClusterVolumes(*graph, communities);
   PartitionID to = plm.computeMaxGainCluster(
@@ -88,7 +88,7 @@ TEST_F(ALouvain, ComputesMaxGainMove1) {
 }
 
 TEST_F(ALouvain, ComputesMaxGainMove2) {
-  PLM<Graph> plm(context, graph->numNodes());
+  ParallelLocalMovingModularity<Graph> plm(context, graph->numNodes());
   ds::Clustering communities = clustering( { 0, 1, 0, 3, 3, 4, 5, 1, 2, 3, 4 } );
   plm.initializeClusterVolumes(*graph, communities);
   PartitionID to = plm.computeMaxGainCluster(
@@ -97,7 +97,7 @@ TEST_F(ALouvain, ComputesMaxGainMove2) {
 }
 
 TEST_F(ALouvain, ComputesMaxGainMove3) {
-  PLM<Graph> plm(context, graph->numNodes());
+  ParallelLocalMovingModularity<Graph> plm(context, graph->numNodes());
   ds::Clustering communities = clustering( { 0, 1, 0, 2, 3, 4, 5, 1, 2, 3, 4 } );
   plm.initializeClusterVolumes(*graph, communities);
   PartitionID to = plm.computeMaxGainCluster(
@@ -106,7 +106,7 @@ TEST_F(ALouvain, ComputesMaxGainMove3) {
 }
 
 TEST_F(ALouvain, ComputesMaxGainMove4) {
-  PLM<Graph> plm(context, graph->numNodes());
+  ParallelLocalMovingModularity<Graph> plm(context, graph->numNodes());
   ds::Clustering communities = clustering( { 0, 1, 0, 2, 3, 4, 5, 1, 2, 3, 4 } );
   plm.initializeClusterVolumes(*graph, communities);
   PartitionID to = plm.computeMaxGainCluster(
@@ -115,7 +115,7 @@ TEST_F(ALouvain, ComputesMaxGainMove4) {
 }
 
 TEST_F(ALouvain, ComputesMaxGainMove5) {
-  PLM<Graph> plm(context, graph->numNodes());
+  ParallelLocalMovingModularity<Graph> plm(context, graph->numNodes());
   ds::Clustering communities = clustering( { 0, 1, 0, 2, 2, 4, 5, 1, 2, 3, 4 } );
   plm.initializeClusterVolumes(*graph, communities);
   PartitionID to = plm.computeMaxGainCluster(
@@ -124,7 +124,7 @@ TEST_F(ALouvain, ComputesMaxGainMove5) {
 }
 
 TEST_F(ALouvain, ComputesMaxGainMove6) {
-  PLM<Graph> plm(context, graph->numNodes());
+  ParallelLocalMovingModularity<Graph> plm(context, graph->numNodes());
   ds::Clustering communities = clustering( { 0, 1, 0, 2, 2, 4, 5, 1, 2, 3, 4 } );
   plm.initializeClusterVolumes(*graph, communities);
   PartitionID to = plm.computeMaxGainCluster(
@@ -133,7 +133,7 @@ TEST_F(ALouvain, ComputesMaxGainMove6) {
 }
 
 TEST_F(ALouvain, ComputesMaxGainMove7) {
-  PLM<Graph> plm(context, graph->numNodes());
+  ParallelLocalMovingModularity<Graph> plm(context, graph->numNodes());
   ds::Clustering communities = clustering( { 0, 1, 0, 2, 2, 4, 0, 1, 2, 3, 4 } );
   plm.initializeClusterVolumes(*graph, communities);
   PartitionID to = plm.computeMaxGainCluster(
@@ -142,7 +142,7 @@ TEST_F(ALouvain, ComputesMaxGainMove7) {
 }
 
 TEST_F(ALouvain, ComputesMaxGainMove8) {
-  PLM<Graph> plm(context, graph->numNodes());
+  ParallelLocalMovingModularity<Graph> plm(context, graph->numNodes());
   ds::Clustering communities = clustering( { 0, 1, 0, 2, 2, 4, 0, 1, 1, 3, 4 } );
   plm.initializeClusterVolumes(*graph, communities);
   PartitionID to = plm.computeMaxGainCluster(
@@ -151,7 +151,7 @@ TEST_F(ALouvain, ComputesMaxGainMove8) {
 }
 
 TEST_F(ALouvain, ComputesMaxGainMove9) {
-  PLM<Graph> plm(context, graph->numNodes());
+  ParallelLocalMovingModularity<Graph> plm(context, graph->numNodes());
   ds::Clustering communities = clustering( { 0, 1, 0, 2, 2, 4, 0, 1, 3, 3, 4 } );
   plm.initializeClusterVolumes(*graph, communities);
   PartitionID to = plm.computeMaxGainCluster(
@@ -160,7 +160,7 @@ TEST_F(ALouvain, ComputesMaxGainMove9) {
 }
 
 TEST_F(ALouvain, ComputesMaxGainMove10) {
-  PLM<Graph> plm(context, graph->numNodes());
+  ParallelLocalMovingModularity<Graph> plm(context, graph->numNodes());
   ds::Clustering communities = clustering( { 0, 1, 0, 2, 2, 0, 4, 1, 3, 3, 4 } );
   plm.initializeClusterVolumes(*graph, communities);
   PartitionID to = plm.computeMaxGainCluster(

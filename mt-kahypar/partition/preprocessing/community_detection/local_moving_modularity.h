@@ -39,7 +39,7 @@
 
 namespace mt_kahypar {
 
-class PLM {
+class ParallelLocalMovingModularity {
  private:
   static constexpr bool advancedGainAdjustment = false;
 
@@ -51,9 +51,9 @@ class PLM {
   static constexpr bool debug = false;
   static constexpr bool enable_heavy_assert = false;
 
-  explicit PLM(const Context& context,
-               size_t numNodes,
-               const bool disable_randomization = false) :
+  explicit ParallelLocalMovingModularity(const Context& context,
+                                         size_t numNodes,
+                                         const bool disable_randomization = false) :
     _context(context),
     _max_degree(numNodes),
     _vertex_degree_sampling_threshold(context.preprocessing.community_detection.vertex_degree_sampling_threshold),
@@ -64,7 +64,7 @@ class PLM {
     }),
     _disable_randomization(disable_randomization) { }
 
-  ~PLM() {
+  ~ParallelLocalMovingModularity() {
     tbb::parallel_invoke([&] {
       parallel::parallel_free_thread_local_internal_data(
         _local_small_incident_cluster_weight, [&](CacheEfficientIncidentClusterWeights& data) {

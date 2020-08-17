@@ -22,7 +22,7 @@
 
 #include "mt-kahypar/datastructures/clustering.h"
 #include "mt-kahypar/definitions.h"
-#include "mt-kahypar/partition/preprocessing/community_detection/plm.h"
+#include "mt-kahypar/partition/preprocessing/community_detection/local_moving_modularity.h"
 #include "mt-kahypar/partition/metrics.h"
 #include "mt-kahypar/utils/timer.h"
 
@@ -31,10 +31,10 @@ namespace mt_kahypar {
 class ParallelModularityLouvain {
  private:
   static constexpr bool debug = false;
-  using ParallelLouvainMethod = PLM;
+
 
   static ds::Clustering localMovingContractRecurse(Graph& fine_graph,
-                                                   ParallelLouvainMethod& mlv) {
+                                                   ParallelLocalMovingModularity& mlv) {
     DBG << V(fine_graph.numNodes())
         << V(fine_graph.numArcs())
         << V(fine_graph.totalVolume());
@@ -73,7 +73,7 @@ class ParallelModularityLouvain {
   static ds::Clustering run(Graph& graph,
                             const Context& context,
                             const bool disable_randomization = false) {
-    ParallelLouvainMethod mlv(context, graph.numNodes(), disable_randomization);
+    ParallelLocalMovingModularity mlv(context, graph.numNodes(), disable_randomization);
     ds::Clustering communities = localMovingContractRecurse(graph, mlv);
     return communities;
   }
