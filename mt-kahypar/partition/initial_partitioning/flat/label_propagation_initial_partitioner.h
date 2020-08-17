@@ -47,7 +47,8 @@ class LabelPropagationInitialPartitioner : public tbb::task {
  public:
   LabelPropagationInitialPartitioner(const InitialPartitioningAlgorithm,
                                       InitialPartitioningDataContainer& ip_data,
-                                      const Context& context) :
+                                      const Context& context,
+                                      const int seed) :
     _ip_data(ip_data),
     _context(context),
     _valid_blocks(context.partition.k),

@@ -35,7 +35,8 @@ class RandomInitialPartitioner : public tbb::task {
  public:
   RandomInitialPartitioner(const InitialPartitioningAlgorithm,
                             InitialPartitioningDataContainer& ip_data,
-                            const Context& context) :
+                            const Context& context,
+                            const int seed) :
     _ip_data(ip_data),
     _context(context) { }
 

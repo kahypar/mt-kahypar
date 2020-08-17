@@ -42,7 +42,8 @@ class GreedyInitialPartitioner : public tbb::task {
  public:
   GreedyInitialPartitioner(const InitialPartitioningAlgorithm algorithm,
                             InitialPartitioningDataContainer& ip_data,
-                            const Context& context) :
+                            const Context& context,
+                            const int seed) :
     _algorithm(algorithm),
     _ip_data(ip_data),
     _context(context),

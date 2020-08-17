@@ -37,9 +37,9 @@
   static kahypar::meta::Registrar<FlatInitialPartitionerFactory> register_ ## partitioner(           \
     id,                                                                                              \
     [](tbb::task* parent, const InitialPartitioningAlgorithm algorithm,                              \
-       InitialPartitioningDataContainer& ip_hypergraph, const Context& context)                      \
+       InitialPartitioningDataContainer& ip_hypergraph, const Context& context, const int seed)      \
     -> tbb::task* {                                                                                  \
-    return new(parent->allocate_child()) partitioner(algorithm, ip_hypergraph, context);             \
+    return new(parent->allocate_child()) partitioner(algorithm, ip_hypergraph, context, seed);        \
   })
 
 namespace mt_kahypar {
