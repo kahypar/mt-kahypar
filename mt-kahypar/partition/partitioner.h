@@ -135,7 +135,7 @@ inline void Partitioner::preprocess(Hypergraph& hypergraph) {
     utils::Timer::instance().start_timer("construct_graph", "Construct Graph");
     Graph graph(hypergraph, _context.preprocessing.community_detection.edge_weight_function);
     utils::Timer::instance().stop_timer("construct_graph");
-    ds::Clustering communities = ParallelModularityLouvain::run(graph, _context);
+    ds::Clustering communities = community_detection::run_parallel_louvain(graph, _context);
     graph.restrictClusteringToHypernodes(hypergraph, communities);
     hypergraph.setCommunityIDs(std::move(communities));
     utils::Timer::instance().stop_timer("perform_community_detection");

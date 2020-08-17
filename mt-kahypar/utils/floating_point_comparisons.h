@@ -24,11 +24,11 @@
 
 namespace mt_kahypar {
   namespace math {
-    bool are_almost_equal_d(const double x, const double y, const double tolerance) {
+    inline bool are_almost_equal_d(const double x, const double y, const double tolerance) {
       return std::abs(x - y) < tolerance;
     }
 
-    bool are_almost_equal_ld(const long double x, const long double y, const long double tolerance) {
+    inline bool are_almost_equal_ld(const long double x, const long double y, const long double tolerance) {
       return std::abs(x - y) < tolerance;
     }
   }
