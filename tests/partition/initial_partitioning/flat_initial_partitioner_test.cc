@@ -63,9 +63,10 @@ class InitialPartitionerRootTaskT : public tbb::task {
 
   tbb::task* execute() override {
     tbb::task::set_ref_count(_runs + 1);
+    const int seed = 420;
     for ( size_t i = 0; i < _runs; ++i ) {
       tbb::task::spawn(*new(tbb::task::allocate_child())
-        InitialPartitionerTask(_algorithm, _ip_data, _context));
+        InitialPartitionerTask(_algorithm, _ip_data, _context, seed));
     }
     tbb::task::wait_for_all();
     _ip_data.apply();
