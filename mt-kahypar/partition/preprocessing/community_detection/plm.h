@@ -38,7 +38,7 @@
 #include "mt-kahypar/utils/randomize.h"
 
 namespace mt_kahypar {
-template<typename G /* Graph */>
+
 class PLM {
  private:
   static constexpr bool advancedGainAdjustment = false;
@@ -80,7 +80,7 @@ class PLM {
     });
   }
 
-  bool localMoving(G& graph, ds::Clustering& communities) {
+  bool localMoving(Graph& graph, ds::Clustering& communities) {
     _max_degree = graph.max_degree();
     _reciprocal_total_volume = 1.0 / graph.totalVolume();
     _vol_multiplier_div_by_node_vol = _reciprocal_total_volume;
@@ -157,7 +157,7 @@ class PLM {
   FRIEND_TEST(ALouvain, ComputesMaxGainMove9);
   FRIEND_TEST(ALouvain, ComputesMaxGainMove10);
 
-  KAHYPAR_ATTRIBUTE_ALWAYS_INLINE bool ratingsFitIntoSmallSparseMap(const G& graph,
+  KAHYPAR_ATTRIBUTE_ALWAYS_INLINE bool ratingsFitIntoSmallSparseMap(const Graph& graph,
                                                                     const HypernodeID u)  {
     static constexpr size_t cache_efficient_map_size = CacheEfficientIncidentClusterWeights::MAP_SIZE / 3UL;
     return std::min(_vertex_degree_sampling_threshold, _max_degree) > cache_efficient_map_size &&
@@ -179,7 +179,7 @@ class PLM {
   }
 
   template<typename Map>
-  KAHYPAR_ATTRIBUTE_ALWAYS_INLINE PartitionID computeMaxGainCluster(const G& graph,
+  KAHYPAR_ATTRIBUTE_ALWAYS_INLINE PartitionID computeMaxGainCluster(const Graph& graph,
                                                                     ds::Clustering& communities,
                                                                     const NodeID u,
                                                                     Map& incident_cluster_weights) {
@@ -240,7 +240,7 @@ class PLM {
   }
 
   template<typename Map>
-  bool verifyGain(const G& graph,
+  bool verifyGain(const Graph& graph,
                   ds::Clustering& communities,
                   const NodeID u,
                   const PartitionID to,
@@ -292,7 +292,7 @@ class PLM {
     return result;
   }
 
-  static std::pair<ArcWeight, ArcWeight> intraClusterWeightsAndSumOfSquaredClusterVolumes(const G& graph, const ds::Clustering& communities) {
+  static std::pair<ArcWeight, ArcWeight> intraClusterWeightsAndSumOfSquaredClusterVolumes(const Graph& graph, const ds::Clustering& communities) {
     ArcWeight intraClusterWeights = 0;
     ArcWeight sumOfSquaredClusterVolumes = 0;
     std::vector<ArcWeight> _cluster_volumes(graph.numNodes(), 0);

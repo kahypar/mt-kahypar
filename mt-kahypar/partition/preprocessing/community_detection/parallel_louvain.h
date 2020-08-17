@@ -27,13 +27,13 @@
 #include "mt-kahypar/utils/timer.h"
 
 namespace mt_kahypar {
-template<typename G /* Graph */>
+
 class ParallelModularityLouvain {
  private:
   static constexpr bool debug = false;
-  using ParallelLouvainMethod = PLM<G>;
+  using ParallelLouvainMethod = PLM;
 
-  static ds::Clustering localMovingContractRecurse(G& fine_graph,
+  static ds::Clustering localMovingContractRecurse(Graph& fine_graph,
                                                    ParallelLouvainMethod& mlv) {
     DBG << V(fine_graph.numNodes())
         << V(fine_graph.numArcs())
@@ -48,7 +48,7 @@ class ParallelModularityLouvain {
       DBG << "Current Modularity:" << metrics::modularity(fine_graph, communities);
       utils::Timer::instance().start_timer("contraction", "Contraction");
       // Contract Communities
-      G coarse_graph = fine_graph.contract(communities);
+      Graph coarse_graph = fine_graph.contract(communities);
       ASSERT(coarse_graph.totalVolume() == fine_graph.totalVolume(),
         V(coarse_graph.totalVolume()) << V(fine_graph.totalVolume()));
       utils::Timer::instance().stop_timer("contraction");
@@ -70,7 +70,7 @@ class ParallelModularityLouvain {
   }
 
  public:
-  static ds::Clustering run(G& graph,
+  static ds::Clustering run(Graph& graph,
                             const Context& context,
                             const bool disable_randomization = false) {
     ParallelLouvainMethod mlv(context, graph.numNodes(), disable_randomization);
