@@ -162,21 +162,17 @@ public:
     first_move_in(),
     last_move_out() {
 
-    // In case we perform parallel rollback we need
-    // some additional data structures
-    if ( context.refinement.fm.revert_parallel ) {
-      tbb::parallel_invoke([&] {
-        remaining_original_pins.resize("Refinement", "remaining_original_pins",
-          static_cast<size_t>(hg.numNonGraphEdges()) * numParts);
-      }, [&] {
-        first_move_in.resize("Refinement", "first_move_in",
-          static_cast<size_t>(hg.numNonGraphEdges()) * numParts);
-      }, [&] {
-        last_move_out.resize("Refinement", "last_move_out",
-          static_cast<size_t>(hg.numNonGraphEdges()) * numParts);
-      });
-      resetStoredMoveIDs();
-    }
+    tbb::parallel_invoke([&] {
+      remaining_original_pins.resize("Refinement", "remaining_original_pins",
+        static_cast<size_t>(hg.numNonGraphEdges()) * numParts);
+    }, [&] {
+      first_move_in.resize("Refinement", "first_move_in",
+        static_cast<size_t>(hg.numNonGraphEdges()) * numParts);
+    }, [&] {
+      last_move_out.resize("Refinement", "last_move_out",
+        static_cast<size_t>(hg.numNonGraphEdges()) * numParts);
+    });
+    resetStoredMoveIDs();
   }
 
   HyperedgeWeight revertToBestPrefix(PartitionedHypergraph& phg,
@@ -193,94 +189,7 @@ public:
         maxPartWeights[i] *= ( 1.0 + context.partition.epsilon * maxPartWeightScaling );
       }
     }
-
-    if (context.refinement.fm.revert_parallel) {
-      return revertToBestPrefixParallel(phg, sharedData, partWeights, maxPartWeights);
-    } else {
-      return revertToBestPrefixSequential(phg, sharedData, partWeights, maxPartWeights);
-    }
-  }
-
-  HyperedgeWeight revertToBestPrefixSequential(PartitionedHypergraph& phg,
-                                               FMSharedData& sharedData,
-                                               const vec<HypernodeWeight>&,
-                                               const std::vector<HypernodeWeight>& maxPartWeights) {
-
-    // TODO remove?
-    GlobalMoveTracker& tracker = sharedData.moveTracker;
-    const MoveID numMoves = tracker.numPerformedMoves();
-    const vec<Move>& move_order = tracker.moveOrder;
-
-    // revert all moves
-    tbb::parallel_for(0U, numMoves, [&](const MoveID localMoveID) {
-      const Move& m = move_order[localMoveID];
-      if (tracker.isMoveStillValid(m)) {
-        phg.changeNodePartFullUpdate(m.node, m.to, m.from);
-      }
-    });
-
-
-    size_t num_unbalanced_slots = 0;
-
-    size_t overloaded = 0;
-    for (PartitionID i = 0; i < numParts; ++i) {
-      if (phg.partWeight(i) > maxPartWeights[i]) {
-        overloaded++;
-      }
-    }
-
-    // roll forward sequentially
-    Gain best_gain = 0, gain_sum = 0;
-    MoveID best_index = 0;
-    for (MoveID localMoveID = 0; localMoveID < numMoves; ++localMoveID) {
-      const Move& m = move_order[localMoveID];
-      if (!tracker.isMoveStillValid(m)) continue;
-
-      Gain gain = 0;
-      for (HyperedgeID e : phg.incidentEdges(m.node)) {
-        if (phg.pinCountInPart(e, m.from) == 1) {
-          gain += phg.edgeWeight(e);
-        }
-        if (phg.pinCountInPart(e, m.to) == 0) {
-          gain -= phg.edgeWeight(e);
-        }
-      }
-      gain_sum += gain;
-
-      const bool from_overloaded = phg.partWeight(m.from) > maxPartWeights[m.from];
-      const bool to_overloaded = phg.partWeight(m.to) > maxPartWeights[m.to];
-      phg.changeNodePartFullUpdate(m.node, m.from, m.to);
-      if (from_overloaded && phg.partWeight(m.from) <= maxPartWeights[m.from]) {
-        overloaded--;
-      }
-      if (!to_overloaded && phg.partWeight(m.to) > maxPartWeights[m.to]) {
-        overloaded++;
-      }
-
-      if (overloaded > 0) {
-        num_unbalanced_slots++;
-      }
-
-      if (overloaded == 0 && gain_sum > best_gain) {
-        best_index = localMoveID + 1;
-      }
-    }
-
-    // revert rejected moves again
-    tbb::parallel_for(best_index, numMoves, [&](const MoveID i) {
-      const Move& m = move_order[i];
-      if (tracker.isMoveStillValid(m)) {
-        phg.changeNodePartFullUpdate(m.node, m.to, m.from);
-      }
-    });
-
-    tbb::parallel_for(0U, numMoves, [&](const MoveID i) {
-      phg.recomputeMoveFromBenefit(move_order[i].node);
-    });
-
-    tracker.reset();
-
-    return best_gain;
+    return revertToBestPrefixParallel(phg, sharedData, partWeights, maxPartWeights);
   }
 
   HyperedgeWeight revertToBestPrefixParallel(PartitionedHypergraph& phg,
@@ -340,7 +249,6 @@ public:
         const Move& m = move_order[moveID];
         phg.changeNodePartFullUpdate(m.node, m.to, m.from);
       });
-
     }
 
     timer.stop_timer("revert_and_rem_orig_pin_updates");
@@ -540,7 +448,7 @@ public:
   }
 
   void setRemainingOriginalPins(PartitionedHypergraph& phg) {
-    if (phg.hypergraph().maxEdgeSize() > 2 && context.refinement.fm.revert_parallel) {
+    if (phg.hypergraph().maxEdgeSize() > 2) {
       phg.doParallelForAllEdges([&](const HyperedgeID& he) {
         if (phg.edgeSize(he) > 2) {
           const HyperedgeID he_local = phg.nonGraphEdgeID(he);
