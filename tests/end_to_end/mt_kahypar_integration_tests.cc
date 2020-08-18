@@ -53,7 +53,7 @@ class MtKaHyPar : public Test {
   MtKaHyPar() :
     context() {
     parseIniToContext(context, "../../../config/speed_preset.ini");
-    context.partition.graph_filename = "test_instances/ibm01.hgr";
+    context.partition.graph_filename = "../tests/instances/ibm01.hgr";
     context.partition.k = Config::K;
     context.partition.objective = Config::OBJECTIVE;
     context.partition.epsilon = 0.03;
@@ -290,7 +290,7 @@ void partitionHypergraph(Hypergraph& hypergraph, Context& context) {
 
 TYPED_TEST(MtKaHyPar, PartitionsAVLSIInstance) {
   // Read Hypergraph
-  this->context.partition.graph_filename = "test_instances/ibm01.hgr";
+  this->context.partition.graph_filename = "../tests/instances/ibm01.hgr";
   Hypergraph hypergraph = io::readHypergraphFile(
     this->context.partition.graph_filename, TBBNumaArena::GLOBAL_TASK_GROUP);
 
@@ -299,7 +299,7 @@ TYPED_TEST(MtKaHyPar, PartitionsAVLSIInstance) {
 
 TYPED_TEST(MtKaHyPar, PartitionsASparseMatrixInstance) {
   // Read Hypergraph
-  this->context.partition.graph_filename = "test_instances/powersim.mtx.hgr";
+  this->context.partition.graph_filename = "../tests/instances/powersim.mtx.hgr";
   Hypergraph hypergraph = io::readHypergraphFile(
     this->context.partition.graph_filename, TBBNumaArena::GLOBAL_TASK_GROUP);
 
@@ -308,7 +308,7 @@ TYPED_TEST(MtKaHyPar, PartitionsASparseMatrixInstance) {
 
 TYPED_TEST(MtKaHyPar, PartitionsASATInstance) {
   // Read Hypergraph
-  this->context.partition.graph_filename = "test_instances/sat14_atco_enc1_opt2_10_16.cnf.primal.hgr";
+  this->context.partition.graph_filename = "../tests/instances/sat14_atco_enc1_opt2_10_16.cnf.primal.hgr";
   Hypergraph hypergraph = io::readHypergraphFile(
     this->context.partition.graph_filename, TBBNumaArena::GLOBAL_TASK_GROUP);
 
