@@ -1,1 +1,2 @@
-add_gmock_test(multilevel_coarsener_test multilevel_coarsener_test.cc)
+target_sources(mt_kahypar_tests PRIVATE
+        multilevel_coarsener_test.cc)
