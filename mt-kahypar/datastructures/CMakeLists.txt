@@ -1,6 +1,4 @@
-target_sources(KaHyPar PRIVATE
-        static_hypergraph.cpp
-        graph.cpp
-        static_hypergraph_factory.cpp
-        #partitioned_hypergraph.cpp
-        )
+set(DatastructureSources static_hypergraph_factory.cpp static_hypergraph.cpp graph.cpp)
+
+target_sources(KaHyPar PRIVATE ${DatastructureSources})
+target_sources(mt_kahypar_tests PRIVATE ${DatastructureSources})       # TODO make list collecting targets that want everything?

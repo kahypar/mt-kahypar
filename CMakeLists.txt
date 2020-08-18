@@ -288,12 +288,10 @@ message(STATUS "CMAKE_CXX_FLAGS_DEBUG: ${CMAKE_CXX_FLAGS_DEBUG}")
 
 include(gmock)
 enable_testing()
+
 add_subdirectory(mt-kahypar/application)
 add_subdirectory(tools)
 add_subdirectory(lib)
 add_subdirectory(tests)
 
-add_subdirectory(mt-kahypar/datastructures)
-add_subdirectory(mt-kahypar/partition/preprocessing/)
-add_subdirectory(mt-kahypar/partition/coarsening)
-add_subdirectory(mt-kahypar/partition/refinement)
+add_subdirectory(mt-kahypar)
