@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.13)
+cmake_minimum_required(VERSION 3.16)
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake/modules)
 
 project(KaHyPar CXX C)
@@ -294,4 +294,5 @@ add_subdirectory(tools)
 add_subdirectory(lib)
 add_subdirectory(tests)
 
+# This adds the source files. It's important that this happens after the compile targets have been added
 add_subdirectory(mt-kahypar)

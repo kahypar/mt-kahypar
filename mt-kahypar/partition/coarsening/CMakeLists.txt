@@ -1,4 +1,5 @@
 set(CoarseningSources extended_clustering.cpp uncoarsening.cpp)
 
-target_sources(KaHyPar PRIVATE ${CoarseningSources})
-target_sources(mt_kahypar_tests PRIVATE ${CoarseningSources})
+foreach(modtarget IN LISTS TARGETS_WANTING_ALL_SOURCES)
+    target_sources(${modtarget} PRIVATE ${CoarseningSources})
+endforeach()

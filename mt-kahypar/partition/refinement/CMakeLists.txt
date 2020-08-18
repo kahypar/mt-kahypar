@@ -6,5 +6,6 @@ set(RefinementSources
         rebalancing/rebalancer.cpp
         )
 
-target_sources(KaHyPar PRIVATE ${RefinementSources})
-target_sources(mt_kahypar_tests PRIVATE ${RefinementSources})
+foreach(modtarget IN LISTS TARGETS_WANTING_ALL_SOURCES)
+    target_sources(${modtarget} PRIVATE ${RefinementSources})
+endforeach()
