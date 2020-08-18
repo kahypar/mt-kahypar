@@ -106,7 +106,6 @@ TEST(WorkContainer, WorkStealingWorks) {
   consumer.join();
   producer.join();
 
-  ASSERT_GE(steals, 1);   // this can fail. but it is unlikely --> if it fails for you, just remove it
   ASSERT_EQ(steals + own_pops, m);
 }
 

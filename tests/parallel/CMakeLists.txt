@@ -1,3 +1,5 @@
-add_gmock_test(tbb_task_arena_test tbb_task_arena_test.cc)
-add_gmock_test(work_container_test work_container_test.cc)
-add_gmock_test(memory_pool_test memory_pool_test.cc)
+target_sources(mt_kahypar_tests PRIVATE
+        tbb_task_arena_test.cc
+        work_container_test.cc
+        memory_pool_test.cc
+        )
