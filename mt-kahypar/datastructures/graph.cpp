@@ -116,6 +116,7 @@ namespace mt_kahypar::ds {
  * are aggregated and the result is written to the final contracted graph.
  */
   Graph Graph::contract(Clustering& communities) {
+    ASSERT(canBeUsed());
     ASSERT(_num_nodes == communities.size());
     ASSERT(_tmp_graph_buffer);
     Graph coarse_graph;
@@ -433,6 +434,16 @@ namespace mt_kahypar::ds {
       return std::max(lhs, rhs);
     });
     utils::Timer::instance().stop_timer("construct_arcs");
+  }
+
+  bool Graph::canBeUsed(const bool verbose) const {
+    const bool result = _indices.size() >= numNodes() + 1 && _arcs.size() >= numArcs() && _node_volumes.size() >= numNodes();
+    if (!result) {
+      LOG << "Some of the graph's members were stolen. For example the contract function does this. "
+             "Make sure you're calling functions with a fresh graph or catch this condition and reinitialize."
+             "If you do reinitialize, feel free to silence this warning by passing false to the canBeUsed function";
+    }
+    return result;
   }
 
 } // namespace

@@ -38,7 +38,7 @@
 #include "mt-kahypar/utils/randomize.h"
 
 namespace mt_kahypar::metrics {
-  double modularity(const Graph& graph, ds::Clustering communities);
+  double modularity(const Graph& graph, ds::Clustering& communities);
 }
 
 namespace mt_kahypar::community_detection {
@@ -111,7 +111,7 @@ class ParallelLocalMovingModularity {
   }
 
   // ! Only for testing
-  void initializeClusterVolumes(Graph& graph, ds::Clustering& communities) {
+  void initializeClusterVolumes(const Graph& graph, ds::Clustering& communities) {
     _reciprocal_total_volume = 1.0 / graph.totalVolume();
     _vol_multiplier_div_by_node_vol =  _reciprocal_total_volume;
     tbb::parallel_for(0U, static_cast<NodeID>(graph.numNodes()), [&](const NodeID u) {

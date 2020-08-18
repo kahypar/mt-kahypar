@@ -169,6 +169,14 @@ TEST_F(ALouvain, ComputesMaxGainMove10) {
 
 TEST_F(ALouvain, KarateClubTest) {
   ds::Clustering communities = run_parallel_louvain(*karate_club_graph, context);
+  if (!karate_club_graph->canBeUsed()) {
+    // rebuild
+    LOG << "Rebuild";
+    karate_club_graph = std::make_unique<Graph>(karate_club_hg, LouvainEdgeWeight::uniform);
+  }
+
+  LOG << "start test checks";
+
   std::vector<PartitionID> expected_comm = { 1, 1, 1, 1, 0, 0, 0, 1, 3, 1, 0, 1, 1, 1, 3, 3, 0, 1,
                                              3, 1, 3, 1, 3, 2, 2, 2, 3, 2, 2, 3, 3, 2, 3, 3 };
   ds::Clustering exp(expected_comm.size());

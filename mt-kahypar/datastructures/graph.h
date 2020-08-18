@@ -128,9 +128,11 @@ class Graph {
     return _node_volumes[u];
   }
 
-  void restrictClusteringToHypernodes(const Hypergraph& hg, ds::Clustering& C) {
+  void restrictClusteringToHypernodes(const Hypergraph& hg, ds::Clustering& C) const {
     C.resize(hg.initialNumNodes());
   }
+
+  bool canBeUsed(const bool verbose = true) const;
 
   /*!
    * Contracts the graph based on the community structure passed as argument.
