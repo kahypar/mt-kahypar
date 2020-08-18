@@ -1,4 +1,6 @@
-add_gmock_test(gain_policy_test gain_policy_test.cc)
-add_gmock_test(label_propagation_refiner_test label_propagation_refiner_test.cc)
-add_gmock_test(rollback_test rollback_test.cc)
-add_gmock_test(rebalance_test rebalance_test.cc)
+target_sources(mt_kahypar_tests PRIVATE
+        gain_policy_test.cc
+        label_propagation_refiner_test.cc
+        rollback_test.cc
+        rebalance_test.cc
+        )

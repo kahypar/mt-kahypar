@@ -86,7 +86,7 @@ class ALabelPropagationRefiner : public Test {
 
     // Read hypergraph
     hypergraph = io::readHypergraphFile(
-      "../test_instances/contracted_unweighted_ibm01.hgr", TBBNumaArena::GLOBAL_TASK_GROUP);
+      "../tests/instances/contracted_unweighted_ibm01.hgr", TBBNumaArena::GLOBAL_TASK_GROUP);
     partitioned_hypergraph = PartitionedHypergraph(
       context.partition.k, TBBNumaArena::GLOBAL_TASK_GROUP, hypergraph);
     context.setupPartWeights(hypergraph.totalWeight());
@@ -105,7 +105,7 @@ class ALabelPropagationRefiner : public Test {
     ip_context.refinement.label_propagation.algorithm = LabelPropagationAlgorithm::do_nothing;
     InitialPartitioningDataContainer ip_data(partitioned_hypergraph, ip_context, TBBNumaArena::GLOBAL_TASK_GROUP);
     BFSInitialPartitioner& initial_partitioner = *new(tbb::task::allocate_root())
-      BFSInitialPartitioner(InitialPartitioningAlgorithm::bfs, ip_data, ip_context);
+      BFSInitialPartitioner(InitialPartitioningAlgorithm::bfs, ip_data, ip_context, 420);
     tbb::task::spawn_root_and_wait(initial_partitioner);
     ip_data.apply();
     metrics.km1 = metrics::km1(partitioned_hypergraph);

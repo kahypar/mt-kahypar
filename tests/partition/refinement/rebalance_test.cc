@@ -59,7 +59,7 @@ TEST(RebalanceTests, FindsMoves) {
   context.partition.k = k;
   context.partition.epsilon = 0.03;
   TaskGroupID task_group_id = 0;
-  Hypergraph hg = io::readHypergraphFile("../test_instances/contracted_ibm01.hgr", 0, true /* enable stable construction */);
+  Hypergraph hg = io::readHypergraphFile("../tests/instances/contracted_ibm01.hgr", 0, true /* enable stable construction */);
   context.setupPartWeights(hg.totalWeight());
   PartitionedHypergraph phg = PartitionedHypergraph(k, hg);
 
