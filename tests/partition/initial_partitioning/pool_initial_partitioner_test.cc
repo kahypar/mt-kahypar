@@ -57,7 +57,7 @@ class APoolInitialPartitionerTest : public Test {
     context.initial_partitioning.refinement.label_propagation.algorithm =
       LabelPropagationAlgorithm::label_propagation_km1;
     hypergraph = io::readHypergraphFile(
-      "../test_instances/test_instance.hgr", TBBNumaArena::GLOBAL_TASK_GROUP);
+      "../tests/instances/test_instance.hgr", TBBNumaArena::GLOBAL_TASK_GROUP);
     partitioned_hypergraph = PartitionedHypergraph(
       context.partition.k, TBBNumaArena::GLOBAL_TASK_GROUP, hypergraph);
     context.setupPartWeights(hypergraph.totalWeight());
