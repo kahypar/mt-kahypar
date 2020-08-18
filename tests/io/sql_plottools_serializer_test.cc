@@ -100,7 +100,7 @@ void read_all_members_of_target_struct(std::ifstream& context_file,
 std::vector<std::string> get_all_members_in_context() {
   std::vector<std::string> members;
 
-  std::ifstream context_file("../../../mt-kahypar/partition/context.h");
+  std::ifstream context_file("../mt-kahypar/partition/context.h");
     if ( context_file ) {
     std::string line;
     while( std::getline(context_file, line) ) {

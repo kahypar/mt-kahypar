@@ -1,5 +1,3 @@
-file(COPY test_instances DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
-
 add_gmock_test(integration_tests mt_kahypar_integration_tests.cc)
 target_link_libraries(integration_tests ${Boost_LIBRARIES})
 # exclude integration tests from default build target
