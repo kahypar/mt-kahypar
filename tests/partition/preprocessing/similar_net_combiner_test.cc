@@ -62,7 +62,7 @@ bool containsNoDuplicates(const Hyperedge& e) {
   return true;
 }
 
-TEST(ASimiliarNetCombiner, UnionTwoNets1) {
+TEST(ASimilarNetCombiner, UnionTwoNets1) {
   auto hypergraph = createTestHypergraph();
   const Hyperedge lhs = { 0, 1, 2, 3 };
   const Hyperedge rhs = { 2, 3, 4, 5 };
@@ -72,7 +72,7 @@ TEST(ASimiliarNetCombiner, UnionTwoNets1) {
   ASSERT_TRUE(isEqual(combined_he, { 0, 1, 2, 3, 4, 5 }));
 }
 
-TEST(ASimiliarNetCombiner, UnionTwoNets2) {
+TEST(ASimilarNetCombiner, UnionTwoNets2) {
   auto hypergraph = createTestHypergraph();
   const Hyperedge lhs = { 0, 1, 2, 3 };
   const Hyperedge rhs = { 0, 1, 2, 3 };
@@ -82,7 +82,7 @@ TEST(ASimiliarNetCombiner, UnionTwoNets2) {
   ASSERT_TRUE(isEqual(combined_he, { 0, 1, 2, 3 }));
 }
 
-TEST(ASimiliarNetCombiner, UnionTwoNets3) {
+TEST(ASimilarNetCombiner, UnionTwoNets3) {
   auto hypergraph = createTestHypergraph();
   const Hyperedge lhs = { 0, 1, 2, 3 };
   const Hyperedge rhs = { 4, 5, 6, 7 };
@@ -92,7 +92,7 @@ TEST(ASimiliarNetCombiner, UnionTwoNets3) {
   ASSERT_TRUE(isEqual(combined_he, { 0, 1, 2, 3, 4, 5, 6, 7 }));
 }
 
-TEST(ASimiliarNetCombiner, UnionTwoNets4) {
+TEST(ASimilarNetCombiner, UnionTwoNets4) {
   auto hypergraph = createTestHypergraph();
   const Hyperedge lhs = { 4, 5, 6, 7 };
   const Hyperedge rhs = { 0, 1, 2, 3 };
@@ -102,7 +102,7 @@ TEST(ASimiliarNetCombiner, UnionTwoNets4) {
   ASSERT_TRUE(isEqual(combined_he, { 0, 1, 2, 3, 4, 5, 6, 7 }));
 }
 
-TEST(ASimiliarNetCombiner, UnifiesTwoNetsWithMaxSizeStrategy1) {
+TEST(ASimilarNetCombiner, UnifiesTwoNetsWithMaxSizeStrategy1) {
   auto hypergraph = createTestHypergraph();
   const Hyperedge lhs = { 0, 1, 2, 3 };
   const Hyperedge rhs = { 2, 3, 4, 5 };
@@ -110,7 +110,7 @@ TEST(ASimiliarNetCombiner, UnifiesTwoNetsWithMaxSizeStrategy1) {
   ASSERT_TRUE(isEqual(combined_he, { 0, 1, 2, 3 }));
 }
 
-TEST(ASimiliarNetCombiner, UnifiesTwoNetsWithMaxSizeStrategy2) {
+TEST(ASimilarNetCombiner, UnifiesTwoNetsWithMaxSizeStrategy2) {
   auto hypergraph = createTestHypergraph();
   const Hyperedge lhs = { 0, 1 };
   const Hyperedge rhs = { 2, 3, 4, 5 };
@@ -118,7 +118,7 @@ TEST(ASimiliarNetCombiner, UnifiesTwoNetsWithMaxSizeStrategy2) {
   ASSERT_TRUE(isEqual(combined_he, { 2, 3, 4, 5 }));
 }
 
-TEST(ASimiliarNetCombiner, UnifiesTwoNetsWithMaxSizeStrategy3) {
+TEST(ASimilarNetCombiner, UnifiesTwoNetsWithMaxSizeStrategy3) {
   auto hypergraph = createTestHypergraph();
   const Hyperedge lhs = { 0, 1, 2, 3 };
   const Hyperedge rhs = { 2, 3 };
@@ -126,7 +126,7 @@ TEST(ASimiliarNetCombiner, UnifiesTwoNetsWithMaxSizeStrategy3) {
   ASSERT_TRUE(isEqual(combined_he, { 0, 1, 2, 3 }));
 }
 
-TEST(ASimiliarNetCombiner, UnifiesTwoNetsWithNetImportanceStrategy1) {
+TEST(ASimilarNetCombiner, UnifiesTwoNetsWithNetImportanceStrategy1) {
   auto hypergraph = createTestHypergraph();
   const Hyperedge lhs = { 0, 1, 3, 4 };
   const Hyperedge rhs = { 2, 5, 6 };
@@ -134,7 +134,7 @@ TEST(ASimiliarNetCombiner, UnifiesTwoNetsWithNetImportanceStrategy1) {
   ASSERT_TRUE(isEqual(combined_he, { 0, 1, 3, 4 }));
 }
 
-TEST(ASimiliarNetCombiner, UnifiesTwoNetsWithNetImportanceStrategy2) {
+TEST(ASimilarNetCombiner, UnifiesTwoNetsWithNetImportanceStrategy2) {
   auto hypergraph = createTestHypergraph();
   const Hyperedge lhs = { 3, 4, 6 };
   const Hyperedge rhs = { 0, 2 };
@@ -142,7 +142,7 @@ TEST(ASimiliarNetCombiner, UnifiesTwoNetsWithNetImportanceStrategy2) {
   ASSERT_TRUE(isEqual(combined_he, { 0, 2 }));
 }
 
-TEST(ASimiliarNetCombiner, UnifiesTwoNetsWithNetImportanceStrategy3) {
+TEST(ASimilarNetCombiner, UnifiesTwoNetsWithNetImportanceStrategy3) {
   auto hypergraph = createTestHypergraph();
   const Hyperedge lhs = { 0, 3, 5 };
   const Hyperedge rhs = { 0, 1, 2 };
@@ -150,7 +150,7 @@ TEST(ASimiliarNetCombiner, UnifiesTwoNetsWithNetImportanceStrategy3) {
   ASSERT_TRUE(isEqual(combined_he, { 0, 1, 2 }));
 }
 
-TEST(ASimiliarNetCombiner, UnifiesTwoNetsWithNetImportanceStrategy4) {
+TEST(ASimilarNetCombiner, UnifiesTwoNetsWithNetImportanceStrategy4) {
   auto hypergraph = createTestHypergraph();
   const Hyperedge lhs = { 3, 4, 6 };
   const Hyperedge rhs = { 2, 5, 6 };
