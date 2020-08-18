@@ -8,7 +8,7 @@ target_sources(mt_kahypar_tests PRIVATE
         priority_queue_test.cc
         gain_updates_test.cc
         sparsifier_hypergraph_test.cc
-        #array_test.cc  TODO
+        array_test.cc
         pin_count_in_part_test.cc
         sparse_map_test.cc
         )
