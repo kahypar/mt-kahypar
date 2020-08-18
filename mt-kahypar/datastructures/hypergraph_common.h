@@ -66,6 +66,7 @@ struct Arc {
 static constexpr PartitionID kInvalidPartition = -1;
 static constexpr HypernodeID kInvalidHypernode = std::numeric_limits<HypernodeID>::max();
 static constexpr HypernodeID kInvalidHyperedge = std::numeric_limits<HyperedgeID>::max();
+static constexpr Gain kInvalidGain = std::numeric_limits<HyperedgeID>::min();
 static constexpr size_t kEdgeHashSeed = 42;
 
 static constexpr HypernodeID invalidNode = std::numeric_limits<HypernodeID>::max();

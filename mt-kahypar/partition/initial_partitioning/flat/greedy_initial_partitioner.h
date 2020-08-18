@@ -35,9 +35,6 @@ class GreedyInitialPartitioner : public tbb::task {
 
   static constexpr bool debug = false;
   static constexpr bool enable_heavy_assert = false;
-  static PartitionID kInvalidPartition;
-  static HypernodeID kInvalidHypernode;
-  static Gain kInvalidGain;
 
  public:
   GreedyInitialPartitioner(const InitialPartitioningAlgorithm algorithm,
@@ -239,12 +236,5 @@ class GreedyInitialPartitioner : public tbb::task {
   const PartitionID _default_block;
   std::mt19937 _rng;
 };
-
-template <typename GainPolicy, typename PQSelectionPolicy>
-PartitionID GreedyInitialPartitioner<GainPolicy, PQSelectionPolicy>::kInvalidPartition = -1;
-template <typename GainPolicy, typename PQSelectionPolicy>
-HypernodeID GreedyInitialPartitioner<GainPolicy, PQSelectionPolicy>::kInvalidHypernode = std::numeric_limits<HypernodeID>::max();
-template <typename GainPolicy, typename PQSelectionPolicy>
-Gain GreedyInitialPartitioner<GainPolicy, PQSelectionPolicy>::kInvalidGain = std::numeric_limits<Gain>::min();
 
 } // namespace mt_kahypar

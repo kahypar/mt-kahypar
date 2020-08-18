@@ -34,8 +34,6 @@ class PseudoPeripheralStartNodes {
   using Queue = parallel::scalable_queue<HypernodeID>;
 
   static constexpr bool debug = false;
-  static PartitionID kInvalidPartition;
-  static HypernodeID kInvalidHypernode;
 
  public:
   static inline StartNodes computeStartNodes(InitialPartitioningDataContainer& ip_data,
@@ -117,7 +115,5 @@ class PseudoPeripheralStartNodes {
   }
 };
 
-PartitionID PseudoPeripheralStartNodes::kInvalidPartition = -1;
-HypernodeID PseudoPeripheralStartNodes::kInvalidHypernode = std::numeric_limits<HypernodeID>::max();
 
 } // namespace mt_kahypar

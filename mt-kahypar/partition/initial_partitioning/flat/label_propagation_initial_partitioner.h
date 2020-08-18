@@ -36,8 +36,6 @@ class LabelPropagationInitialPartitioner : public tbb::task {
 
   static constexpr bool debug = false;
   static constexpr bool enable_heavy_assert = false;
-  static PartitionID kInvalidPartition;
-  static HypernodeID kInvalidHypernode;
 
   struct MaxGainMove {
     const PartitionID block;
@@ -330,7 +328,5 @@ class LabelPropagationInitialPartitioner : public tbb::task {
   std::mt19937 _rng;
 };
 
-PartitionID LabelPropagationInitialPartitioner::kInvalidPartition = -1;
-HypernodeID LabelPropagationInitialPartitioner::kInvalidHypernode = std::numeric_limits<HypernodeID>::max();
 
 } // namespace mt_kahypar

@@ -30,7 +30,6 @@ namespace mt_kahypar {
 class RandomInitialPartitioner : public tbb::task {
 
   static constexpr bool debug = false;
-  static PartitionID kInvalidPartition;
 
  public:
   RandomInitialPartitioner(const InitialPartitioningAlgorithm,
@@ -83,7 +82,5 @@ class RandomInitialPartitioner : public tbb::task {
   const Context& _context;
   std::mt19937 _rng;
 };
-
-PartitionID RandomInitialPartitioner::kInvalidPartition = -1;
 
 } // namespace mt_kahypar

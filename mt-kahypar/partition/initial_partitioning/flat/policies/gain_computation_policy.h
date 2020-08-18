@@ -29,7 +29,6 @@ namespace mt_kahypar {
 class CutGainPolicy {
 
  static constexpr bool enable_heavy_assert = false;
- static PartitionID kInvalidPartition;
 
  public:
   static inline Gain calculateGain(const PartitionedHypergraph& hypergraph,
@@ -214,13 +213,10 @@ class CutGainPolicy {
   }
 };
 
-PartitionID CutGainPolicy::kInvalidPartition = -1;
-
 
 class MaxNetGainPolicy {
 
  static constexpr bool enable_heavy_assert = false;
- static PartitionID kInvalidPartition;
 
  public:
   static inline Gain calculateGain(const PartitionedHypergraph& hypergraph,
@@ -284,6 +280,5 @@ class MaxNetGainPolicy {
   }
 };
 
-PartitionID MaxNetGainPolicy::kInvalidPartition = -1;
 
 } // namespace mt_kahypar

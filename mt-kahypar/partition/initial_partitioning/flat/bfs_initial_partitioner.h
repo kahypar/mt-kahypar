@@ -34,8 +34,6 @@ class BFSInitialPartitioner : public tbb::task {
   using Queue = parallel::scalable_queue<HypernodeID>;
 
   static constexpr bool debug = false;
-  static PartitionID kInvalidPartition;
-  static HypernodeID kInvalidHypernode;
 
  public:
   BFSInitialPartitioner(const InitialPartitioningAlgorithm,
@@ -174,7 +172,5 @@ class BFSInitialPartitioner : public tbb::task {
   std::mt19937 _rng;
 };
 
-PartitionID BFSInitialPartitioner::kInvalidPartition = -1;
-HypernodeID BFSInitialPartitioner::kInvalidHypernode = std::numeric_limits<HypernodeID>::max();
 
 } // namespace mt_kahypar
