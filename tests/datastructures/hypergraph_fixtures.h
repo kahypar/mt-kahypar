@@ -33,7 +33,7 @@ using ::testing::Test;
 namespace mt_kahypar {
 namespace ds {
 
-auto identity = [](const HypernodeID& id) { return id; };
+static auto identity = [](const HypernodeID& id) { return id; };
 
 class HypergraphFixture : public Test {
  public:
