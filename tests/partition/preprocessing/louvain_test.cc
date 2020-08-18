@@ -28,14 +28,13 @@
 
 using ::testing::Test;
 
-namespace mt_kahypar {
+namespace mt_kahypar::community_detection {
 
 class ALouvain : public ds::HypergraphFixture {
 
   using Base = ds::HypergraphFixture;
 
  public:
-  using Graph = ds::GraphT<ds::StaticHypergraph>;
 
   ALouvain() :
     Base(),
@@ -43,7 +42,7 @@ class ALouvain : public ds::HypergraphFixture {
     context(),
     karate_club_hg(),
     karate_club_graph(nullptr) {
-    context.partition.graph_filename = "../test_instances/karate_club.graph.hgr";
+    context.partition.graph_filename = "../tests/instances/karate_club.graph.hgr";
     context.preprocessing.community_detection.edge_weight_function = LouvainEdgeWeight::uniform;
     context.preprocessing.community_detection.max_pass_iterations = 100;
     context.preprocessing.community_detection.min_vertex_move_fraction = 0.0001;
@@ -79,7 +78,7 @@ ds::Clustering clustering(const std::vector<PartitionID>& communities) {
 }
 
 TEST_F(ALouvain, ComputesMaxGainMove1) {
-  ParallelLocalMovingModularity<Graph> plm(context, graph->numNodes());
+  ParallelLocalMovingModularity plm(context, graph->numNodes());
   ds::Clustering communities = clustering( { 0, 1, 0, 2, 3, 4, 5, 1, 2, 3, 4 } );
   plm.initializeClusterVolumes(*graph, communities);
   PartitionID to = plm.computeMaxGainCluster(
@@ -88,7 +87,7 @@ TEST_F(ALouvain, ComputesMaxGainMove1) {
 }
 
 TEST_F(ALouvain, ComputesMaxGainMove2) {
-  ParallelLocalMovingModularity<Graph> plm(context, graph->numNodes());
+  ParallelLocalMovingModularity plm(context, graph->numNodes());
   ds::Clustering communities = clustering( { 0, 1, 0, 3, 3, 4, 5, 1, 2, 3, 4 } );
   plm.initializeClusterVolumes(*graph, communities);
   PartitionID to = plm.computeMaxGainCluster(
@@ -97,7 +96,7 @@ TEST_F(ALouvain, ComputesMaxGainMove2) {
 }
 
 TEST_F(ALouvain, ComputesMaxGainMove3) {
-  ParallelLocalMovingModularity<Graph> plm(context, graph->numNodes());
+  ParallelLocalMovingModularity plm(context, graph->numNodes());
   ds::Clustering communities = clustering( { 0, 1, 0, 2, 3, 4, 5, 1, 2, 3, 4 } );
   plm.initializeClusterVolumes(*graph, communities);
   PartitionID to = plm.computeMaxGainCluster(
@@ -106,7 +105,7 @@ TEST_F(ALouvain, ComputesMaxGainMove3) {
 }
 
 TEST_F(ALouvain, ComputesMaxGainMove4) {
-  ParallelLocalMovingModularity<Graph> plm(context, graph->numNodes());
+  ParallelLocalMovingModularity plm(context, graph->numNodes());
   ds::Clustering communities = clustering( { 0, 1, 0, 2, 3, 4, 5, 1, 2, 3, 4 } );
   plm.initializeClusterVolumes(*graph, communities);
   PartitionID to = plm.computeMaxGainCluster(
@@ -115,7 +114,7 @@ TEST_F(ALouvain, ComputesMaxGainMove4) {
 }
 
 TEST_F(ALouvain, ComputesMaxGainMove5) {
-  ParallelLocalMovingModularity<Graph> plm(context, graph->numNodes());
+  ParallelLocalMovingModularity plm(context, graph->numNodes());
   ds::Clustering communities = clustering( { 0, 1, 0, 2, 2, 4, 5, 1, 2, 3, 4 } );
   plm.initializeClusterVolumes(*graph, communities);
   PartitionID to = plm.computeMaxGainCluster(
@@ -124,7 +123,7 @@ TEST_F(ALouvain, ComputesMaxGainMove5) {
 }
 
 TEST_F(ALouvain, ComputesMaxGainMove6) {
-  ParallelLocalMovingModularity<Graph> plm(context, graph->numNodes());
+  ParallelLocalMovingModularity plm(context, graph->numNodes());
   ds::Clustering communities = clustering( { 0, 1, 0, 2, 2, 4, 5, 1, 2, 3, 4 } );
   plm.initializeClusterVolumes(*graph, communities);
   PartitionID to = plm.computeMaxGainCluster(
@@ -133,7 +132,7 @@ TEST_F(ALouvain, ComputesMaxGainMove6) {
 }
 
 TEST_F(ALouvain, ComputesMaxGainMove7) {
-  ParallelLocalMovingModularity<Graph> plm(context, graph->numNodes());
+  ParallelLocalMovingModularity plm(context, graph->numNodes());
   ds::Clustering communities = clustering( { 0, 1, 0, 2, 2, 4, 0, 1, 2, 3, 4 } );
   plm.initializeClusterVolumes(*graph, communities);
   PartitionID to = plm.computeMaxGainCluster(
@@ -142,7 +141,7 @@ TEST_F(ALouvain, ComputesMaxGainMove7) {
 }
 
 TEST_F(ALouvain, ComputesMaxGainMove8) {
-  ParallelLocalMovingModularity<Graph> plm(context, graph->numNodes());
+  ParallelLocalMovingModularity plm(context, graph->numNodes());
   ds::Clustering communities = clustering( { 0, 1, 0, 2, 2, 4, 0, 1, 1, 3, 4 } );
   plm.initializeClusterVolumes(*graph, communities);
   PartitionID to = plm.computeMaxGainCluster(
@@ -151,7 +150,7 @@ TEST_F(ALouvain, ComputesMaxGainMove8) {
 }
 
 TEST_F(ALouvain, ComputesMaxGainMove9) {
-  ParallelLocalMovingModularity<Graph> plm(context, graph->numNodes());
+  ParallelLocalMovingModularity plm(context, graph->numNodes());
   ds::Clustering communities = clustering( { 0, 1, 0, 2, 2, 4, 0, 1, 3, 3, 4 } );
   plm.initializeClusterVolumes(*graph, communities);
   PartitionID to = plm.computeMaxGainCluster(
@@ -160,7 +159,7 @@ TEST_F(ALouvain, ComputesMaxGainMove9) {
 }
 
 TEST_F(ALouvain, ComputesMaxGainMove10) {
-  ParallelLocalMovingModularity<Graph> plm(context, graph->numNodes());
+  ParallelLocalMovingModularity plm(context, graph->numNodes());
   ds::Clustering communities = clustering( { 0, 1, 0, 2, 2, 0, 4, 1, 3, 3, 4 } );
   plm.initializeClusterVolumes(*graph, communities);
   PartitionID to = plm.computeMaxGainCluster(
@@ -169,10 +168,20 @@ TEST_F(ALouvain, ComputesMaxGainMove10) {
 }
 
 TEST_F(ALouvain, KarateClubTest) {
-  ds::Clustering communities = ParallelModularityLouvain<Graph>::run(
-    *karate_club_graph, context, true);
+  ds::Clustering communities = run_parallel_louvain(*karate_club_graph, context);
   std::vector<PartitionID> expected_comm = { 1, 1, 1, 1, 0, 0, 0, 1, 3, 1, 0, 1, 1, 1, 3, 3, 0, 1,
                                              3, 1, 3, 1, 3, 2, 2, 2, 3, 2, 2, 3, 3, 2, 3, 3 };
+  ds::Clustering exp(expected_comm.size());
+  for (size_t i = 0; i < expected_comm.size(); ++i)
+    exp[i] = expected_comm[i];
+
+  LOG << V(communities.size()) << V(exp.size()) << V(expected_comm.size()) << V(karate_club_graph->numNodes());
+  LOG << V(metrics::modularity(*karate_club_graph, communities));
+  LOG << V(metrics::modularity(*karate_club_graph, exp));
+
+  for (const NodeID u : karate_club_graph->nodes()) {
+    LOG << V(u) << V(expected_comm[u]) << V(communities[u]);
+  }
   for ( const NodeID u : karate_club_graph->nodes() ) {
     ASSERT_EQ(expected_comm[u], communities[u]);
   }
