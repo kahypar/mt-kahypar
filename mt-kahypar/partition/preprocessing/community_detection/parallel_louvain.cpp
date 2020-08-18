@@ -57,8 +57,8 @@ namespace mt_kahypar::community_detection {
     return communities;
   }
 
-  ds::Clustering run_parallel_louvain(Graph& graph, const Context& context) {
-    ParallelLocalMovingModularity mlv(context, graph.numNodes(), false);
+  ds::Clustering run_parallel_louvain(Graph& graph, const Context& context, bool disable_randomization) {
+    ParallelLocalMovingModularity mlv(context, graph.numNodes(), disable_randomization);
     ds::Clustering communities = community_detection::local_moving_contract_recurse(graph, mlv);
     return communities;
   }

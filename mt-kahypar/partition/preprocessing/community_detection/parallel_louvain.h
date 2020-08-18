@@ -25,5 +25,5 @@
 
 namespace mt_kahypar::community_detection {
   ds::Clustering local_moving_contract_recurse(Graph& fine_graph, ParallelLocalMovingModularity& mlv);
-  ds::Clustering run_parallel_louvain(Graph& graph, const Context& context);
+  ds::Clustering run_parallel_louvain(Graph& graph, const Context& context, bool disable_randomization = false);
 }
