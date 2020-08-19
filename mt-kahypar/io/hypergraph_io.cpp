@@ -22,9 +22,6 @@
 
 namespace mt_kahypar::io {
 
-  using Hyperedge = parallel::scalable_vector<HypernodeID>;
-  using HyperedgeVector = parallel::scalable_vector<Hyperedge>;
-
   int open_file(const std::string& filename) {
     int fd = open(filename.c_str(), O_RDONLY);
     if ( fd == -1 ) {

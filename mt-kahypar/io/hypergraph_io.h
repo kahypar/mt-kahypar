@@ -42,6 +42,18 @@
 
 namespace mt_kahypar {
 namespace io {
+
+  using Hyperedge = parallel::scalable_vector<HypernodeID>;
+  using HyperedgeVector = parallel::scalable_vector<Hyperedge>;
+
+  void readHypergraphFile(const std::string& filename,
+                          HyperedgeID& num_hyperedges,
+                          HypernodeID& num_hypernodes,
+                          HyperedgeID& num_removed_single_pin_hyperedges,
+                          HyperedgeVector& hyperedges,
+                          parallel::scalable_vector<HyperedgeWeight>& hyperedges_weight,
+                          parallel::scalable_vector<HypernodeWeight>& hypernodes_weight);
+
   Hypergraph readHypergraphFile(const std::string& filename,
                                 const TaskGroupID task_group_id,
                                 const bool stable_construction_of_incident_edges = false);
