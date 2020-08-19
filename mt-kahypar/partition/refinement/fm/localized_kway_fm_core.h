@@ -25,6 +25,7 @@
 #include <mt-kahypar/partition/context.h>
 #include <mt-kahypar/partition/metrics.h>
 
+#include "mt-kahypar/datastructures/delta_partitioned_hypergraph.h"
 #include "mt-kahypar/datastructures/sparse_map.h"
 #include "mt-kahypar/partition/refinement/fm/fm_commons.h"
 #include "mt-kahypar/partition/refinement/fm/stop_rule.h"
@@ -294,7 +295,7 @@ private:
 
   // ! Wrapper around the global partitioned hypergraph, that allows
   // ! to perform moves non-visible for other local searches
-  DeltaPartitionedHypergraph deltaPhg;
+  ds::DeltaPartitionedHypergraph<PartitionedHypergraph> deltaPhg;
 
   // ! Priority Queue that contains for each block of the partition
   // ! the vertex with the best gain value
