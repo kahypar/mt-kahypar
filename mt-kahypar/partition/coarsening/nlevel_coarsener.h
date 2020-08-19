@@ -89,15 +89,28 @@ class NLevelCoarsener : public ICoarsener,
     HypernodeID current_num_nodes = initial_num_nodes;
     tbb::enumerable_thread_specific<HypernodeID> contracted_nodes(0);
     tbb::enumerable_thread_specific<HypernodeID> num_nodes_update_threshold(0);
+    parallel::scalable_vector<HypernodeID> current_hns(current_num_nodes, kInvalidHypernode);
     int pass_nr = 0;
     while ( current_num_nodes > _context.coarsening.contraction_limit ) {
       DBG << V(pass_nr) << V(current_num_nodes);
 
-      // TODO(heuer): Random Shuffling
+      utils::Timer::instance().start_timer("parallel_shuffle_vector", "Parallel Shuffle Vector");
+      std::atomic<size_t> idx(0);
+      current_hns.resize(current_num_nodes);
+      _hg.doParallelForAllNodes([&](const HypernodeID hn) {
+        const size_t i = idx++;
+        ASSERT(i < current_hns.size());
+        current_hns[i] = hn;
+      });
+      ASSERT(idx == current_num_nodes);
+      utils::Randomize::instance().parallelShuffleVector(current_hns, 0UL, current_hns.size());
+      utils::Timer::instance().stop_timer("parallel_shuffle_vector");
+
       utils::Timer::instance().start_timer("n_level_coarsening", "n-Level Coarsening");
       const HypernodeID num_hns_before_pass = current_num_nodes;
       _rater.resetMatches();
-      _hg.doParallelForAllNodes([&](const HypernodeID hn) {
+      tbb::parallel_for(0UL, current_hns.size(), [&](const size_t i) {
+        const HypernodeID hn = current_hns[i];
         if ( current_num_nodes > _context.coarsening.contraction_limit && _hg.nodeIsEnabled(hn) ) {
           const Rating rating = _rater.rate(_hg, hn, _max_allowed_node_weight);
           if ( rating.target != kInvalidHypernode && _hg.registerContraction(hn, rating.target) ) {
