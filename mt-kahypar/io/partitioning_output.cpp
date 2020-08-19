@@ -119,6 +119,14 @@ namespace mt_kahypar::io {
           << " | sd =" << std::left << std::setw(hn_weight_width) << hn_weight_stats.sd;
     }
 
+    static inline double avgHyperedgeDegree(const Hypergraph& hypergraph) {
+      return static_cast<double>(hypergraph.initialNumPins()) / hypergraph.initialNumEdges();
+    }
+
+    static inline double avgHypernodeDegree(const Hypergraph& hypergraph) {
+      return static_cast<double>(hypergraph.initialNumPins()) / hypergraph.initialNumNodes();
+    }
+
   }  // namespace internal
 
   void printHypergraphInfo(const Hypergraph& hypergraph,
@@ -140,7 +148,7 @@ namespace mt_kahypar::io {
     });
 
     HypernodeID num_hypernodes = hypergraph.initialNumNodes();
-    const double avg_hn_degree = metrics::avgHypernodeDegree(hypergraph);
+    const double avg_hn_degree = internal::avgHypernodeDegree(hypergraph);
     hypergraph.doParallelForAllNodes([&](const HypernodeID& hn) {
       hn_degrees[hn] = hypergraph.nodeDegree(hn);
       hn_weights[hn] = hypergraph.nodeWeight(hn);
@@ -151,7 +159,7 @@ namespace mt_kahypar::io {
 
     HyperedgeID num_hyperedges = hypergraph.initialNumEdges();
     HypernodeID num_pins = hypergraph.initialNumPins();
-    const double avg_he_size = metrics::avgHyperedgeDegree(hypergraph);
+    const double avg_he_size = internal::avgHyperedgeDegree(hypergraph);
     hypergraph.doParallelForAllEdges([&](const HyperedgeID& he) {
       he_sizes[he] = hypergraph.edgeSize(he);
       he_weights[he] = hypergraph.edgeWeight(he);

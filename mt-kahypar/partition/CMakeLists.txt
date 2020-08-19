@@ -7,6 +7,7 @@ set(PartitionSources
         multilevel.cpp
         context.cpp
         context_enum_classes.cpp
+        metrics.cpp
         )
 
 foreach(modtarget IN LISTS TARGETS_WANTING_ALL_SOURCES)

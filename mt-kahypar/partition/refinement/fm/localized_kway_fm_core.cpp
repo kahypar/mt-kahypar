@@ -61,6 +61,20 @@ namespace mt_kahypar {
   }
 
 
+  template<typename Partition>
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE std::pair<PartitionID, HypernodeWeight> heaviestPartAndWeight(const Partition& partition) {
+    PartitionID p = kInvalidPartition;
+    HypernodeWeight w = std::numeric_limits<HypernodeWeight>::min();
+    for (PartitionID i = 0; i < partition.k(); ++i) {
+      if (partition.partWeight(i) > w) {
+        w = partition.partWeight(i);
+        p = i;
+      }
+    }
+    return std::make_pair(p, w);
+  }
+
+
   void LocalizedKWayFM:: internalFindMovesOnDeltaHypergraph(PartitionedHypergraph& phg,
                                                             FMSharedData& sharedData) {
     StopRule stopRule(phg.initialNumNodes());
@@ -94,7 +108,7 @@ namespace mt_kahypar {
 
       bool moved = false;
       if (move.to != kInvalidPartition) {
-        heaviestPartWeight = metrics::heaviestPartAndWeight(deltaPhg).second;
+        heaviestPartWeight = heaviestPartAndWeight(deltaPhg).second;
         fromWeight = deltaPhg.partWeight(move.from);
         toWeight = deltaPhg.partWeight(move.to);
         moved = deltaPhg.changeNodePart(move.node, move.from, move.to,
@@ -168,7 +182,7 @@ namespace mt_kahypar {
 
       bool moved = false;
       if (move.to != kInvalidPartition) {
-        heaviestPartWeight = metrics::heaviestPartAndWeight(phg).second;
+        heaviestPartWeight = heaviestPartAndWeight(phg).second;
         fromWeight = phg.partWeight(move.from);
         toWeight = phg.partWeight(move.to);
         moved = phg.changeNodePartFullUpdate(move.node, move.from, move.to,
