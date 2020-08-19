@@ -438,7 +438,7 @@ namespace mt_kahypar::ds {
 
   bool Graph::canBeUsed(const bool verbose) const {
     const bool result = _indices.size() >= numNodes() + 1 && _arcs.size() >= numArcs() && _node_volumes.size() >= numNodes();
-    if (!result) {
+    if (verbose && !result) {
       LOG << "Some of the graph's members were stolen. For example the contract function does this. "
              "Make sure you're calling functions with a fresh graph or catch this condition and reinitialize."
              "If you do reinitialize, feel free to silence this warning by passing false to the canBeUsed function";
