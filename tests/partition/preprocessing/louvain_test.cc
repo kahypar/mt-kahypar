@@ -159,10 +159,13 @@ TEST_F(ALouvain, ComputesMaxGainMove10) {
   ASSERT_EQ(4, to);
 }
 
-// TODO want this test sequentially!
-/* TODO succeeds when including memory pool tests. fails otherwise...
 TEST_F(ALouvain, KarateClubTest) {
-  ds::Clustering communities = run_parallel_louvain(*karate_club_graph, context, true);
+
+  tbb::task_arena sequential_arena(1);
+  ds::Clustering communities = sequential_arena.execute([&] {
+    return run_parallel_louvain(*karate_club_graph, context, true);
+  });
+
   std::vector<PartitionID> expected_comm = { 1, 1, 1, 1, 0, 0, 0, 1, 3, 1, 0, 1, 1, 1, 3, 3, 0, 1,
                                              3, 1, 3, 1, 3, 2, 2, 2, 3, 2, 2, 3, 3, 2, 3, 3 };
 
@@ -170,5 +173,5 @@ TEST_F(ALouvain, KarateClubTest) {
     ASSERT_EQ(expected_comm[u], communities[u]);
   }
 }
-*/
+
 }  // namespace mt_kahypar
