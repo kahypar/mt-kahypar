@@ -87,17 +87,6 @@ struct NoOpDeltaFunc {
 };
 
 
-/*!
-  * This struct is used during multilevel coarsening to efficiently
-  * detect parallel hyperedges.
-  */
-struct ContractedHyperedgeInformation {
-  HyperedgeID he = kInvalidHyperedge;
-  size_t hash = kEdgeHashSeed;
-  size_t size = std::numeric_limits<size_t>::max();
-  bool valid = false;
-};
-
 // ! Helper function to compute delta for cut-metric after changeNodePart
 static HyperedgeWeight cutDelta(const HyperedgeID,
                                 const HyperedgeWeight edge_weight,

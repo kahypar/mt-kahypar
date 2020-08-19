@@ -25,6 +25,18 @@ namespace mt_kahypar::ds {
 
   // TODO split contraction into multiple functions!
 
+
+  /*!
+  * This struct is used during multilevel coarsening to efficiently
+  * detect parallel hyperedges.
+  */
+  struct ContractedHyperedgeInformation {
+    HyperedgeID he = kInvalidHyperedge;
+    size_t hash = kEdgeHashSeed;
+    size_t size = std::numeric_limits<size_t>::max();
+    bool valid = false;
+  };
+
   /*!
    * Contracts a given community structure. All vertices with the same label
    * are collapsed into the same vertex. The resulting single-pin and parallel
