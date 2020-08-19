@@ -47,7 +47,7 @@ std::unordered_map<std::string, std::string> target_struct_prefix =
     {"SharedMemoryParameters", ""} };
 
 std::set<std::string> excluded_members =
-  { "verbose_output", "show_detailed_timings", "show_detailed_clustering_timings", "show_memory_consumption", "enable_progress_bar", "sp_process_output",
+  { "verbose_output", "show_detailed_timings", "show_detailed_clustering_timings", "show_memory_consumption", "show_advanced_cut_analysis", "enable_progress_bar", "sp_process_output",
     "write_partition_file", "graph_partition_output_folder", "graph_partition_filename", "graph_community_filename", "community_detection",
     "community_redistribution", "coarsening_rating", "label_propagation", "lp_execute_sequential",
     "enable_profiler", "snapshot_interval", "initial_partitioning_refinement", "initial_partitioning_sparsification",
