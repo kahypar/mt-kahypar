@@ -21,6 +21,16 @@
 
 #include "graph.h"
 
+
+#include <tbb/parallel_for.h>
+#include <tbb/parallel_reduce.h>
+#include <tbb/parallel_invoke.h>
+#include <tbb/enumerable_thread_specific.h>
+
+#include "mt-kahypar/parallel/parallel_prefix_sum.h"
+#include "mt-kahypar/parallel/atomic_wrapper.h"
+#include "mt-kahypar/utils/timer.h"
+
 namespace mt_kahypar::ds {
 
   Graph::Graph(Hypergraph& hypergraph, const LouvainEdgeWeight edge_weight_type) :

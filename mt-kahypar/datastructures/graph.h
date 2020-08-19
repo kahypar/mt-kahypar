@@ -23,23 +23,15 @@
 
 #include <functional>
 #include <cmath>
-
 #include <boost/range/irange.hpp>
 
-#include <tbb/parallel_for.h>
-#include <tbb/parallel_reduce.h>
-#include <tbb/parallel_invoke.h>
-#include <tbb/enumerable_thread_specific.h>
-
 #include "mt-kahypar/definitions.h"
-#include "mt-kahypar/parallel/parallel_prefix_sum.h"
-#include "mt-kahypar/parallel/atomic_wrapper.h"
 #include "mt-kahypar/datastructures/array.h"
 #include "mt-kahypar/datastructures/hypergraph_common.h"
 #include "mt-kahypar/datastructures/clustering.h"
 #include "mt-kahypar/partition/context_enum_classes.h"
 #include "mt-kahypar/utils/range.h"
-#include "mt-kahypar/utils/timer.h"
+
 
 namespace mt_kahypar {
 namespace ds {
