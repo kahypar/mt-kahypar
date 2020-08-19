@@ -4,6 +4,7 @@ add_subdirectory(refinement)
 
 set(PartitionSources
         partitioner.cpp
+        multilevel.cpp
         )
 
 foreach(modtarget IN LISTS TARGETS_WANTING_ALL_SOURCES)

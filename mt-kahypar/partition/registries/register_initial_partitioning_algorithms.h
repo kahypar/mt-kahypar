@@ -25,17 +25,6 @@
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/partition/factories.h"
 
-namespace mt_kahypar {
-namespace multilevel {
-static inline void partition_async(Hypergraph& hypergraph,
-                                   PartitionedHypergraph& partitioned_hypergraph,
-                                   const Context& context,
-                                   const bool top_level,
-                                   const TaskGroupID task_group_id,
-                                   tbb::task* parent);
-}  // namespace multilevel
-}  // namespace mt_kahypar
-
 #include "mt-kahypar/partition/initial_partitioning/recursive_initial_partitioner.h"
 #include "mt-kahypar/partition/initial_partitioning/recursive_bisection_initial_partitioner.h"
 
