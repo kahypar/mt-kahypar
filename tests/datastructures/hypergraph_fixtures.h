@@ -42,10 +42,6 @@ class HypergraphFixture : public Test {
       7 , 4, { {0, 2}, {0, 1, 3, 4}, {3, 4, 6}, {2, 5, 6} })) {
   }
 
-  static void SetUpTestSuite() {
-    TBBNumaArena::instance(HardwareTopology::instance().num_cpus());
-  }
-
   template <typename K = decltype(identity)>
   void verifyIncidentNets(const Hypergraph& hg,
                           const HypernodeID hn,

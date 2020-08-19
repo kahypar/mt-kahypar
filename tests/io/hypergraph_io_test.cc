@@ -48,10 +48,6 @@ class AHypergraphReader : public Test {
   AHypergraphReader() :
     hypergraph() { }
 
-  static void SetUpTestSuite() {
-    TBBNumaArena::instance(HardwareTopology::instance().num_cpus());
-  }
-
   void readHypergraph(const std::string& filename) {
     hypergraph = readHypergraphFile(
       filename, TBBNumaArena::GLOBAL_TASK_GROUP);

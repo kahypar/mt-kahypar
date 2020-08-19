@@ -103,10 +103,6 @@ class AFlatInitialPartitionerTest : public Test {
     utils::Timer::instance().disable();
   }
 
-  static void SetUpTestSuite() {
-    TBBNumaArena::instance(HardwareTopology::instance().num_cpus());
-  }
-
   void execute() {
     InitialPartitionerRootTask& root_ip_task = *new(tbb::task::allocate_root())
       InitialPartitionerRootTask(partitioned_hypergraph, context, Config::ALGORITHM, Config::RUNS);

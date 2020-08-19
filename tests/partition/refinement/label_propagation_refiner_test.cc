@@ -96,10 +96,6 @@ class ALabelPropagationRefiner : public Test {
     refiner->initialize(partitioned_hypergraph);
   }
 
-  static void SetUpTestSuite() {
-    TBBNumaArena::instance(num_threads);
-  }
-
   void initialPartition() {
     Context ip_context(context);
     ip_context.refinement.label_propagation.algorithm = LabelPropagationAlgorithm::do_nothing;

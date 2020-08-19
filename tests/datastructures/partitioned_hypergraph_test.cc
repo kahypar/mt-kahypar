@@ -65,10 +65,6 @@ class APartitionedHypergraph : public Test {
     partitioned_hypergraph.setNodePart(6, 2);
   }
 
-  static void SetUpTestSuite() {
-    TBBNumaArena::instance(HardwareTopology::instance().num_cpus());
-  }
-
   void verifyPartitionPinCounts(const HyperedgeID he,
                                 const std::vector<HypernodeID>& expected_pin_counts) {
     ASSERT(expected_pin_counts.size() == static_cast<size_t>(partitioned_hypergraph.k()));

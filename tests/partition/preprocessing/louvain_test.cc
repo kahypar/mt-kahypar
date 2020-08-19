@@ -54,14 +54,6 @@ class ALouvain : public ds::HypergraphFixture {
     karate_club_graph = std::make_unique<Graph>(karate_club_hg, LouvainEdgeWeight::uniform);
   }
 
-  static void SetUpTestSuite() {
-    TBBNumaArena::instance(1);
-  }
-
-  static void TearDownTestSuite() {
-    TBBNumaArena::instance().terminate();
-  }
-
   using Base::hypergraph;
   std::unique_ptr<Graph> graph;
   Context context;
@@ -167,7 +159,7 @@ TEST_F(ALouvain, ComputesMaxGainMove10) {
   ASSERT_EQ(4, to);
 }
 
-
+// TODO want this test sequentially!
 /* TODO succeeds when including memory pool tests. fails otherwise...
 TEST_F(ALouvain, KarateClubTest) {
   ds::Clustering communities = run_parallel_louvain(*karate_club_graph, context, true);

@@ -98,10 +98,6 @@ class AInitialPartitionerTest : public Test {
     }
   }
 
-  static void SetUpTestSuite() {
-    TBBNumaArena::instance(num_threads);
-  }
-
   Hypergraph hypergraph;
   PartitionedHypergraph partitioned_hypergraph;
   Context context;

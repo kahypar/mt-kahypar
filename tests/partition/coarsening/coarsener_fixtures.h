@@ -59,10 +59,6 @@ class ACoarsener : public Test {
     context.setupPartWeights(hypergraph.totalWeight());
   }
 
-  static void SetUpTestSuite() {
-    TBBNumaArena::instance(HardwareTopology::instance().num_cpus());
-  }
-
   Hypergraph hypergraph;
   Context context;
   std::unique_ptr<IRefiner> nullptr_refiner;
