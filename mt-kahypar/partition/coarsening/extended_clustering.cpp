@@ -34,7 +34,7 @@ PartitionedHypergraph&& ExtendedClustering::uncoarsenImpl(std::unique_ptr<IRefin
 
 
 void ExtendedClustering::coarsenImpl() {
-  std::cout << "LOL"; std::exit(0);
+  std::cout << "Not implemented yet. Use multilevel_coarsener instead"; std::exit(0);
 }
 
 
