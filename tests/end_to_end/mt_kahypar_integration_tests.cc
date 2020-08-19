@@ -213,8 +213,7 @@ void partitionHypergraph(Hypergraph& hypergraph, Context& context) {
 
   // Partition Hypergraph
   HighResClockTimepoint start = std::chrono::high_resolution_clock::now();
-  PartitionedHypergraph partitioned_hypergraph =
-    partition::Partitioner(context).partition(hypergraph);
+  PartitionedHypergraph partitioned_hypergraph = partition(hypergraph, context);
   HighResClockTimepoint end = std::chrono::high_resolution_clock::now();
 
   std::chrono::duration<double> elapsed_seconds(end - start);

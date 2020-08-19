@@ -188,7 +188,7 @@ void mt_kahypar_partition(const mt_kahypar_hypernode_id_t num_vertices,
 
   // Partition Hypergraph
   mt_kahypar::PartitionedHypergraph partitioned_hypergraph =
-    mt_kahypar::partition::Partitioner(context).partition(hypergraph);
+    mt_kahypar::partition(hypergraph, context);
 
   // Store partition
   *objective = mt_kahypar::metrics::objective(partitioned_hypergraph, context.partition.objective);

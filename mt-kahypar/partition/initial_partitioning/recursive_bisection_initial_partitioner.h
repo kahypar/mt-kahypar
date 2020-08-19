@@ -31,6 +31,7 @@
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/macros.h"
 #include "mt-kahypar/partition/context.h"
+#include "mt-kahypar/partition/multilevel.h"
 #include "mt-kahypar/partition/initial_partitioning/i_initial_partitioner.h"
 #include "mt-kahypar/parallel/memory_pool.h"
 #include "mt-kahypar/utils/randomize.h"
