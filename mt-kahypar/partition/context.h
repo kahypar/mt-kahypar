@@ -307,7 +307,7 @@ class Context {
   SharedMemoryParameters shared_memory { };
   kahypar::ContextType type = kahypar::ContextType::main;
 
-  std::string algorithm_name = "MT-KaHyPar";
+  std::string algorithm_name = "Mt-KaHyPar";
 
   Context() { }
 
