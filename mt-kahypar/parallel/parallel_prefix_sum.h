@@ -34,6 +34,51 @@
 
 namespace mt_kahypar {
 
+  template<typename InIt, typename OutIt, typename BinOp>
+  struct ParallelPrefixSumBody {
+    using T = typename ::std::iterator_traits<InIt>::value_type;
+
+    InIt first;
+    OutIt out;
+    T sum, neutral_element;
+    BinOp& f;
+
+    ParallelPrefixSumBody(InIt first, OutIt out, T neutral_element, BinOp& f):
+      first(first),
+      out(out),
+      sum(neutral_element),
+      neutral_element(neutral_element),
+      f(f) { }
+
+    ParallelPrefixSumBody(ParallelPrefixSumBody& other, tbb::split) :
+      first(other.first),
+      out(other.out),
+      sum(other.neutral_element),
+      f(other.f) { }
+
+    void operator()(const tbb::blocked_range<size_t>& r, tbb::pre_scan_tag ) {
+      for (size_t i = r.begin(); i < r.end(); ++i) {
+        sum = f(sum, *(first + i));
+      }
+    }
+
+    void operator()(const tbb::blocked_range<size_t>& r, tbb::final_scan_tag ) {
+      for (size_t i = r.begin(); i < r.end(); ++i) {
+        sum = f(sum, *(first + i));
+        *(out + i) = sum;
+      }
+    }
+
+    void reverse_join(ParallelPrefixSumBody& other) {
+      sum = f(sum, other.sum);
+    }
+
+    void assign(ParallelPrefixSumBody& other) {
+      sum = other.sum;
+    }
+
+  };
+
   template <class InIt, class OutIt, class BinOp>
   void sequential_prefix_sum(InIt first, InIt last, OutIt d, typename std::iterator_traits<InIt>::value_type init, BinOp f) {
     while (first != last) {
@@ -46,34 +91,15 @@ namespace mt_kahypar {
 
   template <class InIt, class OutIt, class BinOp>
   static void parallel_prefix_sum(InIt first, InIt last, OutIt d, BinOp f,
-                                  typename std::iterator_traits<InIt>::value_type neutralElement) {
-    using T = typename ::std::iterator_traits<InIt>::value_type;
+                                  typename std::iterator_traits<InIt>::value_type neutral_element) {
     auto n = std::distance(first, last);
 
     if (n < (1 << 16)) {
-      return sequential_prefix_sum(first, last, d, neutralElement, f);
+      return sequential_prefix_sum(first, last, d, neutral_element, f);
     }
 
-    tbb::parallel_scan(
-            // indices
-            tbb::blocked_range<size_t>(0, static_cast<size_t>(n)),
-            // initial value
-            neutralElement,
-            // partial_sum
-            [&](const tbb::blocked_range<size_t>& r, T sum, bool is_final_scan) -> T {
-              T temp = sum;
-              for (size_t i = r.begin(), e = r.end(); i < e; ++i) {
-                temp = f(temp, *(first + i));
-                if (is_final_scan) // this is not compile time constant. might not be a huge issue since it's easy for the branch prediction
-                  *(d + i) = temp;
-              }
-              return temp;
-            },
-            // join
-            [&](T left, T right) {
-              return f(left, right);
-            }
-    );
+    ParallelPrefixSumBody<InIt, OutIt, BinOp> body(first, d, neutral_element, f);
+    tbb::parallel_scan(tbb::blocked_range<size_t>(0, static_cast<size_t>(n)), body);
   }
 
 }
