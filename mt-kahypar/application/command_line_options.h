@@ -78,6 +78,8 @@ po::options_description createGeneralOptionsDescription(Context& context, const 
     "If true, shows detailed timings of each clustering iteration.")
     ("show-memory-consumption", po::value<bool>(&context.partition.show_memory_consumption)->value_name("<bool>")->default_value(false),
     "If true, shows detailed information on how much memory was allocated and how memory was reused throughout partitioning.")
+    ("show-advanced-cut-analysis", po::value<bool>(&context.partition.show_advanced_cut_analysis)->value_name("<bool>")->default_value(false),
+    "If true, calculates cut matrix, potential positive gain move matrix and connected cut hyperedge components after partitioning.")
     ("enable-progress-bar", po::value<bool>(&context.partition.enable_progress_bar)->value_name("<bool>")->default_value(false),
     "If true, shows a progress bar during coarsening and refinement phase.")
     ("enable-profiler", po::value<bool>(&context.partition.enable_profiler)->value_name("<bool>")->default_value(false),

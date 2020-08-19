@@ -30,6 +30,7 @@
 #include "mt-kahypar/parallel/tbb_numa_arena.h"
 #include "mt-kahypar/parallel/memory_pool.h"
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
+#include "mt-kahypar/parallel/atomic_wrapper.h"
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/partition/metrics.h"
 #include "mt-kahypar/utils/memory_tree.h"
@@ -440,6 +441,159 @@ inline void printObjectives(const PartitionedHypergraph& hypergraph,
   LOG << " Partitioning Time         =" << elapsed_seconds.count() << "s";
 }
 
+static inline void printCutMatrix(const PartitionedHypergraph& hypergraph) {
+  const PartitionID k = hypergraph.k();
+  std::vector<std::vector<parallel::IntegralAtomicWrapper<HyperedgeWeight>>> cut_matrix(k,
+    std::vector<parallel::IntegralAtomicWrapper<HyperedgeWeight>>(k,
+      parallel::IntegralAtomicWrapper<HyperedgeWeight>(0)));
+  hypergraph.doParallelForAllEdges([&](const HyperedgeID& he) {
+    if ( hypergraph.connectivity(he) > 1 ) {
+      const HyperedgeWeight edge_weight = hypergraph.edgeWeight(he);
+      for ( const PartitionID& block_1 : hypergraph.connectivitySet(he) ) {
+        for ( const PartitionID& block_2 : hypergraph.connectivitySet(he) ) {
+          if ( block_1 < block_2 ) {
+            cut_matrix[block_1][block_2] += edge_weight;
+          }
+        }
+      }
+    }
+  });
+
+  HyperedgeWeight max_cut = 0;
+  for ( PartitionID block_1 = 0; block_1 < k; ++block_1 ) {
+    for ( PartitionID block_2 = block_1 + 1; block_2 < k; ++block_2 ) {
+      max_cut = std::max(max_cut, cut_matrix[block_1][block_2].load());
+    }
+  }
+
+  // HEADER
+  const uint8_t column_width = std::max(kahypar::math::digits(max_cut) + 2, 5);
+  std::cout << std::right << std::setw(column_width) << "Block";
+  for ( PartitionID block = 0; block < k; ++block ) {
+    std::cout << std::right << std::setw(column_width) << block;
+  }
+  std::cout << std::endl;
+
+  // CUT MATRIX
+  for ( PartitionID block_1 = 0; block_1 < k; ++block_1 ) {
+    std::cout << std::right << std::setw(column_width) << block_1;
+    for ( PartitionID block_2 = 0; block_2 < k; ++block_2 ) {
+      std::cout << std::right << std::setw(column_width) << cut_matrix[block_1][block_2].load();
+    }
+    std::cout << std::endl;
+  }
+}
+
+static inline void printPotentialPositiveGainMoveMatrix(const PartitionedHypergraph& hypergraph) {
+  const PartitionID k = hypergraph.k();
+  std::vector<std::vector<parallel::IntegralAtomicWrapper<HyperedgeWeight>>> positive_gains(k,
+    std::vector<parallel::IntegralAtomicWrapper<HyperedgeWeight>>(k,
+      parallel::IntegralAtomicWrapper<HyperedgeWeight>(0)));
+  tbb::enumerable_thread_specific<std::vector<Gain>> local_gain(k, 0);
+  hypergraph.doParallelForAllNodes([&](const HypernodeID hn) {
+    // Calculate gain to all blocks of the partition
+    std::vector<Gain>& tmp_scores = local_gain.local();
+    const PartitionID from = hypergraph.partID(hn);
+    Gain internal_weight = 0;
+    for (const HyperedgeID& he : hypergraph.incidentEdges(hn)) {
+      HypernodeID pin_count_in_from_part = hypergraph.pinCountInPart(he, from);
+      HyperedgeWeight he_weight = hypergraph.edgeWeight(he);
+
+      if ( pin_count_in_from_part > 1 ) {
+        internal_weight += he_weight;
+      }
+
+      for (const PartitionID& to : hypergraph.connectivitySet(he)) {
+        if (from != to) {
+          tmp_scores[to] -= he_weight;
+        }
+      }
+    }
+
+    for (PartitionID to = 0; to < k; ++to) {
+      if (from != to) {
+        Gain score = tmp_scores[to] + internal_weight;
+        if ( score < 0 ) {
+          positive_gains[from][to] += std::abs(score);
+        }
+      }
+      tmp_scores[to] = 0;
+    }
+  });
+
+
+  HyperedgeWeight max_gain = 0;
+  for ( PartitionID block_1 = 0; block_1 < k; ++block_1 ) {
+    for ( PartitionID block_2 = block_1 + 1; block_2 < k; ++block_2 ) {
+      max_gain = std::max(max_gain, positive_gains[block_1][block_2].load());
+    }
+  }
+
+  // HEADER
+  const uint8_t column_width = std::max(kahypar::math::digits(max_gain) + 2, 5);
+  std::cout << std::right << std::setw(column_width) << "Block";
+  for ( PartitionID block = 0; block < k; ++block ) {
+    std::cout << std::right << std::setw(column_width) << block;
+  }
+  std::cout << std::endl;
+
+  // CUT MATRIX
+  for ( PartitionID block_1 = 0; block_1 < k; ++block_1 ) {
+    std::cout << std::right << std::setw(column_width) << block_1;
+    for ( PartitionID block_2 = 0; block_2 < k; ++block_2 ) {
+      std::cout << std::right << std::setw(column_width) << positive_gains[block_1][block_2].load();
+    }
+    std::cout << std::endl;
+  }
+}
+
+inline void printConnectedCutHyperedgeAnalysis(const PartitionedHypergraph& hypergraph) {
+  std::vector<bool> visited_he(hypergraph.initialNumEdges(), false);
+  std::vector<HyperedgeWeight> connected_cut_hyperedges;
+
+  auto analyse_component = [&](const HyperedgeID he) {
+    HyperedgeWeight component_weight = 0;
+    std::vector<HyperedgeID> s;
+    s.push_back(he);
+    visited_he[he] = true;
+
+    while ( !s.empty() ) {
+      const HyperedgeID e = s.back();
+      s.pop_back();
+      component_weight += hypergraph.edgeWeight(e);
+
+      for ( const HypernodeID& pin : hypergraph.pins(e) ) {
+        for ( const HyperedgeID& tmp_e : hypergraph.incidentEdges(pin) ) {
+          if ( !visited_he[tmp_e] && hypergraph.connectivity(tmp_e) > 1 ) {
+            s.push_back(tmp_e);
+            visited_he[tmp_e] = true;
+          }
+        }
+      }
+    }
+
+    return component_weight;
+  };
+
+  for ( const HyperedgeID& he : hypergraph.edges() ) {
+    if ( hypergraph.connectivity(he) > 1 && !visited_he[he] ) {
+      connected_cut_hyperedges.push_back(analyse_component(he));
+    }
+  }
+  std::sort(connected_cut_hyperedges.begin(), connected_cut_hyperedges.end());
+
+  LOG << "Num Connected Cut Hyperedges =" << connected_cut_hyperedges.size();
+  LOG << "Min Component Weight         =" << connected_cut_hyperedges[0];
+  LOG << "Median Component Weight      =" << connected_cut_hyperedges[connected_cut_hyperedges.size() / 2];
+  LOG << "Max Component Weight         =" << connected_cut_hyperedges.back();
+  LOG << "Component Weight Vector:";
+  std::cout << "(";
+  for ( const HyperedgeWeight& weight : connected_cut_hyperedges ) {
+    std::cout << weight << ",";
+  }
+  std::cout << "\b)" << std::endl;
+}
+
 inline void printPartitioningResults(const PartitionedHypergraph& hypergraph,
                                      const Context& context,
                                      const std::chrono::duration<double>& elapsed_seconds) {
@@ -449,6 +603,17 @@ inline void printPartitioningResults(const PartitionedHypergraph& hypergraph,
     LOG << "*                             Partitioning Result                              *";
     LOG << "********************************************************************************";
     printObjectives(hypergraph, context, elapsed_seconds);
+
+    if ( context.partition.show_advanced_cut_analysis ) {
+      LOG << "\nCut Matrix: ";
+      printCutMatrix(hypergraph);
+
+      LOG << "\nPotential Positive Gain Move Matrix: ";
+      printPotentialPositiveGainMoveMatrix(hypergraph);
+
+      LOG << "\nConnected Cut Hyperedge Analysis: ";
+      printConnectedCutHyperedgeAnalysis(hypergraph);
+    }
 
     LOG << "\nPartition sizes and weights: ";
     printPartWeightsAndSizes(hypergraph, context);
