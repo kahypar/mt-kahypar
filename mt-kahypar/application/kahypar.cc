@@ -36,7 +36,9 @@
 int main(int argc, char* argv[]) {
   mt_kahypar::Context context;
   mt_kahypar::processCommandLineInput(context, argc, argv);
-  mt_kahypar::io::printBanner(context);
+  if (context.partition.verbose_output) {
+    mt_kahypar::io::printBanner();
+  }
 
   mt_kahypar::utils::Randomize::instance().setSeed(context.partition.seed);
   if ( context.shared_memory.use_localized_random_shuffle ) {

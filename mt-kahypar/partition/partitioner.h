@@ -139,14 +139,7 @@ inline void Partitioner::preprocess(Hypergraph& hypergraph) {
     graph.restrictClusteringToHypernodes(hypergraph, communities);
     hypergraph.setCommunityIDs(std::move(communities));
     utils::Timer::instance().stop_timer("perform_community_detection");
-
-    //utils::Stats::instance().add_stat("num_communities", hypergraph.numCommunities());  TODO put back in later
     utils::Timer::instance().stop_timer("community_detection");
-
-    if (_context.partition.verbose_output) {
-      io::printCommunityInformation(hypergraph);
-      io::printStripe();
-    }
   }
   parallel::MemoryPool::instance().release_mem_group("Preprocessing");
 }
@@ -211,7 +204,7 @@ inline PartitionedHypergraph Partitioner::partition(Hypergraph& hypergraph) {
   utils::Timer::instance().stop_timer("postprocessing");
 
   if (_context.partition.verbose_output) {
-    io::printHypergraphInfo(partitioned_hypergraph, "Uncoarsened Hypergraph",
+    io::printHypergraphInfo(partitioned_hypergraph.hypergraph(), "Uncoarsened Hypergraph",
       _context.partition.show_memory_consumption);
     io::printStripe();
   }
