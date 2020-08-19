@@ -1,5 +1,6 @@
 #pragma once
-#include <vector>
+
+#include <cstdint>
 
 namespace chunking {
   template <typename T1, typename T2>
