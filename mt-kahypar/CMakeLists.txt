@@ -1,4 +1,5 @@
 add_subdirectory(datastructures)
+add_subdirectory(io)
 add_subdirectory(partition/preprocessing/)
 add_subdirectory(partition/coarsening)
 add_subdirectory(partition/refinement)

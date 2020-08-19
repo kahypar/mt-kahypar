@@ -21,60 +21,15 @@
 #pragma once
 
 
-#include <array>
-#include <chrono>
-#include <sstream>
-#include <string>
 
+#include <chrono>
+
+#include <string>
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/context.h"
-#include "mt-kahypar/partition/metrics.h"
-#include "mt-kahypar/utils/initial_partitioning_stats.h"
-#include "mt-kahypar/utils/stats.h"
-#include "mt-kahypar/utils/timer.h"
 
 namespace mt_kahypar :: io :: csv {
-
-  static inline std::string header() {
-    return "algorithm,threads,graph,k,seed,epsilon,imbalance,"
-           "objective,km1,cut,partitionTime,fmTime,lpTime,coarseningTime,ipTime,preprocessingTime\n";
-  }
-
-  static inline std::string serialize(const PartitionedHypergraph& phg, const Context& context,
-                                      const std::chrono::duration<double>& elapsed_seconds) {
-    const char sep = ',';
-    std::stringstream s;
-
-    s << context.algorithm_name;
-    if (context.algorithm_name == "MT-KaHyPar") {
-      if (context.partition.preset_file.find("fast") != std::string::npos) {
-        s << "-Fast";
-      } else if (context.partition.preset_file.find("quality") != std::string::npos) {
-        s << "-Eco";
-      }
-    }
-    s << sep;
-
-    s << context.shared_memory.num_threads << sep;
-    s << context.partition.graph_filename.substr(context.partition.graph_filename.find_last_of('/') + 1) << sep;
-    s << context.partition.k << sep;
-    s << context.partition.seed << sep;
-
-    s << context.partition.epsilon << sep;
-    s << metrics::imbalance(phg, context) << sep;
-
-    s << context.partition.objective << sep;
-    s << metrics::km1(phg) << sep;
-    s << metrics::hyperedgeCut(phg) << sep;
-    s << elapsed_seconds.count() << sep;
-
-    utils::Timer& timer = utils::Timer::instance(context.partition.show_detailed_timings);
-    s << (timer.get("fm") + timer.get("initialize_fm_refiner"))<< sep;
-    s << (timer.get("label_propagation") + timer.get("initialize_lp_refiner")) << sep;
-    s << timer.get("coarsening") << sep;
-    s << timer.get("initial_partitioning") << sep;
-    s << timer.get("preprocessing");
-
-    return s.str();
-  }
+  std::string header();
+  std::string serialize(const PartitionedHypergraph& phg, const Context& context,
+                        const std::chrono::duration<double>& elapsed_seconds);
 }
