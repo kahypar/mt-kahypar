@@ -60,22 +60,7 @@ public:
 namespace mt_kahypar {
 namespace parallel {
 
-// For non-integral types, e.g. floating point
-template <typename T>
-void fetch_add(std::atomic<T>& x, T y) {
-  T cur_x = x.load();
-  while (!x.compare_exchange_weak(cur_x, cur_x + y, std::memory_order_relaxed)) {
-    cur_x = x.load();
-  }
-}
-
-template <typename T>
-void fetch_sub(std::atomic<T>& x, T y) {
-  T cur_x = x.load();
-  while (!x.compare_exchange_weak(cur_x, cur_x - y, std::memory_order_relaxed)) {
-    cur_x = x.load();
-  }
-}
+// For non-integral types, e.g. floating point. used in community detecion
 
 template <class T>
 class AtomicWrapper : public std::atomic<T> {
@@ -96,11 +81,17 @@ class AtomicWrapper : public std::atomic<T> {
   }
 
   void operator+= (T other) {
-    fetch_add(*this, other);
+    T cur = this->load(std::memory_order_relaxed);
+    while (!this->compare_exchange_weak(cur, cur + other, std::memory_order_relaxed)) {
+      cur = this->load(std::memory_order_relaxed);
+    }
   }
 
   void operator-= (T other) {
-    fetch_sub(*this, other);
+    T cur = this->load(std::memory_order_relaxed);
+    while (!this->compare_exchange_weak(cur, cur - other, std::memory_order_relaxed)) {
+      cur = this->load(std::memory_order_relaxed);
+    }
   }
 };
 
