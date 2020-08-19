@@ -20,11 +20,10 @@
  ******************************************************************************/
 #pragma once
 
-#include "kahypar/definitions.h"
-#include "kahypar/partition/context_enum_classes.h"
-
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/context_enum_classes.h"
+
+#include "kahypar/partition/context_enum_classes.h"   // TODO eliminate
 
 namespace mt_kahypar {
 struct PartitioningParameters {
