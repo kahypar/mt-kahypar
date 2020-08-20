@@ -162,7 +162,7 @@ TEST_F(ALouvain, ComputesMaxGainMove10) {
 TEST_F(ALouvain, KarateClubTest) {
     tbb::task_arena sequential_arena(1);
 #ifdef KAHYPAR_TRAVIS_BUILD
-    ds::Clustering communities;
+    ds::Clustering communities(0);
     sequential_arena.execute([&] {
       communities = run_parallel_louvain(*karate_club_graph, context, true);
     })
