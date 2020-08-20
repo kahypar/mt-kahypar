@@ -20,7 +20,6 @@
 
 
 #include "extended_clustering.h"
-#include <iostream>
 
 namespace mt_kahypar {
 
@@ -34,7 +33,7 @@ PartitionedHypergraph&& ExtendedClustering::uncoarsenImpl(std::unique_ptr<IRefin
 
 
 void ExtendedClustering::coarsenImpl() {
-  std::cout << "Not implemented yet. Use multilevel_coarsener instead"; std::exit(0);
+  ERROR("Not implemented yet. Use multilevel_coarsener instead");
 }
 
 
