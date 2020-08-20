@@ -23,15 +23,10 @@
 #include "tbb/task_group.h"
 
 #include "mt-kahypar/definitions.h"
-#include "mt-kahypar/io/partitioning_output.h"
 #include "mt-kahypar/partition/context.h"
-#include "mt-kahypar/partition/metrics.h"
 #include "mt-kahypar/partition/refinement/i_refiner.h"
-#include "mt-kahypar/partition/refinement/rebalancing/rebalancer.h"
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
-#include "mt-kahypar/parallel/memory_pool.h"
-#include "mt-kahypar/utils/progress_bar.h"
-#include "mt-kahypar/utils/stats.h"
+
 
 namespace mt_kahypar {
 
@@ -177,28 +172,8 @@ class MultilevelCoarsenerBase {
 
  protected:
 
-  kahypar::Metrics computeMetrics(PartitionedHypergraph& phg) {
-    HyperedgeWeight cut = 0;
-    HyperedgeWeight km1 = 0;
-    tbb::parallel_invoke([&] {
-      cut = metrics::hyperedgeCut(phg);
-    }, [&] {
-      km1 = metrics::km1(phg);
-    });
-    return { cut, km1,  metrics::imbalance(phg, _context) };
-  }
 
-  kahypar::Metrics initialize(PartitionedHypergraph& current_hg) {
-    kahypar::Metrics current_metrics = computeMetrics(current_hg);
-    int64_t num_nodes = current_hg.initialNumNodes();
-    int64_t num_edges = current_hg.initialNumEdges();
-    utils::Stats::instance().add_stat("initial_num_nodes", num_nodes);
-    utils::Stats::instance().add_stat("initial_num_edges", num_edges);
-    utils::Stats::instance().add_stat("initial_cut", current_metrics.cut);
-    utils::Stats::instance().add_stat("initial_km1", current_metrics.km1);
-    utils::Stats::instance().add_stat("initial_imbalance", current_metrics.imbalance);
-    return current_metrics;
-  }
+  kahypar::Metrics initialize(PartitionedHypergraph& current_hg);
 
   void refine(PartitionedHypergraph& partitioned_hypergraph,
               std::unique_ptr<IRefiner>& label_propagation,
@@ -206,14 +181,7 @@ class MultilevelCoarsenerBase {
               kahypar::Metrics& current_metrics,
               const double time_limit);
 
-  double refinementTimeLimit(const Level& level) const {
-    if ( _context.refinement.fm.time_limit_factor != std::numeric_limits<double>::max() ) {
-      const double time_limit_factor = std::max(1.0,  _context.refinement.fm.time_limit_factor * _context.partition.k);
-      return std::max(5.0, time_limit_factor * level.coarseningTime());
-    } else {
-      return std::numeric_limits<double>::max();
-    }
-  }
+  double refinementTimeLimit(const Level& level) const;
 
   bool _is_finalized;
   Hypergraph& _hg;

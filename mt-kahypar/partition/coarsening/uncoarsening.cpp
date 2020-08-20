@@ -1,5 +1,13 @@
 #include "multilevel_coarsener_base.h"
 
+#include "mt-kahypar/parallel/memory_pool.h"
+#include "mt-kahypar/utils/progress_bar.h"
+#include "mt-kahypar/utils/stats.h"
+
+#include "mt-kahypar/partition/refinement/rebalancing/rebalancer.h"
+#include "mt-kahypar/partition/metrics.h"
+#include "mt-kahypar/io/partitioning_output.h"
+
 namespace mt_kahypar {
 
   void MultilevelCoarsenerBase::finalize() {
@@ -139,10 +147,8 @@ namespace mt_kahypar {
 
     ASSERT(metrics::objective(_partitioned_hg, _context.partition.objective) ==
            current_metrics.getMetric(kahypar::Mode::direct_kway, _context.partition.objective),
-           V(current_metrics.getMetric(kahypar::Mode::direct_kway, _context.partition.objective)) <<
-                                                                                                  V(metrics::objective(
-                                                                                                          _partitioned_hg,
-                                                                                                          _context.partition.objective)));
+           V(current_metrics.getMetric(kahypar::Mode::direct_kway, _context.partition.objective))
+           << V(metrics::objective(_partitioned_hg, _context.partition.objective)));
     return std::move(_partitioned_hg);
   }
 
@@ -199,5 +205,35 @@ namespace mt_kahypar {
       DBG << "--------------------------------------------------\n";
     }
   }
+
+
+  kahypar::Metrics MultilevelCoarsenerBase::initialize(PartitionedHypergraph& phg) {
+    kahypar::Metrics m = { 0, 0, 0.0 };
+    tbb::parallel_invoke([&] {
+      m.cut = metrics::hyperedgeCut(phg);
+    }, [&] {
+      m.km1 = metrics::km1(phg);
+    });
+    m.imbalance = metrics::imbalance(phg, _context);
+
+    int64_t num_nodes = phg.initialNumNodes();
+    int64_t num_edges = phg.initialNumEdges();
+    utils::Stats::instance().add_stat("initial_num_nodes", num_nodes);
+    utils::Stats::instance().add_stat("initial_num_edges", num_edges);
+    utils::Stats::instance().add_stat("initial_cut", m.cut);
+    utils::Stats::instance().add_stat("initial_km1", m.km1);
+    utils::Stats::instance().add_stat("initial_imbalance", m.imbalance);
+    return m;
+  }
+
+  double MultilevelCoarsenerBase::refinementTimeLimit(const Level& level) const {
+    if ( _context.refinement.fm.time_limit_factor != std::numeric_limits<double>::max() ) {
+      const double time_limit_factor = std::max(1.0,  _context.refinement.fm.time_limit_factor * _context.partition.k);
+      return std::max(5.0, time_limit_factor * level.coarseningTime());
+    } else {
+      return std::numeric_limits<double>::max();
+    }
+  }
+
 
 }

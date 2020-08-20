@@ -28,6 +28,7 @@
 #include "mt-kahypar/partition/initial_partitioning/flat/pool_initial_partitioner.h"
 #include "mt-kahypar/parallel/memory_pool.h"
 #include "mt-kahypar/utils/initial_partitioning_stats.h"
+#include "mt-kahypar/io/partitioning_output.h"
 
 namespace mt_kahypar::multilevel {
 
