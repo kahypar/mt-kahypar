@@ -206,10 +206,10 @@ class MultilevelCoarsenerBase {
               kahypar::Metrics& current_metrics,
               const double time_limit);
 
-  double refinementTimeLimit(const Level& hierarchy) const {
+  double refinementTimeLimit(const Level& level) const {
     if ( _context.refinement.fm.time_limit_factor != std::numeric_limits<double>::max() ) {
       const double time_limit_factor = std::max(1.0,  _context.refinement.fm.time_limit_factor * _context.partition.k);
-      return std::max(5.0, time_limit_factor * hierarchy.coarseningTime());
+      return std::max(5.0, time_limit_factor * level.coarseningTime());
     } else {
       return std::numeric_limits<double>::max();
     }
