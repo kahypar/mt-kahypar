@@ -24,7 +24,6 @@
 #include <limits>
 #include <vector>
 
-#include "tbb/parallel_invoke.h"
 #include "tbb/task_arena.h"
 #include "tbb/task_group.h"
 
@@ -70,8 +69,6 @@ class RecursiveBisectionInitialPartitioner : public IInitialPartitioner {
   static constexpr bool debug = false;
   static constexpr bool enable_heavy_assert = false;
 
-  static PartitionID kInvalidPartition;
-  static HypernodeID kInvalidHypernode;
 
   struct OriginalHypergraphInfo {
 
@@ -504,7 +501,5 @@ class RecursiveBisectionInitialPartitioner : public IInitialPartitioner {
   const TaskGroupID _task_group_id;
 };
 
-PartitionID RecursiveBisectionInitialPartitioner::kInvalidPartition = -1;
-HypernodeID RecursiveBisectionInitialPartitioner::kInvalidHypernode = std::numeric_limits<HypernodeID>::max();
 
 }  // namespace mt_kahypar
