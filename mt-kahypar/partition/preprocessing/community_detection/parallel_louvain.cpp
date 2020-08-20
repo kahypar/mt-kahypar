@@ -20,6 +20,8 @@
 
 #include "parallel_louvain.h"
 
+#include "mt-kahypar/utils/timer.h"
+
 namespace mt_kahypar::community_detection {
 
   ds::Clustering local_moving_contract_recurse(Graph& fine_graph, ParallelLocalMovingModularity& mlv) {

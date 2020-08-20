@@ -21,6 +21,13 @@
 
 #include "static_hypergraph.h"
 
+#include "mt-kahypar/parallel/parallel_prefix_sum.h"
+#include "mt-kahypar/datastructures/concurrent_bucket_map.h"
+#include "mt-kahypar/utils/timer.h"
+
+#include <tbb/parallel_reduce.h>
+
+
 namespace mt_kahypar::ds {
 
   // TODO split contraction into multiple functions!
@@ -139,6 +146,7 @@ namespace mt_kahypar::ds {
     // graph are also aggregate in a consecutive memory range and duplicates are removed. Note
     // that parallel and single-pin hyperedges are not removed from the incident nets (will be done
     // in a postprocessing step).
+    auto cs2 = [](const HypernodeID x) { return x * x; };
     utils::Timer::instance().start_timer("contract_incidence_structure", "Contract Incidence Structures");
     ConcurrentBucketMap<ContractedHyperedgeInformation> hyperedge_hash_map;
     hyperedge_hash_map.reserve_for_estimated_number_of_insertions(_num_hyperedges);
@@ -181,7 +189,7 @@ namespace mt_kahypar::ds {
             // Compute hash of contracted hyperedge
             size_t footprint = kEdgeHashSeed;
             for ( size_t pos = incidence_array_start; pos < incidence_array_start + contracted_size; ++pos ) {
-              footprint += kahypar::math::hash(tmp_incidence_array[pos]);
+              footprint += cs2(tmp_incidence_array[pos]);
             }
             hyperedge_hash_map.insert(footprint,
                                       ContractedHyperedgeInformation{ he, footprint, contracted_size, true });
@@ -604,6 +612,20 @@ namespace mt_kahypar::ds {
     parent->addChild("Incidence Array", sizeof(HypernodeID) * _incidence_array.size());
     parent->addChild("Graph Edge ID Mapping", sizeof(HyperedgeID) * _num_graph_edges_up_to.size());
     parent->addChild("Communities", sizeof(PartitionID) * _community_ids.capacity());
+  }
+
+  // ! Computes the total node weight of the hypergraph
+  void StaticHypergraph::computeAndSetTotalNodeWeight(const TaskGroupID) {
+    _total_weight = tbb::parallel_reduce(tbb::blocked_range<HypernodeID>(ID(0), _num_hypernodes), 0,
+                                         [this](const tbb::blocked_range<HypernodeID>& range, HypernodeWeight init) {
+                                           HypernodeWeight weight = init;
+                                           for (HypernodeID hn = range.begin(); hn < range.end(); ++hn) {
+                                             if (nodeIsEnabled(hn)) {
+                                               weight += this->_hypernodes[hn].weight();
+                                             }
+                                           }
+                                           return weight;
+                                         }, std::plus<>());
   }
 
 } // namespace

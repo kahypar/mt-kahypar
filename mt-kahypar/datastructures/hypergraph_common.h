@@ -20,10 +20,7 @@
 #pragma once
 
 #include <cstdint>
-
-#include "mt-kahypar/macros.h"
-#include "mt-kahypar/parallel/stl/scalable_vector.h"
-#include "mt-kahypar/parallel/atomic_wrapper.h"
+#include <limits>
 
 namespace mt_kahypar {
 

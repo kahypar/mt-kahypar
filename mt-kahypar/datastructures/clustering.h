@@ -24,6 +24,7 @@
 #include <functional>
 
 #include <tbb/parallel_for.h>
+#include <tbb/parallel_for_each.h>
 
 #include "mt-kahypar/parallel/parallel_prefix_sum.h"
 #include "mt-kahypar/datastructures/hypergraph_common.h"
@@ -88,7 +89,7 @@ class Clustering : public std::vector<PartitionID> {
           mapping[c] = 1;
         });
 
-    parallel_prefix_sum(mapping.begin(), mapping.end(), mapping.begin(), std::plus<PartitionID>(), PartitionID(0));
+    parallel_prefix_sum(mapping.begin(), mapping.end(), mapping.begin(), std::plus<>(), PartitionID(0));
     // PrefixSum::parallelTBBNative(mapping.begin(), mapping.end(), mapping.begin(), std::plus<PartitionID>(), PartitionID(0), numTasks);
     // NOTE Benchmark!
 

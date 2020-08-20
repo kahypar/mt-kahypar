@@ -25,6 +25,7 @@
 #include "tbb/concurrent_queue.h"
 #include "tbb/task_group.h"
 #include "tbb/parallel_for.h"
+#include "tbb/parallel_reduce.h"
 
 #include "kahypar/meta/mandatory.h"
 
@@ -39,6 +40,7 @@
 #include "mt-kahypar/utils/progress_bar.h"
 #include "mt-kahypar/utils/randomize.h"
 #include "mt-kahypar/utils/stats.h"
+#include "mt-kahypar/utils/timer.h"
 
 namespace mt_kahypar {
 template <class ScorePolicy = HeavyEdgeScore,

@@ -24,6 +24,8 @@
 #include <memory>
 #include <unordered_map>
 #include <atomic>
+#include <vector>
+#include <algorithm>
 
 #include "tbb/parallel_for.h"
 #include "tbb/scalable_allocator.h"

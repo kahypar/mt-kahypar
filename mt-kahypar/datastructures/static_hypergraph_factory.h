@@ -21,15 +21,10 @@
 #pragma once
 
 #include "tbb/enumerable_thread_specific.h"
-#include "tbb/parallel_for.h"
-#include "tbb/parallel_invoke.h"
-#include "tbb/parallel_scan.h"
 
 #include "mt-kahypar/datastructures/static_hypergraph.h"
-#include "mt-kahypar/parallel/stl/scalable_vector.h"
-#include "mt-kahypar/parallel/parallel_prefix_sum.h"
 #include "mt-kahypar/parallel/atomic_wrapper.h"
-#include "mt-kahypar/utils/timer.h"
+
 
 namespace mt_kahypar {
 namespace ds {

@@ -20,25 +20,19 @@
 
 #pragma once
 
-#include <mutex>
-#include <tbb/parallel_reduce.h>
 
-#include "tbb/blocked_range.h"
 #include "tbb/parallel_for.h"
-#include "tbb/parallel_scan.h"
 
-#include "kahypar/meta/mandatory.h"
-#include "kahypar/datastructure/fast_reset_flag_array.h"
-#include "kahypar/utils/math.h"
-
-#include "mt-kahypar/datastructures/hypergraph_common.h"
-#include "mt-kahypar/datastructures/concurrent_bucket_map.h"
-#include "mt-kahypar/datastructures/array.h"
-#include "mt-kahypar/parallel/parallel_prefix_sum.h"
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
+#include "mt-kahypar/datastructures/array.h"
+
+#include "mt-kahypar/macros.h"
+#include "mt-kahypar/parallel/atomic_wrapper.h"
+#include "mt-kahypar/datastructures/hypergraph_common.h"
+
+
 #include "mt-kahypar/utils/memory_tree.h"
 #include "mt-kahypar/utils/range.h"
-#include "mt-kahypar/utils/timer.h"
 #include "clustering.h"
 
 namespace mt_kahypar {
@@ -513,18 +507,7 @@ class StaticHypergraph {
   }
 
   // ! Computes the total node weight of the hypergraph
-  void computeAndSetTotalNodeWeight(const TaskGroupID) {
-    _total_weight = tbb::parallel_reduce(tbb::blocked_range<HypernodeID>(ID(0), _num_hypernodes), 0,
-      [this](const tbb::blocked_range<HypernodeID>& range, HypernodeWeight init) {
-        HypernodeWeight weight = init;
-        for (HypernodeID hn = range.begin(); hn < range.end(); ++hn) {
-          if (nodeIsEnabled(hn)) {
-            weight += this->_hypernodes[hn].weight();
-          }
-        }
-        return weight;
-      }, std::plus<HypernodeWeight>());
-  }
+  void computeAndSetTotalNodeWeight(const TaskGroupID);
 
   // ####################### Iterators #######################
 

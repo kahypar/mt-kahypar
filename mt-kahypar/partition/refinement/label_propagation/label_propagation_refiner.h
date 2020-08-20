@@ -20,16 +20,11 @@
 
 #pragma once
 
-#include <array>
-#include <string>
-#include <utility>
-#include <vector>
 
 #include "tbb/enumerable_thread_specific.h"
 #include "tbb/parallel_for.h"
 #include "tbb/parallel_sort.h"
 
-#include "kahypar/meta/mandatory.h"
 #include "kahypar/datastructure/fast_reset_flag_array.h"
 
 #include "mt-kahypar/definitions.h"

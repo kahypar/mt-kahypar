@@ -20,6 +20,7 @@
 
 #include "local_moving_modularity.h"
 
+#include "mt-kahypar/utils/timer.h"
 
 namespace mt_kahypar::metrics {
   double modularity(const Graph& graph, ds::Clustering& communities) {

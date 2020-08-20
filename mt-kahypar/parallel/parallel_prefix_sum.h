@@ -23,10 +23,7 @@
 #include <numeric>
 #include <vector>
 
-#include <tbb/parallel_for_each.h>
 #include <tbb/parallel_scan.h>
-#include <tbb/task_group.h>
-#include <tbb/tick_count.h>
 
 #include "mt-kahypar/datastructures/array.h"
 #include "mt-kahypar/parallel/stl/scalable_vector.h"

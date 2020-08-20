@@ -21,6 +21,8 @@
 
 #include "label_propagation_refiner.h"
 
+#include "mt-kahypar/utils/timer.h"
+
 namespace mt_kahypar {
 
   template <template <typename> class GainPolicy>
