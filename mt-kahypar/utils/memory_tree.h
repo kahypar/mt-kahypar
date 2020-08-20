@@ -23,9 +23,9 @@
 #include <map>
 #include <memory>
 #include <string>
+#include <functional>
 
-namespace mt_kahypar {
-namespace utils {
+namespace mt_kahypar::utils {
 
 enum class OutputType : uint8_t {
   BYTES = 0,
@@ -158,6 +158,7 @@ inline std::ostream & operator<< (std::ostream& str, const MemoryTreeNode& memor
                           parent_size_in_bytes, memory_tree_node._size_in_bytes) << "\n";
                };
 
+
   std::function<void(std::ostream&, const size_t, const MemoryTreeNode&, int)> dfs =
     [&](std::ostream& str,
         const size_t parent_size_in_bytes,
@@ -176,5 +177,4 @@ inline std::ostream & operator<< (std::ostream& str, const MemoryTreeNode& memor
   return str;
 }
 
-}  // namespace utils
 }  // namespace mt_kahypar
