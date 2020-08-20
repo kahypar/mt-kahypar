@@ -91,7 +91,7 @@ class NLevelCoarsenerBase {
 
     // Create n-level batch uncontraction hierarchy
     utils::Timer::instance().start_timer("create_batch_uncontraction_hierarchy", "Create n-Level Hierarchy");
-    _hierarchy = _hg.createBatchUncontractionHierarchy(TBBNumaArena::GLOBAL_TASK_GROUP, _context.refinement.max_batch_size);
+    _hierarchy = _hg.createBatchUncontractionHierarchy(_context.refinement.max_batch_size);
     ASSERT(_removed_hyperedges_batches.size() == _hierarchy.size() - 1);
     utils::Timer::instance().stop_timer("create_batch_uncontraction_hierarchy");
 
@@ -164,10 +164,19 @@ class NLevelCoarsenerBase {
       while ( !batches.empty() ) {
         const Batch& batch = batches.back();
         if ( batch.size() > 0 ) {
+          HEAVY_REFINEMENT_ASSERT(metrics::objective(_phg, _context.partition.objective) ==
+                current_metrics.getMetric(kahypar::Mode::direct_kway, _context.partition.objective),
+                V(current_metrics.getMetric(kahypar::Mode::direct_kway, _context.partition.objective)) <<
+                V(metrics::objective(_phg, _context.partition.objective)));
           utils::Timer::instance().start_timer("batch_uncontractions", "Batch Uncontractions", false, force_measure_timings);
           _phg.uncontract(batch);
           utils::Timer::instance().stop_timer("batch_uncontractions", force_measure_timings);
           HEAVY_REFINEMENT_ASSERT(_phg.checkTrackedPartitionInformation());
+          HEAVY_REFINEMENT_ASSERT(_hg.verifyIncidenceArrayAndIncidentNets());
+          HEAVY_REFINEMENT_ASSERT(metrics::objective(_phg, _context.partition.objective) ==
+                current_metrics.getMetric(kahypar::Mode::direct_kway, _context.partition.objective),
+                V(current_metrics.getMetric(kahypar::Mode::direct_kway, _context.partition.objective)) <<
+                V(metrics::objective(_phg, _context.partition.objective)));
 
           // Perform refinement
           refine(_phg, batch, label_propagation, fm, current_metrics, force_measure_timings);

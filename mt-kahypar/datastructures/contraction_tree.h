@@ -44,6 +44,19 @@ class ContractionTree {
   static constexpr bool enable_heavy_assert = false;
   static constexpr size_t kInvalidVersion = std::numeric_limits<size_t>::max();
 
+  using Timepoint = HypernodeID;
+
+ public:
+  struct Interval {
+    explicit Interval() :
+      start(kInvalidHypernode),
+      end(kInvalidHypernode) { }
+
+    Timepoint start;
+    Timepoint end;
+  };
+
+ private:
   /**
    * Represents a node in contraction tree and contains all information
    * associated with that node.
@@ -54,7 +67,8 @@ class ContractionTree {
         _parent(0),
         _pending_contractions(0),
         _subtree_size(0),
-        _version(kInvalidVersion) { }
+        _version(kInvalidVersion),
+        _interval() { }
 
       inline HypernodeID parent() const {
         return _parent;
@@ -92,6 +106,16 @@ class ContractionTree {
         _version = version;
       }
 
+      inline Interval interval() const {
+        return _interval;
+      }
+
+      inline void setInterval(const Timepoint start, const Timepoint end) {
+        ASSERT(start < end);
+        _interval.start = start;
+        _interval.end = end;
+      }
+
     private:
       // ! Parent in the contraction tree
       HypernodeID _parent;
@@ -101,15 +125,16 @@ class ContractionTree {
       HypernodeID _subtree_size;
       // ! Version number of the hypergraph for which contract the corresponding vertex
       size_t _version;
+      // ! "Time" interval on which the contraction of this node takes place
+      Interval _interval;
   };
 
   static_assert(std::is_trivially_copyable<Node>::value, "Node is not trivially copyable");
 
-
+ public:
   // ! Iterator to iterate over the childs of a tree node
   using ChildIterator = typename parallel::scalable_vector<HypernodeID>::const_iterator;
 
- public:
   explicit ContractionTree() :
     _num_hypernodes(0),
     _finalized(false),
@@ -187,6 +212,11 @@ class ContractionTree {
     return _version_roots[version];
   }
 
+  Interval interval(const HypernodeID u) const {
+    ASSERT(u < _num_hypernodes, "Hypernode" << u << "does not exist");
+    return node(u).interval();
+  }
+
   // ####################### Iterators #######################
 
   // ! Returns a range to loop over the childs of a tree node u.
@@ -220,13 +250,17 @@ class ContractionTree {
   }
 
   // ! Unregisters a contraction in the contraction tree
-  void unregisterContraction(const HypernodeID u, const HypernodeID v, const bool failed = false) {
+  void unregisterContraction(const HypernodeID u, const HypernodeID v,
+                             const Timepoint start, const Timepoint end,
+                             const bool failed = false) {
     ASSERT(node(v).parent() == u, "Node" << u << "is not parent of node" << v);
     ASSERT(node(u).pendingContractions() > 0, "There are no pending contractions for node" << u);
     node(u).decrementPendingContractions();
     if ( failed ) {
       node(v).setParent(v);
       node(v).setVersion(kInvalidVersion);
+    } else {
+      node(v).setInterval(start, end);
     }
   }
 
@@ -323,8 +357,15 @@ class ContractionTree {
     tbb::parallel_for(ID(0), _num_hypernodes, [&](const HypernodeID u) {
       std::sort(_incidence_array.begin() + _out_degrees[u],
                 _incidence_array.begin() + _out_degrees[u + 1],
-                [&](const HypernodeID& lhs, const HypernodeID& rhs) {
-                  return _tree[lhs].version() < _tree[rhs].version();
+                [&](const HypernodeID& u, const HypernodeID& v) {
+                  const size_t u_version = version(u);
+                  const size_t v_version = version(v);
+                  const Interval& u_ival = node(u).interval();
+                  const Interval& v_ival = node(v).interval();
+                  return u_version < v_version ||
+                    ( u_version == v_version && u_ival.end > v_ival.end ) ||
+                    ( u_version == v_version && u_ival.end == v_ival.end && u_ival.start > v_ival.start ) ||
+                    ( u_version == v_version && u_ival.end == v_ival.end && u_ival.start == v_ival.start && u < v );
                 });
 
       size_t version_u = _tree[u].version();

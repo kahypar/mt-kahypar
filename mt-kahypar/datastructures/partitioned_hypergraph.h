@@ -345,6 +345,8 @@ private:
     // Set block ids of contraction partners
     tbb::parallel_for(0UL, batch.size(), [&](const size_t i) {
       const Memento& memento = batch[i];
+      ASSERT(nodeIsEnabled(memento.u));
+      ASSERT(!nodeIsEnabled(memento.v));
       const PartitionID part_id = partID(memento.u);
       ASSERT(part_id != kInvalidPartition && part_id < _k);
       setOnlyNodePart(memento.v, part_id);
@@ -355,6 +357,7 @@ private:
         // In this case, u and v are incident to hyperedge he after uncontraction
         const PartitionID block = partID(u);
         const HypernodeID pin_count_in_part_after = incrementPinCountInPartWithoutGainUpdate(he, block);
+        ASSERT(pin_count_in_part_after > 1, V(u) << V(v) << V(he));
 
         if ( _is_gain_cache_initialized ) {
           // If u was the only pin of hyperedge he in its block before then moving out vertex u
@@ -863,30 +866,42 @@ private:
   bool checkTrackedPartitionInformation() {
     bool success = true;
     for (HyperedgeID e : edges()) {
+      PartitionID expected_connectivity = 0;
       for (PartitionID i = 0; i < k(); ++i) {
-        if ( pinCountInPart(e, i) != pinCountInPartRecomputed(e, i) ) {
+        const HypernodeID actual_pin_count_in_part = pinCountInPart(e, i);
+        if ( actual_pin_count_in_part != pinCountInPartRecomputed(e, i) ) {
           LOG << "Pin count of hyperedge" << e << "in block" << i << "=>" <<
-          "Expected:" << V(pinCountInPartRecomputed(e, i)) << ","
+          "Expected:" << V(pinCountInPartRecomputed(e, i)) << "," <<
           "Actual:" <<  V(pinCountInPart(e, i));
           success = false;
         }
+        expected_connectivity += (actual_pin_count_in_part > 0);
+      }
+      if ( expected_connectivity != connectivity(e) ) {
+        LOG << "Connectivity of hyperedge" << e << "=>" <<
+          "Expected:" << V(expected_connectivity)  << "," <<
+          "Actual:" << V(connectivity(e));
+          success = false;
       }
     }
-    for (HypernodeID u : nodes()) {
-      if ( moveFromBenefit(u) != moveFromBenefitRecomputed(u) ) {
-        LOG << "Move from benefit of hypernode" << u << "=>" <<
-          "Expected:" << V(moveFromBenefitRecomputed(u)) << ", "
-          "Actual:" <<  V(moveFromBenefit(u));
-        success = false;
-      }
 
-      for (PartitionID i = 0; i < k(); ++i) {
-        if (partID(u) != i) {
-          if ( moveToPenalty(u, i) != moveToPenaltyRecomputed(u, i) ) {
-            LOG << "Move to penalty of hypernode" << u << "in block" << i << "=>" <<
-            "Expected:" << V(moveToPenaltyRecomputed(u, i)) << ", "
-            "Actual:" <<  V(moveToPenalty(u, i));
-            success = false;
+    if ( _is_gain_cache_initialized ) {
+      for (HypernodeID u : nodes()) {
+        if ( moveFromBenefit(u) != moveFromBenefitRecomputed(u) ) {
+          LOG << "Move from benefit of hypernode" << u << "=>" <<
+            "Expected:" << V(moveFromBenefitRecomputed(u)) << ", " <<
+            "Actual:" <<  V(moveFromBenefit(u));
+          success = false;
+        }
+
+        for (PartitionID i = 0; i < k(); ++i) {
+          if (partID(u) != i) {
+            if ( moveToPenalty(u, i) != moveToPenaltyRecomputed(u, i) ) {
+              LOG << "Move to penalty of hypernode" << u << "in block" << i << "=>" <<
+              "Expected:" << V(moveToPenaltyRecomputed(u, i)) << ", " <<
+              "Actual:" <<  V(moveToPenalty(u, i));
+              success = false;
+            }
           }
         }
       }

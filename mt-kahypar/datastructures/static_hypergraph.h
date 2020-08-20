@@ -1324,7 +1324,7 @@ class StaticHypergraph {
     ERROR("uncontract(batch) is not supported in static hypergraph");
   }
 
-  VersionedBatchVector createBatchUncontractionHierarchy(const TaskGroupID, const size_t) {
+  VersionedBatchVector createBatchUncontractionHierarchy(const size_t) {
     ERROR("createBatchUncontractionHierarchy(task_group_id, batch_size) is not supported in static hypergraph");
     return { };
   }
@@ -1548,6 +1548,12 @@ class StaticHypergraph {
 
     utils::MemoryTreeNode* community_support_node = parent->addChild("Community Support");
     _community_support.memoryConsumption(community_support_node);
+  }
+
+    // ! Only for testing
+  bool verifyIncidenceArrayAndIncidentNets() {
+    ERROR("verifyIncidenceArrayAndIncidentNets() not supported in static hypergraph");
+    return false;
   }
 
  private:

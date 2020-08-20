@@ -96,6 +96,7 @@ class LabelPropagationRefiner final : public IRefiner {
     Gain delta = _gain.delta();
     ASSERT(delta <= 0, "LP refiner worsen solution quality");
 
+    HEAVY_REFINEMENT_ASSERT(hypergraph.checkTrackedPartitionInformation());
     HEAVY_REFINEMENT_ASSERT(current_metric + delta ==
                             metrics::objective(hypergraph, _context.partition.objective,
                                                !_context.refinement.label_propagation.execute_sequential),
@@ -231,7 +232,7 @@ class LabelPropagationRefiner final : public IRefiner {
             // In case, the real gain is not equal with the computed gain and
             // worsen the solution quality we revert the move.
             ASSERT(hypergraph.partID(hn) == to);
-            changeNodePart(hypergraph, hn, from, to, objective_delta);
+            changeNodePart(hypergraph, hn, to, from, objective_delta);
           }
         }
       }
@@ -256,12 +257,14 @@ class LabelPropagationRefiner final : public IRefiner {
         }
       } else {
         for ( const Memento& memento : refinement_nodes ) {
-          if ( _context.refinement.label_propagation.rebalancing ||
-              hypergraph.isBorderNode(memento.u) ) {
+          if ( ( _context.refinement.label_propagation.rebalancing ||
+                hypergraph.isBorderNode(memento.u) ) &&
+                _next_active.compare_and_set_to_true(memento.u) ) {
             _active_nodes.push_back(memento.u);
           }
-          if ( _context.refinement.label_propagation.rebalancing ||
-              hypergraph.isBorderNode(memento.v) ) {
+          if ( ( _context.refinement.label_propagation.rebalancing ||
+                hypergraph.isBorderNode(memento.v) ) &&
+                _next_active.compare_and_set_to_true(memento.v) ) {
             _active_nodes.push_back(memento.v);
           }
         }
@@ -272,7 +275,9 @@ class LabelPropagationRefiner final : public IRefiner {
       NextActiveNodes tmp_active_nodes;
 
       auto add_vertex = [&](const HypernodeID& hn) {
-        tmp_active_nodes.stream(hn);
+        if ( _next_active.compare_and_set_to_true(hn) ) {
+          tmp_active_nodes.stream(hn);
+        }
       };
 
       if ( refinement_nodes.empty() ) {
@@ -298,6 +303,7 @@ class LabelPropagationRefiner final : public IRefiner {
 
       _active_nodes = tmp_active_nodes.copy_parallel();
     }
+    _next_active.reset();
   }
 
   void initializeImpl(PartitionedHypergraph&) override final { }
