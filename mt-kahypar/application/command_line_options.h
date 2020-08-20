@@ -76,6 +76,8 @@ po::options_description createGeneralOptionsDescription(Context& context, const 
     "If true, shows detailed subtimings of each multilevel phase at the end of the partitioning process.")
     ("show-detailed-clustering-timings", po::value<bool>(&context.partition.show_detailed_clustering_timings)->value_name("<bool>")->default_value(false),
     "If true, shows detailed timings of each clustering iteration.")
+    ("measure-detailed-uncontracton-timings", po::value<bool>(&context.partition.measure_detailed_uncontraction_timings)->value_name("<bool>")->default_value(false),
+    "If true, aggregates detailed timings for batch uncontractions. Note, can potentially impact performance.")
     ("show-memory-consumption", po::value<bool>(&context.partition.show_memory_consumption)->value_name("<bool>")->default_value(false),
     "If true, shows detailed information on how much memory was allocated and how memory was reused throughout partitioning.")
     ("show-advanced-cut-analysis", po::value<bool>(&context.partition.show_advanced_cut_analysis)->value_name("<bool>")->default_value(false),

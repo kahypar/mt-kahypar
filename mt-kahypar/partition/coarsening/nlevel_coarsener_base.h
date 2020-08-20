@@ -148,7 +148,13 @@ class NLevelCoarsenerBase {
     }
 
     // Perform batch uncontractions
-    utils::Timer::instance().start_timer("batch_uncontractions", "Batch Uncontractions");
+    bool is_timer_disabled = false;
+    bool force_measure_timings = _context.partition.measure_detailed_uncontraction_timings && _top_level;
+    if ( utils::Timer::instance().isEnabled() ) {
+      utils::Timer::instance().disable();
+      is_timer_disabled = true;
+    }
+
     size_t num_batches = 0;
     size_t total_batches_size = 0;
     while ( !_hierarchy.empty() ) {
@@ -158,11 +164,13 @@ class NLevelCoarsenerBase {
       while ( !batches.empty() ) {
         const Batch& batch = batches.back();
         if ( batch.size() > 0 ) {
+          utils::Timer::instance().start_timer("batch_uncontractions", "Batch Uncontractions", false, force_measure_timings);
           _phg.uncontract(batch);
+          utils::Timer::instance().stop_timer("batch_uncontractions", force_measure_timings);
           HEAVY_REFINEMENT_ASSERT(_phg.checkTrackedPartitionInformation());
 
           // Perform refinement
-          refine(_phg, batch, label_propagation, fm, current_metrics);
+          refine(_phg, batch, label_propagation, fm, current_metrics, force_measure_timings);
 
           ++num_batches;
           total_batches_size += batch.size();
@@ -176,14 +184,17 @@ class NLevelCoarsenerBase {
 
       // Restore single-pin and parallel nets to continue with the next vector of batches
       if ( !_removed_hyperedges_batches.empty() ) {
-        utils::Timer::instance().start_timer("restore_single_pin_and_parallel_nets", "Restore Single Pin and Parallel Nets");
+        utils::Timer::instance().start_timer("restore_single_pin_and_parallel_nets", "Restore Single Pin and Parallel Nets", false, force_measure_timings);
         _phg.restoreSinglePinAndParallelNets(_removed_hyperedges_batches.back());
         _removed_hyperedges_batches.pop_back();
-        utils::Timer::instance().stop_timer("restore_single_pin_and_parallel_nets");
+        utils::Timer::instance().stop_timer("restore_single_pin_and_parallel_nets", force_measure_timings);
       }
       _hierarchy.pop_back();
     }
-    utils::Timer::instance().stop_timer("batch_uncontractions");
+
+    if ( is_timer_disabled ) {
+      utils::Timer::instance().enable();
+    }
 
     // If we finish batch uncontractions and partition is imbalanced, we try to rebalance it
     if ( _top_level && !metrics::isBalanced(_phg, _context)) {
@@ -263,17 +274,12 @@ class NLevelCoarsenerBase {
               const Batch& batch,
               std::unique_ptr<IRefiner>& label_propagation,
               std::unique_ptr<IRefiner>& fm,
-              kahypar::Metrics& current_metrics) {
+              kahypar::Metrics& current_metrics,
+              const bool force_measure_timings) {
     if ( debug && _top_level ) {
       io::printHypergraphInfo(partitioned_hypergraph, "Refinement Hypergraph", false);
       DBG << "Start Refinement - km1 = " << current_metrics.km1
           << ", imbalance = " << current_metrics.imbalance;
-    }
-
-    bool is_timer_disabled = false;
-    if ( utils::Timer::instance().isEnabled() ) {
-      utils::Timer::instance().disable();
-      is_timer_disabled = true;
     }
 
     bool improvement_found = true;
@@ -282,12 +288,16 @@ class NLevelCoarsenerBase {
 
       if ( label_propagation &&
            _context.refinement.label_propagation.algorithm != LabelPropagationAlgorithm::do_nothing ) {
+        utils::Timer::instance().start_timer("label_propagation", "Label Propagation", false, force_measure_timings);
         improvement_found |= label_propagation->refine(partitioned_hypergraph, batch, current_metrics, std::numeric_limits<double>::max());
+        utils::Timer::instance().stop_timer("label_propagation", force_measure_timings);
       }
 
       if ( fm &&
            _context.refinement.fm.algorithm != FMAlgorithm::do_nothing ) {
+        utils::Timer::instance().start_timer("fm", "FM", false, force_measure_timings);
         improvement_found |= fm->refine(partitioned_hypergraph, batch, current_metrics, std::numeric_limits<double>::max());
+        utils::Timer::instance().stop_timer("fm", force_measure_timings);
       }
 
       if ( _top_level ) {
@@ -299,10 +309,6 @@ class NLevelCoarsenerBase {
       if ( !_context.refinement.refine_until_no_improvement ) {
         break;
       }
-    }
-
-    if ( is_timer_disabled ) {
-      utils::Timer::instance().enable();
     }
 
     if ( _top_level) {

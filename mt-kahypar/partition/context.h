@@ -50,6 +50,7 @@ struct PartitioningParameters {
   bool verbose_output = true;
   bool show_detailed_timings = false;
   bool show_detailed_clustering_timings = false;
+  bool measure_detailed_uncontraction_timings = false;
   bool show_memory_consumption = false;
   bool show_advanced_cut_analysis = false;
   bool enable_progress_bar = false;
