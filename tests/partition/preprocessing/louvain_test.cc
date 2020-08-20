@@ -165,7 +165,7 @@ TEST_F(ALouvain, KarateClubTest) {
     ds::Clustering communities(0);
     sequential_arena.execute([&] {
       communities = run_parallel_louvain(*karate_club_graph, context, true);
-    })
+    });
 #else
     ds::Clustering communities = sequential_arena.execute([&] {
       return run_parallel_louvain(*karate_club_graph, context, true);
