@@ -160,12 +160,17 @@ TEST_F(ALouvain, ComputesMaxGainMove10) {
 }
 
 TEST_F(ALouvain, KarateClubTest) {
-
-  tbb::task_arena sequential_arena(1);
-  ds::Clustering communities = sequential_arena.execute([&] {
-    return run_parallel_louvain(*karate_club_graph, context, true);
-  });
-
+    tbb::task_arena sequential_arena(1);
+#ifdef KAHYPAR_TRAVIS_BUILD
+    ds::Clustering communities;
+    sequential_arena.execute([&] {
+      communities = run_parallel_louvain(*karate_club_graph, context, true);
+    })
+#else
+    ds::Clustering communities = sequential_arena.execute([&] {
+      return run_parallel_louvain(*karate_club_graph, context, true);
+    });
+#endif
   std::vector<PartitionID> expected_comm = { 1, 1, 1, 1, 0, 0, 0, 1, 3, 1, 0, 1, 1, 1, 3, 3, 0, 1,
                                              3, 1, 3, 1, 3, 2, 2, 2, 3, 2, 2, 3, 3, 2, 3, 3 };
 
