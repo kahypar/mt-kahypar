@@ -90,10 +90,15 @@ before_script:
 script:
   - |
     if [[ "$BUILD_TYPE" == "Release" ]]; then
+      make clean;
       make KaHyPar;
       make integration_tests;
+      ./tests/end_to_end/integration_tests
     else
-      make clean all;
+      make clean;
+      make mt_kahypar_tests;
+      ./tests/mt_kahypar_tests;
+      make KaHyPar
     fi
 
 after_success:
