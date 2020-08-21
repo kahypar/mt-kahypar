@@ -186,6 +186,12 @@ po::options_description createCoarseningOptionsDescription(Context& context,
       context.coarsening.contraction_order =
         mt_kahypar::contractionOrderFromString(order);
     })->default_value("rating_order"), "")
+    ("c-uncontraction-order",
+    po::value<std::string>()->value_name("<string>")->notifier(
+      [&](const std::string& order) {
+      context.coarsening.uncontraction_order =
+        mt_kahypar::uncontractionOrderFromString(order);
+    })->default_value("max_subtree_size"), "")
     ("c-rating-score",
     po::value<std::string>()->value_name("<string>")->notifier(
       [&](const std::string& rating_score) {

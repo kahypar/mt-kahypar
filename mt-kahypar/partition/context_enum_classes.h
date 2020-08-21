@@ -96,6 +96,14 @@ enum class ContractionOrder : uint8_t {
   UNDEFINED
 };
 
+enum class UncontractionOrder : uint8_t {
+  max_subtree_size,
+  min_subtree_size,
+  max_vertex_degree,
+  min_vertex_degree,
+  UNDEFINED
+};
+
 enum class InitialPartitioningAlgorithm : uint8_t {
   random = 0,
   bfs = 1,
@@ -221,6 +229,18 @@ std::ostream & operator<< (std::ostream& os, const ContractionOrder& order) {
     case ContractionOrder::heavy_node_first: return os << "heavy_node_first";
     case ContractionOrder::heavy_node_second: return os << "heavy_node_second";
     case ContractionOrder::UNDEFINED: return os << "UNDEFINED";
+      // omit default case to trigger compiler warning for missing cases
+  }
+  return os << static_cast<uint8_t>(order);
+}
+
+std::ostream & operator<< (std::ostream& os, const UncontractionOrder& order) {
+  switch (order) {
+    case UncontractionOrder::max_subtree_size: return os << "max_subtree_size";
+    case UncontractionOrder::min_subtree_size: return os << "min_subtree_size";
+    case UncontractionOrder::max_vertex_degree: return os << "max_vertex_degree";
+    case UncontractionOrder::min_vertex_degree: return os << "min_vertex_degree";
+    case UncontractionOrder::UNDEFINED: return os << "UNDEFINED";
       // omit default case to trigger compiler warning for missing cases
   }
   return os << static_cast<uint8_t>(order);
@@ -371,6 +391,18 @@ static ContractionOrder contractionOrderFromString(const std::string& order) {
   ERROR("No valid contraction order.");
 }
 
+static UncontractionOrder uncontractionOrderFromString(const std::string& order) {
+  if (order == "max_subtree_size") {
+    return UncontractionOrder::max_subtree_size;
+  } else if (order == "min_subtree_size") {
+    return UncontractionOrder::min_subtree_size;
+  } else if (order == "max_vertex_degree") {
+    return UncontractionOrder::max_vertex_degree;
+  } else if (order == "min_vertex_degree") {
+    return UncontractionOrder::min_vertex_degree;
+  }
+  ERROR("No valid uncontraction order.");
+}
 
 static RatingFunction ratingFunctionFromString(const std::string& function) {
   if (function == "heavy_edge") {
