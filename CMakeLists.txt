@@ -54,7 +54,7 @@ option(KAHYPAR_TRAVIS_BUILD
   "Indicate that this build is executed on Travis CI." OFF)
 
 option(KAHYPAR_USE_N_LEVEL_PARADIGM
-  "Enables n-level hypergraph partitioning. Otherwise, multilevel paradigm is used." OFF)
+  "Enables n-level hypergraph partitioning. Otherwise, multilevel paradigm is used." ON)
 
 if(KAHYPAR_DISABLE_ASSERTIONS)
   add_compile_definitions(KAHYPAR_DISABLE_ASSERTIONS)
