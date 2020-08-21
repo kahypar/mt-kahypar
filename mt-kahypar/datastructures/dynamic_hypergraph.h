@@ -1847,13 +1847,53 @@ class DynamicHypergraph {
     }
   }
 
+  /**
+   * Computes a batch uncontraction hierarchy for a specific version of the hypergraph.
+   * A batch is a vector of mementos (uncontractions) that are uncontracted in parallel.
+   * Each time we perform single-pin and parallel net detection we create a new version of
+   * the hypergraph.
+   * A batch of uncontractions that is uncontracted in parallel must satisfy two conditions:
+   *  1.) All representatives must be active vertices of the hypergraph
+   *  2.) For a specific representative its contraction partners must be uncontracted in reverse
+   *      contraction order. Meaning that a contraction (u, v) that happens before a contraction (u, w)
+   *      must be uncontracted in a batch that is part of the same batch or a batch uncontracted after the
+   *      batch which (u, w) is part of. This ensures that a parallel batch uncontraction does not
+   *      increase the objective function.
+   * We use the contraction tree to create a batch uncontraction order. Note, uncontractions from
+   * different subtrees can be interleaved abitrary. To ensure condition 1.) we peform a BFS starting
+   * from all roots of the contraction tree. Each BFS level induces a new batch. Since we contract
+   * vertices in parallel its not possible to create a relative order of the contractions which is
+   * neccassary for condition 2.). However, during a contraction we store a start and end "timepoint"
+   * of a contraction. If two contractions time intervals do not intersect, we can determine
+   * which contraction happens strictly before the other. If they intersect, it is not possible to
+   * give a relative order. To ensure condition 2.) we sort the childs of a vertex in the contraction tree
+   * after its time intervals. Once we add a uncontraction (u,v) to a batch, we also add all uncontractions
+   * (u,w) to the batch which intersect the time interval of (u,v). To merge uncontractions of different
+   * subtrees in a batch, we insert all eligble uncontractions into a max priority queue with the subtree
+   * size of the contraction partner as key. We insert uncontractions into the current batch as long
+   * as the maximum batch size is not reached or the PQ is empty. Once the batch reaches its maximum
+   * batch size, we create a new empty batch. If the PQ is empty, we replace it with the PQ of the next
+   * BFS level. With this approach heavy vertices are uncontracted earlier (subtree size in the PQ as key = weight of
+   * a vertex for an unweighted hypergraph) such that average node weight of the hypergraph decreases faster and
+   * local searches are more effective in early stages of the uncontraction hierarchy where hyperedge sizes are
+   * usually smaller than on the original hypergraph.
+   */
   BatchVector createBatchUncontractionHierarchyForVersion(const size_t batch_size,
                                                           const size_t version) {
-    // Push roots of version into a global task queue
-    const parallel::scalable_vector<HypernodeID>& roots = _contraction_tree.roots_of_version(version);
 
-    using PQ = std::priority_queue<PQBatchUncontractionElement, parallel::scalable_vector<PQBatchUncontractionElement>, PQElementComparator>;
-    PQ pq;
+    using PQ = std::priority_queue<PQBatchUncontractionElement,
+                                   parallel::scalable_vector<PQBatchUncontractionElement>,
+                                   PQElementComparator>;
+
+    // Checks if two contraction intervals intersect
+    auto does_interval_intersect = [&](const ContractionInterval& i1, const ContractionInterval& i2) {
+      if (i1.start == kInvalidHypernode || i2.start == kInvalidHypernode) {
+        return false;
+      }
+      return (i1.start <= i2.end && i1.end >= i2.end) ||
+             (i2.start <= i1.end && i2.end >= i1.end);
+    };
+
     auto push_into_pq = [&](PQ& prio_q, const HypernodeID& u) {
       auto it = _contraction_tree.childs(u);
       auto current = it.begin();
@@ -1867,34 +1907,42 @@ class DynamicHypergraph {
       }
     };
 
+    BatchVector batches(1);
+    // Contains eligble uncontractions of the current BFS level
+    PQ pq;
+    // Contains eligble uncontractions of the next BFS level
+    PQ next_pq;
+
+    // Insert all roots of the current version into the priority queue
+    const parallel::scalable_vector<HypernodeID>& roots = _contraction_tree.roots_of_version(version);
     for ( const HypernodeID& root : roots ) {
       push_into_pq(pq, root);
     }
 
-    auto does_interval_intersect = [&](const ContractionInterval& i1, const ContractionInterval& i2) {
-      ASSERT(i1.start != kInvalidHypernode && i1.end != kInvalidHypernode);
-      ASSERT(i2.start != kInvalidHypernode && i2.end != kInvalidHypernode);
-      return (i1.start <= i2.end && i1.end >= i2.end) ||
-             (i2.start <= i1.end && i2.end >= i1.end);
-    };
-    BatchVector batches(1);
-    PQ next_pq;
     while ( !pq.empty() ) {
+      // Iterator over the childs of a active vertex
       auto it = pq.top()._iterator;
       ASSERT(it.first != it.second);
       const HypernodeID v = *it.first;
       pq.pop();
 
+      // If the current batch reaches the maximum batch size we
+      // create a new batch
       ASSERT(_contraction_tree.version(v) == version);
       if ( batches.back().size() >= batch_size ) {
         batches.emplace_back();
       }
 
+      // Insert uncontraction (u,v) into the current batch
       const HypernodeID u = _contraction_tree.parent(v);
       batches.back().push_back(Memento { u, v });
+      // Push contraction partner into pq for the next BFS level
       push_into_pq(next_pq, v);
-      ContractionInterval current_ival = _contraction_tree.interval(v);
+
+      // Insert all childs of u that intersect the contraction time interval of
+      // (u,v) into the current batch
       ++it.first;
+      ContractionInterval current_ival = _contraction_tree.interval(v);
       while ( it.first != it.second && _contraction_tree.version(*it.first) == version ) {
         const HypernodeID w = *it.first;
         const ContractionInterval w_ival = _contraction_tree.interval(w);
@@ -1910,12 +1958,16 @@ class DynamicHypergraph {
         ++it.first;
       }
 
+      // If there are still childs left of u, we push the iterator again into the
+      // priority queue of the current BFS level.
       if ( it.first != it.second && _contraction_tree.version(*it.first) == version ) {
         pq.push(PQBatchUncontractionElement {
           _contraction_tree.subtreeSize(*it.first), it });
       }
 
       if ( pq.empty() ) {
+        // Processing of current BFS level finishes
+        // => create new batch and swap current BFS pq with next level BFS pq
         if ( !batches.back().empty() ) {
           batches.emplace_back();
         }

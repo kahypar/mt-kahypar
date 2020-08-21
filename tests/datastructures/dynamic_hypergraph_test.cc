@@ -1228,8 +1228,7 @@ TEST_F(ADynamicHypergraph, CreateBatchUncontractionHierarchy1) {
   tree.setParent(4, 3);
   tree.setParent(5, 3);
   tree.setParent(6, 1);
-  auto versioned_batches = hypergraph.createBatchUncontractionHierarchy(
-    TBBNumaArena::GLOBAL_TASK_GROUP, tree.copy(), 2);
+  auto versioned_batches = hypergraph.createBatchUncontractionHierarchy(tree.copy(), 2);
   ASSERT_EQ(1, versioned_batches.size());
   verifyBatchUncontractionHierarchy(tree, versioned_batches, 2);
 }
@@ -1245,8 +1244,7 @@ TEST_F(ADynamicHypergraph, CreateBatchUncontractionHierarchy2) {
   tree.setParent(7, 6);
   tree.setParent(8, 7);
   tree.setParent(9, 8);
-  auto versioned_batches = hypergraph.createBatchUncontractionHierarchy(
-    TBBNumaArena::GLOBAL_TASK_GROUP, tree.copy(), 3);
+  auto versioned_batches = hypergraph.createBatchUncontractionHierarchy(tree.copy(), 3);
   ASSERT_EQ(1, versioned_batches.size());
   verifyBatchUncontractionHierarchy(tree, versioned_batches, 3);
 }
@@ -1269,8 +1267,7 @@ TEST_F(ADynamicHypergraph, CreateBatchUncontractionHierarchy3) {
   tree.setParent(12, 5);
   tree.setParent(13, 6);
   tree.setParent(14, 6);
-  auto versioned_batches = hypergraph.createBatchUncontractionHierarchy(
-    TBBNumaArena::GLOBAL_TASK_GROUP, tree.copy(), 4);
+  auto versioned_batches = hypergraph.createBatchUncontractionHierarchy(tree.copy(), 4);
   ASSERT_EQ(1, versioned_batches.size());
   verifyBatchUncontractionHierarchy(tree, versioned_batches, 4);
 }
@@ -1291,8 +1288,7 @@ TEST_F(ADynamicHypergraph, CreateBatchUncontractionHierarchy4) {
   tree.setParent(13, 12);
   tree.setParent(14, 13);
   tree.setParent(15, 14);
-  auto versioned_batches = hypergraph.createBatchUncontractionHierarchy(
-    TBBNumaArena::GLOBAL_TASK_GROUP, tree.copy(), 4);
+  auto versioned_batches = hypergraph.createBatchUncontractionHierarchy(tree.copy(), 4);
   ASSERT_EQ(1, versioned_batches.size());
   for ( size_t i = 0; i < versioned_batches.size(); ++i ) {
     ASSERT_EQ(4, versioned_batches.back()[i].size());
@@ -1322,8 +1318,7 @@ TEST_F(ADynamicHypergraph, CreateBatchUncontractionHierarchy5) {
   tree.setParent(20, 17);
   tree.setParent(21, 18);
   tree.setParent(22, 18);
-  auto versioned_batches = hypergraph.createBatchUncontractionHierarchy(
-    TBBNumaArena::GLOBAL_TASK_GROUP, tree.copy(), 6);
+  auto versioned_batches = hypergraph.createBatchUncontractionHierarchy(tree.copy(), 6);
   ASSERT_EQ(1, versioned_batches.size());
   verifyBatchUncontractionHierarchy(tree, versioned_batches, 6);
 }
@@ -1346,8 +1341,7 @@ TEST_F(ADynamicHypergraph, CreateBatchUncontractionHierarchy6) {
   tree.setParent(12, 9);
   tree.setParent(13, 11);
   tree.setParent(14, 11);
-  auto versioned_batches = hypergraph.createBatchUncontractionHierarchy(
-    TBBNumaArena::GLOBAL_TASK_GROUP, tree.copy(), 4);
+  auto versioned_batches = hypergraph.createBatchUncontractionHierarchy(tree.copy(), 4);
   ASSERT_EQ(1, versioned_batches.size());
   for ( size_t i = 0; i < versioned_batches.size(); ++i ) {
     ASSERT_EQ(2, versioned_batches.back()[i].size());
@@ -1363,8 +1357,7 @@ TEST_F(ADynamicHypergraph, CreateBatchUncontractionHierarchyWithDifferentVersion
   tree.setParent(4, 3, 0);
   tree.setParent(5, 3, 0);
   tree.setParent(6, 1, 0);
-  auto versioned_batches = hypergraph.createBatchUncontractionHierarchy(
-    TBBNumaArena::GLOBAL_TASK_GROUP, tree.copy(), 2, 2);
+  auto versioned_batches = hypergraph.createBatchUncontractionHierarchy(tree.copy(), 2, 2);
   ASSERT_EQ(2, versioned_batches.size());
   verifyBatchUncontractionHierarchy(tree, versioned_batches, 2, 2);
 }
@@ -1376,8 +1369,7 @@ TEST_F(ADynamicHypergraph, CreateBatchUncontractionHierarchyWithDifferentVersion
   tree.setParent(2, 0, 1);
   tree.setParent(3, 1, 0);
   tree.setParent(4, 1, 0);
-  auto versioned_batches = hypergraph.createBatchUncontractionHierarchy(
-    TBBNumaArena::GLOBAL_TASK_GROUP, tree.copy(), 2, 2);
+  auto versioned_batches = hypergraph.createBatchUncontractionHierarchy(tree.copy(), 2, 2);
   ASSERT_EQ(2, versioned_batches.size());
   verifyBatchUncontractionHierarchy(tree, versioned_batches, 2, 2);
 }
@@ -1391,8 +1383,7 @@ TEST_F(ADynamicHypergraph, CreateBatchUncontractionHierarchyWithDifferentVersion
   tree.setParent(4, 1, 1);
   tree.setParent(5, 2, 0);
   tree.setParent(6, 2, 1);
-  auto versioned_batches = hypergraph.createBatchUncontractionHierarchy(
-    TBBNumaArena::GLOBAL_TASK_GROUP, tree.copy(), 2, 3);
+  auto versioned_batches = hypergraph.createBatchUncontractionHierarchy(tree.copy(), 2, 3);
   ASSERT_EQ(3, versioned_batches.size());
   verifyBatchUncontractionHierarchy(tree, versioned_batches, 2, 3);
 }
@@ -1404,8 +1395,7 @@ TEST_F(ADynamicHypergraph, CreateBatchUncontractionHierarchyWithDifferentVersion
   tree.setParent(2, 0, 1);
   tree.setParent(4, 3, 0);
   tree.setParent(5, 3, 1);
-  auto versioned_batches = hypergraph.createBatchUncontractionHierarchy(
-    TBBNumaArena::GLOBAL_TASK_GROUP, tree.copy(), 2, 3);
+  auto versioned_batches = hypergraph.createBatchUncontractionHierarchy(tree.copy(), 2, 3);
   ASSERT_EQ(3, versioned_batches.size());
   verifyBatchUncontractionHierarchy(tree, versioned_batches, 2, 3);
 }
@@ -1421,8 +1411,7 @@ TEST_F(ADynamicHypergraph, CreateBatchUncontractionHierarchyWithDifferentVersion
   tree.setParent(7, 5, 4);
   tree.setParent(8, 6, 0);
   tree.setParent(9, 7, 2);
-  auto versioned_batches = hypergraph.createBatchUncontractionHierarchy(
-    TBBNumaArena::GLOBAL_TASK_GROUP, tree.copy(), 2, 5);
+  auto versioned_batches = hypergraph.createBatchUncontractionHierarchy(tree.copy(), 2, 5);
   ASSERT_EQ(5, versioned_batches.size());
   verifyBatchUncontractionHierarchy(tree, versioned_batches, 2, 5);
 }
@@ -1434,8 +1423,7 @@ TEST_F(ADynamicHypergraph, CreateBatchUncontractionHierarchyWithEmptyVersionBatc
   tree.setParent(2, 0, 0);
   tree.setParent(4, 3, 0);
   tree.setParent(5, 3, 0);
-  auto versioned_batches = hypergraph.createBatchUncontractionHierarchy(
-    TBBNumaArena::GLOBAL_TASK_GROUP, tree.copy(), 2, 3);
+  auto versioned_batches = hypergraph.createBatchUncontractionHierarchy(tree.copy(), 2, 3);
   ASSERT_EQ(3, versioned_batches.size());
   ASSERT_TRUE(versioned_batches[1].back().empty());
   verifyBatchUncontractionHierarchy(tree, versioned_batches, 2, 3);
@@ -1496,8 +1484,7 @@ void verifyBatchUncontractions(DynamicHypergraph& hypergraph,
     hypergraph.contract(memento.v);
   }
 
-  auto versioned_batches = hypergraph.createBatchUncontractionHierarchy(
-    TBBNumaArena::GLOBAL_TASK_GROUP, batch_size);
+  auto versioned_batches = hypergraph.createBatchUncontractionHierarchy(batch_size);
 
   while ( !versioned_batches.empty() ) {
     BatchVector& batches = versioned_batches.back();

@@ -234,7 +234,7 @@ DynamicHypergraph simulateNLevel(DynamicHypergraph& hypergraph,
 
   utils::Timer::instance().start_timer(timer_key("create_batch_uncontraction_hierarchy"), "Create n-Level Hierarchy");
   const size_t tmp_batch_size = parallel ? batch_size : 1;
-  auto versioned_batches = hypergraph.createBatchUncontractionHierarchy(TBBNumaArena::GLOBAL_TASK_GROUP, tmp_batch_size);
+  auto versioned_batches = hypergraph.createBatchUncontractionHierarchy(tmp_batch_size);
   utils::Timer::instance().stop_timer(timer_key("create_batch_uncontraction_hierarchy"));
 
   utils::Timer::instance().start_timer(timer_key("batch_uncontractions"), "Batch Uncontractions");

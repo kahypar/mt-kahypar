@@ -869,8 +869,7 @@ TEST_F(ADynamicPartitionedHypergraph, ComputesCorrectPinCountsAfterUncontraction
   hypergraph.registerContraction(0, 2);
   hypergraph.contract(2);
 
-  VersionedBatchVector hierarchy = hypergraph.createBatchUncontractionHierarchy(
-    TBBNumaArena::GLOBAL_TASK_GROUP, 2);
+  VersionedBatchVector hierarchy = hypergraph.createBatchUncontractionHierarchy(2);
 
   initializePartition();
   partitioned_hypergraph.uncontract(hierarchy.back().back());
@@ -891,8 +890,7 @@ TEST_F(ADynamicPartitionedHypergraph, ComputesCorrectPinCountsAfterUncontraction
   hypergraph.contract(2);
   hypergraph.contract(5);
 
-  VersionedBatchVector hierarchy = hypergraph.createBatchUncontractionHierarchy(
-    TBBNumaArena::GLOBAL_TASK_GROUP, 2);
+  VersionedBatchVector hierarchy = hypergraph.createBatchUncontractionHierarchy(2);
 
   initializePartition();
 
@@ -924,8 +922,7 @@ TEST_F(ADynamicPartitionedHypergraph, UpdatesGainCacheCorrectlyAfterUncontractio
   hypergraph.registerContraction(0, 2);
   hypergraph.contract(2);
 
-  VersionedBatchVector hierarchy = hypergraph.createBatchUncontractionHierarchy(
-    TBBNumaArena::GLOBAL_TASK_GROUP, 2);
+  VersionedBatchVector hierarchy = hypergraph.createBatchUncontractionHierarchy(2);
 
   initializePartition();
   partitioned_hypergraph.initializeGainInformation();
@@ -949,8 +946,7 @@ TEST_F(ADynamicPartitionedHypergraph, UpdatesGainCacheCorrectlyAfterUncontractio
   hypergraph.contract(2);
   hypergraph.contract(5);
 
-  VersionedBatchVector hierarchy = hypergraph.createBatchUncontractionHierarchy(
-    TBBNumaArena::GLOBAL_TASK_GROUP, 2);
+  VersionedBatchVector hierarchy = hypergraph.createBatchUncontractionHierarchy(2);
 
   initializePartition();
   partitioned_hypergraph.initializeGainInformation();
