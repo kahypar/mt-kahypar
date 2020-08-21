@@ -88,6 +88,14 @@ enum class CoarseningVertexOrder : uint8_t {
   UNDEFINED
 };
 
+enum class ContractionOrder : uint8_t {
+  rating_order,
+  degree_order,
+  heavy_node_first,
+  heavy_node_second,
+  UNDEFINED
+};
+
 enum class InitialPartitioningAlgorithm : uint8_t {
   random = 0,
   bfs = 1,
@@ -201,6 +209,18 @@ std::ostream & operator<< (std::ostream& os, const CoarseningVertexOrder& order)
     case CoarseningVertexOrder::increasing_degree_order: return os << "increasing_degree_order";
     case CoarseningVertexOrder::decreasing_degree_order: return os << "decreasing_degree_order";
     case CoarseningVertexOrder::UNDEFINED: return os << "UNDEFINED";
+      // omit default case to trigger compiler warning for missing cases
+  }
+  return os << static_cast<uint8_t>(order);
+}
+
+std::ostream & operator<< (std::ostream& os, const ContractionOrder& order) {
+  switch (order) {
+    case ContractionOrder::rating_order: return os << "rating_order";
+    case ContractionOrder::degree_order: return os << "degree_order";
+    case ContractionOrder::heavy_node_first: return os << "heavy_node_first";
+    case ContractionOrder::heavy_node_second: return os << "heavy_node_second";
+    case ContractionOrder::UNDEFINED: return os << "UNDEFINED";
       // omit default case to trigger compiler warning for missing cases
   }
   return os << static_cast<uint8_t>(order);
@@ -337,6 +357,20 @@ static CoarseningVertexOrder coarseningVertexOrderFromString(const std::string& 
   }
   ERROR("No valid coarsening vertex order.");
 }
+
+static ContractionOrder contractionOrderFromString(const std::string& order) {
+  if (order == "rating_order") {
+    return ContractionOrder::rating_order;
+  } else if (order == "degree_order") {
+    return ContractionOrder::degree_order;
+  } else if (order == "heavy_node_first") {
+    return ContractionOrder::heavy_node_first;
+  } else if (order == "heavy_node_second") {
+    return ContractionOrder::heavy_node_second;
+  }
+  ERROR("No valid contraction order.");
+}
+
 
 static RatingFunction ratingFunctionFromString(const std::string& function) {
   if (function == "heavy_edge") {

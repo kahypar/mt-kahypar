@@ -180,6 +180,12 @@ po::options_description createCoarseningOptionsDescription(Context& context,
       context.coarsening.vertex_order =
         mt_kahypar::coarseningVertexOrderFromString(order);
     })->default_value("non_randomized"), "Vertex order in which vertices are visited during coarsening")
+    ("c-contraction-order",
+    po::value<std::string>()->value_name("<string>")->notifier(
+      [&](const std::string& order) {
+      context.coarsening.contraction_order =
+        mt_kahypar::contractionOrderFromString(order);
+    })->default_value("rating_order"), "")
     ("c-rating-score",
     po::value<std::string>()->value_name("<string>")->notifier(
       [&](const std::string& rating_score) {

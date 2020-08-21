@@ -134,7 +134,8 @@ inline std::ostream & operator<< (std::ostream& str, const RatingParameters& par
 struct CoarseningParameters {
   CoarseningAlgorithm algorithm = CoarseningAlgorithm::UNDEFINED;
   RatingParameters rating = { };
-  CoarseningVertexOrder vertex_order = CoarseningVertexOrder::non_randomized;
+  CoarseningVertexOrder vertex_order = CoarseningVertexOrder::UNDEFINED;
+  ContractionOrder contraction_order = ContractionOrder::UNDEFINED;
   HypernodeID contraction_limit_multiplier = std::numeric_limits<HypernodeID>::max();
   bool use_adaptive_edge_size = false;
   bool use_adaptive_max_allowed_node_weight = false;
@@ -172,6 +173,7 @@ inline std::ostream & operator<< (std::ostream& str, const CoarseningParameters&
     str << "  Maximum Shrink Factor:              " << params.maximum_shrink_factor << std::endl;
   } else {
     str << "  Coarsening Vertex Order:            " << params.vertex_order << std::endl;
+    str << "  Contraction Order:                  " << params.contraction_order << std::endl;
   }
   str << "  Vertex Degree Sampling Threshold:   " << params.vertex_degree_sampling_threshold << std::endl;
   str << std::endl << params.rating;

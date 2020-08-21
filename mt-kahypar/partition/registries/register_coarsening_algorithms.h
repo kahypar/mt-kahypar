@@ -52,5 +52,7 @@ REGISTER_DISPATCHED_COARSENER(CoarseningAlgorithm::nlevel_coarsener,
                               kahypar::meta::PolicyRegistry<HeavyNodePenaltyPolicy>::getInstance().getPolicy(
                                 context.coarsening.rating.heavy_node_penalty_policy),
                               kahypar::meta::PolicyRegistry<AcceptancePolicy>::getInstance().getPolicy(
-                                context.coarsening.rating.acceptance_policy));
+                                context.coarsening.rating.acceptance_policy),
+                              kahypar::meta::PolicyRegistry<ContractionOrder>::getInstance().getPolicy(
+                                context.coarsening.contraction_order));
 }  // namespace mt_kahypar
