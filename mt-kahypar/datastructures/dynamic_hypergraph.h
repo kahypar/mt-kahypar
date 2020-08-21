@@ -344,6 +344,20 @@ class DynamicHypergraph {
     WEIGHT_LIMIT_REACHED = 2
   };
 
+  using ContractionInterval = typename ContractionTree::Interval;
+  using ChildIterator = typename ContractionTree::ChildIterator;
+
+  struct PQBatchUncontractionElement {
+    size_t _subtree_size;
+    std::pair<ChildIterator, ChildIterator> _iterator;
+  };
+
+  struct PQElementComparator {
+    bool operator()(const PQBatchUncontractionElement& lhs, const PQBatchUncontractionElement& rhs){
+        return lhs._subtree_size < rhs._subtree_size;
+    }
+  };
+
   using IncidenceArray = Array<HypernodeID>;
   using IncidentNets = parallel::scalable_vector<IncidentNetVector<HyperedgeID>>;
   using OwnershipVector = parallel::scalable_vector<parallel::IntegralAtomicWrapper<bool>>;
@@ -1838,11 +1852,9 @@ class DynamicHypergraph {
     // Push roots of version into a global task queue
     const parallel::scalable_vector<HypernodeID>& roots = _contraction_tree.roots_of_version(version);
 
-    using ContractionInterval = typename ContractionTree::Interval;
-    using ChildIterator = typename ContractionTree::ChildIterator;
-    using QueueElement = std::pair<ChildIterator, ChildIterator>;
-    parallel::scalable_queue<QueueElement> q;
-    auto push_into_queue = [&](parallel::scalable_queue<QueueElement>& queue, const HypernodeID& u) {
+    using PQ = std::priority_queue<PQBatchUncontractionElement, parallel::scalable_vector<PQBatchUncontractionElement>, PQElementComparator>;
+    PQ pq;
+    auto push_into_pq = [&](PQ& prio_q, const HypernodeID& u) {
       auto it = _contraction_tree.childs(u);
       auto current = it.begin();
       auto end = it.end();
@@ -1850,12 +1862,13 @@ class DynamicHypergraph {
         ++current;
       }
       if ( current != end ) {
-        queue.push(std::make_pair(current, end));
+        prio_q.push(PQBatchUncontractionElement {
+          _contraction_tree.subtreeSize(*current), std::make_pair(current, end) } );
       }
     };
 
     for ( const HypernodeID& root : roots ) {
-      push_into_queue(q, root);
+      push_into_pq(pq, root);
     }
 
     auto does_interval_intersect = [&](const ContractionInterval& i1, const ContractionInterval& i2) {
@@ -1865,12 +1878,12 @@ class DynamicHypergraph {
              (i2.start <= i1.end && i2.end >= i1.end);
     };
     BatchVector batches(1);
-    parallel::scalable_queue<QueueElement> next_q;
-    while ( !q.empty() ) {
-      auto it = q.front();
+    PQ next_pq;
+    while ( !pq.empty() ) {
+      auto it = pq.top()._iterator;
       ASSERT(it.first != it.second);
       const HypernodeID v = *it.first;
-      q.pop();
+      pq.pop();
 
       ASSERT(_contraction_tree.version(v) == version);
       if ( batches.back().size() >= batch_size ) {
@@ -1879,7 +1892,7 @@ class DynamicHypergraph {
 
       const HypernodeID u = _contraction_tree.parent(v);
       batches.back().push_back(Memento { u, v });
-      push_into_queue(next_q, v);
+      push_into_pq(next_pq, v);
       ContractionInterval current_ival = _contraction_tree.interval(v);
       ++it.first;
       while ( it.first != it.second && _contraction_tree.version(*it.first) == version ) {
@@ -1890,7 +1903,7 @@ class DynamicHypergraph {
           batches.back().push_back(Memento { u, w });
           current_ival.start = std::min(current_ival.start, w_ival.start);
           current_ival.end = std::max(current_ival.end, w_ival.end);
-          push_into_queue(next_q, w);
+          push_into_pq(next_pq, w);
         } else {
           break;
         }
@@ -1898,14 +1911,15 @@ class DynamicHypergraph {
       }
 
       if ( it.first != it.second && _contraction_tree.version(*it.first) == version ) {
-        q.push(it);
+        pq.push(PQBatchUncontractionElement {
+          _contraction_tree.subtreeSize(*it.first), it });
       }
 
-      if ( q.empty() ) {
+      if ( pq.empty() ) {
         if ( !batches.back().empty() ) {
           batches.emplace_back();
         }
-        std::swap(q, next_q);
+        std::swap(pq, next_pq);
       }
     }
 
