@@ -23,6 +23,7 @@
 #include <string>
 
 #include "tbb/parallel_for.h"
+#include "tbb/parallel_sort.h"
 
 #include "kahypar/meta/mandatory.h"
 
@@ -94,7 +95,7 @@ class NLevelCoarsener : public ICoarsener,
     while ( current_num_nodes > _context.coarsening.contraction_limit ) {
       DBG << V(pass_nr) << V(current_num_nodes);
 
-      utils::Timer::instance().start_timer("parallel_shuffle_vector", "Parallel Shuffle Vector");
+      utils::Timer::instance().start_timer("calculate_vertex_order", "Calculate Vertex Order");
       std::atomic<size_t> idx(0);
       current_hns.resize(current_num_nodes);
       _hg.doParallelForAllNodes([&](const HypernodeID hn) {
@@ -103,8 +104,22 @@ class NLevelCoarsener : public ICoarsener,
         current_hns[i] = hn;
       });
       ASSERT(idx == current_num_nodes);
-      utils::Randomize::instance().parallelShuffleVector(current_hns, 0UL, current_hns.size());
-      utils::Timer::instance().stop_timer("parallel_shuffle_vector");
+      if ( _context.coarsening.vertex_order == CoarseningVertexOrder::random_shuffle ) {
+        utils::Randomize::instance().shuffleVector(current_hns, 0UL, current_hns.size(), sched_getcpu());
+      } else if ( _context.coarsening.vertex_order == CoarseningVertexOrder::random_shuffle ) {
+        utils::Randomize::instance().parallelShuffleVector(current_hns, 0UL, current_hns.size());
+      } else if ( _context.coarsening.vertex_order == CoarseningVertexOrder::increasing_degree_order ) {
+        tbb::parallel_sort(current_hns.begin(), current_hns.end(), [&](const HypernodeID& lhs, const HypernodeID& rhs) {
+          return _hg.nodeDegree(lhs) < _hg.nodeDegree(rhs);
+        });
+        randomShuffleEqualValues(current_hns);
+      } else if ( _context.coarsening.vertex_order == CoarseningVertexOrder::decreasing_degree_order ) {
+        tbb::parallel_sort(current_hns.begin(), current_hns.end(), [&](const HypernodeID& lhs, const HypernodeID& rhs) {
+          return _hg.nodeDegree(lhs) > _hg.nodeDegree(rhs);
+        });
+        randomShuffleEqualValues(current_hns);
+      }
+      utils::Timer::instance().stop_timer("calculate_vertex_order");
 
       utils::Timer::instance().start_timer("n_level_coarsening", "n-Level Coarsening");
       const HypernodeID num_hns_before_pass = current_num_nodes;
@@ -184,6 +199,20 @@ class NLevelCoarsener : public ICoarsener,
   PartitionedHypergraph&& uncoarsenImpl(std::unique_ptr<IRefiner>& label_propagation,
                                         std::unique_ptr<IRefiner>& fm) override {
     return Base::doUncoarsen(label_propagation, fm);
+  }
+
+  void randomShuffleEqualValues(parallel::scalable_vector<HypernodeID>& current_hns) {
+    int cpu_id = sched_getcpu();
+    size_t start = 0;
+    HypernodeID last_value = _hg.nodeDegree(current_hns[0]);
+    for ( size_t i = 1; i < current_hns.size(); ++i ) {
+      if ( last_value != _hg.nodeDegree(current_hns[i]) ) {
+        utils::Randomize::instance().shuffleVector(current_hns, start, i, cpu_id);
+        start = i;
+      }
+      last_value = _hg.nodeDegree(current_hns[i]);
+    }
+    utils::Randomize::instance().shuffleVector(current_hns, start, current_hns.size(), cpu_id);
   }
 
   using Base::_hg;

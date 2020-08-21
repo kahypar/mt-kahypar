@@ -79,6 +79,15 @@ enum class AcceptancePolicy : uint8_t {
   UNDEFINED
 };
 
+enum class CoarseningVertexOrder : uint8_t {
+  non_randomized,
+  random_shuffle,
+  pseudo_random_shuffle,
+  increasing_degree_order,
+  decreasing_degree_order,
+  UNDEFINED
+};
+
 enum class InitialPartitioningAlgorithm : uint8_t {
   random = 0,
   bfs = 1,
@@ -182,6 +191,19 @@ std::ostream & operator<< (std::ostream& os, const AcceptancePolicy& acceptance_
       // omit default case to trigger compiler warning for missing cases
   }
   return os << static_cast<uint8_t>(acceptance_policy);
+}
+
+std::ostream & operator<< (std::ostream& os, const CoarseningVertexOrder& order) {
+  switch (order) {
+    case CoarseningVertexOrder::non_randomized: return os << "non_randomized";
+    case CoarseningVertexOrder::random_shuffle: return os << "random_shuffle";
+    case CoarseningVertexOrder::pseudo_random_shuffle: return os << "pseudo_random_shuffle";
+    case CoarseningVertexOrder::increasing_degree_order: return os << "increasing_degree_order";
+    case CoarseningVertexOrder::decreasing_degree_order: return os << "decreasing_degree_order";
+    case CoarseningVertexOrder::UNDEFINED: return os << "UNDEFINED";
+      // omit default case to trigger compiler warning for missing cases
+  }
+  return os << static_cast<uint8_t>(order);
 }
 
 std::ostream & operator<< (std::ostream& os, const RatingFunction& func) {
@@ -298,6 +320,22 @@ static AcceptancePolicy acceptanceCriterionFromString(const std::string& crit) {
     return AcceptancePolicy::best_prefer_unmatched;
   }
   ERROR("No valid acceptance criterion for rating.");
+  return AcceptancePolicy::UNDEFINED;
+}
+
+static CoarseningVertexOrder coarseningVertexOrderFromString(const std::string& order) {
+  if (order == "non_randomized") {
+    return CoarseningVertexOrder::non_randomized;
+  } else if (order == "random_shuffle") {
+    return CoarseningVertexOrder::random_shuffle;
+  } else if (order == "pseudo_random_shuffle") {
+    return CoarseningVertexOrder::pseudo_random_shuffle;
+  } else if (order == "increasing_degree_order") {
+    return CoarseningVertexOrder::increasing_degree_order;
+  } else if (order == "decreasing_degree_order") {
+    return CoarseningVertexOrder::decreasing_degree_order;
+  }
+  ERROR("No valid coarsening vertex order.");
 }
 
 static RatingFunction ratingFunctionFromString(const std::string& function) {
