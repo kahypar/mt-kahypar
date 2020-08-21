@@ -23,7 +23,6 @@
 
 #include <atomic>
 
-#include <tbb/enumerable_thread_specific.h>
 
 #include "mt-kahypar/datastructures/sparse_map.h"
 
@@ -35,6 +34,7 @@
 #include "mt-kahypar/datastructures/graph.h"
 #include "mt-kahypar/partition/metrics.h"
 #include "mt-kahypar/parallel/atomic_wrapper.h"
+#include "mt-kahypar/parallel/stl/thread_locals.h"
 #include "mt-kahypar/utils/randomize.h"
 
 namespace mt_kahypar::metrics {
