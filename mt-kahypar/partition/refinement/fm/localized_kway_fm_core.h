@@ -120,7 +120,7 @@ class LocalizedKWayFM {
         deltaPhg.dropMemory();
       }
 
-      if (context.refinement.fm.perform_moves_global || sharedData.deltaExceededMemoryConstraints) {
+      if (sharedData.perform_moves_global || sharedData.deltaExceededMemoryConstraints) {
         internalFindMovesOnGlobalHypergraph(phg, sharedData);
       } else {
         deltaPhg.clear();

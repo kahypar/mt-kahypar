@@ -181,6 +181,7 @@ struct FMSharedData {
   size_t deltaMemoryLimitPerThread = 0;
 
   bool release_nodes = true;
+  bool perform_moves_global = true;
 
   FMSharedData(size_t numNodes = 0, PartitionID numParts = 0, size_t numThreads = 0) :
           refinementNodes(), //numNodes, numThreads),

@@ -80,6 +80,7 @@ public:
     size_t consecutive_rounds_with_too_little_improvement = 0;
     enable_light_fm = false;
     sharedData.release_nodes = context.refinement.fm.release_nodes;
+    sharedData.perform_moves_global = context.refinement.fm.perform_moves_global;
     double current_time_limit = time_limit;
     HighResClockTimepoint fm_start = std::chrono::high_resolution_clock::now();
     for (size_t round = 0; round < context.refinement.fm.multitry_rounds; ++round) { // global multi try rounds
@@ -114,7 +115,6 @@ public:
       for (auto& fm : ets_fm) {
         fm.stats.merge(stats);
       }
-      peak_reinsertions = std::max(peak_reinsertions, stats.task_queue_reinsertions);
 
       timer.stop_timer("find_moves");
       timer.start_timer("rollback", "Rollback to Best Solution");
@@ -150,6 +150,7 @@ public:
         if ( !enable_light_fm ) {
           DBG << RED << "Multitry FM reached time limit => switch to Light FM Configuration" << END;
           sharedData.release_nodes = false;
+          sharedData.perform_moves_global = true;
           current_time_limit *= 2;
           enable_light_fm = true;
         } else {
@@ -244,7 +245,6 @@ public:
   FMSharedData sharedData;
   GlobalRollback globalRollback;
   tbb::enumerable_thread_specific<LocalizedKWayFM> ets_fm;
-  size_t peak_reinsertions = 0;
 
   double improvementFraction(Gain gain, HyperedgeWeight old_km1) {
     if (old_km1 == 0)
