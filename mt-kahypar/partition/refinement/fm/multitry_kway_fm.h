@@ -45,7 +45,6 @@ public:
                  const Context& c,
                  const TaskGroupID taskGroupID) :
     initial_num_nodes(hypergraph.initialNumNodes()),
-    original_context(c),
     context(c),
     taskGroupID(taskGroupID),
     sharedData(hypergraph.initialNumNodes(), context),
@@ -79,8 +78,8 @@ public:
     utils::Timer& timer = utils::Timer::instance();
     Gain overall_improvement = 0;
     size_t consecutive_rounds_with_too_little_improvement = 0;
-    context = original_context;
     enable_light_fm = false;
+    sharedData.release_nodes = context.refinement.fm.release_nodes;
     double current_time_limit = time_limit;
     HighResClockTimepoint fm_start = std::chrono::high_resolution_clock::now();
     for (size_t round = 0; round < context.refinement.fm.multitry_rounds; ++round) { // global multi try rounds
@@ -150,7 +149,7 @@ public:
       if ( elapsed_time > current_time_limit ) {
         if ( !enable_light_fm ) {
           DBG << RED << "Multitry FM reached time limit => switch to Light FM Configuration" << END;
-          context.refinement.fm.release_nodes = false;
+          sharedData.release_nodes = false;
           current_time_limit *= 2;
           enable_light_fm = true;
         } else {
@@ -240,8 +239,7 @@ public:
   bool is_initialized = false;
   bool enable_light_fm = false;
   const HypernodeID initial_num_nodes;
-  const Context& original_context;
-  Context context;
+  const Context& context;
   const TaskGroupID taskGroupID;
   FMSharedData sharedData;
   GlobalRollback globalRollback;

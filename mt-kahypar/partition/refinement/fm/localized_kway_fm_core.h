@@ -292,7 +292,7 @@ private:
     // release all nodes that were not moved
     // reinsert into task queue only if we're doing multitry and at least one node was moved
     // unless a node was moved, only seed nodes are in the pqs
-    const bool release = context.refinement.fm.release_nodes
+    const bool release = sharedData.release_nodes
                          && context.refinement.fm.algorithm == FMAlgorithm::fm_multitry
                          && localData.runStats.moves > 0;
     const bool reinsert_seeds = bestImprovementIndex > 0;
