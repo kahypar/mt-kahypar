@@ -335,7 +335,7 @@ private:
                                FMSharedData& sharedData,
                                const Move& move) {
     for (HyperedgeID e : phg.incidentEdges(move.node)) {
-      if (phg.edgeSize(e) < context.partition.ignore_hyperedge_size_threshold && !validHyperedges[e]) {
+      if (phg.edgeSize(e) < context.partition.ignore_hyperedge_size_threshold && !validHyperedges[e]) { // TODO why not just store them in a vector to later iterate over?
         for (HypernodeID v : phg.pins(e)) {
           if (!updateDeduplicator.contains(v)) {
             updateDeduplicator[v] = { };  // insert
