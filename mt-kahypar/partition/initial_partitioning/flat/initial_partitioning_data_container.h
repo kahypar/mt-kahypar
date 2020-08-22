@@ -168,14 +168,12 @@ class InitialPartitioningDataContainer {
         _stats.emplace_back(static_cast<InitialPartitioningAlgorithm>(algo));
       }
 
-      if ( _context.refinement.label_propagation.algorithm != LabelPropagationAlgorithm::do_nothing &&
-           !_context.initial_partitioning.execute_only_twoway_fm ) {
+      if ( _context.refinement.label_propagation.algorithm != LabelPropagationAlgorithm::do_nothing ) {
         _label_propagation = LabelPropagationFactory::getInstance().createObject(
           _context.refinement.label_propagation.algorithm, hypergraph, _context, task_group_id);
       }
 
-      if ( _context.initial_partitioning.perform_fm_refinement &&
-           _context.initial_partitioning.perform_fm_refinement_on_each_bisection &&
+      if ( _context.initial_partitioning.perform_fm_refinement_on_each_bisection &&
            _context.partition.k == 2 ) {
         _twoway_fm = std::make_unique<SequentialTwoWayFmRefiner>(_partitioned_hypergraph, _context);
       }
@@ -198,14 +196,25 @@ class InitialPartitioningDataContainer {
         metrics::km1(_partitioned_hypergraph, false),
         metrics::imbalance(_partitioned_hypergraph, _context) };
 
-      if ( _label_propagation && !_context.initial_partitioning.execute_only_twoway_fm ) {
+      if ( _label_propagation ) {
         _label_propagation->initialize(_partitioned_hypergraph);
         _label_propagation->refine(_partitioned_hypergraph, {},
           current_metric, std::numeric_limits<double>::max());
       }
 
       if ( _twoway_fm ) {
-        _twoway_fm->refine(current_metric);
+        if ( _context.partition.objective == kahypar::Objective::km1 ) {
+          // LP refiner only updates km1 in current_metric
+          // which is equal to cut for k = 2
+          current_metric.cut = current_metric.km1;
+        }
+        bool improvement = true;
+        while ( improvement ) {
+          improvement = _twoway_fm->refine(current_metric);
+          if ( !_context.initial_partitioning.perform_fm_until_no_improvement ) {
+            break;
+          }
+        }
       }
 
       commit(algorithm, current_metric, time, false);
