@@ -110,4 +110,16 @@ TEST_F(ATwoWayFmRefiner, DoesNotWorsenSolutionQuality) {
   refiner->refine(metrics);
   ASSERT_LE(metrics.getMetric(kahypar::Mode::direct_kway, context.partition.objective), objective_before);
 }
+
+TEST_F(ATwoWayFmRefiner, DoesProduceCorrectMetricIfExecutedSeveralTimes) {
+  refiner->refine(metrics);
+  ASSERT_EQ(metrics::objective(partitioned_hypergraph, context.partition.objective),
+            metrics.getMetric(kahypar::Mode::direct_kway, context.partition.objective));
+
+  partitioned_hypergraph.resetPartition();
+  initialPartition();
+  refiner->refine(metrics);
+  ASSERT_EQ(metrics::objective(partitioned_hypergraph, context.partition.objective),
+            metrics.getMetric(kahypar::Mode::direct_kway, context.partition.objective));
+}
 }  // namespace mt_kahypar
