@@ -138,11 +138,9 @@ class SequentialTwoWayFmRefiner {
 
  public:
   SequentialTwoWayFmRefiner(PartitionedHypergraph& phg,
-                            const Context& context,
-                            const TaskGroupID task_group_id) :
+                            const Context& context) :
     _phg(phg),
     _context(context),
-    _task_group_id(task_group_id),
     _pq(context.partition.k),
     _border_vertices(phg.initialNumNodes()),
     _vertex_state(phg.initialNumNodes(), VertexState::INACTIVE),
@@ -415,7 +413,6 @@ class SequentialTwoWayFmRefiner {
 
   PartitionedHypergraph& _phg;
   const Context& _context;
-  const TaskGroupID _task_group_id;
 
   KWayPriorityQueue _pq;
   BorderVertexTracker _border_vertices;

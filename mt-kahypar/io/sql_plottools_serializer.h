@@ -86,6 +86,7 @@ static inline std::string serialize(const PartitionedHypergraph& hypergraph,
         << " initial_partitioning_min_adaptive_ip_runs=" << context.initial_partitioning.min_adaptive_ip_runs
         << " initial_partitioning_use_adaptive_epsilon=" << std::boolalpha << context.initial_partitioning.use_adaptive_epsilon
         << " initial_partitioning_perform_fm_refinement=" << std::boolalpha << context.initial_partitioning.perform_fm_refinement
+        << " initial_partitioning_perform_fm_refinement_on_each_bisection=" << std::boolalpha << context.initial_partitioning.perform_fm_refinement_on_each_bisection
         << " initial_partitioning_lp_maximum_iterations=" << context.initial_partitioning.lp_maximum_iterations
         << " initial_partitioning_lp_initial_block_size=" << context.initial_partitioning.lp_initial_block_size
         << " sparsification_use_degree_zero_contractions=" << std::boolalpha << context.sparsification.use_degree_zero_contractions

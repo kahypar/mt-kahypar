@@ -64,8 +64,7 @@ class ATwoWayFmRefiner : public Test {
     context.setupPartWeights(hypergraph.totalWeight());
     initialPartition();
 
-    refiner = std::make_unique<SequentialTwoWayFmRefiner>(
-      partitioned_hypergraph, context, TBBNumaArena::GLOBAL_TASK_GROUP);
+    refiner = std::make_unique<SequentialTwoWayFmRefiner>(partitioned_hypergraph, context);
   }
 
   void initialPartition() {

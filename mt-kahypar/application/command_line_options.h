@@ -322,7 +322,7 @@ po::options_description createInitialPartitioningOptionsDescription(Context& con
     po::value<size_t>(&context.initial_partitioning.runs)->value_name("<size_t>")->default_value(20),
     "Number of runs for each bisection algorithm.")
     ("i-use-adaptive-ip-runs",
-    po::value<bool>(&context.initial_partitioning.use_adaptive_ip_runs)->value_name("<bool>")->default_value(false),
+    po::value<bool>(&context.initial_partitioning.use_adaptive_ip_runs)->value_name("<bool>")->default_value(true),
     "If true, than each initial partitioner decides if it should further run based on each based\n"
     "produced quality and the standard deviation of the corresponding partitioner.")
     ("i-min-adaptive-ip-runs",
@@ -337,6 +337,9 @@ po::options_description createInitialPartitioningOptionsDescription(Context& con
     ("i-perform-fm-refinement",
     po::value<bool>(&context.initial_partitioning.perform_fm_refinement)->value_name("<bool>")->default_value(true),
     "If true, the best partitions produced by a thread is refined with an boundary FM")
+    ("i-perform-fm-refinement-on-each-bisection",
+    po::value<bool>(&context.initial_partitioning.perform_fm_refinement_on_each_bisection)->value_name("<bool>")->default_value(false),
+    "If true, performs sequential 2-way fm refinement on each bisection.")
     ("i-lp-maximum-iterations",
     po::value<size_t>(&context.initial_partitioning.lp_maximum_iterations)->value_name("<size_t>")->default_value(20),
     "Maximum number of iterations of label propagation initial partitioner")

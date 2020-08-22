@@ -32,6 +32,8 @@
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
 #include "mt-kahypar/utils/initial_partitioning_stats.h"
 #include "mt-kahypar/partition/refinement/fm/localized_kway_fm_core.h"
+#include "mt-kahypar/partition/refinement/fm/sequential_twoway_fm_refiner.h"
+
 
 namespace mt_kahypar {
 
@@ -159,6 +161,7 @@ class InitialPartitioningDataContainer {
               std::numeric_limits<HypernodeWeight>::max(),
               std::numeric_limits<double>::max()),
       _label_propagation(nullptr),
+      _twoway_fm(nullptr),
       _stats() {
 
       for ( uint8_t algo = 0; algo < static_cast<size_t>(InitialPartitioningAlgorithm::UNDEFINED); ++algo ) {
@@ -168,6 +171,12 @@ class InitialPartitioningDataContainer {
       if ( _context.refinement.label_propagation.algorithm != LabelPropagationAlgorithm::do_nothing ) {
         _label_propagation = LabelPropagationFactory::getInstance().createObject(
           _context.refinement.label_propagation.algorithm, hypergraph, _context, task_group_id);
+      }
+
+      if ( _context.initial_partitioning.perform_fm_refinement &&
+           _context.initial_partitioning.perform_fm_refinement_on_each_bisection &&
+           _context.partition.k == 2 ) {
+        _twoway_fm = std::make_unique<SequentialTwoWayFmRefiner>(_partitioned_hypergraph, _context);
       }
     }
 
@@ -192,6 +201,10 @@ class InitialPartitioningDataContainer {
         _label_propagation->initialize(_partitioned_hypergraph);
         _label_propagation->refine(_partitioned_hypergraph, {},
           current_metric, std::numeric_limits<double>::max());
+      }
+
+      if ( _twoway_fm ) {
+        _twoway_fm->refine(current_metric);
       }
 
       commit(algorithm, current_metric, time, false);
@@ -297,6 +310,7 @@ class InitialPartitioningDataContainer {
     parallel::scalable_vector<PartitionID> _partition;
     PartitioningResult _result;
     std::unique_ptr<IRefiner> _label_propagation;
+    std::unique_ptr<SequentialTwoWayFmRefiner> _twoway_fm;
     parallel::scalable_vector<utils::InitialPartitionerSummary> _stats;
   };
 
