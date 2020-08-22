@@ -168,7 +168,8 @@ class InitialPartitioningDataContainer {
         _stats.emplace_back(static_cast<InitialPartitioningAlgorithm>(algo));
       }
 
-      if ( _context.refinement.label_propagation.algorithm != LabelPropagationAlgorithm::do_nothing ) {
+      if ( _context.refinement.label_propagation.algorithm != LabelPropagationAlgorithm::do_nothing &&
+           !_context.initial_partitioning.execute_only_twoway_fm ) {
         _label_propagation = LabelPropagationFactory::getInstance().createObject(
           _context.refinement.label_propagation.algorithm, hypergraph, _context, task_group_id);
       }
@@ -197,7 +198,7 @@ class InitialPartitioningDataContainer {
         metrics::km1(_partitioned_hypergraph, false),
         metrics::imbalance(_partitioned_hypergraph, _context) };
 
-      if ( _label_propagation ) {
+      if ( _label_propagation && !_context.initial_partitioning.execute_only_twoway_fm ) {
         _label_propagation->initialize(_partitioned_hypergraph);
         _label_propagation->refine(_partitioned_hypergraph, {},
           current_metric, std::numeric_limits<double>::max());

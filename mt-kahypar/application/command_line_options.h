@@ -340,6 +340,9 @@ po::options_description createInitialPartitioningOptionsDescription(Context& con
     ("i-perform-fm-refinement-on-each-bisection",
     po::value<bool>(&context.initial_partitioning.perform_fm_refinement_on_each_bisection)->value_name("<bool>")->default_value(false),
     "If true, performs sequential 2-way fm refinement on each bisection.")
+    ("i-execute-only-twoway-fm",
+    po::value<bool>(&context.initial_partitioning.execute_only_twoway_fm)->value_name("<bool>")->default_value(false),
+    "If true, then only twoway fm refinement is executed in IP even if LP is enabled.")
     ("i-lp-maximum-iterations",
     po::value<size_t>(&context.initial_partitioning.lp_maximum_iterations)->value_name("<size_t>")->default_value(20),
     "Maximum number of iterations of label propagation initial partitioner")

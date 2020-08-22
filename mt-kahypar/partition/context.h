@@ -285,6 +285,7 @@ struct InitialPartitioningParameters {
   bool use_adaptive_epsilon = false;
   bool perform_fm_refinement = false;
   bool perform_fm_refinement_on_each_bisection = false;
+  bool execute_only_twoway_fm = false;
   size_t lp_maximum_iterations = 1;
   size_t lp_initial_block_size = 1;
 };
@@ -301,6 +302,7 @@ inline std::ostream & operator<< (std::ostream& str, const InitialPartitioningPa
   str << "  Perform FM Refinement:              " << std::boolalpha << params.perform_fm_refinement << std::endl;
   if ( params.perform_fm_refinement ) {
     str << "  Perform FM Refinement On Bisection: " << std::boolalpha << params.perform_fm_refinement_on_each_bisection << std::endl;
+    str << "  Execute Only 2-Way FM:              " << std::boolalpha << params.execute_only_twoway_fm << std::endl;
   }
   str << "  Maximum Iterations of LP IP:        " << params.lp_maximum_iterations << std::endl;
   str << "  Initial Block Size of LP IP:        " << params.lp_initial_block_size << std::endl;
