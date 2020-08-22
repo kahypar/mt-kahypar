@@ -77,7 +77,7 @@ class SequentialTwoWayFmRefiner {
 
     void becameCutHyperedge(const PartitionedHypergraph& phg,
                             const HyperedgeID he,
-                            const parallel::scalable_vector<VertexState> vertex_state) {
+                            const parallel::scalable_vector<VertexState>& vertex_state) {
       ASSERT(phg.connectivity(he) > 1);
       for ( const HypernodeID& pin : phg.pins(he) ) {
         ASSERT(pin <  _num_hypernodes);
@@ -91,7 +91,7 @@ class SequentialTwoWayFmRefiner {
 
     void becameNonCutHyperedge(const PartitionedHypergraph& phg,
                                const HyperedgeID he,
-                               const parallel::scalable_vector<VertexState> vertex_state) {
+                               const parallel::scalable_vector<VertexState>& vertex_state) {
       ASSERT(phg.connectivity(he) == 1);
       for ( const HypernodeID& pin : phg.pins(he) ) {
         ASSERT(pin <  _num_hypernodes);
