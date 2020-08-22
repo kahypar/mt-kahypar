@@ -280,6 +280,8 @@ struct InitialPartitioningParameters {
   InitialPartitioningMode mode = InitialPartitioningMode::UNDEFINED;
   RefinementParameters refinement = { };
   size_t runs = 1;
+  bool use_adaptive_ip_runs = false;
+  size_t min_adaptive_ip_runs = std::numeric_limits<size_t>::max();
   bool use_adaptive_epsilon = false;
   bool perform_fm_refinement = false;
   size_t lp_maximum_iterations = 1;
@@ -290,6 +292,10 @@ inline std::ostream & operator<< (std::ostream& str, const InitialPartitioningPa
   str << "Initial Partitioning Parameters:" << std::endl;
   str << "  Initial Partitioning Mode:          " << params.mode << std::endl;
   str << "  Number of Runs:                     " << params.runs << std::endl;
+  str << "  Use Adaptive IP Runs:               " << std::boolalpha << params.use_adaptive_ip_runs << std::endl;
+  if ( params.use_adaptive_ip_runs ) {
+    str << "  Min Adaptive IP Runs:               " << params.min_adaptive_ip_runs << std::endl;
+  }
   str << "  Use Adaptive Epsilon:               " << std::boolalpha << params.use_adaptive_epsilon << std::endl;
   str << "  Perform FM Refinement:              " << std::boolalpha << params.perform_fm_refinement << std::endl;
   str << "  Maximum Iterations of LP IP:        " << params.lp_maximum_iterations << std::endl;

@@ -21,6 +21,7 @@
 #pragma once
 
 #include <sstream>
+#include <mutex>
 
 #include "tbb/enumerable_thread_specific.h"
 
@@ -40,6 +41,76 @@ class InitialPartitioningDataContainer {
   static constexpr bool enable_heavy_assert = false;
   static PartitionID kInvalidPartition;
   static HypernodeID kInvalidHypernode;
+
+  struct InitialPartitioningRunStats {
+    explicit InitialPartitioningRunStats(InitialPartitioningAlgorithm algo) :
+      algorithm(algo),
+      average_quality(0.0),
+      sum_of_squares(0.0),
+      n(0),
+      best_quality(std::numeric_limits<HyperedgeWeight>::max()) { }
+
+    void add_run(const HyperedgeWeight quality) {
+      ++n;
+      // Incremental update standard deviation
+      // Incremental update average quality
+      const double old_average_quality = average_quality;
+      average_quality += static_cast<double>(quality - average_quality) / n;
+      sum_of_squares += (quality - old_average_quality) * (quality - average_quality);
+      if ( quality < best_quality ) {
+        best_quality = quality;
+      }
+    }
+
+    double stddev() const {
+      return n == 1 ? 0 : std::sqrt(sum_of_squares / ( n - 1 ));
+    }
+
+    InitialPartitioningAlgorithm algorithm;
+    double average_quality;
+    long double sum_of_squares;
+    size_t n;
+    HyperedgeWeight best_quality;
+  };
+
+  struct GlobalInitialPartitioningStats {
+
+    explicit GlobalInitialPartitioningStats(const Context& context) :
+      _stat_mutex(),
+      _context(context),
+      _stats(),
+      _best_quality(std::numeric_limits<HyperedgeWeight>::max()) {
+      const uint8_t num_initial_partitioner = static_cast<uint8_t>(InitialPartitioningAlgorithm::UNDEFINED);
+      for ( uint8_t algo = 0; algo < num_initial_partitioner; ++algo ) {
+        _stats.emplace_back(static_cast<InitialPartitioningAlgorithm>(algo));
+      }
+    }
+
+    void add_run(const InitialPartitioningAlgorithm algorithm,
+                 const HyperedgeWeight quality,
+                 const bool is_feasible) {
+      std::lock_guard<std::mutex> _lock(_stat_mutex);
+      const uint8_t algo_idx = static_cast<uint8_t>(algorithm);
+      _stats[algo_idx].add_run(quality);
+      if ( is_feasible && quality < _best_quality ) {
+        _best_quality = quality;
+      }
+    }
+
+    bool should_initial_partitioner_run(const InitialPartitioningAlgorithm algorithm) const {
+      const uint8_t algo_idx = static_cast<uint8_t>(algorithm);
+      return !_context.initial_partitioning.use_adaptive_ip_runs ||
+             _stats[algo_idx].n < _context.initial_partitioning.min_adaptive_ip_runs ||
+             // If the quality is normal distributed then approx. 95% of all values
+             // are inside the interval [avg - 2 * stddev, avg + 2 * stddev]
+             _stats[algo_idx].average_quality - 2.0 * _stats[algo_idx].stddev() <= _best_quality;
+    }
+
+    std::mutex _stat_mutex;
+    const Context& _context;
+    parallel::scalable_vector<InitialPartitioningRunStats> _stats;
+    HyperedgeWeight _best_quality;
+  };
 
   struct PartitioningResult {
     explicit PartitioningResult(InitialPartitioningAlgorithm algorithm,
@@ -78,9 +149,11 @@ class InitialPartitioningDataContainer {
 
     LocalInitialPartitioningHypergraph(Hypergraph& hypergraph,
                                        const Context& context,
-                                       const TaskGroupID task_group_id) :
+                                       const TaskGroupID task_group_id,
+                                       GlobalInitialPartitioningStats& global_stats) :
       _partitioned_hypergraph(context.partition.k, hypergraph),
       _context(context),
+      _global_stats(global_stats),
       _partition(hypergraph.initialNumNodes(), kInvalidPartition),
       _result(InitialPartitioningAlgorithm::UNDEFINED,
               std::numeric_limits<HypernodeWeight>::max(),
@@ -155,6 +228,8 @@ class InitialPartitioningDataContainer {
       }
 
       if ( !is_fm_run ) {
+        _global_stats.add_run(algorithm, current_metric.getMetric(kahypar::Mode::direct_kway,
+          _context.partition.objective), current_metric.imbalance <= _context.partition.epsilon);
         _partitioned_hypergraph.resetPartition();
       }
     }
@@ -218,6 +293,7 @@ class InitialPartitioningDataContainer {
 
     PartitionedHypergraph _partitioned_hypergraph;
     const Context& _context;
+    GlobalInitialPartitioningStats& _global_stats;
     parallel::scalable_vector<PartitionID> _partition;
     PartitioningResult _result;
     std::unique_ptr<IRefiner> _label_propagation;
@@ -234,6 +310,7 @@ class InitialPartitioningDataContainer {
     _partitioned_hg(hypergraph),
     _context(context),
     _task_group_id(task_group_id),
+    _global_stats(context),
     _local_hg([&] {
       return construct_local_partitioned_hypergraph();
     }),
@@ -331,6 +408,10 @@ class InitialPartitioningDataContainer {
     return kInvalidHypernode;
   }
 
+  bool should_initial_partitioner_run(const InitialPartitioningAlgorithm algorithm) {
+    return _global_stats.should_initial_partitioner_run(algorithm);
+  }
+
   /*!
    * Commits the current partition computed on the local hypergraph. Partition replaces
    * the best local partition, if it has a better quality (or better imbalance).
@@ -415,13 +496,15 @@ class InitialPartitioningDataContainer {
 
  private:
   LocalInitialPartitioningHypergraph construct_local_partitioned_hypergraph() {
-    return LocalInitialPartitioningHypergraph(_partitioned_hg.hypergraph(), _context, _task_group_id);
+    return LocalInitialPartitioningHypergraph(
+      _partitioned_hg.hypergraph(), _context, _task_group_id, _global_stats);
   }
 
   PartitionedHypergraph& _partitioned_hg;
   Context _context;
   const TaskGroupID _task_group_id;
 
+  GlobalInitialPartitioningStats _global_stats;
   ThreadLocalHypergraph _local_hg;
   ThreadLocalKWayPriorityQueue _local_kway_pq;
   tbb::enumerable_thread_specific<bool> _is_local_pq_initialized;

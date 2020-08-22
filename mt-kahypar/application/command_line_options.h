@@ -321,6 +321,14 @@ po::options_description createInitialPartitioningOptionsDescription(Context& con
     ("i-runs",
     po::value<size_t>(&context.initial_partitioning.runs)->value_name("<size_t>")->default_value(20),
     "Number of runs for each bisection algorithm.")
+    ("i-use-adaptive-ip-runs",
+    po::value<bool>(&context.initial_partitioning.use_adaptive_ip_runs)->value_name("<bool>")->default_value(false),
+    "If true, than each initial partitioner decides if it should further run based on each based\n"
+    "produced quality and the standard deviation of the corresponding partitioner.")
+    ("i-min-adaptive-ip-runs",
+    po::value<size_t>(&context.initial_partitioning.min_adaptive_ip_runs)->value_name("<size_t>")->default_value(5),
+    "If adaptive IP runs is enabled, than each initial partitioner performs minimum min_adaptive_ip_runs runs before\n"
+    "it decides if it should terminate.")
     ("i-use-adaptive-epsilon",
     po::value<bool>(&context.initial_partitioning.use_adaptive_epsilon)->value_name("<bool>")->default_value(true),
     "If true, initial partitioning computes for each bisection an individual maximum allowed\n"

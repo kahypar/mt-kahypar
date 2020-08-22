@@ -80,15 +80,15 @@ enum class AcceptancePolicy : uint8_t {
 };
 
 enum class InitialPartitioningAlgorithm : uint8_t {
-  random = 0,
-  bfs = 1,
-  greedy_round_robin_fm = 2,
-  greedy_global_fm = 3,
-  greedy_sequential_fm = 4,
-  greedy_round_robin_max_net = 5,
-  greedy_global_max_net = 6,
-  greedy_sequential_max_net = 7,
-  label_propagation = 8,
+  greedy_round_robin_fm = 0,
+  greedy_global_fm = 1,
+  greedy_sequential_fm = 2,
+  random = 3,
+  bfs = 4,
+  label_propagation = 5,
+  greedy_round_robin_max_net = 6,
+  greedy_global_max_net = 7,
+  greedy_sequential_max_net = 8,
   UNDEFINED = 9
 };
 
