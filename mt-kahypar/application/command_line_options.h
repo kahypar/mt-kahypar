@@ -334,6 +334,9 @@ po::options_description createInitialPartitioningOptionsDescription(Context& con
     "If true, initial partitioning computes for each bisection an individual maximum allowed\n"
     "block weight based on a worst-case estimation. Otherwise, we use the sum of the upper bounds\n"
     "of each block which both blocks of the bisection are recursively divided into as maximum")
+    ("i-perform-refinement-on-best-partitions",
+    po::value<bool>(&context.initial_partitioning.perform_refinement_on_best_partitions)->value_name("<bool>")->default_value(false),
+    "If true, then we perform an additional refinement on the best thread local partitions after IP.")
     ("i-perform-fm-until-no-improvement",
     po::value<bool>(&context.initial_partitioning.perform_fm_until_no_improvement)->value_name("<bool>")->default_value(false),
     "If true, then twoway fm refinement is executed until it finds no improvement any more on each bisection in IP.")

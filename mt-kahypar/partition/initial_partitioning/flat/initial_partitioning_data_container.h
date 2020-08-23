@@ -195,21 +195,7 @@ class InitialPartitioningDataContainer {
         metrics::km1(_partitioned_hypergraph, false),
         metrics::imbalance(_partitioned_hypergraph, _context) };
 
-      if ( _context.partition.k == 2 ) {
-        ASSERT(twoway_fm);
-        bool improvement = true;
-        while ( improvement ) {
-          improvement = _twoway_fm->refine(current_metric);
-          if ( !_context.initial_partitioning.perform_fm_until_no_improvement ) {
-            break;
-          }
-        }
-      } else {
-        ASSERT(label_propagation);
-        _label_propagation->initialize(_partitioned_hypergraph);
-        _label_propagation->refine(_partitioned_hypergraph, {},
-          current_metric, std::numeric_limits<double>::max());
-      }
+      refineCurrentPartition(current_metric);
 
       PartitioningResult result(algorithm,
         current_metric.getMetric(kahypar::Mode::direct_kway, _context.partition.objective),
@@ -238,6 +224,59 @@ class InitialPartitioningDataContainer {
       _global_stats.add_run(algorithm, current_metric.getMetric(kahypar::Mode::direct_kway,
         _context.partition.objective), current_metric.imbalance <= _context.partition.epsilon);
       _partitioned_hypergraph.resetPartition();
+    }
+
+    void performRefinementOnBestPartition() {
+      kahypar::Metrics current_metric = {
+        _result._objective,
+        _result._objective,
+        _result._imbalance };
+
+      // Apply best partition to hypergraph
+      for ( const HypernodeID& hn : _partitioned_hypergraph.nodes() ) {
+        ASSERT(hn < _partition.size());
+        ASSERT(_partitioned_hypergraph.partID(hn) == kInvalidPartition);
+        _partitioned_hypergraph.setNodePart(hn, _partition[hn]);
+      }
+
+      HEAVY_INITIAL_PARTITIONING_ASSERT(
+        current_metric.getMetric(kahypar::Mode::direct_kway, _context.partition.objective) ==
+        metrics::objective(_partitioned_hypergraph, _context.partition.objective));
+
+      refineCurrentPartition(current_metric);
+
+      // Compare current best partition with refined partition
+      PartitioningResult result(_result._algorithm,
+        current_metric.getMetric(kahypar::Mode::direct_kway, _context.partition.objective),
+        current_metric.imbalance);
+
+      if ( _result.is_other_better(result, _context.partition.epsilon) ) {
+        for ( const HypernodeID& hn : _partitioned_hypergraph.nodes() ) {
+          const PartitionID part_id = _partitioned_hypergraph.partID(hn);
+          ASSERT(hn < _partition.size());
+          ASSERT(part_id != kInvalidPartition);
+          _partition[hn] = part_id;
+        }
+        _result = std::move(result);
+      }
+    }
+
+    void refineCurrentPartition(kahypar::Metrics& current_metric) {
+      if ( _context.partition.k == 2 ) {
+        ASSERT(_twoway_fm);
+        bool improvement = true;
+        while ( improvement ) {
+          improvement = _twoway_fm->refine(current_metric);
+          if ( !_context.initial_partitioning.perform_fm_until_no_improvement ) {
+            break;
+          }
+        }
+      } else {
+        ASSERT(_label_propagation);
+        _label_propagation->initialize(_partitioned_hypergraph);
+        _label_propagation->refine(_partitioned_hypergraph, {},
+          current_metric, std::numeric_limits<double>::max());
+      }
     }
 
     void aggregate_stats(parallel::scalable_vector<utils::InitialPartitionerSummary>& main_stats) const {
@@ -397,6 +436,17 @@ class InitialPartitioningDataContainer {
     size_t number_of_threads = 0;
     for ( uint8_t algo = 0; algo < static_cast<size_t>(InitialPartitioningAlgorithm::UNDEFINED); ++algo ) {
       stats.emplace_back(static_cast<InitialPartitioningAlgorithm>(algo));
+    }
+
+    // Perform FM refinement on the best partition of each thread
+    if ( _context.initial_partitioning.perform_refinement_on_best_partitions ) {
+      tbb::task_group fm_refinement_group;
+      for ( LocalInitialPartitioningHypergraph& partition : _local_hg ) {
+        fm_refinement_group.run([&] {
+          partition.performRefinementOnBestPartition();
+        });
+      }
+      fm_refinement_group.wait();
     }
 
     // Determine best partition
