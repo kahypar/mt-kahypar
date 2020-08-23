@@ -77,7 +77,7 @@ class SequentialTwoWayFmRefiner {
 
     void becameCutHyperedge(const PartitionedHypergraph& phg,
                             const HyperedgeID he,
-                            const parallel::scalable_vector<VertexState> vertex_state) {
+                            const parallel::scalable_vector<VertexState>& vertex_state) {
       ASSERT(phg.connectivity(he) > 1);
       for ( const HypernodeID& pin : phg.pins(he) ) {
         ASSERT(pin <  _num_hypernodes);
@@ -91,7 +91,7 @@ class SequentialTwoWayFmRefiner {
 
     void becameNonCutHyperedge(const PartitionedHypergraph& phg,
                                const HyperedgeID he,
-                               const parallel::scalable_vector<VertexState> vertex_state) {
+                               const parallel::scalable_vector<VertexState>& vertex_state) {
       ASSERT(phg.connectivity(he) == 1);
       for ( const HypernodeID& pin : phg.pins(he) ) {
         ASSERT(pin <  _num_hypernodes);
@@ -390,20 +390,20 @@ class SequentialTwoWayFmRefiner {
       const PartitionID to = 1 - _phg.partID(hn);
       if ( _border_vertices.isBorderNode(hn) && _vertex_state[hn] != VertexState::MOVED ) {
         if ( !_pq.contains(hn, to) ) {
-          LOG << "Hypernode" << hn << "is a border and should be contained in the PQ";
+          LOG << "Hypernode" << hn << "is a border node and should be contained in the PQ";
           return false;
         }
         if ( _vertex_state[hn] != VertexState::ACTIVE ) {
-          LOG << "Hypernode" << hn << "is a border not and its not moved and its state should be ACTIVE";
+          LOG << "Hypernode" << hn << "is a border node and its not moved and its state should be ACTIVE";
           return false;
         }
       } else if ( !_border_vertices.isBorderNode(hn) && _vertex_state[hn] != VertexState::MOVED ) {
         if ( _pq.contains(hn, to) ) {
-          LOG << "Hypernode" << hn << "is not a border not and should be not contained in PQ";
+          LOG << "Hypernode" << hn << "is not a border node and should be not contained in PQ";
           return false;
         }
         if ( _vertex_state[hn] != VertexState::INACTIVE ) {
-          LOG << "Hypernode" << hn << "is not a border not and its not moved and its state should be INACTIVE";
+          LOG << "Hypernode" << hn << "is not a border node and its not moved and its state should be INACTIVE";
           return false;
         }
       }

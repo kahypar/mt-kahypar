@@ -334,15 +334,9 @@ po::options_description createInitialPartitioningOptionsDescription(Context& con
     "If true, initial partitioning computes for each bisection an individual maximum allowed\n"
     "block weight based on a worst-case estimation. Otherwise, we use the sum of the upper bounds\n"
     "of each block which both blocks of the bisection are recursively divided into as maximum")
-    ("i-perform-fm-refinement",
-    po::value<bool>(&context.initial_partitioning.perform_fm_refinement)->value_name("<bool>")->default_value(true),
-    "If true, the best partitions produced by a thread is refined with an boundary FM")
-    ("i-perform-fm-refinement-on-each-bisection",
-    po::value<bool>(&context.initial_partitioning.perform_fm_refinement_on_each_bisection)->value_name("<bool>")->default_value(false),
-    "If true, performs sequential 2-way fm refinement on each bisection.")
     ("i-perform-fm-until-no-improvement",
     po::value<bool>(&context.initial_partitioning.perform_fm_until_no_improvement)->value_name("<bool>")->default_value(false),
-    "If true, then twoway fm refinement is executed until it finds no improvement any more.")
+    "If true, then twoway fm refinement is executed until it finds no improvement any more on each bisection in IP.")
     ("i-lp-maximum-iterations",
     po::value<size_t>(&context.initial_partitioning.lp_maximum_iterations)->value_name("<size_t>")->default_value(20),
     "Maximum number of iterations of label propagation initial partitioner")

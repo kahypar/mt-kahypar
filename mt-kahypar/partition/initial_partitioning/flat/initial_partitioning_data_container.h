@@ -168,14 +168,13 @@ class InitialPartitioningDataContainer {
         _stats.emplace_back(static_cast<InitialPartitioningAlgorithm>(algo));
       }
 
-      if ( _context.refinement.label_propagation.algorithm != LabelPropagationAlgorithm::do_nothing ) {
+      if ( _context.partition.k == 2 ) {
+        // In case of a bisection we instantiate the 2-way FM refiner
+        _twoway_fm = std::make_unique<SequentialTwoWayFmRefiner>(_partitioned_hypergraph, _context);
+      } else {
+        // In case of a direct-kway initial partition we instantiate the LP refiner
         _label_propagation = LabelPropagationFactory::getInstance().createObject(
           _context.refinement.label_propagation.algorithm, hypergraph, _context, task_group_id);
-      }
-
-      if ( _context.initial_partitioning.perform_fm_refinement_on_each_bisection &&
-           _context.partition.k == 2 ) {
-        _twoway_fm = std::make_unique<SequentialTwoWayFmRefiner>(_partitioned_hypergraph, _context);
       }
     }
 
@@ -196,18 +195,8 @@ class InitialPartitioningDataContainer {
         metrics::km1(_partitioned_hypergraph, false),
         metrics::imbalance(_partitioned_hypergraph, _context) };
 
-      if ( _label_propagation ) {
-        _label_propagation->initialize(_partitioned_hypergraph);
-        _label_propagation->refine(_partitioned_hypergraph, {},
-          current_metric, std::numeric_limits<double>::max());
-      }
-
-      if ( _twoway_fm ) {
-        if ( _context.partition.objective == kahypar::Objective::km1 ) {
-          // LP refiner only updates km1 in current_metric
-          // which is equal to cut for k = 2
-          current_metric.cut = current_metric.km1;
-        }
+      if ( _context.partition.k == 2 ) {
+        ASSERT(twoway_fm);
         bool improvement = true;
         while ( improvement ) {
           improvement = _twoway_fm->refine(current_metric);
@@ -215,15 +204,13 @@ class InitialPartitioningDataContainer {
             break;
           }
         }
+      } else {
+        ASSERT(label_propagation);
+        _label_propagation->initialize(_partitioned_hypergraph);
+        _label_propagation->refine(_partitioned_hypergraph, {},
+          current_metric, std::numeric_limits<double>::max());
       }
 
-      commit(algorithm, current_metric, time, false);
-    }
-
-    void commit(const InitialPartitioningAlgorithm algorithm,
-                kahypar::Metrics& current_metric,
-                const double time,
-                const bool is_fm_run) {
       PartitioningResult result(algorithm,
         current_metric.getMetric(kahypar::Mode::direct_kway, _context.partition.objective),
         current_metric.imbalance);
@@ -232,13 +219,11 @@ class InitialPartitioningDataContainer {
           << "- CPU ID:" << sched_getcpu()
           << "[" << result.str() << "]";
 
-      if ( !is_fm_run ) {
-        // Aggregate Stats
-        uint8_t algorithm_index = static_cast<uint8_t>(algorithm);
-        _stats[algorithm_index].total_sum_quality += result._objective;
-        _stats[algorithm_index].total_time += time;
-        ++_stats[algorithm_index].total_calls;
-      }
+      // Aggregate Stats
+      uint8_t algorithm_index = static_cast<uint8_t>(algorithm);
+      _stats[algorithm_index].total_sum_quality += result._objective;
+      _stats[algorithm_index].total_time += time;
+      ++_stats[algorithm_index].total_calls;
 
       if ( _result.is_other_better(result, _context.partition.epsilon) ) {
         for ( const HypernodeID& hn : _partitioned_hypergraph.nodes() ) {
@@ -250,53 +235,9 @@ class InitialPartitioningDataContainer {
         _result = std::move(result);
       }
 
-      if ( !is_fm_run ) {
-        _global_stats.add_run(algorithm, current_metric.getMetric(kahypar::Mode::direct_kway,
-          _context.partition.objective), current_metric.imbalance <= _context.partition.epsilon);
-        _partitioned_hypergraph.resetPartition();
-      }
-    }
-
-    void performFMRefinement() {
-      if ( _context.initial_partitioning.perform_fm_refinement ) {
-
-        kahypar::Metrics current_metric = {
-          _result._objective,
-          _result._objective,
-          _result._imbalance };
-
-        for ( const HypernodeID& hn : _partitioned_hypergraph.nodes() ) {
-          ASSERT(hn < _partition.size());
-          ASSERT(_partitioned_hypergraph.partID(hn) == kInvalidPartition);
-          _partitioned_hypergraph.setNodePart(hn, _partition[hn]);
-        }
-
-        HEAVY_INITIAL_PARTITIONING_ASSERT(
-          current_metric.getMetric(kahypar::Mode::direct_kway, _context.partition.objective) ==
-          metrics::objective(_partitioned_hypergraph, _context.partition.objective));
-
-        _partitioned_hypergraph.initializeGainInformation();
-        FMSharedData sharedData(_partitioned_hypergraph.initialNumNodes(), _context.partition.k, 1);
-        LocalizedKWayFM fm(_context, _partitioned_hypergraph.initialNumNodes(), sharedData.vertexPQHandles.data());
-
-        for (HypernodeID u : _partitioned_hypergraph.nodes()) {
-          if (_partitioned_hypergraph.isBorderNode(u)) {
-            sharedData.refinementNodes.safe_push(u, 0);
-          }
-        }
-
-        fm.findMovesUsingFullBoundary(_partitioned_hypergraph, sharedData);
-
-        ASSERT(_context.partition.k == 2);
-        // since the FM call is single-threaded the improvements are exact
-        current_metric.km1 -= fm.stats.estimated_improvement;
-        current_metric.cut -= fm.stats.estimated_improvement;
-        current_metric.imbalance = metrics::imbalance(_partitioned_hypergraph, _context);
-
-        ASSERT(current_metric.km1 == metrics::km1(_partitioned_hypergraph, false));
-
-        commit(_result._algorithm, current_metric, 0.0, true);
-      }
+      _global_stats.add_run(algorithm, current_metric.getMetric(kahypar::Mode::direct_kway,
+        _context.partition.objective), current_metric.imbalance <= _context.partition.epsilon);
+      _partitioned_hypergraph.resetPartition();
     }
 
     void aggregate_stats(parallel::scalable_vector<utils::InitialPartitionerSummary>& main_stats) const {
@@ -457,15 +398,6 @@ class InitialPartitioningDataContainer {
     for ( uint8_t algo = 0; algo < static_cast<size_t>(InitialPartitioningAlgorithm::UNDEFINED); ++algo ) {
       stats.emplace_back(static_cast<InitialPartitioningAlgorithm>(algo));
     }
-
-    // Perform FM refinement on the best partition of each thread
-    tbb::task_group fm_refinement_group;
-    for ( LocalInitialPartitioningHypergraph& partition : _local_hg ) {
-      fm_refinement_group.run([&] {
-        partition.performFMRefinement();
-      });
-    }
-    fm_refinement_group.wait();
 
     // Determine best partition
     LocalInitialPartitioningHypergraph* best = nullptr;
