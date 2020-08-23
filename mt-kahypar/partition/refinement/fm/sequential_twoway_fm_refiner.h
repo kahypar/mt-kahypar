@@ -31,6 +31,12 @@
 
 namespace mt_kahypar {
 
+/**
+ * Implements a classical sequential 2-way FM which is similiar to the one implemented in KaHyPar.
+ * Main difference is that we do not use a gain cache, since we do not want use the 2-way fm refiner
+ * in a multilevel context. It is used after each bisection during initial partitioning to refine
+ * a given bipartition.
+ */
 class SequentialTwoWayFmRefiner {
 
   static constexpr bool debug = false;
@@ -38,17 +44,38 @@ class SequentialTwoWayFmRefiner {
 
   using KWayRefinementPQ = kahypar::ds::KWayPriorityQueue<HypernodeID, Gain, std::numeric_limits<Gain> >;
 
+  /**
+   * A hyperedge can be in three states during FM refinement: FREE, LOOSE and LOCKED.
+   * Initial all hyperedges are FREE. Once we move a vertex incident to the hyperedge,
+   * the hyperedge becomes LOOSE. If we move an other vertex in the opposite direction
+   * the hyperedge becomes LOCKED. LOCKED hyperedges have the property that they can not
+   * be removed from cut and we can therefore skip delta gain updates.
+   */
   enum HEState {
     FREE = std::numeric_limits<PartitionID>::max() - 1,
     LOCKED = std::numeric_limits<PartitionID>::max(),
   };
 
+  /**
+   * INACTIVE = Initial state of a vertex
+   * ACTIVE = Vertex is a border node and inserted into the PQ
+   * MOVED = Vertex was moved during local search
+   */
   enum class VertexState {
     INACTIVE,
     ACTIVE,
     MOVED
   };
 
+  /**
+   * Our partitioned hypergraph data structures does not track to how many cut hyperedges
+   * a vertex is incident to. This helper class tracks the number of incident cut hyperedges
+   * and gathers all nodes that became border or internal nodes during the last move on
+   * the hypergraph, which is required by our 2-way FM implementation, since only border vertices
+   * are eligble for moving.
+   * TODO(heuer): We should integrate this again into the partitioned hypergraph, since we should
+   * also change our parallel k-way implementation to only move border vertices.
+   */
   class BorderVertexTracker {
 
    public:
@@ -97,23 +124,30 @@ class SequentialTwoWayFmRefiner {
         ASSERT(pin <  _num_hypernodes);
         ASSERT(_num_incident_cut_hes[pin] > 0);
         --_num_incident_cut_hes[pin];
+        // Note, it is possible that we insert border vertices here, since an other hyperedge
+        // can become cut after the update. However, we handle this later by an explicit check
+        // if the vertex is still an internal vertex (see doForAllVerticesThatBecameInternalVertices(...)).
         if ( _num_incident_cut_hes[pin] == 0 && vertex_state[pin] == VertexState::ACTIVE ) {
           _hns_to_remove_from_pq.push_back(pin);
         }
       }
     }
 
+    // ! Iterates over all vertices that became border vertices after the last move
     template<typename F>
-    void doForAllVerticesThatShouldBeActivatedAndClear(const F& f) {
+    void doForAllVerticesThatBecameBorderVertices(const F& f) {
       for ( const HypernodeID& hn : _hns_to_activate ) {
         f(hn);
       }
       _hns_to_activate.clear();
     }
 
+    // ! Iterates over all vertices that became internal vertices after the last move
     template<typename F>
-    void doForAllVerticesThatShouldBeRemovedFromPQAndClear(const F& f) {
+    void doForAllVerticesThatBecameInternalVertices(const F& f) {
       for ( const HypernodeID& hn : _hns_to_remove_from_pq ) {
+        // Explicit border vertex check, because vector can contain fales positives
+        // (see becameNonCutHyperedge(...))
         if ( !isBorderNode(hn) ) {
           f(hn);
         }
@@ -185,6 +219,7 @@ class SequentialTwoWayFmRefiner {
       ASSERT(_pq.isEnabled(0) || _pq.isEnabled(1));
       HEAVY_REFINEMENT_ASSERT(verifyPQState(), "PQ corrupted!");
 
+      // Retrieve max gain move from PQ
       Gain gain = invalidGain;
       HypernodeID hn = kInvalidHypernode;
       PartitionID to = kInvalidPartition;
@@ -195,6 +230,7 @@ class SequentialTwoWayFmRefiner {
       ASSERT(_phg.partID(hn) == 1 - to);
       HEAVY_REFINEMENT_ASSERT(gain == computeGain(hn, _phg.partID(hn), to));
 
+      // Perform vertex move
       PartitionID from = _phg.partID(hn);
       _vertex_state[hn] = VertexState::MOVED;
       if ( _phg.changeNodePart(hn, from, to,
@@ -203,7 +239,8 @@ class SequentialTwoWayFmRefiner {
         // Perform delta gain updates
         updateNeighbors(hn, from, to);
 
-        _border_vertices.doForAllVerticesThatShouldBeRemovedFromPQAndClear(
+        // Remove all vertices that became internal from the PQ
+        _border_vertices.doForAllVerticesThatBecameInternalVertices(
           [&](const HypernodeID hn) {
             ASSERT(!_border_vertices.isBorderNode(hn));
             ASSERT(_vertex_state[hn] == VertexState::ACTIVE);
@@ -213,7 +250,8 @@ class SequentialTwoWayFmRefiner {
           }
         );
 
-        _border_vertices.doForAllVerticesThatShouldBeActivatedAndClear(
+        // Insert all new border vertices into PQ
+        _border_vertices.doForAllVerticesThatBecameBorderVertices(
           [&](const HypernodeID hn) {
           ASSERT(_border_vertices.isBorderNode(hn));
           ASSERT(_vertex_state[hn] == VertexState::INACTIVE);
@@ -251,6 +289,7 @@ class SequentialTwoWayFmRefiner {
       }
     }
 
+    // Perform rollback to best partition found during local search
     rollback(performed_moves, min_cut_idx);
 
     HEAVY_REFINEMENT_ASSERT(best_metrics.cut == metrics::hyperedgeCut(_phg));
@@ -261,6 +300,10 @@ class SequentialTwoWayFmRefiner {
 
  private:
 
+  /**
+   * Performs delta gain update on all non locked hyperedges and
+   * state transition of hyperedges.
+   */
   void updateNeighbors(const HypernodeID hn,
                        const PartitionID from,
                        const PartitionID to) {
@@ -285,6 +328,7 @@ class SequentialTwoWayFmRefiner {
     }
   }
 
+  // ! Delta-Gain Update as decribed in [ParMar06].
   void deltaGainUpdate(const HyperedgeID he,
                        const PartitionID from,
                        const PartitionID to) {
@@ -303,8 +347,8 @@ class SequentialTwoWayFmRefiner {
 
       if (_phg.edgeSize(he) == 2) {
         for (const HypernodeID& pin : _phg.pins(he)) {
-          const char factor = (_phg.partID(pin) == from ? 2 : -2);
           if ( _vertex_state[pin] == VertexState::ACTIVE ) {
+            const char factor = (_phg.partID(pin) == from ? 2 : -2);
             updatePin(pin, factor * he_weight);
           }
         }
