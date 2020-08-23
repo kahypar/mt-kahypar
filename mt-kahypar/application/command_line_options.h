@@ -337,9 +337,9 @@ po::options_description createInitialPartitioningOptionsDescription(Context& con
     ("i-perform-refinement-on-best-partitions",
     po::value<bool>(&context.initial_partitioning.perform_refinement_on_best_partitions)->value_name("<bool>")->default_value(false),
     "If true, then we perform an additional refinement on the best thread local partitions after IP.")
-    ("i-perform-fm-until-no-improvement",
-    po::value<bool>(&context.initial_partitioning.perform_fm_until_no_improvement)->value_name("<bool>")->default_value(false),
-    "If true, then twoway fm refinement is executed until it finds no improvement any more on each bisection in IP.")
+    ("i-fm-refinement-rounds",
+    po::value<size_t>(&context.initial_partitioning.fm_refinment_rounds)->value_name("<size_t>")->default_value(1),
+    "Number of 2-way FM rounds on each bisection produced by an initial partitioner.")
     ("i-lp-maximum-iterations",
     po::value<size_t>(&context.initial_partitioning.lp_maximum_iterations)->value_name("<size_t>")->default_value(20),
     "Maximum number of iterations of label propagation initial partitioner")

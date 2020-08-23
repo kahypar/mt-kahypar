@@ -44,76 +44,7 @@ class InitialPartitioningDataContainer {
   static PartitionID kInvalidPartition;
   static HypernodeID kInvalidHypernode;
 
-  struct InitialPartitioningRunStats {
-    explicit InitialPartitioningRunStats(InitialPartitioningAlgorithm algo) :
-      algorithm(algo),
-      average_quality(0.0),
-      sum_of_squares(0.0),
-      n(0),
-      best_quality(std::numeric_limits<HyperedgeWeight>::max()) { }
-
-    void add_run(const HyperedgeWeight quality) {
-      ++n;
-      // Incremental update standard deviation
-      // Incremental update average quality
-      const double old_average_quality = average_quality;
-      average_quality += static_cast<double>(quality - average_quality) / n;
-      sum_of_squares += (quality - old_average_quality) * (quality - average_quality);
-      if ( quality < best_quality ) {
-        best_quality = quality;
-      }
-    }
-
-    double stddev() const {
-      return n == 1 ? 0 : std::sqrt(sum_of_squares / ( n - 1 ));
-    }
-
-    InitialPartitioningAlgorithm algorithm;
-    double average_quality;
-    long double sum_of_squares;
-    size_t n;
-    HyperedgeWeight best_quality;
-  };
-
-  struct GlobalInitialPartitioningStats {
-
-    explicit GlobalInitialPartitioningStats(const Context& context) :
-      _stat_mutex(),
-      _context(context),
-      _stats(),
-      _best_quality(std::numeric_limits<HyperedgeWeight>::max()) {
-      const uint8_t num_initial_partitioner = static_cast<uint8_t>(InitialPartitioningAlgorithm::UNDEFINED);
-      for ( uint8_t algo = 0; algo < num_initial_partitioner; ++algo ) {
-        _stats.emplace_back(static_cast<InitialPartitioningAlgorithm>(algo));
-      }
-    }
-
-    void add_run(const InitialPartitioningAlgorithm algorithm,
-                 const HyperedgeWeight quality,
-                 const bool is_feasible) {
-      std::lock_guard<std::mutex> _lock(_stat_mutex);
-      const uint8_t algo_idx = static_cast<uint8_t>(algorithm);
-      _stats[algo_idx].add_run(quality);
-      if ( is_feasible && quality < _best_quality ) {
-        _best_quality = quality;
-      }
-    }
-
-    bool should_initial_partitioner_run(const InitialPartitioningAlgorithm algorithm) const {
-      const uint8_t algo_idx = static_cast<uint8_t>(algorithm);
-      return !_context.initial_partitioning.use_adaptive_ip_runs ||
-             _stats[algo_idx].n < _context.initial_partitioning.min_adaptive_ip_runs ||
-             // If the quality is normal distributed then approx. 95% of all values
-             // are inside the interval [avg - 2 * stddev, avg + 2 * stddev]
-             _stats[algo_idx].average_quality - 2.0 * _stats[algo_idx].stddev() <= _best_quality;
-    }
-
-    std::mutex _stat_mutex;
-    const Context& _context;
-    parallel::scalable_vector<InitialPartitioningRunStats> _stats;
-    HyperedgeWeight _best_quality;
-  };
-
+  // ! Contains information about the best thread local partition
   struct PartitioningResult {
     explicit PartitioningResult(InitialPartitioningAlgorithm algorithm,
                                 HyperedgeWeight objective,
@@ -145,6 +76,90 @@ class InitialPartitioningDataContainer {
     InitialPartitioningAlgorithm _algorithm;
     HyperedgeWeight _objective;
     double _imbalance;
+  };
+
+  // ! Aggregates global stats about the partitions produced by an specific
+  // ! initial partitioning algorithm.
+  struct InitialPartitioningRunStats {
+    explicit InitialPartitioningRunStats(InitialPartitioningAlgorithm algo) :
+      algorithm(algo),
+      average_quality(0.0),
+      sum_of_squares(0.0),
+      n(0),
+      best_quality(std::numeric_limits<HyperedgeWeight>::max()) { }
+
+    void add_run(const HyperedgeWeight quality) {
+      ++n;
+      // Incremental update standard deviation
+      // Incremental update average quality
+      const double old_average_quality = average_quality;
+      average_quality += static_cast<double>(quality - average_quality) / n;
+      sum_of_squares += (quality - old_average_quality) * (quality - average_quality);
+      if ( quality < best_quality ) {
+        best_quality = quality;
+      }
+    }
+
+    double stddev() const {
+      return n == 1 ? 0 : std::sqrt(sum_of_squares / ( n - 1 ));
+    }
+
+    InitialPartitioningAlgorithm algorithm;
+    double average_quality;
+    long double sum_of_squares;
+    size_t n;
+    HyperedgeWeight best_quality;
+  };
+
+  // ! Aggregates global stats of all initial partitioning algorithms.
+  // ! Additionally it provides a function that decides whether it is
+  // ! beneficial to perform additional runs of a specific initial
+  // ! partitioning algorithm based on its previous runs (see
+  // ! should_initial_partitioner_run(...)).
+  struct GlobalInitialPartitioningStats {
+
+    explicit GlobalInitialPartitioningStats(const Context& context) :
+      _stat_mutex(),
+      _context(context),
+      _stats(),
+      _best_quality(std::numeric_limits<HyperedgeWeight>::max()) {
+      const uint8_t num_initial_partitioner = static_cast<uint8_t>(InitialPartitioningAlgorithm::UNDEFINED);
+      for ( uint8_t algo = 0; algo < num_initial_partitioner; ++algo ) {
+        _stats.emplace_back(static_cast<InitialPartitioningAlgorithm>(algo));
+      }
+    }
+
+    void add_run(const InitialPartitioningAlgorithm algorithm,
+                 const HyperedgeWeight quality,
+                 const bool is_feasible) {
+      std::lock_guard<std::mutex> _lock(_stat_mutex);
+      const uint8_t algo_idx = static_cast<uint8_t>(algorithm);
+      _stats[algo_idx].add_run(quality);
+      if ( is_feasible && quality < _best_quality ) {
+        _best_quality = quality;
+      }
+    }
+
+    // ! Decides whether it is beneficial to perform further runs of a specific
+    // ! initial partitioning algorithm. Function assumes that the quality produced
+    // ! by a partitioner follows a normal distribution. In that case, approx. 95%
+    // ! of the partitions produced by an initial partitioner have a quality between
+    // ! avg_quality - 2 * stddev_quality and avg_quality + 2 * stddev_quality. If
+    // ! avg_quality - 2 * stddev_quality is greater than the best partition produced
+    // ! so far then we say that the probability that the corresponding initial
+    // ! partitioner produce a new global best partition is too low and prohibit further
+    // ! runs of that partitioner.
+    bool should_initial_partitioner_run(const InitialPartitioningAlgorithm algorithm) const {
+      const uint8_t algo_idx = static_cast<uint8_t>(algorithm);
+      return !_context.initial_partitioning.use_adaptive_ip_runs ||
+             _stats[algo_idx].n < _context.initial_partitioning.min_adaptive_ip_runs ||
+             _stats[algo_idx].average_quality - 2.0 * _stats[algo_idx].stddev() <= _best_quality;
+    }
+
+    std::mutex _stat_mutex;
+    const Context& _context;
+    parallel::scalable_vector<InitialPartitioningRunStats> _stats;
+    HyperedgeWeight _best_quality;
   };
 
   struct LocalInitialPartitioningHypergraph {
@@ -265,11 +280,8 @@ class InitialPartitioningDataContainer {
       if ( _context.partition.k == 2 ) {
         ASSERT(_twoway_fm);
         bool improvement = true;
-        while ( improvement ) {
+        for ( size_t i = 0; i < _context.initial_partitioning.fm_refinment_rounds && improvement; ++i ) {
           improvement = _twoway_fm->refine(current_metric);
-          if ( !_context.initial_partitioning.perform_fm_until_no_improvement ) {
-            break;
-          }
         }
       } else {
         ASSERT(_label_propagation);
@@ -277,6 +289,10 @@ class InitialPartitioningDataContainer {
         _label_propagation->refine(_partitioned_hypergraph, {},
           current_metric, std::numeric_limits<double>::max());
       }
+
+      HEAVY_INITIAL_PARTITIONING_ASSERT(
+        current_metric.getMetric(kahypar::Mode::direct_kway, _context.partition.objective) ==
+        metrics::objective(_partitioned_hypergraph, _context.partition.objective));
     }
 
     void aggregate_stats(parallel::scalable_vector<utils::InitialPartitionerSummary>& main_stats) const {

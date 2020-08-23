@@ -284,7 +284,7 @@ struct InitialPartitioningParameters {
   size_t min_adaptive_ip_runs = std::numeric_limits<size_t>::max();
   bool use_adaptive_epsilon = false;
   bool perform_refinement_on_best_partitions = false;
-  bool perform_fm_until_no_improvement = false;
+  size_t fm_refinment_rounds = 1;
   size_t lp_maximum_iterations = 1;
   size_t lp_initial_block_size = 1;
 };
@@ -299,7 +299,7 @@ inline std::ostream & operator<< (std::ostream& str, const InitialPartitioningPa
   }
   str << "  Use Adaptive Epsilon:               " << std::boolalpha << params.use_adaptive_epsilon << std::endl;
   str << "  Perform Refinement On Best:         " << std::boolalpha << params.perform_refinement_on_best_partitions << std::endl;
-  str << "  Perform FM Until No Improvement:    " << std::boolalpha << params.perform_fm_until_no_improvement << std::endl;
+  str << "  Fm Refinement Rounds:               " << params.fm_refinment_rounds << std::endl;
   str << "  Maximum Iterations of LP IP:        " << params.lp_maximum_iterations << std::endl;
   str << "  Initial Block Size of LP IP:        " << params.lp_initial_block_size << std::endl;
   str << "\nInitial Partitioning ";
