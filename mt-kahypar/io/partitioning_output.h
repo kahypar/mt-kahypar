@@ -20,21 +20,7 @@
 
 #pragma once
 
-#include "tbb/blocked_range.h"
-#include "tbb/parallel_invoke.h"
-#include "tbb/parallel_sort.h"
-#include "tbb/parallel_reduce.h"
-#include "tbb/parallel_for.h"
-#include "tbb/enumerable_thread_specific.h"
-
-#include "mt-kahypar/parallel/tbb_numa_arena.h"
-#include "mt-kahypar/parallel/memory_pool.h"
-#include "mt-kahypar/parallel/stl/scalable_vector.h"
-#include "mt-kahypar/parallel/atomic_wrapper.h"
 #include "mt-kahypar/partition/context.h"
-#include "mt-kahypar/partition/metrics.h"
-#include "mt-kahypar/utils/memory_tree.h"
-#include "mt-kahypar/utils/timer.h"
 
 namespace mt_kahypar::io {
   void printStripe();

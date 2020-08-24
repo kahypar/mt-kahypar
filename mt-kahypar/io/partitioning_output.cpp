@@ -20,7 +20,24 @@
 
 #include "partitioning_output.h"
 
+#include <vector>
+
+#include "tbb/blocked_range.h"
+#include "tbb/parallel_invoke.h"
+#include "tbb/parallel_sort.h"
+#include "tbb/parallel_reduce.h"
+#include "tbb/enumerable_thread_specific.h"
+
+#include "mt-kahypar/parallel/memory_pool.h"
+#include "mt-kahypar/parallel/atomic_wrapper.h"
+#include "mt-kahypar/partition/metrics.h"
+#include "mt-kahypar/utils/memory_tree.h"
+#include "mt-kahypar/utils/timer.h"
+
+
 #include "kahypar/utils/math.h"
+
+
 
 namespace mt_kahypar::io {
   namespace internal {
