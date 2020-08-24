@@ -24,8 +24,6 @@
 #include <algorithm>
 #include <vector>
 
-#include "tbb/task_group.h"
-
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/macros.h"
 #include "mt-kahypar/partition/multilevel.h"
