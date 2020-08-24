@@ -24,6 +24,7 @@
 #include <mutex>
 #include <thread>
 #include <vector>
+#include <algorithm>
 
 #include "mt-kahypar/macros.h"
 
@@ -120,7 +121,7 @@ class HardwareTopology {
       std::lock_guard<std::mutex> lock(_mutex);
       int cpu_id = -1;
       if ( _cpus.size() > 1 ) {
-        std::random_shuffle(_cpus.begin(), _cpus.end());
+        std::shuffle(_cpus.begin(), _cpus.end());
         if ( _cpus[0].cpu_id != except_cpu ) {
           cpu_id = _cpus[0].cpu_id;
         } else {
