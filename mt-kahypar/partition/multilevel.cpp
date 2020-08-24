@@ -187,6 +187,7 @@ namespace mt_kahypar::multilevel {
       if ( !_vcycle ) {
         if ( _context.initial_partitioning.mode == InitialPartitioningMode::direct ) {
           disableTimerAndStats();
+          // TODO move into IP algos
           PoolInitialPartitionerContinuation& ip_continuation = *new(allocate_continuation())
                   PoolInitialPartitionerContinuation(
                   phg, _ip_context, _task_group_id);

@@ -20,9 +20,6 @@
 
 #pragma once
 
-#include "kahypar/meta/abstract_factory.h"
-#include "kahypar/meta/registrar.h"
-
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/partition/factories.h"
 
@@ -32,6 +29,15 @@
 #include "mt-kahypar/partition/initial_partitioning/flat/label_propagation_initial_partitioner.h"
 #include "mt-kahypar/partition/initial_partitioning/flat/policies/gain_computation_policy.h"
 #include "mt-kahypar/partition/initial_partitioning/flat/policies/pq_selection_policy.h"
+
+#include "kahypar/meta/abstract_factory.h"
+#include "kahypar/meta/registrar.h"
+
+namespace mt_kahypar {
+using FlatInitialPartitionerFactory = kahypar::meta::Factory<InitialPartitioningAlgorithm,
+        tbb::task *(*)(tbb::task *, const InitialPartitioningAlgorithm, InitialPartitioningDataContainer&,
+                       const Context&, const int)>;
+}
 
 #define REGISTER_FLAT_INITIAL_PARTITIONER(id, partitioner)                                           \
   static kahypar::meta::Registrar<FlatInitialPartitionerFactory> register_ ## partitioner(           \

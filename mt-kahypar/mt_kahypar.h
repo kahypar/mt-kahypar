@@ -23,7 +23,6 @@
 
 #include "mt-kahypar/partition/registries/register_coarsening_algorithms.h"
 #include "mt-kahypar/partition/registries/register_initial_partitioning_algorithms.h"
-#include "mt-kahypar/partition/registries/register_flat_initial_partitioning_algorithms.h"
 #include "mt-kahypar/partition/registries/register_policies.h"
 #include "mt-kahypar/partition/registries/register_preprocessing_algorithms.h"
 #include "mt-kahypar/partition/registries/register_refinement_algorithms.h"

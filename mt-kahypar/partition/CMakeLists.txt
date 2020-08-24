@@ -1,6 +1,7 @@
 add_subdirectory(preprocessing/)
 add_subdirectory(coarsening)
 add_subdirectory(refinement)
+add_subdirectory(initial_partitioning)
 
 set(PartitionSources
         partitioner.cpp

@@ -37,6 +37,8 @@
 #include "mt-kahypar/utils/stats.h"
 #include "mt-kahypar/utils/timer.h"
 
+#include "mt-kahypar/partition/metrics.h"
+
 namespace mt_kahypar {
 
 /*!
