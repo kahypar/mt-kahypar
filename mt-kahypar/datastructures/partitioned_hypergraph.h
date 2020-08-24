@@ -80,6 +80,7 @@ private:
     _k(k),
     _hg(&hypergraph),
     _part_weights(k, CAtomic<HypernodeWeight>(0)),
+    _degree_zero_part_weight(k, 0),
     _part_ids(
         "Refinement", "part_ids", hypergraph.initialNumNodes(), false, false),
     _pins_in_part(hypergraph.initialNumEdges(), k, hypergraph.maxEdgeSize(), false),
@@ -100,6 +101,7 @@ private:
     _k(k),
     _hg(&hypergraph),
     _part_weights(k, CAtomic<HypernodeWeight>(0)),
+    _degree_zero_part_weight(k, 0),
     _part_ids(),
     _pins_in_part(),
     _connectivity_set(0, 0),
@@ -285,6 +287,11 @@ private:
   // ! Disable a hypernode (must be enabled before)
   void disableHypernode(const HypernodeID u) {
     _hg->disableHypernode(u);
+  }
+
+  // ! Restores a degree zero hypernode
+  void restoreDegreeZeroHypernode(const HypernodeID u) {
+    _hg->restoreDegreeZeroHypernode(u);
   }
 
   // ####################### Hyperedge Information #######################
@@ -687,6 +694,54 @@ private:
     return moveFromBenefit(u) - moveToPenalty(u, to);
   }
 
+  // !
+  void assignDegreeZeroVerticesToBlocks(const PartitionID block_0,
+                                        const PartitionID block_1,
+                                        const HypernodeWeight max_part_weight_0,
+                                        const HypernodeWeight max_part_weight_1) {
+    ASSERT(block_0 != kInvalidPartition && block_1 != kInvalidPartition);
+    ASSERT(block_0 < _k && block_1 < _k);
+    ASSERT(std::accumulate(_degree_zero_part_weight.begin(),
+      _degree_zero_part_weight.end(), 0, std::plus<HypernodeWeight>()) == 0);
+    HypernodeWeight weight_of_unassigned_degree_zero_hns =
+      _hg->weightOfRemovedDegreeZeroVertices();
+    if ( _part_weights[block_0] < _part_weights[block_1] ) {
+      const HypernodeWeight weight_to_assign = std::min(
+        weight_of_unassigned_degree_zero_hns, std::min(
+        max_part_weight_0 - _part_weights[block_0],
+        _part_weights[block_1] - _part_weights[block_0]));
+      _degree_zero_part_weight[block_0] += weight_to_assign;
+      weight_of_unassigned_degree_zero_hns -= weight_to_assign;
+    } else {
+      const HypernodeWeight weight_to_assign = std::min(
+        weight_of_unassigned_degree_zero_hns, std::min(
+        max_part_weight_1 - _part_weights[block_1],
+        _part_weights[block_0] - _part_weights[block_1]));
+      _degree_zero_part_weight[block_1] += weight_to_assign;
+      weight_of_unassigned_degree_zero_hns -= weight_to_assign;
+    }
+
+    if ( weight_of_unassigned_degree_zero_hns > 0 ) {
+      const HypernodeWeight weight_to_assign = std::min(
+        weight_of_unassigned_degree_zero_hns,
+        max_part_weight_0 - ( _part_weights[block_0] + _degree_zero_part_weight[block_0] ));
+      _degree_zero_part_weight[block_0] += weight_to_assign;
+      weight_of_unassigned_degree_zero_hns -= weight_to_assign;
+    }
+
+    if ( weight_of_unassigned_degree_zero_hns > 0 ) {
+      const HypernodeWeight weight_to_assign = std::min(
+        weight_of_unassigned_degree_zero_hns,
+        max_part_weight_1 - ( _part_weights[block_1] + _degree_zero_part_weight[block_1] ));
+      _degree_zero_part_weight[block_1] += weight_to_assign;
+      weight_of_unassigned_degree_zero_hns -= weight_to_assign;
+    }
+
+    if ( weight_of_unassigned_degree_zero_hns > 0 ) {
+      _degree_zero_part_weight[block_0] += weight_of_unassigned_degree_zero_hns;
+    }
+  }
+
   // ! Initializes the partition of the hypergraph, if block ids are assigned with
   // ! setOnlyNodePart(...). In that case, block weights and pin counts in part for
   // ! each hyperedge must be initialized explicitly here.
@@ -813,6 +868,7 @@ private:
   void resetPartition() {
     _part_ids.assign(_part_ids.size(), kInvalidPartition, false);
     for (auto& x : _part_weights) x.store(0, std::memory_order_relaxed);
+    for (auto& x : _degree_zero_part_weight) x = 0;
 
     // Reset pin count in part and connectivity set
     for ( const HyperedgeID& he : edges() ) {
@@ -935,6 +991,18 @@ private:
   // ! Otherwise cut nets are discarded (cut metric).
   std::pair<Hypergraph, parallel::scalable_vector<HypernodeID> > extract(const TaskGroupID& task_group_id, PartitionID block, bool cut_net_splitting) {
     ASSERT(block != kInvalidPartition && block < _k);
+    ASSERT([&] {
+      HyperedgeWeight total_sum_part_weights = 0;
+      for ( PartitionID block = 0; block < _k; ++block ) {
+        total_sum_part_weights += _part_weights[block].load() + _degree_zero_part_weight[block];
+      }
+      if ( total_sum_part_weights != totalWeight() ) {
+        LOG << V(total_sum_part_weights) << V(totalWeight());
+        return false;
+      }
+      return true;
+    }(), "Sum of part weights does not match total weight of hypergraph!"
+      << "Maybe you forgot to assign degree zero vertices.");
 
     // Compactify vertex ids
     parallel::scalable_vector<HypernodeID> hn_mapping(_hg->initialNumNodes(), kInvalidHypernode);
@@ -988,6 +1056,8 @@ private:
     Hypergraph extracted_hypergraph = HypergraphFactory::construct(
             task_group_id, num_hypernodes, num_hyperedges,
             edge_vector, hyperedge_weight.data(), hypernode_weight.data());
+    extracted_hypergraph._removed_degree_zero_hn_weight += _degree_zero_part_weight[block];
+    extracted_hypergraph._total_weight += _degree_zero_part_weight[block];
 
     // Set community ids
     doParallelForAllNodes([&](const HypernodeID& hn) {
@@ -998,6 +1068,9 @@ private:
     });
     extracted_hypergraph.initializeCommunities();
 
+    ASSERT(_part_weights[block] + _degree_zero_part_weight[block] == extracted_hypergraph.totalWeight(),
+      "Weight of extracted hypergraph does not match weight of block" << block << "!"
+      << V(_part_weights[block]) << V(_degree_zero_part_weight[block]) << V(extracted_hypergraph.totalWeight()));
     return std::make_pair(std::move(extracted_hypergraph), std::move(hn_mapping));
   }
 
@@ -1241,6 +1314,8 @@ private:
 
   // ! Weight and information for all blocks.
   vec< CAtomic<HypernodeWeight> > _part_weights;
+  // ! Pseudo assignment of degree zero vertices to blocks
+  vec< HypernodeWeight > _degree_zero_part_weight;
 
   // ! Current block IDs of the vertices
   Array< PartitionID > _part_ids;

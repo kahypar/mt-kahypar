@@ -99,7 +99,7 @@ inline void Partitioner::sanitize(Hypergraph& hypergraph) {
 
   utils::Timer::instance().start_timer("degree_zero_hypernode_removal", "Degree Zero Hypernode Removal");
   const HypernodeID num_removed_degree_zero_hypernodes =
-    _degree_zero_hn_remover.contractDegreeZeroHypernodes(hypergraph);
+    _degree_zero_hn_remover.removeDegreeZeroHypernodes(hypergraph);
   utils::Timer::instance().stop_timer("degree_zero_hypernode_removal");
 
   utils::Timer::instance().start_timer("large_hyperedge_removal", "Large Hyperedge Removal");
