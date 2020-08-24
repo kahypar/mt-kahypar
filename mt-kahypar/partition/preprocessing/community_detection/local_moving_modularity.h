@@ -24,18 +24,18 @@
 #include <atomic>
 
 
-#include "mt-kahypar/datastructures/sparse_map.h"
 
 #include "mt-kahypar/datastructures/sparse_map.h"
-#include "mt-kahypar/definitions.h"
 #include "mt-kahypar/utils/floating_point_comparisons.h"
 #include "mt-kahypar/macros.h"
 #include "mt-kahypar/datastructures/clustering.h"
 #include "mt-kahypar/datastructures/graph.h"
-#include "mt-kahypar/partition/metrics.h"
+#include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/parallel/atomic_wrapper.h"
 #include "mt-kahypar/parallel/stl/thread_locals.h"
 #include "mt-kahypar/utils/randomize.h"
+
+#include "gtest/gtest_prod.h"
 
 namespace mt_kahypar::metrics {
   double modularity(const Graph& graph, ds::Clustering& communities);
@@ -88,6 +88,7 @@ class ParallelLocalMovingModularity {
   bool localMoving(Graph& graph, ds::Clustering& communities);
 
  private:
+
   FRIEND_TEST(ALouvain, ComputesMaxGainMove1);
   FRIEND_TEST(ALouvain, ComputesMaxGainMove2);
   FRIEND_TEST(ALouvain, ComputesMaxGainMove3);

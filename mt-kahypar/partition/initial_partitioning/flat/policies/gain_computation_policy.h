@@ -23,6 +23,7 @@
 #include "tbb/task.h"
 
 #include "mt-kahypar/definitions.h"
+#include "../initial_partitioning_commons.h"
 
 namespace mt_kahypar {
 

@@ -21,11 +21,6 @@
 
 #include <chrono>
 
-#include "tbb/enumerable_thread_specific.h"
-
-#include "kahypar/datastructure/fast_reset_flag_array.h"
-#include "kahypar/datastructure/kway_priority_queue.h"
-
 #include "mt-kahypar/parallel/hardware_topology.h"
 #include "mt-kahypar/parallel/tbb_numa_arena.h"
 #include "mt-kahypar/datastructures/static_hypergraph.h"
@@ -48,9 +43,8 @@ using HardwareTopology = mt_kahypar::parallel::HardwareTopology<>;
 #endif
 using TBBNumaArena = mt_kahypar::parallel::TBBNumaArena<HardwareTopology, false>;
 
-using ThreadLocalFastResetFlagArray = tbb::enumerable_thread_specific<kahypar::ds::FastResetFlagArray<> >;
-using KWayPriorityQueue = kahypar::ds::KWayPriorityQueue<HypernodeID, Gain, std::numeric_limits<Gain>, true>;
-using ThreadLocalKWayPriorityQueue = tbb::enumerable_thread_specific<KWayPriorityQueue>;
+
+
 
 using Hypergraph = ds::StaticHypergraph;
 using HypergraphFactory = ds::StaticHypergraphFactory;
