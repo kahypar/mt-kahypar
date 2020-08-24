@@ -24,9 +24,6 @@
 
 namespace mt_kahypar {
 
-
-
-
   class DoNothingContinuation : public tbb::task {
   public:
     tbb::task* execute() override {
