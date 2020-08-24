@@ -22,4 +22,3 @@
 #pragma once
 
 #include "mt-kahypar/partition/registries/register_coarsening_algorithms.h"
-#include "mt-kahypar/partition/registries/register_policies.h"

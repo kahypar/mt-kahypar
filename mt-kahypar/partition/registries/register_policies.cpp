@@ -19,7 +19,6 @@
  *
  ******************************************************************************/
 
-#pragma once
 
 #include "kahypar/meta/policy_registry.h"
 #include "kahypar/meta/registrar.h"
