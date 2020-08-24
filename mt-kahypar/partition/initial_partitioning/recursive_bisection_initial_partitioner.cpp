@@ -22,10 +22,8 @@
 
 
 #include <algorithm>
-#include <limits>
 #include <vector>
 
-#include "tbb/task_arena.h"
 #include "tbb/task_group.h"
 
 #include "mt-kahypar/definitions.h"
