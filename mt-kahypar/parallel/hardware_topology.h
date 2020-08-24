@@ -263,7 +263,6 @@ class HardwareTopology {
     }
   }
 
-  static std::mutex _mutex;
 
   size_t _num_cpus;
   Topology _topology;
@@ -271,7 +270,5 @@ class HardwareTopology {
   std::vector<int> _cpu_to_numa_node;
 };
 
-template <typename HwTopology, typename Topology, typename Node>
-std::mutex HardwareTopology<HwTopology, Topology, Node>::_mutex;
 }  // namespace parallel
 }  // namespace mt_kahypar
