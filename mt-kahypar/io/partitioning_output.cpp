@@ -20,6 +20,8 @@
 
 #include "partitioning_output.h"
 
+#include "kahypar/utils/math.h"
+
 namespace mt_kahypar::io {
   namespace internal {
     struct Statistic {
