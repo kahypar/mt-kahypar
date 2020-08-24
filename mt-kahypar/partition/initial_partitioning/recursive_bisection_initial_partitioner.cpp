@@ -20,6 +20,25 @@
 
 #include "recursive_bisection_initial_partitioner.h"
 
+
+#include <algorithm>
+#include <limits>
+#include <vector>
+
+#include "tbb/task_arena.h"
+#include "tbb/task_group.h"
+
+#include "mt-kahypar/definitions.h"
+#include "mt-kahypar/macros.h"
+#include "mt-kahypar/partition/multilevel.h"
+
+#include "mt-kahypar/parallel/memory_pool.h"
+#include "mt-kahypar/utils/randomize.h"
+#include "mt-kahypar/utils/stats.h"
+#include "mt-kahypar/utils/timer.h"
+
+#include "mt-kahypar/partition/metrics.h"
+
 namespace mt_kahypar {
 
   class DoNothingContinuation : public tbb::task {
