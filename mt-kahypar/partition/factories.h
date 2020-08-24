@@ -20,8 +20,6 @@
 
 #pragma once
 
-#include "tbb/task.h"
-
 #include "kahypar/meta/abstract_factory.h"
 #include "kahypar/meta/static_multi_dispatch_factory.h"
 #include "kahypar/meta/typelist.h"
@@ -34,11 +32,8 @@
 #include "mt-kahypar/partition/initial_partitioning/i_initial_partitioner.h"
 #include "mt-kahypar/partition/preprocessing/sparsification/i_hypergraph_sparsifier.h"
 #include "mt-kahypar/partition/refinement/i_refiner.h"
-#include "mt-kahypar/partition/refinement/label_propagation/label_propagation_refiner.h"
 
 namespace mt_kahypar {
-
-class InitialPartitioningDataContainer;
 
 using HypergraphSparsifierFactory = kahypar::meta::Factory<SimiliarNetCombinerStrategy,
                                                            IHypergraphSparsifier* (*)(const Context&, const TaskGroupID)>;
