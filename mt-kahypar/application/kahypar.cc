@@ -21,13 +21,14 @@
 #include <iostream>
 
 
-#include "mt-kahypar/application/command_line_options.h"
+#include "mt-kahypar/io/command_line_options.h"
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/mt_kahypar.h"
 #include "mt-kahypar/partition/registries/register_memory_pool.h"
 #include "mt-kahypar/io/hypergraph_io.h"
 #include "mt-kahypar/io/sql_plottools_serializer.h"
 #include "mt-kahypar/io/csv_output.h"
+#include "mt-kahypar/io/partitioning_output.h"
 #include "mt-kahypar/partition/partitioner.h"
 
 #include "mt-kahypar/utils/randomize.h"

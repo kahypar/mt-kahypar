@@ -24,7 +24,7 @@
 #include "tbb/parallel_for.h"
 #include "tbb/parallel_invoke.h"
 
-#include "mt-kahypar/application/command_line_options.h"
+#include "mt-kahypar/io/command_line_options.h"
 #include "mt-kahypar/macros.h"
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/mt_kahypar.h"
