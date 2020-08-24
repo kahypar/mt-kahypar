@@ -22,7 +22,6 @@
 
 
 #include "mt-kahypar/io/command_line_options.h"
-#include "mt-kahypar/definitions.h"
 #include "mt-kahypar/mt_kahypar.h"
 #include "mt-kahypar/partition/registries/register_memory_pool.h"
 #include "mt-kahypar/io/hypergraph_io.h"
@@ -32,7 +31,6 @@
 #include "mt-kahypar/partition/partitioner.h"
 
 #include "mt-kahypar/utils/randomize.h"
-#include "mt-kahypar/utils/timer.h"
 
 int main(int argc, char* argv[]) {
   mt_kahypar::Context context;
