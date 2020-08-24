@@ -1425,7 +1425,6 @@ TEST_F(ADynamicHypergraph, CreateBatchUncontractionHierarchyWithEmptyVersionBatc
   tree.setParent(5, 3, 0);
   auto versioned_batches = hypergraph.createBatchUncontractionHierarchy(tree.copy(), 2, 3);
   ASSERT_EQ(3, versioned_batches.size());
-  ASSERT_TRUE(versioned_batches[1].back().empty());
   verifyBatchUncontractionHierarchy(tree, versioned_batches, 2, 3);
 }
 

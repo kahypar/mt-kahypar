@@ -30,7 +30,7 @@ public:
   StopRule(HypernodeID numNodes) : beta(std::log(numNodes)) { }
 
   bool searchShouldStop() {
-    return (numSteps > beta) && (Mk == 0 || numSteps >= stopFactor * variance / (Mk*Mk));
+    return (numSteps > beta) && (Mk == 0 || numSteps >= ( variance / (Mk*Mk) ) * stopFactor );
   }
 
   void update(Gain gain) {
