@@ -20,17 +20,13 @@
 
 #pragma once
 
-#include <tbb/parallel_for_each.h>
 
-#include <mt-kahypar/partition/context.h>
-#include <mt-kahypar/utils/timer.h>
-
-#include <external_tools/kahypar/kahypar/partition/metrics.h>
+#include "mt-kahypar/partition/context.h"
 
 #include "mt-kahypar/partition/refinement/i_refiner.h"
 #include "mt-kahypar/partition/refinement/fm/localized_kway_fm_core.h"
 #include "mt-kahypar/partition/refinement/fm/global_rollback.h"
-#include "mt-kahypar/utils/memory_tree.h"
+
 
 
 namespace mt_kahypar {

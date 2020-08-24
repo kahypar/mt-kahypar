@@ -20,25 +20,10 @@
 
 #pragma once
 
-#include <cstring>
-#include <fstream>
-#include <iostream>
-#include <thread>
-#include <memory>
-#include <sstream>
 #include <string>
-#include <unordered_map>
-#include <vector>
-#include <fcntl.h>
-#include <sys/stat.h>
-#include <sys/mman.h>
-
-#include "tbb/parallel_for.h"
 
 #include "mt-kahypar/definitions.h"
-#include "mt-kahypar/partition/context_enum_classes.h"
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
-#include "mt-kahypar/utils/timer.h"
 
 namespace mt_kahypar {
 namespace io {

@@ -1,5 +1,9 @@
 #include "global_rollback.h"
 
+#include "tbb/parallel_scan.h"
+#include "mt-kahypar/partition/metrics.h"
+#include "mt-kahypar/utils/timer.h"
+
 namespace mt_kahypar {
 
   HyperedgeWeight GlobalRollback::revertToBestPrefix(

@@ -20,23 +20,15 @@
 
 #pragma once
 
-
-#include "tbb/enumerable_thread_specific.h"
-#include "tbb/parallel_for.h"
-#include "tbb/parallel_sort.h"
-
 #include "kahypar/datastructure/fast_reset_flag_array.h"
 
-#include "mt-kahypar/definitions.h"
 #include "mt-kahypar/datastructures/streaming_vector.h"
 #include "mt-kahypar/datastructures/thread_safe_fast_reset_flag_array.h"
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
 #include "mt-kahypar/partition/context.h"
-#include "mt-kahypar/partition/metrics.h"
 #include "mt-kahypar/partition/refinement/i_refiner.h"
 #include "mt-kahypar/partition/refinement/policies/gain_policy.h"
-#include "mt-kahypar/utils/randomize.h"
-#include "mt-kahypar/utils/stats.h"
+
 
 namespace mt_kahypar {
 template <template <typename> class GainPolicy>

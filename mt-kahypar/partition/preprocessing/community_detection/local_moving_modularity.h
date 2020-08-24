@@ -21,18 +21,15 @@
 
 #pragma once
 
-#include <atomic>
 
-// TODO move to cpp
 
 #include "mt-kahypar/datastructures/sparse_map.h"
-#include "mt-kahypar/utils/floating_point_comparisons.h"
+
 #include "mt-kahypar/macros.h"
 #include "mt-kahypar/datastructures/clustering.h"
 #include "mt-kahypar/datastructures/graph.h"
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/parallel/atomic_wrapper.h"
-#include "mt-kahypar/parallel/stl/thread_locals.h"
 #include "mt-kahypar/utils/randomize.h"
 
 #include "gtest/gtest_prod.h"
@@ -69,37 +66,11 @@ class ParallelLocalMovingModularity {
     }),
     _disable_randomization(disable_randomization) { }
 
-  ~ParallelLocalMovingModularity() {
-    tbb::parallel_invoke([&] {
-      parallel::parallel_free_thread_local_internal_data(
-        _local_small_incident_cluster_weight, [&](CacheEfficientIncidentClusterWeights& data) {
-          data.freeInternalData();
-        });
-    }, [&] {
-      parallel::parallel_free_thread_local_internal_data(
-        _local_large_incident_cluster_weight, [&](LargeIncidentClusterWeights& data) {
-          data.freeInternalData();
-        });
-    }, [&] {
-      parallel::free(_cluster_volumes);
-    });
-  }
+  ~ParallelLocalMovingModularity();
 
   bool localMoving(Graph& graph, ds::Clustering& communities);
 
  private:
-
-  FRIEND_TEST(ALouvain, ComputesMaxGainMove1);
-  FRIEND_TEST(ALouvain, ComputesMaxGainMove2);
-  FRIEND_TEST(ALouvain, ComputesMaxGainMove3);
-  FRIEND_TEST(ALouvain, ComputesMaxGainMove4);
-  FRIEND_TEST(ALouvain, ComputesMaxGainMove5);
-  FRIEND_TEST(ALouvain, ComputesMaxGainMove6);
-  FRIEND_TEST(ALouvain, ComputesMaxGainMove7);
-  FRIEND_TEST(ALouvain, ComputesMaxGainMove8);
-  FRIEND_TEST(ALouvain, ComputesMaxGainMove9);
-  FRIEND_TEST(ALouvain, ComputesMaxGainMove10);
-
   KAHYPAR_ATTRIBUTE_ALWAYS_INLINE bool ratingsFitIntoSmallSparseMap(const Graph& graph,
                                                                     const HypernodeID u)  {
     static constexpr size_t cache_efficient_map_size = CacheEfficientIncidentClusterWeights::MAP_SIZE / 3UL;
@@ -112,14 +83,7 @@ class ParallelLocalMovingModularity {
   }
 
   // ! Only for testing
-  void initializeClusterVolumes(const Graph& graph, ds::Clustering& communities) {
-    _reciprocal_total_volume = 1.0 / graph.totalVolume();
-    _vol_multiplier_div_by_node_vol =  _reciprocal_total_volume;
-    tbb::parallel_for(0U, static_cast<NodeID>(graph.numNodes()), [&](const NodeID u) {
-      const PartitionID community_id = communities[u];
-      _cluster_volumes[community_id] += graph.nodeVolume(u);
-    });
-  }
+  void initializeClusterVolumes(const Graph& graph, ds::Clustering& communities);
 
   template<typename Map>
   KAHYPAR_ATTRIBUTE_ALWAYS_INLINE PartitionID computeMaxGainCluster(const Graph& graph,
@@ -196,5 +160,17 @@ class ParallelLocalMovingModularity {
   tbb::enumerable_thread_specific<CacheEfficientIncidentClusterWeights> _local_small_incident_cluster_weight;
   tbb::enumerable_thread_specific<LargeIncidentClusterWeights> _local_large_incident_cluster_weight;
   const bool _disable_randomization;
+
+
+  FRIEND_TEST(ALouvain, ComputesMaxGainMove1);
+  FRIEND_TEST(ALouvain, ComputesMaxGainMove2);
+  FRIEND_TEST(ALouvain, ComputesMaxGainMove3);
+  FRIEND_TEST(ALouvain, ComputesMaxGainMove4);
+  FRIEND_TEST(ALouvain, ComputesMaxGainMove5);
+  FRIEND_TEST(ALouvain, ComputesMaxGainMove6);
+  FRIEND_TEST(ALouvain, ComputesMaxGainMove7);
+  FRIEND_TEST(ALouvain, ComputesMaxGainMove8);
+  FRIEND_TEST(ALouvain, ComputesMaxGainMove9);
+  FRIEND_TEST(ALouvain, ComputesMaxGainMove10);
 };
 }

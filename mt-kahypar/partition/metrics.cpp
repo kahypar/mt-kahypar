@@ -20,6 +20,10 @@
 
 #include "metrics.h"
 
+
+#include <cmath>
+#include <algorithm>
+
 namespace mt_kahypar::metrics {
 
   HyperedgeWeight hyperedgeCut(const PartitionedHypergraph& hypergraph, const bool parallel) {

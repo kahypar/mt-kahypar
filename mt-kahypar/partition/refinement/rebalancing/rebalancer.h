@@ -22,17 +22,9 @@
 #pragma once
 
 #include <queue>
-#include <boost/dynamic_bitset.hpp>
-
-#include "tbb/enumerable_thread_specific.h"
-#include "tbb/parallel_for.h"
-
-#include "kahypar/meta/mandatory.h"
-
-#include "mt-kahypar/definitions.h"
-#include "mt-kahypar/partition/context.h"
-#include "mt-kahypar/partition/metrics.h"
 #include "mt-kahypar/partition/refinement/policies/gain_policy.h"
+
+#include "mt-kahypar/partition/context.h"
 
 namespace mt_kahypar {
 template <template <typename> class GainPolicy>

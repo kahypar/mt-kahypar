@@ -20,14 +20,6 @@
 
 #pragma once
 
-#include <cmath>
-
-#include <algorithm>
-#include <vector>
-
-#include "mt-kahypar/definitions.h"
-#include "mt-kahypar/datastructures/graph.h"
-#include "mt-kahypar/datastructures/clustering.h"
 #include "mt-kahypar/partition/context.h"
 
 namespace mt_kahypar::metrics {

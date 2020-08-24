@@ -21,6 +21,12 @@
 
 #include "rebalancer.h"
 
+
+#include <boost/dynamic_bitset.hpp>
+#include "tbb/enumerable_thread_specific.h"
+#include "tbb/parallel_for.h"
+#include "mt-kahypar/partition/metrics.h"
+
 namespace mt_kahypar {
 
   template <template <typename> class GainPolicy>

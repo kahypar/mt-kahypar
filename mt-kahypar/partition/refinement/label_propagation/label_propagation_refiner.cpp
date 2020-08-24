@@ -21,6 +21,14 @@
 
 #include "label_propagation_refiner.h"
 
+
+#include "tbb/enumerable_thread_specific.h"
+#include "tbb/parallel_for.h"
+#include "tbb/parallel_sort.h"
+
+#include "mt-kahypar/partition/metrics.h"
+#include "mt-kahypar/utils/randomize.h"
+#include "mt-kahypar/utils/stats.h"
 #include "mt-kahypar/utils/timer.h"
 
 namespace mt_kahypar {

@@ -20,16 +20,10 @@
 
 #pragma once
 
-#include <atomic>
-
-#include <boost/dynamic_bitset.hpp>
-
 #include "tbb/parallel_invoke.h"
-#include "tbb/parallel_scan.h"
 
 #include "mt-kahypar/partition/refinement/fm/fm_commons.h"
-#include "mt-kahypar/partition/metrics.h"
-#include "mt-kahypar/utils/timer.h"
+
 
 namespace mt_kahypar {
 

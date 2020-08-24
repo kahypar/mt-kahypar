@@ -20,6 +20,20 @@
 
 #include "hypergraph_io.h"
 
+#include <cstring>
+#include <fstream>
+#include <iostream>
+#include <thread>
+#include <memory>
+#include <vector>
+#include <fcntl.h>
+#include <sys/stat.h>
+#include <sys/mman.h>
+
+#include "tbb/parallel_for.h"
+#include "mt-kahypar/partition/context_enum_classes.h"
+#include "mt-kahypar/utils/timer.h"
+
 namespace mt_kahypar::io {
 
   int open_file(const std::string& filename) {

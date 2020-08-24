@@ -1,5 +1,9 @@
 #include "multitry_kway_fm.h"
 
+#include "mt-kahypar/utils/timer.h"
+#include "kahypar/partition/metrics.h"
+#include "mt-kahypar/utils/memory_tree.h"
+
 namespace mt_kahypar {
 
   Gain MultiTryKWayFM::refine(PartitionedHypergraph& phg,

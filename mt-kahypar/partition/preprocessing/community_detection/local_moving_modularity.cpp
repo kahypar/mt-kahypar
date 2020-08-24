@@ -21,6 +21,8 @@
 #include "local_moving_modularity.h"
 
 #include "mt-kahypar/utils/timer.h"
+#include "mt-kahypar/utils/floating_point_comparisons.h"
+#include "mt-kahypar/parallel/stl/thread_locals.h"
 
 namespace mt_kahypar::metrics {
   double modularity(const Graph& graph, ds::Clustering& communities) {
@@ -199,6 +201,31 @@ namespace mt_kahypar::community_detection {
       sumOfSquaredClusterVolumes += _cluster_volumes[cluster] * _cluster_volumes[cluster];
     }
     return std::make_pair(intraClusterWeights, sumOfSquaredClusterVolumes);
+  }
+
+  void ParallelLocalMovingModularity::initializeClusterVolumes(const Graph& graph, ds::Clustering& communities) {
+    _reciprocal_total_volume = 1.0 / graph.totalVolume();
+    _vol_multiplier_div_by_node_vol =  _reciprocal_total_volume;
+    tbb::parallel_for(0U, static_cast<NodeID>(graph.numNodes()), [&](const NodeID u) {
+      const PartitionID community_id = communities[u];
+      _cluster_volumes[community_id] += graph.nodeVolume(u);
+    });
+  }
+
+  ParallelLocalMovingModularity::~ParallelLocalMovingModularity() {
+    tbb::parallel_invoke([&] {
+      parallel::parallel_free_thread_local_internal_data(
+              _local_small_incident_cluster_weight, [&](CacheEfficientIncidentClusterWeights& data) {
+                data.freeInternalData();
+              });
+    }, [&] {
+      parallel::parallel_free_thread_local_internal_data(
+              _local_large_incident_cluster_weight, [&](LargeIncidentClusterWeights& data) {
+                data.freeInternalData();
+              });
+    }, [&] {
+      parallel::free(_cluster_volumes);
+    });
   }
 
 
