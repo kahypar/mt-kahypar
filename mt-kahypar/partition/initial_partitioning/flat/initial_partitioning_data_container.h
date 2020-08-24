@@ -167,7 +167,8 @@ class InitialPartitioningDataContainer {
     LocalInitialPartitioningHypergraph(Hypergraph& hypergraph,
                                        const Context& context,
                                        const TaskGroupID task_group_id,
-                                       GlobalInitialPartitioningStats& global_stats) :
+                                       GlobalInitialPartitioningStats& global_stats,
+                                       const bool disable_fm) :
       _partitioned_hypergraph(context.partition.k, hypergraph),
       _context(context),
       _global_stats(global_stats),
@@ -183,10 +184,10 @@ class InitialPartitioningDataContainer {
         _stats.emplace_back(static_cast<InitialPartitioningAlgorithm>(algo));
       }
 
-      if ( _context.partition.k == 2 ) {
+      if ( _context.partition.k == 2 && !disable_fm ) {
         // In case of a bisection we instantiate the 2-way FM refiner
         _twoway_fm = std::make_unique<SequentialTwoWayFmRefiner>(_partitioned_hypergraph, _context);
-      } else {
+      } else if ( _context.refinement.label_propagation.algorithm != LabelPropagationAlgorithm::do_nothing ) {
         // In case of a direct-kway initial partition we instantiate the LP refiner
         _label_propagation = LabelPropagationFactory::getInstance().createObject(
           _context.refinement.label_propagation.algorithm, hypergraph, _context, task_group_id);
@@ -277,14 +278,12 @@ class InitialPartitioningDataContainer {
     }
 
     void refineCurrentPartition(kahypar::Metrics& current_metric) {
-      if ( _context.partition.k == 2 ) {
-        ASSERT(_twoway_fm);
+      if ( _context.partition.k == 2 && _twoway_fm ) {
         bool improvement = true;
         for ( size_t i = 0; i < _context.initial_partitioning.fm_refinment_rounds && improvement; ++i ) {
           improvement = _twoway_fm->refine(current_metric);
         }
-      } else {
-        ASSERT(_label_propagation);
+      } else if ( _label_propagation ) {
         _label_propagation->initialize(_partitioned_hypergraph);
         _label_propagation->refine(_partitioned_hypergraph, {},
           current_metric, std::numeric_limits<double>::max());
@@ -326,10 +325,12 @@ class InitialPartitioningDataContainer {
  public:
   InitialPartitioningDataContainer(PartitionedHypergraph& hypergraph,
                                     const Context& context,
-                                    const TaskGroupID task_group_id) :
+                                    const TaskGroupID task_group_id,
+                                    const bool disable_fm = false) :
     _partitioned_hg(hypergraph),
     _context(context),
     _task_group_id(task_group_id),
+    _disable_fm(disable_fm),
     _global_stats(context),
     _local_hg([&] {
       return construct_local_partitioned_hypergraph();
@@ -519,12 +520,13 @@ class InitialPartitioningDataContainer {
  private:
   LocalInitialPartitioningHypergraph construct_local_partitioned_hypergraph() {
     return LocalInitialPartitioningHypergraph(
-      _partitioned_hg.hypergraph(), _context, _task_group_id, _global_stats);
+      _partitioned_hg.hypergraph(), _context, _task_group_id, _global_stats, _disable_fm);
   }
 
   PartitionedHypergraph& _partitioned_hg;
   Context _context;
   const TaskGroupID _task_group_id;
+  const bool _disable_fm;
 
   GlobalInitialPartitioningStats _global_stats;
   ThreadLocalHypergraph _local_hg;

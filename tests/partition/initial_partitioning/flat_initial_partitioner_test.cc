@@ -99,6 +99,8 @@ class AFlatInitialPartitionerTest : public Test {
     partitioned_hypergraph = PartitionedHypergraph(
       context.partition.k, TBBNumaArena::GLOBAL_TASK_GROUP, hypergraph);
     context.setupPartWeights(hypergraph.totalWeight());
+    context.refinement.label_propagation.algorithm = LabelPropagationAlgorithm::do_nothing;
+    context.initial_partitioning.refinement.label_propagation.algorithm = LabelPropagationAlgorithm::do_nothing;
     utils::Timer::instance().disable();
   }
 
