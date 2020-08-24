@@ -24,7 +24,7 @@
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/io/hypergraph_io.h"
 #include "mt-kahypar/partition/context.h"
-#include "mt-kahypar/partition/registries/register_refinement_algorithms.h"
+#include "mt-kahypar/partition/registries/register_refinement_algorithms.cpp"
 #include "mt-kahypar/partition/initial_partitioning/flat/bfs_initial_partitioner.h"
 #include "mt-kahypar/partition/refinement/label_propagation/label_propagation_refiner.h"
 #include "mt-kahypar/partition/refinement/policies/gain_policy.h"
