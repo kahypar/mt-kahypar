@@ -33,7 +33,6 @@
 
 #include "mt-kahypar/utils/memory_tree.h"
 #include "mt-kahypar/utils/range.h"
-#include "clustering.h"
 
 namespace mt_kahypar {
 namespace ds {

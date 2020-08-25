@@ -26,7 +26,6 @@
 #include "mt-kahypar/datastructures/sparse_map.h"
 
 #include "mt-kahypar/macros.h"
-#include "mt-kahypar/datastructures/clustering.h"
 #include "mt-kahypar/datastructures/graph.h"
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/parallel/atomic_wrapper.h"
