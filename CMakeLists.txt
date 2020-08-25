@@ -252,7 +252,7 @@ if(NOT MSVC)
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -ltbbmalloc_proxy")
 
   # lld is way faster than ld. If you have it, use it!
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fuse-ld=lld")
+  #set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fuse-ld=lld")
 
   include(CheckSSE4_2)
   if( BUILTIN_POPCNT )
