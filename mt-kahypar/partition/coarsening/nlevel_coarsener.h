@@ -23,6 +23,7 @@
 #include <string>
 
 #include "tbb/parallel_for.h"
+#include "tbb/parallel_sort.h"
 
 #include "kahypar/meta/mandatory.h"
 
@@ -33,6 +34,7 @@
 #include "mt-kahypar/partition/coarsening/policies/rating_acceptance_policy.h"
 #include "mt-kahypar/partition/coarsening/policies/rating_heavy_node_penalty_policy.h"
 #include "mt-kahypar/partition/coarsening/policies/rating_score_policy.h"
+#include "mt-kahypar/partition/coarsening/policies/contraction_order_policy.h"
 #include "mt-kahypar/utils/progress_bar.h"
 #include "mt-kahypar/utils/randomize.h"
 #include "mt-kahypar/utils/stats.h"
@@ -40,7 +42,8 @@
 namespace mt_kahypar {
 template <class ScorePolicy = HeavyEdgeScore,
           class HeavyNodePenaltyPolicy = MultiplicativePenalty,
-          class AcceptancePolicy = BestRatingPreferringUnmatched>
+          class AcceptancePolicy = BestRatingPreferringUnmatched,
+          class ContractionOrder = RatingOrder>
 class NLevelCoarsener : public ICoarsener,
                         private NLevelCoarsenerBase {
  private:
@@ -94,7 +97,7 @@ class NLevelCoarsener : public ICoarsener,
     while ( current_num_nodes > _context.coarsening.contraction_limit ) {
       DBG << V(pass_nr) << V(current_num_nodes);
 
-      utils::Timer::instance().start_timer("parallel_shuffle_vector", "Parallel Shuffle Vector");
+      utils::Timer::instance().start_timer("calculate_vertex_order", "Calculate Vertex Order");
       std::atomic<size_t> idx(0);
       current_hns.resize(current_num_nodes);
       _hg.doParallelForAllNodes([&](const HypernodeID hn) {
@@ -103,8 +106,22 @@ class NLevelCoarsener : public ICoarsener,
         current_hns[i] = hn;
       });
       ASSERT(idx == current_num_nodes);
-      utils::Randomize::instance().parallelShuffleVector(current_hns, 0UL, current_hns.size());
-      utils::Timer::instance().stop_timer("parallel_shuffle_vector");
+      if ( _context.coarsening.vertex_order == CoarseningVertexOrder::random_shuffle ) {
+        utils::Randomize::instance().shuffleVector(current_hns, 0UL, current_hns.size(), sched_getcpu());
+      } else if ( _context.coarsening.vertex_order == CoarseningVertexOrder::random_shuffle ) {
+        utils::Randomize::instance().parallelShuffleVector(current_hns, 0UL, current_hns.size());
+      } else if ( _context.coarsening.vertex_order == CoarseningVertexOrder::increasing_degree_order ) {
+        tbb::parallel_sort(current_hns.begin(), current_hns.end(), [&](const HypernodeID& lhs, const HypernodeID& rhs) {
+          return _hg.nodeDegree(lhs) < _hg.nodeDegree(rhs);
+        });
+        randomShuffleEqualValues(current_hns);
+      } else if ( _context.coarsening.vertex_order == CoarseningVertexOrder::decreasing_degree_order ) {
+        tbb::parallel_sort(current_hns.begin(), current_hns.end(), [&](const HypernodeID& lhs, const HypernodeID& rhs) {
+          return _hg.nodeDegree(lhs) > _hg.nodeDegree(rhs);
+        });
+        randomShuffleEqualValues(current_hns);
+      }
+      utils::Timer::instance().stop_timer("calculate_vertex_order");
 
       utils::Timer::instance().start_timer("n_level_coarsening", "n-Level Coarsening");
       const HypernodeID num_hns_before_pass = current_num_nodes;
@@ -113,36 +130,41 @@ class NLevelCoarsener : public ICoarsener,
         const HypernodeID hn = current_hns[i];
         if ( current_num_nodes > _context.coarsening.contraction_limit && _hg.nodeIsEnabled(hn) ) {
           const Rating rating = _rater.rate(_hg, hn, _max_allowed_node_weight);
-          if ( rating.target != kInvalidHypernode && _hg.registerContraction(hn, rating.target) ) {
-            _rater.markAsMatched(hn);
-            _rater.markAsMatched(rating.target);
-            // TODO(heuer): Think what should happen if a contraction failed due to the max node weight
-            // It might be that other concurrent running contractions to that vertex are relinked to
-            // an other vertex in the contraction tree.
-            const size_t num_contractions = _hg.contract(rating.target, _max_allowed_node_weight);
-            _progress_bar += num_contractions; // TODO: should be updated outside this parallel for loop
+          if ( rating.target != kInvalidHypernode ) {
+            const auto contraction_order = ContractionOrder::order(_hg, hn, rating.target);
+            const HypernodeID u = contraction_order.first;
+            const HypernodeID v = contraction_order.second;
+            if ( _hg.registerContraction(u, v) ) {
+              _rater.markAsMatched(u);
+              _rater.markAsMatched(v);
+              // TODO(heuer): Think what should happen if a contraction failed due to the max node weight
+              // It might be that other concurrent running contractions to that vertex are relinked to
+              // an other vertex in the contraction tree.
+              const size_t num_contractions = _hg.contract(v, _max_allowed_node_weight);
+              _progress_bar += num_contractions; // TODO: should be updated outside this parallel for loop
 
-            // To maintain the current number of nodes of the hypergraph each PE sums up
-            // its number of contracted nodes locally. To compute the current number of
-            // nodes, we have to sum up the number of contracted nodes of each PE. This
-            // operation becomes more expensive the more PEs are participating in coarsening.
-            // In order to prevent expensive updates of the current number of nodes, we
-            // define a threshold which the local number of contracted nodes have to exceed
-            // before the current PE updates the current number of nodes. This threshold is defined
-            // by the distance to the current contraction limit divided by the number of PEs.
-            // Once one PE exceeds this bound the first time it is not possible that the
-            // contraction limit is reached, because otherwise an other PE would update
-            // the global current number of nodes before. After update the threshold is
-            // increased by the new difference (in number of nodes) to the contraction limit
-            // divided by the number of PEs.
-            HypernodeID& local_contracted_nodes = contracted_nodes.local();
-            local_contracted_nodes += num_contractions;
-            if (  local_contracted_nodes >= num_nodes_update_threshold.local() ) {
-              current_num_nodes = initial_num_nodes -
-                contracted_nodes.combine(std::plus<HypernodeID>());
-              num_nodes_update_threshold.local() +=
-                (current_num_nodes - _context.coarsening.contraction_limit) /
-                _context.shared_memory.num_threads;
+              // To maintain the current number of nodes of the hypergraph each PE sums up
+              // its number of contracted nodes locally. To compute the current number of
+              // nodes, we have to sum up the number of contracted nodes of each PE. This
+              // operation becomes more expensive the more PEs are participating in coarsening.
+              // In order to prevent expensive updates of the current number of nodes, we
+              // define a threshold which the local number of contracted nodes have to exceed
+              // before the current PE updates the current number of nodes. This threshold is defined
+              // by the distance to the current contraction limit divided by the number of PEs.
+              // Once one PE exceeds this bound the first time it is not possible that the
+              // contraction limit is reached, because otherwise an other PE would update
+              // the global current number of nodes before. After update the threshold is
+              // increased by the new difference (in number of nodes) to the contraction limit
+              // divided by the number of PEs.
+              HypernodeID& local_contracted_nodes = contracted_nodes.local();
+              local_contracted_nodes += num_contractions;
+              if (  local_contracted_nodes >= num_nodes_update_threshold.local() ) {
+                current_num_nodes = initial_num_nodes -
+                  contracted_nodes.combine(std::plus<HypernodeID>());
+                num_nodes_update_threshold.local() +=
+                  (current_num_nodes - _context.coarsening.contraction_limit) /
+                  _context.shared_memory.num_threads;
+              }
             }
           }
         }
@@ -184,6 +206,20 @@ class NLevelCoarsener : public ICoarsener,
   PartitionedHypergraph&& uncoarsenImpl(std::unique_ptr<IRefiner>& label_propagation,
                                         std::unique_ptr<IRefiner>& fm) override {
     return Base::doUncoarsen(label_propagation, fm);
+  }
+
+  void randomShuffleEqualValues(parallel::scalable_vector<HypernodeID>& current_hns) {
+    int cpu_id = sched_getcpu();
+    size_t start = 0;
+    HypernodeID last_value = _hg.nodeDegree(current_hns[0]);
+    for ( size_t i = 1; i < current_hns.size(); ++i ) {
+      if ( last_value != _hg.nodeDegree(current_hns[i]) ) {
+        utils::Randomize::instance().shuffleVector(current_hns, start, i, cpu_id);
+        start = i;
+      }
+      last_value = _hg.nodeDegree(current_hns[i]);
+    }
+    utils::Randomize::instance().shuffleVector(current_hns, start, current_hns.size(), cpu_id);
   }
 
   using Base::_hg;

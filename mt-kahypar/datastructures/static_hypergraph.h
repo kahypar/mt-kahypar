@@ -38,6 +38,7 @@
 #include "mt-kahypar/utils/memory_tree.h"
 #include "mt-kahypar/utils/range.h"
 #include "mt-kahypar/utils/timer.h"
+#include "mt-kahypar/partition/context_enum_classes.h"
 
 namespace mt_kahypar {
 namespace ds {
@@ -1324,7 +1325,8 @@ class StaticHypergraph {
     ERROR("uncontract(batch) is not supported in static hypergraph");
   }
 
-  VersionedBatchVector createBatchUncontractionHierarchy(const size_t) {
+  VersionedBatchVector createBatchUncontractionHierarchy(const size_t,
+                                                         const UncontractionOrder) {
     ERROR("createBatchUncontractionHierarchy(task_group_id, batch_size) is not supported in static hypergraph");
     return { };
   }
