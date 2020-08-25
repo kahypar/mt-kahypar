@@ -30,6 +30,8 @@
 
 #include "mt-kahypar/partition/refinement/fm/global_rollback.h"
 
+#include "mt-kahypar/partition/metrics.h"
+
 using ::testing::Test;
 
 namespace mt_kahypar {

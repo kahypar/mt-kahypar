@@ -24,7 +24,9 @@
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/io/hypergraph_io.h"
 #include "mt-kahypar/partition/context.h"
-#include "mt-kahypar/partition/multilevel.h"
+
+#include "mt-kahypar/partition/initial_partitioning/recursive_initial_partitioner.h"
+#include "mt-kahypar/partition/initial_partitioning/recursive_bisection_initial_partitioner.h"
 
 using ::testing::Test;
 
