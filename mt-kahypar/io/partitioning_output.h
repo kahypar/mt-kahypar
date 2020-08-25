@@ -39,6 +39,7 @@ namespace mt_kahypar::io {
   void printMemoryPoolConsumption(const Context& context);
   void printInputInformation(const Context& context, const Hypergraph& hypergraph);
   void printTopLevelPreprocessingBanner(const Context& context);
+  void printCommunityInformation(const Hypergraph& hypergraph);
   void printCoarseningBanner(const Context& context);
   void printInitialPartitioningBanner(const Context& context);
   void printLocalSearchBanner(const Context& context);

@@ -99,6 +99,10 @@ namespace mt_kahypar {
       hypergraph.setCommunityIDs(std::move(communities));
       utils::Timer::instance().stop_timer("perform_community_detection");
       utils::Timer::instance().stop_timer("community_detection");
+
+      if (context.partition.verbose_output) {
+        io::printCommunityInformation(hypergraph);
+      }
     }
     parallel::MemoryPool::instance().release_mem_group("Preprocessing");
   }

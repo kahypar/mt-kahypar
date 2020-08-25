@@ -556,6 +556,127 @@ namespace mt_kahypar::io {
     LOG << R"(+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++)";
   }
 
+  namespace internal {
+    void printCommunityStats(const Statistic& community_size_stats,
+                             const Statistic& community_pins_stats,
+                             const Statistic& community_degree_stats) {
+      // default double precision is 7
+      const uint8_t double_width = 7;
+      const uint8_t community_size_width = std::max(kahypar::math::digits(community_size_stats.max), double_width) + 4;
+      const uint8_t community_pins_width = std::max(kahypar::math::digits(community_pins_stats.max), double_width) + 4;
+      const uint8_t community_degree_width = std::max(kahypar::math::digits(community_degree_stats.max), double_width) + 4;
+
+      LOG << "# HNs Per Community" << std::right << std::setw(community_size_width + 2)
+          << "# Internal Pins" << std::right << std::setw(community_pins_width + 8 + 4)
+          << "Internal Degree Sum" << std::right << std::setw(community_degree_width + 8);
+      LOG << "| min=" << std::left << std::setw(community_size_width) << community_size_stats.min
+          << " | min=" << std::left << std::setw(community_pins_width) << community_pins_stats.min
+          << " | min=" << std::left << std::setw(community_degree_width) << community_degree_stats.min;
+      LOG << "| Q1 =" << std::left << std::setw(community_size_width) << community_size_stats.q1
+          << " | Q1 =" << std::left << std::setw(community_pins_width) << community_pins_stats.q1
+          << " | Q1 =" << std::left << std::setw(community_degree_width) << community_degree_stats.q1;
+      LOG << "| med=" << std::left << std::setw(community_size_width) << community_size_stats.med
+          << " | med=" << std::left << std::setw(community_pins_width) << community_pins_stats.med
+          << " | med=" << std::left << std::setw(community_degree_width) << community_degree_stats.med;
+      LOG << "| Q3 =" << std::left << std::setw(community_size_width) << community_size_stats.q3
+          << " | Q3 =" << std::left << std::setw(community_pins_width) << community_pins_stats.q3
+          << " | Q3 =" << std::left << std::setw(community_degree_width) << community_degree_stats.q3;
+      LOG << "| max=" << std::left << std::setw(community_size_width) << community_size_stats.max
+          << " | max=" << std::left << std::setw(community_pins_width) << community_pins_stats.max
+          << " | max=" << std::left << std::setw(community_degree_width) << community_degree_stats.max;
+      LOG << "| avg=" << std::left << std::setw(community_size_width) << community_size_stats.avg
+          << " | avg=" << std::left << std::setw(community_pins_width) << community_pins_stats.avg
+          << " | avg=" << std::left << std::setw(community_degree_width) << community_degree_stats.avg;
+      LOG << "| sd =" << std::left << std::setw(community_size_width) << community_size_stats.sd
+          << " | sd =" << std::left << std::setw(community_pins_width) << community_pins_stats.sd
+          << " | sd =" << std::left << std::setw(community_degree_width) << community_degree_stats.sd;
+    }
+  }
+
+
+
+  void printCommunityInformation(const Hypergraph& hypergraph) {
+    PartitionID num_communities =
+            tbb::parallel_reduce(
+                    tbb::blocked_range<HypernodeID>(ID(0), hypergraph.initialNumNodes()),
+                    num_communities, [&](const tbb::blocked_range<HypernodeID>& range, PartitionID init) {
+              PartitionID my_range_num_communities = init;
+              for (HypernodeID hn = range.begin(); hn < range.end(); ++hn) {
+                if ( hypergraph.nodeIsEnabled(hn) ) {
+                  my_range_num_communities = std::max(my_range_num_communities, hypergraph.communityID(hn) + 1);
+                }
+              }
+              return my_range_num_communities;
+            },
+            [](const PartitionID lhs, const PartitionID rhs) {
+              return std::max(lhs, rhs);
+            });
+    num_communities = std::max(num_communities, 1);
+
+    std::vector<size_t> nodes_per_community(num_communities, 0);
+    std::vector<size_t> internal_pins(num_communities, 0);
+    std::vector<size_t> internal_degree(num_communities, 0);
+
+    auto reduce_nodes = [&] {
+      tbb::enumerable_thread_specific< vec< std::pair<size_t, size_t> > > ets_nodes(num_communities, std::make_pair(0UL, 0UL));
+      hypergraph.doParallelForAllNodes([&](const HypernodeID u) {
+        const PartitionID cu = hypergraph.communityID(u);
+        ets_nodes.local()[cu].first++;
+        ets_nodes.local()[cu].second += hypergraph.nodeDegree(u);
+      });
+
+      for (const auto& x : ets_nodes) {
+        for (PartitionID i = 0; i < num_communities; ++i) {
+          nodes_per_community[i] += x[i].first;
+          internal_degree[i] += x[i].second;
+        }
+      }
+    };
+
+    auto reduce_hyperedges = [&] {
+      tbb::enumerable_thread_specific< vec<size_t> > ets_pins(num_communities, 0);
+      hypergraph.doParallelForAllEdges([&](const HyperedgeID he) {
+        auto& pin_counter = ets_pins.local();
+        for (const HypernodeID pin : hypergraph.pins(he)) {
+          pin_counter[ hypergraph.communityID(pin) ]++;
+        }
+      });
+
+      for (const auto& x : ets_pins) {
+        for (PartitionID i = 0; i < num_communities; ++i) {
+          internal_pins[i] += x[i];
+        }
+      }
+    };
+
+    tbb::parallel_invoke(reduce_nodes, reduce_hyperedges);
+
+    std::sort(nodes_per_community.begin(), nodes_per_community.end());
+    std::sort(internal_pins.begin(), internal_pins.end());
+    std::sort(internal_degree.begin(), internal_degree.end());
+
+    auto square = [&](size_t x) { return x * x; };
+
+    auto avg_and_std_dev = [&](const std::vector<size_t>& v) {
+      const double avg = std::accumulate(v.begin(), v.end(), 0.0) / static_cast<double>(v.size());
+      double std_dev = 0.0;
+      for (size_t x : v) {
+        std_dev += square(x - avg);
+      }
+      std_dev = std::sqrt(std_dev / static_cast<double>(v.size() - 1));
+      return std::make_pair(avg, std_dev);
+    };
+
+    auto [avg_nodes, std_dev_nodes] = avg_and_std_dev(nodes_per_community);
+    auto [avg_pins, std_dev_pins] = avg_and_std_dev(internal_pins);
+    auto [avg_deg, std_dev_deg] = avg_and_std_dev(internal_degree);
+
+    internal::printCommunityStats(
+            internal::createStats(nodes_per_community, avg_nodes, std_dev_nodes),
+            internal::createStats(internal_pins, avg_pins, std_dev_pins),
+            internal::createStats(internal_degree, avg_deg, std_dev_deg)
+            );
+  }
 
 
 } // namespace mt_kahypar::io
