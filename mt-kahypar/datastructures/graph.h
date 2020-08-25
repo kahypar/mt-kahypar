@@ -120,6 +120,7 @@ class Graph {
     return _node_volumes[u];
   }
 
+  // ! Projects the clustering of the (likely bipartite star-expansion) graph to the hypergraph
   void restrictClusteringToHypernodes(const Hypergraph& hg, ds::Clustering& C) const {
     C.resize(hg.initialNumNodes());
   }
