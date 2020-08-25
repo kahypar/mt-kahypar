@@ -78,7 +78,7 @@ namespace mt_kahypar {
   };
 
   template <class InIt, class OutIt, class BinOp>
-  void sequential_prefix_sum(InIt first, InIt last, OutIt d, typename std::iterator_traits<InIt>::value_type init, BinOp f) {
+  static void sequential_prefix_sum(InIt first, InIt last, OutIt d, typename std::iterator_traits<InIt>::value_type init, BinOp f) {
     while (first != last) {
       init = f(init, *first);
       *d = init;
