@@ -51,6 +51,7 @@ namespace mt_kahypar {
       first(other.first),
       out(other.out),
       sum(other.neutral_element),
+      neutral_element(other.neutral_element),
       f(other.f) { }
 
     void operator()(const tbb::blocked_range<size_t>& r, tbb::pre_scan_tag ) {
@@ -89,7 +90,8 @@ namespace mt_kahypar {
   template <class InIt, class OutIt, class BinOp>
   static void parallel_prefix_sum(InIt first, InIt last, OutIt d, BinOp f,
                                   typename std::iterator_traits<InIt>::value_type neutral_element) {
-    auto n = std::distance(first, last);
+
+    typename std::iterator_traits<InIt>::difference_type n = last - first;
 
     if (n < (1 << 16)) {
       return sequential_prefix_sum(first, last, d, neutral_element, f);
