@@ -98,6 +98,7 @@ struct WorkContainer {
       ASSERT(dest < timestamps.size());
       timestamps[dest] = current+1;
     }
+    return success;
   }
 
   bool steal_work(T& dest) {
