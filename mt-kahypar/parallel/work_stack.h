@@ -93,6 +93,23 @@ struct WorkContainer {
       ASSERT(dest < timestamps.size());
       timestamps[dest] = current+1;
     }
+    /*
+     * Two potential data races.
+     * Both are benign because they only lead to potentially less frequently reinserted elements.
+     * This should happen rarely. Additionally, frequent reinsertion means the seed node wasn't helpful.
+     * Hence missing out is probably not a bad thing.
+     * Elements that are inserted for the first time are never affected.
+     *
+     * A)   Thread 1 extracts element x
+     *      Thread 2 checks was_pushed_and_removed(x), gets false. no reinsert although we could have
+     *      Thread 1 sets timestamps[dest] = current+1
+     *
+     * B)   Thread 1 checks was_pushed_and_removed(x), gets true and calls concurrent_push(x)
+     *      Thread 2 calls try_pop and already gets x from conq_queue.try_pop(dest)
+     *      Now timestamps[x] can be either current or current+1
+     *      In both cases x is not in the queue anymore (which is correct)
+     *      In the first case, x cannot be reinserted
+     */
     return success;
   }
 
