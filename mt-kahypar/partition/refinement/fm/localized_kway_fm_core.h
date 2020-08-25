@@ -73,7 +73,8 @@ class LocalizedKWayFM {
           blockPQ(static_cast<size_t>(k)),
           vertexPQs(static_cast<size_t>(k), VertexPriorityQueue(pq_handles, numNodes)),
           updateDeduplicator(),
-          validHyperedges() { }
+          validHyperedges(),
+          removed_vertices_from_pq() { }
 
 
   bool findMovesUsingFullBoundary(PartitionedHypergraph& phg, FMSharedData& sharedData) {
@@ -304,16 +305,31 @@ private:
         }
       }
 
+      auto release_node = [&](const HypernodeID& v) {
+        sharedData.nodeTracker.releaseNode(v);
+        if (!sharedData.fruitlessSeed[v] && sharedData.refinementNodes.was_pushed_and_removed(v)) {
+          sharedData.refinementNodes.concurrent_push(v);
+          localData.runStats.task_queue_reinsertions++;
+        }
+      };
+
+      // Release all nodes contained in PQ
       for (PartitionID i = 0; i < k; ++i) {
         for (PosT j = 0; j < vertexPQs[i].size(); ++j) {
-          const HypernodeID node = vertexPQs[i].at(j);
-          sharedData.nodeTracker.releaseNode(node);
-          if (!sharedData.fruitlessSeed[node] && sharedData.refinementNodes.was_pushed_and_removed(node)) {
-            sharedData.refinementNodes.concurrent_push(node);
-            localData.runStats.task_queue_reinsertions++;
-          }
+          const HypernodeID v = vertexPQs[i].at(j);
+          release_node(v);
         }
       }
+
+      // Release all nodes that were contained in PQ but got
+      // removed because they become internal border nodes
+      for ( const HypernodeID& v : removed_vertices_from_pq ) {
+        SearchID searchOfV = sharedData.nodeTracker.searchOfNode[v].load(std::memory_order_acq_rel);
+        if ( searchOfV == thisSearch ) {
+          release_node(v);
+        }
+      }
+      removed_vertices_from_pq.clear();
     }
 
     for (PartitionID i = 0; i < k; ++i) {
@@ -338,8 +354,14 @@ private:
       if (phg.edgeSize(e) < context.partition.ignore_hyperedge_size_threshold && !validHyperedges[e]) {
         for (HypernodeID v : phg.pins(e)) {
           if (!updateDeduplicator.contains(v)) {
+            const PartitionID pv = phg.partID(v);
+            if ( phg.isBorderNode(v) ) {
+              insertOrUpdatePQ(phg, v, sharedData, move);
+            } else if ( vertexPQs[pv].contains(v) ) {
+              vertexPQs[pv].remove(v);
+              removed_vertices_from_pq.push_back(v);
+            }
             updateDeduplicator[v] = { };  // insert
-            insertOrUpdatePQ(phg, v, sharedData, move);
           }
         }
         validHyperedges[e] = true;
@@ -351,7 +373,7 @@ private:
   bool insertPQ(const PartitionedHypergraph& phg, const HypernodeID v, FMSharedData& sharedData) {
     NodeTracker& nt = sharedData.nodeTracker;
     SearchID searchOfV = nt.searchOfNode[v].load(std::memory_order_acq_rel);
-    if (nt.isSearchInactive(searchOfV)) {
+    if (nt.isSearchInactive(searchOfV) && phg.isBorderNode(v)) {
       if (nt.searchOfNode[v].compare_exchange_strong(searchOfV, thisSearch, std::memory_order_acq_rel)) {
         const PartitionID pv = phg.partID(v);
         auto [target, gain] = bestDestinationBlock(phg, v);
@@ -385,22 +407,28 @@ private:
       }
     } else if (searchOfV == thisSearch) {
       const PartitionID pv = phg.partID(v);
-      assert(vertexPQs[pv].contains(v));
-      const PartitionID designatedTargetV = sharedData.targetPart[v];
-      Gain gain = 0;
-      PartitionID newTarget = kInvalidPartition;
+      if ( vertexPQs[pv].contains(v) ) {
+        const PartitionID designatedTargetV = sharedData.targetPart[v];
+        Gain gain = 0;
+        PartitionID newTarget = kInvalidPartition;
 
-      if (k < 4 || designatedTargetV == move.from || designatedTargetV == move.to) {
-        // moveToPenalty of designatedTargetV is affected.
-        // and may now be greater than that of other blocks --> recompute full
-        std::tie(newTarget, gain) = bestDestinationBlock(phg, v);
+        if (k < 4 || designatedTargetV == move.from || designatedTargetV == move.to) {
+          // moveToPenalty of designatedTargetV is affected.
+          // and may now be greater than that of other blocks --> recompute full
+          std::tie(newTarget, gain) = bestDestinationBlock(phg, v);
+        } else {
+          // moveToPenalty of designatedTargetV is not affected.
+          // only move.from and move.to may be better
+          std::tie(newTarget, gain) = bestOfThree(phg, v, pv, { designatedTargetV, move.from, move.to });
+        }
+        sharedData.targetPart[v] = newTarget;
+        vertexPQs[pv].adjustKey(v, gain);
       } else {
-        // moveToPenalty of designatedTargetV is not affected.
-        // only move.from and move.to may be better
-        std::tie(newTarget, gain) = bestOfThree(phg, v, pv, { designatedTargetV, move.from, move.to });
+        auto [target, gain] = bestDestinationBlock(phg, v);
+        sharedData.targetPart[v] = target;
+        vertexPQs[pv].insert(v, gain);  // blockPQ updates are done later, collectively.
+        localData.runStats.pushes++;
       }
-      sharedData.targetPart[v] = newTarget;
-      vertexPQs[pv].adjustKey(v, gain);
 
       return true;
     }
@@ -611,6 +639,9 @@ private:
   // ! inside the PQs. A hyperedge can become invalid if a move changes the
   // ! gain values of its pins.
   ds::DynamicSparseMap<HyperedgeID, bool> validHyperedges;
+
+  // !
+  vec<HypernodeID> removed_vertices_from_pq;
 };
 
 }
