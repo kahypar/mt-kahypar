@@ -27,7 +27,6 @@
 #include "mt-kahypar/io/command_line_options.h"
 #include "mt-kahypar/macros.h"
 #include "mt-kahypar/definitions.h"
-#include "mt-kahypar/mt_kahypar.h"
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/parallel/memory_pool.h"
 #include "mt-kahypar/parallel/parallel_prefix_sum.h"

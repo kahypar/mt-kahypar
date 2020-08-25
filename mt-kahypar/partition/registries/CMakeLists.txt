@@ -4,6 +4,7 @@ set(RegistrySources
         register_preprocessing_algorithms.cpp
         register_initial_partitioning_algorithms.cpp
         register_policies.cpp
+        register_coarsening_algorithms.cpp
         )
 
 

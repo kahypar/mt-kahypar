@@ -22,7 +22,6 @@
 
 
 #include "mt-kahypar/io/command_line_options.h"
-#include "mt-kahypar/mt_kahypar.h"    // this is the major culprit from 20 down to 3s
 #include "mt-kahypar/partition/registries/register_memory_pool.h"
 #include "mt-kahypar/io/hypergraph_io.h"
 #include "mt-kahypar/io/sql_plottools_serializer.h"
@@ -94,7 +93,6 @@ int main(int argc, char* argv[]) {
   if (context.partition.write_partition_file) {
     mt_kahypar::io::writePartitionFile(partitioned_hypergraph, context.partition.graph_partition_filename);
   }
-
 
   mt_kahypar::parallel::MemoryPool::instance().free_memory_chunks();
   mt_kahypar::TBBNumaArena::instance().terminate();
