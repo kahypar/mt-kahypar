@@ -651,7 +651,7 @@ private:
 
   // ! Returns, whether hypernode u is adjacent to a least one cut hyperedge.
   bool isBorderNode(const HypernodeID u) const {
-    if ( nodeDegree(u) <= HIGH_DEGREE_THRESHOLD ) {
+    if ( nodeDegree(u) <= HIGH_DEGREE_THRESHOLD ) {   // TODO since the check is cheap again, we may want to allow moving high deg nodes in label propagation, but not in fm.
       return _num_incident_cut_hyperedges[u] > 0;
     } else {
       // In case u is a high degree vertex, we omit the border node check and
