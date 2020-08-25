@@ -110,7 +110,32 @@ TEST(WorkContainer, WorkStealingWorks) {
   ASSERT_EQ(steals + own_pops, m);
 }
 
+TEST(WorkContainer, PushAndRemoveDetected) {
 
+  unsigned int p = std::thread::hardware_concurrency();
+  ASSERT(p >= 1);
+  WorkContainer<int> cdc(n, p);
+
+
+  cdc.safe_push(420, 0);
+  cdc.safe_push(422, p-1);
+  cdc.safe_push(421, 0);
+
+  ASSERT_FALSE(cdc.was_pushed_and_removed(420));
+  ASSERT_FALSE(cdc.was_pushed_and_removed(421));
+  ASSERT_FALSE(cdc.was_pushed_and_removed(422));
+
+  int dest;
+  cdc.try_pop(dest, 0);
+  ASSERT_EQ(dest, 420);
+  ASSERT_TRUE(cdc.was_pushed_and_removed(420));
+  cdc.try_pop(dest, p-1);
+  ASSERT_EQ(dest, 422);
+  ASSERT_TRUE(cdc.was_pushed_and_removed(422));
+
+  cdc.clear();
+  ASSERT_FALSE(cdc.was_pushed_and_removed(420));
+}
 
 
 }  // namespace parallel
