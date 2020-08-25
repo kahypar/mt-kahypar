@@ -39,7 +39,7 @@ namespace mt_kahypar {
       ASSERT_EQ(out[i], 420);
     }
 
-    parallel_prefix_sum(in.begin(), in.end(), out.begin(), std::plus(), 0);
+    parallel_prefix_sum(in.begin(), in.end(), out.begin(), std::plus<size_t>(), 0);
 
     for (size_t i = 0; i < n; ++i) {
       if (in[i] != out[i]) {
@@ -57,13 +57,13 @@ namespace mt_kahypar {
     std::generate(in.begin(), in.end(), rng);
 
     vec<size_t> out_parallel(n, 420);
-    parallel_prefix_sum(in.begin(), in.end(), out_parallel.begin(), std::plus(), 0);
+    parallel_prefix_sum(in.begin(), in.end(), out_parallel.begin(), std::plus<size_t>(), 0);
 
     vec<size_t> out_custom_seq;
-    sequential_prefix_sum(in.begin(), in.end(), std::back_inserter(out_custom_seq), 0, std::plus());
+    sequential_prefix_sum(in.begin(), in.end(), std::back_inserter(out_custom_seq), 0, std::plus<size_t>());
 
     vec<size_t> out_stl;
-    std::partial_sum(in.begin(), in.end(), std::back_inserter(out_stl), std::plus());
+    std::partial_sum(in.begin(), in.end(), std::back_inserter(out_stl), std::plus<size_t>());
 
     ASSERT_EQ(out_custom_seq, out_parallel);
     ASSERT_EQ(out_parallel, out_stl);
@@ -76,8 +76,8 @@ namespace mt_kahypar {
     std::generate(in.begin(), in.end(), rng);
     vec<size_t> in_stl = in;
 
-    parallel_prefix_sum(in.begin(), in.end(), in.begin(), std::plus(), 0);
-    std::partial_sum(in_stl.begin(), in_stl.end(), in_stl.begin(), std::plus());
+    parallel_prefix_sum(in.begin(), in.end(), in.begin(), std::plus<size_t>(), 0);
+    std::partial_sum(in_stl.begin(), in_stl.end(), in_stl.begin(), std::plus<size_t>());
 
     ASSERT_EQ(in, in_stl);
   }
