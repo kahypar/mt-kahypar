@@ -88,7 +88,11 @@ struct WorkContainer {
 
   bool try_pop(T& dest, size_t thread_id) {
     ASSERT(thread_id < tls_queues.size());
-    return tls_queues[thread_id].try_pop(dest) || conc_queue.try_pop(dest) || steal_work(dest);
+    const bool success = tls_queues[thread_id].try_pop(dest) || conc_queue.try_pop(dest) || steal_work(dest);
+    if (success) {
+      ASSERT(dest < timestamps.size());
+      timestamps[dest] = current+1;
+    }
   }
 
   bool steal_work(T& dest) {
