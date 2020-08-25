@@ -82,4 +82,17 @@ namespace mt_kahypar {
     ASSERT_EQ(in, in_stl);
   }
 
+  TEST(PrefixSumTest, WorksInplaceSmall) {
+    size_t n = 1 << 12;
+    vec<size_t> in(n, 0);
+    std::mt19937 rng(421);
+    std::generate(in.begin(), in.end(), rng);
+    vec<size_t> in_stl = in;
+
+    parallel_prefix_sum(in.begin(), in.end(), in.begin(), std::plus<size_t>(), 0);
+    std::partial_sum(in_stl.begin(), in_stl.end(), in_stl.begin(), std::plus<size_t>());
+
+    ASSERT_EQ(in, in_stl);
+  }
+
 }
