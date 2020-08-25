@@ -128,7 +128,7 @@ struct WorkContainer {
   }
 
   bool was_pushed_and_removed(const T el) const {
-    ASSERT(el < timestamps.size());
+    ASSERT(static_cast<size_t>(el) < timestamps.size());
     return timestamps[el] == current+1;
   }
 
