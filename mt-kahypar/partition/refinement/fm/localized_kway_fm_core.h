@@ -428,7 +428,7 @@ private:
         auto [target, gain] = bestDestinationBlock(phg, v);
         sharedData.targetPart[v] = target;
         vertexPQs[pv].insert(v, gain);  // blockPQ updates are done later, collectively.
-        localData.runStats.pushes++;
+        localData.runStats.boundary_toggles++;
       }
 
       return true;
