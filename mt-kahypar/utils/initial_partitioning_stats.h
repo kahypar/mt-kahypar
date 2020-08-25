@@ -59,7 +59,7 @@ struct InitialPartitionerSummary {
   }
 
   InitialPartitioningAlgorithm algorithm;
-  HyperedgeWeight total_sum_quality;
+  double total_sum_quality;
   double total_time;
   size_t total_best;
   size_t total_calls;

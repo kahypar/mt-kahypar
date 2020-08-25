@@ -88,6 +88,8 @@ private:
         "Refinement", "move_to_penalty", size_t(hypergraph.initialNumNodes()) * size_t(k), true, false),
     _move_from_benefit(
         "Refinement", "move_from_benefit", hypergraph.initialNumNodes(), true, false),
+    _num_incident_cut_hyperedges(
+        "Refinement", "num_incident_cut_hyperedges", hypergraph.initialNumNodes(), true, false),
     _pin_count_update_ownership(
         "Refinement", "pin_count_update_ownership", hypergraph.initialNumEdges(), true, false) {
     _part_ids.assign(hypergraph.initialNumNodes(), kInvalidPartition, false);
@@ -105,6 +107,7 @@ private:
     _connectivity_set(0, 0),
     _move_to_penalty(),
     _move_from_benefit(),
+    _num_incident_cut_hyperedges(),
     _pin_count_update_ownership() {
     tbb::parallel_invoke([&] {
       _part_ids.resize(
@@ -120,6 +123,9 @@ private:
     }, [&] {
       _move_from_benefit.resize(
         "Refinement", "move_from_benefit", hypergraph.initialNumNodes(), true);
+    }, [&] {
+      _num_incident_cut_hyperedges.resize(
+          "Refinement", "num_incident_cut_hyperedges", hypergraph.initialNumNodes(), true);
     }, [&] {
       _pin_count_update_ownership.resize(
         "Refinement", "pin_count_update_ownership", hypergraph.initialNumEdges(), true);
@@ -358,6 +364,9 @@ private:
         const PartitionID block = partID(u);
         const HypernodeID pin_count_in_part_after = incrementPinCountInPartWithoutGainUpdate(he, block);
         ASSERT(pin_count_in_part_after > 1, V(u) << V(v) << V(he));
+        if ( connectivity(he) > 1 ) {
+          ++_num_incident_cut_hyperedges[v];
+        }
 
         if ( _is_gain_cache_initialized ) {
           // If u was the only pin of hyperedge he in its block before then moving out vertex u
@@ -396,6 +405,11 @@ private:
       [&](const HypernodeID u, const HypernodeID v, const HyperedgeID he) {
         // In this case, u is replaced by v in hyperedge he
         // => Pin counts of hyperedge he does not change
+        if ( connectivity(he) > 1 ) {
+          --_num_incident_cut_hyperedges[u];
+          ++_num_incident_cut_hyperedges[v];
+        }
+
         if ( _is_gain_cache_initialized ) {
           const PartitionID block = partID(u);
           const HyperedgeWeight edge_weight = edgeWeight(he);
@@ -511,6 +525,12 @@ private:
           _pins_in_part.setPinCountInPart(he, block, pinCountInPart(representative, block));
         }
 
+        if ( connectivity(he) > 1 ) {
+          for ( const HypernodeID& pin : pins(he) ) {
+            ++_num_incident_cut_hyperedges[pin];
+          }
+        }
+
         HEAVY_REFINEMENT_ASSERT([&] {
           for ( PartitionID block = 0; block < _k; ++block ) {
             if ( pinCountInPart(he, block) != pinCountInPartRecomputed(he, block) ) {
@@ -545,7 +565,7 @@ private:
     setOnlyNodePart(u, p);
     _part_weights[p].fetch_add(nodeWeight(u), std::memory_order_relaxed);
     for (HyperedgeID he : incidentEdges(u)) {
-      incrementPinCountInPartWithoutGainUpdate(he, p);
+      while( !incrementPinCountInPartWithCutHyperedgeUpdate(he, p) );
     }
   }
 
@@ -632,12 +652,7 @@ private:
   // ! Returns, whether hypernode u is adjacent to a least one cut hyperedge.
   bool isBorderNode(const HypernodeID u) const {
     if ( nodeDegree(u) <= HIGH_DEGREE_THRESHOLD ) {
-      for ( const HyperedgeID& he : incidentEdges(u) ) {
-        if ( connectivity(he) > 1 ) {
-          return true;
-        }
-      }
-      return false;
+      return _num_incident_cut_hyperedges[u] > 0;
     } else {
       // In case u is a high degree vertex, we omit the border node check and
       // and return false. Assumption is that it is very unlikely that such a
@@ -647,11 +662,7 @@ private:
   }
 
   HypernodeID numIncidentCutHyperedges(const HypernodeID u) const {
-    HypernodeID incident_cut_hes = 0;
-    for (const HyperedgeID he : incidentEdges(u)) {
-      incident_cut_hes += connectivity(he) > 1 ? 1 : 0;
-    }
-    return incident_cut_hes;
+    return _num_incident_cut_hyperedges[u];
   }
 
   // ! Number of blocks which pins of hyperedge e belongs to
@@ -821,6 +832,10 @@ private:
       }
       _connectivity_set.clear(he);
     }
+
+    for ( const HypernodeID& hn : nodes() ) {
+      _num_incident_cut_hyperedges[hn].store(0, std::memory_order_relaxed);
+    }
   }
 
   // ! Only for testing
@@ -923,9 +938,11 @@ private:
     parent->addChild("Part Info", sizeof(CAtomic<HypernodeWeight>) * _k);
     parent->addChild("Vertex Part Info", sizeof(PartitionID) * _hg->initialNumNodes());
     parent->addChild("Pin Count In Part", _pins_in_part.size_in_bytes());
+    parent->addChild("Move From Benefit", sizeof(HyperedgeWeight) * _move_from_benefit.size());
+    parent->addChild("Move To Penalty", sizeof(HyperedgeWeight) * _move_to_penalty.size());
+    parent->addChild("Num Incident Cut Hyperedges", sizeof(HypernodeID) * _num_incident_cut_hyperedges.size());
     parent->addChild("HE Ownership", sizeof(AtomicFlag) * _hg->initialNumNodes());
   }
-
 
   // ####################### Extract Block #######################
 
@@ -1053,7 +1070,7 @@ private:
       vec<HypernodeID>& pin_counts = ets_pin_count_in_part.local();
       for (HyperedgeID he = r.begin(); he < r.end(); ++he) {
         if ( edgeIsEnabled(he) ) {
-          for (HypernodeID pin : pins(he)) {
+          for (const HypernodeID& pin : pins(he)) {
             ++pin_counts[partID(pin)];
           }
 
@@ -1064,6 +1081,12 @@ private:
               _pins_in_part.setPinCountInPart(he, p, pin_counts[p]);
             }
             pin_counts[p] = 0;
+          }
+
+          if ( connectivity(he) > 1 ) {
+            for ( const HypernodeID& pin : pins(he) ) {
+              ++_num_incident_cut_hyperedges[pin];
+            }
           }
         }
       }
@@ -1114,8 +1137,21 @@ private:
     if ( _pin_count_update_ownership[he].compare_exchange_strong(expected, desired, std::memory_order_acq_rel) ) {
       // In that case, the current thread acquires the ownership of the hyperedge and can
       // safely update the pin counts in from and to part.
+      const PartitionID connectivity_before = connectivity(he);
       const HypernodeID pin_count_in_from_part_after = decrementPinCountInPartWithoutGainUpdate(he, from);
       const HypernodeID pin_count_in_to_part_after = incrementPinCountInPartWithoutGainUpdate(he, to);
+      const PartitionID connectivity_after = connectivity(he);
+      const bool became_cut_he = connectivity_before == 1 && connectivity_after == 2;
+      const bool became_internal_he = connectivity_before == 2 && connectivity_after == 1;
+      if ( became_cut_he ) {
+        for ( const HypernodeID& pin : pins(he) ) {
+          ++_num_incident_cut_hyperedges[pin];
+        }
+      } else if ( became_internal_he ) {
+        for ( const HypernodeID& pin : pins(he) ) {
+          --_num_incident_cut_hyperedges[pin];
+        }
+      }
       delta_func(he, edgeWeight(he), edgeSize(he),
         pin_count_in_from_part_after, pin_count_in_to_part_after);
       _pin_count_update_ownership[he].store(false, std::memory_order_acq_rel);
@@ -1149,6 +1185,25 @@ private:
     return pin_count_after;
   }
 
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
+  bool incrementPinCountInPartWithCutHyperedgeUpdate(const HyperedgeID e, const PartitionID p) {
+    ASSERT(e < _hg->initialNumEdges(), "Hyperedge" << e << "does not exist");
+    ASSERT(edgeIsEnabled(e), "Hyperedge" << e << "is disabled");
+    ASSERT(p != kInvalidPartition && p < _k);
+    bool expected = 0;
+    bool desired = 1;
+    if ( _pin_count_update_ownership[e].compare_exchange_strong(expected, desired, std::memory_order_acq_rel) ) {
+      const HypernodeID pin_count_after = incrementPinCountInPartWithoutGainUpdate(e, p);
+      if ( pin_count_after == 1 && connectivity(e) == 2 ) {
+        for ( const HypernodeID& pin : pins(e) ) {
+          ++_num_incident_cut_hyperedges[pin];
+        }
+      }
+      _pin_count_update_ownership[e].store(false, std::memory_order_acq_rel);
+      return true;
+    }
+    return false;
+  }
 
   // REVIEW NOTE documentation duplicated. no more copy-pasta please
   // if you can guarantee that the function call for delta_func is inlined, it's even the same code
@@ -1177,8 +1232,21 @@ private:
     if ( _pin_count_update_ownership[he].compare_exchange_strong(expected, desired, std::memory_order_acq_rel) ) {
       // In that case, the current thread acquires the ownership of the hyperedge and can
       // safely update the pin counts in from and to part.
+      const PartitionID connectivity_before = connectivity(he);
       const HypernodeID pin_count_in_from_part_after = decrementPinCountInPartWithGainUpdate(he, from);
       const HypernodeID pin_count_in_to_part_after = incrementPinCountInPartWithGainUpdate(he, to);
+      const PartitionID connectivity_after = connectivity(he);
+      const bool became_cut_he = connectivity_before == 1 && connectivity_after == 2;
+      const bool became_internal_he = connectivity_before == 2 && connectivity_after == 1;
+      if ( became_cut_he ) {
+        for ( const HypernodeID& pin : pins(he) ) {
+          ++_num_incident_cut_hyperedges[pin];
+        }
+      } else if ( became_internal_he ) {
+        for ( const HypernodeID& pin : pins(he) ) {
+          --_num_incident_cut_hyperedges[pin];
+        }
+      }
       delta_func(he, edgeWeight(he), edgeSize(he),
         pin_count_in_from_part_after, pin_count_in_to_part_after);
       _pin_count_update_ownership[he].store(false, std::memory_order_acq_rel);
@@ -1257,6 +1325,9 @@ private:
 
   // ! For each node and block, the sum of incident edge weights with exactly one pin in that part
   Array< CAtomic<HyperedgeWeight> > _move_from_benefit;
+
+  // For each node, it stores the number of incident cut hyperedges
+  Array< CAtomic<HypernodeID> > _num_incident_cut_hyperedges;
 
   // ! In order to update the pin count of a hyperedge thread-safe, a thread must acquire
   // ! the ownership of a hyperedge via a CAS operation.

@@ -94,6 +94,18 @@ void verifyGainCache(DynamicPartitionedHypergraph& partitioned_hypergraph) {
   ASSERT_EQ(expected_gain, km1_before - km1_after) << V(expected_gain) << V(km1_before) << V(km1_after);
 }
 
+void verifyNumIncidentCutHyperedges(const DynamicPartitionedHypergraph& partitioned_hypergraph) {
+  partitioned_hypergraph.doParallelForAllNodes([&](const HypernodeID& hn) {
+    HypernodeID expected_num_cut_hyperedges = 0;
+    for ( const HyperedgeID& he : partitioned_hypergraph.incidentEdges(hn) ) {
+      if ( partitioned_hypergraph.connectivity(he) > 1 ) {
+        ++expected_num_cut_hyperedges;
+      }
+    }
+    ASSERT_EQ(expected_num_cut_hyperedges, partitioned_hypergraph.numIncidentCutHyperedges(hn));
+  });
+}
+
 DynamicHypergraph generateRandomHypergraph(const HypernodeID num_hypernodes,
                                            const HyperedgeID num_hyperedges,
                                            const HypernodeID max_edge_size) {
@@ -300,6 +312,10 @@ TEST(ANlevel, SimulatesContractionsAndBatchUncontractions) {
   if ( debug ) LOG << "Verify gain cache of hypergraphs";
   verifyGainCache(sequential_phg);
   verifyGainCache(parallel_phg);
+
+  if ( debug ) LOG << "Verify number of incident cut hyperedges";
+  verifyNumIncidentCutHyperedges(sequential_phg);
+  verifyNumIncidentCutHyperedges(parallel_phg);
 
   if ( show_timings ) {
     LOG << utils::Timer::instance(true);

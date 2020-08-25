@@ -61,7 +61,7 @@ TEST_F(AInitialPartitioningDataContainer, ReturnsAnUnassignedLocalHypernode1) {
   PartitionedHypergraph partitioned_hypergraph(
     context.partition.k, hypergraph);
   InitialPartitioningDataContainer ip_data(
-    partitioned_hypergraph, context, TBBNumaArena::GLOBAL_TASK_GROUP);
+    partitioned_hypergraph, context, TBBNumaArena::GLOBAL_TASK_GROUP, true);
   PartitionedHypergraph& local_hg = ip_data.local_partitioned_hypergraph();
   ip_data.reset_unassigned_hypernodes();
   ASSERT_EQ(-1, local_hg.partID(ip_data.get_unassigned_hypernode()));
@@ -71,7 +71,7 @@ TEST_F(AInitialPartitioningDataContainer, ReturnsAnUnassignedLocalHypernode2) {
   PartitionedHypergraph partitioned_hypergraph(
     context.partition.k, hypergraph);
   InitialPartitioningDataContainer ip_data(
-    partitioned_hypergraph, context, TBBNumaArena::GLOBAL_TASK_GROUP);
+    partitioned_hypergraph, context, TBBNumaArena::GLOBAL_TASK_GROUP, true);
   PartitionedHypergraph& local_hg = ip_data.local_partitioned_hypergraph();
   ip_data.reset_unassigned_hypernodes();
 
@@ -92,7 +92,7 @@ TEST_F(AInitialPartitioningDataContainer, ReturnsAnUnassignedLocalHypernode3) {
   PartitionedHypergraph partitioned_hypergraph(
     context.partition.k, hypergraph);
   InitialPartitioningDataContainer ip_data(
-    partitioned_hypergraph, context, TBBNumaArena::GLOBAL_TASK_GROUP);
+    partitioned_hypergraph, context, TBBNumaArena::GLOBAL_TASK_GROUP, true);
   PartitionedHypergraph& local_hg = ip_data.local_partitioned_hypergraph();
   ip_data.reset_unassigned_hypernodes();
 
@@ -113,7 +113,7 @@ TEST_F(AInitialPartitioningDataContainer, ReturnsAnUnassignedLocalHypernode4) {
   PartitionedHypergraph partitioned_hypergraph(
     context.partition.k, hypergraph);
   InitialPartitioningDataContainer ip_data(
-    partitioned_hypergraph, context, TBBNumaArena::GLOBAL_TASK_GROUP);
+    partitioned_hypergraph, context, TBBNumaArena::GLOBAL_TASK_GROUP, true);
   PartitionedHypergraph& local_hg = ip_data.local_partitioned_hypergraph();
   ip_data.reset_unassigned_hypernodes();
 
@@ -134,7 +134,7 @@ TEST_F(AInitialPartitioningDataContainer, ReturnsInvalidHypernodeIfAllHypernodes
   PartitionedHypergraph partitioned_hypergraph(
     context.partition.k, hypergraph);
   InitialPartitioningDataContainer ip_data(
-    partitioned_hypergraph, context, TBBNumaArena::GLOBAL_TASK_GROUP);
+    partitioned_hypergraph, context, TBBNumaArena::GLOBAL_TASK_GROUP, true);
   PartitionedHypergraph& local_hg = ip_data.local_partitioned_hypergraph();
   ip_data.reset_unassigned_hypernodes();
 
@@ -150,7 +150,7 @@ TEST_F(AInitialPartitioningDataContainer, ReturnsValidUnassignedHypernodeIfParti
   PartitionedHypergraph partitioned_hypergraph(
     context.partition.k, hypergraph);
   InitialPartitioningDataContainer ip_data(
-    partitioned_hypergraph, context, TBBNumaArena::GLOBAL_TASK_GROUP);
+    partitioned_hypergraph, context, TBBNumaArena::GLOBAL_TASK_GROUP, true);
   PartitionedHypergraph& local_hg = ip_data.local_partitioned_hypergraph();
   ip_data.reset_unassigned_hypernodes();
 
@@ -170,7 +170,7 @@ TEST_F(AInitialPartitioningDataContainer, AppliesPartitionToHypergraph) {
   PartitionedHypergraph partitioned_hypergraph(
     context.partition.k, hypergraph);
   InitialPartitioningDataContainer ip_data(
-    partitioned_hypergraph, context, TBBNumaArena::GLOBAL_TASK_GROUP);
+    partitioned_hypergraph, context, TBBNumaArena::GLOBAL_TASK_GROUP, true);
   PartitionedHypergraph& local_hg = ip_data.local_partitioned_hypergraph();
 
   // Cut = 2
@@ -199,7 +199,7 @@ TEST_F(AInitialPartitioningDataContainer, AppliesBestPartitionToHypergraph) {
   PartitionedHypergraph partitioned_hypergraph(
     context.partition.k, hypergraph);
   InitialPartitioningDataContainer ip_data(
-    partitioned_hypergraph, context, TBBNumaArena::GLOBAL_TASK_GROUP);
+    partitioned_hypergraph, context, TBBNumaArena::GLOBAL_TASK_GROUP, true);
   PartitionedHypergraph& local_hg = ip_data.local_partitioned_hypergraph();
 
   // Cut = 3
@@ -238,7 +238,7 @@ TEST_F(AInitialPartitioningDataContainer, AppliesBestPartitionWithImbalancedPart
   PartitionedHypergraph partitioned_hypergraph(
     context.partition.k, hypergraph);
   InitialPartitioningDataContainer ip_data(
-    partitioned_hypergraph, context, TBBNumaArena::GLOBAL_TASK_GROUP);
+    partitioned_hypergraph, context, TBBNumaArena::GLOBAL_TASK_GROUP, true);
   PartitionedHypergraph& local_hg = ip_data.local_partitioned_hypergraph();
 
   // Cut = 1, but imbalanced
@@ -277,7 +277,7 @@ TEST_F(AInitialPartitioningDataContainer, AppliesBestPartitionWithImbalancedPart
   PartitionedHypergraph partitioned_hypergraph(
     context.partition.k, hypergraph);
   InitialPartitioningDataContainer ip_data(
-    partitioned_hypergraph, context, TBBNumaArena::GLOBAL_TASK_GROUP);
+    partitioned_hypergraph, context, TBBNumaArena::GLOBAL_TASK_GROUP, true);
   PartitionedHypergraph& local_hg = ip_data.local_partitioned_hypergraph();
 
   // Cut = 1, but imbalanced
@@ -316,7 +316,7 @@ TEST_F(AInitialPartitioningDataContainer, AppliesBestPartitionWithImbalancedPart
   PartitionedHypergraph partitioned_hypergraph(
     context.partition.k, hypergraph);
   InitialPartitioningDataContainer ip_data(
-    partitioned_hypergraph, context, TBBNumaArena::GLOBAL_TASK_GROUP);
+    partitioned_hypergraph, context, TBBNumaArena::GLOBAL_TASK_GROUP, true);
   PartitionedHypergraph& local_hg = ip_data.local_partitioned_hypergraph();
 
   // Cut = 1
@@ -355,7 +355,7 @@ TEST_F(AInitialPartitioningDataContainer, AppliesBestPartitionToHypergraphInPara
   PartitionedHypergraph partitioned_hypergraph(
     context.partition.k, hypergraph);
   InitialPartitioningDataContainer ip_data(
-    partitioned_hypergraph, context, TBBNumaArena::GLOBAL_TASK_GROUP);
+    partitioned_hypergraph, context, TBBNumaArena::GLOBAL_TASK_GROUP, true);
 
   std::atomic<size_t> cnt(0);
   tbb::parallel_invoke([&] {
@@ -402,7 +402,7 @@ TEST_F(AInitialPartitioningDataContainer, AppliesBestPartitionToHypergraphInPara
   PartitionedHypergraph partitioned_hypergraph(
     context.partition.k, hypergraph);
   InitialPartitioningDataContainer ip_data(
-    partitioned_hypergraph, context, TBBNumaArena::GLOBAL_TASK_GROUP);
+    partitioned_hypergraph, context, TBBNumaArena::GLOBAL_TASK_GROUP, true);
 
   std::atomic<size_t> cnt(0);
   tbb::parallel_invoke([&] {
@@ -449,7 +449,7 @@ TEST_F(AInitialPartitioningDataContainer, AppliesBestPartitionToHypergraphInPara
   PartitionedHypergraph partitioned_hypergraph(
     context.partition.k, hypergraph);
   InitialPartitioningDataContainer ip_data(
-    partitioned_hypergraph, context, TBBNumaArena::GLOBAL_TASK_GROUP);
+    partitioned_hypergraph, context, TBBNumaArena::GLOBAL_TASK_GROUP, true);
 
   std::atomic<size_t> cnt(0);
   tbb::parallel_invoke([&] {
