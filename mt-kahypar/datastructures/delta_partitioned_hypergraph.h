@@ -70,7 +70,6 @@ class DeltaPartitionedHypergraph {
     _move_to_penalty_delta(),
     _move_from_benefit_delta() { }
 
-  // REVIEW NOTE why do we delete copy assignment/construction? wouldn't it be useful to make a copy, e.g. for initial partitioning
   DeltaPartitionedHypergraph(const DeltaPartitionedHypergraph&) = delete;
   DeltaPartitionedHypergraph & operator= (const DeltaPartitionedHypergraph &) = delete;
 
