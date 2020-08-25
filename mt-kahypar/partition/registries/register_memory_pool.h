@@ -94,6 +94,8 @@ static void register_memory_pool(const Hypergraph& hypergraph,
     static_cast<size_t>(num_hypernodes) * context.partition.k, sizeof(CAtomic<HyperedgeWeight>));
   parallel::MemoryPool::instance().register_memory_chunk("Refinement", "move_from_penalty",
     num_hypernodes, sizeof(CAtomic<HyperedgeWeight>));
+  parallel::MemoryPool::instance().register_memory_chunk("Refinement", "num_incident_cut_hyperedges",
+    num_hypernodes, sizeof(CAtomic<HypernodeID>));
   parallel::MemoryPool::instance().register_memory_chunk("Refinement", "pin_count_update_ownership",
     num_hyperedges, sizeof(parallel::IntegralAtomicWrapper<bool>));
 

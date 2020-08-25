@@ -108,6 +108,23 @@ TEST_F(ADeltaPartitionedHypergraph, VerifyInitialMoveToPenalties) {
   verifyMoveToPenalty(6, { 1, 1, 0 });
 }
 
+TEST_F(ADeltaPartitionedHypergraph, VerifyInitialConnectivityValues) {
+  ASSERT_EQ(1, delta_phg.connectivity(0));
+  ASSERT_EQ(2, delta_phg.connectivity(1));
+  ASSERT_EQ(2, delta_phg.connectivity(2));
+  ASSERT_EQ(2, delta_phg.connectivity(3));
+}
+
+TEST_F(ADeltaPartitionedHypergraph, VerifyInitialNumCutHyperedges) {
+  ASSERT_EQ(1, delta_phg.numIncidentCutHyperedges(0));
+  ASSERT_EQ(1, delta_phg.numIncidentCutHyperedges(1));
+  ASSERT_EQ(1, delta_phg.numIncidentCutHyperedges(2));
+  ASSERT_EQ(2, delta_phg.numIncidentCutHyperedges(3));
+  ASSERT_EQ(2, delta_phg.numIncidentCutHyperedges(4));
+  ASSERT_EQ(1, delta_phg.numIncidentCutHyperedges(5));
+  ASSERT_EQ(2, delta_phg.numIncidentCutHyperedges(6));
+}
+
 TEST_F(ADeltaPartitionedHypergraph, MovesAVertex1) {
   delta_phg.changeNodePart(1, 0, 1, 1000);
   ASSERT_EQ(0, phg.partID(1));
@@ -125,6 +142,12 @@ TEST_F(ADeltaPartitionedHypergraph, MovesAVertex1) {
   verifyMoveToPenalty(0, { 0, 1, 2 });
   verifyMoveToPenalty(3, { 1, 0, 1 });
   verifyMoveToPenalty(4, { 1, 0, 1 });
+
+  // Verify Connectivity
+  ASSERT_EQ(2, delta_phg.connectivity(1));
+
+  // Verify Num Incident Cut Hyperedges
+  ASSERT_EQ(1, delta_phg.numIncidentCutHyperedges(1));
 }
 
 TEST_F(ADeltaPartitionedHypergraph, MovesAVertex2) {
@@ -147,6 +170,13 @@ TEST_F(ADeltaPartitionedHypergraph, MovesAVertex2) {
   verifyMoveToPenalty(3, { 1, 0, 2 });
   verifyMoveToPenalty(4, { 1, 0, 2 });
   verifyMoveToPenalty(5, { 0, 0, 0 });
+
+  // Verify Connectivity
+  ASSERT_EQ(1, delta_phg.connectivity(2));
+  ASSERT_EQ(3, delta_phg.connectivity(3));
+
+  // Verify Num Incident Cut Hyperedges
+  ASSERT_EQ(1, delta_phg.numIncidentCutHyperedges(6));
 }
 
 TEST_F(ADeltaPartitionedHypergraph, MovesSeveralVertices) {
@@ -180,6 +210,21 @@ TEST_F(ADeltaPartitionedHypergraph, MovesSeveralVertices) {
   verifyMoveToPenalty(4, { 1, 0, 2 });
   verifyMoveToPenalty(5, { 1, 0, 1 });
   verifyMoveToPenalty(6, { 2, 0, 2 });
+
+  // Verify Connectivity
+  ASSERT_EQ(2, delta_phg.connectivity(0));
+  ASSERT_EQ(2, delta_phg.connectivity(1));
+  ASSERT_EQ(1, delta_phg.connectivity(2));
+  ASSERT_EQ(1, delta_phg.connectivity(3));
+
+  // Verify Num Incident Cut Hyperedges
+  ASSERT_EQ(2, delta_phg.numIncidentCutHyperedges(0));
+  ASSERT_EQ(1, delta_phg.numIncidentCutHyperedges(1));
+  ASSERT_EQ(1, delta_phg.numIncidentCutHyperedges(2));
+  ASSERT_EQ(1, delta_phg.numIncidentCutHyperedges(3));
+  ASSERT_EQ(1, delta_phg.numIncidentCutHyperedges(4));
+  ASSERT_EQ(0, delta_phg.numIncidentCutHyperedges(5));
+  ASSERT_EQ(0, delta_phg.numIncidentCutHyperedges(6));
 }
 
 } // namespace ds
