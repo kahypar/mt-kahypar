@@ -365,7 +365,7 @@ private:
         const HypernodeID pin_count_in_part_after = incrementPinCountInPartWithoutGainUpdate(he, block);
         ASSERT(pin_count_in_part_after > 1, V(u) << V(v) << V(he));
         if ( connectivity(he) > 1 ) {
-          ++_num_incident_cut_hyperedges[v];
+          _num_incident_cut_hyperedges[v].fetch_add(1, std::memory_order_relaxed);
         }
 
         if ( _is_gain_cache_initialized ) {
@@ -406,8 +406,8 @@ private:
         // In this case, u is replaced by v in hyperedge he
         // => Pin counts of hyperedge he does not change
         if ( connectivity(he) > 1 ) {
-          --_num_incident_cut_hyperedges[u];
-          ++_num_incident_cut_hyperedges[v];
+          _num_incident_cut_hyperedges[u].fetch_sub(1, std::memory_order_relaxed);
+          _num_incident_cut_hyperedges[v].fetch_add(1, std::memory_order_relaxed);
         }
 
         if ( _is_gain_cache_initialized ) {
@@ -527,7 +527,7 @@ private:
 
         if ( connectivity(he) > 1 ) {
           for ( const HypernodeID& pin : pins(he) ) {
-            ++_num_incident_cut_hyperedges[pin];
+            _num_incident_cut_hyperedges[pin].fetch_add(1, std::memory_order_relaxed);
           }
         }
 
@@ -652,7 +652,7 @@ private:
   // ! Returns, whether hypernode u is adjacent to a least one cut hyperedge.
   bool isBorderNode(const HypernodeID u) const {
     if ( nodeDegree(u) <= HIGH_DEGREE_THRESHOLD ) {   // TODO since the check is cheap again, we may want to allow moving high deg nodes in label propagation, but not in fm.
-      return _num_incident_cut_hyperedges[u] > 0;
+      return _num_incident_cut_hyperedges[u].load(std::memory_order_relaxed) > 0;
     } else {
       // In case u is a high degree vertex, we omit the border node check and
       // and return false. Assumption is that it is very unlikely that such a
@@ -662,7 +662,7 @@ private:
   }
 
   HypernodeID numIncidentCutHyperedges(const HypernodeID u) const {
-    return _num_incident_cut_hyperedges[u];
+    return _num_incident_cut_hyperedges[u].load(std::memory_order_relaxed);
   }
 
   // ! Number of blocks which pins of hyperedge e belongs to
@@ -1085,7 +1085,7 @@ private:
 
           if ( connectivity(he) > 1 ) {
             for ( const HypernodeID& pin : pins(he) ) {
-              ++_num_incident_cut_hyperedges[pin];
+              _num_incident_cut_hyperedges[pin].fetch_add(1, std::memory_order_relaxed);
             }
           }
         }
@@ -1145,11 +1145,11 @@ private:
       const bool became_internal_he = connectivity_before == 2 && connectivity_after == 1;
       if ( became_cut_he ) {
         for ( const HypernodeID& pin : pins(he) ) {
-          ++_num_incident_cut_hyperedges[pin];
+          _num_incident_cut_hyperedges[pin].fetch_add(1, std::memory_order_relaxed);
         }
       } else if ( became_internal_he ) {
         for ( const HypernodeID& pin : pins(he) ) {
-          --_num_incident_cut_hyperedges[pin];
+          _num_incident_cut_hyperedges[pin].fetch_sub(1, std::memory_order_relaxed);
         }
       }
       delta_func(he, edgeWeight(he), edgeSize(he),
@@ -1196,7 +1196,7 @@ private:
       const HypernodeID pin_count_after = incrementPinCountInPartWithoutGainUpdate(e, p);
       if ( pin_count_after == 1 && connectivity(e) == 2 ) {
         for ( const HypernodeID& pin : pins(e) ) {
-          ++_num_incident_cut_hyperedges[pin];
+          _num_incident_cut_hyperedges[pin].fetch_add(1, std::memory_order_relaxed);
         }
       }
       _pin_count_update_ownership[e].store(false, std::memory_order_acq_rel);
@@ -1240,11 +1240,11 @@ private:
       const bool became_internal_he = connectivity_before == 2 && connectivity_after == 1;
       if ( became_cut_he ) {
         for ( const HypernodeID& pin : pins(he) ) {
-          ++_num_incident_cut_hyperedges[pin];
+          _num_incident_cut_hyperedges[pin].fetch_add(1, std::memory_order_relaxed);
         }
       } else if ( became_internal_he ) {
         for ( const HypernodeID& pin : pins(he) ) {
-          --_num_incident_cut_hyperedges[pin];
+          _num_incident_cut_hyperedges[pin].fetch_sub(1, std::memory_order_relaxed);
         }
       }
       delta_func(he, edgeWeight(he), edgeSize(he),
