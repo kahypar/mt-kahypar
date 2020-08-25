@@ -379,11 +379,15 @@ namespace mt_kahypar {
   }
 
   void GlobalRollback::resetStoredMoveIDs() {
-    tbb::parallel_invoke([&] {
-                           tbb::parallel_for_each(last_move_out, [](auto& x) { x.store(0, std::memory_order_relaxed); });
-                         }, [&] {
-                           tbb::parallel_for_each(first_move_in, [](auto& x) { x.store(0, std::memory_order_relaxed); });
-                         }
+    tbb::parallel_invoke(
+      [&] {
+            tbb::parallel_for(0UL, last_move_out.size(),
+                              [&](size_t i) { last_move_out[i].store(0, std::memory_order_relaxed); });
+           },
+      [&] { 
+            tbb::parallel_for_each(0UL, first_move_in.size(),
+                              [&](size_t i) { first_move_in[i].store(0, std::memory_order_relaxed); });
+           }
     );
   }
 

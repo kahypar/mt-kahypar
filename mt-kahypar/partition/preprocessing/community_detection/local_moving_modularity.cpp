@@ -112,7 +112,9 @@ namespace mt_kahypar::community_detection {
 #ifdef KAHYPAR_ENABLE_HEAVY_PREPROCESSING_ASSERTIONS
       std::for_each(nodes.begin(), nodes.end(), moveNode);
 #else
-      tbb::parallel_for_each(nodes, moveNode);
+      tbb::parallel_for(0UL, nodes.size(), [&](const size_t i) {
+        moveNode(nodes[i]);
+      });
 #endif
 
       number_of_nodes_moved = local_number_of_nodes_moved.combine(std::plus<>());
