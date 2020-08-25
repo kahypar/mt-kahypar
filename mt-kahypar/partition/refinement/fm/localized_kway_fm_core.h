@@ -424,6 +424,7 @@ private:
         sharedData.targetPart[v] = newTarget;
         vertexPQs[pv].adjustKey(v, gain);
       } else {
+        // these are reinserts of vertices that changed their status from boundary to non-boundary vertex and back again
         auto [target, gain] = bestDestinationBlock(phg, v);
         sharedData.targetPart[v] = target;
         vertexPQs[pv].insert(v, gain);  // blockPQ updates are done later, collectively.
