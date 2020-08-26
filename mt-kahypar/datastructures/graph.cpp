@@ -398,8 +398,7 @@ namespace mt_kahypar::ds {
   }
 
   template<typename F>
-  void Graph::constructGraph(const Hypergraph& hypergraph,
-                      const F& edge_weight_func) {
+  void Graph::constructGraph(const Hypergraph& hypergraph, const F& edge_weight_func) {
     _indices.resize("Preprocessing", "indices", _num_nodes + 1);
     _arcs.resize("Preprocessing", "arcs", _num_arcs);
     _node_volumes.resize("Preprocessing", "node_volumes", _num_nodes);
@@ -456,4 +455,4 @@ namespace mt_kahypar::ds {
     return result;
   }
 
-} // namespace
+} // namespace mt_kahypar::ds
