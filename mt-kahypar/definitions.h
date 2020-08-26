@@ -27,20 +27,10 @@
 #include "mt-kahypar/datastructures/static_hypergraph_factory.h"
 #include "mt-kahypar/datastructures/partitioned_hypergraph.h"
 
-#define USE_HARDWARE_MOCK false
 
 namespace mt_kahypar {
 
-#if USE_HARDWARE_MOCK
-#include "tests/parallel/topology_mock.h"
-static constexpr int NUM_NUMA_NODES = 2;
-using TopoMock = mt_kahypar::parallel::TopologyMock<NUM_NUMA_NODES>;
-using topology_t = mt_kahypar::parallel::topology_t;
-using node_t = mt_kahypar::parallel::node_t;
-using HardwareTopology = mt_kahypar::parallel::HardwareTopology<TopoMock, topology_t, node_t>;
-#else
 using HardwareTopology = mt_kahypar::parallel::HardwareTopology<>;
-#endif
 using TBBNumaArena = mt_kahypar::parallel::TBBNumaArena<HardwareTopology, false>;
 
 
