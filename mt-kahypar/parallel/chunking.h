@@ -2,7 +2,7 @@
 
 #include <cstdint>
 
-namespace chunking {
+namespace mt_kahypar::parallel::chunking {
   template <typename T1, typename T2>
   inline auto idiv_ceil(T1 a, T2 b) {
     return static_cast<T1>((static_cast<unsigned long long>(a)+b-1) / b);

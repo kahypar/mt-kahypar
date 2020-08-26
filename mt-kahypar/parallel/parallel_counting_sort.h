@@ -30,8 +30,7 @@
 #include "mt-kahypar/parallel/chunking.h"
 #include "mt-kahypar/parallel/parallel_prefix_sum.h"
 
-namespace mt_kahypar {
-namespace parallel {
+namespace mt_kahypar::parallel {
 
 // KeyFunc must be thread safe
 // returns the bucket bounds
@@ -90,5 +89,4 @@ vec<uint32_t> counting_sort(const InputRange& input, OutputRange& output,
   return global_bucket_begins;
 }
 
-}  // namespace parallel
-}  // namespace mt_kahypar
+}  // namespace mt_kahypar::parallel
