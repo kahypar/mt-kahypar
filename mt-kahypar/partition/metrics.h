@@ -32,8 +32,10 @@ HyperedgeWeight soed(const PartitionedHypergraph& hypergraph, bool parallel = tr
 
 bool isBalanced(const PartitionedHypergraph& phg, const Context& context);
 
-HyperedgeWeight objective(const PartitionedHypergraph& hg, const kahypar::Objective& objective,
-                                        bool parallel = true);
+HyperedgeWeight objective(
+        const PartitionedHypergraph& hg,
+        const kahypar::Objective& objective,
+        bool parallel = true);
 
 double imbalance(const PartitionedHypergraph& hypergraph, const Context& context);
 

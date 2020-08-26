@@ -18,7 +18,7 @@
  *
  ******************************************************************************/
 
-#include "metrics.h"
+#include "mt-kahypar/partition/metrics.h"
 
 
 #include <cmath>
@@ -123,4 +123,4 @@ namespace mt_kahypar::metrics {
     return max_balance - 1.0;
   }
 
-}
+} // namespace mt_kahypar::metrics
