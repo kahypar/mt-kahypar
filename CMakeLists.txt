@@ -252,7 +252,13 @@ if(NOT MSVC)
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -ltbbmalloc_proxy")
 
   # lld is way faster than ld. If you have it, use it!
-  #set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fuse-ld=lld")
+  find_program(LLD_BIN lld)
+  if (LLD_BIN)
+    message(STATUS "Found and will use LLVM linker " ${LLD_BIN})
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fuse-ld=lld")
+  else()
+    message(STATUS "Default linker")
+  endif()
 
   include(CheckSSE4_2)
   if( BUILTIN_POPCNT )
