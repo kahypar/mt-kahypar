@@ -465,8 +465,6 @@ namespace mt_kahypar {
       parallel::MemoryPool::instance().activate_unused_memory_allocations();
       utils::Timer::instance().enable();
       utils::Stats::instance().enable();
+    }
   }
-}
-
-
-}
+} // namepace mt_kahypar
