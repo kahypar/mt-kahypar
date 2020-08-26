@@ -109,15 +109,23 @@ class APartitionedHypergraph : public Test {
     }
   }
 
+  HyperedgeWeight compute_km1() {
+    HyperedgeWeight km1 = 0;
+    for (const HyperedgeID& he : partitioned_hypergraph.edges()) {
+      km1 += std::max(partitioned_hypergraph.connectivity(he) - 1, 0) * partitioned_hypergraph.edgeWeight(he);
+    }
+    return km1;
+  }
+
   void verifyAllKm1GainValues() {
     for ( const HypernodeID hn : hypergraph.nodes() ) {
       const PartitionID from = partitioned_hypergraph.partID(hn);
       for ( PartitionID to = 0; to < partitioned_hypergraph.k(); ++to ) {
         if ( from != to ) {
-          const HyperedgeWeight km1_before = metrics::km1(partitioned_hypergraph, false);
+          const HyperedgeWeight km1_before = compute_km1();
           const HyperedgeWeight km1_gain = partitioned_hypergraph.km1Gain(hn, from, to);
           partitioned_hypergraph.changeNodePart(hn, from, to);
-          const HyperedgeWeight km1_after = metrics::km1(partitioned_hypergraph, false);
+          const HyperedgeWeight km1_after = compute_km1();
           ASSERT_EQ(km1_gain, km1_before - km1_after);
           partitioned_hypergraph.changeNodePart(hn, to, from);
         }
