@@ -53,6 +53,4 @@ REGISTER_DISPATCHED_COARSENER(CoarseningAlgorithm::multilevel_coarsener,
                               kahypar::meta::PolicyRegistry<AcceptancePolicy>::getInstance().getPolicy(
                                 context.coarsening.rating.acceptance_policy));
 
-REGISTER_COARSENER(CoarseningAlgorithm::extended_clustering, ExtendedClustering);
-
 }  // namespace mt_kahypar
