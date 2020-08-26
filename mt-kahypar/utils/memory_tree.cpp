@@ -18,7 +18,7 @@
  *
  ******************************************************************************/
 
-#include "memory_tree.h"
+#include "mt-kahypar/utils/memory_tree.h"
 
 
 

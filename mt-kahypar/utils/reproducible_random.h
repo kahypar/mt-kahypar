@@ -190,4 +190,4 @@ struct BucketHashing {
 };
 
 
-}
+} // namespace mt_kahypar::utils
