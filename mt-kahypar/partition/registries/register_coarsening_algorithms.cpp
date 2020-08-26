@@ -24,8 +24,6 @@
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/partition/factories.h"
 
-#include "mt-kahypar/partition/coarsening/extended_clustering.h"
-
 
 #define REGISTER_DISPATCHED_COARSENER(id, dispatcher, ...)                                                      \
   static kahypar::meta::Registrar<CoarsenerFactory> register_ ## dispatcher(                                    \

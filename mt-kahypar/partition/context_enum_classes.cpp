@@ -70,7 +70,6 @@ namespace mt_kahypar {
   std::ostream & operator<< (std::ostream& os, const CoarseningAlgorithm& algo) {
     switch (algo) {
       case CoarseningAlgorithm::multilevel_coarsener: return os << "multilevel_coarsener";
-      case CoarseningAlgorithm::extended_clustering: return os << "extended_clustering";
       case CoarseningAlgorithm::UNDEFINED: return os << "UNDEFINED";
         // omit default case to trigger compiler warning for missing cases
     }
