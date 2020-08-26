@@ -435,11 +435,6 @@ namespace mt_kahypar {
     return nullptr;
   }
 
-
-
-
-
-
   RecursiveBisectionInitialPartitioner::RecursiveBisectionInitialPartitioner(PartitionedHypergraph& hypergraph,
                                                                              const Context& context,
                                                                              const bool top_level,
