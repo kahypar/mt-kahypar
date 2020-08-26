@@ -18,7 +18,7 @@
  *
 ******************************************************************************/
 
-#include "recursive_bisection_initial_partitioner.h"
+#include "mt-kahypar/partition/initial_partitioning/recursive_bisection_initial_partitioner.h"
 
 
 #include <algorithm>
