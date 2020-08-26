@@ -467,20 +467,22 @@ namespace mt_kahypar {
   }
 
   void GlobalRollback::resetStoredMoveIDs() {
-    tbb::parallel_invoke(
-      [&] {
-            tbb::parallel_for(0UL, last_move_out.size(),
-                              [&](size_t i) { last_move_out[i].store(0, std::memory_order_relaxed); });
-           },
-      [&] {
-            tbb::parallel_for(0UL, first_move_in.size(),
-                              [&](size_t i) { first_move_in[i].store(0, std::memory_order_relaxed); });
-           }
-    );
+    if (context.refinement.fm.revert_parallel) {
+      tbb::parallel_invoke(
+              [&] {
+                tbb::parallel_for(0UL, last_move_out.size(),
+                                  [&](size_t i) { last_move_out[i].store(0, std::memory_order_relaxed); });
+              },
+              [&] {
+                tbb::parallel_for(0UL, first_move_in.size(),
+                                  [&](size_t i) { first_move_in[i].store(0, std::memory_order_relaxed); });
+              }
+      );
+    }
   }
 
   void GlobalRollback::setRemainingOriginalPins(PartitionedHypergraph& phg) {
-    if (phg.hypergraph().maxEdgeSize() > 2) {
+    if (phg.hypergraph().maxEdgeSize() > 2 && context.refinement.fm.revert_parallel) {
       phg.doParallelForAllEdges([&](const HyperedgeID& he) {
         if (phg.edgeSize(he) > 2) {
           const HyperedgeID he_local = phg.nonGraphEdgeID(he);
