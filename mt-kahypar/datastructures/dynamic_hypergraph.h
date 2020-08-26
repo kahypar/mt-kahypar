@@ -1508,6 +1508,12 @@ class DynamicHypergraph {
     return hypergraph;
   }
 
+  // ! Reset internal data structure
+  void reset() {
+    _contraction_tree.reset();
+    _version = 0;
+  }
+
   // ! Free internal data in parallel
   void freeInternalData() {
     if ( _num_hypernodes > 0 || _num_hyperedges > 0 ) {
