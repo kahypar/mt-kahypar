@@ -303,9 +303,6 @@ class RecursiveBisectionInitialPartitioner : public IInitialPartitioner {
         }
       });
       _hg.initializePartition(_task_group_id);
-      _hg.assignDegreeZeroVerticesToBlocks(block_0, block_1,
-        _bisection_context.partition.max_part_weights[0],
-        _bisection_context.partition.max_part_weights[1]);
 
       ASSERT(metrics::objective(_bisection_partitioned_hg, _context.partition.objective) ==
         metrics::objective(_hg, _context.partition.objective));

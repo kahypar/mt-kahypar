@@ -1547,6 +1547,9 @@ class StaticHypergraph {
     return hypergraph;
   }
 
+  // ! Reset internal data structure
+  void reset() { }
+
   // ! Free internal data in parallel
   void freeInternalData() {
     if ( _num_hypernodes > 0 || _num_hyperedges > 0 ) {

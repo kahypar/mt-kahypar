@@ -528,9 +528,6 @@ class CommunitySupport {
     return community_support;
   }
 
-  // ! Reset internal data structure
-  void reset() { }
-
   // Free internal data in parallel
   void freeInternalData() {
     if ( _are_community_hyperedges_initialized ) {

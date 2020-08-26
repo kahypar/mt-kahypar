@@ -183,6 +183,7 @@ inline PartitionedHypergraph Partitioner::partitionVCycle(Hypergraph& hypergraph
 
   for ( size_t i = 0; i < _context.partition.num_vcycles; ++i ) {
     // Reset memory pool
+    hypergraph.reset();
     parallel::MemoryPool::instance().reset();
     parallel::MemoryPool::instance().release_mem_group("Preprocessing");
 
@@ -224,7 +225,6 @@ inline PartitionedHypergraph Partitioner::partition(Hypergraph& hypergraph) {
 
   // ################## V-Cycle s##################
   if ( _context.partition.num_vcycles > 0 ) {
-    hypergraph.reset();
     partitioned_hypergraph = partitionVCycle(
       hypergraph, std::move(partitioned_hypergraph));
   }
