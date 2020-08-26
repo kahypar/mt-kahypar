@@ -116,6 +116,15 @@ class ContractionTree {
         _interval.end = end;
       }
 
+      inline void reset(const HypernodeID u) {
+        _parent = u;
+        _pending_contractions = 0;
+        _subtree_size = 0;
+        _version = kInvalidVersion;
+        _interval.start = kInvalidHypernode;
+        _interval.end = kInvalidHypernode;
+      }
+
     private:
       // ! Parent in the contraction tree
       HypernodeID _parent;
@@ -489,6 +498,21 @@ class ContractionTree {
       sizeof(HypernodeID) * _incidence_array.size());
 
     return tree;
+  }
+
+  // ! Resets internal data structures
+  void reset() {
+    tbb::parallel_invoke([&] {
+      tbb::parallel_for(ID(0), _num_hypernodes, [&](const HypernodeID hn) {
+        _tree[hn].reset(hn);
+        _out_degrees[hn].store(0);
+      });
+      _out_degrees[_num_hypernodes].store(0);
+    }, [&] {
+      parallel::parallel_free(_version_roots);
+      _roots.clear();
+    });
+    _finalized = false;
   }
 
   // ! Free internal data in parallel

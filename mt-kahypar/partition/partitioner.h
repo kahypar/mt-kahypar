@@ -224,6 +224,7 @@ inline PartitionedHypergraph Partitioner::partition(Hypergraph& hypergraph) {
 
   // ################## V-Cycle s##################
   if ( _context.partition.num_vcycles > 0 ) {
+    hypergraph.reset();
     partitioned_hypergraph = partitionVCycle(
       hypergraph, std::move(partitioned_hypergraph));
   }
