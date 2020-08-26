@@ -32,22 +32,7 @@ namespace mt_kahypar {
  * The recursive bisection initial partitioner starts by performing a parallel multilevel bisection.
  * Once the hypergraph is bisected both blocks are partitioned recursively in parallel until the
  * desired number of blocks are reached.
- * Note, the recursive bisection initial partitioner is written in TBBNumaArena continuation style. The TBBNumaArena
- * continuation style is especially useful for recursive patterns. Each task defines its continuation
- * task. A continuation task defines how computation should continue, if all its child tasks are completed.
- * As a consequence, tasks can be spawned without waiting for their completion, because the continuation
- * task is automatically invoked if all child tasks are terminated. Therefore, no thread will waste CPU
- * time while waiting for their recursive tasks to complete.
- *
- * Implementation Details
- * ----------------------
- * The recursive bisection initial partitioner starts by spawning the root RecursiveMultilevelBisectionTask. The RecursiveMultilevelBisectionTask
- * spawns a MultilevelBisectionTask that bisects the hypergraph (multilevel-fashion). Afterwards, the MultilevelBisectionContinuationTask continues
- * and applies the bisection to the hypergraph and spawns two RecursiveBisectionChildTasks. Both are responsible for exactly one block of
- * the partition. The RecursiveBisectionChildTask extracts its corresponding block as unpartitioned hypergraph and spawns
- * recursively a RecursiveMultilevelBisectionTask for that hypergraph. Once that RecursiveMultilevelBisectionTask is completed, a
- * RecursiveBisectionChildContinuationTask is started and the partition of the recursion is applied to the original hypergraph.
- */
+*/
 
 class RecursiveBisectionInitialPartitioner : public IInitialPartitioner {
  private:
