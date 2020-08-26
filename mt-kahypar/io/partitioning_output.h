@@ -251,7 +251,8 @@ inline void printHypergraphInfo(const HyperGraph& hypergraph,
   LOG << "# HNs :" << num_hypernodes
       << "# HEs :" << num_hyperedges
       << "# pins:" << num_pins
-      << "# graph edges:" << graph_edge_count.combine(std::plus<size_t>());
+      << "# graph edges:" << graph_edge_count.combine(std::plus<size_t>())
+      << "total weight:" << hypergraph.totalWeight();
 
   internal::printHypergraphStats(
     internal::createStats(he_sizes, avg_he_size, stdev_he_size),

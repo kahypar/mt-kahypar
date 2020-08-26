@@ -33,8 +33,7 @@ class DegreeZeroHypernodeRemover {
  public:
   DegreeZeroHypernodeRemover(const Context& context) :
     _context(context),
-    _removed_hns(),
-    _mapping() { }
+    _removed_hns() { }
 
   DegreeZeroHypernodeRemover(const DegreeZeroHypernodeRemover&) = delete;
   DegreeZeroHypernodeRemover & operator= (const DegreeZeroHypernodeRemover &) = delete;
@@ -46,38 +45,13 @@ class DegreeZeroHypernodeRemover {
   // ! We contract sets of degree-zero vertices such that the weight of
   // ! each supervertex is less than or equal than the maximum allowed
   // ! node weight for a vertex during coarsening.
-  HypernodeID contractDegreeZeroHypernodes(Hypergraph& hypergraph) {
-    _mapping.assign(hypergraph.initialNumNodes(), kInvalidHypernode);
-    HypernodeID current_num_nodes = hypergraph.initialNumNodes() - hypergraph.numRemovedHypernodes();
+  HypernodeID removeDegreeZeroHypernodes(Hypergraph& hypergraph) {
     HypernodeID num_removed_degree_zero_hypernodes = 0;
-    HypernodeID last_degree_zero_representative = kInvalidHypernode;
-    HypernodeWeight last_degree_zero_weight = 0;
-    for (const HypernodeID& hn : hypergraph.nodes()) {
-      if ( current_num_nodes <= _context.coarsening.contraction_limit ) {
-        break;
-      }
-
-      if ( hypergraph.nodeDegree(hn) == 0 ) {
-        bool was_removed = false;
-        if ( last_degree_zero_representative != kInvalidHypernode ) {
-          const HypernodeWeight weight = hypergraph.nodeWeight(hn);
-          if ( last_degree_zero_weight + weight <= _context.coarsening.max_allowed_node_weight ) {
-            // Remove vertex and aggregate its weight in its represenative supervertex
-            ++num_removed_degree_zero_hypernodes;
-            --current_num_nodes;
-            hypergraph.removeHypernode(hn);
-            _removed_hns.push_back(hn);
-            was_removed = true;
-            _mapping[hn] = last_degree_zero_representative;
-            last_degree_zero_weight += weight;
-            hypergraph.setNodeWeight(last_degree_zero_representative, last_degree_zero_weight);
-          }
-        }
-
-        if ( !was_removed ) {
-          last_degree_zero_representative = hn;
-          last_degree_zero_weight = hypergraph.nodeWeight(hn);
-        }
+    for ( const HypernodeID& hn : hypergraph.nodes()  ) {
+      if ( hypergraph.nodeDegree(hn) == 0 && hypergraph.nodeWeight(hn) == 1 ) {
+        hypergraph.removeDegreeZeroHypernode(hn);
+        _removed_hns.push_back(hn);
+        ++num_removed_degree_zero_hypernodes;
       }
     }
     return num_removed_degree_zero_hypernodes;
@@ -86,42 +60,28 @@ class DegreeZeroHypernodeRemover {
   // ! Restore degree-zero vertices
   // ! Each removed degree-zero vertex is assigned to the block of its supervertex.
   void restoreDegreeZeroHypernodes(PartitionedHypergraph& hypergraph) {
+    parallel::scalable_vector<PartitionID> non_overloaded_blocks(_context.partition.k, 0);
+    std::iota(non_overloaded_blocks.begin(), non_overloaded_blocks.end(), 0);
     for ( const HypernodeID& hn : _removed_hns ) {
-      ASSERT(hn < _mapping.size());
-      const HypernodeID representative = _mapping[hn];
-      ASSERT(representative != kInvalidHypernode);
-      // Restore degree-zero vertex and assign it to the block
-      // of its supervertex
-      hypergraph.enableHypernode(hn);
-      hypergraph.setNodeWeight(representative,
-        hypergraph.nodeWeight(representative) - hypergraph.nodeWeight(hn));
-      hypergraph.setNodePart(hn, hypergraph.partID(representative));
-    }
-  }
-
-  void assignAllDegreeZeroHypernodesToSameCommunity(Hypergraph& hypergraph, ds::Clustering& clustering) {
-    ASSERT(hypergraph.initialNumNodes() <= clustering.size());
-    PartitionID community_id = kInvalidPartition;
-    for ( const HypernodeID& hn : hypergraph.nodes() ) {
-      if ( hypergraph.nodeDegree(hn) == 0 ) {
-        if ( community_id != kInvalidPartition ) {
-          clustering[hn] = community_id;
-        } else {
-          community_id = clustering[hn];
-        }
+      ASSERT(!non_overloaded_blocks.empty());
+      PartitionID to = non_overloaded_blocks.back();
+      while ( hypergraph.partWeight(to) >= _context.partition.max_part_weights[to] ) {
+        ASSERT(non_overloaded_blocks.size() > 1);
+        non_overloaded_blocks.pop_back();
+        to = non_overloaded_blocks.back();
       }
+      hypergraph.restoreDegreeZeroHypernode(hn);
+      hypergraph.setNodePart(hn, to);
     }
   }
 
   void reset() {
     _removed_hns.clear();
-    _mapping.clear();
   }
 
  private:
   const Context& _context;
   parallel::scalable_vector<HypernodeID> _removed_hns;
-  parallel::scalable_vector<HypernodeID> _mapping;
 };
 
 }  // namespace mt_kahypar

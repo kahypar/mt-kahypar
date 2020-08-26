@@ -267,6 +267,8 @@ class DynamicHypergraphFactory {
     DynamicHypergraph compactified_hypergraph = DynamicHypergraphFactory::construct(
       task_group_id, num_hypernodes, num_hyperedges,
       edge_vector, hyperedge_weights.data(), hypernode_weights.data());
+    compactified_hypergraph._removed_degree_zero_hn_weight = hypergraph._removed_degree_zero_hn_weight;
+    compactified_hypergraph._total_weight += hypergraph._removed_degree_zero_hn_weight;
     utils::Timer::instance().stop_timer("construct_compactified_hypergraph");
 
     // Set community ids

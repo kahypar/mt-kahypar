@@ -386,6 +386,7 @@ class DynamicHypergraph {
   explicit DynamicHypergraph() :
     _num_hypernodes(0),
     _num_removed_hypernodes(0),
+    _removed_degree_zero_hn_weight(0),
     _num_hyperedges(0),
     _num_removed_hyperedges(0),
     _max_edge_size(0),
@@ -415,6 +416,7 @@ class DynamicHypergraph {
   DynamicHypergraph(DynamicHypergraph&& other) :
     _num_hypernodes(other._num_hypernodes),
     _num_removed_hypernodes(other._num_removed_hypernodes),
+    _removed_degree_zero_hn_weight(other._removed_degree_zero_hn_weight),
     _num_hyperedges(other._num_hyperedges),
     _num_removed_hyperedges(other._num_removed_hyperedges),
     _max_edge_size(other._max_edge_size),
@@ -443,6 +445,7 @@ class DynamicHypergraph {
     _num_removed_hypernodes = other._num_removed_hypernodes;
     _num_hyperedges = other._num_hyperedges;
     _num_removed_hyperedges = other._num_removed_hyperedges;
+    _removed_degree_zero_hn_weight = other._removed_degree_zero_hn_weight;
     _max_edge_size = other._max_edge_size;
     _num_pins = other._num_pins;
     _num_graph_edges = other._num_graph_edges;
@@ -480,6 +483,11 @@ class DynamicHypergraph {
   // ! Number of removed hypernodes
   HypernodeID numRemovedHypernodes() const {
     return _num_removed_hypernodes;
+  }
+
+  // ! Weight of removed degree zero vertics
+  HypernodeWeight weightOfRemovedDegreeZeroVertices() const {
+    return _removed_degree_zero_hn_weight;
   }
 
   // ! Initial number of hyperedges
@@ -531,7 +539,7 @@ class DynamicHypergraph {
           }
         }
         return weight;
-      }, std::plus<HypernodeWeight>());
+      }, std::plus<HypernodeWeight>()) + _removed_degree_zero_hn_weight;
   }
 
   // ! Recomputes the total weight of the hypergraph (sequential)
@@ -542,6 +550,7 @@ class DynamicHypergraph {
         _total_weight += nodeWeight(hn);
       }
     }
+    _total_weight += _removed_degree_zero_hn_weight;
   }
 
   // ####################### Iterators #######################
@@ -661,6 +670,22 @@ class DynamicHypergraph {
   void removeHypernode(const HypernodeID u) {
     hypernode(u).disable();
     ++_num_removed_hypernodes;
+  }
+
+  // ! Removes a degree zero hypernode
+  void removeDegreeZeroHypernode(const HypernodeID u) {
+    ASSERT(nodeDegree(u) == 0);
+    ASSERT(nodeWeight(u) == 1);
+    removeHypernode(u);
+    ++_removed_degree_zero_hn_weight;
+  }
+
+  // ! Restores a degree zero hypernode
+  void restoreDegreeZeroHypernode(const HypernodeID u) {
+    hypernode(u).enable();
+    ASSERT(nodeDegree(u) == 0);
+    ASSERT(nodeWeight(u) == 1);
+    --_removed_degree_zero_hn_weight;
   }
 
   // ####################### Hyperedge Information #######################
@@ -1404,6 +1429,7 @@ class DynamicHypergraph {
 
     hypergraph._num_hypernodes = _num_hypernodes;
     hypergraph._num_removed_hypernodes = _num_removed_hypernodes;
+    hypergraph._removed_degree_zero_hn_weight = _removed_degree_zero_hn_weight;
     hypergraph._num_hyperedges = _num_hyperedges;
     hypergraph._num_removed_hyperedges = _num_removed_hyperedges;
     hypergraph._max_edge_size = _max_edge_size;
@@ -1466,6 +1492,7 @@ class DynamicHypergraph {
 
     hypergraph._num_hypernodes = _num_hypernodes;
     hypergraph._num_removed_hypernodes = _num_removed_hypernodes;
+    hypergraph._removed_degree_zero_hn_weight = _removed_degree_zero_hn_weight;
     hypergraph._num_hyperedges = _num_hyperedges;
     hypergraph._num_removed_hyperedges = _num_removed_hyperedges;
     hypergraph._max_edge_size = _max_edge_size;
@@ -1508,6 +1535,12 @@ class DynamicHypergraph {
     hypergraph._community_support = _community_support.copy();
 
     return hypergraph;
+  }
+
+  // ! Reset internal data structure
+  void reset() {
+    _contraction_tree.reset();
+    _version = 0;
   }
 
   // ! Free internal data in parallel
@@ -2038,6 +2071,8 @@ class DynamicHypergraph {
   HypernodeID _num_hypernodes;
   // ! Number of removed hypernodes
   HypernodeID _num_removed_hypernodes;
+  // ! Number of removed degree zero hypernodes
+  HypernodeWeight _removed_degree_zero_hn_weight;
   // ! Number of hyperedges
   HyperedgeID _num_hyperedges;
   // ! Number of removed hyperedges
