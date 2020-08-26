@@ -78,10 +78,18 @@ void verifyEqualityOfHypergraphs(const DynamicHypergraph& expected_hypergraph,
   }
 }
 
+HyperedgeWeight compute_km1(DynamicPartitionedHypergraph& partitioned_hypergraph) {
+  HyperedgeWeight km1 = 0;
+  for (const HyperedgeID& he : partitioned_hypergraph.edges()) {
+    km1 += std::max(partitioned_hypergraph.connectivity(he) - 1, 0) * partitioned_hypergraph.edgeWeight(he);
+  }
+  return km1;
+}
+
 void verifyGainCache(DynamicPartitionedHypergraph& partitioned_hypergraph) {
   const PartitionID k = partitioned_hypergraph.k();
   utils::Randomize& rand = utils::Randomize::instance();
-  HyperedgeWeight km1_before = metrics::km1(partitioned_hypergraph);
+  HyperedgeWeight km1_before = compute_km1(partitioned_hypergraph);
   HyperedgeWeight expected_gain = 0;
   for ( const HypernodeID& hn : partitioned_hypergraph.nodes() ) {
     const PartitionID from = partitioned_hypergraph.partID(hn);
@@ -90,7 +98,7 @@ void verifyGainCache(DynamicPartitionedHypergraph& partitioned_hypergraph) {
     expected_gain += partitioned_hypergraph.km1Gain(hn, from, to);
     partitioned_hypergraph.changeNodePartFullUpdate(hn, from, to);
   }
-  HyperedgeWeight km1_after = metrics::km1(partitioned_hypergraph);
+  HyperedgeWeight km1_after = compute_km1(partitioned_hypergraph);
   ASSERT_EQ(expected_gain, km1_before - km1_after) << V(expected_gain) << V(km1_before) << V(km1_after);
 }
 
