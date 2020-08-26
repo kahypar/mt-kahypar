@@ -1,4 +1,4 @@
-#include "multilevel_coarsener_base.h"
+#include "mt-kahypar/partition/coarsening/multilevel_coarsener_base.h"
 
 #include "mt-kahypar/parallel/memory_pool.h"
 #include "mt-kahypar/utils/progress_bar.h"
@@ -47,8 +47,9 @@ namespace mt_kahypar {
     utils::Timer::instance().stop_timer("finalize_multilevel_hierarchy");
   }
 
-  void MultilevelCoarsenerBase::performMultilevelContraction(parallel::scalable_vector<HypernodeID>&& communities,
-                                    const HighResClockTimepoint& round_start) {
+  void MultilevelCoarsenerBase::performMultilevelContraction(
+          parallel::scalable_vector<HypernodeID>&& communities,
+          const HighResClockTimepoint& round_start) {
     ASSERT(!_is_finalized);
     Hypergraph& current_hg = currentHypergraph();
     ASSERT(current_hg.initialNumNodes() == communities.size());
@@ -58,8 +59,9 @@ namespace mt_kahypar {
     _hierarchy.emplace_back(std::move(contracted_hg), std::move(communities), elapsed_time);
   }
 
-  PartitionedHypergraph&& MultilevelCoarsenerBase::doUncoarsen(std::unique_ptr<IRefiner>& label_propagation,
-                                      std::unique_ptr<IRefiner>& fm) {
+  PartitionedHypergraph&& MultilevelCoarsenerBase::doUncoarsen(
+          std::unique_ptr<IRefiner>& label_propagation,
+          std::unique_ptr<IRefiner>& fm) {
     PartitionedHypergraph& coarsest_hg = currentPartitionedHypergraph();
     kahypar::Metrics current_metrics = initialize(coarsest_hg);
 
@@ -154,11 +156,12 @@ namespace mt_kahypar {
   }
 
 
-  void MultilevelCoarsenerBase::refine(PartitionedHypergraph& partitioned_hypergraph,
-              std::unique_ptr<IRefiner>& label_propagation,
-              std::unique_ptr<IRefiner>& fm,
-              kahypar::Metrics& current_metrics,
-              const double time_limit) {
+  void MultilevelCoarsenerBase::refine(
+          PartitionedHypergraph& partitioned_hypergraph,
+          std::unique_ptr<IRefiner>& label_propagation,
+          std::unique_ptr<IRefiner>& fm,
+          kahypar::Metrics& current_metrics,
+          const double time_limit) {
 
     if ( debug && _top_level ) {
       io::printHypergraphInfo(partitioned_hypergraph.hypergraph(), "Refinement Hypergraph", false);
