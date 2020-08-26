@@ -596,10 +596,11 @@ namespace mt_kahypar::io {
 
 
   void printCommunityInformation(const Hypergraph& hypergraph) {
+
     PartitionID num_communities =
             tbb::parallel_reduce(
                     tbb::blocked_range<HypernodeID>(ID(0), hypergraph.initialNumNodes()),
-                    num_communities, [&](const tbb::blocked_range<HypernodeID>& range, PartitionID init) {
+                    0, [&](const tbb::blocked_range<HypernodeID>& range, PartitionID init) {
               PartitionID my_range_num_communities = init;
               for (HypernodeID hn = range.begin(); hn < range.end(); ++hn) {
                 if ( hypergraph.nodeIsEnabled(hn) ) {
@@ -670,6 +671,8 @@ namespace mt_kahypar::io {
     auto [avg_nodes, std_dev_nodes] = avg_and_std_dev(nodes_per_community);
     auto [avg_pins, std_dev_pins] = avg_and_std_dev(internal_pins);
     auto [avg_deg, std_dev_deg] = avg_and_std_dev(internal_degree);
+
+    LOG << "# Communities :" << num_communities;
 
     internal::printCommunityStats(
             internal::createStats(nodes_per_community, avg_nodes, std_dev_nodes),
