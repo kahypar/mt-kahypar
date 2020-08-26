@@ -69,24 +69,8 @@ class AHypergraphReader : public Test {
   Hypergraph hypergraph;
 };
 
-<<<<<<< HEAD
 TEST_F(AHypergraphReader, ReadsAnUnweightedHypergraph) {
-  this->readHypergraph("test_instances/unweighted_hypergraph.hgr");
-=======
-// Define NUMA Hypergraph and Factory
-using StaticHypergraph = ds::StaticHypergraph;
-using StaticHypergraphFactory = ds::StaticHypergraphFactory;
-
-typedef ::testing::Types<HypergraphTypeTraits<
-                          StaticHypergraph,
-                          StaticHypergraphFactory>> HypergraphTestTypes;
-
-
-TYPED_TEST_CASE(AHypergraphReader, HypergraphTestTypes);
-
-TYPED_TEST(AHypergraphReader, ReadsAnUnweightedHypergraph) {
   this->readHypergraph("../tests/instances/unweighted_hypergraph.hgr");
->>>>>>> master
 
   // Verify Incident Nets
   this->verifyIncidentNets(
@@ -113,13 +97,8 @@ TYPED_TEST(AHypergraphReader, ReadsAnUnweightedHypergraph) {
   ASSERT_EQ(1, this->hypergraph.edgeWeight(3));
 }
 
-<<<<<<< HEAD
 TEST_F(AHypergraphReader, ReadsAnHypergraphWithEdgeWeights) {
-  this->readHypergraph("test_instances/hypergraph_with_edge_weights.hgr");
-=======
-TYPED_TEST(AHypergraphReader, ReadsAnHypergraphWithEdgeWeights) {
   this->readHypergraph("../tests/instances/hypergraph_with_edge_weights.hgr");
->>>>>>> master
 
   // Verify Incident Nets
   this->verifyIncidentNets(
@@ -146,13 +125,8 @@ TYPED_TEST(AHypergraphReader, ReadsAnHypergraphWithEdgeWeights) {
   ASSERT_EQ(8, this->hypergraph.edgeWeight(3));
 }
 
-<<<<<<< HEAD
 TEST_F(AHypergraphReader, ReadsAnHypergraphWithNodeWeights) {
-  this->readHypergraph("test_instances/hypergraph_with_node_weights.hgr");
-=======
-TYPED_TEST(AHypergraphReader, ReadsAnHypergraphWithNodeWeights) {
   this->readHypergraph("../tests/instances/hypergraph_with_node_weights.hgr");
->>>>>>> master
 
   // Verify Incident Nets
   this->verifyIncidentNets(
@@ -179,13 +153,8 @@ TYPED_TEST(AHypergraphReader, ReadsAnHypergraphWithNodeWeights) {
   ASSERT_EQ(1, this->hypergraph.edgeWeight(3));
 }
 
-<<<<<<< HEAD
 TEST_F(AHypergraphReader, ReadsAnHypergraphWithNodeAndEdgeWeights) {
-  this->readHypergraph("test_instances/hypergraph_with_node_and_edge_weights.hgr");
-=======
-TYPED_TEST(AHypergraphReader, ReadsAnHypergraphWithNodeAndEdgeWeights) {
   this->readHypergraph("../tests/instances/hypergraph_with_node_and_edge_weights.hgr");
->>>>>>> master
 
   // Verify Incident Nets
   this->verifyIncidentNets(

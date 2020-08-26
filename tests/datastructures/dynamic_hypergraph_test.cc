@@ -1191,7 +1191,7 @@ TEST_F(ADynamicHypergraph, CreateBatchUncontractionHierarchyWithEmptyVersionBatc
   verifyBatchUncontractionHierarchy(tree, versioned_batches, 2, 3);
 }
 
-void verifyEqualityOfHypergraphs(const DynamicHypergraph& expected_hypergraph,
+void verifyEqualityOfDynamicHypergraphs(const DynamicHypergraph& expected_hypergraph,
                                  const DynamicHypergraph& actual_hypergraph) {
   parallel::scalable_vector<HyperedgeID> expected_incident_edges;
   parallel::scalable_vector<HyperedgeID> actual_incident_edges;
@@ -1258,7 +1258,7 @@ void verifyBatchUncontractions(DynamicHypergraph& hypergraph,
     versioned_batches.pop_back();
   }
 
-  verifyEqualityOfHypergraphs(expected_hypergraph, hypergraph);
+  verifyEqualityOfDynamicHypergraphs(expected_hypergraph, hypergraph);
 }
 
 TEST_F(ADynamicHypergraph, PerformsBatchUncontractions1) {

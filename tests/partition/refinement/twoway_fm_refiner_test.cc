@@ -41,8 +41,6 @@ class ATwoWayFmRefiner : public Test {
     context(),
     refiner(nullptr),
     metrics() {
-    context.partition.graph_filename = "test_instances/ibm01.hgr";
-    context.partition.graph_community_filename = "test_instances/ibm01.hgr.community";
     context.partition.mode = kahypar::Mode::direct_kway;
     context.partition.objective = kahypar::Objective::cut;
     context.partition.epsilon = 0.25;
@@ -58,7 +56,7 @@ class ATwoWayFmRefiner : public Test {
 
     // Read hypergraph
     hypergraph = io::readHypergraphFile(
-      "../test_instances/unweighted_ibm01.hgr", TBBNumaArena::GLOBAL_TASK_GROUP);
+      "../tests/instances/contracted_ibm01.hgr", TBBNumaArena::GLOBAL_TASK_GROUP);
     partitioned_hypergraph = PartitionedHypergraph(
       context.partition.k, TBBNumaArena::GLOBAL_TASK_GROUP, hypergraph);
     context.setupPartWeights(hypergraph.totalWeight());
