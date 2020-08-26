@@ -118,8 +118,8 @@ inline void Partitioner::sanitize(Hypergraph& hypergraph) {
         << "\033[0m";
     LOG << "\033[1m\033[31m" << " # removed"
         << num_removed_large_hyperedges << "large hyperedges with |e| >" << _large_he_remover.largeHyperedgeThreshold() << "\033[0m";
-    LOG << "\033[1m\033[31m" << " # contracted"
-        << num_removed_degree_zero_hypernodes << "hypernodes with d(v) = 0 to supervertices"
+    LOG << "\033[1m\033[31m" << " # removed"
+        << num_removed_degree_zero_hypernodes << "hypernodes with d(v) = 0 and w(v) = 1"
         << "\033[0m";
     io::printStripe();
   }
