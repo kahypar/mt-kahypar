@@ -18,7 +18,7 @@
  *
  ******************************************************************************/
 
-#include "multilevel.h"
+#include "mt-kahypar/partition/multilevel.h"
 
 #include <memory>
 
