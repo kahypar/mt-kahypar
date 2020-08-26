@@ -27,7 +27,6 @@
 
 #include "mt-kahypar/datastructures/array.h"
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
-#include "chunking.h"
 
 namespace mt_kahypar {
 
