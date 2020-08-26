@@ -163,9 +163,13 @@ class MultilevelCoarsenerBase {
 
   void finalize();
 
-  void performMultilevelContraction(parallel::scalable_vector<HypernodeID>&& communities, const HighResClockTimepoint& round_start);
+  void performMultilevelContraction(
+          parallel::scalable_vector<HypernodeID>&& communities,
+          const HighResClockTimepoint& round_start);
 
-  PartitionedHypergraph&& doUncoarsen(std::unique_ptr<IRefiner>& label_propagation, std::unique_ptr<IRefiner>& fm);
+  PartitionedHypergraph&& doUncoarsen(
+          std::unique_ptr<IRefiner>& label_propagation,
+          std::unique_ptr<IRefiner>& fm);
 
  protected:
 
