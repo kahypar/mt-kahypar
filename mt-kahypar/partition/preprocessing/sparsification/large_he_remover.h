@@ -29,6 +29,8 @@ namespace mt_kahypar {
 
 class LargeHyperedgeRemover {
 
+ #define LARGE_HE_THRESHOLD ID(10000)
+
  public:
   LargeHyperedgeRemover(const Context& context) :
     _context(context),
@@ -45,7 +47,7 @@ class LargeHyperedgeRemover {
   HypernodeID removeLargeHyperedges(Hypergraph& hypergraph) {
     HypernodeID num_removed_large_hyperedges = 0;
     for ( const HyperedgeID& he : hypergraph.edges() ) {
-      if ( hypergraph.edgeSize(he) > _context.partition.large_hyperedge_size_threshold ) {
+      if ( hypergraph.edgeSize(he) > largeHyperedgeThreshold() ) {
         hypergraph.removeLargeEdge(he);
         _removed_hes.push_back(he);
         ++num_removed_large_hyperedges;
@@ -74,7 +76,7 @@ class LargeHyperedgeRemover {
   }
 
   HypernodeID largeHyperedgeThreshold() const {
-    return _context.partition.large_hyperedge_size_threshold;
+    return std::max(_context.partition.large_hyperedge_size_threshold, LARGE_HE_THRESHOLD);
   }
 
   void reset() {

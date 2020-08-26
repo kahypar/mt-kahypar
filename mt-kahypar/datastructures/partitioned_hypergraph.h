@@ -287,6 +287,11 @@ private:
     _hg->disableHypernode(u);
   }
 
+  // ! Restores a degree zero hypernode
+  void restoreDegreeZeroHypernode(const HypernodeID u) {
+    _hg->restoreDegreeZeroHypernode(u);
+  }
+
   // ####################### Hyperedge Information #######################
 
   // ! Weight of a hyperedge

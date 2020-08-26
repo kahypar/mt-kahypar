@@ -99,7 +99,7 @@ inline void Partitioner::sanitize(Hypergraph& hypergraph) {
 
   utils::Timer::instance().start_timer("degree_zero_hypernode_removal", "Degree Zero Hypernode Removal");
   const HypernodeID num_removed_degree_zero_hypernodes =
-    _degree_zero_hn_remover.contractDegreeZeroHypernodes(hypergraph);
+    _degree_zero_hn_remover.removeDegreeZeroHypernodes(hypergraph);
   utils::Timer::instance().stop_timer("degree_zero_hypernode_removal");
 
   utils::Timer::instance().start_timer("large_hyperedge_removal", "Large Hyperedge Removal");
@@ -118,8 +118,8 @@ inline void Partitioner::sanitize(Hypergraph& hypergraph) {
         << "\033[0m";
     LOG << "\033[1m\033[31m" << " # removed"
         << num_removed_large_hyperedges << "large hyperedges with |e| >" << _large_he_remover.largeHyperedgeThreshold() << "\033[0m";
-    LOG << "\033[1m\033[31m" << " # contracted"
-        << num_removed_degree_zero_hypernodes << "hypernodes with d(v) = 0 to supervertices"
+    LOG << "\033[1m\033[31m" << " # removed"
+        << num_removed_degree_zero_hypernodes << "hypernodes with d(v) = 0 and w(v) = 1"
         << "\033[0m";
     io::printStripe();
   }
@@ -183,6 +183,7 @@ inline PartitionedHypergraph Partitioner::partitionVCycle(Hypergraph& hypergraph
 
   for ( size_t i = 0; i < _context.partition.num_vcycles; ++i ) {
     // Reset memory pool
+    hypergraph.reset();
     parallel::MemoryPool::instance().reset();
     parallel::MemoryPool::instance().release_mem_group("Preprocessing");
 
@@ -224,7 +225,6 @@ inline PartitionedHypergraph Partitioner::partition(Hypergraph& hypergraph) {
 
   // ################## V-Cycle s##################
   if ( _context.partition.num_vcycles > 0 ) {
-    hypergraph.reset();
     partitioned_hypergraph = partitionVCycle(
       hypergraph, std::move(partitioned_hypergraph));
   }
