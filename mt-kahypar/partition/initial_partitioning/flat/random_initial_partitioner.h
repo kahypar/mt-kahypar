@@ -30,14 +30,15 @@ namespace mt_kahypar {
 class RandomInitialPartitioner : public tbb::task {
 
   static constexpr bool debug = false;
-  static PartitionID kInvalidPartition;
 
  public:
   RandomInitialPartitioner(const InitialPartitioningAlgorithm,
                             InitialPartitioningDataContainer& ip_data,
-                            const Context& context) :
+                            const Context& context,
+                            const int seed) :
     _ip_data(ip_data),
-    _context(context) { }
+    _context(context),
+    _rng(seed) { }
 
   tbb::task* execute() override {
     if ( _ip_data.should_initial_partitioner_run(InitialPartitioningAlgorithm::random) ) {
@@ -82,8 +83,7 @@ class RandomInitialPartitioner : public tbb::task {
 
   InitialPartitioningDataContainer& _ip_data;
   const Context& _context;
+  std::mt19937 _rng;
 };
-
-PartitionID RandomInitialPartitioner::kInvalidPartition = -1;
 
 } // namespace mt_kahypar

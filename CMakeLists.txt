@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.10)
+cmake_minimum_required(VERSION 3.16)
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake/modules)
 
 project(KaHyPar CXX C)
@@ -258,6 +258,15 @@ if(NOT MSVC)
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -ltbb")
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -ltbbmalloc_proxy")
 
+  # lld is way faster than ld. If you have it, use it!
+  find_program(LLD_BIN lld)
+  if (LLD_BIN)
+    message(STATUS "Found and will use LLVM linker " ${LLD_BIN})
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fuse-ld=lld")
+  else()
+    message(STATUS "Default linker")
+  endif()
+
   include(CheckSSE4_2)
   if( BUILTIN_POPCNT )
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -msse4.2")
@@ -295,7 +304,11 @@ message(STATUS "CMAKE_CXX_FLAGS_DEBUG: ${CMAKE_CXX_FLAGS_DEBUG}")
 
 include(gmock)
 enable_testing()
+
 add_subdirectory(mt-kahypar/application)
 add_subdirectory(tools)
 add_subdirectory(lib)
 add_subdirectory(tests)
+
+# This adds the source files. It's important that this happens after the compile targets have been added
+add_subdirectory(mt-kahypar)

@@ -20,10 +20,10 @@
 
 #include "gmock/gmock.h"
 
-#include "mt-kahypar/application/command_line_options.h"
+#include "mt-kahypar/io/command_line_options.h"
+#include "mt-kahypar/io/partitioning_output.h"
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/io/hypergraph_io.h"
-#include "mt-kahypar/mt_kahypar.h"
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/partition/partitioner.h"
 #include "mt-kahypar/partition/registries/register_memory_pool.h"
@@ -52,8 +52,8 @@ class MtKaHyPar : public Test {
  public:
   MtKaHyPar() :
     context() {
-    parseIniToContext(context, "../../../config/speed_preset.ini");
-    context.partition.graph_filename = "test_instances/ibm01.hgr";
+    parseIniToContext(context, "../config/speed_preset.ini");
+    context.partition.graph_filename = "../tests/instances/ibm01.hgr";
     context.partition.k = Config::K;
     context.partition.objective = Config::OBJECTIVE;
     context.partition.epsilon = 0.03;
@@ -213,8 +213,7 @@ void partitionHypergraph(Hypergraph& hypergraph, Context& context) {
 
   // Partition Hypergraph
   HighResClockTimepoint start = std::chrono::high_resolution_clock::now();
-  PartitionedHypergraph partitioned_hypergraph =
-    partition::Partitioner(context).partition(hypergraph);
+  PartitionedHypergraph partitioned_hypergraph = partition(hypergraph, context);
   HighResClockTimepoint end = std::chrono::high_resolution_clock::now();
 
   std::chrono::duration<double> elapsed_seconds(end - start);
@@ -290,7 +289,7 @@ void partitionHypergraph(Hypergraph& hypergraph, Context& context) {
 
 TYPED_TEST(MtKaHyPar, PartitionsAVLSIInstance) {
   // Read Hypergraph
-  this->context.partition.graph_filename = "test_instances/ibm01.hgr";
+  this->context.partition.graph_filename = "../tests/instances/ibm01.hgr";
   Hypergraph hypergraph = io::readHypergraphFile(
     this->context.partition.graph_filename, TBBNumaArena::GLOBAL_TASK_GROUP);
 
@@ -299,7 +298,7 @@ TYPED_TEST(MtKaHyPar, PartitionsAVLSIInstance) {
 
 TYPED_TEST(MtKaHyPar, PartitionsASparseMatrixInstance) {
   // Read Hypergraph
-  this->context.partition.graph_filename = "test_instances/powersim.mtx.hgr";
+  this->context.partition.graph_filename = "../tests/instances/powersim.mtx.hgr";
   Hypergraph hypergraph = io::readHypergraphFile(
     this->context.partition.graph_filename, TBBNumaArena::GLOBAL_TASK_GROUP);
 
@@ -308,7 +307,7 @@ TYPED_TEST(MtKaHyPar, PartitionsASparseMatrixInstance) {
 
 TYPED_TEST(MtKaHyPar, PartitionsASATInstance) {
   // Read Hypergraph
-  this->context.partition.graph_filename = "test_instances/sat14_atco_enc1_opt2_10_16.cnf.primal.hgr";
+  this->context.partition.graph_filename = "../tests/instances/sat14_atco_enc1_opt2_10_16.cnf.primal.hgr";
   Hypergraph hypergraph = io::readHypergraphFile(
     this->context.partition.graph_filename, TBBNumaArena::GLOBAL_TASK_GROUP);
 

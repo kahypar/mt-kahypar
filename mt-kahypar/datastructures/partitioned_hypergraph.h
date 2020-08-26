@@ -35,6 +35,7 @@
 #include "mt-kahypar/parallel/atomic_wrapper.h"
 #include "mt-kahypar/utils/range.h"
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
+#include "mt-kahypar/parallel/stl/thread_locals.h"
 
 namespace mt_kahypar {
 namespace ds {
@@ -46,8 +47,6 @@ private:
   static_assert(!Hypergraph::is_partitioned,  "Only unpartitioned hypergraphs are allowed");
 
   using AtomicFlag = parallel::IntegralAtomicWrapper<bool>;
-  template<typename T>
-  using ThreadLocalVector = tbb::enumerable_thread_specific<parallel::scalable_vector<T>>;
 
   // ! Function that will be called for each incident hyperedge of a moved vertex with the following arguments
   // !  1) hyperedge ID, 2) weight, 3) size, 4) pin count in from-block after move, 5) pin count in to-block after move
@@ -70,7 +69,6 @@ private:
   using HyperedgeIterator = typename Hypergraph::HyperedgeIterator;
   using IncidenceIterator = typename Hypergraph::IncidenceIterator;
   using IncidentNetsIterator = typename Hypergraph::IncidentNetsIterator;
-  using CommunityIterator = typename Hypergraph::CommunityIterator;
 
   PartitionedHypergraph() = default;
 
@@ -887,6 +885,7 @@ private:
     bool success = true;
     for (HyperedgeID e : edges()) {
       PartitionID expected_connectivity = 0;
+      unused(e);  // for release mode
       for (PartitionID i = 0; i < k(); ++i) {
         const HypernodeID actual_pin_count_in_part = pinCountInPart(e, i);
         if ( actual_pin_count_in_part != pinCountInPartRecomputed(e, i) ) {
@@ -1018,8 +1017,6 @@ private:
         extracted_hypergraph.setCommunityID(extracted_hn, _hg->communityID(hn));
       }
     });
-    extracted_hypergraph.initializeCommunities();
-
     return std::make_pair(std::move(extracted_hypergraph), std::move(hn_mapping));
   }
 

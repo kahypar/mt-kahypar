@@ -56,10 +56,6 @@ class ADeltaPartitionedHypergraph : public Test {
     delta_phg.setPartitionedHypergraph(&phg);
   }
 
-  static void SetUpTestSuite() {
-    TBBNumaArena::instance(HardwareTopology::instance().num_cpus());
-  }
-
   void verifyPinCounts(const HyperedgeID he,
                        const std::vector<HypernodeID>& expected_pin_counts) {
     ASSERT(expected_pin_counts.size() == static_cast<size_t>(phg.k()));

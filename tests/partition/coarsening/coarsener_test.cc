@@ -25,7 +25,6 @@
 using ::testing::Test;
 
 namespace mt_kahypar {
-using PartitionedHyperGraph = mt_kahypar::PartitionedHypergraph;
 #ifdef KAHYPAR_USE_N_LEVEL_PARADIGM
 using Coarsener = NLevelCoarsener<HeavyEdgeScore, NoWeightPenalty, BestRatingWithoutTieBreaking>;
 #else

@@ -26,11 +26,9 @@
 
 using ::testing::Test;
 
-namespace mt_kahypar {
-namespace ds {
+namespace mt_kahypar::ds {
 
-using AGraph = HypergraphFixture<Hypergraph, HypergraphFactory>;
-using Graph = GraphT<Hypergraph>;
+using AGraph = HypergraphFixture<StaticHypergraph, StaticHypergraphFactory>;
 
 void verifyArcIterator(const Graph& graph,
                        const NodeID u,
@@ -353,5 +351,4 @@ TEST_F(AGraph, HasSameTotalVolumeAfterTwoContractions) {
   ASSERT_EQ(6,  coarse_coarse_graph.nodeVolume(2));
 }
 
-} // namespace ds
-} // namespace mt_kahypar
+} // namespace mt_kahypar::ds

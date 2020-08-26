@@ -277,7 +277,6 @@ class DynamicHypergraphFactory {
       const HypernodeID mapped_hn = hn_mapping[hn];
       compactified_hypergraph.setCommunityID(mapped_hn, hypergraph.communityID(hn));
     });
-    compactified_hypergraph.initializeCommunities();
     utils::Timer::instance().stop_timer("initialize_communities");
 
     tbb::parallel_invoke([&] {

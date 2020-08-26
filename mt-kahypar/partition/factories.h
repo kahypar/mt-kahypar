@@ -20,8 +20,6 @@
 
 #pragma once
 
-#include "tbb/task.h"
-
 #include "kahypar/meta/abstract_factory.h"
 #include "kahypar/meta/static_multi_dispatch_factory.h"
 #include "kahypar/meta/typelist.h"
@@ -36,11 +34,8 @@
 #include "mt-kahypar/partition/initial_partitioning/i_initial_partitioner.h"
 #include "mt-kahypar/partition/preprocessing/sparsification/i_hypergraph_sparsifier.h"
 #include "mt-kahypar/partition/refinement/i_refiner.h"
-#include "mt-kahypar/partition/refinement/label_propagation/label_propagation_refiner.h"
 
 namespace mt_kahypar {
-
-class InitialPartitioningDataContainer;
 
 using HypergraphSparsifierFactory = kahypar::meta::Factory<SimiliarNetCombinerStrategy,
                                                            IHypergraphSparsifier* (*)(const Context&, const TaskGroupID)>;
@@ -53,16 +48,13 @@ using MultilevelCoarsenerDispatcher = kahypar::meta::StaticMultiDispatchFactory<
                                                                                 kahypar::meta::Typelist<RatingScorePolicies,
                                                                                                         HeavyNodePenaltyPolicies,
                                                                                                         AcceptancePolicies> >;
+
 using NLevelCoarsenerDispatcher = kahypar::meta::StaticMultiDispatchFactory<NLevelCoarsener,
                                                                             ICoarsener,
                                                                             kahypar::meta::Typelist<RatingScorePolicies,
                                                                                                         HeavyNodePenaltyPolicies,
                                                                                                         AcceptancePolicies,
                                                                                                         ContractionOrderPolicies> >;
-
-
-using FlatInitialPartitionerFactory = kahypar::meta::Factory<InitialPartitioningAlgorithm,
-                                                             tbb::task* (*)(tbb::task*, const InitialPartitioningAlgorithm, InitialPartitioningDataContainer&, const Context&)>;
 
 using InitialPartitionerFactory = kahypar::meta::Factory<InitialPartitioningMode,
                                                          IInitialPartitioner* (*)(PartitionedHypergraph&, const Context&, const bool, const TaskGroupID)>;

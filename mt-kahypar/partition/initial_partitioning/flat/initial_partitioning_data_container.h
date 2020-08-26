@@ -25,6 +25,8 @@
 
 #include "tbb/enumerable_thread_specific.h"
 
+#include "mt-kahypar/partition/initial_partitioning/flat/initial_partitioning_commons.h"
+
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/partition/metrics.h"
@@ -41,8 +43,6 @@ class InitialPartitioningDataContainer {
 
   static constexpr bool debug = false;
   static constexpr bool enable_heavy_assert = false;
-  static PartitionID kInvalidPartition;
-  static HypernodeID kInvalidHypernode;
 
   // ! Contains information about the best thread local partition
   struct PartitioningResult {
@@ -538,6 +538,4 @@ class InitialPartitioningDataContainer {
   tbb::enumerable_thread_specific<size_t> _local_unassigned_hypernode_pointer;
 };
 
-PartitionID InitialPartitioningDataContainer::kInvalidPartition = -1;
-HypernodeID InitialPartitioningDataContainer::kInvalidHypernode = std::numeric_limits<HypernodeID>::max();
 } // namespace mt_kahypar

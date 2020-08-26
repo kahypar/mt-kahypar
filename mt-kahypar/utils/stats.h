@@ -177,7 +177,7 @@ class Stats {
   bool _enable;
 };
 
-std::ostream & operator<< (std::ostream& str, const Stats::Stat& stat) {
+inline std::ostream & operator<< (std::ostream& str, const Stats::Stat& stat) {
   switch (stat._type) {
     case Stats::Type::BOOLEAN:
       str << std::boolalpha << stat._value_1;
@@ -200,7 +200,7 @@ std::ostream & operator<< (std::ostream& str, const Stats::Stat& stat) {
   return str;
 }
 
-std::ostream & operator<< (std::ostream& str, const Stats& stats) {
+inline std::ostream & operator<< (std::ostream& str, const Stats& stats) {
   std::vector<std::string> keys;
   for (const auto& stat : stats._stats) {
     keys.emplace_back(stat.first);

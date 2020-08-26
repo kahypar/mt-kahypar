@@ -65,7 +65,7 @@ struct InitialPartitionerSummary {
   size_t total_calls;
 };
 
-std::ostream & operator<< (std::ostream& str, const InitialPartitionerSummary& summary) {
+inline std::ostream & operator<< (std::ostream& str, const InitialPartitionerSummary& summary) {
   str << " avg_quality_" << summary.algorithm << "=" << summary.average_quality()
       << " total_time_" << summary.algorithm << "=" << summary.total_time
       << " total_best_" << summary.algorithm << "=" << summary.total_best;
@@ -148,7 +148,7 @@ class InitialPartitioningStats {
   size_t _total_sum_number_of_threads;
 };
 
-std::ostream & operator<< (std::ostream& str, const InitialPartitioningStats& stats) {
+inline std::ostream & operator<< (std::ostream& str, const InitialPartitioningStats& stats) {
   str << " average_number_of_threads_per_ip_call="
       << stats.average_number_of_threads_per_ip_call();
   for ( const InitialPartitionerSummary& summary : stats._ip_summary ) {

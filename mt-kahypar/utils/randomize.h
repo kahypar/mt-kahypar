@@ -2,6 +2,7 @@
  * This file is part of KaHyPar.
  *
  * Copyright (C) 2019 Tobias Heuer <tobias.heuer@kit.edu>
+ * Copyright (C) 2020 Lars Gottesbüren <lars.gottesbueren@kit.edu>
  *
  * KaHyPar is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -20,7 +21,6 @@
 #pragma once
 
 #include <limits>
-#include <mutex>
 #include <random>
 #include <thread>
 #include <vector>
@@ -31,8 +31,9 @@
 #include "mt-kahypar/macros.h"
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
 
-namespace mt_kahypar {
-namespace utils {
+
+namespace mt_kahypar::utils {
+
 class Randomize {
   static constexpr bool debug = false;
   static constexpr size_t PRECOMPUTED_FLIP_COINS = 128;
@@ -269,5 +270,5 @@ class Randomize {
   bool _perform_localized_random_shuffle;
   size_t _localized_random_shuffle_block_size;
 };
-}  // namespace utils
-}  // namespace mt_kahypar
+
+}  // namespace mt_kahypar::utils

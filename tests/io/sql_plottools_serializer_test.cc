@@ -50,7 +50,7 @@ std::set<std::string> excluded_members =
   { "verbose_output", "show_detailed_timings", "show_detailed_clustering_timings", "show_memory_consumption", "show_advanced_cut_analysis", "enable_progress_bar", "sp_process_output",
     "measure_detailed_uncontraction_timings", "write_partition_file", "graph_partition_output_folder", "graph_partition_filename", "graph_community_filename", "community_detection",
     "community_redistribution", "coarsening_rating", "label_propagation", "lp_execute_sequential",
-    "enable_profiler", "snapshot_interval", "initial_partitioning_refinement", "initial_partitioning_sparsification",
+    "snapshot_interval", "initial_partitioning_refinement", "initial_partitioning_sparsification",
     "stable_construction_of_incident_edges", "fm", "csv_output", "preset_file" };
 
 bool is_target_struct(const std::string& line) {
@@ -104,7 +104,7 @@ void read_all_members_of_target_struct(std::ifstream& context_file,
 std::vector<std::string> get_all_members_in_context() {
   std::vector<std::string> members;
 
-  std::ifstream context_file("../../../mt-kahypar/partition/context.h");
+  std::ifstream context_file("../mt-kahypar/partition/context.h");
     if ( context_file ) {
     std::string line;
     while( std::getline(context_file, line) ) {

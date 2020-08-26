@@ -30,6 +30,8 @@
 
 #include "mt-kahypar/partition/refinement/fm/global_rollback.h"
 
+#include "mt-kahypar/partition/metrics.h"
+
 using ::testing::Test;
 
 namespace mt_kahypar {
@@ -37,7 +39,7 @@ namespace mt_kahypar {
 #ifndef KAHYPAR_USE_N_LEVEL_PARADIGM
 
 TEST(RollbackTests, GainRecalculationAndRollsbackCorrectly) {
-  Hypergraph hg = io::readHypergraphFile("../test_instances/twocenters.hgr", 0);
+  Hypergraph hg = io::readHypergraphFile("../tests/instances/twocenters.hgr", 0);
   PartitionID k = 2;
 
 
@@ -93,7 +95,7 @@ TEST(RollbackTests, GainRecalculationAndRollsbackCorrectly) {
 
 
 TEST(RollbackTests, GainRecalculation2) {
-  Hypergraph hg = io::readHypergraphFile("../test_instances/twocenters.hgr", 0);
+  Hypergraph hg = io::readHypergraphFile("../tests/instances/twocenters.hgr", 0);
   PartitionID k = 2;
   PartitionedHypergraph phg(k, hg);
   phg.setNodePart(0, 1);

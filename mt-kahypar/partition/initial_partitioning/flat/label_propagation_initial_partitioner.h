@@ -36,8 +36,6 @@ class LabelPropagationInitialPartitioner : public tbb::task {
 
   static constexpr bool debug = false;
   static constexpr bool enable_heavy_assert = false;
-  static PartitionID kInvalidPartition;
-  static HypernodeID kInvalidHypernode;
 
   struct MaxGainMove {
     const PartitionID block;
@@ -47,11 +45,13 @@ class LabelPropagationInitialPartitioner : public tbb::task {
  public:
   LabelPropagationInitialPartitioner(const InitialPartitioningAlgorithm,
                                       InitialPartitioningDataContainer& ip_data,
-                                      const Context& context) :
+                                      const Context& context,
+                                      const int seed) :
     _ip_data(ip_data),
     _context(context),
     _valid_blocks(context.partition.k),
-    _tmp_scores(context.partition.k) { }
+    _tmp_scores(context.partition.k),
+    _rng(seed) { }
 
   tbb::task* execute() override {
     if ( _ip_data.should_initial_partitioner_run(InitialPartitioningAlgorithm::label_propagation) ) {
@@ -60,7 +60,7 @@ class LabelPropagationInitialPartitioner : public tbb::task {
       _ip_data.reset_unassigned_hypernodes();
 
       parallel::scalable_vector<HypernodeID> start_nodes =
-        PseudoPeripheralStartNodes::computeStartNodes(_ip_data, _context);
+        PseudoPeripheralStartNodes::computeStartNodes(_ip_data, _context, _rng);
       for ( PartitionID block = 0; block < _context.partition.k; ++block ) {
         if ( hg.partID(start_nodes[block]) == kInvalidPartition ) {
           hg.setNodePart(start_nodes[block], block);
@@ -327,9 +327,8 @@ class LabelPropagationInitialPartitioner : public tbb::task {
   const Context& _context;
   kahypar::ds::FastResetFlagArray<> _valid_blocks;
   parallel::scalable_vector<Gain> _tmp_scores;
+  std::mt19937 _rng;
 };
 
-PartitionID LabelPropagationInitialPartitioner::kInvalidPartition = -1;
-HypernodeID LabelPropagationInitialPartitioner::kInvalidHypernode = std::numeric_limits<HypernodeID>::max();
 
 } // namespace mt_kahypar

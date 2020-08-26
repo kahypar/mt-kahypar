@@ -62,10 +62,6 @@ class APartitionedHypergraph : public Test {
     initializePartition();
   }
 
-  static void SetUpTestSuite() {
-    TBBNumaArena::instance(HardwareTopology::instance().num_cpus());
-  }
-
   void initializePartition() {
     if ( hypergraph.nodeIsEnabled(0) ) partitioned_hypergraph.setNodePart(0, 0);
     if ( hypergraph.nodeIsEnabled(1) ) partitioned_hypergraph.setNodePart(1, 0);
@@ -612,7 +608,6 @@ TYPED_TEST(APartitionedHypergraph, ExtractBlockZeroWithCommunityInformation) {
   this->hypergraph.setCommunityID(4, 3);
   this->hypergraph.setCommunityID(5, 4);
   this->hypergraph.setCommunityID(6, 5);
-  this->hypergraph.initializeCommunities();
 
   auto extracted_hg = this->partitioned_hypergraph.extract(TBBNumaArena::GLOBAL_TASK_GROUP, 0, true);
   auto& hg = extracted_hg.first;
@@ -635,7 +630,6 @@ TYPED_TEST(APartitionedHypergraph, ExtractBlockOneWithCommunityInformation) {
   this->hypergraph.setCommunityID(4, 3);
   this->hypergraph.setCommunityID(5, 4);
   this->hypergraph.setCommunityID(6, 5);
-  this->hypergraph.initializeCommunities();
 
   auto extracted_hg = this->partitioned_hypergraph.extract(TBBNumaArena::GLOBAL_TASK_GROUP, 1, true);
   auto& hg = extracted_hg.first;
@@ -657,7 +651,6 @@ TYPED_TEST(APartitionedHypergraph, ExtractBlockTwoWithCommunityInformation) {
   this->hypergraph.setCommunityID(4, 3);
   this->hypergraph.setCommunityID(5, 4);
   this->hypergraph.setCommunityID(6, 5);
-  this->hypergraph.initializeCommunities();
 
   auto extracted_hg = this->partitioned_hypergraph.extract(TBBNumaArena::GLOBAL_TASK_GROUP, 2, true);
   auto& hg = extracted_hg.first;

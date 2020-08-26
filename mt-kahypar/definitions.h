@@ -1,4 +1,4 @@
-/*******************************************************************************
+/*43:10******************************************************************************
  * This file is part of KaHyPar.
  *
  * Copyright (C) 2019 Tobias Heuer <tobias.heuer@kit.edu>
@@ -20,26 +20,19 @@
 #pragma once
 
 #include <chrono>
-
-#include "tbb/enumerable_thread_specific.h"
-
-#include "kahypar/datastructure/fast_reset_flag_array.h"
-#include "kahypar/datastructure/kway_priority_queue.h"
-
-#include "mt-kahypar/parallel/stl/scalable_vector.h"
-#include "mt-kahypar/datastructures/graph.h"
+#include "mt-kahypar/parallel/hardware_topology.h"
+#include "mt-kahypar/parallel/tbb_numa_arena.h"
 #include "mt-kahypar/datastructures/static_hypergraph.h"
 #include "mt-kahypar/datastructures/static_hypergraph_factory.h"
 #include "mt-kahypar/datastructures/dynamic_hypergraph.h"
 #include "mt-kahypar/datastructures/dynamic_hypergraph_factory.h"
 #include "mt-kahypar/datastructures/partitioned_hypergraph.h"
-#include "mt-kahypar/datastructures/delta_partitioned_hypergraph.h"
 
 namespace mt_kahypar {
 
-using ThreadLocalFastResetFlagArray = tbb::enumerable_thread_specific<kahypar::ds::FastResetFlagArray<> >;
-using KWayPriorityQueue = kahypar::ds::KWayPriorityQueue<HypernodeID, Gain, std::numeric_limits<Gain>, true>;
-using ThreadLocalKWayPriorityQueue = tbb::enumerable_thread_specific<KWayPriorityQueue>;
+using HardwareTopology = mt_kahypar::parallel::HardwareTopology<>;
+using TBBNumaArena = mt_kahypar::parallel::TBBNumaArena<HardwareTopology, false>;
+
 
 #ifdef KAHYPAR_USE_N_LEVEL_PARADIGM
 using Hypergraph = ds::DynamicHypergraph;
@@ -49,8 +42,6 @@ using Hypergraph = ds::StaticHypergraph;
 using HypergraphFactory = ds::StaticHypergraphFactory;
 #endif
 using PartitionedHypergraph = ds::PartitionedHypergraph<Hypergraph, HypergraphFactory>;
-using DeltaPartitionedHypergraph = ds::DeltaPartitionedHypergraph<PartitionedHypergraph>;
-using Graph = ds::GraphT<Hypergraph>;
 
 using HighResClockTimepoint = std::chrono::time_point<std::chrono::high_resolution_clock>;
 

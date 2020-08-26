@@ -24,10 +24,9 @@
 #include "tbb/parallel_for.h"
 #include "tbb/parallel_invoke.h"
 
-#include "mt-kahypar/application/command_line_options.h"
+#include "mt-kahypar/io/command_line_options.h"
 #include "mt-kahypar/macros.h"
 #include "mt-kahypar/definitions.h"
-#include "mt-kahypar/mt_kahypar.h"
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/parallel/memory_pool.h"
 #include "mt-kahypar/parallel/parallel_prefix_sum.h"
@@ -188,7 +187,7 @@ void mt_kahypar_partition(const mt_kahypar_hypernode_id_t num_vertices,
 
   // Partition Hypergraph
   mt_kahypar::PartitionedHypergraph partitioned_hypergraph =
-    mt_kahypar::partition::Partitioner(context).partition(hypergraph);
+    mt_kahypar::partition(hypergraph, context);
 
   // Store partition
   *objective = mt_kahypar::metrics::objective(partitioned_hypergraph, context.partition.objective);

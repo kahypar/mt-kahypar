@@ -21,7 +21,6 @@
 
 #include <cmath>
 
-#include "kahypar/meta/mandatory.h"
 
 #include "mt-kahypar/macros.h"
 #include "mt-kahypar/datastructures/hypergraph_common.h"

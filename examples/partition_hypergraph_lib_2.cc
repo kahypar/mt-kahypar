@@ -22,7 +22,7 @@ int main(int argc, char* argv[]) {
   mt_kahypar_hyperedge_id_t* hyperedges(nullptr);
   mt_kahypar_hypernode_weight_t* hypernode_weights(nullptr);
   mt_kahypar_hyperedge_weight_t* hyperedge_weights(nullptr);
-  mt_kahypar_read_hypergraph_from_file("ibm01.hgr", &num_vertices, &num_hyperedges,
+  mt_kahypar_read_hypergraph_from_file("contracted_ibm01.hgr", &num_vertices, &num_hyperedges,
     &hyperedge_indices, &hyperedges, &hyperedge_weights, &hypernode_weights);
 
   const double imbalance = 0.03;

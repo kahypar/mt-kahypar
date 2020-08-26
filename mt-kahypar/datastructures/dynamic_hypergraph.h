@@ -32,13 +32,15 @@
 #include "kahypar/meta/mandatory.h"
 #include "kahypar/datastructure/fast_reset_flag_array.h"
 
-#include "mt-kahypar/datastructures/community_support.h"
 #include "mt-kahypar/datastructures/hypergraph_common.h"
 #include "mt-kahypar/datastructures/incident_net_vector.h"
 #include "mt-kahypar/datastructures/contraction_tree.h"
+#include "mt-kahypar/datastructures/concurrent_bucket_map.h"
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
 #include "mt-kahypar/parallel/stl/scalable_queue.h"
 #include "mt-kahypar/partition/context_enum_classes.h"
+
+#include "kahypar/utils/math.h"
 
 namespace mt_kahypar {
 namespace ds {
@@ -48,6 +50,7 @@ class DynamicHypergraphFactory;
 template <typename Hypergraph,
           typename HypergraphFactory>
 class PartitionedHypergraph;
+
 
 class DynamicHypergraph {
 
@@ -64,6 +67,17 @@ class DynamicHypergraph {
   // ! each case.
   using UncontractionFunction = std::function<void (const HypernodeID, const HypernodeID, const HyperedgeID)>;
   #define NOOP_BATCH_FUNC [] (const HypernodeID, const HypernodeID, const HyperedgeID) { }
+
+  /*!
+  * This struct is used during multilevel coarsening to efficiently
+  * detect parallel hyperedges.
+  */
+  struct ContractedHyperedgeInformation {
+    HyperedgeID he = kInvalidHyperedge;
+    size_t hash = kEdgeHashSeed;
+    size_t size = std::numeric_limits<size_t>::max();
+    bool valid = false;
+  };
 
   /**
    * Represents a hypernode of the hypergraph and contains all information
@@ -380,8 +394,6 @@ class DynamicHypergraph {
   // ! Iterator to iterate over the incident nets of a hypernode
   using IncidentNetsIterator = typename IncidentNetVector<HyperedgeID>::const_iterator;
   // ! Iterator to iterate over the set of communities contained in a hyperedge
-  using CommunityIterator = typename CommunitySupport<StaticHypergraph>::CommunityIterator;
-
 
   explicit DynamicHypergraph() :
     _num_hypernodes(0),
@@ -407,8 +419,7 @@ class DynamicHypergraph {
     _failed_hyperedge_contractions(),
     _removable_incident_nets(),
     _removable_single_pin_and_parallel_nets(),
-    _num_graph_edges_up_to(),
-    _community_support() { }
+    _num_graph_edges_up_to() { }
 
   DynamicHypergraph(const DynamicHypergraph&) = delete;
   DynamicHypergraph & operator= (const DynamicHypergraph &) = delete;
@@ -437,8 +448,7 @@ class DynamicHypergraph {
     _failed_hyperedge_contractions(std::move(other._failed_hyperedge_contractions)),
     _removable_incident_nets(std::move(other._removable_incident_nets)),
     _removable_single_pin_and_parallel_nets(std::move(other._removable_single_pin_and_parallel_nets)),
-    _num_graph_edges_up_to(std::move(other._num_graph_edges_up_to)),
-    _community_support(std::move(other._community_support)) { }
+    _num_graph_edges_up_to(std::move(other._num_graph_edges_up_to)) { }
 
   DynamicHypergraph & operator= (DynamicHypergraph&& other) {
     _num_hypernodes = other._num_hypernodes;
@@ -465,7 +475,6 @@ class DynamicHypergraph {
     _removable_incident_nets = std::move(other._removable_incident_nets);
     _removable_single_pin_and_parallel_nets = std::move(other._removable_single_pin_and_parallel_nets);
     _num_graph_edges_up_to = std::move(other._num_graph_edges_up_to);
-    _community_support = std::move(other._community_support);
     return *this;
   }
 
@@ -620,17 +629,6 @@ class DynamicHypergraph {
       _incidence_array.cbegin() + he.firstInvalidEntry());
   }
 
-  // ! Returns a range to loop over the pins of hyperedge e that belong to a certain community.
-  // ! Note, this function fails if community hyperedges are not initialized.
-  IteratorRange<IncidenceIterator> pins(const HyperedgeID e, const PartitionID community_id) const {
-    return _community_support.pins(*this, e, community_id);
-  }
-
-  // ! Returns a range to loop over the set of communities contained in hyperedge e.
-  IteratorRange<CommunityIterator> communities(const HyperedgeID e) const {
-    return _community_support.communities(e);
-  }
-
   // ####################### Hypernode Information #######################
 
   // ! Weight of a vertex
@@ -761,34 +759,7 @@ class DynamicHypergraph {
     return _incidence_array[f + first_matches];
   }
 
-  // ####################### Community Hyperedge Information #######################
-
-  // ! Weight of a community hyperedge
-  HypernodeWeight edgeWeight(const HyperedgeID e, const PartitionID community_id) const {
-    return _community_support.edgeWeight(e, community_id);
-  }
-
-  // ! Sets the weight of a community hyperedge
-  void setEdgeWeight(const HyperedgeID e, const PartitionID community_id, const HyperedgeWeight weight) {
-    _community_support.setEdgeWeight(e, community_id, weight);
-  }
-
-  // ! Number of pins of a hyperedge that are assigned to a community
-  HypernodeID edgeSize(const HyperedgeID e, const PartitionID community_id) const {
-    return _community_support.edgeSize(e, community_id);
-  }
-
-  // ! Hash value defined over the pins of a hyperedge that belongs to a community
-  size_t edgeHash(const HyperedgeID e, const PartitionID community_id) const {
-    return _community_support.edgeHash(e, community_id);
-  }
-
   // ####################### Community Information #######################
-
-  // ! Number of communities
-  PartitionID numCommunities() const {
-    return _community_support.numCommunities();
-  }
 
   // ! Community id which hypernode u is assigned to
   PartitionID communityID(const HypernodeID u) const {
@@ -802,33 +773,6 @@ class DynamicHypergraph {
   void setCommunityID(const HypernodeID u, const PartitionID community_id) {
     ASSERT(!hypernode(u).isDisabled(), "Hypernode" << u << "is disabled");
     return hypernode(u).setCommunityID(community_id);
-  }
-
-  // ! Consider hypernode u is part of community C = {v_1, ..., v_n},
-  // ! than this function returns a unique id for hypernode u in the
-  // ! range [0,n).
-  HypernodeID communityNodeId(const HypernodeID u) const {
-    return _community_support.communityNodeId(u);
-  }
-
-  // ! Number of hypernodes in community
-  HypernodeID numCommunityHypernodes(const PartitionID community) const {
-    return _community_support.numCommunityHypernodes(community);
-  }
-
-  // ! Number of pins in community
-  HypernodeID numCommunityPins(const PartitionID community) const {
-    return _community_support.numCommunityPins(community);
-  }
-
-  // ! Total degree of community
-  HyperedgeID communityDegree(const PartitionID community) const {
-    return _community_support.communityDegree(community);
-  }
-
-  // ! Number of communities which pins of hyperedge belongs to
-  size_t numCommunitiesInHyperedge(const HyperedgeID e) const {
-    return _community_support.numCommunitiesInHyperedge(e);
   }
 
   // ####################### Contract / Uncontract #######################
@@ -1373,52 +1317,13 @@ class DynamicHypergraph {
 
   // ####################### Initialization / Reset Functions #######################
 
-  /*!
-   * Initializes community-related information after all vertices are assigned to a community.
-   * This includes:
-   *  1.) Number of Communities
-   *  2.) Number of Vertices per Community
-   *  3.) Number of Pins per Community
-   *  4.) For each hypernode v of community C, we compute a unique id within
-   *      that community in the range [0, |C|)
-   */
-  void initializeCommunities() {
-    _community_support.initialize(*this);
-  }
-
-  /*!
-  * Initializes community hyperedges.
-  * This includes:
-  *   1.) Sort the pins of each hyperedge in increasing order of their community id
-  *   2.) Introduce for each community id contained in a hyperedge a seperate
-  *       community hyperedge pointing to a range of consecutive pins with
-  *       same community in that hyperedge
-  */
-  void initializeCommunityHyperedges(const TaskGroupID) {
-    _community_support.initializeCommunityHyperedges(*this);
-  }
-
-  /*!
-   * Removes all community hyperedges from the hypergraph after parallel community
-   * coarsening terminates.
-   */
-  void removeCommunityHyperedges(const TaskGroupID,
-                                 const parallel::scalable_vector<HypernodeID>& contraction_index = {}) {
-    _community_support.removeCommunityHyperedges(contraction_index);
-  }
-
   // ! Reset internal community information
   void setCommunityIDs(const parallel::scalable_vector<PartitionID>& community_ids) {
-    if ( _community_support.isInitialized() ) {
-      _community_support.freeInternalData();
-    }
-
     ASSERT(community_ids.size() == UI64(_num_hypernodes));
     doParallelForAllNodes([&](const HypernodeID& hn) {
       hypernode(hn).setCommunityID(community_ids[hn]);
     });
 
-    initializeCommunities();
   }
 
   // ####################### Copy #######################
@@ -1480,8 +1385,6 @@ class DynamicHypergraph {
       hypergraph._num_graph_edges_up_to.resize(_num_graph_edges_up_to.size());
       memcpy(hypergraph._num_graph_edges_up_to.data(), _num_graph_edges_up_to.data(),
              sizeof(HyperedgeID) * _num_graph_edges_up_to.size());
-    }, [&] {
-      hypergraph._community_support = _community_support.copy(task_group_id);
     });
     return hypergraph;
   }
@@ -1532,7 +1435,6 @@ class DynamicHypergraph {
     memcpy(hypergraph._num_graph_edges_up_to.data(), _num_graph_edges_up_to.data(),
             sizeof(HyperedgeID) * _num_graph_edges_up_to.size());
 
-    hypergraph._community_support = _community_support.copy();
 
     return hypergraph;
   }
@@ -1545,9 +1447,6 @@ class DynamicHypergraph {
 
   // ! Free internal data in parallel
   void freeInternalData() {
-    if ( _num_hypernodes > 0 || _num_hyperedges > 0 ) {
-      _community_support.freeInternalData();
-    }
     _num_hypernodes = 0;
     _num_hyperedges = 0;
   }
@@ -1571,8 +1470,6 @@ class DynamicHypergraph {
 
     utils::MemoryTreeNode* contraction_tree_node = parent->addChild("Contraction Tree");
     _contraction_tree.memoryConsumption(contraction_tree_node);
-    utils::MemoryTreeNode* community_support_node = parent->addChild("Community Support");
-    _community_support.memoryConsumption(community_support_node);
   }
 
   // ! Only for testing
@@ -2119,9 +2016,6 @@ class DynamicHypergraph {
   kahypar::ds::FastResetFlagArray<> _removable_single_pin_and_parallel_nets;
   // ! Number of graph edges with smaller ID than the access ID
   Array<HyperedgeID> _num_graph_edges_up_to;
-
-  // ! Community Information and Stats
-  CommunitySupport<DynamicHypergraph> _community_support;
 
 };
 

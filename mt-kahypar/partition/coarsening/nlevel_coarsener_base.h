@@ -287,7 +287,7 @@ class NLevelCoarsenerBase {
               kahypar::Metrics& current_metrics,
               const bool force_measure_timings) {
     if ( debug && _top_level ) {
-      io::printHypergraphInfo(partitioned_hypergraph, "Refinement Hypergraph", false);
+      io::printHypergraphInfo(partitioned_hypergraph.hypergraph(), "Refinement Hypergraph", false);
       DBG << "Start Refinement - km1 = " << current_metrics.km1
           << ", imbalance = " << current_metrics.imbalance;
     }

@@ -20,28 +20,11 @@
 #pragma once
 
 #include <cstdint>
+#include <limits>
 
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
-#include "mt-kahypar/macros.h"
-#include "mt-kahypar/parallel/atomic_wrapper.h"
-#include "mt-kahypar/parallel/hardware_topology.h"
-#include "mt-kahypar/parallel/tbb_numa_arena.h"
-#include "tests/parallel/topology_mock.h"
-
-#define USE_HARDWARE_MOCK false
 
 namespace mt_kahypar {
-
-#if USE_HARDWARE_MOCK
-static constexpr int NUM_NUMA_NODES = 2;
-using TopoMock = mt_kahypar::parallel::TopologyMock<NUM_NUMA_NODES>;
-using topology_t = mt_kahypar::parallel::topology_t;
-using node_t = mt_kahypar::parallel::node_t;
-using HardwareTopology = mt_kahypar::parallel::HardwareTopology<TopoMock, topology_t, node_t>;
-#else
-using HardwareTopology = mt_kahypar::parallel::HardwareTopology<>;
-#endif
-using TBBNumaArena = mt_kahypar::parallel::TBBNumaArena<HardwareTopology, false>;
 
 #define UI64(X) static_cast<uint64_t>(X)
 
@@ -82,10 +65,15 @@ struct Arc {
 static constexpr PartitionID kInvalidPartition = -1;
 static constexpr HypernodeID kInvalidHypernode = std::numeric_limits<HypernodeID>::max();
 static constexpr HypernodeID kInvalidHyperedge = std::numeric_limits<HyperedgeID>::max();
+static constexpr Gain kInvalidGain = std::numeric_limits<HyperedgeID>::min();
 static constexpr size_t kEdgeHashSeed = 42;
 
 static constexpr HypernodeID invalidNode = std::numeric_limits<HypernodeID>::max();
 static constexpr Gain invalidGain = std::numeric_limits<Gain>::min();
+
+namespace ds {
+  using Clustering = vec<PartitionID>;
+}
 
 struct Move {
   PartitionID from = -1;
@@ -110,17 +98,6 @@ struct NoOpDeltaFunc {
   void operator() (const HyperedgeID, const HyperedgeWeight, const HypernodeID, const HypernodeID, const HypernodeID) { }
 };
 
-
-/*!
-  * This struct is used during multilevel coarsening to efficiently
-  * detect parallel hyperedges.
-  */
-struct ContractedHyperedgeInformation {
-  HyperedgeID he = kInvalidHyperedge;
-  size_t hash = kEdgeHashSeed;
-  size_t size = std::numeric_limits<size_t>::max();
-  bool valid = false;
-};
 
 struct ParallelHyperedge {
   HyperedgeID removed_hyperedge;

@@ -72,8 +72,8 @@ install:
   - mkdir -p ${DEPS_DIR} && cd ${DEPS_DIR}
   - |
     if [[ "${TRAVIS_OS_NAME}" == "linux" ]]; then
-      # install cmake 3.13
-      CMAKE_URL="https://cmake.org/files/v3.13/cmake-3.13.0-rc3-Linux-x86_64.tar.gz"
+      # install cmake 3.16
+      CMAKE_URL="https://cmake.org/files/v3.16/cmake-3.16.0-rc3-Linux-x86_64.tar.gz"
       mkdir cmake && travis_retry wget --no-check-certificate --quiet -O - ${CMAKE_URL} | tar --strip-components=1 -xz -C cmake
       export PATH=${DEPS_DIR}/cmake/bin:${PATH}
       echo ${PATH}
@@ -107,10 +107,15 @@ before_script:
 script:
   - |
     if [[ "$BUILD_TYPE" == "Release" ]]; then
-      make KaHyPar;
-      make integration_tests;
+      make clean;
+      make -j2 KaHyPar;
+      make -j2 integration_tests;
+      ./tests/end_to_end/integration_tests
     else
-      make clean all;
+      make clean;
+      make -j2 KaHyPar
+      make -j2 mt_kahypar_tests;
+      ./tests/mt_kahypar_tests;
     fi
 
 after_success:

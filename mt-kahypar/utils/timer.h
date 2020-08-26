@@ -312,10 +312,10 @@ class Timer {
   bool _show_detailed_timings;
 };
 
-char Timer::TOP_LEVEL_PREFIX[] = " + ";
-char Timer::SUB_LEVEL_PREFIX[] = " + ";
+inline char Timer::TOP_LEVEL_PREFIX[] = " + ";
+inline char Timer::SUB_LEVEL_PREFIX[] = " + ";
 
-std::ostream & operator<< (std::ostream& str, const Timer& timer) {
+inline std::ostream & operator<< (std::ostream& str, const Timer& timer) {
   std::vector<Timer::Timing> timings;
   for (const auto& timing : timer._timings) {
     timings.emplace_back(timing.second);
