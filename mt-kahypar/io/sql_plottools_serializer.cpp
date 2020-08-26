@@ -97,6 +97,7 @@ std::string serialize(const PartitionedHypergraph& hypergraph,
         << " fm_algorithm=" << context.refinement.fm.algorithm
         << " fm_multitry_rounds=" << context.refinement.fm.multitry_rounds
         << " fm_perform_moves_global=" << std::boolalpha << context.refinement.fm.perform_moves_global
+        << " fm_revert_parallel=" << std::boolalpha << context.refinement.fm.revert_parallel
         << " fm_rollback_balance_violation_factor=" << context.refinement.fm.rollback_balance_violation_factor
         << " fm_min_improvement=" << context.refinement.fm.min_improvement
         << " fm_release_nodes=" << context.refinement.fm.release_nodes

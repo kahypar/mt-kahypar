@@ -136,7 +136,13 @@ namespace mt_kahypar {
         maxPartWeights[i] *= ( 1.0 + context.partition.epsilon * maxPartWeightScaling );
       }
     }
-    return revertToBestPrefixParallel(phg, sharedData, partWeights, maxPartWeights);
+
+    if (context.refinement.fm.revert_parallel) {
+      return revertToBestPrefixParallel(phg, sharedData, partWeights, maxPartWeights);
+    } else {
+      return revertToBestPrefixSequential(phg, sharedData, partWeights, maxPartWeights);
+    }
+
   }
 
   HyperedgeWeight GlobalRollback::revertToBestPrefixParallel(
@@ -316,6 +322,88 @@ namespace mt_kahypar {
     timer.stop_timer("gain_recalculation");
 
     HEAVY_REFINEMENT_ASSERT(verifyGains(phg, sharedData));
+  }
+
+  HyperedgeWeight GlobalRollback::revertToBestPrefixSequential(PartitionedHypergraph& phg,
+                                               FMSharedData& sharedData,
+                                               const vec<HypernodeWeight>&,
+                                               const std::vector<HypernodeWeight>& maxPartWeights) {
+
+    GlobalMoveTracker& tracker = sharedData.moveTracker;
+    const MoveID numMoves = tracker.numPerformedMoves();
+    const vec<Move>& move_order = tracker.moveOrder;
+
+    // revert all moves
+    tbb::parallel_for(0U, numMoves, [&](const MoveID localMoveID) {
+      const Move& m = move_order[localMoveID];
+      if (tracker.isMoveStillValid(m)) {
+        phg.changeNodePartFullUpdate(m.node, m.to, m.from);
+      }
+    });
+
+
+    size_t num_unbalanced_slots = 0;
+
+    size_t overloaded = 0;
+    for (PartitionID i = 0; i < numParts; ++i) {
+      if (phg.partWeight(i) > maxPartWeights[i]) {
+        overloaded++;
+      }
+    }
+
+    // roll forward sequentially
+    Gain best_gain = 0, gain_sum = 0;
+    MoveID best_index = 0;
+    for (MoveID localMoveID = 0; localMoveID < numMoves; ++localMoveID) {
+      const Move& m = move_order[localMoveID];
+      if (!tracker.isMoveStillValid(m)) continue;
+
+      Gain gain = 0;
+      for (HyperedgeID e : phg.incidentEdges(m.node)) {
+        if (phg.pinCountInPart(e, m.from) == 1) {
+          gain += phg.edgeWeight(e);
+        }
+        if (phg.pinCountInPart(e, m.to) == 0) {
+          gain -= phg.edgeWeight(e);
+        }
+      }
+      gain_sum += gain;
+
+      const bool from_overloaded = phg.partWeight(m.from) > maxPartWeights[m.from];
+      const bool to_overloaded = phg.partWeight(m.to) > maxPartWeights[m.to];
+      phg.changeNodePartFullUpdate(m.node, m.from, m.to);
+      if (from_overloaded && phg.partWeight(m.from) <= maxPartWeights[m.from]) {
+        overloaded--;
+      }
+      if (!to_overloaded && phg.partWeight(m.to) > maxPartWeights[m.to]) {
+        overloaded++;
+      }
+
+      if (overloaded > 0) {
+        num_unbalanced_slots++;
+      }
+
+      if (overloaded == 0 && gain_sum > best_gain) {
+        best_index = localMoveID + 1;
+        best_gain = gain_sum;
+      }
+    }
+
+    // revert rejected moves again
+    tbb::parallel_for(best_index, numMoves, [&](const MoveID i) {
+      const Move& m = move_order[i];
+      if (tracker.isMoveStillValid(m)) {
+        phg.changeNodePartFullUpdate(m.node, m.to, m.from);
+      }
+    });
+
+    tbb::parallel_for(0U, numMoves, [&](const MoveID i) {
+      phg.recomputeMoveFromBenefit(move_order[i].node);
+    });
+
+    tracker.reset();
+
+    return best_gain;
   }
 
 

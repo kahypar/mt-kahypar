@@ -107,6 +107,7 @@ namespace mt_kahypar {
     out << "    Algorithm:                        " << params.algorithm << std::endl;
     out << "    Multitry Rounds:                  " << params.multitry_rounds << std::endl;
     out << "    Perform Moves Globally:           " << std::boolalpha << params.perform_moves_global << std::endl;
+    out << "    Parallel Global Rollbacks:        " << std::boolalpha << params.revert_parallel << std::endl;
     out << "    Rollback Bal. Violation Factor:   " << params.rollback_balance_violation_factor << std::endl;
     out << "    Num Seed Nodes:                   " << params.num_seed_nodes << std::endl;
     out << "    Enable Random Shuffle:            " << std::boolalpha << params.shuffle << std::endl;

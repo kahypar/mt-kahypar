@@ -39,17 +39,21 @@ public:
     first_move_in(),
     last_move_out() {
 
-    tbb::parallel_invoke([&] {
-      remaining_original_pins.resize("Refinement", "remaining_original_pins",
-        static_cast<size_t>(hg.numNonGraphEdges()) * numParts);
-    }, [&] {
-      first_move_in.resize("Refinement", "first_move_in",
-        static_cast<size_t>(hg.numNonGraphEdges()) * numParts);
-    }, [&] {
-      last_move_out.resize("Refinement", "last_move_out",
-        static_cast<size_t>(hg.numNonGraphEdges()) * numParts);
-    });
-    resetStoredMoveIDs();
+    // In case we perform parallel rollback we need
+    // some additional data structures
+    if ( context.refinement.fm.revert_parallel ) {
+      tbb::parallel_invoke([&] {
+        remaining_original_pins.resize("Refinement", "remaining_original_pins",
+          static_cast<size_t>(hg.numNonGraphEdges()) * numParts);
+      }, [&] {
+        first_move_in.resize("Refinement", "first_move_in",
+          static_cast<size_t>(hg.numNonGraphEdges()) * numParts);
+      }, [&] {
+        last_move_out.resize("Refinement", "last_move_out",
+          static_cast<size_t>(hg.numNonGraphEdges()) * numParts);
+      });
+      resetStoredMoveIDs();
+    }
   }
 
   HyperedgeWeight revertToBestPrefix(PartitionedHypergraph& phg,
@@ -63,6 +67,12 @@ public:
 
 
   void recalculateGains(PartitionedHypergraph& phg, FMSharedData& sharedData);
+
+
+  HyperedgeWeight revertToBestPrefixSequential(PartitionedHypergraph& phg,
+                                               FMSharedData& sharedData,
+                                               const vec<HypernodeWeight>&,
+                                               const std::vector<HypernodeWeight>& maxPartWeights);
 
   MoveID lastMoveOut(HyperedgeID he, PartitionID block) const {
     return last_move_out[size_t(he) * numParts + block].load(std::memory_order_relaxed);

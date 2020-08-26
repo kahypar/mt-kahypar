@@ -93,7 +93,7 @@ namespace mt_kahypar {
     pool.register_memory_chunk("Refinement", "pin_count_update_ownership",
                                num_hyperedges, sizeof(parallel::IntegralAtomicWrapper<bool>));
 
-    if ( context.refinement.fm.algorithm != FMAlgorithm::do_nothing ) {
+    if ( context.refinement.fm.algorithm != FMAlgorithm::do_nothing && context.refinement.fm.revert_parallel ) {
       pool.register_memory_chunk("Refinement", "remaining_original_pins",
                                  static_cast<size_t>(hypergraph.numNonGraphEdges()) * context.partition.k, sizeof(CAtomic<HypernodeID>));
       pool.register_memory_chunk("Refinement", "first_move_in",
