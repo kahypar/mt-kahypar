@@ -54,8 +54,10 @@ namespace mt_kahypar::ds {
    * \param communities Community structure that should be contracted
    * \param task_group_id Task Group ID
    */
-  StaticHypergraph StaticHypergraph::contract(parallel::scalable_vector<HypernodeID>& communities,
-                            const TaskGroupID /* task_group_id */) {
+  StaticHypergraph StaticHypergraph::contract(
+          parallel::scalable_vector<HypernodeID>& communities,
+          const TaskGroupID /* task_group_id */) {
+
     ASSERT(communities.size() == _num_hypernodes);
 
     if ( !_tmp_contraction_buffer ) {
