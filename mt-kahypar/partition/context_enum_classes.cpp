@@ -156,6 +156,44 @@ namespace mt_kahypar {
     return os << static_cast<uint8_t>(algo);
   }
 
+  std::ostream & operator<< (std::ostream& os, const CoarseningVertexOrder& order) {
+    switch (order) {
+      case CoarseningVertexOrder::non_randomized: return os << "non_randomized";
+      case CoarseningVertexOrder::random_shuffle: return os << "random_shuffle";
+      case CoarseningVertexOrder::pseudo_random_shuffle: return os << "pseudo_random_shuffle";
+      case CoarseningVertexOrder::increasing_degree_order: return os << "increasing_degree_order";
+      case CoarseningVertexOrder::decreasing_degree_order: return os << "decreasing_degree_order";
+      case CoarseningVertexOrder::UNDEFINED: return os << "UNDEFINED";
+        // omit default case to trigger compiler warning for missing cases
+    }
+    return os << static_cast<uint8_t>(order);
+  }
+
+  std::ostream & operator<< (std::ostream& os, const ContractionOrder& order) {
+    switch (order) {
+      case ContractionOrder::rating_order: return os << "rating_order";
+      case ContractionOrder::degree_order: return os << "degree_order";
+      case ContractionOrder::heavy_node_first: return os << "heavy_node_first";
+      case ContractionOrder::heavy_node_second: return os << "heavy_node_second";
+      case ContractionOrder::UNDEFINED: return os << "UNDEFINED";
+        // omit default case to trigger compiler warning for missing cases
+    }
+    return os << static_cast<uint8_t>(order);
+  }
+
+  std::ostream & operator<< (std::ostream& os, const UncontractionOrder& order) {
+    switch (order) {
+      case UncontractionOrder::max_subtree_size: return os << "max_subtree_size";
+      case UncontractionOrder::min_subtree_size: return os << "min_subtree_size";
+      case UncontractionOrder::max_vertex_degree: return os << "max_vertex_degree";
+      case UncontractionOrder::min_vertex_degree: return os << "min_vertex_degree";
+      case UncontractionOrder::UNDEFINED: return os << "UNDEFINED";
+        // omit default case to trigger compiler warning for missing cases
+    }
+    return os << static_cast<uint8_t>(order);
+  }
+
+
   LouvainEdgeWeight louvainEdgeWeightFromString(const std::string& type) {
     if (type == "hybrid") {
       return LouvainEdgeWeight::hybrid;
@@ -282,6 +320,47 @@ namespace mt_kahypar {
     }
     ERROR("Illegal option: " + type);
     return FMAlgorithm::do_nothing;
+  }
+
+  CoarseningVertexOrder coarseningVertexOrderFromString(const std::string& order) {
+    if (order == "non_randomized") {
+      return CoarseningVertexOrder::non_randomized;
+    } else if (order == "random_shuffle") {
+      return CoarseningVertexOrder::random_shuffle;
+    } else if (order == "pseudo_random_shuffle") {
+      return CoarseningVertexOrder::pseudo_random_shuffle;
+    } else if (order == "increasing_degree_order") {
+      return CoarseningVertexOrder::increasing_degree_order;
+    } else if (order == "decreasing_degree_order") {
+      return CoarseningVertexOrder::decreasing_degree_order;
+    }
+    ERROR("No valid coarsening vertex order.");
+  }
+
+  ContractionOrder contractionOrderFromString(const std::string& order) {
+    if (order == "rating_order") {
+      return ContractionOrder::rating_order;
+    } else if (order == "degree_order") {
+      return ContractionOrder::degree_order;
+    } else if (order == "heavy_node_first") {
+      return ContractionOrder::heavy_node_first;
+    } else if (order == "heavy_node_second") {
+      return ContractionOrder::heavy_node_second;
+    }
+    ERROR("No valid contraction order.");
+  }
+
+  UncontractionOrder uncontractionOrderFromString(const std::string& order) {
+    if (order == "max_subtree_size") {
+      return UncontractionOrder::max_subtree_size;
+    } else if (order == "min_subtree_size") {
+      return UncontractionOrder::min_subtree_size;
+    } else if (order == "max_vertex_degree") {
+      return UncontractionOrder::max_vertex_degree;
+    } else if (order == "min_vertex_degree") {
+      return UncontractionOrder::min_vertex_degree;
+    }
+    ERROR("No valid uncontraction order.");
   }
 
 
