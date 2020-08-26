@@ -72,7 +72,7 @@ class ATwoWayFmRefiner : public Test {
     ip_context.refinement.label_propagation.algorithm = LabelPropagationAlgorithm::do_nothing;
     InitialPartitioningDataContainer ip_data(partitioned_hypergraph, ip_context, TBBNumaArena::GLOBAL_TASK_GROUP);
     BFSInitialPartitioner& initial_partitioner = *new(tbb::task::allocate_root())
-      BFSInitialPartitioner(InitialPartitioningAlgorithm::bfs, ip_data, ip_context);
+      BFSInitialPartitioner(InitialPartitioningAlgorithm::bfs, ip_data, ip_context, 420);
     tbb::task::spawn_root_and_wait(initial_partitioner);
     ip_data.apply();
     metrics.km1 = metrics::km1(partitioned_hypergraph);
