@@ -30,24 +30,24 @@ namespace mt_kahypar {
 class RandomInitialPartitioner : public tbb::task {
 
   static constexpr bool debug = false;
-  static PartitionID kInvalidPartition;
 
  public:
   RandomInitialPartitioner(const InitialPartitioningAlgorithm,
                             InitialPartitioningDataContainer& ip_data,
-                            const Context& context) :
+                            const Context& context,
+                            const int seed) :
     _ip_data(ip_data),
-    _context(context) { }
+    _context(context),
+    _rng(seed) { }
 
   tbb::task* execute() override {
     HighResClockTimepoint start = std::chrono::high_resolution_clock::now();
     PartitionedHypergraph& hg = _ip_data.local_partitioned_hypergraph();
-    int cpu_id = sched_getcpu();
+    std::uniform_int_distribution<PartitionID> select_random_block(0, _context.partition.k - 1);
 
     for ( const HypernodeID& hn : hg.nodes() ) {
       // Randomly select a block to assign the hypernode
-      PartitionID block = utils::Randomize::instance().getRandomInt(
-        0, _context.partition.k - 1, cpu_id);
+      PartitionID block = select_random_block(_rng);
       PartitionID current_block = block;
       while ( !fitsIntoBlock(hg, hn, current_block) ) {
         // If the hypernode does not fit into the random selected block
@@ -80,8 +80,7 @@ class RandomInitialPartitioner : public tbb::task {
 
   InitialPartitioningDataContainer& _ip_data;
   const Context& _context;
+  std::mt19937 _rng;
 };
-
-PartitionID RandomInitialPartitioner::kInvalidPartition = -1;
 
 } // namespace mt_kahypar

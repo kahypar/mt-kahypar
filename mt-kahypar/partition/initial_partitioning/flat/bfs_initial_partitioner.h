@@ -34,15 +34,15 @@ class BFSInitialPartitioner : public tbb::task {
   using Queue = parallel::scalable_queue<HypernodeID>;
 
   static constexpr bool debug = false;
-  static PartitionID kInvalidPartition;
-  static HypernodeID kInvalidHypernode;
 
  public:
   BFSInitialPartitioner(const InitialPartitioningAlgorithm,
                          InitialPartitioningDataContainer& ip_data,
-                         const Context& context) :
+                         const Context& context,
+                         const int seed) :
     _ip_data(ip_data),
-    _context(context) { }
+    _context(context),
+    _rng(seed) { }
 
   tbb::task* execute() override {
     HighResClockTimepoint start = std::chrono::high_resolution_clock::now();
@@ -53,7 +53,7 @@ class BFSInitialPartitioner : public tbb::task {
       _ip_data.local_hyperedge_fast_reset_flag_array();
 
     parallel::scalable_vector<HypernodeID> start_nodes =
-      PseudoPeripheralStartNodes::computeStartNodes(_ip_data, _context);
+      PseudoPeripheralStartNodes::computeStartNodes(_ip_data, _context, _rng);
 
     // Insert each start node for each block into its corresponding queue
     hypernodes_in_queue.reset();
@@ -169,9 +169,8 @@ class BFSInitialPartitioner : public tbb::task {
 
   InitialPartitioningDataContainer& _ip_data;
   const Context& _context;
+  std::mt19937 _rng;
 };
 
-PartitionID BFSInitialPartitioner::kInvalidPartition = -1;
-HypernodeID BFSInitialPartitioner::kInvalidHypernode = std::numeric_limits<HypernodeID>::max();
 
 } // namespace mt_kahypar

@@ -20,12 +20,13 @@
 
 #include "gmock/gmock.h"
 
-#include "mt-kahypar/application/command_line_options.h"
+#include "mt-kahypar/io/command_line_options.h"
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/io/hypergraph_io.h"
-#include "mt-kahypar/mt_kahypar.h"
 #include "mt-kahypar/partition/context.h"
-#include "mt-kahypar/partition/multilevel.h"
+
+#include "mt-kahypar/partition/initial_partitioning/recursive_initial_partitioner.h"
+#include "mt-kahypar/partition/initial_partitioning/recursive_bisection_initial_partitioner.h"
 
 using ::testing::Test;
 
@@ -50,10 +51,10 @@ class AInitialPartitionerTest : public Test {
     hypergraph(),
     context() {
 
-    parseIniToContext(context, "../../../../config/speed_preset.ini");
+    parseIniToContext(context, "../config/speed_preset.ini");
 
-    context.partition.graph_filename = "../test_instances/unweighted_ibm01.hgr";
-    context.partition.graph_community_filename = "../test_instances/ibm01.hgr.community";
+    context.partition.graph_filename = "../tests/instances/contracted_unweighted_ibm01.hgr";
+    context.partition.graph_community_filename = "../tests/instances/contracted_ibm01.hgr.community";
     context.partition.mode = kahypar::Mode::direct_kway;
     context.partition.objective = kahypar::Objective::km1;
     context.partition.epsilon = 0.2;
@@ -78,7 +79,7 @@ class AInitialPartitionerTest : public Test {
 
     // Read hypergraph
     hypergraph = io::readHypergraphFile(
-      "../test_instances/unweighted_ibm01.hgr", TBBNumaArena::GLOBAL_TASK_GROUP);
+      "../tests/instances/contracted_unweighted_ibm01.hgr", TBBNumaArena::GLOBAL_TASK_GROUP);
     partitioned_hypergraph = PartitionedHypergraph(
       context.partition.k, TBBNumaArena::GLOBAL_TASK_GROUP, hypergraph);
     context.setupPartWeights(hypergraph.totalWeight());
@@ -96,11 +97,6 @@ class AInitialPartitionerTest : public Test {
     for ( const HypernodeID& hn : hypergraph.nodes() ) {
       hypergraph.setCommunityID(hn, communities[hn]);
     }
-    hypergraph.initializeCommunities();
-  }
-
-  static void SetUpTestSuite() {
-    TBBNumaArena::instance(num_threads);
   }
 
   Hypergraph hypergraph;

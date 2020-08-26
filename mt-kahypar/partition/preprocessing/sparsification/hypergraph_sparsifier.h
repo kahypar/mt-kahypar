@@ -27,7 +27,6 @@
 #include "kahypar/utils/hash_vector.h"
 
 #include "mt-kahypar/definitions.h"
-#include "mt-kahypar/datastructures/clustering.h"
 #include "mt-kahypar/datastructures/concurrent_bucket_map.h"
 #include "mt-kahypar/datastructures/sparsifier_hypergraph.h"
 #include "mt-kahypar/partition/context.h"

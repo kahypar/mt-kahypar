@@ -1,3 +1,4 @@
-file(COPY test_instances DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
-add_gmock_test(hypergraph_io_test hypergraph_io_test.cc)
-add_gmock_test(sql_plottools_serializer_test sql_plottools_serializer_test.cc)
+target_sources(mt_kahypar_tests PRIVATE
+        hypergraph_io_test.cc
+        sql_plottools_serializer_test.cc
+        )

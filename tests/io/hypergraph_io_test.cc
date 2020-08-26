@@ -48,10 +48,6 @@ class AHypergraphReader : public Test {
   AHypergraphReader() :
     hypergraph() { }
 
-  static void SetUpTestSuite() {
-    TBBNumaArena::instance(HardwareTopology::instance().num_cpus());
-  }
-
   void readHypergraph(const std::string& filename) {
     hypergraph = readHypergraphFile(
       filename, TBBNumaArena::GLOBAL_TASK_GROUP);
@@ -98,7 +94,7 @@ typedef ::testing::Types<HypergraphTypeTraits<
 TYPED_TEST_CASE(AHypergraphReader, HypergraphTestTypes);
 
 TYPED_TEST(AHypergraphReader, ReadsAnUnweightedHypergraph) {
-  this->readHypergraph("test_instances/unweighted_hypergraph.hgr");
+  this->readHypergraph("../tests/instances/unweighted_hypergraph.hgr");
 
   // Verify Incident Nets
   this->verifyIncidentNets(
@@ -126,7 +122,7 @@ TYPED_TEST(AHypergraphReader, ReadsAnUnweightedHypergraph) {
 }
 
 TYPED_TEST(AHypergraphReader, ReadsAnHypergraphWithEdgeWeights) {
-  this->readHypergraph("test_instances/hypergraph_with_edge_weights.hgr");
+  this->readHypergraph("../tests/instances/hypergraph_with_edge_weights.hgr");
 
   // Verify Incident Nets
   this->verifyIncidentNets(
@@ -154,7 +150,7 @@ TYPED_TEST(AHypergraphReader, ReadsAnHypergraphWithEdgeWeights) {
 }
 
 TYPED_TEST(AHypergraphReader, ReadsAnHypergraphWithNodeWeights) {
-  this->readHypergraph("test_instances/hypergraph_with_node_weights.hgr");
+  this->readHypergraph("../tests/instances/hypergraph_with_node_weights.hgr");
 
   // Verify Incident Nets
   this->verifyIncidentNets(
@@ -182,7 +178,7 @@ TYPED_TEST(AHypergraphReader, ReadsAnHypergraphWithNodeWeights) {
 }
 
 TYPED_TEST(AHypergraphReader, ReadsAnHypergraphWithNodeAndEdgeWeights) {
-  this->readHypergraph("test_instances/hypergraph_with_node_and_edge_weights.hgr");
+  this->readHypergraph("../tests/instances/hypergraph_with_node_and_edge_weights.hgr");
 
   // Verify Incident Nets
   this->verifyIncidentNets(

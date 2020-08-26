@@ -65,10 +65,6 @@ class APartitionedHypergraph : public Test {
     partitioned_hypergraph.setNodePart(6, 2);
   }
 
-  static void SetUpTestSuite() {
-    TBBNumaArena::instance(HardwareTopology::instance().num_cpus());
-  }
-
   void verifyPartitionPinCounts(const HyperedgeID he,
                                 const std::vector<HypernodeID>& expected_pin_counts) {
     ASSERT(expected_pin_counts.size() == static_cast<size_t>(partitioned_hypergraph.k()));
@@ -585,7 +581,6 @@ TYPED_TEST(APartitionedHypergraph, ExtractBlockZeroWithCommunityInformation) {
   this->hypergraph.setCommunityID(4, 3);
   this->hypergraph.setCommunityID(5, 4);
   this->hypergraph.setCommunityID(6, 5);
-  this->hypergraph.initializeCommunities();
 
   auto extracted_hg = this->partitioned_hypergraph.extract(TBBNumaArena::GLOBAL_TASK_GROUP, 0, true);
   auto& hg = extracted_hg.first;
@@ -608,7 +603,6 @@ TYPED_TEST(APartitionedHypergraph, ExtractBlockOneWithCommunityInformation) {
   this->hypergraph.setCommunityID(4, 3);
   this->hypergraph.setCommunityID(5, 4);
   this->hypergraph.setCommunityID(6, 5);
-  this->hypergraph.initializeCommunities();
 
   auto extracted_hg = this->partitioned_hypergraph.extract(TBBNumaArena::GLOBAL_TASK_GROUP, 1, true);
   auto& hg = extracted_hg.first;
@@ -630,7 +624,6 @@ TYPED_TEST(APartitionedHypergraph, ExtractBlockTwoWithCommunityInformation) {
   this->hypergraph.setCommunityID(4, 3);
   this->hypergraph.setCommunityID(5, 4);
   this->hypergraph.setCommunityID(6, 5);
-  this->hypergraph.initializeCommunities();
 
   auto extracted_hg = this->partitioned_hypergraph.extract(TBBNumaArena::GLOBAL_TASK_GROUP, 2, true);
   auto& hg = extracted_hg.first;

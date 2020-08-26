@@ -48,10 +48,6 @@ class AInitialPartitioningDataContainer : public ds::HypergraphFixture{
     utils::Timer::instance().disable();
   }
 
-  static void TearDownTestSuite() {
-    TBBNumaArena::instance().terminate();
-  }
-
   using Base::hypergraph;
   Context context;
 };

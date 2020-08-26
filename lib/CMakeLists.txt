@@ -3,6 +3,8 @@ include(GNUInstallDirs)
 add_library(kahypar SHARED libkahypar.cc)
 target_link_libraries(kahypar ${Boost_LIBRARIES})
 
+set(TARGETS_WANTING_ALL_SOURCES ${TARGETS_WANTING_ALL_SOURCES} kahypar PARENT_SCOPE)
+
 set_target_properties(kahypar PROPERTIES
     PUBLIC_HEADER ../include/libkahypar.h)
 

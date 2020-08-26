@@ -47,7 +47,6 @@ class ACoarsener : public Test {
     for ( const HypernodeID& hn : hypergraph.nodes() ) {
       hypergraph.setCommunityID(hn, hn / 4);
     }
-    hypergraph.initializeCommunities();
 
     context.partition.k = 2;
     context.partition.mode = kahypar::Mode::direct_kway;
@@ -58,10 +57,6 @@ class ACoarsener : public Test {
     context.coarsening.minimum_shrink_factor = 1.0;
     context.coarsening.maximum_shrink_factor = 4.0;
     context.setupPartWeights(hypergraph.totalWeight());
-  }
-
-  static void SetUpTestSuite() {
-    TBBNumaArena::instance(HardwareTopology::instance().num_cpus());
   }
 
   Hypergraph hypergraph;

@@ -171,22 +171,6 @@ class TBBNumaArena {
     wait(task_group_id);
   }
 
-  template<typename index, typename Functor>
-  void parallel_for_with_task_id(const TaskGroupID task_group_id, const index first, const index last,
-                                 Functor&& f, const index grain_size = 1) {
-    std::atomic<index> a_first(first);
-    execute_task_on_each_thread(task_group_id, [&](const int, const int task_id, const int) {
-      index t_first = a_first.fetch_add(grain_size, std::memory_order_acq_rel);
-      while (t_first < last) {
-        index t_last = std::min(last, t_first + grain_size);
-        for (index i = first; i < t_last; ++i) {
-          f(i, task_id);
-        }
-        t_first = a_first.fetch_add(grain_size, std::memory_order_acq_rel);
-      }
-    });
-  }
-
   void wait(const TaskGroupID task_group_id) {
     for (int node = 0; node < num_numa_arenas(); ++node) {
       _arenas[node].execute([&, node] {
@@ -207,7 +191,7 @@ class TBBNumaArena {
       arena.terminate();
     }
 
-    for (ThreadPinningObserver& observer : _observer) {
+    for (ThreadPinningObserver& observer : _observers) {
       observer.observe(false);
     }
 
@@ -228,7 +212,7 @@ class TBBNumaArena {
     _arenas(),
     _task_group_read_write_mutex(),
     _groups(1),
-    _observer(),
+    _observers(),
     _cpus(),
     _numa_node_to_cpu_id() {
     HwTopology& topology = HwTopology::instance();
@@ -236,7 +220,7 @@ class TBBNumaArena {
     DBG << "Initialize TBB with" << num_threads << "threads";
     _arenas.reserve(num_numa_nodes);
     // TODO(heuer): fix copy constructor of observer
-    _observer.reserve(num_numa_nodes);
+    _observers.reserve(num_numa_nodes);
 
     _cpus = topology.get_all_cpus();
     // Sort cpus in the following order
@@ -294,7 +278,7 @@ class TBBNumaArena {
       #endif
       _groups[GLOBAL_TASK_GROUP].emplace_back();
       _arenas.back().initialize();
-      _observer.emplace_back(_arenas.back(), node, cpus_on_numa_node);
+      _observers.emplace_back(_arenas.back(), node, cpus_on_numa_node);
     }
   }
 
@@ -304,7 +288,7 @@ class TBBNumaArena {
   std::vector<tbb::task_arena> _arenas;
   std::shared_timed_mutex _task_group_read_write_mutex;
   std::vector<NumaTaskGroups> _groups;
-  std::vector<ThreadPinningObserver> _observer;
+  std::vector<ThreadPinningObserver> _observers;
   std::vector<int> _cpus;
   std::vector<std::vector<int>> _numa_node_to_cpu_id;
 };

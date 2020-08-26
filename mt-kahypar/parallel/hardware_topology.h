@@ -24,6 +24,8 @@
 #include <mutex>
 #include <thread>
 #include <vector>
+#include <algorithm>
+#include <random>
 
 #include "mt-kahypar/macros.h"
 
@@ -120,7 +122,8 @@ class HardwareTopology {
       std::lock_guard<std::mutex> lock(_mutex);
       int cpu_id = -1;
       if ( _cpus.size() > 1 ) {
-        std::random_shuffle(_cpus.begin(), _cpus.end());
+        std::mt19937 rng(420);
+        std::shuffle(_cpus.begin(), _cpus.end(), rng);
         if ( _cpus[0].cpu_id != except_cpu ) {
           cpu_id = _cpus[0].cpu_id;
         } else {
@@ -260,7 +263,6 @@ class HardwareTopology {
     }
   }
 
-  static std::mutex _mutex;
 
   size_t _num_cpus;
   Topology _topology;
@@ -268,7 +270,5 @@ class HardwareTopology {
   std::vector<int> _cpu_to_numa_node;
 };
 
-template <typename HwTopology, typename Topology, typename Node>
-std::mutex HardwareTopology<HwTopology, Topology, Node>::_mutex;
 }  // namespace parallel
 }  // namespace mt_kahypar

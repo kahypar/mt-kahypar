@@ -34,22 +34,19 @@ class PseudoPeripheralStartNodes {
   using Queue = parallel::scalable_queue<HypernodeID>;
 
   static constexpr bool debug = false;
-  static PartitionID kInvalidPartition;
-  static HypernodeID kInvalidHypernode;
 
  public:
   static inline StartNodes computeStartNodes(InitialPartitioningDataContainer& ip_data,
-                                             const Context& context) {
+                                             const Context& context, std::mt19937& rng) {
     PartitionedHypergraph& hypergraph = ip_data.local_partitioned_hypergraph();
     kahypar::ds::FastResetFlagArray<>& hypernodes_in_queue =
       ip_data.local_hypernode_fast_reset_flag_array();
     kahypar::ds::FastResetFlagArray<>& hyperedges_in_queue =
       ip_data.local_hyperedge_fast_reset_flag_array();
-    int cpu_id = sched_getcpu();
 
     StartNodes start_nodes;
     HypernodeID start_hn =
-      utils::Randomize::instance().getRandomInt(0, hypergraph.initialNumNodes() - 1, cpu_id);
+            std::uniform_int_distribution<HypernodeID>(0, hypergraph.initialNumNodes() -1 )(rng);
     ASSERT(hypergraph.nodeIsEnabled(start_hn));
     start_nodes.push_back(start_hn);
 
@@ -118,7 +115,5 @@ class PseudoPeripheralStartNodes {
   }
 };
 
-PartitionID PseudoPeripheralStartNodes::kInvalidPartition = -1;
-HypernodeID PseudoPeripheralStartNodes::kInvalidHypernode = std::numeric_limits<HypernodeID>::max();
 
 } // namespace mt_kahypar

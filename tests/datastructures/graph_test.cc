@@ -30,10 +30,8 @@ using ::testing::Test;
 namespace mt_kahypar {
 namespace ds {
 
-using HyperGraph = StaticHypergraph;
 using Factory = StaticHypergraphFactory;
 using AGraph = HypergraphFixture;
-using Graph = GraphT<HyperGraph>;
 
 void verifyArcIterator(const Graph& graph,
                        const NodeID u,

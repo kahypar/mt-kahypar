@@ -180,6 +180,8 @@ TEST(AArray, CanBeSorted) {
   }
 }
 
+
+
 TEST(AArray, MemcopiesContentToVector) {
   Array<int> vec(256, 0);
   std::vector<int> vec2(256, 5);
@@ -274,6 +276,8 @@ TEST(AArray, AllocatesOwnMemoryIfAlreadyRequestedInMemoryPool) {
 
   parallel::MemoryPool::instance().free_memory_chunks();
 }
+
+
 
 }  // namespace ds
 }  // namespace mt_kahypar

@@ -20,10 +20,7 @@
 #pragma once
 
 #include <cstdint>
-
-#include "mt-kahypar/macros.h"
-#include "mt-kahypar/parallel/stl/scalable_vector.h"
-#include "mt-kahypar/parallel/atomic_wrapper.h"
+#include <limits>
 
 namespace mt_kahypar {
 
@@ -66,10 +63,15 @@ struct Arc {
 static constexpr PartitionID kInvalidPartition = -1;
 static constexpr HypernodeID kInvalidHypernode = std::numeric_limits<HypernodeID>::max();
 static constexpr HypernodeID kInvalidHyperedge = std::numeric_limits<HyperedgeID>::max();
+static constexpr Gain kInvalidGain = std::numeric_limits<HyperedgeID>::min();
 static constexpr size_t kEdgeHashSeed = 42;
 
 static constexpr HypernodeID invalidNode = std::numeric_limits<HypernodeID>::max();
 static constexpr Gain invalidGain = std::numeric_limits<Gain>::min();
+
+namespace ds {
+  using Clustering = vec<PartitionID>;
+}
 
 struct Move {
   PartitionID from = -1;
@@ -85,17 +87,6 @@ struct NoOpDeltaFunc {
   void operator() (const HyperedgeID, const HyperedgeWeight, const HypernodeID, const HypernodeID, const HypernodeID) { }
 };
 
-
-/*!
-  * This struct is used during multilevel coarsening to efficiently
-  * detect parallel hyperedges.
-  */
-struct ContractedHyperedgeInformation {
-  HyperedgeID he = kInvalidHyperedge;
-  size_t hash = kEdgeHashSeed;
-  size_t size = std::numeric_limits<size_t>::max();
-  bool valid = false;
-};
 
 // ! Helper function to compute delta for cut-metric after changeNodePart
 static HyperedgeWeight cutDelta(const HyperedgeID,

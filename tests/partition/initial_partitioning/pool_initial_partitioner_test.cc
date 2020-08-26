@@ -28,7 +28,7 @@
 #include "mt-kahypar/utils/timer.h"
 #include "mt-kahypar/io/hypergraph_io.h"
 #include "mt-kahypar/partition/registries/register_flat_initial_partitioning_algorithms.h"
-#include "mt-kahypar/partition/registries/register_refinement_algorithms.h"
+#include "mt-kahypar/partition/registries/register_refinement_algorithms.cpp"
 #include "mt-kahypar/partition/initial_partitioning/flat/pool_initial_partitioner.h"
 
 using ::testing::Test;
@@ -57,7 +57,7 @@ class APoolInitialPartitionerTest : public Test {
     context.initial_partitioning.refinement.label_propagation.algorithm =
       LabelPropagationAlgorithm::label_propagation_km1;
     hypergraph = io::readHypergraphFile(
-      "../test_instances/test_instance.hgr", TBBNumaArena::GLOBAL_TASK_GROUP);
+      "../tests/instances/test_instance.hgr", TBBNumaArena::GLOBAL_TASK_GROUP);
     partitioned_hypergraph = PartitionedHypergraph(
       context.partition.k, TBBNumaArena::GLOBAL_TASK_GROUP, hypergraph);
     context.setupPartWeights(hypergraph.totalWeight());

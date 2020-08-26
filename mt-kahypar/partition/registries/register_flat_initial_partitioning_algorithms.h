@@ -20,9 +20,6 @@
 
 #pragma once
 
-#include "kahypar/meta/abstract_factory.h"
-#include "kahypar/meta/registrar.h"
-
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/partition/factories.h"
 
@@ -33,13 +30,22 @@
 #include "mt-kahypar/partition/initial_partitioning/flat/policies/gain_computation_policy.h"
 #include "mt-kahypar/partition/initial_partitioning/flat/policies/pq_selection_policy.h"
 
+#include "kahypar/meta/abstract_factory.h"
+#include "kahypar/meta/registrar.h"
+
+namespace mt_kahypar {
+using FlatInitialPartitionerFactory = kahypar::meta::Factory<InitialPartitioningAlgorithm,
+        tbb::task *(*)(tbb::task *, const InitialPartitioningAlgorithm, InitialPartitioningDataContainer&,
+                       const Context&, const int)>;
+}
+
 #define REGISTER_FLAT_INITIAL_PARTITIONER(id, partitioner)                                           \
   static kahypar::meta::Registrar<FlatInitialPartitionerFactory> register_ ## partitioner(           \
     id,                                                                                              \
     [](tbb::task* parent, const InitialPartitioningAlgorithm algorithm,                              \
-       InitialPartitioningDataContainer& ip_hypergraph, const Context& context)                      \
+       InitialPartitioningDataContainer& ip_hypergraph, const Context& context, const int seed)      \
     -> tbb::task* {                                                                                  \
-    return new(parent->allocate_child()) partitioner(algorithm, ip_hypergraph, context);             \
+    return new(parent->allocate_child()) partitioner(algorithm, ip_hypergraph, context, seed);       \
   })
 
 namespace mt_kahypar {

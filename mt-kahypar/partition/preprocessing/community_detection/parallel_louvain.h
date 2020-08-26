@@ -20,64 +20,9 @@
 
 #pragma once
 
-#include "mt-kahypar/datastructures/clustering.h"
-#include "mt-kahypar/definitions.h"
-#include "mt-kahypar/partition/preprocessing/community_detection/plm.h"
-#include "mt-kahypar/partition/metrics.h"
-#include "mt-kahypar/utils/timer.h"
+#include "mt-kahypar/partition/preprocessing/community_detection/local_moving_modularity.h"
 
-namespace mt_kahypar {
-template<typename G /* Graph */>
-class ParallelModularityLouvain {
- private:
-  static constexpr bool debug = false;
-  using ParallelLouvainMethod = PLM<G>;
-
-  static ds::Clustering localMovingContractRecurse(G& fine_graph,
-                                                   ParallelLouvainMethod& mlv,
-                                                   const size_t num_tasks) {
-    DBG << V(fine_graph.numNodes())
-        << V(fine_graph.numArcs())
-        << V(fine_graph.totalVolume());
-
-    utils::Timer::instance().start_timer("local_moving", "Local Moving");
-    ds::Clustering communities(fine_graph.numNodes());
-    bool communities_changed = mlv.localMoving(fine_graph, communities);
-    utils::Timer::instance().stop_timer("local_moving");
-
-    if (communities_changed) {
-      DBG << "Current Modularity:" << metrics::modularity(fine_graph, communities);
-      utils::Timer::instance().start_timer("contraction", "Contraction");
-      // Contract Communities
-      G coarse_graph = fine_graph.contract(communities);
-      ASSERT(coarse_graph.totalVolume() == fine_graph.totalVolume(),
-        V(coarse_graph.totalVolume()) << V(fine_graph.totalVolume()));
-      utils::Timer::instance().stop_timer("contraction");
-
-      // Recurse on contracted graph
-      ds::Clustering coarse_communities =
-        localMovingContractRecurse(coarse_graph, mlv, num_tasks);
-
-      utils::Timer::instance().start_timer("prolong", "Prolong");
-      // Prolong Clustering
-      for (NodeID u : fine_graph.nodes()) {
-        ASSERT(communities[u] < static_cast<PartitionID>(coarse_communities.size()));
-        communities[u] = coarse_communities[communities[u]];
-      }
-      utils::Timer::instance().stop_timer("prolong");
-    }
-
-    return communities;
-  }
-
- public:
-  static ds::Clustering run(G& graph,
-                            const Context& context,
-                            const size_t num_tasks,
-                            const bool disable_randomization = false) {
-    ParallelLouvainMethod mlv(context, graph.numNodes(), disable_randomization);
-    ds::Clustering communities = localMovingContractRecurse(graph, mlv, num_tasks);
-    return communities;
-  }
-};
+namespace mt_kahypar::community_detection {
+  ds::Clustering local_moving_contract_recurse(Graph& fine_graph, ParallelLocalMovingModularity& mlv);
+  ds::Clustering run_parallel_louvain(Graph& graph, const Context& context, bool disable_randomization = false);
 }

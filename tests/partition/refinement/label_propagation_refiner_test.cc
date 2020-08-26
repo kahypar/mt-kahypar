@@ -24,7 +24,7 @@
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/io/hypergraph_io.h"
 #include "mt-kahypar/partition/context.h"
-#include "mt-kahypar/partition/registries/register_refinement_algorithms.h"
+#include "mt-kahypar/partition/registries/register_refinement_algorithms.cpp"
 #include "mt-kahypar/partition/initial_partitioning/flat/bfs_initial_partitioner.h"
 #include "mt-kahypar/partition/refinement/label_propagation/label_propagation_refiner.h"
 #include "mt-kahypar/partition/refinement/policies/gain_policy.h"
@@ -65,8 +65,8 @@ class ALabelPropagationRefiner : public Test {
     context(),
     refiner(nullptr),
     metrics() {
-    context.partition.graph_filename = "test_instances/ibm01.hgr";
-    context.partition.graph_community_filename = "test_instances/ibm01.hgr.community";
+    context.partition.graph_filename = "../tests/instances/contracted_ibm01.hgr";
+    context.partition.graph_community_filename = "../tests/instances/contracted_ibm01.hgr.community";
     context.partition.mode = kahypar::Mode::direct_kway;
     context.partition.objective = Config::OBJECTIVE;
     context.partition.epsilon = 0.25;
@@ -86,7 +86,7 @@ class ALabelPropagationRefiner : public Test {
 
     // Read hypergraph
     hypergraph = io::readHypergraphFile(
-      "../test_instances/unweighted_ibm01.hgr", TBBNumaArena::GLOBAL_TASK_GROUP);
+      "../tests/instances/contracted_unweighted_ibm01.hgr", TBBNumaArena::GLOBAL_TASK_GROUP);
     partitioned_hypergraph = PartitionedHypergraph(
       context.partition.k, TBBNumaArena::GLOBAL_TASK_GROUP, hypergraph);
     context.setupPartWeights(hypergraph.totalWeight());
@@ -96,16 +96,12 @@ class ALabelPropagationRefiner : public Test {
     refiner->initialize(partitioned_hypergraph);
   }
 
-  static void SetUpTestSuite() {
-    TBBNumaArena::instance(num_threads);
-  }
-
   void initialPartition() {
     Context ip_context(context);
     ip_context.refinement.label_propagation.algorithm = LabelPropagationAlgorithm::do_nothing;
     InitialPartitioningDataContainer ip_data(partitioned_hypergraph, ip_context, TBBNumaArena::GLOBAL_TASK_GROUP);
     BFSInitialPartitioner& initial_partitioner = *new(tbb::task::allocate_root())
-      BFSInitialPartitioner(InitialPartitioningAlgorithm::bfs, ip_data, ip_context);
+      BFSInitialPartitioner(InitialPartitioningAlgorithm::bfs, ip_data, ip_context, 420);
     tbb::task::spawn_root_and_wait(initial_partitioner);
     ip_data.apply();
     metrics.km1 = metrics::km1(partitioned_hypergraph);
