@@ -19,7 +19,7 @@
  *
  ******************************************************************************/
 
-#include "rebalancer.h"
+#include "mt-kahypar/partition/refinement/rebalancing//rebalancer.h"
 
 
 #include <boost/dynamic_bitset.hpp>

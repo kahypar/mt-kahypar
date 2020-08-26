@@ -1,4 +1,4 @@
-#include "localized_kway_fm_core.h"
+#include "mt-kahypar/partition/refinement/fm/localized_kway_fm_core.h"
 
 namespace mt_kahypar {
 
