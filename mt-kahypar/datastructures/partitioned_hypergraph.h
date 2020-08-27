@@ -292,8 +292,9 @@ private:
   }
 
   // ! Restores a degree zero hypernode
-  void restoreDegreeZeroHypernode(const HypernodeID u) {
+  void restoreDegreeZeroHypernode(const HypernodeID u, const PartitionID to) {
     _hg->restoreDegreeZeroHypernode(u);
+    setNodePart(u, to);
   }
 
   // ####################### Hyperedge Information #######################

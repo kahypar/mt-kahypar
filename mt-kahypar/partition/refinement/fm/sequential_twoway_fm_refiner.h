@@ -238,6 +238,7 @@ class SequentialTwoWayFmRefiner {
 
         // Perform delta gain updates
         updateNeighbors(hn, from, to);
+        updatePQState(from, to);
 
         // Remove all vertices that became internal from the PQ
         _border_vertices.doForAllVerticesThatBecameInternalVertices(
@@ -399,6 +400,16 @@ class SequentialTwoWayFmRefiner {
       if ( _phg.partWeight(to) < _context.partition.max_part_weights[to] ) {
         _pq.enablePart(to);
       }
+    }
+  }
+
+  KAHYPAR_ATTRIBUTE_ALWAYS_INLINE void updatePQState(const PartitionID from,
+                                                     const PartitionID to) {
+    if (_phg.partWeight(to) >= _context.partition.max_part_weights[to]) {
+      _pq.disablePart(to);
+    }
+    if (_phg.partWeight(from) < _context.partition.max_part_weights[from]) {
+      _pq.enablePart(from);
     }
   }
 

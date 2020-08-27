@@ -55,6 +55,8 @@ class PseudoPeripheralStartNodes {
     // list of start nodes. Each entry in start_nodes represents a start
     // node for a specific block of the partition. The new vertex added to
     // the list of start nodes is the one last touched by the current BFS.
+    const HypernodeID current_num_nodes =
+      hypergraph.initialNumNodes() - hypergraph.numRemovedHypernodes();
     for ( PartitionID i = 0; i < context.partition.k - 1; ++i ) {
       Queue queue;
       hypernodes_in_queue.reset();
@@ -87,7 +89,7 @@ class PseudoPeripheralStartNodes {
 
         // In case the queue is empty and we have not visited all hypernodes, we
         // add non-visited vertex to the queue (can happen if the hypergraph is not connected)
-        if ( queue.empty() && num_touched_hypernodes < hypergraph.initialNumNodes() ) {
+        if ( queue.empty() && num_touched_hypernodes < current_num_nodes ) {
           for ( const HypernodeID& hn : hypergraph.nodes() ) {
             if ( !hypernodes_in_queue[hn] ) {
               queue.push(hn);

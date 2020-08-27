@@ -72,7 +72,9 @@ class BFSInitialPartitioner : public tbb::task {
       // a BFS-fashion. The BFS queues for each block are visited in round-robin-fashion.
       // Once a block is on turn, it pops it first hypernode and pushes
       // all adjacent vertices into its queue.
-      while ( num_assigned_hypernodes < hypergraph.initialNumNodes() ) {
+      const HypernodeID current_num_nodes =
+        hypergraph.initialNumNodes() - hypergraph.numRemovedHypernodes();
+      while ( num_assigned_hypernodes < current_num_nodes ) {
         for ( PartitionID block = 0; block < _context.partition.k; ++block ) {
           HypernodeID hn = kInvalidHypernode;
 

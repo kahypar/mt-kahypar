@@ -111,7 +111,9 @@ namespace mt_kahypar {
       printMemoryConsumption();
     }
 
+    #ifndef KAHYPAR_USE_N_LEVEL_PARADIGM
     is_initialized = false;
+    #endif
     return overall_improvement;
   }
 

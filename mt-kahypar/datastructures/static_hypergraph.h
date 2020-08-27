@@ -635,17 +635,15 @@ class StaticHypergraph {
   // ! Removes a degree zero hypernode
   void removeDegreeZeroHypernode(const HypernodeID u) {
     ASSERT(nodeDegree(u) == 0);
-    ASSERT(nodeWeight(u) == 1);
     removeHypernode(u);
-    ++_removed_degree_zero_hn_weight;
+    _removed_degree_zero_hn_weight += nodeWeight(u);
   }
 
   // ! Restores a degree zero hypernode
   void restoreDegreeZeroHypernode(const HypernodeID u) {
     hypernode(u).enable();
     ASSERT(nodeDegree(u) == 0);
-    ASSERT(nodeWeight(u) == 1);
-    --_removed_degree_zero_hn_weight;
+    _removed_degree_zero_hn_weight -= nodeWeight(u);
   }
 
   // ####################### Hyperedge Information #######################
