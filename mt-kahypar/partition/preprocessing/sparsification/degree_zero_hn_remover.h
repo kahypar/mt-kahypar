@@ -44,8 +44,13 @@ class DegreeZeroHypernodeRemover {
 
   // ! Remove all degree zero vertices
   HypernodeID removeDegreeZeroHypernodes(Hypergraph& hypergraph) {
+    const HypernodeID current_num_nodes =
+      hypergraph.initialNumNodes() - hypergraph.numRemovedHypernodes();
     HypernodeID num_removed_degree_zero_hypernodes = 0;
     for ( const HypernodeID& hn : hypergraph.nodes()  ) {
+      if ( current_num_nodes - num_removed_degree_zero_hypernodes <= ID(_context.partition.k) ) {
+        break;
+      }
       if ( hypergraph.nodeDegree(hn) == 0 ) {
         hypergraph.removeDegreeZeroHypernode(hn);
         _removed_hns.push_back(hn);

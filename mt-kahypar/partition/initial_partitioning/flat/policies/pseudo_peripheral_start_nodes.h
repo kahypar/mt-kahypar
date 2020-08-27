@@ -37,17 +37,23 @@ class PseudoPeripheralStartNodes {
 
  public:
   static inline StartNodes computeStartNodes(InitialPartitioningDataContainer& ip_data,
-                                             const Context& context, std::mt19937& rng) {
+                                             const Context& context,
+                                             const PartitionID default_block,
+                                             std::mt19937& rng) {
     PartitionedHypergraph& hypergraph = ip_data.local_partitioned_hypergraph();
     kahypar::ds::FastResetFlagArray<>& hypernodes_in_queue =
       ip_data.local_hypernode_fast_reset_flag_array();
     kahypar::ds::FastResetFlagArray<>& hyperedges_in_queue =
       ip_data.local_hyperedge_fast_reset_flag_array();
 
+    ASSERT(hypergraph.initialNumNodes() - hypergraph.numRemovedHypernodes() >= ID(hypergraph.k()));
     StartNodes start_nodes;
     HypernodeID start_hn =
             std::uniform_int_distribution<HypernodeID>(0, hypergraph.initialNumNodes() -1 )(rng);
-    ASSERT(hypergraph.nodeIsEnabled(start_hn));
+    if ( !hypergraph.nodeIsEnabled(start_hn) ) {
+      start_hn = ip_data.get_unassigned_hypernode(default_block);
+    }
+    ASSERT(start_hn != kInvalidHypernode && hypergraph.nodeIsEnabled(start_hn));
     start_nodes.push_back(start_hn);
 
     // We perform k - 1 BFS on the hypergraph to find k vertices that

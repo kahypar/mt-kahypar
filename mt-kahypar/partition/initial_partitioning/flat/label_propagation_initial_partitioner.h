@@ -60,7 +60,7 @@ class LabelPropagationInitialPartitioner : public tbb::task {
       _ip_data.reset_unassigned_hypernodes();
 
       parallel::scalable_vector<HypernodeID> start_nodes =
-        PseudoPeripheralStartNodes::computeStartNodes(_ip_data, _context, _rng);
+        PseudoPeripheralStartNodes::computeStartNodes(_ip_data, _context, kInvalidPartition, _rng);
       for ( PartitionID block = 0; block < _context.partition.k; ++block ) {
         if ( hg.partID(start_nodes[block]) == kInvalidPartition ) {
           hg.setNodePart(start_nodes[block], block);
