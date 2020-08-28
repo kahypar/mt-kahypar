@@ -159,30 +159,23 @@ private:
       }
     } else if (searchOfV == thisSearch) {
       const PartitionID pv = phg.partID(v);
-      if ( vertexPQs[pv].contains(v) ) {
-        const PartitionID designatedTargetV = sharedData.targetPart[v];
-        Gain gain = 0;
-        PartitionID newTarget = kInvalidPartition;
+      ASSERT(vertexPQs[pv].contains(v));
+      const PartitionID designatedTargetV = sharedData.targetPart[v];
+      Gain gain = 0;
+      PartitionID newTarget = kInvalidPartition;
 
-        if (k < 4 || designatedTargetV == move.from || designatedTargetV == move.to) {
-          // moveToPenalty of designatedTargetV is affected.
-          // and may now be greater than that of other blocks --> recompute full
-          std::tie(newTarget, gain) = bestDestinationBlock(phg, v);
-        } else {
-          // moveToPenalty of designatedTargetV is not affected.
-          // only move.from and move.to may be better
-          std::tie(newTarget, gain) = bestOfThree(phg, v, pv, { designatedTargetV, move.from, move.to });
-        }
-        sharedData.targetPart[v] = newTarget;
-        vertexPQs[pv].adjustKey(v, gain);
+      if (k < 4 || designatedTargetV == move.from || designatedTargetV == move.to) {
+        // moveToPenalty of designatedTargetV is affected.
+        // and may now be greater than that of other blocks --> recompute full
+        std::tie(newTarget, gain) = bestDestinationBlock(phg, v);
       } else {
-        // these are reinserts of vertices that changed their status from boundary to non-boundary vertex and back again
-        auto [target, gain] = bestDestinationBlock(phg, v);
-        sharedData.targetPart[v] = target;
-        vertexPQs[pv].insert(v, gain);  // blockPQ updates are done later, collectively.
-        localData.runStats.boundary_toggles++;
+        // moveToPenalty of designatedTargetV is not affected.
+        // only move.from and move.to may be better
+        std::tie(newTarget, gain) = bestOfThree(phg, v, pv, { designatedTargetV, move.from, move.to });
       }
 
+      sharedData.targetPart[v] = newTarget;
+      vertexPQs[pv].adjustKey(v, gain);
       return true;
     }
     return false;
