@@ -57,7 +57,7 @@ class LocalizedKWayFM {
    vec<HypernodeID> seedVertices;
    // ! Contains all moves performed during the current local search
    vec<Move> localMoves;
-   // ! Contains all move IDs of all commited moves of the current local search
+   // ! Contains all move IDs of all committed moves of the current local search
    vec<MoveID> localMoveIDs;
    // ! Stats of the current local search
    FMStats runStats;
