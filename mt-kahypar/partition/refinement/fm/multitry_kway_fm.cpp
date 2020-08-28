@@ -122,7 +122,7 @@ namespace mt_kahypar {
     sharedData.refinementNodes.clear();
 
     if ( batch.empty() ) {
-      // multilevel case
+      // log(n) level case
       // iterate over all nodes and insert border nodes into task queue
       tbb::parallel_for(tbb::blocked_range<HypernodeID>(0, phg.initialNumNodes()),
         [&](const tbb::blocked_range<HypernodeID>& r) {
