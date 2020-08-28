@@ -96,9 +96,6 @@ std::ostream & operator<< (std::ostream& str, const RatingParameters& params);
 struct CoarseningParameters {
   CoarseningAlgorithm algorithm = CoarseningAlgorithm::UNDEFINED;
   RatingParameters rating = { };
-  CoarseningVertexOrder vertex_order = CoarseningVertexOrder::UNDEFINED;
-  ContractionOrder contraction_order = ContractionOrder::UNDEFINED;
-  UncontractionOrder uncontraction_order = UncontractionOrder::UNDEFINED;
   HypernodeID contraction_limit_multiplier = std::numeric_limits<HypernodeID>::max();
   bool use_adaptive_edge_size = false;
   bool use_adaptive_max_allowed_node_weight = false;

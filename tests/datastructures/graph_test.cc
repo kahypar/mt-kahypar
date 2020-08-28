@@ -28,7 +28,7 @@ using ::testing::Test;
 
 namespace mt_kahypar::ds {
 
-using AGraph = HypergraphFixture<StaticHypergraph, StaticHypergraphFactory>;
+using AGraph = HypergraphFixture<Hypergraph, HypergraphFactory>;
 
 void verifyArcIterator(const Graph& graph,
                        const NodeID u,

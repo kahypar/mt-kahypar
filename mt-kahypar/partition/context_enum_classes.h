@@ -78,31 +78,6 @@ enum class AcceptancePolicy : uint8_t {
   UNDEFINED
 };
 
-enum class CoarseningVertexOrder : uint8_t {
-  non_randomized,
-  random_shuffle,
-  pseudo_random_shuffle,
-  increasing_degree_order,
-  decreasing_degree_order,
-  UNDEFINED
-};
-
-enum class ContractionOrder : uint8_t {
-  rating_order,
-  degree_order,
-  heavy_node_first,
-  heavy_node_second,
-  UNDEFINED
-};
-
-enum class UncontractionOrder : uint8_t {
-  max_subtree_size,
-  min_subtree_size,
-  max_vertex_degree,
-  min_vertex_degree,
-  UNDEFINED
-};
-
 enum class InitialPartitioningAlgorithm : uint8_t {
   greedy_round_robin_fm = 0,
   greedy_global_fm = 1,
@@ -134,13 +109,6 @@ enum class FMAlgorithm : uint8_t {
   fm_boundary,
   do_nothing
 };
-
-
-std::ostream & operator<< (std::ostream& os, const CoarseningVertexOrder& order);
-
-std::ostream & operator<< (std::ostream& os, const ContractionOrder& order);
-
-std::ostream & operator<< (std::ostream& os, const UncontractionOrder& order);
 
 std::ostream & operator<< (std::ostream& os, const Type& type);
 
@@ -185,11 +153,5 @@ InitialPartitioningMode initialPartitioningModeFromString(const std::string& mod
 LabelPropagationAlgorithm labelPropagationAlgorithmFromString(const std::string& type);
 
 FMAlgorithm fmAlgorithmFromString(const std::string& type);
-
-CoarseningVertexOrder coarseningVertexOrderFromString(const std::string& order);
-
-ContractionOrder contractionOrderFromString(const std::string& order);
-
-UncontractionOrder uncontractionOrderFromString(const std::string& order);
 
 }  // namesapce mt_kahypar

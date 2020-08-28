@@ -34,7 +34,7 @@ namespace mt_kahypar {
 namespace ds {
 
 TEST(GainUpdates, Example1) {
-  StaticHypergraph hg = io::readHypergraphFile("../tests/instances/twocenters.hgr", 0);
+  Hypergraph hg = io::readHypergraphFile("../tests/instances/twocenters.hgr", 0);
   PartitionID k = 2;
   PartitionedHypergraph<Hypergraph, HypergraphFactory> phg(k, hg);
 

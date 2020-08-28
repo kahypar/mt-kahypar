@@ -73,8 +73,7 @@ class LocalizedKWayFM {
           blockPQ(static_cast<size_t>(k)),
           vertexPQs(static_cast<size_t>(k), VertexPriorityQueue(pq_handles, numNodes)),
           updateDeduplicator(),
-          validHyperedges(),
-          removed_vertices_from_pq() { }
+          validHyperedges() { }
 
 
   bool findMovesUsingFullBoundary(PartitionedHypergraph& phg, FMSharedData& sharedData);
@@ -112,13 +111,7 @@ private:
       if (phg.edgeSize(e) < context.partition.ignore_hyperedge_size_threshold && !validHyperedges[e]) { // TODO why not just store them in a vector to later iterate over?
         for (HypernodeID v : phg.pins(e)) {
           if (!updateDeduplicator.contains(v)) {
-            const PartitionID pv = phg.partID(v);
-            if ( phg.isBorderNode(v) ) {
-              insertOrUpdatePQ(phg, v, sharedData, move);
-            } else if ( vertexPQs[pv].contains(v) ) {
-              vertexPQs[pv].remove(v);
-              removed_vertices_from_pq.push_back(v);
-            }
+            insertOrUpdatePQ(phg, v, sharedData, move);
             updateDeduplicator[v] = { };  // insert
           }
         }
@@ -132,7 +125,7 @@ private:
   bool insertPQ(const PartitionedHypergraph& phg, const HypernodeID v, FMSharedData& sharedData) {
     NodeTracker& nt = sharedData.nodeTracker;
     SearchID searchOfV = nt.searchOfNode[v].load(std::memory_order_acq_rel);
-    if (nt.isSearchInactive(searchOfV) && phg.isBorderNode(v)) {
+    if (nt.isSearchInactive(searchOfV)) {
       if (nt.searchOfNode[v].compare_exchange_strong(searchOfV, thisSearch, std::memory_order_acq_rel)) {
         const PartitionID pv = phg.partID(v);
         auto [target, gain] = bestDestinationBlock(phg, v);
@@ -326,9 +319,6 @@ private:
   // ! inside the PQs. A hyperedge can become invalid if a move changes the
   // ! gain values of its pins.
   ds::DynamicSparseMap<HyperedgeID, bool> validHyperedges;
-
-  // !
-  vec<HypernodeID> removed_vertices_from_pq;
 };
 
 }

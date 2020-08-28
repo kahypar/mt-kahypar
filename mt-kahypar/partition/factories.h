@@ -29,7 +29,6 @@
 #include "mt-kahypar/partition/coarsening/i_coarsener.h"
 #include "mt-kahypar/partition/coarsening/policies/rating_acceptance_policy.h"
 #include "mt-kahypar/partition/coarsening/policies/rating_heavy_node_penalty_policy.h"
-#include "mt-kahypar/partition/coarsening/policies/contraction_order_policy.h"
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/partition/initial_partitioning/i_initial_partitioner.h"
 #include "mt-kahypar/partition/preprocessing/sparsification/i_hypergraph_sparsifier.h"
@@ -53,8 +52,7 @@ using NLevelCoarsenerDispatcher = kahypar::meta::StaticMultiDispatchFactory<NLev
                                                                             ICoarsener,
                                                                             kahypar::meta::Typelist<RatingScorePolicies,
                                                                                                         HeavyNodePenaltyPolicies,
-                                                                                                        AcceptancePolicies,
-                                                                                                        ContractionOrderPolicies> >;
+                                                                                                        AcceptancePolicies> >;
 
 using InitialPartitionerFactory = kahypar::meta::Factory<InitialPartitioningMode,
                                                          IInitialPartitioner* (*)(PartitionedHypergraph&, const Context&, const bool, const TaskGroupID)>;

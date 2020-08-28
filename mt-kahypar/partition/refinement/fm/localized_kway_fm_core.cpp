@@ -316,22 +316,12 @@ namespace mt_kahypar {
           release_node(v);
         }
       }
-
-      // Release all nodes that were contained in PQ but got
-      // removed because they become internal border nodes
-      for ( const HypernodeID& v : removed_vertices_from_pq ) {
-        SearchID searchOfV = sharedData.nodeTracker.searchOfNode[v].load(std::memory_order_acq_rel);
-        if ( searchOfV == thisSearch ) {
-          release_node(v);
-        }
-      }
     }
 
     for (PartitionID i = 0; i < k; ++i) {
       vertexPQs[i].clear();
     }
     blockPQ.clear();
-    removed_vertices_from_pq.clear();
   }
 
   void LocalizedKWayFM::memoryConsumption(utils::MemoryTreeNode* parent) const {
