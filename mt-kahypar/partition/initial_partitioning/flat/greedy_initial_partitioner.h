@@ -24,6 +24,7 @@
 
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/initial_partitioning/flat/initial_partitioning_data_container.h"
+#include "mt-kahypar/partition/initial_partitioning/flat/policies/pseudo_peripheral_start_nodes.h"
 
 namespace mt_kahypar {
 template<typename GainPolicy,
