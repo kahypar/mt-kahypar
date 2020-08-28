@@ -207,7 +207,6 @@ struct FMSharedData {
       vertexPQHandles.resize(numNodes, invalid_position);
     }, [&] {
       refinementNodes.tls_queues.resize(numThreads);
-      refinementNodes.timestamps.resize(numNodes, 0);
     }, [&] {
       targetPart.resize(numNodes, kInvalidPartition);
     });

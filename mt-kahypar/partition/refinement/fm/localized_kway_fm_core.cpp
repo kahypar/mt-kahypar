@@ -301,19 +301,11 @@ namespace mt_kahypar {
         }
       }
 
-      auto release_node = [&](const HypernodeID& v) {
-        sharedData.nodeTracker.releaseNode(v);
-        if (!sharedData.fruitlessSeed[v] && sharedData.refinementNodes.was_pushed_and_removed(v)) {
-          sharedData.refinementNodes.concurrent_push(v);
-          localData.runStats.task_queue_reinsertions++;
-        }
-      };
-
       // Release all nodes contained in PQ
       for (PartitionID i = 0; i < k; ++i) {
         for (PosT j = 0; j < vertexPQs[i].size(); ++j) {
           const HypernodeID v = vertexPQs[i].at(j);
-          release_node(v);
+          sharedData.nodeTracker.releaseNode(v);
         }
       }
     }
