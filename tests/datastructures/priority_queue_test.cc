@@ -88,16 +88,6 @@ namespace QuadHeap {
     ASSERT_TRUE(h.keyOf(1) == 500000);
   }
 
-  TEST(APriorityQueue, FailsOnDuplicateEntries) {
-    EMaxHeap h(400);
-    h.insert(3, 42);
-    h.insert(2, 54);
-
-    ASSERT_TRUE(h.contains(3));
-    ASSERT_TRUE(h.contains(2));
-    ASSERT_DEATH([&] { h.insert(3, 50); }(), "");
-  }
-
   TEST(APriorityQueue, RemoveDoesRemove) {
     EMaxHeap h(400);
     h.insert(3, 42);
@@ -209,16 +199,6 @@ namespace BinaryHeap {
     ASSERT_TRUE(h.top() == 1);
     ASSERT_TRUE(h.topKey() == 500000);
     ASSERT_TRUE(h.keyOf(1) == 500000);
-  }
-
-  TEST(APriorityQueue, FailsOnDuplicateEntries) {
-    EMaxHeap h(400);
-    h.insert(3, 42);
-    h.insert(2, 54);
-
-    ASSERT_TRUE(h.contains(3));
-    ASSERT_TRUE(h.contains(2));
-    ASSERT_DEATH([&] { h.insert(3, 50); }(), "");
   }
 
   TEST(APriorityQueue, RemoveDoesRemove) {

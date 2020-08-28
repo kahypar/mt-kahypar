@@ -91,8 +91,7 @@ class NLevelCoarsenerBase {
 
     // Create n-level batch uncontraction hierarchy
     utils::Timer::instance().start_timer("create_batch_uncontraction_hierarchy", "Create n-Level Hierarchy");
-    _hierarchy = _hg.createBatchUncontractionHierarchy(
-      _context.refinement.max_batch_size, _context.coarsening.uncontraction_order);
+    _hierarchy = _hg.createBatchUncontractionHierarchy(_context.refinement.max_batch_size);
     ASSERT(_removed_hyperedges_batches.size() == _hierarchy.size() - 1);
     utils::Timer::instance().stop_timer("create_batch_uncontraction_hierarchy");
 

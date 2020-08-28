@@ -26,7 +26,6 @@
 #include "mt-kahypar/partition/coarsening/policies/rating_acceptance_policy.h"
 #include "mt-kahypar/partition/coarsening/policies/rating_heavy_node_penalty_policy.h"
 #include "mt-kahypar/partition/coarsening/policies/rating_score_policy.h"
-#include "mt-kahypar/partition/coarsening/policies/contraction_order_policy.h"
 #include "mt-kahypar/partition/context_enum_classes.h"
 
 #define REGISTER_POLICY(policy, id, policy_class)                                                    \
@@ -53,15 +52,4 @@ REGISTER_POLICY(AcceptancePolicy, AcceptancePolicy::best,
                 BestRatingWithTieBreaking);
 REGISTER_POLICY(AcceptancePolicy, AcceptancePolicy::best_prefer_unmatched,
                 BestRatingPreferringUnmatched);
-
-
-REGISTER_POLICY(ContractionOrder, ContractionOrder::rating_order,
-                RatingOrder);
-REGISTER_POLICY(ContractionOrder, ContractionOrder::degree_order,
-                DegreeOrder);
-REGISTER_POLICY(ContractionOrder, ContractionOrder::heavy_node_first,
-                HeavyNodeFirst);
-REGISTER_POLICY(ContractionOrder, ContractionOrder::heavy_node_second,
-                HeavyNodeSecond);
-
 }  // namespace mt_kahypar

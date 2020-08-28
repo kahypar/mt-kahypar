@@ -757,8 +757,7 @@ class StaticHypergraph {
     ERROR("uncontract(batch) is not supported in static hypergraph");
   }
 
-  VersionedBatchVector createBatchUncontractionHierarchy(const size_t,
-                                                         const UncontractionOrder) {
+  VersionedBatchVector createBatchUncontractionHierarchy(const size_t) {
     ERROR("createBatchUncontractionHierarchy(task_group_id, batch_size) is not supported in static hypergraph");
     return { };
   }

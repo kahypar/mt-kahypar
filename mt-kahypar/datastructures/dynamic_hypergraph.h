@@ -999,7 +999,6 @@ class DynamicHypergraph {
    * hypergraph a seperate batch uncontraction hierarchy (see createBatchUncontractionHierarchyOfVersion(...))
    */
   VersionedBatchVector createBatchUncontractionHierarchy(const size_t batch_size,
-                                                         const UncontractionOrder order = UncontractionOrder::max_subtree_size,
                                                          const bool test = false) {
     const size_t num_versions = _version + 1;
     utils::Timer::instance().start_timer("finalize_contraction_tree", "Finalize Contraction Tree");
@@ -1013,7 +1012,7 @@ class DynamicHypergraph {
     parallel::scalable_vector<size_t> batch_sizes_prefix_sum(num_versions, 0);
     tbb::parallel_for(0UL, num_versions, [&](const size_t version) {
       versioned_batches[version] =
-        createBatchUncontractionHierarchyForVersion(batch_size, version, order);
+        createBatchUncontractionHierarchyForVersion(batch_size, version);
     });
     for ( size_t version = 0; version < num_versions; ++version ) {
       if ( version > 0 ) {
@@ -1063,7 +1062,7 @@ class DynamicHypergraph {
     ASSERT(num_versions > 0);
     _version = num_versions - 1;
     _contraction_tree = std::move(tree);
-    return createBatchUncontractionHierarchy(batch_size, UncontractionOrder::max_subtree_size, true);
+    return createBatchUncontractionHierarchy(batch_size, true);
   }
 
   // ! Only for testing
@@ -1809,8 +1808,7 @@ class DynamicHypergraph {
    * usually smaller than on the original hypergraph.
    */
   BatchVector createBatchUncontractionHierarchyForVersion(const size_t batch_size,
-                                                          const size_t version,
-                                                          const UncontractionOrder order = UncontractionOrder::max_subtree_size) {
+                                                          const size_t version) {
 
     using PQ = std::priority_queue<PQBatchUncontractionElement,
                                    parallel::scalable_vector<PQBatchUncontractionElement>,
@@ -1825,24 +1823,6 @@ class DynamicHypergraph {
              (i2.start <= i1.end && i2.end >= i1.end);
     };
 
-    auto objective = [&](const HypernodeID u) {
-      switch ( order ) {
-        case UncontractionOrder::max_subtree_size:
-          return static_cast<int64_t>(_contraction_tree.subtreeSize(u));
-        case UncontractionOrder::min_subtree_size:
-          return -static_cast<int64_t>(_contraction_tree.subtreeSize(u));
-        case UncontractionOrder::max_vertex_degree:
-          return static_cast<int64_t>(nodeDegree(u));
-        case UncontractionOrder::min_vertex_degree:
-          return -static_cast<int64_t>(nodeDegree(u));
-        case UncontractionOrder::UNDEFINED:
-          ERROR("Undefined Uncontraction Order");
-          return 0L;
-      }
-      ERROR("Unkown Uncontraction Order");
-      return 0L;
-    };
-
     auto push_into_pq = [&](PQ& prio_q, const HypernodeID& u) {
       auto it = _contraction_tree.childs(u);
       auto current = it.begin();
@@ -1852,7 +1832,7 @@ class DynamicHypergraph {
       }
       if ( current != end ) {
         prio_q.push(PQBatchUncontractionElement {
-          objective(*current), std::make_pair(current, end) } );
+          _contraction_tree.subtreeSize(*current), std::make_pair(current, end) } );
       }
     };
 
@@ -1910,7 +1890,7 @@ class DynamicHypergraph {
       // If there are still childs left of u, we push the iterator again into the
       // priority queue of the current BFS level.
       if ( it.first != it.second && _contraction_tree.version(*it.first) == version ) {
-        pq.push(PQBatchUncontractionElement { objective(*it.first), it });
+        pq.push(PQBatchUncontractionElement { _contraction_tree.subtreeSize(*it.first), it });
       }
 
       if ( pq.empty() ) {
