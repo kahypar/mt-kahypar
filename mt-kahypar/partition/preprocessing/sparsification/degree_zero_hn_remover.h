@@ -21,9 +21,11 @@
 
 #pragma once
 
+#include "tbb/parallel_sort.h"
+
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/context.h"
-#include "mt-kahypar/parallel/stl/scalable_vector.h"
+#include "mt-kahypar/datastructures/streaming_vector.h"
 
 namespace mt_kahypar {
 
@@ -40,14 +42,16 @@ class DegreeZeroHypernodeRemover {
   DegreeZeroHypernodeRemover(DegreeZeroHypernodeRemover&&) = delete;
   DegreeZeroHypernodeRemover & operator= (DegreeZeroHypernodeRemover &&) = delete;
 
-  // ! Contracts degree-zero vertices to degree-zero supervertices
-  // ! We contract sets of degree-zero vertices such that the weight of
-  // ! each supervertex is less than or equal than the maximum allowed
-  // ! node weight for a vertex during coarsening.
+  // ! Remove all degree zero vertices
   HypernodeID removeDegreeZeroHypernodes(Hypergraph& hypergraph) {
+    const HypernodeID current_num_nodes =
+      hypergraph.initialNumNodes() - hypergraph.numRemovedHypernodes();
     HypernodeID num_removed_degree_zero_hypernodes = 0;
     for ( const HypernodeID& hn : hypergraph.nodes()  ) {
-      if ( hypergraph.nodeDegree(hn) == 0 && hypergraph.nodeWeight(hn) == 1 ) {
+      if ( current_num_nodes - num_removed_degree_zero_hypernodes <= ID(_context.partition.k) ) {
+        break;
+      }
+      if ( hypergraph.nodeDegree(hn) == 0 ) {
         hypergraph.removeDegreeZeroHypernode(hn);
         _removed_hns.push_back(hn);
         ++num_removed_degree_zero_hypernodes;
@@ -57,24 +61,31 @@ class DegreeZeroHypernodeRemover {
   }
 
   // ! Restore degree-zero vertices
-  // ! Each removed degree-zero vertex is assigned to the block of its supervertex.
   void restoreDegreeZeroHypernodes(PartitionedHypergraph& hypergraph) {
-    parallel::scalable_vector<PartitionID> non_overloaded_blocks(_context.partition.k, 0);
-    std::iota(non_overloaded_blocks.begin(), non_overloaded_blocks.end(), 0);
-    for ( const HypernodeID& hn : _removed_hns ) {
-      ASSERT(!non_overloaded_blocks.empty());
-      PartitionID to = non_overloaded_blocks.back();
-      while ( hypergraph.partWeight(to) >= _context.partition.max_part_weights[to] ) {
-        ASSERT(non_overloaded_blocks.size() > 1);
-        non_overloaded_blocks.pop_back();
-        to = non_overloaded_blocks.back();
-      }
-      hypergraph.restoreDegreeZeroHypernode(hn);
-      hypergraph.setNodePart(hn, to);
-    }
-  }
+    // Sort degree-zero vertices in decreasing order of their weight
+    tbb::parallel_sort(_removed_hns.begin(), _removed_hns.end(),
+      [&](const HypernodeID& lhs, const HypernodeID& rhs) {
+        return hypergraph.nodeWeight(lhs) > hypergraph.nodeWeight(rhs);
+      });
+    // Sort blocks of partition in increasing order of their weight
+    parallel::scalable_vector<PartitionID> blocks(_context.partition.k, 0);
+    std::iota(blocks.begin(), blocks.end(), 0);
+    std::sort(blocks.begin(), blocks.end(),
+      [&](const PartitionID& lhs, const PartitionID& rhs) {
+        return hypergraph.partWeight(lhs) < hypergraph.partWeight(rhs);
+      });
 
-  void reset() {
+    // Perform Bin-Packing
+    for ( const HypernodeID& hn : _removed_hns ) {
+      PartitionID to = blocks.front();
+      hypergraph.restoreDegreeZeroHypernode(hn, to);
+      PartitionID i = 0;
+      while ( i + 1 < _context.partition.k &&
+              hypergraph.partWeight(blocks[i]) > hypergraph.partWeight(blocks[i + 1]) ) {
+        std::swap(blocks[i], blocks[i + 1]);
+        ++i;
+      }
+    }
     _removed_hns.clear();
   }
 

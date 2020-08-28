@@ -53,8 +53,9 @@ class BFSInitialPartitioner : public tbb::task {
       kahypar::ds::FastResetFlagArray<>& hyperedges_in_queue =
         _ip_data.local_hyperedge_fast_reset_flag_array();
 
+      _ip_data.reset_unassigned_hypernodes();
       parallel::scalable_vector<HypernodeID> start_nodes =
-        PseudoPeripheralStartNodes::computeStartNodes(_ip_data, _context, _rng);
+        PseudoPeripheralStartNodes::computeStartNodes(_ip_data, _context, kInvalidPartition, _rng);
 
       // Insert each start node for each block into its corresponding queue
       hypernodes_in_queue.reset();
@@ -66,13 +67,14 @@ class BFSInitialPartitioner : public tbb::task {
         markHypernodeAsInQueue(hypergraph, hypernodes_in_queue, start_nodes[block], block);
       }
 
-      _ip_data.reset_unassigned_hypernodes();
       HypernodeID num_assigned_hypernodes = 0;
       // We grow the k blocks of the partition starting from each start node in
       // a BFS-fashion. The BFS queues for each block are visited in round-robin-fashion.
       // Once a block is on turn, it pops it first hypernode and pushes
       // all adjacent vertices into its queue.
-      while ( num_assigned_hypernodes < hypergraph.initialNumNodes() ) {
+      const HypernodeID current_num_nodes =
+        hypergraph.initialNumNodes() - hypergraph.numRemovedHypernodes();
+      while ( num_assigned_hypernodes < current_num_nodes ) {
         for ( PartitionID block = 0; block < _context.partition.k; ++block ) {
           HypernodeID hn = kInvalidHypernode;
 
