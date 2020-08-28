@@ -107,7 +107,9 @@ private:
   void insertOrUpdateNeighbors(const PHG& phg,
                                FMSharedData& sharedData,
                                const Move& move) {
-    for (HyperedgeID e : edgesToActivate) {
+
+    // Note: In theory we should acquire/update all neighbors. It just turned out that this works fine
+    for (HyperedgeID e : edgesWithGainChanges) {
       if (phg.edgeSize(e) < context.partition.ignore_hyperedge_size_threshold) {
         for (HypernodeID v : phg.pins(e)) {
           if (!updateDeduplicator.contains(v)) {
@@ -117,7 +119,7 @@ private:
         }
       }
     }
-    edgesToActivate.clear();
+    edgesWithGainChanges.clear();
     updateDeduplicator.clear();
   }
 
@@ -308,7 +310,7 @@ private:
   ds::DynamicSparseSet<HypernodeID> updateDeduplicator;
 
   // ! Stores hyperedges whose pins's gains may have changed after vertex move
-  vec<HyperedgeID> edgesToActivate;
+  vec<HyperedgeID> edgesWithGainChanges;
 };
 
 }

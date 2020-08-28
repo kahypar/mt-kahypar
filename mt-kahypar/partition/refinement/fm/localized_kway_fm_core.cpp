@@ -88,7 +88,7 @@ namespace mt_kahypar {
       // pins afterwards.
       if ( pin_count_in_from_part_after == 0 || pin_count_in_from_part_after == 1 ||
            pin_count_in_to_part_after == 1 || pin_count_in_to_part_after == 2 ) {
-        edgesToActivate.push_back(he);
+        edgesWithGainChanges.push_back(he);
       }
     };
 
@@ -160,7 +160,7 @@ namespace mt_kahypar {
       // pins afterwards.
       if ( pin_count_in_from_part_after == 0 || pin_count_in_from_part_after == 1 ||
            pin_count_in_to_part_after == 1 || pin_count_in_to_part_after == 2 ) {
-        edgesToActivate.push_back(he);
+        edgesWithGainChanges.push_back(he);
       }
     };
 
@@ -321,8 +321,8 @@ namespace mt_kahypar {
 
     utils::MemoryTreeNode* deduplicator_node = localized_fm_node->addChild("Deduplicator");
     deduplicator_node->updateSize(updateDeduplicator.size_in_bytes());
-    utils::MemoryTreeNode* edges_to_activate_node = localized_fm_node->addChild("edgesToActivate");
-    edges_to_activate_node->updateSize(edgesToActivate.capacity() * sizeof(HyperedgeID));
+    utils::MemoryTreeNode* edges_to_activate_node = localized_fm_node->addChild("edgesWithGainChanges");
+    edges_to_activate_node->updateSize(edgesWithGainChanges.capacity() * sizeof(HyperedgeID));
     utils::MemoryTreeNode* block_pq_node = localized_fm_node->addChild("Block PQ");
     block_pq_node->updateSize(blockPQ.size_in_bytes());
     utils::MemoryTreeNode* vertex_pq_node = localized_fm_node->addChild("Vertex PQ");
