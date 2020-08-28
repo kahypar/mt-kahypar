@@ -115,6 +115,7 @@ namespace mt_kahypar {
 
     for ( size_t i = 0; i < context.partition.num_vcycles; ++i ) {
       // Reset memory pool
+      hypergraph.reset();
       parallel::MemoryPool::instance().reset();
       parallel::MemoryPool::instance().release_mem_group("Preprocessing");
 
