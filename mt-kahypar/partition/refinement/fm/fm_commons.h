@@ -158,17 +158,6 @@ struct FMSharedData {
   // ! Tracks the current search of a node, and if a node can still be added to an active search
   NodeTracker nodeTracker;
 
-
-#ifdef KAHYPAR_N_LEVEL_PARADIGM
-  using TimestampType = uint32_t;   // use 32 bit timestamps for n-level since reset is called roughly n * 10 rounds / batch_size times
-#else
-  using TimestampType = uint16_t;   // ~65k resets possible without hard reset. should suffice for log(n) levels x 10 rounds
-#endif
-    // ! Indicates whether a node was a seed in a localized search that found no improvement.
-    // ! Used to distinguish whether or not the node should be reinserted into the task queue
-    // ! (if it was removed but could not be claimed for a search)
-  kahypar::ds::FastResetFlagArray< TimestampType > fruitlessSeed;
-
   // ! Stores the designated target part of a vertex, i.e. the part with the highest gain to which moving is feasible
   vec<PartitionID> targetPart;
 
@@ -189,7 +178,6 @@ struct FMSharedData {
           numParts(numParts),
           moveTracker(), //numNodes),
           nodeTracker(), //numNodes),
-          fruitlessSeed(numNodes),
           targetPart()
   {
     finishedTasks.store(0, std::memory_order_relaxed);

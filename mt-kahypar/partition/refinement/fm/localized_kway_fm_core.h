@@ -36,7 +36,6 @@ class LocalizedKWayFM {
  struct FMLocalData {
 
    void clear() {
-     seedVertices.clear();
      localMoves.clear();
      localMoveIDs.clear();
      runStats.clear();
@@ -45,16 +44,12 @@ class LocalizedKWayFM {
    void memoryConsumption(utils::MemoryTreeNode* parent) const {
     ASSERT(parent);
     utils::MemoryTreeNode* local_data_node = parent->addChild("Local FM Data");
-    utils::MemoryTreeNode* seed_vertices_node = local_data_node->addChild("Seed Vertices");
-    seed_vertices_node->updateSize(seedVertices.capacity() * sizeof(HypernodeID));
     utils::MemoryTreeNode* local_moves_node = local_data_node->addChild("Local Moves");
     local_moves_node->updateSize(localMoves.capacity() * sizeof(Move));
     utils::MemoryTreeNode* local_move_ids_node = local_data_node->addChild("Local Move IDs");
     local_move_ids_node->updateSize(localMoveIDs.capacity() * sizeof(MoveID));
    }
 
-   // ! Contains all seed vertices of the current local search
-   vec<HypernodeID> seedVertices;
    // ! Contains all moves performed during the current local search
    vec<Move> localMoves;
    // ! Contains all move IDs of all committed moves of the current local search

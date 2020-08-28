@@ -10,9 +10,7 @@ namespace mt_kahypar {
     const size_t nSeeds = context.refinement.fm.num_seed_nodes;
     HypernodeID seedNode;
     while (localData.runStats.pushes < nSeeds && sharedData.refinementNodes.try_pop(seedNode, taskID)) {
-      if (insertPQ(phg, seedNode, sharedData)) {
-        localData.seedVertices.push_back(seedNode);
-      }
+      insertPQ(phg, seedNode, sharedData);
     }
     for (PartitionID i = 0; i < k; ++i) {
       updateBlock(i);
@@ -283,22 +281,15 @@ namespace mt_kahypar {
     }
   }
 
-  void LocalizedKWayFM::clearPQs(FMSharedData& sharedData, const size_t bestImprovementIndex) {
+  void LocalizedKWayFM::clearPQs(FMSharedData& sharedData, const size_t /* bestImprovementIndex */ ) {
     // release all nodes that were not moved
     // reinsert into task queue only if we're doing multitry and at least one node was moved
     // unless a node was moved, only seed nodes are in the pqs
     const bool release = context.refinement.fm.release_nodes
                          && context.refinement.fm.algorithm == FMAlgorithm::fm_multitry
                          && localData.runStats.moves > 0;
-    const bool reinsert_seeds = bestImprovementIndex > 0;
 
     if (release) {
-      if (!reinsert_seeds) {
-        for (HypernodeID u : localData.seedVertices) {
-          sharedData.fruitlessSeed.set(u, true);
-        }
-      }
-
       // Release all nodes contained in PQ
       for (PartitionID i = 0; i < k; ++i) {
         for (PosT j = 0; j < vertexPQs[i].size(); ++j) {
