@@ -33,9 +33,10 @@
 #include "mt-kahypar/datastructures/connectivity_set.h"
 #include "mt-kahypar/datastructures/pin_count_in_part.h"
 #include "mt-kahypar/parallel/atomic_wrapper.h"
-#include "mt-kahypar/utils/range.h"
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
 #include "mt-kahypar/parallel/stl/thread_locals.h"
+#include "mt-kahypar/utils/range.h"
+#include "mt-kahypar/utils/timer.h"
 
 namespace mt_kahypar {
 namespace ds {
@@ -1104,10 +1105,10 @@ private:
   // ! some intermediate state of the pin counts when several vertices move in parallel.
   // ! Therefore, the current thread, which tries to modify the pin counts of the hyperedge,
   // ! try to acquire the ownership of the hyperedge and on success, pin counts are updated.
-  KAHYPAR_ATTRIBUTE_ALWAYS_INLINE bool updatePinCountOfHyperedgeWithoutGainUpdates(const HyperedgeID& he,
-                                                                                   const PartitionID from,
-                                                                                   const PartitionID to,
-                                                                                   const DeltaFunction& delta_func) {
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE bool updatePinCountOfHyperedgeWithoutGainUpdates(const HyperedgeID& he,
+                                                                                      const PartitionID from,
+                                                                                      const PartitionID to,
+                                                                                      const DeltaFunction& delta_func) {
     // In order to safely update the number of incident cut hyperedges and to compute
     // the delta of a move we need a stable snapshot of the pin count in from and to
     // part before and after the move. If we not do so, it can happen that due to concurrent
@@ -1165,10 +1166,10 @@ private:
   // ! Therefore, the current thread, which tries to modify the pin counts of the hyperedge,
   // ! try to acquire the ownership of the hyperedge and on success, pin counts are updated.
   template<typename DeltaFunc>
-  KAHYPAR_ATTRIBUTE_ALWAYS_INLINE bool updatePinCountOfHyperedgeWithGainUpdates(const HyperedgeID& he,
-                                                                                const PartitionID from,
-                                                                                const PartitionID to,
-                                                                                DeltaFunc&& delta_func) {
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE bool updatePinCountOfHyperedgeWithGainUpdates(const HyperedgeID& he,
+                                                                                   const PartitionID from,
+                                                                                   const PartitionID to,
+                                                                                   DeltaFunc&& delta_func) {
     // In order to safely update the number of incident cut hyperedges and to compute
     // the delta of a move we need a stable snapshot of the pin count in from and to
     // part before and after the move. If we not do so, it can happen that due to concurrent

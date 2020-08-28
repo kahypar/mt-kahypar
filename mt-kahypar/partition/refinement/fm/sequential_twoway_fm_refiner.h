@@ -403,8 +403,8 @@ class SequentialTwoWayFmRefiner {
     }
   }
 
-  KAHYPAR_ATTRIBUTE_ALWAYS_INLINE void updatePQState(const PartitionID from,
-                                                     const PartitionID to) {
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE void updatePQState(const PartitionID from,
+                                                        const PartitionID to) {
     if (_phg.partWeight(to) >= _context.partition.max_part_weights[to]) {
       _pq.disablePart(to);
     }

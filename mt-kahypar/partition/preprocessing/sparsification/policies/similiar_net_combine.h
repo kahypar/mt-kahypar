@@ -33,7 +33,7 @@ namespace {
 class UnionCombiner {
  public:
   template<typename Hypergraph>
-  KAHYPAR_ATTRIBUTE_ALWAYS_INLINE static inline Hyperedge combine(
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE static Hyperedge combine(
     const Hypergraph&, const Hyperedge& lhs, const Hyperedge& rhs) {
     ASSERT(std::is_sorted(lhs.begin(), lhs.end()));
     ASSERT(std::is_sorted(rhs.begin(), rhs.end()));
@@ -69,7 +69,7 @@ class UnionCombiner {
 class MaxSizeCombiner {
  public:
   template<typename Hypergraph>
-  KAHYPAR_ATTRIBUTE_ALWAYS_INLINE static inline Hyperedge combine(
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE static Hyperedge combine(
     const Hypergraph&, const Hyperedge& lhs, const Hyperedge& rhs) {
     if ( lhs.size() < rhs.size() ) {
       return rhs;
@@ -82,7 +82,7 @@ class MaxSizeCombiner {
 class NetImportanceCombiner {
  public:
   template<typename Hypergraph>
-  KAHYPAR_ATTRIBUTE_ALWAYS_INLINE static inline Hyperedge combine(
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE static Hyperedge combine(
     const Hypergraph& hypergraph, const Hyperedge& lhs, const Hyperedge& rhs) {
     HyperedgeWeight score_lhs = 0;
     for ( const HypernodeID& pin : lhs ) {
@@ -110,7 +110,7 @@ class NetImportanceCombiner {
 class UndefinedCombiner {
  public:
   template<typename Hypergraph>
-  KAHYPAR_ATTRIBUTE_ALWAYS_INLINE static inline Hyperedge combine(
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE static Hyperedge combine(
     const Hypergraph&, const Hyperedge& lhs, const Hyperedge&) {
     Hyperedge combined_he(lhs);
     ERROR("Similiar net combine strategy is undefined");

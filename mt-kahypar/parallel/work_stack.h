@@ -95,7 +95,7 @@ struct WorkContainer {
     ASSERT(thread_id < tls_queues.size());
     const bool success = tls_queues[thread_id].try_pop(dest) || conc_queue.try_pop(dest) || steal_work(dest);
     if (success) {
-      ASSERT(dest < timestamps.size());
+      ASSERT(static_cast<size_t>(dest) < timestamps.size());
       timestamps[dest] = current+1;
     }
     /*

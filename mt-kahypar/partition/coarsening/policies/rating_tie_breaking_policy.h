@@ -25,7 +25,7 @@
 namespace mt_kahypar {
 class LastRatingWins {
  public:
-  KAHYPAR_ATTRIBUTE_ALWAYS_INLINE static bool acceptEqual(const int) {
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE static bool acceptEqual(const int) {
     return true;
   }
 
@@ -41,7 +41,7 @@ class LastRatingWins {
 
 class FirstRatingWins {
  public:
-  KAHYPAR_ATTRIBUTE_ALWAYS_INLINE static bool acceptEqual(const int) {
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE static bool acceptEqual(const int) {
     return false;
   }
 
@@ -57,7 +57,7 @@ class FirstRatingWins {
 
 class RandomRatingWins {
  public:
-  KAHYPAR_ATTRIBUTE_ALWAYS_INLINE static bool acceptEqual(const int cpu_id) {
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE static bool acceptEqual(const int cpu_id) {
     return utils::Randomize::instance().flipCoin(cpu_id);
   }
 
