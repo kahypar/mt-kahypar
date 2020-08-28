@@ -72,8 +72,8 @@ class LocalizedKWayFM {
           deltaPhg(context.partition.k),
           blockPQ(static_cast<size_t>(k)),
           vertexPQs(static_cast<size_t>(k), VertexPriorityQueue(pq_handles, numNodes)),
-          updateDeduplicator(),
-          validHyperedges() { }
+          updateDeduplicator()
+          { }
 
 
   bool findMovesUsingFullBoundary(PartitionedHypergraph& phg, FMSharedData& sharedData);
@@ -107,17 +107,17 @@ private:
   void insertOrUpdateNeighbors(const PHG& phg,
                                FMSharedData& sharedData,
                                const Move& move) {
-    for (HyperedgeID e : phg.incidentEdges(move.node)) {
-      if (phg.edgeSize(e) < context.partition.ignore_hyperedge_size_threshold && !validHyperedges[e]) { // TODO why not just store them in a vector to later iterate over?
+    for (HyperedgeID e : edgesToActivate) {
+      if (phg.edgeSize(e) < context.partition.ignore_hyperedge_size_threshold) {
         for (HypernodeID v : phg.pins(e)) {
           if (!updateDeduplicator.contains(v)) {
             insertOrUpdatePQ(phg, v, sharedData, move);
             updateDeduplicator[v] = { };  // insert
           }
         }
-        validHyperedges[e] = true;
       }
     }
+    edgesToActivate.clear();
     updateDeduplicator.clear();
   }
 
@@ -307,11 +307,8 @@ private:
   // ! After a move it collects all neighbors of the moved vertex
   ds::DynamicSparseSet<HypernodeID> updateDeduplicator;
 
-  // ! Marks all hyperedges that are visited during the local search
-  // ! and where the gain of its pin is expected to be equal to gain value
-  // ! inside the PQs. A hyperedge can become invalid if a move changes the
-  // ! gain values of its pins.
-  ds::DynamicSparseMap<HyperedgeID, bool> validHyperedges;
+  // ! Stores hyperedges whose pins's gains may have changed after vertex move
+  vec<HyperedgeID> edgesToActivate;
 };
 
 }
