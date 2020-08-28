@@ -129,6 +129,12 @@ struct NodeTracker {
     return isSearchInactive( searchOfNode[u].load(std::memory_order_acq_rel) );
   }
 
+  bool tryAcquireNode(HypernodeID u, SearchID new_search) {
+    SearchID current_search = searchOfNode[u].load(std::memory_order_acq_rel);
+    return isSearchInactive(current_search)
+            && searchOfNode[u].compare_exchange_strong(current_search, new_search, std::memory_order_acq_rel);
+  }
+
   void requestNewSearches(SearchID max_num_searches) {
     if (highestActiveSearchID.load(std::memory_order_relaxed) >= std::numeric_limits<SearchID>::max() - max_num_searches - 20) {
       tbb::parallel_for(0UL, searchOfNode.size(), [&](const size_t i) {
@@ -262,5 +268,6 @@ struct FMStats {
     return os.str();
   }
 };
+
 
 }

@@ -10,7 +10,7 @@ namespace mt_kahypar {
     const size_t nSeeds = context.refinement.fm.num_seed_nodes;
     HypernodeID seedNode;
     while (localData.runStats.pushes < nSeeds && sharedData.refinementNodes.try_pop(seedNode, taskID)) {
-      insertPQ(phg, seedNode, sharedData);
+      tryAcquireNodeAndInsertIntoPQ(phg, seedNode, sharedData);
     }
     for (PartitionID i = 0; i < k; ++i) {
       updateBlock(i);
@@ -45,7 +45,7 @@ namespace mt_kahypar {
     thisSearch = ++sharedData.nodeTracker.highestActiveSearchID;
 
     for (HypernodeID u : sharedData.refinementNodes.safely_inserted_range()) {
-      insertPQ(phg, u, sharedData);
+      tryAcquireNodeAndInsertIntoPQ(phg, u, sharedData);
     }
     for (PartitionID i = 0; i < k; ++i) {
       updateBlock(i);
@@ -127,7 +127,7 @@ namespace mt_kahypar {
           bestImprovementIndex = localData.localMoves.size();
         }
 
-        insertOrUpdateNeighbors(deltaPhg, sharedData, move);
+        acquireOrUpdateNeighbors(deltaPhg, sharedData, move);
       }
 
       for (PartitionID i = 0; i < k; ++i) {
@@ -202,7 +202,7 @@ namespace mt_kahypar {
           bestImprovementIndex = localData.localMoveIDs.size();
         }
 
-        insertOrUpdateNeighbors(phg, sharedData, move);
+        acquireOrUpdateNeighbors(phg, sharedData, move);
       }
 
       for (PartitionID i = 0; i < k; ++i) {

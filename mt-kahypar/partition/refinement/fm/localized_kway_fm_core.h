@@ -99,16 +99,21 @@ private:
 
   template<typename PHG>
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
-  void insertOrUpdateNeighbors(const PHG& phg,
-                               FMSharedData& sharedData,
-                               const Move& move) {
+  void acquireOrUpdateNeighbors(const PHG& phg,
+                                FMSharedData& sharedData,
+                                const Move& move) {
 
     // Note: In theory we should acquire/update all neighbors. It just turned out that this works fine
     for (HyperedgeID e : edgesWithGainChanges) {
       if (phg.edgeSize(e) < context.partition.ignore_hyperedge_size_threshold) {
         for (HypernodeID v : phg.pins(e)) {
           if (!updateDeduplicator.contains(v)) {
-            insertOrUpdatePQ(phg, v, sharedData, move);
+            SearchID searchOfV = sharedData.nodeTracker.searchOfNode[v].load(std::memory_order_acq_rel);
+            if (searchOfV == thisSearch) {
+              updateGain(phg, v, sharedData, move);
+            } else {
+              tryAcquireNodeAndInsertIntoPQ(phg, v, sharedData);
+            }
             updateDeduplicator[v] = { };  // insert
           }
         }
@@ -118,65 +123,44 @@ private:
     updateDeduplicator.clear();
   }
 
+  template<typename PHG>
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
-  bool insertPQ(const PartitionedHypergraph& phg, const HypernodeID v, FMSharedData& sharedData) {
-    NodeTracker& nt = sharedData.nodeTracker;
-    SearchID searchOfV = nt.searchOfNode[v].load(std::memory_order_acq_rel);
-    if (nt.isSearchInactive(searchOfV)) {
-      if (nt.searchOfNode[v].compare_exchange_strong(searchOfV, thisSearch, std::memory_order_acq_rel)) {
-        const PartitionID pv = phg.partID(v);
-        auto [target, gain] = bestDestinationBlock(phg, v);
-        sharedData.targetPart[v] = target;
-        vertexPQs[pv].insert(v, gain);  // blockPQ updates are done later, collectively.
-        localData.runStats.pushes++;
-        return true;
-      }
+  bool tryAcquireNodeAndInsertIntoPQ(const PHG& phg, const HypernodeID v, FMSharedData& sharedData) {
+    // try acquire fails for deactivated nodes!
+    if (sharedData.nodeTracker.tryAcquireNode(v, thisSearch)) {
+      const PartitionID pv = phg.partID(v);
+      auto [target, gain] = bestDestinationBlock(phg, v);
+      sharedData.targetPart[v] = target;
+      vertexPQs[pv].insert(v, gain);  // blockPQ updates are done later, collectively.
+      localData.runStats.pushes++;
+      return true;
     }
     return false;
   }
 
   template<typename PHG>
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
-  bool insertOrUpdatePQ(const PHG& phg,
-                        const HypernodeID v,
-                        FMSharedData& sharedData,
-                        const Move& move) {
-    assert(move.from != kInvalidPartition && move.to != kInvalidPartition);
-    NodeTracker& nt = sharedData.nodeTracker;
-    SearchID searchOfV = nt.searchOfNode[v].load(std::memory_order_acq_rel);
-    // Note. Deactivated nodes have a special active search ID so that neither branch is executed
-    if (nt.isSearchInactive(searchOfV)) {
-      if (nt.searchOfNode[v].compare_exchange_strong(searchOfV, thisSearch, std::memory_order_acq_rel)) {
-        const PartitionID pv = phg.partID(v);
-        auto [target, gain] = bestDestinationBlock(phg, v);
-        sharedData.targetPart[v] = target;
-        vertexPQs[pv].insert(v, gain);  // blockPQ updates are done later, collectively.
-        localData.runStats.pushes++;
-        return true;
-      }
-    } else if (searchOfV == thisSearch) {
-      const PartitionID pv = phg.partID(v);
-      ASSERT(vertexPQs[pv].contains(v));
-      const PartitionID designatedTargetV = sharedData.targetPart[v];
-      Gain gain = 0;
-      PartitionID newTarget = kInvalidPartition;
+  void updateGain(const PHG& phg, const HypernodeID v, FMSharedData& sharedData, const Move& move) {
+    const PartitionID pv = phg.partID(v);
+    ASSERT(vertexPQs[pv].contains(v));
+    const PartitionID designatedTargetV = sharedData.targetPart[v];
+    Gain gain = 0;
+    PartitionID newTarget = kInvalidPartition;
 
-      if (k < 4 || designatedTargetV == move.from || designatedTargetV == move.to) {
-        // moveToPenalty of designatedTargetV is affected.
-        // and may now be greater than that of other blocks --> recompute full
-        std::tie(newTarget, gain) = bestDestinationBlock(phg, v);
-      } else {
-        // moveToPenalty of designatedTargetV is not affected.
-        // only move.from and move.to may be better
-        std::tie(newTarget, gain) = bestOfThree(phg, v, pv, { designatedTargetV, move.from, move.to });
-      }
-
-      sharedData.targetPart[v] = newTarget;
-      vertexPQs[pv].adjustKey(v, gain);
-      return true;
+    if (k < 4 || designatedTargetV == move.from || designatedTargetV == move.to) {
+      // moveToPenalty of designatedTargetV is affected.
+      // and may now be greater than that of other blocks --> recompute full
+      std::tie(newTarget, gain) = bestDestinationBlock(phg, v);
+    } else {
+      // moveToPenalty of designatedTargetV is not affected.
+      // only move.from and move.to may be better
+      std::tie(newTarget, gain) = bestOfThree(phg, v, pv, { designatedTargetV, move.from, move.to });
     }
-    return false;
+
+    sharedData.targetPart[v] = newTarget;
+    vertexPQs[pv].adjustKey(v, gain);
   }
+
 
   template<typename PHG>
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
