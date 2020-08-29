@@ -47,9 +47,11 @@ class InitialPartitioningDataContainer {
   // ! Contains information about the best thread local partition
   struct PartitioningResult {
     explicit PartitioningResult(InitialPartitioningAlgorithm algorithm,
+                                HyperedgeWeight objective_ip,
                                 HyperedgeWeight objective,
                                 double imbalance) :
       _algorithm(algorithm),
+      _objective_ip(objective_ip),
       _objective(objective),
       _imbalance(imbalance) { }
 
@@ -68,12 +70,14 @@ class InitialPartitioningDataContainer {
     std::string str() const {
       std::stringstream ss;
       ss << "Algorithm = " << _algorithm << ", "
+         << "Objective IP = " << _objective_ip << ", "
          << "Objective = " << _objective << ", "
          << "Imbalance = " << _imbalance;
       return ss.str();
     }
 
     InitialPartitioningAlgorithm _algorithm;
+    HyperedgeWeight _objective_ip;
     HyperedgeWeight _objective;
     double _imbalance;
   };
@@ -175,6 +179,7 @@ class InitialPartitioningDataContainer {
       _partition(hypergraph.initialNumNodes(), kInvalidPartition),
       _result(InitialPartitioningAlgorithm::UNDEFINED,
               std::numeric_limits<HypernodeWeight>::max(),
+              std::numeric_limits<HypernodeWeight>::max(),
               std::numeric_limits<double>::max()),
       _label_propagation(nullptr),
       _twoway_fm(nullptr),
@@ -210,16 +215,16 @@ class InitialPartitioningDataContainer {
         metrics::hyperedgeCut(_partitioned_hypergraph, false),
         metrics::km1(_partitioned_hypergraph, false),
         metrics::imbalance(_partitioned_hypergraph, _context) };
+      const HyperedgeWeight quality_before_refinement =
+        current_metric.getMetric(kahypar::Mode::direct_kway, _context.partition.objective);
 
       refineCurrentPartition(current_metric);
 
-      PartitioningResult result(algorithm,
+      PartitioningResult result(algorithm, quality_before_refinement,
         current_metric.getMetric(kahypar::Mode::direct_kway, _context.partition.objective),
         current_metric.imbalance);
 
-      DBG << "Thread ID:" << std::this_thread::get_id()
-          << "- CPU ID:" << sched_getcpu()
-          << "[" << result.str() << "]";
+      DBG << "[" << result.str() << "]";
 
       // Aggregate Stats
       uint8_t algorithm_index = static_cast<uint8_t>(algorithm);
@@ -263,6 +268,7 @@ class InitialPartitioningDataContainer {
 
       // Compare current best partition with refined partition
       PartitioningResult result(_result._algorithm,
+        current_metric.getMetric(kahypar::Mode::direct_kway, _context.partition.objective),
         current_metric.getMetric(kahypar::Mode::direct_kway, _context.partition.objective),
         current_metric.imbalance);
 
@@ -403,6 +409,7 @@ class InitialPartitioningDataContainer {
       for ( const HypernodeID& hn : hypergraph.nodes() ) {
         unassigned_hypernodes.push_back(hn);
       }
+      utils::Randomize::instance().shuffleVector(unassigned_hypernodes, sched_getcpu());
     }
     unassigned_hypernode_pointer = unassigned_hypernodes.size();
   }

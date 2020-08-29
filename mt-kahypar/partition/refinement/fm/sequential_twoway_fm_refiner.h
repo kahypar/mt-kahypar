@@ -171,12 +171,16 @@ class SequentialTwoWayFmRefiner {
                             const Context& context) :
     _phg(phg),
     _context(context),
+    _nodes(),
     _pq(context.partition.k),
     _border_vertices(phg.initialNumNodes()),
     _vertex_state(phg.initialNumNodes(), VertexState::INACTIVE),
     _he_state(phg.initialNumEdges(), HEState::FREE) {
     ASSERT(_context.partition.k == 2);
     _pq.initialize(_phg.initialNumNodes());
+    for ( const HypernodeID& hn : phg.nodes() ) {
+      _nodes.push_back(hn);
+    }
   }
 
   bool refine(kahypar::Metrics& best_metrics);
@@ -213,6 +217,7 @@ class SequentialTwoWayFmRefiner {
   PartitionedHypergraph& _phg;
   const Context& _context;
 
+  parallel::scalable_vector<HypernodeID> _nodes;
   KWayRefinementPQ _pq;
   BorderVertexTracker _border_vertices;
   parallel::scalable_vector<VertexState> _vertex_state;

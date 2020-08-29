@@ -22,6 +22,7 @@
 
 #include "mt-kahypar/partition/metrics.h"
 #include "mt-kahypar/partition/refinement/fm/stop_rule.h"
+#include "mt-kahypar/utils/randomize.h"
 
 namespace mt_kahypar {
 
@@ -30,7 +31,8 @@ bool SequentialTwoWayFmRefiner::refine(kahypar::Metrics& best_metrics) {
   // Activate all border nodes
   _pq.clear();
   _border_vertices.initialize(_phg);
-  for ( const HypernodeID& hn : _phg.nodes() ) {
+  utils::Randomize::instance().shuffleVector(_nodes, sched_getcpu());
+  for ( const HypernodeID& hn : _nodes ) {
     _vertex_state[hn] = VertexState::INACTIVE;
     activate(hn);
   }
@@ -245,10 +247,10 @@ void SequentialTwoWayFmRefiner::updatePin(const HypernodeID pin, const Gain delt
 
 void SequentialTwoWayFmRefiner::updatePQState(const PartitionID from,
                                               const PartitionID to) {
-  if (_phg.partWeight(to) >= _context.partition.max_part_weights[to]) {
+  if (_phg.partWeight(to) >= _context.partition.max_part_weights[to] ) {
     _pq.disablePart(to);
   }
-  if (_phg.partWeight(from) < _context.partition.max_part_weights[from]) {
+  if (_phg.partWeight(from) < _context.partition.max_part_weights[from] ) {
     _pq.enablePart(from);
   }
 }
