@@ -195,7 +195,10 @@ namespace mt_kahypar::multilevel {
       io::printInitialPartitioningBanner(_context);
 
       if ( !_vcycle ) {
-        _degree_zero_hn_remover.removeDegreeZeroHypernodes(phg.hypergraph());
+        if ( _context.initial_partitioning.remove_degree_zero_hns_before_ip ) {
+          _degree_zero_hn_remover.removeDegreeZeroHypernodes(phg.hypergraph());
+        }
+
         if ( _context.initial_partitioning.mode == InitialPartitioningMode::direct ) {
           disableTimerAndStats();
           // TODO move into IP algos

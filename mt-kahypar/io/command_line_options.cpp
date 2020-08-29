@@ -376,6 +376,9 @@ namespace mt_kahypar {
             ("i-fm-refinement-rounds",
              po::value<size_t>(&context.initial_partitioning.fm_refinment_rounds)->value_name("<size_t>")->default_value(1),
              "Number of 2-way FM rounds on each bisection produced by an initial partitioner.")
+            ("i-remove-degree-zero-hns-before-ip",
+             po::value<bool>(&context.initial_partitioning.remove_degree_zero_hns_before_ip)->value_name("<bool>")->default_value(true),
+             "If true, degree-zero vertices are removed before initial partitioning.")
             ("i-lp-maximum-iterations",
              po::value<size_t>(&context.initial_partitioning.lp_maximum_iterations)->value_name(
                      "<size_t>")->default_value(20),
