@@ -14,6 +14,7 @@ build/*
 build2/*
 build_numa/*
 build_nlevel/*
+build_interleaved/*
 rel2/
 external_tools/*
 relwithdebinfo/*
@@ -36,3 +37,4 @@ external_tools/*
 .vscode/*
 example_1
 example_2
+config/nlevel_interleaved_preset.ini
