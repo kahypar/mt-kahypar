@@ -161,6 +161,7 @@ namespace mt_kahypar {
     str << "  Use Adaptive Epsilon:               " << std::boolalpha << params.use_adaptive_epsilon << std::endl;
     str << "  Perform Refinement On Best:         " << std::boolalpha << params.perform_refinement_on_best_partitions << std::endl;
     str << "  Fm Refinement Rounds:               " << params.fm_refinment_rounds << std::endl;
+    str << "  Remove Degree-Zero HNs Before IP:   " << std::boolalpha << params.remove_degree_zero_hns_before_ip << std::endl;
     str << "  Maximum Iterations of LP IP:        " << params.lp_maximum_iterations << std::endl;
     str << "  Initial Block Size of LP IP:        " << params.lp_initial_block_size << std::endl;
     str << "\nInitial Partitioning ";

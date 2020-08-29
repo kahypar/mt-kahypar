@@ -165,14 +165,20 @@ struct SparsificationParameters {
 std::ostream & operator<< (std::ostream& str, const SparsificationParameters& params);
 
 struct InitialPartitioningParameters {
+  InitialPartitioningParameters() :
+    // Enable all initial partitioner per default
+    enabled_ip_algos(static_cast<size_t>(InitialPartitioningAlgorithm::UNDEFINED), true) { }
+
   InitialPartitioningMode mode = InitialPartitioningMode::UNDEFINED;
   RefinementParameters refinement = { };
+  std::vector<bool> enabled_ip_algos;
   size_t runs = 1;
   bool use_adaptive_ip_runs = false;
   size_t min_adaptive_ip_runs = std::numeric_limits<size_t>::max();
   bool use_adaptive_epsilon = false;
   bool perform_refinement_on_best_partitions = false;
   size_t fm_refinment_rounds = 1;
+  bool remove_degree_zero_hns_before_ip = false;
   size_t lp_maximum_iterations = 1;
   size_t lp_initial_block_size = 1;
 };

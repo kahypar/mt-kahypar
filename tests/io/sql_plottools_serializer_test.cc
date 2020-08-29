@@ -50,7 +50,7 @@ std::set<std::string> excluded_members =
   { "verbose_output", "show_detailed_timings", "show_detailed_clustering_timings", "show_memory_consumption", "show_advanced_cut_analysis", "enable_progress_bar", "sp_process_output",
     "measure_detailed_uncontraction_timings", "write_partition_file", "graph_partition_output_folder", "graph_partition_filename", "graph_community_filename", "community_detection",
     "community_redistribution", "coarsening_rating", "label_propagation", "lp_execute_sequential",
-    "snapshot_interval", "initial_partitioning_refinement", "initial_partitioning_sparsification",
+    "snapshot_interval", "initial_partitioning_refinement", "initial_partitioning_sparsification", "initial_partitioning_enabled_ip_algos",
     "stable_construction_of_incident_edges", "fm", "csv_output", "preset_file" };
 
 bool is_target_struct(const std::string& line) {
@@ -88,7 +88,11 @@ void read_all_members_of_target_struct(std::ifstream& context_file,
     std::strcpy(input, line.c_str());
     if ( strcmp(input, "  #else") != 0 &&
          strcmp(input, "  #endif") != 0 &&
-         strcmp(input, "  #ifdef KAHYPAR_USE_N_LEVEL_PARADIGM") != 0 ) {
+         strcmp(input, "  #ifdef KAHYPAR_USE_N_LEVEL_PARADIGM") != 0 &&
+         strcmp(input, "  InitialPartitioningParameters() :") != 0 &&
+         strcmp(input, "  InitialPartitioningParameters() :") != 0 &&
+         strcmp(input, "    // Enable all initial partitioner per default") != 0 &&
+         strcmp(input, "    enabled_ip_algos(static_cast<size_t>(InitialPartitioningAlgorithm::UNDEFINED), true) { }") != 0 ) {
       char* token = std::strtok(input, " ;");
       // Second value is member name
       token = std::strtok(NULL, " ;");

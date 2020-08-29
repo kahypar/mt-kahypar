@@ -39,6 +39,24 @@ namespace mt_kahypar {
     context.setupPartWeights(hypergraph.totalWeight());
     context.setupContractionLimit(hypergraph.totalWeight());
     context.sanityCheck();
+
+    // Setup enabled IP algorithms
+    if ( context.initial_partitioning.enabled_ip_algos.size() > 0 &&
+         context.initial_partitioning.enabled_ip_algos.size() <
+         static_cast<size_t>(InitialPartitioningAlgorithm::UNDEFINED) ) {
+      ERROR("Size of enabled IP algorithms vector is smaller than number of IP algorithms!");
+    } else if ( context.initial_partitioning.enabled_ip_algos.size() == 0 ) {
+      context.initial_partitioning.enabled_ip_algos.assign(
+        static_cast<size_t>(InitialPartitioningAlgorithm::UNDEFINED), true);
+    } else {
+      bool is_one_ip_algo_enabled = false;
+      for ( size_t i = 0; i < context.initial_partitioning.enabled_ip_algos.size(); ++i ) {
+        is_one_ip_algo_enabled |= context.initial_partitioning.enabled_ip_algos[i];
+      }
+      if ( !is_one_ip_algo_enabled ) {
+        ERROR("At least one initial partitioning algorithm must be enabled!");
+      }
+    }
   }
 
   void configurePreprocessing(const Hypergraph& hypergraph, Context& context) {
