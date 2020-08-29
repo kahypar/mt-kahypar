@@ -20,8 +20,8 @@ jobs:
 
       - name: Install Dependencies
         run: |
-          apt-get update
-          apt-get install libtbb-dev libhwloc-dev r-base
+          sudo apt-get update
+          sudo apt-get install libtbb-dev libhwloc-dev r-base
 
       - name: Install Current Version of Mt-KaHyPar
         run: |
