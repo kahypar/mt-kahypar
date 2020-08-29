@@ -1,0 +1,81 @@
+name: Performance Benchmark
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+jobs:
+  performance_benchmark:
+    runs-on: ubuntu-latest
+    env:
+      BOOST_ROOT : "/usr/local/share/boost/1.72.0"
+
+    steps:
+      - name: Checkout HEAD
+        uses: actions/checkout@v2
+        with:
+         fetch-depth: 2
+
+      - name: Install Dependencies
+        run: |
+          apt-get update
+          apt-get install libtbb-dev libhwloc-dev r-base
+
+      - name: Install Current Version of Mt-KaHyPar
+        run: |
+          git submodule init
+          git submodule update
+          rm -rf build
+          mkdir build
+          cd build
+          cmake .. -DCMAKE_BUILD_TYPE=RELEASE
+          make KaHyPar -j2
+
+      - name: Run Benchmark on Current Version of Mt-KaHyPar
+        run: |
+          current_sha=$(git rev-parse --short "$GITHUB_SHA")
+          echo "$current_sha" >> current_sha.txt
+          echo $current_sha
+          cd .github/workflows
+          mkdir $current_sha
+          cd $current_sha
+          mkdir $current_sha
+          cd ..
+          bash -x benchmark.sh ../../build/mt-kahypar/application/KaHyPar ../../config/quality_preset.ini $current_sha/$current_sha
+          cd ../..
+
+      - name: Install Previous Version of Mt-KaHyPar
+        run: |
+          git checkout HEAD^
+          git submodule init
+          git submodule update
+          rm -rf build
+          mkdir build
+          cd build
+          cmake .. -DCMAKE_BUILD_TYPE=RELEASE
+          make KaHyPar -j2
+
+      - name: Run Benchmark on Previous Version of Mt-KaHyPar
+        run: |
+          current_sha=`cat current_sha.txt`
+          previous_sha=$(git rev-parse --short HEAD)
+          echo "$previous_sha" >> previous_sha.txt
+          echo $previous_sha
+          cd .github/workflows
+          cd $current_sha
+          mkdir $previous_sha
+          cd ..
+          bash -x benchmark.sh ../../build/mt-kahypar/application/KaHyPar ../../config/quality_preset.ini $current_sha/$previous_sha
+          cd ../..
+
+      - name: Create Benchmark Results
+        run: |
+          current_sha=`cat current_sha.txt`
+          previous_sha=`cat previous_sha.txt`
+          cd .github/workflows
+          ./grep_experiment_results.sh $current_sha
+          Rscript --vanilla results.R $PWD $current_sha $previous_sha $current_sha
+          ls $current_sha
+
