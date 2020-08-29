@@ -10,7 +10,7 @@ jobs:
   performance_benchmark:
     runs-on: ubuntu-latest
     env:
-      BOOST_ROOT : "/usr/local/share/boost/1.72.0"
+      BOOST_ROOT : "/usr/local/share/boost/1.69.0"
 
     steps:
       - name: Checkout HEAD
