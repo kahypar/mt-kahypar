@@ -10,7 +10,7 @@ jobs:
   performance_benchmark:
     runs-on: ubuntu-latest
     env:
-      BOOST_ROOT : "/usr/local/share/boost/1.69.0"
+      BOOST_ROOT : "/usr/local/share/boost/1.72.0"
 
     steps:
       - name: Checkout HEAD
@@ -30,7 +30,7 @@ jobs:
           rm -rf build
           mkdir build
           cd build
-          cmake .. -DCMAKE_BUILD_TYPE=RELEASE
+          cmake .. -DCMAKE_BUILD_TYPE=RELEASE -DBOOST_ROOT=$BOOST_ROOT_1_72_0 -DBoost_ADDITIONAL_VERSIONS=1.72.0
           make KaHyPar -j2
 
       - name: Run Benchmark on Current Version of Mt-KaHyPar
@@ -54,7 +54,7 @@ jobs:
           rm -rf build
           mkdir build
           cd build
-          cmake .. -DCMAKE_BUILD_TYPE=RELEASE
+          cmake .. -DCMAKE_BUILD_TYPE=RELEASE -DBOOST_ROOT=$BOOST_ROOT_1_72_0 -DBoost_ADDITIONAL_VERSIONS=1.72.0
           make KaHyPar -j2
 
       - name: Run Benchmark on Previous Version of Mt-KaHyPar
