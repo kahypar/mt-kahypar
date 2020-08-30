@@ -21,7 +21,7 @@ jobs:
       - name: Install Dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install libtbb-dev libhwloc-dev r-base libboost-program-options-dev
+          sudo apt-get install libtbb-dev libhwloc-dev libboost-program-options-dev
 
       - name: Install Current Version of Mt-KaHyPar
         run: |
@@ -37,13 +37,12 @@ jobs:
         run: |
           current_sha=$(git rev-parse --short "$GITHUB_SHA")
           echo "$current_sha" >> current_sha.txt
-          echo $current_sha
           cd .github/workflows
-          mkdir $current_sha
+          mkdir results
           cd $current_sha
           mkdir $current_sha
           cd ..
-          bash -x benchmark.sh ../../build/mt-kahypar/application/KaHyPar ../../config/quality_preset.ini $current_sha/$current_sha
+          bash -x benchmark.sh ../../build/mt-kahypar/application/KaHyPar ../../config/quality_preset.ini results/$current_sha
           cd ../..
 
       - name: Install Previous Version of Mt-KaHyPar
@@ -62,23 +61,15 @@ jobs:
           current_sha=`cat current_sha.txt`
           previous_sha=$(git rev-parse --short HEAD)
           echo "$previous_sha" >> previous_sha.txt
-          echo $previous_sha
           cd .github/workflows
-          cd $current_sha
+          cd results
           mkdir $previous_sha
           cd ..
-          bash -x benchmark.sh ../../build/mt-kahypar/application/KaHyPar ../../config/quality_preset.ini $current_sha/$previous_sha
+          bash -x benchmark.sh ../../build/mt-kahypar/application/KaHyPar ../../config/quality_preset.ini results/$previous_sha
           cd ../..
 
-      - name: Setup R
-        uses: r-lib/actions/setup-r@v1
-
-      - name: Create Benchmark Results
-        run: |
-          current_sha=`cat current_sha.txt`
-          previous_sha=`cat previous_sha.txt`
-          cd .github/workflows
-          ./grep_experiment_results.sh $current_sha
-          Rscript --vanilla results.R $PWD $current_sha $previous_sha $current_sha
-          ls $current_sha
-
+      . name: Upload CSV Files
+      - uses: actions/upload-artifact@v2
+        with:
+          name: results
+          path: .github/workflows/results/*.csv
