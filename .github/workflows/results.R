@@ -38,9 +38,9 @@ gm_mean = function(x, na.rm=TRUE, zero.propagate = FALSE){
 sqrt5_trans = function() trans_new("sqrt5", function(x) x^(1/5), function(x) x^5)
 
 running_time_plot <- function(algo_1, algo_2) {
+  result <- rbind(algo_1, algo_2)
   gmean_time_aggreg = function(df) data.frame(gmean_time = gm_mean(df$avg_time))
   result_gmean <- ddply(result, c("algorithm"), gmean_time_aggreg)
-  result <- rbind(algo_1, algo_2)
   running_time = ggplot(result, aes(x=algorithm, y=avg_time, fill=algorithm)) +
     geom_point(size = 0.5, pch = 21, position = position_jitterdodge(jitter.width = 1.0)) +
     geom_boxplot(outlier.shape = NA, alpha = 0.5) +
