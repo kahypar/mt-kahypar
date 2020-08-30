@@ -68,8 +68,14 @@ jobs:
           bash -x benchmark.sh ../../build/mt-kahypar/application/KaHyPar ../../config/quality_preset.ini results/$previous_sha
           cd ../..
 
+      - name: Create CSV Files
+        run: |
+          cd .github/workflows
+          ./grep_experiment_results.sh results
+          cd ../..
+
       - name: Upload CSV Files
         uses: actions/upload-artifact@v2
         with:
           name: results
-          path: .github/workflows/results/
+          path: .github/workflows/results/*.csv
