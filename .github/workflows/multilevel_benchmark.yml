@@ -39,7 +39,7 @@ jobs:
           echo "$current_sha" >> current_sha.txt
           cd .github/workflows
           mkdir results
-          cd $current_sha
+          cd results
           mkdir $current_sha
           cd ..
           bash -x benchmark.sh ../../build/mt-kahypar/application/KaHyPar ../../config/quality_preset.ini results/$current_sha
