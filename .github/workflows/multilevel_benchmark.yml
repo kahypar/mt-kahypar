@@ -71,6 +71,7 @@ jobs:
           cd ../..
 
       - name: Create Benchmark Results
+        uses: r-lib/actions/setup-r@v1
         run: |
           current_sha=`cat current_sha.txt`
           previous_sha=`cat previous_sha.txt`
