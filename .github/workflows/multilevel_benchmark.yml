@@ -70,8 +70,10 @@ jobs:
           bash -x benchmark.sh ../../build/mt-kahypar/application/KaHyPar ../../config/quality_preset.ini $current_sha/$previous_sha
           cd ../..
 
-      - name: Create Benchmark Results
+      - name: Setup R
         uses: r-lib/actions/setup-r@v1
+
+      - name: Create Benchmark Results
         run: |
           current_sha=`cat current_sha.txt`
           previous_sha=`cat previous_sha.txt`
