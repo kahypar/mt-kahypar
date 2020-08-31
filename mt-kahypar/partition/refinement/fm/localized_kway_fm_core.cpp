@@ -342,7 +342,11 @@ namespace mt_kahypar {
     runStats.local_reverts += localMoves.size() - bestGainIndex;
     while (localMoves.size() > bestGainIndex) {
       Move& m = sharedData.moveTracker.getMove(localMoves.back().second);
-      phg.changeNodePartWithGainCacheUpdate(m.node, m.to, m.from);
+      if constexpr (FMDetails::uses_gain_cache) {
+        phg.changeNodePartWithGainCacheUpdate(m.node, m.to, m.from);
+      } else {
+        phg.changeNodePart(m.node, m.to, m.from);
+      }
       sharedData.moveTracker.invalidateMove(m);
       localMoves.pop_back();
     }
