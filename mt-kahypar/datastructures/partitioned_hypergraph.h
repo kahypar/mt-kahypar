@@ -573,7 +573,7 @@ private:
       _part_ids[u] = to;
       report_success();
       for ( const HyperedgeID& he : incidentEdges(u) ) {
-        while ( !updatePinCountOfHyperedgeWithoutGainUpdates(he, from, to, delta_func) );
+        updatePinCountOfHyperedgeWithoutGainUpdates(he, from, to, delta_func);
       }
       return true;
     } else {
@@ -1130,7 +1130,7 @@ private:
   // ! some intermediate state of the pin counts when several vertices move in parallel.
   // ! Therefore, the current thread, which tries to modify the pin counts of the hyperedge,
   // ! try to acquire the ownership of the hyperedge and on success, pin counts are updated.
-  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE bool updatePinCountOfHyperedgeWithoutGainUpdates(const HyperedgeID& he,
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE void updatePinCountOfHyperedgeWithoutGainUpdates(const HyperedgeID& he,
                                                                                       const PartitionID from,
                                                                                       const PartitionID to,
                                                                                       const DeltaFunction& delta_func) {
@@ -1140,24 +1140,18 @@ private:
     // updates the pin count represents some intermediate state and the conditions
     // below are not triggered which leaves the data structure in an inconsistent
     // state. However, this should happen very rarely.
-    bool expected = 0;
-    bool desired = 1;
+    bool expected = false;
     ASSERT(he < _pin_count_update_ownership.size());
-    // TODO compare_exchange_weak is faster when it has to be used in a loop, i.e., busy waiting
-    if ( _pin_count_update_ownership[he].compare_exchange_strong(expected, desired, std::memory_order_acq_rel) ) {
+
+    while (!_pin_count_update_ownership[he].compare_exchange_weak(expected, true, std::memory_order_acq_rel)) ; // spin busy
       // In that case, the current thread acquires the ownership of the hyperedge and can
       // safely update the pin counts in from and to part.
-      const HypernodeID pin_count_in_from_part_after = decrementPinCountInPartWithoutGainUpdate(he, from);
-      const HypernodeID pin_count_in_to_part_after = incrementPinCountInPartWithoutGainUpdate(he, to);
-      // TODO delta_func can be called after releasing the lock.
-      //  this may have undesired side effects on accuracy of the gains and thus solution quality?
-      delta_func(he, edgeWeight(he), edgeSize(he),
-        pin_count_in_from_part_after, pin_count_in_to_part_after);
-      _pin_count_update_ownership[he].store(false, std::memory_order_acq_rel);
-      return true;
-    }
-
-    return false;
+    const HypernodeID pin_count_in_from_part_after = decrementPinCountInPartWithoutGainUpdate(he, from);
+    const HypernodeID pin_count_in_to_part_after = incrementPinCountInPartWithoutGainUpdate(he, to);
+    // TODO delta_func can be called after releasing the lock.
+    //  this may have undesired side effects on accuracy of the gains and thus solution quality?
+    delta_func(he, edgeWeight(he), edgeSize(he), pin_count_in_from_part_after, pin_count_in_to_part_after);
+    _pin_count_update_ownership[he].store(false, std::memory_order_acq_rel);
   }
 
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
