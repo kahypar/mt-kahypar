@@ -11,6 +11,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       BOOST_ROOT : "/usr/local/share/boost/1.72.0"
+      PERFORMANCE_THRESHOLD: "1.1"
 
     steps:
       - name: Checkout HEAD
@@ -74,8 +75,38 @@ jobs:
           ./grep_experiment_results.sh results
           cd ../..
 
+      - name: Setup R
+        uses: r-lib/actions/setup-r@v1
+
+      - name: Create Benchmark Results
+        run: |
+          current_sha=`cat current_sha.txt`
+          previous_sha=`cat previous_sha.txt`
+          cd .github/workflows
+          Rscript --vanilla results.R $PWD results $previous_sha $current_sha
+          cd ../..
+
+      - name: Verify Performance Regression
+        run: |
+          cd .github/workflows
+          running_time_ratio=`cat running_time_ratio.txt`
+          if (( $(echo "$running_time_ratio > $PERFORMANCE_THRESHOLD" | bc -l) )); then
+            echo "Running time degrades by a factor of $running_time_ratio (must be smaller than $PERFORMANCE_THRESHOLD)"
+            exit 1
+          fi
+          echo "Running time ratio is $running_time_ratio"
+
+          quality_ratio=`cat quality_ratio.txt`
+          if (( $(echo "$quality_ratio > $PERFORMANCE_THRESHOLD" | bc -l) )); then
+            echo "Running time degrades by a factor of $running_time_ratio (must be smaller than $PERFORMANCE_THRESHOLD)"
+            exit 1
+          fi
+          echo "Quality ratio is $quality_ratio"
+          cd ../..
+
       - name: Upload CSV Files
         uses: actions/upload-artifact@v2
         with:
           name: results
           path: .github/workflows/results/*.csv
+

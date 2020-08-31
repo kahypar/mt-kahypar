@@ -4,12 +4,8 @@ working_directory <- args[1]
 setwd(working_directory)
 
 install.packages("plyr", repos = "http://cran.us.r-project.org")
-install.packages("ggplot2", repos = "http://cran.us.r-project.org")
-install.packages("scales", repos = "http://cran.us.r-project.org")
 
 library(plyr)
-library(ggplot2)
-library(scales)
 
 aggreg = function(df) data.frame(min_km1 = min(df$km1),
                                  avg_km1 = mean(df$km1),
@@ -35,36 +31,9 @@ gm_mean = function(x, na.rm=TRUE, zero.propagate = FALSE){
   }
 }
 
-sqrt5_trans = function() trans_new("sqrt5", function(x) x^(1/5), function(x) x^5)
-
-running_time_plot <- function(algo_1, algo_2) {
-  result <- rbind(algo_1, algo_2)
-  gmean_time_aggreg = function(df) data.frame(gmean_time = gm_mean(df$avg_time))
-  result_gmean <- ddply(result, c("algorithm"), gmean_time_aggreg)
-  running_time = ggplot(result, aes(x=algorithm, y=avg_time, fill=algorithm)) +
-    geom_point(size = 0.5, pch = 21, position = position_jitterdodge(jitter.width = 1.0)) +
-    geom_boxplot(outlier.shape = NA, alpha = 0.5) +
-    geom_text(aes(x = algorithm, y = 0, label=round(gmean_time, 2), group = algorithm), result_gmean, 
-              size = 2,  position = position_dodge(width=0.75)) +
-    coord_trans(y = "sqrt5") + 
-    theme_bw(base_size = 10) +
-    labs(x="Commit", y="Running Time [s]") +
-    theme(aspect.ratio =2/(1+sqrt(5)),
-          legend.position = "none",
-          panel.grid.major = element_line(linetype="dotted",size = 0.25, 
-                                          color = "grey"),
-          panel.grid.minor =element_blank(),
-          axis.line = element_line(size = 0.2, color = "black"),
-          axis.title.y = element_text(vjust=1.5),
-          axis.title.x = element_text(vjust=1.5),
-          axis.text.x = element_text(angle = 15, hjust = 1, size = 8))
-  
-  return(running_time)
-}
-
 ############## SETUP DATA FRAMES ############## 
 
-#setwd("/home/tobias/mt-kahypar/.github/workflows")
+# setwd("/home/tobias/mt-kahypar/.github/workflows")
 
 result_folder <- args[2]
 algo_1 <- args[3]
@@ -75,6 +44,16 @@ algo_1_db$algorithm <- algo_1
 algo_2_db <- ddply(read.csv(paste(result_folder, "/", algo_2, ".csv", sep=""), header = TRUE), c("graph", "k", "epsilon"), aggreg)
 algo_2_db$algorithm <- algo_2
 
-png(paste(result_folder,"/","running_time.png",sep=""), width = 800, height = 600)
-print(running_time_plot(algo_1_db, algo_2_db))
-dev.off()
+gmean_time_algo_1 <- gm_mean(algo_1_db$avg_time)
+gmean_time_algo_2 <- gm_mean(algo_2_db$avg_time)
+running_time_ratio <- gmean_time_algo_2 / gmean_time_algo_1
+sink("running_time_ratio.txt")
+cat(running_time_ratio)
+sink()
+
+gmean_quality_algo_1 <- gm_mean(algo_1_db$avg_km1)
+gmean_quality_algo_2 <- gm_mean(algo_2_db$avg_km1)
+quality_ratio <- gmean_quality_algo_2 / gmean_quality_algo_1
+sink("quality_ratio.txt")
+cat(quality_ratio)
+sink()
