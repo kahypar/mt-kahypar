@@ -3,7 +3,6 @@
 namespace mt_kahypar {
 
   bool LocalizedKWayFM::findMovesLocalized(PartitionedHypergraph& phg, size_t taskID) {
-    //localData.clear();
     localMoves.clear();
     thisSearch = ++sharedData.nodeTracker.highestActiveSearchID;
 
@@ -42,7 +41,6 @@ namespace mt_kahypar {
   }
 
   bool LocalizedKWayFM::findMovesUsingFullBoundary(PartitionedHypergraph& phg) {
-    //localData.clear();
     localMoves.clear();
     thisSearch = ++sharedData.nodeTracker.highestActiveSearchID;
 

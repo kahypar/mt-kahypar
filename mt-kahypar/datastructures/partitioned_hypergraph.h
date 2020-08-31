@@ -1021,6 +1021,7 @@ private:
       for (HypernodeID u : pins(he)) {
         nodeGainAssertions(u, from);
         if (partID(u) == from) {
+          // TODO could break here.
           _move_from_benefit[u].fetch_add(we, std::memory_order_relaxed);
         }
       }

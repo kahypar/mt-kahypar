@@ -38,8 +38,6 @@ public:
           context(context),
           thisSearch(0),
           k(context.partition.k),
-          //localData(),
-          //phg(nullptr),
           deltaPhg(context.partition.k),
           updateDeduplicator(),
           fm_details(context, numNodes, sharedData, runStats),
@@ -116,13 +114,9 @@ private:
   //FMLocalData localData;
   vec< std::pair<Move, MoveID> > localMoves;
 
-
-  //PartitionedHypergraph* phg;
-
   // ! Wrapper around the global partitioned hypergraph, that allows
   // ! to perform moves non-visible for other local searches
   ds::DeltaPartitionedHypergraph<PartitionedHypergraph> deltaPhg;
-
 
   // ! After a move it collects all neighbors of the moved vertex
   ds::DynamicSparseSet<HypernodeID> updateDeduplicator;   // TODO check again if this is the best data structure for the job.
