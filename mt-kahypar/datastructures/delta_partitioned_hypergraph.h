@@ -166,6 +166,16 @@ class DeltaPartitionedHypergraph {
     return changeNodePart(u, from, to, max_weight_to, NoOpDeltaFunc());
   }
 
+  bool changeNodePartWithGainCacheUpdate(const HypernodeID u,
+                                         const PartitionID from,
+                                         const PartitionID to,
+                                         const HypernodeWeight max_weight_to) {
+    auto delta_gain_func = [&](HyperedgeID he, HyperedgeWeight edge_weight, HypernodeID ,HypernodeID pcip_from, HypernodeID pcip_to) {
+      gainCacheUpdate(he, edge_weight, from, pcip_from, to, pcip_to);
+    };
+    return changeNodePart(u, from, to, max_weight_to, delta_gain_func);
+  }
+
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
   void gainCacheUpdate(const HyperedgeID he, const HyperedgeWeight we,
                        const PartitionID from, const HypernodeID pin_count_in_from_part_after,

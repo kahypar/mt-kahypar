@@ -104,7 +104,7 @@ TEST_F(ADeltaPartitionedHypergraph, VerifyInitialMoveToPenalties) {
   verifyMoveToPenalty(6, { 1, 1, 0 });
 }
 TEST_F(ADeltaPartitionedHypergraph, MovesAVertex1) {
-  delta_phg.changeNodePart(1, 0, 1, 1000);
+  delta_phg.changeNodePartWithGainCacheUpdate(1, 0, 1, 1000);
   ASSERT_EQ(0, phg.partID(1));
   ASSERT_EQ(1, delta_phg.partID(1));
 
@@ -123,7 +123,7 @@ TEST_F(ADeltaPartitionedHypergraph, MovesAVertex1) {
 }
 
 TEST_F(ADeltaPartitionedHypergraph, MovesAVertex2) {
-  delta_phg.changeNodePart(6, 2, 1, 1000);
+  delta_phg.changeNodePartWithGainCacheUpdate(6, 2, 1, 1000);
   ASSERT_EQ(2, phg.partID(6));
   ASSERT_EQ(1, delta_phg.partID(6));
 
@@ -145,9 +145,9 @@ TEST_F(ADeltaPartitionedHypergraph, MovesAVertex2) {
 }
 
 TEST_F(ADeltaPartitionedHypergraph, MovesSeveralVertices) {
-  delta_phg.changeNodePart(6, 2, 1, 1000);
-  delta_phg.changeNodePart(2, 0, 1, 1000);
-  delta_phg.changeNodePart(5, 2, 1, 1000);
+  delta_phg.changeNodePartWithGainCacheUpdate(6, 2, 1, 1000);
+  delta_phg.changeNodePartWithGainCacheUpdate(2, 0, 1, 1000);
+  delta_phg.changeNodePartWithGainCacheUpdate(5, 2, 1, 1000);
   ASSERT_EQ(0, phg.partID(2));
   ASSERT_EQ(2, phg.partID(5));
   ASSERT_EQ(2, phg.partID(6));
