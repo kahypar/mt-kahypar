@@ -340,6 +340,20 @@ namespace mt_kahypar {
              "- direct\n"
              "- recursive\n"
              "- recursive_bisection")
+            ("i-enabled-ip-algos",
+            po::value<std::vector<bool> >(&context.initial_partitioning.enabled_ip_algos)->multitoken(),
+            "Indicate which IP algorithms should be executed. E.g. i-enabled-ip-algos=1 1 0 1 0 1 1 1 0\n"
+            "indicates that\n"
+            "  1.) greedy_round_robin_fm      (is executed)\n"
+            "  2.) greedy_global_fm           (is executed)\n"
+            "  3.) greedy_sequential_fm       (is NOT executed)\n"
+            "  4.) random                     (is executed)\n"
+            "  5.) bfs                        (is NOT executed)\n"
+            "  6.) label_propagation          (is executed)\n"
+            "  7.) greedy_round_robin_max_net (is executed)\n"
+            "  8.) greedy_global_max_net      (is executed)\n"
+            "  9.) greedy_sequential_max_net  (is NOT executed)\n"
+            "Note vector must exactly contain 9 values otherwise partitioner will exit with failure")
             ("i-runs",
              po::value<size_t>(&context.initial_partitioning.runs)->value_name("<size_t>")->default_value(20),
              "Number of runs for each bisection algorithm.")
@@ -362,6 +376,9 @@ namespace mt_kahypar {
             ("i-fm-refinement-rounds",
              po::value<size_t>(&context.initial_partitioning.fm_refinment_rounds)->value_name("<size_t>")->default_value(1),
              "Number of 2-way FM rounds on each bisection produced by an initial partitioner.")
+            ("i-remove-degree-zero-hns-before-ip",
+             po::value<bool>(&context.initial_partitioning.remove_degree_zero_hns_before_ip)->value_name("<bool>")->default_value(true),
+             "If true, degree-zero vertices are removed before initial partitioning.")
             ("i-lp-maximum-iterations",
              po::value<size_t>(&context.initial_partitioning.lp_maximum_iterations)->value_name(
                      "<size_t>")->default_value(20),

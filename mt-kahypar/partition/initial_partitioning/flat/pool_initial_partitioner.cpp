@@ -71,15 +71,21 @@ namespace mt_kahypar {
           _ip_task_lists(context.shared_memory.num_threads) {
 
     ASSERT(context.shared_memory.num_threads > 0);
+    if ( context.initial_partitioning.enabled_ip_algos.size() <
+         static_cast<size_t>(InitialPartitioningAlgorithm::UNDEFINED) ) {
+      ERROR("Size of enabled IP algorithms vector is smaller than number of IP algorithms!");
+    }
     // Initial Partitioner tasks are evenly distributed among different task list. For an
     // explanation why we do this, see spawn_initial_partitioner(...)
     size_t task_list_idx = 0;
     std::mt19937 rng(context.partition.seed);
     for ( uint8_t i = 0; i < static_cast<uint8_t>(InitialPartitioningAlgorithm::UNDEFINED); ++i ) {
-      auto algorithm = static_cast<InitialPartitioningAlgorithm>(i);
-      for ( size_t j = 0; j < _context.initial_partitioning.runs; ++j ) {
-        _ip_task_lists[task_list_idx].emplace_back(algorithm, rng());
-        task_list_idx = (task_list_idx + 1) % _context.shared_memory.num_threads;
+      if ( context.initial_partitioning.enabled_ip_algos[i] ) {
+        auto algorithm = static_cast<InitialPartitioningAlgorithm>(i);
+        for ( size_t j = 0; j < _context.initial_partitioning.runs; ++j ) {
+          _ip_task_lists[task_list_idx].emplace_back(algorithm, rng());
+          task_list_idx = (task_list_idx + 1) % _context.shared_memory.num_threads;
+        }
       }
     }
   }
