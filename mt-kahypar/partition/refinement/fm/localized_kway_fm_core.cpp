@@ -29,9 +29,9 @@ namespace mt_kahypar {
       deltaPhg.clear();
       deltaPhg.setPartitionedHypergraph(&phg);
       if (context.refinement.fm.perform_moves_global || sharedData.deltaExceededMemoryConstraints) {
-        internalFindMoves<true>(phg);
-      } else {
         internalFindMoves<false>(phg);
+      } else {
+        internalFindMoves<true>(phg);
       }
       return true;
     } else {
@@ -51,7 +51,7 @@ namespace mt_kahypar {
     }
     fm_details.updatePQs();
 
-    internalFindMoves<false>(phg);
+    internalFindMoves<true>(phg);
     return true;
   }
 
