@@ -592,7 +592,7 @@ private:
       std::numeric_limits<HypernodeWeight>::max(), []{}, delta_func);
   }
 
-
+  // Make sure not to call phg.gainCacheUpdate(..) in delta_func for changeNodePartFullUpdate
   template<typename SuccessFunc, typename DeltaFunc>
   bool changeNodePartFullUpdate(const HypernodeID u,
                                 PartitionID from,
