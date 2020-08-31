@@ -318,7 +318,6 @@ namespace mt_kahypar {
     }
 
     // Kind of double rollback, if gain values are not correct
-    // TODO be more aggressive about it, i.e., really just go back to bestIndex every time?
     if ( estimatedImprovement < 0 ) {
       runStats.local_reverts += bestGainIndex - bestIndex + 1;
       for ( size_t i = bestIndex + 1; i < bestGainIndex; ++i ) {
