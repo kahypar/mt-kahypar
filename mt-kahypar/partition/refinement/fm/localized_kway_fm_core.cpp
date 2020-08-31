@@ -295,7 +295,10 @@ namespace mt_kahypar {
                                               [&] { move_id = sharedData.moveTracker.insertMove(local_move); },
                                               delta_gain_func);
       } else {
-        phg.changeNodePart(local_move.node, local_move.from, local_move.to, std::numeric_limits<HypernodeWeight>::max(), []{}, delta_gain_func);
+        phg.changeNodePart(local_move.node, local_move.from, local_move.to,
+                           std::numeric_limits<HypernodeWeight>::max(),
+                           [&]{ move_id = sharedData.moveTracker.insertMove(local_move); },
+                           delta_gain_func);
       }
 
       lastGain = -lastGain; // delta func yields negative sum of improvements, i.e. negative values mean improvements
