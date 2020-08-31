@@ -33,31 +33,7 @@
 namespace mt_kahypar {
 
 class LocalizedKWayFM {
-
- struct FMLocalData {
-
-   void clear() {
-     localMoves.clear();
-     localMoveIDs.clear();
-   }
-
-   void memoryConsumption(utils::MemoryTreeNode* parent) const {
-    ASSERT(parent);
-    utils::MemoryTreeNode* local_data_node = parent->addChild("Local FM Data");
-    utils::MemoryTreeNode* local_moves_node = local_data_node->addChild("Local Moves");
-    local_moves_node->updateSize(localMoves.capacity() * sizeof(Move));
-    utils::MemoryTreeNode* local_move_ids_node = local_data_node->addChild("Local Move IDs");
-    local_move_ids_node->updateSize(localMoveIDs.capacity() * sizeof(MoveID));
-   }
-
-   // ! Contains all moves performed during the current local search
-   vec<Move> localMoves;
-   // ! Contains all move IDs of all committed moves of the current local search
-   vec<MoveID> localMoveIDs;
-
- };
-
- public:
+public:
   explicit LocalizedKWayFM(const Context& context, HypernodeID numNodes, FMSharedData& sharedData) :
           context(context),
           thisSearch(0),

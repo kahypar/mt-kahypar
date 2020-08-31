@@ -105,6 +105,7 @@ public:
     blockPQ.clear();
   }
 
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
   void updatePQs() {
     for (PartitionID i = 0; i < context.partition.k; ++i) {
       updateBlock(i);
@@ -124,6 +125,7 @@ public:
 
 private:
 
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
   void updateBlock(PartitionID i) {
     if (!vertexPQs[i].empty()) {
       blockPQ.insertOrAdjustKey(i, vertexPQs[i].topKey());
