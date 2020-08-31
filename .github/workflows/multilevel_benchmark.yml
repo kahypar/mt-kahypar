@@ -76,9 +76,9 @@ jobs:
 
       - name: Create Benchmark Results
         run: |
-          cd .github/workflows
           current_sha=`cat current_sha.txt`
           previous_sha=`cat previous_sha.txt`
+          cd .github/workflows
           Rscript --vanilla results.R $PWD results $previous_sha $current_sha
           cd ../..
 
