@@ -106,7 +106,6 @@ jobs:
           name: results
           path: .github/workflows/results/*.csv
 
-jobs:
   nlevel_performance_benchmark:
     runs-on: ubuntu-latest
     env:
