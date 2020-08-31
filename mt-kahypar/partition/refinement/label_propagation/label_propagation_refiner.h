@@ -155,13 +155,13 @@ class LabelPropagationRefiner final : public IRefiner {
     bool success = false;
     if ( _context.partition.paradigm == Paradigm::nlevel && phg.isGainCacheInitialized()) {
       success = phg.changeNodePartFullUpdate(hn, from, to,
-        _context.partition.max_part_weights[to], [&] { }, objective_delta);
+        _context.partition.max_part_weights[to], []{}, objective_delta);
       if ( success ) {
         phg.recomputeMoveFromBenefit(hn);
       }
     } else {
       success = phg.changeNodePart(hn, from, to,
-        _context.partition.max_part_weights[to], objective_delta);
+        _context.partition.max_part_weights[to], []{}, objective_delta);
     }
     return success;
   }

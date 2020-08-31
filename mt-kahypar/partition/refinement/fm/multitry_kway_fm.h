@@ -65,7 +65,7 @@ public:
 
 
   LocalizedKWayFM constructLocalizedKWayFMSearch() {
-    return LocalizedKWayFM(context, initial_num_nodes, sharedData.vertexPQHandles.data());
+    return LocalizedKWayFM(context, initial_num_nodes, sharedData);
   }
 
   static double improvementFraction(Gain gain, HyperedgeWeight old_km1) {

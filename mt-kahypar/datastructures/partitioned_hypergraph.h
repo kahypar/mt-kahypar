@@ -556,11 +556,14 @@ private:
 
   // ! Changes the block id of vertex u from block 'from' to block 'to'
   // ! Returns true, if move of vertex u to corresponding block succeeds.
+
+  template<typename SuccessFunc, typename DeltaFunc>
   bool changeNodePart(const HypernodeID u,
                       PartitionID from,
                       PartitionID to,
                       HypernodeWeight max_weight_to,
-                      const DeltaFunction& delta_func = NOOP_FUNC) {
+                      SuccessFunc&& report_success,
+                      DeltaFunc&& delta_func) {
       assert(partID(u) == from);
       assert(from != to);
       const HypernodeWeight wu = nodeWeight(u);
@@ -568,8 +571,8 @@ private:
       const HypernodeWeight from_weight_after = _part_weights[from].fetch_sub(wu, std::memory_order_relaxed);
     if ( to_weight_after <= max_weight_to && from_weight_after > 0 ) {
       _part_ids[u] = to;
+      report_success();
       for ( const HyperedgeID& he : incidentEdges(u) ) {
-        // REVIEW NOTE wouldn't it be more elegant to write this with a spinlock directly?
         while ( !updatePinCountOfHyperedgeWithoutGainUpdates(he, from, to, delta_func) );
       }
       return true;
@@ -586,46 +589,30 @@ private:
                       PartitionID to,
                       const DeltaFunction& delta_func = NOOP_FUNC) {
     return changeNodePart(u, from, to,
-      std::numeric_limits<HypernodeWeight>::max(), delta_func);
+      std::numeric_limits<HypernodeWeight>::max(), []{}, delta_func);
   }
 
-  template<typename F, typename DeltaFunc>
+
+  template<typename SuccessFunc, typename DeltaFunc>
   bool changeNodePartFullUpdate(const HypernodeID u,
                                 PartitionID from,
                                 PartitionID to,
                                 HypernodeWeight max_weight_to,
-                                F&& report_success,
+                                SuccessFunc&& report_success,
                                 DeltaFunc&& delta_func) {
     ASSERT(_is_gain_cache_initialized, "Gain cache is not initialized");
-    ASSERT(partID(u) == from);
-    ASSERT(from != to);
-    const HypernodeWeight wu = nodeWeight(u);
-    const HypernodeWeight to_weight_after = _part_weights[to].add_fetch(wu, std::memory_order_relaxed);
-    const HypernodeWeight from_weight_after = _part_weights[from].fetch_sub(wu, std::memory_order_relaxed);
-    if (to_weight_after <= max_weight_to && from_weight_after > 0) {
-      report_success();
-      _part_ids[u] = to;
-      for (HyperedgeID he: incidentEdges(u)) {
-        while ( !updatePinCountOfHyperedgeWithGainUpdates(he, from, to, delta_func) );
-      }
-      return true;
-    } else {
-      _part_weights[to].fetch_sub(wu, std::memory_order_relaxed);
-      _part_weights[from].fetch_add(wu, std::memory_order_relaxed);
-      return false;
-    }
+
+    auto my_delta_func = [&](const HyperedgeID he, const HyperedgeWeight edge_weight, const HypernodeID edge_size,
+            const HypernodeID pin_count_in_from_part_after, const HypernodeID pin_count_in_to_part_after) {
+      delta_func(he, edge_weight, edge_size, pin_count_in_from_part_after, pin_count_in_to_part_after);
+      gainCacheUpdate(he, edge_weight, from, pin_count_in_from_part_after, to, pin_count_in_to_part_after);
+    };
+    return changeNodePart(u, from, to, max_weight_to, report_success, my_delta_func);
+
   }
 
-  // curry
   bool changeNodePartFullUpdate(const HypernodeID u, PartitionID from, PartitionID to) {
     return changeNodePartFullUpdate(u, from, to, std::numeric_limits<HypernodeWeight>::max(), []{}, NoOpDeltaFunc());
-  }
-
-  // curry
-  template<typename F>
-  bool changeNodePartFullUpdate(const HypernodeID u, PartitionID from, PartitionID to,
-                                HypernodeWeight max_weight_to, F&& report_success) {
-    return changeNodePartFullUpdate(u, from, to, max_weight_to, report_success, NoOpDeltaFunc());
   }
 
   // ! Weight of a block
@@ -644,6 +631,7 @@ private:
       }
       return false;
     } else {
+      // TODO maybe we should allow these in label propagation? definitely not in FM
       // In case u is a high degree vertex, we omit the border node check and
       // and return false. Assumption is that it is very unlikely that such a
       // vertex can change its block.
@@ -1021,6 +1009,43 @@ private:
     _k = 0;
   }
 
+
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
+  void gainCacheUpdate(const HyperedgeID he, const HyperedgeWeight we,
+                       const PartitionID from, const HypernodeID pin_count_in_from_part_after,
+                       const PartitionID to, const HypernodeID pin_count_in_to_part_after) {
+    ASSERT(_is_gain_cache_initialized, "Gain cache is not initialized");
+
+    if (pin_count_in_from_part_after == 1) {
+      for (HypernodeID u : pins(he)) {
+        nodeGainAssertions(u, from);
+        if (partID(u) == from) {
+          _move_from_benefit[u].fetch_add(we, std::memory_order_relaxed);
+          break;
+        }
+      }
+    } else if (pin_count_in_from_part_after == 0) {
+      for (HypernodeID u : pins(he)) {
+        nodeGainAssertions(u, from);
+        _move_to_penalty[penalty_index(u, from)].fetch_add(we, std::memory_order_relaxed);
+      }
+    }
+
+    if (pin_count_in_to_part_after == 1) {
+      for (HypernodeID u : pins(he)) {
+        nodeGainAssertions(u, to);
+        _move_to_penalty[penalty_index(u, to)].fetch_sub(we, std::memory_order_relaxed);
+      }
+    } else if (pin_count_in_to_part_after == 2) {
+      for (HypernodeID u : pins(he)) {
+        nodeGainAssertions(u, to);
+        if (partID(u) == to) {
+          _move_from_benefit[u].fetch_sub(we, std::memory_order_relaxed);
+        }
+      }
+    }
+  }
+
  private:
 
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
@@ -1118,11 +1143,14 @@ private:
     bool expected = 0;
     bool desired = 1;
     ASSERT(he < _pin_count_update_ownership.size());
+    // TODO compare_exchange_weak is faster when it has to be used in a loop, i.e., busy waiting
     if ( _pin_count_update_ownership[he].compare_exchange_strong(expected, desired, std::memory_order_acq_rel) ) {
       // In that case, the current thread acquires the ownership of the hyperedge and can
       // safely update the pin counts in from and to part.
       const HypernodeID pin_count_in_from_part_after = decrementPinCountInPartWithoutGainUpdate(he, from);
       const HypernodeID pin_count_in_to_part_after = incrementPinCountInPartWithoutGainUpdate(he, to);
+      // TODO delta_func can be called after releasing the lock.
+      //  this may have undesired side effects on accuracy of the gains and thus solution quality?
       delta_func(he, edgeWeight(he), edgeSize(he),
         pin_count_in_from_part_after, pin_count_in_to_part_after);
       _pin_count_update_ownership[he].store(false, std::memory_order_acq_rel);
@@ -1156,85 +1184,6 @@ private:
     return pin_count_after;
   }
 
-  // REVIEW NOTE documentation duplicated. no more copy-pasta please
-  // if you can guarantee that the function call for delta_func is inlined, it's even the same code
-
-  // ! Updates pin count in part if border vertices should be tracked.
-  // ! The update process of the border vertices rely that
-  // ! pin_count_in_from_part_after and pin_count_in_to_part_after are not reflecting
-  // ! some intermediate state of the pin counts when several vertices move in parallel.
-  // ! Therefore, the current thread, which tries to modify the pin counts of the hyperedge,
-  // ! try to acquire the ownership of the hyperedge and on success, pin counts are updated.
-  template<typename DeltaFunc>
-  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE bool updatePinCountOfHyperedgeWithGainUpdates(const HyperedgeID& he,
-                                                                                   const PartitionID from,
-                                                                                   const PartitionID to,
-                                                                                   DeltaFunc&& delta_func) {
-    // In order to safely update the number of incident cut hyperedges and to compute
-    // the delta of a move we need a stable snapshot of the pin count in from and to
-    // part before and after the move. If we not do so, it can happen that due to concurrent
-    // updates the pin count represents some intermediate state and the conditions
-    // below are not triggered which leaves the data structure in an inconsistent
-    // state. However, this should happen very rarely.
-    bool expected = 0;
-    bool desired = 1;
-    ASSERT(_is_gain_cache_initialized, "Gain cache is not initialized");
-    ASSERT(he < _pin_count_update_ownership.size());
-    if ( _pin_count_update_ownership[he].compare_exchange_strong(expected, desired, std::memory_order_acq_rel) ) {
-      // In that case, the current thread acquires the ownership of the hyperedge and can
-      // safely update the pin counts in from and to part.
-      const HypernodeID pin_count_in_from_part_after = decrementPinCountInPartWithGainUpdate(he, from);
-      const HypernodeID pin_count_in_to_part_after = incrementPinCountInPartWithGainUpdate(he, to);
-      delta_func(he, edgeWeight(he), edgeSize(he),
-        pin_count_in_from_part_after, pin_count_in_to_part_after);
-      _pin_count_update_ownership[he].store(false, std::memory_order_acq_rel);
-      return true;
-    }
-
-    return false;
-  }
-
-  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
-  HypernodeID decrementPinCountInPartWithGainUpdate(const HyperedgeID e, const PartitionID p) {
-    ASSERT(_is_gain_cache_initialized, "Gain cache is not initialized");
-    const HypernodeID pin_count_after = decrementPinCountInPartWithoutGainUpdate(e, p);
-    if (pin_count_after == 1) {
-      const HyperedgeWeight we = edgeWeight(e);
-      for (HypernodeID u : pins(e)) {
-        nodeGainAssertions(u, p);
-        if (partID(u) == p)
-          _move_from_benefit[u].fetch_add(we, std::memory_order_relaxed);
-      }
-    } else if (pin_count_after == 0) {
-      const HyperedgeWeight we = edgeWeight(e);
-      for (HypernodeID u : pins(e)) {
-        nodeGainAssertions(u, p);
-        _move_to_penalty[u *_k + p].fetch_add(we, std::memory_order_relaxed);
-      }
-    }
-    return pin_count_after;
-  }
-
-  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
-  HypernodeID incrementPinCountInPartWithGainUpdate(const HyperedgeID e, const PartitionID p) {
-    ASSERT(_is_gain_cache_initialized, "Gain cache is not initialized");
-    const HypernodeID pin_count_after = incrementPinCountInPartWithoutGainUpdate(e, p);
-    if (pin_count_after == 1) {
-      const HyperedgeWeight we = edgeWeight(e);
-      for (HypernodeID u : pins(e)) {
-        nodeGainAssertions(u, p);
-        _move_to_penalty[penalty_index(u, p)].fetch_sub(we, std::memory_order_relaxed);
-      }
-    } else if (pin_count_after == 2) {
-      const HyperedgeWeight we = edgeWeight(e);
-      for (HypernodeID u : pins(e)) {
-        nodeGainAssertions(u, p);
-        if (partID(u) == p)
-          _move_from_benefit[u].fetch_sub(we, std::memory_order_relaxed);
-      }
-    }
-    return pin_count_after;
-  }
 
   // ! Indicate wheater gain cache is initialized
   bool _is_gain_cache_initialized;

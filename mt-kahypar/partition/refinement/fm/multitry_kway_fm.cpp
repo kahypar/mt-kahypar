@@ -41,7 +41,7 @@ namespace mt_kahypar {
         auto task = [&](const int , const int task_id, const int ) {
           LocalizedKWayFM& fm = ets_fm.local();
           while(sharedData.finishedTasks.load(std::memory_order_relaxed) < sharedData.finishedTasksLimit
-                && fm.findMovesLocalized(phg, sharedData, static_cast<size_t>(task_id))) {
+                && fm.findMovesLocalized(phg, static_cast<size_t>(task_id))) {
             /* keep running */
           }
           sharedData.finishedTasks.fetch_add(1, std::memory_order_relaxed);
@@ -49,7 +49,7 @@ namespace mt_kahypar {
         TBBNumaArena::instance().execute_task_on_each_thread(taskGroupID, task);
       } else if (context.refinement.fm.algorithm == FMAlgorithm::fm_boundary){
         LocalizedKWayFM& fm = ets_fm.local();
-        fm.findMovesUsingFullBoundary(phg, sharedData);
+        fm.findMovesUsingFullBoundary(phg);
       }
 
       FMStats stats;

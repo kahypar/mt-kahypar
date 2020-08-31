@@ -28,6 +28,7 @@
 #include "mt-kahypar/datastructures/sparse_map.h"
 #include "mt-kahypar/partition/refinement/fm/fm_commons.h"
 #include "mt-kahypar/partition/refinement/fm/stop_rule.h"
+#include "mt-kahypar/partition/refinement/fm/fm_details.h"
 
 namespace mt_kahypar {
 
@@ -38,7 +39,6 @@ class LocalizedKWayFM {
    void clear() {
      localMoves.clear();
      localMoveIDs.clear();
-     runStats.clear();
    }
 
    void memoryConsumption(utils::MemoryTreeNode* parent) const {
@@ -54,54 +54,42 @@ class LocalizedKWayFM {
    vec<Move> localMoves;
    // ! Contains all move IDs of all committed moves of the current local search
    vec<MoveID> localMoveIDs;
-   // ! Stats of the current local search
-   FMStats runStats;
+
  };
 
  public:
-  explicit LocalizedKWayFM(const Context& context, HypernodeID numNodes, PosT* pq_handles) :
+  explicit LocalizedKWayFM(const Context& context, HypernodeID numNodes, FMSharedData& sharedData) :
           context(context),
           thisSearch(0),
           k(context.partition.k),
-          localData(),
+          //localData(),
+          //phg(nullptr),
           deltaPhg(context.partition.k),
-          blockPQ(static_cast<size_t>(k)),
-          vertexPQs(static_cast<size_t>(k), VertexPriorityQueue(pq_handles, numNodes)),
-          updateDeduplicator()
+          updateDeduplicator(),
+          fm_details(context, numNodes, sharedData, runStats),
+          sharedData(sharedData)
           { }
 
 
-  bool findMovesUsingFullBoundary(PartitionedHypergraph& phg, FMSharedData& sharedData);
+  bool findMovesUsingFullBoundary(PartitionedHypergraph& phg);
 
-  bool findMovesLocalized(PartitionedHypergraph& phg, FMSharedData& sharedData, size_t taskID);
+  bool findMovesLocalized(PartitionedHypergraph& phg, size_t taskID);
 
 private:
 
   // ! Performs localized FM local search on the delta partitioned hypergraph.
   // ! Moves made by this search are not immediately visible to other concurrent local searches.
   // ! The best prefix of moves is applied to the global partitioned hypergraph after the search finishes.
-  void internalFindMovesOnDeltaHypergraph(PartitionedHypergraph& phg,
-                                          FMSharedData& sharedData);
+  //void internalFindMovesOnDeltaHypergraph(PartitionedHypergraph& phg, FMSharedData& sharedData);
 
 
-  void internalFindMovesOnGlobalHypergraph(PartitionedHypergraph& phg,
-                                           FMSharedData& sharedData);
+  template<bool use_delta>
+  void internalFindMoves(PartitionedHypergraph& phg);
 
-  void clearPQs(FMSharedData& sharedData, size_t bestImprovementIndex);
-
-  void updateBlock(PartitionID i) {
-    if (!vertexPQs[i].empty()) {
-      blockPQ.insertOrAdjustKey(i, vertexPQs[i].topKey());
-    } else if (blockPQ.contains(i)) {
-      blockPQ.remove(i);
-    }
-  }
-
+  // TODO move to cpp file
   template<typename PHG>
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
-  void acquireOrUpdateNeighbors(const PHG& phg,
-                                FMSharedData& sharedData,
-                                const Move& move) {
+  void acquireOrUpdateNeighbors(const PHG& phg, const Move& move) {
 
     // Note: In theory we should acquire/update all neighbors. It just turned out that this works fine
     for (HyperedgeID e : edgesWithGainChanges) {
@@ -110,9 +98,9 @@ private:
           if (!updateDeduplicator.contains(v)) {
             SearchID searchOfV = sharedData.nodeTracker.searchOfNode[v].load(std::memory_order_acq_rel);
             if (searchOfV == thisSearch) {
-              updateGain(phg, v, sharedData, move);
-            } else {
-              tryAcquireNodeAndInsertIntoPQ(phg, v, sharedData);
+              fm_details.updateGain(phg, v, move);
+            } else if (sharedData.nodeTracker.tryAcquireNode(v, thisSearch)) {
+              fm_details.insertIntoPQ(phg, v);
             }
             updateDeduplicator[v] = { };  // insert
           }
@@ -123,136 +111,15 @@ private:
     updateDeduplicator.clear();
   }
 
-  template<typename PHG>
-  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
-  bool tryAcquireNodeAndInsertIntoPQ(const PHG& phg, const HypernodeID v, FMSharedData& sharedData) {
-    // try acquire fails for deactivated nodes!
-    if (sharedData.nodeTracker.tryAcquireNode(v, thisSearch)) {
-      const PartitionID pv = phg.partID(v);
-      auto [target, gain] = bestDestinationBlock(phg, v);
-      sharedData.targetPart[v] = target;
-      vertexPQs[pv].insert(v, gain);  // blockPQ updates are done later, collectively.
-      localData.runStats.pushes++;
-      return true;
-    }
-    return false;
-  }
-
-  template<typename PHG>
-  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
-  void updateGain(const PHG& phg, const HypernodeID v, FMSharedData& sharedData, const Move& move) {
-    const PartitionID pv = phg.partID(v);
-    ASSERT(vertexPQs[pv].contains(v));
-    const PartitionID designatedTargetV = sharedData.targetPart[v];
-    Gain gain = 0;
-    PartitionID newTarget = kInvalidPartition;
-
-    if (k < 4 || designatedTargetV == move.from || designatedTargetV == move.to) {
-      // moveToPenalty of designatedTargetV is affected.
-      // and may now be greater than that of other blocks --> recompute full
-      std::tie(newTarget, gain) = bestDestinationBlock(phg, v);
-    } else {
-      // moveToPenalty of designatedTargetV is not affected.
-      // only move.from and move.to may be better
-      std::tie(newTarget, gain) = bestOfThree(phg, v, pv, { designatedTargetV, move.from, move.to });
-    }
-
-    sharedData.targetPart[v] = newTarget;
-    vertexPQs[pv].adjustKey(v, gain);
-  }
-
-
-  template<typename PHG>
-  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
-  std::pair<PartitionID, HyperedgeWeight> bestDestinationBlock(const PHG& phg,
-                                                               const HypernodeID u) {
-    const HypernodeWeight wu = phg.nodeWeight(u);
-    const PartitionID from = phg.partID(u);
-    const HypernodeWeight from_weight = phg.partWeight(from);
-    PartitionID to = kInvalidPartition;
-    HyperedgeWeight to_penalty = std::numeric_limits<HyperedgeWeight>::max();
-    HypernodeWeight best_to_weight = from_weight - wu;
-    for (PartitionID i = 0; i < k; ++i) {
-      if (i != from) {
-        const HypernodeWeight to_weight = phg.partWeight(i);
-        const HyperedgeWeight penalty = phg.moveToPenalty(u, i);
-        if ( ( penalty < to_penalty || ( penalty == to_penalty && to_weight < best_to_weight ) ) &&
-              to_weight + wu <= context.partition.max_part_weights[i] ) {
-          to_penalty = penalty;
-          to = i;
-          best_to_weight = to_weight;
-        }
-      }
-    }
-    const Gain gain = to != kInvalidPartition ? phg.moveFromBenefit(u) - to_penalty
-                      : std::numeric_limits<HyperedgeWeight>::min();
-    return std::make_pair(to, gain);
-  }
-
-  template<typename PHG>
-  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
-  std::pair<PartitionID, HyperedgeWeight> bestOfThree(const PHG& phg, HypernodeID u, PartitionID from,
-                                                      std::array<PartitionID, 3> parts) {
-
-    const HypernodeWeight wu = phg.nodeWeight(u);
-    const HypernodeWeight from_weight = phg.partWeight(from);
-    PartitionID to = kInvalidPartition;
-    HyperedgeWeight to_penalty = std::numeric_limits<HyperedgeWeight>::max();
-    HypernodeWeight best_to_weight = from_weight - wu;
-    for (PartitionID i : parts) {
-      if (i != from && i != kInvalidPartition) {
-        const HypernodeWeight to_weight = phg.partWeight(i);
-        const HyperedgeWeight penalty = phg.moveToPenalty(u, i);
-        if ( ( penalty < to_penalty || ( penalty == to_penalty && to_weight < best_to_weight ) ) &&
-             to_weight + wu <= context.partition.max_part_weights[i] ) {
-          to_penalty = penalty;
-          to = i;
-          best_to_weight = to_weight;
-        }
-      }
-    }
-    const Gain gain = to != kInvalidPartition ? phg.moveFromBenefit(u) - to_penalty
-                                              : std::numeric_limits<HyperedgeWeight>::min();
-    return std::make_pair(to, gain);
-  }
-
-  template<typename PHG>
-  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
-  bool findNextMove(const PHG& phg, Move& m) {
-    if (blockPQ.empty()) {
-      return false;
-    }
-    while (true) {
-      const PartitionID from = blockPQ.top();
-      const HypernodeID u = vertexPQs[from].top();
-      const Gain estimated_gain = vertexPQs[from].topKey();
-      assert(estimated_gain == blockPQ.topKey());
-      auto [to, gain] = bestDestinationBlock(phg, u);
-      if (gain >= estimated_gain) { // accept any gain that is at least as good
-        m.node = u; m.to = to; m.from = from;
-        m.gain = gain;
-        localData.runStats.extractions++;
-        vertexPQs[from].deleteTop();  // blockPQ updates are done later, collectively.
-        return true;
-      } else {
-        localData.runStats.retries++;
-        vertexPQs[from].adjustKey(u, gain);
-        if (vertexPQs[from].topKey() != blockPQ.keyOf(from)) {
-          blockPQ.adjustKey(from, vertexPQs[from].topKey());
-        }
-      }
-    }
-  }
 
   // ! Makes moves applied on delta hypergraph visible on the global partitioned hypergraph.
   std::pair<Gain, size_t> applyMovesOnGlobalHypergraph(PartitionedHypergraph& phg,
-                                                       FMSharedData& sharedData,
                                                        size_t bestGainIndex,
                                                        Gain bestEstimatedImprovement);
 
   // ! Rollback to the best improvement found during local search in case we applied moves
   // ! directly on the global partitioned hypergraph.
-  void revertToBestLocalPrefix(PartitionedHypergraph& phg, FMSharedData& sharedData, size_t bestGainIndex);
+  void revertToBestLocalPrefix(PartitionedHypergraph& phg, size_t bestGainIndex);
 
  public:
   FMStats stats;
@@ -270,26 +137,29 @@ private:
   PartitionID k;
 
   // ! Local data members required for one localized search run
-  FMLocalData localData;
+  //FMLocalData localData;
+  vec< std::pair<Move, MoveID> > localMoves;
+
+
+  //PartitionedHypergraph* phg;
 
   // ! Wrapper around the global partitioned hypergraph, that allows
   // ! to perform moves non-visible for other local searches
   ds::DeltaPartitionedHypergraph<PartitionedHypergraph> deltaPhg;
 
-  // ! Priority Queue that contains for each block of the partition
-  // ! the vertex with the best gain value
-  BlockPriorityQueue blockPQ;
-
-  // ! From PQs -> For each block it contains the vertices (contained
-  // ! in that block) touched by the current local search associated
-  // ! with their gain values
-  vec<VertexPriorityQueue> vertexPQs;
 
   // ! After a move it collects all neighbors of the moved vertex
-  ds::DynamicSparseSet<HypernodeID> updateDeduplicator;
+  ds::DynamicSparseSet<HypernodeID> updateDeduplicator;   // TODO check again if this is the best data structure for the job.
 
   // ! Stores hyperedges whose pins's gains may have changed after vertex move
   vec<HyperedgeID> edgesWithGainChanges;
+
+  FMStats runStats;
+
+  FMDetails fm_details;   // TODO make generic in the end!
+
+  FMSharedData& sharedData;
+
 };
 
 }

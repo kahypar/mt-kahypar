@@ -2,21 +2,21 @@
 
 namespace mt_kahypar {
 
-  bool LocalizedKWayFM::findMovesLocalized(PartitionedHypergraph& phg, FMSharedData& sharedData, size_t taskID) {
-    localData.clear();
-
+  bool LocalizedKWayFM::findMovesLocalized(PartitionedHypergraph& phg, size_t taskID) {
+    //localData.clear();
+    localMoves.clear();
     thisSearch = ++sharedData.nodeTracker.highestActiveSearchID;
 
     const size_t nSeeds = context.refinement.fm.num_seed_nodes;
     HypernodeID seedNode;
-    while (localData.runStats.pushes < nSeeds && sharedData.refinementNodes.try_pop(seedNode, taskID)) {
-      tryAcquireNodeAndInsertIntoPQ(phg, seedNode, sharedData);
+    while (runStats.pushes < nSeeds && sharedData.refinementNodes.try_pop(seedNode, taskID)) {
+      if (sharedData.nodeTracker.tryAcquireNode(seedNode, thisSearch)) {
+        fm_details.insertIntoPQ(phg, seedNode);
+      }
     }
-    for (PartitionID i = 0; i < k; ++i) {
-      updateBlock(i);
-    }
+    fm_details.updatePQs();
 
-    if (localData.runStats.pushes > 0) {
+    if (runStats.pushes > 0) {
       if (!context.refinement.fm.perform_moves_global
           && deltaPhg.combinedMemoryConsumption() > sharedData.deltaMemoryLimitPerThread) {
         sharedData.deltaExceededMemoryConstraints = true;
@@ -26,12 +26,13 @@ namespace mt_kahypar {
         deltaPhg.dropMemory();
       }
 
+
+      deltaPhg.clear();
+      deltaPhg.setPartitionedHypergraph(&phg);
       if (context.refinement.fm.perform_moves_global || sharedData.deltaExceededMemoryConstraints) {
-        internalFindMovesOnGlobalHypergraph(phg, sharedData);
+        internalFindMoves<true>(phg);
       } else {
-        deltaPhg.clear();
-        deltaPhg.setPartitionedHypergraph(&phg);
-        internalFindMovesOnDeltaHypergraph(phg, sharedData);
+        internalFindMoves<false>(phg);
       }
       return true;
     } else {
@@ -40,19 +41,19 @@ namespace mt_kahypar {
 
   }
 
-  bool LocalizedKWayFM::findMovesUsingFullBoundary(PartitionedHypergraph& phg, FMSharedData& sharedData) {
-    localData.clear();
+  bool LocalizedKWayFM::findMovesUsingFullBoundary(PartitionedHypergraph& phg) {
+    //localData.clear();
+    localMoves.clear();
     thisSearch = ++sharedData.nodeTracker.highestActiveSearchID;
 
     for (HypernodeID u : sharedData.refinementNodes.safely_inserted_range()) {
-      tryAcquireNodeAndInsertIntoPQ(phg, u, sharedData);
+      if (sharedData.nodeTracker.tryAcquireNode(u, thisSearch)) {
+        fm_details.insertIntoPQ(phg, u);
+      }
     }
-    for (PartitionID i = 0; i < k; ++i) {
-      updateBlock(i);
-    }
+    fm_details.updatePQs();
 
-    // this is boundary FM, so it's sequential. no need for delta hypergraph
-    internalFindMovesOnGlobalHypergraph(phg, sharedData);
+    internalFindMoves<false>(phg);
     return true;
   }
 
@@ -70,7 +71,7 @@ namespace mt_kahypar {
     return std::make_pair(p, w);
   }
 
-
+/*
   void LocalizedKWayFM:: internalFindMovesOnDeltaHypergraph(PartitionedHypergraph& phg,
                                                             FMSharedData& sharedData) {
     StopRule stopRule(phg.initialNumNodes());
@@ -112,7 +113,7 @@ namespace mt_kahypar {
       }
 
       if (moved) {
-        localData.runStats.moves++;
+        runStats.moves++;
         estimatedImprovement += move.gain;
         localData.localMoves.push_back(move);
         stopRule.update(move.gain);
@@ -130,36 +131,48 @@ namespace mt_kahypar {
         acquireOrUpdateNeighbors(deltaPhg, sharedData, move);
       }
 
-      for (PartitionID i = 0; i < k; ++i) {
-        updateBlock(i);
-      }
+      fm_details.updatePQs();
     }
 
     std::tie(bestImprovement, bestImprovementIndex) =
             applyMovesOnGlobalHypergraph(phg, sharedData, bestImprovementIndex, bestImprovement);
-    localData.runStats.estimated_improvement = bestImprovement;
-    clearPQs(sharedData, bestImprovementIndex);
-    localData.runStats.merge(stats);
+    runStats.estimated_improvement = bestImprovement;
+    fm_details.clearPQs(sharedData, bestImprovementIndex);
+    runStats.merge(stats);
   }
+*/
 
-  void LocalizedKWayFM::internalFindMovesOnGlobalHypergraph(PartitionedHypergraph& phg,
-                                                            FMSharedData& sharedData) {
+
+  //template<typename FMDetails>
+  template<bool use_delta>
+  void LocalizedKWayFM//<FMDetails>
+    ::internalFindMoves(PartitionedHypergraph& phg) {
     StopRule stopRule(phg.initialNumNodes());
     Move move;
 
-
-    auto hes_to_update_func = [&](const HyperedgeID he,
-                                  const HyperedgeWeight,
-                                  const HypernodeID,
-                                  const HypernodeID pin_count_in_from_part_after,
-                                  const HypernodeID pin_count_in_to_part_after) {
+    auto delta_func = [&](const HyperedgeID he,
+                          const HyperedgeWeight edge_weight,
+                          const HypernodeID edge_size,
+                          const HypernodeID pin_count_in_from_part_after,
+                          const HypernodeID pin_count_in_to_part_after) {
       // Gains of the pins of a hyperedge can only change in the following situations.
-      // In such cases, we mark the hyperedge as invalid and update the gain of all
-      // pins afterwards.
       if ( pin_count_in_from_part_after == 0 || pin_count_in_from_part_after == 1 ||
            pin_count_in_to_part_after == 1 || pin_count_in_to_part_after == 2 ) {
         edgesWithGainChanges.push_back(he);
       }
+
+      // TODO we can almost make this function take a generic partitioned hypergraph
+      // we would have to add the success func to the interface of DeltaPhg (and then ignore it there...)
+      // and do the local rollback outside this function
+
+      if constexpr (use_delta) {
+        fm_details.deltaGainUpdates(deltaPhg, he, edge_weight, move.from, pin_count_in_from_part_after,
+                                    move.to, pin_count_in_to_part_after);
+      } else {
+        fm_details.deltaGainUpdates(phg, he, edge_weight, move.from, pin_count_in_from_part_after,
+                                    move.to, pin_count_in_to_part_after);
+      }
+
     };
 
     size_t bestImprovementIndex = 0;
@@ -170,26 +183,53 @@ namespace mt_kahypar {
     HypernodeWeight fromWeight = 0, toWeight = 0;
 
     while (!stopRule.searchShouldStop()
-           && sharedData.finishedTasks.load(std::memory_order_relaxed) < sharedData.finishedTasksLimit
-           && findNextMove(phg, move)) {
+           && sharedData.finishedTasks.load(std::memory_order_relaxed) < sharedData.finishedTasksLimit) {
+
+      if constexpr (use_delta) {
+        if (!fm_details.findNextMove(deltaPhg, move)) break;
+      } else {
+        if (!fm_details.findNextMove(phg, move)) break;
+      }
+
       sharedData.nodeTracker.deactivateNode(move.node, thisSearch);
       MoveID move_id = std::numeric_limits<MoveID>::max();
       auto report_success = [&] { move_id = sharedData.moveTracker.insertMove(move); };
 
+
+      /**
+       * exchangable parts:
+       *        -- findNextMove
+       *        -- acquireOrUpdateNode
+       *        -- changeNodePart: with gain updates and without
+       *
+       */
+
       bool moved = false;
       if (move.to != kInvalidPartition) {
-        heaviestPartWeight = heaviestPartAndWeight(phg).second;
-        fromWeight = phg.partWeight(move.from);
-        toWeight = phg.partWeight(move.to);
-        moved = phg.changeNodePartFullUpdate(move.node, move.from, move.to,
-                                             context.partition.max_part_weights[move.to],
-                                             report_success, hes_to_update_func);
+
+        if constexpr (use_delta) {
+          heaviestPartWeight = heaviestPartAndWeight(deltaPhg).second;
+          fromWeight = deltaPhg.partWeight(move.from);
+          toWeight = deltaPhg.partWeight(move.to);
+
+          moved = deltaPhg.changeNodePart(move.node, move.from, move.to,
+                                          context.partition.max_part_weights[move.to], delta_func);
+        } else {
+          heaviestPartWeight = heaviestPartAndWeight(phg).second;
+          fromWeight = phg.partWeight(move.from);
+          toWeight = phg.partWeight(move.to);
+
+          moved = phg.changeNodePart(move.node, move.from, move.to,
+                                     context.partition.max_part_weights[move.to],
+                                     report_success, delta_func);
+        }
+
       }
 
       if (moved) {
-        localData.runStats.moves++;
+        runStats.moves++;
         estimatedImprovement += move.gain;
-        localData.localMoveIDs.push_back(move_id);
+        localMoves.emplace_back(move, move_id);
         stopRule.update(move.gain);
         const bool improved_km1 = estimatedImprovement > bestImprovement;
         const bool improved_balance_less_equal_km1 = estimatedImprovement >= bestImprovement
@@ -199,29 +239,38 @@ namespace mt_kahypar {
         if (improved_km1 || improved_balance_less_equal_km1) {
           stopRule.reset();
           bestImprovement = estimatedImprovement;
-          bestImprovementIndex = localData.localMoveIDs.size();
+          bestImprovementIndex = localMoves.size();
         }
 
-        acquireOrUpdateNeighbors(phg, sharedData, move);
+        if constexpr (use_delta) {
+          acquireOrUpdateNeighbors(deltaPhg, move);
+        } else {
+          acquireOrUpdateNeighbors(phg, move);
+        }
       }
 
-      for (PartitionID i = 0; i < k; ++i) {
-        updateBlock(i);
-      }
+      fm_details.updatePQs();
     }
 
-    revertToBestLocalPrefix(phg, sharedData, bestImprovementIndex);
-    localData.runStats.estimated_improvement = bestImprovement;
-    clearPQs(sharedData, bestImprovementIndex);
-    localData.runStats.merge(stats);
+    if constexpr (use_delta) {
+      std::tie(bestImprovement, bestImprovementIndex) =
+              applyMovesOnGlobalHypergraph(phg, bestImprovementIndex, bestImprovement);
+    } else {
+      revertToBestLocalPrefix(phg, bestImprovementIndex);
+    }
+
+    runStats.estimated_improvement = bestImprovement;
+    fm_details.clearPQs(bestImprovementIndex);
+    runStats.merge(stats);
   }
 
 
-  std::pair<Gain, size_t> LocalizedKWayFM::applyMovesOnGlobalHypergraph(PartitionedHypergraph& phg,
-                                                       FMSharedData& sharedData,
-                                                       const size_t bestGainIndex,
-                                                       const Gain bestEstimatedImprovement) {
-    ASSERT(localData.localMoveIDs.empty());
+  std::pair<Gain, size_t> LocalizedKWayFM::applyMovesOnGlobalHypergraph(
+                                                        PartitionedHypergraph& phg,
+                                                        const size_t bestGainIndex,
+                                                        const Gain bestEstimatedImprovement) {
+    // TODO find better variable names!
+
     Gain estimatedImprovement = 0;
     Gain lastGain = 0;
 
@@ -237,72 +286,64 @@ namespace mt_kahypar {
     // Apply move sequence to original hypergraph and update gain values
     Gain bestImprovement = 0;
     size_t bestIndex = 0;
-    for ( size_t i = 0; i < bestGainIndex; ++i ) {
-      Move& m = localData.localMoves[i];
-      MoveID m_id = std::numeric_limits<MoveID>::max();
+    for (size_t i = 0; i < bestGainIndex; ++i) {
+      Move& local_move = localMoves[i].first;
+      MoveID& move_id = localMoves[i].second;
       lastGain = 0;
-      phg.changeNodePartFullUpdate(m.node, m.from, m.to, std::numeric_limits<HypernodeWeight>::max(),
-                                   [&] { m_id = sharedData.moveTracker.insertMove(m); }, delta_gain_func);
+
+      if constexpr (FMDetails::uses_gain_cache) {
+        phg.changeNodePartFullUpdate(local_move.node, local_move.from, local_move.to, std::numeric_limits<HypernodeWeight>::max(),
+                                     [&] { move_id = sharedData.moveTracker.insertMove(local_move); },
+                                     delta_gain_func);
+      } else {
+        phg.changeNodePart(local_move.node, local_move.from, local_move.to, std::numeric_limits<HypernodeWeight>::max(), []{}, delta_gain_func);
+      }
+
       lastGain = -lastGain; // delta func yields negative sum of improvements, i.e. negative values mean improvements
       estimatedImprovement += lastGain;
-      ASSERT(m_id != std::numeric_limits<MoveID>::max());
-      Move& move = sharedData.moveTracker.getMove(m_id);
-      move.gain = lastGain; // Update gain value based on hypergraph delta
-      localData.localMoveIDs.push_back(m_id);
-      if ( estimatedImprovement >= bestImprovement ) {  // TODO also incorporate balance into this
+      ASSERT(move_id != std::numeric_limits<MoveID>::max());
+      Move& global_move = sharedData.moveTracker.getMove(move_id);
+      global_move.gain = lastGain; // Update gain value based on hypergraph delta
+      if (estimatedImprovement >= bestImprovement) {  // TODO also incorporate balance into this?
         bestImprovement = estimatedImprovement;
         bestIndex = i;
       }
     }
 
+    runStats.local_reverts += localMoves.size() - bestGainIndex;
+    if (bestIndex != bestGainIndex) {
+      runStats.best_prefix_mismatch++;
+    }
+
     // Kind of double rollback, if gain values are not correct
-    ASSERT(localData.localMoveIDs.size() == bestGainIndex);
+    // TODO be more aggressive about it, i.e., really just go back to bestIndex every time?
     if ( estimatedImprovement < 0 ) {
-      localData.runStats.local_reverts += localData.localMoves.size() - bestIndex;
+      runStats.local_reverts += bestGainIndex - bestIndex + 1;
       for ( size_t i = bestIndex + 1; i < bestGainIndex; ++i ) {
-        Move& m = sharedData.moveTracker.getMove(localData.localMoveIDs[i]);
-        phg.changeNodePartFullUpdate(m.node, m.to, m.from);
+        Move& m = sharedData.moveTracker.getMove(localMoves[i].second);
+
+        if constexpr (FMDetails::uses_gain_cache) {
+          phg.changeNodePartFullUpdate(m.node, m.to, m.from);
+        } else {
+          phg.changeNodePart(m.node, m.to, m.from);
+        }
+
         sharedData.moveTracker.invalidateMove(m);
       }
-      localData.runStats.local_reverts += localData.localMoves.size() - bestGainIndex;
       return std::make_pair(bestImprovement, bestIndex);
     } else {
       return std::make_pair(bestEstimatedImprovement, bestGainIndex);
     }
   }
 
-  void LocalizedKWayFM::revertToBestLocalPrefix(PartitionedHypergraph& phg, FMSharedData& sharedData, size_t bestGainIndex) {
-    localData.runStats.local_reverts += localData.localMoveIDs.size() - bestGainIndex;
-    while (localData.localMoveIDs.size() > bestGainIndex) {
-      Move& m = sharedData.moveTracker.getMove(localData.localMoveIDs.back());
+  void LocalizedKWayFM::revertToBestLocalPrefix(PartitionedHypergraph& phg, size_t bestGainIndex) {
+    runStats.local_reverts += localMoves.size() - bestGainIndex;
+    while (localMoves.size() > bestGainIndex) {
+      Move& m = sharedData.moveTracker.getMove(localMoves.back().second);
       phg.changeNodePartFullUpdate(m.node, m.to, m.from);
       sharedData.moveTracker.invalidateMove(m);
-      localData.localMoveIDs.pop_back();
+      localMoves.pop_back();
     }
-  }
-
-  void LocalizedKWayFM::clearPQs(FMSharedData& sharedData, const size_t /* bestImprovementIndex */ ) {
-    // release all nodes that were not moved
-    // reinsert into task queue only if we're doing multitry and at least one node was moved
-    // unless a node was moved, only seed nodes are in the pqs
-    const bool release = context.refinement.fm.release_nodes
-                         && context.refinement.fm.algorithm == FMAlgorithm::fm_multitry
-                         && localData.runStats.moves > 0;
-
-    if (release) {
-      // Release all nodes contained in PQ
-      for (PartitionID i = 0; i < k; ++i) {
-        for (PosT j = 0; j < vertexPQs[i].size(); ++j) {
-          const HypernodeID v = vertexPQs[i].at(j);
-          sharedData.nodeTracker.releaseNode(v);
-        }
-      }
-    }
-
-    for (PartitionID i = 0; i < k; ++i) {
-      vertexPQs[i].clear();
-    }
-    blockPQ.clear();
   }
 
   void LocalizedKWayFM::memoryConsumption(utils::MemoryTreeNode* parent) const {
@@ -314,13 +355,20 @@ namespace mt_kahypar {
     deduplicator_node->updateSize(updateDeduplicator.size_in_bytes());
     utils::MemoryTreeNode* edges_to_activate_node = localized_fm_node->addChild("edgesWithGainChanges");
     edges_to_activate_node->updateSize(edgesWithGainChanges.capacity() * sizeof(HyperedgeID));
+
+    utils::MemoryTreeNode* local_moves_node = parent->addChild("Local FM Moves");
+    local_moves_node->updateSize(localMoves.capacity() * sizeof(std::pair<Move, MoveID>));
+
+    // TODO fm_details.memoryConsumptiom(..)
+    /*
     utils::MemoryTreeNode* block_pq_node = localized_fm_node->addChild("Block PQ");
     block_pq_node->updateSize(blockPQ.size_in_bytes());
     utils::MemoryTreeNode* vertex_pq_node = localized_fm_node->addChild("Vertex PQ");
     for ( const VertexPriorityQueue& pq : vertexPQs ) {
       vertex_pq_node->updateSize(pq.size_in_bytes());
     }
-    localData.memoryConsumption(localized_fm_node);
+     */
+
     deltaPhg.memoryConsumption(localized_fm_node);
   }
 

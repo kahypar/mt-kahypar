@@ -234,7 +234,7 @@ struct FMStats {
   size_t moves = 0;
   size_t local_reverts = 0;
   size_t task_queue_reinsertions = 0;
-  size_t boundary_toggles = 0;
+  size_t best_prefix_mismatch = 0;
   Gain estimated_improvement = 0;
 
 
@@ -245,7 +245,7 @@ struct FMStats {
     moves = 0;
     local_reverts = 0;
     task_queue_reinsertions = 0;
-    boundary_toggles = 0;
+    best_prefix_mismatch = 0;
     estimated_improvement = 0;
   }
 
@@ -256,7 +256,7 @@ struct FMStats {
     other.moves += moves;
     other.local_reverts += local_reverts;
     other.task_queue_reinsertions += task_queue_reinsertions;
-    other.boundary_toggles += boundary_toggles;
+    other.best_prefix_mismatch += best_prefix_mismatch;
     other.estimated_improvement += estimated_improvement;
     clear();
   }
@@ -264,7 +264,7 @@ struct FMStats {
   std::string serialize() const {
     std::stringstream os;
     os  << V(retries) << " " << V(extractions) << " " << V(pushes) << " "
-        << V(moves) << " " << V(local_reverts) << " " << V(boundary_toggles);
+        << V(moves) << " " << V(local_reverts) << " " << V(best_prefix_mismatch);
     return os.str();
   }
 };

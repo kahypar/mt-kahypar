@@ -145,6 +145,8 @@ namespace mt_kahypar {
 
   }
 
+  // TODO use the right changeNodePart
+
   HyperedgeWeight GlobalRollback::revertToBestPrefixParallel(
           PartitionedHypergraph& phg, FMSharedData& sharedData,
           const vec<HypernodeWeight>& partWeights, const std::vector<HypernodeWeight>& maxPartWeights) {
