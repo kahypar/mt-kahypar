@@ -1150,8 +1150,8 @@ private:
     const HypernodeID pin_count_in_to_part_after = incrementPinCountInPartWithoutGainUpdate(he, to);
     // TODO delta_func can be called after releasing the lock.
     //  this may have undesired side effects on accuracy of the gains and thus solution quality?
-    _pin_count_update_ownership[he].store(false, std::memory_order_acq_rel);
     delta_func(he, edgeWeight(he), edgeSize(he), pin_count_in_from_part_after, pin_count_in_to_part_after);
+    _pin_count_update_ownership[he].store(false, std::memory_order_acq_rel);
   }
 
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
