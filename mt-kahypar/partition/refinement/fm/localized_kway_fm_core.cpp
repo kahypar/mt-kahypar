@@ -312,27 +312,13 @@ namespace mt_kahypar {
       }
     }
 
+    runStats.local_reverts += localMoves.size() - bestGainIndex;
     if (bestIndex != bestGainIndex) {
       runStats.best_prefix_mismatch++;
     }
 
     // Kind of double rollback, if gain values are not correct
-    runStats.local_reverts += localMoves.size() - bestIndex + 1;
-    for (size_t i = bestIndex + 1; i < bestGainIndex; ++i) {
-      Move& m = sharedData.moveTracker.getMove(localMoves[i].second);
-
-      if constexpr (FMDetails::uses_gain_cache) {
-        phg.changeNodePartWithGainCacheUpdate(m.node, m.to, m.from);
-      } else {
-        phg.changeNodePart(m.node, m.to, m.from);
-      }
-
-      sharedData.moveTracker.invalidateMove(m);
-    }
-    return std::make_pair(bestImprovement, bestIndex);
-
     // TODO be more aggressive about it, i.e., really just go back to bestIndex every time?
-    /*
     if ( estimatedImprovement < 0 ) {
       runStats.local_reverts += bestGainIndex - bestIndex + 1;
       for ( size_t i = bestIndex + 1; i < bestGainIndex; ++i ) {
@@ -350,7 +336,6 @@ namespace mt_kahypar {
     } else {
       return std::make_pair(bestEstimatedImprovement, bestGainIndex);
     }
-     */
   }
 
   void LocalizedKWayFM::revertToBestLocalPrefix(PartitionedHypergraph& phg, size_t bestGainIndex) {
