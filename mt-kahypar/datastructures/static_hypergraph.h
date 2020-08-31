@@ -146,7 +146,7 @@ class StaticHypergraph {
     // ! Hypernode weight
     HypernodeWeight _weight;
     // ! Flag indicating whether or not the element is active.
-    bool _valid;  // TODO what are we using this for?
+    bool _valid;
   };
 
   /**
