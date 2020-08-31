@@ -1,6 +1,6 @@
-declare -a blocks=("2" "8" "16" "64")
+declare -a blocks=("2" "8")
 
-for seed in $(seq 5)
+for seed in $(seq 3)
 do
   for instance in benchmarks/*.hgr;
   do
