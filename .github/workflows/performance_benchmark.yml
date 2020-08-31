@@ -130,7 +130,7 @@ jobs:
           rm -rf build_nlevel
           mkdir build_nlevel
           cd build_nlevel
-          cmake .. -DCMAKE_BUILD_TYPE=RELEASE -KAHYPAR_USE_N_LEVEL_PARADIGM=ON
+          cmake .. -DCMAKE_BUILD_TYPE=RELEASE -DKAHYPAR_USE_N_LEVEL_PARADIGM=ON
           make KaHyPar -j2
 
       - name: Run Benchmark on Current Version of Mt-KaHyPar
@@ -153,7 +153,7 @@ jobs:
           rm -rf build_nlevel
           mkdir build_nlevel
           cd build_nlevel
-          cmake .. -DCMAKE_BUILD_TYPE=RELEASE -KAHYPAR_USE_N_LEVEL_PARADIGM=ON
+          cmake .. -DCMAKE_BUILD_TYPE=RELEASE -DKAHYPAR_USE_N_LEVEL_PARADIGM=ON
           make KaHyPar -j2
 
       - name: Run Benchmark on Previous Version of Mt-KaHyPar
