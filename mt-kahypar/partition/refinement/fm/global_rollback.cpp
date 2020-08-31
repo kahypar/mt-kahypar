@@ -175,7 +175,7 @@ namespace mt_kahypar {
         tbb::parallel_for(b.best_index, numMoves, [&](const MoveID moveID) {
           const Move& m = move_order[moveID];
           if (sharedData.moveTracker.isMoveStillValid(m)) {
-            phg.changeNodePartFullUpdate(m.node, m.to, m.from);
+            phg.changeNodePartWithGainCacheUpdate(m.node, m.to, m.from);
             for (HyperedgeID e : phg.incidentEdges(m.node)) {
               if (phg.edgeSize(e) > 2) {
                 remaining_original_pins[size_t(phg.nonGraphEdgeID(e)) * numParts + m.from].fetch_add(1, std::memory_order_relaxed);
@@ -201,7 +201,7 @@ namespace mt_kahypar {
       // faster special case for graphs
       tbb::parallel_for(b.best_index, numMoves, [&](const MoveID moveID) {
         const Move& m = move_order[moveID];
-        phg.changeNodePartFullUpdate(m.node, m.to, m.from);
+        phg.changeNodePartWithGainCacheUpdate(m.node, m.to, m.from);
       });
     }
 
@@ -339,7 +339,7 @@ namespace mt_kahypar {
     tbb::parallel_for(0U, numMoves, [&](const MoveID localMoveID) {
       const Move& m = move_order[localMoveID];
       if (tracker.isMoveStillValid(m)) {
-        phg.changeNodePartFullUpdate(m.node, m.to, m.from);
+        phg.changeNodePartWithGainCacheUpdate(m.node, m.to, m.from);
       }
     });
 
@@ -373,7 +373,7 @@ namespace mt_kahypar {
 
       const bool from_overloaded = phg.partWeight(m.from) > maxPartWeights[m.from];
       const bool to_overloaded = phg.partWeight(m.to) > maxPartWeights[m.to];
-      phg.changeNodePartFullUpdate(m.node, m.from, m.to);
+      phg.changeNodePartWithGainCacheUpdate(m.node, m.from, m.to);
       if (from_overloaded && phg.partWeight(m.from) <= maxPartWeights[m.from]) {
         overloaded--;
       }
@@ -395,7 +395,7 @@ namespace mt_kahypar {
     tbb::parallel_for(best_index, numMoves, [&](const MoveID i) {
       const Move& m = move_order[i];
       if (tracker.isMoveStillValid(m)) {
-        phg.changeNodePartFullUpdate(m.node, m.to, m.from);
+        phg.changeNodePartWithGainCacheUpdate(m.node, m.to, m.from);
       }
     });
 
@@ -436,7 +436,7 @@ namespace mt_kahypar {
     for (MoveID localMoveID = 0; localMoveID < sharedData.moveTracker.numPerformedMoves(); ++localMoveID) {
       const Move& m = sharedData.moveTracker.moveOrder[localMoveID];
       if (sharedData.moveTracker.isMoveStillValid(m))
-        phg.changeNodePartFullUpdate(m.node, m.to, m.from);
+        phg.changeNodePartWithGainCacheUpdate(m.node, m.to, m.from);
     }
 
     for (MoveID localMoveID = 0; localMoveID < sharedData.moveTracker.numPerformedMoves(); ++localMoveID) {
@@ -454,7 +454,7 @@ namespace mt_kahypar {
       ASSERT(phg.moveFromBenefit(m.node) == phg.moveFromBenefitRecomputed(m.node));
       ASSERT(phg.moveToPenalty(m.node, m.to) == phg.moveToPenaltyRecomputed(m.node, m.to));
       const HyperedgeWeight km1_before_move = metrics::km1(phg, false);
-      phg.changeNodePartFullUpdate(m.node, m.from, m.to);
+      phg.changeNodePartWithGainCacheUpdate(m.node, m.from, m.to);
       const HyperedgeWeight km1_after_move = metrics::km1(phg, false);
       ASSERT(km1_after_move + estimated_gain == km1_before_move);
       ASSERT(km1_after_move + m.gain == km1_before_move);

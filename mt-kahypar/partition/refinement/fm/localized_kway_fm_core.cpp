@@ -292,9 +292,10 @@ namespace mt_kahypar {
       lastGain = 0;
 
       if constexpr (FMDetails::uses_gain_cache) {
-        phg.changeNodePartFullUpdate(local_move.node, local_move.from, local_move.to, std::numeric_limits<HypernodeWeight>::max(),
-                                     [&] { move_id = sharedData.moveTracker.insertMove(local_move); },
-                                     delta_gain_func);
+        phg.changeNodePartWithGainCacheUpdate(local_move.node, local_move.from, local_move.to,
+                                              std::numeric_limits<HypernodeWeight>::max(),
+                                              [&] { move_id = sharedData.moveTracker.insertMove(local_move); },
+                                              delta_gain_func);
       } else {
         phg.changeNodePart(local_move.node, local_move.from, local_move.to, std::numeric_limits<HypernodeWeight>::max(), []{}, delta_gain_func);
       }
@@ -323,7 +324,7 @@ namespace mt_kahypar {
         Move& m = sharedData.moveTracker.getMove(localMoves[i].second);
 
         if constexpr (FMDetails::uses_gain_cache) {
-          phg.changeNodePartFullUpdate(m.node, m.to, m.from);
+          phg.changeNodePartWithGainCacheUpdate(m.node, m.to, m.from);
         } else {
           phg.changeNodePart(m.node, m.to, m.from);
         }
@@ -340,7 +341,7 @@ namespace mt_kahypar {
     runStats.local_reverts += localMoves.size() - bestGainIndex;
     while (localMoves.size() > bestGainIndex) {
       Move& m = sharedData.moveTracker.getMove(localMoves.back().second);
-      phg.changeNodePartFullUpdate(m.node, m.to, m.from);
+      phg.changeNodePartWithGainCacheUpdate(m.node, m.to, m.from);
       sharedData.moveTracker.invalidateMove(m);
       localMoves.pop_back();
     }

@@ -592,14 +592,14 @@ private:
       std::numeric_limits<HypernodeWeight>::max(), []{}, delta_func);
   }
 
-  // Make sure not to call phg.gainCacheUpdate(..) in delta_func for changeNodePartFullUpdate
+  // Make sure not to call phg.gainCacheUpdate(..) in delta_func for changeNodePartWithGainCacheUpdate
   template<typename SuccessFunc, typename DeltaFunc>
-  bool changeNodePartFullUpdate(const HypernodeID u,
-                                PartitionID from,
-                                PartitionID to,
-                                HypernodeWeight max_weight_to,
-                                SuccessFunc&& report_success,
-                                DeltaFunc&& delta_func) {
+  bool changeNodePartWithGainCacheUpdate(const HypernodeID u,
+                                         PartitionID from,
+                                         PartitionID to,
+                                         HypernodeWeight max_weight_to,
+                                         SuccessFunc&& report_success,
+                                         DeltaFunc&& delta_func) {
     ASSERT(_is_gain_cache_initialized, "Gain cache is not initialized");
 
     auto my_delta_func = [&](const HyperedgeID he, const HyperedgeWeight edge_weight, const HypernodeID edge_size,
@@ -611,8 +611,9 @@ private:
 
   }
 
-  bool changeNodePartFullUpdate(const HypernodeID u, PartitionID from, PartitionID to) {
-    return changeNodePartFullUpdate(u, from, to, std::numeric_limits<HypernodeWeight>::max(), []{}, NoOpDeltaFunc());
+  bool changeNodePartWithGainCacheUpdate(const HypernodeID u, PartitionID from, PartitionID to) {
+    return changeNodePartWithGainCacheUpdate(u, from, to, std::numeric_limits<HypernodeWeight>::max(), [] { },
+                                             NoOpDeltaFunc());
   }
 
   // ! Weight of a block

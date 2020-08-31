@@ -96,7 +96,7 @@ void verifyGainCache(DynamicPartitionedHypergraph& partitioned_hypergraph) {
     PartitionID to = rand.getRandomInt(0, k - 1, sched_getcpu());
     if ( from == to ) to = (to + 1) % k;
     expected_gain += partitioned_hypergraph.km1Gain(hn, from, to);
-    partitioned_hypergraph.changeNodePartFullUpdate(hn, from, to);
+    partitioned_hypergraph.changeNodePartWithGainCacheUpdate(hn, from, to);
   }
   HyperedgeWeight km1_after = compute_km1(partitioned_hypergraph);
   ASSERT_EQ(expected_gain, km1_before - km1_after) << V(expected_gain) << V(km1_before) << V(km1_after);

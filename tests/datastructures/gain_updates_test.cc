@@ -66,7 +66,7 @@ TEST(GainUpdates, Example1) {
   ASSERT_EQ(phg.km1Gain(12, phg.partID(12), 0), -1);
   ASSERT_EQ(phg.km1Gain(14, phg.partID(14), 0), -2);
 
-  phg.changeNodePartFullUpdate(8, 0, 1);
+    phg.changeNodePartWithGainCacheUpdate(8, 0, 1);
 
   phg.recomputeMoveFromBenefit(8);  // nodes are allowed to move once before moveFromBenefit must be recomputed
   ASSERT_EQ(phg.km1Gain(8, 1, 0), 2);

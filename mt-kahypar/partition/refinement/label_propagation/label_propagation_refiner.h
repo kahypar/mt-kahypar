@@ -154,8 +154,8 @@ class LabelPropagationRefiner final : public IRefiner {
                       const F& objective_delta) {
     bool success = false;
     if ( _context.partition.paradigm == Paradigm::nlevel && phg.isGainCacheInitialized()) {
-      success = phg.changeNodePartFullUpdate(hn, from, to,
-        _context.partition.max_part_weights[to], []{}, objective_delta);
+      success = phg.changeNodePartWithGainCacheUpdate(hn, from, to,
+                                                      _context.partition.max_part_weights[to], [] { }, objective_delta);
       if ( success ) {
         phg.recomputeMoveFromBenefit(hn);
       }

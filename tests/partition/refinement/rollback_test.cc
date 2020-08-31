@@ -68,7 +68,7 @@ TEST(RollbackTests, GainRecalculationAndRollsbackCorrectly) {
   GlobalRollback grb(hg, context, k);
   grb.setRemainingOriginalPins(phg);
   auto performMove = [&](Move m) {
-    if (phg.changeNodePartFullUpdate(m.node, m.from, m.to)) {
+    if (phg.changeNodePartWithGainCacheUpdate(m.node, m.from, m.to)) {
       sharedData.moveTracker.insertMove(m);
     }
   };
@@ -131,11 +131,11 @@ TEST(RollbackTests, GainRecalculation2) {
 
   ASSERT_EQ(phg.km1Gain(2, 0, 1), 3);
   Move move_2 = { 0, 1, 2, 3 };
-  phg.changeNodePartFullUpdate(move_2.node, move_2.from, move_2.to);
+    phg.changeNodePartWithGainCacheUpdate(move_2.node, move_2.from, move_2.to);
 
   ASSERT_EQ(phg.km1Gain(0, 1, 0), 1);
   Move move_0 = { 1, 0, 0, 1 };
-  phg.changeNodePartFullUpdate(move_0.node, move_0.from, move_0.to);
+    phg.changeNodePartWithGainCacheUpdate(move_0.node, move_0.from, move_0.to);
 
   performUpdates(move_0);
   performUpdates(move_2);
