@@ -70,7 +70,7 @@ public:
       if (gain >= estimated_gain) { // accept any gain that is at least as good
         m.node = u; m.to = to; m.from = from;
         m.gain = gain;
-        runStats.extractions++;   // TODO move these to the main code ?
+        runStats.extractions++;
         vertexPQs[from].deleteTop();  // blockPQ updates are done later, collectively.
         return true;
       } else {
