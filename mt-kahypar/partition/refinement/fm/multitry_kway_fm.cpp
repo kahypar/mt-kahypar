@@ -42,15 +42,9 @@ namespace mt_kahypar {
 
 
       sharedData.finishedTasks.store(0, std::memory_order_relaxed);
-      //  TODO revise so that it keeps polling --> avoids virtual function calls
       auto task = [&](const int , const int task_id, const int ) {
         auto& fm = ets_fm.local();
-        fm->findMoves(phg, static_cast<size_t>(task_id));
-        //while(sharedData.finishedTasks.load(std::memory_order_relaxed) < sharedData.finishedTasksLimit
-        //      && fm->findMoves(phg, static_cast<size_t>(task_id))) {
-          /* keep running */
-        //}
-        //sharedData.finishedTasks.fetch_add(1, std::memory_order_relaxed);
+        fm.findMoves(phg, static_cast<size_t>(task_id));
       };
       TBBNumaArena::instance().execute_task_on_each_thread(taskGroupID, task);
 
@@ -74,7 +68,7 @@ namespace mt_kahypar {
       if (debug && context.type == kahypar::ContextType::main) {
         FMStats stats;
         for (auto& fm : ets_fm) {
-          fm->stats.merge(stats);
+          fm.stats.merge(stats);
         }
         LOG << V(round) << V(improvement) << V(metrics::km1(phg)) << V(metrics::imbalance(phg, context))
             << V(numBorderNodes) << V(roundImprovementFraction) << V(elapsed_time) << V(current_time_limit)
@@ -192,7 +186,7 @@ namespace mt_kahypar {
     utils::MemoryTreeNode fm_memory("Multitry k-Way FM", utils::OutputType::MEGABYTE);
 
     for (const auto& fm : ets_fm) {
-      fm->memoryConsumption(&fm_memory);
+      fm.memoryConsumption(&fm_memory);
     }
     globalRollback.memoryConsumption(&fm_memory);
     sharedData.memoryConsumption(&fm_memory);

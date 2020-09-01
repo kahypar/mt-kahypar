@@ -38,8 +38,7 @@ class MultiTryKWayFM final : public IRefiner {
   static constexpr bool enable_heavy_assert = false;
 
 public:
-  using FMType = std::unique_ptr<FMInterface>;
-  using FMImplementation = LocalizedKWayFM<FMwithFromPQsAndGainCache>;
+  using FMType = LocalizedKWayFM<FMwithFromPQsAndGainCache>;
 
   MultiTryKWayFM(const Hypergraph& hypergraph,
                  const Context& c,
@@ -69,7 +68,7 @@ public:
 
 
   FMType constructLocalizedKWayFMSearch() {
-    return std::make_unique<FMImplementation>(context, initial_num_nodes, sharedData);
+    return FMType(context, initial_num_nodes, sharedData);
     // TODO instantiate other PQ / gain strategies here
   }
 

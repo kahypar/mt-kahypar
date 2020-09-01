@@ -31,16 +31,9 @@
 
 namespace mt_kahypar {
 
-class FMInterface {
-public:
-  virtual bool findMoves(PartitionedHypergraph& phg, size_t taskID) = 0;
-  virtual void memoryConsumption(utils::MemoryTreeNode* parent) const  = 0;
-
-  FMStats stats;
-};
 
 template<typename FMDetails>
-class LocalizedKWayFM : public FMInterface {
+class LocalizedKWayFM {
 public:
   explicit LocalizedKWayFM(const Context& context, HypernodeID numNodes, FMSharedData& sharedData) :
           context(context),
@@ -55,9 +48,11 @@ public:
 
   //bool findMovesUsingFullBoundary(PartitionedHypergraph& phg) ;
 
-  bool findMoves(PartitionedHypergraph& phg, size_t taskID) override;
+  bool findMoves(PartitionedHypergraph& phg, size_t taskID);
 
-  void memoryConsumption(utils::MemoryTreeNode* parent) const override ;
+  void memoryConsumption(utils::MemoryTreeNode* parent) const ;
+
+  FMStats stats;
 
 private:
 
