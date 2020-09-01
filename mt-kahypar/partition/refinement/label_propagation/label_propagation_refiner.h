@@ -157,7 +157,7 @@ class LabelPropagationRefiner final : public IRefiner {
       success = phg.changeNodePartWithGainCacheUpdate(hn, from, to,
                                                       _context.partition.max_part_weights[to], [] { }, objective_delta);
       if ( success ) {
-        phg.recomputeMoveFromBenefit(hn);
+        phg.recomputeMoveFromBenefit(hn);   // not so sure this works. TODO think about it
       }
     } else {
       success = phg.changeNodePart(hn, from, to,
