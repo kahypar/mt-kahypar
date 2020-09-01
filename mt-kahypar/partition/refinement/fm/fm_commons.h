@@ -32,8 +32,6 @@
 
 namespace mt_kahypar {
 
-using BlockPriorityQueue = ds::ExclusiveHandleHeap< ds::MaxHeap<Gain, PartitionID> >;
-using VertexPriorityQueue = ds::MaxHeap<Gain, HypernodeID>;    // these need external handles
 
 struct GlobalMoveTracker {
   vec<Move> moveOrder;

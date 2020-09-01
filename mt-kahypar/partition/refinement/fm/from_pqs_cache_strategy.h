@@ -5,12 +5,29 @@
 
 namespace mt_kahypar {
 
-class FMwithFromPQsAndGainCache {
+  /*
+   * FMStrategy interface
+   * static constexpr bool uses_gain_cache
+   * Constructor(context, numNodes, sharedData, runStats)
+   * insertIntoPQ(phg, node)
+   * updateGain(phg, node, move)
+   * findNextMove(phg, move)
+   * clearPQs()
+   * updatePQs()
+   * memoryConsumption(utils::MemoryTreeNode* parent) const
+   *
+   *
+   */
+
+class FMStrategyFromPQsAndCache {
 public:
+
+  using BlockPriorityQueue = ds::ExclusiveHandleHeap< ds::MaxHeap<Gain, PartitionID> >;
+  using VertexPriorityQueue = ds::MaxHeap<Gain, HypernodeID>;    // these need external handles
 
   static constexpr bool uses_gain_cache = true;
 
-  FMwithFromPQsAndGainCache(const Context& context,
+  FMStrategyFromPQsAndCache(const Context& context,
                             HypernodeID numNodes,
                             FMSharedData& sharedData,
                             FMStats& runStats) :

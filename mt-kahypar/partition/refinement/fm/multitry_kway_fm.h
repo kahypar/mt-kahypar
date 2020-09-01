@@ -28,7 +28,7 @@
 #include "mt-kahypar/partition/refinement/fm/global_rollback.h"
 
 
-#include "fm_details.h"
+#include "from_pqs_cache_strategy.h"
 
 namespace mt_kahypar {
 
@@ -38,7 +38,7 @@ class MultiTryKWayFM final : public IRefiner {
   static constexpr bool enable_heavy_assert = false;
 
 public:
-  using FMType = LocalizedKWayFM<FMwithFromPQsAndGainCache>;
+  using FMType = LocalizedKWayFM<FMStrategyFromPQsAndCache>;
 
   MultiTryKWayFM(const Hypergraph& hypergraph,
                  const Context& c,

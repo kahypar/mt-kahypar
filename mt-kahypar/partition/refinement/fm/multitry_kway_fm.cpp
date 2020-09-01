@@ -44,7 +44,9 @@ namespace mt_kahypar {
       sharedData.finishedTasks.store(0, std::memory_order_relaxed);
       auto task = [&](const int , const int task_id, const int ) {
         auto& fm = ets_fm.local();
-        fm.findMoves(phg, static_cast<size_t>(task_id));
+        while(sharedData.finishedTasks.load(std::memory_order_relaxed) < sharedData.finishedTasksLimit
+              && fm.findMoves(phg, static_cast<size_t>(task_id)) ) { /* keep running*/ }
+        sharedData.finishedTasks.fetch_add(1, std::memory_order_relaxed);
       };
       TBBNumaArena::instance().execute_task_on_each_thread(taskGroupID, task);
 
