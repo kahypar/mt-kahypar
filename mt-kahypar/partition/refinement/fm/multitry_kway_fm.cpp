@@ -39,9 +39,9 @@ namespace mt_kahypar {
 
       sharedData.finishedTasks.store(0, std::memory_order_relaxed);
       auto task = [&](const int , const int task_id, const int ) {
-        FMType& fm = ets_fm.local();
+        auto& fm = ets_fm.local();
         while(sharedData.finishedTasks.load(std::memory_order_relaxed) < sharedData.finishedTasksLimit
-              && fm.findMoves(phg, static_cast<size_t>(task_id))) {
+              && fm->findMoves(phg, static_cast<size_t>(task_id))) {
           /* keep running */
         }
         sharedData.finishedTasks.fetch_add(1, std::memory_order_relaxed);
@@ -50,7 +50,7 @@ namespace mt_kahypar {
 
       FMStats stats;
       for (auto& fm : ets_fm) {
-        fm.stats.merge(stats);
+        fm->stats.merge(stats);
       }
 
       timer.stop_timer("find_moves");
@@ -186,8 +186,8 @@ namespace mt_kahypar {
   void MultiTryKWayFM::printMemoryConsumption() {
     utils::MemoryTreeNode fm_memory("Multitry k-Way FM", utils::OutputType::MEGABYTE);
 
-    for (const FMType& fm : ets_fm) {
-      fm.memoryConsumption(&fm_memory);
+    for (const auto& fm : ets_fm) {
+      fm->memoryConsumption(&fm_memory);
     }
     globalRollback.memoryConsumption(&fm_memory);
     sharedData.memoryConsumption(&fm_memory);
