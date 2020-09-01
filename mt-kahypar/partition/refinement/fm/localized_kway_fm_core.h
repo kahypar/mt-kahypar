@@ -71,6 +71,9 @@ private:
   void acquireOrUpdateNeighbors(const PHG& phg, const Move& move) {
 
     // Note: In theory we should acquire/update all neighbors. It just turned out that this works fine
+    // Actually: only vertices incident to edges with gain changes can become new boundary vertices.
+    // Vertices that already were boundary vertices, can still be considered later since they are in the task queue
+    // --> actually not that bad
     for (HyperedgeID e : edgesWithGainChanges) {
       if (phg.edgeSize(e) < context.partition.ignore_hyperedge_size_threshold) {
         for (HypernodeID v : phg.pins(e)) {

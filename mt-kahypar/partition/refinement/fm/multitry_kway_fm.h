@@ -28,17 +28,16 @@
 #include "mt-kahypar/partition/refinement/fm/global_rollback.h"
 
 
-#include "from_pqs_cache_strategy.h"
 
 namespace mt_kahypar {
 
+template<typename FMStrategy>
 class MultiTryKWayFM final : public IRefiner {
 
   static constexpr bool debug = false;
   static constexpr bool enable_heavy_assert = false;
 
 public:
-  using FMType = LocalizedKWayFM<FMStrategyFromPQsAndCache>;
 
   MultiTryKWayFM(const Hypergraph& hypergraph,
                  const Context& c,
@@ -56,8 +55,6 @@ public:
     }
   }
 
-
-
   bool refineImpl(PartitionedHypergraph& phg, const Batch& batch, kahypar::Metrics& metrics, double time_limit) final ;
 
   Gain refine(PartitionedHypergraph& phg, const Batch& batch, const kahypar::Metrics& metrics, double time_limit);
@@ -67,8 +64,8 @@ public:
   void roundInitialization(PartitionedHypergraph& phg, const Batch& batch);
 
 
-  FMType constructLocalizedKWayFMSearch() {
-    return FMType(context, initial_num_nodes, sharedData);
+  LocalizedKWayFM<FMStrategy> constructLocalizedKWayFMSearch() {
+    return LocalizedKWayFM<FMStrategy>(context, initial_num_nodes, sharedData);
     // TODO instantiate other PQ / gain strategies here
   }
 
@@ -87,8 +84,8 @@ public:
   const Context& context;
   const TaskGroupID taskGroupID;
   FMSharedData sharedData;
-  GlobalRollback globalRollback;
-  tbb::enumerable_thread_specific<FMType> ets_fm;
+  GlobalRollback/*<FMStrategy::uses_gain_cache>*/ globalRollback;
+  tbb::enumerable_thread_specific<LocalizedKWayFM<FMStrategy>> ets_fm;
 };
 
 } // namespace mt_kahypar

@@ -282,7 +282,7 @@ namespace mt_kahypar {
 
 
   // instantiate template
-  #include "mt-kahypar/partition/refinement/fm/from_pqs_cache_strategy.h"
+  #include "mt-kahypar/partition/refinement/fm/gain_cache_strategy.h"
 namespace mt_kahypar {
-  template class LocalizedKWayFM<FMStrategyFromPQsAndCache>;
+  template class LocalizedKWayFM<GainCacheStrategy>;
 }

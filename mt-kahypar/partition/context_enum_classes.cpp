@@ -140,7 +140,7 @@ namespace mt_kahypar {
     switch (algo) {
       case LabelPropagationAlgorithm::label_propagation_km1: return os << "label_propagation_km1";
       case LabelPropagationAlgorithm::label_propagation_cut: return os << "label_propagation_cut";
-      case LabelPropagationAlgorithm::do_nothing: return os << "do_nothing";
+      case LabelPropagationAlgorithm::do_nothing: return os << "lp_do_nothing";
         // omit default case to trigger compiler warning for missing cases
     }
     return os << static_cast<uint8_t>(algo);
@@ -148,9 +148,10 @@ namespace mt_kahypar {
 
   std::ostream & operator<< (std::ostream& os, const FMAlgorithm& algo) {
     switch (algo) {
-      case FMAlgorithm::fm_multitry: return os << "fm_multitry";
-      case FMAlgorithm::fm_boundary: return os << "fm_boundary";
-      case FMAlgorithm::do_nothing: return os << "do_nothing";
+      case FMAlgorithm::fm_gain_cache: return os << "fm_gain_cache";
+      case FMAlgorithm::fm_gain_delta: return os << "fm_gain_delta";
+      case FMAlgorithm::fm_recompute_gain: return os << "fm_recompute_gain";
+      case FMAlgorithm::do_nothing: return os << "fm_do_nothing";
         // omit default case to trigger compiler warning for missing cases
     }
     return os << static_cast<uint8_t>(algo);
@@ -273,10 +274,12 @@ namespace mt_kahypar {
   }
 
   FMAlgorithm fmAlgorithmFromString(const std::string& type) {
-    if (type == "fm_multitry") {
-      return FMAlgorithm::fm_multitry;
-    } else if (type == "fm_boundary") {
-      return FMAlgorithm::fm_boundary;
+    if (type == "fm_gain_cache") {
+      return FMAlgorithm::fm_gain_cache;
+    } else if (type == "fm_gain_delta") {
+      return FMAlgorithm::fm_gain_delta;
+    } else if (type == "fm_recompute_gain") {
+      return FMAlgorithm::fm_recompute_gain;
     } else if (type == "do_nothing") {
       return FMAlgorithm::do_nothing;
     }

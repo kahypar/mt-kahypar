@@ -27,6 +27,7 @@
 #include "mt-kahypar/partition/refinement/do_nothing_refiner.h"
 #include "mt-kahypar/partition/refinement/label_propagation/label_propagation_refiner.h"
 #include "mt-kahypar/partition/refinement/fm/multitry_kway_fm.h"
+#include "mt-kahypar/partition/refinement/fm/gain_cache_strategy.h"
 
 #define REGISTER_LP_REFINER(id, refiner, t)                                                                            \
   static kahypar::meta::Registrar<LabelPropagationFactory> JOIN(register_ ## refiner, t)(                              \
@@ -46,7 +47,8 @@ namespace mt_kahypar {
 REGISTER_LP_REFINER(LabelPropagationAlgorithm::label_propagation_cut, LabelPropagationCutRefiner, Cut);
 REGISTER_LP_REFINER(LabelPropagationAlgorithm::label_propagation_km1, LabelPropagationKm1Refiner, Km1);
 REGISTER_LP_REFINER(LabelPropagationAlgorithm::do_nothing, DoNothingRefiner, 1);
-REGISTER_FM_REFINER(FMAlgorithm::fm_multitry, MultiTryKWayFM, Multitry);
-REGISTER_FM_REFINER(FMAlgorithm::fm_boundary, MultiTryKWayFM, Boundary);
+
+using MultiTryKWayFMWithGainGache = MultiTryKWayFM<GainCacheStrategy>;
+REGISTER_FM_REFINER(FMAlgorithm::fm_gain_cache, MultiTryKWayFMWithGainGache, FMWithGainCache);
 REGISTER_FM_REFINER(FMAlgorithm::do_nothing, DoNothingRefiner, 2);
 }  // namespace mt_kahypar

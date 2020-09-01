@@ -19,7 +19,7 @@ namespace mt_kahypar {
    *
    */
 
-class FMStrategyFromPQsAndCache {
+class GainCacheStrategy {
 public:
 
   using BlockPriorityQueue = ds::ExclusiveHandleHeap< ds::MaxHeap<Gain, PartitionID> >;
@@ -27,10 +27,10 @@ public:
 
   static constexpr bool uses_gain_cache = true;
 
-  FMStrategyFromPQsAndCache(const Context& context,
-                            HypernodeID numNodes,
-                            FMSharedData& sharedData,
-                            FMStats& runStats) :
+  GainCacheStrategy(const Context& context,
+                    HypernodeID numNodes,
+                    FMSharedData& sharedData,
+                    FMStats& runStats) :
       context(context),
       runStats(runStats),
       sharedData(sharedData),
@@ -103,7 +103,6 @@ public:
   void clearPQs(const size_t /* bestImprovementIndex */ ) {
     // release all nodes that were not moved
     const bool release = sharedData.release_nodes
-                         && context.refinement.fm.algorithm == FMAlgorithm::fm_multitry
                          && runStats.moves > 0;
 
     if (release) {

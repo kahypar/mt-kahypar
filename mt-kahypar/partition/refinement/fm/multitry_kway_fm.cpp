@@ -6,17 +6,14 @@
 
 namespace mt_kahypar {
 
-  Gain MultiTryKWayFM::refine(
+  template<typename FMStrategy>
+  Gain MultiTryKWayFM<FMStrategy>::refine(
               PartitionedHypergraph& phg,
               const Batch& batch,
               const kahypar::Metrics& metrics,
               const double time_limit) {
 
     if (!is_initialized) throw std::runtime_error("Call initialize on fm before calling refine");
-
-    if (context.refinement.fm.algorithm == FMAlgorithm::fm_boundary) {
-      throw std::runtime_error("FM Boundary currently not supported");
-    }
 
     Gain overall_improvement = 0;
     size_t consecutive_rounds_with_too_little_improvement = 0;
@@ -112,7 +109,8 @@ namespace mt_kahypar {
     return overall_improvement;
   }
 
-  void MultiTryKWayFM::roundInitialization(PartitionedHypergraph& phg, const Batch& batch) {
+  template<typename FMStrategy>
+  void MultiTryKWayFM<FMStrategy>::roundInitialization(PartitionedHypergraph& phg, const Batch& batch) {
     // clear border nodes
     sharedData.refinementNodes.clear();
 
@@ -156,7 +154,8 @@ namespace mt_kahypar {
   }
 
 
-  void MultiTryKWayFM::initializeImpl(PartitionedHypergraph& phg) {
+  template<typename FMStrategy>
+  void MultiTryKWayFM<FMStrategy>::initializeImpl(PartitionedHypergraph& phg) {
     utils::Timer& timer = utils::Timer::instance();
 
     if ( !phg.isGainCacheInitialized() ) {
@@ -174,7 +173,9 @@ namespace mt_kahypar {
     is_initialized = true;
   }
 
-  bool MultiTryKWayFM::refineImpl(PartitionedHypergraph& phg, const Batch& batch, kahypar::Metrics& metrics, const double time_limit) {
+
+  template<typename FMStrategy>
+  bool MultiTryKWayFM<FMStrategy>::refineImpl(PartitionedHypergraph& phg, const Batch& batch, kahypar::Metrics& metrics, const double time_limit) {
     Gain improvement = refine(phg, batch, metrics, time_limit);
     metrics.km1 -= improvement;
     metrics.imbalance = metrics::imbalance(phg, context);
@@ -182,7 +183,8 @@ namespace mt_kahypar {
     return improvement > 0;
   }
 
-  void MultiTryKWayFM::printMemoryConsumption() {
+  template<typename FMStrategy>
+  void MultiTryKWayFM<FMStrategy>::printMemoryConsumption() {
     utils::MemoryTreeNode fm_memory("Multitry k-Way FM", utils::OutputType::MEGABYTE);
 
     for (const auto& fm : ets_fm) {
@@ -197,3 +199,9 @@ namespace mt_kahypar {
   }
 
 } // namespace mt_kahypar
+
+#include "gain_cache_strategy.h"
+
+namespace mt_kahypar {
+  template class MultiTryKWayFM<GainCacheStrategy>;
+}
