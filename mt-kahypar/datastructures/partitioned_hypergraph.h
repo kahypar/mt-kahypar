@@ -47,8 +47,6 @@ class PartitionedHypergraph {
 private:
   static_assert(!Hypergraph::is_partitioned,  "Only unpartitioned hypergraphs are allowed");
 
-  using AtomicFlag = CAtomic<bool>;
-
   // ! Function that will be called for each incident hyperedge of a moved vertex with the following arguments
   // !  1) hyperedge ID, 2) weight, 3) size, 4) pin count in from-block after move, 5) pin count in to-block after move
   // ! Can be implemented to obtain correct km1 or cut improvements of the move
@@ -572,8 +570,8 @@ private:
     if ( to_weight_after <= max_weight_to && from_weight_after > 0 ) {
       _part_ids[u] = to;
       report_success();
-      for ( const HyperedgeID& he : incidentEdges(u) ) {
-        updatePinCountOfHyperedgeWithoutGainUpdates(he, from, to, delta_func);
+      for ( const HyperedgeID he : incidentEdges(u) ) {
+        updatePinCountOfHyperedge(he, from, to, delta_func);
       }
       return true;
     } else {
@@ -922,7 +920,7 @@ private:
     parent->addChild("Pin Count In Part", _pins_in_part.size_in_bytes());
     parent->addChild("Move From Benefit", sizeof(HyperedgeWeight) * _move_from_benefit.size());
     parent->addChild("Move To Penalty", sizeof(HyperedgeWeight) * _move_to_penalty.size());
-    parent->addChild("HE Ownership", sizeof(AtomicFlag) * _hg->initialNumNodes());
+    parent->addChild("HE Ownership", sizeof(SpinLock) * _hg->initialNumNodes());
   }
 
   // ####################### Extract Block #######################
@@ -1124,32 +1122,17 @@ private:
     ASSERT(u < _move_from_benefit.size());
   }
 
-  // ! Updates pin count in part if border vertices should be tracked.
-  // ! The update process of the border vertices rely that
-  // ! pin_count_in_from_part_after and pin_count_in_to_part_after are not reflecting
-  // ! some intermediate state of the pin counts when several vertices move in parallel.
-  // ! Therefore, the current thread, which tries to modify the pin counts of the hyperedge,
-  // ! try to acquire the ownership of the hyperedge and on success, pin counts are updated.
-  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE void updatePinCountOfHyperedgeWithoutGainUpdates(const HyperedgeID& he,
-                                                                                      const PartitionID from,
-                                                                                      const PartitionID to,
-                                                                                      const DeltaFunction& delta_func) {
-    // In order to safely update the number of incident cut hyperedges and to compute
-    // the delta of a move we need a stable snapshot of the pin count in from and to
-    // part before and after the move. If we not do so, it can happen that due to concurrent
-    // updates the pin count represents some intermediate state and the conditions
-    // below are not triggered which leaves the data structure in an inconsistent
-    // state. However, this should happen very rarely.
-    bool expected = false;
+  // ! Updates pin count in part using a spinlock.
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE void updatePinCountOfHyperedge(const HyperedgeID he,
+                                                                    const PartitionID from,
+                                                                    const PartitionID to,
+                                                                    const DeltaFunction& delta_func) {
     ASSERT(he < _pin_count_update_ownership.size());
-
-    while (!_pin_count_update_ownership[he].compare_exchange_weak(expected, true, std::memory_order_acq_rel)) ; // spin busy
-      // In that case, the current thread acquires the ownership of the hyperedge and can
-      // safely update the pin counts in from and to part.
+    _pin_count_update_ownership[he].lock();
     const HypernodeID pin_count_in_from_part_after = decrementPinCountInPartWithoutGainUpdate(he, from);
     const HypernodeID pin_count_in_to_part_after = incrementPinCountInPartWithoutGainUpdate(he, to);
     delta_func(he, edgeWeight(he), edgeSize(he), pin_count_in_from_part_after, pin_count_in_to_part_after);
-    _pin_count_update_ownership[he].store(false, std::memory_order_acq_rel);
+    _pin_count_update_ownership[he].unlock();
   }
 
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
@@ -1207,7 +1190,7 @@ private:
 
   // ! In order to update the pin count of a hyperedge thread-safe, a thread must acquire
   // ! the ownership of a hyperedge via a CAS operation.
-  Array<AtomicFlag> _pin_count_update_ownership;
+  Array<SpinLock> _pin_count_update_ownership;
 };
 
 } // namespace ds
