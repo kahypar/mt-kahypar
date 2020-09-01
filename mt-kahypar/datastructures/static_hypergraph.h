@@ -632,8 +632,8 @@ class StaticHypergraph {
   // ! Removes a degree zero hypernode
   void removeDegreeZeroHypernode(const HypernodeID u) {
     ASSERT(nodeDegree(u) == 0);
-    removeHypernode(u);
     _removed_degree_zero_hn_weight += nodeWeight(u);
+    removeHypernode(u);
   }
 
   // ! Restores a degree zero hypernode
