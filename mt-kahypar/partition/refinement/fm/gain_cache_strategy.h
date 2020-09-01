@@ -113,6 +113,7 @@ public:
       } else {
         runStats.retries++;
         vertexPQs[from].adjustKey(u, gain);
+        sharedData.targetPart[u] = to;
         if (vertexPQs[from].topKey() != blockPQ.keyOf(from)) {
           blockPQ.adjustKey(from, vertexPQs[from].topKey());
         }
