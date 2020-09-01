@@ -70,6 +70,7 @@ public:
 
   FMType constructLocalizedKWayFMSearch() {
     return std::make_unique<FMImplementation>(context, initial_num_nodes, sharedData);
+    // TODO instantiate other PQ / gain strategies here
   }
 
   static double improvementFraction(Gain gain, HyperedgeWeight old_km1) {
