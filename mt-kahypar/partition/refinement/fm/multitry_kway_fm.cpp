@@ -14,6 +14,10 @@ namespace mt_kahypar {
 
     if (!is_initialized) throw std::runtime_error("Call initialize on fm before calling refine");
 
+    if (context.refinement.fm.algorithm == FMAlgorithm::fm_boundary) {
+      throw std::runtime_error("FM Boundary currently not supported");
+    }
+
     Gain overall_improvement = 0;
     size_t consecutive_rounds_with_too_little_improvement = 0;
     enable_light_fm = false;
@@ -38,13 +42,15 @@ namespace mt_kahypar {
 
 
       sharedData.finishedTasks.store(0, std::memory_order_relaxed);
+      //  TODO revise so that it keeps polling --> avoids virtual function calls
       auto task = [&](const int , const int task_id, const int ) {
         auto& fm = ets_fm.local();
-        while(sharedData.finishedTasks.load(std::memory_order_relaxed) < sharedData.finishedTasksLimit
-              && fm->findMoves(phg, static_cast<size_t>(task_id))) {
+        fm->findMoves(phg, static_cast<size_t>(task_id));
+        //while(sharedData.finishedTasks.load(std::memory_order_relaxed) < sharedData.finishedTasksLimit
+        //      && fm->findMoves(phg, static_cast<size_t>(task_id))) {
           /* keep running */
-        }
-        sharedData.finishedTasks.fetch_add(1, std::memory_order_relaxed);
+        //}
+        //sharedData.finishedTasks.fetch_add(1, std::memory_order_relaxed);
       };
       TBBNumaArena::instance().execute_task_on_each_thread(taskGroupID, task);
 

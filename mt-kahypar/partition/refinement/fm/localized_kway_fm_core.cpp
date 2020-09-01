@@ -4,41 +4,45 @@ namespace mt_kahypar {
 
   template<typename FMDetails>
   bool LocalizedKWayFM<FMDetails>::findMoves(PartitionedHypergraph& phg, size_t taskID) {
-    localMoves.clear();
-    thisSearch = ++sharedData.nodeTracker.highestActiveSearchID;
 
-    const size_t nSeeds = context.refinement.fm.num_seed_nodes;
-    HypernodeID seedNode;
-    while (runStats.pushes < nSeeds && sharedData.refinementNodes.try_pop(seedNode, taskID)) {
-      if (sharedData.nodeTracker.tryAcquireNode(seedNode, thisSearch)) {
-        fm_details.insertIntoPQ(phg, seedNode);
+    while(sharedData.finishedTasks.load(std::memory_order_relaxed) < sharedData.finishedTasksLimit) {
+
+      localMoves.clear();
+      thisSearch = ++sharedData.nodeTracker.highestActiveSearchID;
+
+      const size_t nSeeds = context.refinement.fm.num_seed_nodes;
+      HypernodeID seedNode;
+      while (runStats.pushes < nSeeds && sharedData.refinementNodes.try_pop(seedNode, taskID)) {
+        if (sharedData.nodeTracker.tryAcquireNode(seedNode, thisSearch)) {
+          fm_details.insertIntoPQ(phg, seedNode);
+        }
       }
-    }
-    fm_details.updatePQs();
+      fm_details.updatePQs();
 
-    if (runStats.pushes > 0) {
-      if (!context.refinement.fm.perform_moves_global
-          && deltaPhg.combinedMemoryConsumption() > sharedData.deltaMemoryLimitPerThread) {
-        sharedData.deltaExceededMemoryConstraints = true;
-      }
+      if (runStats.pushes > 0) {
+        if (!context.refinement.fm.perform_moves_global
+            && deltaPhg.combinedMemoryConsumption() > sharedData.deltaMemoryLimitPerThread) {
+          sharedData.deltaExceededMemoryConstraints = true;
+        }
 
-      if (sharedData.deltaExceededMemoryConstraints) {
-        deltaPhg.dropMemory();
-      }
+        if (sharedData.deltaExceededMemoryConstraints) {
+          deltaPhg.dropMemory();
+        }
 
 
-      deltaPhg.clear();
-      deltaPhg.setPartitionedHypergraph(&phg);
-      if (context.refinement.fm.perform_moves_global || sharedData.deltaExceededMemoryConstraints) {
-        internalFindMoves<false>(phg);
+        deltaPhg.clear();
+        deltaPhg.setPartitionedHypergraph(&phg);
+        if (context.refinement.fm.perform_moves_global || sharedData.deltaExceededMemoryConstraints) {
+          internalFindMoves<false>(phg);
+        } else {
+          internalFindMoves<true>(phg);
+        }
       } else {
-        internalFindMoves<true>(phg);
+        sharedData.finishedTasks.fetch_add(1, std::memory_order_relaxed);
+        return false;
       }
-      return true;
-    } else {
-      return false;
-    }
 
+    }
   }
 
   /*
