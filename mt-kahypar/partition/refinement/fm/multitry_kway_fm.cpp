@@ -75,13 +75,11 @@ namespace mt_kahypar {
             << stats.serialize();
       }
 
-      // We enforce during FM a time limit, which is calculated based on k and the coarsening time of
-      // the current hypergraph. Especially for instances with low density, we observed that FM time
+      // Enforce a time limit (based on k and coarsening time). Switch to more "light-weight" FM after reaching it the
+      // first time. Abort after second time.
+      // Especially for instances with low density, we observed that FM time
       // dominates. The root cause for this is that for such instances (with large hyperedges) maintaining
       // the gain cache inside the partitioned hypergraph becomes expensive.
-      // After the FM reaches the time limit the first time, we switch to a light FM variant. Here, we do not
-      // release vertices that are within a local PQ at the end of a localized search. If the time limit is
-      // reached a second time we immediatly abort FM refinement.
       if ( elapsed_time > current_time_limit ) {
         if ( !enable_light_fm ) {
           DBG << RED << "Multitry FM reached time limit => switch to Light FM Configuration" << END;
