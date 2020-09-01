@@ -2,7 +2,8 @@
 
 namespace mt_kahypar {
 
-  bool LocalizedKWayFM::findMovesLocalized(PartitionedHypergraph& phg, size_t taskID) {
+  template<typename FMDetails>
+  bool LocalizedKWayFM<FMDetails>::findMoves(PartitionedHypergraph& phg, size_t taskID) {
     localMoves.clear();
     thisSearch = ++sharedData.nodeTracker.highestActiveSearchID;
 
@@ -40,6 +41,7 @@ namespace mt_kahypar {
 
   }
 
+  /*
   bool LocalizedKWayFM::findMovesUsingFullBoundary(PartitionedHypergraph& phg) {
     localMoves.clear();
     thisSearch = ++sharedData.nodeTracker.highestActiveSearchID;
@@ -54,10 +56,11 @@ namespace mt_kahypar {
     internalFindMoves<true>(phg);
     return true;
   }
-
+*/
 
   template<typename Partition>
-  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE std::pair<PartitionID, HypernodeWeight> heaviestPartAndWeight(const Partition& partition) {
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE std::pair<PartitionID, HypernodeWeight>
+  heaviestPartAndWeight(const Partition& partition) {
     PartitionID p = kInvalidPartition;
     HypernodeWeight w = std::numeric_limits<HypernodeWeight>::min();
     for (PartitionID i = 0; i < partition.k(); ++i) {
@@ -141,21 +144,21 @@ namespace mt_kahypar {
 */
 
 
-  //template<typename FMDetails>
+  template<typename FMDetails>
   template<bool use_delta>
-  void LocalizedKWayFM//<FMDetails>
-    ::internalFindMoves(PartitionedHypergraph& phg) {
+  void LocalizedKWayFM<FMDetails>
+  ::internalFindMoves(PartitionedHypergraph& phg) {
     StopRule stopRule(phg.initialNumNodes());
     Move move;
 
     auto delta_func = [&](const HyperedgeID he,
                           const HyperedgeWeight edge_weight,
-                          const HypernodeID ,
+                          const HypernodeID,
                           const HypernodeID pin_count_in_from_part_after,
                           const HypernodeID pin_count_in_to_part_after) {
       // Gains of the pins of a hyperedge can only change in the following situations.
-      if ( pin_count_in_from_part_after == 0 || pin_count_in_from_part_after == 1 ||
-           pin_count_in_to_part_after == 1 || pin_count_in_to_part_after == 2 ) {
+      if (pin_count_in_from_part_after == 0 || pin_count_in_from_part_after == 1 ||
+          pin_count_in_to_part_after == 1 || pin_count_in_to_part_after == 2) {
         edgesWithGainChanges.push_back(he);
       }
 
@@ -263,10 +266,11 @@ namespace mt_kahypar {
   }
 
 
-  std::pair<Gain, size_t> LocalizedKWayFM::applyMovesOnGlobalHypergraph(
-                                                        PartitionedHypergraph& phg,
-                                                        const size_t bestGainIndex,
-                                                        const Gain bestEstimatedImprovement) {
+  template<typename FMDetails>
+  std::pair<Gain, size_t> LocalizedKWayFM<FMDetails>::applyMovesOnGlobalHypergraph(
+          PartitionedHypergraph& phg,
+          const size_t bestGainIndex,
+          const Gain bestEstimatedImprovement) {
     // TODO find better variable names!
 
     Gain estimatedImprovement = 0;
@@ -297,7 +301,7 @@ namespace mt_kahypar {
       } else {
         phg.changeNodePart(local_move.node, local_move.from, local_move.to,
                            std::numeric_limits<HypernodeWeight>::max(),
-                           [&]{ move_id = sharedData.moveTracker.insertMove(local_move); },
+                           [&] { move_id = sharedData.moveTracker.insertMove(local_move); },
                            delta_gain_func);
       }
 
@@ -318,9 +322,9 @@ namespace mt_kahypar {
     }
 
     // Kind of double rollback, if gain values are not correct
-    if ( estimatedImprovement < 0 ) {
+    if (estimatedImprovement < 0) {
       runStats.local_reverts += bestGainIndex - bestIndex + 1;
-      for ( size_t i = bestIndex + 1; i < bestGainIndex; ++i ) {
+      for (size_t i = bestIndex + 1; i < bestGainIndex; ++i) {
         Move& m = sharedData.moveTracker.getMove(localMoves[i].second);
 
         if constexpr (FMDetails::uses_gain_cache) {
@@ -337,7 +341,8 @@ namespace mt_kahypar {
     }
   }
 
-  void LocalizedKWayFM::revertToBestLocalPrefix(PartitionedHypergraph& phg, size_t bestGainIndex) {
+  template<typename FMDetails>
+  void LocalizedKWayFM<FMDetails>::revertToBestLocalPrefix(PartitionedHypergraph& phg, size_t bestGainIndex) {
     runStats.local_reverts += localMoves.size() - bestGainIndex;
     while (localMoves.size() > bestGainIndex) {
       Move& m = sharedData.moveTracker.getMove(localMoves.back().second);
@@ -351,17 +356,18 @@ namespace mt_kahypar {
     }
   }
 
-  void LocalizedKWayFM::memoryConsumption(utils::MemoryTreeNode* parent) const {
+  template<typename FMDetails>
+  void LocalizedKWayFM<FMDetails>::memoryConsumption(utils::MemoryTreeNode *parent) const {
     ASSERT(parent);
 
-    utils::MemoryTreeNode* localized_fm_node = parent->addChild("Localized k-Way FM");
+    utils::MemoryTreeNode *localized_fm_node = parent->addChild("Localized k-Way FM");
 
-    utils::MemoryTreeNode* deduplicator_node = localized_fm_node->addChild("Deduplicator");
+    utils::MemoryTreeNode *deduplicator_node = localized_fm_node->addChild("Deduplicator");
     deduplicator_node->updateSize(updateDeduplicator.size_in_bytes());
-    utils::MemoryTreeNode* edges_to_activate_node = localized_fm_node->addChild("edgesWithGainChanges");
+    utils::MemoryTreeNode *edges_to_activate_node = localized_fm_node->addChild("edgesWithGainChanges");
     edges_to_activate_node->updateSize(edgesWithGainChanges.capacity() * sizeof(HyperedgeID));
 
-    utils::MemoryTreeNode* local_moves_node = parent->addChild("Local FM Moves");
+    utils::MemoryTreeNode *local_moves_node = parent->addChild("Local FM Moves");
     local_moves_node->updateSize(localMoves.capacity() * sizeof(std::pair<Move, MoveID>));
 
     // TODO fm_details.memoryConsumptiom(..)
@@ -377,4 +383,11 @@ namespace mt_kahypar {
     deltaPhg.memoryConsumption(localized_fm_node);
   }
 
+}   // namespace mt_kahypar
+
+
+  // instantiate template
+  #include "mt-kahypar/partition/refinement/fm/fm_details.h"
+namespace mt_kahypar {
+  template class LocalizedKWayFM<FMwithFromPQsAndGainCache>;
 }

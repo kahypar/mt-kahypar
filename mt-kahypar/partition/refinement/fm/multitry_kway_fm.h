@@ -28,6 +28,7 @@
 #include "mt-kahypar/partition/refinement/fm/global_rollback.h"
 
 
+#include "fm_details.h"
 
 namespace mt_kahypar {
 
@@ -37,6 +38,8 @@ class MultiTryKWayFM final : public IRefiner {
   static constexpr bool enable_heavy_assert = false;
 
 public:
+  using FMType = LocalizedKWayFM<FMwithFromPQsAndGainCache>;
+
   MultiTryKWayFM(const Hypergraph& hypergraph,
                  const Context& c,
                  const TaskGroupID taskGroupID) :
@@ -64,8 +67,8 @@ public:
   void roundInitialization(PartitionedHypergraph& phg, const Batch& batch);
 
 
-  LocalizedKWayFM constructLocalizedKWayFMSearch() {
-    return LocalizedKWayFM(context, initial_num_nodes, sharedData);
+  FMType constructLocalizedKWayFMSearch() {
+    return FMType(context, initial_num_nodes, sharedData);
   }
 
   static double improvementFraction(Gain gain, HyperedgeWeight old_km1) {
@@ -84,7 +87,7 @@ public:
   const TaskGroupID taskGroupID;
   FMSharedData sharedData;
   GlobalRollback globalRollback;
-  tbb::enumerable_thread_specific<LocalizedKWayFM> ets_fm;
+  tbb::enumerable_thread_specific<FMType> ets_fm;
 };
 
 } // namespace mt_kahypar

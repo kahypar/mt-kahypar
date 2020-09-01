@@ -5,15 +5,15 @@
 
 namespace mt_kahypar {
 
-class FMDetails {
+class FMwithFromPQsAndGainCache {
 public:
 
   static constexpr bool uses_gain_cache = true;
 
-  FMDetails(const Context& context,
-            HypernodeID numNodes,
-            FMSharedData& sharedData,
-            FMStats& runStats) :
+  FMwithFromPQsAndGainCache(const Context& context,
+                            HypernodeID numNodes,
+                            FMSharedData& sharedData,
+                            FMStats& runStats) :
       context(context),
       runStats(runStats),
       sharedData(sharedData),

@@ -28,11 +28,19 @@
 #include "mt-kahypar/datastructures/sparse_map.h"
 #include "mt-kahypar/partition/refinement/fm/fm_commons.h"
 #include "mt-kahypar/partition/refinement/fm/stop_rule.h"
-#include "mt-kahypar/partition/refinement/fm/fm_details.h"
 
 namespace mt_kahypar {
 
-class LocalizedKWayFM {
+class FMInterface {
+public:
+  virtual bool findMoves(PartitionedHypergraph& phg, size_t taskID) = 0;
+  virtual void memoryConsumption(utils::MemoryTreeNode* parent) const  = 0;
+
+  FMStats stats;
+};
+
+template<typename FMDetails>
+class LocalizedKWayFM : public FMInterface {
 public:
   explicit LocalizedKWayFM(const Context& context, HypernodeID numNodes, FMSharedData& sharedData) :
           context(context),
@@ -45,9 +53,11 @@ public:
           { }
 
 
-  bool findMovesUsingFullBoundary(PartitionedHypergraph& phg);
+  //bool findMovesUsingFullBoundary(PartitionedHypergraph& phg) ;
 
-  bool findMovesLocalized(PartitionedHypergraph& phg, size_t taskID);
+  bool findMoves(PartitionedHypergraph& phg, size_t taskID) override;
+
+  void memoryConsumption(utils::MemoryTreeNode* parent) const override ;
 
 private:
 
@@ -94,11 +104,6 @@ private:
   // ! Rollback to the best improvement found during local search in case we applied moves
   // ! directly on the global partitioned hypergraph.
   void revertToBestLocalPrefix(PartitionedHypergraph& phg, size_t bestGainIndex);
-
- public:
-  FMStats stats;
-
-  void memoryConsumption(utils::MemoryTreeNode* parent) const ;
 
  private:
 
