@@ -54,11 +54,6 @@ namespace mt_kahypar {
       };
       TBBNumaArena::instance().execute_task_on_each_thread(taskGroupID, task);
 
-      FMStats stats;
-      for (auto& fm : ets_fm) {
-        fm->stats.merge(stats);
-      }
-
       timer.stop_timer("find_moves");
       timer.start_timer("rollback", "Rollback to Best Solution");
 
@@ -77,6 +72,10 @@ namespace mt_kahypar {
       HighResClockTimepoint fm_timestamp = std::chrono::high_resolution_clock::now();
       const double elapsed_time = std::chrono::duration<double>(fm_timestamp - fm_start).count();
       if (debug && context.type == kahypar::ContextType::main) {
+        FMStats stats;
+        for (auto& fm : ets_fm) {
+          fm->stats.merge(stats);
+        }
         LOG << V(round) << V(improvement) << V(metrics::km1(phg)) << V(metrics::imbalance(phg, context))
             << V(numBorderNodes) << V(roundImprovementFraction) << V(elapsed_time) << V(current_time_limit)
             << stats.serialize();
