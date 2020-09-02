@@ -97,6 +97,7 @@ class NLevelCoarsener : public ICoarsener,
     while ( current_num_nodes > _context.coarsening.contraction_limit ) {
       DBG << V(pass_nr) << V(current_num_nodes);
 
+      HighResClockTimepoint round_start = std::chrono::high_resolution_clock::now();
       utils::Timer::instance().start_timer("random_shuffle", "Random Shuffle");
       std::atomic<size_t> idx(0);
       current_hns.resize(current_num_nodes);
@@ -163,7 +164,7 @@ class NLevelCoarsener : public ICoarsener,
       utils::Timer::instance().stop_timer("n_level_coarsening");
 
       // Remove single-pin and parallel nets
-      Base::removeSinglePinAndParallelNets();
+      Base::removeSinglePinAndParallelNets(round_start);
       current_num_nodes = initial_num_nodes -
         contracted_nodes.combine(std::plus<HypernodeID>());
 

@@ -94,6 +94,9 @@ void read_all_members_of_target_struct(std::ifstream& context_file,
          strcmp(input, "    // Enable all initial partitioner per default") != 0 &&
          strcmp(input, "    enabled_ip_algos(static_cast<size_t>(InitialPartitioningAlgorithm::UNDEFINED), true) { }") != 0 ) {
       char* token = std::strtok(input, " ;");
+      if ( strcmp(token, "mutable") == 0 ) {
+        token = std::strtok(NULL, " ;");
+      }
       // Second value is member name
       token = std::strtok(NULL, " ;");
       if ( strcmp(token, "double") == 0 ) { // long double

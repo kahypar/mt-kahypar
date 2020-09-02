@@ -182,8 +182,6 @@ class MultilevelCoarsenerBase {
               kahypar::Metrics& current_metrics,
               const double time_limit);
 
-  double refinementTimeLimit(const Level& level) const;
-
   bool _is_finalized;
   Hypergraph& _hg;
   PartitionedHypergraph _partitioned_hg;

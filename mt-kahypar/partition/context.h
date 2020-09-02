@@ -130,9 +130,9 @@ struct FMParameters {
   bool perform_moves_global = false;
   bool revert_parallel = true;
   double rollback_balance_violation_factor = std::numeric_limits<double>::max();
-  size_t num_seed_nodes = 0;
+  mutable size_t num_seed_nodes = 0;
   bool shuffle = true;
-  bool obey_minimal_parallelism = false;
+  mutable bool obey_minimal_parallelism = false;
   double min_improvement = -1.0;
   bool release_nodes = true;
   double time_limit_factor = std::numeric_limits<double>::max();

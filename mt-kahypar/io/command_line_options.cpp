@@ -344,8 +344,9 @@ namespace mt_kahypar {
              po::value<bool>(
                      (initial_partitioning ? &context.initial_partitioning.refinement.global_fm.obey_minimal_parallelism :
                       &context.refinement.global_fm.obey_minimal_parallelism))->value_name("<bool>")->default_value(true),
-             "If true, then parallel n-level global FM refinement stops if more than a certain number of threads are finished.");
+             "If true, then parallel n-level global FM refinement stops if more than a certain number of threads are finished.")
             #endif
+            ;
     return options;
   }
 
