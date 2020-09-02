@@ -308,8 +308,13 @@ namespace mt_kahypar {
 }   // namespace mt_kahypar
 
 
-  // instantiate template
-  #include "mt-kahypar/partition/refinement/fm/gain_cache_strategy.h"
+// instantiate template
+#include "mt-kahypar/partition/refinement/fm/gain_cache_strategy.h"
+#include "mt-kahypar/partition/refinement/fm/gain_delta_strategy.h"
+#include "mt-kahypar/partition/refinement/fm/recompute_gain_strategy.h"
+
 namespace mt_kahypar {
   template class LocalizedKWayFM<GainCacheStrategy>;
+  template class LocalizedKWayFM<GainDeltaStrategy>;
+  template class LocalizedKWayFM<RecomputeGainStrategy>;
 }

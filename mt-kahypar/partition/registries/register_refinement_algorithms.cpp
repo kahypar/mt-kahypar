@@ -28,6 +28,8 @@
 #include "mt-kahypar/partition/refinement/label_propagation/label_propagation_refiner.h"
 #include "mt-kahypar/partition/refinement/fm/multitry_kway_fm.h"
 #include "mt-kahypar/partition/refinement/fm/gain_cache_strategy.h"
+#include "mt-kahypar/partition/refinement/fm/gain_delta_strategy.h"
+#include "mt-kahypar/partition/refinement/fm/recompute_gain_strategy.h"
 
 #define REGISTER_LP_REFINER(id, refiner, t)                                                                            \
   static kahypar::meta::Registrar<LabelPropagationFactory> JOIN(register_ ## refiner, t)(                              \
@@ -49,6 +51,10 @@ REGISTER_LP_REFINER(LabelPropagationAlgorithm::label_propagation_km1, LabelPropa
 REGISTER_LP_REFINER(LabelPropagationAlgorithm::do_nothing, DoNothingRefiner, 1);
 
 using MultiTryKWayFMWithGainGache = MultiTryKWayFM<GainCacheStrategy>;
+using MultiTryKWayFMWithGainDelta = MultiTryKWayFM<GainDeltaStrategy>;
+using MultiTryKWayFMWithGainRecomputation = MultiTryKWayFM<RecomputeGainStrategy>;
 REGISTER_FM_REFINER(FMAlgorithm::fm_gain_cache, MultiTryKWayFMWithGainGache, FMWithGainCache);
+REGISTER_FM_REFINER(FMAlgorithm::fm_gain_delta, MultiTryKWayFMWithGainDelta, FMWithGainDelta);
+REGISTER_FM_REFINER(FMAlgorithm::fm_recompute_gain, MultiTryKWayFMWithGainRecomputation, FMWithGainRecomputation);
 REGISTER_FM_REFINER(FMAlgorithm::do_nothing, DoNothingRefiner, 2);
 }  // namespace mt_kahypar

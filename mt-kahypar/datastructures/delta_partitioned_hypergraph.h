@@ -129,6 +129,11 @@ class DeltaPartitionedHypergraph {
     return _phg->edgeSize(e);
   }
 
+  HyperedgeWeight edgeWeight(const HyperedgeID e) const {
+    ASSERT(_phg);
+    return _phg->edgeWeight(e);
+  }
+
   // ####################### Partition Information #######################
 
   // ! Changes the block of hypernode u from 'from' to 'to'.
