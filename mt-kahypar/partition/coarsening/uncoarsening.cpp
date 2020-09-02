@@ -238,7 +238,8 @@ namespace mt_kahypar {
     }
 
     ASSERT(_round_coarsening_times.size() == _removed_hyperedges_batches.size());
-    _round_coarsening_times.push_back(_round_coarsening_times.back()); // Sentinel
+    _round_coarsening_times.push_back(_round_coarsening_times.size() > 0 ?
+      _round_coarsening_times.back() : std::numeric_limits<double>::max()); // Sentinel
 
     size_t num_batches = 0;
     size_t total_batches_size = 0;
