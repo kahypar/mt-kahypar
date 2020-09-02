@@ -324,7 +324,29 @@ namespace mt_kahypar {
                                 &context.refinement.fm.time_limit_factor))->value_name("<double>")->default_value(0.25),
              "If the FM time exceeds time_limit := k * factor * coarsening_time, than the FM config is switched into a light version."
              "If the FM refiner exceeds 2 * time_limit, than the current multitry FM run is aborted and the algorithm proceeds to"
-             "the next finer level.");
+             "the next finer level.")
+            #ifdef KAHYPAR_USE_N_LEVEL_PARADIGM
+            ((initial_partitioning ? "i-r-use-global-fm" : "r-use-global-fm"),
+             po::value<bool>((!initial_partitioning ? &context.refinement.global_fm.use_global_fm :
+                              &context.initial_partitioning.refinement.global_fm.use_global_fm))->value_name(
+                     "<bool>")->default_value(false),
+             "Executes n-level global fm as long as it finds an improvement on the current partition.")
+            ((initial_partitioning ? "i-r-global-fm-refine-until-no-improvement" : "r-global-refine-until-no-improvement"),
+             po::value<bool>((!initial_partitioning ? &context.refinement.global_fm.refine_until_no_improvement :
+                              &context.initial_partitioning.refinement.global_fm.refine_until_no_improvement))->value_name(
+                     "<bool>")->default_value(false),
+             "Executes n-level global fm as long as it finds an improvement on the current partition.")
+            ((initial_partitioning ? "i-r-global-fm-seed-nodes" : "r-global-fm-seed-nodes"),
+             po::value<size_t>((initial_partitioning ? &context.initial_partitioning.refinement.global_fm.num_seed_nodes :
+                                &context.refinement.global_fm.num_seed_nodes))->value_name("<size_t>")->default_value(25),
+             "Number of nodes to start the 'highly localized FM' with during n-level global fm refinement.")
+            ((initial_partitioning ? "i-r-global-fm-obey-minimal-parallelism" : "r-global-fm-obey-minimal-parallelism"),
+             po::value<bool>(
+                     (initial_partitioning ? &context.initial_partitioning.refinement.global_fm.obey_minimal_parallelism :
+                      &context.refinement.global_fm.obey_minimal_parallelism))->value_name("<bool>")->default_value(true),
+             "If true, then parallel n-level global FM refinement stops if more than a certain number of threads are finished.")
+            #endif
+            ;
     return options;
   }
 

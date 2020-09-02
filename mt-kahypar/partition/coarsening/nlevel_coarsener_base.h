@@ -54,7 +54,8 @@ class NLevelCoarsenerBase {
     _compactified_phg(),
     _compactified_hn_mapping(),
     _hierarchy(),
-    _removed_hyperedges_batches() { }
+    _removed_hyperedges_batches(),
+    _round_coarsening_times() { }
 
   NLevelCoarsenerBase(const NLevelCoarsenerBase&) = delete;
   NLevelCoarsenerBase(NLevelCoarsenerBase&&) = delete;
@@ -77,9 +78,12 @@ class NLevelCoarsenerBase {
 
   void finalize();
 
-  void removeSinglePinAndParallelNets() {
+  void removeSinglePinAndParallelNets(const HighResClockTimepoint& round_start) {
     utils::Timer::instance().start_timer("remove_single_pin_and_parallel_nets", "Remove Single Pin and Parallel Nets");
     _removed_hyperedges_batches.emplace_back(_hg.removeSinglePinAndParallelHyperedges());
+    const HighResClockTimepoint round_end = std::chrono::high_resolution_clock::now();
+    const double elapsed_time = std::chrono::duration<double>(round_end - round_start).count();
+    _round_coarsening_times.push_back(elapsed_time);
     utils::Timer::instance().stop_timer("remove_single_pin_and_parallel_nets");
   }
 
@@ -100,12 +104,17 @@ class NLevelCoarsenerBase {
 
   kahypar::Metrics initialize(PartitionedHypergraph& current_hg);
 
-  void refine(PartitionedHypergraph& partitioned_hypergraph,
-              const Batch& batch,
-              std::unique_ptr<IRefiner>& label_propagation,
-              std::unique_ptr<IRefiner>& fm,
-              kahypar::Metrics& current_metrics,
-              const bool force_measure_timings);
+  void localizedRefine(PartitionedHypergraph& partitioned_hypergraph,
+                       const Batch& batch,
+                       std::unique_ptr<IRefiner>& label_propagation,
+                       std::unique_ptr<IRefiner>& fm,
+                       kahypar::Metrics& current_metrics,
+                       const bool force_measure_timings);
+
+  void globalRefine(PartitionedHypergraph& partitioned_hypergraph,
+                    std::unique_ptr<IRefiner>& fm,
+                    kahypar::Metrics& current_metrics,
+                    const double time_limit);
 
   // ! True, if coarsening terminates and finalize function was called
   bool _is_finalized;
@@ -140,5 +149,7 @@ class NLevelCoarsenerBase {
   // ! All hyperedges that are contained in one vector must be restored once
   // ! we completly processed a vector of batches.
   ParallelHyperedgeVector _removed_hyperedges_batches;
+  // ! Contains timings how long a coarsening pass takes for each round
+  parallel::scalable_vector<double> _round_coarsening_times;
 };
 }  // namespace mt_kahypar
