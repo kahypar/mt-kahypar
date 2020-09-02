@@ -46,8 +46,6 @@ public:
           { }
 
 
-  //bool findMovesUsingFullBoundary(PartitionedHypergraph& phg) ;
-
   bool findMoves(PartitionedHypergraph& phg, size_t taskID);
 
   void memoryConsumption(utils::MemoryTreeNode* parent) const ;
@@ -69,7 +67,6 @@ private:
   template<typename PHG>
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
   void acquireOrUpdateNeighbors(const PHG& phg, const Move& move) {
-
     // Note: In theory we should acquire/update all neighbors. It just turned out that this works fine
     // Actually: only vertices incident to edges with gain changes can become new boundary vertices.
     // Vertices that already were boundary vertices, can still be considered later since they are in the task queue

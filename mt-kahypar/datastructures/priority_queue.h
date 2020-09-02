@@ -112,6 +112,11 @@ public:
     }
   }
 
+  KeyT getKey(const IdT e) const {
+    assert(contains(e));
+    return heap[positions[e]].key;
+  }
+
   void insertOrAdjustKey(const IdT e, const KeyT newKey) {
     if (contains(e)) {
       adjustKey(e, newKey);

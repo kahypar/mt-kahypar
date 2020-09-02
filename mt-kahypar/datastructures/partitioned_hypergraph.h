@@ -62,6 +62,8 @@ private:
  public:
   static constexpr bool is_static_hypergraph = Hypergraph::is_static_hypergraph;
   static constexpr bool is_partitioned = true;
+  static constexpr bool supports_connectivity_set = true;
+
   static constexpr HyperedgeID HIGH_DEGREE_THRESHOLD = ID(100000);
 
   using HypernodeIterator = typename Hypergraph::HypernodeIterator;

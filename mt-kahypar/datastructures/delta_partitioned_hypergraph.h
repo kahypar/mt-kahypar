@@ -59,6 +59,7 @@ class DeltaPartitionedHypergraph {
   using IncidentNetsIterator = typename PartitionedHypergraph::IncidentNetsIterator;
 
  public:
+  static constexpr bool supports_connectivity_set = false;
   static constexpr HyperedgeID HIGH_DEGREE_THRESHOLD = PartitionedHypergraph::HIGH_DEGREE_THRESHOLD;
 
   DeltaPartitionedHypergraph(const PartitionID k) :

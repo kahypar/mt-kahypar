@@ -63,7 +63,7 @@ public:
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
   void insertIntoPQ(const PHG& phg, const HypernodeID v) {
     const PartitionID pv = phg.partID(v);
-    auto [target, gain] = bestDestinationBlock(phg, v);
+    auto [target, gain] = computeBestTargetBlock(phg, v);
     sharedData.targetPart[v] = target;
     vertexPQs[pv].insert(v, gain);  // blockPQ updates are done later, collectively.
     runStats.pushes++;
@@ -81,7 +81,7 @@ public:
     if (phg.k() < 4 || designatedTargetV == move.from || designatedTargetV == move.to) {
       // moveToPenalty of designatedTargetV is affected.
       // and may now be greater than that of other blocks --> recompute full
-      std::tie(newTarget, gain) = bestDestinationBlock(phg, v);
+      std::tie(newTarget, gain) = computeBestTargetBlock(phg, v);
     } else {
       // moveToPenalty of designatedTargetV is not affected.
       // only move.from and move.to may be better
@@ -102,8 +102,8 @@ public:
       const PartitionID from = blockPQ.top();
       const HypernodeID u = vertexPQs[from].top();
       const Gain estimated_gain = vertexPQs[from].topKey();
-      assert(estimated_gain == blockPQ.topKey());
-      auto [to, gain] = bestDestinationBlock(phg, u);
+      ASSERT(estimated_gain == blockPQ.topKey());
+      auto [to, gain] = computeBestTargetBlock(phg, u);
       if (gain >= estimated_gain) { // accept any gain that is at least as good
         m.node = u; m.to = to; m.from = from;
         m.gain = gain;
@@ -142,8 +142,9 @@ public:
     blockPQ.clear();
   }
 
+  template<typename PHG>
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
-  void updatePQs() {
+  void updatePQs(const PHG& /*phg*/) {
     for (PartitionID i = 0; i < context.partition.k; ++i) {
       updateBlock(i);
     }
@@ -173,8 +174,8 @@ private:
 
   template<typename PHG>
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
-  std::pair<PartitionID, HyperedgeWeight> bestDestinationBlock(const PHG& phg,
-                                                               const HypernodeID u) {
+  std::pair<PartitionID, HyperedgeWeight> computeBestTargetBlock(const PHG& phg,
+                                                                 const HypernodeID u) {
     const HypernodeWeight wu = phg.nodeWeight(u);
     const PartitionID from = phg.partID(u);
     const HypernodeWeight from_weight = phg.partWeight(from);
@@ -225,7 +226,6 @@ private:
     return std::make_pair(to, gain);
   }
 
-private:
   const Context& context;
 
   FMStats& runStats;

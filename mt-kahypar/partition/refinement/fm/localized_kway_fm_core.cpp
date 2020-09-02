@@ -34,7 +34,7 @@ namespace mt_kahypar {
         fm_details.insertIntoPQ(phg, seedNode);
       }
     }
-    fm_details.updatePQs();
+    fm_details.updatePQs(phg);
 
     if (runStats.pushes > 0) {
       if (!context.refinement.fm.perform_moves_global
@@ -76,8 +76,7 @@ namespace mt_kahypar {
 
   template<typename FMDetails>
   template<bool use_delta>
-  void LocalizedKWayFM<FMDetails>
-  ::internalFindMoves(PartitionedHypergraph& phg) {
+  void LocalizedKWayFM<FMDetails>::internalFindMoves(PartitionedHypergraph& phg) {
     StopRule stopRule(phg.initialNumNodes());
     Move move;
 
@@ -165,7 +164,12 @@ namespace mt_kahypar {
         }
       }
 
-      fm_details.updatePQs();
+      if constexpr (use_delta) {
+        fm_details.updatePQs(deltaPhg);
+      } else {
+        fm_details.updatePQs(phg);
+      }
+
     }
 
     if constexpr (use_delta) {
@@ -238,6 +242,9 @@ namespace mt_kahypar {
 
     // Kind of double rollback, if gain values are not correct
     if (estimatedImprovement < 0) {
+      // TODO I tried a version which always does the revert trusting the attributed gains more. Gave similar quality on the subset
+      // We should definitely use that version if we don't do retries in findNextMove( .. )
+
       runStats.local_reverts += bestGainIndex - bestIndex + 1;
       for (size_t i = bestIndex + 1; i < bestGainIndex; ++i) {
         Move& m = sharedData.moveTracker.getMove(localMoves[i].second);

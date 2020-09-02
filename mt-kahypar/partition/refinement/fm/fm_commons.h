@@ -176,9 +176,9 @@ struct FMSharedData {
   bool release_nodes = true;
   bool perform_moves_global = true;
 
-  FMSharedData(size_t numNodes = 0, PartitionID numParts = 0, size_t numThreads = 0) :
+  FMSharedData(size_t numNodes = 0, PartitionID numParts = 0, size_t numThreads = 0, size_t numPQHandles = 0) :
           refinementNodes(), //numNodes, numThreads),
-          vertexPQHandles(), //numNodes, invalid_position),
+          vertexPQHandles(), //numPQHandles, invalid_position),
           numParts(numParts),
           moveTracker(), //numNodes),
           nodeTracker(), //numNodes),
@@ -196,7 +196,7 @@ struct FMSharedData {
     }, [&] {
       nodeTracker.searchOfNode.resize(numNodes, CAtomic<SearchID>(0));
     }, [&] {
-      vertexPQHandles.resize(numNodes, invalid_position);
+      vertexPQHandles.resize(numPQHandles, invalid_position);
     }, [&] {
       refinementNodes.tls_queues.resize(numThreads);
     }, [&] {
@@ -205,9 +205,21 @@ struct FMSharedData {
   }
 
   FMSharedData(size_t numNodes, const Context& context) :
-    FMSharedData(numNodes, context.partition.k,
-      TBBNumaArena::instance().total_number_of_threads())  { }
+        FMSharedData(
+                numNodes,
+                context.partition.k,
+                TBBNumaArena::instance().total_number_of_threads(),
+                getNumberOfPQHandles(context, numNodes)
+                )  { }
 
+
+  size_t getNumberOfPQHandles(const Context& context, size_t numNodes) {
+    if (context.refinement.fm.algorithm == FMAlgorithm::fm_gain_delta) {
+      return numNodes * context.partition.k;
+    } else {
+      return numNodes;
+    }
+  }
 
   void memoryConsumption(utils::MemoryTreeNode* parent) const {
     ASSERT(parent);
