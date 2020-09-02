@@ -140,9 +140,19 @@ struct FMParameters {
 
 std::ostream& operator<<(std::ostream& out, const FMParameters& params);
 
+struct NLevelGlobalFMParameters {
+  bool use_global_fm = false;
+  bool refine_until_no_improvement = false;
+  size_t num_seed_nodes = 0;
+  bool obey_minimal_parallelism = false;
+};
+
+std::ostream& operator<<(std::ostream& out, const NLevelGlobalFMParameters& params);
+
 struct RefinementParameters {
   LabelPropagationParameters label_propagation;
   FMParameters fm;
+  NLevelGlobalFMParameters global_fm;
   bool refine_until_no_improvement = false;
   size_t max_batch_size = std::numeric_limits<size_t>::max();
   bool initialize_gain_cache = false;
