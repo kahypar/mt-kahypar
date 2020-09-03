@@ -25,6 +25,8 @@
 #include "tbb/parallel_invoke.h"
 #include "tbb/parallel_scan.h"
 
+#include "kahypar/datastructure/fast_reset_flag_array.h"
+
 #include "mt-kahypar/macros.h"
 #include "mt-kahypar/datastructures/hypergraph_common.h"
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
@@ -80,27 +82,28 @@ class IncidentNetArray {
                         const bool end) :
       _u(u),
       _current_u(u),
+      _last_u(incident_net_array->header(u)->it_prev),
       _current_pos(0),
       _incident_net_array(incident_net_array) {
       if ( end ) {
-        _current_u = _incident_net_array->header(u)->it_prev;
-        _current_pos = _incident_net_array->header(_current_u)->size;
+        _current_u = _last_u;
+        _current_pos = incident_net_array->header(_current_u)->size;
       }
 
-      if ( _current_pos == _incident_net_array->header(_current_u)->size ) {
+      if ( !end && _current_pos == _incident_net_array->header(_current_u)->size ) {
         next_iterator();
       }
     }
 
     HyperedgeID operator* () const {
-      ASSERT(_current_pos != _incident_net_array->header(_current_u)->size);
+      ASSERT(_current_u != _last_u || _current_pos != _incident_net_array->header(_current_u)->size);
       return _incident_net_array->firstEntry(_current_u)[_current_pos].e;
     }
 
     IncidentNetIterator & operator++ () {
-      ASSERT(_current_pos != _incident_net_array->header(_current_u)->size);
+      ASSERT(_current_u != _last_u || _current_pos != _incident_net_array->header(_current_u)->size);
       ++_current_pos;
-      if ( _current_pos ==  _incident_net_array->header(_current_u)->size) {
+      if ( _current_pos == _incident_net_array->header(_current_u)->size) {
         next_iterator();
       }
       return *this;
@@ -124,20 +127,18 @@ class IncidentNetArray {
 
    private:
     void next_iterator() {
-      ASSERT(_current_pos == _incident_net_array->header(_current_u)->size);
       while ( _current_pos == _incident_net_array->header(_current_u)->size ) {
-        HypernodeID tmp_u = _current_u;
-        _current_u = _incident_net_array->header(_current_u)->it_next;
-        if ( tmp_u != _current_u ) {
-          _current_pos = 0;
-        } else {
+        if ( _current_u == _last_u ) {
           break;
         }
+        _current_u = _incident_net_array->header(_current_u)->it_next;
+        _current_pos = 0;
       }
     }
 
     HypernodeID _u;
     HypernodeID _current_u;
+    HypernodeID _last_u;
     size_t _current_pos;
     const IncidentNetArray* _incident_net_array;
   };
@@ -162,6 +163,84 @@ class IncidentNetArray {
     return IteratorRange<IncidentNetIterator>(
       IncidentNetIterator(u, this, false),
       IncidentNetIterator(u, this, true));
+  }
+
+  void contract(const HypernodeID u,
+                const HypernodeID v,
+                const kahypar::ds::FastResetFlagArray<>& shared_hes_of_u_and_v) {
+    HypernodeID current_v = v;
+    do {
+      Header* head = header(current_v);
+      const HypernodeID new_version = ++head->current_version;
+      Entry* last_entry = lastEntry(current_v);
+      for ( Entry* current_entry = firstEntry(current_v); current_entry != last_entry; ++current_entry ) {
+        if ( shared_hes_of_u_and_v[current_entry->e] ) {
+          swap(current_entry--, --last_entry);
+          ASSERT(head->size > 0);
+          --head->size;
+        } else {
+          current_entry->version = new_version;
+        }
+      }
+
+      if ( head->size == 0 && current_v != v ) {
+        removeEmptyIncidentNetList(current_v);
+      }
+      current_v = head->next;
+    } while ( current_v != v );
+    append(u, v);
+  }
+
+  void uncontract(const HypernodeID v) {
+    ASSERT(header(v)->prev != v);
+    splice(v);
+    HypernodeID current_v = v;
+    HypernodeID last_non_empty_entry = kInvalidHypernode;
+    HypernodeID non_empty_entry_prev_v = kInvalidHypernode;
+    HypernodeID non_empty_entry_next_v = kInvalidHypernode;
+    do {
+      Header* head = header(current_v);
+      const HypernodeID size_before = head->size;
+      ASSERT(head->current_version > 0);
+      const HypernodeID new_version = --head->current_version;
+      const Entry* last_entry = reinterpret_cast<const Entry*>(header(current_v + 1));
+      for ( Entry* current_entry = lastEntry(current_v); current_entry != last_entry; ++current_entry ) {
+        if ( current_entry->version == new_version ) {
+          ++head->size;
+        } else {
+          break;
+        }
+      }
+
+      if ( head->size > 0 ) {
+        const bool was_non_empty_before = size_before > 0;
+        if ( was_non_empty_before ) {
+          non_empty_entry_prev_v = non_empty_entry_prev_v == kInvalidHypernode ?
+            head->it_prev : non_empty_entry_prev_v;
+          non_empty_entry_next_v = head->it_next;
+        }
+
+        if ( last_non_empty_entry != kInvalidHypernode &&
+            head->it_prev != last_non_empty_entry ) {
+          header(last_non_empty_entry)->it_next = current_v;
+          head->it_prev = last_non_empty_entry;
+        }
+        last_non_empty_entry = current_v;
+      }
+      current_v = head->next;
+    } while ( current_v != v );
+
+    ASSERT(header(v)->size > 0);
+    ASSERT(last_non_empty_entry != kInvalidHypernode);
+    header(v)->it_prev = last_non_empty_entry;
+    header(last_non_empty_entry)->it_next = v;
+
+    ASSERT((non_empty_entry_next_v == kInvalidHypernode && non_empty_entry_prev_v == kInvalidHypernode) ||
+           (non_empty_entry_next_v != kInvalidHypernode && non_empty_entry_prev_v != kInvalidHypernode));
+    if ( non_empty_entry_next_v != kInvalidHypernode && non_empty_entry_prev_v != kInvalidHypernode ) {
+      header(non_empty_entry_prev_v)->it_next = non_empty_entry_next_v;
+      header(non_empty_entry_next_v)->it_prev = non_empty_entry_prev_v;
+    }
   }
 
  private:
@@ -193,6 +272,52 @@ class IncidentNetArray {
 
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE Entry* lastEntry(const HypernodeID u) {
     return const_cast<Entry*>(static_cast<const IncidentNetArray&>(*this).lastEntry(u));
+  }
+
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE void swap(Entry* lhs, Entry* rhs) {
+    Entry tmp_lhs = *lhs;
+    *lhs = *rhs;
+    *rhs = tmp_lhs;
+  }
+
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE void append(const HypernodeID u, const HypernodeID v) {
+    const HypernodeID tail_u = header(u)->prev;
+    const HypernodeID tail_v = header(v)->prev;
+    header(tail_u)->next = v;
+    header(u)->prev = tail_v;
+    header(v)->tail = tail_v;
+    header(v)->prev = tail_u;
+    header(tail_v)->next = u;
+
+    const HypernodeID it_tail_u = header(u)->it_prev;
+    const HypernodeID it_tail_v = header(v)->it_prev;
+    header(it_tail_u)->it_next = v;
+    header(u)->it_prev = it_tail_v;
+    header(v)->it_prev = it_tail_u;
+    header(it_tail_v)->it_next = u;
+
+    if ( header(v)->size == 0 ) {
+      removeEmptyIncidentNetList(v);
+    }
+  }
+
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE void splice(const HypernodeID v) {
+    const HypernodeID tail = header(v)->tail;
+    const HypernodeID prev_v = header(v)->prev;
+    const HypernodeID next_tail = header(tail)->next;
+    header(v)->prev = tail;
+    header(tail)->next = v;
+    header(next_tail)->prev = prev_v;
+    header(prev_v)->next = next_tail;
+  }
+
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE void removeEmptyIncidentNetList(const HypernodeID u) {
+    ASSERT(header(u)->size == 0, V(u) << V(header(u)->size));
+    Header* head = header(u);
+    header(head->it_prev)->it_next = head->it_next;
+    header(head->it_next)->it_prev = head->it_prev;
+    head->it_next = u;
+    head->it_prev = u;
   }
 
   void construct(const HyperedgeVector& edge_vector) {
