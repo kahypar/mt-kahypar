@@ -53,7 +53,7 @@ namespace mt_kahypar {
     template<typename PHG>
     MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
     void insertIntoPQ(const PHG& phg, const HypernodeID v) {
-      auto [target, gain] = computeBestTargetBlock(phg, v);
+      auto [target, gain] = gc.computeBestTargetBlock(phg, v, context.partition.max_part_weights);
       sharedData.targetPart[v] = target;
       pq.insert(v, gain);
       runStats.pushes++;
@@ -63,7 +63,7 @@ namespace mt_kahypar {
     MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
     void updateGain(const PHG& phg, const HypernodeID v, const Move& /*move*/) {
       ASSERT(pq.contains(v));
-      auto [target, gain] = computeBestTargetBlock(phg, v);
+      auto [target, gain] = gc.computeBestTargetBlock(phg, v, context.partition.max_part_weights);
       sharedData.targetPart[v] = target;
       pq.adjustKey(v, gain);
     }
@@ -78,7 +78,7 @@ namespace mt_kahypar {
         // TODO we're likely gonna have to kick the retries. they're too expensive and we want to 'just trust the gains'
         const HypernodeID u = pq.top();
         const Gain estimated_gain = pq.topKey();
-        auto [to, gain] = computeBestTargetBlock(phg, u);
+        auto [to, gain] = gc.computeBestTargetBlock(phg, u, context.partition.max_part_weights);
         if (gain >= estimated_gain) { // accept any gain that is at least as good
           m.node = u; m.to = to; m.from = phg.partID(u);
           m.gain = gain;
@@ -122,35 +122,6 @@ namespace mt_kahypar {
                           const PartitionID , const HypernodeID ) {
       // do nothing!
     }
-
-  private:
-
-    template<typename PHG>
-    MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
-    std::pair<PartitionID, HyperedgeWeight> computeBestTargetBlock(const PHG& phg, const HypernodeID u) {
-      gc.computeGainsFromScratch(phg, u);
-
-      const HypernodeWeight weight_of_u = phg.nodeWeight(u);
-      PartitionID best_target = kInvalidPartition;
-      HypernodeWeight best_target_weight = std::numeric_limits<HypernodeWeight>::max();
-      Gain best_gain = std::numeric_limits<Gain>::min();
-      for (PartitionID target = 0; target < phg.k(); ++target) {
-        if (target != from) {
-          const HypernodeWeight target_weight = phg.partWeight(target);
-          const Gain gain = gc.gains[target];
-          if ( (gain > best_gain || (gain == best_gain && target_weight < best_target_weight))
-                && target_weight + weight_of_u <= context.partition.max_part_weights[target]) {
-            best_target = target;
-            best_gain = gain;
-            best_target_weight = target_weight;
-          }
-        }
-      }
-
-      return std::make_pair(best_target, best_gain);
-    }
-
-
 
   private:
     const Context& context;

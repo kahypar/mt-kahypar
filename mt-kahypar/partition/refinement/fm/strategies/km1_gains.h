@@ -60,6 +60,36 @@ struct Km1GainComputer {
     }
   }
 
+
+  template<typename PHG>
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
+  std::pair<PartitionID, HyperedgeWeight> computeBestTargetBlock(const PHG& phg,
+                                                                 const HypernodeID u,
+                                                                 const std::vector<HypernodeWeight>& max_part_weights) {
+    computeGainsFromScratch(phg, u);
+
+    const HypernodeWeight weight_of_u = phg.nodeWeight(u);
+    const PartitionID from = phg.partID(u);
+    PartitionID best_target = kInvalidPartition;
+    HypernodeWeight best_target_weight = std::numeric_limits<HypernodeWeight>::max();
+    Gain best_gain = std::numeric_limits<Gain>::min();
+    for (PartitionID target = 0; target < phg.k(); ++target) {
+      if (target != from) {
+        const HypernodeWeight target_weight = phg.partWeight(target);
+        const Gain gain = gains[target];
+        if ( (gain > best_gain || (gain == best_gain && target_weight < best_target_weight))
+             && target_weight + weight_of_u <= max_part_weights[target]) {
+          best_target = target;
+          best_gain = gain;
+          best_target_weight = target_weight;
+        }
+      }
+    }
+
+    return std::make_pair(best_target, best_gain);
+  }
+
+
   vec<Gain> gains;
 };
 }

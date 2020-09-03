@@ -54,7 +54,7 @@ namespace mt_kahypar {
     template<typename PHG>
     MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
     void insertIntoPQ(const PHG& phg, const HypernodeID v) {
-      computeGains(phg, v);
+      gc.computeGainsFromScratch(phg, v);
       for (PartitionID i = 0; i < k; ++i) {
         if (i != phg.partID(v)) {
           vertexPQs[i].insert(v, gc.gains[i]);
@@ -150,6 +150,8 @@ namespace mt_kahypar {
       auto decrease = [&](const HypernodeID u, const PartitionID i) {
         vertexPQs[i].decreaseKey(u, vertexPQs[i].getKey(u) - edge_weight);
       };
+
+      //  TODO this might be the place where a bucket pq works well
 
       // gain = moveFromBenefit - moveToPenalty
 
