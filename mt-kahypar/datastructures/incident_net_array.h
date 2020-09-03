@@ -44,6 +44,12 @@ class IncidentNetArray {
   using ThreadLocalCounter = tbb::enumerable_thread_specific<parallel::scalable_vector<size_t>>;
   using AtomicCounter = parallel::scalable_vector<parallel::IntegralAtomicWrapper<size_t>>;
 
+  using AcquireLockFunc = std::function<void (const HypernodeID)>;
+  using ReleaseLockFunc = std::function<void (const HypernodeID)>;
+  #define NOOP_LOCK_FUNC [] (const HypernodeID) { }
+
+
+
   static_assert(sizeof(char) == 1);
 
   struct Entry {
@@ -144,16 +150,23 @@ class IncidentNetArray {
   };
 
  public:
-  IncidentNetArray() :
+  IncidentNetArray(AcquireLockFunc acquire_lock = NOOP_LOCK_FUNC,
+                   ReleaseLockFunc release_lock = NOOP_LOCK_FUNC) :
     _num_hypernodes(0),
     _index_array(),
-    _incident_net_array(nullptr) { }
+    _incident_net_array(nullptr),
+    _acquire_lock(acquire_lock),
+    _release_lock(release_lock) { }
 
   IncidentNetArray(const HypernodeID num_hypernodes,
-                   const HyperedgeVector& edge_vector) :
+                   const HyperedgeVector& edge_vector,
+                   AcquireLockFunc acquire_lock = NOOP_LOCK_FUNC,
+                   ReleaseLockFunc release_lock = NOOP_LOCK_FUNC) :
     _num_hypernodes(num_hypernodes),
     _index_array(),
-    _incident_net_array(nullptr) {
+    _incident_net_array(nullptr),
+    _acquire_lock(acquire_lock),
+    _release_lock(release_lock)  {
     construct(edge_vector);
   }
 
@@ -188,19 +201,24 @@ class IncidentNetArray {
       }
       current_v = head->next;
     } while ( current_v != v );
+
+    _acquire_lock(u);
     append(u, v);
+    _release_lock(u);
   }
 
-  void uncontract(const HypernodeID v) {
+  void uncontract(const HypernodeID u,
+                  const HypernodeID v) {
+    ASSERT(header(u)->size > 0);
     ASSERT(header(v)->prev != v);
+    _acquire_lock(u);
     splice(v);
+    _release_lock(u);
+
     HypernodeID current_v = v;
     HypernodeID last_non_empty_entry = kInvalidHypernode;
-    HypernodeID non_empty_entry_prev_v = kInvalidHypernode;
-    HypernodeID non_empty_entry_next_v = kInvalidHypernode;
     do {
       Header* head = header(current_v);
-      const HypernodeID size_before = head->size;
       ASSERT(head->current_version > 0);
       const HypernodeID new_version = --head->current_version;
       const Entry* last_entry = reinterpret_cast<const Entry*>(header(current_v + 1));
@@ -213,13 +231,6 @@ class IncidentNetArray {
       }
 
       if ( head->size > 0 ) {
-        const bool was_non_empty_before = size_before > 0;
-        if ( was_non_empty_before ) {
-          non_empty_entry_prev_v = non_empty_entry_prev_v == kInvalidHypernode ?
-            head->it_prev : non_empty_entry_prev_v;
-          non_empty_entry_next_v = head->it_next;
-        }
-
         if ( last_non_empty_entry != kInvalidHypernode &&
             head->it_prev != last_non_empty_entry ) {
           header(last_non_empty_entry)->it_next = current_v;
@@ -234,13 +245,6 @@ class IncidentNetArray {
     ASSERT(last_non_empty_entry != kInvalidHypernode);
     header(v)->it_prev = last_non_empty_entry;
     header(last_non_empty_entry)->it_next = v;
-
-    ASSERT((non_empty_entry_next_v == kInvalidHypernode && non_empty_entry_prev_v == kInvalidHypernode) ||
-           (non_empty_entry_next_v != kInvalidHypernode && non_empty_entry_prev_v != kInvalidHypernode));
-    if ( non_empty_entry_next_v != kInvalidHypernode && non_empty_entry_prev_v != kInvalidHypernode ) {
-      header(non_empty_entry_prev_v)->it_next = non_empty_entry_next_v;
-      header(non_empty_entry_next_v)->it_prev = non_empty_entry_prev_v;
-    }
   }
 
  private:
@@ -303,6 +307,18 @@ class IncidentNetArray {
 
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE void splice(const HypernodeID v) {
     const HypernodeID tail = header(v)->tail;
+    HypernodeID non_empty_entry_prev_v = v;
+    HypernodeID non_empty_entry_next_tail = tail;
+    while ( non_empty_entry_prev_v == v || header(non_empty_entry_prev_v)->size == 0 ) {
+      non_empty_entry_prev_v = header(non_empty_entry_prev_v)->prev;
+    }
+    while ( non_empty_entry_next_tail == tail || header(non_empty_entry_next_tail)->size == 0 ) {
+      non_empty_entry_next_tail = header(non_empty_entry_next_tail)->next;
+    }
+    header(non_empty_entry_prev_v)->it_next = non_empty_entry_next_tail;
+    header(non_empty_entry_next_tail)->it_prev = non_empty_entry_prev_v;
+
+
     const HypernodeID prev_v = header(v)->prev;
     const HypernodeID next_tail = header(tail)->next;
     header(v)->prev = tail;
@@ -382,6 +398,8 @@ class IncidentNetArray {
   const HypernodeID _num_hypernodes;
   parallel::scalable_vector<size_t> _index_array;
   parallel::tbb_unique_ptr<char> _incident_net_array;
+  AcquireLockFunc _acquire_lock;
+  ReleaseLockFunc _release_lock;
 };
 }  // namespace ds
 }  // namespace mt_kahypar
