@@ -14,5 +14,6 @@ target_sources(mt_kahypar_tests PRIVATE
         pin_count_in_part_test.cc
         sparse_map_test.cc
         incident_net_vector_test.cc
+        incident_net_array_test.cc
         nlevel_smoke_test.cc
 )
