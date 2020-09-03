@@ -34,7 +34,7 @@ struct Km1GainComputer {
     }
 
     const PartitionID from = phg.partID(u);
-    Gain internal_weight = 0;   // weighted affinity with part(u), even if u was moved
+    Gain internal_weight = 0;   // weighted affinity with part(u) after u would be moved
     for (HyperedgeID e : phg.incidentEdges(u)) {
       HyperedgeWeight edge_weight = phg.edgeWeight(e);
       if (phg.pinCountInPart(e, from) > 1) {
