@@ -43,6 +43,7 @@ void verifyIncidentNets(const HypernodeID u,
     ++num_incident_edges;
   }
   ASSERT_EQ(num_incident_edges, _expected_incident_nets.size());
+  ASSERT_EQ(num_incident_edges, incident_nets.nodeDegree(u));
 }
 
 kahypar::ds::FastResetFlagArray<> createFlagArray(const HyperedgeID num_hyperedges,
@@ -343,6 +344,101 @@ TEST(AIncidentNetArray, UnontractsParallel2) {
   verifyIncidentNets(1, 4, incident_nets, { 1 });
   verifyIncidentNets(6, 4, incident_nets, { 2, 3 });
 }
+
+TEST(AIncidentNetArray, RemovesIncidentNets1) {
+  IncidentNetArray incident_nets(
+    7, {{0, 2}, {0, 1, 3, 4}, {3, 4, 6}, {2, 5, 6}});
+  incident_nets.removeIncidentNets(0, createFlagArray(4, { 1 }));
+  verifyIncidentNets(0, 4, incident_nets, { 0 });
+}
+
+TEST(AIncidentNetArray, RemovesIncidentNets2) {
+  IncidentNetArray incident_nets(
+    7, {{0, 2}, {0, 1, 3, 4}, {3, 4, 6}, {2, 5, 6}});
+  incident_nets.removeIncidentNets(5, createFlagArray(4, { 3 }));
+  verifyIncidentNets(5, 4, incident_nets, { });
+}
+
+TEST(AIncidentNetArray, RemovesIncidentNets3) {
+  IncidentNetArray incident_nets(
+    7, {{0, 2}, {0, 1, 3, 4}, {3, 4, 6}, {2, 5, 6}});
+  incident_nets.removeIncidentNets(3, createFlagArray(4, { 1 }));
+  incident_nets.removeIncidentNets(4, createFlagArray(4, { 1 }));
+  verifyIncidentNets(3, 4, incident_nets, { 2 });
+  verifyIncidentNets(4, 4, incident_nets, { 2 });
+}
+
+TEST(AIncidentNetArray, RemovesIncidentNetsAfterContraction1) {
+  IncidentNetArray incident_nets(
+    7, {{0, 2}, {0, 1, 3, 4}, {3, 4, 6}, {2, 5, 6}});
+  incident_nets.contract(0, 2, createFlagArray(4, { 0 }));
+  incident_nets.removeIncidentNets(0, createFlagArray(4, { 1 }));
+  verifyIncidentNets(0, 4, incident_nets, { 0, 3 });
+}
+
+TEST(AIncidentNetArray, RemovesIncidentNetsAfterContraction2) {
+  IncidentNetArray incident_nets(
+    7, {{0, 2}, {0, 1, 3, 4}, {3, 4, 6}, {2, 5, 6}});
+  incident_nets.contract(0, 2, createFlagArray(4, { 0 }));
+  incident_nets.contract(0, 6, createFlagArray(4, { 3 }));
+  incident_nets.removeIncidentNets(0, createFlagArray(4, { 1, 3 }));
+  verifyIncidentNets(0, 4, incident_nets, { 0, 2 });
+}
+
+TEST(AIncidentNetArray, RestoreIncidentNets1) {
+  IncidentNetArray incident_nets(
+    7, {{0, 2}, {0, 1, 3, 4}, {3, 4, 6}, {2, 5, 6}});
+  incident_nets.removeIncidentNets(0, createFlagArray(4, { 1 }));
+  incident_nets.restoreIncidentNets(0);
+  verifyIncidentNets(0, 4, incident_nets, { 0, 1 });
+}
+
+TEST(AIncidentNetArray, RestoreIncidentNets2) {
+  IncidentNetArray incident_nets(
+    7, {{0, 2}, {0, 1, 3, 4}, {3, 4, 6}, {2, 5, 6}});
+  incident_nets.removeIncidentNets(5, createFlagArray(4, { 3 }));
+  incident_nets.restoreIncidentNets(5);
+  verifyIncidentNets(5, 4, incident_nets, { 3 });
+}
+
+TEST(AIncidentNetArray, RestoreIncidentNets3) {
+  IncidentNetArray incident_nets(
+    7, {{0, 2}, {0, 1, 3, 4}, {3, 4, 6}, {2, 5, 6}});
+  incident_nets.removeIncidentNets(3, createFlagArray(4, { 1 }));
+  incident_nets.removeIncidentNets(4, createFlagArray(4, { 1 }));
+  incident_nets.restoreIncidentNets(3);
+  incident_nets.restoreIncidentNets(4);
+  verifyIncidentNets(3, 4, incident_nets, { 1, 2 });
+  verifyIncidentNets(4, 4, incident_nets, { 1, 2 });
+}
+
+TEST(AIncidentNetArray, RestoreIncidentNetsAfterContraction1) {
+  IncidentNetArray incident_nets(
+    7, {{0, 2}, {0, 1, 3, 4}, {3, 4, 6}, {2, 5, 6}});
+  incident_nets.contract(0, 2, createFlagArray(4, { 0 }));
+  incident_nets.removeIncidentNets(0, createFlagArray(4, { 1 }));
+  incident_nets.restoreIncidentNets(0);
+  verifyIncidentNets(0, 4, incident_nets, { 0, 1, 3 });
+  incident_nets.uncontract(0, 2);
+  verifyIncidentNets(0, 4, incident_nets, { 0, 1 });
+  verifyIncidentNets(2, 4, incident_nets, { 0, 3 });
+}
+
+TEST(AIncidentNetArray, RestoreIncidentNetsAfterContraction2) {
+  IncidentNetArray incident_nets(
+    7, {{0, 2}, {0, 1, 3, 4}, {3, 4, 6}, {2, 5, 6}});
+  incident_nets.contract(0, 2, createFlagArray(4, { 0 }));
+  incident_nets.contract(0, 6, createFlagArray(4, { 3 }));
+  incident_nets.removeIncidentNets(0, createFlagArray(4, { 1, 3 }));
+  incident_nets.restoreIncidentNets(0);
+  verifyIncidentNets(0, 4, incident_nets, { 0, 1, 2, 3 });
+  incident_nets.uncontract(0, 6);
+  incident_nets.uncontract(0, 2);
+  verifyIncidentNets(0, 4, incident_nets, { 0, 1 });
+  verifyIncidentNets(2, 4, incident_nets, { 0, 3 });
+  verifyIncidentNets(6, 4, incident_nets, { 2, 3 });
+}
+
 
 }  // namespace ds
 }  // namespace mt_kahypar

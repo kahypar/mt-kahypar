@@ -70,6 +70,7 @@ class IncidentNetArray {
       it_next(u),
       tail(u),
       size(0),
+      degree(0),
       current_version(0) { }
 
     // ! Previous incident net list
@@ -86,6 +87,8 @@ class IncidentNetArray {
     HypernodeID tail;
     // ! All incident nets between [0,size) are active
     HypernodeID size;
+    // ! Degree of the vertex
+    HypernodeID degree;
     // ! Current version of the incident net list
     HypernodeID current_version;
   };
@@ -185,6 +188,12 @@ class IncidentNetArray {
     construct(edge_vector);
   }
 
+  // ! Degree of the vertex
+  HypernodeID nodeDegree(const HypernodeID u) const {
+    ASSERT(u < _num_hypernodes, "Hypernode" << u << "does not exist");
+    return header(u)->degree;
+  }
+
   // ! Returns a range to loop over the incident nets of hypernode u.
   IteratorRange<IncidentNetIterator> incidentEdges(const HypernodeID u) const {
     ASSERT(u < _num_hypernodes, "Hypernode" << u << "does not exist");
@@ -201,18 +210,20 @@ class IncidentNetArray {
                 const HypernodeID v,
                 const kahypar::ds::FastResetFlagArray<>& shared_hes_of_u_and_v) {
     HypernodeID current_v = v;
+    Header* head_v = header(v);
     do {
       Header* head = header(current_v);
       const HypernodeID new_version = ++head->current_version;
       Entry* last_entry = lastEntry(current_v);
       for ( Entry* current_entry = firstEntry(current_v); current_entry != last_entry; ++current_entry ) {
         if ( shared_hes_of_u_and_v[current_entry->e] ) {
-          // Vertex is shared between u and v => decrement size of incident net list
+          // Hyperedge is shared between u and v => decrement size of incident net list
           swap(current_entry--, --last_entry);
           ASSERT(head->size > 0);
           --head->size;
+          --head_v->degree;
         } else {
-          // Vertex is non-shared between u and v => adapt version number of current incident net
+          // Hyperedge is non-shared between u and v => adapt version number of current incident net
           current_entry->version = new_version;
         }
       }
@@ -228,6 +239,7 @@ class IncidentNetArray {
     _acquire_lock(u);
     // Concatenate double-linked list of u and v
     append(u, v);
+    header(u)->degree += head_v->degree;
     _release_lock(u);
   }
 
@@ -237,12 +249,13 @@ class IncidentNetArray {
   // ! Note, uncontraction must be done in relative contraction order
   void uncontract(const HypernodeID u,
                   const HypernodeID v) {
-    ASSERT(header(u)->size > 0);
     ASSERT(header(v)->prev != v);
+    Header* head_v = header(v);
     _acquire_lock(u);
     // Restores the incident list of v to the time before it was appended
     // to the double-linked list of u.
     splice(v);
+    header(u)->degree -= head_v->degree;
     _release_lock(u);
 
     HypernodeID current_v = v;
@@ -257,6 +270,7 @@ class IncidentNetArray {
       for ( Entry* current_entry = lastEntry(current_v); current_entry != last_entry; ++current_entry ) {
         if ( current_entry->version == new_version ) {
           ++head->size;
+          ++head_v->degree;
         } else {
           break;
         }
@@ -264,7 +278,7 @@ class IncidentNetArray {
 
       // Restore iterator double-linked list which only contains
       // non-empty incident net lists
-      if ( head->size > 0 ) {
+      if ( head->size > 0 || current_v == v ) {
         if ( last_non_empty_entry != kInvalidHypernode &&
             head->it_prev != last_non_empty_entry ) {
           header(last_non_empty_entry)->it_next = current_v;
@@ -275,10 +289,83 @@ class IncidentNetArray {
       current_v = head->next;
     } while ( current_v != v );
 
-    ASSERT(header(v)->size > 0);
     ASSERT(last_non_empty_entry != kInvalidHypernode);
     header(v)->it_prev = last_non_empty_entry;
     header(last_non_empty_entry)->it_next = v;
+  }
+
+  // ! Removes all incidents nets of u flagged in hes_to_remove.
+  void removeIncidentNets(const HypernodeID u,
+                          const kahypar::ds::FastResetFlagArray<>& hes_to_remove) {
+    HypernodeID current_u = u;
+    Header* head_u = header(u);
+    do {
+      Header* head = header(current_u);
+      const HypernodeID new_version = ++head->current_version;
+      Entry* last_entry = lastEntry(current_u);
+      for ( Entry* current_entry = firstEntry(current_u); current_entry != last_entry; ++current_entry ) {
+        if ( hes_to_remove[current_entry->e] ) {
+          // Hyperedge should be removed => decrement size of incident net list
+          swap(current_entry--, --last_entry);
+          ASSERT(head->size > 0);
+          --head->size;
+          --head_u->degree;
+        } else {
+          // Vertex is non-shared between u and v => adapt version number of current incident net
+          current_entry->version = new_version;
+        }
+      }
+
+      if ( head->size == 0 && current_u != u ) {
+        // Current list becomes empty => remove it from the iterator double linked list
+        // such that iteration over the incident nets is more efficient
+        removeEmptyIncidentNetList(current_u);
+      }
+      current_u = head->next;
+    } while ( current_u != u );
+  }
+
+  // ! Restores all previously removed incident nets
+  // ! Note, function must be called in reverse order of calls to
+  // ! removeIncidentNets(...) and all uncontraction that happens
+  // ! between two consecutive calls to removeIncidentNets(...) must
+  // ! be processed.
+  void restoreIncidentNets(const HypernodeID u) {
+    Header* head_u = header(u);
+    HypernodeID current_u = u;
+    HypernodeID last_non_empty_entry = u;
+    do {
+      Header* head = header(current_u);
+      ASSERT(head->current_version > 0);
+      const HypernodeID new_version = --head->current_version;
+      const Entry* last_entry = reinterpret_cast<const Entry*>(header(current_u + 1));
+      // Iterate over non-active entries (and activate them) until the version number
+      // is not equal to the new version of the list
+      for ( Entry* current_entry = lastEntry(current_u); current_entry != last_entry; ++current_entry ) {
+        if ( current_entry->version == new_version ) {
+          ++head->size;
+          ++head_u->degree;
+        } else {
+          break;
+        }
+      }
+
+      // Restore iterator double-linked list which only contains
+      // non-empty incident net lists
+      if ( head->size > 0 && current_u != u ) {
+        if ( head->it_prev != last_non_empty_entry ) {
+          header(last_non_empty_entry)->it_next = current_u;
+          head->it_prev = last_non_empty_entry;
+        }
+        last_non_empty_entry = current_u;
+      }
+      current_u = head->next;
+    } while ( current_u != u );
+
+    if ( last_non_empty_entry == header(last_non_empty_entry)->it_next ) {
+      header(last_non_empty_entry)->it_next = u;
+      head_u->it_prev = last_non_empty_entry;
+    }
   }
 
  private:
@@ -427,6 +514,7 @@ class IncidentNetArray {
       head->it_prev = u;
       head->it_next = u;
       head->size = current_incident_net_pos[u].load(std::memory_order_relaxed);
+      head->degree = head->size;
       head->current_version = 0;
     });
   }
