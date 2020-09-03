@@ -38,6 +38,7 @@
 namespace mt_kahypar {
 namespace ds {
 
+// ! Class allows in-place contraction and uncontraction of the incident net array
 class IncidentNetArray {
 
   using HyperedgeVector = parallel::scalable_vector<parallel::scalable_vector<HypernodeID>>;
@@ -48,15 +49,19 @@ class IncidentNetArray {
   using ReleaseLockFunc = std::function<void (const HypernodeID)>;
   #define NOOP_LOCK_FUNC [] (const HypernodeID) { }
 
-
-
   static_assert(sizeof(char) == 1);
 
+  // Represents one incident net of a vertex.
+  // A incident net is associated with a version number. Incident nets
+  // with a version number greater or equal than the version number in
+  // header (see Header -> current_version) are active.
   struct Entry {
     HyperedgeID e;
     HypernodeID version;
   };
 
+  // Header of the incident net list of a vertex. The incident net lists
+  // contracted into one vertex are concatenated in a double linked list.
   struct Header {
     explicit Header(const HypernodeID u) :
       prev(u),
@@ -67,15 +72,25 @@ class IncidentNetArray {
       size(0),
       current_version(0) { }
 
+    // ! Previous incident net list
     HypernodeID prev;
+    // ! Next incident net list
     HypernodeID next;
+    // ! Previous non-empty incident net list
     HypernodeID it_prev;
+    // ! Next non-empty incident net list
     HypernodeID it_next;
+    // ! If we append a vertex v to the incident net list of a vertex u, we store
+    // ! the previous tail of vertex v, such that we can restore the list of v
+    // ! during uncontraction
     HypernodeID tail;
+    // ! All incident nets between [0,size) are active
     HypernodeID size;
+    // ! Current version of the incident net list
     HypernodeID current_version;
   };
 
+  // Iterator over the incident nets of a vertex u
   class IncidentNetIterator :
     public std::iterator<std::forward_iterator_tag,    // iterator_category
                          HyperedgeID,   // value_type
@@ -178,6 +193,10 @@ class IncidentNetArray {
       IncidentNetIterator(u, this, true));
   }
 
+  // ! Contracts two incident list of u and v, whereby u is the representative and
+  // ! v the contraction partner of the contraction. The contraction involves to remove
+  // ! all incident nets shared between u and v from the incident net list of v and append
+  // ! the list of v to u.
   void contract(const HypernodeID u,
                 const HypernodeID v,
                 const kahypar::ds::FastResetFlagArray<>& shared_hes_of_u_and_v) {
@@ -188,30 +207,41 @@ class IncidentNetArray {
       Entry* last_entry = lastEntry(current_v);
       for ( Entry* current_entry = firstEntry(current_v); current_entry != last_entry; ++current_entry ) {
         if ( shared_hes_of_u_and_v[current_entry->e] ) {
+          // Vertex is shared between u and v => decrement size of incident net list
           swap(current_entry--, --last_entry);
           ASSERT(head->size > 0);
           --head->size;
         } else {
+          // Vertex is non-shared between u and v => adapt version number of current incident net
           current_entry->version = new_version;
         }
       }
 
       if ( head->size == 0 && current_v != v ) {
+        // Current list becomes empty => remove it from the iterator double linked list
+        // such that iteration over the incident nets is more efficient
         removeEmptyIncidentNetList(current_v);
       }
       current_v = head->next;
     } while ( current_v != v );
 
     _acquire_lock(u);
+    // Concatenate double-linked list of u and v
     append(u, v);
     _release_lock(u);
   }
 
+  // ! Uncontract two previously contracted vertices u and v.
+  // ! Uncontraction involves to decrement the version number of all incident lists contained
+  // ! in v and restore all incident nets with a version number equal to the new version.
+  // ! Note, uncontraction must be done in relative contraction order
   void uncontract(const HypernodeID u,
                   const HypernodeID v) {
     ASSERT(header(u)->size > 0);
     ASSERT(header(v)->prev != v);
     _acquire_lock(u);
+    // Restores the incident list of v to the time before it was appended
+    // to the double-linked list of u.
     splice(v);
     _release_lock(u);
 
@@ -222,6 +252,8 @@ class IncidentNetArray {
       ASSERT(head->current_version > 0);
       const HypernodeID new_version = --head->current_version;
       const Entry* last_entry = reinterpret_cast<const Entry*>(header(current_v + 1));
+      // Iterate over non-active entries (and activate them) until the version number
+      // is not equal to the new version of the list
       for ( Entry* current_entry = lastEntry(current_v); current_entry != last_entry; ++current_entry ) {
         if ( current_entry->version == new_version ) {
           ++head->size;
@@ -230,6 +262,8 @@ class IncidentNetArray {
         }
       }
 
+      // Restore iterator double-linked list which only contains
+      // non-empty incident net lists
       if ( head->size > 0 ) {
         if ( last_non_empty_entry != kInvalidHypernode &&
             head->it_prev != last_non_empty_entry ) {
@@ -306,6 +340,8 @@ class IncidentNetArray {
   }
 
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE void splice(const HypernodeID v) {
+    // Restore the iterator double-linked list of u such that it does not contain
+    // any incident net list of v
     const HypernodeID tail = header(v)->tail;
     HypernodeID non_empty_entry_prev_v = v;
     HypernodeID non_empty_entry_next_tail = tail;
@@ -318,7 +354,7 @@ class IncidentNetArray {
     header(non_empty_entry_prev_v)->it_next = non_empty_entry_next_tail;
     header(non_empty_entry_next_tail)->it_prev = non_empty_entry_prev_v;
 
-
+    // Cut out incident list of v
     const HypernodeID prev_v = header(v)->prev;
     const HypernodeID next_tail = header(tail)->next;
     header(v)->prev = tail;
