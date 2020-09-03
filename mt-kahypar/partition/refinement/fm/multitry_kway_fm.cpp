@@ -220,9 +220,9 @@ namespace mt_kahypar {
 
 } // namespace mt_kahypar
 
-#include "mt-kahypar/partition/refinement/fm/gain_cache_strategy.h"
-#include "mt-kahypar/partition/refinement/fm/gain_delta_strategy.h"
-#include "mt-kahypar/partition/refinement/fm/recompute_gain_strategy.h"
+#include "mt-kahypar/partition/refinement/fm/strategies/gain_cache_strategy.h"
+#include "mt-kahypar/partition/refinement/fm/strategies/gain_delta_strategy.h"
+#include "mt-kahypar/partition/refinement/fm/strategies/recompute_gain_strategy.h"
 
 namespace mt_kahypar {
   template class MultiTryKWayFM<GainCacheStrategy>;

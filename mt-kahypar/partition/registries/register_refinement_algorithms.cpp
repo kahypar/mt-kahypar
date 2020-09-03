@@ -27,9 +27,9 @@
 #include "mt-kahypar/partition/refinement/do_nothing_refiner.h"
 #include "mt-kahypar/partition/refinement/label_propagation/label_propagation_refiner.h"
 #include "mt-kahypar/partition/refinement/fm/multitry_kway_fm.h"
-#include "mt-kahypar/partition/refinement/fm/gain_cache_strategy.h"
-#include "mt-kahypar/partition/refinement/fm/gain_delta_strategy.h"
-#include "mt-kahypar/partition/refinement/fm/recompute_gain_strategy.h"
+#include "mt-kahypar/partition/refinement/fm/strategies/gain_cache_strategy.h"
+#include "mt-kahypar/partition/refinement/fm/strategies/gain_delta_strategy.h"
+#include "mt-kahypar/partition/refinement/fm/strategies/recompute_gain_strategy.h"
 
 #define REGISTER_LP_REFINER(id, refiner, t)                                                                            \
   static kahypar::meta::Registrar<LabelPropagationFactory> JOIN(register_ ## refiner, t)(                              \

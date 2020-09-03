@@ -20,6 +20,7 @@
 
 #pragma once
 
+#include "km1_gains.h"
 #include "mt-kahypar/partition/refinement/fm/fm_commons.h"
 
 
@@ -42,7 +43,7 @@ namespace mt_kahypar {
             sharedData(sharedData),
             blockPQ(sharedData.numParts),
             vertexPQs(),
-            gain_tmp(sharedData.numParts, 0)
+            gc(sharedData.numParts)
     {
       vertexPQs.reserve(k);
       for (PartitionID i = 0; i < k; ++i) {
@@ -56,7 +57,7 @@ namespace mt_kahypar {
       computeGains(phg, v);
       for (PartitionID i = 0; i < k; ++i) {
         if (i != phg.partID(v)) {
-          vertexPQs[i].insert(v, gain_tmp[i]);
+          vertexPQs[i].insert(v, gc.gains[i]);
         }
       }
       runStats.pushes++;
@@ -210,41 +211,6 @@ namespace mt_kahypar {
       }
     }
 
-    template<typename PHG>
-    MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
-    void computeGains(const PHG& phg, const HypernodeID u) {
-      for (PartitionID i = 0; i < k; ++i) {
-        gain_tmp[i] = 0;
-      }
-
-      const PartitionID from = phg.partID(u);
-      Gain internal_weight = 0;   // weighted affinity with part(u), even if u was moved
-      for (HyperedgeID e : phg.incidentEdges(u)) {
-        HyperedgeWeight edge_weight = phg.edgeWeight(e);
-        if (phg.pinCountInPart(e, from) > 1) {
-          internal_weight += edge_weight;
-        }
-
-        if constexpr (PHG::supports_connectivity_set) {
-          for (PartitionID i : phg.connectivitySet(e)) {
-            gain_tmp[i] += edge_weight;
-          }
-        } else {
-          // case for deltaPhg since maintaining connectivity sets is too slow
-          for (PartitionID i = 0; i < k; ++i) {
-            if (phg.pinCountInPart(e, i) > 0) {
-              gain_tmp[i] += edge_weight;
-            }
-          }
-        }
-      }
-
-      for (PartitionID i = 0; i < k; ++i) {
-        gain_tmp[i] -= internal_weight;
-      }
-    }
-
-
     size_t handle(HypernodeID u, PartitionID p) const {
       return size_t(u) * k +  p;
     }
@@ -261,7 +227,7 @@ namespace mt_kahypar {
 
     vec<VertexPriorityQueue> vertexPQs;
 
-    vec<Gain> gain_tmp;
+    Km1GainComputer gc;
   };
 
 

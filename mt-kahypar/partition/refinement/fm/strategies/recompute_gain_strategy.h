@@ -20,6 +20,7 @@
 
 #pragma once
 
+#include "km1_gains.h"
 #include "mt-kahypar/partition/refinement/fm/fm_commons.h"
 
 
@@ -46,7 +47,7 @@ namespace mt_kahypar {
             runStats(runStats),
             sharedData(sharedData),
             pq(VertexPriorityQueue(sharedData.vertexPQHandles.data(), numNodes)),
-            gain_tmp(sharedData.numParts, 0)
+            gc(sharedData.numParts)
     { }
 
     template<typename PHG>
@@ -126,29 +127,8 @@ namespace mt_kahypar {
 
     template<typename PHG>
     MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
-    std::pair<PartitionID, HyperedgeWeight> computeBestTargetBlock(const PHG& phg,
-                                                                   const HypernodeID u) {
-      const PartitionID from = phg.partID(u);
-      Gain internal_weight = 0;   // weighted affinity with part(u), even if u was moved
-      for (HyperedgeID e : phg.incidentEdges(u)) {
-        HyperedgeWeight edge_weight = phg.edgeWeight(e);
-        if (phg.pinCountInPart(e, from) > 1) {
-          internal_weight += edge_weight;
-        }
-
-        if constexpr (PHG::supports_connectivity_set) {
-          for (PartitionID i : phg.connectivitySet(e)) {
-            gain_tmp[i] += edge_weight;
-          }
-        } else {
-          // case for deltaPhg since maintaining connectivity sets is too slow
-          for (PartitionID i = 0; i < phg.k(); ++i) {
-            if (phg.pinCountInPart(e, i) > 0) {
-              gain_tmp[i] += edge_weight;
-            }
-          }
-        }
-      }
+    std::pair<PartitionID, HyperedgeWeight> computeBestTargetBlock(const PHG& phg, const HypernodeID u) {
+      gc.computeGainsFromScratch(phg, u);
 
       const HypernodeWeight weight_of_u = phg.nodeWeight(u);
       PartitionID best_target = kInvalidPartition;
@@ -157,7 +137,7 @@ namespace mt_kahypar {
       for (PartitionID target = 0; target < phg.k(); ++target) {
         if (target != from) {
           const HypernodeWeight target_weight = phg.partWeight(target);
-          Gain gain = gain_tmp[target] - internal_weight;
+          const Gain gain = gc.gains[target];
           if ( (gain > best_gain || (gain == best_gain && target_weight < best_target_weight))
                 && target_weight + weight_of_u <= context.partition.max_part_weights[target]) {
             best_target = target;
@@ -165,7 +145,6 @@ namespace mt_kahypar {
             best_target_weight = target_weight;
           }
         }
-        gain_tmp[target] = 0;
       }
 
       return std::make_pair(best_target, best_gain);
@@ -182,7 +161,7 @@ namespace mt_kahypar {
 
     VertexPriorityQueue pq;
 
-    vec<Gain> gain_tmp;
+    Km1GainComputer gc;
   };
 
 
