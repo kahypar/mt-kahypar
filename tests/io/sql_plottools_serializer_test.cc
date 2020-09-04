@@ -36,14 +36,14 @@ namespace io {
 std::vector<std::string> target_structs =
   { "PartitioningParameters", "CommunityDetectionParameters", "CommunityRedistributionParameters",
     "PreprocessingParameters", "RatingParameters", "CoarseningParameters", "InitialPartitioningParameters",
-    "SparsificationParameters", "LabelPropagationParameters", "FMParameters" "RefinementParameters",
+    "SparsificationParameters", "LabelPropagationParameters", "FMParameters", "NLevelGlobalFMParameters", "RefinementParameters",
     "SharedMemoryParameters" };
 
 std::unordered_map<std::string, std::string> target_struct_prefix =
   { {"PartitioningParameters", ""}, {"CommunityDetectionParameters", "community_"}, {"CommunityRedistributionParameters", "community_redistribution_"},
     {"PreprocessingParameters", ""}, {"RatingParameters", "rating_"}, {"CoarseningParameters", "coarsening_"},
     {"InitialPartitioningParameters", "initial_partitioning_"}, {"SparsificationParameters", "sparsification_"},
-    {"LabelPropagationParameters", "lp_"}, {"FMParameters", "fm_"}, {"RefinementParameters", ""},
+    {"LabelPropagationParameters", "lp_"}, {"FMParameters", "fm_"}, {"NLevelGlobalFMParameters", "global_fm_"}, {"RefinementParameters", ""},
     {"SharedMemoryParameters", ""} };
 
 std::set<std::string> excluded_members =
@@ -51,7 +51,7 @@ std::set<std::string> excluded_members =
     "measure_detailed_uncontraction_timings", "write_partition_file", "graph_partition_output_folder", "graph_partition_filename", "graph_community_filename", "community_detection",
     "community_redistribution", "coarsening_rating", "label_propagation", "lp_execute_sequential",
     "snapshot_interval", "initial_partitioning_refinement", "initial_partitioning_sparsification", "initial_partitioning_enabled_ip_algos",
-    "stable_construction_of_incident_edges", "fm", "csv_output", "preset_file" };
+    "stable_construction_of_incident_edges", "fm", "global_fm", "csv_output", "preset_file" };
 
 bool is_target_struct(const std::string& line) {
   for ( const std::string& target_struct : target_structs ) {
@@ -94,6 +94,9 @@ void read_all_members_of_target_struct(std::ifstream& context_file,
          strcmp(input, "    // Enable all initial partitioner per default") != 0 &&
          strcmp(input, "    enabled_ip_algos(static_cast<size_t>(InitialPartitioningAlgorithm::UNDEFINED), true) { }") != 0 ) {
       char* token = std::strtok(input, " ;");
+      if ( strcmp(token, "mutable") == 0 ) {
+        token = std::strtok(NULL, " ;");
+      }
       // Second value is member name
       token = std::strtok(NULL, " ;");
       if ( strcmp(token, "double") == 0 ) { // long double

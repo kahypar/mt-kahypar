@@ -94,7 +94,7 @@ std::string serialize(const PartitionedHypergraph& hypergraph,
         << " sparsification_jaccard_threshold=" << context.sparsification.jaccard_threshold
         << " sparsification_similiar_net_combiner_strategy=" << context.sparsification.similiar_net_combiner_strategy
         << " refine_until_no_improvement=" << std::boolalpha << context.refinement.refine_until_no_improvement
-        << " maximum_batch_size=" << context.refinement.max_batch_size
+        << " max_batch_size=" << context.refinement.max_batch_size
         << " initialize_gain_cache=" << std::boolalpha << context.refinement.initialize_gain_cache
         << " lp_algorithm=" << context.refinement.label_propagation.algorithm
         << " lp_maximum_iterations=" << context.refinement.label_propagation.maximum_iterations
@@ -108,9 +108,13 @@ std::string serialize(const PartitionedHypergraph& hypergraph,
         << " fm_min_improvement=" << context.refinement.fm.min_improvement
         << " fm_release_nodes=" << context.refinement.fm.release_nodes
         << " fm_num_seed_nodes=" << context.refinement.fm.num_seed_nodes
-        << " fm_shuffle=" << std::boolalpha << context.refinement.fm.shuffle
-        << " fm_obey_minimal_parallelism=" << std::boolalpha << context.refinement.fm.obey_minimal_parallelism
         << " fm_time_limit_factor=" << context.refinement.fm.time_limit_factor
+        << " fm_obey_minimal_parallelism=" << std::boolalpha << context.refinement.fm.obey_minimal_parallelism
+        << " fm_shuffle=" << std::boolalpha << context.refinement.fm.shuffle
+        << " global_fm_use_global_fm=" << std::boolalpha << context.refinement.global_fm.use_global_fm
+        << " global_fm_refine_until_no_improvement=" << std::boolalpha << context.refinement.global_fm.refine_until_no_improvement
+        << " global_fm_num_seed_nodes=" << context.refinement.global_fm.num_seed_nodes
+        << " global_fm_obey_minimal_parallelism=" << std::boolalpha << context.refinement.global_fm.obey_minimal_parallelism
         << " num_threads=" << context.shared_memory.num_threads
         << " use_localized_random_shuffle=" << std::boolalpha << context.shared_memory.use_localized_random_shuffle
         << " shuffle_block_size=" << context.shared_memory.shuffle_block_size;
