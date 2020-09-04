@@ -1,7 +1,7 @@
 /*******************************************************************************
  * This file is part of KaHyPar.
  *
- * Copyright (C) 2019 Tobias Heuer <tobias.heuer@kit.edu>
+ * Copyright (C) 2020 Tobias Heuer <tobias.heuer@kit.edu>
  *
  * KaHyPar is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -37,6 +37,48 @@
 
 namespace mt_kahypar {
 namespace ds {
+
+// forward declaration
+class IncidentNetArray;
+
+// Iterator over the incident nets of a vertex u
+class IncidentNetIterator :
+  public std::iterator<std::forward_iterator_tag,    // iterator_category
+                        HyperedgeID,   // value_type
+                        std::ptrdiff_t,   // difference_type
+                        const HyperedgeID*,   // pointer
+                        HyperedgeID> {   // reference
+  public:
+  IncidentNetIterator(const HypernodeID u,
+                      const IncidentNetArray* incident_net_array,
+                      const size_t pos,
+                      const bool end);
+
+  HyperedgeID operator* () const;
+
+  IncidentNetIterator & operator++ ();
+
+  IncidentNetIterator operator++ (int) {
+    IncidentNetIterator copy = *this;
+    operator++ ();
+    return copy;
+  }
+
+  bool operator!= (const IncidentNetIterator& rhs);
+
+  bool operator== (const IncidentNetIterator& rhs);
+
+  private:
+  void next_iterator();
+
+  HypernodeID _u;
+  HypernodeID _current_u;
+  HypernodeID _current_size;
+  HypernodeID _last_u;
+  size_t _current_pos;
+  const IncidentNetArray* _incident_net_array;
+  bool _end;
+};
 
 // ! Class allows in-place contraction and uncontraction of the incident net array
 class IncidentNetArray {
@@ -93,98 +135,21 @@ class IncidentNetArray {
     HypernodeID current_version;
   };
 
-  // Iterator over the incident nets of a vertex u
-  class IncidentNetIterator :
-    public std::iterator<std::forward_iterator_tag,    // iterator_category
-                         HyperedgeID,   // value_type
-                         std::ptrdiff_t,   // difference_type
-                         const HyperedgeID*,   // pointer
-                         HyperedgeID> {   // reference
-   public:
-    IncidentNetIterator(const HypernodeID u,
-                        const IncidentNetArray* incident_net_array,
-                        const bool end) :
-      _u(u),
-      _current_u(u),
-      _last_u(incident_net_array->header(u)->it_prev),
-      _current_pos(0),
-      _incident_net_array(incident_net_array) {
-      if ( end ) {
-        _current_u = _last_u;
-        _current_pos = incident_net_array->header(_current_u)->size;
-      }
-
-      if ( !end && _current_pos == _incident_net_array->header(_current_u)->size ) {
-        next_iterator();
-      }
-    }
-
-    HyperedgeID operator* () const {
-      ASSERT(_current_u != _last_u || _current_pos != _incident_net_array->header(_current_u)->size);
-      return _incident_net_array->firstEntry(_current_u)[_current_pos].e;
-    }
-
-    IncidentNetIterator & operator++ () {
-      ASSERT(_current_u != _last_u || _current_pos != _incident_net_array->header(_current_u)->size);
-      ++_current_pos;
-      if ( _current_pos == _incident_net_array->header(_current_u)->size) {
-        next_iterator();
-      }
-      return *this;
-    }
-
-    IncidentNetIterator operator++ (int) {
-      IncidentNetIterator copy = *this;
-      operator++ ();
-      return copy;
-    }
-
-    bool operator!= (const IncidentNetIterator& rhs) {
-      return _u != rhs._u || _current_u != rhs._current_u ||
-             _current_pos != rhs._current_pos;
-    }
-
-    bool operator== (const IncidentNetIterator& rhs) {
-      return _u == rhs._u && _current_u == rhs._current_u &&
-             _current_pos == rhs._current_pos;
-    }
-
-   private:
-    void next_iterator() {
-      while ( _current_pos == _incident_net_array->header(_current_u)->size ) {
-        if ( _current_u == _last_u ) {
-          break;
-        }
-        _current_u = _incident_net_array->header(_current_u)->it_next;
-        _current_pos = 0;
-      }
-    }
-
-    HypernodeID _u;
-    HypernodeID _current_u;
-    HypernodeID _last_u;
-    size_t _current_pos;
-    const IncidentNetArray* _incident_net_array;
-  };
-
  public:
-  IncidentNetArray(AcquireLockFunc acquire_lock = NOOP_LOCK_FUNC,
-                   ReleaseLockFunc release_lock = NOOP_LOCK_FUNC) :
+  using const_iterator = IncidentNetIterator;
+
+  IncidentNetArray() :
     _num_hypernodes(0),
+    _size_in_bytes(0),
     _index_array(),
-    _incident_net_array(nullptr),
-    _acquire_lock(acquire_lock),
-    _release_lock(release_lock) { }
+    _incident_net_array(nullptr) { }
 
   IncidentNetArray(const HypernodeID num_hypernodes,
-                   const HyperedgeVector& edge_vector,
-                   AcquireLockFunc acquire_lock = NOOP_LOCK_FUNC,
-                   ReleaseLockFunc release_lock = NOOP_LOCK_FUNC) :
+                   const HyperedgeVector& edge_vector) :
     _num_hypernodes(num_hypernodes),
+    _size_in_bytes(0),
     _index_array(),
-    _incident_net_array(nullptr),
-    _acquire_lock(acquire_lock),
-    _release_lock(release_lock)  {
+    _incident_net_array(nullptr)  {
     construct(edge_vector);
   }
 
@@ -198,8 +163,17 @@ class IncidentNetArray {
   IteratorRange<IncidentNetIterator> incidentEdges(const HypernodeID u) const {
     ASSERT(u < _num_hypernodes, "Hypernode" << u << "does not exist");
     return IteratorRange<IncidentNetIterator>(
-      IncidentNetIterator(u, this, false),
-      IncidentNetIterator(u, this, true));
+      IncidentNetIterator(u, this, 0, false),
+      IncidentNetIterator(u, this, 0, true));
+  }
+
+  // ! Returns a range to loop over the incident nets of hypernode u.
+  IteratorRange<IncidentNetIterator> incidentEdges(const HypernodeID u,
+                                                   const size_t pos) const {
+    ASSERT(u < _num_hypernodes, "Hypernode" << u << "does not exist");
+    return IteratorRange<IncidentNetIterator>(
+      IncidentNetIterator(u, this, pos, false),
+      IncidentNetIterator(u, this, 0, true));
   }
 
   // ! Contracts two incident list of u and v, whereby u is the representative and
@@ -208,164 +182,36 @@ class IncidentNetArray {
   // ! the list of v to u.
   void contract(const HypernodeID u,
                 const HypernodeID v,
-                const kahypar::ds::FastResetFlagArray<>& shared_hes_of_u_and_v) {
-    HypernodeID current_v = v;
-    Header* head_v = header(v);
-    do {
-      Header* head = header(current_v);
-      const HypernodeID new_version = ++head->current_version;
-      Entry* last_entry = lastEntry(current_v);
-      for ( Entry* current_entry = firstEntry(current_v); current_entry != last_entry; ++current_entry ) {
-        if ( shared_hes_of_u_and_v[current_entry->e] ) {
-          // Hyperedge is shared between u and v => decrement size of incident net list
-          swap(current_entry--, --last_entry);
-          ASSERT(head->size > 0);
-          --head->size;
-          --head_v->degree;
-        } else {
-          // Hyperedge is non-shared between u and v => adapt version number of current incident net
-          current_entry->version = new_version;
-        }
-      }
-
-      if ( head->size == 0 && current_v != v ) {
-        // Current list becomes empty => remove it from the iterator double linked list
-        // such that iteration over the incident nets is more efficient
-        removeEmptyIncidentNetList(current_v);
-      }
-      current_v = head->next;
-    } while ( current_v != v );
-
-    _acquire_lock(u);
-    // Concatenate double-linked list of u and v
-    append(u, v);
-    header(u)->degree += head_v->degree;
-    _release_lock(u);
-  }
+                const kahypar::ds::FastResetFlagArray<>& shared_hes_of_u_and_v,
+                const AcquireLockFunc& acquire_lock = NOOP_LOCK_FUNC,
+                const ReleaseLockFunc& release_lock = NOOP_LOCK_FUNC);
 
   // ! Uncontract two previously contracted vertices u and v.
   // ! Uncontraction involves to decrement the version number of all incident lists contained
   // ! in v and restore all incident nets with a version number equal to the new version.
   // ! Note, uncontraction must be done in relative contraction order
   void uncontract(const HypernodeID u,
-                  const HypernodeID v) {
-    ASSERT(header(v)->prev != v);
-    Header* head_v = header(v);
-    _acquire_lock(u);
-    // Restores the incident list of v to the time before it was appended
-    // to the double-linked list of u.
-    splice(v);
-    header(u)->degree -= head_v->degree;
-    _release_lock(u);
-
-    HypernodeID current_v = v;
-    HypernodeID last_non_empty_entry = kInvalidHypernode;
-    do {
-      Header* head = header(current_v);
-      ASSERT(head->current_version > 0);
-      const HypernodeID new_version = --head->current_version;
-      const Entry* last_entry = reinterpret_cast<const Entry*>(header(current_v + 1));
-      // Iterate over non-active entries (and activate them) until the version number
-      // is not equal to the new version of the list
-      for ( Entry* current_entry = lastEntry(current_v); current_entry != last_entry; ++current_entry ) {
-        if ( current_entry->version == new_version ) {
-          ++head->size;
-          ++head_v->degree;
-        } else {
-          break;
-        }
-      }
-
-      // Restore iterator double-linked list which only contains
-      // non-empty incident net lists
-      if ( head->size > 0 || current_v == v ) {
-        if ( last_non_empty_entry != kInvalidHypernode &&
-            head->it_prev != last_non_empty_entry ) {
-          header(last_non_empty_entry)->it_next = current_v;
-          head->it_prev = last_non_empty_entry;
-        }
-        last_non_empty_entry = current_v;
-      }
-      current_v = head->next;
-    } while ( current_v != v );
-
-    ASSERT(last_non_empty_entry != kInvalidHypernode);
-    header(v)->it_prev = last_non_empty_entry;
-    header(last_non_empty_entry)->it_next = v;
-  }
+                  const HypernodeID v,
+                  const AcquireLockFunc& acquire_lock = NOOP_LOCK_FUNC,
+                  const ReleaseLockFunc& release_lock = NOOP_LOCK_FUNC);
 
   // ! Removes all incidents nets of u flagged in hes_to_remove.
   void removeIncidentNets(const HypernodeID u,
-                          const kahypar::ds::FastResetFlagArray<>& hes_to_remove) {
-    HypernodeID current_u = u;
-    Header* head_u = header(u);
-    do {
-      Header* head = header(current_u);
-      const HypernodeID new_version = ++head->current_version;
-      Entry* last_entry = lastEntry(current_u);
-      for ( Entry* current_entry = firstEntry(current_u); current_entry != last_entry; ++current_entry ) {
-        if ( hes_to_remove[current_entry->e] ) {
-          // Hyperedge should be removed => decrement size of incident net list
-          swap(current_entry--, --last_entry);
-          ASSERT(head->size > 0);
-          --head->size;
-          --head_u->degree;
-        } else {
-          // Vertex is non-shared between u and v => adapt version number of current incident net
-          current_entry->version = new_version;
-        }
-      }
-
-      if ( head->size == 0 && current_u != u ) {
-        // Current list becomes empty => remove it from the iterator double linked list
-        // such that iteration over the incident nets is more efficient
-        removeEmptyIncidentNetList(current_u);
-      }
-      current_u = head->next;
-    } while ( current_u != u );
-  }
+                          const kahypar::ds::FastResetFlagArray<>& hes_to_remove);
 
   // ! Restores all previously removed incident nets
   // ! Note, function must be called in reverse order of calls to
   // ! removeIncidentNets(...) and all uncontraction that happens
   // ! between two consecutive calls to removeIncidentNets(...) must
   // ! be processed.
-  void restoreIncidentNets(const HypernodeID u) {
-    Header* head_u = header(u);
-    HypernodeID current_u = u;
-    HypernodeID last_non_empty_entry = u;
-    do {
-      Header* head = header(current_u);
-      ASSERT(head->current_version > 0);
-      const HypernodeID new_version = --head->current_version;
-      const Entry* last_entry = reinterpret_cast<const Entry*>(header(current_u + 1));
-      // Iterate over non-active entries (and activate them) until the version number
-      // is not equal to the new version of the list
-      for ( Entry* current_entry = lastEntry(current_u); current_entry != last_entry; ++current_entry ) {
-        if ( current_entry->version == new_version ) {
-          ++head->size;
-          ++head_u->degree;
-        } else {
-          break;
-        }
-      }
+  void restoreIncidentNets(const HypernodeID u);
 
-      // Restore iterator double-linked list which only contains
-      // non-empty incident net lists
-      if ( head->size > 0 && current_u != u ) {
-        if ( head->it_prev != last_non_empty_entry ) {
-          header(last_non_empty_entry)->it_next = current_u;
-          head->it_prev = last_non_empty_entry;
-        }
-        last_non_empty_entry = current_u;
-      }
-      current_u = head->next;
-    } while ( current_u != u );
+  IncidentNetArray copy(const TaskGroupID);
 
-    if ( last_non_empty_entry == header(last_non_empty_entry)->it_next ) {
-      header(last_non_empty_entry)->it_next = u;
-      head_u->it_prev = last_non_empty_entry;
-    }
+  IncidentNetArray copy();
+
+  size_t size_in_bytes() const {
+    return _size_in_bytes + sizeof(size_t) * _index_array.size();
   }
 
  private:
@@ -405,125 +251,19 @@ class IncidentNetArray {
     *rhs = tmp_lhs;
   }
 
-  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE void append(const HypernodeID u, const HypernodeID v) {
-    const HypernodeID tail_u = header(u)->prev;
-    const HypernodeID tail_v = header(v)->prev;
-    header(tail_u)->next = v;
-    header(u)->prev = tail_v;
-    header(v)->tail = tail_v;
-    header(v)->prev = tail_u;
-    header(tail_v)->next = u;
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE void append(const HypernodeID u, const HypernodeID v);
 
-    const HypernodeID it_tail_u = header(u)->it_prev;
-    const HypernodeID it_tail_v = header(v)->it_prev;
-    header(it_tail_u)->it_next = v;
-    header(u)->it_prev = it_tail_v;
-    header(v)->it_prev = it_tail_u;
-    header(it_tail_v)->it_next = u;
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE void splice(const HypernodeID v);
 
-    if ( header(v)->size == 0 ) {
-      removeEmptyIncidentNetList(v);
-    }
-  }
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE void removeEmptyIncidentNetList(const HypernodeID u);
 
-  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE void splice(const HypernodeID v) {
-    // Restore the iterator double-linked list of u such that it does not contain
-    // any incident net list of v
-    const HypernodeID tail = header(v)->tail;
-    HypernodeID non_empty_entry_prev_v = v;
-    HypernodeID non_empty_entry_next_tail = tail;
-    while ( non_empty_entry_prev_v == v || header(non_empty_entry_prev_v)->size == 0 ) {
-      non_empty_entry_prev_v = header(non_empty_entry_prev_v)->prev;
-    }
-    while ( non_empty_entry_next_tail == tail || header(non_empty_entry_next_tail)->size == 0 ) {
-      non_empty_entry_next_tail = header(non_empty_entry_next_tail)->next;
-    }
-    header(non_empty_entry_prev_v)->it_next = non_empty_entry_next_tail;
-    header(non_empty_entry_next_tail)->it_prev = non_empty_entry_prev_v;
+  void construct(const HyperedgeVector& edge_vector);
 
-    // Cut out incident list of v
-    const HypernodeID prev_v = header(v)->prev;
-    const HypernodeID next_tail = header(tail)->next;
-    header(v)->prev = tail;
-    header(tail)->next = v;
-    header(next_tail)->prev = prev_v;
-    header(prev_v)->next = next_tail;
-  }
-
-  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE void removeEmptyIncidentNetList(const HypernodeID u) {
-    ASSERT(header(u)->size == 0, V(u) << V(header(u)->size));
-    Header* head = header(u);
-    header(head->it_prev)->it_next = head->it_next;
-    header(head->it_next)->it_prev = head->it_prev;
-    head->it_next = u;
-    head->it_prev = u;
-  }
-
-  void construct(const HyperedgeVector& edge_vector) {
-    // Accumulate degree of each vertex thread local
-    const HyperedgeID num_hyperedges = edge_vector.size();
-    ThreadLocalCounter local_incident_nets_per_vertex(_num_hypernodes + 1, 0);
-    AtomicCounter current_incident_net_pos;
-    tbb::parallel_invoke([&] {
-      tbb::parallel_for(ID(0), num_hyperedges, [&](const size_t pos) {
-        parallel::scalable_vector<size_t>& num_incident_nets_per_vertex =
-          local_incident_nets_per_vertex.local();
-        for ( const HypernodeID& pin : edge_vector[pos] ) {
-          ASSERT(pin < _num_hypernodes, V(pin) << V(_num_hypernodes));
-          ++num_incident_nets_per_vertex[pin + 1];
-        }
-      });
-    }, [&] {
-      _index_array.assign(_num_hypernodes + 1, 0);
-      current_incident_net_pos.assign(
-        _num_hypernodes, parallel::IntegralAtomicWrapper<size_t>(0));
-    });
-
-    // We sum up the number of incident nets per vertex only thread local.
-    // To obtain the global number of incident nets per vertex, we iterate
-    // over each thread local counter and sum it up.
-    bool first_iteration = true;
-    for ( const parallel::scalable_vector<size_t>& c : local_incident_nets_per_vertex ) {
-      tbb::parallel_for(ID(0), _num_hypernodes + 1, [&](const size_t pos) {
-        _index_array[pos] += c[pos] * sizeof(Entry) + (first_iteration ? sizeof(Header) : 0);
-      });
-      first_iteration = false;
-    }
-
-    // Compute start positon of the incident nets of each vertex via a parallel prefix sum
-    parallel::TBBPrefixSum<size_t> incident_net_prefix_sum(_index_array);
-    tbb::parallel_scan(tbb::blocked_range<size_t>(
-            0UL, UI64(_num_hypernodes + 1)), incident_net_prefix_sum);
-    const size_t size_in_bytes = incident_net_prefix_sum.total_sum();
-    _incident_net_array = parallel::make_unique<char>(size_in_bytes);
-
-    // Insert incident nets into incidence array
-    tbb::parallel_for(ID(0), num_hyperedges, [&](const HyperedgeID he) {
-      for ( const HypernodeID& pin : edge_vector[he] ) {
-        Entry* entry = firstEntry(pin) + current_incident_net_pos[pin]++;
-        entry->e = he;
-        entry->version = 0;
-      }
-    });
-
-    // Setup Header of each vertex
-    tbb::parallel_for(ID(0), _num_hypernodes, [&](const HypernodeID u) {
-      Header* head = header(u);
-      head->prev = u;
-      head->next = u;
-      head->it_prev = u;
-      head->it_next = u;
-      head->size = current_incident_net_pos[u].load(std::memory_order_relaxed);
-      head->degree = head->size;
-      head->current_version = 0;
-    });
-  }
-
-  const HypernodeID _num_hypernodes;
+  HypernodeID _num_hypernodes;
+  size_t _size_in_bytes;
   parallel::scalable_vector<size_t> _index_array;
   parallel::tbb_unique_ptr<char> _incident_net_array;
-  AcquireLockFunc _acquire_lock;
-  ReleaseLockFunc _release_lock;
 };
+
 }  // namespace ds
 }  // namespace mt_kahypar

@@ -264,17 +264,22 @@ void executeParallel(const F& f1, const K& f2) {
 TEST(AIncidentNetArray, ContractsParallel1) {
   OwnershipVector acquired_hns(7, parallel::IntegralAtomicWrapper<bool>(false));
   IncidentNetArray incident_nets(
-    7, {{0, 2}, {0, 1, 3, 4}, {3, 4, 6}, {2, 5, 6}},
-    [&](const HypernodeID u) {
-      acquireOwnership(u, acquired_hns);
-    }, [&](const HypernodeID u) {
-      acquired_hns[u] = false;
-    });
+    7, {{0, 2}, {0, 1, 3, 4}, {3, 4, 6}, {2, 5, 6}});
 
   executeParallel([&] {
-    incident_nets.contract(0, 1, createFlagArray(4, { 1 }));
+    incident_nets.contract(0, 1, createFlagArray(4, { 1 }),
+      [&](const HypernodeID u) {
+        acquireOwnership(u, acquired_hns);
+      }, [&](const HypernodeID u) {
+        acquired_hns[u] = false;
+      });
   }, [&] {
-    incident_nets.contract(0, 5, createFlagArray(4, {}));
+    incident_nets.contract(0, 5, createFlagArray(4, {})),
+      [&](const HypernodeID u) {
+        acquireOwnership(u, acquired_hns);
+      }, [&](const HypernodeID u) {
+        acquired_hns[u] = false;
+      };
   });
 
   verifyIncidentNets(0, 4, incident_nets, { 0, 1, 3 });
@@ -283,17 +288,22 @@ TEST(AIncidentNetArray, ContractsParallel1) {
 TEST(AIncidentNetArray, ContractsParallel2) {
   OwnershipVector acquired_hns(7, parallel::IntegralAtomicWrapper<bool>(false));
   IncidentNetArray incident_nets(
-    7, {{0, 2}, {0, 1, 3, 4}, {3, 4, 6}, {2, 5, 6}},
-    [&](const HypernodeID u) {
-      acquireOwnership(u, acquired_hns);
-    }, [&](const HypernodeID u) {
-      acquired_hns[u] = false;
-    });
+    7, {{0, 2}, {0, 1, 3, 4}, {3, 4, 6}, {2, 5, 6}});
 
   executeParallel([&] {
-    incident_nets.contract(0, 1, createFlagArray(4, { 1 }));
+    incident_nets.contract(0, 1, createFlagArray(4, { 1 }),
+      [&](const HypernodeID u) {
+        acquireOwnership(u, acquired_hns);
+      }, [&](const HypernodeID u) {
+        acquired_hns[u] = false;
+      });
   }, [&] {
-    incident_nets.contract(0, 6, createFlagArray(4, {}));
+    incident_nets.contract(0, 6, createFlagArray(4, {}),
+      [&](const HypernodeID u) {
+        acquireOwnership(u, acquired_hns);
+      }, [&](const HypernodeID u) {
+        acquired_hns[u] = false;
+      });
   });
 
   verifyIncidentNets(0, 4, incident_nets, { 0, 1, 2, 3 });
@@ -302,19 +312,24 @@ TEST(AIncidentNetArray, ContractsParallel2) {
 TEST(AIncidentNetArray, UnontractsParallel1) {
   OwnershipVector acquired_hns(7, parallel::IntegralAtomicWrapper<bool>(false));
   IncidentNetArray incident_nets(
-    7, {{0, 2}, {0, 1, 3, 4}, {3, 4, 6}, {2, 5, 6}},
-    [&](const HypernodeID u) {
-      acquireOwnership(u, acquired_hns);
-    }, [&](const HypernodeID u) {
-      acquired_hns[u] = false;
-    });
+    7, {{0, 2}, {0, 1, 3, 4}, {3, 4, 6}, {2, 5, 6}});
   incident_nets.contract(0, 1, createFlagArray(4, { 1 }));
   incident_nets.contract(0, 5, createFlagArray(4, {}));
 
   executeParallel([&] {
-    incident_nets.uncontract(0, 1);
+    incident_nets.uncontract(0, 1,
+      [&](const HypernodeID u) {
+        acquireOwnership(u, acquired_hns);
+      }, [&](const HypernodeID u) {
+        acquired_hns[u] = false;
+      });
   }, [&] {
-    incident_nets.uncontract(0, 5);
+    incident_nets.uncontract(0, 5,
+      [&](const HypernodeID u) {
+        acquireOwnership(u, acquired_hns);
+      }, [&](const HypernodeID u) {
+        acquired_hns[u] = false;
+      });
   });
 
   verifyIncidentNets(0, 4, incident_nets, { 0, 1 });
@@ -325,19 +340,24 @@ TEST(AIncidentNetArray, UnontractsParallel1) {
 TEST(AIncidentNetArray, UnontractsParallel2) {
   OwnershipVector acquired_hns(7, parallel::IntegralAtomicWrapper<bool>(false));
   IncidentNetArray incident_nets(
-    7, {{0, 2}, {0, 1, 3, 4}, {3, 4, 6}, {2, 5, 6}},
-    [&](const HypernodeID u) {
-      acquireOwnership(u, acquired_hns);
-    }, [&](const HypernodeID u) {
-      acquired_hns[u] = false;
-    });
+    7, {{0, 2}, {0, 1, 3, 4}, {3, 4, 6}, {2, 5, 6}});
   incident_nets.contract(0, 1, createFlagArray(4, { 1 }));
   incident_nets.contract(0, 6, createFlagArray(4, {}));
 
   executeParallel([&] {
-    incident_nets.uncontract(0, 1);
+    incident_nets.uncontract(0, 1,
+      [&](const HypernodeID u) {
+        acquireOwnership(u, acquired_hns);
+      }, [&](const HypernodeID u) {
+        acquired_hns[u] = false;
+      });
   }, [&] {
-    incident_nets.uncontract(0, 6);
+    incident_nets.uncontract(0, 6,
+      [&](const HypernodeID u) {
+        acquireOwnership(u, acquired_hns);
+      }, [&](const HypernodeID u) {
+        acquired_hns[u] = false;
+      });
   });
 
   verifyIncidentNets(0, 4, incident_nets, { 0, 1 });
