@@ -36,7 +36,7 @@ class DynamicHypergraphFactory {
   using Counter = parallel::scalable_vector<size_t>;
   using AtomicCounter = parallel::scalable_vector<parallel::IntegralAtomicWrapper<size_t>>;
   using ThreadLocalCounter = tbb::enumerable_thread_specific<Counter>;
-  using ThreadLocalBitset = tbb::enumerable_thread_specific<parallel::scalable_vector<bool>>;
+  using ThreadLocalBitset = tbb::enumerable_thread_specific<kahypar::ds::FastResetFlagArray<>>;
 
  public:
   static DynamicHypergraph construct(const TaskGroupID task_group_id,

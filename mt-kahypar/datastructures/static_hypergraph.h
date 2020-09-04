@@ -888,9 +888,13 @@ class StaticHypergraph {
     return const_cast<Hypernode&>(static_cast<const StaticHypergraph&>(*this).hypernode(u));
   }
 
-
-  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE const IncidentNetsIterator incident_nets_of(const HypernodeID u) const {
-    return _incident_nets.cbegin() + hypernode(u).firstEntry();
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE IteratorRange<IncidentNetsIterator> incident_nets_of(const HypernodeID u,
+                                                                                          const size_t pos = 0) const {
+    ASSERT(!hypernode(u).isDisabled(), "Hypernode" << u << "is disabled");
+    const Hypernode& hn = hypernode(u);
+    return IteratorRange<IncidentNetsIterator>(
+      _incident_nets.cbegin() + hn.firstEntry() + pos,
+      _incident_nets.cbegin() + hn.firstInvalidEntry());
   }
 
   // ####################### Hyperedge Information #######################

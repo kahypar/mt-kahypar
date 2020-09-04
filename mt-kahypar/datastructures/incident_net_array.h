@@ -74,7 +74,6 @@ class IncidentNetIterator :
   HypernodeID _u;
   HypernodeID _current_u;
   HypernodeID _current_size;
-  HypernodeID _last_u;
   size_t _current_pos;
   const IncidentNetArray* _incident_net_array;
   bool _end;
@@ -113,7 +112,8 @@ class IncidentNetArray {
       tail(u),
       size(0),
       degree(0),
-      current_version(0) { }
+      current_version(0),
+      is_head(true) { }
 
     // ! Previous incident net list
     HypernodeID prev;
@@ -133,6 +133,8 @@ class IncidentNetArray {
     HypernodeID degree;
     // ! Current version of the incident net list
     HypernodeID current_version;
+    // ! True, if the vertex is the head of a incident net list
+    bool is_head;
   };
 
  public:
@@ -163,8 +165,8 @@ class IncidentNetArray {
   IteratorRange<IncidentNetIterator> incidentEdges(const HypernodeID u) const {
     ASSERT(u < _num_hypernodes, "Hypernode" << u << "does not exist");
     return IteratorRange<IncidentNetIterator>(
-      IncidentNetIterator(u, this, 0, false),
-      IncidentNetIterator(u, this, 0, true));
+      IncidentNetIterator(u, this, 0UL, false),
+      IncidentNetIterator(u, this, 0UL, true));
   }
 
   // ! Returns a range to loop over the incident nets of hypernode u.
@@ -173,7 +175,7 @@ class IncidentNetArray {
     ASSERT(u < _num_hypernodes, "Hypernode" << u << "does not exist");
     return IteratorRange<IncidentNetIterator>(
       IncidentNetIterator(u, this, pos, false),
-      IncidentNetIterator(u, this, 0, true));
+      IncidentNetIterator(u, this, 0UL, true));
   }
 
   // ! Contracts two incident list of u and v, whereby u is the representative and
@@ -251,13 +253,15 @@ class IncidentNetArray {
     *rhs = tmp_lhs;
   }
 
-  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE void append(const HypernodeID u, const HypernodeID v);
+  void append(const HypernodeID u, const HypernodeID v);
 
-  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE void splice(const HypernodeID v);
+  void splice(const HypernodeID u, const HypernodeID v);
 
-  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE void removeEmptyIncidentNetList(const HypernodeID u);
+  void removeEmptyIncidentNetList(const HypernodeID u);
 
   void construct(const HyperedgeVector& edge_vector);
+
+  bool verifyIteratorPointers(const HypernodeID u) const;
 
   HypernodeID _num_hypernodes;
   size_t _size_in_bytes;

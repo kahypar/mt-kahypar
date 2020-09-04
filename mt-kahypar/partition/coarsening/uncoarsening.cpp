@@ -242,8 +242,8 @@ namespace mt_kahypar {
           utils::Timer::instance().start_timer("batch_uncontractions", "Batch Uncontractions", false, force_measure_timings);
           _phg.uncontract(batch);
           utils::Timer::instance().stop_timer("batch_uncontractions", force_measure_timings);
-          HEAVY_REFINEMENT_ASSERT(_phg.checkTrackedPartitionInformation());
           HEAVY_REFINEMENT_ASSERT(_hg.verifyIncidenceArrayAndIncidentNets());
+          HEAVY_REFINEMENT_ASSERT(_phg.checkTrackedPartitionInformation());
           HEAVY_REFINEMENT_ASSERT(metrics::objective(_phg, _context.partition.objective) ==
                 current_metrics.getMetric(kahypar::Mode::direct_kway, _context.partition.objective),
                 V(current_metrics.getMetric(kahypar::Mode::direct_kway, _context.partition.objective)) <<
@@ -268,6 +268,8 @@ namespace mt_kahypar {
         _phg.restoreSinglePinAndParallelNets(_removed_hyperedges_batches.back());
         _removed_hyperedges_batches.pop_back();
         utils::Timer::instance().stop_timer("restore_single_pin_and_parallel_nets", force_measure_timings);
+        HEAVY_REFINEMENT_ASSERT(_hg.verifyIncidenceArrayAndIncidentNets());
+        HEAVY_REFINEMENT_ASSERT(_phg.checkTrackedPartitionInformation());
       }
       _hierarchy.pop_back();
     }

@@ -757,7 +757,7 @@ private:
         vec<HyperedgeWeight>& l_move_to_penalty = ets_mtp.local();
         for (HypernodeID u = r.begin(); u < r.end(); ++u) {
           if ( nodeIsEnabled(u)) {
-            if ( nodeDegree(u) <= HIGH_DEGREE_THRESHOLD ) {
+            if ( nodeDegree(u) <= HIGH_DEGREE_THRESHOLD) {
               const PartitionID from = partID(u);
               HyperedgeWeight incident_edges_weight = 0;
               HyperedgeWeight l_move_from_benefit = 0;
@@ -785,17 +785,20 @@ private:
       tbb::enumerable_thread_specific<HyperedgeWeight> ets_mfb(0);
       tbb::enumerable_thread_specific<HyperedgeWeight> ets_iew(0);
       const PartitionID from = partID(u);
-      const auto incident_nets_of_u = _hg->incident_nets_of(u);
       const HypernodeID degree_of_u = _hg->nodeDegree(u);
       tbb::parallel_for(tbb::blocked_range<HypernodeID>(ID(0), degree_of_u),
         [&](tbb::blocked_range<HypernodeID>& r) {
         vec<HyperedgeWeight>& l_move_to_penalty = ets_mtp.local();
         HyperedgeWeight& l_move_from_benefit = ets_mfb.local();
         HyperedgeWeight& l_incident_edges_weight = ets_iew.local();
-        for ( size_t incident_nets_pos = r.begin(); incident_nets_pos < r.end(); ++incident_nets_pos ) {
-          const HyperedgeID he = *(incident_nets_of_u + incident_nets_pos);
+        size_t current_pos = r.begin();
+        for ( const HyperedgeID& he : _hg->incident_nets_of(u, r.begin()) ) {
           aggregate_contribution_of_he_for_vertex(from, he,
             l_move_from_benefit, l_incident_edges_weight, l_move_to_penalty);
+          ++current_pos;
+          if ( current_pos == r.end() ) {
+            break;
+          }
         }
       });
 

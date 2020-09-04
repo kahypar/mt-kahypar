@@ -26,18 +26,16 @@ namespace mt_kahypar {
 namespace ds {
 
 IncidentNetIterator::IncidentNetIterator(const HypernodeID u,
-                      const IncidentNetArray* incident_net_array,
-                      const size_t pos,
-                      const bool end) :
+                                         const IncidentNetArray* incident_net_array,
+                                         const size_t pos,
+                                         const bool end) :
   _u(u),
   _current_u(u),
   _current_size(incident_net_array->header(u)->size),
-  _last_u(incident_net_array->header(u)->it_prev),
   _current_pos(0),
   _incident_net_array(incident_net_array),
   _end(end) {
   if ( end ) {
-    _current_u = _last_u;
     _current_pos = _current_size;
   }
 
@@ -63,12 +61,12 @@ IncidentNetIterator::IncidentNetIterator(const HypernodeID u,
 }
 
 HyperedgeID IncidentNetIterator::operator* () const {
-  ASSERT(_current_u != _last_u || _current_pos != _current_size);
+  ASSERT(!_end);
   return _incident_net_array->firstEntry(_current_u)[_current_pos].e;
 }
 
 IncidentNetIterator & IncidentNetIterator::operator++ () {
-  ASSERT(_current_u != _last_u || _current_pos != _current_size);
+  ASSERT(!_end);
   ++_current_pos;
   if ( _current_pos == _current_size) {
     next_iterator();
@@ -77,24 +75,29 @@ IncidentNetIterator & IncidentNetIterator::operator++ () {
 }
 
 bool IncidentNetIterator::operator!= (const IncidentNetIterator& rhs) {
-  return _u != rhs._u || _current_u != rhs._current_u ||
-          _end != rhs._end;
+  return _u != rhs._u || _end != rhs._end;
 }
 
 bool IncidentNetIterator::operator== (const IncidentNetIterator& rhs) {
-  return _u == rhs._u && _current_u == rhs._current_u &&
-          _end == rhs._end;
+  return _u == rhs._u && _end == rhs._end;
 }
 
 void IncidentNetIterator::next_iterator() {
   while ( _current_pos == _current_size ) {
-    if ( _current_u == _last_u ) {
+    const HypernodeID last_u = _current_u;
+    _current_u = _incident_net_array->header(_current_u)->it_next;
+    _current_pos = 0;
+    _current_size = _incident_net_array->header(_current_u)->size;
+    // It can happen that due to a contraction the current vertex
+    // we iterate over becomes empty or the head of the current vertex
+    // changes. Therefore, we set the end flag if we reach the current
+    // head of the list or it_next is equal with the current vertex (means
+    // that list becomes empty due to a contraction)
+    if ( _incident_net_array->header(_current_u)->is_head ||
+         last_u == _current_u ) {
       _end = true;
       break;
     }
-    _current_u = _incident_net_array->header(_current_u)->it_next;
-    _current_pos = 0;
-    _current_size =  _incident_net_array->header(_current_u)->size;
   }
 }
 
@@ -107,37 +110,14 @@ void IncidentNetArray::contract(const HypernodeID u,
                                 const kahypar::ds::FastResetFlagArray<>& shared_hes_of_u_and_v,
                                 const AcquireLockFunc& acquire_lock,
                                 const ReleaseLockFunc& release_lock) {
-  HypernodeID current_v = v;
-  Header* head_v = header(v);
-  do {
-    Header* head = header(current_v);
-    const HypernodeID new_version = ++head->current_version;
-    Entry* last_entry = lastEntry(current_v);
-    for ( Entry* current_entry = firstEntry(current_v); current_entry != last_entry; ++current_entry ) {
-      if ( shared_hes_of_u_and_v[current_entry->e] ) {
-        // Hyperedge is shared between u and v => decrement size of incident net list
-        swap(current_entry--, --last_entry);
-        ASSERT(head->size > 0);
-        --head->size;
-        --head_v->degree;
-      } else {
-        // Hyperedge is non-shared between u and v => adapt version number of current incident net
-        current_entry->version = new_version;
-      }
-    }
-
-    if ( head->size == 0 && current_v != v ) {
-      // Current list becomes empty => remove it from the iterator double linked list
-      // such that iteration over the incident nets is more efficient
-      removeEmptyIncidentNetList(current_v);
-    }
-    current_v = head->next;
-  } while ( current_v != v );
+  // Remove all HEs flagged in shared_hes_of_u_and_v from v
+  removeIncidentNets(v, shared_hes_of_u_and_v);
 
   acquire_lock(u);
   // Concatenate double-linked list of u and v
   append(u, v);
-  header(u)->degree += head_v->degree;
+  header(u)->degree += header(v)->degree;
+  ASSERT(verifyIteratorPointers(u), "Iterator pointers of vertex" << u << "are corrupted");
   release_lock(u);
 }
 
@@ -154,44 +134,13 @@ void IncidentNetArray::uncontract(const HypernodeID u,
   acquire_lock(u);
   // Restores the incident list of v to the time before it was appended
   // to the double-linked list of u.
-  splice(v);
+  splice(u, v);
   header(u)->degree -= head_v->degree;
+  ASSERT(verifyIteratorPointers(u), "Iterator pointers of vertex" << u << "are corrupted");
   release_lock(u);
 
-  HypernodeID current_v = v;
-  HypernodeID last_non_empty_entry = kInvalidHypernode;
-  do {
-    Header* head = header(current_v);
-    ASSERT(head->current_version > 0);
-    const HypernodeID new_version = --head->current_version;
-    const Entry* last_entry = reinterpret_cast<const Entry*>(header(current_v + 1));
-    // Iterate over non-active entries (and activate them) until the version number
-    // is not equal to the new version of the list
-    for ( Entry* current_entry = lastEntry(current_v); current_entry != last_entry; ++current_entry ) {
-      if ( current_entry->version == new_version ) {
-        ++head->size;
-        ++head_v->degree;
-      } else {
-        break;
-      }
-    }
-
-    // Restore iterator double-linked list which only contains
-    // non-empty incident net lists
-    if ( head->size > 0 || current_v == v ) {
-      if ( last_non_empty_entry != kInvalidHypernode &&
-           head->it_prev != last_non_empty_entry ) {
-        header(last_non_empty_entry)->it_next = current_v;
-        head->it_prev = last_non_empty_entry;
-      }
-      last_non_empty_entry = current_v;
-    }
-    current_v = head->next;
-  } while ( current_v != v );
-
-  ASSERT(last_non_empty_entry != kInvalidHypernode);
-  head_v->it_prev = last_non_empty_entry;
-  header(last_non_empty_entry)->it_next = v;
+  // Restore all incident nets of v removed by the contraction of u and v
+  restoreIncidentNets(v);
 }
 
 // ! Removes all incidents nets of u flagged in hes_to_remove.
@@ -223,6 +172,7 @@ void IncidentNetArray::removeIncidentNets(const HypernodeID u,
     }
     current_u = head->next;
   } while ( current_u != u );
+  ASSERT(verifyIteratorPointers(u), "Iterator pointers of vertex" << u << "are corrupted");
 }
 
 // ! Restores all previously removed incident nets
@@ -266,6 +216,7 @@ void IncidentNetArray::restoreIncidentNets(const HypernodeID u) {
   ASSERT(last_non_empty_entry != kInvalidHypernode);
   head_u->it_prev = last_non_empty_entry;
   header(last_non_empty_entry)->it_next = u;
+  ASSERT(verifyIteratorPointers(u), "Iterator pointers of vertex" << u << "are corrupted");
 }
 
 IncidentNetArray IncidentNetArray::copy(const TaskGroupID) {
@@ -312,22 +263,27 @@ void IncidentNetArray::append(const HypernodeID u, const HypernodeID v) {
   header(u)->it_prev = it_tail_v;
   header(v)->it_prev = it_tail_u;
   header(it_tail_v)->it_next = u;
+  header(v)->is_head = false;
 
   if ( header(v)->size == 0 ) {
     removeEmptyIncidentNetList(v);
   }
 }
 
-void IncidentNetArray::splice(const HypernodeID v) {
+void IncidentNetArray::splice(const HypernodeID u, const HypernodeID v) {
   // Restore the iterator double-linked list of u such that it does not contain
   // any incident net list of v
   const HypernodeID tail = header(v)->tail;
   HypernodeID non_empty_entry_prev_v = v;
   HypernodeID non_empty_entry_next_tail = tail;
-  while ( non_empty_entry_prev_v == v || header(non_empty_entry_prev_v)->size == 0 ) {
+  while ( ( non_empty_entry_prev_v == v ||
+          header(non_empty_entry_prev_v)->size == 0 ) &&
+          non_empty_entry_prev_v != u ) {
     non_empty_entry_prev_v = header(non_empty_entry_prev_v)->prev;
   }
-  while ( non_empty_entry_next_tail == tail || header(non_empty_entry_next_tail)->size == 0 ) {
+  while ( ( non_empty_entry_next_tail == tail ||
+          header(non_empty_entry_next_tail)->size == 0 ) &&
+          non_empty_entry_next_tail != u ) {
     non_empty_entry_next_tail = header(non_empty_entry_next_tail)->next;
   }
   header(non_empty_entry_prev_v)->it_next = non_empty_entry_next_tail;
@@ -340,9 +296,11 @@ void IncidentNetArray::splice(const HypernodeID v) {
   header(tail)->next = v;
   header(next_tail)->prev = prev_v;
   header(prev_v)->next = next_tail;
+  header(v)->is_head = true;
 }
 
 void IncidentNetArray::removeEmptyIncidentNetList(const HypernodeID u) {
+  ASSERT(!header(u)->is_head);
   ASSERT(header(u)->size == 0, V(u) << V(header(u)->size));
   Header* head = header(u);
   header(head->it_prev)->it_next = head->it_next;
@@ -408,7 +366,41 @@ void IncidentNetArray::construct(const HyperedgeVector& edge_vector) {
     head->size = current_incident_net_pos[u].load(std::memory_order_relaxed);
     head->degree = head->size;
     head->current_version = 0;
+    head->is_head = true;
   });
+}
+
+bool IncidentNetArray::verifyIteratorPointers(const HypernodeID u) const {
+  HypernodeID current_u = u;
+  HypernodeID last_non_empty_entry = kInvalidHypernode;
+  do {
+    if ( header(current_u)->size > 0 || current_u == u ) {
+      if ( last_non_empty_entry != kInvalidHypernode ) {
+        if ( header(current_u)->it_prev != last_non_empty_entry ) {
+          return false;
+        } else if ( header(last_non_empty_entry)->it_next != current_u ) {
+          return false;
+        }
+      }
+      last_non_empty_entry = current_u;
+    } else {
+      if ( header(current_u)->it_next != current_u ) {
+        return false;
+      } else if ( header(current_u)->it_prev != current_u ) {
+        return false;
+      }
+    }
+
+    current_u = header(current_u)->next;
+  } while(current_u != u);
+
+  if ( header(u)->it_prev != last_non_empty_entry ) {
+    return false;
+  } else if ( header(last_non_empty_entry)->it_next != u ) {
+    return false;
+  }
+
+  return true;
 }
 
 }  // namespace ds
