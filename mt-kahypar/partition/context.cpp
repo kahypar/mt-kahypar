@@ -121,6 +121,17 @@ namespace mt_kahypar {
     return out;
   }
 
+  std::ostream& operator<<(std::ostream& out, const NLevelGlobalFMParameters& params) {
+    out << "  Boundary FM Parameters: \n";
+    out << "    Use Global FM:                    " << std::boolalpha << params.use_global_fm << std::endl;
+    if ( params.use_global_fm ) {
+      out << "    Refine Until No Improvement:      " << std::boolalpha << params.refine_until_no_improvement << std::endl;
+      out << "    Num Seed Nodes:                   " << params.num_seed_nodes << std::endl;
+      out << "    Obey Minimal Parallelism:         " << std::boolalpha << params.obey_minimal_parallelism << std::endl;
+    }
+    return out;
+  }
+
   std::ostream & operator<< (std::ostream& str, const RefinementParameters& params) {
     str << "Refinement Parameters:" << std::endl;
     str << "  Refine Until No Improvement:        " << std::boolalpha << params.refine_until_no_improvement << std::endl;
@@ -128,8 +139,11 @@ namespace mt_kahypar {
     str << "  Maximum Batch Size:                 " << params.max_batch_size << std::endl;
     str << "  Initialize Gain Cache:              " << std::boolalpha << params.initialize_gain_cache << std::endl;
 #endif
-    str << std::endl << params.label_propagation;
+    str << "\n" << params.label_propagation;
     str << "\n" << params.fm;
+#ifdef KAHYPAR_USE_N_LEVEL_PARADIGM
+    str << "\n" << params.global_fm;
+#endif
     return str;
   }
 
@@ -161,6 +175,7 @@ namespace mt_kahypar {
     str << "  Use Adaptive Epsilon:               " << std::boolalpha << params.use_adaptive_epsilon << std::endl;
     str << "  Perform Refinement On Best:         " << std::boolalpha << params.perform_refinement_on_best_partitions << std::endl;
     str << "  Fm Refinement Rounds:               " << params.fm_refinment_rounds << std::endl;
+    str << "  Remove Degree-Zero HNs Before IP:   " << std::boolalpha << params.remove_degree_zero_hns_before_ip << std::endl;
     str << "  Maximum Iterations of LP IP:        " << params.lp_maximum_iterations << std::endl;
     str << "  Initial Block Size of LP IP:        " << params.lp_initial_block_size << std::endl;
     str << "\nInitial Partitioning ";

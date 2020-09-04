@@ -67,6 +67,17 @@ namespace mt_kahypar {
     _is_finalized = true;
   }
 
+  namespace {
+    double refinementTimeLimit(const Context& context, const double time) {
+      if ( context.refinement.fm.time_limit_factor != std::numeric_limits<double>::max() ) {
+        const double time_limit_factor = std::max(1.0,  context.refinement.fm.time_limit_factor * context.partition.k);
+        return std::max(5.0, time_limit_factor * time);
+      } else {
+        return std::numeric_limits<double>::max();
+      }
+    }
+  } // namespace
+
   void MultilevelCoarsenerBase::performMultilevelContraction(
           parallel::scalable_vector<HypernodeID>&& communities,
           const HighResClockTimepoint& round_start) {
@@ -93,7 +104,7 @@ namespace mt_kahypar {
     uncontraction_progress += coarsest_hg.initialNumNodes();
 
     // Refine Coarsest Partitioned Hypergraph
-    double time_limit = refinementTimeLimit(_hierarchy.back());
+    double time_limit = refinementTimeLimit(_context, _hierarchy.back().coarseningTime());
     refine(coarsest_hg, label_propagation, fm, current_metrics, time_limit);
 
     for (int i = _hierarchy.size() - 1; i >= 0; --i) {
@@ -122,7 +133,7 @@ namespace mt_kahypar {
       utils::Timer::instance().stop_timer("projecting_partition");
 
       // Refinement
-      time_limit = refinementTimeLimit(_hierarchy[i]);
+      time_limit = refinementTimeLimit(_context, _hierarchy[i].coarseningTime());
       refine(representative_hg, label_propagation, fm, current_metrics, time_limit);
 
       // Update Progress Bar
@@ -226,6 +237,10 @@ namespace mt_kahypar {
       is_timer_disabled = true;
     }
 
+    ASSERT(_round_coarsening_times.size() == _removed_hyperedges_batches.size());
+    _round_coarsening_times.push_back(_round_coarsening_times.size() > 0 ?
+      _round_coarsening_times.back() : std::numeric_limits<double>::max()); // Sentinel
+
     size_t num_batches = 0;
     size_t total_batches_size = 0;
     while ( !_hierarchy.empty() ) {
@@ -250,7 +265,7 @@ namespace mt_kahypar {
                 V(metrics::objective(_phg, _context.partition.objective)));
 
           // Perform refinement
-          refine(_phg, batch, label_propagation, fm, current_metrics, force_measure_timings);
+          localizedRefine(_phg, batch, label_propagation, fm, current_metrics, force_measure_timings);
 
           ++num_batches;
           total_batches_size += batch.size();
@@ -268,8 +283,29 @@ namespace mt_kahypar {
         _phg.restoreSinglePinAndParallelNets(_removed_hyperedges_batches.back());
         _removed_hyperedges_batches.pop_back();
         utils::Timer::instance().stop_timer("restore_single_pin_and_parallel_nets", force_measure_timings);
+
+        // Perform refinement on all vertices
+        const double time_limit = refinementTimeLimit(_context, _round_coarsening_times.back());
+        globalRefine(_phg, fm, current_metrics, time_limit);
+        uncontraction_progress.setObjective(current_metrics.getMetric(
+          _context.partition.mode, _context.partition.objective));
+        _round_coarsening_times.pop_back();
       }
       _hierarchy.pop_back();
+    }
+
+    // Top-Level Refinement on all vertices
+    const HyperedgeWeight objective_before = current_metrics.getMetric(
+      _context.partition.mode, _context.partition.objective);
+    const double time_limit = refinementTimeLimit(_context, _round_coarsening_times.back());
+    globalRefine(_phg, fm, current_metrics, time_limit);
+    _round_coarsening_times.pop_back();
+    ASSERT(_round_coarsening_times.size() == 0);
+    const HyperedgeWeight objective_after = current_metrics.getMetric(
+      _context.partition.mode, _context.partition.objective);
+    if ( _context.partition.verbose_output && objective_after < objective_before ) {
+      LOG << GREEN << "Top-Level Refinment improved objective from"
+          << objective_before << "to" << objective_after << END;
     }
 
     if ( is_timer_disabled ) {
@@ -382,12 +418,12 @@ namespace mt_kahypar {
     }
   }
 
-  void NLevelCoarsenerBase::refine(PartitionedHypergraph& partitioned_hypergraph,
-                                   const Batch& batch,
-                                   std::unique_ptr<IRefiner>& label_propagation,
-                                   std::unique_ptr<IRefiner>& fm,
-                                   kahypar::Metrics& current_metrics,
-                                   const bool force_measure_timings) {
+  void NLevelCoarsenerBase::localizedRefine(PartitionedHypergraph& partitioned_hypergraph,
+                                            const Batch& batch,
+                                            std::unique_ptr<IRefiner>& label_propagation,
+                                            std::unique_ptr<IRefiner>& fm,
+                                            kahypar::Metrics& current_metrics,
+                                            const bool force_measure_timings) {
     if ( debug && _top_level ) {
       io::printHypergraphInfo(partitioned_hypergraph.hypergraph(), "Refinement Hypergraph", false);
       DBG << "Start Refinement - km1 = " << current_metrics.km1
@@ -428,6 +464,61 @@ namespace mt_kahypar {
     }
   }
 
+  namespace {
+    NLevelGlobalFMParameters applyGlobalFMParameters(const FMParameters& fm,
+                                                     const NLevelGlobalFMParameters global_fm) {
+      NLevelGlobalFMParameters tmp_global_fm;
+      tmp_global_fm.num_seed_nodes = fm.num_seed_nodes;
+      tmp_global_fm.obey_minimal_parallelism = fm.obey_minimal_parallelism;
+      fm.num_seed_nodes = global_fm.num_seed_nodes;
+      fm.obey_minimal_parallelism = global_fm.obey_minimal_parallelism;
+      return tmp_global_fm;
+    }
+  } // namespace
+
+  void NLevelCoarsenerBase::globalRefine(PartitionedHypergraph& partitioned_hypergraph,
+                                         std::unique_ptr<IRefiner>& fm,
+                                         kahypar::Metrics& current_metrics,
+                                         const double time_limit) {
+    if ( _context.refinement.global_fm.use_global_fm ) {
+      if ( debug && _top_level ) {
+        io::printHypergraphInfo(partitioned_hypergraph.hypergraph(), "Refinement Hypergraph", false);
+        DBG << "Start Refinement - km1 = " << current_metrics.km1
+            << ", imbalance = " << current_metrics.imbalance;
+      }
+
+      // Apply global FM parameters to FM context and temporary store old fm context
+      NLevelGlobalFMParameters tmp_global_fm = applyGlobalFMParameters(
+        _context.refinement.fm, _context.refinement.global_fm);
+      bool improvement_found = true;
+      while( improvement_found ) {
+        improvement_found = false;
+
+        if ( fm && _context.refinement.fm.algorithm != FMAlgorithm::do_nothing ) {
+          utils::Timer::instance().start_timer("global_fm", "Global FM", false, _top_level);
+          improvement_found |= fm->refine(partitioned_hypergraph, {}, current_metrics, time_limit);
+          utils::Timer::instance().stop_timer("global_fm", _top_level);
+        }
+
+        if ( _top_level ) {
+          ASSERT(current_metrics.km1 == metrics::km1(partitioned_hypergraph),
+                "Actual metric" << V(metrics::km1(partitioned_hypergraph))
+                                << "does not match the metric updated by the refiners" << V(current_metrics.km1));
+        }
+
+        if ( !_context.refinement.global_fm.refine_until_no_improvement ) {
+          break;
+        }
+      }
+      // Reset FM context
+      applyGlobalFMParameters(_context.refinement.fm, tmp_global_fm);
+
+      if ( _top_level) {
+        DBG << "--------------------------------------------------\n";
+      }
+    }
+  }
+
   kahypar::Metrics MultilevelCoarsenerBase::initialize(PartitionedHypergraph& phg) {
     kahypar::Metrics m = { 0, 0, 0.0 };
     tbb::parallel_invoke([&] {
@@ -458,15 +549,5 @@ namespace mt_kahypar {
     utils::Stats::instance().add_stat("initial_imbalance", current_metrics.imbalance);
     return current_metrics;
   }
-
-  double MultilevelCoarsenerBase::refinementTimeLimit(const Level& level) const {
-    if ( _context.refinement.fm.time_limit_factor != std::numeric_limits<double>::max() ) {
-      const double time_limit_factor = std::max(1.0,  _context.refinement.fm.time_limit_factor * _context.partition.k);
-      return std::max(5.0, time_limit_factor * level.coarseningTime());
-    } else {
-      return std::numeric_limits<double>::max();
-    }
-  }
-
 
 }

@@ -46,6 +46,8 @@ class NLevelCoarsener : public ICoarsener,
                         private NLevelCoarsenerBase {
  private:
 
+  #define HIGH_DEGREE_VERTEX_THRESHOLD ID(200000)
+
   using Base = NLevelCoarsenerBase;
   using Rater = NLevelVertexPairRater<ScorePolicy,
                                       HeavyNodePenaltyPolicy,
@@ -95,6 +97,7 @@ class NLevelCoarsener : public ICoarsener,
     while ( current_num_nodes > _context.coarsening.contraction_limit ) {
       DBG << V(pass_nr) << V(current_num_nodes);
 
+      HighResClockTimepoint round_start = std::chrono::high_resolution_clock::now();
       utils::Timer::instance().start_timer("random_shuffle", "Random Shuffle");
       std::atomic<size_t> idx(0);
       current_hns.resize(current_num_nodes);
@@ -114,36 +117,46 @@ class NLevelCoarsener : public ICoarsener,
         const HypernodeID hn = current_hns[i];
         if ( current_num_nodes > _context.coarsening.contraction_limit && _hg.nodeIsEnabled(hn) ) {
           const Rating rating = _rater.rate(_hg, hn, _max_allowed_node_weight);
-          if ( rating.target != kInvalidHypernode && _hg.registerContraction(hn, rating.target) ) {
-            _rater.markAsMatched(hn);
-            _rater.markAsMatched(rating.target);
-            // TODO(heuer): Think what should happen if a contraction failed due to the max node weight
-            // It might be that other concurrent running contractions to that vertex are relinked to
-            // an other vertex in the contraction tree.
-            const size_t num_contractions = _hg.contract(rating.target, _max_allowed_node_weight);
-            _progress_bar += num_contractions; // TODO: should be updated outside this parallel for loop
+          if ( rating.target != kInvalidHypernode ) {
+            HypernodeID u = hn;
+            HypernodeID v = rating.target;
+            // In case v is a high degree vertex, we reverse contraction order to improve performance
+            if ( _hg.nodeDegree(u) < _hg.nodeDegree(v) && _hg.nodeDegree(v) > HIGH_DEGREE_VERTEX_THRESHOLD ) {
+              u = rating.target;
+              v = hn;
+            }
 
-            // To maintain the current number of nodes of the hypergraph each PE sums up
-            // its number of contracted nodes locally. To compute the current number of
-            // nodes, we have to sum up the number of contracted nodes of each PE. This
-            // operation becomes more expensive the more PEs are participating in coarsening.
-            // In order to prevent expensive updates of the current number of nodes, we
-            // define a threshold which the local number of contracted nodes have to exceed
-            // before the current PE updates the current number of nodes. This threshold is defined
-            // by the distance to the current contraction limit divided by the number of PEs.
-            // Once one PE exceeds this bound the first time it is not possible that the
-            // contraction limit is reached, because otherwise an other PE would update
-            // the global current number of nodes before. After update the threshold is
-            // increased by the new difference (in number of nodes) to the contraction limit
-            // divided by the number of PEs.
-            HypernodeID& local_contracted_nodes = contracted_nodes.local();
-            local_contracted_nodes += num_contractions;
-            if (  local_contracted_nodes >= num_nodes_update_threshold.local() ) {
-              current_num_nodes = initial_num_nodes -
-                contracted_nodes.combine(std::plus<HypernodeID>());
-              num_nodes_update_threshold.local() +=
-                (current_num_nodes - _context.coarsening.contraction_limit) /
-                _context.shared_memory.num_threads;
+            if ( _hg.registerContraction(u, v) ) {
+              _rater.markAsMatched(u);
+              _rater.markAsMatched(v);
+              // TODO(heuer): Think what should happen if a contraction failed due to the max node weight
+              // It might be that other concurrent running contractions to that vertex are relinked to
+              // an other vertex in the contraction tree.
+              const size_t num_contractions = _hg.contract(v, _max_allowed_node_weight);
+              _progress_bar += num_contractions; // TODO: should be updated outside this parallel for loop
+
+              // To maintain the current number of nodes of the hypergraph each PE sums up
+              // its number of contracted nodes locally. To compute the current number of
+              // nodes, we have to sum up the number of contracted nodes of each PE. This
+              // operation becomes more expensive the more PEs are participating in coarsening.
+              // In order to prevent expensive updates of the current number of nodes, we
+              // define a threshold which the local number of contracted nodes have to exceed
+              // before the current PE updates the current number of nodes. This threshold is defined
+              // by the distance to the current contraction limit divided by the number of PEs.
+              // Once one PE exceeds this bound the first time it is not possible that the
+              // contraction limit is reached, because otherwise an other PE would update
+              // the global current number of nodes before. After update the threshold is
+              // increased by the new difference (in number of nodes) to the contraction limit
+              // divided by the number of PEs.
+              HypernodeID& local_contracted_nodes = contracted_nodes.local();
+              local_contracted_nodes += num_contractions;
+              if (  local_contracted_nodes >= num_nodes_update_threshold.local() ) {
+                current_num_nodes = initial_num_nodes -
+                  contracted_nodes.combine(std::plus<HypernodeID>());
+                num_nodes_update_threshold.local() +=
+                  (current_num_nodes - _context.coarsening.contraction_limit) /
+                  _context.shared_memory.num_threads;
+              }
             }
           }
         }
@@ -151,7 +164,7 @@ class NLevelCoarsener : public ICoarsener,
       utils::Timer::instance().stop_timer("n_level_coarsening");
 
       // Remove single-pin and parallel nets
-      Base::removeSinglePinAndParallelNets();
+      Base::removeSinglePinAndParallelNets(round_start);
       current_num_nodes = initial_num_nodes -
         contracted_nodes.combine(std::plus<HypernodeID>());
 
