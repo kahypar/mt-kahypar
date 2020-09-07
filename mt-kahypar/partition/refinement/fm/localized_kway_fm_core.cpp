@@ -91,10 +91,6 @@ namespace mt_kahypar {
         edgesWithGainChanges.push_back(he);
       }
 
-      // TODO we can almost make this function take a generic partitioned hypergraph
-      // we would have to add the success func to the interface of DeltaPhg (and then ignore it there...)
-      // and do the local rollback outside this function
-
       if constexpr (use_delta) {
         fm_details.deltaGainUpdates(deltaPhg, he, edge_weight, move.from, pin_count_in_from_part_after,
                                     move.to, pin_count_in_to_part_after);
@@ -104,6 +100,11 @@ namespace mt_kahypar {
       }
 
     };
+
+    // TODO we can almost make this function take a generic partitioned hypergraph
+    // we would have to add the success func to the interface of DeltaPhg (and then ignore it there...)
+    // and do the local rollback outside this function
+
 
     size_t bestImprovementIndex = 0;
     Gain estimatedImprovement = 0;

@@ -6,4 +6,5 @@ target_sources(mt_kahypar_tests PRIVATE
         twoway_fm_refiner_test.cc
         gain_test.cc
         multitry_fm_test.cc
+        fm_strategy_test.cc
         )
