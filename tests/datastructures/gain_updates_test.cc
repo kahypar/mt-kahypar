@@ -53,7 +53,7 @@ TEST(GainUpdates, Example1) {
   ASSERT_EQ(phg.partWeight(0), phg.partWeight(1));
   ASSERT_EQ(phg.partWeight(0), 10);
 
-  phg.initializeGainInformation();
+    phg.initializeGainCache();
   ASSERT_EQ(phg.km1Gain(0, phg.partID(0), 1), -1);
   ASSERT_EQ(phg.moveFromBenefit(0), 1);
   ASSERT_EQ(phg.moveToPenalty(0, 1), 2);

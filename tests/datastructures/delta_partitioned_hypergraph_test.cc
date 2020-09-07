@@ -52,7 +52,7 @@ class ADeltaPartitionedHypergraph : public Test {
     phg.setOnlyNodePart(5, 2);
     phg.setOnlyNodePart(6, 2);
     phg.initializePartition(TBBNumaArena::GLOBAL_TASK_GROUP);
-    phg.initializeGainInformation();
+    phg.initializeGainCache();
     delta_phg.setPartitionedHypergraph(&phg);
   }
 

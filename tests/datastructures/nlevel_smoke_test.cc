@@ -247,7 +247,7 @@ DynamicHypergraph simulateNLevel(DynamicHypergraph& hypergraph,
   utils::Timer::instance().stop_timer(timer_key("initialize_partition"));
 
   utils::Timer::instance().start_timer(timer_key("initialize_gain_cache"), "Initialize Initialize Gain Cache");
-  partitioned_hypergraph.initializeGainInformation();
+  partitioned_hypergraph.initializeGainCache();
   utils::Timer::instance().stop_timer(timer_key("initialize_gain_cache"));
 
   utils::Timer::instance().stop_timer(timer_key("initial_partition"));

@@ -697,11 +697,10 @@ private:
     return _is_gain_cache_initialized;
   }
 
-  // ! Initialize gain informations for all hypernodes such that the km1 gain of a vertex
-  // ! moving to a specific block of the partition can be calculated in constant time.
+  // ! Initialize gain cache
   // ! NOTE: Requires that pin counts are already initialized and reflect the
   // ! current state of the partition
-  void initializeGainInformation() {
+  void initializeGainCache() {
     // check whether part has been initialized
     ASSERT([&] {
       if (_part_ids.size() != initialNumNodes()) {

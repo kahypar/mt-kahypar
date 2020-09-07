@@ -69,7 +69,7 @@ TEST(StrategyTests, FindNextMove) {
     phg.setOnlyNodePart(u, distr(rng));
   }
   phg.initializePartition(0);
-  phg.initializeGainInformation();
+    phg.initializeGainCache();
 
 
   context.refinement.fm.algorithm = FMAlgorithm::fm_gain_delta; // use this one because it allocates the most memory in shared data!
@@ -112,7 +112,7 @@ TEST(StrategyTests, DeltaUpdatesWork) {
     phg.setOnlyNodePart(u, distr(rng));
   }
   phg.initializePartition(0);
-  phg.initializeGainInformation();
+    phg.initializeGainCache();
 
   context.refinement.fm.algorithm = FMAlgorithm::fm_gain_delta; // use this one because it allocates the most memory in shared data!
 

@@ -184,7 +184,7 @@ namespace mt_kahypar {
 
     if ( !phg.isGainCacheInitialized() && FMStrategy::uses_gain_cache ) {
       timer.start_timer("init_gain_info", "Initialize Gain Information");
-      phg.initializeGainInformation();
+      phg.initializeGainCache();
       timer.stop_timer("init_gain_info");
     }
 

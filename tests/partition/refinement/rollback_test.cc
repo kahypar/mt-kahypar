@@ -54,7 +54,7 @@ TEST(RollbackTests, GainRecalculationAndRollsbackCorrectly) {
   for (HypernodeID u = 12; u < 20; ++u) {
     phg.setNodePart(u, 1);
   }
-  phg.initializeGainInformation();
+    phg.initializeGainCache();
 
   Context context;
   context.partition.k = k;
@@ -110,7 +110,7 @@ TEST(RollbackTests, GainRecalculation2) {
   for (HypernodeID u = 12; u < 20; ++u) {
     phg.setNodePart(u, 1);
   }
-  phg.initializeGainInformation();
+    phg.initializeGainCache();
 
   Context context;
   context.partition.k = k;
