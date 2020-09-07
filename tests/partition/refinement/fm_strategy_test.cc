@@ -76,6 +76,7 @@ TEST(StrategyTests, FindNextMove) {
 
   FMSharedData sd(hg.initialNumNodes(), context);
   FMStats fm_stats;
+  fm_stats.moves = 1;
 
   GainCacheStrategy gain_caching(context, hg.initialNumNodes(), sd, fm_stats);
   GainDeltaStrategy gain_deltas(context, hg.initialNumNodes(), sd, fm_stats);
@@ -145,6 +146,7 @@ TEST(StrategyTests, DeltaUpdatesWork) {
   check_gains();
   while (strat.findNextMove(phg, m)) {
     phg.changeNodePart(m.node, m.from, m.to, std::numeric_limits<HypernodeWeight>::max(), []{}, delta_func);
+    fm_stats.moves++;
     strat.updatePQs(phg);
     check_gains();
   }
