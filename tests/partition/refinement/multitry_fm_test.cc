@@ -121,6 +121,35 @@ class MultiTryFMTest : public ::testing::TestWithParam<PartitionID> {
     ASSERT_LE(this->metrics.getMetric(kahypar::Mode::direct_kway, this->context.partition.objective), objective_before);
   }
 
+  TEST_P(MultiTryFMTest, AlsoWorksWithNonDefaultFeatures) {
+    context.refinement.fm.obey_minimal_parallelism = true;
+    context.refinement.fm.revert_parallel = false;
+    context.refinement.fm.perform_moves_global = true;
+    HyperedgeWeight objective_before = metrics::objective(this->partitioned_hypergraph, this->context.partition.objective);
+    this->refiner->refine(this->partitioned_hypergraph, {}, this->metrics, std::numeric_limits<double>::max());
+    this->refiner->printMemoryConsumption();
+    ASSERT_LE(this->metrics.getMetric(kahypar::Mode::direct_kway, this->context.partition.objective), objective_before);
+    ASSERT_EQ(metrics::objective(this->partitioned_hypergraph, this->context.partition.objective),
+              this->metrics.getMetric(kahypar::Mode::direct_kway, this->context.partition.objective));
+    ASSERT_LE(this->metrics.imbalance, this->context.partition.epsilon);
+    ASSERT_DOUBLE_EQ(metrics::imbalance(this->partitioned_hypergraph, this->context), this->metrics.imbalance);
+  }
+
+  TEST_P(MultiTryFMTest, WorksWithBatches) {
+    Batch batch;
+    for (HypernodeID u = 0; u < this->partitioned_hypergraph.initialNumNodes(); u += 2) {
+      batch.push_back({ u, u+1 });
+    }
+    HyperedgeWeight objective_before = metrics::objective(this->partitioned_hypergraph, this->context.partition.objective);
+    this->refiner->refine(this->partitioned_hypergraph, batch, this->metrics, std::numeric_limits<double>::max());
+    this->refiner->printMemoryConsumption();
+    ASSERT_LE(this->metrics.getMetric(kahypar::Mode::direct_kway, this->context.partition.objective), objective_before);
+    ASSERT_EQ(metrics::objective(this->partitioned_hypergraph, this->context.partition.objective),
+              this->metrics.getMetric(kahypar::Mode::direct_kway, this->context.partition.objective));
+    ASSERT_LE(this->metrics.imbalance, this->context.partition.epsilon);
+    ASSERT_DOUBLE_EQ(metrics::imbalance(this->partitioned_hypergraph, this->context), this->metrics.imbalance);
+  }
+
 
   INSTANTIATE_TEST_CASE_P(
           MultiTryFMTestSuite,

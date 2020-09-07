@@ -27,10 +27,10 @@
 namespace mt_kahypar {
 
   template<typename FMStrategy>
-  Gain MultiTryKWayFM<FMStrategy>::refine(
+  bool MultiTryKWayFM<FMStrategy>::refineImpl(
               PartitionedHypergraph& phg,
               const Batch& batch,
-              const kahypar::Metrics& metrics,
+              kahypar::Metrics& metrics,
               const double time_limit) {
 
     if (!is_initialized) throw std::runtime_error("Call initialize on fm before calling refine");
@@ -126,7 +126,11 @@ namespace mt_kahypar {
     #ifndef KAHYPAR_USE_N_LEVEL_PARADIGM
     is_initialized = false;
     #endif
-    return overall_improvement;
+
+    metrics.km1 -= overall_improvement;
+    metrics.imbalance = metrics::imbalance(phg, context);
+    ASSERT(metrics.km1 == metrics::km1(phg), V(metrics.km1) << V(metrics::km1(phg)));
+    return overall_improvement > 0;
   }
 
   template<typename FMStrategy>
@@ -191,16 +195,6 @@ namespace mt_kahypar {
     }
 
     is_initialized = true;
-  }
-
-
-  template<typename FMStrategy>
-  bool MultiTryKWayFM<FMStrategy>::refineImpl(PartitionedHypergraph& phg, const Batch& batch, kahypar::Metrics& metrics, const double time_limit) {
-    Gain improvement = refine(phg, batch, metrics, time_limit);
-    metrics.km1 -= improvement;
-    metrics.imbalance = metrics::imbalance(phg, context);
-    ASSERT(metrics.km1 == metrics::km1(phg), V(metrics.km1) << V(metrics::km1(phg)));
-    return improvement > 0;
   }
 
   template<typename FMStrategy>

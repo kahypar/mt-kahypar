@@ -57,8 +57,6 @@ public:
 
   bool refineImpl(PartitionedHypergraph& phg, const Batch& batch, kahypar::Metrics& metrics, double time_limit) final ;
 
-  Gain refine(PartitionedHypergraph& phg, const Batch& batch, const kahypar::Metrics& metrics, double time_limit);
-
   void initializeImpl(PartitionedHypergraph& phg) final ;
 
   void roundInitialization(PartitionedHypergraph& phg, const Batch& batch);
