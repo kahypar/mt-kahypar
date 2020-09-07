@@ -74,23 +74,13 @@ namespace mt_kahypar {
       if (pq.empty()) {
         return false;
       }
-      while (true) {
-        // TODO we're likely gonna have to kick the retries. they're too expensive and we want to 'just trust the gains'
-        const HypernodeID u = pq.top();
-        const Gain estimated_gain = pq.topKey();
-        auto [to, gain] = gc.computeBestTargetBlock(phg, u, context.partition.max_part_weights);
-        if (gain >= estimated_gain) { // accept any gain that is at least as good
-          m.node = u; m.to = to; m.from = phg.partID(u);
-          m.gain = gain;
-          runStats.extractions++;
-          pq.deleteTop();
-          return true;
-        } else {
-          runStats.retries++;
-          pq.adjustKey(u, gain);
-          sharedData.targetPart[u] = to;
-        }
-      }
+      const HypernodeID u = pq.top();
+      auto [to, gain] = gc.computeBestTargetBlock(phg, u, context.partition.max_part_weights);
+      m.node = u; m.to = to; m.from = phg.partID(u);
+      m.gain = gain;
+      runStats.extractions++;
+      pq.deleteTop();
+      return true;
     }
 
     void clearPQs(const size_t /* bestImprovementIndex */ ) {
