@@ -860,33 +860,33 @@ private:
   // ! Only for testing
   bool checkTrackedPartitionInformation() {
     bool success = true;
-    for (HyperedgeID e : edges()) {
+    doParallelForAllEdges([&](const HyperedgeID e) {
       PartitionID expected_connectivity = 0;
-      unused(e);  // for release mode
       for (PartitionID i = 0; i < k(); ++i) {
         const HypernodeID actual_pin_count_in_part = pinCountInPart(e, i);
         if ( actual_pin_count_in_part != pinCountInPartRecomputed(e, i) ) {
           LOG << "Pin count of hyperedge" << e << "in block" << i << "=>" <<
-          "Expected:" << V(pinCountInPartRecomputed(e, i)) << "," <<
-          "Actual:" <<  V(pinCountInPart(e, i));
+              "Expected:" << V(pinCountInPartRecomputed(e, i)) << "," <<
+              "Actual:" <<  V(pinCountInPart(e, i));
           success = false;
         }
         expected_connectivity += (actual_pin_count_in_part > 0);
       }
       if ( expected_connectivity != connectivity(e) ) {
         LOG << "Connectivity of hyperedge" << e << "=>" <<
-          "Expected:" << V(expected_connectivity)  << "," <<
-          "Actual:" << V(connectivity(e));
-          success = false;
+            "Expected:" << V(expected_connectivity)  << "," <<
+            "Actual:" << V(connectivity(e));
+        success = false;
       }
-    }
+    });
 
     if ( _is_gain_cache_initialized ) {
-      for (HypernodeID u : nodes()) {
+      LOG << "check gain cache";
+      doParallelForAllNodes([&](const HypernodeID u) {
         if ( moveFromBenefit(u) != moveFromBenefitRecomputed(u) ) {
           LOG << "Move from benefit of hypernode" << u << "=>" <<
-            "Expected:" << V(moveFromBenefitRecomputed(u)) << ", " <<
-            "Actual:" <<  V(moveFromBenefit(u));
+              "Expected:" << V(moveFromBenefitRecomputed(u)) << ", " <<
+              "Actual:" <<  V(moveFromBenefit(u));
           success = false;
         }
 
@@ -894,13 +894,13 @@ private:
           if (partID(u) != i) {
             if ( moveToPenalty(u, i) != moveToPenaltyRecomputed(u, i) ) {
               LOG << "Move to penalty of hypernode" << u << "in block" << i << "=>" <<
-              "Expected:" << V(moveToPenaltyRecomputed(u, i)) << ", " <<
-              "Actual:" <<  V(moveToPenalty(u, i));
+                  "Expected:" << V(moveToPenaltyRecomputed(u, i)) << ", " <<
+                  "Actual:" <<  V(moveToPenalty(u, i));
               success = false;
             }
           }
         }
-      }
+      });
     }
     return success;
   }

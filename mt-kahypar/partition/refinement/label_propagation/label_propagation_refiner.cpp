@@ -136,6 +136,8 @@ namespace mt_kahypar {
                                  next_active_nodes, objective_delta);
       });
     }
+
+    HEAVY_REFINEMENT_ASSERT(hypergraph.checkTrackedPartitionInformation());
     return converged;
   }
 
