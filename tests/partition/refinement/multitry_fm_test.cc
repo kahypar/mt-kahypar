@@ -60,6 +60,8 @@ class MultiTryFMTest : public ::testing::TestWithParam<PartitionID> {
       context.partition.k = GetParam();
 
       context.refinement.fm.algorithm = FMAlgorithm::fm_gain_cache;
+      context.refinement.fm.multitry_rounds = 10;
+      context.refinement.fm.num_seed_nodes = 5;
 
       context.partition.objective = kahypar::Objective::km1;
 
