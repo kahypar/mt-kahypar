@@ -127,7 +127,6 @@ class MultiTryFMTest : public ::testing::TestWithParam<PartitionID> {
     context.refinement.fm.perform_moves_global = true;
     HyperedgeWeight objective_before = metrics::objective(this->partitioned_hypergraph, this->context.partition.objective);
     this->refiner->refine(this->partitioned_hypergraph, {}, this->metrics, std::numeric_limits<double>::max());
-    this->refiner->printMemoryConsumption();
     ASSERT_LE(this->metrics.getMetric(kahypar::Mode::direct_kway, this->context.partition.objective), objective_before);
     ASSERT_EQ(metrics::objective(this->partitioned_hypergraph, this->context.partition.objective),
               this->metrics.getMetric(kahypar::Mode::direct_kway, this->context.partition.objective));
@@ -142,12 +141,16 @@ class MultiTryFMTest : public ::testing::TestWithParam<PartitionID> {
     }
     HyperedgeWeight objective_before = metrics::objective(this->partitioned_hypergraph, this->context.partition.objective);
     this->refiner->refine(this->partitioned_hypergraph, batch, this->metrics, std::numeric_limits<double>::max());
-    this->refiner->printMemoryConsumption();
     ASSERT_LE(this->metrics.getMetric(kahypar::Mode::direct_kway, this->context.partition.objective), objective_before);
     ASSERT_EQ(metrics::objective(this->partitioned_hypergraph, this->context.partition.objective),
               this->metrics.getMetric(kahypar::Mode::direct_kway, this->context.partition.objective));
     ASSERT_LE(this->metrics.imbalance, this->context.partition.epsilon);
     ASSERT_DOUBLE_EQ(metrics::imbalance(this->partitioned_hypergraph, this->context), this->metrics.imbalance);
+
+    std::stringstream buffer;
+    std::streambuf* old = std::cout.rdbuf(buffer.rdbuf());  // redirect std::cout to discard output
+    this->refiner->printMemoryConsumption();
+    std::cout.rdbuf(old);                                   // and reset again
   }
 
 
