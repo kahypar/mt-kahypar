@@ -190,7 +190,15 @@ namespace mt_kahypar {
         }
       }
 
+    }
 
+    template<typename F>
+    void doParallelForAllEntries(F&& f) {
+      tbb::parallel_for(0, k, [&](PartitionID i) {
+        for (size_t j = 0; j < vertexPQs[i].size(); ++j) {
+          f(i, vertexPQs[i].at(j), vertexPQs[i].keyAtPos(j));
+        }
+      });
     }
 
   private:

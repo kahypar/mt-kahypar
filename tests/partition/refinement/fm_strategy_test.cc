@@ -93,4 +93,62 @@ TEST(StrategyTests, FindNextMove) {
   ASSERT_EQ(gains_recomputed, gains_cached);
 }
 
+TEST(StrategyTests, DeltaUpdatesWork) {
+  PartitionID k = 8;
+  Context context;
+  context.partition.k = k;
+  context.partition.epsilon = 0.03;
+  Hypergraph hg = io::readHypergraphFile("../tests/instances/contracted_ibm01.hgr", 0, true);
+  context.setupPartWeights(hg.totalWeight());
+  PartitionedHypergraph phg = PartitionedHypergraph(k, hg);
+  for (PartitionID i = 0; i < k; ++i) {
+    context.partition.max_part_weights[i] = std::numeric_limits<HypernodeWeight>::max();
+  }
+
+  std::mt19937 rng(420);
+  std::uniform_int_distribution<PartitionID> distr(0, k - 1);
+  for (HypernodeID u : hg.nodes()) {
+    phg.setOnlyNodePart(u, distr(rng));
+  }
+  phg.initializePartition(0);
+  phg.initializeGainInformation();
+
+  context.refinement.fm.algorithm = FMAlgorithm::fm_gain_delta; // use this one because it allocates the most memory in shared data!
+
+  FMSharedData sd(hg.initialNumNodes(), context);
+  FMStats fm_stats;
+
+  GainDeltaStrategy strat(context, hg.initialNumNodes(), sd, fm_stats);
+  for (HypernodeID u : hg.nodes())
+    strat.insertIntoPQ(phg, u);
+  strat.updatePQs(phg);
+
+  Move m;
+
+  auto delta_func = [&](HyperedgeID e, HyperedgeWeight edge_weight, HypernodeID, HypernodeID pin_count_in_from_part_after,
+          HypernodeID pin_count_in_to_part_after) {
+    strat.deltaGainUpdates(phg, e, edge_weight, m.from, pin_count_in_from_part_after, m.to, pin_count_in_to_part_after);
+  };
+
+  auto check_gains = [&] {
+    strat.doParallelForAllEntries([&](PartitionID to, HypernodeID u, Gain gain) {
+      Gain re_gain = 0;
+      PartitionID from = phg.partID(u);
+      for (HyperedgeID e : phg.incidentEdges(u)) {
+        if (phg.pinCountInPart(e, from) == 1) re_gain += phg.edgeWeight(e);
+        if (phg.pinCountInPart(e, to) == 0) re_gain -= phg.edgeWeight(e);
+      }
+      ASSERT_EQ(gain, re_gain);
+    });
+  };
+
+  check_gains();
+  while (strat.findNextMove(phg, m)) {
+    phg.changeNodePart(m.node, m.from, m.to, std::numeric_limits<HypernodeWeight>::max(), []{}, delta_func);
+    strat.updatePQs(phg);
+    check_gains();
+  }
+}
+
+
 }
