@@ -178,7 +178,7 @@ namespace mt_kahypar {
   void MultiTryKWayFM<FMStrategy>::initializeImpl(PartitionedHypergraph& phg) {
     utils::Timer& timer = utils::Timer::instance();
 
-    if ( !phg.isGainCacheInitialized() ) {
+    if ( !phg.isGainCacheInitialized() && FMStrategy::uses_gain_cache ) {
       timer.start_timer("init_gain_info", "Initialize Gain Information");
       phg.initializeGainInformation();
       timer.stop_timer("init_gain_info");
