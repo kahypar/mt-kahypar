@@ -852,9 +852,8 @@ private:
     return w;
   }
 
-  // ! Only for testing
   void recomputeMoveFromBenefit(const HypernodeID u) {
-    _move_from_benefit[u].store(moveFromBenefitRecomputed(u));
+    _move_from_benefit[u].store(moveFromBenefitRecomputed(u), std::memory_order_relaxed);
   }
 
   // ! Only for testing
