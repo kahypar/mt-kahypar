@@ -84,7 +84,7 @@ public:
   const Context& context;
   const TaskGroupID taskGroupID;
   FMSharedData sharedData;
-  GlobalRollback/*<FMStrategy::uses_gain_cache>*/ globalRollback;
+  GlobalRollback globalRollback;
   tbb::enumerable_thread_specific<LocalizedKWayFM<FMStrategy>> ets_fm;
 };
 

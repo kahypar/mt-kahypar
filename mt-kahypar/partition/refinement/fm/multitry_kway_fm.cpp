@@ -70,7 +70,7 @@ namespace mt_kahypar {
       timer.stop_timer("find_moves");
       timer.start_timer("rollback", "Rollback to Best Solution");
 
-      HyperedgeWeight improvement = globalRollback.revertToBestPrefix(phg, sharedData, initialPartWeights);
+      HyperedgeWeight improvement = globalRollback.revertToBestPrefix<FMStrategy::uses_gain_cache>(phg, sharedData, initialPartWeights);
       const double roundImprovementFraction = improvementFraction(improvement, metrics.km1 - overall_improvement);
       overall_improvement += improvement;
 
