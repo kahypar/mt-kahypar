@@ -557,6 +557,10 @@ namespace mt_kahypar {
   template HyperedgeWeight GlobalRollback::revertToBestPrefix<true>
           (PartitionedHypergraph& , FMSharedData& , const vec<HypernodeWeight>& );
 
+  template bool GlobalRollback::verifyGains<false>
+          (PartitionedHypergraph& , FMSharedData& );
 
+  template bool GlobalRollback::verifyGains<true>
+          (PartitionedHypergraph& , FMSharedData& );
 
 }
