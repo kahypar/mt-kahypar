@@ -18,7 +18,7 @@
  *
  ******************************************************************************/
 
-#include "gmock/gmock.h"
+#include "gtest/gtest.h"
 
 #include <vector>
 #include <unordered_map>
@@ -27,6 +27,7 @@
 #include <fstream>
 
 #include "mt-kahypar/io/sql_plottools_serializer.h"
+#include "mt-kahypar/io/csv_output.h"
 
 using ::testing::Test;
 
@@ -196,6 +197,16 @@ TEST(ASqlPlotSerializerTest, ChecksIfSomeParametersFromContextAreMissing) {
         << "Maybe it has a different name or should be excluded from this test.");
     }
   }
+}
+
+TEST(CSVTest, HeaderAndRowContainSameNumberOfColumns) {
+  std::string header = csv::header();
+  Hypergraph dummy_hypergraph;
+  PartitionedHypergraph dummy_partitioned_hypergraph(2, dummy_hypergraph);
+  Context dummy_context;
+  std::string body = csv::serialize(dummy_partitioned_hypergraph, dummy_context, std::chrono::duration<double>(0.2));
+  ASSERT_EQ(std::count(body.begin(), body.end(), ','), std::count(header.begin(), header.end(), ','));  
+
 }
 
 }  // namespace io
