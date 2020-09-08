@@ -123,8 +123,11 @@ namespace mt_kahypar {
 
       for ( size_t j = 0; j < _active_nodes.size(); ++j ) {
         const HypernodeID hn = _active_nodes[j];
-        converged &= !moveVertex(hypergraph, hn,
-                                 next_active_nodes, objective_delta);
+        if ( moveVertex(hypergraph, hn, next_active_nodes, objective_delta) ) {
+          _active_node_was_moved[j] = uint8_t(true);
+        } else {
+          converged = false;
+        }
       }
     } else {
       utils::Randomize::instance().parallelShuffleVector(
@@ -132,9 +135,29 @@ namespace mt_kahypar {
 
       tbb::parallel_for(0UL, _active_nodes.size(), [&](const size_t& j) {
         const HypernodeID hn = _active_nodes[j];
-        converged &= !moveVertex(hypergraph, hn,
-                                 next_active_nodes, objective_delta);
+        if ( moveVertex(hypergraph, hn, next_active_nodes, objective_delta) ) {
+          _active_node_was_moved[j] = uint8_t(true);
+        } else {
+          converged = false;
+        }
       });
+    }
+
+    if ( _context.partition.paradigm == Paradigm::nlevel && phg.isGainCacheInitialized() ) {
+      auto recompute = [&](size_t j) {
+        if ( _active_node_was_moved[j] ) {
+          hypergraph.recomputeMoveFromBenefit(_active_nodes[j]);
+          _active_node_was_moved = uint8_t(false);
+        }
+      };
+
+      if ( _context.refinement.label_propagation.execute_sequential ) {
+        for (size_t j = 0; j < _active_nodes.size(); ++j) {
+          recompute(j);
+        }
+      } else {
+        tbb::parallel_for(0UL, _active_nodes.size(); recompute);
+      }
     }
 
     HEAVY_REFINEMENT_ASSERT(hypergraph.checkTrackedPartitionInformation());

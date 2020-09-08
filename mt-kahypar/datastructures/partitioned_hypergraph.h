@@ -880,7 +880,6 @@ private:
     });
 
     if ( _is_gain_cache_initialized ) {
-      LOG << "check gain cache";
       doParallelForAllNodes([&](const HypernodeID u) {
         if ( moveFromBenefit(u) != moveFromBenefitRecomputed(u) ) {
           LOG << "Move from benefit of hypernode" << u << "=>" <<
