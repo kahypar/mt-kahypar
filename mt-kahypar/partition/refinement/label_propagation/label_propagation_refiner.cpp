@@ -143,11 +143,11 @@ namespace mt_kahypar {
       });
     }
 
-    if ( _context.partition.paradigm == Paradigm::nlevel && phg.isGainCacheInitialized() ) {
+    if ( _context.partition.paradigm == Paradigm::nlevel && hypergraph.isGainCacheInitialized() ) {
       auto recompute = [&](size_t j) {
         if ( _active_node_was_moved[j] ) {
           hypergraph.recomputeMoveFromBenefit(_active_nodes[j]);
-          _active_node_was_moved = uint8_t(false);
+          _active_node_was_moved[j] = uint8_t(false);
         }
       };
 
@@ -156,7 +156,7 @@ namespace mt_kahypar {
           recompute(j);
         }
       } else {
-        tbb::parallel_for(0UL, _active_nodes.size(); recompute);
+        tbb::parallel_for(0UL, _active_nodes.size(), recompute);
       }
     }
 
