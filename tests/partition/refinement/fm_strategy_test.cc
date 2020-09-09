@@ -19,7 +19,6 @@
  ******************************************************************************/
 
 #include <random>
-
 #include "gmock/gmock.h"
 
 #include "mt-kahypar/io/hypergraph_io.h"
@@ -27,6 +26,7 @@
 #include "mt-kahypar/partition/refinement/fm/strategies/gain_cache_strategy.h"
 #include "mt-kahypar/partition/refinement/fm/strategies/gain_delta_strategy.h"
 #include "mt-kahypar/partition/refinement/fm/strategies/recompute_gain_strategy.h"
+#include "mt-kahypar/partition/refinement/fm/strategies/gain_cache_on_demand_strategy.h"
 
 
 using ::testing::Test;
@@ -81,6 +81,7 @@ TEST(StrategyTests, FindNextMove) {
   GainCacheStrategy gain_caching(context, hg.initialNumNodes(), sd, fm_stats);
   GainDeltaStrategy gain_deltas(context, hg.initialNumNodes(), sd, fm_stats);
   RecomputeGainStrategy recompute_gain(context, hg.initialNumNodes(), sd, fm_stats);
+  GainCacheOnDemandStrategy gain_caching_on_demand(context, hg.initialNumNodes(), sd, fm_stats);
 
   vec<Gain> gains_from_deltas = insertAndExtractAllMoves(gain_deltas, phg);
   ASSERT_TRUE(std::is_sorted(gains_from_deltas.begin(), gains_from_deltas.end(), std::greater<Gain>()));
@@ -88,6 +89,10 @@ TEST(StrategyTests, FindNextMove) {
   vec<Gain> gains_cached = insertAndExtractAllMoves(gain_caching, phg);
   ASSERT_TRUE(std::is_sorted(gains_cached.begin(), gains_cached.end(), std::greater<Gain>()));
   ASSERT_EQ(gains_from_deltas, gains_cached);
+
+  vec<Gain> gains_cached_on_demand = insertAndExtractAllMoves(gain_caching_on_demand, phg);
+  ASSERT_TRUE(std::is_sorted(gains_cached_on_demand.begin(), gains_cached_on_demand.end(), std::greater<Gain>()));
+  ASSERT_EQ(gains_cached_on_demand, gains_cached);
 
   vec<Gain> gains_recomputed = insertAndExtractAllMoves(recompute_gain, phg);
   ASSERT_TRUE(std::is_sorted(gains_recomputed.begin(), gains_recomputed.end(), std::greater<Gain>()));

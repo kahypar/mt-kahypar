@@ -235,7 +235,7 @@ protected:
   FMSharedData& sharedData;
 
 private:
-  
+
   // ! Priority Queue that contains for each block of the partition
   // ! the vertex with the best gain value
   BlockPriorityQueue blockPQ;
