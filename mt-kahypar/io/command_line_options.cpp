@@ -282,6 +282,7 @@ namespace mt_kahypar {
                      })->default_value("fm_gain_cache"),
              "FM Algorithm:\n"
              "- fm_gain_cache\n"
+             "- fm_gain_cache_on_demand\n"
              "- fm_gain_delta\n"
              "- fm_recompute_gain\n"
              "- do_nothing")

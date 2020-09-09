@@ -30,8 +30,9 @@ namespace mt_kahypar {
     const size_t nSeeds = context.refinement.fm.num_seed_nodes;
     HypernodeID seedNode;
     while (runStats.pushes < nSeeds && sharedData.refinementNodes.try_pop(seedNode, taskID)) {
+      SearchID previousSearchOfSeedNode = sharedData.nodeTracker.searchOfNode[seedNode].load(std::memory_order_relaxed);
       if (sharedData.nodeTracker.tryAcquireNode(seedNode, thisSearch)) {
-        fm_details.insertIntoPQ(phg, seedNode);
+        fm_details.insertIntoPQ(phg, seedNode, previousSearchOfSeedNode);
       }
     }
     fm_details.updatePQs(phg);
@@ -313,9 +314,11 @@ namespace mt_kahypar {
 #include "mt-kahypar/partition/refinement/fm/strategies/gain_cache_strategy.h"
 #include "mt-kahypar/partition/refinement/fm/strategies/gain_delta_strategy.h"
 #include "mt-kahypar/partition/refinement/fm/strategies/recompute_gain_strategy.h"
+#include <mt-kahypar/partition/refinement/fm/strategies/gain_cache_on_demand_strategy.h>
 
 namespace mt_kahypar {
   template class LocalizedKWayFM<GainCacheStrategy>;
   template class LocalizedKWayFM<GainDeltaStrategy>;
   template class LocalizedKWayFM<RecomputeGainStrategy>;
+  template class LocalizedKWayFM<GainCacheOnDemandStrategy>;
 }

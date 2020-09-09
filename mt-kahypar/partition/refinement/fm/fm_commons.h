@@ -98,8 +98,9 @@ struct GlobalMoveTracker {
 struct NodeTracker {
   vec<CAtomic<SearchID>> searchOfNode;
 
-  SearchID deactivatedNodeMarker = 1;
-  CAtomic<SearchID> highestActiveSearchID { 1 };
+  SearchID releasedMarker = 1;
+  SearchID deactivatedNodeMarker = 2;
+  CAtomic<SearchID> highestActiveSearchID { 2 };
 
   explicit NodeTracker(size_t numNodes = 0) : searchOfNode(numNodes, CAtomic<SearchID>(0)) { }
 
@@ -114,9 +115,8 @@ struct NodeTracker {
     return searchOfNode[u].load(std::memory_order_relaxed) == deactivatedNodeMarker;
   }
 
-  // should not be called when searches try to claim nodes
   void releaseNode(HypernodeID u) {
-    searchOfNode[u].store(0, std::memory_order_relaxed);
+    searchOfNode[u].store(releasedMarker, std::memory_order_relaxed);
   }
 
   bool isSearchInactive(SearchID search_id) const {
@@ -124,7 +124,7 @@ struct NodeTracker {
   }
 
   bool canNodeStartNewSearch(HypernodeID u) const {
-    return isSearchInactive( searchOfNode[u].load(std::memory_order_acq_rel) );
+    return isSearchInactive( searchOfNode[u].load(std::memory_order_relaxed) );
   }
 
   bool tryAcquireNode(HypernodeID u, SearchID new_search) {
@@ -138,9 +138,10 @@ struct NodeTracker {
       tbb::parallel_for(0UL, searchOfNode.size(), [&](const size_t i) {
         searchOfNode[i].store(0, std::memory_order_relaxed);
       });
-      highestActiveSearchID.store(0, std::memory_order_relaxed);
+      highestActiveSearchID.store(1, std::memory_order_relaxed);
     }
     deactivatedNodeMarker = ++highestActiveSearchID;
+    releasedMarker = deactivatedNodeMarker - 1;
   }
 };
 

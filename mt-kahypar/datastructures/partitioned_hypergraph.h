@@ -600,7 +600,7 @@ private:
                                          HypernodeWeight max_weight_to,
                                          SuccessFunc&& report_success,
                                          DeltaFunc&& delta_func) {
-    ASSERT(_is_gain_cache_initialized, "Gain cache is not initialized");
+    //ASSERT(_is_gain_cache_initialized, "Gain cache is not initialized");
 
     auto my_delta_func = [&](const HyperedgeID he, const HyperedgeWeight edge_weight, const HypernodeID edge_size,
             const HypernodeID pin_count_in_from_part_after, const HypernodeID pin_count_in_to_part_after) {
@@ -666,18 +666,39 @@ private:
   }
 
   HyperedgeWeight moveFromBenefit(const HypernodeID u) const {
-    ASSERT(_is_gain_cache_initialized, "Gain cache is not initialized");
+    //ASSERT(_is_gain_cache_initialized, "Gain cache is not initialized");
     return _move_from_benefit[u].load(std::memory_order_relaxed);
   }
 
   HyperedgeWeight moveToPenalty(const HypernodeID u, PartitionID p) const {
-    ASSERT(_is_gain_cache_initialized, "Gain cache is not initialized");
+    //ASSERT(_is_gain_cache_initialized, "Gain cache is not initialized");
     return _move_to_penalty[penalty_index(u, p)].load(std::memory_order_relaxed);
+  }
+
+  void initializeGainCacheEntry(const HypernodeID u, vec<Gain>& penalty_aggregator) {
+    PartitionID pu = partID(u);
+    Gain benefit = 0, incident_edges_weight = 0;
+    for (HyperedgeID e : incidentEdges(u)) {
+      HyperedgeWeight ew = edgeWeight(e);
+      if (pinCountInPart(e, pu) == 1) {
+        benefit += ew;
+      }
+      for (PartitionID i : connectivitySet(e)) {
+        penalty_aggregator[i] += ew;
+      }
+      incident_edges_weight += ew;
+    }
+
+    _move_from_benefit[u].store(benefit, std::memory_order_relaxed);
+    for (PartitionID i = 0; i < _k; ++i) {
+      _move_to_penalty[penalty_index(u, i)].store(incident_edges_weight - penalty_aggregator[i], std::memory_order_relaxed);
+      penalty_aggregator[i] = 0;
+    }
   }
 
   HyperedgeWeight km1Gain(const HypernodeID u, PartitionID from, PartitionID to) const {
     unused(from);
-    ASSERT(_is_gain_cache_initialized, "Gain cache is not initialized");
+    //ASSERT(_is_gain_cache_initialized, "Gain cache is not initialized");
     ASSERT(from == partID(u), "While gain computation works for from != partID(u), such a query makes no sense");
     ASSERT(from != to, "The gain computation doesn't work for from = to");
     return moveFromBenefit(u) - moveToPenalty(u, to);
@@ -1012,7 +1033,7 @@ private:
   void gainCacheUpdate(const HyperedgeID he, const HyperedgeWeight we,
                        const PartitionID from, const HypernodeID pin_count_in_from_part_after,
                        const PartitionID to, const HypernodeID pin_count_in_to_part_after) {
-    ASSERT(_is_gain_cache_initialized, "Gain cache is not initialized");
+    //ASSERT(_is_gain_cache_initialized, "Gain cache is not initialized");
 
     if (pin_count_in_from_part_after == 1) {
       for (HypernodeID u : pins(he)) {

@@ -31,6 +31,7 @@ namespace mt_kahypar {
     using VertexPriorityQueue = ds::MaxHeap<Gain, HypernodeID>;
 
     static constexpr bool uses_gain_cache = false;
+    static constexpr bool maintain_gain_cache_between_rounds = false;
 
     GainDeltaStrategy(const Context& context,
                           HypernodeID numNodes,
@@ -51,7 +52,7 @@ namespace mt_kahypar {
 
     template<typename PHG>
     MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
-    void insertIntoPQ(const PHG& phg, const HypernodeID v) {
+    void insertIntoPQ(const PHG& phg, const HypernodeID v, const SearchID ) {
       gc.computeGainsFromScratch(phg, v);
       for (PartitionID i = 0; i < k; ++i) {
         if (i != phg.partID(v)) {

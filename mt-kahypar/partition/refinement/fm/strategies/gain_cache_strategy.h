@@ -46,6 +46,7 @@ public:
   using VertexPriorityQueue = ds::MaxHeap<Gain, HypernodeID>;    // these need external handles
 
   static constexpr bool uses_gain_cache = true;
+  static constexpr bool maintain_gain_cache_between_rounds = true;
 
   GainCacheStrategy(const Context& context,
                     HypernodeID numNodes,
@@ -61,7 +62,7 @@ public:
 
   template<typename PHG>
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
-  void insertIntoPQ(const PHG& phg, const HypernodeID v) {
+  void insertIntoPQ(const PHG& phg, const HypernodeID v, const SearchID ) {
     const PartitionID pv = phg.partID(v);
     auto [target, gain] = computeBestTargetBlock(phg, v);
     sharedData.targetPart[v] = target;

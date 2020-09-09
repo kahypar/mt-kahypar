@@ -106,6 +106,7 @@ enum class LabelPropagationAlgorithm : uint8_t {
 
 enum class FMAlgorithm : uint8_t {
   fm_gain_cache,
+  fm_gain_cache_on_demand,
   fm_gain_delta,
   fm_recompute_gain,
   do_nothing

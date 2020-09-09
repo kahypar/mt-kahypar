@@ -70,7 +70,8 @@ namespace mt_kahypar {
       timer.stop_timer("find_moves");
       timer.start_timer("rollback", "Rollback to Best Solution");
 
-      HyperedgeWeight improvement = globalRollback.revertToBestPrefix<FMStrategy::uses_gain_cache>(phg, sharedData, initialPartWeights);
+      HyperedgeWeight improvement = globalRollback.revertToBestPrefix
+              <FMStrategy::maintain_gain_cache_between_rounds>(phg, sharedData, initialPartWeights);
       const double roundImprovementFraction = improvementFraction(improvement, metrics.km1 - overall_improvement);
       overall_improvement += improvement;
 
@@ -182,7 +183,7 @@ namespace mt_kahypar {
   void MultiTryKWayFM<FMStrategy>::initializeImpl(PartitionedHypergraph& phg) {
     utils::Timer& timer = utils::Timer::instance();
 
-    if ( !phg.isGainCacheInitialized() && FMStrategy::uses_gain_cache ) {
+    if ( !phg.isGainCacheInitialized() && FMStrategy::maintain_gain_cache_between_rounds ) {
       timer.start_timer("init_gain_info", "Initialize Gain Information");
       phg.initializeGainCache();
       timer.stop_timer("init_gain_info");
@@ -217,9 +218,11 @@ namespace mt_kahypar {
 #include "mt-kahypar/partition/refinement/fm/strategies/gain_cache_strategy.h"
 #include "mt-kahypar/partition/refinement/fm/strategies/gain_delta_strategy.h"
 #include "mt-kahypar/partition/refinement/fm/strategies/recompute_gain_strategy.h"
+#include "mt-kahypar/partition/refinement/fm/strategies/gain_cache_on_demand_strategy.h"
 
 namespace mt_kahypar {
   template class MultiTryKWayFM<GainCacheStrategy>;
   template class MultiTryKWayFM<GainDeltaStrategy>;
   template class MultiTryKWayFM<RecomputeGainStrategy>;
+  template class MultiTryKWayFM<GainCacheOnDemandStrategy>;
 }
