@@ -48,7 +48,7 @@ class DegreeZeroHypernodeRemover {
       hypergraph.initialNumNodes() - hypergraph.numRemovedHypernodes();
     HypernodeID num_removed_degree_zero_hypernodes = 0;
     for ( const HypernodeID& hn : hypergraph.nodes()  ) {
-      if ( current_num_nodes - num_removed_degree_zero_hypernodes <= ID(_context.partition.k) ) {
+      if ( current_num_nodes - num_removed_degree_zero_hypernodes <= _context.coarsening.contraction_limit) {
         break;
       }
       if ( hypergraph.nodeDegree(hn) == 0 ) {
