@@ -880,7 +880,8 @@ private:
   // ! Only for testing
   bool checkTrackedPartitionInformation() {
     bool success = true;
-    doParallelForAllEdges([&](const HyperedgeID e) {
+
+    auto check_edge = [&](const HyperedgeID e) {
       PartitionID expected_connectivity = 0;
       for (PartitionID i = 0; i < k(); ++i) {
         const HypernodeID actual_pin_count_in_part = pinCountInPart(e, i);
@@ -898,10 +899,15 @@ private:
             "Actual:" << V(connectivity(e));
         success = false;
       }
-    });
+    };
+
+    for (HyperedgeID e : edges()) {
+      check_edge(e);
+    }
 
     if ( _is_gain_cache_initialized ) {
-      doParallelForAllNodes([&](const HypernodeID u) {
+
+      auto check_node = [&](const HypernodeID u) {
         if ( moveFromBenefit(u) != moveFromBenefitRecomputed(u) ) {
           LOG << "Move from benefit of hypernode" << u << "=>" <<
               "Expected:" << V(moveFromBenefitRecomputed(u)) << ", " <<
@@ -919,7 +925,11 @@ private:
             }
           }
         }
-      });
+      };
+
+      for (HypernodeID u : nodes()) {
+        check_node(u);
+      }
     }
     return success;
   }
