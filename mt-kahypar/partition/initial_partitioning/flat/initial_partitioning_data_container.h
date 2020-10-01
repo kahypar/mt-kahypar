@@ -261,7 +261,7 @@ class InitialPartitioningDataContainer {
 
       HEAVY_INITIAL_PARTITIONING_ASSERT(
         current_metric.getMetric(kahypar::Mode::direct_kway, _context.partition.objective) ==
-        metrics::objective(_partitioned_hypergraph, _context.partition.objective));
+        metrics::objective(_partitioned_hypergraph, _context.partition.objective, false));
 
       refineCurrentPartition(current_metric);
 
@@ -296,7 +296,7 @@ class InitialPartitioningDataContainer {
 
       HEAVY_INITIAL_PARTITIONING_ASSERT(
         current_metric.getMetric(kahypar::Mode::direct_kway, _context.partition.objective) ==
-        metrics::objective(_partitioned_hypergraph, _context.partition.objective));
+        metrics::objective(_partitioned_hypergraph, _context.partition.objective, false));
     }
 
     void aggregate_stats(parallel::scalable_vector<utils::InitialPartitionerSummary>& main_stats) const {
@@ -519,8 +519,8 @@ class InitialPartitioningDataContainer {
 
     utils::InitialPartitioningStats::instance().add_initial_partitioning_result(
       best->_result._algorithm, number_of_threads, stats);
-    ASSERT(best->_result._objective == metrics::objective(_partitioned_hg, _context.partition.objective),
-           V(best->_result._objective) << V(metrics::objective(_partitioned_hg, _context.partition.objective)));
+    ASSERT(best->_result._objective == metrics::objective(_partitioned_hg, _context.partition.objective, false),
+           V(best->_result._objective) << V(metrics::objective(_partitioned_hg, _context.partition.objective, false)));
   }
 
  private:
