@@ -58,7 +58,7 @@ public:
 private:
   size_t numSteps = 0;
   double variance = 0.0, Mk = 0.0, MkPrevious = 0.0, Sk = 0.0, SkPrevious = 0.0;
-  const double alpha = 1.0;   // TODO make parameter if it doesn't work well
+  const double alpha = 1.0;   // make parameter if it doesn't work well
   const double stopFactor = (alpha / 2.0) - 0.25;
   double beta;
 };
