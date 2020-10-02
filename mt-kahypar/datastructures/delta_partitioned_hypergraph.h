@@ -191,6 +191,7 @@ class DeltaPartitionedHypergraph {
       for (HypernodeID u : pins(he)) {
         if (partID(u) == from) {
           _move_from_benefit_delta[u] += we;
+          break;
         }
       }
     } else if (pin_count_in_from_part_after == 0) {
