@@ -324,6 +324,7 @@ namespace mt_kahypar {
     utils::MemoryTreeNode *local_moves_node = parent->addChild("Local FM Moves");
     local_moves_node->updateSize(localMoves.capacity() * sizeof(std::pair<Move, MoveID>));
 
+    fm_strategy.memoryConsumption(localized_fm_node);
     // TODO fm_strategy.memoryConsumptiom(..)
     /*
     utils::MemoryTreeNode* block_pq_node = localized_fm_node->addChild("Block PQ");

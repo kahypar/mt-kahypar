@@ -108,6 +108,11 @@ namespace mt_kahypar {
       // do nothing!
     }
 
+    void memoryConsumption(utils::MemoryTreeNode *parent) const {
+      parent->addChild("PQs", pq.size_in_bytes());
+      parent->addChild("Initial Gain Comp", gc.gains.size() * sizeof(Gain));
+    }
+
   private:
     const Context& context;
 

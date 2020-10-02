@@ -49,7 +49,12 @@ namespace mt_kahypar {
       GainCacheStrategy::insertIntoPQ(phg, v, previous_search_of_v);
     }
 
+    void memoryConsumption(utils::MemoryTreeNode *parent) const {
+      GainCacheStrategy::memoryConsumption(parent);
+      parent->addChild("Initial Gain Comp", gainCacheInitMem.size() * sizeof(Gain));
+    }
 
+  private:
     vec<Gain> gainCacheInitMem;
   };
 

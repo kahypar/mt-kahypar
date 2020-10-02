@@ -162,6 +162,14 @@ public:
     phg.gainCacheUpdate(he, edge_weight, from, pin_count_in_from_part_after, to, pin_count_in_to_part_after);
   }
 
+  void memoryConsumption(utils::MemoryTreeNode *parent) const {
+    size_t vertex_pq_sizes = std::accumulate(
+            vertexPQs.begin(), vertexPQs.end(), 0,
+            [](size_t init, const VertexPriorityQueue& pq) { return init + pq.size_in_bytes(); }
+    );
+    parent->addChild("PQs", blockPQ.size_in_bytes() + vertex_pq_sizes);
+  }
+
 private:
 
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE

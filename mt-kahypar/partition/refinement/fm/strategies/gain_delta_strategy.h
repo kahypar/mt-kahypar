@@ -199,6 +199,15 @@ namespace mt_kahypar {
       });
     }
 
+    void memoryConsumption(utils::MemoryTreeNode *parent) const {
+      size_t vertex_pq_sizes = std::accumulate(
+               vertexPQs.begin(), vertexPQs.end(), 0,
+                    [](size_t init, const VertexPriorityQueue& pq) { return init + pq.size_in_bytes(); }
+      );
+      parent->addChild("PQs", vertex_pq_sizes);
+      parent->addChild("Initial Gain Comp", k * sizeof(Gain));
+    }
+
   private:
 
     template<typename PHG>
