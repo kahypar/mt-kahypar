@@ -317,7 +317,7 @@ namespace mt_kahypar {
     utils::MemoryTreeNode *localized_fm_node = parent->addChild("Localized k-Way FM");
 
     utils::MemoryTreeNode *deduplicator_node = localized_fm_node->addChild("Deduplicator");
-    deduplicator_node->updateSize(updateDeduplicator.size_in_bytes());
+    deduplicator_node->updateSize(neighborDeduplicator.capacity() * sizeof(HypernodeID));
     utils::MemoryTreeNode *edges_to_activate_node = localized_fm_node->addChild("edgesWithGainChanges");
     edges_to_activate_node->updateSize(edgesWithGainChanges.capacity() * sizeof(HyperedgeID));
 
