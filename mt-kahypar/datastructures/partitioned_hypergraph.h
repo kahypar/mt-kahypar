@@ -1042,13 +1042,12 @@ private:
   void gainCacheUpdate(const HyperedgeID he, const HyperedgeWeight we,
                        const PartitionID from, const HypernodeID pin_count_in_from_part_after,
                        const PartitionID to, const HypernodeID pin_count_in_to_part_after) {
-    //ASSERT(_is_gain_cache_initialized, "Gain cache is not initialized");
-
     if (pin_count_in_from_part_after == 1) {
       for (HypernodeID u : pins(he)) {
         nodeGainAssertions(u, from);
         if (partID(u) == from) {
           _move_from_benefit[u].fetch_add(we, std::memory_order_relaxed);
+          break;
         }
       }
     } else if (pin_count_in_from_part_after == 0) {
@@ -1160,8 +1159,8 @@ private:
     _pin_count_update_ownership[he].lock();
     const HypernodeID pin_count_in_from_part_after = decrementPinCountInPartWithoutGainUpdate(he, from);
     const HypernodeID pin_count_in_to_part_after = incrementPinCountInPartWithoutGainUpdate(he, to);
-    delta_func(he, edgeWeight(he), edgeSize(he), pin_count_in_from_part_after, pin_count_in_to_part_after);
     _pin_count_update_ownership[he].unlock();
+    delta_func(he, edgeWeight(he), edgeSize(he), pin_count_in_from_part_after, pin_count_in_to_part_after);
   }
 
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
