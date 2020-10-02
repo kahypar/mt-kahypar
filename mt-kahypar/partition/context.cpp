@@ -137,7 +137,6 @@ namespace mt_kahypar {
     str << "  Refine Until No Improvement:        " << std::boolalpha << params.refine_until_no_improvement << std::endl;
 #ifdef KAHYPAR_USE_N_LEVEL_PARADIGM
     str << "  Maximum Batch Size:                 " << params.max_batch_size << std::endl;
-    str << "  Initialize Gain Cache:              " << std::boolalpha << params.initialize_gain_cache << std::endl;
 #endif
     str << "\n" << params.label_propagation;
     str << "\n" << params.fm;
