@@ -40,7 +40,7 @@ public:
           thisSearch(0),
           k(context.partition.k),
           deltaPhg(context.partition.k),
-          updateDeduplicator(),
+          neighborDeduplicator(numNodes, 0),
           fm_details(context, numNodes, sharedData, runStats),
           sharedData(sharedData)
           { }
@@ -74,20 +74,24 @@ private:
     for (HyperedgeID e : edgesWithGainChanges) {
       if (phg.edgeSize(e) < context.partition.ignore_hyperedge_size_threshold) {
         for (HypernodeID v : phg.pins(e)) {
-          if (!updateDeduplicator.contains(v)) {
+          if (neighborDeduplicator[v] != deduplicationTime) {
             SearchID searchOfV = sharedData.nodeTracker.searchOfNode[v].load(std::memory_order_acq_rel);
             if (searchOfV == thisSearch) {
               fm_details.updateGain(phg, v, move);
             } else if (sharedData.nodeTracker.tryAcquireNode(v, thisSearch)) {
               fm_details.insertIntoPQ(phg, v, searchOfV);
             }
-            updateDeduplicator[v] = { };  // insert
+            neighborDeduplicator[v] = deduplicationTime;
           }
         }
       }
     }
     edgesWithGainChanges.clear();
-    updateDeduplicator.clear();
+
+    if (++deduplicationTime == 0) {
+      neighborDeduplicator.assign(neighborDeduplicator.size(), 0);
+      deduplicationTime = 1;
+    }
   }
 
 
@@ -118,15 +122,16 @@ private:
   // ! to perform moves non-visible for other local searches
   ds::DeltaPartitionedHypergraph<PartitionedHypergraph> deltaPhg;
 
-  // ! After a move it collects all neighbors of the moved vertex
-  ds::DynamicSparseSet<HypernodeID> updateDeduplicator;   // TODO check again if this is the best data structure for the job.
+  // ! Used after a move. Stores whether a neighbor of the just moved vertex has already been updated.
+  vec<HypernodeID> neighborDeduplicator;
+  HypernodeID deduplicationTime = 0;
 
   // ! Stores hyperedges whose pins's gains may have changed after vertex move
   vec<HyperedgeID> edgesWithGainChanges;
 
   FMStats runStats;
 
-  FMDetails fm_details;   // TODO make generic in the end!
+  FMDetails fm_details;
 
   FMSharedData& sharedData;
 
