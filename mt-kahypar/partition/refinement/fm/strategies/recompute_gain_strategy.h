@@ -26,12 +26,6 @@
 
 namespace mt_kahypar {
 
-  /*
-    TODO
-    we're still mashing pq layout and gain strategy into one class.
-    --> extract gain strategy into a template parameter for pq layout. problem is that gain_delta strategy needs access to the pq
-   */
-
   class RecomputeGainStrategy {
   public:
 
