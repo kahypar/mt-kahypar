@@ -938,15 +938,14 @@ private:
 
   void memoryConsumption(utils::MemoryTreeNode* parent) const {
     ASSERT(parent);
-// TODO finish this function when everything else is done
 
     utils::MemoryTreeNode* hypergraph_node = parent->addChild("Hypergraph");
     _hg->memoryConsumption(hypergraph_node);
     utils::MemoryTreeNode* connectivity_set_node = parent->addChild("Connectivity Sets");
     _connectivity_set.memoryConsumption(connectivity_set_node);
 
-    parent->addChild("Part Info", sizeof(CAtomic<HypernodeWeight>) * _k);
-    parent->addChild("Vertex Part Info", sizeof(PartitionID) * _hg->initialNumNodes());
+    parent->addChild("Part Weights", sizeof(CAtomic<HypernodeWeight>) * _k);
+    parent->addChild("Part IDs", sizeof(PartitionID) * _hg->initialNumNodes());
     parent->addChild("Pin Count In Part", _pins_in_part.size_in_bytes());
     parent->addChild("Move From Benefit", sizeof(HyperedgeWeight) * _move_from_benefit.size());
     parent->addChild("Move To Penalty", sizeof(HyperedgeWeight) * _move_to_penalty.size());

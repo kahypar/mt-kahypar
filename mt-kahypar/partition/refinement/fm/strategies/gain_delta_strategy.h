@@ -122,14 +122,13 @@ namespace mt_kahypar {
 
     }
 
+
+    // ! perform delta gain updates for vertices that are in our search. uses the PQs as gain store
     template<typename PHG>
     MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
     void deltaGainUpdates(PHG& phg, const HyperedgeID he, const HyperedgeWeight edge_weight,
                           const PartitionID from, const HypernodeID pin_count_in_from_part_after,
                           const PartitionID to, const HypernodeID pin_count_in_to_part_after) {
-
-
-      // perform delta gain updates for vertices that are in our search
 
       auto some_other_block = [&](const PartitionID i) {
         return k - 1 - i;
@@ -146,8 +145,6 @@ namespace mt_kahypar {
       auto decrease = [&](const HypernodeID u, const PartitionID i) {
         vertexPQs[i].decreaseKey(u, vertexPQs[i].getKey(u) - edge_weight);
       };
-
-      //  TODO this might be the place where a bucket pq works well
 
       // gain = moveFromBenefit - moveToPenalty
 
