@@ -76,6 +76,38 @@ namespace mt_kahypar {
   }
 
   template<typename FMDetails>
+  template<typename PHG>
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
+  void LocalizedKWayFM<FMDetails>::acquireOrUpdateNeighbors(PHG& phg, const Move& move) {
+    // Note: In theory we should acquire/update all neighbors. It just turned out that this works fine
+    // Actually: only vertices incident to edges with gain changes can become new boundary vertices.
+    // Vertices that already were boundary vertices, can still be considered later since they are in the task queue
+    // --> actually not that bad
+    for (HyperedgeID e : edgesWithGainChanges) {
+      if (phg.edgeSize(e) < context.partition.ignore_hyperedge_size_threshold) {
+        for (HypernodeID v : phg.pins(e)) {
+          if (neighborDeduplicator[v] != deduplicationTime) {
+            SearchID searchOfV = sharedData.nodeTracker.searchOfNode[v].load(std::memory_order_acq_rel);
+            if (searchOfV == thisSearch) {
+              fm_details.updateGain(phg, v, move);
+            } else if (sharedData.nodeTracker.tryAcquireNode(v, thisSearch)) {
+              fm_details.insertIntoPQ(phg, v, searchOfV);
+            }
+            neighborDeduplicator[v] = deduplicationTime;
+          }
+        }
+      }
+    }
+    edgesWithGainChanges.clear();
+
+    if (++deduplicationTime == 0) {
+      neighborDeduplicator.assign(neighborDeduplicator.size(), 0);
+      deduplicationTime = 1;
+    }
+  }
+
+
+  template<typename FMDetails>
   template<bool use_delta>
   void LocalizedKWayFM<FMDetails>::internalFindMoves(PartitionedHypergraph& phg) {
     StopRule stopRule(phg.initialNumNodes());
