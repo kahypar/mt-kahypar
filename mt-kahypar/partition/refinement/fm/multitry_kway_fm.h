@@ -31,12 +31,14 @@
 
 namespace mt_kahypar {
 
+template<typename FMStrategy>
 class MultiTryKWayFM final : public IRefiner {
 
   static constexpr bool debug = false;
   static constexpr bool enable_heavy_assert = false;
 
 public:
+
   MultiTryKWayFM(const Hypergraph& hypergraph,
                  const Context& c,
                  const TaskGroupID taskGroupID) :
@@ -53,19 +55,15 @@ public:
     }
   }
 
-
-
   bool refineImpl(PartitionedHypergraph& phg, const Batch& batch, kahypar::Metrics& metrics, double time_limit) final ;
-
-  Gain refine(PartitionedHypergraph& phg, const Batch& batch, const kahypar::Metrics& metrics, double time_limit);
 
   void initializeImpl(PartitionedHypergraph& phg) final ;
 
   void roundInitialization(PartitionedHypergraph& phg, const Batch& batch);
 
 
-  LocalizedKWayFM constructLocalizedKWayFMSearch() {
-    return LocalizedKWayFM(context, initial_num_nodes, sharedData.vertexPQHandles.data());
+  LocalizedKWayFM<FMStrategy> constructLocalizedKWayFMSearch() {
+    return LocalizedKWayFM<FMStrategy>(context, initial_num_nodes, sharedData);
   }
 
   static double improvementFraction(Gain gain, HyperedgeWeight old_km1) {
@@ -84,7 +82,7 @@ public:
   const TaskGroupID taskGroupID;
   FMSharedData sharedData;
   GlobalRollback globalRollback;
-  tbb::enumerable_thread_specific<LocalizedKWayFM> ets_fm;
+  tbb::enumerable_thread_specific<LocalizedKWayFM<FMStrategy>> ets_fm;
 };
 
 } // namespace mt_kahypar

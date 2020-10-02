@@ -202,8 +202,9 @@ namespace mt_kahypar {
       _phg.setOnlyNodePart(hn, block_id);
     });
     _phg.initializePartition(_task_group_id);
-    if ( _context.refinement.fm.algorithm != FMAlgorithm::do_nothing ) {
-      _phg.initializeGainInformation();
+
+    if ( _context.refinement.fm.algorithm == FMAlgorithm::fm_gain_cache ) {
+      _phg.initializeGainCache();
     }
 
     ASSERT(metrics::objective(_compactified_phg, _context.partition.objective) ==

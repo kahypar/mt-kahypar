@@ -83,7 +83,7 @@ namespace mt_kahypar {
             ("measure-detailed-uncontraction-timings",
              po::value<bool>(&context.partition.measure_detailed_uncontraction_timings)->value_name("<bool>")->default_value(
                      false),
-             "If true, shows detailed timings for n-level uncontraction.")
+             "If true, measure and show detailed timings for n-level uncontraction.")
             ("show-memory-consumption",
              po::value<bool>(&context.partition.show_memory_consumption)->value_name("<bool>")->default_value(false),
              "If true, shows detailed information on how much memory was allocated and how memory was reused throughout partitioning.")
@@ -279,10 +279,12 @@ namespace mt_kahypar {
                        } else {
                          context.refinement.fm.algorithm = fmAlgorithmFromString(type);
                        }
-                     })->default_value("fm_multitry"),
+                     })->default_value("fm_gain_cache"),
              "FM Algorithm:\n"
-             "- fm_multitry\n"
-             "- fm_boundary\n"
+             "- fm_gain_cache\n"
+             "- fm_gain_cache_on_demand\n"
+             "- fm_gain_delta\n"
+             "- fm_recompute_gain\n"
              "- do_nothing")
             ((initial_partitioning ? "i-r-fm-multitry-rounds" : "r-fm-multitry-rounds"),
              po::value<size_t>((initial_partitioning ? &context.initial_partitioning.refinement.fm.multitry_rounds :

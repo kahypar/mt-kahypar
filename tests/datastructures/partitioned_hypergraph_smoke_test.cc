@@ -64,7 +64,7 @@ class AConcurrentHypergraph : public Test {
       hypergraph.setNodePart(hn, id);
     }
 
-    hypergraph.initializeGainInformation();
+    hypergraph.initializeGainCache();
   }
 
   static void SetUpTestSuite() {

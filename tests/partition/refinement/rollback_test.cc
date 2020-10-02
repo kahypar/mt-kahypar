@@ -54,7 +54,7 @@ TEST(RollbackTests, GainRecalculationAndRollsbackCorrectly) {
   for (HypernodeID u = 12; u < 20; ++u) {
     phg.setNodePart(u, 1);
   }
-  phg.initializeGainInformation();
+    phg.initializeGainCache();
 
   Context context;
   context.partition.k = k;
@@ -68,7 +68,9 @@ TEST(RollbackTests, GainRecalculationAndRollsbackCorrectly) {
   GlobalRollback grb(hg, context, k);
   grb.setRemainingOriginalPins(phg);
   auto performMove = [&](Move m) {
-    phg.changeNodePartFullUpdate(m.node, m.from, m.to, std::numeric_limits<HypernodeWeight>::max(), [&]{sharedData.moveTracker.insertMove(m);});
+    if (phg.changeNodePartWithGainCacheUpdate(m.node, m.from, m.to)) {
+      sharedData.moveTracker.insertMove(m);
+    }
   };
 
   ASSERT_EQ(3, phg.km1Gain(0, 1, 0));
@@ -86,7 +88,7 @@ TEST(RollbackTests, GainRecalculationAndRollsbackCorrectly) {
   performMove({0, 1, 5, 0});
 
   vec<HypernodeWeight> dummy_part_weights(k, 0);
-  grb.revertToBestPrefix(phg, sharedData, dummy_part_weights);
+  grb.revertToBestPrefix<true>(phg, sharedData, dummy_part_weights);
   // revert last two moves
   ASSERT_EQ(phg.partID(4), 0);
   ASSERT_EQ(phg.partID(5), 0);
@@ -108,7 +110,7 @@ TEST(RollbackTests, GainRecalculation2) {
   for (HypernodeID u = 12; u < 20; ++u) {
     phg.setNodePart(u, 1);
   }
-  phg.initializeGainInformation();
+    phg.initializeGainCache();
 
   Context context;
   context.partition.k = k;
@@ -129,16 +131,17 @@ TEST(RollbackTests, GainRecalculation2) {
 
   ASSERT_EQ(phg.km1Gain(2, 0, 1), 3);
   Move move_2 = { 0, 1, 2, 3 };
-  phg.changeNodePartFullUpdate(move_2.node, move_2.from, move_2.to, std::numeric_limits<HypernodeWeight>::max(), []{});
+    phg.changeNodePartWithGainCacheUpdate(move_2.node, move_2.from, move_2.to);
 
   ASSERT_EQ(phg.km1Gain(0, 1, 0), 1);
   Move move_0 = { 1, 0, 0, 1 };
-  phg.changeNodePartFullUpdate(move_0.node, move_0.from, move_0.to, std::numeric_limits<HypernodeWeight>::max(), []{});
+    phg.changeNodePartWithGainCacheUpdate(move_0.node, move_0.from, move_0.to);
 
   performUpdates(move_0);
   performUpdates(move_2);
 
   grb.recalculateGains(phg, sharedData);
+  grb.verifyGains<true>(phg, sharedData);
 }
 
 #endif

@@ -463,7 +463,7 @@ namespace mt_kahypar {
     _task_group_id(task_group_id) { }
 
   void RecursiveBisectionInitialPartitioner::initialPartitionImpl() {
-      if (_top_level) {
+    if (_top_level) {
       parallel::MemoryPool::instance().deactivate_unused_memory_allocations();
       utils::Timer::instance().disable();
       utils::Stats::instance().disable();

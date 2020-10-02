@@ -762,7 +762,7 @@ TEST_F(ADynamicPartitionedHypergraph, InitializesGainCorrectIfAlreadyContracted1
   hypergraph.contract(2);
   hypergraph.removeSinglePinAndParallelHyperedges();
 
-  partitioned_hypergraph.initializeGainInformation();
+    partitioned_hypergraph.initializeGainCache();
   verifyAllKm1GainValues();
 }
 
@@ -782,7 +782,7 @@ TEST_F(ADynamicPartitionedHypergraph, InitializesGainCorrectIfAlreadyContracted2
   ASSERT_FALSE(hypergraph.edgeIsEnabled(3));
 
   initializePartition();
-  partitioned_hypergraph.initializeGainInformation();
+    partitioned_hypergraph.initializeGainCache();
   verifyAllKm1GainValues();
 }
 
@@ -825,7 +825,7 @@ TEST_F(ADynamicPartitionedHypergraph, UpdatesGainCacheCorrectlyIfWeRestoreSingle
   auto removed_hyperedges = hypergraph.removeSinglePinAndParallelHyperedges();
 
   initializePartition();
-  partitioned_hypergraph.initializeGainInformation();
+    partitioned_hypergraph.initializeGainCache();
   ASSERT_EQ(1, partitioned_hypergraph.moveFromBenefit(0));
   ASSERT_EQ(1, partitioned_hypergraph.moveToPenalty(0, 1));
   ASSERT_EQ(1, partitioned_hypergraph.moveToPenalty(0, 2));
@@ -848,7 +848,7 @@ TEST_F(ADynamicPartitionedHypergraph, UpdatesGainCacheCorrectlyIfWeRestoreSingle
   auto removed_hyperedges = hypergraph.removeSinglePinAndParallelHyperedges();
 
   initializePartition();
-  partitioned_hypergraph.initializeGainInformation();
+    partitioned_hypergraph.initializeGainCache();
   ASSERT_EQ(2, partitioned_hypergraph.moveFromBenefit(0));
   ASSERT_EQ(2, partitioned_hypergraph.moveToPenalty(0, 1));
   ASSERT_EQ(0, partitioned_hypergraph.moveToPenalty(0, 2));
@@ -926,7 +926,7 @@ TEST_F(ADynamicPartitionedHypergraph, UpdatesGainCacheCorrectlyAfterUncontractio
   VersionedBatchVector hierarchy = hypergraph.createBatchUncontractionHierarchy(2);
 
   initializePartition();
-  partitioned_hypergraph.initializeGainInformation();
+    partitioned_hypergraph.initializeGainCache();
   partitioned_hypergraph.uncontract(hierarchy.back().back());
   ASSERT_EQ(0, partitioned_hypergraph.moveFromBenefit(0));
   ASSERT_EQ(1, partitioned_hypergraph.moveToPenalty(0, 1));
@@ -950,7 +950,7 @@ TEST_F(ADynamicPartitionedHypergraph, UpdatesGainCacheCorrectlyAfterUncontractio
   VersionedBatchVector hierarchy = hypergraph.createBatchUncontractionHierarchy(2);
 
   initializePartition();
-  partitioned_hypergraph.initializeGainInformation();
+    partitioned_hypergraph.initializeGainCache();
 
   while ( !hierarchy.empty() ) {
     BatchVector& batches = hierarchy.back();
