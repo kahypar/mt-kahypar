@@ -485,7 +485,7 @@ namespace mt_kahypar {
       }
 
       if constexpr (update_gain_cache) {
-        const Gain gain_from_cache = phg.km1Gain(m.node, m.from, m.to);
+        const Gain gain_from_cache = phg.km1Gain(m.node, m.from, m.to); unused(gain_from_cache);
         ASSERT(phg.moveFromBenefit(m.node) == phg.moveFromBenefitRecomputed(m.node));
         ASSERT(phg.moveToPenalty(m.node, m.to) == phg.moveToPenaltyRecomputed(m.node, m.to));
         ASSERT(gain == gain_from_cache);
