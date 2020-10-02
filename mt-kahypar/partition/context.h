@@ -23,7 +23,7 @@
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/context_enum_classes.h"
 
-#include "kahypar/partition/context_enum_classes.h"   // TODO eliminate
+#include "kahypar/partition/context_enum_classes.h"
 
 namespace mt_kahypar {
 struct PartitioningParameters {
