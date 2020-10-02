@@ -134,7 +134,7 @@ namespace mt_kahypar {
 
     };
 
-    // TODO we can almost make this function take a generic partitioned hypergraph
+    // we can almost make this function take a generic partitioned hypergraph
     // we would have to add the success func to the interface of DeltaPhg (and then ignore it there...)
     // and do the local rollback outside this function
 
@@ -276,9 +276,7 @@ namespace mt_kahypar {
 
     // Kind of double rollback, if gain values are not correct
     if (estimatedImprovement < 0) {
-      // TODO I tried a version which always does the revert trusting the attributed gains more. Gave similar quality on the subset
-      // We should definitely use that version if we don't do retries in findNextMove( .. )
-
+      // always using the if-branch gave similar results
       runStats.local_reverts += bestGainIndex - bestIndex + 1;
       for (size_t i = bestIndex + 1; i < bestGainIndex; ++i) {
         Move& m = sharedData.moveTracker.getMove(localMoves[i].second);
@@ -342,7 +340,7 @@ namespace mt_kahypar {
 }   // namespace mt_kahypar
 
 
-// instantiate template
+// instantiate templates
 #include "mt-kahypar/partition/refinement/fm/strategies/gain_cache_strategy.h"
 #include "mt-kahypar/partition/refinement/fm/strategies/gain_delta_strategy.h"
 #include "mt-kahypar/partition/refinement/fm/strategies/recompute_gain_strategy.h"
