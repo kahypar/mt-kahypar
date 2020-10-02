@@ -32,7 +32,7 @@
 namespace mt_kahypar {
 
 
-template<typename FMDetails>
+template<typename FMStrategy>
 class LocalizedKWayFM {
 public:
   explicit LocalizedKWayFM(const Context& context, HypernodeID numNodes, FMSharedData& sharedData) :
@@ -41,7 +41,7 @@ public:
           k(context.partition.k),
           deltaPhg(context.partition.k),
           neighborDeduplicator(numNodes, 0),
-          fm_details(context, numNodes, sharedData, runStats),
+          fm_strategy(context, numNodes, sharedData, runStats),
           sharedData(sharedData)
           { }
 
@@ -104,7 +104,7 @@ private:
 
   FMStats runStats;
 
-  FMDetails fm_details;
+  FMStrategy fm_strategy;
 
   FMSharedData& sharedData;
 
