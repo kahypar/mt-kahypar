@@ -146,7 +146,7 @@ class StaticHypergraph {
     // ! Hypernode weight
     HypernodeWeight _weight;
     // ! Flag indicating whether or not the element is active.
-    bool _valid;  // TODO what are we using this for?
+    bool _valid;
   };
 
   /**
@@ -632,8 +632,8 @@ class StaticHypergraph {
   // ! Removes a degree zero hypernode
   void removeDegreeZeroHypernode(const HypernodeID u) {
     ASSERT(nodeDegree(u) == 0);
-    removeHypernode(u);
     _removed_degree_zero_hn_weight += nodeWeight(u);
+    removeHypernode(u);
   }
 
   // ! Restores a degree zero hypernode

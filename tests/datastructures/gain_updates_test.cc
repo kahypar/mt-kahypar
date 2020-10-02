@@ -53,7 +53,7 @@ TEST(GainUpdates, Example1) {
   ASSERT_EQ(phg.partWeight(0), phg.partWeight(1));
   ASSERT_EQ(phg.partWeight(0), 10);
 
-  phg.initializeGainInformation();
+    phg.initializeGainCache();
   ASSERT_EQ(phg.km1Gain(0, phg.partID(0), 1), -1);
   ASSERT_EQ(phg.moveFromBenefit(0), 1);
   ASSERT_EQ(phg.moveToPenalty(0, 1), 2);
@@ -66,7 +66,7 @@ TEST(GainUpdates, Example1) {
   ASSERT_EQ(phg.km1Gain(12, phg.partID(12), 0), -1);
   ASSERT_EQ(phg.km1Gain(14, phg.partID(14), 0), -2);
 
-  phg.changeNodePartFullUpdate(8, 0, 1, std::numeric_limits<HypernodeWeight>::max(), []{});
+    phg.changeNodePartWithGainCacheUpdate(8, 0, 1);
 
   phg.recomputeMoveFromBenefit(8);  // nodes are allowed to move once before moveFromBenefit must be recomputed
   ASSERT_EQ(phg.km1Gain(8, 1, 0), 2);

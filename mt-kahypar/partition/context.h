@@ -23,7 +23,7 @@
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/context_enum_classes.h"
 
-#include "kahypar/partition/context_enum_classes.h"   // TODO eliminate
+#include "kahypar/partition/context_enum_classes.h"
 
 namespace mt_kahypar {
 struct PartitioningParameters {
@@ -126,11 +126,11 @@ std::ostream & operator<< (std::ostream& str, const LabelPropagationParameters& 
 
 struct FMParameters {
   FMAlgorithm algorithm = FMAlgorithm::do_nothing;
-  size_t multitry_rounds = 0;
+  size_t multitry_rounds = 1;
   bool perform_moves_global = false;
   bool revert_parallel = true;
   double rollback_balance_violation_factor = std::numeric_limits<double>::max();
-  mutable size_t num_seed_nodes = 0;
+  mutable size_t num_seed_nodes = 1;
   bool shuffle = true;
   mutable bool obey_minimal_parallelism = false;
   double min_improvement = -1.0;
@@ -141,7 +141,7 @@ struct FMParameters {
 std::ostream& operator<<(std::ostream& out, const FMParameters& params);
 
 struct NLevelGlobalFMParameters {
-  bool use_global_fm = false;
+  bool use_global_fm = false;   // TODO this should be renamed to something more appropriate: e.g. log_level_fm or refine_after_coarsening_pass
   bool refine_until_no_improvement = false;
   size_t num_seed_nodes = 0;
   bool obey_minimal_parallelism = false;
@@ -155,7 +155,7 @@ struct RefinementParameters {
   NLevelGlobalFMParameters global_fm;
   bool refine_until_no_improvement = false;
   size_t max_batch_size = std::numeric_limits<size_t>::max();
-  bool initialize_gain_cache = false;
+  bool initialize_gain_cache = false;   // TODO seems unused. remove?
 };
 
 std::ostream & operator<< (std::ostream& str, const RefinementParameters& params);

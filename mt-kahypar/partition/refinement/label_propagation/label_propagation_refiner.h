@@ -51,6 +51,7 @@ class LabelPropagationRefiner final : public IRefiner {
     _current_num_edges(kInvalidHyperedge),
     _gain(context),
     _active_nodes(),
+    _active_node_was_moved(hypergraph.initialNumNodes(), uint8_t(false)),
     _next_active(hypergraph.initialNumNodes()),
     _visited_he(hypergraph.initialNumEdges()) { }
 
@@ -154,14 +155,11 @@ class LabelPropagationRefiner final : public IRefiner {
                       const F& objective_delta) {
     bool success = false;
     if ( _context.partition.paradigm == Paradigm::nlevel && phg.isGainCacheInitialized()) {
-      success = phg.changeNodePartFullUpdate(hn, from, to,
-        _context.partition.max_part_weights[to], [&] { }, objective_delta);
-      if ( success ) {
-        phg.recomputeMoveFromBenefit(hn);
-      }
+      success = phg.changeNodePartWithGainCacheUpdate(hn, from, to,
+                                                      _context.partition.max_part_weights[to], [] { }, objective_delta);
     } else {
       success = phg.changeNodePart(hn, from, to,
-        _context.partition.max_part_weights[to], objective_delta);
+        _context.partition.max_part_weights[to], []{}, objective_delta);
     }
     return success;
   }
@@ -172,6 +170,7 @@ class LabelPropagationRefiner final : public IRefiner {
   HyperedgeID _current_num_edges;
   GainCalculator _gain;
   ActiveNodes _active_nodes;
+  parallel::scalable_vector<uint8_t> _active_node_was_moved;
   ds::ThreadSafeFastResetFlagArray<> _next_active;
   kahypar::ds::FastResetFlagArray<> _visited_he;
 };

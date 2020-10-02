@@ -69,8 +69,6 @@ class SequentialTwoWayFmRefiner {
    * and gathers all nodes that became border or internal nodes during the last move on
    * the hypergraph, which is required by our 2-way FM implementation, since only border vertices
    * are eligble for moving.
-   * TODO(heuer): We should integrate this again into the partitioned hypergraph, since we should
-   * also change our parallel k-way implementation to only move border vertices.
    */
   class BorderVertexTracker {
 

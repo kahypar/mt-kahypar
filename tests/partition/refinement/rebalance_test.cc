@@ -71,7 +71,7 @@ TEST(RebalanceTests, FindsMoves) {
     }
   }
   phg.initializePartition(task_group_id);
-  phg.initializeGainInformation();
+    phg.initializeGainCache();
 
   Km1Rebalancer rebalancer(phg, context);
   vec<Move> moves_to_empty_blocks = rebalancer.repairEmptyBlocks();
@@ -96,7 +96,7 @@ TEST(RebalanceTests, FindsMoves) {
     ASSERT_EQ(phg.partWeight(m.to), 0);
     ASSERT_GE(m.to, k - 4);
     ASSERT_LT(m.from, k - 4);
-    phg.changeNodePartFullUpdate(m.node, m.from, m.to);
+    phg.changeNodePartWithGainCacheUpdate(m.node, m.from, m.to);
   }
 
   moves_to_empty_blocks = rebalancer.repairEmptyBlocks();
