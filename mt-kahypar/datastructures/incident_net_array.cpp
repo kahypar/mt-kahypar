@@ -324,7 +324,7 @@ void IncidentNetArray::construct(const HyperedgeVector& edge_vector) {
       }
     });
   }, [&] {
-    _index_array.assign(_num_hypernodes + 1, 0);
+    _index_array.assign(_num_hypernodes + 1, sizeof(Header));
     current_incident_net_pos.assign(
       _num_hypernodes, parallel::IntegralAtomicWrapper<size_t>(0));
   });
@@ -332,12 +332,10 @@ void IncidentNetArray::construct(const HyperedgeVector& edge_vector) {
   // We sum up the number of incident nets per vertex only thread local.
   // To obtain the global number of incident nets per vertex, we iterate
   // over each thread local counter and sum it up.
-  bool first_iteration = true;
   for ( const parallel::scalable_vector<size_t>& c : local_incident_nets_per_vertex ) {
     tbb::parallel_for(ID(0), _num_hypernodes + 1, [&](const size_t pos) {
-      _index_array[pos] += c[pos] * sizeof(Entry) + (first_iteration ? sizeof(Header) : 0);
+      _index_array[pos] += c[pos] * sizeof(Entry);
     });
-    first_iteration = false;
   }
 
   // Compute start positon of the incident nets of each vertex via a parallel prefix sum
