@@ -38,60 +38,35 @@ DynamicHypergraph DynamicHypergraphFactory::construct(const TaskGroupID task_gro
                                                       const HyperedgeVector& edge_vector,
                                                       const HyperedgeWeight* hyperedge_weight,
                                                       const HypernodeWeight* hypernode_weight,
-                                                      const bool stable_construction_of_incident_edges) {
+                                                      const bool) {
   DynamicHypergraph hypergraph;
   hypergraph._num_hypernodes = num_hypernodes;
   hypergraph._num_hyperedges = num_hyperedges;
   tbb::parallel_invoke([&] {
     hypergraph._hypernodes.resize(num_hypernodes);
   }, [&] {
-    hypergraph._incident_nets.resize(num_hypernodes);
-  }, [&] {
     hypergraph._hyperedges.resize(num_hyperedges + 1);
   }, [&] {
     hypergraph._removable_single_pin_and_parallel_nets =
       kahypar::ds::FastResetFlagArray<>(num_hyperedges);
   });
-  hypergraph._removable_incident_nets = ThreadLocalBitset(num_hyperedges, false);
+  hypergraph._he_bitset = ThreadLocalBitset(num_hyperedges);
 
   ASSERT(edge_vector.size() == num_hyperedges);
 
-  // Compute number of pins per hyperedge and number
-  // of incident nets per vertex
+  // Compute number of pins per hyperedge
   utils::Timer::instance().start_timer("compute_ds_sizes", "Precompute DS Size", true);
   Counter num_pins_per_hyperedge(num_hyperedges, 0);
-  ThreadLocalCounter local_incident_nets_per_vertex(num_hypernodes, 0);
   tbb::enumerable_thread_specific<size_t> local_max_edge_size(0UL);
   tbb::parallel_for(ID(0), num_hyperedges, [&](const size_t pos) {
-    Counter& num_incident_nets_per_vertex = local_incident_nets_per_vertex.local();
     num_pins_per_hyperedge[pos] = edge_vector[pos].size();
     local_max_edge_size.local() = std::max(
       local_max_edge_size.local(), edge_vector[pos].size());
-    for ( const HypernodeID& pin : edge_vector[pos] ) {
-      ++num_incident_nets_per_vertex[pin];
-    }
   });
   hypergraph._max_edge_size = local_max_edge_size.combine(
     [&](const size_t lhs, const size_t rhs) {
       return std::max(lhs, rhs);
     });
-
-  // We sum up the number of incident nets per vertex only thread local.
-  // To obtain the global number of incident nets per vertex, we iterate
-  // over each thread local counter and sum it up.
-  size_t cnt = 0;
-  AtomicCounter num_incident_nets_per_vertex(
-    num_hypernodes, parallel::IntegralAtomicWrapper<size_t>(0));
-  for ( Counter& c : local_incident_nets_per_vertex ) {
-    ++cnt;
-    const bool allocate_incident_nets = cnt == local_incident_nets_per_vertex.size();
-    tbb::parallel_for(ID(0), num_hypernodes, [&](const size_t pos) {
-      num_incident_nets_per_vertex[pos] += c[pos];
-      if ( allocate_incident_nets ) {
-        hypergraph._incident_nets[pos].resize(num_incident_nets_per_vertex[pos]);
-      }
-    });
-  }
   utils::Timer::instance().stop_timer("compute_ds_sizes");
 
   // Compute prefix sum over the number of pins per hyperedge and the.
@@ -121,7 +96,6 @@ DynamicHypergraph DynamicHypergraphFactory::construct(const TaskGroupID task_gro
         hyperedge.setWeight(hyperedge_weight[pos]);
       }
 
-      const HyperedgeID he = pos;
       size_t incidence_array_pos = hyperedge.firstEntry();
       size_t hash = kEdgeHashSeed;
       for ( const HypernodeID& pin : edge_vector[pos] ) {
@@ -131,10 +105,6 @@ DynamicHypergraph DynamicHypergraphFactory::construct(const TaskGroupID task_gro
         hash += kahypar::math::hash(pin);
         // Add pin to incidence array
         hypergraph._incidence_array[incidence_array_pos++] = pin;
-        // Add hyperedge he as a incident net to pin
-        const size_t incident_nets_pos = --num_incident_nets_per_vertex[pin];
-        ASSERT(incident_nets_pos < hypergraph._incident_nets[pin].size());
-        hypergraph._incident_nets[pin][incident_nets_pos] = he;
       }
       hyperedge.hash() = hash;
     });
@@ -168,14 +138,10 @@ DynamicHypergraph DynamicHypergraphFactory::construct(const TaskGroupID task_gro
     parallel::TBBPrefixSum<HyperedgeID, Array> scan_graph_edges(hypergraph._num_graph_edges_up_to);
     tbb::parallel_scan(tbb::blocked_range<size_t>(0, num_hyperedges + 1), scan_graph_edges);
     hypergraph._num_graph_edges = scan_graph_edges.total_sum();
+  }, [&] {
+    // Construct incident net array
+    hypergraph._incident_nets = IncidentNetArray(num_hypernodes, edge_vector);
   });
-
-  if (stable_construction_of_incident_edges) {
-    // sort incident hyperedges of each node, so their ordering is independent of scheduling (and the same as a typical sequential implementation)
-    tbb::parallel_for(ID(0), num_hypernodes, [&](HypernodeID u) {
-      std::sort(hypergraph._incident_nets[u].begin(), hypergraph._incident_nets[u].end());
-    });
-  }
 
   // Compute total weight of hypergraph
   hypergraph.updateTotalWeight(task_group_id);

@@ -29,6 +29,7 @@
 #include "mt-kahypar/datastructures/concurrent_bucket_map.h"
 #include "mt-kahypar/parallel/stl/scalable_queue.h"
 #include "mt-kahypar/datastructures/streaming_vector.h"
+#include "mt-kahypar/utils/timer.h"
 
 namespace mt_kahypar {
 namespace ds {
@@ -219,15 +220,20 @@ void DynamicHypergraph::uncontract(const Batch& batch,
     const Memento& memento = batch[i];
     ASSERT(!hypernode(memento.u).isDisabled(), "Hypernode" << memento.u << "is disabled");
     ASSERT(hypernode(memento.v).isDisabled(), "Hypernode" << memento.v << "is not invalid");
+    // Restore incident net list of u and v
+    _incident_nets.uncontract(memento.u, memento.v,
+      [&](const HypernodeID u) {
+        acquireHypernode(u);
+      }, [&](const HypernodeID u) {
+        releaseHypernode(u);
+      });
 
     parallel::scalable_vector<HyperedgeID>& failed_hyperedge_uncontractions = _failed_hyperedge_contractions.local();
-    parallel::scalable_vector<bool>& removable_incident_nets_of_u = _removable_incident_nets.local();
     for ( const HyperedgeID& he : incidentEdges(memento.v) ) {
       // Try to acquire ownership of hyperedge. In case of success, we perform the
       // uncontraction and otherwise, we remember the hyperedge and try later again.
       if ( tryAcquireHyperedge(he) ) {
-        uncontractHyperedge(memento.u, memento.v, he,
-          removable_incident_nets_of_u, case_one_func, case_two_func);
+        uncontractHyperedge(memento.u, memento.v, he, case_one_func, case_two_func);
         releaseHyperedge(he);
       } else {
         failed_hyperedge_uncontractions.push_back(he);
@@ -237,8 +243,7 @@ void DynamicHypergraph::uncontract(const Batch& batch,
     // Perform uncontractions on which we failed to acquire ownership on the first try
     for ( const HyperedgeID& he : failed_hyperedge_uncontractions ) {
       acquireHyperedge(he);
-      uncontractHyperedge(memento.u, memento.v, he,
-        removable_incident_nets_of_u, case_one_func, case_two_func);
+      uncontractHyperedge(memento.u, memento.v, he, case_one_func, case_two_func);
       releaseHyperedge(he);
     }
 
@@ -248,20 +253,6 @@ void DynamicHypergraph::uncontract(const Batch& batch,
     // from its representative
     hypernode(memento.v).enable();
     hypernode(memento.u).setWeight(hypernode(memento.u).weight() - hypernode(memento.v).weight());
-
-    // Remove all incident nets of u marked as removable
-    IncidentNetVector<HyperedgeID>& incident_nets_of_u = _incident_nets[memento.u];
-    size_t incident_nets_size = incident_nets_of_u.size();
-    ASSERT(incident_nets_of_u.active_iterators() == 0);
-    for ( size_t i = 0; i < incident_nets_size; ++i ) {
-      const HyperedgeID he = incident_nets_of_u[i];
-      ASSERT(he < removable_incident_nets_of_u.size());
-      if ( removable_incident_nets_of_u[he] ) {
-        std::swap(incident_nets_of_u[i--], incident_nets_of_u[--incident_nets_size]);
-        incident_nets_of_u.pop_back();
-        removable_incident_nets_of_u[he] = false;
-      }
-    }
     releaseHypernode(memento.u);
   });
 }
@@ -434,14 +425,7 @@ parallel::scalable_vector<ParallelHyperedge> DynamicHypergraph::removeSinglePinA
   // Remove single-pin and parallel nets from incident net vector of vertices
   utils::Timer::instance().start_timer("postprocess_incident_nets", "Postprocess Incident Nets");
   doParallelForAllNodes([&](const HypernodeID& u) {
-    IncidentNetVector<HyperedgeID>& incident_nets_of_u = _incident_nets[u];
-    size_t incident_nets_size = incident_nets_of_u.size();
-    for ( size_t pos = 0; pos < incident_nets_size; ++pos ) {
-      if ( _removable_single_pin_and_parallel_nets[incident_nets_of_u[pos]] ) {
-        std::swap(incident_nets_of_u[pos--], incident_nets_of_u[--incident_nets_size]);
-        incident_nets_of_u.pop_back();
-      }
-    }
+    _incident_nets.removeIncidentNets(u, _removable_single_pin_and_parallel_nets);
   });
   utils::Timer::instance().stop_timer("postprocess_incident_nets");
 
@@ -461,7 +445,6 @@ parallel::scalable_vector<ParallelHyperedge> DynamicHypergraph::removeSinglePinA
 void DynamicHypergraph::restoreSinglePinAndParallelNets(const parallel::scalable_vector<ParallelHyperedge>& hes_to_restore) {
   // Restores all previously removed hyperedges
   utils::Timer::instance().start_timer("restore_removed_nets", "Restore Removed Hyperedges");
-  ConcurrentBucketMap<Memento> incident_net_map;
   tbb::parallel_for(0UL, hes_to_restore.size(), [&](const size_t i) {
     const ParallelHyperedge& parallel_he = hes_to_restore[i];
     const HyperedgeID he = parallel_he.removed_hyperedge;
@@ -476,37 +459,14 @@ void DynamicHypergraph::restoreSinglePinAndParallelNets(const parallel::scalable
       rep_he.setWeight(rep_he.weight() - hyperedge(he).weight());
       releaseHyperedge(rep);
     }
-
-    for ( const HypernodeID& pin : pins(he) ) {
-      incident_net_map.insert(pin, Memento { pin, he });
-    }
   });
   utils::Timer::instance().stop_timer("restore_removed_nets");
 
-  // Adds all restored hyperedges as incident net to its contained pins.
-  // In the previous step we inserted all pins together with its hyperedges
-  // into a bucket data structure. All hyperedges of the same pin are placed
-  // within the same bucket and can be processed sequentially here without
-  // locking.
-  utils::Timer::instance().start_timer("add_to_incident_nets", "Add Restored HEs to Incident Nets");
-  tbb::parallel_for(0UL, incident_net_map.numBuckets(), [&](const size_t bucket) {
-    auto& incident_net_bucket = incident_net_map.getBucket(bucket);
-    std::sort(incident_net_bucket.begin(), incident_net_bucket.end(),
-      [&](const Memento& lhs, const Memento& rhs) {
-        return lhs.u < rhs.u || ( lhs.u == rhs.u && lhs.v < rhs.v);
-      });
-
-    // No locking required since vertex u can only occur in one bucket
-    for ( const Memento& memento : incident_net_bucket ) {
-      const HypernodeID u = memento.u;
-      const HyperedgeID he = memento.v;
-      _incident_nets[u].push_back(he);
-    }
-
-    incident_net_map.free(bucket);
+  utils::Timer::instance().start_timer("restore_in_incident_nets", "Restore HEs in Incident Nets");
+  doParallelForAllNodes([&](const HypernodeID u) {
+    _incident_nets.restoreIncidentNets(u);
   });
-  utils::Timer::instance().stop_timer("add_to_incident_nets");
-
+  utils::Timer::instance().stop_timer("restore_in_incident_nets");
   --_version;
 }
 
@@ -533,15 +493,12 @@ DynamicHypergraph DynamicHypergraph::copy(const TaskGroupID task_group_id) {
       sizeof(Hypernode) * _hypernodes.size());
   }, [&] {
     tbb::parallel_invoke([&] {
-      hypergraph._incident_nets.resize(_incident_nets.size());
+      hypergraph._incident_nets = _incident_nets.copy(task_group_id);
     }, [&] {
       hypergraph._acquired_hns.resize(_acquired_hns.size());
-    });
-    tbb::parallel_for(ID(0), _num_hypernodes, [&](const HypernodeID& hn) {
-      hypergraph._acquired_hns[hn] = _acquired_hns[hn];
-      hypergraph._incident_nets[hn].resize(_incident_nets[hn].size());
-      memcpy(hypergraph._incident_nets[hn].data(), _incident_nets[hn].data(),
-        sizeof(HyperedgeID) * _incident_nets[hn].size());
+      tbb::parallel_for(ID(0), _num_hypernodes, [&](const HypernodeID& hn) {
+        hypergraph._acquired_hns[hn] = _acquired_hns[hn];
+      });
     });
   }, [&] {
     hypergraph._contraction_tree = _contraction_tree.copy(task_group_id);
@@ -559,7 +516,7 @@ DynamicHypergraph DynamicHypergraph::copy(const TaskGroupID task_group_id) {
       hypergraph._acquired_hes[he] = _acquired_hes[he];
     });
   }, [&] {
-    hypergraph._removable_incident_nets = _removable_incident_nets;
+    hypergraph._he_bitset = ThreadLocalBitset(_num_hyperedges);
   }, [&] {
     hypergraph._removable_single_pin_and_parallel_nets =
       kahypar::ds::FastResetFlagArray<>(_num_hyperedges);
@@ -591,13 +548,10 @@ DynamicHypergraph DynamicHypergraph::copy() {
   hypergraph._hypernodes.resize(_hypernodes.size());
   memcpy(hypergraph._hypernodes.data(), _hypernodes.data(),
     sizeof(Hypernode) * _hypernodes.size());
-  hypergraph._incident_nets.resize(_incident_nets.size());
+  hypergraph._incident_nets = _incident_nets.copy();
   hypergraph._acquired_hns.resize(_num_hypernodes);
   for ( HypernodeID hn = 0; hn < _num_hypernodes; ++hn ) {
-    hypergraph._incident_nets[hn].resize(_incident_nets[hn].size());
     hypergraph._acquired_hns[hn] = _acquired_hns[hn];
-    memcpy(hypergraph._incident_nets[hn].data(), _incident_nets[hn].data(),
-      sizeof(HyperedgeID) * _incident_nets[hn].size());
   }
   hypergraph._contraction_tree = _contraction_tree.copy();
   hypergraph._hyperedges.resize(_hyperedges.size());
@@ -610,7 +564,7 @@ DynamicHypergraph DynamicHypergraph::copy() {
   for ( HyperedgeID he = 0; he < _num_hyperedges; ++he ) {
     hypergraph._acquired_hes[he] = _acquired_hes[he];
   }
-  hypergraph._removable_incident_nets = _removable_incident_nets;
+  hypergraph._he_bitset = ThreadLocalBitset(_num_hyperedges);
   hypergraph._removable_single_pin_and_parallel_nets =
     kahypar::ds::FastResetFlagArray<>(_num_hyperedges);
   hypergraph._num_graph_edges_up_to.resize(_num_graph_edges_up_to.size());
@@ -625,13 +579,13 @@ void DynamicHypergraph::memoryConsumption(utils::MemoryTreeNode* parent) const {
   ASSERT(parent);
 
   parent->addChild("Hypernodes", sizeof(Hypernode) * _hypernodes.size());
-  parent->addChild("Incident Nets", sizeof(HyperedgeID) * _incidence_array.size());
+  parent->addChild("Incident Nets", _incident_nets.size_in_bytes());
   parent->addChild("Hypernode Ownership Vector", sizeof(bool) * _acquired_hns.size());
   parent->addChild("Hyperedges", sizeof(Hyperedge) * _hyperedges.size());
   parent->addChild("Incidence Array", sizeof(HypernodeID) * _incidence_array.size());
   parent->addChild("Hyperedge Ownership Vector", sizeof(bool) * _acquired_hes.size());
   parent->addChild("Bitsets",
-    ( _num_hyperedges * _removable_incident_nets.size() ) / 8UL + sizeof(uint16_t) * _num_hyperedges);
+    ( _num_hyperedges * _he_bitset.size() ) / 8UL + sizeof(uint16_t) * _num_hyperedges);
   parent->addChild("Graph Edge ID Mapping", sizeof(HyperedgeID) * _num_graph_edges_up_to.size());
 
   utils::MemoryTreeNode* contraction_tree_node = parent->addChild("Contraction Tree");
@@ -714,13 +668,14 @@ DynamicHypergraph::ContractionResult DynamicHypergraph::contract(const Hypernode
     releaseHypernode(v);
 
     HypernodeID contraction_start = _contraction_index.load();
-    parallel::scalable_vector<HyperedgeID>& tmp_incident_nets = _tmp_incident_nets.local();
+    kahypar::ds::FastResetFlagArray<>& shared_incident_nets_u_and_v = _he_bitset.local();
+    shared_incident_nets_u_and_v.reset();
     parallel::scalable_vector<HyperedgeID>& failed_hyperedge_contractions = _failed_hyperedge_contractions.local();
     for ( const HyperedgeID& he : incidentEdges(v) ) {
       // Try to acquire ownership of hyperedge. In case of success, we perform the
       // contraction and otherwise, we remember the hyperedge and try later again.
       if ( tryAcquireHyperedge(he) ) {
-        contractHyperedge(u, v, he, tmp_incident_nets);
+        contractHyperedge(u, v, he, shared_incident_nets_u_and_v);
         releaseHyperedge(he);
       } else {
         failed_hyperedge_contractions.push_back(he);
@@ -730,17 +685,18 @@ DynamicHypergraph::ContractionResult DynamicHypergraph::contract(const Hypernode
     // Perform contraction on which we failed to acquire ownership on the first try
     for ( const HyperedgeID& he : failed_hyperedge_contractions ) {
       acquireHyperedge(he);
-      contractHyperedge(u, v, he, tmp_incident_nets);
+      contractHyperedge(u, v, he, shared_incident_nets_u_and_v);
       releaseHyperedge(he);
     }
 
-    // tmp_incident_nets contains all hyperedges to which vertex u is
-    // adjacent after the contraction, we use a special insert function to make
-    // sure that iterators are not invalidated while inserting into the vector.
-    if ( tmp_incident_nets.size() > 0 ) {
-      _incident_nets[u].bulk_insert(tmp_incident_nets);
-    }
-    tmp_incident_nets.clear();
+    // Contract incident net lists of u and v
+    _incident_nets.contract(u, v, shared_incident_nets_u_and_v,
+      [&](const HypernodeID u) {
+        acquireHypernode(u);
+      }, [&](const HypernodeID u) {
+        releaseHypernode(u);
+      });
+    shared_incident_nets_u_and_v.reset();
     failed_hyperedge_contractions.clear();
 
     HypernodeID contraction_end = ++_contraction_index;
@@ -765,7 +721,7 @@ DynamicHypergraph::ContractionResult DynamicHypergraph::contract(const Hypernode
 void DynamicHypergraph::contractHyperedge(const HypernodeID u,
                                           const HypernodeID v,
                                           const HyperedgeID he,
-                                          parallel::scalable_vector<HyperedgeID>& tmp_incident_nets) {
+                                          kahypar::ds::FastResetFlagArray<>& shared_incident_nets_u_and_v) {
   Hyperedge& e = hyperedge(he);
   const HypernodeID pins_begin = e.firstEntry();
   const HypernodeID pins_end = e.firstInvalidEntry();
@@ -791,6 +747,7 @@ void DynamicHypergraph::contractHyperedge(const HypernodeID u,
     DBG << V(he) << ": Case 1";
     e.hash() -= kahypar::math::hash(v);
     e.decrementSize();
+    shared_incident_nets_u_and_v.set(he, true);
   } else {
     DBG << V(he) << ": Case 2";
     // Case 2:
@@ -799,7 +756,6 @@ void DynamicHypergraph::contractHyperedge(const HypernodeID u,
     e.hash() -= kahypar::math::hash(v);
     e.hash() += kahypar::math::hash(u);
     _incidence_array[last_pin_slot] = u;
-    tmp_incident_nets.push_back(he);
   }
 }
 
@@ -807,7 +763,6 @@ void DynamicHypergraph::contractHyperedge(const HypernodeID u,
 void DynamicHypergraph::uncontractHyperedge(const HypernodeID u,
                                             const HypernodeID v,
                                             const HyperedgeID he,
-                                            parallel::scalable_vector<bool>& removable_incident_nets_of_u,
                                             const UncontractionFunction& case_one_func,
                                             const UncontractionFunction& case_two_func) {
   const HypernodeID batch_index = hypernode(v).batchIndex();
@@ -854,9 +809,6 @@ void DynamicHypergraph::uncontractHyperedge(const HypernodeID u,
     ASSERT(slot_of_u != first_invalid_entry, "Hypernode" << u << "is not incident to hyperedge" << he);
 
     _incidence_array[slot_of_u] = v;
-    // u is not incident to hyperedge he after this uncontraction
-    // => we mark hyperedge he as removable and remove it in a postprocessing step
-    removable_incident_nets_of_u[he] = true;
     case_two_func(u, v, he);
   }
 }

@@ -53,6 +53,7 @@ class LargeHyperedgeRemover {
         ++num_removed_large_hyperedges;
       }
     }
+    std::reverse(_removed_hes.begin(), _removed_hes.end());
     return num_removed_large_hyperedges;
   }
 
