@@ -516,7 +516,7 @@ DynamicHypergraph DynamicHypergraph::copy(const TaskGroupID task_group_id) {
       hypergraph._acquired_hes[he] = _acquired_hes[he];
     });
   }, [&] {
-    hypergraph._removable_incident_nets = ThreadLocalBitset(_num_hyperedges);
+    hypergraph._he_bitset = ThreadLocalBitset(_num_hyperedges);
   }, [&] {
     hypergraph._removable_single_pin_and_parallel_nets =
       kahypar::ds::FastResetFlagArray<>(_num_hyperedges);
@@ -564,7 +564,7 @@ DynamicHypergraph DynamicHypergraph::copy() {
   for ( HyperedgeID he = 0; he < _num_hyperedges; ++he ) {
     hypergraph._acquired_hes[he] = _acquired_hes[he];
   }
-  hypergraph._removable_incident_nets = ThreadLocalBitset(_num_hyperedges);
+  hypergraph._he_bitset = ThreadLocalBitset(_num_hyperedges);
   hypergraph._removable_single_pin_and_parallel_nets =
     kahypar::ds::FastResetFlagArray<>(_num_hyperedges);
   hypergraph._num_graph_edges_up_to.resize(_num_graph_edges_up_to.size());
@@ -585,7 +585,7 @@ void DynamicHypergraph::memoryConsumption(utils::MemoryTreeNode* parent) const {
   parent->addChild("Incidence Array", sizeof(HypernodeID) * _incidence_array.size());
   parent->addChild("Hyperedge Ownership Vector", sizeof(bool) * _acquired_hes.size());
   parent->addChild("Bitsets",
-    ( _num_hyperedges * _removable_incident_nets.size() ) / 8UL + sizeof(uint16_t) * _num_hyperedges);
+    ( _num_hyperedges * _he_bitset.size() ) / 8UL + sizeof(uint16_t) * _num_hyperedges);
   parent->addChild("Graph Edge ID Mapping", sizeof(HyperedgeID) * _num_graph_edges_up_to.size());
 
   utils::MemoryTreeNode* contraction_tree_node = parent->addChild("Contraction Tree");
@@ -668,7 +668,7 @@ DynamicHypergraph::ContractionResult DynamicHypergraph::contract(const Hypernode
     releaseHypernode(v);
 
     HypernodeID contraction_start = _contraction_index.load();
-    kahypar::ds::FastResetFlagArray<>& shared_incident_nets_u_and_v = _removable_incident_nets.local();
+    kahypar::ds::FastResetFlagArray<>& shared_incident_nets_u_and_v = _he_bitset.local();
     shared_incident_nets_u_and_v.reset();
     parallel::scalable_vector<HyperedgeID>& failed_hyperedge_contractions = _failed_hyperedge_contractions.local();
     for ( const HyperedgeID& he : incidentEdges(v) ) {

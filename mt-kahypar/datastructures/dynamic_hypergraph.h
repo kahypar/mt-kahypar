@@ -406,9 +406,8 @@ class DynamicHypergraph {
     _hyperedges(),
     _incidence_array(),
     _acquired_hes(),
-    _tmp_incident_nets(),
     _failed_hyperedge_contractions(),
-    _removable_incident_nets(),
+    _he_bitset(),
     _removable_single_pin_and_parallel_nets(),
     _num_graph_edges_up_to() { }
 
@@ -435,9 +434,8 @@ class DynamicHypergraph {
     _hyperedges(std::move(other._hyperedges)),
     _incidence_array(std::move(other._incidence_array)),
     _acquired_hes(std::move(other._acquired_hes)),
-    _tmp_incident_nets(std::move(other._tmp_incident_nets)),
     _failed_hyperedge_contractions(std::move(other._failed_hyperedge_contractions)),
-    _removable_incident_nets(std::move(other._removable_incident_nets)),
+    _he_bitset(std::move(other._he_bitset)),
     _removable_single_pin_and_parallel_nets(std::move(other._removable_single_pin_and_parallel_nets)),
     _num_graph_edges_up_to(std::move(other._num_graph_edges_up_to)) { }
 
@@ -461,9 +459,8 @@ class DynamicHypergraph {
     _hyperedges = std::move(other._hyperedges);
     _incidence_array = std::move(other._incidence_array);
     _acquired_hes = std::move(other._acquired_hes);
-    _tmp_incident_nets = std::move(other._tmp_incident_nets);
     _failed_hyperedge_contractions = std::move(other._failed_hyperedge_contractions);
-    _removable_incident_nets = std::move(other._removable_incident_nets);
+    _he_bitset = std::move(other._he_bitset);
     _removable_single_pin_and_parallel_nets = std::move(other._removable_single_pin_and_parallel_nets);
     _num_graph_edges_up_to = std::move(other._num_graph_edges_up_to);
     return *this;
@@ -834,7 +831,7 @@ class DynamicHypergraph {
   */
   void removeEdge(const HyperedgeID he) {
     ASSERT(edgeIsEnabled(he), "Hyperedge" << he << "is disabled");
-    kahypar::ds::FastResetFlagArray<>& he_to_remove = _removable_incident_nets.local();
+    kahypar::ds::FastResetFlagArray<>& he_to_remove = _he_bitset.local();
     he_to_remove.set(he, true);
     for ( const HypernodeID& pin : pins(he) ) {
       _incident_nets.removeIncidentNets(pin, he_to_remove);
@@ -855,7 +852,7 @@ class DynamicHypergraph {
     ASSERT(edgeIsEnabled(he), "Hyperedge" << he << "is disabled");
     const size_t incidence_array_start = hyperedge(he).firstEntry();
     const size_t incidence_array_end = hyperedge(he).firstInvalidEntry();
-    kahypar::ds::FastResetFlagArray<>& he_to_remove = _removable_incident_nets.local();
+    kahypar::ds::FastResetFlagArray<>& he_to_remove = _he_bitset.local();
     he_to_remove.set(he, true);
     tbb::parallel_for(incidence_array_start, incidence_array_end, [&](const size_t pos) {
       const HypernodeID pin = _incidence_array[pos];
@@ -998,11 +995,6 @@ class DynamicHypergraph {
     return const_cast<Hypernode&>(static_cast<const DynamicHypergraph&>(*this).hypernode(u));
   }
 
-
-  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE bool hasRandomAccessIncidentNetsIterator() const {
-    return false;
-  }
-
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE IteratorRange<IncidentNetsIterator> incident_nets_of(const HypernodeID u,
                                                                                           const size_t pos = 0) const {
     return _incident_nets.incidentEdges(u, pos);
@@ -1123,12 +1115,11 @@ class DynamicHypergraph {
   IncidenceArray _incidence_array;
   // ! Atomic bool vector used to acquire unique ownership of hyperedges
   OwnershipVector _acquired_hes;
-  // ! Collects hyperedes that will be adjacent to a vertex after a contraction
-  ThreadLocalHyperedgeVector _tmp_incident_nets;
   // ! Collects hyperedge contractions that failed due to failed acquired ownership
   ThreadLocalHyperedgeVector _failed_hyperedge_contractions;
-  // ! Marks incident nets that have to be removed from vertex u after an uncontraction (u,v)
-  ThreadLocalBitset _removable_incident_nets;
+  // ! Bitset to mark hyperedges, e.g. if want to flag shared incident nets of u and v
+  // ! if we contract both.
+  ThreadLocalBitset _he_bitset;
   // ! Single-pin and parallel nets are marked within that vector during the algorithm
   kahypar::ds::FastResetFlagArray<> _removable_single_pin_and_parallel_nets;
   // ! Number of graph edges with smaller ID than the access ID
