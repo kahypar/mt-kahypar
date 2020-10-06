@@ -22,6 +22,7 @@
 #include <atomic>
 
 #include "mt-kahypar/datastructures/incident_net_array.h"
+#include "mt-kahypar/parallel/atomic_wrapper.h"
 
 using ::testing::Test;
 
@@ -238,14 +239,7 @@ TEST(AIncidentNetArray, UncontractSeveralVertices4) {
   verifyIncidentNets(6, 4, incident_nets, { 2, 3 });
 }
 
-using OwnershipVector = parallel::scalable_vector<parallel::IntegralAtomicWrapper<bool>>;
-void acquireOwnership(const HypernodeID u, OwnershipVector& acquired_hns) {
-  bool expected = false;
-  bool desired = true;
-  while ( !acquired_hns[u].compare_exchange_strong(expected, desired) ) {
-    expected = false;
-  }
-}
+using OwnershipVector = parallel::scalable_vector<SpinLock>;
 
 template<typename F, typename K>
 void executeParallel(const F& f1, const K& f2) {
@@ -262,47 +256,47 @@ void executeParallel(const F& f1, const K& f2) {
 }
 
 TEST(AIncidentNetArray, ContractsParallel1) {
-  OwnershipVector acquired_hns(7, parallel::IntegralAtomicWrapper<bool>(false));
+  OwnershipVector acquired_hns(7);
   IncidentNetArray incident_nets(
     7, {{0, 2}, {0, 1, 3, 4}, {3, 4, 6}, {2, 5, 6}});
 
   executeParallel([&] {
     incident_nets.contract(0, 1, createFlagArray(4, { 1 }),
       [&](const HypernodeID u) {
-        acquireOwnership(u, acquired_hns);
+        acquired_hns[u].lock();
       }, [&](const HypernodeID u) {
-        acquired_hns[u] = false;
+        acquired_hns[u].unlock();
       });
   }, [&] {
-    incident_nets.contract(0, 5, createFlagArray(4, {})),
+    incident_nets.contract(0, 5, createFlagArray(4, {}),
       [&](const HypernodeID u) {
-        acquireOwnership(u, acquired_hns);
+        acquired_hns[u].lock();
       }, [&](const HypernodeID u) {
-        acquired_hns[u] = false;
-      };
+        acquired_hns[u].unlock();
+      });
   });
 
   verifyIncidentNets(0, 4, incident_nets, { 0, 1, 3 });
 }
 
 TEST(AIncidentNetArray, ContractsParallel2) {
-  OwnershipVector acquired_hns(7, parallel::IntegralAtomicWrapper<bool>(false));
+  OwnershipVector acquired_hns(7);
   IncidentNetArray incident_nets(
     7, {{0, 2}, {0, 1, 3, 4}, {3, 4, 6}, {2, 5, 6}});
 
   executeParallel([&] {
     incident_nets.contract(0, 1, createFlagArray(4, { 1 }),
       [&](const HypernodeID u) {
-        acquireOwnership(u, acquired_hns);
+        acquired_hns[u].lock();
       }, [&](const HypernodeID u) {
-        acquired_hns[u] = false;
+        acquired_hns[u].unlock();
       });
   }, [&] {
     incident_nets.contract(0, 6, createFlagArray(4, {}),
       [&](const HypernodeID u) {
-        acquireOwnership(u, acquired_hns);
+        acquired_hns[u].lock();
       }, [&](const HypernodeID u) {
-        acquired_hns[u] = false;
+        acquired_hns[u].unlock();
       });
   });
 
@@ -310,7 +304,7 @@ TEST(AIncidentNetArray, ContractsParallel2) {
 }
 
 TEST(AIncidentNetArray, UnontractsParallel1) {
-  OwnershipVector acquired_hns(7, parallel::IntegralAtomicWrapper<bool>(false));
+  OwnershipVector acquired_hns(7);
   IncidentNetArray incident_nets(
     7, {{0, 2}, {0, 1, 3, 4}, {3, 4, 6}, {2, 5, 6}});
   incident_nets.contract(0, 1, createFlagArray(4, { 1 }));
@@ -319,16 +313,16 @@ TEST(AIncidentNetArray, UnontractsParallel1) {
   executeParallel([&] {
     incident_nets.uncontract(0, 1,
       [&](const HypernodeID u) {
-        acquireOwnership(u, acquired_hns);
+        acquired_hns[u].lock();
       }, [&](const HypernodeID u) {
-        acquired_hns[u] = false;
+        acquired_hns[u].unlock();
       });
   }, [&] {
     incident_nets.uncontract(0, 5,
       [&](const HypernodeID u) {
-        acquireOwnership(u, acquired_hns);
+        acquired_hns[u].lock();
       }, [&](const HypernodeID u) {
-        acquired_hns[u] = false;
+        acquired_hns[u].unlock();
       });
   });
 
@@ -338,7 +332,7 @@ TEST(AIncidentNetArray, UnontractsParallel1) {
 }
 
 TEST(AIncidentNetArray, UnontractsParallel2) {
-  OwnershipVector acquired_hns(7, parallel::IntegralAtomicWrapper<bool>(false));
+  OwnershipVector acquired_hns(7);
   IncidentNetArray incident_nets(
     7, {{0, 2}, {0, 1, 3, 4}, {3, 4, 6}, {2, 5, 6}});
   incident_nets.contract(0, 1, createFlagArray(4, { 1 }));
@@ -347,16 +341,16 @@ TEST(AIncidentNetArray, UnontractsParallel2) {
   executeParallel([&] {
     incident_nets.uncontract(0, 1,
       [&](const HypernodeID u) {
-        acquireOwnership(u, acquired_hns);
+        acquired_hns[u].lock();
       }, [&](const HypernodeID u) {
-        acquired_hns[u] = false;
+        acquired_hns[u].unlock();
       });
   }, [&] {
     incident_nets.uncontract(0, 6,
       [&](const HypernodeID u) {
-        acquireOwnership(u, acquired_hns);
+        acquired_hns[u].lock();
       }, [&](const HypernodeID u) {
-        acquired_hns[u] = false;
+        acquired_hns[u].unlock();
       });
   });
 
