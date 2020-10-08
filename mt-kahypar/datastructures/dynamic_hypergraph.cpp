@@ -657,7 +657,8 @@ DynamicHypergraph::ContractionResult DynamicHypergraph::contract(const Hypernode
   //  1.) Contraction partner v is enabled
   //  2.) There are no pending contractions on v
   //  4.) Resulting node weight is less or equal than a predefined upper bound
-  const bool contraction_partner_valid = nodeIsEnabled(v) && _contraction_tree.pendingContractions(v) == 0;
+  const bool contraction_partner_valid =
+    nodeIsEnabled(v) && _contraction_tree.pendingContractions(v) == 0;
   const bool less_or_equal_than_max_node_weight =
     hypernode(u).weight() + hypernode(v).weight() <= max_node_weight;
   if ( contraction_partner_valid && less_or_equal_than_max_node_weight ) {
@@ -706,7 +707,8 @@ DynamicHypergraph::ContractionResult DynamicHypergraph::contract(const Hypernode
     return ContractionResult::CONTRACTED;
   } else {
     ContractionResult res = ContractionResult::PENDING_CONTRACTIONS;
-    if ( !less_or_equal_than_max_node_weight && nodeIsEnabled(v) ) {
+    if ( !less_or_equal_than_max_node_weight && nodeIsEnabled(v) &&
+         _contraction_tree.parent(v) == u ) {
       _contraction_tree.unregisterContraction(u, v,
         kInvalidHypernode, kInvalidHypernode, true /* failed */);
       res = ContractionResult::WEIGHT_LIMIT_REACHED;
