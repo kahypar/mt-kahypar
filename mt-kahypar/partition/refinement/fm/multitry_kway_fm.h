@@ -55,11 +55,15 @@ public:
     }
   }
 
-  bool refineImpl(PartitionedHypergraph& phg, const Batch& batch, kahypar::Metrics& metrics, double time_limit) final ;
+  bool refineImpl(PartitionedHypergraph& phg,
+                  const parallel::scalable_vector<HypernodeID>& refinement_nodes,
+                  kahypar::Metrics& metrics,
+                  double time_limit) final ;
 
   void initializeImpl(PartitionedHypergraph& phg) final ;
 
-  void roundInitialization(PartitionedHypergraph& phg, const Batch& batch);
+  void roundInitialization(PartitionedHypergraph& phg,
+                           const parallel::scalable_vector<HypernodeID>& refinement_nodes);
 
 
   LocalizedKWayFM<FMStrategy> constructLocalizedKWayFMSearch() {

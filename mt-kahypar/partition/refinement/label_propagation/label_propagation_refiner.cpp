@@ -33,39 +33,38 @@ namespace mt_kahypar {
   template <template <typename> class GainPolicy>
   bool LabelPropagationRefiner<GainPolicy>::refineImpl(
                   PartitionedHypergraph& hypergraph,
-                  const Batch& refinement_nodes,
+                  const parallel::scalable_vector<HypernodeID>& refinement_nodes,
                   kahypar::Metrics& best_metrics,
                   const double)  {
-          _gain.reset();
-          _next_active.reset();
+    _gain.reset();
+    _next_active.reset();
 
+    // Initialize set of active vertices
+    initializeActiveNodes(hypergraph, refinement_nodes);
 
-          // Initialize set of active vertices
-          initializeActiveNodes(hypergraph, refinement_nodes);
+    // Perform Label Propagation
+    labelPropagation(hypergraph);
 
-          // Perform Label Propagation
-          labelPropagation(hypergraph);
+    // Update global part weight and sizes
+    best_metrics.imbalance = metrics::imbalance(hypergraph, _context);
 
-          // Update global part weight and sizes
-          best_metrics.imbalance = metrics::imbalance(hypergraph, _context);
+    // Update metrics statistics
+    HyperedgeWeight current_metric = best_metrics.getMetric(
+    kahypar::Mode::direct_kway, _context.partition.objective);
+    Gain delta = _gain.delta();
+    ASSERT(delta <= 0, "LP refiner worsen solution quality");
 
-          // Update metrics statistics
-          HyperedgeWeight current_metric = best_metrics.getMetric(
-          kahypar::Mode::direct_kway, _context.partition.objective);
-          Gain delta = _gain.delta();
-          ASSERT(delta <= 0, "LP refiner worsen solution quality");
+    HEAVY_REFINEMENT_ASSERT(hypergraph.checkTrackedPartitionInformation());
+    HEAVY_REFINEMENT_ASSERT(current_metric + delta ==
+                            metrics::objective(hypergraph, _context.partition.objective,
+                                                !_context.refinement.label_propagation.execute_sequential),
+                            V(current_metric) << V(delta) <<
+                                              V(metrics::objective(hypergraph, _context.partition.objective,
+                                                                    _context.refinement.label_propagation.execute_sequential)));
 
-          HEAVY_REFINEMENT_ASSERT(hypergraph.checkTrackedPartitionInformation());
-          HEAVY_REFINEMENT_ASSERT(current_metric + delta ==
-                                  metrics::objective(hypergraph, _context.partition.objective,
-                                                     !_context.refinement.label_propagation.execute_sequential),
-                                  V(current_metric) << V(delta) <<
-                                                    V(metrics::objective(hypergraph, _context.partition.objective,
-                                                                         _context.refinement.label_propagation.execute_sequential)));
-
-          best_metrics.updateMetric(current_metric + delta, kahypar::Mode::direct_kway, _context.partition.objective);
-          utils::Stats::instance().update_stat("lp_improvement", std::abs(delta));
-          return delta < 0;
+    best_metrics.updateMetric(current_metric + delta, kahypar::Mode::direct_kway, _context.partition.objective);
+    utils::Stats::instance().update_stat("lp_improvement", std::abs(delta));
+    return delta < 0;
   }
 
 
@@ -194,13 +193,12 @@ namespace mt_kahypar {
   template <template <typename> class GainPolicy>
   void LabelPropagationRefiner<GainPolicy>::initializeActiveNodes(
                               PartitionedHypergraph& hypergraph,
-                              const Batch& refinement_nodes) {
+                              const parallel::scalable_vector<HypernodeID>& refinement_nodes) {
     ActiveNodes tmp_active_nodes;
     _active_nodes = std::move(tmp_active_nodes);
 
-    if ( _context.refinement.label_propagation.execute_sequential ) {
-      // Setup active nodes sequential
-      if ( refinement_nodes.empty() ) {
+    if ( refinement_nodes.empty() ) {
+      if ( _context.refinement.label_propagation.execute_sequential ) {
         for ( const HypernodeID hn : hypergraph.nodes() ) {
           if ( _context.refinement.label_propagation.rebalancing ||
                hypergraph.isBorderNode(hn) ) {
@@ -208,57 +206,31 @@ namespace mt_kahypar {
           }
         }
       } else {
-        for ( const Memento& memento : refinement_nodes ) {
-          if ( ( _context.refinement.label_propagation.rebalancing ||
-                 hypergraph.isBorderNode(memento.u) ) &&
-               _next_active.compare_and_set_to_true(memento.u) ) {
-            _active_nodes.push_back(memento.u);
-          }
-          if ( ( _context.refinement.label_propagation.rebalancing ||
-                 hypergraph.isBorderNode(memento.v) ) &&
-               _next_active.compare_and_set_to_true(memento.v) ) {
-            _active_nodes.push_back(memento.v);
-          }
-        }
-      }
-    } else {
-      // Setup active nodes in parallel
-      // A node is active, if it is a border vertex.
-      NextActiveNodes tmp_active_nodes;
+        // Setup active nodes in parallel
+        // A node is active, if it is a border vertex.
+        NextActiveNodes tmp_active_nodes;
 
-      auto add_vertex = [&](const HypernodeID& hn) {
-        if ( _next_active.compare_and_set_to_true(hn) ) {
-          tmp_active_nodes.stream(hn);
-        }
-      };
+        auto add_vertex = [&](const HypernodeID& hn) {
+          if ( _next_active.compare_and_set_to_true(hn) ) {
+            tmp_active_nodes.stream(hn);
+          }
+        };
 
-      if ( refinement_nodes.empty() ) {
         hypergraph.doParallelForAllNodes([&](const HypernodeID& hn) {
           if ( _context.refinement.label_propagation.rebalancing ||
                hypergraph.isBorderNode(hn) ) {
             add_vertex(hn);
           }
         });
-      } else {
-        tbb::parallel_for(0UL, refinement_nodes.size(), [&](const size_t i) {
-          const Memento& memento = refinement_nodes[i];
-          if ( _context.refinement.label_propagation.rebalancing ||
-               hypergraph.isBorderNode(memento.u) ) {
-            add_vertex(memento.u);
-          }
-          if ( _context.refinement.label_propagation.rebalancing ||
-               hypergraph.isBorderNode(memento.v) ) {
-            add_vertex(memento.v);
-          }
-        });
-      }
 
-      _active_nodes = tmp_active_nodes.copy_parallel();
+        _active_nodes = tmp_active_nodes.copy_parallel();
+      }
+    } else {
+      _active_nodes = refinement_nodes;
     }
+
     _next_active.reset();
   }
-
-
 
   // explicitly instantiate so the compiler can generate them when compiling this cpp file
   template class LabelPropagationRefiner<Km1Policy>;

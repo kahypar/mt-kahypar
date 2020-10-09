@@ -134,13 +134,13 @@ class MultiTryFMTest : public ::testing::TestWithParam<PartitionID> {
     ASSERT_DOUBLE_EQ(metrics::imbalance(this->partitioned_hypergraph, this->context), this->metrics.imbalance);
   }
 
-  TEST_P(MultiTryFMTest, WorksWithBatches) {
-    Batch batch;
-    for (HypernodeID u = 0; u < this->partitioned_hypergraph.initialNumNodes(); u += 2) {
-      batch.push_back({ u, u+1 });
+  TEST_P(MultiTryFMTest, WorksWithRefinementNodes) {
+    parallel::scalable_vector<HypernodeID> refinement_nodes;
+    for (HypernodeID u = 0; u < this->partitioned_hypergraph.initialNumNodes(); ++u) {
+      refinement_nodes.push_back(u);
     }
     HyperedgeWeight objective_before = metrics::objective(this->partitioned_hypergraph, this->context.partition.objective);
-    this->refiner->refine(this->partitioned_hypergraph, batch, this->metrics, std::numeric_limits<double>::max());
+    this->refiner->refine(this->partitioned_hypergraph, refinement_nodes, this->metrics, std::numeric_limits<double>::max());
     ASSERT_LE(this->metrics.getMetric(kahypar::Mode::direct_kway, this->context.partition.objective), objective_before);
     ASSERT_EQ(metrics::objective(this->partitioned_hypergraph, this->context.partition.objective),
               this->metrics.getMetric(kahypar::Mode::direct_kway, this->context.partition.objective));

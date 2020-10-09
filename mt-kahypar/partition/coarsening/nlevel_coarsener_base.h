@@ -105,7 +105,7 @@ class NLevelCoarsenerBase {
   kahypar::Metrics initialize(PartitionedHypergraph& current_hg);
 
   void localizedRefine(PartitionedHypergraph& partitioned_hypergraph,
-                       const Batch& batch,
+                       const parallel::scalable_vector<HypernodeID>& refinement_nodes,
                        std::unique_ptr<IRefiner>& label_propagation,
                        std::unique_ptr<IRefiner>& fm,
                        kahypar::Metrics& current_metrics,
