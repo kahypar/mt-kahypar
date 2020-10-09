@@ -2,6 +2,7 @@
 #include "mt-kahypar/partition/coarsening/nlevel_coarsener_base.h"
 
 #include "mt-kahypar/parallel/memory_pool.h"
+#include "mt-kahypar/datastructures/streaming_vector.h"
 #include "mt-kahypar/utils/progress_bar.h"
 #include "mt-kahypar/utils/stats.h"
 #include "mt-kahypar/utils/timer.h"
@@ -244,6 +245,16 @@ namespace mt_kahypar {
 
     size_t num_batches = 0;
     size_t total_batches_size = 0;
+    ds::StreamingVector<HypernodeID> tmp_refinement_nodes;
+    kahypar::ds::FastResetFlagArray<> border_vertices_of_batch(_phg.initialNumNodes());
+    auto do_localized_refinement = [&]() {
+      parallel::scalable_vector<HypernodeID> refinement_nodes = tmp_refinement_nodes.copy_parallel();
+      tmp_refinement_nodes.clear_parallel();
+      border_vertices_of_batch.reset();
+      localizedRefine(_phg, refinement_nodes, label_propagation,
+        fm, current_metrics, force_measure_timings);
+    };
+
     while ( !_hierarchy.empty() ) {
       BatchVector& batches = _hierarchy.back();
 
@@ -265,8 +276,25 @@ namespace mt_kahypar {
                 V(current_metrics.getMetric(kahypar::Mode::direct_kway, _context.partition.objective)) <<
                 V(metrics::objective(_phg, _context.partition.objective)));
 
-          // Perform refinement
-          localizedRefine(_phg, batch, label_propagation, fm, current_metrics, force_measure_timings);
+          utils::Timer::instance().start_timer("collect_border_vertices", "Collect Border Vertices", false, force_measure_timings);
+          tbb::parallel_for(0UL, batch.size(), [&](const size_t i) {
+            const Memento& memento = batch[i];
+            if ( !border_vertices_of_batch[memento.u] && _phg.isBorderNode(memento.u) ) {
+              border_vertices_of_batch.set(memento.u, true);
+              tmp_refinement_nodes.stream(memento.u);
+            }
+            if ( !border_vertices_of_batch[memento.v] && _phg.isBorderNode(memento.v) ) {
+              border_vertices_of_batch.set(memento.v, true);
+              tmp_refinement_nodes.stream(memento.v);
+            }
+          });
+          utils::Timer::instance().stop_timer("collect_border_vertices", force_measure_timings);
+
+          if ( tmp_refinement_nodes.size() >= _context.refinement.max_batch_size ) {
+            // Perform localized refinement if we uncontract more
+            // than max batch size border vertices
+            do_localized_refinement();
+          }
 
           ++num_batches;
           total_batches_size += batch.size();
@@ -276,6 +304,11 @@ namespace mt_kahypar {
           uncontraction_progress += batch.size();
         }
         batches.pop_back();
+      }
+
+      if ( tmp_refinement_nodes.size() > 0 ) {
+        // Perform localized refinement on remaining border vertices
+        do_localized_refinement();
       }
 
       // Restore single-pin and parallel nets to continue with the next vector of batches
@@ -379,7 +412,7 @@ namespace mt_kahypar {
           << ", imbalance = " << current_metrics.imbalance;
     }
 
-    Batch empty_dummy_batch;
+    parallel::scalable_vector<HypernodeID> dummy;
     bool improvement_found = true;
     while( improvement_found ) {
       improvement_found = false;
@@ -390,7 +423,7 @@ namespace mt_kahypar {
         utils::Timer::instance().stop_timer("initialize_lp_refiner");
 
         utils::Timer::instance().start_timer("label_propagation", "Label Propagation");
-        improvement_found |= label_propagation->refine(partitioned_hypergraph, empty_dummy_batch, current_metrics, time_limit);
+        improvement_found |= label_propagation->refine(partitioned_hypergraph, dummy, current_metrics, time_limit);
         utils::Timer::instance().stop_timer("label_propagation");
       }
 
@@ -400,7 +433,7 @@ namespace mt_kahypar {
         utils::Timer::instance().stop_timer("initialize_fm_refiner");
 
         utils::Timer::instance().start_timer("fm", "FM");
-        improvement_found |= fm->refine(partitioned_hypergraph, empty_dummy_batch, current_metrics, time_limit);
+        improvement_found |= fm->refine(partitioned_hypergraph, dummy, current_metrics, time_limit);
         utils::Timer::instance().stop_timer("fm");
       }
 
@@ -422,7 +455,7 @@ namespace mt_kahypar {
   }
 
   void NLevelCoarsenerBase::localizedRefine(PartitionedHypergraph& partitioned_hypergraph,
-                                            const Batch& batch,
+                                            const parallel::scalable_vector<HypernodeID>& refinement_nodes,
                                             std::unique_ptr<IRefiner>& label_propagation,
                                             std::unique_ptr<IRefiner>& fm,
                                             kahypar::Metrics& current_metrics,
@@ -440,14 +473,16 @@ namespace mt_kahypar {
       if ( label_propagation &&
            _context.refinement.label_propagation.algorithm != LabelPropagationAlgorithm::do_nothing ) {
         utils::Timer::instance().start_timer("label_propagation", "Label Propagation", false, force_measure_timings);
-        improvement_found |= label_propagation->refine(partitioned_hypergraph, batch, current_metrics, std::numeric_limits<double>::max());
+        improvement_found |= label_propagation->refine(partitioned_hypergraph,
+          refinement_nodes, current_metrics, std::numeric_limits<double>::max());
         utils::Timer::instance().stop_timer("label_propagation", force_measure_timings);
       }
 
       if ( fm &&
            _context.refinement.fm.algorithm != FMAlgorithm::do_nothing ) {
         utils::Timer::instance().start_timer("fm", "FM", false, force_measure_timings);
-        improvement_found |= fm->refine(partitioned_hypergraph, batch, current_metrics, std::numeric_limits<double>::max());
+        improvement_found |= fm->refine(partitioned_hypergraph,
+          refinement_nodes, current_metrics, std::numeric_limits<double>::max());
         utils::Timer::instance().stop_timer("fm", force_measure_timings);
       }
 

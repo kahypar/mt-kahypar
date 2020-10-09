@@ -29,7 +29,7 @@ namespace mt_kahypar {
   template<typename FMStrategy>
   bool MultiTryKWayFM<FMStrategy>::refineImpl(
               PartitionedHypergraph& phg,
-              const Batch& batch,
+              const parallel::scalable_vector<HypernodeID>& refinement_nodes,
               kahypar::Metrics& metrics,
               const double time_limit) {
 
@@ -48,7 +48,7 @@ namespace mt_kahypar {
     for (size_t round = 0; round < context.refinement.fm.multitry_rounds; ++round) { // global multi try rounds
       timer.start_timer("collect_border_nodes", "Collect Border Nodes");
 
-      roundInitialization(phg, batch);
+      roundInitialization(phg, refinement_nodes);
       size_t numBorderNodes = sharedData.refinementNodes.unsafe_size(); unused(numBorderNodes);
 
       timer.stop_timer("collect_border_nodes");
@@ -135,11 +135,12 @@ namespace mt_kahypar {
   }
 
   template<typename FMStrategy>
-  void MultiTryKWayFM<FMStrategy>::roundInitialization(PartitionedHypergraph& phg, const Batch& batch) {
+  void MultiTryKWayFM<FMStrategy>::roundInitialization(PartitionedHypergraph& phg,
+                                                       const parallel::scalable_vector<HypernodeID>& refinement_nodes) {
     // clear border nodes
     sharedData.refinementNodes.clear();
 
-    if ( batch.empty() ) {
+    if ( refinement_nodes.empty() ) {
       // log(n) level case
       // iterate over all nodes and insert border nodes into task queue
       tbb::parallel_for(tbb::blocked_range<HypernodeID>(0, phg.initialNumNodes()),
@@ -154,16 +155,12 @@ namespace mt_kahypar {
         });
     } else {
       // n-level case
-      tbb::parallel_for(0UL, batch.size(), [&](const size_t i) {
-        const HypernodeID u = batch[i].u;
-        const HypernodeID v = batch[i].v;
+      tbb::parallel_for(0UL, refinement_nodes.size(), [&](const size_t i) {
+        const HypernodeID u = refinement_nodes[i];
         const int task_id = tbb::this_task_arena::current_thread_index();
         ASSERT(task_id >= 0 && task_id < TBBNumaArena::instance().total_number_of_threads());
-        if (phg.nodeIsEnabled(u) && phg.isBorderNode(u)) {
+        if (phg.nodeIsEnabled(u)) {
           sharedData.refinementNodes.safe_push(u, task_id);
-        }
-        if (phg.nodeIsEnabled(v) && phg.isBorderNode(v)) {
-          sharedData.refinementNodes.safe_push(v, task_id);
         }
       });
     }
