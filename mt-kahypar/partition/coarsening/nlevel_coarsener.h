@@ -24,6 +24,7 @@
 
 #include "tbb/parallel_for.h"
 #include "tbb/parallel_sort.h"
+#include "tbb/parallel_scan.h"
 
 #include "kahypar/meta/mandatory.h"
 
@@ -65,10 +66,26 @@ class NLevelCoarsener : public ICoarsener,
                   const bool top_level) :
     Base(hypergraph, context, task_group_id, top_level),
     _rater(hypergraph, context),
+    _current_vertices(),
+    _tmp_current_vertices(),
+    _enabled_vertex_flag_array(),
     _max_allowed_node_weight(context.coarsening.max_allowed_node_weight),
     _progress_bar(hypergraph.initialNumNodes(), 0, false),
     _enable_randomization(true) {
     _progress_bar += hypergraph.numRemovedHypernodes();
+    tbb::parallel_invoke([&] {
+      utils::Timer::instance().start_timer("random_shuffle", "Random Shuffle", true);
+      _current_vertices.resize(hypergraph.initialNumNodes());
+      tbb::parallel_for(ID(0), hypergraph.initialNumNodes(), [&](const HypernodeID hn) {
+        _current_vertices[hn] = hn;
+      });
+      utils::Randomize::instance().parallelShuffleVector(_current_vertices, 0UL, _current_vertices.size());
+      utils::Timer::instance().stop_timer("random_shuffle");
+    }, [&] {
+      _tmp_current_vertices.resize(hypergraph.initialNumNodes());
+    }, [&] {
+      _enabled_vertex_flag_array.resize(hypergraph.initialNumNodes());
+    });
   }
 
   NLevelCoarsener(const NLevelCoarsener&) = delete;
@@ -92,29 +109,16 @@ class NLevelCoarsener : public ICoarsener,
     HypernodeID current_num_nodes = initial_num_nodes;
     tbb::enumerable_thread_specific<HypernodeID> contracted_nodes(0);
     tbb::enumerable_thread_specific<HypernodeID> num_nodes_update_threshold(0);
-    parallel::scalable_vector<HypernodeID> current_hns(current_num_nodes, kInvalidHypernode);
     int pass_nr = 0;
     while ( current_num_nodes > _context.coarsening.contraction_limit ) {
       DBG << V(pass_nr) << V(current_num_nodes);
 
       HighResClockTimepoint round_start = std::chrono::high_resolution_clock::now();
-      utils::Timer::instance().start_timer("random_shuffle", "Random Shuffle");
-      std::atomic<size_t> idx(0);
-      current_hns.resize(current_num_nodes);
-      _hg.doParallelForAllNodes([&](const HypernodeID hn) {
-        const size_t i = idx++;
-        ASSERT(i < current_hns.size());
-        current_hns[i] = hn;
-      });
-      ASSERT(idx == current_num_nodes);
-      utils::Randomize::instance().parallelShuffleVector(current_hns, 0UL, current_hns.size());
-      utils::Timer::instance().stop_timer("random_shuffle");
-
       utils::Timer::instance().start_timer("n_level_coarsening", "n-Level Coarsening");
       const HypernodeID num_hns_before_pass = current_num_nodes;
       _rater.resetMatches();
-      tbb::parallel_for(0UL, current_hns.size(), [&](const size_t i) {
-        const HypernodeID hn = current_hns[i];
+      tbb::parallel_for(0UL, _current_vertices.size(), [&](const size_t i) {
+        const HypernodeID hn = _current_vertices[i];
         if ( current_num_nodes > _context.coarsening.contraction_limit && _hg.nodeIsEnabled(hn) ) {
           const Rating rating = _rater.rate(_hg, hn, _max_allowed_node_weight);
           if ( rating.target != kInvalidHypernode ) {
@@ -163,10 +167,20 @@ class NLevelCoarsener : public ICoarsener,
       });
       utils::Timer::instance().stop_timer("n_level_coarsening");
 
-      // Remove single-pin and parallel nets
-      Base::removeSinglePinAndParallelNets(round_start);
       current_num_nodes = initial_num_nodes -
         contracted_nodes.combine(std::plus<HypernodeID>());
+
+      // Writes all enabled vertices to _current_vertices
+      utils::Timer::instance().start_timer("compactify_vertex_ids", "Compactify Vertex IDs");
+      compactifyVertices(current_num_nodes);
+      utils::Timer::instance().stop_timer("compactify_vertex_ids");
+
+      utils::Timer::instance().start_timer("random_shuffle", "Random Shuffle");
+      utils::Randomize::instance().parallelShuffleVector(_current_vertices, 0UL, _current_vertices.size());
+      utils::Timer::instance().stop_timer("random_shuffle");
+
+      // Remove single-pin and parallel nets
+      Base::removeSinglePinAndParallelNets(round_start);
 
       HEAVY_COARSENING_ASSERT(_hg.verifyIncidenceArrayAndIncidentNets());
 
@@ -200,8 +214,46 @@ class NLevelCoarsener : public ICoarsener,
     return Base::doUncoarsen(label_propagation, fm);
   }
 
+  void compactifyVertices(const HypernodeID current_num_nodes) {
+    // Mark all vertices that are still enabled
+    utils::Timer::instance().start_timer("mark_enabled_vertices", "Mark Enabled Vertices");
+    tbb::parallel_for(0UL, _current_vertices.size(), [&](const size_t i) {
+      const HypernodeID hn = _current_vertices[i];
+      _enabled_vertex_flag_array[i] = _hg.nodeIsEnabled(hn);
+    });
+    utils::Timer::instance().stop_timer("mark_enabled_vertices");
+
+    // Calculate prefix sum over all enabled vertices to determine their new position
+    // in _current_vertices
+    utils::Timer::instance().start_timer("active_vertex_prefix_sum", "Active Vertex Prefix Sum");
+    parallel::TBBPrefixSum<size_t> active_vertex_prefix_sum(_enabled_vertex_flag_array);
+    tbb::parallel_scan(tbb::blocked_range<size_t>(
+      0UL, _enabled_vertex_flag_array.size()), active_vertex_prefix_sum);
+    ASSERT(active_vertex_prefix_sum.total_sum() == static_cast<size_t>(current_num_nodes));
+    utils::Timer::instance().stop_timer("active_vertex_prefix_sum");
+
+    // Write all enabled vertices to _tmp_current_vertices
+    utils::Timer::instance().start_timer("remove_disabled_vertices", "Remove Disabled Vertices");
+    _tmp_current_vertices.resize(current_num_nodes);
+    tbb::parallel_for(0UL, _current_vertices.size(), [&](const size_t i) {
+      const HypernodeID hn = _current_vertices[i];
+      if ( _hg.nodeIsEnabled(hn) ) {
+        const size_t pos = active_vertex_prefix_sum[i];
+        ASSERT(pos < _tmp_current_vertices.size());
+        _tmp_current_vertices[pos] = hn;
+      }
+    });
+    _current_vertices.swap(_tmp_current_vertices);
+    _enabled_vertex_flag_array.resize(current_num_nodes);
+    ASSERT(_current_vertices.size() == static_cast<size_t>(current_num_nodes));
+    utils::Timer::instance().stop_timer("remove_disabled_vertices");
+  }
+
   using Base::_hg;
   Rater _rater;
+  parallel::scalable_vector<HypernodeID> _current_vertices;
+  parallel::scalable_vector<HypernodeID> _tmp_current_vertices;
+  parallel::scalable_vector<size_t> _enabled_vertex_flag_array;
   HypernodeWeight _max_allowed_node_weight;
   utils::ProgressBar _progress_bar;
   bool _enable_randomization;
