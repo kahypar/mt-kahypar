@@ -245,6 +245,8 @@ namespace mt_kahypar {
 
     size_t num_batches = 0;
     size_t total_batches_size = 0;
+    const size_t minimum_required_number_of_border_vertices = std::max(_context.refinement.max_batch_size,
+      _context.shared_memory.num_threads * _context.refinement.min_border_vertices_per_thread);
     ds::StreamingVector<HypernodeID> tmp_refinement_nodes;
     kahypar::ds::FastResetFlagArray<> border_vertices_of_batch(_phg.initialNumNodes());
     auto do_localized_refinement = [&]() {
@@ -290,9 +292,9 @@ namespace mt_kahypar {
           });
           utils::Timer::instance().stop_timer("collect_border_vertices", force_measure_timings);
 
-          if ( tmp_refinement_nodes.size() >= _context.refinement.max_batch_size ) {
+          if ( tmp_refinement_nodes.size() >= minimum_required_number_of_border_vertices ) {
             // Perform localized refinement if we uncontract more
-            // than max batch size border vertices
+            // than the minimum required number of border vertices
             do_localized_refinement();
           }
 

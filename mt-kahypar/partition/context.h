@@ -155,6 +155,7 @@ struct RefinementParameters {
   NLevelGlobalFMParameters global_fm;
   bool refine_until_no_improvement = false;
   size_t max_batch_size = std::numeric_limits<size_t>::max();
+  size_t min_border_vertices_per_thread = 0;
 };
 
 std::ostream & operator<< (std::ostream& str, const RefinementParameters& params);

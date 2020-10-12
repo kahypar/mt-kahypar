@@ -137,6 +137,7 @@ namespace mt_kahypar {
     str << "  Refine Until No Improvement:        " << std::boolalpha << params.refine_until_no_improvement << std::endl;
 #ifdef KAHYPAR_USE_N_LEVEL_PARADIGM
     str << "  Maximum Batch Size:                 " << params.max_batch_size << std::endl;
+    str << "  Min Border Vertices Per Thread:     " << params.min_border_vertices_per_thread << std::endl;
 #endif
     str << "\n" << params.label_propagation;
     str << "\n" << params.fm;

@@ -235,6 +235,10 @@ namespace mt_kahypar {
              po::value<size_t>((!initial_partitioning ? &context.refinement.max_batch_size :
                                 &context.initial_partitioning.refinement.max_batch_size))->value_name("<size_t>")->default_value(1000),
              "Maximum size of an uncontraction batch.")
+            (( initial_partitioning ? "i-r-min-border-vertices-per-thread" : "r-min-border-vertices-per-thread"),
+             po::value<size_t>((!initial_partitioning ? &context.refinement.min_border_vertices_per_thread :
+                                &context.initial_partitioning.refinement.min_border_vertices_per_thread))->value_name("<size_t>")->default_value(0),
+             "Minimum number of border vertices per thread with which we perform a localized search.")
             ((initial_partitioning ? "i-r-lp-type" : "r-lp-type"),
              po::value<std::string>()->value_name("<string>")->notifier(
                      [&, initial_partitioning](const std::string& type) {
