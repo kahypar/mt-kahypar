@@ -87,13 +87,14 @@ namespace mt_kahypar {
                                ds::ConnectivitySets::num_elements(num_hyperedges, context.partition.k),
                                sizeof(ds::ConnectivitySets::UnsafeBlock));
     pool.register_memory_chunk("Refinement", "move_to_penalty",
-                               static_cast<size_t>(num_hypernodes) * context.partition.k, sizeof(CAtomic<HyperedgeWeight>));
+                               static_cast<size_t>(num_hypernodes) * ( context.partition.k + 1 ), sizeof(CAtomic<HyperedgeWeight>));
     pool.register_memory_chunk("Refinement", "move_from_penalty",
                                num_hypernodes, sizeof(CAtomic<HyperedgeWeight>));
     pool.register_memory_chunk("Refinement", "pin_count_update_ownership",
                                num_hyperedges, sizeof(SpinLock));
 
-    if ( context.refinement.fm.algorithm != FMAlgorithm::do_nothing && context.refinement.fm.revert_parallel ) {
+    if ( context.refinement.fm.algorithm != FMAlgorithm::do_nothing &&
+         context.refinement.fm.revert_parallel ) {
       pool.register_memory_chunk("Refinement", "remaining_original_pins",
                                  static_cast<size_t>(hypergraph.numNonGraphEdges()) * context.partition.k, sizeof(CAtomic<HypernodeID>));
       pool.register_memory_chunk("Refinement", "first_move_in",
