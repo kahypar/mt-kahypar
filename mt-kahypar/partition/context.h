@@ -199,6 +199,7 @@ struct SharedMemoryParameters {
   size_t num_threads = 1;
   bool use_localized_random_shuffle = false;
   size_t shuffle_block_size = 2;
+  double degree_of_parallelism = 1.0;
 };
 
 std::ostream & operator<< (std::ostream& str, const SharedMemoryParameters& params);

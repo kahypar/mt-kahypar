@@ -37,6 +37,7 @@ class MultiTryKWayFM final : public IRefiner {
   static constexpr bool debug = false;
   static constexpr bool enable_heavy_assert = false;
 
+
 public:
 
   MultiTryKWayFM(const Hypergraph& hypergraph,
@@ -87,6 +88,7 @@ public:
   FMSharedData sharedData;
   GlobalRollback globalRollback;
   tbb::enumerable_thread_specific<LocalizedKWayFM<FMStrategy>> ets_fm;
+  tbb::task_group tg;
 };
 
 } // namespace mt_kahypar

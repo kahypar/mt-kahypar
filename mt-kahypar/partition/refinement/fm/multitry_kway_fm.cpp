@@ -42,6 +42,9 @@ namespace mt_kahypar {
     sharedData.perform_moves_global = context.refinement.fm.perform_moves_global;
     double current_time_limit = time_limit;
 
+    size_t num_tasks_from_recursion = 4*context.shared_memory.num_threads*context.shared_memory.degree_of_parallelism;
+    size_t desired_num_tasks = std::max(context.shared_memory.num_threads, num_tasks_from_recursion);
+
     HighResClockTimepoint fm_start = std::chrono::high_resolution_clock::now();
     utils::Timer& timer = utils::Timer::instance();
 
@@ -49,7 +52,12 @@ namespace mt_kahypar {
       timer.start_timer("collect_border_nodes", "Collect Border Nodes");
 
       roundInitialization(phg, refinement_nodes);
-      size_t numBorderNodes = sharedData.refinementNodes.unsafe_size(); unused(numBorderNodes);
+      size_t num_border_nodes = sharedData.refinementNodes.unsafe_size(); unused(num_border_nodes);
+      size_t num_seeds = context.refinement.fm.num_seed_nodes;
+      if (num_border_nodes < 4 * desired_num_tasks) {
+        // TODO maybe a smoother transition?
+        num_seeds = 1;
+      }
 
       timer.stop_timer("collect_border_nodes");
       timer.start_timer("find_moves", "Find Moves");
@@ -59,13 +67,18 @@ namespace mt_kahypar {
 
 
       sharedData.finishedTasks.store(0, std::memory_order_relaxed);
-      auto task = [&](const int , const int task_id, const int ) {
+      auto task = [&](const size_t task_id) {
         auto& fm = ets_fm.local();
         while(sharedData.finishedTasks.load(std::memory_order_relaxed) < sharedData.finishedTasksLimit
-              && fm.findMoves(phg, static_cast<size_t>(task_id)) ) { /* keep running*/ }
+              && fm.findMoves(phg, task_id, num_seeds)) { /* keep running*/ }
         sharedData.finishedTasks.fetch_add(1, std::memory_order_relaxed);
       };
-      TBBNumaArena::instance().execute_task_on_each_thread(taskGroupID, task);
+
+      size_t num_tasks = std::min(num_border_nodes, desired_num_tasks);
+      for (size_t i = 0; i < num_tasks; ++i) {
+        tg.run(std::bind(task, i));
+      }
+      tg.wait();
 
       timer.stop_timer("find_moves");
       timer.start_timer("rollback", "Rollback to Best Solution");
@@ -91,7 +104,7 @@ namespace mt_kahypar {
           fm.stats.merge(stats);
         }
         LOG << V(round) << V(improvement) << V(metrics::km1(phg)) << V(metrics::imbalance(phg, context))
-            << V(numBorderNodes) << V(roundImprovementFraction) << V(elapsed_time) << V(current_time_limit)
+            << V(num_border_nodes) << V(roundImprovementFraction) << V(elapsed_time) << V(current_time_limit)
             << stats.serialize();
       }
 
@@ -159,7 +172,7 @@ namespace mt_kahypar {
         const HypernodeID u = refinement_nodes[i];
         const int task_id = tbb::this_task_arena::current_thread_index();
         ASSERT(task_id >= 0 && task_id < TBBNumaArena::instance().total_number_of_threads());
-        if (phg.nodeIsEnabled(u)) {
+        if (phg.nodeIsEnabled(u) && phg.isBorderNode(u)) {
           sharedData.refinementNodes.safe_push(u, task_id);
         }
       });
