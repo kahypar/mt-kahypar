@@ -53,7 +53,6 @@ DynamicHypergraph DynamicHypergraphFactory::construct(const TaskGroupID task_gro
     hypergraph._hes_to_resize_flag_array =
       ThreadSafeFastResetFlagArray<>(num_hyperedges);
   });
-  hypergraph._hn_bitset = ThreadLocalBitvector(num_hypernodes);
   hypergraph._he_bitset = ThreadLocalBitset(num_hyperedges);
 
   ASSERT(edge_vector.size() == num_hyperedges);

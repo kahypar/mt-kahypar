@@ -73,18 +73,6 @@ class DynamicHypergraph {
     bool valid = false;
   };
 
-  /*!
-   * During batch uncontraction it temporary stores that
-   * we must replace u with v in hyperedge he.
-   */
-  struct UncontractionPinReplacement {
-    HyperedgeID he;
-    HypernodeID u;
-    HypernodeID v;
-    size_t edge_size;
-  };
-
-
   /**
    * Represents a hypernode of the hypergraph and contains all information
    * associated with a vertex.
@@ -417,7 +405,6 @@ class DynamicHypergraph {
     _contraction_tree(),
     _incident_nets(),
     _acquired_hns(),
-    _hn_bitset(),
     _hyperedges(),
     _incidence_array(),
     _acquired_hes(),
@@ -447,7 +434,6 @@ class DynamicHypergraph {
     _contraction_tree(std::move(other._contraction_tree)),
     _incident_nets(std::move(other._incident_nets)),
     _acquired_hns(std::move(other._acquired_hns)),
-    _hn_bitset(std::move(other._hn_bitset)),
     _hyperedges(std::move(other._hyperedges)),
     _incidence_array(std::move(other._incidence_array)),
     _acquired_hes(std::move(other._acquired_hes)),
@@ -474,7 +460,6 @@ class DynamicHypergraph {
     _contraction_tree = std::move(other._contraction_tree);
     _incident_nets = std::move(other._incident_nets);
     _acquired_hns = std::move(other._acquired_hns);
-    _hn_bitset = std::move(other._hn_bitset);
     _hyperedges = std::move(other._hyperedges);
     _incidence_array = std::move(other._incidence_array);
     _acquired_hes = std::move(other._acquired_hes);
@@ -1052,22 +1037,14 @@ class DynamicHypergraph {
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE void contractHyperedge(const HypernodeID u, const HypernodeID v, const HyperedgeID he,
                                                             kahypar::ds::FastResetFlagArray<>& shared_incident_nets_u_and_v);
 
-  // ! Replaces pin u with v in hyperedge he
-  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE void replaceSinglePinInHyperedge(const HypernodeID u,
-                                                                      const HypernodeID v,
-                                                                      const HyperedgeID he,
-                                                                      const size_t edge_size);
+  // ! Restore the size of the hyperedge to the size before the batch with
+  // ! index batch_index was contracted.
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE void restoreHyperedgeSizeForBatch(const HyperedgeID he,
+                                                                       const HypernodeID batch_index);
 
-  // ! Replaces multiple pins in hyperedge he.
-  // ! pins_to_replace stores all pins that should be replaced and
-  // ! replacement_start and replacement_end points to a range in pins_to_replace
-  // ! that contains all pins that should be replace within hyperedge he.
-  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE void replaceMultiplePinsInHyperedge(
-    const parallel::scalable_vector<UncontractionPinReplacement>& pins_to_replace,
-    const size_t replacement_start,
-    const size_t replacement_end,
-    const HyperedgeID he,
-    const size_t edge_size);
+  // ! Search for the position of pin u in hyperedge he in the incidence array
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE size_t findPositionOfPinInIncidenceArray(const HypernodeID u,
+                                                                              const HyperedgeID he);
 
   /**
    * Computes a batch uncontraction hierarchy for a specific version of the hypergraph.
@@ -1137,8 +1114,6 @@ class DynamicHypergraph {
   IncidentNetArray _incident_nets;
   // ! Atomic bool vector used to acquire unique ownership of hypernodes
   OwnershipVector _acquired_hns;
-  // ! Vector of bool to flag vertices
-  ThreadLocalBitvector _hn_bitset;
 
 
   // ! Hyperedges

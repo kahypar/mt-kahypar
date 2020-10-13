@@ -218,28 +218,37 @@ void DynamicHypergraph::uncontract(const Batch& batch,
   }(), "Batch contains uncontractions from different batches or from a different hypergraph version");
 
   _hes_to_resize_flag_array.reset();
-  StreamingVector<HyperedgeID> hes_to_resize_tmp;
-  ConcurrentBucketMap<UncontractionPinReplacement> pins_to_replace_map;
   tbb::parallel_for(0UL, batch.size(), [&](const size_t i) {
     const Memento& memento = batch[i];
     ASSERT(!hypernode(memento.u).isDisabled(), "Hypernode" << memento.u << "is disabled");
     ASSERT(hypernode(memento.v).isDisabled(), "Hypernode" << memento.v << "is not invalid");
 
     // Restore incident net list of u and v
+    const HypernodeID batch_index = hypernode(batch[0].v).batchIndex();
     _incident_nets.uncontract(memento.u, memento.v,
       [&](const HyperedgeID e) {
-        // In that case, u and v were also previously part of hyperedge e
-        // and v must be part of the invalid part of hyperdge e
-        if ( _hes_to_resize_flag_array.compare_and_set_to_true(e) ) {
-          hes_to_resize_tmp.stream(e);
+        // In that case, u and v were both previously part of hyperedge e.
+        if ( !_hes_to_resize_flag_array[e] &&
+             _hes_to_resize_flag_array.compare_and_set_to_true(e) ) {
+          // This part is only triggered once for each hyperedge per batch uncontraction.
+          // It restores all pins that are part of the current batch as contraction partners
+          // in hyperedge e
+          restoreHyperedgeSizeForBatch(e, batch_index);
         }
-        // Call pin count and gain cache update function of partitioned hypergraph
+
+        acquireHyperedge(e);
         case_one_func(memento.u, memento.v, e);
+        releaseHyperedge(e);
       }, [&](const HyperedgeID e) {
         // In that case only v was part of hyperedge e before and
-        // we have to replace u with v in hyperedge e
-        pins_to_replace_map.insert(e,
-          UncontractionPinReplacement { e, memento.u, memento.v, edgeSize(e) });
+        // u must be replaced by v in hyperedge e
+        const size_t slot_of_u = findPositionOfPinInIncidenceArray(memento.u, e);
+
+        acquireHyperedge(e);
+        ASSERT(_incidence_array[slot_of_u] == memento.u);
+        _incidence_array[slot_of_u] = memento.v;
+        case_two_func(memento.u, memento.v, e);
+        releaseHyperedge(e);
       }, [&](const HypernodeID u) {
         acquireHypernode(u);
       }, [&](const HypernodeID u) {
@@ -252,86 +261,6 @@ void DynamicHypergraph::uncontract(const Batch& batch,
     hypernode(memento.v).enable();
     hypernode(memento.u).setWeight(hypernode(memento.u).weight() - hypernode(memento.v).weight());
     releaseHypernode(memento.u);
-  });
-
-  // All hyperedges which we have to resize are stored in hes_to_resize_tmp and
-  // all pin replacements are stored in pins_to_replace_map.
-  tbb::parallel_invoke([&] {
-    // We resize each hyperedge such that they contain
-    // all pins that belong to the current batch
-    const HypernodeID batch_index = hypernode(batch[0].v).batchIndex();
-    parallel::scalable_vector<HyperedgeID> hes_to_resize = hes_to_resize_tmp.copy_parallel();
-    tbb::parallel_for(0UL, hes_to_resize.size(), [&](const size_t i) {
-      const HyperedgeID he = hes_to_resize[i];
-      const size_t first_invalid_entry = hyperedge(he).firstInvalidEntry();
-      const size_t last_invalid_entry = hyperedge(he + 1).firstEntry();
-      const size_t edge_size = edgeSize(he);
-      ASSERT(hypernode(_incidence_array[first_invalid_entry]).batchIndex() == batch_index);
-      size_t pos = first_invalid_entry + 1;
-      for ( ; pos < last_invalid_entry; ++pos ) {
-        const HypernodeID pin = _incidence_array[pos];
-        ASSERT(hypernode(pin).batchIndex() <= batch_index, V(he));
-        if ( hypernode(pin).batchIndex() != batch_index ) {
-          break;
-        }
-      }
-      const size_t size_delta = pos - first_invalid_entry;
-      hyperedge(he).setSize(edge_size + size_delta);
-    });
-  }, [&] {
-    // Pin replacement within the hyperedges are distributed to different bucket in
-    // pins_to_replace_map. All pin replacements that belong to the same hyperedge
-    // are part of the same bucket. We process each bucket in parallel.
-    tbb::parallel_for(0UL, pins_to_replace_map.numBuckets(), [&](const size_t i) {
-      parallel::scalable_vector<UncontractionPinReplacement>& pins_to_replace =
-        pins_to_replace_map.getBucket(i);
-      // Sort Pin Replacement in bucket according to
-      //  1.) Edge Size (should minimize load imbalance issues)
-      //  2.) Hyperedge ID (all pin replacement of same hyperedge are processed at once)
-      //  3.) Hypernode ID (important for replacement logic)
-      std::sort(pins_to_replace.begin(), pins_to_replace.end(),
-        [&](const UncontractionPinReplacement& lhs, const UncontractionPinReplacement& rhs) {
-          return lhs.edge_size > rhs.edge_size ||
-            (lhs.edge_size == rhs.edge_size && lhs.he < rhs.he) ||
-            (lhs.edge_size == rhs.edge_size && lhs.he == rhs.he && lhs.u < rhs.u);
-        });
-
-      // Update gain cache in partitioned hypergraph for all pin replacements in parallel
-      tbb::parallel_for(0UL, pins_to_replace.size(), [&](const size_t j) {
-        const UncontractionPinReplacement& pin_replacement = pins_to_replace[j];
-        case_two_func(pin_replacement.u, pin_replacement.v, pin_replacement.he);
-      });
-
-      size_t start = 0;
-      while ( start < pins_to_replace.size() ) {
-        const HyperedgeID he = pins_to_replace[start].he;
-        size_t end = start + 1;
-        for ( ; end < pins_to_replace.size(); ++end ) {
-          if ( he != pins_to_replace[end].he ) {
-            break;
-          }
-        }
-
-        ASSERT(pins_to_replace[start].he == pins_to_replace[end - 1].he);
-        const size_t num_replacements = end - start;
-        if ( num_replacements == 1 ) {
-          // In case that we only have to replace a single pin within hyperedge he
-          // we just iterate over the pin list of hyperedge he and search for the
-          // corresponding pin
-          replaceSinglePinInHyperedge(
-            pins_to_replace[start].u, pins_to_replace[start].v,
-            pins_to_replace[start].he, pins_to_replace[start].edge_size);
-        } else {
-          // In case that we have to replace multiple pins within hyperedge he
-          // we call an optimized algorithm that replaces all pins with its
-          // contraction partners while iterating only once over all pins
-          // of hyperedge he.
-          replaceMultiplePinsInHyperedge(pins_to_replace, start, end,
-            pins_to_replace[start].he, pins_to_replace[start].edge_size);
-        }
-        start = end;
-      }
-    });
   });
 }
 
@@ -577,8 +506,6 @@ DynamicHypergraph DynamicHypergraph::copy(const TaskGroupID task_group_id) {
       tbb::parallel_for(ID(0), _num_hypernodes, [&](const HypernodeID& hn) {
         hypergraph._acquired_hns[hn] = _acquired_hns[hn];
       });
-    }, [&] {
-      hypergraph._hn_bitset = ThreadLocalBitvector(_num_hypernodes);
     });
   }, [&] {
     hypergraph._contraction_tree = _contraction_tree.copy(task_group_id);
@@ -636,7 +563,6 @@ DynamicHypergraph DynamicHypergraph::copy() {
   for ( HypernodeID hn = 0; hn < _num_hypernodes; ++hn ) {
     hypergraph._acquired_hns[hn] = _acquired_hns[hn];
   }
-  hypergraph._hn_bitset = ThreadLocalBitvector(_num_hypernodes);
   hypergraph._contraction_tree = _contraction_tree.copy();
   hypergraph._hyperedges.resize(_hyperedges.size());
   memcpy(hypergraph._hyperedges.data(), _hyperedges.data(),
@@ -847,14 +773,31 @@ void DynamicHypergraph::contractHyperedge(const HypernodeID u,
   }
 }
 
-// ! Replaces pin u with v in hyperedge he
-void DynamicHypergraph::replaceSinglePinInHyperedge(const HypernodeID u,
-                                                    const HypernodeID v,
-                                                    const HyperedgeID he,
-                                                    const size_t edge_size) {
-  ASSERT(edge_size <= edgeSize(he));
+// ! Restore the size of the hyperedge to the size before the batch with
+// ! index batch_index was contracted.
+void DynamicHypergraph::restoreHyperedgeSizeForBatch(const HyperedgeID he,
+                                                     const HypernodeID batch_index) {
+  const size_t first_invalid_entry = hyperedge(he).firstInvalidEntry();
+  const size_t last_invalid_entry = hyperedge(he + 1).firstEntry();
+  const size_t edge_size = edgeSize(he);
+  ASSERT(hypernode(_incidence_array[first_invalid_entry]).batchIndex() == batch_index);
+  size_t pos = first_invalid_entry + 1;
+  for ( ; pos < last_invalid_entry; ++pos ) {
+    const HypernodeID pin = _incidence_array[pos];
+    ASSERT(hypernode(pin).batchIndex() <= batch_index, V(he));
+    if ( hypernode(pin).batchIndex() != batch_index ) {
+      break;
+    }
+  }
+  const size_t size_delta = pos - first_invalid_entry;
+  hyperedge(he).setSize(edge_size + size_delta);
+}
+
+// ! Search for the position of pin u in hyperedge he in the incidence array
+size_t DynamicHypergraph::findPositionOfPinInIncidenceArray(const HypernodeID u,
+                                                            const HyperedgeID he) {
   const size_t first_valid_entry = hyperedge(he).firstEntry();
-  const size_t first_invalid_entry = first_valid_entry + edge_size;
+  const size_t first_invalid_entry = hyperedge(he).firstInvalidEntry();
   size_t slot_of_u = first_invalid_entry;
   for ( size_t pos = first_invalid_entry - 1; pos != first_valid_entry - 1; --pos ) {
     if ( u == _incidence_array[pos] ) {
@@ -865,73 +808,7 @@ void DynamicHypergraph::replaceSinglePinInHyperedge(const HypernodeID u,
 
   ASSERT(slot_of_u != first_invalid_entry,
     "Hypernode" << u << "is not incident to hyperedge" << he);
-  _incidence_array[slot_of_u] = v;
-}
-
-namespace {
-  // ! Stores the position of a pin within a hyperedge
-  struct PinPosition {
-    HypernodeID pin;
-    size_t pos;
-  };
-} // namespace
-
-// ! Replaces multiple pins in hyperedge he.
-// ! pins_to_replace stores all pins that should be replaced and
-// ! replacement_start and replacement_end points to a range in pins_to_replace
-// ! that contains all pins that should be replace within hyperedge he.
-void DynamicHypergraph::replaceMultiplePinsInHyperedge(
-  const parallel::scalable_vector<UncontractionPinReplacement>& pins_to_replace,
-  const size_t replacement_start,
-  const size_t replacement_end,
-  const HyperedgeID he,
-  const size_t edge_size) {
-  const size_t num_replacements = replacement_end - replacement_start;
-  ASSERT(replacement_start < replacement_end);
-  ASSERT(num_replacements > 1);
-  ASSERT(replacement_end <= pins_to_replace.size());
-  ASSERT(pins_to_replace[replacement_start].he == he);
-  ASSERT(pins_to_replace[replacement_end - 1].he == he);
-  ASSERT(edge_size <= edgeSize(he));
-
-  // Mark all pins that should be replaced in a bitset
-  parallel::scalable_vector<bool>& hn_bitset = _hn_bitset.local();
-  for ( size_t i = replacement_start; i < replacement_end; ++i ) {
-    const HypernodeID u = pins_to_replace[i].u;
-    ASSERT(!hn_bitset[u]);
-    hn_bitset[u] = true;
-  }
-
-  // Search for all pins marked in the bitset and store position
-  // in incidence array
-  parallel::scalable_vector<PinPosition> pin_positions;
-  const size_t first_valid_entry = hyperedge(he).firstEntry();
-  const size_t first_invalid_entry = first_valid_entry + edge_size;
-  for ( size_t pos = first_invalid_entry - 1; pos != first_valid_entry - 1; --pos ) {
-    const HypernodeID pin = _incidence_array[pos];
-    if ( hn_bitset[pin] ) {
-      pin_positions.push_back(PinPosition { pin, pos });
-      hn_bitset[pin] = false;
-      if ( pin_positions.size() == num_replacements ) {
-        break;
-      }
-    }
-  }
-
-  // Sort found pin positions according to their vertex id
-  // Pins in pins_to_replace are also sorted according to their vertex ids
-  ASSERT(pin_positions.size() == num_replacements);
-  std::sort(pin_positions.begin(), pin_positions.end(),
-    [&](const PinPosition& lhs, const PinPosition& rhs) {
-      return lhs.pin < rhs.pin;
-    });
-  // Replace all pins with their contraction partners
-  for ( size_t i = 0; i < pin_positions.size(); ++i ) {
-    ASSERT(pin_positions[i].pin == pins_to_replace[replacement_start + i].u);
-    const size_t pos = pin_positions[i].pos;
-    const HypernodeID replacement_pin = pins_to_replace[replacement_start + i].v;
-    _incidence_array[pos] = replacement_pin;
-  }
+  return slot_of_u;
 }
 
 /**
