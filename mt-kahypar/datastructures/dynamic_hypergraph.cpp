@@ -26,8 +26,8 @@
 #include "tbb/parallel_reduce.h"
 #include "tbb/concurrent_queue.h"
 
-#include "mt-kahypar/datastructures/concurrent_bucket_map.h"
 #include "mt-kahypar/parallel/stl/scalable_queue.h"
+#include "mt-kahypar/datastructures/concurrent_bucket_map.h"
 #include "mt-kahypar/datastructures/streaming_vector.h"
 #include "mt-kahypar/utils/timer.h"
 
@@ -187,6 +187,7 @@ size_t DynamicHypergraph::contract(const HypernodeID v,
   return num_contractions;
 }
 
+
 /**
  * Uncontracts a batch of contractions in parallel. The batches must be uncontracted exactly
  * in the order computed by the function createBatchUncontractionHierarchy(...).
@@ -216,38 +217,44 @@ void DynamicHypergraph::uncontract(const Batch& batch,
     return true;
   }(), "Batch contains uncontractions from different batches or from a different hypergraph version");
 
+  _hes_to_resize_flag_array.reset();
   tbb::parallel_for(0UL, batch.size(), [&](const size_t i) {
     const Memento& memento = batch[i];
     ASSERT(!hypernode(memento.u).isDisabled(), "Hypernode" << memento.u << "is disabled");
     ASSERT(hypernode(memento.v).isDisabled(), "Hypernode" << memento.v << "is not invalid");
+
     // Restore incident net list of u and v
+    const HypernodeID batch_index = hypernode(batch[0].v).batchIndex();
     _incident_nets.uncontract(memento.u, memento.v,
-      [&](const HypernodeID u) {
+      [&](const HyperedgeID e) {
+        // In that case, u and v were both previously part of hyperedge e.
+        if ( !_hes_to_resize_flag_array[e] &&
+             _hes_to_resize_flag_array.compare_and_set_to_true(e) ) {
+          // This part is only triggered once for each hyperedge per batch uncontraction.
+          // It restores all pins that are part of the current batch as contraction partners
+          // in hyperedge e
+          restoreHyperedgeSizeForBatch(e, batch_index);
+        }
+
+        acquireHyperedge(e);
+        case_one_func(memento.u, memento.v, e);
+        releaseHyperedge(e);
+      }, [&](const HyperedgeID e) {
+        // In that case only v was part of hyperedge e before and
+        // u must be replaced by v in hyperedge e
+        const size_t slot_of_u = findPositionOfPinInIncidenceArray(memento.u, e);
+
+        acquireHyperedge(e);
+        ASSERT(_incidence_array[slot_of_u] == memento.u);
+        _incidence_array[slot_of_u] = memento.v;
+        case_two_func(memento.u, memento.v, e);
+        releaseHyperedge(e);
+      }, [&](const HypernodeID u) {
         acquireHypernode(u);
       }, [&](const HypernodeID u) {
         releaseHypernode(u);
       });
 
-    parallel::scalable_vector<HyperedgeID>& failed_hyperedge_uncontractions = _failed_hyperedge_contractions.local();
-    for ( const HyperedgeID& he : incidentEdges(memento.v) ) {
-      // Try to acquire ownership of hyperedge. In case of success, we perform the
-      // uncontraction and otherwise, we remember the hyperedge and try later again.
-      if ( tryAcquireHyperedge(he) ) {
-        uncontractHyperedge(memento.u, memento.v, he, case_one_func, case_two_func);
-        releaseHyperedge(he);
-      } else {
-        failed_hyperedge_uncontractions.push_back(he);
-      }
-    }
-
-    // Perform uncontractions on which we failed to acquire ownership on the first try
-    for ( const HyperedgeID& he : failed_hyperedge_uncontractions ) {
-      acquireHyperedge(he);
-      uncontractHyperedge(memento.u, memento.v, he, case_one_func, case_two_func);
-      releaseHyperedge(he);
-    }
-
-    failed_hyperedge_uncontractions.clear();
     acquireHypernode(memento.u);
     // Restore hypernode v which includes enabling it and subtract its weight
     // from its representative
@@ -516,6 +523,9 @@ DynamicHypergraph DynamicHypergraph::copy(const TaskGroupID task_group_id) {
       hypergraph._acquired_hes[he] = _acquired_hes[he];
     });
   }, [&] {
+    hypergraph._hes_to_resize_flag_array =
+      ThreadSafeFastResetFlagArray<>(_num_hyperedges);
+  }, [&] {
     hypergraph._he_bitset = ThreadLocalBitset(_num_hyperedges);
   }, [&] {
     hypergraph._removable_single_pin_and_parallel_nets =
@@ -564,6 +574,8 @@ DynamicHypergraph DynamicHypergraph::copy() {
   for ( HyperedgeID he = 0; he < _num_hyperedges; ++he ) {
     hypergraph._acquired_hes[he] = _acquired_hes[he];
   }
+  hypergraph._hes_to_resize_flag_array =
+    ThreadSafeFastResetFlagArray<>(_num_hyperedges);
   hypergraph._he_bitset = ThreadLocalBitset(_num_hyperedges);
   hypergraph._removable_single_pin_and_parallel_nets =
     kahypar::ds::FastResetFlagArray<>(_num_hyperedges);
@@ -761,58 +773,42 @@ void DynamicHypergraph::contractHyperedge(const HypernodeID u,
   }
 }
 
-// ! Uncontracts u and v in hyperedge he.
-void DynamicHypergraph::uncontractHyperedge(const HypernodeID u,
-                                            const HypernodeID v,
-                                            const HyperedgeID he,
-                                            const UncontractionFunction& case_one_func,
-                                            const UncontractionFunction& case_two_func) {
-  const HypernodeID batch_index = hypernode(v).batchIndex();
-
-  // We search for hypernode v in the invalid part of hyperedge he. Note, that
-  // pins in the invalid part of the hyperedge are sorted in decreasing order
-  // of their batch index which they are contained in as contraction partner.
-  // Therefore, we only visit the pins that have the same batch index as v
-  // in the invalid part.
+// ! Restore the size of the hyperedge to the size before the batch with
+// ! index batch_index was contracted.
+void DynamicHypergraph::restoreHyperedgeSizeForBatch(const HyperedgeID he,
+                                                     const HypernodeID batch_index) {
   const size_t first_invalid_entry = hyperedge(he).firstInvalidEntry();
   const size_t last_invalid_entry = hyperedge(he + 1).firstEntry();
-  size_t slot_of_v = last_invalid_entry;
-  for ( size_t pos = first_invalid_entry; pos < last_invalid_entry; ++pos ) {
+  const size_t edge_size = edgeSize(he);
+  ASSERT(hypernode(_incidence_array[first_invalid_entry]).batchIndex() == batch_index);
+  size_t pos = first_invalid_entry + 1;
+  for ( ; pos < last_invalid_entry; ++pos ) {
     const HypernodeID pin = _incidence_array[pos];
     ASSERT(hypernode(pin).batchIndex() <= batch_index, V(he));
-    if ( pin == v ) {
-      slot_of_v = pos;
+    if ( hypernode(pin).batchIndex() != batch_index ) {
       break;
-    } else if ( hypernode(pin).batchIndex() != batch_index ) {
+    }
+  }
+  const size_t size_delta = pos - first_invalid_entry;
+  hyperedge(he).setSize(edge_size + size_delta);
+}
+
+// ! Search for the position of pin u in hyperedge he in the incidence array
+size_t DynamicHypergraph::findPositionOfPinInIncidenceArray(const HypernodeID u,
+                                                            const HyperedgeID he) {
+  const size_t first_valid_entry = hyperedge(he).firstEntry();
+  const size_t first_invalid_entry = hyperedge(he).firstInvalidEntry();
+  size_t slot_of_u = first_invalid_entry;
+  for ( size_t pos = first_invalid_entry - 1; pos != first_valid_entry - 1; --pos ) {
+    if ( u == _incidence_array[pos] ) {
+      slot_of_u = pos;
       break;
     }
   }
 
-  if ( slot_of_v != last_invalid_entry ) {
-    // In that case v was found in the invalid part and u and v were part of hyperedge
-    // he also before its contraction. Therefore, we swap v to the first invalid
-    // entry and increment the size of the hyperedge.
-    std::swap(_incidence_array[first_invalid_entry], _incidence_array[slot_of_v]);
-    hyperedge(he).incrementSize();
-    case_one_func(u, v, he);
-  } else {
-    // In that case v was not found in the invalid part of hyperedge he, which means that
-    // u was not incident to hyperedge he before the contraction. Therefore, we have to find
-    // u and replace it with v.
-    const size_t first_valid_entry = hyperedge(he).firstEntry();
-    size_t slot_of_u = first_invalid_entry;
-    for ( size_t pos = first_invalid_entry - 1; pos != first_valid_entry - 1; --pos ) {
-      if ( u == _incidence_array[pos] ) {
-        slot_of_u = pos;
-        break;
-      }
-    }
-
-    ASSERT(slot_of_u != first_invalid_entry, "Hypernode" << u << "is not incident to hyperedge" << he);
-
-    _incidence_array[slot_of_u] = v;
-    case_two_func(u, v, he);
-  }
+  ASSERT(slot_of_u != first_invalid_entry,
+    "Hypernode" << u << "is not incident to hyperedge" << he);
+  return slot_of_u;
 }
 
 /**

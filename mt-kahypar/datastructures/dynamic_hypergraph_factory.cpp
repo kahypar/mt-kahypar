@@ -49,6 +49,9 @@ DynamicHypergraph DynamicHypergraphFactory::construct(const TaskGroupID task_gro
   }, [&] {
     hypergraph._removable_single_pin_and_parallel_nets =
       kahypar::ds::FastResetFlagArray<>(num_hyperedges);
+  }, [&] {
+    hypergraph._hes_to_resize_flag_array =
+      ThreadSafeFastResetFlagArray<>(num_hyperedges);
   });
   hypergraph._he_bitset = ThreadLocalBitset(num_hyperedges);
 
