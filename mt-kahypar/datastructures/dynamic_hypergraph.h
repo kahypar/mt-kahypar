@@ -1052,13 +1052,6 @@ class DynamicHypergraph {
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE void contractHyperedge(const HypernodeID u, const HypernodeID v, const HyperedgeID he,
                                                             kahypar::ds::FastResetFlagArray<>& shared_incident_nets_u_and_v);
 
-  // ! Uncontracts u and v in hyperedge he.
-  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE void uncontractHyperedge(const HypernodeID u,
-                                                              const HypernodeID v,
-                                                              const HyperedgeID he,
-                                                              const UncontractionFunction& case_one_func,
-                                                              const UncontractionFunction& case_two_func);
-
   // ! Replaces pin u with v in hyperedge he
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE void replaceSinglePinInHyperedge(const HypernodeID u,
                                                                       const HypernodeID v,
