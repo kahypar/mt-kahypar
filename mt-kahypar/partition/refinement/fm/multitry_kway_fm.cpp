@@ -55,6 +55,14 @@ namespace mt_kahypar {
 
       roundInitialization(phg, refinement_nodes);
       size_t num_border_nodes = sharedData.refinementNodes.unsafe_size(); unused(num_border_nodes);
+      if (num_border_nodes == 0) {
+        break;
+      }
+
+      if (context.type == kahypar::ContextType::main) {
+        LOG << V(num_border_nodes);
+      }
+
       size_t num_seeds = context.refinement.fm.num_seed_nodes;
       if (num_border_nodes < 4 * desired_num_tasks) {
         // TODO maybe a smoother transition?
