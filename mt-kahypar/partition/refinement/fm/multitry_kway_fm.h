@@ -88,7 +88,6 @@ public:
   FMSharedData sharedData;
   GlobalRollback globalRollback;
   tbb::enumerable_thread_specific<LocalizedKWayFM<FMStrategy>> ets_fm;
-  tbb::task_group tg;
 };
 
 } // namespace mt_kahypar

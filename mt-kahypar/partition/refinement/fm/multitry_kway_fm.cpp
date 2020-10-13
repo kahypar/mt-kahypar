@@ -48,6 +48,8 @@ namespace mt_kahypar {
     HighResClockTimepoint fm_start = std::chrono::high_resolution_clock::now();
     utils::Timer& timer = utils::Timer::instance();
 
+    tbb::task_group tg;
+
     for (size_t round = 0; round < context.refinement.fm.multitry_rounds; ++round) { // global multi try rounds
       timer.start_timer("collect_border_nodes", "Collect Border Nodes");
 

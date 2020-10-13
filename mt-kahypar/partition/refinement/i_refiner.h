@@ -40,7 +40,7 @@ class IRefiner {
   IRefiner & operator= (const IRefiner &) = delete;
   IRefiner & operator= (IRefiner &&) = delete;
 
-  virtual ~IRefiner() noexcept(false) = default;
+  virtual ~IRefiner() = default;
 
   void initialize(PartitionedHypergraph& hypergraph) {
     initializeImpl(hypergraph);
