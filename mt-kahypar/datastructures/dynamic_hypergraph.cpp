@@ -304,7 +304,7 @@ void DynamicHypergraph::uncontract(const Batch& batch,
         }
       }, [&](const HyperedgeID e) {
         // In that case only v was part of hyperedge e before and
-        // we have to replace u with v in hyperedge v
+        // we have to replace u with v in hyperedge e
         pins_to_replace_map.insert(e,
           UncontractionPinReplacement { e, memento.u, memento.v, edgeSize(e) });
       }, [&](const HypernodeID u) {
@@ -321,7 +321,11 @@ void DynamicHypergraph::uncontract(const Batch& batch,
     releaseHypernode(memento.u);
   });
 
+  // All hyperedges which we have to resize are stored in hes_to_resize_tmp and
+  // all replacements are stored in pins_to_replace.
   tbb::parallel_invoke([&] {
+    // We resize each hyperedge such that they contain
+    // all pins that belong to the current batch
     const HypernodeID batch_index = hypernode(batch[0].v).batchIndex();
     parallel::scalable_vector<HyperedgeID> hes_to_resize = hes_to_resize_tmp.copy_parallel();
     tbb::parallel_for(0UL, hes_to_resize.size(), [&](const size_t i) {
@@ -342,6 +346,9 @@ void DynamicHypergraph::uncontract(const Batch& batch,
       hyperedge(he).setSize(edge_size + size_delta);
     });
   }, [&] {
+    // Pin replacement within the hyperedges are distributed to different bucket in
+    // pins_to_replace_map. All pin replacements that belong to the same hyperedge
+    // are part of the same bucket. We process each bucket in parallel.
     tbb::parallel_for(0UL, pins_to_replace_map.numBuckets(), [&](const size_t i) {
       parallel::scalable_vector<UncontractionPinReplacement>& pins_to_replace =
         pins_to_replace_map.getBucket(i);
@@ -383,7 +390,6 @@ void DynamicHypergraph::uncontract(const Batch& batch,
           replaceMultiplePinsInHyperedge(pins_to_replace, start, end,
             pins_to_replace[start].he, pins_to_replace[start].edge_size);
         }
-
         start = end;
       }
     });
