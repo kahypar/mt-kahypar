@@ -59,10 +59,6 @@ namespace mt_kahypar {
         break;
       }
 
-      if (context.type == kahypar::ContextType::main) {
-        LOG << V(num_border_nodes);
-      }
-
       size_t num_seeds = context.refinement.fm.num_seed_nodes;
       if (num_border_nodes < 4 * desired_num_tasks) {
         // TODO maybe a smoother transition?
@@ -186,10 +182,6 @@ namespace mt_kahypar {
         ASSERT(task_id >= 0 && task_id < TBBNumaArena::instance().total_number_of_threads());
         if (phg.nodeIsEnabled(u) && phg.isBorderNode(u)) {
           sharedData.refinementNodes.safe_push(u, task_id);
-        } else {
-          if (context.type == kahypar::ContextType::main) {
-            LOG << "refinement node no longer border node" << V(u);
-          }
         }
       });
     }
