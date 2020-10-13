@@ -358,6 +358,10 @@ private:
     });
 
     _hg->uncontract(batch,
+      // Note, all calls to first lambda function are processed before all
+      // calls to second lambda function are performed. They are NOT executed
+      // in parallel within the uncontract function of the dynamic hypergraph.
+      // This allows us to do some gain cache updates more efficiently (see comments).
       [&](const HypernodeID u, const HypernodeID v, const HyperedgeID he) {
         // In this case, u and v are incident to hyperedge he after uncontraction
         const PartitionID block = partID(u);
@@ -370,15 +374,12 @@ private:
           // uncontraction => b(u) -= w(he)
           const HyperedgeWeight edge_weight = edgeWeight(he);
           if ( pin_count_in_part_after == 2 ) {
-            // u might be replaced by an other vertex in the batch
-            // => search for other pin of the corresponding block and
-            // substract edge weight.
-            for ( const HypernodeID& pin : pins(he) ) {
-              if ( pin != v && partID(pin) == block ) {
-                _move_from_benefit[pin].sub_fetch(edge_weight, std::memory_order_relaxed);
-                break;
-              }
-            }
+            // Note, if both lambda function would be executed in parallel
+            // it can happen that u is already replaced with an other pin.
+            // However, since all calls to this lambda function are processed
+            // before the other it is safe to assume that u is still present in
+            // hyperedge he.
+            _move_from_benefit[u].sub_fetch(edge_weight, std::memory_order_relaxed);
           }
 
           // For all blocks contained in the connectivity set of hyperedge he
@@ -401,6 +402,9 @@ private:
           const HyperedgeWeight edge_weight = edgeWeight(he);
           // Since u is no longer incident to hyperedge he its contribution for decreasing
           // the connectivity of he is shifted to vertex v => b(u) -= w(e), b(v) += w(e).
+          // Note, since all calls to this lambda function are made stricly after all
+          // calls to first lambda function the pin counts of each hyperedge are stable
+          // and also the corresponding update is correct.
           if ( pinCountInPart(he, block) == 1 ) {
             _move_from_benefit[u].sub_fetch(edge_weight, std::memory_order_relaxed);
             _move_from_benefit[v].add_fetch(edge_weight, std::memory_order_relaxed);

@@ -233,6 +233,8 @@ void DynamicHypergraph::uncontract(const Batch& batch,
         if ( _hes_to_resize_flag_array.compare_and_set_to_true(e) ) {
           hes_to_resize_tmp.stream(e);
         }
+        // Call pin count and gain cache update function of partitioned hypergraph
+        case_one_func(memento.u, memento.v, e);
       }, [&](const HyperedgeID e) {
         // In that case only v was part of hyperedge e before and
         // we have to replace u with v in hyperedge e
@@ -253,7 +255,7 @@ void DynamicHypergraph::uncontract(const Batch& batch,
   });
 
   // All hyperedges which we have to resize are stored in hes_to_resize_tmp and
-  // all replacements are stored in pins_to_replace.
+  // all pin replacements are stored in pins_to_replace_map.
   tbb::parallel_invoke([&] {
     // We resize each hyperedge such that they contain
     // all pins that belong to the current batch
@@ -293,6 +295,12 @@ void DynamicHypergraph::uncontract(const Batch& batch,
             (lhs.edge_size == rhs.edge_size && lhs.he < rhs.he) ||
             (lhs.edge_size == rhs.edge_size && lhs.he == rhs.he && lhs.u < rhs.u);
         });
+
+      // Update gain cache in partitioned hypergraph for all pin replacements in parallel
+      tbb::parallel_for(0UL, pins_to_replace.size(), [&](const size_t j) {
+        const UncontractionPinReplacement& pin_replacement = pins_to_replace[j];
+        case_two_func(pin_replacement.u, pin_replacement.v, pin_replacement.he);
+      });
 
       size_t start = 0;
       while ( start < pins_to_replace.size() ) {
