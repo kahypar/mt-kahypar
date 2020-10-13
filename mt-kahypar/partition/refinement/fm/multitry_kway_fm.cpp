@@ -43,7 +43,7 @@ namespace mt_kahypar {
     double current_time_limit = time_limit;
 
     size_t num_tasks_from_recursion = 4*context.shared_memory.num_threads*context.shared_memory.degree_of_parallelism;
-    size_t desired_num_tasks = std::max(context.shared_memory.num_threads, num_tasks_from_recursion);
+    size_t desired_num_tasks = std::min(context.shared_memory.num_threads, num_tasks_from_recursion);
 
     HighResClockTimepoint fm_start = std::chrono::high_resolution_clock::now();
     utils::Timer& timer = utils::Timer::instance();
