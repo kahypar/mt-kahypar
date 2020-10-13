@@ -75,7 +75,7 @@ namespace mt_kahypar {
       };
 
       size_t num_tasks = std::min(num_border_nodes, desired_num_tasks);
-      ASSERT(num_tasks <= TBBNumaArena::instance().total_number_of_threads());
+      ASSERT(static_cast<int>(num_tasks) <= TBBNumaArena::instance().total_number_of_threads());
 
       for (size_t i = 0; i < num_tasks; ++i) {
         tg.run(std::bind(task, i));
