@@ -88,6 +88,8 @@ class IncidentNetArray {
 
   using AcquireLockFunc = std::function<void (const HypernodeID)>;
   using ReleaseLockFunc = std::function<void (const HypernodeID)>;
+  using CaseOneFunc = std::function<void (const HyperedgeID)>;
+  using CaseTwoFunc = std::function<void (const HyperedgeID)>;
   #define NOOP_LOCK_FUNC [] (const HypernodeID) { }
 
   static_assert(sizeof(char) == 1);
@@ -197,6 +199,19 @@ class IncidentNetArray {
                   const AcquireLockFunc& acquire_lock = NOOP_LOCK_FUNC,
                   const ReleaseLockFunc& release_lock = NOOP_LOCK_FUNC);
 
+  // ! Uncontract two previously contracted vertices u and v.
+  // ! Uncontraction involves to decrement the version number of all incident lists contained
+  // ! in v and restore all incident nets with a version number equal to the new version.
+  // ! Additionally it calls case_one_func for a hyperedge he, if u and v were previously both
+  // ! adjacent to he and case_two_func if only v was previously adjacent to he.
+  // ! Note, uncontraction must be done in relative contraction order
+  void uncontract(const HypernodeID u,
+                  const HypernodeID v,
+                  const CaseOneFunc& case_one_func,
+                  const CaseTwoFunc& case_two_func,
+                  const AcquireLockFunc& acquire_lock,
+                  const ReleaseLockFunc& release_lock);
+
   // ! Removes all incidents nets of u flagged in hes_to_remove.
   void removeIncidentNets(const HypernodeID u,
                           const kahypar::ds::FastResetFlagArray<>& hes_to_remove);
@@ -252,6 +267,15 @@ class IncidentNetArray {
     *lhs = *rhs;
     *rhs = tmp_lhs;
   }
+
+  // ! Restores all previously removed incident nets
+  // ! Note, function must be called in reverse order of calls to
+  // ! removeIncidentNets(...) and all uncontraction that happens
+  // ! between two consecutive calls to removeIncidentNets(...) must
+  // ! be processed.
+  void restoreIncidentNets(const HypernodeID u,
+                           const CaseOneFunc& case_one_func,
+                           const CaseTwoFunc& case_two_func);
 
   void append(const HypernodeID u, const HypernodeID v);
 

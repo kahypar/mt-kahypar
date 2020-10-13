@@ -20,7 +20,6 @@
 #pragma once
 
 #include <algorithm>
-#include <mutex>
 #include <thread>
 #include <cmath>
 
@@ -31,6 +30,7 @@
 
 #include "mt-kahypar/macros.h"
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
+#include "mt-kahypar/parallel/atomic_wrapper.h"
 
 namespace mt_kahypar {
 namespace ds {
@@ -64,7 +64,7 @@ class ConcurrentBucketMap {
     _num_buckets(align_to_next_power_of_two(
       BUCKET_FACTOR * std::thread::hardware_concurrency())),
     _mod_mask(_num_buckets - 1),
-    _mutex(_num_buckets),
+    _spin_locks(_num_buckets),
     _buckets(_num_buckets) { }
 
   ConcurrentBucketMap(const ConcurrentBucketMap&) = delete;
@@ -74,7 +74,7 @@ class ConcurrentBucketMap {
     _num_buckets(align_to_next_power_of_two(
       BUCKET_FACTOR * std::thread::hardware_concurrency())),
     _mod_mask(_num_buckets - 1),
-    _mutex(_num_buckets),
+    _spin_locks(_num_buckets),
     _buckets(std::move(other._buffer)) { }
 
   // ! Returns the number of buckets
@@ -103,8 +103,9 @@ class ConcurrentBucketMap {
   void insert(const size_t& key, Value&& value) {
     size_t bucket = key & _mod_mask;
     ASSERT(bucket < _num_buckets);
-    std::lock_guard<std::mutex> lock(_mutex[bucket]);
+    _spin_locks[bucket].lock();
     _buckets[bucket].emplace_back( std::move(value) );
+    _spin_locks[bucket].unlock();
   }
 
   // ! Frees the memory of all buckets
@@ -131,7 +132,7 @@ class ConcurrentBucketMap {
 
   const size_t _num_buckets;
   const size_t _mod_mask;
-  std::vector<std::mutex> _mutex;
+  std::vector<SpinLock> _spin_locks;
   parallel::scalable_vector<Bucket> _buckets;
 };
 }  // namespace ds

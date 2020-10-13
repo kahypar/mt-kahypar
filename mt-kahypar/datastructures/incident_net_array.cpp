@@ -143,6 +143,32 @@ void IncidentNetArray::uncontract(const HypernodeID u,
   restoreIncidentNets(v);
 }
 
+// ! Uncontract two previously contracted vertices u and v.
+// ! Uncontraction involves to decrement the version number of all incident lists contained
+// ! in v and restore all incident nets with a version number equal to the new version.
+// ! Additionally it calls case_one_func for a hyperedge he, if u and v were previously both
+// ! adjacent to he and case_two_func if only v was previously adjacent to he.
+// ! Note, uncontraction must be done in relative contraction order
+void IncidentNetArray::uncontract(const HypernodeID u,
+                                  const HypernodeID v,
+                                  const CaseOneFunc& case_one_func,
+                                  const CaseTwoFunc& case_two_func,
+                                  const AcquireLockFunc& acquire_lock,
+                                  const ReleaseLockFunc& release_lock) {
+  ASSERT(header(v)->prev != v);
+  Header* head_v = header(v);
+  acquire_lock(u);
+  // Restores the incident list of v to the time before it was appended
+  // to the double-linked list of u.
+  splice(u, v);
+  header(u)->degree -= head_v->degree;
+  ASSERT(verifyIteratorPointers(u), "Iterator pointers of vertex" << u << "are corrupted");
+  release_lock(u);
+
+  // Restore all incident nets of v removed by the contraction of u and v
+  restoreIncidentNets(v, case_one_func, case_two_func);
+}
+
 // ! Removes all incidents nets of u flagged in hes_to_remove.
 void IncidentNetArray::removeIncidentNets(const HypernodeID u,
                                           const kahypar::ds::FastResetFlagArray<>& hes_to_remove) {
@@ -195,6 +221,64 @@ void IncidentNetArray::restoreIncidentNets(const HypernodeID u) {
       if ( current_entry->version == new_version ) {
         ++head->size;
         ++head_u->degree;
+      } else {
+        break;
+      }
+    }
+
+    // Restore iterator double-linked list which only contains
+    // non-empty incident net lists
+    if ( head->size > 0 || current_u == u ) {
+      if ( last_non_empty_entry != kInvalidHypernode &&
+           head->it_prev != last_non_empty_entry ) {
+        header(last_non_empty_entry)->it_next = current_u;
+        head->it_prev = last_non_empty_entry;
+      }
+      last_non_empty_entry = current_u;
+    }
+    current_u = head->next;
+  } while ( current_u != u );
+
+  ASSERT(last_non_empty_entry != kInvalidHypernode);
+  head_u->it_prev = last_non_empty_entry;
+  header(last_non_empty_entry)->it_next = u;
+  ASSERT(verifyIteratorPointers(u), "Iterator pointers of vertex" << u << "are corrupted");
+}
+
+// ! Restores all previously removed incident nets
+// ! Note, function must be called in reverse order of calls to
+// ! removeIncidentNets(...) and all uncontraction that happens
+// ! between two consecutive calls to removeIncidentNets(...) must
+// ! be processed.
+void IncidentNetArray::restoreIncidentNets(const HypernodeID u,
+                                           const CaseOneFunc& case_one_func,
+                                           const CaseTwoFunc& case_two_func) {
+  Header* head_u = header(u);
+  HypernodeID current_u = u;
+  HypernodeID last_non_empty_entry = kInvalidHypernode;
+  do {
+    Header* head = header(current_u);
+    ASSERT(head->current_version > 0);
+    const HypernodeID new_version = --head->current_version;
+
+    // Iterate over all active entries and call case_two_func
+    // => After an uncontraction only u was part of them not its representative
+    for ( Entry* current_entry = firstEntry(current_u);
+          current_entry != lastEntry(current_u);
+          ++current_entry ) {
+      case_two_func(current_entry->e);
+    }
+
+    // Iterate over non-active entries (and activate them) until the version number
+    // is not equal to the new version of the list
+    const Entry* last_entry = reinterpret_cast<const Entry*>(header(current_u + 1));
+    for ( Entry* current_entry = lastEntry(current_u);
+          current_entry != last_entry;
+          ++current_entry ) {
+      if ( current_entry->version == new_version ) {
+        ++head->size;
+        ++head_u->degree;
+        case_one_func(current_entry->e);
       } else {
         break;
       }
