@@ -54,7 +54,7 @@ namespace mt_kahypar {
       timer.start_timer("collect_border_nodes", "Collect Border Nodes");
 
       roundInitialization(phg, refinement_nodes);
-      size_t num_border_nodes = sharedData.refinementNodes.unsafe_size(); unused(num_border_nodes);
+      size_t num_border_nodes = sharedData.refinementNodes.unsafe_size();
       if (num_border_nodes == 0) {
         break;
       }
@@ -186,6 +186,10 @@ namespace mt_kahypar {
         ASSERT(task_id >= 0 && task_id < TBBNumaArena::instance().total_number_of_threads());
         if (phg.nodeIsEnabled(u) && phg.isBorderNode(u)) {
           sharedData.refinementNodes.safe_push(u, task_id);
+        } else {
+          if (context.type == kahypar::ContextType::main) {
+            LOG << "refinement node no longer border node" << V(u);
+          }
         }
       });
     }
