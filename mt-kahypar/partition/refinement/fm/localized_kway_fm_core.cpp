@@ -23,13 +23,12 @@
 namespace mt_kahypar {
 
   template<typename FMStrategy>
-  bool LocalizedKWayFM<FMStrategy>::findMoves(PartitionedHypergraph& phg, size_t taskID) {
+  bool LocalizedKWayFM<FMStrategy>::findMoves(PartitionedHypergraph& phg, size_t taskID, size_t numSeeds) {
     localMoves.clear();
     thisSearch = ++sharedData.nodeTracker.highestActiveSearchID;
 
-    const size_t nSeeds = context.refinement.fm.num_seed_nodes;
     HypernodeID seedNode;
-    while (runStats.pushes < nSeeds && sharedData.refinementNodes.try_pop(seedNode, taskID)) {
+    while (runStats.pushes < numSeeds && sharedData.refinementNodes.try_pop(seedNode, taskID)) {
       SearchID previousSearchOfSeedNode = sharedData.nodeTracker.searchOfNode[seedNode].load(std::memory_order_relaxed);
       if (sharedData.nodeTracker.tryAcquireNode(seedNode, thisSearch)) {
         fm_strategy.insertIntoPQ(phg, seedNode, previousSearchOfSeedNode);
@@ -47,12 +46,11 @@ namespace mt_kahypar {
         deltaPhg.dropMemory();
       }
 
-
-      deltaPhg.clear();
-      deltaPhg.setPartitionedHypergraph(&phg);
       if (context.refinement.fm.perform_moves_global || sharedData.deltaExceededMemoryConstraints) {
         internalFindMoves<false>(phg);
       } else {
+        deltaPhg.clear();
+        deltaPhg.setPartitionedHypergraph(&phg);
         internalFindMoves<true>(phg);
       }
       return true;

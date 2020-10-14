@@ -434,7 +434,8 @@ namespace mt_kahypar {
                        const bool top_level,
                        const TaskGroupID task_group_id,
                        const size_t num_threads,
-                       const size_t recursion_number) :
+                       const size_t recursion_number,
+                       const double degree_of_parallelism) :
             _original_hypergraph_info(original_hypergraph_info),
             _hg(hypergraph),
             _context(context),
@@ -442,7 +443,8 @@ namespace mt_kahypar {
             _top_level(top_level),
             _task_group_id(task_group_id),
             _num_threads(num_threads),
-            _recursion_number(recursion_number) { }
+            _recursion_number(recursion_number),
+            _degree_of_parallelism(degree_of_parallelism) { }
 
     tbb::task* execute() override {
       // Copy hypergraph
@@ -493,6 +495,7 @@ namespace mt_kahypar {
 
       // Shared Memory Parameters
       context.shared_memory.num_threads = _num_threads;
+      context.shared_memory.degree_of_parallelism *= _degree_of_parallelism;
 
       // Partitioning Parameters
       bool reduce_k = !_top_level && _context.shared_memory.num_threads < (size_t)_context.partition.k && _context.partition.k > 2;
@@ -545,6 +548,7 @@ namespace mt_kahypar {
     const TaskGroupID _task_group_id;
     const size_t _num_threads;
     const size_t _recursion_number;
+    const double _degree_of_parallelism;
   };
 
 
@@ -573,10 +577,10 @@ namespace mt_kahypar {
                 RecursiveContinuationTask(_original_hypergraph_info, _hg, _context, _top_level, _task_group_id, true);
         RecursiveChildTask& recursion_0 = *new(recursive_continuation.allocate_child()) RecursiveChildTask(
                 _original_hypergraph_info, _hg, _context, recursive_continuation.r1,
-                _top_level, tbb_recursion_task_groups.first, num_threads_1, 0);
+                _top_level, tbb_recursion_task_groups.first, num_threads_1, 0, 0.5);
         RecursiveChildTask& recursion_1 = *new(recursive_continuation.allocate_child()) RecursiveChildTask(
                 _original_hypergraph_info, _hg, _context, recursive_continuation.r2,
-                _top_level, tbb_recursion_task_groups.second, num_threads_2, 0);
+                _top_level, tbb_recursion_task_groups.second, num_threads_2, 0, 0.5);
         recursive_continuation.set_ref_count(2);
         tbb::task::spawn(recursion_1);
         tbb::task::spawn(recursion_0);
@@ -585,7 +589,7 @@ namespace mt_kahypar {
                 RecursiveContinuationTask(_original_hypergraph_info, _hg, _context, _top_level, _task_group_id, false);
         RecursiveChildTask& recursion = *new(recursive_continuation.allocate_child()) RecursiveChildTask(
                 _original_hypergraph_info, _hg, _context, recursive_continuation.r1,
-                _top_level, _task_group_id, _context.shared_memory.num_threads, 0);
+                _top_level, _task_group_id, _context.shared_memory.num_threads, 0, 1.0);
         recursive_continuation.set_ref_count(1);
         tbb::task::spawn(recursion);
       }

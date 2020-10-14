@@ -46,7 +46,7 @@ public:
           { }
 
 
-  bool findMoves(PartitionedHypergraph& phg, size_t taskID);
+  bool findMoves(PartitionedHypergraph& phg, size_t taskID, size_t numSeeds);
 
   void memoryConsumption(utils::MemoryTreeNode* parent) const ;
 

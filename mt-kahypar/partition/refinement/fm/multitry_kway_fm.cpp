@@ -41,42 +41,56 @@ namespace mt_kahypar {
     sharedData.release_nodes = context.refinement.fm.release_nodes;
     sharedData.perform_moves_global = context.refinement.fm.perform_moves_global;
     double current_time_limit = time_limit;
-
+    tbb::task_group tg;
+    vec<HypernodeWeight> initialPartWeights(size_t(sharedData.numParts));
     HighResClockTimepoint fm_start = std::chrono::high_resolution_clock::now();
     utils::Timer& timer = utils::Timer::instance();
 
     for (size_t round = 0; round < context.refinement.fm.multitry_rounds; ++round) { // global multi try rounds
+      for (PartitionID i = 0; i < sharedData.numParts; ++i) {
+        initialPartWeights[i] = phg.partWeight(i);
+      }
+
       timer.start_timer("collect_border_nodes", "Collect Border Nodes");
-
       roundInitialization(phg, refinement_nodes);
-      size_t numBorderNodes = sharedData.refinementNodes.unsafe_size(); unused(numBorderNodes);
-
       timer.stop_timer("collect_border_nodes");
+
+      size_t num_border_nodes = sharedData.refinementNodes.unsafe_size();
+      if (num_border_nodes == 0) {
+        break;
+      }
+      size_t num_seeds = context.refinement.fm.num_seed_nodes;
+      if (context.type == kahypar::ContextType::main
+          && !refinement_nodes.empty()  /* n-level */
+          && num_border_nodes < 20 * context.shared_memory.num_threads) {
+        num_seeds = num_border_nodes / (4 * context.shared_memory.num_threads);
+        num_seeds = std::min(num_seeds, context.refinement.fm.num_seed_nodes);
+        num_seeds = std::max(num_seeds, 1UL);
+      }
+
       timer.start_timer("find_moves", "Find Moves");
-
-      vec<HypernodeWeight> initialPartWeights(size_t(sharedData.numParts));
-      for (PartitionID i = 0; i < sharedData.numParts; ++i) initialPartWeights[i] = phg.partWeight(i);
-
-
       sharedData.finishedTasks.store(0, std::memory_order_relaxed);
-      auto task = [&](const int , const int task_id, const int ) {
+      auto task = [&](const size_t task_id) {
         auto& fm = ets_fm.local();
         while(sharedData.finishedTasks.load(std::memory_order_relaxed) < sharedData.finishedTasksLimit
-              && fm.findMoves(phg, static_cast<size_t>(task_id)) ) { /* keep running*/ }
+              && fm.findMoves(phg, task_id, num_seeds)) { /* keep running*/ }
         sharedData.finishedTasks.fetch_add(1, std::memory_order_relaxed);
       };
-      TBBNumaArena::instance().execute_task_on_each_thread(taskGroupID, task);
-
+      size_t num_tasks = std::min(num_border_nodes, context.shared_memory.num_threads);
+      ASSERT(static_cast<int>(num_tasks) <= TBBNumaArena::instance().total_number_of_threads());
+      for (size_t i = 0; i < num_tasks; ++i) {
+        tg.run(std::bind(task, i));
+      }
+      tg.wait();
       timer.stop_timer("find_moves");
-      timer.start_timer("rollback", "Rollback to Best Solution");
 
+      timer.start_timer("rollback", "Rollback to Best Solution");
       HyperedgeWeight improvement = globalRollback.revertToBestPrefix
               <FMStrategy::maintain_gain_cache_between_rounds>(phg, sharedData, initialPartWeights);
-      const double roundImprovementFraction = improvementFraction(improvement, metrics.km1 - overall_improvement);
-      overall_improvement += improvement;
-
       timer.stop_timer("rollback");
 
+      const double roundImprovementFraction = improvementFraction(improvement, metrics.km1 - overall_improvement);
+      overall_improvement += improvement;
       if (roundImprovementFraction < context.refinement.fm.min_improvement) {
         consecutive_rounds_with_too_little_improvement++;
       } else {
@@ -91,15 +105,12 @@ namespace mt_kahypar {
           fm.stats.merge(stats);
         }
         LOG << V(round) << V(improvement) << V(metrics::km1(phg)) << V(metrics::imbalance(phg, context))
-            << V(numBorderNodes) << V(roundImprovementFraction) << V(elapsed_time) << V(current_time_limit)
+            << V(num_border_nodes) << V(roundImprovementFraction) << V(elapsed_time) << V(current_time_limit)
             << stats.serialize();
       }
 
-      // Enforce a time limit (based on k and coarsening time). Switch to more "light-weight" FM after reaching it the
-      // first time. Abort after second time.
-      // Especially for instances with low density, we observed that FM time
-      // dominates. The root cause for this is that for such instances (with large hyperedges) maintaining
-      // the gain cache inside the partitioned hypergraph becomes expensive.
+      // Enforce a time limit (based on k and coarsening time).
+      // Switch to more "light-weight" FM after reaching it the first time. Abort after second time.
       if ( elapsed_time > current_time_limit ) {
         if ( !enable_light_fm ) {
           DBG << RED << "Multitry FM reached time limit => switch to Light FM Configuration" << END;
@@ -159,7 +170,7 @@ namespace mt_kahypar {
         const HypernodeID u = refinement_nodes[i];
         const int task_id = tbb::this_task_arena::current_thread_index();
         ASSERT(task_id >= 0 && task_id < TBBNumaArena::instance().total_number_of_threads());
-        if (phg.nodeIsEnabled(u)) {
+        if (phg.nodeIsEnabled(u) && phg.isBorderNode(u)) {
           sharedData.refinementNodes.safe_push(u, task_id);
         }
       });

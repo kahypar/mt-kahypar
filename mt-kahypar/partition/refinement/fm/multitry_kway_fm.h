@@ -37,6 +37,7 @@ class MultiTryKWayFM final : public IRefiner {
   static constexpr bool debug = false;
   static constexpr bool enable_heavy_assert = false;
 
+
 public:
 
   MultiTryKWayFM(const Hypergraph& hypergraph,
@@ -47,9 +48,8 @@ public:
     taskGroupID(taskGroupID),
     sharedData(hypergraph.initialNumNodes(), context),
     globalRollback(hypergraph, context, context.partition.k),
-    ets_fm([&] {
-      return constructLocalizedKWayFMSearch();
-    }) {
+    ets_fm([&] { return constructLocalizedKWayFMSearch(); })
+  {
     if (context.refinement.fm.obey_minimal_parallelism) {
       sharedData.finishedTasksLimit = std::min(8UL, context.shared_memory.num_threads);
     }
