@@ -534,6 +534,7 @@ namespace mt_kahypar::io {
       printPartWeightsAndSizes(hypergraph, context);
 
       LOG << "\nTimings:";
+      utils::Timer::instance().setMaximumOutputDepth(context.partition.timings_output_depth);
       LOG << utils::Timer::instance(context.partition.show_detailed_timings);
     }
   }

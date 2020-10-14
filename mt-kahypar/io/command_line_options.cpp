@@ -84,6 +84,9 @@ namespace mt_kahypar {
              po::value<bool>(&context.partition.measure_detailed_uncontraction_timings)->value_name("<bool>")->default_value(
                      false),
              "If true, measure and show detailed timings for n-level uncontraction.")
+            ("timings-output-depth",
+             po::value<size_t>(&context.partition.timings_output_depth)->value_name("<size_t>"),
+             "Number of levels shown in timing output")
             ("show-memory-consumption",
              po::value<bool>(&context.partition.show_memory_consumption)->value_name("<bool>")->default_value(false),
              "If true, shows detailed information on how much memory was allocated and how memory was reused throughout partitioning.")
