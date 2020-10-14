@@ -285,9 +285,7 @@ VersionedBatchVector DynamicHypergraph::createBatchUncontractionHierarchy(const 
   utils::Timer::instance().start_timer("create_versioned_batches", "Create Versioned Batches");
   VersionedBatchVector versioned_batches(num_versions);
   parallel::scalable_vector<size_t> batch_sizes_prefix_sum(num_versions, 0);
-  utils::Timer::instance().start_timer("batch_index_assigner_allocation", "Batch Index Assigner Allocation");
   BatchIndexAssigner batch_index_assigner(_num_hypernodes, batch_size);
-  utils::Timer::instance().stop_timer("batch_index_assigner_allocation");
   for ( size_t version = 0; version < num_versions; ++version ) {
     versioned_batches[version] =
       createBatchUncontractionHierarchyForVersion(
@@ -296,9 +294,7 @@ VersionedBatchVector DynamicHypergraph::createBatchUncontractionHierarchy(const 
       batch_sizes_prefix_sum[version] =
         batch_sizes_prefix_sum[version - 1] + versioned_batches[version - 1].size();
     }
-    utils::Timer::instance().start_timer("batch_index_assigner_reset", "Batch Index Assigner Reset");
     batch_index_assigner.reset(versioned_batches[version].size());
-    utils::Timer::instance().stop_timer("batch_index_assigner_reset");
   }
   utils::Timer::instance().stop_timer("create_versioned_batches");
 
@@ -930,7 +926,8 @@ BatchVector DynamicHypergraph::createBatchUncontractionHierarchyForVersion(Batch
     }
   };
 
-  // Insert all roots of the current version into the priority queue
+  // Distribute roots of the contraction tree to local priority queues of
+  // each thread.
   utils::Timer::instance().start_timer("assign_roots", "Assign Roots");
   const size_t num_hardware_threads = std::thread::hardware_concurrency();
   parallel::scalable_vector<PQ> local_pqs(num_hardware_threads);
@@ -992,6 +989,7 @@ BatchVector DynamicHypergraph::createBatchUncontractionHierarchyForVersion(Batch
         pq.push(PQBatchUncontractionElement { _contraction_tree.subtreeSize(*it.first), it });
       }
 
+      // Request batch index and its position within that batch
       BatchAssignment assignment = batch_assigner.getBatchIndex(
         current_batch_index, num_uncontractions);
       for ( size_t i = start_idx; i < start_idx + num_uncontractions; ++i ) {
@@ -1001,13 +999,16 @@ BatchVector DynamicHypergraph::createBatchUncontractionHierarchyForVersion(Batch
       current_batch_index = assignment.batch_index;
 
       if ( pq.empty() ) {
+        std::swap(pq, next_pq);
+        // Compute minimum batch index to which a thread assigned last.
+        // Afterwards, transmit information to batch assigner to speed up
+        // batch index computation.
         ++current_batch_index;
         size_t min_batch_index = current_batch_index;
         for ( const size_t& batch_index : local_batch_indices ) {
           min_batch_index = std::min(min_batch_index, batch_index);
         }
         batch_assigner.increaseHighWaterMark(min_batch_index);
-        std::swap(pq, next_pq);
       }
     }
   });
@@ -1015,15 +1016,16 @@ BatchVector DynamicHypergraph::createBatchUncontractionHierarchyForVersion(Batch
 
   ASSERT(verifyBatchIndexAssignments(batch_assigner, local_batch_assignments), "Batch asisignment failed");
 
+  // In the previous step we have calculated for each uncontraction a batch index and
+  // its position within that batch. We have to write the uncontractions
+  // into the global batch uncontraction vector.
   utils::Timer::instance().start_timer("create_batch_vector", "Create Batch Vector");
   const size_t num_batches = batch_assigner.numberOfNonEmptyBatches();
   BatchVector batches(num_batches);
   tbb::parallel_for(0UL, num_batches, [&](const size_t batch_index) {
     batches[batch_index].resize(batch_assigner.batchSize(batch_index));
   });
-  utils::Timer::instance().stop_timer("create_batch_vector");
 
-  utils::Timer::instance().start_timer("write_batch_vector", "Write Batch Vector");
   tbb::parallel_for(0UL, num_hardware_threads, [&](const size_t i) {
     LocalBatchAssignments& batch_assignments = local_batch_assignments[i];
     for ( const BatchAssignment& batch_assignment : batch_assignments ) {
@@ -1035,12 +1037,12 @@ BatchVector DynamicHypergraph::createBatchUncontractionHierarchyForVersion(Batch
       batches[batch_index][batch_pos].v = batch_assignment.v;
     }
   });
+  utils::Timer::instance().stop_timer("create_batch_vector");
 
   while ( !batches.empty() && batches.back().empty() ) {
     batches.pop_back();
   }
   std::reverse(batches.begin(), batches.end());
-  utils::Timer::instance().stop_timer("write_batch_vector");
 
   return batches;
 }

@@ -73,6 +73,8 @@ class DynamicHypergraph {
     bool valid = false;
   };
 
+  // Represents a uncontraction that is assigned to a certain batch
+  // and within that batch to a certain position.
   struct BatchAssignment {
     HypernodeID u;
     HypernodeID v;
@@ -80,6 +82,17 @@ class DynamicHypergraph {
     size_t batch_pos;
   };
 
+  /*!
+   * Helper class that synchronizes assignements of uncontractions
+   * to batches. A batch has a certain maximum allowed batch size. The
+   * class provides functionality to compute such an assignment in a
+   * thread-safe manner. Several threads can request a batch index
+   * and a position within that batch for its uncontraction it wants
+   * to assign. The class guarantees that each combination of
+   * (batch_index, batch_position) is unique and consecutive.
+   * Furthermore, it is ensured that batch_position is always
+   * smaller than max_batch_size.
+   */
   class BatchIndexAssigner {
 
     using AtomicCounter = parallel::IntegralAtomicWrapper<size_t>;
@@ -154,6 +167,8 @@ class DynamicHypergraph {
       size_t current_batch_index = start_batch_index;
       size_t batch_pos = _current_batch_counter[current_batch_index].fetch_add(
         num_uncontractions, std::memory_order_relaxed);
+      // Search for batch in which atomic update of the batch counter
+      // return a position smaller than max_batch_size.
       while ( batch_pos >= _max_batch_size ) {
         ++current_batch_index;
         ASSERT(current_batch_index < _current_batch_counter.size());
