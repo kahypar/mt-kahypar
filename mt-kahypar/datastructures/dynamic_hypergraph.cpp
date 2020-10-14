@@ -285,15 +285,20 @@ VersionedBatchVector DynamicHypergraph::createBatchUncontractionHierarchy(const 
   utils::Timer::instance().start_timer("create_versioned_batches", "Create Versioned Batches");
   VersionedBatchVector versioned_batches(num_versions);
   parallel::scalable_vector<size_t> batch_sizes_prefix_sum(num_versions, 0);
-  tbb::parallel_for(0UL, num_versions, [&](const size_t version) {
-    versioned_batches[version] =
-      createBatchUncontractionHierarchyForVersion(batch_size, version);
-  });
+  utils::Timer::instance().start_timer("batch_index_assigner_allocation", "Batch Index Assigner Allocation");
+  BatchIndexAssigner batch_index_assigner(_num_hypernodes, batch_size);
+  utils::Timer::instance().stop_timer("batch_index_assigner_allocation");
   for ( size_t version = 0; version < num_versions; ++version ) {
+    versioned_batches[version] =
+      createBatchUncontractionHierarchyForVersion(
+        batch_index_assigner, version);
     if ( version > 0 ) {
       batch_sizes_prefix_sum[version] =
         batch_sizes_prefix_sum[version - 1] + versioned_batches[version - 1].size();
     }
+    utils::Timer::instance().start_timer("batch_index_assigner_reset", "Batch Index Assigner Reset");
+    batch_index_assigner.reset(versioned_batches[version].size());
+    utils::Timer::instance().stop_timer("batch_index_assigner_reset");
   }
   utils::Timer::instance().stop_timer("create_versioned_batches");
 
@@ -811,6 +816,59 @@ size_t DynamicHypergraph::findPositionOfPinInIncidenceArray(const HypernodeID u,
   return slot_of_u;
 }
 
+bool DynamicHypergraph::verifyBatchIndexAssignments(
+  const BatchIndexAssigner& batch_assigner,
+  const parallel::scalable_vector<parallel::scalable_vector<BatchAssignment>>& local_batch_assignments) const {
+  parallel::scalable_vector<BatchAssignment> assignments;
+  for ( size_t i = 0; i < local_batch_assignments.size(); ++i ) {
+    for ( const BatchAssignment& batch_assign : local_batch_assignments[i] ) {
+      assignments.push_back(batch_assign);
+    }
+  }
+  std::sort(assignments.begin(), assignments.end(),
+    [&](const BatchAssignment& lhs, const BatchAssignment& rhs) {
+      return lhs.batch_index < rhs.batch_index ||
+        (lhs.batch_index == rhs.batch_index && lhs.batch_pos < rhs.batch_pos);
+    });
+
+  if ( assignments.size() > 0 ) {
+    if ( assignments[0].batch_index != 0 || assignments[0].batch_pos != 0 ) {
+      LOG << "First uncontraction should start at batch 0 at position 0"
+          << V(assignments[0].batch_index) << V(assignments[0].batch_pos);
+      return false;
+    }
+
+    for ( size_t i = 1; i < assignments.size(); ++i ) {
+      if ( assignments[i - 1].batch_index == assignments[i].batch_index ) {
+        if ( assignments[i - 1].batch_pos + 1 != assignments[i].batch_pos ) {
+          LOG << "Batch positions are not consecutive"
+              << V(i) << V(assignments[i - 1].batch_pos) << V(assignments[i].batch_pos);
+          return false;
+        }
+      } else {
+        if ( assignments[i - 1].batch_index + 1 != assignments[i].batch_index ) {
+          LOG << "Batch indices are not consecutive"
+              << V(i) << V(assignments[i - 1].batch_index) << V(assignments[i].batch_index);
+          return false;
+        }
+        if ( assignments[i].batch_pos != 0 ) {
+          LOG << "First uncontraction of each batch should start at position 0"
+              << V(assignments[i].batch_pos);
+          return false;
+        }
+        if ( assignments[i - 1].batch_pos + 1 != batch_assigner.batchSize(assignments[i - 1].batch_index) ) {
+          LOG << "Position of last uncontraction in batch" << assignments[i - 1].batch_index
+              << "does not match size of batch"
+              << V(assignments[i - 1].batch_pos) << V(batch_assigner.batchSize(assignments[i - 1].batch_index));
+          return false;
+        }
+      }
+    }
+  }
+
+  return true;
+}
+
 /**
  * Computes a batch uncontraction hierarchy for a specific version of the hypergraph.
  * A batch is a vector of mementos (uncontractions) that are uncontracted in parallel.
@@ -842,12 +900,13 @@ size_t DynamicHypergraph::findPositionOfPinInIncidenceArray(const HypernodeID u,
  * local searches are more effective in early stages of the uncontraction hierarchy where hyperedge sizes are
  * usually smaller than on the original hypergraph.
  */
-BatchVector DynamicHypergraph::createBatchUncontractionHierarchyForVersion(const size_t batch_size,
+
+BatchVector DynamicHypergraph::createBatchUncontractionHierarchyForVersion(BatchIndexAssigner& batch_assigner,
                                                                            const size_t version) {
 
   using PQ = std::priority_queue<PQBatchUncontractionElement,
-                                  parallel::scalable_vector<PQBatchUncontractionElement>,
-                                  PQElementComparator>;
+                                 parallel::scalable_vector<PQBatchUncontractionElement>,
+                                 PQElementComparator>;
 
   // Checks if two contraction intervals intersect
   auto does_interval_intersect = [&](const ContractionInterval& i1, const ContractionInterval& i2) {
@@ -871,77 +930,117 @@ BatchVector DynamicHypergraph::createBatchUncontractionHierarchyForVersion(const
     }
   };
 
-  BatchVector batches(1);
-  // Contains eligble uncontractions of the current BFS level
-  PQ pq;
-  // Contains eligble uncontractions of the next BFS level
-  PQ next_pq;
-
   // Insert all roots of the current version into the priority queue
+  utils::Timer::instance().start_timer("assign_roots", "Assign Roots");
+  const size_t num_hardware_threads = std::thread::hardware_concurrency();
+  parallel::scalable_vector<PQ> local_pqs(num_hardware_threads);
   const parallel::scalable_vector<HypernodeID>& roots = _contraction_tree.roots_of_version(version);
-  for ( const HypernodeID& root : roots ) {
-    push_into_pq(pq, root);
-  }
+  tbb::parallel_for(0UL, roots.size(), [&](const size_t i) {
+    const int cpu_id = sched_getcpu();
+    push_into_pq(local_pqs[cpu_id], roots[i]);
+  });
+  utils::Timer::instance().stop_timer("assign_roots");
 
-  while ( !pq.empty() ) {
-    // Iterator over the childs of a active vertex
-    auto it = pq.top()._iterator;
-    ASSERT(it.first != it.second);
-    const HypernodeID v = *it.first;
-    pq.pop();
+  utils::Timer::instance().start_timer("create_tmp_batch_uncontraction_hierarchy", "Create Tmp Batch Unc. Hierarchy");
+  using LocalBatchAssignments = parallel::scalable_vector<BatchAssignment>;
+  parallel::scalable_vector<LocalBatchAssignments> local_batch_assignments(num_hardware_threads);
+  parallel::scalable_vector<size_t> local_batch_indices(num_hardware_threads, 0);
+  tbb::parallel_for(0UL, num_hardware_threads, [&](const size_t i) {
+    size_t& current_batch_index = local_batch_indices[i];
+    LocalBatchAssignments& batch_assignments = local_batch_assignments[i];
+    PQ& pq = local_pqs[i];
+    PQ next_pq;
 
-    // If the current batch reaches the maximum batch size we
-    // create a new batch
-    ASSERT(_contraction_tree.version(v) == version);
-    if ( batches.back().size() >= batch_size ) {
-      batches.emplace_back();
-    }
+    while ( !pq.empty() ) {
+      // Iterator over the childs of a active vertex
+      auto it = pq.top()._iterator;
+      ASSERT(it.first != it.second);
+      const HypernodeID v = *it.first;
+      ASSERT(_contraction_tree.version(v) == version);
+      pq.pop();
 
-    // Insert uncontraction (u,v) into the current batch
-    const HypernodeID u = _contraction_tree.parent(v);
-    batches.back().push_back(Memento { u, v });
-    // Push contraction partner into pq for the next BFS level
-    push_into_pq(next_pq, v);
+      const size_t start_idx = batch_assignments.size();
+      size_t num_uncontractions = 1;
+      const HypernodeID u = _contraction_tree.parent(v);
+      batch_assignments.push_back(BatchAssignment { u, v, 0UL, 0UL });
+      // Push contraction partner into pq for the next BFS level
+      push_into_pq(next_pq, v);
 
-    // Insert all childs of u that intersect the contraction time interval of
-    // (u,v) into the current batch
-    ++it.first;
-    ContractionInterval current_ival = _contraction_tree.interval(v);
-    while ( it.first != it.second && _contraction_tree.version(*it.first) == version ) {
-      const HypernodeID w = *it.first;
-      const ContractionInterval w_ival = _contraction_tree.interval(w);
-      if ( does_interval_intersect(current_ival, w_ival) ) {
-        ASSERT(_contraction_tree.parent(w) == u);
-        batches.back().push_back(Memento { u, w });
-        current_ival.start = std::min(current_ival.start, w_ival.start);
-        current_ival.end = std::max(current_ival.end, w_ival.end);
-        push_into_pq(next_pq, w);
-      } else {
-        break;
-      }
+      // Insert all childs of u that intersect the contraction time interval of
+      // (u,v) into the current batch
       ++it.first;
-    }
-
-    // If there are still childs left of u, we push the iterator again into the
-    // priority queue of the current BFS level.
-    if ( it.first != it.second && _contraction_tree.version(*it.first) == version ) {
-      pq.push(PQBatchUncontractionElement { _contraction_tree.subtreeSize(*it.first), it });
-    }
-
-    if ( pq.empty() ) {
-      // Processing of current BFS level finishes
-      // => create new batch and swap current BFS pq with next level BFS pq
-      if ( !batches.back().empty() ) {
-        batches.emplace_back();
+      ContractionInterval current_ival = _contraction_tree.interval(v);
+      while ( it.first != it.second && _contraction_tree.version(*it.first) == version ) {
+        const HypernodeID w = *it.first;
+        const ContractionInterval w_ival = _contraction_tree.interval(w);
+        if ( does_interval_intersect(current_ival, w_ival) ) {
+          ASSERT(_contraction_tree.parent(w) == u);
+          ++num_uncontractions;
+          batch_assignments.push_back(BatchAssignment { u, w, 0UL, 0UL });
+          current_ival.start = std::min(current_ival.start, w_ival.start);
+          current_ival.end = std::max(current_ival.end, w_ival.end);
+          push_into_pq(next_pq, w);
+        } else {
+          break;
+        }
+        ++it.first;
       }
-      std::swap(pq, next_pq);
+
+      // If there are still childs left of u, we push the iterator again into the
+      // priority queue of the current BFS level.
+      if ( it.first != it.second && _contraction_tree.version(*it.first) == version ) {
+        pq.push(PQBatchUncontractionElement { _contraction_tree.subtreeSize(*it.first), it });
+      }
+
+      BatchAssignment assignment = batch_assigner.getBatchIndex(
+        current_batch_index, num_uncontractions);
+      for ( size_t i = start_idx; i < start_idx + num_uncontractions; ++i ) {
+        batch_assignments[i].batch_index = assignment.batch_index;
+        batch_assignments[i].batch_pos = assignment.batch_pos + (i - start_idx);
+      }
+      current_batch_index = assignment.batch_index;
+
+      if ( pq.empty() ) {
+        ++current_batch_index;
+        size_t min_batch_index = current_batch_index;
+        for ( const size_t& batch_index : local_batch_indices ) {
+          min_batch_index = std::min(min_batch_index, batch_index);
+        }
+        batch_assigner.increaseHighWaterMark(min_batch_index);
+        std::swap(pq, next_pq);
+      }
     }
-  }
+  });
+  utils::Timer::instance().stop_timer("create_tmp_batch_uncontraction_hierarchy");
+
+  ASSERT(verifyBatchIndexAssignments(batch_assigner, local_batch_assignments), "Batch asisignment failed");
+
+  utils::Timer::instance().start_timer("create_batch_vector", "Create Batch Vector");
+  const size_t num_batches = batch_assigner.numberOfNonEmptyBatches();
+  BatchVector batches(num_batches);
+  tbb::parallel_for(0UL, num_batches, [&](const size_t batch_index) {
+    batches[batch_index].resize(batch_assigner.batchSize(batch_index));
+  });
+  utils::Timer::instance().stop_timer("create_batch_vector");
+
+  utils::Timer::instance().start_timer("write_batch_vector", "Write Batch Vector");
+  tbb::parallel_for(0UL, num_hardware_threads, [&](const size_t i) {
+    LocalBatchAssignments& batch_assignments = local_batch_assignments[i];
+    for ( const BatchAssignment& batch_assignment : batch_assignments ) {
+      const size_t batch_index = batch_assignment.batch_index;
+      const size_t batch_pos = batch_assignment.batch_pos;
+      ASSERT(batch_index < batches.size());
+      ASSERT(batch_pos < batches[batch_index].size());
+      batches[batch_index][batch_pos].u = batch_assignment.u;
+      batches[batch_index][batch_pos].v = batch_assignment.v;
+    }
+  });
 
   while ( !batches.empty() && batches.back().empty() ) {
     batches.pop_back();
   }
   std::reverse(batches.begin(), batches.end());
+  utils::Timer::instance().stop_timer("write_batch_vector");
 
   return batches;
 }

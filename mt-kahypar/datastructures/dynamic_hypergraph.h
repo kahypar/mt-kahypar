@@ -73,6 +73,106 @@ class DynamicHypergraph {
     bool valid = false;
   };
 
+  struct BatchAssignment {
+    HypernodeID u;
+    HypernodeID v;
+    size_t batch_index;
+    size_t batch_pos;
+  };
+
+  class BatchIndexAssigner {
+
+    using AtomicCounter = parallel::IntegralAtomicWrapper<size_t>;
+
+   public:
+    explicit BatchIndexAssigner(const HypernodeID num_hypernodes,
+                                const size_t max_batch_size) :
+      _max_batch_size(max_batch_size),
+      _high_water_mark(0),
+      _current_batch_counter(num_hypernodes, AtomicCounter(0)),
+      _current_batch_sizes(num_hypernodes, AtomicCounter(0)) { }
+
+    BatchAssignment getBatchIndex(const size_t min_required_batch,
+                                  const size_t num_uncontractions = 1) {
+      if ( min_required_batch <= _high_water_mark ) {
+        size_t current_high_water_mark = _high_water_mark.load();
+        const BatchAssignment assignment = findBatchAssignment(
+          current_high_water_mark, num_uncontractions);
+
+        // Update high water mark in case batch index is greater than
+        // current high water mark
+        size_t current_batch_index = assignment.batch_index;
+        increaseHighWaterMark(current_batch_index);
+        return assignment;
+      } else {
+        return findBatchAssignment(min_required_batch, num_uncontractions);
+      }
+    }
+
+    size_t batchSize(const size_t batch_index) const {
+      ASSERT(batch_index < _current_batch_sizes.size());
+      return _current_batch_sizes[batch_index];
+    }
+
+    void increaseHighWaterMark(size_t new_high_water_mark) {
+      size_t current_high_water_mark = _high_water_mark.load();
+      while ( new_high_water_mark > current_high_water_mark ) {
+        _high_water_mark.compare_exchange_strong(
+          current_high_water_mark, new_high_water_mark);
+      }
+    }
+
+    size_t numberOfNonEmptyBatches() {
+      size_t current_batch = _high_water_mark;
+      if ( _current_batch_sizes[_high_water_mark] == 0 )  {
+        while ( current_batch > 0 && _current_batch_sizes[current_batch] == 0 ) {
+          --current_batch;
+        }
+        if ( _current_batch_sizes[current_batch] > 0 ) {
+          ++current_batch;
+        }
+      } else {
+        while ( _current_batch_sizes[current_batch] > 0 ) {
+          ++current_batch;
+        }
+      }
+      return current_batch;
+    }
+
+    void reset(const size_t num_batches) {
+      ASSERT(num_batches <= _current_batch_sizes.size());
+      _high_water_mark = 0;
+      tbb::parallel_for(0UL, num_batches, [&](const size_t i) {
+        _current_batch_counter[i] = 0;
+        _current_batch_sizes[i] = 0;
+      });
+    }
+
+   private:
+    BatchAssignment findBatchAssignment(const size_t start_batch_index,
+                                        const size_t num_uncontractions) {
+      size_t current_batch_index = start_batch_index;
+      size_t batch_pos = _current_batch_counter[current_batch_index].fetch_add(
+        num_uncontractions, std::memory_order_relaxed);
+      while ( batch_pos >= _max_batch_size ) {
+        ++current_batch_index;
+        ASSERT(current_batch_index < _current_batch_counter.size());
+        batch_pos = _current_batch_counter[current_batch_index].fetch_add(
+          num_uncontractions, std::memory_order_relaxed);
+      }
+      ASSERT(batch_pos < _max_batch_size);
+      _current_batch_sizes[current_batch_index] += num_uncontractions;
+      return BatchAssignment { kInvalidHypernode,
+        kInvalidHypernode, current_batch_index, batch_pos };
+    }
+
+    const size_t _max_batch_size;
+    AtomicCounter _high_water_mark;
+    parallel::scalable_vector<AtomicCounter> _current_batch_counter;
+    parallel::scalable_vector<AtomicCounter> _current_batch_sizes;
+  };
+
+ private:
   /**
    * Represents a hypernode of the hypergraph and contains all information
    * associated with a vertex.
@@ -1046,6 +1146,10 @@ class DynamicHypergraph {
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE size_t findPositionOfPinInIncidenceArray(const HypernodeID u,
                                                                               const HyperedgeID he);
 
+  bool verifyBatchIndexAssignments(
+    const BatchIndexAssigner& batch_assigner,
+    const parallel::scalable_vector<parallel::scalable_vector<BatchAssignment>>& local_batch_assignments) const;
+
   /**
    * Computes a batch uncontraction hierarchy for a specific version of the hypergraph.
    * A batch is a vector of mementos (uncontractions) that are uncontracted in parallel.
@@ -1077,7 +1181,7 @@ class DynamicHypergraph {
    * local searches are more effective in early stages of the uncontraction hierarchy where hyperedge sizes are
    * usually smaller than on the original hypergraph.
    */
-  BatchVector createBatchUncontractionHierarchyForVersion(const size_t batch_size,
+  BatchVector createBatchUncontractionHierarchyForVersion(BatchIndexAssigner& batch_assigner,
                                                           const size_t version);
 
   // ! Number of hypernodes
