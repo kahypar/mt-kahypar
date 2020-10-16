@@ -90,7 +90,8 @@ namespace mt_kahypar::metrics {
 
   bool isBalanced(const PartitionedHypergraph& phg, const Context& context) {
     for (PartitionID i = 0; i < context.partition.k; ++i) {
-      if (phg.partWeight(i) > context.partition.max_part_weights[i] || phg.partWeight(i) == 0) {
+      if (phg.partWeight(i) > context.partition.max_part_weights[i] ||
+          ( phg.partWeight(i) == 0 && phg.numRemovedHypernodes() == 0 )) {
         return false;
       }
     }
