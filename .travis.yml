@@ -69,6 +69,7 @@ install:
 before_script:
   # print out some version numbers
   - $CMAKE_CXX --version
+  # configure
   - cd "${TRAVIS_BUILD_DIR}"
   - mkdir build; cd build
   - cmake

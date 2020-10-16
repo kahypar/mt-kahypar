@@ -2,7 +2,7 @@
 
 License|Linux Build|Code Coverage|Code Quality
 :--:|:--:|:--:|:--:
-[![License: GPL v3](https://img.shields.io/badge/License-GPL%20v3-blue.svg)](http://www.gnu.org/licenses/gpl-3.0)|[![Travis-CI Status](https://travis-ci.org/kahypar/mt-kahypar.svg?branch=master)](https://travis-ci.org/kahypar/mt-kahypar)|[![codecov](https://codecov.io/gh/kittobi1992/mt-kahypar/branch/master/graph/badge.svg?token=sNWRRtXZjI)](https://codecov.io/gh/kittobi1992/mt-kahypar)|[![Language grade: C/C++](https://img.shields.io/lgtm/grade/cpp/g/kittobi1992/mt-kahypar.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/kittobi1992/mt-kahypar/context:cpp)
+[![License: GPL v3](https://img.shields.io/badge/License-GPL%20v3-blue.svg)](http://www.gnu.org/licenses/gpl-3.0)|[![Travis-CI Status](https://travis-ci.org/kahypar/mt-kahypar.svg?branch=master)](https://travis-ci.org/kahypar/mt-kahypar)|[![codecov](https://codecov.io/gh/kahypar/mt-kahypar/branch/master/graph/badge.svg?token=sNWRRtXZjI)](https://codecov.io/gh/kahypar/mt-kahypar)|[![Language grade: C/C++](https://img.shields.io/lgtm/grade/cpp/g/kittobi1992/mt-kahypar.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/kittobi1992/mt-kahypar/context:cpp)
 
 What is a Hypergraph? What is Hypergraph Partitioning?
 -----------
