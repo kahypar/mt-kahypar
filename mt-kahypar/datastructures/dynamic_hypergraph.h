@@ -1030,6 +1030,7 @@ class DynamicHypergraph {
   // ! Reset internal data structure
   void reset() {
     _contraction_tree.reset();
+    _incident_nets.reset();
     _version = 0;
   }
 

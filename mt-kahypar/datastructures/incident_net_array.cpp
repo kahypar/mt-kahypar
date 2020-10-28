@@ -332,6 +332,15 @@ IncidentNetArray IncidentNetArray::copy() {
   return incident_nets;
 }
 
+void IncidentNetArray::reset() {
+  tbb::parallel_for(ID(0), _num_hypernodes, [&](const HypernodeID u) {
+    header(u)->current_version = 0;
+    for ( Entry* entry = firstEntry(u); entry != lastEntry(u); ++entry ) {
+      entry->version = 0;
+    }
+  });
+}
+
 void IncidentNetArray::append(const HypernodeID u, const HypernodeID v) {
   const HypernodeID tail_u = header(u)->prev;
   const HypernodeID tail_v = header(v)->prev;
