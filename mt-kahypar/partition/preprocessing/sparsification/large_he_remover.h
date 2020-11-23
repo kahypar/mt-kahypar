@@ -29,7 +29,7 @@ namespace mt_kahypar {
 
 class LargeHyperedgeRemover {
 
- #define LARGE_HE_THRESHOLD ID(10000)
+ #define LARGE_HE_THRESHOLD ID(50000)
 
  public:
   LargeHyperedgeRemover(const Context& context) :
