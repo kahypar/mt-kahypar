@@ -291,7 +291,7 @@ class IncidentNetArray {
 
   HypernodeID _num_hypernodes;
   size_t _size_in_bytes;
-  parallel::scalable_vector<size_t> _index_array;
+  Array<size_t> _index_array;
   parallel::tbb_unique_ptr<char> _incident_net_array;
 };
 

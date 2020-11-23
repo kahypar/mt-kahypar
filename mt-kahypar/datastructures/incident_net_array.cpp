@@ -432,7 +432,7 @@ void IncidentNetArray::construct(const HyperedgeVector& edge_vector) {
   }
 
   // Compute start positon of the incident nets of each vertex via a parallel prefix sum
-  parallel::TBBPrefixSum<size_t> incident_net_prefix_sum(_index_array);
+  parallel::TBBPrefixSum<size_t, Array> incident_net_prefix_sum(_index_array);
   tbb::parallel_scan(tbb::blocked_range<size_t>(
           0UL, UI64(_num_hypernodes + 1)), incident_net_prefix_sum);
   _size_in_bytes = incident_net_prefix_sum.total_sum();

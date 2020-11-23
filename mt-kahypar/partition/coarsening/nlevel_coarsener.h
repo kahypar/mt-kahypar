@@ -133,11 +133,8 @@ class NLevelCoarsener : public ICoarsener,
             if ( _hg.registerContraction(u, v) ) {
               _rater.markAsMatched(u);
               _rater.markAsMatched(v);
-              // TODO(heuer): Think what should happen if a contraction failed due to the max node weight
-              // It might be that other concurrent running contractions to that vertex are relinked to
-              // an other vertex in the contraction tree.
               const size_t num_contractions = _hg.contract(v, _max_allowed_node_weight);
-              _progress_bar += num_contractions; // TODO: should be updated outside this parallel for loop
+              _progress_bar += num_contractions;
 
               // To maintain the current number of nodes of the hypergraph each PE sums up
               // its number of contracted nodes locally. To compute the current number of

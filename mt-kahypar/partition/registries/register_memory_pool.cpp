@@ -63,17 +63,19 @@ namespace mt_kahypar {
     // ########## Coarsening Memory ##########
 
     pool.register_memory_group("Coarsening", 2);
-    pool.register_memory_chunk("Coarsening", "mapping", num_hypernodes, sizeof(size_t));
-    pool.register_memory_chunk("Coarsening", "tmp_hypernodes", num_hypernodes, Hypergraph::SIZE_OF_HYPERNODE);
-    pool.register_memory_chunk("Coarsening", "tmp_incident_nets", num_pins, sizeof(HyperedgeID));
-    pool.register_memory_chunk("Coarsening", "tmp_num_incident_nets",
-                               num_hypernodes, sizeof(parallel::IntegralAtomicWrapper<size_t>));
-    pool.register_memory_chunk("Coarsening", "hn_weights",
-                               num_hypernodes, sizeof(parallel::IntegralAtomicWrapper<HypernodeWeight>));
-    pool.register_memory_chunk("Coarsening", "tmp_hyperedges", num_hyperedges, Hypergraph::SIZE_OF_HYPEREDGE);
-    pool.register_memory_chunk("Coarsening", "tmp_incidence_array", num_pins, sizeof(HypernodeID));
-    pool.register_memory_chunk("Coarsening", "he_sizes", num_hyperedges, sizeof(size_t));
-    pool.register_memory_chunk("Coarsening", "valid_hyperedges", num_hyperedges, sizeof(size_t));
+    if ( context.partition.paradigm == Paradigm::multilevel ) {
+      pool.register_memory_chunk("Coarsening", "mapping", num_hypernodes, sizeof(size_t));
+      pool.register_memory_chunk("Coarsening", "tmp_hypernodes", num_hypernodes, Hypergraph::SIZE_OF_HYPERNODE);
+      pool.register_memory_chunk("Coarsening", "tmp_incident_nets", num_pins, sizeof(HyperedgeID));
+      pool.register_memory_chunk("Coarsening", "tmp_num_incident_nets",
+                                num_hypernodes, sizeof(parallel::IntegralAtomicWrapper<size_t>));
+      pool.register_memory_chunk("Coarsening", "hn_weights",
+                                num_hypernodes, sizeof(parallel::IntegralAtomicWrapper<HypernodeWeight>));
+      pool.register_memory_chunk("Coarsening", "tmp_hyperedges", num_hyperedges, Hypergraph::SIZE_OF_HYPEREDGE);
+      pool.register_memory_chunk("Coarsening", "tmp_incidence_array", num_pins, sizeof(HypernodeID));
+      pool.register_memory_chunk("Coarsening", "he_sizes", num_hyperedges, sizeof(size_t));
+      pool.register_memory_chunk("Coarsening", "valid_hyperedges", num_hyperedges, sizeof(size_t));
+    }
 
     // ########## Refinement Memory ##########
 
