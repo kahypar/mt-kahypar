@@ -237,11 +237,11 @@ namespace mt_kahypar {
             (( initial_partitioning ? "i-r-max-batch-size" : "r-max-batch-size"),
              po::value<size_t>((!initial_partitioning ? &context.refinement.max_batch_size :
                                 &context.initial_partitioning.refinement.max_batch_size))->value_name("<size_t>")->default_value(1000),
-             "Maximum size of an uncontraction batch.")
+             "Maximum size of an uncontraction batch (n-Level Partitioner).")
             (( initial_partitioning ? "i-r-min-border-vertices-per-thread" : "r-min-border-vertices-per-thread"),
              po::value<size_t>((!initial_partitioning ? &context.refinement.min_border_vertices_per_thread :
                                 &context.initial_partitioning.refinement.min_border_vertices_per_thread))->value_name("<size_t>")->default_value(0),
-             "Minimum number of border vertices per thread with which we perform a localized search.")
+             "Minimum number of border vertices per thread with which we perform a localized search (n-Level Partitioner).")
             ((initial_partitioning ? "i-r-lp-type" : "r-lp-type"),
              po::value<std::string>()->value_name("<string>")->notifier(
                      [&, initial_partitioning](const std::string& type) {
@@ -339,21 +339,22 @@ namespace mt_kahypar {
              po::value<bool>((!initial_partitioning ? &context.refinement.global_fm.use_global_fm :
                               &context.initial_partitioning.refinement.global_fm.use_global_fm))->value_name(
                      "<bool>")->default_value(false),
-             "Executes n-level global fm as long as it finds an improvement on the current partition.")
+             "If true, than we execute a globalized FM local search interleaved with the localized searches."
+             "Note, gobalized FM local searches are performed in multilevel style (not after each batch uncontraction)")
             ((initial_partitioning ? "i-r-global-fm-refine-until-no-improvement" : "r-global-refine-until-no-improvement"),
              po::value<bool>((!initial_partitioning ? &context.refinement.global_fm.refine_until_no_improvement :
                               &context.initial_partitioning.refinement.global_fm.refine_until_no_improvement))->value_name(
                      "<bool>")->default_value(false),
-             "Executes n-level global fm as long as it finds an improvement on the current partition.")
+             "Executes a globalized FM local search as long as it finds an improvement on the current partition.")
             ((initial_partitioning ? "i-r-global-fm-seed-nodes" : "r-global-fm-seed-nodes"),
              po::value<size_t>((initial_partitioning ? &context.initial_partitioning.refinement.global_fm.num_seed_nodes :
                                 &context.refinement.global_fm.num_seed_nodes))->value_name("<size_t>")->default_value(25),
-             "Number of nodes to start the 'highly localized FM' with during n-level global fm refinement.")
+             "Number of nodes to start the 'highly localized FM' with during the globalized FM local search.")
             ((initial_partitioning ? "i-r-global-fm-obey-minimal-parallelism" : "r-global-fm-obey-minimal-parallelism"),
              po::value<bool>(
                      (initial_partitioning ? &context.initial_partitioning.refinement.global_fm.obey_minimal_parallelism :
                       &context.refinement.global_fm.obey_minimal_parallelism))->value_name("<bool>")->default_value(true),
-             "If true, then parallel n-level global FM refinement stops if more than a certain number of threads are finished.")
+             "If true, then the globalized FM local search stops if more than a certain number of threads are finished.")
             #endif
             ;
     return options;
@@ -390,8 +391,9 @@ namespace mt_kahypar {
              "Number of runs for each bisection algorithm.")
             ("i-use-adaptive-ip-runs",
              po::value<bool>(&context.initial_partitioning.use_adaptive_ip_runs)->value_name("<bool>")->default_value(true),
-             "If true, than each initial partitioner decides if it should further run based on each based\n"
-             "produced quality and the standard deviation of the corresponding partitioner.")
+             "If true, than each initial partitioner decides if it should further continue partitioning based on the"
+             "quality produced by itself compared to the quality of the other partitioners. If it is not likely that the partitioner"
+             "will produce a solution with a quality better than the current best, further runs of that partitioner are omitted.")
             ("i-min-adaptive-ip-runs",
              po::value<size_t>(&context.initial_partitioning.min_adaptive_ip_runs)->value_name("<size_t>")->default_value(5),
              "If adaptive IP runs is enabled, than each initial partitioner performs minimum min_adaptive_ip_runs runs before\n"
@@ -406,7 +408,7 @@ namespace mt_kahypar {
              "If true, then we perform an additional refinement on the best thread local partitions after IP.")
             ("i-fm-refinement-rounds",
              po::value<size_t>(&context.initial_partitioning.fm_refinment_rounds)->value_name("<size_t>")->default_value(1),
-             "Number of 2-way FM rounds on each bisection produced by an initial partitioner.")
+             "Maximum number of 2-way FM local searches on each bisection produced by an initial partitioner.")
             ("i-remove-degree-zero-hns-before-ip",
              po::value<bool>(&context.initial_partitioning.remove_degree_zero_hns_before_ip)->value_name("<bool>")->default_value(true),
              "If true, degree-zero vertices are removed before initial partitioning.")
