@@ -22,6 +22,8 @@
 #include <cstdint>
 #include <limits>
 
+#include "mt-kahypar/parallel/stl/scalable_vector.h"
+
 namespace mt_kahypar {
 
 #define UI64(X) static_cast<uint64_t>(X)
@@ -80,6 +82,15 @@ struct Move {
   Gain gain = invalidGain;
 };
 
+struct Memento {
+  HypernodeID u; // representative
+  HypernodeID v; // contraction partner
+};
+
+using Batch = parallel::scalable_vector<Memento>;
+using BatchVector = parallel::scalable_vector<Batch>;
+using VersionedBatchVector = parallel::scalable_vector<BatchVector>;
+
 using MoveID = uint32_t;
 using SearchID = uint32_t;
 
@@ -87,6 +98,11 @@ struct NoOpDeltaFunc {
   void operator() (const HyperedgeID, const HyperedgeWeight, const HypernodeID, const HypernodeID, const HypernodeID) { }
 };
 
+
+struct ParallelHyperedge {
+  HyperedgeID removed_hyperedge;
+  HyperedgeID representative;
+};
 
 // ! Helper function to compute delta for cut-metric after changeNodePart
 static HyperedgeWeight cutDelta(const HyperedgeID,

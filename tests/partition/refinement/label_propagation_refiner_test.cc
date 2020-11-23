@@ -131,24 +131,24 @@ typedef ::testing::Types<TestConfig<2, kahypar::Objective::cut>,
 TYPED_TEST_CASE(ALabelPropagationRefiner, TestConfigs);
 
 TYPED_TEST(ALabelPropagationRefiner, UpdatesImbalanceCorrectly) {
-  this->refiner->refine(this->partitioned_hypergraph, this->metrics, std::numeric_limits<double>::max());
+  this->refiner->refine(this->partitioned_hypergraph, {}, this->metrics, std::numeric_limits<double>::max());
   ASSERT_DOUBLE_EQ(metrics::imbalance(this->partitioned_hypergraph, this->context), this->metrics.imbalance);
 }
 
 TYPED_TEST(ALabelPropagationRefiner, DoesNotViolateBalanceConstraint) {
-  this->refiner->refine(this->partitioned_hypergraph, this->metrics, std::numeric_limits<double>::max());
+  this->refiner->refine(this->partitioned_hypergraph, {}, this->metrics, std::numeric_limits<double>::max());
   ASSERT_LE(this->metrics.imbalance, this->context.partition.epsilon + EPS);
 }
 
 TYPED_TEST(ALabelPropagationRefiner, UpdatesMetricsCorrectly) {
-  this->refiner->refine(this->partitioned_hypergraph, this->metrics, std::numeric_limits<double>::max());
+  this->refiner->refine(this->partitioned_hypergraph, {}, this->metrics, std::numeric_limits<double>::max());
   ASSERT_EQ(metrics::objective(this->partitioned_hypergraph, this->context.partition.objective),
             this->metrics.getMetric(kahypar::Mode::direct_kway, this->context.partition.objective));
 }
 
 TYPED_TEST(ALabelPropagationRefiner, DoesNotWorsenSolutionQuality) {
   HyperedgeWeight objective_before = metrics::objective(this->partitioned_hypergraph, this->context.partition.objective);
-  this->refiner->refine(this->partitioned_hypergraph, this->metrics, std::numeric_limits<double>::max());
+  this->refiner->refine(this->partitioned_hypergraph, {}, this->metrics, std::numeric_limits<double>::max());
   ASSERT_LE(this->metrics.getMetric(kahypar::Mode::direct_kway, this->context.partition.objective), objective_before);
 }
 }  // namespace mt_kahypar

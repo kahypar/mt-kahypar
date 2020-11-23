@@ -63,17 +63,19 @@ namespace mt_kahypar {
     // ########## Coarsening Memory ##########
 
     pool.register_memory_group("Coarsening", 2);
-    pool.register_memory_chunk("Coarsening", "mapping", num_hypernodes, sizeof(size_t));
-    pool.register_memory_chunk("Coarsening", "tmp_hypernodes", num_hypernodes, Hypergraph::SIZE_OF_HYPERNODE);
-    pool.register_memory_chunk("Coarsening", "tmp_incident_nets", num_pins, sizeof(HyperedgeID));
-    pool.register_memory_chunk("Coarsening", "tmp_num_incident_nets",
-                               num_hypernodes, sizeof(parallel::IntegralAtomicWrapper<size_t>));
-    pool.register_memory_chunk("Coarsening", "hn_weights",
-                               num_hypernodes, sizeof(parallel::IntegralAtomicWrapper<HypernodeWeight>));
-    pool.register_memory_chunk("Coarsening", "tmp_hyperedges", num_hyperedges, Hypergraph::SIZE_OF_HYPEREDGE);
-    pool.register_memory_chunk("Coarsening", "tmp_incidence_array", num_pins, sizeof(HypernodeID));
-    pool.register_memory_chunk("Coarsening", "he_sizes", num_hyperedges, sizeof(size_t));
-    pool.register_memory_chunk("Coarsening", "valid_hyperedges", num_hyperedges, sizeof(size_t));
+    if ( context.partition.paradigm == Paradigm::multilevel ) {
+      pool.register_memory_chunk("Coarsening", "mapping", num_hypernodes, sizeof(size_t));
+      pool.register_memory_chunk("Coarsening", "tmp_hypernodes", num_hypernodes, Hypergraph::SIZE_OF_HYPERNODE);
+      pool.register_memory_chunk("Coarsening", "tmp_incident_nets", num_pins, sizeof(HyperedgeID));
+      pool.register_memory_chunk("Coarsening", "tmp_num_incident_nets",
+                                num_hypernodes, sizeof(parallel::IntegralAtomicWrapper<size_t>));
+      pool.register_memory_chunk("Coarsening", "hn_weights",
+                                num_hypernodes, sizeof(parallel::IntegralAtomicWrapper<HypernodeWeight>));
+      pool.register_memory_chunk("Coarsening", "tmp_hyperedges", num_hyperedges, Hypergraph::SIZE_OF_HYPEREDGE);
+      pool.register_memory_chunk("Coarsening", "tmp_incidence_array", num_pins, sizeof(HypernodeID));
+      pool.register_memory_chunk("Coarsening", "he_sizes", num_hyperedges, sizeof(size_t));
+      pool.register_memory_chunk("Coarsening", "valid_hyperedges", num_hyperedges, sizeof(size_t));
+    }
 
     // ########## Refinement Memory ##########
 
@@ -87,13 +89,14 @@ namespace mt_kahypar {
                                ds::ConnectivitySets::num_elements(num_hyperedges, context.partition.k),
                                sizeof(ds::ConnectivitySets::UnsafeBlock));
     pool.register_memory_chunk("Refinement", "move_to_penalty",
-                               static_cast<size_t>(num_hypernodes) * context.partition.k, sizeof(CAtomic<HyperedgeWeight>));
+                               static_cast<size_t>(num_hypernodes) * ( context.partition.k + 1 ), sizeof(CAtomic<HyperedgeWeight>));
     pool.register_memory_chunk("Refinement", "move_from_penalty",
                                num_hypernodes, sizeof(CAtomic<HyperedgeWeight>));
     pool.register_memory_chunk("Refinement", "pin_count_update_ownership",
-                               num_hyperedges, sizeof(parallel::IntegralAtomicWrapper<bool>));
+                               num_hyperedges, sizeof(SpinLock));
 
-    if ( context.refinement.fm.algorithm != FMAlgorithm::do_nothing && context.refinement.fm.revert_parallel ) {
+    if ( context.refinement.fm.algorithm != FMAlgorithm::do_nothing &&
+         context.refinement.fm.revert_parallel ) {
       pool.register_memory_chunk("Refinement", "remaining_original_pins",
                                  static_cast<size_t>(hypergraph.numNonGraphEdges()) * context.partition.k, sizeof(CAtomic<HypernodeID>));
       pool.register_memory_chunk("Refinement", "first_move_in",

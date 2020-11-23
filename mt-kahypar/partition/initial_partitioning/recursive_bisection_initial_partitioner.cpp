@@ -195,13 +195,15 @@ namespace mt_kahypar {
                                 const Context& context,
                                 const PartitionID block,
                                 const BlockRange range,
-                                const TaskGroupID task_group_id) :
+                                const TaskGroupID task_group_id,
+                                const double degree_of_parallelism) :
             _original_hypergraph_info(original_hypergraph_info),
             _hg(hypergraph),
             _context(context),
             _block(block),
             _range(range),
-            _task_group_id(task_group_id) { }
+            _task_group_id(task_group_id),
+            _degree_of_parallelism(degree_of_parallelism) { }
 
     tbb::task* execute() override ;
 
@@ -221,6 +223,8 @@ namespace mt_kahypar {
                 _context.partition.max_part_weights[part_id];
       }
 
+      rb_context.shared_memory.degree_of_parallelism *= _degree_of_parallelism;
+
       return rb_context;
     }
 
@@ -230,6 +234,7 @@ namespace mt_kahypar {
     const PartitionID _block;
     const BlockRange _range;
     const TaskGroupID _task_group_id;
+    const double _degree_of_parallelism;
   };
 
   /*!
@@ -291,9 +296,9 @@ namespace mt_kahypar {
         auto tbb_recursion_task_groups = TBBNumaArena::instance().create_tbb_task_groups_for_recursion();
         DoNothingContinuation& recursive_continuation = *new(allocate_continuation()) DoNothingContinuation();
         RecursiveBisectionChildTask& recursion_0 = *new(recursive_continuation.allocate_child()) RecursiveBisectionChildTask(
-                _original_hypergraph_info, _hg, _context, 0, range_0, tbb_recursion_task_groups.first);
+                _original_hypergraph_info, _hg, _context, 0, range_0, tbb_recursion_task_groups.first, 0.5);
         RecursiveBisectionChildTask& recursion_1 = *new(recursive_continuation.allocate_child()) RecursiveBisectionChildTask(
-                _original_hypergraph_info, _hg, _context, num_blocks_part_0, range_1, tbb_recursion_task_groups.second);
+                _original_hypergraph_info, _hg, _context, num_blocks_part_0, range_1, tbb_recursion_task_groups.second, 0.5);
         recursive_continuation.set_ref_count(2);
         tbb::task::spawn(recursion_1);
         tbb::task::spawn(recursion_0);
@@ -305,7 +310,7 @@ namespace mt_kahypar {
             << "Recursion 0: k =" << num_blocks_part_0;
         DoNothingContinuation& recursive_continuation = *new(allocate_continuation()) DoNothingContinuation();
         RecursiveBisectionChildTask& recursion_0 = *new(recursive_continuation.allocate_child()) RecursiveBisectionChildTask(
-                _original_hypergraph_info, _hg, _context, 0, range_0, _task_group_id);
+                _original_hypergraph_info, _hg, _context, 0, range_0, _task_group_id, 1.0);
         recursive_continuation.set_ref_count(1);
         tbb::task::spawn(recursion_0);
       }
@@ -463,7 +468,7 @@ namespace mt_kahypar {
     _task_group_id(task_group_id) { }
 
   void RecursiveBisectionInitialPartitioner::initialPartitionImpl() {
-      if (_top_level) {
+    if (_top_level) {
       parallel::MemoryPool::instance().deactivate_unused_memory_allocations();
       utils::Timer::instance().disable();
       utils::Stats::instance().disable();

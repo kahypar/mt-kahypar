@@ -33,7 +33,7 @@ size_t n = 100000;
 
 TEST(WorkContainer, HasCorrectSizeAfterParallelInsertionAndDeletion) {
   int m = 75000;
-  WorkContainer<int> cdc(n, std::thread::hardware_concurrency());
+  WorkContainer<int> cdc(std::thread::hardware_concurrency());
   tbb::parallel_for(0, m, [&](int i) {
     cdc.safe_push(i, tbb::this_task_arena::current_thread_index());
   });
@@ -61,7 +61,7 @@ TEST(WorkContainer, HasCorrectSizeAfterParallelInsertionAndDeletion) {
 }
 
 TEST(WorkContainer, ClearWorks) {
-  WorkContainer<int> cdc(n, std::thread::hardware_concurrency());
+  WorkContainer<int> cdc(std::thread::hardware_concurrency());
   cdc.safe_push(5, tbb::this_task_arena::current_thread_index());
   cdc.safe_push(420, tbb::this_task_arena::current_thread_index());
   ASSERT_EQ(cdc.unsafe_size(), 2);
@@ -71,7 +71,7 @@ TEST(WorkContainer, ClearWorks) {
 
 
 TEST(WorkContainer, WorkStealingWorks) {
-  WorkContainer<int> cdc(n, std::thread::hardware_concurrency());
+  WorkContainer<int> cdc(std::thread::hardware_concurrency());
 
   std::atomic<size_t> stage { 0 };
   size_t steals = 0;
@@ -108,34 +108,6 @@ TEST(WorkContainer, WorkStealingWorks) {
 
   ASSERT_EQ(steals + own_pops, m);
 }
-
-TEST(WorkContainer, PushAndRemoveDetected) {
-
-  unsigned int p = std::thread::hardware_concurrency();
-  ASSERT(p >= 1);
-  WorkContainer<int> cdc(n, p);
-
-
-  cdc.safe_push(420, 0);
-  cdc.safe_push(422, p-1);
-  cdc.safe_push(421, 0);
-
-  ASSERT_FALSE(cdc.was_pushed_and_removed(420));
-  ASSERT_FALSE(cdc.was_pushed_and_removed(421));
-  ASSERT_FALSE(cdc.was_pushed_and_removed(422));
-
-  int dest;
-  cdc.try_pop(dest, 0);
-  ASSERT_EQ(dest, 420);
-  ASSERT_TRUE(cdc.was_pushed_and_removed(420));
-  cdc.try_pop(dest, p-1);
-  ASSERT_EQ(dest, 422);
-  ASSERT_TRUE(cdc.was_pushed_and_removed(422));
-
-  cdc.clear();
-  ASSERT_FALSE(cdc.was_pushed_and_removed(420));
-}
-
 
 }  // namespace parallel
 }  // namespace mt_kahypar

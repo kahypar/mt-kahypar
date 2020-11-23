@@ -25,8 +25,7 @@
 
 #include "mt-kahypar/macros.h"
 
-#include <mt-kahypar/datastructures/static_hypergraph.h>
-#include <mt-kahypar/datastructures/partitioned_hypergraph.h>
+#include <mt-kahypar/definitions.h>
 #include <mt-kahypar/io/hypergraph_io.h>
 
 using ::testing::Test;
@@ -35,9 +34,9 @@ namespace mt_kahypar {
 namespace ds {
 
 TEST(GainUpdates, Example1) {
-  StaticHypergraph hg = io::readHypergraphFile("../tests/instances/twocenters.hgr", 0);
+  Hypergraph hg = io::readHypergraphFile("../tests/instances/twocenters.hgr", 0);
   PartitionID k = 2;
-  PartitionedHypergraph<StaticHypergraph, StaticHypergraphFactory> phg(k, hg);
+  PartitionedHypergraph<Hypergraph, HypergraphFactory> phg(k, hg);
 
   phg.setNodePart(0, 0);
   phg.setNodePart(1, 0);
@@ -54,7 +53,7 @@ TEST(GainUpdates, Example1) {
   ASSERT_EQ(phg.partWeight(0), phg.partWeight(1));
   ASSERT_EQ(phg.partWeight(0), 10);
 
-  phg.initializeGainInformation();
+    phg.initializeGainCache();
   ASSERT_EQ(phg.km1Gain(0, phg.partID(0), 1), -1);
   ASSERT_EQ(phg.moveFromBenefit(0), 1);
   ASSERT_EQ(phg.moveToPenalty(0, 1), 2);
@@ -67,7 +66,7 @@ TEST(GainUpdates, Example1) {
   ASSERT_EQ(phg.km1Gain(12, phg.partID(12), 0), -1);
   ASSERT_EQ(phg.km1Gain(14, phg.partID(14), 0), -2);
 
-  phg.changeNodePartFullUpdate(8, 0, 1, std::numeric_limits<HypernodeWeight>::max(), []{});
+    phg.changeNodePartWithGainCacheUpdate(8, 0, 1);
 
   phg.recomputeMoveFromBenefit(8);  // nodes are allowed to move once before moveFromBenefit must be recomputed
   ASSERT_EQ(phg.km1Gain(8, 1, 0), 2);

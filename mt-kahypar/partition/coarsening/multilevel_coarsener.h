@@ -159,14 +159,16 @@ class MultilevelCoarsener : public ICoarsener,
       utils::Timer::instance().start_timer("shuffle_vertices", "Shuffle Vertices");
       _current_vertices.resize(current_hg.initialNumNodes());
       parallel::scalable_vector<HypernodeID> cluster_ids(current_hg.initialNumNodes());
-      current_hg.doParallelForAllNodes([&](const HypernodeID& hn) {
+      tbb::parallel_for(ID(0), current_hg.initialNumNodes(), [&](const HypernodeID hn) {
         ASSERT(hn < _current_vertices.size());
-        _current_vertices[hn] = hn;
         // Reset clustering
+        _current_vertices[hn] = hn;
         _matching_state[hn] = STATE(MatchingState::UNMATCHED);
-        _cluster_weight[hn] = current_hg.nodeWeight(hn);
         _matching_partner[hn] = hn;
         cluster_ids[hn] = hn;
+        if ( current_hg.nodeIsEnabled(hn) ) {
+          _cluster_weight[hn] = current_hg.nodeWeight(hn);
+        }
       });
 
       if ( _enable_randomization ) {
@@ -195,40 +197,41 @@ class MultilevelCoarsener : public ICoarsener,
       tbb::parallel_for(ID(0), current_hg.initialNumNodes(), [&](const HypernodeID id) {
         ASSERT(id < _current_vertices.size());
         const HypernodeID hn = _current_vertices[id];
-        const HypernodeID u = hn;
+        if ( current_hg.nodeIsEnabled(hn) ) {
+          // We perform rating if ...
+          //  1.) The contraction limit of the current level is not reached
+          //  2.) Vertex hn is not matched before
+          const HypernodeID u = hn;
+          if ( _matching_state[u] == STATE(MatchingState::UNMATCHED) ) {
+            if ( current_num_nodes > hierarchy_contraction_limit ) {
+              ASSERT(current_hg.nodeIsEnabled(hn));
+              const Rating rating = _rater.rate(current_hg, hn,
+                cluster_ids, _cluster_weight, _max_allowed_node_weight);
+              if ( rating.target != kInvalidHypernode ) {
+                const HypernodeID v = rating.target;
+                HypernodeID& local_contracted_nodes = contracted_nodes.local();
+                matchVertices(current_hg, u, v, cluster_ids, local_contracted_nodes);
 
-        // We perform rating if ...
-        //  1.) The contraction limit of the current level is not reached
-        //  2.) Vertex hn is not matched before
-        if ( _matching_state[u] == STATE(MatchingState::UNMATCHED) ) {
-          if ( current_num_nodes > hierarchy_contraction_limit ) {
-            ASSERT(current_hg.nodeIsEnabled(hn));
-            const Rating rating = _rater.rate(current_hg, hn,
-              cluster_ids, _cluster_weight, _max_allowed_node_weight);
-            if ( rating.target != kInvalidHypernode ) {
-              const HypernodeID v = rating.target;
-              HypernodeID& local_contracted_nodes = contracted_nodes.local();
-              matchVertices(current_hg, u, v, cluster_ids, local_contracted_nodes);
-
-              // To maintain the current number of nodes of the hypergraph each PE sums up
-              // its number of contracted nodes locally. To compute the current number of
-              // nodes, we have to sum up the number of contracted nodes of each PE. This
-              // operation becomes more expensive the more PEs are participating in coarsening.
-              // In order to prevent expensive updates of the current number of nodes, we
-              // define a threshold which the local number of contracted nodes have to exceed
-              // before the current PE updates the current number of nodes. This threshold is defined
-              // by the distance to the current contraction limit divided by the number of PEs.
-              // Once one PE exceeds this bound the first time it is not possible that the
-              // contraction limit is reached, because otherwise an other PE would update
-              // the global current number of nodes before. After update the threshold is
-              // increased by the new difference (in number of nodes) to the contraction limit
-              // divided by the number of PEs.
-              if (  local_contracted_nodes >= num_nodes_update_threshold.local() ) {
-                current_num_nodes = num_hns_before_pass -
-                  contracted_nodes.combine(std::plus<HypernodeID>());
-                num_nodes_update_threshold.local() +=
-                  (current_num_nodes - hierarchy_contraction_limit) /
-                  _context.shared_memory.num_threads;
+                // To maintain the current number of nodes of the hypergraph each PE sums up
+                // its number of contracted nodes locally. To compute the current number of
+                // nodes, we have to sum up the number of contracted nodes of each PE. This
+                // operation becomes more expensive the more PEs are participating in coarsening.
+                // In order to prevent expensive updates of the current number of nodes, we
+                // define a threshold which the local number of contracted nodes have to exceed
+                // before the current PE updates the current number of nodes. This threshold is defined
+                // by the distance to the current contraction limit divided by the number of PEs.
+                // Once one PE exceeds this bound the first time it is not possible that the
+                // contraction limit is reached, because otherwise an other PE would update
+                // the global current number of nodes before. After update the threshold is
+                // increased by the new difference (in number of nodes) to the contraction limit
+                // divided by the number of PEs.
+                if (  local_contracted_nodes >= num_nodes_update_threshold.local() ) {
+                  current_num_nodes = num_hns_before_pass -
+                    contracted_nodes.combine(std::plus<HypernodeID>());
+                  num_nodes_update_threshold.local() +=
+                    (current_num_nodes - hierarchy_contraction_limit) /
+                    _context.shared_memory.num_threads;
+                }
               }
             }
           }

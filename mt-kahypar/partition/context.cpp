@@ -84,10 +84,8 @@ namespace mt_kahypar {
     }
     str << "  Contraction Limit Multiplier:       " << params.contraction_limit_multiplier << std::endl;
     str << "  Contraction Limit:                  " << params.contraction_limit << std::endl;
-    if ( params.algorithm == CoarseningAlgorithm::multilevel_coarsener ) {
-      str << "  Minimum Shrink Factor:              " << params.minimum_shrink_factor << std::endl;
-      str << "  Maximum Shrink Factor:              " << params.maximum_shrink_factor << std::endl;
-    }
+    str << "  Minimum Shrink Factor:              " << params.minimum_shrink_factor << std::endl;
+    str << "  Maximum Shrink Factor:              " << params.maximum_shrink_factor << std::endl;
     str << "  Vertex Degree Sampling Threshold:   " << params.vertex_degree_sampling_threshold << std::endl;
     str << std::endl << params.rating;
     return str;
@@ -96,34 +94,56 @@ namespace mt_kahypar {
   std::ostream & operator<< (std::ostream& str, const LabelPropagationParameters& params) {
     str << "  Label Propagation Parameters:" << std::endl;
     str << "    Algorithm:                        " << params.algorithm << std::endl;
-    str << "    Maximum Iterations:               " << params.maximum_iterations << std::endl;
-    str << "    Rebalancing:                      " << std::boolalpha << params.rebalancing << std::endl;
-    str << "    HE Size Activation Threshold:     " << std::boolalpha << params.hyperedge_size_activation_threshold << std::endl;
+    if ( params.algorithm != LabelPropagationAlgorithm::do_nothing ) {
+      str << "    Maximum Iterations:               " << params.maximum_iterations << std::endl;
+      str << "    Rebalancing:                      " << std::boolalpha << params.rebalancing << std::endl;
+      str << "    HE Size Activation Threshold:     " << std::boolalpha << params.hyperedge_size_activation_threshold << std::endl;
+    }
     return str;
   }
 
   std::ostream& operator<<(std::ostream& out, const FMParameters& params) {
     out << "  FM Parameters: \n";
     out << "    Algorithm:                        " << params.algorithm << std::endl;
-    out << "    Multitry Rounds:                  " << params.multitry_rounds << std::endl;
-    out << "    Perform Moves Globally:           " << std::boolalpha << params.perform_moves_global << std::endl;
-    out << "    Parallel Global Rollbacks:        " << std::boolalpha << params.revert_parallel << std::endl;
-    out << "    Rollback Bal. Violation Factor:   " << params.rollback_balance_violation_factor << std::endl;
-    out << "    Num Seed Nodes:                   " << params.num_seed_nodes << std::endl;
-    out << "    Enable Random Shuffle:            " << std::boolalpha << params.shuffle << std::endl;
-    out << "    Obey Minimal Parallelism:         " << std::boolalpha << params.obey_minimal_parallelism << std::endl;
-    out << "    Minimum Improvement Factor:       " << params.min_improvement << std::endl;
-    out << "    Release Nodes:                    " << std::boolalpha << params.release_nodes << std::endl;
-    out << "    Time Limit Factor:                " << params.time_limit_factor << std::endl;
+    if ( params.algorithm != FMAlgorithm::do_nothing ) {
+      out << "    Multitry Rounds:                  " << params.multitry_rounds << std::endl;
+      out << "    Perform Moves Globally:           " << std::boolalpha << params.perform_moves_global << std::endl;
+      out << "    Parallel Global Rollbacks:        " << std::boolalpha << params.revert_parallel << std::endl;
+      out << "    Rollback Bal. Violation Factor:   " << params.rollback_balance_violation_factor << std::endl;
+      out << "    Num Seed Nodes:                   " << params.num_seed_nodes << std::endl;
+      out << "    Enable Random Shuffle:            " << std::boolalpha << params.shuffle << std::endl;
+      out << "    Obey Minimal Parallelism:         " << std::boolalpha << params.obey_minimal_parallelism << std::endl;
+      out << "    Minimum Improvement Factor:       " << params.min_improvement << std::endl;
+      out << "    Release Nodes:                    " << std::boolalpha << params.release_nodes << std::endl;
+      out << "    Time Limit Factor:                " << params.time_limit_factor << std::endl;
+    }
     out << std::flush;
+    return out;
+  }
+
+  std::ostream& operator<<(std::ostream& out, const NLevelGlobalFMParameters& params) {
+    out << "  Boundary FM Parameters: \n";
+    out << "    Use Global FM:                    " << std::boolalpha << params.use_global_fm << std::endl;
+    if ( params.use_global_fm ) {
+      out << "    Refine Until No Improvement:      " << std::boolalpha << params.refine_until_no_improvement << std::endl;
+      out << "    Num Seed Nodes:                   " << params.num_seed_nodes << std::endl;
+      out << "    Obey Minimal Parallelism:         " << std::boolalpha << params.obey_minimal_parallelism << std::endl;
+    }
     return out;
   }
 
   std::ostream & operator<< (std::ostream& str, const RefinementParameters& params) {
     str << "Refinement Parameters:" << std::endl;
     str << "  Refine Until No Improvement:        " << std::boolalpha << params.refine_until_no_improvement << std::endl;
-    str << std::endl << params.label_propagation;
+#ifdef KAHYPAR_USE_N_LEVEL_PARADIGM
+    str << "  Maximum Batch Size:                 " << params.max_batch_size << std::endl;
+    str << "  Min Border Vertices Per Thread:     " << params.min_border_vertices_per_thread << std::endl;
+#endif
+    str << "\n" << params.label_propagation;
     str << "\n" << params.fm;
+#ifdef KAHYPAR_USE_N_LEVEL_PARADIGM
+    str << "\n" << params.global_fm;
+#endif
     return str;
   }
 
@@ -148,8 +168,14 @@ namespace mt_kahypar {
     str << "Initial Partitioning Parameters:" << std::endl;
     str << "  Initial Partitioning Mode:          " << params.mode << std::endl;
     str << "  Number of Runs:                     " << params.runs << std::endl;
+    str << "  Use Adaptive IP Runs:               " << std::boolalpha << params.use_adaptive_ip_runs << std::endl;
+    if ( params.use_adaptive_ip_runs ) {
+      str << "  Min Adaptive IP Runs:               " << params.min_adaptive_ip_runs << std::endl;
+    }
     str << "  Use Adaptive Epsilon:               " << std::boolalpha << params.use_adaptive_epsilon << std::endl;
-    str << "  Perform FM Refinement:              " << std::boolalpha << params.perform_fm_refinement << std::endl;
+    str << "  Perform Refinement On Best:         " << std::boolalpha << params.perform_refinement_on_best_partitions << std::endl;
+    str << "  Fm Refinement Rounds:               " << params.fm_refinment_rounds << std::endl;
+    str << "  Remove Degree-Zero HNs Before IP:   " << std::boolalpha << params.remove_degree_zero_hns_before_ip << std::endl;
     str << "  Maximum Iterations of LP IP:        " << params.lp_maximum_iterations << std::endl;
     str << "  Initial Block Size of LP IP:        " << params.lp_initial_block_size << std::endl;
     str << "\nInitial Partitioning ";
@@ -240,12 +266,30 @@ namespace mt_kahypar {
   }
 
   void Context::sanityCheck() {
+    if ( partition.paradigm == Paradigm::nlevel &&
+         coarsening.algorithm == CoarseningAlgorithm::multilevel_coarsener ) {
+        ALGO_SWITCH("Coarsening algorithm" << coarsening.algorithm << "is only supported in multilevel mode."
+                                           << "Do you want to use the n-level version instead (Y/N)?",
+                    "Partitioning with" << coarsening.algorithm
+                                        << "coarsener in n-level mode is not supported!",
+                    coarsening.algorithm,
+                    CoarseningAlgorithm::nlevel_coarsener);
+    } else if ( partition.paradigm == Paradigm::multilevel &&
+                coarsening.algorithm == CoarseningAlgorithm::nlevel_coarsener ) {
+        ALGO_SWITCH("Coarsening algorithm" << coarsening.algorithm << "is only supported in n-Level mode."
+                                           << "Do you want to use the multilevel version instead (Y/N)?",
+                    "Partitioning with" << coarsening.algorithm
+                                        << "coarsener in multilevel mode is not supported!",
+                    coarsening.algorithm,
+                    CoarseningAlgorithm::multilevel_coarsener);
+    }
+
     if (partition.objective == kahypar::Objective::cut) {
       if ( refinement.label_propagation.algorithm == LabelPropagationAlgorithm::label_propagation_km1 ) {
         ALGO_SWITCH("Refinement algorithm" << refinement.label_propagation.algorithm << "only works for km1 metric."
                                            << "Do you want to use the cut version of the label propagation refiner (Y/N)?",
                     "Partitioning with" << refinement.label_propagation.algorithm
-                                        << "refiner in combination with cut metric is not possible!",
+                                        << "refiner in combination with cut metric is not supported!",
                     refinement.label_propagation.algorithm,
                     LabelPropagationAlgorithm::label_propagation_cut);
       }
@@ -254,7 +298,7 @@ namespace mt_kahypar {
         ALGO_SWITCH("Refinement algorithm" << refinement.fm.algorithm << "only works for km1 metric."
                                            << "Do you want to disable FM refinement (Y/N)?",
                     "Partitioning with" << refinement.fm.algorithm
-                                        << "refiner in combination with cut metric is not possible!",
+                                        << "refiner in combination with cut metric is not supported!",
                     refinement.fm.algorithm,
                     FMAlgorithm::do_nothing);
       }
@@ -263,7 +307,7 @@ namespace mt_kahypar {
       ALGO_SWITCH("Refinement algorithm" << refinement.label_propagation.algorithm << "only works for cut metric."
                                          << "Do you want to use the km1 version of the label propagation refiner (Y/N)?",
                   "Partitioning with" << refinement.label_propagation.algorithm
-                                      << "refiner in combination with km1 metric is not possible!",
+                                      << "refiner in combination with km1 metric is not supported!",
                   refinement.label_propagation.algorithm,
                   LabelPropagationAlgorithm::label_propagation_km1);
     }
@@ -276,7 +320,7 @@ namespace mt_kahypar {
                             << "only works for km1 metric."
                             << "Do you want to use the cut version of the label propagation refiner (Y/N)?",
                     "Partitioning with" << initial_partitioning.refinement.label_propagation.algorithm
-                                        << "refiner in combination with cut metric is not possible!",
+                                        << "refiner in combination with cut metric is not supported!",
                     initial_partitioning.refinement.label_propagation.algorithm,
                     LabelPropagationAlgorithm::label_propagation_cut);
       }
@@ -287,7 +331,7 @@ namespace mt_kahypar {
                             << "only works for km1 metric."
                             << "Do you want to disable FM refinement (Y/N)?",
                     "Partitioning with" << initial_partitioning.refinement.fm.algorithm
-                                        << "refiner in combination with cut metric is not possible!",
+                                        << "refiner in combination with cut metric is not supported!",
                     initial_partitioning.refinement.fm.algorithm,
                     FMAlgorithm::do_nothing);
       }
@@ -299,7 +343,7 @@ namespace mt_kahypar {
                           << "only works for cut metric."
                           << "Do you want to use the km1 version of the label propagation refiner (Y/N)?",
                   "Partitioning with" << initial_partitioning.refinement.label_propagation.algorithm
-                                      << "refiner in combination with km1 metric is not possible!",
+                                      << "refiner in combination with km1 metric is not supported!",
                   initial_partitioning.refinement.label_propagation.algorithm,
                   LabelPropagationAlgorithm::label_propagation_km1);
     }

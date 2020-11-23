@@ -30,9 +30,9 @@ using ::testing::Test;
 
 namespace mt_kahypar::community_detection {
 
-class ALouvain : public ds::HypergraphFixture {
+class ALouvain : public ds::HypergraphFixture<Hypergraph, HypergraphFactory> {
 
-  using Base = ds::HypergraphFixture;
+ using Base = ds::HypergraphFixture<Hypergraph, HypergraphFactory>;
 
  public:
 
@@ -57,7 +57,7 @@ class ALouvain : public ds::HypergraphFixture {
   using Base::hypergraph;
   std::unique_ptr<Graph> graph;
   Context context;
-  ds::StaticHypergraph karate_club_hg;
+  Hypergraph karate_club_hg;
   std::unique_ptr<Graph> karate_club_graph;
 };
 

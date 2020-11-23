@@ -37,17 +37,23 @@ class PseudoPeripheralStartNodes {
 
  public:
   static inline StartNodes computeStartNodes(InitialPartitioningDataContainer& ip_data,
-                                             const Context& context, std::mt19937& rng) {
+                                             const Context& context,
+                                             const PartitionID default_block,
+                                             std::mt19937& rng) {
     PartitionedHypergraph& hypergraph = ip_data.local_partitioned_hypergraph();
     kahypar::ds::FastResetFlagArray<>& hypernodes_in_queue =
       ip_data.local_hypernode_fast_reset_flag_array();
     kahypar::ds::FastResetFlagArray<>& hyperedges_in_queue =
       ip_data.local_hyperedge_fast_reset_flag_array();
 
+    ASSERT(hypergraph.initialNumNodes() - hypergraph.numRemovedHypernodes() >= ID(hypergraph.k()));
     StartNodes start_nodes;
     HypernodeID start_hn =
             std::uniform_int_distribution<HypernodeID>(0, hypergraph.initialNumNodes() -1 )(rng);
-    ASSERT(hypergraph.nodeIsEnabled(start_hn));
+    if ( !hypergraph.nodeIsEnabled(start_hn) ) {
+      start_hn = ip_data.get_unassigned_hypernode(default_block);
+    }
+    ASSERT(start_hn != kInvalidHypernode && hypergraph.nodeIsEnabled(start_hn));
     start_nodes.push_back(start_hn);
 
     // We perform k - 1 BFS on the hypergraph to find k vertices that
@@ -55,6 +61,9 @@ class PseudoPeripheralStartNodes {
     // list of start nodes. Each entry in start_nodes represents a start
     // node for a specific block of the partition. The new vertex added to
     // the list of start nodes is the one last touched by the current BFS.
+    const HypernodeID current_num_nodes =
+      hypergraph.initialNumNodes() - hypergraph.numRemovedHypernodes();
+    parallel::scalable_vector<HypernodeID> non_touched_hypernodes;
     for ( PartitionID i = 0; i < context.partition.k - 1; ++i ) {
       Queue queue;
       hypernodes_in_queue.reset();
@@ -85,20 +94,24 @@ class PseudoPeripheralStartNodes {
           }
         }
 
-        // In case the queue is empty and we have not visited all hypernodes, we
-        // add non-visited vertex to the queue (can happen if the hypergraph is not connected)
-        if ( queue.empty() && num_touched_hypernodes < hypergraph.initialNumNodes() ) {
+        // In case the queue is empty and we have not visited all hypernodes.
+        // Therefore, we choose one unvisited vertex at random.
+        if ( queue.empty() && num_touched_hypernodes < current_num_nodes ) {
           for ( const HypernodeID& hn : hypergraph.nodes() ) {
             if ( !hypernodes_in_queue[hn] ) {
-              queue.push(hn);
+              non_touched_hypernodes.push_back(hn);
               hypernodes_in_queue.set(hn, true);
             }
           }
+          const int rand_idx = utils::Randomize::instance().getRandomInt(
+            0, non_touched_hypernodes.size() - 1, sched_getcpu());
+          last_hypernode_touched = non_touched_hypernodes[rand_idx];
         }
       }
 
       // Add last touched hypernode of the BFS as new start node for block i + 1
       start_nodes.push_back(last_hypernode_touched);
+      non_touched_hypernodes.clear();
     }
 
     ASSERT(start_nodes.size() == static_cast<size_t>(context.partition.k));

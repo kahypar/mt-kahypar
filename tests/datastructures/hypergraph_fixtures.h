@@ -21,8 +21,6 @@
 #include "gmock/gmock.h"
 
 #include "kahypar/definitions.h"
-#include "mt-kahypar/datastructures/static_hypergraph.h"
-#include "mt-kahypar/datastructures/static_hypergraph_factory.h"
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/parallel/hardware_topology.h"
 #include "mt-kahypar/parallel/tbb_numa_arena.h"
@@ -35,15 +33,16 @@ namespace ds {
 
 static auto identity = [](const HypernodeID& id) { return id; };
 
+template<typename HyperGraph, typename HyperGraphFactory>
 class HypergraphFixture : public Test {
  public:
   HypergraphFixture() :
-    hypergraph(HypergraphFactory::construct(TBBNumaArena::GLOBAL_TASK_GROUP,
-      7 , 4, { {0, 2}, {0, 1, 3, 4}, {3, 4, 6}, {2, 5, 6} })) {
+    hypergraph(HyperGraphFactory::construct(TBBNumaArena::GLOBAL_TASK_GROUP,
+      7 , 4, { {0, 2}, {0, 1, 3, 4}, {3, 4, 6}, {2, 5, 6} }, nullptr, nullptr, true)) {
   }
 
   template <typename K = decltype(identity)>
-  void verifyIncidentNets(const Hypergraph& hg,
+  void verifyIncidentNets(const HyperGraph& hg,
                           const HypernodeID hn,
                           const std::set<HypernodeID>& reference,
                           K map_func = identity,
@@ -65,7 +64,7 @@ class HypergraphFixture : public Test {
     verifyIncidentNets(hypergraph, hn, reference, map_func, log);
   }
 
-  void verifyPins(const Hypergraph& hg,
+  void verifyPins(const HyperGraph& hg,
                   const std::vector<HyperedgeID> hyperedges,
                   const std::vector< std::set<HypernodeID> >& references,
                   bool log = false) {
@@ -99,7 +98,7 @@ class HypergraphFixture : public Test {
     hypergraph.setCommunityID(6, 2);
   }
 
-  Hypergraph hypergraph;
+  HyperGraph hypergraph;
 };
 
 }  // namespace ds

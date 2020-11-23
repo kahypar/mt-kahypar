@@ -20,6 +20,7 @@
 
 #pragma once
 
+
 #include "mt-kahypar/partition/context.h"
 
 namespace mt_kahypar::io {

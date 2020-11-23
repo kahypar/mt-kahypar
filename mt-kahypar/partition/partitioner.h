@@ -24,7 +24,5 @@
 #include "mt-kahypar/partition/context.h"
 
 namespace mt_kahypar {
-
   PartitionedHypergraph partition(Hypergraph& hypergraph, Context& context);
-
 }  // namespace mt_kahypar

@@ -27,7 +27,6 @@
 
 namespace mt_kahypar {
 
-
 class GlobalRollback {
   static constexpr bool enable_heavy_assert = false;
 public:
@@ -56,23 +55,34 @@ public:
     }
   }
 
+  template<bool update_gain_cache>
   HyperedgeWeight revertToBestPrefix(PartitionedHypergraph& phg,
                                      FMSharedData& sharedData,
                                      const vec<HypernodeWeight>& partWeights);
 
+  template<bool update_gain_cache>
   HyperedgeWeight revertToBestPrefixParallel(PartitionedHypergraph& phg,
                                              FMSharedData& sharedData,
                                              const vec<HypernodeWeight>& partWeights,
                                              const std::vector<HypernodeWeight>& maxPartWeights);
 
-
   void recalculateGains(PartitionedHypergraph& phg, FMSharedData& sharedData);
 
-
+  template<bool update_gain_cache>
   HyperedgeWeight revertToBestPrefixSequential(PartitionedHypergraph& phg,
                                                FMSharedData& sharedData,
                                                const vec<HypernodeWeight>&,
                                                const std::vector<HypernodeWeight>& maxPartWeights);
+
+  template<bool update_gain_cache>
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
+  void moveVertex(PartitionedHypergraph& phg, HypernodeID u, PartitionID from, PartitionID to) {
+    if constexpr (update_gain_cache) {
+      phg.changeNodePartWithGainCacheUpdate(u, from, to);
+    } else {
+      phg.changeNodePart(u, from, to);
+    }
+  }
 
   MoveID lastMoveOut(HyperedgeID he, PartitionID block) const {
     return last_move_out[size_t(he) * numParts + block].load(std::memory_order_relaxed);
@@ -88,6 +98,7 @@ public:
 
   bool verifyPinCountMatches(const PartitionedHypergraph& phg) const ;
 
+  template<bool update_gain_cache>
   bool verifyGains(PartitionedHypergraph& phg, FMSharedData& sharedData);
 
   void resetStoredMoveIDs();
@@ -112,7 +123,6 @@ public:
   ds::Array<CAtomic<MoveID>> first_move_in;
   // ! For each hyperedge and each block, the ID of the last move to remove a pin from that block
   ds::Array<CAtomic<MoveID>> last_move_out;
-
 };
 
 }

@@ -21,8 +21,7 @@
 #include "gmock/gmock.h"
 
 #include "tests/datastructures/hypergraph_fixtures.h"
-#include "mt-kahypar/datastructures/static_hypergraph.h"
-#include "mt-kahypar/datastructures/static_hypergraph_factory.h"
+#include "mt-kahypar/definitions.h"
 #include "mt-kahypar/datastructures/sparsifier_hypergraph.h"
 
 using ::testing::Test;
@@ -30,8 +29,8 @@ using ::testing::Test;
 namespace mt_kahypar {
 namespace ds {
 
-using ASparsifierHypergraph = HypergraphFixture;
-using SparsifierHyperGraph = SparsifierHypergraph<StaticHypergraph, StaticHypergraphFactory>;
+using ASparsifierHypergraph = HypergraphFixture<Hypergraph, HypergraphFactory>;
+using SparsifierHyperGraph = SparsifierHypergraph<Hypergraph, HypergraphFactory>;
 
 void verifyPinsOfSparsifiedHypergraph(SparsifierHyperGraph& s_hypergraph,
                                       const HyperedgeID he,
@@ -141,7 +140,7 @@ TEST_F(ASparsifierHypergraph, ContractsTwoVertices1) {
   ASSERT_TRUE(s_hg.nodeIsEnabled(0));
   ASSERT_FALSE(s_hg.nodeIsEnabled(2));
 
-  StaticHypergraph hg = s_hg.sparsify();
+  Hypergraph hg = s_hg.sparsify();
   ASSERT_EQ(6, hg.initialNumNodes());
   ASSERT_EQ(2, hg.nodeWeight(0));
   verifyPins(hg, {0, 1, 2, 3},
@@ -156,7 +155,7 @@ TEST_F(ASparsifierHypergraph, ContractsTwoVertices2) {
   ASSERT_TRUE(s_hg.nodeIsEnabled(3));
   ASSERT_FALSE(s_hg.nodeIsEnabled(4));
 
-  StaticHypergraph hg = s_hg.sparsify();
+  Hypergraph hg = s_hg.sparsify();
   ASSERT_EQ(6, hg.initialNumNodes());
   ASSERT_EQ(2, hg.nodeWeight(3));
   verifyPins(hg, {0, 1, 2, 3},
@@ -169,7 +168,7 @@ TEST_F(ASparsifierHypergraph, ContractsSeveralVertices1) {
   s_hg.contract(3, 4);
   ASSERT_EQ(2, s_hg.numRemovedNodes());
 
-  StaticHypergraph hg = s_hg.sparsify();
+  Hypergraph hg = s_hg.sparsify();
   ASSERT_EQ(5, hg.initialNumNodes());
   ASSERT_EQ(2, hg.nodeWeight(0));
   ASSERT_EQ(2, hg.nodeWeight(2));
@@ -183,7 +182,7 @@ TEST_F(ASparsifierHypergraph, ContractsSeveralVertices2) {
   s_hg.contract(0, 1);
   ASSERT_EQ(2, s_hg.numRemovedNodes());
 
-  StaticHypergraph hg = s_hg.sparsify();
+  Hypergraph hg = s_hg.sparsify();
   ASSERT_EQ(5, hg.initialNumNodes());
   ASSERT_EQ(3, hg.nodeWeight(0));
   verifyPins(hg, {0, 1, 2, 3},
@@ -199,7 +198,7 @@ TEST_F(ASparsifierHypergraph, ContractsSeveralVerticesConcurrently1) {
   });
   ASSERT_EQ(2, s_hg.numRemovedNodes());
 
-  StaticHypergraph hg = s_hg.sparsify();
+  Hypergraph hg = s_hg.sparsify();
   ASSERT_EQ(5, hg.initialNumNodes());
   ASSERT_EQ(2, hg.nodeWeight(0));
   ASSERT_EQ(2, hg.nodeWeight(2));
@@ -218,7 +217,7 @@ TEST_F(ASparsifierHypergraph, ContractsSeveralVerticesConcurrently2) {
   });
   ASSERT_EQ(3, s_hg.numRemovedNodes());
 
-  StaticHypergraph hg = s_hg.sparsify();
+  Hypergraph hg = s_hg.sparsify();
   ASSERT_EQ(4, hg.initialNumNodes());
   ASSERT_EQ(2, hg.nodeWeight(0));
   ASSERT_EQ(2, hg.nodeWeight(2));
@@ -239,7 +238,7 @@ TEST_F(ASparsifierHypergraph, ContractsSeveralVerticesConcurrently3) {
   });
   ASSERT_EQ(4, s_hg.numRemovedNodes());
 
-  StaticHypergraph hg = s_hg.sparsify();
+  Hypergraph hg = s_hg.sparsify();
   ASSERT_EQ(3, hg.initialNumNodes());
   ASSERT_EQ(3, hg.nodeWeight(0));
   ASSERT_EQ(2, hg.nodeWeight(1));
@@ -253,7 +252,7 @@ TEST_F(ASparsifierHypergraph, ModifiesEdgeWeight1) {
   s_hg.setEdgeWeight(0, 3);
   ASSERT_EQ(3, s_hg.edgeWeight(0));
 
-  StaticHypergraph hg = s_hg.sparsify();
+  Hypergraph hg = s_hg.sparsify();
   ASSERT_EQ(3, hg.edgeWeight(0));
 }
 
@@ -262,7 +261,7 @@ TEST_F(ASparsifierHypergraph, ModifiesEdgeWeight2) {
   s_hg.setEdgeWeight(2, 4);
   ASSERT_EQ(4, s_hg.edgeWeight(2));
 
-  StaticHypergraph hg = s_hg.sparsify();
+  Hypergraph hg = s_hg.sparsify();
   ASSERT_EQ(4, hg.edgeWeight(2));
 }
 
@@ -280,7 +279,7 @@ TEST_F(ASparsifierHypergraph, ModifiesEdgeWeightConcurrently) {
   ASSERT_EQ(5, s_hg.edgeWeight(1));
   ASSERT_EQ(4, s_hg.edgeWeight(3));
 
-  StaticHypergraph hg = s_hg.sparsify();
+  Hypergraph hg = s_hg.sparsify();
   ASSERT_EQ(2, hg.edgeWeight(0));
   ASSERT_EQ(5, hg.edgeWeight(1));
   ASSERT_EQ(4, hg.edgeWeight(3));
@@ -292,7 +291,7 @@ TEST_F(ASparsifierHypergraph, RemovesAHyperedge1) {
   ASSERT_EQ(1, s_hg.nodeDegree(0));
   ASSERT_EQ(1, s_hg.nodeDegree(2));
 
-  StaticHypergraph hg = s_hg.sparsify();
+  Hypergraph hg = s_hg.sparsify();
   ASSERT_EQ(3, hg.initialNumEdges());
   verifyPins(hg, {0, 1, 2},
     { { 0, 1, 3, 4 }, {3, 4, 6}, { 2, 5, 6 } });
@@ -306,7 +305,7 @@ TEST_F(ASparsifierHypergraph, RemovesAHyperedge2) {
   ASSERT_EQ(1, s_hg.nodeDegree(3));
   ASSERT_EQ(1, s_hg.nodeDegree(4));
 
-  StaticHypergraph hg = s_hg.sparsify();
+  Hypergraph hg = s_hg.sparsify();
   ASSERT_EQ(3, hg.initialNumEdges());
   verifyPins(hg, {0, 1, 2},
     { { 0, 2 }, {3, 4, 6}, { 2, 5, 6 } });
@@ -327,7 +326,7 @@ TEST_F(ASparsifierHypergraph, RemovesHyperedgesConcurrently) {
   ASSERT_EQ(0, s_hg.nodeDegree(5));
   ASSERT_EQ(0, s_hg.nodeDegree(6));
 
-  StaticHypergraph hg = s_hg.sparsify();
+  Hypergraph hg = s_hg.sparsify();
   ASSERT_EQ(2, hg.initialNumEdges());
   verifyPins(hg, {0, 1},
     { { 0, 2 }, { 0, 1, 3, 4 } });
@@ -345,7 +344,7 @@ TEST_F(ASparsifierHypergraph, ReplacesAHyperedge1) {
   ASSERT_EQ(2, s_hg.nodeDegree(5));
   ASSERT_EQ(3, s_hg.nodeDegree(6));
 
-  StaticHypergraph hg = s_hg.sparsify();
+  Hypergraph hg = s_hg.sparsify();
   verifyPins(hg, {0, 1, 2, 3},
     { { 0, 2 }, {4, 5, 6}, {3, 4, 6}, { 2, 5, 6 } });
 }
@@ -362,7 +361,7 @@ TEST_F(ASparsifierHypergraph, ReplacesAHyperedge2) {
   ASSERT_EQ(1, s_hg.nodeDegree(5));
   ASSERT_EQ(2, s_hg.nodeDegree(6));
 
-  StaticHypergraph hg = s_hg.sparsify();
+  Hypergraph hg = s_hg.sparsify();
   verifyPins(hg, {0, 1, 2, 3},
     { { 0, 2 }, {0, 1, 3, 4}, {3, 4, 6}, { 0, 1, 2, 3, 4, 5, 6 } });
 }
@@ -384,7 +383,7 @@ TEST_F(ASparsifierHypergraph, ReplacesAHyperedgesConcurrently) {
   ASSERT_EQ(2, s_hg.nodeDegree(5));
   ASSERT_EQ(2, s_hg.nodeDegree(6));
 
-  StaticHypergraph hg = s_hg.sparsify();
+  Hypergraph hg = s_hg.sparsify();
   verifyPins(hg, {0, 1, 2, 3},
     { { 0, 2 }, {0, 4, 6}, {2, 3, 5}, { 2, 5, 6} });
 }
@@ -405,7 +404,7 @@ TEST_F(ASparsifierHypergraph, ExecutesMixedModificationsConcurrently1) {
   ASSERT_EQ(1, s_hg.nodeDegree(5));
   ASSERT_EQ(3, s_hg.nodeDegree(6));
 
-  StaticHypergraph hg = s_hg.sparsify();
+  Hypergraph hg = s_hg.sparsify();
   verifyPins(hg, {0, 1, 2, 3},
     { { 0, 2 }, {0, 3, 5}, {3, 5}, { 2, 4, 5} });
 }
@@ -425,7 +424,7 @@ TEST_F(ASparsifierHypergraph, ExecutesMixedModificationsConcurrently2) {
   ASSERT_EQ(0, s_hg.nodeDegree(5));
   ASSERT_EQ(1, s_hg.nodeDegree(6));
 
-  StaticHypergraph hg = s_hg.sparsify();
+  Hypergraph hg = s_hg.sparsify();
   verifyPins(hg, {0, 1, 2},
     { { 0, 1 }, {0, 2, 3}, {2, 3, 5} });
 }
@@ -446,13 +445,13 @@ TEST_F(ASparsifierHypergraph, ExecutesMixedModificationsConcurrently3) {
   ASSERT_EQ(0, s_hg.nodeDegree(5));
   ASSERT_EQ(0, s_hg.nodeDegree(6));
 
-  StaticHypergraph hg = s_hg.sparsify();
+  Hypergraph hg = s_hg.sparsify();
   verifyPins(hg, {0, 1, 2},
     { { 0, 2 }, {0, 1, 3, 4}, {1, 2, 3} });
 }
 
 TEST_F(ASparsifierHypergraph, SparsifiesHypergraphWithDisabledHypernodes) {
-  StaticHypergraph degree_zero_hg = StaticHypergraphFactory::construct(
+  Hypergraph degree_zero_hg = HypergraphFactory::construct(
     TBBNumaArena::GLOBAL_TASK_GROUP, 7, 2,
     { { 3, 4, 5 }, {4, 5, 6} } );
   degree_zero_hg.removeHypernode(1);
@@ -460,27 +459,27 @@ TEST_F(ASparsifierHypergraph, SparsifiesHypergraphWithDisabledHypernodes) {
 
   SparsifierHyperGraph s_hg(degree_zero_hg, TBBNumaArena::GLOBAL_TASK_GROUP);
   ASSERT_EQ(2, s_hg.numRemovedNodes());
-  StaticHypergraph hg = s_hg.sparsify();
+  Hypergraph hg = s_hg.sparsify();
   ASSERT_EQ(5, hg.initialNumNodes());
   verifyPins(hg, {0, 1},
     { {1, 2, 3}, {2, 3, 4} });
 }
 
 TEST_F(ASparsifierHypergraph, SparsifiesHypergraphWithDisabledHyperedges) {
-  StaticHypergraph single_pin_hg = StaticHypergraphFactory::construct(
+  Hypergraph single_pin_hg = HypergraphFactory::construct(
     TBBNumaArena::GLOBAL_TASK_GROUP, 7, 3,
     { {0}, { 3, 4, 5 }, {4, 5, 6} } );
   single_pin_hg.removeEdge(0);
 
   SparsifierHyperGraph s_hg(single_pin_hg, TBBNumaArena::GLOBAL_TASK_GROUP);
-  StaticHypergraph hg = s_hg.sparsify();
+  Hypergraph hg = s_hg.sparsify();
   ASSERT_EQ(2, hg.initialNumEdges());
   verifyPins(hg, {0, 1},
     { {3, 4, 5}, {4, 5, 6} });
 }
 
 TEST_F(ASparsifierHypergraph, SparsifiesHypergraphWithDisabledHypernodesAndHyperedges) {
-  StaticHypergraph single_pin_hg = StaticHypergraphFactory::construct(
+  Hypergraph single_pin_hg = HypergraphFactory::construct(
     TBBNumaArena::GLOBAL_TASK_GROUP, 7, 3,
     { {0}, { 3, 4, 5 }, {4, 5, 6} } );
   single_pin_hg.removeEdge(0);
@@ -489,7 +488,7 @@ TEST_F(ASparsifierHypergraph, SparsifiesHypergraphWithDisabledHypernodesAndHyper
 
   SparsifierHyperGraph s_hg(single_pin_hg, TBBNumaArena::GLOBAL_TASK_GROUP);
   ASSERT_EQ(2, s_hg.numRemovedNodes());
-  StaticHypergraph hg = s_hg.sparsify();
+  Hypergraph hg = s_hg.sparsify();
   ASSERT_EQ(5, hg.initialNumNodes());
   ASSERT_EQ(2, hg.initialNumEdges());
   verifyPins(hg, {0, 1},

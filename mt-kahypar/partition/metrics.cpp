@@ -89,12 +89,16 @@ namespace mt_kahypar::metrics {
   }
 
   bool isBalanced(const PartitionedHypergraph& phg, const Context& context) {
+    size_t num_empty_parts = 0;
     for (PartitionID i = 0; i < context.partition.k; ++i) {
-      if (phg.partWeight(i) > context.partition.max_part_weights[i] || phg.partWeight(i) == 0) {
+      if (phg.partWeight(i) > context.partition.max_part_weights[i]) {
         return false;
       }
+      if (phg.partWeight(i) == 0) {
+        num_empty_parts++;
+      }
     }
-    return true;
+    return num_empty_parts <= phg.numRemovedHypernodes();
   }
 
   HyperedgeWeight objective(const PartitionedHypergraph& hg, const kahypar::Objective& objective,

@@ -59,6 +59,7 @@ class DeltaPartitionedHypergraph {
   using IncidentNetsIterator = typename PartitionedHypergraph::IncidentNetsIterator;
 
  public:
+  static constexpr bool supports_connectivity_set = false;
   static constexpr HyperedgeID HIGH_DEGREE_THRESHOLD = PartitionedHypergraph::HIGH_DEGREE_THRESHOLD;
 
   DeltaPartitionedHypergraph(const PartitionID k) :
@@ -70,7 +71,6 @@ class DeltaPartitionedHypergraph {
     _move_to_penalty_delta(),
     _move_from_benefit_delta() { }
 
-  // REVIEW NOTE why do we delete copy assignment/construction? wouldn't it be useful to make a copy, e.g. for initial partitioning
   DeltaPartitionedHypergraph(const DeltaPartitionedHypergraph&) = delete;
   DeltaPartitionedHypergraph & operator= (const DeltaPartitionedHypergraph &) = delete;
 
@@ -129,6 +129,11 @@ class DeltaPartitionedHypergraph {
     return _phg->edgeSize(e);
   }
 
+  HyperedgeWeight edgeWeight(const HyperedgeID e) const {
+    ASSERT(_phg);
+    return _phg->edgeWeight(e);
+  }
+
   // ####################### Partition Information #######################
 
   // ! Changes the block of hypernode u from 'from' to 'to'.
@@ -149,12 +154,9 @@ class DeltaPartitionedHypergraph {
       _part_weights_delta[to] += wu;
       _part_weights_delta[from] -= wu;
       for ( const HyperedgeID& he : _phg->incidentEdges(u) ) {
-        const HypernodeID pin_count_in_from_part_after =
-          decrementPinCountInPartWithGainUpdate(he, from);
-        const HypernodeID pin_count_in_to_part_after =
-          incrementPinCountInPartWithGainUpdate(he, to);
-        delta_func(he, _phg->edgeWeight(he), _phg->edgeSize(he),
-          pin_count_in_from_part_after, pin_count_in_to_part_after);
+        const HypernodeID pin_count_in_from_part_after = decrementPinCountInPart(he, from);
+        const HypernodeID pin_count_in_to_part_after = incrementPinCountInPart(he, to);
+        delta_func(he, _phg->edgeWeight(he), _phg->edgeSize(he), pin_count_in_from_part_after, pin_count_in_to_part_after);
       }
       return true;
     } else {
@@ -169,6 +171,48 @@ class DeltaPartitionedHypergraph {
                       const HypernodeWeight max_weight_to) {
     return changeNodePart(u, from, to, max_weight_to, NoOpDeltaFunc());
   }
+
+  bool changeNodePartWithGainCacheUpdate(const HypernodeID u,
+                                         const PartitionID from,
+                                         const PartitionID to,
+                                         const HypernodeWeight max_weight_to) {
+    auto delta_gain_func = [&]( HyperedgeID he, HyperedgeWeight edge_weight,
+                                HypernodeID ,HypernodeID pcip_from, HypernodeID pcip_to ) {
+      gainCacheUpdate(he, edge_weight, from, pcip_from, to, pcip_to);
+    };
+    return changeNodePart(u, from, to, max_weight_to, delta_gain_func);
+  }
+
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
+  void gainCacheUpdate(const HyperedgeID he, const HyperedgeWeight we,
+                       const PartitionID from, const HypernodeID pin_count_in_from_part_after,
+                       const PartitionID to, const HypernodeID pin_count_in_to_part_after) {
+
+    if (pin_count_in_from_part_after == 1) {
+      for (HypernodeID u : pins(he)) {
+        if (partID(u) == from) {
+          _move_from_benefit_delta[u] += we;
+        }
+      }
+    } else if (pin_count_in_from_part_after == 0) {
+      for (HypernodeID u : pins(he)) {
+        _move_to_penalty_delta[penalty_index(u, from)] += we;
+      }
+    }
+
+    if (pin_count_in_to_part_after == 1) {
+      for (HypernodeID u : pins(he)) {
+        _move_to_penalty_delta[penalty_index(u, to)] -= we;
+      }
+    } else if (pin_count_in_to_part_after == 2) {
+      for (HypernodeID u : pins(he)) {
+        if (partID(u) == to) {
+          _move_from_benefit_delta[u] -= we;
+        }
+      }
+    }
+  }
+
 
   // ! Returns the block of hypernode u
   PartitionID partID(const HypernodeID u) const {
@@ -188,9 +232,9 @@ class DeltaPartitionedHypergraph {
   HypernodeID pinCountInPart(const HyperedgeID e, const PartitionID p) const {
     ASSERT(_phg);
     ASSERT(p != kInvalidPartition && p < _k);
-    const uint64_t* pin_count_delta = _pins_in_part_delta.get_if_contained(e * _k + p);
-    return std::max(static_cast<uint64_t>(_phg->pinCountInPart(e, p)) +
-      ( pin_count_delta ? *pin_count_delta : 0 ), static_cast<uint64_t>(0));
+    const int32_t* pin_count_delta = _pins_in_part_delta.get_if_contained(e * _k + p);
+    return std::max(static_cast<int32_t>(_phg->pinCountInPart(e, p)) +
+      ( pin_count_delta ? *pin_count_delta : 0 ), 0);
   }
 
   // ! Returns the sum of all edges incident to u, where u is the last remaining
@@ -217,6 +261,10 @@ class DeltaPartitionedHypergraph {
     ASSERT(from == partID(u), "While gain computation works for from != partID(u), such a query makes no sense");
     ASSERT(from != to, "The gain computation doesn't work for from = to");
     return moveFromBenefit(u) - moveToPenalty(u, to);
+  }
+
+  void initializeGainCacheEntry(const HypernodeID u, vec<Gain>& penalty_aggregator) {
+    _phg->initializeGainCacheEntry(u, penalty_aggregator);
   }
 
   // ! Clears all deltas applied to the partitioned hypergraph
@@ -270,43 +318,20 @@ class DeltaPartitionedHypergraph {
  private:
 
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
-  HypernodeID decrementPinCountInPartWithGainUpdate(const HyperedgeID e, const PartitionID p) {
-    const HypernodeID pin_count_after = std::max(static_cast<uint64_t>(
-      _phg->pinCountInPart(e, p)) + --_pins_in_part_delta[e * _k + p], static_cast<uint64_t>(0));
-    if (pin_count_after == 1) {
-      const HyperedgeWeight we = _phg->edgeWeight(e);
-      for (HypernodeID u : _phg->pins(e)) {
-        if (partID(u) == p) {
-          _move_from_benefit_delta[u] += we;
-        }
-      }
-    } else if (pin_count_after == 0) {
-      const HyperedgeWeight we = _phg->edgeWeight(e);
-      for (HypernodeID u : _phg->pins(e)) {
-        _move_to_penalty_delta[u * _k + p] += we;
-      }
-    }
-    return pin_count_after;
+  size_t penalty_index(const HypernodeID u, const PartitionID p) const {
+    return size_t(u) * _k + p;
   }
 
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
-  HypernodeID incrementPinCountInPartWithGainUpdate(const HyperedgeID e, const PartitionID p) {
-    const HypernodeID pin_count_after = std::max(static_cast<uint64_t>(
-      _phg->pinCountInPart(e, p)) + ++_pins_in_part_delta[e * _k + p], static_cast<uint64_t>(0));
-    if (pin_count_after == 1) {
-      const HyperedgeWeight we = _phg->edgeWeight(e);
-      for (HypernodeID u : _phg->pins(e)) {
-        _move_to_penalty_delta[u * _k + p] -= we;
-      }
-    } else if (pin_count_after == 2) {
-      const HyperedgeWeight we = _phg->edgeWeight(e);
-      for (HypernodeID u : _phg->pins(e)) {
-        if (partID(u) == p) {
-          _move_from_benefit_delta[u] -= we;
-        }
-      }
-    }
-    return pin_count_after;
+  HypernodeID decrementPinCountInPart(const HyperedgeID e, const PartitionID p) {
+    return std::max(static_cast<int32_t>(
+      _phg->pinCountInPart(e, p)) + --_pins_in_part_delta[e * _k + p], static_cast<int32_t>(0));
+  }
+
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
+  HypernodeID incrementPinCountInPart(const HyperedgeID e, const PartitionID p) {
+    return std::max(static_cast<int32_t>(
+      _phg->pinCountInPart(e, p)) + ++_pins_in_part_delta[e * _k + p], static_cast<int32_t>(0));
   }
 
   bool _memory_dropped = false;
@@ -325,7 +350,7 @@ class DeltaPartitionedHypergraph {
 
   // ! Stores the delta of each locally touched pin count entry
   // ! relative to the _pins_in_part member in '_phg'
-  DynamicSparseMap<size_t, uint64_t> _pins_in_part_delta;
+  DynamicSparseMap<size_t, int32_t> _pins_in_part_delta;
 
   // ! Stores the delta of each locally touched move to penalty entry
   // ! relative to the _move_to_penalty member in '_phg'

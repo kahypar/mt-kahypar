@@ -66,7 +66,7 @@ class InitialPartitionerRootTaskT : public tbb::task {
     const int seed = 420;
     for ( size_t i = 0; i < _runs; ++i ) {
       tbb::task::spawn(*new(tbb::task::allocate_child())
-        InitialPartitionerTask(_algorithm, _ip_data, _context, seed));
+        InitialPartitionerTask(_algorithm, _ip_data, _context, seed + i));
     }
     tbb::task::wait_for_all();
     _ip_data.apply();
@@ -100,6 +100,8 @@ class AFlatInitialPartitionerTest : public Test {
     partitioned_hypergraph = PartitionedHypergraph(
       context.partition.k, TBBNumaArena::GLOBAL_TASK_GROUP, hypergraph);
     context.setupPartWeights(hypergraph.totalWeight());
+    context.refinement.label_propagation.algorithm = LabelPropagationAlgorithm::do_nothing;
+    context.initial_partitioning.refinement.label_propagation.algorithm = LabelPropagationAlgorithm::do_nothing;
     utils::Timer::instance().disable();
   }
 

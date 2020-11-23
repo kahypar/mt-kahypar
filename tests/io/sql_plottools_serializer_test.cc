@@ -18,7 +18,7 @@
  *
  ******************************************************************************/
 
-#include "gmock/gmock.h"
+#include "gtest/gtest.h"
 
 #include <vector>
 #include <unordered_map>
@@ -27,6 +27,7 @@
 #include <fstream>
 
 #include "mt-kahypar/io/sql_plottools_serializer.h"
+#include "mt-kahypar/io/csv_output.h"
 
 using ::testing::Test;
 
@@ -36,22 +37,22 @@ namespace io {
 std::vector<std::string> target_structs =
   { "PartitioningParameters", "CommunityDetectionParameters", "CommunityRedistributionParameters",
     "PreprocessingParameters", "RatingParameters", "CoarseningParameters", "InitialPartitioningParameters",
-    "SparsificationParameters", "LabelPropagationParameters", "FMParameters" "RefinementParameters",
+    "SparsificationParameters", "LabelPropagationParameters", "FMParameters", "NLevelGlobalFMParameters", "RefinementParameters",
     "SharedMemoryParameters" };
 
 std::unordered_map<std::string, std::string> target_struct_prefix =
   { {"PartitioningParameters", ""}, {"CommunityDetectionParameters", "community_"}, {"CommunityRedistributionParameters", "community_redistribution_"},
     {"PreprocessingParameters", ""}, {"RatingParameters", "rating_"}, {"CoarseningParameters", "coarsening_"},
     {"InitialPartitioningParameters", "initial_partitioning_"}, {"SparsificationParameters", "sparsification_"},
-    {"LabelPropagationParameters", "lp_"}, {"FMParameters", "fm_"}, {"RefinementParameters", ""},
+    {"LabelPropagationParameters", "lp_"}, {"FMParameters", "fm_"}, {"NLevelGlobalFMParameters", "global_fm_"}, {"RefinementParameters", ""},
     {"SharedMemoryParameters", ""} };
 
 std::set<std::string> excluded_members =
-  { "verbose_output", "show_detailed_timings", "show_detailed_clustering_timings", "show_memory_consumption", "show_advanced_cut_analysis", "enable_progress_bar", "sp_process_output",
-    "write_partition_file", "graph_partition_output_folder", "graph_partition_filename", "graph_community_filename", "community_detection",
+  { "verbose_output", "show_detailed_timings", "show_detailed_clustering_timings", "timings_output_depth", "show_memory_consumption", "show_advanced_cut_analysis", "enable_progress_bar", "sp_process_output",
+    "measure_detailed_uncontraction_timings", "write_partition_file", "graph_partition_output_folder", "graph_partition_filename", "graph_community_filename", "community_detection",
     "community_redistribution", "coarsening_rating", "label_propagation", "lp_execute_sequential",
-    "snapshot_interval", "initial_partitioning_refinement", "initial_partitioning_sparsification",
-    "stable_construction_of_incident_edges", "fm", "csv_output", "preset_file" };
+    "snapshot_interval", "initial_partitioning_refinement", "initial_partitioning_sparsification", "initial_partitioning_enabled_ip_algos",
+    "stable_construction_of_incident_edges", "fm", "global_fm", "csv_output", "preset_file", "degree_of_parallelism" };
 
 bool is_target_struct(const std::string& line) {
   for ( const std::string& target_struct : target_structs ) {
@@ -86,13 +87,24 @@ void read_all_members_of_target_struct(std::ifstream& context_file,
 
     char* input = new char[line.length() + 1];
     std::strcpy(input, line.c_str());
-    char* token = std::strtok(input, " ;");
-    // Second value is member name
-    token = std::strtok(NULL, " ;");
-    if ( strcmp(token, "double") == 0 ) { // long double
+    if ( strcmp(input, "  #else") != 0 &&
+         strcmp(input, "  #endif") != 0 &&
+         strcmp(input, "  #ifdef KAHYPAR_USE_N_LEVEL_PARADIGM") != 0 &&
+         strcmp(input, "  InitialPartitioningParameters() :") != 0 &&
+         strcmp(input, "  InitialPartitioningParameters() :") != 0 &&
+         strcmp(input, "    // Enable all initial partitioner per default") != 0 &&
+         strcmp(input, "    enabled_ip_algos(static_cast<size_t>(InitialPartitioningAlgorithm::UNDEFINED), true) { }") != 0 ) {
+      char* token = std::strtok(input, " ;");
+      if ( strcmp(token, "mutable") == 0 ) {
+        token = std::strtok(NULL, " ;");
+      }
+      // Second value is member name
       token = std::strtok(NULL, " ;");
+      if ( strcmp(token, "double") == 0 ) { // long double
+        token = std::strtok(NULL, " ;");
+      }
+      members.emplace_back(prefix + std::string(token));
     }
-    members.emplace_back(prefix + std::string(token));
     std::getline(context_file, line);
   }
 }
@@ -185,6 +197,19 @@ TEST(ASqlPlotSerializerTest, ChecksIfSomeParametersFromContextAreMissing) {
         << "Maybe it has a different name or should be excluded from this test.");
     }
   }
+}
+
+TEST(CSVTest, HeaderAndRowContainSameNumberOfColumns) {
+  std::string header = csv::header();
+  Hypergraph dummy_hypergraph;
+  PartitionedHypergraph dummy_partitioned_hypergraph(2, dummy_hypergraph);
+  Context dummy_context;
+  dummy_context.partition.k = 2;
+  dummy_context.partition.perfect_balance_part_weights.assign(2, 0);
+  dummy_context.partition.max_part_weights.assign(2, 0);
+  std::string body = csv::serialize(dummy_partitioned_hypergraph, dummy_context, std::chrono::duration<double>(0.2));
+  ASSERT_EQ(std::count(body.begin(), body.end(), ','), std::count(header.begin(), header.end(), ','));
+
 }
 
 }  // namespace io

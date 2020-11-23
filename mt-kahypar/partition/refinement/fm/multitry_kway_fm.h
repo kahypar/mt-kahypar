@@ -31,39 +31,43 @@
 
 namespace mt_kahypar {
 
+template<typename FMStrategy>
 class MultiTryKWayFM final : public IRefiner {
 
   static constexpr bool debug = false;
+  static constexpr bool enable_heavy_assert = false;
+
 
 public:
+
   MultiTryKWayFM(const Hypergraph& hypergraph,
                  const Context& c,
                  const TaskGroupID taskGroupID) :
     initial_num_nodes(hypergraph.initialNumNodes()),
-    original_context(c),
     context(c),
     taskGroupID(taskGroupID),
     sharedData(hypergraph.initialNumNodes(), context),
     globalRollback(hypergraph, context, context.partition.k),
-    ets_fm([&] {
-      return constructLocalizedKWayFMSearch();
-    }) {
+    ets_fm([&] { return constructLocalizedKWayFMSearch(); })
+  {
     if (context.refinement.fm.obey_minimal_parallelism) {
       sharedData.finishedTasksLimit = std::min(8UL, context.shared_memory.num_threads);
     }
   }
 
-  bool refineImpl(PartitionedHypergraph& phg, kahypar::Metrics& metrics, double time_limit) final ;
-
-  Gain refine(PartitionedHypergraph& phg, const kahypar::Metrics& metrics, double time_limit);
+  bool refineImpl(PartitionedHypergraph& phg,
+                  const parallel::scalable_vector<HypernodeID>& refinement_nodes,
+                  kahypar::Metrics& metrics,
+                  double time_limit) final ;
 
   void initializeImpl(PartitionedHypergraph& phg) final ;
 
-  void roundInitialization(PartitionedHypergraph& phg);
+  void roundInitialization(PartitionedHypergraph& phg,
+                           const parallel::scalable_vector<HypernodeID>& refinement_nodes);
 
 
-  LocalizedKWayFM constructLocalizedKWayFMSearch() {
-    return LocalizedKWayFM(context, initial_num_nodes, sharedData.vertexPQHandles.data());
+  LocalizedKWayFM<FMStrategy> constructLocalizedKWayFMSearch() {
+    return LocalizedKWayFM<FMStrategy>(context, initial_num_nodes, sharedData);
   }
 
   static double improvementFraction(Gain gain, HyperedgeWeight old_km1) {
@@ -78,13 +82,11 @@ public:
   bool is_initialized = false;
   bool enable_light_fm = false;
   const HypernodeID initial_num_nodes;
-  const Context& original_context;
-  Context context;
+  const Context& context;
   const TaskGroupID taskGroupID;
   FMSharedData sharedData;
   GlobalRollback globalRollback;
-  tbb::enumerable_thread_specific<LocalizedKWayFM> ets_fm;
-  size_t peak_reinsertions = 0;
+  tbb::enumerable_thread_specific<LocalizedKWayFM<FMStrategy>> ets_fm;
 };
 
-}
+} // namespace mt_kahypar

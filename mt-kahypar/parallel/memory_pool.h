@@ -323,30 +323,32 @@ class MemoryPool {
   char* request_unused_mem_chunk(const size_t num_elements,
                                  const size_t size,
                                  const bool align_with_page_size = true) {
-    DBG << "Request unused memory chunk of"
-        << size_in_megabyte(num_elements * size) << "MB";
-    const size_t size_in_bytes = num_elements * size;
-    if ( _use_unused_memory_chunks &&
-         ( !_use_minimum_allocation_size || size_in_bytes > MINIMUM_ALLOCATION_SIZE ) ) {
-      std::shared_lock<std::shared_timed_mutex> lock(_memory_mutex);
-      const size_t n = _active_memory_chunks.size();
-      if ( n > 0 ) {
-        const size_t end = _next_active_memory_chunk.load() % n;
-        const size_t start = ( end + 1 ) % n;
-        for ( size_t i = start; ; i = (i + 1) % n ) {
-          size_t memory_id = _active_memory_chunks[i];
-          ASSERT(memory_id < _memory_chunks.size());
-          char* data = _memory_chunks[memory_id].request_unused_chunk(
-            size_in_bytes, align_with_page_size ? _page_size : 1UL);
-          if ( data ) {
-            DBG << "Memory chunk request for an unsed memory chunk was successful";
-            if ( _use_round_robin_assignment ) {
-              ++_next_active_memory_chunk;
+    if ( _is_initialized ) {
+      DBG << "Request unused memory chunk of"
+          << size_in_megabyte(num_elements * size) << "MB";
+      const size_t size_in_bytes = num_elements * size;
+      if (_use_unused_memory_chunks &&
+          (!_use_minimum_allocation_size || size_in_bytes > MINIMUM_ALLOCATION_SIZE)) {
+        std::shared_lock<std::shared_timed_mutex> lock(_memory_mutex);
+        const size_t n = _active_memory_chunks.size();
+        if (n > 0) {
+          const size_t end = _next_active_memory_chunk.load() % n;
+          const size_t start = (end + 1) % n;
+          for (size_t i = start;; i = (i + 1) % n) {
+            size_t memory_id = _active_memory_chunks[i];
+            ASSERT(memory_id < _memory_chunks.size());
+            char *data = _memory_chunks[memory_id].request_unused_chunk(
+                    size_in_bytes, align_with_page_size ? _page_size : 1UL);
+            if (data) {
+              DBG << "Memory chunk request for an unsed memory chunk was successful";
+              if (_use_round_robin_assignment) {
+                ++_next_active_memory_chunk;
+              }
+              return data;
             }
-            return data;
-          }
-          if ( i == end ) {
-            break;
+            if (i == end) {
+              break;
+            }
           }
         }
       }

@@ -38,7 +38,7 @@ std::string serialize(const PartitionedHypergraph& hypergraph,
     oss << "RESULT"
         << " algorithm=" << context.algorithm_name
         << " graph=" << context.partition.graph_filename.substr(
-      context.partition.graph_filename.find_last_of('/') + 1)
+            context.partition.graph_filename.find_last_of('/') + 1)
         << " numHNs=" << hypergraph.initialNumNodes()
         << " numHEs=" << hypergraph.initialNumEdges()
         << " paradigm=" << context.partition.paradigm
@@ -77,8 +77,12 @@ std::string serialize(const PartitionedHypergraph& hypergraph,
         << " rating_acceptance_policy=" << context.coarsening.rating.acceptance_policy
         << " initial_partitioning_mode=" << context.initial_partitioning.mode
         << " initial_partitioning_runs=" << context.initial_partitioning.runs
+        << " initial_partitioning_use_adaptive_ip_runs=" << std::boolalpha << context.initial_partitioning.use_adaptive_ip_runs
+        << " initial_partitioning_min_adaptive_ip_runs=" << context.initial_partitioning.min_adaptive_ip_runs
         << " initial_partitioning_use_adaptive_epsilon=" << std::boolalpha << context.initial_partitioning.use_adaptive_epsilon
-        << " initial_partitioning_perform_fm_refinement=" << std::boolalpha << context.initial_partitioning.perform_fm_refinement
+        << " initial_partitioning_perform_refinement_on_best_partitions=" << std::boolalpha << context.initial_partitioning.perform_refinement_on_best_partitions
+        << " initial_partitioning_fm_refinment_rounds=" << std::boolalpha << context.initial_partitioning.fm_refinment_rounds
+        << " initial_partitioning_remove_degree_zero_hns_before_ip=" << std::boolalpha << context.initial_partitioning.remove_degree_zero_hns_before_ip
         << " initial_partitioning_lp_maximum_iterations=" << context.initial_partitioning.lp_maximum_iterations
         << " initial_partitioning_lp_initial_block_size=" << context.initial_partitioning.lp_initial_block_size
         << " sparsification_use_degree_zero_contractions=" << std::boolalpha << context.sparsification.use_degree_zero_contractions
@@ -90,6 +94,8 @@ std::string serialize(const PartitionedHypergraph& hypergraph,
         << " sparsification_jaccard_threshold=" << context.sparsification.jaccard_threshold
         << " sparsification_similiar_net_combiner_strategy=" << context.sparsification.similiar_net_combiner_strategy
         << " refine_until_no_improvement=" << std::boolalpha << context.refinement.refine_until_no_improvement
+        << " max_batch_size=" << context.refinement.max_batch_size
+        << " min_border_vertices_per_thread=" << context.refinement.min_border_vertices_per_thread
         << " lp_algorithm=" << context.refinement.label_propagation.algorithm
         << " lp_maximum_iterations=" << context.refinement.label_propagation.maximum_iterations
         << " lp_rebalancing=" << std::boolalpha << context.refinement.label_propagation.rebalancing
@@ -102,9 +108,13 @@ std::string serialize(const PartitionedHypergraph& hypergraph,
         << " fm_min_improvement=" << context.refinement.fm.min_improvement
         << " fm_release_nodes=" << context.refinement.fm.release_nodes
         << " fm_num_seed_nodes=" << context.refinement.fm.num_seed_nodes
-        << " fm_shuffle=" << std::boolalpha << context.refinement.fm.shuffle
-        << " fm_obey_minimal_parallelism=" << std::boolalpha << context.refinement.fm.obey_minimal_parallelism
         << " fm_time_limit_factor=" << context.refinement.fm.time_limit_factor
+        << " fm_obey_minimal_parallelism=" << std::boolalpha << context.refinement.fm.obey_minimal_parallelism
+        << " fm_shuffle=" << std::boolalpha << context.refinement.fm.shuffle
+        << " global_fm_use_global_fm=" << std::boolalpha << context.refinement.global_fm.use_global_fm
+        << " global_fm_refine_until_no_improvement=" << std::boolalpha << context.refinement.global_fm.refine_until_no_improvement
+        << " global_fm_num_seed_nodes=" << context.refinement.global_fm.num_seed_nodes
+        << " global_fm_obey_minimal_parallelism=" << std::boolalpha << context.refinement.global_fm.obey_minimal_parallelism
         << " num_threads=" << context.shared_memory.num_threads
         << " use_localized_random_shuffle=" << std::boolalpha << context.shared_memory.use_localized_random_shuffle
         << " shuffle_block_size=" << context.shared_memory.shuffle_block_size;
@@ -128,7 +138,8 @@ std::string serialize(const PartitionedHypergraph& hypergraph,
     oss << utils::InitialPartitioningStats::instance();
 
     return oss.str();
+  } else {
+    return "";
   }
-  return "";
 }
 }  // namespace

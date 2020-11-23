@@ -32,8 +32,6 @@
 
 namespace mt_kahypar {
 
-using BlockPriorityQueue = ds::ExclusiveHandleHeap< ds::MaxHeap<Gain, PartitionID> >;
-using VertexPriorityQueue = ds::MaxHeap<Gain, HypernodeID>;    // these need external handles
 
 struct GlobalMoveTracker {
   vec<Move> moveOrder;
@@ -100,8 +98,9 @@ struct GlobalMoveTracker {
 struct NodeTracker {
   vec<CAtomic<SearchID>> searchOfNode;
 
-  SearchID deactivatedNodeMarker = 1;
-  CAtomic<SearchID> highestActiveSearchID { 1 };
+  SearchID releasedMarker = 1;
+  SearchID deactivatedNodeMarker = 2;
+  CAtomic<SearchID> highestActiveSearchID { 2 };
 
   explicit NodeTracker(size_t numNodes = 0) : searchOfNode(numNodes, CAtomic<SearchID>(0)) { }
 
@@ -116,9 +115,8 @@ struct NodeTracker {
     return searchOfNode[u].load(std::memory_order_relaxed) == deactivatedNodeMarker;
   }
 
-  // should not be called when searches try to claim nodes
   void releaseNode(HypernodeID u) {
-    searchOfNode[u].store(0, std::memory_order_relaxed);
+    searchOfNode[u].store(releasedMarker, std::memory_order_relaxed);
   }
 
   bool isSearchInactive(SearchID search_id) const {
@@ -126,7 +124,13 @@ struct NodeTracker {
   }
 
   bool canNodeStartNewSearch(HypernodeID u) const {
-    return isSearchInactive( searchOfNode[u].load(std::memory_order_acq_rel) );
+    return isSearchInactive( searchOfNode[u].load(std::memory_order_relaxed) );
+  }
+
+  bool tryAcquireNode(HypernodeID u, SearchID new_search) {
+    SearchID current_search = searchOfNode[u].load(std::memory_order_acq_rel);
+    return isSearchInactive(current_search)
+            && searchOfNode[u].compare_exchange_strong(current_search, new_search, std::memory_order_acq_rel);
   }
 
   void requestNewSearches(SearchID max_num_searches) {
@@ -134,9 +138,10 @@ struct NodeTracker {
       tbb::parallel_for(0UL, searchOfNode.size(), [&](const size_t i) {
         searchOfNode[i].store(0, std::memory_order_relaxed);
       });
-      highestActiveSearchID.store(0, std::memory_order_relaxed);
+      highestActiveSearchID.store(1, std::memory_order_relaxed);
     }
     deactivatedNodeMarker = ++highestActiveSearchID;
+    releasedMarker = deactivatedNodeMarker - 1;
   }
 };
 
@@ -158,11 +163,6 @@ struct FMSharedData {
   // ! Tracks the current search of a node, and if a node can still be added to an active search
   NodeTracker nodeTracker;
 
-  // ! Indicates whether a node was a seed in a localized search that found no improvement.
-  // ! Used to distinguish whether or not the node should be reinserted into the task queue
-  // ! (if it was removed but could not be claimed for a search)
-  kahypar::ds::FastResetFlagArray<> fruitlessSeed;
-
   // ! Stores the designated target part of a vertex, i.e. the part with the highest gain to which moving is feasible
   vec<PartitionID> targetPart;
 
@@ -174,13 +174,15 @@ struct FMSharedData {
   bool deltaExceededMemoryConstraints = false;
   size_t deltaMemoryLimitPerThread = 0;
 
-  FMSharedData(size_t numNodes = 0, PartitionID numParts = 0, size_t numThreads = 0) :
+  bool release_nodes = true;
+  bool perform_moves_global = true;
+
+  FMSharedData(size_t numNodes = 0, PartitionID numParts = 0, size_t numThreads = 0, size_t numPQHandles = 0) :
           refinementNodes(), //numNodes, numThreads),
-          vertexPQHandles(), //numNodes, invalid_position),
+          vertexPQHandles(), //numPQHandles, invalid_position),
           numParts(numParts),
           moveTracker(), //numNodes),
           nodeTracker(), //numNodes),
-          fruitlessSeed(numNodes),
           targetPart()
   {
     finishedTasks.store(0, std::memory_order_relaxed);
@@ -195,19 +197,30 @@ struct FMSharedData {
     }, [&] {
       nodeTracker.searchOfNode.resize(numNodes, CAtomic<SearchID>(0));
     }, [&] {
-      vertexPQHandles.resize(numNodes, invalid_position);
+      vertexPQHandles.resize(numPQHandles, invalid_position);
     }, [&] {
       refinementNodes.tls_queues.resize(numThreads);
-      refinementNodes.timestamps.resize(numNodes, 0);
     }, [&] {
       targetPart.resize(numNodes, kInvalidPartition);
     });
   }
 
   FMSharedData(size_t numNodes, const Context& context) :
-    FMSharedData(numNodes, context.partition.k,
-      TBBNumaArena::instance().total_number_of_threads())  { }
+        FMSharedData(
+                numNodes,
+                context.partition.k,
+                TBBNumaArena::instance().total_number_of_threads(),
+                getNumberOfPQHandles(context, numNodes)
+                )  { }
 
+
+  size_t getNumberOfPQHandles(const Context& context, size_t numNodes) {
+    if (context.refinement.fm.algorithm == FMAlgorithm::fm_gain_delta) {
+      return numNodes * context.partition.k;
+    } else {
+      return numNodes;
+    }
+  }
 
   void memoryConsumption(utils::MemoryTreeNode* parent) const {
     ASSERT(parent);
@@ -232,6 +245,7 @@ struct FMStats {
   size_t moves = 0;
   size_t local_reverts = 0;
   size_t task_queue_reinsertions = 0;
+  size_t best_prefix_mismatch = 0;
   Gain estimated_improvement = 0;
 
 
@@ -242,6 +256,7 @@ struct FMStats {
     moves = 0;
     local_reverts = 0;
     task_queue_reinsertions = 0;
+    best_prefix_mismatch = 0;
     estimated_improvement = 0;
   }
 
@@ -252,15 +267,18 @@ struct FMStats {
     other.moves += moves;
     other.local_reverts += local_reverts;
     other.task_queue_reinsertions += task_queue_reinsertions;
+    other.best_prefix_mismatch += best_prefix_mismatch;
     other.estimated_improvement += estimated_improvement;
     clear();
   }
 
-  std::string serialize() {
+  std::string serialize() const {
     std::stringstream os;
-    os << V(retries) << " " << V(extractions) << " " << V(pushes) << " " << V(moves) << " " << V(local_reverts);
+    os  << V(retries) << " " << V(extractions) << " " << V(pushes) << " "
+        << V(moves) << " " << V(local_reverts) << " " << V(best_prefix_mismatch);
     return os.str();
   }
 };
+
 
 }

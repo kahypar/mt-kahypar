@@ -80,6 +80,13 @@ namespace mt_kahypar {
              po::value<bool>(&context.partition.show_detailed_clustering_timings)->value_name("<bool>")->default_value(
                      false),
              "If true, shows detailed timings of each clustering iteration.")
+            ("measure-detailed-uncontraction-timings",
+             po::value<bool>(&context.partition.measure_detailed_uncontraction_timings)->value_name("<bool>")->default_value(
+                     false),
+             "If true, measure and show detailed timings for n-level uncontraction.")
+            ("timings-output-depth",
+             po::value<size_t>(&context.partition.timings_output_depth)->value_name("<size_t>"),
+             "Number of levels shown in timing output")
             ("show-memory-consumption",
              po::value<bool>(&context.partition.show_memory_consumption)->value_name("<bool>")->default_value(false),
              "If true, shows detailed information on how much memory was allocated and how memory was reused throughout partitioning.")
@@ -155,20 +162,20 @@ namespace mt_kahypar {
              po::value<bool>(&context.coarsening.use_adaptive_edge_size)->value_name("<bool>")->default_value(true),
              "If true, the rating function uses the number of distinct cluster IDs of a net as edge size rather\n"
              "than its original size during multilevel coarsing")
-#ifdef KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES
-            ("c-use-adaptive-max-node-weight",
-    po::value<bool>(&context.coarsening.use_adaptive_max_allowed_node_weight)->value_name("<bool>")->default_value(false),
-    "If true, we double the maximum allowed node weight each time if we are not able\n"
-    "to significantly reduce the size of the hypergraph during coarsening.")
-    ("c-adaptive-s",
-    po::value<double>(&context.coarsening.max_allowed_weight_fraction)->value_name("<double>"),
-    "The maximum allowed node weight is not allowed to become greater than\n"
-    "((1 + epsilon) * w(H)/k) / (adaptive_s), if adaptive maximum node weight is enabled\n")
-    ("c-adaptive-threshold",
-    po::value<double>(&context.coarsening.adaptive_node_weight_shrink_factor_threshold)->value_name("<double>"),
-    "The maximum allowed node weight is adapted, if the reduction ratio of vertices or pins\n"
-    "is lower than this threshold\n")
-#endif
+            #ifdef KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES
+                        ("c-use-adaptive-max-node-weight",
+                po::value<bool>(&context.coarsening.use_adaptive_max_allowed_node_weight)->value_name("<bool>")->default_value(false),
+                "If true, we double the maximum allowed node weight each time if we are not able\n"
+                "to significantly reduce the size of the hypergraph during coarsening.")
+                ("c-adaptive-s",
+                po::value<double>(&context.coarsening.max_allowed_weight_fraction)->value_name("<double>"),
+                "The maximum allowed node weight is not allowed to become greater than\n"
+                "((1 + epsilon) * w(H)/k) / (adaptive_s), if adaptive maximum node weight is enabled\n")
+                ("c-adaptive-threshold",
+                po::value<double>(&context.coarsening.adaptive_node_weight_shrink_factor_threshold)->value_name("<double>"),
+                "The maximum allowed node weight is adapted, if the reduction ratio of vertices or pins\n"
+                "is lower than this threshold\n")
+            #endif
             ("c-s",
              po::value<double>(&context.coarsening.max_allowed_weight_multiplier)->value_name(
                      "<double>")->default_value(1),
@@ -226,7 +233,15 @@ namespace mt_kahypar {
              po::value<bool>((!initial_partitioning ? &context.refinement.refine_until_no_improvement :
                               &context.initial_partitioning.refinement.refine_until_no_improvement))->value_name(
                      "<bool>")->default_value(false),
-             "Executes all refinement algorithm as long as they find an improvement on the current partition.")
+             "Executes all refinement algorithms as long as they find an improvement on the current partition.")
+            (( initial_partitioning ? "i-r-max-batch-size" : "r-max-batch-size"),
+             po::value<size_t>((!initial_partitioning ? &context.refinement.max_batch_size :
+                                &context.initial_partitioning.refinement.max_batch_size))->value_name("<size_t>")->default_value(1000),
+             "Maximum size of an uncontraction batch (n-Level Partitioner).")
+            (( initial_partitioning ? "i-r-min-border-vertices-per-thread" : "r-min-border-vertices-per-thread"),
+             po::value<size_t>((!initial_partitioning ? &context.refinement.min_border_vertices_per_thread :
+                                &context.initial_partitioning.refinement.min_border_vertices_per_thread))->value_name("<size_t>")->default_value(0),
+             "Minimum number of border vertices per thread with which we perform a localized search (n-Level Partitioner).")
             ((initial_partitioning ? "i-r-lp-type" : "r-lp-type"),
              po::value<std::string>()->value_name("<string>")->notifier(
                      [&, initial_partitioning](const std::string& type) {
@@ -267,10 +282,12 @@ namespace mt_kahypar {
                        } else {
                          context.refinement.fm.algorithm = fmAlgorithmFromString(type);
                        }
-                     })->default_value("fm_multitry"),
+                     })->default_value("fm_gain_cache"),
              "FM Algorithm:\n"
-             "- fm_multitry\n"
-             "- fm_boundary\n"
+             "- fm_gain_cache\n"
+             "- fm_gain_cache_on_demand\n"
+             "- fm_gain_delta\n"
+             "- fm_recompute_gain\n"
              "- do_nothing")
             ((initial_partitioning ? "i-r-fm-multitry-rounds" : "r-fm-multitry-rounds"),
              po::value<size_t>((initial_partitioning ? &context.initial_partitioning.refinement.fm.multitry_rounds :
@@ -316,7 +333,30 @@ namespace mt_kahypar {
                                 &context.refinement.fm.time_limit_factor))->value_name("<double>")->default_value(0.25),
              "If the FM time exceeds time_limit := k * factor * coarsening_time, than the FM config is switched into a light version."
              "If the FM refiner exceeds 2 * time_limit, than the current multitry FM run is aborted and the algorithm proceeds to"
-             "the next finer level.");
+             "the next finer level.")
+            #ifdef KAHYPAR_USE_N_LEVEL_PARADIGM
+            ((initial_partitioning ? "i-r-use-global-fm" : "r-use-global-fm"),
+             po::value<bool>((!initial_partitioning ? &context.refinement.global_fm.use_global_fm :
+                              &context.initial_partitioning.refinement.global_fm.use_global_fm))->value_name(
+                     "<bool>")->default_value(false),
+             "If true, than we execute a globalized FM local search interleaved with the localized searches."
+             "Note, gobalized FM local searches are performed in multilevel style (not after each batch uncontraction)")
+            ((initial_partitioning ? "i-r-global-fm-refine-until-no-improvement" : "r-global-refine-until-no-improvement"),
+             po::value<bool>((!initial_partitioning ? &context.refinement.global_fm.refine_until_no_improvement :
+                              &context.initial_partitioning.refinement.global_fm.refine_until_no_improvement))->value_name(
+                     "<bool>")->default_value(false),
+             "Executes a globalized FM local search as long as it finds an improvement on the current partition.")
+            ((initial_partitioning ? "i-r-global-fm-seed-nodes" : "r-global-fm-seed-nodes"),
+             po::value<size_t>((initial_partitioning ? &context.initial_partitioning.refinement.global_fm.num_seed_nodes :
+                                &context.refinement.global_fm.num_seed_nodes))->value_name("<size_t>")->default_value(25),
+             "Number of nodes to start the 'highly localized FM' with during the globalized FM local search.")
+            ((initial_partitioning ? "i-r-global-fm-obey-minimal-parallelism" : "r-global-fm-obey-minimal-parallelism"),
+             po::value<bool>(
+                     (initial_partitioning ? &context.initial_partitioning.refinement.global_fm.obey_minimal_parallelism :
+                      &context.refinement.global_fm.obey_minimal_parallelism))->value_name("<bool>")->default_value(true),
+             "If true, then the globalized FM local search stops if more than a certain number of threads are finished.")
+            #endif
+            ;
     return options;
   }
 
@@ -332,19 +372,46 @@ namespace mt_kahypar {
              "- direct\n"
              "- recursive\n"
              "- recursive_bisection")
+            ("i-enabled-ip-algos",
+            po::value<std::vector<bool> >(&context.initial_partitioning.enabled_ip_algos)->multitoken(),
+            "Indicate which IP algorithms should be executed. E.g. i-enabled-ip-algos=1 1 0 1 0 1 1 1 0\n"
+            "indicates that\n"
+            "  1.) greedy_round_robin_fm      (is executed)\n"
+            "  2.) greedy_global_fm           (is executed)\n"
+            "  3.) greedy_sequential_fm       (is NOT executed)\n"
+            "  4.) random                     (is executed)\n"
+            "  5.) bfs                        (is NOT executed)\n"
+            "  6.) label_propagation          (is executed)\n"
+            "  7.) greedy_round_robin_max_net (is executed)\n"
+            "  8.) greedy_global_max_net      (is executed)\n"
+            "  9.) greedy_sequential_max_net  (is NOT executed)\n"
+            "Note vector must exactly contain 9 values otherwise partitioner will exit with failure")
             ("i-runs",
              po::value<size_t>(&context.initial_partitioning.runs)->value_name("<size_t>")->default_value(20),
              "Number of runs for each bisection algorithm.")
+            ("i-use-adaptive-ip-runs",
+             po::value<bool>(&context.initial_partitioning.use_adaptive_ip_runs)->value_name("<bool>")->default_value(true),
+             "If true, than each initial partitioner decides if it should further continue partitioning based on the"
+             "quality produced by itself compared to the quality of the other partitioners. If it is not likely that the partitioner"
+             "will produce a solution with a quality better than the current best, further runs of that partitioner are omitted.")
+            ("i-min-adaptive-ip-runs",
+             po::value<size_t>(&context.initial_partitioning.min_adaptive_ip_runs)->value_name("<size_t>")->default_value(5),
+             "If adaptive IP runs is enabled, than each initial partitioner performs minimum min_adaptive_ip_runs runs before\n"
+             "it decides if it should terminate.")
             ("i-use-adaptive-epsilon",
-             po::value<bool>(&context.initial_partitioning.use_adaptive_epsilon)->value_name("<bool>")->default_value(
-                     true),
+             po::value<bool>(&context.initial_partitioning.use_adaptive_epsilon)->value_name("<bool>")->default_value(true),
              "If true, initial partitioning computes for each bisection an individual maximum allowed\n"
              "block weight based on a worst-case estimation. Otherwise, we use the sum of the upper bounds\n"
              "of each block which both blocks of the bisection are recursively divided into as maximum")
-            ("i-perform-fm-refinement",
-             po::value<bool>(&context.initial_partitioning.perform_fm_refinement)->value_name("<bool>")->default_value(
-                     true),
-             "If true, the best partitions produced by a thread is refined with an boundary FM")
+            ("i-perform-refinement-on-best-partitions",
+             po::value<bool>(&context.initial_partitioning.perform_refinement_on_best_partitions)->value_name("<bool>")->default_value(false),
+             "If true, then we perform an additional refinement on the best thread local partitions after IP.")
+            ("i-fm-refinement-rounds",
+             po::value<size_t>(&context.initial_partitioning.fm_refinment_rounds)->value_name("<size_t>")->default_value(1),
+             "Maximum number of 2-way FM local searches on each bisection produced by an initial partitioner.")
+            ("i-remove-degree-zero-hns-before-ip",
+             po::value<bool>(&context.initial_partitioning.remove_degree_zero_hns_before_ip)->value_name("<bool>")->default_value(true),
+             "If true, degree-zero vertices are removed before initial partitioning.")
             ("i-lp-maximum-iterations",
              po::value<size_t>(&context.initial_partitioning.lp_maximum_iterations)->value_name(
                      "<size_t>")->default_value(20),

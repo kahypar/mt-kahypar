@@ -39,6 +39,24 @@ namespace mt_kahypar {
     context.setupPartWeights(hypergraph.totalWeight());
     context.setupContractionLimit(hypergraph.totalWeight());
     context.sanityCheck();
+
+    // Setup enabled IP algorithms
+    if ( context.initial_partitioning.enabled_ip_algos.size() > 0 &&
+         context.initial_partitioning.enabled_ip_algos.size() <
+         static_cast<size_t>(InitialPartitioningAlgorithm::UNDEFINED) ) {
+      ERROR("Size of enabled IP algorithms vector is smaller than number of IP algorithms!");
+    } else if ( context.initial_partitioning.enabled_ip_algos.size() == 0 ) {
+      context.initial_partitioning.enabled_ip_algos.assign(
+        static_cast<size_t>(InitialPartitioningAlgorithm::UNDEFINED), true);
+    } else {
+      bool is_one_ip_algo_enabled = false;
+      for ( size_t i = 0; i < context.initial_partitioning.enabled_ip_algos.size(); ++i ) {
+        is_one_ip_algo_enabled |= context.initial_partitioning.enabled_ip_algos[i];
+      }
+      if ( !is_one_ip_algo_enabled ) {
+        ERROR("At least one initial partitioning algorithm must be enabled!");
+      }
+    }
   }
 
   void configurePreprocessing(const Hypergraph& hypergraph, Context& context) {
@@ -59,7 +77,7 @@ namespace mt_kahypar {
 
     utils::Timer::instance().start_timer("degree_zero_hypernode_removal", "Degree Zero Hypernode Removal");
     const HypernodeID num_removed_degree_zero_hypernodes =
-            degree_zero_hn_remover.contractDegreeZeroHypernodes(hypergraph);
+            degree_zero_hn_remover.removeDegreeZeroHypernodes(hypergraph);
     utils::Timer::instance().stop_timer("degree_zero_hypernode_removal");
 
     utils::Timer::instance().start_timer("large_hyperedge_removal", "Large Hyperedge Removal");
@@ -79,7 +97,7 @@ namespace mt_kahypar {
       LOG << "\033[1m\033[31m" << " # removed"
           << num_removed_large_hyperedges << "large hyperedges with |e| >" << large_he_remover.largeHyperedgeThreshold() << "\033[0m";
       LOG << "\033[1m\033[31m" << " # contracted"
-          << num_removed_degree_zero_hypernodes << "hypernodes with d(v) = 0 to supervertices"
+          << num_removed_degree_zero_hypernodes << "hypernodes with d(v) = 0 and w(v) = 1"
           << "\033[0m";
       io::printStripe();
     }
@@ -115,6 +133,7 @@ namespace mt_kahypar {
 
     for ( size_t i = 0; i < context.partition.num_vcycles; ++i ) {
       // Reset memory pool
+      hypergraph.reset();
       parallel::MemoryPool::instance().reset();
       parallel::MemoryPool::instance().release_mem_group("Preprocessing");
 

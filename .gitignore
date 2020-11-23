@@ -13,6 +13,8 @@ clang-debug/*
 build/*
 build2/*
 build_numa/*
+build_nlevel/*
+build_interleaved/*
 rel2/
 external_tools/*
 relwithdebinfo/*
@@ -22,6 +24,7 @@ release/*
 release152/*
 debug/*
 debug_numa/*
+debug_nlevel/*
 i10pc127/*
 i10pc128/*
 i10pc129/*
@@ -34,3 +37,4 @@ external_tools/*
 .vscode/*
 example_1
 example_2
+config/nlevel_interleaved_preset.ini

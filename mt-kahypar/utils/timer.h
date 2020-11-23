@@ -158,6 +158,10 @@ class Timer {
     return instance;
   }
 
+  void setMaximumOutputDepth(const size_t max_output_depth) {
+    _max_output_depth = max_output_depth;
+  }
+
   bool isEnabled() const {
     return _is_enabled;
   }
@@ -170,6 +174,13 @@ class Timer {
   void disable() {
     std::lock_guard<std::mutex> lock(_timing_mutex);
     _is_enabled = false;
+  }
+
+  void clear() {
+    std::lock_guard<std::mutex> lock(_timing_mutex);
+    _timings.clear();
+    _active_timings.clear();
+    _index = 0;
   }
 
   void start_timer(const std::string& key,
@@ -288,7 +299,8 @@ class Timer {
     _local_active_timings(),
     _index(0),
     _is_enabled(true),
-    _show_detailed_timings(false) { }
+    _show_detailed_timings(false),
+    _max_output_depth(std::numeric_limits<size_t>::max()) { }
 
   std::mutex _timing_mutex;
   std::unordered_map<Key, Timing, KeyHasher, KeyEqual> _timings;
@@ -303,6 +315,7 @@ class Timer {
   std::atomic<int> _index;
   bool _is_enabled;
   bool _show_detailed_timings;
+  size_t _max_output_depth;
 };
 
 inline char Timer::TOP_LEVEL_PREFIX[] = " + ";
@@ -335,10 +348,12 @@ inline std::ostream & operator<< (std::ostream& str, const Timer& timer) {
 
   std::function<void(std::ostream&, const Timer::Timing&, int)> dfs =
     [&](std::ostream& str, const Timer::Timing& parent, int level) {
-      for (const Timer::Timing& timing : timings) {
-        if (timing.parent() == parent.key()) {
-          print(str, timing, level);
-          dfs(str, timing, level + 1);
+      if ( level <= timer._max_output_depth ) {
+        for (const Timer::Timing& timing : timings) {
+          if (timing.parent() == parent.key()) {
+            print(str, timing, level);
+            dfs(str, timing, level + 1);
+          }
         }
       }
     };

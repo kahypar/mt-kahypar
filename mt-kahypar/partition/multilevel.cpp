@@ -25,6 +25,7 @@
 #include "tbb/task.h"
 
 #include "mt-kahypar/partition/factories.h"
+#include "mt-kahypar/partition/preprocessing/sparsification/degree_zero_hn_remover.h"
 #include "mt-kahypar/partition/initial_partitioning/flat/pool_initial_partitioner.h"
 #include "mt-kahypar/parallel/memory_pool.h"
 #include "mt-kahypar/utils/initial_partitioning_stats.h"
@@ -43,6 +44,7 @@ namespace mt_kahypar::multilevel {
             _coarsener(nullptr),
             _sparsifier(nullptr),
             _ip_context(context),
+            _degree_zero_hn_remover(context),
             _hg(hypergraph),
             _partitioned_hg(partitioned_hypergraph),
             _context(context),
@@ -69,7 +71,12 @@ namespace mt_kahypar::multilevel {
         // coarsest partitioned hypergraph.
         io::printPartitioningResults(_sparsifier->sparsifiedPartitionedHypergraph(),
                                      _context, "Sparsified Initial Partitioning Results:");
+        _degree_zero_hn_remover.restoreDegreeZeroHypernodes(
+          _sparsifier->sparsifiedPartitionedHypergraph());
         _sparsifier->undoSparsification(_coarsener->coarsestPartitionedHypergraph());
+      } else {
+        _degree_zero_hn_remover.restoreDegreeZeroHypernodes(
+          _coarsener->coarsestPartitionedHypergraph());
       }
 
       utils::Timer::instance().stop_timer("initial_partitioning");
@@ -106,6 +113,7 @@ namespace mt_kahypar::multilevel {
     std::unique_ptr<ICoarsener> _coarsener;
     std::unique_ptr<IHypergraphSparsifier> _sparsifier;
     Context _ip_context;
+    DegreeZeroHypernodeRemover _degree_zero_hn_remover;
 
   private:
     void enableTimerAndStats() {
@@ -130,6 +138,7 @@ namespace mt_kahypar::multilevel {
                    IHypergraphSparsifier& sparsifier,
                    const Context& context,
                    const Context& ip_context,
+                   DegreeZeroHypernodeRemover& degree_zero_hn_remover,
                    ICoarsener& coarsener,
                    const bool top_level,
                    const TaskGroupID task_group_id,
@@ -138,6 +147,7 @@ namespace mt_kahypar::multilevel {
             _sparsifier(sparsifier),
             _context(context),
             _ip_context(ip_context),
+            _degree_zero_hn_remover(degree_zero_hn_remover),
             _coarsener(coarsener),
             _top_level(top_level),
             _task_group_id(task_group_id),
@@ -185,6 +195,10 @@ namespace mt_kahypar::multilevel {
       io::printInitialPartitioningBanner(_context);
 
       if ( !_vcycle ) {
+        if ( _context.initial_partitioning.remove_degree_zero_hns_before_ip ) {
+          _degree_zero_hn_remover.removeDegreeZeroHypernodes(phg.hypergraph());
+        }
+
         if ( _context.initial_partitioning.mode == InitialPartitioningMode::direct ) {
           disableTimerAndStats();
           // TODO move into IP algos
@@ -223,6 +237,7 @@ namespace mt_kahypar::multilevel {
     IHypergraphSparsifier& _sparsifier;
     const Context& _context;
     const Context& _ip_context;
+    DegreeZeroHypernodeRemover& _degree_zero_hn_remover;
     ICoarsener& _coarsener;
     const bool _top_level;
     const TaskGroupID _task_group_id;
@@ -245,7 +260,7 @@ namespace mt_kahypar::multilevel {
     refinement_task.set_ref_count(1);
     CoarseningTask& coarsening_task = *new(refinement_task.allocate_child()) CoarseningTask(
             hypergraph, *refinement_task._sparsifier,
-            context, refinement_task._ip_context,
+            context, refinement_task._ip_context, refinement_task._degree_zero_hn_remover,
             *refinement_task._coarsener, top_level, task_group_id, vcycle);
     tbb::task::spawn(coarsening_task);
   }

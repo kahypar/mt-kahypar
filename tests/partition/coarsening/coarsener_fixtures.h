@@ -23,6 +23,7 @@
 #include "tests/datastructures/hypergraph_fixtures.h"
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/coarsening/multilevel_coarsener.h"
+#include "mt-kahypar/partition/coarsening/nlevel_coarsener.h"
 
 using ::testing::Test;
 using ::testing::Eq;
@@ -56,6 +57,7 @@ class ACoarsener : public Test {
     context.coarsening.use_adaptive_max_allowed_node_weight = false;
     context.coarsening.minimum_shrink_factor = 1.0;
     context.coarsening.maximum_shrink_factor = 4.0;
+    context.refinement.max_batch_size = 5;
     context.setupPartWeights(hypergraph.totalWeight());
   }
 

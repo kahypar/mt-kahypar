@@ -70,8 +70,8 @@ class ParallelLocalMovingModularity {
   bool localMoving(Graph& graph, ds::Clustering& communities);
 
  private:
-  KAHYPAR_ATTRIBUTE_ALWAYS_INLINE bool ratingsFitIntoSmallSparseMap(const Graph& graph,
-                                                                    const HypernodeID u)  {
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE bool ratingsFitIntoSmallSparseMap(const Graph& graph,
+                                                                       const HypernodeID u)  {
     static constexpr size_t cache_efficient_map_size = CacheEfficientIncidentClusterWeights::MAP_SIZE / 3UL;
     return std::min(_vertex_degree_sampling_threshold, _max_degree) > cache_efficient_map_size &&
            graph.degree(u) <= cache_efficient_map_size;
@@ -85,10 +85,10 @@ class ParallelLocalMovingModularity {
   void initializeClusterVolumes(const Graph& graph, ds::Clustering& communities);
 
   template<typename Map>
-  KAHYPAR_ATTRIBUTE_ALWAYS_INLINE PartitionID computeMaxGainCluster(const Graph& graph,
-                                                                    ds::Clustering& communities,
-                                                                    const NodeID u,
-                                                                    Map& incident_cluster_weights) {
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE PartitionID computeMaxGainCluster(const Graph& graph,
+                                                                       ds::Clustering& communities,
+                                                                       const NodeID u,
+                                                                       Map& incident_cluster_weights) {
     PartitionID from = communities[u];
     PartitionID bestCluster = communities[u];
 

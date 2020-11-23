@@ -24,6 +24,7 @@
 #include "mt-kahypar/parallel/parallel_prefix_sum.h"
 #include "mt-kahypar/datastructures/concurrent_bucket_map.h"
 #include "mt-kahypar/utils/timer.h"
+#include "mt-kahypar/utils/memory_tree.h"
 
 #include <tbb/parallel_reduce.h>
 

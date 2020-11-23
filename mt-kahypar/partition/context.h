@@ -23,11 +23,15 @@
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/context_enum_classes.h"
 
-#include "kahypar/partition/context_enum_classes.h"   // TODO eliminate
+#include "kahypar/partition/context_enum_classes.h"
 
 namespace mt_kahypar {
 struct PartitioningParameters {
+  #ifdef KAHYPAR_USE_N_LEVEL_PARADIGM
+  Paradigm paradigm = Paradigm::nlevel;
+  #else
   Paradigm paradigm = Paradigm::multilevel;
+  #endif
   kahypar::Mode mode = kahypar::Mode::UNDEFINED;
   kahypar::Objective objective = kahypar::Objective::UNDEFINED;
   double epsilon = std::numeric_limits<double>::max();
@@ -45,6 +49,8 @@ struct PartitioningParameters {
   bool verbose_output = true;
   bool show_detailed_timings = false;
   bool show_detailed_clustering_timings = false;
+  bool measure_detailed_uncontraction_timings = false;
+  size_t timings_output_depth = std::numeric_limits<size_t>::max();
   bool show_memory_consumption = false;
   bool show_advanced_cut_analysis = false;
   bool enable_progress_bar = false;
@@ -106,6 +112,7 @@ struct CoarseningParameters {
   HypernodeID contraction_limit = 0;
 };
 
+
 std::ostream & operator<< (std::ostream& str, const CoarseningParameters& params);
 
 struct LabelPropagationParameters {
@@ -120,13 +127,13 @@ std::ostream & operator<< (std::ostream& str, const LabelPropagationParameters& 
 
 struct FMParameters {
   FMAlgorithm algorithm = FMAlgorithm::do_nothing;
-  size_t multitry_rounds = 0;
+  size_t multitry_rounds = 1;
   bool perform_moves_global = false;
   bool revert_parallel = true;
   double rollback_balance_violation_factor = std::numeric_limits<double>::max();
-  size_t num_seed_nodes = 0;
+  mutable size_t num_seed_nodes = 1;
   bool shuffle = true;
-  bool obey_minimal_parallelism = false;
+  mutable bool obey_minimal_parallelism = false;
   double min_improvement = -1.0;
   bool release_nodes = true;
   double time_limit_factor = std::numeric_limits<double>::max();
@@ -134,10 +141,22 @@ struct FMParameters {
 
 std::ostream& operator<<(std::ostream& out, const FMParameters& params);
 
+struct NLevelGlobalFMParameters {
+  bool use_global_fm = false;   // TODO this should be renamed to something more appropriate: e.g. log_level_fm or refine_after_coarsening_pass
+  bool refine_until_no_improvement = false;
+  size_t num_seed_nodes = 0;
+  bool obey_minimal_parallelism = false;
+};
+
+std::ostream& operator<<(std::ostream& out, const NLevelGlobalFMParameters& params);
+
 struct RefinementParameters {
   LabelPropagationParameters label_propagation;
   FMParameters fm;
+  NLevelGlobalFMParameters global_fm;
   bool refine_until_no_improvement = false;
+  size_t max_batch_size = std::numeric_limits<size_t>::max();
+  size_t min_border_vertices_per_thread = 0;
 };
 
 std::ostream & operator<< (std::ostream& str, const RefinementParameters& params);
@@ -157,11 +176,20 @@ struct SparsificationParameters {
 std::ostream & operator<< (std::ostream& str, const SparsificationParameters& params);
 
 struct InitialPartitioningParameters {
+  InitialPartitioningParameters() :
+    // Enable all initial partitioner per default
+    enabled_ip_algos(static_cast<size_t>(InitialPartitioningAlgorithm::UNDEFINED), true) { }
+
   InitialPartitioningMode mode = InitialPartitioningMode::UNDEFINED;
   RefinementParameters refinement = { };
+  std::vector<bool> enabled_ip_algos;
   size_t runs = 1;
+  bool use_adaptive_ip_runs = false;
+  size_t min_adaptive_ip_runs = std::numeric_limits<size_t>::max();
   bool use_adaptive_epsilon = false;
-  bool perform_fm_refinement = false;
+  bool perform_refinement_on_best_partitions = false;
+  size_t fm_refinment_rounds = 1;
+  bool remove_degree_zero_hns_before_ip = false;
   size_t lp_maximum_iterations = 1;
   size_t lp_initial_block_size = 1;
 };
@@ -172,6 +200,7 @@ struct SharedMemoryParameters {
   size_t num_threads = 1;
   bool use_localized_random_shuffle = false;
   size_t shuffle_block_size = 2;
+  double degree_of_parallelism = 1.0;
 };
 
 std::ostream & operator<< (std::ostream& str, const SharedMemoryParameters& params);

@@ -20,7 +20,6 @@
 
 #pragma once
 
-#include <tbb/concurrent_queue.h>
 #include <tbb/parallel_for_each.h>
 
 #include "mt-kahypar/parallel/atomic_wrapper.h"
@@ -58,28 +57,15 @@ struct ThreadQueue {
 template<typename T>
 struct WorkContainer {
 
-  using TimestampT = uint32_t;
-
-  WorkContainer(size_t maxNumElements = 0, size_t maxNumThreads = 0) :
-          timestamps(maxNumElements, 0),
-          tls_queues(maxNumThreads)
-  {
-
-  }
+  WorkContainer(size_t maxNumThreads = 0) :
+    tls_queues(maxNumThreads) { }
 
   size_t unsafe_size() const {
     size_t sz = 0;
     for (const ThreadQueue<T>& q : tls_queues) {
       sz += q.elements.size() - q.front.load(std::memory_order_relaxed);
     }
-    sz += conc_queue.unsafe_size();
     return sz;
-  }
-
-  void concurrent_push(const T el) {
-    conc_queue.push(el);
-    ASSERT(static_cast<size_t>(el) < timestamps.size());
-    timestamps[el] = current;
   }
 
   // assumes that no thread is currently calling try_pop
@@ -87,35 +73,11 @@ struct WorkContainer {
     ASSERT(thread_id < tls_queues.size());
     tls_queues[thread_id].elements.push_back(el);
     ASSERT(tls_queues[thread_id].front.load() == 0);
-    ASSERT(static_cast<size_t>(el) < timestamps.size());
-    timestamps[el] = current;
   }
 
   bool try_pop(T& dest, size_t thread_id) {
     ASSERT(thread_id < tls_queues.size());
-    const bool success = tls_queues[thread_id].try_pop(dest) || conc_queue.try_pop(dest) || steal_work(dest);
-    if (success) {
-      ASSERT(dest < timestamps.size());
-      timestamps[dest] = current+1;
-    }
-    /*
-     * Two potential data races.
-     * Both are benign because they only lead to potentially less frequently reinserted elements.
-     * This should happen rarely. Additionally, frequent reinsertion means the seed node wasn't helpful.
-     * Hence missing out is probably not a bad thing.
-     * Elements that are inserted for the first time are never affected.
-     *
-     * A)   Thread 1 extracts element x
-     *      Thread 2 checks was_pushed_and_removed(x), gets false. no reinsert although we could have
-     *      Thread 1 sets timestamps[dest] = current+1
-     *
-     * B)   Thread 1 checks was_pushed_and_removed(x), gets true and calls concurrent_push(x)
-     *      Thread 2 calls try_pop and already gets x from conq_queue.try_pop(dest)
-     *      Now timestamps[x] can be either current or current+1
-     *      In both cases x is not in the queue anymore (which is correct)
-     *      In the first case, x cannot be reinserted
-     */
-    return success;
+    return tls_queues[thread_id].try_pop(dest) || steal_work(dest);
   }
 
   bool steal_work(T& dest) {
@@ -127,11 +89,6 @@ struct WorkContainer {
     return false;
   }
 
-  bool was_pushed_and_removed(const T el) const {
-    ASSERT(static_cast<size_t>(el) < timestamps.size());
-    return timestamps[el] == current+1;
-  }
-
   void shuffle() {
     tbb::parallel_for_each(tls_queues, [&](ThreadQueue<T>& q) {
       utils::Randomize::instance().shuffleVector(q.elements);
@@ -139,21 +96,12 @@ struct WorkContainer {
   }
 
   void clear() {
-    if (current >= std::numeric_limits<TimestampT>::max() - 2) {
-      tbb::parallel_for_each(timestamps, [](TimestampT& x) { x = 0; });
-      current = 0;
-    }
     for (ThreadQueue<T>& q : tls_queues) {
       q.clear();
     }
-    conc_queue.clear();
-    current += 2;
   }
 
-  TimestampT current = 2;
-  vec<TimestampT> timestamps;
   vec<ThreadQueue<T>> tls_queues;
-  tbb::concurrent_queue<T> conc_queue;
 
   using SubRange = IteratorRange< typename vec<T>::const_iterator >;
   using Range = ConcatenatedRange<SubRange>;
@@ -174,10 +122,7 @@ struct WorkContainer {
     for (const ThreadQueue<T>& q : tls_queues) {
       local_work_queue_node->updateSize(q.elements.capacity() * sizeof(T));
     }
-    utils::MemoryTreeNode* timestamps_node = work_container_node->addChild("Timestamps");
-    timestamps_node->updateSize(timestamps.capacity() * sizeof(TimestampT));
   }
 };
-
 
 }
