@@ -128,7 +128,8 @@ namespace mt_kahypar {
 
   PartitionedHypergraph partitionVCycle(Hypergraph& hypergraph,
                                         PartitionedHypergraph&& partitioned_hypergraph,
-                                        Context& context) {
+                                        Context& context,
+                                        LargeHyperedgeRemover& large_he_remover) {
     ASSERT(context.partition.num_vcycles > 0);
 
     for ( size_t i = 0; i < context.partition.num_vcycles; ++i ) {
@@ -136,6 +137,12 @@ namespace mt_kahypar {
       hypergraph.reset();
       parallel::MemoryPool::instance().reset();
       parallel::MemoryPool::instance().release_mem_group("Preprocessing");
+
+      if ( context.partition.paradigm == Paradigm::nlevel ) {
+        // Workaround: reset() function of hypergraph reinserts all removed
+        // hyperedges to incident net lists of each vertex again.
+        large_he_remover.removeLargeHyperedgesInNLevelVCycle(hypergraph);
+      }
 
       // Store partition and assign it as community ids in order to
       // restrict contractions in v-cycle to partition ids
@@ -176,7 +183,9 @@ namespace mt_kahypar {
 
     // ################## V-Cycle s##################
     if ( context.partition.num_vcycles > 0 ) {
-      partitioned_hypergraph = partitionVCycle(hypergraph, std::move(partitioned_hypergraph), context);
+      partitioned_hypergraph = partitionVCycle(
+        hypergraph, std::move(partitioned_hypergraph),
+        context, large_he_remover);
     }
 
     // ################## POSTPROCESSING ##################
