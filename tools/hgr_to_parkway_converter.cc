@@ -101,7 +101,7 @@ int main(int argc, char* argv[]) {
   po::notify(cmd_vm);
 
   Hypergraph hypergraph =
-    mt_kahypar::io::readHypergraphFile(hgr_filename, 0);
+    mt_kahypar::io::readHypergraphFile(hgr_filename, 0, true);
 
   for ( int p = 0; p < num_procs; ++p ) {
     writeParkwayHypergraphForProc(hypergraph, out_filename, num_procs, p);
