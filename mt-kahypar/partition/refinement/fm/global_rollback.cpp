@@ -263,7 +263,8 @@ namespace mt_kahypar {
           for (HyperedgeID e : phg.incidentEdges(u)) {
             // atomically raise bit if this is the first time this hyperedge is encountered
             uint32_t expected = last_recalc_round[e].load(std::memory_order_relaxed);
-            if (expected < round && last_recalc_round[e].compare_exchange_strong(expected, round)) {
+            if (expected < round
+                && last_recalc_round[e].compare_exchange_strong(expected, round, std::memory_order_acquire)) {
               recalculate_and_distribute_for_hyperedge(e);
             }
           }
