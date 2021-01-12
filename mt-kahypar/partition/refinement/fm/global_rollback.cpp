@@ -231,7 +231,7 @@ namespace mt_kahypar {
           const Move& m = tracker.getMove(m_id);
           rd[m.to].first_in = std::min(rd[m.to].first_in, m_id);
           rd[m.from].last_out = std::max(rd[m.from].last_out, m_id);
-          rd[m.from].remaining_pins++;
+          // no change for remaining pins!
         } else {
           rd[phg.partID(v)].remaining_pins++;
         }
