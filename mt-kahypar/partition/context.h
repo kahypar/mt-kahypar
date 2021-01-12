@@ -129,7 +129,8 @@ struct FMParameters {
   FMAlgorithm algorithm = FMAlgorithm::do_nothing;
   size_t multitry_rounds = 1;
   bool perform_moves_global = false;
-  bool revert_parallel = true;
+  bool rollback_parallel = true;
+  bool rollback_sensitive_to_num_moves = false;
   double rollback_balance_violation_factor = std::numeric_limits<double>::max();
   mutable size_t num_seed_nodes = 1;
   bool shuffle = true;

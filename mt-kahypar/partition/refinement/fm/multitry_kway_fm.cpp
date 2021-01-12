@@ -197,7 +197,7 @@ namespace mt_kahypar {
       timer.stop_timer("init_gain_info");
     }
 
-    if ( context.refinement.fm.revert_parallel ) {
+    if ( context.refinement.fm.rollback_parallel ) {
       timer.start_timer("set_remaining_original_pins", "Set remaining original pins");
       globalRollback.setRemainingOriginalPins(phg);
       timer.stop_timer("set_remaining_original_pins");

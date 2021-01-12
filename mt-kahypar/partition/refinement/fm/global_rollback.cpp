@@ -157,7 +157,7 @@ namespace mt_kahypar {
       }
     }
 
-    if (context.refinement.fm.revert_parallel) {
+    if (context.refinement.fm.rollback_parallel) {
       return revertToBestPrefixParallel<update_gain_cache>(phg, sharedData, partWeights, maxPartWeights);
     } else {
       return revertToBestPrefixSequential<update_gain_cache>(phg, sharedData, partWeights, maxPartWeights);
@@ -211,11 +211,7 @@ namespace mt_kahypar {
 
 
   void GlobalRollback::recalculateGains(PartitionedHypergraph& phg, FMSharedData& sharedData) {
-
     GlobalMoveTracker& tracker = sharedData.moveTracker;
-    vec<Move>& move_order = tracker.moveOrder;
-    const MoveID num_moves = tracker.numPerformedMoves();
-    const MoveID first_move_id = tracker.firstMoveID;
 
     auto recalculate_and_distribute_for_hyperedge = [&](const HyperedgeID e) {
       auto& rd = ets_recalc_data.local();
@@ -257,8 +253,29 @@ namespace mt_kahypar {
       }
     };
 
-    tbb::parallel_for(0U, phg.initialNumEdges(), recalculate_and_distribute_for_hyperedge);
 
+    if (!context.refinement.fm.rollback_sensitive_to_num_moves) {
+      tbb::parallel_for(0U, phg.initialNumEdges(), recalculate_and_distribute_for_hyperedge);
+    } else {
+      tbb::parallel_for(0U, sharedData.moveTracker.numPerformedMoves(), [&](const HypernodeID u) {
+        if (tracker.wasNodeMovedInThisRound(u)) {
+          // parallel for if high degree?
+          for (HyperedgeID e : phg.incidentEdges(u)) {
+            // atomically raise bit if this is the first time this hyperedge is encountered
+            uint32_t expected = last_recalc_round[e].load(std::memory_order_relaxed);
+            if (expected < round && last_recalc_round[e].compare_exchange_strong(expected, round)) {
+              recalculate_and_distribute_for_hyperedge(e);
+            }
+          }
+        }
+      });
+
+      // reset bits
+      if (++round == std::numeric_limits<uint32_t>::max()) {
+        // should never happen on practical inputs.
+        last_recalc_round.assign(phg.initialNumEdges(), CAtomic<uint32_t>(0));
+      }
+    }
   }
 
   template<bool update_gain_cache>

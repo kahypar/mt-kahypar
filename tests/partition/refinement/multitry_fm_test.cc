@@ -123,7 +123,7 @@ class MultiTryFMTest : public ::testing::TestWithParam<PartitionID> {
 
   TEST_P(MultiTryFMTest, AlsoWorksWithNonDefaultFeatures) {
     context.refinement.fm.obey_minimal_parallelism = true;
-    context.refinement.fm.revert_parallel = false;
+    context.refinement.fm.rollback_parallel = false;
     context.refinement.fm.perform_moves_global = true;
     HyperedgeWeight objective_before = metrics::objective(this->partitioned_hypergraph, this->context.partition.objective);
     this->refiner->refine(this->partitioned_hypergraph, {}, this->metrics, std::numeric_limits<double>::max());

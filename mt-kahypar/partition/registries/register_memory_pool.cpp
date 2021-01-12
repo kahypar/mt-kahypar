@@ -96,7 +96,7 @@ namespace mt_kahypar {
                                num_hyperedges, sizeof(SpinLock));
 
     if ( context.refinement.fm.algorithm != FMAlgorithm::do_nothing &&
-         context.refinement.fm.revert_parallel ) {
+         context.refinement.fm.rollback_parallel ) {
       pool.register_memory_chunk("Refinement", "remaining_original_pins",
                                  static_cast<size_t>(hypergraph.numNonGraphEdges()) * context.partition.k, sizeof(CAtomic<HypernodeID>));
       pool.register_memory_chunk("Refinement", "first_move_in",

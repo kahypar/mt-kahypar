@@ -34,8 +34,14 @@ public:
           context(context),
           max_part_weight_scaling(context.refinement.fm.rollback_balance_violation_factor),
           num_parts(numParts),
-          ets_recalc_data(vec<RecalculationData>(numParts) )
-    { }
+          ets_recalc_data(vec<RecalculationData>(numParts)),
+          last_recalc_round(),
+          round(1)
+  {
+    if (context.refinement.fm.rollback_sensitive_to_num_moves && context.refinement.fm.rollback_parallel) {
+      last_recalc_round.resize(hg.initialNumEdges(), CAtomic<uint32_t>(0));
+    }
+  }
 
 
   template<bool update_gain_cache>
@@ -90,6 +96,8 @@ private:
   };
 
   tbb::enumerable_thread_specific< vec<RecalculationData> > ets_recalc_data;
+  vec<CAtomic<uint32_t>> last_recalc_round;
+  uint32_t round;
 };
 
 }
