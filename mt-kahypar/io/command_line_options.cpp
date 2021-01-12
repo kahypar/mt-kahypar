@@ -302,7 +302,7 @@ namespace mt_kahypar {
              po::value<size_t>((initial_partitioning ? &context.initial_partitioning.refinement.fm.num_seed_nodes :
                                 &context.refinement.fm.num_seed_nodes))->value_name("<size_t>")->default_value(25),
              "Number of nodes to start the 'highly localized FM' with.")
-            (( initial_partitioning ? "i-r-fm-revert-parallel" : "r-fm-revert-parallel"),
+            (( initial_partitioning ? "i-r-fm-rollback-parallel" : "r-fm-rollback-parallel"),
              po::value<bool>((initial_partitioning ? &context.initial_partitioning.refinement.fm.rollback_parallel :
                               &context.refinement.fm.rollback_parallel))
                               ->value_name("<bool>")->default_value(true),
