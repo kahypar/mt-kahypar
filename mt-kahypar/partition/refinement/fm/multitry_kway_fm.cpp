@@ -29,7 +29,7 @@ namespace mt_kahypar {
   template<typename FMStrategy>
   bool MultiTryKWayFM<FMStrategy>::refineImpl(
               PartitionedHypergraph& phg,
-              const parallel::scalable_vector<HypernodeID>& refinement_nodes,
+              const vec<HypernodeID>& refinement_nodes,
               kahypar::Metrics& metrics,
               const double time_limit) {
 
@@ -147,7 +147,7 @@ namespace mt_kahypar {
 
   template<typename FMStrategy>
   void MultiTryKWayFM<FMStrategy>::roundInitialization(PartitionedHypergraph& phg,
-                                                       const parallel::scalable_vector<HypernodeID>& refinement_nodes) {
+                                                       const vec<HypernodeID>& refinement_nodes) {
     // clear border nodes
     sharedData.refinementNodes.clear();
 
