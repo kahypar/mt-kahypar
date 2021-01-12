@@ -216,10 +216,6 @@ namespace mt_kahypar {
     auto recalculate_and_distribute_for_hyperedge = [&](const HyperedgeID e) {
       auto& r = ets_recalc_data.local();
 
-      for (PartitionID i = 0; i < num_parts; ++i) {     // TODO optimize later
-        r[i] = RecalculationData();
-      }
-
       // compute auxiliary data
       for (HypernodeID v : phg.pins(e)) {
         if (tracker.wasNodeMovedInThisRound(v)) {
@@ -248,6 +244,22 @@ namespace mt_kahypar {
           if (r[m.to].first_in == m_id && r[m.to].last_out < m_id && r[m.to].remaining_pins == 0) {
             // decrease gain of v by w(e)
             __atomic_fetch_sub(&m.gain, we, __ATOMIC_RELAXED);
+          }
+        }
+      }
+
+      if (num_parts <= static_cast<int>(2 * phg.edgeSize(e))) {
+        for (PartitionID i = 0; i < num_parts; ++i) {     // TODO optimize later
+          r[i] = RecalculationData();
+        }
+      } else {
+        for (HypernodeID v : phg.pins(e)) {
+          if (tracker.wasNodeMovedInThisRound(v)) {
+            const Move& m = tracker.getMove(tracker.moveOfNode[v]);
+            r[m.from] = RecalculationData();
+            r[m.to] = RecalculationData();
+          } else {
+            r[phg.partID(v)].remaining_pins = 0;
           }
         }
       }
