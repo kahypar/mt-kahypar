@@ -192,7 +192,7 @@ namespace mt_kahypar {
           if constexpr (use_delta) {
             constexpr size_t move_apply_threshold = 100;    // TODO make parameter? we want to be able to turn it off
             if (runStats.moves - num_moves_at_last_apply > move_apply_threshold) {
-              applyBestLocalPrefixToSharedPartition(phg, bestImprovement, bestImprovementIndex, true /* apply all moves */);
+              applyBestLocalPrefixToSharedPartition(phg, bestImprovementIndex, bestImprovement, true /* apply all moves */);
               localMoves.clear();
               deltaPhg.clear();   // clear hashtables, save memory :)
               num_moves_at_last_apply = runStats.moves;
