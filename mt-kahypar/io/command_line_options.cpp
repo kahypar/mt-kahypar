@@ -307,6 +307,14 @@ namespace mt_kahypar {
                               &context.refinement.fm.rollback_parallel))
                               ->value_name("<bool>")->default_value(true),
              "Perform gain and balance recalculation, and reverting to best prefix in parallel.")
+            (( initial_partitioning ?
+                              "i-r-fm-rollback_sensitive_to_num_moves" :
+                              "r-fm-rollback_sensitive_to_num_moves"),
+             po::value<bool>((initial_partitioning ?
+                              &context.initial_partitioning.refinement.fm.rollback_sensitive_to_num_moves :
+                              &context.refinement.fm.rollback_sensitive_to_num_moves))
+                     ->value_name("<bool>")->default_value(false),
+             "Touch only incident hyperedges of moved vertices for parallel gain recalculation.")
             ((initial_partitioning ? "i-r-fm-rollback-balance-violation-factor"
                                    : "r-fm-rollback-balance-violation-factor"),
              po::value<double>((initial_partitioning
