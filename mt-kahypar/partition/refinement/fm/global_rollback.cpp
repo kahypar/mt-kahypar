@@ -214,10 +214,10 @@ namespace mt_kahypar {
     GlobalMoveTracker& tracker = sharedData.moveTracker;
 
     auto recalculate_and_distribute_for_hyperedge = [&](const HyperedgeID e) {
-      auto& rd = ets_recalc_data.local();
+      auto& r = ets_recalc_data.local();
 
       for (PartitionID i = 0; i < num_parts; ++i) {     // TODO optimize later
-        rd[i] = RecalculationData();
+        r[i] = RecalculationData();
       }
 
       // compute auxiliary data
@@ -225,11 +225,11 @@ namespace mt_kahypar {
         if (tracker.wasNodeMovedInThisRound(v)) {
           const MoveID m_id = tracker.moveOfNode[v];
           const Move& m = tracker.getMove(m_id);
-          rd[m.to].first_in = std::min(rd[m.to].first_in, m_id);
-          rd[m.from].last_out = std::max(rd[m.from].last_out, m_id);
+          r[m.to].first_in = std::min(r[m.to].first_in, m_id);
+          r[m.from].last_out = std::max(r[m.from].last_out, m_id);
           // no change for remaining pins!
         } else {
-          rd[phg.partID(v)].remaining_pins++;
+          r[phg.partID(v)].remaining_pins++;
         }
       }
 
@@ -240,12 +240,12 @@ namespace mt_kahypar {
           const MoveID m_id = tracker.moveOfNode[v];
           Move& m = tracker.getMove(m_id);
 
-          if (rd[m.from].last_out == m_id && rd[m.from].first_in > m_id && rd[m.from].remaining_pins == 0) {
+          if (r[m.from].last_out == m_id && r[m.from].first_in > m_id && r[m.from].remaining_pins == 0) {
             // increase gain of v by w(e)
             __atomic_fetch_add(&m.gain, we, __ATOMIC_RELAXED);
           }
 
-          if (rd[m.to].first_in == m_id && rd[m.to].last_out < m_id && rd[m.to].remaining_pins == 0) {
+          if (r[m.to].first_in == m_id && r[m.to].last_out < m_id && r[m.to].remaining_pins == 0) {
             // decrease gain of v by w(e)
             __atomic_fetch_sub(&m.gain, we, __ATOMIC_RELAXED);
           }
