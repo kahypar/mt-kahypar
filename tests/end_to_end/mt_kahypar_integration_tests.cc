@@ -52,7 +52,7 @@ class MtKaHyPar : public Test {
  public:
   MtKaHyPar() :
     context() {
-    parseIniToContext(context, "../config/speed_preset.ini");
+    parseIniToContext(context, "../config/fast_preset.ini");
     context.partition.graph_filename = "../tests/instances/ibm01.hgr";
     context.partition.k = Config::K;
     context.partition.objective = Config::OBJECTIVE;
@@ -80,7 +80,7 @@ size_t MtKaHyPar<Config>::num_threads = HardwareTopology::instance().num_cpus();
 
 void verifyThatHypergraphsAreEquivalent(const Hypergraph& hypergraph,
                                         const Hypergraph& reference) {
-  // Verify equivallence of hypernodes and incident nets
+  // Verify equivalence of hypernodes and incident nets
   for (const HypernodeID& hn : reference.nodes()) {
     ASSERT_TRUE(hypergraph.nodeIsEnabled(hn));
 
@@ -97,7 +97,7 @@ void verifyThatHypergraphsAreEquivalent(const Hypergraph& hypergraph,
     ASSERT_EQ(num_incident_nets, incident_nets.size());
   }
 
-  // Verify equivallence of hyperedges and pins
+  // Verify equivalence of hyperedges and pins
   for (const HyperedgeID& he : reference.edges()) {
     ASSERT_TRUE(hypergraph.edgeIsEnabled(he));
 

@@ -51,7 +51,7 @@ class AInitialPartitionerTest : public Test {
     hypergraph(),
     context() {
 
-    parseIniToContext(context, "../config/speed_preset.ini");
+    parseIniToContext(context, "../config/fast_preset.ini");
 
     context.partition.graph_filename = "../tests/instances/contracted_unweighted_ibm01.hgr";
     context.partition.graph_community_filename = "../tests/instances/contracted_ibm01.hgr.community";
