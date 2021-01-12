@@ -277,12 +277,9 @@ namespace mt_kahypar {
       }
     }
 
-
-    if (!apply_all_moves) {
-      runStats.local_reverts += localMoves.size() - bestGainIndex;
-      if (bestIndex != bestGainIndex) {
-        runStats.best_prefix_mismatch++;
-      }
+    runStats.local_reverts += localMoves.size() - bestGainIndex;
+    if (!apply_all_moves && bestIndex != bestGainIndex) {
+      runStats.best_prefix_mismatch++;
     }
 
     // Kind of double rollback, if gain values are not correct
