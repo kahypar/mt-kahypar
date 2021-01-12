@@ -383,8 +383,9 @@ namespace mt_kahypar {
     // revert all moves
     for (MoveID localMoveID = 0; localMoveID < sharedData.moveTracker.numPerformedMoves(); ++localMoveID) {
       const Move& m = sharedData.moveTracker.moveOrder[localMoveID];
-      if (sharedData.moveTracker.isMoveStillValid(m))
+      if (sharedData.moveTracker.isMoveStillValid(m)) {
         moveVertex<update_gain_cache>(phg, m.node, m.to, m.from);
+      }
     }
 
     recompute_move_from_benefits();
