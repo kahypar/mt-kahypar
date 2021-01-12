@@ -249,10 +249,11 @@ namespace mt_kahypar {
       }
 
       if (num_parts <= static_cast<int>(2 * phg.edgeSize(e))) {
-        for (PartitionID i = 0; i < num_parts; ++i) {     // TODO optimize later
+        for (PartitionID i = 0; i < num_parts; ++i) {
           r[i] = RecalculationData();
         }
       } else {
+        // TODO can we do something with the connectivity set here? we would also need the connectivity set entries before the move
         for (HypernodeID v : phg.pins(e)) {
           if (tracker.wasNodeMovedInThisRound(v)) {
             const Move& m = tracker.getMove(tracker.moveOfNode[v]);
