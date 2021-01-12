@@ -423,17 +423,7 @@ namespace mt_kahypar {
   }
 
 
-
-  void GlobalRollback::memoryConsumption(utils::MemoryTreeNode* parent) const {
-    ASSERT(parent);
-    utils::MemoryTreeNode* global_rollback_node = parent->addChild("Global Rollback");
-  }
-
-
-
-
   // template instantiations
-
   template HyperedgeWeight GlobalRollback::revertToBestPrefix<false>
           (PartitionedHypergraph& , FMSharedData& , const vec<HypernodeWeight>& );
 

@@ -75,8 +75,6 @@ public:
   template<bool update_gain_cache>
   bool verifyGains(PartitionedHypergraph& phg, FMSharedData& sharedData);
 
-  void memoryConsumption(utils::MemoryTreeNode* parent) const;
-
 private:
   const Context& context;
 

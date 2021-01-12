@@ -197,12 +197,6 @@ namespace mt_kahypar {
       timer.stop_timer("init_gain_info");
     }
 
-    if ( context.refinement.fm.rollback_parallel ) {
-      timer.start_timer("set_remaining_original_pins", "Set remaining original pins");
-      globalRollback.setRemainingOriginalPins(phg);
-      timer.stop_timer("set_remaining_original_pins");
-    }
-
     is_initialized = true;
   }
 
@@ -213,7 +207,6 @@ namespace mt_kahypar {
     for (const auto& fm : ets_fm) {
       fm.memoryConsumption(&fm_memory);
     }
-    globalRollback.memoryConsumption(&fm_memory);
     sharedData.memoryConsumption(&fm_memory);
     fm_memory.finalize();
 
