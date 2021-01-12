@@ -137,6 +137,7 @@ namespace mt_kahypar {
     // and do the local rollback outside this function
 
 
+    size_t num_moves_at_last_apply = 0;
     size_t bestImprovementIndex = 0;
     Gain estimatedImprovement = 0;
     Gain bestImprovement = 0;
@@ -187,6 +188,16 @@ namespace mt_kahypar {
           stopRule.reset();
           bestImprovement = estimatedImprovement;
           bestImprovementIndex = localMoves.size();
+
+          if constexpr (use_delta) {
+            constexpr size_t move_apply_threshold = 100;    // TODO make parameter? we want to be able to turn it off
+            if (runStats.moves - num_moves_at_last_apply > move_apply_threshold) {
+              applyBestLocalPrefixToSharedPartition(phg, bestImprovement, bestImprovementIndex, true /* apply all moves */);
+              localMoves.clear();
+              deltaPhg.clear();   // clear hashtables, save memory :)
+              num_moves_at_last_apply = runStats.moves;
+            }
+          }
         }
 
         if constexpr (use_delta) {
@@ -206,7 +217,7 @@ namespace mt_kahypar {
 
     if constexpr (use_delta) {
       std::tie(bestImprovement, bestImprovementIndex) =
-              applyMovesOnGlobalHypergraph(phg, bestImprovementIndex, bestImprovement);
+              applyBestLocalPrefixToSharedPartition(phg, bestImprovementIndex, bestImprovement, false);
     } else {
       revertToBestLocalPrefix(phg, bestImprovementIndex);
     }
@@ -218,10 +229,11 @@ namespace mt_kahypar {
 
 
   template<typename FMStrategy>
-  std::pair<Gain, size_t> LocalizedKWayFM<FMStrategy>::applyMovesOnGlobalHypergraph(
+  std::pair<Gain, size_t> LocalizedKWayFM<FMStrategy>::applyBestLocalPrefixToSharedPartition(
           PartitionedHypergraph& phg,
           const size_t bestGainIndex,
-          const Gain bestEstimatedImprovement) {
+          const Gain bestEstimatedImprovement,
+          bool apply_all_moves) {
     // TODO find better variable names!
 
     Gain estimatedImprovement = 0;
@@ -259,19 +271,22 @@ namespace mt_kahypar {
       lastGain = -lastGain; // delta func yields negative sum of improvements, i.e. negative values mean improvements
       estimatedImprovement += lastGain;
       ASSERT(move_id != std::numeric_limits<MoveID>::max());
-      if (estimatedImprovement >= bestImprovement) {  // TODO also incorporate balance into this?
+      if (estimatedImprovement >= bestImprovement) {
         bestImprovement = estimatedImprovement;
         bestIndex = i;
       }
     }
 
-    runStats.local_reverts += localMoves.size() - bestGainIndex;
-    if (bestIndex != bestGainIndex) {
-      runStats.best_prefix_mismatch++;
+
+    if (!apply_all_moves) {
+      runStats.local_reverts += localMoves.size() - bestGainIndex;
+      if (bestIndex != bestGainIndex) {
+        runStats.best_prefix_mismatch++;
+      }
     }
 
     // Kind of double rollback, if gain values are not correct
-    if (estimatedImprovement < 0) {
+    if (!apply_all_moves && estimatedImprovement < 0) {
       // always using the if-branch gave similar results
       runStats.local_reverts += bestGainIndex - bestIndex + 1;
       for (size_t i = bestIndex + 1; i < bestGainIndex; ++i) {
