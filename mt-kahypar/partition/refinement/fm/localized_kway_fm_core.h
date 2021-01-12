@@ -70,8 +70,8 @@ private:
 
   // ! Makes moves applied on delta hypergraph visible on the global partitioned hypergraph.
   std::pair<Gain, size_t> applyBestLocalPrefixToSharedPartition(PartitionedHypergraph& phg,
-                                                                const size_t bestGainIndex,
-                                                                const Gain bestEstimatedImprovement,
+                                                                const size_t best_locally_observed_index,
+                                                                const Gain best_locally_observed_improvement,
                                                                 bool apply_all_moves);
 
   // ! Rollback to the best improvement found during local search in case we applied moves

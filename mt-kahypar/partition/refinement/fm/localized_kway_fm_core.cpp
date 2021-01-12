@@ -231,30 +231,29 @@ namespace mt_kahypar {
   template<typename FMStrategy>
   std::pair<Gain, size_t> LocalizedKWayFM<FMStrategy>::applyBestLocalPrefixToSharedPartition(
           PartitionedHypergraph& phg,
-          const size_t bestGainIndex,
-          const Gain bestEstimatedImprovement,
+          const size_t best_locally_observed_index,
+          const Gain best_locally_observed_improvement,
           bool apply_all_moves) {
-    // TODO find better variable names!
 
-    Gain estimatedImprovement = 0;
-    Gain lastGain = 0;
+    Gain improvement_from_attributed_gains = 0;
+    Gain attributed_gain = 0;
 
     auto delta_gain_func = [&](const HyperedgeID he,
                                const HyperedgeWeight edge_weight,
                                const HypernodeID edge_size,
                                const HypernodeID pin_count_in_from_part_after,
                                const HypernodeID pin_count_in_to_part_after) {
-      lastGain += km1Delta(he, edge_weight, edge_size,
-                           pin_count_in_from_part_after, pin_count_in_to_part_after);
+      attributed_gain += km1Delta(he, edge_weight, edge_size,
+                                  pin_count_in_from_part_after, pin_count_in_to_part_after);
     };
 
     // Apply move sequence to original hypergraph and update gain values
-    Gain bestImprovement = 0;
-    size_t bestIndex = 0;
-    for (size_t i = 0; i < bestGainIndex; ++i) {
+    Gain best_improvement_from_attributed_gains = 0;
+    size_t best_index_from_attributed_gains = 0;
+    for (size_t i = 0; i < best_locally_observed_index; ++i) {
       Move& local_move = localMoves[i].first;
       MoveID& move_id = localMoves[i].second;
-      lastGain = 0;
+      attributed_gain = 0;
 
       if constexpr (FMStrategy::uses_gain_cache) {
         phg.changeNodePartWithGainCacheUpdate(local_move.node, local_move.from, local_move.to,
@@ -268,25 +267,25 @@ namespace mt_kahypar {
                            delta_gain_func);
       }
 
-      lastGain = -lastGain; // delta func yields negative sum of improvements, i.e. negative values mean improvements
-      estimatedImprovement += lastGain;
+      attributed_gain = -attributed_gain; // delta func yields negative sum of improvements, i.e. negative values mean improvements
+      improvement_from_attributed_gains += attributed_gain;
       ASSERT(move_id != std::numeric_limits<MoveID>::max());
-      if (estimatedImprovement >= bestImprovement) {
-        bestImprovement = estimatedImprovement;
-        bestIndex = i;
+      if (improvement_from_attributed_gains >= best_improvement_from_attributed_gains) {
+        best_improvement_from_attributed_gains = improvement_from_attributed_gains;
+        best_index_from_attributed_gains = i;
       }
     }
 
-    runStats.local_reverts += localMoves.size() - bestGainIndex;
-    if (!apply_all_moves && bestIndex != bestGainIndex) {
+    runStats.local_reverts += localMoves.size() - best_locally_observed_index;
+    if (!apply_all_moves && best_index_from_attributed_gains != best_locally_observed_index) {
       runStats.best_prefix_mismatch++;
     }
 
-    // Kind of double rollback, if gain values are not correct
-    if (!apply_all_moves && estimatedImprovement < 0) {
+    // kind of double rollback, if attributed gains say we overall made things worse
+    if (!apply_all_moves && improvement_from_attributed_gains < 0) {
       // always using the if-branch gave similar results
-      runStats.local_reverts += bestGainIndex - bestIndex + 1;
-      for (size_t i = bestIndex + 1; i < bestGainIndex; ++i) {
+      runStats.local_reverts += best_locally_observed_index - best_index_from_attributed_gains + 1;
+      for (size_t i = best_index_from_attributed_gains + 1; i < best_locally_observed_index; ++i) {
         Move& m = sharedData.moveTracker.getMove(localMoves[i].second);
 
         if constexpr (FMStrategy::uses_gain_cache) {
@@ -297,9 +296,9 @@ namespace mt_kahypar {
 
         sharedData.moveTracker.invalidateMove(m);
       }
-      return std::make_pair(bestImprovement, bestIndex);
+      return std::make_pair(best_improvement_from_attributed_gains, best_index_from_attributed_gains);
     } else {
-      return std::make_pair(bestEstimatedImprovement, bestGainIndex);
+      return std::make_pair(best_locally_observed_improvement, best_locally_observed_index);
     }
   }
 
