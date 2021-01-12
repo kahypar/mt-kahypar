@@ -511,7 +511,6 @@ class DynamicHypergraph {
     _num_removed_hyperedges(0),
     _max_edge_size(0),
     _num_pins(0),
-    _num_graph_edges(0),
     _total_degree(0),
     _total_weight(0),
     _version(0),
@@ -526,8 +525,7 @@ class DynamicHypergraph {
     _hes_to_resize_flag_array(),
     _failed_hyperedge_contractions(),
     _he_bitset(),
-    _removable_single_pin_and_parallel_nets(),
-    _num_graph_edges_up_to() { }
+    _removable_single_pin_and_parallel_nets() { }
 
   DynamicHypergraph(const DynamicHypergraph&) = delete;
   DynamicHypergraph & operator= (const DynamicHypergraph &) = delete;
@@ -540,7 +538,6 @@ class DynamicHypergraph {
     _num_removed_hyperedges(other._num_removed_hyperedges),
     _max_edge_size(other._max_edge_size),
     _num_pins(other._num_pins),
-    _num_graph_edges(other._num_graph_edges),
     _total_degree(other._total_degree),
     _total_weight(other._total_weight),
     _version(other._version),
@@ -555,8 +552,7 @@ class DynamicHypergraph {
     _hes_to_resize_flag_array(std::move(other._hes_to_resize_flag_array)),
     _failed_hyperedge_contractions(std::move(other._failed_hyperedge_contractions)),
     _he_bitset(std::move(other._he_bitset)),
-    _removable_single_pin_and_parallel_nets(std::move(other._removable_single_pin_and_parallel_nets)),
-    _num_graph_edges_up_to(std::move(other._num_graph_edges_up_to)) { }
+    _removable_single_pin_and_parallel_nets(std::move(other._removable_single_pin_and_parallel_nets)) { }
 
   DynamicHypergraph & operator= (DynamicHypergraph&& other) {
     _num_hypernodes = other._num_hypernodes;
@@ -566,7 +562,6 @@ class DynamicHypergraph {
     _removed_degree_zero_hn_weight = other._removed_degree_zero_hn_weight;
     _max_edge_size = other._max_edge_size;
     _num_pins = other._num_pins;
-    _num_graph_edges = other._num_graph_edges;
     _total_degree = other._total_degree;
     _total_weight = other._total_weight;
     _version = other._version;
@@ -582,7 +577,6 @@ class DynamicHypergraph {
     _failed_hyperedge_contractions = std::move(other._failed_hyperedge_contractions);
     _he_bitset = std::move(other._he_bitset);
     _removable_single_pin_and_parallel_nets = std::move(other._removable_single_pin_and_parallel_nets);
-    _num_graph_edges_up_to = std::move(other._num_graph_edges_up_to);
     return *this;
   }
 
@@ -610,14 +604,6 @@ class DynamicHypergraph {
   // ! Initial number of hyperedges
   HyperedgeID initialNumEdges() const {
     return _num_hyperedges;
-  }
-
-  HyperedgeID numGraphEdges() const {
-    return _num_graph_edges;
-  }
-
-  HyperedgeID numNonGraphEdges() const {
-    return initialNumEdges() - _num_graph_edges;
   }
 
   // ! Number of removed hyperedges
@@ -817,33 +803,6 @@ class DynamicHypergraph {
   // ! Disabled a hyperedge (must be enabled before)
   void disableHyperedge(const HyperedgeID e) {
     hyperedge(e).disable();
-  }
-
-  bool isGraphEdge(const HyperedgeID e) const {
-    ASSERT(!hyperedge(e).isDisabled(), "Hyperedge" << e << "is disabled");
-    const bool is_initial_graph_edge = _num_graph_edges_up_to[e + 1] - _num_graph_edges_up_to[e];
-    ASSERT(!is_initial_graph_edge || edgeSize(e) <= 2);
-    return is_initial_graph_edge && edgeSize(e) == 2;
-  }
-
-  HyperedgeID graphEdgeID(const HyperedgeID e) const {
-    ASSERT(!hyperedge(e).isDisabled(), "Hyperedge" << e << "is disabled");
-    ASSERT(edgeSize(e) == 2);
-    return _num_graph_edges_up_to[e];
-  }
-
-  HyperedgeID nonGraphEdgeID(const HyperedgeID e) const {
-    ASSERT(!hyperedge(e).isDisabled(), "Hyperedge" << e << "is disabled");
-    ASSERT(edgeSize(e) > 2);
-    return e - _num_graph_edges_up_to[e];
-  }
-
-  HypernodeID graphEdgeHead(const HyperedgeID e, const HypernodeID tail) const {
-    ASSERT(!hyperedge(e).isDisabled(), "Hyperedge" << e << "is disabled");
-    ASSERT(edgeSize(e) == 2);
-    const size_t f = hyperedge(e).firstEntry();
-    const size_t first_matches = static_cast<size_t>(_incidence_array[f] == tail);
-    return _incidence_array[f + first_matches];
   }
 
   // ####################### Community Information #######################
@@ -1214,8 +1173,6 @@ class DynamicHypergraph {
   HypernodeID _max_edge_size;
   // ! Number of pins
   HypernodeID _num_pins;
-  // ! Number of graph edges (hyperedges of size two)
-  HyperedgeID _num_graph_edges;
   // ! Total degree of all vertices
   HypernodeID _total_degree;
   // ! Total weight of hypergraph
@@ -1251,8 +1208,6 @@ class DynamicHypergraph {
   ThreadLocalBitset _he_bitset;
   // ! Single-pin and parallel nets are marked within that vector during the algorithm
   kahypar::ds::FastResetFlagArray<> _removable_single_pin_and_parallel_nets;
-  // ! Number of graph edges with smaller ID than the access ID
-  Array<HyperedgeID> _num_graph_edges_up_to;
 
 };
 

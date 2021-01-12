@@ -140,24 +140,11 @@ namespace mt_kahypar::ds {
       });
     };
 
-    auto small_edge_id_mapping = [&] {
-      hypergraph._num_graph_edges_up_to.resize(num_hyperedges + 1);
-      tbb::parallel_for(0U, num_hyperedges, [&](const HyperedgeID e) {
-        const size_t edge_size = edge_vector[e].size();   // hypergraph.edgeSize(e) is not yet constructed
-        hypergraph._num_graph_edges_up_to[e+1] = static_cast<HyperedgeID>(edge_size == 2);
-      }, tbb::static_partitioner());
-      hypergraph._num_graph_edges_up_to[0] = 0;
-
-      parallel::TBBPrefixSum<HyperedgeID, Array> scan_graph_edges(hypergraph._num_graph_edges_up_to);
-      tbb::parallel_scan(tbb::blocked_range<size_t>(0, num_hyperedges + 1), scan_graph_edges);
-      hypergraph._num_graph_edges = scan_graph_edges.total_sum();
-    };
-
     auto init_communities = [&] {
       hypergraph._community_ids.resize(num_hypernodes, 0);
     };
 
-    tbb::parallel_invoke(setup_hyperedges, setup_hypernodes, small_edge_id_mapping, init_communities);
+    tbb::parallel_invoke(setup_hyperedges, setup_hypernodes, init_communities);
 
     if (stable_construction_of_incident_edges) {
       // sort incident hyperedges of each node, so their ordering is independent of scheduling (and the same as a typical sequential implementation)

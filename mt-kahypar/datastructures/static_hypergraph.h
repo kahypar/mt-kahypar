@@ -395,14 +395,12 @@ class StaticHypergraph {
     _num_removed_hyperedges(0),
     _max_edge_size(0),
     _num_pins(0),
-    _num_graph_edges(0),
     _total_degree(0),
     _total_weight(0),
     _hypernodes(),
     _incident_nets(),
     _hyperedges(),
     _incidence_array(),
-    _num_graph_edges_up_to(),
     _community_ids(0),
     _tmp_contraction_buffer(nullptr) { }
 
@@ -417,14 +415,12 @@ class StaticHypergraph {
     _num_removed_hyperedges(other._num_removed_hyperedges),
     _max_edge_size(other._max_edge_size),
     _num_pins(other._num_pins),
-    _num_graph_edges(other._num_graph_edges),
     _total_degree(other._total_degree),
     _total_weight(other._total_weight),
     _hypernodes(std::move(other._hypernodes)),
     _incident_nets(std::move(other._incident_nets)),
     _hyperedges(std::move(other._hyperedges)),
     _incidence_array(std::move(other._incidence_array)),
-    _num_graph_edges_up_to(std::move(other._num_graph_edges_up_to)),
     _community_ids(std::move(other._community_ids)),
     _tmp_contraction_buffer(std::move(other._tmp_contraction_buffer)) {
     other._tmp_contraction_buffer = nullptr;
@@ -438,14 +434,12 @@ class StaticHypergraph {
     _num_removed_hyperedges = other._num_removed_hyperedges;
     _max_edge_size = other._max_edge_size;
     _num_pins = other._num_pins;
-    _num_graph_edges = other._num_graph_edges;
     _total_degree = other._total_degree;
     _total_weight = other._total_weight;
     _hypernodes = std::move(other._hypernodes);
     _incident_nets = std::move(other._incident_nets);
     _hyperedges = std::move(other._hyperedges);
     _incidence_array = std::move(other._incidence_array);
-    _num_graph_edges_up_to = std::move(other._num_graph_edges_up_to),
     _community_ids = std::move(other._community_ids),
     _tmp_contraction_buffer = std::move(other._tmp_contraction_buffer);
     other._tmp_contraction_buffer = nullptr;
@@ -480,14 +474,6 @@ class StaticHypergraph {
   // ! Initial number of hyperedges
   HyperedgeID initialNumEdges() const {
     return _num_hyperedges;
-  }
-
-  HyperedgeID numGraphEdges() const {
-    return _num_graph_edges;
-  }
-
-  HyperedgeID numNonGraphEdges() const {
-    return initialNumEdges() - _num_graph_edges;
   }
 
   // ! Number of removed hyperedges
@@ -680,32 +666,6 @@ class StaticHypergraph {
   // ! Disabled a hyperedge (must be enabled before)
   void disableHyperedge(const HyperedgeID e) {
     hyperedge(e).disable();
-  }
-
-  bool isGraphEdge(const HyperedgeID e) const {
-    ASSERT(!hyperedge(e).isDisabled(), "Hyperedge" << e << "is disabled");
-    const bool is_initial_graph_edge = _num_graph_edges_up_to[e + 1] - _num_graph_edges_up_to[e];
-    ASSERT(!is_initial_graph_edge || edgeSize(e) == 2);
-    return is_initial_graph_edge;
-  }
-
-  HyperedgeID graphEdgeID(const HyperedgeID e) const {
-    ASSERT(edgeSize(e) == 2);
-    ASSERT(e < _num_hyperedges);
-    return _num_graph_edges_up_to[e];
-  }
-
-  HyperedgeID nonGraphEdgeID(const HyperedgeID e) const {
-    ASSERT(edgeSize(e) > 2);
-    ASSERT(e < _num_hyperedges);
-    return e - _num_graph_edges_up_to[e];
-  }
-
-  HypernodeID graphEdgeHead(const HyperedgeID e, const HypernodeID tail) const {
-    ASSERT(edgeSize(e) == 2);
-    const size_t f = hyperedge(e).firstEntry();
-    const size_t first_matches = static_cast<size_t>(_incidence_array[f] == tail);
-    return _incidence_array[f + first_matches];
   }
 
   // ! Community id which hypernode u is assigned to
@@ -973,8 +933,6 @@ class StaticHypergraph {
   HypernodeID _max_edge_size;
   // ! Number of pins
   HypernodeID _num_pins;
-  // ! Number of graph edges (hyperedges of size two)
-  HyperedgeID _num_graph_edges;
   // ! Total degree of all vertices
   HypernodeID _total_degree;
   // ! Total weight of hypergraph
@@ -988,9 +946,6 @@ class StaticHypergraph {
   Array<Hyperedge> _hyperedges;
   // ! Incident nets of hypernodes
   IncidenceArray _incidence_array;
-
-  // ! Number of graph edges with smaller ID than the access ID
-  Array<HyperedgeID> _num_graph_edges_up_to;
 
   // ! Communities
   ds::Clustering _community_ids;

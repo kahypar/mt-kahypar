@@ -95,16 +95,6 @@ namespace mt_kahypar {
     pool.register_memory_chunk("Refinement", "pin_count_update_ownership",
                                num_hyperedges, sizeof(SpinLock));
 
-    if ( context.refinement.fm.algorithm != FMAlgorithm::do_nothing &&
-         context.refinement.fm.rollback_parallel ) {
-      pool.register_memory_chunk("Refinement", "remaining_original_pins",
-                                 static_cast<size_t>(hypergraph.numNonGraphEdges()) * context.partition.k, sizeof(CAtomic<HypernodeID>));
-      pool.register_memory_chunk("Refinement", "first_move_in",
-                                 static_cast<size_t>(hypergraph.numNonGraphEdges()) * context.partition.k, sizeof(CAtomic<MoveID>));
-      pool.register_memory_chunk("Refinement", "last_move_out",
-                                 static_cast<size_t>(hypergraph.numNonGraphEdges()) * context.partition.k, sizeof(CAtomic<MoveID>));
-    }
-
     // Allocate Memory
     utils::Timer::instance().start_timer("memory_pool_allocation", "Memory Pool Allocation");
     pool.allocate_memory_chunks<TBBNumaArena>();

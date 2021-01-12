@@ -1439,24 +1439,5 @@ TEST_F(ADynamicHypergraph, GeneratesACompactifiedHypergraph2) {
   verifyPins(compactified_hg, {0}, { {0, 1, 2} });
 }
 
-TEST_F(ADynamicHypergraph, HasCorrectNumberOfGraphEdges) {
-  ASSERT_EQ(1, hypergraph.numGraphEdges());
-  ASSERT_EQ(3, hypergraph.numNonGraphEdges());
-  ASSERT_TRUE(hypergraph.isGraphEdge(0));
-  ASSERT_EQ(0, hypergraph.graphEdgeID(0));
-  ASSERT_FALSE(hypergraph.isGraphEdge(1));
-  ASSERT_EQ(0, hypergraph.nonGraphEdgeID(1));
-  ASSERT_FALSE(hypergraph.isGraphEdge(2));
-  ASSERT_EQ(1, hypergraph.nonGraphEdgeID(2));
-  ASSERT_FALSE(hypergraph.isGraphEdge(3));
-  ASSERT_EQ(2, hypergraph.nonGraphEdgeID(3));
-}
-
-TEST_F(ADynamicHypergraph, CheckGraphEdgesAfterContraction) {
-  hypergraph.registerContraction(0, 2);
-  hypergraph.contract(2);
-  ASSERT_FALSE(hypergraph.isGraphEdge(0));
-}
-
 } // namespace ds
 } // namespace mt_kahypar
