@@ -714,17 +714,9 @@ private:
   // ! current state of the partition
   void initializeGainCache() {
     // check whether part has been initialized
-    ASSERT([&] {
-      if (_part_ids.size() != initialNumNodes()) {
-        return false;
-      }
-      for (HypernodeID u : nodes()) {
-        if (partID(u) == kInvalidPartition || partID(u) > k()) {
-          return false;
-        }
-      }
-      return true;
-    } ());
+    ASSERT( _part_ids.size() == initialNumNodes()
+            && std::none_of(nodes().begin(), nodes().end(),
+                            [&](HypernodeID u) { return partID(u) == kInvalidPartition || partID(u) > k(); }) );
 
 
     auto aggregate_contribution_of_he_for_vertex =
