@@ -236,12 +236,15 @@ namespace mt_kahypar {
           const MoveID m_id = tracker.moveOfNode[v];
           Move& m = tracker.getMove(m_id);
 
-          if (r[m.from].last_out == m_id && r[m.from].first_in > m_id && r[m.from].remaining_pins == 0) {
+          const bool benefit = r[m.from].last_out == m_id && r[m.from].first_in > m_id && r[m.from].remaining_pins == 0;
+          const bool penalty = r[m.to].first_in == m_id && r[m.to].last_out < m_id && r[m.to].remaining_pins == 0;
+
+          if (benefit && !penalty) {    // only apply update if they're mutually exclusive
             // increase gain of v by w(e)
             __atomic_fetch_add(&m.gain, we, __ATOMIC_RELAXED);
           }
 
-          if (r[m.to].first_in == m_id && r[m.to].last_out < m_id && r[m.to].remaining_pins == 0) {
+          if (!benefit && penalty) {
             // decrease gain of v by w(e)
             __atomic_fetch_sub(&m.gain, we, __ATOMIC_RELAXED);
           }
