@@ -86,6 +86,10 @@ class AInitialPartitionerTest : public Test {
     context.refinement.label_propagation.algorithm = LabelPropagationAlgorithm::do_nothing;
     context.initial_partitioning.refinement.label_propagation.algorithm = LabelPropagationAlgorithm::do_nothing;
 
+    // FM
+    context.refinement.fm.algorithm = FMAlgorithm::do_nothing;
+    context.initial_partitioning.refinement.fm.algorithm = FMAlgorithm::do_nothing;
+
     // Read hypergraph
     hypergraph = io::readHypergraphFile(
       "../tests/instances/contracted_unweighted_ibm01.hgr", TBBNumaArena::GLOBAL_TASK_GROUP);
@@ -144,6 +148,7 @@ TYPED_TEST(AInitialPartitionerTest, VerifiesThatPartSizesAndWeightsAreCorrect) {
   std::vector<HypernodeWeight> part_weight(this->context.partition.k, 0);
   for ( const HypernodeID& hn : this->hypergraph.nodes() ) {
     PartitionID part_id = this->partitioned_hypergraph.partID(hn);
+    ASSERT(part_id >= 0 && part_id < this->context.partition.k);
     part_weight[part_id] += this->partitioned_hypergraph.nodeWeight(hn);
   }
 

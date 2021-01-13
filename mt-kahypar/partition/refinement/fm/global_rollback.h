@@ -34,7 +34,7 @@ public:
           context(context),
           max_part_weight_scaling(context.refinement.fm.rollback_balance_violation_factor),
           num_parts(numParts),
-          ets_recalc_data(vec<RecalculationData>(numParts)),
+          ets_recalc_data(vec<RecalculationData>(num_parts)),
           last_recalc_round(),
           round(1)
   {
