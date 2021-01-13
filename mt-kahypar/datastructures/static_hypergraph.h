@@ -129,7 +129,6 @@ class StaticHypergraph {
     }
 
     HyperedgeWeight weight() const {
-      ASSERT(!isDisabled());
       return _weight;
     }
 
