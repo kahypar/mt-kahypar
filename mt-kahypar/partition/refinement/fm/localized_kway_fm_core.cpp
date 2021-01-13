@@ -193,6 +193,7 @@ namespace mt_kahypar {
             constexpr size_t move_apply_threshold = 100;    // TODO make parameter? we want to be able to turn it off
             if (runStats.moves - num_moves_at_last_apply > move_apply_threshold) {
               applyBestLocalPrefixToSharedPartition(phg, bestImprovementIndex, bestImprovement, true /* apply all moves */);
+              bestImprovementIndex = 0;
               localMoves.clear();
               deltaPhg.clear();   // clear hashtables, save memory :)
               num_moves_at_last_apply = runStats.moves;
@@ -231,8 +232,8 @@ namespace mt_kahypar {
   template<typename FMStrategy>
   std::pair<Gain, size_t> LocalizedKWayFM<FMStrategy>::applyBestLocalPrefixToSharedPartition(
           PartitionedHypergraph& phg,
-          const size_t best_locally_observed_index,
-          const Gain best_locally_observed_improvement,
+          const size_t best_index_locally_observed,
+          const Gain best_improvement_locally_observed,
           bool apply_all_moves) {
 
     Gain improvement_from_attributed_gains = 0;
@@ -250,7 +251,8 @@ namespace mt_kahypar {
     // Apply move sequence to original hypergraph and update gain values
     Gain best_improvement_from_attributed_gains = 0;
     size_t best_index_from_attributed_gains = 0;
-    for (size_t i = 0; i < best_locally_observed_index; ++i) {
+    for (size_t i = 0; i < best_index_locally_observed; ++i) {
+      assert(i < localMoves.size());
       Move& local_move = localMoves[i].first;
       MoveID& move_id = localMoves[i].second;
       attributed_gain = 0;
@@ -276,16 +278,16 @@ namespace mt_kahypar {
       }
     }
 
-    runStats.local_reverts += localMoves.size() - best_locally_observed_index;
-    if (!apply_all_moves && best_index_from_attributed_gains != best_locally_observed_index) {
+    runStats.local_reverts += localMoves.size() - best_index_locally_observed;
+    if (!apply_all_moves && best_index_from_attributed_gains != best_index_locally_observed) {
       runStats.best_prefix_mismatch++;
     }
 
     // kind of double rollback, if attributed gains say we overall made things worse
     if (!apply_all_moves && improvement_from_attributed_gains < 0) {
       // always using the if-branch gave similar results
-      runStats.local_reverts += best_locally_observed_index - best_index_from_attributed_gains + 1;
-      for (size_t i = best_index_from_attributed_gains + 1; i < best_locally_observed_index; ++i) {
+      runStats.local_reverts += best_index_locally_observed - best_index_from_attributed_gains + 1;
+      for (size_t i = best_index_from_attributed_gains + 1; i < best_index_locally_observed; ++i) {
         Move& m = sharedData.moveTracker.getMove(localMoves[i].second);
 
         if constexpr (FMStrategy::uses_gain_cache) {
@@ -298,7 +300,7 @@ namespace mt_kahypar {
       }
       return std::make_pair(best_improvement_from_attributed_gains, best_index_from_attributed_gains);
     } else {
-      return std::make_pair(best_locally_observed_improvement, best_locally_observed_index);
+      return std::make_pair(best_improvement_locally_observed, best_index_locally_observed);
     }
   }
 
