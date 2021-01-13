@@ -964,7 +964,8 @@ private:
     });
 
     // Extract plain hypergraph data for corresponding block
-    using HyperedgeVector = parallel::scalable_vector<parallel::scalable_vector<HypernodeID>>;
+    //using HyperedgeVector = parallel::scalable_vector<parallel::scalable_vector<HypernodeID>>;
+    using HyperedgeVector = std::vector<std::vector<HypernodeID>>;
     HyperedgeVector edge_vector;
     parallel::scalable_vector<HyperedgeWeight> hyperedge_weight;
     parallel::scalable_vector<HypernodeWeight> hypernode_weight;
@@ -974,6 +975,7 @@ private:
       doParallelForAllEdges([&](const HyperedgeID he) {
         if ( pinCountInPart(he, block) > 1 &&
              (cut_net_splitting || connectivity(he) == 1) ) {
+          ASSERT(he_mapping[he] < num_hyperedges);
           hyperedge_weight[he_mapping[he]] = edgeWeight(he);
           for ( const HypernodeID& pin : pins(he) ) {
             if ( partID(pin) == block ) {
@@ -991,10 +993,18 @@ private:
       });
     });
 
+    vec<vec<HypernodeID>> ev;
+    for (HyperedgeID e = 0; e < num_hyperedges; ++e) {
+      ev.push_back(vec<HypernodeID>());
+      for (HypernodeID v : edge_vector[e]) {
+        ev[e].push_back(v);
+      }
+    }
+
     // Construct hypergraph
     Hypergraph extracted_hypergraph = HypergraphFactory::construct(
             task_group_id, num_hypernodes, num_hyperedges,
-            edge_vector, hyperedge_weight.data(), hypernode_weight.data());
+            ev, hyperedge_weight.data(), hypernode_weight.data());
 
     // Set community ids
     doParallelForAllNodes([&](const HypernodeID& hn) {
