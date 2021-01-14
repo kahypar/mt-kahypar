@@ -273,7 +273,8 @@ namespace mt_kahypar {
     if (!context.refinement.fm.rollback_sensitive_to_num_moves) {
       tbb::parallel_for(0U, phg.initialNumEdges(), recalculate_and_distribute_for_hyperedge);
     } else {
-      tbb::parallel_for(0U, sharedData.moveTracker.numPerformedMoves(), [&](const HypernodeID u) {
+      tbb::parallel_for(0U, sharedData.moveTracker.numPerformedMoves(), [&](const HypernodeID local_move_id) {
+        const HypernodeID u = sharedData.moveTracker.moveOrder[local_move_id].node;
         if (tracker.wasNodeMovedInThisRound(u)) {
           // parallel for if high degree?
           for (HyperedgeID e : phg.incidentEdges(u)) {
