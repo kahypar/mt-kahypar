@@ -73,7 +73,7 @@ namespace mt_kahypar {
     void operator()(const tbb::blocked_range<MoveID>& r, tbb::pre_scan_tag ) {
       for (MoveID i = r.begin(); i < r.end(); ++i) {
         const Move& m = moves[i];
-        if (m.gain != invalidGain) {  // skip locally reverted moves
+        if (m.isValid()) {  // skip locally reverted moves
           gain_sum += m.gain;
           part_weights[m.from] -= phg.nodeWeight(m.node);
           part_weights[m.to] += phg.nodeWeight(m.node);
@@ -102,7 +102,7 @@ namespace mt_kahypar {
       for (MoveID i = r.begin(); i < r.end(); ++i) {
         const Move& m = moves[i];
 
-        if (m.gain != invalidGain) {  // skip locally reverted moves
+        if (m.isValid()) {  // skip locally reverted moves
           gain_sum += m.gain;
 
           const bool from_overloaded = part_weights[m.from] > max_part_weights[m.from];
