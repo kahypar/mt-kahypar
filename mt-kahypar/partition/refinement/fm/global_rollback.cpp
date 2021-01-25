@@ -190,7 +190,7 @@ namespace mt_kahypar {
     timer.start_timer("revert", "Revert Moves");
     tbb::parallel_for(b.best_index, numMoves, [&](const MoveID moveID) {
       const Move& m = move_order[moveID];
-      if (sharedData.moveTracker.isMoveStillValid(m)) {
+      if (m.isValid()) {
         moveVertex<update_gain_cache>(phg, m.node, m.to, m.from);
       }
     });
@@ -307,7 +307,7 @@ namespace mt_kahypar {
     // revert all moves
     tbb::parallel_for(0U, numMoves, [&](const MoveID localMoveID) {
       const Move& m = move_order[localMoveID];
-      if (tracker.isMoveStillValid(m)) {
+      if (m.isValid()) {
         moveVertex<update_gain_cache>(phg, m.node, m.to, m.from);
       }
     });
@@ -327,7 +327,7 @@ namespace mt_kahypar {
     MoveID best_index = 0;
     for (MoveID localMoveID = 0; localMoveID < numMoves; ++localMoveID) {
       const Move& m = move_order[localMoveID];
-      if (!tracker.isMoveStillValid(m)) continue;
+      if (!m.isValid()) continue;
 
       Gain gain = 0;
       for (HyperedgeID e : phg.incidentEdges(m.node)) {
@@ -363,7 +363,7 @@ namespace mt_kahypar {
     // revert rejected moves again
     tbb::parallel_for(best_index, numMoves, [&](const MoveID i) {
       const Move& m = move_order[i];
-      if (tracker.isMoveStillValid(m)) {
+      if (m.isValid()) {
         moveVertex<update_gain_cache>(phg, m.node, m.to, m.from);
       }
     });
@@ -399,7 +399,7 @@ namespace mt_kahypar {
     // revert all moves
     for (MoveID localMoveID = 0; localMoveID < sharedData.moveTracker.numPerformedMoves(); ++localMoveID) {
       const Move& m = sharedData.moveTracker.moveOrder[localMoveID];
-      if (sharedData.moveTracker.isMoveStillValid(m)) {
+      if (m.isValid()) {
         moveVertex<update_gain_cache>(phg, m.node, m.to, m.from);
       }
     }
@@ -409,7 +409,7 @@ namespace mt_kahypar {
     // roll forward sequentially and check gains
     for (MoveID localMoveID = 0; localMoveID < sharedData.moveTracker.numPerformedMoves(); ++localMoveID) {
       const Move& m = sharedData.moveTracker.moveOrder[localMoveID];
-      if (!sharedData.moveTracker.isMoveStillValid(m))
+      if (!m.isValid())
         continue;
 
       Gain gain = 0;

@@ -283,7 +283,7 @@ namespace mt_kahypar {
           phg.changeNodePart(m.node, m.to, m.from);
         }
 
-        sharedData.moveTracker.invalidateMove(m);
+        m.invalidate();
       }
       return std::make_pair(bestImprovement, bestIndex);
     } else {
@@ -301,7 +301,7 @@ namespace mt_kahypar {
       } else {
         phg.changeNodePart(m.node, m.to, m.from);
       }
-      sharedData.moveTracker.invalidateMove(m);
+      m.invalidate();
       localMoves.pop_back();
     }
   }
