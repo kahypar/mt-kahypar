@@ -183,6 +183,7 @@ namespace mt_kahypar {
 
     timer.start_timer("find_best_prefix_and_balance", "Find Best Balanced Prefix");
     BalanceAndBestIndexScan s(phg, move_order, partWeights, maxPartWeights);
+    // TODO set grain size in blocked_range? to avoid too many copies of part weights array. experiment with different values
     tbb::parallel_scan(tbb::blocked_range<MoveID>(0, numMoves), s);
     BalanceAndBestIndexScan::Prefix b = s.finalize(partWeights);
     timer.stop_timer("find_best_prefix_and_balance");
