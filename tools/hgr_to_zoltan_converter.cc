@@ -24,8 +24,6 @@
 #include <iostream>
 #include <string>
 
-#include "mt-kahypar/macros.h"
-#include "mt-kahypar/definitions.h"
 #include "mt-kahypar/io/hypergraph_io.h"
 
 using namespace mt_kahypar;
@@ -71,7 +69,7 @@ int main(int argc, char* argv[]) {
   po::notify(cmd_vm);
 
   Hypergraph hypergraph =
-    mt_kahypar::io::readHypergraphFile(hgr_filename, 0);
+    mt_kahypar::io::readHypergraphFile(hgr_filename, 0, true);
 
   writeZoltanHypergraph(hypergraph, out_filename);
   return 0;
