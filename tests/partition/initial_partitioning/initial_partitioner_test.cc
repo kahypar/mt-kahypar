@@ -51,7 +51,11 @@ class AInitialPartitionerTest : public Test {
     hypergraph(),
     context() {
 
-    parseIniToContext(context, "../config/speed_preset.ini");
+    if ( context.partition.paradigm == Paradigm::multilevel ) {
+      parseIniToContext(context, "../config/fast_preset.ini");
+    } else {
+      parseIniToContext(context, "../config/strong_preset.ini");
+    }
 
     context.partition.graph_filename = "../tests/instances/contracted_unweighted_ibm01.hgr";
     context.partition.graph_community_filename = "../tests/instances/contracted_ibm01.hgr.community";
@@ -65,10 +69,7 @@ class AInitialPartitionerTest : public Test {
     context.shared_memory.num_threads = num_threads;
 
     // Coarsening
-    if ( context.partition.paradigm == Paradigm::multilevel ) {
-      context.coarsening.algorithm = CoarseningAlgorithm::multilevel_coarsener;
-    } else {
-      context.coarsening.algorithm = CoarseningAlgorithm::nlevel_coarsener;
+    if ( context.partition.paradigm == Paradigm::nlevel ) {
       context.refinement.max_batch_size = 100;
     }
 

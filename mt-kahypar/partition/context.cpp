@@ -135,13 +135,13 @@ namespace mt_kahypar {
   std::ostream & operator<< (std::ostream& str, const RefinementParameters& params) {
     str << "Refinement Parameters:" << std::endl;
     str << "  Refine Until No Improvement:        " << std::boolalpha << params.refine_until_no_improvement << std::endl;
-#ifdef KAHYPAR_USE_N_LEVEL_PARADIGM
+#ifdef USE_STRONG_PARTITIONER
     str << "  Maximum Batch Size:                 " << params.max_batch_size << std::endl;
     str << "  Min Border Vertices Per Thread:     " << params.min_border_vertices_per_thread << std::endl;
 #endif
     str << "\n" << params.label_propagation;
     str << "\n" << params.fm;
-#ifdef KAHYPAR_USE_N_LEVEL_PARADIGM
+#ifdef USE_STRONG_PARTITIONER
     str << "\n" << params.global_fm;
 #endif
     return str;

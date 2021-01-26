@@ -25,7 +25,7 @@
 using ::testing::Test;
 
 namespace mt_kahypar {
-#ifdef KAHYPAR_USE_N_LEVEL_PARADIGM
+#ifdef USE_STRONG_PARTITIONER
 using Coarsener = NLevelCoarsener<HeavyEdgeScore, NoWeightPenalty, BestRatingWithoutTieBreaking>;
 #else
 using Coarsener = MultilevelCoarsener<HeavyEdgeScore, NoWeightPenalty, BestRatingWithoutTieBreaking>;
