@@ -58,9 +58,9 @@ single-threaded running time >= 100s, we achieve a harmonic mean speedup of 25 f
 Quality of Mt-KaHyPar
 -----------
 
-We use the [*performance profiles*](https://link.springer.com/article/10.1007/s101070100263) to compare Mt-KaHyPar Fast and Strong to other partitioning algorithms in terms of solution quality (for a detailed explanation see either linked paper or our publications).
+We use [*performance profiles*](https://link.springer.com/article/10.1007/s101070100263) to compare Mt-KaHyPar Fast and Strong to other partitioning algorithms in terms of solution quality (for a detailed explanation see either linked paper or our publications).
 
-To compare us against different sequential hypergraph partitioner, we use a benchmark set consisting of 488 hypergraphs (see [Benchmark Statistics][SetA], refered to as set A). In the figures, we compare Mt-KaHyPar Fast and Strong with the sequential hypergraph partitioners
+To compare us with different sequential hypergraph partitioner, we use a benchmark set consisting of 488 hypergraphs (see [Benchmark Statistics][SetA], refered to as set A). In the figures, we compare Mt-KaHyPar Fast and Strong with the sequential hypergraph partitioners
 PaToH 3.3 in quality (PaToH-Q) and default preset (PaToH-D), the recursive bipartitioning variant (hMetis-R) of hMETIS 2.0 and
 KaHyPar-CA (similiar algorithmic components as Mt-KaHyPar Strong) and KaHyPar-HFC (extends KaHyPar-CA with flow-based refinement) of the
 [KaHyPar](https://kahypar.org/) framework. On the same benchmark set on which we performed our scalability experiments
@@ -109,14 +109,12 @@ Building Mt-KaHyPar
    ```git clone --depth=1 --recursive git@github.com:kittobi1992/mt-kahypar.git```
 2. Create a build directory: `mkdir build && cd build`
 3. Run cmake: `cmake .. -DCMAKE_BUILD_TYPE=RELEASE`
-4. Run make: `make MtKaHyPar -j8`
+4. Run make: `make MtKaHyPar -j`
 
 The build produces two executables, which will be located in `build/mt-kahypar/application/`:
 
 - `MtKaHyParFast`: A scalable hypergraph partitioner that computes good partitions very fast
 - `MtKaHyParStrong`: A scalable hypergraph partitioner that computes high-quality partitions
-
-Per default, Mt-KaHyPar uses 32-bit vertex and hyperedge IDs. If you want to partition hypergraphs with more than 4.294.967.295 vertices or hyperedges, add option `-DKAHYPAR_USE_64_BIT_IDS=ON` to the `cmake` build command.
 
 Running Mt-KaHyPar
 -----------
@@ -140,6 +138,8 @@ The partition output file will be placed in the same folder than the input hyper
 - `--show-detailed-timings=true`: Shows detailed subtimings of each multilevel phase at the end of the partitioning process
 - `--show-memory-consumption=true`: Gives detailed information on how much memory was allocated and how memory is reused throughout the algorithm
 - `--enable-progress-bar=true`: Shows a progess bar during the coarsening and refinement phase
+
+Note, Mt-KaHyPar uses 32-bit vertex and hyperedge IDs. If you want to partition hypergraphs with more than 4.294.967.295 vertices or hyperedges, add option `-DKAHYPAR_USE_64_BIT_IDS=ON` to the `cmake` build command.
 
 Using the Library Interfaces
 -----------
