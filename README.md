@@ -127,11 +127,11 @@ If you want to change parameters manually, please run `./MtKaHyParFast --help` o
 
 To run Mt-KaHyPar Fast, you can use the following command:
 
-    ./MtKaHyParFast -h <path-to-hgr> -t <# threads> -k <# blocks> -e <imbalance (e.g. 0.03)> -o km1 -m direct -p <path to fast_preset.ini>
+    ./MtKaHyParFast -h <path-to-hgr> -p <path to fast_preset.ini> -t <# threads> -k <# blocks> -e <imbalance (e.g. 0.03)> -o km1 -m direct
 
 To run Mt-KaHyPar Strong, you can use the following command:
 
-    ./MtKaHyParStrong -h <path-to-hgr> -t <# threads> -k <# blocks> -e <imbalance (e.g. 0.03)> -o km1 -m direct -p <path to strong_preset.ini>
+    ./MtKaHyParStrong -h <path-to-hgr> -p <path to strong_preset.ini> -t <# threads> -k <# blocks> -e <imbalance (e.g. 0.03)> -o km1 -m direct
 
 The partition output file will be placed in the same folder than the input hypergraph file. If you want to change the default partition output folder, add command line parameter `--partition-output-folder=path/to/folder`. Further, there are several useful options that can provide you with additional insights during and after the partitioning process:
 - `--show-detailed-timings=true`: Shows detailed subtimings of each multilevel phase at the end of the partitioning process
@@ -253,8 +253,21 @@ Licensing
 Mt-KaHyPar is free software provided under the GNU General Public License (GPLv3).
 For more information see the [LICENSE file][LF].
 We distribute this framework freely to foster the use and development of hypergraph partitioning tools.
-If you use Mt-KaHyPar in an academic setting please cite the appropriate papers (upcoming soon).
+If you use Mt-KaHyPar in an academic setting please cite the appropriate papers.
 If you are interested in a commercial license, please contact me.
+
+    // Mt-KaHyPar Fast
+    @inproceedings{MT-KAHYPAR-FAST,
+      title     = {Scalable Shared-Memory Hypergraph Partitioning},
+      author    = {Gottesbüren, Lars and
+                   Heuer, Tobias and
+                   Sanders, Peter and
+                   Schlag, Sebastian},
+      booktitle = {23rd Workshop on Algorithm Engineering and Experiments, (ALENEX 2021)},
+      pages     = {16--30},
+      year      = {2021},
+      publisher = {SIAM}
+    }
 
 Contributing
 ------------
