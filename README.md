@@ -41,11 +41,13 @@ with varying number of threads (p = {4,16,64}) and different number of blocks (k
 the speedup of each instance as a point and the cumulative harmonic mean speedup over all instances with a single-threaded running time >= x
 seconds with a line.
 
-The overall harmonic mean speedup of Mt-KaHyPar is 3.4 for p = 4, 10.8 for p = 16 and 18.4 for p = 64. If we only consider instances with a
-single-threaded running time >= 100s, we achieve a harmonic mean speedup of 23.5 for p = 64. For p = 4, the speedup is at least 3 on over
-90% of our instances.
+The overall harmonic mean speedup of Mt-KaHyPar Fast is 3.4 for p = 4, 10.8 for p = 16 and 18.4 for p = 64. If we only consider instances with a
+single-threaded running time >= 100s, we achieve a harmonic mean speedup of 23.5 for p = 64.
 
-<img src="https://user-images.githubusercontent.com/9654047/88180477-bb86f500-cc2d-11ea-8bbe-834bc1b70142.png" alt="alt text" width="100%" height="100%">
+The overall harmonic mean speedup of Mt-KaHyPar Strong is 3.7 for p = 4, 11.7 for p = 16 and 22.6 for p = 64. If we only consider instances with a
+single-threaded running time >= 100s, we achieve a harmonic mean speedup of 25 for p = 64.
+
+<img src="https://user-images.githubusercontent.com/9654047/105860294-b2684d80-5fed-11eb-9489-3dcf053888e7.png" alt="alt text" width="100%" height="100%">
 
 Quality of Mt-KaHyPar
 -----------
