@@ -1,4 +1,4 @@
-<h1 align="center">MT-KaHyPar - Multi-Threaded Karlsruhe Hypergraph Partitioner</h1>
+<h1 align="center">Mt-KaHyPar - Multi-Threaded Karlsruhe Hypergraph Partitioner</h1>
 
 License|Linux Build|Code Coverage|Code Quality
 :--:|:--:|:--:|:--:
@@ -98,7 +98,7 @@ The following command will install most of the required dependencies:
 
     sudo apt-get install libboost-program-options-dev libnuma-dev numactl libhwloc-dev moreutils linux-tools-common linux-tools-generic libtbb-dev
 
-Building MT-KaHyPar
+Building Mt-KaHyPar
 -----------
 
 1. Clone the repository including submodules:
@@ -113,12 +113,12 @@ The build produces two executables, which will be located in `build/mt-kahypar/a
 - `MtKaHyParFast`: A scalable hypergraph partitioner that computes good partitions very fast
 - `MtKaHyParStrong`: A scalable hypergraph partitioner that computes high-quality partitions
 
-Per default, MT-KaHyPar uses 32-bit vertex and hyperedge IDs. If you want to partition hypergraphs with more than 4.294.967.295 vertices or hyperedges, add option `-DKAHYPAR_USE_64_BIT_IDS=ON` to the `cmake` build command.
+Per default, Mt-KaHyPar uses 32-bit vertex and hyperedge IDs. If you want to partition hypergraphs with more than 4.294.967.295 vertices or hyperedges, add option `-DKAHYPAR_USE_64_BIT_IDS=ON` to the `cmake` build command.
 
-Running MT-KaHyPar
+Running Mt-KaHyPar
 -----------
 
-MT-KaHyPar has several configuration parameters. We recommend to use our presets which are placed in the `config` folder:
+Mt-KaHyPar has several configuration parameters. We recommend to use our presets which are placed in the `config` folder:
 
 - `fast_preset.ini`: Contains the default parameters for Mt-KaHyPar Fast (`MtKaHyParFast`)
 - `strong_preset.ini`: Contains the default parameters for Mt-KaHyPar Strong (`MtKaHyParStrong`)
