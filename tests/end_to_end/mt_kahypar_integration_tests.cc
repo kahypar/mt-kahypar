@@ -52,7 +52,11 @@ class MtKaHyPar : public Test {
  public:
   MtKaHyPar() :
     context() {
-    parseIniToContext(context, "../config/speed_preset.ini");
+    if ( context.partition.paradigm == Paradigm::multilevel ) {
+      parseIniToContext(context, "../config/fast_preset.ini");
+    } else {
+      parseIniToContext(context, "../config/strong_preset.ini");
+    }
     context.partition.graph_filename = "../tests/instances/ibm01.hgr";
     context.partition.k = Config::K;
     context.partition.objective = Config::OBJECTIVE;
@@ -61,7 +65,6 @@ class MtKaHyPar : public Test {
     context.partition.verbose_output = true;
     context.partition.show_detailed_timings = true;
     context.preprocessing.use_community_detection = Config::USE_COMMUNITY_DETECTION;
-    context.coarsening.algorithm = CoarseningAlgorithm::multilevel_coarsener;
     context.initial_partitioning.mode = Config::INITIAL_PARTITIONING_MODE;
     context.initial_partitioning.refinement.label_propagation.algorithm = Config::LP_ALGORITHM;
     context.refinement.label_propagation.algorithm = Config::LP_ALGORITHM;
@@ -124,52 +127,7 @@ using MultiLevelKm1Config = TestConfig<k,
                                        initial_partitioning_mode,
                                        LabelPropagationAlgorithm::label_propagation_km1>;
 
-template< PartitionID k,
-          bool use_community_detection,
-          InitialPartitioningMode initial_partitioning_mode>
-using MultiLevelCutConfig = TestConfig<k,
-                                       kahypar::Objective::cut,
-                                       use_community_detection,
-                                       initial_partitioning_mode,
-                                       LabelPropagationAlgorithm::label_propagation_cut>;
-
-typedef ::testing::Types<MultiLevelCutConfig<2,
-                                             false,
-                                             InitialPartitioningMode::recursive>,
-                         MultiLevelCutConfig<4,
-                                             false,
-                                             InitialPartitioningMode::recursive>,
-                         MultiLevelCutConfig<8,
-                                             false,
-                                             InitialPartitioningMode::recursive>,
-                          MultiLevelCutConfig<2,
-                                             false,
-                                             InitialPartitioningMode::recursive_bisection>,
-                         MultiLevelCutConfig<4,
-                                             false,
-                                             InitialPartitioningMode::recursive_bisection>,
-                         MultiLevelCutConfig<8,
-                                             false,
-                                             InitialPartitioningMode::recursive_bisection>,
-                         MultiLevelCutConfig<2,
-                                             true,
-                                             InitialPartitioningMode::recursive>,
-                         MultiLevelCutConfig<4,
-                                             true,
-                                             InitialPartitioningMode::recursive>,
-                         MultiLevelCutConfig<8,
-                                             true,
-                                             InitialPartitioningMode::recursive>,
-                          MultiLevelCutConfig<2,
-                                             true,
-                                             InitialPartitioningMode::recursive_bisection>,
-                         MultiLevelCutConfig<4,
-                                             true,
-                                             InitialPartitioningMode::recursive_bisection>,
-                         MultiLevelCutConfig<8,
-                                             true,
-                                             InitialPartitioningMode::recursive_bisection>,
-                         MultiLevelKm1Config<2,
+typedef ::testing::Types<MultiLevelKm1Config<2,
                                              false,
                                              InitialPartitioningMode::recursive>,
                          MultiLevelKm1Config<4,
