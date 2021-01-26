@@ -242,6 +242,8 @@ To remove the library from your system use the provided uninstall target:
 make uninstall-kahypar
 ```
 
+Note, our library interfaces uses Mt-KaHyPar Fast. We are currently working on a solution to also integrate Mt-KaHyPar Strong.
+
 Bug Reports
 -----------
 
