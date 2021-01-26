@@ -305,3 +305,12 @@ add_subdirectory(tests)
 
 # This adds the source files. It's important that this happens after the compile targets have been added
 add_subdirectory(mt-kahypar)
+
+add_custom_target(MtKaHyPar
+  COMMAND $(MAKE) MtKaHyParFast
+  COMMAND $(MAKE) MtKaHyParStrong)
+
+add_custom_target(tests
+  COMMAND $(MAKE) mt_kahypar_tests
+  COMMAND $(MAKE) mt_kahypar_fast_tests
+  COMMAND $(MAKE) mt_kahypar_strong_tests)
