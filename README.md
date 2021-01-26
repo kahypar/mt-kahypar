@@ -61,10 +61,10 @@ Quality of Mt-KaHyPar
 We use the [*performance profiles*](https://link.springer.com/article/10.1007/s101070100263) to compare Mt-KaHyPar Fast and Strong to other partitioning algorithms in terms of solution quality (for a detailed explanation see either linked paper or our publications).
 
 To compare us against different sequential hypergraph partitioner, we use a benchmark set consisting of 488 hypergraphs (see [Benchmark Statistics][SetA], refered to as set A). In the figures, we compare Mt-KaHyPar Fast and Strong with the sequential hypergraph partitioners
-PaToH 3.3 in quality (PaToH-Q) and default preset (PaToH-D), the recursive bisection variant (hMETIS-R) of hMETIS 2.0 and
+PaToH 3.3 in quality (PaToH-Q) and default preset (PaToH-D), the recursive bipartitioning variant (hMetis-R) of hMETIS 2.0 and
 KaHyPar-CA (similiar algorithmic components as Mt-KaHyPar Strong) and KaHyPar-HFC (extends KaHyPar-CA with flow-based refinement) of the
 [KaHyPar](https://kahypar.org/) framework. On the same benchmark set on which we performed our scalability experiments
-with 94 large hypergraph (see [Benchmark Statistics][SetB], refered to as set B), we compare us against the distributed hypergraph partitioner Zoltan 3.83 and the default mode of PaToH 3.3.
+with 94 large hypergraph (see [Benchmark Statistics][SetB], refered to as set B), we compare us against the distributed hypergraph partitioner Zoltan 3.83 and the default preset of PaToH 3.3.
 
 Comparing all sequential hypergraph partitioners with Mt-KaHyPar Fast and Strong (using 10 threads) on set A:
 
@@ -277,7 +277,7 @@ If you are interested in a commercial license, please contact me.
 Contributing
 ------------
 If you are interested in contributing to the Mt-KaHyPar framework
-feel free to contact me or create an issue on the
+feel free to contact us or create an issue on the
 [issue tracking system](https://github.com/kittobi1992/mt-kahypar/issues).
 
 [cmake]: http://www.cmake.org/ "CMake tool"
