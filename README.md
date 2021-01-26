@@ -106,18 +106,32 @@ Building MT-KaHyPar
    ```git clone --depth=1 --recursive git@github.com:kittobi1992/mt-kahypar.git```
 2. Create a build directory: `mkdir build && cd build`
 3. Run cmake: `cmake .. -DCMAKE_BUILD_TYPE=RELEASE`
-4. Run make: `make KaHyPar`
+4. Run make: `make MtKaHyPar -j8`
 
-The binary will be located in `build/mt-kahypar/application/`. Per default, MT-KaHyPar uses 32-bit vertex and hyperedge IDs. If you want to partition hypergraphs with more than 4.294.967.295 vertices or hyperedges, add option `-DKAHYPAR_USE_64_BIT_IDS=ON` to the `cmake` build command.
+The build produces two executables, which will be located in `build/mt-kahypar/application/`:
+
+- `MtKaHyParFast`: A scalable hypergraph partitioner that computes good partitions very fast
+- `MtKaHyParStrong`: A scalable hypergraph partitioner that computes high-quality partitions
+
+Per default, MT-KaHyPar uses 32-bit vertex and hyperedge IDs. If you want to partition hypergraphs with more than 4.294.967.295 vertices or hyperedges, add option `-DKAHYPAR_USE_64_BIT_IDS=ON` to the `cmake` build command.
 
 Running MT-KaHyPar
 -----------
 
-MT-KaHyPar has several configuration parameters. We recommend to use one of the two presets which are placed in folder `config`. We provide a quality (`quality_preset.ini`) and speed preset (`speed_preset.ini`). If you want to change parameters manually, please run `./KaHyPar --help` for a detailed description of the different program options. We use the [hMetis format](http://glaros.dtc.umn.edu/gkhome/fetch/sw/hmetis/manual.pdf) for the input hypergraph file as well as the partition output file.
+MT-KaHyPar has several configuration parameters. We recommend to use our presets which are placed in the `config` folder:
 
-To run Mt-KaHyPar, you can use the following command:
+- `fast_preset.ini`: Contains the default parameters for Mt-KaHyPar Fast (`MtKaHyParFast`)
+- `strong_preset.ini`: Contains the default parameters for Mt-KaHyPar Strong (`MtKaHyParStrong`)
 
-    ./KaHyPar -h <path-to-hgr> -t <# threads> -k <# blocks> -e <imbalance (e.g. 0.03)> -o km1 -m direct -p <path-to-config>
+If you want to change parameters manually, please run `./MtKaHyParFast --help` or `./MtKaHyParStrong --help` for a detailed description of the different program options. We use the [hMetis format](http://glaros.dtc.umn.edu/gkhome/fetch/sw/hmetis/manual.pdf) for the input hypergraph file as well as the partition output file.
+
+To run Mt-KaHyPar Fast, you can use the following command:
+
+    ./MtKaHyParFast -h <path-to-hgr> -t <# threads> -k <# blocks> -e <imbalance (e.g. 0.03)> -o km1 -m direct -p <path to fast_preset.ini>
+
+To run Mt-KaHyPar Strong, you can use the following command:
+
+    ./MtKaHyParStrong -h <path-to-hgr> -t <# threads> -k <# blocks> -e <imbalance (e.g. 0.03)> -o km1 -m direct -p <path to strong_preset.ini>
 
 The partition output file will be placed in the same folder than the input hypergraph file. If you want to change the default partition output folder, add command line parameter `--partition-output-folder=path/to/folder`. Further, there are several useful options that can provide you with additional insights during and after the partitioning process:
 - `--show-detailed-timings=true`: Shows detailed subtimings of each multilevel phase at the end of the partitioning process
