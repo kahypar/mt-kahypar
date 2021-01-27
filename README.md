@@ -29,9 +29,9 @@ for optimizing the (λ − 1)-metric.
 As a multilevel algorithm, it consist of three phases: In the *coarsening phase*, the
 hypergraph is coarsened to obtain a hierarchy of smaller hypergraphs. After applying an
 *initial partitioning* algorithm to the smallest hypergraph in the second phase, coarsening is
-undone and, at each level, several *local search* method are used to improve the partition induced by
+undone and, at each level, several *local search* methods are used to improve the partition induced by
 the coarser level. Additionally, we use a hypergraph clustering algorithm as preprocessing
-to restrict contractions to densly coupled regions of the hypergraph during the coarsening phase.
+to restrict contractions to densely coupled regions during coarsening.
 
 The Mt-KaHyPar framework provides two hypergraph partitioners:
 
@@ -72,7 +72,7 @@ The build produces two executables, which will be located in `build/mt-kahypar/a
 Running Mt-KaHyPar
 -----------
 
-Mt-KaHyPar has several configuration parameters. We recommend to use our presets which are placed in the `config` folder:
+Mt-KaHyPar has several configuration parameters. We recommend to use our presets which are located in the `config` folder:
 
 - `fast_preset.ini`: Contains the default parameters for Mt-KaHyPar Fast (`MtKaHyParFast`)
 - `strong_preset.ini`: Contains the default parameters for Mt-KaHyPar Strong (`MtKaHyParStrong`)
@@ -87,7 +87,7 @@ To run Mt-KaHyPar Strong, you can use the following command:
 
     ./MtKaHyParStrong -h <path-to-hgr> -p <path to strong_preset.ini> -t <# threads> -k <# blocks> -e <imbalance (e.g. 0.03)> -o km1 -m direct
 
-The partition output file will be placed in the same folder than the input hypergraph file. If you want to change the default partition output folder, add command line parameter `--partition-output-folder=path/to/folder`. Further, there are several useful options that can provide you with additional insights during and after the partitioning process:
+The partition output file will be placed in the same folder as the input hypergraph file. If you want to change the default partition output folder, add command line parameter `--partition-output-folder=path/to/folder`. Further, there are several useful options that can provide you with additional insights during and after the partitioning process:
 - `--show-detailed-timings=true`: Shows detailed subtimings of each multilevel phase at the end of the partitioning process
 - `--show-memory-consumption=true`: Gives detailed information on how much memory was allocated and how memory is reused throughout the algorithm
 - `--enable-progress-bar=true`: Shows a progess bar during the coarsening and refinement phase
