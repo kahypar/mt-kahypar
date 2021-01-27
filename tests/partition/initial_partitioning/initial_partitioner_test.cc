@@ -87,6 +87,10 @@ class AInitialPartitionerTest : public Test {
     context.refinement.label_propagation.algorithm = LabelPropagationAlgorithm::do_nothing;
     context.initial_partitioning.refinement.label_propagation.algorithm = LabelPropagationAlgorithm::do_nothing;
 
+    // FM
+    context.refinement.fm.algorithm = FMAlgorithm::do_nothing;
+    context.initial_partitioning.refinement.fm.algorithm = FMAlgorithm::do_nothing;
+
     // Read hypergraph
     hypergraph = io::readHypergraphFile(
       "../tests/instances/contracted_unweighted_ibm01.hgr", TBBNumaArena::GLOBAL_TASK_GROUP);
