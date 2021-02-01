@@ -58,11 +58,19 @@ vec<uint32_t> counting_sort(const InputRange& input, OutputRange& output,
     });
 
     // prefix sum local bucket sizes for local offsets
-    tbb::parallel_for(tbb::blocked_range<size_t>(0, max_num_buckets, 1 << 10), [&](size_t bucket) {
-      for (size_t i = 1; i < num_tasks; ++i) {
-        thread_local_bucket_ends[i][bucket] += thread_local_bucket_ends[i - 1][bucket]; // EVIL for locality!
+    if (max_num_buckets > 1 << 10) {
+      tbb::parallel_for(0UL, max_num_buckets, [&](size_t bucket) {
+        for (size_t i = 1; i < num_tasks; ++i) {
+          thread_local_bucket_ends[i][bucket] += thread_local_bucket_ends[i - 1][bucket]; // EVIL for locality!
+        }
+      });
+    } else {
+      for (size_t bucket = 0; bucket < max_num_buckets; ++bucket) {
+        for (size_t i = 1; i < num_tasks; ++i) {
+          thread_local_bucket_ends[i][bucket] += thread_local_bucket_ends[i - 1][bucket]; // EVIL for locality!
+        }
       }
-    });
+    }
 
     // prefix sum over bucket
     assert(global_bucket_begins.size()  >= thread_local_bucket_ends.back().size() + 1);
