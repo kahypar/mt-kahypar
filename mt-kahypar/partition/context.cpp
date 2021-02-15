@@ -218,6 +218,7 @@ namespace mt_kahypar {
                                          * partition.perfect_balance_part_weights[0]);
     for (PartitionID part = 1; part != partition.k; ++part) {
       partition.max_part_weights.push_back(partition.max_part_weights[0]);
+    // TODO(maas) - individual part weights
     }
 
     setupSparsificationParameters();

@@ -57,6 +57,7 @@ struct PartitioningParameters {
   bool sp_process_output = false;
   bool csv_output = false;
   bool write_partition_file = true;
+  bool use_individual_part_weights = false;
 
   int snapshot_interval = std::numeric_limits<int>::max();
 

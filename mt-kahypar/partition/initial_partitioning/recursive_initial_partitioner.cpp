@@ -260,6 +260,8 @@ namespace mt_kahypar {
             _result(result) { }
 
     tbb::task* execute() override {
+      // TODO(maas) - individual part weights
+
       // Setup Initial Partitioning Context
       std::vector<HypernodeWeight> perfect_balance_part_weights;
       std::vector<HypernodeWeight> max_part_weights;
