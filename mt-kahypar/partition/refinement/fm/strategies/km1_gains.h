@@ -89,6 +89,21 @@ struct Km1GainComputer {
     return std::make_pair(best_target, best_gain);
   }
 
+  std::pair<PartitionID, HyperedgeWeight> computeBestTargetBlockIgnoringBalance(const PartitionedHypergraph& phg,
+                                                                                const HypernodeID u) {
+    computeGainsFromScratch(phg, u);
+    const PartitionID from = phg.partID(u);
+    PartitionID best_target = kInvalidPartition;
+    Gain best_gain = std::numeric_limits<Gain>::min();
+    for (PartitionID target = 0; target < phg.k(); ++target) {
+      if (target != from && gains[target] < best_gain) {
+        best_gain = gains[target];
+        best_target = target;
+      }
+    }
+    return std::make_pair(best_target, best_gain);
+  }
+
 
   vec<Gain> gains;
 };
