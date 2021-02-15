@@ -216,6 +216,8 @@ protected:
 };
 
 
+// TODO make prng exchangeable via template parameters everywhere
+
 template<typename IntegralT, typename GetBucketCallable = PrecomputeBucketOpt>
 class ParallelPermutation : public ParallelShuffle<IntegralT, GetBucketCallable> {
 public:
@@ -232,6 +234,77 @@ protected:
     IntegralT operator[](IntegralT i) const { return a + i;  }
     size_t size() const { return b - a; }
   };
+};
+
+class FeistelPermutation {
+public:
+  FeistelPermutation(size_t num_rounds, size_t num_entries, std::mt19937& rng) {
+    create_permutation(num_rounds, num_entries, rng);
+  }
+
+  void create_permutation(size_t num_rounds, size_t num_entries, std::mt19937& rng) {
+    // gen keys
+    keys.clear();
+    for (size_t i = 0; i < num_rounds; ++i) {
+      keys.push_back(rng());
+    }
+
+    // set bit masks
+    uint64_t num_bits = 0, next_power = 1;
+    while (next_power < num_entries) {
+      next_power <<= 1;
+      num_bits++;
+    }
+
+    num_right_bits = (num_bits / 2) + (num_bits % 2);
+    num_left_bits = num_bits / 2;
+
+    right_mask = (1 << num_right_bits) - 1;
+    left_mask = ((1 << num_left_bits) - 1) << num_right_bits;
+  }
+
+
+
+  uint64_t encrypt(uint64_t x) const {
+    uint32_t l = x >> 32;
+    uint32_t r = x << 32 >> 32;
+    uint32_t next_l;
+
+    for (uint32_t key : keys) {
+      next_l = r;
+      r = round_function(key, r) ^ l;
+      l = next_l;
+    }
+
+    // applying mask only to last r and l is bad because we cannot recover those for decryption
+
+    return uint64_t(r) << 32 | uint64_t(l);
+  }
+
+  uint64_t decrypt(uint64_t x) const {
+    uint32_t l = x >> 32;
+    uint32_t r = x << 32 >> 32;
+    uint32_t next_l;
+
+    for (auto it = keys.rbegin(); it != keys.rend(); ++it) {
+      uint32_t key = *it;
+      next_l = r;
+      r = round_function(key, r) ^ l;
+      l = next_l;
+    }
+
+    return uint64_t(r) << 32 | uint64_t(l);
+  }
+
+private:
+
+  uint32_t round_function(uint32_t key, uint32_t raw) const {
+    return hashing::integer::combine32(key, hashing::integer::hash32(raw));
+  }
+
+  vec<uint32_t> keys;
+  uint64_t num_right_bits, num_left_bits, right_mask, left_mask;
+
 };
 
 } // namespace mt_kahypar::utils

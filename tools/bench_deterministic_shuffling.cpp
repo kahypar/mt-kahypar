@@ -43,10 +43,33 @@ void benchShuffle(size_t n, int num_threads) {
   assert(is_permutation(comp, shuffle_hash.permutation));
 }
 
+
+
+void testFeistel() {
+  std::mt19937 rng(420);
+  FeistelPermutation feistel(120, rng);
+
+  auto t = [&](uint64_t plain_text) {
+    uint64_t encrypted = feistel.encrypt(plain_text);
+    uint64_t decrypted = feistel.decrypt(encrypted);
+    assert(decrypted == plain_text);
+  };
+
+  t(420);
+  t(245252);
+  t(11);
+  t(16841361);
+  for (size_t i = 0; i < 500; ++i) {
+    t(i);
+  }
 }
 
-int main(int argc, char* argv[]) {
 
+}
+
+
+int main(int argc, char* argv[]) {
+/*
   if (argc != 3) {
     std::cout << "Usage. num-threads permutation-size" << std::endl;
     std::exit(0);
@@ -55,5 +78,7 @@ int main(int argc, char* argv[]) {
   int num_threads = std::stoi(argv[1]);
   size_t n = std::stoi(argv[2]);
   mt_kahypar::utils::benchShuffle(n, num_threads);
+  */
+  mt_kahypar::utils::testFeistel();
   return 0;
 }
