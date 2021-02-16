@@ -36,9 +36,9 @@ namespace mt_kahypar {
   void setupContext(Hypergraph& hypergraph, Context& context) {
     context.partition.large_hyperedge_size_threshold = std::max(hypergraph.initialNumNodes() *
                                                                 context.partition.large_hyperedge_size_threshold_factor, 100.0);
+    context.sanityCheck();
     context.setupPartWeights(hypergraph.totalWeight());
     context.setupContractionLimit(hypergraph.totalWeight());
-    context.sanityCheck();
 
     // Setup enabled IP algorithms
     if ( context.initial_partitioning.enabled_ip_algos.size() > 0 &&
