@@ -151,9 +151,21 @@ struct NLevelGlobalFMParameters {
 
 std::ostream& operator<<(std::ostream& out, const NLevelGlobalFMParameters& params);
 
+struct DeterministicRefinementParameters {
+  size_t num_sub_rounds_sync_lp = 1;
+  bool use_coloring = false;
+  HyperedgeID edge_size_threshold_for_coloring = std::numeric_limits<HyperedgeID>::max();
+  bool use_gain_recalculation = false;
+  bool feistel_shuffling = false;
+  bool apply_moves_by_maximal_prefix_in_block_pairs = false;
+};
+
+std::ostream& operator<<(std::ostream& out, const DeterministicRefinementParameters& params);
+
 struct RefinementParameters {
   LabelPropagationParameters label_propagation;
   FMParameters fm;
+  DeterministicRefinementParameters deterministic_refinement;
   NLevelGlobalFMParameters global_fm;
   bool refine_until_no_improvement = false;
   size_t max_batch_size = std::numeric_limits<size_t>::max();
