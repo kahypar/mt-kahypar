@@ -168,6 +168,15 @@ public:
   typename vec<T>::const_iterator begin() const { return permutation.cbegin(); }
   typename vec<T>::const_iterator end() const { return permutation.cend(); }
 
+  const T& at(size_t pos) const {
+    assert(pos < permutation.size());
+    return permutation[pos];
+  }
+
+  const T& operator[](size_t pos) const {
+    return at(pos);
+  }
+
 
   template<typename RangeT>
   void shuffle(const RangeT& input_elements, size_t num_tasks, std::mt19937& rng) {
