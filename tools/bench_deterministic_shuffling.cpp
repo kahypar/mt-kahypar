@@ -49,7 +49,8 @@ void testFeistel() {
   std::mt19937 rng(420);
 
   size_t max_num_entries = 1UL << 62;
-  FeistelPermutation feistel(251, max_num_entries, rng);
+  FeistelPermutation feistel;
+  feistel.create_permutation(251, max_num_entries, rng);
 
   auto t = [&](uint64_t plain_text) {
     uint64_t encrypted = feistel.encrypt(plain_text);

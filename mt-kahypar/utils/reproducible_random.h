@@ -238,9 +238,6 @@ protected:
 
 class FeistelPermutation {
 public:
-  FeistelPermutation(size_t num_rounds, size_t num_entries, std::mt19937& rng) {
-    create_permutation(num_rounds, num_entries, rng);
-  }
 
   void create_permutation(size_t num_rounds, size_t num_entries, std::mt19937& rng) {
     // gen keys
