@@ -205,20 +205,32 @@ namespace mt_kahypar {
   }
 
   void Context::setupPartWeights(const HypernodeWeight total_hypergraph_weight) {
-    partition.perfect_balance_part_weights.clear();
-    partition.perfect_balance_part_weights.push_back(ceil(
-            total_hypergraph_weight
-            / static_cast<double>(partition.k)));
-    for (PartitionID part = 1; part != partition.k; ++part) {
-      partition.perfect_balance_part_weights.push_back(
-              partition.perfect_balance_part_weights[0]);
-    }
-    partition.max_part_weights.clear();
-    partition.max_part_weights.push_back((1 + partition.epsilon)
-                                         * partition.perfect_balance_part_weights[0]);
-    for (PartitionID part = 1; part != partition.k; ++part) {
-      partition.max_part_weights.push_back(partition.max_part_weights[0]);
     // TODO(maas) - individual part weights
+    if (partition.use_individual_part_weights) {
+      ASSERT(static_cast<size_t>(partition.k) == partition.max_part_weights.size());
+      const HypernodeWeight max_part_weights_sum = std::accumulate(partition.max_part_weights.cbegin(),
+                                                                   partition.max_part_weights.cend(), 0);
+      double weight_fraction = total_hypergraph_weight / static_cast<double>(max_part_weights_sum);
+      ASSERT(weight_fraction <= 1.0);
+      partition.perfect_balance_part_weights.clear();
+      for (const HyperedgeWeight& part_weight : partition.max_part_weights) {
+        partition.perfect_balance_part_weights.push_back(ceil(weight_fraction * part_weight));
+      }
+    } else {
+      partition.perfect_balance_part_weights.clear();
+      partition.perfect_balance_part_weights.push_back(ceil(
+              total_hypergraph_weight
+              / static_cast<double>(partition.k)));
+      for (PartitionID part = 1; part != partition.k; ++part) {
+        partition.perfect_balance_part_weights.push_back(
+                partition.perfect_balance_part_weights[0]);
+      }
+      partition.max_part_weights.clear();
+      partition.max_part_weights.push_back((1 + partition.epsilon)
+                                          * partition.perfect_balance_part_weights[0]);
+      for (PartitionID part = 1; part != partition.k; ++part) {
+        partition.max_part_weights.push_back(partition.max_part_weights[0]);
+      }
     }
 
     setupSparsificationParameters();
@@ -403,7 +415,7 @@ namespace mt_kahypar {
         << "-------------------------------------------------------------------------------\n"
         #ifdef KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES
         << context.sparsification
-      << "-------------------------------------------------------------------------------\n"
+        << "-------------------------------------------------------------------------------\n"
         #endif
         << context.shared_memory
         << "-------------------------------------------------------------------------------";

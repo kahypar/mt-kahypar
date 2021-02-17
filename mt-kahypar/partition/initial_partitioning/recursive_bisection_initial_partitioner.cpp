@@ -334,36 +334,57 @@ namespace mt_kahypar {
       bisection_context.type = kahypar::ContextType::initial_partitioning;
 
       // Setup Part Weights
-      HypernodeWeight total_weight = hypergraph.totalWeight();
+      const HypernodeWeight total_weight = hypergraph.totalWeight();
+      const PartitionID k = context.partition.k;
+      const PartitionID k0 = k / 2 + (k % 2 != 0 ? 1 : 0);
+      const PartitionID k1 = k / 2;
+      ASSERT(k0 + k1 == context.partition.k);
       if ( context.initial_partitioning.use_adaptive_epsilon ) {
-        bisection_context.partition.epsilon = _original_hypergraph_info.computeAdaptiveEpsilon(
-                total_weight, context.partition.k);
+        if ( context.partition.use_individual_part_weights ) {
+          const HypernodeWeight max_part_weights_sum = std::accumulate(context.partition.max_part_weights.cbegin(),
+                                                                      context.partition.max_part_weights.cend(), 0);
+          const double weight_fraction = total_weight / static_cast<double>(max_part_weights_sum);
+          ASSERT(weight_fraction <= 1.0);
+          bisection_context.partition.epsilon = total_weight == 0 ? 0 : std::min(0.99, std::max(std::pow(1 / weight_fraction, 1.0 /
+                                                                        ceil(log2(static_cast<double>(k)))) - 1.0,0.0));
+          bisection_context.partition.perfect_balance_part_weights.assign(2, 0);
+          bisection_context.partition.max_part_weights.assign(2, 0);
+          for ( PartitionID i = 0; i < k0; ++i ) {
+            const HyperedgeWeight perfect_balance_weight = ceil(weight_fraction * context.partition.max_part_weights[i]);
+            bisection_context.partition.perfect_balance_part_weights[0] += perfect_balance_weight;
+            bisection_context.partition.max_part_weights[0] +=
+                    (1 + bisection_context.partition.epsilon) * perfect_balance_weight;
+          }
+          for ( PartitionID i = k0; i < k; ++i ) {
+            const HyperedgeWeight perfect_balance_weight = ceil(weight_fraction * context.partition.max_part_weights[i]);
+            bisection_context.partition.perfect_balance_part_weights[1] += perfect_balance_weight;
+            bisection_context.partition.max_part_weights[1] +=
+                    (1 + bisection_context.partition.epsilon) * perfect_balance_weight;
+          }
+        } else {
+          bisection_context.partition.epsilon = _original_hypergraph_info.computeAdaptiveEpsilon(total_weight, k);
 
-        bisection_context.partition.perfect_balance_part_weights.clear();
-        bisection_context.partition.max_part_weights.clear();
-        const PartitionID k = context.partition.k;
-        const PartitionID k0 = k / 2 + (k % 2 != 0 ? 1 : 0);
-        const PartitionID k1 = k / 2;
-        bisection_context.partition.perfect_balance_part_weights.push_back(
-                std::ceil(k0 / static_cast<double>(k) * static_cast<double>(total_weight)));
-        bisection_context.partition.perfect_balance_part_weights.push_back(
-                std::ceil(k1 / static_cast<double>(k) * static_cast<double>(total_weight)));
-        bisection_context.partition.max_part_weights.push_back(
-                (1 + bisection_context.partition.epsilon) * bisection_context.partition.perfect_balance_part_weights[0]);
-        bisection_context.partition.max_part_weights.push_back(
-                (1 + bisection_context.partition.epsilon) * bisection_context.partition.perfect_balance_part_weights[1]);
+          bisection_context.partition.perfect_balance_part_weights.clear();
+          bisection_context.partition.max_part_weights.clear();
+          bisection_context.partition.perfect_balance_part_weights.push_back(
+                  std::ceil(k0 / static_cast<double>(k) * static_cast<double>(total_weight)));
+          bisection_context.partition.perfect_balance_part_weights.push_back(
+                  std::ceil(k1 / static_cast<double>(k) * static_cast<double>(total_weight)));
+          bisection_context.partition.max_part_weights.push_back(
+                  (1 + bisection_context.partition.epsilon) * bisection_context.partition.perfect_balance_part_weights[0]);
+          bisection_context.partition.max_part_weights.push_back(
+                  (1 + bisection_context.partition.epsilon) * bisection_context.partition.perfect_balance_part_weights[1]);
+        }
       } else {
-        PartitionID num_blocks_part_0 = context.partition.k / 2 + (context.partition.k % 2 != 0 ? 1 : 0);
-        ASSERT(num_blocks_part_0 +  context.partition.k / 2 == context.partition.k);
         bisection_context.partition.perfect_balance_part_weights.assign(2, 0);
         bisection_context.partition.max_part_weights.assign(2, 0);
-        for ( PartitionID i = 0; i < num_blocks_part_0; ++i ) {
+        for ( PartitionID i = 0; i < k0; ++i ) {
           bisection_context.partition.perfect_balance_part_weights[0] +=
                   context.partition.perfect_balance_part_weights[i];
           bisection_context.partition.max_part_weights[0] +=
                   context.partition.max_part_weights[i];
         }
-        for ( PartitionID i = num_blocks_part_0; i < context.partition.k; ++i ) {
+        for ( PartitionID i = k0; i < k; ++i ) {
           bisection_context.partition.perfect_balance_part_weights[1] +=
                   context.partition.perfect_balance_part_weights[i];
           bisection_context.partition.max_part_weights[1] +=
