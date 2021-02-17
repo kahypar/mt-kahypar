@@ -47,7 +47,9 @@ void benchShuffle(size_t n, int num_threads) {
 
 void testFeistel() {
   std::mt19937 rng(420);
-  FeistelPermutation feistel(120, rng);
+
+  size_t max_num_entries = 1UL << 62;
+  FeistelPermutation feistel(251, max_num_entries, rng);
 
   auto t = [&](uint64_t plain_text) {
     uint64_t encrypted = feistel.encrypt(plain_text);
@@ -58,7 +60,8 @@ void testFeistel() {
   t(420);
   t(245252);
   t(11);
-  t(16841361);
+  t(max_num_entries - 1);
+
   for (size_t i = 0; i < 500; ++i) {
     t(i);
   }

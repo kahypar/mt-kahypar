@@ -251,60 +251,84 @@ public:
 
     // set bit masks
     uint64_t num_bits = 0, next_power = 1;
-    while (next_power < num_entries) {
+    while (next_power < num_entries && next_power != 0) {
       next_power <<= 1;
       num_bits++;
     }
+    assert(num_bits <= max_supported_bits);
 
     num_right_bits = (num_bits / 2) + (num_bits % 2);
     num_left_bits = num_bits / 2;
 
-    right_mask = (1 << num_right_bits) - 1;
-    left_mask = ((1 << num_left_bits) - 1) << num_right_bits;
+    right_mask = (1U << num_right_bits) - 1;
+    left_mask = (1U << num_left_bits) - 1;
   }
 
 
 
   uint64_t encrypt(uint64_t x) const {
-    uint32_t l = x >> 32;
-    uint32_t r = x << 32 >> 32;
+    assert(x < max_num_entries());
+    uint32_t lmask = left_mask, rmask = right_mask;
+    uint32_t l = x >> num_right_bits;
+    uint32_t r = x & rmask;
     uint32_t next_l;
 
     for (uint32_t key : keys) {
       next_l = r;
-      r = round_function(key, r) ^ l;
+      r = (round_function(key, r) & lmask) ^ l;
       l = next_l;
+      std::swap(lmask, rmask);     // unroll loop to avoid swaps?
     }
 
     // applying mask only to last r and l is bad because we cannot recover those for decryption
-
-    return uint64_t(r) << 32 | uint64_t(l);
+    return (uint64_t(r) << plant_shift()) | uint64_t(l);
   }
 
   uint64_t decrypt(uint64_t x) const {
-    uint32_t l = x >> 32;
-    uint32_t r = x << 32 >> 32;
+    uint32_t lmask = left_mask, rmask = right_mask;
+    if (num_rounds() % 2 == 0) {
+      std::swap(lmask, rmask);
+    }
+
+    uint32_t l = x >> plant_shift();
+    uint32_t r = x & rmask;
     uint32_t next_l;
 
     for (auto it = keys.rbegin(); it != keys.rend(); ++it) {
       uint32_t key = *it;
       next_l = r;
-      r = round_function(key, r) ^ l;
+      r = (round_function(key, r) & lmask) ^ l;
       l = next_l;
+      std::swap(lmask, rmask);
     }
 
-    return uint64_t(r) << 32 | uint64_t(l);
+    return (uint64_t(r) << num_right_bits) | uint64_t(l);
   }
 
 private:
+
+  uint64_t plant_shift() const {
+    return num_rounds() % 2 == 0 ? num_left_bits : num_right_bits;
+  }
 
   uint32_t round_function(uint32_t key, uint32_t raw) const {
     return hashing::integer::combine32(key, hashing::integer::hash32(raw));
   }
 
-  vec<uint32_t> keys;
-  uint64_t num_right_bits, num_left_bits, right_mask, left_mask;
+  size_t num_rounds() const {
+    return keys.size();
+  }
 
+  size_t max_num_entries() const {
+    return 1UL << (num_right_bits + num_left_bits);
+  }
+
+  static constexpr size_t max_supported_bits = 62;
+
+  uint64_t num_right_bits, num_left_bits;
+
+  uint32_t right_mask, left_mask;
+  vec<uint32_t> keys;   // make std::array once tests are done?
 };
 
 } // namespace mt_kahypar::utils
