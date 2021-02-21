@@ -47,7 +47,7 @@ class StaticHypergraphFactory {
 
   static std::pair<StaticHypergraph,
           parallel::scalable_vector<HypernodeID> > compactify(const TaskGroupID ,
-                                                              const StaticHypergraph& hypergraph)
+                                                              const StaticHypergraph&)
                                                               { ERROR("Compactify not implemented for static hypergraph."); }
 
  private:

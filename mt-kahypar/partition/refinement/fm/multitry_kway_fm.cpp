@@ -135,7 +135,7 @@ namespace mt_kahypar {
       printMemoryConsumption();
     }
 
-    #ifndef KAHYPAR_USE_N_LEVEL_PARADIGM
+    #ifndef USE_STRONG_PARTITIONER
     is_initialized = false;
     #endif
 

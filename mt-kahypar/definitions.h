@@ -22,10 +22,13 @@
 #include <chrono>
 #include "mt-kahypar/parallel/hardware_topology.h"
 #include "mt-kahypar/parallel/tbb_numa_arena.h"
-#include "mt-kahypar/datastructures/static_hypergraph.h"
-#include "mt-kahypar/datastructures/static_hypergraph_factory.h"
+#ifdef USE_STRONG_PARTITIONER
 #include "mt-kahypar/datastructures/dynamic_hypergraph.h"
 #include "mt-kahypar/datastructures/dynamic_hypergraph_factory.h"
+#else
+#include "mt-kahypar/datastructures/static_hypergraph.h"
+#include "mt-kahypar/datastructures/static_hypergraph_factory.h"
+#endif
 #include "mt-kahypar/datastructures/partitioned_hypergraph.h"
 
 namespace mt_kahypar {
@@ -34,7 +37,7 @@ using HardwareTopology = mt_kahypar::parallel::HardwareTopology<>;
 using TBBNumaArena = mt_kahypar::parallel::TBBNumaArena<HardwareTopology, false>;
 
 
-#ifdef KAHYPAR_USE_N_LEVEL_PARADIGM
+#ifdef USE_STRONG_PARTITIONER
 using Hypergraph = ds::DynamicHypergraph;
 using HypergraphFactory = ds::DynamicHypergraphFactory;
 #else
