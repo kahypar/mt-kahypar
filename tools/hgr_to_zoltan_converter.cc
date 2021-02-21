@@ -24,8 +24,6 @@
 #include <iostream>
 #include <string>
 
-#include "mt-kahypar/macros.h"
-#include "mt-kahypar/definitions.h"
 #include "mt-kahypar/io/hypergraph_io.h"
 
 using namespace mt_kahypar;

@@ -80,6 +80,14 @@ struct Move {
   PartitionID to = -1;
   HypernodeID node = invalidNode;
   Gain gain = invalidGain;
+
+  bool isValid() const {
+    return from != -1;
+  }
+
+  void invalidate() {
+    from = -1;
+  }
 };
 
 struct Memento {

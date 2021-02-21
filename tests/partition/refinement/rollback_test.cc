@@ -36,7 +36,8 @@ using ::testing::Test;
 
 namespace mt_kahypar {
 
-//#ifndef KAHYPAR_USE_N_LEVEL_PARADIGM
+
+//#ifndef USE_STRONG_PARTITIONER
 
 TEST(RollbackTests, GainRecalculationAndRollsbackCorrectly) {
   Hypergraph hg = io::readHypergraphFile("../tests/instances/twocenters.hgr", 0);

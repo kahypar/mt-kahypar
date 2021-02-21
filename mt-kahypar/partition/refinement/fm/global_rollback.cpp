@@ -73,7 +73,7 @@ namespace mt_kahypar {
     void operator()(const tbb::blocked_range<MoveID>& r, tbb::pre_scan_tag ) {
       for (MoveID i = r.begin(); i < r.end(); ++i) {
         const Move& m = moves[i];
-        if (m.gain != invalidGain) {  // skip locally reverted moves
+        if (m.isValid()) {  // skip locally reverted moves
           gain_sum += m.gain;
           part_weights[m.from] -= phg.nodeWeight(m.node);
           part_weights[m.to] += phg.nodeWeight(m.node);
@@ -102,7 +102,7 @@ namespace mt_kahypar {
       for (MoveID i = r.begin(); i < r.end(); ++i) {
         const Move& m = moves[i];
 
-        if (m.gain != invalidGain) {  // skip locally reverted moves
+        if (m.isValid()) {  // skip locally reverted moves
           gain_sum += m.gain;
 
           const bool from_overloaded = part_weights[m.from] > max_part_weights[m.from];
@@ -183,6 +183,7 @@ namespace mt_kahypar {
 
     timer.start_timer("find_best_prefix_and_balance", "Find Best Balanced Prefix");
     BalanceAndBestIndexScan s(phg, move_order, partWeights, maxPartWeights);
+    // TODO set grain size in blocked_range? to avoid too many copies of part weights array. experiment with different values
     tbb::parallel_scan(tbb::blocked_range<MoveID>(0, numMoves), s);
     BalanceAndBestIndexScan::Prefix b = s.finalize(partWeights);
     timer.stop_timer("find_best_prefix_and_balance");
@@ -190,7 +191,7 @@ namespace mt_kahypar {
     timer.start_timer("revert", "Revert Moves");
     tbb::parallel_for(b.best_index, numMoves, [&](const MoveID moveID) {
       const Move& m = move_order[moveID];
-      if (sharedData.moveTracker.isMoveStillValid(m)) {
+      if (m.isValid()) {
         moveVertex<update_gain_cache>(phg, m.node, m.to, m.from);
       }
     });
@@ -236,12 +237,15 @@ namespace mt_kahypar {
           const MoveID m_id = tracker.moveOfNode[v];
           Move& m = tracker.getMove(m_id);
 
-          if (r[m.from].last_out == m_id && r[m.from].first_in > m_id && r[m.from].remaining_pins == 0) {
+          const bool benefit = r[m.from].last_out == m_id && r[m.from].first_in > m_id && r[m.from].remaining_pins == 0;
+          const bool penalty = r[m.to].first_in == m_id && r[m.to].last_out < m_id && r[m.to].remaining_pins == 0;
+
+          if (benefit && !penalty) {    // only apply update if they're mutually exclusive
             // increase gain of v by w(e)
             __atomic_fetch_add(&m.gain, we, __ATOMIC_RELAXED);
           }
 
-          if (r[m.to].first_in == m_id && r[m.to].last_out < m_id && r[m.to].remaining_pins == 0) {
+          if (!benefit && penalty) {
             // decrease gain of v by w(e)
             __atomic_fetch_sub(&m.gain, we, __ATOMIC_RELAXED);
           }
@@ -253,7 +257,6 @@ namespace mt_kahypar {
           r[i] = RecalculationData();
         }
       } else {
-        // TODO can we do something with the connectivity set here? we would also need the connectivity set entries before the move
         for (HypernodeID v : phg.pins(e)) {
           if (tracker.wasNodeMovedInThisRound(v)) {
             const Move& m = tracker.getMove(tracker.moveOfNode[v]);
@@ -270,7 +273,8 @@ namespace mt_kahypar {
     if (!context.refinement.fm.rollback_sensitive_to_num_moves) {
       tbb::parallel_for(0U, phg.initialNumEdges(), recalculate_and_distribute_for_hyperedge);
     } else {
-      tbb::parallel_for(0U, sharedData.moveTracker.numPerformedMoves(), [&](const HypernodeID u) {
+      tbb::parallel_for(0U, sharedData.moveTracker.numPerformedMoves(), [&](const MoveID local_move_id) {
+        const HypernodeID u = sharedData.moveTracker.moveOrder[local_move_id].node;
         if (tracker.wasNodeMovedInThisRound(u)) {
           // parallel for if high degree?
           for (HyperedgeID e : phg.incidentEdges(u)) {
@@ -304,7 +308,7 @@ namespace mt_kahypar {
     // revert all moves
     tbb::parallel_for(0U, numMoves, [&](const MoveID localMoveID) {
       const Move& m = move_order[localMoveID];
-      if (tracker.isMoveStillValid(m)) {
+      if (m.isValid()) {
         moveVertex<update_gain_cache>(phg, m.node, m.to, m.from);
       }
     });
@@ -324,7 +328,7 @@ namespace mt_kahypar {
     MoveID best_index = 0;
     for (MoveID localMoveID = 0; localMoveID < numMoves; ++localMoveID) {
       const Move& m = move_order[localMoveID];
-      if (!tracker.isMoveStillValid(m)) continue;
+      if (!m.isValid()) continue;
 
       Gain gain = 0;
       for (HyperedgeID e : phg.incidentEdges(m.node)) {
@@ -360,7 +364,7 @@ namespace mt_kahypar {
     // revert rejected moves again
     tbb::parallel_for(best_index, numMoves, [&](const MoveID i) {
       const Move& m = move_order[i];
-      if (tracker.isMoveStillValid(m)) {
+      if (m.isValid()) {
         moveVertex<update_gain_cache>(phg, m.node, m.to, m.from);
       }
     });
@@ -396,7 +400,7 @@ namespace mt_kahypar {
     // revert all moves
     for (MoveID localMoveID = 0; localMoveID < sharedData.moveTracker.numPerformedMoves(); ++localMoveID) {
       const Move& m = sharedData.moveTracker.moveOrder[localMoveID];
-      if (sharedData.moveTracker.isMoveStillValid(m)) {
+      if (m.isValid()) {
         moveVertex<update_gain_cache>(phg, m.node, m.to, m.from);
       }
     }
@@ -406,7 +410,7 @@ namespace mt_kahypar {
     // roll forward sequentially and check gains
     for (MoveID localMoveID = 0; localMoveID < sharedData.moveTracker.numPerformedMoves(); ++localMoveID) {
       const Move& m = sharedData.moveTracker.moveOrder[localMoveID];
-      if (!sharedData.moveTracker.isMoveStillValid(m))
+      if (!m.isValid())
         continue;
 
       Gain gain = 0;
