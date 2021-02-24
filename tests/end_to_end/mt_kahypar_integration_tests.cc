@@ -272,5 +272,25 @@ TYPED_TEST(MtKaHyPar, PartitionsASATInstance) {
   partitionHypergraph(hypergraph, this->context);
 }
 
+TYPED_TEST(MtKaHyPar, PartitionsAVLSIInstanceWithIndividualPartWeights) {
+  // Read Hypergraph
+  this->context.partition.graph_filename = "../tests/instances/ibm01.hgr";
+  Hypergraph hypergraph = io::readHypergraphFile(
+    this->context.partition.graph_filename, TBBNumaArena::GLOBAL_TASK_GROUP);
+
+  // setup individual part weights
+  HypernodeID k = this->context.partition.k;
+  double max_part_weight_balanced = (1 + this->context.partition.epsilon) *
+                                             ceil(hypergraph.totalWeight() / static_cast<double>(k));
+  double weight_delta = 2 * max_part_weight_balanced / (k + 1);
+  this->context.partition.use_individual_part_weights = true;
+  this->context.partition.max_part_weights.clear();
+  for ( HypernodeID n = 1; n <= k; ++n ) {
+    this->context.partition.max_part_weights.push_back(n * weight_delta);
+  }
+
+  partitionHypergraph(hypergraph, this->context);
+}
+
 
 }  // namespace mt_kahypar
