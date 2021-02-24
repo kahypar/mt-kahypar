@@ -40,6 +40,7 @@ struct PartitioningParameters {
   size_t num_vcycles = 0;
 
   int time_limit = 0;
+  bool use_individual_part_weights = false;
   std::vector<HypernodeWeight> perfect_balance_part_weights;
   std::vector<HypernodeWeight> max_part_weights;
   double large_hyperedge_size_threshold_factor = std::numeric_limits<double>::max();
@@ -57,7 +58,6 @@ struct PartitioningParameters {
   bool sp_process_output = false;
   bool csv_output = false;
   bool write_partition_file = true;
-  bool use_individual_part_weights = false;
 
   int snapshot_interval = std::numeric_limits<int>::max();
 
