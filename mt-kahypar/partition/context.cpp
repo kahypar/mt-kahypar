@@ -179,7 +179,6 @@ namespace mt_kahypar {
     if ( params.use_adaptive_ip_runs ) {
       str << "  Min Adaptive IP Runs:               " << params.min_adaptive_ip_runs << std::endl;
     }
-    str << "  Use Adaptive Epsilon:               " << std::boolalpha << params.use_adaptive_epsilon << std::endl;
     str << "  Perform Refinement On Best:         " << std::boolalpha << params.perform_refinement_on_best_partitions << std::endl;
     str << "  Fm Refinement Rounds:               " << params.fm_refinment_rounds << std::endl;
     str << "  Remove Degree-Zero HNs Before IP:   " << std::boolalpha << params.remove_degree_zero_hns_before_ip << std::endl;
