@@ -209,8 +209,6 @@ namespace mt_kahypar {
 
   private:
     Context setupRecursiveBisectionContext(const PartitionID k) {
-      // TODO(maas) - individual part weights
-
       ASSERT(k >= 2);
       Context rb_context(_context);
       rb_context.partition.k = k;

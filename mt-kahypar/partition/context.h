@@ -187,6 +187,7 @@ struct InitialPartitioningParameters {
   size_t runs = 1;
   bool use_adaptive_ip_runs = false;
   size_t min_adaptive_ip_runs = std::numeric_limits<size_t>::max();
+  // TODO(maas) remove
   bool use_adaptive_epsilon = false;
   bool perform_refinement_on_best_partitions = false;
   size_t fm_refinment_rounds = 1;

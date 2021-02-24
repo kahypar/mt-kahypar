@@ -205,7 +205,6 @@ namespace mt_kahypar {
   }
 
   void Context::setupPartWeights(const HypernodeWeight total_hypergraph_weight) {
-    // TODO(maas) - individual part weights
     if (partition.use_individual_part_weights) {
       ASSERT(static_cast<size_t>(partition.k) == partition.max_part_weights.size());
       const HypernodeWeight max_part_weights_sum = std::accumulate(partition.max_part_weights.cbegin(),
