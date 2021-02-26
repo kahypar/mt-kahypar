@@ -216,10 +216,22 @@ namespace mt_kahypar {
       const HypernodeWeight max_part_weights_sum = std::accumulate(partition.max_part_weights.cbegin(),
                                                                    partition.max_part_weights.cend(), 0);
       double weight_fraction = total_hypergraph_weight / static_cast<double>(max_part_weights_sum);
-      ASSERT(weight_fraction <= 1.0);
+      HypernodeWeight perfect_part_weights_sum = 0;
       partition.perfect_balance_part_weights.clear();
       for (const HyperedgeWeight& part_weight : partition.max_part_weights) {
-        partition.perfect_balance_part_weights.push_back(ceil(weight_fraction * part_weight));
+        const HypernodeWeight perfect_weight = ceil(weight_fraction * part_weight);
+        partition.perfect_balance_part_weights.push_back(perfect_weight);
+        perfect_part_weights_sum += perfect_weight;
+      }
+
+      if (max_part_weights_sum < total_hypergraph_weight) {
+        ERROR("Sum of individual part weights is less than the total hypergraph weight. Finding a valid partition is impossible.\n"
+                << "Total hypergraph weight: " << total_hypergraph_weight << "\n"
+                << "Sum of part weights:     " << max_part_weights_sum);
+      } else if (perfect_part_weights_sum == 0) {
+        partition.epsilon = 0;
+      } else {
+        partition.epsilon = std::min(0.99, max_part_weights_sum / static_cast<double>(perfect_part_weights_sum) - 1);
       }
     } else {
       partition.perfect_balance_part_weights.clear();
