@@ -231,6 +231,8 @@ namespace mt_kahypar {
       } else if (perfect_part_weights_sum == 0) {
         partition.epsilon = 0;
       } else {
+        // To avoid rounding issues, epsilon should be calculated using the sum of the perfect part weights instead of
+        // the total hypergraph weight. See also recursive_bisection_initial_partitioner
         partition.epsilon = std::min(0.99, max_part_weights_sum / static_cast<double>(perfect_part_weights_sum) - 1);
       }
     } else {

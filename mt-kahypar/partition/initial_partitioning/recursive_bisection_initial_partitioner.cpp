@@ -352,6 +352,14 @@ namespace mt_kahypar {
         for ( PartitionID i = k0; i < k; ++i ) {
           perfect_weight_p1 += ceil(weight_fraction * context.partition.max_part_weights[i]);
         }
+        // In the case of individual part weights, the usual adaptive epsilon formula is not applicable because it
+        // assumes equal part weights. However, by observing that ceil(current_weight / current_k) is the current
+        // perfect part weight and (1 + epsilon)ceil(original_weight / original_k) is the maximum part weight,
+        // we can derive an equivalent formula using the sum of the perfect part weights and the sum of the
+        // maximum part weights.
+        // Note that the sum of the perfect part weights might be unequal to the hypergraph weight due to rounding.
+        // Thus, we need to use the former instead of using the hypergraph weight directly, as otherwise it could
+        // happen that (1 + epsilon)perfect_part_weight > max_part_weight because of rounding issues.
         const double base = max_part_weights_sum / static_cast<double>(perfect_weight_p0 + perfect_weight_p1);
         bisection_context.partition.epsilon = total_weight == 0 ? 0 : std::min(0.99, std::max(std::pow(base, 1.0 /
                                                                       ceil(log2(static_cast<double>(k)))) - 1.0,0.0));
