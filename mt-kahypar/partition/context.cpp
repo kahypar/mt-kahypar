@@ -388,33 +388,13 @@ namespace mt_kahypar {
                   kahypar::Mode::direct_kway);
     }
 
-    if (!partition.use_individual_part_weights && !partition.max_part_weights.empty()) {
-      WARNING("Individual part weights specified, but --use-individual-part-weights=false."
-              << "Do you want to use the part weights you specified (Y/N)?");
-      char answer = 'N';
-      std::cin >> answer;
-      answer = std::toupper(answer);
-      if (answer == 'Y') {
-        partition.use_individual_part_weights = true;
-      } else {
-        ALGO_SWITCH("Individual part weights will be ignored. Partition with imbalance epsilon ="
-                            << partition.epsilon << "(Y/N)?",
-                    "Individual part weights specified but not used.",
-                    partition.epsilon,
-                    partition.epsilon);
-      }
-    }
-
-    if (partition.use_individual_part_weights) {
-      if (partition.max_part_weights.empty()) {
-        ERROR("Individual part weights not specified. Please use \"--part-weights=p1 ... pk\" to specify the weight of each part.");
-      } else if (static_cast<size_t>(partition.k) != partition.max_part_weights.size()) {
-        ALGO_SWITCH("Individual part weights specified, but number of parts doesn't match k."
-                            << "Do you want to use k =" << partition.max_part_weights.size() << "instead (Y/N)?",
-                    "Number of parts is not equal to k!",
-                    partition.k,
-                    partition.max_part_weights.size());
-      }
+    ASSERT(partition.use_individual_part_weights != partition.max_part_weights.empty());
+    if (partition.use_individual_part_weights && static_cast<size_t>(partition.k) != partition.max_part_weights.size()) {
+      ALGO_SWITCH("Individual part weights specified, but number of parts doesn't match k."
+                          << "Do you want to use k =" << partition.max_part_weights.size() << "instead (Y/N)?",
+                  "Number of parts is not equal to k!",
+                  partition.k,
+                  partition.max_part_weights.size());
     }
   }
 

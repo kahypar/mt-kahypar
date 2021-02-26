@@ -107,12 +107,12 @@ namespace mt_kahypar {
             ("algorithm-name",
              po::value<std::string>(&context.algorithm_name)->value_name("<std::string>")->default_value("MT-KaHyPar"),
              "An algorithm name to print into the summarized output (csv or sqlplottools). ")
-            ("use-individual-part-weights",
-             po::value<bool>(&context.partition.use_individual_part_weights)->value_name("<bool>"),
-             "Use individual part weights as specified with --part-weights=p0 ... pk")
             ("part-weights",
-             po::value<std::vector<HypernodeWeight> >(&context.partition.max_part_weights)->multitoken(),
-             "Individual maximum part weights");
+             po::value<std::vector<HypernodeWeight> >(&context.partition.max_part_weights)->multitoken()->notifier(
+                     [&](auto) {
+                             context.partition.use_individual_part_weights = true;
+                     }),
+             "Use the specified individual part weights instead of epsilon.");
     return options;
   }
 
