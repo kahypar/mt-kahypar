@@ -38,6 +38,13 @@ namespace mt_kahypar {
     str << "  Number of V-Cycles:                 " << params.num_vcycles << std::endl;
     str << "  Ignore HE Size Threshold:           " << params.ignore_hyperedge_size_threshold << std::endl;
     str << "  Large HE Size Threshold:            " << params.large_hyperedge_size_threshold << std::endl;
+    if ( params.use_individual_part_weights ) {
+      str << "  Individual Part Weights:            ";
+      for ( const HypernodeWeight& w : params.max_part_weights ) {
+        str << w << " ";
+      }
+      str << std::endl;
+    }
     return str;
   }
 
@@ -172,7 +179,6 @@ namespace mt_kahypar {
     if ( params.use_adaptive_ip_runs ) {
       str << "  Min Adaptive IP Runs:               " << params.min_adaptive_ip_runs << std::endl;
     }
-    str << "  Use Adaptive Epsilon:               " << std::boolalpha << params.use_adaptive_epsilon << std::endl;
     str << "  Perform Refinement On Best:         " << std::boolalpha << params.perform_refinement_on_best_partitions << std::endl;
     str << "  Fm Refinement Rounds:               " << params.fm_refinment_rounds << std::endl;
     str << "  Remove Degree-Zero HNs Before IP:   " << std::boolalpha << params.remove_degree_zero_hns_before_ip << std::endl;
@@ -205,19 +211,43 @@ namespace mt_kahypar {
   }
 
   void Context::setupPartWeights(const HypernodeWeight total_hypergraph_weight) {
-    partition.perfect_balance_part_weights.clear();
-    partition.perfect_balance_part_weights.push_back(ceil(
-            total_hypergraph_weight
-            / static_cast<double>(partition.k)));
-    for (PartitionID part = 1; part != partition.k; ++part) {
-      partition.perfect_balance_part_weights.push_back(
-              partition.perfect_balance_part_weights[0]);
-    }
-    partition.max_part_weights.clear();
-    partition.max_part_weights.push_back((1 + partition.epsilon)
-                                         * partition.perfect_balance_part_weights[0]);
-    for (PartitionID part = 1; part != partition.k; ++part) {
-      partition.max_part_weights.push_back(partition.max_part_weights[0]);
+    if (partition.use_individual_part_weights) {
+      ASSERT(static_cast<size_t>(partition.k) == partition.max_part_weights.size());
+      const HypernodeWeight max_part_weights_sum = std::accumulate(partition.max_part_weights.cbegin(),
+                                                                   partition.max_part_weights.cend(), 0);
+      double weight_fraction = total_hypergraph_weight / static_cast<double>(max_part_weights_sum);
+      HypernodeWeight perfect_part_weights_sum = 0;
+      partition.perfect_balance_part_weights.clear();
+      for (const HyperedgeWeight& part_weight : partition.max_part_weights) {
+        const HypernodeWeight perfect_weight = ceil(weight_fraction * part_weight);
+        partition.perfect_balance_part_weights.push_back(perfect_weight);
+        perfect_part_weights_sum += perfect_weight;
+      }
+
+      if (max_part_weights_sum < total_hypergraph_weight) {
+        ERROR("Sum of individual part weights is less than the total hypergraph weight. Finding a valid partition is impossible.\n"
+                << "Total hypergraph weight: " << total_hypergraph_weight << "\n"
+                << "Sum of part weights:     " << max_part_weights_sum);
+      } else {
+        // To avoid rounding issues, epsilon should be calculated using the sum of the perfect part weights instead of
+        // the total hypergraph weight. See also recursive_bisection_initial_partitioner
+        partition.epsilon = std::min(0.99, max_part_weights_sum / static_cast<double>(std::max(perfect_part_weights_sum, 1)) - 1);
+      }
+    } else {
+      partition.perfect_balance_part_weights.clear();
+      partition.perfect_balance_part_weights.push_back(ceil(
+              total_hypergraph_weight
+              / static_cast<double>(partition.k)));
+      for (PartitionID part = 1; part != partition.k; ++part) {
+        partition.perfect_balance_part_weights.push_back(
+                partition.perfect_balance_part_weights[0]);
+      }
+      partition.max_part_weights.clear();
+      partition.max_part_weights.push_back((1 + partition.epsilon)
+                                          * partition.perfect_balance_part_weights[0]);
+      for (PartitionID part = 1; part != partition.k; ++part) {
+        partition.max_part_weights.push_back(partition.max_part_weights[0]);
+      }
     }
 
     setupSparsificationParameters();
@@ -355,6 +385,15 @@ namespace mt_kahypar {
                   partition.mode,
                   kahypar::Mode::direct_kway);
     }
+
+    ASSERT(partition.use_individual_part_weights != partition.max_part_weights.empty());
+    if (partition.use_individual_part_weights && static_cast<size_t>(partition.k) != partition.max_part_weights.size()) {
+      ALGO_SWITCH("Individual part weights specified, but number of parts doesn't match k."
+                          << "Do you want to use k =" << partition.max_part_weights.size() << "instead (Y/N)?",
+                  "Number of parts is not equal to k!",
+                  partition.k,
+                  partition.max_part_weights.size());
+    }
   }
 
   std::ostream & operator<< (std::ostream& str, const Context& context) {
@@ -373,7 +412,7 @@ namespace mt_kahypar {
         << "-------------------------------------------------------------------------------\n"
         #ifdef KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES
         << context.sparsification
-      << "-------------------------------------------------------------------------------\n"
+        << "-------------------------------------------------------------------------------\n"
         #endif
         << context.shared_memory
         << "-------------------------------------------------------------------------------";

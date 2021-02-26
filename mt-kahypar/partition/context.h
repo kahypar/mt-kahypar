@@ -40,6 +40,7 @@ struct PartitioningParameters {
   size_t num_vcycles = 0;
 
   int time_limit = 0;
+  bool use_individual_part_weights = false;
   std::vector<HypernodeWeight> perfect_balance_part_weights;
   std::vector<HypernodeWeight> max_part_weights;
   double large_hyperedge_size_threshold_factor = std::numeric_limits<double>::max();
@@ -186,7 +187,6 @@ struct InitialPartitioningParameters {
   size_t runs = 1;
   bool use_adaptive_ip_runs = false;
   size_t min_adaptive_ip_runs = std::numeric_limits<size_t>::max();
-  bool use_adaptive_epsilon = false;
   bool perform_refinement_on_best_partitions = false;
   size_t fm_refinment_rounds = 1;
   bool remove_degree_zero_hns_before_ip = false;

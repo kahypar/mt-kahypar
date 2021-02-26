@@ -106,7 +106,13 @@ namespace mt_kahypar {
              "Summarize results in CSV format")
             ("algorithm-name",
              po::value<std::string>(&context.algorithm_name)->value_name("<std::string>")->default_value("MT-KaHyPar"),
-             "An algorithm name to print into the summarized output (csv or sqlplottools). ");
+             "An algorithm name to print into the summarized output (csv or sqlplottools). ")
+            ("part-weights",
+             po::value<std::vector<HypernodeWeight> >(&context.partition.max_part_weights)->multitoken()->notifier(
+                     [&](auto) {
+                             context.partition.use_individual_part_weights = true;
+                     }),
+             "Use the specified individual part weights instead of epsilon.");
     return options;
   }
 
@@ -398,11 +404,6 @@ namespace mt_kahypar {
              po::value<size_t>(&context.initial_partitioning.min_adaptive_ip_runs)->value_name("<size_t>")->default_value(5),
              "If adaptive IP runs is enabled, than each initial partitioner performs minimum min_adaptive_ip_runs runs before\n"
              "it decides if it should terminate.")
-            ("i-use-adaptive-epsilon",
-             po::value<bool>(&context.initial_partitioning.use_adaptive_epsilon)->value_name("<bool>")->default_value(true),
-             "If true, initial partitioning computes for each bisection an individual maximum allowed\n"
-             "block weight based on a worst-case estimation. Otherwise, we use the sum of the upper bounds\n"
-             "of each block which both blocks of the bisection are recursively divided into as maximum")
             ("i-perform-refinement-on-best-partitions",
              po::value<bool>(&context.initial_partitioning.perform_refinement_on_best_partitions)->value_name("<bool>")->default_value(false),
              "If true, then we perform an additional refinement on the best thread local partitions after IP.")
