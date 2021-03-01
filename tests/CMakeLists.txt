@@ -1,10 +1,3 @@
-# Contains tests that do not depend on the static or dynamic hypergraph
-add_executable(mt_kahypar_tests run_tests.cpp)
-target_link_libraries(mt_kahypar_tests gtest gtest_main ${CMAKE_THREAD_LIBS_INIT})
-set_property(TARGET mt_kahypar_tests PROPERTY CXX_STANDARD 17)
-set_property(TARGET mt_kahypar_tests PROPERTY CXX_STANDARD_REQUIRED ON)
-target_link_libraries(mt_kahypar_tests ${Boost_LIBRARIES})
-
 # Contains tests specific to our fast partitioner
 add_executable(mt_kahypar_fast_tests run_tests.cpp)
 target_link_libraries(mt_kahypar_fast_tests gtest gtest_main ${CMAKE_THREAD_LIBS_INIT})
@@ -26,4 +19,4 @@ add_subdirectory(io)
 add_subdirectory(parallel)
 add_subdirectory(partition)
 
-set(TARGETS_WANTING_ALL_SOURCES ${TARGETS_WANTING_ALL_SOURCES} mt_kahypar_tests mt_kahypar_fast_tests mt_kahypar_strong_tests PARENT_SCOPE)
+set(TARGETS_WANTING_ALL_SOURCES ${TARGETS_WANTING_ALL_SOURCES} mt_kahypar_fast_tests mt_kahypar_strong_tests PARENT_SCOPE)
