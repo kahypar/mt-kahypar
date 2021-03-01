@@ -271,9 +271,7 @@ namespace mt_kahypar {
       }
     };
 
-    if (!context.refinement.fm.rollback_sensitive_to_num_moves) {
-      tbb::parallel_for(0U, phg.initialNumEdges(), recalculate_and_distribute_for_hyperedge);
-    } else {
+    if (context.refinement.fm.iter_moves_on_recalc) {
       tbb::parallel_for(0U, sharedData.moveTracker.numPerformedMoves(), [&](const MoveID local_move_id) {
         const HypernodeID u = sharedData.moveTracker.moveOrder[local_move_id].node;
         if (tracker.wasNodeMovedInThisRound(u)) {
@@ -292,6 +290,8 @@ namespace mt_kahypar {
         // should never happen on practical inputs.
         last_recalc_round.assign(phg.initialNumEdges(), CAtomic<uint32_t>(0));
       }
+    } else{
+      tbb::parallel_for(0U, phg.initialNumEdges(), recalculate_and_distribute_for_hyperedge);
     }
   }
 

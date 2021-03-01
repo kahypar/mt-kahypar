@@ -38,7 +38,7 @@ public:
           last_recalc_round(),
           round(1)
   {
-    if (context.refinement.fm.rollback_sensitive_to_num_moves && context.refinement.fm.rollback_parallel) {
+    if (context.refinement.fm.iter_moves_on_recalc && context.refinement.fm.rollback_parallel) {
       last_recalc_round.resize(hg.initialNumEdges(), CAtomic<uint32_t>(0));
     }
   }
