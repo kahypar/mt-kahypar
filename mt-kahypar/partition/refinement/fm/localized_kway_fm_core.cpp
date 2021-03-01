@@ -37,11 +37,6 @@ namespace mt_kahypar {
     fm_strategy.updatePQs(phg);
 
     if (runStats.pushes > 0) {
-      if (!context.refinement.fm.perform_moves_global
-          && deltaPhg.combinedMemoryConsumption() > sharedData.deltaMemoryLimitPerThread) {
-        sharedData.deltaExceededMemoryConstraints = true;
-      }
-
       if (sharedData.deltaExceededMemoryConstraints) {
         deltaPhg.dropMemory();
       }
@@ -52,6 +47,9 @@ namespace mt_kahypar {
         deltaPhg.clear();
         deltaPhg.setPartitionedHypergraph(&phg);
         internalFindMoves<true>(phg);
+        if (deltaPhg.combinedMemoryConsumption() > sharedData.deltaMemoryLimitPerThread) {
+          sharedData.deltaExceededMemoryConstraints = true;
+        }
       }
       return true;
     } else {

@@ -242,6 +242,15 @@ class Timer {
     }
   }
 
+  void add_timing(const std::string& parent, const std::string& my_key, const double elapsed_time) {
+    Key timing_key { parent, my_key };
+    if (_timings.find(timing_key) == _timings.end()) {
+      _timings.emplace(std::piecewise_construct, std::forward_as_tuple(timing_key),
+                std::forward_as_tuple(my_key, my_key, parent, _index++));
+    }
+    _timings.at(timing_key).add_timing(elapsed_time);
+  }
+
   void serialize(std::ostream& str) {
     std::vector<Timing> timings;
     for (const auto& timing : _timings) {

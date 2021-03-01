@@ -31,7 +31,9 @@ namespace mt_kahypar::io::csv {
 
   std::string header() {
     return "algorithm,threads,graph,k,seed,epsilon,imbalance,"
-           "objective,km1,cut,partitionTime,fmTime,lpTime,coarseningTime,ipTime,preprocessingTime\n";
+           "objective,km1,cut,partitionTime,fmTime,lpTime,coarseningTime,ipTime,preprocessingTime"
+           ",localApplyFMTime,globalApplyFMTime"
+           "\n";
   }
 
   std::string serialize(const PartitionedHypergraph& phg, const Context& context,
@@ -67,7 +69,9 @@ namespace mt_kahypar::io::csv {
     s << (timer.get("label_propagation") + timer.get("initialize_lp_refiner")) << sep;
     s << timer.get("coarsening") << sep;
     s << timer.get("initial_partitioning") << sep;
-    s << timer.get("preprocessing");
+    s << timer.get("preprocessing") << sep;
+    s << timer.get("local-apply") << sep;
+    s << timer.get("global-apply");
 
     return s.str();
   }
