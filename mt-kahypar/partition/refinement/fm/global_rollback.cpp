@@ -254,6 +254,7 @@ namespace mt_kahypar {
       }
 
       if (num_parts <= static_cast<int>(2 * phg.edgeSize(e))) {
+        // this branch is an optimization. in case it is cheaper to iterate over the parts, do that
         for (PartitionID i = 0; i < num_parts; ++i) {
           r[i] = RecalculationData();
         }
