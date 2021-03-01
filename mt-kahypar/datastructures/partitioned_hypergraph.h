@@ -162,10 +162,6 @@ private:
     return _hg->initialNumEdges();
   }
 
-  HyperedgeID numGraphEdges() const {
-    return _hg->numGraphEdges();
-  }
-
   HyperedgeID numNonGraphEdges() const {
     return _hg->numNonGraphEdges();
   }

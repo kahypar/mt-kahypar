@@ -215,6 +215,7 @@ namespace mt_kahypar {
     GlobalMoveTracker& tracker = sharedData.moveTracker;
 
     auto recalculate_and_distribute_for_hyperedge = [&](const HyperedgeID e) {
+      // TODO reduce .local() calls using the blocked_range interface
       auto& r = ets_recalc_data.local();
 
       // compute auxiliary data
@@ -269,16 +270,14 @@ namespace mt_kahypar {
       }
     };
 
-
     if (!context.refinement.fm.rollback_sensitive_to_num_moves) {
       tbb::parallel_for(0U, phg.initialNumEdges(), recalculate_and_distribute_for_hyperedge);
     } else {
       tbb::parallel_for(0U, sharedData.moveTracker.numPerformedMoves(), [&](const MoveID local_move_id) {
         const HypernodeID u = sharedData.moveTracker.moveOrder[local_move_id].node;
         if (tracker.wasNodeMovedInThisRound(u)) {
-          // parallel for if high degree?
           for (HyperedgeID e : phg.incidentEdges(u)) {
-            // atomically raise bit if this is the first time this hyperedge is encountered
+            // test-and-set whether this is the first time this hyperedge is encountered
             uint32_t expected = last_recalc_round[e].load(std::memory_order_relaxed);
             if (expected < round && last_recalc_round[e].exchange(round, std::memory_order_acquire) == expected) {
               recalculate_and_distribute_for_hyperedge(e);
