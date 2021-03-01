@@ -34,7 +34,6 @@ namespace mt_kahypar {
         fm_strategy.insertIntoPQ(phg, seedNode, previousSearchOfSeedNode);
       }
     }
-    fm_strategy.updatePQs(phg);
 
     if (runStats.pushes > 0) {
       if (sharedData.deltaExceededMemoryConstraints) {
@@ -203,12 +202,6 @@ namespace mt_kahypar {
         } else {
           acquireOrUpdateNeighbors(phg, move);
         }
-      }
-
-      if constexpr (use_delta) {
-        fm_strategy.updatePQs(deltaPhg);
-      } else {
-        fm_strategy.updatePQs(phg);
       }
 
     }

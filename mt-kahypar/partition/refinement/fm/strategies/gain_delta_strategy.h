@@ -116,13 +116,6 @@ namespace mt_kahypar {
       }
     }
 
-    template<typename PHG>
-    MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
-    void updatePQs(const PHG& ) {
-
-    }
-
-
     // ! perform delta gain updates for vertices that are in our search. uses the PQs as gain store
     template<typename PHG>
     MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE

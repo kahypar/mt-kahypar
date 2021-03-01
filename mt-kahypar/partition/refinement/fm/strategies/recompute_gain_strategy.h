@@ -96,12 +96,6 @@ namespace mt_kahypar {
 
     template<typename PHG>
     MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
-    void updatePQs(const PHG& /* phg */) {
-
-    }
-
-    template<typename PHG>
-    MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
     void deltaGainUpdates(PHG& , const HyperedgeID , const HyperedgeWeight ,
                           const PartitionID , const HypernodeID ,
                           const PartitionID , const HypernodeID ) {
