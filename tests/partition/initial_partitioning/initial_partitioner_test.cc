@@ -148,6 +148,7 @@ TYPED_TEST(AInitialPartitionerTest, VerifiesThatPartSizesAndWeightsAreCorrect) {
   std::vector<HypernodeWeight> part_weight(this->context.partition.k, 0);
   for ( const HypernodeID& hn : this->hypergraph.nodes() ) {
     PartitionID part_id = this->partitioned_hypergraph.partID(hn);
+    ASSERT(part_id >= 0 && part_id < this->context.partition.k);
     part_weight[part_id] += this->partitioned_hypergraph.nodeWeight(hn);
   }
 

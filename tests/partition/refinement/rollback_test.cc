@@ -36,7 +36,8 @@ using ::testing::Test;
 
 namespace mt_kahypar {
 
-#ifndef USE_STRONG_PARTITIONER
+
+//#ifndef USE_STRONG_PARTITIONER
 
 TEST(RollbackTests, GainRecalculationAndRollsbackCorrectly) {
   Hypergraph hg = io::readHypergraphFile("../tests/instances/twocenters.hgr", 0);
@@ -54,7 +55,7 @@ TEST(RollbackTests, GainRecalculationAndRollsbackCorrectly) {
   for (HypernodeID u = 12; u < 20; ++u) {
     phg.setNodePart(u, 1);
   }
-    phg.initializeGainCache();
+  phg.initializeGainCache();
 
   Context context;
   context.partition.k = k;
@@ -65,8 +66,7 @@ TEST(RollbackTests, GainRecalculationAndRollsbackCorrectly) {
 
   FMSharedData sharedData(hg.initialNumNodes(), context);
 
-  GlobalRollback grb(hg, context, k);
-  grb.setRemainingOriginalPins(phg);
+  GlobalRollback grb(hg, context);
   auto performMove = [&](Move m) {
     if (phg.changeNodePartWithGainCacheUpdate(m.node, m.from, m.to)) {
       sharedData.moveTracker.insertMove(m);
@@ -110,7 +110,7 @@ TEST(RollbackTests, GainRecalculation2) {
   for (HypernodeID u = 12; u < 20; ++u) {
     phg.setNodePart(u, 1);
   }
-    phg.initializeGainCache();
+  phg.initializeGainCache();
 
   Context context;
   context.partition.k = k;
@@ -120,8 +120,7 @@ TEST(RollbackTests, GainRecalculation2) {
 
   FMSharedData sharedData(hg.initialNumNodes(), context);
 
-  GlobalRollback grb(hg, context, k);
-  grb.setRemainingOriginalPins(phg);
+  GlobalRollback grb(hg, context);
 
   auto performUpdates = [&](Move& m) {
    sharedData.moveTracker.insertMove(m);
@@ -131,11 +130,11 @@ TEST(RollbackTests, GainRecalculation2) {
 
   ASSERT_EQ(phg.km1Gain(2, 0, 1), 3);
   Move move_2 = { 0, 1, 2, 3 };
-    phg.changeNodePartWithGainCacheUpdate(move_2.node, move_2.from, move_2.to);
+  phg.changeNodePartWithGainCacheUpdate(move_2.node, move_2.from, move_2.to);
 
   ASSERT_EQ(phg.km1Gain(0, 1, 0), 1);
   Move move_0 = { 1, 0, 0, 1 };
-    phg.changeNodePartWithGainCacheUpdate(move_0.node, move_0.from, move_0.to);
+  phg.changeNodePartWithGainCacheUpdate(move_0.node, move_0.from, move_0.to);
 
   performUpdates(move_0);
   performUpdates(move_2);
@@ -144,6 +143,6 @@ TEST(RollbackTests, GainRecalculation2) {
   grb.verifyGains<true>(phg, sharedData);
 }
 
-#endif
+//#endif
 
 }   // namespace mt_kahypar

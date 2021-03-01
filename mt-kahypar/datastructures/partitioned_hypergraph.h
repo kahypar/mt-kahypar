@@ -162,14 +162,6 @@ private:
     return _hg->initialNumEdges();
   }
 
-  HyperedgeID numGraphEdges() const {
-    return _hg->numGraphEdges();
-  }
-
-  HyperedgeID numNonGraphEdges() const {
-    return _hg->numNonGraphEdges();
-  }
-
   // ! Initial number of pins
   HypernodeID initialNumPins() const {
     return _hg->initialNumPins();
@@ -714,17 +706,9 @@ private:
   // ! current state of the partition
   void initializeGainCache() {
     // check whether part has been initialized
-    ASSERT([&] {
-      if (_part_ids.size() != initialNumNodes()) {
-        return false;
-      }
-      for (HypernodeID u : nodes()) {
-        if (partID(u) == kInvalidPartition || partID(u) > k()) {
-          return false;
-        }
-      }
-      return true;
-    } ());
+    ASSERT( _part_ids.size() == initialNumNodes()
+            && std::none_of(nodes().begin(), nodes().end(),
+                            [&](HypernodeID u) { return partID(u) == kInvalidPartition || partID(u) > k(); }) );
 
 
     auto aggregate_contribution_of_he_for_vertex =
@@ -880,7 +864,7 @@ private:
   bool checkTrackedPartitionInformation() {
     bool success = true;
 
-    auto check_edge = [&](const HyperedgeID e) {
+    for (HyperedgeID e : edges()) {
       PartitionID expected_connectivity = 0;
       for (PartitionID i = 0; i < k(); ++i) {
         const HypernodeID actual_pin_count_in_part = pinCountInPart(e, i);
@@ -898,15 +882,10 @@ private:
             "Actual:" << V(connectivity(e));
         success = false;
       }
-    };
-
-    for (HyperedgeID e : edges()) {
-      check_edge(e);
     }
 
     if ( _is_gain_cache_initialized ) {
-
-      auto check_node = [&](const HypernodeID u) {
+      for (HypernodeID u : nodes()) {
         if ( moveFromBenefit(u) != moveFromBenefitRecomputed(u) ) {
           LOG << "Move from benefit of hypernode" << u << "=>" <<
               "Expected:" << V(moveFromBenefitRecomputed(u)) << ", " <<
@@ -924,10 +903,6 @@ private:
             }
           }
         }
-      };
-
-      for (HypernodeID u : nodes()) {
-        check_node(u);
       }
     }
     return success;
@@ -991,6 +966,7 @@ private:
       doParallelForAllEdges([&](const HyperedgeID he) {
         if ( pinCountInPart(he, block) > 1 &&
              (cut_net_splitting || connectivity(he) == 1) ) {
+          ASSERT(he_mapping[he] < num_hyperedges);
           hyperedge_weight[he_mapping[he]] = edgeWeight(he);
           for ( const HypernodeID& pin : pins(he) ) {
             if ( partID(pin) == block ) {

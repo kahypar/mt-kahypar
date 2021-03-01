@@ -507,21 +507,6 @@ namespace mt_kahypar::ds {
     utils::Timer::instance().stop_timer("contract_hypergraph");
 
     hypergraph._total_weight = _total_weight;   // didn't lose any vertices
-
-    // Initialize Communities and Update Total Weight
-    utils::Timer::instance().start_timer("setup_small_edge_id_mapping", "Setup SmallEdgeIDMapping");
-    // graph edge ID mapping
-    hypergraph._num_graph_edges_up_to.resize(num_hyperedges + 1);
-    tbb::parallel_for(0U, num_hyperedges, [&](const HyperedgeID e) {
-      hypergraph._num_graph_edges_up_to[e+1] = static_cast<HyperedgeID>(hypergraph.edgeSize(e) == 2);
-    }, tbb::static_partitioner());
-    hypergraph._num_graph_edges_up_to[0] = 0;
-
-    parallel::TBBPrefixSum<HyperedgeID, Array> scan_graph_edges(hypergraph._num_graph_edges_up_to);
-    tbb::parallel_scan(tbb::blocked_range<size_t>(0, num_hyperedges + 1), scan_graph_edges);
-    hypergraph._num_graph_edges = scan_graph_edges.total_sum();
-    utils::Timer::instance().stop_timer("setup_small_edge_id_mapping");
-
     hypergraph._tmp_contraction_buffer = _tmp_contraction_buffer;
     _tmp_contraction_buffer = nullptr;
     return hypergraph;
@@ -538,7 +523,6 @@ namespace mt_kahypar::ds {
     hypergraph._num_removed_hyperedges = _num_removed_hyperedges;
     hypergraph._max_edge_size = _max_edge_size;
     hypergraph._num_pins = _num_pins;
-    hypergraph._num_graph_edges = _num_graph_edges;
     hypergraph._total_degree = _total_degree;
     hypergraph._total_weight = _total_weight;
 
@@ -559,10 +543,6 @@ namespace mt_kahypar::ds {
       memcpy(hypergraph._incidence_array.data(), _incidence_array.data(),
              sizeof(HypernodeID) * _incidence_array.size());
     }, [&] {
-      hypergraph._num_graph_edges_up_to.resize(_num_graph_edges_up_to.size());
-      memcpy(hypergraph._num_graph_edges_up_to.data(), _num_graph_edges_up_to.data(),
-             sizeof(HyperedgeID) * _num_graph_edges_up_to.size());
-    }, [&] {
       hypergraph._community_ids = _community_ids;
     });
     return hypergraph;
@@ -578,7 +558,6 @@ namespace mt_kahypar::ds {
     hypergraph._num_removed_hyperedges = _num_removed_hyperedges;
     hypergraph._max_edge_size = _max_edge_size;
     hypergraph._num_pins = _num_pins;
-    hypergraph._num_graph_edges = _num_graph_edges;
     hypergraph._total_degree = _total_degree;
     hypergraph._total_weight = _total_weight;
 
@@ -595,9 +574,6 @@ namespace mt_kahypar::ds {
     hypergraph._incidence_array.resize(_incidence_array.size());
     memcpy(hypergraph._incidence_array.data(), _incidence_array.data(),
            sizeof(HypernodeID) * _incidence_array.size());
-    hypergraph._num_graph_edges_up_to.resize(_num_graph_edges_up_to.size());
-    memcpy(hypergraph._num_graph_edges_up_to.data(), _num_graph_edges_up_to.data(),
-           sizeof(HyperedgeID) * _num_graph_edges_up_to.size());
 
     hypergraph._community_ids = _community_ids;
 
@@ -613,7 +589,6 @@ namespace mt_kahypar::ds {
     parent->addChild("Incident Nets", sizeof(HyperedgeID) * _incident_nets.size());
     parent->addChild("Hyperedges", sizeof(Hyperedge) * _hyperedges.size());
     parent->addChild("Incidence Array", sizeof(HypernodeID) * _incidence_array.size());
-    parent->addChild("Graph Edge ID Mapping", sizeof(HyperedgeID) * _num_graph_edges_up_to.size());
     parent->addChild("Communities", sizeof(PartitionID) * _community_ids.capacity());
   }
 

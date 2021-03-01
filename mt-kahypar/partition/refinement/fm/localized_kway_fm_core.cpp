@@ -259,8 +259,6 @@ namespace mt_kahypar {
       lastGain = -lastGain; // delta func yields negative sum of improvements, i.e. negative values mean improvements
       estimatedImprovement += lastGain;
       ASSERT(move_id != std::numeric_limits<MoveID>::max());
-      Move& global_move = sharedData.moveTracker.getMove(move_id);
-      global_move.gain = lastGain; // Update gain value based on hypergraph delta
       if (estimatedImprovement >= bestImprovement) {  // TODO also incorporate balance into this?
         bestImprovement = estimatedImprovement;
         bestIndex = i;
@@ -285,7 +283,7 @@ namespace mt_kahypar {
           phg.changeNodePart(m.node, m.to, m.from);
         }
 
-        sharedData.moveTracker.invalidateMove(m);
+        m.invalidate();
       }
       return std::make_pair(bestImprovement, bestIndex);
     } else {
@@ -303,7 +301,7 @@ namespace mt_kahypar {
       } else {
         phg.changeNodePart(m.node, m.to, m.from);
       }
-      sharedData.moveTracker.invalidateMove(m);
+      m.invalidate();
       localMoves.pop_back();
     }
   }

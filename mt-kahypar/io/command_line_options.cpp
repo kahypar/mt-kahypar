@@ -308,11 +308,19 @@ namespace mt_kahypar {
              po::value<size_t>((initial_partitioning ? &context.initial_partitioning.refinement.fm.num_seed_nodes :
                                 &context.refinement.fm.num_seed_nodes))->value_name("<size_t>")->default_value(25),
              "Number of nodes to start the 'highly localized FM' with.")
-            (( initial_partitioning ? "i-r-fm-revert-parallel" : "r-fm-revert-parallel"),
-             po::value<bool>((initial_partitioning ? &context.initial_partitioning.refinement.fm.revert_parallel :
-                              &context.refinement.fm.revert_parallel))
+            (( initial_partitioning ? "i-r-fm-rollback-parallel" : "r-fm-rollback-parallel"),
+             po::value<bool>((initial_partitioning ? &context.initial_partitioning.refinement.fm.rollback_parallel :
+                              &context.refinement.fm.rollback_parallel))
                               ->value_name("<bool>")->default_value(true),
              "Perform gain and balance recalculation, and reverting to best prefix in parallel.")
+            (( initial_partitioning ?
+                              "i-r-fm-iter-moves-on-recalc" :
+                              "r-fm-iter-moves-on-recalc"),
+             po::value<bool>((initial_partitioning ?
+                              &context.initial_partitioning.refinement.fm.iter_moves_on_recalc :
+                              &context.refinement.fm.iter_moves_on_recalc))
+                     ->value_name("<bool>")->default_value(false),
+             "Touch only incident hyperedges of moved vertices for parallel gain recalculation.")
             ((initial_partitioning ? "i-r-fm-rollback-balance-violation-factor"
                                    : "r-fm-rollback-balance-violation-factor"),
              po::value<double>((initial_partitioning

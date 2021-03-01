@@ -52,11 +52,13 @@ class MtKaHyPar : public Test {
  public:
   MtKaHyPar() :
     context() {
+
     if ( context.partition.paradigm == Paradigm::multilevel ) {
       parseIniToContext(context, "../config/fast_preset.ini");
     } else {
       parseIniToContext(context, "../config/strong_preset.ini");
     }
+
     context.partition.graph_filename = "../tests/instances/ibm01.hgr";
     context.partition.k = Config::K;
     context.partition.objective = Config::OBJECTIVE;
@@ -83,7 +85,7 @@ size_t MtKaHyPar<Config>::num_threads = HardwareTopology::instance().num_cpus();
 
 void verifyThatHypergraphsAreEquivalent(const Hypergraph& hypergraph,
                                         const Hypergraph& reference) {
-  // Verify equivallence of hypernodes and incident nets
+  // Verify equivalence of hypernodes and incident nets
   for (const HypernodeID& hn : reference.nodes()) {
     ASSERT_TRUE(hypergraph.nodeIsEnabled(hn));
 
@@ -100,7 +102,7 @@ void verifyThatHypergraphsAreEquivalent(const Hypergraph& hypergraph,
     ASSERT_EQ(num_incident_nets, incident_nets.size());
   }
 
-  // Verify equivallence of hyperedges and pins
+  // Verify equivalence of hyperedges and pins
   for (const HyperedgeID& he : reference.edges()) {
     ASSERT_TRUE(hypergraph.edgeIsEnabled(he));
 
@@ -167,6 +169,13 @@ typedef ::testing::Types<MultiLevelKm1Config<2,
 TYPED_TEST_CASE(MtKaHyPar, TestConfigs);
 
 void partitionHypergraph(Hypergraph& hypergraph, Context& context) {
+  if (context.partition.objective != kahypar::Objective::km1) {
+    context.refinement.fm.algorithm = mt_kahypar::FMAlgorithm::do_nothing;
+    context.refinement.global_fm.use_global_fm = false;
+
+    context.initial_partitioning.refinement.fm.algorithm = mt_kahypar::FMAlgorithm::do_nothing;
+    context.initial_partitioning.refinement.global_fm.use_global_fm = false;
+  }
   mt_kahypar::register_memory_pool(hypergraph, context);
 
   // Partition Hypergraph

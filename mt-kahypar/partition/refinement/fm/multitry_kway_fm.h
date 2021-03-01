@@ -47,7 +47,7 @@ public:
     context(c),
     taskGroupID(taskGroupID),
     sharedData(hypergraph.initialNumNodes(), context),
-    globalRollback(hypergraph, context, context.partition.k),
+    globalRollback(hypergraph, context),
     ets_fm([&] { return constructLocalizedKWayFMSearch(); })
   {
     if (context.refinement.fm.obey_minimal_parallelism) {
@@ -56,14 +56,14 @@ public:
   }
 
   bool refineImpl(PartitionedHypergraph& phg,
-                  const parallel::scalable_vector<HypernodeID>& refinement_nodes,
+                  const vec<HypernodeID>& refinement_nodes,
                   kahypar::Metrics& metrics,
                   double time_limit) final ;
 
   void initializeImpl(PartitionedHypergraph& phg) final ;
 
   void roundInitialization(PartitionedHypergraph& phg,
-                           const parallel::scalable_vector<HypernodeID>& refinement_nodes);
+                           const vec<HypernodeID>& refinement_nodes);
 
 
   LocalizedKWayFM<FMStrategy> constructLocalizedKWayFMSearch() {

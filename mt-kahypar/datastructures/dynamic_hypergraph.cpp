@@ -489,7 +489,6 @@ DynamicHypergraph DynamicHypergraph::copy(const TaskGroupID task_group_id) {
   hypergraph._num_removed_hyperedges = _num_removed_hyperedges;
   hypergraph._max_edge_size = _max_edge_size;
   hypergraph._num_pins = _num_pins;
-  hypergraph._num_graph_edges = _num_graph_edges;
   hypergraph._total_degree = _total_degree;
   hypergraph._total_weight = _total_weight;
   hypergraph._version = _version;
@@ -531,10 +530,6 @@ DynamicHypergraph DynamicHypergraph::copy(const TaskGroupID task_group_id) {
   }, [&] {
     hypergraph._removable_single_pin_and_parallel_nets =
       kahypar::ds::FastResetFlagArray<>(_num_hyperedges);
-  }, [&] {
-    hypergraph._num_graph_edges_up_to.resize(_num_graph_edges_up_to.size());
-    memcpy(hypergraph._num_graph_edges_up_to.data(), _num_graph_edges_up_to.data(),
-            sizeof(HyperedgeID) * _num_graph_edges_up_to.size());
   });
   return hypergraph;
 }
@@ -550,7 +545,6 @@ DynamicHypergraph DynamicHypergraph::copy() {
   hypergraph._num_removed_hyperedges = _num_removed_hyperedges;
   hypergraph._max_edge_size = _max_edge_size;
   hypergraph._num_pins = _num_pins;
-  hypergraph._num_graph_edges = _num_graph_edges;
   hypergraph._total_degree = _total_degree;
   hypergraph._total_weight = _total_weight;
   hypergraph._version = _version;
@@ -580,10 +574,6 @@ DynamicHypergraph DynamicHypergraph::copy() {
   hypergraph._he_bitset = ThreadLocalBitset(_num_hyperedges);
   hypergraph._removable_single_pin_and_parallel_nets =
     kahypar::ds::FastResetFlagArray<>(_num_hyperedges);
-  hypergraph._num_graph_edges_up_to.resize(_num_graph_edges_up_to.size());
-  memcpy(hypergraph._num_graph_edges_up_to.data(), _num_graph_edges_up_to.data(),
-          sizeof(HyperedgeID) * _num_graph_edges_up_to.size());
-
 
   return hypergraph;
 }
@@ -599,7 +589,6 @@ void DynamicHypergraph::memoryConsumption(utils::MemoryTreeNode* parent) const {
   parent->addChild("Hyperedge Ownership Vector", sizeof(bool) * _acquired_hes.size());
   parent->addChild("Bitsets",
     ( _num_hyperedges * _he_bitset.size() ) / 8UL + sizeof(uint16_t) * _num_hyperedges);
-  parent->addChild("Graph Edge ID Mapping", sizeof(HyperedgeID) * _num_graph_edges_up_to.size());
 
   utils::MemoryTreeNode* contraction_tree_node = parent->addChild("Contraction Tree");
   _contraction_tree.memoryConsumption(contraction_tree_node);

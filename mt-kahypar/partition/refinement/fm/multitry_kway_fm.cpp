@@ -29,7 +29,7 @@ namespace mt_kahypar {
   template<typename FMStrategy>
   bool MultiTryKWayFM<FMStrategy>::refineImpl(
               PartitionedHypergraph& phg,
-              const parallel::scalable_vector<HypernodeID>& refinement_nodes,
+              const vec<HypernodeID>& refinement_nodes,
               kahypar::Metrics& metrics,
               const double time_limit) {
 
@@ -147,7 +147,7 @@ namespace mt_kahypar {
 
   template<typename FMStrategy>
   void MultiTryKWayFM<FMStrategy>::roundInitialization(PartitionedHypergraph& phg,
-                                                       const parallel::scalable_vector<HypernodeID>& refinement_nodes) {
+                                                       const vec<HypernodeID>& refinement_nodes) {
     // clear border nodes
     sharedData.refinementNodes.clear();
 
@@ -189,18 +189,11 @@ namespace mt_kahypar {
 
   template<typename FMStrategy>
   void MultiTryKWayFM<FMStrategy>::initializeImpl(PartitionedHypergraph& phg) {
-    utils::Timer& timer = utils::Timer::instance();
-
     if ( !phg.isGainCacheInitialized() && FMStrategy::maintain_gain_cache_between_rounds ) {
+      utils::Timer& timer = utils::Timer::instance();
       timer.start_timer("init_gain_info", "Initialize Gain Information");
       phg.initializeGainCache();
       timer.stop_timer("init_gain_info");
-    }
-
-    if ( context.refinement.fm.revert_parallel ) {
-      timer.start_timer("set_remaining_original_pins", "Set remaining original pins");
-      globalRollback.setRemainingOriginalPins(phg);
-      timer.stop_timer("set_remaining_original_pins");
     }
 
     is_initialized = true;
@@ -213,7 +206,6 @@ namespace mt_kahypar {
     for (const auto& fm : ets_fm) {
       fm.memoryConsumption(&fm_memory);
     }
-    globalRollback.memoryConsumption(&fm_memory);
     sharedData.memoryConsumption(&fm_memory);
     fm_memory.finalize();
 

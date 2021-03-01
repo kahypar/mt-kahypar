@@ -30,30 +30,19 @@ namespace mt_kahypar {
 class GlobalRollback {
   static constexpr bool enable_heavy_assert = false;
 public:
-  explicit GlobalRollback(const Hypergraph& hg, const Context& context, PartitionID numParts) :
-    context(context),
-    maxPartWeightScaling(context.refinement.fm.rollback_balance_violation_factor),
-    numParts(numParts),
-    remaining_original_pins(),
-    first_move_in(),
-    last_move_out() {
-
-    // In case we perform parallel rollback we need
-    // some additional data structures
-    if ( context.refinement.fm.revert_parallel ) {
-      tbb::parallel_invoke([&] {
-        remaining_original_pins.resize("Refinement", "remaining_original_pins",
-          static_cast<size_t>(hg.numNonGraphEdges()) * numParts);
-      }, [&] {
-        first_move_in.resize("Refinement", "first_move_in",
-          static_cast<size_t>(hg.numNonGraphEdges()) * numParts);
-      }, [&] {
-        last_move_out.resize("Refinement", "last_move_out",
-          static_cast<size_t>(hg.numNonGraphEdges()) * numParts);
-      });
-      resetStoredMoveIDs();
+  explicit GlobalRollback(const Hypergraph& hg, const Context& context) :
+          context(context),
+          max_part_weight_scaling(context.refinement.fm.rollback_balance_violation_factor),
+          num_parts(context.partition.k),
+          ets_recalc_data(vec<RecalculationData>(num_parts)),
+          last_recalc_round(),
+          round(1)
+  {
+    if (context.refinement.fm.iter_moves_on_recalc && context.refinement.fm.rollback_parallel) {
+      last_recalc_round.resize(hg.initialNumEdges(), CAtomic<uint32_t>(0));
     }
   }
+
 
   template<bool update_gain_cache>
   HyperedgeWeight revertToBestPrefix(PartitionedHypergraph& phg,
@@ -83,46 +72,30 @@ public:
       phg.changeNodePart(u, from, to);
     }
   }
-
-  MoveID lastMoveOut(HyperedgeID he, PartitionID block) const {
-    return last_move_out[size_t(he) * numParts + block].load(std::memory_order_relaxed);
-  }
-
-  MoveID firstMoveIn(HyperedgeID he, PartitionID block) const {
-    return first_move_in[size_t(he) * numParts + block].load(std::memory_order_relaxed);
-  }
-
-  HypernodeID remainingPinsFromBeginningOfMovePhase(HyperedgeID he, PartitionID block) const {
-    return remaining_original_pins[size_t(he) * numParts + block].load(std::memory_order_relaxed);
-  }
-
-  bool verifyPinCountMatches(const PartitionedHypergraph& phg) const ;
-
   template<bool update_gain_cache>
   bool verifyGains(PartitionedHypergraph& phg, FMSharedData& sharedData);
 
-  void resetStoredMoveIDs();
-
-  void setRemainingOriginalPins(PartitionedHypergraph& phg);
-
-  void memoryConsumption(utils::MemoryTreeNode* parent) const;
-
+private:
   const Context& context;
 
   // ! Factor to multiply max part weight with, in order to relax or disable the balance criterion. Set to zero for disabling
-  double maxPartWeightScaling;
+  double max_part_weight_scaling;
 
-  PartitionID numParts;
+  PartitionID num_parts;
 
-  // ! For each hyperedge and block, the number of pins_in_part
-  // ! at the beginning of a move phase minus the number of moved out pins
-  // ! A value of zero means at some point a gain improvement might have occured, which then has to be checked
-  // ! with the move ID flagging
-  ds::Array<CAtomic<HypernodeID>> remaining_original_pins;
-  // ! For each hyperedge and each block, the ID of the first move to place a pin in that block
-  ds::Array<CAtomic<MoveID>> first_move_in;
-  // ! For each hyperedge and each block, the ID of the last move to remove a pin from that block
-  ds::Array<CAtomic<MoveID>> last_move_out;
+  struct RecalculationData {
+    MoveID first_in, last_out;
+    HypernodeID remaining_pins;
+    RecalculationData() :
+      first_in(std::numeric_limits<MoveID>::max()),
+      last_out(std::numeric_limits<MoveID>::min()),
+      remaining_pins(0)
+      { }
+  };
+
+  tbb::enumerable_thread_specific< vec<RecalculationData> > ets_recalc_data;
+  vec<CAtomic<uint32_t>> last_recalc_round;
+  uint32_t round;
 };
 
 }
