@@ -162,10 +162,6 @@ private:
     return _hg->initialNumEdges();
   }
 
-  HyperedgeID numNonGraphEdges() const {
-    return _hg->numNonGraphEdges();
-  }
-
   // ! Initial number of pins
   HypernodeID initialNumPins() const {
     return _hg->initialNumPins();
