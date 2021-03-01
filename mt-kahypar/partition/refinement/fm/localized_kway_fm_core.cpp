@@ -190,8 +190,7 @@ namespace mt_kahypar {
           bestImprovementIndex = localMoves.size();
 
           if constexpr (use_delta) {
-            constexpr size_t move_apply_threshold = 100;    // TODO make parameter? we want to be able to turn it off
-            if (runStats.moves - num_moves_at_last_apply > move_apply_threshold) {
+            if (runStats.moves - num_moves_at_last_apply > context.refinement.fm.move_apply_frequency) {
               applyBestLocalPrefixToSharedPartition(phg, bestImprovementIndex, bestImprovement, true /* apply all moves */);
               bestImprovementIndex = 0;
               localMoves.clear();

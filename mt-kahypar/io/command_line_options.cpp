@@ -293,6 +293,10 @@ namespace mt_kahypar {
              po::value<size_t>((initial_partitioning ? &context.initial_partitioning.refinement.fm.multitry_rounds :
                                 &context.refinement.fm.multitry_rounds))->value_name("<size_t>")->default_value(10),
              "Number of FM rounds within one level of the multilevel hierarchy.")
+            ((initial_partitioning ? "i-r-fm-apply-frequency" : "r-fm-apply-frequency"),
+             po::value<size_t>((initial_partitioning ? &context.initial_partitioning.refinement.fm.move_apply_frequency :
+                                &context.refinement.fm.move_apply_frequency))->value_name("<size_t>")->default_value(std::numeric_limits<size_t>::max()),
+             "Number of moves to perform before applying the best local prefix so far to the globally shared partition.")
             ((initial_partitioning ? "i-r-fm-perform-moves-global" : "r-fm-perform-moves-global"),
              po::value<bool>((initial_partitioning ? &context.initial_partitioning.refinement.fm.perform_moves_global :
                               &context.refinement.fm.perform_moves_global))->value_name("<bool>")->default_value(false),
