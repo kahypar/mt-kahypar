@@ -331,16 +331,6 @@ namespace mt_kahypar {
     local_moves_node->updateSize(localMoves.capacity() * sizeof(std::pair<Move, MoveID>));
 
     fm_strategy.memoryConsumption(localized_fm_node);
-    // TODO fm_strategy.memoryConsumptiom(..)
-    /*
-    utils::MemoryTreeNode* block_pq_node = localized_fm_node->addChild("Block PQ");
-    block_pq_node->updateSize(blockPQ.size_in_bytes());
-    utils::MemoryTreeNode* vertex_pq_node = localized_fm_node->addChild("Vertex PQ");
-    for ( const VertexPriorityQueue& pq : vertexPQs ) {
-      vertex_pq_node->updateSize(pq.size_in_bytes());
-    }
-     */
-
     deltaPhg.memoryConsumption(localized_fm_node);
   }
 
