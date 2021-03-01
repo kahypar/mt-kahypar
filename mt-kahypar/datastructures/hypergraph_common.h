@@ -76,17 +76,17 @@ namespace ds {
 }
 
 struct Move {
-  PartitionID from = -1;
-  PartitionID to = -1;
+  PartitionID from = kInvalidPartition;
+  PartitionID to = kInvalidPartition;
   HypernodeID node = invalidNode;
   Gain gain = invalidGain;
 
   bool isValid() const {
-    return from != -1;
+    return from != kInvalidPartition;
   }
 
   void invalidate() {
-    from = -1;
+    from = kInvalidPartition;
   }
 };
 

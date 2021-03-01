@@ -47,7 +47,7 @@ public:
     context(c),
     taskGroupID(taskGroupID),
     sharedData(hypergraph.initialNumNodes(), context),
-    globalRollback(hypergraph, context, context.partition.k),
+    globalRollback(hypergraph, context),
     ets_fm([&] { return constructLocalizedKWayFMSearch(); })
   {
     if (context.refinement.fm.obey_minimal_parallelism) {

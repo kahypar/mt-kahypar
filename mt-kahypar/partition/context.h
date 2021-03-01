@@ -138,7 +138,7 @@ struct FMParameters {
 
   bool perform_moves_global = false;
   bool rollback_parallel = true;
-  bool rollback_sensitive_to_num_moves = false;
+  bool iter_moves_on_recalc = false;
   bool shuffle = true;
   mutable bool obey_minimal_parallelism = false;
   bool release_nodes = true;
