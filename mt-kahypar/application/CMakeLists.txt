@@ -11,10 +11,20 @@ set_property(TARGET MtKaHyParStrong PROPERTY CXX_STANDARD 17)
 set_property(TARGET MtKaHyParStrong PROPERTY CXX_STANDARD_REQUIRED ON)
 target_compile_definitions(MtKaHyParStrong PUBLIC USE_STRONG_PARTITIONER)
 
+add_executable(ILPSolver ilp_solver.cc)
+target_link_libraries(ILPSolver ${Boost_LIBRARIES})
+target_link_libraries(ILPSolver pthread)
+target_link_libraries(ILPSolver ${GUROBI_LIBRARY})
+set_property(TARGET ILPSolver PROPERTY CXX_STANDARD 17)
+set_property(TARGET ILPSolver PROPERTY CXX_STANDARD_REQUIRED ON)
+target_compile_definitions(ILPSolver PUBLIC USE_STRONG_PARTITIONER)
+
+
 if(ENABLE_PROFILE MATCHES ON)
   target_link_libraries(MtKaHyParFast ${PROFILE_FLAGS})
   target_link_libraries(MtKaHyParStrong ${PROFILE_FLAGS})
+  target_link_libraries(ILPSolver ${PROFILE_FLAGS})
 endif()
 
 
-set(TARGETS_WANTING_ALL_SOURCES ${TARGETS_WANTING_ALL_SOURCES} MtKaHyParFast MtKaHyParStrong PARENT_SCOPE)
+set(TARGETS_WANTING_ALL_SOURCES ${TARGETS_WANTING_ALL_SOURCES} MtKaHyParFast MtKaHyParStrong ILPSolver PARENT_SCOPE)
