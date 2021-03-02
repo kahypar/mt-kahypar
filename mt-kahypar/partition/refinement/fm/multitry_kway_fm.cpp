@@ -77,13 +77,17 @@ namespace mt_kahypar {
       auto task = [&](const size_t task_id) {
         auto t_start = tbb::tick_count::now();
         tbb::tick_count t_switch;
-        bool recorded_switch = sharedData.deltaExceededMemoryConstraints;
+        bool recorded_switch = sharedData.deltaExceededMemoryConstraints || context.refinement.fm.perform_moves_global;
+        if (recorded_switch) {
+          t_switch = t_start;
+        }
 
         auto& fm = ets_fm.local();
         while(sharedData.finishedTasks.load(std::memory_order_relaxed) < sharedData.finishedTasksLimit
               && fm.findMoves(phg, task_id, num_seeds))
         { /* keep running*/
-          if (!recorded_switch && sharedData.deltaExceededMemoryConstraints) {
+          if (!recorded_switch
+                && (sharedData.deltaExceededMemoryConstraints || context.refinement.fm.perform_moves_global)) {
             recorded_switch = true;
             t_switch = tbb::tick_count::now();
           }
