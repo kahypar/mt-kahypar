@@ -458,6 +458,17 @@ class DynamicSparseMap {
     allocate(MAP_SIZE);
   }
 
+  explicit DynamicSparseMap(const size_t size) :
+    _capacity(0),
+    _initial_value(),
+    _data(nullptr),
+    _size(0),
+    _timestamp(1),
+    _sparse(nullptr),
+    _dense(nullptr) {
+    allocate(size);
+  }
+
   DynamicSparseMap(const DynamicSparseMap&) = delete;
   DynamicSparseMap& operator= (const DynamicSparseMap& other) = delete;
 
