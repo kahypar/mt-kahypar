@@ -8,6 +8,7 @@ target_sources(mt_kahypar_fast_tests PRIVATE
         multitry_fm_test.cc
         fm_strategy_test.cc
         ilp_hypergraph_test.cc
+        ilp_model_test.cc
         )
 
 target_sources(mt_kahypar_strong_tests PRIVATE
@@ -20,4 +21,5 @@ target_sources(mt_kahypar_strong_tests PRIVATE
         multitry_fm_test.cc
         fm_strategy_test.cc
         ilp_hypergraph_test.cc
+        ilp_model_test.cc
         )

@@ -17,7 +17,6 @@ target_link_libraries(ILPSolver pthread)
 target_link_libraries(ILPSolver ${GUROBI_LIBRARY})
 set_property(TARGET ILPSolver PROPERTY CXX_STANDARD 17)
 set_property(TARGET ILPSolver PROPERTY CXX_STANDARD_REQUIRED ON)
-target_compile_definitions(ILPSolver PUBLIC USE_STRONG_PARTITIONER)
 
 
 if(ENABLE_PROFILE MATCHES ON)

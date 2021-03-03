@@ -3,6 +3,7 @@ set(RefinementSources
         fm/localized_kway_fm_core.cpp
         fm/global_rollback.cpp
         fm/sequential_twoway_fm_refiner.cpp
+        ilp/ilp_model.cpp
         label_propagation/label_propagation_refiner.cpp
         rebalancing/rebalancer.cpp
         )

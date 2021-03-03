@@ -4,22 +4,35 @@
 
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/metrics.h"
+#include "mt-kahypar/io/command_line_options.h"
+#include "mt-kahypar/partition/partitioner.h"
 
 using namespace mt_kahypar;
 
 class HGP_ILP {
 
+  class ILPCallback : public GRBCallback {
+   protected:
+     void callback() { }
+  };
+
  public:
-  HGP_ILP(Hypergraph& hg, const PartitionID k, const HypernodeWeight max_weight) :
+  HGP_ILP(Hypergraph& hg,
+          PartitionedHypergraph& initial_solution,
+          const PartitionID k,
+          const HypernodeWeight max_weight) :
     _hg(hg),
+    _initial_solution(initial_solution),
     _k(k),
     _max_weight(max_weight),
     _env(true),
     _model(nullptr),
+    _callback(),
     _variables(_hg.initialNumNodes() * _k + _hg.initialNumEdges() * _k) {
-    _env.set("LogFile", "mip1.log");
     _env.start();
     _model = std::make_unique<GRBModel>(_env);
+    _model->set(GRB_IntParam_Threads, std::thread::hardware_concurrency());
+    _model->setCallback(&_callback);
 
     // Add Model Variables
     addModelVariables();
@@ -73,12 +86,14 @@ class HGP_ILP {
     for ( const HypernodeID& hn : _hg.nodes() ) {
       for ( PartitionID i = 0; i < _k; ++i ) {
         _variables[vertex_offset(hn, i)] = _model->addVar(0.0, 1.0, 0.0, GRB_BINARY, vertex_var_desc(hn, i));
+        _variables[vertex_offset(hn, i)].set(GRB_DoubleAttr_Start, (_initial_solution.partID(hn) == i));
       }
     }
 
     for ( const HypernodeID& he : _hg.edges() ) {
       for ( PartitionID i = 0; i < _k; ++i ) {
         _variables[hyperedge_offset(he, i)] = _model->addVar(0.0, 1.0, 0.0, GRB_BINARY, hyperedge_var_desc(he, i));
+        _variables[hyperedge_offset(he, i)].set(GRB_DoubleAttr_Start, (_initial_solution.pinCountInPart(he, i) > 0));
       }
     }
   }
@@ -144,10 +159,12 @@ class HGP_ILP {
   }
 
   Hypergraph& _hg;
+  PartitionedHypergraph& _initial_solution;
   const PartitionID _k;
   const HypernodeWeight _max_weight;
   GRBEnv _env;
   std::unique_ptr<GRBModel> _model;
+  ILPCallback _callback;
   std::vector<GRBVar> _variables;
 };
 
@@ -173,17 +190,28 @@ Hypergraph generateRandomHypergraph(const HypernodeID num_hypernodes,
 
 int main() {
 
-  const HypernodeID num_nodes = 1000;
-  const HyperedgeID num_edges = 1000;
-  const HypernodeID max_edge_size = 2;
+  const HypernodeID num_nodes = 100;
+  const HyperedgeID num_edges = 100;
+  const HypernodeID max_edge_size = 10;
 
   Hypergraph hg = generateRandomHypergraph(num_nodes, num_edges, max_edge_size);
   const double epsilon = 0.03;
   const PartitionID k = 2;
   const HypernodeWeight l_max = (1.0 + epsilon) * std::ceil(static_cast<double>(hg.totalWeight()) / k);
 
+  Context context;
+  parseIniToContext(context, "/home/tobias/mt-kahypar/config/fast_preset.ini");
+  context.partition.k = k;
+  context.partition.epsilon = epsilon;
+  context.partition.objective = kahypar::Objective::km1;
+  context.partition.verbose_output = false;
+
+  // Compute Initial Solution
+  PartitionedHypergraph initial_solution = partition(hg, context);
+  std::cout << "Connectivity Metric: " << metrics::km1(initial_solution) << std::endl;
+
   try {
-    HGP_ILP ilp(hg, k, l_max);
+    HGP_ILP ilp(hg, initial_solution, k, l_max);
     PartitionedHypergraph phg = ilp.solve();
     ilp.printObjective();
     std::cout << "Connectivity Metric: " << metrics::km1(phg) << std::endl;

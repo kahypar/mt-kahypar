@@ -32,7 +32,7 @@ namespace mt_kahypar {
 /**
  * Hypergraph that takes a small subset of the nodes and conceptually contracts
  * the vertices that are not part of the subset and belongs to the same block of
- * the partition into one supervertex.
+ * the partition into one supervertex for each block.
  */
 class ILPHypergraph {
 
@@ -259,6 +259,11 @@ class ILPHypergraph {
     }
   }
 
+  PartitionID toOriginalBlock(const PartitionID p) const {
+    ASSERT(p < _k);
+    return _contained_blocks[p];
+  }
+
   // ####################### Hyperedge Information #######################
 
   // ! Weight of a hyperedge
@@ -270,7 +275,7 @@ class ILPHypergraph {
   // ! Returns weather hyperedge contains pin in block p or not
   bool containsPinInPart(const HyperedgeID e, const PartitionID p) const {
     ASSERT(e < _num_edges && p < _k);
-    return _phg.pinCountInPart(e, _contained_blocks[p]) > 0;
+    return _phg.pinCountInPart(_ilp_hes_to_hg[e], _contained_blocks[p]) > 0;
   }
 
  private:
