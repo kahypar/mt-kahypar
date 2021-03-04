@@ -890,22 +890,17 @@ class StaticHypergraph {
   // ! Inserts hyperedge he to incident nets array of vertex hn
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE void insertIncidentEdgeToHypernode(const HyperedgeID e,
                                                                         const HypernodeID u) {
-    using std::swap;
     Hypernode& hn = hypernode(u);
     ASSERT(!hn.isDisabled(), "Hypernode" << u << "is disabled");
     HEAVY_REFINEMENT_ASSERT(std::count(_incident_nets.cbegin() + hn.firstEntry(),
                                        _incident_nets.cbegin() + hn.firstInvalidEntry(), e) == 0,
                         "HN" << u << "is already connected to HE" << e);
-    const size_t incident_nets_start = hn.firstInvalidEntry();
-    const size_t incident_nets_end = hypernode(u + 1).firstEntry();
-    size_t incident_nets_pos = incident_nets_start;
-    for ( ; incident_nets_pos < incident_nets_end; ++incident_nets_pos ) {
-      if ( _incident_nets[incident_nets_pos] == e ) {
-        break;
-      }
-    }
-    ASSERT(incident_nets_pos < incident_nets_end);
-    swap(_incident_nets[incident_nets_start], _incident_nets[incident_nets_pos]);
+    ASSERT(std::find(_incident_nets.cbegin() + hn.firstInvalidEntry(),
+                     _incident_nets.cbegin() + hypernode(u + 1).firstEntry(), e) !=
+           _incident_nets.cbegin() + hypernode(u + 1).firstEntry(),
+           "HE" << e << "was never connected to HN" << u);
+
+    _incident_nets[hn.firstInvalidEntry()] = e;
     hn.setSize(hn.size() + 1);
   }
 
