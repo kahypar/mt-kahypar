@@ -22,44 +22,71 @@
 #include "gmock/gmock.h"
 
 #include "mt-kahypar/definitions.h"
+#include "mt-kahypar/partition/metrics.h"
 #include "mt-kahypar/partition/refinement/ilp/ilp_model.h"
 
 using ::testing::Test;
 
 namespace mt_kahypar {
 
-class AILPModel : public Test {
-public:
-
-  AILPModel() :
-    hg(HypergraphFactory::construct(TBBNumaArena::GLOBAL_TASK_GROUP,
-        7, 4, {{0, 2}, {0, 1, 3, 4}, {3, 4, 6}, {2, 5, 6}})),
-    phg(),
-    context(),
-    env() {
-    phg = PartitionedHypergraph(2, TBBNumaArena::GLOBAL_TASK_GROUP, hg);
-    phg.setOnlyNodePart(0, 0);
-    phg.setOnlyNodePart(1, 0);
-    phg.setOnlyNodePart(2, 0);
-    phg.setOnlyNodePart(3, 0);
-    phg.setOnlyNodePart(4, 1);
-    phg.setOnlyNodePart(5, 1);
-    phg.setOnlyNodePart(6, 1);
-    phg.initializePartition(TBBNumaArena::GLOBAL_TASK_GROUP);
-    context.partition.max_part_weights.assign(2, 4);
+void assignVerticesToBlocks(PartitionedHypergraph& phg,
+                            const vec<PartitionID>& partition) {
+  ASSERT(phg.initialNumNodes() == ID(partition.size()));
+  for ( const HypernodeID& hn : phg.nodes() ) {
+    phg.setOnlyNodePart(hn, partition[hn]);
   }
+  phg.initializePartition(TBBNumaArena::GLOBAL_TASK_GROUP);
+}
 
-  Hypergraph hg;
-  PartitionedHypergraph phg;
+void applyILPSolution(PartitionedHypergraph& phg,
+                      ILPModel& model,
+                      const vec<HypernodeID>& nodes) {
+  for ( const HypernodeID& hn : nodes ) {
+    const PartitionID from = phg.partID(hn);
+    const PartitionID to = model.partID(hn);
+    if ( from != to ) {
+      phg.changeNodePart(hn, from, to);
+    }
+  }
+}
+
+TEST(AILPModel, OptimizesConnectivityMetric1) {
+  // Setup Hypergraph
+  Hypergraph hg = HypergraphFactory::construct(
+    TBBNumaArena::GLOBAL_TASK_GROUP, 7, 4,
+    {{0, 2}, {0, 1, 3, 4}, {3, 4, 6}, {2, 5, 6}});
+  const PartitionID k = 2;
+  PartitionedHypergraph phg(k, TBBNumaArena::GLOBAL_TASK_GROUP, hg);
+  assignVerticesToBlocks(phg, { 0, 0, 0, 0, 1, 1, 1 });
+
+  // Setup Context
   Context context;
-  GRBEnv env;
-};
+  context.partition.max_part_weights.assign(2, 4);
 
-TEST_F(AILPModel, TEST) {
-  ILPHypergraph ilp_hg(phg, { 1, 3, 4 });
+  // Setup ILP Problem
+  const vec<HypernodeID> nodes = {1, 3, 4};
+  ILPHypergraph ilp_hg(phg, nodes);
+  GRBEnv env;
   ILPModel model(ilp_hg, context, env);
   model.construct();
+
+  // Solve ILP Problem
+  const HyperedgeWeight model_objective_before = model.getObjective();
+  const HyperedgeWeight connectivity_before = metrics::km1(phg);
   model.solve();
+  const HyperedgeWeight model_objective_after = model.getObjective();
+  const HyperedgeWeight delta = model_objective_before - model_objective_after;
+
+  // Apply ILP Solution
+  applyILPSolution(phg, model, nodes);
+
+  // Verify Correctness of Solution
+  const HyperedgeWeight connectivity_after = metrics::km1(phg);
+  ASSERT_EQ(delta, 1);
+  ASSERT_EQ(connectivity_before - delta, connectivity_after);
+  for ( PartitionID i = 0; i < k; ++i ) {
+    ASSERT_LE(phg.partWeight(i), context.partition.max_part_weights[i]);
+  }
 }
 
 

@@ -53,7 +53,7 @@ public:
 TEST_F(AILPHypergraph, ChecksNumberOfNodesAndEdges) {
   vec<HypernodeID> nodes = { 1, 3, 4 };
   ILPHypergraph ilp_hg(phg, nodes);
-  ASSERT_EQ(5, ilp_hg.numNodes());
+  ASSERT_EQ(3, ilp_hg.numNodes());
   ASSERT_EQ(2, ilp_hg.numEdges());
 }
 
@@ -65,18 +65,7 @@ TEST_F(AILPHypergraph, IteratesOverNodes) {
   for ( const HypernodeID& hn : ilp_hg.nodes() ) {
     ASSERT_EQ(expected_hn++, hn);
   }
-  ASSERT_EQ(5, expected_hn);
-}
-
-TEST_F(AILPHypergraph, IteratesOverVerticesRepresentingBlockVertices) {
-  vec<HypernodeID> nodes = { 1, 3, 4 };
-  ILPHypergraph ilp_hg(phg, nodes);
-
-  HypernodeID expected_hn = 3;
-  for ( const HypernodeID& hn : ilp_hg.block_nodes() ) {
-    ASSERT_EQ(expected_hn++, hn);
-  }
-  ASSERT_EQ(5, expected_hn);
+  ASSERT_EQ(3, expected_hn);
 }
 
 TEST_F(AILPHypergraph, IteratesOverEdges) {
@@ -182,9 +171,16 @@ TEST_F(AILPHypergraph, VerifyNodeWeights1) {
   ASSERT_EQ(1, ilp_hg.nodeWeight(0));
   ASSERT_EQ(1, ilp_hg.nodeWeight(1));
   ASSERT_EQ(1, ilp_hg.nodeWeight(2));
-  ASSERT_EQ(2, ilp_hg.nodeWeight(3));
-  ASSERT_EQ(2, ilp_hg.nodeWeight(4));
 }
+
+TEST_F(AILPHypergraph, VerifySuperVertexWeights1) {
+  vec<HypernodeID> nodes = { 1, 3, 4 };
+  ILPHypergraph ilp_hg(phg, nodes);
+
+  ASSERT_EQ(2, ilp_hg.superVertexWeight(0));
+  ASSERT_EQ(2, ilp_hg.superVertexWeight(1));
+}
+
 
 TEST_F(AILPHypergraph, VerifyNodeWeights2) {
   vec<HypernodeID> nodes = { 1, 3 };
@@ -192,8 +188,14 @@ TEST_F(AILPHypergraph, VerifyNodeWeights2) {
 
   ASSERT_EQ(1, ilp_hg.nodeWeight(0));
   ASSERT_EQ(1, ilp_hg.nodeWeight(1));
-  ASSERT_EQ(2, ilp_hg.nodeWeight(2));
-  ASSERT_EQ(3, ilp_hg.nodeWeight(3));
+}
+
+TEST_F(AILPHypergraph, VerifySuperVertexWeights2) {
+  vec<HypernodeID> nodes = { 1, 3 };
+  ILPHypergraph ilp_hg(phg, nodes);
+
+  ASSERT_EQ(2, ilp_hg.superVertexWeight(0));
+  ASSERT_EQ(3, ilp_hg.superVertexWeight(1));
 }
 
 TEST_F(AILPHypergraph, VerifyEdgeWeights1) {
@@ -241,8 +243,8 @@ TEST_F(AILPHypergraph, MapsBlockIdsCorrectly1) {
   ASSERT_EQ(2, ilp_hg.k());
   ASSERT_EQ(0, ilp_hg.partID(0));
   ASSERT_EQ(1, ilp_hg.partID(1));
-  ASSERT_EQ(0, ilp_hg.partID(2));
-  ASSERT_EQ(1, ilp_hg.partID(3));
+  ASSERT_EQ(0, ilp_hg.superVertexBlock(2));
+  ASSERT_EQ(1, ilp_hg.superVertexBlock(3));
 }
 
 TEST_F(AILPHypergraph, MapsBlockIdsCorrectly2) {
@@ -261,8 +263,8 @@ TEST_F(AILPHypergraph, MapsBlockIdsCorrectly2) {
   ASSERT_EQ(2, ilp_hg.k());
   ASSERT_EQ(1, ilp_hg.partID(0));
   ASSERT_EQ(1, ilp_hg.partID(1));
-  ASSERT_EQ(0, ilp_hg.partID(2));
-  ASSERT_EQ(1, ilp_hg.partID(3));
+  ASSERT_EQ(0, ilp_hg.superVertexBlock(2));
+  ASSERT_EQ(1, ilp_hg.superVertexBlock(3));
 }
 
 TEST_F(AILPHypergraph, MapsBlockIdsCorrectly3) {
@@ -282,9 +284,9 @@ TEST_F(AILPHypergraph, MapsBlockIdsCorrectly3) {
   ASSERT_EQ(0, ilp_hg.partID(0));
   ASSERT_EQ(0, ilp_hg.partID(1));
   ASSERT_EQ(1, ilp_hg.partID(2));
-  ASSERT_EQ(0, ilp_hg.partID(3));
-  ASSERT_EQ(1, ilp_hg.partID(4));
-  ASSERT_EQ(2, ilp_hg.partID(5));
+  ASSERT_EQ(0, ilp_hg.superVertexBlock(3));
+  ASSERT_EQ(1, ilp_hg.superVertexBlock(4));
+  ASSERT_EQ(2, ilp_hg.superVertexBlock(5));
 }
 
 } // namespace

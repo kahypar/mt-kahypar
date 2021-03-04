@@ -24,6 +24,8 @@
 
 #include "ilp_model.h"
 
+#include "kahypar/datastructure/fast_reset_flag_array.h"
+
 namespace mt_kahypar {
 
 /**
@@ -47,20 +49,22 @@ namespace mt_kahypar {
  * Objective Function:
  * minimize \sum_{e \in E} (\lambda(e) - 1) * \omega(e) with \lambda(e) = \sum_{i = 1}^k y_{e,i}
  *
- * Optimizations (TODOs):
+ * Optimizations:
  *  - remove super vertices that represents vertices of a block not contained in the ILP
  *    o For a supervertex v representing block i, we adapt the balance constraint to ... <= L_max - c(v)
  *    o If a supervertex v representing block i is contained in a hyperedge e, we can remove
  *      variable y_{e,i} because each solution will have y_{e,i} = 1 (adapt objective function accordingly).
- *  - add balance constraint lazily, e.g. if optimal solution is found but did not satisfy the balance constraint
+ *  - If we can assign all vertices of the subhypergraph to a block without violating the balance constraint,
+ *    we do not add the corresponding constraint to the ILP problem.
+ *  - add balance constraint lazily, e.g. if optimal solution is found but did not satisfy the balance constraint (TODO)
  */
 void ILPModel::construct() {
   try {
     addVariablesToModel();
-    addObjectiveFunction();
-    restrictVerticesToOneBlock();
-    balanceConstraint();
-    modelHyperedgeConnectivity();
+    addObjectiveFunction();         // Connectivity Metric
+    restrictVerticesToOneBlock();   // Constraint (1)
+    balanceConstraint();            // Constraint (2)
+    modelHyperedgeConnectivity();   // Constraint (3)
     _is_constructed = true;
   } catch(GRBException e) {
     ERROR("Error code = " << e.getErrorCode() << "Message =" << e.getMessage());
@@ -79,13 +83,40 @@ void ILPModel::addVariablesToModel() {
     }
   }
 
+  kahypar::ds::FastResetFlagArray<> _unremovable_blocks(_hg.k());
   for ( const HypernodeID& he : _hg.edges() ) {
-    for ( PartitionID i = 0; i < _hg.k(); ++i ) {
-      _variables[hyperedge_offset(he, i)] =
-        _model.addVar(0.0, 1.0, 0.0, GRB_BINARY, hyperedge_var_desc(he, i));
-      _variables[hyperedge_offset(he, i)].set(
-        GRB_DoubleAttr_Start, (_hg.containsPinInPart(he, i)));
+
+    // Count the number of blocks in hyperedge he that are unremovable
+    // => A block is unremovable, if hyperedge he contains a super vertex assigned to that block
+    for ( const HypernodeID& pin : _hg.pins(he) ) {
+      // Super vertices can not change their block
+      if ( _hg.isSuperVertex(pin) ) {
+        const PartitionID block = _hg.superVertexBlock(pin);
+        if ( !_unremovable_blocks[block] ) {
+          ++_num_unremovable_blocks[he];
+          _unremovable_blocks.set(block, true);
+        }
+      }
     }
+
+    HyperedgeWeight connectivity = 0;
+    for ( PartitionID i = 0; i < _hg.k(); ++i ) {
+      // Only add variable y_{e,i} to ILP, if we can potentially
+      // remove block i from hyperedge e
+      if ( !_unremovable_blocks[i] ) {
+        _variables[hyperedge_offset(he, i)] =
+          _model.addVar(0.0, 1.0, 0.0, GRB_BINARY, hyperedge_var_desc(he, i));
+        const bool contains_pin_in_block = _hg.containsPinInPart(he, i);
+        _variables[hyperedge_offset(he, i)].set(
+          GRB_DoubleAttr_Start, contains_pin_in_block);
+        connectivity += contains_pin_in_block;
+      } else {
+        _contains_variable[hyperedge_offset(he, i)] = false;
+        ++connectivity;
+      }
+    }
+    _objective += (connectivity - 1) * _hg.edgeWeight(he);
+    _unremovable_blocks.reset();
   }
 }
 
@@ -93,16 +124,19 @@ void ILPModel::addVariablesToModel() {
 void ILPModel::addObjectiveFunction() {
   GRBLinExpr connectivity_metric = 0;
   for ( const HypernodeID& he : _hg.edges() ) {
-    GRBLinExpr connectivity = 0;
+    GRBLinExpr connectivity = _num_unremovable_blocks[he];
     for ( PartitionID i = 0; i < _hg.k(); ++i ) {
-      connectivity += _variables[hyperedge_offset(he, i)];
+      const size_t he_offset = hyperedge_offset(he, i);
+      if ( _contains_variable[he_offset] ) {
+        connectivity += _variables[he_offset];
+      }
     }
     connectivity_metric += (connectivity - 1) * _hg.edgeWeight(he);
   }
   _model.setObjective(connectivity_metric, GRB_MINIMIZE);
 }
 
-// ! Models constraints (1)
+// ! Models constraint (1)
 void ILPModel::restrictVerticesToOneBlock() {
   for ( const HypernodeID& hn : _hg.nodes() ) {
     GRBLinExpr only_one_block = 0;
@@ -113,27 +147,35 @@ void ILPModel::restrictVerticesToOneBlock() {
   }
 }
 
-// ! Models constraints (2)
+// ! Models constraint (2)
 void ILPModel::balanceConstraint() {
   for ( PartitionID i = 0; i < _hg.k(); ++i ) {
     const PartitionID original_block = _hg.toOriginalBlock(i);
-    GRBLinExpr constraint = 0;
-    for ( const HypernodeID& hn : _hg.nodes() ) {
-      constraint += _variables[vertex_offset(hn, i)] * _hg.nodeWeight(hn);
+    const HypernodeWeight l_max =
+      _context.partition.max_part_weights[original_block] - _hg.superVertexWeight(i);
+    // Only add balance constraint for block i, if we would violate the balance constraint
+    // if all vertices are assigned to that block
+    if ( _hg.subhypergraphWeight() > l_max ) {
+      GRBLinExpr constraint = 0;
+      for ( const HypernodeID& hn : _hg.nodes() ) {
+        constraint += _variables[vertex_offset(hn, i)] * _hg.nodeWeight(hn);
+      }
+      _model.addConstr(constraint <= l_max, "balance_constraint_" + std::to_string(i));
     }
-    _model.addConstr(constraint <= _context.partition.max_part_weights[original_block],
-      "balance_constraint_" + std::to_string(i));
   }
 }
 
-// ! Models constraints (3)
+// ! Models constraint (3)
 void ILPModel::modelHyperedgeConnectivity() {
   for ( const HyperedgeID& he : _hg.edges() ) {
     for ( const HypernodeID& pin : _hg.pins(he) ) {
       for ( PartitionID i = 0; i < _hg.k(); ++i ) {
-        _model.addConstr(_variables[hyperedge_offset(he,i)] >= _variables[vertex_offset(pin,i)],
-          "connectivity_values_" + std::to_string(he) + "_" +
-          std::to_string(pin) + "_" + std::to_string(i));
+        const size_t he_offset = hyperedge_offset(he,i);
+        if ( _contains_variable[he_offset] ) {
+          _model.addConstr(_variables[he_offset] >= _variables[vertex_offset(pin,i)],
+            "connectivity_values_" + std::to_string(he) + "_" +
+            std::to_string(pin) + "_" + std::to_string(i));
+        }
       }
     }
   }
