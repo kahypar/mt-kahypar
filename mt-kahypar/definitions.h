@@ -26,8 +26,13 @@
 #include "mt-kahypar/datastructures/dynamic_hypergraph.h"
 #include "mt-kahypar/datastructures/dynamic_hypergraph_factory.h"
 #else
+#ifdef USE_GRAPH_STRUCTURE
+#include "mt-kahypar/datastructures/static_graph.h"
+#include "mt-kahypar/datastructures/static_graph_factory.h"
+#else
 #include "mt-kahypar/datastructures/static_hypergraph.h"
 #include "mt-kahypar/datastructures/static_hypergraph_factory.h"
+#endif
 #endif
 #include "mt-kahypar/datastructures/partitioned_hypergraph.h"
 
@@ -38,11 +43,21 @@ using TBBInitializer = mt_kahypar::parallel::TBBInitializer<HardwareTopology, fa
 
 
 #ifdef USE_STRONG_PARTITIONER
+#ifdef USE_GRAPH_STRUCTURE
+// not supported yet
+static_assert(false);
+#else
 using Hypergraph = ds::DynamicHypergraph;
 using HypergraphFactory = ds::DynamicHypergraphFactory;
+#endif
+#else
+#ifdef USE_GRAPH_STRUCTURE
+using Hypergraph = ds::StaticGraph;
+using HypergraphFactory = ds::StaticGraphFactory;
 #else
 using Hypergraph = ds::StaticHypergraph;
 using HypergraphFactory = ds::StaticHypergraphFactory;
+#endif
 #endif
 using PartitionedHypergraph = ds::PartitionedHypergraph<Hypergraph, HypergraphFactory>;
 

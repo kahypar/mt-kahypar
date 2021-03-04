@@ -4,6 +4,8 @@ set(DatastructureSources
         dynamic_hypergraph_factory.cpp
         static_hypergraph_factory.cpp
         static_hypergraph.cpp
+        static_graph_factory.cpp
+        static_graph.cpp
         graph.cpp
         incident_net_array.cpp)
 

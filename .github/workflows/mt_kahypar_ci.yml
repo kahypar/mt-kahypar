@@ -34,6 +34,7 @@ jobs:
           cd debug
           ./tests/mt_kahypar_fast_tests;
           ./tests/mt_kahypar_strong_tests;
+          ./tests/mt_kahypar_fast_graph_tests;
 
       - name: Report Code Coverage
         run: |

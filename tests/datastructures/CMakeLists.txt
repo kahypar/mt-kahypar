@@ -25,3 +25,6 @@ target_sources(mt_kahypar_strong_tests PRIVATE
         incident_net_array_test.cc
         nlevel_smoke_test.cc
 )
+
+target_sources(mt_kahypar_fast_graph_tests PRIVATE
+)
