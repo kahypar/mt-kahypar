@@ -57,7 +57,8 @@ void solve(PartitionedHypergraph& phg,
            bool verify_delta = true,
            bool is_parallel = false) {
   // Setup ILP Problem
-  ILPHypergraph ilp_hg(phg, nodes);
+  ILPHypergraph ilp_hg(phg);
+  ilp_hg.initialize(nodes);
   GRBEnv env;
   ILPModel model(ilp_hg, context, env);
   model.construct();

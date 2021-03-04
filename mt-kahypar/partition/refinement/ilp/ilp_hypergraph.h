@@ -169,22 +169,19 @@ class ILPHypergraph {
   using HyperedgeIterator = SimpleIterator<HyperedgeID>;
 
  public:
-  explicit ILPHypergraph(const PartitionedHypergraph& phg,
-                         const vec<HypernodeID>& nodes) :
-    _num_nodes(nodes.size()),
+  explicit ILPHypergraph(const PartitionedHypergraph& phg) :
+    _num_nodes(0),
     _num_edges(0),
     _k(kInvalidPartition),
     _subgraph_weight(0),
     _phg(phg),
     _contained_blocks(),
     _to_ilp_block(phg.k(), kInvalidPartition),
-    _ilp_hns_to_hg(nodes),
-    _hns_to_ilp_hg(6 * nodes.size()),
+    _ilp_hns_to_hg(),
+    _hns_to_ilp_hg(2),
     _ilp_hes_to_hg(),
     _super_vertex_weights(phg.k(), 0),
-    _marked_blocks(phg.k()) {
-    initialize();
-  }
+    _marked_blocks(phg.k()) { }
 
   // ####################### General Hypergraph Stats ######################
 
@@ -299,8 +296,12 @@ class ILPHypergraph {
     return _phg.pinCountInPart(_ilp_hes_to_hg[e], _contained_blocks[p]) > 0;
   }
 
- private:
-  void initialize() {
+
+  // ####################### Initialization / Reset #######################
+
+  void initialize(const vec<HypernodeID>& nodes) {
+    _num_nodes = nodes.size();
+    _ilp_hns_to_hg = nodes;
     // Initialize weight of each block
     for ( PartitionID k = 0; k < _phg.k(); ++k ) {
       _super_vertex_weights[k] = _phg.partWeight(k);
@@ -343,6 +344,22 @@ class ILPHypergraph {
     }
   }
 
+  void reset() {
+    _num_nodes = 0;
+    _num_edges = 0;
+    _k = kInvalidPartition;
+    _subgraph_weight = 0;
+    _contained_blocks.clear();
+    _to_ilp_block.assign(_phg.k(), kInvalidPartition);
+    _ilp_hns_to_hg.clear();
+    _hns_to_ilp_hg.clear();
+    _ilp_hes_to_hg.clear();
+    _super_vertex_weights.assign(_phg.k(), kInvalidPartition);
+    _marked_blocks.reset();
+  }
+
+
+ private:
   // ! Number of nodes
   HypernodeID _num_nodes;
   // ! Number of edges
@@ -360,7 +377,7 @@ class ILPHypergraph {
   vec<PartitionID> _to_ilp_block;
   // ! Maps a vertex from the ILP hypergraph to its corresponding
   // ! vertex in the original hypergraph
-  const vec<HypernodeID> _ilp_hns_to_hg;
+  vec<HypernodeID> _ilp_hns_to_hg;
   // ! Maps a vertex from the original hypergraph to its corresponding
   // ! vertex in the ILP hypergraph
   ds::DynamicSparseMap<HypernodeID, HypernodeID> _hns_to_ilp_hg;
