@@ -52,7 +52,7 @@ class StaticGraph {
   // out that this become a major sequential bottleneck in presence of high
   // degree vertices. Therefore, all vertices with temporary degree greater
   // than this threshold are contracted with a special procedure.
-  // TODO
+  // TODO: what is a good value?
   static constexpr HyperedgeID HIGH_DEGREE_CONTRACTION_THRESHOLD = ID(500000);
 
   static_assert(std::is_unsigned<HypernodeID>::value, "Node ID must be unsigned");
@@ -405,38 +405,76 @@ class StaticGraph {
   static_assert(std::is_trivially_copyable<Node>::value, "Node is not trivially copyable");
   static_assert(std::is_trivially_copyable<Edge>::value, "Hyperedge is not trivially copyable");
 
+ private:
+  struct TmpEdgeInformation {
+    // ! invalid edge
+    TmpEdgeInformation() :
+      _target(kInvalidHyperedge),
+      _valid_or_weight(0) {
+    }
+
+    // ! valid edge
+    TmpEdgeInformation(HyperedgeID target, HyperedgeWeight weight) :
+      _target(target),
+      _valid_or_weight(weight) {
+      ASSERT(isValid());
+    }
+
+    bool isValid() const {
+      return _valid_or_weight != 0;
+    }
+
+    HyperedgeID getTarget() const {
+      ASSERT(isValid());
+      return _target;
+    }
+
+    HyperedgeWeight getWeight() const {
+      ASSERT(isValid());
+      return _valid_or_weight;
+    }
+
+    void invalidate() {
+      _valid_or_weight = 0;
+    }
+
+    HyperedgeWeight addWeight(HyperedgeWeight weight) {
+      ASSERT(isValid());
+      _valid_or_weight += weight;
+    }
+
+    HyperedgeID _target;
+    HyperedgeWeight _valid_or_weight;
+  };
+
   // ! Contains buffers that are needed during multilevel contractions.
   // ! Struct is allocated on top level hypergraph and passed to each contracted
   // ! hypergraph such that memory can be reused in consecutive contractions.
   // TODO
   struct TmpContractionBuffer {
-    explicit TmpContractionBuffer(const HypernodeID num_hypernodes,
-                                  const HyperedgeID num_hyperedges,
-                                  const HyperedgeID /* num_pins */) {
+    explicit TmpContractionBuffer(const HypernodeID num_nodes,
+                                  const HyperedgeID num_edges) {
       tbb::parallel_invoke([&] {
-        mapping.resize("Coarsening", "mapping", num_hypernodes);
+        mapping.resize("Coarsening", "mapping", num_nodes);
       }, [&] {
-        tmp_hypernodes.resize("Coarsening", "tmp_hypernodes", num_hypernodes);
+        tmp_nodes.resize("Coarsening", "tmp_nodes", num_nodes);
       }, [&] {
-        tmp_num_incident_nets.resize("Coarsening", "tmp_num_incident_nets", num_hypernodes);
+        node_sizes.resize("Coarsening", "node_sizes", num_nodes);
       }, [&] {
-        hn_weights.resize("Coarsening", "hn_weights", num_hypernodes);
+        tmp_num_incident_edges.resize("Coarsening", "tmp_num_incident_edges", num_nodes);
       }, [&] {
-        tmp_hyperedges.resize("Coarsening", "tmp_hyperedges", num_hyperedges);
+        node_weights.resize("Coarsening", "node_weights", num_nodes);
       }, [&] {
-        he_sizes.resize("Coarsening", "he_sizes", num_hyperedges);
-      }, [&] {
-        valid_hyperedges.resize("Coarsening", "valid_hyperedges", num_hyperedges);
+        tmp_edges.resize("Coarsening", "tmp_edges", 2 * num_edges);
       });
     }
 
-    Array<size_t> mapping;
-    Array<Node> tmp_hypernodes;
-    Array<parallel::IntegralAtomicWrapper<size_t>> tmp_num_incident_nets;
-    Array<parallel::IntegralAtomicWrapper<HypernodeWeight>> hn_weights;
-    Array<Edge> tmp_hyperedges;
-    Array<size_t> he_sizes;
-    Array<size_t> valid_hyperedges;
+    Array<HypernodeID> mapping;
+    Array<Node> tmp_nodes;
+    Array<HyperedgeID> node_sizes;
+    Array<parallel::IntegralAtomicWrapper<HyperedgeID>> tmp_num_incident_edges;
+    Array<parallel::IntegralAtomicWrapper<HypernodeWeight>> node_weights;
+    Array<TmpEdgeInformation> tmp_edges;
   };
 
  public:
@@ -661,7 +699,7 @@ class StaticGraph {
     return 2;
   }
 
-  // ! Returns, whether a hyperedge is enabled or not
+  // ! Returns whether a hyperedge is enabled or not
   bool edgeIsEnabled(const HyperedgeID) const {
     return true;
   }
@@ -843,8 +881,7 @@ class StaticGraph {
   // ! Allocate the temporary contraction buffer
   void allocateTmpContractionBuffer() {
     if ( !_tmp_contraction_buffer ) {
-      _tmp_contraction_buffer = new TmpContractionBuffer(
-        _num_nodes, _num_edges, 2 * _num_edges);
+      _tmp_contraction_buffer = new TmpContractionBuffer(_num_nodes, _num_edges);
     }
   }
 

@@ -249,5 +249,40 @@ TEST_F(AStaticGraph, ComparesCommunityIdsIfCopiedSequential) {
   ASSERT_EQ(hypergraph.communityID(6), copy_hg.communityID(6));
 }
 
+TEST_F(AStaticGraph, ContractsCommunities1) {
+  parallel::scalable_vector<HypernodeID> c_mapping = {1, 4, 1, 1, 5, 4, 5};
+  StaticGraph c_graph = hypergraph.contract(c_mapping);
+
+  // Verify Mapping
+  ASSERT_EQ(0, c_mapping[0]);
+  ASSERT_EQ(1, c_mapping[1]);
+  ASSERT_EQ(0, c_mapping[2]);
+  ASSERT_EQ(0, c_mapping[3]);
+  ASSERT_EQ(2, c_mapping[4]);
+  ASSERT_EQ(1, c_mapping[5]);
+  ASSERT_EQ(2, c_mapping[6]);
+
+  // Verify Stats
+  ASSERT_EQ(3, c_graph.initialNumNodes());
+  ASSERT_EQ(2, c_graph.initialNumEdges());
+  ASSERT_EQ(7, c_graph.totalWeight());
+
+  // Verify Vertex Weights
+  ASSERT_EQ(3, c_graph.nodeWeight(0));
+  ASSERT_EQ(2, c_graph.nodeWeight(1));
+  ASSERT_EQ(2, c_graph.nodeWeight(2));
+
+  // Verify Edge Weights
+  ASSERT_EQ(1, c_graph.edgeWeight(0));
+  ASSERT_EQ(3, c_graph.edgeWeight(2));
+
+  // Verify Graph Structure
+  verifyIncidentNets(c_graph, 0, { 0 });
+  verifyIncidentNets(c_graph, 1, { 1, 2 });
+  verifyIncidentNets(c_graph, 2, { 3 });
+  verifyPins(c_graph, { 0 }, { {0, 1} });
+  verifyPins(c_graph, { 1 }, { {1, 2} });
+}
+
 }
 } // namespace mt_kahypar
