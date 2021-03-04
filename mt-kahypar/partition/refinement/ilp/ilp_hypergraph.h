@@ -96,6 +96,7 @@ class ILPHypergraph {
                 const PartitionedHypergraph& phg,
                 const HypernodeID num_nodes,
                 const ds::DynamicSparseMap<HypernodeID, HypernodeID>& hns_to_ilp_hg,
+                const vec<PartitionID>& to_ilp_block,
                 kahypar::ds::FastResetFlagArray<>& marked_blocks) :
       _it(begin),
       _end(end),
@@ -103,6 +104,7 @@ class ILPHypergraph {
       _num_nodes(num_nodes),
       _phg(phg),
       _hns_to_ilp_hg(hns_to_ilp_hg),
+      _to_ilp_block(to_ilp_block),
       _marked_blocks(marked_blocks) {
       _current_pin = next_pin();
     }
@@ -139,7 +141,8 @@ class ILPHypergraph {
           const PartitionID block = _phg.partID(*_it);
           if ( !_marked_blocks[block] ) {
             _marked_blocks.set(block, true);
-            return _num_nodes + block;
+            ASSERT(_to_ilp_block[block] != kInvalidPartition);
+            return _num_nodes + _to_ilp_block[block];
           }
         }
         ++_it;
@@ -156,6 +159,8 @@ class ILPHypergraph {
     // ! Maps a vertex from the original hypergraph to its corresponding
     // ! vertex in the ILP hypergraph
     const ds::DynamicSparseMap<HypernodeID, HypernodeID>& _hns_to_ilp_hg;
+    // ! Mapping from block in the original hypergraph to block in ILP problem
+    const vec<PartitionID>& _to_ilp_block;
     // ! Data structure required by the pin iterator
     kahypar::ds::FastResetFlagArray<>& _marked_blocks;
   };
@@ -229,8 +234,8 @@ class ILPHypergraph {
     auto it = _phg.pins(original_he);
     _marked_blocks.reset();
     return IteratorRange<PinIterator>(
-      PinIterator(it.begin(), it.end(), _phg, _num_nodes, _hns_to_ilp_hg, _marked_blocks),
-      PinIterator(it.end(), it.end(), _phg, _num_nodes, _hns_to_ilp_hg, _marked_blocks));
+      PinIterator(it.begin(), it.end(), _phg, _num_nodes, _hns_to_ilp_hg, _to_ilp_block, _marked_blocks),
+      PinIterator(it.end(), it.end(), _phg, _num_nodes, _hns_to_ilp_hg, _to_ilp_block, _marked_blocks));
   }
 
   // ####################### Hypernode Information #######################

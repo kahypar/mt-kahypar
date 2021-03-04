@@ -169,12 +169,14 @@ void ILPModel::balanceConstraint() {
 void ILPModel::modelHyperedgeConnectivity() {
   for ( const HyperedgeID& he : _hg.edges() ) {
     for ( const HypernodeID& pin : _hg.pins(he) ) {
-      for ( PartitionID i = 0; i < _hg.k(); ++i ) {
-        const size_t he_offset = hyperedge_offset(he,i);
-        if ( _contains_variable[he_offset] ) {
-          _model.addConstr(_variables[he_offset] >= _variables[vertex_offset(pin,i)],
-            "connectivity_values_" + std::to_string(he) + "_" +
-            std::to_string(pin) + "_" + std::to_string(i));
+      if ( !_hg.isSuperVertex(pin) ) {
+        for ( PartitionID i = 0; i < _hg.k(); ++i ) {
+          const size_t he_offset = hyperedge_offset(he,i);
+          if ( _contains_variable[he_offset] ) {
+            _model.addConstr(_variables[he_offset] >= _variables[vertex_offset(pin,i)],
+              "connectivity_values_" + std::to_string(he) + "_" +
+              std::to_string(pin) + "_" + std::to_string(i));
+          }
         }
       }
     }
