@@ -60,8 +60,8 @@ void solve(PartitionedHypergraph& phg,
   ILPHypergraph ilp_hg(phg);
   ilp_hg.initialize(nodes);
   GRBEnv env;
-  ILPModel model(ilp_hg, context, env);
-  model.construct();
+  ILPModel model(context, env);
+  model.construct(ilp_hg);
 
   // Solve ILP Problem
   const HyperedgeWeight model_objective_before = model.getObjective();
@@ -247,6 +247,77 @@ TEST(AILPModel, StressTest) {
     nodes.push_back(hn);
   }
   solve(phg, context, nodes, 0, false, false);
+}
+
+TEST(AILPModel, SolvesTwoILPProblemsWithReset) {
+  // Setup Hypergraph
+  Hypergraph hg = HypergraphFactory::construct(
+    TBBNumaArena::GLOBAL_TASK_GROUP, 9, 5,
+    {{0, 1, 3, 6}, {2, 5}, {5, 8}, {4, 7, 8}, {6, 7}});
+  const PartitionID k = 3;
+  PartitionedHypergraph phg(k, TBBNumaArena::GLOBAL_TASK_GROUP, hg);
+  assignVerticesToBlocks(phg, { 0, 0, 0, 1, 1, 2, 1, 2, 2 });
+
+  // Setup Context
+  Context context;
+  context.partition.max_part_weights.assign(3, 5);
+
+  // Setup ILP Problem
+  vec<HypernodeID> nodes = {0, 1};
+  ILPHypergraph ilp_hg(phg);
+  ilp_hg.initialize(nodes);
+  GRBEnv env;
+  ILPModel model(context, env);
+  model.construct(ilp_hg);
+
+  {
+    // Solve ILP Problem
+    const HyperedgeWeight model_objective_before = model.getObjective();
+    const HyperedgeWeight connectivity_before = metrics::km1(phg);
+    model.solve();
+    const HyperedgeWeight model_objective_after = model.getObjective();
+    const HyperedgeWeight delta = model_objective_before - model_objective_after;
+
+    // Apply ILP Solution
+    applyILPSolution(phg, model, nodes);
+
+    // Verify Correctness of Solution
+    const HyperedgeWeight connectivity_after = metrics::km1(phg);
+    ASSERT_EQ(1, delta);
+    ASSERT_EQ(connectivity_before - delta, connectivity_after);
+    for ( PartitionID i = 0; i < phg.k(); ++i ) {
+      ASSERT_LE(phg.partWeight(i), context.partition.max_part_weights[i]);
+    }
+  }
+
+  // Reset
+  ilp_hg.reset();
+  model.reset();
+
+  // Setup ILP Problem
+  nodes = {2, 4};
+  ilp_hg.initialize(nodes);
+  model.construct(ilp_hg);
+
+  {
+    // Solve ILP Problem
+    const HyperedgeWeight model_objective_before = model.getObjective();
+    const HyperedgeWeight connectivity_before = metrics::km1(phg);
+    model.solve();
+    const HyperedgeWeight model_objective_after = model.getObjective();
+    const HyperedgeWeight delta = model_objective_before - model_objective_after;
+
+    // Apply ILP Solution
+    applyILPSolution(phg, model, nodes);
+
+    // Verify Correctness of Solution
+    const HyperedgeWeight connectivity_after = metrics::km1(phg);
+    ASSERT_EQ(2, delta);
+    ASSERT_EQ(connectivity_before - delta, connectivity_after);
+    for ( PartitionID i = 0; i < phg.k(); ++i ) {
+      ASSERT_LE(phg.partWeight(i), context.partition.max_part_weights[i]);
+    }
+  }
 }
 
 } // namespace mt_kahypar

@@ -32,22 +32,21 @@ class ILPModel {
   static constexpr bool debug = false;
 
  public:
-  explicit ILPModel(ILPHypergraph& hg,
-                    const Context& context,
+  explicit ILPModel(const Context& context,
                     const GRBEnv& env) :
-    _hg(hg),
+    _hg(nullptr),
     _context(context),
     _is_constructed(false),
     _is_solved(false),
     _model(env),
     _objective(0),
-    _variables(hg.numNodes() * hg.k() + hg.numEdges() * hg.k()),
-    _contains_variable(hg.numNodes() * hg.k() + hg.numEdges() * hg.k(), true),
-    _num_unremovable_blocks(hg.numEdges(), 0) {
+    _variables(),
+    _contains_variable(),
+    _num_unremovable_blocks() {
     _model.set(GRB_IntParam_LogToConsole, debug);
   }
 
-  void construct();
+  void construct(ILPHypergraph& hg);
 
   void solve() {
     ASSERT(_is_constructed);
@@ -71,12 +70,13 @@ class ILPModel {
   // ! Returns the block of vertex hn to which the ILP Optimizer
   // ! assigns it to
   PartitionID partID(const HypernodeID hn) {
+    ASSERT(_hg);
     ASSERT(_is_solved);
     try {
-      const HypernodeID u = _hg.mapToILPHypergraph(hn);
-      for ( PartitionID i = 0; i < _hg.k(); ++i ) {
+      const HypernodeID u = _hg->mapToILPHypergraph(hn);
+      for ( PartitionID i = 0; i < _hg->k(); ++i ) {
         if ( _variables[vertex_offset(u,i)].get(GRB_DoubleAttr_X) > 0 ) {
-          return _hg.toOriginalBlock(i);
+          return _hg->toOriginalBlock(i);
         }
       }
     } catch(GRBException e) {
@@ -88,35 +88,50 @@ class ILPModel {
     return kInvalidPartition;
   }
 
+  void reset() {
+    _hg = nullptr;
+    _is_constructed = false;
+    _is_solved = false;
+    _model.reset();
+    _objective = 0;
+    _variables.clear();
+    _contains_variable.clear();
+    _num_unremovable_blocks.clear();
+  }
+
  private:
 
-  void addVariablesToModel();
+  void addVariablesToModel(ILPHypergraph& hg);
 
-  void addObjectiveFunction();
+  void addObjectiveFunction(ILPHypergraph& hg);
 
-  void restrictVerticesToOneBlock();
+  void restrictVerticesToOneBlock(ILPHypergraph& hg);
 
-  void balanceConstraint();
+  void balanceConstraint(ILPHypergraph& hg);
 
-  void modelHyperedgeConnectivity();
+  void modelHyperedgeConnectivity(ILPHypergraph& hg);
 
   std::string vertex_var_desc(const HypernodeID hn, const PartitionID k) {
+    ASSERT(_hg);
     return "x_{" + std::to_string(hn) + "," + std::to_string(k) + "}";
   }
 
   std::string hyperedge_var_desc(const HyperedgeID he, const PartitionID k) {
+    ASSERT(_hg);
     return "y_{" + std::to_string(he) + "," + std::to_string(k) + "}";
   }
 
   size_t vertex_offset(const HypernodeID hn, const PartitionID k) {
-    return hn * _hg.k() + k;
+    ASSERT(_hg);
+    return hn * _hg->k() + k;
   }
 
   size_t hyperedge_offset(const HyperedgeID he, const PartitionID k) {
-    return _hg.numNodes() * _hg.k() + he * _hg.k() + k;
+    ASSERT(_hg);
+    return _hg->numNodes() * _hg->k() + he * _hg->k() + k;
   }
 
-  ILPHypergraph& _hg;
+  ILPHypergraph* _hg;
   const Context& _context;
 
   // ! True, if ILP is constructed
