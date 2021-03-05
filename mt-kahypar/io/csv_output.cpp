@@ -32,7 +32,6 @@ namespace mt_kahypar::io::csv {
   std::string header() {
     return "algorithm,threads,graph,k,seed,epsilon,imbalance,"
            "objective,km1,cut,partitionTime,fmTime,lpTime,coarseningTime,ipTime,preprocessingTime"
-           ",localApplyFMTime,globalApplyFMTime"
            "\n";
   }
 
@@ -70,8 +69,6 @@ namespace mt_kahypar::io::csv {
     s << timer.get("coarsening") << sep;
     s << timer.get("initial_partitioning") << sep;
     s << timer.get("preprocessing") << sep;
-    s << timer.get("local-apply") << sep;
-    s << timer.get("global-apply");
 
     return s.str();
   }
