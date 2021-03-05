@@ -4,6 +4,7 @@ set(RefinementSources
         fm/global_rollback.cpp
         fm/sequential_twoway_fm_refiner.cpp
         ilp/ilp_model.cpp
+        ilp/ilp_scheduler.cpp
         label_propagation/label_propagation_refiner.cpp
         rebalancing/rebalancer.cpp
         )

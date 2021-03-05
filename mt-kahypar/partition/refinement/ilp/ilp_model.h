@@ -29,7 +29,7 @@ namespace mt_kahypar {
 
 class ILPModel {
 
-  static constexpr bool debug = false;
+  static constexpr bool debug = true;
 
  public:
   explicit ILPModel(const Context& context,

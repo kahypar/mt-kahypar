@@ -26,6 +26,7 @@
 #include "mt-kahypar/partition/preprocessing/sparsification/degree_zero_hn_remover.h"
 #include "mt-kahypar/partition/preprocessing/sparsification/large_he_remover.h"
 #include "mt-kahypar/partition/preprocessing/community_detection/parallel_louvain.h"
+#include "mt-kahypar/partition/refinement/ilp/ilp_scheduler.h"
 #include "mt-kahypar/utils/stats.h"
 #include "mt-kahypar/utils/timer.h"
 
@@ -181,7 +182,16 @@ namespace mt_kahypar {
     PartitionedHypergraph partitioned_hypergraph = multilevel::partition(
             hypergraph, context, true, TBBNumaArena::GLOBAL_TASK_GROUP);
 
-    // ################## V-Cycle s##################
+    // ################## ILP ##################
+    if ( context.refinement.ilp.use_ilp ) {
+      io::printILPBanner(context);
+      utils::Timer::instance().start_timer("ilp_solver", "ILP-based Refinement");
+      ILPScheduler ilp(partitioned_hypergraph, context);
+      ilp.refine();
+      utils::Timer::instance().stop_timer("ilp_solver");
+    }
+
+    // ################## V-Cycle ##################
     if ( context.partition.num_vcycles > 0 ) {
       partitioned_hypergraph = partitionVCycle(
         hypergraph, std::move(partitioned_hypergraph),

@@ -307,7 +307,7 @@ namespace mt_kahypar {
       return ILPVertexSelectionStrategy::boundary;
     } else if (strategy == "gain") {
       return ILPVertexSelectionStrategy::gain;
-    } else if (strategy == "fm_gain_delta") {
+    } else if (strategy == "top_vertices") {
       return ILPVertexSelectionStrategy::top_vertices;
     }
     ERROR("Illegal option: " + strategy);

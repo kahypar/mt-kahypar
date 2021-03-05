@@ -50,8 +50,10 @@ class GainPolicy : public kahypar::meta::PolicyBase {
 
   Move computeMaxGainMove(HyperGraph& hypergraph,
                           const HypernodeID hn,
-                          const bool rebalance = false) {
-    return static_cast<Derived*>(this)->computeMaxGainMoveImpl(hypergraph, hn, rebalance);
+                          const bool rebalance = false,
+                          const bool ignore_balance_constraint = false) {
+    return static_cast<Derived*>(this)->computeMaxGainMoveImpl(
+      hypergraph, hn, rebalance, ignore_balance_constraint);
   }
 
   inline void computeDeltaForHyperedge(const HyperedgeID he,
@@ -107,7 +109,8 @@ class Km1Policy : public GainPolicy<Km1Policy<HyperGraph>, HyperGraph> {
 
   Move computeMaxGainMoveImpl(HyperGraph& hypergraph,
                               const HypernodeID hn,
-                              const bool rebalance) {
+                              const bool rebalance,
+                              const bool ignore_balance_constraint) {
     HEAVY_REFINEMENT_ASSERT([&] {
         for (PartitionID k = 0; k < _context.partition.k; ++k) {
           if (_tmp_scores.local()[k] != 0) {
@@ -155,8 +158,8 @@ class Km1Policy : public GainPolicy<Km1Policy<HyperGraph>, HyperGraph> {
                              (score == best_move.gain &&
                               !_disable_randomization &&
                               rand.flipCoin(cpu_id));
-        if (new_best_gain &&
-            hypergraph.partWeight(to) + hn_weight <= _context.partition.max_part_weights[to]) {
+        if (new_best_gain && ( ignore_balance_constraint ||
+            hypergraph.partWeight(to) + hn_weight <= _context.partition.max_part_weights[to] ) ) {
           best_move.to = to;
           best_move.gain = score;
         }
@@ -196,7 +199,8 @@ class CutPolicy : public GainPolicy<CutPolicy<HyperGraph>, HyperGraph> {
 
   Move computeMaxGainMoveImpl(HyperGraph& hypergraph,
                               const HypernodeID hn,
-                              const bool rebalance) {
+                              const bool rebalance,
+                              const bool ignore_balance_constraint) {
     HEAVY_REFINEMENT_ASSERT([&] {
         for (PartitionID k = 0; k < _context.partition.k; ++k) {
           if (_tmp_scores.local()[k] != 0) {
@@ -242,8 +246,8 @@ class CutPolicy : public GainPolicy<CutPolicy<HyperGraph>, HyperGraph> {
                              (score == best_move.gain &&
                               !_disable_randomization &&
                               rand.flipCoin(cpu_id));
-        if (new_best_gain && hypergraph.partWeight(to) + hn_weight <=
-            _context.partition.max_part_weights[to]) {
+        if ( new_best_gain && ( ignore_balance_constraint ||
+             hypergraph.partWeight(to) + hn_weight <= _context.partition.max_part_weights[to] ) ) {
           best_move.to = to;
           best_move.gain = score;
         }

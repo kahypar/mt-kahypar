@@ -75,12 +75,6 @@ int main(int argc, char* argv[]) {
   // Partition Hypergraph
   mt_kahypar::HighResClockTimepoint start = std::chrono::high_resolution_clock::now();
   mt_kahypar::PartitionedHypergraph partitioned_hypergraph = mt_kahypar::partition(hypergraph, context);
-
-  // ILP-based refinement
-  if ( context.refinement.ilp.use_ilp ) {
-    mt_kahypar::io::printILPBanner(context);
-    // TODO: Solve ILP here
-  }
   mt_kahypar::HighResClockTimepoint end = std::chrono::high_resolution_clock::now();
 
   // Print Stats
