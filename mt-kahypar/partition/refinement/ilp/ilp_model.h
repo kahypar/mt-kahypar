@@ -43,8 +43,14 @@ class ILPModel {
     _optimized_objective(0),
     _variables(),
     _contains_variable(),
-    _num_unremovable_blocks() {
+    _unremovable_block() {
     _model.set(GRB_IntParam_LogToConsole, debug);
+
+    // Sanity check
+    if ( _context.partition.objective != kahypar::Objective::km1 &&
+         _context.partition.objective != kahypar::Objective::cut ) {
+      ERROR("ILP Model is not able to optimize" << _context.partition.objective << "metric");
+    }
   }
 
   void construct(ILPHypergraph& hg);
@@ -109,20 +115,42 @@ class ILPModel {
     _optimized_objective = 0;
     _variables.clear();
     _contains_variable.clear();
-    _num_unremovable_blocks.clear();
+    _unremovable_block.clear();
   }
 
  private:
 
+  // ####################### Variable #######################
+
   void addVariablesToModel(ILPHypergraph& hg);
 
+  PartitionID determineNumberOfUnremovableBlocks(ILPHypergraph& hg, const HyperedgeID he);
+
+  void addHyperedgeVariablesToModelForConnectivityMetric(ILPHypergraph& hg);
+
+  void addHyperedgeVariablesToModelForCutMetric(ILPHypergraph& hg);
+
+  // ####################### Objective Function #######################
+
   void addObjectiveFunction(ILPHypergraph& hg);
+
+  void addConnectivityMetric(ILPHypergraph& hg);
+
+  void addCutMetric(ILPHypergraph& hg);
+
+  // ####################### Constraints #######################
 
   void restrictVerticesToOneBlock(ILPHypergraph& hg);
 
   void balanceConstraint(ILPHypergraph& hg);
 
+  void modelHyperedgeConstraint(ILPHypergraph& hg);
+
   void modelHyperedgeConnectivity(ILPHypergraph& hg);
+
+  void modelHyperedgeCut(ILPHypergraph& hg);
+
+  // ####################### Helper Functions #######################
 
   std::string vertex_var_desc(const HypernodeID hn, const PartitionID k) {
     ASSERT(_hg);
@@ -161,10 +189,9 @@ class ILPModel {
   vec<GRBVar> _variables;
   // ! _contains_variable[i] == true, if variable i is contained in the Gurobi model
   vec<bool> _contains_variable;
-  // ! Indicates for each hyperedge the number of blocks which we can not
-  // ! remove with our ILP formulation, because they contain pins which are
-  // ! not contained in our subhypergraph.
-  vec<PartitionID> _num_unremovable_blocks;
+  // ! Only for cut metric, contains the block of the hyperedge which we can not remove
+  // ! with our ILP problem
+  vec<PartitionID> _unremovable_block;
 };
 
 } // namespace mt_kahypar

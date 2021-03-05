@@ -87,6 +87,7 @@ class ILPSolver {
         // Applying the moves found by the ILP worsen solution quality.
         // This can happen if several ILP's apply their moves concurrently.
         // => revert moves
+        DBG << "Rollback: Move decreased objective function by" << delta;
         delta += rollback();
       } else {
         DBG << "Applying moves improved objective function by" << delta;
@@ -105,8 +106,13 @@ class ILPSolver {
                           const HypernodeID edge_size,
                           const HypernodeID pin_count_in_from_part_after,
                           const HypernodeID pin_count_in_to_part_after) {
-      delta += km1Delta(he, edge_weight, edge_size,
-        pin_count_in_from_part_after, pin_count_in_to_part_after);
+      if ( _context.partition.objective == kahypar::Objective::km1 ) {
+        delta += km1Delta(he, edge_weight, edge_size,
+          pin_count_in_from_part_after, pin_count_in_to_part_after);
+      } else if ( _context.partition.objective == kahypar::Objective::cut ) {
+        delta += cutDelta(he, edge_weight, edge_size,
+          pin_count_in_from_part_after, pin_count_in_to_part_after);
+      }
     };
     for ( const HypernodeID& hn : nodes ) {
       const PartitionID from = _phg.partID(hn);
@@ -126,8 +132,13 @@ class ILPSolver {
                           const HypernodeID edge_size,
                           const HypernodeID pin_count_in_from_part_after,
                           const HypernodeID pin_count_in_to_part_after) {
-      delta += km1Delta(he, edge_weight, edge_size,
-        pin_count_in_from_part_after, pin_count_in_to_part_after);
+      if ( _context.partition.objective == kahypar::Objective::km1 ) {
+        delta += km1Delta(he, edge_weight, edge_size,
+          pin_count_in_from_part_after, pin_count_in_to_part_after);
+      } else if ( _context.partition.objective == kahypar::Objective::cut ) {
+        delta += cutDelta(he, edge_weight, edge_size,
+          pin_count_in_from_part_after, pin_count_in_to_part_after);
+      }
     };
     for ( const RollbackElement& element : _rollback_cache ) {
       ASSERT(_phg.partID(element.hn) == element.to);

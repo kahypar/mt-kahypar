@@ -296,6 +296,12 @@ class ILPHypergraph {
     return _phg.pinCountInPart(_ilp_hes_to_hg[e], _contained_blocks[p]) > 0;
   }
 
+  // ! Returns weather hyperedge is cut or not
+  bool isCut(const HyperedgeID e) {
+    ASSERT(e < _num_edges);
+    return _phg.connectivity(_ilp_hes_to_hg[e]) > 1;
+  }
+
 
   // ####################### Initialization / Reset #######################
 

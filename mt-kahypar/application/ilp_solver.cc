@@ -65,6 +65,7 @@ int main() {
 
   try {
     GRBEnv env;
+    context.partition.objective = kahypar::Objective::km1;
     ILPSolver solver(phg, context, env);
     utils::Timer::instance().start_timer("ilp_solver", "ILP Solver");
     solver.solve(nodes);

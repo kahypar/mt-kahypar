@@ -33,7 +33,10 @@ namespace mt_kahypar {
  *
  * Binary Decision Variables:
  * x_{v,i} -> If 1, then vertex v is assigned to block i
+ * For connectivity metric:
  * y_{e,i} -> If 1, then hyperedge e contains at least one pin in block i
+ * For cut metric:
+ * y_e -> If 1, then hyperedge e is a cut hyperedge
  *
  * Constraints:
  *
@@ -43,11 +46,20 @@ namespace mt_kahypar {
  * Each block satisfies the balance constraint:
  * \forall k: \sum_{v \in V} x_{v,k} * c(v) <= L_max (2)
  *
+ * Only for connectivity metric:
  * y_{e,i} is equal to 1, if at least one pin is assigned to block i
  * \forall e \in E: \forall v \in e: \forall k: y_{e,k} >= x_{e,k} (3)
  *
- * Objective Function:
+ * Only for cut metric
+ * y_e is equal to 1, if two pins are assigned to different blocks.
+ * We denote with v_{e,i} the i-th pin of hyperedge e
+ * \forall e \in E: \forall i \in [2,|e|]: \forall k: y_e >= x_{v_{e,1},k} - x_{v_{e,i},k}
+ *
+ * Connecivity Metric:
  * minimize \sum_{e \in E} (\lambda(e) - 1) * \omega(e) with \lambda(e) = \sum_{i = 1}^k y_{e,i}
+ *
+ * Cut Metric:
+ * minimize \sum_{e \in E} y_e * \omega(e)
  *
  * Optimizations:
  *  - remove super vertices that represents vertices of a block not contained in the ILP
@@ -65,7 +77,7 @@ void ILPModel::construct(ILPHypergraph& hg) {
     addObjectiveFunction(hg);         // Connectivity Metric
     restrictVerticesToOneBlock(hg);   // Constraint (1)
     balanceConstraint(hg);            // Constraint (2)
-    modelHyperedgeConnectivity(hg);   // Constraint (3)
+    modelHyperedgeConstraint(hg);     // Constraint (3)
     _is_constructed = true;
   } catch(GRBException e) {
     ERROR("Error code = " << e.getErrorCode() << "Message =" << e.getMessage());
@@ -78,7 +90,7 @@ void ILPModel::addVariablesToModel(ILPHypergraph& hg) {
   // Initialize variables
   _variables.resize(hg.numNodes() * hg.k() + hg.numEdges() * hg.k());
   _contains_variable.assign(hg.numNodes() * hg.k() + hg.numEdges() * hg.k(), true);
-  _num_unremovable_blocks.assign(hg.numEdges(), 0);
+  _unremovable_block.assign(hg.numEdges(), kInvalidPartition);
 
   for ( const HypernodeID& hn : hg.nodes() ) {
     for ( PartitionID i = 0; i < hg.k(); ++i ) {
@@ -89,57 +101,104 @@ void ILPModel::addVariablesToModel(ILPHypergraph& hg) {
     }
   }
 
-  kahypar::ds::FastResetFlagArray<> _unremovable_blocks(hg.k());
-  for ( const HypernodeID& he : hg.edges() ) {
+  if ( _context.partition.objective == kahypar::Objective::km1 ) {
+    addHyperedgeVariablesToModelForConnectivityMetric(hg);
+  } else if ( _context.partition.objective == kahypar::Objective::cut ) {
+    addHyperedgeVariablesToModelForCutMetric(hg);
+  }
+}
 
-    // Count the number of blocks in hyperedge he that are unremovable
-    // => A block is unremovable, if hyperedge he contains a super vertex assigned to that block
-    for ( const HypernodeID& pin : hg.pins(he) ) {
-      // Super vertices can not change their block
-      if ( hg.isSuperVertex(pin) ) {
-        const PartitionID block = hg.superVertexBlock(pin);
-        if ( !_unremovable_blocks[block] ) {
-          ++_num_unremovable_blocks[he];
-          _unremovable_blocks.set(block, true);
-        }
+// ! Counts the number of super vertices contained in hyperedge he
+// ! Super vertices are not part of the ILP and consequently cannot be moved
+PartitionID ILPModel::determineNumberOfUnremovableBlocks(ILPHypergraph& hg, const HyperedgeID he) {
+  PartitionID num_unremovable_blocks = 0;
+  for ( const HypernodeID& pin : hg.pins(he) ) {
+    // Super vertices can not change their block
+    if ( hg.isSuperVertex(pin) ) {
+      const PartitionID block = hg.superVertexBlock(pin);
+      size_t he_offset = hyperedge_offset(he, block);
+      if ( _contains_variable[he_offset] ) {
+        ++num_unremovable_blocks;
+        _contains_variable[he_offset] = false;
+        _unremovable_block[he] = block;
       }
     }
+  }
+  return num_unremovable_blocks;
+}
 
-    HyperedgeWeight connectivity = 0;
+void ILPModel::addHyperedgeVariablesToModelForConnectivityMetric(ILPHypergraph& hg) {
+  for ( const HypernodeID& he : hg.edges() ) {
+    PartitionID connectivity = determineNumberOfUnremovableBlocks(hg, he);
     for ( PartitionID i = 0; i < hg.k(); ++i ) {
       // Only add variable y_{e,i} to ILP, if we can potentially
       // remove block i from hyperedge e
-      if ( !_unremovable_blocks[i] ) {
-        _variables[hyperedge_offset(he, i)] =
+      const size_t he_offset = hyperedge_offset(he, i);
+      if ( _contains_variable[he_offset] ) {
+        _variables[he_offset] =
           _model.addVar(0.0, 1.0, 0.0, GRB_BINARY, hyperedge_var_desc(he, i));
         const bool contains_pin_in_block = hg.containsPinInPart(he, i);
-        _variables[hyperedge_offset(he, i)].set(
+        _variables[he_offset].set(
           GRB_DoubleAttr_Start, contains_pin_in_block);
         connectivity += contains_pin_in_block;
-      } else {
-        _contains_variable[hyperedge_offset(he, i)] = false;
-        ++connectivity;
       }
     }
     _initial_objective += (connectivity - 1) * hg.edgeWeight(he);
-    _unremovable_blocks.reset();
+  }
+}
+
+void ILPModel::addHyperedgeVariablesToModelForCutMetric(ILPHypergraph& hg) {
+  for ( const HypernodeID& he : hg.edges() ) {
+    // Only add variable y_e to ILP, if we can potentially
+    // remove hyperedge e from cut
+    const bool is_cut = hg.isCut(he);
+    const PartitionID num_unremovable_blocks = determineNumberOfUnremovableBlocks(hg, he);
+    if ( num_unremovable_blocks < 2 ) {
+      _variables[hyperedge_offset(he, 0)] =
+        _model.addVar(0.0, 1.0, 0.0, GRB_BINARY, hyperedge_var_desc(he, 0));
+      _variables[hyperedge_offset(he, 0)].set(GRB_DoubleAttr_Start, is_cut);
+      _contains_variable[hyperedge_offset(he, 0)] = true;
+    } else {
+      _contains_variable[hyperedge_offset(he, 0)] = false;
+    }
+    _initial_objective += is_cut * hg.edgeWeight(he);
   }
 }
 
 // ! Models the connectivity metric
 void ILPModel::addObjectiveFunction(ILPHypergraph& hg) {
+  if ( _context.partition.objective == kahypar::Objective::km1 ) {
+    addConnectivityMetric(hg);
+  } else if ( _context.partition.objective == kahypar::Objective::cut ) {
+    addCutMetric(hg);
+  }
+}
+
+void ILPModel::addConnectivityMetric(ILPHypergraph& hg) {
   GRBLinExpr connectivity_metric = 0;
   for ( const HypernodeID& he : hg.edges() ) {
-    GRBLinExpr connectivity = _num_unremovable_blocks[he];
+    GRBLinExpr connectivity = 0;
     for ( PartitionID i = 0; i < hg.k(); ++i ) {
       const size_t he_offset = hyperedge_offset(he, i);
       if ( _contains_variable[he_offset] ) {
         connectivity += _variables[he_offset];
+      } else {
+        connectivity += 1;
       }
     }
     connectivity_metric += (connectivity - 1) * hg.edgeWeight(he);
   }
   _model.setObjective(connectivity_metric, GRB_MINIMIZE);
+}
+
+void ILPModel::addCutMetric(ILPHypergraph& hg) {
+  GRBLinExpr cut_metric = 0;
+  for ( const HypernodeID& he : hg.edges() ) {
+    const size_t he_offset = hyperedge_offset(he, 0);
+    cut_metric += _contains_variable[he_offset] ?
+      _variables[he_offset] * hg.edgeWeight(he) : hg.edgeWeight(he);
+  }
+  _model.setObjective(cut_metric, GRB_MINIMIZE);
 }
 
 // ! Models constraint (1)
@@ -172,6 +231,15 @@ void ILPModel::balanceConstraint(ILPHypergraph& hg) {
 }
 
 // ! Models constraint (3)
+void ILPModel::modelHyperedgeConstraint(ILPHypergraph& hg) {
+  if ( _context.partition.objective == kahypar::Objective::km1 ) {
+    modelHyperedgeConnectivity(hg);
+  } else if ( _context.partition.objective == kahypar::Objective::cut ) {
+    modelHyperedgeCut(hg);
+  }
+}
+
+// ! Models constraint for connectivity metric (3)
 void ILPModel::modelHyperedgeConnectivity(ILPHypergraph& hg) {
   for ( const HyperedgeID& he : hg.edges() ) {
     for ( const HypernodeID& pin : hg.pins(he) ) {
@@ -182,6 +250,44 @@ void ILPModel::modelHyperedgeConnectivity(ILPHypergraph& hg) {
             _model.addConstr(_variables[he_offset] >= _variables[vertex_offset(pin,i)],
               "connectivity_values_" + std::to_string(he) + "_" +
               std::to_string(pin) + "_" + std::to_string(i));
+          }
+        }
+      }
+    }
+  }
+}
+
+// ! Models constraint for cut metric (3)
+void ILPModel::modelHyperedgeCut(ILPHypergraph& hg) {
+  for ( const HyperedgeID& he : hg.edges() ) {
+    const size_t he_offset = hyperedge_offset(he,0);
+    if ( _contains_variable[he_offset] ) {
+      const bool contains_unremovable_block = _unremovable_block[he] != kInvalidPartition;
+      if ( contains_unremovable_block ) {
+        // If hyperedge he contains an unremovable block, we must assign all pins
+        // to corresponding block to remove he from the cut
+        const PartitionID i = _unremovable_block[he];
+        for ( const HypernodeID& pin : hg.pins(he) ) {
+          if ( !hg.isSuperVertex(pin) ) {
+            _model.addConstr(_variables[he_offset] >= 1 - _variables[vertex_offset(pin,i)],
+              "cut_values_" + std::to_string(he) + "_" +
+              std::to_string(pin) + "_" + std::to_string(i));
+          }
+        }
+      } else {
+        // Otherwise, the hyperedge is cut if two pins of the hyperedge are
+        // assigned to different blocks
+        HypernodeID first_vertex = kInvalidHypernode;
+        for ( const HypernodeID& pin : hg.pins(he) ) {
+          if ( !hg.isSuperVertex(pin) && first_vertex != kInvalidHypernode && first_vertex != pin ) {
+            for ( PartitionID i = 0; i < hg.k(); ++i ) {
+              _model.addConstr(_variables[he_offset] >=
+                _variables[vertex_offset(first_vertex,i)] - _variables[vertex_offset(pin,i)],
+                "cut_values_" + std::to_string(he) + "_" +
+                std::to_string(pin) + "_" + std::to_string(i));
+            }
+          } else if ( !hg.isSuperVertex(pin) && first_vertex == kInvalidHypernode ) {
+            first_vertex = pin;
           }
         }
       }

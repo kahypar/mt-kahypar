@@ -65,7 +65,7 @@ void solve(PartitionedHypergraph& phg,
 
   // Solve ILP Problem
   const HyperedgeWeight model_objective_before = model.getInitialObjective();
-  const HyperedgeWeight connectivity_before = metrics::km1(phg);
+  const HyperedgeWeight objective_before = metrics::objective(phg, context.partition.objective);
   model.solve();
   const HyperedgeWeight model_objective_after = model.getOptimizedObjective();
   const HyperedgeWeight delta = model_objective_before - model_objective_after;
@@ -74,12 +74,12 @@ void solve(PartitionedHypergraph& phg,
   applyILPSolution(phg, model, nodes);
 
   // Verify Correctness of Solution
-  const HyperedgeWeight connectivity_after = metrics::km1(phg);
+  const HyperedgeWeight objective_after = metrics::objective(phg, context.partition.objective);
   if ( verify_delta ) {
     ASSERT_EQ(expected_delta, delta);
   }
   if ( !is_parallel ) {
-    ASSERT_EQ(connectivity_before - delta, connectivity_after);
+    ASSERT_EQ(objective_before - delta, objective_after);
   }
   for ( PartitionID i = 0; i < phg.k(); ++i ) {
     ASSERT_LE(phg.partWeight(i), context.partition.max_part_weights[i]);
@@ -98,6 +98,7 @@ TEST(AILPModel, OptimizesConnectivityMetric1) {
   // Setup Context
   Context context;
   context.partition.max_part_weights.assign(2, 4);
+  context.partition.objective = kahypar::Objective::km1;
 
   // Solve ILP Problem
   const vec<HypernodeID> nodes = {1, 3, 4};
@@ -116,6 +117,7 @@ TEST(AILPModel, OptimizesConnectivityMetric2) {
   // Setup Context
   Context context;
   context.partition.max_part_weights.assign(3, 4);
+  context.partition.objective = kahypar::Objective::km1;
 
   // Solve ILP Problem
   const vec<HypernodeID> nodes = {1, 2, 4, 5};
@@ -134,6 +136,7 @@ TEST(AILPModel, OptimizesConnectivityMetric3) {
   // Setup Context
   Context context;
   context.partition.max_part_weights.assign(3, 4);
+  context.partition.objective = kahypar::Objective::km1;
 
   // Solve ILP Problem
   const vec<HypernodeID> nodes = {1, 2, 4, 5};
@@ -153,6 +156,7 @@ TEST(AILPModel, OptimizesConnectivityMetric4) {
   // Setup Context
   Context context;
   context.partition.max_part_weights.assign(3, 6);
+  context.partition.objective = kahypar::Objective::km1;
 
   // Solve ILP Problem
   const vec<HypernodeID> nodes = {1, 2, 4, 5};
@@ -171,6 +175,7 @@ TEST(AILPModel, OptimizesConnectivityMetric5) {
   // Setup Context
   Context context;
   context.partition.max_part_weights.assign(3, 6);
+  context.partition.objective = kahypar::Objective::km1;
 
   // Solve ILP Problem
   const vec<HypernodeID> nodes = {1, 2, 5};
@@ -190,6 +195,7 @@ TEST(AILPModel, SolvesTwoILPsInParallel) {
   // Setup Context
   Context context;
   context.partition.max_part_weights.assign(3, 5);
+  context.partition.objective = kahypar::Objective::km1;
 
   // Solve ILP Problem
   tbb::parallel_invoke([&] {
@@ -223,7 +229,7 @@ Hypergraph generateRandomHypergraph(const HypernodeID num_hypernodes,
     TBBNumaArena::GLOBAL_TASK_GROUP, num_hypernodes, num_hyperedges, hyperedges);
 }
 
-TEST(AILPModel, StressTest) {
+TEST(AILPModel, StressTestForConnectivityMetric) {
   // Setup Hypergraph
   const HypernodeID num_hypernodes = 1000;
   const HypernodeID num_hyperedges = 1000;
@@ -239,6 +245,7 @@ TEST(AILPModel, StressTest) {
   // Setup Context
   Context context;
   context.partition.max_part_weights.assign(k, num_hypernodes / k + 5);
+  context.partition.objective = kahypar::Objective::km1;
 
   // Solve ILP Problem
   const HypernodeID num_nodes_in_ilp = 50;
@@ -248,6 +255,34 @@ TEST(AILPModel, StressTest) {
   }
   solve(phg, context, nodes, 0, false, false);
 }
+
+TEST(AILPModel, StressTestForCutMetric) {
+  // Setup Hypergraph
+  const HypernodeID num_hypernodes = 1000;
+  const HypernodeID num_hyperedges = 1000;
+  const HypernodeID max_edge_size = 3;
+  Hypergraph hg = generateRandomHypergraph(num_hypernodes, num_hyperedges, max_edge_size);
+  const PartitionID k = 4;
+  PartitionedHypergraph phg(k, TBBNumaArena::GLOBAL_TASK_GROUP, hg);
+  for ( const HypernodeID& hn : phg.nodes() ) {
+    phg.setOnlyNodePart(hn, hn % k);
+  }
+  phg.initializePartition(TBBNumaArena::GLOBAL_TASK_GROUP);
+
+  // Setup Context
+  Context context;
+  context.partition.max_part_weights.assign(k, num_hypernodes / k + 5);
+  context.partition.objective = kahypar::Objective::cut;
+
+  // Solve ILP Problem
+  const HypernodeID num_nodes_in_ilp = 50;
+  vec<HypernodeID> nodes;
+  for ( HypernodeID hn = 0; hn < num_nodes_in_ilp; ++hn ) {
+    nodes.push_back(hn);
+  }
+  solve(phg, context, nodes, 0, false, false);
+}
+
 
 TEST(AILPModel, SolvesTwoILPProblemsWithReset) {
   // Setup Hypergraph
@@ -261,6 +296,7 @@ TEST(AILPModel, SolvesTwoILPProblemsWithReset) {
   // Setup Context
   Context context;
   context.partition.max_part_weights.assign(3, 5);
+  context.partition.objective = kahypar::Objective::km1;
 
   // Setup ILP Problem
   vec<HypernodeID> nodes = {0, 1};
