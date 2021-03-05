@@ -79,9 +79,10 @@ bool ILPScheduler::refine() {
   }
   utils::Timer::instance().stop_timer("select_vertices");
 
-  LOG << V(nodes.size()) << V(_phg.initialNumNodes()) << V(estimatedNumberOfNonZeros());
+  LOG << V(nodes.size()) << V(estimatedNumberOfNonZeros());
 
   // Solve ILP
+  std::sort(nodes.begin(), nodes.end());
   _solver.solve(nodes);
 
   return true;
@@ -125,8 +126,8 @@ size_t ILPScheduler::bfs(vec<HypernodeID>& nodes,
   // Insert vertices into BFS queue
   size_t idx = gains_start_idx;
   for ( ; idx < gains_end_idx; ++idx ) {
-    if ( _gains[idx].is_border_vertex && _gains[idx].gain >= min_gain ) {
-      const HypernodeID hn = _gains[idx].hn;
+    const HypernodeID hn = _gains[idx].hn;
+    if ( _gains[idx].is_border_vertex && _gains[idx].gain >= min_gain && !_visited_hns[hn] ) {
       q.push(hn);
       _visited_hns[hn] = true;
     } else {
