@@ -130,7 +130,6 @@ struct FMParameters {
 
   size_t multitry_rounds = 1;
   mutable size_t num_seed_nodes = 1;
-  size_t move_apply_frequency = std::numeric_limits<size_t>::max();       // by default, don't apply intermediately
 
   double rollback_balance_violation_factor = std::numeric_limits<double>::max();
   double min_improvement = -1.0;

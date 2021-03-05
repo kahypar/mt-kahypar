@@ -134,7 +134,6 @@ namespace mt_kahypar {
     // and do the local rollback outside this function
 
 
-    size_t num_moves_at_last_apply = 0;
     size_t bestImprovementIndex = 0;
     Gain estimatedImprovement = 0;
     Gain bestImprovement = 0;
@@ -187,13 +186,10 @@ namespace mt_kahypar {
           bestImprovementIndex = localMoves.size();
 
           if constexpr (use_delta) {
-            if (runStats.moves - num_moves_at_last_apply > context.refinement.fm.move_apply_frequency) {
-              applyBestLocalPrefixToSharedPartition(phg, bestImprovementIndex, bestImprovement, true /* apply all moves */);
-              bestImprovementIndex = 0;
-              localMoves.clear();
-              deltaPhg.clear();   // clear hashtables, save memory :)
-              num_moves_at_last_apply = runStats.moves;
-            }
+            applyBestLocalPrefixToSharedPartition(phg, bestImprovementIndex, bestImprovement, true /* apply all moves */);
+            bestImprovementIndex = 0;
+            localMoves.clear();
+            deltaPhg.clear();   // clear hashtables, save memory :)
           }
         }
 
