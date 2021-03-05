@@ -1,4 +1,9 @@
-target_sources(mt_kahypar_tests PRIVATE
+target_sources(mt_kahypar_fast_tests PRIVATE
+        static_hypergraph_test.cc
+        partitioned_hypergraph_test.cc
+        delta_partitioned_hypergraph_test.cc
+        partitioned_hypergraph_smoke_test.cc
+        gain_updates_test.cc
         graph_test.cc
         connectivity_set_test.cc
         priority_queue_test.cc
@@ -6,14 +11,6 @@ target_sources(mt_kahypar_tests PRIVATE
         array_test.cc
         sparse_map_test.cc
         pin_count_in_part_test.cc
-)
-
-target_sources(mt_kahypar_fast_tests PRIVATE
-        static_hypergraph_test.cc
-        partitioned_hypergraph_test.cc
-        delta_partitioned_hypergraph_test.cc
-        partitioned_hypergraph_smoke_test.cc
-        gain_updates_test.cc
 )
 
 target_sources(mt_kahypar_strong_tests PRIVATE

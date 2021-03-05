@@ -31,7 +31,8 @@ namespace mt_kahypar::io::csv {
 
   std::string header() {
     return "algorithm,threads,graph,k,seed,epsilon,imbalance,"
-           "objective,km1,cut,partitionTime,fmTime,lpTime,coarseningTime,ipTime,preprocessingTime\n";
+           "objective,km1,cut,partitionTime,fmTime,lpTime,coarseningTime,ipTime,preprocessingTime"
+           "\n";
   }
 
   std::string serialize(const PartitionedHypergraph& phg, const Context& context,

@@ -128,17 +128,20 @@ std::ostream & operator<< (std::ostream& str, const LabelPropagationParameters& 
 
 struct FMParameters {
   FMAlgorithm algorithm = FMAlgorithm::do_nothing;
+
   size_t multitry_rounds = 1;
+  mutable size_t num_seed_nodes = 1;
+
+  double rollback_balance_violation_factor = std::numeric_limits<double>::max();
+  double min_improvement = -1.0;
+  double time_limit_factor = std::numeric_limits<double>::max();
+
   bool perform_moves_global = false;
   bool rollback_parallel = true;
   bool iter_moves_on_recalc = false;
-  double rollback_balance_violation_factor = std::numeric_limits<double>::max();
-  mutable size_t num_seed_nodes = 1;
   bool shuffle = true;
   mutable bool obey_minimal_parallelism = false;
-  double min_improvement = -1.0;
   bool release_nodes = true;
-  double time_limit_factor = std::numeric_limits<double>::max();
 };
 
 std::ostream& operator<<(std::ostream& out, const FMParameters& params);

@@ -101,10 +101,8 @@ script:
       make clean;
       make -j2 MtKaHyParFast;
       make -j2 MtKaHyParStrong;
-      make -j2 mt_kahypar_tests;
       make -j2 mt_kahypar_fast_tests;
       make -j2 mt_kahypar_strong_tests;
-      ./tests/mt_kahypar_tests;
       ./tests/mt_kahypar_fast_tests;
       ./tests/mt_kahypar_strong_tests;
     fi

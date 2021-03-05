@@ -41,10 +41,8 @@ vec<Gain> insertAndExtractAllMoves(Strategy& strat, PartitionedHypergraph& phg) 
   for (HypernodeID u : phg.nodes()) {
     strat.insertIntoPQ(phg, u, 0);
   }
-  strat.updatePQs(phg);
 
   while (strat.findNextMove(phg, m)) {
-    strat.updatePQs(phg);
     gains.push_back(m.gain);
   }
   strat.clearPQs(0);
@@ -127,7 +125,6 @@ TEST(StrategyTests, DeltaUpdatesWork) {
   GainDeltaStrategy strat(context, hg.initialNumNodes(), sd, fm_stats);
   for (HypernodeID u : hg.nodes())
     strat.insertIntoPQ(phg, u, 0);
-  strat.updatePQs(phg);
 
   Move m;
 
@@ -152,7 +149,6 @@ TEST(StrategyTests, DeltaUpdatesWork) {
   while (strat.findNextMove(phg, m)) {
     phg.changeNodePart(m.node, m.from, m.to, std::numeric_limits<HypernodeWeight>::max(), []{}, delta_func);
     fm_stats.moves++;
-    strat.updatePQs(phg);
     check_gains();
   }
 }
