@@ -71,48 +71,11 @@ namespace mt_kahypar {
       timer.start_timer("find_moves", "Find Moves");
       sharedData.finishedTasks.store(0, std::memory_order_relaxed);
 
-      SpinLock spinlock;
-      double time_total = std::numeric_limits<double>::min(), time_local_apply, time_global_apply;
-
       auto task = [&](const size_t task_id) {
-        auto t_start = tbb::tick_count::now();
-        tbb::tick_count t_switch;
-        bool recorded_switch = sharedData.deltaExceededMemoryConstraints || context.refinement.fm.perform_moves_global;
-        if (recorded_switch) {
-          t_switch = t_start;
-        }
-
         auto& fm = ets_fm.local();
         while(sharedData.finishedTasks.load(std::memory_order_relaxed) < sharedData.finishedTasksLimit
-              && fm.findMoves(phg, task_id, num_seeds))
-        { /* keep running*/
-          if (!recorded_switch
-                && (sharedData.deltaExceededMemoryConstraints || context.refinement.fm.perform_moves_global)) {
-            recorded_switch = true;
-            t_switch = tbb::tick_count::now();
-          }
-        }
+              && fm.findMoves(phg, task_id, num_seeds)) { /* keep running*/ }
         sharedData.finishedTasks.fetch_add(1, std::memory_order_relaxed);
-
-        // record timings of longest running thread
-        if (context.type == kahypar::ContextType::main) {
-          auto t_end = tbb::tick_count::now();
-          if (!recorded_switch) {
-            t_switch = t_end;
-          }
-          double  my_time_local_apply = (t_switch - t_start).seconds(),
-                  my_time_global_apply = (t_end - t_switch).seconds(),
-                  my_time_total = (t_end - t_start).seconds();
-          if (my_time_total > time_total) {
-            spinlock.lock();
-            if (my_time_total > time_total) {
-              time_total = my_time_total;
-              time_local_apply = my_time_local_apply;
-              time_global_apply = my_time_global_apply;
-            }
-            spinlock.unlock();
-          }
-        }
       };
       size_t num_tasks = std::min(num_border_nodes, context.shared_memory.num_threads);
       ASSERT(static_cast<int>(num_tasks) <= TBBNumaArena::instance().total_number_of_threads());
@@ -121,11 +84,6 @@ namespace mt_kahypar {
       }
       tg.wait();
       timer.stop_timer("find_moves");
-
-      if (context.type == kahypar::ContextType::main) {
-        timer.add_timing("find_moves", "local-apply", time_local_apply);
-        timer.add_timing("find_moves", "global-apply", time_global_apply);
-      }
 
       timer.start_timer("rollback", "Rollback to Best Solution");
       HyperedgeWeight improvement = globalRollback.revertToBestPrefix
