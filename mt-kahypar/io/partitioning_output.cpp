@@ -329,6 +329,14 @@ namespace mt_kahypar::io {
     }
   }
 
+  void printILPBanner(const Context& context) {
+    if (context.partition.verbose_output) {
+      LOG << "\n********************************************************************************";
+      LOG << "*                                   ILP...                                     *";
+      LOG << "********************************************************************************";
+    }
+  }
+
   void printVCycleBanner(const Context& context, const size_t vcycle_num) {
     if (context.partition.verbose_output) {
       LOG << "\n********************************************************************************";

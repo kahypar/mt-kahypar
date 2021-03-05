@@ -132,6 +132,23 @@ namespace mt_kahypar {
     return out;
   }
 
+  std::ostream& operator<<(std::ostream& out, const ILPParameters& params) {
+    out << "  ILP Parameters: \n";
+    out << "    Use ILP:                          " << std::boolalpha << params.use_ilp << std::endl;
+    if ( params.use_ilp ) {
+      out << "    Maximum Number of Non-Zeros:      " << params.max_non_zeros<< std::endl;
+      out << "    Vertex Selection Strategy:        " << params.vertex_selection_strategy << std::endl;
+      if ( params.vertex_selection_strategy == ILPVertexSelectionStrategy::gain ) {
+        out << "    Minimum Gain For BFS:             " << params.min_gain << std::endl;
+      }
+      if ( params.vertex_selection_strategy == ILPVertexSelectionStrategy::top_vertices ) {
+        out << "    Maximum BFS Distance:             " << params.max_bfs_distance << std::endl;
+      }
+    }
+    return out;
+  }
+
+
   std::ostream & operator<< (std::ostream& str, const RefinementParameters& params) {
     str << "Refinement Parameters:" << std::endl;
     str << "  Refine Until No Improvement:        " << std::boolalpha << params.refine_until_no_improvement << std::endl;
@@ -144,6 +161,7 @@ namespace mt_kahypar {
 #ifdef USE_STRONG_PARTITIONER
     str << "\n" << params.global_fm;
 #endif
+    str << "\n" << params.ilp;
     return str;
   }
 

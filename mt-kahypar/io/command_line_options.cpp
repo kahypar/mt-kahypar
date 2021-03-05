@@ -365,6 +365,29 @@ namespace mt_kahypar {
              "If true, then the globalized FM local search stops if more than a certain number of threads are finished.")
             #endif
             ;
+    if ( !initial_partitioning ) {
+      options.add_options()
+              ("r-use-ilp", po::value<bool>(&context.refinement.ilp.use_ilp)->value_name("<bool>")->default_value(false),
+              "If true, then ILP-based refinement is used to improve partition")
+              ("r-ilp-max-non-zeros", po::value<size_t>(&context.refinement.ilp.max_non_zeros)->value_name("<size_t>"),
+              "Upper bound for the number of non-zeros in our ILP")
+              ("r-ilp-vertex-selection-rule",
+               po::value<std::string>()->value_name("<string>")->notifier(
+                       [&](const std::string& strategy) {
+                         context.refinement.ilp.vertex_selection_strategy =
+                                 ilpVertexSelectionStrategyFromString(strategy);
+                       }),
+               "ILP Vertex Selection Strategy:\n"
+               "- boundary\n"
+               "- gain\n"
+               "- top_vertices")
+              ("r-ilp-min-gain", po::value<int>(&context.refinement.ilp.min_gain)->value_name("<int>"),
+              "Minimum gain of vertex such that it is considered as start vertex for bfs,\n"
+              "if 'gain' vertex selection strategy is chosen.")
+              ("r-ilp-max-bfs-distance", po::value<int>(&context.refinement.ilp.max_bfs_distance)->value_name("<int>"),
+              "Only vertices with the corresponding distance to the start vertex are,\n"
+              "considered for the ILP problem, if 'top_vertices' vertex selection strategy is chosen.");
+    }
     return options;
   }
 

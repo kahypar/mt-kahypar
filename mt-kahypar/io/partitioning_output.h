@@ -44,5 +44,6 @@ namespace mt_kahypar::io {
   void printCoarseningBanner(const Context& context);
   void printInitialPartitioningBanner(const Context& context);
   void printLocalSearchBanner(const Context& context);
+  void printILPBanner(const Context& context);
   void printVCycleBanner(const Context& context, const size_t vcycle_num);
 }  // namespace mt_kahypar::io

@@ -112,6 +112,13 @@ enum class FMAlgorithm : uint8_t {
   do_nothing
 };
 
+enum class ILPVertexSelectionStrategy : uint8_t {
+  boundary,
+  gain,
+  top_vertices,
+  UNDEFINED
+};
+
 std::ostream & operator<< (std::ostream& os, const Type& type);
 
 std::ostream & operator<< (std::ostream& os, const Paradigm& paradigm);
@@ -136,6 +143,8 @@ std::ostream & operator<< (std::ostream& os, const LabelPropagationAlgorithm& al
 
 std::ostream & operator<< (std::ostream& os, const FMAlgorithm& algo);
 
+std::ostream & operator<< (std::ostream& os, const ILPVertexSelectionStrategy& algo);
+
 LouvainEdgeWeight louvainEdgeWeightFromString(const std::string& type);
 
 SimiliarNetCombinerStrategy similiarNetCombinerStrategyFromString(const std::string& type);
@@ -155,5 +164,7 @@ InitialPartitioningMode initialPartitioningModeFromString(const std::string& mod
 LabelPropagationAlgorithm labelPropagationAlgorithmFromString(const std::string& type);
 
 FMAlgorithm fmAlgorithmFromString(const std::string& type);
+
+ILPVertexSelectionStrategy ilpVertexSelectionStrategyFromString(const std::string& strategy);
 
 }  // namesapce mt_kahypar

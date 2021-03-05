@@ -158,6 +158,17 @@ namespace mt_kahypar {
     return os << static_cast<uint8_t>(algo);
   }
 
+  std::ostream & operator<< (std::ostream& os, const ILPVertexSelectionStrategy& algo) {
+    switch (algo) {
+      case ILPVertexSelectionStrategy::boundary: return os << "boundary";
+      case ILPVertexSelectionStrategy::gain : return os << "gain";
+      case ILPVertexSelectionStrategy::top_vertices: return os << "top_vertices";
+      case ILPVertexSelectionStrategy::UNDEFINED: return os << "UNDEFINED";
+        // omit default case to trigger compiler warning for missing cases
+    }
+    return os << static_cast<uint8_t>(algo);
+  }
+
   LouvainEdgeWeight louvainEdgeWeightFromString(const std::string& type) {
     if (type == "hybrid") {
       return LouvainEdgeWeight::hybrid;
@@ -288,6 +299,19 @@ namespace mt_kahypar {
     }
     ERROR("Illegal option: " + type);
     return FMAlgorithm::do_nothing;
+  }
+
+
+  ILPVertexSelectionStrategy ilpVertexSelectionStrategyFromString(const std::string& strategy) {
+    if (strategy == "boundary") {
+      return ILPVertexSelectionStrategy::boundary;
+    } else if (strategy == "gain") {
+      return ILPVertexSelectionStrategy::gain;
+    } else if (strategy == "fm_gain_delta") {
+      return ILPVertexSelectionStrategy::top_vertices;
+    }
+    ERROR("Illegal option: " + strategy);
+    return ILPVertexSelectionStrategy::UNDEFINED;
   }
 
 }

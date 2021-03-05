@@ -32,11 +32,11 @@ Hypergraph generateRandomHypergraph(const HypernodeID num_hypernodes,
 }
 
 int main() {
-  const HypernodeID num_nodes = 10000;
-  const HyperedgeID num_edges = 10000;
+  const HypernodeID num_nodes = 100000;
+  const HyperedgeID num_edges = 100000;
   const HypernodeID max_edge_size = 20;
 
-  const HypernodeID num_ilp_nodes = 1000;
+  const HypernodeID num_ilp_nodes = 5000;
   vec<HypernodeID> nodes;
   for ( HypernodeID hn = 0; hn < num_ilp_nodes; ++hn ) {
     nodes.push_back(hn);

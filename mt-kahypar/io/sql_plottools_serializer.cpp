@@ -104,7 +104,7 @@ std::string serialize(const PartitionedHypergraph& hypergraph,
         << " fm_multitry_rounds=" << context.refinement.fm.multitry_rounds
         << " fm_perform_moves_global=" << std::boolalpha << context.refinement.fm.perform_moves_global
         << " fm_rollback_parallel=" << std::boolalpha << context.refinement.fm.rollback_parallel
-        << " fm_rollback_sensitive_to_num_moves=" << std::boolalpha << context.refinement.fm.iter_moves_on_recalc
+        << " fm_iter_moves_on_recalc=" << std::boolalpha << context.refinement.fm.iter_moves_on_recalc
         << " fm_rollback_balance_violation_factor=" << context.refinement.fm.rollback_balance_violation_factor
         << " fm_min_improvement=" << context.refinement.fm.min_improvement
         << " fm_release_nodes=" << context.refinement.fm.release_nodes
@@ -116,6 +116,11 @@ std::string serialize(const PartitionedHypergraph& hypergraph,
         << " global_fm_refine_until_no_improvement=" << std::boolalpha << context.refinement.global_fm.refine_until_no_improvement
         << " global_fm_num_seed_nodes=" << context.refinement.global_fm.num_seed_nodes
         << " global_fm_obey_minimal_parallelism=" << std::boolalpha << context.refinement.global_fm.obey_minimal_parallelism
+        << " ilp_use_ilp=" << std::boolalpha << context.refinement.ilp.use_ilp
+        << " ilp_max_non_zeros=" << context.refinement.ilp.max_non_zeros
+        << " ilp_vertex_selection_strategy=" << context.refinement.ilp.vertex_selection_strategy
+        << " ilp_min_gain=" << context.refinement.ilp.min_gain
+        << " ilp_max_bfs_distance=" << context.refinement.ilp.max_bfs_distance
         << " num_threads=" << context.shared_memory.num_threads
         << " use_localized_random_shuffle=" << std::boolalpha << context.shared_memory.use_localized_random_shuffle
         << " shuffle_block_size=" << context.shared_memory.shuffle_block_size;

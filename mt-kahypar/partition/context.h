@@ -151,10 +151,21 @@ struct NLevelGlobalFMParameters {
 
 std::ostream& operator<<(std::ostream& out, const NLevelGlobalFMParameters& params);
 
+struct ILPParameters {
+  bool use_ilp = false;
+  size_t max_non_zeros = 0;
+  ILPVertexSelectionStrategy vertex_selection_strategy = ILPVertexSelectionStrategy::UNDEFINED;
+  int min_gain = std::numeric_limits<int>::max();
+  int max_bfs_distance = 0;
+};
+
+std::ostream& operator<<(std::ostream& out, const ILPParameters& params);
+
 struct RefinementParameters {
   LabelPropagationParameters label_propagation;
   FMParameters fm;
   NLevelGlobalFMParameters global_fm;
+  ILPParameters ilp;
   bool refine_until_no_improvement = false;
   size_t max_batch_size = std::numeric_limits<size_t>::max();
   size_t min_border_vertices_per_thread = 0;
