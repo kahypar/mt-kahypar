@@ -121,7 +121,7 @@ void ILPModel::addVariablesToModel(ILPHypergraph& hg) {
         ++connectivity;
       }
     }
-    _objective += (connectivity - 1) * hg.edgeWeight(he);
+    _initial_objective += (connectivity - 1) * hg.edgeWeight(he);
     _unremovable_blocks.reset();
   }
 }

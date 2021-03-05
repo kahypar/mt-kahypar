@@ -39,7 +39,8 @@ class ILPModel {
     _is_constructed(false),
     _is_solved(false),
     _model(env),
-    _objective(0),
+    _initial_objective(0),
+    _optimized_objective(0),
     _variables(),
     _contains_variable(),
     _num_unremovable_blocks() {
@@ -48,23 +49,34 @@ class ILPModel {
 
   void construct(ILPHypergraph& hg);
 
-  void solve() {
+  int solve() {
     ASSERT(_is_constructed);
+    int status = -1;
     try {
       _model.optimize();
-      _objective = _model.get(GRB_DoubleAttr_ObjVal);
-      _is_solved = true;
+      status = _model.get(GRB_IntAttr_Status);
+      if ( status == GRB_OPTIMAL || status == GRB_TIME_LIMIT ) {
+        _optimized_objective = _model.get(GRB_DoubleAttr_ObjVal);
+        _is_solved = true;
+      }
     } catch(GRBException e) {
       ERROR("Error code = " << e.getErrorCode() << "Message =" << e.getMessage());
     } catch(...) {
       ERROR("Exception during optimization");
     }
+    return status;
   }
 
-  // ! Returns the connectivity metric
-  HyperedgeWeight getObjective() const {
+  // ! Returns the objective given by the input solution
+  HyperedgeWeight getInitialObjective() const {
     ASSERT(_is_constructed);
-    return _objective;
+    return _initial_objective;
+  }
+
+  // ! Returns the objective given by the input solution
+  HyperedgeWeight getOptimizedObjective() const {
+    ASSERT(_is_solved);
+    return _optimized_objective;
   }
 
   // ! Returns the block of vertex hn to which the ILP Optimizer
@@ -93,7 +105,8 @@ class ILPModel {
     _is_constructed = false;
     _is_solved = false;
     _model.reset();
-    _objective = 0;
+    _initial_objective = 0;
+    _optimized_objective = 0;
     _variables.clear();
     _contains_variable.clear();
     _num_unremovable_blocks.clear();
@@ -140,8 +153,10 @@ class ILPModel {
   bool _is_solved;
   // ! Gurobi model
   GRBModel _model;
-  // ! Connectivity metric
-  HyperedgeWeight _objective;
+  // ! Objective given by the input solution
+  HyperedgeWeight _initial_objective;
+  // ! Objective after ILP problem was solved
+  HyperedgeWeight _optimized_objective;
   // ! Gurobi variables
   vec<GRBVar> _variables;
   // ! _contains_variable[i] == true, if variable i is contained in the Gurobi model

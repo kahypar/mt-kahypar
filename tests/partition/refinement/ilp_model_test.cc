@@ -64,10 +64,10 @@ void solve(PartitionedHypergraph& phg,
   model.construct(ilp_hg);
 
   // Solve ILP Problem
-  const HyperedgeWeight model_objective_before = model.getObjective();
+  const HyperedgeWeight model_objective_before = model.getInitialObjective();
   const HyperedgeWeight connectivity_before = metrics::km1(phg);
   model.solve();
-  const HyperedgeWeight model_objective_after = model.getObjective();
+  const HyperedgeWeight model_objective_after = model.getOptimizedObjective();
   const HyperedgeWeight delta = model_objective_before - model_objective_after;
 
   // Apply ILP Solution
@@ -225,9 +225,9 @@ Hypergraph generateRandomHypergraph(const HypernodeID num_hypernodes,
 
 TEST(AILPModel, StressTest) {
   // Setup Hypergraph
-  const HypernodeID num_hypernodes = 50;
-  const HypernodeID num_hyperedges = 50;
-  const HypernodeID max_edge_size = 10;
+  const HypernodeID num_hypernodes = 1000;
+  const HypernodeID num_hyperedges = 1000;
+  const HypernodeID max_edge_size = 3;
   Hypergraph hg = generateRandomHypergraph(num_hypernodes, num_hyperedges, max_edge_size);
   const PartitionID k = 4;
   PartitionedHypergraph phg(k, TBBNumaArena::GLOBAL_TASK_GROUP, hg);
@@ -241,7 +241,7 @@ TEST(AILPModel, StressTest) {
   context.partition.max_part_weights.assign(k, num_hypernodes / k + 5);
 
   // Solve ILP Problem
-  const HypernodeID num_nodes_in_ilp = 20;
+  const HypernodeID num_nodes_in_ilp = 50;
   vec<HypernodeID> nodes;
   for ( HypernodeID hn = 0; hn < num_nodes_in_ilp; ++hn ) {
     nodes.push_back(hn);
@@ -272,10 +272,10 @@ TEST(AILPModel, SolvesTwoILPProblemsWithReset) {
 
   {
     // Solve ILP Problem
-    const HyperedgeWeight model_objective_before = model.getObjective();
+    const HyperedgeWeight model_objective_before = model.getInitialObjective();
     const HyperedgeWeight connectivity_before = metrics::km1(phg);
     model.solve();
-    const HyperedgeWeight model_objective_after = model.getObjective();
+    const HyperedgeWeight model_objective_after = model.getOptimizedObjective();
     const HyperedgeWeight delta = model_objective_before - model_objective_after;
 
     // Apply ILP Solution
@@ -301,10 +301,10 @@ TEST(AILPModel, SolvesTwoILPProblemsWithReset) {
 
   {
     // Solve ILP Problem
-    const HyperedgeWeight model_objective_before = model.getObjective();
+    const HyperedgeWeight model_objective_before = model.getInitialObjective();
     const HyperedgeWeight connectivity_before = metrics::km1(phg);
     model.solve();
-    const HyperedgeWeight model_objective_after = model.getObjective();
+    const HyperedgeWeight model_objective_after = model.getOptimizedObjective();
     const HyperedgeWeight delta = model_objective_before - model_objective_after;
 
     // Apply ILP Solution
