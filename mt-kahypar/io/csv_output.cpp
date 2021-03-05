@@ -68,7 +68,7 @@ namespace mt_kahypar::io::csv {
     s << (timer.get("label_propagation") + timer.get("initialize_lp_refiner")) << sep;
     s << timer.get("coarsening") << sep;
     s << timer.get("initial_partitioning") << sep;
-    s << timer.get("preprocessing") << sep;
+    s << timer.get("preprocessing");
 
     return s.str();
   }
