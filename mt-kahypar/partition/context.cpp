@@ -138,6 +138,7 @@ namespace mt_kahypar {
     if ( params.use_ilp ) {
       out << "    Minimum Number of Non-Zeros:      " << params.min_non_zeros<< std::endl;
       out << "    Maximum Number of Non-Zeros:      " << params.max_non_zeros<< std::endl;
+      out << "    Time Limit:                       " << params.time_limit << std::endl;
       out << "    Vertex Selection Strategy:        " << params.vertex_selection_strategy << std::endl;
       if ( params.vertex_selection_strategy == ILPVertexSelectionStrategy::gain ) {
         out << "    Minimum Gain For BFS:             " << params.min_gain << std::endl;

@@ -49,6 +49,7 @@ class ILPModel {
          _context.partition.objective != kahypar::Objective::cut ) {
       ERROR("ILP Model is not able to optimize" << _context.partition.objective << "metric");
     }
+    _model.set(GRB_DoubleParam_TimeLimit, _context.refinement.ilp.time_limit);
   }
 
   void construct(ILPHypergraph& hg);
@@ -61,7 +62,7 @@ class ILPModel {
     try {
       _model.optimize();
       status = _model.get(GRB_IntAttr_Status);
-      if ( status == GRB_OPTIMAL || status == GRB_TIME_LIMIT ) {
+      if ( status == GRB_OPTIMAL ) {
         _optimized_objective = _model.get(GRB_DoubleAttr_ObjVal);
         _is_solved = true;
       }

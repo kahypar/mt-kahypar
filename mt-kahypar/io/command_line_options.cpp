@@ -373,6 +373,8 @@ namespace mt_kahypar {
               "Lower bound for the number of non-zeros in our ILP")
               ("r-ilp-max-non-zeros", po::value<size_t>(&context.refinement.ilp.max_non_zeros)->value_name("<size_t>"),
               "Upper bound for the number of non-zeros in our ILP")
+              ("r-ilp-time-limit", po::value<double>(&context.refinement.ilp.time_limit)->value_name("<double>"),
+              "Time limit for ILP solver")
               ("r-ilp-vertex-selection-rule",
                po::value<std::string>()->value_name("<string>")->notifier(
                        [&](const std::string& strategy) {
