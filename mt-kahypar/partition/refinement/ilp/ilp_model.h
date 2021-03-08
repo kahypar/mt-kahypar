@@ -29,7 +29,7 @@ namespace mt_kahypar {
 
 class ILPModel {
 
-  static constexpr bool debug = true;
+  static constexpr bool debug = false;
 
  public:
   explicit ILPModel(const Context& context,
@@ -44,8 +44,6 @@ class ILPModel {
     _variables(),
     _contains_variable(),
     _unremovable_block() {
-    _model.set(GRB_IntParam_LogToConsole, debug);
-
     // Sanity check
     if ( _context.partition.objective != kahypar::Objective::km1 &&
          _context.partition.objective != kahypar::Objective::cut ) {
@@ -55,7 +53,9 @@ class ILPModel {
 
   void construct(ILPHypergraph& hg);
 
-  int solve() {
+  int solve(const bool supress_output = false) {
+    _model.set(GRB_IntParam_LogToConsole,
+      _context.partition.verbose_output && !supress_output);
     ASSERT(_is_constructed);
     int status = -1;
     try {

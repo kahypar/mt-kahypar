@@ -54,7 +54,8 @@ class ILPSolver {
    * returns the improvement with respect to the objective function
    * found by the ILP.
    */
-  HyperedgeWeight solve(const vec<HypernodeID>& nodes) {
+  HyperedgeWeight solve(const vec<HypernodeID>& nodes,
+                        const bool supress_output = false) {
     _ilp_hg.reset();
     _model.reset();
     _rollback_cache.clear();
@@ -71,7 +72,7 @@ class ILPSolver {
 
     // Solve ILP
     utils::Timer::instance().start_timer("solve_ilp", "Solve ILP", true);
-    int status = _model.solve();
+    int status = _model.solve(supress_output);
     utils::Timer::instance().stop_timer("solve_ilp");
 
     HyperedgeWeight delta = 0;

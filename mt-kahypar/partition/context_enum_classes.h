@@ -116,6 +116,7 @@ enum class ILPVertexSelectionStrategy : uint8_t {
   boundary,
   gain,
   top_vertices,
+  localized,
   UNDEFINED
 };
 

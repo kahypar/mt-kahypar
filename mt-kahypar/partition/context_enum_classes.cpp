@@ -163,6 +163,7 @@ namespace mt_kahypar {
       case ILPVertexSelectionStrategy::boundary: return os << "boundary";
       case ILPVertexSelectionStrategy::gain : return os << "gain";
       case ILPVertexSelectionStrategy::top_vertices: return os << "top_vertices";
+      case ILPVertexSelectionStrategy::localized: return os << "localized";
       case ILPVertexSelectionStrategy::UNDEFINED: return os << "UNDEFINED";
         // omit default case to trigger compiler warning for missing cases
     }
@@ -309,6 +310,8 @@ namespace mt_kahypar {
       return ILPVertexSelectionStrategy::gain;
     } else if (strategy == "top_vertices") {
       return ILPVertexSelectionStrategy::top_vertices;
+    } else if (strategy == "localized") {
+      return ILPVertexSelectionStrategy::localized;
     }
     ERROR("Illegal option: " + strategy);
     return ILPVertexSelectionStrategy::UNDEFINED;

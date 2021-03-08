@@ -154,6 +154,7 @@ std::ostream& operator<<(std::ostream& out, const NLevelGlobalFMParameters& para
 struct ILPParameters {
   bool use_ilp = false;
   size_t max_non_zeros = 0;
+  size_t min_non_zeros = std::numeric_limits<size_t>::max();
   ILPVertexSelectionStrategy vertex_selection_strategy = ILPVertexSelectionStrategy::UNDEFINED;
   int min_gain = std::numeric_limits<int>::max();
   int max_bfs_distance = 0;

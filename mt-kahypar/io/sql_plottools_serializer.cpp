@@ -117,6 +117,7 @@ std::string serialize(const PartitionedHypergraph& hypergraph,
         << " global_fm_num_seed_nodes=" << context.refinement.global_fm.num_seed_nodes
         << " global_fm_obey_minimal_parallelism=" << std::boolalpha << context.refinement.global_fm.obey_minimal_parallelism
         << " ilp_use_ilp=" << std::boolalpha << context.refinement.ilp.use_ilp
+        << " ilp_min_non_zeros=" << context.refinement.ilp.min_non_zeros
         << " ilp_max_non_zeros=" << context.refinement.ilp.max_non_zeros
         << " ilp_vertex_selection_strategy=" << context.refinement.ilp.vertex_selection_strategy
         << " ilp_min_gain=" << context.refinement.ilp.min_gain

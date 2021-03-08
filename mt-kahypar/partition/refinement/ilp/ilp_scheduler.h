@@ -48,6 +48,7 @@ class ILPScheduler {
     _num_vertices(0),
     _num_hyperedges(0),
     _num_pins(0),
+    _k(0),
     _gains(),
     _visited_hns(),
     _visited_hes() { }
@@ -69,9 +70,9 @@ class ILPScheduler {
 
   size_t estimatedNumberOfNonZeros() {
     if ( _context.partition.objective == kahypar::Objective::km1 ) {
-      return _context.partition.k * ( 2 * _num_vertices + 2 * _num_pins );
+      return _k * ( 2 * _num_vertices + 2 * _num_pins );
     } else if ( _context.partition.objective == kahypar::Objective::cut ) {
-      return _context.partition.k * ( 2 * _num_vertices + 3 * ( _num_pins - _num_hyperedges ) );
+      return _k * ( 2 * _num_vertices + 3 * ( _num_pins - _num_hyperedges ) );
     }
     return std::numeric_limits<size_t>::max();
   }
@@ -83,6 +84,10 @@ class ILPScheduler {
              const Gain min_gain,
              const int max_distance);
 
+  void bfs(vec<HypernodeID>& nodes,
+           const HypernodeID start_hn,
+           const int max_distance);
+
   PartitionedHypergraph& _phg;
   const Context& _context;
   GRBEnv _env;
@@ -91,10 +96,12 @@ class ILPScheduler {
   size_t _num_vertices;
   size_t _num_hyperedges;
   size_t _num_pins;
+  PartitionID _k;
   vec<VertexGain> _gains;
 
   vec<bool> _visited_hns;
-  vec<bool> _visited_hes;
+  vec<bool> _marked_hns;
+  kahypar::ds::FastResetFlagArray<> _visited_hes;
 };
 
 } // namespace mt_kahypar

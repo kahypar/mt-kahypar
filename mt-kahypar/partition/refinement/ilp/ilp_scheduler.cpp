@@ -24,8 +24,11 @@
 #include "tbb/parallel_sort.h"
 
 #include "mt-kahypar/partition/refinement/policies/gain_policy.h"
+#include "mt-kahypar/partition/metrics.h"
 #include "mt-kahypar/parallel/stl/scalable_queue.h"
 #include "mt-kahypar/utils/timer.h"
+#include "mt-kahypar/utils/randomize.h"
+#include "mt-kahypar/utils/progress_bar.h"
 
 namespace mt_kahypar {
 
@@ -47,43 +50,77 @@ bool ILPScheduler::refine() {
       _gains[hn].is_border_vertex = _phg.isBorderNode(hn);
     });
   }
-  tbb::parallel_sort(_gains.begin(), _gains.end(),
-    [&](const VertexGain& lhs, const VertexGain& rhs) {
-      return ( lhs.is_border_vertex > rhs.is_border_vertex ||
-             ( lhs.is_border_vertex == rhs.is_border_vertex && lhs.gain > rhs.gain ) ||
-             ( lhs.is_border_vertex == rhs.is_border_vertex && lhs.gain == rhs.gain && lhs.hn < rhs.hn ) );
-    });
+
+  if ( _context.refinement.ilp.vertex_selection_strategy != ILPVertexSelectionStrategy::localized ) {
+    tbb::parallel_sort(_gains.begin(), _gains.end(),
+      [&](const VertexGain& lhs, const VertexGain& rhs) {
+        return ( lhs.is_border_vertex > rhs.is_border_vertex ||
+              ( lhs.is_border_vertex == rhs.is_border_vertex && lhs.gain > rhs.gain ) ||
+              ( lhs.is_border_vertex == rhs.is_border_vertex && lhs.gain == rhs.gain && lhs.hn < rhs.hn ) );
+      });
+  } else {
+    utils::Randomize::instance().parallelShuffleVector(_gains, 0UL, _gains.size());
+  }
   utils::Timer::instance().stop_timer("compute_gains");
 
-  utils::Timer::instance().start_timer("select_vertices", "Select ILP Vertices");
-  _num_vertices = 0;
-  _num_hyperedges = 0;
-  _num_pins = 0;
   _visited_hns.assign(_phg.initialNumNodes(), false);
-  _visited_hes.assign(_phg.initialNumEdges(), false);
-  vec<HypernodeID> nodes;
-  if ( _context.refinement.ilp.vertex_selection_strategy == ILPVertexSelectionStrategy::boundary ) {
-    bfs(nodes, 0, _gains.size(), kInvalidGain, std::numeric_limits<int>::max());
-  } else if ( _context.refinement.ilp.vertex_selection_strategy == ILPVertexSelectionStrategy::gain ) {
-    size_t pos = bfs(nodes, 0, _gains.size(), _context.refinement.ilp.min_gain, std::numeric_limits<int>::max());
-    if ( estimatedNumberOfNonZeros() < _context.refinement.ilp.max_non_zeros ) {
-      bfs(nodes, pos, _gains.size(), kInvalidGain, std::numeric_limits<int>::max());
+  _visited_hes = kahypar::ds::FastResetFlagArray<>(_phg.initialNumEdges());
+  if ( _context.refinement.ilp.vertex_selection_strategy != ILPVertexSelectionStrategy::localized ) {
+    utils::Timer::instance().start_timer("select_vertices", "Select ILP Vertices");
+    _num_vertices = 0;
+    _num_hyperedges = 0;
+    _num_pins = 0;
+    _k = 0;
+    vec<HypernodeID> nodes;
+    if ( _context.refinement.ilp.vertex_selection_strategy == ILPVertexSelectionStrategy::boundary ) {
+      bfs(nodes, 0, _gains.size(), kInvalidGain, std::numeric_limits<int>::max());
+    } else if ( _context.refinement.ilp.vertex_selection_strategy == ILPVertexSelectionStrategy::gain ) {
+      size_t pos = bfs(nodes, 0, _gains.size(), _context.refinement.ilp.min_gain, std::numeric_limits<int>::max());
+      if ( estimatedNumberOfNonZeros() < _context.refinement.ilp.max_non_zeros ) {
+        bfs(nodes, pos, _gains.size(), kInvalidGain, std::numeric_limits<int>::max());
+      }
+    } else if ( _context.refinement.ilp.vertex_selection_strategy == ILPVertexSelectionStrategy::top_vertices ) {
+      size_t idx = 0;
+      while ( estimatedNumberOfNonZeros() < _context.refinement.ilp.max_non_zeros &&
+              idx < _gains.size() && _gains[idx].is_border_vertex ) {
+        bfs(nodes, idx, idx + 1, kInvalidGain, _context.refinement.ilp.max_bfs_distance);
+        ++idx;
+      }
     }
-  } else if ( _context.refinement.ilp.vertex_selection_strategy == ILPVertexSelectionStrategy::top_vertices ) {
-    size_t idx = 0;
-    while ( estimatedNumberOfNonZeros() < _context.refinement.ilp.max_non_zeros &&
-            idx < _gains.size() && _gains[idx].is_border_vertex ) {
-      bfs(nodes, idx, idx + 1, kInvalidGain, _context.refinement.ilp.max_bfs_distance);
-      ++idx;
+    utils::Timer::instance().stop_timer("select_vertices");
+
+    // Solve ILP
+    _solver.solve(nodes);
+  } else {
+    _marked_hns.assign(_phg.initialNumNodes(), false);
+    HyperedgeWeight objective = metrics::objective(_phg, _context.partition.objective);
+    utils::ProgressBar ilp_progress(_phg.initialNumNodes(), objective,
+                                    _context.partition.verbose_output &&
+                                    _context.partition.enable_progress_bar && !debug);
+    for ( size_t i = 0; i < _gains.size(); ++i ) {
+      const HypernodeID hn = _gains[i].hn;
+      if ( _gains[i].is_border_vertex && !_marked_hns[hn] ) {
+        utils::Timer::instance().start_timer("select_vertices", "Select ILP Vertices");
+        _num_vertices = 0;
+        _num_hyperedges = 0;
+        _num_pins = 0;
+        _k = 0;
+        _visited_hes.reset();
+        vec<HypernodeID> nodes;
+        bfs(nodes, hn, _context.refinement.ilp.max_bfs_distance);
+        utils::Timer::instance().stop_timer("select_vertices");
+
+        // Solve ILP
+        if ( estimatedNumberOfNonZeros() >= _context.refinement.ilp.min_non_zeros ) {
+          HyperedgeWeight delta = _solver.solve(nodes, true /* supress output */ );
+          objective -= delta;
+          ilp_progress.setObjective(objective);
+          ilp_progress += nodes.size();
+        }
+      }
     }
+    ilp_progress += (_phg.initialNumNodes() - ilp_progress.count());
   }
-  utils::Timer::instance().stop_timer("select_vertices");
-
-  LOG << V(nodes.size()) << V(estimatedNumberOfNonZeros());
-
-  // Solve ILP
-  std::sort(nodes.begin(), nodes.end());
-  _solver.solve(nodes);
 
   return true;
 }
@@ -120,6 +157,7 @@ size_t ILPScheduler::bfs(vec<HypernodeID>& nodes,
                          const int max_distance) {
   ASSERT(gains_start_idx < gains_end_idx);
   ASSERT(gains_end_idx <= _gains.size());
+  vec<bool> visited_k(_context.partition.k, false);
   parallel::scalable_queue<HypernodeID> q;
   parallel::scalable_queue<HypernodeID> next_q;
 
@@ -153,8 +191,14 @@ size_t ILPScheduler::bfs(vec<HypernodeID>& nodes,
             _visited_hns[pin] = true;
           }
         }
+        for ( const PartitionID& i : _phg.connectivitySet(he) ) {
+          if ( !visited_k[i] ) {
+            ++_k;
+            visited_k[i] = true;
+          }
+        }
         ++_num_hyperedges;
-        _visited_hes[he] = true;
+        _visited_hes.set(he, true);
       }
     }
 
@@ -172,5 +216,69 @@ size_t ILPScheduler::bfs(vec<HypernodeID>& nodes,
 
   return idx;
 }
+
+namespace {
+  struct QueueElement {
+    HypernodeID hn;
+    int distance;
+  };
+} // namespace
+
+// ! Returns the number of vertices initially inserted into the bfs queue
+void ILPScheduler::bfs(vec<HypernodeID>& nodes,
+                       const HypernodeID start_hn,
+                       const int max_distance) {
+  ASSERT(_phg.isBorderNode(start_hn));
+  vec<bool> visited_k(_context.partition.k, false);
+  parallel::scalable_queue<QueueElement> q;
+  q.push(QueueElement { start_hn, 0 });
+  _visited_hns[start_hn] = true;
+
+  while ( !q.empty() ) {
+    const HypernodeID hn = q.front().hn;
+    const int current_distance = _phg.isBorderNode(hn) ? 0 : q.front().distance;
+    q.pop();
+
+    nodes.push_back(hn);
+    _marked_hns[hn] = true;
+    ++_num_vertices;
+    _num_pins += _phg.nodeDegree(hn);
+
+    if ( current_distance < max_distance ) {
+      for ( const HyperedgeID& he : _phg.incidentEdges(hn) ) {
+        if ( !_visited_hes[he] ) {
+          for ( const HypernodeID& pin : _phg.pins(he) ) {
+            if ( !_visited_hns[pin] ) {
+              q.push(QueueElement { pin, current_distance + 1 });
+              _visited_hns[pin] = true;
+            }
+          }
+          for ( const PartitionID& i : _phg.connectivitySet(he) ) {
+            if ( !visited_k[i] ) {
+              ++_k;
+              visited_k[i] = true;
+            }
+          }
+          ++_num_hyperedges;
+          _visited_hes.set(he, true);
+        }
+      }
+    }
+
+    if ( estimatedNumberOfNonZeros() >= _context.refinement.ilp.max_non_zeros ) {
+      break;
+    }
+  }
+
+  // Enable all vertices not added to ILP again
+  while ( !q.empty() ) {
+    const HypernodeID hn = q.front().hn;
+    q.pop();
+    if ( !_marked_hns[hn] ) {
+      _visited_hns[hn] = false;
+    }
+  }
+}
+
 
 } // namespace mt_kahypar
