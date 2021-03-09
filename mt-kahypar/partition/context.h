@@ -32,6 +32,7 @@ struct PartitioningParameters {
   #else
   Paradigm paradigm = Paradigm::multilevel;
   #endif
+  bool is_ilp_solver = false;
   kahypar::Mode mode = kahypar::Mode::UNDEFINED;
   kahypar::Objective objective = kahypar::Objective::UNDEFINED;
   double epsilon = std::numeric_limits<double>::max();

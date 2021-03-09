@@ -47,52 +47,21 @@ namespace mt_kahypar {
     }
   }  // namespace platform
 
-  po::options_description createGeneralOptionsDescription(Context& context, const int num_columns) {
+  po::options_description createGeneralOptionsDescription(Context& context, const int num_columns, const bool is_ilp_solver) {
     po::options_description options("General Options", num_columns);
     options.add_options()
             ("help", "show help message")
             ("verbose,v", po::value<bool>(&context.partition.verbose_output)->value_name("<bool>")->default_value(true),
              "Verbose main partitioning output")
-            ("write-partition-file",
-             po::value<bool>(&context.partition.write_partition_file)->value_name("<bool>")->default_value(true),
-             "If true, then partition output file is generated")
-            ("partition-output-folder",
-             po::value<std::string>(&context.partition.graph_partition_output_folder)->value_name("<string>"),
-             "Output folder for partition file")
             ("seed",
              po::value<int>(&context.partition.seed)->value_name("<int>")->default_value(0),
              "Seed for random number generator")
-            ("num-vcycles",
-             po::value<size_t>(&context.partition.num_vcycles)->value_name("<size_t>")->default_value(0),
-             "Number of V-Cycles")
-            ("maxnet-remove-factor",
-             po::value<double>(&context.partition.large_hyperedge_size_threshold_factor)->value_name(
-                     "<double>")->default_value(0.01),
-             "Hyperedges larger than |V| * (this factor) are removed before partitioning.")
-            ("maxnet-ignore",
-             po::value<HyperedgeID>(&context.partition.ignore_hyperedge_size_threshold)->value_name(
-                     "<uint64_t>")->default_value(1000),
-             "Hyperedges larger than this threshold are ignored during partitioning.")
             ("show-detailed-timings",
              po::value<bool>(&context.partition.show_detailed_timings)->value_name("<bool>")->default_value(false),
              "If true, shows detailed subtimings of each multilevel phase at the end of the partitioning process.")
-            ("show-detailed-clustering-timings",
-             po::value<bool>(&context.partition.show_detailed_clustering_timings)->value_name("<bool>")->default_value(
-                     false),
-             "If true, shows detailed timings of each clustering iteration.")
-            ("measure-detailed-uncontraction-timings",
-             po::value<bool>(&context.partition.measure_detailed_uncontraction_timings)->value_name("<bool>")->default_value(
-                     false),
-             "If true, measure and show detailed timings for n-level uncontraction.")
             ("timings-output-depth",
              po::value<size_t>(&context.partition.timings_output_depth)->value_name("<size_t>"),
              "Number of levels shown in timing output")
-            ("show-memory-consumption",
-             po::value<bool>(&context.partition.show_memory_consumption)->value_name("<bool>")->default_value(false),
-             "If true, shows detailed information on how much memory was allocated and how memory was reused throughout partitioning.")
-            ("show-advanced-cut-analysis",
-             po::value<bool>(&context.partition.show_advanced_cut_analysis)->value_name("<bool>")->default_value(false),
-             "If true, calculates cut matrix, potential positive gain move matrix and connected cut hyperedge components after partitioning.")
             ("enable-progress-bar",
              po::value<bool>(&context.partition.enable_progress_bar)->value_name("<bool>")->default_value(false),
              "If true, shows a progress bar during coarsening and refinement phase.")
@@ -101,12 +70,47 @@ namespace mt_kahypar {
             ("sp-process,s",
              po::value<bool>(&context.partition.sp_process_output)->value_name("<bool>")->default_value(false),
              "Summarize partitioning results in RESULT line compatible with sqlplottools "
-             "(https://github.com/bingmann/sqlplottools)")
-            ("csv", po::value<bool>(&context.partition.csv_output)->value_name("<bool>")->default_value(false),
-             "Summarize results in CSV format")
-            ("algorithm-name",
-             po::value<std::string>(&context.algorithm_name)->value_name("<std::string>")->default_value("MT-KaHyPar"),
-             "An algorithm name to print into the summarized output (csv or sqlplottools). ");
+             "(https://github.com/bingmann/sqlplottools)");
+    if ( !is_ilp_solver ) {
+      // Options only available for main partitioner
+      options.add_options()
+              ("write-partition-file",
+               po::value<bool>(&context.partition.write_partition_file)->value_name("<bool>")->default_value(true),
+               "If true, then partition output file is generated")
+              ("partition-output-folder",
+               po::value<std::string>(&context.partition.graph_partition_output_folder)->value_name("<string>"),
+               "Output folder for partition file")
+              ("num-vcycles",
+              po::value<size_t>(&context.partition.num_vcycles)->value_name("<size_t>")->default_value(0),
+              "Number of V-Cycles")
+              ("maxnet-remove-factor",
+              po::value<double>(&context.partition.large_hyperedge_size_threshold_factor)->value_name(
+                      "<double>")->default_value(0.01),
+              "Hyperedges larger than |V| * (this factor) are removed before partitioning.")
+              ("maxnet-ignore",
+              po::value<HyperedgeID>(&context.partition.ignore_hyperedge_size_threshold)->value_name(
+                      "<uint64_t>")->default_value(1000),
+              "Hyperedges larger than this threshold are ignored during partitioning.")
+              ("show-detailed-clustering-timings",
+              po::value<bool>(&context.partition.show_detailed_clustering_timings)->value_name("<bool>")->default_value(
+                      false),
+              "If true, shows detailed timings of each clustering iteration.")
+              ("measure-detailed-uncontraction-timings",
+              po::value<bool>(&context.partition.measure_detailed_uncontraction_timings)->value_name("<bool>")->default_value(
+                      false),
+              "If true, measure and show detailed timings for n-level uncontraction.")
+              ("show-memory-consumption",
+              po::value<bool>(&context.partition.show_memory_consumption)->value_name("<bool>")->default_value(false),
+              "If true, shows detailed information on how much memory was allocated and how memory was reused throughout partitioning.")
+              ("show-advanced-cut-analysis",
+              po::value<bool>(&context.partition.show_advanced_cut_analysis)->value_name("<bool>")->default_value(false),
+              "If true, calculates cut matrix, potential positive gain move matrix and connected cut hyperedge components after partitioning.")
+              ("csv", po::value<bool>(&context.partition.csv_output)->value_name("<bool>")->default_value(false),
+              "Summarize results in CSV format")
+              ("algorithm-name",
+              po::value<std::string>(&context.algorithm_name)->value_name("<std::string>")->default_value("MT-KaHyPar"),
+              "An algorithm name to print into the summarized output (csv or sqlplottools). ");
+    }
     return options;
   }
 
@@ -365,33 +369,37 @@ namespace mt_kahypar {
              "If true, then the globalized FM local search stops if more than a certain number of threads are finished.")
             #endif
             ;
-    if ( !initial_partitioning ) {
-      options.add_options()
-              ("r-use-ilp", po::value<bool>(&context.refinement.ilp.use_ilp)->value_name("<bool>")->default_value(false),
-              "If true, then ILP-based refinement is used to improve partition")
-              ("r-ilp-min-non-zeros", po::value<size_t>(&context.refinement.ilp.min_non_zeros)->value_name("<size_t>"),
-              "Lower bound for the number of non-zeros in our ILP")
-              ("r-ilp-max-non-zeros", po::value<size_t>(&context.refinement.ilp.max_non_zeros)->value_name("<size_t>"),
-              "Upper bound for the number of non-zeros in our ILP")
-              ("r-ilp-time-limit", po::value<double>(&context.refinement.ilp.time_limit)->value_name("<double>"),
-              "Time limit for ILP solver")
-              ("r-ilp-vertex-selection-rule",
-               po::value<std::string>()->value_name("<string>")->notifier(
-                       [&](const std::string& strategy) {
-                         context.refinement.ilp.vertex_selection_strategy =
-                                 ilpVertexSelectionStrategyFromString(strategy);
-                       }),
-               "ILP Vertex Selection Strategy:\n"
-               "- boundary\n"
-               "- gain\n"
-               "- top_vertices")
-              ("r-ilp-min-gain", po::value<int>(&context.refinement.ilp.min_gain)->value_name("<int>"),
-              "Minimum gain of vertex such that it is considered as start vertex for bfs,\n"
-              "if 'gain' vertex selection strategy is chosen.")
-              ("r-ilp-max-bfs-distance", po::value<int>(&context.refinement.ilp.max_bfs_distance)->value_name("<int>"),
-              "Only vertices with the corresponding distance to the start vertex are,\n"
-              "considered for the ILP problem, if 'top_vertices' vertex selection strategy is chosen.");
-    }
+    return options;
+  }
+
+  po::options_description createILPOptionsDescription(Context& context,
+                                                      const int num_columns) {
+    po::options_description options("ILP Options", num_columns);
+    options.add_options()
+            ("r-use-ilp", po::value<bool>(&context.refinement.ilp.use_ilp)->value_name("<bool>")->default_value(false),
+            "If true, then ILP-based refinement is used to improve partition")
+            ("r-ilp-min-non-zeros", po::value<size_t>(&context.refinement.ilp.min_non_zeros)->value_name("<size_t>"),
+            "Lower bound for the number of non-zeros in our ILP")
+            ("r-ilp-max-non-zeros", po::value<size_t>(&context.refinement.ilp.max_non_zeros)->value_name("<size_t>"),
+            "Upper bound for the number of non-zeros in our ILP")
+            ("r-ilp-time-limit", po::value<double>(&context.refinement.ilp.time_limit)->value_name("<double>"),
+            "Time limit for ILP solver")
+            ("r-ilp-vertex-selection-rule",
+              po::value<std::string>()->value_name("<string>")->notifier(
+                      [&](const std::string& strategy) {
+                        context.refinement.ilp.vertex_selection_strategy =
+                                ilpVertexSelectionStrategyFromString(strategy);
+                      }),
+              "ILP Vertex Selection Strategy:\n"
+              "- boundary\n"
+              "- gain\n"
+              "- top_vertices")
+            ("r-ilp-min-gain", po::value<int>(&context.refinement.ilp.min_gain)->value_name("<int>"),
+            "Minimum gain of vertex such that it is considered as start vertex for bfs,\n"
+            "if 'gain' vertex selection strategy is chosen.")
+            ("r-ilp-max-bfs-distance", po::value<int>(&context.refinement.ilp.max_bfs_distance)->value_name("<int>"),
+            "Only vertices with the corresponding distance to the start vertex are,\n"
+            "considered for the ILP problem, if 'top_vertices' vertex selection strategy is chosen.");
     return options;
   }
 
@@ -515,8 +523,6 @@ namespace mt_kahypar {
     return shared_memory_options;
   }
 
-
-
   void processCommandLineInput(Context& context, int argc, char *argv[]) {
     const int num_columns = platform::getTerminalWidth();
 
@@ -558,8 +564,8 @@ namespace mt_kahypar {
              "Context Presets (see config directory):\n"
              " - <path-to-custom-ini-file>");
 
-    po::options_description general_options = createGeneralOptionsDescription(context, num_columns);
-
+    po::options_description general_options =
+            createGeneralOptionsDescription(context, num_columns, false);
     po::options_description preprocessing_options =
             createPreprocessingOptionsDescription(context, num_columns);
     po::options_description coarsening_options =
@@ -568,6 +574,8 @@ namespace mt_kahypar {
             createInitialPartitioningOptionsDescription(context, num_columns);
     po::options_description refinement_options =
             createRefinementOptionsDescription(context, num_columns, false);
+    po::options_description ilp_options =
+            createILPOptionsDescription(context, num_columns);
 #ifdef KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES
     po::options_description sparsification_options =
     createSparsificationOptionsDescription(context, num_columns);
@@ -584,6 +592,7 @@ namespace mt_kahypar {
             .add(coarsening_options)
             .add(initial_paritioning_options)
             .add(refinement_options)
+            .add(ilp_options)
 #ifdef KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES
                     .add(sparsification_options)
 #endif
@@ -648,6 +657,86 @@ namespace mt_kahypar {
             context.partition.graph_filename + ".community";
   }
 
+  void processCommandLineInputForILPSolver(Context& context, int argc, char *argv[]) {
+    const int num_columns = platform::getTerminalWidth();
+
+
+    po::options_description required_options("Required Options", num_columns);
+    required_options.add_options()
+            ("hypergraph,h",
+             po::value<std::string>(&context.partition.graph_filename)->value_name("<string>")->required(),
+             "Hypergraph filename")
+            ("partition,p",
+             po::value<std::string>(&context.partition.graph_partition_filename)->value_name("<string>")->required(),
+             "Partition filename")
+            ("blocks,k",
+             po::value<PartitionID>(&context.partition.k)->value_name("<int>")->required(),
+             "Number of blocks")
+            ("epsilon,e",
+             po::value<double>(&context.partition.epsilon)->value_name("<double>")->required(),
+             "Imbalance parameter epsilon")
+            ("objective,o",
+             po::value<std::string>()->value_name("<string>")->required()->notifier([&](const std::string& s) {
+               if (s == "cut") {
+                 context.partition.objective = kahypar::Objective::cut;
+               } else if (s == "km1") {
+                 context.partition.objective = kahypar::Objective::km1;
+               }
+             }),
+             "Objective: \n"
+             " - cut : cut-net metric (FM only supports km1 metric) \n"
+             " - km1 : (lambda-1) metric");
+
+    po::options_description preset_options("Preset Options", num_columns);
+    preset_options.add_options()
+            ("preset", po::value<std::string>(&context.partition.preset_file)->value_name("<string>"),
+             "Context Presets (see config directory):\n"
+             " - <path-to-custom-ini-file>");
+
+
+    po::options_description general_options =
+            createGeneralOptionsDescription(context, num_columns, true);
+    po::options_description ilp_options =
+            createILPOptionsDescription(context, num_columns);
+    po::options_description shared_memory_options =
+            createSharedMemoryOptionsDescription(context, num_columns);
+
+    po::options_description cmd_line_options;
+    cmd_line_options
+            .add(required_options)
+            .add(preset_options)
+            .add(general_options)
+            .add(ilp_options)
+            .add(shared_memory_options);
+
+    po::variables_map cmd_vm;
+    po::store(po::parse_command_line(argc, argv, cmd_line_options), cmd_vm);
+
+    // placing vm.count("help") here prevents required attributes raising an
+    // error if only help was supplied
+    if (cmd_vm.count("help") != 0 || argc == 1) {
+      if (context.partition.verbose_output) {
+        mt_kahypar::io::printBanner();
+      }
+      LOG << cmd_line_options;
+      exit(0);
+    }
+
+    po::notify(cmd_vm);
+
+    std::ifstream file(context.partition.preset_file.c_str());
+    if (!file) {
+      ERROR("Could not load context file at: " + context.partition.preset_file);
+    }
+
+    po::options_description ini_line_options;
+    ini_line_options.add(general_options)
+            .add(ilp_options)
+            .add(shared_memory_options);
+
+    po::store(po::parse_config_file(file, ini_line_options, true), cmd_vm);
+    po::notify(cmd_vm);
+  }
 
   void parseIniToContext(Context& context, const std::string& ini_filename) {
     std::ifstream file(ini_filename.c_str());
@@ -657,7 +746,7 @@ namespace mt_kahypar {
     const int num_columns = 80;
 
     po::options_description general_options =
-            createGeneralOptionsDescription(context, num_columns);
+            createGeneralOptionsDescription(context, num_columns, false);
     po::options_description preprocessing_options =
             createPreprocessingOptionsDescription(context, num_columns);
     po::options_description coarsening_options =
@@ -666,6 +755,8 @@ namespace mt_kahypar {
             createInitialPartitioningOptionsDescription(context, num_columns);
     po::options_description refinement_options =
             createRefinementOptionsDescription(context, num_columns, false);
+    po::options_description ilp_options =
+            createILPOptionsDescription(context, num_columns);
 #ifdef KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES
     po::options_description sparsification_options =
     createSparsificationOptionsDescription(context, num_columns);
@@ -680,6 +771,7 @@ namespace mt_kahypar {
             .add(coarsening_options)
             .add(initial_paritioning_options)
             .add(refinement_options)
+            .add(ilp_options)
 #ifdef KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES
                     .add(sparsification_options)
 #endif

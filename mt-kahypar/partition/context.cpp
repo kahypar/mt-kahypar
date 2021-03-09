@@ -29,15 +29,19 @@ namespace mt_kahypar {
     if ( params.write_partition_file ) {
       str << "  Partition File:                     " << params.graph_partition_filename << std::endl;
     }
-    str << "  Paradigm:                           " << params.paradigm << std::endl;
-    str << "  Mode:                               " << params.mode << std::endl;
+    if ( !params.is_ilp_solver ) {
+      str << "  Paradigm:                           " << params.paradigm << std::endl;
+      str << "  Mode:                               " << params.mode << std::endl;
+    }
     str << "  Objective:                          " << params.objective << std::endl;
     str << "  k:                                  " << params.k << std::endl;
     str << "  epsilon:                            " << params.epsilon << std::endl;
     str << "  seed:                               " << params.seed << std::endl;
-    str << "  Number of V-Cycles:                 " << params.num_vcycles << std::endl;
-    str << "  Ignore HE Size Threshold:           " << params.ignore_hyperedge_size_threshold << std::endl;
-    str << "  Large HE Size Threshold:            " << params.large_hyperedge_size_threshold << std::endl;
+    if ( !params.is_ilp_solver ) {
+      str << "  Number of V-Cycles:                 " << params.num_vcycles << std::endl;
+      str << "  Ignore HE Size Threshold:           " << params.ignore_hyperedge_size_threshold << std::endl;
+      str << "  Large HE Size Threshold:            " << params.large_hyperedge_size_threshold << std::endl;
+    }
     return str;
   }
 

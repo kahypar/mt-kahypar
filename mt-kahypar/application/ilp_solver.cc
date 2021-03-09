@@ -6,82 +6,105 @@
 #include "mt-kahypar/partition/metrics.h"
 #include "mt-kahypar/io/command_line_options.h"
 #include "mt-kahypar/io/partitioning_output.h"
+#include "mt-kahypar/io/hypergraph_io.h"
+#include "mt-kahypar/io/sql_plottools_serializer.h"
 #include "mt-kahypar/partition/partitioner.h"
-#include "mt-kahypar/partition/refinement/ilp/ilp_solver.h"
+#include "mt-kahypar/partition/refinement/ilp/ilp_scheduler.h"
 
 using namespace mt_kahypar;
 
-Hypergraph generateRandomHypergraph(const HypernodeID num_hypernodes,
-                                    const HyperedgeID num_hyperedges,
-                                    const HypernodeID max_edge_size) {
-  parallel::scalable_vector<parallel::scalable_vector<HypernodeID>> hyperedges;
-  utils::Randomize& rand = utils::Randomize::instance();
-  for ( size_t i = 0; i < num_hyperedges; ++i ) {
-    parallel::scalable_vector<HypernodeID> net;
-    const size_t edge_size = rand.getRandomInt(2, max_edge_size, sched_getcpu());
-    for ( size_t i = 0; i < edge_size; ++i ) {
-      const HypernodeID pin = rand.getRandomInt(0, num_hypernodes - 1, sched_getcpu());
-      if ( std::find(net.begin(), net.end(), pin) == net.end() ) {
-        net.push_back(pin);
-      }
-    }
-    hyperedges.emplace_back(std::move(net));
-  }
-  return HypergraphFactory::construct(
-    TBBNumaArena::GLOBAL_TASK_GROUP, num_hypernodes, num_hyperedges, hyperedges);
-}
-
-int main() {
-  const HypernodeID num_nodes = 100000;
-  const HyperedgeID num_edges = 100000;
-  const HypernodeID max_edge_size = 20;
-
-  const HypernodeID num_ilp_nodes = 5000;
-  vec<HypernodeID> nodes;
-  for ( HypernodeID hn = 0; hn < num_ilp_nodes; ++hn ) {
-    nodes.push_back(hn);
-  }
-
-  Hypergraph hg = generateRandomHypergraph(num_nodes, num_edges, max_edge_size);
-  const double epsilon = 0.03;
-  const PartitionID k = 8;
-
+int main(int argc, char* argv[]) {
   Context context;
-  parseIniToContext(context, "/home/tobias/mt-kahypar/config/fast_preset.ini");
-  context.partition.k = k;
-  context.partition.epsilon = epsilon;
-  context.partition.objective = kahypar::Objective::km1;
-  context.partition.verbose_output = true;
-  context.partition.enable_progress_bar = true;
-  context.partition.show_detailed_timings = true;
+  processCommandLineInputForILPSolver(context, argc, argv);
+  context.partition.is_ilp_solver = true;
 
-  // Compute Initial Solution
-  HighResClockTimepoint start = std::chrono::high_resolution_clock::now();
-  PartitionedHypergraph phg = partition(hg, context);
-  HighResClockTimepoint end = std::chrono::high_resolution_clock::now();
+  utils::Randomize::instance().setSeed(context.partition.seed);
+  if ( context.shared_memory.use_localized_random_shuffle ) {
+    utils::Randomize::instance().enableLocalizedParallelShuffle(
+      context.shared_memory.shuffle_block_size);
+  }
 
-  std::chrono::duration<double> elapsed_seconds(end - start);
-  io::printPartitioningResults(phg, context, elapsed_seconds);
+  size_t num_available_cpus = HardwareTopology::instance().num_cpus();
+  if ( num_available_cpus < context.shared_memory.num_threads ) {
+    WARNING("There are currently only" << num_available_cpus << "cpus available."
+      << "Setting number of threads from" << context.shared_memory.num_threads
+      << "to" << num_available_cpus);
+    context.shared_memory.num_threads = num_available_cpus;
+  }
+
+  // Initialize TBB task arenas on numa nodes
+  TBBNumaArena::instance(context.shared_memory.num_threads);
+
+  // We set the membind policy to interleaved allocations in order to
+  // distribute allocations evenly across NUMA nodes
+  hwloc_cpuset_t cpuset = TBBNumaArena::instance().used_cpuset();
+  parallel::HardwareTopology<>::instance().activate_interleaved_membind_policy(cpuset);
+  hwloc_bitmap_free(cpuset);
+
+  // Print Context Information
+  if (context.partition.verbose_output) {
+    io::printBanner();
+    std::cout << "*******************************************************************************\n"
+              << "*                            Partitioning Context                             *\n"
+              << "*******************************************************************************\n"
+              << context.partition
+              << "-------------------------------------------------------------------------------\n"
+              << context.refinement.ilp
+              << "-------------------------------------------------------------------------------\n"
+              << context.shared_memory
+              << "-------------------------------------------------------------------------------\n"
+              << std::endl;
+  }
+
+  // Read Hypergraph
+  Hypergraph hypergraph = io::readHypergraphFile(
+      context.partition.graph_filename,
+      TBBNumaArena::GLOBAL_TASK_GROUP,
+      context.preprocessing.stable_construction_of_incident_edges);
+  context.setupPartWeights(hypergraph.totalWeight());
+  if ( context.partition.verbose_output ) {
+    io::printHypergraphInfo(hypergraph, "Input Hypergraph", false);
+    io::printStripe();
+  }
+
+  // Read Partition
+  std::vector<PartitionID> partition;
+  io::readPartitionFile(context.partition.graph_partition_filename, partition);
+  ASSERT(hypergraph.initialNumNodes() == ID(partition.size()));
+  PartitionedHypergraph phg(
+    context.partition.k, TBBNumaArena::GLOBAL_TASK_GROUP, hypergraph);
+  phg.doParallelForAllNodes([&](const HypernodeID& hn) {
+    phg.setOnlyNodePart(hn, partition[hn]);
+  });
+  phg.initializePartition(TBBNumaArena::GLOBAL_TASK_GROUP);
+  if ( context.partition.verbose_output ) {
+    io::printPartitioningResults(phg, context, "Input Partition");
+    io::printStripe();
+  }
 
   try {
-    GRBEnv env;
-    context.partition.objective = kahypar::Objective::km1;
-    ILPSolver solver(phg, context, env);
+    io::printILPBanner(context);
+    HighResClockTimepoint start = std::chrono::high_resolution_clock::now();
     utils::Timer::instance().start_timer("ilp_solver", "ILP Solver");
-    solver.solve(nodes);
+    ILPScheduler ilp(phg, context);
+    ilp.refine();
     utils::Timer::instance().stop_timer("ilp_solver");
+    HighResClockTimepoint end = std::chrono::high_resolution_clock::now();
+
+    // Print Stats
+    auto elapsed_seconds = end - start;
+    io::printPartitioningResults(phg, context, elapsed_seconds);
+
+    if ( context.partition.sp_process_output ) {
+      std::cout << io::serializer::serialize(phg, context, elapsed_seconds) << std::endl;
+    }
   } catch(GRBException e) {
     std::cout << "Error code = " << e.getErrorCode() << std::endl;
     std::cout << e.getMessage() << std::endl;
   } catch(...) {
     std::cout << "Exception during optimization" << std::endl;
   }
-  end = std::chrono::high_resolution_clock::now();
 
-
-  // Print Stats
-  elapsed_seconds = end - start;
-  io::printPartitioningResults(phg, context, elapsed_seconds);
-
+  mt_kahypar::TBBNumaArena::instance().terminate();
   return 0;
 }
