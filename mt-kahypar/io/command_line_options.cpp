@@ -624,6 +624,7 @@ namespace mt_kahypar {
             .add(coarsening_options)
             .add(initial_paritioning_options)
             .add(refinement_options)
+            .add(ilp_options)
 #ifdef KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES
                     .add(sparsification_options)
 #endif

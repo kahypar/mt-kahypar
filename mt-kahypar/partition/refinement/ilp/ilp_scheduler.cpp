@@ -112,7 +112,7 @@ bool ILPScheduler::refine() {
 
         // Solve ILP
         if ( estimatedNumberOfNonZeros() >= _context.refinement.ilp.min_non_zeros ) {
-          HyperedgeWeight delta = _solver.solve(nodes, true /* supress output */ );
+          HyperedgeWeight delta = _solver.solve(nodes, !debug /* supress output */ );
           objective -= delta;
           ilp_progress.setObjective(objective);
           ilp_progress += nodes.size();

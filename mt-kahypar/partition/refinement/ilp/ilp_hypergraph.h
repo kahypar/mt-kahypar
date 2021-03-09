@@ -274,7 +274,7 @@ class ILPHypergraph {
   // ! Returns the weight of a super vertex
   HypernodeWeight superVertexWeight(const PartitionID p) const {
     ASSERT(p < _k);
-    return _super_vertex_weights[p];
+    return _super_vertex_weights[toOriginalBlock(p)];
   }
 
   PartitionID toOriginalBlock(const PartitionID p) const {
