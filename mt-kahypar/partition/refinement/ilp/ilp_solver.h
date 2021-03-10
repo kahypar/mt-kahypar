@@ -55,7 +55,8 @@ class ILPSolver {
    * found by the ILP.
    */
   HyperedgeWeight solve(const vec<HypernodeID>& nodes,
-                        const bool supress_output = false) {
+                        const bool supress_output = false,
+                        const HyperedgeWeight max_delta = 0) {
     _ilp_hg.reset();
     _model.reset();
     _rollback_cache.clear();
@@ -66,17 +67,19 @@ class ILPSolver {
     _ilp_hg.initialize(nodes);
     utils::Timer::instance().stop_timer("construct_ilp_hypergraph");
     utils::Timer::instance().start_timer("construct_ilp_problem", "Construct ILP Problem", true);
-    _model.construct(_ilp_hg);
+    GRBModel model = _model.construct(_ilp_hg, max_delta);
     utils::Timer::instance().stop_timer("construct_ilp_problem");
     utils::Timer::instance().stop_timer("construct_ilp");
 
     // Solve ILP
     utils::Timer::instance().start_timer("solve_ilp", "Solve ILP", true);
-    int status = _model.solve(supress_output);
+    int status = _model.solve(model, supress_output);
     utils::Timer::instance().stop_timer("solve_ilp");
 
     HyperedgeWeight delta = 0;
-    if ( status == GRB_OPTIMAL ) {
+    const bool perform_moves = _context.refinement.ilp.minimize_balance ?
+      _model.getOptimizedObjective() < _model.getInitialObjective() : true;
+    if ( status == GRB_OPTIMAL && perform_moves ) {
       DBG << "ILP solver improved objective function from"
           << _model.getInitialObjective()
           << "to" << _model.getOptimizedObjective()
@@ -84,7 +87,7 @@ class ILPSolver {
       // Apply solution
       utils::Timer::instance().start_timer("move_vertices", "Move Vertices", true);
       delta = applyMoves(nodes);
-      if ( delta < 0 ) {
+      if ( delta < 0 && !_context.refinement.ilp.minimize_balance ) {
         // Applying the moves found by the ILP worsen solution quality.
         // This can happen if several ILP's apply their moves concurrently.
         // => revert moves
@@ -119,7 +122,6 @@ class ILPSolver {
       const PartitionID from = _phg.partID(hn);
       const PartitionID to = _model.partID(hn);
       if ( from != to && _phg.changeNodePart(hn, from, to, delta_func) ) {
-        DBG << "Move vertex" << hn << "from block" << from << "to" << to;
         _rollback_cache.push_back(RollbackElement { hn, from, to });
       }
     }

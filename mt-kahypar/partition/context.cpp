@@ -140,6 +140,7 @@ namespace mt_kahypar {
     out << "  ILP Parameters: \n";
     out << "    Use ILP:                          " << std::boolalpha << params.use_ilp << std::endl;
     if ( params.use_ilp ) {
+      out << "    Minimize Balance:                 " << std::boolalpha << params.minimize_balance<< std::endl;
       out << "    Minimum Number of Non-Zeros:      " << params.min_non_zeros<< std::endl;
       out << "    Maximum Number of Non-Zeros:      " << params.max_non_zeros<< std::endl;
       out << "    Time Limit:                       " << params.time_limit << std::endl;

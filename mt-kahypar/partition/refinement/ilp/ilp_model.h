@@ -36,11 +36,12 @@ class ILPModel {
                     const GRBEnv& env) :
     _hg(nullptr),
     _context(context),
+    _env(env),
     _is_constructed(false),
     _is_solved(false),
-    _model(env),
     _initial_objective(0),
     _optimized_objective(0),
+    _initial_metric(0),
     _variables(),
     _contains_variable(),
     _unremovable_block() {
@@ -49,21 +50,22 @@ class ILPModel {
          _context.partition.objective != kahypar::Objective::cut ) {
       ERROR("ILP Model is not able to optimize" << _context.partition.objective << "metric");
     }
-    _model.set(GRB_DoubleParam_TimeLimit, _context.refinement.ilp.time_limit);
   }
 
-  void construct(ILPHypergraph& hg);
+  GRBModel construct(ILPHypergraph& hg,
+                     const HyperedgeWeight max_delta = 0);
 
-  int solve(const bool supress_output = false) {
-    _model.set(GRB_IntParam_LogToConsole,
+  int solve(GRBModel& model,
+            const bool supress_output = false) {
+    model.set(GRB_IntParam_LogToConsole,
       _context.partition.verbose_output && !supress_output);
     ASSERT(_is_constructed);
     int status = -1;
     try {
-      _model.optimize();
-      status = _model.get(GRB_IntAttr_Status);
+      model.optimize();
+      status = model.get(GRB_IntAttr_Status);
       if ( status == GRB_OPTIMAL ) {
-        _optimized_objective = _model.get(GRB_DoubleAttr_ObjVal);
+        _optimized_objective = model.get(GRB_DoubleAttr_ObjVal);
         _is_solved = true;
       }
     } catch(GRBException e) {
@@ -111,9 +113,9 @@ class ILPModel {
     _hg = nullptr;
     _is_constructed = false;
     _is_solved = false;
-    _model.reset();
     _initial_objective = 0;
     _optimized_objective = 0;
+    _initial_metric = 0;
     _variables.clear();
     _contains_variable.clear();
     _unremovable_block.clear();
@@ -123,33 +125,37 @@ class ILPModel {
 
   // ####################### Variable #######################
 
-  void addVariablesToModel(ILPHypergraph& hg);
+  void addVariablesToModel(GRBModel& model, ILPHypergraph& hg);
 
   PartitionID determineNumberOfUnremovableBlocks(ILPHypergraph& hg, const HyperedgeID he);
 
-  void addHyperedgeVariablesToModelForConnectivityMetric(ILPHypergraph& hg);
+  void addHyperedgeVariablesToModelForConnectivityMetric(GRBModel& model, ILPHypergraph& hg);
 
-  void addHyperedgeVariablesToModelForCutMetric(ILPHypergraph& hg);
+  void addHyperedgeVariablesToModelForCutMetric(GRBModel& model, ILPHypergraph& hg);
 
   // ####################### Objective Function #######################
 
-  void addObjectiveFunction(ILPHypergraph& hg);
+  GRBLinExpr getConnectivityMetric(ILPHypergraph& hg);
 
-  void addConnectivityMetric(ILPHypergraph& hg);
+  GRBLinExpr getCutMetric(ILPHypergraph& hg);
 
-  void addCutMetric(ILPHypergraph& hg);
+  void addObjectiveFunction(GRBModel& model, ILPHypergraph& hg);
 
   // ####################### Constraints #######################
 
-  void restrictVerticesToOneBlock(ILPHypergraph& hg);
+  void restrictVerticesToOneBlock(GRBModel& model, ILPHypergraph& hg);
 
-  void balanceConstraint(ILPHypergraph& hg);
+  void balanceConstraint(GRBModel& model, ILPHypergraph& hg);
 
-  void modelHyperedgeConstraint(ILPHypergraph& hg);
+  void modelHyperedgeConstraint(GRBModel& model, ILPHypergraph& hg);
 
-  void modelHyperedgeConnectivity(ILPHypergraph& hg);
+  void modelHyperedgeConnectivity(GRBModel& model, ILPHypergraph& hg);
 
-  void modelHyperedgeCut(ILPHypergraph& hg);
+  void modelHyperedgeCut(GRBModel& model, ILPHypergraph& hg);
+
+  void modelObjectiveFunctionAsConstraint(GRBModel& model, ILPHypergraph& hg, const HyperedgeWeight max_delta);
+
+  void modelMaxPartWeightConstraint(GRBModel& model, ILPHypergraph& hg);
 
   // ####################### Helper Functions #######################
 
@@ -173,19 +179,24 @@ class ILPModel {
     return _hg->numNodes() * _hg->k() + he * _hg->k() + k;
   }
 
+  size_t max_part_weight_offset() {
+    ASSERT(_hg);
+    return _hg->numNodes() * _hg->k() + _hg->numEdges() * _hg->k();
+  }
+
   ILPHypergraph* _hg;
   const Context& _context;
+  const GRBEnv& _env;
 
   // ! True, if ILP is constructed
   bool _is_constructed;
   // ! True, if ILP is solved
   bool _is_solved;
-  // ! Gurobi model
-  GRBModel _model;
   // ! Objective given by the input solution
   HyperedgeWeight _initial_objective;
   // ! Objective after ILP problem was solved
   HyperedgeWeight _optimized_objective;
+  HyperedgeWeight _initial_metric;
   // ! Gurobi variables
   vec<GRBVar> _variables;
   // ! _contains_variable[i] == true, if variable i is contained in the Gurobi model

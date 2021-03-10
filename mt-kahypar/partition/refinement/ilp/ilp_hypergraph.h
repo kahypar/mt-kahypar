@@ -282,6 +282,11 @@ class ILPHypergraph {
     return _contained_blocks[p];
   }
 
+  HypernodeWeight partWeight(const PartitionID p) const {
+    ASSERT(p < _k);
+    return _phg.partWeight(toOriginalBlock(p));
+  }
+
   // ####################### Hyperedge Information #######################
 
   // ! Weight of a hyperedge

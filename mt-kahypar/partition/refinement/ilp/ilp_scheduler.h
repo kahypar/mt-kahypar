@@ -77,6 +77,14 @@ class ILPScheduler {
     return std::numeric_limits<size_t>::max();
   }
 
+  HypernodeWeight maxPartWeight() const {
+    HypernodeWeight max_part_weight = 0;
+    for ( PartitionID i = 0; i < _phg.k(); ++i ) {
+      max_part_weight = std::max(max_part_weight, _phg.partWeight(i));
+    }
+    return max_part_weight;
+  }
+
   // ! Returns the number of vertices initially inserted into the bfs queue
   size_t bfs(vec<HypernodeID>& nodes,
              const size_t gains_start_idx,

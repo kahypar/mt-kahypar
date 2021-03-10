@@ -378,6 +378,8 @@ namespace mt_kahypar {
     options.add_options()
             ("r-use-ilp", po::value<bool>(&context.refinement.ilp.use_ilp)->value_name("<bool>")->default_value(false),
             "If true, then ILP-based refinement is used to improve partition")
+            ("r-ilp-minimize-balance", po::value<bool>(&context.refinement.ilp.minimize_balance)->value_name("<bool>")->default_value(false),
+            "If true, then ILP minimizes balance")
             ("r-ilp-min-non-zeros", po::value<size_t>(&context.refinement.ilp.min_non_zeros)->value_name("<size_t>"),
             "Lower bound for the number of non-zeros in our ILP")
             ("r-ilp-max-non-zeros", po::value<size_t>(&context.refinement.ilp.max_non_zeros)->value_name("<size_t>"),

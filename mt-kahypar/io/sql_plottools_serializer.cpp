@@ -121,6 +121,7 @@ std::string serialize(const PartitionedHypergraph& hypergraph,
     }
 
     oss << " ilp_use_ilp=" << std::boolalpha << context.refinement.ilp.use_ilp
+        << " ilp_minimize_balance=" << std::boolalpha << context.refinement.ilp.minimize_balance
         << " ilp_min_non_zeros=" << context.refinement.ilp.min_non_zeros
         << " ilp_max_non_zeros=" << context.refinement.ilp.max_non_zeros
         << " ilp_time_limit" << context.refinement.ilp.time_limit

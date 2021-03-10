@@ -70,41 +70,70 @@ namespace mt_kahypar {
  *    we do not add the corresponding constraint to the ILP problem.
  *  - add balance constraint lazily, e.g. if optimal solution is found but did not satisfy the balance constraint (TODO)
  */
-void ILPModel::construct(ILPHypergraph& hg) {
+GRBModel ILPModel::construct(ILPHypergraph& hg,
+                             const HyperedgeWeight max_delta) {
+
+  GRBModel model(_env);
   try {
+    model.set(GRB_DoubleParam_TimeLimit, _context.refinement.ilp.time_limit);
     _hg = &hg;
-    addVariablesToModel(hg);
-    addObjectiveFunction(hg);         // Connectivity Metric
-    restrictVerticesToOneBlock(hg);   // Constraint (1)
-    balanceConstraint(hg);            // Constraint (2)
-    modelHyperedgeConstraint(hg);     // Constraint (3)
+    addVariablesToModel(model, hg);
+    addObjectiveFunction(model, hg);         // Connectivity Metric
+    restrictVerticesToOneBlock(model, hg);   // Constraint (1)
+    if ( _context.refinement.ilp.minimize_balance ) {
+      modelObjectiveFunctionAsConstraint(model, hg, max_delta);
+      modelMaxPartWeightConstraint(model, hg);
+    } else {
+      balanceConstraint(model, hg);            // Constraint (2)
+    }
+    modelHyperedgeConstraint(model, hg);     // Constraint (3)
     _is_constructed = true;
   } catch(GRBException e) {
     ERROR("Error code = " << e.getErrorCode() << "Message =" << e.getMessage());
   } catch(...) {
     ERROR("Exception during optimization");
   }
+  return model;
 }
 
-void ILPModel::addVariablesToModel(ILPHypergraph& hg) {
+void ILPModel::addVariablesToModel(GRBModel& model, ILPHypergraph& hg) {
   // Initialize variables
-  _variables.resize(hg.numNodes() * hg.k() + hg.numEdges() * hg.k());
-  _contains_variable.assign(hg.numNodes() * hg.k() + hg.numEdges() * hg.k(), true);
+  _variables.resize(hg.numNodes() * hg.k() + hg.numEdges() * hg.k() + 1);
+  _contains_variable.assign(hg.numNodes() * hg.k() + hg.numEdges() * hg.k() + 1, true);
   _unremovable_block.assign(hg.numEdges(), kInvalidPartition);
 
+  // Add hypernode variables
   for ( const HypernodeID& hn : hg.nodes() ) {
     for ( PartitionID i = 0; i < hg.k(); ++i ) {
       _variables[vertex_offset(hn, i)] =
-        _model.addVar(0.0, 1.0, 0.0, GRB_BINARY, vertex_var_desc(hn, i));
+        model.addVar(0.0, 1.0, 0.0, GRB_BINARY, vertex_var_desc(hn, i));
       _variables[vertex_offset(hn, i)].set(
         GRB_DoubleAttr_Start, (hg.partID(hn) == i));
     }
   }
 
+  // Add hyperedge variables
   if ( _context.partition.objective == kahypar::Objective::km1 ) {
-    addHyperedgeVariablesToModelForConnectivityMetric(hg);
+    addHyperedgeVariablesToModelForConnectivityMetric(model, hg);
   } else if ( _context.partition.objective == kahypar::Objective::cut ) {
-    addHyperedgeVariablesToModelForCutMetric(hg);
+    addHyperedgeVariablesToModelForCutMetric(model, hg);
+  }
+
+  // Add max part weight variable
+  if ( _context.refinement.ilp.minimize_balance ) {
+    HypernodeWeight max_allowed_block_weight = 0;
+    HypernodeWeight max_block_weight = 0;
+    for ( PartitionID i = 0; i < hg.k(); ++i ) {
+      max_allowed_block_weight = std::max(
+        max_allowed_block_weight, _context.partition.max_part_weights[hg.toOriginalBlock(i)]);
+      max_block_weight = std::max(max_block_weight, hg.partWeight(i));
+    }
+    _variables[max_part_weight_offset()] =
+      model.addVar(0.0, max_allowed_block_weight, 0.0, GRB_INTEGER, "max_part_weight");
+    _variables[max_part_weight_offset()].set(GRB_DoubleAttr_Start, max_block_weight);
+    _initial_objective = max_block_weight;
+  } else {
+    _initial_objective = _initial_metric;
   }
 }
 
@@ -127,7 +156,7 @@ PartitionID ILPModel::determineNumberOfUnremovableBlocks(ILPHypergraph& hg, cons
   return num_unremovable_blocks;
 }
 
-void ILPModel::addHyperedgeVariablesToModelForConnectivityMetric(ILPHypergraph& hg) {
+void ILPModel::addHyperedgeVariablesToModelForConnectivityMetric(GRBModel& model, ILPHypergraph& hg) {
   for ( const HypernodeID& he : hg.edges() ) {
     PartitionID connectivity = determineNumberOfUnremovableBlocks(hg, he);
     for ( PartitionID i = 0; i < hg.k(); ++i ) {
@@ -136,18 +165,18 @@ void ILPModel::addHyperedgeVariablesToModelForConnectivityMetric(ILPHypergraph& 
       const size_t he_offset = hyperedge_offset(he, i);
       if ( _contains_variable[he_offset] ) {
         _variables[he_offset] =
-          _model.addVar(0.0, 1.0, 0.0, GRB_BINARY, hyperedge_var_desc(he, i));
+          model.addVar(0.0, 1.0, 0.0, GRB_BINARY, hyperedge_var_desc(he, i));
         const bool contains_pin_in_block = hg.containsPinInPart(he, i);
         _variables[he_offset].set(
           GRB_DoubleAttr_Start, contains_pin_in_block);
         connectivity += contains_pin_in_block;
       }
     }
-    _initial_objective += (connectivity - 1) * hg.edgeWeight(he);
+    _initial_metric += (connectivity - 1) * hg.edgeWeight(he);
   }
 }
 
-void ILPModel::addHyperedgeVariablesToModelForCutMetric(ILPHypergraph& hg) {
+void ILPModel::addHyperedgeVariablesToModelForCutMetric(GRBModel& model, ILPHypergraph& hg) {
   for ( const HypernodeID& he : hg.edges() ) {
     // Only add variable y_e to ILP, if we can potentially
     // remove hyperedge e from cut
@@ -155,26 +184,18 @@ void ILPModel::addHyperedgeVariablesToModelForCutMetric(ILPHypergraph& hg) {
     const PartitionID num_unremovable_blocks = determineNumberOfUnremovableBlocks(hg, he);
     if ( num_unremovable_blocks < 2 ) {
       _variables[hyperedge_offset(he, 0)] =
-        _model.addVar(0.0, 1.0, 0.0, GRB_BINARY, hyperedge_var_desc(he, 0));
+        model.addVar(0.0, 1.0, 0.0, GRB_BINARY, hyperedge_var_desc(he, 0));
       _variables[hyperedge_offset(he, 0)].set(GRB_DoubleAttr_Start, is_cut);
       _contains_variable[hyperedge_offset(he, 0)] = true;
     } else {
       _contains_variable[hyperedge_offset(he, 0)] = false;
     }
-    _initial_objective += is_cut * hg.edgeWeight(he);
+    _initial_metric += is_cut * hg.edgeWeight(he);
   }
 }
 
-// ! Models the connectivity metric
-void ILPModel::addObjectiveFunction(ILPHypergraph& hg) {
-  if ( _context.partition.objective == kahypar::Objective::km1 ) {
-    addConnectivityMetric(hg);
-  } else if ( _context.partition.objective == kahypar::Objective::cut ) {
-    addCutMetric(hg);
-  }
-}
 
-void ILPModel::addConnectivityMetric(ILPHypergraph& hg) {
+GRBLinExpr ILPModel::getConnectivityMetric(ILPHypergraph& hg) {
   GRBLinExpr connectivity_metric = 0;
   for ( const HypernodeID& he : hg.edges() ) {
     GRBLinExpr connectivity = 0;
@@ -188,32 +209,47 @@ void ILPModel::addConnectivityMetric(ILPHypergraph& hg) {
     }
     connectivity_metric += (connectivity - 1) * hg.edgeWeight(he);
   }
-  _model.setObjective(connectivity_metric, GRB_MINIMIZE);
+  return connectivity_metric;
 }
 
-void ILPModel::addCutMetric(ILPHypergraph& hg) {
+GRBLinExpr ILPModel::getCutMetric(ILPHypergraph& hg) {
   GRBLinExpr cut_metric = 0;
   for ( const HypernodeID& he : hg.edges() ) {
     const size_t he_offset = hyperedge_offset(he, 0);
     cut_metric += _contains_variable[he_offset] ?
       _variables[he_offset] * hg.edgeWeight(he) : hg.edgeWeight(he);
   }
-  _model.setObjective(cut_metric, GRB_MINIMIZE);
+  return cut_metric;
+}
+
+// ! Models the objective function
+void ILPModel::addObjectiveFunction(GRBModel& model, ILPHypergraph& hg) {
+  GRBLinExpr objective_function = 0;
+  if ( _context.refinement.ilp.minimize_balance ) {
+    objective_function += _variables[max_part_weight_offset()];
+  } else {
+    if ( _context.partition.objective == kahypar::Objective::km1 ) {
+      objective_function = getConnectivityMetric(hg);
+    } else if ( _context.partition.objective == kahypar::Objective::cut ) {
+      objective_function = getCutMetric(hg);
+    }
+  }
+  model.setObjective(objective_function, GRB_MINIMIZE);
 }
 
 // ! Models constraint (1)
-void ILPModel::restrictVerticesToOneBlock(ILPHypergraph& hg) {
+void ILPModel::restrictVerticesToOneBlock(GRBModel& model, ILPHypergraph& hg) {
   for ( const HypernodeID& hn : hg.nodes() ) {
     GRBLinExpr only_one_block = 0;
     for ( PartitionID i = 0; i < hg.k(); ++i ) {
       only_one_block += _variables[vertex_offset(hn, i)];
     }
-    _model.addConstr(only_one_block == 1, "only_one_block_" + std::to_string(hn));
+    model.addConstr(only_one_block == 1, "only_one_block_" + std::to_string(hn));
   }
 }
 
 // ! Models constraint (2)
-void ILPModel::balanceConstraint(ILPHypergraph& hg) {
+void ILPModel::balanceConstraint(GRBModel& model, ILPHypergraph& hg) {
   for ( PartitionID i = 0; i < hg.k(); ++i ) {
     const PartitionID original_block = hg.toOriginalBlock(i);
     const HypernodeWeight l_max =
@@ -225,29 +261,29 @@ void ILPModel::balanceConstraint(ILPHypergraph& hg) {
       for ( const HypernodeID& hn : hg.nodes() ) {
         constraint += _variables[vertex_offset(hn, i)] * hg.nodeWeight(hn);
       }
-      _model.addConstr(constraint <= l_max, "balance_constraint_" + std::to_string(i));
+      model.addConstr(constraint <= l_max, "balance_constraint_" + std::to_string(i));
     }
   }
 }
 
 // ! Models constraint (3)
-void ILPModel::modelHyperedgeConstraint(ILPHypergraph& hg) {
+void ILPModel::modelHyperedgeConstraint(GRBModel& model, ILPHypergraph& hg) {
   if ( _context.partition.objective == kahypar::Objective::km1 ) {
-    modelHyperedgeConnectivity(hg);
+    modelHyperedgeConnectivity(model, hg);
   } else if ( _context.partition.objective == kahypar::Objective::cut ) {
-    modelHyperedgeCut(hg);
+    modelHyperedgeCut(model, hg);
   }
 }
 
 // ! Models constraint for connectivity metric (3)
-void ILPModel::modelHyperedgeConnectivity(ILPHypergraph& hg) {
+void ILPModel::modelHyperedgeConnectivity(GRBModel& model, ILPHypergraph& hg) {
   for ( const HyperedgeID& he : hg.edges() ) {
     for ( const HypernodeID& pin : hg.pins(he) ) {
       if ( !hg.isSuperVertex(pin) ) {
         for ( PartitionID i = 0; i < hg.k(); ++i ) {
           const size_t he_offset = hyperedge_offset(he,i);
           if ( _contains_variable[he_offset] ) {
-            _model.addConstr(_variables[he_offset] >= _variables[vertex_offset(pin,i)],
+            model.addConstr(_variables[he_offset] >= _variables[vertex_offset(pin,i)],
               "connectivity_values_" + std::to_string(he) + "_" +
               std::to_string(pin) + "_" + std::to_string(i));
           }
@@ -258,7 +294,7 @@ void ILPModel::modelHyperedgeConnectivity(ILPHypergraph& hg) {
 }
 
 // ! Models constraint for cut metric (3)
-void ILPModel::modelHyperedgeCut(ILPHypergraph& hg) {
+void ILPModel::modelHyperedgeCut(GRBModel& model, ILPHypergraph& hg) {
   for ( const HyperedgeID& he : hg.edges() ) {
     const size_t he_offset = hyperedge_offset(he,0);
     if ( _contains_variable[he_offset] ) {
@@ -269,7 +305,7 @@ void ILPModel::modelHyperedgeCut(ILPHypergraph& hg) {
         const PartitionID i = _unremovable_block[he];
         for ( const HypernodeID& pin : hg.pins(he) ) {
           if ( !hg.isSuperVertex(pin) ) {
-            _model.addConstr(_variables[he_offset] >= 1 - _variables[vertex_offset(pin,i)],
+            model.addConstr(_variables[he_offset] >= 1 - _variables[vertex_offset(pin,i)],
               "cut_values_" + std::to_string(he) + "_" +
               std::to_string(pin) + "_" + std::to_string(i));
           }
@@ -281,7 +317,7 @@ void ILPModel::modelHyperedgeCut(ILPHypergraph& hg) {
         for ( const HypernodeID& pin : hg.pins(he) ) {
           if ( !hg.isSuperVertex(pin) && first_vertex != kInvalidHypernode && first_vertex != pin ) {
             for ( PartitionID i = 0; i < hg.k(); ++i ) {
-              _model.addConstr(_variables[he_offset] >=
+              model.addConstr(_variables[he_offset] >=
                 _variables[vertex_offset(first_vertex,i)] - _variables[vertex_offset(pin,i)],
                 "cut_values_" + std::to_string(he) + "_" +
                 std::to_string(pin) + "_" + std::to_string(i));
@@ -292,6 +328,29 @@ void ILPModel::modelHyperedgeCut(ILPHypergraph& hg) {
         }
       }
     }
+  }
+}
+
+// ! Models the objective function as constraint
+void ILPModel::modelObjectiveFunctionAsConstraint(GRBModel& model, ILPHypergraph& hg, const HyperedgeWeight max_delta) {
+  GRBLinExpr objective_function = 0;
+  if ( _context.partition.objective == kahypar::Objective::km1 ) {
+    objective_function = getConnectivityMetric(hg);
+  } else if ( _context.partition.objective == kahypar::Objective::cut ) {
+    objective_function = getCutMetric(hg);
+  }
+  model.addConstr(objective_function <= _initial_metric + max_delta,
+    "objective_function_as_constraint");
+}
+
+void ILPModel::modelMaxPartWeightConstraint(GRBModel& model, ILPHypergraph& hg) {
+  for ( PartitionID i = 0; i < hg.k(); ++i ) {
+    GRBLinExpr constraint = hg.superVertexWeight(i);
+    for ( const HypernodeID& hn : hg.nodes() ) {
+      constraint += _variables[vertex_offset(hn, i)] * hg.nodeWeight(hn);
+    }
+    model.addConstr(constraint <= _variables[max_part_weight_offset()],
+      "max_part_weight_" + std::to_string(i));
   }
 }
 

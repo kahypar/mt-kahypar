@@ -92,34 +92,66 @@ bool ILPScheduler::refine() {
     // Solve ILP
     _solver.solve(nodes);
   } else {
-    _marked_hns.assign(_phg.initialNumNodes(), false);
-    HyperedgeWeight objective = metrics::objective(_phg, _context.partition.objective);
-    utils::ProgressBar ilp_progress(_phg.initialNumNodes(), objective,
-                                    _context.partition.verbose_output &&
-                                    _context.partition.enable_progress_bar && !debug);
-    for ( size_t i = 0; i < _gains.size(); ++i ) {
-      const HypernodeID hn = _gains[i].hn;
-      if ( _gains[i].is_border_vertex && !_marked_hns[hn] ) {
-        utils::Timer::instance().start_timer("select_vertices", "Select ILP Vertices");
-        _num_vertices = 0;
-        _num_hyperedges = 0;
-        _num_pins = 0;
-        _k = 0;
-        _visited_hes.reset();
-        vec<HypernodeID> nodes;
-        bfs(nodes, hn, _context.refinement.ilp.max_bfs_distance);
-        utils::Timer::instance().stop_timer("select_vertices");
+    HyperedgeWeight initial_objective = metrics::objective(_phg, _context.partition.objective);
+    HyperedgeWeight current_objective = initial_objective;
+    HyperedgeWeight max_allowed_objective = initial_objective;
+    double current_epsilon = 0.0;
+    while ( maxPartWeight() > _context.partition.perfect_balance_part_weights[0] ) {
+      _phg.doParallelForAllNodes([&](const HypernodeID& hn) {
+        _gains[hn].hn = hn;
+        _gains[hn].is_border_vertex = _phg.isBorderNode(hn);
+      });
+      utils::Randomize::instance().parallelShuffleVector(_gains, 0UL, _gains.size());
 
-        // Solve ILP
-        if ( estimatedNumberOfNonZeros() >= _context.refinement.ilp.min_non_zeros ) {
-          HyperedgeWeight delta = _solver.solve(nodes, !debug /* supress output */ );
-          objective -= delta;
-          ilp_progress.setObjective(objective);
-          ilp_progress += nodes.size();
+      _marked_hns.assign(_phg.initialNumNodes(), false);
+      _visited_hns.assign(_phg.initialNumNodes(), false);
+      utils::ProgressBar ilp_progress(_phg.initialNumNodes(),
+                                      _context.refinement.ilp.minimize_balance ?
+                                      maxPartWeight() : current_objective,
+                                      _context.partition.verbose_output &&
+                                      _context.partition.enable_progress_bar && !debug);
+      for ( size_t i = 0; i < _gains.size(); ++i ) {
+        const HypernodeID hn = _gains[i].hn;
+        if ( _gains[i].is_border_vertex && !_marked_hns[hn] ) {
+          utils::Timer::instance().start_timer("select_vertices", "Select ILP Vertices");
+          _num_vertices = 0;
+          _num_hyperedges = 0;
+          _num_pins = 0;
+          _k = 0;
+          _visited_hes.reset();
+          vec<HypernodeID> nodes;
+          bfs(nodes, hn, _context.refinement.ilp.max_bfs_distance);
+          utils::Timer::instance().stop_timer("select_vertices");
+
+          // Solve ILP
+          if ( estimatedNumberOfNonZeros() >= _context.refinement.ilp.min_non_zeros ) {
+            const HypernodeWeight max_part_weight_before = maxPartWeight();
+            HyperedgeWeight delta = _solver.solve(
+              nodes, !debug /* supress output */, max_allowed_objective - current_objective);
+            const HypernodeWeight max_part_weight_after = maxPartWeight();
+            current_objective -= delta;
+            ilp_progress.setObjective(
+              _context.refinement.ilp.minimize_balance ? max_part_weight_after : current_objective);
+            ilp_progress += nodes.size();
+            if ( _context.refinement.ilp.minimize_balance &&
+                max_part_weight_before == max_part_weight_after ) {
+              current_epsilon += 0.01;
+              max_allowed_objective = (1.0 + current_epsilon) * initial_objective;
+            }
+            // LOG << V(initial_objective) << V(current_objective) << V(max_allowed_objective) << V(max_part_weight_after);
+          }
+        }
+
+        if ( maxPartWeight() == _context.partition.perfect_balance_part_weights[0] ) {
+          break;
         }
       }
+      ilp_progress += (_phg.initialNumNodes() - ilp_progress.count());
+
+      if ( !_context.refinement.ilp.minimize_balance ) {
+        break;
+      }
     }
-    ilp_progress += (_phg.initialNumNodes() - ilp_progress.count());
   }
 
   return true;
@@ -228,7 +260,6 @@ namespace {
 void ILPScheduler::bfs(vec<HypernodeID>& nodes,
                        const HypernodeID start_hn,
                        const int max_distance) {
-  ASSERT(_phg.isBorderNode(start_hn));
   vec<bool> visited_k(_context.partition.k, false);
   parallel::scalable_queue<QueueElement> q;
   q.push(QueueElement { start_hn, 0 });

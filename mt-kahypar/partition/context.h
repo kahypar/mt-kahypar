@@ -154,6 +154,7 @@ std::ostream& operator<<(std::ostream& out, const NLevelGlobalFMParameters& para
 
 struct ILPParameters {
   bool use_ilp = false;
+  bool minimize_balance = false;
   size_t max_non_zeros = 0;
   size_t min_non_zeros = std::numeric_limits<size_t>::max();
   double time_limit = 0.0;
