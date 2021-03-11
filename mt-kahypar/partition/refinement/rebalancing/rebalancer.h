@@ -69,7 +69,8 @@ public:
   Rebalancer & operator= (const Rebalancer &) = delete;
   Rebalancer & operator= (Rebalancer &&) = delete;
 
-  void rebalance(kahypar::Metrics& best_metrics);
+  void rebalance(kahypar::Metrics& best_metrics,
+                 const bool do_sequential = false);
 
 
   vec<Move> repairEmptyBlocks();

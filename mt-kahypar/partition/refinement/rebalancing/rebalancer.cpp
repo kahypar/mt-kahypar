@@ -33,7 +33,8 @@
 namespace mt_kahypar {
 
   template <template <typename> class GainPolicy>
-  void Rebalancer<GainPolicy>::rebalance(kahypar::Metrics& best_metrics) {
+  void Rebalancer<GainPolicy>::rebalance(kahypar::Metrics& best_metrics,
+                                         const bool do_sequential) {
     // If partition is imbalanced, rebalancer is activated
     if ( !metrics::isBalanced(_hg, _context) ) {
       _gain.reset();
@@ -70,7 +71,7 @@ namespace mt_kahypar {
       tbb::enumerable_thread_specific<IndexedMovePQ> move_pqs([&] {
         return IndexedMovePQ(idx++);
       });
-      _hg.doParallelForAllNodes([&](const HypernodeID& hn) {
+      auto findMove = [&](const HypernodeID& hn) {
         const PartitionID from = _hg.partID(hn);
         if ( _hg.isBorderNode(hn) && _hg.partWeight(from) > _context.partition.max_part_weights[from] ) {
           Move rebalance_move = _gain.computeMaxGainMove(_hg, hn, true /* rebalance move */);
@@ -80,7 +81,16 @@ namespace mt_kahypar {
             move_pqs.local().pq.emplace(std::move(rebalance_move));
           }
         }
-      });
+      };
+      if ( do_sequential ) {
+        for ( const HypernodeID& hn : _hg.nodes() ) {
+          findMove(hn);
+        }
+      } else {
+        _hg.doParallelForAllNodes([&](const HypernodeID& hn) {
+          findMove(hn);
+        });
+      }
 
       ASSERT([&] {
         for ( PartitionID block = 0; block < _context.partition.k; ++block ) {

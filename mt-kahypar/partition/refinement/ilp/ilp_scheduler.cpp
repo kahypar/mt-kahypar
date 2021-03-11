@@ -24,6 +24,7 @@
 #include "tbb/parallel_sort.h"
 
 #include "mt-kahypar/partition/refinement/policies/gain_policy.h"
+#include "mt-kahypar/partition/refinement/rebalancing/rebalancer.h"
 #include "mt-kahypar/partition/metrics.h"
 #include "mt-kahypar/parallel/stl/scalable_queue.h"
 #include "mt-kahypar/utils/timer.h"
@@ -65,7 +66,8 @@ bool ILPScheduler::refine() {
 
   _visited_hns.assign(_phg.initialNumNodes(), false);
   _visited_hes = kahypar::ds::FastResetFlagArray<>(_phg.initialNumEdges());
-  if ( _context.refinement.ilp.vertex_selection_strategy != ILPVertexSelectionStrategy::localized ) {
+  if ( _context.refinement.ilp.vertex_selection_strategy != ILPVertexSelectionStrategy::localized &&
+       _context.refinement.ilp.vertex_selection_strategy != ILPVertexSelectionStrategy::rebalancer ) {
     utils::Timer::instance().start_timer("select_vertices", "Select ILP Vertices");
     _num_vertices = 0;
     _num_hyperedges = 0;
@@ -91,7 +93,7 @@ bool ILPScheduler::refine() {
 
     // Solve ILP
     _solver.solve(nodes);
-  } else {
+  } else if ( _context.refinement.ilp.vertex_selection_strategy == ILPVertexSelectionStrategy::localized ) {
     HyperedgeWeight initial_objective = metrics::objective(_phg, _context.partition.objective);
     HyperedgeWeight current_objective = initial_objective;
     HyperedgeWeight max_allowed_objective = initial_objective;
@@ -138,10 +140,10 @@ bool ILPScheduler::refine() {
               current_epsilon += 0.01;
               max_allowed_objective = (1.0 + current_epsilon) * initial_objective;
             }
-            // LOG << V(nodes.size()) << V(initial_objective) << V(current_objective) << V(max_part_weight_after);
-            // for ( PartitionID i = 0; i < _phg.k(); ++i ) {
-            //   LOG << V(i) << V(_phg.partWeight(i));
-            // }
+            LOG << V(nodes.size()) << V(initial_objective) << V(current_objective) << V(max_part_weight_after);
+            for ( PartitionID i = 0; i < _phg.k(); ++i ) {
+              LOG << V(i) << V(_phg.partWeight(i));
+            }
           }
         }
 
@@ -154,6 +156,26 @@ bool ILPScheduler::refine() {
       if ( !_context.refinement.ilp.minimize_balance ) {
         break;
       }
+    }
+  } else {
+    Context balance_context(_context);
+    balance_context.partition.epsilon = 0.0;
+    balance_context.setupPartWeights(_phg.totalWeight());
+
+    kahypar::Metrics m = { 0, 0, 0.0 };
+    tbb::parallel_invoke([&] {
+      m.cut = metrics::hyperedgeCut(_phg);
+    }, [&] {
+      m.km1 = metrics::km1(_phg);
+    });
+    m.imbalance = metrics::imbalance(_phg, balance_context);
+
+    if ( _context.partition.objective == kahypar::Objective::km1 ) {
+      Rebalancer<Km1Policy> km1_rebalancer(_phg, balance_context);
+      km1_rebalancer.rebalance(m, true);
+    } else if ( _context.partition.objective == kahypar::Objective::cut ) {
+      Rebalancer<CutPolicy> cut_rebalancer(_phg, balance_context);
+      cut_rebalancer.rebalance(m, true);
     }
   }
 
