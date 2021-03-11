@@ -77,9 +77,7 @@ class ILPSolver {
     utils::Timer::instance().stop_timer("solve_ilp");
 
     HyperedgeWeight delta = 0;
-    const bool perform_moves = _context.refinement.ilp.minimize_balance ?
-      _model.getOptimizedObjective() < _model.getInitialObjective() : true;
-    if ( status == GRB_OPTIMAL && perform_moves ) {
+    if ( status == GRB_OPTIMAL || status == GRB_TIME_LIMIT ) {
       DBG << "ILP solver improved objective function from"
           << _model.getInitialObjective()
           << "to" << _model.getOptimizedObjective()

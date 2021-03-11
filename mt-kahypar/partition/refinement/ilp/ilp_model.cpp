@@ -225,16 +225,20 @@ GRBLinExpr ILPModel::getCutMetric(ILPHypergraph& hg) {
 // ! Models the objective function
 void ILPModel::addObjectiveFunction(GRBModel& model, ILPHypergraph& hg) {
   GRBLinExpr objective_function = 0;
-  if ( _context.refinement.ilp.minimize_balance ) {
-    objective_function += _variables[max_part_weight_offset()];
-  } else {
-    if ( _context.partition.objective == kahypar::Objective::km1 ) {
-      objective_function = getConnectivityMetric(hg);
-    } else if ( _context.partition.objective == kahypar::Objective::cut ) {
-      objective_function = getCutMetric(hg);
-    }
+  if ( _context.partition.objective == kahypar::Objective::km1 ) {
+    objective_function = getConnectivityMetric(hg);
+  } else if ( _context.partition.objective == kahypar::Objective::cut ) {
+    objective_function = getCutMetric(hg);
   }
-  model.setObjective(objective_function, GRB_MINIMIZE);
+
+  if ( _context.refinement.ilp.minimize_balance ) {
+    GRBLinExpr max_part_weight_function = _variables[max_part_weight_offset()];
+    model.setObjectiveN(max_part_weight_function, 0 /* primary objective */, 1 /* priority */ );
+    model.setObjectiveN(objective_function - _initial_metric, 1 /* secondary objective */, 0 /* priority */ );
+    model.set(GRB_IntAttr_ModelSense, GRB_MINIMIZE);
+  } else {
+    model.setObjective(objective_function, GRB_MINIMIZE);
+  }
 }
 
 // ! Models constraint (1)

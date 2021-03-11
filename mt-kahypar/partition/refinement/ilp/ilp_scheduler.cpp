@@ -138,7 +138,10 @@ bool ILPScheduler::refine() {
               current_epsilon += 0.01;
               max_allowed_objective = (1.0 + current_epsilon) * initial_objective;
             }
-            // LOG << V(initial_objective) << V(current_objective) << V(max_allowed_objective) << V(max_part_weight_after);
+            // LOG << V(nodes.size()) << V(initial_objective) << V(current_objective) << V(max_part_weight_after);
+            // for ( PartitionID i = 0; i < _phg.k(); ++i ) {
+            //   LOG << V(i) << V(_phg.partWeight(i));
+            // }
           }
         }
 

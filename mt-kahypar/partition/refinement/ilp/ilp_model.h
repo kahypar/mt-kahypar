@@ -64,7 +64,7 @@ class ILPModel {
     try {
       model.optimize();
       status = model.get(GRB_IntAttr_Status);
-      if ( status == GRB_OPTIMAL ) {
+      if ( status == GRB_OPTIMAL || status == GRB_TIME_LIMIT ) {
         _optimized_objective = model.get(GRB_DoubleAttr_ObjVal);
         _is_solved = true;
       }
@@ -153,7 +153,9 @@ class ILPModel {
 
   void modelHyperedgeCut(GRBModel& model, ILPHypergraph& hg);
 
-  void modelObjectiveFunctionAsConstraint(GRBModel& model, ILPHypergraph& hg, const HyperedgeWeight max_delta);
+  void modelObjectiveFunctionAsConstraint(GRBModel& model,
+                                          ILPHypergraph& hg,
+                                          const HyperedgeWeight max_delta);
 
   void modelMaxPartWeightConstraint(GRBModel& model, ILPHypergraph& hg);
 
