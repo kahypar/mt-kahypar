@@ -90,6 +90,25 @@ struct Move {
   }
 };
 
+enum class MoveSequenceState : uint8_t {
+  IN_PROGRESS,
+  SUCCESS,
+  VIOLATES_BALANCE_CONSTRAINT,
+  WORSEN_SOLUTION_QUALITY,
+  WORSEN_SOLUTION_QUALITY_WITHOUT_ROLLBACK
+};
+
+// Represents a sequence of vertex moves with an
+// expected improvement of the solution quality if we
+// apply the moves
+struct MoveSequence {
+  vec<Move> moves;
+  Gain expected_improvement; // >= 0
+  MoveSequenceState state = MoveSequenceState::IN_PROGRESS;
+};
+
+
+
 struct Memento {
   HypernodeID u; // representative
   HypernodeID v; // contraction partner
