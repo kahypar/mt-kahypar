@@ -18,13 +18,13 @@
  *
  ******************************************************************************/
 
-#include <tbb/parallel_sort.h>
 #include "deterministic_label_propagation.h"
-
 
 #include "mt-kahypar/partition/metrics.h"
 #include "mt-kahypar/parallel/chunking.h"
 #include "mt-kahypar/parallel/parallel_counting_sort.h"
+
+#include <tbb/parallel_sort.h>
 
 namespace mt_kahypar {
 
@@ -95,7 +95,8 @@ namespace mt_kahypar {
 
     // aggregate moves by direction. not in-place because of counting sort.
     // but it gives us the positions of the buckets right away
-    auto positions = parallel::counting_sort(moves, sorted_moves, max_key, get_key, context.shared_memory.num_threads);
+    auto positions = parallel::counting_sort(moves, sorted_moves, max_key, get_key,
+                                             context.shared_memory.num_threads);
 
     vec<std::pair<PartitionID, PartitionID>> relevant_block_pairs;
     for (PartitionID i = 0; i < k; ++i) {
@@ -108,21 +109,48 @@ namespace mt_kahypar {
     }
 
 
-    tbb::parallel_for(0UL, relevant_block_pairs.size(), [&](size_t i) {
-      auto [b1, b2] = relevant_block_pairs[i];
+    tbb::parallel_for(0UL, relevant_block_pairs.size(), [&](size_t bp) {
+      // sort both directions by gain (alternative: gain / weight?)
+      auto [p1, p2] = relevant_block_pairs[bp];
       auto comp = [](const Move& m1, const Move& m2) { return m1.gain > m2.gain; };
       const auto b = sorted_moves.begin();
+      size_t  i = positions[index(p1, p2)], i_last = positions[index(p1, p2) + 1],
+              j = positions[index(p2, p1)], j_last = positions[index(p2, p1) + 1];
+      std::sort(b + i, b + i_last, comp);
+      std::sort(b + j, b + j_last, comp);
 
-      // sort both directions by gain (alternative: gain / weight?)
-      std::sort(b + positions[index(b1, b2)],
-                b + positions[index(b1, b2) + 1],
-                comp);
+      // get balanced swap prefix
+      Gain estimated_gain = 0;
+      HypernodeWeight budget_p1 = context.partition.max_part_weights[p1] - phg.partWeight(p1),
+                      budget_p2 = context.partition.max_part_weights[p2] - phg.partWeight(p2);
 
-      std::sort(b + positions[index(b2, b1)],
-                b + positions[index(b2, b1) + 1],
-                comp);
+      int64_t balance = 0;
+      while (true) {
+        if (balance < 0 || (balance == 0 && budget_p1 < budget_p2)) {
+          // move from p1 to p2 goes next
+          if (i == i_last || sorted_moves[i].gain < 0) {
+            break;
+          }
+          estimated_gain += sorted_moves[i].gain;
+          balance += phg.nodeWeight(sorted_moves[i].node);
+          i++;
+        } else {
+          if (j == j_last || sorted_moves[j].gain < 0) {
+            break;
+          }
+          estimated_gain += sorted_moves[j].gain;
+          balance -= phg.nodeWeight(sorted_moves[j].node);
+          j++;
+        }
+      }
 
-      // get best prefix with feasible weight
+      if (balance < 0) {
+
+      } else {
+        
+      }
+
+
 
     });
 
