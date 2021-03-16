@@ -93,9 +93,18 @@ namespace mt_kahypar {
       return index(m.from, m.to);
     };
 
+    struct MovesWrapper {
+      const Move& operator[](size_t i) const { return moves[i]; }
+      size_t size() const { return sz; }
+      const vec<Move>& moves;
+      const size_t sz = 0;
+    };
+
+    MovesWrapper moves_wrapper { moves, moves_back.load(std::memory_order_relaxed) };
+
     // aggregate moves by direction. not in-place because of counting sort.
     // but it gives us the positions of the buckets right away
-    auto positions = parallel::counting_sort(moves, sorted_moves, max_key, get_key,
+    auto positions = parallel::counting_sort(moves_wrapper, sorted_moves, max_key, get_key,
                                              context.shared_memory.num_threads);
 
     vec<std::pair<PartitionID, PartitionID>> relevant_block_pairs;
@@ -144,14 +153,11 @@ namespace mt_kahypar {
         }
       }
 
-      if (balance < 0) {
+      if (balance < 0 && i < i_last) {
 
-      } else {
+      } else if (balance > 0 && j < j_last) {
         
       }
-
-
-
     });
 
   }
