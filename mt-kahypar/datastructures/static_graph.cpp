@@ -75,7 +75,7 @@ namespace mt_kahypar::ds {
     ASSERT(static_cast<size_t>(_num_nodes) <= node_sizes.size());
     ASSERT(static_cast<size_t>(_num_nodes) <= tmp_num_incident_edges.size());
     ASSERT(static_cast<size_t>(_num_nodes) <= node_weights.size());
-    ASSERT(static_cast<size_t>(2 * _num_edges) <= tmp_edges.size());
+    ASSERT(static_cast<size_t>(_num_edges) <= tmp_edges.size());
 
 
     // #################### STAGE 1 ####################
@@ -268,7 +268,7 @@ namespace mt_kahypar::ds {
             0UL, static_cast<size_t>(coarsened_num_nodes)), degree_mapping);
     const HyperedgeID coarsened_num_edges = degree_mapping.total_sum();
     hypergraph._num_nodes = coarsened_num_nodes;
-    hypergraph._num_edges = coarsened_num_edges / 2;
+    hypergraph._num_edges = coarsened_num_edges;
 
     tbb::parallel_invoke([&] {
       utils::Timer::instance().start_timer("setup_edges", "Setup Edges", true);
@@ -281,8 +281,9 @@ namespace mt_kahypar::ds {
         tbb::parallel_for(ID(0), degree_mapping.value(coarse_node), [&](const HyperedgeID& index) {
           ASSERT(tmp_edges_start + index < tmp_edges.size() && edges_start + index < hypergraph._edges.size());
           const TmpEdgeInformation& tmp_edge = tmp_edges[tmp_edges_start + index];
-          Edge& edge = hypergraph._edges[edges_start + index];          
+          Edge& edge = hypergraph.edge(edges_start + index);          
           edge.setTarget(tmp_edge.getTarget());
+          edge.setSource(coarse_node);
           edge.setWeight(tmp_edge.getWeight());
         });
       });
@@ -290,7 +291,7 @@ namespace mt_kahypar::ds {
     }, [&] {
       hypergraph._nodes.resize(coarsened_num_nodes + 1);
       tbb::parallel_for(ID(0), coarsened_num_nodes, [&](const HyperedgeID& coarse_node) {
-        Node& node = hypergraph._nodes[coarse_node];
+        Node& node = hypergraph.node(coarse_node);
         node.enable();
         node.setFirstEntry(degree_mapping[coarse_node]);
         node.setWeight(tmp_nodes[coarse_node].weight());
@@ -302,8 +303,6 @@ namespace mt_kahypar::ds {
         hypergraph.setCommunityID(map_to_coarse_graph(fine_node), communityID(fine_node));
       });
     });
-
-    // TODO: set backward edges
 
     utils::Timer::instance().stop_timer("contract_hypergraph");
 

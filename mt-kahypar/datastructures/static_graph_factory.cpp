@@ -60,7 +60,7 @@ namespace mt_kahypar::ds {
           const bool stable_construction_of_incident_edges) {
     StaticGraph graph;
     graph._num_nodes = num_nodes;
-    graph._num_edges = num_edges;
+    graph._num_edges = 2 * num_edges;
     graph._nodes.resize(num_nodes + 1);
     graph._edges.resize(2 * num_edges);
 
@@ -113,9 +113,9 @@ namespace mt_kahypar::ds {
         StaticGraph::Edge& edge1 = graph._edges[incident_edges_pos1];
 
         edge0.setTarget(pin1);
-        edge0.setBackwardsEdge(incident_edges_pos1);
+        edge0.setSource(pin0);
         edge1.setTarget(pin0);
-        edge1.setBackwardsEdge(incident_edges_pos0);
+        edge1.setSource(pin1);
 
         if (edge_weight) {
           edge0.setWeight(edge_weight[pos]);

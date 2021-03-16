@@ -53,7 +53,7 @@ class StaticGraph {
   // degree vertices. Therefore, all vertices with temporary degree greater
   // than this threshold are contracted with a special procedure.
   // TODO: what is a good value?
-  static constexpr HyperedgeID HIGH_DEGREE_CONTRACTION_THRESHOLD = ID(500000);
+  static constexpr HyperedgeID HIGH_DEGREE_CONTRACTION_THRESHOLD = ID(100000);
 
   static_assert(std::is_unsigned<HypernodeID>::value, "Node ID must be unsigned");
   static_assert(std::is_unsigned<HyperedgeID>::value, "Hyperedge ID must be unsigned");
@@ -76,13 +76,13 @@ class StaticGraph {
       _weight(1),
       _valid(false) { }
 
-    Node(const bool valid) :
+    explicit Node(const bool valid) :
       _begin(0),
       _weight(1),
       _valid(valid) { }
 
     // Sentinel Constructor
-    Node(const size_t begin) :
+    explicit Node(const size_t begin) :
       _begin(begin),
       _weight(1),
       _valid(false) { }
@@ -140,7 +140,12 @@ class StaticGraph {
 
     Edge() :
       _target(0),
-      _backwards_edge(0),
+      _source(0),
+      _weight(1) { }
+
+    explicit Edge(HypernodeID target, HypernodeID source) :
+      _target(target),
+      _source(source),
       _weight(1) { }
 
     // ! Returns the index of the target node
@@ -153,14 +158,14 @@ class StaticGraph {
       _target = target;
     }
 
-    // ! Returns the index of the corresponding backwards edge
-    HyperedgeID backwardsEdge() const {
-      return _backwards_edge;
+    // ! Returns the index of the source node
+    HypernodeID source() const {
+      return _source;
     }
 
-    // ! Sets the index of the corresponding backwards edge
-    void setBackwardsEdge(HyperedgeID backwards_edge) {
-      _backwards_edge = backwards_edge;
+    // ! Sets the index of the source node
+    void setSource(HypernodeID source) {
+      _source = source;
     }
 
     HyperedgeWeight weight() const {
@@ -172,19 +177,19 @@ class StaticGraph {
     }
 
     bool operator== (const Edge& rhs) const {
-      return _target == rhs._target && _backwards_edge == rhs._backwards_edge && _weight == rhs._weight;
+      return _target == rhs._target && _source == rhs._source && _weight == rhs._weight;
     }
 
     bool operator!= (const Edge& rhs) const {
-      return _target != rhs._target || _backwards_edge != rhs._backwards_edge || _weight != rhs._weight;
+      return _target != rhs._target || _source != rhs._source || _weight != rhs._weight;
     }
 
    private:
     // ! Index of target node
     HypernodeID _target;
-    // ! Index of corresponding backwards edge
-    // TODO: this is not very performant and should be removed eventually
-    HyperedgeID _backwards_edge;
+    // ! Index of source node
+    // TODO(maas): can we avoid storing the source vertex within each edge?
+    HypernodeID _source;
     // ! hyperedge weight
     HyperedgeWeight _weight;
   };
@@ -267,85 +272,6 @@ class StaticGraph {
   };
 
   /*!
-   * Iterator for edges
-   *
-   * The iterator is used in for-each loops over all edges.
-   * Because we use an adjacency array, each edge appears twice and needs to be
-   * deduplicated by only returning edges where the id of the target node is
-   * larger then the id of the source node.
-   *
-   * In order to be as generic as possible, the iterator does not expose the
-   * internal representation. Instead only handles to the respective elements
-   * are returned, i.e. the IDs of the corresponding hypernodes/hyperedges.
-   */
-  class EdgeIterator :
-    public std::iterator<std::forward_iterator_tag,    // iterator_category
-                         HyperedgeID,   // value_type
-                         std::ptrdiff_t,   // difference_type
-                         const HyperedgeID*,   // pointer
-                         HyperedgeID> {   // reference
-   public:
-    /*!
-     * If the given id is invalid, the iterator advances to the first valid
-     * element.
-     *
-     * \param edges A reference to the edge array
-     * \param id The index of the element the pointer points to
-     * \param max_id The maximum index allowed
-     */
-    EdgeIterator(const Array<Edge>& edges, HyperedgeID id) :
-      _id(id),
-      _edges(edges) {
-      if (_id < _edges.get().size() && !currentEdgeIsValid()) {
-        operator++ ();
-      }
-    }
-
-    // ! Returns the id of the element the iterator currently points to.
-    HypernodeID operator* () const {
-      return _id;
-    }
-
-    // ! Prefix increment. The iterator advances to the next valid element.
-    EdgeIterator & operator++ () {
-      ASSERT(_id < _edges.get().size());
-      do {
-        ++_id;
-      } while (_id < _edges.get().size() && !currentEdgeIsValid());
-      return *this;
-    }
-
-    // ! Postfix increment. The iterator advances to the next valid element.
-    EdgeIterator operator++ (int) {
-      EdgeIterator copy = *this;
-      operator++ ();
-      return copy;
-    }
-
-    bool operator!= (const EdgeIterator& rhs) {
-      return _id != rhs._id;
-    }
-
-    bool operator== (const EdgeIterator& rhs) {
-      return _id == rhs._id;
-    }
-
-   private:
-    bool currentEdgeIsValid() const {
-      const Edge& edge = _edges.get()[_id];
-      const Edge& backwards = _edges.get()[edge.backwardsEdge()];
-      ASSERT(edge.weight() == backwards.weight() &&
-             edge.target() != backwards.target());
-      return backwards.target() < edge.target();
-    }
-
-    // Handle to the edge the iterator currently points to
-    HyperedgeID _id = 0;
-    // edge array of the graph
-    std::reference_wrapper<const Array<Edge>> _edges;
-  };
-
-  /*!
    * Iterator for pins of an edge
    *
    * Note that because this is a graph, each edge has exactly two pins.
@@ -368,6 +294,7 @@ class StaticGraph {
 
     // ! Returns the id of the element the iterator currently points to.
     HypernodeID operator* () const {
+      ASSERT(_iteration_count < 2);
       return _iteration_count == 0 ? _source : _target;
     }
 
@@ -386,11 +313,13 @@ class StaticGraph {
     }
 
     bool operator!= (const PinIterator& rhs) {
-      return _iteration_count != rhs._iteration_count;
+      return _iteration_count != rhs._iteration_count ||
+             _source != rhs._source || _target != rhs._target;
     }
 
     bool operator== (const PinIterator& rhs) {
-      return _iteration_count == rhs._iteration_count;
+      return _iteration_count == rhs._iteration_count &&
+              _source == rhs._source && _target == rhs._target;
     }
 
    private:
@@ -438,7 +367,7 @@ class StaticGraph {
       _valid_or_weight = 0;
     }
 
-    HyperedgeWeight addWeight(HyperedgeWeight weight) {
+    void addWeight(HyperedgeWeight weight) {
       ASSERT(isValid());
       _valid_or_weight += weight;
     }
@@ -450,7 +379,6 @@ class StaticGraph {
   // ! Contains buffers that are needed during multilevel contractions.
   // ! Struct is allocated on top level hypergraph and passed to each contracted
   // ! hypergraph such that memory can be reused in consecutive contractions.
-  // TODO
   struct TmpContractionBuffer {
     explicit TmpContractionBuffer(const HypernodeID num_nodes,
                                   const HyperedgeID num_edges) {
@@ -465,7 +393,7 @@ class StaticGraph {
       }, [&] {
         node_weights.resize("Coarsening", "node_weights", num_nodes);
       }, [&] {
-        tmp_edges.resize("Coarsening", "tmp_edges", 2 * num_edges);
+        tmp_edges.resize("Coarsening", "tmp_edges", num_edges);
       });
     }
 
@@ -486,7 +414,7 @@ class StaticGraph {
   // ! Iterator to iterate over the hypernodes
   using HypernodeIterator = NodeIterator;
   // ! Iterator to iterate over the hyperedges
-  using HyperedgeIterator = EdgeIterator;
+  using HyperedgeIterator = boost::range_detail::integer_iterator<HyperedgeID>;
   // ! Iterator to iterate over the pins of a hyperedge
   using IncidenceIterator = PinIterator;
   // ! Iterator to iterate over the incident nets of a hypernode
@@ -568,12 +496,12 @@ class StaticGraph {
 
   // ! Initial number of pins
   HypernodeID initialNumPins() const {
-    return 2 * _num_edges;
+    return _num_edges;
   }
 
   // ! Initial sum of the degree of all vertices
   HypernodeID initialTotalVertexDegree() const {
-    return 2 * _num_edges;
+    return _num_edges;
   }
 
   // ! Total weight of hypergraph
@@ -599,15 +527,11 @@ class StaticGraph {
 
   // ! Iterates in parallel over all active edges and calls function f
   // ! for each net
-  // TODO
   template<typename F>
   void doParallelForAllEdges(const F& f) const {
-    ERROR("Not supported yet.");
-    // tbb::parallel_for(ID(0), _num_edges, [&](const HyperedgeID& he) {
-    //   if ( edgeIsEnabled(he) ) {
-    //     f(he);
-    //   }
-    // });
+    tbb::parallel_for(ID(0), _num_edges, [&](const HyperedgeID& e) {
+      f(e);
+    });
   }
 
   // ! Returns a range of the active nodes of the hypergraph
@@ -620,8 +544,8 @@ class StaticGraph {
   // ! Returns a range of the active edges of the hypergraph
   IteratorRange<HyperedgeIterator> edges() const {
     return IteratorRange<HyperedgeIterator>(
-      HyperedgeIterator(_edges, ID(0)),
-      HyperedgeIterator(_edges, _edges.size()));
+      boost::range_detail::integer_iterator<HyperedgeID>(0),
+      boost::range_detail::integer_iterator<HyperedgeID>(_num_edges));
   }
 
   // ! Returns a range to loop over the incident nets of hypernode u.
@@ -632,11 +556,9 @@ class StaticGraph {
   // ! Returns a range to loop over the pins of hyperedge e.
   IteratorRange<IncidenceIterator> pins(const HyperedgeID id) const {
     const Edge& e = edge(id);
-    const HypernodeID source = edge(e.backwardsEdge()).target();
-    const HypernodeID target = e.target();
     return IteratorRange<IncidenceIterator>(
-      IncidenceIterator(source, target, 0),
-      IncidenceIterator(source, target, 2));
+      IncidenceIterator(e.source(), e.target(), 0),
+      IncidenceIterator(e.source(), e.target(), 2));
   }
 
     // ####################### Node Information #######################
@@ -662,7 +584,7 @@ class StaticGraph {
   }
 
   // ! Removes a degree zero hypernode
-  // TODO: can this be done implicitely?
+  // TODO(maas): can this be done implicitely?
   void removeDegreeZeroHypernode(const HypernodeID u) {
     ASSERT(nodeDegree(u) == 0);
     node(u).disable();
@@ -676,6 +598,16 @@ class StaticGraph {
   }
 
   // ####################### Hyperedge Information #######################
+
+  // ! Target of an edge
+  HypernodeID edgeTarget(const HyperedgeID e) const {
+    return edge(e).target();
+  }
+
+  // ! Target of an edge
+  HypernodeID edgeSource(const HyperedgeID e) const {
+    return edge(e).source();
+  }
 
   // ! Weight of a hyperedge
   HypernodeWeight edgeWeight(const HyperedgeID e) const {
@@ -889,13 +821,11 @@ class StaticGraph {
   HypernodeID _num_nodes;
   // ! Number of removed nodes
   HypernodeID _num_removed_nodes;
-  // ! Number of edges
+  // ! Number of edges (note that each hyperedge is respresented as two graph edges)
   HyperedgeID _num_edges;
   // ! Total weight of the graph
   HypernodeWeight _total_weight;
 
-  // TODO: the current representation, where HyperedgeID is an index into the edge array, is problematic.
-  // Each edge has two different possible IDs which can not be detected to be equal by direct comparison.
   // ! Nodes
   Array<Node> _nodes;
   // ! Edges

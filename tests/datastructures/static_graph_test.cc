@@ -35,7 +35,7 @@ using AStaticGraph = HypergraphFixture<StaticGraph, StaticGraphFactory, true>;
 
 TEST_F(AStaticGraph, HasCorrectStats) {
   ASSERT_EQ(7,  hypergraph.initialNumNodes());
-  ASSERT_EQ(6,  hypergraph.initialNumEdges());
+  ASSERT_EQ(12,  hypergraph.initialNumEdges());
   ASSERT_EQ(12, hypergraph.initialNumPins());
   ASSERT_EQ(12, hypergraph.initialTotalVertexDegree());
   ASSERT_EQ(7,  hypergraph.totalWeight());
@@ -62,14 +62,12 @@ TEST_F(AStaticGraph, HasCorrectNodeIteratorIfVerticesAreDisabled) {
 }
 
 TEST_F(AStaticGraph, HasCorrectInitialEdgeIterator) {
-  // Note that each edge appears twice in the adjacency array
-  const std::vector<HypernodeID> expected_iter =
-    { 0, 1, 3, 6, 7, 9 };
-  HyperedgeID pos = 0;
-  for ( const HyperedgeID& he : hypergraph.edges() ) {
-    ASSERT_EQ(expected_iter[pos++], he);
+  // Note that each hyperedge is represented as two edges
+  HyperedgeID expected_he = 0;
+  for ( const HyperedgeID& hn : hypergraph.edges() ) {
+    ASSERT_EQ(expected_he++, hn);
   }
-  ASSERT_EQ(expected_iter.size(), pos);
+  ASSERT_EQ(12, expected_he);
 }
 
 TEST_F(AStaticGraph, IteratesParallelOverAllNodes) {
@@ -264,7 +262,7 @@ TEST_F(AStaticGraph, ContractsCommunities1) {
 
   // Verify Stats
   ASSERT_EQ(3, c_graph.initialNumNodes());
-  ASSERT_EQ(2, c_graph.initialNumEdges());
+  ASSERT_EQ(4, c_graph.initialNumEdges());
   ASSERT_EQ(7, c_graph.totalWeight());
 
   // Verify Vertex Weights
@@ -276,12 +274,14 @@ TEST_F(AStaticGraph, ContractsCommunities1) {
   ASSERT_EQ(1, c_graph.edgeWeight(0));
   ASSERT_EQ(3, c_graph.edgeWeight(2));
 
-  // Verify Graph Structure
+  // Verify Graph Structure - note that each edge has two IDs
   verifyIncidentNets(c_graph, 0, { 0 });
   verifyIncidentNets(c_graph, 1, { 1, 2 });
   verifyIncidentNets(c_graph, 2, { 3 });
   verifyPins(c_graph, { 0 }, { {0, 1} });
-  verifyPins(c_graph, { 1 }, { {1, 2} });
+  verifyPins(c_graph, { 1 }, { {0, 1} });
+  verifyPins(c_graph, { 2 }, { {1, 2} });
+  verifyPins(c_graph, { 3 }, { {1, 2} });
 }
 
 }
