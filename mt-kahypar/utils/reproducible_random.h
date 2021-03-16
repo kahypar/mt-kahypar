@@ -270,8 +270,6 @@ public:
     left_mask = (1U << num_left_bits) - 1;
   }
 
-
-
   uint64_t encrypt(uint64_t x) const {
     assert(x < max_num_entries());
     uint32_t lmask = left_mask, rmask = right_mask;
@@ -311,6 +309,10 @@ public:
     return (uint64_t(r) << num_right_bits) | uint64_t(l);
   }
 
+  size_t max_num_entries() const {
+    return 1UL << (num_right_bits + num_left_bits);
+  }
+
 private:
 
   uint64_t plant_shift() const {
@@ -324,11 +326,6 @@ private:
   size_t num_rounds() const {
     return keys.size();
   }
-
-  size_t max_num_entries() const {
-    return 1UL << (num_right_bits + num_left_bits);
-  }
-
   static constexpr size_t max_supported_bits = 62;
 
   uint64_t num_right_bits, num_left_bits;

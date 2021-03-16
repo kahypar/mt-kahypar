@@ -34,7 +34,6 @@ namespace mt_kahypar {
                                                         const double)  {
     Gain overall_improvement = 0;
     size_t num_sub_rounds = context.refinement.deterministic_refinement.num_sub_rounds_sync_lp;
-    size_t sub_round_size = parallel::chunking::idiv_ceil(phg.initialNumNodes(), num_sub_rounds);
 
     for (size_t iter = 0; iter < context.refinement.label_propagation.maximum_iterations; ++iter) {
       moves_back.store(0, std::memory_order_relaxed);
@@ -42,31 +41,45 @@ namespace mt_kahypar {
       if (context.refinement.deterministic_refinement.use_coloring) {
         // get vertex permutation from coloring
         coloring(phg);
-      } else if (context.refinement.deterministic_refinement.feistel_shuffling) {
-        // get rid of this constant after initial tests, and use std::array in FeistelPermutation to store the keys
-        constexpr size_t num_feistel_rounds = 4;
-        feistel_permutation.create_permutation(num_feistel_rounds, phg.initialNumNodes(), prng);
       } else {
-        // adapt number of nodes to active node set
-        permutation.create_integer_permutation(phg.initialNumNodes(), context.shared_memory.num_threads, prng);
-      }
 
-      for (size_t sub_round = 0; sub_round < num_sub_rounds; ++sub_round) {
-        // calculate moves
-        auto [first, last] = parallel::chunking::bounds(sub_round, phg.initialNumNodes(), sub_round_size);
-        tbb::parallel_for(HypernodeID(first), HypernodeID(last), [&](const HypernodeID position) {
+        size_t n;
+        if (context.refinement.deterministic_refinement.feistel_shuffling) {
+          // get rid of this constant after initial tests, and use std::array in FeistelPermutation to store the keys
+          constexpr size_t num_feistel_rounds = 4;
+          feistel_permutation.create_permutation(num_feistel_rounds, phg.initialNumNodes(), prng);
+          n = feistel_permutation.max_num_entries();
+        } else {
+          n = phg.initialNumNodes();
+          permutation.create_integer_permutation(n, context.shared_memory.num_threads, prng);
+        }
+
+        auto try_move_with_feistel = [&](const HypernodeID cleartext) {
+          const HypernodeID ciphertext = feistel_permutation.encrypt(cleartext);
+          if (ciphertext < phg.initialNumNodes()) {
+            calculateAndSaveBestMove(phg, ciphertext);
+          }
+        };
+
+        auto try_move_with_parallel_shuffling = [&](const HypernodeID position) {
           calculateAndSaveBestMove(phg, permutation.at(position));
-        });
+        };
 
-        // sync, then apply moves
-        applyMovesSortedByGainAndRevertUnbalanced(phg);
+        size_t sub_round_size = parallel::chunking::idiv_ceil(n, num_sub_rounds);
+        for (size_t sub_round = 0; sub_round < num_sub_rounds; ++sub_round) {
+          // calculate moves
+          auto [first, last] = parallel::chunking::bounds(sub_round, phg.initialNumNodes(), sub_round_size);
+          if (context.refinement.deterministic_refinement.feistel_shuffling) {
+            tbb::parallel_for(HypernodeID(first), HypernodeID(last), try_move_with_feistel);
+          } else {
+            tbb::parallel_for(HypernodeID(first), HypernodeID(last), try_move_with_parallel_shuffling);
+          }
 
-        // for now apply all moves. temporary!
-        // realistic approaches: sort move direction queues, find an improvement for k-way
-        // unrealistic approaches: linear program (Ugander), negative cycle detection (Chris)
+          // sync. then apply moves
+          overall_improvement += applyMovesSortedByGainAndRevertUnbalanced(phg);
+        }
+
       }
-
-
     }
 
 

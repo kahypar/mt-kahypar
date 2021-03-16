@@ -81,7 +81,8 @@ private:
   }
 
   void calculateAndSaveBestMove(PartitionedHypergraph& phg, HypernodeID u) {
-    auto [to, gain] = compute_gains.local().computeBestTargetBlockIgnoringBalance(phg, u);
+    auto [to, gain] = compute_gains.local().computeBestTargetBlock(phg, u, context.partition.max_part_weights);
+    // auto [to, gain] = compute_gains.local().computeBestTargetBlockIgnoringBalance(phg, u);
     if (gain > 0 && to != kInvalidPartition) {    // depending on apply moves function we might do gain >= 0
       moves[moves_back.fetch_add(1, std::memory_order_relaxed)] = { phg.partID(u), to, u, gain };
     }
