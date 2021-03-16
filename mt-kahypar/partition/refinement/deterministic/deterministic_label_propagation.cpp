@@ -179,14 +179,14 @@ namespace mt_kahypar {
       while (true) {
         if (balance < 0 || (balance == 0 && budget_p1 < budget_p2)) {
           // move from p1 to p2 goes next
-          if (i == i_last || sorted_moves[i].gain < 0) {
+          if (i == i_last) {
             break;
           }
           estimated_gain += sorted_moves[i].gain;
           balance += phg.nodeWeight(sorted_moves[i].node);
           i++;
         } else {
-          if (j == j_last || sorted_moves[j].gain < 0) {
+          if (j == j_last) {
             break;
           }
           estimated_gain += sorted_moves[j].gain;
