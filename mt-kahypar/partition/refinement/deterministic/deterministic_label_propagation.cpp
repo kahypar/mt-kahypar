@@ -84,7 +84,7 @@ namespace mt_kahypar {
 
   Gain DeterministicLabelPropagationRefiner::applyMovesSortedByGainAndRevertUnbalanced(PartitionedHypergraph& phg) {
     auto comp = [](const Move& m1, const Move& m2) {
-      return m1.gain > m2.gain;
+      return m1.gain > m2.gain || (m1.gain == m2.gain && m1.node < m2.node);
     };
     tbb::parallel_sort(moves.begin(), moves.begin() + moves_back, comp);
 
