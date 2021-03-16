@@ -123,7 +123,6 @@ namespace mt_kahypar {
     auto get_key = [&](const Move& m) {
       return index(m.from, m.to);
     };
-
     struct MovesWrapper {
       const Move& operator[](size_t i) const { return moves[i]; }
       size_t size() const { return sz; }
@@ -143,11 +142,10 @@ namespace mt_kahypar {
       for (PartitionID j = i + 1; j < k; ++j) {
         if (positions[index(i,j) + 1] != positions[index(i,j)]
             && positions[index(j,i) + 1] != positions[index(j,i)]) { // neither direction (i,j) nor (j,i) empty
-          relevant_block_pairs.emplace_back(j, i);
+          relevant_block_pairs.emplace_back(i, j);
         }
       }
     }
-
 
     tbb::parallel_for(0UL, relevant_block_pairs.size(), [&](size_t bp) {
       // sort both directions by gain (alternative: gain / weight?)
