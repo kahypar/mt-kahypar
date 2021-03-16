@@ -52,8 +52,9 @@ private:
   size_t coloring(PartitionedHypergraph& phg);
 
   // functions to apply moves from a sub-round
-  void applyAllMoves(PartitionedHypergraph& phg);
-  void applyMovesByMaximalPrefixesInBlockPairs(PartitionedHypergraph& phg);
+  Gain applyAllMoves(PartitionedHypergraph& phg);
+  Gain applyMovesSortedByGainAndRevertUnbalanced(PartitionedHypergraph& phg);
+  Gain applyMovesByMaximalPrefixesInBlockPairs(PartitionedHypergraph& phg);
 
   vec<size_t> aggregateDirectionBucketsInplace();
 
@@ -82,7 +83,7 @@ private:
   void calculateAndSaveBestMove(PartitionedHypergraph& phg, HypernodeID u) {
     auto [to, gain] = compute_gains.local().computeBestTargetBlockIgnoringBalance(phg, u);
     if (gain > 0 && to != kInvalidPartition) {    // depending on apply moves function we might do gain >= 0
-      moves[moves_back.fetch_add(1, std::memory_order_relaxed)] = {phg.partID(u), to};
+      moves[moves_back.fetch_add(1, std::memory_order_relaxed)] = { phg.partID(u), to, u, gain };
     }
   }
 
