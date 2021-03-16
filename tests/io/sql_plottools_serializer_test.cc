@@ -89,7 +89,7 @@ void read_all_members_of_target_struct(std::ifstream& context_file,
     std::strcpy(input, line.c_str());
     if ( strcmp(input, "  #else") != 0 &&
          strcmp(input, "  #endif") != 0 &&
-         strcmp(input, "  #ifdef KAHYPAR_USE_N_LEVEL_PARADIGM") != 0 &&
+         strcmp(input, "  #ifdef USE_STRONG_PARTITIONER") != 0 &&
          strcmp(input, "  InitialPartitioningParameters() :") != 0 &&
          strcmp(input, "  InitialPartitioningParameters() :") != 0 &&
          strcmp(input, "    // Enable all initial partitioner per default") != 0 &&

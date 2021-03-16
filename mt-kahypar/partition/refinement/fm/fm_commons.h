@@ -71,10 +71,6 @@ struct GlobalMoveTracker {
     return moveOrder[move_id - firstMoveID];
   }
 
-  bool isMoveStillValid(const Move& m) const {
-    return m.from != -1;
-  }
-
   bool wasNodeMovedInThisRound(HypernodeID u) const {
     const MoveID m_id = moveOfNode[u];
     return m_id >= firstMoveID

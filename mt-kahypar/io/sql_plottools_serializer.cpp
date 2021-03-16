@@ -52,6 +52,7 @@ std::string serialize(const PartitionedHypergraph& hypergraph,
         << " large_hyperedge_size_threshold=" << context.partition.large_hyperedge_size_threshold
         << " ignore_hyperedge_size_threshold=" << context.partition.ignore_hyperedge_size_threshold
         << " time_limit=" << context.partition.time_limit
+        << " use_individual_part_weights=" << context.partition.use_individual_part_weights
         << " perfect_balance_part_weight=" << context.partition.perfect_balance_part_weights[0]
         << " max_part_weight=" << context.partition.max_part_weights[0]
         << " total_graph_weight=" << hypergraph.totalWeight()
@@ -79,7 +80,6 @@ std::string serialize(const PartitionedHypergraph& hypergraph,
         << " initial_partitioning_runs=" << context.initial_partitioning.runs
         << " initial_partitioning_use_adaptive_ip_runs=" << std::boolalpha << context.initial_partitioning.use_adaptive_ip_runs
         << " initial_partitioning_min_adaptive_ip_runs=" << context.initial_partitioning.min_adaptive_ip_runs
-        << " initial_partitioning_use_adaptive_epsilon=" << std::boolalpha << context.initial_partitioning.use_adaptive_epsilon
         << " initial_partitioning_perform_refinement_on_best_partitions=" << std::boolalpha << context.initial_partitioning.perform_refinement_on_best_partitions
         << " initial_partitioning_fm_refinment_rounds=" << std::boolalpha << context.initial_partitioning.fm_refinment_rounds
         << " initial_partitioning_remove_degree_zero_hns_before_ip=" << std::boolalpha << context.initial_partitioning.remove_degree_zero_hns_before_ip
@@ -104,10 +104,11 @@ std::string serialize(const PartitionedHypergraph& hypergraph,
         << " fm_multitry_rounds=" << context.refinement.fm.multitry_rounds
         << " fm_perform_moves_global=" << std::boolalpha << context.refinement.fm.perform_moves_global
         << " fm_rollback_parallel=" << std::boolalpha << context.refinement.fm.rollback_parallel
-        << " fm_rollback_sensitive_to_num_moves=" << std::boolalpha << context.refinement.fm.rollback_sensitive_to_num_moves
+        << " fm_rollback_sensitive_to_num_moves=" << std::boolalpha << context.refinement.fm.iter_moves_on_recalc
         << " fm_rollback_balance_violation_factor=" << context.refinement.fm.rollback_balance_violation_factor
         << " fm_min_improvement=" << context.refinement.fm.min_improvement
         << " fm_release_nodes=" << context.refinement.fm.release_nodes
+        << " fm_iter_moves_on_recalc=" << context.refinement.fm.iter_moves_on_recalc
         << " fm_num_seed_nodes=" << context.refinement.fm.num_seed_nodes
         << " fm_time_limit_factor=" << context.refinement.fm.time_limit_factor
         << " fm_obey_minimal_parallelism=" << std::boolalpha << context.refinement.fm.obey_minimal_parallelism

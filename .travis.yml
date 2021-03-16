@@ -37,7 +37,7 @@ matrix:
             - linux-tools-common
             - linux-tools-generic
 
-    # gcc 7 - Multilevel Linux Debug Build
+    # gcc 7 - Linux Debug Build
     - env:
        - CMAKE_CC="gcc-7"
        - CMAKE_CXX="g++-7"
@@ -48,22 +48,6 @@ matrix:
        - KAHYPAR_ENABLE_HEAVY_INITIAL_PARTITIONING_ASSERTIONS="ON"
        - KAHYPAR_ENABLE_HEAVY_REFINEMENT_ASSERTIONS="ON"
        - KAHYPAR_USE_64_BIT_IDS="OFF"
-       - KAHYPAR_USE_N_LEVEL_PARADIGM="OFF"
-      os: linux
-      addons: *gcc7
-
-    # gcc 7 - N-Level Linux Debug Build
-    - env:
-       - CMAKE_CC="gcc-7"
-       - CMAKE_CXX="g++-7"
-       - BUILD_TYPE="Debug"
-       - COV="ON"
-       - KAHYPAR_ENABLE_HEAVY_PREPROCESSING_ASSERTIONS="ON"
-       - KAHYPAR_ENABLE_HEAVY_COARSENING_ASSERTIONS="ON"
-       - KAHYPAR_ENABLE_HEAVY_INITIAL_PARTITIONING_ASSERTIONS="ON"
-       - KAHYPAR_ENABLE_HEAVY_REFINEMENT_ASSERTIONS="ON"
-       - KAHYPAR_USE_64_BIT_IDS="OFF"
-       - KAHYPAR_USE_N_LEVEL_PARADIGM="ON"
       os: linux
       addons: *gcc7
 
@@ -100,7 +84,6 @@ before_script:
       -DKAHYPAR_ENABLE_HEAVY_INITIAL_PARTITIONING_ASSERTIONS="$KAHYPAR_ENABLE_HEAVY_INITIAL_PARTITIONING_ASSERTIONS"
       -DKAHYPAR_ENABLE_HEAVY_REFINEMENT_ASSERTIONS="$KAHYPAR_ENABLE_HEAVY_REFINEMENT_ASSERTIONS"
       -DKAHYPAR_USE_64_BIT_IDS="$KAHYPAR_USE_64_BIT_IDS"
-      -DKAHYPAR_USE_N_LEVEL_PARADIGM="$KAHYPAR_USE_N_LEVEL_PARADIGM"
       -DKAHYPAR_TRAVIS_BUILD=ON
       $CMAKE_ARGS ..
 
@@ -108,14 +91,20 @@ script:
   - |
     if [[ "$BUILD_TYPE" == "Release" ]]; then
       make clean;
-      make -j2 KaHyPar;
-      make -j2 integration_tests;
-      ./tests/end_to_end/integration_tests
+      make -j2 MtKaHyParFast;
+      make -j2 MtKaHyParStrong;
+      make -j2 fast_integration_tests;
+      make -j2 strong_integration_tests;
+      ./tests/end_to_end/fast_integration_tests
+      ./tests/end_to_end/strong_integration_tests
     else
       make clean;
-      make -j2 KaHyPar
-      make -j2 mt_kahypar_tests;
-      ./tests/mt_kahypar_tests;
+      make -j2 MtKaHyParFast;
+      make -j2 MtKaHyParStrong;
+      make -j2 mt_kahypar_fast_tests;
+      make -j2 mt_kahypar_strong_tests;
+      ./tests/mt_kahypar_fast_tests;
+      ./tests/mt_kahypar_strong_tests;
     fi
 
 after_success:

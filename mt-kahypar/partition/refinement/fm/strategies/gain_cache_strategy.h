@@ -96,15 +96,19 @@ public:
   template<typename PHG>
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
   bool findNextMove(const PHG& phg, Move& m) {
+    updatePQs();
+
     if (blockPQ.empty()) {
       return false;
     }
+
     while (true) {
       const PartitionID from = blockPQ.top();
       const HypernodeID u = vertexPQs[from].top();
       const Gain estimated_gain = vertexPQs[from].topKey();
       ASSERT(estimated_gain == blockPQ.topKey());
       auto [to, gain] = computeBestTargetBlock(phg, u);
+
       if (gain >= estimated_gain) { // accept any gain that is at least as good
         m.node = u; m.to = to; m.from = from;
         m.gain = gain;
@@ -143,13 +147,6 @@ public:
     blockPQ.clear();
   }
 
-  template<typename PHG>
-  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
-  void updatePQs(const PHG& /*phg*/) {
-    for (PartitionID i = 0; i < context.partition.k; ++i) {
-      updateBlock(i);
-    }
-  }
 
   // We're letting the FM details implementation decide what happens here, since some may not want to do gain cache updates,
   // but rather update gains in their PQs or something
@@ -172,12 +169,15 @@ public:
 
 private:
 
+
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
-  void updateBlock(PartitionID i) {
-    if (!vertexPQs[i].empty()) {
-      blockPQ.insertOrAdjustKey(i, vertexPQs[i].topKey());
-    } else if (blockPQ.contains(i)) {
-      blockPQ.remove(i);
+  void updatePQs() {
+    for (PartitionID i = 0; i < context.partition.k; ++i) {
+      if (!vertexPQs[i].empty()) {
+        blockPQ.insertOrAdjustKey(i, vertexPQs[i].topKey());
+      } else if (blockPQ.contains(i)) {
+        blockPQ.remove(i);
+      }
     }
   }
 

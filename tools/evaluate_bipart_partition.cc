@@ -22,6 +22,7 @@
 
 #include <fstream>
 #include <iostream>
+#include <sstream>
 #include <string>
 
 #include "mt-kahypar/macros.h"
@@ -34,16 +35,22 @@ using namespace mt_kahypar;
 namespace po = boost::program_options;
 
 void readBipartPartitionFile(const std::string& bipart_partition_file,
-                             PartitionedHypergraph& hypergraph) {
-  ASSERT(!filename.empty(), "No filename for partition file specified");
+                             PartitionedHypergraph& hypergraph,
+                             const PartitionID k) {
+  ASSERT(!bipart_partition_file.empty(), "No filename for partition file specified");
   std::ifstream file(bipart_partition_file);
   if (file) {
-    HypernodeID hn;
-    PartitionID block;
-    while (file >> hn >> block) {
-      ASSERT(block < hypergraph.k());
-      ASSERT(hn <= hypergraph.initialNumNodes());
-      hypergraph.setOnlyNodePart(hn - 1, block);
+    for ( PartitionID block = 0; block < k; ++block ) {
+      std::string line;
+      std::getline(file, line);
+      std::istringstream line_stream(line);
+      HypernodeID hn = 0;
+      PartitionID bipart_block = 0;
+      line_stream >> bipart_block;
+      ASSERT(block == bipart_block - 1);
+      while ( line_stream >> hn ) {
+        hypergraph.setOnlyNodePart(hn - 1, block);
+      }
     }
     hypergraph.initializePartition(0);
     file.close();
@@ -81,7 +88,8 @@ int main(int argc, char* argv[]) {
   context.setupPartWeights(hg.totalWeight());
 
   // Read Bipart Partition File
-  readBipartPartitionFile(context.partition.graph_partition_filename, phg);
+  readBipartPartitionFile(context.partition.graph_partition_filename, phg,
+    context.partition.k);
 
   std::cout << "RESULT"
             << " graph=" << context.partition.graph_filename

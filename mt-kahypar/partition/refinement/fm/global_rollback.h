@@ -30,15 +30,15 @@ namespace mt_kahypar {
 class GlobalRollback {
   static constexpr bool enable_heavy_assert = false;
 public:
-  explicit GlobalRollback(const Hypergraph& hg, const Context& context, PartitionID numParts) :
+  explicit GlobalRollback(const Hypergraph& hg, const Context& context) :
           context(context),
           max_part_weight_scaling(context.refinement.fm.rollback_balance_violation_factor),
-          num_parts(numParts),
+          num_parts(context.partition.k),
           ets_recalc_data(vec<RecalculationData>(num_parts)),
           last_recalc_round(),
           round(1)
   {
-    if (context.refinement.fm.rollback_sensitive_to_num_moves && context.refinement.fm.rollback_parallel) {
+    if (context.refinement.fm.iter_moves_on_recalc && context.refinement.fm.rollback_parallel) {
       last_recalc_round.resize(hg.initialNumEdges(), CAtomic<uint32_t>(0));
     }
   }

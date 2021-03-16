@@ -34,14 +34,8 @@ namespace mt_kahypar {
         fm_strategy.insertIntoPQ(phg, seedNode, previousSearchOfSeedNode);
       }
     }
-    fm_strategy.updatePQs(phg);
 
     if (runStats.pushes > 0) {
-      if (!context.refinement.fm.perform_moves_global
-          && deltaPhg.combinedMemoryConsumption() > sharedData.deltaMemoryLimitPerThread) {
-        sharedData.deltaExceededMemoryConstraints = true;
-      }
-
       if (sharedData.deltaExceededMemoryConstraints) {
         deltaPhg.dropMemory();
       }
@@ -52,6 +46,9 @@ namespace mt_kahypar {
         deltaPhg.clear();
         deltaPhg.setPartitionedHypergraph(&phg);
         internalFindMoves<true>(phg);
+        if (deltaPhg.combinedMemoryConsumption() > sharedData.deltaMemoryLimitPerThread) {
+          sharedData.deltaExceededMemoryConstraints = true;
+        }
       }
       return true;
     } else {
@@ -187,6 +184,13 @@ namespace mt_kahypar {
           stopRule.reset();
           bestImprovement = estimatedImprovement;
           bestImprovementIndex = localMoves.size();
+
+          if constexpr (use_delta) {
+            applyBestLocalPrefixToSharedPartition(phg, bestImprovementIndex, bestImprovement, true /* apply all moves */);
+            bestImprovementIndex = 0;
+            localMoves.clear();
+            deltaPhg.clear();   // clear hashtables, save memory :)
+          }
         }
 
         if constexpr (use_delta) {
@@ -196,17 +200,11 @@ namespace mt_kahypar {
         }
       }
 
-      if constexpr (use_delta) {
-        fm_strategy.updatePQs(deltaPhg);
-      } else {
-        fm_strategy.updatePQs(phg);
-      }
-
     }
 
     if constexpr (use_delta) {
       std::tie(bestImprovement, bestImprovementIndex) =
-              applyMovesOnGlobalHypergraph(phg, bestImprovementIndex, bestImprovement);
+              applyBestLocalPrefixToSharedPartition(phg, bestImprovementIndex, bestImprovement, false);
     } else {
       revertToBestLocalPrefix(phg, bestImprovementIndex);
     }
@@ -218,31 +216,32 @@ namespace mt_kahypar {
 
 
   template<typename FMStrategy>
-  std::pair<Gain, size_t> LocalizedKWayFM<FMStrategy>::applyMovesOnGlobalHypergraph(
+  std::pair<Gain, size_t> LocalizedKWayFM<FMStrategy>::applyBestLocalPrefixToSharedPartition(
           PartitionedHypergraph& phg,
-          const size_t bestGainIndex,
-          const Gain bestEstimatedImprovement) {
-    // TODO find better variable names!
+          const size_t best_index_locally_observed,
+          const Gain best_improvement_locally_observed,
+          bool apply_all_moves) {
 
-    Gain estimatedImprovement = 0;
-    Gain lastGain = 0;
+    Gain improvement_from_attributed_gains = 0;
+    Gain attributed_gain = 0;
 
     auto delta_gain_func = [&](const HyperedgeID he,
                                const HyperedgeWeight edge_weight,
                                const HypernodeID edge_size,
                                const HypernodeID pin_count_in_from_part_after,
                                const HypernodeID pin_count_in_to_part_after) {
-      lastGain += km1Delta(he, edge_weight, edge_size,
-                           pin_count_in_from_part_after, pin_count_in_to_part_after);
+      attributed_gain += km1Delta(he, edge_weight, edge_size,
+                                  pin_count_in_from_part_after, pin_count_in_to_part_after);
     };
 
     // Apply move sequence to original hypergraph and update gain values
-    Gain bestImprovement = 0;
-    size_t bestIndex = 0;
-    for (size_t i = 0; i < bestGainIndex; ++i) {
+    Gain best_improvement_from_attributed_gains = 0;
+    size_t best_index_from_attributed_gains = 0;
+    for (size_t i = 0; i < best_index_locally_observed; ++i) {
+      assert(i < localMoves.size());
       Move& local_move = localMoves[i].first;
       MoveID& move_id = localMoves[i].second;
-      lastGain = 0;
+      attributed_gain = 0;
 
       if constexpr (FMStrategy::uses_gain_cache) {
         phg.changeNodePartWithGainCacheUpdate(local_move.node, local_move.from, local_move.to,
@@ -256,25 +255,25 @@ namespace mt_kahypar {
                            delta_gain_func);
       }
 
-      lastGain = -lastGain; // delta func yields negative sum of improvements, i.e. negative values mean improvements
-      estimatedImprovement += lastGain;
+      attributed_gain = -attributed_gain; // delta func yields negative sum of improvements, i.e. negative values mean improvements
+      improvement_from_attributed_gains += attributed_gain;
       ASSERT(move_id != std::numeric_limits<MoveID>::max());
-      if (estimatedImprovement >= bestImprovement) {  // TODO also incorporate balance into this?
-        bestImprovement = estimatedImprovement;
-        bestIndex = i;
+      if (improvement_from_attributed_gains >= best_improvement_from_attributed_gains) {
+        best_improvement_from_attributed_gains = improvement_from_attributed_gains;
+        best_index_from_attributed_gains = i;
       }
     }
 
-    runStats.local_reverts += localMoves.size() - bestGainIndex;
-    if (bestIndex != bestGainIndex) {
+    runStats.local_reverts += localMoves.size() - best_index_locally_observed;
+    if (!apply_all_moves && best_index_from_attributed_gains != best_index_locally_observed) {
       runStats.best_prefix_mismatch++;
     }
 
-    // Kind of double rollback, if gain values are not correct
-    if (estimatedImprovement < 0) {
+    // kind of double rollback, if attributed gains say we overall made things worse
+    if (!apply_all_moves && improvement_from_attributed_gains < 0) {
       // always using the if-branch gave similar results
-      runStats.local_reverts += bestGainIndex - bestIndex + 1;
-      for (size_t i = bestIndex + 1; i < bestGainIndex; ++i) {
+      runStats.local_reverts += best_index_locally_observed - best_index_from_attributed_gains + 1;
+      for (size_t i = best_index_from_attributed_gains + 1; i < best_index_locally_observed; ++i) {
         Move& m = sharedData.moveTracker.getMove(localMoves[i].second);
 
         if constexpr (FMStrategy::uses_gain_cache) {
@@ -285,9 +284,9 @@ namespace mt_kahypar {
 
         m.invalidate();
       }
-      return std::make_pair(bestImprovement, bestIndex);
+      return std::make_pair(best_improvement_from_attributed_gains, best_index_from_attributed_gains);
     } else {
-      return std::make_pair(bestEstimatedImprovement, bestGainIndex);
+      return std::make_pair(best_improvement_locally_observed, best_index_locally_observed);
     }
   }
 
@@ -321,16 +320,6 @@ namespace mt_kahypar {
     local_moves_node->updateSize(localMoves.capacity() * sizeof(std::pair<Move, MoveID>));
 
     fm_strategy.memoryConsumption(localized_fm_node);
-    // TODO fm_strategy.memoryConsumptiom(..)
-    /*
-    utils::MemoryTreeNode* block_pq_node = localized_fm_node->addChild("Block PQ");
-    block_pq_node->updateSize(blockPQ.size_in_bytes());
-    utils::MemoryTreeNode* vertex_pq_node = localized_fm_node->addChild("Vertex PQ");
-    for ( const VertexPriorityQueue& pq : vertexPQs ) {
-      vertex_pq_node->updateSize(pq.size_in_bytes());
-    }
-     */
-
     deltaPhg.memoryConsumption(localized_fm_node);
   }
 

@@ -508,18 +508,10 @@ namespace mt_kahypar {
                   _context.partition.perfect_balance_part_weights[part];
         }
 
-        if ( context.initial_partitioning.use_adaptive_epsilon ) {
-          context.partition.epsilon = _original_hypergraph_info.computeAdaptiveEpsilon(context.partition.k);
-          for (PartitionID part = 0; part < context.partition.k; ++part) {
-            context.partition.max_part_weights[part] = std::ceil(( 1.0 + context.partition.epsilon ) *
-                                                                 context.partition.perfect_balance_part_weights[part]);
-          }
-        } else {
-          context.partition.max_part_weights.assign(context.partition.k, 0);
-          for (PartitionID part = 0; part < _context.partition.k; ++part) {
-            context.partition.max_part_weights[part / 2] +=
-                    _context.partition.max_part_weights[part];
-          }
+        context.partition.epsilon = _original_hypergraph_info.computeAdaptiveEpsilon(context.partition.k);
+        for (PartitionID part = 0; part < context.partition.k; ++part) {
+          context.partition.max_part_weights[part] = std::ceil(( 1.0 + context.partition.epsilon ) *
+                                                                context.partition.perfect_balance_part_weights[part]);
         }
       }
       context.partition.verbose_output = debug;

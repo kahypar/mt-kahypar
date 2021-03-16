@@ -27,7 +27,7 @@
 
 namespace mt_kahypar {
 struct PartitioningParameters {
-  #ifdef KAHYPAR_USE_N_LEVEL_PARADIGM
+  #ifdef USE_STRONG_PARTITIONER
   Paradigm paradigm = Paradigm::nlevel;
   #else
   Paradigm paradigm = Paradigm::multilevel;
@@ -40,6 +40,7 @@ struct PartitioningParameters {
   size_t num_vcycles = 0;
 
   int time_limit = 0;
+  bool use_individual_part_weights = false;
   std::vector<HypernodeWeight> perfect_balance_part_weights;
   std::vector<HypernodeWeight> max_part_weights;
   double large_hyperedge_size_threshold_factor = std::numeric_limits<double>::max();
@@ -127,17 +128,20 @@ std::ostream & operator<< (std::ostream& str, const LabelPropagationParameters& 
 
 struct FMParameters {
   FMAlgorithm algorithm = FMAlgorithm::do_nothing;
+
   size_t multitry_rounds = 1;
+  mutable size_t num_seed_nodes = 1;
+
+  double rollback_balance_violation_factor = std::numeric_limits<double>::max();
+  double min_improvement = -1.0;
+  double time_limit_factor = std::numeric_limits<double>::max();
+
   bool perform_moves_global = false;
   bool rollback_parallel = true;
-  bool rollback_sensitive_to_num_moves = false;
-  double rollback_balance_violation_factor = std::numeric_limits<double>::max();
-  mutable size_t num_seed_nodes = 1;
+  bool iter_moves_on_recalc = false;
   bool shuffle = true;
   mutable bool obey_minimal_parallelism = false;
-  double min_improvement = -1.0;
   bool release_nodes = true;
-  double time_limit_factor = std::numeric_limits<double>::max();
 };
 
 std::ostream& operator<<(std::ostream& out, const FMParameters& params);
@@ -199,7 +203,6 @@ struct InitialPartitioningParameters {
   size_t runs = 1;
   bool use_adaptive_ip_runs = false;
   size_t min_adaptive_ip_runs = std::numeric_limits<size_t>::max();
-  bool use_adaptive_epsilon = false;
   bool perform_refinement_on_best_partitions = false;
   size_t fm_refinment_rounds = 1;
   bool remove_degree_zero_hns_before_ip = false;

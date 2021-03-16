@@ -36,7 +36,8 @@ using ::testing::Test;
 
 namespace mt_kahypar {
 
-//#ifndef KAHYPAR_USE_N_LEVEL_PARADIGM
+
+//#ifndef USE_STRONG_PARTITIONER
 
 TEST(RollbackTests, GainRecalculationAndRollsbackCorrectly) {
   Hypergraph hg = io::readHypergraphFile("../tests/instances/twocenters.hgr", 0);
@@ -65,7 +66,7 @@ TEST(RollbackTests, GainRecalculationAndRollsbackCorrectly) {
 
   FMSharedData sharedData(hg.initialNumNodes(), context);
 
-  GlobalRollback grb(hg, context, k);
+  GlobalRollback grb(hg, context);
   auto performMove = [&](Move m) {
     if (phg.changeNodePartWithGainCacheUpdate(m.node, m.from, m.to)) {
       sharedData.moveTracker.insertMove(m);
@@ -119,7 +120,7 @@ TEST(RollbackTests, GainRecalculation2) {
 
   FMSharedData sharedData(hg.initialNumNodes(), context);
 
-  GlobalRollback grb(hg, context, k);
+  GlobalRollback grb(hg, context);
 
   auto performUpdates = [&](Move& m) {
    sharedData.moveTracker.insertMove(m);

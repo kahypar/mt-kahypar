@@ -53,9 +53,6 @@ option(KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES
 option(KAHYPAR_TRAVIS_BUILD
   "Indicate that this build is executed on Travis CI." OFF)
 
-option(KAHYPAR_USE_N_LEVEL_PARADIGM
-  "Enables n-level hypergraph partitioning. Otherwise, multilevel paradigm is used." OFF)
-
 if(KAHYPAR_DISABLE_ASSERTIONS)
   add_compile_definitions(KAHYPAR_DISABLE_ASSERTIONS)
 endif(KAHYPAR_DISABLE_ASSERTIONS)
@@ -91,10 +88,6 @@ endif(KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES)
 if(KAHYPAR_TRAVIS_BUILD)
   add_compile_definitions(KAHYPAR_TRAVIS_BUILD)
 endif(KAHYPAR_TRAVIS_BUILD)
-
-if(KAHYPAR_USE_N_LEVEL_PARADIGM)
-  add_compile_definitions(KAHYPAR_USE_N_LEVEL_PARADIGM)
-endif(KAHYPAR_USE_N_LEVEL_PARADIGM)
 
 if(KAHYPAR_USE_MINIMAL_BOOST)
   include(ExternalProject)
@@ -312,3 +305,12 @@ add_subdirectory(tests)
 
 # This adds the source files. It's important that this happens after the compile targets have been added
 add_subdirectory(mt-kahypar)
+
+add_custom_target(MtKaHyPar
+  COMMAND $(MAKE) MtKaHyParFast
+  COMMAND $(MAKE) MtKaHyParStrong)
+
+add_custom_target(tests
+  COMMAND $(MAKE) mt_kahypar_tests
+  COMMAND $(MAKE) mt_kahypar_fast_tests
+  COMMAND $(MAKE) mt_kahypar_strong_tests)

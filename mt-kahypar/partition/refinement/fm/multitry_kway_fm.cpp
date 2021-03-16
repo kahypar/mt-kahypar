@@ -70,6 +70,7 @@ namespace mt_kahypar {
 
       timer.start_timer("find_moves", "Find Moves");
       sharedData.finishedTasks.store(0, std::memory_order_relaxed);
+
       auto task = [&](const size_t task_id) {
         auto& fm = ets_fm.local();
         while(sharedData.finishedTasks.load(std::memory_order_relaxed) < sharedData.finishedTasksLimit
@@ -135,7 +136,7 @@ namespace mt_kahypar {
       printMemoryConsumption();
     }
 
-    #ifndef KAHYPAR_USE_N_LEVEL_PARADIGM
+    #ifndef USE_STRONG_PARTITIONER
     is_initialized = false;
     #endif
 
