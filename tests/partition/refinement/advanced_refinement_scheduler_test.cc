@@ -36,6 +36,7 @@ class AAdvancedRefinementScheduler : public Test {
     phg(2, TBBNumaArena::GLOBAL_TASK_GROUP, hg),
     context() {
     context.partition.k = 2;
+    context.partition.perfect_balance_part_weights.assign(2, 3);
     context.partition.max_part_weights.assign(2, 4);
     context.partition.objective = kahypar::Objective::km1;
 

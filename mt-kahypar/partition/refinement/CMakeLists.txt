@@ -1,5 +1,6 @@
 set(RefinementSources
         advanced/advanced_refinement_scheduler.cpp
+        advanced/quotient_graph.cpp
         fm/multitry_kway_fm.cpp
         fm/localized_kway_fm_core.cpp
         fm/global_rollback.cpp

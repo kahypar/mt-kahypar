@@ -24,6 +24,7 @@
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/partition/refinement/i_refiner.h"
+#include "mt-kahypar/partition/refinement/advanced/quotient_graph.h"
 #include "mt-kahypar/parallel/atomic_wrapper.h"
 
 namespace mt_kahypar {
@@ -70,6 +71,7 @@ public:
                                        const TaskGroupID) :
     _phg(nullptr),
     _context(context),
+    _quotient_graph(context),
     _was_moved(hg.initialNumNodes(), uint8_t(false)),
     _part_weights_lock(),
     _part_weights(context.partition.k, 0),
@@ -116,6 +118,8 @@ private:
 
   PartitionedHypergraph* _phg;
   const Context& _context;
+
+  QuotientGraph _quotient_graph;
 
   vec<uint8_t> _was_moved;
 

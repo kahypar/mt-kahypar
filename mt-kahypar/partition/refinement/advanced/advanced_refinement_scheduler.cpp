@@ -22,6 +22,7 @@
 #include "mt-kahypar/partition/refinement/advanced/advanced_refinement_scheduler.h"
 
 #include "mt-kahypar/utils/stats.h"
+#include "mt-kahypar/utils/timer.h"
 
 namespace mt_kahypar {
 
@@ -73,6 +74,10 @@ void AdvancedRefinementScheduler::initializeImpl(PartitionedHypergraph& phg)  {
   for ( PartitionID i = 0; i < _context.partition.k; ++i ) {
     _part_weights[i] = phg.partWeight(i);
   }
+
+  utils::Timer::instance().start_timer("initialize_quotient_graph", "Initialize Quotient Graph");
+  _quotient_graph.initialize(phg);
+  utils::Timer::instance().stop_timer("initialize_quotient_graph");
 }
 
 namespace {
