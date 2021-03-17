@@ -176,7 +176,6 @@ namespace mt_kahypar::ds {
       const size_t incident_edges_start = tmp_incident_edges_prefix_sum[coarse_node];
       const size_t incident_edges_end = tmp_incident_edges_prefix_sum[coarse_node + 1];
       const size_t tmp_degree = incident_edges_end - incident_edges_start;
-      // TODO(maas): is coarsened_num_nodes a sensible threshold?
       if (tmp_degree <= std::max(coarsened_num_nodes, HIGH_DEGREE_CONTRACTION_THRESHOLD)) {
         std::sort(tmp_edges.begin() + incident_edges_start, tmp_edges.begin() + incident_edges_end,
                   [](const TmpEdgeInformation& e1, const TmpEdgeInformation& e2) {

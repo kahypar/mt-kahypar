@@ -196,7 +196,6 @@ class StaticGraph {
     // ! Index of target node
     HypernodeID _target;
     // ! Index of source node
-    // TODO(maas): can we avoid storing the source vertex within each edge?
     HypernodeID _source;
     // ! hyperedge weight
     HyperedgeWeight _weight;
@@ -610,7 +609,6 @@ class StaticGraph {
   }
 
   // ! Removes a degree zero hypernode
-  // TODO(maas): can this be done implicitely?
   void removeDegreeZeroHypernode(const HypernodeID u) {
     ASSERT(nodeDegree(u) == 0);
     node(u).disable();

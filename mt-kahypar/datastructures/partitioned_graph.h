@@ -671,7 +671,6 @@ private:
 
     // Calculate gain in parallel over all edges. Note that because the edges
     // are grouped by source node, this is still cache-efficient.
-    // TODO(maas): is this less efficient than iteration over nodes?
     tbb::parallel_for(ID(0), _hg->initialNumEdges(), [&](const HyperedgeID e) {
       const HypernodeID node = edgeSource(e);
       if (nodeIsEnabled(node)) {
