@@ -163,12 +163,18 @@ namespace mt_kahypar {
     tbb::parallel_for(0UL, relevant_block_pairs.size(), [&](size_t bp) {
       // sort both directions by gain (alternative: gain / weight?)
       auto [p1, p2] = relevant_block_pairs[bp];
-      auto comp = [](const Move& m1, const Move& m2) { return m1.gain > m2.gain; };
+      auto comp = [&](const Move& m1, const Move& m2) {
+        return m1.gain > m2.gain || (m1.gain == m2.gain && m1.node < m2.node);
+      };
       const auto b = sorted_moves.begin();
       size_t  i = positions[index(p1, p2)], i_last = positions[index(p1, p2) + 1],
               j = positions[index(p2, p1)], j_last = positions[index(p2, p1) + 1];
       std::sort(b + i, b + i_last, comp);
       std::sort(b + j, b + j_last, comp);
+
+
+      // TODO slacks
+      // TODO simple greedy combine after the swaps
 
       // get balanced swap prefix
       Gain estimated_gain = 0;
@@ -194,6 +200,8 @@ namespace mt_kahypar {
           j++;
         }
       }
+
+
 
       if (balance < 0 && i < i_last) {
 
