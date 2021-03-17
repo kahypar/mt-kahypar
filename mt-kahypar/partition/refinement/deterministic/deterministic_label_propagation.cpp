@@ -151,11 +151,14 @@ namespace mt_kahypar {
                                              context.shared_memory.num_threads);
 
     vec<std::pair<PartitionID, PartitionID>> relevant_block_pairs;
-    for (PartitionID i = 0; i < k; ++i) {
-      for (PartitionID j = i + 1; j < k; ++j) {
-        if (positions[index(i,j) + 1] != positions[index(i,j)]
-            && positions[index(j,i) + 1] != positions[index(j,i)]) { // neither direction (i,j) nor (j,i) empty
-          relevant_block_pairs.emplace_back(i, j);
+    vec<size_t> involvements(k, 0);
+    for (PartitionID p1 = 0; p1 < k; ++p1) {
+      for (PartitionID p2 = p1 + 1; p2 < k; ++p2) {
+        if (positions[index(p1, p2) + 1] != positions[index(p1, p2)]
+            && positions[index(p2, p1) + 1] != positions[index(p2, p1)]) { // neither direction (i,j) nor (j,i) empty
+          relevant_block_pairs.emplace_back(p1, p2);
+          involvements[p1]++;
+          involvements[p2]++;
         }
       }
     }
@@ -181,17 +184,29 @@ namespace mt_kahypar {
       HypernodeWeight budget_p1 = context.partition.max_part_weights[p1] - phg.partWeight(p1),
                       budget_p2 = context.partition.max_part_weights[p2] - phg.partWeight(p2);
 
+
+
+      HypernodeWeight slack_p1 = budget_p1 / involvements[p1],
+                      slack_p2 = budget_p2 / involvements[p2];
+      std::pair<size_t, size_t> best;
+
       int64_t balance = 0;
       while (true) {
-        if (balance < 0 || (balance == 0 && budget_p1 < budget_p2)) {
-          // move from p1 to p2 goes next
+        if (balance < 0 || (balance == 0 && budget_p1 < budget_p2 /* find something better */)) {
+          if (-balance < slack_p1) {
+            best = {i,j};
+          }
           if (i == i_last) {
             break;
           }
+          // move from p1 to p2 goes next
           estimated_gain += sorted_moves[i].gain;
           balance += phg.nodeWeight(sorted_moves[i].node);
           i++;
         } else {
+          if (balance < slack_p2) {
+            best = {i,j};
+          }
           if (j == j_last) {
             break;
           }
