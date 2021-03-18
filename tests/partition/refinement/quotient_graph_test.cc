@@ -64,28 +64,98 @@ class AQuotientGraph : public Test {
   Context context;
 };
 
-TEST_F(AQuotientGraph, TEST) {
+TEST_F(AQuotientGraph, SimulatesBlockScheduling) {
   QuotientGraph qg(context);
   qg.initialize(phg);
+  const bool debug = false;
 
-  SearchID search_1 = qg.requestNewSearch();
-  SearchID search_2 = qg.requestNewSearch();
-  SearchID search_3 = qg.requestNewSearch();
-  SearchID search_4 = qg.requestNewSearch();
-  LOG << V(qg.getBlockPair(search_1).i) << V(qg.getBlockPair(search_1).j);
-  LOG << V(qg.getBlockPair(search_2).i) << V(qg.getBlockPair(search_2).j);
-  LOG << V(qg.getBlockPair(search_3).i) << V(qg.getBlockPair(search_3).j);
-  LOG << V(qg.getBlockPair(search_4).i) << V(qg.getBlockPair(search_4).j);
-
-  vec<HyperedgeID> cut_hes = qg.requestCutHyperedges(search_1, 50);
-  LOG << V(cut_hes.size());
-  for ( const HyperedgeID he : cut_hes ) {
-    std::cout << he << ", ";
+  vec<vec<CAtomic<HyperedgeWeight>>> cut_he_weights(
+    context.partition.k, vec<CAtomic<HyperedgeWeight>>(
+      context.partition.k, CAtomic<HyperedgeWeight>(0)));
+  for ( PartitionID i = 0; i < context.partition.k; ++i ) {
+    for ( PartitionID j = i + 1; j < context.partition.k; ++j ) {
+      cut_he_weights[i][j] += qg.getCutHyperedgeWeightOfBlockPair(i, j);
+    }
   }
-  std::cout << std::endl;
 
-  qg.finalizeConstruction(search_1);
-  qg.finalizeSearch(search_1, true);
+  tbb::parallel_for(0U, std::thread::hardware_concurrency(), [&](const unsigned int) {
+    while ( !qg.terminate() ) {
+      SearchID search_id = qg.requestNewSearch();
+      if ( search_id != QuotientGraph::INVALID_SEARCH_ID ) {
+        vec<HyperedgeID> cut_hes = qg.requestCutHyperedges(search_id, 10);
+        const PartitionID i = qg.getBlockPair(search_id).i;
+        const PartitionID j = qg.getBlockPair(search_id).j;
+        for ( const HyperedgeID& he : cut_hes ) {
+          cut_he_weights[i][j] -= phg.edgeWeight(he);
+        }
+        qg.finalizeConstruction(search_id);
+        qg.finalizeSearch(search_id, false);
+
+        if ( debug ) {
+          LOG << "Thread" << sched_getcpu() << "executes search on block pair (" << i << "," << j << ")"
+              << "with" << cut_hes.size() << "cut hyperedges ( Search ID:" << search_id << ")";
+        }
+      }
+    }
+  });
+
+  // Each edge should be scheduled once
+  for ( PartitionID i = 0; i < context.partition.k; ++i ) {
+    for ( PartitionID j = i + 1; j < context.partition.k; ++j ) {
+      ASSERT_EQ(0, cut_he_weights[i][j]);
+    }
+  }
+}
+
+TEST_F(AQuotientGraph, SimulatesBlockSchedulingWithSuccessfulSearches) {
+  QuotientGraph qg(context);
+  qg.initialize(phg);
+  const bool debug = false;
+
+  vec<vec<CAtomic<HyperedgeWeight>>> cut_he_weights(
+    context.partition.k, vec<CAtomic<HyperedgeWeight>>(
+      context.partition.k, CAtomic<HyperedgeWeight>(0)));
+  for ( PartitionID i = 0; i < context.partition.k; ++i ) {
+    for ( PartitionID j = i + 1; j < context.partition.k; ++j ) {
+      cut_he_weights[i][j] += qg.getCutHyperedgeWeightOfBlockPair(i, j);
+    }
+  }
+
+  tbb::parallel_for(0U, std::thread::hardware_concurrency(), [&](const unsigned int cpu_id) {
+    while ( !qg.terminate() ) {
+      SearchID search_id = qg.requestNewSearch();
+      if ( search_id != QuotientGraph::INVALID_SEARCH_ID ) {
+        vec<HyperedgeID> cut_hes = qg.requestCutHyperedges(search_id, 10);
+        const PartitionID i = qg.getBlockPair(search_id).i;
+        const PartitionID j = qg.getBlockPair(search_id).j;
+        HyperedgeWeight cut_he_weight = 0;
+        for ( const HyperedgeID& he : cut_hes ) {
+          cut_he_weight += phg.edgeWeight(he);
+        }
+        cut_he_weights[i][j] -= cut_he_weight;
+        qg.finalizeConstruction(search_id);
+
+        bool success = utils::Randomize::instance().flipCoin(cpu_id);
+        if ( success ) {
+          cut_he_weights[i][j] += cut_he_weight;
+        }
+        qg.finalizeSearch(search_id, success);
+
+        if ( debug ) {
+          LOG << "Thread" << sched_getcpu() << "executes search on block pair (" << i << "," << j << ")"
+              << "with" << cut_hes.size() << "cut hyperedges ( Search ID:" << search_id << ", Success:"
+              << std::boolalpha << success << ")";
+        }
+      }
+    }
+  });
+
+  // Each edge should be scheduled once
+  for ( PartitionID i = 0; i < context.partition.k; ++i ) {
+    for ( PartitionID j = i + 1; j < context.partition.k; ++j ) {
+      ASSERT_EQ(0, cut_he_weights[i][j]);
+    }
+  }
 }
 
 }

@@ -139,7 +139,7 @@ class QuotientGraph {
     void reset(const bool is_one_block_underloaded);
 
     bool is_active() {
-      return cut_hes.size() - first_valid_entry > 0;
+      return ( cut_hes.size() - first_valid_entry ) > 0;
     }
 
     BlockPair blocks;
@@ -238,10 +238,27 @@ public:
     return _block_scheduler.empty() && _num_active_searches == 0;
   }
 
+  // ! Only for testing
+  HyperedgeWeight getCutHyperedgeWeightOfBlockPair(const PartitionID i, const PartitionID j) const {
+    ASSERT(i < j);
+    ASSERT(0 <= i && i < _context.partition.k);
+    ASSERT(0 <= j && j < _context.partition.k);
+    return _quotient_graph[i][j].stats.cut_he_weight;
+  }
+
  private:
   void fullHeapUpdate();
 
   void resetQuotientGraphEdges();
+
+  /**
+   * The idea is to sort the cut hyperedges of a block pair (i,j)
+   * in increasing order of their distance to each other. Meaning that
+   * we perform a BFS from a randomly selected start cut hyperedge and
+   * expand along cut hyperedges that contains pins of both blocks.
+   * The BFS distance determines the order of the cut hyperedges.
+   */
+  void sortCutHyperedges(const PartitionID i, const PartitionID j);
 
   size_t index(const QuotientGraphEdge& edge) {
     return edge.blocks.i + _context.partition.k * edge.blocks.j;
@@ -280,9 +297,9 @@ public:
   BlockSchedulingHeap _block_scheduler;
 
   // ! Number of active searches
-  size_t _num_active_searches;
+  CAtomic<size_t> _num_active_searches;
   // ! Information about searches that are currently running
-  vec<Search> _searches;
+  tbb::concurrent_vector<Search> _searches;
 };
 
 }  // namespace kahypar
