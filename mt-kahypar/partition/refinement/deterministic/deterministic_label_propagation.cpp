@@ -25,6 +25,7 @@
 #include "mt-kahypar/parallel/parallel_counting_sort.h"
 
 #include <tbb/parallel_sort.h>
+#include <tbb/parallel_reduce.h>
 
 namespace mt_kahypar {
 
@@ -100,25 +101,39 @@ namespace mt_kahypar {
     Gain gain = applyAllMoves(phg);
 
     size_t num_overloaded_blocks = 0;
+    vec<HypernodeWeight> part_weight(phg.k(), 0);
     for (PartitionID i = 0; i < phg.k(); ++i) {
       if (phg.partWeight(i) > context.partition.max_part_weights[i]) {
         num_overloaded_blocks++;
       }
+      part_weight[i] = phg.partWeight(i);
     }
 
-    // revert sequential for now
+    vec<size_t> reverted_moves;
     size_t j = moves_back.load(std::memory_order_relaxed);
     while (num_overloaded_blocks > 0 && j > 0) {
-      Move m = moves[--j];
-      if (phg.partWeight(m.to) > context.partition.max_part_weights[m.to]
-          && phg.partWeight(m.from) + phg.nodeWeight(m.node) <= context.partition.max_part_weights[m.from]) {
-        if (phg.partWeight(m.to) - phg.nodeWeight(m.node) < context.partition.max_part_weights[m.to]) {
+      const Move& m = moves[--j];
+      if (part_weight[m.to] > context.partition.max_part_weights[m.to]
+          && part_weight[m.from] + phg.nodeWeight(m.node) <= context.partition.max_part_weights[m.from]) {
+        part_weight[m.to] -= phg.nodeWeight(m.node);
+        part_weight[m.from] += phg.nodeWeight(m.node);
+        reverted_moves.push_back(j);
+        if (part_weight[m.to] <= context.partition.max_part_weights[m.to]) {
           num_overloaded_blocks--;
         }
-        std::swap(m.from, m.to);
-        gain += performMoveWithAttributedGain(phg, m);
       }
     }
+
+    gain += tbb::parallel_reduce(tbb::blocked_range<size_t>(0UL, reverted_moves.size()), 0,
+                                [&](const tbb::blocked_range<size_t>& r) -> Gain {
+                                  Gain my_gain = 0;
+                                  for (size_t i = r.begin(); i < r.end(); ++i) {
+                                    Move m = moves[reverted_moves[i]];
+                                    std::swap(m.from, m.to);
+                                    my_gain += performMoveWithAttributedGain(phg, m);
+                                  }
+                                  return my_gain;
+                                },std::plus<Gain>());
 
     return gain;
   }
