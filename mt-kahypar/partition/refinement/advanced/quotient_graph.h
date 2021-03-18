@@ -215,6 +215,15 @@ public:
                                         const size_t max_num_edges);
 
   /**
+   * Notifies the quotient graph that hyperedge he contains
+   * a new block, which was previously not contained. The thread
+   * that increases the pin count of hyperedge he in the corresponding
+   * block to 1 is responsible to call this function.
+   */
+  void addNewCutHyperedge(const HyperedgeID he,
+                          const PartitionID block);
+
+  /**
    * Notify the quotient graph that the construction of the corresponding
    * search is completed. The corresponding block pairs associated with the
    * search are made available again for other searches.

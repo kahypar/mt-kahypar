@@ -126,6 +126,19 @@ vec<HyperedgeID> QuotientGraph::requestCutHyperedges(const SearchID search_id,
   return cut_hes;
 }
 
+void QuotientGraph::addNewCutHyperedge(const HyperedgeID he,
+                                       const PartitionID block) {
+  ASSERT(_phg);
+  ASSERT(_phg->pinCountInPart(he, block) > 0);
+  // Add hyperedge he as a cut hyperedge to each block pair that contains 'block'
+  for ( const PartitionID& other_block : _phg->connectivitySet(he) ) {
+    if ( other_block != block ) {
+      _quotient_graph[std::min(block, other_block)][std::max(block, other_block)]
+        .add_hyperedge(he, _phg->edgeWeight(he));
+    }
+  }
+}
+
 void QuotientGraph::finalizeConstruction(const SearchID search_id) {
   ASSERT(search_id < _searches.size());
   _searches[search_id].is_finalized = true;

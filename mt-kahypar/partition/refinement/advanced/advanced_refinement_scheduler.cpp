@@ -82,6 +82,11 @@ void AdvancedRefinementScheduler::initializeImpl(PartitionedHypergraph& phg)  {
 
 namespace {
 
+struct NewCutHyperedge {
+  HyperedgeID he;
+  PartitionID block;
+};
+
 template<typename F>
 bool changeNodePart(PartitionedHypergraph& phg,
                     const HypernodeID hn,
@@ -106,10 +111,18 @@ void applyMoveSequence(PartitionedHypergraph& phg,
                        const MoveSequence& sequence,
                        const F& objective_delta,
                        const bool is_nlevel,
-                       vec<uint8_t>& was_moved) {
+                       vec<uint8_t>& was_moved,
+                       vec<NewCutHyperedge>& new_cut_hes) {
   for ( const Move& move : sequence.moves ) {
     changeNodePart(phg, move.node, move.from, move.to, objective_delta, is_nlevel);
     was_moved[move.node] = uint8_t(true);
+    // If move increases the pin count of some hyperedges in block 'move.to' to one 1
+    // we set the corresponding block here.
+    int i = new_cut_hes.size() - 1;
+    while ( i >= 0 && new_cut_hes[i].block == kInvalidPartition ) {
+      new_cut_hes[i].block = move.to;
+      --i;
+    }
   }
 }
 
@@ -121,6 +134,14 @@ void revertMoveSequence(PartitionedHypergraph& phg,
   for ( const Move& move : sequence.moves ) {
     ASSERT(phg.partID(move.node) == move.to);
     changeNodePart(phg, move.node, move.to, move.from, objective_delta, is_nlevel);
+  }
+}
+
+void addCutHyperedgesToQuotientGraph(QuotientGraph& quotient_graph,
+                                     const vec<NewCutHyperedge>& new_cut_hes) {
+  for ( const NewCutHyperedge& new_cut_he : new_cut_hes ) {
+    ASSERT(new_cut_he.block != kInvalidPartition);
+    quotient_graph.addNewCutHyperedge(new_cut_he.he, new_cut_he.block);
   }
 }
 
@@ -143,6 +164,7 @@ HyperedgeWeight AdvancedRefinementScheduler::applyMoves(MoveSequence& sequence) 
   }
 
   HyperedgeWeight improvement = 0;
+  vec<NewCutHyperedge> new_cut_hes;
   auto delta_func = [&](const HyperedgeID he,
                         const HyperedgeWeight edge_weight,
                         const HypernodeID edge_size,
@@ -155,15 +177,20 @@ HyperedgeWeight AdvancedRefinementScheduler::applyMoves(MoveSequence& sequence) 
       improvement -= cutDelta(he, edge_weight, edge_size,
         pin_count_in_from_part_after, pin_count_in_to_part_after);
     }
-  };
 
+    // Collect hyperedges with new blocks in its connectivity set
+    if ( pin_count_in_to_part_after == 1 ) {
+      // the corresponding block will be set in applyMoveSequence(...) function
+      new_cut_hes.emplace_back(NewCutHyperedge { he, kInvalidPartition });
+    }
+  };
 
   // Update part weights atomically
   bool is_balanced = partWeightUpdate(part_weight_deltas, false);
   if ( is_balanced ) {
     // Apply move sequence to partition
     const bool is_nlevel = _context.partition.paradigm == Paradigm::nlevel;
-    applyMoveSequence(*_phg, sequence, delta_func, is_nlevel, _was_moved);
+    applyMoveSequence(*_phg, sequence, delta_func, is_nlevel, _was_moved, new_cut_hes);
 
     if ( improvement < 0 ) {
       is_balanced = partWeightUpdate(part_weight_deltas, true);
@@ -176,11 +203,13 @@ HyperedgeWeight AdvancedRefinementScheduler::applyMoves(MoveSequence& sequence) 
         // Rollback would violate balance constraint => Worst Case
         ++_stats.failed_updates_due_to_conflicting_moves_without_rollback;
         sequence.state = MoveSequenceState::WORSEN_SOLUTION_QUALITY_WITHOUT_ROLLBACK;
+        addCutHyperedgesToQuotientGraph(_quotient_graph, new_cut_hes);
       }
     } else {
       ++_stats.num_improvements;
       _stats.correct_expected_improvement += (improvement == sequence.expected_improvement);
       sequence.state = MoveSequenceState::SUCCESS;
+      addCutHyperedgesToQuotientGraph(_quotient_graph, new_cut_hes);
     }
   } else {
     ++_stats.failed_updates_due_to_balance_constraint;
