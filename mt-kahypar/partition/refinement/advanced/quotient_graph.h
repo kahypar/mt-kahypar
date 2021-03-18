@@ -31,6 +31,20 @@
 
 namespace mt_kahypar {
 
+struct BlockPair {
+  PartitionID i = kInvalidPartition;
+  PartitionID j = kInvalidPartition;
+};
+
+struct BlockPairCutHyperedges {
+  BlockPairCutHyperedges() :
+    blocks(),
+    cut_hes() { }
+
+  BlockPair blocks;
+  vec<HyperedgeID> cut_hes;
+};
+
 struct BlockPairStats {
   BlockPairStats() :
     num_active_searches(0),
@@ -118,11 +132,6 @@ class QuotientGraph {
   static constexpr bool debug = false;
   static constexpr bool enable_heavy_assert = false;
 
-  struct BlockPair {
-    PartitionID i = kInvalidPartition;
-    PartitionID j = kInvalidPartition;
-  };
-
   // ! Represents an edge of the quotient graph
   struct QuotientGraphEdge {
     QuotientGraphEdge() :
@@ -150,15 +159,20 @@ class QuotientGraph {
 
   // Contains information required by a local search
   struct Search {
-    explicit Search(const BlockPair blocks) :
-      blocks(blocks),
+    explicit Search() :
+      block_pairs(),
       used_cut_hes(),
       is_finalized(false) { }
 
+    void addBlockPair(const BlockPair& blocks) {
+      block_pairs.emplace_back(blocks);
+      used_cut_hes.emplace_back();
+    }
+
     // ! Blocks on which this search operates on
-    BlockPair blocks;
+    vec<BlockPair> block_pairs;
     // ! Used cut hyperedges
-    vec<HyperedgeID> used_cut_hes;
+    vec<vec<HyperedgeID>> used_cut_hes;
     // ! Flag indicating if construction of the corresponding search
     // ! is finalized
     bool is_finalized;
@@ -199,20 +213,20 @@ public:
    * associated with the search. If there are currently no block pairs
    * available then INVALID_SEARCH_ID is returned.
    */
-  SearchID requestNewSearch();
+  SearchID requestNewSearch(const size_t num_blocks);
 
-  // ! Returns the block pair on which the corresponding search operates on
-  BlockPair getBlockPair(const SearchID search_id) const {
+  // ! Returns the block pairs on which the corresponding search operates on
+  vec<BlockPair> getBlockPairs(const SearchID search_id) const {
     ASSERT(search_id < _searches.size());
-    return _searches[search_id].blocks;
+    return _searches[search_id].block_pairs;
   }
 
   /**
    * Requests cut hyperedges that contains the blocks
    * associated with the corresponding search.
    */
-  vec<HyperedgeID> requestCutHyperedges(const SearchID search_id,
-                                        const size_t max_num_edges);
+  vec<BlockPairCutHyperedges> requestCutHyperedges(const SearchID search_id,
+                                                   const size_t max_num_edges);
 
   /**
    * Notifies the quotient graph that hyperedge he contains

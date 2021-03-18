@@ -63,7 +63,8 @@ void QuotientGraph::QuotientGraphEdge::reset(const bool is_one_block_underloaded
   stats.cut_he_weight.store(0, std::memory_order_relaxed);
 }
 
-SearchID QuotientGraph::requestNewSearch() {
+SearchID QuotientGraph::requestNewSearch(const size_t num_blocks) {
+  unused(num_blocks);
   SearchID search_id = INVALID_SEARCH_ID;
   if ( !_block_scheduler.empty() ) {
     _heap_lock.lock();
@@ -75,7 +76,18 @@ SearchID QuotientGraph::requestNewSearch() {
       _block_scheduler.pop();
       // Create new search
       search_id = _searches.size();
-      _searches.emplace_back(blocks);
+      _searches.emplace_back();
+      _searches.back().addBlockPair(blocks);
+
+      // TODO(heuer): Extend with additional block pairs
+
+      // Remove all additionally added block pairs from block scheduler heap
+      for ( size_t i = 1; i < _searches.back().block_pairs.size(); ++i ) {
+        const BlockPair& blocks = _searches.back().block_pairs[i];
+        const size_t part_index = index(_quotient_graph[blocks.i][blocks.j]);
+        ASSERT(_block_scheduler.contains(part_index));
+        _block_scheduler.remove(part_index);
+      }
 
       // Increment number of active searches for each edge in the quotient graph
       // that contains either block blocks.i or blocks.j
@@ -87,43 +99,65 @@ SearchID QuotientGraph::requestNewSearch() {
           _block_scheduler.updateKey(part_index, tmp_stats);
         }
       };
+
+      vec<bool> used_blocks(_context.partition.k, false);
+      for ( const BlockPair& blocks : _searches.back().block_pairs ) {
+        used_blocks[blocks.i] = true;
+        used_blocks[blocks.j] = true;
+        increment_num_active_searches(blocks.i, blocks.j);
+      }
       for ( PartitionID i = 0; i < _context.partition.k; ++i ) {
         for ( PartitionID j = i + 1; j < _context.partition.k; ++j ) {
-          if ( i == blocks.i || j == blocks.i || i == blocks.j || j == blocks.j ) {
+          if ( used_blocks[i] || used_blocks[j] ) {
             increment_num_active_searches(i, j);
           }
         }
       }
-      increment_num_active_searches(blocks.i, blocks.j);
     }
     _heap_lock.unlock();
   }
   return search_id;
 }
 
-vec<HyperedgeID> QuotientGraph::requestCutHyperedges(const SearchID search_id,
-                                                     const size_t max_num_edges) {
+vec<BlockPairCutHyperedges> QuotientGraph::requestCutHyperedges(const SearchID search_id,
+                                                                const size_t max_num_edges) {
   ASSERT(_phg);
   ASSERT(search_id < _searches.size());
-  vec<HyperedgeID> cut_hes;
+  vec<BlockPairCutHyperedges> block_pair_cut_hes;
   if ( !_searches[search_id].is_finalized ) {
-    BlockPair blocks = _searches[search_id].blocks;
-    QuotientGraphEdge& qg_edge = _quotient_graph[blocks.i][blocks.j];
-    while ( qg_edge.is_active() &&
-            cut_hes.size() < max_num_edges ) {
-      const HyperedgeID he = qg_edge.pop_hyperedge();
-      qg_edge.stats.cut_he_weight -= _phg->edgeWeight(he);
-      // Note, we only consider hyperedges that contains pins of both blocks.
-      // There might be some edges which were initially cut, but were removed due
-      // to vertex moves. Thus, we remove them lazily here.
-      if ( _phg->pinCountInPart(he, blocks.i) > 0 &&
-          _phg->pinCountInPart(he, blocks.j) > 0 ) {
-        cut_hes.push_back(he);
-        _searches[search_id].used_cut_hes.push_back(he);
+    Search& search = _searches[search_id];
+    for ( const BlockPair& blocks : search.block_pairs ) {
+      block_pair_cut_hes.emplace_back();
+      block_pair_cut_hes.back().blocks = blocks;
+    }
+
+    size_t num_active_block_pairs = block_pair_cut_hes.size();
+    size_t pos = 0;
+    size_t num_edges = 0;
+    while ( num_active_block_pairs > 0 && num_edges < max_num_edges ) {
+      const size_t i = pos % num_active_block_pairs;
+      const BlockPair& blocks = block_pair_cut_hes[i].blocks;
+      QuotientGraphEdge& qg_edge = _quotient_graph[blocks.i][blocks.j];
+      if ( qg_edge.is_active() ) {
+        const HyperedgeID he = qg_edge.pop_hyperedge();
+        qg_edge.stats.cut_he_weight -= _phg->edgeWeight(he);
+        // Note, we only consider hyperedges that contains pins of both blocks.
+        // There might be some edges which were initially cut, but were removed due
+        // to vertex moves. Thus, we remove them lazily here.
+        if ( _phg->pinCountInPart(he, blocks.i) > 0 &&
+             _phg->pinCountInPart(he, blocks.j) > 0 ) {
+          block_pair_cut_hes[i].cut_hes.push_back(he);
+          _searches[search_id].used_cut_hes[i].push_back(he);
+          ++num_edges;
+        }
+      } else {
+        std::swap(block_pair_cut_hes[i], block_pair_cut_hes[--num_active_block_pairs]);
+        --pos;
       }
+      ++pos;
     }
   }
-  return cut_hes;
+  return block_pair_cut_hes;
 }
 
 void QuotientGraph::addNewCutHyperedge(const HyperedgeID he,
@@ -142,15 +176,16 @@ void QuotientGraph::addNewCutHyperedge(const HyperedgeID he,
 void QuotientGraph::finalizeConstruction(const SearchID search_id) {
   ASSERT(search_id < _searches.size());
   _searches[search_id].is_finalized = true;
-  BlockPair blocks = _searches[search_id].blocks;
-  QuotientGraphEdge& qg_edge = _quotient_graph[blocks.i][blocks.j];
-  if ( qg_edge.is_active() ) {
-    _heap_lock.lock();
-    const size_t part_index = index(qg_edge);
-    ASSERT(!_block_scheduler.contains(part_index));
-    const BlockPairStats tmp_stats = qg_edge.stats;
-    _block_scheduler.push(part_index, tmp_stats);
-    _heap_lock.unlock();
+  for ( const BlockPair& blocks : _searches[search_id].block_pairs ) {
+    QuotientGraphEdge& qg_edge = _quotient_graph[blocks.i][blocks.j];
+    if ( qg_edge.is_active() ) {
+      _heap_lock.lock();
+      const size_t part_index = index(qg_edge);
+      ASSERT(!_block_scheduler.contains(part_index));
+      const BlockPairStats tmp_stats = qg_edge.stats;
+      _block_scheduler.push(part_index, tmp_stats);
+      _heap_lock.unlock();
+    }
   }
 }
 
@@ -159,28 +194,36 @@ void QuotientGraph::finalizeSearch(const SearchID search_id,
   ASSERT(_phg);
   ASSERT(search_id < _searches.size());
   ASSERT(_searches[search_id].is_finalized);
-  BlockPair blocks = _searches[search_id].blocks;
   // Decrement number of active searches for each edge in the quotient graph
   // that contains either block blocks.i or blocks.j
+  vec<bool> used_blocks(_context.partition.k, false);
+  for ( const BlockPair& blocks : _searches[search_id].block_pairs ) {
+    used_blocks[blocks.i] = true;
+    used_blocks[blocks.j] = true;
+    ASSERT(_quotient_graph[blocks.i][blocks.j].stats.num_active_searches > 0);
+    --_quotient_graph[blocks.i][blocks.j].stats.num_active_searches;
+  }
   for ( PartitionID i = 0; i < _context.partition.k; ++i ) {
     for ( PartitionID j = i + 1; j < _context.partition.k; ++j ) {
-      if ( i == blocks.i || j == blocks.i || i == blocks.j || j == blocks.j ) {
-        ASSERT(_quotient_graph[i][j].stats.num_active_searches > 0);
+      if ( used_blocks[i] || used_blocks[j] ) {
+        ASSERT(_quotient_graph[i][j].stats.num_active_searches > 0, V(i) << V(j));
         --_quotient_graph[i][j].stats.num_active_searches;
       }
     }
   }
-  ASSERT(_quotient_graph[blocks.i][blocks.j].stats.num_active_searches > 0);
-  --_quotient_graph[blocks.i][blocks.j].stats.num_active_searches;
 
   if ( success ) {
     // If the search improves the quality of the partition, we reinsert
     // all hyperedges that were used by the search and are still cut.
-    QuotientGraphEdge& qg_edge = _quotient_graph[blocks.i][blocks.j];
-    for ( const HyperedgeID& he : _searches[search_id].used_cut_hes ) {
-      if ( _phg->pinCountInPart(he, blocks.i) > 0 &&
-           _phg->pinCountInPart(he, blocks.j) > 0 ) {
-        qg_edge.add_hyperedge(he, _phg->edgeWeight(he));
+    ASSERT(_searches[search_id].block_pairs.size() == _searches[search_id].used_cut_hes.size());
+    for ( size_t i = 0; i < _searches[search_id].block_pairs.size(); ++i ) {
+      const BlockPair& blocks = _searches[search_id].block_pairs[i];
+      QuotientGraphEdge& qg_edge = _quotient_graph[blocks.i][blocks.j];
+      for ( const HyperedgeID& he : _searches[search_id].used_cut_hes[i] ) {
+        if ( _phg->pinCountInPart(he, blocks.i) > 0 &&
+            _phg->pinCountInPart(he, blocks.j) > 0 ) {
+          qg_edge.add_hyperedge(he, _phg->edgeWeight(he));
+        }
       }
     }
   }
