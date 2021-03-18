@@ -275,6 +275,22 @@ public:
   void resetQuotientGraphEdges();
 
   /**
+   * Tries to find a path that includes num_additional_blocks + 2
+   * blocks of the quotient graph and includes the edge from the
+   * overloaded to the underloaded block.
+   */
+  vec<BlockPair> extendWithPath(const PartitionID overloaded_block,
+                                const PartitionID underloaded_block,
+                                const size_t num_additional_blocks);
+
+  /**
+   * Tries to find a cycle that includes num_additional_blocks + 2
+   * blocks of the quotient graph and includes the edge 'initial_blocks'.
+   */
+  vec<BlockPair> extendWithCycle(const BlockPair initial_blocks,
+                                 const size_t num_additional_blocks);
+
+  /**
    * The idea is to sort the cut hyperedges of a block pair (i,j)
    * in increasing order of their distance to each other. Meaning that
    * we perform a BFS from a randomly selected start cut hyperedge and
@@ -305,6 +321,35 @@ public:
              _phg->partWeight(j) >= _context.partition.perfect_balance_part_weights[j] ) ||
            ( _phg->partWeight(i) >= _context.partition.perfect_balance_part_weights[i] &&
              _phg->partWeight(j) < _context.partition.perfect_balance_part_weights[j] );
+  }
+
+  // Only for testing
+  bool verifyCycle(vec<BlockPair> cycle) {
+    // Order block pairs such that they form an continous cycle
+    for ( size_t i = 1; i < cycle.size(); ++i ) {
+      bool found = false;
+      size_t j = i;
+      for ( ; j < cycle.size(); ++j ) {
+        if ( cycle[j].i == cycle[i - 1].j || cycle[j].j == cycle[i - 1].j ) {
+          found = true;
+          std::swap(cycle[i], cycle[j]);
+          if ( cycle[i].j == cycle[i - 1].j ) std::swap(cycle[i].i, cycle[i].j);
+          break;
+        }
+      }
+
+      if ( !found ) {
+        return false;
+      }
+    }
+
+    if ( cycle[0].i != cycle.back().j ) {
+      LOG << "First and last block of cycle do not match"
+          << V(cycle[0].i) << V(cycle.back().j);
+      return false;
+    } else {
+      return true;
+    }
   }
 
   const PartitionedHypergraph* _phg;
