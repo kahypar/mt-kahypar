@@ -54,25 +54,21 @@ namespace mt_kahypar {
           permutation.create_integer_permutation(n, context.shared_memory.num_threads, prng);
         }
 
-        auto try_move_with_feistel = [&](const HypernodeID cleartext) {
-          const HypernodeID ciphertext = feistel_permutation.encrypt(cleartext);
-          if (ciphertext < phg.initialNumNodes()) {
-            calculateAndSaveBestMove(phg, ciphertext);
-          }
-        };
-
-        auto try_move_with_parallel_shuffling = [&](const HypernodeID position) {
-          calculateAndSaveBestMove(phg, permutation.at(position));
-        };
-
         size_t sub_round_size = parallel::chunking::idiv_ceil(n, num_sub_rounds);
         for (size_t sub_round = 0; sub_round < num_sub_rounds; ++sub_round) {
           // calculate moves
           auto [first, last] = parallel::chunking::bounds(sub_round, phg.initialNumNodes(), sub_round_size);
           if (context.refinement.deterministic_refinement.feistel_shuffling) {
-            tbb::parallel_for(HypernodeID(first), HypernodeID(last), try_move_with_feistel);
+            tbb::parallel_for(HypernodeID(first), HypernodeID(last), [&](const HypernodeID cleartext) {
+              const HypernodeID ciphertext = feistel_permutation.encrypt(cleartext);
+              if (ciphertext < phg.initialNumNodes()) {
+                calculateAndSaveBestMove(phg, ciphertext);
+              }
+            });
           } else {
-            tbb::parallel_for(HypernodeID(first), HypernodeID(last), try_move_with_parallel_shuffling);
+            tbb::parallel_for(HypernodeID(first), HypernodeID(last), [&](const HypernodeID position) {
+              calculateAndSaveBestMove(phg, permutation.at(position));
+            });
           }
 
           // sync. then apply moves
