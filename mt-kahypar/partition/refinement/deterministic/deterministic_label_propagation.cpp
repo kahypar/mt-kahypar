@@ -199,6 +199,16 @@ namespace mt_kahypar {
 
       int64_t balance = 0;
 
+      /*
+       * this can be parallelized as follows.
+       * 1. prefix sums of node weights over both move sequences
+       * 2. pick middle of larger sequence, binary search for its prefix sum in the smaller sequence
+       * 3. search for prefixes independently in both halves, and pick the better one
+       *
+       * in most cases we're expecting to take roughly as many moves as the size of the shorter sequence, from each of the sequences.
+       * can we bias the search towards that?
+       */
+
       // gain > 0 first. alternate depending on balance
       while (i < i_last && sorted_moves[i].gain > 0 && j < j_last && sorted_moves[j].gain > 0) {
         if (balance < 0 || (balance == 0 && sorted_moves[i].gain > sorted_moves[j].gain)) {
