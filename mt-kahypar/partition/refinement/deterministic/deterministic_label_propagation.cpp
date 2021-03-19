@@ -90,6 +90,7 @@ namespace mt_kahypar {
     tbb::parallel_for(0UL, moves_back.load(std::memory_order_relaxed), [&](const size_t move_pos) {
       gain.fetch_add(performMoveWithAttributedGain(phg, moves[move_pos]), std::memory_order_relaxed);
     });
+    return gain;
   }
 
   Gain DeterministicLabelPropagationRefiner::applyMovesSortedByGainAndRevertUnbalanced(PartitionedHypergraph& phg) {
@@ -124,9 +125,9 @@ namespace mt_kahypar {
       }
     }
 
-    gain += tbb::parallel_reduce(tbb::blocked_range<size_t>(0UL, reverted_moves.size()), 0,
-                                [&](const tbb::blocked_range<size_t>& r) -> Gain {
-                                  Gain my_gain = 0;
+    gain += tbb::parallel_reduce(tbb::blocked_range<size_t>(0UL, reverted_moves.size()), Gain(0),
+                                [&](const tbb::blocked_range<size_t>& r, const Gain& init) -> Gain {
+                                  Gain my_gain = init;
                                   for (size_t i = r.begin(); i < r.end(); ++i) {
                                     Move m = moves[reverted_moves[i]];
                                     std::swap(m.from, m.to);
@@ -148,6 +149,7 @@ namespace mt_kahypar {
       return index(m.from, m.to);
     };
     struct MovesWrapper {
+      using value_type = Move;
       const Move& operator[](size_t i) const { return moves[i]; }
       size_t size() const { return sz; }
       const vec<Move>& moves;
@@ -229,7 +231,7 @@ namespace mt_kahypar {
           }
         }
       }
-      
+
       swap_prefixes[bp] = best;
     });
 
@@ -264,6 +266,7 @@ namespace mt_kahypar {
         positions[index(i,j) + 1] = pos;
       }
     }
+    return positions;
   }
 
   size_t DeterministicLabelPropagationRefiner::coloring(PartitionedHypergraph& phg) {
