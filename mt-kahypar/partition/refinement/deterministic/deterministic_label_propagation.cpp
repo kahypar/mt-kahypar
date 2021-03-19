@@ -149,7 +149,6 @@ namespace mt_kahypar {
       return index(m.from, m.to);
     };
     struct MovesWrapper {
-      using value_type = Move;
       const Move& operator[](size_t i) const { return moves[i]; }
       size_t size() const { return sz; }
       const vec<Move>& moves;
@@ -275,6 +274,7 @@ namespace mt_kahypar {
     // correct the error from large hyperedges later with gain recalc for these specific hyperedges
     // the error is likely small, since large hyperedges rarely admit improvement
 
+    unused(phg);
     LOG << "not yet implemented";
     return 0;
   }
