@@ -1,4 +1,5 @@
 set(RefinementSources
+        advanced/advanced_refiner_adapter.cpp
         advanced/advanced_refinement_scheduler.cpp
         advanced/quotient_graph.cpp
         fm/multitry_kway_fm.cpp

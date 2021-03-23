@@ -112,6 +112,13 @@ enum class FMAlgorithm : uint8_t {
   do_nothing
 };
 
+enum class AdvancedRefinementAlgorithm : uint8_t {
+  flows,
+  ilp,
+  mock,
+  do_nothing
+};
+
 std::ostream & operator<< (std::ostream& os, const Type& type);
 
 std::ostream & operator<< (std::ostream& os, const Paradigm& paradigm);
@@ -136,6 +143,8 @@ std::ostream & operator<< (std::ostream& os, const LabelPropagationAlgorithm& al
 
 std::ostream & operator<< (std::ostream& os, const FMAlgorithm& algo);
 
+std::ostream & operator<< (std::ostream& os, const AdvancedRefinementAlgorithm& algo);
+
 LouvainEdgeWeight louvainEdgeWeightFromString(const std::string& type);
 
 SimiliarNetCombinerStrategy similiarNetCombinerStrategyFromString(const std::string& type);
@@ -155,5 +164,7 @@ InitialPartitioningMode initialPartitioningModeFromString(const std::string& mod
 LabelPropagationAlgorithm labelPropagationAlgorithmFromString(const std::string& type);
 
 FMAlgorithm fmAlgorithmFromString(const std::string& type);
+
+AdvancedRefinementAlgorithm advancedRefinementAlgorithmFromString(const std::string& type);
 
 }  // namesapce mt_kahypar

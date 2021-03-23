@@ -139,6 +139,14 @@ namespace mt_kahypar {
     return out;
   }
 
+  std::ostream& operator<<(std::ostream& out, const AdvancedRefinementParameters& params) {
+    out << "  Advanced Refinement Parameters: \n";
+    out << "    Algorithm:                        " << params.algorithm << std::endl;
+    out << "    Number of Threads Per Search:     " << params.num_threads_per_search << std::endl;
+    out << std::flush;
+    return out;
+  }
+
   std::ostream & operator<< (std::ostream& str, const RefinementParameters& params) {
     str << "Refinement Parameters:" << std::endl;
     str << "  Refine Until No Improvement:        " << std::boolalpha << params.refine_until_no_improvement << std::endl;
@@ -151,6 +159,7 @@ namespace mt_kahypar {
 #ifdef USE_STRONG_PARTITIONER
     str << "\n" << params.global_fm;
 #endif
+    str << "\n" << params.advanced;
     return str;
   }
 

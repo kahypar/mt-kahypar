@@ -155,10 +155,18 @@ struct NLevelGlobalFMParameters {
 
 std::ostream& operator<<(std::ostream& out, const NLevelGlobalFMParameters& params);
 
+struct AdvancedRefinementParameters {
+  AdvancedRefinementAlgorithm algorithm = AdvancedRefinementAlgorithm::do_nothing;
+  size_t num_threads_per_search = 0;
+};
+
+std::ostream& operator<<(std::ostream& out, const AdvancedRefinementParameters& params);
+
 struct RefinementParameters {
   LabelPropagationParameters label_propagation;
   FMParameters fm;
   NLevelGlobalFMParameters global_fm;
+  AdvancedRefinementParameters advanced;
   bool refine_until_no_improvement = false;
   size_t max_batch_size = std::numeric_limits<size_t>::max();
   size_t min_border_vertices_per_thread = 0;
