@@ -70,7 +70,11 @@ namespace mt_kahypar {
         }
 
         // sync. then apply moves
-        overall_improvement += applyMovesSortedByGainAndRevertUnbalanced(phg);
+        if (context.refinement.deterministic_refinement.apply_moves_by_maximal_prefix_in_block_pairs) {
+          overall_improvement += applyMovesByMaximalPrefixesInBlockPairs(phg);
+        } else {
+          overall_improvement += applyMovesSortedByGainAndRevertUnbalanced(phg);
+        }
       }
     }
 
