@@ -71,7 +71,6 @@ namespace mt_kahypar {
 
         // sync. then apply moves
         overall_improvement += applyMovesSortedByGainAndRevertUnbalanced(phg);
-
       }
     }
 
@@ -165,12 +164,8 @@ namespace mt_kahypar {
   Gain DeterministicLabelPropagationRefiner::applyMovesByMaximalPrefixesInBlockPairs(PartitionedHypergraph& phg) {
     PartitionID k = phg.k();
     PartitionID max_key = k*k;
-    auto index = [&](PartitionID b1, PartitionID b2) {
-      return b1 * k + b2;
-    };
-    auto get_key = [&](const Move& m) {
-      return index(m.from, m.to);
-    };
+    auto index = [&](PartitionID b1, PartitionID b2) { return b1 * k + b2; };
+    auto get_key = [&](const Move& m) { return index(m.from, m.to); };
     struct MovesWrapper {
       const Move& operator[](size_t i) const { return moves[i]; }
       size_t size() const { return sz; }
@@ -185,12 +180,13 @@ namespace mt_kahypar {
     auto positions = parallel::counting_sort(moves_wrapper, sorted_moves, max_key, get_key,
                                              context.shared_memory.num_threads);
 
+    auto has_moves = [&](size_t bp) { return positions[bp + 1] != positions[bp]; };
+
     vec<std::pair<PartitionID, PartitionID>> relevant_block_pairs;
     vec<size_t> involvements(k, 0);
     for (PartitionID p1 = 0; p1 < k; ++p1) {
       for (PartitionID p2 = p1 + 1; p2 < k; ++p2) {
-        if (positions[index(p1, p2) + 1] != positions[index(p1, p2)]
-            && positions[index(p2, p1) + 1] != positions[index(p2, p1)]) { // neither direction (i,j) nor (j,i) empty
+        if (has_moves(index(p1,p2)) && has_moves(index(p2,p1))) { // both directions have moves
           relevant_block_pairs.emplace_back(p1, p2);
           involvements[p1]++;
           involvements[p2]++;
