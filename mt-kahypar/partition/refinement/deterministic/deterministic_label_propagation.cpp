@@ -82,8 +82,8 @@ namespace mt_kahypar {
 
 /*
  * for configs where we don't know exact gains --> have to trace the overall improvement with attributed gains
- * called from applyAllMoves() for example
-*/
+ * TODO active node set
+ */
   Gain performMoveWithAttributedGain(PartitionedHypergraph& phg, const Move& m) {
     Gain attributed_gain = 0;
     auto objective_delta = [&](HyperedgeID he, HyperedgeWeight edge_weight, HypernodeID edge_size,
