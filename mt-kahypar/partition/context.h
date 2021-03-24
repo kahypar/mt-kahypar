@@ -158,6 +158,8 @@ std::ostream& operator<<(std::ostream& out, const NLevelGlobalFMParameters& para
 struct AdvancedRefinementParameters {
   AdvancedRefinementAlgorithm algorithm = AdvancedRefinementAlgorithm::do_nothing;
   size_t num_threads_per_search = 0;
+  size_t num_cut_edges_per_block_pair = 0;
+  size_t max_bfs_distance = 0;
 };
 
 std::ostream& operator<<(std::ostream& out, const AdvancedRefinementParameters& params);

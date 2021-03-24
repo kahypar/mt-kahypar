@@ -1,5 +1,6 @@
 target_sources(mt_kahypar_fast_tests PRIVATE
         advanced_refinement_adapter_test.cc
+        advanced_refinement_problem_construction_test.cc
         advanced_refinement_scheduler_test.cc
         quotient_graph_test.cc
         gain_policy_test.cc
@@ -14,6 +15,7 @@ target_sources(mt_kahypar_fast_tests PRIVATE
 
 target_sources(mt_kahypar_strong_tests PRIVATE
         advanced_refinement_adapter_test.cc
+        advanced_refinement_problem_construction_test.cc
         advanced_refinement_scheduler_test.cc
         quotient_graph_test.cc
         gain_policy_test.cc

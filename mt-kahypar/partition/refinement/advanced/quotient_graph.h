@@ -27,6 +27,7 @@
 
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/context.h"
+#include "mt-kahypar/partition/refinement/advanced/advanced_refiner_adapter.h"
 #include "mt-kahypar/parallel/atomic_wrapper.h"
 
 namespace mt_kahypar {
@@ -213,12 +214,18 @@ public:
    * associated with the search. If there are currently no block pairs
    * available then INVALID_SEARCH_ID is returned.
    */
-  SearchID requestNewSearch(const size_t num_blocks);
+  SearchID requestNewSearch(AdvancedRefinerAdapter& refiner);
 
   // ! Returns the block pairs on which the corresponding search operates on
   vec<BlockPair> getBlockPairs(const SearchID search_id) const {
     ASSERT(search_id < _searches.size());
     return _searches[search_id].block_pairs;
+  }
+
+  // ! Number of block pairs used by the corresponding search
+  size_t numBlockPairs(const SearchID search_id) const {
+    ASSERT(search_id < _searches.size());
+    return _searches[search_id].block_pairs.size();
   }
 
   /**

@@ -25,6 +25,8 @@
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/partition/refinement/i_refiner.h"
 #include "mt-kahypar/partition/refinement/advanced/quotient_graph.h"
+#include "mt-kahypar/partition/refinement/advanced/advanced_refiner_adapter.h"
+#include "mt-kahypar/partition/refinement/advanced/advanced_refinement_problem_construction.h"
 #include "mt-kahypar/parallel/atomic_wrapper.h"
 
 namespace mt_kahypar {
@@ -68,10 +70,12 @@ class AdvancedRefinementScheduler final : public IRefiner {
 public:
   explicit AdvancedRefinementScheduler(const Hypergraph& hg,
                                        const Context& context,
-                                       const TaskGroupID) :
+                                       const TaskGroupID task_group_id) :
     _phg(nullptr),
     _context(context),
     _quotient_graph(context),
+    _refiner(hg, context, task_group_id),
+    _constructor(hg, context),
     _was_moved(hg.initialNumNodes(), uint8_t(false)),
     _part_weights_lock(),
     _part_weights(context.partition.k, 0),
@@ -119,13 +123,25 @@ private:
   PartitionedHypergraph* _phg;
   const Context& _context;
 
+  // ! Contains information of all cut hyperedges between the
+  // ! blocks of the partition
   QuotientGraph _quotient_graph;
 
+  // ! Maintains the advanced refiner instances
+  AdvancedRefinerAdapter _refiner;
+
+  // ! Responsible for construction of an advanced refinement problem
+  AdvancedRefinementProblemConstruction _constructor;
+
+  // ! For each vertex it store wheather the corresponding vertex
+  // ! was moved or not
   vec<uint8_t> _was_moved;
 
+  // ! Maintains the part weights of each block
   SpinLock _part_weights_lock;
   vec<HypernodeWeight> _part_weights;
 
+  // ! Contains refinement statistics
   RefinementStats _stats;
 };
 

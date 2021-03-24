@@ -21,6 +21,7 @@
 
 #include "mt-kahypar/partition/refinement/advanced/advanced_refinement_scheduler.h"
 
+#include "mt-kahypar/partition/metrics.h"
 #include "mt-kahypar/utils/stats.h"
 #include "mt-kahypar/utils/timer.h"
 
@@ -47,14 +48,61 @@ void AdvancedRefinementScheduler::RefinementStats::update_global_stats() {
 bool AdvancedRefinementScheduler::refineImpl(
                 PartitionedHypergraph& phg,
                 const parallel::scalable_vector<HypernodeID>&,
-                kahypar::Metrics&,
+                kahypar::Metrics& best_metrics,
                 const double)  {
   unused(phg);
   ASSERT(_phg == &phg);
 
+  utils::Timer::instance().start_timer("advanced_refinement_scheduling", "Advanced Refinement Scheduling");
+  std::atomic<HyperedgeWeight> overall_delta(0);
+  tbb::parallel_for(0UL, _refiner.numAvailableRefiner(), [&](const size_t) {
+    while ( !_quotient_graph.terminate() ) {
+      SearchID search_id = _quotient_graph.requestNewSearch(_refiner);
+      if ( search_id != QuotientGraph::INVALID_SEARCH_ID ) {
+
+        utils::Timer::instance().start_timer("construct_problem", "Construct Problem", true);
+        const vec<HypernodeID> refinement_nodes =
+          _constructor.construct(search_id, _quotient_graph, _refiner, phg);
+        _quotient_graph.finalizeConstruction(search_id);
+        utils::Timer::instance().stop_timer("construct_problem");
+
+        bool success = false;
+        if ( refinement_nodes.size() > 0 ) {
+          utils::Timer::instance().start_timer("refine_problem", "Refine Problem", true);
+          ++_stats.num_refinements;
+          MoveSequence sequence = _refiner.refine(search_id, phg, refinement_nodes);
+          utils::Timer::instance().stop_timer("refine_problem");
+
+          utils::Timer::instance().start_timer("apply_moves", "Apply Moves", true);
+          if ( !sequence.moves.empty() ) {
+            HyperedgeWeight delta = applyMoves(sequence);
+            overall_delta -= delta;
+            success = sequence.state == MoveSequenceState::SUCCESS;
+          }
+          utils::Timer::instance().stop_timer("apply_moves");
+        }
+
+        _constructor.releaseNodes(search_id, refinement_nodes);
+        _quotient_graph.finalizeSearch(search_id, success);
+        _refiner.finalizeSearch(search_id);
+      }
+    }
+  });
+  utils::Timer::instance().stop_timer("advanced_refinement_scheduling");
+
+  // Update metrics statistics
+  HyperedgeWeight current_metric = best_metrics.getMetric(
+    kahypar::Mode::direct_kway, _context.partition.objective);
+  HEAVY_REFINEMENT_ASSERT(current_metric + overall_delta ==
+                          metrics::objective(phg, _context.partition.objective),
+                          V(current_metric) << V(overall_delta) <<
+                          V(metrics::objective(phg, _context.partition.objective)));
+  best_metrics.updateMetric(current_metric + overall_delta,
+    kahypar::Mode::direct_kway, _context.partition.objective);
   _stats.update_global_stats();
+
+  // Update Gain Cache
   if ( _context.partition.paradigm == Paradigm::nlevel && phg.isGainCacheInitialized() ) {
-    // Update Gain Cache
     phg.doParallelForAllNodes([&](const HypernodeID& hn) {
       if ( _was_moved[hn] ) {
         phg.recomputeMoveFromBenefit(hn);
@@ -75,6 +123,8 @@ void AdvancedRefinementScheduler::initializeImpl(PartitionedHypergraph& phg)  {
     _part_weights[i] = phg.partWeight(i);
   }
 
+  _stats.reset();
+  _refiner.reset();
   utils::Timer::instance().start_timer("initialize_quotient_graph", "Initialize Quotient Graph");
   _quotient_graph.initialize(phg);
   utils::Timer::instance().stop_timer("initialize_quotient_graph");
@@ -149,7 +199,6 @@ void addCutHyperedgesToQuotientGraph(QuotientGraph& quotient_graph,
 
 HyperedgeWeight AdvancedRefinementScheduler::applyMoves(MoveSequence& sequence) {
   ASSERT(_phg);
-  ++_stats.num_refinements;
 
   // Compute Part Weight Deltas
   vec<HypernodeWeight> part_weight_deltas(_context.partition.k, 0);

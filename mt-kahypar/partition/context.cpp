@@ -143,6 +143,8 @@ namespace mt_kahypar {
     out << "  Advanced Refinement Parameters: \n";
     out << "    Algorithm:                        " << params.algorithm << std::endl;
     out << "    Number of Threads Per Search:     " << params.num_threads_per_search << std::endl;
+    out << "    Number of Cut HEs Per Block Pair: " << params.num_cut_edges_per_block_pair << std::endl;
+    out << "    Maximum BFS Distance:             " << params.max_bfs_distance << std::endl;
     out << std::flush;
     return out;
   }

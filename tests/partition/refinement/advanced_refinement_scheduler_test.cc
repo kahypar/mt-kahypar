@@ -40,6 +40,12 @@ class AAdvancedRefinementScheduler : public Test {
     context.partition.max_part_weights.assign(2, 4);
     context.partition.objective = kahypar::Objective::km1;
 
+    context.shared_memory.num_threads = 2;
+    context.refinement.advanced.algorithm = AdvancedRefinementAlgorithm::mock;
+    context.refinement.advanced.num_threads_per_search = 1;
+    context.refinement.advanced.num_cut_edges_per_block_pair = 50;
+    context.refinement.advanced.max_bfs_distance = 2;
+
     phg.setOnlyNodePart(0, 0);
     phg.setOnlyNodePart(1, 0);
     phg.setOnlyNodePart(2, 0);

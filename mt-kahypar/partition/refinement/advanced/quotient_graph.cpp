@@ -63,7 +63,7 @@ void QuotientGraph::QuotientGraphEdge::reset(const bool is_one_block_underloaded
   stats.cut_he_weight.store(0, std::memory_order_relaxed);
 }
 
-SearchID QuotientGraph::requestNewSearch(const size_t num_blocks) {
+SearchID QuotientGraph::requestNewSearch(AdvancedRefinerAdapter& refiner) {
   ASSERT(_phg);
   SearchID search_id = INVALID_SEARCH_ID;
   if ( !_block_scheduler.empty() ) {
@@ -79,7 +79,12 @@ SearchID QuotientGraph::requestNewSearch(const size_t num_blocks) {
       _searches.emplace_back();
       _searches.back().addBlockPair(blocks);
 
+      // Associate refiner with search id
+      const bool success = refiner.registerNewSearch(search_id, *_phg);
+      ASSERT(success);
+
       // Extend with additional
+      const PartitionID num_blocks = refiner.maxNumberOfBlocks(search_id);
       if ( num_blocks > 2 ) {
         vec<BlockPair> additional_blocks;
         if ( isOneBlockUnderloaded(blocks.i, blocks.j) ) {
