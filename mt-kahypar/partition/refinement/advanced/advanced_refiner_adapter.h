@@ -90,6 +90,11 @@ public:
       + (_context.shared_memory.num_threads % _context.refinement.advanced.num_threads_per_search != 0);
   }
 
+  // ! Only for testing
+  size_t numUsedThreads() const {
+    return _num_used_threads.load(std::memory_order_relaxed);
+  }
+
 private:
   void initializeRefiner(std::unique_ptr<IAdvancedRefiner>& refiner);
 

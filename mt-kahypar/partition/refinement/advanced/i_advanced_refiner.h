@@ -29,12 +29,6 @@
 namespace mt_kahypar {
 
 struct ProblemStats {
-  explicit ProblemStats() :
-    num_nodes_in_blocks(),
-    used_blocks(),
-    num_edges(0),
-    num_pins(0) { }
-
   vec<HypernodeID> num_nodes_in_blocks;
   vec<PartitionID> used_blocks;
   HyperedgeID num_edges;
@@ -67,7 +61,7 @@ class IAdvancedRefiner {
   }
 
   // ! Set the number of threads that is used for the next search
-  void setNumThreadsForSearch(const int num_threads) {
+  void setNumThreadsForSearch(const size_t num_threads) {
     setNumThreadsForSearchImpl(num_threads);
   }
 
@@ -88,7 +82,7 @@ class IAdvancedRefiner {
 
   virtual PartitionID maxNumberOfBlocksPerSearchImpl() const = 0;
 
-  virtual void setNumThreadsForSearchImpl(const int num_threads) = 0;
+  virtual void setNumThreadsForSearchImpl(const size_t num_threads) = 0;
 
   virtual bool isMaximumProblemSizeReachedImpl(const ProblemStats& stats) const = 0;
 };

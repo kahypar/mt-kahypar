@@ -42,6 +42,9 @@ class AAdvancedRefinementAdapter : public Test {
     context.partition.objective = kahypar::Objective::km1;
     context.shared_memory.num_threads = 8;
     context.refinement.advanced.algorithm = AdvancedRefinementAlgorithm::mock;
+    context.refinement.advanced.num_threads_per_search = 1;
+
+    AdvancedRefinerMockControl::instance().reset();
 
     phg.setOnlyNodePart(0, 0);
     phg.setOnlyNodePart(1, 0);
@@ -74,14 +77,94 @@ void executeConcurrent(F f1, K f2) {
   });
 }
 
-TEST_F(AAdvancedRefinementAdapter, TEST) {
-  context.refinement.advanced.num_threads_per_search = 1;
-  refiner = std::make_unique<AdvancedRefinerAdapter>(hg, context, TBBNumaArena::GLOBAL_TASK_GROUP);
-  ASSERT_EQ(8, refiner->numAvailableRefiner());
+TEST_F(AAdvancedRefinementAdapter, FailsToRegisterMoreSearchesIfAllAreUsed) {
+  context.refinement.advanced.num_threads_per_search = 4;
+  refiner = std::make_unique<AdvancedRefinerAdapter>(
+    hg, context, TBBNumaArena::GLOBAL_TASK_GROUP);
 
-  ASSERT_TRUE(refiner->registerNewSearch(2, phg));
+  ASSERT_TRUE(refiner->registerNewSearch(0, phg));
+  ASSERT_TRUE(refiner->registerNewSearch(1, phg));
+  ASSERT_FALSE(refiner->registerNewSearch(2, phg));
+}
 
-  refiner->finalizeSearch(2);
+TEST_F(AAdvancedRefinementAdapter, CheckIfProblemSizeIsReached1) {
+  refiner = std::make_unique<AdvancedRefinerAdapter>(
+    hg, context, TBBNumaArena::GLOBAL_TASK_GROUP);
+
+  AdvancedRefinerMockControl::instance().max_num_nodes = 8;
+  ASSERT_TRUE(refiner->registerNewSearch(0, phg));
+  ASSERT_FALSE(refiner->isMaximumProblemSizeReached(
+    0, ProblemStats { { 3, 4 }, { 0, 1 }, 5, 10 }));
+  ASSERT_TRUE(refiner->isMaximumProblemSizeReached(
+    0, ProblemStats { { 3, 5 }, { 0, 1 }, 5, 10 }));
+
+  refiner->finalizeSearch(0);
+}
+
+TEST_F(AAdvancedRefinementAdapter, CheckIfProblemSizeIsReached2) {
+  refiner = std::make_unique<AdvancedRefinerAdapter>(
+    hg, context, TBBNumaArena::GLOBAL_TASK_GROUP);
+
+  AdvancedRefinerMockControl::instance().max_num_edges = 9;
+  ASSERT_TRUE(refiner->registerNewSearch(0, phg));
+  ASSERT_FALSE(refiner->isMaximumProblemSizeReached(
+    0, ProblemStats { { 3, 4 }, { 0, 1 }, 5, 10 }));
+  ASSERT_TRUE(refiner->isMaximumProblemSizeReached(
+    0, ProblemStats { { 3, 5 }, { 0, 1 }, 10, 10 }));
+  refiner->finalizeSearch(0);
+}
+
+TEST_F(AAdvancedRefinementAdapter, UseCorrectNumberOfThreadsForSearch1) {
+  context.refinement.advanced.num_threads_per_search = 5;
+  refiner = std::make_unique<AdvancedRefinerAdapter>(
+    hg, context, TBBNumaArena::GLOBAL_TASK_GROUP);
+  ASSERT_EQ(2, refiner->numAvailableRefiner());
+  ASSERT_EQ(0, refiner->numUsedThreads());
+
+  AdvancedRefinerMockControl::instance().refine_func =
+    [&](const PartitionedHypergraph&, const vec<HypernodeID>&, const size_t num_threads) -> MoveSequence {
+      EXPECT_EQ(5, num_threads);
+      EXPECT_EQ(5, refiner->numUsedThreads());
+      return MoveSequence { {}, 0 };
+    };
+  ASSERT_TRUE(refiner->registerNewSearch(0, phg));
+  refiner->refine(0, phg, {});
+  refiner->finalizeSearch(0);
+}
+
+TEST_F(AAdvancedRefinementAdapter, UseCorrectNumberOfThreadsForSearch2) {
+  context.refinement.advanced.num_threads_per_search = 5;
+  refiner = std::make_unique<AdvancedRefinerAdapter>(
+    hg, context, TBBNumaArena::GLOBAL_TASK_GROUP);
+  ASSERT_EQ(2, refiner->numAvailableRefiner());
+  ASSERT_EQ(0, refiner->numUsedThreads());
+
+  std::atomic<size_t> cnt(0);
+  AdvancedRefinerMockControl::instance().refine_func =
+    [&](const PartitionedHypergraph&, const vec<HypernodeID>&, const size_t num_threads) -> MoveSequence {
+      EXPECT_EQ(5, num_threads);
+      EXPECT_EQ(5, refiner->numUsedThreads());
+      ++cnt;
+      while ( cnt < 2 ) { }
+      return MoveSequence { {}, 0 };
+    };
+  ASSERT_TRUE(refiner->registerNewSearch(0, phg));
+  AdvancedRefinerMockControl::instance().refine_func =
+    [&](const PartitionedHypergraph&, const vec<HypernodeID>&, const size_t num_threads) -> MoveSequence {
+      EXPECT_EQ(3, num_threads);
+      EXPECT_EQ(8, refiner->numUsedThreads());
+      ++cnt;
+      return MoveSequence { {}, 0 };
+    };
+  ASSERT_TRUE(refiner->registerNewSearch(1, phg));
+  executeConcurrent([&] {
+    refiner->refine(0, phg, {});
+  }, [&] {
+    while ( cnt < 1 ) { }
+    refiner->refine(1, phg, {});
+  });
+  refiner->finalizeSearch(0);
+  refiner->finalizeSearch(1);
 }
 
 }
