@@ -210,7 +210,7 @@ namespace mt_kahypar {
      */
     //vec<std::pair<size_t, size_t>> swap_prefixes(relevant_block_pairs.size());
     vec<std::pair<size_t, size_t>> swap_prefixes(max_key);
-
+    vec<int64_t> part_weight_deltas(k, 0);
 
     tbb::parallel_for(0UL, relevant_block_pairs.size(), [&](size_t bp_index) {
       // sort both directions by gain (alternative: gain / weight?)
@@ -278,6 +278,10 @@ namespace mt_kahypar {
 
       //swap_prefixes[bp_index] = best;
       swap_prefixes[index(p1, p2)] = best;
+
+      // balance < 0 --> p1 got more weight, balance > 0 --> p2 got more weight
+      __atomic_fetch_add(&part_weight_deltas[p1], balance, __ATOMIC_RELAXED);
+      __atomic_fetch_sub(&part_weight_deltas[p2], balance, __ATOMIC_RELAXED);
     });
 
     // TODO simple greedy combine after the swaps
