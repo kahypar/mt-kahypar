@@ -187,13 +187,16 @@ namespace mt_kahypar {
     auto positions = parallel::counting_sort(moves_wrapper, sorted_moves, max_key, get_key,
                                              context.shared_memory.num_threads);
 
-    auto has_moves = [&](size_t direction) { return positions[direction + 1] != positions[direction]; };
+    auto has_moves = [&](PartitionID p1, PartitionID p2) {
+      size_t direction = index(p1, p2);
+      return positions[direction + 1] != positions[direction];
+    };
 
     vec<std::pair<PartitionID, PartitionID>> relevant_block_pairs;
     vec<size_t> involvements(k, 0);
     for (PartitionID p1 = 0; p1 < k; ++p1) {
       for (PartitionID p2 = p1 + 1; p2 < k; ++p2) {
-        if (has_moves(index(p1,p2)) && has_moves(index(p2,p1))) { // both directions have moves
+        if (has_moves(p1,p2) && has_moves(p2,p1)) { // both directions have moves
           relevant_block_pairs.emplace_back(p1, p2);
           involvements[p1]++;
           involvements[p2]++;
@@ -201,15 +204,8 @@ namespace mt_kahypar {
       }
     }
 
-
-    /*
-     * first position of moves to revert in a certain subsequence of sorted_moves
-     * assume i < j
-     * swap_prefixes[index(i,j)].first refers to the sequence of moves from i to j
-     * swap_prefixes[index(i,j)].second refers to the sequence of moves from j to i
-     */
-    //vec<std::pair<size_t, size_t>> swap_prefixes(relevant_block_pairs.size());
-    vec<std::pair<size_t, size_t>> swap_prefixes(max_key);
+    // swap_prefix[index(p1,p2)] stores the first position of moves to revert out of the sequence of moves from p1 to p2
+    vec<size_t> swap_prefix(max_key);
     vec<int64_t> part_weight_deltas(k, 0);
 
     tbb::parallel_for(0UL, relevant_block_pairs.size(), [&](size_t bp_index) {
@@ -277,24 +273,30 @@ namespace mt_kahypar {
       }
 
       //swap_prefixes[bp_index] = best;
-      swap_prefixes[index(p1, p2)] = best;
+      swap_prefix[index(p1,p2)] = best.first;
+      swap_prefix[index(p2,p1)] = best.second;
 
       // balance < 0 --> p1 got more weight, balance > 0 --> p2 got more weight
       __atomic_fetch_add(&part_weight_deltas[p1], balance, __ATOMIC_RELAXED);
       __atomic_fetch_sub(&part_weight_deltas[p2], balance, __ATOMIC_RELAXED);
     });
 
-    // TODO simple greedy combine after the swaps
+    auto remaining_moves = [&](PartitionID p1, PartitionID p2) {
+      size_t direction = index(p1,p2);
+      return positions[direction + 1] - swap_prefix[direction];
+    };
+
+    // simple check in case the slacks were too restrictive
+    for (PartitionID p1 = 0; p1< k; ++p1) {
+      for (PartitionID p2 = 0; p2 < k; ++p2) {
+        if (remaining_moves(p2, p1) > 0) {
+
+        }
+      }
+    }
 
     auto in_prefix = [&](size_t pos) {
-      const Move& m = sorted_moves[pos];
-      assert(m.isValid());
-      PartitionID p1 = m.from, p2 = m.to;
-      if (p1 < p2) {
-        return pos < swap_prefixes[index(p1,p2)].first;
-      } else {
-        return pos < swap_prefixes[index(p2,p1)].second;
-      }
+      return pos < swap_prefix[index(sorted_moves[pos].from,sorted_moves[pos].to)];
     };
     return applyMovesIf(phg, sorted_moves, sorted_moves.size(), in_prefix);
   }
