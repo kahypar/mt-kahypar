@@ -226,9 +226,9 @@ namespace mt_kahypar {
                       budget_p2 = context.partition.max_part_weights[p2] - phg.partWeight(p2);
       HypernodeWeight slack_p1 = budget_p1 / involvements[p1],
                       slack_p2 = budget_p2 / involvements[p2];
-      std::pair<size_t, size_t> best {0,0};
 
       int64_t balance = 0;
+      std::tuple<size_t, size_t, int64_t> best {0,0,0};
 
       /*
        * this can be parallelized as follows.
@@ -251,7 +251,7 @@ namespace mt_kahypar {
         }
 
         if (-balance <= slack_p1 && balance <= slack_p2) {
-          best = {i,j};
+          best = {i,j,balance};
         }
       }
 
@@ -260,25 +260,26 @@ namespace mt_kahypar {
         while (i < i_last && balance <= slack_p2 && (balance < 0 || sorted_moves[i].gain > 0)) {
           balance+= phg.nodeWeight(sorted_moves[i++].node);
           if (-balance <= slack_p1 && balance <= slack_p2) {
-            best = {i,j};
+            best = {i,j,balance};
           }
         }
       } else if (i == i_last || sorted_moves[i].gain == 0) {
         while (j < j_last && -balance <= slack_p1 && (balance > 0 || sorted_moves[j].gain > 0)) {
           balance -= phg.nodeWeight(sorted_moves[j++].node);
           if (-balance <= slack_p1 && balance <= slack_p2) {
-            best = {i,j};
+            best = {i,j,balance};
           }
         }
       }
 
       //swap_prefixes[bp_index] = best;
-      swap_prefix[index(p1,p2)] = best.first;
-      swap_prefix[index(p2,p1)] = best.second;
+      swap_prefix[index(p1,p2)] = std::get<0>(best);
+      swap_prefix[index(p2,p1)] = std::get<1>(best);
+      int64_t best_balance = std::get<2>(best);
 
       // balance < 0 --> p1 got more weight, balance > 0 --> p2 got more weight
-      __atomic_fetch_add(&part_weight_deltas[p1], balance, __ATOMIC_RELAXED);
-      __atomic_fetch_sub(&part_weight_deltas[p2], balance, __ATOMIC_RELAXED);
+      __atomic_fetch_add(&part_weight_deltas[p1], best_balance, __ATOMIC_RELAXED);
+      __atomic_fetch_sub(&part_weight_deltas[p2], best_balance, __ATOMIC_RELAXED);
     });
 
     auto remaining_moves = [&](PartitionID p1, PartitionID p2) {
@@ -290,13 +291,15 @@ namespace mt_kahypar {
     for (PartitionID p1 = 0; p1< k; ++p1) {
       for (PartitionID p2 = 0; p2 < k; ++p2) {
         if (remaining_moves(p2, p1) > 0) {
-
+          // walking from the swap prefixes again might be too expensive
+          // especially if they're still zero
+          // we could walk from the end of the sequences we did in the pair-wise checks
         }
       }
     }
 
     auto in_prefix = [&](size_t pos) {
-      return pos < swap_prefix[index(sorted_moves[pos].from,sorted_moves[pos].to)];
+      return pos < swap_prefix[index(sorted_moves[pos].from, sorted_moves[pos].to)];
     };
     return applyMovesIf(phg, sorted_moves, sorted_moves.size(), in_prefix);
   }
