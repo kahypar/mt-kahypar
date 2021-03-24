@@ -94,12 +94,13 @@ namespace mt_kahypar {
     return attributed_gain;
   }
 
-  Gain applyAllValidMoves(PartitionedHypergraph& phg, const vec<Move>& moves, size_t end) {
+  template<typename Predicate>
+  Gain applyMovesIf(PartitionedHypergraph& phg, const vec<Move>& moves, size_t end, Predicate&& predicate) {
     auto range = tbb::blocked_range<size_t>(0UL, end);
     auto accum = [&](const tbb::blocked_range<size_t>& r, const Gain& init) -> Gain {
       Gain my_gain = init;
       for (size_t i = r.begin(); i < r.end(); ++i) {
-        if (moves[i].isValid()) {
+        if (predicate(i)) {
           my_gain += performMoveWithAttributedGain(phg, moves[i]);
         }
       }
@@ -158,7 +159,9 @@ namespace mt_kahypar {
       }
     }
 
-    return applyAllValidMoves(phg, moves, moves_back.load(std::memory_order_relaxed));
+    // apply all moves that were not invalidated
+    auto is_valid = [&](size_t pos) { return moves[pos].isValid(); };
+    return applyMovesIf(phg, moves, moves_back.load(std::memory_order_relaxed), is_valid);
   }
 
   Gain DeterministicLabelPropagationRefiner::applyMovesByMaximalPrefixesInBlockPairs(PartitionedHypergraph& phg) {
@@ -180,7 +183,7 @@ namespace mt_kahypar {
     auto positions = parallel::counting_sort(moves_wrapper, sorted_moves, max_key, get_key,
                                              context.shared_memory.num_threads);
 
-    auto has_moves = [&](size_t bp) { return positions[bp + 1] != positions[bp]; };
+    auto has_moves = [&](size_t direction) { return positions[direction + 1] != positions[direction]; };
 
     vec<std::pair<PartitionID, PartitionID>> relevant_block_pairs;
     vec<size_t> involvements(k, 0);
@@ -194,11 +197,20 @@ namespace mt_kahypar {
       }
     }
 
-    vec<std::pair<size_t, size_t>> swap_prefixes(relevant_block_pairs.size());
 
-    tbb::parallel_for(0UL, relevant_block_pairs.size(), [&](size_t bp) {
+    /*
+     * first position of moves to revert in a certain subsequence of sorted_moves
+     * assume i < j
+     * swap_prefixes[index(i,j)].first refers to the sequence of moves from i to j
+     * swap_prefixes[index(i,j)].second refers to the sequence of moves from j to i
+     */
+    //vec<std::pair<size_t, size_t>> swap_prefixes(relevant_block_pairs.size());
+    vec<std::pair<size_t, size_t>> swap_prefixes(max_key);
+
+
+    tbb::parallel_for(0UL, relevant_block_pairs.size(), [&](size_t bp_index) {
       // sort both directions by gain (alternative: gain / weight?)
-      auto [p1, p2] = relevant_block_pairs[bp];
+      auto [p1, p2] = relevant_block_pairs[bp_index];
       auto comp = [&](const Move& m1, const Move& m2) {
         return m1.gain > m2.gain || (m1.gain == m2.gain && m1.node < m2.node);
       };
@@ -260,16 +272,23 @@ namespace mt_kahypar {
         }
       }
 
-      swap_prefixes[bp] = best;
+      //swap_prefixes[bp_index] = best;
+      swap_prefixes[index(p1, p2)] = best;
     });
-
 
     // TODO simple greedy combine after the swaps
 
-
-    Gain gain = 0;
-
-    return gain;
+    auto in_prefix = [&](size_t pos) {
+      const Move& m = sorted_moves[pos];
+      assert(m.isValid());
+      PartitionID p1 = m.from, p2 = m.to;
+      if (p1 < p2) {
+        return pos < swap_prefixes[index(p1,p2)].first;
+      } else {
+        return pos < swap_prefixes[index(p2,p1)].second;
+      }
+    };
+    return applyMovesIf(phg, sorted_moves, sorted_moves.size(), in_prefix);
   }
 
   vec<size_t> DeterministicLabelPropagationRefiner::aggregateDirectionBucketsInplace() {

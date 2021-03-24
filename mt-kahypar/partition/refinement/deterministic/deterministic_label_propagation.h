@@ -51,7 +51,7 @@ private:
 
   // functions to apply moves from a sub-round
   Gain applyMovesSortedByGainAndRevertUnbalanced(PartitionedHypergraph& phg);
-  Gain applyMovesByMaximalPrefixesInBlockPairs(PartitionedHypergraph& phg);
+  Gain applyMovesByMaximalPrefixesInBlockPairs(PartitionedHypergraph& bp_index);
 
   vec<size_t> aggregateDirectionBucketsInplace();
 
