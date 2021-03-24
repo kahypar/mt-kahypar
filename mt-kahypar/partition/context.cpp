@@ -141,7 +141,6 @@ namespace mt_kahypar {
 
   std::ostream& operator<<(std::ostream& out, const DeterministicRefinementParameters& params) {
     out << "    Number of Subrounds for Sync LP:  " << params.num_sub_rounds_sync_lp << std::endl;
-    out << "    Use coloring:                     " << std::boolalpha << params.use_coloring << std::endl;
     out << "    Edge size threshold for coloring: " << params.edge_size_threshold_for_coloring << std::endl;
     out << "    Apply max prefix of blockpairs:   " << std::boolalpha << params.apply_moves_by_maximal_prefix_in_block_pairs << std::endl;
     out << "    Feistel shuffling:                " << std::boolalpha << params.feistel_shuffling << std::endl;

@@ -39,42 +39,38 @@ namespace mt_kahypar {
     for (size_t iter = 0; iter < context.refinement.label_propagation.maximum_iterations; ++iter) {
       moves_back.store(0, std::memory_order_relaxed);
 
-      if (context.refinement.deterministic_refinement.use_coloring) {
-        // get vertex permutation from coloring
-        coloring(phg);
+
+
+      size_t n;
+      if (context.refinement.deterministic_refinement.feistel_shuffling) {
+        // get rid of this constant after initial tests, and use std::array in FeistelPermutation to store the keys
+        constexpr size_t num_feistel_rounds = 4;
+        feistel_permutation.create_permutation(num_feistel_rounds, phg.initialNumNodes(), prng);
+        n = feistel_permutation.max_num_entries();
       } else {
+        n = phg.initialNumNodes();
+        permutation.create_integer_permutation(n, context.shared_memory.num_threads, prng);
+      }
 
-        size_t n;
+      size_t sub_round_size = parallel::chunking::idiv_ceil(n, num_sub_rounds);
+      for (size_t sub_round = 0; sub_round < num_sub_rounds; ++sub_round) {
+        // calculate moves
+        auto [first, last] = parallel::chunking::bounds(sub_round, phg.initialNumNodes(), sub_round_size);
         if (context.refinement.deterministic_refinement.feistel_shuffling) {
-          // get rid of this constant after initial tests, and use std::array in FeistelPermutation to store the keys
-          constexpr size_t num_feistel_rounds = 4;
-          feistel_permutation.create_permutation(num_feistel_rounds, phg.initialNumNodes(), prng);
-          n = feistel_permutation.max_num_entries();
+          tbb::parallel_for(HypernodeID(first), HypernodeID(last), [&](const HypernodeID cleartext) {
+            const HypernodeID ciphertext = feistel_permutation.encrypt(cleartext);
+            if (ciphertext < phg.initialNumNodes()) {
+              calculateAndSaveBestMove(phg, ciphertext);
+            }
+          });
         } else {
-          n = phg.initialNumNodes();
-          permutation.create_integer_permutation(n, context.shared_memory.num_threads, prng);
+          tbb::parallel_for(HypernodeID(first), HypernodeID(last), [&](const HypernodeID position) {
+            calculateAndSaveBestMove(phg, permutation.at(position));
+          });
         }
 
-        size_t sub_round_size = parallel::chunking::idiv_ceil(n, num_sub_rounds);
-        for (size_t sub_round = 0; sub_round < num_sub_rounds; ++sub_round) {
-          // calculate moves
-          auto [first, last] = parallel::chunking::bounds(sub_round, phg.initialNumNodes(), sub_round_size);
-          if (context.refinement.deterministic_refinement.feistel_shuffling) {
-            tbb::parallel_for(HypernodeID(first), HypernodeID(last), [&](const HypernodeID cleartext) {
-              const HypernodeID ciphertext = feistel_permutation.encrypt(cleartext);
-              if (ciphertext < phg.initialNumNodes()) {
-                calculateAndSaveBestMove(phg, ciphertext);
-              }
-            });
-          } else {
-            tbb::parallel_for(HypernodeID(first), HypernodeID(last), [&](const HypernodeID position) {
-              calculateAndSaveBestMove(phg, permutation.at(position));
-            });
-          }
-
-          // sync. then apply moves
-          overall_improvement += applyMovesSortedByGainAndRevertUnbalanced(phg);
-        }
+        // sync. then apply moves
+        overall_improvement += applyMovesSortedByGainAndRevertUnbalanced(phg);
 
       }
     }
@@ -305,15 +301,5 @@ namespace mt_kahypar {
     return positions;
   }
 
-  size_t DeterministicLabelPropagationRefiner::coloring(PartitionedHypergraph& phg) {
-    // idea ignore large hyperedges to get good colorings
-    // then vertices of the same color can be moved independently
-    // correct the error from large hyperedges later with gain recalc for these specific hyperedges
-    // the error is likely small, since large hyperedges rarely admit improvement
-
-    unused(phg);
-    LOG << "not yet implemented";
-    return 0;
-  }
 
 }

@@ -49,9 +49,6 @@ private:
   void initializeImpl(PartitionedHypergraph&) final { /* nothing to do */ }
 
 
-  // can generate a sub-round division
-  size_t coloring(PartitionedHypergraph& phg);
-
   // functions to apply moves from a sub-round
   Gain applyMovesSortedByGainAndRevertUnbalanced(PartitionedHypergraph& phg);
   Gain applyMovesByMaximalPrefixesInBlockPairs(PartitionedHypergraph& phg);
