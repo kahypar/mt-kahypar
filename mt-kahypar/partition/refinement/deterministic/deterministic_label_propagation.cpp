@@ -209,7 +209,7 @@ namespace mt_kahypar {
      * swap_prefixes[index(i,j)].second refers to the sequence of moves from j to i
      */
     //vec<std::pair<size_t, size_t>> swap_prefixes(relevant_block_pairs.size());
-    vec<std::pair<size_t, size_t>> swap_prefixes(max_key);
+    vec<std::tuple<size_t, size_t, int64_t>> swap_prefixes(max_key);
 
 
     tbb::parallel_for(0UL, relevant_block_pairs.size(), [&](size_t bp_index) {
@@ -230,7 +230,7 @@ namespace mt_kahypar {
                       budget_p2 = context.partition.max_part_weights[p2] - phg.partWeight(p2);
       HypernodeWeight slack_p1 = budget_p1 / involvements[p1],
                       slack_p2 = budget_p2 / involvements[p2];
-      std::pair<size_t, size_t> best {0,0};
+      std::tuple<size_t, size_t, int64_t> best {0,0,0};
 
       int64_t balance = 0;
 
@@ -255,23 +255,23 @@ namespace mt_kahypar {
         }
 
         if (-balance <= slack_p1 && balance <= slack_p2) {
-          best = {i,j};
+          best = {i,j,balance};
         }
       }
 
       // if one sequence is depleted or gain == 0. only do rebalancing in the other direction
       if (j == j_last || sorted_moves[j].gain == 0) {
         while (i < i_last && balance <= slack_p2 && (balance < 0 || sorted_moves[i].gain > 0)) {
-          balance+= phg.nodeWeight(sorted_moves[i++].node);
+          balance += phg.nodeWeight(sorted_moves[i++].node);
           if (-balance <= slack_p1 && balance <= slack_p2) {
-            best = {i,j};
+            best = {i,j,balance};
           }
         }
       } else if (i == i_last || sorted_moves[i].gain == 0) {
         while (j < j_last && -balance <= slack_p1 && (balance > 0 || sorted_moves[j].gain > 0)) {
           balance -= phg.nodeWeight(sorted_moves[j++].node);
           if (-balance <= slack_p1 && balance <= slack_p2) {
-            best = {i,j};
+            best = {i,j,balance};
           }
         }
       }
@@ -280,16 +280,18 @@ namespace mt_kahypar {
       swap_prefixes[index(p1, p2)] = best;
     });
 
-    // TODO simple greedy combine after the swaps
+    for (PartitionID i = 0; i < k; ++i) {
+
+    }
 
     auto in_prefix = [&](size_t pos) {
       const Move& m = sorted_moves[pos];
       assert(m.isValid());
       PartitionID p1 = m.from, p2 = m.to;
       if (p1 < p2) {
-        return pos < swap_prefixes[index(p1,p2)].first;
+        return pos < std::get<0>(swap_prefixes[index(p1,p2)]);
       } else {
-        return pos < swap_prefixes[index(p2,p1)].second;
+        return pos < std::get<1>(swap_prefixes[index(p2,p1)]);
       }
     };
     return applyMovesIf(phg, sorted_moves, sorted_moves.size(), in_prefix);
