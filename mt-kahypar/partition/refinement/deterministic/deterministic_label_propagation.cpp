@@ -85,12 +85,53 @@ namespace mt_kahypar {
     return overall_improvement > 0;
   }
 
-  Gain DeterministicLabelPropagationRefiner::applyAllMoves(PartitionedHypergraph& phg) {
-    std::atomic<Gain> gain(0);
-    tbb::parallel_for(0UL, moves_back.load(std::memory_order_relaxed), [&](const size_t move_pos) {
-      gain.fetch_add(performMoveWithAttributedGain(phg, moves[move_pos]), std::memory_order_relaxed);
-    });
-    return gain;
+/*
+ * for configs where we don't know exact gains --> have to trace the overall improvement with attributed gains
+ * called from applyAllMoves() for example
+*/
+  Gain performMoveWithAttributedGain(PartitionedHypergraph& phg, const Move& m) {
+    Gain attributed_gain = 0;
+    auto objective_delta = [&](HyperedgeID he, HyperedgeWeight edge_weight, HypernodeID edge_size,
+                               HypernodeID pin_count_in_from_part_after, HypernodeID pin_count_in_to_part_after) {
+      attributed_gain -= km1Delta(he, edge_weight, edge_size, pin_count_in_from_part_after, pin_count_in_to_part_after);
+    };
+    phg.changeNodePart(m.node, m.from, m.to, objective_delta);
+    return attributed_gain;
+  }
+
+  Gain applyAllValidMoves(PartitionedHypergraph& phg, const vec<Move>& moves, size_t end) {
+    auto range = tbb::blocked_range<size_t>(0UL, end);
+    auto accum = [&](const tbb::blocked_range<size_t>& r, const Gain& init) -> Gain {
+      Gain my_gain = init;
+      for (size_t i = r.begin(); i < r.end(); ++i) {
+        if (moves[i].isValid()) {
+          my_gain += performMoveWithAttributedGain(phg, moves[i]);
+        }
+      }
+      return my_gain;
+    };
+    return tbb::parallel_reduce(range, 0, accum, std::plus<Gain>());
+  }
+
+  vec<HypernodeWeight> aggregatePartWeightDeltas(PartitionedHypergraph& phg, const vec<Move>& moves) {
+    // parallel reduce makes way too many vector copies
+    tbb::enumerable_thread_specific<vec<HypernodeWeight>> ets_part_weight_diffs(phg.k(), 0);
+    auto accum = [&](const tbb::blocked_range<size_t>& r) {
+      auto& part_weights = ets_part_weight_diffs.local();
+      for (size_t i = r.begin(); i < r.end(); ++i) {
+        part_weights[moves[i].from] -= phg.nodeWeight(moves[i].node);
+        part_weights[moves[i].to] += phg.nodeWeight(moves[i].node);
+      }
+    };
+    tbb::parallel_for(tbb::blocked_range<size_t>(0UL, moves.size()), accum);
+    vec<HypernodeWeight> res(phg.k(), 0);
+    auto combine = [&](const vec<HypernodeWeight>& a) {
+      for (size_t i = 0; i < res.size(); ++i) {
+        res[i] += a[i];
+      }
+    };
+    ets_part_weight_diffs.combine_each(combine);
+    return res;
   }
 
   Gain DeterministicLabelPropagationRefiner::applyMovesSortedByGainAndRevertUnbalanced(PartitionedHypergraph& phg) {
@@ -99,44 +140,30 @@ namespace mt_kahypar {
     };
     tbb::parallel_sort(moves.begin(), moves.begin() + moves_back, comp);
 
-    Gain gain = applyAllMoves(phg);
-
     size_t num_overloaded_blocks = 0;
-    vec<HypernodeWeight> part_weight(phg.k(), 0);
+    vec<HypernodeWeight> part_weights = aggregatePartWeightDeltas(phg, moves);
     for (PartitionID i = 0; i < phg.k(); ++i) {
-      if (phg.partWeight(i) > context.partition.max_part_weights[i]) {
+      part_weights[i] += phg.partWeight(i);
+      if (part_weights[i] > context.partition.max_part_weights[i]) {
         num_overloaded_blocks++;
       }
-      part_weight[i] = phg.partWeight(i);
     }
 
-    vec<size_t> reverted_moves;
     size_t j = moves_back.load(std::memory_order_relaxed);
     while (num_overloaded_blocks > 0 && j > 0) {
-      const Move& m = moves[--j];
-      if (part_weight[m.to] > context.partition.max_part_weights[m.to]
-          && part_weight[m.from] + phg.nodeWeight(m.node) <= context.partition.max_part_weights[m.from]) {
-        part_weight[m.to] -= phg.nodeWeight(m.node);
-        part_weight[m.from] += phg.nodeWeight(m.node);
-        reverted_moves.push_back(j);
-        if (part_weight[m.to] <= context.partition.max_part_weights[m.to]) {
+      Move& m = moves[--j];
+      if (part_weights[m.to] > context.partition.max_part_weights[m.to]
+          && part_weights[m.from] + phg.nodeWeight(m.node) <= context.partition.max_part_weights[m.from]) {
+        part_weights[m.to] -= phg.nodeWeight(m.node);
+        part_weights[m.from] += phg.nodeWeight(m.node);
+        m.invalidate();
+        if (part_weights[m.to] <= context.partition.max_part_weights[m.to]) {
           num_overloaded_blocks--;
         }
       }
     }
 
-    gain += tbb::parallel_reduce(tbb::blocked_range<size_t>(0UL, reverted_moves.size()), Gain(0),
-                                [&](const tbb::blocked_range<size_t>& r, const Gain& init) -> Gain {
-                                  Gain my_gain = init;
-                                  for (size_t i = r.begin(); i < r.end(); ++i) {
-                                    Move m = moves[reverted_moves[i]];
-                                    std::swap(m.from, m.to);
-                                    my_gain += performMoveWithAttributedGain(phg, m);
-                                  }
-                                  return my_gain;
-                                },std::plus<Gain>());
-
-    return gain;
+    return applyAllValidMoves(phg, moves, moves_back.load(std::memory_order_relaxed));
   }
 
   Gain DeterministicLabelPropagationRefiner::applyMovesByMaximalPrefixesInBlockPairs(PartitionedHypergraph& phg) {

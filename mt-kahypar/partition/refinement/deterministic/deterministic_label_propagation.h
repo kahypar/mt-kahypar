@@ -53,33 +53,10 @@ private:
   size_t coloring(PartitionedHypergraph& phg);
 
   // functions to apply moves from a sub-round
-  Gain applyAllMoves(PartitionedHypergraph& phg);
   Gain applyMovesSortedByGainAndRevertUnbalanced(PartitionedHypergraph& phg);
   Gain applyMovesByMaximalPrefixesInBlockPairs(PartitionedHypergraph& phg);
 
   vec<size_t> aggregateDirectionBucketsInplace();
-
-  /*
-   * for configs where we don't know exact gains --> have to trace the overall improvement with attributed gains
-   * called from applyAllMoves() for example
-   */
-  Gain performMoveWithAttributedGain(PartitionedHypergraph& phg, const Move& m) {
-    Gain attributed_gain = 0;
-    auto objective_delta = [&](HyperedgeID he, HyperedgeWeight edge_weight, HypernodeID edge_size,
-                               HypernodeID pin_count_in_from_part_after, HypernodeID pin_count_in_to_part_after) {
-      attributed_gain -= km1Delta(he, edge_weight, edge_size, pin_count_in_from_part_after, pin_count_in_to_part_after);
-    };
-    phg.changeNodePart(m.node, m.from, m.to, objective_delta);
-    return attributed_gain;
-  }
-
-  /*
-   * for configs where we know the exact gains already
-   * e.g., if coloring is used or exact gain recalculation (or hybrid)
-   */
-  void performMove(PartitionedHypergraph& phg, const Move& m) {
-    phg.changeNodePart(m.node, m.from, m.to);
-  }
 
   void calculateAndSaveBestMove(PartitionedHypergraph& phg, HypernodeID u) {
     auto [to, gain] = compute_gains.local().computeBestTargetBlock(phg, u, context.partition.max_part_weights);
