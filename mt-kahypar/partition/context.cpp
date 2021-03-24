@@ -146,7 +146,7 @@ namespace mt_kahypar {
     out << "    Apply max prefix of blockpairs:   " << std::boolalpha << params.apply_moves_by_maximal_prefix_in_block_pairs << std::endl;
     out << "    Feistel shuffling:                " << std::boolalpha << params.feistel_shuffling << std::endl;
     out << "    Use parallel gain recalculation:  " << std::boolalpha << params.use_gain_recalculation << std::endl;
-
+    return out;
   }
 
   std::ostream & operator<< (std::ostream& str, const RefinementParameters& params) {
