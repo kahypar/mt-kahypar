@@ -31,7 +31,10 @@ bool SequentialTwoWayFmRefiner::refine(kahypar::Metrics& best_metrics) {
   // Activate all border nodes
   _pq.clear();
   _border_vertices.initialize(_phg);
-  utils::Randomize::instance().shuffleVector(_nodes, sched_getcpu());
+  // TODO feed prng via parameter
+  std::mt19937 prng(_context.partition.seed);
+  std::shuffle(_nodes.begin(), _nodes.end(), prng);
+  //utils::Randomize::instance().shuffleVector(_nodes, sched_getcpu());
   for ( const HypernodeID& hn : _nodes ) {
     _vertex_state[hn] = VertexState::INACTIVE;
     activate(hn);
