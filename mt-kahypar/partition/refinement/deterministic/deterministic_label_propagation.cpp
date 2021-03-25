@@ -34,17 +34,8 @@ namespace mt_kahypar {
                                                         kahypar::Metrics& best_metrics,
                                                         const double)  {
     LOG << "running deterministic LP";
-
-    if (tbb::this_task_arena::max_concurrency() != 1) {
-      LOG << V(tbb::this_task_arena::max_concurrency());
-      throw std::runtime_error("nondeterministic code was run in parallel. big sadge");
-    }
     TBBNumaArena::instance().terminate();
     TBBNumaArena::instance().initialize(context.shared_memory.num_threads);
-    if (tbb::this_task_arena::max_concurrency() != context.shared_memory.num_threads) {
-      LOG << V(tbb::this_task_arena::max_concurrency());
-      throw std::runtime_error("setting num threads of deterministic code failed. medium sadge");
-    }
 
     Gain overall_improvement = 0;
     size_t num_sub_rounds = context.refinement.deterministic_refinement.num_sub_rounds_sync_lp;
@@ -99,14 +90,8 @@ namespace mt_kahypar {
     best_metrics.km1 -= overall_improvement;
     best_metrics.imbalance = metrics::imbalance(phg, context);
 
-
-
     TBBNumaArena::instance().terminate();
     TBBNumaArena::instance().initialize(1);
-    if (tbb::this_task_arena::max_concurrency() != 1) {
-      LOG << V(tbb::this_task_arena::max_concurrency());
-      throw std::runtime_error("resetting num threads for non-deterministic code failed. medium sadge");
-    }
 
     return overall_improvement > 0;
   }
