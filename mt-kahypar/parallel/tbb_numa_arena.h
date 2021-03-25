@@ -117,18 +117,6 @@ class TBBNumaArena {
     return std::make_pair(0, 0);
   }
 
-  template <typename F>
-  void execute_parallel_on_all_numa_nodes(const TaskGroupID task_group_id, F&& func) {
-    for (int node = 0; node < num_numa_arenas(); ++node) {
-      numa_task_arena(node).execute([&, node] {
-            numa_task_group(task_group_id, node).run([&, node] {
-              func(node);
-            });
-          });
-    }
-    wait(task_group_id);
-  }
-
   void wait(const TaskGroupID task_group_id) {
     for (int node = 0; node < num_numa_arenas(); ++node) {
       _arenas[node].execute([&, node] {
