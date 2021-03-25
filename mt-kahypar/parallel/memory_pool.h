@@ -273,6 +273,8 @@ class MemoryPool {
       optimize_memory_allocations<TBBNumaArena>();
     }
     const size_t num_memory_segments = _memory_chunks.size();
+
+    // TODO we can kick this, since we already have interleaved allocation. no need to do it manually!
     TBBNumaArena::instance().execute_parallel_on_all_numa_nodes(
       TBBNumaArena::GLOBAL_TASK_GROUP, [&](const int node) {
         tbb::parallel_for(0UL, num_memory_segments, [&](const size_t i) {
