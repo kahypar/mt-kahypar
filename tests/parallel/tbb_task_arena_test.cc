@@ -76,18 +76,6 @@ class ATBBNumaArenaTest : public Test {
     return TBBArena::instance(num_threads).number_of_used_cpus_on_numa_node(node);
   }
 
-  tbb::task_arena& numa_task_arena(int node) {
-    return TBBArena::instance(num_threads).numa_task_arena(node);
-  }
-
-  tbb::task_group& numa_task_group(int node) {
-    return TBBArena::instance(num_threads).numa_task_group(TBBArena::GLOBAL_TASK_GROUP, node);
-  }
-
-  void wait(const int node, tbb::task_group& group) {
-    TBBArena::instance(num_threads).wait(node, group);
-  }
-
   void terminate() {
     TBBArena::instance(num_threads).terminate();
   }
@@ -116,38 +104,5 @@ TYPED_TEST(ATBBNumaArenaTest, ChecksTBBArenaInitialization) {
   ASSERT_EQ(this->expected_number_of_threads(), total_threads);
 }
 
-TYPED_TEST(ATBBNumaArenaTest, ChecksThreadsToNumaNodeAssignment) {
-  for (int node = 0; node < this->expected_num_numa_nodes(); ++node) {
-    std::vector<bool> cpus(this->expected_number_of_threads(), false);
-    this->numa_task_arena(node).execute([this, node, &cpus]() {
-          this->numa_task_group(node).run([&cpus]() {
-            tbb::parallel_for(0, 1000000, [&cpus](const size_t&) {
-              cpus[sched_getcpu()] = true;
-            });
-          });
-        });
-
-    this->numa_task_arena(node).execute([&] {
-          this->numa_task_group(node).wait();
-        });
-
-    std::vector<int> expected_cpus = this->get_cpus_of_numa_node(node);
-    std::sort(expected_cpus.begin(), expected_cpus.end());
-    std::reverse(expected_cpus.begin(), expected_cpus.end());
-    int num_threads = 0;
-    for (int cpu_id = 0; cpu_id < this->expected_number_of_threads(); ++cpu_id) {
-      if (cpu_id > expected_cpus.back()) {
-        expected_cpus.pop_back();
-      }
-      if (cpus[cpu_id]) {
-        ASSERT_FALSE(expected_cpus.empty()) << V(cpu_id) << V(node);
-        ASSERT_EQ(cpu_id, expected_cpus.back()) << V(cpu_id) << V(node);
-        num_threads++;
-      }
-    }
-    ASSERT_GE(num_threads, 1);
-  }
-  this->terminate();
-}
 }  // namespace parallel
 }  // namespace mt_kahypar
