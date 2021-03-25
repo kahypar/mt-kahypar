@@ -145,7 +145,7 @@ namespace mt_kahypar {
     return tbb::parallel_reduce(range, 0, accum, std::plus<Gain>());
   }
 
-  vec<HypernodeWeight> aggregatePartWeightDeltas(PartitionedHypergraph& phg, const vec<Move>& moves) {
+  vec<HypernodeWeight> aggregatePartWeightDeltas(PartitionedHypergraph& phg, const vec<Move>& moves, size_t end) {
     // parallel reduce makes way too many vector copies
     tbb::enumerable_thread_specific<vec<HypernodeWeight>> ets_part_weight_diffs(phg.k(), 0);
     auto accum = [&](const tbb::blocked_range<size_t>& r) {
@@ -155,7 +155,7 @@ namespace mt_kahypar {
         part_weights[moves[i].to] += phg.nodeWeight(moves[i].node);
       }
     };
-    tbb::parallel_for(tbb::blocked_range<size_t>(0UL, moves.size()), accum);
+    tbb::parallel_for(tbb::blocked_range<size_t>(0UL, end), accum);
     vec<HypernodeWeight> res(phg.k(), 0);
     auto combine = [&](const vec<HypernodeWeight>& a) {
       for (size_t i = 0; i < res.size(); ++i) {
