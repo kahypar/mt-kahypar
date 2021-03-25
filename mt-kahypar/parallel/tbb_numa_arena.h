@@ -109,21 +109,12 @@ class TBBNumaArena {
 
   tbb::task_group& numa_task_group(const TaskGroupID task_group_id, const int node) {
     std::shared_lock<std::shared_timed_mutex> read_lock(_task_group_read_write_mutex);
-    ASSERT(static_cast<size_t>(node) <= _groups[task_group_id].size());
-    return _groups[task_group_id][node].task_group;
+    ASSERT(static_cast<size_t>(node) <= _numa_groups.size());
+    return _numa_groups[node].task_group;
   }
 
   RecursionTaskGroups create_tbb_task_groups_for_recursion() {
-    std::lock_guard<std::shared_timed_mutex> write_lock(_task_group_read_write_mutex);
-    TaskGroupID task_group_1 = _groups.size();
-    _groups.emplace_back();
-    TaskGroupID task_group_2 = _groups.size();
-    _groups.emplace_back();
-    for ( int node = 0; node < num_numa_arenas(); ++node ) {
-      _groups[task_group_1].emplace_back();
-      _groups[task_group_2].emplace_back();
-    }
-    return std::make_pair(task_group_1, task_group_2);
+    return std::make_pair(0, 0);
   }
 
   template <typename F>
@@ -221,7 +212,6 @@ class TBBNumaArena {
     }
 
     _arenas.clear();
-    _groups.resize(1);
     _observers.clear();
     if ( is_numa_aware ) {
       for ( size_t node = 0; node < _numa_node_to_cpu_id.size(); ++node ) {
@@ -242,7 +232,6 @@ class TBBNumaArena {
   void initialize_tbb_numa_arena(const int node,
                                  const std::vector<int>& cpus_on_numa_node) {
     unused(node);
-    _groups.reserve(1024);
     int num_cpus_on_numa_node = cpus_on_numa_node.size();
     if (num_cpus_on_numa_node > 0) {
       DBG << "Initialize TBB task arena on numa node" << node
@@ -252,7 +241,7 @@ class TBBNumaArena {
       #else
       _arenas.emplace_back(num_cpus_on_numa_node, 1 /* reserve for master */);
       #endif
-      _groups[GLOBAL_TASK_GROUP].emplace_back();
+      _numa_groups.emplace_back();
       _arenas.back().initialize();
       _observers.emplace_back(_arenas.back(), node, cpus_on_numa_node);
     }
@@ -263,7 +252,7 @@ class TBBNumaArena {
   std::unique_ptr<ThreadPinningObserver> _global_observer;
   std::vector<tbb::task_arena> _arenas;
   std::shared_timed_mutex _task_group_read_write_mutex;
-  std::vector<NumaTaskGroups> _groups;
+  NumaTaskGroups _numa_groups;
   std::vector<ThreadPinningObserver> _observers;
   std::vector<int> _cpus;
   std::vector<std::vector<int>> _numa_node_to_cpu_id;
