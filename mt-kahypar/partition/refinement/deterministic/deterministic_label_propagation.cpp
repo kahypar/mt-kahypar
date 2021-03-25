@@ -39,7 +39,8 @@ namespace mt_kahypar {
       LOG << V(tbb::this_task_arena::max_concurrency());
       throw std::runtime_error("nondeterministic code was run in parallel. big sadge");
     }
-    tbb::task_scheduler_init local_task_scheduler(context.shared_memory.num_threads);
+    TBBNumaArena::instance().terminate();
+    TBBNumaArena::instance().initialize(context.shared_memory.num_threads);
     if (tbb::this_task_arena::max_concurrency() != context.shared_memory.num_threads) {
       LOG << V(tbb::this_task_arena::max_concurrency());
       throw std::runtime_error("setting num threads of deterministic code failed. medium sadge");
@@ -91,6 +92,16 @@ namespace mt_kahypar {
 
     best_metrics.km1 -= overall_improvement;
     best_metrics.imbalance = metrics::imbalance(phg, context);
+
+
+
+    TBBNumaArena::instance().terminate();
+    TBBNumaArena::instance().initialize(1);
+    if (tbb::this_task_arena::max_concurrency() != 1) {
+      LOG << V(tbb::this_task_arena::max_concurrency());
+      throw std::runtime_error("resetting num threads for non-deterministic code failed. medium sadge");
+    }
+
     return overall_improvement > 0;
   }
 
