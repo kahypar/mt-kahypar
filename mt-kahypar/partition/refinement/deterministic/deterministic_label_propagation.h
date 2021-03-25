@@ -57,6 +57,7 @@ private:
   vec<size_t> aggregateDirectionBucketsInplace();
 
   void calculateAndSaveBestMove(PartitionedHypergraph& phg, HypernodeID u) {
+    assert(u < phg.initialNumNodes());
     auto [to, gain] = compute_gains.local().computeBestTargetBlock(phg, u, context.partition.max_part_weights);
     // auto [to, gain] = compute_gains.local().computeBestTargetBlockIgnoringBalance(phg, u);
     if (gain > 0 && to != kInvalidPartition) {    // depending on apply moves function we might do gain >= 0

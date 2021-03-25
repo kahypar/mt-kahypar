@@ -68,8 +68,7 @@ namespace mt_kahypar {
           });
         } else {
           tbb::parallel_for(HypernodeID(first), HypernodeID(last), [&](const HypernodeID position) {
-            //calculateAndSaveBestMove(phg, permutation.at(position));
-            calculateAndSaveBestMove(phg, position);
+            calculateAndSaveBestMove(phg, permutation.at(position));
           });
         }
 
@@ -88,7 +87,7 @@ namespace mt_kahypar {
 
       overall_improvement += round_improvement;
       DBG << V(iter) << V(num_moves) << V(round_improvement);
-      
+
       if (num_moves == 0) {
         // no vertices with positive gain --> stop
         break;
