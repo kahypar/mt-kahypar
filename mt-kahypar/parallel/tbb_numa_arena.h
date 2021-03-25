@@ -127,18 +127,6 @@ class TBBNumaArena {
   }
 
   template <typename F>
-  void execute_sequential_on_all_numa_nodes(const TaskGroupID task_group_id, F&& func) {
-    for (int node = 0; node < num_numa_arenas(); ++node) {
-      numa_task_arena(node).execute([&] {
-            numa_task_group(task_group_id, node).run([&, node] {
-              func(node);
-            });
-          });
-      wait(node, numa_task_group(task_group_id, node));
-    }
-  }
-
-  template <typename F>
   void execute_parallel_on_all_numa_nodes(const TaskGroupID task_group_id, F&& func) {
     for (int node = 0; node < num_numa_arenas(); ++node) {
       numa_task_arena(node).execute([&, node] {
@@ -146,23 +134,6 @@ class TBBNumaArena {
               func(node);
             });
           });
-    }
-    wait(task_group_id);
-  }
-
-
-  template<typename Functor>
-  void execute_task_on_each_thread(const TaskGroupID task_group_id, Functor&& f) {
-    int overall_task_id = 0;
-    for (int socket = 0; socket < num_numa_arenas(); ++socket) {
-      tbb::task_arena& this_arena = numa_task_arena(socket);
-      const int n_tasks = this_arena.max_concurrency();
-      this_arena.execute([&, socket] {
-        tbb::task_group& tg = numa_task_group(task_group_id, socket);
-        for (int task_id = 0; task_id < n_tasks; ++task_id, ++overall_task_id) {
-          tg.run( std::bind(f, socket, overall_task_id, task_id) );
-        }
-      });
     }
     wait(task_group_id);
   }
