@@ -45,19 +45,7 @@ class TBBNumaArena {
 
   static constexpr bool debug = false;
 
-  struct MovableTaskGroup {
-    MovableTaskGroup() :
-      task_group() { }
-
-    MovableTaskGroup(MovableTaskGroup&&) :
-      task_group() { }
-
-    tbb::task_group task_group;
-  };
-
-  using Self = TBBNumaArena<HwTopology, is_numa_aware>;
   using ThreadPinningObserver = mt_kahypar::parallel::ThreadPinningObserver<HwTopology>;
-  using NumaTaskGroups = std::vector<MovableTaskGroup>;
 
  public:
   using TaskGroupID = size_t;
@@ -116,47 +104,59 @@ class TBBNumaArena {
   void initialize(int num_threads) {
     _num_threads = num_threads;
 
-    if (_init) {
+    if ( _init ) {
+      LOG << "init existing scheduler";
       _init->initialize(num_threads);
     } else {
+      LOG << "create fresh scheduler";
       _init = std::make_unique<tbb::task_scheduler_init>(num_threads);
     }
 
-    HwTopology& topology = HwTopology::instance();
-    int num_numa_nodes = topology.num_numa_nodes();
-    DBG << "Initialize TBB with" << num_threads << "threads";
+    if ( _global_observer ) {
+      LOG << "just start observing. ";
+      _global_observer->observe(true);
+    } else {
+      LOG << "construct observer" << V(_num_threads);
+      HwTopology& topology = HwTopology::instance();
+      int num_numa_nodes = topology.num_numa_nodes();
+      DBG << "Initialize TBB with" << num_threads << "threads";
 
-    _cpus = topology.get_all_cpus();
-    // Sort cpus in the following order
-    // 1.) Non-hyperthread first
-    // 2.) Increasing order of numa node
-    // 3.) Increasing order of cpu id
-    // ...
-    std::sort(_cpus.begin(), _cpus.end(), [&](const int& lhs, const int& rhs) {
-                int node_lhs = topology.numa_node_of_cpu(lhs);
-                int node_rhs = topology.numa_node_of_cpu(rhs);
-                bool is_hyperthread_lhs = topology.is_hyperthread(lhs);
-                bool is_hyperthread_rhs = topology.is_hyperthread(rhs);
-                return std::tie(is_hyperthread_lhs, node_lhs, lhs)
-                        < std::tie(is_hyperthread_rhs, node_rhs, rhs);
-    });
-    // ... this ensures that we first pop nodes in hyperthreading
-    while (static_cast<int>(_cpus.size()) > _num_threads) {
-      _cpus.pop_back();
-    }
-    _global_observer = std::make_unique<ThreadPinningObserver>(_cpus);
+      _cpus = topology.get_all_cpus();
+      // Sort cpus in the following order
+      // 1.) Non-hyperthread first
+      // 2.) Increasing order of numa node
+      // 3.) Increasing order of cpu id
+      // ...
+      std::sort(_cpus.begin(), _cpus.end(), [&](const int& lhs, const int& rhs) {
+        int node_lhs = topology.numa_node_of_cpu(lhs);
+        int node_rhs = topology.numa_node_of_cpu(rhs);
+        bool is_hyperthread_lhs = topology.is_hyperthread(lhs);
+        bool is_hyperthread_rhs = topology.is_hyperthread(rhs);
+        return std::tie(is_hyperthread_lhs, node_lhs, lhs)
+               < std::tie(is_hyperthread_rhs, node_rhs, rhs);
+      });
+      // ... this ensures that we first pop nodes in hyperthreading
+      while (static_cast<int>(_cpus.size()) > _num_threads) {
+        _cpus.pop_back();
+      }
 
-    _numa_node_to_cpu_id.clear();
-    _numa_node_to_cpu_id.resize(num_numa_nodes);
-    for ( const int cpu_id : _cpus ) {
-      int node = topology.numa_node_of_cpu(cpu_id);
-      ASSERT(node < static_cast<int>(_numa_node_to_cpu_id.size()));
-      _numa_node_to_cpu_id[node].push_back(cpu_id);
-    }
-    while( !_numa_node_to_cpu_id.empty() && _numa_node_to_cpu_id.back().empty() ) {
-      _numa_node_to_cpu_id.pop_back();
+      _global_observer = std::make_unique<ThreadPinningObserver>(_cpus);
+
+      _numa_node_to_cpu_id.clear();
+      _numa_node_to_cpu_id.resize(num_numa_nodes);
+      for ( const int cpu_id : _cpus ) {
+        int node = topology.numa_node_of_cpu(cpu_id);
+        ASSERT(node < static_cast<int>(_numa_node_to_cpu_id.size()));
+        _numa_node_to_cpu_id[node].push_back(cpu_id);
+      }
+
+      while( !_numa_node_to_cpu_id.empty() && _numa_node_to_cpu_id.back().empty() ) {
+        _numa_node_to_cpu_id.pop_back();
+      }
+
     }
 
+/*
     if ( is_numa_aware ) {
       for ( size_t node = 0; node < _numa_node_to_cpu_id.size(); ++node ) {
         initialize_tbb_numa_arena(node, _numa_node_to_cpu_id[node]);
@@ -164,6 +164,7 @@ class TBBNumaArena {
     } else {
       initialize_tbb_numa_arena(0, _cpus);
     }
+    */
   }
 
  private:
