@@ -156,7 +156,7 @@ struct NLevelGlobalFMParameters {
 std::ostream& operator<<(std::ostream& out, const NLevelGlobalFMParameters& params);
 
 struct DeterministicRefinementParameters {
-  size_t num_sub_rounds_sync_lp = 1;
+  size_t num_sub_rounds_sync_lp = 5;
   HyperedgeID edge_size_threshold_for_coloring = std::numeric_limits<HyperedgeID>::max();
   bool use_gain_recalculation = false;
   bool feistel_shuffling = false;
