@@ -33,7 +33,7 @@ namespace mt_kahypar {
                                                         const vec<HypernodeID>& ,
                                                         kahypar::Metrics& best_metrics,
                                                         const double)  {
-    LOG << "running deterministic LP";
+    DBG << "running deterministic LP" << V(phg.initialNumNodes());
     TBBNumaArena::instance().terminate();
     TBBNumaArena::instance().initialize(context.shared_memory.num_threads);
 
@@ -81,7 +81,7 @@ namespace mt_kahypar {
           }
         }
         overall_improvement += sub_round_improvement;
-        LOG << V(iter) << V(sub_round) << "num moves" << moves_back.load(std::memory_order_relaxed)
+        DBG << V(iter) << V(sub_round) << "num moves" << moves_back.load(std::memory_order_relaxed)
             << "num nodes in round" << (last - first) << V(sub_round_improvement);
       }
     }
@@ -151,11 +151,9 @@ namespace mt_kahypar {
       return m1.gain > m2.gain || (m1.gain == m2.gain && m1.node < m2.node);
     };
     size_t j = moves_back.load(std::memory_order_relaxed);
-    LOG << "sort" << V(j);
     tbb::parallel_sort(moves.begin(), moves.begin() + j, comp);
 
     size_t num_overloaded_blocks = 0;
-    LOG << "aggregate part weight deltas";
     vec<HypernodeWeight> part_weights = aggregatePartWeightDeltas(phg, moves, j);
     for (PartitionID i = 0; i < phg.k(); ++i) {
       part_weights[i] += phg.partWeight(i);
@@ -163,7 +161,8 @@ namespace mt_kahypar {
         num_overloaded_blocks++;
       }
     }
-    LOG << V(num_overloaded_blocks);
+
+    DBG << V(num_overloaded_blocks);
 
     size_t num_reverted_moves = 0;
     while (num_overloaded_blocks > 0 && j > 0) {
@@ -180,7 +179,7 @@ namespace mt_kahypar {
       }
     }
 
-    LOG << V(num_reverted_moves);
+    DBG << V(num_reverted_moves);
 
     // apply all moves that were not invalidated
     auto is_valid = [&](size_t pos) { return moves[pos].isValid(); };
