@@ -63,7 +63,6 @@ class TBBNumaArena {
   using TaskGroupID = size_t;
   using RecursionTaskGroups = std::pair<TaskGroupID, TaskGroupID>;
   static TaskGroupID GLOBAL_TASK_GROUP;
-  static TaskGroupID INVALID_TASK_GROUP;
 
   TBBNumaArena(const TBBNumaArena&) = delete;
   TBBNumaArena & operator= (const TBBNumaArena &) = delete;
@@ -115,18 +114,15 @@ class TBBNumaArena {
   }
 
   RecursionTaskGroups create_tbb_task_groups_for_recursion() {
-    TaskGroupID task_group_1 = INVALID_TASK_GROUP;
-    TaskGroupID task_group_2 = INVALID_TASK_GROUP;
     std::lock_guard<std::shared_timed_mutex> write_lock(_task_group_read_write_mutex);
-    task_group_1 = _groups.size();
+    TaskGroupID task_group_1 = _groups.size();
     _groups.emplace_back();
-    task_group_2 = _groups.size();
+    TaskGroupID task_group_2 = _groups.size();
     _groups.emplace_back();
     for ( int node = 0; node < num_numa_arenas(); ++node ) {
       _groups[task_group_1].emplace_back();
       _groups[task_group_2].emplace_back();
     }
-    ASSERT(task_group_1 != INVALID_TASK_GROUP && task_group_2 != INVALID_TASK_GROUP);
     return std::make_pair(task_group_1, task_group_2);
   }
 
@@ -302,7 +298,6 @@ class TBBNumaArena {
 
 template <typename HwTopology, bool is_numa_aware>
 typename TBBNumaArena<HwTopology, is_numa_aware>::TaskGroupID TBBNumaArena<HwTopology, is_numa_aware>::GLOBAL_TASK_GROUP = 0;
-template <typename HwTopology, bool is_numa_aware>
-typename TBBNumaArena<HwTopology, is_numa_aware>::TaskGroupID TBBNumaArena<HwTopology, is_numa_aware>::INVALID_TASK_GROUP = std::numeric_limits<TaskGroupID>::max();
+
 }  // namespace parallel
 }  // namespace mt_kahypar
