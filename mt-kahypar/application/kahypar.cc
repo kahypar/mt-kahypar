@@ -54,16 +54,17 @@ int main(int argc, char* argv[]) {
   }
 
 
-  // Initialize TBB task arenas on numa nodes
-  //mt_kahypar::TBBNumaArena::instance(context.shared_memory.num_threads);
-  mt_kahypar::TBBNumaArena::instance(1);  // deactivate parallelism and reactivate where deterministic!
+  // task scheduler and thread pinning
+  mt_kahypar::TBBNumaArena::instance(context.shared_memory.num_threads);
 
-  // We set the membind policy to interleaved allocations in order to
-  // distribute allocations evenly across NUMA nodes
+  // interleave memory allocations across numa nodes (if multiple used)
   hwloc_cpuset_t cpuset = mt_kahypar::TBBNumaArena::instance().used_cpuset();
   mt_kahypar::parallel::HardwareTopology<>::instance().activate_interleaved_membind_policy(cpuset);
   hwloc_bitmap_free(cpuset);
 
+  // reset scheduler. must init with max num threads first, otherwise numa parsing doesn't work
+  mt_kahypar::TBBNumaArena::instance().terminate();
+  mt_kahypar::TBBNumaArena::instance().initialize(1);
 
   // Read Hypergraph
   mt_kahypar::Hypergraph hypergraph = mt_kahypar::io::readHypergraphFile(
