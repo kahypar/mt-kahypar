@@ -150,11 +150,11 @@ namespace mt_kahypar {
     auto comp = [](const Move& m1, const Move& m2) {
       return m1.gain > m2.gain || (m1.gain == m2.gain && m1.node < m2.node);
     };
-    size_t j = moves_back.load(std::memory_order_relaxed);
-    tbb::parallel_sort(moves.begin(), moves.begin() + j, comp);
+    size_t num_moves = moves_back.load(std::memory_order_relaxed);
+    tbb::parallel_sort(moves.begin(), moves.begin() + num_moves, comp);
 
     size_t num_overloaded_blocks = 0;
-    vec<HypernodeWeight> part_weights = aggregatePartWeightDeltas(phg, moves, j);
+    vec<HypernodeWeight> part_weights = aggregatePartWeightDeltas(phg, moves, num_moves);
     for (PartitionID i = 0; i < phg.k(); ++i) {
       part_weights[i] += phg.partWeight(i);
       if (part_weights[i] > context.partition.max_part_weights[i]) {
@@ -165,6 +165,7 @@ namespace mt_kahypar {
     DBG << V(num_overloaded_blocks);
 
     size_t num_reverted_moves = 0;
+    size_t j = num_moves;
     while (num_overloaded_blocks > 0 && j > 0) {
       Move& m = moves[--j];
       if (part_weights[m.to] > context.partition.max_part_weights[m.to]
@@ -183,7 +184,16 @@ namespace mt_kahypar {
 
     // apply all moves that were not invalidated
     auto is_valid = [&](size_t pos) { return moves[pos].isValid(); };
-    return applyMovesIf(phg, moves, moves_back.load(std::memory_order_relaxed), is_valid);
+    Gain gain = applyMovesIf(phg, moves, num_moves, is_valid);
+    if (gain < 0) {
+      DBG << "Kommando zurück" << V(gain) << V(num_moves) << V(num_reverted_moves);
+      tbb::parallel_for(0UL, num_moves, [&](size_t i) {
+        std::swap(moves[i].from, moves[i].to);
+      });
+      gain += applyMovesIf(phg, moves, num_moves, is_valid);
+      assert(gain == 0);
+    }
+    return gain;
   }
 
   Gain DeterministicLabelPropagationRefiner::applyMovesByMaximalPrefixesInBlockPairs(PartitionedHypergraph& phg) {
