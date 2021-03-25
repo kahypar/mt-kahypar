@@ -105,18 +105,14 @@ class TBBNumaArena {
     _num_threads = num_threads;
 
     if ( _init ) {
-      LOG << "init existing scheduler";
       _init->initialize(num_threads);
     } else {
-      LOG << "create fresh scheduler";
       _init = std::make_unique<tbb::task_scheduler_init>(num_threads);
     }
 
     if ( _global_observer ) {
-      LOG << "just start observing. ";
       _global_observer->observe(true);
     } else {
-      LOG << "construct observer" << V(_num_threads);
       HwTopology& topology = HwTopology::instance();
       int num_numa_nodes = topology.num_numa_nodes();
       DBG << "Initialize TBB with" << num_threads << "threads";
