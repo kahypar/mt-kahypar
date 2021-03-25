@@ -36,8 +36,7 @@ namespace mt_kahypar {
   public:
 
     GainComputerTest() :
-            hg(HypergraphFactory::construct(TBBNumaArena::GLOBAL_TASK_GROUP,
-                                            7, 4,
+            hg(HypergraphFactory::construct(7, 4,
                                             {{0, 2},
                                                    {0, 1, 3, 4},
                                                    {3, 4, 6},

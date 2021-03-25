@@ -130,8 +130,7 @@ DynamicHypergraph generateRandomHypergraph(const HypernodeID num_hypernodes,
     }
     hyperedges.emplace_back(std::move(net));
   }
-  return DynamicHypergraphFactory::construct(
-    TBBNumaArena::GLOBAL_TASK_GROUP, num_hypernodes, num_hyperedges, hyperedges);
+  return DynamicHypergraphFactory::construct(num_hypernodes, num_hyperedges, hyperedges);
 }
 
 BatchVector generateRandomContractions(const HypernodeID num_hypernodes,

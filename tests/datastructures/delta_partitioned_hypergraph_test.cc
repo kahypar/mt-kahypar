@@ -40,7 +40,7 @@ class ADeltaPartitionedHypergraph : public Test {
  public:
 
   ADeltaPartitionedHypergraph() :
-    hg(mt_kahypar::HypergraphFactory::construct(TBBNumaArena::GLOBAL_TASK_GROUP,
+    hg(mt_kahypar::HypergraphFactory::construct(
       7 , 4, { {0, 2}, {0, 1, 3, 4}, {3, 4, 6}, {2, 5, 6} })),
     phg(3, TBBNumaArena::GLOBAL_TASK_GROUP, hg),
     delta_phg(3) {

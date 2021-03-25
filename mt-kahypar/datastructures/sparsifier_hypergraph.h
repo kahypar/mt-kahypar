@@ -246,8 +246,7 @@ class SparsifierHypergraph {
       });
     });
 
-    return HypergraphFactory::construct(
-      _task_group_id, num_hypernodes, num_hyperedges,
+    return HypergraphFactory::construct(num_hypernodes, num_hyperedges,
       sparsified_hypergraph._edge_vector,
       sparsified_hypergraph._hyperedge_weight.data(),
       sparsified_hypergraph._hypernode_weight.data());

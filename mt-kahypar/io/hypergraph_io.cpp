@@ -323,7 +323,7 @@ namespace mt_kahypar::io {
     // Construct Hypergraph
     utils::Timer::instance().start_timer("construct_hypergraph", "Construct Hypergraph");
     Hypergraph hypergraph = HypergraphFactory::construct(
-            task_group_id, num_hypernodes, num_hyperedges,
+            num_hypernodes, num_hyperedges,
             hyperedges, hyperedges_weight.data(), hypernodes_weight.data(),
             stable_construction_of_incident_edges);
     hypergraph.setNumRemovedHyperedges(num_removed_single_pin_hyperedges);

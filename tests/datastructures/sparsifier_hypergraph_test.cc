@@ -451,8 +451,7 @@ TEST_F(ASparsifierHypergraph, ExecutesMixedModificationsConcurrently3) {
 }
 
 TEST_F(ASparsifierHypergraph, SparsifiesHypergraphWithDisabledHypernodes) {
-  Hypergraph degree_zero_hg = HypergraphFactory::construct(
-    TBBNumaArena::GLOBAL_TASK_GROUP, 7, 2,
+  Hypergraph degree_zero_hg = HypergraphFactory::construct(7, 2,
     { { 3, 4, 5 }, {4, 5, 6} } );
   degree_zero_hg.removeHypernode(1);
   degree_zero_hg.removeHypernode(2);
@@ -466,8 +465,7 @@ TEST_F(ASparsifierHypergraph, SparsifiesHypergraphWithDisabledHypernodes) {
 }
 
 TEST_F(ASparsifierHypergraph, SparsifiesHypergraphWithDisabledHyperedges) {
-  Hypergraph single_pin_hg = HypergraphFactory::construct(
-    TBBNumaArena::GLOBAL_TASK_GROUP, 7, 3,
+  Hypergraph single_pin_hg = HypergraphFactory::construct(7, 3,
     { {0}, { 3, 4, 5 }, {4, 5, 6} } );
   single_pin_hg.removeEdge(0);
 
@@ -479,8 +477,7 @@ TEST_F(ASparsifierHypergraph, SparsifiesHypergraphWithDisabledHyperedges) {
 }
 
 TEST_F(ASparsifierHypergraph, SparsifiesHypergraphWithDisabledHypernodesAndHyperedges) {
-  Hypergraph single_pin_hg = HypergraphFactory::construct(
-    TBBNumaArena::GLOBAL_TASK_GROUP, 7, 3,
+  Hypergraph single_pin_hg = HypergraphFactory::construct(7, 3,
     { {0}, { 3, 4, 5 }, {4, 5, 6} } );
   single_pin_hg.removeEdge(0);
   single_pin_hg.removeHypernode(1);

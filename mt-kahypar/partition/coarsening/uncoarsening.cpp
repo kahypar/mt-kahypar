@@ -53,7 +53,7 @@ namespace mt_kahypar {
     // Create compactified hypergraph containing only enabled vertices and hyperedges
     // with consecutive IDs => Less complexity in initial partitioning.
     utils::Timer::instance().start_timer("compactify_hypergraph", "Compactify Hypergraph");
-    auto compactification = HypergraphFactory::compactify(_task_group_id, _hg);
+    auto compactification = HypergraphFactory::compactify(_hg);
     _compactified_hg = std::move(compactification.first);
     _compactified_hn_mapping = std::move(compactification.second);
     _compactified_phg = PartitionedHypergraph(_context.partition.k, _task_group_id, _compactified_hg);

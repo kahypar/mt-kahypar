@@ -985,8 +985,7 @@ private:
     });
 
     // Construct hypergraph
-    Hypergraph extracted_hypergraph = HypergraphFactory::construct(
-            task_group_id, num_hypernodes, num_hyperedges,
+    Hypergraph extracted_hypergraph = HypergraphFactory::construct(num_hypernodes, num_hyperedges,
             edge_vector, hyperedge_weight.data(), hypernode_weight.data());
 
     // Set community ids
