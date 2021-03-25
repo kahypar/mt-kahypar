@@ -53,8 +53,10 @@ int main(int argc, char* argv[]) {
     context.shared_memory.num_threads = num_available_cpus;
   }
 
+
   // Initialize TBB task arenas on numa nodes
-  mt_kahypar::TBBNumaArena::instance(context.shared_memory.num_threads);
+  //mt_kahypar::TBBNumaArena::instance(context.shared_memory.num_threads);
+  mt_kahypar::TBBNumaArena::instance(1);  // deactivate parallelism and reactivate where deterministic!
 
   // We set the membind policy to interleaved allocations in order to
   // distribute allocations evenly across NUMA nodes

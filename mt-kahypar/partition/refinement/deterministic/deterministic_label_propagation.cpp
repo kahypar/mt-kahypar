@@ -33,6 +33,17 @@ namespace mt_kahypar {
                                                         const vec<HypernodeID>& ,
                                                         kahypar::Metrics& best_metrics,
                                                         const double)  {
+
+    if (tbb::this_task_arena::max_concurrency() != 1) {
+      LOG << V(tbb::this_task_arena::max_concurrency());
+      throw std::runtime_error("nondeterministic code was run in parallel. big sadge");
+    }
+    tbb::task_scheduler_init local_task_scheduler(context.shared_memory.num_threads);
+    if (tbb::this_task_arena::max_concurrency() != context.shared_memory.num_threads) {
+      LOG << V(tbb::this_task_arena::max_concurrency());
+      throw std::runtime_error("setting num threads of deterministic code failed. medium sadge");
+    }
+
     Gain overall_improvement = 0;
     size_t num_sub_rounds = context.refinement.deterministic_refinement.num_sub_rounds_sync_lp;
 
