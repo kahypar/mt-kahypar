@@ -50,8 +50,6 @@ namespace mt_kahypar {
     size_t num_sub_rounds = context.refinement.deterministic_refinement.num_sub_rounds_sync_lp;
 
     for (size_t iter = 0; iter < context.refinement.label_propagation.maximum_iterations; ++iter) {
-      moves_back.store(0, std::memory_order_relaxed);
-
       size_t n;
       if (context.refinement.deterministic_refinement.feistel_shuffling) {
         // get rid of this constant after initial tests, and use std::array in FeistelPermutation to store the keys
