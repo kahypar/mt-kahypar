@@ -73,7 +73,8 @@ namespace mt_kahypar {
         }
 
         Gain sub_round_improvement = 0;
-        if (moves_back.load(std::memory_order_relaxed) > 0) {
+        size_t num_moves_in_sub_round = moves_back.load(std::memory_order_relaxed);
+        if (num_moves_in_sub_round > 0) {
           // sync. then apply moves
           if (context.refinement.deterministic_refinement.apply_moves_by_maximal_prefix_in_block_pairs) {
             sub_round_improvement = applyMovesByMaximalPrefixesInBlockPairs(phg);
@@ -82,7 +83,7 @@ namespace mt_kahypar {
           }
         }
         round_improvement += sub_round_improvement;
-        num_moves += moves_back.load(std::memory_order_relaxed);
+        num_moves += num_moves_in_sub_round;
       }
 
       overall_improvement += round_improvement;
