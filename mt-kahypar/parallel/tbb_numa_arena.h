@@ -111,6 +111,7 @@ class TBBNumaArena {
     }
 
     if ( _global_observer ) {
+      assert(num_threads < _cpus.size());
       _global_observer->observe(true);
     } else {
       HwTopology& topology = HwTopology::instance();
