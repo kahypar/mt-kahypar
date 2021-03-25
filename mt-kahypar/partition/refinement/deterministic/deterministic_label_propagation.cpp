@@ -41,6 +41,7 @@ namespace mt_kahypar {
     size_t num_sub_rounds = context.refinement.deterministic_refinement.num_sub_rounds_sync_lp;
 
     for (size_t iter = 0; iter < context.refinement.label_propagation.maximum_iterations; ++iter) {
+      size_t num_moves = 0;
       size_t n;
       if (context.refinement.deterministic_refinement.feistel_shuffling) {
         // get rid of this constant after initial tests, and use std::array in FeistelPermutation to store the keys
@@ -81,8 +82,14 @@ namespace mt_kahypar {
           }
         }
         overall_improvement += sub_round_improvement;
+        num_moves += moves_back.load(std::memory_order_relaxed);
         DBG << V(iter) << V(sub_round) << "num moves" << moves_back.load(std::memory_order_relaxed)
             << "num nodes in round" << (last - first) << V(sub_round_improvement);
+      }
+
+      if (num_moves == 0) {
+        // no vertices with positive gain --> stop
+        break;
       }
     }
 
