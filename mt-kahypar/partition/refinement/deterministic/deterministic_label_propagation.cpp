@@ -34,8 +34,13 @@ namespace mt_kahypar {
                                                         kahypar::Metrics& best_metrics,
                                                         const double)  {
     DBG << "running deterministic LP" << V(phg.initialNumNodes());
-    TBBNumaArena::instance().terminate();
-    TBBNumaArena::instance().initialize(context.shared_memory.num_threads);
+
+    if (tbb::this_task_arena::max_concurrency() != 1) {
+      LOG << "more than one thread in non-deterministic code. big sadge" << V(tbb::this_task_arena::max_concurrency());
+    }
+
+    // TBBNumaArena::instance().terminate();
+    // TBBNumaArena::instance().initialize(context.shared_memory.num_threads);
 
     Gain overall_improvement = 0;
     size_t num_sub_rounds = context.refinement.deterministic_refinement.num_sub_rounds_sync_lp;
@@ -51,14 +56,14 @@ namespace mt_kahypar {
         n = feistel_permutation.max_num_entries();
       } else {
         n = phg.initialNumNodes();
-        permutation.create_integer_permutation(n, context.shared_memory.num_threads, prng);
+        // permutation.create_integer_permutation(n, context.shared_memory.num_threads, prng);
       }
 
       size_t sub_round_size = parallel::chunking::idiv_ceil(n, num_sub_rounds);
       for (size_t sub_round = 0; sub_round < num_sub_rounds; ++sub_round) {
         moves_back.store(0, std::memory_order_relaxed);
         // calculate moves
-        auto [first, last] = parallel::chunking::bounds(sub_round, phg.initialNumNodes(), sub_round_size);
+        auto [first, last] = parallel::chunking::bounds(sub_round, n, sub_round_size);
         if (context.refinement.deterministic_refinement.feistel_shuffling) {
           tbb::parallel_for(HypernodeID(first), HypernodeID(last), [&](const HypernodeID cleartext) {
             const HypernodeID ciphertext = feistel_permutation.encrypt(cleartext);
@@ -68,8 +73,11 @@ namespace mt_kahypar {
           });
         } else {
           tbb::parallel_for(HypernodeID(first), HypernodeID(last), [&](const HypernodeID position) {
-            assert(position < permutation.permutation.size());
-            calculateAndSaveBestMove(phg, permutation.at(position));
+            assert(position < moves.size());
+            moves[position].gain = 420;
+            // assert(position < permutation.permutation.size());
+            // calculateAndSaveBestMove(phg, permutation.at(position));
+            // calculateAndSaveBestMove(phg, position);
           });
         }
 
@@ -92,7 +100,7 @@ namespace mt_kahypar {
 
       if (num_moves == 0) {
         // no vertices with positive gain --> stop
-        break;
+        // break;
       }
     }
 
@@ -100,8 +108,8 @@ namespace mt_kahypar {
     best_metrics.km1 -= overall_improvement;
     best_metrics.imbalance = metrics::imbalance(phg, context);
 
-    TBBNumaArena::instance().terminate();
-    TBBNumaArena::instance().initialize(1);
+    // TBBNumaArena::instance().terminate();
+    // TBBNumaArena::instance().initialize(1);
 
     return overall_improvement > 0;
   }

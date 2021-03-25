@@ -62,10 +62,6 @@ int main(int argc, char* argv[]) {
   mt_kahypar::parallel::HardwareTopology<>::instance().activate_interleaved_membind_policy(cpuset);
   hwloc_bitmap_free(cpuset);
 
-  // reset scheduler. must init with max num threads first, otherwise numa parsing doesn't work
-  mt_kahypar::TBBNumaArena::instance().terminate();
-  mt_kahypar::TBBNumaArena::instance().initialize(1);
-
   // Read Hypergraph
   mt_kahypar::Hypergraph hypergraph = mt_kahypar::io::readHypergraphFile(
       context.partition.graph_filename,

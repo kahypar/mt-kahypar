@@ -92,6 +92,7 @@ class TBBNumaArena {
 
 
   void terminate() {
+
     if ( _global_observer ) {
       _global_observer->observe(false);
     }
@@ -119,6 +120,7 @@ class TBBNumaArena {
       DBG << "Initialize TBB with" << num_threads << "threads";
 
       _cpus = topology.get_all_cpus();
+
       // Sort cpus in the following order
       // 1.) Non-hyperthread first
       // 2.) Increasing order of numa node
@@ -150,14 +152,15 @@ class TBBNumaArena {
       while( !_numa_node_to_cpu_id.empty() && _numa_node_to_cpu_id.back().empty() ) {
         _numa_node_to_cpu_id.pop_back();
       }
-
     }
+
   }
 
  private:
   explicit TBBNumaArena(const int num_threads) :
     _init(nullptr),
-    _global_observer(nullptr) {
+    _global_observer(nullptr)
+  {
     initialize(num_threads);
   }
 

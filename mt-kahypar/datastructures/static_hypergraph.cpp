@@ -340,7 +340,9 @@ namespace mt_kahypar::ds {
       auto& hyperedge_bucket = hyperedge_hash_map.getBucket(bucket);
       std::sort(hyperedge_bucket.begin(), hyperedge_bucket.end(),
                 [&](const ContractedHyperedgeInformation& lhs, const ContractedHyperedgeInformation& rhs) {
-                  return lhs.hash < rhs.hash || (lhs.hash == rhs.hash && lhs.size < rhs.size);
+                  //return lhs.hash < rhs.hash || (lhs.hash == rhs.hash && lhs.size < rhs.size);
+                  // TODO source of non-determinism
+                  return std::tie(lhs.hash, lhs.size, lhs.he) < std::tie(rhs.hash, rhs.size, rhs.he);
                 });
 
       // Parallel Hyperedge Detection
@@ -468,6 +470,7 @@ namespace mt_kahypar::ds {
           if ( he_mapping.value(he) ) {
             tmp_incident_nets[pos] = he_mapping[he];
           } else {
+            // TODO this is a weird implementation of std::remove_if. does this cause weird side effects?
             std::swap(tmp_incident_nets[pos--], tmp_incident_nets[--incident_nets_end]);
           }
         }

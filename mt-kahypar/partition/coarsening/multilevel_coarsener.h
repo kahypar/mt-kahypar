@@ -66,7 +66,7 @@ class MultilevelCoarsener : public ICoarsener,
   using AtomicMatchingState = parallel::IntegralAtomicWrapper<uint8_t>;
   using AtomicWeight = parallel::IntegralAtomicWrapper<HypernodeWeight>;
 
-  static constexpr bool debug = false;
+  static constexpr bool debug = true;
   static constexpr bool enable_heavy_assert = false;
   static constexpr HypernodeID kInvalidHypernode = std::numeric_limits<HypernodeID>::max();
 
@@ -145,6 +145,7 @@ class MultilevelCoarsener : public ICoarsener,
       _progress_bar.enable();
     }
 
+    std::mt19937 prng(_context.partition.seed);
     int pass_nr = 0;
     const HypernodeID initial_num_nodes = Base::currentNumNodes();
     while ( Base::currentNumNodes() > _context.coarsening.contraction_limit ) {
@@ -172,8 +173,9 @@ class MultilevelCoarsener : public ICoarsener,
       });
 
       if ( _enable_randomization ) {
-        utils::Randomize::instance().parallelShuffleVector(
-          _current_vertices, 0UL, _current_vertices.size());
+        std::shuffle(_current_vertices.begin(), _current_vertices.end(), prng);
+        //utils::Randomize::instance().parallelShuffleVector(
+        //  _current_vertices, 0UL, _current_vertices.size());
       }
       utils::Timer::instance().stop_timer("shuffle_vertices");
 
@@ -194,20 +196,21 @@ class MultilevelCoarsener : public ICoarsener,
       HypernodeID current_num_nodes = num_hns_before_pass;
       tbb::enumerable_thread_specific<HypernodeID> contracted_nodes(0);
       tbb::enumerable_thread_specific<HypernodeID> num_nodes_update_threshold(0);
-      tbb::parallel_for(ID(0), current_hg.initialNumNodes(), [&](const HypernodeID id) {
+      //tbb::parallel_for(ID(0), current_hg.initialNumNodes(), [&](const HypernodeID id) {
+      for (size_t id = 0; id < current_hg.initialNumNodes(); ++id) {
         ASSERT(id < _current_vertices.size());
         const HypernodeID hn = _current_vertices[id];
-        if ( current_hg.nodeIsEnabled(hn) ) {
+        if (current_hg.nodeIsEnabled(hn)) {
           // We perform rating if ...
           //  1.) The contraction limit of the current level is not reached
           //  2.) Vertex hn is not matched before
           const HypernodeID u = hn;
-          if ( _matching_state[u] == STATE(MatchingState::UNMATCHED) ) {
-            if ( current_num_nodes > hierarchy_contraction_limit ) {
+          if (_matching_state[u] == STATE(MatchingState::UNMATCHED)) {
+            if (current_num_nodes > hierarchy_contraction_limit) {
               ASSERT(current_hg.nodeIsEnabled(hn));
               const Rating rating = _rater.rate(current_hg, hn,
-                cluster_ids, _cluster_weight, _max_allowed_node_weight);
-              if ( rating.target != kInvalidHypernode ) {
+                                                cluster_ids, _cluster_weight, _max_allowed_node_weight);
+              if (rating.target != kInvalidHypernode) {
                 const HypernodeID v = rating.target;
                 HypernodeID& local_contracted_nodes = contracted_nodes.local();
                 matchVertices(current_hg, u, v, cluster_ids, local_contracted_nodes);
@@ -225,18 +228,18 @@ class MultilevelCoarsener : public ICoarsener,
                 // the global current number of nodes before. After update the threshold is
                 // increased by the new difference (in number of nodes) to the contraction limit
                 // divided by the number of PEs.
-                if (  local_contracted_nodes >= num_nodes_update_threshold.local() ) {
+                if (local_contracted_nodes >= num_nodes_update_threshold.local()) {
                   current_num_nodes = num_hns_before_pass -
-                    contracted_nodes.combine(std::plus<HypernodeID>());
+                                      contracted_nodes.combine(std::plus<HypernodeID>());
                   num_nodes_update_threshold.local() +=
-                    (current_num_nodes - hierarchy_contraction_limit) /
-                    _context.shared_memory.num_threads;
+                          (current_num_nodes - hierarchy_contraction_limit) /
+                          _context.shared_memory.num_threads;
                 }
               }
             }
           }
         }
-      });
+      }//});
       if ( _context.partition.show_detailed_clustering_timings ) {
         utils::Timer::instance().stop_timer("clustering_level_" + std::to_string(pass_nr));
       }
