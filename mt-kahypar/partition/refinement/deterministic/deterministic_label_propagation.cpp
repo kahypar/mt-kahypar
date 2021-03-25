@@ -35,13 +35,6 @@ namespace mt_kahypar {
                                                         const double)  {
     DBG << "running deterministic LP" << V(phg.initialNumNodes());
 
-    if (tbb::this_task_arena::max_concurrency() != 1) {
-      LOG << "more than one thread in non-deterministic code. big sadge" << V(tbb::this_task_arena::max_concurrency());
-    }
-
-    // TBBNumaArena::instance().terminate();
-    // TBBNumaArena::instance().initialize(context.shared_memory.num_threads);
-
     Gain overall_improvement = 0;
     size_t num_sub_rounds = context.refinement.deterministic_refinement.num_sub_rounds_sync_lp;
 
@@ -73,11 +66,9 @@ namespace mt_kahypar {
           });
         } else {
           tbb::parallel_for(HypernodeID(first), HypernodeID(last), [&](const HypernodeID position) {
-            assert(position < moves.size());
-            moves[position].gain = 420;
             // assert(position < permutation.permutation.size());
             // calculateAndSaveBestMove(phg, permutation.at(position));
-            // calculateAndSaveBestMove(phg, position);
+            calculateAndSaveBestMove(phg, position);
           });
         }
 
@@ -100,7 +91,7 @@ namespace mt_kahypar {
 
       if (num_moves == 0) {
         // no vertices with positive gain --> stop
-        // break;
+        break;
       }
     }
 
