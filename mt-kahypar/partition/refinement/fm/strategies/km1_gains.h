@@ -96,7 +96,7 @@ struct Km1GainComputer {
     PartitionID best_target = kInvalidPartition;
     Gain best_gain = std::numeric_limits<Gain>::min();
     for (PartitionID target = 0; target < phg.k(); ++target) {
-      if (target != from && gains[target] < best_gain) {
+      if (target != from && gains[target] > best_gain) {
         best_gain = gains[target];
         best_target = target;
       }
