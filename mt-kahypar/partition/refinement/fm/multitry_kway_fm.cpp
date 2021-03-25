@@ -77,8 +77,7 @@ namespace mt_kahypar {
               && fm.findMoves(phg, task_id, num_seeds)) { /* keep running*/ }
         sharedData.finishedTasks.fetch_add(1, std::memory_order_relaxed);
       };
-      size_t num_tasks = std::min(num_border_nodes, context.shared_memory.num_threads);
-      ASSERT(static_cast<int>(num_tasks) <= TBBNumaArena::instance().total_number_of_threads());
+      size_t num_tasks = std::min(num_border_nodes, size_t(TBBNumaArena::instance().total_number_of_threads()));
       for (size_t i = 0; i < num_tasks; ++i) {
         tg.run(std::bind(task, i));
       }
