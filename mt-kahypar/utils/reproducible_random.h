@@ -182,22 +182,22 @@ public:
   void shuffle(const RangeT& input_elements, size_t num_tasks, std::mt19937& rng) {
     static_assert(std::is_same<typename RangeT::value_type, T>::value);
     const size_t n = input_elements.size();
-    auto t_alloc = tbb::tick_count::now();
+    // auto t_alloc = tbb::tick_count::now();
     permutation.resize(n);
     if (n < 1 << 15) {
       for (size_t i = 0; i < n; ++i) { permutation[i] = input_elements[i]; }
       std::shuffle(permutation.begin(), permutation.end(), rng);
     } else {
-      auto t_comp_buckets = tbb::tick_count::now();
+      // auto t_comp_buckets = tbb::tick_count::now();
       // assign random buckets to elements. either hash based on position or random tags with static load balancing
       get_bucket.compute_buckets(n, num_tasks, rng());
 
-      auto t_sort = tbb::tick_count::now();
+      // auto t_sort = tbb::tick_count::now();
       // sort elements by random buckets
       vec<uint32_t> bucket_bounds = parallel::counting_sort(input_elements, permutation, num_buckets, get_bucket, num_tasks);
       assert(bucket_bounds.size() == num_buckets + 1);
 
-      auto t_shuffle = tbb::tick_count::now();
+      // auto t_shuffle = tbb::tick_count::now();
       // shuffle each bucket
       for (size_t i = 0; i < num_buckets; ++i) {
         seeds[i] = rng();
@@ -207,6 +207,7 @@ public:
         std::shuffle(permutation.begin() + bucket_bounds[i], permutation.begin() + bucket_bounds[i + 1], local_rng);
       });
 
+      /*
       auto t_end = tbb::tick_count::now();
 
       std::cout << "shuffle times: " << (t_end - t_alloc).seconds() << "\n"
@@ -215,6 +216,7 @@ public:
                 << "\t sort " << (t_shuffle - t_sort).seconds() << "\n"
                 << "\t shuffle " << (t_end - t_shuffle).seconds() << "\n"
                 << std::flush;
+      */
     }
   }
 
