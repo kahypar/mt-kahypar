@@ -397,9 +397,8 @@ class InitialPartitioningDataContainer {
     return _local_he_visited.local();
   }
 
-  void reset_unassigned_hypernodes() {
-    parallel::scalable_vector<HypernodeID>& unassigned_hypernodes =
-      _local_unassigned_hypernodes.local();
+  void reset_unassigned_hypernodes(std::mt19937& rng) {
+    vec<HypernodeID>& unassigned_hypernodes = _local_unassigned_hypernodes.local();
     size_t& unassigned_hypernode_pointer = _local_unassigned_hypernode_pointer.local();
     if ( unassigned_hypernode_pointer == std::numeric_limits<size_t>::max() ) {
       // In case the local unassigned hypernode vector was not initialized before
@@ -408,7 +407,7 @@ class InitialPartitioningDataContainer {
       for ( const HypernodeID& hn : hypergraph.nodes() ) {
         unassigned_hypernodes.push_back(hn);
       }
-      utils::Randomize::instance().shuffleVector(unassigned_hypernodes, sched_getcpu());
+      std::shuffle(unassigned_hypernodes.begin(), unassigned_hypernodes.end(), rng);
     }
     unassigned_hypernode_pointer = unassigned_hypernodes.size();
   }

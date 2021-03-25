@@ -70,7 +70,7 @@ class GreedyInitialPartitioner : public tbb::task {
       }
 
       // Insert start vertices into its corresponding PQs
-      _ip_data.reset_unassigned_hypernodes();
+      _ip_data.reset_unassigned_hypernodes(_rng);
       parallel::scalable_vector<HypernodeID> start_nodes =
         PseudoPeripheralStartNodes::computeStartNodes(_ip_data, _context, _default_block, _rng);
       ASSERT(static_cast<size_t>(_context.partition.k) == start_nodes.size());

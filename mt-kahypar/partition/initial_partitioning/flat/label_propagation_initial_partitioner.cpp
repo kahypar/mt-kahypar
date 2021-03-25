@@ -34,7 +34,7 @@ tbb::task* LabelPropagationInitialPartitioner::execute() {
   if ( _ip_data.should_initial_partitioner_run(InitialPartitioningAlgorithm::label_propagation) ) {
     HighResClockTimepoint start = std::chrono::high_resolution_clock::now();
     PartitionedHypergraph& hg = _ip_data.local_partitioned_hypergraph();
-    _ip_data.reset_unassigned_hypernodes();
+    _ip_data.reset_unassigned_hypernodes(_rng);
 
     parallel::scalable_vector<HypernodeID> start_nodes =
       PseudoPeripheralStartNodes::computeStartNodes(_ip_data, _context, kInvalidPartition, _rng);

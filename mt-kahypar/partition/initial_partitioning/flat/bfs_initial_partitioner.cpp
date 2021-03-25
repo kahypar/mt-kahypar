@@ -34,7 +34,7 @@ tbb::task* BFSInitialPartitioner::execute() {
       kahypar::ds::FastResetFlagArray<>& hyperedges_in_queue =
         _ip_data.local_hyperedge_fast_reset_flag_array();
 
-      _ip_data.reset_unassigned_hypernodes();
+      _ip_data.reset_unassigned_hypernodes(_rng);
       parallel::scalable_vector<HypernodeID> start_nodes =
         PseudoPeripheralStartNodes::computeStartNodes(_ip_data, _context, kInvalidPartition, _rng);
 
