@@ -185,6 +185,7 @@ namespace mt_kahypar {
     }
     LOG << V(num_overloaded_blocks);
 
+    size_t num_reverted_moves = 0;
     while (num_overloaded_blocks > 0 && j > 0) {
       Move& m = moves[--j];
       if (part_weights[m.to] > context.partition.max_part_weights[m.to]
@@ -192,11 +193,14 @@ namespace mt_kahypar {
         part_weights[m.to] -= phg.nodeWeight(m.node);
         part_weights[m.from] += phg.nodeWeight(m.node);
         m.invalidate();
+        num_reverted_moves++;
         if (part_weights[m.to] <= context.partition.max_part_weights[m.to]) {
           num_overloaded_blocks--;
         }
       }
     }
+
+    LOG << V(num_reverted_moves);
 
     // apply all moves that were not invalidated
     auto is_valid = [&](size_t pos) { return moves[pos].isValid(); };
