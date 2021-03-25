@@ -151,16 +151,6 @@ class TBBNumaArena {
       }
 
     }
-
-/*
-    if ( is_numa_aware ) {
-      for ( size_t node = 0; node < _numa_node_to_cpu_id.size(); ++node ) {
-        initialize_tbb_numa_arena(node, _numa_node_to_cpu_id[node]);
-      }
-    } else {
-      initialize_tbb_numa_arena(0, _cpus);
-    }
-    */
   }
 
  private:
@@ -168,16 +158,6 @@ class TBBNumaArena {
     _init(nullptr),
     _global_observer(nullptr) {
     initialize(num_threads);
-  }
-
-  void initialize_tbb_numa_arena(const int node,
-                                 const std::vector<int>& cpus_on_numa_node) {
-    unused(node);
-    int num_cpus_on_numa_node = cpus_on_numa_node.size();
-    if (num_cpus_on_numa_node > 0) {
-      DBG << "Initialize TBB task arena on numa node" << node
-          << "with" << num_cpus_on_numa_node << "threads";
-    }
   }
 
   int _num_threads;
