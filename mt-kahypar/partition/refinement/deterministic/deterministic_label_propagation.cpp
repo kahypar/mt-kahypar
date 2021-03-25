@@ -57,7 +57,6 @@ namespace mt_kahypar {
         feistel_permutation.create_permutation(num_feistel_rounds, phg.initialNumNodes(), prng);
         n = feistel_permutation.max_num_entries();
       } else {
-        LOG << "create permutation";
         n = phg.initialNumNodes();
         permutation.create_integer_permutation(n, context.shared_memory.num_threads, prng);
       }
@@ -65,7 +64,6 @@ namespace mt_kahypar {
       size_t sub_round_size = parallel::chunking::idiv_ceil(n, num_sub_rounds);
       for (size_t sub_round = 0; sub_round < num_sub_rounds; ++sub_round) {
         moves_back.store(0, std::memory_order_relaxed);
-        LOG << V(iter) << V(sub_round);
         // calculate moves
         auto [first, last] = parallel::chunking::bounds(sub_round, phg.initialNumNodes(), sub_round_size);
         if (context.refinement.deterministic_refinement.feistel_shuffling) {
@@ -81,22 +79,19 @@ namespace mt_kahypar {
             calculateAndSaveBestMove(phg, position);
           });
         }
-        LOG << "num moves" << moves_back.load(std::memory_order_relaxed) << V(first) << V(last) << V(n);
 
-        for (size_t i = 0; i < moves_back.load(); ++i) {
-          const Move& m = moves[i];
-          LOG << V(i) << V(m.node) << V(m.from) << V(m.to) << V(m.gain);
+        Gain sub_round_improvement = 0;
+        if (moves_back.load(std::memory_order_relaxed) > 0) {
+          // sync. then apply moves
+          if (context.refinement.deterministic_refinement.apply_moves_by_maximal_prefix_in_block_pairs) {
+            sub_round_improvement = applyMovesByMaximalPrefixesInBlockPairs(phg);
+          } else {
+            sub_round_improvement = applyMovesSortedByGainAndRevertUnbalanced(phg);
+          }
         }
-
-        // sync. then apply moves
-        Gain sub_round_improvement;
-        if (context.refinement.deterministic_refinement.apply_moves_by_maximal_prefix_in_block_pairs) {
-          sub_round_improvement = applyMovesByMaximalPrefixesInBlockPairs(phg);
-        } else {
-          sub_round_improvement = applyMovesSortedByGainAndRevertUnbalanced(phg);
-        }
-        LOG << V(sub_round_improvement);
         overall_improvement += sub_round_improvement;
+        LOG << V(iter) << V(sub_round) << "num moves" << moves_back.load(std::memory_order_relaxed)
+            << "num nodes in round" << (last - first) << V(sub_round_improvement);
       }
     }
 

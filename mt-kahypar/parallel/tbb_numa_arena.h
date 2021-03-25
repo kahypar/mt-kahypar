@@ -157,10 +157,12 @@ class TBBNumaArena {
     for (tbb::task_arena& arena : _arenas) {
       arena.terminate();
     }
+    _arenas.clear();
 
     for (ThreadPinningObserver& observer : _observers) {
       observer.observe(false);
     }
+    _observers.clear();
 
     if ( _global_observer ) {
       _global_observer->observe(false);
