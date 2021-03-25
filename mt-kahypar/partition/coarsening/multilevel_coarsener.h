@@ -244,8 +244,7 @@ class MultilevelCoarsener : public ICoarsener,
         utils::Timer::instance().stop_timer("clustering_level_" + std::to_string(pass_nr));
       }
       utils::Timer::instance().stop_timer("parallel_clustering");
-      current_num_nodes = num_hns_before_pass -
-        contracted_nodes.combine(std::plus<HypernodeID>());
+      current_num_nodes = num_hns_before_pass - contracted_nodes.combine(std::plus<>());
       DBG << V(current_num_nodes);
 
       HEAVY_COARSENING_ASSERT([&] {
