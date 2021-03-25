@@ -68,6 +68,7 @@ namespace mt_kahypar {
           });
         } else {
           tbb::parallel_for(HypernodeID(first), HypernodeID(last), [&](const HypernodeID position) {
+            assert(position < permutation.permutation.size());
             calculateAndSaveBestMove(phg, permutation.at(position));
           });
         }
