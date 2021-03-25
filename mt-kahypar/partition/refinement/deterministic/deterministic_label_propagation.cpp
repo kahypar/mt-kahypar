@@ -33,6 +33,7 @@ namespace mt_kahypar {
                                                         const vec<HypernodeID>& ,
                                                         kahypar::Metrics& best_metrics,
                                                         const double)  {
+    LOG << "running deterministic LP";
 
     if (tbb::this_task_arena::max_concurrency() != 1) {
       LOG << V(tbb::this_task_arena::max_concurrency());
@@ -49,8 +50,6 @@ namespace mt_kahypar {
 
     for (size_t iter = 0; iter < context.refinement.label_propagation.maximum_iterations; ++iter) {
       moves_back.store(0, std::memory_order_relaxed);
-
-
 
       size_t n;
       if (context.refinement.deterministic_refinement.feistel_shuffling) {

@@ -101,6 +101,7 @@ enum class InitialPartitioningMode : uint8_t {
 enum class LabelPropagationAlgorithm : uint8_t {
   label_propagation_km1,
   label_propagation_cut,
+  deterministic,
   do_nothing
 };
 
