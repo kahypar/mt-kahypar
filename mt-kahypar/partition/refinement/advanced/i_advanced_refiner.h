@@ -25,15 +25,9 @@
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/macros.h"
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
+#include "mt-kahypar/partition/refinement/advanced/advanced_problem_stats.h"
 
 namespace mt_kahypar {
-
-struct ProblemStats {
-  vec<HypernodeID> num_nodes_in_blocks;
-  vec<PartitionID> used_blocks;
-  HyperedgeID num_edges;
-  HypernodeID num_pins;
-};
 
 class IAdvancedRefiner {
 
@@ -66,7 +60,7 @@ class IAdvancedRefiner {
   }
 
   // ! Decides wheather or not the maximum problem size is reached
-  bool isMaximumProblemSizeReached(const ProblemStats& stats) const {
+  bool isMaximumProblemSizeReached(AdvancedProblemStats& stats) const {
     return isMaximumProblemSizeReachedImpl(stats);
   }
 
@@ -84,7 +78,7 @@ class IAdvancedRefiner {
 
   virtual void setNumThreadsForSearchImpl(const size_t num_threads) = 0;
 
-  virtual bool isMaximumProblemSizeReachedImpl(const ProblemStats& stats) const = 0;
+  virtual bool isMaximumProblemSizeReachedImpl(AdvancedProblemStats& stats) const = 0;
 };
 
 }  // namespace mt_kahypar

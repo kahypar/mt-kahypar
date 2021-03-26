@@ -103,29 +103,6 @@ void AdvancedRefinementProblemConstruction::ConstructionData::pop_hypernode(Hype
   }
 }
 
-void AdvancedRefinementProblemConstruction::ProblemData::add_hypernode(
-  const HypernodeID hn,
-  const PartitionedHypergraph& phg) {
-  const PartitionID block = phg.partID(hn);
-  if ( used_blocks[block] == std::numeric_limits<size_t>::max() ) {
-    used_blocks[block] = stats.used_blocks.size();
-    stats.used_blocks.push_back(block);
-    stats.num_nodes_in_blocks.push_back(0);
-  }
-  size_t idx = used_blocks[block];
-  ++stats.num_nodes_in_blocks[idx];
-  stats.num_pins += phg.nodeDegree(hn);
-}
-
-void AdvancedRefinementProblemConstruction::ProblemData::reset() {
-  stats.num_nodes_in_blocks.clear();
-  stats.used_blocks.clear();
-  stats.num_edges = 0;
-  stats.num_pins = 0;
-  used_blocks.assign(used_blocks.size(), std::numeric_limits<size_t>::max());
-  visited_hes.clear();
-}
-
 vec<HypernodeID> AdvancedRefinementProblemConstruction::construct(const SearchID search_id,
                                                                   QuotientGraph& quotient_graph,
                                                                   AdvancedRefinerAdapter& refiner,
@@ -133,12 +110,12 @@ vec<HypernodeID> AdvancedRefinementProblemConstruction::construct(const SearchID
   vec<HypernodeID> nodes;
 
   // Initialize BFS
-  ProblemData& problem = _local_problem.local();
+  AdvancedProblemStats& stats = _local_stats.local();
   ConstructionData& data = _local_data.local();
-  problem.reset();
+  stats.reset();
   const size_t num_block_pairs = quotient_graph.numBlockPairs(search_id);
 
-  while ( !refiner.isMaximumProblemSizeReached(search_id, problem.stats) ) {
+  while ( !refiner.isMaximumProblemSizeReached(search_id, stats) ) {
     const vec<BlockPairCutHyperedges> initial_cut_hes =
       quotient_graph.requestCutHyperedges(search_id, num_block_pairs *
         _context.refinement.advanced.num_cut_edges_per_block_pair);
@@ -148,7 +125,7 @@ vec<HypernodeID> AdvancedRefinementProblemConstruction::construct(const SearchID
     }
 
     while ( !data.is_empty() &&
-            !refiner.isMaximumProblemSizeReached(search_id, problem.stats) ) {
+            !refiner.isMaximumProblemSizeReached(search_id, stats) ) {
       size_t queue_idx = std::numeric_limits<size_t>::max();
       HypernodeID hn = kInvalidHypernode;
       data.pop_hypernode(hn, queue_idx);
@@ -157,12 +134,12 @@ vec<HypernodeID> AdvancedRefinementProblemConstruction::construct(const SearchID
 
       if ( acquire_vertex(search_id, hn) ) {
         nodes.push_back(hn);
-        problem.add_hypernode(hn, phg);
+        stats.addNode(hn, phg);
 
         for ( const HyperedgeID& he : phg.incidentEdges(hn) ) {
           data.bfs[queue_idx].add_pins_of_hyperedge_to_queue(
             he, phg, _context.refinement.advanced.max_bfs_distance);
-          problem.add_hyperedge(he);
+          stats.addEdge(he);
         }
       }
     }

@@ -112,9 +112,10 @@ class AdvancedRefinerMock final : public IAdvancedRefiner {
     _num_threads = num_threads;
   }
 
-  bool isMaximumProblemSizeReachedImpl(const ProblemStats& stats) const {
-    return std::accumulate(stats.num_nodes_in_blocks.cbegin(), stats.num_nodes_in_blocks.cend(), ID(0)) >= _max_num_nodes ||
-           stats.num_edges >= _max_num_edges || stats.num_pins >= _max_num_pins;
+  bool isMaximumProblemSizeReachedImpl(AdvancedProblemStats& stats) const {
+    return stats.numNodes() >= _max_num_nodes ||
+           stats.numEdges() >= _max_num_edges ||
+           stats.numPins() >= _max_num_pins;
   }
 
   const Context& _context;

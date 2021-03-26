@@ -28,6 +28,7 @@
 #include "mt-kahypar/datastructures/sparse_map.h"
 #include "mt-kahypar/partition/refinement/advanced/advanced_refiner_adapter.h"
 #include "mt-kahypar/partition/refinement/advanced/quotient_graph.h"
+#include "mt-kahypar/partition/refinement/advanced/advanced_problem_stats.h"
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
 #include "mt-kahypar/parallel/stl/scalable_queue.h"
 #include "mt-kahypar/parallel/atomic_wrapper.h"
@@ -101,29 +102,6 @@ class AdvancedRefinementProblemConstruction {
     vec<BFSData> bfs;
   };
 
-  struct ProblemData {
-    explicit ProblemData(const PartitionID k) :
-      stats(),
-      used_blocks(k, std::numeric_limits<size_t>::max()),
-      visited_hes() { }
-
-    void add_hypernode(const HypernodeID hn,
-                       const PartitionedHypergraph& phg);
-
-    void add_hyperedge(const HyperedgeID he) {
-      if ( !visited_hes.contains(he) ) {
-        ++stats.num_edges;
-        visited_hes[he] = ds::EmptyStruct { };
-      }
-    }
-
-    void reset();
-
-    ProblemStats stats;
-    vec<size_t> used_blocks;
-    ds::DynamicSparseSet<HyperedgeID> visited_hes;
-  };
-
  public:
   explicit AdvancedRefinementProblemConstruction(const Hypergraph& hg,
                                                  const Context& context) :
@@ -131,7 +109,7 @@ class AdvancedRefinementProblemConstruction {
     _vertex_ownership(hg.initialNumNodes(),
       CAtomic<SearchID>(QuotientGraph::INVALID_SEARCH_ID)),
     _local_data(),
-    _local_problem(context.partition.k) { }
+    _local_stats(context.partition.k) { }
 
   AdvancedRefinementProblemConstruction(const AdvancedRefinementProblemConstruction&) = delete;
   AdvancedRefinementProblemConstruction(AdvancedRefinementProblemConstruction&&) = delete;
@@ -167,7 +145,7 @@ class AdvancedRefinementProblemConstruction {
   vec<CAtomic<SearchID>> _vertex_ownership;
 
   tbb::enumerable_thread_specific<ConstructionData> _local_data;
-  tbb::enumerable_thread_specific<ProblemData> _local_problem;
+  tbb::enumerable_thread_specific<AdvancedProblemStats> _local_stats;
 };
 
 }  // namespace kahypar

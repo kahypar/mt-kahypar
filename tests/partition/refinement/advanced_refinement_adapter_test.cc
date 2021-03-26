@@ -87,33 +87,6 @@ TEST_F(AAdvancedRefinementAdapter, FailsToRegisterMoreSearchesIfAllAreUsed) {
   ASSERT_FALSE(refiner->registerNewSearch(2, phg));
 }
 
-TEST_F(AAdvancedRefinementAdapter, CheckIfProblemSizeIsReached1) {
-  refiner = std::make_unique<AdvancedRefinerAdapter>(
-    hg, context, TBBNumaArena::GLOBAL_TASK_GROUP);
-
-  AdvancedRefinerMockControl::instance().max_num_nodes = 8;
-  ASSERT_TRUE(refiner->registerNewSearch(0, phg));
-  ASSERT_FALSE(refiner->isMaximumProblemSizeReached(
-    0, ProblemStats { { 3, 4 }, { 0, 1 }, 5, 10 }));
-  ASSERT_TRUE(refiner->isMaximumProblemSizeReached(
-    0, ProblemStats { { 3, 5 }, { 0, 1 }, 5, 10 }));
-
-  refiner->finalizeSearch(0);
-}
-
-TEST_F(AAdvancedRefinementAdapter, CheckIfProblemSizeIsReached2) {
-  refiner = std::make_unique<AdvancedRefinerAdapter>(
-    hg, context, TBBNumaArena::GLOBAL_TASK_GROUP);
-
-  AdvancedRefinerMockControl::instance().max_num_edges = 9;
-  ASSERT_TRUE(refiner->registerNewSearch(0, phg));
-  ASSERT_FALSE(refiner->isMaximumProblemSizeReached(
-    0, ProblemStats { { 3, 4 }, { 0, 1 }, 5, 10 }));
-  ASSERT_TRUE(refiner->isMaximumProblemSizeReached(
-    0, ProblemStats { { 3, 5 }, { 0, 1 }, 10, 10 }));
-  refiner->finalizeSearch(0);
-}
-
 TEST_F(AAdvancedRefinementAdapter, UseCorrectNumberOfThreadsForSearch1) {
   context.refinement.advanced.num_threads_per_search = 5;
   refiner = std::make_unique<AdvancedRefinerAdapter>(
