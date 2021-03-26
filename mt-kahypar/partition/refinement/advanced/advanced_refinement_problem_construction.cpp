@@ -39,6 +39,7 @@ void AdvancedRefinementProblemConstruction::BFSData::reset() {
 
 void AdvancedRefinementProblemConstruction::BFSData::pop_hypernode(HypernodeID& hn) {
   if ( !is_empty() ) {
+    // Pop vertices alternating from one of the two queues
     size_t idx = last_queue_idx++ % 2;
     if ( queue[idx].empty() ) {
       idx = last_queue_idx++ % 2;
@@ -52,13 +53,15 @@ void AdvancedRefinementProblemConstruction::BFSData::pop_hypernode(HypernodeID& 
 void AdvancedRefinementProblemConstruction::BFSData::add_pins_of_hyperedge_to_queue(
   const HyperedgeID& he,
   const PartitionedHypergraph& phg,
+  const AdvancedProblemStats& stats,
   const size_t max_bfs_distance) {
   if ( current_distance <= max_bfs_distance ) {
     if ( !visited_he.contains(he) ) {
       for ( const HypernodeID& pin : phg.pins(he) ) {
         const PartitionID block = phg.partID(pin);
-        if ( (blocks.i == block || blocks.j == block) &&
-              !visited_hn.contains(pin) ) {
+        if ( !stats.isLocked(block) &&
+             (blocks.i == block || blocks.j == block) &&
+             !visited_hn.contains(pin) ) {
           next_queue[blocks.i == block ? 0 : 1].push(pin);
           visited_hn[pin] = ds::EmptyStruct { };
         }
@@ -70,17 +73,17 @@ void AdvancedRefinementProblemConstruction::BFSData::add_pins_of_hyperedge_to_qu
 
 void AdvancedRefinementProblemConstruction::ConstructionData::initialize(
   const vec<BlockPairCutHyperedges>& initial_cut_hes,
+  const AdvancedProblemStats& stats,
   const PartitionedHypergraph& phg) {
+  // Initialize BFS Queues
   used_slots = initial_cut_hes.size();
   while ( bfs.size() <= used_slots ) bfs.emplace_back();
-
-  // Initialize BFS Queues
   for ( size_t i = 0; i < used_slots; ++i ) {
     bfs[i].reset();
     bfs[i].blocks = initial_cut_hes[i].blocks;
     for ( const HyperedgeID& he : initial_cut_hes[i].cut_hes ) {
       bfs[i].add_pins_of_hyperedge_to_queue(
-        he, phg, std::numeric_limits<size_t>::max());
+        he, phg, stats, std::numeric_limits<size_t>::max());
     }
     bfs[i].swap_with_next_queue();
   }
@@ -88,9 +91,12 @@ void AdvancedRefinementProblemConstruction::ConstructionData::initialize(
 
 void AdvancedRefinementProblemConstruction::ConstructionData::pop_hypernode(HypernodeID& hn, size_t& idx) {
   if ( !is_empty() ) {
+    // BFS Queues are visited in round-robin fashion
     bool found = false;
     idx = last_idx++ % used_slots;
     while ( !found ) {
+      // If the current bfs queue is empty,
+      // we swap it with queue for the next layer
       if ( bfs[idx].is_empty() ) {
         bfs[idx].swap_with_next_queue();
       }
@@ -103,27 +109,52 @@ void AdvancedRefinementProblemConstruction::ConstructionData::pop_hypernode(Hype
   }
 }
 
+void AdvancedRefinementProblemConstruction::ConstructionData::clearBlock(const PartitionID block) {
+  auto clear_queue = [](parallel::scalable_queue<HypernodeID>& queue) {
+    while ( !queue.empty() ) queue.pop();
+  };
+
+  for ( size_t i = 0; i < used_slots; ++i ) {
+    if ( bfs[i].blocks.i == block ) {
+      clear_queue(bfs[i].queue[0]);
+      clear_queue(bfs[i].next_queue[0]);
+    } else if ( bfs[i].blocks.j == block ) {
+      clear_queue(bfs[i].queue[1]);
+      clear_queue(bfs[i].next_queue[1]);
+    }
+  }
+}
+
 vec<HypernodeID> AdvancedRefinementProblemConstruction::construct(const SearchID search_id,
                                                                   QuotientGraph& quotient_graph,
                                                                   AdvancedRefinerAdapter& refiner,
                                                                   const PartitionedHypergraph& phg) {
   vec<HypernodeID> nodes;
 
-  // Initialize BFS
-  AdvancedProblemStats& stats = _local_stats.local();
   ConstructionData& data = _local_data.local();
+  AdvancedProblemStats& stats = _local_stats.local();
   stats.reset();
-  const size_t num_block_pairs = quotient_graph.numBlockPairs(search_id);
+  for ( const BlockPair& blocks : quotient_graph.getBlockPairs(search_id) ) {
+    stats.addBlock(blocks.i);
+    stats.addBlock(blocks.j);
+  }
 
+  const size_t num_block_pairs = quotient_graph.numBlockPairs(search_id);
+  // We vertices to the problem as long as the associated refiner notifies the
+  // construction algorithm that the maximum problem size is reached
   while ( !refiner.isMaximumProblemSizeReached(search_id, stats) ) {
+
+    // We initialize the BFS with a fixed number of cut hyperedges running
+    // between the involved block associated with the search
     const vec<BlockPairCutHyperedges> initial_cut_hes =
       quotient_graph.requestCutHyperedges(search_id, num_block_pairs *
         _context.refinement.advanced.num_cut_edges_per_block_pair);
-    data.initialize(initial_cut_hes, phg);
-    if ( data.is_empty() ) {
-      break;
-    }
+    data.initialize(initial_cut_hes, stats, phg);
+    // Special case, if they are no cut hyperedges left
+    // between the involved blocks
+    if ( data.is_empty() ) break;
 
+    // BFS
     while ( !data.is_empty() &&
             !refiner.isMaximumProblemSizeReached(search_id, stats) ) {
       size_t queue_idx = std::numeric_limits<size_t>::max();
@@ -132,15 +163,27 @@ vec<HypernodeID> AdvancedRefinementProblemConstruction::construct(const SearchID
       ASSERT(hn != kInvalidHypernode);
       ASSERT(queue_idx != std::numeric_limits<size_t>::max());
 
-      if ( acquire_vertex(search_id, hn) ) {
-        nodes.push_back(hn);
-        stats.addNode(hn, phg);
+      const PartitionID block = phg.partID(hn);
+      if ( !stats.isLocked(block) ) {
+        // Search aquires ownership of the vertex. Each vertex is only allowed to
+        // be part of one search at any time.
+        if ( acquire_vertex(search_id, hn) ) {
+          nodes.push_back(hn);
+          stats.addNode(hn, phg);
 
-        for ( const HyperedgeID& he : phg.incidentEdges(hn) ) {
-          data.bfs[queue_idx].add_pins_of_hyperedge_to_queue(
-            he, phg, _context.refinement.advanced.max_bfs_distance);
-          stats.addEdge(he);
+          // Push all neighbors of the added vertex into the queue
+          for ( const HyperedgeID& he : phg.incidentEdges(hn) ) {
+            data.bfs[queue_idx].add_pins_of_hyperedge_to_queue(
+              he, phg, stats,_context.refinement.advanced.max_bfs_distance);
+            stats.addEdge(he);
+          }
         }
+      } else {
+        // Note the associated refiner can lock a specific block. If
+        // a block is locked, then the construction algorithm is not allowed
+        // to add any vertex part of that block to the problem. In that case,
+        // we clear all queues containing vertices of that block.
+        data.clearBlock(block);
       }
     }
   }

@@ -68,7 +68,22 @@ class AAdvancedRefinementProblemConstruction : public Test {
 };
 
 TEST_F(AAdvancedRefinementProblemConstruction, TEST) {
-  // AdvancedRefinerMockControl::instance().max_num_nodes = 200;
+  AdvancedRefinerMockControl::instance().max_prob_size_func = [&](AdvancedProblemStats& stats) {
+    size_t idx = 0;
+    bool limit_reached = true;
+    for ( const PartitionID block : stats.containedBlocks() ) {
+      bool block_limit_reached = false;
+      if ( idx == 0 ) {
+        block_limit_reached = stats.numberOfNodesInBlock(block) >= 200;
+      } else {
+        block_limit_reached = stats.numberOfNodesInBlock(block) >= 100;
+      }
+      if ( block_limit_reached ) stats.lockBlock(block);
+      limit_reached &= block_limit_reached;
+      ++idx;
+    }
+    return limit_reached;
+  };
   AdvancedRefinementProblemConstruction constructor(hg, context);
   AdvancedRefinerAdapter refiner(hg, context, TBBNumaArena::GLOBAL_TASK_GROUP);
   QuotientGraph qg(context);
@@ -80,7 +95,14 @@ TEST_F(AAdvancedRefinementProblemConstruction, TEST) {
     search_id, qg, refiner, phg);
   qg.finalizeConstruction(search_id);
 
-  // LOG << V(hg.initialNumNodes()) << V(phg.partWeight(2)) << V(phg.partWeight(4)) << V(nodes.size());
+  vec<HypernodeWeight> part_size(8, 0);
+  for ( const HypernodeID& hn : nodes ) {
+    ++part_size[phg.partID(hn)];
+  }
+
+  for ( PartitionID i = 0; i < 8; ++i ) {
+    LOG << V(i) << V(part_size[i]);
+  }
 
   qg.finalizeSearch(search_id, false);
   refiner.finalizeSearch(search_id);

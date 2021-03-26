@@ -37,6 +37,10 @@ namespace mt_kahypar {
 
 class AdvancedRefinementProblemConstruction {
 
+  /**
+   * Contains data required to grow two region around
+   * the cut of two blocks of the partition.
+   */
   struct BFSData {
     explicit BFSData() :
       current_distance(0),
@@ -52,6 +56,7 @@ class AdvancedRefinementProblemConstruction {
 
     void add_pins_of_hyperedge_to_queue(const HyperedgeID& he,
                                         const PartitionedHypergraph& phg,
+                                        const AdvancedProblemStats& stats,
                                         const size_t max_bfs_distance);
 
     bool is_empty() const {
@@ -78,6 +83,11 @@ class AdvancedRefinementProblemConstruction {
     ds::DynamicSparseSet<HyperedgeID> visited_he;
   };
 
+  /**
+   * Manages BFS data of all block pairs on which simultanously
+   * grow regions. The search can pop hypernodes from the queues,
+   * which are selected in round-robin fashion.
+   */
   struct ConstructionData {
     explicit ConstructionData() :
       used_slots(0),
@@ -85,9 +95,12 @@ class AdvancedRefinementProblemConstruction {
       bfs() { }
 
     void initialize(const vec<BlockPairCutHyperedges>& initial_cut_hes,
+                    const AdvancedProblemStats& stats,
                     const PartitionedHypergraph& phg);
 
     void pop_hypernode(HypernodeID& hn, size_t& idx);
+
+    void clearBlock(const PartitionID block);
 
     bool is_empty() {
       bool empty = true;
@@ -142,9 +155,14 @@ class AdvancedRefinementProblemConstruction {
 
   const Context& _context;
 
+  // ! Keeps track which vertices belong to which search
+  // ! Each vertex is only allowed to be part of one search at any time
   vec<CAtomic<SearchID>> _vertex_ownership;
 
+  // ! Contains data required for BFS construction algorithm
   tbb::enumerable_thread_specific<ConstructionData> _local_data;
+
+  // ! Contains statistic about the currently constructed problem
   tbb::enumerable_thread_specific<AdvancedProblemStats> _local_stats;
 };
 

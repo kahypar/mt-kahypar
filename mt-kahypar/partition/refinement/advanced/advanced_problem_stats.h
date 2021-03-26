@@ -72,6 +72,10 @@ class AdvancedProblemStats {
     return _num_pins;
   }
 
+  PartitionID numContainedBlocks() const {
+    return _contained_blocks.size();
+  }
+
   IteratorRange<BlockIterator> containedBlocks() const {
     return IteratorRange<BlockIterator>(
       _contained_blocks.cbegin(), _contained_blocks.cend());
@@ -85,20 +89,18 @@ class AdvancedProblemStats {
   HypernodeID numberOfNodesInBlock(const PartitionID block) const {
     ASSERT(block > kInvalidPartition && block < _k);
     const size_t idx = _block_to_idx[block];
-    return idx == INVALID_IDX ? 0 : _num_nodes_in_block[block];
+    return idx == INVALID_IDX ? 0 : _num_nodes_in_block[idx];
   }
 
   HypernodeID nodeWeightOfBlock(const PartitionID block) const {
     ASSERT(block > kInvalidPartition && block < _k);
     const size_t idx = _block_to_idx[block];
-    return idx == INVALID_IDX ? 0 : _node_weight_of_block[block];
+    return idx == INVALID_IDX ? 0 : _node_weight_of_block[idx];
   }
 
   // ####################### Modifiers ######################
 
-  void addNode(const HypernodeID hn, const PartitionedHypergraph& phg) {
-    const PartitionID block = phg.partID(hn);
-    ASSERT(!_locked_blocks[block]);
+  void addBlock(const PartitionID block) {
     size_t idx = _block_to_idx[block];
     if ( idx == INVALID_IDX ) {
       idx = _contained_blocks.size();
@@ -107,7 +109,13 @@ class AdvancedProblemStats {
       _num_nodes_in_block.push_back(0);
       _node_weight_of_block.push_back(0);
     }
+  }
+
+  void addNode(const HypernodeID hn, const PartitionedHypergraph& phg) {
+    const PartitionID block = phg.partID(hn);
+    ASSERT(!_locked_blocks[block]);
     // Increment stats
+    size_t idx = _block_to_idx[block];
     ASSERT(idx != INVALID_IDX && _contained_blocks[idx] == block);
     const HypernodeWeight node_weight = phg.nodeWeight(0);
     ++_num_nodes_in_block[idx];

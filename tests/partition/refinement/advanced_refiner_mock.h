@@ -31,10 +31,12 @@
 namespace mt_kahypar {
 
 using RefineFunc = std::function<MoveSequence(const PartitionedHypergraph&, const vec<HypernodeID>&, const size_t)>;
+using MaxProblemSizeFunc = std::function<bool(AdvancedProblemStats&)>;
 
 class AdvancedRefinerMockControl {
 
   #define NOOP_REFINE_FUNC [] (const PartitionedHypergraph&, const vec<HypernodeID>&, const size_t) { return MoveSequence { {}, 0 }; }
+  #define NOOP_MAX_PROB_SIZE_FUNC [&] (AdvancedProblemStats&) { return false; }
 
  public:
   AdvancedRefinerMockControl(const AdvancedRefinerMockControl&) = delete;
@@ -50,27 +52,21 @@ class AdvancedRefinerMockControl {
 
  private:
   explicit AdvancedRefinerMockControl() :
-    max_num_nodes(std::numeric_limits<HypernodeID>::max()),
-    max_num_edges(std::numeric_limits<HyperedgeID>::max()),
-    max_num_pins(std::numeric_limits<HypernodeID>::max()),
     max_num_blocks(2),
-    refine_func(NOOP_REFINE_FUNC) { }
+    refine_func(NOOP_REFINE_FUNC),
+    max_prob_size_func(NOOP_MAX_PROB_SIZE_FUNC) { }
 
  public:
 
   void reset() {
-    max_num_nodes = std::numeric_limits<HypernodeID>::max();
-    max_num_edges = std::numeric_limits<HyperedgeID>::max();
-    max_num_pins = std::numeric_limits<HypernodeID>::max();
     max_num_blocks = 2;
     refine_func = NOOP_REFINE_FUNC;
+    max_prob_size_func = NOOP_MAX_PROB_SIZE_FUNC;
   }
 
-  HypernodeID max_num_nodes;
-  HyperedgeID max_num_edges;
-  HypernodeID max_num_pins;
   PartitionID max_num_blocks;
   RefineFunc refine_func;
+  MaxProblemSizeFunc max_prob_size_func;
 };
 
 class AdvancedRefinerMock final : public IAdvancedRefiner {
@@ -80,12 +76,10 @@ class AdvancedRefinerMock final : public IAdvancedRefiner {
                                const Context& context,
                                const TaskGroupID) :
     _context(context),
-    _max_num_nodes(AdvancedRefinerMockControl::instance().max_num_nodes),
-    _max_num_edges(AdvancedRefinerMockControl::instance().max_num_edges),
-    _max_num_pins(AdvancedRefinerMockControl::instance().max_num_pins),
     _max_num_blocks(AdvancedRefinerMockControl::instance().max_num_blocks),
     _num_threads(0),
-    _refine_func(AdvancedRefinerMockControl::instance().refine_func)  { }
+    _refine_func(AdvancedRefinerMockControl::instance().refine_func),
+    _max_prob_size_func(AdvancedRefinerMockControl::instance().max_prob_size_func)  { }
 
   AdvancedRefinerMock(const AdvancedRefinerMock&) = delete;
   AdvancedRefinerMock(AdvancedRefinerMock&&) = delete;
@@ -113,18 +107,14 @@ class AdvancedRefinerMock final : public IAdvancedRefiner {
   }
 
   bool isMaximumProblemSizeReachedImpl(AdvancedProblemStats& stats) const {
-    return stats.numNodes() >= _max_num_nodes ||
-           stats.numEdges() >= _max_num_edges ||
-           stats.numPins() >= _max_num_pins;
+    return _max_prob_size_func(stats);
   }
 
   const Context& _context;
-  const HypernodeID _max_num_nodes;
-  const HyperedgeID _max_num_edges;
-  const HypernodeID _max_num_pins;
   const PartitionID _max_num_blocks;
   size_t _num_threads;
   RefineFunc _refine_func;
+  MaxProblemSizeFunc _max_prob_size_func;
 };
 
 #define REGISTER_ADVANCED_REFINER(id, refiner)                                                                            \
