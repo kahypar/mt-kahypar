@@ -92,7 +92,7 @@ class AdvancedProblemStats {
     return idx == INVALID_IDX ? 0 : _num_nodes_in_block[idx];
   }
 
-  HypernodeID nodeWeightOfBlock(const PartitionID block) const {
+  HypernodeWeight nodeWeightOfBlock(const PartitionID block) const {
     ASSERT(block > kInvalidPartition && block < _k);
     const size_t idx = _block_to_idx[block];
     return idx == INVALID_IDX ? 0 : _node_weight_of_block[idx];

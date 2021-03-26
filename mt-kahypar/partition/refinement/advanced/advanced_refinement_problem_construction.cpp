@@ -93,8 +93,8 @@ void AdvancedRefinementProblemConstruction::ConstructionData::pop_hypernode(Hype
   if ( !is_empty() ) {
     // BFS Queues are visited in round-robin fashion
     bool found = false;
-    idx = last_idx++ % used_slots;
     while ( !found ) {
+      idx = last_idx++ % used_slots;
       // If the current bfs queue is empty,
       // we swap it with queue for the next layer
       if ( bfs[idx].is_empty() ) {
