@@ -40,7 +40,7 @@ namespace mt_kahypar {
                                     IPTaskList ip_tasks) :
             _ip_data(ip_data),
             _context(context),
-            _ip_tasks(ip_tasks) { }
+            _ip_tasks(ip_tasks) { }   // TODO use std::move to avoid copy!
 
     tbb::task* execute() override {
       DoNothingContinuation& task_continuation = *new(allocate_continuation()) DoNothingContinuation();

@@ -136,7 +136,7 @@ class InitialPartitioningDataContainer {
     void add_run(const InitialPartitioningAlgorithm algorithm,
                  const HyperedgeWeight quality,
                  const bool is_feasible) {
-      std::lock_guard<std::mutex> _lock(_stat_mutex);
+      std::lock_guard<std::mutex> _lock(_stat_mutex);   // TODO source of non-determinism!
       const uint8_t algo_idx = static_cast<uint8_t>(algorithm);
       _stats[algo_idx].add_run(quality);
       if ( is_feasible && quality < _best_quality ) {
