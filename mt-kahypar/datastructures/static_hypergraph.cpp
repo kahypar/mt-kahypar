@@ -340,8 +340,6 @@ namespace mt_kahypar::ds {
       auto& hyperedge_bucket = hyperedge_hash_map.getBucket(bucket);
       std::sort(hyperedge_bucket.begin(), hyperedge_bucket.end(),
                 [&](const ContractedHyperedgeInformation& lhs, const ContractedHyperedgeInformation& rhs) {
-                  //return lhs.hash < rhs.hash || (lhs.hash == rhs.hash && lhs.size < rhs.size);
-                  // TODO source of non-determinism
                   return std::tie(lhs.hash, lhs.size, lhs.he) < std::tie(rhs.hash, rhs.size, rhs.he);
                 });
 
