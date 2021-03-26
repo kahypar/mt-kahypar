@@ -155,6 +155,7 @@ class InitialPartitioningDataContainer {
     // ! runs of that partitioner.
     bool should_initial_partitioner_run(const InitialPartitioningAlgorithm algorithm) const {
       const uint8_t algo_idx = static_cast<uint8_t>(algorithm);
+      // TODO source of non-determinism
       return !_context.initial_partitioning.use_adaptive_ip_runs ||
              _stats[algo_idx].n < _context.initial_partitioning.min_adaptive_ip_runs ||
              _stats[algo_idx].average_quality - 2.0 * _stats[algo_idx].stddev() <= _best_quality;
