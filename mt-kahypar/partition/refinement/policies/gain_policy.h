@@ -48,7 +48,7 @@ class GainPolicy : public kahypar::meta::PolicyBase {
     _deltas(0),
     _tmp_scores(context.partition.k, 0) { }
 
-  Move computeMaxGainMove(HyperGraph& hypergraph,
+  Move computeMaxGainMove(const HyperGraph& hypergraph,
                           const HypernodeID hn,
                           const bool rebalance = false) {
     return static_cast<Derived*>(this)->computeMaxGainMoveImpl(hypergraph, hn, rebalance);
@@ -105,7 +105,7 @@ class Km1Policy : public GainPolicy<Km1Policy<HyperGraph>, HyperGraph> {
     Base(context),
     _disable_randomization(disable_randomization) { }
 
-  Move computeMaxGainMoveImpl(HyperGraph& hypergraph,
+  Move computeMaxGainMoveImpl(const HyperGraph& hypergraph,
                               const HypernodeID hn,
                               const bool rebalance) {
     HEAVY_REFINEMENT_ASSERT([&] {
@@ -194,7 +194,7 @@ class CutPolicy : public GainPolicy<CutPolicy<HyperGraph>, HyperGraph> {
     Base(context),
     _disable_randomization(disable_randomization) { }
 
-  Move computeMaxGainMoveImpl(HyperGraph& hypergraph,
+  Move computeMaxGainMoveImpl(const HyperGraph& hypergraph,
                               const HypernodeID hn,
                               const bool rebalance) {
     HEAVY_REFINEMENT_ASSERT([&] {

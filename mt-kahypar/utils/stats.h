@@ -164,6 +164,10 @@ class Stats {
     }
   }
 
+  void clear() {
+    _stats.clear();
+  }
+
   friend std::ostream & operator<< (std::ostream& str, const Stats& stats);
 
  private:

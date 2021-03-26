@@ -73,13 +73,13 @@ bool AdvancedRefinementScheduler::refineImpl(
           MoveSequence sequence = _refiner.refine(search_id, phg, refinement_nodes);
           utils::Timer::instance().stop_timer("refine_problem");
 
-          utils::Timer::instance().start_timer("apply_moves", "Apply Moves", true);
           if ( !sequence.moves.empty() ) {
+            utils::Timer::instance().start_timer("apply_moves", "Apply Moves", true);
             HyperedgeWeight delta = applyMoves(sequence);
             overall_delta -= delta;
             success = sequence.state == MoveSequenceState::SUCCESS;
+            utils::Timer::instance().stop_timer("apply_moves");
           }
-          utils::Timer::instance().stop_timer("apply_moves");
         }
 
         _constructor.releaseNodes(search_id, refinement_nodes);
@@ -99,6 +99,7 @@ bool AdvancedRefinementScheduler::refineImpl(
                           V(metrics::objective(phg, _context.partition.objective)));
   best_metrics.updateMetric(current_metric + overall_delta,
     kahypar::Mode::direct_kway, _context.partition.objective);
+  best_metrics.imbalance = metrics::imbalance(phg, _context);
   _stats.update_global_stats();
 
   // Update Gain Cache

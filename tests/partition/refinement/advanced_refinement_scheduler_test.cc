@@ -20,7 +20,10 @@
 
 #include "gmock/gmock.h"
 
+#include "mt-kahypar/io/hypergraph_io.h"
+#include "mt-kahypar/partition/refinement/policies/gain_policy.h"
 #include "mt-kahypar/partition/refinement/advanced/advanced_refinement_scheduler.h"
+#include "tests/partition/refinement/advanced_refiner_mock.h"
 
 using ::testing::Test;
 
@@ -187,4 +190,165 @@ TEST_F(AAdvancedRefinementScheduler, MovesTwoVerticesConcurrentlyWhereOneViolate
   }
   verifyPartWeights(refiner.partWeights(), { 3, 4 });
 }
+
+class AnAdvancedRefinementEndToEnd : public Test {
+
+  using GainCalculator = Km1Policy<PartitionedHypergraph>;
+
+ public:
+  AnAdvancedRefinementEndToEnd() :
+    hg(),
+    phg(),
+    context(),
+    max_part_weights(8, 200),
+    mover(nullptr) {
+
+    context.partition.graph_filename = "../tests/instances/ibm01.hgr";
+    context.partition.k = 8;
+    context.partition.epsilon = 0.03;
+    context.partition.mode = kahypar::Mode::direct_kway;
+    context.partition.objective = kahypar::Objective::km1;
+    context.shared_memory.num_threads = std::thread::hardware_concurrency();
+    context.refinement.advanced.algorithm = AdvancedRefinementAlgorithm::mock;
+    context.refinement.advanced.num_threads_per_search = 1;
+    context.refinement.advanced.num_cut_edges_per_block_pair = 50;
+    context.refinement.advanced.max_bfs_distance = 2;
+
+    // Read hypergraph
+    hg = io::readHypergraphFile(
+      context.partition.graph_filename, TBBNumaArena::GLOBAL_TASK_GROUP);
+    phg = PartitionedHypergraph(
+      context.partition.k, TBBNumaArena::GLOBAL_TASK_GROUP, hg);
+    context.setupPartWeights(hg.totalWeight());
+
+    // Read Partition
+    std::vector<PartitionID> partition;
+    io::readPartitionFile("../tests/instances/ibm01.hgr.part8", partition);
+    phg.doParallelForAllNodes([&](const HypernodeID& hn) {
+      phg.setOnlyNodePart(hn, partition[hn]);
+    });
+    phg.initializePartition(TBBNumaArena::GLOBAL_TASK_GROUP);
+
+    AdvancedRefinerMockControl::instance().reset();
+    // Define maximum problem size function
+    AdvancedRefinerMockControl::instance().max_prob_size_func = [&](AdvancedProblemStats& stats) {
+      bool limit_reached = true;
+      for ( const PartitionID block : stats.containedBlocks() ) {
+        bool block_limit_reached = stats.nodeWeightOfBlock(block) >= max_part_weights[block];
+        if ( block_limit_reached ) stats.lockBlock(block);
+        limit_reached &= block_limit_reached;
+      }
+      return limit_reached;
+    };
+
+    mover = std::make_unique<GainCalculator>(context);
+    // Refine solution with simple label propagation
+    AdvancedRefinerMockControl::instance().refine_func = [&](const PartitionedHypergraph& phg,
+                                                             const vec<HypernodeID>& nodes,
+                                                             const size_t) {
+      MoveSequence sequence { {}, 0 };
+      for ( const HypernodeID& hn : nodes ) {
+        Move move = mover->computeMaxGainMove(phg, hn);
+        ASSERT(move.from == phg.partID(hn));
+        if ( move.from != move.to ) {
+          sequence.moves.emplace_back(std::move(move));
+          sequence.expected_improvement -= move.gain;
+        }
+      }
+      return sequence;
+    };
+
+    // Move approx. 0.5% of the vertices randomly to a different block
+    double p = 0.05;
+    phg.doParallelForAllNodes([&](const HypernodeID& hn) {
+      const int rand_int = utils::Randomize::instance().getRandomInt(0, 100, sched_getcpu());
+      if ( rand_int <= p * 100 ) {
+        const PartitionID from = phg.partID(hn);
+        PartitionID to = utils::Randomize::instance().getRandomInt(
+            0, context.partition.k - 1, sched_getcpu());
+        while ( from == to ) {
+          to = utils::Randomize::instance().getRandomInt(
+            0, context.partition.k - 1, sched_getcpu());
+        }
+        phg.changeNodePart(hn, from, to, context.partition.max_part_weights[to], []{ }, NOOP_FUNC);
+      }
+    });
+
+    utils::Timer::instance().clear();
+    utils::Stats::instance().clear();
+  }
+
+  Hypergraph hg;
+  PartitionedHypergraph phg;
+  Context context;
+  vec<HypernodeWeight> max_part_weights;
+  std::unique_ptr<GainCalculator> mover;
+};
+
+TEST_F(AnAdvancedRefinementEndToEnd, SmokeTestWithTwoBlocksPerRefiner) {
+  const bool debug = false;
+  AdvancedRefinementScheduler scheduler(hg, context, TBBNumaArena::GLOBAL_TASK_GROUP);
+
+  kahypar::Metrics metrics;
+  metrics.cut = metrics::hyperedgeCut(phg);
+  metrics.km1 = metrics::km1(phg);
+  metrics.imbalance = metrics::imbalance(phg, context);
+
+  if ( debug ) {
+    LOG << "Start Solution km1 =" << metrics.km1;
+  }
+
+  scheduler.initialize(phg);
+  scheduler.refine(phg, {}, metrics, 0.0);
+
+  if ( debug ) {
+    LOG << "Final Solution km1 =" << metrics.km1;
+  }
+
+  if ( debug ) {
+    LOG << utils::Timer::instance(true);
+    LOG << utils::Stats::instance();
+  }
+
+  ASSERT_EQ(metrics::km1(phg), metrics.km1);
+  ASSERT_EQ(metrics::imbalance(phg, context), metrics.imbalance);
+  for ( PartitionID i = 0; i < context.partition.k; ++i ) {
+    ASSERT_LE(phg.partWeight(i), context.partition.max_part_weights[i]);
+  }
+}
+
+TEST_F(AnAdvancedRefinementEndToEnd, SmokeTestWithFourBlocksPerRefiner) {
+  const bool debug = false;
+  AdvancedRefinerMockControl::instance().max_num_blocks = 4;
+  AdvancedRefinementScheduler scheduler(hg, context, TBBNumaArena::GLOBAL_TASK_GROUP);
+
+  kahypar::Metrics metrics;
+  metrics.cut = metrics::hyperedgeCut(phg);
+  metrics.km1 = metrics::km1(phg);
+  metrics.imbalance = metrics::imbalance(phg, context);
+
+  if ( debug ) {
+    LOG << "Start Solution km1 =" << metrics.km1;
+  }
+
+  scheduler.initialize(phg);
+  scheduler.refine(phg, {}, metrics, 0.0);
+
+  if ( debug ) {
+    LOG << "Final Solution km1 =" << metrics.km1;
+  }
+
+  if ( debug ) {
+    LOG << utils::Timer::instance(true);
+    LOG << utils::Stats::instance();
+  }
+
+  ASSERT_EQ(metrics::km1(phg), metrics.km1);
+  ASSERT_EQ(metrics::imbalance(phg, context), metrics.imbalance);
+  for ( PartitionID i = 0; i < context.partition.k; ++i ) {
+    ASSERT_LE(phg.partWeight(i), context.partition.max_part_weights[i]);
+  }
+}
+
+
 }

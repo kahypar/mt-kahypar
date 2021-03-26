@@ -72,6 +72,10 @@ class AdvancedProblemStats {
     return _num_pins;
   }
 
+  bool isBlockContained(const PartitionID block) const {
+    return _block_to_idx[block] != INVALID_IDX;
+  }
+
   PartitionID numContainedBlocks() const {
     return _contained_blocks.size();
   }

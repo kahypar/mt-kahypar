@@ -163,19 +163,26 @@ vec<HypernodeID> AdvancedRefinementProblemConstruction::construct(const SearchID
       ASSERT(hn != kInvalidHypernode);
       ASSERT(queue_idx != std::numeric_limits<size_t>::max());
 
-      const PartitionID block = phg.partID(hn);
+      PartitionID block = phg.partID(hn);
       if ( !stats.isLocked(block) ) {
         // Search aquires ownership of the vertex. Each vertex is only allowed to
         // be part of one search at any time.
         if ( acquire_vertex(search_id, hn) ) {
-          nodes.push_back(hn);
-          stats.addNode(hn, phg);
+          block = phg.partID(hn);
+          // Double-check if vertex is still part of the blocks associated
+          // with the search.
+          if ( stats.isBlockContained(block) ) {
+            nodes.push_back(hn);
+            stats.addNode(hn, phg);
 
-          // Push all neighbors of the added vertex into the queue
-          for ( const HyperedgeID& he : phg.incidentEdges(hn) ) {
-            data.bfs[queue_idx].add_pins_of_hyperedge_to_queue(
-              he, phg, stats,_context.refinement.advanced.max_bfs_distance);
-            stats.addEdge(he);
+            // Push all neighbors of the added vertex into the queue
+            for ( const HyperedgeID& he : phg.incidentEdges(hn) ) {
+              data.bfs[queue_idx].add_pins_of_hyperedge_to_queue(
+                he, phg, stats,_context.refinement.advanced.max_bfs_distance);
+              stats.addEdge(he);
+            }
+          } else {
+            release_vertex(search_id, hn);
           }
         }
       } else {
