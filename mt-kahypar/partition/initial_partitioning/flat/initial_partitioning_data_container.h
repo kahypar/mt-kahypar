@@ -292,6 +292,12 @@ class InitialPartitioningDataContainer {
       }
     }
 
+    void copyPartition(vec<PartitionID>& partition_store) {
+      for (HypernodeID node : _partitioned_hypergraph.nodes()) {
+        partition_store[node] = _partitioned_hypergraph.partID(node);
+      }
+    }
+
     void refineCurrentPartition(kahypar::Metrics& current_metric, std::mt19937& prng) {
       if ( _context.partition.k == 2 && _twoway_fm ) {
         bool improvement = true;
@@ -354,13 +360,19 @@ class InitialPartitioningDataContainer {
       _local_he_visited(_context.partition.k * hypergraph.initialNumEdges()),
       _local_unassigned_hypernodes(),
       _local_unassigned_hypernode_pointer(std::numeric_limits<size_t>::max()),
-      _max_pop_size(_context.shared_memory.num_threads),
-      _best_partitions(_max_pop_size)
+      _max_pop_size(_context.shared_memory.num_threads)
   {
     // Setup Label Propagation IRefiner Config for Initial Partitioning
     _context.refinement = _context.initial_partitioning.refinement;
     _context.refinement.label_propagation.execute_sequential = true;
-    _partitions_population_heap.reserve(_max_pop_size);
+
+    if (_context.partition.deterministic) {
+      _partitions_population_heap.reserve(_max_pop_size);
+      _best_partitions.resize(_max_pop_size);
+      for (size_t i = 0; i < _max_pop_size; ++i) {
+        _best_partitions[i].second.resize(hypergraph.initialNumNodes(), kInvalidPartition);
+      }
+    }
   }
 
   InitialPartitioningDataContainer(const InitialPartitioningDataContainer&) = delete;
@@ -477,16 +489,14 @@ class InitialPartitioningDataContainer {
         worst_in_population = _best_partitions[pos].first;
         if (current_pop_size < _max_pop_size || worst_in_population.is_other_better(my_result, eps)) {
           // remove current worst and replace with my result
-
+          my_ip_data.copyPartition(_best_partitions[pos].second);
         }
         _pop_lock.unlock();
       }
     } else {
       if (my_ip_data._result.is_other_better(my_result, eps)) {
         my_ip_data._result = my_result;
-        for (HypernodeID node : my_ip_data._partitioned_hypergraph.nodes()) {
-          my_ip_data._partition[node] = my_ip_data._partitioned_hypergraph.partID(node);
-        }
+        my_ip_data.copyPartition(my_ip_data._partition);
       }
     }
   }
