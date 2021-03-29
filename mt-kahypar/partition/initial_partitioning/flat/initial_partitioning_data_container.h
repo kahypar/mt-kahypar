@@ -66,7 +66,9 @@ class InitialPartitioningDataContainer {
       return ( improved_metric && (is_other_feasible || improved_imbalance) ) ||
              ( equal_metric && improved_imbalance ) ||
              ( is_other_feasible && !is_feasible ) ||
-             ( improved_imbalance && !is_other_feasible && !is_feasible );
+             ( improved_imbalance && !is_other_feasible && !is_feasible ) ||
+             ( equal_metric && _imbalance == other._imbalance
+                && std::tie(other._random_tag, other._deterministic_tag) < std::tie(_random_tag, _deterministic_tag) );
     }
 
     std::string str() const {
