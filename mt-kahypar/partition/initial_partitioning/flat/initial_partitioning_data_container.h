@@ -553,27 +553,29 @@ class InitialPartitioningDataContainer {
       std::sort(_partitions_population_heap.begin(), _partitions_population_heap.end(), det_comp);
       assert(std::unique(_partitions_population_heap.begin(), _partitions_population_heap.end(), det_comp) == _partitions_population_heap.end());
 
-      auto refinement_task = [&](size_t j) {
-        size_t i = _partitions_population_heap[j];
-        auto& my_data = _local_hg.local();
-        auto& my_phg = my_data._partitioned_hypergraph;
-        vec<PartitionID>& my_partition = _best_partitions[i].second;
-        PartitioningResult& my_objectives = _best_partitions[i].first;
-        std::mt19937 prng(_context.partition.seed + 420 + my_phg.initialNumPins() + i);
-        auto refined = my_data.performRefinementOnPartition(my_partition, my_objectives, prng);
-        if (my_objectives.is_other_better(refined, _context.partition.epsilon)) {
-          for (HypernodeID node : my_phg.nodes()) {
-            my_partition[node] = my_phg.partID(node);
+      if ( _context.initial_partitioning.perform_refinement_on_best_partitions ) {
+        auto refinement_task = [&](size_t j) {
+          size_t i = _partitions_population_heap[j];
+          auto& my_data = _local_hg.local();
+          auto& my_phg = my_data._partitioned_hypergraph;
+          vec<PartitionID>& my_partition = _best_partitions[i].second;
+          PartitioningResult& my_objectives = _best_partitions[i].first;
+          std::mt19937 prng(_context.partition.seed + 420 + my_phg.initialNumPins() + i);
+          auto refined = my_data.performRefinementOnPartition(my_partition, my_objectives, prng);
+          if (my_objectives.is_other_better(refined, _context.partition.epsilon)) {
+            for (HypernodeID node : my_phg.nodes()) {
+              my_partition[node] = my_phg.partID(node);
+            }
+            my_objectives = refined;
           }
-          my_objectives = refined;
-        }
-      };
+        };
 
-      tbb::task_group fm_refinement_group;
-      for (size_t i = 0; i < _partitions_population_heap.size(); ++i) {
-        fm_refinement_group.run(std::bind(refinement_task, i));
+        tbb::task_group fm_refinement_group;
+        for (size_t i = 0; i < _partitions_population_heap.size(); ++i) {
+          fm_refinement_group.run(std::bind(refinement_task, i));
+        }
+        fm_refinement_group.wait();
       }
-      fm_refinement_group.wait();
 
       size_t best_index = 0;
       for (size_t i = 1; i < _best_partitions.size(); ++i) {
