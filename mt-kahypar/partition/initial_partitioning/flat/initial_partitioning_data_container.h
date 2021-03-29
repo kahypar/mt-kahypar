@@ -205,8 +205,7 @@ class InitialPartitioningDataContainer {
       }
     }
 
-    PartitioningResult commit(const InitialPartitioningAlgorithm algorithm, std::mt19937& prng,
-                const double time = 0.0) {
+    PartitioningResult commit(const InitialPartitioningAlgorithm algorithm, std::mt19937& prng, const double time = 0.0) {
       ASSERT([&]() {
           for (const HypernodeID& hn : _partitioned_hypergraph.nodes()) {
             if (_partitioned_hypergraph.partID(hn) == kInvalidPartition) {
@@ -354,23 +353,25 @@ class InitialPartitioningDataContainer {
                                     const Context& context,
                                     const TaskGroupID task_group_id,
                                     const bool disable_fm = false) :
-    _partitioned_hg(hypergraph),
-    _context(context),
-    _task_group_id(task_group_id),
-    _disable_fm(disable_fm),
-    _global_stats(context),
-    _local_hg([&] {
-      return construct_local_partitioned_hypergraph();
-    }),
-    _local_kway_pq(_context.partition.k),
-    _is_local_pq_initialized(false),
-    _local_hn_visited(_context.partition.k * hypergraph.initialNumNodes()),
-    _local_he_visited(_context.partition.k * hypergraph.initialNumEdges()),
-    _local_unassigned_hypernodes(),
-    _local_unassigned_hypernode_pointer(std::numeric_limits<size_t>::max())  {
+      _partitioned_hg(hypergraph),
+      _context(context),
+      _task_group_id(task_group_id),
+      _disable_fm(disable_fm),
+      _global_stats(context),
+      _local_hg([&] { return construct_local_partitioned_hypergraph(); }),
+      _local_kway_pq(_context.partition.k),
+      _is_local_pq_initialized(false),
+      _local_hn_visited(_context.partition.k * hypergraph.initialNumNodes()),
+      _local_he_visited(_context.partition.k * hypergraph.initialNumEdges()),
+      _local_unassigned_hypernodes(),
+      _local_unassigned_hypernode_pointer(std::numeric_limits<size_t>::max()),
+      _max_pop_size(_context.shared_memory.num_threads),
+      _best_partitions(_max_pop_size)
+  {
     // Setup Label Propagation IRefiner Config for Initial Partitioning
     _context.refinement = _context.initial_partitioning.refinement;
     _context.refinement.label_propagation.execute_sequential = true;
+    _partitions_population_heap.reserve(_max_pop_size);
   }
 
   InitialPartitioningDataContainer(const InitialPartitioningDataContainer&) = delete;
@@ -476,19 +477,18 @@ class InitialPartitioningDataContainer {
 
       // TODO generate random tag!
       const double eps = _context.partition.epsilon;
-      size_t current_pop_size = partitions_population_heap.size();
-      size_t max_pop_size = _context.shared_memory.num_threads;
-      PartitioningResult worst_in_population = best_partitions[ partitions_population_heap[0] ].first;
-      if (current_pop_size < max_pop_size || worst_in_population.is_other_better(my_result, eps)) {
-        pop_lock.lock();
-        current_pop_size = partitions_population_heap.size();
-        size_t pos = partitions_population_heap[0];
-        worst_in_population = best_partitions[pos].first;
-        if (current_pop_size < max_pop_size || worst_in_population.is_other_better(my_result, eps)) {
+      size_t current_pop_size = _partitions_population_heap.size();
+      PartitioningResult worst_in_population = _best_partitions[ _partitions_population_heap[0] ].first;
+      if (current_pop_size < _max_pop_size || worst_in_population.is_other_better(my_result, eps)) {
+        _pop_lock.lock();
+        current_pop_size = _partitions_population_heap.size();
+        size_t pos = _partitions_population_heap[0];
+        worst_in_population = _best_partitions[pos].first;
+        if (current_pop_size < _max_pop_size || worst_in_population.is_other_better(my_result, eps)) {
           // remove current worst and replace with my result
 
         }
-        pop_lock.unlock();
+        _pop_lock.unlock();
       }
     }
   }
@@ -509,8 +509,8 @@ class InitialPartitioningDataContainer {
     HyperedgeWeight best_feasible_objective = std::numeric_limits<HyperedgeWeight>::max();
 
     if ( _context.partition.deterministic ) {
-      assert(partitions_population_heap.size() == best_partitions.size());
-      assert(best_partitions.size() <= _context.shared_memory.num_threads);
+      assert(_partitions_population_heap.size() == _best_partitions.size());
+      assert(_best_partitions.size() <= _context.shared_memory.num_threads);
       for (auto& p : _local_hg) {
         ++number_of_threads;
         p.aggregate_stats(stats);
@@ -518,17 +518,17 @@ class InitialPartitioningDataContainer {
 
       // bring them in a deterministic order
       auto det_comp = [&](size_t lhs, size_t rhs) {
-        return best_partitions[lhs].first._deterministic_tag < best_partitions[rhs].first._deterministic_tag;
+        return _best_partitions[lhs].first._deterministic_tag < _best_partitions[rhs].first._deterministic_tag;
       };
-      std::sort(partitions_population_heap.begin(), partitions_population_heap.end(), det_comp);
-      assert(std::unique(partitions_population_heap.begin(), partitions_population_heap.end(), det_comp) == partitions_population_heap.end());
+      std::sort(_partitions_population_heap.begin(), _partitions_population_heap.end(), det_comp);
+      assert(std::unique(_partitions_population_heap.begin(), _partitions_population_heap.end(), det_comp) == _partitions_population_heap.end());
 
       auto refinement_task = [&](size_t j) {
-        size_t i = partitions_population_heap[j];
+        size_t i = _partitions_population_heap[j];
         auto& my_data = _local_hg.local();
         auto& my_phg = my_data._partitioned_hypergraph;
-        vec<PartitionID>& my_partition = best_partitions[i].second;
-        PartitioningResult& my_objectives = best_partitions[i].first;
+        vec<PartitionID>& my_partition = _best_partitions[i].second;
+        PartitioningResult& my_objectives = _best_partitions[i].first;
         std::mt19937 prng(_context.partition.seed + 420 + my_phg.initialNumPins() + i);
         auto refined = my_data.performRefinementOnPartition(my_partition, my_objectives, prng);
         if (my_objectives.is_other_better(refined, _context.partition.epsilon)) {
@@ -540,21 +540,21 @@ class InitialPartitioningDataContainer {
       };
 
       tbb::task_group fm_refinement_group;
-      for (size_t i = 0; i < partitions_population_heap.size(); ++i) {
+      for (size_t i = 0; i < _partitions_population_heap.size(); ++i) {
         fm_refinement_group.run(std::bind(refinement_task, i));
       }
       fm_refinement_group.wait();
 
       size_t best_index = 0;
-      for (size_t i = 1; i < best_partitions.size(); ++i) {
-        if (best_partitions[best_index].first.is_other_better( best_partitions[i].first, _context.partition.epsilon) ) {
+      for (size_t i = 1; i < _best_partitions.size(); ++i) {
+        if (_best_partitions[best_index].first.is_other_better(_best_partitions[i].first, _context.partition.epsilon) ) {
           best_index = i;
         }
       }
 
-      best_flat_algo = best_partitions[best_index].first._algorithm;
-      best_feasible_objective = best_partitions[best_index].first._objective;
-      const vec<PartitionID>& best_partition = best_partitions[best_index].second;
+      best_flat_algo = _best_partitions[best_index].first._algorithm;
+      best_feasible_objective = _best_partitions[best_index].first._objective;
+      const vec<PartitionID>& best_partition = _best_partitions[best_index].second;
 
       for (HypernodeID node : _partitioned_hg.nodes()) {
         _partitioned_hg.setOnlyNodePart(node, best_partition[node]);
@@ -633,7 +633,7 @@ class InitialPartitioningDataContainer {
   }
 
   PartitionedHypergraph& _partitioned_hg;
-  Context _context;
+  Context _context;   // TODO why is this a copy? only for label propagation refinement parameters? ...
   const TaskGroupID _task_group_id;
   const bool _disable_fm;
 
@@ -648,9 +648,10 @@ class InitialPartitioningDataContainer {
   ThreadLocalUnassignedHypernodes _local_unassigned_hypernodes;
   tbb::enumerable_thread_specific<size_t> _local_unassigned_hypernode_pointer;
 
-  vec<size_t> partitions_population_heap;
-  vec< std::pair<PartitioningResult, vec<PartitionID>>  > best_partitions;
-  SpinLock pop_lock;
+  size_t _max_pop_size;
+  SpinLock _pop_lock;
+  vec<size_t> _partitions_population_heap;
+  vec< std::pair<PartitioningResult, vec<PartitionID>>  > _best_partitions;
 };
 
 } // namespace mt_kahypar
