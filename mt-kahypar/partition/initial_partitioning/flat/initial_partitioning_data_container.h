@@ -485,7 +485,7 @@ class InitialPartitioningDataContainer {
     const double eps = _context.partition.epsilon;
     if ( _context.partition.deterministic ) {
       // apply result to shared pool
-      my_result._random_tag = prng();
+      my_result._random_tag = prng();   // this is deterministic since we call the prng owned exclusively by the flat IP algo object
       PartitioningResult worst_in_population = _best_partitions[ _partitions_population_heap[0] ].first;
       if (worst_in_population.is_other_better(my_result, eps)) {
         _pop_lock.lock();
