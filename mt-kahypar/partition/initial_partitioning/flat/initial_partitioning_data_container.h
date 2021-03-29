@@ -517,6 +517,12 @@ class InitialPartitioningDataContainer {
     }
   }
 
+  void commit(InitialPartitioningAlgorithm algorithm) {
+    // dummy values for tests
+    std::mt19937 prng(420);
+    commit(algorithm, prng, 420);
+  }
+
   /*!
    * Determines the best partition computed by all threads and applies it to
    * the hypergraph. Note, this function is not thread-safe and should be called
