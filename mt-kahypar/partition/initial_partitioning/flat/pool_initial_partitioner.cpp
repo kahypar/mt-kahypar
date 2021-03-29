@@ -40,7 +40,7 @@ namespace mt_kahypar {
                                     IPTaskList ip_tasks) :
             _ip_data(ip_data),
             _context(context),
-            _ip_tasks(ip_tasks) { }   // TODO use std::move to avoid copy!
+            _ip_tasks(std::move(ip_tasks)) { }
 
     tbb::task* execute() override {
       DoNothingContinuation& task_continuation = *new(allocate_continuation()) DoNothingContinuation();
@@ -109,7 +109,7 @@ namespace mt_kahypar {
       // tasks are more evenly distributed among the tbb task queues of all threads.
       tbb::task::spawn(*new(continuation_task.allocate_child())
               SpawnInitialPartitionerTaskList(
-              continuation_task._ip_data, context, continuation_task._ip_task_lists[i]));
+              continuation_task._ip_data, context, std::move(continuation_task._ip_task_lists[i])));
     }
   }
 
