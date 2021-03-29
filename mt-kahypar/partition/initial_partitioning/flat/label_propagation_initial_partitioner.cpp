@@ -128,7 +128,7 @@ tbb::task* LabelPropagationInitialPartitioner::execute() {
 
     HighResClockTimepoint end = std::chrono::high_resolution_clock::now();
     double time = std::chrono::duration<double>(end - start).count();
-    _ip_data.commit(InitialPartitioningAlgorithm::label_propagation, time);
+    _ip_data.commit(InitialPartitioningAlgorithm::label_propagation, _rng, _tag, time);
   }
   return nullptr;
 }

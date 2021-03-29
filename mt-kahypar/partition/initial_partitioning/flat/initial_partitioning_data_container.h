@@ -45,7 +45,9 @@ class InitialPartitioningDataContainer {
 
   // ! Contains information about the best thread local partition
   struct PartitioningResult {
-    explicit PartitioningResult(InitialPartitioningAlgorithm algorithm,
+    PartitioningResult() = default;
+
+    PartitioningResult(InitialPartitioningAlgorithm algorithm,
                                 HyperedgeWeight objective_ip,
                                 HyperedgeWeight objective,
                                 double imbalance) :
@@ -369,8 +371,6 @@ class InitialPartitioningDataContainer {
       _partitions_population_heap.resize(_max_pop_size);
       std::iota(_partitions_population_heap.begin(), _partitions_population_heap.end(), 0);
       _best_partitions.resize(_max_pop_size);
-
-      // TODO alloc parallel?
       for (size_t i = 0; i < _max_pop_size; ++i) {
         _best_partitions[i].second.resize(hypergraph.initialNumNodes(), kInvalidPartition);
       }
@@ -478,7 +478,8 @@ class InitialPartitioningDataContainer {
    * the best local partition, if it has a better quality (or better imbalance).
    * Partition on the local hypergraph is resetted afterwards.
    */
-  void commit(const InitialPartitioningAlgorithm algorithm, std::mt19937& prng, const double time = 0.0) {
+  void commit(const InitialPartitioningAlgorithm algorithm, std::mt19937& prng, size_t deterministic_tag,
+              const double time = 0.0) {
     // already commits the result if non-deterministic
     auto& my_ip_data = _local_hg.local();
     auto my_result = my_ip_data.refineAndUpdateStats(algorithm, prng, time);
@@ -486,6 +487,7 @@ class InitialPartitioningDataContainer {
     if ( _context.partition.deterministic ) {
       // apply result to shared pool
       my_result._random_tag = prng();   // this is deterministic since we call the prng owned exclusively by the flat IP algo object
+      my_result._deterministic_tag = deterministic_tag;
       PartitioningResult worst_in_population = _best_partitions[ _partitions_population_heap[0] ].first;
       if (worst_in_population.is_other_better(my_result, eps)) {
         _pop_lock.lock();

@@ -98,7 +98,7 @@ tbb::task* BFSInitialPartitioner::execute() {
 
       HighResClockTimepoint end = std::chrono::high_resolution_clock::now();
       double time = std::chrono::duration<double>(end - start).count();
-      _ip_data.commit(InitialPartitioningAlgorithm::bfs, time);
+      _ip_data.commit(InitialPartitioningAlgorithm::bfs, _rng, _tag, time);
     }
     return nullptr;
 }

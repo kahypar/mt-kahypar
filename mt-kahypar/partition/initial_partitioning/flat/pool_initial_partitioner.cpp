@@ -46,10 +46,10 @@ namespace mt_kahypar {
       DoNothingContinuation& task_continuation = *new(allocate_continuation()) DoNothingContinuation();
       task_continuation.set_ref_count(_ip_tasks.size());
       // Spawn Initial Partitioner Tasks
-      for ( const auto& [algorithm, seed] : _ip_tasks ) {
+      for ( const auto& [algorithm, seed, tag] : _ip_tasks ) {
         std::unique_ptr<tbb::task> initial_partitioner_ptr =
                 FlatInitialPartitionerFactory::getInstance().createObject(
-                        algorithm, &task_continuation, algorithm, _ip_data, _context, seed);
+                        algorithm, &task_continuation, algorithm, _ip_data, _context, seed, tag);
         tbb::task* initial_partitioner = initial_partitioner_ptr.release();
         tbb::task::spawn(*initial_partitioner);
       }
@@ -83,8 +83,8 @@ namespace mt_kahypar {
       if ( context.initial_partitioning.enabled_ip_algos[i] ) {
         auto algorithm = static_cast<InitialPartitioningAlgorithm>(i);
         for ( size_t j = 0; j < _context.initial_partitioning.runs; ++j ) {
-          _ip_task_lists[task_list_idx].emplace_back(algorithm, rng());   // TODO this is non-deterministic with different numbers of threads
-          task_list_idx = (task_list_idx + 1) % _context.shared_memory.num_threads;
+          _ip_task_lists[task_list_idx % _context.shared_memory.num_threads].emplace_back(algorithm, rng(), task_list_idx);   // TODO this is non-deterministic with different numbers of threads
+          task_list_idx++;
         }
       }
     }
