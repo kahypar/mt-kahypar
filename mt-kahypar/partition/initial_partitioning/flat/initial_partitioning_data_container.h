@@ -469,11 +469,27 @@ class InitialPartitioningDataContainer {
    * Partition on the local hypergraph is resetted afterwards.
    */
   void commit(const InitialPartitioningAlgorithm algorithm, std::mt19937& prng, const double time = 0.0) {
-    _local_hg.local().commit(algorithm, prng, time); // already commits the result if non-deterministic
+    // already commits the result if non-deterministic
+    auto my_result = _local_hg.local().commit(algorithm, prng, time);
     if ( _context.partition.deterministic ) {
       // apply result to shared pool
 
       // TODO generate random tag!
+      const double eps = _context.partition.epsilon;
+      size_t current_pop_size = partitions_population_heap.size();
+      size_t max_pop_size = _context.shared_memory.num_threads;
+      PartitioningResult worst_in_population = best_partitions[ partitions_population_heap[0] ].first;
+      if (current_pop_size < max_pop_size || worst_in_population.is_other_better(my_result, eps)) {
+        pop_lock.lock();
+        current_pop_size = partitions_population_heap.size();
+        size_t pos = partitions_population_heap[0];
+        worst_in_population = best_partitions[pos].first;
+        if (current_pop_size < max_pop_size || worst_in_population.is_other_better(my_result, eps)) {
+          // remove current worst and replace with my result
+
+        }
+        pop_lock.unlock();
+      }
     }
   }
 
@@ -493,7 +509,7 @@ class InitialPartitioningDataContainer {
     HyperedgeWeight best_feasible_objective = std::numeric_limits<HyperedgeWeight>::max();
 
     if ( _context.partition.deterministic ) {
-      assert(best_partitions_heap.size() == best_partitions.size());
+      assert(partitions_population_heap.size() == best_partitions.size());
       assert(best_partitions.size() <= _context.shared_memory.num_threads);
       for (auto& p : _local_hg) {
         ++number_of_threads;
@@ -504,11 +520,11 @@ class InitialPartitioningDataContainer {
       auto det_comp = [&](size_t lhs, size_t rhs) {
         return best_partitions[lhs].first._deterministic_tag < best_partitions[rhs].first._deterministic_tag;
       };
-      std::sort(best_partitions_heap.begin(), best_partitions_heap.end(), det_comp);
-      assert(std::unique(best_partitions_heap.begin(), best_partitions_heap.end(), det_comp) == best_partitions_heap.end());
+      std::sort(partitions_population_heap.begin(), partitions_population_heap.end(), det_comp);
+      assert(std::unique(partitions_population_heap.begin(), partitions_population_heap.end(), det_comp) == partitions_population_heap.end());
 
       auto refinement_task = [&](size_t j) {
-        size_t i = best_partitions_heap[j];
+        size_t i = partitions_population_heap[j];
         auto& my_data = _local_hg.local();
         auto& my_phg = my_data._partitioned_hypergraph;
         vec<PartitionID>& my_partition = best_partitions[i].second;
@@ -524,7 +540,7 @@ class InitialPartitioningDataContainer {
       };
 
       tbb::task_group fm_refinement_group;
-      for (size_t i = 0; i < best_partitions_heap.size(); ++i) {
+      for (size_t i = 0; i < partitions_population_heap.size(); ++i) {
         fm_refinement_group.run(std::bind(refinement_task, i));
       }
       fm_refinement_group.wait();
@@ -632,7 +648,7 @@ class InitialPartitioningDataContainer {
   ThreadLocalUnassignedHypernodes _local_unassigned_hypernodes;
   tbb::enumerable_thread_specific<size_t> _local_unassigned_hypernode_pointer;
 
-  vec<size_t> best_partitions_heap;
+  vec<size_t> partitions_population_heap;
   vec< std::pair<PartitioningResult, vec<PartitionID>>  > best_partitions;
   SpinLock pop_lock;
 };
