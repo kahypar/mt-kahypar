@@ -76,10 +76,10 @@ class InitialPartitioningDataContainer {
       return ss.str();
     }
 
-    InitialPartitioningAlgorithm _algorithm;
-    HyperedgeWeight _objective_ip;
-    HyperedgeWeight _objective;
-    double _imbalance;
+    InitialPartitioningAlgorithm _algorithm = InitialPartitioningAlgorithm::UNDEFINED;
+    HyperedgeWeight _objective_ip = std::numeric_limits<HyperedgeWeight>::max();
+    HyperedgeWeight _objective = std::numeric_limits<HyperedgeWeight>::max();
+    double _imbalance = std::numeric_limits<double>::max();
     size_t _random_tag = std::numeric_limits<size_t>::max();
     size_t _deterministic_tag = std::numeric_limits<size_t>::max();
   };
