@@ -57,7 +57,6 @@ class InitialPartitioningDataContainer {
       _imbalance(imbalance) { }
 
     bool is_other_better(const PartitioningResult& other, const double epsilon) const {
-      // TODO source of non-determinism
       bool equal_metric = other._objective == _objective;
       bool improved_metric = other._objective < _objective;
       bool improved_imbalance = other._imbalance < _imbalance;
