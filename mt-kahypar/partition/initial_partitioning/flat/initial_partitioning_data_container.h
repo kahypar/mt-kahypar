@@ -415,7 +415,10 @@ class InitialPartitioningDataContainer {
   void reset_unassigned_hypernodes(std::mt19937& prng) {
     vec<HypernodeID>& unassigned_hypernodes = _local_unassigned_hypernodes.local();
     size_t& unassigned_hypernode_pointer = _local_unassigned_hypernode_pointer.local();
-    if ( unassigned_hypernode_pointer == std::numeric_limits<size_t>::max() ) {
+    if ( unassigned_hypernode_pointer == std::numeric_limits<size_t>::max() || _context.partition.deterministic ) {
+      if ( _context.partition.deterministic ) {
+        unassigned_hypernodes.clear();
+      }
       // In case the local unassigned hypernode vector was not initialized before
       // we initialize it here
       const PartitionedHypergraph& hypergraph = local_partitioned_hypergraph();
@@ -424,7 +427,6 @@ class InitialPartitioningDataContainer {
       }
       std::shuffle(unassigned_hypernodes.begin(), unassigned_hypernodes.end(), prng);
     }
-    // TODO non-deterministic
     unassigned_hypernode_pointer = unassigned_hypernodes.size();
   }
 
