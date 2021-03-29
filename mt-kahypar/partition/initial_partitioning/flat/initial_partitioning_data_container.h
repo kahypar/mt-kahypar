@@ -247,7 +247,7 @@ class InitialPartitioningDataContainer {
       _partitioned_hypergraph.resetPartition();
     }
 
-    void performRefinementOnBestPartition(std::mt19937& prng) {
+    void performRefinementOnBestPartition() {
       kahypar::Metrics current_metric = {
         _result._objective,
         _result._objective,
@@ -264,6 +264,7 @@ class InitialPartitioningDataContainer {
         current_metric.getMetric(kahypar::Mode::direct_kway, _context.partition.objective) ==
         metrics::objective(_partitioned_hypergraph, _context.partition.objective, false));
 
+      std::mt19937 prng(_context.partition.seed + _partitioned_hypergraph.initialNumPins());
       refineCurrentPartition(current_metric, prng);
 
       // Compare current best partition with refined partition
