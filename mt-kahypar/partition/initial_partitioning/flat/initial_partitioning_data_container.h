@@ -156,8 +156,12 @@ class InitialPartitioningDataContainer {
     // ! partitioner produce a new global best partition is too low and prohibit further
     // ! runs of that partitioner.
     bool should_initial_partitioner_run(const InitialPartitioningAlgorithm algorithm) const {
+      return _context.partition.deterministic || should_initial_partitioner_run_ignoring_deterministic(algorithm);
+    }
+
+    bool should_initial_partitioner_run_ignoring_deterministic(const InitialPartitioningAlgorithm algorithm) const {
       const uint8_t algo_idx = static_cast<uint8_t>(algorithm);
-      return !_context.initial_partitioning.use_adaptive_ip_runs || _context.partition.deterministic ||
+      return !_context.initial_partitioning.use_adaptive_ip_runs ||
              _stats[algo_idx].n < _context.initial_partitioning.min_adaptive_ip_runs ||
              _stats[algo_idx].average_quality - 2.0 * _stats[algo_idx].stddev() <= _best_quality;
     }
