@@ -510,10 +510,25 @@ class InitialPartitioningDataContainer {
       };
 
       tbb::task_group fm_refinement_group;
-      for (size_t i = 0; i < best_partitions.size(); ++i) {
+      for (size_t i = 0; i < best_partitions_heap.size(); ++i) {
         fm_refinement_group.run(std::bind(refinement_task, i));
       }
       fm_refinement_group.wait();
+
+      size_t best_index = 0;
+      for (size_t i = 1; i < best_partitions.size(); ++i) {
+        if (best_partitions[best_index].first.is_other_better( best_partitions[i].first, _context.partition.epsilon) ) {
+          best_index = i;
+        }
+      }
+
+      best_flat_algo = best_partitions[best_index].first._algorithm;
+      best_feasible_objective = best_partitions[best_index].first._objective;
+      const vec<PartitionID>& best_partition = best_partitions[best_index].second;
+
+      for (HypernodeID node : _partitioned_hg.nodes()) {
+        _partitioned_hg.setOnlyNodePart(node, best_partition[node]);
+      }
 
     } else {
       // Perform FM refinement on the best partition of each thread
