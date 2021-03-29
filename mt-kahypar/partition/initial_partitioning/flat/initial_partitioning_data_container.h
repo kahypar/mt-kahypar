@@ -205,7 +205,7 @@ class InitialPartitioningDataContainer {
       }
     }
 
-    void commit(const InitialPartitioningAlgorithm algorithm, std::mt19937& prng,
+    PartitioningResult commit(const InitialPartitioningAlgorithm algorithm, std::mt19937& prng,
                 const double time = 0.0) {
       ASSERT([&]() {
           for (const HypernodeID& hn : _partitioned_hypergraph.nodes()) {
@@ -226,7 +226,6 @@ class InitialPartitioningDataContainer {
 
       refineCurrentPartition(current_metric, prng);
 
-      // TODO generate random tag!
       PartitioningResult result(algorithm, quality_before_refinement,
         current_metric.getMetric(kahypar::Mode::direct_kway, _context.partition.objective),
         current_metric.imbalance);
@@ -239,19 +238,23 @@ class InitialPartitioningDataContainer {
       _stats[algorithm_index].total_time += time;
       ++_stats[algorithm_index].total_calls;
 
-      if ( _result.is_other_better(result, _context.partition.epsilon) ) {
-        for ( const HypernodeID& hn : _partitioned_hypergraph.nodes() ) {
-          const PartitionID part_id = _partitioned_hypergraph.partID(hn);
-          ASSERT(hn < _partition.size());
-          ASSERT(part_id != kInvalidPartition);
-          _partition[hn] = part_id;
+      if ( !_context.partition.deterministic ) {
+        if ( _result.is_other_better(result, _context.partition.epsilon) ) {
+          for ( const HypernodeID& hn : _partitioned_hypergraph.nodes() ) {
+            const PartitionID part_id = _partitioned_hypergraph.partID(hn);
+            ASSERT(hn < _partition.size());
+            ASSERT(part_id != kInvalidPartition);
+            _partition[hn] = part_id;
+          }
+          _result = result;
         }
-        _result = result;
       }
 
       _global_stats.add_run(algorithm, current_metric.getMetric(kahypar::Mode::direct_kway,
         _context.partition.objective), current_metric.imbalance <= _context.partition.epsilon);
       _partitioned_hypergraph.resetPartition();
+
+      return result;
     }
 
     PartitioningResult performRefinementOnPartition(vec<PartitionID>& partition,
@@ -466,7 +469,12 @@ class InitialPartitioningDataContainer {
    * Partition on the local hypergraph is resetted afterwards.
    */
   void commit(const InitialPartitioningAlgorithm algorithm, std::mt19937& prng, const double time = 0.0) {
-    _local_hg.local().commit(algorithm, prng, time);
+    _local_hg.local().commit(algorithm, prng, time); // already commits the result if non-deterministic
+    if ( _context.partition.deterministic ) {
+      // apply result to shared pool
+
+      // TODO generate random tag!
+    }
   }
 
   /*!
