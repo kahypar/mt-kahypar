@@ -490,6 +490,7 @@ class InitialPartitioningDataContainer {
           my_ip_data.copyPartition(_best_partitions[pos].second);
 
           auto comp = [&](size_t l, size_t r) {
+            // l < r <--> l has a worse partition than r
             return _best_partitions[l].first.is_other_better(_best_partitions[r].first, eps);
           };
 
