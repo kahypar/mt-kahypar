@@ -237,18 +237,6 @@ class InitialPartitioningDataContainer {
       _stats[algorithm_index].total_time += time;
       ++_stats[algorithm_index].total_calls;
 
-      if ( !_context.partition.deterministic ) {
-        if ( _result.is_other_better(result, _context.partition.epsilon) ) {
-          for ( const HypernodeID& hn : _partitioned_hypergraph.nodes() ) {
-            const PartitionID part_id = _partitioned_hypergraph.partID(hn);
-            ASSERT(hn < _partition.size());
-            ASSERT(part_id != kInvalidPartition);
-            _partition[hn] = part_id;
-          }
-          _result = result;
-        }
-      }
-
       _global_stats.add_run(algorithm, current_metric.getMetric(kahypar::Mode::direct_kway,
         _context.partition.objective), current_metric.imbalance <= _context.partition.epsilon);
       _partitioned_hypergraph.resetPartition();
@@ -471,12 +459,14 @@ class InitialPartitioningDataContainer {
    */
   void commit(const InitialPartitioningAlgorithm algorithm, std::mt19937& prng, const double time = 0.0) {
     // already commits the result if non-deterministic
-    auto my_result = _local_hg.local().commit(algorithm, prng, time);
+    auto& my_ip_data = _local_hg.local();
+    auto my_result = my_ip_data.commit(algorithm, prng, time);
+    const double eps = _context.partition.epsilon;
     if ( _context.partition.deterministic ) {
       // apply result to shared pool
 
       // TODO generate random tag!
-      const double eps = _context.partition.epsilon;
+
       size_t current_pop_size = _partitions_population_heap.size();
       PartitioningResult worst_in_population = _best_partitions[ _partitions_population_heap[0] ].first;
       if (current_pop_size < _max_pop_size || worst_in_population.is_other_better(my_result, eps)) {
@@ -489,6 +479,13 @@ class InitialPartitioningDataContainer {
 
         }
         _pop_lock.unlock();
+      }
+    } else {
+      if (my_ip_data._result.is_other_better(my_result, eps)) {
+        my_ip_data._result = my_result;
+        for (HypernodeID node : my_ip_data._partitioned_hypergraph.nodes()) {
+          my_ip_data._partition[node] = my_ip_data._partitioned_hypergraph.partID(node);
+        }
       }
     }
   }
