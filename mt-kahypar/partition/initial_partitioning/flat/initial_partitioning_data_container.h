@@ -279,7 +279,7 @@ class InitialPartitioningDataContainer {
           ASSERT(part_id != kInvalidPartition);
           _partition[hn] = part_id;
         }
-        _result = std::move(result);
+        _result = result;
       }
     }
 
