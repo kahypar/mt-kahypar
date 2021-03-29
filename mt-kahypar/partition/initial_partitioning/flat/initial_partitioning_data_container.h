@@ -199,7 +199,7 @@ class InitialPartitioningDataContainer {
       }
     }
 
-    void commit(const InitialPartitioningAlgorithm algorithm,
+    void commit(const InitialPartitioningAlgorithm algorithm, std::mt19937& prng,
                 const double time = 0.0) {
       ASSERT([&]() {
           for (const HypernodeID& hn : _partitioned_hypergraph.nodes()) {
@@ -218,7 +218,7 @@ class InitialPartitioningDataContainer {
       const HyperedgeWeight quality_before_refinement =
         current_metric.getMetric(kahypar::Mode::direct_kway, _context.partition.objective);
 
-      refineCurrentPartition(current_metric);
+      refineCurrentPartition(current_metric, prng);
 
       PartitioningResult result(algorithm, quality_before_refinement,
         current_metric.getMetric(kahypar::Mode::direct_kway, _context.partition.objective),
@@ -283,11 +283,11 @@ class InitialPartitioningDataContainer {
       }
     }
 
-    void refineCurrentPartition(kahypar::Metrics& current_metric) {
+    void refineCurrentPartition(kahypar::Metrics& current_metric, std::mt19937& prng) {
       if ( _context.partition.k == 2 && _twoway_fm ) {
         bool improvement = true;
         for ( size_t i = 0; i < _context.initial_partitioning.fm_refinment_rounds && improvement; ++i ) {
-          improvement = _twoway_fm->refine(current_metric);
+          improvement = _twoway_fm->refine(current_metric, prng);
         }
       } else if ( _label_propagation ) {
         _label_propagation->initialize(_partitioned_hypergraph);
@@ -398,7 +398,7 @@ class InitialPartitioningDataContainer {
     return _local_he_visited.local();
   }
 
-  void reset_unassigned_hypernodes(std::mt19937& rng) {
+  void reset_unassigned_hypernodes(std::mt19937& prng) {
     vec<HypernodeID>& unassigned_hypernodes = _local_unassigned_hypernodes.local();
     size_t& unassigned_hypernode_pointer = _local_unassigned_hypernode_pointer.local();
     if ( unassigned_hypernode_pointer == std::numeric_limits<size_t>::max() ) {
@@ -408,7 +408,7 @@ class InitialPartitioningDataContainer {
       for ( const HypernodeID& hn : hypergraph.nodes() ) {
         unassigned_hypernodes.push_back(hn);
       }
-      std::shuffle(unassigned_hypernodes.begin(), unassigned_hypernodes.end(), rng);
+      std::shuffle(unassigned_hypernodes.begin(), unassigned_hypernodes.end(), prng);
     }
     // TODO non-deterministic
     unassigned_hypernode_pointer = unassigned_hypernodes.size();
@@ -445,8 +445,8 @@ class InitialPartitioningDataContainer {
    * the best local partition, if it has a better quality (or better imbalance).
    * Partition on the local hypergraph is resetted afterwards.
    */
-  void commit(const InitialPartitioningAlgorithm algorithm, const double time = 0.0) {
-    _local_hg.local().commit(algorithm, time);
+  void commit(const InitialPartitioningAlgorithm algorithm, std::mt19937& prng, const double time = 0.0) {
+    _local_hg.local().commit(algorithm, prng, time);
   }
 
   /*!

@@ -181,7 +181,7 @@ class SequentialTwoWayFmRefiner {
     }
   }
 
-  bool refine(kahypar::Metrics& best_metrics);
+  bool refine(kahypar::Metrics& best_metrics, std::mt19937& prng);
 
  private:
 

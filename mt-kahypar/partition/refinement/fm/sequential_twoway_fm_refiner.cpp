@@ -26,13 +26,11 @@
 
 namespace mt_kahypar {
 
-bool SequentialTwoWayFmRefiner::refine(kahypar::Metrics& best_metrics) {
+bool SequentialTwoWayFmRefiner::refine(kahypar::Metrics& best_metrics, std::mt19937& prng) {
 
   // Activate all border nodes
   _pq.clear();
   _border_vertices.initialize(_phg);
-  // TODO feed prng via parameter
-  std::mt19937 prng(_context.partition.seed);
   std::shuffle(_nodes.begin(), _nodes.end(), prng);
   //utils::Randomize::instance().shuffleVector(_nodes, sched_getcpu());
   for ( const HypernodeID& hn : _nodes ) {
