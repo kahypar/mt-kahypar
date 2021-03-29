@@ -155,8 +155,7 @@ class InitialPartitioningDataContainer {
     // ! runs of that partitioner.
     bool should_initial_partitioner_run(const InitialPartitioningAlgorithm algorithm) const {
       const uint8_t algo_idx = static_cast<uint8_t>(algorithm);
-      // TODO source of non-determinism
-      return !_context.initial_partitioning.use_adaptive_ip_runs ||
+      return !_context.initial_partitioning.use_adaptive_ip_runs || _context.partition.deterministic ||
              _stats[algo_idx].n < _context.initial_partitioning.min_adaptive_ip_runs ||
              _stats[algo_idx].average_quality - 2.0 * _stats[algo_idx].stddev() <= _best_quality;
     }
@@ -411,6 +410,7 @@ class InitialPartitioningDataContainer {
       }
       std::shuffle(unassigned_hypernodes.begin(), unassigned_hypernodes.end(), rng);
     }
+    // TODO non-deterministic
     unassigned_hypernode_pointer = unassigned_hypernodes.size();
   }
 
@@ -465,6 +465,7 @@ class InitialPartitioningDataContainer {
     // Perform FM refinement on the best partition of each thread
     if ( _context.initial_partitioning.perform_refinement_on_best_partitions ) {
       tbb::task_group fm_refinement_group;
+      // TODO non-deterministic
       for ( LocalInitialPartitioningHypergraph& partition : _local_hg ) {
         fm_refinement_group.run([&] {
           partition.performRefinementOnBestPartition();
