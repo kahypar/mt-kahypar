@@ -205,7 +205,8 @@ class InitialPartitioningDataContainer {
       }
     }
 
-    PartitioningResult commit(const InitialPartitioningAlgorithm algorithm, std::mt19937& prng, const double time = 0.0) {
+    PartitioningResult refineAndUpdateStats(const InitialPartitioningAlgorithm algorithm, std::mt19937& prng,
+                                            const double time = 0.0) {
       ASSERT([&]() {
           for (const HypernodeID& hn : _partitioned_hypergraph.nodes()) {
             if (_partitioned_hypergraph.partID(hn) == kInvalidPartition) {
@@ -460,7 +461,7 @@ class InitialPartitioningDataContainer {
   void commit(const InitialPartitioningAlgorithm algorithm, std::mt19937& prng, const double time = 0.0) {
     // already commits the result if non-deterministic
     auto& my_ip_data = _local_hg.local();
-    auto my_result = my_ip_data.commit(algorithm, prng, time);
+    auto my_result = my_ip_data.refineAndUpdateStats(algorithm, prng, time);
     const double eps = _context.partition.epsilon;
     if ( _context.partition.deterministic ) {
       // apply result to shared pool
