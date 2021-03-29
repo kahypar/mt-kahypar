@@ -239,7 +239,7 @@ class InitialPartitioningDataContainer {
           ASSERT(part_id != kInvalidPartition);
           _partition[hn] = part_id;
         }
-        _result = std::move(result);
+        _result = result;
       }
 
       _global_stats.add_run(algorithm, current_metric.getMetric(kahypar::Mode::direct_kway,
@@ -247,7 +247,7 @@ class InitialPartitioningDataContainer {
       _partitioned_hypergraph.resetPartition();
     }
 
-    void performRefinementOnBestPartition() {
+    void performRefinementOnBestPartition(std::mt19937& prng) {
       kahypar::Metrics current_metric = {
         _result._objective,
         _result._objective,
@@ -264,7 +264,7 @@ class InitialPartitioningDataContainer {
         current_metric.getMetric(kahypar::Mode::direct_kway, _context.partition.objective) ==
         metrics::objective(_partitioned_hypergraph, _context.partition.objective, false));
 
-      refineCurrentPartition(current_metric);
+      refineCurrentPartition(current_metric, prng);
 
       // Compare current best partition with refined partition
       PartitioningResult result(_result._algorithm,
