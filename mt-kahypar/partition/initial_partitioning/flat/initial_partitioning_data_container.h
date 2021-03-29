@@ -267,7 +267,6 @@ class InitialPartitioningDataContainer {
 
       refineCurrentPartition(current_metric, prng);
 
-      // TODO generate random tag
       PartitioningResult result(_result._algorithm,
         current_metric.getMetric(kahypar::Mode::direct_kway, _context.partition.objective),
         current_metric.getMetric(kahypar::Mode::direct_kway, _context.partition.objective),
@@ -367,8 +366,11 @@ class InitialPartitioningDataContainer {
     _context.refinement.label_propagation.execute_sequential = true;
 
     if (_context.partition.deterministic) {
-      _partitions_population_heap.reserve(_max_pop_size);
+      _partitions_population_heap.resize(_max_pop_size);
+      std::iota(_partitions_population_heap.begin(), _partitions_population_heap.end(), 0);
       _best_partitions.resize(_max_pop_size);
+
+      // TODO alloc parallel?
       for (size_t i = 0; i < _max_pop_size; ++i) {
         _best_partitions[i].second.resize(hypergraph.initialNumNodes(), kInvalidPartition);
       }
@@ -477,19 +479,23 @@ class InitialPartitioningDataContainer {
     const double eps = _context.partition.epsilon;
     if ( _context.partition.deterministic ) {
       // apply result to shared pool
-
-      // TODO generate random tag!
-
-      size_t current_pop_size = _partitions_population_heap.size();
+      my_result._random_tag = prng();
       PartitioningResult worst_in_population = _best_partitions[ _partitions_population_heap[0] ].first;
-      if (current_pop_size < _max_pop_size || worst_in_population.is_other_better(my_result, eps)) {
+      if (worst_in_population.is_other_better(my_result, eps)) {
         _pop_lock.lock();
-        current_pop_size = _partitions_population_heap.size();
         size_t pos = _partitions_population_heap[0];
         worst_in_population = _best_partitions[pos].first;
-        if (current_pop_size < _max_pop_size || worst_in_population.is_other_better(my_result, eps)) {
+        if (worst_in_population.is_other_better(my_result, eps)) {
           // remove current worst and replace with my result
           my_ip_data.copyPartition(_best_partitions[pos].second);
+
+          auto comp = [&](size_t l, size_t r) {
+            return _best_partitions[l].first.is_other_better(_best_partitions[r].first, eps);
+          };
+
+          std::pop_heap(_partitions_population_heap.begin(), _partitions_population_heap.end(), comp);
+          _best_partitions[pos].first = my_result;
+          std::push_heap(_partitions_population_heap.begin(), _partitions_population_heap.end(), comp);
         }
         _pop_lock.unlock();
       }
