@@ -494,14 +494,13 @@ class InitialPartitioningDataContainer {
         if (worst_in_population.is_other_better(my_result, eps)) {
           // remove current worst and replace with my result
           my_ip_data.copyPartition(_best_partitions[pos].second);
+          _best_partitions[pos].first = my_result;
 
           auto comp = [&](size_t l, size_t r) {
             // l < r <--> l has a worse partition than r
             return _best_partitions[l].first.is_other_better(_best_partitions[r].first, eps);
           };
-
           std::pop_heap(_partitions_population_heap.begin(), _partitions_population_heap.end(), comp);
-          _best_partitions[pos].first = my_result;
           std::push_heap(_partitions_population_heap.begin(), _partitions_population_heap.end(), comp);
           assert(std::is_heap(_partitions_population_heap.begin(), _partitions_population_heap.end(), comp));
         }
