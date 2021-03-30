@@ -403,6 +403,20 @@ namespace mt_kahypar {
                   partition.k,
                   partition.max_part_weights.size());
     }
+
+    if ( partition.deterministic ) {
+      // switch silently
+      auto lp_algo = refinement.label_propagation.algorithm;
+      if ( lp_algo != LabelPropagationAlgorithm::do_nothing && lp_algo != LabelPropagationAlgorithm::deterministic ) {
+        refinement.label_propagation.algorithm = LabelPropagationAlgorithm::deterministic;
+      }
+
+      lp_algo = initial_partitioning.refinement.label_propagation.algorithm;
+      if ( lp_algo != LabelPropagationAlgorithm::do_nothing && lp_algo != LabelPropagationAlgorithm::deterministic ) {
+        initial_partitioning.refinement.label_propagation.algorithm = LabelPropagationAlgorithm::deterministic;
+      }
+      
+    }
   }
 
   std::ostream & operator<< (std::ostream& str, const Context& context) {

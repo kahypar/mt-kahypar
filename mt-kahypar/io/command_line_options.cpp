@@ -51,6 +51,8 @@ namespace mt_kahypar {
     po::options_description options("General Options", num_columns);
     options.add_options()
             ("help", "show help message")
+            ("deterministic", po::value<bool>(&context.partition.deterministic)->value_name("<bool>")->default_value(false),
+             "Enables deterministic partitioning mode where results are reproducible across runs")
             ("verbose,v", po::value<bool>(&context.partition.verbose_output)->value_name("<bool>")->default_value(true),
              "Verbose main partitioning output")
             ("write-partition-file",
