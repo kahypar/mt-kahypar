@@ -588,10 +588,11 @@ class InitialPartitioningDataContainer {
       best_flat_algo = _best_partitions[best_index].first._algorithm;
       best_feasible_objective = _best_partitions[best_index].first._objective;
       const vec<PartitionID>& best_partition = _best_partitions[best_index].second;
+      assert(std::all_of(best_partition.begin(), best_partition.end(), [&](PartitionID p) { return p != kInvalidPartition; }));
 
-      for (HypernodeID node : _partitioned_hg.nodes()) {
+      _partitioned_hg.doParallelForAllNodes([&](HypernodeID node) {
         _partitioned_hg.setOnlyNodePart(node, best_partition[node]);
-      }
+      });
 
     } else {
       // Perform FM refinement on the best partition of each thread
