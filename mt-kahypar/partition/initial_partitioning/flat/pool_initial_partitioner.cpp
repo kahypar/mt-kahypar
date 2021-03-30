@@ -83,7 +83,7 @@ namespace mt_kahypar {
       if ( context.initial_partitioning.enabled_ip_algos[i] ) {
         auto algorithm = static_cast<InitialPartitioningAlgorithm>(i);
         for ( size_t j = 0; j < _context.initial_partitioning.runs; ++j ) {
-          _ip_task_lists[task_list_idx % _context.shared_memory.num_threads].emplace_back(algorithm, rng(), task_list_idx);   // TODO this is non-deterministic with different numbers of threads
+          _ip_task_lists[task_list_idx % _context.shared_memory.num_threads].emplace_back(algorithm, rng(), task_list_idx);
           task_list_idx++;
         }
       }
