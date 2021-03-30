@@ -622,6 +622,10 @@ namespace mt_kahypar {
             + ".KaHyPar";
     context.partition.graph_community_filename =
             context.partition.graph_filename + ".community";
+
+    if (context.partition.deterministic) {
+      context.preprocessing.stable_construction_of_incident_edges = true;
+    }
   }
 
 
@@ -663,6 +667,10 @@ namespace mt_kahypar {
 
     po::store(po::parse_config_file(file, ini_line_options, true), cmd_vm);
     po::notify(cmd_vm);
+
+    if (context.partition.deterministic) {
+      context.preprocessing.stable_construction_of_incident_edges = true;
+    }
   }
 
 }

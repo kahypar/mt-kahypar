@@ -420,6 +420,7 @@ namespace mt_kahypar {
       refinement.fm.algorithm = FMAlgorithm::do_nothing;
       initial_partitioning.refinement.fm.algorithm = FMAlgorithm::do_nothing;
 
+      preprocessing.use_community_detection = false;
     }
   }
 
