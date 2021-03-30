@@ -243,7 +243,6 @@ class InitialPartitioningDataContainer {
 
       _global_stats.add_run(algorithm, current_metric.getMetric(kahypar::Mode::direct_kway,
         _context.partition.objective), current_metric.imbalance <= _context.partition.epsilon);
-      _partitioned_hypergraph.resetPartition();
 
       return result;
     }
@@ -513,8 +512,10 @@ class InitialPartitioningDataContainer {
       if (my_ip_data._result.is_other_better(my_result, eps)) {
         my_ip_data._result = my_result;
         my_ip_data.copyPartition(my_ip_data._partition);
+        assert(std::all_of(my_ip_data._partition.begin(), my_ip_data._partition.end(), [&](PartitionID p) { return p != kInvalidPartition; }));
       }
     }
+    my_ip_data._partitioned_hypergraph.resetPartition();
   }
 
   void commit(InitialPartitioningAlgorithm algorithm) {
