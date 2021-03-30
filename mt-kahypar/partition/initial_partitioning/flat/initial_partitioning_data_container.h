@@ -277,8 +277,8 @@ class InitialPartitioningDataContainer {
       return result;
     }
 
-    void performRefinementOnBestPartition() {
-      std::mt19937& prng = utils::Randomize::instance().getGenerator();
+    void performRefinementOnBestPartition(int seed) {
+      std::mt19937 prng(seed);
       auto refined = performRefinementOnPartition(_partition, _result, prng);
 
       // Compare current best partition with refined partition
@@ -484,6 +484,7 @@ class InitialPartitioningDataContainer {
     auto& my_ip_data = _local_hg.local();
     auto my_result = my_ip_data.refineAndUpdateStats(algorithm, prng, time);
     const double eps = _context.partition.epsilon;
+
     if ( _context.partition.deterministic ) {
       // apply result to shared pool
       my_result._random_tag = prng();   // this is deterministic since we call the prng owned exclusively by the flat IP algo object
@@ -596,12 +597,14 @@ class InitialPartitioningDataContainer {
 
     } else {
       // Perform FM refinement on the best partition of each thread
+      int thread_counter = 0;
       if ( _context.initial_partitioning.perform_refinement_on_best_partitions ) {
         tbb::task_group fm_refinement_group;
         for ( LocalInitialPartitioningHypergraph& partition : _local_hg ) {
-          fm_refinement_group.run([&] {
-            partition.performRefinementOnBestPartition();
+          fm_refinement_group.run([&, thread_counter] {
+            partition.performRefinementOnBestPartition(_partitioned_hg.initialNumPins() + thread_counter);
           });
+          thread_counter++;
         }
         fm_refinement_group.wait();
       }
