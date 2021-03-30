@@ -415,7 +415,11 @@ namespace mt_kahypar {
       if ( lp_algo != LabelPropagationAlgorithm::do_nothing && lp_algo != LabelPropagationAlgorithm::deterministic ) {
         initial_partitioning.refinement.label_propagation.algorithm = LabelPropagationAlgorithm::deterministic;
       }
-      
+
+      // disable FM until we have a deterministic version
+      refinement.fm.algorithm = FMAlgorithm::do_nothing;
+      initial_partitioning.refinement.fm.algorithm = FMAlgorithm::do_nothing;
+
     }
   }
 
