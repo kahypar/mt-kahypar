@@ -79,12 +79,43 @@ namespace mt_kahypar {
     // explanation why we do this, see spawn_initial_partitioner(...)
     size_t task_list_idx = 0;
     std::mt19937 rng(context.partition.seed);
-    for ( uint8_t i = 0; i < static_cast<uint8_t>(InitialPartitioningAlgorithm::UNDEFINED); ++i ) {
-      if ( context.initial_partitioning.enabled_ip_algos[i] ) {
-        auto algorithm = static_cast<InitialPartitioningAlgorithm>(i);
-        for ( size_t j = 0; j < _context.initial_partitioning.runs; ++j ) {
-          _ip_task_lists[task_list_idx % _context.shared_memory.num_threads].emplace_back(algorithm, rng(), task_list_idx);
-          task_list_idx++;
+    if (context.partition.deterministic && context.initial_partitioning.use_adaptive_ip_runs) {
+      size_t min_runs_first_pass = std::min(_context.initial_partitioning.min_adaptive_ip_runs, _context.initial_partitioning.runs);
+
+      tbb::task_group tg;
+      for ( uint8_t i = 0; i < static_cast<uint8_t>(InitialPartitioningAlgorithm::UNDEFINED); ++i ) {
+        if ( context.initial_partitioning.enabled_ip_algos[i] ) {
+          auto algorithm = static_cast<InitialPartitioningAlgorithm>(i);
+          for ( size_t j = 0; j < min_runs_first_pass; ++j ) {
+            int seed = rng();
+            int tag = task_list_idx;
+            tg.run([&, algorithm, seed, tag] {
+              // garbage task to make the factory function happy
+              DoNothingContinuation& task_continuation = *new(allocate_continuation()) DoNothingContinuation();
+              task_continuation.set_ref_count(1);   // TODO I'm worried that this thing doesn't get properly destroyed --> resource leaks
+              auto ip_ptr = FlatInitialPartitionerFactory::getInstance().
+                      createObject(algorithm, &task_continuation, algorithm, _ip_data, _context, seed, tag);
+              ip_ptr->execute();
+            });
+            _ip_task_lists[task_list_idx % _context.shared_memory.num_threads].emplace_back(algorithm, rng(), task_list_idx);
+            task_list_idx++;
+          }
+        }
+      }
+
+      tg.wait();
+
+      // TODO do it again
+
+      _ip_data.apply();   // the children are never spawned so execute never gets called!
+    } else {
+      for ( uint8_t i = 0; i < static_cast<uint8_t>(InitialPartitioningAlgorithm::UNDEFINED); ++i ) {
+        if ( context.initial_partitioning.enabled_ip_algos[i] ) {
+          auto algorithm = static_cast<InitialPartitioningAlgorithm>(i);
+          for ( size_t j = 0; j < _context.initial_partitioning.runs; ++j ) {
+            _ip_task_lists[task_list_idx % _context.shared_memory.num_threads].emplace_back(algorithm, rng(), task_list_idx);
+            task_list_idx++;
+          }
         }
       }
     }
@@ -98,18 +129,20 @@ namespace mt_kahypar {
   void spawn_initial_partitioner(PoolInitialPartitionerContinuation& continuation_task ) {
     // Spawn Initial Partitioner
     const Context& context = continuation_task._context;
-    continuation_task.set_ref_count(context.shared_memory.num_threads);
-    for ( size_t i = 0; i < context.shared_memory.num_threads; ++i ) {
-      // Note, we first spawn exactly num threads tasks that spawns a subset
-      // of the initial partitioner tasks. Alternatively, we could also spawn
-      // all initial partitioner tasks directly here, but this would insert
-      // all tasks into the tbb task queue of one thread from which the other
-      // threads have to steal from. This can become a major sequential bottleneck.
-      // Therefore, we introduce that indirection such that the initial partitioner
-      // tasks are more evenly distributed among the tbb task queues of all threads.
-      tbb::task::spawn(*new(continuation_task.allocate_child())
-              SpawnInitialPartitionerTaskList(
-              continuation_task._ip_data, context, std::move(continuation_task._ip_task_lists[i])));
+    if (!context.partition.deterministic || !context.initial_partitioning.use_adaptive_ip_runs) {
+      continuation_task.set_ref_count(context.shared_memory.num_threads);
+      for ( size_t i = 0; i < context.shared_memory.num_threads; ++i ) {
+        // Note, we first spawn exactly num threads tasks that spawns a subset
+        // of the initial partitioner tasks. Alternatively, we could also spawn
+        // all initial partitioner tasks directly here, but this would insert
+        // all tasks into the tbb task queue of one thread from which the other
+        // threads have to steal from. This can become a major sequential bottleneck.
+        // Therefore, we introduce that indirection such that the initial partitioner
+        // tasks are more evenly distributed among the tbb task queues of all threads.
+        tbb::task::spawn(*new(continuation_task.allocate_child())
+                SpawnInitialPartitionerTaskList(
+                continuation_task._ip_data, context, std::move(continuation_task._ip_task_lists[i])));
+      }
     }
   }
 
