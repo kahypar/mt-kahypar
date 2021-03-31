@@ -569,6 +569,9 @@ class InitialPartitioningDataContainer {
           PartitioningResult& my_objectives = _best_partitions[i].first;
           std::mt19937 prng(_context.partition.seed + 420 + my_phg.initialNumPins() + i);
           auto refined = my_data.performRefinementOnPartition(my_partition, my_objectives, prng);
+          refined._deterministic_tag = my_objectives._deterministic_tag;
+          refined._random_tag = my_objectives._random_tag;
+
           if (my_objectives.is_other_better(refined, _context.partition.epsilon)) {
             for (HypernodeID node : my_phg.nodes()) {
               my_partition[node] = my_phg.partID(node);
