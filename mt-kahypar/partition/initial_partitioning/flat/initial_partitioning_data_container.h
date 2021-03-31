@@ -377,7 +377,7 @@ class InitialPartitioningDataContainer {
 
       auto comp = [&](size_t l, size_t r) {
         // l < r <--> l has a worse partition than r
-        return _best_partitions[l].first.is_other_better(_best_partitions[r].first, _context.partition.epsilon);
+        return _best_partitions[r].first.is_other_better(_best_partitions[l].first, _context.partition.epsilon);
       };
       assert(std::is_heap(_partitions_population_heap.begin(), _partitions_population_heap.end(), comp));
     }
@@ -501,7 +501,8 @@ class InitialPartitioningDataContainer {
 
           auto comp = [&](size_t l, size_t r) {
             // l < r <--> l has a worse partition than r
-            return _best_partitions[l].first.is_other_better(_best_partitions[r].first, eps);
+            // if left is better --> move it down in the heap
+            return _best_partitions[r].first.is_other_better(_best_partitions[l].first, eps);
           };
           std::pop_heap(_partitions_population_heap.begin(), _partitions_population_heap.end(), comp);
           std::push_heap(_partitions_population_heap.begin(), _partitions_population_heap.end(), comp);
