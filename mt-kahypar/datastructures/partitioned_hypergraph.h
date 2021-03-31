@@ -989,7 +989,7 @@ private:
 
     // Construct hypergraph
     Hypergraph extracted_hypergraph = HypergraphFactory::construct(num_hypernodes, num_hyperedges,
-            edge_vector, hyperedge_weight.data(), hypernode_weight.data());
+            edge_vector, hyperedge_weight.data(), hypernode_weight.data(), stable_construction_of_incident_edges);
 
     // Set community ids
     doParallelForAllNodes([&](const HypernodeID& hn) {
