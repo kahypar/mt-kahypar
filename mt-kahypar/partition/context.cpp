@@ -420,6 +420,9 @@ namespace mt_kahypar {
       refinement.fm.algorithm = FMAlgorithm::do_nothing;
       initial_partitioning.refinement.fm.algorithm = FMAlgorithm::do_nothing;
 
+      // disable adaptive IP
+      initial_partitioning.use_adaptive_ip_runs = false;
+
       preprocessing.use_community_detection = false;
     }
   }
