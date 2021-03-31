@@ -550,11 +550,15 @@ class InitialPartitioningDataContainer {
       }
 
       // bring them in a deterministic order
-      auto det_comp = [&](size_t lhs, size_t rhs) {
+      auto comp_tag_less = [&](size_t lhs, size_t rhs) {
         return _best_partitions[lhs].first._deterministic_tag < _best_partitions[rhs].first._deterministic_tag;
       };
-      std::sort(_partitions_population_heap.begin(), _partitions_population_heap.end(), det_comp);
-      assert(std::unique(_partitions_population_heap.begin(), _partitions_population_heap.end(), det_comp) == _partitions_population_heap.end());
+      std::sort(_partitions_population_heap.begin(), _partitions_population_heap.end(), comp_tag_less);
+      auto comp_tag_equal = [&](size_t lhs, size_t rhs) {
+        return _best_partitions[lhs].first._deterministic_tag == _best_partitions[rhs].first._deterministic_tag;
+      };
+      assert(std::unique(_partitions_population_heap.begin(), _partitions_population_heap.end(), comp_tag_equal)
+                == _partitions_population_heap.end());
 
       if ( _context.initial_partitioning.perform_refinement_on_best_partitions ) {
         auto refinement_task = [&](size_t j) {

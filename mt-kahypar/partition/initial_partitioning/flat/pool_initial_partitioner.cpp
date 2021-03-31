@@ -31,7 +31,6 @@ namespace mt_kahypar {
     }
   };
 
-
   class SpawnInitialPartitionerTaskList : public tbb::task {
 
   public:
