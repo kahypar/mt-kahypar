@@ -932,7 +932,10 @@ private:
   // ! It also returns a vertex-mapping from the original hypergraph to the sub-hypergraph.
   // ! If cut_net_splitting is activated, hyperedges that span more than one block (cut nets) are split, which is used for the connectivity metric.
   // ! Otherwise cut nets are discarded (cut metric).
-  std::pair<Hypergraph, parallel::scalable_vector<HypernodeID> > extract(const TaskGroupID& task_group_id, PartitionID block, bool cut_net_splitting) {
+  std::pair<Hypergraph, parallel::scalable_vector<HypernodeID> > extract(
+          const TaskGroupID& task_group_id, PartitionID block,
+          bool cut_net_splitting,
+          bool stable_construction_of_incident_edges) {
     ASSERT(block != kInvalidPartition && block < _k);
 
     // Compactify vertex ids

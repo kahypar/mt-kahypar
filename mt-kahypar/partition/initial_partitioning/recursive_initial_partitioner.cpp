@@ -251,10 +251,12 @@ namespace mt_kahypar {
 
   public:
     BisectionTask(PartitionedHypergraph& hypergraph,
+                  const Context& context,
                   const TaskGroupID task_group_id,
                   const PartitionID block,
                   RecursivePartitionResult& result) :
             _hg(hypergraph),
+            _stable_construction_of_incident_edges(context.preprocessing.stable_construction_of_incident_edges),
             _task_group_id(task_group_id),
             _block(block),
             _result(result) { }
@@ -273,7 +275,7 @@ namespace mt_kahypar {
 
       // Extract Block of Hypergraph
       bool cut_net_splitting = _result.context.partition.objective == kahypar::Objective::km1;
-      auto tmp_hypergraph = _hg.extract(_task_group_id, _block, cut_net_splitting);
+      auto tmp_hypergraph = _hg.extract(_task_group_id, _block, cut_net_splitting, _stable_construction_of_incident_edges);
       _result.hypergraph = std::move(tmp_hypergraph.first);
       _result.mapping = std::move(tmp_hypergraph.second);
       _result.partitioned_hypergraph = PartitionedHypergraph(
@@ -291,6 +293,7 @@ namespace mt_kahypar {
 
   private:
     PartitionedHypergraph& _hg;
+    bool _stable_construction_of_incident_edges;
     const TaskGroupID _task_group_id;
     const PartitionID _block;
     RecursivePartitionResult& _result;
@@ -374,7 +377,7 @@ namespace mt_kahypar {
         bisection_continuation.set_ref_count(_context.partition.k / 2 );
         for (PartitionID block = 0; block < _context.partition.k / 2; ++block) {
           tbb::task::spawn(*new(bisection_continuation.allocate_child()) BisectionTask(
-                  _hg, _task_group_id, block, bisection_continuation._results[block]));
+                  _hg, _context, _task_group_id, block, bisection_continuation._results[block]));
         }
       }
       return nullptr;

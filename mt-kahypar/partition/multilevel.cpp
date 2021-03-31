@@ -205,6 +205,7 @@ namespace mt_kahypar::multilevel {
                   PoolInitialPartitionerContinuation(
                   phg, _ip_context, _task_group_id);
           spawn_initial_partitioner(ip_continuation);
+          LOG << "done initial partitioning";
         } else {
           std::unique_ptr<IInitialPartitioner> initial_partitioner =
                   InitialPartitionerFactory::getInstance().createObject(

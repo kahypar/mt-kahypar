@@ -90,6 +90,7 @@ namespace mt_kahypar {
   }
 
   tbb::task* PoolInitialPartitionerContinuation::execute() {
+    LOG << "call apply";
     _ip_data.apply();
     return nullptr;
   }
@@ -110,6 +111,7 @@ namespace mt_kahypar {
               SpawnInitialPartitionerTaskList(
               continuation_task._ip_data, context, std::move(continuation_task._ip_task_lists[i])));
     }
+    LOG << "done spawning";
   }
 
   PoolInitialPartitioner::PoolInitialPartitioner(PartitionedHypergraph& hypergraph,
