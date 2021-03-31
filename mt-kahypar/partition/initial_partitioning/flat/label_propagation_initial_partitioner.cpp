@@ -34,6 +34,15 @@ tbb::task* LabelPropagationInitialPartitioner::execute() {
   if ( _ip_data.should_initial_partitioner_run(InitialPartitioningAlgorithm::label_propagation) ) {
     HighResClockTimepoint start = std::chrono::high_resolution_clock::now();
     PartitionedHypergraph& hg = _ip_data.local_partitioned_hypergraph();
+
+
+    std::mt19937 backup_rng = _rng;
+    vec<PartitionID> first_partition(hg.initialNumNodes(), kInvalidPartition);
+    size_t num_reps = 5;
+    for (size_t rep = 0; rep < num_reps; ++rep) {
+      hg.resetPartition();
+      _rng = backup_rng;
+
     _ip_data.reset_unassigned_hypernodes(_rng);
 
     parallel::scalable_vector<HypernodeID> start_nodes =
@@ -124,6 +133,16 @@ tbb::task* LabelPropagationInitialPartitioner::execute() {
     while ( _ip_data.get_unassigned_hypernode() != kInvalidHypernode ) {
       const HypernodeID unassigned_hn = _ip_data.get_unassigned_hypernode();
       assignVertexToBlockWithMinimumWeight(hg, unassigned_hn);
+    }
+
+
+      if (rep == 0) {
+        for (HypernodeID hn : hg.nodes())
+          first_partition[hn] = hg.partID(hn);
+      } else {
+        for (HypernodeID hn : hg.nodes())
+          assert(first_partition[hn] == hg.partID(hn));
+      }
     }
 
     HighResClockTimepoint end = std::chrono::high_resolution_clock::now();

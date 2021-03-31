@@ -30,7 +30,15 @@ tbb::task* RandomInitialPartitioner::execute() {
     PartitionedHypergraph& hg = _ip_data.local_partitioned_hypergraph();
     std::uniform_int_distribution<PartitionID> select_random_block(0, _context.partition.k - 1);
 
-    for ( const HypernodeID& hn : hg.nodes() ) {
+    std::mt19937 backup_rng = _rng;
+    vec<PartitionID> first_partition(hg.initialNumNodes(), kInvalidPartition);
+    size_t num_reps = 5;
+    for (size_t rep = 0; rep < num_reps; ++rep) {
+      hg.resetPartition();
+      _rng = backup_rng;
+
+
+      for ( const HypernodeID& hn : hg.nodes() ) {
       // Randomly select a block to assign the hypernode
       PartitionID block = select_random_block(_rng);
       PartitionID current_block = block;
@@ -46,6 +54,15 @@ tbb::task* RandomInitialPartitioner::execute() {
         }
       }
       hg.setNodePart(hn, current_block);
+    }
+
+      if (rep == 0) {
+        for (HypernodeID hn : hg.nodes())
+          first_partition[hn] = hg.partID(hn);
+      } else {
+        for (HypernodeID hn : hg.nodes())
+          if (first_partition[hn] != hg.partID(hn)) throw std::runtime_error("non-determinism");
+      }
     }
 
     HighResClockTimepoint end = std::chrono::high_resolution_clock::now();

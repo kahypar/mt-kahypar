@@ -227,7 +227,36 @@ class InitialPartitioningDataContainer {
       const HyperedgeWeight quality_before_refinement =
         current_metric.getMetric(kahypar::Mode::direct_kway, _context.partition.objective);
 
-      refineCurrentPartition(current_metric, prng);
+      kahypar::Metrics current_metric_backup = current_metric;
+      std::mt19937 prng_backup = prng;
+
+      size_t num_reps = 5;
+      vec<PartitionID> input_partition(_partitioned_hypergraph.initialNumNodes(), kInvalidPartition);
+      vec<PartitionID> first_partition(_partitioned_hypergraph.initialNumNodes(), kInvalidPartition);
+      for (HypernodeID hn : _partitioned_hypergraph.nodes()) {
+        input_partition[hn] = _partitioned_hypergraph.partID(hn);
+      }
+      for (size_t rep = 0; rep < num_reps; ++rep) {
+        prng = prng_backup;
+        current_metric = current_metric_backup;
+        _partitioned_hypergraph.resetPartition();
+        for (HypernodeID hn : _partitioned_hypergraph.nodes()) {
+          _partitioned_hypergraph.setNodePart(hn, input_partition[hn]);
+        }
+
+        refineCurrentPartition(current_metric, prng);
+
+        if (rep == 0) {
+          for (HypernodeID hn : _partitioned_hypergraph.nodes()) {
+            first_partition[hn] = _partitioned_hypergraph.partID(hn);
+          }
+        } else {
+          for (HypernodeID hn : _partitioned_hypergraph.nodes()) {
+            if (first_partition[hn] != _partitioned_hypergraph.partID(hn)) throw std::runtime_error("non-determinism");
+          }
+        }
+      }
+
 
       PartitioningResult result(algorithm, quality_before_refinement,
         current_metric.getMetric(kahypar::Mode::direct_kway, _context.partition.objective),
@@ -560,6 +589,16 @@ class InitialPartitioningDataContainer {
       assert(std::unique(_partitions_population_heap.begin(), _partitions_population_heap.end(), comp_tag_equal)
                 == _partitions_population_heap.end());
 
+      std::stringstream sb;
+      sb << _partitioned_hg.initialNumNodes() << " " << _partitioned_hg.initialNumPins() << " before FM" << " -- ";
+      for (size_t i = 0; i < _best_partitions.size(); ++i) {
+        sb << _best_partitions[i].first._deterministic_tag << " ";
+        sb << _best_partitions[i].first._random_tag << " ";
+        sb << _best_partitions[i].first._imbalance << " ";
+        sb << _best_partitions[i].first._objective << " | ";
+      }
+      sb << "\n";
+
       if ( _context.initial_partitioning.perform_refinement_on_best_partitions ) {
         auto refinement_task = [&](size_t j) {
           size_t i = _partitions_population_heap[j];
@@ -598,6 +637,16 @@ class InitialPartitioningDataContainer {
       best_feasible_objective = _best_partitions[best_index].first._objective;
       const vec<PartitionID>& best_partition = _best_partitions[best_index].second;
       assert(std::all_of(best_partition.begin(), best_partition.end(), [&](PartitionID p) { return p != kInvalidPartition; }));
+
+      sb << _partitioned_hg.initialNumNodes() << " " << _partitioned_hg.initialNumPins() << " " << V(best_feasible_objective) << " " << V(best_index) << " -- ";
+      for (size_t i = 0; i < _best_partitions.size(); ++i) {
+        sb << _best_partitions[i].first._deterministic_tag << " ";
+        sb << _best_partitions[i].first._random_tag << " ";
+        sb << _best_partitions[i].first._imbalance << " ";
+        sb << _best_partitions[i].first._objective << " | ";
+      }
+      sb << "\n";
+      std::cout << sb.str();
 
       _partitioned_hg.doParallelForAllNodes([&](HypernodeID node) {
         _partitioned_hg.setOnlyNodePart(node, best_partition[node]);

@@ -58,6 +58,14 @@ class GreedyInitialPartitioner : public tbb::task {
       kahypar::ds::FastResetFlagArray<>& hyperedges_in_queue =
         _ip_data.local_hyperedge_fast_reset_flag_array();
 
+      std::mt19937 backup_rng = _rng;
+      vec<PartitionID> first_partition(hg.initialNumNodes(), kInvalidPartition);
+      size_t num_reps = 5;
+      for (size_t rep = 0; rep < num_reps; ++rep) {
+        hg.resetPartition();
+        _rng = backup_rng;
+
+
       // Experiments have shown that some pq selection policies work better
       // if we preassign all vertices to a block and than execute the greedy
       // initial partitioner. E.g. the round-robin variant leaves the hypernode
@@ -134,6 +142,15 @@ class GreedyInitialPartitioner : public tbb::task {
         } else {
           kway_pq.insert(hn, to, gain);
           kway_pq.disablePart(to);
+        }
+      }
+
+        if (rep == 0) {
+          for (HypernodeID hn : hg.nodes())
+            first_partition[hn] = hg.partID(hn);
+        } else {
+          for (HypernodeID hn : hg.nodes())
+            if (first_partition[hn] != hg.partID(hn)) throw std::runtime_error("non-determinism");
         }
       }
 
