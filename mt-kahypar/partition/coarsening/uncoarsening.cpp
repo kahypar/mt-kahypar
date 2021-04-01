@@ -149,41 +149,49 @@ namespace mt_kahypar {
               kahypar::Mode::direct_kway, _context.partition.objective);
       if (_context.partition.verbose_output) {
         LOG << RED << "Partition is imbalanced (Current Imbalance:"
-            << metrics::imbalance(_partitioned_hg, _context) << ") ->"
-            << "Rebalancer is activated" << END;
+            << metrics::imbalance(_partitioned_hg, _context) << ")" << END;
 
         LOG << "Part weights: (violations in red)";
         io::printPartWeightsAndSizes(_partitioned_hg, _context);
       }
 
-      utils::Timer::instance().start_timer("rebalance", "Rebalance");
-      if (_context.partition.objective == kahypar::Objective::km1) {
-        Km1Rebalancer rebalancer(_partitioned_hg, _context);
-        rebalancer.rebalance(current_metrics);
-      } else if (_context.partition.objective == kahypar::Objective::cut) {
-        CutRebalancer rebalancer(_partitioned_hg, _context);
-        rebalancer.rebalance(current_metrics);
-      }
-      utils::Timer::instance().stop_timer("rebalance");
+      if (_context.partition.deterministic) {
+        if (_context.partition.verbose_output) {
+          LOG << RED << "Skip rebalancing since deterministic mode is activated" << END;
+        }
+      } else {
+        if (_context.partition.verbose_output) {
+          LOG << RED << "Start rebalancing!" << END;
+        }
+        utils::Timer::instance().start_timer("rebalance", "Rebalance");
+        if (_context.partition.objective == kahypar::Objective::km1) {
+          Km1Rebalancer rebalancer(_partitioned_hg, _context);
+          rebalancer.rebalance(current_metrics);
+        } else if (_context.partition.objective == kahypar::Objective::cut) {
+          CutRebalancer rebalancer(_partitioned_hg, _context);
+          rebalancer.rebalance(current_metrics);
+        }
+        utils::Timer::instance().stop_timer("rebalance");
 
-      const HyperedgeWeight quality_after = current_metrics.getMetric(
-              kahypar::Mode::direct_kway, _context.partition.objective);
-      if (_context.partition.verbose_output) {
-        const HyperedgeWeight quality_delta = quality_after - quality_before;
-        if (quality_delta > 0) {
-          LOG << RED << "Rebalancer worsen solution quality by" << quality_delta
-              << "(Current Imbalance:" << metrics::imbalance(_partitioned_hg, _context) << ")" << END;
-        } else {
-          LOG << GREEN << "Rebalancer improves solution quality by" << abs(quality_delta)
-              << "(Current Imbalance:" << metrics::imbalance(_partitioned_hg, _context) << ")" << END;
+        const HyperedgeWeight quality_after = current_metrics.getMetric(
+                kahypar::Mode::direct_kway, _context.partition.objective);
+        if (_context.partition.verbose_output) {
+          const HyperedgeWeight quality_delta = quality_after - quality_before;
+          if (quality_delta > 0) {
+            LOG << RED << "Rebalancer decreased solution quality by" << quality_delta
+                << "(Current Imbalance:" << metrics::imbalance(_partitioned_hg, _context) << ")" << END;
+          } else {
+            LOG << GREEN << "Rebalancer improves solution quality by" << abs(quality_delta)
+                << "(Current Imbalance:" << metrics::imbalance(_partitioned_hg, _context) << ")" << END;
+          }
         }
       }
-    }
 
-    ASSERT(metrics::objective(_partitioned_hg, _context.partition.objective) ==
-           current_metrics.getMetric(kahypar::Mode::direct_kway, _context.partition.objective),
-           V(current_metrics.getMetric(kahypar::Mode::direct_kway, _context.partition.objective))
-           << V(metrics::objective(_partitioned_hg, _context.partition.objective)));
+      ASSERT(metrics::objective(_partitioned_hg, _context.partition.objective) ==
+             current_metrics.getMetric(kahypar::Mode::direct_kway, _context.partition.objective),
+             V(current_metrics.getMetric(kahypar::Mode::direct_kway, _context.partition.objective))
+                     << V(metrics::objective(_partitioned_hg, _context.partition.objective)));
+      }
     return std::move(_partitioned_hg);
   }
 
