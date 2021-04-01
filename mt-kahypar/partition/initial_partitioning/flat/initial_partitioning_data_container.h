@@ -396,6 +396,8 @@ class InitialPartitioningDataContainer {
     _context.refinement = _context.initial_partitioning.refinement;
     _context.refinement.label_propagation.execute_sequential = true;
 
+    _max_pop_size = 16;
+
     if (_context.partition.deterministic) {
       _partitions_population_heap.resize(_max_pop_size);
       std::iota(_partitions_population_heap.begin(), _partitions_population_heap.end(), 0);
@@ -571,8 +573,6 @@ class InitialPartitioningDataContainer {
     HyperedgeWeight best_feasible_objective = std::numeric_limits<HyperedgeWeight>::max();
 
     if ( _context.partition.deterministic ) {
-      assert(_partitions_population_heap.size() == _best_partitions.size());
-      assert(_best_partitions.size() <= _context.shared_memory.num_threads);
       for (auto& p : _local_hg) {
         ++number_of_threads;
         p.aggregate_stats(stats);
@@ -589,7 +589,7 @@ class InitialPartitioningDataContainer {
       assert(std::unique(_partitions_population_heap.begin(), _partitions_population_heap.end(), comp_tag_equal)
                 == _partitions_population_heap.end());
 
-      /*
+
       std::stringstream sb;
       sb << _partitioned_hg.initialNumNodes() << " " << _partitioned_hg.initialNumPins() << " before FM" << " -- ";
       for (size_t i = 0; i < _best_partitions.size(); ++i) {
@@ -599,7 +599,7 @@ class InitialPartitioningDataContainer {
         sb << _best_partitions[i].first._objective << " | ";
       }
       sb << "\n";
-       */
+
 
       if ( _context.initial_partitioning.perform_refinement_on_best_partitions ) {
         auto refinement_task = [&](size_t j) {
@@ -640,7 +640,7 @@ class InitialPartitioningDataContainer {
       const vec<PartitionID>& best_partition = _best_partitions[best_index].second;
       assert(std::all_of(best_partition.begin(), best_partition.end(), [&](PartitionID p) { return p != kInvalidPartition; }));
 
-      /*
+
       sb << _partitioned_hg.initialNumNodes() << " " << _partitioned_hg.initialNumPins() << " " << V(best_feasible_objective) << " " << V(best_index) << " -- ";
       for (size_t i = 0; i < _best_partitions.size(); ++i) {
         sb << _best_partitions[i].first._deterministic_tag << " ";
@@ -650,7 +650,7 @@ class InitialPartitioningDataContainer {
       }
       sb << "\n";
       std::cout << sb.str();
-      */
+
 
       _partitioned_hg.doParallelForAllNodes([&](HypernodeID node) {
         _partitioned_hg.setOnlyNodePart(node, best_partition[node]);
