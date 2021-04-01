@@ -192,7 +192,9 @@ namespace mt_kahypar {
     if (gain < 0) {
       DBG << "Kommando zurück" << V(gain) << V(num_moves) << V(num_reverted_moves);
       tbb::parallel_for(0UL, num_moves, [&](size_t i) {
-        std::swap(moves[i].from, moves[i].to);
+        if (moves[i].isValid()) {
+          std::swap(moves[i].from, moves[i].to);
+        }
       });
       gain += applyMovesIf(phg, moves, num_moves, is_valid);
       assert(gain == 0);
