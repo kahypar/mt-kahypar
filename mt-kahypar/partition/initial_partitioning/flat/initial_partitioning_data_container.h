@@ -230,33 +230,39 @@ class InitialPartitioningDataContainer {
       kahypar::Metrics current_metric_backup = current_metric;
       std::mt19937 prng_backup = prng;
 
-      size_t num_reps = 5;
-      vec<PartitionID> input_partition(_partitioned_hypergraph.initialNumNodes(), kInvalidPartition);
-      vec<PartitionID> first_partition(_partitioned_hypergraph.initialNumNodes(), kInvalidPartition);
-      for (HypernodeID hn : _partitioned_hypergraph.nodes()) {
-        input_partition[hn] = _partitioned_hypergraph.partID(hn);
-      }
+      size_t num_reps = 1 + _context.initial_partitioning.num_verification_repetitions;
+      vec<PartitionID> input_partition, first_partition;
       for (size_t rep = 0; rep < num_reps; ++rep) {
-        prng = prng_backup;
-        current_metric = current_metric_backup;
-        _partitioned_hypergraph.resetPartition();
-        for (HypernodeID hn : _partitioned_hypergraph.nodes()) {
-          _partitioned_hypergraph.setNodePart(hn, input_partition[hn]);
+        if (num_reps > 1) {
+          prng = prng_backup;
+          current_metric = current_metric_backup;
+          if (rep == 0) {
+            input_partition.resize(_partitioned_hypergraph.initialNumNodes(), kInvalidPartition);
+            for (HypernodeID hn : _partitioned_hypergraph.nodes()) {
+              input_partition[hn] = _partitioned_hypergraph.partID(hn);
+            }
+          } else {
+            _partitioned_hypergraph.resetPartition();
+            for (HypernodeID hn : _partitioned_hypergraph.nodes()) {
+              _partitioned_hypergraph.setNodePart(hn, input_partition[hn]);
+            }
+          }
         }
 
         refineCurrentPartition(current_metric, prng);
 
-        if (rep == 0) {
-          for (HypernodeID hn : _partitioned_hypergraph.nodes()) {
-            first_partition[hn] = _partitioned_hypergraph.partID(hn);
-          }
-        } else {
-          for (HypernodeID hn : _partitioned_hypergraph.nodes()) {
-            if (first_partition[hn] != _partitioned_hypergraph.partID(hn)) throw std::runtime_error("non-determinism");
+        if (num_reps > 1) {
+          if (rep == 0) {
+            first_partition.resize(_partitioned_hypergraph.initialNumNodes(), kInvalidPartition);
+            for (HypernodeID hn : _partitioned_hypergraph.nodes())
+              first_partition[hn] = _partitioned_hypergraph.partID(hn);
+          } else {
+            for (HypernodeID hn : _partitioned_hypergraph.nodes())
+              if(first_partition[hn] != _partitioned_hypergraph.partID(hn)) throw std::runtime_error("non-determinism");
           }
         }
-      }
 
+      }
 
       PartitioningResult result(algorithm, quality_before_refinement,
         current_metric.getMetric(kahypar::Mode::direct_kway, _context.partition.objective),

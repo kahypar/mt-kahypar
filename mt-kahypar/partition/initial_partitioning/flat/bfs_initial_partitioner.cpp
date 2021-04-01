@@ -36,11 +36,13 @@ tbb::task* BFSInitialPartitioner::execute() {
               _ip_data.local_hyperedge_fast_reset_flag_array();
 
       std::mt19937 backup_rng = _rng;
-      vec<PartitionID> first_partition(hypergraph.initialNumNodes(), kInvalidPartition);
-      size_t num_reps = 5;
+      vec<PartitionID> first_partition;
+      size_t num_reps = 1 + _context.initial_partitioning.num_verification_repetitions;
       for (size_t rep = 0; rep < num_reps; ++rep) {
-        hypergraph.resetPartition();
-        _rng = backup_rng;
+        if (num_reps > 1) {
+          hypergraph.resetPartition();
+          _rng = backup_rng;
+        }
 
         _ip_data.reset_unassigned_hypernodes(_rng);
         parallel::scalable_vector<HypernodeID> start_nodes =
@@ -105,12 +107,15 @@ tbb::task* BFSInitialPartitioner::execute() {
         }
 
 
-        if (rep == 0) {
-          for (HypernodeID hn : hypergraph.nodes())
-            first_partition[hn] = hypergraph.partID(hn);
-        } else {
-          for (HypernodeID hn : hypergraph.nodes())
-            if (first_partition[hn] != hypergraph.partID(hn)) throw std::runtime_error("non-determinism");
+        if (num_reps > 1) {
+          if (rep == 0) {
+            first_partition.resize(hypergraph.initialNumNodes(), kInvalidPartition);
+            for (HypernodeID hn : hypergraph.nodes())
+              first_partition[hn] = hypergraph.partID(hn);
+          } else {
+            for (HypernodeID hn : hypergraph.nodes())
+              if(first_partition[hn] != hypergraph.partID(hn)) throw std::runtime_error("non-determinism");
+          }
         }
       }
 

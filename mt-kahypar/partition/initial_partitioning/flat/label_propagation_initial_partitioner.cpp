@@ -37,112 +37,118 @@ tbb::task* LabelPropagationInitialPartitioner::execute() {
 
 
     std::mt19937 backup_rng = _rng;
-    vec<PartitionID> first_partition(hg.initialNumNodes(), kInvalidPartition);
-    size_t num_reps = 5;
+    vec<PartitionID> first_partition;
+    size_t num_reps = 1 + _context.initial_partitioning.num_verification_repetitions;
     for (size_t rep = 0; rep < num_reps; ++rep) {
-      hg.resetPartition();
-      _rng = backup_rng;
-
-    _ip_data.reset_unassigned_hypernodes(_rng);
-
-    parallel::scalable_vector<HypernodeID> start_nodes =
-      PseudoPeripheralStartNodes::computeStartNodes(_ip_data, _context, kInvalidPartition, _rng);
-    for ( PartitionID block = 0; block < _context.partition.k; ++block ) {
-      if ( hg.partID(start_nodes[block]) == kInvalidPartition ) {
-        hg.setNodePart(start_nodes[block], block);
+      if (num_reps > 1) {
+        hg.resetPartition();
+        _rng = backup_rng;
       }
-    }
-    // Each block is extended with 5 additional vertices which are adjacent
-    // to their corresponding seed vertices. This should prevent that block
-    // becomes empty after several label propagation rounds.
-    for ( PartitionID block = 0; block < _context.partition.k; ++block ) {
-      if ( hg.partID(start_nodes[block]) == block ) {
-        extendBlockToInitialBlockSize(hg, start_nodes[block], block);
+
+      _ip_data.reset_unassigned_hypernodes(_rng);
+
+      parallel::scalable_vector<HypernodeID> start_nodes =
+        PseudoPeripheralStartNodes::computeStartNodes(_ip_data, _context, kInvalidPartition, _rng);
+      for ( PartitionID block = 0; block < _context.partition.k; ++block ) {
+        if ( hg.partID(start_nodes[block]) == kInvalidPartition ) {
+          hg.setNodePart(start_nodes[block], block);
+        }
       }
-    }
+      // Each block is extended with 5 additional vertices which are adjacent
+      // to their corresponding seed vertices. This should prevent that block
+      // becomes empty after several label propagation rounds.
+      for ( PartitionID block = 0; block < _context.partition.k; ++block ) {
+        if ( hg.partID(start_nodes[block]) == block ) {
+          extendBlockToInitialBlockSize(hg, start_nodes[block], block);
+        }
+      }
 
-    bool converged = false;
-    for ( size_t i = 0; i < _context.initial_partitioning.lp_maximum_iterations && !converged; ++i ) {
-      converged = true;
+      bool converged = false;
+      for ( size_t i = 0; i < _context.initial_partitioning.lp_maximum_iterations && !converged; ++i ) {
+        converged = true;
 
-      for ( const HypernodeID& hn : hg.nodes() ) {
+        for ( const HypernodeID& hn : hg.nodes() ) {
 
-        if (hg.nodeDegree(hn) > 0) {
-          // Assign vertex to the block where FM gain is maximized
-          MaxGainMove max_gain_move = computeMaxGainMove(hg, hn);
+          if (hg.nodeDegree(hn) > 0) {
+            // Assign vertex to the block where FM gain is maximized
+            MaxGainMove max_gain_move = computeMaxGainMove(hg, hn);
 
-          const PartitionID to = max_gain_move.block;
-          if ( to != kInvalidPartition ) {
-            const PartitionID from = hg.partID(hn);
-            if ( from == kInvalidPartition ) {
-              ASSERT(fitsIntoBlock(hg, hn, to));
+            const PartitionID to = max_gain_move.block;
+            if ( to != kInvalidPartition ) {
+              const PartitionID from = hg.partID(hn);
+              if ( from == kInvalidPartition ) {
+                ASSERT(fitsIntoBlock(hg, hn, to));
 
-              HEAVY_INITIAL_PARTITIONING_ASSERT([&] {
-                Gain expected_gain = CutGainPolicy::calculateGain(hg, hn, to);
-                if ( expected_gain != max_gain_move.gain ) {
-                  LOG << V(hn);
-                  LOG << V(from);
-                  LOG << V(to);
-                  LOG << V(max_gain_move.gain);
-                  LOG << V(expected_gain);
-                }
-                return true;
-              }(), "Gain calculation failed");
-
-              hg.setNodePart(hn, to);
-            } else if ( from != to ) {
-              ASSERT(fitsIntoBlock(hg, hn, to));
-
-              #ifndef KAHYPAR_ENABLE_HEAVY_INITIAL_PARTITIONING_ASSERTIONS
-              hg.changeNodePart(hn, from, to, NOOP_FUNC);
-              #else
-              Gain expected_gain = 0;
-              auto cut_delta = [&](const HyperedgeID he,
-                                  const HyperedgeWeight edge_weight,
-                                  const HypernodeID,
-                                  const HypernodeID pin_count_in_from_part_after,
-                                  const HypernodeID pin_count_in_to_part_after) {
-                HypernodeID adjusted_edge_size = 0;
-                for ( const HypernodeID& pin : hg.pins(he) ) {
-                  if ( hg.partID(pin) != kInvalidPartition ) {
-                    ++adjusted_edge_size;
+                HEAVY_INITIAL_PARTITIONING_ASSERT([&] {
+                  Gain expected_gain = CutGainPolicy::calculateGain(hg, hn, to);
+                  if ( expected_gain != max_gain_move.gain ) {
+                    LOG << V(hn);
+                    LOG << V(from);
+                    LOG << V(to);
+                    LOG << V(max_gain_move.gain);
+                    LOG << V(expected_gain);
                   }
-                }
-                expected_gain -= cutDelta(he, edge_weight, adjusted_edge_size,
-                  pin_count_in_from_part_after, pin_count_in_to_part_after);
-              };
-              hg.changeNodePart(hn, from, to, cut_delta);
-              ASSERT(expected_gain == max_gain_move.gain, "Gain calculation failed"
-                << V(expected_gain) << V(max_gain_move.gain));
-              #endif
+                  return true;
+                }(), "Gain calculation failed");
+
+                hg.setNodePart(hn, to);
+              } else if ( from != to ) {
+                ASSERT(fitsIntoBlock(hg, hn, to));
+
+                #ifndef KAHYPAR_ENABLE_HEAVY_INITIAL_PARTITIONING_ASSERTIONS
+                hg.changeNodePart(hn, from, to, NOOP_FUNC);
+                #else
+                Gain expected_gain = 0;
+                auto cut_delta = [&](const HyperedgeID he,
+                                    const HyperedgeWeight edge_weight,
+                                    const HypernodeID,
+                                    const HypernodeID pin_count_in_from_part_after,
+                                    const HypernodeID pin_count_in_to_part_after) {
+                  HypernodeID adjusted_edge_size = 0;
+                  for ( const HypernodeID& pin : hg.pins(he) ) {
+                    if ( hg.partID(pin) != kInvalidPartition ) {
+                      ++adjusted_edge_size;
+                    }
+                  }
+                  expected_gain -= cutDelta(he, edge_weight, adjusted_edge_size,
+                    pin_count_in_from_part_after, pin_count_in_to_part_after);
+                };
+                hg.changeNodePart(hn, from, to, cut_delta);
+                ASSERT(expected_gain == max_gain_move.gain, "Gain calculation failed"
+                  << V(expected_gain) << V(max_gain_move.gain));
+                #endif
+              }
             }
+
+          } else if ( hg.partID(hn) == kInvalidPartition ) {
+            // In case vertex hn is a degree zero vertex we assign it
+            // to the block with minimum weight
+            assignVertexToBlockWithMinimumWeight(hg, hn);
           }
 
-        } else if ( hg.partID(hn) == kInvalidPartition ) {
-          // In case vertex hn is a degree zero vertex we assign it
-          // to the block with minimum weight
-          assignVertexToBlockWithMinimumWeight(hg, hn);
         }
 
       }
 
-    }
-
-    // If there are still unassigned vertices left, we assign them to the
-    // block with minimum weight.
-    while ( _ip_data.get_unassigned_hypernode() != kInvalidHypernode ) {
-      const HypernodeID unassigned_hn = _ip_data.get_unassigned_hypernode();
-      assignVertexToBlockWithMinimumWeight(hg, unassigned_hn);
-    }
-
-
-      if (rep == 0) {
-        for (HypernodeID hn : hg.nodes())
-          first_partition[hn] = hg.partID(hn);
-      } else {
-        for (HypernodeID hn : hg.nodes())
-          assert(first_partition[hn] == hg.partID(hn));
+      // If there are still unassigned vertices left, we assign them to the
+      // block with minimum weight.
+      while ( _ip_data.get_unassigned_hypernode() != kInvalidHypernode ) {
+        const HypernodeID unassigned_hn = _ip_data.get_unassigned_hypernode();
+        assignVertexToBlockWithMinimumWeight(hg, unassigned_hn);
       }
+
+
+      if (num_reps > 1) {
+        if (rep == 0) {
+          first_partition.resize(hg.initialNumNodes(), kInvalidPartition);
+          for (HypernodeID hn : hg.nodes())
+            first_partition[hn] = hg.partID(hn);
+        } else {
+          for (HypernodeID hn : hg.nodes())
+            if(first_partition[hn] != hg.partID(hn)) throw std::runtime_error("non-determinism");
+        }
+      }
+
     }
 
     HighResClockTimepoint end = std::chrono::high_resolution_clock::now();
