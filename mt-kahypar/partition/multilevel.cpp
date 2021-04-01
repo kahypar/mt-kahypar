@@ -105,7 +105,6 @@ namespace mt_kahypar::multilevel {
       _partitioned_hg = _coarsener->uncoarsen(label_propagation, fm);
       utils::Timer::instance().stop_timer("refinement");
 
-      io::printPartitioningResults(_partitioned_hg, _context, "Local Search Results:");
       return nullptr;
     }
 
