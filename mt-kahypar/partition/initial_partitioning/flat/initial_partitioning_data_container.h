@@ -589,6 +589,7 @@ class InitialPartitioningDataContainer {
       assert(std::unique(_partitions_population_heap.begin(), _partitions_population_heap.end(), comp_tag_equal)
                 == _partitions_population_heap.end());
 
+      /*
       std::stringstream sb;
       sb << _partitioned_hg.initialNumNodes() << " " << _partitioned_hg.initialNumPins() << " before FM" << " -- ";
       for (size_t i = 0; i < _best_partitions.size(); ++i) {
@@ -598,6 +599,7 @@ class InitialPartitioningDataContainer {
         sb << _best_partitions[i].first._objective << " | ";
       }
       sb << "\n";
+       */
 
       if ( _context.initial_partitioning.perform_refinement_on_best_partitions ) {
         auto refinement_task = [&](size_t j) {
@@ -638,6 +640,7 @@ class InitialPartitioningDataContainer {
       const vec<PartitionID>& best_partition = _best_partitions[best_index].second;
       assert(std::all_of(best_partition.begin(), best_partition.end(), [&](PartitionID p) { return p != kInvalidPartition; }));
 
+      /*
       sb << _partitioned_hg.initialNumNodes() << " " << _partitioned_hg.initialNumPins() << " " << V(best_feasible_objective) << " " << V(best_index) << " -- ";
       for (size_t i = 0; i < _best_partitions.size(); ++i) {
         sb << _best_partitions[i].first._deterministic_tag << " ";
@@ -647,6 +650,7 @@ class InitialPartitioningDataContainer {
       }
       sb << "\n";
       std::cout << sb.str();
+      */
 
       _partitioned_hg.doParallelForAllNodes([&](HypernodeID node) {
         _partitioned_hg.setOnlyNodePart(node, best_partition[node]);
