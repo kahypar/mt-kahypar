@@ -191,7 +191,7 @@ namespace mt_kahypar {
              current_metrics.getMetric(kahypar::Mode::direct_kway, _context.partition.objective),
              V(current_metrics.getMetric(kahypar::Mode::direct_kway, _context.partition.objective))
                      << V(metrics::objective(_partitioned_hg, _context.partition.objective)));
-      }
+    }
     return std::move(_partitioned_hg);
   }
 
