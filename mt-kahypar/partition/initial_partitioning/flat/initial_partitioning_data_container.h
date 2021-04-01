@@ -649,7 +649,7 @@ class InitialPartitioningDataContainer {
         sb << _best_partitions[i].first._objective << " | ";
       }
       sb << "\n";
-      std::cout << sb.str();
+      DBG << sb.str();
 
 
       _partitioned_hg.doParallelForAllNodes([&](HypernodeID node) {
