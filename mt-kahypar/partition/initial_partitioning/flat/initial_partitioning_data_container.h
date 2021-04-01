@@ -219,7 +219,6 @@ class InitialPartitioningDataContainer {
           return true;
         } (), "There are unassigned hypernodes!");
 
-
       kahypar::Metrics current_metric = {
         metrics::hyperedgeCut(_partitioned_hypergraph, false),
         metrics::km1(_partitioned_hypergraph, false),
@@ -271,7 +270,7 @@ class InitialPartitioningDataContainer {
       DBG << "[" << result.str() << "]";
 
       // Aggregate Stats
-      uint8_t algorithm_index = static_cast<uint8_t>(algorithm);
+      auto algorithm_index = static_cast<uint8_t>(algorithm);
       _stats[algorithm_index].total_sum_quality += result._objective;
       _stats[algorithm_index].total_time += time;
       ++_stats[algorithm_index].total_calls;
@@ -328,7 +327,7 @@ class InitialPartitioningDataContainer {
       }
     }
 
-    void copyPartition(vec<PartitionID>& partition_store) {
+    void copyPartition(vec<PartitionID>& partition_store) const {
       for (HypernodeID node : _partitioned_hypergraph.nodes()) {
         partition_store[node] = _partitioned_hypergraph.partID(node);
       }
@@ -440,10 +439,6 @@ class InitialPartitioningDataContainer {
     });
   }
 
-  PartitionedHypergraph& global_partitioned_hypergraph() {
-    return _partitioned_hg;
-  }
-
   PartitionedHypergraph& local_partitioned_hypergraph() {
     return _local_hg.local()._partitioned_hypergraph;
   }
@@ -489,7 +484,7 @@ class InitialPartitioningDataContainer {
     parallel::scalable_vector<HypernodeID>& unassigned_hypernodes =
       _local_unassigned_hypernodes.local();
     size_t& unassigned_hypernode_pointer = _local_unassigned_hypernode_pointer.local();
-    ASSERT(unassigned_hypernodes.size() > 0);
+    ASSERT(!unassigned_hypernodes.empty());
     ASSERT(unassigned_hypernode_pointer <= unassigned_hypernodes.size());
 
     while ( unassigned_hypernode_pointer > 0 ) {
@@ -572,7 +567,7 @@ class InitialPartitioningDataContainer {
     // Initialize Stats
     parallel::scalable_vector<utils::InitialPartitionerSummary> stats;
     size_t number_of_threads = 0;
-    for ( uint8_t algo = 0; algo < static_cast<size_t>(InitialPartitioningAlgorithm::UNDEFINED); ++algo ) {
+    for ( uint8_t algo = 0; algo < static_cast<uint8_t>(InitialPartitioningAlgorithm::UNDEFINED); ++algo ) {
       stats.emplace_back(static_cast<InitialPartitioningAlgorithm>(algo));
     }
     InitialPartitioningAlgorithm best_flat_algo = InitialPartitioningAlgorithm::UNDEFINED;
@@ -589,12 +584,6 @@ class InitialPartitioningDataContainer {
         return _best_partitions[lhs].first._deterministic_tag < _best_partitions[rhs].first._deterministic_tag;
       };
       std::sort(_partitions_population_heap.begin(), _partitions_population_heap.end(), comp_tag_less);
-      auto comp_tag_equal = [&](size_t lhs, size_t rhs) {
-        return _best_partitions[lhs].first._deterministic_tag == _best_partitions[rhs].first._deterministic_tag;
-      };
-      assert(std::unique(_partitions_population_heap.begin(), _partitions_population_heap.end(), comp_tag_equal)
-                == _partitions_population_heap.end());
-
 
       std::stringstream sb;
       sb << _partitioned_hg.initialNumNodes() << " " << _partitioned_hg.initialNumPins() << " before FM" << " -- ";
