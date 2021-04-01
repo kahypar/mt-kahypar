@@ -33,8 +33,6 @@ namespace mt_kahypar {
                                                         const vec<HypernodeID>& ,
                                                         kahypar::Metrics& best_metrics,
                                                         const double)  {
-    DBG << "running deterministic LP" << V(phg.initialNumNodes());
-
     Gain overall_improvement = 0;
     size_t num_sub_rounds = context.refinement.deterministic_refinement.num_sub_rounds_sync_lp;
 
@@ -98,9 +96,6 @@ namespace mt_kahypar {
 
     best_metrics.km1 -= overall_improvement;
     best_metrics.imbalance = metrics::imbalance(phg, context);
-
-    // TBBNumaArena::instance().terminate();
-    // TBBNumaArena::instance().initialize(1);
 
     return overall_improvement > 0;
   }
@@ -171,7 +166,7 @@ namespace mt_kahypar {
       }
     }
 
-    DBG << V(num_overloaded_blocks);
+    // DBG << V(num_overloaded_blocks);
 
     size_t num_reverted_moves = 0;
     size_t j = num_moves;
@@ -189,7 +184,7 @@ namespace mt_kahypar {
       }
     }
 
-    DBG << V(num_reverted_moves);
+    // DBG << V(num_reverted_moves);
 
     // apply all moves that were not invalidated
     auto is_valid = [&](size_t pos) { return moves[pos].isValid(); };
