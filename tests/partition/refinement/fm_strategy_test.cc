@@ -39,7 +39,7 @@ vec<Gain> insertAndExtractAllMoves(Strategy& strat, PartitionedHypergraph& phg) 
   Move m;
   vec<Gain> gains;
   for (HypernodeID u : phg.nodes()) {
-    strat.insertIntoPQ(phg, u, 0);
+    strat.insertIntoPQ(phg, u);
   }
 
   while (strat.findNextMove(phg, m)) {
@@ -124,7 +124,7 @@ TEST(StrategyTests, DeltaUpdatesWork) {
 
   GainDeltaStrategy strat(context, hg.initialNumNodes(), sd, fm_stats);
   for (HypernodeID u : hg.nodes())
-    strat.insertIntoPQ(phg, u, 0);
+    strat.insertIntoPQ(phg, u);
 
   Move m;
 

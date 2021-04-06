@@ -52,7 +52,7 @@ namespace mt_kahypar {
 
     template<typename PHG>
     MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
-    void insertIntoPQ(const PHG& phg, const HypernodeID v, const SearchID ) {
+    void insertIntoPQ(const PHG& phg, const HypernodeID v) {
       gc.computeGainsFromScratch(phg, v);
       for (PartitionID i = 0; i < k; ++i) {
         if (i != phg.partID(v)) {

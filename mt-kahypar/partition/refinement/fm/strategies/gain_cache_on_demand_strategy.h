@@ -41,12 +41,13 @@ namespace mt_kahypar {
     // conflicting signatures. derived does not have const qualifier for PHG. base has const. compiler doesn't complain, so probably fine.
     template<typename PHG>
     MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
-    void insertIntoPQ(PHG& phg, const HypernodeID v, const SearchID previous_search_of_v) {
+    void insertIntoPQ(PHG& phg, const HypernodeID v) {
+      SearchID previous_search_of_v = sharedData.nodeTracker.searchOfNode[v].load(std::memory_order_relaxed);
       if (sharedData.nodeTracker.releasedMarker != previous_search_of_v) {
         // node is claimed for the first time in this fm round --> initialize gain cache entry
         phg.initializeGainCacheEntry(v, gainCacheInitMem);
       }
-      GainCacheStrategy::insertIntoPQ(phg, v, previous_search_of_v);
+      GainCacheStrategy::insertIntoPQ(phg, v);
     }
 
     void memoryConsumption(utils::MemoryTreeNode *parent) const {

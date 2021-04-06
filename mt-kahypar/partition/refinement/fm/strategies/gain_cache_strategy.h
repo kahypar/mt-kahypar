@@ -62,7 +62,7 @@ public:
 
   template<typename PHG>
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
-  void insertIntoPQ(const PHG& phg, const HypernodeID v, const SearchID ) {
+  void insertIntoPQ(const PHG& phg, const HypernodeID v) {
     const PartitionID pv = phg.partID(v);
     auto [target, gain] = computeBestTargetBlock(phg, v);
     sharedData.targetPart[v] = target;
