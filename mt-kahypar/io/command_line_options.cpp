@@ -374,6 +374,31 @@ namespace mt_kahypar {
     return options;
   }
 
+  po::options_description createAdvancedRefinementOptionsDescription(Context& context, const int num_columns) {
+    po::options_description options("Initial Partitioning Options", num_columns);
+    options.add_options()
+            ("r-advanced-algo",
+             po::value<std::string>()->value_name("<string>")->notifier(
+                     [&](const std::string& algo) {
+                       context.refinement.advanced.algorithm = advancedRefinementAlgorithmFromString(algo);
+                     })->default_value("do_nothing"),
+             "Advanced Refinement Algorithms:\n"
+             "- do_nothing\n"
+             "- ilp\n"
+             "- flows")
+            ("r-num-threads-per-search",
+             po::value<size_t>(&context.refinement.advanced.num_threads_per_search)->value_name("<size_t>"),
+             "Number of threads per search.")
+            ("r-num-cut-hes-per-block-pair",
+             po::value<size_t>(&context.refinement.advanced.num_cut_edges_per_block_pair)->value_name("<size_t>"),
+             "Number of cut hyperedges that are requested to construct an advanced refinement problem.")
+            ("r-max-bfs-distance",
+             po::value<size_t>(&context.refinement.advanced.max_bfs_distance)->value_name("<size_t>"),
+             "Advanced refinement problems are constructed via BFS search. The maximum BFS distance is the\n"
+             "maximum distance from a cut hyperedge to any vertex of the problem.");
+    return options;
+  }
+
   po::options_description createInitialPartitioningOptionsDescription(Context& context, const int num_columns) {
     po::options_description options("Initial Partitioning Options", num_columns);
     options.add_options()
@@ -542,6 +567,8 @@ namespace mt_kahypar {
             createInitialPartitioningOptionsDescription(context, num_columns);
     po::options_description refinement_options =
             createRefinementOptionsDescription(context, num_columns, false);
+    po::options_description advanced_refinement_options =
+            createAdvancedRefinementOptionsDescription(context, num_columns);
 #ifdef KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES
     po::options_description sparsification_options =
     createSparsificationOptionsDescription(context, num_columns);
@@ -558,6 +585,7 @@ namespace mt_kahypar {
             .add(coarsening_options)
             .add(initial_paritioning_options)
             .add(refinement_options)
+            .add(advanced_refinement_options)
 #ifdef KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES
                     .add(sparsification_options)
 #endif
@@ -589,6 +617,7 @@ namespace mt_kahypar {
             .add(coarsening_options)
             .add(initial_paritioning_options)
             .add(refinement_options)
+            .add(advanced_refinement_options)
 #ifdef KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES
                     .add(sparsification_options)
 #endif
@@ -640,6 +669,8 @@ namespace mt_kahypar {
             createInitialPartitioningOptionsDescription(context, num_columns);
     po::options_description refinement_options =
             createRefinementOptionsDescription(context, num_columns, false);
+    po::options_description advanced_refinement_options =
+            createAdvancedRefinementOptionsDescription(context, num_columns);
 #ifdef KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES
     po::options_description sparsification_options =
     createSparsificationOptionsDescription(context, num_columns);
@@ -654,6 +685,7 @@ namespace mt_kahypar {
             .add(coarsening_options)
             .add(initial_paritioning_options)
             .add(refinement_options)
+            .add(advanced_refinement_options)
 #ifdef KAHYPAR_ENABLE_EXPERIMENTAL_FEATURES
                     .add(sparsification_options)
 #endif
