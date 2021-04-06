@@ -90,7 +90,7 @@ namespace mt_kahypar {
       return true;
     }
 
-    void clearPQs(const size_t /* bestImprovementIndex */ ) {
+    void clearPQs(const SearchID search_id) {
       // release all nodes that were not moved
       const bool release = sharedData.release_nodes
                            && runStats.moves > 0;
@@ -102,16 +102,17 @@ namespace mt_kahypar {
           if (release) {
             sharedData.nodeTracker.releaseNode(v);
           } else {
-            sharedData.nodeTracker.searchOfNode[v].store(sharedData.nodeTracker.deactivatedNodeMarker, std::memory_order_relaxed);
+            sharedData.nodeTracker.deactivateNode(v, search_id);
           }
         }
-        for (PosT j = 0; j < vertexPQs[0].size(); ++j) {
-          if (release) {
-            sharedData.nodeTracker.releaseNode(vertexPQs[0].at(j));
-          } else {
-            sharedData.nodeTracker.searchOfNode[vertexPQs[0].at(j)].store(sharedData.nodeTracker.deactivatedNodeMarker, std::memory_order_relaxed);
-          }
+      }
+      for (PosT j = 0; j < vertexPQs[0].size(); ++j) {
+        if (release) {
+          sharedData.nodeTracker.releaseNode(vertexPQs[0].at(j));
+        } else {
+          sharedData.nodeTracker.deactivateNode(vertexPQs[0].at(j), search_id);
         }
+      }
 
       for (PartitionID i = 0; i < k; ++i) {
         vertexPQs[i].clear();

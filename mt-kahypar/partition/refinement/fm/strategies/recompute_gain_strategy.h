@@ -78,7 +78,7 @@ namespace mt_kahypar {
       return true;
     }
 
-    void clearPQs(const size_t /* bestImprovementIndex */ ) {
+    void clearPQs(const SearchID search_id) {
       // release all nodes that were not moved
       const bool release = sharedData.release_nodes
                            && runStats.moves > 0;
@@ -89,7 +89,7 @@ namespace mt_kahypar {
         if (release) {
           sharedData.nodeTracker.releaseNode(v);
         } else {
-          sharedData.nodeTracker.searchOfNode[v].store(sharedData.nodeTracker.deactivatedNodeMarker, std::memory_order_relaxed);
+          sharedData.nodeTracker.deactivateNode(v, search_id);
         }
       }
 

@@ -89,7 +89,7 @@ namespace mt_kahypar {
             if (searchOfV == thisSearch) {
               fm_strategy.updateGain(phg, v, move);
             } else if (sharedData.nodeTracker.tryAcquireNode(v, thisSearch)) {
-              fm_strategy.insertIntoPQ(phg, v, searchOfV);
+              fm_strategy.insertIntoPQ(phg, v);
             }
             neighborDeduplicator[v] = deduplicationTime;
           }
@@ -213,7 +213,7 @@ namespace mt_kahypar {
     }
 
     runStats.estimated_improvement = bestImprovement;
-    fm_strategy.clearPQs(bestImprovementIndex);
+    fm_strategy.clearPQs(thisSearch);
     runStats.merge(stats);
   }
 

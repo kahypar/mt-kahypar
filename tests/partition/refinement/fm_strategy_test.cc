@@ -35,17 +35,19 @@ namespace mt_kahypar {
 
 
 template<typename Strategy>
-vec<Gain> insertAndExtractAllMoves(Strategy& strat, PartitionedHypergraph& phg) {
+vec<Gain> insertAndExtractAllMoves(Strategy& strat, PartitionedHypergraph& phg, FMSharedData& sd) {
   Move m;
   vec<Gain> gains;
   for (HypernodeID u : phg.nodes()) {
     strat.insertIntoPQ(phg, u);
+    sd.nodeTracker.searchOfNode[u].store(42, std::memory_order_relaxed);
   }
 
   while (strat.findNextMove(phg, m)) {
     gains.push_back(m.gain);
   }
-  strat.clearPQs(0);
+  /* TODO: test this <06-04-21, @noahares> */
+  strat.clearPQs(42);
   return gains;
 }
 
@@ -81,18 +83,18 @@ TEST(StrategyTests, FindNextMove) {
   RecomputeGainStrategy recompute_gain(context, hg.initialNumNodes(), sd, fm_stats);
   GainCacheOnDemandStrategy gain_caching_on_demand(context, hg.initialNumNodes(), sd, fm_stats);
 
-  vec<Gain> gains_from_deltas = insertAndExtractAllMoves(gain_deltas, phg);
+  vec<Gain> gains_from_deltas = insertAndExtractAllMoves(gain_deltas, phg, sd);
   ASSERT_TRUE(std::is_sorted(gains_from_deltas.begin(), gains_from_deltas.end(), std::greater<Gain>()));
 
-  vec<Gain> gains_cached = insertAndExtractAllMoves(gain_caching, phg);
+  vec<Gain> gains_cached = insertAndExtractAllMoves(gain_caching, phg, sd);
   ASSERT_TRUE(std::is_sorted(gains_cached.begin(), gains_cached.end(), std::greater<Gain>()));
   ASSERT_EQ(gains_from_deltas, gains_cached);
 
-  vec<Gain> gains_cached_on_demand = insertAndExtractAllMoves(gain_caching_on_demand, phg);
+  vec<Gain> gains_cached_on_demand = insertAndExtractAllMoves(gain_caching_on_demand, phg, sd);
   ASSERT_TRUE(std::is_sorted(gains_cached_on_demand.begin(), gains_cached_on_demand.end(), std::greater<Gain>()));
   ASSERT_EQ(gains_cached_on_demand, gains_cached);
 
-  vec<Gain> gains_recomputed = insertAndExtractAllMoves(recompute_gain, phg);
+  vec<Gain> gains_recomputed = insertAndExtractAllMoves(recompute_gain, phg, sd);
   ASSERT_TRUE(std::is_sorted(gains_recomputed.begin(), gains_recomputed.end(), std::greater<Gain>()));
   ASSERT_EQ(gains_recomputed, gains_cached);
 }
