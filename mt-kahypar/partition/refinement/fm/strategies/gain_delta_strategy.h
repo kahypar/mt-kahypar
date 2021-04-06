@@ -95,21 +95,23 @@ namespace mt_kahypar {
       const bool release = sharedData.release_nodes
                            && runStats.moves > 0;
 
-      if (release) {
-        // Release all nodes contained in the search
-
-        for (PosT j = 0; j < vertexPQs[1].size(); ++j) {
-          const HypernodeID v = vertexPQs[1].at(j);
-          // we're not storing nodes in pqs for the block they're currently in --> have to check two pqs and deduplicate
-          if (!vertexPQs[0].contains(v)) {
+      for (PosT j = 0; j < vertexPQs[1].size(); ++j) {
+        const HypernodeID v = vertexPQs[1].at(j);
+        // we're not storing nodes in pqs for the block they're currently in --> have to check two pqs and deduplicate
+        if (!vertexPQs[0].contains(v)) {
+          if (release) {
             sharedData.nodeTracker.releaseNode(v);
+          } else {
+            sharedData.nodeTracker.searchOfNode[v].store(sharedData.nodeTracker.deactivatedNodeMarker, std::memory_order_relaxed);
           }
         }
         for (PosT j = 0; j < vertexPQs[0].size(); ++j) {
-          sharedData.nodeTracker.releaseNode(vertexPQs[0].at(j));
+          if (release) {
+            sharedData.nodeTracker.releaseNode(vertexPQs[0].at(j));
+          } else {
+            sharedData.nodeTracker.searchOfNode[vertexPQs[0].at(j)].store(sharedData.nodeTracker.deactivatedNodeMarker, std::memory_order_relaxed);
+          }
         }
-
-      }
 
       for (PartitionID i = 0; i < k; ++i) {
         vertexPQs[i].clear();

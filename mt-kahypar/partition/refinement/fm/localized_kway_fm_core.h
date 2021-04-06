@@ -50,6 +50,10 @@ public:
 
   void memoryConsumption(utils::MemoryTreeNode* parent) const ;
 
+  void resetSearchID() {
+    thisSearch = 0;
+  }
+
   FMStats stats;
 
 private:

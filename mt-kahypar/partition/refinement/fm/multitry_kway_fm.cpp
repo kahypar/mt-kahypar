@@ -73,6 +73,7 @@ namespace mt_kahypar {
 
       auto task = [&](const size_t task_id) {
         auto& fm = ets_fm.local();
+        fm.resetSearchID();
         while(sharedData.finishedTasks.load(std::memory_order_relaxed) < sharedData.finishedTasksLimit
               && fm.findMoves(phg, task_id, num_seeds)) { /* keep running*/ }
         sharedData.finishedTasks.fetch_add(1, std::memory_order_relaxed);

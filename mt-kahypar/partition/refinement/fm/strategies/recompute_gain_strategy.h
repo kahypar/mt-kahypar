@@ -83,11 +83,13 @@ namespace mt_kahypar {
       const bool release = sharedData.release_nodes
                            && runStats.moves > 0;
 
-      if (release) {
+      for (PosT j = 0; j < pq.size(); ++j) {
+        const HypernodeID v = pq.at(j);
         // Release all nodes contained in PQ
-        for (PosT j = 0; j < pq.size(); ++j) {
-          const HypernodeID v = pq.at(j);
+        if (release) {
           sharedData.nodeTracker.releaseNode(v);
+        } else {
+          sharedData.nodeTracker.searchOfNode[v].store(sharedData.nodeTracker.deactivatedNodeMarker, std::memory_order_relaxed);
         }
       }
 

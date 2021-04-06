@@ -25,7 +25,11 @@ namespace mt_kahypar {
   template<typename FMStrategy>
   bool LocalizedKWayFM<FMStrategy>::findMoves(PartitionedHypergraph& phg, size_t taskID, size_t numSeeds) {
     localMoves.clear();
-    thisSearch = ++sharedData.nodeTracker.highestActiveSearchID;
+    // persistent searchIDs during one round
+    if (thisSearch == 0) {
+      thisSearch = ++sharedData.nodeTracker.highestActiveSearchID;
+    }
+    ASSERT(thisSearch - sharedData.nodeTracker.deactivatedNodeMarker <= context.shared_memory.num_threads);
 
     HypernodeID seedNode;
     while (runStats.pushes < numSeeds && sharedData.refinementNodes.try_pop(seedNode, taskID)) {
