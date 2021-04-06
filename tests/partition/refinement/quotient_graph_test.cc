@@ -70,8 +70,9 @@ class AQuotientGraph : public Test {
 };
 
 TEST_F(AQuotientGraph, SimulatesBlockScheduling) {
+  AdvancedRefinerMockControl::instance().max_num_blocks = 2;
   AdvancedRefinerAdapter refiner(hg, context, TBBNumaArena::GLOBAL_TASK_GROUP);
-  QuotientGraph qg(context);
+  QuotientGraph qg(hg, context);
   qg.initialize(phg);
   const bool debug = false;
 
@@ -119,8 +120,9 @@ TEST_F(AQuotientGraph, SimulatesBlockScheduling) {
 }
 
 TEST_F(AQuotientGraph, SimulatesBlockSchedulingWithSuccessfulSearches) {
+  AdvancedRefinerMockControl::instance().max_num_blocks = 2;
   AdvancedRefinerAdapter refiner(hg, context, TBBNumaArena::GLOBAL_TASK_GROUP);
-  QuotientGraph qg(context);
+  QuotientGraph qg(hg, context);
   qg.initialize(phg);
   const bool debug = false;
 
@@ -178,7 +180,7 @@ TEST_F(AQuotientGraph, SimulatesBlockSchedulingWithSuccessfulSearches) {
 TEST_F(AQuotientGraph, SimulatesBlockSchedulingWithSearchesThatRequestFourBlocks) {
   AdvancedRefinerMockControl::instance().max_num_blocks = 4;
   AdvancedRefinerAdapter refiner(hg, context, TBBNumaArena::GLOBAL_TASK_GROUP);
-  QuotientGraph qg(context);
+  QuotientGraph qg(hg, context);
   qg.initialize(phg);
 
   vec<vec<CAtomic<HyperedgeWeight>>> cut_he_weights(
@@ -222,7 +224,7 @@ TEST_F(AQuotientGraph, SimulatesBlockSchedulingWithSearchesThatRequestFourBlocks
 TEST_F(AQuotientGraph, SimulatesBlockSchedulingWithSearchesThatRequestFourBlocksWithSuccessfullSearches) {
   AdvancedRefinerMockControl::instance().max_num_blocks = 4;
   AdvancedRefinerAdapter refiner(hg, context, TBBNumaArena::GLOBAL_TASK_GROUP);
-  QuotientGraph qg(context);
+  QuotientGraph qg(hg, context);
   qg.initialize(phg);
 
   vec<vec<CAtomic<HyperedgeWeight>>> cut_he_weights(

@@ -33,8 +33,8 @@ void AdvancedRefinementProblemConstruction::BFSData::reset() {
   while ( !queue[1].empty() ) queue[1].pop();
   while ( !next_queue[0].empty() ) next_queue[0].pop();
   while ( !next_queue[1].empty() ) next_queue[1].pop();
-  visited_hn.clear();
-  visited_he.clear();
+  std::fill(visited_hn.begin(), visited_hn.end(), false);
+  std::fill(visited_he.begin(), visited_he.end(), false);
 }
 
 void AdvancedRefinementProblemConstruction::BFSData::pop_hypernode(HypernodeID& hn) {
@@ -56,17 +56,17 @@ void AdvancedRefinementProblemConstruction::BFSData::add_pins_of_hyperedge_to_qu
   const AdvancedProblemStats& stats,
   const size_t max_bfs_distance) {
   if ( current_distance <= max_bfs_distance ) {
-    if ( !visited_he.contains(he) ) {
+    if ( !visited_he[he] ) {
       for ( const HypernodeID& pin : phg.pins(he) ) {
         const PartitionID block = phg.partID(pin);
         if ( !stats.isLocked(block) &&
              (blocks.i == block || blocks.j == block) &&
-             !visited_hn.contains(pin) ) {
+             !visited_hn[pin] ) {
           next_queue[blocks.i == block ? 0 : 1].push(pin);
-          visited_hn[pin] = ds::EmptyStruct { };
+          visited_hn[pin] = true;
         }
       }
-      visited_he[he] = ds::EmptyStruct { };
+      visited_he[he] = true;
     }
   }
 }
@@ -77,7 +77,7 @@ void AdvancedRefinementProblemConstruction::ConstructionData::initialize(
   const PartitionedHypergraph& phg) {
   // Initialize BFS Queues
   used_slots = initial_cut_hes.size();
-  while ( bfs.size() <= used_slots ) bfs.emplace_back();
+  while ( bfs.size() <= used_slots ) bfs.emplace_back(_num_nodes, _num_edges);
   for ( size_t i = 0; i < used_slots; ++i ) {
     bfs[i].reset();
     bfs[i].blocks = initial_cut_hes[i].blocks;

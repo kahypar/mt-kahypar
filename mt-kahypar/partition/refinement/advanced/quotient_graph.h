@@ -22,6 +22,7 @@
 #pragma once
 
 #include "tbb/concurrent_vector.h"
+#include "tbb/enumerable_thread_specific.h"
 
 #include "kahypar/datastructure/binary_heap.h"
 
@@ -179,12 +180,28 @@ class QuotientGraph {
     bool is_finalized;
   };
 
+  struct BFSData {
+    BFSData(const HypernodeID num_nodes,
+            const HyperedgeID num_edges) :
+      visited_hns(num_nodes, false),
+      distance(num_edges, -1) {}
+
+    void reset() {
+      std::fill(visited_hns.begin(), visited_hns.end(), false);
+      std::fill(distance.begin(), distance.end(), -1);
+    }
+
+    vec<bool> visited_hns;
+    vec<int> distance;
+  };
+
   using BlockSchedulingHeap = kahypar::ds::BlockPairStatsHeap;
 
 public:
   static constexpr SearchID INVALID_SEARCH_ID = std::numeric_limits<SearchID>::max();
 
-  explicit QuotientGraph(const Context& context) :
+  explicit QuotientGraph(const Hypergraph& hg,
+                         const Context& context) :
     _phg(nullptr),
     _context(context),
     _quotient_graph(context.partition.k,
@@ -192,7 +209,8 @@ public:
     _heap_lock(),
     _block_scheduler(_context.partition.k * _context.partition.k),
     _num_active_searches(0),
-    _searches() {
+    _searches(),
+    _local_bfs(hg.initialNumNodes(), hg.initialNumEdges()) {
     for ( PartitionID i = 0; i < _context.partition.k; ++i ) {
       for ( PartitionID j = i + 1; j < _context.partition.k; ++j ) {
         _quotient_graph[i][j].blocks.i = i;
@@ -304,7 +322,9 @@ public:
    * expand along cut hyperedges that contains pins of both blocks.
    * The BFS distance determines the order of the cut hyperedges.
    */
-  void sortCutHyperedges(const PartitionID i, const PartitionID j);
+  void sortCutHyperedges(const PartitionID i,
+                         const PartitionID j,
+                         BFSData& bfs_data);
 
   size_t index(const QuotientGraphEdge& edge) {
     return edge.blocks.i + _context.partition.k * edge.blocks.j;
@@ -375,6 +395,9 @@ public:
   CAtomic<size_t> _num_active_searches;
   // ! Information about searches that are currently running
   tbb::concurrent_vector<Search> _searches;
+
+  // ! BFS data required to sort cut hyperedges
+  tbb::enumerable_thread_specific<BFSData> _local_bfs;
 };
 
 }  // namespace kahypar

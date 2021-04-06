@@ -42,13 +42,14 @@ class AdvancedRefinementProblemConstruction {
    * the cut of two blocks of the partition.
    */
   struct BFSData {
-    explicit BFSData() :
+    explicit BFSData(const HypernodeID num_nodes,
+                     const HyperedgeID num_edges) :
       current_distance(0),
       last_queue_idx(0),
       queue(2),
       next_queue(2),
-      visited_hn(),
-      visited_he() { }
+      visited_hn(num_nodes, false),
+      visited_he(num_edges, false) { }
 
     void reset();
 
@@ -79,8 +80,8 @@ class AdvancedRefinementProblemConstruction {
     size_t last_queue_idx;
     vec<parallel::scalable_queue<HypernodeID>> queue;
     vec<parallel::scalable_queue<HypernodeID>> next_queue;
-    ds::DynamicSparseSet<HypernodeID> visited_hn;
-    ds::DynamicSparseSet<HyperedgeID> visited_he;
+    vec<bool> visited_hn;
+    vec<bool> visited_he;
   };
 
   /**
@@ -89,7 +90,10 @@ class AdvancedRefinementProblemConstruction {
    * which are selected in round-robin fashion.
    */
   struct ConstructionData {
-    explicit ConstructionData() :
+    explicit ConstructionData(const HypernodeID num_nodes,
+                              const HyperedgeID num_edges) :
+      _num_nodes(num_nodes),
+      _num_edges(num_edges),
       used_slots(0),
       last_idx(0),
       bfs() { }
@@ -110,6 +114,8 @@ class AdvancedRefinementProblemConstruction {
       return empty;
     }
 
+    const HypernodeID _num_nodes;
+    const HyperedgeID _num_edges;
     size_t used_slots;
     size_t last_idx;
     vec<BFSData> bfs;
@@ -121,8 +127,8 @@ class AdvancedRefinementProblemConstruction {
     _context(context),
     _vertex_ownership(hg.initialNumNodes(),
       CAtomic<SearchID>(QuotientGraph::INVALID_SEARCH_ID)),
-    _local_data(),
-    _local_stats(context.partition.k) { }
+    _local_data(hg.initialNumNodes(), hg.initialNumEdges()),
+    _local_stats(hg.initialNumEdges(), context.partition.k) { }
 
   AdvancedRefinementProblemConstruction(const AdvancedRefinementProblemConstruction&) = delete;
   AdvancedRefinementProblemConstruction(AdvancedRefinementProblemConstruction&&) = delete;

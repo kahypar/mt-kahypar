@@ -81,7 +81,7 @@ SearchID QuotientGraph::requestNewSearch(AdvancedRefinerAdapter& refiner) {
 
       // Associate refiner with search id
       const bool success = refiner.registerNewSearch(search_id, *_phg);
-      ASSERT(success);
+      ASSERT(success); unused(success);
 
       // Extend with additional
       const PartitionID num_blocks = refiner.maxNumberOfBlocks(search_id);
@@ -304,11 +304,14 @@ void QuotientGraph::initialize(const PartitionedHypergraph& phg) {
   }
 
   // Sort cut hyperedges of each block
-  tbb::parallel_for(0, _context.partition.k, [&](const PartitionID i) {
-    tbb::parallel_for(i + 1, _context.partition.k, [&, i](const PartitionID j) {
-      sortCutHyperedges(i, j);
+  if ( _context.refinement.advanced.sort_cut_hes ) {
+    tbb::parallel_for(0, _context.partition.k, [&](const PartitionID i) {
+      tbb::parallel_for(i + 1, _context.partition.k, [&, i](const PartitionID j) {
+        BFSData& bfs_data = _local_bfs.local();
+        sortCutHyperedges(i, j, bfs_data);
+      });
     });
-  });
+  }
 }
 
 void QuotientGraph::fullHeapUpdate() {
@@ -439,13 +442,14 @@ vec<BlockPair> QuotientGraph::extendWithCycle(const BlockPair initial_blocks,
   return best_cycle;
 }
 
-void QuotientGraph::sortCutHyperedges(const PartitionID i, const PartitionID j) {
+void QuotientGraph::sortCutHyperedges(const PartitionID i,
+                                      const PartitionID j,
+                                      BFSData& bfs_data) {
   ASSERT(_phg);
   ASSERT(i < j);
   ASSERT(0 <= i && i < _context.partition.k);
   ASSERT(0 <= j && j < _context.partition.k);
-  ds::DynamicSparseSet<HypernodeID> visited_hns;
-  ds::DynamicSparseMap<HyperedgeID, int> distance;
+  bfs_data.reset();
   int current_distance = 0;
 
   // BFS that traverses all hyperedges reachable from the
@@ -455,8 +459,7 @@ void QuotientGraph::sortCutHyperedges(const PartitionID i, const PartitionID j) 
     std::queue<HyperedgeID> next_q;
     q.push(seed);
     ASSERT(_phg->pinCountInPart(seed, i) > 0 && _phg->pinCountInPart(seed, j) > 0);
-    ASSERT(!distance.contains(seed));
-    distance[seed] = current_distance;
+    bfs_data.distance[seed] = current_distance;
 
     while ( !q.empty() ) {
       const HyperedgeID he = q.front();
@@ -464,14 +467,14 @@ void QuotientGraph::sortCutHyperedges(const PartitionID i, const PartitionID j) 
 
       for ( const HypernodeID& pin : _phg->pins(he) ) {
         const PartitionID block = _phg->partID(pin);
-        if ( ( block == i || block == j ) && !visited_hns.contains(pin) ) {
+        if ( ( block == i || block == j ) && !bfs_data.visited_hns[pin] ) {
           for ( const HyperedgeID& inc_he : _phg->incidentEdges(pin) ) {
-            if ( !distance.contains(inc_he) ) {
+            if ( bfs_data.distance[inc_he] == -1 ) {
               next_q.push(inc_he);
-              distance[inc_he] = current_distance + 1;
+              bfs_data.distance[inc_he] = current_distance + 1;
             }
           }
-          visited_hns[pin] = ds::EmptyStruct { };
+          bfs_data.visited_hns[pin] = true;
         }
       }
 
@@ -484,18 +487,18 @@ void QuotientGraph::sortCutHyperedges(const PartitionID i, const PartitionID j) 
 
   // Start BFS
   for ( const HyperedgeID& he : _quotient_graph[i][j].cut_hes ) {
-    if ( !distance.contains(he) ) {
+    if ( bfs_data.distance[he] == -1 ) {
       bfs(he);
     }
   }
 
   // Sort all cut hyperedges according to their distance label
-  tbb::parallel_sort(_quotient_graph[i][j].cut_hes.begin(), _quotient_graph[i][j].cut_hes.end(),
+  std::sort(_quotient_graph[i][j].cut_hes.begin(), _quotient_graph[i][j].cut_hes.end(),
     [&](const HyperedgeID& lhs, const HyperedgeID& rhs) {
-      ASSERT(distance.contains(lhs));
-      ASSERT(distance.contains(rhs));
-      const int distance_lhs = distance[lhs];
-      const int distance_rhs = distance[rhs];
+      ASSERT(bfs_data.distance[lhs] != -1);
+      ASSERT(bfs_data.distance[rhs] != -1);
+      const int distance_lhs = bfs_data.distance[lhs];
+      const int distance_rhs = bfs_data.distance[rhs];
       return distance_lhs < distance_rhs || (distance_lhs == distance_rhs && lhs < rhs);
     });
 }

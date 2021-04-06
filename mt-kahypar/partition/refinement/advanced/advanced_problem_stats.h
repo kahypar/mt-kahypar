@@ -35,7 +35,8 @@ class AdvancedProblemStats {
   using BlockIterator = typename vec<PartitionID>::const_iterator;
 
  public:
-  explicit AdvancedProblemStats(const PartitionID k) :
+  explicit AdvancedProblemStats(const HyperedgeID num_edges,
+                                const PartitionID k) :
     _k(k),
     _num_nodes_in_block(),
     _node_weight_of_block(),
@@ -46,7 +47,7 @@ class AdvancedProblemStats {
     _total_weight(0),
     _num_edges(0),
     _num_pins(0),
-    _visited_hes() { }
+    _visited_hes(num_edges, false) { }
 
   AdvancedProblemStats(const AdvancedProblemStats&) = delete;
   AdvancedProblemStats(AdvancedProblemStats&&) = delete;
@@ -130,9 +131,9 @@ class AdvancedProblemStats {
   }
 
   void addEdge(const HyperedgeID he) {
-    if ( !_visited_hes.contains(he) ) {
+    if ( !_visited_hes[he] ) {
       ++_num_edges;
-      _visited_hes[he] = ds::EmptyStruct { };
+      _visited_hes[he] = true;
     }
   }
 
@@ -151,7 +152,7 @@ class AdvancedProblemStats {
     _total_weight = 0;
     _num_edges = 0;
     _num_pins = 0;
-    _visited_hes.clear();
+    std::fill(_visited_hes.begin(), _visited_hes.end(), false);
   }
 
  private:
@@ -166,7 +167,7 @@ class AdvancedProblemStats {
   HyperedgeID _num_edges;
   HypernodeID _num_pins;
 
-  ds::DynamicSparseSet<HyperedgeID> _visited_hes;
+  vec<bool> _visited_hes;
 };
 
 }  // namespace kahypar

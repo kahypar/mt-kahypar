@@ -73,7 +73,7 @@ public:
                                        const TaskGroupID task_group_id) :
     _phg(nullptr),
     _context(context),
-    _quotient_graph(context),
+    _quotient_graph(hg, context),
     _refiner(hg, context, task_group_id),
     _constructor(hg, context),
     _was_moved(hg.initialNumNodes(), uint8_t(false)),

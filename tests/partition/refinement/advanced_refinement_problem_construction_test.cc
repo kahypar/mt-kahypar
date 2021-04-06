@@ -131,7 +131,7 @@ void verifyThatVertexSetAreDisjoint(const vec<HypernodeID>& nodes_1, const vec<H
 TEST_F(AAdvancedRefinementProblemConstruction, GrowAnAdvancedRefinementProblemAroundTwoBlocks1) {
   AdvancedRefinementProblemConstruction constructor(hg, context);
   AdvancedRefinerAdapter refiner(hg, context, TBBNumaArena::GLOBAL_TASK_GROUP);
-  QuotientGraph qg(context);
+  QuotientGraph qg(hg, context);
   qg.initialize(phg);
 
   max_part_weights.assign(context.partition.k, 400);
@@ -146,7 +146,7 @@ TEST_F(AAdvancedRefinementProblemConstruction, GrowAnAdvancedRefinementProblemAr
 TEST_F(AAdvancedRefinementProblemConstruction, GrowAnAdvancedRefinementProblemAroundTwoBlocks2) {
   AdvancedRefinementProblemConstruction constructor(hg, context);
   AdvancedRefinerAdapter refiner(hg, context, TBBNumaArena::GLOBAL_TASK_GROUP);
-  QuotientGraph qg(context);
+  QuotientGraph qg(hg, context);
   qg.initialize(phg);
 
   max_part_weights.assign(context.partition.k, 800);
@@ -161,7 +161,7 @@ TEST_F(AAdvancedRefinementProblemConstruction, GrowAnAdvancedRefinementProblemAr
 TEST_F(AAdvancedRefinementProblemConstruction, GrowTwoAdvancedRefinementProblemAroundTwoBlocksSimultanously) {
   AdvancedRefinementProblemConstruction constructor(hg, context);
   AdvancedRefinerAdapter refiner(hg, context, TBBNumaArena::GLOBAL_TASK_GROUP);
-  QuotientGraph qg(context);
+  QuotientGraph qg(hg, context);
   qg.initialize(phg);
 
   max_part_weights.assign(context.partition.k, 400);
@@ -186,7 +186,7 @@ TEST_F(AAdvancedRefinementProblemConstruction, GrowAnAdvancedRefinementProblemAr
   AdvancedRefinerMockControl::instance().max_num_blocks = 4;
   AdvancedRefinementProblemConstruction constructor(hg, context);
   AdvancedRefinerAdapter refiner(hg, context, TBBNumaArena::GLOBAL_TASK_GROUP);
-  QuotientGraph qg(context);
+  QuotientGraph qg(hg, context);
   qg.initialize(phg);
 
   max_part_weights.assign(context.partition.k, 800);
@@ -202,7 +202,7 @@ TEST_F(AAdvancedRefinementProblemConstruction, GrowAnAdvancedRefinementProblemAr
   AdvancedRefinerMockControl::instance().max_num_blocks = 4;
   AdvancedRefinementProblemConstruction constructor(hg, context);
   AdvancedRefinerAdapter refiner(hg, context, TBBNumaArena::GLOBAL_TASK_GROUP);
-  QuotientGraph qg(context);
+  QuotientGraph qg(hg, context);
   qg.initialize(phg);
 
   max_part_weights.assign(context.partition.k, 800);
@@ -219,7 +219,7 @@ TEST_F(AAdvancedRefinementProblemConstruction, GrowTwoAdvancedRefinementProblemA
   AdvancedRefinerMockControl::instance().max_num_blocks = 4;
   AdvancedRefinementProblemConstruction constructor(hg, context);
   AdvancedRefinerAdapter refiner(hg, context, TBBNumaArena::GLOBAL_TASK_GROUP);
-  QuotientGraph qg(context);
+  QuotientGraph qg(hg, context);
   qg.initialize(phg);
 
   max_part_weights.assign(context.partition.k, 500);

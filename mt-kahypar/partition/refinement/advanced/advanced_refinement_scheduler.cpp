@@ -113,7 +113,7 @@ bool AdvancedRefinementScheduler::refineImpl(
   }
   HEAVY_REFINEMENT_ASSERT(phg.checkTrackedPartitionInformation());
   _phg = nullptr;
-  return false;
+  return overall_delta.load(std::memory_order_relaxed) < 0;
 }
 
 void AdvancedRefinementScheduler::initializeImpl(PartitionedHypergraph& phg)  {
