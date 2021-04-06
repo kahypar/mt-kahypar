@@ -395,7 +395,10 @@ namespace mt_kahypar {
             ("r-max-bfs-distance",
              po::value<size_t>(&context.refinement.advanced.max_bfs_distance)->value_name("<size_t>"),
              "Advanced refinement problems are constructed via BFS search. The maximum BFS distance is the\n"
-             "maximum distance from a cut hyperedge to any vertex of the problem.");
+             "maximum distance from a cut hyperedge to any vertex of the problem.")
+            ("r-sort-cut-hes",
+             po::value<bool>(&context.refinement.advanced.sort_cut_hes)->value_name("<bool>"),
+             "Sort cut hyperedges of each block pair in increasing order of their distance to each other in quotient graph.");
     return options;
   }
 

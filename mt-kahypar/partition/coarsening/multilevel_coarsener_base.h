@@ -22,6 +22,7 @@
 
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/partition/refinement/i_refiner.h"
+#include "mt-kahypar/partition/refinement/advanced/advanced_refinement_scheduler.h"
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
 
 
@@ -179,6 +180,7 @@ class MultilevelCoarsenerBase {
   void refine(PartitionedHypergraph& partitioned_hypergraph,
               std::unique_ptr<IRefiner>& label_propagation,
               std::unique_ptr<IRefiner>& fm,
+              std::unique_ptr<AdvancedRefinementScheduler>& advanced,
               kahypar::Metrics& current_metrics,
               const double time_limit);
 

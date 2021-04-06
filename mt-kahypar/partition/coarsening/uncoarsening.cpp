@@ -104,9 +104,15 @@ namespace mt_kahypar {
                                               _context.partition.enable_progress_bar && !debug);
     uncontraction_progress += coarsest_hg.initialNumNodes();
 
+    // Initialize Advanced Refinement Scheduler
+    std::unique_ptr<AdvancedRefinementScheduler> advanced(nullptr);
+    if ( _top_level && _context.refinement.advanced.algorithm != AdvancedRefinementAlgorithm::do_nothing ) {
+      advanced = std::make_unique<AdvancedRefinementScheduler>(_hg, _context, _task_group_id);
+    }
+
     // Refine Coarsest Partitioned Hypergraph
     double time_limit = refinementTimeLimit(_context, _hierarchy.back().coarseningTime());
-    refine(coarsest_hg, label_propagation, fm, current_metrics, time_limit);
+    refine(coarsest_hg, label_propagation, fm, advanced, current_metrics, time_limit);
 
     for (int i = _hierarchy.size() - 1; i >= 0; --i) {
       // Project partition to next level finer hypergraph
@@ -135,7 +141,7 @@ namespace mt_kahypar {
 
       // Refinement
       time_limit = refinementTimeLimit(_context, _hierarchy[i].coarseningTime());
-      refine(representative_hg, label_propagation, fm, current_metrics, time_limit);
+      refine(representative_hg, label_propagation, fm, advanced, current_metrics, time_limit);
 
       // Update Progress Bar
       uncontraction_progress.setObjective(
@@ -405,6 +411,7 @@ namespace mt_kahypar {
           PartitionedHypergraph& partitioned_hypergraph,
           std::unique_ptr<IRefiner>& label_propagation,
           std::unique_ptr<IRefiner>& fm,
+          std::unique_ptr<AdvancedRefinementScheduler>& advanced,
           kahypar::Metrics& current_metrics,
           const double time_limit) {
 
@@ -437,6 +444,16 @@ namespace mt_kahypar {
         utils::Timer::instance().start_timer("fm", "FM");
         improvement_found |= fm->refine(partitioned_hypergraph, dummy, current_metrics, time_limit);
         utils::Timer::instance().stop_timer("fm");
+      }
+
+      if ( advanced && _context.refinement.advanced.algorithm != AdvancedRefinementAlgorithm::do_nothing ) {
+        utils::Timer::instance().start_timer("initialize_advanced_refiner", "Initialize Advanced Refiner");
+        advanced->initialize(partitioned_hypergraph);
+        utils::Timer::instance().stop_timer("initialize_advanced_refiner");
+
+        utils::Timer::instance().start_timer("advanced_refiner", "Advanced Refiner");
+        improvement_found |= advanced->refine(partitioned_hypergraph, dummy, current_metrics, time_limit);
+        utils::Timer::instance().stop_timer("advanced_refiner");
       }
 
       if ( _top_level ) {
