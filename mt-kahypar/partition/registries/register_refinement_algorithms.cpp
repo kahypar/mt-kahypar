@@ -25,6 +25,7 @@
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/partition/factories.h"
 #include "mt-kahypar/partition/refinement/do_nothing_refiner.h"
+#include "mt-kahypar/partition/refinement/advanced/do_nothing_refiner.h"
 #include "mt-kahypar/partition/refinement/label_propagation/label_propagation_refiner.h"
 #include "mt-kahypar/partition/refinement/fm/multitry_kway_fm.h"
 #include "mt-kahypar/partition/refinement/fm/strategies/gain_cache_strategy.h"
@@ -46,6 +47,13 @@
     return new refiner(hypergraph, context, task_group_id);                                                            \
   })
 
+#define REGISTER_ADVANCED_REFINER(id, refiner, t)                                                                      \
+  static kahypar::meta::Registrar<AdvancedRefinementFactory> JOIN(register_ ## refiner, t)(                            \
+    id,                                                                                                                \
+    [](const Hypergraph& hypergraph, const Context& context, const TaskGroupID task_group_id) -> IAdvancedRefiner* {   \
+    return new refiner(hypergraph, context, task_group_id);                                                            \
+  })
+
 namespace mt_kahypar {
 REGISTER_LP_REFINER(LabelPropagationAlgorithm::label_propagation_cut, LabelPropagationCutRefiner, Cut);
 REGISTER_LP_REFINER(LabelPropagationAlgorithm::label_propagation_km1, LabelPropagationKm1Refiner, Km1);
@@ -60,4 +68,7 @@ REGISTER_FM_REFINER(FMAlgorithm::fm_gain_cache_on_demand, MultiTryKWayFMWithGain
 REGISTER_FM_REFINER(FMAlgorithm::fm_gain_delta, MultiTryKWayFMWithGainDelta, FMWithGainDelta);
 REGISTER_FM_REFINER(FMAlgorithm::fm_recompute_gain, MultiTryKWayFMWithGainRecomputation, FMWithGainRecomputation);
 REGISTER_FM_REFINER(FMAlgorithm::do_nothing, DoNothingRefiner, 2);
+
+REGISTER_ADVANCED_REFINER(AdvancedRefinementAlgorithm::do_nothing, DoNothingAdvancedRefiner, 3);
+
 }  // namespace mt_kahypar
