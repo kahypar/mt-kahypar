@@ -85,7 +85,7 @@ namespace mt_kahypar {
       }
 
       overall_improvement += round_improvement;
-      DBG << V(iter) << V(num_moves) << V(round_improvement);
+      DBG << V(iter) << V(num_moves) << V(round_improvement) << V(phg.initialNumNodes());
 
       if (num_moves == 0) {
         // no vertices with positive gain --> stop
@@ -182,6 +182,10 @@ namespace mt_kahypar {
           num_overloaded_blocks--;
         }
       }
+    }
+
+    if (num_overloaded_blocks > 0) {
+      DBG << "still overloaded" << V(phg.initialNumNodes()) << V(phg.initialNumPins()) << V(num_overloaded_blocks) << V(num_moves);
     }
 
     // DBG << V(num_reverted_moves);

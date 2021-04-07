@@ -22,7 +22,6 @@
 
 #include "mt-kahypar/partition/metrics.h"
 #include "mt-kahypar/partition/refinement/fm/stop_rule.h"
-#include "mt-kahypar/utils/randomize.h"
 
 namespace mt_kahypar {
 
