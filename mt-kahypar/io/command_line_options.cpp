@@ -398,7 +398,19 @@ namespace mt_kahypar {
              "maximum distance from a cut hyperedge to any vertex of the problem.")
             ("r-sort-cut-hes",
              po::value<bool>(&context.refinement.advanced.sort_cut_hes)->value_name("<bool>"),
-             "Sort cut hyperedges of each block pair in increasing order of their distance to each other in quotient graph.");
+             "Sort cut hyperedges of each block pair in increasing order of their distance to each other in quotient graph.")
+            ("r-ilp-max-non-zeros",
+             po::value<size_t>(&context.refinement.advanced.ilp.max_non_zeros)->value_name("<size_t>"),
+             "Maximum number of non-zeros for ILP problems.")
+            ("r-ilp-min-non-zeros",
+             po::value<size_t>(&context.refinement.advanced.ilp.min_non_zeros)->value_name("<size_t>"),
+             "Minimum number of non-zeros for ILP problems.")
+            ("r-ilp-max-allowed-blocks",
+             po::value<PartitionID>(&context.refinement.advanced.ilp.max_allowed_blocks)->value_name("<int>"),
+             "Maximum allowed blocks in ILP problems.")
+            ("r-ilp-time-limit",
+             po::value<double>(&context.refinement.advanced.ilp.time_limit)->value_name("<double>"),
+             "Time limit for ILP optimization.");
     return options;
   }
 

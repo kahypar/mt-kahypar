@@ -139,6 +139,14 @@ namespace mt_kahypar {
     return out;
   }
 
+  std::ostream& operator<<(std::ostream& out, const ILPParameters& params) {
+    out << "    ILP Maximum Number of Non-Zeros:  " << params.max_non_zeros << std::endl;
+    out << "    ILP Minimum Number of Non-Zeros:  " << params.min_non_zeros << std::endl;
+    out << "    ILP Maximum Allowed Blocks:       " << params.max_allowed_blocks << std::endl;
+    out << "    ILP Time Limit:                   " << params.time_limit << std::endl;
+    return out;
+  }
+
   std::ostream& operator<<(std::ostream& out, const AdvancedRefinementParameters& params) {
     out << "  Advanced Refinement Parameters: \n";
     out << "    Algorithm:                        " << params.algorithm << std::endl;
@@ -147,7 +155,9 @@ namespace mt_kahypar {
       out << "    Number of Cut HEs Per Block Pair: " << params.num_cut_edges_per_block_pair << std::endl;
       out << "    Maximum BFS Distance:             " << params.max_bfs_distance << std::endl;
       out << "    Sort Cut HEs:                     " << std::boolalpha << params.sort_cut_hes << std::endl;
-      out << std::flush;
+    }
+    if ( params.algorithm == AdvancedRefinementAlgorithm::ilp ) {
+      out << params.ilp;
     }
     return out;
   }

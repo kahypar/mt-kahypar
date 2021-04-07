@@ -155,12 +155,22 @@ struct NLevelGlobalFMParameters {
 
 std::ostream& operator<<(std::ostream& out, const NLevelGlobalFMParameters& params);
 
+struct ILPParameters {
+  size_t max_non_zeros = 0;
+  size_t min_non_zeros = std::numeric_limits<size_t>::max();
+  PartitionID max_allowed_blocks = 0;
+  double time_limit = 0.0;
+};
+
+std::ostream& operator<<(std::ostream& out, const ILPParameters& params);
+
 struct AdvancedRefinementParameters {
   AdvancedRefinementAlgorithm algorithm = AdvancedRefinementAlgorithm::do_nothing;
   size_t num_threads_per_search = 0;
   size_t num_cut_edges_per_block_pair = 0;
   size_t max_bfs_distance = 0;
   bool sort_cut_hes = false;
+  ILPParameters ilp { };
 };
 
 std::ostream& operator<<(std::ostream& out, const AdvancedRefinementParameters& params);
