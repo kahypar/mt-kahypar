@@ -595,10 +595,17 @@ class InitialPartitioningDataContainer {
       };
       std::sort(_partitions_population_heap.begin(), _partitions_population_heap.end(), comp_tag_less);
       */
+
       auto comp = [&](const auto& l, const auto& r) {
-        return r.first.is_other_better(l.first, _context.partition.epsilon);
+        // return r.first.is_other_better(l.first, _context.partition.epsilon);
+        return l.first._deterministic_tag < r.first._deterministic_tag;
       };
       std::sort(_best_partitions.begin(), _best_partitions.end(), comp);
+      for (size_t i = 1; i < _best_partitions.size(); ++i) {
+        if (_best_partitions[i-1].first._deterministic_tag >= _best_partitions[i].first._deterministic_tag) {
+          throw std::runtime_error("duplicate deterministic tags");
+        }
+      }
 
       std::stringstream sb;
       sb << "----------------------------------------------------------\n";
