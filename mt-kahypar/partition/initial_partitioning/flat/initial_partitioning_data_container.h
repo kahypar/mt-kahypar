@@ -290,7 +290,7 @@ class InitialPartitioningDataContainer {
 
       _partitioned_hypergraph.resetPartition();
 
-      // Apply best partition to hypergraph
+      // Apply input partition to hypergraph
       for ( const HypernodeID& hn : _partitioned_hypergraph.nodes() ) {
         ASSERT(hn < partition.size());
         ASSERT(_partitioned_hypergraph.partID(hn) == kInvalidPartition);
