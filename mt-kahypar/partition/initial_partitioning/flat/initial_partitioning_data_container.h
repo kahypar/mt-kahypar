@@ -40,7 +40,7 @@ namespace mt_kahypar {
 
 class InitialPartitioningDataContainer {
 
-  static constexpr bool debug = false;
+  static constexpr bool debug = true;
   static constexpr bool enable_heavy_assert = false;
 
   // ! Contains information about the best thread local partition
@@ -515,15 +515,19 @@ class InitialPartitioningDataContainer {
       // apply result to shared pool
       my_result._random_tag = prng();   // this is deterministic since we call the prng owned exclusively by the flat IP algo object
       my_result._deterministic_tag = deterministic_tag;
-      PartitioningResult worst_in_population = _best_partitions[ _partitions_population_heap[0] ].first;
+      //PartitioningResult worst_in_population = _best_partitions[ _partitions_population_heap[0] ].first;
+      PartitioningResult worst_in_population = _best_partitions[0].first;
       if (worst_in_population.is_other_better(my_result, eps)) {
         _pop_lock.lock();
-        size_t pos = _partitions_population_heap[0];
+        // size_t pos = _partitions_population_heap[0];
+        size_t pos = 0;
         worst_in_population = _best_partitions[pos].first;
         if (worst_in_population.is_other_better(my_result, eps)) {
           // remove current worst and replace with my result
           my_ip_data.copyPartition(_best_partitions[pos].second);
 
+          /*
+          
           auto comp = [&](size_t l, size_t r) {
             // l < r <--> l has a worse partition than r
             // if left is better --> move it down in the heap
@@ -535,6 +539,15 @@ class InitialPartitioningDataContainer {
           std::pop_heap(_partitions_population_heap.begin(), _partitions_population_heap.end(), comp);
           std::push_heap(_partitions_population_heap.begin(), _partitions_population_heap.end(), comp);
           assert(std::is_heap(_partitions_population_heap.begin(), _partitions_population_heap.end(), comp));
+           */
+          auto comp = [&](const auto& l, const auto& r) {
+            return r.first.is_other_better(l.first, eps);
+          };
+          assert(std::is_heap(_best_partitions.begin(), _best_partitions.end(), comp));
+          _best_partitions[pos].first = my_result;
+          std::pop_heap(_best_partitions.begin(), _best_partitions.end(), comp);
+          std::push_heap(_best_partitions.begin(), _best_partitions.end(), comp);
+          assert(std::is_heap(_best_partitions.begin(), _best_partitions.end(), comp));
         }
         _pop_lock.unlock();
       }
@@ -576,13 +589,19 @@ class InitialPartitioningDataContainer {
       }
 
       // bring them in a deterministic order
+      /*
       auto comp_tag_less = [&](size_t lhs, size_t rhs) {
         return _best_partitions[lhs].first._deterministic_tag < _best_partitions[rhs].first._deterministic_tag;
       };
       std::sort(_partitions_population_heap.begin(), _partitions_population_heap.end(), comp_tag_less);
+      */
+      auto comp = [&](const auto& l, const auto& r) {
+        return r.first.is_other_better(l.first, _context.partition.epsilon);
+      };
+      std::sort(_best_partitions.begin(), _best_partitions.end(), comp);
 
       std::stringstream sb;
-      sb << "-----------------------------------\n";
+      sb << "----------------------------------------------------------\n";
       sb << _partitioned_hg.initialNumNodes() << " " << _partitioned_hg.initialNumPins() << " before FM" << " -- ";
       for (size_t i = 0; i < _best_partitions.size(); ++i) {
         sb << _best_partitions[i].first._deterministic_tag << " ";
@@ -592,10 +611,10 @@ class InitialPartitioningDataContainer {
       }
       sb << "\n";
 
-
       if ( _context.initial_partitioning.perform_refinement_on_best_partitions ) {
         auto refinement_task = [&](size_t j) {
-          size_t i = _partitions_population_heap[j];
+          // size_t i = _partitions_population_heap[j];
+          size_t i = j;
           auto& my_data = _local_hg.local();
           auto& my_phg = my_data._partitioned_hypergraph;
           vec<PartitionID>& my_partition = _best_partitions[i].second;
@@ -614,7 +633,7 @@ class InitialPartitioningDataContainer {
         };
 
         tbb::task_group fm_refinement_group;
-        for (size_t i = 0; i < _partitions_population_heap.size(); ++i) {
+        for (size_t i = 0; i < _best_partitions.size(); ++i) {
           fm_refinement_group.run(std::bind(refinement_task, i));
         }
         fm_refinement_group.wait();
@@ -640,7 +659,7 @@ class InitialPartitioningDataContainer {
         sb << _best_partitions[i].first._imbalance << " ";
         sb << _best_partitions[i].first._objective << " | ";
       }
-      sb << "\n";
+      sb << "\n-------------------------------------------------------------\n";
       DBG << sb.str();
 
 
