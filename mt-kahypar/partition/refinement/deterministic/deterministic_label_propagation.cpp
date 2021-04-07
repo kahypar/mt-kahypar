@@ -52,8 +52,8 @@ namespace mt_kahypar {
 
       size_t sub_round_size = parallel::chunking::idiv_ceil(n, num_sub_rounds);
       for (size_t sub_round = 0; sub_round < num_sub_rounds; ++sub_round) {
-        moves_back.store(0, std::memory_order_relaxed);
         // calculate moves
+        moves_back.store(0, std::memory_order_relaxed);
         auto [first, last] = parallel::chunking::bounds(sub_round, n, sub_round_size);
         if (context.refinement.deterministic_refinement.feistel_shuffling) {
           tbb::parallel_for(HypernodeID(first), HypernodeID(last), [&](const HypernodeID cleartext) {
@@ -151,11 +151,10 @@ namespace mt_kahypar {
   }
 
   Gain DeterministicLabelPropagationRefiner::applyMovesSortedByGainAndRevertUnbalanced(PartitionedHypergraph& phg) {
-    auto comp = [](const Move& m1, const Move& m2) {
-      return m1.gain > m2.gain || (m1.gain == m2.gain && m1.node < m2.node);
-    };
     size_t num_moves = moves_back.load(std::memory_order_relaxed);
-    tbb::parallel_sort(moves.begin(), moves.begin() + num_moves, comp);
+    tbb::parallel_sort(moves.begin(), moves.begin() + num_moves, [](const Move& m1, const Move& m2) {
+      return m1.gain > m2.gain || (m1.gain == m2.gain && m1.node < m2.node);
+    });
 
     size_t num_overloaded_blocks = 0;
     vec<HypernodeWeight> part_weights = aggregatePartWeightDeltas(phg, moves, num_moves);

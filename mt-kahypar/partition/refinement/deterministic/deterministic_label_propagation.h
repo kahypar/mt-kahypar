@@ -36,7 +36,8 @@ public:
     context(context),
     compute_gains(context.partition.k),
     moves(hypergraph.initialNumNodes()),   // make smaller --> max round size
-    sorted_moves(hypergraph.initialNumNodes())
+    sorted_moves(hypergraph.initialNumNodes()),
+    prng(context.partition.seed)
   {
 
   }
