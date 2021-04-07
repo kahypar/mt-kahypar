@@ -28,21 +28,22 @@ namespace mt_kahypar::metrics {
   double modularity(const Graph& graph, ds::Clustering& communities) {
     ASSERT(graph.canBeUsed());
     ASSERT(graph.numNodes() == communities.size());
-    vec<CAtomic<double>> internal_volume(graph.numNodes());
-    vec<CAtomic<double>> total_volume(graph.numNodes());
+    vec<parallel::AtomicWrapper<double>> internal_volume(graph.numNodes());
+    vec<parallel::AtomicWrapper<double>> total_volume(graph.numNodes());
     tbb::parallel_for(0U, static_cast<NodeID>(graph.numNodes()), [&](const NodeID u) {
       const PartitionID community_u = communities[u];
       ASSERT(community_u < static_cast<PartitionID>(graph.numNodes()));
+      double my_internal_volume = graph.nodeVolume(u);
       total_volume[community_u] += graph.nodeVolume(u);
-      internal_volume[community_u] += graph.nodeVolume(u);
+
       for ( const Arc& arc : graph.arcsOf(u) ) {
-        const NodeID v = arc.head;
-        const PartitionID community_v = communities[v];
+        const PartitionID community_v = communities[arc.head];
         ASSERT(community_v < static_cast<PartitionID>(graph.numNodes()));
         if ( community_u != community_v ) {
-          internal_volume[community_u] -= arc.weight;
+          my_internal_volume -= arc.weight;
         }
       }
+      internal_volume[community_u] += my_internal_volume;
     });
 
     tbb::enumerable_thread_specific<double> local_modularity(0.0);
@@ -64,7 +65,7 @@ namespace mt_kahypar::community_detection {
     _reciprocal_total_volume = 1.0 / graph.totalVolume();
     _vol_multiplier_div_by_node_vol = _reciprocal_total_volume;
 
-    parallel::scalable_vector<NodeID> nodes(graph.numNodes());
+    parallel::scalable_vector<NodeID> nodes(graph.numNodes()); // TODO make this a member
     tbb::parallel_for(0U, static_cast<NodeID>(graph.numNodes()), [&](const NodeID u) {
       nodes[u] = u;
       communities[u] = u;
@@ -102,7 +103,7 @@ namespace mt_kahypar::community_detection {
           }
 
           if (best_cluster != from) {
-            _cluster_volumes[best_cluster] += volU;
+            _cluster_volumes[best_cluster] += volU;   // TODO specify memory order
             _cluster_volumes[from] -= volU;
             communities[u] = best_cluster;
             ++local_number_of_nodes_moved.local();
@@ -186,7 +187,7 @@ namespace mt_kahypar::community_detection {
           const Graph& graph, const ds::Clustering& communities) {
     ArcWeight intraClusterWeights = 0;
     ArcWeight sumOfSquaredClusterVolumes = 0;
-    std::vector<ArcWeight> _cluster_volumes(graph.numNodes(), 0);
+    vec<ArcWeight> cluster_volumes(graph.numNodes(), 0);
 
     for (NodeID u : graph.nodes()) {
       ArcWeight arcVol = 0;
@@ -199,11 +200,11 @@ namespace mt_kahypar::community_detection {
       ArcWeight selfLoopWeight = graph.nodeVolume(u) - arcVol;          // already accounted for as twice!
       ASSERT(selfLoopWeight >= 0.0);
       intraClusterWeights += selfLoopWeight;
-      _cluster_volumes[communities[u]] += graph.nodeVolume(u);
+      cluster_volumes[communities[u]] += graph.nodeVolume(u);
     }
 
     for (NodeID cluster : graph.nodes()) {      // unused cluster IDs have volume 0
-      sumOfSquaredClusterVolumes += _cluster_volumes[cluster] * _cluster_volumes[cluster];
+      sumOfSquaredClusterVolumes += cluster_volumes[cluster] * cluster_volumes[cluster];
     }
     return std::make_pair(intraClusterWeights, sumOfSquaredClusterVolumes);
   }

@@ -25,35 +25,28 @@
 namespace mt_kahypar::community_detection {
 
   ds::Clustering local_moving_contract_recurse(Graph& fine_graph, ParallelLocalMovingModularity& mlv) {
-    static constexpr bool debug = false;
-    DBG << V(fine_graph.numNodes())
-        << V(fine_graph.numArcs())
-        << V(fine_graph.totalVolume());
-
     utils::Timer::instance().start_timer("local_moving", "Local Moving");
     ds::Clustering communities(fine_graph.numNodes());
     bool communities_changed = mlv.localMoving(fine_graph, communities);
     utils::Timer::instance().stop_timer("local_moving");
 
     if (communities_changed) {
-      DBG << "Current Modularity:" << metrics::modularity(fine_graph, communities);
       utils::Timer::instance().start_timer("contraction", "Contraction");
       // Contract Communities
       Graph coarse_graph = fine_graph.contract(communities);
-      ASSERT(coarse_graph.totalVolume() == fine_graph.totalVolume(),
-             V(coarse_graph.totalVolume()) << V(fine_graph.totalVolume()));
+      ASSERT(coarse_graph.totalVolume() == fine_graph.totalVolume());
       utils::Timer::instance().stop_timer("contraction");
 
       // Recurse on contracted graph
       ds::Clustering coarse_communities = local_moving_contract_recurse(coarse_graph, mlv);
 
-      utils::Timer::instance().start_timer("prolong", "Prolong");
+      utils::Timer::instance().start_timer("project", "Project");
       // Prolong Clustering
       tbb::parallel_for(0UL, fine_graph.numNodes(), [&](const NodeID u) {
         ASSERT(communities[u] < static_cast<PartitionID>(coarse_communities.size()));
         communities[u] = coarse_communities[communities[u]];
       });
-      utils::Timer::instance().stop_timer("prolong");
+      utils::Timer::instance().stop_timer("project");
     }
 
     return communities;
