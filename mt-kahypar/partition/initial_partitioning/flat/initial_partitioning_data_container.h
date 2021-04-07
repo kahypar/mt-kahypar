@@ -335,8 +335,6 @@ class InitialPartitioningDataContainer {
           current_metric.getMetric(kahypar::Mode::direct_kway, _context.partition.objective) ==
           metrics::objective(_partitioned_hypergraph, _context.partition.objective, false));
 
-
-
         if (num_reps > 1) {
           if (rep == 0) {
             first_partition.resize(_partitioned_hypergraph.initialNumNodes(), kInvalidPartition);
@@ -412,12 +410,6 @@ class InitialPartitioningDataContainer {
       for (size_t i = 0; i < _max_pop_size; ++i) {
         _best_partitions[i].second.resize(hypergraph.initialNumNodes(), kInvalidPartition);
       }
-
-      auto comp = [&](size_t l, size_t r) {
-        // l < r <--> l has a worse partition than r
-        return _best_partitions[r].first.is_other_better(_best_partitions[l].first, _context.partition.epsilon);
-      };
-      assert(std::is_heap(_partitions_population_heap.begin(), _partitions_population_heap.end(), comp));
     }
   }
 
@@ -531,13 +523,15 @@ class InitialPartitioningDataContainer {
         if (worst_in_population.is_other_better(my_result, eps)) {
           // remove current worst and replace with my result
           my_ip_data.copyPartition(_best_partitions[pos].second);
-          _best_partitions[pos].first = my_result;
 
           auto comp = [&](size_t l, size_t r) {
             // l < r <--> l has a worse partition than r
             // if left is better --> move it down in the heap
             return _best_partitions[r].first.is_other_better(_best_partitions[l].first, eps);
           };
+
+          assert(std::is_heap(_partitions_population_heap.begin(), _partitions_population_heap.end(), comp));
+          _best_partitions[pos].first = my_result;
           std::pop_heap(_partitions_population_heap.begin(), _partitions_population_heap.end(), comp);
           std::push_heap(_partitions_population_heap.begin(), _partitions_population_heap.end(), comp);
           assert(std::is_heap(_partitions_population_heap.begin(), _partitions_population_heap.end(), comp));
