@@ -404,8 +404,6 @@ class InitialPartitioningDataContainer {
     _max_pop_size = 16;
 
     if (_context.partition.deterministic) {
-      _partitions_population_heap.resize(_max_pop_size);
-      std::iota(_partitions_population_heap.begin(), _partitions_population_heap.end(), 0);
       _best_partitions.resize(_max_pop_size);
       for (size_t i = 0; i < _max_pop_size; ++i) {
         _best_partitions[i].second.resize(hypergraph.initialNumNodes(), kInvalidPartition);
@@ -515,36 +513,16 @@ class InitialPartitioningDataContainer {
       // apply result to shared pool
       my_result._random_tag = prng();   // this is deterministic since we call the prng owned exclusively by the flat IP algo object
       my_result._deterministic_tag = deterministic_tag;
-      //PartitioningResult worst_in_population = _best_partitions[ _partitions_population_heap[0] ].first;
       PartitioningResult worst_in_population = _best_partitions[0].first;
       if (worst_in_population.is_other_better(my_result, eps)) {
         _pop_lock.lock();
-        // size_t pos = _partitions_population_heap[0];
-        size_t pos = 0;
-        worst_in_population = _best_partitions[pos].first;
+        worst_in_population = _best_partitions[0].first;
         if (worst_in_population.is_other_better(my_result, eps)) {
           // remove current worst and replace with my result
-          my_ip_data.copyPartition(_best_partitions[pos].second);
-
-          /*
-          
-          auto comp = [&](size_t l, size_t r) {
-            // l < r <--> l has a worse partition than r
-            // if left is better --> move it down in the heap
-            return _best_partitions[r].first.is_other_better(_best_partitions[l].first, eps);
-          };
-
-          assert(std::is_heap(_partitions_population_heap.begin(), _partitions_population_heap.end(), comp));
-          _best_partitions[pos].first = my_result;
-          std::pop_heap(_partitions_population_heap.begin(), _partitions_population_heap.end(), comp);
-          std::push_heap(_partitions_population_heap.begin(), _partitions_population_heap.end(), comp);
-          assert(std::is_heap(_partitions_population_heap.begin(), _partitions_population_heap.end(), comp));
-           */
-          auto comp = [&](const auto& l, const auto& r) {
-            return r.first.is_other_better(l.first, eps);
-          };
+          my_ip_data.copyPartition(_best_partitions[0].second);
+          auto comp = [&](const auto& l, const auto& r) { return r.first.is_other_better(l.first, eps); };
           assert(std::is_heap(_best_partitions.begin(), _best_partitions.end(), comp));
-          _best_partitions[pos].first = my_result;
+          _best_partitions[0].first = my_result;
           std::pop_heap(_best_partitions.begin(), _best_partitions.end(), comp);
           std::push_heap(_best_partitions.begin(), _best_partitions.end(), comp);
           assert(std::is_heap(_best_partitions.begin(), _best_partitions.end(), comp));
@@ -589,39 +567,12 @@ class InitialPartitioningDataContainer {
       }
 
       // bring them in a deterministic order
-      /*
-      auto comp_tag_less = [&](size_t lhs, size_t rhs) {
-        return _best_partitions[lhs].first._deterministic_tag < _best_partitions[rhs].first._deterministic_tag;
-      };
-      std::sort(_partitions_population_heap.begin(), _partitions_population_heap.end(), comp_tag_less);
-      */
-
-      auto comp = [&](const auto& l, const auto& r) {
-        // return r.first.is_other_better(l.first, _context.partition.epsilon);
-        return l.first._deterministic_tag < r.first._deterministic_tag;
-      };
-      std::sort(_best_partitions.begin(), _best_partitions.end(), comp);
-      for (size_t i = 1; i < _best_partitions.size(); ++i) {
-        if (_best_partitions[i-1].first._deterministic_tag >= _best_partitions[i].first._deterministic_tag) {
-          throw std::runtime_error("duplicate deterministic tags");
-        }
-      }
-
-      std::stringstream sb;
-      sb << "----------------------------------------------------------\n";
-      sb << _partitioned_hg.initialNumNodes() << " " << _partitioned_hg.initialNumPins() << " before FM" << " -- ";
-      for (size_t i = 0; i < _best_partitions.size(); ++i) {
-        sb << _best_partitions[i].first._deterministic_tag << " ";
-        sb << _best_partitions[i].first._random_tag << " ";
-        sb << _best_partitions[i].first._imbalance << " ";
-        sb << _best_partitions[i].first._objective << " | ";
-      }
-      sb << "\n";
+      std::sort(_best_partitions.begin(), _best_partitions.end(), [&](const auto& l, const auto& r) {
+        return r.first.is_other_better(l.first, _context.partition.epsilon);
+      });
 
       if ( _context.initial_partitioning.perform_refinement_on_best_partitions ) {
-        auto refinement_task = [&](size_t j) {
-          // size_t i = _partitions_population_heap[j];
-          size_t i = j;
+        auto refinement_task = [&](size_t i) {
           auto& my_data = _local_hg.local();
           auto& my_phg = my_data._partitioned_hypergraph;
           vec<PartitionID>& my_partition = _best_partitions[i].second;
@@ -657,18 +608,6 @@ class InitialPartitioningDataContainer {
       best_feasible_objective = _best_partitions[best_index].first._objective;
       const vec<PartitionID>& best_partition = _best_partitions[best_index].second;
       assert(std::all_of(best_partition.begin(), best_partition.end(), [&](PartitionID p) { return p != kInvalidPartition; }));
-
-
-      sb << _partitioned_hg.initialNumNodes() << " " << _partitioned_hg.initialNumPins() << " " << V(best_feasible_objective) << " " << V(best_index) << " -- ";
-      for (size_t i = 0; i < _best_partitions.size(); ++i) {
-        sb << _best_partitions[i].first._deterministic_tag << " ";
-        sb << _best_partitions[i].first._random_tag << " ";
-        sb << _best_partitions[i].first._imbalance << " ";
-        sb << _best_partitions[i].first._objective << " | ";
-      }
-      sb << "\n-------------------------------------------------------------\n";
-      DBG << sb.str();
-
 
       _partitioned_hg.doParallelForAllNodes([&](HypernodeID node) {
         _partitioned_hg.setOnlyNodePart(node, best_partition[node]);
@@ -766,7 +705,6 @@ class InitialPartitioningDataContainer {
 
   size_t _max_pop_size;
   SpinLock _pop_lock;
-  vec<size_t> _partitions_population_heap;
   vec< std::pair<PartitioningResult, vec<PartitionID>>  > _best_partitions;
 };
 
