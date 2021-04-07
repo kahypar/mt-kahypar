@@ -19,7 +19,7 @@
  ******************************************************************************/
 #pragma once
 
-#include <stddef.h>
+#include <cstddef>
 
 #include "tbb/enumerable_thread_specific.h"
 #include "tbb/parallel_invoke.h"
@@ -29,6 +29,7 @@
 
 #include "mt-kahypar/macros.h"
 #include "mt-kahypar/datastructures/hypergraph_common.h"
+#include "mt-kahypar/datastructures/array.h"
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
 #include "mt-kahypar/parallel/stl/scalable_unique_ptr.h"
 #include "mt-kahypar/parallel/atomic_wrapper.h"

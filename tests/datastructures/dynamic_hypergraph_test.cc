@@ -1410,7 +1410,7 @@ TEST_F(ADynamicHypergraph, GeneratesACompactifiedHypergraph1) {
   }
   hypergraph.removeSinglePinAndParallelHyperedges();
 
-  auto res = DynamicHypergraphFactory::compactify(TBBNumaArena::GLOBAL_TASK_GROUP, hypergraph);
+  auto res = DynamicHypergraphFactory::compactify(hypergraph);
   DynamicHypergraph& compactified_hg = res.first;
   ASSERT_EQ(6, compactified_hg.initialNumNodes());
   ASSERT_EQ(3, compactified_hg.initialNumEdges());
@@ -1428,7 +1428,7 @@ TEST_F(ADynamicHypergraph, GeneratesACompactifiedHypergraph2) {
   }
   hypergraph.removeSinglePinAndParallelHyperedges();
 
-  auto res = DynamicHypergraphFactory::compactify(TBBNumaArena::GLOBAL_TASK_GROUP, hypergraph);
+  auto res = DynamicHypergraphFactory::compactify(hypergraph);
   DynamicHypergraph& compactified_hg = res.first;
   ASSERT_EQ(3, compactified_hg.initialNumNodes());
   ASSERT_EQ(1, compactified_hg.initialNumEdges());

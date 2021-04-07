@@ -223,7 +223,7 @@ DynamicHypergraph simulateNLevel(DynamicHypergraph& hypergraph,
 
   {
     utils::Timer::instance().start_timer(timer_key("compactify_hypergraph"), "Compactify Hypergraph");
-    auto res = DynamicHypergraphFactory::compactify(TBBNumaArena::GLOBAL_TASK_GROUP, hypergraph);
+    auto res = DynamicHypergraphFactory::compactify(hypergraph);
     DynamicHypergraph& compactified_hg = res.first;
     auto& hn_mapping = res.second;
     DynamicPartitionedHypergraph compactified_phg(
