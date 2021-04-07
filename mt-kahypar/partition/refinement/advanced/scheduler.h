@@ -25,8 +25,8 @@
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/partition/refinement/i_refiner.h"
 #include "mt-kahypar/partition/refinement/advanced/quotient_graph.h"
-#include "mt-kahypar/partition/refinement/advanced/advanced_refiner_adapter.h"
-#include "mt-kahypar/partition/refinement/advanced/advanced_refinement_problem_construction.h"
+#include "mt-kahypar/partition/refinement/advanced/refiner_adapter.h"
+#include "mt-kahypar/partition/refinement/advanced/problem_construction.h"
 #include "mt-kahypar/parallel/atomic_wrapper.h"
 
 namespace mt_kahypar {
@@ -131,7 +131,7 @@ private:
   AdvancedRefinerAdapter _refiner;
 
   // ! Responsible for construction of an advanced refinement problem
-  AdvancedRefinementProblemConstruction _constructor;
+  ProblemConstruction _constructor;
 
   // ! For each vertex it store wheather the corresponding vertex
   // ! was moved or not

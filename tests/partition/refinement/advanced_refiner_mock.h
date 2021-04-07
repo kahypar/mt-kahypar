@@ -31,12 +31,12 @@
 namespace mt_kahypar {
 
 using RefineFunc = std::function<MoveSequence(const PartitionedHypergraph&, const vec<HypernodeID>&, const size_t)>;
-using MaxProblemSizeFunc = std::function<bool(AdvancedProblemStats&)>;
+using MaxProblemSizeFunc = std::function<bool(ProblemStats&)>;
 
 class AdvancedRefinerMockControl {
 
   #define NOOP_REFINE_FUNC [] (const PartitionedHypergraph&, const vec<HypernodeID>&, const size_t) { return MoveSequence { {}, 0 }; }
-  #define NOOP_MAX_PROB_SIZE_FUNC [&] (AdvancedProblemStats&) { return false; }
+  #define NOOP_MAX_PROB_SIZE_FUNC [&] (ProblemStats&) { return false; }
 
  public:
   AdvancedRefinerMockControl(const AdvancedRefinerMockControl&) = delete;
@@ -106,7 +106,7 @@ class AdvancedRefinerMock final : public IAdvancedRefiner {
     _num_threads = num_threads;
   }
 
-  bool isMaximumProblemSizeReachedImpl(AdvancedProblemStats& stats) const {
+  bool isMaximumProblemSizeReachedImpl(ProblemStats& stats) const {
     return _max_prob_size_func(stats);
   }
 

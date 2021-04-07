@@ -28,14 +28,14 @@
 
 namespace mt_kahypar {
 
-class AdvancedProblemStats {
+class ProblemStats {
 
   static constexpr size_t INVALID_IDX = std::numeric_limits<size_t>::max();
 
   using BlockIterator = typename vec<PartitionID>::const_iterator;
 
  public:
-  explicit AdvancedProblemStats(const HyperedgeID num_edges,
+  explicit ProblemStats(const HyperedgeID num_edges,
                                 const PartitionID k) :
     _k(k),
     _num_nodes_in_block(),
@@ -49,11 +49,11 @@ class AdvancedProblemStats {
     _num_pins(0),
     _visited_hes(num_edges, false) { }
 
-  AdvancedProblemStats(const AdvancedProblemStats&) = delete;
-  AdvancedProblemStats(AdvancedProblemStats&&) = delete;
+  ProblemStats(const ProblemStats&) = delete;
+  ProblemStats(ProblemStats&&) = delete;
 
-  AdvancedProblemStats & operator= (const AdvancedProblemStats &) = delete;
-  AdvancedProblemStats & operator= (AdvancedProblemStats &&) = delete;
+  ProblemStats & operator= (const ProblemStats &) = delete;
+  ProblemStats & operator= (ProblemStats &&) = delete;
 
   // ####################### Accessors ######################
 

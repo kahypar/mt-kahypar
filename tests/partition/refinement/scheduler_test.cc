@@ -22,7 +22,7 @@
 
 #include "mt-kahypar/io/hypergraph_io.h"
 #include "mt-kahypar/partition/refinement/policies/gain_policy.h"
-#include "mt-kahypar/partition/refinement/advanced/advanced_refinement_scheduler.h"
+#include "mt-kahypar/partition/refinement/advanced/scheduler.h"
 #include "tests/partition/refinement/advanced_refiner_mock.h"
 
 using ::testing::Test;
@@ -231,7 +231,7 @@ class AnAdvancedRefinementEndToEnd : public Test {
 
     AdvancedRefinerMockControl::instance().reset();
     // Define maximum problem size function
-    AdvancedRefinerMockControl::instance().max_prob_size_func = [&](AdvancedProblemStats& stats) {
+    AdvancedRefinerMockControl::instance().max_prob_size_func = [&](ProblemStats& stats) {
       bool limit_reached = true;
       for ( const PartitionID block : stats.containedBlocks() ) {
         bool block_limit_reached = stats.nodeWeightOfBlock(block) >= max_part_weights[block];

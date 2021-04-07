@@ -20,13 +20,13 @@
  ******************************************************************************/
 
 
-#include "mt-kahypar/partition/refinement/advanced/advanced_refinement_problem_construction.h"
+#include "mt-kahypar/partition/refinement/advanced/problem_construction.h"
 
 #include "tbb/parallel_for.h"
 
 namespace mt_kahypar {
 
-void AdvancedRefinementProblemConstruction::BFSData::reset() {
+void ProblemConstruction::BFSData::reset() {
   current_distance = 0;
   last_queue_idx = 0;
   while ( !queue[0].empty() ) queue[0].pop();
@@ -37,7 +37,7 @@ void AdvancedRefinementProblemConstruction::BFSData::reset() {
   std::fill(visited_he.begin(), visited_he.end(), false);
 }
 
-void AdvancedRefinementProblemConstruction::BFSData::pop_hypernode(HypernodeID& hn) {
+void ProblemConstruction::BFSData::pop_hypernode(HypernodeID& hn) {
   if ( !is_empty() ) {
     // Pop vertices alternating from one of the two queues
     size_t idx = last_queue_idx++ % 2;
@@ -50,10 +50,10 @@ void AdvancedRefinementProblemConstruction::BFSData::pop_hypernode(HypernodeID& 
   }
 }
 
-void AdvancedRefinementProblemConstruction::BFSData::add_pins_of_hyperedge_to_queue(
+void ProblemConstruction::BFSData::add_pins_of_hyperedge_to_queue(
   const HyperedgeID& he,
   const PartitionedHypergraph& phg,
-  const AdvancedProblemStats& stats,
+  const ProblemStats& stats,
   const size_t max_bfs_distance) {
   if ( current_distance <= max_bfs_distance ) {
     if ( !visited_he[he] ) {
@@ -71,9 +71,9 @@ void AdvancedRefinementProblemConstruction::BFSData::add_pins_of_hyperedge_to_qu
   }
 }
 
-void AdvancedRefinementProblemConstruction::ConstructionData::initialize(
+void ProblemConstruction::ConstructionData::initialize(
   const vec<BlockPairCutHyperedges>& initial_cut_hes,
-  const AdvancedProblemStats& stats,
+  const ProblemStats& stats,
   const PartitionedHypergraph& phg) {
   // Initialize BFS Queues
   used_slots = initial_cut_hes.size();
@@ -89,7 +89,7 @@ void AdvancedRefinementProblemConstruction::ConstructionData::initialize(
   }
 }
 
-void AdvancedRefinementProblemConstruction::ConstructionData::pop_hypernode(HypernodeID& hn, size_t& idx) {
+void ProblemConstruction::ConstructionData::pop_hypernode(HypernodeID& hn, size_t& idx) {
   if ( !is_empty() ) {
     // BFS Queues are visited in round-robin fashion
     bool found = false;
@@ -109,7 +109,7 @@ void AdvancedRefinementProblemConstruction::ConstructionData::pop_hypernode(Hype
   }
 }
 
-void AdvancedRefinementProblemConstruction::ConstructionData::clearBlock(const PartitionID block) {
+void ProblemConstruction::ConstructionData::clearBlock(const PartitionID block) {
   auto clear_queue = [](parallel::scalable_queue<HypernodeID>& queue) {
     while ( !queue.empty() ) queue.pop();
   };
@@ -125,14 +125,14 @@ void AdvancedRefinementProblemConstruction::ConstructionData::clearBlock(const P
   }
 }
 
-vec<HypernodeID> AdvancedRefinementProblemConstruction::construct(const SearchID search_id,
-                                                                  QuotientGraph& quotient_graph,
-                                                                  AdvancedRefinerAdapter& refiner,
-                                                                  const PartitionedHypergraph& phg) {
+vec<HypernodeID> ProblemConstruction::construct(const SearchID search_id,
+                                                QuotientGraph& quotient_graph,
+                                                AdvancedRefinerAdapter& refiner,
+                                                const PartitionedHypergraph& phg) {
   vec<HypernodeID> nodes;
 
   ConstructionData& data = _local_data.local();
-  AdvancedProblemStats& stats = _local_stats.local();
+  ProblemStats& stats = _local_stats.local();
   stats.reset();
   for ( const BlockPair& blocks : quotient_graph.getBlockPairs(search_id) ) {
     stats.addBlock(blocks.i);
@@ -198,8 +198,8 @@ vec<HypernodeID> AdvancedRefinementProblemConstruction::construct(const SearchID
   return nodes;
 }
 
-void AdvancedRefinementProblemConstruction::releaseNodes(const SearchID search_id,
-                                                         const vec<HypernodeID>& nodes) {
+void ProblemConstruction::releaseNodes(const SearchID search_id,
+                                       const vec<HypernodeID>& nodes) {
   tbb::parallel_for(0UL, nodes.size(), [&](const size_t i) {
     release_vertex(search_id, nodes[i]);
   });

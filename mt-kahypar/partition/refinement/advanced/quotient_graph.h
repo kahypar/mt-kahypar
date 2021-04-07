@@ -28,7 +28,7 @@
 
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/context.h"
-#include "mt-kahypar/partition/refinement/advanced/advanced_refiner_adapter.h"
+#include "mt-kahypar/partition/refinement/advanced/refiner_adapter.h"
 #include "mt-kahypar/parallel/atomic_wrapper.h"
 
 namespace mt_kahypar {

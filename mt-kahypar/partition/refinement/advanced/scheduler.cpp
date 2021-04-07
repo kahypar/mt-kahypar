@@ -19,7 +19,7 @@
  *
  ******************************************************************************/
 
-#include "mt-kahypar/partition/refinement/advanced/advanced_refinement_scheduler.h"
+#include "mt-kahypar/partition/refinement/advanced/scheduler.h"
 
 #include "mt-kahypar/partition/metrics.h"
 #include "mt-kahypar/utils/stats.h"

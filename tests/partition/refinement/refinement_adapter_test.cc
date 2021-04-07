@@ -21,7 +21,7 @@
 #include "gmock/gmock.h"
 
 #include "tests/partition/refinement/advanced_refiner_mock.h"
-#include "mt-kahypar/partition/refinement/advanced/advanced_refiner_adapter.h"
+#include "mt-kahypar/partition/refinement/advanced/refiner_adapter.h"
 
 using ::testing::Test;
 

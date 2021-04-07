@@ -19,7 +19,7 @@
  *
  ******************************************************************************/
 
-#include "mt-kahypar/partition/refinement/advanced/advanced_refiner_adapter.h"
+#include "mt-kahypar/partition/refinement/advanced/refiner_adapter.h"
 
 #include "mt-kahypar/partition/factories.h"
 
@@ -76,7 +76,7 @@ MoveSequence AdvancedRefinerAdapter::refine(const SearchID search_id,
 }
 
 bool AdvancedRefinerAdapter::isMaximumProblemSizeReached(const SearchID search_id,
-                                                         AdvancedProblemStats& stats) {
+                                                         ProblemStats& stats) {
   ASSERT(static_cast<size_t>(search_id) < _search_to_refiner.size());
   ASSERT(_search_to_refiner[search_id]);
   return _search_to_refiner[search_id]->isMaximumProblemSizeReached(stats);

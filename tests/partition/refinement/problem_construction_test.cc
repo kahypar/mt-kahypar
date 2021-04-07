@@ -21,16 +21,16 @@
 #include "gmock/gmock.h"
 
 #include "mt-kahypar/io/hypergraph_io.h"
-#include "mt-kahypar/partition/refinement/advanced/advanced_refinement_problem_construction.h"
+#include "mt-kahypar/partition/refinement/advanced/problem_construction.h"
 #include "tests/partition/refinement/advanced_refiner_mock.h"
 
 using ::testing::Test;
 
 namespace mt_kahypar {
 
-class AAdvancedRefinementProblemConstruction : public Test {
+class AProblemConstruction : public Test {
  public:
-  AAdvancedRefinementProblemConstruction() :
+  AProblemConstruction() :
     hg(),
     phg(),
     context(),
@@ -63,7 +63,7 @@ class AAdvancedRefinementProblemConstruction : public Test {
     phg.initializePartition(TBBNumaArena::GLOBAL_TASK_GROUP);
 
     AdvancedRefinerMockControl::instance().reset();
-    AdvancedRefinerMockControl::instance().max_prob_size_func = [&](AdvancedProblemStats& stats) {
+    AdvancedRefinerMockControl::instance().max_prob_size_func = [&](ProblemStats& stats) {
       bool limit_reached = true;
       for ( const PartitionID block : stats.containedBlocks() ) {
         bool block_limit_reached = stats.nodeWeightOfBlock(block) >= max_part_weights[block];
@@ -128,8 +128,8 @@ void verifyThatVertexSetAreDisjoint(const vec<HypernodeID>& nodes_1, const vec<H
   }
 }
 
-TEST_F(AAdvancedRefinementProblemConstruction, GrowAnAdvancedRefinementProblemAroundTwoBlocks1) {
-  AdvancedRefinementProblemConstruction constructor(hg, context);
+TEST_F(AProblemConstruction, GrowAnAdvancedRefinementProblemAroundTwoBlocks1) {
+  ProblemConstruction constructor(hg, context);
   AdvancedRefinerAdapter refiner(hg, context, TBBNumaArena::GLOBAL_TASK_GROUP);
   QuotientGraph qg(hg, context);
   qg.initialize(phg);
@@ -143,8 +143,8 @@ TEST_F(AAdvancedRefinementProblemConstruction, GrowAnAdvancedRefinementProblemAr
   verifyThatPartWeightsAreEqualToMaxPartWeight(nodes, search_id, qg);
 }
 
-TEST_F(AAdvancedRefinementProblemConstruction, GrowAnAdvancedRefinementProblemAroundTwoBlocks2) {
-  AdvancedRefinementProblemConstruction constructor(hg, context);
+TEST_F(AProblemConstruction, GrowAnAdvancedRefinementProblemAroundTwoBlocks2) {
+  ProblemConstruction constructor(hg, context);
   AdvancedRefinerAdapter refiner(hg, context, TBBNumaArena::GLOBAL_TASK_GROUP);
   QuotientGraph qg(hg, context);
   qg.initialize(phg);
@@ -158,8 +158,8 @@ TEST_F(AAdvancedRefinementProblemConstruction, GrowAnAdvancedRefinementProblemAr
   verifyThatPartWeightsAreEqualToMaxPartWeight(nodes, search_id, qg);
 }
 
-TEST_F(AAdvancedRefinementProblemConstruction, GrowTwoAdvancedRefinementProblemAroundTwoBlocksSimultanously) {
-  AdvancedRefinementProblemConstruction constructor(hg, context);
+TEST_F(AProblemConstruction, GrowTwoAdvancedRefinementProblemAroundTwoBlocksSimultanously) {
+  ProblemConstruction constructor(hg, context);
   AdvancedRefinerAdapter refiner(hg, context, TBBNumaArena::GLOBAL_TASK_GROUP);
   QuotientGraph qg(hg, context);
   qg.initialize(phg);
@@ -182,9 +182,9 @@ TEST_F(AAdvancedRefinementProblemConstruction, GrowTwoAdvancedRefinementProblemA
   verifyThatVertexSetAreDisjoint(nodes_1, nodes_2);
 }
 
-TEST_F(AAdvancedRefinementProblemConstruction, GrowAnAdvancedRefinementProblemAroundFourBlocks1) {
+TEST_F(AProblemConstruction, GrowAnAdvancedRefinementProblemAroundFourBlocks1) {
   AdvancedRefinerMockControl::instance().max_num_blocks = 4;
-  AdvancedRefinementProblemConstruction constructor(hg, context);
+  ProblemConstruction constructor(hg, context);
   AdvancedRefinerAdapter refiner(hg, context, TBBNumaArena::GLOBAL_TASK_GROUP);
   QuotientGraph qg(hg, context);
   qg.initialize(phg);
@@ -198,9 +198,9 @@ TEST_F(AAdvancedRefinementProblemConstruction, GrowAnAdvancedRefinementProblemAr
   verifyThatPartWeightsAreEqualToMaxPartWeight(nodes, search_id, qg);
 }
 
-TEST_F(AAdvancedRefinementProblemConstruction, GrowAnAdvancedRefinementProblemAroundFourBlocks2) {
+TEST_F(AProblemConstruction, GrowAnAdvancedRefinementProblemAroundFourBlocks2) {
   AdvancedRefinerMockControl::instance().max_num_blocks = 4;
-  AdvancedRefinementProblemConstruction constructor(hg, context);
+  ProblemConstruction constructor(hg, context);
   AdvancedRefinerAdapter refiner(hg, context, TBBNumaArena::GLOBAL_TASK_GROUP);
   QuotientGraph qg(hg, context);
   qg.initialize(phg);
@@ -215,9 +215,9 @@ TEST_F(AAdvancedRefinementProblemConstruction, GrowAnAdvancedRefinementProblemAr
   verifyThatPartWeightsAreEqualToMaxPartWeight(nodes, search_id, qg);
 }
 
-TEST_F(AAdvancedRefinementProblemConstruction, GrowTwoAdvancedRefinementProblemAroundFourBlocksSimultanously) {
+TEST_F(AProblemConstruction, GrowTwoAdvancedRefinementProblemAroundFourBlocksSimultanously) {
   AdvancedRefinerMockControl::instance().max_num_blocks = 4;
-  AdvancedRefinementProblemConstruction constructor(hg, context);
+  ProblemConstruction constructor(hg, context);
   AdvancedRefinerAdapter refiner(hg, context, TBBNumaArena::GLOBAL_TASK_GROUP);
   QuotientGraph qg(hg, context);
   qg.initialize(phg);

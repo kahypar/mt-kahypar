@@ -26,16 +26,16 @@
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/datastructures/sparse_map.h"
-#include "mt-kahypar/partition/refinement/advanced/advanced_refiner_adapter.h"
+#include "mt-kahypar/partition/refinement/advanced/refiner_adapter.h"
 #include "mt-kahypar/partition/refinement/advanced/quotient_graph.h"
-#include "mt-kahypar/partition/refinement/advanced/advanced_problem_stats.h"
+#include "mt-kahypar/partition/refinement/advanced/problem_stats.h"
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
 #include "mt-kahypar/parallel/stl/scalable_queue.h"
 #include "mt-kahypar/parallel/atomic_wrapper.h"
 
 namespace mt_kahypar {
 
-class AdvancedRefinementProblemConstruction {
+class ProblemConstruction {
 
   /**
    * Contains data required to grow two region around
@@ -57,7 +57,7 @@ class AdvancedRefinementProblemConstruction {
 
     void add_pins_of_hyperedge_to_queue(const HyperedgeID& he,
                                         const PartitionedHypergraph& phg,
-                                        const AdvancedProblemStats& stats,
+                                        const ProblemStats& stats,
                                         const size_t max_bfs_distance);
 
     bool is_empty() const {
@@ -99,7 +99,7 @@ class AdvancedRefinementProblemConstruction {
       bfs() { }
 
     void initialize(const vec<BlockPairCutHyperedges>& initial_cut_hes,
-                    const AdvancedProblemStats& stats,
+                    const ProblemStats& stats,
                     const PartitionedHypergraph& phg);
 
     void pop_hypernode(HypernodeID& hn, size_t& idx);
@@ -122,19 +122,19 @@ class AdvancedRefinementProblemConstruction {
   };
 
  public:
-  explicit AdvancedRefinementProblemConstruction(const Hypergraph& hg,
-                                                 const Context& context) :
+  explicit ProblemConstruction(const Hypergraph& hg,
+                               const Context& context) :
     _context(context),
     _vertex_ownership(hg.initialNumNodes(),
       CAtomic<SearchID>(QuotientGraph::INVALID_SEARCH_ID)),
     _local_data(hg.initialNumNodes(), hg.initialNumEdges()),
     _local_stats(hg.initialNumEdges(), context.partition.k) { }
 
-  AdvancedRefinementProblemConstruction(const AdvancedRefinementProblemConstruction&) = delete;
-  AdvancedRefinementProblemConstruction(AdvancedRefinementProblemConstruction&&) = delete;
+  ProblemConstruction(const ProblemConstruction&) = delete;
+  ProblemConstruction(ProblemConstruction&&) = delete;
 
-  AdvancedRefinementProblemConstruction & operator= (const AdvancedRefinementProblemConstruction &) = delete;
-  AdvancedRefinementProblemConstruction & operator= (AdvancedRefinementProblemConstruction &&) = delete;
+  ProblemConstruction & operator= (const ProblemConstruction &) = delete;
+  ProblemConstruction & operator= (ProblemConstruction &&) = delete;
 
   vec<HypernodeID> construct(const SearchID search_id,
                              QuotientGraph& quotient_graph,
@@ -169,7 +169,7 @@ class AdvancedRefinementProblemConstruction {
   tbb::enumerable_thread_specific<ConstructionData> _local_data;
 
   // ! Contains statistic about the currently constructed problem
-  tbb::enumerable_thread_specific<AdvancedProblemStats> _local_stats;
+  tbb::enumerable_thread_specific<ProblemStats> _local_stats;
 };
 
 }  // namespace kahypar

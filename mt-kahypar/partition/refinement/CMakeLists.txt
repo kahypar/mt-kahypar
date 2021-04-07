@@ -1,7 +1,7 @@
 set(RefinementSources
-        advanced/advanced_refiner_adapter.cpp
-        advanced/advanced_refinement_problem_construction.cpp
-        advanced/advanced_refinement_scheduler.cpp
+        advanced/refiner_adapter.cpp
+        advanced/problem_construction.cpp
+        advanced/scheduler.cpp
         advanced/quotient_graph.cpp
         fm/multitry_kway_fm.cpp
         fm/localized_kway_fm_core.cpp
