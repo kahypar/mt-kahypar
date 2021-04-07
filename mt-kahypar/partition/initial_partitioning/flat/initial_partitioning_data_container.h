@@ -521,7 +521,7 @@ class InitialPartitioningDataContainer {
       stats.emplace_back(static_cast<InitialPartitioningAlgorithm>(algo));
     }
     InitialPartitioningAlgorithm best_flat_algo = InitialPartitioningAlgorithm::UNDEFINED;
-    HyperedgeWeight best_feasible_objective = std::numeric_limits<HyperedgeWeight>::max();
+    HyperedgeWeight best_feasible_objective = std::numeric_limits<HyperedgeWeight>::max(); unused(best_feasible_objective);
 
     if ( _context.partition.deterministic ) {
       for (auto& p : _local_hg) {
