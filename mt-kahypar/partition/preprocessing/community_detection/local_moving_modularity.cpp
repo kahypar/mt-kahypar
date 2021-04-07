@@ -28,8 +28,8 @@ namespace mt_kahypar::metrics {
   double modularity(const Graph& graph, ds::Clustering& communities) {
     ASSERT(graph.canBeUsed());
     ASSERT(graph.numNodes() == communities.size());
-    parallel::scalable_vector<parallel::AtomicWrapper<double>> internal_volume(graph.numNodes());
-    parallel::scalable_vector<parallel::AtomicWrapper<double>> total_volume(graph.numNodes());
+    vec<CAtomic<double>> internal_volume(graph.numNodes());
+    vec<CAtomic<double>> total_volume(graph.numNodes());
     tbb::parallel_for(0U, static_cast<NodeID>(graph.numNodes()), [&](const NodeID u) {
       const PartitionID community_u = communities[u];
       ASSERT(community_u < static_cast<PartitionID>(graph.numNodes()));
