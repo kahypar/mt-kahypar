@@ -258,11 +258,13 @@ namespace mt_kahypar::io {
   void printPartitioningResults(const PartitionedHypergraph& hypergraph,
                                               const Context& context,
                                               const std::string& description) {
-    if (context.partition.verbose_output) {
+    if (context.type == kahypar::ContextType::main) {
       LOG << description;
       LOG << context.partition.objective << "      ="
           << metrics::objective(hypergraph, context.partition.objective);
       LOG << "imbalance =" << metrics::imbalance(hypergraph, context);
+    }
+    if (context.partition.verbose_output) {
       LOG << "Part sizes and weights:";
       io::printPartWeightsAndSizes(hypergraph, context);
       LOG << "";
@@ -513,11 +515,11 @@ namespace mt_kahypar::io {
   void printPartitioningResults(const PartitionedHypergraph& hypergraph,
                                        const Context& context,
                                        const std::chrono::duration<double>& elapsed_seconds) {
+    printObjectives(hypergraph, context, elapsed_seconds);
     if (context.partition.verbose_output) {
       LOG << "\n********************************************************************************";
       LOG << "*                             Partitioning Result                              *";
       LOG << "********************************************************************************";
-      printObjectives(hypergraph, context, elapsed_seconds);
 
       if ( context.partition.show_advanced_cut_analysis ) {
         LOG << "\nCut Matrix: ";
