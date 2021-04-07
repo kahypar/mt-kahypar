@@ -427,10 +427,6 @@ namespace mt_kahypar {
              po::value<size_t>(&context.initial_partitioning.lp_maximum_iterations)->value_name(
                      "<size_t>")->default_value(20),
              "Maximum number of iterations of label propagation initial partitioner")
-            ("i-verification-reps",
-             po::value<size_t>(&context.initial_partitioning.num_verification_repetitions)->value_name(
-                     "<size_t>")->default_value(0),
-             "Number of repetitions for flat 2-way algorithms to check reproducibility. Intended for testing.")
             ("i-lp-initial-block-size",
              po::value<size_t>(&context.initial_partitioning.lp_initial_block_size)->value_name(
                      "<size_t>")->default_value(5),
