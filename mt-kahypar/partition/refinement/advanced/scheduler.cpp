@@ -61,16 +61,16 @@ bool AdvancedRefinementScheduler::refineImpl(
       if ( search_id != QuotientGraph::INVALID_SEARCH_ID ) {
 
         utils::Timer::instance().start_timer("construct_problem", "Construct Problem", true);
-        const vec<HypernodeID> refinement_nodes =
+        const AdvancedProblem problem =
           _constructor.construct(search_id, _quotient_graph, _refiner, phg);
         _quotient_graph.finalizeConstruction(search_id);
         utils::Timer::instance().stop_timer("construct_problem");
 
         bool success = false;
-        if ( refinement_nodes.size() > 0 ) {
+        if ( problem.nodes.size() > 0 ) {
           utils::Timer::instance().start_timer("refine_problem", "Refine Problem", true);
           ++_stats.num_refinements;
-          MoveSequence sequence = _refiner.refine(search_id, phg, refinement_nodes);
+          MoveSequence sequence = _refiner.refine(search_id, phg, problem);
           utils::Timer::instance().stop_timer("refine_problem");
 
           if ( !sequence.moves.empty() ) {
@@ -82,7 +82,7 @@ bool AdvancedRefinementScheduler::refineImpl(
           }
         }
 
-        _constructor.releaseNodes(search_id, refinement_nodes);
+        _constructor.releaseNodes(search_id, problem.nodes);
         _quotient_graph.finalizeSearch(search_id, success);
         _refiner.finalizeSearch(search_id);
       }

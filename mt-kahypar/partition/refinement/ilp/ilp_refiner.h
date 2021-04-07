@@ -55,7 +55,7 @@ class ILPRefiner final : public IAdvancedRefiner {
   }
 
   MoveSequence refineImpl(const PartitionedHypergraph&,
-                          const vec<HypernodeID>&) {
+                          const AdvancedProblem&) {
     return MoveSequence { {}, 0 };
   }
 

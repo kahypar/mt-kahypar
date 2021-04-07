@@ -26,6 +26,7 @@
 using ::testing::Test;
 
 #define MOVE(HN, FROM, TO) Move { FROM, TO, HN, 0 }
+#define EMPTY_ADVANCED_PROBLEM AdvancedProblem { {}, ProblemStats(2) }
 
 namespace mt_kahypar {
 
@@ -95,13 +96,13 @@ TEST_F(AAdvancedRefinementAdapter, UseCorrectNumberOfThreadsForSearch1) {
   ASSERT_EQ(0, refiner->numUsedThreads());
 
   AdvancedRefinerMockControl::instance().refine_func =
-    [&](const PartitionedHypergraph&, const vec<HypernodeID>&, const size_t num_threads) -> MoveSequence {
+    [&](const PartitionedHypergraph&, const AdvancedProblem&, const size_t num_threads) -> MoveSequence {
       EXPECT_EQ(5, num_threads);
       EXPECT_EQ(5, refiner->numUsedThreads());
       return MoveSequence { {}, 0 };
     };
   ASSERT_TRUE(refiner->registerNewSearch(0, phg));
-  refiner->refine(0, phg, {});
+  refiner->refine(0, phg, EMPTY_ADVANCED_PROBLEM);
   refiner->finalizeSearch(0);
 }
 
@@ -114,7 +115,7 @@ TEST_F(AAdvancedRefinementAdapter, UseCorrectNumberOfThreadsForSearch2) {
 
   std::atomic<size_t> cnt(0);
   AdvancedRefinerMockControl::instance().refine_func =
-    [&](const PartitionedHypergraph&, const vec<HypernodeID>&, const size_t num_threads) -> MoveSequence {
+    [&](const PartitionedHypergraph&, const AdvancedProblem&, const size_t num_threads) -> MoveSequence {
       EXPECT_EQ(5, num_threads);
       EXPECT_EQ(5, refiner->numUsedThreads());
       ++cnt;
@@ -123,7 +124,7 @@ TEST_F(AAdvancedRefinementAdapter, UseCorrectNumberOfThreadsForSearch2) {
     };
   ASSERT_TRUE(refiner->registerNewSearch(0, phg));
   AdvancedRefinerMockControl::instance().refine_func =
-    [&](const PartitionedHypergraph&, const vec<HypernodeID>&, const size_t num_threads) -> MoveSequence {
+    [&](const PartitionedHypergraph&, const AdvancedProblem&, const size_t num_threads) -> MoveSequence {
       EXPECT_EQ(3, num_threads);
       EXPECT_EQ(8, refiner->numUsedThreads());
       ++cnt;
@@ -131,10 +132,10 @@ TEST_F(AAdvancedRefinementAdapter, UseCorrectNumberOfThreadsForSearch2) {
     };
   ASSERT_TRUE(refiner->registerNewSearch(1, phg));
   executeConcurrent([&] {
-    refiner->refine(0, phg, {});
+    refiner->refine(0, phg, EMPTY_ADVANCED_PROBLEM);
   }, [&] {
     while ( cnt < 1 ) { }
-    refiner->refine(1, phg, {});
+    refiner->refine(1, phg, EMPTY_ADVANCED_PROBLEM);
   });
   refiner->finalizeSearch(0);
   refiner->finalizeSearch(1);

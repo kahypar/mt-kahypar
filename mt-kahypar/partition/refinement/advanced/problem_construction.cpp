@@ -125,15 +125,19 @@ void ProblemConstruction::ConstructionData::clearBlock(const PartitionID block) 
   }
 }
 
-vec<HypernodeID> ProblemConstruction::construct(const SearchID search_id,
-                                                QuotientGraph& quotient_graph,
-                                                AdvancedRefinerAdapter& refiner,
-                                                const PartitionedHypergraph& phg) {
+AdvancedProblem ProblemConstruction::construct(const SearchID search_id,
+                                               QuotientGraph& quotient_graph,
+                                               AdvancedRefinerAdapter& refiner,
+                                               const PartitionedHypergraph& phg) {
   vec<HypernodeID> nodes;
 
+  const bool track_contained_hes =
+    _context.refinement.advanced.algorithm == AdvancedRefinementAlgorithm::ilp;
   ConstructionData& data = _local_data.local();
   ProblemStats& stats = _local_stats.local();
+  vec<bool>& visited_hes = _local_visited_hes.local();
   stats.reset();
+  std::fill(visited_hes.begin(), visited_hes.end(), false);
   for ( const BlockPair& blocks : quotient_graph.getBlockPairs(search_id) ) {
     stats.addBlock(blocks.i);
     stats.addBlock(blocks.j);
@@ -179,7 +183,7 @@ vec<HypernodeID> ProblemConstruction::construct(const SearchID search_id,
             for ( const HyperedgeID& he : phg.incidentEdges(hn) ) {
               data.bfs[queue_idx].add_pins_of_hyperedge_to_queue(
                 he, phg, stats,_context.refinement.advanced.max_bfs_distance);
-              stats.addEdge(he);
+              stats.addEdge(he, visited_hes, track_contained_hes);
             }
           } else {
             release_vertex(search_id, hn);
@@ -195,7 +199,8 @@ vec<HypernodeID> ProblemConstruction::construct(const SearchID search_id,
     }
   }
 
-  return nodes;
+  ProblemStats copy_stats(stats);
+  return AdvancedProblem { std::move(nodes), std::move(copy_stats) };
 }
 
 void ProblemConstruction::releaseNodes(const SearchID search_id,

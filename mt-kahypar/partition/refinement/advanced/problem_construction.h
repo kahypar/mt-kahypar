@@ -128,7 +128,8 @@ class ProblemConstruction {
     _vertex_ownership(hg.initialNumNodes(),
       CAtomic<SearchID>(QuotientGraph::INVALID_SEARCH_ID)),
     _local_data(hg.initialNumNodes(), hg.initialNumEdges()),
-    _local_stats(hg.initialNumEdges(), context.partition.k) { }
+    _local_stats(context.partition.k),
+    _local_visited_hes(hg.initialNumEdges(), false) { }
 
   ProblemConstruction(const ProblemConstruction&) = delete;
   ProblemConstruction(ProblemConstruction&&) = delete;
@@ -136,10 +137,10 @@ class ProblemConstruction {
   ProblemConstruction & operator= (const ProblemConstruction &) = delete;
   ProblemConstruction & operator= (ProblemConstruction &&) = delete;
 
-  vec<HypernodeID> construct(const SearchID search_id,
-                             QuotientGraph& quotient_graph,
-                             AdvancedRefinerAdapter& refiner,
-                             const PartitionedHypergraph& phg);
+  AdvancedProblem construct(const SearchID search_id,
+                            QuotientGraph& quotient_graph,
+                            AdvancedRefinerAdapter& refiner,
+                            const PartitionedHypergraph& phg);
 
   void releaseNodes(const SearchID search_id,
                     const vec<HypernodeID>& nodes);
@@ -170,6 +171,7 @@ class ProblemConstruction {
 
   // ! Contains statistic about the currently constructed problem
   tbb::enumerable_thread_specific<ProblemStats> _local_stats;
+  tbb::enumerable_thread_specific<vec<bool>> _local_visited_hes;
 };
 
 }  // namespace kahypar

@@ -35,8 +35,7 @@ class ProblemStats {
   using BlockIterator = typename vec<PartitionID>::const_iterator;
 
  public:
-  explicit ProblemStats(const HyperedgeID num_edges,
-                                const PartitionID k) :
+  explicit ProblemStats(const PartitionID k) :
     _k(k),
     _num_nodes_in_block(),
     _node_weight_of_block(),
@@ -47,13 +46,13 @@ class ProblemStats {
     _total_weight(0),
     _num_edges(0),
     _num_pins(0),
-    _visited_hes(num_edges, false) { }
+    _contained_hes() { }
 
-  ProblemStats(const ProblemStats&) = delete;
-  ProblemStats(ProblemStats&&) = delete;
+  ProblemStats(const ProblemStats&) = default;
+  ProblemStats(ProblemStats&&) = default;
 
-  ProblemStats & operator= (const ProblemStats &) = delete;
-  ProblemStats & operator= (ProblemStats &&) = delete;
+  ProblemStats & operator= (const ProblemStats &) = default;
+  ProblemStats & operator= (ProblemStats &&) = default;
 
   // ####################### Accessors ######################
 
@@ -130,10 +129,15 @@ class ProblemStats {
     _num_pins += phg.nodeDegree(hn);
   }
 
-  void addEdge(const HyperedgeID he) {
-    if ( !_visited_hes[he] ) {
+  void addEdge(const HyperedgeID he,
+               vec<bool>& visited_hes,
+               const bool track_contained_hes) {
+    if ( !visited_hes[he] ) {
       ++_num_edges;
-      _visited_hes[he] = true;
+      visited_hes[he] = true;
+      if ( track_contained_hes ) {
+        _contained_hes.push_back(he);
+      }
     }
   }
 
@@ -152,11 +156,11 @@ class ProblemStats {
     _total_weight = 0;
     _num_edges = 0;
     _num_pins = 0;
-    std::fill(_visited_hes.begin(), _visited_hes.end(), false);
+    _contained_hes.clear();
   }
 
  private:
-  const PartitionID _k;
+  PartitionID _k;
   vec<HypernodeID> _num_nodes_in_block;
   vec<HypernodeWeight> _node_weight_of_block;
   vec<PartitionID> _contained_blocks;
@@ -166,8 +170,14 @@ class ProblemStats {
   HypernodeWeight _total_weight;
   HyperedgeID _num_edges;
   HypernodeID _num_pins;
+  vec<HyperedgeID> _contained_hes;
+};
 
-  vec<bool> _visited_hes;
+struct AdvancedProblem {
+  // ! Nodes contained in the problem
+  vec<HypernodeID> nodes;
+  // ! Statistics of the problem
+  ProblemStats stats;
 };
 
 }  // namespace kahypar

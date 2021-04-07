@@ -45,7 +45,7 @@ class AProblemConstruction : public Test {
     context.refinement.advanced.algorithm = AdvancedRefinementAlgorithm::mock;
     context.refinement.advanced.num_threads_per_search = 1;
     context.refinement.advanced.num_cut_edges_per_block_pair = 50;
-    context.refinement.advanced.max_bfs_distance = 2;
+    context.refinement.advanced.max_bfs_distance = 3;
 
     // Read hypergraph
     hg = io::readHypergraphFile(
@@ -137,10 +137,10 @@ TEST_F(AProblemConstruction, GrowAnAdvancedRefinementProblemAroundTwoBlocks1) {
   max_part_weights.assign(context.partition.k, 400);
   max_part_weights[2] = 300;
   SearchID search_id = qg.requestNewSearch(refiner);
-  vec<HypernodeID> nodes = constructor.construct(
+  AdvancedProblem problem = constructor.construct(
     search_id, qg, refiner, phg);
 
-  verifyThatPartWeightsAreEqualToMaxPartWeight(nodes, search_id, qg);
+  verifyThatPartWeightsAreEqualToMaxPartWeight(problem.nodes, search_id, qg);
 }
 
 TEST_F(AProblemConstruction, GrowAnAdvancedRefinementProblemAroundTwoBlocks2) {
@@ -152,10 +152,10 @@ TEST_F(AProblemConstruction, GrowAnAdvancedRefinementProblemAroundTwoBlocks2) {
   max_part_weights.assign(context.partition.k, 800);
   max_part_weights[2] = 500;
   SearchID search_id = qg.requestNewSearch(refiner);
-  vec<HypernodeID> nodes = constructor.construct(
+  AdvancedProblem problem = constructor.construct(
     search_id, qg, refiner, phg);
 
-  verifyThatPartWeightsAreEqualToMaxPartWeight(nodes, search_id, qg);
+  verifyThatPartWeightsAreEqualToMaxPartWeight(problem.nodes, search_id, qg);
 }
 
 TEST_F(AProblemConstruction, GrowTwoAdvancedRefinementProblemAroundTwoBlocksSimultanously) {
@@ -170,14 +170,16 @@ TEST_F(AProblemConstruction, GrowTwoAdvancedRefinementProblemAroundTwoBlocksSimu
   vec<HypernodeID> nodes_2;
   executeConcurrent([&] {
     SearchID search_id = qg.requestNewSearch(refiner);
-     nodes_1 = constructor.construct(
+    AdvancedProblem problem = constructor.construct(
       search_id, qg, refiner, phg);
-    verifyThatPartWeightsAreEqualToMaxPartWeight(nodes_1, search_id, qg);
+    verifyThatPartWeightsAreEqualToMaxPartWeight(problem.nodes, search_id, qg);
+    nodes_1 = problem.nodes;
   }, [&] {
     SearchID search_id = qg.requestNewSearch(refiner);
-    nodes_2 = constructor.construct(
+    AdvancedProblem problem = constructor.construct(
       search_id, qg, refiner, phg);
-    verifyThatPartWeightsAreEqualToMaxPartWeight(nodes_2, search_id, qg);
+    verifyThatPartWeightsAreEqualToMaxPartWeight(problem.nodes, search_id, qg);
+    nodes_2 = problem.nodes;
   });
   verifyThatVertexSetAreDisjoint(nodes_1, nodes_2);
 }
@@ -192,10 +194,10 @@ TEST_F(AProblemConstruction, GrowAnAdvancedRefinementProblemAroundFourBlocks1) {
   max_part_weights.assign(context.partition.k, 800);
   max_part_weights[2] = 500;
   SearchID search_id = qg.requestNewSearch(refiner);
-  vec<HypernodeID> nodes = constructor.construct(
+  AdvancedProblem problem = constructor.construct(
     search_id, qg, refiner, phg);
 
-  verifyThatPartWeightsAreEqualToMaxPartWeight(nodes, search_id, qg);
+  verifyThatPartWeightsAreEqualToMaxPartWeight(problem.nodes, search_id, qg);
 }
 
 TEST_F(AProblemConstruction, GrowAnAdvancedRefinementProblemAroundFourBlocks2) {
@@ -209,10 +211,10 @@ TEST_F(AProblemConstruction, GrowAnAdvancedRefinementProblemAroundFourBlocks2) {
   max_part_weights[2] = 500;
   max_part_weights[6] = 300;
   SearchID search_id = qg.requestNewSearch(refiner);
-  vec<HypernodeID> nodes = constructor.construct(
+  AdvancedProblem problem = constructor.construct(
     search_id, qg, refiner, phg);
 
-  verifyThatPartWeightsAreEqualToMaxPartWeight(nodes, search_id, qg);
+  verifyThatPartWeightsAreEqualToMaxPartWeight(problem.nodes, search_id, qg);
 }
 
 TEST_F(AProblemConstruction, GrowTwoAdvancedRefinementProblemAroundFourBlocksSimultanously) {
@@ -227,14 +229,16 @@ TEST_F(AProblemConstruction, GrowTwoAdvancedRefinementProblemAroundFourBlocksSim
   vec<HypernodeID> nodes_2;
   executeConcurrent([&] {
     SearchID search_id = qg.requestNewSearch(refiner);
-    nodes_1 = constructor.construct(
+    AdvancedProblem problem_1 = constructor.construct(
       search_id, qg, refiner, phg);
-    verifyThatPartWeightsAreEqualToMaxPartWeight(nodes_1, search_id, qg);
+    verifyThatPartWeightsAreEqualToMaxPartWeight(problem_1.nodes, search_id, qg);
+    nodes_1 = problem_1.nodes;
   }, [&] {
     SearchID search_id = qg.requestNewSearch(refiner);
-    nodes_2 = constructor.construct(
+    AdvancedProblem problem_2 = constructor.construct(
       search_id, qg, refiner, phg);
-    verifyThatPartWeightsAreEqualToMaxPartWeight(nodes_2, search_id, qg);
+    verifyThatPartWeightsAreEqualToMaxPartWeight(problem_2.nodes, search_id, qg);
+    nodes_2 = problem_2.nodes;
   });
   verifyThatVertexSetAreDisjoint(nodes_1, nodes_2);
 }
