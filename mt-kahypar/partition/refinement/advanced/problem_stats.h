@@ -72,6 +72,15 @@ class ProblemStats {
     return _num_pins;
   }
 
+  PartitionID blockIndex(const PartitionID block) const {
+    return _block_to_idx[block];
+  }
+
+  PartitionID indexToBlock(const PartitionID index) const {
+    ASSERT(index < _contained_blocks.size());
+    return _contained_blocks[index];
+  }
+
   bool isBlockContained(const PartitionID block) const {
     return _block_to_idx[block] != INVALID_IDX;
   }
@@ -102,6 +111,10 @@ class ProblemStats {
     return idx == INVALID_IDX ? 0 : _node_weight_of_block[idx];
   }
 
+  const vec<HyperedgeID>& containedEdges() const {
+    return _contained_hes;
+  }
+
   // ####################### Modifiers ######################
 
   void addBlock(const PartitionID block) {
@@ -121,7 +134,7 @@ class ProblemStats {
     // Increment stats
     size_t idx = _block_to_idx[block];
     ASSERT(idx != INVALID_IDX && _contained_blocks[idx] == block);
-    const HypernodeWeight node_weight = phg.nodeWeight(0);
+    const HypernodeWeight node_weight = phg.nodeWeight(hn);
     ++_num_nodes_in_block[idx];
     _node_weight_of_block[idx] += node_weight;
     ++_num_nodes;

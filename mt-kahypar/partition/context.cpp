@@ -319,6 +319,13 @@ namespace mt_kahypar {
     }
   }
 
+  void Context::setupThreadsPerAdvancedSearch() {
+    if ( refinement.advanced.algorithm == AdvancedRefinementAlgorithm::ilp ) {
+      refinement.advanced.num_threads_per_search =
+        std::max(shared_memory.num_threads / partition.k, 1UL );
+    }
+  }
+
   void Context::sanityCheck() {
     if ( partition.paradigm == Paradigm::nlevel &&
          coarsening.algorithm == CoarseningAlgorithm::multilevel_coarsener ) {

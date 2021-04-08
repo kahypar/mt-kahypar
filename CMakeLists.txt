@@ -232,6 +232,17 @@ ELSE ()
     MESSAGE(STATUS "WARNING: hwlock library not found.")
 ENDIF ()
 
+# find Gurobi
+find_package(GUROBI REQUIRED)
+IF (GUROBI_INCLUDE_DIRS AND GUROBI_LIBRARY)
+    MESSAGE(STATUS "Found Gurobi library: inc=${GUROBI_INCLUDE_DIRS}, lib=${GUROBI_LIBRARY}, cxx=${GUROBI_CXX_LIBRARY}")
+    include_directories(${GUROBI_INCLUDE_DIRS})
+    link_libraries(${GUROBI_LIBRARY})
+    link_libraries(${GUROBI_CXX_LIBRARY})
+ELSE ()
+    MESSAGE(STATUS "WARNING: Gurobi library not found.")
+ENDIF ()
+
 # TODO: Add git revision
 
 if(NOT MSVC)

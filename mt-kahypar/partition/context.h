@@ -257,6 +257,8 @@ class Context {
 
   void setupSparsificationParameters();
 
+  void setupThreadsPerAdvancedSearch();
+
   void sanityCheck();
 };
 

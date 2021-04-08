@@ -20,16 +20,20 @@
 
 #pragma once
 
+#include "gurobi_c++.h"
 
 #include "kahypar/meta/registrar.h"
 
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/partition/refinement/advanced/i_advanced_refiner.h"
+#include "mt-kahypar/partition/refinement/ilp/ilp_model.h"
 #include "mt-kahypar/utils/randomize.h"
 
 namespace mt_kahypar {
 
 class ILPRefiner final : public IAdvancedRefiner {
+
+  static constexpr bool debug = false;
 
  public:
   explicit ILPRefiner(const Hypergraph&,
@@ -37,7 +41,8 @@ class ILPRefiner final : public IAdvancedRefiner {
                       const TaskGroupID) :
     _context(context),
     _num_threads(0),
-    _max_num_blocks(0) { }
+    _max_num_blocks(0),
+    _model(context) { }
 
   ILPRefiner(const ILPRefiner&) = delete;
   ILPRefiner(ILPRefiner&&) = delete;
@@ -54,10 +59,8 @@ class ILPRefiner final : public IAdvancedRefiner {
       2, _context.refinement.advanced.ilp.max_allowed_blocks, sched_getcpu());
   }
 
-  MoveSequence refineImpl(const PartitionedHypergraph&,
-                          const AdvancedProblem&) {
-    return MoveSequence { {}, 0 };
-  }
+  MoveSequence refineImpl(const PartitionedHypergraph& phg,
+                          const AdvancedProblem& problem);
 
   PartitionID maxNumberOfBlocksPerSearchImpl() const {
     ASSERT(_max_num_blocks >= 2);
@@ -91,5 +94,6 @@ class ILPRefiner final : public IAdvancedRefiner {
   const Context& _context;
   size_t _num_threads;
   PartitionID _max_num_blocks;
+  ILPModel _model;
 };
 }  // namespace mt_kahypar
