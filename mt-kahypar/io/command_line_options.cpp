@@ -410,7 +410,10 @@ namespace mt_kahypar {
              "Maximum allowed blocks in ILP problems.")
             ("r-ilp-time-limit",
              po::value<double>(&context.refinement.advanced.ilp.time_limit)->value_name("<double>"),
-             "Time limit for ILP optimization.");
+             "Time limit for ILP optimization.")
+            ("r-ilp-apply-zero-gain-moves",
+             po::value<bool>(&context.refinement.advanced.ilp.apply_zero_gain_moves)->value_name("<bool>"),
+             "If true, zero gain moves are applied.");
     return options;
   }
 

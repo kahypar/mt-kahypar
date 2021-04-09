@@ -126,6 +126,7 @@ std::string serialize(const PartitionedHypergraph& hypergraph,
         << " ilp_min_non_zeros=" << context.refinement.advanced.ilp.min_non_zeros
         << " ilp_max_allowed_blocks=" << context.refinement.advanced.ilp.max_allowed_blocks
         << " ilp_time_limit=" << context.refinement.advanced.ilp.time_limit
+        << " ilp_apply_zero_gain_moves=" << std::boolalpha << context.refinement.advanced.ilp.apply_zero_gain_moves
         << " num_threads=" << context.shared_memory.num_threads
         << " use_localized_random_shuffle=" << std::boolalpha << context.shared_memory.use_localized_random_shuffle
         << " shuffle_block_size=" << context.shared_memory.shuffle_block_size;

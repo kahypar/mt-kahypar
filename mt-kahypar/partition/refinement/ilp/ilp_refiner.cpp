@@ -56,12 +56,15 @@ MoveSequence ILPRefiner::refineImpl(const PartitionedHypergraph& phg,
       int status = ilp.get(GRB_IntAttr_Status);
       if ( status == GRB_OPTIMAL || status == GRB_TIME_LIMIT ) {
         sequence.expected_improvement = objective_before - objective_after;
-        for ( const HypernodeID& hn : problem.nodes ) {
-          const PartitionID from = phg.partID(hn);
-          const PartitionID to = _model.partID(hn, problem);
-          ASSERT(to != kInvalidPartition);
-          if ( from != to ) {
-            sequence.moves.emplace_back(Move { from, to, hn, kInvalidGain });
+        if ( _context.refinement.advanced.ilp.apply_zero_gain_moves ||
+             sequence.expected_improvement > 0 ) {
+          for ( const HypernodeID& hn : problem.nodes ) {
+            const PartitionID from = phg.partID(hn);
+            const PartitionID to = _model.partID(hn, problem);
+            ASSERT(to != kInvalidPartition);
+            if ( from != to ) {
+              sequence.moves.emplace_back(Move { from, to, hn, kInvalidGain });
+            }
           }
         }
       }

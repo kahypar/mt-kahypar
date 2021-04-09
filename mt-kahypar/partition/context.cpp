@@ -144,6 +144,7 @@ namespace mt_kahypar {
     out << "    ILP Minimum Number of Non-Zeros:  " << params.min_non_zeros << std::endl;
     out << "    ILP Maximum Allowed Blocks:       " << params.max_allowed_blocks << std::endl;
     out << "    ILP Time Limit:                   " << params.time_limit << std::endl;
+    out << "    ILP Apply Zero Gain Moves:        " << std::boolalpha << params.apply_zero_gain_moves << std::endl;
     return out;
   }
 

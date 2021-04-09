@@ -160,6 +160,7 @@ struct ILPParameters {
   size_t min_non_zeros = std::numeric_limits<size_t>::max();
   PartitionID max_allowed_blocks = 0;
   double time_limit = 0.0;
+  bool apply_zero_gain_moves = 0;
 };
 
 std::ostream& operator<<(std::ostream& out, const ILPParameters& params);
