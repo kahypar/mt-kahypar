@@ -167,7 +167,7 @@ void ILPModel::balanceConstraint(GRBModel& model,
   for ( PartitionID i = 0; i < _k; ++i ) {
     const PartitionID original_block = problem.stats.indexToBlock(i);
     const HypernodeWeight l_max =
-      _context.partition.max_part_weights[original_block] -
+      problem.stats.maxPartWeight(original_block) -
       ( phg.partWeight(original_block) - problem.stats.nodeWeightOfBlock(original_block) );
     // Only add balance constraint for block i, if we would violate the balance constraint
     // if all vertices are assigned to that block

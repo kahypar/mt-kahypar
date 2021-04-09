@@ -39,6 +39,7 @@ class ProblemStats {
     _k(k),
     _num_nodes_in_block(),
     _node_weight_of_block(),
+    _max_part_weights(),
     _contained_blocks(),
     _block_to_idx(k, INVALID_IDX),
     _locked_blocks(k, false),
@@ -111,6 +112,13 @@ class ProblemStats {
     return idx == INVALID_IDX ? 0 : _node_weight_of_block[idx];
   }
 
+  HypernodeWeight maxPartWeight(const PartitionID block) const {
+    ASSERT(block > kInvalidPartition && block < _k);
+    ASSERT(_block_to_idx[block] != INVALID_IDX);
+    const size_t idx = _block_to_idx[block];
+    return _max_part_weights[idx];
+  }
+
   const vec<HyperedgeID>& containedEdges() const {
     return _contained_hes;
   }
@@ -125,7 +133,16 @@ class ProblemStats {
       _contained_blocks.push_back(block);
       _num_nodes_in_block.push_back(0);
       _node_weight_of_block.push_back(0);
+      _max_part_weights.push_back(0);
     }
+  }
+
+  void setMaxPartWeight(const PartitionID block,
+                        const HyperedgeWeight max_part_weight) {
+    ASSERT(block > kInvalidPartition && block < _k);
+    ASSERT(_block_to_idx[block] != INVALID_IDX);
+    const size_t idx = _block_to_idx[block];
+    _max_part_weights[idx] = max_part_weight;
   }
 
   void addNode(const HypernodeID hn, const PartitionedHypergraph& phg) {
@@ -162,6 +179,7 @@ class ProblemStats {
   void reset() {
     _num_nodes_in_block.clear();
     _node_weight_of_block.clear();
+    _max_part_weights.clear();
     _contained_blocks.clear();
     _block_to_idx.assign(_k, INVALID_IDX);
     _locked_blocks.assign(_k, false);
@@ -176,6 +194,7 @@ class ProblemStats {
   PartitionID _k;
   vec<HypernodeID> _num_nodes_in_block;
   vec<HypernodeWeight> _node_weight_of_block;
+  vec<HypernodeWeight> _max_part_weights;
   vec<PartitionID> _contained_blocks;
   vec<size_t> _block_to_idx;
   vec<bool> _locked_blocks;

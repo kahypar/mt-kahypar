@@ -73,7 +73,7 @@ MoveSequence ILPRefiner::refineImpl(const PartitionedHypergraph& phg,
       if ( status == GRB_OPTIMAL ) {
         utils::Stats::instance().update_stat("ilp_solved_optimal", 1);
       } else if ( status == GRB_TIME_LIMIT ) {
-        utils::Stats::instance().update_stat("ilp_time_limit", 1);
+        utils::Stats::instance().update_stat("ilp_time_limit_exceeded", 1);
       }
     } catch(GRBException e) {
       DBG << RED << "Error code = " << e.getErrorCode() << "Message =" << e.getMessage() << END;

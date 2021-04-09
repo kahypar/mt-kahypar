@@ -61,19 +61,28 @@ bool AdvancedRefinementScheduler::refineImpl(
       if ( search_id != QuotientGraph::INVALID_SEARCH_ID ) {
 
         utils::Timer::instance().start_timer("construct_problem", "Construct Problem", true);
-        const AdvancedProblem problem =
+        AdvancedProblem problem =
           _constructor.construct(search_id, _quotient_graph, _refiner, phg);
         _quotient_graph.finalizeConstruction(search_id);
         utils::Timer::instance().stop_timer("construct_problem");
 
         bool success = false;
         if ( problem.nodes.size() > 0 ) {
+          // Set max part weights
+          _part_weights_lock.lock();
+          for ( const PartitionID block : problem.stats.containedBlocks() ) {
+            problem.stats.setMaxPartWeight(block, _max_part_weights[block]);
+          }
+          _part_weights_lock.unlock();
+
+          // Call advanced refiner
           utils::Timer::instance().start_timer("refine_problem", "Refine Problem", true);
           ++_stats.num_refinements;
           MoveSequence sequence = _refiner.refine(search_id, phg, problem);
           utils::Timer::instance().stop_timer("refine_problem");
 
           if ( !sequence.moves.empty() ) {
+            // Apply move sequence to hypergraph
             utils::Timer::instance().start_timer("apply_moves", "Apply Moves", true);
             HyperedgeWeight delta = applyMoves(sequence);
             overall_delta -= delta;
@@ -113,6 +122,7 @@ bool AdvancedRefinementScheduler::refineImpl(
   }
   HEAVY_REFINEMENT_ASSERT(phg.checkTrackedPartitionInformation());
   _phg = nullptr;
+  DBG << "Advanced Refinement Total Improvement =" << overall_delta;
   return overall_delta.load(std::memory_order_relaxed) < 0;
 }
 
@@ -122,6 +132,12 @@ void AdvancedRefinementScheduler::initializeImpl(PartitionedHypergraph& phg)  {
   // Initialize Part Weights
   for ( PartitionID i = 0; i < _context.partition.k; ++i ) {
     _part_weights[i] = phg.partWeight(i);
+    _max_part_weights[i] = std::max(_part_weights[i], _context.partition.max_part_weights[i]);
+    if ( debug && _part_weights[i] > _context.partition.max_part_weights[i] ) {
+      DBG << RED << "Input partition already imbalanced ( Block" << i
+          << ", Weight =" << _part_weights[i]
+          << ", Max Part Weight =" << _context.partition.max_part_weights[i] << ")" << END;
+    }
   }
 
   _stats.reset();
@@ -246,6 +262,9 @@ HyperedgeWeight AdvancedRefinementScheduler::applyMoves(MoveSequence& sequence) 
       is_balanced = partWeightUpdate(part_weight_deltas, true);
       if ( is_balanced ) {
         // Move sequence worsen solution quality => Rollback
+        DBG << RED << "Move sequence worsen solution quality ("
+            << "Expected Improvement =" << sequence.expected_improvement
+            << ", Real Improvement =" << improvement << ")" << END;
         revertMoveSequence(*_phg, sequence, delta_func, is_nlevel);
         ++_stats.failed_updates_due_to_conflicting_moves;
         sequence.state = MoveSequenceState::WORSEN_SOLUTION_QUALITY;
@@ -260,10 +279,16 @@ HyperedgeWeight AdvancedRefinementScheduler::applyMoves(MoveSequence& sequence) 
       _stats.correct_expected_improvement += (improvement == sequence.expected_improvement);
       sequence.state = MoveSequenceState::SUCCESS;
       addCutHyperedgesToQuotientGraph(_quotient_graph, new_cut_hes);
+      DBG << "Successfully applied move sequence to hypergraph ("
+          << "Moved Nodes =" << sequence.moves.size()
+          << ", Expected Improvement =" << sequence.expected_improvement
+          << ", Real Improvement =" << improvement << ")";
     }
   } else {
     ++_stats.failed_updates_due_to_balance_constraint;
     sequence.state = MoveSequenceState::VIOLATES_BALANCE_CONSTRAINT;
+    DBG << RED << "Move sequence violated balance constraint ( Expected Improvement ="
+        << sequence.expected_improvement << ")" << END;
   }
 
   _stats.total_improvement += improvement;
@@ -277,16 +302,23 @@ bool AdvancedRefinementScheduler::partWeightUpdate(const vec<HypernodeWeight>& p
   _part_weights_lock.lock();
   PartitionID i = 0;
   for ( ; i < _context.partition.k; ++i ) {
-    if ( _part_weights[i] + multiplier * part_weight_deltas[i] > _context.partition.max_part_weights[i] ) {
+    if ( _part_weights[i] + multiplier * part_weight_deltas[i] > _max_part_weights[i]) {
+      DBG << RED << "Block" << i << "is overloaded ("
+          << "Current Weight =" << (_part_weights[i] + multiplier * part_weight_deltas[i])
+          << ", Max Part Weight =" << _max_part_weights[i] << END;
       // Move Sequence Violates Balance Constraint => Rollback
       --i;
       for ( ; i >= 0; --i ) {
         _part_weights[i] -= multiplier * part_weight_deltas[i];
+        _max_part_weights[i] = std::max(
+          _part_weights[i], _context.partition.max_part_weights[i]);
       }
       is_balanced = false;
       break;
     }
     _part_weights[i] += multiplier * part_weight_deltas[i];
+    _max_part_weights[i] = std::max(
+      _part_weights[i], _context.partition.max_part_weights[i]);
   }
   _part_weights_lock.unlock();
   return is_balanced;
