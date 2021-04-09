@@ -22,6 +22,7 @@
 #include "mt-kahypar/partition/refinement/ilp/ilp_refiner.h"
 
 #include "mt-kahypar/utils/timer.h"
+#include "mt-kahypar/utils/stats.h"
 
 namespace mt_kahypar {
 
@@ -55,9 +56,6 @@ MoveSequence ILPRefiner::refineImpl(const PartitionedHypergraph& phg,
       int status = ilp.get(GRB_IntAttr_Status);
       if ( status == GRB_OPTIMAL || status == GRB_TIME_LIMIT ) {
         sequence.expected_improvement = objective_before - objective_after;
-        if ( sequence.expected_improvement > 0 ) {
-          DBG << V(objective_before) << V(objective_after) << V(sequence.expected_improvement);
-        }
         for ( const HypernodeID& hn : problem.nodes ) {
           const PartitionID from = phg.partID(hn);
           const PartitionID to = _model.partID(hn, problem);
@@ -68,12 +66,28 @@ MoveSequence ILPRefiner::refineImpl(const PartitionedHypergraph& phg,
         }
       }
       utils::Timer::instance().stop_timer("retrieve_solution");
+
+      if ( status == GRB_OPTIMAL ) {
+        utils::Stats::instance().update_stat("ilp_solved_optimal", 1);
+      } else if ( status == GRB_TIME_LIMIT ) {
+        utils::Stats::instance().update_stat("ilp_time_limit", 1);
+      }
     } catch(GRBException e) {
       DBG << RED << "Error code = " << e.getErrorCode() << "Message =" << e.getMessage() << END;
     } catch(...) {
       ERROR("Exception during optimization");
     }
   }
+
+  if ( sequence.moves.size() > 0 ) {
+    DBG << V(problem.stats.numNodes())
+        << V(problem.stats.numEdges())
+        << V(problem.stats.numPins())
+        << V(problem.stats.numContainedBlocks())
+        << V(sequence.moves.size())
+        << V(sequence.expected_improvement);
+  }
+
   return sequence;
 }
 
