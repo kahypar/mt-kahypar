@@ -29,10 +29,6 @@
 
 
 namespace mt_kahypar::ds {
-
-  // TODO split contraction into multiple functions!
-
-
   /*!
   * This struct is used during multilevel coarsening to efficiently
   * detect parallel hyperedges.
@@ -90,7 +86,7 @@ namespace mt_kahypar::ds {
 
     // Prefix sum determines vertex ids in coarse graph
     parallel::TBBPrefixSum<HyperedgeID, Array> mapping_prefix_sum(mapping);
-    tbb::parallel_scan(tbb::blocked_range<size_t>(0UL, _num_nodes), mapping_prefix_sum);
+    tbb::parallel_scan(tbb::blocked_range<size_t>(ID(0), _num_nodes), mapping_prefix_sum);
     HypernodeID coarsened_num_nodes = mapping_prefix_sum.total_sum();
 
     // Remap community ids
@@ -145,7 +141,7 @@ namespace mt_kahypar::ds {
             tmp_incident_edges_prefix_sum(tmp_num_incident_edges);
     tbb::parallel_invoke([&] {
       tbb::parallel_scan(tbb::blocked_range<size_t>(
-              0UL, static_cast<size_t>(coarsened_num_nodes)), tmp_incident_edges_prefix_sum);
+              ID(0), static_cast<size_t>(coarsened_num_nodes)), tmp_incident_edges_prefix_sum);
     }, [&] {
       tmp_incident_edges_pos.assign(coarsened_num_nodes, parallel::IntegralAtomicWrapper<HyperedgeID>(0));
     });
@@ -189,7 +185,8 @@ namespace mt_kahypar::ds {
       const size_t incident_edges_start = tmp_incident_edges_prefix_sum[coarse_node];
       const size_t incident_edges_end = tmp_incident_edges_prefix_sum[coarse_node + 1];
       const size_t tmp_degree = incident_edges_end - incident_edges_start;
-      if ( tmp_degree <= HIGH_DEGREE_CONTRACTION_THRESHOLD ) {
+      // TODO(maas): is coarsened_num_nodes a sensible threshold?
+      if ( tmp_degree <= std::max(coarsened_num_nodes, HIGH_DEGREE_CONTRACTION_THRESHOLD) ) {
         std::sort(tmp_edges.begin() + incident_edges_start, tmp_edges.begin() + incident_edges_end,
                   [](const TmpEdgeInformation& e1, const TmpEdgeInformation& e2) {
                     return e1._target < e2._target;
@@ -247,7 +244,50 @@ namespace mt_kahypar::ds {
       tmp_nodes[coarse_node].setFirstEntry(incident_edges_start);
     });
 
-    // TODO: high degree vertices
+    if ( !high_degree_vertices.empty() ) {
+      // High degree vertices are treated special, because sorting and afterwards
+      // removing duplicates can become a major sequential bottleneck. Therefore,
+      // we sum the parallel incident edges of a high degree vertex using an atomic
+      // vector. Then, the index is calculated with a prefix sum.
+      parallel::scalable_vector<parallel::IntegralAtomicWrapper<HyperedgeWeight>> summed_edge_weights_for_target;
+      summed_edge_weights_for_target.assign(coarsened_num_nodes, parallel::IntegralAtomicWrapper<HyperedgeWeight>(0));
+      parallel::scalable_vector<HyperedgeID> incident_edges_inclusion;
+      incident_edges_inclusion.assign(coarsened_num_nodes, 0);
+      for ( const HypernodeID& coarse_node : high_degree_vertices ) {
+        const size_t incident_edges_start = tmp_incident_edges_prefix_sum[coarse_node];
+        const size_t incident_edges_end = tmp_incident_edges_prefix_sum[coarse_node + 1];
+
+        // sum edge weights for each target node
+        tbb::parallel_for(incident_edges_start, incident_edges_end, [&](const size_t pos) {
+          TmpEdgeInformation& edge = tmp_edges[pos];
+          if (edge.isValid()) {
+            summed_edge_weights_for_target[edge.getTarget()].fetch_add(edge.getWeight());
+          }
+        });
+
+        // each edge with weight greater than zero is included
+        tbb::parallel_for(ID(0), coarsened_num_nodes, [&](const size_t target) {
+          bool include = summed_edge_weights_for_target[target].load() > 0;
+          incident_edges_inclusion[target] = include ? 1 : 0;
+        });
+
+        // calculate relative index of edges via prefix sum
+        parallel::TBBPrefixSum<HyperedgeID, parallel::scalable_vector> incident_edges_pos(incident_edges_inclusion);
+        tbb::parallel_scan(tbb::blocked_range<size_t>(ID(0), static_cast<size_t>(coarsened_num_nodes)), incident_edges_pos);
+
+        // insert edges
+        tbb::parallel_for(ID(0), coarsened_num_nodes, [&](const size_t target) {
+          HyperedgeWeight weight = summed_edge_weights_for_target[target].load();
+          if (weight > 0) {
+            tmp_edges[incident_edges_start + incident_edges_pos[target]] = TmpEdgeInformation(target, weight);
+            summed_edge_weights_for_target[target].store(0);
+          }
+        });
+
+        const size_t contracted_size = incident_edges_pos.total_sum();
+        node_sizes[coarse_node] = contracted_size;
+      }
+    }
 
     utils::Timer::instance().stop_timer("remove_parallel_edges");
 
@@ -265,7 +305,7 @@ namespace mt_kahypar::ds {
     // Compute number of edges in coarse graph (those flagged as valid)
     parallel::TBBPrefixSum<HyperedgeID, Array> degree_mapping(node_sizes);
     tbb::parallel_scan(tbb::blocked_range<size_t>(
-            0UL, static_cast<size_t>(coarsened_num_nodes)), degree_mapping);
+            ID(0), static_cast<size_t>(coarsened_num_nodes)), degree_mapping);
     const HyperedgeID coarsened_num_edges = degree_mapping.total_sum();
     hypergraph._num_nodes = coarsened_num_nodes;
     hypergraph._num_edges = coarsened_num_edges;
@@ -277,15 +317,25 @@ namespace mt_kahypar::ds {
       tbb::parallel_for(ID(0), coarsened_num_nodes, [&](const HyperedgeID& coarse_node) {
         const HyperedgeID tmp_edges_start = tmp_nodes[coarse_node].firstEntry();
         const HyperedgeID edges_start = degree_mapping[coarse_node];
-        // TODO: good idea? Better handle high degree nodes separately?
-        tbb::parallel_for(ID(0), degree_mapping.value(coarse_node), [&](const HyperedgeID& index) {
+        auto handle_edge = [&](const HyperedgeID& index) {
           ASSERT(tmp_edges_start + index < tmp_edges.size() && edges_start + index < hypergraph._edges.size());
           const TmpEdgeInformation& tmp_edge = tmp_edges[tmp_edges_start + index];
           Edge& edge = hypergraph.edge(edges_start + index);          
           edge.setTarget(tmp_edge.getTarget());
           edge.setSource(coarse_node);
           edge.setWeight(tmp_edge.getWeight());
-        });
+          edge.setUniqueID(tmp_edge.getID());
+          ASSERT(static_cast<size_t>(tmp_edge.getID()) < edge_id_mapping.size());
+          edge_id_mapping[tmp_edge.getID()] = 1UL;
+        };
+
+        if (degree_mapping.value(coarse_node) > HIGH_DEGREE_CONTRACTION_THRESHOLD) {
+          tbb::parallel_for(ID(0), degree_mapping.value(coarse_node), handle_edge);
+        } else {
+          for (size_t index = 0; index < degree_mapping.value(coarse_node); ++index) {
+            handle_edge(index);
+          }
+        }
       });
       utils::Timer::instance().stop_timer("setup_edges");
     }, [&] {
