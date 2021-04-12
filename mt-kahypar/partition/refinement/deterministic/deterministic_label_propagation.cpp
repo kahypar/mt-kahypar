@@ -85,7 +85,6 @@ namespace mt_kahypar {
       }
 
       overall_improvement += round_improvement;
-      DBG << V(iter) << V(num_moves) << V(round_improvement) << V(phg.initialNumNodes());
 
       if (num_moves == 0) {
         // no vertices with positive gain --> stop
@@ -97,7 +96,9 @@ namespace mt_kahypar {
     best_metrics.km1 -= overall_improvement;
     best_metrics.imbalance = metrics::imbalance(phg, context);
 
-    DBG << V(best_metrics.km1) << V(best_metrics.imbalance);
+    if (context.type == kahypar::ContextType::main) {
+      DBG << V(best_metrics.km1) << V(best_metrics.imbalance);
+    }
 
     return overall_improvement > 0;
   }
@@ -169,6 +170,7 @@ namespace mt_kahypar {
 
     size_t num_reverted_moves = 0;
     size_t j = num_moves;
+
     auto revert_move = [&](Move& m) {
       part_weights[m.to] -= phg.nodeWeight(m.node);
       part_weights[m.from] += phg.nodeWeight(m.node);
@@ -190,12 +192,14 @@ namespace mt_kahypar {
     if (num_overloaded_blocks > 0) {
       DBG << "still overloaded" << num_overloaded_blocks << V(num_moves) << V(num_reverted_moves) << "trigger second run";
 
+      size_t num_extra_rounds = 1;
       j = num_moves;
       size_t last_valid_move = 0;
       while (num_overloaded_blocks > 0) {
         if (j == 0) {
           j = last_valid_move;
           last_valid_move = 0;
+          num_extra_rounds++;
         }
         Move& m = moves[j-1];
         if (m.isValid() && part_weights[m.to] > context.partition.max_part_weights[m.to]) {
@@ -212,7 +216,7 @@ namespace mt_kahypar {
         --j;
       }
 
-      DBG << V(num_reverted_moves);
+      DBG << V(num_reverted_moves) << V(num_extra_rounds);
     }
 
     // apply all moves that were not invalidated
@@ -228,7 +232,6 @@ namespace mt_kahypar {
       gain += applyMovesIf(phg, moves, num_moves, is_valid);
       assert(gain == 0);
     }
-    DBG << V(gain);
     return gain;
   }
 
