@@ -154,6 +154,10 @@ namespace mt_kahypar {
   }
 
   Gain DeterministicLabelPropagationRefiner::applyMovesSortedByGainAndRevertUnbalanced(PartitionedHypergraph& phg) {
+    // TODO could do max prefixes first -- that stuff is guaranteed and apply this function afterwards, sort of opportunistically
+    // can still do the same rollback used for FM. --> these two functions would produce a move ordering
+    // instead of reverting, can we do a reordering then?
+
     size_t num_moves = moves_back.load(std::memory_order_relaxed);
     tbb::parallel_sort(moves.begin(), moves.begin() + num_moves, [](const Move& m1, const Move& m2) {
       return m1.gain > m2.gain || (m1.gain == m2.gain && m1.node < m2.node);
