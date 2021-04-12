@@ -159,15 +159,19 @@ namespace mt_kahypar {
       return m1.gain > m2.gain || (m1.gain == m2.gain && m1.node < m2.node);
     });
 
-    size_t num_overloaded_blocks = 0;
+    size_t num_overloaded_blocks = 0, num_overloaded_before_round = 0;
     vec<HypernodeWeight> part_weights = aggregatePartWeightDeltas(phg, moves, num_moves);
     for (PartitionID i = 0; i < phg.k(); ++i) {
       part_weights[i] += phg.partWeight(i);
       if (part_weights[i] > context.partition.max_part_weights[i]) {
         num_overloaded_blocks++;
       }
+      if (phg.partWeight(i) > context.partition.max_part_weights[i]) {
+        num_overloaded_before_round++;
+      }
     }
 
+    size_t num_overloaded_before_first_pass = num_overloaded_blocks;
     size_t num_reverted_moves = 0;
     size_t j = num_moves;
 
@@ -190,7 +194,8 @@ namespace mt_kahypar {
     }
 
     if (num_overloaded_blocks > 0) {
-      DBG << "still overloaded" << num_overloaded_blocks << V(num_moves) << V(num_reverted_moves) << "trigger second run";
+      DBG << "still overloaded" << num_overloaded_blocks << V(num_moves) << V(num_reverted_moves)
+          << V(num_overloaded_before_round) << V(num_overloaded_before_first_pass) << "trigger second run";
 
       size_t num_extra_rounds = 1;
       j = num_moves;
