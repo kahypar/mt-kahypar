@@ -43,7 +43,7 @@ public:
   }
   
 private:
-  static constexpr bool debug = false;
+  static constexpr bool debug = true;
 
   bool refineImpl(PartitionedHypergraph& hypergraph, const vec<HypernodeID>& refinement_nodes,
                   kahypar::Metrics& best_metrics, double) final ;
@@ -57,7 +57,6 @@ private:
 
   vec<size_t> aggregateDirectionBucketsInplace();
 
-  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
   void calculateAndSaveBestMove(PartitionedHypergraph& phg, HypernodeID u) {
     assert(u < phg.initialNumNodes());
     auto [to, gain] = compute_gains.local().computeBestTargetBlock(phg, u, context.partition.max_part_weights);

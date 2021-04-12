@@ -97,6 +97,8 @@ namespace mt_kahypar {
     best_metrics.km1 -= overall_improvement;
     best_metrics.imbalance = metrics::imbalance(phg, context);
 
+    DBG << V(best_metrics.km1) << V(best_metrics.imbalance);
+
     return overall_improvement > 0;
   }
 
@@ -165,29 +167,53 @@ namespace mt_kahypar {
       }
     }
 
-    // DBG << V(num_overloaded_blocks);
-
     size_t num_reverted_moves = 0;
     size_t j = num_moves;
+    auto revert_move = [&](Move& m) {
+      part_weights[m.to] -= phg.nodeWeight(m.node);
+      part_weights[m.from] += phg.nodeWeight(m.node);
+      m.invalidate();
+      num_reverted_moves++;
+      if (part_weights[m.to] <= context.partition.max_part_weights[m.to]) {
+        num_overloaded_blocks--;
+      }
+    };
+
     while (num_overloaded_blocks > 0 && j > 0) {
       Move& m = moves[--j];
       if (part_weights[m.to] > context.partition.max_part_weights[m.to]
           && part_weights[m.from] + phg.nodeWeight(m.node) <= context.partition.max_part_weights[m.from]) {
-        part_weights[m.to] -= phg.nodeWeight(m.node);
-        part_weights[m.from] += phg.nodeWeight(m.node);
-        m.invalidate();
-        num_reverted_moves++;
-        if (part_weights[m.to] <= context.partition.max_part_weights[m.to]) {
-          num_overloaded_blocks--;
-        }
+        revert_move(m);
       }
     }
 
     if (num_overloaded_blocks > 0) {
-      DBG << "still overloaded" << V(phg.initialNumNodes()) << V(phg.initialNumPins()) << V(num_overloaded_blocks) << V(num_moves);
-    }
+      DBG << "still overloaded" << num_overloaded_blocks << V(num_moves) << V(num_reverted_moves) << "trigger second run";
 
-    // DBG << V(num_reverted_moves);
+      j = num_moves;
+      size_t last_valid_move = 0;
+      while (num_overloaded_blocks > 0) {
+        if (j == 0) {
+          j = last_valid_move;
+          last_valid_move = 0;
+        }
+        Move& m = moves[j-1];
+        if (m.isValid() && part_weights[m.to] > context.partition.max_part_weights[m.to]) {
+          if (part_weights[m.from] + phg.nodeWeight(m.node) > context.partition.max_part_weights[m.from]
+              && part_weights[m.from] <= context.partition.max_part_weights[m.from]) {
+            num_overloaded_blocks++;
+          }
+          revert_move(m);
+        }
+
+        if (last_valid_move == 0 && m.isValid()) {
+          last_valid_move = j;
+        }
+        --j;
+      }
+
+      DBG << V(num_reverted_moves);
+    }
 
     // apply all moves that were not invalidated
     auto is_valid = [&](size_t pos) { return moves[pos].isValid(); };
@@ -202,6 +228,7 @@ namespace mt_kahypar {
       gain += applyMovesIf(phg, moves, num_moves, is_valid);
       assert(gain == 0);
     }
+    DBG << V(gain);
     return gain;
   }
 
