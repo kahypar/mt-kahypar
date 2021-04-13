@@ -280,7 +280,7 @@ namespace mt_kahypar {
     vec<size_t> involvements(k, 0);
     for (PartitionID p1 = 0; p1 < k; ++p1) {
       for (PartitionID p2 = p1 + 1; p2 < k; ++p2) {
-        if (has_moves(p1,p2) && has_moves(p2,p1)) { // both directions have moves
+        if (has_moves(p1,p2) && has_moves(p2,p1)) { // both directions have moves   TODO relax this to handle slacks
           relevant_block_pairs.emplace_back(p1, p2);
           involvements[p1]++;
           involvements[p2]++;
@@ -289,7 +289,7 @@ namespace mt_kahypar {
     }
 
     // swap_prefix[index(p1,p2)] stores the first position of moves to revert out of the sequence of moves from p1 to p2
-    vec<size_t> swap_prefix(max_key);
+    vec<size_t> swap_prefix(max_key, 0);
     vec<int64_t> part_weight_deltas(k, 0);
 
     tbb::parallel_for(0UL, relevant_block_pairs.size(), [&](size_t bp_index) {
