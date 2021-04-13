@@ -314,8 +314,8 @@ namespace mt_kahypar {
       HypernodeWeight budget_p1 = context.partition.max_part_weights[p1] - phg.partWeight(p1),
                       budget_p2 = context.partition.max_part_weights[p2] - phg.partWeight(p2);
       // TODO could sum up vertex weights and be more generous with the slacks
-      HypernodeWeight slack_p1 = budget_p1 / involvements[p1],
-                      slack_p2 = budget_p2 / involvements[p2];
+      HypernodeWeight slack_p1 = budget_p1 / std::max(1UL, involvements[p1]),
+                      slack_p2 = budget_p2 / std::max(1UL, involvements[p2]);
 
       int64_t balance = 0;
       std::tuple<size_t, size_t, int64_t> best {0,0,0};
