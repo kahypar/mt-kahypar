@@ -313,7 +313,6 @@ namespace mt_kahypar {
       // get balanced swap prefix
       HypernodeWeight budget_p1 = context.partition.max_part_weights[p1] - phg.partWeight(p1),
                       budget_p2 = context.partition.max_part_weights[p2] - phg.partWeight(p2);
-      // TODO could sum up vertex weights and be more generous with the slacks
       HypernodeWeight slack_p1 = budget_p1 / std::max(1UL, involvements[p1]),
                       slack_p2 = budget_p2 / std::max(1UL, involvements[p2]);
 
@@ -353,7 +352,8 @@ namespace mt_kahypar {
             best = {i,j,balance};
           }
         }
-      } else if (i == i_last || sorted_moves[i].gain == 0) {
+      }
+      if (i == i_last || sorted_moves[i].gain == 0) {
         while (j < j_last && -balance <= slack_p1 && (balance > 0 || sorted_moves[j].gain > 0)) {
           balance -= phg.nodeWeight(sorted_moves[j++].node);
           if (-balance <= slack_p1 && balance <= slack_p2) {
@@ -362,7 +362,6 @@ namespace mt_kahypar {
         }
       }
 
-      //swap_prefixes[bp_index] = best;
       swap_prefix[index(p1,p2)] = std::get<0>(best);
       swap_prefix[index(p2,p1)] = std::get<1>(best);
       int64_t best_balance = std::get<2>(best);

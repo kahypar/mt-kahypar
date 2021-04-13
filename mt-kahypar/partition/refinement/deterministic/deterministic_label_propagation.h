@@ -43,7 +43,7 @@ public:
   }
   
 private:
-  static constexpr bool debug = true;
+  static constexpr bool debug = false;
 
   bool refineImpl(PartitionedHypergraph& hypergraph, const vec<HypernodeID>& refinement_nodes,
                   kahypar::Metrics& best_metrics, double) final ;
@@ -59,8 +59,8 @@ private:
 
   void calculateAndSaveBestMove(PartitionedHypergraph& phg, HypernodeID u) {
     assert(u < phg.initialNumNodes());
-    auto [to, gain] = compute_gains.local().computeBestTargetBlock(phg, u, context.partition.max_part_weights);
-    // auto [to, gain] = compute_gains.local().computeBestTargetBlockIgnoringBalance(phg, u);
+    //auto [to, gain] = compute_gains.local().computeBestTargetBlock(phg, u, context.partition.max_part_weights);
+    auto [to, gain] = compute_gains.local().computeBestTargetBlockIgnoringBalance(phg, u);
     if (gain > 0 && to != kInvalidPartition) {    // depending on apply moves function we might do gain >= 0
       assert(to >= 0 && to < phg.k());
       size_t pos = moves_back.fetch_add(1, std::memory_order_relaxed);
