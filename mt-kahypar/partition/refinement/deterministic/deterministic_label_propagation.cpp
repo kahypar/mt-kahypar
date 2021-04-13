@@ -72,13 +72,14 @@ namespace mt_kahypar {
 
         Gain sub_round_improvement = 0;
         size_t num_moves_in_sub_round = moves_back.load(std::memory_order_relaxed);
+        DBG << V(num_moves_in_sub_round);
         if (num_moves_in_sub_round > 0) {
           // sync. then apply moves
-          if (context.refinement.deterministic_refinement.apply_moves_by_maximal_prefix_in_block_pairs) {
+          //if (context.refinement.deterministic_refinement.apply_moves_by_maximal_prefix_in_block_pairs) {
             sub_round_improvement = applyMovesByMaximalPrefixesInBlockPairs(phg);
-          } else {
-            sub_round_improvement = applyMovesSortedByGainAndRevertUnbalanced(phg);
-          }
+          //} else {
+          //  sub_round_improvement = applyMovesSortedByGainAndRevertUnbalanced(phg);
+          //}
         }
         round_improvement += sub_round_improvement;
         num_moves += num_moves_in_sub_round;
@@ -256,7 +257,14 @@ namespace mt_kahypar {
       const size_t sz = 0;
     };
 
-    MovesWrapper moves_wrapper { moves, moves_back.load(std::memory_order_relaxed) };
+    size_t num_moves = moves_back.load(std::memory_order_relaxed);
+
+    MovesWrapper moves_wrapper { moves, num_moves };
+
+    Gain estimated_gain = 0;
+    for (size_t i = 0; i < moves_wrapper.size(); ++i) {
+      estimated_gain += moves[i].gain;
+    }
 
     // aggregate moves by direction. not in-place because of counting sort.
     // but it gives us the positions of the buckets right away
@@ -353,11 +361,14 @@ namespace mt_kahypar {
       swap_prefix[index(p2,p1)] = std::get<1>(best);
       int64_t best_balance = std::get<2>(best);
 
+      DBG << V(swap_prefix[index(p1,p2)]) << V(swap_prefix[index(p2,p1)]) << V(best_balance);
+
       // balance < 0 --> p1 got more weight, balance > 0 --> p2 got more weight
       __atomic_fetch_add(&part_weight_deltas[p1], best_balance, __ATOMIC_RELAXED);
       __atomic_fetch_sub(&part_weight_deltas[p2], best_balance, __ATOMIC_RELAXED);
     });
 
+    /*
     auto remaining_moves = [&](PartitionID p1, PartitionID p2) {
       size_t direction = index(p1,p2);
       return positions[direction + 1] - swap_prefix[direction];
@@ -373,11 +384,12 @@ namespace mt_kahypar {
         }
       }
     }
+    */
 
-    auto in_prefix = [&](size_t pos) {
-      return pos < swap_prefix[index(sorted_moves[pos].from, sorted_moves[pos].to)];
-    };
-    return applyMovesIf(phg, sorted_moves, sorted_moves.size(), in_prefix);
+    auto in_prefix = [&](size_t pos) { return pos < swap_prefix[index(sorted_moves[pos].from, sorted_moves[pos].to)]; };
+    Gain actual_gain = applyMovesIf(phg, sorted_moves, num_moves, in_prefix);
+    DBG << V(num_moves) << V(estimated_gain) << V(actual_gain) << V(metrics::imbalance(phg, context));
+    return actual_gain;
   }
 
   vec<size_t> DeterministicLabelPropagationRefiner::aggregateDirectionBucketsInplace() {
