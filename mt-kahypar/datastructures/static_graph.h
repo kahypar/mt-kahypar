@@ -773,7 +773,7 @@ class StaticGraph {
   friend class CommunitySupport;
   template <typename Hypergraph,
             typename HypergraphFactory>
-  friend class PartitionedHypergraph;
+  friend class PartitionedGraph;
 
   // ####################### Node Information #######################
 

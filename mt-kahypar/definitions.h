@@ -22,44 +22,51 @@
 #include <chrono>
 #include "mt-kahypar/parallel/hardware_topology.h"
 #include "mt-kahypar/parallel/tbb_initializer.h"
+
+#ifdef USE_GRAPH_STRUCTURE
+#ifdef USE_STRONG_PARTITIONER
+// not supported yet
+static_assert(false);
+#else
+#include "mt-kahypar/datastructures/static_graph.h"
+#include "mt-kahypar/datastructures/static_graph_factory.h"
+#endif
+#include "mt-kahypar/datastructures/partitioned_graph.h"
+#else
 #ifdef USE_STRONG_PARTITIONER
 #include "mt-kahypar/datastructures/dynamic_hypergraph.h"
 #include "mt-kahypar/datastructures/dynamic_hypergraph_factory.h"
 #else
-#ifdef USE_GRAPH_STRUCTURE
-#include "mt-kahypar/datastructures/static_graph.h"
-#include "mt-kahypar/datastructures/static_graph_factory.h"
-#else
 #include "mt-kahypar/datastructures/static_hypergraph.h"
 #include "mt-kahypar/datastructures/static_hypergraph_factory.h"
 #endif
-#endif
 #include "mt-kahypar/datastructures/partitioned_hypergraph.h"
+#endif
 
 namespace mt_kahypar {
 
 using HardwareTopology = mt_kahypar::parallel::HardwareTopology<>;
 using TBBInitializer = mt_kahypar::parallel::TBBInitializer<HardwareTopology, false>;
 
-
-#ifdef USE_STRONG_PARTITIONER
 #ifdef USE_GRAPH_STRUCTURE
+#ifdef USE_STRONG_PARTITIONER
 // not supported yet
 static_assert(false);
 #else
-using Hypergraph = ds::DynamicHypergraph;
-using HypergraphFactory = ds::DynamicHypergraphFactory;
-#endif
-#else
-#ifdef USE_GRAPH_STRUCTURE
 using Hypergraph = ds::StaticGraph;
 using HypergraphFactory = ds::StaticGraphFactory;
+#endif
+using PartitionedHypergraph = ds::PartitionedGraph<Hypergraph, HypergraphFactory>;
+#else
+#ifdef USE_STRONG_PARTITIONER
+using Hypergraph = ds::DynamicHypergraph;
+using HypergraphFactory = ds::DynamicHypergraphFactory;
 #else
 using Hypergraph = ds::StaticHypergraph;
 using HypergraphFactory = ds::StaticHypergraphFactory;
 #endif
-#endif
 using PartitionedHypergraph = ds::PartitionedHypergraph<Hypergraph, HypergraphFactory>;
+#endif
 
 using HighResClockTimepoint = std::chrono::time_point<std::chrono::high_resolution_clock>;
 
