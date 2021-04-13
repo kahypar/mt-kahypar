@@ -280,10 +280,15 @@ namespace mt_kahypar {
     vec<size_t> involvements(k, 0);
     for (PartitionID p1 = 0; p1 < k; ++p1) {
       for (PartitionID p2 = p1 + 1; p2 < k; ++p2) {
-        if (has_moves(p1,p2) && has_moves(p2,p1)) { // both directions have moves   TODO relax this to handle slacks
+        if (has_moves(p1,p2) || has_moves(p2,p1)) {
           relevant_block_pairs.emplace_back(p1, p2);
-          involvements[p1]++;
+        }
+        // more involvements reduce slack --> only increment involvements if vertices are moved into that block
+        if (has_moves(p1,p2)) {
           involvements[p2]++;
+        }
+        if (has_moves(p2,p1)) {
+          involvements[p1]++;
         }
       }
     }
@@ -308,6 +313,7 @@ namespace mt_kahypar {
       // get balanced swap prefix
       HypernodeWeight budget_p1 = context.partition.max_part_weights[p1] - phg.partWeight(p1),
                       budget_p2 = context.partition.max_part_weights[p2] - phg.partWeight(p2);
+      // TODO could sum up vertex weights and be more generous with the slacks
       HypernodeWeight slack_p1 = budget_p1 / involvements[p1],
                       slack_p2 = budget_p2 / involvements[p2];
 
