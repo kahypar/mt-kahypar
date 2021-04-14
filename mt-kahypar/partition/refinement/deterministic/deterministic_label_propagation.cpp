@@ -399,6 +399,7 @@ namespace mt_kahypar {
       } else {
         size_t second_try_pos = moves_back.fetch_add(1, std::memory_order_relaxed);
         moves[second_try_pos] = sorted_moves[pos];
+        return false;
       }
     });
 
