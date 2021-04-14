@@ -230,16 +230,17 @@ namespace mt_kahypar {
     }
 
     // apply all moves that were not invalidated
-    auto is_valid = [&](size_t pos) { return moves[pos].isValid(); };
-    Gain gain = applyMovesIf(phg, moves, num_moves, is_valid);
+    Gain gain = applyMovesIf(phg, moves, num_moves, [&](size_t pos) { return moves[pos].isValid(); });
     if (gain < 0) {
       DBG << "Kommando zurück" << V(gain) << V(num_moves) << V(num_reverted_moves);
-      tbb::parallel_for(0UL, num_moves, [&](size_t i) {
-        if (moves[i].isValid()) {
-          std::swap(moves[i].from, moves[i].to);
+      gain += applyMovesIf(phg, moves, num_moves, [&](size_t pos) {
+        if (moves[pos].isValid()) {
+          std::swap(moves[pos].from, moves[pos].to);
+          return true;
+        } else {
+          return false;
         }
       });
-      gain += applyMovesIf(phg, moves, num_moves, is_valid);
       assert(gain == 0);
     }
     return gain;
