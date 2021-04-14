@@ -164,6 +164,10 @@ template<typename T, typename GetBucketCallable = PrecomputeBucketOpt>
 class ParallelShuffle {
 public:
   vec<T> permutation;
+  GetBucketCallable get_bucket;
+  vec<uint32_t> bucket_bounds;
+  static constexpr size_t num_buckets = 256;
+
   // convenience
   typename vec<T>::const_iterator begin() const { return permutation.cbegin(); }
   typename vec<T>::const_iterator end() const { return permutation.cend(); }
@@ -182,22 +186,13 @@ public:
   void shuffle(const RangeT& input_elements, size_t num_tasks, std::mt19937& rng) {
     static_assert(std::is_same<typename RangeT::value_type, T>::value);
     const size_t n = input_elements.size();
-    // auto t_alloc = tbb::tick_count::now();
-    permutation.resize(n);
     if (n < 1 << 15) {
+      permutation.resize(n);
       for (size_t i = 0; i < n; ++i) { permutation[i] = input_elements[i]; }
       std::shuffle(permutation.begin(), permutation.end(), rng);
     } else {
-      // auto t_comp_buckets = tbb::tick_count::now();
-      // assign random buckets to elements. either hash based on position or random tags with static load balancing
-      get_bucket.compute_buckets(n, num_tasks, rng());
+      sample_buckets_and_group_by(input_elements, num_tasks, rng());
 
-      // auto t_sort = tbb::tick_count::now();
-      // sort elements by random buckets
-      vec<uint32_t> bucket_bounds = parallel::counting_sort(input_elements, permutation, num_buckets, get_bucket, num_tasks);
-      assert(bucket_bounds.size() == num_buckets + 1);
-
-      // auto t_shuffle = tbb::tick_count::now();
       // shuffle each bucket
       for (size_t i = 0; i < num_buckets; ++i) {
         seeds[i] = rng();
@@ -206,26 +201,23 @@ public:
         std::mt19937 local_rng(seeds[i]);    // alternative: seed with hash of seed and range begin
         std::shuffle(permutation.begin() + bucket_bounds[i], permutation.begin() + bucket_bounds[i + 1], local_rng);
       });
-
-      /*
-      auto t_end = tbb::tick_count::now();
-
-      std::cout << "shuffle times: " << (t_end - t_alloc).seconds() << "\n"
-                << "\t alloc " << (t_comp_buckets - t_alloc).seconds() << "\n"
-                << "\t comp buckets " << (t_sort - t_comp_buckets).seconds() << "\n"
-                << "\t sort " << (t_shuffle - t_sort).seconds() << "\n"
-                << "\t shuffle " << (t_end - t_shuffle).seconds() << "\n"
-                << std::flush;
-      */
     }
   }
 
+  template<typename RangeT>
+  void sample_buckets_and_group_by(const RangeT& input_elements, size_t num_tasks, uint32_t seed) {
+    // assign random buckets to elements.
+    get_bucket.compute_buckets(input_elements.size(), num_tasks, seed);
+
+    // sort elements by random buckets
+    permutation.resize(input_elements.size());
+    bucket_bounds = parallel::counting_sort(input_elements, permutation, num_buckets, get_bucket, num_tasks);
+    assert(bucket_bounds.size() == num_buckets + 1);
+  }
+
 protected:
-  GetBucketCallable get_bucket;
-  static constexpr size_t num_buckets = 256;
   std::array<std::mt19937::result_type, num_buckets> seeds;
 };
-
 
 // TODO make prng exchangeable via template parameters everywhere
 
@@ -236,6 +228,12 @@ public:
     static_assert(std::is_integral<IntegralT>::value);
     IntegerRange iota = {0, n};
     this->shuffle(iota, num_tasks, rng);
+  }
+
+  void random_grouping(IntegralT n, size_t num_tasks, uint32_t seed) {
+    static_assert(std::is_integral<IntegralT>::value);
+    IntegerRange iota = {0, n};
+    this->sample_buckets_and_group_by(iota, num_tasks, seed);
   }
 
 protected:
