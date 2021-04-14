@@ -374,6 +374,24 @@ namespace mt_kahypar {
       __atomic_fetch_sub(&part_weight_deltas[p2], best_balance, __ATOMIC_RELAXED);
     });
 
+    /*
+    auto remaining_moves = [&](PartitionID p1, PartitionID p2) {
+      size_t direction = index(p1,p2);
+      return positions[direction + 1] - swap_prefix[direction];
+    };
+
+    // simple check in case the slacks were too restrictive
+    for (PartitionID p1 = 0; p1< k; ++p1) {
+      for (PartitionID p2 = 0; p2 < k; ++p2) {
+        if (remaining_moves(p2, p1) > 0) {
+          // walking from the swap prefixes again might be too expensive
+          // especially if they're still zero
+          // we could walk from the end of the sequences we did in the pair-wise checks
+        }
+      }
+    }
+    */
+
     auto in_prefix = [&](size_t pos) { return pos < swap_prefix[index(sorted_moves[pos].from, sorted_moves[pos].to)]; };
     Gain actual_gain = applyMovesIf(phg, sorted_moves, num_moves, in_prefix);
     DBG << V(num_moves) << V(estimated_gain) << V(actual_gain) << V(metrics::imbalance(phg, context));
