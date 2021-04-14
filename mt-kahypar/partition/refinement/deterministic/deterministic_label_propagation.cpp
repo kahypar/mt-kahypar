@@ -231,6 +231,8 @@ namespace mt_kahypar {
 
     // apply all moves that were not invalidated
     Gain gain = applyMovesIf(phg, moves, num_moves, [&](size_t pos) { return moves[pos].isValid(); });
+
+    // if that decreased solution quality, revert it all
     if (gain < 0) {
       DBG << "Kommando zurück" << V(gain) << V(num_moves) << V(num_reverted_moves);
       gain += applyMovesIf(phg, moves, num_moves, [&](size_t pos) {
@@ -402,6 +404,22 @@ namespace mt_kahypar {
         moves[second_try_pos] = sorted_moves[pos];
       }
     });
+
+    // revert everything if that decreased solution quality
+    if (actual_gain < 0) {
+      DBG << "Kommando zurück" << V(actual_gain);
+      actual_gain += applyMovesIf(phg, sorted_moves, num_moves, [&](size_t pos) {
+        size_t direction = index(sorted_moves[pos].from, sorted_moves[pos].to);
+        if (pos < swap_prefix[direction]) {
+          std::swap(sorted_moves[pos].from, sorted_moves[pos].to);
+          return true;
+        } else {
+          return false;
+        }
+      });
+
+      assert(actual_gain == 0);
+    }
 
     DBG << V(num_moves) << V(estimated_gain) << V(actual_gain) << V(metrics::imbalance(phg, context));
     return actual_gain;
