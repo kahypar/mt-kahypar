@@ -26,7 +26,8 @@ namespace mt_kahypar {
 
 void DeterministicMultilevelCoarsener::coarsenImpl() {
   HypernodeID initial_num_nodes = Base::currentNumNodes();
-  utils::ProgressBar progress_bar(initial_num_nodes, 0, false);
+  utils::ProgressBar progress_bar(initial_num_nodes, 0,
+                                  _context.partition.verbose_output && _context.partition.enable_progress_bar);
 
   progress_bar += (initial_num_nodes - progress_bar.count());
   progress_bar.disable();
