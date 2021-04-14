@@ -23,6 +23,8 @@
 #include "multilevel_coarsener_base.h"
 #include "i_coarsener.h"
 
+#include "mt-kahypar/utils/reproducible_random.h"
+
 namespace mt_kahypar {
 class DeterministicMultilevelCoarsener :  public ICoarsener,
                                           private MultilevelCoarsenerBase
@@ -30,9 +32,8 @@ class DeterministicMultilevelCoarsener :  public ICoarsener,
 public:
   DeterministicMultilevelCoarsener(Hypergraph& hypergraph, const Context& context, const TaskGroupID task_group_id,
                                    const bool top_level) :
-    MultilevelCoarsenerBase(hypergraph, context, task_group_id, top_level)
+    Base(hypergraph, context, task_group_id, top_level)
   {
-
   }
 
   ~DeterministicMultilevelCoarsener() {
@@ -41,19 +42,25 @@ public:
 
 private:
 
+  using Base = MultilevelCoarsenerBase;
+  using Base::_context;
+  using Base::_task_group_id;
+
+  utils::ParallelPermutation<HypernodeID> permutation;
+
   void coarsenImpl() override;
 
   PartitionedHypergraph&& uncoarsenImpl(std::unique_ptr<IRefiner>& label_propagation,
                                         std::unique_ptr<IRefiner>& fm) override {
-    return MultilevelCoarsenerBase::doUncoarsen(label_propagation, fm);
+    return Base::doUncoarsen(label_propagation, fm);
   }
 
   Hypergraph& coarsestHypergraphImpl() override {
-    return MultilevelCoarsenerBase::currentHypergraph();
+    return Base::currentHypergraph();
   }
 
   PartitionedHypergraph& coarsestPartitionedHypergraphImpl() override {
-    return MultilevelCoarsenerBase::currentPartitionedHypergraph();
+    return Base::currentPartitionedHypergraph();
   }
 
 };
