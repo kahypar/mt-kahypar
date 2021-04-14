@@ -133,7 +133,7 @@ class MultilevelCoarsener : public ICoarsener,
     parallel::parallel_free(
       _current_vertices, _matching_state,
       _cluster_weight, _matching_partner);
-  };
+  }
 
   void disableRandomization() {
     _enable_randomization = false;

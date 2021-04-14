@@ -21,6 +21,7 @@
 #pragma once
 
 #include "multilevel_coarsener_base.h"
+#include "i_coarsener.h"
 
 namespace mt_kahypar {
 class DeterministicMultilevelCoarsener :  public ICoarsener,
@@ -31,6 +32,10 @@ public:
                                    const bool top_level) :
     MultilevelCoarsenerBase(hypergraph, context, task_group_id, top_level)
   {
+
+  }
+
+  ~DeterministicMultilevelCoarsener() {
 
   }
 

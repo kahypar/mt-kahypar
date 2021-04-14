@@ -128,7 +128,7 @@ class MultilevelCoarsenerBase {
   MultilevelCoarsenerBase & operator= (const MultilevelCoarsenerBase &) = delete;
   MultilevelCoarsenerBase & operator= (MultilevelCoarsenerBase &&) = delete;
 
-  virtual ~MultilevelCoarsenerBase() throw () {
+  virtual ~MultilevelCoarsenerBase() noexcept {
     tbb::parallel_for(0UL, _hierarchy.size(), [&](const size_t i) {
       _hierarchy[i].freeInternalData();
     }, tbb::static_partitioner());
