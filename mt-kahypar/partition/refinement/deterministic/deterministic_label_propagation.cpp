@@ -392,8 +392,17 @@ namespace mt_kahypar {
     }
     */
 
-    auto in_prefix = [&](size_t pos) { return pos < swap_prefix[index(sorted_moves[pos].from, sorted_moves[pos].to)]; };
-    Gain actual_gain = applyMovesIf(phg, sorted_moves, num_moves, in_prefix);
+    moves_back.store(0, std::memory_order_relaxed);
+    Gain actual_gain = applyMovesIf(phg, sorted_moves, num_moves, [&](size_t pos) {
+      size_t direction = index(sorted_moves[pos].from, sorted_moves[pos].to);
+      if (pos < swap_prefix[direction]) {
+        return true;
+      } else {
+        size_t second_try_pos = moves_back.fetch_add(1, std::memory_order_relaxed);
+        moves[second_try_pos] = sorted_moves[pos];
+      }
+    });
+
     DBG << V(num_moves) << V(estimated_gain) << V(actual_gain) << V(metrics::imbalance(phg, context));
     return actual_gain;
   }
