@@ -394,8 +394,7 @@ namespace mt_kahypar {
 
     moves_back.store(0, std::memory_order_relaxed);
     Gain actual_gain = applyMovesIf(phg, sorted_moves, num_moves, [&](size_t pos) {
-      size_t direction = index(sorted_moves[pos].from, sorted_moves[pos].to);
-      if (pos < swap_prefix[direction]) {
+      if (pos < swap_prefix[index(sorted_moves[pos].from, sorted_moves[pos].to)]) {
         return true;
       } else {
         size_t second_try_pos = moves_back.fetch_add(1, std::memory_order_relaxed);
@@ -407,8 +406,7 @@ namespace mt_kahypar {
     if (actual_gain < 0) {
       DBG << "Kommando zurück" << V(actual_gain);
       actual_gain += applyMovesIf(phg, sorted_moves, num_moves, [&](size_t pos) {
-        size_t direction = index(sorted_moves[pos].from, sorted_moves[pos].to);
-        if (pos < swap_prefix[direction]) {
+        if (pos < swap_prefix[index(sorted_moves[pos].from, sorted_moves[pos].to)]) {
           std::swap(sorted_moves[pos].from, sorted_moves[pos].to);
           return true;
         } else {
