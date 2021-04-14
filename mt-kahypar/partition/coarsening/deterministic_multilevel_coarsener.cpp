@@ -25,9 +25,15 @@
 namespace mt_kahypar {
 
 void DeterministicMultilevelCoarsener::coarsenImpl() {
-  HypernodeID initial_num_nodes = Base::currentNumNodes();
+  HypernodeID initial_num_nodes = currentNumNodes();
   utils::ProgressBar progress_bar(initial_num_nodes, 0,
                                   _context.partition.verbose_output && _context.partition.enable_progress_bar);
+
+  std::mt19937 prng(_context.partition.seed);
+  while (currentNumNodes() > _context.coarsening.contraction_limit) {
+    permutation.create_integer_permutation(currentNumNodes(), _context.shared_memory.num_threads, prng);
+
+  }
 
   progress_bar += (initial_num_nodes - progress_bar.count());
   progress_bar.disable();
