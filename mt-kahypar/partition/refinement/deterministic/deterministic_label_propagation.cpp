@@ -74,12 +74,10 @@ namespace mt_kahypar {
         size_t num_moves_in_sub_round = moves_back.load(std::memory_order_relaxed);
         DBG << V(num_moves_in_sub_round);
         if (num_moves_in_sub_round > 0) {
-          // sync. then apply moves
-          //if (context.refinement.deterministic_refinement.apply_moves_by_maximal_prefix_in_block_pairs) {
-            sub_round_improvement = applyMovesByMaximalPrefixesInBlockPairs(phg);
-          //} else {
-          //  sub_round_improvement = applyMovesSortedByGainAndRevertUnbalanced(phg);
-          //}
+          sub_round_improvement = applyMovesByMaximalPrefixesInBlockPairs(phg);
+          if (sub_round_improvement > 0 && moves_back.load(std::memory_order_relaxed) > 0) {
+            sub_round_improvement += applyMovesSortedByGainAndRevertUnbalanced(phg);
+          }
         }
         round_improvement += sub_round_improvement;
         num_moves += num_moves_in_sub_round;
