@@ -47,7 +47,7 @@ namespace mt_kahypar {
         n = feistel_permutation.max_num_entries();
       } else {
         n = phg.initialNumNodes();
-        // permutation.create_integer_permutation(n, context.shared_memory.num_threads, prng);
+        permutation.create_integer_permutation(n, context.shared_memory.num_threads, prng);
       }
 
       size_t sub_round_size = parallel::chunking::idiv_ceil(n, num_sub_rounds);
@@ -64,9 +64,8 @@ namespace mt_kahypar {
           });
         } else {
           tbb::parallel_for(HypernodeID(first), HypernodeID(last), [&](const HypernodeID position) {
-            // assert(position < permutation.permutation.size());
-            // calculateAndSaveBestMove(phg, permutation.at(position));
-            calculateAndSaveBestMove(phg, position);
+            assert(position < permutation.permutation.size());
+            calculateAndSaveBestMove(phg, permutation.at(position));
           });
         }
 
