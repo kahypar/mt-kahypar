@@ -24,6 +24,8 @@
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/partition/factories.h"
 
+#include "mt-kahypar/partition/coarsening/deterministic_multilevel_coarsener.h"
+
 
 #define REGISTER_DISPATCHED_COARSENER(id, dispatcher, ...)                                                      \
   static kahypar::meta::Registrar<CoarsenerFactory> register_ ## dispatcher(                                    \
@@ -61,5 +63,7 @@ REGISTER_DISPATCHED_COARSENER(CoarseningAlgorithm::nlevel_coarsener,
                                 context.coarsening.rating.heavy_node_penalty_policy),
                               kahypar::meta::PolicyRegistry<AcceptancePolicy>::getInstance().getPolicy(
                                 context.coarsening.rating.acceptance_policy));
+
+REGISTER_COARSENER(CoarseningAlgorithm::deterministic_multilevel_coarsener, DeterministicMultilevelCoarsener);
 
 }  // namespace mt_kahypar
