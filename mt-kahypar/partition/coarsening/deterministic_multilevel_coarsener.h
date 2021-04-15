@@ -24,6 +24,9 @@
 #include "i_coarsener.h"
 
 #include "mt-kahypar/utils/reproducible_random.h"
+#include "mt-kahypar/datastructures/sparse_map.h"
+
+#include <tbb/enumerable_thread_specific.h>
 
 namespace mt_kahypar {
 class DeterministicMultilevelCoarsener :  public ICoarsener,
@@ -32,7 +35,10 @@ class DeterministicMultilevelCoarsener :  public ICoarsener,
 public:
   DeterministicMultilevelCoarsener(Hypergraph& hypergraph, const Context& context, const TaskGroupID task_group_id,
                                    const bool top_level) :
-    Base(hypergraph, context, task_group_id, top_level)
+    Base(hypergraph, context, task_group_id, top_level),
+    proposition(hypergraph.initialNumNodes(), kInvalidHypernode),
+    cluster_weight(hypergraph.initialNumNodes(), 0),
+    default_rating_maps(hypergraph.initialNumNodes())
   {
   }
 
@@ -47,8 +53,15 @@ private:
   using Base::_task_group_id;
 
   utils::ParallelPermutation<HypernodeID> permutation;
+  vec<HypernodeID> proposition;
+  vec<HypernodeWeight> cluster_weight;
+
+  tbb::enumerable_thread_specific<ds::SparseMap<HypernodeID, double>> default_rating_maps;
+  tbb::enumerable_thread_specific<vec<HypernodeID>> ties;
 
   void coarsenImpl() override;
+
+  void calculatePreferredTargetCluster(HypernodeID u, const vec<HypernodeID>& clusters);
 
   PartitionedHypergraph&& uncoarsenImpl(std::unique_ptr<IRefiner>& label_propagation,
                                         std::unique_ptr<IRefiner>& fm) override {

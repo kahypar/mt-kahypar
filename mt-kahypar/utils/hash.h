@@ -104,7 +104,7 @@ inline uint64_t combine64(uint64_t left, uint64_t hashed_right) {
 
 template <class T> struct dependent_false : std::false_type {};
 
-template<typename T> uint64_t combine(T left, T hashed_right) {
+template<typename T> T combine(T left, T hashed_right) {
   if constexpr (sizeof(T) == 4) {
     return combine32(left, hashed_right);
   } else if constexpr (sizeof(T) == 8) {
@@ -115,7 +115,7 @@ template<typename T> uint64_t combine(T left, T hashed_right) {
   }
 }
 
-template<typename T> uint64_t hash(T x) {
+template<typename T> T hash(T x) {
   if constexpr (sizeof(T) == 4) {
     return hash32(x);
   } else if constexpr (sizeof(T) == 8) {
