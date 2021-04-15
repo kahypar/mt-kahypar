@@ -59,6 +59,13 @@ private:
   tbb::enumerable_thread_specific<ds::SparseMap<HypernodeID, double>> default_rating_maps;
   tbb::enumerable_thread_specific<vec<HypernodeID>> ties;
 
+  HypernodeID currentLevelContractionLimit() {
+    const auto& hg = currentHypergraph();
+    return std::max( _context.coarsening.contraction_limit,
+               static_cast<HypernodeID>(
+                    (hg.initialNumNodes() - hg.numRemovedHypernodes()) / _context.coarsening.maximum_shrink_factor) );
+  }
+
   void coarsenImpl() override;
 
   void calculatePreferredTargetCluster(HypernodeID u, const vec<HypernodeID>& clusters);

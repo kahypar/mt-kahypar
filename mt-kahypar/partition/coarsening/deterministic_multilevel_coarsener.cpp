@@ -31,8 +31,10 @@ void DeterministicMultilevelCoarsener::coarsenImpl() {
 
   std::mt19937 prng(_context.partition.seed);
   while (currentNumNodes() > _context.coarsening.contraction_limit) {
+    auto pass_start_time = std::chrono::high_resolution_clock::now();
     const Hypergraph& hg = currentHypergraph();
     size_t num_nodes = currentNumNodes();
+    double num_nodes_before_pass = num_nodes;
     vec<HypernodeID> clusters(num_nodes, kInvalidHypernode);
     tbb::parallel_for(0UL, num_nodes, [&](HypernodeID u) {
       cluster_weight[u] = hg.nodeWeight(u);
@@ -45,6 +47,10 @@ void DeterministicMultilevelCoarsener::coarsenImpl() {
     size_t num_buckets = utils::ParallelPermutation<HypernodeID>::num_buckets;
     size_t num_buckets_per_sub_round = parallel::chunking::idiv_ceil(num_buckets, num_sub_rounds);
     for (size_t sub_round = 0; sub_round < num_sub_rounds; ++sub_round) {
+      if (num_nodes < currentLevelContractionLimit()) {
+        break;
+      }
+
       auto [first_bucket, last_bucket] = parallel::chunking::bounds(sub_round, num_buckets, num_buckets_per_sub_round);
       size_t first = permutation.bucket_bounds[first_bucket];
       size_t last = permutation.bucket_bounds[last_bucket];
@@ -58,16 +64,21 @@ void DeterministicMultilevelCoarsener::coarsenImpl() {
       // can ask whether vertex v is in current sub_round via
       // size_t bucket_v = permutation.get_bucket(v);
       // bool in_sub_round = bucket_v >= first_bucket && bucket_v < last_bucket;
+      // --> wouldn't need two separate arrays 'clusters' and 'propositions'
+      // if the vertex is in a current bucket, the entry is the proposition, otherwise its cluster
 
       // approve and execute or deny their requests
 
     }
 
-
+    if (num_nodes_before_pass / num_nodes <= _context.coarsening.minimum_shrink_factor) {
+      break;
+    }
+    performMultilevelContraction(std::move(clusters), pass_start_time);
   }
-
   progress_bar += (initial_num_nodes - progress_bar.count());
   progress_bar.disable();
+  finalize();
 }
 
 void DeterministicMultilevelCoarsener::calculatePreferredTargetCluster(HypernodeID u, const vec<HypernodeID>& clusters) {
