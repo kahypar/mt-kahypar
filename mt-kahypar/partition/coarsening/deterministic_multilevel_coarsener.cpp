@@ -58,7 +58,10 @@ void DeterministicMultilevelCoarsener::coarsenImpl() {
       // each vertex finds a cluster it wants to join
       tbb::parallel_for(first, last, [&](size_t pos) {
         assert(pos < permutation.permutation.size());
-        calculatePreferredTargetCluster(permutation.at(pos), clusters);
+        HypernodeID u = permutation.at(pos);
+        if (cluster_weight[u] == hg.nodeWeight(u)) {  // u is a singleton
+          calculatePreferredTargetCluster(permutation.at(pos), clusters);
+        }
       });
 
       // can ask whether vertex v is in current sub_round via
@@ -68,6 +71,9 @@ void DeterministicMultilevelCoarsener::coarsenImpl() {
       // if the vertex is in a current bucket, the entry is the proposition, otherwise its cluster
 
       // approve and execute or deny their requests
+      tbb::parallel_for(first, last, [&](size_t pos) {
+        HypernodeID u = permutation.at(pos);
+      });
 
     }
 
@@ -83,15 +89,10 @@ void DeterministicMultilevelCoarsener::coarsenImpl() {
 
 void DeterministicMultilevelCoarsener::calculatePreferredTargetCluster(HypernodeID u, const vec<HypernodeID>& clusters) {
   const Hypergraph& hg = currentHypergraph();
-  if (cluster_weight[u] != hg.nodeWeight(u)) {
-    return;
-  }
-
   auto& ratings = default_rating_maps.local();
   ratings.clear();
 
   // calculate ratings
-
   for (HyperedgeID he : hg.incidentEdges(u)) {
     HypernodeID he_size = hg.edgeSize(he);
     if (he_size < _context.partition.ignore_hyperedge_size_threshold) {
