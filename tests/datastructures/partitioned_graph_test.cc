@@ -516,5 +516,39 @@ TYPED_TEST(APartitionedGraph, ComputesGainsCorrectly) {
   this->verifyGains(6, {-1, 0, 0});
 }
 
+TYPED_TEST(APartitionedGraph, ComputesDeltaAndGainsCorrectlyIfAllNodesMoveConcurrently) {
+  this->partitioned_hypergraph.initializeGainCache();
+
+  CAtomic<HyperedgeWeight> delta(0);
+  auto delta_fun = [&](auto, auto, auto,
+                       const HypernodeID pin_count_in_from_part_after,
+                       const HypernodeID pin_count_in_to_part_after) {
+      delta.fetch_add(cutDelta(0, 1, 2, pin_count_in_from_part_after, pin_count_in_to_part_after));
+  };
+
+  executeConcurrent([&] {
+    ASSERT_TRUE(this->partitioned_hypergraph.changeNodePartWithGainCacheUpdate(4, 1, 2, 5, []{}, delta_fun));
+    ASSERT_TRUE(this->partitioned_hypergraph.changeNodePartWithGainCacheUpdate(2, 0, 2, 5, []{}, delta_fun));
+    ASSERT_TRUE(this->partitioned_hypergraph.changeNodePartWithGainCacheUpdate(3, 1, 2, 5, []{}, delta_fun));
+    ASSERT_TRUE(this->partitioned_hypergraph.changeNodePartWithGainCacheUpdate(4, 2, 0, 5, []{}, delta_fun));
+    ASSERT_TRUE(this->partitioned_hypergraph.changeNodePartWithGainCacheUpdate(2, 2, 1, 5, []{}, delta_fun));
+  }, [&] {
+    ASSERT_TRUE(this->partitioned_hypergraph.changeNodePartWithGainCacheUpdate(5, 2, 0, 5, []{}, delta_fun));
+    ASSERT_TRUE(this->partitioned_hypergraph.changeNodePartWithGainCacheUpdate(1, 0, 2, 5, []{}, delta_fun));
+    ASSERT_TRUE(this->partitioned_hypergraph.changeNodePartWithGainCacheUpdate(6, 2, 0, 5, []{}, delta_fun));
+    ASSERT_TRUE(this->partitioned_hypergraph.changeNodePartWithGainCacheUpdate(0, 0, 2, 5, []{}, delta_fun));
+    ASSERT_TRUE(this->partitioned_hypergraph.changeNodePartWithGainCacheUpdate(1, 2, 1, 5, []{}, delta_fun));
+  });
+
+  ASSERT_EQ(-2, delta.load());
+  this->verifyGains(0, {0, 0, 0});
+  this->verifyGains(1, {0, 0, -1});
+  this->verifyGains(2, {-1, 0, 0});
+  this->verifyGains(3, {0, 1, 0});
+  this->verifyGains(4, {0, -1, -2});
+  this->verifyGains(5, {0, -2, -2});
+  this->verifyGains(6, {0, -2, -2});
+}
+
 }  // namespace ds
 }  // namespace mt_kahypar
