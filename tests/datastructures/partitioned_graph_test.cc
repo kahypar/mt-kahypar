@@ -284,209 +284,61 @@ TYPED_TEST(APartitionedGraph, HasCorrectInitialBorderNodes) {
 }
 
 
-// TYPED_TEST(APartitionedGraph, ExtractBlockZeroWithCutNetSplitting) {
-//   auto extracted_hg = this->partitioned_hypergraph.extract(TBBNumaArena::GLOBAL_TASK_GROUP, 0, true);
-//   auto& hg = extracted_hg.first;
-//   auto& hn_mapping = extracted_hg.second;
+TYPED_TEST(APartitionedGraph, ExtractBlockZero) {
+  auto extracted_hg = this->partitioned_hypergraph.extract(0, true, true);
+  auto& hg = extracted_hg.first;
+  auto& mapping = extracted_hg.second;
 
-//   ASSERT_EQ(3, hg.initialNumNodes());
-//   ASSERT_EQ(2, hg.initialNumEdges());
-//   ASSERT_EQ(2, hg.initialNumPins());
-//   ASSERT_EQ(2, hg.maxEdgeSize());
+  ASSERT_EQ(3, hg.initialNumNodes());
+  ASSERT_EQ(2, hg.initialNumEdges());
+  ASSERT_EQ(2, hg.initialNumPins());
+  ASSERT_EQ(2, hg.maxEdgeSize());
 
-//   auto map_from_original_to_extracted_hg = [&](const HypernodeID hn) {
-//     return hn_mapping[hn];
-//   };
-//   parallel::scalable_vector<HypernodeID> node_id = {
-//     map_from_original_to_extracted_hg(0),
-//     map_from_original_to_extracted_hg(1),
-//     map_from_original_to_extracted_hg(2)
-//   };
-
-//   this->verifyPins(hg, {0, 1},
-//     { {node_id[0], node_id[2]}, {node_id[0], node_id[1]} });
-// }
+  this->verifyPins(hg, {0, 1},
+    { {mapping[1], mapping[2]}, {mapping[1], mapping[2]} });
+}
 
 
-// TYPED_TEST(APartitionedGraph, ExtractBlockOneWithCutNetSplitting) {
-//   auto extracted_hg = this->partitioned_hypergraph.extract(TBBNumaArena::GLOBAL_TASK_GROUP, 1, true);
-//   auto& hg = extracted_hg.first;
-//   auto& hn_mapping = extracted_hg.second;
+TYPED_TEST(APartitionedGraph, ExtractBlockOne) {
+  auto extracted_hg = this->partitioned_hypergraph.extract(1, true, true);
+  auto& hg = extracted_hg.first;
 
-//   ASSERT_EQ(2, hg.initialNumNodes());
-//   ASSERT_EQ(0, hg.initialNumEdges());
-//   ASSERT_EQ(0, hg.initialNumPins());
+  ASSERT_EQ(2, hg.initialNumNodes());
+  ASSERT_EQ(0, hg.initialNumEdges());
+  ASSERT_EQ(0, hg.initialNumPins());
+}
 
-//   auto map_from_original_to_extracted_hg = [&](const HypernodeID hn) {
-//     return hn_mapping[hn];
-//   };
-//   parallel::scalable_vector<HypernodeID> node_id = {
-//     map_from_original_to_extracted_hg(3),
-//     map_from_original_to_extracted_hg(4)
-//   };
+TYPED_TEST(APartitionedGraph, ExtractBlockTwo) {
+  auto extracted_hg = this->partitioned_hypergraph.extract(2, true, true);
+  auto& hg = extracted_hg.first;
+  auto& mapping = extracted_hg.second;
 
-//   this->verifyPins(hg, {0, 1},
-//     { {node_id[0], node_id[1]}, {node_id[0], node_id[1]} });
-// }
+  ASSERT_EQ(2, hg.initialNumNodes());
+  ASSERT_EQ(2, hg.initialNumEdges());
+  ASSERT_EQ(2, hg.initialNumPins());
+  ASSERT_EQ(2, hg.maxEdgeSize());
 
-// TYPED_TEST(APartitionedGraph, ExtractBlockTwoWithCutNetSplitting) {
-//   auto extracted_hg = this->partitioned_hypergraph.extract(TBBNumaArena::GLOBAL_TASK_GROUP, 2, true);
-//   auto& hg = extracted_hg.first;
-//   auto& hn_mapping = extracted_hg.second;
+  this->verifyPins(hg, {0, 1},
+    { {mapping[5], mapping[6]}, {mapping[5], mapping[6]} });
+}
 
-//   ASSERT_EQ(2, hg.initialNumNodes());
-//   ASSERT_EQ(2, hg.initialNumEdges());
-//   ASSERT_EQ(2, hg.initialNumPins());
-//   ASSERT_EQ(2, hg.maxEdgeSize());
+TYPED_TEST(APartitionedGraph, ExtractBlockZeroWithCommunityInformation) {
+  this->hypergraph.setCommunityID(0, 0);
+  this->hypergraph.setCommunityID(1, 1);
+  this->hypergraph.setCommunityID(2, 2);
+  this->hypergraph.setCommunityID(3, 4);
+  this->hypergraph.setCommunityID(4, 3);
+  this->hypergraph.setCommunityID(5, 4);
+  this->hypergraph.setCommunityID(6, 5);
 
-//   auto map_from_original_to_extracted_hg = [&](const HypernodeID hn) {
-//     return hn_mapping[hn];
-//   };
-//   parallel::scalable_vector<HypernodeID> node_id = {
-//     map_from_original_to_extracted_hg(5),
-//     map_from_original_to_extracted_hg(6)
-//   };
+  auto extracted_hg = this->partitioned_hypergraph.extract(0, true, true);
+  auto& hg = extracted_hg.first;
+  auto& mapping = extracted_hg.second;
 
-//   this->verifyPins(hg, {0},
-//     { {node_id[0], node_id[1]} });
-// }
-
-// TYPED_TEST(APartitionedGraph, ExtractBlockZeroWithCutNetRemoval) {
-//   auto extracted_hg = this->partitioned_hypergraph.extract(TBBNumaArena::GLOBAL_TASK_GROUP, 0, false);
-//   auto& hg = extracted_hg.first;
-//   auto& hn_mapping = extracted_hg.second;
-
-//   ASSERT_EQ(3, hg.initialNumNodes());
-//   ASSERT_EQ(1, hg.initialNumEdges());
-//   ASSERT_EQ(2, hg.initialNumPins());
-//   ASSERT_EQ(2, hg.maxEdgeSize());
-
-//   auto map_from_original_to_extracted_hg = [&](const HypernodeID hn) {
-//     return hn_mapping[hn];
-//   };
-//   parallel::scalable_vector<HypernodeID> node_id = {
-//     map_from_original_to_extracted_hg(0),
-//     map_from_original_to_extracted_hg(1),
-//     map_from_original_to_extracted_hg(2)
-//   };
-//   parallel::scalable_vector<HypernodeID> edge_id = { 0 };
-
-//   this->verifyPins(hg, {0},
-//     { {node_id[0], node_id[2]} });
-// }
-
-// TYPED_TEST(APartitionedGraph, ExtractBlockOneWithCutNetRemoval) {
-//   this->partitioned_hypergraph.changeNodePart(6, 2, 1);
-//   auto extracted_hg = this->partitioned_hypergraph.extract(TBBNumaArena::GLOBAL_TASK_GROUP, 1, false);
-//   auto& hg = extracted_hg.first;
-//   auto& hn_mapping = extracted_hg.second;
-
-//   ASSERT_EQ(3, hg.initialNumNodes());
-//   ASSERT_EQ(1, hg.initialNumEdges());
-//   ASSERT_EQ(3, hg.initialNumPins());
-//   ASSERT_EQ(3, hg.maxEdgeSize());
-
-//   auto map_from_original_to_extracted_hg = [&](const HypernodeID hn) {
-//     return hn_mapping[hn];
-//   };
-//   parallel::scalable_vector<HypernodeID> node_id = {
-//     map_from_original_to_extracted_hg(3),
-//     map_from_original_to_extracted_hg(4),
-//     map_from_original_to_extracted_hg(6)
-//   };
-
-//   this->verifyPins(hg, {0},
-//     { {node_id[0], node_id[1], node_id[2]} });
-// }
-
-// TYPED_TEST(APartitionedGraph, ExtractBlockTwoWithCutNetRemoval) {
-//   this->partitioned_hypergraph.changeNodePart(2, 0, 2);
-//   auto extracted_hg = this->partitioned_hypergraph.extract(TBBNumaArena::GLOBAL_TASK_GROUP, 2, false);
-//   auto& hg = extracted_hg.first;
-//   auto& hn_mapping = extracted_hg.second;
-
-//   ASSERT_EQ(3, hg.initialNumNodes());
-//   ASSERT_EQ(1, hg.initialNumEdges());
-//   ASSERT_EQ(3, hg.initialNumPins());
-//   ASSERT_EQ(3, hg.maxEdgeSize());
-
-//   auto map_from_original_to_extracted_hg = [&](const HypernodeID hn) {
-//     return hn_mapping[hn];
-//   };
-//   parallel::scalable_vector<HypernodeID> node_id = {
-//     map_from_original_to_extracted_hg(2),
-//     map_from_original_to_extracted_hg(5),
-//     map_from_original_to_extracted_hg(6)
-//   };
-
-//   this->verifyPins(hg, {0},
-//     { {node_id[0], node_id[1], node_id[2]} });
-// }
-
-// TYPED_TEST(APartitionedGraph, ExtractBlockZeroWithCommunityInformation) {
-//   this->hypergraph.setCommunityID(0, 0);
-//   this->hypergraph.setCommunityID(1, 1);
-//   this->hypergraph.setCommunityID(2, 0);
-//   this->hypergraph.setCommunityID(3, 2);
-//   this->hypergraph.setCommunityID(4, 3);
-//   this->hypergraph.setCommunityID(5, 4);
-//   this->hypergraph.setCommunityID(6, 5);
-
-//   auto extracted_hg = this->partitioned_hypergraph.extract(TBBNumaArena::GLOBAL_TASK_GROUP, 0, true);
-//   auto& hg = extracted_hg.first;
-//   auto& hn_mapping = extracted_hg.second;
-
-//   auto map_from_original_to_extracted_hg = [&](const HypernodeID hn) {
-//     return hn_mapping[hn];
-//   };
-
-//   ASSERT_EQ(0, hg.communityID(map_from_original_to_extracted_hg(0)));
-//   ASSERT_EQ(1, hg.communityID(map_from_original_to_extracted_hg(1)));
-//   ASSERT_EQ(0, hg.communityID(map_from_original_to_extracted_hg(2)));
-// }
-
-// TYPED_TEST(APartitionedGraph, ExtractBlockOneWithCommunityInformation) {
-//   this->hypergraph.setCommunityID(0, 0);
-//   this->hypergraph.setCommunityID(1, 1);
-//   this->hypergraph.setCommunityID(2, 0);
-//   this->hypergraph.setCommunityID(3, 2);
-//   this->hypergraph.setCommunityID(4, 3);
-//   this->hypergraph.setCommunityID(5, 4);
-//   this->hypergraph.setCommunityID(6, 5);
-
-//   auto extracted_hg = this->partitioned_hypergraph.extract(TBBNumaArena::GLOBAL_TASK_GROUP, 1, true);
-//   auto& hg = extracted_hg.first;
-//   auto& hn_mapping = extracted_hg.second;
-
-//   auto map_from_original_to_extracted_hg = [&](const HypernodeID hn) {
-//     return hn_mapping[hn];
-//   };
-
-//   ASSERT_EQ(2, hg.communityID(map_from_original_to_extracted_hg(3)));
-//   ASSERT_EQ(3, hg.communityID(map_from_original_to_extracted_hg(4)));
-// }
-
-// TYPED_TEST(APartitionedGraph, ExtractBlockTwoWithCommunityInformation) {
-//   this->hypergraph.setCommunityID(0, 0);
-//   this->hypergraph.setCommunityID(1, 1);
-//   this->hypergraph.setCommunityID(2, 0);
-//   this->hypergraph.setCommunityID(3, 2);
-//   this->hypergraph.setCommunityID(4, 3);
-//   this->hypergraph.setCommunityID(5, 4);
-//   this->hypergraph.setCommunityID(6, 5);
-
-//   auto extracted_hg = this->partitioned_hypergraph.extract(TBBNumaArena::GLOBAL_TASK_GROUP, 2, true);
-//   auto& hg = extracted_hg.first;
-//   auto& hn_mapping = extracted_hg.second;
-
-//   auto map_from_original_to_extracted_hg = [&](const HypernodeID hn) {
-//     return hn_mapping[hn];
-//   };
-
-//   ASSERT_EQ(4, hg.communityID(map_from_original_to_extracted_hg(5)));
-//   ASSERT_EQ(5, hg.communityID(map_from_original_to_extracted_hg(6)));
-// }
-
+  ASSERT_EQ(0, hg.communityID(mapping[0]));
+  ASSERT_EQ(1, hg.communityID(mapping[1]));
+  ASSERT_EQ(2, hg.communityID(mapping[2]));
+}
 
 TYPED_TEST(APartitionedGraph, ComputesPartInfoCorrectlyIfNodePartsAreSetOnly) {
   this->partitioned_hypergraph.resetPartition();
@@ -497,7 +349,7 @@ TYPED_TEST(APartitionedGraph, ComputesPartInfoCorrectlyIfNodePartsAreSetOnly) {
   this->partitioned_hypergraph.setOnlyNodePart(4, 1);
   this->partitioned_hypergraph.setOnlyNodePart(5, 2);
   this->partitioned_hypergraph.setOnlyNodePart(6, 2);
-  this->partitioned_hypergraph.initializePartition(TBBNumaArena::GLOBAL_TASK_GROUP);
+  this->partitioned_hypergraph.initializePartition();
 
   ASSERT_EQ(3, this->partitioned_hypergraph.partWeight(0));
   ASSERT_EQ(2, this->partitioned_hypergraph.partWeight(1));

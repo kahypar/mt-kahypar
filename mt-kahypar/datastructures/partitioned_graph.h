@@ -782,78 +782,78 @@ private:
   // ! It also returns a vertex-mapping from the original graph to the sub-graph.
   std::pair<Hypergraph, parallel::scalable_vector<HypernodeID> > extract(
     PartitionID block,
-    bool cut_net_splitting,
+    bool /*cut_net_splitting*/,
     bool stable_construction_of_incident_edges
   ) {
     ASSERT(block != kInvalidPartition && block < _k);
 
     // Compactify vertex ids
-    parallel::scalable_vector<HypernodeID> hn_mapping(_hg->initialNumNodes(), kInvalidHypernode);
+    parallel::scalable_vector<HypernodeID> node_mapping(_hg->initialNumNodes(), kInvalidHypernode);
     parallel::scalable_vector<HyperedgeID> he_mapping(_hg->initialNumEdges(), kInvalidHyperedge);
-    HypernodeID num_hypernodes = 0;
-    HypernodeID num_hyperedges = 0;
+    HypernodeID num_nodes = 0;
+    HypernodeID num_edges = 0;
     tbb::parallel_invoke([&] {
-      for ( const HypernodeID& hn : nodes() ) {
-        if ( partID(hn) == block ) {
-          hn_mapping[hn] = num_hypernodes++;
+      for (const HypernodeID& node : nodes()) {
+        if (partID(node) == block) {
+          node_mapping[node] = num_nodes++;
         }
       }
     }, [&] {
-      for ( const HyperedgeID& he : edges() ) {
-        if ( pinCountInPart(he, block) > 1 &&
-             (cut_net_splitting || connectivity(he) == 1) ) {
-          he_mapping[he] = num_hyperedges++;
+      for (const HyperedgeID& edge : edges()) {
+        const HypernodeID source = edgeSource(edge);
+        const HypernodeID target = edgeTarget(edge);
+        if (partID(source) == block && partID(target) == block && source < target) {
+          he_mapping[edge] = num_edges++;
         }
       }
     });
 
     // Extract plain hypergraph data for corresponding block
-    using HyperedgeVector = parallel::scalable_vector<parallel::scalable_vector<HypernodeID>>;
-    HyperedgeVector edge_vector;
-    parallel::scalable_vector<HyperedgeWeight> hyperedge_weight;
-    parallel::scalable_vector<HypernodeWeight> hypernode_weight;
+    using EdgeVector = parallel::scalable_vector<std::pair<HypernodeID, HypernodeID>>;
+    EdgeVector edge_vector;
+    parallel::scalable_vector<HyperedgeWeight> edge_weight;
+    parallel::scalable_vector<HypernodeWeight> node_weight;
     tbb::parallel_invoke([&] {
-      edge_vector.resize(num_hyperedges);
-      hyperedge_weight.resize(num_hyperedges);
-      doParallelForAllEdges([&](const HyperedgeID he) {
-        if ( pinCountInPart(he, block) > 1 &&
-             (cut_net_splitting || connectivity(he) == 1) ) {
-          ASSERT(he_mapping[he] < num_hyperedges);
-          hyperedge_weight[he_mapping[he]] = edgeWeight(he);
-          for ( const HypernodeID& pin : pins(he) ) {
-            if ( partID(pin) == block ) {
-              edge_vector[he_mapping[he]].push_back(hn_mapping[pin]);
-            }
+      edge_vector.resize(num_edges);
+      edge_weight.resize(num_edges);
+      doParallelForAllEdges([&](const HyperedgeID edge) {
+        const HypernodeID source = edgeSource(edge);
+        const HypernodeID target = edgeTarget(edge);
+        if (partID(source) == block && partID(target) == block && source < target) {
+          ASSERT(he_mapping[edge] < num_edges);
+          edge_weight[he_mapping[edge]] = edgeWeight(edge);
+          for (const HypernodeID& pin : pins(edge)) {
+            edge_vector[he_mapping[edge]] = {node_mapping[source], node_mapping[target]};
           }
         }
       });
     }, [&] {
-      hypernode_weight.resize(num_hypernodes);
-      doParallelForAllNodes([&](const HypernodeID hn) {
-        if ( partID(hn) == block ) {
-          hypernode_weight[hn_mapping[hn]] = nodeWeight(hn);
+      node_weight.resize(num_nodes);
+      doParallelForAllNodes([&](const HypernodeID node) {
+        if (partID(node) == block) {
+          node_weight[node_mapping[node]] = nodeWeight(node);
         }
       });
     });
 
     // Construct hypergraph
-    Hypergraph extracted_hypergraph = HypergraphFactory::construct(
-            task_group_id, num_hypernodes, num_hyperedges,
-            edge_vector, hyperedge_weight.data(), hypernode_weight.data());
+    Hypergraph extracted_graph = HypergraphFactory::construct_from_graph_edges(
+               num_nodes, num_edges, edge_vector, edge_weight.data(), node_weight.data(),
+               stable_construction_of_incident_edges);
 
     // Set community ids
-    doParallelForAllNodes([&](const HypernodeID& hn) {
-      if ( partID(hn) == block ) {
-        const HypernodeID extracted_hn = hn_mapping[hn];
-        extracted_hypergraph.setCommunityID(extracted_hn, _hg->communityID(hn));
+    doParallelForAllNodes([&](const HypernodeID& node) {
+      if (partID(node) == block) {
+        const HypernodeID extracted_node = node_mapping[node];
+        extracted_graph.setCommunityID(extracted_node, _hg->communityID(node));
       }
     });
-    return std::make_pair(std::move(extracted_hypergraph), std::move(hn_mapping));
+    return std::make_pair(std::move(extracted_graph), std::move(node_mapping));
   }
 
   void freeInternalData() {
     if ( _k > 0 ) {
-      parallel::parallel_free(_part_ids, _incident_weight_in_part);
+      parallel::parallel_free(_part_ids, _incident_weight_in_part, _edge_locks, _edge_lock_id);
     }
     _k = 0;
   }
