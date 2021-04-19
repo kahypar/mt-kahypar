@@ -22,4 +22,6 @@ target_sources(mt_kahypar_strong_tests PRIVATE
         gain_updates_test.cc
         incident_net_array_test.cc
         nlevel_smoke_test.cc
+        asynch_contraction_pool_test.cc
 )
+
