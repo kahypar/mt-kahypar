@@ -31,7 +31,6 @@
 #include "mt-kahypar/datastructures/hypergraph_common.h"
 #include "mt-kahypar/datastructures/connectivity_set.h"
 #include "mt-kahypar/parallel/atomic_wrapper.h"
-#include "mt-kahypar/parallel/parallel_prefix_sum.h"
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
 #include "mt-kahypar/parallel/stl/thread_locals.h"
 #include "mt-kahypar/utils/range.h"
@@ -227,11 +226,8 @@ private:
       "Refinement", "incident_weight_in_part",
       static_cast<size_t>(hypergraph.initialNumNodes()) * static_cast<size_t>(k), true, false),
     _edge_locks(
-      "Refinement", "edge_locks", hypergraph.initialNumEdges() / 2, false, false),
-    _edge_lock_id(
-      "Refinement", "edge_lock_id", hypergraph.initialNumEdges(), true, false) {
+      "Refinement", "edge_locks", hypergraph.initialNumEdges() / 2, false, false) {
     _part_ids.assign(hypergraph.initialNumNodes(), CAtomic<PartitionID>(kInvalidPartition), false);
-    initializeLockIDs();
   }
 
   explicit PartitionedGraph(const PartitionID k,
@@ -243,8 +239,7 @@ private:
     _part_weights(k, CAtomic<HypernodeWeight>(0)),
     _part_ids(),
     _incident_weight_in_part(),
-    _edge_locks(),
-    _edge_lock_id() {
+    _edge_locks() {
     tbb::parallel_invoke([&] {
       _part_ids.resize(
         "Refinement", "vertex_part_info", hypergraph.initialNumNodes());
@@ -257,10 +252,6 @@ private:
       _edge_locks.resize(
         "Refinement", "edge_locks", static_cast<size_t>(hypergraph.initialNumEdges() / 2));
       _edge_locks.assign(hypergraph.initialNumEdges() / 2, EdgeLock());
-    }, [&] {
-      _edge_lock_id.resize(
-        "Refinement", "edge_lock_id", static_cast<size_t>(hypergraph.initialNumEdges()), true);
-      initializeLockIDs();
     });
   }
 
@@ -421,6 +412,11 @@ private:
     return _hg->edgeWeight(e);
   }
 
+  // ! Unique id of a hyperedge, in the range of [0, initialNumEdges() / 2)
+  HyperedgeID uniqueEdgeID(const HyperedgeID e) const {
+    return _hg->uniqueEdgeID(e);
+  }
+
   // ! Sets the weight of a hyperedge
   void setEdgeWeight(const HyperedgeID e, const HyperedgeWeight weight) {
     _hg->setEdgeWeight(e, weight);
@@ -578,10 +574,16 @@ private:
   PartitionID connectivity(const HyperedgeID e) const {
     ASSERT(e < _hg->initialNumEdges(), "Hyperedge" << e << "does not exist");
     ASSERT(edgeIsEnabled(e), "Hyperedge" << e << "is disabled");
-    PartitionID source_id = partID(edgeSource(e));
-    PartitionID target_id = partID(edgeTarget(e));
-    ASSERT(source_id != kInvalidPartition && target_id != kInvalidPartition);
-    return source_id == target_id ? 1 : 2;
+    const PartitionID source_id = partID(edgeSource(e));
+    const PartitionID target_id = partID(edgeTarget(e));
+    PartitionID sum = 0;
+    if (source_id != kInvalidPartition) {
+      ++sum;
+    }
+    if (target_id != kInvalidPartition && target_id != source_id) {
+      ++sum;
+    }
+    return sum;
   }
 
   // ! Returns the number pins of hyperedge e that are part of block id
@@ -839,7 +841,7 @@ private:
 
   void freeInternalData() {
     if ( _k > 0 ) {
-      parallel::parallel_free(_part_ids, _incident_weight_in_part, _edge_locks, _edge_lock_id);
+      parallel::parallel_free(_part_ids, _incident_weight_in_part, _edge_locks);
     }
     _k = 0;
   }
@@ -874,9 +876,9 @@ private:
     const HypernodeWeight to_weight_after = _part_weights[to].fetch_add(weight, std::memory_order_relaxed);
     const HypernodeWeight from_weight_after = _part_weights[from].fetch_sub(weight, std::memory_order_relaxed);
     if (to_weight_after <= max_weight_to && from_weight_after > 0) {
-      DBG << "<<< Start changing node part: " << V(u) << " - " << V(from) << " - " << V(to);
       report_success();
       if (HandleLocks) {
+        DBG << "<<< Start changing node part: " << V(u) << " - " << V(from) << " - " << V(to);
         parallel::scalable_vector<std::pair<HyperedgeID, PartitionID>> locks_to_restore;
         for (const HyperedgeID edge : incidentEdges(u)) {
           const PartitionID target_part = targetPartWithLockSynchronization(u, to, edge, locks_to_restore);
@@ -907,7 +909,7 @@ private:
                                                 parallel::scalable_vector<std::pair<HyperedgeID, PartitionID>>& locks_to_restore) {
     const HypernodeID v = edgeTarget(edge);
     const bool is_smaller_id = u < v;
-    EdgeLock& lock = _edge_locks[_edge_lock_id[edge]];
+    EdgeLock& lock = _edge_locks[_hg->uniqueEdgeID(edge)];
     const auto [state, part_id] = lock.lock(is_smaller_id);
     PartitionID target_part;
     if (state == EdgeLockState::UNCONTENDED) {
@@ -940,7 +942,7 @@ private:
       for (const auto& [edge, part_id] : locks_to_restore) {
         const HypernodeID v = edgeTarget(edge);
         const bool is_smaller_id = u < v;
-        EdgeLock& lock = _edge_locks[_edge_lock_id[edge]];
+        EdgeLock& lock = _edge_locks[_hg->uniqueEdgeID(edge)];
         ASSERT(!lock.isUncontended());
         const auto [success, lock_part_id] = lock.tryLock(EdgeLock::moveState(is_smaller_id));
         if (success) {
@@ -976,76 +978,6 @@ private:
     );
   }
 
-  // TODO(maas): this implemenation is quite slow for high degree nodes (quadratic)
-  void initializeLockIDs() {
-    // calculate unique indizes via prefix sum
-    tbb::parallel_for(ID(0), _hg->initialNumEdges(), [&](const HyperedgeID e) {
-      const bool is_smaller_id = edgeSource(e) < edgeTarget(e);
-      _edge_lock_id[e] = is_smaller_id ? 1 : 0;
-    });
-    ASSERT(_edge_lock_id[0] == 1);
-    _edge_lock_id[0]--;
-    parallel::TBBPrefixSum<HyperedgeID, Array> _lock_id_sum(_edge_lock_id);
-    tbb::parallel_scan(tbb::blocked_range<size_t>(
-            ID(0), static_cast<size_t>(_hg->initialNumEdges())), _lock_id_sum);
-    ASSERT(_lock_id_sum.total_sum() + 1 == _hg->initialNumEdges() / 2);
-
-    // now, we need to find the backward edges
-    tbb::parallel_for(ID(0), _hg->initialNumEdges(), [&](const HyperedgeID e) {
-      const HypernodeID source = edgeSource(e);
-      const HypernodeID target = edgeTarget(e);
-      if (source >= target) {
-        for (HyperedgeID b_edge : _hg->incidentEdges(target)) {
-          if (edgeTarget(b_edge) == source) {
-            _edge_lock_id[e] = _edge_lock_id[b_edge];
-            break;
-          }
-        }
-      }
-    });
-
-    HEAVY_REFINEMENT_ASSERT(
-      [&](){
-        parallel::scalable_vector<bool> covered_ids(_hg->initialNumEdges() / 2, false);
-        for (HyperedgeID e : edges()) {
-          HyperedgeID id = _edge_lock_id[e];
-          covered_ids.at(id) = true;
-          bool success = false;
-          for (HyperedgeID b_edge : _hg->incidentEdges(edgeTarget(e))) {
-            if (edgeTarget(b_edge) == edgeSource(e)) {
-              if (_edge_lock_id[b_edge] != id) {
-                return false;
-              }
-              success = true;
-              break;
-            }
-          }
-          if (!success) {
-            return false;
-          }
-        }
-        for (bool val : covered_ids) {
-          if (!val) {
-            return false;
-          }
-        }
-        return true;
-      }(),
-      "Edge lock IDs are not initialized correctly."
-    );
-  }
-
-  // void nodeGainAssertions(const HypernodeID u, const PartitionID p) const {
-  //   unused(u);
-  //   unused(p);
-  //   ASSERT(u < initialNumNodes(), "Hypernode" << u << "does not exist");
-  //   ASSERT(nodeIsEnabled(u), "Hypernode" << u << "is disabled");
-  //   ASSERT(p != kInvalidPartition && p < _k);
-  //   ASSERT(penalty_index(u, p) < _move_to_penalty.size());
-  //   ASSERT(u < _move_from_benefit.size());
-  // }
-
-
   // ! Indicate wheater gain cache is initialized
   bool _is_gain_cache_initialized;
 
@@ -1066,9 +998,6 @@ private:
 
   // ! For each edge we use an atomic lock to synchronize moves
   Array< EdgeLock > _edge_locks;
-
-  // ! The unique id of the lock for each edge.
-  Array< HyperedgeID > _edge_lock_id;
 };
 
 } // namespace ds

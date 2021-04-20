@@ -64,8 +64,8 @@ TEST_F(AStaticGraph, HasCorrectNodeIteratorIfVerticesAreDisabled) {
 TEST_F(AStaticGraph, HasCorrectInitialEdgeIterator) {
   // Note that each hyperedge is represented as two edges
   HyperedgeID expected_he = 0;
-  for ( const HyperedgeID& hn : hypergraph.edges() ) {
-    ASSERT_EQ(expected_he++, hn);
+  for ( const HyperedgeID& he : hypergraph.edges() ) {
+    ASSERT_EQ(expected_he++, he);
   }
   ASSERT_EQ(12, expected_he);
 }
@@ -125,6 +125,21 @@ TEST_F(AStaticGraph, VerifiesVertexDegrees) {
   ASSERT_EQ(3, hypergraph.nodeDegree(4));
   ASSERT_EQ(2, hypergraph.nodeDegree(5));
   ASSERT_EQ(2, hypergraph.nodeDegree(6));
+}
+
+TEST_F(AStaticGraph, VerifiesEdgeIDs) {
+  ASSERT_EQ(0, hypergraph.uniqueEdgeID(0));
+  ASSERT_EQ(2, hypergraph.uniqueEdgeID(1));
+  ASSERT_EQ(0, hypergraph.uniqueEdgeID(2));
+  ASSERT_EQ(1, hypergraph.uniqueEdgeID(3));
+  ASSERT_EQ(1, hypergraph.uniqueEdgeID(4));
+  ASSERT_EQ(2, hypergraph.uniqueEdgeID(5));
+  ASSERT_EQ(3, hypergraph.uniqueEdgeID(6));
+  ASSERT_EQ(4, hypergraph.uniqueEdgeID(7));
+  ASSERT_EQ(3, hypergraph.uniqueEdgeID(8));
+  ASSERT_EQ(5, hypergraph.uniqueEdgeID(9));
+  ASSERT_EQ(4, hypergraph.uniqueEdgeID(10));
+  ASSERT_EQ(5, hypergraph.uniqueEdgeID(11));
 }
 
 TEST_F(AStaticGraph, RemovesVertices) {
@@ -273,6 +288,12 @@ TEST_F(AStaticGraph, ContractsCommunities1) {
   // Verify Edge Weights
   ASSERT_EQ(1, c_graph.edgeWeight(0));
   ASSERT_EQ(3, c_graph.edgeWeight(2));
+
+  // Verify Edge IDs
+  ASSERT_EQ(0, c_graph.uniqueEdgeID(0));
+  ASSERT_EQ(0, c_graph.uniqueEdgeID(1));
+  ASSERT_EQ(1, c_graph.uniqueEdgeID(2));
+  ASSERT_EQ(1, c_graph.uniqueEdgeID(3));
 
   // Verify Graph Structure - note that each edge has two IDs
   verifyIncidentNets(c_graph, 0, { 0 });

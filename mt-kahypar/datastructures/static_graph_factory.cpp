@@ -114,8 +114,10 @@ namespace mt_kahypar::ds {
 
         edge0.setTarget(pin1);
         edge0.setSource(pin0);
+        edge0.setUniqueID(pos);
         edge1.setTarget(pin0);
         edge1.setSource(pin1);
+        edge1.setUniqueID(pos);
 
         if (edge_weight) {
           edge0.setWeight(edge_weight[pos]);

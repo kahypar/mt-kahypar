@@ -176,6 +176,14 @@ class StaticGraph {
       _weight = weight;
     }
 
+    HyperedgeID uniqueID() const {
+      return _id;
+    }
+
+    void setUniqueID(HyperedgeID id) {
+      _id = id;
+    }
+
     bool operator== (const Edge& rhs) const {
       return _target == rhs._target && _source == rhs._source && _weight == rhs._weight;
     }
@@ -192,6 +200,8 @@ class StaticGraph {
     HypernodeID _source;
     // ! hyperedge weight
     HyperedgeWeight _weight;
+    // ! unique id of the edge
+    HyperedgeID _id;
   };
 
   /*!
@@ -339,13 +349,15 @@ class StaticGraph {
     // ! invalid edge
     TmpEdgeInformation() :
       _target(kInvalidHyperedge),
-      _valid_or_weight(0) {
+      _valid_or_weight(0),
+      _id(kInvalidHyperedge) {
     }
 
     // ! valid edge
-    TmpEdgeInformation(HyperedgeID target, HyperedgeWeight weight) :
+    TmpEdgeInformation(HyperedgeID target, HyperedgeWeight weight, HyperedgeID id) :
       _target(target),
-      _valid_or_weight(weight) {
+      _valid_or_weight(weight),
+      _id(id) {
       ASSERT(isValid());
     }
 
@@ -363,6 +375,11 @@ class StaticGraph {
       return _valid_or_weight;
     }
 
+    HyperedgeID getID() const {
+      ASSERT(isValid());
+      return _id;
+    }
+
     void invalidate() {
       _valid_or_weight = 0;
     }
@@ -372,8 +389,14 @@ class StaticGraph {
       _valid_or_weight += weight;
     }
 
+    void updateID(HyperedgeID id) {
+      ASSERT(isValid());
+      _id = std::min(_id, id);
+    }
+
     HyperedgeID _target;
     HyperedgeWeight _valid_or_weight;
+    HyperedgeID _id;
   };
 
   // ! Contains buffers that are needed during multilevel contractions.
@@ -394,6 +417,8 @@ class StaticGraph {
         node_weights.resize("Coarsening", "node_weights", num_nodes);
       }, [&] {
         tmp_edges.resize("Coarsening", "tmp_edges", num_edges);
+      }, [&] {
+        edge_id_mapping.resize("Coarsening", "edge_id_mapping", num_edges / 2);
       });
     }
 
@@ -403,6 +428,7 @@ class StaticGraph {
     Array<parallel::IntegralAtomicWrapper<HyperedgeID>> tmp_num_incident_edges;
     Array<parallel::IntegralAtomicWrapper<HypernodeWeight>> node_weights;
     Array<TmpEdgeInformation> tmp_edges;
+    Array<HyperedgeID> edge_id_mapping;
   };
 
  public:
@@ -612,6 +638,13 @@ class StaticGraph {
   // ! Weight of a hyperedge
   HypernodeWeight edgeWeight(const HyperedgeID e) const {
     return edge(e).weight();
+  }
+
+  // ! Unique id of a hyperedge, in the range of [0, initialNumEdges() / 2)
+  HyperedgeID uniqueEdgeID(const HyperedgeID e) const {
+    const HyperedgeID id = edge(e).uniqueID();
+    ASSERT(id < initialNumEdges() / 2);
+    return id;
   }
 
   // ! Sets the weight of a hyperedge

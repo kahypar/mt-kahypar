@@ -30,17 +30,6 @@
 
 namespace mt_kahypar::ds {
   /*!
-  * This struct is used during multilevel coarsening to efficiently
-  * detect parallel hyperedges.
-  */
-  struct ContractedHyperedgeInformation {
-    HyperedgeID he = kInvalidHyperedge;
-    size_t hash = kEdgeHashSeed;
-    size_t size = std::numeric_limits<size_t>::max();
-    bool valid = false;
-  };
-
-  /*!
    * Contracts a given community structure. All vertices with the same label
    * are collapsed into the same vertex. The resulting single-pin and parallel
    * hyperedges are removed from the contracted graph. The function returns
@@ -65,6 +54,7 @@ namespace mt_kahypar::ds {
     Array<parallel::IntegralAtomicWrapper<HypernodeWeight>>& node_weights =
             _tmp_contraction_buffer->node_weights;
     Array<TmpEdgeInformation>& tmp_edges = _tmp_contraction_buffer->tmp_edges;
+    Array<HyperedgeID>& edge_id_mapping = _tmp_contraction_buffer->edge_id_mapping;
 
     ASSERT(static_cast<size_t>(_num_nodes) <= mapping.size());
     ASSERT(static_cast<size_t>(_num_nodes) <= tmp_nodes.size());
@@ -72,6 +62,7 @@ namespace mt_kahypar::ds {
     ASSERT(static_cast<size_t>(_num_nodes) <= tmp_num_incident_edges.size());
     ASSERT(static_cast<size_t>(_num_nodes) <= node_weights.size());
     ASSERT(static_cast<size_t>(_num_edges) <= tmp_edges.size());
+    ASSERT(static_cast<size_t>(_num_edges / 2) <= edge_id_mapping.size());
 
 
     // #################### STAGE 1 ####################
@@ -160,7 +151,7 @@ namespace mt_kahypar::ds {
         const HypernodeID target = map_to_coarse_graph(edge.target());
         const bool is_valid = target != coarse_node;
         if (is_valid) {
-          tmp_edges[coarse_edges_pos + i] = TmpEdgeInformation(target, edge.weight());
+          tmp_edges[coarse_edges_pos + i] = TmpEdgeInformation(target, edge.weight(), edge.uniqueID());
         } else {
           tmp_edges[coarse_edges_pos + i] = TmpEdgeInformation();
         }
@@ -186,13 +177,14 @@ namespace mt_kahypar::ds {
       const size_t incident_edges_end = tmp_incident_edges_prefix_sum[coarse_node + 1];
       const size_t tmp_degree = incident_edges_end - incident_edges_start;
       // TODO(maas): is coarsened_num_nodes a sensible threshold?
-      if ( tmp_degree <= std::max(coarsened_num_nodes, HIGH_DEGREE_CONTRACTION_THRESHOLD) ) {
+      if (tmp_degree <= std::max(coarsened_num_nodes, HIGH_DEGREE_CONTRACTION_THRESHOLD)) {
         std::sort(tmp_edges.begin() + incident_edges_start, tmp_edges.begin() + incident_edges_end,
                   [](const TmpEdgeInformation& e1, const TmpEdgeInformation& e2) {
                     return e1._target < e2._target;
                   });
 
-        // Deduplicate and aggregate weights
+        // Deduplicate, aggregate weights and calculate minimum unique id
+        //
         // <-- deduplicated --> <-- already processed --> <-- to be processed --> <-- invalid edges -->
         //                    ^                         ^
         // valid_edge_index ---        tmp_edge_index ---
@@ -210,7 +202,7 @@ namespace mt_kahypar::ds {
                   return false;
                 }
               }
-              for(; i < tmp_edge_index; ++i) {
+              for (; i < tmp_edge_index; ++i) {
                 if (tmp_edges[i].isValid()) {
                   return false;
                 }
@@ -225,6 +217,7 @@ namespace mt_kahypar::ds {
           if (next_edge.isValid()) {
             if (valid_edge.getTarget() == next_edge.getTarget()) {
               valid_edge.addWeight(next_edge.getWeight());
+              valid_edge.updateID(next_edge.getID());
               next_edge.invalidate();
             } else {
               ++valid_edge_index;
@@ -233,8 +226,8 @@ namespace mt_kahypar::ds {
             ++tmp_edge_index;
           }
         }
-        const HyperedgeID contracted_size = tmp_edges[valid_edge_index].isValid() ? 
-                                            (valid_edge_index - incident_edges_start + 1) : 0;
+        const bool is_non_empty = (incident_edges_start < incident_edges_end) && tmp_edges[valid_edge_index].isValid();
+        const HyperedgeID contracted_size = is_non_empty ? (valid_edge_index - incident_edges_start + 1) : 0;
         node_sizes[coarse_node] = contracted_size;
       } else {
         std::lock_guard<std::mutex> lock(high_degree_vertex_mutex);
@@ -251,17 +244,26 @@ namespace mt_kahypar::ds {
       // vector. Then, the index is calculated with a prefix sum.
       parallel::scalable_vector<parallel::IntegralAtomicWrapper<HyperedgeWeight>> summed_edge_weights_for_target;
       summed_edge_weights_for_target.assign(coarsened_num_nodes, parallel::IntegralAtomicWrapper<HyperedgeWeight>(0));
+      parallel::scalable_vector<parallel::IntegralAtomicWrapper<HyperedgeID>> min_edge_id_for_target;
+      min_edge_id_for_target.assign(coarsened_num_nodes,
+        parallel::IntegralAtomicWrapper<HyperedgeID>(std::numeric_limits<HyperedgeID>::max()));
       parallel::scalable_vector<HyperedgeID> incident_edges_inclusion;
       incident_edges_inclusion.assign(coarsened_num_nodes, 0);
       for ( const HypernodeID& coarse_node : high_degree_vertices ) {
         const size_t incident_edges_start = tmp_incident_edges_prefix_sum[coarse_node];
         const size_t incident_edges_end = tmp_incident_edges_prefix_sum[coarse_node + 1];
 
-        // sum edge weights for each target node
+        // sum edge weights for each target node and calculate id
         tbb::parallel_for(incident_edges_start, incident_edges_end, [&](const size_t pos) {
           TmpEdgeInformation& edge = tmp_edges[pos];
           if (edge.isValid()) {
-            summed_edge_weights_for_target[edge.getTarget()].fetch_add(edge.getWeight());
+            const HyperedgeID target = edge.getTarget();
+            const HyperedgeID id = edge.getID();
+            summed_edge_weights_for_target[target].fetch_add(edge.getWeight());
+            HyperedgeID expected = min_edge_id_for_target[target].load();
+            while (id < expected) {
+              min_edge_id_for_target[target].compare_exchange_weak(expected, id);
+            }
           }
         });
 
@@ -277,10 +279,12 @@ namespace mt_kahypar::ds {
 
         // insert edges
         tbb::parallel_for(ID(0), coarsened_num_nodes, [&](const size_t target) {
-          HyperedgeWeight weight = summed_edge_weights_for_target[target].load();
+          const HyperedgeWeight weight = summed_edge_weights_for_target[target].load();
           if (weight > 0) {
-            tmp_edges[incident_edges_start + incident_edges_pos[target]] = TmpEdgeInformation(target, weight);
+            const HyperedgeID id = min_edge_id_for_target[target].load();
+            tmp_edges[incident_edges_start + incident_edges_pos[target]] = TmpEdgeInformation(target, weight, id);
             summed_edge_weights_for_target[target].store(0);
+            min_edge_id_for_target[target].store(std::numeric_limits<HyperedgeID>::max());
           }
         });
 
@@ -310,6 +314,21 @@ namespace mt_kahypar::ds {
     hypergraph._num_nodes = coarsened_num_nodes;
     hypergraph._num_edges = coarsened_num_edges;
 
+    HEAVY_COARSENING_ASSERT(
+      [&]{
+        HyperedgeID last_end = 0;
+        for (size_t i = 0; i < coarsened_num_nodes; ++i) {
+          const HyperedgeID tmp_edges_start = tmp_nodes[i].firstEntry();
+          if (last_end > tmp_edges_start) {
+            return false;
+          }
+          last_end = tmp_edges_start + degree_mapping.value(i);
+        }
+        return true;
+      }()
+    );
+
+    edge_id_mapping.assign(_num_edges / 2, 0);
     tbb::parallel_invoke([&] {
       utils::Timer::instance().start_timer("setup_edges", "Setup Edges", true);
       // Copy edges
@@ -354,8 +373,51 @@ namespace mt_kahypar::ds {
       });
     });
 
+    utils::Timer::instance().start_timer("remap_edge_ids", "Remap Edge IDs", true);
+
+    // Remap unique edge ids via prefix sum
+    parallel::TBBPrefixSum<HyperedgeID, Array> edge_id_prefix_sum(edge_id_mapping);
+    tbb::parallel_scan(tbb::blocked_range<size_t>(ID(0), _num_edges / 2), edge_id_prefix_sum);
+    ASSERT(edge_id_prefix_sum.total_sum() == coarsened_num_edges / 2);
+
+    tbb::parallel_for(ID(0), coarsened_num_edges, [&](const HyperedgeID& e) {
+      Edge& edge = hypergraph.edge(e);
+      edge.setUniqueID(edge_id_prefix_sum[edge.uniqueID()]);
+    });
+
+    utils::Timer::instance().stop_timer("remap_edge_ids");
+
     utils::Timer::instance().stop_timer("contract_hypergraph");
 
+    HEAVY_COARSENING_ASSERT(
+      [&](){
+        parallel::scalable_vector<bool> covered_ids(hypergraph.initialNumEdges() / 2, false);
+        for (HyperedgeID e : edges()) {
+          HyperedgeID id = hypergraph.uniqueEdgeID(e);
+          covered_ids.at(id) = true;
+          bool success = false;
+          for (HyperedgeID b_edge : hypergraph.incidentEdges(edgeTarget(e))) {
+            if (edgeTarget(b_edge) == edgeSource(e)) {
+              if (hypergraph.uniqueEdgeID(b_edge) != id) {
+                return false;
+              }
+              success = true;
+              break;
+            }
+          }
+          if (!success) {
+            return false;
+          }
+        }
+        for (bool val : covered_ids) {
+          if (!val) {
+            return false;
+          }
+        }
+        return true;
+      }(),
+      "Unique edge IDs are not initialized correctly."
+    );
 
     hypergraph._total_weight = _total_weight;
     hypergraph._tmp_contraction_buffer = _tmp_contraction_buffer;

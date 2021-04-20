@@ -291,6 +291,11 @@ private:
     return _hg->edgeWeight(e);
   }
 
+  // ! Unique id of a hyperedge
+  HyperedgeID uniqueEdgeID(const HyperedgeID e) const {
+    return e;
+  }
+
   // ! Sets the weight of a hyperedge
   void setEdgeWeight(const HyperedgeID e, const HyperedgeWeight weight) {
     _hg->setEdgeWeight(e, weight);
