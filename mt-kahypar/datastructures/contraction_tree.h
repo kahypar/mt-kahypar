@@ -274,6 +274,10 @@ class ContractionTree {
     node(u).setVersion(version);
   }
 
+  // ! Only for testing
+  void setInterval(const HypernodeID u, const Timepoint start, const Timepoint end) {
+      node(u).setInterval(start,end);
+  }
 
   // ! Only for testing
   void decrementPendingContractions(const HypernodeID u) {

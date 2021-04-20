@@ -35,6 +35,7 @@
 #include "mt-kahypar/datastructures/thread_safe_fast_reset_flag_array.h"
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
 #include "mt-kahypar/utils/memory_tree.h"
+#include "asynch_contraction_pool.h"
 
 namespace mt_kahypar {
 namespace ds {
@@ -849,6 +850,17 @@ class DynamicHypergraph {
   size_t contract(const HypernodeID v,
                   const HypernodeWeight max_node_weight = std::numeric_limits<HypernodeWeight>::max());
 
+
+  /**
+   * Uncontracts all contractions in the current version sequentially using a pool of currently possible uncontractions.
+   * Precursor for eventual fully asynchronous parallel uncontraction.
+   * The two uncontraction functions are required by the partitioned hypergraph to restore
+   * pin counts and gain cache values.
+   */
+  void uncontractVersionSequentially(
+          const UncontractionFunction& case_one_func = NOOP_BATCH_FUNC,
+          const UncontractionFunction& case_two_func = NOOP_BATCH_FUNC);
+
   /**
    * Uncontracts a batch of contractions in parallel. The batches must be uncontracted exactly
    * in the order computed by the function createBatchUncontractionHierarchy(...).
@@ -1158,6 +1170,21 @@ class DynamicHypergraph {
    */
   BatchVector createBatchUncontractionHierarchyForVersion(BatchIndexAssigner& batch_assigner,
                                                           const size_t version);
+
+  /**
+   * Adds the initial uncontractions of a version, i.e. the uncontractions where the representative is
+   * a root of the version, to a given asynchronous uncontraction pool. This is the initial step for uncontracting
+   * a version fully asynchronously.
+   * @param pool the pool to add the initial uncontractions to.
+   * @param version the version of the hypergraph in which the uncontractions live.
+   */
+  void initializeUncontractionPoolForVersion(AsynchContractionPool& pool, const size_t version);
+
+public:
+  // ! Only for testing
+  void initializeUncontractionPoolForVersion(ContractionTree&& tree,AsynchContractionPool& pool, const size_t version);
+
+private:
 
   // ! Number of hypernodes
   HypernodeID _num_hypernodes;

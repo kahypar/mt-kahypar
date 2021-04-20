@@ -1439,5 +1439,40 @@ TEST_F(ADynamicHypergraph, GeneratesACompactifiedHypergraph2) {
   verifyPins(compactified_hg, {0}, { {0, 1, 2} });
 }
 
+class MockPool : public AsynchContractionPool {
+public:
+    MOCK_METHOD(void,insertContraction, (Contraction),(override));
+    MOCK_METHOD(void,insertContractionGroup, (const ContractionGroup&),(override));
+};
+
+TEST_F(ADynamicHypergraph,CreatesInitialGroupsForUniformVersion){
+    using ::testing::StrictMock;
+    using ::testing::Eq;
+    StrictMock<MockPool> mockPool;
+    int version = 0;
+
+    ContractionTree tree;
+    tree.initialize(7);
+    tree.setParent(0, 0, version); tree.setInterval(0,0,1);
+    tree.setParent(1, 0, version); tree.setInterval(1,1,3); // 1,2,3 are siblings but only 2 and 3 have overlapping intervals
+    tree.setParent(2, 0, version); tree.setInterval(2,3,5);
+    tree.setParent(3, 0, version); tree.setInterval(3,4,6);
+//    tree.setParent(4, 1, version); tree.setInterval(4,5,6); // 4,5 are siblings but do not have overlapping intervals
+//    tree.setParent(5, 1, version); tree.setInterval(5,7,8);
+//    tree.setParent(6, 3, version); tree.setInterval(6,9,10);
+
+    ContractionGroup expectedGroup1 = { Contraction {0, 0}};
+    ContractionGroup expectedGroup2 = { Contraction {0, 1}};
+    ContractionGroup expectedGroup3 = { Contraction {0, 2}, Contraction {0, 3}};
+
+
+    EXPECT_CALL(mockPool, insertContractionGroup (Eq(expectedGroup1)));
+    EXPECT_CALL(mockPool, insertContractionGroup (Eq(expectedGroup2)));
+    EXPECT_CALL(mockPool, insertContractionGroup (Eq(expectedGroup3)));
+
+    hypergraph.initializeUncontractionPoolForVersion(tree.copy(),mockPool,version);
+
+};
+
 } // namespace ds
 } // namespace mt_kahypar

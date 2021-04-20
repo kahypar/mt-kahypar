@@ -30,6 +30,7 @@
 #include "mt-kahypar/datastructures/concurrent_bucket_map.h"
 #include "mt-kahypar/datastructures/streaming_vector.h"
 #include "mt-kahypar/utils/timer.h"
+#include "asynch_contraction_pool.h"
 
 namespace mt_kahypar {
 namespace ds {
@@ -447,7 +448,7 @@ parallel::scalable_vector<ParallelHyperedge> DynamicHypergraph::removeSinglePinA
 }
 
 /**
- * Restores a previously removed set of singple-pin and parallel hyperedges. Note, that hes_to_restore
+ * Restores a previously removed set of single-pin and parallel hyperedges. Note, that hes_to_restore
  * must be exactly the same and given in the reverse order as returned by removeSinglePinAndParallelNets(...).
  */
 void DynamicHypergraph::restoreSinglePinAndParallelNets(const parallel::scalable_vector<ParallelHyperedge>& hes_to_restore) {
@@ -1035,6 +1036,80 @@ BatchVector DynamicHypergraph::createBatchUncontractionHierarchyForVersion(Batch
 
   return batches;
 }
+
+void DynamicHypergraph::uncontractVersionSequentially(const DynamicHypergraph::UncontractionFunction &case_one_func,
+                                                          const DynamicHypergraph::UncontractionFunction &case_two_func) {
+
+    AsynchContractionPool pool;
+    initializeUncontractionPoolForVersion(pool,_version);
+
+
+}
+
+void DynamicHypergraph::initializeUncontractionPoolForVersion(AsynchContractionPool& pool, const size_t version) {
+
+
+    // Checks if two contraction intervals intersect
+    auto does_interval_intersect = [&](const ContractionInterval& i1, const ContractionInterval& i2) {
+        if (i1.start == kInvalidHypernode || i2.start == kInvalidHypernode) {
+            return false;
+        }
+        return (i1.start <= i2.end && i1.end >= i2.end) ||
+               (i2.start <= i1.end && i2.end >= i1.end);
+    };
+
+    auto versionRoots = _contraction_tree.roots_of_version(version);
+
+    // Build initial contraction groups to uncontract, i.e. children of the roots of this version, and add them to the pool.
+    // Children of a root u are in the same group if they were contracted simultaneously as indicated by their
+    // contraction time intervals.
+    for (auto root: versionRoots) {
+        auto it = _contraction_tree.childs(root);
+        auto current = it.begin();
+        auto end = it.end();
+        while ( current != end && _contraction_tree.version(*current) != version ) {
+            ++current;
+        }
+        if (current == end) continue;
+        // Range between current and end are now only the children that have the right version. Then partition them into groups:
+
+        std::vector<Contraction> inCurrentGroup;
+        ContractionInterval current_ival = _contraction_tree.interval(*current);
+        inCurrentGroup.push_back(Contraction {root, *current});
+        ++current;
+        while (current != end && _contraction_tree.version(*current) == version) {
+            auto sibling = *current;
+            ContractionInterval sibling_ival = _contraction_tree.interval(sibling);
+
+            ASSERT(_contraction_tree.parent(sibling) == root);
+            if (does_interval_intersect(current_ival,sibling_ival)) {
+                inCurrentGroup.push_back(Contraction {root, sibling});
+                current_ival.start = std::min(current_ival.start, sibling_ival.start);
+                current_ival.end = std::max(current_ival.end, sibling_ival.end);
+            } else {
+                // Group is finished. Add it to pool...
+                pool.insertContractionGroup(ContractionGroup(inCurrentGroup));
+                // ..and reset for next group
+                inCurrentGroup.clear();
+                current_ival = sibling_ival;
+                inCurrentGroup.push_back(Contraction {root, sibling});
+            }
+
+            ++current;
+        }
+        // End of children in this version has been reached so finish up by adding latest group to pool
+        pool.insertContractionGroup(ContractionGroup(inCurrentGroup));
+    }
+
+}
+
+void DynamicHypergraph::initializeUncontractionPoolForVersion(ContractionTree&& tree, AsynchContractionPool& pool, const size_t version) {
+    _contraction_tree = std::move(tree);
+    _version=version;
+    initializeUncontractionPoolForVersion(pool, version);
+}
+
+
 
 } // namespace ds
 } // namespace mt_kahypar

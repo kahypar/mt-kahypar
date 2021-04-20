@@ -5,10 +5,14 @@
 #ifndef KAHYPAR_ASYNCH_CONTRACTION_POOL_H
 #define KAHYPAR_ASYNCH_CONTRACTION_POOL_H
 
+#include <tbb/concurrent_unordered_set.h>
 #include <tbb/concurrent_queue.h>
+
+#include <utility>
 #include "hypergraph_common.h"
 
-namespace mt_kahypar::ds {
+namespace mt_kahypar::ds
+{
 
     using Contraction = Memento;
     typedef std::vector<Contraction>::iterator ContractionIterator;
@@ -20,6 +24,12 @@ private:
 
     std::vector<Contraction> contractions;
 
+    /// Check if all contractions have the same representative
+    bool sanityCheck() {
+        auto repr = contractions.at(0).u;
+        return std::all_of(contractions.begin(),contractions.end(),[repr](Contraction c){return c.u == repr;});
+    };
+
 public:
 
         bool empty() const {return contractions.empty();};
@@ -29,12 +39,12 @@ public:
 
         ContractionGroup() = default;
         ContractionGroup(std::initializer_list<Contraction> init) : contractions(init) {
-            //assert that they all have the same representative
-            auto repr = contractions.at(0).u;
-            for(auto &contr : contractions) {
-                ASSERT(contr.u == repr);
-            }
+            ASSERT(sanityCheck());
         };
+
+        explicit ContractionGroup(std::vector<Contraction> init) : contractions(std::move(init)) {
+            ASSERT(sanityCheck());
+        }
 
     /// This function is linear in the number of contractions. Only use for debugging!
     bool contains(Contraction contraction) const;
@@ -65,9 +75,11 @@ public:
 class AsynchContractionPool {
 
     private:
-        tbb::concurrent_queue<ContractionGroup> queue;
+        tbb::concurrent_queue<ContractionGroup> groups;
 
     public:
+
+        virtual ~AsynchContractionPool() = default;
 
         uint64_t unsafe_size();
         bool empty();
@@ -92,18 +104,18 @@ class AsynchContractionPool {
          * Inserts a contraction as a single-contraction group implying it can be worked on independently from any other contraction.
          * @param contraction the contraction to be inserted as the only contraction in a group
          */
-        void insertContraction(Contraction contraction);
+        virtual void insertContraction(Contraction contraction);
 
         /*!
          * Inserts a contraction group implying the contractions in this group have to be worked on collectively. All contractions in the group thus must have the same representative.
          * @param group the contraction group to insert.
          */
-        void insertContractionGroup(const ContractionGroup& group);
+        virtual void insertContractionGroup(const ContractionGroup& group);
 
-        void debugPrintPool() {
+        void debugPrint() {
             std::cout << "Pool currently has " << unsafe_size() << " groups: \n";
-            for (auto it = queue.unsafe_begin(); it != queue.unsafe_end(); ++it) {
-                ContractionGroup group = *it;
+            for (auto it = groups.unsafe_begin(); it != groups.unsafe_end(); ++it) {
+                auto group = *it;
                 group.debugPrint();
             }
         };

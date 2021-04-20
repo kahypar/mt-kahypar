@@ -8,13 +8,9 @@
 
 #include "mt-kahypar/datastructures/asynch_contraction_pool.h"
 
-#include <atomic>
-
-#include "mt-kahypar/definitions.h"
 #include "tests/datastructures/hypergraph_fixtures.h"
 
-namespace mt_kahypar {
-namespace ds {
+namespace mt_kahypar::ds {
 
 TEST(AAsynchContractionPool,InsertGroup) {
 
@@ -74,7 +70,7 @@ TEST(AAsynchContractionPool, ContainsTest){
 
         // Expect not containing group that is different combination of known contractions
         ContractionGroup unknownGroup = {c1,c3};
-        pool.debugPrintPool();
+        pool.debugPrint();
         std::cout << "Unknown group is: \n";
         unknownGroup.debugPrint();
         ASSERT_FALSE(pool.contains(unknownGroup));
@@ -115,6 +111,10 @@ TEST(AContractionGroup, EqualityTest) {
 
         ASSERT_FALSE(group1 == group2);
         ASSERT_TRUE(group1 == group3);
+
+        ContractionGroup group4 = {c1};
+        ASSERT_FALSE(group1 == group4);
+        ASSERT_FALSE(group4 == group1);
 }
 
 TEST(AAsynchContractionPoolDeathTest, InsertFailsIfEmpty) {
@@ -125,13 +125,12 @@ TEST(AAsynchContractionPoolDeathTest, InsertFailsIfEmpty) {
     EXPECT_DEATH(pool.insertContractionGroup(group),"");
 }
 
-TEST(AContractionGroupDeathTest, ConstructionFailsIfGroupHasDifferentReps) {
+TEST(AContractionGroupDeathTest, ConstructionFailsIfGroupHasDifferentRepsDeathTest) {
     testing::FLAGS_gtest_death_test_style="threadsafe";
     auto pool = AsynchContractionPool();
     Contraction c1 = {1,2};
-    Contraction c2 = {1,3};
+    Contraction c2 = {2,3};
     ASSERT_DEATH(ContractionGroup({c1,c2}),"");
 }
 
-} // namespace ds
 } // namespace mt_kahypar

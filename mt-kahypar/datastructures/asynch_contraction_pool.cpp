@@ -5,17 +5,17 @@
 #include "asynch_contraction_pool.h"
 
 uint64_t mt_kahypar::ds::AsynchContractionPool::unsafe_size() {
-    return queue.unsafe_size();
+    return groups.unsafe_size();
 }
 
 bool mt_kahypar::ds::AsynchContractionPool::empty() {
-    return queue.empty();
+    return groups.empty();
 }
 
 void mt_kahypar::ds::AsynchContractionPool::insertContractionGroup(const mt_kahypar::ds::ContractionGroup& group) {
     ASSERT(!group.empty());
 
-    queue.push(group);
+    groups.push(group);
 }
 
 void mt_kahypar::ds::AsynchContractionPool::insertContraction(mt_kahypar::ds::Contraction contraction) {
@@ -28,7 +28,7 @@ bool mt_kahypar::ds::AsynchContractionPool::contains(const mt_kahypar::ds::Contr
     std::cout << "Searching for: \n";
     group.debugPrint();
 
-    for (auto it = queue.unsafe_begin(); it != queue.unsafe_end(); ++it) {
+    for (auto it = groups.unsafe_begin(); it != groups.unsafe_end(); ++it) {
 //        std::cout << it->size() << "\n";
         ContractionGroup poolEl = *it;
         if (poolEl == group) {
@@ -43,7 +43,7 @@ bool mt_kahypar::ds::AsynchContractionPool::contains(const mt_kahypar::ds::Contr
 }
 
 bool mt_kahypar::ds::AsynchContractionPool::contains(mt_kahypar::ds::Contraction contraction) {
-    for (auto it = queue.unsafe_begin(); it != queue.unsafe_end(); ++it) {
+    for (auto it = groups.unsafe_begin(); it != groups.unsafe_end(); ++it) {
         ContractionGroup group = *it;
         if (group.contains(contraction)) return true;
     }
@@ -51,9 +51,9 @@ bool mt_kahypar::ds::AsynchContractionPool::contains(mt_kahypar::ds::Contraction
 }
 
 mt_kahypar::ds::ContractionGroup mt_kahypar::ds::AsynchContractionPool::pickAnyGroup() {
-    ASSERT(!queue.empty());
+    ASSERT(!groups.empty());
     ContractionGroup result;
-    queue.try_pop(result);
+    groups.try_pop(result);
     return result;
 }
 
@@ -67,11 +67,10 @@ bool mt_kahypar::ds::ContractionGroup::contains(mt_kahypar::ds::Contraction cont
 
 bool mt_kahypar::ds::ContractionGroup::operator==(const mt_kahypar::ds::ContractionGroup &rhs) const {
 
-    if(std::all_of(contractions.begin(),contractions.end(),[rhs](Contraction e){return rhs.contains(e);})){
-        return true;
-    }
-    return false;
+    bool rhsContainsThis = (std::all_of(contractions.begin(),contractions.end(),[rhs](Contraction e){return rhs.contains(e);}));
+    bool thisContainsRhs = (std::all_of(rhs.begin(),rhs.end(),[this](Contraction e){return this->contains(e);}));
 
+    return rhsContainsThis && thisContainsRhs;
 }
 
 bool mt_kahypar::ds::ContractionGroup::operator!=(const mt_kahypar::ds::ContractionGroup &rhs) const {
