@@ -496,38 +496,24 @@ private:
                       HypernodeWeight max_weight_to,
                       SuccessFunc&& report_success,
                       DeltaFunc&& delta_func) {
-    ASSERT(partID(u) == from);
-    ASSERT(from != to);
-    const HypernodeWeight weight = nodeWeight(u);
-    const HypernodeWeight to_weight_after = _part_weights[to].fetch_add(weight, std::memory_order_relaxed);
-    const HypernodeWeight from_weight_after = _part_weights[from].fetch_sub(weight, std::memory_order_relaxed);
-    if (to_weight_after <= max_weight_to && from_weight_after > 0) {
-      DBG << "<<< Start changing node part: " << V(u) << " - " << V(from) << " - " << V(to);
-      report_success();
-      parallel::scalable_vector<std::pair<HyperedgeID, PartitionID>> locks_to_restore;
-      for (const HyperedgeID edge : incidentEdges(u)) {
-        const PartitionID target_part = targetPartWithLockSynchronization(u, to, edge, locks_to_restore);
-        const HypernodeID pin_count_in_from_part_after = target_part == from ? 1 : 0;
-        const HypernodeID pin_count_in_to_part_after = target_part == to ? 2 : 1;
-        delta_func(edge, edgeWeight(edge), edgeSize(edge), pin_count_in_from_part_after, pin_count_in_to_part_after);
-      }
-      _part_ids[u].store(to, std::memory_order_relaxed);
-      DBG << "Done changing node part: " << V(u) << " >>>";
-      restoreLockInformation(u, std::move(locks_to_restore));
-      return true;
-    } else {
-      _part_weights[to].fetch_sub(weight, std::memory_order_relaxed);
-      _part_weights[from].fetch_add(weight, std::memory_order_relaxed);
-      return false;
-    }
+    return changeNodePartImpl<true>(u, from, to, max_weight_to, report_success, delta_func);
   }
 
+  // overload
   bool changeNodePart(const HypernodeID u,
                       PartitionID from,
                       PartitionID to,
-                      const DeltaFunction& delta_func = NOOP_FUNC) {
+                      const DeltaFunction& delta_func) {
     return changeNodePart(u, from, to,
       std::numeric_limits<HypernodeWeight>::max(), []{}, delta_func);
+  }
+
+  // overload for case that does not require locking
+  bool changeNodePart(const HypernodeID u,
+                      PartitionID from,
+                      PartitionID to) {
+    return changeNodePartImpl<false>(u, from, to, std::numeric_limits<HypernodeWeight>::max(),
+                                     []{}, NOOP_FUNC);
   }
 
   // Make sure not to call phg.gainCacheUpdate(..) in delta_func for changeNodePartWithGainCacheUpdate
@@ -875,6 +861,43 @@ private:
     return size_t(u) * _k  + p;
   }
 
+  template<bool HandleLocks, typename SuccessFunc, typename DeltaFunc>
+  bool changeNodePartImpl(const HypernodeID u,
+                          PartitionID from,
+                          PartitionID to,
+                          HypernodeWeight max_weight_to,
+                          SuccessFunc&& report_success,
+                          DeltaFunc&& delta_func) {
+    ASSERT(partID(u) == from);
+    ASSERT(from != to);
+    const HypernodeWeight weight = nodeWeight(u);
+    const HypernodeWeight to_weight_after = _part_weights[to].fetch_add(weight, std::memory_order_relaxed);
+    const HypernodeWeight from_weight_after = _part_weights[from].fetch_sub(weight, std::memory_order_relaxed);
+    if (to_weight_after <= max_weight_to && from_weight_after > 0) {
+      DBG << "<<< Start changing node part: " << V(u) << " - " << V(from) << " - " << V(to);
+      report_success();
+      if (HandleLocks) {
+        parallel::scalable_vector<std::pair<HyperedgeID, PartitionID>> locks_to_restore;
+        for (const HyperedgeID edge : incidentEdges(u)) {
+          const PartitionID target_part = targetPartWithLockSynchronization(u, to, edge, locks_to_restore);
+          const HypernodeID pin_count_in_from_part_after = target_part == from ? 1 : 0;
+          const HypernodeID pin_count_in_to_part_after = target_part == to ? 2 : 1;
+          delta_func(edge, edgeWeight(edge), edgeSize(edge), pin_count_in_from_part_after, pin_count_in_to_part_after);
+        }
+        _part_ids[u].store(to, std::memory_order_relaxed);
+        DBG << "Done changing node part: " << V(u) << " >>>";
+        restoreLockInformation(u, std::move(locks_to_restore));
+      } else {
+        _part_ids[u].store(to, std::memory_order_relaxed);
+      }
+      return true;
+    } else {
+      _part_weights[to].fetch_sub(weight, std::memory_order_relaxed);
+      _part_weights[from].fetch_add(weight, std::memory_order_relaxed);
+      return false;
+    }
+  }
+
   // ! Determines partition id of v, synchronized by the edge lock of {u, v}.
   // ! Information that needs to be restored is pushed to locks_to_restore.
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
@@ -893,7 +916,7 @@ private:
       DBG << "EdgeLockState::UNCONTENDED: " << V(u) << " - " << V(v);
     } else if (state == EdgeLock::moveState(is_smaller_id)) {
       // this state means u was already moved previously
-      ASSERT(part_id == partID(u));
+      ASSERT(part_id == partID(u), V(part_id) << " - " << V(partID(u)) << " - " << V(partID(v)) << " - " << V(to));
       target_part = partID(v);
       DBG << "EdgeLock::moveState(is_smaller_id): " << V(u) << " - " << V(v);
     } else if (state == EdgeLock::moveState(!is_smaller_id)) {

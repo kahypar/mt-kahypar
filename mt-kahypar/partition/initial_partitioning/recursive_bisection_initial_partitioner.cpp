@@ -123,7 +123,7 @@ namespace mt_kahypar {
           PartitionID to = _part_id + _rb_partitioned_hg.partID(_mapping[hn]);
           ASSERT(to != kInvalidPartition && to < _original_hg.k());
           if ( _part_id != to ) {
-            _original_hg.changeNodePart(hn, _part_id, to, NOOP_FUNC);
+            _original_hg.changeNodePart(hn, _part_id, to);
           }
         }
       });
