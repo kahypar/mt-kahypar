@@ -1445,34 +1445,117 @@ public:
     MOCK_METHOD(void,insertContractionGroup, (const ContractionGroup&),(override));
 };
 
-TEST_F(ADynamicHypergraph,CreatesInitialGroupsForUniformVersion){
-    using ::testing::StrictMock;
+//class MockContractionTree : public ContractionTree {
+//public:
+//
+//    MOCK_METHOD(HypernodeID, parent,(const HypernodeID u), (const));
+//    MOCK_METHOD(size_t, version,(const HypernodeID u), (const));
+//    MOCK_METHOD(const parallel::scalable_vector<HypernodeID>&,roots_of_version,(const size_t),(const));
+//    MOCK_METHOD(Interval,interval,(const HypernodeID),(const));
+//    MOCK_METHOD(IteratorRange<ChildIterator>,childs,(const HypernodeID),(const));
+//
+//};
+
+TEST_F(ADynamicHypergraph,CreatesInitialGroupsForUniformVersion1){
+    using ::testing::NiceMock;
     using ::testing::Eq;
-    StrictMock<MockPool> mockPool;
+
+    NiceMock<MockPool> mockPool;
     int version = 0;
 
     ContractionTree tree;
-    tree.initialize(7);
-    tree.setParent(0, 0, version); tree.setInterval(0,0,1);
-    tree.setParent(1, 0, version); tree.setInterval(1,1,3); // 1,2,3 are siblings but only 2 and 3 have overlapping intervals
-    tree.setParent(2, 0, version); tree.setInterval(2,3,5);
-    tree.setParent(3, 0, version); tree.setInterval(3,4,6);
+    tree.initialize(4);
+//    tree.setParent(0, 0, version);
+                                         tree.setInterval(0,0,1);
+    tree.setParent(1, 0, version); tree.setInterval(1,2,3); // 1,2,3 are siblings but only 2 and 3 have overlapping intervals
+    tree.setParent(2, 0, version); tree.setInterval(2,4,5);
+    tree.setParent(3, 0, version); tree.setInterval(3,5,6);
 //    tree.setParent(4, 1, version); tree.setInterval(4,5,6); // 4,5 are siblings but do not have overlapping intervals
 //    tree.setParent(5, 1, version); tree.setInterval(5,7,8);
 //    tree.setParent(6, 3, version); tree.setInterval(6,9,10);
 
-    ContractionGroup expectedGroup1 = { Contraction {0, 0}};
-    ContractionGroup expectedGroup2 = { Contraction {0, 1}};
-    ContractionGroup expectedGroup3 = { Contraction {0, 2}, Contraction {0, 3}};
+    ContractionGroup expectedGroup1 = { Contraction {0, 1}};
+    ContractionGroup expectedGroup2 = { Contraction {0, 2}, Contraction {0, 3}};
 
+    EXPECT_CALL(mockPool, insertContractionGroup (Eq(expectedGroup1)));
+    EXPECT_CALL(mockPool, insertContractionGroup (Eq(expectedGroup2)));
+
+    hypergraph.initializeUncontractionPoolForVersion(tree.copy(),mockPool,version);
+}
+
+TEST_F(ADynamicHypergraph,CreatesInitialGroupsForUniformVersion2){
+    using ::testing::NiceMock;
+    using ::testing::Eq;
+
+    NiceMock<MockPool> mockPool;
+    int version = 0;
+
+    // roots 0 and 4
+    ContractionTree tree;
+    tree.initialize(7);
+//    tree.setParent(0, 0, version);
+    tree.setInterval(0,0,1);
+    tree.setParent(1, 0, version); tree.setInterval(1,2,3); // 1,2,3 are siblings but only 2 and 3 have overlapping intervals
+    tree.setParent(2, 0, version); tree.setInterval(2,4,5);
+    tree.setParent(3, 0, version); tree.setInterval(3,5,6);
+//    tree.setParent(4, 1, version);
+    tree.setInterval(4,5,6);
+    tree.setParent(5, 4, version); tree.setInterval(5,7,8); // 5,6 are siblings but do not have overlapping intervals
+    tree.setParent(6, 4, version); tree.setInterval(6,9,10);
+
+    ContractionGroup expectedGroup1 = { Contraction {0, 1}};
+    ContractionGroup expectedGroup2 = { Contraction {0, 2}, Contraction {0, 3}};
+    ContractionGroup expectedGroup3 = {Contraction {4, 5}};
+    ContractionGroup expectedGroup4 = {Contraction {4, 6}};
 
     EXPECT_CALL(mockPool, insertContractionGroup (Eq(expectedGroup1)));
     EXPECT_CALL(mockPool, insertContractionGroup (Eq(expectedGroup2)));
     EXPECT_CALL(mockPool, insertContractionGroup (Eq(expectedGroup3)));
+    EXPECT_CALL(mockPool, insertContractionGroup (Eq(expectedGroup4)));
 
     hypergraph.initializeUncontractionPoolForVersion(tree.copy(),mockPool,version);
+}
 
-};
+TEST_F(ADynamicHypergraph,CreatesInitialGroupsForDifferentVersions){
+            using ::testing::NiceMock;
+            using ::testing::Eq;
+
+            NiceMock<MockPool> mockPool;
+            int version0 = 1;
+            int version1 = 0;
+
+            // roots 0 and 4
+            ContractionTree tree;
+            tree.initialize(7);
+//    tree.setParent(0, 0, version);
+            tree.setInterval(0,0,1);
+            tree.setParent(1, 0, version0); tree.setInterval(1,2,3); // 1,2,3 are siblings but only 2 and 3 have overlapping intervals but 2 and 3 have differing versions!
+            tree.setParent(2, 0, version0); tree.setInterval(2,4,5);
+            tree.setParent(3, 0, version1); tree.setInterval(3,4,6);
+            tree.setParent(4, 1, version1); tree.setInterval(4,5,7); // 4,5 are siblings in the same version and overlap
+            tree.setParent(5, 1, version1); tree.setInterval(5,7,8);
+            tree.setParent(6, 3, version1); tree.setInterval(6,9,10);
+
+            ContractionGroup expectedGroup1 = { Contraction {0, 1}};
+            ContractionGroup expectedGroup2 = { Contraction {0, 2}};
+
+            EXPECT_CALL(mockPool, insertContractionGroup (Eq(expectedGroup1)));
+            EXPECT_CALL(mockPool, insertContractionGroup (Eq(expectedGroup2)));
+
+            hypergraph.initializeUncontractionPoolForVersion(tree.copy(),mockPool,version0, 2);
+
+
+            ContractionGroup expectedGroup3 = {Contraction {0,3}};
+            ContractionGroup expectedGroup4 = {Contraction {1, 4}, Contraction {1, 5}};
+//            ContractionGroup expectedGroup5 = {Contraction {3, 6}};
+
+            EXPECT_CALL(mockPool, insertContractionGroup (Eq(expectedGroup3)));
+            EXPECT_CALL(mockPool, insertContractionGroup (Eq(expectedGroup4)));
+
+            hypergraph.initializeUncontractionPoolForVersion(tree.copy(),mockPool,version1, 2);
+
+
+        }
 
 } // namespace ds
 } // namespace mt_kahypar

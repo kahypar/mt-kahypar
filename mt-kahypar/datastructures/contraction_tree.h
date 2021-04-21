@@ -211,7 +211,7 @@ class ContractionTree {
     return _roots;
   }
 
-  const parallel::scalable_vector<HypernodeID>& roots_of_version(const size_t version) const {
+  virtual const parallel::scalable_vector<HypernodeID>& roots_of_version(const size_t version) const {
     ASSERT(version < _version_roots.size());
     return _version_roots[version];
   }

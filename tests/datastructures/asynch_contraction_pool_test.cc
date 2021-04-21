@@ -117,7 +117,7 @@ TEST(AContractionGroup, EqualityTest) {
         ASSERT_FALSE(group4 == group1);
 }
 
-TEST(AAsynchContractionPoolDeathTest, InsertFailsIfEmpty) {
+TEST(AAsynchContractionPoolDeathTest, InsertFailsIfEmptyDeathTest) {
     testing::FLAGS_gtest_death_test_style="threadsafe";
     auto pool = AsynchContractionPool();
     ContractionGroup group;

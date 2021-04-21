@@ -1048,6 +1048,10 @@ void DynamicHypergraph::uncontractVersionSequentially(const DynamicHypergraph::U
 
 void DynamicHypergraph::initializeUncontractionPoolForVersion(AsynchContractionPool& pool, const size_t version) {
 
+    // Finalize contraction tree
+    const size_t num_versions = _version + 1;
+    _contraction_tree.finalize(num_versions);
+
 
     // Checks if two contraction intervals intersect
     auto does_interval_intersect = [&](const ContractionInterval& i1, const ContractionInterval& i2) {
@@ -1059,6 +1063,11 @@ void DynamicHypergraph::initializeUncontractionPoolForVersion(AsynchContractionP
     };
 
     auto versionRoots = _contraction_tree.roots_of_version(version);
+//    std::cout << "Roots of version " << version << " are: ";
+//    for (auto r : versionRoots) {
+//        std::cout << r << ", ";
+//    }
+//    std::cout << "\n";
 
     // Build initial contraction groups to uncontract, i.e. children of the roots of this version, and add them to the pool.
     // Children of a root u are in the same group if they were contracted simultaneously as indicated by their
@@ -1070,8 +1079,19 @@ void DynamicHypergraph::initializeUncontractionPoolForVersion(AsynchContractionP
         while ( current != end && _contraction_tree.version(*current) != version ) {
             ++current;
         }
+
+//        std::cout << "Children of root " << root << " with version " << version << " are: ";
+//        auto printChildIterator = current;
+//        while (printChildIterator != end && _contraction_tree.version(*current) == version) {
+//            if (printChildIterator != current) std::cout << ", ";
+//            std::cout << *printChildIterator;
+//            ++printChildIterator;
+//        }
+//        std::cout << "\n";
+
         if (current == end) continue;
-        // Range between current and end are now only the children that have the right version. Then partition them into groups:
+
+        // partition children into groups:
 
         std::vector<Contraction> inCurrentGroup;
         ContractionInterval current_ival = _contraction_tree.interval(*current);
@@ -1088,7 +1108,9 @@ void DynamicHypergraph::initializeUncontractionPoolForVersion(AsynchContractionP
                 current_ival.end = std::max(current_ival.end, sibling_ival.end);
             } else {
                 // Group is finished. Add it to pool...
-                pool.insertContractionGroup(ContractionGroup(inCurrentGroup));
+                auto group = ContractionGroup(inCurrentGroup);
+//                group.debugPrint();
+                pool.insertContractionGroup(group);
                 // ..and reset for next group
                 inCurrentGroup.clear();
                 current_ival = sibling_ival;
@@ -1098,14 +1120,16 @@ void DynamicHypergraph::initializeUncontractionPoolForVersion(AsynchContractionP
             ++current;
         }
         // End of children in this version has been reached so finish up by adding latest group to pool
-        pool.insertContractionGroup(ContractionGroup(inCurrentGroup));
+        auto group = ContractionGroup(inCurrentGroup);
+//        group.debugPrint();
+        pool.insertContractionGroup(group);
     }
 
 }
 
-void DynamicHypergraph::initializeUncontractionPoolForVersion(ContractionTree&& tree, AsynchContractionPool& pool, const size_t version) {
+void DynamicHypergraph::initializeUncontractionPoolForVersion(ContractionTree&& tree, AsynchContractionPool& pool, const size_t version, const size_t num_versions) {
     _contraction_tree = std::move(tree);
-    _version=version;
+    _version = num_versions - 1;
     initializeUncontractionPoolForVersion(pool, version);
 }
 

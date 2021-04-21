@@ -1182,7 +1182,7 @@ class DynamicHypergraph {
 
 public:
   // ! Only for testing
-  void initializeUncontractionPoolForVersion(ContractionTree&& tree,AsynchContractionPool& pool, const size_t version);
+  void initializeUncontractionPoolForVersion(ContractionTree&& tree,AsynchContractionPool& pool, const size_t version, const size_t num_versions = 1);
 
 private:
 
