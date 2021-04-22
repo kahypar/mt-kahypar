@@ -44,8 +44,6 @@ template <typename Hypergraph = Mandatory,
           typename HypergraphFactory = Mandatory>
 class PartitionedGraph {
 private:
-  static const bool debug = false;
-
   static_assert(!Hypergraph::is_partitioned,  "Only unpartitioned hypergraphs are allowed");
 
   // ! Function that will be called for each incident hyperedge of a moved vertex with the following arguments
@@ -54,6 +52,7 @@ private:
   using DeltaFunction = std::function<void (const HyperedgeID, const HyperedgeWeight, const HypernodeID, const HypernodeID, const HypernodeID)>;
   #define NOOP_FUNC [] (const HyperedgeID, const HyperedgeWeight, const HypernodeID, const HypernodeID, const HypernodeID) { }
 
+  static constexpr bool debug = false;
   static constexpr bool enable_heavy_assert = false;
 
   enum class EdgeLockState : uint8_t {
@@ -213,6 +212,8 @@ private:
   static constexpr bool is_static_hypergraph = Hypergraph::is_static_hypergraph;
   static constexpr bool is_partitioned = true;
   static constexpr bool supports_connectivity_set = true;
+  // each hyperedge is represented as two graph edges
+  static constexpr HyperedgeWeight edge_multiplier = 2;
 
   static constexpr HyperedgeID HIGH_DEGREE_THRESHOLD = ID(100000);
 
