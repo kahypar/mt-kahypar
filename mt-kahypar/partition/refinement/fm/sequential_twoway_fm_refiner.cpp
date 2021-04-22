@@ -139,6 +139,7 @@ bool SequentialTwoWayFmRefiner::refine(kahypar::Metrics& best_metrics, std::mt19
 
   // Perform rollback to best partition found during local search
   rollback(performed_moves, min_cut_idx);
+  _phg.resetMoveState(false);
 
   HEAVY_REFINEMENT_ASSERT(best_metrics.cut == metrics::hyperedgeCut(_phg, false));
   HEAVY_REFINEMENT_ASSERT(best_metrics.imbalance == metrics::imbalance(_phg, _context),

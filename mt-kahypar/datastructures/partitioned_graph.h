@@ -119,6 +119,14 @@ private:
       _state.store(moveStateValue(smaller_id), std::memory_order_release);
     }
 
+    // ! Resets the state to uncontended.
+    MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
+    void reset() {
+      ASSERT(_state.load() != LOCKED);
+      _move_target = kInvalidPartition;
+      _state.store(UNCONTENDED, std::memory_order_release);
+    }
+
     MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
     static EdgeLockState moveState(bool smaller_id) {
       return smaller_id ? EdgeLockState::MOVING_SMALLER_ID_NODE : EdgeLockState::MOVING_LARGER_ID_NODE;
@@ -475,6 +483,7 @@ private:
   void setOnlyNodePart(const HypernodeID u, PartitionID p) {
     ASSERT(p != kInvalidPartition && p < _k);
     ASSERT(_part_ids[u].load() == kInvalidPartition);
+    moveAssertions();
     _part_ids[u].store(p, std::memory_order_relaxed);
   }
 
@@ -673,6 +682,25 @@ private:
     }
     for (auto& weight : _part_weights) {
       weight.store(0, std::memory_order_relaxed);
+    }
+  }
+
+  // ! Resets the edge locks. Should be called e.g. after a rollback.
+  // !
+  // ! More precisely, this needs to be called if (in this order):
+  // ! 1. Nodes are moved via changeNodePart(), involving a delta function
+  // ! 2. Nodes are reassigned (via setOnlyNodePart() or changeNodePart() without a delta function)
+  // ! 3. Nodes are moved again
+  // ! Then, resetMoveState() must be called between steps 2 and 3.
+  void resetMoveState(bool parallel) {
+    if (parallel) {
+      tbb::parallel_for(ID(0), _hg->initialNumEdges() / 2, [&](const HyperedgeID id) {
+        _edge_locks[id].reset();
+      });
+    } else {
+      for (HyperedgeID id = 0; id < _hg->initialNumEdges() / 2; ++id) {
+        _edge_locks[id].reset();
+      }
     }
   }
 
@@ -890,6 +918,7 @@ private:
         DBG << "Done changing node part: " << V(u) << " >>>";
         restoreLockInformation(u, std::move(locks_to_restore));
       } else {
+        moveAssertions();
         _part_ids[u].store(to, std::memory_order_relaxed);
       }
       return true;
@@ -918,7 +947,8 @@ private:
       DBG << "EdgeLockState::UNCONTENDED: " << V(u) << " - " << V(v);
     } else if (state == EdgeLock::moveState(is_smaller_id)) {
       // this state means u was already moved previously
-      ASSERT(part_id == partID(u), V(part_id) << " - " << V(partID(u)) << " - " << V(partID(v)) << " - " << V(to));
+      ASSERT(part_id == partID(u), "Lock in invalid state: " << V(part_id) << " - "
+             << V(partID(u)) << " - " << V(to) << " - was resetMoveState() called properly?");
       target_part = partID(v);
       DBG << "EdgeLock::moveState(is_smaller_id): " << V(u) << " - " << V(v);
     } else if (state == EdgeLock::moveState(!is_smaller_id)) {
@@ -975,6 +1005,20 @@ private:
         }
       },
       tbb::static_partitioner()
+    );
+  }
+
+  void moveAssertions() {
+    HEAVY_REFINEMENT_ASSERT(
+      [&]{
+        for (size_t id = 0; id < _hg->initialNumEdges() / 2; ++id) {
+          if (!_edge_locks[id].isUncontended()) {
+            return false;
+          }
+        }
+        return true;
+      }(),
+      "Some lock is in invalid state - was resetMoveState() called properly?"
     );
   }
 

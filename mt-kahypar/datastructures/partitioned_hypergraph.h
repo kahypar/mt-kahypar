@@ -827,6 +827,17 @@ private:
     }
   }
 
+  // ! Should be called e.g. after a rollback (see PartitonedGraph).
+  // !
+  // ! More precisely, this needs to be called if (in this order):
+  // ! 1. Nodes are moved via changeNodePart(), involving a delta function
+  // ! 2. Nodes are reassigned (via setOnlyNodePart() or changeNodePart() without a delta function)
+  // ! 3. Nodes are moved again
+  // ! Then, resetMoveState() must be called between steps 2 and 3.
+  void resetMoveState(bool /*parallel*/) {
+    // Nothing to do here
+  }
+
   // ! Only for testing
   void recomputePartWeights() {
     for (PartitionID p = 0; p < _k; ++p) {
