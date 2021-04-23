@@ -128,6 +128,8 @@ void DeterministicMultilevelCoarsener::coarsenImpl() {
       }
 
       nodes_in_too_heavy_clusters.clear();
+
+      num_nodes -= num_contracted_nodes.combine(std::plus<>());
     }
 
     if (num_nodes_before_pass / num_nodes <= _context.coarsening.minimum_shrink_factor) {
