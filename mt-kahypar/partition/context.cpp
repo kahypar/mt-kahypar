@@ -416,7 +416,7 @@ namespace mt_kahypar {
         initial_partitioning.refinement.label_propagation.algorithm = LabelPropagationAlgorithm::deterministic;
       }
 
-      // coarsening.algorithm = CoarseningAlgorithm::deterministic_multilevel_coarsener;
+      coarsening.algorithm = CoarseningAlgorithm::deterministic_multilevel_coarsener;
 
       // disable FM until we have a deterministic version
       refinement.fm.algorithm = FMAlgorithm::do_nothing;
