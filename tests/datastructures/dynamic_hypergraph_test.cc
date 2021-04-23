@@ -1439,11 +1439,6 @@ TEST_F(ADynamicHypergraph, GeneratesACompactifiedHypergraph2) {
   verifyPins(compactified_hg, {0}, { {0, 1, 2} });
 }
 
-class MockPool : public AsynchContractionPool {
-public:
-    MOCK_METHOD(void,insertContraction, (Contraction),(override));
-    MOCK_METHOD(void,insertContractionGroup, (const ContractionGroup&),(override));
-};
 
 //class MockContractionTree : public ContractionTree {
 //public:
@@ -1460,7 +1455,7 @@ TEST_F(ADynamicHypergraph,CreatesInitialGroupsForUniformVersion1){
     using ::testing::NiceMock;
     using ::testing::Eq;
 
-    NiceMock<MockPool> mockPool;
+    NiceMock<MockContractionPool> mockPool;
     int version = 0;
 
     ContractionTree tree;
@@ -1474,11 +1469,12 @@ TEST_F(ADynamicHypergraph,CreatesInitialGroupsForUniformVersion1){
 //    tree.setParent(5, 1, version); tree.setInterval(5,7,8);
 //    tree.setParent(6, 3, version); tree.setInterval(6,9,10);
 
-    ContractionGroup expectedGroup1 = { Contraction {0, 1}};
-    ContractionGroup expectedGroup2 = { Contraction {0, 2}, Contraction {0, 3}};
+    ContractionGroup forbiddenGroup1 = { Contraction {0, 1}};
+    ContractionGroup expectedGroup1 = { Contraction {0, 2}, Contraction {0, 3}};
 
+    // expect insertion of the contraction group that was contracted last but explicitly no insertion of the sibling group that was contracted strictly earlier
     EXPECT_CALL(mockPool, insertContractionGroup (Eq(expectedGroup1)));
-    EXPECT_CALL(mockPool, insertContractionGroup (Eq(expectedGroup2)));
+    EXPECT_CALL(mockPool, insertContractionGroup (Eq(forbiddenGroup1))).Times(0);
 
     hypergraph.initializeUncontractionPoolForVersion(tree.copy(),mockPool,version);
 }
@@ -1487,7 +1483,7 @@ TEST_F(ADynamicHypergraph,CreatesInitialGroupsForUniformVersion2){
     using ::testing::NiceMock;
     using ::testing::Eq;
 
-    NiceMock<MockPool> mockPool;
+    NiceMock<MockContractionPool> mockPool;
     int version = 0;
 
     // roots 0 and 4
@@ -1503,15 +1499,17 @@ TEST_F(ADynamicHypergraph,CreatesInitialGroupsForUniformVersion2){
     tree.setParent(5, 4, version); tree.setInterval(5,7,8); // 5,6 are siblings but do not have overlapping intervals
     tree.setParent(6, 4, version); tree.setInterval(6,9,10);
 
-    ContractionGroup expectedGroup1 = { Contraction {0, 1}};
-    ContractionGroup expectedGroup2 = { Contraction {0, 2}, Contraction {0, 3}};
-    ContractionGroup expectedGroup3 = {Contraction {4, 5}};
-    ContractionGroup expectedGroup4 = {Contraction {4, 6}};
+    ContractionGroup expectedGroup1 = { Contraction {0, 2}, Contraction {0, 3}};
+    ContractionGroup expectedGroup2 = {Contraction {4, 6}};
+    ContractionGroup forbiddenGroup1 = { Contraction {0, 1}};
+    ContractionGroup forbiddenGroup2 = {Contraction {4, 5}};
 
+    // For both roots expect the group that has been contracted last to be inserted
     EXPECT_CALL(mockPool, insertContractionGroup (Eq(expectedGroup1)));
     EXPECT_CALL(mockPool, insertContractionGroup (Eq(expectedGroup2)));
-    EXPECT_CALL(mockPool, insertContractionGroup (Eq(expectedGroup3)));
-    EXPECT_CALL(mockPool, insertContractionGroup (Eq(expectedGroup4)));
+    // For both roots expect that earlier groups are not inserted!
+    EXPECT_CALL(mockPool, insertContractionGroup (Eq(forbiddenGroup1))).Times(0);
+    EXPECT_CALL(mockPool, insertContractionGroup (Eq(forbiddenGroup2))).Times(0);
 
     hypergraph.initializeUncontractionPoolForVersion(tree.copy(),mockPool,version);
 }
@@ -1520,7 +1518,7 @@ TEST_F(ADynamicHypergraph,CreatesInitialGroupsForDifferentVersions){
             using ::testing::NiceMock;
             using ::testing::Eq;
 
-            NiceMock<MockPool> mockPool;
+            NiceMock<MockContractionPool> mockPool;
             int version0 = 1;
             int version1 = 0;
 
@@ -1536,21 +1534,23 @@ TEST_F(ADynamicHypergraph,CreatesInitialGroupsForDifferentVersions){
             tree.setParent(5, 1, version1); tree.setInterval(5,7,8);
             tree.setParent(6, 3, version1); tree.setInterval(6,9,10);
 
-            ContractionGroup expectedGroup1 = { Contraction {0, 1}};
-            ContractionGroup expectedGroup2 = { Contraction {0, 2}};
+            ContractionGroup expectedGroup1 = { Contraction {0, 2}};
+            ContractionGroup forbiddenGroup1 = { Contraction {0, 1}};
 
+            // Only allow insertion of group that was contracted last
             EXPECT_CALL(mockPool, insertContractionGroup (Eq(expectedGroup1)));
-            EXPECT_CALL(mockPool, insertContractionGroup (Eq(expectedGroup2)));
+            EXPECT_CALL(mockPool, insertContractionGroup (Eq(forbiddenGroup1))).Times(0);
 
             hypergraph.initializeUncontractionPoolForVersion(tree.copy(),mockPool,version0, 2);
 
-
             ContractionGroup expectedGroup3 = {Contraction {0,3}};
             ContractionGroup expectedGroup4 = {Contraction {1, 4}, Contraction {1, 5}};
-//            ContractionGroup expectedGroup5 = {Contraction {3, 6}};
+            // Do not expect insertion of contraction (3,6) as 3 is not a root of version 1
+            ContractionGroup forbiddenGroup2 = {Contraction {3, 6}};
 
             EXPECT_CALL(mockPool, insertContractionGroup (Eq(expectedGroup3)));
             EXPECT_CALL(mockPool, insertContractionGroup (Eq(expectedGroup4)));
+            EXPECT_CALL(mockPool, insertContractionGroup (Eq(forbiddenGroup2))).Times(0);
 
             hypergraph.initializeUncontractionPoolForVersion(tree.copy(),mockPool,version1, 2);
 

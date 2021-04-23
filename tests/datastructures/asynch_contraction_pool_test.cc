@@ -14,7 +14,7 @@ namespace mt_kahypar::ds {
 
 TEST(AAsynchContractionPool,InsertGroup) {
 
-    auto pool = AsynchContractionPool();
+    auto pool = SequentialContractionPool();
     Contraction c1 = {1,2};
     Contraction c2 = {1,4};
     Contraction c3 = {1,12567};
@@ -29,7 +29,7 @@ TEST(AAsynchContractionPool,InsertGroup) {
 
 TEST(AAsynchContractionPool,InsertSingleContraction) {
 
-    auto pool = AsynchContractionPool();
+    auto pool = SequentialContractionPool();
     Contraction c1 = {1,2};
 
     pool.insertContraction(c1);
@@ -41,7 +41,7 @@ TEST(AAsynchContractionPool,InsertSingleContraction) {
 
 TEST(AAsynchContractionPool, ContainsTest){
 
-        auto pool = AsynchContractionPool();
+        auto pool = SequentialContractionPool();
         Contraction c1 = {1,2};
         Contraction c2 = {1,4};
         Contraction c3 = {1,3};
@@ -81,7 +81,7 @@ TEST(AAsynchContractionPool, ContainsTest){
 
 TEST(AAsynchContractionPool, PickAnyTest) {
 
-    auto pool = AsynchContractionPool();
+    auto pool = SequentialContractionPool();
     Contraction c1 = {1,2};
     Contraction c2 = {1,4};
     Contraction c3 = {2,3};
@@ -119,7 +119,7 @@ TEST(AContractionGroup, EqualityTest) {
 
 TEST(AAsynchContractionPoolDeathTest, InsertFailsIfEmptyDeathTest) {
     testing::FLAGS_gtest_death_test_style="threadsafe";
-    auto pool = AsynchContractionPool();
+    auto pool = SequentialContractionPool();
     ContractionGroup group;
 
     EXPECT_DEATH(pool.insertContractionGroup(group),"");
@@ -127,7 +127,7 @@ TEST(AAsynchContractionPoolDeathTest, InsertFailsIfEmptyDeathTest) {
 
 TEST(AContractionGroupDeathTest, ConstructionFailsIfGroupHasDifferentRepsDeathTest) {
     testing::FLAGS_gtest_death_test_style="threadsafe";
-    auto pool = AsynchContractionPool();
+    auto pool = SequentialContractionPool();
     Contraction c1 = {1,2};
     Contraction c2 = {2,3};
     ASSERT_DEATH(ContractionGroup({c1,c2}),"");

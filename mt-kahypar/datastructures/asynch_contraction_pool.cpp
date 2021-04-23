@@ -4,31 +4,31 @@
 
 #include "asynch_contraction_pool.h"
 
-uint64_t mt_kahypar::ds::AsynchContractionPool::unsafe_size() {
-    return groups.unsafe_size();
+uint64_t mt_kahypar::ds::SequentialContractionPool::unsafe_size() const {
+    return groups.size();
 }
 
-bool mt_kahypar::ds::AsynchContractionPool::empty() {
+bool mt_kahypar::ds::SequentialContractionPool::empty() const {
     return groups.empty();
 }
 
-void mt_kahypar::ds::AsynchContractionPool::insertContractionGroup(const mt_kahypar::ds::ContractionGroup& group) {
+void mt_kahypar::ds::SequentialContractionPool::insertContractionGroup(const mt_kahypar::ds::ContractionGroup& group) {
     ASSERT(!group.empty());
 
-    groups.push(group);
+    groups.push_back(group);
 }
 
-void mt_kahypar::ds::AsynchContractionPool::insertContraction(mt_kahypar::ds::Contraction contraction) {
+void mt_kahypar::ds::SequentialContractionPool::insertContraction(mt_kahypar::ds::Contraction contraction) {
     ContractionGroup group = {contraction};
     insertContractionGroup(group);
 }
 
-bool mt_kahypar::ds::AsynchContractionPool::contains(const mt_kahypar::ds::ContractionGroup& group) {
+bool mt_kahypar::ds::SequentialContractionPool::contains(const mt_kahypar::ds::ContractionGroup& group) const {
 
     std::cout << "Searching for: \n";
     group.debugPrint();
 
-    for (auto it = groups.unsafe_begin(); it != groups.unsafe_end(); ++it) {
+    for (auto it = groups.begin(); it != groups.end(); ++it) {
 //        std::cout << it->size() << "\n";
         ContractionGroup poolEl = *it;
         if (poolEl == group) {
@@ -42,18 +42,18 @@ bool mt_kahypar::ds::AsynchContractionPool::contains(const mt_kahypar::ds::Contr
     return false;
 }
 
-bool mt_kahypar::ds::AsynchContractionPool::contains(mt_kahypar::ds::Contraction contraction) {
-    for (auto it = groups.unsafe_begin(); it != groups.unsafe_end(); ++it) {
+bool mt_kahypar::ds::SequentialContractionPool::contains(mt_kahypar::ds::Contraction contraction) const {
+    for (auto it = groups.begin(); it != groups.end(); ++it) {
         ContractionGroup group = *it;
         if (group.contains(contraction)) return true;
     }
     return false;
 }
 
-mt_kahypar::ds::ContractionGroup mt_kahypar::ds::AsynchContractionPool::pickAnyGroup() {
+mt_kahypar::ds::ContractionGroup mt_kahypar::ds::SequentialContractionPool::pickAnyGroup() {
     ASSERT(!groups.empty());
-    ContractionGroup result;
-    groups.try_pop(result);
+    ContractionGroup result = groups.front();
+    groups.pop_front();
     return result;
 }
 

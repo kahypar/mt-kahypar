@@ -278,5 +278,111 @@ void ContractionTree::memoryConsumption(utils::MemoryTreeNode* parent) const {
   parent->addChild("Incidence Array", sizeof(HypernodeID) * _incidence_array.size());
 }
 
-}  // namespace ds
+
+void UncontractionGroupTree::freeInternalData() {
+    if (_num_group_nodes > 0 ) {
+        parallel::parallel_free(_tree, _roots, _out_degrees,_current_child_offsets, _incidence_array);
+    }
+    _num_group_nodes = 0;
+}
+
+UncontractionGroupTree::UncontractionGroupTree(ContractionTree &contractionTree, size_t version)
+        : _contraction_tree(contractionTree),
+          _num_group_nodes(0),
+          _version(version) {
+    ASSERT(_contraction_tree.isFinalized());
+
+    _out_degrees.push_back(0);
+
+    insertInitialNodesForVersion();
+}
+
+void UncontractionGroupTree::insertInitialNodesForVersion() {
+
+    auto versionRoots = _contraction_tree.roots_of_version(_version);
+
+//    std::cout << "Roots of version " << version << " are: ";
+//    for (auto r : versionRoots) {
+//        std::cout << r << ", ";
+//    }
+//    std::cout << "\n";
+
+    for (auto root: versionRoots) {
+        auto it = _contraction_tree.childs(root);
+        auto current = it.begin();
+        auto end = it.end();
+        while ( current != end && _contraction_tree.version(*current) != _version ) {
+            ++current;
+        }
+
+//        std::cout << "Children of root " << root << " with version " << version << " are: ";
+//        auto printChildIterator = current;
+//        while (printChildIterator != end && _contraction_tree.version(*printChildIterator) == version) {
+//            if (printChildIterator != current) std::cout << ", ";
+//            std::cout << *printChildIterator;
+//            ++printChildIterator;
+//        }
+//        std::cout << "\n";
+
+        if (current == end) continue;
+
+        // partition children into groups:
+
+        std::vector<Contraction> inRootGroup;
+        ContractionInterval current_ival = _contraction_tree.interval(*current);
+        inRootGroup.push_back(Contraction {root, *current});
+        ++current;
+        while (current != end && _contraction_tree.version(*current) == _version) {
+            auto sibling = *current;
+            ContractionInterval sibling_ival = _contraction_tree.interval(sibling);
+
+            ASSERT(_contraction_tree.parent(sibling) == root);
+            if (!doIntervalsIntersect(current_ival,sibling_ival)) {
+                // Group is finished as interval does not intersect anymore (and intervals are ordered)
+                break;
+            }
+
+            // Add sibling to group and continue with next sibling (child of this root)
+            inRootGroup.push_back(Contraction {root, sibling});
+            current_ival.start = std::min(current_ival.start, sibling_ival.start);
+            current_ival.end = std::max(current_ival.end, sibling_ival.end);
+            ++current;
+        }
+
+        // End of children in this version (that intersect with last contraction group) has been reached so finish up by adding group to pool
+        auto group = ContractionGroup(inRootGroup);
+//        group.debugPrint();
+        pool.insertContractionGroup(group);
+    }
+
+}
+
+bool UncontractionGroupTree::doIntervalsIntersect(const ContractionInterval& i1, const ContractionInterval& i2) {
+    if (i1.start == kInvalidHypernode || i2.start == kInvalidHypernode) {
+        return false;
+    }
+    return (i1.start <= i2.end && i1.end >= i2.end) ||
+           (i2.start <= i1.end && i2.end >= i1.end);
+}
+
+void UncontractionGroupTree::insertGroup(ContractionGroup group, GroupNodeID parent, bool hasHorizontalChild) {
+
+    auto node = GroupNode(group,_version,parent);
+
+    // Add new node into the tree at _num_group_nodes (i.e. its ID is _num_group_nodes, the next free sequential ID)
+    _tree[_num_group_nodes] = node;
+
+    // Add it into the incidence array of the parent at the right offset and increase the child offset by 1
+    ASSERT(_out_degrees[parent]+_current_child_offsets[parent] < _out_degrees[parent+1]);
+    _incidence_array[_out_degrees[parent]+_current_child_offsets[parent]] = _num_group_nodes;
+    ++_current_child_offsets[parent];
+
+    auto numVertical = std::count_if(group.begin(),group.end(),[&](Memento member) {return _contraction_tree.degree(member.v) > 0;});
+    auto numChildren = numVertical + (hasHorizontalChild? 1 : 0);
+    _out_degrees[_num_group_nodes + 1] = _out_degrees[_num_group_nodes] + numChildren;
+
+    ++_num_group_nodes;
+}
+
+    }  // namespace ds
 }  // namespace mt_kahypar
