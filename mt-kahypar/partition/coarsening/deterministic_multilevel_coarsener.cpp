@@ -19,8 +19,10 @@
 ******************************************************************************/
 
 #include "deterministic_multilevel_coarsener.h"
-
 #include "mt-kahypar/utils/progress_bar.h"
+
+#include <tbb/parallel_sort.h>
+
 
 namespace mt_kahypar {
 
@@ -38,6 +40,7 @@ void DeterministicMultilevelCoarsener::coarsenImpl() {
     vec<HypernodeID> clusters(num_nodes, kInvalidHypernode);
     tbb::parallel_for(0UL, num_nodes, [&](HypernodeID u) {
       cluster_weight[u] = hg.nodeWeight(u);
+      opportunistic_cluster_weight[u] = cluster_weight[u];
       clusters[u] = u;
     });
 
@@ -46,12 +49,10 @@ void DeterministicMultilevelCoarsener::coarsenImpl() {
     size_t num_sub_rounds = 16;
     size_t num_buckets = utils::ParallelPermutation<HypernodeID>::num_buckets;
     size_t num_buckets_per_sub_round = parallel::chunking::idiv_ceil(num_buckets, num_sub_rounds);
-    for (size_t sub_round = 0; sub_round < num_sub_rounds; ++sub_round) {
-      if (num_nodes < currentLevelContractionLimit()) {
-        break;
-      }
-
-      auto [first_bucket, last_bucket] = parallel::chunking::bounds(sub_round, num_buckets, num_buckets_per_sub_round);
+    for (size_t sub_round = 0; sub_round < num_sub_rounds && num_nodes > currentLevelContractionLimit(); ++sub_round) {
+      size_t first_bucket, last_bucket;
+      std::tie(first_bucket, last_bucket) = parallel::chunking::bounds(sub_round, num_buckets, num_buckets_per_sub_round);
+      //auto [first_bucket, last_bucket] = parallel::chunking::bounds(sub_round, num_buckets, num_buckets_per_sub_round);
       size_t first = permutation.bucket_bounds[first_bucket];
       size_t last = permutation.bucket_bounds[last_bucket];
 
@@ -64,17 +65,69 @@ void DeterministicMultilevelCoarsener::coarsenImpl() {
         }
       });
 
-      // can ask whether vertex v is in current sub_round via
-      // size_t bucket_v = permutation.get_bucket(v);
-      // bool in_sub_round = bucket_v >= first_bucket && bucket_v < last_bucket;
-      // --> wouldn't need two separate arrays 'clusters' and 'propositions'
-      // if the vertex is in a current bucket, the entry is the proposition, otherwise its cluster
+      auto in_round = [&](HypernodeID v) {
+        size_t bucket_v = permutation.get_bucket(v);
+        return bucket_v >= first_bucket && bucket_v < last_bucket;
+      };
+      // --> don't need two separate arrays 'clusters' and 'propositions'
+      // if in_round(v), the entry is the proposition, otherwise its cluster
 
-      // approve and execute or deny their requests
+      tbb::enumerable_thread_specific<size_t> num_contracted_nodes {0};
+
+      // already approve if we can grant all requests for proposed cluster
+      // otherwise insert to shared vector so that we can group vertices by cluster
       tbb::parallel_for(first, last, [&](size_t pos) {
         HypernodeID u = permutation.at(pos);
+        if (propositions[u] != u) {
+          if (opportunistic_cluster_weight[propositions[u]] <= _context.coarsening.max_allowed_node_weight) {
+            num_contracted_nodes.local() += 1;
+            clusters[u] = propositions[u];
+            cluster_weight[propositions[u]] = opportunistic_cluster_weight[propositions[u]];
+          } else {
+            nodes_in_too_heavy_clusters.push_back_buffered(u);
+            // nodes_in_too_heavy_clusters.push_back_atomic(u);
+          }
+        }
       });
 
+      nodes_in_too_heavy_clusters.finalize();
+
+      if (nodes_in_too_heavy_clusters.size() > 0) {
+        // group vertices by desired cluster, if their cluster is too heavy. approve the lower weight nodes first
+
+        // if this is too slow, check out IPS4O as sorting algorithm, or packing the data into a struct?
+        auto comp = [&](HypernodeID lhs, HypernodeID rhs) {
+          HypernodeWeight wl = hg.nodeWeight(lhs), wr = hg.nodeWeight(rhs);
+          return std::tie(propositions[lhs], wl, lhs) < std::tie(propositions[rhs], wr, rhs);
+        };
+        tbb::parallel_sort(nodes_in_too_heavy_clusters.begin(), nodes_in_too_heavy_clusters.end(), comp);
+
+        tbb::parallel_for(0UL, nodes_in_too_heavy_clusters.size(), [&](size_t pos) {
+          HypernodeID u = nodes_in_too_heavy_clusters[pos];
+          HypernodeID target = propositions[u];
+          // if u is the first vertex for this cluster, it's responsible for the approval
+          if (pos == 0 || propositions[nodes_in_too_heavy_clusters[pos - 1]] != target) {
+            HypernodeWeight target_weight = cluster_weight[target];
+            size_t first_rejected = pos;
+            for (; ; ++first_rejected) {    // could be parallelized without extra memory but factor 2 work overhead and log(n) depth via binary search
+              // we know that this cluster is too heavy, so the loop will terminate before
+              assert(first_rejected < nodes_in_too_heavy_clusters.size());
+              assert(propositions[nodes_in_too_heavy_clusters[first_rejected]] == target);
+              HypernodeID v = nodes_in_too_heavy_clusters[first_rejected];
+              if (target_weight + hg.nodeWeight(v) > _context.coarsening.max_allowed_node_weight) {
+                break;
+              }
+              clusters[v] = target;
+              target_weight += hg.nodeWeight(v);
+            }
+            cluster_weight[target] = target_weight;
+            opportunistic_cluster_weight[target] = target_weight;
+            num_contracted_nodes.local() += (first_rejected - pos);
+          }
+        });
+      }
+
+      nodes_in_too_heavy_clusters.clear();
     }
 
     if (num_nodes_before_pass / num_nodes <= _context.coarsening.minimum_shrink_factor) {
@@ -132,7 +185,7 @@ void DeterministicMultilevelCoarsener::calculatePreferredTargetCluster(Hypernode
     HypernodeID neighbor = it->key;
     double neighbor_score = it->value;
     HypernodeID target_cluster = clusters[neighbor];
-    if (target_cluster != neighbor) {
+    if (target_cluster != neighbor) {     // this doesn't work with unstable leaders
       ratings[target_cluster] += neighbor_score;
     }
     double target_score = ratings[target_cluster];
@@ -148,17 +201,23 @@ void DeterministicMultilevelCoarsener::calculatePreferredTargetCluster(Hypernode
   }
   */
 
+   HypernodeID best_target;
   if (best_targets.size() == 1) {
-    proposition[u] = best_targets[0];
-  } else if (best_targets.size() == 0) {
-    proposition[u] = u;
+    best_target = best_targets[0];
+  } else if (best_targets.empty()) {
+    best_target = u;
   } else {
     hashing::SimpleIntHash<uint32_t> sih;
     hashing::HashRNG hash_prng(sih, u);
     size_t pos = std::uniform_int_distribution<uint32_t>(0, best_targets.size() - 1)(hash_prng);
-    proposition[u] = best_targets[pos];
+    best_target = best_targets[pos];
   }
   best_targets.clear();
+
+  if (best_target != u) {
+    propositions[u] = best_target;
+    __atomic_fetch_add(&opportunistic_cluster_weight[best_target], hg.nodeWeight(u), __ATOMIC_RELAXED);
+  }
 }
 
 }

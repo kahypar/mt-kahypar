@@ -25,6 +25,7 @@
 
 #include "mt-kahypar/utils/reproducible_random.h"
 #include "mt-kahypar/datastructures/sparse_map.h"
+#include "mt-kahypar/datastructures/buffered_vector.h"
 
 #include <tbb/enumerable_thread_specific.h>
 
@@ -36,8 +37,10 @@ public:
   DeterministicMultilevelCoarsener(Hypergraph& hypergraph, const Context& context, const TaskGroupID task_group_id,
                                    const bool top_level) :
     Base(hypergraph, context, task_group_id, top_level),
-    proposition(hypergraph.initialNumNodes(), kInvalidHypernode),
+    propositions(hypergraph.initialNumNodes()),
     cluster_weight(hypergraph.initialNumNodes(), 0),
+    opportunistic_cluster_weight(hypergraph.initialNumNodes(), 0),
+    nodes_in_too_heavy_clusters(hypergraph.initialNumNodes()),
     default_rating_maps(hypergraph.initialNumNodes())
   {
   }
@@ -52,9 +55,16 @@ private:
   using Base::_context;
   using Base::_task_group_id;
 
+  struct Proposition {
+    HypernodeID node = kInvalidHypernode, cluster = kInvalidHypernode;
+    HypernodeWeight weight = 0;
+  };
+
   utils::ParallelPermutation<HypernodeID> permutation;
-  vec<HypernodeID> proposition;
-  vec<HypernodeWeight> cluster_weight;
+  vec<HypernodeID> propositions;
+  vec<HypernodeWeight> cluster_weight, opportunistic_cluster_weight;
+  ds::BufferedVector<HypernodeID> nodes_in_too_heavy_clusters;
+
 
   tbb::enumerable_thread_specific<ds::SparseMap<HypernodeID, double>> default_rating_maps;
   tbb::enumerable_thread_specific<vec<HypernodeID>> ties;
