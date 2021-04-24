@@ -11,61 +11,12 @@
 
 #include <utility>
 #include "hypergraph_common.h"
+#include "uncontraction_group_tree.h"
 #include <list>
 
 namespace mt_kahypar::ds
 {
 
-    using Contraction = Memento;
-    typedef std::vector<Contraction>::iterator ContractionIterator;
-
-    class ContractionGroup {
-
-
-private:
-
-    std::vector<Contraction> contractions;
-
-    /// Check if all contractions have the same representative
-    bool sanityCheck() {
-        auto repr = contractions.at(0).u;
-        return std::all_of(contractions.begin(),contractions.end(),[repr](Contraction c){return c.u == repr;});
-    };
-
-public:
-
-        bool empty() const {return contractions.empty();};
-        uint64_t size() const {return contractions.size();};
-
-        Contraction at(int i) const {return contractions.at(i);};
-
-        ContractionGroup() = default;
-        ContractionGroup(std::initializer_list<Contraction> init) : contractions(init) {
-            ASSERT(sanityCheck());
-        };
-
-        explicit ContractionGroup(std::vector<Contraction> init) : contractions(std::move(init)) {
-            ASSERT(sanityCheck());
-        }
-
-    /// This function is linear in the number of contractions. Only use for debugging!
-    bool contains(Contraction contraction) const;
-
-    /// This function is quadratic in the group size. Only use for debugging!
-    bool operator==(const ContractionGroup &rhs) const;
-
-    /// This function is quadratic in the group size. Only use for debugging!
-    bool operator!=(const ContractionGroup &rhs) const;
-
-    ContractionIterator begin() {return contractions.begin();};
-    ContractionIterator end() {return contractions.end();};
-    auto cbegin() const {return contractions.begin();};
-    auto cend() const {return contractions.end();};
-    auto begin() const {return contractions.begin();};
-    auto end() const {return contractions.end();};
-
-        void debugPrint() const;
-    };
 
 //    ContractionIterator begin(ContractionGroup& group){return group.begin();};
 //    ContractionIterator end(ContractionGroup& group){return group.end();};

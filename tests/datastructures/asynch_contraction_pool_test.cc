@@ -101,36 +101,5 @@ TEST(AAsynchContractionPool, PickAnyTest) {
     ASSERT_TRUE(poolCopy.contains(picked));
 }
 
-TEST(AContractionGroup, EqualityTest) {
-        Contraction c1 = {1,2};
-        Contraction c2 = {1,4};
-        Contraction c3 = {1,3};
-        ContractionGroup group1 = {c1,c2};
-        ContractionGroup group2 = {c1,c3};
-        ContractionGroup group3 = {c2,c1};
-
-        ASSERT_FALSE(group1 == group2);
-        ASSERT_TRUE(group1 == group3);
-
-        ContractionGroup group4 = {c1};
-        ASSERT_FALSE(group1 == group4);
-        ASSERT_FALSE(group4 == group1);
-}
-
-TEST(AAsynchContractionPoolDeathTest, InsertFailsIfEmptyDeathTest) {
-    testing::FLAGS_gtest_death_test_style="threadsafe";
-    auto pool = SequentialContractionPool();
-    ContractionGroup group;
-
-    EXPECT_DEATH(pool.insertContractionGroup(group),"");
-}
-
-TEST(AContractionGroupDeathTest, ConstructionFailsIfGroupHasDifferentRepsDeathTest) {
-    testing::FLAGS_gtest_death_test_style="threadsafe";
-    auto pool = SequentialContractionPool();
-    Contraction c1 = {1,2};
-    Contraction c2 = {2,3};
-    ASSERT_DEATH(ContractionGroup({c1,c2}),"");
-}
 
 } // namespace mt_kahypar

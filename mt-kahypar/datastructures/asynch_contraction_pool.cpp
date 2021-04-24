@@ -50,36 +50,3 @@ bool mt_kahypar::ds::SequentialContractionPool::contains(mt_kahypar::ds::Contrac
     return false;
 }
 
-mt_kahypar::ds::ContractionGroup mt_kahypar::ds::SequentialContractionPool::pickAnyGroup() {
-    ASSERT(!groups.empty());
-    ContractionGroup result = groups.front();
-    groups.pop_front();
-    return result;
-}
-
-
-bool mt_kahypar::ds::ContractionGroup::contains(mt_kahypar::ds::Contraction contraction) const {
-    if (std::any_of(contractions.begin(),contractions.end(),[contraction](Contraction e){return e.u == contraction.u && e.v == contraction.v;})) {
-        return true;
-    }
-    return false;
-}
-
-bool mt_kahypar::ds::ContractionGroup::operator==(const mt_kahypar::ds::ContractionGroup &rhs) const {
-
-    bool rhsContainsThis = (std::all_of(contractions.begin(),contractions.end(),[rhs](Contraction e){return rhs.contains(e);}));
-    bool thisContainsRhs = (std::all_of(rhs.begin(),rhs.end(),[this](Contraction e){return this->contains(e);}));
-
-    return rhsContainsThis && thisContainsRhs;
-}
-
-bool mt_kahypar::ds::ContractionGroup::operator!=(const mt_kahypar::ds::ContractionGroup &rhs) const {
-    return !(rhs == *this);
-}
-
-void mt_kahypar::ds::ContractionGroup::debugPrint() const {
-    std::cout << "\tGroup has " << size() << " contractions: \n";
-    for (auto &c : *this) {
-        std::cout << "\t\t(u: " << c.u << ", v: " << c.v << ")\n";
-    }
-}

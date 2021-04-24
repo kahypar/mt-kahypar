@@ -4,7 +4,7 @@ target_link_libraries(MtKaHyParFast pthread)
 set_property(TARGET MtKaHyParFast PROPERTY CXX_STANDARD 17)
 set_property(TARGET MtKaHyParFast PROPERTY CXX_STANDARD_REQUIRED ON)
 
-add_executable(MtKaHyParStrong kahypar.cc)
+add_executable(MtKaHyParStrong kahypar.cc ../datastructures/uncontraction_group_tree.cpp ../datastructures/uncontraction_group_tree.h)
 target_link_libraries(MtKaHyParStrong ${Boost_LIBRARIES})
 target_link_libraries(MtKaHyParStrong pthread)
 set_property(TARGET MtKaHyParStrong PROPERTY CXX_STANDARD 17)

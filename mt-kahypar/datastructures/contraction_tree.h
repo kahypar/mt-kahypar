@@ -29,7 +29,6 @@
 #include "mt-kahypar/utils/memory_tree.h"
 #include "mt-kahypar/datastructures/hypergraph_common.h"
 #include "mt-kahypar/utils/range.h"
-#include "asynch_contraction_pool.h"
 
 namespace mt_kahypar {
 namespace ds {
@@ -332,78 +331,6 @@ class ContractionTree {
   parallel::scalable_vector<parallel::scalable_vector<HypernodeID>> _version_roots;
   parallel::scalable_vector<parallel::IntegralAtomicWrapper<HypernodeID>> _out_degrees;
   parallel::scalable_vector<HypernodeID> _incidence_array;
-};
-
-/// Data structure that contains a tree specifying the order in which contraction groups of a particular version have to
-/// be uncontracted due to contraction order between parent and child in the contraction tree
-/// ("vertical order") and due to contraction order between siblings in the contraction tree ("horizontal order"). A group
-/// can have at most as many vertical children as it has members (for each group member the group of its children that was
-/// contracted last). A group can have at most one horizontal child (the group of siblings in the contraction tree that
-/// was contracted before it).
-/// A contraction group is a set of contractions with the same representative that were contracted simultaneously
-/// (i.e. their contraction intervals have transitive overlap) which means they have to be uncontracted simultanneously
-/// as well. Starting with the root groups for a version, a group can only be uncontracted once its parent group in the
-/// GroupUncontractionForest has been uncontracted.
-class UncontractionGroupTree {
-
-    static constexpr size_t kInvalidVersion = std::numeric_limits<size_t>::max();
-    using GroupNodeID = size_t;
-    using ContractionInterval = typename ContractionTree::Interval;
-
-private:
-    struct GroupNode {
-    public:
-        GroupNode(ContractionGroup group,size_t version,GroupNodeID parent) : _parent(parent),_version(version),_group(group){}
-
-//        GroupNode(GroupNode& other) : _parent(other._parent), _version(other._version),_group(other._group) {}
-
-//        GroupNode& operator=(const GroupNode& other) {
-//            if (this != &other) {
-//                _parent = other._parent;
-//                _version = other._version;
-//                _group = other._group;
-//            }
-//        }
-
-    private:
-        // position of the nodes parent in the tree vector
-        GroupNodeID _parent;
-        // version of the group (has to be the same for all GroupNodes in a tree)
-        size_t _version;
-        // the contained group
-        ContractionGroup _group;
-    };
-
-    UncontractionGroupTree(ContractionTree& contractionTree, size_t version);
-
-    ~UncontractionGroupTree() {
-        freeInternalData();
-    }
-
-private:
-
-    void freeInternalData();
-
-    void insertInitialNodesForVersion();
-    void insertGroup(ContractionGroup group, GroupNodeID parent, bool hasHorizontalChild);
-
-    bool doIntervalsIntersect(const ContractionInterval& i1, const ContractionInterval& i2);
-
-
-    // Contraction tree that this is based on
-    ContractionTree& _contraction_tree;
-    size_t _num_group_nodes;
-
-    parallel::scalable_vector<GroupNode> _tree;
-    parallel::scalable_vector<GroupNodeID> _roots;
-
-    parallel::scalable_vector<size_t> _current_child_offsets;
-    parallel::scalable_vector<size_t> _out_degrees;
-    parallel::scalable_vector<GroupNodeID> _incidence_array;
-
-    // The hypergraph version that this UncontractionGroupTree is for
-    size_t _version;
-
 };
 
 }  // namespace ds
