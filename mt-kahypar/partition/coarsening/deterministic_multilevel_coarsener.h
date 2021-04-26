@@ -50,7 +50,6 @@ public:
   }
 
 private:
-
   using Base = MultilevelCoarsenerBase;
   using Base::_context;
   using Base::_task_group_id;
@@ -59,6 +58,8 @@ private:
     HypernodeID node = kInvalidHypernode, cluster = kInvalidHypernode;
     HypernodeWeight weight = 0;
   };
+
+  static constexpr bool debug = true;
 
   utils::ParallelPermutation<HypernodeID> permutation;
   vec<HypernodeID> propositions;

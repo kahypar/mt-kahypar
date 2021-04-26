@@ -32,6 +32,7 @@ void DeterministicMultilevelCoarsener::coarsenImpl() {
                                   _context.partition.verbose_output && _context.partition.enable_progress_bar);
 
   std::mt19937 prng(_context.partition.seed);
+  size_t pass = 0;
   while (currentNumNodes() > _context.coarsening.contraction_limit) {
     auto pass_start_time = std::chrono::high_resolution_clock::now();
     const Hypergraph& hg = currentHypergraph();
@@ -78,11 +79,17 @@ void DeterministicMultilevelCoarsener::coarsenImpl() {
       // otherwise insert to shared vector so that we can group vertices by cluster
       tbb::parallel_for(first, last, [&](size_t pos) {
         HypernodeID u = permutation.at(pos);
-        if (propositions[u] != u) {
+        HypernodeID target = propositions[u];
+        if (target != u) {
           if (opportunistic_cluster_weight[propositions[u]] <= _context.coarsening.max_allowed_node_weight) {
-            num_contracted_nodes.local() += 1;
-            clusters[u] = propositions[u];
-            cluster_weight[propositions[u]] = opportunistic_cluster_weight[propositions[u]];
+            // if other nodes joined cluster u but u itself leaves for a different cluster, it doesn't count
+            if (opportunistic_cluster_weight[u] == hg.nodeWeight(u)) {
+              num_contracted_nodes.local() += 1;
+            }
+            //  TODO should we subtract hg.nodeWeight(u) from cluster_weight[u] in this case?
+
+            clusters[u] = target;
+            cluster_weight[target] = opportunistic_cluster_weight[target];
           } else {
             nodes_in_too_heavy_clusters.push_back_buffered(u);
             // nodes_in_too_heavy_clusters.push_back_atomic(u);
@@ -90,9 +97,11 @@ void DeterministicMultilevelCoarsener::coarsenImpl() {
         }
       });
 
+
       nodes_in_too_heavy_clusters.finalize();
 
       if (nodes_in_too_heavy_clusters.size() > 0) {
+        DBG << "fallback on" << V(nodes_in_too_heavy_clusters.size());
         // group vertices by desired cluster, if their cluster is too heavy. approve the lower weight nodes first
 
         // if this is too slow, check out IPS4O as sorting algorithm, or packing the data into a struct?
@@ -103,9 +112,9 @@ void DeterministicMultilevelCoarsener::coarsenImpl() {
         tbb::parallel_sort(nodes_in_too_heavy_clusters.begin(), nodes_in_too_heavy_clusters.end(), comp);
 
         tbb::parallel_for(0UL, nodes_in_too_heavy_clusters.size(), [&](size_t pos) {
-          HypernodeID u = nodes_in_too_heavy_clusters[pos];
-          HypernodeID target = propositions[u];
-          // if u is the first vertex for this cluster, it's responsible for the approval
+          HypernodeID target = propositions[nodes_in_too_heavy_clusters[pos]];
+          // the first vertex for this cluster handles the approval
+          size_t num_contracted_local = 0;
           if (pos == 0 || propositions[nodes_in_too_heavy_clusters[pos - 1]] != target) {
             HypernodeWeight target_weight = cluster_weight[target];
             size_t first_rejected = pos;
@@ -119,10 +128,13 @@ void DeterministicMultilevelCoarsener::coarsenImpl() {
               }
               clusters[v] = target;
               target_weight += hg.nodeWeight(v);
+              if (opportunistic_cluster_weight[v] == hg.nodeWeight(v)) {
+                num_contracted_local += 1;
+              }
             }
             cluster_weight[target] = target_weight;
             opportunistic_cluster_weight[target] = target_weight;
-            num_contracted_nodes.local() += (first_rejected - pos);
+            num_contracted_nodes.local() += num_contracted_local;
           }
         });
       }
@@ -130,8 +142,13 @@ void DeterministicMultilevelCoarsener::coarsenImpl() {
       nodes_in_too_heavy_clusters.clear();
 
       num_nodes -= num_contracted_nodes.combine(std::plus<>());
+
+      DBG << V(sub_round) << V(num_nodes) << V(num_nodes_before_pass);
     }
 
+
+    ++pass;
+    DBG << V(pass) << V(num_nodes) << V(num_nodes_before_pass);
     if (num_nodes_before_pass / num_nodes <= _context.coarsening.minimum_shrink_factor) {
       break;
     }
