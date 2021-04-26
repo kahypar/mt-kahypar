@@ -89,13 +89,14 @@ void DeterministicMultilevelCoarsener::coarsenImpl() {
             if (opportunistic_cluster_weight[u] == hg.nodeWeight(u)) {
               num_contracted_nodes.local() += 1;
             }
-            //  TODO should we subtract hg.nodeWeight(u) from cluster_weight[u] in this case?
-
             clusters[u] = target;
             cluster_weight[target] = opportunistic_cluster_weight[target];
+            // could subtract node weight from cluster_weight[u] to encourage more vertices to join in the second round
+            // if the leader abandons its cluster. however, this is not so likely for the problematic cases
+            // and introduces addtional complexities
           } else {
-            // nodes_in_too_heavy_clusters.push_back_buffered(u);
-            nodes_in_too_heavy_clusters.push_back_atomic(u);
+            nodes_in_too_heavy_clusters.push_back_buffered(u);
+            // nodes_in_too_heavy_clusters.push_back_atomic(u);
           }
         }
       });
