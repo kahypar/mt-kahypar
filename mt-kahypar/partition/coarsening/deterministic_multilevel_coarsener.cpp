@@ -51,9 +51,7 @@ void DeterministicMultilevelCoarsener::coarsenImpl() {
     size_t num_buckets = utils::ParallelPermutation<HypernodeID>::num_buckets;
     size_t num_buckets_per_sub_round = parallel::chunking::idiv_ceil(num_buckets, num_sub_rounds);
     for (size_t sub_round = 0; sub_round < num_sub_rounds && num_nodes > currentLevelContractionLimit(); ++sub_round) {
-      size_t first_bucket, last_bucket;
-      std::tie(first_bucket, last_bucket) = parallel::chunking::bounds(sub_round, num_buckets, num_buckets_per_sub_round);
-      //auto [first_bucket, last_bucket] = parallel::chunking::bounds(sub_round, num_buckets, num_buckets_per_sub_round);
+      auto [first_bucket, last_bucket] = parallel::chunking::bounds(sub_round, num_buckets, num_buckets_per_sub_round);
       assert(first_bucket < last_bucket && last_bucket < permutation.bucket_bounds.size());
       size_t first = permutation.bucket_bounds[first_bucket];
       size_t last = permutation.bucket_bounds[last_bucket];
@@ -103,7 +101,6 @@ void DeterministicMultilevelCoarsener::coarsenImpl() {
       });
 
       nodes_in_too_heavy_clusters.finalize();
-
       if (nodes_in_too_heavy_clusters.size() > 0) {
         // group vertices by desired cluster, if their cluster is too heavy. approve the lower weight nodes first
 
@@ -141,11 +138,8 @@ void DeterministicMultilevelCoarsener::coarsenImpl() {
           }
         });
       }
-
       nodes_in_too_heavy_clusters.clear();
-
       num_nodes -= num_contracted_nodes.combine(std::plus<>());
-
     }
 
     ++pass;
