@@ -857,9 +857,9 @@ class DynamicHypergraph {
    * The two uncontraction functions are required by the partitioned hypergraph to restore
    * pin counts and gain cache values.
    */
-  void uncontractCurrentVersionSequentially(
-          const UncontractionFunction& case_one_func = NOOP_BATCH_FUNC,
-          const UncontractionFunction& case_two_func = NOOP_BATCH_FUNC);
+  void uncontractCurrentVersionSequentially(const UncontractionFunction &case_one_func = NOOP_BATCH_FUNC,
+                                            const UncontractionFunction &case_two_func = NOOP_BATCH_FUNC,
+                                            bool performNoRefinement = false);
 
   /**
    * Uncontracts a batch of contractions in parallel. The batches must be uncontracted exactly
@@ -974,7 +974,7 @@ class DynamicHypergraph {
   parallel::scalable_vector<ParallelHyperedge> removeSinglePinAndParallelHyperedges();
 
   /**
-   * Restores a previously removed set of singple-pin and parallel hyperedges. Note, that hes_to_restore
+   * Restores a previously removed set of single-pin and parallel hyperedges. Note, that hes_to_restore
    * must be exactly the same and given in the reverse order as returned by removeSinglePinAndParallelNets(...).
    */
   void restoreSinglePinAndParallelNets(const parallel::scalable_vector<ParallelHyperedge>& hes_to_restore);
@@ -1171,15 +1171,6 @@ class DynamicHypergraph {
   BatchVector createBatchUncontractionHierarchyForVersion(BatchIndexAssigner& batch_assigner,
                                                           const size_t version);
 
-  /**
-   * Adds the initial uncontractions of a version, i.e. the uncontractions where the representative is
-   * a root of the version, to a given asynchronous uncontraction pool. This is the initial step for uncontracting
-   * a version fully asynchronously.
-   * @param pool the pool to add the initial uncontractions to.
-   * @param version the version of the hypergraph in which the uncontractions live.
-   */
-  void initializeUncontractionPoolForVersion(IContractionPool &pool, const size_t version);
-
 
   // ! Reactivates the pin of the given net for a single uncontraction.
   // ! Analogous to restoreHyperedgeSizeForBatch except for single uncontractions where order by batches is not guaranteed.
@@ -1188,10 +1179,6 @@ class DynamicHypergraph {
   // ! This is not safe for concurrent calls currently!
   // ! todo mlaupichler update pin incidence data structure for unordered asynch modifications
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE void reactivatePinForSingleUncontraction(const HyperedgeID he, HypernodeID v);
-
-public:
-  // ! Only for testing
-  void initializeUncontractionPoolForVersion(ContractionTree&& tree, IContractionPool &pool, const size_t version, const size_t num_versions = 1);
 
 private:
 

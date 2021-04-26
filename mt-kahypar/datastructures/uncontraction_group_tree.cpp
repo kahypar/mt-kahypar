@@ -6,13 +6,6 @@
 
 namespace mt_kahypar::ds {
 
-    mt_kahypar::ds::ContractionGroup mt_kahypar::ds::SequentialContractionPool::pickAnyGroup() {
-        ASSERT(!groups.empty());
-        ContractionGroup result = groups.front();
-        groups.pop_front();
-        return result;
-    }
-
 
     bool mt_kahypar::ds::ContractionGroup::contains(mt_kahypar::ds::Contraction contraction) const {
         if (std::any_of(_contractions.begin(),_contractions.end(),[contraction](Contraction e){return e.u == contraction.u && e.v == contraction.v;})) {
@@ -94,7 +87,7 @@ namespace mt_kahypar::ds {
                (i2.start <= i1.end && i2.end >= i1.end);
     }
 
-    UncontractionGroupTree::ContractionGroupID UncontractionGroupTree::insertGroup(ContractionGroup group, ContractionGroupID parent, bool hasHorizontalChild) {
+    ContractionGroupID UncontractionGroupTree::insertGroup(ContractionGroup group, ContractionGroupID parent, bool hasHorizontalChild) {
 
         ContractionGroupID newID = _num_group_nodes;
         ++_num_group_nodes;

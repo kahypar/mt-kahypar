@@ -266,19 +266,61 @@ void DynamicHypergraph::uncontract(const Batch& batch,
 }
 
 
-void DynamicHypergraph::uncontractCurrentVersionSequentially(const DynamicHypergraph::UncontractionFunction &case_one_func,
-                                                                 const DynamicHypergraph::UncontractionFunction &case_two_func) {
+void DynamicHypergraph::uncontractCurrentVersionSequentially(const UncontractionFunction &case_one_func,
+                                                             const UncontractionFunction &case_two_func,
+                                                             bool performNoRefinement) {
 
-    SequentialContractionPool pool;
-    initializeUncontractionPoolForVersion(pool,_version);
+    const size_t num_versions = _version + 1;
+    _contraction_tree.finalize(num_versions);
 
-    while (!pool.empty()) {
-        auto contractionGroup = pool.pickAnyGroup();
+    UncontractionGroupTree groupTree = UncontractionGroupTree(_contraction_tree, _version);
+    SequentialContractionGroupPool pool(groupTree);
+
+    while (pool.hasActive()) {
+        auto contractionGroupID = pool.pickAnyActiveID();
+        auto contractionGroup = pool.group(contractionGroupID);
         for(auto &memento: contractionGroup) {
 
             ASSERT(!hypernode(memento.u).isDisabled(), "Hypernode" << memento.u << "is disabled");
             ASSERT(hypernode(memento.v).isDisabled(), "Hypernode" << memento.v << "is not invalid");
+
+            _incident_nets.uncontract(memento.u, memento.v,[&](const HyperedgeID e) {
+                // In that case, u and v were both previously part of hyperedge e.
+                reactivatePinForSingleUncontraction(e,memento.v);
+
+                acquireHyperedge(e);
+                case_one_func(memento.u, memento.v, e);
+                releaseHyperedge(e);
+                }, [&](const HyperedgeID e) {
+                // In that case only v was part of hyperedge e before and
+                // u must be replaced by v in hyperedge e
+                const size_t slot_of_u = findPositionOfPinInIncidenceArray(memento.u, e);
+
+                acquireHyperedge(e);
+                ASSERT(_incidence_array[slot_of_u] == memento.u);
+                _incidence_array[slot_of_u] = memento.v;
+                case_two_func(memento.u, memento.v, e);
+                releaseHyperedge(e);
+                }, [&](const HypernodeID u) {
+                acquireHypernode(u);
+                }, [&](const HypernodeID u) {
+                releaseHypernode(u);
+            });
+
+            acquireHypernode(memento.u);
+            // Restore hypernode v which includes enabling it and subtract its weight
+            // from its representative
+            hypernode(memento.v).enable();
+            hypernode(memento.u).setWeight(hypernode(memento.u).weight() - hypernode(memento.v).weight());
+            releaseHypernode(memento.u);
+
         }
+
+        if (!performNoRefinement) {
+            // todo mlaupichler This is where the localized refinement goes (after uncontracting a group sequentially)
+        }
+
+        pool.activateSuccessors(contractionGroupID);
     }
 }
 
@@ -803,23 +845,24 @@ void DynamicHypergraph::restoreHyperedgeSizeForBatch(const HyperedgeID he,
 
 // ! Reactivate the pin of the given net for a single uncontraction.
 // ! Analogous to restoreHyperedgeSizeForBatch except for single uncontractions where order by batches is not guaranteed.
-// ! (Also destroys any order in the incidence array for this hyperedge!)
+// ! (Also destroys any order in the inactive part of the incidence array for this hyperedge!)
 // ! This takes O(n) time for n pins in the edge so it is very much not optimal.
 // ! todo mlaupichler update pin incidence data structure for unordered asynch modifications
 void DynamicHypergraph::reactivatePinForSingleUncontraction(const HyperedgeID he, HypernodeID v) {
 
     // Find position of contracted vertex in inactive part of incidence array of he
     const size_t first_invalid_entry = hyperedge(he).firstInvalidEntry();
-    const size_t last_invalid_entry = hyperedge(he + 1).firstEntry();
+    const size_t first_of_next_he = hyperedge(he + 1).firstEntry();
     size_t pos = first_invalid_entry;
     HypernodeID pin = kInvalidHypernode;
-    for ( ; pos < last_invalid_entry; ++pos ) {
+    for ( ; pos < first_of_next_he; ++pos ) {
         pin = _incidence_array[pos];
         if (pin == v ) {
             break;
         }
     }
-    ASSERT(!(pos == last_invalid_entry && pin != v));
+    ASSERT(pos != first_of_next_he);
+    ASSERT(_incidence_array[pos] == v);
 
     if (pos != first_invalid_entry) {
         auto oldFirst = _incidence_array[first_invalid_entry];
@@ -1083,90 +1126,6 @@ BatchVector DynamicHypergraph::createBatchUncontractionHierarchyForVersion(Batch
   std::reverse(batches.begin(), batches.end());
 
   return batches;
-}
-
-
-void DynamicHypergraph::initializeUncontractionPoolForVersion(IContractionPool &pool, const size_t version) {
-
-
-    // Checks if two contraction intervals intersect
-    auto does_interval_intersect = [&](const ContractionInterval& i1, const ContractionInterval& i2) {
-        if (i1.start == kInvalidHypernode || i2.start == kInvalidHypernode) {
-            return false;
-        }
-        return (i1.start <= i2.end && i1.end >= i2.end) ||
-               (i2.start <= i1.end && i2.end >= i1.end);
-    };
-
-    auto versionRoots = _contraction_tree.roots_of_version(version);
-    std::cout << "Roots of version " << version << " are: ";
-    for (auto r : versionRoots) {
-        std::cout << r << ", ";
-    }
-    std::cout << "\n";
-
-    // Build initial contraction groups to uncontract, i.e. children of the roots of this version, and add them to the pool.
-    // Children of a root u are in the same group if they were contracted simultaneously as indicated by their
-    // contraction time intervals. Only put the group that was contracted last into the pool for each root
-    // in order to preserve the order of uncontractions (other groups of children of the roots are inserted into the pool
-    // once all their siblings that were contracted later than them have been uncontracted).
-    for (auto root: versionRoots) {
-        auto it = _contraction_tree.childs(root);
-        auto current = it.begin();
-        auto end = it.end();
-        while ( current != end && _contraction_tree.version(*current) != version ) {
-            ++current;
-        }
-
-        std::cout << "Children of root " << root << " with version " << version << " are: ";
-        auto printChildIterator = current;
-        while (printChildIterator != end && _contraction_tree.version(*printChildIterator) == version) {
-            if (printChildIterator != current) std::cout << ", ";
-            std::cout << *printChildIterator;
-            ++printChildIterator;
-        }
-        std::cout << "\n";
-
-        if (current == end) continue;
-
-        // partition children into groups:
-
-        std::vector<Contraction> inRootGroup;
-        ContractionInterval current_ival = _contraction_tree.interval(*current);
-        inRootGroup.push_back(Contraction {root, *current});
-        ++current;
-        while (current != end && _contraction_tree.version(*current) == version) {
-            auto sibling = *current;
-            ContractionInterval sibling_ival = _contraction_tree.interval(sibling);
-
-            ASSERT(_contraction_tree.parent(sibling) == root);
-            if (!does_interval_intersect(current_ival,sibling_ival)) {
-                // Group is finished as interval does not intersect anymore (and intervals are ordered)
-                break;
-            }
-
-            // Add sibling to group and continue with next sibling (child of this root)
-            inRootGroup.push_back(Contraction {root, sibling});
-            current_ival.start = std::min(current_ival.start, sibling_ival.start);
-            current_ival.end = std::max(current_ival.end, sibling_ival.end);
-            ++current;
-        }
-
-        // End of children in this version (that intersect with last contraction group) has been reached so finish up by adding group to pool
-        auto group = ContractionGroup(inRootGroup);
-        group.debugPrint();
-        pool.insertContractionGroup(group);
-    }
-
-}
-
-void DynamicHypergraph::initializeUncontractionPoolForVersion(ContractionTree&& tree, IContractionPool &pool, const size_t version, const size_t num_versions) {
-    _contraction_tree = std::move(tree);
-    _version = num_versions - 1;
-
-    _contraction_tree.finalize(num_versions);
-
-    initializeUncontractionPoolForVersion(pool, version);
 }
 
 

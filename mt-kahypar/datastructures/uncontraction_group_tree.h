@@ -11,9 +11,15 @@
 
 namespace mt_kahypar::ds {
 
+    using ContractionGroupID = HypernodeID;
+    using ContractionGroupIDIterator = IteratorRange<parallel::scalable_vector<ContractionGroupID>::const_iterator>;
     using Contraction = Memento;
     typedef std::vector<Contraction>::iterator ContractionIterator;
 
+    /// Represents a group of (un-)contractions that have been contracted simultaneously with the same representative.
+    /// This means the contractions in a group have to be uncontracted simultaneously as well in the sense that no local
+    /// refinement is performed in between uncontractions of the same group as those states may be inconsistent.
+    /// Groups are expected to be small (constant against the number of uncontractions in a graph version).
     class ContractionGroup {
 
     private:
@@ -51,13 +57,13 @@ namespace mt_kahypar::ds {
 
         HypernodeID getRepresentative() const;
 
-        /// This function is linear in the number of contractions. Only use for debugging!
+        /// This function is linear in the number of contractions.
         bool contains(Contraction contraction) const;
 
-        /// This function is quadratic in the group size. Only use for debugging!
+        /// This function is quadratic in the group size.
         bool operator==(const ContractionGroup &rhs) const;
 
-        /// This function is quadratic in the group size. Only use for debugging!
+        /// This function is quadratic in the group size.
         bool operator!=(const ContractionGroup &rhs) const;
 
         ContractionIterator begin() {return _contractions.begin();};
@@ -70,17 +76,14 @@ namespace mt_kahypar::ds {
         void debugPrint() const;
     };
 
-
     /// Pure virtual interface to define functions for a hierarchy of UncontractionGroups in a version.
     /// In this hierarchy an UncontractionGroup is supposed to be uncontracted only once its predecessor has been uncontracted.
     /// This expresses the minimal order between uncontraction groups based on the order of contractions.
-    class UncontractionGroupHierarchy {
+    class IUncontractionGroupHierarchy {
 
     public:
 
         static constexpr size_t kInvalidVersion = std::numeric_limits<size_t>::max();
-        using ContractionGroupID = uint32_t;
-        using ContractionGroupIDIterator = IteratorRange<parallel::scalable_vector<ContractionGroupID>::const_iterator>;
 
         virtual size_t getVersion() const = 0;
         virtual uint32_t getNumGroups() const = 0;
@@ -103,7 +106,7 @@ namespace mt_kahypar::ds {
 /// (i.e. their contraction intervals have transitive overlap) which means they have to be uncontracted simultaneously
 /// as well. Starting with the root groups for a version, a group can only be uncontracted once its parent group in the
 /// GroupUncontractionForest has been uncontracted.
-    class UncontractionGroupTree : public UncontractionGroupHierarchy {
+    class UncontractionGroupTree : public IUncontractionGroupHierarchy {
 
         using ContractionInterval = typename ContractionTree::Interval;
 
@@ -178,7 +181,7 @@ namespace mt_kahypar::ds {
         }
 
         ContractionGroupIDIterator roots() const override {
-            return mt_kahypar::ds::UncontractionGroupHierarchy::ContractionGroupIDIterator(_roots.cbegin(),_roots.cend());
+            return mt_kahypar::ds::ContractionGroupIDIterator(_roots.cbegin(), _roots.cend());
         }
 
     private:

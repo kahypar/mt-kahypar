@@ -4,49 +4,31 @@
 
 #include "asynch_contraction_pool.h"
 
-uint64_t mt_kahypar::ds::SequentialContractionPool::unsafe_size() const {
-    return groups.size();
+uint32_t mt_kahypar::ds::SequentialContractionGroupPool::getNumActive() const {
+    return _active.size();
 }
 
-bool mt_kahypar::ds::SequentialContractionPool::empty() const {
-    return groups.empty();
+const mt_kahypar::ds::ContractionGroup &
+mt_kahypar::ds::SequentialContractionGroupPool::group(mt_kahypar::ds::ContractionGroupID id) const {
+    return _hierarchy.group(id);
 }
 
-void mt_kahypar::ds::SequentialContractionPool::insertContractionGroup(const mt_kahypar::ds::ContractionGroup& group) {
-    ASSERT(!group.empty());
-
-    groups.push_back(group);
+mt_kahypar::ds::ContractionGroupID mt_kahypar::ds::SequentialContractionGroupPool::pickAnyActiveID() {
+    ASSERT(!_active.empty());
+    // This implementation is LIFO
+    auto picked = _active.back();
+    _active.pop_back();
+    return picked;
 }
 
-void mt_kahypar::ds::SequentialContractionPool::insertContraction(mt_kahypar::ds::Contraction contraction) {
-    ContractionGroup group = {contraction};
-    insertContractionGroup(group);
-}
+void mt_kahypar::ds::SequentialContractionGroupPool::activateSuccessors(mt_kahypar::ds::ContractionGroupID id) {
 
-bool mt_kahypar::ds::SequentialContractionPool::contains(const mt_kahypar::ds::ContractionGroup& group) const {
-
-    std::cout << "Searching for: \n";
-    group.debugPrint();
-
-    for (auto it = groups.begin(); it != groups.end(); ++it) {
-//        std::cout << it->size() << "\n";
-        ContractionGroup poolEl = *it;
-        if (poolEl == group) {
-            std::cout << "Found in pool: \n";
-            poolEl.debugPrint();
-            std::cout << "Searched for: \n";
-            group.debugPrint();
-            return true;
-        }
+    auto succs = _hierarchy.successors(id);
+    for (auto s : succs) {
+        _active.push_back(s);
     }
-    return false;
 }
 
-bool mt_kahypar::ds::SequentialContractionPool::contains(mt_kahypar::ds::Contraction contraction) const {
-    for (auto it = groups.begin(); it != groups.end(); ++it) {
-        ContractionGroup group = *it;
-        if (group.contains(contraction)) return true;
-    }
-    return false;
+bool mt_kahypar::ds::SequentialContractionGroupPool::hasActive() const {
+    return !(_active.empty());
 }
-
