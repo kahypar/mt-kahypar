@@ -209,6 +209,12 @@ struct SharedMemoryParameters {
 
 std::ostream & operator<< (std::ostream& str, const SharedMemoryParameters& params);
 
+struct UncoarseningParameters {
+    bool use_asynchronous_uncoarsening = false;
+};
+
+std::ostream & operator<< (std::ostream& str, const UncoarseningParameters& params);
+
 class Context {
  public:
   PartitioningParameters partition { };
@@ -218,6 +224,7 @@ class Context {
   RefinementParameters refinement { };
   SparsificationParameters sparsification { };
   SharedMemoryParameters shared_memory { };
+  UncoarseningParameters uncoarsening { };
   kahypar::ContextType type = kahypar::ContextType::main;
 
   std::string algorithm_name = "Mt-KaHyPar";

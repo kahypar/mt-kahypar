@@ -189,6 +189,15 @@ namespace mt_kahypar {
 
   PartitionedHypergraph&& NLevelCoarsenerBase::doUncoarsen(std::unique_ptr<IRefiner>& label_propagation,
                                                            std::unique_ptr<IRefiner>& fm) {
+
+      //todo mlaupichler remove this (debug)
+      if (_context.uncoarsening.use_asynchronous_uncoarsening) {
+          std::cout << GREEN << "The asynch option is set!";
+      } else {
+          std::cout << RED << "The asynch option is not set!";
+      }
+
+
     ASSERT(_is_finalized);
     kahypar::Metrics current_metrics = initialize(_compactified_phg);
 

@@ -198,6 +198,12 @@ namespace mt_kahypar {
     return str;
   }
 
+  std::ostream & operator<<(std::ostream &str, const UncoarseningParameters &params) {
+      str << "Uncoarsening Parameters:              " << std::endl;
+      str << "  Use Asynchronous Uncoarsening:      " << std::boolalpha << params.use_asynchronous_uncoarsening << std::endl;
+      return str;
+  }
+
 
   bool Context::useSparsification() const {
     return sparsification.use_degree_zero_contractions ||
@@ -394,6 +400,14 @@ namespace mt_kahypar {
                   partition.k,
                   partition.max_part_weights.size());
     }
+
+    if (uncoarsening.use_asynchronous_uncoarsening && partition.paradigm == Paradigm::multilevel) {
+        ALGO_SWITCH("Asynchronous uncoarsening only works with the n-level paradigm."
+                    << "Do you wish to disable asynchronous uncoarsening (Y/N)?",
+                    "Asynchronous uncoarsening only works with the n-level paradigm!",
+                    uncoarsening.use_asynchronous_uncoarsening,
+                    false);
+    }
   }
 
   std::ostream & operator<< (std::ostream& str, const Context& context) {
@@ -415,6 +429,8 @@ namespace mt_kahypar {
         << "-------------------------------------------------------------------------------\n"
         #endif
         << context.shared_memory
+        << "-------------------------------------------------------------------------------\n"
+        << context.uncoarsening
         << "-------------------------------------------------------------------------------";
     return str;
   }
