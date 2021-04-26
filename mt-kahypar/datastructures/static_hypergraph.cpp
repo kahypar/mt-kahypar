@@ -28,7 +28,6 @@
 
 #include <tbb/parallel_reduce.h>
 
-
 namespace mt_kahypar::ds {
 
   // TODO split contraction into multiple functions!
@@ -126,7 +125,6 @@ namespace mt_kahypar::ds {
       ASSERT(hn < communities.size());
       return communities[hn];
     };
-
 
     doParallelForAllNodes([&](const HypernodeID& hn) {
       const HypernodeID coarse_hn = map_to_coarse_hypergraph(hn);
