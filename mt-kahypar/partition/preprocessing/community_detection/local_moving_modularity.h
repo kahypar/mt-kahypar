@@ -30,6 +30,8 @@
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/parallel/atomic_wrapper.h"
 #include "mt-kahypar/utils/randomize.h"
+#include "mt-kahypar/utils/reproducible_random.h"
+
 
 #include "gtest/gtest_prod.h"
 
@@ -42,8 +44,6 @@ namespace mt_kahypar::community_detection {
 
 class ParallelLocalMovingModularity {
  private:
-  static constexpr bool advancedGainAdjustment = false;
-
   using AtomicArcWeight = parallel::AtomicWrapper<ArcWeight>;
   using LargeIncidentClusterWeights = ds::FixedSizeSparseMap<PartitionID, ArcWeight>;
   using CacheEfficientIncidentClusterWeights = ds::FixedSizeSparseMap<PartitionID, ArcWeight>;
@@ -63,7 +63,11 @@ class ParallelLocalMovingModularity {
     _local_large_incident_cluster_weight([&] {
       return construct_large_incident_cluster_weight_map();
     }),
-    _disable_randomization(disable_randomization)
+    _disable_randomization(disable_randomization),
+
+    non_sampling_incident_cluster_weights(numNodes),
+    propositions(numNodes, kInvalidPartition),
+    prng(context.partition.seed)
   { }
 
   ~ParallelLocalMovingModularity();
@@ -71,6 +75,10 @@ class ParallelLocalMovingModularity {
   bool localMoving(Graph& graph, ds::Clustering& communities);
 
  private:
+  size_t parallelNonDeterministicRound(const Graph& graph, ds::Clustering& communities);
+  size_t synchronousParallelRound(const Graph& graph, ds::Clustering& num_moved_partial);
+
+
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE bool ratingsFitIntoSmallSparseMap(const Graph& graph,
                                                                        const HypernodeID u)  {
     static constexpr size_t cache_efficient_map_size = CacheEfficientIncidentClusterWeights::MAP_SIZE / 3UL;
@@ -156,10 +164,15 @@ class ParallelLocalMovingModularity {
   const size_t _vertex_degree_sampling_threshold;
   double _reciprocal_total_volume = 0.0;
   double _vol_multiplier_div_by_node_vol = 0.0;
-  parallel::scalable_vector<AtomicArcWeight> _cluster_volumes;
+  vec<AtomicArcWeight> _cluster_volumes;
   tbb::enumerable_thread_specific<CacheEfficientIncidentClusterWeights> _local_small_incident_cluster_weight;
   tbb::enumerable_thread_specific<LargeIncidentClusterWeights> _local_large_incident_cluster_weight;
   const bool _disable_randomization;
+
+  tbb::enumerable_thread_specific<ds::SparseMap<PartitionID, ArcWeight>> non_sampling_incident_cluster_weights;
+  utils::ParallelPermutation<HypernodeID> permutation;
+  vec<PartitionID> propositions;
+  std::mt19937 prng;
 
 
   FRIEND_TEST(ALouvain, ComputesMaxGainMove1);
