@@ -145,7 +145,6 @@ class MultilevelCoarsener : public ICoarsener,
       _progress_bar.enable();
     }
 
-    std::mt19937 prng(_context.partition.seed);
     int pass_nr = 0;
     const HypernodeID initial_num_nodes = Base::currentNumNodes();
     while ( Base::currentNumNodes() > _context.coarsening.contraction_limit ) {
@@ -173,9 +172,7 @@ class MultilevelCoarsener : public ICoarsener,
       });
 
       if ( _enable_randomization ) {
-        std::shuffle(_current_vertices.begin(), _current_vertices.end(), prng);
-        //utils::Randomize::instance().parallelShuffleVector(
-        //  _current_vertices, 0UL, _current_vertices.size());
+        utils::Randomize::instance().parallelShuffleVector( _current_vertices, 0UL, _current_vertices.size());
       }
       utils::Timer::instance().stop_timer("shuffle_vertices");
 
@@ -196,8 +193,7 @@ class MultilevelCoarsener : public ICoarsener,
       HypernodeID current_num_nodes = num_hns_before_pass;
       tbb::enumerable_thread_specific<HypernodeID> contracted_nodes(0);
       tbb::enumerable_thread_specific<HypernodeID> num_nodes_update_threshold(0);
-      //tbb::parallel_for(ID(0), current_hg.initialNumNodes(), [&](const HypernodeID id) {
-      for (size_t id = 0; id < current_hg.initialNumNodes(); ++id) {
+      tbb::parallel_for(0U, current_hg.initialNumNodes(), [&](const HypernodeID id) {
         ASSERT(id < _current_vertices.size());
         const HypernodeID hn = _current_vertices[id];
         if (current_hg.nodeIsEnabled(hn)) {
@@ -239,7 +235,7 @@ class MultilevelCoarsener : public ICoarsener,
             }
           }
         }
-      }//});
+      });
       if ( _context.partition.show_detailed_clustering_timings ) {
         utils::Timer::instance().stop_timer("clustering_level_" + std::to_string(pass_nr));
       }

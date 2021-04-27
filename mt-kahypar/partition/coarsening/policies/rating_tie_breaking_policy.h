@@ -58,9 +58,7 @@ class FirstRatingWins {
 class RandomRatingWins {
  public:
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE static bool acceptEqual(const int cpu_id) {
-    return true;
-    // TODO for testing only, to force deterministic coarsening independent of scheduling
-    //return utils::Randomize::instance().flipCoin(cpu_id);
+    return utils::Randomize::instance().flipCoin(cpu_id);
   }
 
   RandomRatingWins(const RandomRatingWins&) = delete;
