@@ -84,7 +84,7 @@ class Graph {
   }
 
   // ! Iterator over all adjacent vertices of u
-  // ! If 'n' is set, than only an iterator over the first n elements is returned
+  // ! If 'n' is set, then only an iterator over the first n elements is returned
   IteratorRange<AdjacenceIterator> arcsOf(const NodeID u,
                                           const size_t n = std::numeric_limits<size_t>::max()) const {
     ASSERT(u < _num_nodes);

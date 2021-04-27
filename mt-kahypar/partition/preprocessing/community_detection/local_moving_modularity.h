@@ -63,7 +63,8 @@ class ParallelLocalMovingModularity {
     _local_large_incident_cluster_weight([&] {
       return construct_large_incident_cluster_weight_map();
     }),
-    _disable_randomization(disable_randomization) { }
+    _disable_randomization(disable_randomization)
+  { }
 
   ~ParallelLocalMovingModularity();
 

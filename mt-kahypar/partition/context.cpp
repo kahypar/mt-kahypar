@@ -405,6 +405,16 @@ namespace mt_kahypar {
     }
 
     if ( partition.deterministic ) {
+      coarsening.algorithm = CoarseningAlgorithm::deterministic_multilevel_coarsener;
+
+      // disable FM until we have a deterministic version
+      refinement.fm.algorithm = FMAlgorithm::do_nothing;
+      initial_partitioning.refinement.fm.algorithm = FMAlgorithm::do_nothing;
+
+      // disable adaptive IP
+      initial_partitioning.use_adaptive_ip_runs = false;
+
+
       // switch silently
       auto lp_algo = refinement.label_propagation.algorithm;
       if ( lp_algo != LabelPropagationAlgorithm::do_nothing && lp_algo != LabelPropagationAlgorithm::deterministic ) {
@@ -415,17 +425,6 @@ namespace mt_kahypar {
       if ( lp_algo != LabelPropagationAlgorithm::do_nothing && lp_algo != LabelPropagationAlgorithm::deterministic ) {
         initial_partitioning.refinement.label_propagation.algorithm = LabelPropagationAlgorithm::deterministic;
       }
-
-      coarsening.algorithm = CoarseningAlgorithm::deterministic_multilevel_coarsener;
-
-      // disable FM until we have a deterministic version
-      refinement.fm.algorithm = FMAlgorithm::do_nothing;
-      initial_partitioning.refinement.fm.algorithm = FMAlgorithm::do_nothing;
-
-      // disable adaptive IP
-      initial_partitioning.use_adaptive_ip_runs = false;
-
-      preprocessing.use_community_detection = false;
     }
   }
 
