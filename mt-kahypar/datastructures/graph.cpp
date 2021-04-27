@@ -190,6 +190,7 @@ namespace mt_kahypar::ds {
       for ( const Arc& arc : arcsOf(u) ) {
         const NodeID coarse_v = communities[arc.head];
         if ( coarse_u != coarse_v ) {
+          // grouping nodes by cluster would make this more cache-friendly, avoids atomic instruction, and makes it automatically deterministic
           const size_t tmp_arcs_pos = tmp_indices_prefix_sum[coarse_u] + tmp_pos[coarse_u]++;
           ASSERT(tmp_arcs_pos < tmp_indices_prefix_sum[coarse_u + 1]);
           tmp_arcs[tmp_arcs_pos] = Arc { coarse_v, arc.weight };
@@ -208,6 +209,7 @@ namespace mt_kahypar::ds {
     tbb::parallel_for(0U, static_cast<NodeID>(coarse_graph._num_nodes), [&](const NodeID u) {
       const size_t tmp_arc_start = tmp_indices_prefix_sum[u];
       const size_t tmp_arc_end = tmp_indices_prefix_sum[u + 1];
+      // this sort already removes the non-determinism from random ordering in the previous loop
       std::sort(tmp_arcs.begin() + tmp_arc_start, tmp_arcs.begin() + tmp_arc_end,
                 [&](const Arc& lhs, const Arc& rhs) {
                   return lhs.head < rhs.head;
@@ -248,7 +250,7 @@ namespace mt_kahypar::ds {
         if ( valid_arcs_prefix_sum.value(i) ) {
           const size_t pos = valid_arcs_prefix_sum[i];
           ASSERT(pos < coarse_graph._num_arcs);
-          coarse_graph._arcs[pos] = std::move(tmp_arcs[i]);
+          coarse_graph._arcs[pos] = tmp_arcs[i];
         }
       });
     }, [&] {
