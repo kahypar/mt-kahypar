@@ -46,6 +46,7 @@ class LargeHyperedgeRemover {
   // ! Returns the number of removed large hyperedges.
   HypernodeID removeLargeHyperedges(Hypergraph& hypergraph) {
     HypernodeID num_removed_large_hyperedges = 0;
+    #ifndef USE_GRAPH_STRUCTURE
     for ( const HyperedgeID& he : hypergraph.edges() ) {
       if ( hypergraph.edgeSize(he) > largeHyperedgeThreshold() ) {
         hypergraph.removeLargeEdge(he);
@@ -54,6 +55,9 @@ class LargeHyperedgeRemover {
       }
     }
     std::reverse(_removed_hes.begin(), _removed_hes.end());
+    #else
+    unused(hypergraph);
+    #endif
     return num_removed_large_hyperedges;
   }
 
