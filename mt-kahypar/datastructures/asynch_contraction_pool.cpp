@@ -10,7 +10,7 @@ uint32_t mt_kahypar::ds::SequentialContractionGroupPool::getNumActive() const {
 
 const mt_kahypar::ds::ContractionGroup &
 mt_kahypar::ds::SequentialContractionGroupPool::group(mt_kahypar::ds::ContractionGroupID id) const {
-    return _hierarchy.group(id);
+    return _hierarchy->group(id);
 }
 
 mt_kahypar::ds::ContractionGroupID mt_kahypar::ds::SequentialContractionGroupPool::pickAnyActiveID() {
@@ -23,7 +23,7 @@ mt_kahypar::ds::ContractionGroupID mt_kahypar::ds::SequentialContractionGroupPoo
 
 void mt_kahypar::ds::SequentialContractionGroupPool::activateSuccessors(mt_kahypar::ds::ContractionGroupID id) {
 
-    auto succs = _hierarchy.successors(id);
+    auto succs = _hierarchy->successors(id);
     for (auto s : succs) {
         _active.push_back(s);
     }
@@ -31,4 +31,8 @@ void mt_kahypar::ds::SequentialContractionGroupPool::activateSuccessors(mt_kahyp
 
 bool mt_kahypar::ds::SequentialContractionGroupPool::hasActive() const {
     return !(_active.empty());
+}
+
+mt_kahypar::ds::BlockedGroupIDIterator mt_kahypar::ds::SequentialContractionGroupPool::all() const {
+    return _hierarchy->all();
 }

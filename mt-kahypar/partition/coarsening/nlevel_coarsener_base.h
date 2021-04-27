@@ -90,6 +90,9 @@ class NLevelCoarsenerBase {
   PartitionedHypergraph&& doUncoarsen(std::unique_ptr<IRefiner>& label_propagation,
                                       std::unique_ptr<IRefiner>& fm);
 
+  PartitionedHypergraph&& doSequentialUncoarsenWithoutLocalRefinement(std::unique_ptr<IRefiner>& label_propagation,
+                                                                      std::unique_ptr<IRefiner>& fm);
+
  protected:
   kahypar::Metrics computeMetrics(PartitionedHypergraph& phg) {
     HyperedgeWeight cut = 0;
@@ -151,5 +154,9 @@ class NLevelCoarsenerBase {
   ParallelHyperedgeVector _removed_hyperedges_batches;
   // ! Contains timings how long a coarsening pass takes for each round
   parallel::scalable_vector<double> _round_coarsening_times;
+
+  // ! Contains the contraction group pools that are used in asynchronous (or sequential) uncoarsening. There is one pool
+  // ! per hypergraph version which is used to manage the uncontraction hierarchy.
+  ds::VersionedPoolVector _group_pools_for_versions;
 };
 }  // namespace mt_kahypar

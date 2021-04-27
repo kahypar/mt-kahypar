@@ -1449,7 +1449,10 @@ TEST_F(ADynamicHypergraph, GeneratesACompactifiedHypergraph2) {
             hypergraph.contract(memento.v);
         }
 
-        hypergraph.uncontractCurrentVersionSequentially(NOOP_BATCH_FUNC,NOOP_BATCH_FUNC,true);
+        auto pools = hypergraph.createUncontractionGroupPoolsForVersions();
+
+        ASSERT(pools.size() == 1);
+        hypergraph.uncontractUsingGroupPool(pools[0].get(), NOOP_BATCH_FUNC, NOOP_BATCH_FUNC, true);
 
         verifyEqualityOfDynamicHypergraphs(expected_hypergraph, hypergraph);
     }

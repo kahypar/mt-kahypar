@@ -503,6 +503,12 @@ class StaticHypergraph {
   // ! Computes the total node weight of the hypergraph
   void computeAndSetTotalNodeWeight(const TaskGroupID);
 
+  // ! Returns the current version of this hypergraph
+  size_t version() const {
+      ERROR("Version not supported in static hypergraph.");
+      return 0;
+  }
+
   // ####################### Iterators #######################
 
   // ! Iterates in parallel over all active nodes and calls function f
@@ -715,6 +721,13 @@ class StaticHypergraph {
   VersionedBatchVector createBatchUncontractionHierarchy(const size_t) {
     ERROR("createBatchUncontractionHierarchy(task_group_id, batch_size) is not supported in static hypergraph");
     return { };
+  }
+
+  void uncontractCurrentVersionSequentially(const UncontractionFunction &case_one_func = NOOP_BATCH_FUNC,
+                                            const UncontractionFunction &case_two_func = NOOP_BATCH_FUNC,
+                                            bool performNoRefinement = false) {
+      ERROR("uncontractUsingGroupPool() is not supported in static hypergraph.");
+
   }
 
   // ####################### Remove / Restore Hyperedges #######################

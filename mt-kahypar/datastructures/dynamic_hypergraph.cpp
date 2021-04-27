@@ -265,20 +265,40 @@ void DynamicHypergraph::uncontract(const Batch& batch,
   });
 }
 
-
-void DynamicHypergraph::uncontractCurrentVersionSequentially(const UncontractionFunction &case_one_func,
-                                                             const UncontractionFunction &case_two_func,
-                                                             bool performNoRefinement) {
+VersionedPoolVector DynamicHypergraph::createUncontractionGroupPoolsForVersions() {
 
     const size_t num_versions = _version + 1;
+    utils::Timer::instance().start_timer("finalize_contraction_tree", "Finalize Contraction Tree");
+    // Finalizes the contraction tree such that it is traversable in a top-down fashion
+    // and contains subtree size for each  tree node
     _contraction_tree.finalize(num_versions);
+    utils::Timer::instance().stop_timer("finalize_contraction_tree");
 
-    UncontractionGroupTree groupTree = UncontractionGroupTree(_contraction_tree, _version);
-    SequentialContractionGroupPool pool(groupTree);
+    ASSERT(_contraction_tree.isFinalized());
+    utils::Timer::instance().start_timer("create_uncontraction_group_pools", "Create Uncontraction Group Pools For All Versions");
+    VersionedPoolVector poolVector;
+    poolVector.resize(num_versions);
+    for (size_t v = 0; v < num_versions; ++v) {
+        // Make hierarchy for version v and a pool for that version from the hierarchy. Ownership of the hierarchy is with the pool (i.e. it gets deleted when the pool is deleted).
+        auto groupHierarchy = new UncontractionGroupTree(_contraction_tree, v);
+        auto pool = std::make_unique<SequentialContractionGroupPool>(std::unique_ptr<IUncontractionGroupHierarchy>{groupHierarchy});
+        ASSERT(v < poolVector.size());
+        // Pass ownership of the pool to the pool vector
+        poolVector[v] = std::move(pool);
+    }
+    utils::Timer::instance().stop_timer("create_uncontraction_group_pools");
 
-    while (pool.hasActive()) {
-        auto contractionGroupID = pool.pickAnyActiveID();
-        auto contractionGroup = pool.group(contractionGroupID);
+    return poolVector;
+
+}
+
+void DynamicHypergraph::uncontractUsingGroupPool(IContractionGroupPool *groupPool,
+                                                 const UncontractionFunction &case_one_func,
+                                                 const UncontractionFunction &case_two_func, bool performNoRefinement) {
+
+    while (groupPool->hasActive()) {
+        auto contractionGroupID = groupPool->pickAnyActiveID();
+        auto contractionGroup = groupPool->group(contractionGroupID);
         for(auto &memento: contractionGroup) {
 
             ASSERT(!hypernode(memento.u).isDisabled(), "Hypernode" << memento.u << "is disabled");
@@ -320,7 +340,7 @@ void DynamicHypergraph::uncontractCurrentVersionSequentially(const Uncontraction
             // todo mlaupichler This is where the localized refinement goes (after uncontracting a group sequentially)
         }
 
-        pool.activateSuccessors(contractionGroupID);
+        groupPool->activateSuccessors(contractionGroupID);
     }
 }
 

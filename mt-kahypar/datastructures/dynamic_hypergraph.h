@@ -638,6 +638,11 @@ class DynamicHypergraph {
   // ! Recomputes the total weight of the hypergraph (sequential)
   void updateTotalWeight();
 
+  // ! Returns the current version of this hypergraph
+  size_t version() const {
+      return _version;
+  }
+
   // ####################### Iterators #######################
 
   // ! Iterates in parallel over all active nodes and calls function f
@@ -851,15 +856,21 @@ class DynamicHypergraph {
                   const HypernodeWeight max_node_weight = std::numeric_limits<HypernodeWeight>::max());
 
 
-  /**
+  /**!
+   * Creates group pools based on group uncontraction hierarchies for every version of the hypergraph.
+   * @return a vector of group pools where at index i the group pool for version i is located.
+   */
+  VersionedPoolVector createUncontractionGroupPoolsForVersions();
+
+  /**!
    * Uncontracts all contractions in the current version sequentially using a pool of currently possible uncontractions.
    * Precursor for eventual fully asynchronous parallel uncontraction.
    * The two uncontraction functions are required by the partitioned hypergraph to restore
    * pin counts and gain cache values.
    */
-  void uncontractCurrentVersionSequentially(const UncontractionFunction &case_one_func = NOOP_BATCH_FUNC,
-                                            const UncontractionFunction &case_two_func = NOOP_BATCH_FUNC,
-                                            bool performNoRefinement = false);
+  void uncontractUsingGroupPool(IContractionGroupPool *groupPool,
+                                const UncontractionFunction &case_one_func = NOOP_BATCH_FUNC,
+                                const UncontractionFunction &case_two_func = NOOP_BATCH_FUNC, bool performNoRefinement = false);
 
   /**
    * Uncontracts a batch of contractions in parallel. The batches must be uncontracted exactly

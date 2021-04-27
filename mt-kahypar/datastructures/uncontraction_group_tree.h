@@ -6,13 +6,15 @@
 #define KAHYPAR_UNCONTRACTION_GROUP_TREE_H
 
 #include <utility>
+#include <boost/range/counting_range.hpp>
 
 #include "contraction_tree.h"
 
 namespace mt_kahypar::ds {
 
     using ContractionGroupID = HypernodeID;
-    using ContractionGroupIDIterator = IteratorRange<parallel::scalable_vector<ContractionGroupID>::const_iterator>;
+    using ContractionGroupIDIteratorRange = IteratorRange<parallel::scalable_vector<ContractionGroupID>::const_iterator>;
+    using BlockedGroupIDIterator = tbb::blocked_range<ContractionGroupID>;
     using Contraction = Memento;
     typedef std::vector<Contraction>::iterator ContractionIterator;
 
@@ -89,9 +91,12 @@ namespace mt_kahypar::ds {
         virtual uint32_t getNumGroups() const = 0;
         virtual const ContractionGroup& group(ContractionGroupID id) const = 0;
         virtual ContractionGroupID predecessor(ContractionGroupID id) const = 0;
-        virtual ContractionGroupIDIterator successors(ContractionGroupID id) const = 0;
-        virtual ContractionGroupIDIterator roots() const = 0;
+        virtual ContractionGroupIDIteratorRange successors(ContractionGroupID id) const = 0;
+        virtual ContractionGroupIDIteratorRange roots() const = 0;
 
+        virtual BlockedGroupIDIterator all() const = 0;
+
+        virtual ~IUncontractionGroupHierarchy() = 0;
     };
 
 
@@ -146,7 +151,7 @@ namespace mt_kahypar::ds {
 
         UncontractionGroupTree(ContractionTree &contractionTree, size_t version);
 
-        ~UncontractionGroupTree() {
+        ~UncontractionGroupTree() override {
             freeInternalData();
         }
 
@@ -155,9 +160,9 @@ namespace mt_kahypar::ds {
             return _tree[id].getGroup();
         }
 
-        ContractionGroupIDIterator successors(ContractionGroupID id) const override{
+        ContractionGroupIDIteratorRange successors(ContractionGroupID id) const override{
             ASSERT(id < _num_group_nodes);
-            return ContractionGroupIDIterator(
+            return ContractionGroupIDIteratorRange(
                     _incidence_array.cbegin() + _out_degrees[id],
                     _incidence_array.cbegin() + _out_degrees[id + 1]);
         }
@@ -180,8 +185,13 @@ namespace mt_kahypar::ds {
             return _num_group_nodes;
         }
 
-        ContractionGroupIDIterator roots() const override {
-            return mt_kahypar::ds::ContractionGroupIDIterator(_roots.cbegin(), _roots.cend());
+        ContractionGroupIDIteratorRange roots() const override {
+            return mt_kahypar::ds::ContractionGroupIDIteratorRange(_roots.cbegin(), _roots.cend());
+        }
+
+        BlockedGroupIDIterator all() const override {
+            ASSERT(_num_group_nodes == _tree.size());
+            return BlockedGroupIDIterator (0,_num_group_nodes);
         }
 
     private:
