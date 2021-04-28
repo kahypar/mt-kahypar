@@ -35,7 +35,7 @@
 #include "mt-kahypar/datastructures/thread_safe_fast_reset_flag_array.h"
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
 #include "mt-kahypar/utils/memory_tree.h"
-#include "asynch_contraction_pool.h"
+#include "mt-kahypar/datastructures/asynch/asynch_contraction_pool.h"
 
 namespace mt_kahypar {
 namespace ds {
@@ -62,6 +62,12 @@ class DynamicHypergraph {
   // ! each case.
   using UncontractionFunction = std::function<void (const HypernodeID, const HypernodeID, const HyperedgeID)>;
   #define NOOP_BATCH_FUNC [] (const HypernodeID, const HypernodeID, const HyperedgeID) { }
+
+  // ! When asynchronously uncoarsening for an uncontraction (u,v) the hypernode v that is uncontracted has to adopt
+  // ! the partition id of the representative u at uncontraction time. The partitioned hypergraph passes a lambda to
+  // ! the uncontraction process to facilitate this.
+  using AdoptPartitionFunction = std::function<void (const HypernodeID, const HypernodeID)>;
+  #define NOOP_ADOPT_PART_FUNC [] (const HypernodeID, const HypernodeID) { }
 
   /*!
   * This struct is used during multilevel coarsening to efficiently
@@ -870,7 +876,9 @@ class DynamicHypergraph {
    */
   void uncontractUsingGroupPool(IContractionGroupPool *groupPool,
                                 const UncontractionFunction &case_one_func = NOOP_BATCH_FUNC,
-                                const UncontractionFunction &case_two_func = NOOP_BATCH_FUNC, bool performNoRefinement = false);
+                                const UncontractionFunction &case_two_func = NOOP_BATCH_FUNC,
+                                const AdoptPartitionFunction &adopt_part_func = NOOP_ADOPT_PART_FUNC,
+                                bool performNoRefinement = false);
 
   /**
    * Uncontracts a batch of contractions in parallel. The batches must be uncontracted exactly

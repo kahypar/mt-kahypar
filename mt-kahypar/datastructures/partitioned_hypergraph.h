@@ -38,6 +38,8 @@
 #include "mt-kahypar/utils/range.h"
 #include "mt-kahypar/utils/timer.h"
 
+#include "mt-kahypar/datastructures/asynch/contraction_group_pool.h"
+
 namespace mt_kahypar {
 namespace ds {
 
@@ -422,18 +424,16 @@ private:
   /**
    * Uncontracts the current version of the underlying hypergraph sequentially without any refinement in between.
    */
-  void uncontractCurrentUsingGroupPoolWithoutLocalRefinement(IContractionGroupPool *pool) {
+  void uncontractUsingGroupPoolWithoutLocalRefinement(IContractionGroupPool *pool) {
       // Set block ids of contraction partners
-      pool->doForAllGroupsInParallel([&](const ContractionGroup& group) {
-         for (const Memento& memento : group) {
-             ASSERT(nodeIsEnabled(memento.u));
-             ASSERT(!nodeIsEnabled(memento.v));
-             const PartitionID part_id = partID(memento.u);
+      DynamicHypergraph::AdoptPartitionFunction adopt_part_func = [&](const HypernodeID u, const HypernodeID v) {
+             ASSERT(nodeIsEnabled(u));
+             ASSERT(!nodeIsEnabled(v));
+             const PartitionID part_id = partID(u);
              ASSERT(part_id != kInvalidPartition && part_id < _k);
-             setOnlyNodePart(memento.v, part_id);
-         }
-      });
-      _hg->uncontractUsingGroupPool(pool, NOOP_BATCH_FUNC, NOOP_BATCH_FUNC, true);
+             setOnlyNodePart(v, part_id);
+      };
+      _hg->uncontractUsingGroupPool(pool, NOOP_BATCH_FUNC, NOOP_BATCH_FUNC, adopt_part_func, true);
   }
 
   // ####################### Restore Hyperedges #######################

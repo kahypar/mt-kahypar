@@ -5,46 +5,12 @@
 #ifndef KAHYPAR_ASYNCH_CONTRACTION_POOL_H
 #define KAHYPAR_ASYNCH_CONTRACTION_POOL_H
 
-#include <tbb/concurrent_unordered_set.h>
-#include <tbb/concurrent_queue.h>
-#include "gmock/gmock.h"
-
-#include <utility>
-#include "hypergraph_common.h"
 #include "uncontraction_group_tree.h"
-#include <list>
+#include "mt-kahypar/datastructures/asynch/asynch_common.h"
+#include "mt-kahypar/datastructures/asynch/contraction_group_pool.h"
 
 namespace mt_kahypar::ds
 {
-    //Forward
-    class IContractionGroupPool;
-
-    using VersionedPoolVector = parallel::scalable_vector<std::unique_ptr<IContractionGroupPool>>;
-
-    /// Pure virtual interface to define functions for a pool that manages active/inactive uncontraction groups.
-    class IContractionGroupPool {
-    public:
-        virtual uint32_t getNumActive() const = 0;
-        virtual bool hasActive() const = 0;
-        virtual const ContractionGroup& group(const ContractionGroupID id) const = 0;
-        virtual ContractionGroupID pickAnyActiveID() = 0;
-        virtual void activateSuccessors(ContractionGroupID id) = 0;
-
-        template<typename F> void doForAllGroupIDsInParallel(const F& f) {
-            tbb::parallel_for(all(), [&](const ContractionGroupID& id) {
-                f(id);
-            });
-        };
-
-        template<typename F> void doForAllGroupsInParallel(const F& f) {
-            tbb::parallel_for(all(), [&](const ContractionGroupID& id) {
-                f(group(id));
-            });
-        };
-
-    protected:
-        virtual BlockedGroupIDIterator all() const = 0;
-    };
 
     class SequentialContractionGroupPool : public IContractionGroupPool {
 
@@ -64,6 +30,8 @@ namespace mt_kahypar::ds
         }
 
         uint32_t getNumActive() const override;
+
+        uint32_t getNumTotal() const override;
 
         const ContractionGroup &group(ContractionGroupID id) const override;
 

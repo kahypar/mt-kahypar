@@ -32,6 +32,8 @@
 #include "mt-kahypar/utils/memory_tree.h"
 #include "mt-kahypar/utils/range.h"
 
+#include "mt-kahypar/datastructures/asynch/contraction_group_pool.h"
+
 namespace mt_kahypar {
 namespace ds {
 
@@ -723,9 +725,15 @@ class StaticHypergraph {
     return { };
   }
 
-  void uncontractCurrentVersionSequentially(const UncontractionFunction &case_one_func = NOOP_BATCH_FUNC,
-                                            const UncontractionFunction &case_two_func = NOOP_BATCH_FUNC,
-                                            bool performNoRefinement = false) {
+  VersionedPoolVector createUncontractionGroupPoolsForVersions() {
+      ERROR("createUncontractionGroupPoolsForVersions() is not supported in static hypergraph.");
+      return { };
+  }
+
+  void uncontractUsingGroupPool(IContractionGroupPool *groupPool,
+                                const UncontractionFunction &case_one_func = NOOP_BATCH_FUNC,
+                                const UncontractionFunction &case_two_func = NOOP_BATCH_FUNC,
+                                bool performNoRefinement = false) {
       ERROR("uncontractUsingGroupPool() is not supported in static hypergraph.");
 
   }

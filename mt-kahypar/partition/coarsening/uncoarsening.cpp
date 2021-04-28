@@ -194,7 +194,7 @@ namespace mt_kahypar {
   PartitionedHypergraph&& NLevelCoarsenerBase::doUncoarsen(std::unique_ptr<IRefiner>& label_propagation,
                                                            std::unique_ptr<IRefiner>& fm) {
 
-      //todo mlaupichler remove this (debug)
+      //todo mlaupichler remove hthe debug text
       if (_context.uncoarsening.use_asynchronous_uncoarsening) {
           LOG << GREEN << "The asynch option is set!" << END;
           return doSequentialUncoarsenWithoutLocalRefinement(label_propagation, fm);
@@ -467,16 +467,16 @@ namespace mt_kahypar {
       _round_coarsening_times.push_back(_round_coarsening_times.size() > 0 ?
                                         _round_coarsening_times.back() : std::numeric_limits<double>::max()); // Sentinel
 
-      auto cur_version = _phg.version();
-      while (cur_version >= 0) {
-          ASSERT(cur_version == _removed_hyperedges_batches.size());
-          ASSERT(cur_version == _phg.version());
-          ds::IContractionGroupPool* pool = _group_pools_for_versions[cur_version].get();
-          _phg.uncontractCurrentUsingGroupPoolWithoutLocalRefinement(pool);
-          if (cur_version > 0) {
+      bool version0Done = false;
+      while (!version0Done) {
+          ASSERT(_phg.version() == _removed_hyperedges_batches.size());
+          ds::IContractionGroupPool* pool = _group_pools_for_versions[_phg.version()].get();
+          _phg.uncontractUsingGroupPoolWithoutLocalRefinement(pool);
               // Restore single-pin and parallel nets to continue with the next version
               if ( !_removed_hyperedges_batches.empty() ) {
-                  utils::Timer::instance().start_timer("restore_single_pin_and_parallel_nets", "Restore Single Pin and Parallel Nets", false, force_measure_timings);
+                  utils::Timer::instance().start_timer("restore_single_pin_and_parallel_nets",
+                                                       "Restore Single Pin and Parallel Nets", false,
+                                                       force_measure_timings);
                   _phg.restoreSinglePinAndParallelNets(_removed_hyperedges_batches.back());
                   _removed_hyperedges_batches.pop_back();
                   utils::Timer::instance().stop_timer("restore_single_pin_and_parallel_nets", force_measure_timings);
@@ -490,8 +490,8 @@ namespace mt_kahypar {
                           _context.partition.mode, _context.partition.objective));
                   _round_coarsening_times.pop_back();
               }
-          }
-          --cur_version;
+              // Break after finishing on version 0 (A bit ugly to check because the version is unsigned)
+              if (_phg.version() == 0) version0Done = true;
       }
 
       // Top-Level Refinement on all vertices

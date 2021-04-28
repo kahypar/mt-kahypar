@@ -30,7 +30,7 @@
 #include "mt-kahypar/datastructures/concurrent_bucket_map.h"
 #include "mt-kahypar/datastructures/streaming_vector.h"
 #include "mt-kahypar/utils/timer.h"
-#include "asynch_contraction_pool.h"
+#include "mt-kahypar/datastructures/asynch/asynch_contraction_pool.h"
 
 namespace mt_kahypar {
 namespace ds {
@@ -294,7 +294,11 @@ VersionedPoolVector DynamicHypergraph::createUncontractionGroupPoolsForVersions(
 
 void DynamicHypergraph::uncontractUsingGroupPool(IContractionGroupPool *groupPool,
                                                  const UncontractionFunction &case_one_func,
-                                                 const UncontractionFunction &case_two_func, bool performNoRefinement) {
+                                                 const UncontractionFunction &case_two_func,
+                                                 const AdoptPartitionFunction &adopt_part_func,
+                                                 bool performNoRefinement) {
+
+    std::vector<HypernodeID> enabledDuringUncontraction;
 
     while (groupPool->hasActive()) {
         auto contractionGroupID = groupPool->pickAnyActiveID();
@@ -302,7 +306,19 @@ void DynamicHypergraph::uncontractUsingGroupPool(IContractionGroupPool *groupPoo
         for(auto &memento: contractionGroup) {
 
             ASSERT(!hypernode(memento.u).isDisabled(), "Hypernode" << memento.u << "is disabled");
-            ASSERT(hypernode(memento.v).isDisabled(), "Hypernode" << memento.v << "is not invalid");
+            bool hasBeenEnabledDuringUncontraction = false;
+            if (!hypernode(memento.v).isDisabled()) {
+                for (auto id : enabledDuringUncontraction) {
+                    if (id == memento.v) {
+                        hasBeenEnabledDuringUncontraction = true;
+                        break;
+                    }
+                }
+            }
+            ASSERT(hypernode(memento.v).isDisabled(), "Hypernode" << memento.v << "is not invalid"
+                << (hasBeenEnabledDuringUncontraction?
+                    " as it has been enabled during uncontraction" :
+                    " even though it has not been enabled during uncontraction"));
 
             _incident_nets.uncontract(memento.u, memento.v,[&](const HyperedgeID e) {
                 // In that case, u and v were both previously part of hyperedge e.
@@ -328,10 +344,17 @@ void DynamicHypergraph::uncontractUsingGroupPool(IContractionGroupPool *groupPoo
             });
 
             acquireHypernode(memento.u);
+
+            // Have hypernode v adopt the partition of its representative u
+            adopt_part_func(memento.u,memento.v);
             // Restore hypernode v which includes enabling it and subtract its weight
             // from its representative
             hypernode(memento.v).enable();
             hypernode(memento.u).setWeight(hypernode(memento.u).weight() - hypernode(memento.v).weight());
+
+            //todo mlaupichler remove (debug)
+            enabledDuringUncontraction.push_back(memento.v);
+
             releaseHypernode(memento.u);
 
         }

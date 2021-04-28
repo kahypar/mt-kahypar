@@ -36,3 +36,7 @@ bool mt_kahypar::ds::SequentialContractionGroupPool::hasActive() const {
 mt_kahypar::ds::BlockedGroupIDIterator mt_kahypar::ds::SequentialContractionGroupPool::all() const {
     return _hierarchy->all();
 }
+
+uint32_t mt_kahypar::ds::SequentialContractionGroupPool::getNumTotal() const {
+    return _hierarchy->getNumGroups();
+}

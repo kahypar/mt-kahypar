@@ -6,9 +6,41 @@
 #include "gtest/gtest.h"
 #include "gtest/gtest-death-test.h"
 
-#include "mt-kahypar/datastructures/uncontraction_group_tree.h"
+#include "mt-kahypar/datastructures/asynch/uncontraction_group_tree.h"
 
 namespace mt_kahypar::ds {
+
+    TEST(AUncontractionGroupTree,SuccessorsGivesEmptyRangeWhenNoSuccessors) {
+        size_t version = 0;
+
+        ContractionTree contractionTree;
+        contractionTree.initialize(2);
+        contractionTree.setInterval(0, 0, 1);
+        contractionTree.setParent(1, 0, version); contractionTree.setInterval(1, 2, 3);
+
+        contractionTree.finalize(1);
+
+        ContractionGroup expectedRootGroup1 = { Contraction {0, 1}};
+
+        auto contractionTreeCopy = contractionTree.copy();
+        UncontractionGroupTree groupTree = UncontractionGroupTree(contractionTreeCopy, version);
+
+        ASSERT(groupTree.getNumGroups() == 1);
+        ASSERT(groupTree.getVersion() == version);
+
+        auto roots = groupTree.roots();
+        ASSERT(std::distance(roots.begin(),roots.end()) == 1);
+        auto rootID1 = *roots.begin();
+        const auto& rootGroup1 = groupTree.group(rootID1);
+        ASSERT(rootGroup1 == expectedRootGroup1);
+
+        auto succs = groupTree.successors(rootID1);
+        ASSERT(succs.empty());
+        for (auto s : succs) {
+            ASSERT(false, "Can iterate in empty successors range!");
+        }
+
+    }
 
     TEST(AUncontractionGroupTree,CreatesCorrectTreeForUniformVersion1) {
 

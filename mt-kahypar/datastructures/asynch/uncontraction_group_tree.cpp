@@ -6,38 +6,6 @@
 
 namespace mt_kahypar::ds {
 
-
-    bool mt_kahypar::ds::ContractionGroup::contains(mt_kahypar::ds::Contraction contraction) const {
-        if (std::any_of(_contractions.begin(),_contractions.end(),[contraction](Contraction e){return e.u == contraction.u && e.v == contraction.v;})) {
-            return true;
-        }
-        return false;
-    }
-
-    bool mt_kahypar::ds::ContractionGroup::operator==(const mt_kahypar::ds::ContractionGroup &rhs) const {
-
-        bool rhsContainsThis = (std::all_of(_contractions.begin(),_contractions.end(),[rhs](Contraction e){return rhs.contains(e);}));
-        bool thisContainsRhs = (std::all_of(rhs.begin(),rhs.end(),[this](Contraction e){return this->contains(e);}));
-
-        return rhsContainsThis && thisContainsRhs;
-    }
-
-    bool mt_kahypar::ds::ContractionGroup::operator!=(const mt_kahypar::ds::ContractionGroup &rhs) const {
-        return !(rhs == *this);
-    }
-
-    void mt_kahypar::ds::ContractionGroup::debugPrint() const {
-        std::cout << "\tGroup has " << size() << " contractions: \n";
-        for (auto &c : *this) {
-            std::cout << "\t\t(u: " << c.u << ", v: " << c.v << ")\n";
-        }
-    }
-
-    mt_kahypar::HypernodeID mt_kahypar::ds::ContractionGroup::getRepresentative() const {
-        return _representative;
-    }
-
-
     void UncontractionGroupTree::freeInternalData() {
         if (_num_group_nodes > 0 ) {
             parallel::parallel_free(_tree, _roots, _out_degrees,_current_child_offsets, _incidence_array);
@@ -106,7 +74,15 @@ namespace mt_kahypar::ds {
             ++_current_child_offsets[parent];
         }
 
-        auto numVertical = std::count_if(group.begin(),group.end(),[&](Memento member) {return _contraction_tree.degree(member.v) > 0;});
+        auto numVertical = std::count_if(group.begin(),group.end(),[&](Memento member) {
+            // Search for any children in the contraction tree that have this version. If any exist for member.v then
+            // member.v contributes to the number of vertical children this group has with one vertical child group
+            // (the group of the child in the contraction tree that was contracted last)
+            auto childrenInContractionTree = _contraction_tree.childs(member.v);
+            return std::any_of(childrenInContractionTree.begin(),childrenInContractionTree.end(),[&](auto child) {
+                return _contraction_tree.version(child) == _version;
+            });
+        });
         auto numChildren = numVertical + (hasHorizontalChild? 1 : 0);
         _out_degrees.push_back(_out_degrees.back() + numChildren);
         ASSERT(_out_degrees.size() == newID + 2);
