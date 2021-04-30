@@ -33,6 +33,8 @@ namespace mt_kahypar::ds
 
         uint32_t getNumTotal() const override;
 
+        size_t getVersion() const override;
+
         const ContractionGroup &group(ContractionGroupID id) const override;
 
         ContractionGroupID pickAnyActiveID() override;

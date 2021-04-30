@@ -6,7 +6,7 @@ set_property(TARGET mt_kahypar_fast_tests PROPERTY CXX_STANDARD_REQUIRED ON)
 target_link_libraries(mt_kahypar_fast_tests ${Boost_LIBRARIES})
 
 # Contains tests specific to our strong partitioner
-add_executable(mt_kahypar_strong_tests run_tests.cpp datastructures/uncontraction_group_tree_test.cpp)
+add_executable(mt_kahypar_strong_tests run_tests.cpp)
 target_link_libraries(mt_kahypar_strong_tests gmock gtest gtest_main ${CMAKE_THREAD_LIBS_INIT})
 set_property(TARGET mt_kahypar_strong_tests PROPERTY CXX_STANDARD 17)
 set_property(TARGET mt_kahypar_strong_tests PROPERTY CXX_STANDARD_REQUIRED ON)

@@ -21,6 +21,7 @@ namespace mt_kahypar::ds {
     public:
         virtual uint32_t getNumActive() const = 0;
         virtual uint32_t getNumTotal() const = 0;
+        virtual size_t getVersion() const = 0;
         virtual bool hasActive() const = 0;
         virtual const ContractionGroup& group(const ContractionGroupID id) const = 0;
         virtual ContractionGroupID pickAnyActiveID() = 0;

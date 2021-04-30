@@ -268,19 +268,6 @@ namespace mt_kahypar {
       _hg.doParallelForAllNodes([&](const HypernodeID& hn) {
         PartitionID part_id = _bisection_partitioned_hg.partID(hn);
 
-        //todo mlaupichler remove debug
-        bool allInvalid = true;
-        if (part_id == kInvalidPartition) {
-            auto all = _bisection_partitioned_hg.nodes();
-            for (auto n : all) {
-                if (_bisection_partitioned_hg.partID(n) != kInvalidPartition) {
-                    allInvalid = false;
-                    break;
-                }
-            }
-        }
-        // todo end
-
         ASSERT(part_id != kInvalidPartition && part_id < _hg.k());
         if ( part_id == 0 ) {
           _hg.setOnlyNodePart(hn, block_0);

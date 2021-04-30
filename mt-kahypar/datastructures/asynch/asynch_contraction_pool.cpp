@@ -40,3 +40,7 @@ mt_kahypar::ds::BlockedGroupIDIterator mt_kahypar::ds::SequentialContractionGrou
 uint32_t mt_kahypar::ds::SequentialContractionGroupPool::getNumTotal() const {
     return _hierarchy->getNumGroups();
 }
+
+size_t mt_kahypar::ds::SequentialContractionGroupPool::getVersion() const {
+    return _hierarchy->getVersion();
+}

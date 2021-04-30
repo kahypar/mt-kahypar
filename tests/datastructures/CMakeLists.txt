@@ -23,5 +23,8 @@ target_sources(mt_kahypar_strong_tests PRIVATE
         incident_net_array_test.cc
         nlevel_smoke_test.cc
         asynch_contraction_pool_test.cc
+        uncontraction_group_tree_test.cpp
+        async_nlevel_smoke_test.cc
+        smoke_test_common.cc
 )
 

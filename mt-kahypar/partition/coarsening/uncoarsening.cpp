@@ -194,12 +194,9 @@ namespace mt_kahypar {
   PartitionedHypergraph&& NLevelCoarsenerBase::doUncoarsen(std::unique_ptr<IRefiner>& label_propagation,
                                                            std::unique_ptr<IRefiner>& fm) {
 
-      //todo mlaupichler remove hthe debug text
+      // Switch to asynchronous uncoarsening if the option is set
       if (_context.uncoarsening.use_asynchronous_uncoarsening) {
-          LOG << GREEN << "The asynch option is set!" << END;
           return doSequentialUncoarsenWithoutLocalRefinement(label_propagation, fm);
-      } else {
-          LOG << RED << "The asynch option is not set!" << END;
       }
 
 
@@ -432,6 +429,10 @@ namespace mt_kahypar {
       });
       _phg.initializePartition(_task_group_id);
 
+      if ( _context.refinement.fm.algorithm == FMAlgorithm::fm_gain_cache ) {
+          _phg.initializeGainCache();
+      }
+
       ASSERT(metrics::objective(_compactified_phg, _context.partition.objective) ==
              metrics::objective(_phg, _context.partition.objective),
              V(metrics::objective(_compactified_phg, _context.partition.objective)) <<
@@ -467,10 +468,10 @@ namespace mt_kahypar {
       _round_coarsening_times.push_back(_round_coarsening_times.size() > 0 ?
                                         _round_coarsening_times.back() : std::numeric_limits<double>::max()); // Sentinel
 
-      bool version0Done = false;
-      while (!version0Done) {
+      while (!_group_pools_for_versions.empty()) {
           ASSERT(_phg.version() == _removed_hyperedges_batches.size());
-          ds::IContractionGroupPool* pool = _group_pools_for_versions[_phg.version()].get();
+          ds::IContractionGroupPool* pool = _group_pools_for_versions.back().get();
+          ASSERT(_phg.version() == pool->getVersion());
           _phg.uncontractUsingGroupPoolWithoutLocalRefinement(pool);
               // Restore single-pin and parallel nets to continue with the next version
               if ( !_removed_hyperedges_batches.empty() ) {
@@ -490,8 +491,8 @@ namespace mt_kahypar {
                           _context.partition.mode, _context.partition.objective));
                   _round_coarsening_times.pop_back();
               }
-              // Break after finishing on version 0 (A bit ugly to check because the version is unsigned)
-              if (_phg.version() == 0) version0Done = true;
+
+              _group_pools_for_versions.pop_back();
       }
 
       // Top-Level Refinement on all vertices
