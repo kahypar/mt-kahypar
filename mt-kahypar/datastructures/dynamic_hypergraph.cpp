@@ -296,9 +296,8 @@ void DynamicHypergraph::uncontractUsingGroupPool(IContractionGroupPool *groupPoo
                                                  const UncontractionFunction &case_one_func,
                                                  const UncontractionFunction &case_two_func,
                                                  const AdoptPartitionFunction &adopt_part_func,
+                                                 const LocalizedRefinementFunction &localized_refinement_func,
                                                  bool performNoRefinement) {
-
-    std::vector<HypernodeID> enabledDuringUncontraction;
 
     while (groupPool->hasActive()) {
         auto contractionGroupID = groupPool->pickAnyActiveID();
@@ -306,19 +305,7 @@ void DynamicHypergraph::uncontractUsingGroupPool(IContractionGroupPool *groupPoo
         for(auto &memento: contractionGroup) {
 
             ASSERT(!hypernode(memento.u).isDisabled(), "Hypernode" << memento.u << "is disabled");
-            bool hasBeenEnabledDuringUncontraction = false;
-            if (!hypernode(memento.v).isDisabled()) {
-                for (auto id : enabledDuringUncontraction) {
-                    if (id == memento.v) {
-                        hasBeenEnabledDuringUncontraction = true;
-                        break;
-                    }
-                }
-            }
-            ASSERT(hypernode(memento.v).isDisabled(), "Hypernode" << memento.v << "is not invalid"
-                << (hasBeenEnabledDuringUncontraction?
-                    " as it has been enabled during uncontraction" :
-                    " even though it has not been enabled during uncontraction"));
+            ASSERT(hypernode(memento.v).isDisabled(), "Hypernode" << memento.v << "is not invalid");
 
             _incident_nets.uncontract(memento.u, memento.v,[&](const HyperedgeID e) {
                 // In that case, u and v were both previously part of hyperedge e.
@@ -352,15 +339,12 @@ void DynamicHypergraph::uncontractUsingGroupPool(IContractionGroupPool *groupPoo
             hypernode(memento.v).enable();
             hypernode(memento.u).setWeight(hypernode(memento.u).weight() - hypernode(memento.v).weight());
 
-            //todo mlaupichler remove (debug)
-            enabledDuringUncontraction.push_back(memento.v);
-
             releaseHypernode(memento.u);
 
         }
 
         if (!performNoRefinement) {
-            // todo mlaupichler This is where the localized refinement goes (after uncontracting a group sequentially)
+            localized_refinement_func(contractionGroup);
         }
 
         groupPool->activateSuccessors(contractionGroupID);

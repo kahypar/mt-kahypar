@@ -36,6 +36,7 @@
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
 #include "mt-kahypar/utils/memory_tree.h"
 #include "mt-kahypar/datastructures/asynch/asynch_contraction_pool.h"
+#include "mt-kahypar/datastructures/streaming_vector.h"
 
 namespace mt_kahypar {
 namespace ds {
@@ -68,6 +69,10 @@ class DynamicHypergraph {
   // ! the uncontraction process to facilitate this.
   using AdoptPartitionFunction = std::function<void (const HypernodeID, const HypernodeID)>;
   #define NOOP_ADOPT_PART_FUNC [] (const HypernodeID, const HypernodeID) { }
+
+  // ! When asynchronously uncoarsening the localized refinement is called through a lambda of this type
+  using LocalizedRefinementFunction = std::function<void (const ContractionGroup&)>;
+  #define NOOP_LOCALIZED_REFINEMENT_FUNC [] (const ContractionGroup&) {}
 
   /*!
   * This struct is used during multilevel coarsening to efficiently
@@ -878,6 +883,7 @@ class DynamicHypergraph {
                                 const UncontractionFunction &case_one_func = NOOP_BATCH_FUNC,
                                 const UncontractionFunction &case_two_func = NOOP_BATCH_FUNC,
                                 const AdoptPartitionFunction &adopt_part_func = NOOP_ADOPT_PART_FUNC,
+                                const LocalizedRefinementFunction &localized_refinement_func = NOOP_LOCALIZED_REFINEMENT_FUNC,
                                 bool performNoRefinement = false);
 
   /**

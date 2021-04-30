@@ -14,7 +14,8 @@ namespace mt_kahypar::ds {
     using ContractionGroupIDIteratorRange = IteratorRange<parallel::scalable_vector<ContractionGroupID>::const_iterator>;
     using BlockedGroupIDIterator = tbb::blocked_range<ContractionGroupID>;
     using Contraction = Memento;
-    typedef std::vector<Contraction>::iterator ContractionIterator;
+    using ContractionIterator = std::vector<Contraction>::const_iterator;
+    using ContractionIteratorRange = IteratorRange<ContractionIterator>;
 
 
     /// Represents a group of (un-)contractions that have been contracted simultaneously with the same representative.

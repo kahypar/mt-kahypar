@@ -105,7 +105,7 @@ namespace mt_kahypar {
             utils::Timer::instance().start_timer(timer_key("async_uncontractions"), "Asynchronous Uncontractions");
             while (!versionedPools.empty()) {
                 IContractionGroupPool *pool = versionedPools.back().get();
-                partitioned_hypergraph.uncontractUsingGroupPoolWithoutLocalRefinement(pool);
+                partitioned_hypergraph.uncontractUsingGroupPool(pool, NOOP_LOCALIZED_REFINEMENT_FUNC);
                 versionedPools.pop_back();
 
                 if (!removed_hyperedges.empty()) {

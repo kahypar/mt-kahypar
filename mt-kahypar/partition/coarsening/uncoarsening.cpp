@@ -196,7 +196,7 @@ namespace mt_kahypar {
 
       // Switch to asynchronous uncoarsening if the option is set
       if (_context.uncoarsening.use_asynchronous_uncoarsening) {
-          return doSequentialUncoarsenWithoutLocalRefinement(label_propagation, fm);
+          return doSequentialUncoarsen(label_propagation, fm);
       }
 
 
@@ -411,8 +411,8 @@ namespace mt_kahypar {
     return std::move(_phg);
   }
 
-  PartitionedHypergraph&& NLevelCoarsenerBase::doSequentialUncoarsenWithoutLocalRefinement(std::unique_ptr<IRefiner>& label_propagation,
-                                                                                           std::unique_ptr<IRefiner>& fm) {
+  PartitionedHypergraph&& NLevelCoarsenerBase::doSequentialUncoarsen(std::unique_ptr<IRefiner>& label_propagation,
+                                                                     std::unique_ptr<IRefiner>& fm) {
 
       ASSERT(_is_finalized);
       kahypar::Metrics current_metrics = initialize(_compactified_phg);
@@ -468,11 +468,34 @@ namespace mt_kahypar {
       _round_coarsening_times.push_back(_round_coarsening_times.size() > 0 ?
                                         _round_coarsening_times.back() : std::numeric_limits<double>::max()); // Sentinel
 
+      // Localized refinement lambda which only refines using label propagation
+      auto do_localized_LP_refinement = [&](const ds::ContractionGroup& group) {
+
+          // group is expected to be small
+          parallel::scalable_vector<HypernodeID> refinement_nodes;
+          // reserve space for each contracted node plus the representative
+          refinement_nodes.reserve(group.size() + 1);
+
+          if (_phg.isBorderNode(group.getRepresentative())) {
+              refinement_nodes.push_back(group.getRepresentative());
+          }
+          for (const Memento memento : group) {
+              if (_phg.isBorderNode(memento.v) ) {
+                  refinement_nodes.push_back(memento.v);
+              }
+          }
+
+          // Do only label propagation
+          auto nullFM = std::unique_ptr<IRefiner>();
+          localizedRefine(_phg, refinement_nodes, label_propagation,
+                          nullFM, current_metrics, force_measure_timings);
+      };
+
       while (!_group_pools_for_versions.empty()) {
           ASSERT(_phg.version() == _removed_hyperedges_batches.size());
           ds::IContractionGroupPool* pool = _group_pools_for_versions.back().get();
           ASSERT(_phg.version() == pool->getVersion());
-          _phg.uncontractUsingGroupPoolWithoutLocalRefinement(pool);
+          _phg.uncontractUsingGroupPool(pool, do_localized_LP_refinement);
               // Restore single-pin and parallel nets to continue with the next version
               if ( !_removed_hyperedges_batches.empty() ) {
                   utils::Timer::instance().start_timer("restore_single_pin_and_parallel_nets",

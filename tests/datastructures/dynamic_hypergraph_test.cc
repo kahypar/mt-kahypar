@@ -1453,6 +1453,7 @@ TEST_F(ADynamicHypergraph, GeneratesACompactifiedHypergraph2) {
 
         ASSERT(pools.size() == 1);
         hypergraph.uncontractUsingGroupPool(pools[0].get(), NOOP_BATCH_FUNC, NOOP_BATCH_FUNC, NOOP_ADOPT_PART_FUNC,
+                                            NOOP_LOCALIZED_REFINEMENT_FUNC,
                                             true);
 
         verifyEqualityOfDynamicHypergraphs(expected_hypergraph, hypergraph);

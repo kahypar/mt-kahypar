@@ -90,8 +90,8 @@ class NLevelCoarsenerBase {
   PartitionedHypergraph&& doUncoarsen(std::unique_ptr<IRefiner>& label_propagation,
                                       std::unique_ptr<IRefiner>& fm);
 
-  PartitionedHypergraph&& doSequentialUncoarsenWithoutLocalRefinement(std::unique_ptr<IRefiner>& label_propagation,
-                                                                      std::unique_ptr<IRefiner>& fm);
+  PartitionedHypergraph&& doSequentialUncoarsen(std::unique_ptr<IRefiner>& label_propagation,
+                                                std::unique_ptr<IRefiner>& fm);
 
  protected:
   kahypar::Metrics computeMetrics(PartitionedHypergraph& phg) {

@@ -422,10 +422,11 @@ private:
   }
   
   /**
-   * Uncontracts the current version of the underlying hypergraph sequentially without any refinement in between.
+   * Uncontracts the current version of the underlying hypergraph using a given group pool.
    */
-  void uncontractUsingGroupPoolWithoutLocalRefinement(IContractionGroupPool *pool) {
-      // Set block ids of contraction partners
+  void uncontractUsingGroupPool(IContractionGroupPool *pool,
+                                const DynamicHypergraph::LocalizedRefinementFunction &localized_refinement_func) {
+      // Sets block ids of contraction partners
       DynamicHypergraph::AdoptPartitionFunction adopt_part_func = [&](const HypernodeID u, const HypernodeID v) {
              ASSERT(nodeIsEnabled(u));
              ASSERT(!nodeIsEnabled(v));
@@ -498,7 +499,8 @@ private:
                                         }
                                     },
                                     adopt_part_func,
-                                    true);
+                                    localized_refinement_func,
+                                    false);
   }
 
   // ####################### Restore Hyperedges #######################
