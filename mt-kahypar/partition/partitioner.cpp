@@ -107,21 +107,35 @@ namespace mt_kahypar {
     if ( context.preprocessing.use_community_detection ) {
       io::printTopLevelPreprocessingBanner(context);
 
-      utils::Timer::instance().start_timer("community_detection", "Community Detection");
-      utils::Timer::instance().start_timer("construct_graph", "Construct Graph");
-      Graph graph(hypergraph, context.preprocessing.community_detection.edge_weight_function);
-      utils::Timer::instance().stop_timer("construct_graph");
-      utils::Timer::instance().start_timer("perform_community_detection", "Perform Community Detection");
-      ds::Clustering communities = community_detection::run_parallel_louvain(graph, context);
-      graph.restrictClusteringToHypernodes(hypergraph, communities);
-      hypergraph.setCommunityIDs(std::move(communities));
-      utils::Timer::instance().stop_timer("perform_community_detection");
-      utils::Timer::instance().stop_timer("community_detection");
+      size_t num_reps = 5;
+      ds::Clustering comms_check;
+      for (size_t i = 0; i < num_reps; i++) {
+        utils::Timer::instance().start_timer("community_detection", "Community Detection");
+        utils::Timer::instance().start_timer("construct_graph", "Construct Graph");
+        Graph graph(hypergraph, context.preprocessing.community_detection.edge_weight_function);
+        utils::Timer::instance().stop_timer("construct_graph");
+        utils::Timer::instance().start_timer("perform_community_detection", "Perform Community Detection");
+        ds::Clustering communities = community_detection::run_parallel_louvain(graph, context);
+
+        if (i == 0) {
+          comms_check = communities;
+          graph.restrictClusteringToHypernodes(hypergraph, communities);
+          hypergraph.setCommunityIDs(std::move(communities));
+        } else {
+          if (comms_check != communities) {
+            LOG << "non-deterministic preprocessing"; std::abort();
+          }
+        }
+        utils::Timer::instance().stop_timer("perform_community_detection");
+        utils::Timer::instance().stop_timer("community_detection");
+      }
 
       if (context.partition.verbose_output) {
         io::printCommunityInformation(hypergraph);
       }
     }
+    LOG << "preprocessing safe";
+    std::exit(0);
     parallel::MemoryPool::instance().release_mem_group("Preprocessing");
   }
 
