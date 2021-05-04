@@ -364,7 +364,7 @@ class InitialPartitioningDataContainer {
     _context.refinement = _context.initial_partitioning.refinement;
     _context.refinement.label_propagation.execute_sequential = true;
 
-    _max_pop_size = 16;
+    _max_pop_size = std::max(_context.initial_partitioning.population_size, _context.shared_memory.num_threads);
 
     if (_context.partition.deterministic) {
       _best_partitions.resize(_max_pop_size);

@@ -208,6 +208,7 @@ struct InitialPartitioningParameters {
   bool remove_degree_zero_hns_before_ip = false;
   size_t lp_maximum_iterations = 1;
   size_t lp_initial_block_size = 1;
+  size_t population_size = 16;
 };
 
 std::ostream & operator<< (std::ostream& str, const InitialPartitioningParameters& params);

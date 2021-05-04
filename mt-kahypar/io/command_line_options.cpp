@@ -415,6 +415,10 @@ namespace mt_kahypar {
              po::value<size_t>(&context.initial_partitioning.min_adaptive_ip_runs)->value_name("<size_t>")->default_value(5),
              "If adaptive IP runs is enabled, than each initial partitioner performs minimum min_adaptive_ip_runs runs before\n"
              "it decides if it should terminate.")
+            ("i-population-size",
+             po::value<size_t>(&context.initial_partitioning.population_size)->value_name("<size_t>")->default_value(16),
+             "Size of population of flat bipartitions to perform secondary FM refinement on in deterministic mode."
+             "Values < num threads are set to num threads. Does not affect behavior in non-deterministic mode.")
             ("i-perform-refinement-on-best-partitions",
              po::value<bool>(&context.initial_partitioning.perform_refinement_on_best_partitions)->value_name("<bool>")->default_value(false),
              "If true, then we perform an additional refinement on the best thread local partitions after IP.")
