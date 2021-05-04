@@ -51,7 +51,7 @@ void DeterministicMultilevelCoarsener::coarsenImpl() {
     size_t num_sub_rounds = 16;
     size_t num_buckets = utils::ParallelPermutation<HypernodeID>::num_buckets;
     size_t num_buckets_per_sub_round = parallel::chunking::idiv_ceil(num_buckets, num_sub_rounds);
-    
+
     for (size_t sub_round = 0; sub_round < num_sub_rounds && num_nodes > currentLevelContractionLimit(); ++sub_round) {
       auto [first_bucket, last_bucket] = parallel::chunking::bounds(sub_round, num_buckets, num_buckets_per_sub_round);
       assert(first_bucket < last_bucket && last_bucket < permutation.bucket_bounds.size());
