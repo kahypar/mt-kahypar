@@ -132,6 +132,8 @@ namespace mt_kahypar::ds {
     Graph coarse_graph;
     coarse_graph._total_volume = _total_volume;
 
+    static constexpr bool debug = true;
+
     // #################### STAGE 1 ####################
     // Compute node ids of coarse graph with a parallel prefix sum
     utils::Timer::instance().start_timer("compute_cluster_mapping", "Compute Cluster Mapping");
@@ -157,6 +159,12 @@ namespace mt_kahypar::ds {
       communities[u] = mapping_prefix_sum[communities[u]];
     });
     utils::Timer::instance().stop_timer("compute_cluster_mapping");
+
+    auto unique_cluster_ids = communities;
+    std::sort(unique_cluster_ids.begin(), unique_cluster_ids.end());
+    auto new_end = std::unique(unique_cluster_ids.begin(), unique_cluster_ids.end());
+    size_t num_unique_clusters = std::distance(unique_cluster_ids.begin(), new_end);
+    DBG << V(coarse_graph._num_nodes) << "after remapping" << V(num_unique_clusters);
 
     // #################### STAGE 2 ####################
     // Write all arcs, that will not form a selfloop in the coarse graph, into a tmp

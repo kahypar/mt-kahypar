@@ -83,7 +83,7 @@ bool ParallelLocalMovingModularity::localMoving(Graph& graph, ds::Clustering& co
     });
   }
 
-  DBG << "Louvain level" << V(graph.numNodes());
+  DBG << "Louvain level" << V(graph.numNodes()) << V(graph.numArcs());
 
   // local moving
   bool clustering_changed = false;
@@ -170,6 +170,12 @@ size_t ParallelLocalMovingModularity::synchronousParallelRound(const Graph& grap
       }
     }
   }
+
+  auto unique_cluster_ids = communities;
+  std::sort(unique_cluster_ids.begin(), unique_cluster_ids.end());
+  auto new_end = std::unique(unique_cluster_ids.begin(), unique_cluster_ids.end());
+  size_t num_unique_clusters = std::distance(unique_cluster_ids.begin(), new_end);
+  DBG << V(num_unique_clusters);
 
   return num_moved_nodes;
 }
