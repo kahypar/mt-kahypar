@@ -1,5 +1,8 @@
+#include <mt-kahypar/partition/refinement/do_nothing_refiner.h>
+#include <mt-kahypar/partition/refinement/label_propagation/asynch_lp_refiner.h>
 #include "mt-kahypar/partition/coarsening/multilevel_coarsener_base.h"
 #include "mt-kahypar/partition/coarsening/nlevel_coarsener_base.h"
+#include "mt-kahypar/partition/factories.h"
 
 #include "mt-kahypar/parallel/memory_pool.h"
 #include "mt-kahypar/datastructures/streaming_vector.h"
@@ -468,6 +471,15 @@ namespace mt_kahypar {
       _round_coarsening_times.push_back(_round_coarsening_times.size() > 0 ?
                                         _round_coarsening_times.back() : std::numeric_limits<double>::max()); // Sentinel
 
+
+      // LP Refiner for local asynchronous label propagation refinement
+      std::unique_ptr<IRefiner> localLPRefiner = AsynchLPRefinerFactory::getInstance().createObject(
+              _context.refinement.label_propagation.algorithm,
+              _phg.hypergraph(),
+              _context,
+              _task_group_id);
+      localLPRefiner->initialize(_phg);
+
       // Localized refinement lambda which only refines using label propagation
       auto do_localized_LP_refinement = [&](const ds::ContractionGroup& group) {
 
@@ -484,11 +496,12 @@ namespace mt_kahypar {
                   refinement_nodes.push_back(memento.v);
               }
           }
+          refinement_nodes.shrink_to_fit();
 
           // Do only label propagation
-          auto nullFM = std::unique_ptr<IRefiner>();
-          localizedRefine(_phg, refinement_nodes, label_propagation,
-                          nullFM, current_metrics, force_measure_timings);
+          std::unique_ptr<IRefiner> noopRefiner = std::make_unique<DoNothingRefiner>();
+          localizedRefine(_phg, refinement_nodes, localLPRefiner,
+                          noopRefiner, current_metrics, force_measure_timings);
       };
 
       while (!_group_pools_for_versions.empty()) {

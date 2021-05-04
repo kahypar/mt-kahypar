@@ -8,7 +8,7 @@
 #include "mt-kahypar/datastructures/contraction_tree.h"
 #include "mt-kahypar/datastructures/hypergraph_common.h"
 #include "mt-kahypar/datastructures/asynch/asynch_common.h"
-#include "mt-kahypar/datastructures/asynch/uncontraction_group_hierarchy.h"
+#include "mt-kahypar/datastructures/asynch/i_uncontraction_group_hierarchy.h"
 
 namespace mt_kahypar::ds {
 
@@ -23,7 +23,7 @@ namespace mt_kahypar::ds {
 /// A contraction group is a set of contractions with the same representative that were contracted simultaneously
 /// (i.e. their contraction intervals have transitive overlap) which means they have to be uncontracted simultaneously
 /// as well. Starting with the root groups for a version, a group can only be uncontracted once its parent group in the
-/// GroupUncontractionForest has been uncontracted.
+/// GroupUncontractionTree has been uncontracted.
     class UncontractionGroupTree : public IUncontractionGroupHierarchy {
 
         using ContractionInterval = typename ContractionTree::Interval;

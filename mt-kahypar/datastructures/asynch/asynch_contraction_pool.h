@@ -7,7 +7,7 @@
 
 #include "uncontraction_group_tree.h"
 #include "mt-kahypar/datastructures/asynch/asynch_common.h"
-#include "mt-kahypar/datastructures/asynch/contraction_group_pool.h"
+#include "mt-kahypar/datastructures/asynch/i_contraction_group_pool.h"
 
 namespace mt_kahypar::ds
 {

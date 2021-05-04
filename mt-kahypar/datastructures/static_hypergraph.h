@@ -32,7 +32,7 @@
 #include "mt-kahypar/utils/memory_tree.h"
 #include "mt-kahypar/utils/range.h"
 
-#include "mt-kahypar/datastructures/asynch/contraction_group_pool.h"
+#include "mt-kahypar/datastructures/asynch/i_contraction_group_pool.h"
 
 namespace mt_kahypar {
 namespace ds {

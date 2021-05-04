@@ -7,7 +7,8 @@ set(DatastructureSources
         graph.cpp
         incident_net_array.cpp
         asynch/asynch_contraction_pool.cpp
-        asynch/uncontraction_group_tree.cpp)
+        asynch/uncontraction_group_tree.cpp
+        asynch/array_lock_manager.cpp)
 
 foreach(modtarget IN LISTS TARGETS_WANTING_ALL_SOURCES)
     target_sources(${modtarget} PRIVATE ${DatastructureSources})

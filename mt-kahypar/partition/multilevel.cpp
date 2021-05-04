@@ -102,6 +102,7 @@ namespace mt_kahypar::multilevel {
                       _context.refinement.fm.algorithm,
                       _hg, _context, _task_group_id);
 
+
       _partitioned_hg = _coarsener->uncoarsen(label_propagation, fm);
       utils::Timer::instance().stop_timer("refinement");
 

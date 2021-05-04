@@ -2,8 +2,8 @@
 // Created by mlaupichler on 28.04.21.
 //
 
-#ifndef KAHYPAR_CONTRACTION_GROUP_POOL_H
-#define KAHYPAR_CONTRACTION_GROUP_POOL_H
+#ifndef KAHYPAR_I_CONTRACTION_GROUP_POOL_H
+#define KAHYPAR_I_CONTRACTION_GROUP_POOL_H
 
 #include "gmock/gmock.h"
 
@@ -57,4 +57,4 @@ namespace mt_kahypar::ds {
 
 }
 
-#endif //KAHYPAR_CONTRACTION_GROUP_POOL_H
+#endif //KAHYPAR_I_CONTRACTION_GROUP_POOL_H

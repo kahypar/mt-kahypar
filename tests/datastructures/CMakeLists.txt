@@ -26,5 +26,6 @@ target_sources(mt_kahypar_strong_tests PRIVATE
         uncontraction_group_tree_test.cpp
         async_nlevel_smoke_test.cc
         smoke_test_common.cc
+        lock_manager_test.cc
 )
 
