@@ -97,6 +97,10 @@ namespace mt_kahypar {
     PartitionedHypergraph& coarsest_hg = currentPartitionedHypergraph();
     kahypar::Metrics current_metrics = initialize(coarsest_hg);
 
+    if (_top_level) {
+      _context.initial_km1 = current_metrics.km1;
+    }
+
     utils::ProgressBar uncontraction_progress(_hg.initialNumNodes(),
                                               _context.partition.objective == kahypar::Objective::km1
                                               ? current_metrics.km1 : current_metrics.cut,
@@ -199,6 +203,9 @@ namespace mt_kahypar {
                                                            std::unique_ptr<IRefiner>& fm) {
     ASSERT(_is_finalized);
     kahypar::Metrics current_metrics = initialize(_compactified_phg);
+    if (_top_level) {
+      _context.initial_km1 = current_metrics.km1;
+    }
 
     // Project partition from compactified hypergraph to original hypergraph
     utils::Timer::instance().start_timer("initialize_partition", "Initialize Partition");
