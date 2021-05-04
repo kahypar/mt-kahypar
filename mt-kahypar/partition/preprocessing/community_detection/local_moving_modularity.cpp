@@ -117,6 +117,11 @@ size_t ParallelLocalMovingModularity::synchronousParallelRound(const Graph& grap
     communities = backup;
     num_moved_nodes = 0;
 
+    tbb::parallel_for(0UL, graph.numNodes(), [&](NodeID u) {
+      _cluster_volumes[u].store(0, std::memory_order_relaxed);
+      propositions[u] = kInvalidPartition;
+    });
+
     for (size_t sub_round = 0; sub_round < num_sub_rounds; ++sub_round) {
       auto [first_bucket, last_bucket] = parallel::chunking::bounds(sub_round, num_buckets, num_buckets_per_sub_round);
       assert(first_bucket < last_bucket && last_bucket < permutation.bucket_bounds.size());
@@ -156,7 +161,7 @@ size_t ParallelLocalMovingModularity::synchronousParallelRound(const Graph& grap
       first_solution = communities;
     } else {
       if (first_solution != communities) {
-        LOG << V(i) << "non determinism in sync Louvain";
+        DBG << V(i) << "non determinism in sync Louvain";
       }
     }
   }

@@ -157,7 +157,7 @@ void DeterministicMultilevelCoarsener::coarsenImpl() {
         first_solution = clusters;
       } else {
         if (first_solution != clusters) {
-          LOG << V(i) << "non-determinism in sync coarsening clustering";
+          DBG << V(i) << "non-determinism in sync coarsening clustering";
         }
       }
 
