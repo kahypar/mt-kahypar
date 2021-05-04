@@ -112,6 +112,7 @@ struct PrecomputeBucketOpt {
     if (chunk_size % 4 != 0) {
       chunk_size += 4 - (chunk_size % 4); // round up to multiple of 4 --> only last range has to do the overhang bit
     }
+    assert(chunk_size % 4 == 0);
 
     tbb::parallel_for(0UL, num_tasks, [&](size_t i) {
       std::mt19937 rng(seed);
