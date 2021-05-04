@@ -106,91 +106,46 @@ bool ParallelLocalMovingModularity::localMoving(Graph& graph, ds::Clustering& co
 
 size_t ParallelLocalMovingModularity::synchronousParallelRound(const Graph& graph, ds::Clustering& communities) {
   size_t seed = prng();
-  auto backup_permutation = permutation;
-  auto first_permutation = permutation;
-  size_t num_reps = 5;
-  for (size_t i = 0; i < num_reps; ++i) {
-    permutation = backup_permutation;
-    permutation.random_grouping(graph.numNodes(), _context.shared_memory.num_threads, seed);
-    if (i == 0) {
-      first_permutation = permutation;
-    } else {
-      if (first_permutation.permutation != permutation.permutation && first_permutation.bucket_bounds != permutation.bucket_bounds) {
-        DBG << "non-determinism in random shuffle" << V(i);
-      }
-    }
-  }
-
+  permutation.random_grouping(graph.numNodes(), _context.shared_memory.num_threads, seed);
   size_t num_moved_nodes = 0;
   size_t num_sub_rounds = 16;
   size_t num_buckets = utils::ParallelPermutation<HypernodeID>::num_buckets;
   size_t num_buckets_per_sub_round = parallel::chunking::idiv_ceil(num_buckets, num_sub_rounds);
 
-  ds::Clustering backup = communities;
-  ds::Clustering first_solution;
+  for (size_t sub_round = 0; sub_round < num_sub_rounds; ++sub_round) {
+    auto [first_bucket, last_bucket] = parallel::chunking::bounds(sub_round, num_buckets, num_buckets_per_sub_round);
+    assert(first_bucket < last_bucket && last_bucket < permutation.bucket_bounds.size());
+    size_t first = permutation.bucket_bounds[first_bucket];
+    size_t last = permutation.bucket_bounds[last_bucket];
 
-
-  for (size_t i = 0; i < num_reps; ++i) {
-    communities = backup;
-    num_moved_nodes = 0;
-
-    tbb::parallel_for(0UL, graph.numNodes(), [&](NodeID u) {
-      _cluster_volumes[u].store(0, std::memory_order_relaxed);
-      propositions[u] = kInvalidPartition;
-    });
-    tbb::parallel_for(0UL, graph.numNodes(), [&](NodeID u) {
-      _cluster_volumes[communities[u]] += graph.nodeVolume(u);
-    });
-
-    for (size_t sub_round = 0; sub_round < num_sub_rounds; ++sub_round) {
-      auto [first_bucket, last_bucket] = parallel::chunking::bounds(sub_round, num_buckets, num_buckets_per_sub_round);
-      assert(first_bucket < last_bucket && last_bucket < permutation.bucket_bounds.size());
-      size_t first = permutation.bucket_bounds[first_bucket];
-      size_t last = permutation.bucket_bounds[last_bucket];
-
-      tbb::parallel_for(first, last, [&](size_t pos) {
-        HypernodeID u = permutation.at(pos);
-        propositions[u] = computeMaxGainCluster(graph, communities, u, non_sampling_incident_cluster_weights.local());
-        /*
-        if ( ratingsFitIntoSmallSparseMap(graph, u) ) {
-          best_cluster = computeMaxGainCluster(graph, communities, u, _local_small_incident_cluster_weight.local());
-        } else {
-          LargeIncidentClusterWeights& large_incident_cluster_weight = _local_large_incident_cluster_weight.local();
-          large_incident_cluster_weight.setMaxSize(3UL * std::min(_max_degree, _vertex_degree_sampling_threshold));
-          best_cluster = computeMaxGainCluster(graph, communities, u, large_incident_cluster_weight);
-        }
-        */
-      });
-
-      auto move_sub_range = [&](const tbb::blocked_range<size_t>& r, size_t num_moved_partial) -> size_t {
-        for (size_t pos = r.begin(); pos < r.end(); ++pos) {
-          HypernodeID u = permutation.at(pos);
-          if (propositions[u] != communities[u]) {
-            _cluster_volumes[propositions[u]] += graph.nodeVolume(u);
-            _cluster_volumes[communities[u]] -= graph.nodeVolume(u);
-            communities[u] = propositions[u];
-            num_moved_partial++;
-          }
-        }
-        return num_moved_partial;
-      };
-      num_moved_nodes += tbb::parallel_reduce(tbb::blocked_range<size_t>(first, last), 0UL, move_sub_range, std::plus<size_t>());
-    }
-
-    if (i == 0) {
-      first_solution = communities;
-    } else {
-      if (first_solution != communities) {
-        DBG << V(i) << "non determinism in sync Louvain";
+    tbb::parallel_for(first, last, [&](size_t pos) {
+      HypernodeID u = permutation.at(pos);
+      propositions[u] = computeMaxGainCluster(graph, communities, u, non_sampling_incident_cluster_weights.local());
+      /*
+      if ( ratingsFitIntoSmallSparseMap(graph, u) ) {
+        best_cluster = computeMaxGainCluster(graph, communities, u, _local_small_incident_cluster_weight.local());
+      } else {
+        LargeIncidentClusterWeights& large_incident_cluster_weight = _local_large_incident_cluster_weight.local();
+        large_incident_cluster_weight.setMaxSize(3UL * std::min(_max_degree, _vertex_degree_sampling_threshold));
+        best_cluster = computeMaxGainCluster(graph, communities, u, large_incident_cluster_weight);
       }
-    }
-  }
+      */
+    });
 
-  auto unique_cluster_ids = communities;
-  std::sort(unique_cluster_ids.begin(), unique_cluster_ids.end());
-  auto new_end = std::unique(unique_cluster_ids.begin(), unique_cluster_ids.end());
-  size_t num_unique_clusters = std::distance(unique_cluster_ids.begin(), new_end);
-  DBG << V(num_unique_clusters);
+    auto move_sub_range = [&](const tbb::blocked_range<size_t>& r, size_t num_moved_partial) -> size_t {
+      for (size_t pos = r.begin(); pos < r.end(); ++pos) {
+        HypernodeID u = permutation.at(pos);
+        if (propositions[u] != communities[u]) {
+          _cluster_volumes[propositions[u]] += graph.nodeVolume(u);
+          _cluster_volumes[communities[u]] -= graph.nodeVolume(u);
+          communities[u] = propositions[u];
+          num_moved_partial++;
+        }
+      }
+      return num_moved_partial;
+    };
+    num_moved_nodes += tbb::parallel_reduce(tbb::blocked_range<size_t>(first, last), 0UL, move_sub_range, std::plus<size_t>());
+  }
 
   return num_moved_nodes;
 }
