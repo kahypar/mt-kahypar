@@ -121,6 +121,9 @@ size_t ParallelLocalMovingModularity::synchronousParallelRound(const Graph& grap
       _cluster_volumes[u].store(0, std::memory_order_relaxed);
       propositions[u] = kInvalidPartition;
     });
+    tbb::parallel_for(0UL, graph.numNodes(), [&](NodeID u) {
+      _cluster_volumes[communities[u]] += graph.nodeVolume(u);
+    });
 
     for (size_t sub_round = 0; sub_round < num_sub_rounds; ++sub_round) {
       auto [first_bucket, last_bucket] = parallel::chunking::bounds(sub_round, num_buckets, num_buckets_per_sub_round);
