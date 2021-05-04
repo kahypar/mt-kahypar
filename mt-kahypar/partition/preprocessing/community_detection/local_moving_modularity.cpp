@@ -83,6 +83,8 @@ bool ParallelLocalMovingModularity::localMoving(Graph& graph, ds::Clustering& co
     });
   }
 
+  DBG << "Louvain level" << V(graph.numNodes());
+
   // local moving
   bool clustering_changed = false;
   if ( graph.numArcs() > 0 ) {
