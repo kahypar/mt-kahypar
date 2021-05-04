@@ -59,7 +59,7 @@ private:
     HypernodeWeight weight = 0;
   };
 
-  static constexpr bool debug = true;
+  static constexpr bool debug = false;
 
   utils::ParallelPermutation<HypernodeID> permutation;
   vec<HypernodeID> propositions;
