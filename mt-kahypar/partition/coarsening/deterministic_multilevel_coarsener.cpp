@@ -42,6 +42,7 @@ void DeterministicMultilevelCoarsener::coarsenImpl() {
     double num_nodes_before_pass = num_nodes;
     vec<HypernodeID> clusters(num_nodes, kInvalidHypernode);
 
+    permutation.random_grouping(num_nodes, _context.shared_memory.num_threads, prng());
     vec<HypernodeID> first_solution;
 
     size_t num_reps = 5;
@@ -56,7 +57,6 @@ void DeterministicMultilevelCoarsener::coarsenImpl() {
         clusters[u] = u;
       });
 
-      permutation.random_grouping(num_nodes, _context.shared_memory.num_threads, prng());
       size_t num_sub_rounds = 16;
       size_t num_buckets = utils::ParallelPermutation<HypernodeID>::num_buckets;
       size_t num_buckets_per_sub_round = parallel::chunking::idiv_ceil(num_buckets, num_sub_rounds);
