@@ -109,7 +109,9 @@ struct PrecomputeBucketOpt {
     }
 
     size_t chunk_size = parallel::chunking::idiv_ceil(n, num_tasks);
-    chunk_size += chunk_size % 4; // round up to multiple of 4 --> only last range has to do the overhang bit
+    if (chunk_size % 4 != 0) {
+      chunk_size += 4 - (chunk_size % 4); // round up to multiple of 4 --> only last range has to do the overhang bit
+    }
 
     tbb::parallel_for(0UL, num_tasks, [&](size_t i) {
       std::mt19937 rng(seed);

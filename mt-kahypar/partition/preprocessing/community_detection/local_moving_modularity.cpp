@@ -105,7 +105,9 @@ bool ParallelLocalMovingModularity::localMoving(Graph& graph, ds::Clustering& co
 }
 
 size_t ParallelLocalMovingModularity::synchronousParallelRound(const Graph& graph, ds::Clustering& communities) {
-  permutation.random_grouping(graph.numNodes(), _context.shared_memory.num_threads, prng());
+
+  size_t seed = prng();
+  permutation.random_grouping(graph.numNodes(), _context.shared_memory.num_threads, seed);
   size_t num_moved_nodes = 0;
   size_t num_sub_rounds = 16;
   size_t num_buckets = utils::ParallelPermutation<HypernodeID>::num_buckets;
