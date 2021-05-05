@@ -18,4 +18,5 @@ target_sources(mt_kahypar_strong_tests PRIVATE
         gain_test.cc
         multitry_fm_test.cc
         fm_strategy_test.cc
+        asynch_lp_refiner_test.cc
         )

@@ -12,7 +12,7 @@ namespace mt_kahypar {
 
     /// Label Propagation Refiner to be used in asynchronous uncoarsening for localized refinement. Uses global locking
     /// datastructure to allow multiple concurrent localized label propagations as well as concurrent uncontractions.
-    /// Can not be used for global refinement or (only) rebalancing!
+    /// Can not be used for global refinement or (only) rebalancing as it always requires seed nodes for refining!
     template <template <typename> class GainPolicy> class AsynchLPRefiner : public IRefiner {
     private:
         using GainCalculator = GainPolicy<PartitionedHypergraph>;
@@ -108,8 +108,8 @@ namespace mt_kahypar {
                         } else {
                             DBG << "Revert move of hypernode" << hn << "from block" << from << "to block" << to
                                 << "( Expected Gain:" << best_move.gain << ", Real Gain:" << move_delta << ")";
-                            // In case, the real gain is not equal with the computed gain and
-                            // worsen the solution quality we revert the move.
+                            // In case, the real gain is not equal to the computed gain and
+                            // worsens the solution quality we revert the move.
                             ASSERT(hypergraph.partID(hn) == to);
                             changeNodePart(hypergraph, hn, to, from, objective_delta);
                         }
@@ -150,8 +150,8 @@ namespace mt_kahypar {
         kahypar::ds::FastResetFlagArray<> _visited_he;
     };
 
-    using LabelPropagationKm1Refiner = AsynchLPRefiner<Km1Policy>;
-    using LabelPropagationCutRefiner = AsynchLPRefiner<CutPolicy>;
+    using AsynchLPKm1Refiner = AsynchLPRefiner<Km1Policy>;
+    using AsynchLPCutRefiner = AsynchLPRefiner<CutPolicy>;
 }  // namespace kahypar
 
 
