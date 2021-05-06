@@ -36,6 +36,7 @@
 #include "mt-kahypar/utils/range.h"
 #include "mt-kahypar/utils/timer.h"
 
+// TODO: option to deactivate gain cache
 namespace mt_kahypar {
 namespace ds {
 
@@ -618,6 +619,11 @@ private:
   HyperedgeWeight moveToPenalty(const HypernodeID u, PartitionID p) const {
     ASSERT(_is_gain_cache_initialized, "Gain cache is not initialized");
     return -_incident_weight_in_part[incident_weight_index(u, p)].load(std::memory_order_relaxed);
+  }
+
+  HyperedgeWeight incidentWeightInPart(const HypernodeID u, PartitionID p) const {
+    ASSERT(_is_gain_cache_initialized, "Gain cache is not initialized");
+    return _incident_weight_in_part[incident_weight_index(u, p)].load(std::memory_order_relaxed);
   }
 
   void initializeGainCacheEntry(const HypernodeID u, parallel::scalable_vector<Gain>& penalty_aggregator) {

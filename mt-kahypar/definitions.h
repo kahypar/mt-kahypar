@@ -32,6 +32,7 @@ static_assert(false);
 #include "mt-kahypar/datastructures/static_graph_factory.h"
 #endif
 #include "mt-kahypar/datastructures/partitioned_graph.h"
+#include "mt-kahypar/datastructures/delta_partitioned_graph.h"
 #else
 #ifdef USE_STRONG_PARTITIONER
 #include "mt-kahypar/datastructures/dynamic_hypergraph.h"
@@ -41,6 +42,7 @@ static_assert(false);
 #include "mt-kahypar/datastructures/static_hypergraph_factory.h"
 #endif
 #include "mt-kahypar/datastructures/partitioned_hypergraph.h"
+#include "mt-kahypar/datastructures/delta_partitioned_hypergraph.h"
 #endif
 
 namespace mt_kahypar {
@@ -57,6 +59,7 @@ using Hypergraph = ds::StaticGraph;
 using HypergraphFactory = ds::StaticGraphFactory;
 #endif
 using PartitionedHypergraph = ds::PartitionedGraph<Hypergraph, HypergraphFactory>;
+using DeltaPartitionedHypergraph = ds::DeltaPartitionedGraph<PartitionedHypergraph>;
 #else
 #ifdef USE_STRONG_PARTITIONER
 using Hypergraph = ds::DynamicHypergraph;
@@ -66,6 +69,7 @@ using Hypergraph = ds::StaticHypergraph;
 using HypergraphFactory = ds::StaticHypergraphFactory;
 #endif
 using PartitionedHypergraph = ds::PartitionedHypergraph<Hypergraph, HypergraphFactory>;
+using DeltaPartitionedHypergraph = ds::DeltaPartitionedHypergraph<PartitionedHypergraph>;
 #endif
 
 using HighResClockTimepoint = std::chrono::time_point<std::chrono::high_resolution_clock>;
