@@ -260,6 +260,12 @@ public:
     this->sample_buckets_and_group_by(iota, num_tasks, seed);
   }
 
+  void sequential_fallback(IntegralT n, uint32_t seed) {
+    static_assert(std::is_integral<IntegralT>::value);
+    IntegerRange iota = {0, n};
+    this->sequential_fallback(iota, seed);
+  }
+
 protected:
   struct IntegerRange {
     IntegralT a, b;
