@@ -10,6 +10,7 @@
 #include "mt-kahypar/datastructures/dynamic_hypergraph.h"
 #include "mt-kahypar/datastructures/dynamic_hypergraph_factory.h"
 #include "mt-kahypar/datastructures/partitioned_hypergraph.h"
+#include "mt-kahypar/datastructures/asynch/array_lock_manager.h"
 #include "mt-kahypar/partition/metrics.h"
 #include "mt-kahypar/utils/randomize.h"
 
@@ -102,10 +103,14 @@ namespace mt_kahypar {
             auto versionedPools = hypergraph.createUncontractionGroupPoolsForVersions();
             utils::Timer::instance().stop_timer(timer_key("create_uncontraction_pools"));
 
+            utils::Timer::instance().start_timer(timer_key("create_lock_manager"), "Create Lock Manager");
+            auto lockManager = new ArrayLockManager<HypernodeID,ContractionGroupID>(hypergraph.initialNumNodes(),invalidGroupID);
+            utils::Timer::instance().stop_timer(timer_key("create_lock_manager"));
+
             utils::Timer::instance().start_timer(timer_key("async_uncontractions"), "Asynchronous Uncontractions");
             while (!versionedPools.empty()) {
                 IContractionGroupPool *pool = versionedPools.back().get();
-                partitioned_hypergraph.uncontractUsingGroupPool(pool, NOOP_LOCALIZED_REFINEMENT_FUNC);
+                partitioned_hypergraph.uncontractUsingGroupPool(pool, lockManager, NOOP_LOCALIZED_REFINEMENT_FUNC);
                 versionedPools.pop_back();
 
                 if (!removed_hyperedges.empty()) {

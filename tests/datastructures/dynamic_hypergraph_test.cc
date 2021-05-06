@@ -19,6 +19,7 @@
  ******************************************************************************/
 
 #include "gmock/gmock.h"
+#include "gtest/gtest.h"
 
 #include <atomic>
 
@@ -1439,8 +1440,11 @@ TEST_F(ADynamicHypergraph, GeneratesACompactifiedHypergraph2) {
   verifyPins(compactified_hg, {0}, { {0, 1, 2} });
 }
 
-    void verifySequentialVersionUncontraction(DynamicHypergraph& hypergraph,
-                                   const parallel::scalable_vector<Memento>& contractions) {
+using ::testing::_;
+using ::testing::Return;
+
+    void verifySequentialVersionUncontraction(DynamicHypergraph &hypergraph,
+                                              const parallel::scalable_vector <Memento> &contractions) {
         DynamicHypergraph expected_hypergraph = hypergraph.copy();
 
         // Perform contractions
@@ -1451,8 +1455,15 @@ TEST_F(ADynamicHypergraph, GeneratesACompactifiedHypergraph2) {
 
         auto pools = hypergraph.createUncontractionGroupPoolsForVersions();
 
+        // mock lock manager that always returns true to any locking/releasing requests and false to any isLocked queries
+        auto * mockLockManager = new MockGroupLockManager();
+        EXPECT_CALL(*mockLockManager,tryToAcquireLock(_,_)).WillRepeatedly(Return(true));
+        EXPECT_CALL(*mockLockManager,tryToReleaseLock(_,_)).WillRepeatedly(Return(true));
+        EXPECT_CALL(*mockLockManager,isLocked(_)).WillRepeatedly(Return(false));
+
         ASSERT(pools.size() == 1);
-        hypergraph.uncontractUsingGroupPool(pools[0].get(), NOOP_BATCH_FUNC, NOOP_BATCH_FUNC, NOOP_ADOPT_PART_FUNC,
+        hypergraph.uncontractUsingGroupPool(pools[0].get(), mockLockManager, NOOP_BATCH_FUNC, NOOP_BATCH_FUNC,
+                                            NOOP_ADOPT_PART_FUNC,
                                             NOOP_LOCALIZED_REFINEMENT_FUNC,
                                             true);
 
@@ -1461,32 +1472,33 @@ TEST_F(ADynamicHypergraph, GeneratesACompactifiedHypergraph2) {
 
 
     TEST_F(ADynamicHypergraph, PerformsSequentialUncontractions1) {
+
         verifySequentialVersionUncontraction(hypergraph,
-                                  { Memento { 0, 2 }, Memento { 3, 4 }, Memento { 5, 6 } });
+                                             {Memento{0, 2}, Memento{3, 4}, Memento{5, 6}});
     }
 
     TEST_F(ADynamicHypergraph, PerformsSequentialUncontractions2) {
         verifySequentialVersionUncontraction(hypergraph,
-                                  { Memento { 1, 0 }, Memento { 2, 1 }, Memento { 3, 2 } });
+                                             {Memento{1, 0}, Memento{2, 1}, Memento{3, 2}});
     }
 
     TEST_F(ADynamicHypergraph, PerformsSequentialUncontractions3) {
         verifySequentialVersionUncontraction(hypergraph,
-                                  { Memento { 1, 0 }, Memento { 1, 2 }, Memento { 3, 1 },
-                                    Memento { 4, 6 }, Memento { 4, 5 } });
+                                             {Memento{1, 0}, Memento{1, 2}, Memento{3, 1},
+                                              Memento{4, 6}, Memento{4, 5}});
     }
 
     TEST_F(ADynamicHypergraph, PerformsSequentialUncontractions4) {
         verifySequentialVersionUncontraction(hypergraph,
-                                  { Memento { 5, 6 }, Memento { 4, 5 }, Memento { 3, 4 },
-                                    Memento { 2, 3 }, Memento { 1, 2 }, Memento { 0, 1 } });
+                                             {Memento{5, 6}, Memento{4, 5}, Memento{3, 4},
+                                              Memento{2, 3}, Memento{1, 2}, Memento{0, 1}});
     }
 
 
     TEST_F(ADynamicHypergraph, PerformsSequentialUncontractions5) {
         verifySequentialVersionUncontraction(hypergraph,
-                                  { Memento { 2, 6 }, Memento { 2, 5 }, Memento { 1, 3 },
-                                    Memento { 1, 4 }, Memento { 0, 1 }, Memento { 0, 2 } });
+                                             {Memento{2, 6}, Memento{2, 5}, Memento{1, 3},
+                                              Memento{1, 4}, Memento{0, 1}, Memento{0, 2}});
     }
 
 

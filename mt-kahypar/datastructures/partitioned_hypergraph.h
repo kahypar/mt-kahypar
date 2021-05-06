@@ -425,6 +425,7 @@ private:
    * Uncontracts the current version of the underlying hypergraph using a given group pool.
    */
   void uncontractUsingGroupPool(IContractionGroupPool *pool,
+                                IGroupLockManager * lockManager,
                                 const DynamicHypergraph::LocalizedRefinementFunction &localized_refinement_func) {
       // Sets block ids of contraction partners
       DynamicHypergraph::AdoptPartitionFunction adopt_part_func = [&](const HypernodeID u, const HypernodeID v) {
@@ -434,25 +435,27 @@ private:
              ASSERT(part_id != kInvalidPartition && part_id < _k);
              setOnlyNodePart(v, part_id);
       };
-      _hg->uncontractUsingGroupPool(pool,
+      _hg->uncontractUsingGroupPool(pool, lockManager,
                                     [&](const HypernodeID u, const HypernodeID v, const HyperedgeID he) {
                                         // In this case, u and v are incident to hyperedge he after uncontraction
                                         const PartitionID block = partID(u);
-                                        const HypernodeID pin_count_in_part_after = incrementPinCountInPartWithoutGainUpdate(he, block);
+                                        const HypernodeID pin_count_in_part_after = incrementPinCountInPartWithoutGainUpdate(
+                                                he, block);
                                         ASSERT(pin_count_in_part_after > 1, V(u) << V(v) << V(he));
 
-                                        if ( _is_gain_cache_initialized ) {
+                                        if (_is_gain_cache_initialized) {
                                             // If u was the only pin of hyperedge he in its block before then moving out vertex u
                                             // of hyperedge he does not decrease the connectivity any more after the
                                             // uncontraction => b(u) -= w(he)
                                             const HyperedgeWeight edge_weight = edgeWeight(he);
-                                            if ( pin_count_in_part_after == 2 ) {
+                                            if (pin_count_in_part_after == 2) {
                                                 // u might be replaced by an other vertex in the batch
                                                 // => search for other pin of the corresponding block and
                                                 // substract edge weight.
-                                                for ( const HypernodeID& pin : pins(he) ) {
-                                                    if ( pin != v && partID(pin) == block ) {
-                                                        _move_from_benefit[pin].sub_fetch(edge_weight, std::memory_order_relaxed);
+                                                for (const HypernodeID &pin : pins(he)) {
+                                                    if (pin != v && partID(pin) == block) {
+                                                        _move_from_benefit[pin].sub_fetch(edge_weight,
+                                                                                          std::memory_order_relaxed);
                                                         break;
                                                     }
                                                 }
@@ -464,7 +467,7 @@ private:
                                             // block p
                                             _move_to_penalty[incident_net_weight_index(v)].add_fetch(
                                                     edge_weight, std::memory_order_relaxed);
-                                            for ( const PartitionID block : _connectivity_set.connectivitySet(he) ) {
+                                            for (const PartitionID block : _connectivity_set.connectivitySet(he)) {
                                                 _move_to_penalty[penalty_index(v, block)].add_fetch(
                                                         edge_weight, std::memory_order_relaxed);
                                             }
@@ -473,12 +476,12 @@ private:
                                     [&](const HypernodeID u, const HypernodeID v, const HyperedgeID he) {
                                         // In this case, u is replaced by v in hyperedge he
                                         // => Pin counts of hyperedge he does not change
-                                        if ( _is_gain_cache_initialized ) {
+                                        if (_is_gain_cache_initialized) {
                                             const PartitionID block = partID(u);
                                             const HyperedgeWeight edge_weight = edgeWeight(he);
                                             // Since u is no longer incident to hyperedge he its contribution for decreasing
                                             // the connectivity of he is shifted to vertex v => b(u) -= w(e), b(v) += w(e).
-                                            if ( pinCountInPart(he, block) == 1 ) {
+                                            if (pinCountInPart(he, block) == 1) {
                                                 _move_from_benefit[u].sub_fetch(edge_weight, std::memory_order_relaxed);
                                                 _move_from_benefit[v].add_fetch(edge_weight, std::memory_order_relaxed);
                                             }
@@ -490,7 +493,7 @@ private:
                                                     edge_weight, std::memory_order_relaxed);
                                             _move_to_penalty[incident_net_weight_index(v)].add_fetch(
                                                     edge_weight, std::memory_order_relaxed);
-                                            for ( const PartitionID block : _connectivity_set.connectivitySet(he) ) {
+                                            for (const PartitionID block : _connectivity_set.connectivitySet(he)) {
                                                 _move_to_penalty[penalty_index(u, block)].sub_fetch(
                                                         edge_weight, std::memory_order_relaxed);
                                                 _move_to_penalty[penalty_index(v, block)].add_fetch(

@@ -293,6 +293,7 @@ VersionedPoolVector DynamicHypergraph::createUncontractionGroupPoolsForVersions(
 }
 
 void DynamicHypergraph::uncontractUsingGroupPool(IContractionGroupPool *groupPool,
+                                                 IGroupLockManager *lockManager,
                                                  const UncontractionFunction &case_one_func,
                                                  const UncontractionFunction &case_two_func,
                                                  const AdoptPartitionFunction &adopt_part_func,
@@ -343,8 +344,11 @@ void DynamicHypergraph::uncontractUsingGroupPool(IContractionGroupPool *groupPoo
 
         }
 
-        if (!performNoRefinement) {
-            localized_refinement_func(contractionGroup);
+        if (performNoRefinement) {
+            // todo mlaupichler release locks for the group! (done by refinement in other case)
+        }
+        else {
+            localized_refinement_func(contractionGroup,contractionGroupID,lockManager);
         }
 
         groupPool->activateSuccessors(contractionGroupID);

@@ -14,6 +14,8 @@
 #include "mt-kahypar/partition/metrics.h"
 #include "mt-kahypar/io/partitioning_output.h"
 
+#include "mt-kahypar/datastructures/asynch/array_lock_manager.h"
+
 namespace mt_kahypar {
 
   void MultilevelCoarsenerBase::finalize() {
@@ -64,6 +66,8 @@ namespace mt_kahypar {
 
     if (_context.uncoarsening.use_asynchronous_uncoarsening) {
         _group_pools_for_versions = _hg.createUncontractionGroupPoolsForVersions();
+        auto num_nodes = _hg.initialNumNodes();
+        _lock_manager_for_async = new ds::ArrayLockManager<HypernodeID, ds::ContractionGroupID>(num_nodes,ds::invalidGroupID);
     } else {
         // Create n-level batch uncontraction hierarchy
         utils::Timer::instance().start_timer("create_batch_uncontraction_hierarchy", "Create n-Level Hierarchy");
@@ -472,16 +476,9 @@ namespace mt_kahypar {
                                         _round_coarsening_times.back() : std::numeric_limits<double>::max()); // Sentinel
 
 
-      // LP Refiner for local asynchronous label propagation refinement
-      std::unique_ptr<IRefiner> localLPRefiner = AsynchLPRefinerFactory::getInstance().createObject(
-              _context.refinement.label_propagation.algorithm,
-              _phg.hypergraph(),
-              _context,
-              _task_group_id);
-      localLPRefiner->initialize(_phg);
 
       // Localized refinement lambda which only refines using label propagation
-      auto do_localized_LP_refinement = [&](const ds::ContractionGroup& group) {
+      auto do_localized_LP_refinement = [&](const ds::ContractionGroup& group, ds::ContractionGroupID groupID, ds::IGroupLockManager * lockManager) {
 
           // group is expected to be small
           parallel::scalable_vector<HypernodeID> refinement_nodes;
@@ -498,6 +495,14 @@ namespace mt_kahypar {
           }
           refinement_nodes.shrink_to_fit();
 
+          // LP Refiner for local asynchronous label propagation refinement
+          std::unique_ptr<IRefiner> localLPRefiner = AsynchLPRefinerFactory::getInstance().createObject(
+                  _context.refinement.label_propagation.algorithm,
+                  _phg.hypergraph(),
+                  _context,
+                  _task_group_id);
+          localLPRefiner->initialize(_phg);
+
           // Do only label propagation
           std::unique_ptr<IRefiner> noopRefiner = std::make_unique<DoNothingRefiner>();
           localizedRefine(_phg, refinement_nodes, localLPRefiner,
@@ -508,7 +513,7 @@ namespace mt_kahypar {
           ASSERT(_phg.version() == _removed_hyperedges_batches.size());
           ds::IContractionGroupPool* pool = _group_pools_for_versions.back().get();
           ASSERT(_phg.version() == pool->getVersion());
-          _phg.uncontractUsingGroupPool(pool, do_localized_LP_refinement);
+          _phg.uncontractUsingGroupPool(pool, _lock_manager_for_async, do_localized_LP_refinement);
               // Restore single-pin and parallel nets to continue with the next version
               if ( !_removed_hyperedges_batches.empty() ) {
                   utils::Timer::instance().start_timer("restore_single_pin_and_parallel_nets",

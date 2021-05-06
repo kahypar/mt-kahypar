@@ -158,5 +158,9 @@ class NLevelCoarsenerBase {
   // ! Contains the contraction group pools that are used in asynchronous (or sequential) uncoarsening. There is one pool
   // ! per hypergraph version which is used to manage the uncontraction hierarchy.
   ds::VersionedPoolVector _group_pools_for_versions;
+
+  // ! A lock manager for locks on hypernodes used in asynchronous n-level uncoarsening
+  ds::IGroupLockManager * _lock_manager_for_async;
+
 };
 }  // namespace mt_kahypar

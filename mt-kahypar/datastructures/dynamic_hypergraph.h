@@ -22,6 +22,7 @@
 
 #include <mutex>
 #include <queue>
+#include <mt-kahypar/datastructures/asynch/i_lock_manager.h>
 
 #include "tbb/parallel_for.h"
 
@@ -71,8 +72,8 @@ class DynamicHypergraph {
   #define NOOP_ADOPT_PART_FUNC [] (const HypernodeID, const HypernodeID) { }
 
   // ! When asynchronously uncoarsening the localized refinement is called through a lambda of this type
-  using LocalizedRefinementFunction = std::function<void (const ContractionGroup&)>;
-  #define NOOP_LOCALIZED_REFINEMENT_FUNC [] (const ContractionGroup&) {}
+  using LocalizedRefinementFunction = std::function<void (const ContractionGroup& group, ContractionGroupID groupID, IGroupLockManager* lockManager)>;
+  #define NOOP_LOCALIZED_REFINEMENT_FUNC [] (const ContractionGroup&, ContractionGroupID groupID, IGroupLockManager* lockManager) {}
 
   /*!
   * This struct is used during multilevel coarsening to efficiently
@@ -880,6 +881,7 @@ class DynamicHypergraph {
    * pin counts and gain cache values.
    */
   void uncontractUsingGroupPool(IContractionGroupPool *groupPool,
+                                IGroupLockManager *lockManager,
                                 const UncontractionFunction &case_one_func = NOOP_BATCH_FUNC,
                                 const UncontractionFunction &case_two_func = NOOP_BATCH_FUNC,
                                 const AdoptPartitionFunction &adopt_part_func = NOOP_ADOPT_PART_FUNC,

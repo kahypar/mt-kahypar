@@ -7,6 +7,7 @@
 
 #include "mt-kahypar/datastructures/hypergraph_common.h"
 #include "tbb/blocked_range.h"
+#include "mt-kahypar/utils/range.h"
 
 namespace mt_kahypar::ds {
 
@@ -16,6 +17,8 @@ namespace mt_kahypar::ds {
     using Contraction = Memento;
     using ContractionIterator = std::vector<Contraction>::const_iterator;
     using ContractionIteratorRange = IteratorRange<ContractionIterator>;
+
+    static constexpr ContractionGroupID invalidGroupID = std::numeric_limits<ContractionGroupID>::max();
 
 
     /// Represents a group of (un-)contractions that have been contracted simultaneously with the same representative.
