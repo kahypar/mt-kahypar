@@ -221,24 +221,6 @@ public:
     assert(bucket_bounds.size() == num_buckets + 1);
   }
 
-  template<typename RangeT>
-  void sequential_fallback(const RangeT& input_elements, uint32_t seed) {
-    size_t n = input_elements.size();
-    permutation.resize(n);
-    for (size_t i = 0; i < n; ++i) {
-      permutation[i] = input_elements[i];
-    }
-    std::mt19937 prng(seed);
-    std::shuffle(permutation.begin(), permutation.end(), prng);
-    bucket_bounds.resize(num_buckets + 1, 0);
-    size_t bucket_size = parallel::chunking::idiv_ceil(n, num_buckets);
-    for (size_t i = 0; i < num_buckets; ++i) {
-      bucket_bounds[i+1] = parallel::chunking::bounds(i, n, bucket_size).second;
-    }
-    assert(bucket_bounds.back() == n);
-    assert(std::is_sorted(bucket_bounds.begin(), bucket_bounds.end()));
-  }
-
 protected:
   std::array<std::mt19937::result_type, num_buckets> seeds;
 };
@@ -260,11 +242,22 @@ public:
     this->sample_buckets_and_group_by(iota, num_tasks, seed);
   }
 
-  void sequential_fallback(IntegralT n, uint32_t seed) {
-    static_assert(std::is_integral<IntegralT>::value);
-    IntegerRange iota = {0, n};
-    this->sequential_fallback(iota, seed);
+  template<typename RangeT>
+  void sequential_fallback(size_t n, uint32_t seed) {
+    auto& perm = this->permutation;
+    perm.resize(n);
+    std::iota(perm.begin(), perm.end(), 0);
+    std::mt19937 prng(seed);
+    std::shuffle(perm.begin(), perm.end(), prng);
+    this->bucket_bounds.resize(this->num_buckets + 1, 0);
+    size_t bucket_size = parallel::chunking::idiv_ceil(n, this->num_buckets);
+    for (size_t i = 0; i < this->num_buckets; ++i) {
+      this->bucket_bounds[i+1] = parallel::chunking::bounds(i, n, bucket_size).second;
+    }
+    assert(this->bucket_bounds.back() == n);
+    assert(std::is_sorted(this->bucket_bounds.begin(), this->bucket_bounds.end()));
   }
+
 
 protected:
   struct IntegerRange {
