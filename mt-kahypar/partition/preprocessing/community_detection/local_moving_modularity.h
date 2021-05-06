@@ -114,17 +114,12 @@ class ParallelLocalMovingModularity {
     double bestGain = weight_from - volMultiplier * (volume_from - volU);
     for (const auto& clusterWeight : incident_cluster_weights) {
       PartitionID to = clusterWeight.key;
-      const ArcWeight weight_to = clusterWeight.value;
       // if from == to, we would have to remove volU from volume_to as well.
       // just skip it. it has (adjusted) gain zero.
       if (from == to) {
         continue;
       }
-
-      const ArcWeight volume_to = _cluster_volumes[to].load(std::memory_order_relaxed);
-
-      double gain = modularityGain(weight_to, volume_to, volMultiplier);
-
+      double gain = modularityGain(clusterWeight.value, _cluster_volumes[to].load(std::memory_order_relaxed), volMultiplier);
       if (gain > bestGain) {
         bestCluster = to;
         bestGain = gain;
