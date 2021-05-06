@@ -88,6 +88,7 @@ struct PrecomputeBucket {
       rng.seed(rng());
 
       auto [begin, end] = parallel::chunking::bounds(i, n, chunk_size);
+      assert(begin < end);
       for (size_t j = begin; j < end; ++j) {
         precomputed_buckets[j] = static_cast<uint8_t>(rng());
       }
@@ -113,14 +114,16 @@ struct PrecomputeBucketOpt {
       chunk_size += 4 - (chunk_size % 4); // round up to multiple of 4 --> only last range has to do the overhang bit
     }
     assert(chunk_size % 4 == 0);
+    size_t num_tasks_needed = parallel::chunking::idiv_ceil(n, chunk_size);
 
-    tbb::parallel_for(0UL, num_tasks, [&](size_t i) {
+    tbb::parallel_for(0UL, num_tasks_needed, [&](size_t i) {
       std::mt19937 rng(seed);
       rng.discard(i);
-      rng.seed(rng());
+      size_t local_seed = rng();
+      rng.seed(local_seed);
 
       auto [begin, end] = parallel::chunking::bounds(i, n, chunk_size);
-
+      assert(begin < end);
       size_t overhang = end % 4;
       size_t truncated_end = end - overhang;
 
@@ -129,7 +132,7 @@ struct PrecomputeBucketOpt {
         *( reinterpret_cast<uint32_t*>(precomputed_buckets.data() + j) ) = x;
       }
 
-      if (overhang > 0) {
+      if (overhang > 0 && begin < end) {
         uint32_t x = rng();
         for (size_t j = 0; j < overhang; ++j) {
           assert(end - j - 1 < precomputed_buckets.size());
