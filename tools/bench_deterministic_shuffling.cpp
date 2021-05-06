@@ -43,6 +43,26 @@ void benchShuffle(size_t n, int num_threads) {
   assert(is_permutation(comp, shuffle_hash.permutation));
 }
 
+void testGroupingReproducibility(size_t n, int num_threads) {
+  tbb::task_scheduler_init tsi(num_threads);
+
+  size_t num_reps = 5;
+  using Permutation = ParallelPermutation<int, PrecomputeBucketOpt>;
+
+  Permutation first;
+  for (size_t i = 0; i < num_reps; ++i) {
+    Permutation shuffle;
+    shuffle.random_grouping(n, num_threads, 420);
+
+    if (i == 0) {
+      first = shuffle;
+    } else {
+      assert(shuffle.get_bucket.precomputed_buckets == first.get_bucket.precomputed_buckets);
+      assert(shuffle.permutation == first.permutation);
+      assert(shuffle.bucket_bounds == first.bucket_bounds);
+    }
+  }
+}
 
 
 void testFeistel() {
@@ -73,7 +93,7 @@ void testFeistel() {
 
 
 int main(int argc, char* argv[]) {
-/*
+
   if (argc != 3) {
     std::cout << "Usage. num-threads permutation-size" << std::endl;
     std::exit(0);
@@ -81,8 +101,9 @@ int main(int argc, char* argv[]) {
 
   int num_threads = std::stoi(argv[1]);
   size_t n = std::stoi(argv[2]);
-  mt_kahypar::utils::benchShuffle(n, num_threads);
-  */
-  mt_kahypar::utils::testFeistel();
+  // mt_kahypar::utils::benchShuffle(n, num_threads);
+  mt_kahypar::utils::testGroupingReproducibility(n, num_threads);
+
+  // mt_kahypar::utils::testFeistel();
   return 0;
 }
