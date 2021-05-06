@@ -221,6 +221,24 @@ public:
     assert(bucket_bounds.size() == num_buckets + 1);
   }
 
+  template<typename RangeT>
+  void sequential_fallback(const RangeT& input_elements, uint32_t seed) {
+    size_t n = input_elements.size();
+    permutation.resize(n);
+    for (size_t i = 0; i < n; ++i) {
+      permutation[i] = input_elements[i];
+    }
+    std::mt19937 prng(seed);
+    std::shuffle(permutation.begin(), permutation.end(), prng);
+    bucket_bounds.resize(num_buckets + 1, 0);
+    size_t bucket_size = parallel::chunking::idiv_ceil(n, num_buckets);
+    for (size_t i = 0; i < num_buckets; ++i) {
+      bucket_bounds[i+1] = parallel::chunking::bounds(i, n, bucket_size).second;
+    }
+    assert(bucket_bounds.back() == n);
+    assert(std::is_sorted(bucket_bounds.begin(), bucket_bounds.end()));
+  }
+
 protected:
   std::array<std::mt19937::result_type, num_buckets> seeds;
 };
