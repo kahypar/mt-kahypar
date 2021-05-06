@@ -242,7 +242,6 @@ public:
     this->sample_buckets_and_group_by(iota, num_tasks, seed);
   }
 
-  template<typename RangeT>
   void sequential_fallback(size_t n, uint32_t seed) {
     auto& perm = this->permutation;
     perm.resize(n);
