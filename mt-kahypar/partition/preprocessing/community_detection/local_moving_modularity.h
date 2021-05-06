@@ -101,11 +101,12 @@ class ParallelLocalMovingModularity {
     PartitionID from = communities[u];
     PartitionID bestCluster = communities[u];
 
+    incident_cluster_weights.clear();
     for (const Arc& arc : graph.arcsOf(u, _vertex_degree_sampling_threshold)) {
       incident_cluster_weights[communities[arc.head]] += arc.weight;
     }
 
-    const ArcWeight volume_from = _cluster_volumes[from];
+    const ArcWeight volume_from = _cluster_volumes[from].load(std::memory_order_relaxed);
     const ArcWeight volU = graph.nodeVolume(u);
     const ArcWeight weight_from = incident_cluster_weights[from];
 
@@ -113,14 +114,14 @@ class ParallelLocalMovingModularity {
     double bestGain = weight_from - volMultiplier * (volume_from - volU);
     for (const auto& clusterWeight : incident_cluster_weights) {
       PartitionID to = clusterWeight.key;
+      const ArcWeight weight_to = clusterWeight.value;
       // if from == to, we would have to remove volU from volume_to as well.
       // just skip it. it has (adjusted) gain zero.
       if (from == to) {
         continue;
       }
 
-      const ArcWeight volume_to = _cluster_volumes[to],
-        weight_to = incident_cluster_weights.get(to);
+      const ArcWeight volume_to = _cluster_volumes[to].load(std::memory_order_relaxed);
 
       double gain = modularityGain(weight_to, volume_to, volMultiplier);
 
@@ -130,9 +131,9 @@ class ParallelLocalMovingModularity {
       }
     }
 
-    HEAVY_PREPROCESSING_ASSERT(verifyGain(graph, communities, u, bestCluster, bestGain, incident_cluster_weights));
-
-    incident_cluster_weights.clear();
+    // changing communities and volumes in parallel causes non-determinism in debug mode
+    // TODO integrate somewhere else
+    // HEAVY_PREPROCESSING_ASSERT(verifyGain(graph, communities, u, bestCluster, bestGain, incident_cluster_weights));
 
     return bestCluster;
   }
