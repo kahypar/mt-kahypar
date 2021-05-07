@@ -44,6 +44,12 @@ public:
     return back.load(std::memory_order_relaxed);
   }
 
+  void adapt_capacity(size_t sz) {
+    if (sz > data.size()) {
+      data.resize(sz, T());
+    }
+  }
+
   void push_back_atomic(const T& element) {
     size_t pos = back.fetch_add(1, std::memory_order_relaxed);
     assert(pos < data.size());

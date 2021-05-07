@@ -25,6 +25,7 @@
 #include "mt-kahypar/parallel/stl/thread_locals.h"
 
 #include <tbb/parallel_reduce.h>
+#include <tbb/parallel_sort.h>
 
 namespace mt_kahypar::metrics {
 double modularity(const Graph& graph, ds::Clustering& communities) {
@@ -79,7 +80,7 @@ bool ParallelLocalMovingModularity::localMoving(Graph& graph, ds::Clustering& co
     tbb::parallel_for(0U, static_cast<NodeID>(graph.numNodes()), [&](const NodeID u) {
       nodes[u] = u;
       communities[u] = u;
-      _cluster_volumes[u].store(graph.nodeVolume(u));
+      _cluster_volumes[u].store(graph.nodeVolume(u), std::memory_order_relaxed);
     });
   }
 
@@ -113,16 +114,29 @@ size_t ParallelLocalMovingModularity::synchronousParallelRound(const Graph& grap
   constexpr size_t num_buckets = utils::ParallelPermutation<HypernodeID>::num_buckets;
   size_t num_buckets_per_sub_round = parallel::chunking::idiv_ceil(num_buckets, num_sub_rounds);
 
+  size_t max_round_size = 0;
+  for (size_t sub_round = 0; sub_round < num_sub_rounds; ++sub_round) {
+    auto [first_bucket, last_bucket] = parallel::chunking::bounds(sub_round, num_buckets, num_buckets_per_sub_round);
+    max_round_size = std::max(max_round_size,
+                              size_t(permutation.bucket_bounds[last_bucket] - permutation.bucket_bounds[first_bucket]));
+  }
+  volume_updates.adapt_capacity(2 * max_round_size);    // factor 2 for from and to
+
   for (size_t sub_round = 0; sub_round < num_sub_rounds; ++sub_round) {
     auto [first_bucket, last_bucket] = parallel::chunking::bounds(sub_round, num_buckets, num_buckets_per_sub_round);
     assert(first_bucket < last_bucket && last_bucket < permutation.bucket_bounds.size());
     size_t first = permutation.bucket_bounds[first_bucket];
     size_t last = permutation.bucket_bounds[last_bucket];
 
+    tbb::enumerable_thread_specific<size_t> num_moved_local(0);
     tbb::parallel_for(first, last, [&](size_t pos) {
       HypernodeID u = permutation.at(pos);
-      propositions[u] = computeMaxGainCluster(graph, communities, u, non_sampling_incident_cluster_weights.local());
-      assert(propositions[u] != kInvalidPartition);
+      PartitionID to = computeMaxGainCluster(graph, communities, u, non_sampling_incident_cluster_weights.local());
+      if (to != communities[u]) {
+        volume_updates.push_back_buffered({ -graph.nodeVolume(u), communities[u] });
+        volume_updates.push_back_buffered({ graph.nodeVolume(u), to });
+        num_moved_local.local() += 1;
+      }
       /*
       if ( ratingsFitIntoSmallSparseMap(graph, u) ) {
         best_cluster = computeMaxGainCluster(graph, communities, u, _local_small_incident_cluster_weight.local());
@@ -133,23 +147,25 @@ size_t ParallelLocalMovingModularity::synchronousParallelRound(const Graph& grap
       }
       */
     });
+    num_moved_nodes += num_moved_local.combine(std::plus<>());
 
-    auto move_sub_range = [&](const tbb::blocked_range<size_t>& r, size_t num_moved_partial) -> size_t {
-      for (size_t pos = r.begin(); pos < r.end(); ++pos) {
-        HypernodeID u = permutation.at(pos);
-        assert(propositions[u] != kInvalidPartition);
-        if (propositions[u] != communities[u]) {
-          // TODO cluster volumes non associative ? maybe source of non-determinism
-          _cluster_volumes[propositions[u]] += graph.nodeVolume(u);
-          _cluster_volumes[communities[u]] -= graph.nodeVolume(u);
-          communities[u] = propositions[u];
-          propositions[u] = kInvalidPartition;
-          num_moved_partial++;
+    /*
+     * We can't do atomic adds of the volumes since they're not commutative and thus lead to non-deterministic decisions
+     * Instead we sort the updates, and for each cluster let one thread sum up the updates.
+     */
+    volume_updates.finalize();
+    tbb::parallel_sort(volume_updates.begin(), volume_updates.end());
+    tbb::parallel_for(0UL, volume_updates.size(), [&](size_t pos) {
+      PartitionID c = volume_updates[pos].cluster;
+      if (pos == 0 || volume_updates[pos - 1].cluster != c) {
+        ArcWeight vol_delta = 0.0;
+        const size_t sz = volume_updates.size();
+        for ( ; pos < sz && volume_updates[pos].cluster != c; ++pos) {
+          vol_delta += volume_updates[pos].volume;
         }
+        _cluster_volumes[c].store(_cluster_volumes[c].load(std::memory_order_relaxed) + vol_delta, std::memory_order_relaxed);
       }
-      return num_moved_partial;
-    };
-    num_moved_nodes += tbb::parallel_reduce(tbb::blocked_range<size_t>(first, last), 0UL, move_sub_range, std::plus<size_t>());
+    });
   }
 
   return num_moved_nodes;

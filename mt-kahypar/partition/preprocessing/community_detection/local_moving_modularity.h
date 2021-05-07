@@ -22,8 +22,8 @@
 #pragma once
 
 
-
 #include "mt-kahypar/datastructures/sparse_map.h"
+#include "mt-kahypar/datastructures/buffered_vector.h"
 
 #include "mt-kahypar/macros.h"
 #include "mt-kahypar/datastructures/graph.h"
@@ -44,7 +44,6 @@ namespace mt_kahypar::community_detection {
 
 class ParallelLocalMovingModularity {
  private:
-  using AtomicArcWeight = parallel::AtomicWrapper<ArcWeight>;
   using LargeIncidentClusterWeights = ds::FixedSizeSparseMap<PartitionID, ArcWeight>;
   using CacheEfficientIncidentClusterWeights = ds::FixedSizeSparseMap<PartitionID, ArcWeight>;
 
@@ -66,8 +65,8 @@ class ParallelLocalMovingModularity {
     _disable_randomization(disable_randomization),
 
     non_sampling_incident_cluster_weights(numNodes),
-    propositions(numNodes, kInvalidPartition),
-    prng(context.partition.seed)
+    prng(context.partition.seed),
+    volume_updates(0)
   { }
 
   ~ParallelLocalMovingModularity();
@@ -112,8 +111,6 @@ class ParallelLocalMovingModularity {
 
     auto& icw = incident_cluster_weights.values;
     auto& used = incident_cluster_weights.used;
-    assert(used.empty());
-    assert(std::all_of(icw.begin(), icw.end(), [](auto x) { return x == 0; }));
 
     // incident_cluster_weights.clear();
     for (const Arc& arc : graph.arcsOf(u, _vertex_degree_sampling_threshold)) {
@@ -183,7 +180,7 @@ class ParallelLocalMovingModularity {
   const size_t _vertex_degree_sampling_threshold;
   double _reciprocal_total_volume = 0.0;
   double _vol_multiplier_div_by_node_vol = 0.0;
-  vec<AtomicArcWeight> _cluster_volumes;
+  vec<parallel::AtomicWrapper<ArcWeight>> _cluster_volumes;
   tbb::enumerable_thread_specific<CacheEfficientIncidentClusterWeights> _local_small_incident_cluster_weight;
   tbb::enumerable_thread_specific<LargeIncidentClusterWeights> _local_large_incident_cluster_weight;
   const bool _disable_randomization;
@@ -191,8 +188,17 @@ class ParallelLocalMovingModularity {
   // tbb::enumerable_thread_specific<ds::SparseMap<PartitionID, ArcWeight>> non_sampling_incident_cluster_weights;
   tbb::enumerable_thread_specific<ClearList> non_sampling_incident_cluster_weights;
   utils::ParallelPermutation<HypernodeID> permutation;
-  vec<PartitionID> propositions;
   std::mt19937 prng;
+
+  struct VolumeUpdate {
+    ArcWeight volume;
+    PartitionID cluster;
+    bool operator< (const VolumeUpdate& o) const {
+      return std::tie(cluster, volume) < std::tie(o.cluster, o.volume);
+    }
+  };
+  ds::BufferedVector<VolumeUpdate> volume_updates;
+
 
 
   FRIEND_TEST(ALouvain, ComputesMaxGainMove1);
