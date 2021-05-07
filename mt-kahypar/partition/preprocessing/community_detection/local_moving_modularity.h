@@ -137,13 +137,12 @@ class ParallelLocalMovingModularity {
       // PartitionID to = clusterWeight.key;
       // if from == to, we would have to remove volU from volume_to as well.
       // just skip it. it has (adjusted) gain zero.
-      if (from == to) {
-        continue;
-      }
-      double gain = modularityGain(icw[to], _cluster_volumes[to].load(std::memory_order_relaxed), volMultiplier);
-      if (gain > bestGain) {
-        bestCluster = to;
-        bestGain = gain;
+      if (from != to) {
+        double gain = modularityGain(icw[to], _cluster_volumes[to].load(std::memory_order_relaxed), volMultiplier);
+        if (gain > bestGain) {
+          bestCluster = to;
+          bestGain = gain;
+        }
       }
       icw[to] = 0.0;
     }
