@@ -330,7 +330,7 @@ namespace mt_kahypar::ds {
       }
       return partial_volume;
     };
-    auto r = tbb::blocked_range<NodeID>(0U, numNodes());
+    auto r = tbb::blocked_range<NodeID>(0U, numNodes(), 1000);
     _total_volume = tbb::parallel_deterministic_reduce(r, 0.0, aggregate_volume, std::plus<>());
 
     utils::Timer::instance().stop_timer("compute_node_volumes");
