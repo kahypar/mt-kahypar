@@ -168,6 +168,7 @@ size_t ParallelLocalMovingModularity::parallelNonDeterministicRound(const Graph&
     const PartitionID from = communities[u];
     PartitionID best_cluster;
 
+    /*
     if ( ratingsFitIntoSmallSparseMap(graph, u) ) {
       best_cluster = computeMaxGainCluster(graph, communities, u, _local_small_incident_cluster_weight.local());
     } else {
@@ -175,6 +176,8 @@ size_t ParallelLocalMovingModularity::parallelNonDeterministicRound(const Graph&
       large_incident_cluster_weight.setMaxSize(3UL * std::min(_max_degree, _vertex_degree_sampling_threshold));
       best_cluster = computeMaxGainCluster(graph, communities, u, large_incident_cluster_weight);
     }
+     */
+    best_cluster = computeMaxGainCluster(graph, communities, u, non_sampling_incident_cluster_weights.local());
 
     if (best_cluster != from) {
       _cluster_volumes[best_cluster] += volU;
