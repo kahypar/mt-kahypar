@@ -271,6 +271,17 @@ If you are interested in a commercial license, please contact me.
       publisher = {SIAM}
     }
 
+    // Mt-KaHyPar Strong (Technical Report - Under Review)
+    @article{MT-KAHYPER-STRONG,
+      title     = {Shared-Memory n-level Hypergraph Partitioning},
+      author    = {Gottesbüren, Lars and
+                   Heuer, Tobias and
+                   Sanders, Peter and
+                   Schlag, Sebastian},
+      journal   = {arXiv preprint arXiv:2104.08107},
+      year      = {2021}
+    }
+
 Contributing
 ------------
 If you are interested in contributing to the Mt-KaHyPar framework
