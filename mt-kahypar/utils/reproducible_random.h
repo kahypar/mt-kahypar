@@ -250,7 +250,6 @@ public:
     std::shuffle(perm.begin(), perm.end(), prng);
     this->bucket_bounds.resize(this->num_buckets + 1, 0);
     size_t bucket_size = parallel::chunking::idiv_ceil(n, this->num_buckets);
-    LOG << V(bucket_size);
     for (size_t i = 0; i < this->num_buckets; ++i) {
       this->bucket_bounds[i+1] = parallel::chunking::bounds(i, n, bucket_size).second;
     }
