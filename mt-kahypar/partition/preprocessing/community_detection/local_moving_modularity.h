@@ -112,6 +112,8 @@ class ParallelLocalMovingModularity {
 
     auto& icw = incident_cluster_weights.values;
     auto& used = incident_cluster_weights.used;
+    assert(used.empty());
+    assert(std::all_of(icw.begin(), icw.end(), [](auto x) { return x == 0; }));
 
     // incident_cluster_weights.clear();
     for (const Arc& arc : graph.arcsOf(u, _vertex_degree_sampling_threshold)) {
