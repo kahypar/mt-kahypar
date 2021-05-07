@@ -109,8 +109,8 @@ size_t ParallelLocalMovingModularity::synchronousParallelRound(const Graph& grap
   // permutation.random_grouping(graph.numNodes(), _context.shared_memory.num_threads, seed);
   permutation.sequential_fallback(graph.numNodes(), seed);
   size_t num_moved_nodes = 0;
-  size_t num_sub_rounds = 16;
-  size_t num_buckets = utils::ParallelPermutation<HypernodeID>::num_buckets;
+  constexpr size_t num_sub_rounds = 16;
+  constexpr size_t num_buckets = utils::ParallelPermutation<HypernodeID>::num_buckets;
   size_t num_buckets_per_sub_round = parallel::chunking::idiv_ceil(num_buckets, num_sub_rounds);
 
   for (size_t sub_round = 0; sub_round < num_sub_rounds; ++sub_round) {
