@@ -98,7 +98,7 @@ bool ParallelLocalMovingModularity::localMoving(Graph& graph, ds::Clustering& co
         number_of_nodes_moved = parallelNonDeterministicRound(graph, communities);
       }
       clustering_changed |= number_of_nodes_moved > 0;
-      DBG << "Louvain-Pass #" << round << " - Modularity:" << metrics::modularity(graph, communities);
+      DBG << "Louvain-Pass #" << round << " - num moves " << number_of_nodes_moved << " - Modularity:" << metrics::modularity(graph, communities);
     }
   }
   return clustering_changed;
@@ -123,6 +123,7 @@ size_t ParallelLocalMovingModularity::synchronousParallelRound(const Graph& grap
     tbb::parallel_for(first, last, [&](size_t pos) {
       HypernodeID u = permutation.at(pos);
       propositions[u] = computeMaxGainCluster(graph, communities, u, non_sampling_incident_cluster_weights.local());
+      assert(propositions[u] != kInvalidPartition);
       /*
       if ( ratingsFitIntoSmallSparseMap(graph, u) ) {
         best_cluster = computeMaxGainCluster(graph, communities, u, _local_small_incident_cluster_weight.local());
@@ -137,10 +138,12 @@ size_t ParallelLocalMovingModularity::synchronousParallelRound(const Graph& grap
     auto move_sub_range = [&](const tbb::blocked_range<size_t>& r, size_t num_moved_partial) -> size_t {
       for (size_t pos = r.begin(); pos < r.end(); ++pos) {
         HypernodeID u = permutation.at(pos);
+        assert(propositions[u] != kInvalidPartition);
         if (propositions[u] != communities[u]) {
           _cluster_volumes[propositions[u]] += graph.nodeVolume(u);
           _cluster_volumes[communities[u]] -= graph.nodeVolume(u);
           communities[u] = propositions[u];
+          propositions[u] = kInvalidPartition;
           num_moved_partial++;
         }
       }
