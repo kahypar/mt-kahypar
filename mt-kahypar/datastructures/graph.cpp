@@ -322,6 +322,7 @@ namespace mt_kahypar::ds {
     utils::Timer::instance().start_timer("compute_node_volumes", "Compute Node Volumes");
     _total_volume = 0.0;
     tbb::enumerable_thread_specific<ArcWeight> local_total_volume(0.0);
+    // TODO this is also non-deterministic! use deterministic reduce
     tbb::parallel_for(0U, static_cast<NodeID>(numNodes()), [&](const NodeID u) {
       local_total_volume.local() += computeNodeVolume(u);
     });

@@ -139,6 +139,7 @@ size_t ParallelLocalMovingModularity::synchronousParallelRound(const Graph& grap
         HypernodeID u = permutation.at(pos);
         assert(propositions[u] != kInvalidPartition);
         if (propositions[u] != communities[u]) {
+          // TODO cluster volumes non associative ? maybe source of non-determinism
           _cluster_volumes[propositions[u]] += graph.nodeVolume(u);
           _cluster_volumes[communities[u]] -= graph.nodeVolume(u);
           communities[u] = propositions[u];
