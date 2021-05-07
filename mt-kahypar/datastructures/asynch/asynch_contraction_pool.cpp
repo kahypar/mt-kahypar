@@ -5,7 +5,7 @@
 #include "asynch_contraction_pool.h"
 
 uint32_t mt_kahypar::ds::SequentialContractionGroupPool::getNumActive() const {
-    return _active.size();
+    return _active_ids.size();
 }
 
 const mt_kahypar::ds::ContractionGroup &
@@ -14,23 +14,29 @@ mt_kahypar::ds::SequentialContractionGroupPool::group(mt_kahypar::ds::Contractio
 }
 
 mt_kahypar::ds::ContractionGroupID mt_kahypar::ds::SequentialContractionGroupPool::pickAnyActiveID() {
-    ASSERT(!_active.empty());
+    ASSERT(!_active_ids.empty());
     // This implementation is LIFO
-    auto picked = _active.back();
-    _active.pop_back();
+    auto picked = _active_ids.back();
+    ASSERT(isActive(picked));
+    _active[picked] = false;
+    _active_ids.pop_back();
     return picked;
 }
 
 void mt_kahypar::ds::SequentialContractionGroupPool::activateSuccessors(mt_kahypar::ds::ContractionGroupID id) {
+    ASSERT(!isActive(id));
+    ASSERT(!_successors_activated[id]);
 
     auto succs = _hierarchy->successors(id);
     for (auto s : succs) {
-        _active.push_back(s);
+        activate(s);
     }
+
+    _successors_activated[id] = true;
 }
 
 bool mt_kahypar::ds::SequentialContractionGroupPool::hasActive() const {
-    return !(_active.empty());
+    return !(_active_ids.empty());
 }
 
 mt_kahypar::ds::BlockedGroupIDIterator mt_kahypar::ds::SequentialContractionGroupPool::all() const {
@@ -44,3 +50,20 @@ uint32_t mt_kahypar::ds::SequentialContractionGroupPool::getNumTotal() const {
 size_t mt_kahypar::ds::SequentialContractionGroupPool::getVersion() const {
     return _hierarchy->getVersion();
 }
+
+void mt_kahypar::ds::SequentialContractionGroupPool::reactivate(mt_kahypar::ds::ContractionGroupID id) {
+    activate(id);
+}
+
+bool mt_kahypar::ds::SequentialContractionGroupPool::isActive(ContractionGroupID id) const {
+    ASSERT(id < getNumTotal());
+    return _active[id];
+}
+
+void mt_kahypar::ds::SequentialContractionGroupPool::activate(mt_kahypar::ds::ContractionGroupID id) {
+    ASSERT(!isActive(id));
+    ASSERT(!_successors_activated[id]);
+    _active[id] = true;
+    _active_ids.push_back(id);
+}
+

@@ -9,6 +9,8 @@
 #include "tbb/blocked_range.h"
 #include "mt-kahypar/utils/range.h"
 
+#include "boost/iterator/iterator_adaptor.hpp"
+
 namespace mt_kahypar::ds {
 
     using ContractionGroupID = HypernodeID;
@@ -16,7 +18,10 @@ namespace mt_kahypar::ds {
     using BlockedGroupIDIterator = tbb::blocked_range<ContractionGroupID>;
     using Contraction = Memento;
     using ContractionIterator = std::vector<Contraction>::const_iterator;
-    using ContractionIteratorRange = IteratorRange<ContractionIterator>;
+
+
+    using IGroupLockManager = ILockManager<HypernodeID,ContractionGroupID>;
+    using MockGroupLockManager = MockLockManager<HypernodeID, ContractionGroupID>;
 
     static constexpr ContractionGroupID invalidGroupID = std::numeric_limits<ContractionGroupID>::max();
 
@@ -95,6 +100,28 @@ namespace mt_kahypar::ds {
                 std::cout << "\t\t(u: " << c.u << ", v: " << c.v << ")\n";
             }
         }
+    };
+
+    /// Adapts an ContractionIterator to an iterator over the contracted nodes in the contractions.
+    /// I.e. this iterates over the 'v' value in the contractions that the given iterator defines.
+    class ContractionToNodeIteratorAdaptor
+        : public boost::iterator_adaptor<
+                ContractionToNodeIteratorAdaptor,
+                ContractionIterator,
+                const HypernodeID>
+        {
+
+        using iterator = ContractionToNodeIteratorAdaptor;
+
+        public:
+            ContractionToNodeIteratorAdaptor() : ContractionToNodeIteratorAdaptor::iterator_adaptor_ () {}
+            explicit ContractionToNodeIteratorAdaptor(const iterator::iterator_adaptor_::base_type& t) : ContractionToNodeIteratorAdaptor::iterator_adaptor_(t) {}
+
+        private:
+            friend class boost::iterator_core_access;
+
+            // ! Adapting happens here: Dereference by redirecting to the contracted vertex
+            const HypernodeID& dereference() const {return this->base()->v;}
     };
 
 }

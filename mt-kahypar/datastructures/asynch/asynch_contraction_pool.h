@@ -15,17 +15,24 @@ namespace mt_kahypar::ds
     class SequentialContractionGroupPool : public IContractionGroupPool {
 
     private:
-        parallel::scalable_vector<ContractionGroupID> _active;
+
         std::unique_ptr<IUncontractionGroupHierarchy> _hierarchy;
+        Array<bool> _active;
+        Array<bool> _successors_activated;
+
+        parallel::scalable_vector<ContractionGroupID> _active_ids;
 
     public:
         /**
          * Constructs new sequential contraction group pool. Passes ownership of the given group hierarchy to this pool.
          */
-        explicit SequentialContractionGroupPool(std::unique_ptr<IUncontractionGroupHierarchy> hierarchy) : _hierarchy(hierarchy.release()) {
+        explicit SequentialContractionGroupPool(std::unique_ptr<IUncontractionGroupHierarchy> hierarchy)
+            : _hierarchy(hierarchy.release()),
+            _active(_hierarchy->getNumGroups(),false),
+            _successors_activated(_hierarchy->getNumGroups(),false) {
             auto roots = _hierarchy->roots();
             for(auto r: roots) {
-                _active.push_back(r);
+                activate(r);
             }
         }
 
@@ -43,8 +50,15 @@ namespace mt_kahypar::ds
 
         bool hasActive() const override;
 
+        void reactivate(ContractionGroupID id) override;
+
     protected:
         BlockedGroupIDIterator all() const override;
+
+    private:
+
+        bool isActive(ContractionGroupID id) const;
+        void activate(ContractionGroupID id);
 
     };
 

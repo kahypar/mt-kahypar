@@ -114,4 +114,75 @@ namespace mt_kahypar::ds {
 
     }
 
+    TEST(ASequentialContractionGroupPool, ActivatingSuccessorsWhenParentStillActiveDeathTest) {
+        testing::FLAGS_gtest_death_test_style="threadsafe";
+
+        auto mockGroupHierarchy = std::make_unique<MockGroupHierarchy>();
+        auto mockRoots = parallel::scalable_vector<ContractionGroupID>({0});
+        auto mockRootRange = ContractionGroupIDIteratorRange(mockRoots.begin(),mockRoots.end());
+        EXPECT_CALL(*mockGroupHierarchy,roots()).Times(1).WillOnce(Return(mockRootRange));
+        EXPECT_CALL(*mockGroupHierarchy,getNumGroups()).WillRepeatedly(Return(1));
+
+        auto pool = SequentialContractionGroupPool(std::move(mockGroupHierarchy));
+        ASSERT_EQ(pool.getNumTotal(), 1);
+        ASSERT_TRUE(pool.hasActive());
+        ASSERT_DEATH(pool.activateSuccessors(0), "");
+    }
+
+    TEST(ASequentialContractionGroupPool, ReactivatingTest) {
+        auto mockGroupHierarchy = std::make_unique<MockGroupHierarchy>();
+        auto mockRoots = parallel::scalable_vector<ContractionGroupID>({0});
+        auto mockRootRange = ContractionGroupIDIteratorRange(mockRoots.begin(),mockRoots.end());
+        EXPECT_CALL(*mockGroupHierarchy,roots()).Times(1).WillOnce(Return(mockRootRange));
+        EXPECT_CALL(*mockGroupHierarchy,getNumGroups()).WillRepeatedly(Return(1));
+
+        auto pool = SequentialContractionGroupPool(std::move(mockGroupHierarchy));
+        ASSERT_EQ(pool.getNumTotal(), 1);
+
+        ASSERT_TRUE(pool.hasActive());
+        auto picked = pool.pickAnyActiveID();
+        ASSERT_FALSE(pool.hasActive());
+        pool.reactivate(picked);
+        ASSERT_TRUE(pool.hasActive());
+    }
+
+    TEST(ASequentialContractionGroupPool, ReactivatingActiveDeathTest) {
+        testing::FLAGS_gtest_death_test_style="threadsafe";
+
+        auto mockGroupHierarchy = std::make_unique<MockGroupHierarchy>();
+        auto mockRoots = parallel::scalable_vector<ContractionGroupID>({0});
+        auto mockRootRange = ContractionGroupIDIteratorRange(mockRoots.begin(),mockRoots.end());
+        EXPECT_CALL(*mockGroupHierarchy,roots()).Times(1).WillOnce(Return(mockRootRange));
+        EXPECT_CALL(*mockGroupHierarchy,getNumGroups()).WillRepeatedly(Return(1));
+
+        auto pool = SequentialContractionGroupPool(std::move(mockGroupHierarchy));
+        ASSERT_EQ(pool.getNumTotal(), 1);
+
+        auto picked = pool.pickAnyActiveID();
+        pool.reactivate(picked);
+        ASSERT_DEATH(pool.reactivate(picked), "");
+
+    }
+
+    TEST(ASequentialContractionGroupPool, ReactivatingWhenSuccessorsAlreadyActivatedDeathTest) {
+        testing::FLAGS_gtest_death_test_style="threadsafe";
+
+        auto mockGroupHierarchy = std::make_unique<MockGroupHierarchy>();
+        auto mockRoots = parallel::scalable_vector<ContractionGroupID>({0});
+        auto mockRootRange = ContractionGroupIDIteratorRange(mockRoots.begin(),mockRoots.end());
+        EXPECT_CALL(*mockGroupHierarchy,roots()).Times(1).WillOnce(Return(mockRootRange));
+        EXPECT_CALL(*mockGroupHierarchy,getNumGroups()).WillRepeatedly(Return(1));
+        auto mockEmpty = parallel::scalable_vector<ContractionGroupID>();
+        auto mockEmptyRange = ContractionGroupIDIteratorRange(mockEmpty.begin(),mockEmpty.end());
+        EXPECT_CALL(*mockGroupHierarchy,successors(0)).Times(1).WillOnce(Return(mockEmptyRange));
+
+        auto pool = SequentialContractionGroupPool(std::move(mockGroupHierarchy));
+        ASSERT_EQ(pool.getNumTotal(), 1);
+
+        auto picked = pool.pickAnyActiveID();
+        ASSERT_EQ(picked,0);
+        pool.activateSuccessors(picked);
+        ASSERT_DEATH(pool.reactivate(picked), "");
+    }
+
 } // namespace mt_kahypar

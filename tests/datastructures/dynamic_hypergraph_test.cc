@@ -1456,13 +1456,13 @@ using ::testing::Return;
         auto pools = hypergraph.createUncontractionGroupPoolsForVersions();
 
         // mock lock manager that always returns true to any locking/releasing requests and false to any isLocked queries
-        auto * mockLockManager = new MockGroupLockManager();
+        auto mockLockManager = std::make_unique<MockGroupLockManager>();
         EXPECT_CALL(*mockLockManager,tryToAcquireLock(_,_)).WillRepeatedly(Return(true));
         EXPECT_CALL(*mockLockManager,tryToReleaseLock(_,_)).WillRepeatedly(Return(true));
         EXPECT_CALL(*mockLockManager,isLocked(_)).WillRepeatedly(Return(false));
 
         ASSERT(pools.size() == 1);
-        hypergraph.uncontractUsingGroupPool(pools[0].get(), mockLockManager, NOOP_BATCH_FUNC, NOOP_BATCH_FUNC,
+        hypergraph.uncontractUsingGroupPool(pools[0].get(), mockLockManager.get(), NOOP_BATCH_FUNC, NOOP_BATCH_FUNC,
                                             NOOP_ADOPT_PART_FUNC,
                                             NOOP_LOCALIZED_REFINEMENT_FUNC,
                                             true);

@@ -27,5 +27,6 @@ target_sources(mt_kahypar_strong_tests PRIVATE
         async_nlevel_smoke_test.cc
         smoke_test_common.cc
         lock_manager_test.cc
+        asynch_common_test.cc
 )
 

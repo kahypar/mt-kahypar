@@ -345,7 +345,10 @@ void DynamicHypergraph::uncontractUsingGroupPool(IContractionGroupPool *groupPoo
         }
 
         if (performNoRefinement) {
-            // todo mlaupichler release locks for the group! (done by refinement in other case)
+//            auto range = IteratorRange<ContractionToNodeIteratorAdaptor>(
+//                    ContractionToNodeIteratorAdaptor(contractionGroup.begin()), ContractionToNodeIteratorAdaptor(contractionGroup.end()));
+//            bool released = lockManager->tryToReleaseMultipleLocks(range,contractionGroupID);
+//            ASSERT(released);
         }
         else {
             localized_refinement_func(contractionGroup,contractionGroupID,lockManager);

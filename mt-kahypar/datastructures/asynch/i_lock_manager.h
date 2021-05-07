@@ -7,19 +7,18 @@
 
 #include <kahypar/meta/mandatory.h>
 #include "mt-kahypar/datastructures/hypergraph_common.h"
-#include "asynch_common.h"
+#include "mt-kahypar/utils/range.h"
+
 #include "gmock/gmock.h"
 
 namespace mt_kahypar::ds {
 
-    /// Pure virtual interface for managing locks. Locked objects are marked by LockedIDs and mapped to OwnerIDs describing
+    /// Interface for managing locks. Locked objects are marked by LockedIDs and mapped to OwnerIDs describing
     /// who holds the lock. Requires LockedID and OwnerID to be unsigned integral number types.
     template<typename LockedID = Mandatory, typename OwnerID = Mandatory>
     class ILockManager {
 
     public:
-
-        typedef typename std::vector<LockedID>::const_iterator LockedIDIterator;
 
         /// Attempt to acquire a lock for the id lockedID with the owner ownerID. Will return true if the lock owner has
         /// changed and false if not.
@@ -42,9 +41,9 @@ namespace mt_kahypar::ds {
         /// Attempt to acquire multiple locks for the ids in the range lockedIDs with the owner ownerID.
         /// Will return true if all requested locks were changed and acquired by the owner with ownerID. If any
         /// lock cannot be acquired, all acquired locks will be released again and false will be returned.
-        virtual bool tryToAcquireMultipleLocks(IteratorRange<LockedIDIterator> lockedIDs, OwnerID ownerID) final {
+        template<typename LockedIDIteratorT>
+        bool tryToAcquireMultipleLocks(IteratorRange<LockedIDIteratorT> lockedIDs, OwnerID ownerID) {
             ASSERT(std::distance(lockedIDs.begin(),lockedIDs.end()) > 0 && "Range of ids to lock cannot be empty!");
-
 
             auto cur = lockedIDs.begin();
             auto success = true;
@@ -72,13 +71,13 @@ namespace mt_kahypar::ds {
         /// Will return true if all requested locks were changed and released. If the owner does not hold all of the given locks,
         /// no locks will be released and false will be returned. If any lock cannot be released for a different reason
         /// false will be returned and no guarantees can be given on which locks are still held by the owner and which are not.
-        virtual bool tryToReleaseMultipleLocks(IteratorRange<LockedIDIterator> lockedIDs, OwnerID ownerID) final {
+        template<typename LockedIDIteratorT>
+        bool tryToReleaseMultipleLocks(IteratorRange<LockedIDIteratorT> lockedIDs, OwnerID ownerID) {
             ASSERT(std::distance(lockedIDs.begin(),lockedIDs.end()) > 0 && "Range of locked ids cannot be empty!");
 
             // Check if any given lock is not held by the given owner. If so, safe return false.
-            if (std::any_of(lockedIDs.begin(),lockedIDs.end(),
-                            [&](const LockedIDIterator& it) {owner(*it) != ownerID;})) {
-                return false;
+            for (auto i : lockedIDs) {
+                if (owner(i) != ownerID) return false;
             }
 
             auto cur = lockedIDs.begin();
@@ -116,8 +115,6 @@ namespace mt_kahypar::ds {
         MOCK_METHOD(bool, isLocked,(LockedID lockedID), (const, override));
     };
 
-    using IGroupLockManager = ILockManager<HypernodeID,ContractionGroupID>;
-    using MockGroupLockManager = MockLockManager<HypernodeID, ContractionGroupID>;
 
 } // namespace mt_kahypar::ds
 
