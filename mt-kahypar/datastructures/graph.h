@@ -154,10 +154,12 @@ class Graph {
 
   ArcWeight computeNodeVolume(const NodeID u) {
     ASSERT(u < _num_nodes);
+    ArcWeight x = 0.0;
     for (const Arc& arc : arcsOf(u)) {
-      _node_volumes[u] += arc.weight;
+      x += arc.weight;
     }
-    return _node_volumes[u];
+    _node_volumes[u] = x;
+    return x;
   }
 
   // ! Number of nodes

@@ -318,15 +318,21 @@ namespace mt_kahypar::ds {
       constructBipartiteGraph(hypergraph, edge_weight_func);
     }
 
-    // Compute node volumes and total volume
     utils::Timer::instance().start_timer("compute_node_volumes", "Compute Node Volumes");
-    _total_volume = 0.0;
-    tbb::enumerable_thread_specific<ArcWeight> local_total_volume(0.0);
-    // TODO this is also non-deterministic! use deterministic reduce
-    tbb::parallel_for(0U, static_cast<NodeID>(numNodes()), [&](const NodeID u) {
-      local_total_volume.local() += computeNodeVolume(u);
-    });
-    _total_volume = local_total_volume.combine(std::plus<ArcWeight>());
+    // deterministic reduce of node volumes since double addition is not commutative or associative
+    // node volumes are computed in for loop because deterministic reduce does not have dynamic load balancing
+    // whereas for loop does. this important since each node incurs O(degree) time
+    tbb::parallel_for(0U, NodeID(numNodes()), [&](NodeID u) { computeNodeVolume(u); });
+
+    auto aggregate_volume = [&](const tbb::blocked_range<NodeID>& r, ArcWeight partial_volume) -> ArcWeight {
+      for (NodeID u = r.begin(); u < r.end(); ++u) {
+        partial_volume += nodeVolume(u);
+      }
+      return partial_volume;
+    };
+    auto r = tbb::blocked_range<NodeID>(0U, numNodes());
+    _total_volume = tbb::parallel_deterministic_reduce(r, 0.0, aggregate_volume, std::plus<>());
+
     utils::Timer::instance().stop_timer("compute_node_volumes");
   }
 
