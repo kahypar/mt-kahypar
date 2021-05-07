@@ -210,10 +210,9 @@ namespace mt_kahypar::ds {
       const size_t tmp_arc_start = tmp_indices_prefix_sum[u];
       const size_t tmp_arc_end = tmp_indices_prefix_sum[u + 1];
       // this sort already removes the non-determinism from random ordering in the previous loop
-      std::sort(tmp_arcs.begin() + tmp_arc_start, tmp_arcs.begin() + tmp_arc_end,
-                [&](const Arc& lhs, const Arc& rhs) {
-                  return lhs.head < rhs.head;
-                });
+      // and in particular makes the arc-weight accumulation (double imprecision) deterministic
+      auto comp = [&](const Arc& lhs, const Arc& rhs) { return lhs.head < rhs.head; };
+      std::sort(tmp_arcs.begin() + tmp_arc_start, tmp_arcs.begin() + tmp_arc_end, comp);
 
       size_t arc_rep = tmp_arc_start;
       size_t degree = tmp_arc_start < tmp_arc_end ? 1 : 0;
