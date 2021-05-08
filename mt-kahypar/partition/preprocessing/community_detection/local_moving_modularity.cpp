@@ -161,12 +161,11 @@ size_t ParallelLocalMovingModularity::synchronousParallelRound(const Graph& grap
       if (pos == 0 || volume_updates[pos - 1].cluster != c) {
         ArcWeight vol_delta = 0.0;
         for ( ; pos < sz && volume_updates[pos].cluster == c; ++pos) {
-          const auto& m = volume_updates[pos];
-          if (m.to) {
-            vol_delta += graph.nodeVolume(m.node);
-            communities[m.node] = c;
+          if (volume_updates[pos].to) {
+            vol_delta += graph.nodeVolume(volume_updates[pos].node);
+            communities[volume_updates[pos].node] = c;
           } else {
-            vol_delta -= graph.nodeVolume(m.node);
+            vol_delta -= graph.nodeVolume(volume_updates[pos].node);
           }
         }
         _cluster_volumes[c].store(_cluster_volumes[c].load(std::memory_order_relaxed) + vol_delta, std::memory_order_relaxed);
