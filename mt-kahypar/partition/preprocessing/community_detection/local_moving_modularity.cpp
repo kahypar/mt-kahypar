@@ -154,12 +154,12 @@ size_t ParallelLocalMovingModularity::synchronousParallelRound(const Graph& grap
      * We can't do atomic adds of the volumes since they're not commutative and thus lead to non-deterministic decisions
      * Instead we sort the updates, and for each cluster let one thread sum up the updates.
      */
+    const size_t sz = volume_updates.size();
     tbb::parallel_sort(volume_updates.begin(), volume_updates.end());
-    tbb::parallel_for(0UL, volume_updates.size(), [&](size_t pos) {
+    tbb::parallel_for(0UL, sz, [&](size_t pos) {
       PartitionID c = volume_updates[pos].cluster;
       if (pos == 0 || volume_updates[pos - 1].cluster != c) {
         ArcWeight vol_delta = 0.0;
-        const size_t sz = volume_updates.size();
         for ( ; pos < sz && volume_updates[pos].cluster != c; ++pos) {
           const auto& m = volume_updates[pos];
           if (m.to) {
