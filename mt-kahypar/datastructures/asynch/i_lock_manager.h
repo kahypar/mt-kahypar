@@ -28,15 +28,11 @@ namespace mt_kahypar::ds {
         /// false if the given ownerID does not hold the lock (the owner does not change in the latter case).
         virtual bool tryToReleaseLock(LockedID lockedID, OwnerID ownerID) = 0;
 
-        /// Returns the OwnerID of the current owner of lockedID or the invalid OwnerID if it is not locked.
-        virtual OwnerID owner(LockedID lockedID) const = 0;
+        /// Checks whether a given lock is currently held by a given owner.
+        virtual bool isHeldBy(LockedID lockedID, OwnerID ownerID) const = 0;
 
-        /// Returns true if any owner holds the lock for lockedID.
+        /// Returns true if any owner holds the lock for lockedID and false if not.
         virtual bool isLocked(LockedID lockedID) const = 0;
-
-        OwnerID operator[] (const LockedID lockedID) const {
-            return owner(lockedID);
-        };
 
         /// Attempt to acquire multiple locks for the ids in the range lockedIDs with the owner ownerID.
         /// Will return true if all requested locks were changed and acquired by the owner with ownerID. If any
@@ -77,7 +73,7 @@ namespace mt_kahypar::ds {
 
             // Check if any given lock is not held by the given owner. If so, safe return false.
             for (auto i : lockedIDs) {
-                if (owner(i) != ownerID) return false;
+                if (!isHeldBy(i,ownerID)) return false;
             }
 
             auto cur = lockedIDs.begin();
@@ -91,14 +87,36 @@ namespace mt_kahypar::ds {
                 ++cur;
             }
             return true;
-        };
+        }
+
+        /// Acquires lock with given lockedID and owner ownerID with the strong expectation that the operation will work.
+        /// This asserts that the lock is actually acquired, i.e. it halts the program if the acquire fails.
+        void strongAcquireLock(LockedID lockedID, OwnerID ownerID) {
+            bool acquired = tryToAcquireLock(lockedID, ownerID);
+            ASSERT(acquired && "Strong acquire of lock failed.");
+        }
+
+        /// Releases lock with given lockedID and owner ownerID with the strong expectation that the operation will work.
+        /// This asserts that the lock is actually released, i.e. it halts the program if the release fails.
+        void strongReleaseLock(LockedID lockedID, OwnerID ownerID) {
+            bool released = tryToReleaseLock(lockedID, ownerID);
+            ASSERT(released && "Strong release of lock failed.");
+        }
+
+        /// Releases locks with given lockedIDs and owner ownerID with the strong expectation that the operation will work.
+        /// This asserts that the locks are actually all released, i.e. it halts the program if the release fails.
+        template<typename LockedIDIteratorT>
+        void strongReleaseMultipleLocks(IteratorRange<LockedIDIteratorT> lockedIDs, OwnerID ownerID) {
+            bool released = tryToReleaseMultipleLocks(lockedIDs, ownerID);
+            ASSERT(released && "Strong release of multiple locks failed.");
+        }
+
+        virtual ~ILockManager() = default;
 
     protected:
 
         ILockManager(OwnerID invalidOwnerID) :
                 _invalid_owner_id(invalidOwnerID) {};
-
-        virtual ~ILockManager() = default;
 
         OwnerID _invalid_owner_id;
 
@@ -107,12 +125,12 @@ namespace mt_kahypar::ds {
     template<typename LockedID = Mandatory, typename OwnerID = Mandatory>
     class MockLockManager : public ILockManager<LockedID,OwnerID> {
     public:
-        MockLockManager() : ILockManager<LockedID, OwnerID>(0) {}
+        MockLockManager() : ILockManager<LockedID, OwnerID>(std::numeric_limits<OwnerID>::max()) {}
 
         MOCK_METHOD(bool, tryToAcquireLock,(LockedID lockedID, OwnerID ownerID),(override));
         MOCK_METHOD(bool, tryToReleaseLock,(LockedID lockedID, OwnerID ownerID),(override));
-        MOCK_METHOD(OwnerID, owner,(LockedID lockedID), (const, override));
         MOCK_METHOD(bool, isLocked,(LockedID lockedID), (const, override));
+        MOCK_METHOD(bool, isHeldBy,(LockedID, OwnerID),(const, override));
     };
 
 

@@ -301,9 +301,26 @@ void DynamicHypergraph::uncontractUsingGroupPool(IContractionGroupPool *groupPoo
                                                  bool performNoRefinement) {
 
     while (groupPool->hasActive()) {
-        auto contractionGroupID = groupPool->pickAnyActiveID();
-        auto contractionGroup = groupPool->group(contractionGroupID);
-        for(auto &memento: contractionGroup) {
+        auto groupID = groupPool->pickAnyActiveID();
+        auto group = groupPool->group(groupID);
+
+        // Attempt to acquire locks for representative and contracted nodes in the group. If any of the locks cannot be
+        // acquired, revert to previous state and attempt to pick an id again
+        bool acquiredRepr = lockManager->tryToAcquireLock(group.getRepresentative(),groupID);
+        if (!acquiredRepr) {
+            groupPool->reactivate(groupID);
+            continue;
+        }
+        auto range = IteratorRange(ContractionToNodeIteratorAdaptor(group.begin()), ContractionToNodeIteratorAdaptor(group.end()));
+        bool acquiredContr = lockManager->tryToAcquireMultipleLocks(range, groupID);
+        if (!acquiredContr) {
+            lockManager->strongReleaseLock(group.getRepresentative(), groupID);
+            groupPool->reactivate(groupID);
+            continue;
+        }
+        ASSERT(acquiredRepr && acquiredContr);
+
+        for(auto &memento: group) {
 
             ASSERT(!hypernode(memento.u).isDisabled(), "Hypernode" << memento.u << "is disabled");
             ASSERT(hypernode(memento.v).isDisabled(), "Hypernode" << memento.v << "is not invalid");
@@ -345,16 +362,18 @@ void DynamicHypergraph::uncontractUsingGroupPool(IContractionGroupPool *groupPoo
         }
 
         if (performNoRefinement) {
-//            auto range = IteratorRange<ContractionToNodeIteratorAdaptor>(
-//                    ContractionToNodeIteratorAdaptor(contractionGroup.begin()), ContractionToNodeIteratorAdaptor(contractionGroup.end()));
-//            bool released = lockManager->tryToReleaseMultipleLocks(range,contractionGroupID);
-//            ASSERT(released);
+            // Release locks if no refinement takes place. If there is refinement, this is taken care of by the
+            // refinement algorithm when it no longer needs the locks.
+            auto releaseRange = IteratorRange<ContractionToNodeIteratorAdaptor>(
+                    ContractionToNodeIteratorAdaptor(group.begin()), ContractionToNodeIteratorAdaptor(group.end()));
+            lockManager->strongReleaseMultipleLocks(releaseRange,groupID);
+            lockManager->strongReleaseLock(group.getRepresentative(), groupID);
         }
         else {
-            localized_refinement_func(contractionGroup,contractionGroupID,lockManager);
+            localized_refinement_func(group,groupID,lockManager);
         }
 
-        groupPool->activateSuccessors(contractionGroupID);
+        groupPool->activateSuccessors(groupID);
     }
 }
 

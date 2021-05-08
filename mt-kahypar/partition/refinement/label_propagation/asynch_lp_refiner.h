@@ -23,15 +23,16 @@ namespace mt_kahypar {
         static constexpr bool enable_heavy_assert = false;
 
     public:
-        explicit AsynchLPRefiner(Hypergraph& hypergraph,
-        const Context& context,
-        const TaskGroupID task_group_id) :
+        explicit AsynchLPRefiner(Hypergraph &hypergraph, const Context &context, const TaskGroupID task_group_id,
+                                 ds::IGroupLockManager *lockManager, ds::ContractionGroupID contraction_group_id) :
         _context(context),
         _task_group_id(task_group_id),
         _gain(context),
         _active_nodes(),
         _next_active(hypergraph.initialNumNodes()),
-        _visited_he(hypergraph.initialNumEdges()) { }
+        _visited_he(hypergraph.initialNumEdges()),
+        _lock_manager(lockManager),
+        _contraction_group_id(contraction_group_id) { }
 
         AsynchLPRefiner(const AsynchLPRefiner&) = delete;
         AsynchLPRefiner(AsynchLPRefiner&&) = delete;
@@ -93,7 +94,10 @@ namespace mt_kahypar {
                                      ID(_context.refinement.label_propagation.hyperedge_size_activation_threshold) ) {
                                     if ( !_visited_he[he] ) {
                                         for (const HypernodeID& pin : hypergraph.pins(he)) {
-                                            if ( _next_active.compare_and_set_to_true(pin) ) {
+                                            if (!_lock_manager->isLocked(pin)) {
+                                                _lock_manager->tryToAcquireLock(pin, _contraction_group_id);
+                                            }
+                                            if (_lock_manager->isHeldBy(pin,_contraction_group_id) && _next_active.compare_and_set_to_true(pin) ) {
                                                 next_active_nodes.stream(pin);
                                             }
                                         }
@@ -102,6 +106,7 @@ namespace mt_kahypar {
                                 }
                             }
                             if ( _next_active.compare_and_set_to_true(hn) ) {
+                                ASSERT(_lock_manager->isHeldBy(hn,_contraction_group_id));
                                 next_active_nodes.stream(hn);
                             }
                             is_moved = true;
@@ -148,6 +153,9 @@ namespace mt_kahypar {
         ActiveNodes _active_nodes;
         ds::ThreadSafeFastResetFlagArray<> _next_active;
         kahypar::ds::FastResetFlagArray<> _visited_he;
+
+        ds::ContractionGroupID _contraction_group_id;
+        ds::IGroupLockManager* _lock_manager;
     };
 
     using AsynchLPKm1Refiner = AsynchLPRefiner<Km1Policy>;

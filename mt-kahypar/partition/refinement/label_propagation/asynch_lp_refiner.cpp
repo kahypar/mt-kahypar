@@ -17,6 +17,8 @@ namespace mt_kahypar {
 
         ASSERT(!refinement_nodes.empty(), "AsynchLPRefiner will not work without given seed refinement nodes. Cannot be used "
                                           "solely for rebalancing or for global refinement!");
+        ASSERT(std::all_of(refinement_nodes.begin(),refinement_nodes.end(),[&](const HypernodeID& hn) {return _lock_manager->isHeldBy(hn,_contraction_group_id);})
+            && "Not all given seed nodes are locked by the contraction group id that this LP refinement is based on!");
         _active_nodes = refinement_nodes;
 
         _gain.reset();
@@ -115,6 +117,31 @@ namespace mt_kahypar {
                 if ( ! moveVertex(hypergraph, hn, next_active_nodes, objective_delta) ) {
                     converged = false;
                 }
+            });
+        }
+
+        // todo mlaupichler Releasing can probably be optimized. Releasing at the end of the round results in locks
+        //  being held longer than they would optimally need to be held.
+
+        // Release locks for all nodes that were active in this round but will not be active in the next one.
+        // Do this only now at the end of the round in order to guarantee that during the round no locks will be released,
+        // so queries whether a lock is already held by this LP hold until the end of the round
+        if (_context.refinement.label_propagation.execute_sequential) {
+            for ( size_t j = 0; j < _active_nodes.size(); ++j ) {
+                const HypernodeID hn = _active_nodes[j];
+                if (!_lock_manager->isHeldBy(hn,_contraction_group_id)) {
+                    // todo mlaupichler remove debug
+                }
+                if (!_next_active[hn]) _lock_manager->strongReleaseLock(hn, _contraction_group_id);
+            }
+        } else {
+            tbb::parallel_for(0UL, _active_nodes.size(), [&](const size_t& j) {
+                const HypernodeID hn = _active_nodes[j];
+                if (!_lock_manager->isHeldBy(hn,_contraction_group_id)) {
+                    // todo mlaupichler remove debug
+                    std::cout << "Lock not held for active node at end of LP round!";
+                }
+                if (!_next_active[hn]) _lock_manager->strongReleaseLock(hn, _contraction_group_id);
             });
         }
 

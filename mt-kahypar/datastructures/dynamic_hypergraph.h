@@ -73,7 +73,12 @@ class DynamicHypergraph {
 
   // ! When asynchronously uncoarsening the localized refinement is called through a lambda of this type
   using LocalizedRefinementFunction = std::function<void (const ContractionGroup& group, ContractionGroupID groupID, IGroupLockManager* lockManager)>;
-  #define NOOP_LOCALIZED_REFINEMENT_FUNC [] (const ContractionGroup&, ContractionGroupID groupID, IGroupLockManager* lockManager) {}
+  // ! Refinement has to at least release all locks that are held on members of the contraction group
+  #define NOOP_LOCALIZED_REFINEMENT_FUNC [] (const ContractionGroup& group, ContractionGroupID groupID, IGroupLockManager* lockManager) { \
+        auto releaseRange = IteratorRange<ContractionToNodeIteratorAdaptor>(ContractionToNodeIteratorAdaptor(group.begin()), ContractionToNodeIteratorAdaptor(group.end()));\
+        lockManager->strongReleaseMultipleLocks(releaseRange,groupID);                                                                    \
+        lockManager->strongReleaseLock(group.getRepresentative(), groupID);                                                               \
+  }
 
   /*!
   * This struct is used during multilevel coarsening to efficiently

@@ -20,6 +20,7 @@
  ******************************************************************************/
 
 
+#include <mt-kahypar/partition/refinement/label_propagation/asynch_lp_refiner.h>
 #include "kahypar/meta/registrar.h"
 
 #include "mt-kahypar/partition/context.h"
@@ -37,6 +38,14 @@
     id,                                                                                                                \
     [](Hypergraph& hypergraph, const Context& context, const TaskGroupID task_group_id) -> IRefiner* {                 \
     return new refiner(hypergraph, context, task_group_id);                                                            \
+  })
+
+#define REGISTER_ASYNCH_LP_REFINER(id, refiner, t)                                                                     \
+  static kahypar::meta::Registrar<AsynchLPRefinerFactory> JOIN(register_ ## refiner, t)(                               \
+    id,                                                                                                                \
+    [](Hypergraph& hypergraph, const Context& context, const TaskGroupID task_group_id,                                \
+    ds::IGroupLockManager *lockManager, ds::ContractionGroupID contraction_group_id) -> IRefiner* {                    \
+    return new refiner(hypergraph, context, task_group_id, lockManager, contraction_group_id);                         \
   })
 
 #define REGISTER_FM_REFINER(id, refiner, t)                                                                            \
@@ -60,4 +69,9 @@ REGISTER_FM_REFINER(FMAlgorithm::fm_gain_cache_on_demand, MultiTryKWayFMWithGain
 REGISTER_FM_REFINER(FMAlgorithm::fm_gain_delta, MultiTryKWayFMWithGainDelta, FMWithGainDelta);
 REGISTER_FM_REFINER(FMAlgorithm::fm_recompute_gain, MultiTryKWayFMWithGainRecomputation, FMWithGainRecomputation);
 REGISTER_FM_REFINER(FMAlgorithm::do_nothing, DoNothingRefiner, 2);
+
+REGISTER_ASYNCH_LP_REFINER(LabelPropagationAlgorithm::label_propagation_cut, AsynchLPCutRefiner, Cut);
+REGISTER_ASYNCH_LP_REFINER(LabelPropagationAlgorithm::label_propagation_km1, AsynchLPKm1Refiner, Km1);
+REGISTER_ASYNCH_LP_REFINER(LabelPropagationAlgorithm::do_nothing, DoNothingRefiner, 3);
+
 }  // namespace mt_kahypar

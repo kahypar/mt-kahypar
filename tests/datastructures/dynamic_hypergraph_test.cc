@@ -1460,6 +1460,7 @@ using ::testing::Return;
         EXPECT_CALL(*mockLockManager,tryToAcquireLock(_,_)).WillRepeatedly(Return(true));
         EXPECT_CALL(*mockLockManager,tryToReleaseLock(_,_)).WillRepeatedly(Return(true));
         EXPECT_CALL(*mockLockManager,isLocked(_)).WillRepeatedly(Return(false));
+        EXPECT_CALL(*mockLockManager, isHeldBy(_,_)).WillRepeatedly(Return(true));
 
         ASSERT(pools.size() == 1);
         hypergraph.uncontractUsingGroupPool(pools[0].get(), mockLockManager.get(), NOOP_BATCH_FUNC, NOOP_BATCH_FUNC,

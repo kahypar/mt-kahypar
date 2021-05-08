@@ -37,9 +37,8 @@ namespace mt_kahypar::ds {
 
         OwnerID testOwner = 0;
         for (LockedID i = 0; i < size; ++i) {
-            ASSERT_EQ(lockManager.owner(i),defaultInvalid);
             ASSERT_FALSE(lockManager.isLocked(i));
-            ASSERT_EQ(lockManager[i],defaultInvalid);
+            ASSERT_TRUE(lockManager.isHeldBy(i,defaultInvalid));
             ASSERT_FALSE(lockManager.tryToReleaseLock(i,testOwner));
         }
     }
@@ -58,9 +57,8 @@ namespace mt_kahypar::ds {
         ASSERT_NE(testOwner,invalid);
 
         for (DiffLockedID i = 0; i < size; ++i) {
-            ASSERT_EQ(lockManager.owner(i),invalid);
             ASSERT_FALSE(lockManager.isLocked(i));
-            ASSERT_EQ(lockManager[i],invalid);
+            ASSERT_TRUE(lockManager.isHeldBy(i,invalid));
             ASSERT_FALSE(lockManager.tryToReleaseLock(i,testOwner));
         }
     }
@@ -76,9 +74,9 @@ namespace mt_kahypar::ds {
 
         ASSERT_TRUE(acquire1 && acquire2 && acquire3);
         ASSERT_TRUE(lockManager.isLocked(0) && lockManager.isLocked(5) && lockManager.isLocked(9));
-        ASSERT_EQ(lockManager.owner(0), 0);
-        ASSERT_EQ(lockManager.owner(5), 1);
-        ASSERT_EQ(lockManager.owner(9), 10000);
+        ASSERT_TRUE(lockManager.isHeldBy(0,0));
+        ASSERT_TRUE(lockManager.isHeldBy(5,1));
+        ASSERT_TRUE(lockManager.isHeldBy(9,10000));
 
         // Owner 2 holds no locks so it cannot release any of the three locks and also not a lock that is held by no one (lock 1)
         ASSERT_FALSE(lockManager.tryToReleaseLock(0,2));
@@ -132,7 +130,7 @@ namespace mt_kahypar::ds {
         ASSERT_TRUE(acquire1);
         for (LockedID i : range1) {
             ASSERT_TRUE(lockManager.isLocked(i));
-            ASSERT_EQ(lockManager.owner(i),0);
+            ASSERT_TRUE(lockManager.isHeldBy(i,0));
         }
 
         // Owner 1 tries to acquire 8 to 9 at once, expect it work and that owner 1 owns 8 and 9 after
@@ -141,21 +139,21 @@ namespace mt_kahypar::ds {
         ASSERT_TRUE(acquire4);
         for (auto i : range4) {
             ASSERT_TRUE(lockManager.isLocked(i));
-            ASSERT_EQ(lockManager.owner(i),1);
+            ASSERT_TRUE(lockManager.isHeldBy(i,1));
         }
 
         // Owner 0 tries to acquire 4 to 6 at once, expect it to fail and that owner 0 owns 4 still but that 5 and 6 are still free after
         auto range2 = getRange(4,7);
         bool acquire2 = lockManager.tryToAcquireMultipleLocks(range2, 0);
         ASSERT_FALSE(acquire2);
-        ASSERT_EQ(lockManager.owner(4), 0);
+        ASSERT_TRUE(lockManager.isHeldBy(4,0));
         ASSERT_FALSE(lockManager.isLocked(5) || lockManager.isLocked(6));
 
         // Owner 1 tries to acquire 4 to 6 at once, expect it to fail and that owner 0 owns 4 still but that 5 and 6 are still free after
         auto range3 = getRange(4,7);
         bool acquire3 = lockManager.tryToAcquireMultipleLocks(range3, 1);
         ASSERT_FALSE(acquire3);
-        ASSERT_EQ(lockManager.owner(4), 0);
+        ASSERT_TRUE(lockManager.isHeldBy(4,0));
         ASSERT_FALSE(lockManager.isLocked(5) || lockManager.isLocked(6));
 
         // Owner 2 tries to acquire 5 to 9 at once, expect it to fail and that owner 1 owns 8 to 9 still, and 5 to 7 are still free
@@ -166,8 +164,8 @@ namespace mt_kahypar::ds {
         for (auto i : freeRange) {
             ASSERT_FALSE(lockManager.isLocked(i));
         }
-        ASSERT_EQ(lockManager.owner(8),1);
-        ASSERT_EQ(lockManager.owner(9),1);
+        ASSERT_TRUE(lockManager.isHeldBy(8,1));
+        ASSERT_TRUE(lockManager.isHeldBy(9,1));
 
     }
 
@@ -187,14 +185,14 @@ namespace mt_kahypar::ds {
         for (auto i : range3) {
             bool locked = lockManager.tryToAcquireLock(i,0);
             ASSERT_TRUE(locked);
-            ASSERT_EQ(lockManager.owner(i),0);
+            ASSERT_TRUE(lockManager.isHeldBy(i,0));
         }
 
         // Releasing multiple with different owner fails
         bool release1 = lockManager.tryToReleaseMultipleLocks(range3,1);
         ASSERT_FALSE(release1);
         for (auto i : range3) {
-            ASSERT_EQ(lockManager.owner(i),0);
+            ASSERT_TRUE(lockManager.isHeldBy(i,0));
         }
 
         // Releasing when not all are owned fails and no locks are changed
@@ -202,7 +200,7 @@ namespace mt_kahypar::ds {
         bool release2 = lockManager.tryToReleaseMultipleLocks(wrongRange,0);
         ASSERT_FALSE(release2);
         for (auto i : range3) {
-            ASSERT_EQ(lockManager.owner(i),0);
+            ASSERT_TRUE(lockManager.isHeldBy(i,0));
         }
 
         // Releasing all previously locked works and afterwards they are all free
@@ -217,14 +215,14 @@ namespace mt_kahypar::ds {
         for (auto i : range4) {
             bool locked = lockManager.tryToAcquireLock(i,3);
             ASSERT_TRUE(locked);
-            ASSERT_EQ(lockManager.owner(i),3);
+            ASSERT_TRUE(lockManager.isHeldBy(i,3));
         }
 
         // Releasing part of previously acquired works and keeps rest untouched
         auto partRange = getRange(7,9);
         bool release4 = lockManager.tryToReleaseMultipleLocks(partRange,3);
         ASSERT_TRUE(release4);
-        ASSERT_EQ(lockManager.owner(9),3);
+        ASSERT_TRUE(lockManager.isHeldBy(9,3));
         ASSERT_FALSE(lockManager.isLocked(7) || lockManager.isLocked(8));
 
         // Releasing single lock works
@@ -235,18 +233,11 @@ namespace mt_kahypar::ds {
 
     }
 
-    TEST(AArrayLockManager, UnqualifiedIndexOwnerDeathTest) {
+    TEST(AArrayLockManager, UnqualifiedIndexIsHeldByDeathTest) {
         testing::FLAGS_gtest_death_test_style="threadsafe";
         LockedID size = 1;
         auto lockManager = ArrayLockManager<LockedID, OwnerID>(size, defaultInvalid);
-        ASSERT_DEATH(lockManager.owner(1), "");
-    }
-
-    TEST(AArrayLockManager, UnqualifiedIndexRAOperatorDeathTest) {
-        testing::FLAGS_gtest_death_test_style="threadsafe";
-        LockedID size = 1;
-        auto lockManager = ArrayLockManager<LockedID, OwnerID>(size, defaultInvalid);
-        ASSERT_DEATH(lockManager[2], "");
+        ASSERT_DEATH(lockManager.isHeldBy(1,0), "");
     }
 
     TEST(AArrayLockManager, UnqualifiedIndexIsLockedDeathTest) {
@@ -298,11 +289,11 @@ namespace mt_kahypar::ds {
 
         OwnerID ownerID = 0;
 
-        // Build mock manager who will return owner 0 to any owner query but will return false on any attempt to release
+        // Build mock manager who will return true to any isHeldBy query with owner 0 but will return false on any attempt to release
         // a lock held by 0. Simulates situation where a owner holds a lock but releasing it in tryToReleaseMultiple
         // still fails (the program is supposed to fail then).
         auto mockLockManager = MockLockManager<LockedID, OwnerID>();
-        EXPECT_CALL(mockLockManager,owner(_)).WillRepeatedly(Return(ownerID));
+        EXPECT_CALL(mockLockManager,isHeldBy(_,ownerID)).WillRepeatedly(Return(true));
         EXPECT_CALL(mockLockManager,tryToReleaseLock(_,ownerID)).WillRepeatedly(Return(false));
 
         auto range = getRange(0,5);

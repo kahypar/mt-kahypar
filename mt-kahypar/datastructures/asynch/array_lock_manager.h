@@ -59,14 +59,13 @@ namespace mt_kahypar::ds {
             return _v[lockedID].compare_exchange_strong(expected, desired);
         };
 
-        OwnerID owner(LockedID lockedID) const override {
-            ASSERT(lockedID < _size);
-            return _v[lockedID].load(std::memory_order_relaxed);
-        };
-
         bool isLocked(LockedID lockedID) const override {
             return owner(lockedID) != _invalid_owner_id;
         };
+
+        bool isHeldBy(LockedID lockedID, OwnerID ownerID) const override {
+            return owner(lockedID) == ownerID;
+        }
 
     private:
 
@@ -76,6 +75,11 @@ namespace mt_kahypar::ds {
                 _v[i].store(initializer, std::memory_order_relaxed);
             }
         }
+
+        OwnerID owner(LockedID lockedID) const {
+            ASSERT(lockedID < _size);
+            return _v[lockedID].load(std::memory_order_relaxed);
+        };
 
         const LockedID _size;
         std::unique_ptr<UnderlyingType[]> _v;

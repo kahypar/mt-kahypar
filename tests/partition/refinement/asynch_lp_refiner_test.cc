@@ -35,6 +35,8 @@
 #include "gtest/gtest-death-test.h"
 
 using ::testing::Test;
+using ::testing::Return;
+using ::testing::_;
 
 namespace mt_kahypar {
 template <PartitionID k, kahypar::Objective objective>
@@ -69,7 +71,9 @@ class AAsynchLPRefiner : public Test {
     context(),
     refiner(nullptr),
     metrics(),
-    refinement_nodes() {
+    refinement_nodes(),
+    lock_manager(),
+    contraction_group_id(0) {
     context.partition.graph_filename = "../tests/instances/contracted_ibm01.hgr";
     context.partition.graph_community_filename = "../tests/instances/contracted_ibm01.hgr.community";
     context.partition.mode = kahypar::Mode::direct_kway;
@@ -97,7 +101,23 @@ class AAsynchLPRefiner : public Test {
     context.setupPartWeights(hypergraph.totalWeight());
     initialPartition();
 
-    refiner = std::make_unique<Refiner>(hypergraph, context, TBBNumaArena::GLOBAL_TASK_GROUP);
+    // Mock Lock Manager (Returns true on any acquire/release, false on isLocked queries and invalid owner on owner queries)
+    lock_manager = std::make_unique<ds::MockGroupLockManager>();
+    EXPECT_CALL(*lock_manager,tryToAcquireLock(_,_)).WillRepeatedly(Return(true));
+    EXPECT_CALL(*lock_manager,tryToReleaseLock(_,_)).WillRepeatedly(Return(true));
+    EXPECT_CALL(*lock_manager,isLocked(_)).WillRepeatedly(Return(false));
+    EXPECT_CALL(*lock_manager,isHeldBy(_,_)).WillRepeatedly(Return(true));
+
+    refiner = AsynchLPRefinerFactory::getInstance().createObject(
+            context.refinement.label_propagation.algorithm,
+            partitioned_hypergraph.hypergraph(),
+            context,
+            TBBNumaArena::GLOBAL_TASK_GROUP,
+            lock_manager.get(),
+            contraction_group_id
+            );
+
+//    refiner = std::make_unique<Refiner>(hypergraph, context, TBBNumaArena::GLOBAL_TASK_GROUP,lock_manager.get(),contraction_group_id);
     refiner->initialize(partitioned_hypergraph);
   }
 
@@ -132,9 +152,12 @@ class AAsynchLPRefiner : public Test {
   Hypergraph hypergraph;
   PartitionedHypergraph partitioned_hypergraph;
   Context context;
-  std::unique_ptr<Refiner> refiner;
+  std::unique_ptr<IRefiner> refiner;
   kahypar::Metrics metrics;
   parallel::scalable_vector<HypernodeID> refinement_nodes;
+
+  std::unique_ptr<ds::MockGroupLockManager> lock_manager;
+  ds::ContractionGroupID contraction_group_id;
 };
 
 template <typename Config>
@@ -174,8 +197,8 @@ TYPED_TEST(AAsynchLPRefiner, DoesNotWorsenSolutionQuality) {
 }
 
 TYPED_TEST(AAsynchLPRefiner, RefineWithEmptyRefinementNodesDeathTest) {
-        testing::FLAGS_gtest_death_test_style="threadsafe";
-        ASSERT_DEATH(this->refiner->refine(this->partitioned_hypergraph, {}, this->metrics, std::numeric_limits<double>::max()), "");
+    testing::FLAGS_gtest_death_test_style="threadsafe";
+    ASSERT_DEATH(this->refiner->refine(this->partitioned_hypergraph, {}, this->metrics, std::numeric_limits<double>::max()), "");
 }
 
 }  // namespace mt_kahypar

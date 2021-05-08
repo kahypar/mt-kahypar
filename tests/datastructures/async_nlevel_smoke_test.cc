@@ -5,6 +5,8 @@
 #include "gmock/gmock.h"
 
 #include <atomic>
+#include "mt-kahypar/partition/factories.h"
+#include <mt-kahypar/partition/refinement/i_refiner.h>
 
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/datastructures/dynamic_hypergraph.h"

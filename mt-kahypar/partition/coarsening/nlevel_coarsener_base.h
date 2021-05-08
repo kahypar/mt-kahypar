@@ -160,7 +160,7 @@ class NLevelCoarsenerBase {
   ds::VersionedPoolVector _group_pools_for_versions;
 
   // ! A lock manager for locks on hypernodes used in asynchronous n-level uncoarsening
-  ds::IGroupLockManager * _lock_manager_for_async;
+  std::unique_ptr<ds::IGroupLockManager> _lock_manager_for_async;
 
 };
 }  // namespace mt_kahypar

@@ -67,7 +67,7 @@ namespace mt_kahypar {
     if (_context.uncoarsening.use_asynchronous_uncoarsening) {
         _group_pools_for_versions = _hg.createUncontractionGroupPoolsForVersions();
         auto num_nodes = _hg.initialNumNodes();
-        _lock_manager_for_async = new ds::ArrayLockManager<HypernodeID, ds::ContractionGroupID>(num_nodes,ds::invalidGroupID);
+        _lock_manager_for_async = std::make_unique<ds::ArrayLockManager<HypernodeID, ds::ContractionGroupID>>(num_nodes,ds::invalidGroupID);
     } else {
         // Create n-level batch uncontraction hierarchy
         utils::Timer::instance().start_timer("create_batch_uncontraction_hierarchy", "Create n-Level Hierarchy");
@@ -480,6 +480,12 @@ namespace mt_kahypar {
       // Localized refinement lambda which only refines using label propagation
       auto do_localized_LP_refinement = [&](const ds::ContractionGroup& group, ds::ContractionGroupID groupID, ds::IGroupLockManager * lockManager) {
 
+          ASSERT(lockManager->isHeldBy(group.getRepresentative(),groupID) && "Representative of the group is not locked by the group id!");
+          ASSERT(std::all_of(ds::ContractionToNodeIteratorAdaptor(group.begin()),
+                             ds::ContractionToNodeIteratorAdaptor(group.end()),
+                             [&](const HypernodeID& hn) {return lockManager->isHeldBy(hn,groupID);})
+                 && "Not all contracted nodes in the group are locked by the group id!");
+
           // group is expected to be small
           parallel::scalable_vector<HypernodeID> refinement_nodes;
           // reserve space for each contracted node plus the representative
@@ -487,12 +493,20 @@ namespace mt_kahypar {
 
           if (_phg.isBorderNode(group.getRepresentative())) {
               refinement_nodes.push_back(group.getRepresentative());
+          } else {
+              // If node not a border node, it is not in the seed nodes for the refinement, so release its lock
+              lockManager->strongReleaseLock(group.getRepresentative(), groupID);
           }
           for (const Memento memento : group) {
               if (_phg.isBorderNode(memento.v) ) {
                   refinement_nodes.push_back(memento.v);
+              } else {
+                  // If node not a border node, it is not in the seed nodes for the refinement, so release its lock
+                  lockManager->strongReleaseLock(memento.v, groupID);
               }
           }
+          // No refinement if no seed nodes
+          if (refinement_nodes.empty()) return;
           refinement_nodes.shrink_to_fit();
 
           // LP Refiner for local asynchronous label propagation refinement
@@ -500,8 +514,13 @@ namespace mt_kahypar {
                   _context.refinement.label_propagation.algorithm,
                   _phg.hypergraph(),
                   _context,
-                  _task_group_id);
+                  _task_group_id,
+                  lockManager,
+                  groupID);
           localLPRefiner->initialize(_phg);
+
+          // todo mlaupichler Locks for refinement nodes are released during first iteration of LP. If there is more than one
+          //  iteration, on the second one, the locks for the seed nodes will not be held at the beginning, preventing it from working
 
           // Do only label propagation
           std::unique_ptr<IRefiner> noopRefiner = std::make_unique<DoNothingRefiner>();
@@ -513,7 +532,7 @@ namespace mt_kahypar {
           ASSERT(_phg.version() == _removed_hyperedges_batches.size());
           ds::IContractionGroupPool* pool = _group_pools_for_versions.back().get();
           ASSERT(_phg.version() == pool->getVersion());
-          _phg.uncontractUsingGroupPool(pool, _lock_manager_for_async, do_localized_LP_refinement);
+          _phg.uncontractUsingGroupPool(pool, _lock_manager_for_async.get(), do_localized_LP_refinement);
               // Restore single-pin and parallel nets to continue with the next version
               if ( !_removed_hyperedges_batches.empty() ) {
                   utils::Timer::instance().start_timer("restore_single_pin_and_parallel_nets",
@@ -666,6 +685,9 @@ namespace mt_kahypar {
       DBG << "Start Refinement - km1 = " << current_metrics.km1
           << ", imbalance = " << current_metrics.imbalance;
     }
+
+      // todo mlaupichler Locks for refinement nodes are released during first iteration of LP. If there are more than one
+      //  iteration, on the second one, the locks for the seed nodes will not be held at the beginning, preventing it from working
 
     bool improvement_found = true;
     while( improvement_found ) {
