@@ -160,7 +160,7 @@ size_t ParallelLocalMovingModularity::synchronousParallelRound(const Graph& grap
       PartitionID c = volume_updates[pos].cluster;
       if (pos == 0 || volume_updates[pos - 1].cluster != c) {
         ArcWeight vol_delta = 0.0;
-        for ( ; pos < sz && volume_updates[pos].cluster != c; ++pos) {
+        for ( ; pos < sz && volume_updates[pos].cluster == c; ++pos) {
           const auto& m = volume_updates[pos];
           if (m.to) {
             vol_delta += graph.nodeVolume(m.node);
