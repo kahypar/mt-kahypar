@@ -164,7 +164,7 @@ size_t ParallelLocalMovingModularity::synchronousParallelRound(const Graph& grap
           const auto& m = volume_updates[pos];
           if (m.to) {
             vol_delta += graph.nodeVolume(m.node);
-            communities[m.node] = m.cluster;
+            communities[m.node] = c;
           } else {
             vol_delta -= graph.nodeVolume(m.node);
           }
