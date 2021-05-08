@@ -133,8 +133,8 @@ size_t ParallelLocalMovingModularity::synchronousParallelRound(const Graph& grap
       HypernodeID u = permutation.at(pos);
       PartitionID to = computeMaxGainCluster(graph, communities, u, non_sampling_incident_cluster_weights.local());
       if (to != communities[u]) {
-        volume_updates.push_back_buffered({ -graph.nodeVolume(u), communities[u] });
-        volume_updates.push_back_buffered({ graph.nodeVolume(u), to });
+        volume_updates.push_back_buffered({ communities[u], u, false });
+        volume_updates.push_back_buffered({ to, u, true });
         num_moved_local.local() += 1;
       }
       /*
@@ -148,12 +148,12 @@ size_t ParallelLocalMovingModularity::synchronousParallelRound(const Graph& grap
       */
     });
     num_moved_nodes += num_moved_local.combine(std::plus<>());
+    volume_updates.finalize();
 
     /*
      * We can't do atomic adds of the volumes since they're not commutative and thus lead to non-deterministic decisions
      * Instead we sort the updates, and for each cluster let one thread sum up the updates.
      */
-    volume_updates.finalize();
     tbb::parallel_sort(volume_updates.begin(), volume_updates.end());
     tbb::parallel_for(0UL, volume_updates.size(), [&](size_t pos) {
       PartitionID c = volume_updates[pos].cluster;
@@ -161,11 +161,19 @@ size_t ParallelLocalMovingModularity::synchronousParallelRound(const Graph& grap
         ArcWeight vol_delta = 0.0;
         const size_t sz = volume_updates.size();
         for ( ; pos < sz && volume_updates[pos].cluster != c; ++pos) {
-          vol_delta += volume_updates[pos].volume;
+          const auto& m = volume_updates[pos];
+          if (m.to) {
+            vol_delta += graph.nodeVolume(m.node);
+            communities[m.node] = m.cluster;
+          } else {
+            vol_delta -= graph.nodeVolume(m.node);
+          }
         }
         _cluster_volumes[c].store(_cluster_volumes[c].load(std::memory_order_relaxed) + vol_delta, std::memory_order_relaxed);
       }
     });
+
+    volume_updates.clear();
   }
 
   return num_moved_nodes;

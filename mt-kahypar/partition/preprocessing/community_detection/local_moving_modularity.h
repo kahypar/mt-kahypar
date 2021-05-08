@@ -190,14 +190,15 @@ class ParallelLocalMovingModularity {
   utils::ParallelPermutation<HypernodeID> permutation;
   std::mt19937 prng;
 
-  struct VolumeUpdate {
-    ArcWeight volume;
+  struct ClusterMove {
     PartitionID cluster;
-    bool operator< (const VolumeUpdate& o) const {
-      return std::tie(cluster, volume) < std::tie(o.cluster, o.volume);
+    NodeID node;
+    bool to;
+    bool operator< (const ClusterMove& o) const {
+      return std::tie(cluster, node) < std::tie(o.cluster, o.node);
     }
   };
-  ds::BufferedVector<VolumeUpdate> volume_updates;
+  ds::BufferedVector<ClusterMove> volume_updates;
 
 
 
