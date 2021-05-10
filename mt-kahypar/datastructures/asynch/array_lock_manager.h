@@ -42,7 +42,7 @@ namespace mt_kahypar::ds {
 
         bool tryToAcquireLock(LockedID lockedID, OwnerID ownerID) override {
             ASSERT(lockedID < _size);
-            OwnerID expected = _v[lockedID].load(std::memory_order_relaxed);
+            OwnerID expected = _v[lockedID].load(std::memory_order_acq_rel);
             OwnerID desired = ownerID;
             if (expected != _invalid_owner_id) {
                 // If the lock is already held by someone, return false

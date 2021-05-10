@@ -42,8 +42,10 @@ namespace mt_kahypar::ds {
             ASSERT(std::distance(lockedIDs.begin(),lockedIDs.end()) > 0 && "Range of ids to lock cannot be empty!");
 
             auto cur = lockedIDs.begin();
+            auto lastAcquired = lockedIDs.begin();
             auto success = true;
             while (cur != lockedIDs.end() && success) {
+                lastAcquired = cur;
                 success &= tryToAcquireLock(*cur, ownerID);
                 ++cur;
             }
@@ -53,8 +55,7 @@ namespace mt_kahypar::ds {
             } else {
                 // Release locks acquired so far
                 auto rev = lockedIDs.begin();
-                auto endOfAcquired = --cur;
-                while (rev != endOfAcquired) {
+                while (rev != lastAcquired) {
                     bool revSuccess = tryToReleaseLock(*rev, ownerID);
                     ASSERT(revSuccess);
                     ++rev;

@@ -75,7 +75,7 @@ class DynamicHypergraph {
   using LocalizedRefinementFunction = std::function<void (const ContractionGroup& group, ContractionGroupID groupID, IGroupLockManager* lockManager)>;
   // ! Refinement has to at least release all locks that are held on members of the contraction group
   #define NOOP_LOCALIZED_REFINEMENT_FUNC [] (const ContractionGroup& group, ContractionGroupID groupID, IGroupLockManager* lockManager) { \
-        auto releaseRange = IteratorRange<ContractionToNodeIteratorAdaptor>(ContractionToNodeIteratorAdaptor(group.begin()), ContractionToNodeIteratorAdaptor(group.end()));\
+        auto releaseRange = IteratorRange<ContractionToNodeIDIteratorAdaptor>(ContractionToNodeIDIteratorAdaptor(group.begin()), ContractionToNodeIDIteratorAdaptor(group.end()));\
         lockManager->strongReleaseMultipleLocks(releaseRange,groupID);                                                                    \
         lockManager->strongReleaseLock(group.getRepresentative(), groupID);                                                               \
   }
@@ -892,6 +892,11 @@ class DynamicHypergraph {
                                 const AdoptPartitionFunction &adopt_part_func = NOOP_ADOPT_PART_FUNC,
                                 const LocalizedRefinementFunction &localized_refinement_func = NOOP_LOCALIZED_REFINEMENT_FUNC,
                                 bool performNoRefinement = false);
+
+  void uncontract(const ContractionGroup& group,
+                  const UncontractionFunction& case_one_func = NOOP_BATCH_FUNC,
+                  const UncontractionFunction& case_two_func = NOOP_BATCH_FUNC,
+                  const AdoptPartitionFunction& adopt_part_func = NOOP_ADOPT_PART_FUNC);
 
   /**
    * Uncontracts a batch of contractions in parallel. The batches must be uncontracted exactly

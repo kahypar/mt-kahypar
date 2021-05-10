@@ -292,6 +292,54 @@ VersionedPoolVector DynamicHypergraph::createUncontractionGroupPoolsForVersions(
 
 }
 
+
+void DynamicHypergraph::uncontract(const ContractionGroup& group,
+                                   const UncontractionFunction& case_one_func,
+                                   const UncontractionFunction& case_two_func,
+                                   const AdoptPartitionFunction& adopt_part_func) {
+
+    for(auto &memento: group) {
+
+        ASSERT(!hypernode(memento.u).isDisabled(), "Hypernode" << memento.u << "is disabled");
+        ASSERT(hypernode(memento.v).isDisabled(), "Hypernode" << memento.v << "is not invalid");
+
+        _incident_nets.uncontract(memento.u, memento.v,[&](const HyperedgeID e) {
+            // In that case, u and v were both previously part of hyperedge e.
+            reactivatePinForSingleUncontraction(e,memento.v);
+
+            acquireHyperedge(e);
+            case_one_func(memento.u, memento.v, e);
+            releaseHyperedge(e);
+        }, [&](const HyperedgeID e) {
+            // In that case only v was part of hyperedge e before and
+            // u must be replaced by v in hyperedge e
+            const size_t slot_of_u = findPositionOfPinInIncidenceArray(memento.u, e);
+
+            acquireHyperedge(e);
+            ASSERT(_incidence_array[slot_of_u] == memento.u);
+            _incidence_array[slot_of_u] = memento.v;
+            case_two_func(memento.u, memento.v, e);
+            releaseHyperedge(e);
+        }, [&](const HypernodeID u) {
+            acquireHypernode(u);
+        }, [&](const HypernodeID u) {
+            releaseHypernode(u);
+        });
+
+        acquireHypernode(memento.u);
+
+        adopt_part_func(memento.u, memento.v);
+        // Restore hypernode v which includes enabling it and subtract its weight
+        // from its representative
+        hypernode(memento.v).enable();
+        hypernode(memento.u).setWeight(hypernode(memento.u).weight() - hypernode(memento.v).weight());
+
+        releaseHypernode(memento.u);
+
+    }
+
+}
+
 void DynamicHypergraph::uncontractUsingGroupPool(IContractionGroupPool *groupPool,
                                                  IGroupLockManager *lockManager,
                                                  const UncontractionFunction &case_one_func,
@@ -311,7 +359,7 @@ void DynamicHypergraph::uncontractUsingGroupPool(IContractionGroupPool *groupPoo
             groupPool->reactivate(groupID);
             continue;
         }
-        auto range = IteratorRange(ContractionToNodeIteratorAdaptor(group.begin()), ContractionToNodeIteratorAdaptor(group.end()));
+        auto range = IteratorRange(ContractionToNodeIDIteratorAdaptor(group.begin()), ContractionToNodeIDIteratorAdaptor(group.end()));
         bool acquiredContr = lockManager->tryToAcquireMultipleLocks(range, groupID);
         if (!acquiredContr) {
             lockManager->strongReleaseLock(group.getRepresentative(), groupID);
@@ -364,8 +412,8 @@ void DynamicHypergraph::uncontractUsingGroupPool(IContractionGroupPool *groupPoo
         if (performNoRefinement) {
             // Release locks if no refinement takes place. If there is refinement, this is taken care of by the
             // refinement algorithm when it no longer needs the locks.
-            auto releaseRange = IteratorRange<ContractionToNodeIteratorAdaptor>(
-                    ContractionToNodeIteratorAdaptor(group.begin()), ContractionToNodeIteratorAdaptor(group.end()));
+            auto releaseRange = IteratorRange<ContractionToNodeIDIteratorAdaptor>(
+                    ContractionToNodeIDIteratorAdaptor(group.begin()), ContractionToNodeIDIteratorAdaptor(group.end()));
             lockManager->strongReleaseMultipleLocks(releaseRange,groupID);
             lockManager->strongReleaseLock(group.getRepresentative(), groupID);
         }
@@ -1180,6 +1228,7 @@ BatchVector DynamicHypergraph::createBatchUncontractionHierarchyForVersion(Batch
 
   return batches;
 }
+
 
 
 } // namespace ds

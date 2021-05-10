@@ -32,7 +32,8 @@ namespace mt_kahypar {
         _next_active(hypergraph.initialNumNodes()),
         _visited_he(hypergraph.initialNumEdges()),
         _lock_manager(lockManager),
-        _contraction_group_id(contraction_group_id) { }
+        _contraction_group_id(contraction_group_id),
+        _seeds(){ }
 
         AsynchLPRefiner(const AsynchLPRefiner&) = delete;
         AsynchLPRefiner(AsynchLPRefiner&&) = delete;
@@ -147,6 +148,8 @@ namespace mt_kahypar {
             return success;
         }
 
+        parallel::scalable_vector<size_t> getSortedIndicesOfSeedsInActiveNodes() const;
+
         const Context& _context;
         const TaskGroupID _task_group_id;
         GainCalculator _gain;
@@ -154,8 +157,17 @@ namespace mt_kahypar {
         ds::ThreadSafeFastResetFlagArray<> _next_active;
         kahypar::ds::FastResetFlagArray<> _visited_he;
 
+        // todo mlaupichler The AsynchLPRefiner should not be bound so tightly to the idea of ContractionGroups. Use a template argument for the OwnerID (also in the _lock_manager pointer) in order to allow any OwnerID for the locking.
+        // ! The ID of the contraction group that the seed refinement nodes are from. Used as an identifier for locking
+        // nodes so uncontracting and refinement of a contraction group use the same locks.
         ds::ContractionGroupID _contraction_group_id;
+
+        // ! A pointer to the LockManager that is used by uncontraction and refinement operations during the entire
+        // uncoarsening.
         ds::IGroupLockManager* _lock_manager;
+
+        // ! A reference to the seed nodes for the current refinement. Locks for seed nodes are never
+        parallel::scalable_vector<HypernodeID> _seeds;
     };
 
     using AsynchLPKm1Refiner = AsynchLPRefiner<Km1Policy>;

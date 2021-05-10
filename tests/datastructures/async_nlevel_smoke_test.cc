@@ -112,7 +112,51 @@ namespace mt_kahypar {
             utils::Timer::instance().start_timer(timer_key("async_uncontractions"), "Asynchronous Uncontractions");
             while (!versionedPools.empty()) {
                 IContractionGroupPool *pool = versionedPools.back().get();
-                partitioned_hypergraph.uncontractUsingGroupPool(pool, lockManager, NOOP_LOCALIZED_REFINEMENT_FUNC);
+
+//                partitioned_hypergraph.uncontractUsingGroupPool(pool, lockManager, NOOP_LOCALIZED_REFINEMENT_FUNC);
+
+                while (pool->hasActive()) {
+                    auto groupID = pool->pickAnyActiveID();
+                    auto group = pool->group(groupID);
+
+                    // Attempt to acquire locks for representative and contracted nodes in the group. If any of the locks cannot be
+                    // acquired, revert to previous state and attempt to pick an id again
+                    auto range = IteratorRange(ds::GroupNodeIDIterator::getAtBegin(group), ds::GroupNodeIDIterator::getAtEnd(group));
+                    bool acquired = lockManager->tryToAcquireMultipleLocks(range, groupID);
+                    if (!acquired) {
+                        pool->reactivate(groupID);
+                        continue;
+                    }
+                    ASSERT(acquired);
+
+                    partitioned_hypergraph.uncontract(group);
+
+                    ASSERT(lockManager->isHeldBy(group.getRepresentative(),groupID) && "Representative of the group is not locked by the group id!");
+                    ASSERT(std::all_of(ds::ContractionToNodeIDIteratorAdaptor(group.begin()),
+                                       ds::ContractionToNodeIDIteratorAdaptor(group.end()),
+                                       [&](const HypernodeID& hn) {return lockManager->isHeldBy(hn,groupID);})
+                           && "Not all contracted nodes in the group are locked by the group id!");
+
+                    // Extract refinement seeds and release locks for nodes that are not seeds
+                    auto begin = ds::GroupNodeIDIterator::getAtBegin(group);
+                    auto end = ds::GroupNodeIDIterator::getAtEnd(group);
+                    DynamicPartitionedHypergraph::ReleaseFunction release_func = [&](const HypernodeID hn){
+                        lockManager->strongReleaseLock(hn, groupID);
+                    };
+                    auto refinement_nodes = partitioned_hypergraph.extractBorderNodesAndReleaseOthers(begin,end, release_func);
+
+                    // No refinement if refinement nodes are empty (all the locks are released already)
+                    if (refinement_nodes.empty()) continue;
+
+                    // No refinement
+
+                    // Release locks of seed nodes
+                    auto releaseRange = IteratorRange(refinement_nodes.begin(), refinement_nodes.end());
+                    lockManager->strongReleaseMultipleLocks(releaseRange,groupID);
+
+                    pool->activateSuccessors(groupID);
+                }
+
                 versionedPools.pop_back();
 
                 if (!removed_hyperedges.empty()) {

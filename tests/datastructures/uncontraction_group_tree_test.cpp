@@ -188,7 +188,6 @@ namespace mt_kahypar::ds {
         ASSERT(succGroup1 == expectedVersion0SuccGroup1);
         ASSERT(groupTreeVersion0.predecessor(succID1) == rootIDVersion0);
 
-
         // Version 1 test
         ContractionGroup expectedVersion1RootGroup1 = { Contraction {0, 3}};
         ContractionGroup expectedVersion1RootGroup2 = { Contraction {1, 4}, {1, 5}};
@@ -228,37 +227,6 @@ namespace mt_kahypar::ds {
         }
         ASSERT(seenExpected1 && seenExpected2);
 
-    }
-
-    TEST(AContractionGroup, EqualityTest) {
-        Contraction c1 = {1,2};
-        Contraction c2 = {1,4};
-        Contraction c3 = {1,3};
-        ContractionGroup group1 = {c1,c2};
-        ContractionGroup group2 = {c1,c3};
-        ContractionGroup group3 = {c2,c1};
-
-        ASSERT_FALSE(group1 == group2);
-        ASSERT_TRUE(group1 == group3);
-
-        ContractionGroup group4 = {c1};
-        ASSERT_FALSE(group1 == group4);
-        ASSERT_FALSE(group4 == group1);
-    }
-
-    TEST(AContractionGroupDeathTest, ConstructFailsIfEmptyDeathTest) {
-        testing::FLAGS_gtest_death_test_style="threadsafe";
-
-        EXPECT_DEATH(ContractionGroup group = {},"");
-        std::vector<Contraction> emptyVec;
-        EXPECT_DEATH(ContractionGroup group(emptyVec),"");
-    }
-
-    TEST(AContractionGroupDeathTest, ConstructionFailsIfGroupHasDifferentRepsDeathTest) {
-        testing::FLAGS_gtest_death_test_style="threadsafe";
-        Contraction c1 = {1,2};
-        Contraction c2 = {2,3};
-        ASSERT_DEATH(ContractionGroup({c1,c2}),"");
     }
 } // namespace mt_kahypar::ds
 
