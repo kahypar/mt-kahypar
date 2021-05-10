@@ -63,8 +63,6 @@ class ParallelLocalMovingModularity {
       return construct_large_incident_cluster_weight_map();
     }),
     _disable_randomization(disable_randomization),
-
-    non_sampling_incident_cluster_weights(numNodes),
     prng(context.partition.seed),
     volume_updates(0)
   { }
@@ -94,7 +92,7 @@ class ParallelLocalMovingModularity {
 
   template<typename Map>
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE PartitionID computeMaxGainCluster(const Graph& graph,
-                                                                       ds::Clustering& communities,
+                                                                       const ds::Clustering& communities,
                                                                        const NodeID u,
                                                                        Map& incident_cluster_weights) {
     PartitionID from = communities[u];
@@ -123,7 +121,6 @@ class ParallelLocalMovingModularity {
         }
       }
     }
-
 
     // changing communities and volumes in parallel causes non-determinism in debug mode
     // TODO integrate somewhere else
@@ -164,7 +161,6 @@ class ParallelLocalMovingModularity {
   tbb::enumerable_thread_specific<LargeIncidentClusterWeights> _local_large_incident_cluster_weight;
   const bool _disable_randomization;
 
-  tbb::enumerable_thread_specific<ds::SparseMap<PartitionID, ArcWeight>> non_sampling_incident_cluster_weights;
   utils::ParallelPermutation<HypernodeID> permutation;
   std::mt19937 prng;
 

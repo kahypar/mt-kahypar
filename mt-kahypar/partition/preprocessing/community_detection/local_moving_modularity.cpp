@@ -131,13 +131,7 @@ size_t ParallelLocalMovingModularity::synchronousParallelRound(const Graph& grap
     tbb::enumerable_thread_specific<size_t> num_moved_local(0);
     tbb::parallel_for(first, last, [&](size_t pos) {
       HypernodeID u = permutation.at(pos);
-      PartitionID to = computeMaxGainCluster(graph, communities, u, non_sampling_incident_cluster_weights.local());
-      if (to != communities[u]) {
-        volume_updates.push_back_buffered({ communities[u], u, false });
-        volume_updates.push_back_buffered({ to, u, true });
-        num_moved_local.local() += 1;
-      }
-      /*
+      PartitionID best_cluster;
       if ( ratingsFitIntoSmallSparseMap(graph, u) ) {
         best_cluster = computeMaxGainCluster(graph, communities, u, _local_small_incident_cluster_weight.local());
       } else {
@@ -145,7 +139,12 @@ size_t ParallelLocalMovingModularity::synchronousParallelRound(const Graph& grap
         large_incident_cluster_weight.setMaxSize(3UL * std::min(_max_degree, _vertex_degree_sampling_threshold));
         best_cluster = computeMaxGainCluster(graph, communities, u, large_incident_cluster_weight);
       }
-      */
+
+      if (best_cluster != communities[u]) {
+        volume_updates.push_back_buffered({ communities[u], u, false });
+        volume_updates.push_back_buffered({ best_cluster, u, true });
+        num_moved_local.local() += 1;
+      }
     });
     num_moved_nodes += num_moved_local.combine(std::plus<>());
     volume_updates.finalize();
@@ -192,7 +191,7 @@ size_t ParallelLocalMovingModularity::parallelNonDeterministicRound(const Graph&
     const PartitionID from = communities[u];
     PartitionID best_cluster;
 
-    /*
+
     if ( ratingsFitIntoSmallSparseMap(graph, u) ) {
       best_cluster = computeMaxGainCluster(graph, communities, u, _local_small_incident_cluster_weight.local());
     } else {
@@ -200,8 +199,6 @@ size_t ParallelLocalMovingModularity::parallelNonDeterministicRound(const Graph&
       large_incident_cluster_weight.setMaxSize(3UL * std::min(_max_degree, _vertex_degree_sampling_threshold));
       best_cluster = computeMaxGainCluster(graph, communities, u, large_incident_cluster_weight);
     }
-     */
-    best_cluster = computeMaxGainCluster(graph, communities, u, non_sampling_incident_cluster_weights.local());
 
     if (best_cluster != from) {
       _cluster_volumes[best_cluster] += volU;
