@@ -428,7 +428,6 @@ private:
 
   void uncontract(const ContractionGroup& group) {
 
-
       // Sets block ids of contraction partners
       DynamicHypergraph::AdoptPartitionFunction adopt_part_func = [&](const HypernodeID u, const HypernodeID v) {
           ASSERT(nodeIsEnabled(u));

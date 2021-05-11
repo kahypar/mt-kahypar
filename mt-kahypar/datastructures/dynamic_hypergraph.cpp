@@ -328,7 +328,8 @@ void DynamicHypergraph::uncontract(const ContractionGroup& group,
 
         acquireHypernode(memento.u);
 
-        adopt_part_func(memento.u, memento.v);
+        // Have hypernode v adopt the partition of its representative u
+        adopt_part_func(memento.u,memento.v);
         // Restore hypernode v which includes enabling it and subtract its weight
         // from its representative
         hypernode(memento.v).enable();

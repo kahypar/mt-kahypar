@@ -33,7 +33,10 @@ namespace mt_kahypar {
         _visited_he(hypergraph.initialNumEdges()),
         _lock_manager(lockManager),
         _contraction_group_id(contraction_group_id),
-        _seeds(){ }
+        _seeds(),
+        _num_acquired_locks(0),
+        _num_released_locks(0),
+        _num_nodes(hypergraph.initialNumNodes()) { }
 
         AsynchLPRefiner(const AsynchLPRefiner&) = delete;
         AsynchLPRefiner(AsynchLPRefiner&&) = delete;
@@ -96,9 +99,16 @@ namespace mt_kahypar {
                                     if ( !_visited_he[he] ) {
                                         for (const HypernodeID& pin : hypergraph.pins(he)) {
                                             if (!_lock_manager->isLocked(pin)) {
-                                                _lock_manager->tryToAcquireLock(pin, _contraction_group_id);
-                                            }
-                                            if (_lock_manager->isHeldBy(pin,_contraction_group_id) && _next_active.compare_and_set_to_true(pin) ) {
+                                                bool acquired = _lock_manager->tryToAcquireLock(pin, _contraction_group_id);
+                                                // If lock could be acquired this has to be the first time that this hypernode has been traversed in this LP round
+                                                // => Assert that it is inserted into the next active nodes
+                                                if (acquired) {
+                                                    ++_num_acquired_locks;
+                                                    bool set_next_active = _next_active.compare_and_set_to_true(pin);
+                                                    ASSERT(set_next_active);
+                                                    next_active_nodes.stream(pin);
+                                                }
+                                            } else if (_lock_manager->isHeldBy(pin,_contraction_group_id) && _next_active.compare_and_set_to_true(pin) ) {
                                                 next_active_nodes.stream(pin);
                                             }
                                         }
@@ -168,6 +178,11 @@ namespace mt_kahypar {
 
         // ! A reference to the seed nodes for the current refinement. Locks for seed nodes are never
         parallel::scalable_vector<HypernodeID> _seeds;
+
+        // todo mlaupichler remove debug: these two counters
+        size_t _num_acquired_locks;
+        size_t _num_released_locks;
+        size_t _num_nodes;
     };
 
     using AsynchLPKm1Refiner = AsynchLPRefiner<Km1Policy>;

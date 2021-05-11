@@ -52,7 +52,12 @@ size_t mt_kahypar::ds::SequentialContractionGroupPool::getVersion() const {
 }
 
 void mt_kahypar::ds::SequentialContractionGroupPool::reactivate(mt_kahypar::ds::ContractionGroupID id) {
+
     activate(id);
+
+    // Shuffle on reactivate to break LIFO picking in order to provide other possible picked ID
+    utils::Randomize::instance().shuffleVector(
+            _active_ids, 0UL, _active_ids.size(), sched_getcpu());
 }
 
 bool mt_kahypar::ds::SequentialContractionGroupPool::isActive(ContractionGroupID id) const {

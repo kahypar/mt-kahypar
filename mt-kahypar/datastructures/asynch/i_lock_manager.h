@@ -34,6 +34,10 @@ namespace mt_kahypar::ds {
         /// Returns true if any owner holds the lock for lockedID and false if not.
         virtual bool isLocked(LockedID lockedID) const = 0;
 
+        /// Returns the total number of locks currently held by anyone. This is threadsafe but not always entirely
+        /// accurate. Depending on incoming calls to acquire and release locks, the returned value may even be negative due to concurrency.
+        virtual int numLocked() const = 0;
+
         /// Attempt to acquire multiple locks for the ids in the range lockedIDs with the owner ownerID.
         /// Will return true if all requested locks were changed and acquired by the owner with ownerID. If any
         /// lock cannot be acquired, all acquired locks will be released again and false will be returned.

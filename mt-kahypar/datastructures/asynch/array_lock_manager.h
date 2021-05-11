@@ -28,7 +28,7 @@ namespace mt_kahypar::ds {
         /// \param invalidOwnerID a distinct OwnerID that an ArrayLockManager instantiated with this constructor
         /// will consider an unassigned or invalid owner.
         ArrayLockManager(LockedID size, OwnerID invalidOwnerID)
-            : ILockManager<LockedID, OwnerID>(invalidOwnerID), _size(size), _v(std::make_unique<UnderlyingType[]>(size)) {
+            : ILockManager<LockedID, OwnerID>(invalidOwnerID), _size(size), _v(std::make_unique<UnderlyingType[]>(size)), _num_locked(0) {
             init();
         }
 
@@ -41,22 +41,25 @@ namespace mt_kahypar::ds {
         ~ArrayLockManager() = default;
 
         bool tryToAcquireLock(LockedID lockedID, OwnerID ownerID) override {
-            ASSERT(lockedID < _size);
-            OwnerID expected = _v[lockedID].load(std::memory_order_acq_rel);
+            OwnerID expected = owner(lockedID);
             OwnerID desired = ownerID;
             if (expected != _invalid_owner_id) {
                 // If the lock is already held by someone, return false
                 return false;
             }
             // If the lock is currently not held by anyone, attempt to acquire it; returns true if successful or false if not
-            return _v[lockedID].compare_exchange_strong(expected, desired);
+            bool acquired = _v[lockedID].compare_exchange_strong(expected, desired);
+            if (acquired) _num_locked.add_fetch(1, std::memory_order_relaxed);
+            return acquired;
         };
 
         bool tryToReleaseLock(LockedID lockedID, OwnerID ownerID) override {
             ASSERT(lockedID < _size);
             OwnerID expected = ownerID;
             OwnerID desired = _invalid_owner_id;
-            return _v[lockedID].compare_exchange_strong(expected, desired);
+            bool released = _v[lockedID].compare_exchange_strong(expected, desired);
+            if (released) _num_locked.sub_fetch(1, std::memory_order_relaxed);
+            return released;
         };
 
         bool isLocked(LockedID lockedID) const override {
@@ -67,22 +70,27 @@ namespace mt_kahypar::ds {
             return owner(lockedID) == ownerID;
         }
 
+        int numLocked() const override {
+            return _num_locked.load(std::memory_order_acq_rel);
+        }
+
     private:
 
         void init() {
             const OwnerID initializer = _invalid_owner_id;
             for ( LockedID i = 0; i < _size; ++i ) {
-                _v[i].store(initializer, std::memory_order_relaxed);
+                _v[i].store(initializer, std::memory_order_acq_rel);
             }
         }
 
         OwnerID owner(LockedID lockedID) const {
             ASSERT(lockedID < _size);
-            return _v[lockedID].load(std::memory_order_relaxed);
+            return _v[lockedID].load(std::memory_order_acq_rel);
         };
 
         const LockedID _size;
         std::unique_ptr<UnderlyingType[]> _v;
+        CAtomic<int> _num_locked;
 
         using Base::_invalid_owner_id;
 

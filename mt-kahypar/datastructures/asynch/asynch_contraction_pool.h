@@ -60,6 +60,8 @@ namespace mt_kahypar::ds
         bool isActive(ContractionGroupID id) const;
         void activate(ContractionGroupID id);
 
+
+
     };
 
 } // namespace mt_kahypar

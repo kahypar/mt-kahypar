@@ -104,6 +104,12 @@ namespace mt_kahypar::multilevel {
 
 
       _partitioned_hg = _coarsener->uncoarsen(label_propagation, fm);
+
+      // todo mlaupichler remove debug
+      _partitioned_hg.hypergraph().doParallelForAllNodes([&](const HypernodeID& hn) {
+         ASSERT(_partitioned_hg.partID(hn) != kInvalidPartition);
+      });
+
       utils::Timer::instance().stop_timer("refinement");
 
       io::printPartitioningResults(_partitioned_hg, _context, "Local Search Results:");
