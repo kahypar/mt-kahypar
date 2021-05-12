@@ -194,7 +194,7 @@ size_t ParallelLocalMovingModularity::synchronousParallelRound(const Graph& grap
 
     volume_updates.clear();
 
-    DBG << V(sub_round) << V(num_moved_sub_round) << V(max_round_size) << V(last - first);
+    DBG << V(sub_round) << V(num_moved_sub_round);
   }
 
   return num_moved_nodes;
