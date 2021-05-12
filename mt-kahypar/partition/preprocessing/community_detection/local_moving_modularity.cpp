@@ -194,7 +194,7 @@ size_t ParallelLocalMovingModularity::synchronousParallelRound(const Graph& grap
 
     volume_updates.clear();
 
-    DBG << V(sub_round) << V(num_moved_sub_round);
+    DBG << V(sub_round) << V(num_moved_sub_round) << "mod:" << metrics::modularity(graph, communities);
   }
 
   return num_moved_nodes;
