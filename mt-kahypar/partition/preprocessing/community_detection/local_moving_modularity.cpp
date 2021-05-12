@@ -28,7 +28,7 @@
 #include <tbb/parallel_sort.h>
 
 namespace mt_kahypar::metrics {
-double modularity(const Graph& graph, ds::Clustering& communities) {
+double modularity(const Graph& graph, const ds::Clustering& communities) {
   ASSERT(graph.canBeUsed());
   ASSERT(graph.numNodes() == communities.size());
   vec<NodeID> nodes(graph.numNodes());

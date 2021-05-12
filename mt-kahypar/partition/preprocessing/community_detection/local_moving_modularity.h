@@ -36,7 +36,7 @@
 #include "gtest/gtest_prod.h"
 
 namespace mt_kahypar::metrics {
-  double modularity(const Graph& graph, ds::Clustering& communities);
+  double modularity(const Graph& graph, const ds::Clustering& communities);
 }
 
 namespace mt_kahypar::community_detection {
@@ -48,7 +48,7 @@ class ParallelLocalMovingModularity {
   using CacheEfficientIncidentClusterWeights = ds::FixedSizeSparseMap<PartitionID, ArcWeight>;
 
  public:
-  static constexpr bool debug = false;
+  static constexpr bool debug = true;
   static constexpr bool enable_heavy_assert = false;
 
   ParallelLocalMovingModularity(const Context& context,
