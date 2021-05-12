@@ -215,7 +215,8 @@ namespace mt_kahypar::ds {
       const size_t tmp_arc_end = tmp_indices_prefix_sum[u + 1];
       // this sort already removes the non-determinism from random ordering in the previous loop
       // and in particular makes the arc-weight accumulation (double imprecision) deterministic
-      auto comp = [&](const Arc& lhs, const Arc& rhs) { return lhs.head < rhs.head; };
+      // TODO actually it doesn't handle the double imprecisions...
+      auto comp = [&](const Arc& lhs, const Arc& rhs) { return std::tie(lhs.head, lhs.weight) < std::tie(rhs.head, rhs.weight); };
       std::sort(tmp_arcs.begin() + tmp_arc_start, tmp_arcs.begin() + tmp_arc_end, comp);
 
       // TODO could recalc node volume here?
