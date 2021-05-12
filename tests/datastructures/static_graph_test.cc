@@ -305,5 +305,43 @@ TEST_F(AStaticGraph, ContractsCommunities1) {
   verifyPins(c_graph, { 3 }, { {1, 2} });
 }
 
+TEST_F(AStaticGraph, ContractsCommunities2) {
+  parallel::scalable_vector<HypernodeID> c_mapping = {0, 1, 2, 2, 2, 2, 2};
+  StaticGraph c_graph = hypergraph.contract(c_mapping);
+
+  // Verify Mapping
+  ASSERT_EQ(0, c_mapping[0]);
+  ASSERT_EQ(1, c_mapping[1]);
+  ASSERT_EQ(2, c_mapping[2]);
+  ASSERT_EQ(2, c_mapping[3]);
+  ASSERT_EQ(2, c_mapping[4]);
+  ASSERT_EQ(2, c_mapping[5]);
+  ASSERT_EQ(2, c_mapping[6]);
+
+  // Verify Stats
+  ASSERT_EQ(3, c_graph.initialNumNodes());
+  ASSERT_EQ(2, c_graph.initialNumEdges());
+  ASSERT_EQ(7, c_graph.totalWeight());
+
+  // Verify Vertex Weights
+  ASSERT_EQ(1, c_graph.nodeWeight(0));
+  ASSERT_EQ(1, c_graph.nodeWeight(1));
+  ASSERT_EQ(5, c_graph.nodeWeight(2));
+
+  // Verify Edge Weights
+  ASSERT_EQ(2, c_graph.edgeWeight(0));
+
+  // Verify Edge IDs
+  ASSERT_EQ(0, c_graph.uniqueEdgeID(0));
+  ASSERT_EQ(0, c_graph.uniqueEdgeID(1));
+
+  // Verify Graph Structure - note that each edge has two IDs
+  verifyIncidentNets(c_graph, 0, {});
+  verifyIncidentNets(c_graph, 1, { 0 });
+  verifyIncidentNets(c_graph, 2, { 1 });
+  verifyPins(c_graph, { 0 }, { {1, 2} });
+  verifyPins(c_graph, { 1 }, { {1, 2} });
+}
+
 }
 } // namespace mt_kahypar
