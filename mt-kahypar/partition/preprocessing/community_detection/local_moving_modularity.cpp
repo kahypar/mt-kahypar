@@ -31,32 +31,40 @@ namespace mt_kahypar::metrics {
 double modularity(const Graph& graph, ds::Clustering& communities) {
   ASSERT(graph.canBeUsed());
   ASSERT(graph.numNodes() == communities.size());
-  vec<parallel::AtomicWrapper<double>> internal_volume(graph.numNodes());
-  vec<parallel::AtomicWrapper<double>> total_volume(graph.numNodes());
-  tbb::parallel_for(0U, static_cast<NodeID>(graph.numNodes()), [&](const NodeID u) {
-    const PartitionID community_u = communities[u];
-    ASSERT(community_u < static_cast<PartitionID>(graph.numNodes()));
-    double my_internal_volume = graph.nodeVolume(u);
-    total_volume[community_u] += graph.nodeVolume(u);
+  vec<NodeID> nodes(graph.numNodes());
+  vec<double> cluster_mod(graph.numNodes(), 0.0);
 
-    for ( const Arc& arc : graph.arcsOf(u) ) {
-      const PartitionID community_v = communities[arc.head];
-      ASSERT(community_v < static_cast<PartitionID>(graph.numNodes()));
-      if ( community_u != community_v ) {
-        my_internal_volume -= arc.weight;
+  tbb::parallel_for(0UL, graph.numNodes(), [&](size_t pos) {
+    nodes[pos] = pos;
+  });
+  tbb::parallel_sort(nodes.begin(), nodes.end(), [&](NodeID lhs, NodeID rhs) {
+    return std::tie(communities[lhs], lhs) < std::tie(communities[rhs], rhs);
+  });
+
+  tbb::parallel_for(0UL, graph.numNodes(), [&](size_t pos) {
+    NodeID x = nodes[pos];
+    PartitionID comm = communities[x];
+    double comm_vol = 0.0, internal = 0.0;
+    if (pos == 0 || communities[nodes[pos - 1]] != comm) {
+      for (size_t i = pos; i < nodes.size() && communities[nodes[pos]] == comm; ++i) {
+        NodeID u = nodes[pos];
+        comm_vol += graph.nodeVolume(u);
+        for (const Arc& arc : graph.arcsOf(u)) {
+          if (communities[arc.head] != comm) {
+            internal -= arc.weight;
+          }
+        }
       }
+      internal += comm_vol;
+      cluster_mod[comm] = internal - (comm_vol * comm_vol) / graph.totalVolume();
     }
-    internal_volume[community_u] += my_internal_volume;
   });
 
-  tbb::enumerable_thread_specific<double> local_modularity(0.0);
-  tbb::parallel_for(0U, static_cast<NodeID>(graph.numNodes()), [&](const NodeID u) {
-    if ( total_volume[u].load(std::memory_order_relaxed) > 0.0 ) {
-      local_modularity.local() += internal_volume[u] -
-                                  (total_volume[u] * total_volume[u]) / graph.totalVolume();
-    }
-  });
-  return local_modularity.combine(std::plus<>()) / graph.totalVolume();
+  auto r = tbb::blocked_range<size_t>(0UL, graph.numNodes(), 1000);
+  auto combine_range = [&](const tbb::blocked_range<size_t>& r, double partial) {
+    return std::accumulate(cluster_mod.begin() + r.begin(), cluster_mod.begin() + r.end(), partial);
+  };
+  return tbb::parallel_deterministic_reduce(r, 0.0, combine_range, std::plus<>()) / graph.totalVolume();
 }
 }
 
