@@ -130,6 +130,7 @@ size_t ParallelLocalMovingModularity::synchronousParallelRound(const Graph& grap
     max_round_size = std::max(max_round_size,
                               size_t(permutation.bucket_bounds[last_bucket] - permutation.bucket_bounds[first_bucket]));
   }
+  LOG << V(max_round_size);
   volume_updates.adapt_capacity(2 * max_round_size);    // factor 2 for from and to
 
   for (size_t sub_round = 0; sub_round < num_sub_rounds; ++sub_round) {

@@ -78,7 +78,7 @@ private:
 
   void flush_buffer(vec_t& buffer) {
     size_t pos = back.fetch_add(buffer.size(), std::memory_order_relaxed);
-    assert(pos + buffer.size() < data.size());
+    assert(pos + buffer.size() <= data.size());
     std::copy_n(buffer.begin(), buffer.size(), data.begin() + pos);
     buffer.clear();
   }
