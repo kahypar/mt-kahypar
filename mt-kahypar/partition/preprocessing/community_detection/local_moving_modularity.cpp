@@ -62,7 +62,6 @@ double modularity(const Graph& graph, const ds::Clustering& communities) {
     }
   });
 
-
   auto r = tbb::blocked_range<size_t>(0UL, graph.numNodes(), 1000);
   auto combine_range = [&](const tbb::blocked_range<size_t>& r, double partial) {
     return std::accumulate(cluster_mod.begin() + r.begin(), cluster_mod.begin() + r.end(), partial);
@@ -117,7 +116,7 @@ bool ParallelLocalMovingModularity::localMoving(Graph& graph, ds::Clustering& co
 }
 
 size_t ParallelLocalMovingModularity::synchronousParallelRound(const Graph& graph, ds::Clustering& communities) {
-  if (graph.numNodes() < 200) {
+  if (graph.numNodes() < 200 || true) {
     return sequentialRound(graph, communities);
   }
 
