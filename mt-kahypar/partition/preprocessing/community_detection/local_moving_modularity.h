@@ -74,7 +74,8 @@ class ParallelLocalMovingModularity {
 
  private:
   size_t parallelNonDeterministicRound(const Graph& graph, ds::Clustering& communities);
-  size_t synchronousParallelRound(const Graph& graph, ds::Clustering& num_moved_partial);
+  size_t synchronousParallelRound(const Graph& graph, ds::Clustering& communities);
+  size_t sequentialRound(const Graph& graph, ds::Clustering& communities);
 
 
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE bool ratingsFitIntoSmallSparseMap(const Graph& graph,

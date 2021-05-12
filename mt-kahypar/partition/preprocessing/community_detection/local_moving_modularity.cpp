@@ -42,7 +42,6 @@ double modularity(const Graph& graph, const ds::Clustering& communities) {
     return std::tie(communities[lhs], lhs) < std::tie(communities[rhs], rhs);
   });
 
-
   // deterministic reduce doesn't have dynamic load balancing --> precompute the contributions and then sum them
   tbb::parallel_for(0UL, graph.numNodes(), [&](size_t pos) {
     NodeID x = nodes[pos];
@@ -118,6 +117,10 @@ bool ParallelLocalMovingModularity::localMoving(Graph& graph, ds::Clustering& co
 }
 
 size_t ParallelLocalMovingModularity::synchronousParallelRound(const Graph& graph, ds::Clustering& communities) {
+  if (graph.numNodes() < 200) {
+    return sequentialRound(graph, communities);
+  }
+
   size_t seed = prng();
   // permutation.random_grouping(graph.numNodes(), _context.shared_memory.num_threads, seed);
   permutation.sequential_fallback(graph.numNodes(), seed);
@@ -132,7 +135,6 @@ size_t ParallelLocalMovingModularity::synchronousParallelRound(const Graph& grap
     max_round_size = std::max(max_round_size,
                               size_t(permutation.bucket_bounds[last_bucket] - permutation.bucket_bounds[first_bucket]));
   }
-  LOG << V(max_round_size);
   volume_updates.adapt_capacity(2 * max_round_size);    // factor 2 for from and to
 
   for (size_t sub_round = 0; sub_round < num_sub_rounds; ++sub_round) {
@@ -162,7 +164,9 @@ size_t ParallelLocalMovingModularity::synchronousParallelRound(const Graph& grap
         num_moved_local.local() += 1;
       }
     });
-    num_moved_nodes += num_moved_local.combine(std::plus<>());
+
+    size_t num_moved_sub_round = num_moved_local.combine(std::plus<>());
+    num_moved_nodes += num_moved_sub_round;
     volume_updates.finalize();
 
     /*
@@ -189,9 +193,28 @@ size_t ParallelLocalMovingModularity::synchronousParallelRound(const Graph& grap
     });
 
     volume_updates.clear();
+
+    DBG << V(sub_round) << V(num_moved_sub_round) << V(max_round_size) << V(last - first);
   }
 
   return num_moved_nodes;
+}
+
+size_t ParallelLocalMovingModularity::sequentialRound(const Graph& graph, ds::Clustering& communities) {
+  size_t seed = prng();
+  permutation.sequential_fallback(graph.numNodes(), seed);
+  size_t num_moved = 0;
+  for (size_t i = 0; i < graph.numNodes(); ++i) {
+    NodeID u = permutation.at(i);
+    PartitionID best_cluster = computeMaxGainCluster(graph, communities, u, non_sampling_incident_cluster_weights.local());
+    if (best_cluster != communities[u]) {
+      _cluster_volumes[best_cluster] += graph.nodeVolume(u);
+      _cluster_volumes[communities[u]] -= graph.nodeVolume(u);
+      communities[u] = best_cluster;
+      num_moved++;
+    }
+  }
+  return num_moved;
 }
 
 size_t ParallelLocalMovingModularity::parallelNonDeterministicRound(const Graph& graph, ds::Clustering& communities) {
