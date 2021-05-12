@@ -116,13 +116,12 @@ bool ParallelLocalMovingModularity::localMoving(Graph& graph, ds::Clustering& co
 }
 
 size_t ParallelLocalMovingModularity::synchronousParallelRound(const Graph& graph, ds::Clustering& communities) {
-  if (graph.numNodes() < 200 || true) {
+  if (graph.numNodes() < 200) {
     return sequentialRound(graph, communities);
   }
 
   size_t seed = prng();
-  // permutation.random_grouping(graph.numNodes(), _context.shared_memory.num_threads, seed);
-  permutation.sequential_fallback(graph.numNodes(), seed);
+  permutation.random_grouping(graph.numNodes(), _context.shared_memory.num_threads, seed);
   size_t num_moved_nodes = 0;
   constexpr size_t num_sub_rounds = 16;
   constexpr size_t num_buckets = utils::ParallelPermutation<HypernodeID>::num_buckets;
@@ -193,7 +192,7 @@ size_t ParallelLocalMovingModularity::synchronousParallelRound(const Graph& grap
 
     volume_updates.clear();
 
-    DBG << V(sub_round) << V(num_moved_sub_round) << "mod:" << metrics::modularity(graph, communities);
+    // DBG << V(sub_round) << V(num_moved_sub_round) << "mod:" << metrics::modularity(graph, communities);
   }
 
   return num_moved_nodes;
