@@ -34,6 +34,7 @@ double modularity(const Graph& graph, ds::Clustering& communities) {
   vec<NodeID> nodes(graph.numNodes());
   vec<double> cluster_mod(graph.numNodes(), 0.0);
 
+  // make summation order deterministic!
   tbb::parallel_for(0UL, graph.numNodes(), [&](size_t pos) {
     nodes[pos] = pos;
   });
@@ -41,6 +42,7 @@ double modularity(const Graph& graph, ds::Clustering& communities) {
     return std::tie(communities[lhs], lhs) < std::tie(communities[rhs], rhs);
   });
 
+  // deterministic reduce doesn't have dynamic load balancing --> precompute the contributions and then sum them
   tbb::parallel_for(0UL, graph.numNodes(), [&](size_t pos) {
     NodeID x = nodes[pos];
     PartitionID comm = communities[x];
