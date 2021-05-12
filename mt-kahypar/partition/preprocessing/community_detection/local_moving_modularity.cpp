@@ -42,14 +42,15 @@ double modularity(const Graph& graph, const ds::Clustering& communities) {
     return std::tie(communities[lhs], lhs) < std::tie(communities[rhs], rhs);
   });
 
+
   // deterministic reduce doesn't have dynamic load balancing --> precompute the contributions and then sum them
   tbb::parallel_for(0UL, graph.numNodes(), [&](size_t pos) {
     NodeID x = nodes[pos];
     PartitionID comm = communities[x];
     double comm_vol = 0.0, internal = 0.0;
     if (pos == 0 || communities[nodes[pos - 1]] != comm) {
-      for (size_t i = pos; i < nodes.size() && communities[nodes[pos]] == comm; ++i) {
-        NodeID u = nodes[pos];
+      for (size_t i = pos; i < nodes.size() && communities[nodes[i]] == comm; ++i) {
+        NodeID u = nodes[i];
         comm_vol += graph.nodeVolume(u);
         for (const Arc& arc : graph.arcsOf(u)) {
           if (communities[arc.head] != comm) {
@@ -61,6 +62,7 @@ double modularity(const Graph& graph, const ds::Clustering& communities) {
       cluster_mod[comm] = internal - (comm_vol * comm_vol) / graph.totalVolume();
     }
   });
+
 
   auto r = tbb::blocked_range<size_t>(0UL, graph.numNodes(), 1000);
   auto combine_range = [&](const tbb::blocked_range<size_t>& r, double partial) {
