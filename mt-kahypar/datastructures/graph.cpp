@@ -160,6 +160,7 @@ namespace mt_kahypar::ds {
     coarse_graph._num_nodes = num_coarse_nodes;
     coarse_graph._indices.resize(num_coarse_nodes + 1);
     coarse_graph._node_volumes.resize(num_coarse_nodes);
+    coarse_graph._total_volume = totalVolume();
 
     // first pass generating unique coarse arcs to determine coarse node degrees
     tbb::parallel_for(0U, num_coarse_nodes, [&](NodeID cu) {
