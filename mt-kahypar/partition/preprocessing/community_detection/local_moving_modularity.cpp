@@ -146,14 +146,14 @@ size_t ParallelLocalMovingModularity::synchronousParallelRound(const Graph& grap
       HypernodeID u = permutation.at(pos);
       PartitionID best_cluster;
 
-      best_cluster = computeMaxGainCluster(graph, communities, u, non_sampling_incident_cluster_weights.local());
-      /* if ( ratingsFitIntoSmallSparseMap(graph, u) ) {
+      // best_cluster = computeMaxGainCluster(graph, communities, u, non_sampling_incident_cluster_weights.local());
+      if ( ratingsFitIntoSmallSparseMap(graph, u) ) {
         best_cluster = computeMaxGainCluster(graph, communities, u, _local_small_incident_cluster_weight.local());
       } else {
         LargeIncidentClusterWeights& large_incident_cluster_weight = _local_large_incident_cluster_weight.local();
         large_incident_cluster_weight.setMaxSize(3UL * std::min(_max_degree, _vertex_degree_sampling_threshold));
         best_cluster = computeMaxGainCluster(graph, communities, u, large_incident_cluster_weight);
-      } */
+      }
 
       if (best_cluster != communities[u]) {
         // TODO this probably needs to be tuned
@@ -191,8 +191,6 @@ size_t ParallelLocalMovingModularity::synchronousParallelRound(const Graph& grap
     });
 
     volume_updates.clear();
-
-    // DBG << V(sub_round) << V(num_moved_sub_round) << "mod:" << metrics::modularity(graph, communities);
   }
 
   return num_moved_nodes;
