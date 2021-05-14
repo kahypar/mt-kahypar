@@ -121,18 +121,43 @@ namespace mt_kahypar::ds {
     // TODO extract allocated vectors
     // mapping, nodes_sorted_by_cluster
 
+    static constexpr bool debug = true;
+
     // remap cluster IDs to consecutive range
-    vec<NodeID> mapping(numNodes(), 0);
+
+
+    vec <NodeID> mapping(numNodes(), invalidNode);
+    NodeID num_coarse_nodes = 0;
+    for (NodeID u : nodes()) {
+      if (mapping[communities[u]] == invalidNode) {
+        mapping[communities[u]] = num_coarse_nodes++;
+      }
+      communities[u] = mapping[communities[u]];
+    }
+
+    /*
     tbb::parallel_for(0UL, numNodes(), [&](NodeID u) { mapping[communities[u]] = 1; });
     parallel_prefix_sum(mapping.begin(), mapping.begin() + numNodes(), mapping.begin(), std::plus<>(), 0);
     NodeID num_coarse_nodes = mapping[numNodes() - 1];
+     // feels like there's an off by one here
     tbb::parallel_for(0UL, numNodes(), [&](NodeID u) { communities[u] = mapping[communities[u]] - 1; });  // -1 because inclusive prefix sum
-
+    */
     // sort nodes by cluster
-    auto get_cluster = [&](NodeID u) { return communities[u]; };
+    auto get_cluster = [&](NodeID u) { assert(u < communities.size()); return communities[u]; };
     vec<NodeID> nodes_sorted_by_cluster(numNodes());
     auto cluster_bounds = parallel::counting_sort(nodes(), nodes_sorted_by_cluster, num_coarse_nodes,
                                                   get_cluster, TBBNumaArena::instance().total_number_of_threads());
+
+    assert(std::is_sorted(nodes_sorted_by_cluster.begin(), nodes_sorted_by_cluster.end(), [&](NodeID l, NodeID r) {
+      return get_cluster(l) < get_cluster(r);
+    }));
+    assert(std::all_of(communities.begin(), communities.end(), [&](NodeID c) { return c < num_coarse_nodes; }));
+
+    Graph coarse_graph;
+    coarse_graph._num_nodes = num_coarse_nodes;
+    coarse_graph._indices.resize(num_coarse_nodes + 1);
+    coarse_graph._node_volumes.resize(num_coarse_nodes);
+    coarse_graph._total_volume = totalVolume();
 
     /*
     // alternative easier counting sort implementation
@@ -149,29 +174,25 @@ namespace mt_kahypar::ds {
 
     // TODO pass map from local moving code
     struct ClearList {
-      vec<NodeID> used;
-      vec<ArcWeight> values;
+      vec <NodeID> used;
+      vec <ArcWeight> values;
+
       ClearList(size_t n) : values(n, 0.0) { }
     };
-    tbb::enumerable_thread_specific<ClearList> clear_lists(numNodes());
+    tbb::enumerable_thread_specific<ClearList> clear_lists(num_coarse_nodes);
     tbb::enumerable_thread_specific<size_t> local_max_degree(0);
-
-    Graph coarse_graph;
-    coarse_graph._num_nodes = num_coarse_nodes;
-    coarse_graph._indices.resize(num_coarse_nodes + 1);
-    coarse_graph._node_volumes.resize(num_coarse_nodes);
-    coarse_graph._total_volume = totalVolume();
 
     // first pass generating unique coarse arcs to determine coarse node degrees
     tbb::parallel_for(0U, num_coarse_nodes, [&](NodeID cu) {
       auto& clear_list = clear_lists.local();
       ArcWeight volume_cu = 0.0;
-      for (auto i = cluster_bounds[cu]; i < cluster_bounds[cu+1]; ++i) {
+      for (auto i = cluster_bounds[cu]; i < cluster_bounds[cu + 1]; ++i) {
         NodeID fu = nodes_sorted_by_cluster[i];
+        assert(get_cluster(fu) == cu);
         volume_cu += nodeVolume(fu);
         for (Arc& arc : arcsOf(fu)) {
           NodeID cv = get_cluster(arc.head);
-          if (clear_list.values[cv] == 0.0) {
+          if (cv != cu && clear_list.values[cv] == 0.0) {
             clear_list.used.push_back(cv);
             clear_list.values[cv] = 1.0;
           }
@@ -180,11 +201,15 @@ namespace mt_kahypar::ds {
       coarse_graph._indices[cu + 1] = clear_list.used.size();
       local_max_degree.local() = std::max(local_max_degree.local(), clear_list.used.size());
       for (NodeID cv : clear_list.used) {
+        assert(clear_list.values[cv] == 1.0);
         clear_list.values[cv] = 0.0;
       }
+      std::sort(clear_list.used.begin(), clear_list.used.end());
+      assert(std::unique(clear_list.used.begin(), clear_list.used.end()) == clear_list.used.end());
       clear_list.used.clear();
       coarse_graph._node_volumes[cu] = volume_cu;
     });
+
 
     // prefix sum coarse node degrees for offsets to write the coarse arcs in second pass
     parallel_prefix_sum(coarse_graph._indices.begin(), coarse_graph._indices.end(), coarse_graph._indices.begin(), std::plus<>(), 0UL);
@@ -192,6 +217,7 @@ namespace mt_kahypar::ds {
     coarse_graph._arcs.resize(num_coarse_arcs);
     coarse_graph._num_arcs = num_coarse_arcs;
     coarse_graph._max_degree = local_max_degree.combine([](size_t lhs, size_t rhs) { return std::max(lhs, rhs); });
+    DBG << V(numNodes()) << V(num_coarse_nodes) << V(numArcs()) << V(num_coarse_arcs);
 
     // second pass generating unique coarse arcs
     tbb::parallel_for(0U, num_coarse_nodes, [&](NodeID cu) {
@@ -199,10 +225,12 @@ namespace mt_kahypar::ds {
       for (auto i = cluster_bounds[cu]; i < cluster_bounds[cu+1]; ++i) {
         for (Arc& arc : arcsOf(nodes_sorted_by_cluster[i])) {
           NodeID cv = get_cluster(arc.head);
-          if (clear_list.values[cv] == 0.0) {
-            clear_list.used.push_back(cv);
+          if (cv != cu) {
+            if (clear_list.values[cv] == 0.0) {
+              clear_list.used.push_back(cv);
+            }
+            clear_list.values[cv] += arc.weight;
           }
-          clear_list.values[cv] += arc.weight;
         }
       }
       size_t pos = coarse_graph._indices[cu];
