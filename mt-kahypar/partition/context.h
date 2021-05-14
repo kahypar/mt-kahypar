@@ -74,6 +74,7 @@ std::ostream & operator<< (std::ostream& str, const PartitioningParameters& para
 struct CommunityDetectionParameters {
   LouvainEdgeWeight edge_weight_function = LouvainEdgeWeight::UNDEFINED;
   uint32_t max_pass_iterations = std::numeric_limits<uint32_t>::max();
+  bool low_memory_contraction = false;
   long double min_vertex_move_fraction = std::numeric_limits<long double>::max();
   size_t vertex_degree_sampling_threshold = std::numeric_limits<size_t>::max();
 };

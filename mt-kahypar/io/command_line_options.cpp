@@ -145,6 +145,10 @@ namespace mt_kahypar {
              po::value<uint32_t>(&context.preprocessing.community_detection.max_pass_iterations)->value_name(
                      "<uint32_t>")->default_value(5),
              "Maximum number of iterations over all nodes of one louvain pass")
+            ("p-louvain-low-memory-contraction",
+             po::value<bool>(&context.preprocessing.community_detection.low_memory_contraction)->value_name(
+                     "<bool>")->default_value(false),
+             "Maximum number of iterations over all nodes of one louvain pass")
             ("p-louvain-min-vertex-move-fraction",
              po::value<long double>(&context.preprocessing.community_detection.min_vertex_move_fraction)->value_name(
                      "<long double>")->default_value(0.01),
