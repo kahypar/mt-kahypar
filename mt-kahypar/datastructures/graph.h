@@ -134,7 +134,9 @@ class Graph {
    * coarse graph. Finally, the weights of each multiedge in that temporary graph
    * are aggregated and the result is written to the final contracted graph.
    */
-  Graph contract(Clustering& communities);
+  Graph contract(Clustering& communities, bool low_memory);
+
+  Graph contract_low_memory(Clustering& communities);
 
  private:
   Graph();

@@ -33,7 +33,7 @@ namespace mt_kahypar::community_detection {
     if (communities_changed) {
       utils::Timer::instance().start_timer("contraction", "Contraction");
       // Contract Communities
-      Graph coarse_graph = fine_graph.contract(communities);
+      Graph coarse_graph = fine_graph.contract(communities, true);
       ASSERT(coarse_graph.totalVolume() == fine_graph.totalVolume());
       utils::Timer::instance().stop_timer("contraction");
 
