@@ -138,6 +138,10 @@ class Graph {
 
   Graph contract_low_memory(Clustering& communities);
 
+  void allocateContractionBuffers() {
+    _tmp_graph_buffer = new TmpGraphBuffer(_num_nodes, _num_arcs);
+  }
+
  private:
   Graph();
 

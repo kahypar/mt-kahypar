@@ -86,7 +86,7 @@ namespace mt_kahypar::ds {
     _indices(std::move(other._indices)),
     _arcs(std::move(other._arcs)),
     _node_volumes(std::move(other._node_volumes)),
-    _tmp_graph_buffer(std::move(other._tmp_graph_buffer)) {
+    _tmp_graph_buffer(other._tmp_graph_buffer) {
     other._num_nodes = 0;
     other._num_arcs = 0;
     other._total_volume = 0;
@@ -273,7 +273,7 @@ namespace mt_kahypar::ds {
     tbb::parallel_for(0U, static_cast<NodeID>(_num_nodes), [&](const NodeID u) {
       const NodeID coarse_u = communities[u];
       ASSERT(static_cast<size_t>(coarse_u) < coarse_graph._num_nodes);
-      coarse_node_volumes[coarse_u] += nodeVolume(u);     // not deterministic! 
+      coarse_node_volumes[coarse_u] += nodeVolume(u);     // not deterministic!
       for ( const Arc& arc : arcsOf(u) ) {
         const NodeID coarse_v = communities[arc.head];
         if ( coarse_u != coarse_v ) {
@@ -444,7 +444,6 @@ namespace mt_kahypar::ds {
     _indices.resize("Preprocessing", "indices", _num_nodes + 1);
     _arcs.resize("Preprocessing", "arcs", _num_arcs);
     _node_volumes.resize("Preprocessing", "node_volumes", _num_nodes);
-    _tmp_graph_buffer = new TmpGraphBuffer(_num_nodes, _num_arcs);
 
     // Initialize data structure
     utils::Timer::instance().start_timer("compute_node_degrees", "Compute Node Degrees");
@@ -513,7 +512,6 @@ namespace mt_kahypar::ds {
     _indices.resize("Preprocessing", "indices", _num_nodes + 1);
     _arcs.resize("Preprocessing", "arcs", _num_arcs);
     _node_volumes.resize("Preprocessing", "node_volumes", _num_nodes);
-    _tmp_graph_buffer = new TmpGraphBuffer(_num_nodes, _num_arcs);
 
     // Initialize data structure
     utils::Timer::instance().start_timer("compute_node_degrees", "Compute Node Degrees");

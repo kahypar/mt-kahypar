@@ -110,6 +110,9 @@ namespace mt_kahypar {
       utils::Timer::instance().start_timer("community_detection", "Community Detection");
       utils::Timer::instance().start_timer("construct_graph", "Construct Graph");
       Graph graph(hypergraph, context.preprocessing.community_detection.edge_weight_function);
+      if ( !context.preprocessing.community_detection.low_memory_contraction ) {
+        graph.allocateContractionBuffers();
+      }
       utils::Timer::instance().stop_timer("construct_graph");
       utils::Timer::instance().start_timer("perform_community_detection", "Perform Community Detection");
       ds::Clustering communities = community_detection::run_parallel_louvain(graph, context);
