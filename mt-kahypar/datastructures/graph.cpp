@@ -188,6 +188,7 @@ namespace mt_kahypar::ds {
     // prefix sum coarse node degrees for offsets to write the coarse arcs in second pass
     parallel_prefix_sum(coarse_graph._indices.begin(), coarse_graph._indices.end(), coarse_graph._indices.begin(), std::plus<>(), 0UL);
     size_t num_coarse_arcs = coarse_graph._indices.back();
+    // TODO get this to use reusable memory
     coarse_graph._arcs.resize(num_coarse_arcs);
     coarse_graph._num_arcs = num_coarse_arcs;
     coarse_graph._max_degree = local_max_degree.combine([](size_t lhs, size_t rhs) { return std::max(lhs, rhs); });
