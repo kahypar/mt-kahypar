@@ -144,17 +144,7 @@ size_t ParallelLocalMovingModularity::synchronousParallelRound(const Graph& grap
     tbb::enumerable_thread_specific<size_t> num_moved_local(0);
     tbb::parallel_for(first, last, [&](size_t pos) {
       HypernodeID u = permutation.at(pos);
-      PartitionID best_cluster;
-
-      // best_cluster = computeMaxGainCluster(graph, communities, u, non_sampling_incident_cluster_weights.local());
-      if ( ratingsFitIntoSmallSparseMap(graph, u) ) {
-        best_cluster = computeMaxGainCluster(graph, communities, u, _local_small_incident_cluster_weight.local());
-      } else {
-        LargeIncidentClusterWeights& large_incident_cluster_weight = _local_large_incident_cluster_weight.local();
-        large_incident_cluster_weight.setMaxSize(3UL * std::min(_max_degree, _vertex_degree_sampling_threshold));
-        best_cluster = computeMaxGainCluster(graph, communities, u, large_incident_cluster_weight);
-      }
-
+      PartitionID best_cluster = computeMaxGainCluster(graph, communities, u);
       if (best_cluster != communities[u]) {
         // TODO this probably needs to be tuned
         volume_updates.push_back_buffered({ communities[u], u, false });
@@ -202,7 +192,7 @@ size_t ParallelLocalMovingModularity::sequentialRound(const Graph& graph, ds::Cl
   size_t num_moved = 0;
   for (size_t i = 0; i < graph.numNodes(); ++i) {
     NodeID u = permutation.at(i);
-    PartitionID best_cluster = computeMaxGainCluster(graph, communities, u, non_sampling_incident_cluster_weights.local());
+    PartitionID best_cluster = computeMaxGainCluster(graph, communities, u);
     if (best_cluster != communities[u]) {
       _cluster_volumes[best_cluster] += graph.nodeVolume(u);
       _cluster_volumes[communities[u]] -= graph.nodeVolume(u);
@@ -225,17 +215,7 @@ size_t ParallelLocalMovingModularity::parallelNonDeterministicRound(const Graph&
   auto moveNode = [&](const NodeID u) {
     const ArcWeight volU = graph.nodeVolume(u);
     const PartitionID from = communities[u];
-    PartitionID best_cluster;
-
-
-    if ( ratingsFitIntoSmallSparseMap(graph, u) ) {
-      best_cluster = computeMaxGainCluster(graph, communities, u, _local_small_incident_cluster_weight.local());
-    } else {
-      LargeIncidentClusterWeights& large_incident_cluster_weight = _local_large_incident_cluster_weight.local();
-      large_incident_cluster_weight.setMaxSize(3UL * std::min(_max_degree, _vertex_degree_sampling_threshold));
-      best_cluster = computeMaxGainCluster(graph, communities, u, large_incident_cluster_weight);
-    }
-
+    PartitionID best_cluster = computeMaxGainCluster(graph, communities, u);
     if (best_cluster != from) {
       _cluster_volumes[best_cluster] += volU;
       _cluster_volumes[from] -= volU;

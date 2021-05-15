@@ -63,7 +63,7 @@ class ParallelLocalMovingModularity {
       return construct_large_incident_cluster_weight_map();
     }),
     _disable_randomization(disable_randomization),
-    non_sampling_incident_cluster_weights(numNodes),
+    // non_sampling_incident_cluster_weights(numNodes),
     prng(context.partition.seed),
     volume_updates(0)
   { }
@@ -91,6 +91,20 @@ class ParallelLocalMovingModularity {
 
   // ! Only for testing
   void initializeClusterVolumes(const Graph& graph, ds::Clustering& communities);
+
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE PartitionID computeMaxGainCluster(const Graph& graph,
+                                                                       const ds::Clustering& communities,
+                                                                       const NodeID u) {
+    if ( ratingsFitIntoSmallSparseMap(graph, u) ) {
+      return computeMaxGainCluster(graph, communities, u, _local_small_incident_cluster_weight.local());
+    } else {
+      LargeIncidentClusterWeights& large_incident_cluster_weight = _local_large_incident_cluster_weight.local();
+      large_incident_cluster_weight.setMaxSize(3UL * std::min(_max_degree, _vertex_degree_sampling_threshold));
+      return computeMaxGainCluster(graph, communities, u, large_incident_cluster_weight);
+    }
+
+    // return computeMaxGainCluster(graph, communities, u, non_sampling_incident_cluster_weights.local());
+  }
 
   template<typename Map>
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE PartitionID computeMaxGainCluster(const Graph& graph,
@@ -163,7 +177,7 @@ class ParallelLocalMovingModularity {
   tbb::enumerable_thread_specific<LargeIncidentClusterWeights> _local_large_incident_cluster_weight;
   const bool _disable_randomization;
 
-  tbb::enumerable_thread_specific<ds::SparseMap<PartitionID, ArcWeight>> non_sampling_incident_cluster_weights;
+  // tbb::enumerable_thread_specific<ds::SparseMap<PartitionID, ArcWeight>> non_sampling_incident_cluster_weights;
   utils::ParallelPermutation<HypernodeID> permutation;
   std::mt19937 prng;
 
