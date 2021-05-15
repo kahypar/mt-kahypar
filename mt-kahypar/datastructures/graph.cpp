@@ -118,24 +118,19 @@ namespace mt_kahypar::ds {
   }
 
   Graph Graph::contract_low_memory(Clustering& communities) {
-    // remap cluster IDs to consecutive range
+    // map cluster IDs to consecutive range
     vec<NodeID> mapping(numNodes(), 0);   // TODO extract?
     tbb::parallel_for(0UL, numNodes(), [&](NodeID u) { mapping[communities[u]] = 1; });
     parallel_prefix_sum(mapping.begin(), mapping.begin() + numNodes(), mapping.begin(), std::plus<>(), 0);
     NodeID num_coarse_nodes = mapping[numNodes() - 1];
-     // feels like there's an off by one here
-    tbb::parallel_for(0UL, numNodes(), [&](NodeID u) { communities[u] = mapping[communities[u]] - 1; });  // -1 because inclusive prefix sum
+    // apply mapping to cluster IDs. subtract one because prefix sum is inclusive
+    tbb::parallel_for(0UL, numNodes(), [&](NodeID u) { communities[u] = mapping[communities[u]] - 1; });
 
     // sort nodes by cluster
     auto get_cluster = [&](NodeID u) { assert(u < communities.size()); return communities[u]; };
     vec<NodeID> nodes_sorted_by_cluster(std::move(mapping));    // reuse memory from mapping since it's no longer needed
     auto cluster_bounds = parallel::counting_sort(nodes(), nodes_sorted_by_cluster, num_coarse_nodes,
                                                   get_cluster, TBBNumaArena::instance().total_number_of_threads());
-
-    assert(std::is_sorted(nodes_sorted_by_cluster.begin(), nodes_sorted_by_cluster.end(), [&](NodeID l, NodeID r) {
-      return get_cluster(l) < get_cluster(r);
-    }));
-    assert(std::all_of(communities.begin(), communities.end(), [&](NodeID c) { return c < num_coarse_nodes; }));
 
     Graph coarse_graph;
     coarse_graph._num_nodes = num_coarse_nodes;
@@ -172,7 +167,6 @@ namespace mt_kahypar::ds {
       ArcWeight volume_cu = 0.0;
       for (auto i = cluster_bounds[cu]; i < cluster_bounds[cu + 1]; ++i) {
         NodeID fu = nodes_sorted_by_cluster[i];
-        assert(get_cluster(fu) == cu);
         volume_cu += nodeVolume(fu);
         for (Arc& arc : arcsOf(fu)) {
           NodeID cv = get_cluster(arc.head);
@@ -185,11 +179,8 @@ namespace mt_kahypar::ds {
       coarse_graph._indices[cu + 1] = clear_list.used.size();
       local_max_degree.local() = std::max(local_max_degree.local(), clear_list.used.size());
       for (NodeID cv : clear_list.used) {
-        assert(clear_list.values[cv] == 1.0);
         clear_list.values[cv] = 0.0;
       }
-      std::sort(clear_list.used.begin(), clear_list.used.end());
-      assert(std::unique(clear_list.used.begin(), clear_list.used.end()) == clear_list.used.end());
       clear_list.used.clear();
       coarse_graph._node_volumes[cu] = volume_cu;
     });
