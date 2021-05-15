@@ -273,7 +273,7 @@ namespace mt_kahypar::ds {
     tbb::parallel_for(0U, static_cast<NodeID>(_num_nodes), [&](const NodeID u) {
       const NodeID coarse_u = communities[u];
       ASSERT(static_cast<size_t>(coarse_u) < coarse_graph._num_nodes);
-      // coarse_node_volumes[coarse_u] += nodeVolume(u);     // TODO not deterministic!
+      coarse_node_volumes[coarse_u] += nodeVolume(u);     // not deterministic! 
       for ( const Arc& arc : arcsOf(u) ) {
         const NodeID coarse_v = communities[arc.head];
         if ( coarse_u != coarse_v ) {
@@ -281,10 +281,6 @@ namespace mt_kahypar::ds {
         }
       }
     });
-
-    for (NodeID u : nodes()) {
-      coarse_node_volumes[communities[u]] += nodeVolume(u);
-    }
 
     parallel::TBBPrefixSum<parallel::IntegralAtomicWrapper<size_t>, ds::Array> tmp_indices_prefix_sum(tmp_indices);
     tbb::parallel_scan(tbb::blocked_range<size_t>(0UL, _num_nodes), tmp_indices_prefix_sum);
@@ -298,7 +294,6 @@ namespace mt_kahypar::ds {
       for ( const Arc& arc : arcsOf(u) ) {
         const NodeID coarse_v = communities[arc.head];
         if ( coarse_u != coarse_v ) {
-          // grouping nodes by cluster would make this more cache-friendly, avoids atomic instruction, and makes it automatically deterministic
           const size_t tmp_arcs_pos = tmp_indices_prefix_sum[coarse_u] + tmp_pos[coarse_u]++;
           ASSERT(tmp_arcs_pos < tmp_indices_prefix_sum[coarse_u + 1]);
           tmp_arcs[tmp_arcs_pos] = Arc { coarse_v, arc.weight };
@@ -317,14 +312,10 @@ namespace mt_kahypar::ds {
     tbb::parallel_for(0U, static_cast<NodeID>(coarse_graph._num_nodes), [&](const NodeID u) {
       const size_t tmp_arc_start = tmp_indices_prefix_sum[u];
       const size_t tmp_arc_end = tmp_indices_prefix_sum[u + 1];
-      // this sort already removes the non-determinism from random ordering in the previous loop
-      // and in particular makes the arc-weight accumulation (double imprecision) deterministic
-      // TODO actually it doesn't handle the double imprecisions...
-      auto comp = [&](const Arc& lhs, const Arc& rhs) { return std::tie(lhs.head, lhs.weight) < std::tie(rhs.head, rhs.weight); };
+      // commented out comparison is needed for deterministic arc weights
+      // auto comp = [](const Arc& lhs, const Arc& rhs) { return std::tie(lhs.head, lhs.weight) < std::tie(rhs.head, rhs.weight); };
+      auto comp = [](const Arc& lhs, const Arc& rhs) { return lhs.head < rhs.head; };
       std::sort(tmp_arcs.begin() + tmp_arc_start, tmp_arcs.begin() + tmp_arc_end, comp);
-
-      // TODO could recalc node volume here?
-      //     might give weird effects where oscillation issues of sync LM get broken due to different volume tie-breakers?
 
       size_t arc_rep = tmp_arc_start;
       size_t degree = tmp_arc_start < tmp_arc_end ? 1 : 0;
