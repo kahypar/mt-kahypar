@@ -32,16 +32,7 @@ namespace mt_kahypar::ds {
         virtual ~IUncontractionGroupHierarchy() = default;
     };
 
-    class MockGroupHierarchy : public IUncontractionGroupHierarchy {
-    public:
-        MOCK_METHOD(size_t,getVersion,(), (const,override));
-        MOCK_METHOD(uint32_t, getNumGroups,(),(const, override));
-        MOCK_METHOD(const ContractionGroup&, group,(ContractionGroupID), (const, override));
-        MOCK_METHOD(ContractionGroupID, predecessor,(ContractionGroupID), (const, override));
-        MOCK_METHOD(ContractionGroupIDIteratorRange,successors,(ContractionGroupID),(const, override));
-        MOCK_METHOD(ContractionGroupIDIteratorRange,roots,(),(const, override));
-        MOCK_METHOD(BlockedGroupIDIterator,all,(),(const, override));
-    };
+
 
 
 

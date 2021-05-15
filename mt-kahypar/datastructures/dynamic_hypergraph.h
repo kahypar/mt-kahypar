@@ -22,7 +22,7 @@
 
 #include <mutex>
 #include <queue>
-#include <mt-kahypar/datastructures/asynch/i_lock_manager.h>
+#include <mt-kahypar/datastructures/asynch/array_lock_manager.h>
 
 #include "tbb/parallel_for.h"
 
@@ -64,21 +64,6 @@ class DynamicHypergraph {
   // ! each case.
   using UncontractionFunction = std::function<void (const HypernodeID, const HypernodeID, const HyperedgeID)>;
   #define NOOP_BATCH_FUNC [] (const HypernodeID, const HypernodeID, const HyperedgeID) { }
-
-  // ! When asynchronously uncoarsening for an uncontraction (u,v) the hypernode v that is uncontracted has to adopt
-  // ! the partition id of the representative u at uncontraction time. The partitioned hypergraph passes a lambda to
-  // ! the uncontraction process to facilitate this.
-  using AdoptPartitionFunction = std::function<void (const HypernodeID, const HypernodeID)>;
-  #define NOOP_ADOPT_PART_FUNC [] (const HypernodeID, const HypernodeID) { }
-
-  // ! When asynchronously uncoarsening the localized refinement is called through a lambda of this type
-  using LocalizedRefinementFunction = std::function<void (const ContractionGroup& group, ContractionGroupID groupID, IGroupLockManager* lockManager)>;
-  // ! Refinement has to at least release all locks that are held on members of the contraction group
-  #define NOOP_LOCALIZED_REFINEMENT_FUNC [] (const ContractionGroup& group, ContractionGroupID groupID, IGroupLockManager* lockManager) { \
-        auto releaseRange = IteratorRange<ContractionToNodeIDIteratorAdaptor>(ContractionToNodeIDIteratorAdaptor(group.begin()), ContractionToNodeIDIteratorAdaptor(group.end()));\
-        lockManager->strongReleaseMultipleLocks(releaseRange,groupID);                                                                    \
-        lockManager->strongReleaseLock(group.getRepresentative(), groupID);                                                               \
-  }
 
   /*!
   * This struct is used during multilevel coarsening to efficiently
@@ -880,23 +865,12 @@ class DynamicHypergraph {
   VersionedPoolVector createUncontractionGroupPoolsForVersions();
 
   /**!
-   * Uncontracts all contractions in the current version sequentially using a pool of currently possible uncontractions.
-   * Precursor for eventual fully asynchronous parallel uncontraction.
-   * The two uncontraction functions are required by the partitioned hypergraph to restore
-   * pin counts and gain cache values.
+   * Uncontracts all contractions in the given group. The two uncontraction functions are required by the
+   * partitioned hypergraph to restore pin counts and gain cache values.
    */
-  void uncontractUsingGroupPool(IContractionGroupPool *groupPool,
-                                IGroupLockManager *lockManager,
-                                const UncontractionFunction &case_one_func = NOOP_BATCH_FUNC,
-                                const UncontractionFunction &case_two_func = NOOP_BATCH_FUNC,
-                                const AdoptPartitionFunction &adopt_part_func = NOOP_ADOPT_PART_FUNC,
-                                const LocalizedRefinementFunction &localized_refinement_func = NOOP_LOCALIZED_REFINEMENT_FUNC,
-                                bool performNoRefinement = false);
-
   void uncontract(const ContractionGroup& group,
                   const UncontractionFunction& case_one_func = NOOP_BATCH_FUNC,
-                  const UncontractionFunction& case_two_func = NOOP_BATCH_FUNC,
-                  const AdoptPartitionFunction& adopt_part_func = NOOP_ADOPT_PART_FUNC);
+                  const UncontractionFunction& case_two_func = NOOP_BATCH_FUNC);
 
   /**
    * Uncontracts a batch of contractions in parallel. The batches must be uncontracted exactly

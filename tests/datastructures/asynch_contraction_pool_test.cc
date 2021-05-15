@@ -7,6 +7,7 @@
 #include "gtest/gtest-death-test.h"
 
 #include "mt-kahypar/datastructures/asynch/asynch_contraction_pool.h"
+#include "mt-kahypar/datastructures/asynch/mock_group_hierarchy.h"
 
 #include "tests/datastructures/hypergraph_fixtures.h"
 

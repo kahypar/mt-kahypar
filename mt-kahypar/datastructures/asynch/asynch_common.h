@@ -19,10 +19,6 @@ namespace mt_kahypar::ds {
     using Contraction = Memento;
     using ContractionIterator = std::vector<Contraction>::const_iterator;
 
-
-    using IGroupLockManager = ILockManager<HypernodeID,ContractionGroupID>;
-    using MockGroupLockManager = MockLockManager<HypernodeID, ContractionGroupID>;
-
     static constexpr ContractionGroupID invalidGroupID = std::numeric_limits<ContractionGroupID>::max();
 
 

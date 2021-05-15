@@ -99,14 +99,9 @@ class AAsynchLPRefiner : public Test {
     partitioned_hypergraph = PartitionedHypergraph(
       context.partition.k, TBBNumaArena::GLOBAL_TASK_GROUP, hypergraph);
     context.setupPartWeights(hypergraph.totalWeight());
-    initialPartition();
 
-    // Mock Lock Manager (Returns true on any acquire/release, false on isLocked queries and invalid owner on owner queries)
-    lock_manager = std::make_unique<ds::MockGroupLockManager>();
-    EXPECT_CALL(*lock_manager,tryToAcquireLock(_,_)).WillRepeatedly(Return(true));
-    EXPECT_CALL(*lock_manager,tryToReleaseLock(_,_)).WillRepeatedly(Return(true));
-    EXPECT_CALL(*lock_manager,isLocked(_)).WillRepeatedly(Return(false));
-    EXPECT_CALL(*lock_manager,isHeldBy(_,_)).WillRepeatedly(Return(true));
+    lock_manager = std::make_unique<ds::GroupLockManager>(partitioned_hypergraph.hypergraph().initialNumNodes(),ds::invalidGroupID);
+    initialPartition();
 
     refiner = AsynchLPRefinerFactory::getInstance().createObject(
             context.refinement.label_propagation.algorithm,
@@ -116,6 +111,7 @@ class AAsynchLPRefiner : public Test {
             lock_manager.get(),
             contraction_group_id
             );
+
 
 //    refiner = std::make_unique<Refiner>(hypergraph, context, TBBNumaArena::GLOBAL_TASK_GROUP,lock_manager.get(),contraction_group_id);
     refiner->initialize(partitioned_hypergraph);
@@ -144,6 +140,7 @@ class AAsynchLPRefiner : public Test {
     for (auto u : partitioned_hypergraph.nodes()) {
         if (partitioned_hypergraph.isBorderNode(u)) {
             refinement_nodes.push_back(u);
+            lock_manager->strongAcquireLock(u,contraction_group_id);
         }
     }
 
@@ -156,7 +153,7 @@ class AAsynchLPRefiner : public Test {
   kahypar::Metrics metrics;
   parallel::scalable_vector<HypernodeID> refinement_nodes;
 
-  std::unique_ptr<ds::MockGroupLockManager> lock_manager;
+  std::unique_ptr<ds::GroupLockManager> lock_manager;
   ds::ContractionGroupID contraction_group_id;
 };
 

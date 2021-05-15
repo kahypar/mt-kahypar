@@ -281,7 +281,7 @@ VersionedPoolVector DynamicHypergraph::createUncontractionGroupPoolsForVersions(
     for (size_t v = 0; v < num_versions; ++v) {
         // Make hierarchy for version v and a pool for that version from the hierarchy. Ownership of the hierarchy is with the pool (i.e. it gets deleted when the pool is deleted).
         auto groupHierarchy = new UncontractionGroupTree(_contraction_tree, v);
-        auto pool = std::make_unique<SequentialContractionGroupPool>(std::unique_ptr<IUncontractionGroupHierarchy>{groupHierarchy});
+        auto pool = std::make_unique<TreeGroupPool>(std::unique_ptr<UncontractionGroupTree>{groupHierarchy});
         ASSERT(v < poolVector.size());
         // Pass ownership of the pool to the pool vector
         poolVector[v] = std::move(pool);
@@ -295,8 +295,7 @@ VersionedPoolVector DynamicHypergraph::createUncontractionGroupPoolsForVersions(
 
 void DynamicHypergraph::uncontract(const ContractionGroup& group,
                                    const UncontractionFunction& case_one_func,
-                                   const UncontractionFunction& case_two_func,
-                                   const AdoptPartitionFunction& adopt_part_func) {
+                                   const UncontractionFunction& case_two_func) {
 
     for(auto &memento: group) {
 
@@ -327,9 +326,6 @@ void DynamicHypergraph::uncontract(const ContractionGroup& group,
         });
 
         acquireHypernode(memento.u);
-
-        // Have hypernode v adopt the partition of its representative u
-        adopt_part_func(memento.u,memento.v);
         // Restore hypernode v which includes enabling it and subtract its weight
         // from its representative
         hypernode(memento.v).enable();
@@ -339,91 +335,6 @@ void DynamicHypergraph::uncontract(const ContractionGroup& group,
 
     }
 
-}
-
-void DynamicHypergraph::uncontractUsingGroupPool(IContractionGroupPool *groupPool,
-                                                 IGroupLockManager *lockManager,
-                                                 const UncontractionFunction &case_one_func,
-                                                 const UncontractionFunction &case_two_func,
-                                                 const AdoptPartitionFunction &adopt_part_func,
-                                                 const LocalizedRefinementFunction &localized_refinement_func,
-                                                 bool performNoRefinement) {
-
-    while (groupPool->hasActive()) {
-        auto groupID = groupPool->pickAnyActiveID();
-        auto group = groupPool->group(groupID);
-
-        // Attempt to acquire locks for representative and contracted nodes in the group. If any of the locks cannot be
-        // acquired, revert to previous state and attempt to pick an id again
-        bool acquiredRepr = lockManager->tryToAcquireLock(group.getRepresentative(),groupID);
-        if (!acquiredRepr) {
-            groupPool->reactivate(groupID);
-            continue;
-        }
-        auto range = IteratorRange(ContractionToNodeIDIteratorAdaptor(group.begin()), ContractionToNodeIDIteratorAdaptor(group.end()));
-        bool acquiredContr = lockManager->tryToAcquireMultipleLocks(range, groupID);
-        if (!acquiredContr) {
-            lockManager->strongReleaseLock(group.getRepresentative(), groupID);
-            groupPool->reactivate(groupID);
-            continue;
-        }
-        ASSERT(acquiredRepr && acquiredContr);
-
-        for(auto &memento: group) {
-
-            ASSERT(!hypernode(memento.u).isDisabled(), "Hypernode" << memento.u << "is disabled");
-            ASSERT(hypernode(memento.v).isDisabled(), "Hypernode" << memento.v << "is not invalid");
-
-            _incident_nets.uncontract(memento.u, memento.v,[&](const HyperedgeID e) {
-                // In that case, u and v were both previously part of hyperedge e.
-                reactivatePinForSingleUncontraction(e,memento.v);
-
-                acquireHyperedge(e);
-                case_one_func(memento.u, memento.v, e);
-                releaseHyperedge(e);
-                }, [&](const HyperedgeID e) {
-                // In that case only v was part of hyperedge e before and
-                // u must be replaced by v in hyperedge e
-                const size_t slot_of_u = findPositionOfPinInIncidenceArray(memento.u, e);
-
-                acquireHyperedge(e);
-                ASSERT(_incidence_array[slot_of_u] == memento.u);
-                _incidence_array[slot_of_u] = memento.v;
-                case_two_func(memento.u, memento.v, e);
-                releaseHyperedge(e);
-                }, [&](const HypernodeID u) {
-                acquireHypernode(u);
-                }, [&](const HypernodeID u) {
-                releaseHypernode(u);
-            });
-
-            acquireHypernode(memento.u);
-
-            // Have hypernode v adopt the partition of its representative u
-            adopt_part_func(memento.u,memento.v);
-            // Restore hypernode v which includes enabling it and subtract its weight
-            // from its representative
-            hypernode(memento.v).enable();
-            hypernode(memento.u).setWeight(hypernode(memento.u).weight() - hypernode(memento.v).weight());
-
-            releaseHypernode(memento.u);
-
-        }
-
-        if (performNoRefinement) {
-            // Release locks if no refinement takes place. If there is refinement, this is taken care of by the
-            // refinement algorithm when it no longer needs the locks.
-            auto releaseRange = IteratorRange<ContractionToNodeIDIteratorAdaptor>(
-                    ContractionToNodeIDIteratorAdaptor(group.begin()), ContractionToNodeIDIteratorAdaptor(group.end()));
-            lockManager->strongReleaseMultipleLocks(releaseRange,groupID);
-            lockManager->strongReleaseLock(group.getRepresentative(), groupID);
-        }
-        else {
-            localized_refinement_func(group,groupID,lockManager);
-        }
-
-        groupPool->activateSuccessors(groupID);
-    }
 }
 
 /**

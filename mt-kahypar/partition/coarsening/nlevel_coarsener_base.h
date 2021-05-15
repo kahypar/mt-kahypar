@@ -20,6 +20,7 @@
 
 #pragma once
 
+#include <mt-kahypar/datastructures/asynch/array_lock_manager.h>
 #include "tbb/task_group.h"
 
 #include "mt-kahypar/definitions.h"
@@ -160,7 +161,7 @@ class NLevelCoarsenerBase {
   ds::VersionedPoolVector _group_pools_for_versions;
 
   // ! A lock manager for locks on hypernodes used in asynchronous n-level uncoarsening
-  std::unique_ptr<ds::IGroupLockManager> _lock_manager_for_async;
+  std::unique_ptr<ds::GroupLockManager> _lock_manager_for_async;
 
 };
 }  // namespace mt_kahypar

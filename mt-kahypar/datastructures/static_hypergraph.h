@@ -730,11 +730,10 @@ class StaticHypergraph {
       return { };
   }
 
-  void uncontractUsingGroupPool(IContractionGroupPool *groupPool,
-                                const UncontractionFunction &case_one_func = NOOP_BATCH_FUNC,
-                                const UncontractionFunction &case_two_func = NOOP_BATCH_FUNC,
-                                bool performNoRefinement = false) {
-      ERROR("uncontractUsingGroupPool() is not supported in static hypergraph.");
+  void uncontract(const ContractionGroup& group,
+                  const UncontractionFunction& case_one_func,
+                  const UncontractionFunction& case_two_func) {
+      ERROR("uncontract(ContractionGroup&, ...) is not supported in static hypergraph.");
 
   }
 

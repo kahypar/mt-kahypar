@@ -7,6 +7,7 @@
 
 #include <mt-kahypar/partition/refinement/i_refiner.h>
 #include <mt-kahypar/partition/refinement/policies/gain_policy.h>
+#include <mt-kahypar/datastructures/asynch/array_lock_manager.h>
 
 namespace mt_kahypar {
 
@@ -14,6 +15,7 @@ namespace mt_kahypar {
     /// datastructure to allow multiple concurrent localized label propagations as well as concurrent uncontractions.
     /// Can not be used for global refinement or (only) rebalancing as it always requires seed nodes for refining!
     template <template <typename> class GainPolicy> class AsynchLPRefiner : public IRefiner {
+
     private:
         using GainCalculator = GainPolicy<PartitionedHypergraph>;
         using ActiveNodes = parallel::scalable_vector<HypernodeID>;
@@ -24,7 +26,7 @@ namespace mt_kahypar {
 
     public:
         explicit AsynchLPRefiner(Hypergraph &hypergraph, const Context &context, const TaskGroupID task_group_id,
-                                 ds::IGroupLockManager *lockManager, ds::ContractionGroupID contraction_group_id) :
+                                 ds::GroupLockManager *lockManager, ds::ContractionGroupID contraction_group_id) :
         _context(context),
         _task_group_id(task_group_id),
         _gain(context),
@@ -33,10 +35,7 @@ namespace mt_kahypar {
         _visited_he(hypergraph.initialNumEdges()),
         _lock_manager(lockManager),
         _contraction_group_id(contraction_group_id),
-        _seeds(),
-        _num_acquired_locks(0),
-        _num_released_locks(0),
-        _num_nodes(hypergraph.initialNumNodes()) { }
+        _seeds() { }
 
         AsynchLPRefiner(const AsynchLPRefiner&) = delete;
         AsynchLPRefiner(AsynchLPRefiner&&) = delete;
@@ -103,7 +102,6 @@ namespace mt_kahypar {
                                                 // If lock could be acquired this has to be the first time that this hypernode has been traversed in this LP round
                                                 // => Assert that it is inserted into the next active nodes
                                                 if (acquired) {
-                                                    ++_num_acquired_locks;
                                                     bool set_next_active = _next_active.compare_and_set_to_true(pin);
                                                     ASSERT(set_next_active);
                                                     next_active_nodes.stream(pin);
@@ -174,15 +172,10 @@ namespace mt_kahypar {
 
         // ! A pointer to the LockManager that is used by uncontraction and refinement operations during the entire
         // uncoarsening.
-        ds::IGroupLockManager* _lock_manager;
+        ds::GroupLockManager* _lock_manager;
 
         // ! A reference to the seed nodes for the current refinement. Locks for seed nodes are never
         parallel::scalable_vector<HypernodeID> _seeds;
-
-        // todo mlaupichler remove debug: these two counters
-        size_t _num_acquired_locks;
-        size_t _num_released_locks;
-        size_t _num_nodes;
     };
 
     using AsynchLPKm1Refiner = AsynchLPRefiner<Km1Policy>;

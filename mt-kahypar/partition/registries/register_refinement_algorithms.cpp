@@ -44,7 +44,7 @@
   static kahypar::meta::Registrar<AsynchLPRefinerFactory> JOIN(register_ ## refiner, t)(                               \
     id,                                                                                                                \
     [](Hypergraph& hypergraph, const Context& context, const TaskGroupID task_group_id,                                \
-    ds::IGroupLockManager *lockManager, ds::ContractionGroupID contraction_group_id) -> IRefiner* {                    \
+    ds::GroupLockManager *lockManager, ds::ContractionGroupID contraction_group_id) -> IRefiner* {                    \
     return new refiner(hypergraph, context, task_group_id, lockManager, contraction_group_id);                         \
   })
 

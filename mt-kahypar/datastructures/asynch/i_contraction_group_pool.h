@@ -14,7 +14,6 @@ namespace mt_kahypar::ds {
     //Forward
     class IContractionGroupPool;
 
-    using VersionedPoolVector = parallel::scalable_vector<std::unique_ptr<IContractionGroupPool>>;
 
     /// Pure virtual interface to define functions for a pool that manages active/inactive uncontraction groups.
     class IContractionGroupPool {

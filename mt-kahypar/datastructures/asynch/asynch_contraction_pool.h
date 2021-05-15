@@ -7,26 +7,29 @@
 
 #include "uncontraction_group_tree.h"
 #include "mt-kahypar/datastructures/asynch/asynch_common.h"
-#include "mt-kahypar/datastructures/asynch/i_contraction_group_pool.h"
+#include "gmock/gmock.h"
+#include "gtest/gtest.h"
 
 namespace mt_kahypar::ds
 {
 
-    class SequentialContractionGroupPool : public IContractionGroupPool {
+    template<typename GroupHierarchy>
+    class SequentialContractionGroupPool {
 
     private:
 
-        std::unique_ptr<IUncontractionGroupHierarchy> _hierarchy;
+        std::unique_ptr<GroupHierarchy> _hierarchy;
         Array<bool> _active;
         Array<bool> _successors_activated;
 
-        parallel::scalable_vector<ContractionGroupID> _active_ids;
+//        parallel::scalable_vector<ContractionGroupID> _active_ids;
+        std::queue<ContractionGroupID> _active_ids;
 
     public:
         /**
          * Constructs new sequential contraction group pool. Passes ownership of the given group hierarchy to this pool.
          */
-        explicit SequentialContractionGroupPool(std::unique_ptr<IUncontractionGroupHierarchy> hierarchy)
+        explicit SequentialContractionGroupPool(std::unique_ptr<GroupHierarchy> hierarchy)
             : _hierarchy(hierarchy.release()),
             _active(_hierarchy->getNumGroups(),false),
             _successors_activated(_hierarchy->getNumGroups(),false) {
@@ -36,24 +39,24 @@ namespace mt_kahypar::ds
             }
         }
 
-        uint32_t getNumActive() const override;
+        uint32_t getNumActive() const;
 
-        uint32_t getNumTotal() const override;
+        uint32_t getNumTotal() const;
 
-        size_t getVersion() const override;
+        size_t getVersion() const;
 
-        const ContractionGroup &group(ContractionGroupID id) const override;
+        const ContractionGroup &group(ContractionGroupID id) const;
 
-        ContractionGroupID pickAnyActiveID() override;
+        ContractionGroupID pickAnyActiveID();
 
-        void activateSuccessors(ContractionGroupID id) override;
+        void activateSuccessors(ContractionGroupID id);
 
-        bool hasActive() const override;
+        bool hasActive() const;
 
-        void reactivate(ContractionGroupID id) override;
+        void reactivate(ContractionGroupID id);
 
     protected:
-        BlockedGroupIDIterator all() const override;
+        BlockedGroupIDIterator all() const;
 
     private:
 
@@ -63,6 +66,10 @@ namespace mt_kahypar::ds
 
 
     };
+
+    using TreeGroupPool = SequentialContractionGroupPool<UncontractionGroupTree>;
+    using VersionedPoolVector = parallel::scalable_vector<std::unique_ptr<TreeGroupPool>>;
+
 
 } // namespace mt_kahypar
 #endif //KAHYPAR_ASYNCH_CONTRACTION_POOL_H

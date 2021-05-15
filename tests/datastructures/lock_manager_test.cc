@@ -281,25 +281,25 @@ namespace mt_kahypar::ds {
         ASSERT_DEATH(lockManager.tryToReleaseMultipleLocks(emptyRange,testOwner), "");
     }
 
-    TEST(ILockManager, ReleaseMultipleWithReleaseFailAfterOwnerCheckDeathTest) {
-
-        using ::testing::_;
-        using ::testing::Return;
-        testing::FLAGS_gtest_death_test_style="threadsafe";
-
-        OwnerID ownerID = 0;
-
-        // Build mock manager who will return true to any isHeldBy query with owner 0 but will return false on any attempt to release
-        // a lock held by 0. Simulates situation where a owner holds a lock but releasing it in tryToReleaseMultiple
-        // still fails (the program is supposed to fail then).
-        auto mockLockManager = MockLockManager<LockedID, OwnerID>();
-        EXPECT_CALL(mockLockManager,isHeldBy(_,ownerID)).WillRepeatedly(Return(true));
-        EXPECT_CALL(mockLockManager,tryToReleaseLock(_,ownerID)).WillRepeatedly(Return(false));
-
-        auto range = getRange(0,5);
-        ASSERT_DEATH(mockLockManager.tryToReleaseMultipleLocks(range,ownerID),"");
-
-    }
+//    TEST(ILockManager, ReleaseMultipleWithReleaseFailAfterOwnerCheckDeathTest) {
+//
+//        using ::testing::_;
+//        using ::testing::Return;
+//        testing::FLAGS_gtest_death_test_style="threadsafe";
+//
+//        OwnerID ownerID = 0;
+//
+//        // Build mock manager who will return true to any isHeldBy query with owner 0 but will return false on any attempt to release
+//        // a lock held by 0. Simulates situation where a owner holds a lock but releasing it in tryToReleaseMultiple
+//        // still fails (the program is supposed to fail then).
+//        auto mockLockManager = MockLockManager<LockedID, OwnerID>();
+//        EXPECT_CALL(mockLockManager,isHeldBy(_,ownerID)).WillRepeatedly(Return(true));
+//        EXPECT_CALL(mockLockManager,tryToReleaseLock(_,ownerID)).WillRepeatedly(Return(false));
+//
+//        auto range = getRange(0,5);
+//        ASSERT_DEATH(mockLockManager.tryToReleaseMultipleLocks(range,ownerID),"");
+//
+//    }
 
 
 } // end namespace mt_kahypar::ds

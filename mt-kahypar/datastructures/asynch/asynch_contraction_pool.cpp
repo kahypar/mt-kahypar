@@ -3,27 +3,35 @@
 //
 
 #include "asynch_contraction_pool.h"
+#include "mock_group_hierarchy.h"
+#include "gmock/gmock.h"
+#include "gtest/gtest.h"
 
-uint32_t mt_kahypar::ds::SequentialContractionGroupPool::getNumActive() const {
+namespace mt_kahypar::ds {
+
+template<typename GroupHierarchy>
+uint32_t mt_kahypar::ds::SequentialContractionGroupPool<GroupHierarchy>::getNumActive() const {
     return _active_ids.size();
 }
 
+template<typename GroupHierarchy>
 const mt_kahypar::ds::ContractionGroup &
-mt_kahypar::ds::SequentialContractionGroupPool::group(mt_kahypar::ds::ContractionGroupID id) const {
+mt_kahypar::ds::SequentialContractionGroupPool<GroupHierarchy>::group(mt_kahypar::ds::ContractionGroupID id) const {
     return _hierarchy->group(id);
 }
 
-mt_kahypar::ds::ContractionGroupID mt_kahypar::ds::SequentialContractionGroupPool::pickAnyActiveID() {
+template<typename GroupHierarchy>
+mt_kahypar::ds::ContractionGroupID mt_kahypar::ds::SequentialContractionGroupPool<GroupHierarchy>::pickAnyActiveID() {
     ASSERT(!_active_ids.empty());
-    // This implementation is LIFO
-    auto picked = _active_ids.back();
+    auto picked = _active_ids.front();
     ASSERT(isActive(picked));
     _active[picked] = false;
-    _active_ids.pop_back();
+    _active_ids.pop();
     return picked;
 }
 
-void mt_kahypar::ds::SequentialContractionGroupPool::activateSuccessors(mt_kahypar::ds::ContractionGroupID id) {
+template<typename GroupHierarchy>
+void mt_kahypar::ds::SequentialContractionGroupPool<GroupHierarchy>::activateSuccessors(mt_kahypar::ds::ContractionGroupID id) {
     ASSERT(!isActive(id));
     ASSERT(!_successors_activated[id]);
 
@@ -35,40 +43,54 @@ void mt_kahypar::ds::SequentialContractionGroupPool::activateSuccessors(mt_kahyp
     _successors_activated[id] = true;
 }
 
-bool mt_kahypar::ds::SequentialContractionGroupPool::hasActive() const {
+template<typename GroupHierarchy>
+bool mt_kahypar::ds::SequentialContractionGroupPool<GroupHierarchy>::hasActive() const {
     return !(_active_ids.empty());
 }
 
-mt_kahypar::ds::BlockedGroupIDIterator mt_kahypar::ds::SequentialContractionGroupPool::all() const {
+template<typename GroupHierarchy>
+mt_kahypar::ds::BlockedGroupIDIterator mt_kahypar::ds::SequentialContractionGroupPool<GroupHierarchy>::all() const {
     return _hierarchy->all();
 }
 
-uint32_t mt_kahypar::ds::SequentialContractionGroupPool::getNumTotal() const {
+template<typename GroupHierarchy>
+uint32_t mt_kahypar::ds::SequentialContractionGroupPool<GroupHierarchy>::getNumTotal() const {
     return _hierarchy->getNumGroups();
 }
 
-size_t mt_kahypar::ds::SequentialContractionGroupPool::getVersion() const {
+template<typename GroupHierarchy>
+size_t mt_kahypar::ds::SequentialContractionGroupPool<GroupHierarchy>::getVersion() const {
     return _hierarchy->getVersion();
 }
 
-void mt_kahypar::ds::SequentialContractionGroupPool::reactivate(mt_kahypar::ds::ContractionGroupID id) {
+template<typename GroupHierarchy>
+void mt_kahypar::ds::SequentialContractionGroupPool<GroupHierarchy>::reactivate(mt_kahypar::ds::ContractionGroupID id) {
 
     activate(id);
 
-    // Shuffle on reactivate to break LIFO picking in order to provide other possible picked ID
-    utils::Randomize::instance().shuffleVector(
-            _active_ids, 0UL, _active_ids.size(), sched_getcpu());
+//    // Shuffle on reactivate to break LIFO picking in order to provide other possible picked ID
+//    utils::Randomize::instance().shuffleVector(
+//            _active_ids, 0UL, _active_ids.size(), sched_getcpu());
 }
 
-bool mt_kahypar::ds::SequentialContractionGroupPool::isActive(ContractionGroupID id) const {
+template<typename GroupHierarchy>
+bool mt_kahypar::ds::SequentialContractionGroupPool<GroupHierarchy>::isActive(ContractionGroupID id) const {
     ASSERT(id < getNumTotal());
     return _active[id];
 }
 
-void mt_kahypar::ds::SequentialContractionGroupPool::activate(mt_kahypar::ds::ContractionGroupID id) {
+template<typename GroupHierarchy>
+void mt_kahypar::ds::SequentialContractionGroupPool<GroupHierarchy>::activate(mt_kahypar::ds::ContractionGroupID id) {
     ASSERT(!isActive(id));
     ASSERT(!_successors_activated[id]);
     _active[id] = true;
-    _active_ids.push_back(id);
+    _active_ids.push(id);
 }
+
+// explicitly instantiate so the compiler can generate them when compiling this cpp file
+template class SequentialContractionGroupPool<UncontractionGroupTree>;
+template class SequentialContractionGroupPool<MockGroupHierarchy>;
+
+}
+
 

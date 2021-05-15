@@ -15,10 +15,10 @@ namespace mt_kahypar {
     bool AsynchLPRefiner<GainPolicy>::refineImpl(PartitionedHypergraph &hypergraph,
                                                  const parallel::scalable_vector <mt_kahypar::HypernodeID> &refinement_nodes,
                                                  kahypar::Metrics &best_metrics, double) {
-
+        ASSERT(_contraction_group_id != ds::invalidGroupID, "ContractionGroupID (Owner-ID) for locking is invalid.");
         ASSERT(!refinement_nodes.empty(), "AsynchLPRefiner will not work without given seed refinement nodes. Cannot be used "
                                           "solely for rebalancing or for global refinement!");
-        ASSERT(std::all_of(refinement_nodes.begin(),refinement_nodes.end(),[&](const HypernodeID& hn) {return _lock_manager->isHeldBy(hn,_contraction_group_id);})
+        HEAVY_REFINEMENT_ASSERT(std::all_of(refinement_nodes.begin(),refinement_nodes.end(),[&](const HypernodeID& hn) {return _lock_manager->isHeldBy(hn,_contraction_group_id);})
             && "Not all given seed nodes are locked by the contraction group id that this LP refinement is based on!");
         _seeds = refinement_nodes;
         _active_nodes = refinement_nodes;
@@ -28,9 +28,6 @@ namespace mt_kahypar {
 
         // Perform Label Propagation
         labelPropagation(hypergraph);
-
-        // todo mlaupichler remove debug
-        ASSERT(_num_acquired_locks == _num_released_locks);
 
         // Update global part weight and sizes
         best_metrics.imbalance = metrics::imbalance(hypergraph, _context);
@@ -117,7 +114,6 @@ namespace mt_kahypar {
                 }
                 const HypernodeID hn = _active_nodes[j];
                 _lock_manager->strongReleaseLock(hn, _contraction_group_id);
-                ++_num_released_locks;
             }
         }
     }
@@ -175,7 +171,6 @@ namespace mt_kahypar {
             const HypernodeID hn = _active_nodes[j];
             if (!_next_active[hn]) {
                 _lock_manager->strongReleaseLock(hn, _contraction_group_id);
-                ++_num_released_locks;
             }
         }
 
@@ -184,7 +179,7 @@ namespace mt_kahypar {
     }
 
     template <template <typename> class GainPolicy>
-    parallel::scalable_vector <size_t> AsynchLPRefiner<GainPolicy>::getSortedIndicesOfSeedsInActiveNodes() const {
+    parallel::scalable_vector<size_t> AsynchLPRefiner<GainPolicy>::getSortedIndicesOfSeedsInActiveNodes() const {
         parallel::scalable_vector<size_t> indices;
 
         for ( size_t j = 0; j < _active_nodes.size(); ++j ) {

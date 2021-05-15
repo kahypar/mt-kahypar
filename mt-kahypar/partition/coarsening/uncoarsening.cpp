@@ -15,6 +15,7 @@
 #include "mt-kahypar/io/partitioning_output.h"
 
 #include "mt-kahypar/datastructures/asynch/array_lock_manager.h"
+#include "mt-kahypar/datastructures/asynch/asynch_contraction_pool.h"
 
 namespace mt_kahypar {
 
@@ -457,19 +458,6 @@ namespace mt_kahypar {
                                                 _context.partition.verbose_output && _context.partition.enable_progress_bar && !debug);
       uncontraction_progress += _compactified_hg.initialNumNodes();
 
-      // todo mlaupichler remove debug
-      size_t total_num_nodes = _hg.initialNumNodes();
-      size_t num_nodes_after_coarsening = _compactified_hg.initialNumNodes();
-      CAtomic<size_t> groups_in_pools(0);
-      CAtomic<size_t> contractions_in_pools(0);
-      for (auto& p : _group_pools_for_versions) {
-            p->doForAllGroupsInParallel([&](const ds::ContractionGroup& group) {
-                groups_in_pools.add_fetch(1);
-                contractions_in_pools.fetch_add(group.size());
-            });
-      }
-
-
       // Initialize Refiner for global refinement
       if ( label_propagation ) {
           label_propagation->initialize(_phg);
@@ -491,10 +479,9 @@ namespace mt_kahypar {
                                         _round_coarsening_times.back() : std::numeric_limits<double>::max()); // Sentinel
 
       size_t total_uncontrations = 0;
-      size_t total_uncontracted_groups = 0;
       while (!_group_pools_for_versions.empty()) {
           ASSERT(_phg.version() == _removed_hyperedges_batches.size());
-          ds::IContractionGroupPool* pool = _group_pools_for_versions.back().get();
+          ds::TreeGroupPool* pool = _group_pools_for_versions.back().get();
           ASSERT(_phg.version() == pool->getVersion());
 
           size_t num_uncontractions = 0;
@@ -508,8 +495,6 @@ namespace mt_kahypar {
               auto range = IteratorRange(ds::GroupNodeIDIterator::getAtBegin(group), ds::GroupNodeIDIterator::getAtEnd(group));
               bool acquired = _lock_manager_for_async->tryToAcquireMultipleLocks(range, groupID);
               if (!acquired) {
-                  // todo mlaupichler remove debug
-                  auto num_locked = _lock_manager_for_async->numLocked();
                   pool->reactivate(groupID);
                   continue;
               }
@@ -517,20 +502,13 @@ namespace mt_kahypar {
 
               _phg.uncontract(group);
               num_uncontractions += group.size();
-              ++total_uncontracted_groups;
+              total_uncontrations += group.size();
 
               auto repr_part_id = _phg.partID(group.getRepresentative());
               ASSERT(repr_part_id != kInvalidPartition);
-              for (auto it = ds::GroupNodeIDIterator::getAtBegin(group); it != ds::GroupNodeIDIterator::getAtEnd(group); ++it) {
-                  ASSERT(_hg.nodeIsEnabled(*it));
-                  ASSERT(_phg.partID(*it) == repr_part_id);
-              }
-
-              ASSERT(_lock_manager_for_async->isHeldBy(group.getRepresentative(),groupID) && "Representative of the group is not locked by the group id!");
-              ASSERT(std::all_of(ds::ContractionToNodeIDIteratorAdaptor(group.begin()),
-                                 ds::ContractionToNodeIDIteratorAdaptor(group.end()),
-                                 [&](const HypernodeID& hn) {return _lock_manager_for_async->isHeldBy(hn,groupID);})
-                     && "Not all contracted nodes in the group are locked by the group id!");
+              ASSERT(std::all_of(ds::GroupNodeIDIterator::getAtBegin(group), ds::GroupNodeIDIterator::getAtEnd(group),
+                                 [&](const HypernodeID& hn){return _hg.nodeIsEnabled(hn) && _phg.partID(hn) == repr_part_id && _lock_manager_for_async->isHeldBy(hn, groupID);}),
+                     "After uncontracting a group, either the representative or any of the contracted nodes is not enabled, not locked or not assigned a partition!");
 
               // Extract refinement seeds and release locks for nodes that are not seeds
               auto begin = ds::GroupNodeIDIterator::getAtBegin(group);
@@ -538,13 +516,10 @@ namespace mt_kahypar {
               PartitionedHypergraph::ReleaseFunction release_func = [&](const HypernodeID hn){
                   _lock_manager_for_async->strongReleaseLock(hn, groupID);
               };
-
               auto refinement_nodes = _phg.extractBorderNodesAndReleaseOthers(begin,end, release_func);
+
               // No refinement if refinement nodes are empty (all the locks are released already)
               if (!refinement_nodes.empty()) {
-
-                  auto num_locks_before_local_refine = _lock_manager_for_async->numLocked();
-
                   // LP Refiner for local asynchronous label propagation refinement
                   std::unique_ptr<IRefiner> localLPRefiner = AsynchLPRefinerFactory::getInstance().createObject(
                           _context.refinement.label_propagation.algorithm,
@@ -560,17 +535,9 @@ namespace mt_kahypar {
                   localizedRefine(_phg, refinement_nodes, localLPRefiner,
                                   noopRefiner, current_metrics, force_measure_timings);
 
-                  auto num_locks_after_local_refine = _lock_manager_for_async->numLocked();
-                  ASSERT(num_locks_before_local_refine == num_locks_after_local_refine);
-
                   // Release locks of seed nodes
                   auto releaseRange = IteratorRange(refinement_nodes.begin(), refinement_nodes.end());
                   _lock_manager_for_async->strongReleaseMultipleLocks(releaseRange, groupID);
-              }
-
-              // todo mlaupichler remove debug
-              for (auto it = ds::GroupNodeIDIterator::getAtBegin(group); it != ds::GroupNodeIDIterator::getAtEnd(group); ++it) {
-                  ASSERT(!_lock_manager_for_async->isLocked(*it));
               }
 
               pool->activateSuccessors(groupID);
@@ -580,14 +547,6 @@ namespace mt_kahypar {
           uncontraction_progress.setObjective(current_metrics.getMetric(
                   _context.partition.mode, _context.partition.objective));
           uncontraction_progress += num_uncontractions;
-
-          total_uncontrations += num_uncontractions;
-
-          // todo mlaupichler remove debug
-          for (HypernodeID i = 0; i < _hg.initialNumNodes(); ++i) {
-              if (_hg.nodeIsEnabled(i)) ASSERT(_phg.partID(i) != kInvalidPartition);
-          }
-
 
           // Restore single-pin and parallel nets to continue with the next version
           if ( !_removed_hyperedges_batches.empty() ) {
@@ -611,19 +570,17 @@ namespace mt_kahypar {
           _group_pools_for_versions.pop_back();
       }
 
-      size_t load_groups_in_pools = groups_in_pools.load(std::memory_order_relaxed);
-      size_t load_contraction_in_pools = contractions_in_pools.load(std::memory_order_relaxed);
-
-      ASSERT(load_groups_in_pools == total_uncontracted_groups);
-      ASSERT(load_contraction_in_pools == total_uncontrations);
-      ASSERT(load_contraction_in_pools + num_nodes_after_coarsening == total_num_nodes);
+      size_t total_num_nodes = _hg.initialNumNodes();
+      size_t num_nodes_after_coarsening = _compactified_hg.initialNumNodes();
       ASSERT(total_num_nodes == total_uncontrations + num_nodes_after_coarsening);
-
-        for (HypernodeID i = 0; i < _hg.initialNumNodes(); ++i) {
-            ASSERT(_phg.partID(i) != kInvalidPartition);
-            ASSERT(!_lock_manager_for_async->isLocked(i));
-        }
-
+      auto checkAllAssignedAndNoneLocked = [&](){
+          for (HypernodeID i = 0; i < _hg.initialNumNodes(); ++i) {
+              if(_phg.partID(i) == kInvalidPartition) return false;
+              if(_lock_manager_for_async->isLocked(i)) return false;
+          }
+          return true;
+      };
+      HEAVY_REFINEMENT_ASSERT(checkAllAssignedAndNoneLocked());
 
       // Top-Level Refinement on all vertices
       const HyperedgeWeight objective_before = current_metrics.getMetric(

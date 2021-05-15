@@ -24,7 +24,7 @@ namespace mt_kahypar::ds {
 /// (i.e. their contraction intervals have transitive overlap) which means they have to be uncontracted simultaneously
 /// as well. Starting with the root groups for a version, a group can only be uncontracted once its parent group in the
 /// GroupUncontractionTree has been uncontracted.
-    class UncontractionGroupTree : public IUncontractionGroupHierarchy {
+    class UncontractionGroupTree {
 
         using ContractionInterval = typename ContractionTree::Interval;
 
@@ -64,45 +64,40 @@ namespace mt_kahypar::ds {
 
         UncontractionGroupTree(ContractionTree &contractionTree, size_t version);
 
-        ~UncontractionGroupTree() override {
+        ~UncontractionGroupTree() {
             freeInternalData();
         }
 
-        const ContractionGroup &group(ContractionGroupID id) const override {
+        const ContractionGroup &group(ContractionGroupID id) const {
             ASSERT(id < _num_group_nodes);
             return _tree[id].getGroup();
         }
 
-        ContractionGroupIDIteratorRange successors(ContractionGroupID id) const override{
+        ContractionGroupIDIteratorRange successors(ContractionGroupID id) const {
             ASSERT(id < _num_group_nodes);
             return ContractionGroupIDIteratorRange(
                     _incidence_array.cbegin() + _out_degrees[id],
                     _incidence_array.cbegin() + _out_degrees[id + 1]);
         }
 
-        ContractionGroupID predecessor(ContractionGroupID id) const override {
+        ContractionGroupID predecessor(ContractionGroupID id) const {
             ASSERT(id < _num_group_nodes);
             return _tree[id].getParentGroup();
         }
 
-//        size_t version(GroupNodeID id) const {
-//            ASSERT(id < _num_group_nodes);
-//            return _tree[id].getVersion();
-//        }
-
-        size_t getVersion() const override {
+        size_t getVersion() const {
             return _version;
         }
 
-        uint32_t getNumGroups() const override {
+        uint32_t getNumGroups() const {
             return _num_group_nodes;
         }
 
-        ContractionGroupIDIteratorRange roots() const override {
+        ContractionGroupIDIteratorRange roots() const {
             return mt_kahypar::ds::ContractionGroupIDIteratorRange(_roots.cbegin(), _roots.cend());
         }
 
-        BlockedGroupIDIterator all() const override {
+        BlockedGroupIDIterator all() const {
             ASSERT(_num_group_nodes == _tree.size());
             return BlockedGroupIDIterator (0,_num_group_nodes);
         }

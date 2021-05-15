@@ -13,6 +13,7 @@
 #include "mt-kahypar/datastructures/dynamic_hypergraph_factory.h"
 #include "mt-kahypar/datastructures/partitioned_hypergraph.h"
 #include "mt-kahypar/datastructures/asynch/array_lock_manager.h"
+#include "mt-kahypar/datastructures/asynch/asynch_contraction_pool.h"
 #include "mt-kahypar/partition/metrics.h"
 #include "mt-kahypar/utils/randomize.h"
 
@@ -111,7 +112,7 @@ namespace mt_kahypar {
 
             utils::Timer::instance().start_timer(timer_key("async_uncontractions"), "Asynchronous Uncontractions");
             while (!versionedPools.empty()) {
-                IContractionGroupPool *pool = versionedPools.back().get();
+                TreeGroupPool *pool = versionedPools.back().get();
 
 //                partitioned_hypergraph.uncontractUsingGroupPool(pool, lockManager, NOOP_LOCALIZED_REFINEMENT_FUNC);
 
