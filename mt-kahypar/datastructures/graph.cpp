@@ -118,33 +118,17 @@ namespace mt_kahypar::ds {
   }
 
   Graph Graph::contract_low_memory(Clustering& communities) {
-    // TODO extract allocated vectors
-    // mapping, nodes_sorted_by_cluster
-
-    static constexpr bool debug = true;
-
     // remap cluster IDs to consecutive range
-
-
-    vec <NodeID> mapping(numNodes(), invalidNode);
-    NodeID num_coarse_nodes = 0;
-    for (NodeID u : nodes()) {
-      if (mapping[communities[u]] == invalidNode) {
-        mapping[communities[u]] = num_coarse_nodes++;
-      }
-      communities[u] = mapping[communities[u]];
-    }
-
-    /*
+    vec<NodeID> mapping(numNodes(), 0);   // TODO extract?
     tbb::parallel_for(0UL, numNodes(), [&](NodeID u) { mapping[communities[u]] = 1; });
     parallel_prefix_sum(mapping.begin(), mapping.begin() + numNodes(), mapping.begin(), std::plus<>(), 0);
     NodeID num_coarse_nodes = mapping[numNodes() - 1];
      // feels like there's an off by one here
     tbb::parallel_for(0UL, numNodes(), [&](NodeID u) { communities[u] = mapping[communities[u]] - 1; });  // -1 because inclusive prefix sum
-    */
+
     // sort nodes by cluster
     auto get_cluster = [&](NodeID u) { assert(u < communities.size()); return communities[u]; };
-    vec<NodeID> nodes_sorted_by_cluster(numNodes());
+    vec<NodeID> nodes_sorted_by_cluster(std::move(mapping));    // reuse memory from mapping since it's no longer needed
     auto cluster_bounds = parallel::counting_sort(nodes(), nodes_sorted_by_cluster, num_coarse_nodes,
                                                   get_cluster, TBBNumaArena::instance().total_number_of_threads());
 
@@ -172,10 +156,10 @@ namespace mt_kahypar::ds {
     });
      */
 
-    // TODO pass map from local moving code
+    // TODO pass map from local moving code?
     struct ClearList {
-      vec <NodeID> used;
-      vec <ArcWeight> values;
+      vec<NodeID> used;
+      vec<ArcWeight> values;
 
       ClearList(size_t n) : values(n, 0.0) { }
     };
@@ -210,14 +194,12 @@ namespace mt_kahypar::ds {
       coarse_graph._node_volumes[cu] = volume_cu;
     });
 
-
     // prefix sum coarse node degrees for offsets to write the coarse arcs in second pass
     parallel_prefix_sum(coarse_graph._indices.begin(), coarse_graph._indices.end(), coarse_graph._indices.begin(), std::plus<>(), 0UL);
     size_t num_coarse_arcs = coarse_graph._indices.back();
     coarse_graph._arcs.resize(num_coarse_arcs);
     coarse_graph._num_arcs = num_coarse_arcs;
     coarse_graph._max_degree = local_max_degree.combine([](size_t lhs, size_t rhs) { return std::max(lhs, rhs); });
-    DBG << V(numNodes()) << V(num_coarse_nodes) << V(numArcs()) << V(num_coarse_arcs);
 
     // second pass generating unique coarse arcs
     tbb::parallel_for(0U, num_coarse_nodes, [&](NodeID cu) {
