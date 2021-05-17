@@ -52,6 +52,8 @@ namespace mt_kahypar::ds {
             }
             // If the lock is currently not held by anyone, attempt to acquire it; returns true if successful or false if not
             bool acquired = _v[lockedID].compare_exchange_strong(expected, desired);
+
+            // REVIEW this will give more contention than the locks themselves. Doesn't look like it's being used
             if (acquired) _num_locked.add_fetch(1, std::memory_order_relaxed);
             return acquired;
         };

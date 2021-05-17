@@ -113,6 +113,8 @@ namespace mt_kahypar {
 
         // Shuffle Vector
         bool converged = true;
+
+        // REVIEW hold your own std::mt19937 as member, and use std::shuffle --> avoids sched_getcpu() calls
         utils::Randomize::instance().shuffleVector(
                 _active_nodes, 0UL, _active_nodes.size(), sched_getcpu());
 
@@ -122,7 +124,6 @@ namespace mt_kahypar {
                 converged = false;
             }
         }
-
 
         // todo mlaupichler Releasing can probably be optimized. Releasing at the end of the round results in locks
         //  being held longer than they would optimally need to be held.
@@ -158,6 +159,9 @@ namespace mt_kahypar {
         parallel::scalable_vector<size_t> indices;
 
         for ( size_t j = 0; j < _active_nodes.size(); ++j ) {
+          // REVIEW should be fine in most cases, but looks dangerous.
+          // in case _seeds.size() is large, e.g., > 40 or smth, you can sort the seeds and do binary search (std::lower_bound) whether _active_nodes[j] is a seed
+          // also, you can do this directly in the loop above. no need to allocate a vector
             for (HypernodeID seed : _seeds) {
                 if (seed == _active_nodes[j]) indices.push_back(j);
             }

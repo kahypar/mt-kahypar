@@ -104,6 +104,7 @@ namespace mt_kahypar {
                                                 if (acquired) {
                                                     bool set_next_active = _next_active.compare_and_set_to_true(pin);
                                                     ASSERT(set_next_active);
+                                                    // REVIEW you don't need these 'heavy-duty' parallel-friendly data structures. simple std::vector suffices
                                                     next_active_nodes.stream(pin);
                                                 }
                                             } else if (_lock_manager->isHeldBy(pin,_contraction_group_id) && _next_active.compare_and_set_to_true(pin) ) {
@@ -153,7 +154,7 @@ namespace mt_kahypar {
 
         const Context& _context;
         const TaskGroupID _task_group_id;
-        GainCalculator _gain;
+        GainCalculator _gain;     // REVIEW this creates a tbb::enumerable_thread_specfic object for each thread
         ActiveNodes _active_nodes;
         ds::ThreadSafeFastResetFlagArray<> _next_active;
         kahypar::ds::FastResetFlagArray<> _visited_he;

@@ -499,6 +499,7 @@ namespace mt_kahypar {
               auto range = IteratorRange(ds::GroupNodeIDIterator::getAtBegin(group), ds::GroupNodeIDIterator::getAtEnd(group));
               bool acquired = _lock_manager_for_async->tryToAcquireMultipleLocks(range, groupID);
               if (!acquired) {
+                  // REVIEW this can result in threads repeatedly failing and retrying. non-termination is unlikely but possible
                   pool->reactivate(groupID);
                   continue;
               }
@@ -520,6 +521,9 @@ namespace mt_kahypar {
               PartitionedHypergraph::ReleaseFunction release_func = [&](const HypernodeID hn){
                   _lock_manager_for_async->strongReleaseLock(hn, groupID);
               };
+
+              // REVIEW why not pass the group vector around as a const-ref? and use range-based loops
+              // also isBorderNode(..) is a public function. no need for this
               auto refinement_nodes = _phg.extractBorderNodesAndReleaseOthers(begin,end, release_func);
 
               // No refinement if refinement nodes are empty (all the locks are released already)
@@ -533,6 +537,8 @@ namespace mt_kahypar {
                           _lock_manager_for_async.get(),
                           groupID);
                   localLPRefiner->initialize(_phg);
+
+                  // REVIEW creating a fresh refiner object for each uncontraction will be too slow
 
                   // Do only label propagation
                   std::unique_ptr<IRefiner> noopRefiner = std::make_unique<DoNothingRefiner>();
@@ -652,7 +658,7 @@ namespace mt_kahypar {
 
   void NLevelCoarsenerBase::PoolUncoarseningParallelBody::operator()(ds::ContractionGroupID groupID, tbb::parallel_do_feeder<ds::ContractionGroupID>& feeder) const {
 
-      auto group = _hierarchy->group(groupID);
+      auto group = _hierarchy->group(groupID);    // REVIEW this makes a copy. should be const auto&
 
       // Attempt to acquire locks for representative and contracted nodes in the group. If any of the locks cannot be
       // acquired, revert to previous state and attempt to pick an id again

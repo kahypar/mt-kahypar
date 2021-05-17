@@ -518,7 +518,7 @@ private:
               release_func(hn);
           }
       }
-      seeds.shrink_to_fit();
+      seeds.shrink_to_fit();    // REVIEW causes a realloc. not necessary
       return seeds;
   }
 

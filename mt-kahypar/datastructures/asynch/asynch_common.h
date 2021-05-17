@@ -75,6 +75,7 @@ namespace mt_kahypar::ds {
 
         /// This function is linear in the number of contractions.
         bool contains(Contraction contraction) const {
+          // REVIEW return std::find(_contractions.begin(), _contractions.end(), contraction) != _contractions.end(); would be more readable
             if (std::any_of(_contractions.begin(),_contractions.end(),[contraction](Contraction e){return e.u == contraction.u && e.v == contraction.v;})) {
                 return true;
             }
@@ -83,6 +84,7 @@ namespace mt_kahypar::ds {
 
         /// This function is quadratic in the group size.
         bool operator==(const ContractionGroup &rhs) const {
+          // REVIEW could be linear if you sort the contractions, in which case return _contractions == rhs._contractions; would suffice
             bool rhsContainsThis = (std::all_of(_contractions.begin(),_contractions.end(),[rhs](Contraction e){return rhs.contains(e);}));
             bool thisContainsRhs = (std::all_of(rhs.begin(),rhs.end(),[this](Contraction e){return this->contains(e);}));
             return rhsContainsThis && thisContainsRhs;

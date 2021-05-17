@@ -18,7 +18,6 @@ namespace mt_kahypar::ds
     private:
 
         std::unique_ptr<GroupHierarchy> _hierarchy;
-
         std::queue<ContractionGroupID> _active_ids;
 
     public:
