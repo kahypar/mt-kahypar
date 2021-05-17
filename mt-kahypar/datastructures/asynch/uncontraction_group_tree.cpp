@@ -27,7 +27,7 @@ namespace mt_kahypar::ds {
 
         ContractionGroupID currentParentID = 0;
         while (currentParentID != _num_group_nodes) {
-            GroupNode currentParentNode = _tree[currentParentID];
+            GroupNode currentParentNode = _tree[currentParentID];   // REVIEW copy?
             // explore one step vertically and then the horizontal branch
             for (auto member : currentParentNode.getGroup()) {
                 insertHorizontalBranch(_contraction_tree.childs(member.v),currentParentID,member.v);
@@ -86,7 +86,7 @@ namespace mt_kahypar::ds {
         auto numChildren = numVertical + (hasHorizontalChild? 1 : 0);
         _out_degrees.push_back(_out_degrees.back() + numChildren);
         ASSERT(_out_degrees.size() == newID + 2);
-        _incidence_array.resize(_incidence_array.size() + numChildren);
+        _incidence_array.resize(_incidence_array.size() + numChildren); // REVIEW do one resize at the end?
 
         // If new is its own parent then it is a root
         if(newID == parent) {

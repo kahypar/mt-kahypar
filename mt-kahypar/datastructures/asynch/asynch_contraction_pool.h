@@ -2,8 +2,7 @@
 // Created by mlaupichler on 19.04.21.
 //
 
-#ifndef KAHYPAR_ASYNCH_CONTRACTION_POOL_H
-#define KAHYPAR_ASYNCH_CONTRACTION_POOL_H
+#pragma once
 
 #include <tbb/concurrent_queue.h>
 #include "uncontraction_group_tree.h"
@@ -159,4 +158,3 @@ namespace mt_kahypar::ds
 
 
 } // namespace mt_kahypar
-#endif //KAHYPAR_ASYNCH_CONTRACTION_POOL_H
