@@ -64,7 +64,7 @@ namespace mt_kahypar::ds {
       allocateTmpContractionBuffer();
     }
 
-    // AUXILLIARY BUFFERS - Reused during multilevel hierarchy to prevent expensive allocations
+    // Auxiliary buffers - reused during multilevel hierarchy to prevent expensive allocations
     Array<size_t>& mapping = _tmp_contraction_buffer->mapping;
     Array<Hypernode>& tmp_hypernodes = _tmp_contraction_buffer->tmp_hypernodes;
     IncidentNets& tmp_incident_nets = _tmp_contraction_buffer->tmp_incident_nets;

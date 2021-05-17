@@ -168,7 +168,7 @@ namespace mt_kahypar::ds {
       for (auto i = cluster_bounds[cu]; i < cluster_bounds[cu + 1]; ++i) {
         NodeID fu = nodes_sorted_by_cluster[i];
         volume_cu += nodeVolume(fu);
-        for (Arc& arc : arcsOf(fu)) {
+        for (const Arc& arc : arcsOf(fu)) {
           NodeID cv = get_cluster(arc.head);
           if (cv != cu && clear_list.values[cv] == 0.0) {
             clear_list.used.push_back(cv);
@@ -178,7 +178,7 @@ namespace mt_kahypar::ds {
       }
       coarse_graph._indices[cu + 1] = clear_list.used.size();
       local_max_degree.local() = std::max(local_max_degree.local(), clear_list.used.size());
-      for (NodeID cv : clear_list.used) {
+      for (const NodeID cv : clear_list.used) {
         clear_list.values[cv] = 0.0;
       }
       clear_list.used.clear();
@@ -197,7 +197,7 @@ namespace mt_kahypar::ds {
     tbb::parallel_for(0U, num_coarse_nodes, [&](NodeID cu) {
       auto& clear_list = clear_lists.local();
       for (auto i = cluster_bounds[cu]; i < cluster_bounds[cu+1]; ++i) {
-        for (Arc& arc : arcsOf(nodes_sorted_by_cluster[i])) {
+        for (const Arc& arc : arcsOf(nodes_sorted_by_cluster[i])) {
           NodeID cv = get_cluster(arc.head);
           if (cv != cu) {
             if (clear_list.values[cv] == 0.0) {
@@ -208,7 +208,7 @@ namespace mt_kahypar::ds {
         }
       }
       size_t pos = coarse_graph._indices[cu];
-      for (NodeID cv : clear_list.used) {
+      for (const NodeID cv : clear_list.used) {
         coarse_graph._arcs[pos++] = Arc(cv, clear_list.values[cv]);
         clear_list.values[cv] = 0.0;
       }
