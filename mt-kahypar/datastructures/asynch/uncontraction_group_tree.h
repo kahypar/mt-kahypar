@@ -97,11 +97,6 @@ namespace mt_kahypar::ds {
             return mt_kahypar::ds::ContractionGroupIDIteratorRange(_roots.cbegin(), _roots.cend());
         }
 
-        BlockedGroupIDIterator all() const {
-            ASSERT(_num_group_nodes == _tree.size());
-            return BlockedGroupIDIterator (0,_num_group_nodes);
-        }
-
     private:
 
         void freeInternalData();

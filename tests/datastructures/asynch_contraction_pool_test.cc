@@ -13,6 +13,7 @@
 
 namespace mt_kahypar::ds {
 
+
     using ::testing::Return;
     using ::testing::_;
 
@@ -36,7 +37,8 @@ namespace mt_kahypar::ds {
         bool seen0 = false;
         bool seen1 = false;
 
-        auto picked1 = pool.pickAnyActiveID();
+        auto picked1 = invalidGroupID;
+        pool.pickAnyActiveID(picked1);
         ASSERT(picked1 == 0 || picked1 == 1);
         if (picked1 == 0)
             seen0 = true;
@@ -49,7 +51,8 @@ namespace mt_kahypar::ds {
         pool.activateSuccessors(picked1);
         ASSERT(pool.getNumActive() == 1);
 
-        auto picked2 = pool.pickAnyActiveID();
+        auto picked2 = invalidGroupID;
+        pool.pickAnyActiveID(picked2);
         ASSERT(picked2 == 0 || picked2 == 1);
         if (picked2 == 0)
             seen0 = true;
@@ -96,7 +99,8 @@ namespace mt_kahypar::ds {
         auto expectedNumActive = 2;
         while (pool.hasActive()) {
             ASSERT_EQ(pool.getNumActive(), expectedNumActive);
-            auto picked = pool.pickAnyActiveID();
+            auto picked = invalidGroupID;
+            pool.pickAnyActiveID(picked);
             seen[picked] = true;
             pool.activateSuccessors(picked);
             // 0, has 2 more successors, 1 has one more successor, others don't have any
@@ -141,7 +145,8 @@ namespace mt_kahypar::ds {
         ASSERT_EQ(pool.getNumTotal(), 1);
 
         ASSERT_TRUE(pool.hasActive());
-        auto picked = pool.pickAnyActiveID();
+        auto picked = invalidGroupID;
+        pool.pickAnyActiveID(picked);
         ASSERT_FALSE(pool.hasActive());
         pool.reactivate(picked);
         ASSERT_TRUE(pool.hasActive());
@@ -159,7 +164,8 @@ namespace mt_kahypar::ds {
         auto pool = SequentialContractionGroupPool(std::move(mockGroupHierarchy));
         ASSERT_EQ(pool.getNumTotal(), 1);
 
-        auto picked = pool.pickAnyActiveID();
+        auto picked = invalidGroupID;
+        pool.pickAnyActiveID(picked);
         pool.reactivate(picked);
         ASSERT_DEATH(pool.reactivate(picked), "");
 
@@ -180,7 +186,8 @@ namespace mt_kahypar::ds {
         auto pool = SequentialContractionGroupPool(std::move(mockGroupHierarchy));
         ASSERT_EQ(pool.getNumTotal(), 1);
 
-        auto picked = pool.pickAnyActiveID();
+        auto picked = invalidGroupID;
+        pool.pickAnyActiveID(picked);
         ASSERT_EQ(picked,0);
         pool.activateSuccessors(picked);
         ASSERT_DEATH(pool.reactivate(picked), "");

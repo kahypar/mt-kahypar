@@ -1,5 +1,6 @@
 #include <mt-kahypar/partition/refinement/do_nothing_refiner.h>
 #include <mt-kahypar/partition/refinement/label_propagation/asynch_lp_refiner.h>
+#include <tbb/parallel_do.h>
 #include "mt-kahypar/partition/coarsening/multilevel_coarsener_base.h"
 #include "mt-kahypar/partition/coarsening/nlevel_coarsener_base.h"
 #include "mt-kahypar/partition/factories.h"
@@ -206,7 +207,8 @@ namespace mt_kahypar {
 
       // Switch to asynchronous uncoarsening if the option is set
       if (_context.uncoarsening.use_asynchronous_uncoarsening) {
-          return doSequentialUncoarsen(label_propagation, fm);
+//          return doSequentialUncoarsen(label_propagation, fm);
+            return doAsynchronousUncoarsen(label_propagation, fm);
       }
 
 
@@ -487,7 +489,9 @@ namespace mt_kahypar {
           size_t num_uncontractions = 0;
 
           while (pool->hasActive()) {
-              auto groupID = pool->pickAnyActiveID();
+              ds::ContractionGroupID groupID = ds::invalidGroupID;
+              bool picked = pool->pickAnyActiveID(groupID);
+              if (!picked) continue;
               auto group = pool->group(groupID);
 
               // Attempt to acquire locks for representative and contracted nodes in the group. If any of the locks cannot be
@@ -646,6 +650,252 @@ namespace mt_kahypar {
   }
 
 
+  void NLevelCoarsenerBase::PoolUncoarseningParallelBody::operator()(ds::ContractionGroupID groupID, tbb::parallel_do_feeder<ds::ContractionGroupID>& feeder) const {
+
+      auto group = _hierarchy->group(groupID);
+
+      // Attempt to acquire locks for representative and contracted nodes in the group. If any of the locks cannot be
+      // acquired, revert to previous state and attempt to pick an id again
+      auto range = IteratorRange(ds::GroupNodeIDIterator::getAtBegin(group), ds::GroupNodeIDIterator::getAtEnd(group));
+      bool acquired = _base._lock_manager_for_async->tryToAcquireMultipleLocks(range, groupID);
+      if (!acquired) {
+          feeder.add(groupID);
+          return;
+      }
+      ASSERT(acquired);
+
+      _base._phg.uncontract(group);
+      _total_uncontractions.fetch_add(group.size(), std::memory_order_acq_rel);
+
+      auto repr_part_id = _base._phg.partID(group.getRepresentative());
+      ASSERT(repr_part_id != kInvalidPartition);
+      ASSERT(std::all_of(ds::GroupNodeIDIterator::getAtBegin(group), ds::GroupNodeIDIterator::getAtEnd(group),
+                         [&](const HypernodeID& hn){return _base._hg.nodeIsEnabled(hn) && _base._phg.partID(hn) == repr_part_id && _base._lock_manager_for_async->isHeldBy(hn, groupID);}),
+             "After uncontracting a group, either the representative or any of the contracted nodes is not enabled, not locked or not assigned a partition!");
+
+      // Extract refinement seeds and release locks for nodes that are not seeds
+      auto begin = ds::GroupNodeIDIterator::getAtBegin(group);
+      auto end = ds::GroupNodeIDIterator::getAtEnd(group);
+      PartitionedHypergraph::ReleaseFunction release_func = [&](const HypernodeID hn){
+          _base._lock_manager_for_async->strongReleaseLock(hn, groupID);
+      };
+      auto refinement_nodes = _base._phg.extractBorderNodesAndReleaseOthers(begin,end, release_func);
+
+      // No refinement if refinement nodes are empty (all the locks are released already)
+      if (!refinement_nodes.empty()) {
+
+          auto first_part_id = _base._phg.partID(refinement_nodes[0]);
+          ASSERT(repr_part_id != kInvalidPartition);
+          ASSERT(std::all_of(refinement_nodes.begin(),refinement_nodes.end(),
+                             [&](const HypernodeID& hn){return _base._hg.nodeIsEnabled(hn) && _base._phg.partID(hn) == repr_part_id && _base._lock_manager_for_async->isHeldBy(hn, groupID);}),
+                 "After extracting seeds one of the seeds is not enabled, not locked or not assigned the right partition!");
+
+
+          // LP Refiner for local asynchronous label propagation refinement
+          std::unique_ptr<IRefiner> localLPRefiner = AsynchLPRefinerFactory::getInstance().createObject(
+                  _base._context.refinement.label_propagation.algorithm,
+                  _base._phg.hypergraph(),
+                  _base._context,
+                  _base._task_group_id,
+                  _base._lock_manager_for_async.get(),
+                  groupID);
+          localLPRefiner->initialize(_base._phg);
+
+          // Do only label propagation
+          _base.localizedRefineForAsynch(_base._phg, refinement_nodes, localLPRefiner, _current_metrics, _force_measure_timings);
+
+          // Release locks of seed nodes
+          auto releaseRange = IteratorRange(refinement_nodes.begin(), refinement_nodes.end());
+          _base._lock_manager_for_async->strongReleaseMultipleLocks(releaseRange, groupID);
+      }
+
+      for (auto s : _hierarchy->successors(groupID)) {
+          feeder.add(s);
+      }
+
+  }
+
+  PartitionedHypergraph&& NLevelCoarsenerBase::doAsynchronousUncoarsen(std::unique_ptr<IRefiner>& label_propagation,
+                                                    std::unique_ptr<IRefiner>& fm) {
+
+      ASSERT(_is_finalized);
+      kahypar::Metrics current_metrics = initialize(_compactified_phg);
+
+      // Project partition from compactified hypergraph to original hypergraph
+      utils::Timer::instance().start_timer("initialize_partition", "Initialize Partition");
+      _phg = PartitionedHypergraph(_context.partition.k, _task_group_id, _hg);
+      _phg.doParallelForAllNodes([&](const HypernodeID hn) {
+          ASSERT(static_cast<size_t>(hn) < _compactified_hn_mapping.size());
+          const HypernodeID compactified_hn = _compactified_hn_mapping[hn];
+          const PartitionID block_id = _compactified_phg.partID(compactified_hn);
+          ASSERT(block_id != kInvalidPartition && block_id < _context.partition.k);
+          _phg.setOnlyNodePart(hn, block_id);
+      });
+      _phg.initializePartition(_task_group_id);
+
+      if ( _context.refinement.fm.algorithm == FMAlgorithm::fm_gain_cache ) {
+          _phg.initializeGainCache();
+      }
+
+      ASSERT(metrics::objective(_compactified_phg, _context.partition.objective) ==
+             metrics::objective(_phg, _context.partition.objective),
+             V(metrics::objective(_compactified_phg, _context.partition.objective)) <<
+                                                                                    V(metrics::objective(_phg, _context.partition.objective)));
+      ASSERT(metrics::imbalance(_compactified_phg, _context) ==
+             metrics::imbalance(_phg, _context),
+             V(metrics::imbalance(_compactified_phg, _context)) <<
+                                                                V(metrics::imbalance(_phg, _context)));
+      utils::Timer::instance().stop_timer("initialize_partition");
+
+      utils::ProgressBar uncontraction_progress(_hg.initialNumNodes(),
+                                                _context.partition.objective == kahypar::Objective::km1 ? current_metrics.km1 : current_metrics.cut,
+                                                _context.partition.verbose_output && _context.partition.enable_progress_bar && !debug);
+      uncontraction_progress += _compactified_hg.initialNumNodes();
+
+      // Initialize Refiner for global refinement
+      if ( label_propagation ) {
+          label_propagation->initialize(_phg);
+      }
+      if ( fm ) {
+          fm->initialize(_phg);
+      }
+
+      // Perform uncontractions version by version
+      bool is_timer_disabled = false;
+      bool force_measure_timings = _context.partition.measure_detailed_uncontraction_timings && _top_level;
+      if ( utils::Timer::instance().isEnabled() ) {
+          utils::Timer::instance().disable();
+          is_timer_disabled = true;
+      }
+
+      ASSERT(_round_coarsening_times.size() == _removed_hyperedges_batches.size());
+      _round_coarsening_times.push_back(_round_coarsening_times.size() > 0 ?
+                                        _round_coarsening_times.back() : std::numeric_limits<double>::max()); // Sentinel
+
+      CAtomic<size_t> total_uncontrations(0);
+      while (!_group_pools_for_versions.empty()) {
+          ASSERT(_phg.version() == _removed_hyperedges_batches.size());
+          ds::TreeGroupPool* pool = _group_pools_for_versions.back().get();
+          ASSERT(_phg.version() == pool->getVersion());
+
+          size_t num_uncontractions_before_pool = total_uncontrations.load(std::memory_order_acq_rel);
+
+          auto hierarchy = pool->hierarchy();
+          auto parallel_body = PoolUncoarseningParallelBody(&hierarchy,*this,current_metrics,force_measure_timings,total_uncontrations);
+          tbb::parallel_do(hierarchy.roots().begin(), hierarchy.roots().end(),parallel_body);
+
+          size_t num_uncontractions = total_uncontrations.load(std::memory_order_acq_rel) - num_uncontractions_before_pool;
+
+          // Update Progress Bar
+          uncontraction_progress.setObjective(current_metrics.getMetric(
+                  _context.partition.mode, _context.partition.objective));
+          uncontraction_progress += num_uncontractions;
+
+          if (_top_level) {
+              ASSERT(current_metrics.km1 == metrics::km1(_phg),
+                     "Actual metric" << V(metrics::km1(_phg))
+                                     << "does not match the metric updated by the refiners" << V(current_metrics.km1));
+          }
+
+          // Restore single-pin and parallel nets to continue with the next version
+          if ( !_removed_hyperedges_batches.empty() ) {
+              utils::Timer::instance().start_timer("restore_single_pin_and_parallel_nets",
+                                                   "Restore Single Pin and Parallel Nets", false,
+                                                   force_measure_timings);
+              _phg.restoreSinglePinAndParallelNets(_removed_hyperedges_batches.back());
+              _removed_hyperedges_batches.pop_back();
+              utils::Timer::instance().stop_timer("restore_single_pin_and_parallel_nets", force_measure_timings);
+              HEAVY_REFINEMENT_ASSERT(_hg.verifyIncidenceArrayAndIncidentNets());
+              HEAVY_REFINEMENT_ASSERT(_phg.checkTrackedPartitionInformation());
+
+              // Perform refinement on all vertices
+              const double time_limit = refinementTimeLimit(_context, _round_coarsening_times.back());
+              globalRefine(_phg, fm, current_metrics, time_limit);
+              uncontraction_progress.setObjective(current_metrics.getMetric(
+                      _context.partition.mode, _context.partition.objective));
+              _round_coarsening_times.pop_back();
+          }
+
+          _group_pools_for_versions.pop_back();
+      }
+
+      size_t total_num_nodes = _hg.initialNumNodes();
+      size_t num_nodes_after_coarsening = _compactified_hg.initialNumNodes();
+      ASSERT(total_num_nodes == total_uncontrations.load(std::memory_order_acq_rel) + num_nodes_after_coarsening);
+      auto checkAllAssignedAndNoneLocked = [&](){
+          for (HypernodeID i = 0; i < _hg.initialNumNodes(); ++i) {
+              if(_phg.partID(i) == kInvalidPartition) return false;
+              if(_lock_manager_for_async->isLocked(i)) return false;
+          }
+          return true;
+      };
+//      HEAVY_REFINEMENT_ASSERT(checkAllAssignedAndNoneLocked());
+
+      // Top-Level Refinement on all vertices
+      const HyperedgeWeight objective_before = current_metrics.getMetric(
+              _context.partition.mode, _context.partition.objective);
+      const double time_limit = refinementTimeLimit(_context, _round_coarsening_times.back());
+      globalRefine(_phg, fm, current_metrics, time_limit);
+      _round_coarsening_times.pop_back();
+      ASSERT(_round_coarsening_times.size() == 0);
+      const HyperedgeWeight objective_after = current_metrics.getMetric(
+              _context.partition.mode, _context.partition.objective);
+      if ( _context.partition.verbose_output && objective_after < objective_before ) {
+          LOG << GREEN << "Top-Level Refinment improved objective from"
+              << objective_before << "to" << objective_after << END;
+      }
+
+      if ( is_timer_disabled ) {
+          utils::Timer::instance().enable();
+      }
+
+      // If we finish uncontractions and partition is imbalanced, we try to rebalance it
+      if ( _top_level && !metrics::isBalanced(_phg, _context)) {
+          const HyperedgeWeight quality_before = current_metrics.getMetric(
+                  kahypar::Mode::direct_kway, _context.partition.objective);
+          if ( _context.partition.verbose_output ) {
+              LOG << RED << "Partition is imbalanced (Current Imbalance:"
+                  << metrics::imbalance(_phg, _context) << ") ->"
+                  << "Rebalancer is activated" << END;
+
+              LOG << "Part weights: (violations in red)";
+              io::printPartWeightsAndSizes(_phg, _context);
+          }
+
+          utils::Timer::instance().start_timer("rebalance", "Rebalance");
+          if ( _context.partition.objective == kahypar::Objective::km1 ) {
+              Km1Rebalancer rebalancer(_phg, _context);
+              rebalancer.rebalance(current_metrics);
+          } else if ( _context.partition.objective == kahypar::Objective::cut ) {
+              CutRebalancer rebalancer(_phg, _context);
+              rebalancer.rebalance(current_metrics);
+          }
+          utils::Timer::instance().stop_timer("rebalance");
+
+          const HyperedgeWeight quality_after = current_metrics.getMetric(
+                  kahypar::Mode::direct_kway, _context.partition.objective);
+          if ( _context.partition.verbose_output ) {
+              const HyperedgeWeight quality_delta = quality_after - quality_before;
+              if ( quality_delta > 0 ) {
+                  LOG << RED << "Rebalancer worsen solution quality by" << quality_delta
+                      << "(Current Imbalance:" << metrics::imbalance(_phg, _context) << ")" << END;
+              } else {
+                  LOG << GREEN << "Rebalancer improves solution quality by" << abs(quality_delta)
+                      << "(Current Imbalance:" << metrics::imbalance(_phg, _context) << ")" << END;
+              }
+          }
+      }
+
+      ASSERT(metrics::objective(_phg, _context.partition.objective) ==
+             current_metrics.getMetric(kahypar::Mode::direct_kway, _context.partition.objective),
+             V(current_metrics.getMetric(kahypar::Mode::direct_kway, _context.partition.objective)) <<
+                                                                                                    V(metrics::objective(_phg, _context.partition.objective)));
+
+      return std::move(_phg);
+
+  }
+
+
   void MultilevelCoarsenerBase::refine(
           PartitionedHypergraph& partitioned_hypergraph,
           std::unique_ptr<IRefiner>& label_propagation,
@@ -748,6 +998,32 @@ namespace mt_kahypar {
       DBG << "--------------------------------------------------\n";
     }
   }
+
+  void NLevelCoarsenerBase::localizedRefineForAsynch(PartitionedHypergraph& partitioned_hypergraph,
+                                  const parallel::scalable_vector<HypernodeID>& refinement_nodes,
+                                  std::unique_ptr<IRefiner>& asynch_lp,
+                                  kahypar::Metrics& current_metrics,
+                                  const bool force_measure_timings) {
+
+      bool improvement_found = true;
+      while( improvement_found ) {
+          improvement_found = false;
+
+          if ( asynch_lp &&
+               _context.refinement.label_propagation.algorithm != LabelPropagationAlgorithm::do_nothing ) {
+              utils::Timer::instance().start_timer("label_propagation", "Label Propagation", false, force_measure_timings);
+              improvement_found |= asynch_lp->refine(partitioned_hypergraph,
+                                                             refinement_nodes, current_metrics, std::numeric_limits<double>::max());
+              utils::Timer::instance().stop_timer("label_propagation", force_measure_timings);
+          }
+
+          if ( !_context.refinement.refine_until_no_improvement ) {
+              break;
+          }
+      }
+
+  }
+
 
   namespace {
     NLevelGlobalFMParameters applyGlobalFMParameters(const FMParameters& fm,

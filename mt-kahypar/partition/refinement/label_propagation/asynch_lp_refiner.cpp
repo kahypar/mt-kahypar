@@ -18,8 +18,12 @@ namespace mt_kahypar {
         ASSERT(_contraction_group_id != ds::invalidGroupID, "ContractionGroupID (Owner-ID) for locking is invalid.");
         ASSERT(!refinement_nodes.empty(), "AsynchLPRefiner will not work without given seed refinement nodes. Cannot be used "
                                           "solely for rebalancing or for global refinement!");
-        HEAVY_REFINEMENT_ASSERT(std::all_of(refinement_nodes.begin(),refinement_nodes.end(),[&](const HypernodeID& hn) {return _lock_manager->isHeldBy(hn,_contraction_group_id);})
+        ASSERT(std::all_of(refinement_nodes.begin(),refinement_nodes.end(),[&](const HypernodeID& hn) {return _lock_manager->isHeldBy(hn,_contraction_group_id);})
             && "Not all given seed nodes are locked by the contraction group id that this LP refinement is based on!");
+        ASSERT(std::all_of(refinement_nodes.begin(),refinement_nodes.end(),[&](const HypernodeID& hn) {return hypergraph.nodeIsEnabled(hn);})
+               && "Not all given seed nodes are enabled!");
+
+
         _seeds = refinement_nodes;
         _active_nodes = refinement_nodes;
 
@@ -64,35 +68,6 @@ namespace mt_kahypar {
 
             _active_nodes = next_active_nodes.copy_sequential();
             next_active_nodes.clear_sequential();
-
-//            // todo mlaupichler remove debug: sorting and looking for locks that are not in active nodes
-//
-//            auto is_seed = [&](const HypernodeID& hn) {
-//                for (size_t seed : _seeds) {
-//                    if (seed == hn) return true;
-//                }
-//                return false;
-//            };
-//
-//            if (_active_nodes.empty()) {
-//                for (size_t id = 0; id < _num_nodes; ++id) {
-//                    if (_lock_manager->isHeldBy(id, _contraction_group_id)) ASSERT(is_seed(id));
-//                }
-//            } else {
-//                std::sort(_active_nodes.begin(), _active_nodes.end());
-//                size_t active_idx = 0;
-//                for (size_t id = 0; id < _num_nodes; ++id) {
-//                    // If a lock on id is being held then if it is not a seed it has to be in the _active_nodes for the following round
-//                    if (_lock_manager->isHeldBy(id, _contraction_group_id)) {
-//                        if (active_idx >= _active_nodes.size()) {
-//                            ASSERT(is_seed(id));
-//                            continue;
-//                        }
-//                        ASSERT((_active_nodes[active_idx] == id) || is_seed(id));
-//                        if (_active_nodes[active_idx] == id) ++active_idx;
-//                    }
-//                }
-//            }
 
             utils::Timer::instance().stop_timer("lp_round_" + std::to_string(i));
 

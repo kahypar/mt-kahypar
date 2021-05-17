@@ -145,15 +145,8 @@ namespace mt_kahypar {
                             const PartitionID from,
                             const PartitionID to,
                             const F& objective_delta) {
-            bool success = false;
-            if ( _context.partition.paradigm == Paradigm::nlevel && phg.isGainCacheInitialized()) {
-                success = phg.changeNodePartWithGainCacheUpdate(hn, from, to,
-                                                                _context.partition.max_part_weights[to], [] { }, objective_delta);
-            } else {
-                success = phg.changeNodePart(hn, from, to,
-                                             _context.partition.max_part_weights[to], []{}, objective_delta);
-            }
-            return success;
+            ASSERT(phg.nodeIsEnabled(hn));
+            return phg.changeNodePart(hn, from, to, _context.partition.max_part_weights[to], []{}, objective_delta);
         }
 
         parallel::scalable_vector<size_t> getSortedIndicesOfSeedsInActiveNodes() const;
@@ -176,6 +169,7 @@ namespace mt_kahypar {
 
         // ! A reference to the seed nodes for the current refinement. Locks for seed nodes are never
         parallel::scalable_vector<HypernodeID> _seeds;
+
     };
 
     using AsynchLPKm1Refiner = AsynchLPRefiner<Km1Policy>;

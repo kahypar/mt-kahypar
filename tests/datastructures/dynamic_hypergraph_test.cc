@@ -1458,7 +1458,9 @@ using ::testing::Return;
         while (!pools.empty()) {
             auto pool = pools.back().get();
             while (pool->hasActive()) {
-                auto groupID = pool->pickAnyActiveID();
+                ContractionGroupID groupID = invalidGroupID;
+                bool picked = pool->pickAnyActiveID(groupID);
+                if (!picked) continue;
                 auto group = pool->group(groupID);
                 hypergraph.uncontract(group, NOOP_BATCH_FUNC, NOOP_BATCH_FUNC);
                 pool->activateSuccessors(groupID);

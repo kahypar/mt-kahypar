@@ -21,6 +21,7 @@
 #pragma once
 
 #include <mt-kahypar/datastructures/asynch/array_lock_manager.h>
+#include <tbb/parallel_do.h>
 #include "tbb/task_group.h"
 
 #include "mt-kahypar/definitions.h"
@@ -94,6 +95,32 @@ class NLevelCoarsenerBase {
   PartitionedHypergraph&& doSequentialUncoarsen(std::unique_ptr<IRefiner>& label_propagation,
                                                 std::unique_ptr<IRefiner>& fm);
 
+    class PoolUncoarseningParallelBody {
+    public:
+        PoolUncoarseningParallelBody(ds::UncontractionGroupTree* hierarchy,
+                                              NLevelCoarsenerBase& base,
+                                              kahypar::Metrics& current_metrics,
+                                              bool& force_measure_timings,
+                                              CAtomic<size_t>& total_uncontractions) :
+                                              _hierarchy(hierarchy),
+                                              _base(base),
+                                              _current_metrics(current_metrics),
+                                              _force_measure_timings(force_measure_timings),
+                                              _total_uncontractions(total_uncontractions) {}
+
+        void operator()(ds::ContractionGroupID groupID, tbb::parallel_do_feeder<ds::ContractionGroupID>& feeder) const;
+    private:
+
+        ds::UncontractionGroupTree* _hierarchy;
+        NLevelCoarsenerBase& _base;
+        kahypar::Metrics& _current_metrics;
+        bool& _force_measure_timings;
+        CAtomic<size_t>& _total_uncontractions;
+    };
+
+  PartitionedHypergraph&& doAsynchronousUncoarsen(std::unique_ptr<IRefiner>& label_propagation,
+                                                  std::unique_ptr<IRefiner>& fm);
+
  protected:
   kahypar::Metrics computeMetrics(PartitionedHypergraph& phg) {
     HyperedgeWeight cut = 0;
@@ -114,6 +141,12 @@ class NLevelCoarsenerBase {
                        std::unique_ptr<IRefiner>& fm,
                        kahypar::Metrics& current_metrics,
                        const bool force_measure_timings);
+
+  void localizedRefineForAsynch(PartitionedHypergraph& partitioned_hypergraph,
+                                const parallel::scalable_vector<HypernodeID>& refinement_nodes,
+                                std::unique_ptr<IRefiner>& asynch_lp,
+                                kahypar::Metrics& current_metrics,
+                                const bool force_measure_timings);
 
   void globalRefine(PartitionedHypergraph& partitioned_hypergraph,
                     std::unique_ptr<IRefiner>& fm,

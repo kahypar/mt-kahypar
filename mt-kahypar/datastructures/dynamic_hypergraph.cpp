@@ -972,10 +972,10 @@ bool DynamicHypergraph::verifyBatchIndexAssignments(
  *      batch which (u, w) is part of. This ensures that a parallel batch uncontraction does not
  *      increase the objective function.
  * We use the contraction tree to create a batch uncontraction order. Note, uncontractions from
- * different subtrees can be interleaved abitrary. To ensure condition 1.) we peform a BFS starting
+ * different subtrees can be interleaved arbitrarily. To ensure condition 1.) we perform a BFS starting
  * from all roots of the contraction tree. Each BFS level induces a new batch. Since we contract
  * vertices in parallel its not possible to create a relative order of the contractions which is
- * neccassary for condition 2.). However, during a contraction we store a start and end "timepoint"
+ * necessary for condition 2.). However, during a contraction we store a start and end "timepoint"
  * of a contraction. If two contractions time intervals do not intersect, we can determine
  * which contraction happens strictly before the other. If they intersect, it is not possible to
  * give a relative order. To ensure condition 2.) we sort the childs of a vertex in the contraction tree

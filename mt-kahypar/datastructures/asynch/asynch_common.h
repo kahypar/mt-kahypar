@@ -14,7 +14,8 @@
 namespace mt_kahypar::ds {
 
     using ContractionGroupID = HypernodeID;
-    using ContractionGroupIDIteratorRange = IteratorRange<parallel::scalable_vector<ContractionGroupID>::const_iterator>;
+    using ContractionGroupIDIterator = parallel::scalable_vector<ContractionGroupID>::const_iterator;
+    using ContractionGroupIDIteratorRange = IteratorRange<ContractionGroupIDIterator>;
     using BlockedGroupIDIterator = tbb::blocked_range<ContractionGroupID>;
     using Contraction = Memento;
     using ContractionIterator = std::vector<Contraction>::const_iterator;

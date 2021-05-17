@@ -117,7 +117,8 @@ namespace mt_kahypar {
 //                partitioned_hypergraph.uncontractUsingGroupPool(pool, lockManager, NOOP_LOCALIZED_REFINEMENT_FUNC);
 
                 while (pool->hasActive()) {
-                    auto groupID = pool->pickAnyActiveID();
+                    auto groupID = invalidGroupID;
+                    pool->pickAnyActiveID(groupID);
                     auto group = pool->group(groupID);
 
                     // Attempt to acquire locks for representative and contracted nodes in the group. If any of the locks cannot be

@@ -6,7 +6,6 @@ set(DatastructureSources
         static_hypergraph.cpp
         graph.cpp
         incident_net_array.cpp
-        asynch/asynch_contraction_pool.cpp
         asynch/uncontraction_group_tree.cpp
         asynch/array_lock_manager.cpp)
 
