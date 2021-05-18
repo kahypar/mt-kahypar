@@ -36,6 +36,8 @@ namespace mt_kahypar {
     Gain overall_improvement = 0;
     size_t num_sub_rounds = context.refinement.deterministic_refinement.num_sub_rounds_sync_lp;
 
+    const bool log = context.type == kahypar::ContextType::main;
+
     for (size_t iter = 0; iter < context.refinement.label_propagation.maximum_iterations; ++iter) {
       size_t num_moves = 0;
       Gain round_improvement = 0;
@@ -50,7 +52,7 @@ namespace mt_kahypar {
         auto t = tbb::tick_count::now();
         n = phg.initialNumNodes();
         permutation.create_integer_permutation(n, context.shared_memory.num_threads, prng);
-        LOG << "shuffle time" << (tbb::tick_count::now() - t).seconds();
+        if (log) LOG << V(n) << V(iter) << "shuffle time" << (tbb::tick_count::now() - t).seconds();
       }
 
       size_t sub_round_size = parallel::chunking::idiv_ceil(n, num_sub_rounds);
@@ -74,7 +76,7 @@ namespace mt_kahypar {
           });
         }
 
-        LOG << "calc moves time" << (tbb::tick_count::now() - t1).seconds();
+        if (log) LOG << "calc moves time" << (tbb::tick_count::now() - t1).seconds();
 
         Gain sub_round_improvement = 0;
         size_t num_moves_in_sub_round = moves_back.load(std::memory_order_relaxed);
@@ -87,9 +89,10 @@ namespace mt_kahypar {
             sub_round_improvement += applyMovesSortedByGainAndRevertUnbalanced(phg);
           }
           auto t4 = tbb::tick_count::now();
-          LOG << "apply by prefix" << (t3-t2).seconds();
-          LOG << "apply by gain and seq revert" << (t4-t3).seconds();
+          if (log) LOG << "apply by prefix" << (t3-t2).seconds();
+          if (log) LOG << "apply by gain and seq revert" << (t4-t3).seconds();
         }
+        if (log) LOG << V(sub_round_improvement) << V(num_moves_in_sub_round);
         round_improvement += sub_round_improvement;
         num_moves += num_moves_in_sub_round;
       }
