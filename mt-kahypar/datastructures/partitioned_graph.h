@@ -490,6 +490,7 @@ private:
   }
 
   void setNodePart(const HypernodeID u, PartitionID p) {
+    ASSERT(_part_ids[u].load() == kInvalidPartition);
     setOnlyNodePart(u, p);
     _part_weights[p].fetch_add(nodeWeight(u), std::memory_order_relaxed);
   }

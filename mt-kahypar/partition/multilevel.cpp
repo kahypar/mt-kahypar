@@ -207,6 +207,7 @@ namespace mt_kahypar::multilevel {
         phg.doParallelForAllNodes([&](const HypernodeID hn) {
           const PartitionID part_id = hypergraph.communityID(hn);
           ASSERT(part_id != kInvalidPartition && part_id < _context.partition.k);
+          ASSERT(phg.partID(hn) == kInvalidPartition);
           phg.setOnlyNodePart(hn, part_id);
         });
         phg.initializePartition();

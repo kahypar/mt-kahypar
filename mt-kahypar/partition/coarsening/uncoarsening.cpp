@@ -121,6 +121,7 @@ namespace mt_kahypar {
         const HypernodeID coarse_hn = _hierarchy[i].mapToContractedHypergraph(hn);
         const PartitionID block = contracted_hg.partID(coarse_hn);
         ASSERT(block != kInvalidPartition && block < representative_hg.k());
+        ASSERT(representative_hg.partID(hn) == kInvalidPartition);
         representative_hg.setOnlyNodePart(hn, block);
       });
       representative_hg.initializePartition();
@@ -216,6 +217,7 @@ namespace mt_kahypar {
       const HypernodeID compactified_hn = _compactified_hn_mapping[hn];
       const PartitionID block_id = _compactified_phg.partID(compactified_hn);
       ASSERT(block_id != kInvalidPartition && block_id < _context.partition.k);
+      ASSERT(_phg.partID(hn) == kInvalidPartition);
       _phg.setOnlyNodePart(hn, block_id);
     });
     _phg.initializePartition();
