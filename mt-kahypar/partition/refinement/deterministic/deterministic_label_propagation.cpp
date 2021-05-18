@@ -40,14 +40,17 @@ namespace mt_kahypar {
       size_t num_moves = 0;
       Gain round_improvement = 0;
       size_t n;
+
       if (context.refinement.deterministic_refinement.feistel_shuffling) {
         // get rid of this constant after initial tests, and use std::array in FeistelPermutation to store the keys
         constexpr size_t num_feistel_rounds = 4;
         feistel_permutation.create_permutation(num_feistel_rounds, phg.initialNumNodes(), prng);
         n = feistel_permutation.max_num_entries();
       } else {
+        auto t = tbb::tick_count::now();
         n = phg.initialNumNodes();
         permutation.create_integer_permutation(n, context.shared_memory.num_threads, prng);
+        LOG << "shuffle time" << (tbb::tick_count::now() - t).seconds();
       }
 
       size_t sub_round_size = parallel::chunking::idiv_ceil(n, num_sub_rounds);
@@ -55,6 +58,8 @@ namespace mt_kahypar {
         // calculate moves
         moves_back.store(0, std::memory_order_relaxed);
         auto [first, last] = parallel::chunking::bounds(sub_round, n, sub_round_size);
+
+        auto t1 = tbb::tick_count::now();
         if (context.refinement.deterministic_refinement.feistel_shuffling) {
           tbb::parallel_for(HypernodeID(first), HypernodeID(last), [&](const HypernodeID cleartext) {
             const HypernodeID ciphertext = feistel_permutation.encrypt(cleartext);
@@ -69,14 +74,21 @@ namespace mt_kahypar {
           });
         }
 
+        LOG << "calc moves time" << (tbb::tick_count::now() - t1).seconds();
+
         Gain sub_round_improvement = 0;
         size_t num_moves_in_sub_round = moves_back.load(std::memory_order_relaxed);
         DBG << V(num_moves_in_sub_round);
         if (num_moves_in_sub_round > 0) {
+          auto t2 = tbb::tick_count::now();
           sub_round_improvement = applyMovesByMaximalPrefixesInBlockPairs(phg);
+          auto t3 = tbb::tick_count::now();
           if (sub_round_improvement > 0 && moves_back.load(std::memory_order_relaxed) > 0) {
             sub_round_improvement += applyMovesSortedByGainAndRevertUnbalanced(phg);
           }
+          auto t4 = tbb::tick_count::now();
+          LOG << "apply by prefix" << (t3-t2).seconds();
+          LOG << "apply by gain and seq revert" << (t4-t3).seconds();
         }
         round_improvement += sub_round_improvement;
         num_moves += num_moves_in_sub_round;
