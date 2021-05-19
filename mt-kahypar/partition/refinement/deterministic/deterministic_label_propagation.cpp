@@ -41,15 +41,10 @@ namespace mt_kahypar {
     for (size_t iter = 0; iter < context.refinement.label_propagation.maximum_iterations; ++iter) {
       size_t num_moves = 0;
       Gain round_improvement = 0;
-      size_t n;
-
-
+      size_t n = phg.initialNumNodes();;
       auto t = tbb::tick_count::now();
-      n = phg.initialNumNodes();
-      // TODO change to random_grouping?
-      permutation.create_integer_permutation(n, context.shared_memory.static_balancing_work_packages, prng);
+      permutation.random_grouping(n, context.shared_memory.static_balancing_work_packages, prng());
       if (log) LOG << V(n) << V(iter) << "shuffle time" << (tbb::tick_count::now() - t).seconds();
-
       size_t sub_round_size = parallel::chunking::idiv_ceil(n, num_sub_rounds);
       for (size_t sub_round = 0; sub_round < num_sub_rounds; ++sub_round) {
         // calculate moves
