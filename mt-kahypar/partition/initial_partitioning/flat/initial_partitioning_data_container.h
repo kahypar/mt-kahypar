@@ -358,13 +358,11 @@ class InitialPartitioningDataContainer {
       _local_he_visited(_context.partition.k * hypergraph.initialNumEdges()),
       _local_unassigned_hypernodes(),
       _local_unassigned_hypernode_pointer(std::numeric_limits<size_t>::max()),
-      _max_pop_size(_context.shared_memory.num_threads)
+      _max_pop_size(_context.initial_partitioning.population_size)
   {
     // Setup Label Propagation IRefiner Config for Initial Partitioning
     _context.refinement = _context.initial_partitioning.refinement;
     _context.refinement.label_propagation.execute_sequential = true;
-
-    _max_pop_size = std::max(_context.initial_partitioning.population_size, _context.shared_memory.num_threads);
 
     if (_context.partition.deterministic) {
       _best_partitions.resize(_max_pop_size);
