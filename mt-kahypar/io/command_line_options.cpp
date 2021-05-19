@@ -170,7 +170,10 @@ namespace mt_kahypar {
                        context.coarsening.algorithm = mt_kahypar::coarseningAlgorithmFromString(ctype);
                      })->default_value("multilevel_coarsener"),
              "Coarsening Algorithm:\n"
-             " - multilevel_coarsener")
+             " - multilevel_coarsener"
+             " - nlevel_coarsener"
+             " - deterministic_multilevel_coarsener"
+             )
             ("c-use-adaptive-edge-size",
              po::value<bool>(&context.coarsening.use_adaptive_edge_size)->value_name("<bool>")->default_value(true),
              "If true, the rating function uses the number of distinct cluster IDs of a net as edge size rather\n"
