@@ -43,18 +43,12 @@ namespace mt_kahypar {
       Gain round_improvement = 0;
       size_t n;
 
-      if (context.refinement.deterministic_refinement.feistel_shuffling) {
-        // get rid of this constant after initial tests, and use std::array in FeistelPermutation to store the keys
-        constexpr size_t num_feistel_rounds = 4;
-        feistel_permutation.create_permutation(num_feistel_rounds, phg.initialNumNodes(), prng);
-        n = feistel_permutation.max_num_entries();
-      } else {
-        auto t = tbb::tick_count::now();
-        n = phg.initialNumNodes();
-        // TODO change to random_grouping?
-        permutation.create_integer_permutation(n, context.shared_memory.static_balancing_work_packages, prng);
-        if (log) LOG << V(n) << V(iter) << "shuffle time" << (tbb::tick_count::now() - t).seconds();
-      }
+
+      auto t = tbb::tick_count::now();
+      n = phg.initialNumNodes();
+      // TODO change to random_grouping?
+      permutation.create_integer_permutation(n, context.shared_memory.static_balancing_work_packages, prng);
+      if (log) LOG << V(n) << V(iter) << "shuffle time" << (tbb::tick_count::now() - t).seconds();
 
       size_t sub_round_size = parallel::chunking::idiv_ceil(n, num_sub_rounds);
       for (size_t sub_round = 0; sub_round < num_sub_rounds; ++sub_round) {
