@@ -79,9 +79,10 @@ vec<uint32_t> counting_sort(const InputRange& input, OutputRange& output,
     // element assignment
     tbb::parallel_for(size_t(0), num_tasks, [&](const size_t taskID) {
       vec<uint32_t>& bucketEnds = thread_local_bucket_ends[taskID];
-      for (auto[i,last] = chunking::bounds(taskID, n, chunk_size); i < last; ++i) {
-        size_t bucket = get_bucket(input[i]);
-        output[global_bucket_begins[bucket] + (--bucketEnds[bucket])] = input[i];   // TODO this part is not stable
+      // reverse iteration makes the algorithm stable
+      for (auto [first,i] = chunking::bounds(taskID, n, chunk_size); i > first; --i) {
+        size_t bucket = get_bucket(input[i-1]);
+        output[global_bucket_begins[bucket] + (--bucketEnds[bucket])] = input[i-1];
       }
     });
 
