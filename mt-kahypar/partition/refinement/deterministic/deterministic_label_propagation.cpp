@@ -51,7 +51,8 @@ namespace mt_kahypar {
       } else {
         auto t = tbb::tick_count::now();
         n = phg.initialNumNodes();
-        permutation.create_integer_permutation(n, context.shared_memory.num_threads, prng);
+        // TODO change to random_grouping?
+        permutation.create_integer_permutation(n, context.shared_memory.static_balancing_work_packages, prng);
         if (log) LOG << V(n) << V(iter) << "shuffle time" << (tbb::tick_count::now() - t).seconds();
       }
 

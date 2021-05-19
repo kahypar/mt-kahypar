@@ -47,7 +47,7 @@ void DeterministicMultilevelCoarsener::coarsenImpl() {
       clusters[u] = u;
     });
 
-    permutation.random_grouping(num_nodes, _context.shared_memory.num_threads, prng());
+    permutation.random_grouping(num_nodes, _context.shared_memory.static_balancing_work_packages, prng());
     size_t num_sub_rounds = 16;
     size_t num_buckets = utils::ParallelPermutation<HypernodeID>::num_buckets;
     size_t num_buckets_per_sub_round = parallel::chunking::idiv_ceil(num_buckets, num_sub_rounds);

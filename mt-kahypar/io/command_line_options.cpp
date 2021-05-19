@@ -492,6 +492,13 @@ namespace mt_kahypar {
             ("s-num-threads,t",
              po::value<size_t>(&context.shared_memory.num_threads)->value_name("<size_t>"),
              "Number of Threads")
+            ("s-static-balancing-work-packages",
+             po::value<size_t>(&context.shared_memory.static_balancing_work_packages)->value_name("<size_t>"),
+             "Some sub-routines (sorting, shuffling) used in the deterministic presets employ static load balancing."
+             "This parameter sets the number of work packages, in order to achieve deterministic results across different numbers of threads."
+             "The default value is 128, and these sub-routines have fairly little work, so there should rarely be a reason to change this."
+             "It does not affect the non-deterministic configs, unless you activate one of the deterministic algorithms."
+            )
             ("s-use-localized-random-shuffle",
              po::value<bool>(&context.shared_memory.use_localized_random_shuffle)->value_name("<bool>"),
              "If true, localized parallel random shuffle is performed.")
