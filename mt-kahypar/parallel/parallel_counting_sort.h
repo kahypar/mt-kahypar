@@ -81,7 +81,7 @@ vec<uint32_t> counting_sort(const InputRange& input, OutputRange& output,
       vec<uint32_t>& bucketEnds = thread_local_bucket_ends[taskID];
       for (auto[i,last] = chunking::bounds(taskID, n, chunk_size); i < last; ++i) {
         size_t bucket = get_bucket(input[i]);
-        output[global_bucket_begins[bucket] + (--bucketEnds[bucket])] = input[i];
+        output[global_bucket_begins[bucket] + (--bucketEnds[bucket])] = input[i];   // TODO this part is not stable
       }
     });
 
