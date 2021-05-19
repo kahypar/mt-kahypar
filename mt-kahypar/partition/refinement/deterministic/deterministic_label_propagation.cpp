@@ -34,7 +34,9 @@ namespace mt_kahypar {
                                                         kahypar::Metrics& best_metrics,
                                                         const double)  {
     Gain overall_improvement = 0;
-    size_t num_sub_rounds = context.refinement.deterministic_refinement.num_sub_rounds_sync_lp;
+    constexpr size_t num_buckets = utils::ParallelPermutation<HypernodeID>::num_buckets;
+    const size_t num_sub_rounds = context.refinement.deterministic_refinement.num_sub_rounds_sync_lp;
+    const size_t num_buckets_per_sub_round = parallel::chunking::idiv_ceil(num_buckets, num_sub_rounds);
 
     const bool log = false && context.type == kahypar::ContextType::main;
 
@@ -45,41 +47,25 @@ namespace mt_kahypar {
       auto t = tbb::tick_count::now();
       permutation.random_grouping(n, context.shared_memory.static_balancing_work_packages, prng());
       if (log) LOG << V(n) << V(iter) << "shuffle time" << (tbb::tick_count::now() - t).seconds();
-      size_t sub_round_size = parallel::chunking::idiv_ceil(n, num_sub_rounds);
-      constexpr size_t num_buckets = utils::ParallelPermutation<HypernodeID>::num_buckets;
-      const size_t num_buckets_per_sub_round = parallel::chunking::idiv_ceil(num_buckets, num_sub_rounds);
       for (size_t sub_round = 0; sub_round < num_sub_rounds; ++sub_round) {
         auto [first_bucket, last_bucket] = parallel::chunking::bounds(sub_round, num_buckets, num_buckets_per_sub_round);
         assert(first_bucket < last_bucket && last_bucket < permutation.bucket_bounds.size());
         size_t first = permutation.bucket_bounds[first_bucket], last = permutation.bucket_bounds[last_bucket];
+        moves_back.store(0, std::memory_order_relaxed);
 
         // calculate moves
-        moves_back.store(0, std::memory_order_relaxed);
-        // auto [first, last] = parallel::chunking::bounds(sub_round, n, sub_round_size);
-
         auto t1 = tbb::tick_count::now();
-        if (context.refinement.deterministic_refinement.feistel_shuffling) {
-          tbb::parallel_for(HypernodeID(first), HypernodeID(last), [&](const HypernodeID cleartext) {
-            const HypernodeID ciphertext = feistel_permutation.encrypt(cleartext);
-            if (ciphertext < phg.initialNumNodes()) {
-              calculateAndSaveBestMove(phg, ciphertext);
-            }
+        if (phg.k() == 2) {
+          tbb::parallel_for(HypernodeID(first), HypernodeID(last), [&](const HypernodeID position) {
+            assert(position < permutation.permutation.size());
+            calculateAndSaveBestMoveTwoWay(phg, permutation.at(position));
           });
         } else {
-          if (phg.k() == 2) {
-            tbb::parallel_for(HypernodeID(first), HypernodeID(last), [&](const HypernodeID position) {
-              assert(position < permutation.permutation.size());
-              calculateAndSaveBestMoveTwoWay(phg, permutation.at(position));
-            });
-          } else {
-            tbb::parallel_for(HypernodeID(first), HypernodeID(last), [&](const HypernodeID position) {
-              assert(position < permutation.permutation.size());
-              calculateAndSaveBestMove(phg, permutation.at(position));
-            });
-          }
-
+          tbb::parallel_for(HypernodeID(first), HypernodeID(last), [&](const HypernodeID position) {
+            assert(position < permutation.permutation.size());
+            calculateAndSaveBestMove(phg, permutation.at(position));
+          });
         }
-
         if (log) LOG << "calc moves time" << (tbb::tick_count::now() - t1).seconds();
 
         Gain sub_round_improvement = 0;
