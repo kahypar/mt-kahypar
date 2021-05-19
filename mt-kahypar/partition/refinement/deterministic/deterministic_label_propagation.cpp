@@ -36,7 +36,7 @@ namespace mt_kahypar {
     Gain overall_improvement = 0;
     size_t num_sub_rounds = context.refinement.deterministic_refinement.num_sub_rounds_sync_lp;
 
-    const bool log = context.type == kahypar::ContextType::main;
+    const bool log = false && context.type == kahypar::ContextType::main;
 
     for (size_t iter = 0; iter < context.refinement.label_propagation.maximum_iterations; ++iter) {
       size_t num_moves = 0;
