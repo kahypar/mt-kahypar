@@ -71,10 +71,18 @@ namespace mt_kahypar {
             }
           });
         } else {
-          tbb::parallel_for(HypernodeID(first), HypernodeID(last), [&](const HypernodeID position) {
-            assert(position < permutation.permutation.size());
-            calculateAndSaveBestMove(phg, permutation.at(position));
-          });
+          if (phg.k() == 2) {
+            tbb::parallel_for(HypernodeID(first), HypernodeID(last), [&](const HypernodeID position) {
+              assert(position < permutation.permutation.size());
+              calculateAndSaveBestMoveTwoWay(phg, permutation.at(position));
+            });
+          } else {
+            tbb::parallel_for(HypernodeID(first), HypernodeID(last), [&](const HypernodeID position) {
+              assert(position < permutation.permutation.size());
+              calculateAndSaveBestMove(phg, permutation.at(position));
+            });
+          }
+
         }
 
         if (log) LOG << "calc moves time" << (tbb::tick_count::now() - t1).seconds();

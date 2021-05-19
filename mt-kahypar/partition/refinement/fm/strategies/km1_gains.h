@@ -110,4 +110,22 @@ struct Km1GainComputer {
 
   vec<Gain> gains;
 };
+
+struct TwoWayGainComputer {
+  Gain gainToOtherBlock(const PartitionedHypergraph& phg, const HypernodeID u) const {
+    Gain gain = 0;
+    const PartitionID from = phg.partID(u);
+    for (HyperedgeID e : phg.incidentEdges(u)) {
+      const auto pcip = phg.pinCountInPart(e, from);
+      const auto weight = phg.edgeWeight(e);
+      // gain += (pcip == 1) * weight;
+      // gain -= (pcip == phg.edgeSize(e)) * weight;
+
+      if (pcip == 1) { gain += weight; }
+      else if (pcip == phg.edgeSize(e)) { gain -= weight; }
+    }
+    return gain;
+  }
+};
+
 }

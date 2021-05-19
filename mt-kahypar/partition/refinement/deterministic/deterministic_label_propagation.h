@@ -57,6 +57,7 @@ private:
 
   vec<size_t> aggregateDirectionBucketsInplace();
 
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
   void calculateAndSaveBestMove(PartitionedHypergraph& phg, HypernodeID u) {
     assert(u < phg.initialNumNodes());
     if (!phg.isBorderNode(u)) return;
@@ -70,8 +71,19 @@ private:
     }
   }
 
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
+  void calculateAndSaveBestMoveTwoWay(PartitionedHypergraph& phg, HypernodeID u) {
+    if (phg.nodeDegree(u) > PartitionedHypergraph::HIGH_DEGREE_THRESHOLD) return;
+    const Gain gain = two_way_gains.gainToOtherBlock(phg, u);
+    if (gain > 0) {
+      size_t pos = moves_back.fetch_add(1, std::memory_order_relaxed);
+      moves[pos] = { phg.partID(u), 1 - phg.partID(u), u, gain };
+    }
+  }
+
   const Context& context;
   tbb::enumerable_thread_specific<Km1GainComputer> compute_gains;
+  TwoWayGainComputer two_way_gains;
   vec<Move> moves, sorted_moves;
   std::atomic<size_t> moves_back = {0};
 
