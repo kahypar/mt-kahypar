@@ -112,7 +112,7 @@ struct Km1GainComputer {
 };
 
 struct TwoWayGainComputer {
-  Gain gainToOtherBlock(const PartitionedHypergraph& phg, const HypernodeID u) const {
+  static Gain gainToOtherBlock(const PartitionedHypergraph& phg, const HypernodeID u) {
     Gain gain = 0;
     const PartitionID from = phg.partID(u);
     for (HyperedgeID e : phg.incidentEdges(u)) {
