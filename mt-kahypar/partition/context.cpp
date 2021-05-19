@@ -404,6 +404,12 @@ namespace mt_kahypar {
                   partition.max_part_weights.size());
     }
 
+    if ( shared_memory.static_balancing_work_packages > 256 ) {
+      WARNING("--s-static-balance-work-packages set to "
+                + std::to_string(shared_memory.static_balancing_work_packages) + ". Max value is 256. Clamping.");
+      shared_memory.static_balancing_work_packages = std::clamp(shared_memory.static_balancing_work_packages, 4UL, 256UL);
+    }
+
     if ( partition.deterministic ) {
       coarsening.algorithm = CoarseningAlgorithm::deterministic_multilevel_coarsener;
 

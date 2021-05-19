@@ -496,7 +496,7 @@ namespace mt_kahypar {
              po::value<size_t>(&context.shared_memory.static_balancing_work_packages)->value_name("<size_t>"),
              "Some sub-routines (sorting, shuffling) used in the deterministic presets employ static load balancing."
              "This parameter sets the number of work packages, in order to achieve deterministic results across different numbers of threads."
-             "The default value is 128, and these sub-routines have fairly little work, so there should rarely be a reason to change this."
+             "The default value is 128, and these sub-routines have little work, so there should rarely be a reason to change it. Max value is 256."
              "It does not affect the non-deterministic configs, unless you activate one of the deterministic algorithms."
             )
             ("s-use-localized-random-shuffle",
