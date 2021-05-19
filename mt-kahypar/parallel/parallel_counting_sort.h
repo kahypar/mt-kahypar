@@ -74,7 +74,7 @@ vec<uint32_t> counting_sort(const InputRange& input, OutputRange& output,
     assert(global_bucket_begins.size()  >= thread_local_bucket_ends.back().size() + 1);
     parallel_prefix_sum(thread_local_bucket_ends.back().cbegin(), thread_local_bucket_ends.back().cend(),
                         global_bucket_begins.begin() + 1,
-                        std::plus<uint32_t>(), 0);
+                        std::plus<>(), 0);
 
     // element assignment
     tbb::parallel_for(size_t(0), num_tasks, [&](const size_t taskID) {
