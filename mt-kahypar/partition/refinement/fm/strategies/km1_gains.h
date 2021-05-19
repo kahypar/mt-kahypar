@@ -118,9 +118,6 @@ struct TwoWayGainComputer {
     for (HyperedgeID e : phg.incidentEdges(u)) {
       const auto pcip = phg.pinCountInPart(e, from);
       const auto weight = phg.edgeWeight(e);
-      // gain += (pcip == 1) * weight;
-      // gain -= (pcip == phg.edgeSize(e)) * weight;
-
       if (pcip == 1) { gain += weight; }
       else if (pcip == phg.edgeSize(e)) { gain -= weight; }
     }

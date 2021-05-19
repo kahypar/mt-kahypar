@@ -73,7 +73,7 @@ private:
 
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
   void calculateAndSaveBestMoveTwoWay(PartitionedHypergraph& phg, HypernodeID u) {
-    if (phg.nodeDegree(u) > PartitionedHypergraph::HIGH_DEGREE_THRESHOLD) return;
+    if (!phg.isBorderNode(u)) return;
     const Gain gain = TwoWayGainComputer::gainToOtherBlock(phg, u);
     if (gain > 0) {
       size_t pos = moves_back.fetch_add(1, std::memory_order_relaxed);
