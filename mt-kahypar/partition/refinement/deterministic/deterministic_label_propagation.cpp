@@ -46,10 +46,16 @@ namespace mt_kahypar {
       permutation.random_grouping(n, context.shared_memory.static_balancing_work_packages, prng());
       if (log) LOG << V(n) << V(iter) << "shuffle time" << (tbb::tick_count::now() - t).seconds();
       size_t sub_round_size = parallel::chunking::idiv_ceil(n, num_sub_rounds);
+      constexpr size_t num_buckets = utils::ParallelPermutation<HypernodeID>::num_buckets;
+      const size_t num_buckets_per_sub_round = parallel::chunking::idiv_ceil(num_buckets, num_sub_rounds);
       for (size_t sub_round = 0; sub_round < num_sub_rounds; ++sub_round) {
+        auto [first_bucket, last_bucket] = parallel::chunking::bounds(sub_round, num_buckets, num_buckets_per_sub_round);
+        assert(first_bucket < last_bucket && last_bucket < permutation.bucket_bounds.size());
+        size_t first = permutation.bucket_bounds[first_bucket], last = permutation.bucket_bounds[last_bucket];
+
         // calculate moves
         moves_back.store(0, std::memory_order_relaxed);
-        auto [first, last] = parallel::chunking::bounds(sub_round, n, sub_round_size);
+        // auto [first, last] = parallel::chunking::bounds(sub_round, n, sub_round_size);
 
         auto t1 = tbb::tick_count::now();
         if (context.refinement.deterministic_refinement.feistel_shuffling) {
