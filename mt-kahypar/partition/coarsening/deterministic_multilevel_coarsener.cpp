@@ -196,7 +196,8 @@ size_t DeterministicMultilevelCoarsener::approveVerticesInTooHeavyClusters(vec<H
     if (pos == 0 || propositions[nodes_in_too_heavy_clusters[pos - 1]] != target) {
       HypernodeWeight target_weight = cluster_weight[target];
       size_t first_rejected = pos;
-      for (; ; ++first_rejected) {    // could be parallelized without extra memory but factor 2 work overhead and log(n) depth via binary search
+      // could be parallelized without extra memory but factor 2 work overhead and log(n) depth via binary search
+      for (; ; ++first_rejected) {
         // we know that this cluster is too heavy, so the loop will terminate before
         assert(first_rejected < nodes_in_too_heavy_clusters.size());
         assert(propositions[nodes_in_too_heavy_clusters[first_rejected]] == target);
