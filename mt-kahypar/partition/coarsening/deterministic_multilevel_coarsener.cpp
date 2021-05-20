@@ -219,6 +219,8 @@ size_t DeterministicMultilevelCoarsener::approveVerticesInTooHeavyClusters(vec<H
   auto t5 = tbb::tick_count::now();
   LOG << "sorting" << V(nodes_in_too_heavy_clusters.size()) << "took" << (t4-t3).seconds();
   LOG << "approve" << (t5-t4).seconds();
+
+  return num_contracted_nodes.combine(std::plus<>());
 }
 
 }
