@@ -100,7 +100,7 @@ void DeterministicMultilevelCoarsener::coarsenImpl() {
     performMultilevelContraction(std::move(clusters), pass_start_time);
   }
 
-  progress_bar += (initial_num_nodes - progress_bar.count());
+  progress_bar += (initial_num_nodes - progress_bar.count());   // fill to 100% 
   progress_bar.disable();
   finalize();
 }
