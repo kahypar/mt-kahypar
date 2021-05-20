@@ -27,6 +27,7 @@
 namespace mt_kahypar {
 
 void DeterministicMultilevelCoarsener::coarsenImpl() {
+  auto& timer = utils::Timer::instance();
   HypernodeID initial_num_nodes = currentNumNodes();
   utils::ProgressBar progress_bar(initial_num_nodes, 0,
                                   _context.partition.verbose_output && _context.partition.enable_progress_bar);
@@ -35,12 +36,14 @@ void DeterministicMultilevelCoarsener::coarsenImpl() {
   constexpr size_t num_buckets = utils::ParallelPermutation<HypernodeID>::num_buckets;
   const size_t num_buckets_per_sub_round = parallel::chunking::idiv_ceil(num_buckets, num_sub_rounds);
 
+
   std::mt19937 prng(_context.partition.seed);
   size_t pass = 0;
   while (currentNumNodes() > _context.coarsening.contraction_limit) {
     const auto pass_start_time = std::chrono::high_resolution_clock::now();
-    const Hypergraph& hg = currentHypergraph();
+    timer.start_timer("coarsening_pass", "Clustering");
 
+    const Hypergraph& hg = currentHypergraph();
     size_t num_nodes = currentNumNodes();
     const double num_nodes_before_pass = num_nodes;
     vec<HypernodeID> clusters(num_nodes, kInvalidHypernode);
@@ -93,6 +96,7 @@ void DeterministicMultilevelCoarsener::coarsenImpl() {
       nodes_in_too_heavy_clusters.clear();
     }
 
+    timer.stop_timer("coarsening_pass");
     ++pass;
     if (num_nodes_before_pass / num_nodes <= _context.coarsening.minimum_shrink_factor) {
       break;
