@@ -90,57 +90,16 @@ void DeterministicMultilevelCoarsener::coarsenImpl() {
           }
         }
       });
-
+      num_nodes -= num_contracted_nodes.combine(std::plus<>());
       nodes_in_too_heavy_clusters.finalize();
 
       auto t3 = tbb::tick_count::now();
-
       LOG << V(sub_round) << "calc clusters" << (t2-t1).seconds();
       LOG << "preapprove, or buffer copy" << (t3-t2).seconds();
       if (nodes_in_too_heavy_clusters.size() > 0) {
-        // group vertices by desired cluster, if their cluster is too heavy. approve the lower weight nodes first
-
-        auto comp = [&](HypernodeID lhs, HypernodeID rhs) {
-          HypernodeWeight wl = hg.nodeWeight(lhs), wr = hg.nodeWeight(rhs);
-          return std::tie(propositions[lhs], wl, lhs) < std::tie(propositions[rhs], wr, rhs);
-        };
-        tbb::parallel_sort(nodes_in_too_heavy_clusters.begin(), nodes_in_too_heavy_clusters.end(), comp);
-
-        auto t4 = tbb::tick_count::now();
-
-        tbb::parallel_for(0UL, nodes_in_too_heavy_clusters.size(), [&](size_t pos) {
-          HypernodeID target = propositions[nodes_in_too_heavy_clusters[pos]];
-          // the first vertex for this cluster handles the approval
-          size_t num_contracted_local = 0;
-          if (pos == 0 || propositions[nodes_in_too_heavy_clusters[pos - 1]] != target) {
-            HypernodeWeight target_weight = cluster_weight[target];
-            size_t first_rejected = pos;
-            for (; ; ++first_rejected) {    // could be parallelized without extra memory but factor 2 work overhead and log(n) depth via binary search
-              // we know that this cluster is too heavy, so the loop will terminate before
-              assert(first_rejected < nodes_in_too_heavy_clusters.size());
-              assert(propositions[nodes_in_too_heavy_clusters[first_rejected]] == target);
-              HypernodeID v = nodes_in_too_heavy_clusters[first_rejected];
-              if (target_weight + hg.nodeWeight(v) > _context.coarsening.max_allowed_node_weight) {
-                break;
-              }
-              clusters[v] = target;
-              target_weight += hg.nodeWeight(v);
-              if (opportunistic_cluster_weight[v] == hg.nodeWeight(v)) {
-                num_contracted_local += 1;
-              }
-            }
-            cluster_weight[target] = target_weight;
-            opportunistic_cluster_weight[target] = target_weight;
-            num_contracted_nodes.local() += num_contracted_local;
-          }
-        });
-
-        auto t5 = tbb::tick_count::now();
-        LOG << "sorting" << V(nodes_in_too_heavy_clusters.size()) << "took" << (t4-t3).seconds();
-        LOG << "approve" << (t5-t4).seconds();
+        num_nodes -= approveVerticesInTooHeavyClusters(clusters);
       }
       nodes_in_too_heavy_clusters.clear();
-      num_nodes -= num_contracted_nodes.combine(std::plus<>());
     }
 
     ++pass;
@@ -213,6 +172,53 @@ void DeterministicMultilevelCoarsener::calculatePreferredTargetCluster(Hypernode
     propositions[u] = best_target;
     __atomic_fetch_add(&opportunistic_cluster_weight[best_target], hg.nodeWeight(u), __ATOMIC_RELAXED);
   }
+}
+
+size_t DeterministicMultilevelCoarsener::approveVerticesInTooHeavyClusters(vec<HypernodeID>& clusters) {
+  const Hypergraph& hg = currentHypergraph();
+  tbb::enumerable_thread_specific<size_t> num_contracted_nodes { 0 };
+
+  auto t3 = tbb::tick_count::now();
+
+  // group vertices by desired cluster, if their cluster is too heavy. approve the lower weight nodes first
+  auto comp = [&](HypernodeID lhs, HypernodeID rhs) {
+    HypernodeWeight wl = hg.nodeWeight(lhs), wr = hg.nodeWeight(rhs);
+    return std::tie(propositions[lhs], wl, lhs) < std::tie(propositions[rhs], wr, rhs);
+  };
+  tbb::parallel_sort(nodes_in_too_heavy_clusters.begin(), nodes_in_too_heavy_clusters.end(), comp);
+
+  auto t4 = tbb::tick_count::now();
+
+  tbb::parallel_for(0UL, nodes_in_too_heavy_clusters.size(), [&](size_t pos) {
+    HypernodeID target = propositions[nodes_in_too_heavy_clusters[pos]];
+    // the first vertex for this cluster handles the approval
+    size_t num_contracted_local = 0;
+    if (pos == 0 || propositions[nodes_in_too_heavy_clusters[pos - 1]] != target) {
+      HypernodeWeight target_weight = cluster_weight[target];
+      size_t first_rejected = pos;
+      for (; ; ++first_rejected) {    // could be parallelized without extra memory but factor 2 work overhead and log(n) depth via binary search
+        // we know that this cluster is too heavy, so the loop will terminate before
+        assert(first_rejected < nodes_in_too_heavy_clusters.size());
+        assert(propositions[nodes_in_too_heavy_clusters[first_rejected]] == target);
+        HypernodeID v = nodes_in_too_heavy_clusters[first_rejected];
+        if (target_weight + hg.nodeWeight(v) > _context.coarsening.max_allowed_node_weight) {
+          break;
+        }
+        clusters[v] = target;
+        target_weight += hg.nodeWeight(v);
+        if (opportunistic_cluster_weight[v] == hg.nodeWeight(v)) {
+          num_contracted_local += 1;
+        }
+      }
+      cluster_weight[target] = target_weight;
+      opportunistic_cluster_weight[target] = target_weight;
+      num_contracted_nodes.local() += num_contracted_local;
+    }
+  });
+
+  auto t5 = tbb::tick_count::now();
+  LOG << "sorting" << V(nodes_in_too_heavy_clusters.size()) << "took" << (t4-t3).seconds();
+  LOG << "approve" << (t5-t4).seconds();
 }
 
 }
