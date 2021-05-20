@@ -171,13 +171,7 @@ void DeterministicMultilevelCoarsener::calculatePreferredTargetCluster(Hypernode
     if (he_size < _context.partition.ignore_hyperedge_size_threshold) {
       double he_score = static_cast<double>(hg.edgeWeight(he)) / he_size;
       for (HypernodeID v : hg.pins(he)) {
-        // TODO test impact!
-        // the original code only counts the first occurence of each cluster in the same hyperedge
-        // i.e., if multiple pins have the same cluster, only one counts
-        // PaToH accounts for each occurrence
-        // for n-level this obviously doesn't matter (where the code was taken from)
         ratings[clusters[v]] += he_score;
-        // ratings[v] += he_score;    // avoid cluster lookup --> later aggregate in the rating eval loop
       }
     }
   }
@@ -187,7 +181,6 @@ void DeterministicMultilevelCoarsener::calculatePreferredTargetCluster(Hypernode
   const HypernodeWeight weight_u = hg.nodeWeight(u);
   vec<HypernodeID>& best_targets = ties.local();
   double best_score = 0.0;
-
 
   for (const auto& entry : ratings) {
     HypernodeID target_cluster = entry.key;
@@ -201,27 +194,6 @@ void DeterministicMultilevelCoarsener::calculatePreferredTargetCluster(Hypernode
       best_targets.push_back(target_cluster);
     }
   }
-
-  /* // version that aggregates cluster scores post net/pin iteration
-  for (auto it = ratings.begin(); it != ratings.end(); ++it) {
-    HypernodeID neighbor = it->key;
-    double neighbor_score = it->value;
-    HypernodeID target_cluster = clusters[neighbor];
-    if (target_cluster != neighbor) {     // this doesn't work with unstable leaders
-      ratings[target_cluster] += neighbor_score;
-    }
-    double target_score = ratings[target_cluster];
-
-    if (target_cluster != u && target_score >= best_score && hg.communityID(target_cluster) == comm_u
-        && cluster_weight[target_cluster] + weight_u <= _context.coarsening.max_allowed_node_weight) {
-      if (target_score > best_score) {
-        best_targets.clear();
-        best_score = target_score;
-      }
-      best_targets.push_back(target_cluster);
-    }
-  }
-  */
 
   HypernodeID best_target;
   if (best_targets.size() == 1) {
