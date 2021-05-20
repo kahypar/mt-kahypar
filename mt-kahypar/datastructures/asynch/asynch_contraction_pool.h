@@ -20,12 +20,19 @@ namespace mt_kahypar::ds
         std::unique_ptr<GroupHierarchy> _hierarchy;
         std::queue<ContractionGroupID> _active_ids;
 
+        ContractionGroupID _num_groups;
+        Array<bool> _active;
+        Array<bool> _successors_activated;
+
     public:
         /**
          * Constructs new sequential contraction group pool. Passes ownership of the given group hierarchy to this pool.
          */
         explicit SequentialContractionGroupPool(std::unique_ptr<GroupHierarchy> hierarchy)
-            : _hierarchy(hierarchy.release()) {
+            : _hierarchy(hierarchy.release()),
+            _num_groups(_hierarchy->getNumGroups()),
+            _active(_num_groups, false),
+            _successors_activated(_num_groups, false) {
             auto roots = _hierarchy->roots();
             for(auto r: roots) {
                 activate(r);
@@ -51,15 +58,20 @@ namespace mt_kahypar::ds
         bool pickAnyActiveID(ContractionGroupID& destination) {
             ASSERT(!_active_ids.empty());
             destination = _active_ids.front();
+            ASSERT(isActive(destination));
+            ASSERT(!_successors_activated[destination]);
             _active_ids.pop();
+            _active[destination] = false;
             return true;
         }
 
         void activateSuccessors(ContractionGroupID id) {
+            ASSERT(!isActive(id));
             auto succs = _hierarchy->successors(id);
             for (auto s : succs) {
                 activate(s);
             }
+            _successors_activated[id] = true;
         }
 
         bool hasActive() const {
@@ -67,14 +79,22 @@ namespace mt_kahypar::ds
         }
 
         void reactivate(ContractionGroupID id) {
-
+            ASSERT(!isActive(id));
+            ASSERT(!_successors_activated[id]);
             activate(id);
         }
 
     private:
 
+        bool isActive(ContractionGroupID id) const {
+            ASSERT(id < _num_groups);
+            return _active[id];
+        }
+
         void activate(ContractionGroupID id) {
+            ASSERT(!isActive(id));
             _active_ids.push(id);
+            _active[id] = true;
         }
 
     };

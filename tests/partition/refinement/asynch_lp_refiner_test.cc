@@ -108,13 +108,13 @@ class AAsynchLPRefiner : public Test {
             partitioned_hypergraph.hypergraph(),
             context,
             TBBNumaArena::GLOBAL_TASK_GROUP,
-            lock_manager.get(),
-            contraction_group_id
+            lock_manager.get()
             );
 
 
 //    refiner = std::make_unique<Refiner>(hypergraph, context, TBBNumaArena::GLOBAL_TASK_GROUP,lock_manager.get(),contraction_group_id);
-    refiner->initialize(partitioned_hypergraph);
+//    refiner->initialize(partitioned_hypergraph);
+//    refiner->resetForGroup(contraction_group_id);
   }
 
   void initialPartition() {
@@ -125,9 +125,9 @@ class AAsynchLPRefiner : public Test {
       BFSInitialPartitioner(InitialPartitioningAlgorithm::bfs, ip_data, ip_context, 420);
     tbb::task::spawn_root_and_wait(initial_partitioner);
     ip_data.apply();
-    metrics.km1 = metrics::km1(partitioned_hypergraph);
-    metrics.cut = metrics::hyperedgeCut(partitioned_hypergraph);
-    metrics.imbalance = metrics::imbalance(partitioned_hypergraph, context);
+    metrics.km1.store(metrics::km1(partitioned_hypergraph),std::memory_order_acq_rel);
+    metrics.cut.store(metrics::hyperedgeCut(partitioned_hypergraph),std::memory_order_acq_rel);
+    metrics.imbalance.store(metrics::imbalance(partitioned_hypergraph, context),std::memory_order_acq_rel);
 
     // Set refinement nodes to all border nodes (as the AsynchLPRefiner needs input seed nodes)
 //    auto add_border_node_to_refinement_nodes = [&](const HypernodeID& u) {
@@ -149,8 +149,8 @@ class AAsynchLPRefiner : public Test {
   Hypergraph hypergraph;
   PartitionedHypergraph partitioned_hypergraph;
   Context context;
-  std::unique_ptr<IRefiner> refiner;
-  kahypar::Metrics metrics;
+  std::unique_ptr<IAsynchRefiner> refiner;
+  metrics::ThreadSafeMetrics metrics;
   parallel::scalable_vector<HypernodeID> refinement_nodes;
 
   std::unique_ptr<ds::GroupLockManager> lock_manager;
@@ -172,30 +172,30 @@ typedef ::testing::Types<TestConfig<2, kahypar::Objective::cut>,
 TYPED_TEST_CASE(AAsynchLPRefiner, TestConfigs);
 
 TYPED_TEST(AAsynchLPRefiner, UpdatesImbalanceCorrectly) {
-  this->refiner->refine(this->partitioned_hypergraph, this->refinement_nodes, this->metrics, std::numeric_limits<double>::max());
+  this->refiner->refine(this->partitioned_hypergraph, this->refinement_nodes, this->metrics, std::numeric_limits<double>::max(),this->contraction_group_id);
   ASSERT_DOUBLE_EQ(metrics::imbalance(this->partitioned_hypergraph, this->context), this->metrics.imbalance);
 }
 
 TYPED_TEST(AAsynchLPRefiner, DoesNotViolateBalanceConstraint) {
-  this->refiner->refine(this->partitioned_hypergraph, this->refinement_nodes, this->metrics, std::numeric_limits<double>::max());
+  this->refiner->refine(this->partitioned_hypergraph, this->refinement_nodes, this->metrics, std::numeric_limits<double>::max(),this->contraction_group_id);
   ASSERT_LE(this->metrics.imbalance, this->context.partition.epsilon + EPS);
 }
 
 TYPED_TEST(AAsynchLPRefiner, UpdatesMetricsCorrectly) {
-  this->refiner->refine(this->partitioned_hypergraph, this->refinement_nodes, this->metrics, std::numeric_limits<double>::max());
+  this->refiner->refine(this->partitioned_hypergraph, this->refinement_nodes, this->metrics, std::numeric_limits<double>::max(),this->contraction_group_id);
   ASSERT_EQ(metrics::objective(this->partitioned_hypergraph, this->context.partition.objective),
             this->metrics.getMetric(kahypar::Mode::direct_kway, this->context.partition.objective));
 }
 
 TYPED_TEST(AAsynchLPRefiner, DoesNotWorsenSolutionQuality) {
   HyperedgeWeight objective_before = metrics::objective(this->partitioned_hypergraph, this->context.partition.objective);
-  this->refiner->refine(this->partitioned_hypergraph, this->refinement_nodes, this->metrics, std::numeric_limits<double>::max());
+  this->refiner->refine(this->partitioned_hypergraph, this->refinement_nodes, this->metrics, std::numeric_limits<double>::max(),this->contraction_group_id);
   ASSERT_LE(this->metrics.getMetric(kahypar::Mode::direct_kway, this->context.partition.objective), objective_before);
 }
 
 TYPED_TEST(AAsynchLPRefiner, RefineWithEmptyRefinementNodesDeathTest) {
     testing::FLAGS_gtest_death_test_style="threadsafe";
-    ASSERT_DEATH(this->refiner->refine(this->partitioned_hypergraph, {}, this->metrics, std::numeric_limits<double>::max()), "");
+    ASSERT_DEATH(this->refiner->refine(this->partitioned_hypergraph, {}, this->metrics, std::numeric_limits<double>::max(),this->contraction_group_id), "");
 }
 
 }  // namespace mt_kahypar

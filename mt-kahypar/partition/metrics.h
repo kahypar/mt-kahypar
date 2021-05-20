@@ -20,9 +20,92 @@
 
 #pragma once
 
+#include <kahypar/partition/metrics.h>
 #include "mt-kahypar/partition/context.h"
 
 namespace mt_kahypar::metrics {
+
+    struct ThreadSafeMetrics {
+
+    private:
+        using Mode = kahypar::Mode;
+        using Objective = kahypar::Objective;
+
+        CAtomic<HyperedgeWeight> cut;
+        CAtomic<HyperedgeWeight> km1;
+        parallel::AtomicWrapper<double> imbalance;
+
+    public:
+
+        ThreadSafeMetrics() = default;
+        ThreadSafeMetrics(HyperedgeWeight cut, HyperedgeWeight km1, double imbalance) : cut(cut), km1(km1), imbalance(imbalance) {}
+
+        HyperedgeWeight loadCut() {
+            return cut.load(std::memory_order_acquire);
+        }
+
+        HyperedgeWeight loadKm1() {
+            return km1.load(std::memory_order_acquire);
+        }
+
+        double loadImbalance() {
+            return imbalance.load(std::memory_order_acquire);
+        }
+
+        void fetch_add(const HyperedgeWeight value, const Mode mode, const Objective objective) {
+            if (mode == Mode::direct_kway) {
+                switch (objective) {
+                    case Objective::cut:
+                        cut.fetch_add(value, std::memory_order_acq_rel);
+                        break;
+                    case Objective::km1:
+                        km1.fetch_add(value, std::memory_order_acq_rel);
+                        break;
+                    default:
+                        LOG << "Unknown Objective";
+                        exit(-1);
+                }
+            } else if (mode == Mode::recursive_bisection) {
+                // in recursive bisection, km1 is also optimized via the cut net metric
+                cut.fetch_add(value, std::memory_order_acq_rel);
+            }
+        }
+
+        bool imbalance_compare_exchange_strong(const double desired) {
+            double expected = loadImbalance();
+            return imbalance.compare_exchange_strong(expected,desired);
+        }
+
+        HyperedgeWeight getMetric(const Mode mode, const Objective objective) {
+            if (mode == Mode::direct_kway) {
+                switch (objective) {
+                    case Objective::cut: return cut.load(std::memory_order_acquire);
+                    case Objective::km1: return km1.load(std::memory_order_acquire);
+                    default:
+                        LOG << "Unknown Objective";
+                        exit(-1);
+                }
+            }
+            ASSERT(mode == Mode::recursive_bisection);
+            // in recursive bisection, km1 is also optimized via the cut net metric
+            return cut.load(std::memory_order_acquire);
+        }
+
+        // ! Not thread-safe. To be used when a non-thread-safe version of this metrics object is required.
+        kahypar::Metrics unsafeLoadMetrics() {
+            return {cut.load(std::memory_order_acquire),
+                    km1.load(std::memory_order_acquire),
+                    imbalance.load(std::memory_order_acquire)};
+        }
+
+        // Not thread-safe. To be used when this thread-safe metrics object is supposed to be updated with values from a
+        // non-threadsafe metrics object in a single threaded environment.
+        void unsafeStoreMetrics(kahypar::Metrics& sequential) {
+            cut.store(sequential.cut, std::memory_order_acq_rel);
+            km1.store(sequential.km1, std::memory_order_acq_rel);
+            imbalance.store(sequential.imbalance, std::memory_order_acq_rel);
+        }
+    };
 
 HyperedgeWeight hyperedgeCut(const PartitionedHypergraph& hypergraph, bool parallel = true);
 

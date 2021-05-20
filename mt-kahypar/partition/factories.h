@@ -20,6 +20,7 @@
 
 #pragma once
 
+#include <mt-kahypar/partition/refinement/thread_local_asynch_refiners.h>
 #include "kahypar/meta/abstract_factory.h"
 #include "kahypar/meta/static_multi_dispatch_factory.h"
 #include "kahypar/meta/typelist.h"
@@ -64,6 +65,9 @@ using FMFactory = kahypar::meta::Factory<FMAlgorithm,
                                          IRefiner* (*)(Hypergraph&, const Context&, const TaskGroupID)>;
 
 using AsynchLPRefinerFactory = kahypar::meta::Factory<LabelPropagationAlgorithm,
-    IRefiner* (*)(Hypergraph&, const Context&, const TaskGroupID, ds::GroupLockManager*, ds::ContractionGroupID contraction_group_id)>;
+    IAsynchRefiner* (*)(Hypergraph&, const Context&, const TaskGroupID, ds::GroupLockManager*)>;
+
+//using ThreadLocalAsynchLPRefinersFactory = kahypar::meta::Factory<LabelPropagationAlgorithm,
+//        IThreadLocalAsynchRefiners* (*)(Hypergraph&, const Context&, const TaskGroupID, ds::GroupLockManager*)>;
 
 }  // namespace mt_kahypar

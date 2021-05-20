@@ -41,6 +41,17 @@ namespace mt_kahypar::ds {
             return std::all_of(_contractions.begin(),_contractions.end(),[repr](Contraction c){return c.u == repr;});
         };
 
+        static std::vector<Contraction> sortInitializerList(std::initializer_list<Contraction>& init) {
+            std::vector<Contraction> init_vec(init);
+            std::sort(init_vec.begin(),init_vec.end());
+            return init_vec;
+        }
+
+        static std::vector<Contraction>& sortInitializerVector(std::vector<Contraction>& init) {
+            std::sort(init.begin(), init.end());
+            return init;
+        }
+
         HypernodeID extractRepresentative () {
             ASSERT(sanityCheck());
             return _contractions.front().u;
@@ -63,8 +74,9 @@ namespace mt_kahypar::ds {
 
         Contraction at(int i) const {return _contractions.at(i);};
 
-        ContractionGroup(std::initializer_list<Contraction> init) : _contractions(init), _representative(extractRepresentative()) {};
-        explicit ContractionGroup(std::vector<Contraction> init) : _contractions(std::move(init)), _representative(extractRepresentative()) {};
+        ContractionGroup(std::initializer_list<Contraction> init) : _contractions(sortInitializerList(init)), _representative(extractRepresentative()) {};
+
+        explicit ContractionGroup(std::vector<Contraction> init) : _contractions(std::move(sortInitializerVector(init))), _representative(extractRepresentative()) {};
 
         ContractionGroup(ContractionGroup& other) = default;
         ContractionGroup(const ContractionGroup& other) = default;
@@ -74,20 +86,13 @@ namespace mt_kahypar::ds {
         }
 
         /// This function is linear in the number of contractions.
-        bool contains(Contraction contraction) const {
-          // REVIEW return std::find(_contractions.begin(), _contractions.end(), contraction) != _contractions.end(); would be more readable
-            if (std::any_of(_contractions.begin(),_contractions.end(),[contraction](Contraction e){return e.u == contraction.u && e.v == contraction.v;})) {
-                return true;
-            }
-            return false;
+        bool contains(const Contraction& contraction) const {
+          return std::find(_contractions.begin(), _contractions.end(), contraction) != _contractions.end();
         }
 
         /// This function is quadratic in the group size.
         bool operator==(const ContractionGroup &rhs) const {
-          // REVIEW could be linear if you sort the contractions, in which case return _contractions == rhs._contractions; would suffice
-            bool rhsContainsThis = (std::all_of(_contractions.begin(),_contractions.end(),[rhs](Contraction e){return rhs.contains(e);}));
-            bool thisContainsRhs = (std::all_of(rhs.begin(),rhs.end(),[this](Contraction e){return this->contains(e);}));
-            return rhsContainsThis && thisContainsRhs;
+          return _contractions == rhs._contractions;
         }
 
         /// This function is quadratic in the group size.

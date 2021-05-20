@@ -302,6 +302,7 @@ void DynamicHypergraph::uncontract(const ContractionGroup& group,
         ASSERT(!hypernode(memento.u).isDisabled(), "Hypernode" << memento.u << "is disabled");
         ASSERT(hypernode(memento.v).isDisabled(), "Hypernode" << memento.v << "is not invalid");
 
+        //todo mlaupichler is restoring the hyperedge incidence array okay without locking? Race condition on where inactive part begins
         _incident_nets.uncontract(memento.u, memento.v,[&](const HyperedgeID e) {
             // In that case, u and v were both previously part of hyperedge e.
             reactivatePinForSingleUncontraction(e,memento.v);

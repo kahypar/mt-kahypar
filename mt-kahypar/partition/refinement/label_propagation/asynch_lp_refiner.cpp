@@ -11,10 +11,10 @@
 
 namespace mt_kahypar {
 
-    template<template <typename> class GainPolicy>
-    bool AsynchLPRefiner<GainPolicy>::refineImpl(PartitionedHypergraph &hypergraph,
+    template<template <typename> class LocalGainPolicy>
+    bool AsynchLPRefiner<LocalGainPolicy>::refineImpl(PartitionedHypergraph &hypergraph,
                                                  const parallel::scalable_vector <mt_kahypar::HypernodeID> &refinement_nodes,
-                                                 kahypar::Metrics &best_metrics, double) {
+                                                 metrics::ThreadSafeMetrics &best_metrics, double) {
         ASSERT(_contraction_group_id != ds::invalidGroupID, "ContractionGroupID (Owner-ID) for locking is invalid.");
         ASSERT(!refinement_nodes.empty(), "AsynchLPRefiner will not work without given seed refinement nodes. Cannot be used "
                                           "solely for rebalancing or for global refinement!");
@@ -25,7 +25,7 @@ namespace mt_kahypar {
 
 
         _seeds = refinement_nodes;
-        _active_nodes = refinement_nodes;
+        _active_nodes.assign(refinement_nodes.begin(), refinement_nodes.end());
 
         _gain.reset();
         _next_active.reset();
@@ -34,7 +34,10 @@ namespace mt_kahypar {
         labelPropagation(hypergraph);
 
         // Update global part weight and sizes
-        best_metrics.imbalance = metrics::imbalance(hypergraph, _context);
+        double imbalance;
+        do {
+            imbalance = metrics::imbalance(hypergraph, _context);
+        } while (!best_metrics.imbalance_compare_exchange_strong(imbalance));
 
         // Update metrics statistics
         HyperedgeWeight current_metric = best_metrics.getMetric(
@@ -47,14 +50,14 @@ namespace mt_kahypar {
                                 V(current_metric) << V(delta) <<
                                                   V(metrics::objective(hypergraph, _context.partition.objective, false)));
 
-        best_metrics.updateMetric(current_metric + delta, kahypar::Mode::direct_kway, _context.partition.objective);
+        best_metrics.fetch_add(delta, kahypar::Mode::direct_kway, _context.partition.objective);
         utils::Stats::instance().update_stat("lp_improvement", std::abs(delta));
         return delta < 0;
 
     }
 
-    template <template <typename> class GainPolicy>
-    void AsynchLPRefiner<GainPolicy>::labelPropagation(PartitionedHypergraph& hypergraph) {
+    template <template <typename> class LocalGainPolicy>
+    void AsynchLPRefiner<LocalGainPolicy>::labelPropagation(PartitionedHypergraph& hypergraph) {
         NextActiveNodes next_active_nodes;
         for (size_t i = 0; i < _context.refinement.label_propagation.maximum_iterations; ++i) {
             DBG << "Starting Label Propagation Round" << i;
@@ -66,8 +69,8 @@ namespace mt_kahypar {
                 labelPropagationRound(hypergraph, next_active_nodes);
             }
 
-            _active_nodes = next_active_nodes.copy_sequential();
-            next_active_nodes.clear_sequential();
+            _active_nodes = next_active_nodes;
+            next_active_nodes.clear();
 
             utils::Timer::instance().stop_timer("lp_round_" + std::to_string(i));
 
@@ -93,8 +96,8 @@ namespace mt_kahypar {
         }
     }
 
-    template <template <typename> class GainPolicy>
-    bool AsynchLPRefiner<GainPolicy>::labelPropagationRound(
+    template <template <typename> class LocalGainPolicy>
+    bool AsynchLPRefiner<LocalGainPolicy>::labelPropagationRound(
             PartitionedHypergraph& hypergraph,
             NextActiveNodes& next_active_nodes) {
 
@@ -112,12 +115,9 @@ namespace mt_kahypar {
         };
 
         // Shuffle Vector
+        std::shuffle(_active_nodes.begin(),_active_nodes.end(), _rng);
+
         bool converged = true;
-
-        // REVIEW hold your own std::mt19937 as member, and use std::shuffle --> avoids sched_getcpu() calls
-        utils::Randomize::instance().shuffleVector(
-                _active_nodes, 0UL, _active_nodes.size(), sched_getcpu());
-
         for ( size_t j = 0; j < _active_nodes.size(); ++j ) {
             const HypernodeID hn = _active_nodes[j];
             if ( ! moveVertex(hypergraph, hn, next_active_nodes, objective_delta) ) {
@@ -154,8 +154,8 @@ namespace mt_kahypar {
         return converged;
     }
 
-    template <template <typename> class GainPolicy>
-    parallel::scalable_vector<size_t> AsynchLPRefiner<GainPolicy>::getSortedIndicesOfSeedsInActiveNodes() const {
+    template <template <typename> class LocalGainPolicy>
+    parallel::scalable_vector<size_t> AsynchLPRefiner<LocalGainPolicy>::getSortedIndicesOfSeedsInActiveNodes() const {
         parallel::scalable_vector<size_t> indices;
 
         for ( size_t j = 0; j < _active_nodes.size(); ++j ) {
@@ -171,9 +171,14 @@ namespace mt_kahypar {
         return indices;
     }
 
+    template <template <typename> class LocalGainPolicy>
+    void AsynchLPRefiner<LocalGainPolicy>::resetForGroup(ds::ContractionGroupID groupID) {
+        _contraction_group_id = groupID;
+    }
+
     // explicitly instantiate so the compiler can generate them when compiling this cpp file
-    template class AsynchLPRefiner<Km1Policy>;
-    template class AsynchLPRefiner<CutPolicy>;
+    template class AsynchLPRefiner<LocalKm1Policy>;
+    template class AsynchLPRefiner<LocalCutPolicy>;
 
 } // namespace mt_kahypar
 

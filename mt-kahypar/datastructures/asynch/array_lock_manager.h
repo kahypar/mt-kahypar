@@ -29,7 +29,7 @@ namespace mt_kahypar::ds {
         /// \param invalidOwnerID a distinct OwnerID that an ArrayLockManager instantiated with this constructor
         /// will consider an unassigned or invalid owner.
         ArrayLockManager(LockedID size, OwnerID invalidOwnerID)
-            : _invalid_owner_id(invalidOwnerID), _size(size), _v(std::make_unique<UnderlyingType[]>(size)), _num_locked(0) {
+            : _invalid_owner_id(invalidOwnerID), _size(size), _v(std::make_unique<UnderlyingType[]>(size)) {
             init();
         }
 
@@ -53,8 +53,6 @@ namespace mt_kahypar::ds {
             // If the lock is currently not held by anyone, attempt to acquire it; returns true if successful or false if not
             bool acquired = _v[lockedID].compare_exchange_strong(expected, desired);
 
-            // REVIEW this will give more contention than the locks themselves. Doesn't look like it's being used
-            if (acquired) _num_locked.add_fetch(1, std::memory_order_relaxed);
             return acquired;
         };
 
@@ -65,7 +63,6 @@ namespace mt_kahypar::ds {
             OwnerID expected = ownerID;
             OwnerID desired = _invalid_owner_id;
             bool released = _v[lockedID].compare_exchange_strong(expected, desired);
-            if (released) _num_locked.sub_fetch(1, std::memory_order_relaxed);
             return released;
         };
 
@@ -77,12 +74,6 @@ namespace mt_kahypar::ds {
         /// Checks whether a given lock is currently held by a given owner.
         bool isHeldBy(LockedID lockedID, OwnerID ownerID) const {
             return owner(lockedID) == ownerID;
-        }
-
-        /// Returns the total number of locks currently held by anyone. This is threadsafe but not always entirely
-        /// accurate. Depending on incoming calls to acquire and release locks, the returned value may even be negative due to concurrency.
-        int numLocked() const {
-            return _num_locked.load(std::memory_order_acq_rel);
         }
 
         /// Attempt to acquire multiple locks for the ids in the range lockedIDs with the owner ownerID.
@@ -174,12 +165,11 @@ namespace mt_kahypar::ds {
 
         OwnerID owner(LockedID lockedID) const {
             ASSERT(lockedID < _size);
-            return _v[lockedID].load(std::memory_order_acq_rel);
+            return _v[lockedID].load(std::memory_order_acquire);
         };
 
         const LockedID _size;
         std::unique_ptr<UnderlyingType[]> _v;
-        CAtomic<int> _num_locked;
         OwnerID _invalid_owner_id;
 
     };

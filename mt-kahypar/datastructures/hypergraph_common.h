@@ -93,6 +93,14 @@ struct Move {
 struct Memento {
   HypernodeID u; // representative
   HypernodeID v; // contraction partner
+
+  bool operator==(const Memento& rhs) const {
+      return (this->u == rhs.u) && (this->v == rhs.v);
+  }
+
+  bool operator<(const Memento& rhs) const {
+      return (this->u < rhs.u) || ((this->u == rhs.u) && (this->v < rhs.v));
+  }
 };
 
 using Batch = parallel::scalable_vector<Memento>;

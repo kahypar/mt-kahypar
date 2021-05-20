@@ -24,6 +24,7 @@
 #include <string>
 #include <utility>
 #include <vector>
+#include <mt-kahypar/partition/metrics.h>
 
 #include "kahypar/partition/metrics.h"
 
@@ -63,6 +64,45 @@ class IRefiner {
                           const parallel::scalable_vector<HypernodeID>& refinement_nodes,
                           kahypar::Metrics& best_metrics,
                           const double time_limit) = 0;
+};
+
+class IAsynchRefiner {
+
+public:
+    IAsynchRefiner(const IAsynchRefiner&) = delete;
+    IAsynchRefiner(IAsynchRefiner&&) = delete;
+    IAsynchRefiner & operator= (const IAsynchRefiner &) = delete;
+    IAsynchRefiner & operator= (IAsynchRefiner &&) = delete;
+
+//    void initialize(PartitionedHypergraph& hypergraph) {
+//        initializeImpl(hypergraph);
+//    }
+
+    bool refine(PartitionedHypergraph& hypergraph,
+                const parallel::scalable_vector<HypernodeID>& refinement_nodes,
+                metrics::ThreadSafeMetrics& best_metrics,
+                const double time_limit,
+                ds::ContractionGroupID groupID) {
+        resetForGroup(groupID);
+        return refineImpl(hypergraph, refinement_nodes, best_metrics, time_limit);
+    }
+
+    ~IAsynchRefiner() = default;
+
+protected:
+
+    IAsynchRefiner() = default;
+private:
+
+//    virtual void initializeImpl(PartitionedHypergraph& hypergraph) = 0;
+
+    virtual bool refineImpl(PartitionedHypergraph& hypergraph,
+                            const parallel::scalable_vector<HypernodeID>& refinement_nodes,
+                            metrics::ThreadSafeMetrics& best_metrics,
+                            const double time_limit) = 0;
+
+    virtual void resetForGroup(ds::ContractionGroupID groupID) = 0;
+
 };
 
 }  // namespace mt_kahypar

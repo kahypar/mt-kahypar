@@ -22,6 +22,33 @@
 namespace mt_kahypar {
     namespace ds {
 
+        using SmokeTestUncontractionFunction = std::function<bool (ContractionGroup&, ContractionGroupID)>;
+
+        class UncoarseningBody {
+        public:
+            explicit UncoarseningBody(ds::UncontractionGroupTree *hierarchy, SmokeTestUncontractionFunction& uncontraction_func) :
+                    _hierarchy(hierarchy),
+                    _uncontraction_func(uncontraction_func) {}
+
+            void operator()(ds::ContractionGroupID groupID, tbb::parallel_do_feeder<ds::ContractionGroupID>& feeder) const {
+                auto group = _hierarchy->group(groupID);
+
+                bool uncontracted = _uncontraction_func(group, groupID);
+
+                if (uncontracted) {
+                    for (auto s : _hierarchy->successors(groupID)) {
+                        feeder.add(s);
+                    }
+                } else {
+                    feeder.add(groupID);
+                }
+            }
+        private:
+
+            ds::UncontractionGroupTree* _hierarchy;
+            SmokeTestUncontractionFunction& _uncontraction_func;
+        };
+
         DynamicHypergraph
         simulateAsyncNLevel(DynamicHypergraph &hypergraph, DynamicPartitionedHypergraph &partitioned_hypergraph,
                        const BatchVector &contraction_batches, const bool parallel) {
@@ -116,18 +143,13 @@ namespace mt_kahypar {
 
 //                partitioned_hypergraph.uncontractUsingGroupPool(pool, lockManager, NOOP_LOCALIZED_REFINEMENT_FUNC);
 
-                while (pool->hasActive()) {
-                    auto groupID = invalidGroupID;
-                    pool->pickAnyActiveID(groupID);
-                    auto group = pool->group(groupID);
-
+                SmokeTestUncontractionFunction uncontract_group_and_refine = [&](ContractionGroup& group, ContractionGroupID groupID) -> bool {
                     // Attempt to acquire locks for representative and contracted nodes in the group. If any of the locks cannot be
                     // acquired, revert to previous state and attempt to pick an id again
                     auto range = IteratorRange(ds::GroupNodeIDIterator::getAtBegin(group), ds::GroupNodeIDIterator::getAtEnd(group));
                     bool acquired = lockManager->tryToAcquireMultipleLocks(range, groupID);
                     if (!acquired) {
-                        pool->reactivate(groupID);
-                        continue;
+                        return false;
                     }
                     ASSERT(acquired);
 
@@ -148,7 +170,7 @@ namespace mt_kahypar {
                     auto refinement_nodes = partitioned_hypergraph.extractBorderNodesAndReleaseOthers(begin,end, release_func);
 
                     // No refinement if refinement nodes are empty (all the locks are released already)
-                    if (refinement_nodes.empty()) continue;
+                    if (refinement_nodes.empty()) return true;
 
                     // No refinement
 
@@ -156,7 +178,27 @@ namespace mt_kahypar {
                     auto releaseRange = IteratorRange(refinement_nodes.begin(), refinement_nodes.end());
                     lockManager->strongReleaseMultipleLocks(releaseRange,groupID);
 
-                    pool->activateSuccessors(groupID);
+                    return true;
+                };
+
+                if (parallel) {
+                    auto hierarchy = pool->hierarchy();
+                    auto parallel_body = UncoarseningBody(&hierarchy, uncontract_group_and_refine);
+                    tbb::parallel_do(hierarchy.roots().begin(), hierarchy.roots().end(),parallel_body);
+                } else {
+                    while (pool->hasActive()) {
+                        auto groupID = invalidGroupID;
+                        pool->pickAnyActiveID(groupID);
+                        auto group = pool->group(groupID);
+
+                        bool uncontracted = uncontract_group_and_refine(group, groupID);
+
+                        if (uncontracted) {
+                            pool->activateSuccessors(groupID);
+                        } else {
+                            pool->reactivate(groupID);
+                        }
+                    }
                 }
 
                 versionedPools.pop_back();
@@ -200,23 +242,23 @@ namespace mt_kahypar {
                                                                       false);
             utils::Timer::instance().stop_timer("sequential_n_level");
 
-//            if (debug) LOG << "Simulate n-Level in parallel";
-//            utils::Timer::instance().start_timer("parallel_n_level", "Parallel n-Level");
-//            DynamicHypergraph coarsest_parallel_hg = simulateNLevel(parallel_hg, parallel_phg, contractions, true);
-//            utils::Timer::instance().stop_timer("parallel_n_level");
+            if (debug) LOG << "Simulate n-Level in parallel";
+            utils::Timer::instance().start_timer("parallel_n_level", "Parallel n-Level");
+            DynamicHypergraph coarsest_parallel_hg = simulateAsyncNLevel(parallel_hg, parallel_phg, contractions, true);
+            utils::Timer::instance().stop_timer("parallel_n_level");
 
             if (debug) LOG << "Verify equality of hypergraphs";
-//            verifyEqualityOfHypergraphs(coarsest_sequential_hg, coarsest_parallel_hg);
+            verifyEqualityOfHypergraphs(coarsest_sequential_hg, coarsest_parallel_hg);
             verifyEqualityOfHypergraphs(original_hypergraph, sequential_hg);
-//            verifyEqualityOfHypergraphs(original_hypergraph, parallel_hg);
+            verifyEqualityOfHypergraphs(original_hypergraph, parallel_hg);
 
             if (debug) LOG << "Verify gain cache of hypergraphs";
             verifyGainCache(sequential_phg);
-//            verifyGainCache(parallel_phg);
+            verifyGainCache(parallel_phg);
 
             if (debug) LOG << "Verify number of incident cut hyperedges";
             verifyNumIncidentCutHyperedges(sequential_phg);
-//            verifyNumIncidentCutHyperedges(parallel_phg);
+            verifyNumIncidentCutHyperedges(parallel_phg);
 
             if (show_timings) {
                 LOG << utils::Timer::instance(true);

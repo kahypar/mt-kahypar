@@ -6,7 +6,7 @@
 #define KAHYPAR_ASYNCH_LP_REFINER_H
 
 #include <mt-kahypar/partition/refinement/i_refiner.h>
-#include <mt-kahypar/partition/refinement/policies/gain_policy.h>
+#include <mt-kahypar/partition/refinement/policies/local_gain_policy.h>
 #include <mt-kahypar/datastructures/asynch/array_lock_manager.h>
 
 namespace mt_kahypar {
@@ -14,28 +14,29 @@ namespace mt_kahypar {
     /// Label Propagation Refiner to be used in asynchronous uncoarsening for localized refinement. Uses global locking
     /// datastructure to allow multiple concurrent localized label propagations as well as concurrent uncontractions.
     /// Can not be used for global refinement or (only) rebalancing as it always requires seed nodes for refining!
-    template <template <typename> class GainPolicy> class AsynchLPRefiner : public IRefiner {
+    template <template <typename> class LocalGainPolicy> class AsynchLPRefiner : public IAsynchRefiner {
 
     private:
-        using GainCalculator = GainPolicy<PartitionedHypergraph>;
-        using ActiveNodes = parallel::scalable_vector<HypernodeID>;
-        using NextActiveNodes = ds::StreamingVector<HypernodeID>;
+        using GainCalculator = LocalGainPolicy<PartitionedHypergraph>;
+        using ActiveNodes = std::vector<HypernodeID>;
+        using NextActiveNodes = std::vector<HypernodeID>;
 
         static constexpr bool debug = false;
         static constexpr bool enable_heavy_assert = false;
 
     public:
         explicit AsynchLPRefiner(Hypergraph &hypergraph, const Context &context, const TaskGroupID task_group_id,
-                                 ds::GroupLockManager *lockManager, ds::ContractionGroupID contraction_group_id) :
+                                 ds::GroupLockManager *lockManager) :
         _context(context),
         _task_group_id(task_group_id),
         _gain(context),
         _active_nodes(),
         _next_active(hypergraph.initialNumNodes()),
         _visited_he(hypergraph.initialNumEdges()),
+        _contraction_group_id(ds::invalidGroupID),
         _lock_manager(lockManager),
-        _contraction_group_id(contraction_group_id),
-        _seeds() { }
+        _seeds(),
+        _rng() { }
 
         AsynchLPRefiner(const AsynchLPRefiner&) = delete;
         AsynchLPRefiner(AsynchLPRefiner&&) = delete;
@@ -47,8 +48,10 @@ namespace mt_kahypar {
 
         bool refineImpl(PartitionedHypergraph& hypergraph,
                         const parallel::scalable_vector<HypernodeID>& refinement_nodes,
-                        kahypar::Metrics& best_metrics,
+                        metrics::ThreadSafeMetrics& best_metrics,
                         double) final ;
+
+        void resetForGroup(ds::ContractionGroupID groupID) override;
 
         void labelPropagation(PartitionedHypergraph& hypergraph);
 
@@ -104,11 +107,10 @@ namespace mt_kahypar {
                                                 if (acquired) {
                                                     bool set_next_active = _next_active.compare_and_set_to_true(pin);
                                                     ASSERT(set_next_active);
-                                                    // REVIEW you don't need these 'heavy-duty' parallel-friendly data structures. simple std::vector suffices
-                                                    next_active_nodes.stream(pin);
+                                                    next_active_nodes.push_back(pin);
                                                 }
                                             } else if (_lock_manager->isHeldBy(pin,_contraction_group_id) && _next_active.compare_and_set_to_true(pin) ) {
-                                                next_active_nodes.stream(pin);
+                                                next_active_nodes.push_back(pin);
                                             }
                                         }
                                         _visited_he.set(he, true);
@@ -117,7 +119,7 @@ namespace mt_kahypar {
                             }
                             if ( _next_active.compare_and_set_to_true(hn) ) {
                                 ASSERT(_lock_manager->isHeldBy(hn,_contraction_group_id));
-                                next_active_nodes.stream(hn);
+                                next_active_nodes.push_back(hn);
                             }
                             is_moved = true;
                         } else {
@@ -138,7 +140,7 @@ namespace mt_kahypar {
         // NOOP as the asynch refiner is never supposed to be used for global refinement.
         // If initialize is called and then refine is called without giving refinement nodes as parameters,
         // the assertion in refineImpl will fail.
-        void initializeImpl(PartitionedHypergraph&) final {};
+        // void initializeImpl(PartitionedHypergraph&) final {};
 
         template<typename F>
         bool changeNodePart(PartitionedHypergraph& phg,
@@ -154,7 +156,7 @@ namespace mt_kahypar {
 
         const Context& _context;
         const TaskGroupID _task_group_id;
-        GainCalculator _gain;     // REVIEW this creates a tbb::enumerable_thread_specfic object for each thread
+        GainCalculator _gain;
         ActiveNodes _active_nodes;
         ds::ThreadSafeFastResetFlagArray<> _next_active;
         kahypar::ds::FastResetFlagArray<> _visited_he;
@@ -171,10 +173,12 @@ namespace mt_kahypar {
         // ! A reference to the seed nodes for the current refinement. Locks for seed nodes are never
         parallel::scalable_vector<HypernodeID> _seeds;
 
+        std::mt19937 _rng;
+
     };
 
-    using AsynchLPKm1Refiner = AsynchLPRefiner<Km1Policy>;
-    using AsynchLPCutRefiner = AsynchLPRefiner<CutPolicy>;
+    using AsynchLPKm1Refiner = AsynchLPRefiner<LocalKm1Policy>;
+    using AsynchLPCutRefiner = AsynchLPRefiner<LocalCutPolicy>;
 }  // namespace kahypar
 
 

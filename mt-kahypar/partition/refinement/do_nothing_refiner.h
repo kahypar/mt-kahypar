@@ -47,4 +47,26 @@ class DoNothingRefiner final : public IRefiner {
     return false;
   }
 };
+
+    class DoNothingAsynchRefiner final : public IAsynchRefiner {
+    public:
+        template <typename ... Args>
+        explicit DoNothingAsynchRefiner(Args&& ...) noexcept { }
+        DoNothingAsynchRefiner(const DoNothingAsynchRefiner&) = delete;
+        DoNothingAsynchRefiner(DoNothingAsynchRefiner&&) = delete;
+        DoNothingAsynchRefiner & operator= (const DoNothingAsynchRefiner &) = delete;
+        DoNothingAsynchRefiner & operator= (DoNothingAsynchRefiner &&) = delete;
+
+    private:
+
+        bool refineImpl(PartitionedHypergraph&,
+                        const parallel::scalable_vector<HypernodeID>&,
+                        metrics::ThreadSafeMetrics &,
+                        const double) override final {
+            return false;
+        }
+
+        void resetForGroup(ds::ContractionGroupID groupID) override final { }
+    };
+
 }  // namespace kahypar
