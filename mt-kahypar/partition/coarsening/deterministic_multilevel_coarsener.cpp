@@ -111,27 +111,8 @@ void DeterministicMultilevelCoarsener::coarsenImpl() {
         tbb::parallel_for(0UL, nodes_in_too_heavy_clusters.size(), [&](size_t pos) {
           HypernodeID target = propositions[nodes_in_too_heavy_clusters[pos]];
           // the first vertex for this cluster handles the approval
-          size_t num_contracted_local = 0;
           if (pos == 0 || propositions[nodes_in_too_heavy_clusters[pos - 1]] != target) {
-            HypernodeWeight target_weight = cluster_weight[target];
-            size_t first_rejected = pos;
-            for (; ; ++first_rejected) {    // could be parallelized without extra memory but factor 2 work overhead and log(n) depth via binary search
-              // we know that this cluster is too heavy, so the loop will terminate before
-              assert(first_rejected < nodes_in_too_heavy_clusters.size());
-              assert(propositions[nodes_in_too_heavy_clusters[first_rejected]] == target);
-              HypernodeID v = nodes_in_too_heavy_clusters[first_rejected];
-              if (target_weight + hg.nodeWeight(v) > _context.coarsening.max_allowed_node_weight) {
-                break;
-              }
-              clusters[v] = target;
-              target_weight += hg.nodeWeight(v);
-              if (opportunistic_cluster_weight[v] == hg.nodeWeight(v)) {
-                num_contracted_local += 1;
-              }
-            }
-            cluster_weight[target] = target_weight;
-            opportunistic_cluster_weight[target] = target_weight;
-            num_contracted_nodes.local() += num_contracted_local;
+            num_contracted_nodes.local() += approveVerticesInTooHeavyTargetCluster(pos, clusters);
           }
         });
 
@@ -213,6 +194,31 @@ void DeterministicMultilevelCoarsener::calculatePreferredTargetCluster(Hypernode
     propositions[u] = best_target;
     __atomic_fetch_add(&opportunistic_cluster_weight[best_target], hg.nodeWeight(u), __ATOMIC_RELAXED);
   }
+}
+
+size_t DeterministicMultilevelCoarsener::approveVerticesInTooHeavyTargetCluster(size_t pos, vec<HypernodeID>& clusters) {
+  const HypernodeID target = propositions[nodes_in_too_heavy_clusters[pos]];
+  const Hypergraph& hg = currentHypergraph();
+  size_t num_contracted_local = 0;
+  HypernodeWeight target_weight = cluster_weight[target];
+  // could be parallelized without extra memory but factor 2 work overhead and log(n) depth via binary search
+  for (; ; ++pos) {
+    // we know that this cluster is too heavy, so the loop will terminate before
+    assert(pos < nodes_in_too_heavy_clusters.size());
+    assert(propositions[nodes_in_too_heavy_clusters[pos]] == target);
+    HypernodeID v = nodes_in_too_heavy_clusters[pos];
+    if (target_weight + hg.nodeWeight(v) > _context.coarsening.max_allowed_node_weight) {
+      break;
+    }
+    clusters[v] = target;
+    target_weight += hg.nodeWeight(v);
+    if (opportunistic_cluster_weight[v] == hg.nodeWeight(v)) {
+      num_contracted_local += 1;
+    }
+  }
+  cluster_weight[target] = target_weight;
+  opportunistic_cluster_weight[target] = target_weight;
+  return num_contracted_local;
 }
 
 }

@@ -81,6 +81,9 @@ private:
 
   void calculatePreferredTargetCluster(HypernodeID u, const vec<HypernodeID>& clusters);
 
+  size_t approveVerticesInTooHeavyTargetCluster(size_t pos, vec<HypernodeID>& clusters);
+
+
   PartitionedHypergraph&& uncoarsenImpl(std::unique_ptr<IRefiner>& label_propagation,
                                         std::unique_ptr<IRefiner>& fm) override {
     return Base::doUncoarsen(label_propagation, fm);
