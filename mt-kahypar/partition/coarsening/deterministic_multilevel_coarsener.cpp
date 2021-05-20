@@ -51,14 +51,10 @@ void DeterministicMultilevelCoarsener::coarsenImpl() {
       clusters[u] = u;
     });
 
-    auto t_shuffle = tbb::tick_count::now();
     permutation.random_grouping(num_nodes, _context.shared_memory.static_balancing_work_packages, prng());
-    auto t_moving = tbb::tick_count::now();
     for (size_t sub_round = 0; sub_round < num_sub_rounds && num_nodes > currentLevelContractionLimit(); ++sub_round) {
       auto [first_bucket, last_bucket] = parallel::chunking::bounds(sub_round, num_buckets, num_buckets_per_sub_round);
       size_t first = permutation.bucket_bounds[first_bucket], last = permutation.bucket_bounds[last_bucket];
-
-      auto t1 = tbb::tick_count::now();
 
       // each vertex finds a cluster it wants to join
       tbb::parallel_for(first, last, [&](size_t pos) {
@@ -67,8 +63,6 @@ void DeterministicMultilevelCoarsener::coarsenImpl() {
           calculatePreferredTargetCluster(u, clusters);
         }
       });
-
-      auto t2 = tbb::tick_count::now();
 
       tbb::enumerable_thread_specific<size_t> num_contracted_nodes { 0 };
 
@@ -93,9 +87,6 @@ void DeterministicMultilevelCoarsener::coarsenImpl() {
       num_nodes -= num_contracted_nodes.combine(std::plus<>());
       nodes_in_too_heavy_clusters.finalize();
 
-      auto t3 = tbb::tick_count::now();
-      LOG << V(sub_round) << "calc clusters" << (t2-t1).seconds();
-      LOG << "preapprove, or buffer copy" << (t3-t2).seconds();
       if (nodes_in_too_heavy_clusters.size() > 0) {
         num_nodes -= approveVerticesInTooHeavyClusters(clusters);
       }
@@ -106,12 +97,7 @@ void DeterministicMultilevelCoarsener::coarsenImpl() {
     if (num_nodes_before_pass / num_nodes <= _context.coarsening.minimum_shrink_factor) {
       break;
     }
-    auto t_contract = tbb::tick_count::now();
     performMultilevelContraction(std::move(clusters), pass_start_time);
-    LOG << "num nodes=" << int(num_nodes_before_pass)
-        << "shuffle" << (t_moving - t_shuffle).seconds()
-        << "moving" << (t_contract - t_moving).seconds()
-        << "contract" << (tbb::tick_count::now() - t_contract).seconds();
   }
 
   progress_bar += (initial_num_nodes - progress_bar.count());
@@ -178,16 +164,12 @@ size_t DeterministicMultilevelCoarsener::approveVerticesInTooHeavyClusters(vec<H
   const Hypergraph& hg = currentHypergraph();
   tbb::enumerable_thread_specific<size_t> num_contracted_nodes { 0 };
 
-  auto t3 = tbb::tick_count::now();
-
   // group vertices by desired cluster, if their cluster is too heavy. approve the lower weight nodes first
   auto comp = [&](HypernodeID lhs, HypernodeID rhs) {
     HypernodeWeight wl = hg.nodeWeight(lhs), wr = hg.nodeWeight(rhs);
     return std::tie(propositions[lhs], wl, lhs) < std::tie(propositions[rhs], wr, rhs);
   };
   tbb::parallel_sort(nodes_in_too_heavy_clusters.begin(), nodes_in_too_heavy_clusters.end(), comp);
-
-  auto t4 = tbb::tick_count::now();
 
   tbb::parallel_for(0UL, nodes_in_too_heavy_clusters.size(), [&](size_t pos) {
     HypernodeID target = propositions[nodes_in_too_heavy_clusters[pos]];
@@ -216,10 +198,6 @@ size_t DeterministicMultilevelCoarsener::approveVerticesInTooHeavyClusters(vec<H
       num_contracted_nodes.local() += num_contracted_local;
     }
   });
-
-  auto t5 = tbb::tick_count::now();
-  LOG << "sorting" << V(nodes_in_too_heavy_clusters.size()) << "took" << (t4-t3).seconds();
-  LOG << "approve" << (t5-t4).seconds();
 
   return num_contracted_nodes.combine(std::plus<>());
 }
