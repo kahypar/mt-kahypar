@@ -58,6 +58,8 @@ void DeterministicMultilevelCoarsener::coarsenImpl() {
       size_t first = permutation.bucket_bounds[first_bucket];
       size_t last = permutation.bucket_bounds[last_bucket];
 
+      auto t1 = tbb::tick_count::now();
+
       // each vertex finds a cluster it wants to join
       tbb::parallel_for(first, last, [&](size_t pos) {
         assert(pos < num_nodes_before_pass);
@@ -67,6 +69,8 @@ void DeterministicMultilevelCoarsener::coarsenImpl() {
           calculatePreferredTargetCluster(permutation.at(pos), clusters);
         }
       });
+
+      auto t2 = tbb::tick_count::now();
 
       /*
       auto in_round = [&](HypernodeID v) {
@@ -104,6 +108,11 @@ void DeterministicMultilevelCoarsener::coarsenImpl() {
       });
 
       nodes_in_too_heavy_clusters.finalize();
+
+      auto t3 = tbb::tick_count::now();
+
+      LOG << V(num_nodes_before_pass) << V(sub_round) << "calc clusters" << (t2-t1).seconds();
+      LOG << "preapprove, or buffer copy" << (t3-t2).seconds();
       if (nodes_in_too_heavy_clusters.size() > 0) {
         // group vertices by desired cluster, if their cluster is too heavy. approve the lower weight nodes first
 
@@ -113,6 +122,8 @@ void DeterministicMultilevelCoarsener::coarsenImpl() {
           return std::tie(propositions[lhs], wl, lhs) < std::tie(propositions[rhs], wr, rhs);
         };
         tbb::parallel_sort(nodes_in_too_heavy_clusters.begin(), nodes_in_too_heavy_clusters.end(), comp);
+
+        auto t4 = tbb::tick_count::now();
 
         tbb::parallel_for(0UL, nodes_in_too_heavy_clusters.size(), [&](size_t pos) {
           HypernodeID target = propositions[nodes_in_too_heavy_clusters[pos]];
@@ -140,6 +151,10 @@ void DeterministicMultilevelCoarsener::coarsenImpl() {
             num_contracted_nodes.local() += num_contracted_local;
           }
         });
+
+        auto t5 = tbb::tick_count::now();
+        LOG << "sort" << (t4-t3).seconds();
+        LOG << "approve" << (t5-t4).seconds();
       }
       nodes_in_too_heavy_clusters.clear();
       num_nodes -= num_contracted_nodes.combine(std::plus<>());
@@ -150,7 +165,9 @@ void DeterministicMultilevelCoarsener::coarsenImpl() {
     if (num_nodes_before_pass / num_nodes <= _context.coarsening.minimum_shrink_factor) {
       break;
     }
+    auto t = tbb::tick_count::now();
     performMultilevelContraction(std::move(clusters), pass_start_time);
+    LOG << "contract" << (tbb::tick_count::now() - t).seconds();
     assert(num_nodes == currentNumNodes());
   }
 
