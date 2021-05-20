@@ -169,7 +169,7 @@ void DeterministicMultilevelCoarsener::coarsenImpl() {
     }
     auto t_contract = tbb::tick_count::now();
     performMultilevelContraction(std::move(clusters), pass_start_time);
-    LOG << V(currentNumNodes())
+    LOG << "num nodes=" << int(num_nodes_before_pass)
         << "shuffle" << (t_moving - t_shuffle).seconds()
         << "moving" << (t_contract - t_moving).seconds()
         << "contract" << (tbb::tick_count::now() - t_contract).seconds();
