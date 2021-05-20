@@ -31,14 +31,18 @@ void DeterministicMultilevelCoarsener::coarsenImpl() {
   utils::ProgressBar progress_bar(initial_num_nodes, 0,
                                   _context.partition.verbose_output && _context.partition.enable_progress_bar);
 
+  constexpr size_t num_sub_rounds = 16;
+  constexpr size_t num_buckets = utils::ParallelPermutation<HypernodeID>::num_buckets;
+  const size_t num_buckets_per_sub_round = parallel::chunking::idiv_ceil(num_buckets, num_sub_rounds);
+
   std::mt19937 prng(_context.partition.seed);
   size_t pass = 0;
   while (currentNumNodes() > _context.coarsening.contraction_limit) {
-    auto pass_start_time = std::chrono::high_resolution_clock::now();
+    const auto pass_start_time = std::chrono::high_resolution_clock::now();
     const Hypergraph& hg = currentHypergraph();
 
     size_t num_nodes = currentNumNodes();
-    double num_nodes_before_pass = num_nodes;
+    const double num_nodes_before_pass = num_nodes;
     vec<HypernodeID> clusters(num_nodes, kInvalidHypernode);
     tbb::parallel_for(0UL, num_nodes, [&](HypernodeID u) {
       cluster_weight[u] = hg.nodeWeight(u);
@@ -50,47 +54,29 @@ void DeterministicMultilevelCoarsener::coarsenImpl() {
     auto t_shuffle = tbb::tick_count::now();
     permutation.random_grouping(num_nodes, _context.shared_memory.static_balancing_work_packages, prng());
     auto t_moving = tbb::tick_count::now();
-    size_t num_sub_rounds = 16;
-    size_t num_buckets = utils::ParallelPermutation<HypernodeID>::num_buckets;
-    size_t num_buckets_per_sub_round = parallel::chunking::idiv_ceil(num_buckets, num_sub_rounds);
-
     for (size_t sub_round = 0; sub_round < num_sub_rounds && num_nodes > currentLevelContractionLimit(); ++sub_round) {
       auto [first_bucket, last_bucket] = parallel::chunking::bounds(sub_round, num_buckets, num_buckets_per_sub_round);
-      assert(first_bucket < last_bucket && last_bucket < permutation.bucket_bounds.size());
-      size_t first = permutation.bucket_bounds[first_bucket];
-      size_t last = permutation.bucket_bounds[last_bucket];
+      size_t first = permutation.bucket_bounds[first_bucket], last = permutation.bucket_bounds[last_bucket];
 
       auto t1 = tbb::tick_count::now();
 
       // each vertex finds a cluster it wants to join
       tbb::parallel_for(first, last, [&](size_t pos) {
-        assert(pos < num_nodes_before_pass);
-        HypernodeID u = permutation.at(pos);
-        assert(u < num_nodes_before_pass);
-        if (cluster_weight[u] == hg.nodeWeight(u) && hg.nodeIsEnabled(u)) {  // u is a singleton
-          calculatePreferredTargetCluster(permutation.at(pos), clusters);
+        const HypernodeID u = permutation.at(pos);
+        if (cluster_weight[u] == hg.nodeWeight(u) && hg.nodeIsEnabled(u)) {
+          calculatePreferredTargetCluster(u, clusters);
         }
       });
 
       auto t2 = tbb::tick_count::now();
 
-      /*
-      auto in_round = [&](HypernodeID v) {
-        size_t bucket_v = permutation.get_bucket(v);
-        return bucket_v >= first_bucket && bucket_v < last_bucket;
-      };
-      */
-      // --> don't need two separate arrays 'clusters' and 'propositions'
-      // if in_round(v), the entry is the proposition, otherwise its cluster
-
-      tbb::enumerable_thread_specific<size_t> num_contracted_nodes {0};
+      tbb::enumerable_thread_specific<size_t> num_contracted_nodes { 0 };
 
       // already approve if we can grant all requests for proposed cluster
       // otherwise insert to shared vector so that we can group vertices by cluster
       tbb::parallel_for(first, last, [&](size_t pos) {
         HypernodeID u = permutation.at(pos);
         HypernodeID target = propositions[u];
-        assert(target < num_nodes_before_pass);
         if (target != u) {
           if (opportunistic_cluster_weight[target] <= _context.coarsening.max_allowed_node_weight) {
             // if other nodes joined cluster u but u itself leaves for a different cluster, it doesn't count
@@ -99,12 +85,8 @@ void DeterministicMultilevelCoarsener::coarsenImpl() {
             }
             clusters[u] = target;
             cluster_weight[target] = opportunistic_cluster_weight[target];
-            // could subtract node weight from cluster_weight[u] to encourage more vertices to join in the second round
-            // if the leader abandons its cluster. however, this is not so likely for the problematic cases
-            // and introduces addtional complexities
           } else {
             nodes_in_too_heavy_clusters.push_back_buffered(u);
-            // nodes_in_too_heavy_clusters.push_back_atomic(u);
           }
         }
       });
@@ -118,7 +100,6 @@ void DeterministicMultilevelCoarsener::coarsenImpl() {
       if (nodes_in_too_heavy_clusters.size() > 0) {
         // group vertices by desired cluster, if their cluster is too heavy. approve the lower weight nodes first
 
-        // if this is too slow, check out IPS4O as sorting algorithm, or packing the data into a struct?
         auto comp = [&](HypernodeID lhs, HypernodeID rhs) {
           HypernodeWeight wl = hg.nodeWeight(lhs), wr = hg.nodeWeight(rhs);
           return std::tie(propositions[lhs], wl, lhs) < std::tie(propositions[rhs], wr, rhs);
@@ -163,7 +144,6 @@ void DeterministicMultilevelCoarsener::coarsenImpl() {
     }
 
     ++pass;
-    DBG << V(pass) << V(num_nodes) << V(num_nodes_before_pass);
     if (num_nodes_before_pass / num_nodes <= _context.coarsening.minimum_shrink_factor) {
       break;
     }
@@ -173,7 +153,6 @@ void DeterministicMultilevelCoarsener::coarsenImpl() {
         << "shuffle" << (t_moving - t_shuffle).seconds()
         << "moving" << (t_contract - t_moving).seconds()
         << "contract" << (tbb::tick_count::now() - t_contract).seconds();
-    assert(num_nodes == currentNumNodes());
   }
 
   progress_bar += (initial_num_nodes - progress_bar.count());
@@ -198,7 +177,7 @@ void DeterministicMultilevelCoarsener::calculatePreferredTargetCluster(Hypernode
         // PaToH accounts for each occurrence
         // for n-level this obviously doesn't matter (where the code was taken from)
         ratings[clusters[v]] += he_score;
-        // r[v] += he_score;    // avoid cluster lookup --> later aggregate in the rating eval loop
+        // ratings[v] += he_score;    // avoid cluster lookup --> later aggregate in the rating eval loop
       }
     }
   }
@@ -208,6 +187,8 @@ void DeterministicMultilevelCoarsener::calculatePreferredTargetCluster(Hypernode
   const HypernodeWeight weight_u = hg.nodeWeight(u);
   vec<HypernodeID>& best_targets = ties.local();
   double best_score = 0.0;
+
+
   for (const auto& entry : ratings) {
     HypernodeID target_cluster = entry.key;
     double target_score = entry.value;
@@ -221,7 +202,7 @@ void DeterministicMultilevelCoarsener::calculatePreferredTargetCluster(Hypernode
     }
   }
 
-   /* // version that aggregates cluster scores post net/pin iteration
+  /* // version that aggregates cluster scores post net/pin iteration
   for (auto it = ratings.begin(); it != ratings.end(); ++it) {
     HypernodeID neighbor = it->key;
     double neighbor_score = it->value;
