@@ -47,7 +47,9 @@ void DeterministicMultilevelCoarsener::coarsenImpl() {
       clusters[u] = u;
     });
 
+    auto t_shuffle = tbb::tick_count::now();
     permutation.random_grouping(num_nodes, _context.shared_memory.static_balancing_work_packages, prng());
+    auto t_moving = tbb::tick_count::now();
     size_t num_sub_rounds = 16;
     size_t num_buckets = utils::ParallelPermutation<HypernodeID>::num_buckets;
     size_t num_buckets_per_sub_round = parallel::chunking::idiv_ceil(num_buckets, num_sub_rounds);
@@ -111,7 +113,7 @@ void DeterministicMultilevelCoarsener::coarsenImpl() {
 
       auto t3 = tbb::tick_count::now();
 
-      LOG << V(num_nodes_before_pass) << V(sub_round) << "calc clusters" << (t2-t1).seconds();
+      LOG << V(sub_round) << "calc clusters" << (t2-t1).seconds();
       LOG << "preapprove, or buffer copy" << (t3-t2).seconds();
       if (nodes_in_too_heavy_clusters.size() > 0) {
         // group vertices by desired cluster, if their cluster is too heavy. approve the lower weight nodes first
@@ -153,7 +155,7 @@ void DeterministicMultilevelCoarsener::coarsenImpl() {
         });
 
         auto t5 = tbb::tick_count::now();
-        LOG << "sort" << (t4-t3).seconds();
+        LOG << "sorting" << V(nodes_in_too_heavy_clusters.size()) << "took" << (t4-t3).seconds();
         LOG << "approve" << (t5-t4).seconds();
       }
       nodes_in_too_heavy_clusters.clear();
@@ -165,9 +167,12 @@ void DeterministicMultilevelCoarsener::coarsenImpl() {
     if (num_nodes_before_pass / num_nodes <= _context.coarsening.minimum_shrink_factor) {
       break;
     }
-    auto t = tbb::tick_count::now();
+    auto t_contract = tbb::tick_count::now();
     performMultilevelContraction(std::move(clusters), pass_start_time);
-    LOG << "contract" << (tbb::tick_count::now() - t).seconds();
+    LOG << V(currentNumNodes())
+        << "shuffle" << (t_moving - t_shuffle).seconds()
+        << "moving" << (t_contract - t_moving).seconds()
+        << "contract" << (tbb::tick_count::now() - t_contract).seconds();
     assert(num_nodes == currentNumNodes());
   }
 
