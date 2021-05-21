@@ -862,7 +862,7 @@ class DynamicHypergraph {
    * Creates group pools based on group uncontraction hierarchies for every version of the hypergraph.
    * @return a vector of group pools where at index i the group pool for version i is located.
    */
-  VersionedPoolVector createUncontractionGroupPoolsForVersions();
+  VersionedPoolVector createUncontractionGroupPoolsForVersions(const bool test = false);
 
   /**!
    * Uncontracts all contractions in the given group. The two uncontraction functions are required by the
@@ -1030,6 +1030,9 @@ class DynamicHypergraph {
 
   // ! Only for testing
   bool verifyIncidenceArrayAndIncidentNets();
+
+  // ! Only for testing
+//  bool verifyIncidenceArraySortedness(VersionedPoolVector& pools);
 
  private:
   friend class DynamicHypergraphFactory;

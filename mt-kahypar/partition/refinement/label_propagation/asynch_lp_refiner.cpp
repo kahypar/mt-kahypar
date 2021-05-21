@@ -37,7 +37,7 @@ namespace mt_kahypar {
         double imbalance;
         do {
             imbalance = metrics::imbalance(hypergraph, _context);
-        } while (!best_metrics.imbalance_compare_exchange_strong(imbalance));
+        } while (!best_metrics.update_imbalance_strong(imbalance));
 
         // Update metrics statistics
         HyperedgeWeight current_metric = best_metrics.getMetric(

@@ -6,6 +6,9 @@
 
 namespace mt_kahypar::ds {
 
+    // Static initialization
+//    std::unique_ptr<parallel::scalable_vector<ContractionGroupID>> UncontractionGroupTree::_node_to_group_map;
+
     void UncontractionGroupTree::freeInternalData() {
         if (_num_group_nodes > 0 ) {
             parallel::parallel_free(_tree, _roots, _out_degrees,_current_child_offsets, _incidence_array);
@@ -16,6 +19,7 @@ namespace mt_kahypar::ds {
     UncontractionGroupTree::UncontractionGroupTree(ContractionTree &contractionTree, size_t version)
             : _contraction_tree(contractionTree),
               _num_group_nodes(0),
+              _num_contained_contracted_nodes(0),
               _version(version) {
         ASSERT(_contraction_tree.isFinalized());
 
@@ -27,7 +31,7 @@ namespace mt_kahypar::ds {
 
         ContractionGroupID currentParentID = 0;
         while (currentParentID != _num_group_nodes) {
-            GroupNode currentParentNode = _tree[currentParentID];   // REVIEW copy?
+            const GroupNode& currentParentNode = _tree[currentParentID];
             // explore one step vertically and then the horizontal branch
             for (auto member : currentParentNode.getGroup()) {
                 insertHorizontalBranch(_contraction_tree.childs(member.v),currentParentID,member.v);
@@ -35,6 +39,12 @@ namespace mt_kahypar::ds {
             ++currentParentID;
         }
 
+//        _node_to_group_map = std::make_unique<parallel::scalable_vector<ContractionGroupID>>(_contraction_tree.num_hypernodes());
+//        for (ContractionGroupID id = 0; id < _num_group_nodes; ++id) {
+//            for (const auto& memento : group(id)) {
+//                (*_node_to_group_map)[memento.v] = id;
+//            }
+//        }
     }
 
     void UncontractionGroupTree::insertRootBranchesForVersion() {
@@ -55,13 +65,15 @@ namespace mt_kahypar::ds {
                (i2.start <= i1.end && i2.end >= i1.end);
     }
 
-    ContractionGroupID UncontractionGroupTree::insertGroup(ContractionGroup group, ContractionGroupID parent, bool hasHorizontalChild) {
+    ContractionGroupID UncontractionGroupTree::insertGroup(std::vector<Contraction> &contractions, ContractionGroupID parent, bool hasHorizontalChild) {
 
         ContractionGroupID newID = _num_group_nodes;
         ++_num_group_nodes;
+        _num_contained_contracted_nodes += contractions.size();
 
         // Add new node into the tree at newID (i.e. its ID is newID)
-        _tree.emplace_back(group,_version,parent);
+        size_t depth = (newID == parent) ? 0 : _tree[parent].getDepth();
+        _tree.emplace_back(contractions, _version, parent, depth);
         _current_child_offsets.emplace_back(0);
         ASSERT(_tree.size() == newID + 1);
         ASSERT(_current_child_offsets.size() == newID + 1);
@@ -74,7 +86,7 @@ namespace mt_kahypar::ds {
             ++_current_child_offsets[parent];
         }
 
-        auto numVertical = std::count_if(group.begin(),group.end(),[&](Memento member) {
+        auto numVertical = std::count_if(contractions.begin(), contractions.end(), [&](Memento member) {
             // Search for any children in the contraction tree that have this version. If any exist for member.v then
             // member.v contributes to the number of vertical children this group has with one vertical child group
             // (the group of the child in the contraction tree that was contracted last)
@@ -131,8 +143,7 @@ namespace mt_kahypar::ds {
                 // Group is finished as interval does not intersect anymore (and intervals are ordered)
                 // Add it to the UncontractionGroupTree and continue with its next sibling in the contraction tree
                 // (its horizontal child in the UncontractionGroupTree)
-                auto group = ContractionGroup(inCurrentGroup);
-                auto idOfInserted = insertGroup(group,currentParentGroup,true);
+                auto idOfInserted = insertGroup(inCurrentGroup,currentParentGroup,true);
 
                 // And reset current group/parent
                 current_ival = sibling_ival;
@@ -146,8 +157,7 @@ namespace mt_kahypar::ds {
         // End of children in this version (that intersect with last contraction group) has been reached so finish up by inserting remaining group
         ASSERT(!moreChildrenInThisVersion(current));
         if (!inCurrentGroup.empty()) {
-            auto group = ContractionGroup(inCurrentGroup);
-            insertGroup(group,currentParentGroup,false);
+            insertGroup(inCurrentGroup,currentParentGroup,false);
         }
 
     }

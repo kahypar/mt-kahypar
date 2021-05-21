@@ -101,7 +101,7 @@ class NLevelCoarsenerBase {
 
     class PoolUncoarseningParallelBody {
     public:
-        PoolUncoarseningParallelBody(ds::UncontractionGroupTree *hierarchy, NLevelCoarsenerBase &base,
+        PoolUncoarseningParallelBody(const ds::UncontractionGroupTree *hierarchy, NLevelCoarsenerBase &base,
                                      metrics::ThreadSafeMetrics &current_metrics, bool &force_measure_timings,
                                      CAtomic<size_t> &total_uncontractions) :
                                               _hierarchy(hierarchy),
@@ -113,7 +113,7 @@ class NLevelCoarsenerBase {
         void operator()(ds::ContractionGroupID groupID, tbb::parallel_do_feeder<ds::ContractionGroupID>& feeder) const;
     private:
 
-        ds::UncontractionGroupTree* _hierarchy;
+        const ds::UncontractionGroupTree* _hierarchy;
         NLevelCoarsenerBase& _base;
         metrics::ThreadSafeMetrics& _current_metrics;
         bool& _force_measure_timings;

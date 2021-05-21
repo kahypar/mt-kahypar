@@ -65,10 +65,6 @@ namespace mt_kahypar::ds {
         auto begin() const {return _contractions.begin();};
         auto end() const {return _contractions.end();};
 
-
-        // todo mlaupichler integrate node_begin(), node_end() functions that return GroupNodeIDIterators.
-        // Due to cyclical dependency, this would require pure virtual interfaces for ContractionGroup and GroupNodeIDIterator as well as free factory functions.
-
         bool empty() const {return _contractions.empty();};
         uint64_t size() const {return _contractions.size();};
 
@@ -78,8 +74,9 @@ namespace mt_kahypar::ds {
 
         explicit ContractionGroup(std::vector<Contraction> init) : _contractions(std::move(sortInitializerVector(init))), _representative(extractRepresentative()) {};
 
-        ContractionGroup(ContractionGroup& other) = default;
-        ContractionGroup(const ContractionGroup& other) = default;
+        ContractionGroup(ContractionGroup& other) = delete;
+        ContractionGroup(const ContractionGroup& other) = delete;
+        ContractionGroup(ContractionGroup&& other) = delete;
 
         HypernodeID getRepresentative() const {
             return _representative;
@@ -90,12 +87,10 @@ namespace mt_kahypar::ds {
           return std::find(_contractions.begin(), _contractions.end(), contraction) != _contractions.end();
         }
 
-        /// This function is quadratic in the group size.
         bool operator==(const ContractionGroup &rhs) const {
           return _contractions == rhs._contractions;
         }
 
-        /// This function is quadratic in the group size.
         bool operator!=(const ContractionGroup &rhs) const {
             return !(rhs == *this);
         }
@@ -157,6 +152,7 @@ namespace mt_kahypar::ds {
             } else {
                 ++_contracted_it;
             }
+            return *this;
         }
 
         // Postfix increment

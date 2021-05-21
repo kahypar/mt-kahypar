@@ -10,6 +10,8 @@
 
 namespace mt_kahypar::ds
 {
+    using DoParallelForAllGroupsFunction = std::function<void (const ContractionGroup&)>;
+    using DoParallelForAllGroupIDsFunction = std::function<void (const ContractionGroupID&)>;
 
     template<typename GroupHierarchy>
     class SequentialContractionGroupPool {
@@ -54,6 +56,14 @@ namespace mt_kahypar::ds
             return _hierarchy->group(id);
         }
 
+        const size_t& depth(ContractionGroupID id) const {
+            return _hierarchy->depth(id);
+        }
+
+//        const size_t& node_depth(HypernodeID id) const {
+//            return _hierarchy->node_depth(id);
+//        }
+
         bool pickAnyActiveID(ContractionGroupID& destination) {
             ASSERT(!_active_ids.empty());
             destination = _active_ids.front();
@@ -83,6 +93,22 @@ namespace mt_kahypar::ds
             activate(id);
         }
 
+        void doParallelForAllGroups(const DoParallelForAllGroupsFunction& f) const {
+            tbb::parallel_for(all(),[&](BlockedGroupIDIterator& range) {
+                for (ContractionGroupID id = range.begin(); id != range.end(); ++id) {
+                    f(group(id));
+                }
+            });
+        }
+
+        void doParallelForAllGroupIDs(const DoParallelForAllGroupIDsFunction& f) const {
+            tbb::parallel_for(all(),[&](BlockedGroupIDIterator& range) {
+                for (ContractionGroupID id = range.begin(); id != range.end(); ++id) {
+                    f(id);
+                }
+            });
+        }
+
     private:
 
         bool isActive(ContractionGroupID id) const {
@@ -94,6 +120,10 @@ namespace mt_kahypar::ds
             ASSERT(!isActive(id));
             _active_ids.push(id);
             _active[id] = true;
+        }
+
+        BlockedGroupIDIterator all() const {
+            return _hierarchy->all();
         }
 
     };
@@ -136,14 +166,20 @@ namespace mt_kahypar::ds
             return _hierarchy->group(id);
         }
 
+        const size_t& depth(ContractionGroupID id) const {
+            return _hierarchy->depth(id);
+        }
+
+//        const size_t& node_depth(HypernodeID id) const {
+//            return _hierarchy->node_depth(id);
+//        }
+
         bool pickAnyActiveID(ContractionGroupID& destination) {
             bool picked = _active_ids.try_pop(destination);
             return picked;
         }
 
         void activateSuccessors(ContractionGroupID id) {
-
-            // todo mlaupichler are iterators like successors thread safe on parallel::scalable_vector?
             auto succs = _hierarchy->successors(id);
             for (auto s : succs) {
                 activate(s);
@@ -165,7 +201,27 @@ namespace mt_kahypar::ds
             return *_hierarchy.get();
         }
 
+        void doParallelForAllGroups(const DoParallelForAllGroupsFunction& f) const {
+            tbb::parallel_for(all(),[&](BlockedGroupIDIterator& range) {
+                for (ContractionGroupID id = range.begin(); id != range.end(); ++id) {
+                    f(group(id));
+                }
+            });
+        }
+
+        void doParallelForAllGroupIDs(const DoParallelForAllGroupIDsFunction& f) const {
+            tbb::parallel_for(all(),[&](BlockedGroupIDIterator& range) {
+                for (ContractionGroupID id = range.begin(); id != range.end(); ++id) {
+                    f(id);
+                }
+            });
+        }
+
     private:
+
+        BlockedGroupIDIterator all() const {
+            return _hierarchy->all();
+        }
 
         void activate(ContractionGroupID id) {
             _active_ids.push(id);

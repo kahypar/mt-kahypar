@@ -173,6 +173,7 @@ namespace mt_kahypar {
         // ! A reference to the seed nodes for the current refinement. Locks for seed nodes are never
         parallel::scalable_vector<HypernodeID> _seeds;
 
+        // ! Mersenne-twister random number generator for shuffling vectors
         std::mt19937 _rng;
 
     };

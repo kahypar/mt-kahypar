@@ -77,7 +77,7 @@ namespace mt_kahypar::ds {
         auto succsOfRoot1 = groupTree.successors(rootID1);
         ASSERT(std::distance(succsOfRoot1.begin(),succsOfRoot1.end()) == 1);
         auto succID1 = *succsOfRoot1.begin();
-        auto succGroup1 = groupTree.group(succID1);
+        const auto& succGroup1 = groupTree.group(succID1);
         ASSERT(succGroup1 == expectedSuccGroup1);
         ASSERT(groupTree.predecessor(succID1) == rootID1);
 
@@ -121,7 +121,7 @@ namespace mt_kahypar::ds {
 
         for (auto r : roots) {
             auto rootID = r;
-            auto rootGroup = groupTree.group(rootID);
+            const auto& rootGroup = groupTree.group(rootID);
             ASSERT(rootGroup == expectedRootGroup1 || rootGroup == expectedRootGroup2);
 
             if (rootGroup == expectedRootGroup1) {
@@ -129,7 +129,7 @@ namespace mt_kahypar::ds {
                 auto succsOfRoot1 = groupTree.successors(rootID);
                 ASSERT(std::distance(succsOfRoot1.begin(),succsOfRoot1.end()) == 1);
                 auto succID1 = *succsOfRoot1.begin();
-                auto succGroup1 = groupTree.group(succID1);
+                const auto& succGroup1 = groupTree.group(succID1);
                 ASSERT(succGroup1 == expectedSuccGroup1);
                 ASSERT(groupTree.predecessor(succID1) == rootID);
             }
@@ -138,7 +138,7 @@ namespace mt_kahypar::ds {
                 auto succsOfRoot2 = groupTree.successors(rootID);
                 ASSERT(std::distance(succsOfRoot2.begin(),succsOfRoot2.end()) == 1);
                 auto succID2 = *succsOfRoot2.begin();
-                auto succGroup2 = groupTree.group(succID2);
+                const auto& succGroup2 = groupTree.group(succID2);
                 ASSERT(succGroup2 == expectedSuccGroup2);
                 ASSERT(groupTree.predecessor(succID2) == rootID);
             }
@@ -179,12 +179,12 @@ namespace mt_kahypar::ds {
         ASSERT(std::distance(rootsVersion0.begin(),rootsVersion0.end()) == 1);
 
         auto rootIDVersion0 = *rootsVersion0.begin();
-        auto rootGroupVersion0 = groupTreeVersion0.group(rootIDVersion0);
+        const auto& rootGroupVersion0 = groupTreeVersion0.group(rootIDVersion0);
         ASSERT(rootGroupVersion0 == expectedVersion0RootGroup1);
         auto succsOfRoot1Version0 = groupTreeVersion0.successors(rootIDVersion0);
         ASSERT(std::distance(succsOfRoot1Version0.begin(),succsOfRoot1Version0.end()) == 1);
         auto succID1 = *succsOfRoot1Version0.begin();
-        auto succGroup1 = groupTreeVersion0.group(succID1);
+        const auto& succGroup1 = groupTreeVersion0.group(succID1);
         ASSERT(succGroup1 == expectedVersion0SuccGroup1);
         ASSERT(groupTreeVersion0.predecessor(succID1) == rootIDVersion0);
 
@@ -207,7 +207,7 @@ namespace mt_kahypar::ds {
 
         for (auto r : roots) {
             auto rootID = r;
-            auto rootGroup = groupTreeVersion1.group(rootID);
+            const auto& rootGroup = groupTreeVersion1.group(rootID);
             ASSERT(rootGroup == expectedVersion1RootGroup1 || rootGroup == expectedVersion1RootGroup2);
 
             if (rootGroup == expectedVersion1RootGroup1) {
@@ -215,7 +215,7 @@ namespace mt_kahypar::ds {
                 auto succsOfRoot1 = groupTreeVersion1.successors(rootID);
                 ASSERT(std::distance(succsOfRoot1.begin(),succsOfRoot1.end()) == 1);
                 auto succID1 = *succsOfRoot1.begin();
-                auto succGroup1 = groupTreeVersion1.group(succID1);
+                const auto& succGroup1 = groupTreeVersion1.group(succID1);
                 ASSERT(succGroup1 == expectedVersion1SuccGroup1);
                 ASSERT(groupTreeVersion1.predecessor(succID1) == rootID);
             }

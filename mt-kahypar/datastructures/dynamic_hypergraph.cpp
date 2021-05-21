@@ -265,7 +265,7 @@ void DynamicHypergraph::uncontract(const Batch& batch,
   });
 }
 
-VersionedPoolVector DynamicHypergraph::createUncontractionGroupPoolsForVersions() {
+VersionedPoolVector DynamicHypergraph::createUncontractionGroupPoolsForVersions(const bool test) {
 
     const size_t num_versions = _version + 1;
     utils::Timer::instance().start_timer("finalize_contraction_tree", "Finalize Contraction Tree");
@@ -276,6 +276,7 @@ VersionedPoolVector DynamicHypergraph::createUncontractionGroupPoolsForVersions(
 
     ASSERT(_contraction_tree.isFinalized());
     utils::Timer::instance().start_timer("create_uncontraction_group_pools", "Create Uncontraction Group Pools For All Versions");
+//    UncontractionGroupTree::resetNodeToGroupMap(_num_hypernodes);
     VersionedPoolVector poolVector;
     poolVector.resize(num_versions);
     for (size_t v = 0; v < num_versions; ++v) {
@@ -288,8 +289,53 @@ VersionedPoolVector DynamicHypergraph::createUncontractionGroupPoolsForVersions(
     }
     utils::Timer::instance().stop_timer("create_uncontraction_group_pools");
 
-    return poolVector;
+    if ( !test ) {
+        utils::Timer::instance().start_timer("prepare_hg_for_uncontraction", "Prepare HG For Uncontraction");
 
+        size_t invalidDepth = std::numeric_limits<size_t>::max();
+        parallel::scalable_vector<size_t> node_depths(_num_hypernodes, invalidDepth);
+
+        // Store the pool index (=version) of each vertex in its hypernode data structure
+        // ATTENTION! The batch index of a hypernode is somewhat abused here to store the pool index instead.
+        // This is done because there are no batches in asynchronous uncoarsening but we want to sort by pools
+        // (no extra member is introduced to Hypernode in order to save memory space)
+        // Also store the depth of the contraction of the node in the respective uncontraction hierarchy.
+        tbb::parallel_for(0UL, num_versions, [&](const size_t version) {
+            auto& pool = poolVector[version];
+            pool->doParallelForAllGroupIDs([&](const ContractionGroupID& groupID) {
+                const auto& group = pool->group(groupID);
+                for ( const Memento& memento : group) {
+                    ASSERT(memento.v < _num_hypernodes && node_depths[memento.v] == invalidDepth);
+                    hypernode(memento.v).setBatchIndex(version);
+                    node_depths[memento.v] = pool->depth(groupID);
+                }
+            });
+        });
+
+        // Sort the invalid part of each hyperedge: Primarily sort by pool index (version) in descending order and
+        // secondarily sort by depth in the uncontraction hierarchy in ascending order (This ordering approximates the
+        // order of uncontractions in the uncoarsening phase in order to optimize reactivation of pins)
+        tbb::parallel_for(ID(0), _num_hyperedges, [&](const HyperedgeID& he) {
+            const size_t first_invalid_entry = hyperedge(he).firstInvalidEntry();
+            const size_t last_invalid_entry = hyperedge(he + 1).firstEntry();
+            std::sort(_incidence_array.begin() + first_invalid_entry,
+                      _incidence_array.begin() + last_invalid_entry,
+                      [&](const HypernodeID u, const HypernodeID v) {
+                          ASSERT(hypernode(u).batchIndex() != std::numeric_limits<HypernodeID>::max(),
+                                 "Hypernode" << u << "is not contained in the uncontraction hierarchy");
+                          ASSERT(hypernode(v).batchIndex() != std::numeric_limits<HypernodeID>::max(),
+                                 "Hypernode" << v << "is not contained in the uncontraction hierarchy");
+                          auto version_u = hypernode(u).batchIndex();
+                          auto version_v = hypernode(v).batchIndex();
+                          auto depth_u = node_depths[u];
+                          auto depth_v = node_depths[v];
+                          return version_u > version_v || (version_u == version_v && depth_u < depth_v);
+                      });
+        });
+        utils::Timer::instance().stop_timer("prepare_hg_for_uncontraction");
+    }
+
+    return poolVector;
 }
 
 
@@ -302,12 +348,12 @@ void DynamicHypergraph::uncontract(const ContractionGroup& group,
         ASSERT(!hypernode(memento.u).isDisabled(), "Hypernode" << memento.u << "is disabled");
         ASSERT(hypernode(memento.v).isDisabled(), "Hypernode" << memento.v << "is not invalid");
 
-        //todo mlaupichler is restoring the hyperedge incidence array okay without locking? Race condition on where inactive part begins
+
         _incident_nets.uncontract(memento.u, memento.v,[&](const HyperedgeID e) {
             // In that case, u and v were both previously part of hyperedge e.
-            reactivatePinForSingleUncontraction(e,memento.v);
 
             acquireHyperedge(e);
+            reactivatePinForSingleUncontraction(e,memento.v);
             case_one_func(memento.u, memento.v, e);
             releaseHyperedge(e);
         }, [&](const HyperedgeID e) {
@@ -707,6 +753,24 @@ bool DynamicHypergraph::verifyIncidenceArrayAndIncidentNets() {
   return success;
 }
 
+//bool DynamicHypergraph::verifyIncidenceArraySortedness(VersionedPoolVector &pools) {
+//
+//    bool all_sorted = true;
+//    doParallelForAllEdges([&](const HyperedgeID& he) {
+//        auto begin = _incidence_array.begin() + hyperedge(he).firstInvalidEntry();
+//        auto end = _incidence_array.begin() + hyperedge(he+1).firstEntry();
+//        bool sorted = std::is_sorted(begin, end, [&](const HypernodeID u, const HypernodeID v) {
+//            auto version_u = hypernode(u).batchIndex();
+//            auto version_v = hypernode(v).batchIndex();
+//            auto depth_u = hypernode(u).depth();
+//            auto depth_v = hypernode(v).depth();
+//            return version_u > version_v || (version_u == version_v && depth_u < depth_v);
+//        });
+//        all_sorted &= sorted;
+//    });
+//    return all_sorted;
+//}
+
 /**!
  * Contracts a previously registered contraction. The contraction of u and v is
  * performed if there are no pending contractions in the subtree of v and the
@@ -859,7 +923,6 @@ void DynamicHypergraph::restoreHyperedgeSizeForBatch(const HyperedgeID he,
 
 // ! Reactivate the pin of the given net for a single uncontraction.
 // ! Analogous to restoreHyperedgeSizeForBatch except for single uncontractions where order by batches is not guaranteed.
-// ! (Also destroys any order in the inactive part of the incidence array for this hyperedge!)
 // ! This takes O(n) time for n pins in the edge so it is very much not optimal.
 // ! todo mlaupichler update pin incidence data structure for unordered asynch modifications
 void DynamicHypergraph::reactivatePinForSingleUncontraction(const HyperedgeID he, HypernodeID v) {
@@ -878,11 +941,24 @@ void DynamicHypergraph::reactivatePinForSingleUncontraction(const HyperedgeID he
     ASSERT(pos != first_of_next_he);
     ASSERT(_incidence_array[pos] == v);
 
-    if (pos != first_invalid_entry) {
-        auto oldFirst = _incidence_array[first_invalid_entry];
-        _incidence_array[first_invalid_entry] = v;
-        _incidence_array[pos] = oldFirst;
+    // Move v to the beginning of the invalid entries and move up other pins by one spot up to the spot where v was before,
+    // so afterwards it can be activated by increasing the size of active pins by one
+    auto cur_val = v;
+    auto next = first_invalid_entry;
+    auto after_pos = pos + 1;
+    while (next != after_pos) {
+        auto next_val = _incidence_array[next];
+        _incidence_array[next] = cur_val;
+        cur_val = next_val;
+        ++next;
     }
+    ASSERT(cur_val == v);
+//
+//    if (pos != first_invalid_entry) {
+//        auto oldFirst = _incidence_array[first_invalid_entry];
+//        _incidence_array[first_invalid_entry] = v;
+//        _incidence_array[pos] = oldFirst;
+//    }
 
     ASSERT(_incidence_array[first_invalid_entry] == v);
     const size_t edge_size = edgeSize(he);

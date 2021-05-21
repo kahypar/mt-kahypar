@@ -22,16 +22,16 @@
 namespace mt_kahypar {
     namespace ds {
 
-        using SmokeTestUncontractionFunction = std::function<bool (ContractionGroup&, ContractionGroupID)>;
+        using SmokeTestUncontractionFunction = std::function<bool (const ContractionGroup&, ContractionGroupID)>;
 
         class UncoarseningBody {
         public:
-            explicit UncoarseningBody(ds::UncontractionGroupTree *hierarchy, SmokeTestUncontractionFunction& uncontraction_func) :
+            explicit UncoarseningBody(const ds::UncontractionGroupTree *hierarchy, SmokeTestUncontractionFunction& uncontraction_func) :
                     _hierarchy(hierarchy),
                     _uncontraction_func(uncontraction_func) {}
 
             void operator()(ds::ContractionGroupID groupID, tbb::parallel_do_feeder<ds::ContractionGroupID>& feeder) const {
-                auto group = _hierarchy->group(groupID);
+                const auto& group = _hierarchy->group(groupID);
 
                 bool uncontracted = _uncontraction_func(group, groupID);
 
@@ -45,7 +45,7 @@ namespace mt_kahypar {
             }
         private:
 
-            ds::UncontractionGroupTree* _hierarchy;
+            const ds::UncontractionGroupTree* _hierarchy;
             SmokeTestUncontractionFunction& _uncontraction_func;
         };
 
@@ -131,6 +131,7 @@ namespace mt_kahypar {
 
             utils::Timer::instance().start_timer(timer_key("create_uncontraction_pools"), "Create Uncontraction Pools");
             auto versionedPools = hypergraph.createUncontractionGroupPoolsForVersions();
+//            ASSERT(hypergraph.verifyIncidenceArraySortedness(versionedPools));
             utils::Timer::instance().stop_timer(timer_key("create_uncontraction_pools"));
 
             utils::Timer::instance().start_timer(timer_key("create_lock_manager"), "Create Lock Manager");
@@ -143,7 +144,7 @@ namespace mt_kahypar {
 
 //                partitioned_hypergraph.uncontractUsingGroupPool(pool, lockManager, NOOP_LOCALIZED_REFINEMENT_FUNC);
 
-                SmokeTestUncontractionFunction uncontract_group_and_refine = [&](ContractionGroup& group, ContractionGroupID groupID) -> bool {
+                SmokeTestUncontractionFunction uncontract_group_and_refine = [&](const ContractionGroup& group, ContractionGroupID groupID) -> bool {
                     // Attempt to acquire locks for representative and contracted nodes in the group. If any of the locks cannot be
                     // acquired, revert to previous state and attempt to pick an id again
                     auto range = IteratorRange(ds::GroupNodeIDIterator::getAtBegin(group), ds::GroupNodeIDIterator::getAtEnd(group));
@@ -182,14 +183,14 @@ namespace mt_kahypar {
                 };
 
                 if (parallel) {
-                    auto hierarchy = pool->hierarchy();
+                    const auto& hierarchy = pool->hierarchy();
                     auto parallel_body = UncoarseningBody(&hierarchy, uncontract_group_and_refine);
                     tbb::parallel_do(hierarchy.roots().begin(), hierarchy.roots().end(),parallel_body);
                 } else {
                     while (pool->hasActive()) {
                         auto groupID = invalidGroupID;
                         pool->pickAnyActiveID(groupID);
-                        auto group = pool->group(groupID);
+                        const auto& group = pool->group(groupID);
 
                         bool uncontracted = uncontract_group_and_refine(group, groupID);
 

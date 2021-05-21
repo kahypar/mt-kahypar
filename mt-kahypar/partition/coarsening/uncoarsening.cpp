@@ -69,6 +69,7 @@ namespace mt_kahypar {
     if (_context.uncoarsening.use_asynchronous_uncoarsening) {
         utils::Timer::instance().start_timer("create_uncontraction_pools", "Create Uncontraction Group Pools");
         _group_pools_for_versions = _hg.createUncontractionGroupPoolsForVersions();
+//        HEAVY_COARSENING_ASSERT(_hg.verifyIncidenceArraySortedness(_group_pools_for_versions));
         auto num_nodes = _hg.initialNumNodes();
         _lock_manager_for_async = std::make_unique<ds::ArrayLockManager<HypernodeID, ds::ContractionGroupID>>(num_nodes,ds::invalidGroupID);
         utils::Timer::instance().stop_timer("create_uncontraction_pools");
@@ -492,7 +493,7 @@ namespace mt_kahypar {
               ds::ContractionGroupID groupID = ds::invalidGroupID;
               bool picked = pool->pickAnyActiveID(groupID);
               if (!picked) continue;
-              auto group = pool->group(groupID);
+              const auto& group = pool->group(groupID);
 
               // Attempt to acquire locks for representative and contracted nodes in the group. If any of the locks cannot be
               // acquired, revert to previous state and attempt to pick an id again
@@ -719,7 +720,6 @@ namespace mt_kahypar {
               register_thread_local_refiner_ptr(&localLPRefiner);
           }
 
-//          std::cout << "Calling localized refine" << std::endl;
           // Do only label propagation
           _base.localizedRefineForAsynch(_base._phg, refinement_nodes, localLPRefiner.get(), groupID, _current_metrics,
                                          _force_measure_timings);
@@ -801,8 +801,7 @@ namespace mt_kahypar {
           ASSERT(_phg.version() == pool->getVersion());
 
           size_t num_uncontractions_before_pool = total_uncontrations.load(std::memory_order_acquire);
-
-          auto hierarchy = pool->hierarchy();
+          const auto& hierarchy = pool->hierarchy();
           auto parallel_body = PoolUncoarseningParallelBody(&hierarchy, *this, current_metrics,
                                                             force_measure_timings, total_uncontrations);
           tbb::parallel_do(hierarchy.roots().begin(), hierarchy.roots().end(),parallel_body);

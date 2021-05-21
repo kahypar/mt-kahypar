@@ -52,6 +52,22 @@ namespace mt_kahypar::metrics {
             return imbalance.load(std::memory_order_acquire);
         }
 
+
+        bool update_cut_strong(const HyperedgeWeight desired) {
+            HyperedgeWeight expected = loadCut();
+            return cut.compare_exchange_strong(expected,desired);
+        }
+
+        bool update_km1_strong(const HyperedgeWeight desired) {
+            HyperedgeWeight expected = loadKm1();
+            return km1.compare_exchange_strong(expected,desired);
+        }
+
+        bool update_imbalance_strong(const double desired) {
+            double expected = loadImbalance();
+            return imbalance.compare_exchange_strong(expected,desired);
+        }
+
         void fetch_add(const HyperedgeWeight value, const Mode mode, const Objective objective) {
             if (mode == Mode::direct_kway) {
                 switch (objective) {
@@ -69,11 +85,6 @@ namespace mt_kahypar::metrics {
                 // in recursive bisection, km1 is also optimized via the cut net metric
                 cut.fetch_add(value, std::memory_order_acq_rel);
             }
-        }
-
-        bool imbalance_compare_exchange_strong(const double desired) {
-            double expected = loadImbalance();
-            return imbalance.compare_exchange_strong(expected,desired);
         }
 
         HyperedgeWeight getMetric(const Mode mode, const Objective objective) {

@@ -44,6 +44,7 @@ namespace mt_kahypar::ds {
         /// Attempt to acquire a lock for the id lockedID with the owner ownerID. Will return true if the lock owner has
         /// changed and false if not.
         bool tryToAcquireLock(LockedID lockedID, OwnerID ownerID) {
+
             OwnerID expected = owner(lockedID);
             OwnerID desired = ownerID;
             if (expected != _invalid_owner_id) {
@@ -83,8 +84,8 @@ namespace mt_kahypar::ds {
         bool tryToAcquireMultipleLocks(IteratorRange<LockedIDIteratorT> lockedIDs, OwnerID ownerID) {
             ASSERT(std::distance(lockedIDs.begin(),lockedIDs.end()) > 0 && "Range of ids to lock cannot be empty!");
 
-            auto cur = lockedIDs.begin();
-            auto lastAcquired = lockedIDs.begin();
+            LockedIDIteratorT cur = lockedIDs.begin();
+            LockedIDIteratorT lastAcquired = lockedIDs.begin();
             auto success = true;
             while (cur != lockedIDs.end() && success) {
                 lastAcquired = cur;

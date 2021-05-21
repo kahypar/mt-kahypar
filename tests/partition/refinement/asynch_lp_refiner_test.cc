@@ -125,9 +125,9 @@ class AAsynchLPRefiner : public Test {
       BFSInitialPartitioner(InitialPartitioningAlgorithm::bfs, ip_data, ip_context, 420);
     tbb::task::spawn_root_and_wait(initial_partitioner);
     ip_data.apply();
-    metrics.km1.store(metrics::km1(partitioned_hypergraph),std::memory_order_acq_rel);
-    metrics.cut.store(metrics::hyperedgeCut(partitioned_hypergraph),std::memory_order_acq_rel);
-    metrics.imbalance.store(metrics::imbalance(partitioned_hypergraph, context),std::memory_order_acq_rel);
+    metrics.update_km1_strong(metrics::km1(partitioned_hypergraph));
+    metrics.update_cut_strong(metrics::hyperedgeCut(partitioned_hypergraph));
+    metrics.update_imbalance_strong(metrics::imbalance(partitioned_hypergraph, context));
 
     // Set refinement nodes to all border nodes (as the AsynchLPRefiner needs input seed nodes)
 //    auto add_border_node_to_refinement_nodes = [&](const HypernodeID& u) {
@@ -173,12 +173,12 @@ TYPED_TEST_CASE(AAsynchLPRefiner, TestConfigs);
 
 TYPED_TEST(AAsynchLPRefiner, UpdatesImbalanceCorrectly) {
   this->refiner->refine(this->partitioned_hypergraph, this->refinement_nodes, this->metrics, std::numeric_limits<double>::max(),this->contraction_group_id);
-  ASSERT_DOUBLE_EQ(metrics::imbalance(this->partitioned_hypergraph, this->context), this->metrics.imbalance);
+  ASSERT_DOUBLE_EQ(metrics::imbalance(this->partitioned_hypergraph, this->context), this->metrics.loadImbalance());
 }
 
 TYPED_TEST(AAsynchLPRefiner, DoesNotViolateBalanceConstraint) {
   this->refiner->refine(this->partitioned_hypergraph, this->refinement_nodes, this->metrics, std::numeric_limits<double>::max(),this->contraction_group_id);
-  ASSERT_LE(this->metrics.imbalance, this->context.partition.epsilon + EPS);
+  ASSERT_LE(this->metrics.loadImbalance(), this->context.partition.epsilon + EPS);
 }
 
 TYPED_TEST(AAsynchLPRefiner, UpdatesMetricsCorrectly) {
