@@ -146,7 +146,6 @@ size_t ParallelLocalMovingModularity::synchronousParallelRound(const Graph& grap
       HypernodeID u = permutation.at(pos);
       PartitionID best_cluster = computeMaxGainCluster(graph, communities, u);
       if (best_cluster != communities[u]) {
-        // TODO this probably needs to be tuned
         volume_updates.push_back_buffered({ communities[u], u, false });
         volume_updates.push_back_buffered({ best_cluster, u, true });
         num_moved_local.local() += 1;
@@ -162,7 +161,6 @@ size_t ParallelLocalMovingModularity::synchronousParallelRound(const Graph& grap
      * Instead we sort the updates, and for each cluster let one thread sum up the updates.
      */
     const size_t sz = volume_updates.size();
-    // TODO this probably needs to be tuned
     tbb::parallel_sort(volume_updates.begin(), volume_updates.end());
     tbb::parallel_for(0UL, sz, [&](size_t pos) {
       PartitionID c = volume_updates[pos].cluster;
