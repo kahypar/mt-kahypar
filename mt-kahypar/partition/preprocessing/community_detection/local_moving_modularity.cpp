@@ -325,6 +325,7 @@ void ParallelLocalMovingModularity::initializeClusterVolumes(const Graph& graph,
 }
 
 ParallelLocalMovingModularity::~ParallelLocalMovingModularity() {
+/*
   tbb::parallel_invoke([&] {
     parallel::parallel_free_thread_local_internal_data(
             _local_small_incident_cluster_weight, [&](CacheEfficientIncidentClusterWeights& data) {
@@ -336,8 +337,9 @@ ParallelLocalMovingModularity::~ParallelLocalMovingModularity() {
               data.freeInternalData();
             });
   }, [&] {
-    parallel::free(_cluster_volumes);
+     parallel::free(_cluster_volumes);
   });
+*/
 }
 
 

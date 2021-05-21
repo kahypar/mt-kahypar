@@ -58,10 +58,13 @@ class ParallelLocalMovingModularity {
     _max_degree(numNodes),
     _vertex_degree_sampling_threshold(context.preprocessing.community_detection.vertex_degree_sampling_threshold),
     _cluster_volumes(numNodes),
-    _local_small_incident_cluster_weight(0),
+    // _local_small_incident_cluster_weight(0),
+    /*
     _local_large_incident_cluster_weight([&] {
       return construct_large_incident_cluster_weight_map();
     }),
+     */
+    non_sampling_incident_cluster_weights(numNodes),
     _disable_randomization(disable_randomization),
     // non_sampling_incident_cluster_weights(numNodes),
     prng(context.partition.seed),
@@ -76,6 +79,12 @@ class ParallelLocalMovingModularity {
   size_t parallelNonDeterministicRound(const Graph& graph, ds::Clustering& communities);
   size_t synchronousParallelRound(const Graph& graph, ds::Clustering& communities);
   size_t sequentialRound(const Graph& graph, ds::Clustering& communities);
+
+  struct ClearList {
+    vec<double> weights;
+    vec<PartitionID> used;
+    ClearList(size_t n) : weights(n) { }
+  };
 
 
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE bool ratingsFitIntoSmallSparseMap(const Graph& graph,
@@ -95,6 +104,7 @@ class ParallelLocalMovingModularity {
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE PartitionID computeMaxGainCluster(const Graph& graph,
                                                                        const ds::Clustering& communities,
                                                                        const NodeID u) {
+    /*
     if ( ratingsFitIntoSmallSparseMap(graph, u) ) {
       return computeMaxGainCluster(graph, communities, u, _local_small_incident_cluster_weight.local());
     } else {
@@ -102,41 +112,45 @@ class ParallelLocalMovingModularity {
       large_incident_cluster_weight.setMaxSize(3UL * std::min(_max_degree, _vertex_degree_sampling_threshold));
       return computeMaxGainCluster(graph, communities, u, large_incident_cluster_weight);
     }
-
-    // return computeMaxGainCluster(graph, communities, u, non_sampling_incident_cluster_weights.local());
+    */
+    return computeMaxGainCluster(graph, communities, u, non_sampling_incident_cluster_weights.local());
   }
 
-  template<typename Map>
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE PartitionID computeMaxGainCluster(const Graph& graph,
                                                                        const ds::Clustering& communities,
                                                                        const NodeID u,
-                                                                       Map& incident_cluster_weights) {
-    PartitionID from = communities[u];
+                                                                       ClearList& incident_cluster_weights) {
+    const PartitionID from = communities[u];
     PartitionID bestCluster = communities[u];
 
-    incident_cluster_weights.clear();
+    auto& weights = incident_cluster_weights.weights;
+    auto& used = incident_cluster_weights.used;
+
     for (const Arc& arc : graph.arcsOf(u, _vertex_degree_sampling_threshold)) {
-      incident_cluster_weights[communities[arc.head]] += arc.weight;
+      const auto cv = communities[arc.head];
+      if (weights[cv] == 0.0) used.push_back(cv);
+      weights[cv] += arc.weight;
     }
 
     const ArcWeight volume_from = _cluster_volumes[from].load(std::memory_order_relaxed);
     const ArcWeight volU = graph.nodeVolume(u);
-    const ArcWeight weight_from = incident_cluster_weights[from];
+    const ArcWeight weight_from = weights[from];
 
     const double volMultiplier = _vol_multiplier_div_by_node_vol * volU;
     double bestGain = weight_from - volMultiplier * (volume_from - volU);
-    for (const auto& clusterWeight : incident_cluster_weights) {
-      PartitionID to = clusterWeight.key;
+    for (const auto to : used) {
       // if from == to, we would have to remove volU from volume_to as well.
       // just skip it. it has (adjusted) gain zero.
       if (from != to) {
-        double gain = modularityGain(clusterWeight.value, _cluster_volumes[to].load(std::memory_order_relaxed), volMultiplier);
+        double gain = modularityGain(weights[to], _cluster_volumes[to].load(std::memory_order_relaxed), volMultiplier);
         if (gain > bestGain) {
           bestCluster = to;
           bestGain = gain;
         }
       }
+      weights[to] = 0.0;
     }
+    used.clear();
 
     // changing communities and volumes in parallel causes non-determinism in debug mode
     // TODO integrate somewhere else
@@ -173,8 +187,9 @@ class ParallelLocalMovingModularity {
   double _reciprocal_total_volume = 0.0;
   double _vol_multiplier_div_by_node_vol = 0.0;
   vec<parallel::AtomicWrapper<ArcWeight>> _cluster_volumes;
-  tbb::enumerable_thread_specific<CacheEfficientIncidentClusterWeights> _local_small_incident_cluster_weight;
-  tbb::enumerable_thread_specific<LargeIncidentClusterWeights> _local_large_incident_cluster_weight;
+  // tbb::enumerable_thread_specific<CacheEfficientIncidentClusterWeights> _local_small_incident_cluster_weight;
+  // tbb::enumerable_thread_specific<LargeIncidentClusterWeights> _local_large_incident_cluster_weight;
+  tbb::enumerable_thread_specific<ClearList> non_sampling_incident_cluster_weights;
   const bool _disable_randomization;
 
   // tbb::enumerable_thread_specific<ds::SparseMap<PartitionID, ArcWeight>> non_sampling_incident_cluster_weights;
