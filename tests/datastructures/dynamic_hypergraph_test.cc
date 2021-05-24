@@ -1464,7 +1464,7 @@ using ::testing::Return;
                 if (!picked) continue;
                 const auto& group = pool->group(groupID);
                 hypergraph.uncontract(group, NOOP_BATCH_FUNC, NOOP_BATCH_FUNC);
-                pool->activateSuccessors(groupID);
+                pool->activateAllSuccessors(groupID);
             }
             pools.pop_back();
         }

@@ -180,11 +180,16 @@ namespace mt_kahypar::ds
             while (!tryToPickActiveID(destination)) {}
         }
 
-        void activateSuccessors(ContractionGroupID id) {
+        /// Convenience method to call activate() on all successors
+        void activateAllSuccessors(ContractionGroupID id) {
             auto succs = _hierarchy->successors(id);
             for (auto s : succs) {
                 activate(s);
             }
+        }
+
+        ContractionGroupIDIteratorRange successors(ContractionGroupID id) {
+            return _hierarchy->successors(id);
         }
 
         ContractionGroupID numSuccessors(ContractionGroupID id) {
@@ -195,9 +200,13 @@ namespace mt_kahypar::ds
             return !unsafeEmpty();
         }
 
-        void reactivate(ContractionGroupID id) {
-            activate(id);
+        void activate(ContractionGroupID id) {
+            insertActive(id);
         }
+
+//        void reactivate(ContractionGroupID id) {
+//            activate(id);
+//        }
 
         void doParallelForAllGroups(const DoParallelForAllGroupsFunction& f) const {
             tbb::parallel_for(all(),[&](BlockedGroupIDIterator& range) {
@@ -219,10 +228,6 @@ namespace mt_kahypar::ds
 
         BlockedGroupIDIterator all() const {
             return _hierarchy->all();
-        }
-
-        void activate(ContractionGroupID id) {
-            insertActive(id);
         }
 
         bool tryInsertActive(ContractionGroupID id) {

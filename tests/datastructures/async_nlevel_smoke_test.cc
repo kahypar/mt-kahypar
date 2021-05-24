@@ -183,9 +183,48 @@ namespace mt_kahypar {
                 };
 
                 if (parallel) {
-                    const auto& hierarchy = pool->hierarchy();
-                    auto parallel_body = UncoarseningBody(&hierarchy, uncontract_group_and_refine);
-                    tbb::parallel_do(hierarchy.roots().begin(), hierarchy.roots().end(),parallel_body);
+                    tbb::task_group uncoarsen_tg;
+                    std::function<void(void)> uncoarsen_task = [&](){
+                        ds::ContractionGroupID groupID = ds::invalidGroupID;
+                        pool->pickActiveID(groupID);
+                        bool continue_this_task = true;
+
+                        while (continue_this_task) {
+                            ASSERT(groupID != invalidGroupID);
+                            const auto& group = pool->group(groupID);
+
+                            bool uncontracted = uncontract_group_and_refine(group, groupID);
+
+                            if (!uncontracted) {
+                                // If uncontraction failed, retry by reactivating and spawning new task
+                                pool->activate(groupID);
+                                uncoarsen_tg.run(uncoarsen_task);
+                                return;
+                            } else {
+                                // If the group has successors, have this task continue with the first successor, activate the
+                                // other successors (i.e. put them in the queue) and spawn tasks for them. If the group has no
+                                // successors, simply stop this task.
+                                if (pool->numSuccessors(groupID) > 0) {
+                                    auto successors = pool->successors(groupID);
+                                    auto suc_begin = successors.begin();
+                                    auto suc_end = successors.end();
+                                    groupID = *suc_begin;
+                                    for (auto it = suc_begin + 1; it < suc_end; ++it) {
+                                        pool->activate(*it);
+                                        uncoarsen_tg.run(uncoarsen_task);
+                                    }
+                                } else {
+                                    continue_this_task = false;
+                                }
+                            }
+                        }
+                    };
+
+                    size_t num_roots = pool->getNumActive();
+                    for (size_t i = 0; i < num_roots; ++i) {
+                        uncoarsen_tg.run(uncoarsen_task);
+                    }
+                    uncoarsen_tg.wait();
                 } else {
                     while (pool->hasActive()) {
                         auto groupID = invalidGroupID;
@@ -195,9 +234,9 @@ namespace mt_kahypar {
                         bool uncontracted = uncontract_group_and_refine(group, groupID);
 
                         if (uncontracted) {
-                            pool->activateSuccessors(groupID);
+                            pool->activateAllSuccessors(groupID);
                         } else {
-                            pool->reactivate(groupID);
+                            pool->activate(groupID);
                         }
                     }
                 }

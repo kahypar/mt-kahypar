@@ -22,7 +22,7 @@ namespace mt_kahypar::ds {
         /// Get the number of currently active contraction groups in the pool.
         virtual uint32_t getNumActive() const = 0;
 
-        /// Get the total number of contraction groups that may be activated in the pool through activateSuccessors
+        /// Get the total number of contraction groups that may be activated in the pool through activateAllSuccessors
         /// (i.e. the size of the reservoir of groups).
         virtual uint32_t getNumTotal() const = 0;
 
