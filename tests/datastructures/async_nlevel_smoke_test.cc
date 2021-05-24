@@ -153,31 +153,35 @@ namespace mt_kahypar {
                         return false;
                     }
                     ASSERT(acquired);
-
-                    partitioned_hypergraph.uncontract(group);
-
                     ASSERT(lockManager->isHeldBy(group.getRepresentative(),groupID) && "Representative of the group is not locked by the group id!");
                     ASSERT(std::all_of(ds::ContractionToNodeIDIteratorAdaptor(group.begin()),
                                        ds::ContractionToNodeIDIteratorAdaptor(group.end()),
                                        [&](const HypernodeID& hn) {return lockManager->isHeldBy(hn,groupID);})
                            && "Not all contracted nodes in the group are locked by the group id!");
 
-                    // Extract refinement seeds and release locks for nodes that are not seeds
+                    partitioned_hypergraph.uncontract(group);
+
+                    // Release locks
+                    lockManager->strongReleaseMultipleLocks(range,groupID);
+
+                    ASSERT(!lockManager->isHeldBy(group.getRepresentative(),groupID) && "Representative of the group is still locked by the group id!");
+                    ASSERT(std::all_of(ds::ContractionToNodeIDIteratorAdaptor(group.begin()),
+                                       ds::ContractionToNodeIDIteratorAdaptor(group.end()),
+                                       [&](const HypernodeID& hn) {return !lockManager->isHeldBy(hn,groupID);})
+                           && "A contracted node in the group is still locked by the group id!");
+
+                    // Extract refinement seeds
                     auto begin = ds::GroupNodeIDIterator::getAtBegin(group);
                     auto end = ds::GroupNodeIDIterator::getAtEnd(group);
-                    DynamicPartitionedHypergraph::ReleaseFunction release_func = [&](const HypernodeID hn){
-                        lockManager->strongReleaseLock(hn, groupID);
-                    };
-                    auto refinement_nodes = partitioned_hypergraph.extractBorderNodesAndReleaseOthers(begin,end, release_func);
+                    parallel::scalable_vector<HypernodeID> refinement_nodes;
+                    for (auto it = begin; it != end; ++it) {
+                        HypernodeID hn = *it;
+                        if (partitioned_hypergraph.isBorderNode(hn)) {
+                            refinement_nodes.push_back(hn);
+                        }
+                    }
 
-                    // No refinement if refinement nodes are empty (all the locks are released already)
-                    if (refinement_nodes.empty()) return true;
-
-                    // No refinement
-
-                    // Release locks of seed nodes
-                    auto releaseRange = IteratorRange(refinement_nodes.begin(), refinement_nodes.end());
-                    lockManager->strongReleaseMultipleLocks(releaseRange,groupID);
+                    // No refinement in test
 
                     return true;
                 };

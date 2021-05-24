@@ -105,7 +105,7 @@ namespace mt_kahypar::ds {
                 }
                 return false;
             }
-        };
+        }
 
         /// Attempt to release multiple locks for the ids in the range lockedIDs with the owner ownerID.
         /// Will return true if all requested locks were changed and released. If the owner does not hold all of the given locks,
@@ -167,7 +167,7 @@ namespace mt_kahypar::ds {
         OwnerID owner(LockedID lockedID) const {
             ASSERT(lockedID < _size);
             return _v[lockedID].load(std::memory_order_acquire);
-        };
+        }
 
         const LockedID _size;
         std::unique_ptr<UnderlyingType[]> _v;

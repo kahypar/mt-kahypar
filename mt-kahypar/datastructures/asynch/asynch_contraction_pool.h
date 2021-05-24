@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include <tbb/concurrent_queue.h>
+#include <queue>
 #include "uncontraction_group_tree.h"
 #include "mt-kahypar/datastructures/asynch/asynch_common.h"
 

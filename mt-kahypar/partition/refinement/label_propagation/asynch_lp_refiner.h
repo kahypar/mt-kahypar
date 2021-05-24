@@ -8,6 +8,7 @@
 #include <mt-kahypar/partition/refinement/i_refiner.h>
 #include <mt-kahypar/partition/refinement/policies/local_gain_policy.h>
 #include <mt-kahypar/datastructures/asynch/array_lock_manager.h>
+#include <mt-kahypar/datastructures/thread_safe_fast_reset_flag_array.h>
 
 namespace mt_kahypar {
 
@@ -100,16 +101,7 @@ namespace mt_kahypar {
                                      ID(_context.refinement.label_propagation.hyperedge_size_activation_threshold) ) {
                                     if ( !_visited_he[he] ) {
                                         for (const HypernodeID& pin : hypergraph.pins(he)) {
-                                            if (!_lock_manager->isLocked(pin)) {
-                                                bool acquired = _lock_manager->tryToAcquireLock(pin, _contraction_group_id);
-                                                // If lock could be acquired this has to be the first time that this hypernode has been traversed in this LP round
-                                                // => Assert that it is inserted into the next active nodes
-                                                if (acquired) {
-                                                    bool set_next_active = _next_active.compare_and_set_to_true(pin);
-                                                    ASSERT(set_next_active);
-                                                    next_active_nodes.push_back(pin);
-                                                }
-                                            } else if (_lock_manager->isHeldBy(pin,_contraction_group_id) && _next_active.compare_and_set_to_true(pin) ) {
+                                            if (_next_active.compare_and_set_to_true(pin)) {
                                                 next_active_nodes.push_back(pin);
                                             }
                                         }
@@ -118,7 +110,6 @@ namespace mt_kahypar {
                                 }
                             }
                             if ( _next_active.compare_and_set_to_true(hn) ) {
-                                ASSERT(_lock_manager->isHeldBy(hn,_contraction_group_id));
                                 next_active_nodes.push_back(hn);
                             }
                             is_moved = true;
@@ -151,8 +142,6 @@ namespace mt_kahypar {
             ASSERT(phg.nodeIsEnabled(hn));
             return phg.changeNodePart(hn, from, to, _context.partition.max_part_weights[to], []{}, objective_delta);
         }
-
-        parallel::scalable_vector<size_t> getSortedIndicesOfSeedsInActiveNodes() const;
 
         const Context& _context;
         const TaskGroupID _task_group_id;

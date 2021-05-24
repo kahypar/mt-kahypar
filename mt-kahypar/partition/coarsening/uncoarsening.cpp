@@ -506,6 +506,10 @@ namespace mt_kahypar {
               ASSERT(acquired);
 
               _phg.uncontract(group);
+
+              // Release locks of seed nodes
+              _lock_manager_for_async->strongReleaseMultipleLocks(range, groupID);
+
               num_uncontractions += group.size();
               total_uncontrations += group.size();
 
@@ -515,7 +519,7 @@ namespace mt_kahypar {
                                  [&](const HypernodeID& hn){return _hg.nodeIsEnabled(hn) && _phg.partID(hn) == repr_part_id && _lock_manager_for_async->isHeldBy(hn, groupID);}),
                      "After uncontracting a group, either the representative or any of the contracted nodes is not enabled, not locked or not assigned a partition!");
 
-              // Extract refinement seeds and release locks for nodes that are not seeds
+              // Extract refinement seeds
               auto begin = ds::GroupNodeIDIterator::getAtBegin(group);
               auto end = ds::GroupNodeIDIterator::getAtEnd(group);
               parallel::scalable_vector<HypernodeID> refinement_nodes;
@@ -523,13 +527,10 @@ namespace mt_kahypar {
                   HypernodeID hn = *it;
                   if (_phg.isBorderNode(hn)) {
                       refinement_nodes.push_back(hn);
-                  } else {
-                      // If node not a border node, it is not in the seed nodes for the refinement, so release its lock
-                      _lock_manager_for_async->strongReleaseLock(hn, groupID);
                   }
               }
 
-              // No refinement if refinement nodes are empty (all the locks are released already)
+              // No refinement if refinement nodes are empty
               if (!refinement_nodes.empty()) {
                   // LP Refiner for local asynchronous label propagation refinement
                   std::unique_ptr<IAsynchRefiner> localLPRefiner = AsynchLPRefinerFactory::getInstance().createObject(
@@ -545,10 +546,6 @@ namespace mt_kahypar {
                   ts_metrics.unsafeStoreMetrics(current_metrics);
                   localizedRefineForAsynch(_phg, refinement_nodes, localLPRefiner.get(), groupID, ts_metrics, force_measure_timings);
                   current_metrics = ts_metrics.unsafeLoadMetrics();
-
-                  // Release locks of seed nodes
-                  auto releaseRange = IteratorRange(refinement_nodes.begin(), refinement_nodes.end());
-                  _lock_manager_for_async->strongReleaseMultipleLocks(releaseRange, groupID);
               }
 
               pool->activateAllSuccessors(groupID);
@@ -664,7 +661,8 @@ namespace mt_kahypar {
 
       ASSERT(_is_finalized);
       metrics::ThreadSafeMetrics current_metrics = initializeForAsynch(_compactified_phg);
-      // Used where the non-thread-safe metrics type is needed. Convert ThreadSafeMetrics using unsafeLoadMetrics() and back using unsafeStoreMetrics()
+      // Used where the non-thread-safe metrics type is needed. Convert ThreadSafeMetrics using unsafeLoadMetrics() and
+      // back using unsafeStoreMetrics() in a single-threaded environment (!)
       kahypar::Metrics tmp_unsafe_metrics;
 
       // Project partition from compactified hypergraph to original hypergraph
@@ -748,6 +746,10 @@ namespace mt_kahypar {
                   ASSERT(acquired);
 
                   _phg.uncontract(group);
+
+                  // Release locks (They will be reacquired for refinement)
+                  _lock_manager_for_async->strongReleaseMultipleLocks(range, groupID);
+
                   total_uncontractions.fetch_add(group.size(), std::memory_order_acq_rel);
 
                   auto repr_part_id = _phg.partID(group.getRepresentative());
@@ -755,20 +757,22 @@ namespace mt_kahypar {
                   ASSERT(std::all_of(ds::GroupNodeIDIterator::getAtBegin(group),
                                      ds::GroupNodeIDIterator::getAtEnd(group),
                                      [&](const HypernodeID &hn) {
-                                         return _hg.nodeIsEnabled(hn) && _phg.partID(hn) == repr_part_id &&
-                                                _lock_manager_for_async->isHeldBy(hn, groupID);
+                                         return _hg.nodeIsEnabled(hn) && _phg.partID(hn) == repr_part_id;
                                      }),
-                         "After uncontracting a group, either the representative or any of the contracted nodes is not enabled, not locked or not assigned a partition!");
+                         "After uncontracting a group, either the representative or any of the contracted nodes is not enabled or not assigned a partition!");
 
-                  // Extract refinement seeds and release locks for nodes that are not seeds
+                  // Extract refinement seeds
                   auto begin = ds::GroupNodeIDIterator::getAtBegin(group);
                   auto end = ds::GroupNodeIDIterator::getAtEnd(group);
-                  PartitionedHypergraph::ReleaseFunction release_func = [&](const HypernodeID hn) {
-                      _lock_manager_for_async->strongReleaseLock(hn, groupID);
-                  };
-                  auto refinement_nodes = _phg.extractBorderNodesAndReleaseOthers(begin, end, release_func);
+                  parallel::scalable_vector<HypernodeID> refinement_nodes;
+                  for (auto it = begin; it != end; ++it) {
+                      HypernodeID hn = *it;
+                      if (_phg.isBorderNode(hn)) {
+                          refinement_nodes.push_back(hn);
+                      }
+                  }
 
-                  // No refinement if refinement nodes are empty (all the locks are released already)
+                  // No refinement if refinement nodes are empty
                   if (!refinement_nodes.empty()) {
 
                       auto first_part_id = _phg.partID(refinement_nodes[0]);
@@ -776,10 +780,9 @@ namespace mt_kahypar {
                       ASSERT(std::all_of(refinement_nodes.begin(), refinement_nodes.end(),
                                          [&](const HypernodeID &hn) {
                                              return _hg.nodeIsEnabled(hn)
-                                                    && _phg.partID(hn) == repr_part_id
-                                                    && _lock_manager_for_async->isHeldBy(hn, groupID);
+                                                    && _phg.partID(hn) == repr_part_id;
                                          }),
-                             "After extracting seeds one of the seeds is not enabled, not locked or not assigned the right partition!");
+                             "After extracting seeds one of the seeds is not enabled or not assigned the right partition!");
 
 
                       // Thread-local LP Refiner for local asynchronous label propagation refinement.
@@ -802,10 +805,6 @@ namespace mt_kahypar {
                       // Do only label propagation
                       localizedRefineForAsynch(_phg, refinement_nodes, localLPRefiner.get(), groupID, current_metrics,
                                                force_measure_timings);
-
-                      // Release locks of seed nodes
-                      auto releaseRange = IteratorRange(refinement_nodes.begin(), refinement_nodes.end());
-                      _lock_manager_for_async->strongReleaseMultipleLocks(releaseRange, groupID);
                   }
 
                   // If the group has successors, have this task continue with the first successor, activate the
@@ -825,7 +824,6 @@ namespace mt_kahypar {
                   }
               }
           };
-
 
           size_t num_uncontractions_before_pool = total_uncontractions.load(std::memory_order_acquire);
 

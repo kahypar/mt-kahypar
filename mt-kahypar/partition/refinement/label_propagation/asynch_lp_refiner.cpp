@@ -18,8 +18,6 @@ namespace mt_kahypar {
         ASSERT(_contraction_group_id != ds::invalidGroupID, "ContractionGroupID (Owner-ID) for locking is invalid.");
         ASSERT(!refinement_nodes.empty(), "AsynchLPRefiner will not work without given seed refinement nodes. Cannot be used "
                                           "solely for rebalancing or for global refinement!");
-        ASSERT(std::all_of(refinement_nodes.begin(),refinement_nodes.end(),[&](const HypernodeID& hn) {return _lock_manager->isHeldBy(hn,_contraction_group_id);})
-            && "Not all given seed nodes are locked by the contraction group id that this LP refinement is based on!");
         ASSERT(std::all_of(refinement_nodes.begin(),refinement_nodes.end(),[&](const HypernodeID& hn) {return hypergraph.nodeIsEnabled(hn);})
                && "Not all given seed nodes are enabled!");
 
@@ -78,22 +76,6 @@ namespace mt_kahypar {
                 break;
             }
         }
-
-        // If the maximum iteration number was hit and thus active nodes remain, release their locks (except for the seeds)
-        if (!_active_nodes.empty()) {
-            auto seedIndices = getSortedIndicesOfSeedsInActiveNodes();
-            size_t curSeed = 0;
-            for ( size_t j = 0; j < _active_nodes.size(); ++j ) {
-                ASSERT(_lock_manager->isHeldBy(_active_nodes[j], _contraction_group_id));
-                // Skip seed indices
-                if (curSeed < seedIndices.size() && j == seedIndices[curSeed]) {
-                    ++curSeed;
-                    continue;
-                }
-                const HypernodeID hn = _active_nodes[j];
-                _lock_manager->strongReleaseLock(hn, _contraction_group_id);
-            }
-        }
     }
 
     template <template <typename> class LocalGainPolicy>
@@ -118,57 +100,35 @@ namespace mt_kahypar {
         std::shuffle(_active_nodes.begin(),_active_nodes.end(), _rng);
 
         bool converged = true;
+        parallel::scalable_vector<HypernodeID> retry_nodes;
         for ( size_t j = 0; j < _active_nodes.size(); ++j ) {
             const HypernodeID hn = _active_nodes[j];
-            if ( ! moveVertex(hypergraph, hn, next_active_nodes, objective_delta) ) {
-                converged = false;
+            bool acquired = _lock_manager->tryToAcquireLock(hn, _contraction_group_id);
+            if (acquired) {
+                if ( ! moveVertex(hypergraph, hn, next_active_nodes, objective_delta) ) {
+                    converged = false;
+                }
+                _lock_manager->strongReleaseLock(hn, _contraction_group_id);
+            } else {
+                retry_nodes.push_back(hn);
             }
         }
 
-        // todo mlaupichler Releasing can probably be optimized. Releasing at the end of the round results in locks
-        //  being held longer than they would optimally need to be held.
-
-        // Release locks for nodes that were active in this round but will not be active in the next one. Exempt the
-        // seed nodes of the refinement as their locks are never released by the refiner.
-        // Do this only now at the end of the round in order to guarantee that during the round no locks will be released,
-        // so queries whether a lock is already held by this LP hold until the end of the round.
-        auto seedIndices = getSortedIndicesOfSeedsInActiveNodes();
-        size_t curSeed = 0;
-        for ( size_t j = 0; j < _active_nodes.size(); ++j ) {
-
-            ASSERT(_lock_manager->isHeldBy(_active_nodes[j], _contraction_group_id));
-
-            // Skip seed indices
-            if (curSeed < seedIndices.size() && j == seedIndices[curSeed]) {
-                ++curSeed;
-                continue;
-            }
-
-            const HypernodeID hn = _active_nodes[j];
-            if (!_next_active[hn]) {
+        // Retry acquiring lock and moving exactly once
+        // todo mlaupichler: This is arbitrary, perhaps add CL option to set how often we retry here
+        for ( size_t j = 0; j < retry_nodes.size(); ++j ) {
+            const HypernodeID hn = retry_nodes[j];
+            bool acquired = _lock_manager->tryToAcquireLock(hn, _contraction_group_id);
+            if (acquired) {
+                if ( ! moveVertex(hypergraph, hn, next_active_nodes, objective_delta) ) {
+                    converged = false;
+                }
                 _lock_manager->strongReleaseLock(hn, _contraction_group_id);
             }
         }
 
         HEAVY_REFINEMENT_ASSERT(hypergraph.checkTrackedPartitionInformation());
         return converged;
-    }
-
-    template <template <typename> class LocalGainPolicy>
-    parallel::scalable_vector<size_t> AsynchLPRefiner<LocalGainPolicy>::getSortedIndicesOfSeedsInActiveNodes() const {
-        parallel::scalable_vector<size_t> indices;
-
-        for ( size_t j = 0; j < _active_nodes.size(); ++j ) {
-          // REVIEW should be fine in most cases, but looks dangerous.
-          // in case _seeds.size() is large, e.g., > 40 or smth, you can sort the seeds and do binary search (std::lower_bound) whether _active_nodes[j] is a seed
-          // also, you can do this directly in the loop above. no need to allocate a vector
-            for (HypernodeID seed : _seeds) {
-                if (seed == _active_nodes[j]) indices.push_back(j);
-            }
-        }
-        ASSERT(indices.size() <= _seeds.size());
-        HEAVY_REFINEMENT_ASSERT(std::is_sorted(indices.begin(),indices.end()) && "Seed indices are not sorted!");
-        return indices;
     }
 
     template <template <typename> class LocalGainPolicy>
