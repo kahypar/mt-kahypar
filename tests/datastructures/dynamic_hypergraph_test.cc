@@ -1460,7 +1460,7 @@ using ::testing::Return;
             auto pool = pools.back().get();
             while (pool->hasActive()) {
                 ContractionGroupID groupID = invalidGroupID;
-                bool picked = pool->pickAnyActiveID(groupID);
+                bool picked = pool->tryToPickActiveID(groupID);
                 if (!picked) continue;
                 const auto& group = pool->group(groupID);
                 hypergraph.uncontract(group, NOOP_BATCH_FUNC, NOOP_BATCH_FUNC);

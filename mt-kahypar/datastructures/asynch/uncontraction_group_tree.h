@@ -109,6 +109,10 @@ namespace mt_kahypar::ds {
                     _incidence_array.cbegin() + _out_degrees[id + 1]);
         }
 
+        ContractionGroupID numSuccessors(ContractionGroupID id) const {
+            return _out_degrees[id+1] - _out_degrees[id];
+        }
+
         ContractionGroupID predecessor(ContractionGroupID id) const {
             ASSERT(id < _num_group_nodes);
             return _tree[id].getParentGroup();

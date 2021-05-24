@@ -64,7 +64,7 @@ namespace mt_kahypar::ds
 //            return _hierarchy->node_depth(id);
 //        }
 
-        bool pickAnyActiveID(ContractionGroupID& destination) {
+        bool tryToPickActiveID(ContractionGroupID& destination) {
             ASSERT(!_active_ids.empty());
             destination = _active_ids.front();
             ASSERT(isActive(destination));
@@ -72,6 +72,10 @@ namespace mt_kahypar::ds
             _active_ids.pop();
             _active[destination] = false;
             return true;
+        }
+
+        void pickActiveID(ContractionGroupID& destination) {
+            tryToPickActiveID(destination);
         }
 
         void activateSuccessors(ContractionGroupID id) {
@@ -131,30 +135,26 @@ namespace mt_kahypar::ds
     template<typename GroupHierarchy>
     class ConcurrentQueueGroupPool {
 
-    private:
-
-        std::unique_ptr<GroupHierarchy> _hierarchy;
-
-        tbb::concurrent_queue<ContractionGroupID> _active_ids;
-
     public:
 
         /**
          * Constructs new sequential contraction group pool. Passes ownership of the given group hierarchy to this pool.
          */
         explicit ConcurrentQueueGroupPool(std::unique_ptr<GroupHierarchy> hierarchy)
-                : _hierarchy(hierarchy.release()) {
+                : _hierarchy(hierarchy.release()),
+                _queue_lock(),
+                _active_ids(_cmp){
             auto roots = _hierarchy->roots();
             for(auto r: roots) {
                 activate(r);
             }
         }
 
-        uint32_t getNumActive() const {
-            return _active_ids.unsafe_size();
+        uint32_t getNumActive() {
+            return unsafeNumActive();
         }
 
-        uint32_t getNumTotal() const {
+        uint32_t getNumTotal() {
             return _hierarchy->getNumGroups();
         }
 
@@ -170,13 +170,14 @@ namespace mt_kahypar::ds
             return _hierarchy->depth(id);
         }
 
-//        const size_t& node_depth(HypernodeID id) const {
-//            return _hierarchy->node_depth(id);
-//        }
-
-        bool pickAnyActiveID(ContractionGroupID& destination) {
-            bool picked = _active_ids.try_pop(destination);
+        bool tryToPickActiveID(ContractionGroupID& destination) {
+//            ASSERT(hasActive());
+            bool picked = tryPopActive(destination);
             return picked;
+        }
+
+        void pickActiveID(ContractionGroupID& destination) {
+            while (!tryToPickActiveID(destination)) {}
         }
 
         void activateSuccessors(ContractionGroupID id) {
@@ -186,19 +187,16 @@ namespace mt_kahypar::ds
             }
         }
 
-        bool hasActive() const {
-            return !(_active_ids.empty());
+        ContractionGroupID numSuccessors(ContractionGroupID id) {
+            return _hierarchy->numSuccessors(id);
+        }
+
+        bool hasActive() {
+            return !unsafeEmpty();
         }
 
         void reactivate(ContractionGroupID id) {
             activate(id);
-        }
-
-        // todo mlaupichler: This is used to entirely circumvent the actual pool for parallel_do (which manages
-        //  the queue itself via the feeder). If parallel_do is supposed to be used long term, then there should not be
-        //  a pool anymore at all and only hierarchies should be calculated
-        GroupHierarchy& hierarchy() {
-            return *_hierarchy.get();
         }
 
         void doParallelForAllGroups(const DoParallelForAllGroupsFunction& f) const {
@@ -224,8 +222,68 @@ namespace mt_kahypar::ds
         }
 
         void activate(ContractionGroupID id) {
-            _active_ids.push(id);
+            insertActive(id);
         }
+
+        bool tryInsertActive(ContractionGroupID id) {
+            bool locked = _queue_lock.tryLock();
+            if (locked) {
+                _active_ids.push(id);
+                _queue_lock.unlock();
+            }
+            return locked;
+        }
+
+        bool tryPopActive(ContractionGroupID& destination) {
+            bool locked = _queue_lock.tryLock();
+            if (locked) {
+                destination = _active_ids.top();
+                _active_ids.pop();
+                _queue_lock.unlock();
+            }
+            return locked;
+        }
+
+        void insertActive(ContractionGroupID id) {
+            _queue_lock.lock();
+            _active_ids.push(id);
+            _queue_lock.unlock();
+        }
+
+        void popActive(ContractionGroupID& destination) {
+            _queue_lock.lock();
+            destination = _active_ids.top();
+            _active_ids.pop();
+            _queue_lock.unlock();
+        }
+
+        ContractionGroupID unsafeNumActive() {
+            _queue_lock.lock();
+            ContractionGroupID num_active = _active_ids.size();
+            _queue_lock.unlock();
+            return num_active;
+        }
+
+        bool unsafeEmpty() {
+            _queue_lock.lock();
+            bool empty = _active_ids.empty();
+            _queue_lock.unlock();
+            return empty;
+        }
+
+        using DepthCompare = std::function<bool (ContractionGroupID, ContractionGroupID)>;
+
+        // Used to compare groups by their depth in the GroupHierarchy. The comparator for std::priority queue has to be
+        // true if id1 < id2 in the queue but std::priority_queue emits the largest elements first, so here we reverse
+        // the ordering in order to emit the smallest depth group first.
+        DepthCompare _cmp = [&](ContractionGroupID id1, ContractionGroupID id2) {
+            return _hierarchy->depth(id1) > _hierarchy->depth(id2);
+        };
+
+        std::unique_ptr<GroupHierarchy> _hierarchy;
+
+        SpinLock _queue_lock;
+        std::priority_queue<ContractionGroupID, std::vector<ContractionGroupID>, DepthCompare> _active_ids;
 
     };
 

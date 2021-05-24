@@ -189,7 +189,7 @@ namespace mt_kahypar {
                 } else {
                     while (pool->hasActive()) {
                         auto groupID = invalidGroupID;
-                        pool->pickAnyActiveID(groupID);
+                        pool->tryToPickActiveID(groupID);
                         const auto& group = pool->group(groupID);
 
                         bool uncontracted = uncontract_group_and_refine(group, groupID);

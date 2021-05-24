@@ -38,7 +38,7 @@ namespace mt_kahypar::ds {
         bool seen1 = false;
 
         auto picked1 = invalidGroupID;
-        pool.pickAnyActiveID(picked1);
+        pool.tryToPickActiveID(picked1);
         ASSERT(picked1 == 0 || picked1 == 1);
         if (picked1 == 0)
             seen0 = true;
@@ -52,7 +52,7 @@ namespace mt_kahypar::ds {
         ASSERT(pool.getNumActive() == 1);
 
         auto picked2 = invalidGroupID;
-        pool.pickAnyActiveID(picked2);
+        pool.tryToPickActiveID(picked2);
         ASSERT(picked2 == 0 || picked2 == 1);
         if (picked2 == 0)
             seen0 = true;
@@ -100,7 +100,7 @@ namespace mt_kahypar::ds {
         while (pool.hasActive()) {
             ASSERT_EQ(pool.getNumActive(), expectedNumActive);
             auto picked = invalidGroupID;
-            pool.pickAnyActiveID(picked);
+            pool.tryToPickActiveID(picked);
             seen[picked] = true;
             pool.activateSuccessors(picked);
             // 0, has 2 more successors, 1 has one more successor, others don't have any
@@ -146,7 +146,7 @@ namespace mt_kahypar::ds {
 
         ASSERT_TRUE(pool.hasActive());
         auto picked = invalidGroupID;
-        pool.pickAnyActiveID(picked);
+        pool.tryToPickActiveID(picked);
         ASSERT_FALSE(pool.hasActive());
         pool.reactivate(picked);
         ASSERT_TRUE(pool.hasActive());
@@ -165,7 +165,7 @@ namespace mt_kahypar::ds {
         ASSERT_EQ(pool.getNumTotal(), 1);
 
         auto picked = invalidGroupID;
-        pool.pickAnyActiveID(picked);
+        pool.tryToPickActiveID(picked);
         pool.reactivate(picked);
         ASSERT_DEATH(pool.reactivate(picked), "");
 
@@ -187,7 +187,7 @@ namespace mt_kahypar::ds {
         ASSERT_EQ(pool.getNumTotal(), 1);
 
         auto picked = invalidGroupID;
-        pool.pickAnyActiveID(picked);
+        pool.tryToPickActiveID(picked);
         ASSERT_EQ(picked,0);
         pool.activateSuccessors(picked);
         ASSERT_DEATH(pool.reactivate(picked), "");

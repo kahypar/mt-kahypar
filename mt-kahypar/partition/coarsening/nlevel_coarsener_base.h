@@ -98,28 +98,6 @@ class NLevelCoarsenerBase {
   PartitionedHypergraph&& doSequentialUncoarsen(std::unique_ptr<IRefiner>& label_propagation,
                                                 std::unique_ptr<IRefiner>& fm);
 
-
-    class PoolUncoarseningParallelBody {
-    public:
-        PoolUncoarseningParallelBody(const ds::UncontractionGroupTree *hierarchy, NLevelCoarsenerBase &base,
-                                     metrics::ThreadSafeMetrics &current_metrics, bool &force_measure_timings,
-                                     CAtomic<size_t> &total_uncontractions) :
-                                              _hierarchy(hierarchy),
-                                              _base(base),
-                                              _current_metrics(current_metrics),
-                                              _force_measure_timings(force_measure_timings),
-                                              _total_uncontractions(total_uncontractions) {}
-
-        void operator()(ds::ContractionGroupID groupID, tbb::parallel_do_feeder<ds::ContractionGroupID>& feeder) const;
-    private:
-
-        const ds::UncontractionGroupTree* _hierarchy;
-        NLevelCoarsenerBase& _base;
-        metrics::ThreadSafeMetrics& _current_metrics;
-        bool& _force_measure_timings;
-        CAtomic<size_t>& _total_uncontractions;
-    };
-
   PartitionedHypergraph&& doAsynchronousUncoarsen(std::unique_ptr<IRefiner>& label_propagation,
                                                   std::unique_ptr<IRefiner>& fm);
 
