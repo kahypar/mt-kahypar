@@ -272,12 +272,23 @@ namespace mt_kahypar {
              "Label Propagation Algorithm:\n"
              "- label_propagation_km1\n"
              "- label_propagation_cut\n"
+             "- deterministic\n"
              "- do_nothing")
             ((initial_partitioning ? "i-r-lp-maximum-iterations" : "r-lp-maximum-iterations"),
              po::value<size_t>((!initial_partitioning ? &context.refinement.label_propagation.maximum_iterations :
                                 &context.initial_partitioning.refinement.label_propagation.maximum_iterations))->value_name(
                      "<size_t>")->default_value(5),
              "Maximum number of label propagation rounds")
+            ((initial_partitioning ? "i-r-sync-lp-sub-rounds" : "r-sync-lp-sub-rounds"),
+             po::value<size_t>((!initial_partitioning ? &context.refinement.deterministic_refinement.num_sub_rounds_sync_lp :
+                                &context.initial_partitioning.refinement.deterministic_refinement.num_sub_rounds_sync_lp))->value_name(
+                     "<size_t>")->default_value(5),
+             "Number of sub-rounds for deterministic synchronous label propagation")
+            ((initial_partitioning ? "i-r-sync-lp-active-nodeset" : "r-sync-lp-active-nodeset"),
+             po::value<bool>((!initial_partitioning ? &context.refinement.deterministic_refinement.use_active_node_set :
+                                &context.initial_partitioning.refinement.deterministic_refinement.use_active_node_set))->value_name(
+                     "<bool>")->default_value(true),
+             "Number of sub-rounds for deterministic synchronous label propagation")
             ((initial_partitioning ? "i-r-lp-rebalancing" : "r-lp-rebalancing"),
              po::value<bool>((!initial_partitioning ? &context.refinement.label_propagation.rebalancing :
                               &context.initial_partitioning.refinement.label_propagation.rebalancing))->value_name(

@@ -159,10 +159,7 @@ std::ostream& operator<<(std::ostream& out, const NLevelGlobalFMParameters& para
 
 struct DeterministicRefinementParameters {
   size_t num_sub_rounds_sync_lp = 5;
-  HyperedgeID edge_size_threshold_for_coloring = std::numeric_limits<HyperedgeID>::max();
-  bool use_gain_recalculation = false;
-  bool feistel_shuffling = false;
-  bool apply_moves_by_maximal_prefix_in_block_pairs = false;
+  bool use_active_node_set = false;
 };
 
 std::ostream& operator<<(std::ostream& out, const DeterministicRefinementParameters& params);
