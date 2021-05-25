@@ -46,7 +46,7 @@ namespace mt_kahypar {
       }
 
       // size == 0 means no node was moved last round, but there were positive gains --> try again with different permutation
-      if (iter == 0 || active_nodes.size() == 0) {
+      if (!context.refinement.deterministic_refinement.use_active_node_set || iter == 0 || active_nodes.size() == 0) {
         permutation.random_grouping(phg.initialNumNodes(), context.shared_memory.static_balancing_work_packages, prng());
       } else {
         tbb::parallel_sort(active_nodes.begin(), active_nodes.end());
@@ -114,7 +114,6 @@ namespace mt_kahypar {
 
 /*
  * for configs where we don't know exact gains --> have to trace the overall improvement with attributed gains
- * TODO active node set
  */
   Gain DeterministicLabelPropagationRefiner::performMoveWithAttributedGain(PartitionedHypergraph& phg, const Move& m) {
     Gain attributed_gain = 0;
@@ -123,7 +122,7 @@ namespace mt_kahypar {
       attributed_gain -= km1Delta(he, edge_weight, edge_size, pin_count_in_from_part_after, pin_count_in_to_part_after);
     };
     const bool was_moved = phg.changeNodePart(m.node, m.from, m.to, objective_delta);
-    if (was_moved) {
+    if (context.refinement.deterministic_refinement.use_active_node_set && was_moved) {
       // activate neighbors for next round
       const HypernodeID n = phg.initialNumNodes();
       for (HyperedgeID he : phg.incidentEdges(m.node)) {
