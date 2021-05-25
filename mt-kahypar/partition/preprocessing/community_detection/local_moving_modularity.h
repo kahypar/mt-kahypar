@@ -68,7 +68,7 @@ class ParallelLocalMovingModularity {
     _disable_randomization(disable_randomization),
     // non_sampling_incident_cluster_weights(numNodes),
     prng(context.partition.seed),
-    volume_updates(0)
+    volume_updates(0), volume_updates_from(0)
   { }
 
   ~ParallelLocalMovingModularity();
@@ -199,12 +199,11 @@ class ParallelLocalMovingModularity {
   struct ClusterMove {
     PartitionID cluster;
     NodeID node;
-    bool to;
     bool operator< (const ClusterMove& o) const {
       return std::tie(cluster, node) < std::tie(o.cluster, o.node);
     }
   };
-  ds::BufferedVector<ClusterMove> volume_updates;
+  ds::BufferedVector<ClusterMove> volume_updates, volume_updates_from;
 
 
 
