@@ -38,22 +38,22 @@ namespace mt_kahypar {
     const size_t num_sub_rounds = context.refinement.deterministic_refinement.num_sub_rounds_sync_lp;
     const size_t num_buckets_per_sub_round = parallel::chunking::idiv_ceil(num_buckets, num_sub_rounds);
 
-
     const bool log = false && context.type == kahypar::ContextType::main;
 
     for (size_t iter = 0; iter < context.refinement.label_propagation.maximum_iterations; ++iter) {
       if (++round == 0) {
         std::fill(last_round.begin(), last_round.end(), CAtomic<uint32_t>(0));
       }
-      if (iter == 0) {
+
+      // size == 0 means no node was moved last round, but there were positive gains --> try again with different permutation
+      if (iter == 0 || active_nodes.size() == 0) {
         permutation.random_grouping(phg.initialNumNodes(), context.shared_memory.static_balancing_work_packages, prng());
       } else {
-        active_nodes.finalize();
         tbb::parallel_sort(active_nodes.begin(), active_nodes.end());
         permutation.sample_buckets_and_group_by(active_nodes.range(),
                                                 context.shared_memory.static_balancing_work_packages, prng());
-        active_nodes.clear();
       }
+      active_nodes.clear();
 
       size_t num_moves = 0;
       Gain round_improvement = 0;
@@ -97,6 +97,7 @@ namespace mt_kahypar {
         num_moves += num_moves_in_sub_round;
       }
       overall_improvement += round_improvement;
+      active_nodes.finalize();
 
       if (num_moves == 0) {
         break; // no vertices with positive gain --> stop
