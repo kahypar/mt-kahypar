@@ -95,6 +95,7 @@ namespace mt_kahypar {
     assignPartitionIDs({0, 1, 2, 3, 3, 1, 2});
     auto [to, g] = gain.computeBestTargetBlock(phg, 0, context.partition.max_part_weights);
 
+    gain.computeGains(phg, 0);
     ASSERT_EQ(gain.gains[1], 1);
     ASSERT_EQ(gain.gains[2], 1);
     ASSERT_EQ(gain.gains[3], 1);
@@ -107,6 +108,8 @@ namespace mt_kahypar {
   TEST_F(Km1GainsK4, ComputesCorrectMoveGainForVertex2) {
     assignPartitionIDs({0, 3, 1, 2, 2, 0, 3});
     auto [to, g] = gain.computeBestTargetBlock(phg, 6, context.partition.max_part_weights);
+
+    gain.computeGains(phg, 6);
     ASSERT_EQ(gain.gains[0], 1);
     ASSERT_EQ(gain.gains[1], 1);
     ASSERT_EQ(gain.gains[2], 1);
@@ -115,6 +118,7 @@ namespace mt_kahypar {
 
     std::tie(to, g) = gain.computeBestTargetBlock(phg, 2, context.partition.max_part_weights);
 
+    gain.computeGains(phg, 2);
     ASSERT_EQ(gain.gains[0], 2);
     ASSERT_EQ(gain.gains[2], 0);
     ASSERT_EQ(gain.gains[3], 1);
@@ -128,6 +132,7 @@ namespace mt_kahypar {
     assignPartitionIDs({0, 3, 1, 2, 2, 0, 3});
     auto [to, g] = gain.computeBestTargetBlock(phg, 3, context.partition.max_part_weights);
 
+    gain.computeGains(phg, 3);
     ASSERT_EQ(gain.gains[0], -1);
     ASSERT_EQ(gain.gains[1], -2);
     ASSERT_EQ(gain.gains[3], 0);
