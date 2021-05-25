@@ -32,8 +32,8 @@ void DeterministicMultilevelCoarsener::coarsenImpl() {
   utils::ProgressBar progress_bar(initial_num_nodes, 0,
                                   _context.partition.verbose_output && _context.partition.enable_progress_bar);
 
-  constexpr size_t num_sub_rounds = 16;
   constexpr size_t num_buckets = utils::ParallelPermutation<HypernodeID>::num_buckets;
+  const size_t num_sub_rounds = _context.coarsening.num_sub_rounds_deterministic;
   const size_t num_buckets_per_sub_round = parallel::chunking::idiv_ceil(num_buckets, num_sub_rounds);
 
 

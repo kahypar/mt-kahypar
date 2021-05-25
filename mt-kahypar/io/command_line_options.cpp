@@ -236,7 +236,11 @@ namespace mt_kahypar {
             ("c-vertex-degree-sampling-threshold",
              po::value<size_t>(&context.coarsening.vertex_degree_sampling_threshold)->value_name(
                      "<size_t>")->default_value(std::numeric_limits<size_t>::max()),
-             "If set, then neighbors of a vertex are sampled during rating if its degree is greater than this threshold.");
+             "If set, then neighbors of a vertex are sampled during rating if its degree is greater than this threshold.")
+            ("c-num-sub-rounds",
+             po::value<size_t>(&context.coarsening.num_sub_rounds_deterministic)->value_name(
+                     "<size_t>")->default_value(16),
+             "Number of sub-rounds used for deterministic coarsening.");
     return options;
   }
 
