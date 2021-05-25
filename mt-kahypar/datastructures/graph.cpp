@@ -233,7 +233,9 @@ namespace mt_kahypar::ds {
     }
     ASSERT(canBeUsed());
     ASSERT(_num_nodes == communities.size());
-    ASSERT(_tmp_graph_buffer);
+    if ( !_tmp_graph_buffer ) {
+      allocateContractionBuffers();
+    }
     Graph coarse_graph;
     coarse_graph._total_volume = _total_volume;
 
