@@ -7,7 +7,7 @@
 #include "gtest/gtest.h"
 #include "gtest/gtest-death-test.h"
 
-#include "mt-kahypar/datastructures/asynch/array_lock_manager.h"
+#include "mt-kahypar/datastructures/async/array_lock_manager.h"
 
 namespace mt_kahypar::ds {
 

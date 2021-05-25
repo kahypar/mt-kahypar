@@ -5,7 +5,7 @@
 #include "gtest/gtest.h"
 #include "gtest/gtest-death-test.h"
 
-#include "mt-kahypar/datastructures/asynch/asynch_common.h"
+#include "mt-kahypar/datastructures/async/async_common.h"
 
 namespace mt_kahypar::ds {
 

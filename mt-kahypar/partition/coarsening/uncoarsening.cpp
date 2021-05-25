@@ -1,5 +1,5 @@
 #include <mt-kahypar/partition/refinement/do_nothing_refiner.h>
-#include <mt-kahypar/partition/refinement/label_propagation/asynch_lp_refiner.h>
+#include <mt-kahypar/partition/refinement/label_propagation/async_lp_refiner.h>
 #include "mt-kahypar/partition/coarsening/multilevel_coarsener_base.h"
 #include "mt-kahypar/partition/coarsening/nlevel_coarsener_base.h"
 #include "mt-kahypar/partition/factories.h"
@@ -14,8 +14,8 @@
 #include "mt-kahypar/partition/metrics.h"
 #include "mt-kahypar/io/partitioning_output.h"
 
-#include "mt-kahypar/datastructures/asynch/array_lock_manager.h"
-#include "mt-kahypar/datastructures/asynch/asynch_contraction_pool.h"
+#include "mt-kahypar/datastructures/async/array_lock_manager.h"
+#include "mt-kahypar/datastructures/async/group_pool.h"
 
 namespace mt_kahypar {
 
@@ -499,7 +499,6 @@ namespace mt_kahypar {
               auto range = IteratorRange(ds::GroupNodeIDIterator::getAtBegin(group), ds::GroupNodeIDIterator::getAtEnd(group));
               bool acquired = _lock_manager_for_async->tryToAcquireMultipleLocks(range, groupID);
               if (!acquired) {
-                  // REVIEW this can result in threads repeatedly failing and retrying. non-termination is unlikely but possible
                   pool->activate(groupID);
                   continue;
               }
@@ -533,7 +532,7 @@ namespace mt_kahypar {
               // No refinement if refinement nodes are empty
               if (!refinement_nodes.empty()) {
                   // LP Refiner for local asynchronous label propagation refinement
-                  std::unique_ptr<IAsynchRefiner> localLPRefiner = AsynchLPRefinerFactory::getInstance().createObject(
+                  std::unique_ptr<IAsyncRefiner> localLPRefiner = AsyncLPRefinerFactory::getInstance().createObject(
                           _context.refinement.label_propagation.algorithm,
                           _phg.hypergraph(),
                           _context,
@@ -544,7 +543,8 @@ namespace mt_kahypar {
                   // Do only label propagation
                   metrics::ThreadSafeMetrics ts_metrics;
                   ts_metrics.unsafeStoreMetrics(current_metrics);
-                  localizedRefineForAsynch(_phg, refinement_nodes, localLPRefiner.get(), groupID, ts_metrics, force_measure_timings);
+                  localizedRefineForAsync(_phg, refinement_nodes, localLPRefiner.get(), groupID, ts_metrics,
+                                          force_measure_timings);
                   current_metrics = ts_metrics.unsafeLoadMetrics();
               }
 
@@ -654,13 +654,13 @@ namespace mt_kahypar {
   }
 
 
-  tbb::concurrent_vector<std::unique_ptr<IAsynchRefiner>*> NLevelCoarsenerBase::_thread_local_refiner_ptrs;
+  tbb::concurrent_vector<std::unique_ptr<IAsyncRefiner>*> NLevelCoarsenerBase::_thread_local_refiner_ptrs;
 
   PartitionedHypergraph&& NLevelCoarsenerBase::doAsynchronousUncoarsen(std::unique_ptr<IRefiner>& label_propagation,
                                                     std::unique_ptr<IRefiner>& fm) {
 
       ASSERT(_is_finalized);
-      metrics::ThreadSafeMetrics current_metrics = initializeForAsynch(_compactified_phg);
+      metrics::ThreadSafeMetrics current_metrics = initializeForAsync(_compactified_phg);
       // Used where the non-thread-safe metrics type is needed. Convert ThreadSafeMetrics using unsafeLoadMetrics() and
       // back using unsafeStoreMetrics() in a single-threaded environment (!)
       kahypar::Metrics tmp_unsafe_metrics;
@@ -789,11 +789,11 @@ namespace mt_kahypar {
                       // Each thread gets its own instance. This definition is executed only once and skipped for subsequent calls,
                       // so the same refiner is reused for each call to this function by the same thread. The object is destroyed
                       // only at program exit!
-                      thread_local std::unique_ptr<IAsynchRefiner> localLPRefiner;
+                      thread_local std::unique_ptr<IAsyncRefiner> localLPRefiner;
 
                       if (!localLPRefiner) {
 //              std::cout << "new refiner for thread " << std::this_thread::get_id() << std::endl;
-                          localLPRefiner = AsynchLPRefinerFactory::getInstance().createObject(
+                          localLPRefiner = AsyncLPRefinerFactory::getInstance().createObject(
                                   _context.refinement.label_propagation.algorithm,
                                   _phg.hypergraph(),
                                   _context,
@@ -803,8 +803,8 @@ namespace mt_kahypar {
                       }
 
                       // Do only label propagation
-                      localizedRefineForAsynch(_phg, refinement_nodes, localLPRefiner.get(), groupID, current_metrics,
-                                               force_measure_timings);
+                      localizedRefineForAsync(_phg, refinement_nodes, localLPRefiner.get(), groupID, current_metrics,
+                                              force_measure_timings);
                   }
 
                   // If the group has successors, have this task continue with the first successor, activate the
@@ -1056,22 +1056,22 @@ namespace mt_kahypar {
     }
   }
 
-  void NLevelCoarsenerBase::localizedRefineForAsynch(PartitionedHypergraph &partitioned_hypergraph,
-                                                     const parallel::scalable_vector <HypernodeID> &refinement_nodes,
-                                                     IAsynchRefiner *asynch_lp,
-                                                     ds::ContractionGroupID group_id,
-                                                     metrics::ThreadSafeMetrics &current_metrics,
-                                                     const bool force_measure_timings) {
+  void NLevelCoarsenerBase::localizedRefineForAsync(PartitionedHypergraph &partitioned_hypergraph,
+                                                    const parallel::scalable_vector <HypernodeID> &refinement_nodes,
+                                                    IAsyncRefiner *async_lp,
+                                                    ds::ContractionGroupID group_id,
+                                                    metrics::ThreadSafeMetrics &current_metrics,
+                                                    const bool force_measure_timings) {
 
       bool improvement_found = true;
       while( improvement_found ) {
           improvement_found = false;
 
-          if ( asynch_lp &&
+          if (async_lp &&
                _context.refinement.label_propagation.algorithm != LabelPropagationAlgorithm::do_nothing ) {
               utils::Timer::instance().start_timer("label_propagation", "Label Propagation", false, force_measure_timings);
-              improvement_found |= asynch_lp->refine(partitioned_hypergraph,
-                                                             refinement_nodes, current_metrics, std::numeric_limits<double>::max(),group_id);
+              improvement_found |= async_lp->refine(partitioned_hypergraph,
+                                                    refinement_nodes, current_metrics, std::numeric_limits<double>::max(), group_id);
               utils::Timer::instance().stop_timer("label_propagation", force_measure_timings);
           }
 
@@ -1169,8 +1169,8 @@ namespace mt_kahypar {
     return current_metrics;
   }
 
-  metrics::ThreadSafeMetrics NLevelCoarsenerBase::initializeForAsynch(PartitionedHypergraph& current_hg) {
-      metrics::ThreadSafeMetrics current_metrics = computeMetricsForAsynch(current_hg);
+  metrics::ThreadSafeMetrics NLevelCoarsenerBase::initializeForAsync(PartitionedHypergraph& current_hg) {
+      metrics::ThreadSafeMetrics current_metrics = computeMetricsForAsync(current_hg);
       int64_t num_nodes = current_hg.initialNumNodes();
       int64_t num_edges = current_hg.initialNumEdges();
       utils::Stats::instance().add_stat("initial_num_nodes", num_nodes);

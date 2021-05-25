@@ -20,10 +20,9 @@
 
 #pragma once
 
-#include <mt-kahypar/datastructures/asynch/array_lock_manager.h>
+#include <mt-kahypar/datastructures/async/array_lock_manager.h>
 #include <tbb/parallel_do.h>
-#include <mt-kahypar/partition/refinement/label_propagation/asynch_lp_refiner.h>
-#include <mt-kahypar/partition/refinement/thread_local_asynch_refiners.h>
+#include <mt-kahypar/partition/refinement/label_propagation/async_lp_refiner.h>
 #include <mt-kahypar/parallel/atomic_wrapper.h>
 #include "tbb/task_group.h"
 
@@ -113,7 +112,7 @@ class NLevelCoarsenerBase {
     return { cut, km1,  metrics::imbalance(phg, _context) };
   }
 
-  metrics::ThreadSafeMetrics computeMetricsForAsynch(PartitionedHypergraph& phg) {
+  metrics::ThreadSafeMetrics computeMetricsForAsync(PartitionedHypergraph& phg) {
       HyperedgeWeight cut = 0;
       HyperedgeWeight km1 = 0;
       tbb::parallel_invoke([&] {
@@ -125,7 +124,7 @@ class NLevelCoarsenerBase {
     }
 
   kahypar::Metrics initialize(PartitionedHypergraph& current_hg);
-  metrics::ThreadSafeMetrics initializeForAsynch(PartitionedHypergraph& current_hg);
+  metrics::ThreadSafeMetrics initializeForAsync(PartitionedHypergraph& current_hg);
 
   void localizedRefine(PartitionedHypergraph& partitioned_hypergraph,
                        const parallel::scalable_vector<HypernodeID>& refinement_nodes,
@@ -134,10 +133,10 @@ class NLevelCoarsenerBase {
                        kahypar::Metrics& current_metrics,
                        const bool force_measure_timings);
 
-  void localizedRefineForAsynch(PartitionedHypergraph &partitioned_hypergraph,
-                                const parallel::scalable_vector <HypernodeID> &refinement_nodes,
-                                IAsynchRefiner *asynch_lp, ds::ContractionGroupID group_id,
-                                metrics::ThreadSafeMetrics &current_metrics, const bool force_measure_timings);
+  void localizedRefineForAsync(PartitionedHypergraph &partitioned_hypergraph,
+                               const parallel::scalable_vector <HypernodeID> &refinement_nodes,
+                               IAsyncRefiner *async_lp, ds::ContractionGroupID group_id,
+                               metrics::ThreadSafeMetrics &current_metrics, const bool force_measure_timings);
 
   void globalRefine(PartitionedHypergraph& partitioned_hypergraph,
                     std::unique_ptr<IRefiner>& fm,
@@ -194,14 +193,14 @@ class NLevelCoarsenerBase {
   // ! previously declared unique_ptr. The memory overhead for this in the case of different threads being used for
   // ! different calls to doAsynchronousUncoarsening() should not be large as used Refiners get destroyed, i.e. the only
   // ! overhead is from this vector itself which holds as many pointers as there are threads used in asynchronous uncoarsening.
-  static tbb::concurrent_vector<std::unique_ptr<IAsynchRefiner>*> _thread_local_refiner_ptrs;
+  static tbb::concurrent_vector<std::unique_ptr<IAsyncRefiner>*> _thread_local_refiner_ptrs;
 
   static void destroy_thread_local_refiners() {
-      for (std::unique_ptr<IAsynchRefiner>* refiner_ptr : _thread_local_refiner_ptrs) {
+      for (std::unique_ptr<IAsyncRefiner>* refiner_ptr : _thread_local_refiner_ptrs) {
           refiner_ptr->reset();
       }
   }
-  static void register_thread_local_refiner_ptr(std::unique_ptr<IAsynchRefiner>* refiner_ptr) {
+  static void register_thread_local_refiner_ptr(std::unique_ptr<IAsyncRefiner>* refiner_ptr) {
       if (std::find(_thread_local_refiner_ptrs.begin(), _thread_local_refiner_ptrs.end(), refiner_ptr) == _thread_local_refiner_ptrs.end()) {
           _thread_local_refiner_ptrs.push_back(refiner_ptr);
       }

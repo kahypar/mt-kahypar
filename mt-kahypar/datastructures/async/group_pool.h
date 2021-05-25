@@ -6,7 +6,7 @@
 
 #include <queue>
 #include "uncontraction_group_tree.h"
-#include "mt-kahypar/datastructures/asynch/asynch_common.h"
+#include "mt-kahypar/datastructures/async/async_common.h"
 
 namespace mt_kahypar::ds
 {
@@ -14,7 +14,7 @@ namespace mt_kahypar::ds
     using DoParallelForAllGroupIDsFunction = std::function<void (const ContractionGroupID&)>;
 
     template<typename GroupHierarchy>
-    class SequentialContractionGroupPool {
+    class SequentialGroupPool {
 
     private:
 
@@ -29,7 +29,7 @@ namespace mt_kahypar::ds
         /**
          * Constructs new sequential contraction group pool. Passes ownership of the given group hierarchy to this pool.
          */
-        explicit SequentialContractionGroupPool(std::unique_ptr<GroupHierarchy> hierarchy)
+        explicit SequentialGroupPool(std::unique_ptr<GroupHierarchy> hierarchy)
             : _hierarchy(hierarchy.release()),
             _num_groups(_hierarchy->getNumGroups()),
             _active(_num_groups, false),

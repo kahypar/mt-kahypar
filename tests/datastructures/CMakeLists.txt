@@ -22,11 +22,11 @@ target_sources(mt_kahypar_strong_tests PRIVATE
         gain_updates_test.cc
         incident_net_array_test.cc
         nlevel_smoke_test.cc
-        asynch_contraction_pool_test.cc
+        group_pool_test.cc
         uncontraction_group_tree_test.cpp
         async_nlevel_smoke_test.cc
         smoke_test_common.cc
         lock_manager_test.cc
-        asynch_common_test.cc
+        async_common_test.cc
 )
 

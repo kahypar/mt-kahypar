@@ -2,12 +2,12 @@
 // Created by mlaupichler on 04.05.21.
 //
 
-#ifndef KAHYPAR_ASYNCH_LP_REFINER_H
-#define KAHYPAR_ASYNCH_LP_REFINER_H
+#ifndef KAHYPAR_ASYNC_LP_REFINER_H
+#define KAHYPAR_ASYNC_LP_REFINER_H
 
 #include <mt-kahypar/partition/refinement/i_refiner.h>
 #include <mt-kahypar/partition/refinement/policies/local_gain_policy.h>
-#include <mt-kahypar/datastructures/asynch/array_lock_manager.h>
+#include <mt-kahypar/datastructures/async/array_lock_manager.h>
 #include <mt-kahypar/datastructures/thread_safe_fast_reset_flag_array.h>
 
 namespace mt_kahypar {
@@ -15,7 +15,7 @@ namespace mt_kahypar {
     /// Label Propagation Refiner to be used in asynchronous uncoarsening for localized refinement. Uses global locking
     /// datastructure to allow multiple concurrent localized label propagations as well as concurrent uncontractions.
     /// Can not be used for global refinement or (only) rebalancing as it always requires seed nodes for refining!
-    template <template <typename> class LocalGainPolicy> class AsynchLPRefiner : public IAsynchRefiner {
+    template <template <typename> class LocalGainPolicy> class AsyncLPRefiner : public IAsyncRefiner {
 
     private:
         using GainCalculator = LocalGainPolicy<PartitionedHypergraph>;
@@ -26,8 +26,8 @@ namespace mt_kahypar {
         static constexpr bool enable_heavy_assert = false;
 
     public:
-        explicit AsynchLPRefiner(Hypergraph &hypergraph, const Context &context, const TaskGroupID task_group_id,
-                                 ds::GroupLockManager *lockManager) :
+        explicit AsyncLPRefiner(Hypergraph &hypergraph, const Context &context, const TaskGroupID task_group_id,
+                                ds::GroupLockManager *lockManager) :
         _context(context),
         _task_group_id(task_group_id),
         _gain(context),
@@ -39,11 +39,11 @@ namespace mt_kahypar {
         _seeds(),
         _rng() { }
 
-        AsynchLPRefiner(const AsynchLPRefiner&) = delete;
-        AsynchLPRefiner(AsynchLPRefiner&&) = delete;
+        AsyncLPRefiner(const AsyncLPRefiner&) = delete;
+        AsyncLPRefiner(AsyncLPRefiner&&) = delete;
 
-        AsynchLPRefiner & operator= (const AsynchLPRefiner &) = delete;
-        AsynchLPRefiner & operator= (AsynchLPRefiner &&) = delete;
+        AsyncLPRefiner & operator= (const AsyncLPRefiner &) = delete;
+        AsyncLPRefiner & operator= (AsyncLPRefiner &&) = delete;
 
     private:
 
@@ -128,11 +128,6 @@ namespace mt_kahypar {
             return is_moved;
         }
 
-        // NOOP as the asynch refiner is never supposed to be used for global refinement.
-        // If initialize is called and then refine is called without giving refinement nodes as parameters,
-        // the assertion in refineImpl will fail.
-        // void initializeImpl(PartitionedHypergraph&) final {};
-
         template<typename F>
         bool changeNodePart(PartitionedHypergraph& phg,
                             const HypernodeID hn,
@@ -150,7 +145,7 @@ namespace mt_kahypar {
         ds::ThreadSafeFastResetFlagArray<> _next_active;
         kahypar::ds::FastResetFlagArray<> _visited_he;
 
-        // todo mlaupichler The AsynchLPRefiner should not be bound so tightly to the idea of ContractionGroups. Use a template argument for the OwnerID (also in the _lock_manager pointer) in order to allow any OwnerID for the locking.
+        // todo mlaupichler The AsyncLPRefiner should not be bound so tightly to the idea of ContractionGroups. Use a template argument for the OwnerID (also in the _lock_manager pointer) in order to allow any OwnerID for the locking.
         // ! The ID of the contraction group that the seed refinement nodes are from. Used as an identifier for locking
         // nodes so uncontracting and refinement of a contraction group use the same locks.
         ds::ContractionGroupID _contraction_group_id;
@@ -167,10 +162,10 @@ namespace mt_kahypar {
 
     };
 
-    using AsynchLPKm1Refiner = AsynchLPRefiner<LocalKm1Policy>;
-    using AsynchLPCutRefiner = AsynchLPRefiner<LocalCutPolicy>;
+    using AsyncLPKm1Refiner = AsyncLPRefiner<LocalKm1Policy>;
+    using AsyncLPCutRefiner = AsyncLPRefiner<LocalCutPolicy>;
 }  // namespace kahypar
 
 
 
-#endif //KAHYPAR_ASYNCH_LP_REFINER_H
+#endif //KAHYPAR_ASYNC_LP_REFINER_H

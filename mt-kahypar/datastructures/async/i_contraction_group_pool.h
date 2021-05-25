@@ -7,7 +7,7 @@
 
 #include "gmock/gmock.h"
 
-#include "asynch_common.h"
+#include "async_common.h"
 
 namespace mt_kahypar::ds {
 

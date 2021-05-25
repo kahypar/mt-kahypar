@@ -3,7 +3,7 @@
 //
 
 #include <tbb/parallel_sort.h>
-#include "asynch_lp_refiner.h"
+#include "async_lp_refiner.h"
 #include "mt-kahypar/partition/metrics.h"
 #include "mt-kahypar/utils/randomize.h"
 #include "mt-kahypar/utils/stats.h"
@@ -12,11 +12,11 @@
 namespace mt_kahypar {
 
     template<template <typename> class LocalGainPolicy>
-    bool AsynchLPRefiner<LocalGainPolicy>::refineImpl(PartitionedHypergraph &hypergraph,
-                                                 const parallel::scalable_vector <mt_kahypar::HypernodeID> &refinement_nodes,
-                                                 metrics::ThreadSafeMetrics &best_metrics, double) {
+    bool AsyncLPRefiner<LocalGainPolicy>::refineImpl(PartitionedHypergraph &hypergraph,
+                                                     const parallel::scalable_vector <mt_kahypar::HypernodeID> &refinement_nodes,
+                                                     metrics::ThreadSafeMetrics &best_metrics, double) {
         ASSERT(_contraction_group_id != ds::invalidGroupID, "ContractionGroupID (Owner-ID) for locking is invalid.");
-        ASSERT(!refinement_nodes.empty(), "AsynchLPRefiner will not work without given seed refinement nodes. Cannot be used "
+        ASSERT(!refinement_nodes.empty(), "AsyncLPRefiner will not work without given seed refinement nodes. Cannot be used "
                                           "solely for rebalancing or for global refinement!");
         ASSERT(std::all_of(refinement_nodes.begin(),refinement_nodes.end(),[&](const HypernodeID& hn) {return hypergraph.nodeIsEnabled(hn);})
                && "Not all given seed nodes are enabled!");
@@ -55,7 +55,7 @@ namespace mt_kahypar {
     }
 
     template <template <typename> class LocalGainPolicy>
-    void AsynchLPRefiner<LocalGainPolicy>::labelPropagation(PartitionedHypergraph& hypergraph) {
+    void AsyncLPRefiner<LocalGainPolicy>::labelPropagation(PartitionedHypergraph& hypergraph) {
         NextActiveNodes next_active_nodes;
         for (size_t i = 0; i < _context.refinement.label_propagation.maximum_iterations; ++i) {
             DBG << "Starting Label Propagation Round" << i;
@@ -79,7 +79,7 @@ namespace mt_kahypar {
     }
 
     template <template <typename> class LocalGainPolicy>
-    bool AsynchLPRefiner<LocalGainPolicy>::labelPropagationRound(
+    bool AsyncLPRefiner<LocalGainPolicy>::labelPropagationRound(
             PartitionedHypergraph& hypergraph,
             NextActiveNodes& next_active_nodes) {
 
@@ -132,13 +132,13 @@ namespace mt_kahypar {
     }
 
     template <template <typename> class LocalGainPolicy>
-    void AsynchLPRefiner<LocalGainPolicy>::resetForGroup(ds::ContractionGroupID groupID) {
+    void AsyncLPRefiner<LocalGainPolicy>::resetForGroup(ds::ContractionGroupID groupID) {
         _contraction_group_id = groupID;
     }
 
     // explicitly instantiate so the compiler can generate them when compiling this cpp file
-    template class AsynchLPRefiner<LocalKm1Policy>;
-    template class AsynchLPRefiner<LocalCutPolicy>;
+    template class AsyncLPRefiner<LocalKm1Policy>;
+    template class AsyncLPRefiner<LocalCutPolicy>;
 
 } // namespace mt_kahypar
 

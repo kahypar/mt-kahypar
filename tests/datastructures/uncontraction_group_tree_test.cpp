@@ -6,7 +6,7 @@
 #include "gtest/gtest.h"
 #include "gtest/gtest-death-test.h"
 
-#include "mt-kahypar/datastructures/asynch/uncontraction_group_tree.h"
+#include "mt-kahypar/datastructures/async/uncontraction_group_tree.h"
 
 namespace mt_kahypar::ds {
 

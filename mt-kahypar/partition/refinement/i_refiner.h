@@ -66,17 +66,13 @@ class IRefiner {
                           const double time_limit) = 0;
 };
 
-class IAsynchRefiner {
+class IAsyncRefiner {
 
 public:
-    IAsynchRefiner(const IAsynchRefiner&) = delete;
-    IAsynchRefiner(IAsynchRefiner&&) = delete;
-    IAsynchRefiner & operator= (const IAsynchRefiner &) = delete;
-    IAsynchRefiner & operator= (IAsynchRefiner &&) = delete;
-
-//    void initialize(PartitionedHypergraph& hypergraph) {
-//        initializeImpl(hypergraph);
-//    }
+    IAsyncRefiner(const IAsyncRefiner&) = delete;
+    IAsyncRefiner(IAsyncRefiner&&) = delete;
+    IAsyncRefiner & operator= (const IAsyncRefiner &) = delete;
+    IAsyncRefiner & operator= (IAsyncRefiner &&) = delete;
 
     bool refine(PartitionedHypergraph& hypergraph,
                 const parallel::scalable_vector<HypernodeID>& refinement_nodes,
@@ -87,14 +83,12 @@ public:
         return refineImpl(hypergraph, refinement_nodes, best_metrics, time_limit);
     }
 
-    ~IAsynchRefiner() = default;
+    ~IAsyncRefiner() = default;
 
 protected:
 
-    IAsynchRefiner() = default;
+    IAsyncRefiner() = default;
 private:
-
-//    virtual void initializeImpl(PartitionedHypergraph& hypergraph) = 0;
 
     virtual bool refineImpl(PartitionedHypergraph& hypergraph,
                             const parallel::scalable_vector<HypernodeID>& refinement_nodes,

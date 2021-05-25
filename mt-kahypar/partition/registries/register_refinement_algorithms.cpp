@@ -20,7 +20,7 @@
  ******************************************************************************/
 
 
-#include <mt-kahypar/partition/refinement/label_propagation/asynch_lp_refiner.h>
+#include <mt-kahypar/partition/refinement/label_propagation/async_lp_refiner.h>
 #include "kahypar/meta/registrar.h"
 
 #include "mt-kahypar/partition/context.h"
@@ -40,11 +40,11 @@
     return new refiner(hypergraph, context, task_group_id);                                                            \
   })
 
-#define REGISTER_ASYNCH_LP_REFINER(id, refiner, t)                                                                     \
-  static kahypar::meta::Registrar<AsynchLPRefinerFactory> JOIN(register_ ## refiner, t)(                               \
+#define REGISTER_ASYNC_LP_REFINER(id, refiner, t)                                                                     \
+  static kahypar::meta::Registrar<AsyncLPRefinerFactory> JOIN(register_ ## refiner, t)(                               \
     id,                                                                                                                \
     [](Hypergraph& hypergraph, const Context& context, const TaskGroupID task_group_id,                                \
-    ds::GroupLockManager *lockManager) -> IAsynchRefiner* {                                                            \
+    ds::GroupLockManager *lockManager) -> IAsyncRefiner* {                                                            \
     return new refiner(hypergraph, context, task_group_id, lockManager);                                               \
   })
 
@@ -54,14 +54,6 @@
     [](Hypergraph& hypergraph, const Context& context, const TaskGroupID task_group_id) -> IRefiner* {                 \
     return new refiner(hypergraph, context, task_group_id);                                                            \
   })
-
-//#define REGISTER_THREAD_LOCAL_ASYNCH_LP_REFINERS(id, thread_local_refiners, t)                                         \
-//  static kahypar::meta::Registrar<ThreadLocalAsynchLPRefinersFactory> JOIN(register_ ## thread_local_refiners, t)(     \
-//    id,                                                                                                                \
-//    [](Hypergraph& hypergraph, const Context& context, const TaskGroupID task_group_id,                                \
-//    ds::GroupLockManager *lockManager) -> IThreadLocalAsynchRefiners* {                                                \
-//    return new thread_local_refiners(hypergraph, context, task_group_id, lockManager);                                 \
-//  })
 
 namespace mt_kahypar {
 REGISTER_LP_REFINER(LabelPropagationAlgorithm::label_propagation_cut, LabelPropagationCutRefiner, Cut);
@@ -78,12 +70,8 @@ REGISTER_FM_REFINER(FMAlgorithm::fm_gain_delta, MultiTryKWayFMWithGainDelta, FMW
 REGISTER_FM_REFINER(FMAlgorithm::fm_recompute_gain, MultiTryKWayFMWithGainRecomputation, FMWithGainRecomputation);
 REGISTER_FM_REFINER(FMAlgorithm::do_nothing, DoNothingRefiner, 2);
 
-REGISTER_ASYNCH_LP_REFINER(LabelPropagationAlgorithm::label_propagation_cut, AsynchLPCutRefiner, Cut);
-REGISTER_ASYNCH_LP_REFINER(LabelPropagationAlgorithm::label_propagation_km1, AsynchLPKm1Refiner, Km1);
-REGISTER_ASYNCH_LP_REFINER(LabelPropagationAlgorithm::do_nothing, DoNothingAsynchRefiner, 3);
-
-//REGISTER_THREAD_LOCAL_ASYNCH_LP_REFINERS(LabelPropagationAlgorithm::label_propagation_cut, ThreadLocalAsynchLPCutRefiners, Cut);
-//REGISTER_THREAD_LOCAL_ASYNCH_LP_REFINERS(LabelPropagationAlgorithm::label_propagation_km1, ThreadLocalAsynchLPKm1Refiners, Km1);
-//REGISTER_THREAD_LOCAL_ASYNCH_LP_REFINERS(LabelPropagationAlgorithm::do_nothing, ThreadLocalDoNothingRefiners, 1);
+REGISTER_ASYNC_LP_REFINER(LabelPropagationAlgorithm::label_propagation_cut, AsyncLPCutRefiner, Cut);
+REGISTER_ASYNC_LP_REFINER(LabelPropagationAlgorithm::label_propagation_km1, AsyncLPKm1Refiner, Km1);
+REGISTER_ASYNC_LP_REFINER(LabelPropagationAlgorithm::do_nothing, DoNothingAsyncRefiner, 3);
 
 }  // namespace mt_kahypar

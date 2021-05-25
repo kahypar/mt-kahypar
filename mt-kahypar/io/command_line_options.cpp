@@ -492,7 +492,7 @@ namespace mt_kahypar {
   po::options_description createUncoarseningOptionsDescription(Context& context, const int num_columns) {
       po::options_description uncoarsening_options("Uncoarsening Options", num_columns);
       uncoarsening_options.add_options()
-              ("use-asynchronous-uncoarsening,asynch",
+              ("use-asynchronous-uncoarsening,async",
               po::value<bool>(&context.uncoarsening.use_asynchronous_uncoarsening)->value_name("<bool>"),
               "If true, the uncoarsening will be performed asynchronously. Only applicable to nlevel paradigm.");
       return uncoarsening_options;

@@ -8,8 +8,8 @@
 #include <mt-kahypar/datastructures/sparse_map.h>
 #include "mt-kahypar/datastructures/contraction_tree.h"
 #include "mt-kahypar/datastructures/hypergraph_common.h"
-#include "mt-kahypar/datastructures/asynch/asynch_common.h"
-#include "mt-kahypar/datastructures/asynch/i_uncontraction_group_hierarchy.h"
+#include "mt-kahypar/datastructures/async/async_common.h"
+#include "mt-kahypar/datastructures/async/i_uncontraction_group_hierarchy.h"
 
 namespace mt_kahypar::ds {
 

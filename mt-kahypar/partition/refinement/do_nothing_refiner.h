@@ -48,14 +48,14 @@ class DoNothingRefiner final : public IRefiner {
   }
 };
 
-    class DoNothingAsynchRefiner final : public IAsynchRefiner {
+    class DoNothingAsyncRefiner final : public IAsyncRefiner {
     public:
         template <typename ... Args>
-        explicit DoNothingAsynchRefiner(Args&& ...) noexcept { }
-        DoNothingAsynchRefiner(const DoNothingAsynchRefiner&) = delete;
-        DoNothingAsynchRefiner(DoNothingAsynchRefiner&&) = delete;
-        DoNothingAsynchRefiner & operator= (const DoNothingAsynchRefiner &) = delete;
-        DoNothingAsynchRefiner & operator= (DoNothingAsynchRefiner &&) = delete;
+        explicit DoNothingAsyncRefiner(Args&& ...) noexcept { }
+        DoNothingAsyncRefiner(const DoNothingAsyncRefiner&) = delete;
+        DoNothingAsyncRefiner(DoNothingAsyncRefiner&&) = delete;
+        DoNothingAsyncRefiner & operator= (const DoNothingAsyncRefiner &) = delete;
+        DoNothingAsyncRefiner & operator= (DoNothingAsyncRefiner &&) = delete;
 
     private:
 

@@ -22,7 +22,7 @@
 
 #include <mutex>
 #include <queue>
-#include <mt-kahypar/datastructures/asynch/array_lock_manager.h>
+#include <mt-kahypar/datastructures/async/array_lock_manager.h>
 
 #include "tbb/parallel_for.h"
 
@@ -36,7 +36,7 @@
 #include "mt-kahypar/datastructures/thread_safe_fast_reset_flag_array.h"
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
 #include "mt-kahypar/utils/memory_tree.h"
-#include "mt-kahypar/datastructures/asynch/asynch_contraction_pool.h"
+#include "mt-kahypar/datastructures/async/group_pool.h"
 #include "mt-kahypar/datastructures/streaming_vector.h"
 
 namespace mt_kahypar {
@@ -1191,7 +1191,7 @@ class DynamicHypergraph {
   // ! (Also destroys any order in the incidence array for this hyperedge!)
   // ! This takes O(n) time for n pins in the edge so it is very much not optimal.
   // ! This is not safe for concurrent calls currently!
-  // ! todo mlaupichler update pin incidence data structure for unordered asynch modifications
+  // ! todo mlaupichler update pin incidence data structure for unordered async modifications
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE void reactivatePinForSingleUncontraction(const HyperedgeID he, HypernodeID v);
 
 private:

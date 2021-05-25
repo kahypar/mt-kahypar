@@ -6,8 +6,8 @@
 #include "gtest/gtest.h"
 #include "gtest/gtest-death-test.h"
 
-#include "mt-kahypar/datastructures/asynch/asynch_contraction_pool.h"
-#include "mt-kahypar/datastructures/asynch/mock_group_hierarchy.h"
+#include "mt-kahypar/datastructures/async/group_pool.h"
+#include "mt-kahypar/datastructures/async/mock_group_hierarchy.h"
 
 #include "tests/datastructures/hypergraph_fixtures.h"
 
@@ -29,7 +29,7 @@ namespace mt_kahypar::ds {
         auto mockEmptyRange = ContractionGroupIDIteratorRange(mockEmpty.begin(),mockEmpty.end());
         EXPECT_CALL(*mockGroupHierarchy,successors(_)).Times(2).WillRepeatedly(Return(mockEmptyRange));
 
-        auto pool = SequentialContractionGroupPool(std::move(mockGroupHierarchy));
+        auto pool = SequentialGroupPool(std::move(mockGroupHierarchy));
 
         ASSERT(pool.getNumTotal() == 2);
         ASSERT(pool.getNumActive() == 2);
@@ -88,7 +88,7 @@ namespace mt_kahypar::ds {
         EXPECT_CALL(*mockGroupHierarchy,successors(3)).Times(1).WillOnce(Return(mockEmptyRange));
         EXPECT_CALL(*mockGroupHierarchy,successors(4)).Times(1).WillOnce(Return(mockEmptyRange));
 
-        auto pool = SequentialContractionGroupPool(std::move(mockGroupHierarchy));
+        auto pool = SequentialGroupPool(std::move(mockGroupHierarchy));
 
         ASSERT_EQ(pool.getNumTotal(), 5);
         bool seen[5];
@@ -128,7 +128,7 @@ namespace mt_kahypar::ds {
         EXPECT_CALL(*mockGroupHierarchy,roots()).Times(1).WillOnce(Return(mockRootRange));
         EXPECT_CALL(*mockGroupHierarchy,getNumGroups()).WillRepeatedly(Return(1));
 
-        auto pool = SequentialContractionGroupPool(std::move(mockGroupHierarchy));
+        auto pool = SequentialGroupPool(std::move(mockGroupHierarchy));
         ASSERT_EQ(pool.getNumTotal(), 1);
         ASSERT_TRUE(pool.hasActive());
         ASSERT_DEATH(pool.activateSuccessors(0), "");
@@ -141,7 +141,7 @@ namespace mt_kahypar::ds {
         EXPECT_CALL(*mockGroupHierarchy,roots()).Times(1).WillOnce(Return(mockRootRange));
         EXPECT_CALL(*mockGroupHierarchy,getNumGroups()).WillRepeatedly(Return(1));
 
-        auto pool = SequentialContractionGroupPool(std::move(mockGroupHierarchy));
+        auto pool = SequentialGroupPool(std::move(mockGroupHierarchy));
         ASSERT_EQ(pool.getNumTotal(), 1);
 
         ASSERT_TRUE(pool.hasActive());
@@ -161,7 +161,7 @@ namespace mt_kahypar::ds {
         EXPECT_CALL(*mockGroupHierarchy,roots()).Times(1).WillOnce(Return(mockRootRange));
         EXPECT_CALL(*mockGroupHierarchy,getNumGroups()).WillRepeatedly(Return(1));
 
-        auto pool = SequentialContractionGroupPool(std::move(mockGroupHierarchy));
+        auto pool = SequentialGroupPool(std::move(mockGroupHierarchy));
         ASSERT_EQ(pool.getNumTotal(), 1);
 
         auto picked = invalidGroupID;
@@ -183,7 +183,7 @@ namespace mt_kahypar::ds {
         auto mockEmptyRange = ContractionGroupIDIteratorRange(mockEmpty.begin(),mockEmpty.end());
         EXPECT_CALL(*mockGroupHierarchy,successors(0)).Times(1).WillOnce(Return(mockEmptyRange));
 
-        auto pool = SequentialContractionGroupPool(std::move(mockGroupHierarchy));
+        auto pool = SequentialGroupPool(std::move(mockGroupHierarchy));
         ASSERT_EQ(pool.getNumTotal(), 1);
 
         auto picked = invalidGroupID;

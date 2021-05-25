@@ -2,8 +2,8 @@
 // Created by mlaupichler on 28.04.21.
 //
 
-#ifndef KAHYPAR_ASYNCH_COMMON_H
-#define KAHYPAR_ASYNCH_COMMON_H
+#ifndef KAHYPAR_ASYNC_COMMON_H
+#define KAHYPAR_ASYNC_COMMON_H
 
 #include "mt-kahypar/datastructures/hypergraph_common.h"
 #include "tbb/blocked_range.h"
@@ -202,4 +202,4 @@ namespace mt_kahypar::ds {
 
 }
 
-#endif //KAHYPAR_ASYNCH_COMMON_H
+#endif //KAHYPAR_ASYNC_COMMON_H

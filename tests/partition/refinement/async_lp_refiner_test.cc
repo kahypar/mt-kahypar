@@ -26,7 +26,7 @@
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/partition/registries/register_refinement_algorithms.cpp"
 #include "mt-kahypar/partition/initial_partitioning/flat/bfs_initial_partitioner.h"
-#include "mt-kahypar/partition/refinement/label_propagation/asynch_lp_refiner.h"
+#include "mt-kahypar/partition/refinement/label_propagation/async_lp_refiner.h"
 #include "mt-kahypar/partition/refinement/policies/gain_policy.h"
 #include "mt-kahypar/utils/randomize.h"
 
@@ -44,7 +44,7 @@ struct TestConfig { };
 
 template <PartitionID k>
 struct TestConfig<k, kahypar::Objective::km1> {
-  using Refiner = AsynchLPKm1Refiner;
+  using Refiner = AsyncLPKm1Refiner;
   static constexpr PartitionID K = k;
   static constexpr kahypar::Objective OBJECTIVE = kahypar::Objective::km1;
   static constexpr LabelPropagationAlgorithm LP_ALGO = LabelPropagationAlgorithm::label_propagation_km1;
@@ -52,7 +52,7 @@ struct TestConfig<k, kahypar::Objective::km1> {
 
 template <PartitionID k>
 struct TestConfig<k, kahypar::Objective::cut> {
-  using Refiner = AsynchLPCutRefiner;
+  using Refiner = AsyncLPCutRefiner;
   static constexpr PartitionID K = k;
   static constexpr kahypar::Objective OBJECTIVE = kahypar::Objective::cut;
   static constexpr LabelPropagationAlgorithm LP_ALGO = LabelPropagationAlgorithm::label_propagation_cut;
@@ -103,7 +103,7 @@ class AAsynchLPRefiner : public Test {
     lock_manager = std::make_unique<ds::GroupLockManager>(partitioned_hypergraph.hypergraph().initialNumNodes(),ds::invalidGroupID);
     initialPartition();
 
-    refiner = AsynchLPRefinerFactory::getInstance().createObject(
+    refiner = AsyncLPRefinerFactory::getInstance().createObject(
             context.refinement.label_propagation.algorithm,
             partitioned_hypergraph.hypergraph(),
             context,
@@ -129,7 +129,7 @@ class AAsynchLPRefiner : public Test {
     metrics.update_cut_strong(metrics::hyperedgeCut(partitioned_hypergraph));
     metrics.update_imbalance_strong(metrics::imbalance(partitioned_hypergraph, context));
 
-    // Set refinement nodes to all border nodes (as the AsynchLPRefiner needs input seed nodes)
+    // Set refinement nodes to all border nodes (as the AsyncLPRefiner needs input seed nodes)
 //    auto add_border_node_to_refinement_nodes = [&](const HypernodeID& u) {
 //        if (partitioned_hypergraph.isBorderNode(u)) {
 //            refinement_nodes.push_back(u);
@@ -149,7 +149,7 @@ class AAsynchLPRefiner : public Test {
   Hypergraph hypergraph;
   PartitionedHypergraph partitioned_hypergraph;
   Context context;
-  std::unique_ptr<IAsynchRefiner> refiner;
+  std::unique_ptr<IAsyncRefiner> refiner;
   metrics::ThreadSafeMetrics metrics;
   parallel::scalable_vector<HypernodeID> refinement_nodes;
 

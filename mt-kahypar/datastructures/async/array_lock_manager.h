@@ -10,7 +10,7 @@
 #include "mt-kahypar/parallel/atomic_wrapper.h"
 #include "mt-kahypar/utils/range.h"
 #include "kahypar/meta/mandatory.h"
-#include "asynch_common.h"
+#include "async_common.h"
 
 namespace mt_kahypar::ds {
 

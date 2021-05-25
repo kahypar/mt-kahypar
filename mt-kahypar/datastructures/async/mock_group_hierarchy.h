@@ -5,7 +5,7 @@
 #ifndef KAHYPAR_MOCK_GROUP_HIERARCHY_H
 #define KAHYPAR_MOCK_GROUP_HIERARCHY_H
 
-#include "mt-kahypar/datastructures/asynch/asynch_common.h"
+#include "mt-kahypar/datastructures/async/async_common.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 
