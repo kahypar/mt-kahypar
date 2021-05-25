@@ -150,7 +150,7 @@ namespace mt_kahypar {
   }
 
   Gain DeterministicLabelPropagationRefiner::applyMovesSortedByGainAndRevertUnbalanced(PartitionedHypergraph& phg) {
-    size_t num_moves = moves_back.load(std::memory_order_relaxed);
+    const size_t num_moves = moves_back.load(std::memory_order_relaxed);
     tbb::parallel_sort(moves.begin(), moves.begin() + num_moves, [](const Move& m1, const Move& m2) {
       return m1.gain > m2.gain || (m1.gain == m2.gain && m1.node < m2.node);
     });
@@ -252,7 +252,7 @@ namespace mt_kahypar {
       const size_t sz = 0;
     };
 
-    size_t num_moves = moves_back.load(std::memory_order_relaxed);
+    const size_t num_moves = moves_back.load(std::memory_order_relaxed);
 
     MovesWrapper moves_wrapper { moves, num_moves };
 
