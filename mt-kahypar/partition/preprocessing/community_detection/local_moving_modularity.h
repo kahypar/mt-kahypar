@@ -54,10 +54,10 @@ class ParallelLocalMovingModularity {
   ParallelLocalMovingModularity(const Context& context,
                                          size_t numNodes,
                                          const bool disable_randomization = false) :
-    _context(context),
-    _max_degree(numNodes),
-    _vertex_degree_sampling_threshold(context.preprocessing.community_detection.vertex_degree_sampling_threshold),
-    _cluster_volumes(numNodes),
+          _context(context),
+          _max_degree(numNodes),
+          _vertex_degree_sampling_threshold(context.preprocessing.community_detection.vertex_degree_sampling_threshold),
+          _cluster_volumes(numNodes),
     // _local_small_incident_cluster_weight(0),
     /*
     _local_large_incident_cluster_weight([&] {
@@ -65,10 +65,11 @@ class ParallelLocalMovingModularity {
     }),
      */
     non_sampling_incident_cluster_weights(numNodes),
-    _disable_randomization(disable_randomization),
+          _disable_randomization(disable_randomization),
     // non_sampling_incident_cluster_weights(numNodes),
     prng(context.partition.seed),
-    volume_updates(0), volume_updates_from(0)
+          volume_updates_to(0),
+          volume_updates_from(0)
   { }
 
   ~ParallelLocalMovingModularity();
@@ -203,7 +204,7 @@ class ParallelLocalMovingModularity {
       return std::tie(cluster, node) < std::tie(o.cluster, o.node);
     }
   };
-  ds::BufferedVector<ClusterMove> volume_updates, volume_updates_from;
+  ds::BufferedVector<ClusterMove> volume_updates_to, volume_updates_from;
 
 
 

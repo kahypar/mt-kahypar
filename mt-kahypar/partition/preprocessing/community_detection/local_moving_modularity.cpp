@@ -133,9 +133,8 @@ size_t ParallelLocalMovingModularity::synchronousParallelRound(const Graph& grap
     max_round_size = std::max(max_round_size,
                               size_t(permutation.bucket_bounds[last_bucket] - permutation.bucket_bounds[first_bucket]));
   }
-  volume_updates.adapt_capacity(max_round_size);
+  volume_updates_to.adapt_capacity(max_round_size);
   volume_updates_from.adapt_capacity(max_round_size);
-
 
   for (size_t sub_round = 0; sub_round < num_sub_rounds; ++sub_round) {
     auto [first_bucket, last_bucket] = parallel::chunking::bounds(sub_round, num_buckets, num_buckets_per_sub_round);
@@ -149,60 +148,49 @@ size_t ParallelLocalMovingModularity::synchronousParallelRound(const Graph& grap
       PartitionID best_cluster = computeMaxGainCluster(graph, communities, u);
       if (best_cluster != communities[u]) {
         volume_updates_from.push_back_buffered({ communities[u], u });
-        volume_updates.push_back_buffered({ best_cluster, u });
+        volume_updates_to.push_back_buffered({best_cluster, u });
         num_moved_local.local() += 1;
       }
     });
 
     size_t num_moved_sub_round = num_moved_local.combine(std::plus<>());
     num_moved_nodes += num_moved_sub_round;
-    
-    auto t_sort = tbb::tick_count::now();
+
+    // We can't do atomic adds of the volumes since they're not commutative and thus lead to non-deterministic decisions
+    // Instead we sort the updates, and for each cluster let one thread sum up the updates.
     tbb::parallel_invoke([&] {
-      volume_updates.finalize();
-      tbb::parallel_sort(volume_updates.begin(), volume_updates.end());
+      volume_updates_to.finalize();
+      tbb::parallel_sort(volume_updates_to.begin(), volume_updates_to.end());
     }, [&] {
       volume_updates_from.finalize();
       tbb::parallel_sort(volume_updates_from.begin(), volume_updates_from.end());
     });
-    auto t_apply = tbb::tick_count::now();
-    
 
-    /*
-     * We can't do atomic adds of the volumes since they're not commutative and thus lead to non-deterministic decisions
-     * Instead we sort the updates, and for each cluster let one thread sum up the updates.
-     */
-    {
-      const size_t sz = volume_updates.size();
-      tbb::parallel_for(0UL, sz, [&](size_t pos) {
-        PartitionID c = volume_updates[pos].cluster;
-        if (pos == 0 || volume_updates[pos - 1].cluster != c) {
-          ArcWeight vol_delta = 0.0;
-          for ( ; pos < sz && volume_updates[pos].cluster == c; ++pos) {
-            vol_delta += graph.nodeVolume(volume_updates[pos].node);
-            communities[volume_updates[pos].node] = c;
-          }
-          _cluster_volumes[c].store(_cluster_volumes[c].load(std::memory_order_relaxed) + vol_delta, std::memory_order_relaxed);
+    const size_t sz_to = volume_updates_to.size();
+    tbb::parallel_for(0UL, sz_to, [&](size_t pos) {
+      PartitionID c = volume_updates_to[pos].cluster;
+      if (pos == 0 || volume_updates_to[pos - 1].cluster != c) {
+        ArcWeight vol_delta = 0.0;
+        for ( ; pos < sz_to && volume_updates_to[pos].cluster == c; ++pos) {
+          vol_delta += graph.nodeVolume(volume_updates_to[pos].node);
+          communities[volume_updates_to[pos].node] = c;
         }
-      }); 
-    }
+        _cluster_volumes[c].store(_cluster_volumes[c].load(std::memory_order_relaxed) + vol_delta, std::memory_order_relaxed);
+      }
+    });
+    volume_updates_to.clear();
 
-    {
-      const size_t sz = volume_updates_from.size();
-      tbb::parallel_for(0UL, sz, [&](size_t pos) {
-        PartitionID c = volume_updates_from[pos].cluster;
-        if (pos == 0 || volume_updates_from[pos - 1].cluster != c) {
-          ArcWeight vol_delta = 0.0;
-          for ( ; pos < sz && volume_updates_from[pos].cluster == c; ++pos) {
-            vol_delta -= graph.nodeVolume(volume_updates_from[pos].node);
-          }
-          _cluster_volumes[c].store(_cluster_volumes[c].load(std::memory_order_relaxed) + vol_delta, std::memory_order_relaxed);
+    const size_t sz_from = volume_updates_from.size();
+    tbb::parallel_for(0UL, sz_from, [&](size_t pos) {
+      PartitionID c = volume_updates_from[pos].cluster;
+      if (pos == 0 || volume_updates_from[pos - 1].cluster != c) {
+        ArcWeight vol_delta = 0.0;
+        for ( ; pos < sz_from && volume_updates_from[pos].cluster == c; ++pos) {
+          vol_delta -= graph.nodeVolume(volume_updates_from[pos].node);
         }
-      });
-    }
-
-    LOG << "sort" << (t_apply - t_sort).seconds()*1000 << "ms" << "apply" << (tbb::tick_count::now()-t_apply).seconds()*1000<<"ms";
-    volume_updates.clear();
+        _cluster_volumes[c].store(_cluster_volumes[c].load(std::memory_order_relaxed) + vol_delta, std::memory_order_relaxed);
+      }
+    });
     volume_updates_from.clear();
   }
 
