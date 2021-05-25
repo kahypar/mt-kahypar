@@ -37,6 +37,7 @@ struct Km1GainComputer {
   template<typename PHG>
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
   Gain computeGainsPlusInternalWeight(const PHG& phg, const HypernodeID u) {
+    assert(std::all_of(gains.begin(), gains.end(), [](const Gain& g) { return g == 0; }));
     const PartitionID from = phg.partID(u);
     Gain internal_weight = 0;   // weight that will not be removed from the objective
     for (HyperedgeID e : phg.incidentEdges(u)) {
@@ -76,7 +77,6 @@ struct Km1GainComputer {
       if (target != from) {
         const HypernodeWeight target_weight = phg.partWeight(target);
         const Gain gain = gains[target];
-        gains[target] = 0;
         if ( (gain > best_gain || (gain == best_gain && target_weight < best_target_weight))
              && target_weight + weight_of_u <= max_part_weights[target]) {
           best_target = target;
@@ -84,6 +84,7 @@ struct Km1GainComputer {
           best_target_weight = target_weight;
         }
       }
+      gains[target] = 0;
     }
 
     best_gain -= internal_weight;
