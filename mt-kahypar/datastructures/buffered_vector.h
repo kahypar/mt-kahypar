@@ -73,6 +73,7 @@ public:
   auto begin() { return data.begin(); }
   auto end() { return data.begin() + size(); }
   T& operator[](size_t pos) { return data[pos]; }
+  auto& range() { return data; }
 
 private:
 

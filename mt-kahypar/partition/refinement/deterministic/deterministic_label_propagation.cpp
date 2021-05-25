@@ -38,13 +38,25 @@ namespace mt_kahypar {
     const size_t num_sub_rounds = context.refinement.deterministic_refinement.num_sub_rounds_sync_lp;
     const size_t num_buckets_per_sub_round = parallel::chunking::idiv_ceil(num_buckets, num_sub_rounds);
 
+
     const bool log = false && context.type == kahypar::ContextType::main;
 
     for (size_t iter = 0; iter < context.refinement.label_propagation.maximum_iterations; ++iter) {
+      if (++round == 0) {
+        std::fill(last_round.begin(), last_round.end(), CAtomic<uint32_t>(0));
+      }
+      if (iter == 0) {
+        permutation.random_grouping(phg.initialNumNodes(), context.shared_memory.static_balancing_work_packages, prng());
+      } else {
+        active_nodes.finalize();
+        tbb::parallel_sort(active_nodes.begin(), active_nodes.end());
+        permutation.sample_buckets_and_group_by(active_nodes.range(),
+                                                context.shared_memory.static_balancing_work_packages, prng());
+        active_nodes.clear();
+      }
+
       size_t num_moves = 0;
       Gain round_improvement = 0;
-      size_t n = phg.initialNumNodes();
-      permutation.random_grouping(n, context.shared_memory.static_balancing_work_packages, prng());
       for (size_t sub_round = 0; sub_round < num_sub_rounds; ++sub_round) {
         auto [first_bucket, last_bucket] = parallel::chunking::bounds(sub_round, num_buckets, num_buckets_per_sub_round);
         assert(first_bucket < last_bucket && last_bucket < permutation.bucket_bounds.size());
@@ -103,29 +115,47 @@ namespace mt_kahypar {
  * for configs where we don't know exact gains --> have to trace the overall improvement with attributed gains
  * TODO active node set
  */
-  Gain performMoveWithAttributedGain(PartitionedHypergraph& phg, const Move& m) {
+  Gain DeterministicLabelPropagationRefiner::performMoveWithAttributedGain(PartitionedHypergraph& phg, const Move& m) {
     Gain attributed_gain = 0;
     auto objective_delta = [&](HyperedgeID he, HyperedgeWeight edge_weight, HypernodeID edge_size,
                                HypernodeID pin_count_in_from_part_after, HypernodeID pin_count_in_to_part_after) {
       attributed_gain -= km1Delta(he, edge_weight, edge_size, pin_count_in_from_part_after, pin_count_in_to_part_after);
     };
-    phg.changeNodePart(m.node, m.from, m.to, objective_delta);
+    const bool was_moved = phg.changeNodePart(m.node, m.from, m.to, objective_delta);
+    if (was_moved) {
+      // activate neighbors for next round
+      const HypernodeID n = phg.initialNumNodes();
+      for (HyperedgeID he : phg.incidentEdges(m.node)) {
+        if (phg.edgeSize(he) <= context.refinement.label_propagation.hyperedge_size_activation_threshold) {
+          if (last_round[he + n].load(std::memory_order_relaxed) != round) {
+            last_round[he + n].store(round, std::memory_order_relaxed);   // no need for atomic semantics on this one
+            for (HypernodeID v : phg.pins(he)) {
+              uint32_t lrv = last_round[v].load(std::memory_order_relaxed);
+              if (lrv != round && last_round[v].compare_exchange_strong(lrv, round, std::memory_order_acq_rel)) {
+                active_nodes.push_back_buffered(v);
+              }
+            }
+          }
+        }
+      }
+    }
     return attributed_gain;
   }
 
   template<typename Predicate>
-  Gain applyMovesIf(PartitionedHypergraph& phg, const vec<Move>& moves, size_t end, Predicate&& predicate) {
+  Gain DeterministicLabelPropagationRefiner::applyMovesIf(
+          PartitionedHypergraph& phg, const vec<Move>& my_moves, size_t end, Predicate&& predicate) {
     auto range = tbb::blocked_range<size_t>(0UL, end);
     auto accum = [&](const tbb::blocked_range<size_t>& r, const Gain& init) -> Gain {
       Gain my_gain = init;
       for (size_t i = r.begin(); i < r.end(); ++i) {
         if (predicate(i)) {
-          my_gain += performMoveWithAttributedGain(phg, moves[i]);
+          my_gain += performMoveWithAttributedGain(phg, my_moves[i]);
         }
       }
       return my_gain;
     };
-    return tbb::parallel_reduce(range, 0, accum, std::plus<Gain>());
+    return tbb::parallel_reduce(range, 0, accum, std::plus<>());
   }
 
   vec<HypernodeWeight> aggregatePartWeightDeltas(PartitionedHypergraph& phg, const vec<Move>& moves, size_t end) {

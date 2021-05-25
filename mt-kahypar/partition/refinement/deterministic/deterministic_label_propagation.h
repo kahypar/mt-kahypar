@@ -21,6 +21,7 @@
 
 #pragma once
 
+#include "mt-kahypar/datastructures/buffered_vector.h"
 #include "mt-kahypar/partition/context.h"
 #include "mt-kahypar/partition/refinement/i_refiner.h"
 
@@ -37,7 +38,9 @@ public:
     compute_gains(context.partition.k),
     moves(hypergraph.initialNumNodes()),   // make smaller --> max round size
     sorted_moves(hypergraph.initialNumNodes()),
-    prng(context.partition.seed)
+    prng(context.partition.seed),
+    active_nodes(hypergraph.initialNumNodes()),
+    last_round(hypergraph.initialNumNodes() + hypergraph.initialNumEdges(), CAtomic<uint32_t>(0))
   {
 
   }
@@ -54,6 +57,9 @@ private:
   // functions to apply moves from a sub-round
   Gain applyMovesSortedByGainAndRevertUnbalanced(PartitionedHypergraph& phg);
   Gain applyMovesByMaximalPrefixesInBlockPairs(PartitionedHypergraph& phg);
+  Gain performMoveWithAttributedGain(PartitionedHypergraph& phg, const Move& m);
+  template<typename Predicate>
+  Gain applyMovesIf(PartitionedHypergraph& phg, const vec<Move>& moves, size_t end, Predicate&& predicate);
 
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
   void calculateAndSaveBestMove(PartitionedHypergraph& phg, HypernodeID u) {
@@ -86,6 +92,9 @@ private:
 
   std::mt19937 prng;
   utils::ParallelPermutation<HypernodeID> permutation;  // gets memory only once used
+  ds::BufferedVector<HypernodeID> active_nodes;
+  vec<CAtomic<uint32_t>> last_round;
+  uint32_t round = 0;
 };
 
 }
