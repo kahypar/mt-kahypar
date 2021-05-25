@@ -29,7 +29,7 @@ struct Km1GainComputer {
   template<typename PHG>
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
   void computeGains(const PHG& phg, const HypernodeID u) {
-    std::fill(gains.begin(), gains.end(), 0);
+    clear();
     Gain internal_weight = computeGainsPlusInternalWeight(phg, u);
     for (Gain& x : gains) { x -= internal_weight; }
   }
@@ -60,6 +60,10 @@ struct Km1GainComputer {
       }
     }
     return internal_weight;
+  }
+
+  void clear() {
+    std::fill(gains.begin(), gains.end(), 0);
   }
 
   template<typename PHG>

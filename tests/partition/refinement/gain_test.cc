@@ -116,6 +116,7 @@ namespace mt_kahypar {
     ASSERT_EQ(1, to); // block 1 is lighter than block 0
     ASSERT_EQ(1, g);
 
+    gain.clear();
     std::tie(to, g) = gain.computeBestTargetBlock(phg, 2, context.partition.max_part_weights);
 
     gain.computeGains(phg, 2);
