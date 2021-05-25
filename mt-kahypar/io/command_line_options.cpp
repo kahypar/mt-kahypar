@@ -156,7 +156,11 @@ namespace mt_kahypar {
             ("p-vertex-degree-sampling-threshold",
              po::value<size_t>(&context.preprocessing.community_detection.vertex_degree_sampling_threshold)->value_name(
                      "<size_t>")->default_value(std::numeric_limits<size_t>::max()),
-             "If set, then neighbors of a vertex are sampled during rating if its degree is greater than this threshold.");
+             "If set, then neighbors of a vertex are sampled during rating if its degree is greater than this threshold.")
+            ("p-num-sub-rounds",
+             po::value<size_t>(&context.preprocessing.community_detection.num_subrounds_deterministic)->value_name(
+                     "<size_t>")->default_value(16),
+             "Number of sub-rounds used for deterministic community detection in preprocessing.");
     return options;
   }
 

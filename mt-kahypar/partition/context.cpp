@@ -50,10 +50,11 @@ namespace mt_kahypar {
 
   std::ostream & operator<< (std::ostream& str, const CommunityDetectionParameters& params) {
     str << "  Community Detection Parameters:" << std::endl;
-    str << "    Edge Weight Function:             " << params.edge_weight_function << std::endl;
-    str << "    Maximum Louvain-Pass Iterations:  " << params.max_pass_iterations << std::endl;
-    str << "    Minimum Vertex Move Fraction:     " << params.min_vertex_move_fraction << std::endl;
-    str << "    Vertex Degree Sampling Threshold: " << params.vertex_degree_sampling_threshold << std::endl;
+    str << "    Edge Weight Function:                " << params.edge_weight_function << std::endl;
+    str << "    Maximum Louvain-Pass Iterations:     " << params.max_pass_iterations << std::endl;
+    str << "    Minimum Vertex Move Fraction:        " << params.min_vertex_move_fraction << std::endl;
+    str << "    Vertex Degree Sampling Threshold:    " << params.vertex_degree_sampling_threshold << std::endl;
+    str << "    Number of subrounds (deterministic): " << params.num_subrounds_deterministic << std::endl;
     return str;
   }
 

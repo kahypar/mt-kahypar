@@ -77,6 +77,7 @@ struct CommunityDetectionParameters {
   bool low_memory_contraction = false;
   long double min_vertex_move_fraction = std::numeric_limits<long double>::max();
   size_t vertex_degree_sampling_threshold = std::numeric_limits<size_t>::max();
+  size_t num_subrounds_deterministic = 16;
 };
 
 std::ostream & operator<< (std::ostream& str, const CommunityDetectionParameters& params);
