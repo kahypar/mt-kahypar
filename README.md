@@ -44,7 +44,7 @@ Requirements
 The Multi-Threaded Karlsruhe Hypergraph Partitioning Framework requires:
 
   - A 64-bit Linux operating system.
-  - A modern, ![C++14](https://img.shields.io/badge/C++-17-blue.svg?style=flat)-ready compiler such as `g++` version 7 or higher or `clang` version 11.0.3 or higher.
+  - A modern, ![C++17](https://img.shields.io/badge/C++-17-blue.svg?style=flat)-ready compiler such as `g++` version 7 or higher or `clang` version 11.0.3 or higher.
  - The [cmake][cmake] build system (>= 3.16).
  - The [Boost - Program Options][Boost.Program_options] library and the boost header files (>= 1.48).
  - The [Intel Thread Building Blocks][tbb] library (TBB)
@@ -275,12 +275,12 @@ Contributing
 ------------
 If you are interested in contributing to the Mt-KaHyPar framework
 feel free to contact us or create an issue on the
-[issue tracking system](https://github.com/kittobi1992/mt-kahypar/issues).
+[issue tracking system](https://github.com/kahypar/mt-kahypar/issues).
 
 [cmake]: http://www.cmake.org/ "CMake tool"
 [Boost.Program_options]: http://www.boost.org/doc/libs/1_58_0/doc/html/program_options.html
 [tbb]: https://software.intel.com/content/www/us/en/develop/tools/threading-building-blocks.html
 [hwloc]: https://www.open-mpi.org/projects/hwloc/
-[LF]: https://github.com/kittobi1992/mt-kahypar/blob/master/LICENSE "Licence"
+[LF]: https://github.com/kahypar/mt-kahypar/blob/master/LICENSE "License"
 [SetA]: http://algo2.iti.kit.edu/heuer/alenex21/instances.html?benchmark=set_a
 [SetB]: http://algo2.iti.kit.edu/heuer/alenex21/instances.html?benchmark=set_b
