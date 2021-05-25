@@ -60,8 +60,6 @@ struct PartitioningParameters {
   bool write_partition_file = false;
   bool deterministic = false;
 
-  int snapshot_interval = std::numeric_limits<int>::max();
-
   std::string graph_filename { };
   std::string graph_partition_output_folder {};
   std::string graph_partition_filename { };
@@ -77,7 +75,7 @@ struct CommunityDetectionParameters {
   bool low_memory_contraction = false;
   long double min_vertex_move_fraction = std::numeric_limits<long double>::max();
   size_t vertex_degree_sampling_threshold = std::numeric_limits<size_t>::max();
-  size_t num_subrounds_deterministic = 16;
+  size_t num_sub_rounds_deterministic = 16;
 };
 
 std::ostream & operator<< (std::ostream& str, const CommunityDetectionParameters& params);

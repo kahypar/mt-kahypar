@@ -48,6 +48,7 @@ std::string serialize(const PartitionedHypergraph& hypergraph,
         << " epsilon=" << context.partition.epsilon
         << " seed=" << context.partition.seed
         << " num_vcycles=" << context.partition.num_vcycles
+        << " deterministic=" << context.partition.deterministic
         << " large_hyperedge_size_threshold_factor=" << context.partition.large_hyperedge_size_threshold_factor
         << " large_hyperedge_size_threshold=" << context.partition.large_hyperedge_size_threshold
         << " ignore_hyperedge_size_threshold=" << context.partition.ignore_hyperedge_size_threshold
@@ -61,7 +62,8 @@ std::string serialize(const PartitionedHypergraph& hypergraph,
         << " community_max_pass_iterations=" << context.preprocessing.community_detection.max_pass_iterations
         << " community_min_vertex_move_fraction=" << context.preprocessing.community_detection.min_vertex_move_fraction
         << " community_vertex_degree_sampling_threshold=" << context.preprocessing.community_detection.vertex_degree_sampling_threshold
-        << " community_sub_rounds_deterministic" << context.preprocessing.community_detection.sub_rounds_deterministic
+        << " community_num_sub_rounds_deterministic=" << context.preprocessing.community_detection.num_sub_rounds_deterministic
+        << " community_low_memory_contraction=" << context.preprocessing.community_detection.low_memory_contraction
         << " coarsening_algorithm=" << context.coarsening.algorithm
         << " coarsening_contraction_limit_multiplier=" << context.coarsening.contraction_limit_multiplier
         << " coarsening_use_adaptive_edge_size=" << std::boolalpha << context.coarsening.use_adaptive_edge_size
@@ -73,7 +75,7 @@ std::string serialize(const PartitionedHypergraph& hypergraph,
         << " coarsening_maximum_shrink_factor=" << context.coarsening.maximum_shrink_factor
         << " coarsening_max_allowed_node_weight=" << context.coarsening.max_allowed_node_weight
         << " coarsening_vertex_degree_sampling_threshold=" << context.coarsening.vertex_degree_sampling_threshold
-        << " coarsening_num_sub_rounds_deterministic=" << context.coarsening.sub_rounds_deterministic
+        << " coarsening_num_sub_rounds_deterministic=" << context.coarsening.num_sub_rounds_deterministic
         << " coarsening_contraction_limit=" << context.coarsening.contraction_limit
         << " rating_function=" << context.coarsening.rating.rating_function
         << " rating_heavy_node_penalty_policy=" << context.coarsening.rating.heavy_node_penalty_policy
@@ -87,6 +89,7 @@ std::string serialize(const PartitionedHypergraph& hypergraph,
         << " initial_partitioning_remove_degree_zero_hns_before_ip=" << std::boolalpha << context.initial_partitioning.remove_degree_zero_hns_before_ip
         << " initial_partitioning_lp_maximum_iterations=" << context.initial_partitioning.lp_maximum_iterations
         << " initial_partitioning_lp_initial_block_size=" << context.initial_partitioning.lp_initial_block_size
+        << " initial_partitioning_population_size=" << context.initial_partitioning.population_size
         << " sparsification_use_degree_zero_contractions=" << std::boolalpha << context.sparsification.use_degree_zero_contractions
         << " sparsification_use_heavy_net_removal=" << std::boolalpha << context.sparsification.use_heavy_net_removal
         << " sparsification_use_similiar_net_removal=" << std::boolalpha << context.sparsification.use_similiar_net_removal
@@ -102,6 +105,8 @@ std::string serialize(const PartitionedHypergraph& hypergraph,
         << " lp_maximum_iterations=" << context.refinement.label_propagation.maximum_iterations
         << " lp_rebalancing=" << std::boolalpha << context.refinement.label_propagation.rebalancing
         << " lp_hyperedge_size_activation_threshold=" << context.refinement.label_propagation.hyperedge_size_activation_threshold
+        << " sync_lp_num_sub_rounds_sync_lp=" << context.refinement.deterministic_refinement.num_sub_rounds_sync_lp
+        << " sync_lp_use_active_node_set=" << context.refinement.deterministic_refinement.use_active_node_set
         << " fm_algorithm=" << context.refinement.fm.algorithm
         << " fm_multitry_rounds=" << context.refinement.fm.multitry_rounds
         << " fm_perform_moves_global=" << std::boolalpha << context.refinement.fm.perform_moves_global
@@ -121,7 +126,8 @@ std::string serialize(const PartitionedHypergraph& hypergraph,
         << " global_fm_obey_minimal_parallelism=" << std::boolalpha << context.refinement.global_fm.obey_minimal_parallelism
         << " num_threads=" << context.shared_memory.num_threads
         << " use_localized_random_shuffle=" << std::boolalpha << context.shared_memory.use_localized_random_shuffle
-        << " shuffle_block_size=" << context.shared_memory.shuffle_block_size;
+        << " shuffle_block_size=" << context.shared_memory.shuffle_block_size
+        << " static_balancing_work_packages=" << context.shared_memory.static_balancing_work_packages;
 
     // Metrics
     if ( hypergraph.initialNumEdges() > 0 ) {
