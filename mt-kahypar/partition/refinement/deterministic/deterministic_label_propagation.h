@@ -55,8 +55,6 @@ private:
   Gain applyMovesSortedByGainAndRevertUnbalanced(PartitionedHypergraph& phg);
   Gain applyMovesByMaximalPrefixesInBlockPairs(PartitionedHypergraph& phg);
 
-  vec<size_t> aggregateDirectionBucketsInplace();
-
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
   void calculateAndSaveBestMove(PartitionedHypergraph& phg, HypernodeID u) {
     assert(u < phg.initialNumNodes());
@@ -88,7 +86,6 @@ private:
 
   std::mt19937 prng;
   utils::ParallelPermutation<HypernodeID> permutation;  // gets memory only once used
-  utils::FeistelPermutation feistel_permutation;        // uses barely any memory
 };
 
 }

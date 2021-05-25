@@ -43,10 +43,8 @@ namespace mt_kahypar {
     for (size_t iter = 0; iter < context.refinement.label_propagation.maximum_iterations; ++iter) {
       size_t num_moves = 0;
       Gain round_improvement = 0;
-      size_t n = phg.initialNumNodes();;
-      auto t = tbb::tick_count::now();
+      size_t n = phg.initialNumNodes();
       permutation.random_grouping(n, context.shared_memory.static_balancing_work_packages, prng());
-      if (log) LOG << V(n) << V(iter) << "shuffle time" << (tbb::tick_count::now() - t).seconds();
       for (size_t sub_round = 0; sub_round < num_sub_rounds; ++sub_round) {
         auto [first_bucket, last_bucket] = parallel::chunking::bounds(sub_round, num_buckets, num_buckets_per_sub_round);
         assert(first_bucket < last_bucket && last_bucket < permutation.bucket_bounds.size());
@@ -86,23 +84,18 @@ namespace mt_kahypar {
         round_improvement += sub_round_improvement;
         num_moves += num_moves_in_sub_round;
       }
-
       overall_improvement += round_improvement;
 
       if (num_moves == 0) {
-        // no vertices with positive gain --> stop
-        break;
+        break; // no vertices with positive gain --> stop
       }
     }
 
-
     best_metrics.km1 -= overall_improvement;
     best_metrics.imbalance = metrics::imbalance(phg, context);
-
     if (context.type == kahypar::ContextType::main) {
       DBG << V(best_metrics.km1) << V(best_metrics.imbalance);
     }
-
     return overall_improvement > 0;
   }
 
@@ -157,23 +150,20 @@ namespace mt_kahypar {
   }
 
   Gain DeterministicLabelPropagationRefiner::applyMovesSortedByGainAndRevertUnbalanced(PartitionedHypergraph& phg) {
-    // TODO could do max prefixes first -- that stuff is guaranteed and apply this function afterwards, sort of opportunistically
-    // can still do the same rollback used for FM. --> these two functions would produce a move ordering
-    // instead of reverting, can we do a reordering then?
-
     size_t num_moves = moves_back.load(std::memory_order_relaxed);
     tbb::parallel_sort(moves.begin(), moves.begin() + num_moves, [](const Move& m1, const Move& m2) {
       return m1.gain > m2.gain || (m1.gain == m2.gain && m1.node < m2.node);
     });
-
+    
+    const auto& max_part_weights = context.partition.max_part_weights;
     size_t num_overloaded_blocks = 0, num_overloaded_before_round = 0;
     vec<HypernodeWeight> part_weights = aggregatePartWeightDeltas(phg, moves, num_moves);
     for (PartitionID i = 0; i < phg.k(); ++i) {
       part_weights[i] += phg.partWeight(i);
-      if (part_weights[i] > context.partition.max_part_weights[i]) {
+      if (part_weights[i] > max_part_weights[i]) {
         num_overloaded_blocks++;
       }
-      if (phg.partWeight(i) > context.partition.max_part_weights[i]) {
+      if (phg.partWeight(i) > max_part_weights[i]) {
         num_overloaded_before_round++;
       }
     }
@@ -187,15 +177,15 @@ namespace mt_kahypar {
       part_weights[m.from] += phg.nodeWeight(m.node);
       m.invalidate();
       num_reverted_moves++;
-      if (part_weights[m.to] <= context.partition.max_part_weights[m.to]) {
+      if (part_weights[m.to] <= max_part_weights[m.to]) {
         num_overloaded_blocks--;
       }
     };
 
     while (num_overloaded_blocks > 0 && j > 0) {
       Move& m = moves[--j];
-      if (part_weights[m.to] > context.partition.max_part_weights[m.to]
-          && part_weights[m.from] + phg.nodeWeight(m.node) <= context.partition.max_part_weights[m.from]) {
+      if (part_weights[m.to] > max_part_weights[m.to]
+          && part_weights[m.from] + phg.nodeWeight(m.node) <= max_part_weights[m.from]) {
         revert_move(m);
       }
     }
@@ -214,9 +204,9 @@ namespace mt_kahypar {
           num_extra_rounds++;
         }
         Move& m = moves[j-1];
-        if (m.isValid() && part_weights[m.to] > context.partition.max_part_weights[m.to]) {
-          if (part_weights[m.from] + phg.nodeWeight(m.node) > context.partition.max_part_weights[m.from]
-              && part_weights[m.from] <= context.partition.max_part_weights[m.from]) {
+        if (m.isValid() && part_weights[m.to] > max_part_weights[m.to]) {
+          if (part_weights[m.from] + phg.nodeWeight(m.node) > max_part_weights[m.from]
+              && part_weights[m.from] <= max_part_weights[m.from]) {
             num_overloaded_blocks++;
           }
           revert_move(m);
@@ -371,30 +361,10 @@ namespace mt_kahypar {
       swap_prefix[index(p2,p1)] = std::get<1>(best);
       int64_t best_balance = std::get<2>(best);
 
-      DBG << V(swap_prefix[index(p1,p2)]) << V(swap_prefix[index(p2,p1)]) << V(best_balance);
-
       // balance < 0 --> p1 got more weight, balance > 0 --> p2 got more weight
       __atomic_fetch_add(&part_weight_deltas[p1], best_balance, __ATOMIC_RELAXED);
       __atomic_fetch_sub(&part_weight_deltas[p2], best_balance, __ATOMIC_RELAXED);
     });
-
-    /*
-    auto remaining_moves = [&](PartitionID p1, PartitionID p2) {
-      size_t direction = index(p1,p2);
-      return positions[direction + 1] - swap_prefix[direction];
-    };
-
-    // simple check in case the slacks were too restrictive
-    for (PartitionID p1 = 0; p1< k; ++p1) {
-      for (PartitionID p2 = 0; p2 < k; ++p2) {
-        if (remaining_moves(p2, p1) > 0) {
-          // walking from the swap prefixes again might be too expensive
-          // especially if they're still zero
-          // we could walk from the end of the sequences we did in the pair-wise checks
-        }
-      }
-    }
-    */
 
     moves_back.store(0, std::memory_order_relaxed);
     Gain actual_gain = applyMovesIf(phg, sorted_moves, num_moves, [&](size_t pos) {
@@ -425,31 +395,4 @@ namespace mt_kahypar {
     DBG << V(num_moves) << V(estimated_gain) << V(actual_gain) << V(metrics::imbalance(phg, context));
     return actual_gain;
   }
-
-  vec<size_t> DeterministicLabelPropagationRefiner::aggregateDirectionBucketsInplace() {
-    // this can be done more efficiently, i.e. in linear time with counting sort. leave as is for now, for simplicity
-    tbb::parallel_sort(moves.begin(),
-                       moves.begin() + moves_back.load(std::memory_order_relaxed),
-                       [](const Move& m1, const Move& m2) { return std::tie(m1.from, m1.to) < std::tie(m2.from, m2.to); }
-    );
-
-    PartitionID k = context.partition.k;
-    auto index = [&](PartitionID b1, PartitionID b2) {
-      return b1 * k + b2;
-    };
-
-    vec<size_t> positions(k*k + 1, 0);
-    size_t pos = 0;
-    for (PartitionID i = 0; i < k; ++i) {
-      for (PartitionID j = 0; j < k; ++j) {
-        while (pos < moves.size() && moves[pos].from == i && moves[pos].to == j) {
-          ++pos;
-        }
-        positions[index(i,j) + 1] = pos;
-      }
-    }
-    return positions;
-  }
-
-
 }
