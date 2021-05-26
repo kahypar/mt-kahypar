@@ -83,7 +83,7 @@ public:
         return refineImpl(hypergraph, refinement_nodes, best_metrics, time_limit);
     }
 
-    ~IAsyncRefiner() = default;
+    virtual ~IAsyncRefiner() = default;
 
 protected:
 

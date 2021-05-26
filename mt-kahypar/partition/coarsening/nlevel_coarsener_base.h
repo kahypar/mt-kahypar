@@ -100,6 +100,21 @@ class NLevelCoarsenerBase {
   PartitionedHypergraph&& doAsynchronousUncoarsen(std::unique_ptr<IRefiner>& label_propagation,
                                                   std::unique_ptr<IRefiner>& fm);
 
+  void uncoarsenAsyncTask(ds::TreeGroupPool* pool,
+                          tbb::task_group& uncoarsen_tg,
+                          CAtomic<size_t>& total_uncontractions,
+                          metrics::ThreadSafeMetrics& current_metrics,
+                          bool force_measure_timings);
+
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE bool uncontractGroupAsyncSubtask(const ds::ContractionGroup &group,
+                                   ds::ContractionGroupID groupID,
+                                   CAtomic<size_t> &total_uncontractions);
+
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE bool refineGroupAsyncSubtask(const ds::ContractionGroup& group,
+                               ds::ContractionGroupID groupID,
+                               metrics::ThreadSafeMetrics& current_metrics,
+                               bool force_measure_timings);
+
  protected:
   kahypar::Metrics computeMetrics(PartitionedHypergraph& phg) {
     HyperedgeWeight cut = 0;
@@ -199,6 +214,7 @@ class NLevelCoarsenerBase {
       for (std::unique_ptr<IAsyncRefiner>* refiner_ptr : _thread_local_refiner_ptrs) {
           refiner_ptr->reset();
       }
+      _thread_local_refiner_ptrs.clear();
   }
   static void register_thread_local_refiner_ptr(std::unique_ptr<IAsyncRefiner>* refiner_ptr) {
       if (std::find(_thread_local_refiner_ptrs.begin(), _thread_local_refiner_ptrs.end(), refiner_ptr) == _thread_local_refiner_ptrs.end()) {

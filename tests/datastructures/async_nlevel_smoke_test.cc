@@ -24,31 +24,6 @@ namespace mt_kahypar {
 
         using SmokeTestUncontractionFunction = std::function<bool (const ContractionGroup&, ContractionGroupID)>;
 
-        class UncoarseningBody {
-        public:
-            explicit UncoarseningBody(const ds::UncontractionGroupTree *hierarchy, SmokeTestUncontractionFunction& uncontraction_func) :
-                    _hierarchy(hierarchy),
-                    _uncontraction_func(uncontraction_func) {}
-
-            void operator()(ds::ContractionGroupID groupID, tbb::parallel_do_feeder<ds::ContractionGroupID>& feeder) const {
-                const auto& group = _hierarchy->group(groupID);
-
-                bool uncontracted = _uncontraction_func(group, groupID);
-
-                if (uncontracted) {
-                    for (auto s : _hierarchy->successors(groupID)) {
-                        feeder.add(s);
-                    }
-                } else {
-                    feeder.add(groupID);
-                }
-            }
-        private:
-
-            const ds::UncontractionGroupTree* _hierarchy;
-            SmokeTestUncontractionFunction& _uncontraction_func;
-        };
-
         DynamicHypergraph
         simulateAsyncNLevel(DynamicHypergraph &hypergraph, DynamicPartitionedHypergraph &partitioned_hypergraph,
                        const BatchVector &contraction_batches, const bool parallel) {
@@ -147,22 +122,17 @@ namespace mt_kahypar {
                 SmokeTestUncontractionFunction uncontract_group_and_refine = [&](const ContractionGroup& group, ContractionGroupID groupID) -> bool {
                     // Attempt to acquire locks for representative and contracted nodes in the group. If any of the locks cannot be
                     // acquired, revert to previous state and attempt to pick an id again
-                    auto range = IteratorRange(ds::GroupNodeIDIterator::getAtBegin(group), ds::GroupNodeIDIterator::getAtEnd(group));
-                    bool acquired = lockManager->tryToAcquireMultipleLocks(range, groupID);
+                    bool acquired = lockManager->tryToAcquireLock(group.getRepresentative(), groupID);
                     if (!acquired) {
                         return false;
                     }
                     ASSERT(acquired);
                     ASSERT(lockManager->isHeldBy(group.getRepresentative(),groupID) && "Representative of the group is not locked by the group id!");
-                    ASSERT(std::all_of(ds::ContractionToNodeIDIteratorAdaptor(group.begin()),
-                                       ds::ContractionToNodeIDIteratorAdaptor(group.end()),
-                                       [&](const HypernodeID& hn) {return lockManager->isHeldBy(hn,groupID);})
-                           && "Not all contracted nodes in the group are locked by the group id!");
 
                     partitioned_hypergraph.uncontract(group);
 
                     // Release locks
-                    lockManager->strongReleaseMultipleLocks(range,groupID);
+                    lockManager->strongReleaseLock(group.getRepresentative(),groupID);
 
                     ASSERT(!lockManager->isHeldBy(group.getRepresentative(),groupID) && "Representative of the group is still locked by the group id!");
                     ASSERT(std::all_of(ds::ContractionToNodeIDIteratorAdaptor(group.begin()),

@@ -11,6 +11,10 @@
 
 namespace mt_kahypar {
 
+    // Initialize static members
+    template<template <typename> class LocalGainPolicy> ds::ThreadSafeFlagArray<HypernodeID> AsyncLPRefiner<LocalGainPolicy>::_next_active;
+    template<template <typename> class LocalGainPolicy> ds::ThreadSafeFlagArray<HyperedgeID> AsyncLPRefiner<LocalGainPolicy>::_visited_he;
+
     template<template <typename> class LocalGainPolicy>
     bool AsyncLPRefiner<LocalGainPolicy>::refineImpl(PartitionedHypergraph &hypergraph,
                                                      const parallel::scalable_vector <mt_kahypar::HypernodeID> &refinement_nodes,
@@ -21,12 +25,9 @@ namespace mt_kahypar {
         ASSERT(std::all_of(refinement_nodes.begin(),refinement_nodes.end(),[&](const HypernodeID& hn) {return hypergraph.nodeIsEnabled(hn);})
                && "Not all given seed nodes are enabled!");
 
-
-        _seeds = refinement_nodes;
         _active_nodes.assign(refinement_nodes.begin(), refinement_nodes.end());
 
         _gain.reset();
-        _next_active.reset();
 
         // Perform Label Propagation
         labelPropagation(hypergraph);
@@ -57,6 +58,7 @@ namespace mt_kahypar {
     template <template <typename> class LocalGainPolicy>
     void AsyncLPRefiner<LocalGainPolicy>::labelPropagation(PartitionedHypergraph& hypergraph) {
         NextActiveNodes next_active_nodes;
+        VisitedEdges visited_edges;
         for (size_t i = 0; i < _context.refinement.label_propagation.maximum_iterations; ++i) {
             DBG << "Starting Label Propagation Round" << i;
 
@@ -64,11 +66,29 @@ namespace mt_kahypar {
                     "lp_round_" + std::to_string(i), "Label Propagation Round " + std::to_string(i), true);
 
             if ( !_active_nodes.empty() ) {
-                labelPropagationRound(hypergraph, next_active_nodes);
+                labelPropagationRound(hypergraph, next_active_nodes, visited_edges);
             }
 
             _active_nodes = next_active_nodes;
+
+            auto has_duplicates = [&]() -> bool {
+                std::sort(next_active_nodes.begin(),next_active_nodes.end());
+                return std::adjacent_find(next_active_nodes.begin(), next_active_nodes.end()) != next_active_nodes.end();
+            };
+            ASSERT(! has_duplicates());
+
+            // Linear reset of anti-duplicator flags that were set in the last round
+            for (auto hn : next_active_nodes) {
+                bool reset = _next_active.compare_and_set_to_false(hn);
+                ASSERT(reset);
+            }
+            for (auto he : visited_edges) {
+                bool reset = _visited_he.compare_and_set_to_false(he);
+                ASSERT(reset);
+            }
+
             next_active_nodes.clear();
+            visited_edges.clear();
 
             utils::Timer::instance().stop_timer("lp_round_" + std::to_string(i));
 
@@ -81,10 +101,9 @@ namespace mt_kahypar {
     template <template <typename> class LocalGainPolicy>
     bool AsyncLPRefiner<LocalGainPolicy>::labelPropagationRound(
             PartitionedHypergraph& hypergraph,
-            NextActiveNodes& next_active_nodes) {
+            NextActiveNodes& next_active_nodes,
+            VisitedEdges& visited_edges) {
 
-        _visited_he.reset();
-        _next_active.reset();
         // This function is passed as lambda to the changeNodePart function and used
         // to calculate the "real" delta of a move (in terms of the used objective function).
         auto objective_delta = [&](const HyperedgeID he,
@@ -105,7 +124,7 @@ namespace mt_kahypar {
             const HypernodeID hn = _active_nodes[j];
             bool acquired = _lock_manager->tryToAcquireLock(hn, _contraction_group_id);
             if (acquired) {
-                if ( ! moveVertex(hypergraph, hn, next_active_nodes, objective_delta) ) {
+                if ( ! moveVertex(hypergraph, hn, next_active_nodes, visited_edges, objective_delta) ) {
                     converged = false;
                 }
                 _lock_manager->strongReleaseLock(hn, _contraction_group_id);
@@ -120,7 +139,7 @@ namespace mt_kahypar {
             const HypernodeID hn = retry_nodes[j];
             bool acquired = _lock_manager->tryToAcquireLock(hn, _contraction_group_id);
             if (acquired) {
-                if ( ! moveVertex(hypergraph, hn, next_active_nodes, objective_delta) ) {
+                if ( ! moveVertex(hypergraph, hn, next_active_nodes, visited_edges, objective_delta) ) {
                     converged = false;
                 }
                 _lock_manager->strongReleaseLock(hn, _contraction_group_id);

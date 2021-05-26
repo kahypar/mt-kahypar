@@ -343,6 +343,7 @@ void DynamicHypergraph::uncontract(const ContractionGroup& group,
                                    const UncontractionFunction& case_one_func,
                                    const UncontractionFunction& case_two_func) {
 
+    // Restore contracted vertices as pins of hyperedges
     for(auto &memento: group) {
 
         ASSERT(!hypernode(memento.u).isDisabled(), "Hypernode" << memento.u << "is disabled");
@@ -371,7 +372,12 @@ void DynamicHypergraph::uncontract(const ContractionGroup& group,
         }, [&](const HypernodeID u) {
             releaseHypernode(u);
         });
+    }
 
+    // Only re-enable contracted nodes after all contracted nodes have been restored as pins because nodes in the same
+    // group have to be uncontracted simultaneously. Have async refiners that run parallel to these uncontractions make
+    // sure to only move enabled vertices (i.e. none that are restored as pins but not yet enabled).
+    for (const auto& memento : group) {
         acquireHypernode(memento.u);
         // Restore hypernode v which includes enabling it and subtract its weight
         // from its representative
@@ -379,7 +385,6 @@ void DynamicHypergraph::uncontract(const ContractionGroup& group,
         hypernode(memento.u).setWeight(hypernode(memento.u).weight() - hypernode(memento.v).weight());
 
         releaseHypernode(memento.u);
-
     }
 
 }

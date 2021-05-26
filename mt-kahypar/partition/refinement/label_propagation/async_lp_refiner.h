@@ -9,6 +9,7 @@
 #include <mt-kahypar/partition/refinement/policies/local_gain_policy.h>
 #include <mt-kahypar/datastructures/async/array_lock_manager.h>
 #include <mt-kahypar/datastructures/thread_safe_fast_reset_flag_array.h>
+#include <mt-kahypar/datastructures/async/thread_safe_flag_array.h>
 
 namespace mt_kahypar {
 
@@ -21,6 +22,7 @@ namespace mt_kahypar {
         using GainCalculator = LocalGainPolicy<PartitionedHypergraph>;
         using ActiveNodes = std::vector<HypernodeID>;
         using NextActiveNodes = std::vector<HypernodeID>;
+        using VisitedEdges = std::vector<HyperedgeID>;
 
         static constexpr bool debug = false;
         static constexpr bool enable_heavy_assert = false;
@@ -32,18 +34,37 @@ namespace mt_kahypar {
         _task_group_id(task_group_id),
         _gain(context),
         _active_nodes(),
-        _next_active(hypergraph.initialNumNodes()),
-        _visited_he(hypergraph.initialNumEdges()),
         _contraction_group_id(ds::invalidGroupID),
         _lock_manager(lockManager),
-        _seeds(),
-        _rng() { }
+        _rng() {
+            // If this is the first AsyncLPRefiner to be constructed, initialize the shared static flag arrays. Always
+            // assert that it uses the same number of hypernodes and hyperedges as the flag arrays have been initialized to
+            if (!_next_active.isInitialized()) {
+                _next_active.initialize(hypergraph.initialNumNodes());
+            }
+            if (!_visited_he.isInitialized()) {
+                _visited_he.initialize(hypergraph.initialNumEdges());
+            }
+            ASSERT(_next_active.size() == hypergraph.initialNumNodes());
+            ASSERT(_visited_he.size() == hypergraph.initialNumEdges());
+        }
 
         AsyncLPRefiner(const AsyncLPRefiner&) = delete;
         AsyncLPRefiner(AsyncLPRefiner&&) = delete;
 
         AsyncLPRefiner & operator= (const AsyncLPRefiner &) = delete;
         AsyncLPRefiner & operator= (AsyncLPRefiner &&) = delete;
+
+        ~AsyncLPRefiner() override {
+            // Expect all AsyncLPRefiners between Refinement tasks (relevant for initial partitioning) to be built and destroyed
+            // simultaneously, so the first one to get destroyed resets the static flag arrays
+
+            HEAVY_REFINEMENT_ASSERT(_next_active.checkAllFalse());
+            HEAVY_REFINEMENT_ASSERT(_visited_he.checkAllFalse());
+
+            if (_next_active.isInitialized()) _next_active.reset();
+            if (_visited_he.isInitialized()) _visited_he.reset();
+        }
 
     private:
 
@@ -56,12 +77,14 @@ namespace mt_kahypar {
 
         void labelPropagation(PartitionedHypergraph& hypergraph);
 
-        bool labelPropagationRound(PartitionedHypergraph& hypergraph, NextActiveNodes& next_active_nodes);
+        bool labelPropagationRound(PartitionedHypergraph& hypergraph, NextActiveNodes& next_active_nodes,
+                                   VisitedEdges& visited_edges);
 
         template<typename F>
         bool moveVertex(PartitionedHypergraph& hypergraph,
                         const HypernodeID hn,
                         NextActiveNodes& next_active_nodes,
+                        VisitedEdges& visited_edges,
                         const F& objective_delta) {
             bool is_moved = false;
             ASSERT(hn != kInvalidHypernode);
@@ -99,13 +122,16 @@ namespace mt_kahypar {
                             for (const HyperedgeID& he : hypergraph.incidentEdges(hn)) {
                                 if ( hypergraph.edgeSize(he) <=
                                      ID(_context.refinement.label_propagation.hyperedge_size_activation_threshold) ) {
-                                    if ( !_visited_he[he] ) {
+                                    if ( _visited_he.compare_and_set_to_true(he) ) {
+                                        visited_edges.push_back(he);
                                         for (const HypernodeID& pin : hypergraph.pins(he)) {
+                                            //Make sure that pin is not in the intermediate state between being
+                                            // reactivated as pin and being enabled that occurs during uncontraction
+                                            if (!hypergraph.nodeIsEnabled(pin)) continue;
                                             if (_next_active.compare_and_set_to_true(pin)) {
                                                 next_active_nodes.push_back(pin);
                                             }
                                         }
-                                        _visited_he.set(he, true);
                                     }
                                 }
                             }
@@ -142,9 +168,6 @@ namespace mt_kahypar {
         const TaskGroupID _task_group_id;
         GainCalculator _gain;
         ActiveNodes _active_nodes;
-        ds::ThreadSafeFastResetFlagArray<> _next_active;
-        kahypar::ds::FastResetFlagArray<> _visited_he;
-
         // todo mlaupichler The AsyncLPRefiner should not be bound so tightly to the idea of ContractionGroups. Use a template argument for the OwnerID (also in the _lock_manager pointer) in order to allow any OwnerID for the locking.
         // ! The ID of the contraction group that the seed refinement nodes are from. Used as an identifier for locking
         // nodes so uncontracting and refinement of a contraction group use the same locks.
@@ -154,11 +177,13 @@ namespace mt_kahypar {
         // uncoarsening.
         ds::GroupLockManager* _lock_manager;
 
-        // ! A reference to the seed nodes for the current refinement. Locks for seed nodes are never
-        parallel::scalable_vector<HypernodeID> _seeds;
-
         // ! Mersenne-twister random number generator for shuffling vectors
         std::mt19937 _rng;
+
+    private:
+        // Static members
+        static ds::ThreadSafeFlagArray<HypernodeID> _next_active;
+        static ds::ThreadSafeFlagArray<HyperedgeID> _visited_he;
 
     };
 

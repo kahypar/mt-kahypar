@@ -506,23 +506,7 @@ private:
   }
 
 
-  template<typename NodeIterator>
-  parallel::scalable_vector<HypernodeID> extractBorderNodesAndReleaseOthers(NodeIterator begin, NodeIterator end, ReleaseFunction& release_func) {
-
-      parallel::scalable_vector<HypernodeID> seeds;
-      for (auto it = begin; it != end; ++it) {
-          HypernodeID hn = *it;
-          if (isBorderNode(hn)) {
-              seeds.push_back(hn);
-          } else {
-              // If node not a border node, it is not in the seed nodes for the refinement, so release its lock
-              release_func(hn);
-          }
-      }
-      return seeds;
-  }
-
-  // ####################### Restore Hyperedges #######################
+    // ####################### Restore Hyperedges #######################
 
   /*!
    * Restores a large hyperedge previously removed from the hypergraph.

@@ -656,13 +656,143 @@ namespace mt_kahypar {
 
   tbb::concurrent_vector<std::unique_ptr<IAsyncRefiner>*> NLevelCoarsenerBase::_thread_local_refiner_ptrs;
 
+  bool
+  NLevelCoarsenerBase::uncontractGroupAsyncSubtask(const ds::ContractionGroup &group, ds::ContractionGroupID groupID,
+                                                   CAtomic<size_t> &total_uncontractions) {
+
+      // Attempt to acquire locks for representative and contracted nodes in the group. If any of the locks cannot be
+      // acquired, revert to previous state and attempt to pick an id again
+      auto range = IteratorRange(ds::GroupNodeIDIterator::getAtBegin(group),
+                                 ds::GroupNodeIDIterator::getAtEnd(group));
+      bool acquired = _lock_manager_for_async->tryToAcquireLock(group.getRepresentative(),groupID);
+      if (!acquired) {
+          return false;
+      }
+      ASSERT(acquired);
+
+      _phg.uncontract(group);
+
+      // Release locks (They will be reacquired for refinement)
+      _lock_manager_for_async->strongReleaseLock(group.getRepresentative(), groupID);
+
+      total_uncontractions.fetch_add(group.size(), std::memory_order_acq_rel);
+
+      auto repr_part_id = _phg.partID(group.getRepresentative());
+      ASSERT(repr_part_id != kInvalidPartition);
+      ASSERT(std::all_of(ds::GroupNodeIDIterator::getAtBegin(group),
+                         ds::GroupNodeIDIterator::getAtEnd(group),
+                         [&](const HypernodeID &hn) {
+                             return _hg.nodeIsEnabled(hn) && _phg.partID(hn) == repr_part_id;
+                         }),
+             "After uncontracting a group, either the representative or any of the contracted nodes is not enabled or not assigned a partition!");
+      return true;
+  }
+
+  bool NLevelCoarsenerBase::refineGroupAsyncSubtask(const ds::ContractionGroup& group, ds::ContractionGroupID groupID,
+                                 metrics::ThreadSafeMetrics& current_metrics, bool force_measure_timings) {
+
+      // Extract refinement seeds
+      auto begin = ds::GroupNodeIDIterator::getAtBegin(group);
+      auto end = ds::GroupNodeIDIterator::getAtEnd(group);
+      parallel::scalable_vector<HypernodeID> refinement_nodes;
+      for (auto it = begin; it != end; ++it) {
+          HypernodeID hn = *it;
+          if (_phg.isBorderNode(hn)) {
+              refinement_nodes.push_back(hn);
+          }
+      }
+
+      // No refinement if refinement nodes are empty
+      if (!refinement_nodes.empty()) {
+
+          auto repr_part_id = _phg.partID(group.getRepresentative());
+          ASSERT(repr_part_id != kInvalidPartition);
+          ASSERT(std::all_of(refinement_nodes.begin(), refinement_nodes.end(),
+                             [&](const HypernodeID &hn) {
+                                 return _hg.nodeIsEnabled(hn)
+                                        && _phg.partID(hn) == repr_part_id;
+                             }),
+                 "After extracting seeds one of the seeds is not enabled or not assigned the right partition!");
+
+          // Thread-local LP Refiner for local asynchronous label propagation refinement.
+          // Each thread gets its own instance. This definition is executed only once and skipped for subsequent calls,
+          // so the same refiner is reused for each call to this function by the same thread. The object is destroyed
+          // only at program exit!
+          thread_local std::unique_ptr<IAsyncRefiner> localLPRefiner;
+
+          if (!localLPRefiner) {
+//              std::cout << "new refiner for thread " << std::this_thread::get_id() << std::endl;
+              localLPRefiner = AsyncLPRefinerFactory::getInstance().createObject(
+                      _context.refinement.label_propagation.algorithm,
+                      _phg.hypergraph(),
+                      _context,
+                      _task_group_id,
+                      _lock_manager_for_async.get());
+              register_thread_local_refiner_ptr(&localLPRefiner);
+          }
+
+          // Do only label propagation
+          localizedRefineForAsync(_phg, refinement_nodes, localLPRefiner.get(), groupID, current_metrics,
+                                  force_measure_timings);
+      }
+
+      return true;
+  }
+
+  void NLevelCoarsenerBase::uncoarsenAsyncTask(ds::TreeGroupPool* pool,
+                            tbb::task_group& uncoarsen_tg,
+                            CAtomic<size_t>& total_uncontractions,
+                            metrics::ThreadSafeMetrics& current_metrics,
+                            bool force_measure_timings) {
+
+      ds::ContractionGroupID groupID = ds::invalidGroupID;
+      pool->pickActiveID(groupID);
+      bool continue_this_task = true;
+
+      while (continue_this_task) {
+          ASSERT(groupID != ds::invalidGroupID);
+          const ds::ContractionGroup &group = pool->group(groupID);
+
+          bool uncontracted = uncontractGroupAsyncSubtask(group, groupID, total_uncontractions);
+          // If uncontraction failed, reactivate the groupID in the pool and pick a new groupID to work on (This
+          // might pick the same groupID again but that is equivalent to trying to uncontract until it works which
+          // it eventually will)
+          if (!uncontracted) {
+              pool->activate(groupID);
+              pool->pickActiveID(groupID);
+              continue;
+          }
+
+          refineGroupAsyncSubtask(group,groupID,current_metrics,force_measure_timings);
+
+          // If the group has successors, have this task continue with the first successor, activate the
+          // other successors (i.e. put them in the queue) and spawn tasks for them. If the group has no
+          // successors, simply stop this task.
+          if (pool->numSuccessors(groupID) > 0) {
+              auto successors = pool->successors(groupID);
+              auto suc_begin = successors.begin();
+              auto suc_end = successors.end();
+              groupID = *suc_begin;
+              for (auto it = suc_begin + 1; it < suc_end; ++it) {
+                  pool->activate(*it);
+                  uncoarsen_tg.run([&](){
+                      uncoarsenAsyncTask(pool,uncoarsen_tg,total_uncontractions,current_metrics,force_measure_timings);
+                  });
+              }
+          } else {
+              continue_this_task = false;
+          }
+      }
+
+  }
+
   PartitionedHypergraph&& NLevelCoarsenerBase::doAsynchronousUncoarsen(std::unique_ptr<IRefiner>& label_propagation,
                                                     std::unique_ptr<IRefiner>& fm) {
 
       ASSERT(_is_finalized);
       metrics::ThreadSafeMetrics current_metrics = initializeForAsync(_compactified_phg);
       // Used where the non-thread-safe metrics type is needed. Convert ThreadSafeMetrics using unsafeLoadMetrics() and
-      // back using unsafeStoreMetrics() in a single-threaded environment (!)
+      // back using unsafeStoreMetrics() only in single-threaded environments!
       kahypar::Metrics tmp_unsafe_metrics;
 
       // Project partition from compactified hypergraph to original hypergraph
@@ -724,112 +854,13 @@ namespace mt_kahypar {
           ds::TreeGroupPool* pool = _group_pools_for_versions.back().get();
           ASSERT(_phg.version() == pool->getVersion());
 
-          std::function<void (void)> uncoarsen_task = [&]() {
-              ds::ContractionGroupID groupID = ds::invalidGroupID;
-              pool->pickActiveID(groupID);
-              bool continue_this_task = true;
-
-              while (continue_this_task) {
-                  ASSERT(groupID != ds::invalidGroupID);
-                  const ds::ContractionGroup &group = pool->group(groupID);
-
-                  // Attempt to acquire locks for representative and contracted nodes in the group. If any of the locks cannot be
-                  // acquired, revert to previous state and attempt to pick an id again
-                  auto range = IteratorRange(ds::GroupNodeIDIterator::getAtBegin(group),
-                                             ds::GroupNodeIDIterator::getAtEnd(group));
-                  bool acquired = _lock_manager_for_async->tryToAcquireMultipleLocks(range, groupID);
-                  if (!acquired) {
-                      pool->activate(groupID);
-                      uncoarsen_tg.run(uncoarsen_task);
-                      return;
-                  }
-                  ASSERT(acquired);
-
-                  _phg.uncontract(group);
-
-                  // Release locks (They will be reacquired for refinement)
-                  _lock_manager_for_async->strongReleaseMultipleLocks(range, groupID);
-
-                  total_uncontractions.fetch_add(group.size(), std::memory_order_acq_rel);
-
-                  auto repr_part_id = _phg.partID(group.getRepresentative());
-                  ASSERT(repr_part_id != kInvalidPartition);
-                  ASSERT(std::all_of(ds::GroupNodeIDIterator::getAtBegin(group),
-                                     ds::GroupNodeIDIterator::getAtEnd(group),
-                                     [&](const HypernodeID &hn) {
-                                         return _hg.nodeIsEnabled(hn) && _phg.partID(hn) == repr_part_id;
-                                     }),
-                         "After uncontracting a group, either the representative or any of the contracted nodes is not enabled or not assigned a partition!");
-
-                  // Extract refinement seeds
-                  auto begin = ds::GroupNodeIDIterator::getAtBegin(group);
-                  auto end = ds::GroupNodeIDIterator::getAtEnd(group);
-                  parallel::scalable_vector<HypernodeID> refinement_nodes;
-                  for (auto it = begin; it != end; ++it) {
-                      HypernodeID hn = *it;
-                      if (_phg.isBorderNode(hn)) {
-                          refinement_nodes.push_back(hn);
-                      }
-                  }
-
-                  // No refinement if refinement nodes are empty
-                  if (!refinement_nodes.empty()) {
-
-                      auto first_part_id = _phg.partID(refinement_nodes[0]);
-                      ASSERT(repr_part_id != kInvalidPartition);
-                      ASSERT(std::all_of(refinement_nodes.begin(), refinement_nodes.end(),
-                                         [&](const HypernodeID &hn) {
-                                             return _hg.nodeIsEnabled(hn)
-                                                    && _phg.partID(hn) == repr_part_id;
-                                         }),
-                             "After extracting seeds one of the seeds is not enabled or not assigned the right partition!");
-
-
-                      // Thread-local LP Refiner for local asynchronous label propagation refinement.
-                      // Each thread gets its own instance. This definition is executed only once and skipped for subsequent calls,
-                      // so the same refiner is reused for each call to this function by the same thread. The object is destroyed
-                      // only at program exit!
-                      thread_local std::unique_ptr<IAsyncRefiner> localLPRefiner;
-
-                      if (!localLPRefiner) {
-//              std::cout << "new refiner for thread " << std::this_thread::get_id() << std::endl;
-                          localLPRefiner = AsyncLPRefinerFactory::getInstance().createObject(
-                                  _context.refinement.label_propagation.algorithm,
-                                  _phg.hypergraph(),
-                                  _context,
-                                  _task_group_id,
-                                  _lock_manager_for_async.get());
-                          register_thread_local_refiner_ptr(&localLPRefiner);
-                      }
-
-                      // Do only label propagation
-                      localizedRefineForAsync(_phg, refinement_nodes, localLPRefiner.get(), groupID, current_metrics,
-                                              force_measure_timings);
-                  }
-
-                  // If the group has successors, have this task continue with the first successor, activate the
-                  // other successors (i.e. put them in the queue) and spawn tasks for them. If the group has no
-                  // successors, simply stop this task.
-                  if (pool->numSuccessors(groupID) > 0) {
-                      auto successors = pool->successors(groupID);
-                      auto suc_begin = successors.begin();
-                      auto suc_end = successors.end();
-                      groupID = *suc_begin;
-                      for (auto it = suc_begin + 1; it < suc_end; ++it) {
-                          pool->activate(*it);
-                          uncoarsen_tg.run(uncoarsen_task);
-                      }
-                  } else {
-                      continue_this_task = false;
-                  }
-              }
-          };
-
           size_t num_uncontractions_before_pool = total_uncontractions.load(std::memory_order_acquire);
 
           size_t num_roots = pool->getNumActive();
           for (size_t i = 0; i < num_roots; ++i) {
-              uncoarsen_tg.run(uncoarsen_task);
+              uncoarsen_tg.run([&](){
+                  uncoarsenAsyncTask(pool,uncoarsen_tg,total_uncontractions,current_metrics,force_measure_timings);
+              });
           }
           uncoarsen_tg.wait();
 
