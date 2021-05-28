@@ -44,6 +44,10 @@ public:
     return back.load(std::memory_order_relaxed);
   }
 
+  size_t capacity() const {
+    return data.size();
+  }
+
   void adapt_capacity(size_t sz) {
     if (sz > data.size()) {
       data.resize(sz, T());

@@ -34,13 +34,15 @@ class DeterministicLabelPropagationRefiner final : public IRefiner {
 public:
   explicit DeterministicLabelPropagationRefiner(Hypergraph& hypergraph, const Context& context, TaskGroupID )
   :
-    context(context),
-    compute_gains(context.partition.k),
-    moves(hypergraph.initialNumNodes()),   // make smaller --> max round size
-    sorted_moves(hypergraph.initialNumNodes()),
-    prng(context.partition.seed),
-    active_nodes(hypergraph.initialNumNodes()),
-    last_round(hypergraph.initialNumNodes() + hypergraph.initialNumEdges(), CAtomic<uint32_t>(0))
+          context(context),
+          compute_gains(context.partition.k),
+          moves(hypergraph.initialNumNodes()),   // TODO make smaller --> max round size
+          sorted_moves(hypergraph.initialNumNodes()),
+          prng(context.partition.seed),
+          active_nodes(hypergraph.initialNumNodes()),
+          last_moved_in_round(hypergraph.initialNumNodes() + hypergraph.initialNumEdges(), CAtomic<uint32_t>(0)),
+          max_num_nodes(hypergraph.initialNumNodes()),
+          max_num_edges(hypergraph.initialNumEdges())
   {
 
   }
@@ -53,11 +55,11 @@ private:
 
   void initializeImpl(PartitionedHypergraph&) final { /* nothing to do */ }
 
-
   // functions to apply moves from a sub-round
   Gain applyMovesSortedByGainAndRevertUnbalanced(PartitionedHypergraph& phg);
   Gain applyMovesByMaximalPrefixesInBlockPairs(PartitionedHypergraph& phg);
-  Gain performMoveWithAttributedGain(PartitionedHypergraph& phg, const Move& m);
+  Gain applyMovesSortedByGainWithRecalculation(PartitionedHypergraph& phg);
+  Gain performMoveWithAttributedGain(PartitionedHypergraph& phg, const Move& m, bool activate_neighbors);
   template<typename Predicate>
   Gain applyMovesIf(PartitionedHypergraph& phg, const vec<Move>& moves, size_t end, Predicate&& predicate);
 
@@ -87,14 +89,30 @@ private:
 
   const Context& context;
   tbb::enumerable_thread_specific<Km1GainComputer> compute_gains;
-  vec<Move> moves, sorted_moves;
+  vec<Move> moves, sorted_moves;                        // TODO use buffered vector here?
   std::atomic<size_t> moves_back = {0};
 
   std::mt19937 prng;
   utils::ParallelPermutation<HypernodeID> permutation;  // gets memory only once used
   ds::BufferedVector<HypernodeID> active_nodes;
-  vec<CAtomic<uint32_t>> last_round;
+  vec<CAtomic<uint32_t>> last_moved_in_round;
   uint32_t round = 0;
+
+  struct RecalculationData {
+    MoveID first_in, last_out;
+    HypernodeID remaining_pins;
+    RecalculationData() :
+            first_in(std::numeric_limits<MoveID>::max()),
+            last_out(std::numeric_limits<MoveID>::min()),
+            remaining_pins(0)
+    { }
+  };
+
+  tbb::enumerable_thread_specific< vec<RecalculationData> > ets_recalc_data;
+  vec<CAtomic<uint32_t>> last_recalc_round;
+  vec<MoveID> move_pos_of_node;
+  uint32_t recalc_round = 1;
+  size_t max_num_nodes = 0, max_num_edges = 0;
 };
 
 }
