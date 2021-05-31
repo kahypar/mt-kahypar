@@ -292,11 +292,6 @@ namespace mt_kahypar {
 
     MovesWrapper moves_wrapper{moves, num_moves};
 
-    Gain estimated_gain = 0;
-    for (size_t i = 0; i < moves_wrapper.size(); ++i) {
-      estimated_gain += moves[i].gain;    // TODO why is this here?
-    }
-
     // aggregate moves by direction. not in-place because of counting sort.
     // but it gives us the positions of the buckets right away
     auto positions = parallel::counting_sort(moves_wrapper, sorted_moves, max_key, get_key,
@@ -428,7 +423,7 @@ namespace mt_kahypar {
       assert(actual_gain == 0);
     }
 
-    DBG << V(num_moves) << V(estimated_gain) << V(actual_gain) << V(metrics::imbalance(phg, context));
+    DBG << V(num_moves) << V(actual_gain) << V(metrics::imbalance(phg, context));
     return actual_gain;
   }
 
