@@ -32,19 +32,21 @@ namespace mt_kahypar {
 
 class DeterministicLabelPropagationRefiner final : public IRefiner {
 public:
-  explicit DeterministicLabelPropagationRefiner(Hypergraph& hypergraph, const Context& context, TaskGroupID )
-  :
-          context(context),
-          compute_gains(context.partition.k),
-          moves(hypergraph.initialNumNodes()),   // TODO make smaller --> max round size
-          sorted_moves(hypergraph.initialNumNodes()),
-          prng(context.partition.seed),
-          active_nodes(hypergraph.initialNumNodes()),
-          last_moved_in_round(hypergraph.initialNumNodes() + hypergraph.initialNumEdges(), CAtomic<uint32_t>(0)),   // TODO don't occupy memory if not used
-          ets_recalc_data( vec<RecalculationData>(context.partition.k) ),
-          max_num_nodes(hypergraph.initialNumNodes()),
-          max_num_edges(hypergraph.initialNumEdges())
+  explicit DeterministicLabelPropagationRefiner(Hypergraph& hypergraph, const Context& context, TaskGroupID ) :
+      context(context),
+      compute_gains(context.partition.k),
+      moves(hypergraph.initialNumNodes()),   // TODO make smaller --> max round size
+      sorted_moves(hypergraph.initialNumNodes()),
+      prng(context.partition.seed),
+      active_nodes(0),
+      ets_recalc_data( vec<RecalculationData>(context.partition.k) ),
+      max_num_nodes(hypergraph.initialNumNodes()),
+      max_num_edges(hypergraph.initialNumEdges())
   {
+    if (context.refinement.deterministic_refinement.use_active_node_set) {
+      active_nodes.adapt_capacity(hypergraph.initialNumNodes());
+      last_moved_in_round.resize(hypergraph.initialNumNodes() + hypergraph.initialNumEdges(), CAtomic<uint32_t>(0));
+    }
 
   }
   
