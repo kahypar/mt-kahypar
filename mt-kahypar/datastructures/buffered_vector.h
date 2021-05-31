@@ -77,6 +77,7 @@ public:
   auto begin() { return data.begin(); }
   auto end() { return data.begin() + size(); }
   T& operator[](size_t pos) { return data[pos]; }
+  const T& operator[](size_t pos) const { return data[pos]; }
 
 
   struct RandomAccessRange {
@@ -86,6 +87,8 @@ public:
     size_t size() const { return actual_size; }
   };
   RandomAccessRange range() const { return { size(), data }; }
+
+  const vec_t& getData() { return data; }
 
 private:
 

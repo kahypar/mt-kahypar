@@ -61,7 +61,7 @@ namespace mt_kahypar {
         auto[first_bucket, last_bucket] = parallel::chunking::bounds(sub_round, num_buckets, num_buckets_per_sub_round);
         assert(first_bucket < last_bucket && last_bucket < permutation.bucket_bounds.size());
         size_t first = permutation.bucket_bounds[first_bucket], last = permutation.bucket_bounds[last_bucket];
-        moves_back.store(0, std::memory_order_relaxed);
+        moves.clear();
 
         // calculate moves
         auto t1 = tbb::tick_count::now();
@@ -76,16 +76,17 @@ namespace mt_kahypar {
             calculateAndSaveBestMove(phg, permutation.at(position));
           });
         }
+        moves.finalize();
         if (log) LOG << "calc moves time" << (tbb::tick_count::now() - t1).seconds();
 
         Gain sub_round_improvement = 0;
-        size_t num_moves_in_sub_round = moves_back.load(std::memory_order_relaxed);
+        size_t num_moves_in_sub_round = moves.size();
         DBG << V(num_moves_in_sub_round);
         if (num_moves_in_sub_round > 0) {
           auto t2 = tbb::tick_count::now();
           sub_round_improvement = applyMovesByMaximalPrefixesInBlockPairs(phg);
           auto t3 = tbb::tick_count::now();
-          if (sub_round_improvement > 0 && moves_back.load(std::memory_order_relaxed) > 0) {
+          if (sub_round_improvement > 0 && moves.size() > 0) {
             // sub_round_improvement += applyMovesSortedByGainAndRevertUnbalanced(phg);
             sub_round_improvement += applyMovesSortedByGainWithRecalculation(phg);
           }
@@ -184,14 +185,14 @@ namespace mt_kahypar {
   }
 
   Gain DeterministicLabelPropagationRefiner::applyMovesSortedByGainAndRevertUnbalanced(PartitionedHypergraph& phg) {
-    const size_t num_moves = moves_back.load(std::memory_order_relaxed);
+    const size_t num_moves = moves.size();
     tbb::parallel_sort(moves.begin(), moves.begin() + num_moves, [](const Move& m1, const Move& m2) {
       return m1.gain > m2.gain || (m1.gain == m2.gain && m1.node < m2.node);
     });
 
     const auto& max_part_weights = context.partition.max_part_weights;
     size_t num_overloaded_blocks = 0, num_overloaded_before_round = 0;
-    vec<HypernodeWeight> part_weights = aggregatePartWeightDeltas(phg, moves, num_moves);
+    vec<HypernodeWeight> part_weights = aggregatePartWeightDeltas(phg, moves.getData(), num_moves);
     for (PartitionID i = 0; i < phg.k(); ++i) {
       part_weights[i] += phg.partWeight(i);
       if (part_weights[i] > max_part_weights[i]) {
@@ -256,12 +257,12 @@ namespace mt_kahypar {
     }
 
     // apply all moves that were not invalidated
-    Gain gain = applyMovesIf(phg, moves, num_moves, [&](size_t pos) { return moves[pos].isValid(); });
+    Gain gain = applyMovesIf(phg, moves.getData(), num_moves, [&](size_t pos) { return moves[pos].isValid(); });
 
     // if that decreased solution quality, revert it all
     if (gain < 0) {
       DBG << "Kommando zurück" << V(gain) << V(num_moves) << V(num_reverted_moves);
-      gain += applyMovesIf(phg, moves, num_moves, [&](size_t pos) {
+      gain += applyMovesIf(phg, moves.getData(), num_moves, [&](size_t pos) {
         if (moves[pos].isValid()) {
           std::swap(moves[pos].from, moves[pos].to);
           return true;
@@ -279,22 +280,12 @@ namespace mt_kahypar {
     PartitionID max_key = k * k;
     auto index = [&](PartitionID b1, PartitionID b2) { return b1 * k + b2; };
     auto get_key = [&](const Move& m) { return index(m.from, m.to); };
-    struct MovesWrapper {
-      const Move& operator[](size_t i) const { return moves[i]; }
 
-      size_t size() const { return sz; }
-
-      const vec<Move>& moves;
-      const size_t sz = 0;
-    };
-
-    const size_t num_moves = moves_back.load(std::memory_order_relaxed);
-
-    MovesWrapper moves_wrapper{moves, num_moves};
+    const size_t num_moves = moves.size();
 
     // aggregate moves by direction. not in-place because of counting sort.
     // but it gives us the positions of the buckets right away
-    auto positions = parallel::counting_sort(moves_wrapper, sorted_moves, max_key, get_key,
+    auto positions = parallel::counting_sort(moves, sorted_moves, max_key, get_key,
                                              context.shared_memory.num_threads);
 
     auto has_moves = [&](PartitionID p1, PartitionID p2) {
@@ -397,16 +388,16 @@ namespace mt_kahypar {
       __atomic_fetch_sub(&part_weight_deltas[p2], best_balance, __ATOMIC_RELAXED);
     });
 
-    moves_back.store(0, std::memory_order_relaxed);
+    moves.clear();
     Gain actual_gain = applyMovesIf(phg, sorted_moves, num_moves, [&](size_t pos) {
       if (pos < swap_prefix[index(sorted_moves[pos].from, sorted_moves[pos].to)]) {
         return true;
       } else {
-        size_t second_try_pos = moves_back.fetch_add(1, std::memory_order_relaxed);
-        moves[second_try_pos] = sorted_moves[pos];
+        moves.push_back_buffered(sorted_moves[pos]);
         return false;
       }
     });
+    moves.finalize();
 
     // revert everything if that decreased solution quality
     if (actual_gain < 0) {
@@ -436,7 +427,7 @@ namespace mt_kahypar {
       move_pos_of_node.resize(max_num_nodes, invalid_pos);
     }
 
-    const size_t num_moves = moves_back.load(std::memory_order_relaxed);
+    const size_t num_moves = moves.size();
     tbb::parallel_sort(moves.begin(), moves.begin() + num_moves, [](const Move& m1, const Move& m2) {
       return m1.gain > m2.gain || (m1.gain == m2.gain && m1.node < m2.node);
     });
@@ -551,7 +542,7 @@ namespace mt_kahypar {
       }
     }
 
-    Gain attributed_gain = applyMovesIf(phg, moves, best_index, [&](size_t) { return true; });
+    Gain attributed_gain = applyMovesIf(phg, moves.getData(), best_index, [&](size_t) { return true; });
     ASSERT(attributed_gain == best_gain); unused(attributed_gain);
 
     return best_gain;

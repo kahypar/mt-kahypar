@@ -73,10 +73,7 @@ private:
     //auto [to, gain] = compute_gains.local().computeBestTargetBlock(phg, u, context.partition.max_part_weights);
     auto [to, gain] = compute_gains.local().computeBestTargetBlockIgnoringBalance(phg, u);
     if (gain > 0 && to != kInvalidPartition) {    // depending on apply moves function we might do gain >= 0
-      assert(to >= 0 && to < phg.k());
-      size_t pos = moves_back.fetch_add(1, std::memory_order_relaxed);
-      assert(pos < moves.size());
-      moves[pos] = { phg.partID(u), to, u, gain };
+      moves.push_back_buffered( { phg.partID(u), to, u, gain } );
     }
   }
 
@@ -85,15 +82,14 @@ private:
     if (!phg.isBorderNode(u)) return;
     const Gain gain = TwoWayGainComputer::gainToOtherBlock(phg, u);
     if (gain > 0) {
-      size_t pos = moves_back.fetch_add(1, std::memory_order_relaxed);
-      moves[pos] = { phg.partID(u), 1 - phg.partID(u), u, gain };
+      moves.push_back_buffered({ phg.partID(u), 1 - phg.partID(u), u, gain });
     }
   }
 
   const Context& context;
   tbb::enumerable_thread_specific<Km1GainComputer> compute_gains;
-  vec<Move> moves, sorted_moves;                        // TODO use buffered vector here?
-  std::atomic<size_t> moves_back = {0};
+  ds::BufferedVector<Move> moves;
+  vec<Move> sorted_moves;
 
   std::mt19937 prng;
   utils::ParallelPermutation<HypernodeID> permutation;  // gets memory only once used
