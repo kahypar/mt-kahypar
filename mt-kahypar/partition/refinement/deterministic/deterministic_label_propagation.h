@@ -40,7 +40,8 @@ public:
           sorted_moves(hypergraph.initialNumNodes()),
           prng(context.partition.seed),
           active_nodes(hypergraph.initialNumNodes()),
-          last_moved_in_round(hypergraph.initialNumNodes() + hypergraph.initialNumEdges(), CAtomic<uint32_t>(0)),
+          last_moved_in_round(hypergraph.initialNumNodes() + hypergraph.initialNumEdges(), CAtomic<uint32_t>(0)),   // TODO don't occupy memory if not used
+          ets_recalc_data( vec<RecalculationData>(context.partition.k) ),
           max_num_nodes(hypergraph.initialNumNodes()),
           max_num_edges(hypergraph.initialNumEdges())
   {

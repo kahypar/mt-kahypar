@@ -41,14 +41,13 @@ namespace mt_kahypar {
     const bool log = false && context.type == kahypar::ContextType::main;
 
     for (size_t iter = 0; iter < context.refinement.label_propagation.maximum_iterations; ++iter) {
-      if (++round == 0) {
+      if (context.refinement.deterministic_refinement.use_active_node_set && ++round == 0) {
         std::fill(last_moved_in_round.begin(), last_moved_in_round.end(), CAtomic<uint32_t>(0));
       }
 
       // size == 0 means no node was moved last round, but there were positive gains --> try again with different permutation
       if (!context.refinement.deterministic_refinement.use_active_node_set || iter == 0 || active_nodes.size() == 0) {
-        permutation.random_grouping(phg.initialNumNodes(), context.shared_memory.static_balancing_work_packages,
-                                    prng());
+        permutation.random_grouping(phg.initialNumNodes(), context.shared_memory.static_balancing_work_packages,prng());
       } else {
         tbb::parallel_sort(active_nodes.begin(), active_nodes.end());
         permutation.sample_buckets_and_group_by(active_nodes.range(),
@@ -87,7 +86,8 @@ namespace mt_kahypar {
           sub_round_improvement = applyMovesByMaximalPrefixesInBlockPairs(phg);
           auto t3 = tbb::tick_count::now();
           if (sub_round_improvement > 0 && moves_back.load(std::memory_order_relaxed) > 0) {
-            sub_round_improvement += applyMovesSortedByGainAndRevertUnbalanced(phg);
+            // sub_round_improvement += applyMovesSortedByGainAndRevertUnbalanced(phg);
+            sub_round_improvement += applyMovesSortedByGainWithRecalculation(phg);
           }
           auto t4 = tbb::tick_count::now();
           if (log) LOG << "apply by prefix" << (t3 - t2).seconds();
@@ -130,8 +130,7 @@ namespace mt_kahypar {
       for (HyperedgeID he : phg.incidentEdges(m.node)) {
         if (phg.edgeSize(he) <= context.refinement.label_propagation.hyperedge_size_activation_threshold) {
           if (last_moved_in_round[he + n].load(std::memory_order_relaxed) != round) {
-            last_moved_in_round[he + n].store(round,
-                                              std::memory_order_relaxed);   // no need for atomic semantics on this one
+            last_moved_in_round[he + n].store(round, std::memory_order_relaxed);   // no need for atomic semantics
             for (HypernodeID v : phg.pins(he)) {
               uint32_t lrv = last_moved_in_round[v].load(std::memory_order_relaxed);
               if (lrv != round &&
@@ -295,7 +294,7 @@ namespace mt_kahypar {
 
     Gain estimated_gain = 0;
     for (size_t i = 0; i < moves_wrapper.size(); ++i) {
-      estimated_gain += moves[i].gain;
+      estimated_gain += moves[i].gain;    // TODO why is this here?
     }
 
     // aggregate moves by direction. not in-place because of counting sort.
@@ -448,7 +447,7 @@ namespace mt_kahypar {
     });
 
     tbb::parallel_for(0UL, num_moves, [&](size_t pos) {
-      move_pos_of_node[moves[pos].node] = pos;
+      move_pos_of_node[moves[pos].node] = pos + 1;    // pos + 1 to handle zero init of last_out
       moves[pos].gain = 0;
     });
 
@@ -457,14 +456,15 @@ namespace mt_kahypar {
     // recalculate gains
     tbb::parallel_for(0UL, num_moves, [&](size_t pos) {
       auto& r = ets_recalc_data.local();
+
       HypernodeID u = moves[pos].node;
       for (HyperedgeID e : phg.incidentEdges(u)) {
         uint32_t expected = last_recalc_round[e].load(std::memory_order_relaxed);
-        if (expected < round && last_recalc_round[e].exchange(round, std::memory_order_acquire) == expected) {
+        if (expected < recalc_round && last_recalc_round[e].exchange(recalc_round, std::memory_order_acq_rel) == expected) {
           for (HypernodeID v : phg.pins(e)) {
             if (was_node_moved_in_this_round(v)) {
               const MoveID m_id = move_pos_of_node[v];
-              const Move& m = moves[m_id];
+              const Move& m = moves[m_id - 1];
               r[m.to].first_in = std::min(r[m.to].first_in, m_id);
               r[m.from].last_out = std::max(r[m.from].last_out, m_id);
             } else {
@@ -476,7 +476,7 @@ namespace mt_kahypar {
           for (HypernodeID v : phg.pins(e)) {
             if (was_node_moved_in_this_round(v)) {
               const MoveID m_id = move_pos_of_node[v];
-              Move& m = moves[m_id];
+              Move& m = moves[m_id - 1];
               const bool benefit = r[m.from].last_out == m_id && r[m.from].first_in > m_id && r[m.from].remaining_pins == 0;
               const bool penalty = r[m.to].first_in == m_id && r[m.to].last_out < m_id && r[m.to].remaining_pins == 0;
               if (benefit && !penalty) {
@@ -495,17 +495,32 @@ namespace mt_kahypar {
           } else {
             for (HypernodeID v : phg.pins(e)) {
               if (was_node_moved_in_this_round(v)) {
-                const Move& m = moves[move_pos_of_node[v]];
+                const Move& m = moves[move_pos_of_node[v] - 1];
                 r[m.from] = RecalculationData();
                 r[m.to] = RecalculationData();
               } else {
-                r[phg.partID(v)].remaining_pins = 0;
+                r[phg.partID(v)] = RecalculationData();
               }
             }
           }
         }
       }
     });
+
+#ifndef NDEBUG
+    for (size_t pos = 0; pos < num_moves; ++pos) {
+      const Move& m = moves[pos];
+      Gain move_gain = performMoveWithAttributedGain(phg, m, false);
+      ASSERT(move_gain == m.gain);
+    }
+
+    for (int64_t pos = num_moves - 1; pos >= 0; --pos) {
+      Move reverse_move = moves[pos];
+      std::swap(reverse_move.from, reverse_move.to);
+      Gain move_gain = performMoveWithAttributedGain(phg, reverse_move, false);
+      ASSERT(move_gain == -moves[pos].gain);
+    }
+#endif
 
     // remove markers again
     tbb::parallel_for(0UL, num_moves, [&](size_t pos) { move_pos_of_node[moves[pos].node] = invalid_pos; });
@@ -520,6 +535,7 @@ namespace mt_kahypar {
         num_overloaded_blocks_before_pass++;
       }
     }
+    num_overloaded_blocks = num_overloaded_blocks_before_pass;
 
     // prefix sum part weights and gains. (might incorporate parallel version if this takes too long)
     Gain best_gain = 0, gain_sum = 0;
@@ -530,6 +546,7 @@ namespace mt_kahypar {
                                 part_weights[m.from] - phg.nodeWeight(m.node) <= max_part_weights[m.from]);
       num_overloaded_blocks += (part_weights[m.to] <= max_part_weights[m.to] &&
                                 part_weights[m.to] + phg.nodeWeight(m.node) > max_part_weights[m.to]);
+
       part_weights[m.from] -= phg.nodeWeight(m.node);
       part_weights[m.to] += phg.nodeWeight(m.node);
       gain_sum += m.gain;
@@ -540,7 +557,7 @@ namespace mt_kahypar {
     }
 
     Gain attributed_gain = applyMovesIf(phg, moves, best_index, [&](size_t) { return true; });
-    assert(attributed_gain == best_gain);
+    ASSERT(attributed_gain == best_gain, V(attributed_gain) << V(best_gain) << V(best_index) << V(num_moves) << V(gain_sum));
 
     return best_gain;
   }
