@@ -557,7 +557,7 @@ namespace mt_kahypar {
     }
 
     Gain attributed_gain = applyMovesIf(phg, moves, best_index, [&](size_t) { return true; });
-    ASSERT(attributed_gain == best_gain, V(attributed_gain) << V(best_gain) << V(best_index) << V(num_moves) << V(gain_sum));
+    ASSERT(attributed_gain == best_gain); unused(attributed_gain);
 
     return best_gain;
   }
