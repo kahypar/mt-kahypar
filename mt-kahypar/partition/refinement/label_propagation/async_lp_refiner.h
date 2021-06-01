@@ -23,28 +23,25 @@ namespace mt_kahypar {
         using ActiveNodes = std::vector<HypernodeID>;
         using NextActiveNodes = std::vector<HypernodeID>;
         using VisitedEdges = std::vector<HyperedgeID>;
+        using MovedNodes = ds::StreamingVector<HypernodeID>;
 
         static constexpr bool debug = false;
-        static constexpr bool enable_heavy_assert = false;
+        static constexpr bool enable_heavy_assert = true;
 
     public:
         explicit AsyncLPRefiner(Hypergraph &hypergraph, const Context &context, const TaskGroupID task_group_id,
-                                ds::GroupLockManager *lockManager) :
+                                ds::GroupLockManager *lockManager,
+                                ds::ThreadSafeFlagArray <HypernodeID> &node_anti_duplicator,
+                                ds::ThreadSafeFlagArray <HyperedgeID> &edge_anti_duplicator) :
         _context(context),
         _task_group_id(task_group_id),
         _gain(context),
         _active_nodes(),
         _contraction_group_id(ds::invalidGroupID),
         _lock_manager(lockManager),
-        _rng() {
-            // If this is the first AsyncLPRefiner to be constructed, initialize the shared static flag arrays. Always
-            // assert that it uses the same number of hypernodes and hyperedges as the flag arrays have been initialized to
-            if (!_next_active.isInitialized()) {
-                _next_active.initialize(hypergraph.initialNumNodes());
-            }
-            if (!_visited_he.isInitialized()) {
-                _visited_he.initialize(hypergraph.initialNumEdges());
-            }
+        _rng(),
+        _next_active(node_anti_duplicator),
+        _visited_he(edge_anti_duplicator) {
             ASSERT(_next_active.size() == hypergraph.initialNumNodes());
             ASSERT(_visited_he.size() == hypergraph.initialNumEdges());
         }
@@ -57,13 +54,11 @@ namespace mt_kahypar {
 
         ~AsyncLPRefiner() override {
             // Expect all AsyncLPRefiners between Refinement tasks (relevant for initial partitioning) to be built and destroyed
-            // simultaneously, so the first one to get destroyed resets the static flag arrays
+            // simultaneously, so when one gets destroyed, all should be done with any refinement calls and therefore, all
+            // flags on the shared anti-duplicator arrays should have been reset
 
             HEAVY_REFINEMENT_ASSERT(_next_active.checkAllFalse());
             HEAVY_REFINEMENT_ASSERT(_visited_he.checkAllFalse());
-
-            if (_next_active.isInitialized()) _next_active.reset();
-            if (_visited_he.isInitialized()) _visited_he.reset();
         }
 
     private:
@@ -71,14 +66,16 @@ namespace mt_kahypar {
         bool refineImpl(PartitionedHypergraph& hypergraph,
                         const parallel::scalable_vector<HypernodeID>& refinement_nodes,
                         metrics::ThreadSafeMetrics& best_metrics,
-                        double) final ;
+                        double,
+                        ds::StreamingVector<HypernodeID>& moved_nodes) final ;
 
         void resetForGroup(ds::ContractionGroupID groupID) override;
 
-        void labelPropagation(PartitionedHypergraph& hypergraph);
+        void labelPropagation(PartitionedHypergraph &hypergraph, MovedNodes &moved_nodes);
 
-        bool labelPropagationRound(PartitionedHypergraph& hypergraph, NextActiveNodes& next_active_nodes,
-                                   VisitedEdges& visited_edges);
+        bool labelPropagationRound(PartitionedHypergraph &hypergraph,
+                                   NextActiveNodes &next_active_nodes,
+                                   VisitedEdges &visited_edges, MovedNodes &moved_nodes);
 
         template<typename F>
         bool moveVertex(PartitionedHypergraph& hypergraph,
@@ -161,7 +158,15 @@ namespace mt_kahypar {
                             const PartitionID to,
                             const F& objective_delta) {
             ASSERT(phg.nodeIsEnabled(hn));
-            return phg.changeNodePart(hn, from, to, _context.partition.max_part_weights[to], []{}, objective_delta);
+            bool success = false;
+            if ( _context.partition.paradigm == Paradigm::nlevel && phg.isGainCacheInitialized()) {
+                success = phg.changeNodePartWithGainCacheUpdate(hn, from, to,
+                                                                _context.partition.max_part_weights[to], [] { }, objective_delta);
+            } else {
+                success = phg.changeNodePart(hn, from, to,
+                                             _context.partition.max_part_weights[to], []{}, objective_delta);
+            }
+            return success;
         }
 
         const Context& _context;
@@ -180,10 +185,9 @@ namespace mt_kahypar {
         // ! Mersenne-twister random number generator for shuffling vectors
         std::mt19937 _rng;
 
-    private:
-        // Static members
-        static ds::ThreadSafeFlagArray<HypernodeID> _next_active;
-        static ds::ThreadSafeFlagArray<HyperedgeID> _visited_he;
+        // ! Anti-duplicator flag-arrays that are shared with other refiners
+        ds::ThreadSafeFlagArray<HypernodeID>& _next_active;
+        ds::ThreadSafeFlagArray<HyperedgeID>& _visited_he;
 
     };
 

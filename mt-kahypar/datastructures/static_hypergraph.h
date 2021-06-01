@@ -730,9 +730,11 @@ class StaticHypergraph {
       return { };
   }
 
-  void uncontract(const ContractionGroup& group,
-                  const UncontractionFunction& case_one_func,
-                  const UncontractionFunction& case_two_func) {
+  void uncontract(const ContractionGroup&,
+                  const UncontractionFunction& case_one_func = NOOP_BATCH_FUNC,
+                  const UncontractionFunction& case_two_func= NOOP_BATCH_FUNC) {
+      unused(case_one_func);
+      unused(case_two_func);
       ERROR("uncontract(ContractionGroup&, ...) is not supported in static hypergraph.");
 
   }

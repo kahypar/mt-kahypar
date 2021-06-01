@@ -64,10 +64,6 @@ private:
 
  public:
 
-    // ! Function that is used to release locks on HypernodeIDs when extracting seed nodes from given nodes for asynchronous refinement.
-    using ReleaseFunction = std::function<void (const HypernodeID)>;
-    #define NOOP_RELEASE_FUNC = [] (const HypernodeID) {};
-
   static constexpr bool is_static_hypergraph = Hypergraph::is_static_hypergraph;
   static constexpr bool is_partitioned = true;
   static constexpr bool supports_connectivity_set = true;
@@ -441,9 +437,11 @@ private:
       _hg->uncontract(group, [&](const HypernodeID u, const HypernodeID v, const HyperedgeID he) {
                                         // In this case, u and v are incident to hyperedge he after uncontraction
                                         const PartitionID block = partID(u);
+                                        _pin_count_update_ownership[he].lock();
                                         const HypernodeID pin_count_in_part_after = incrementPinCountInPartWithoutGainUpdate(
                                                 he, block);
                                         ASSERT(pin_count_in_part_after > 1, V(u) << V(v) << V(he));
+                                        _pin_count_update_ownership[he].unlock();
 
                                         if (_is_gain_cache_initialized) {
                                             // If u was the only pin of hyperedge he in its block before then moving out vertex u
@@ -634,6 +632,7 @@ private:
                       HypernodeWeight max_weight_to,
                       SuccessFunc&& report_success,
                       DeltaFunc&& delta_func) {
+      assert(nodeIsEnabled(u));
       assert(partID(u) == from);
       assert(from != to);
       const HypernodeWeight wu = nodeWeight(u);
@@ -1103,37 +1102,47 @@ private:
     _k = 0;
   }
 
+  template<typename F>
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
+  void doForEnabledPins(HyperedgeID he, const F& f) {
+      for (HypernodeID u : pins(he)) {
+          if (!nodeIsEnabled(u)) continue;
+          f(u);
+      }
+  }
 
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
   void gainCacheUpdate(const HyperedgeID he, const HyperedgeWeight we,
                        const PartitionID from, const HypernodeID pin_count_in_from_part_after,
                        const PartitionID to, const HypernodeID pin_count_in_to_part_after) {
+
+      // Filter pin iterator to only enabled pins
     if (pin_count_in_from_part_after == 1) {
-      for (HypernodeID u : pins(he)) {
-        nodeGainAssertions(u, from);
-        if (partID(u) == from) {
-          _move_from_benefit[u].fetch_add(we, std::memory_order_relaxed);
-        }
-      }
+        doForEnabledPins(he,[&](HypernodeID u) {
+            nodeGainAssertions(u, from);
+            if (partID(u) == from) {
+                _move_from_benefit[u].fetch_add(we, std::memory_order_relaxed);
+            }
+        });
     } else if (pin_count_in_from_part_after == 0) {
-      for (HypernodeID u : pins(he)) {
-        nodeGainAssertions(u, from);
-        _move_to_penalty[penalty_index(u, from)].fetch_sub(we, std::memory_order_relaxed);
-      }
+        doForEnabledPins(he,[&](HypernodeID u) {
+            nodeGainAssertions(u, from);
+            _move_to_penalty[penalty_index(u, from)].fetch_sub(we, std::memory_order_relaxed);
+        });
     }
 
     if (pin_count_in_to_part_after == 1) {
-      for (HypernodeID u : pins(he)) {
-        nodeGainAssertions(u, to);
-        _move_to_penalty[penalty_index(u, to)].fetch_add(we, std::memory_order_relaxed);
-      }
+        doForEnabledPins(he,[&](HypernodeID u) {
+            nodeGainAssertions(u, to);
+            _move_to_penalty[penalty_index(u, to)].fetch_add(we, std::memory_order_relaxed);
+        });
     } else if (pin_count_in_to_part_after == 2) {
-      for (HypernodeID u : pins(he)) {
-        nodeGainAssertions(u, to);
-        if (partID(u) == to) {
-          _move_from_benefit[u].fetch_sub(we, std::memory_order_relaxed);
-        }
-      }
+        doForEnabledPins(he,[&](HypernodeID u) {
+            nodeGainAssertions(u, to);
+            if (partID(u) == to) {
+            _move_from_benefit[u].fetch_sub(we, std::memory_order_relaxed);
+            }
+        });
     }
   }
 

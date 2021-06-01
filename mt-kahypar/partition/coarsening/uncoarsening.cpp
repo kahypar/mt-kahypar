@@ -487,6 +487,9 @@ namespace mt_kahypar {
           ASSERT(_phg.version() == pool->getVersion());
 
           size_t num_uncontractions = 0;
+          ds::StreamingVector<HypernodeID> moved_nodes_placeholder;
+          std::unique_ptr<ds::ThreadSafeFlagArray<HypernodeID>> node_anti_duplicator;
+          std::unique_ptr<ds::ThreadSafeFlagArray<HyperedgeID>> edge_anti_duplicator;
 
           while (pool->hasActive()) {
               ds::ContractionGroupID groupID = ds::invalidGroupID;
@@ -537,14 +540,17 @@ namespace mt_kahypar {
                           _phg.hypergraph(),
                           _context,
                           _task_group_id,
-                          _lock_manager_for_async.get());
+                          _lock_manager_for_async.get(),
+                          *node_anti_duplicator,
+                          *edge_anti_duplicator);
 //                  localLPRefiner->initialize(_phg);
 
                   // Do only label propagation
                   metrics::ThreadSafeMetrics ts_metrics;
                   ts_metrics.unsafeStoreMetrics(current_metrics);
                   localizedRefineForAsync(_phg, refinement_nodes, localLPRefiner.get(), groupID, ts_metrics,
-                                          force_measure_timings);
+                                          force_measure_timings, moved_nodes_placeholder);
+                  moved_nodes_placeholder.clear_sequential();
                   current_metrics = ts_metrics.unsafeLoadMetrics();
               }
 
@@ -565,7 +571,7 @@ namespace mt_kahypar {
               _removed_hyperedges_batches.pop_back();
               utils::Timer::instance().stop_timer("restore_single_pin_and_parallel_nets", force_measure_timings);
               HEAVY_REFINEMENT_ASSERT(_hg.verifyIncidenceArrayAndIncidentNets());
-              HEAVY_REFINEMENT_ASSERT(_phg.checkTrackedPartitionInformation());
+//              HEAVY_REFINEMENT_ASSERT(_phg.checkTrackedPartitionInformation());
 
               // Perform refinement on all vertices
               const double time_limit = refinementTimeLimit(_context, _round_coarsening_times.back());
@@ -662,8 +668,6 @@ namespace mt_kahypar {
 
       // Attempt to acquire locks for representative and contracted nodes in the group. If any of the locks cannot be
       // acquired, revert to previous state and attempt to pick an id again
-      auto range = IteratorRange(ds::GroupNodeIDIterator::getAtBegin(group),
-                                 ds::GroupNodeIDIterator::getAtEnd(group));
       bool acquired = _lock_manager_for_async->tryToAcquireLock(group.getRepresentative(),groupID);
       if (!acquired) {
           return false;
@@ -688,8 +692,12 @@ namespace mt_kahypar {
       return true;
   }
 
-  bool NLevelCoarsenerBase::refineGroupAsyncSubtask(const ds::ContractionGroup& group, ds::ContractionGroupID groupID,
-                                 metrics::ThreadSafeMetrics& current_metrics, bool force_measure_timings) {
+  bool NLevelCoarsenerBase::refineGroupAsyncSubtask(const ds::ContractionGroup &group, ds::ContractionGroupID groupID,
+                                                    metrics::ThreadSafeMetrics &current_metrics,
+                                                    bool force_measure_timings,
+                                                    ds::StreamingVector <HypernodeID> &moved_nodes,
+                                                    ds::ThreadSafeFlagArray <HypernodeID> &node_anti_duplicator,
+                                                    ds::ThreadSafeFlagArray <HyperedgeID> &edge_anti_duplicator) {
 
       // Extract refinement seeds
       auto begin = ds::GroupNodeIDIterator::getAtBegin(group);
@@ -727,23 +735,26 @@ namespace mt_kahypar {
                       _phg.hypergraph(),
                       _context,
                       _task_group_id,
-                      _lock_manager_for_async.get());
+                      _lock_manager_for_async.get(),
+                      node_anti_duplicator,
+                      edge_anti_duplicator);
               register_thread_local_refiner_ptr(&localLPRefiner);
           }
 
           // Do only label propagation
           localizedRefineForAsync(_phg, refinement_nodes, localLPRefiner.get(), groupID, current_metrics,
-                                  force_measure_timings);
+                                  force_measure_timings, moved_nodes);
       }
 
       return true;
   }
 
-  void NLevelCoarsenerBase::uncoarsenAsyncTask(ds::TreeGroupPool* pool,
-                            tbb::task_group& uncoarsen_tg,
-                            CAtomic<size_t>& total_uncontractions,
-                            metrics::ThreadSafeMetrics& current_metrics,
-                            bool force_measure_timings) {
+  void NLevelCoarsenerBase::uncoarsenAsyncTask(ds::TreeGroupPool *pool, tbb::task_group &uncoarsen_tg,
+                                               CAtomic<size_t> &total_uncontractions,
+                                               metrics::ThreadSafeMetrics &current_metrics, bool force_measure_timings,
+                                               ds::StreamingVector <HypernodeID> &moved_nodes,
+                                               ds::ThreadSafeFlagArray <HypernodeID> &node_anti_duplicator,
+                                               ds::ThreadSafeFlagArray <HyperedgeID> &edge_anti_duplicator) {
 
       ds::ContractionGroupID groupID = ds::invalidGroupID;
       pool->pickActiveID(groupID);
@@ -763,7 +774,8 @@ namespace mt_kahypar {
               continue;
           }
 
-          refineGroupAsyncSubtask(group,groupID,current_metrics,force_measure_timings);
+          refineGroupAsyncSubtask(group, groupID, current_metrics, force_measure_timings, moved_nodes, node_anti_duplicator,
+                                  edge_anti_duplicator);
 
           // If the group has successors, have this task continue with the first successor, activate the
           // other successors (i.e. put them in the queue) and spawn tasks for them. If the group has no
@@ -776,7 +788,8 @@ namespace mt_kahypar {
               for (auto it = suc_begin + 1; it < suc_end; ++it) {
                   pool->activate(*it);
                   uncoarsen_tg.run([&](){
-                      uncoarsenAsyncTask(pool,uncoarsen_tg,total_uncontractions,current_metrics,force_measure_timings);
+                      uncoarsenAsyncTask(pool, uncoarsen_tg, total_uncontractions, current_metrics,
+                                         force_measure_timings, moved_nodes, node_anti_duplicator, edge_anti_duplicator);
                   });
               }
           } else {
@@ -807,9 +820,11 @@ namespace mt_kahypar {
       });
       _phg.initializePartition(_task_group_id);
 
-      if ( _context.refinement.fm.algorithm == FMAlgorithm::fm_gain_cache ) {
-          _phg.initializeGainCache();
-      }
+      // todo mlaupichler: Reset this to use the check:
+      //  Always initializing gain cache in order to develop gain cache handling in LP
+//      if ( _context.refinement.fm.algorithm == FMAlgorithm::fm_gain_cache ) {
+//          _phg.initializeGainCache();
+//      }
 
       ASSERT(metrics::objective(_compactified_phg, _context.partition.objective) ==
              metrics::objective(_phg, _context.partition.objective),
@@ -849,17 +864,23 @@ namespace mt_kahypar {
       tbb::task_group uncoarsen_tg;
 
       CAtomic<size_t> total_uncontractions(0);
+      ds::StreamingVector<HypernodeID> moved_nodes;
+      auto node_anti_duplicator = std::make_unique<ds::ThreadSafeFlagArray<HypernodeID>>(_phg.initialNumNodes());
+      auto edge_anti_duplicator = std::make_unique<ds::ThreadSafeFlagArray<HyperedgeID>>(_phg.initialNumEdges());
+
       while (!_group_pools_for_versions.empty()) {
           ASSERT(_phg.version() == _removed_hyperedges_batches.size());
           ds::TreeGroupPool* pool = _group_pools_for_versions.back().get();
           ASSERT(_phg.version() == pool->getVersion());
+          ASSERT(moved_nodes.size() == 0);
 
           size_t num_uncontractions_before_pool = total_uncontractions.load(std::memory_order_acquire);
 
           size_t num_roots = pool->getNumActive();
           for (size_t i = 0; i < num_roots; ++i) {
               uncoarsen_tg.run([&](){
-                  uncoarsenAsyncTask(pool,uncoarsen_tg,total_uncontractions,current_metrics,force_measure_timings);
+                  uncoarsenAsyncTask(pool, uncoarsen_tg, total_uncontractions, current_metrics,
+                                     force_measure_timings, moved_nodes, *node_anti_duplicator, *edge_anti_duplicator);
               });
           }
           uncoarsen_tg.wait();
@@ -871,11 +892,24 @@ namespace mt_kahypar {
                   _context.partition.mode, _context.partition.objective));
           uncontraction_progress += num_uncontractions;
 
-          if (_top_level) {
-              ASSERT(current_metrics.loadKm1() == metrics::km1(_phg),
-                     "Actual metric" << V(metrics::km1(_phg))
-                                     << "does not match the metric updated by the refiners" << V(current_metrics.loadKm1()));
-          }
+          // Recompute benefits for moved nodes
+          auto collect_moved_nodes = moved_nodes.copy_parallel();
+          tbb::parallel_for(0UL, collect_moved_nodes.size(), [&](size_t j) {
+              auto hn = collect_moved_nodes[j];
+              _phg.recomputeMoveFromBenefit(hn);
+          });
+          moved_nodes.clear_parallel();
+
+          HEAVY_REFINEMENT_ASSERT(node_anti_duplicator->checkAllFalse());
+          HEAVY_REFINEMENT_ASSERT(edge_anti_duplicator->checkAllFalse());
+          HEAVY_REFINEMENT_ASSERT(_hg.verifyIncidenceArrayAndIncidentNets());
+//          HEAVY_REFINEMENT_ASSERT(_phg.checkTrackedPartitionInformation());
+          HEAVY_REFINEMENT_ASSERT(metrics::objective(_phg, _context.partition.objective) ==
+                                  current_metrics.getMetric(kahypar::Mode::direct_kway, _context.partition.objective),
+                                  V(current_metrics.getMetric(kahypar::Mode::direct_kway, _context.partition.objective))
+                                  << V(metrics::objective(_phg, _context.partition.objective)));
+
+
 
           // Restore single-pin and parallel nets to continue with the next version
           if ( !_removed_hyperedges_batches.empty() ) {
@@ -886,7 +920,7 @@ namespace mt_kahypar {
               _removed_hyperedges_batches.pop_back();
               utils::Timer::instance().stop_timer("restore_single_pin_and_parallel_nets", force_measure_timings);
               HEAVY_REFINEMENT_ASSERT(_hg.verifyIncidenceArrayAndIncidentNets());
-              HEAVY_REFINEMENT_ASSERT(_phg.checkTrackedPartitionInformation());
+//              HEAVY_REFINEMENT_ASSERT(_phg.checkTrackedPartitionInformation());
 
               // Perform refinement on all vertices
               const double time_limit = refinementTimeLimit(_context, _round_coarsening_times.back());
@@ -902,6 +936,8 @@ namespace mt_kahypar {
       }
 
       destroy_thread_local_refiners();
+      node_anti_duplicator.reset();
+      edge_anti_duplicator.reset();
 
       size_t total_num_nodes = _hg.initialNumNodes();
       size_t num_nodes_after_coarsening = _compactified_hg.initialNumNodes();
@@ -1089,10 +1125,10 @@ namespace mt_kahypar {
 
   void NLevelCoarsenerBase::localizedRefineForAsync(PartitionedHypergraph &partitioned_hypergraph,
                                                     const parallel::scalable_vector <HypernodeID> &refinement_nodes,
-                                                    IAsyncRefiner *async_lp,
-                                                    ds::ContractionGroupID group_id,
+                                                    IAsyncRefiner *async_lp, ds::ContractionGroupID group_id,
                                                     metrics::ThreadSafeMetrics &current_metrics,
-                                                    const bool force_measure_timings) {
+                                                    const bool force_measure_timings,
+                                                    ds::StreamingVector <HypernodeID> &moved_nodes) {
 
       bool improvement_found = true;
       while( improvement_found ) {
@@ -1102,7 +1138,7 @@ namespace mt_kahypar {
                _context.refinement.label_propagation.algorithm != LabelPropagationAlgorithm::do_nothing ) {
               utils::Timer::instance().start_timer("label_propagation", "Label Propagation", false, force_measure_timings);
               improvement_found |= async_lp->refine(partitioned_hypergraph,
-                                                    refinement_nodes, current_metrics, std::numeric_limits<double>::max(), group_id);
+                                                    refinement_nodes, current_metrics, std::numeric_limits<double>::max(), group_id, moved_nodes);
               utils::Timer::instance().stop_timer("label_propagation", force_measure_timings);
           }
 

@@ -37,6 +37,7 @@ namespace mt_kahypar::ds {
         auto succs = groupTree.successors(rootID1);
         ASSERT(succs.empty());
         for (auto s : succs) {
+            unused(s);
             ASSERT(false, "Can iterate in empty successors range!");
         }
 

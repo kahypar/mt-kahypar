@@ -11,14 +11,12 @@
 
 namespace mt_kahypar {
 
-    // Initialize static members
-    template<template <typename> class LocalGainPolicy> ds::ThreadSafeFlagArray<HypernodeID> AsyncLPRefiner<LocalGainPolicy>::_next_active;
-    template<template <typename> class LocalGainPolicy> ds::ThreadSafeFlagArray<HyperedgeID> AsyncLPRefiner<LocalGainPolicy>::_visited_he;
-
     template<template <typename> class LocalGainPolicy>
     bool AsyncLPRefiner<LocalGainPolicy>::refineImpl(PartitionedHypergraph &hypergraph,
                                                      const parallel::scalable_vector <mt_kahypar::HypernodeID> &refinement_nodes,
-                                                     metrics::ThreadSafeMetrics &best_metrics, double) {
+                                                     metrics::ThreadSafeMetrics &best_metrics,
+                                                     double,
+                                                     ds::StreamingVector<HypernodeID>& moved_nodes) {
         ASSERT(_contraction_group_id != ds::invalidGroupID, "ContractionGroupID (Owner-ID) for locking is invalid.");
         ASSERT(!refinement_nodes.empty(), "AsyncLPRefiner will not work without given seed refinement nodes. Cannot be used "
                                           "solely for rebalancing or for global refinement!");
@@ -30,7 +28,7 @@ namespace mt_kahypar {
         _gain.reset();
 
         // Perform Label Propagation
-        labelPropagation(hypergraph);
+        labelPropagation(hypergraph, moved_nodes);
 
         // Update global part weight and sizes
         double imbalance;
@@ -44,10 +42,10 @@ namespace mt_kahypar {
         Gain delta = _gain.delta();
         ASSERT(delta <= 0, "LP refiner worsen solution quality");
 
-        HEAVY_REFINEMENT_ASSERT(hypergraph.checkTrackedPartitionInformation());
-        HEAVY_REFINEMENT_ASSERT(current_metric + delta == metrics::objective(hypergraph, _context.partition.objective, false),
-                                V(current_metric) << V(delta) <<
-                                                  V(metrics::objective(hypergraph, _context.partition.objective, false)));
+//        HEAVY_REFINEMENT_ASSERT(hypergraph.checkTrackedPartitionInformation());
+//        HEAVY_REFINEMENT_ASSERT(current_metric + delta == metrics::objective(hypergraph, _context.partition.objective, false),
+//                                V(current_metric) << V(delta) <<
+//                                                  V(metrics::objective(hypergraph, _context.partition.objective, false)));
 
         best_metrics.fetch_add(delta, kahypar::Mode::direct_kway, _context.partition.objective);
         utils::Stats::instance().update_stat("lp_improvement", std::abs(delta));
@@ -56,7 +54,7 @@ namespace mt_kahypar {
     }
 
     template <template <typename> class LocalGainPolicy>
-    void AsyncLPRefiner<LocalGainPolicy>::labelPropagation(PartitionedHypergraph& hypergraph) {
+    void AsyncLPRefiner<LocalGainPolicy>::labelPropagation(PartitionedHypergraph &hypergraph, MovedNodes &moved_nodes) {
         NextActiveNodes next_active_nodes;
         VisitedEdges visited_edges;
         for (size_t i = 0; i < _context.refinement.label_propagation.maximum_iterations; ++i) {
@@ -66,16 +64,22 @@ namespace mt_kahypar {
                     "lp_round_" + std::to_string(i), "Label Propagation Round " + std::to_string(i), true);
 
             if ( !_active_nodes.empty() ) {
-                labelPropagationRound(hypergraph, next_active_nodes, visited_edges);
+                labelPropagationRound(hypergraph, next_active_nodes, visited_edges, moved_nodes);
             }
 
             _active_nodes = next_active_nodes;
 
-            auto has_duplicates = [&]() -> bool {
+            auto has_node_duplicates = [&]() -> bool {
                 std::sort(next_active_nodes.begin(),next_active_nodes.end());
                 return std::adjacent_find(next_active_nodes.begin(), next_active_nodes.end()) != next_active_nodes.end();
             };
-            ASSERT(! has_duplicates());
+            ASSERT(! has_node_duplicates());
+
+            auto has_edge_duplicates = [&]() -> bool {
+                std::sort(visited_edges.begin(), visited_edges.end());
+                return std::adjacent_find(visited_edges.begin(), visited_edges.end()) != visited_edges.end();
+            };
+            ASSERT(! has_edge_duplicates());
 
             // Linear reset of anti-duplicator flags that were set in the last round
             for (auto hn : next_active_nodes) {
@@ -99,10 +103,9 @@ namespace mt_kahypar {
     }
 
     template <template <typename> class LocalGainPolicy>
-    bool AsyncLPRefiner<LocalGainPolicy>::labelPropagationRound(
-            PartitionedHypergraph& hypergraph,
-            NextActiveNodes& next_active_nodes,
-            VisitedEdges& visited_edges) {
+    bool AsyncLPRefiner<LocalGainPolicy>::labelPropagationRound(PartitionedHypergraph &hypergraph,
+                                                                NextActiveNodes &next_active_nodes,
+                                                                VisitedEdges &visited_edges, MovedNodes &moved_nodes) {
 
         // This function is passed as lambda to the changeNodePart function and used
         // to calculate the "real" delta of a move (in terms of the used objective function).
@@ -124,7 +127,9 @@ namespace mt_kahypar {
             const HypernodeID hn = _active_nodes[j];
             bool acquired = _lock_manager->tryToAcquireLock(hn, _contraction_group_id);
             if (acquired) {
-                if ( ! moveVertex(hypergraph, hn, next_active_nodes, visited_edges, objective_delta) ) {
+                if ( moveVertex(hypergraph, hn, next_active_nodes, visited_edges, objective_delta) ) {
+                    moved_nodes.stream(hn);
+                } else {
                     converged = false;
                 }
                 _lock_manager->strongReleaseLock(hn, _contraction_group_id);
@@ -139,14 +144,16 @@ namespace mt_kahypar {
             const HypernodeID hn = retry_nodes[j];
             bool acquired = _lock_manager->tryToAcquireLock(hn, _contraction_group_id);
             if (acquired) {
-                if ( ! moveVertex(hypergraph, hn, next_active_nodes, visited_edges, objective_delta) ) {
+                if ( moveVertex(hypergraph, hn, next_active_nodes, visited_edges, objective_delta) ) {
+                    moved_nodes.stream(hn);
+                } else {
                     converged = false;
                 }
                 _lock_manager->strongReleaseLock(hn, _contraction_group_id);
             }
         }
 
-        HEAVY_REFINEMENT_ASSERT(hypergraph.checkTrackedPartitionInformation());
+//        HEAVY_REFINEMENT_ASSERT(hypergraph.checkTrackedPartitionInformation());
         return converged;
     }
 

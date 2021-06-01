@@ -9,32 +9,23 @@ namespace mt_kahypar::ds {
     template<typename IndexType>
     class ThreadSafeFlagArray {
 
+    private:
+        static constexpr bool debug = false;
+        static constexpr bool enable_heavy_assert = true;
+
     public:
-        ThreadSafeFlagArray() : _data(), _initialized(false) {}
+        explicit ThreadSafeFlagArray(IndexType size) : _data(size, CAtomic<bool>(false)) {}
         ThreadSafeFlagArray(const ThreadSafeFlagArray&) = delete;
         ThreadSafeFlagArray& operator= (const ThreadSafeFlagArray&) = delete;
 
         ThreadSafeFlagArray(ThreadSafeFlagArray&&) = delete;
         ThreadSafeFlagArray& operator= (ThreadSafeFlagArray&&) = delete;
 
-        void initialize(IndexType size) {
-            ASSERT(!isInitialized());
-            _data = parallel::scalable_vector<CAtomic<bool>>(size,CAtomic(false));
-            _initialized = true;
-        }
-
-        void reset() {
-            ASSERT(isInitialized());
-            _initialized = false;
-            _data.clear();
-        }
-
-        bool isInitialized() {
-            return _initialized;
+        ~ThreadSafeFlagArray() {
+            HEAVY_REFINEMENT_ASSERT(checkAllFalse());
         }
 
         IndexType size() {
-            ASSERT(isInitialized());
             return _data.size();
         }
 
@@ -63,13 +54,11 @@ namespace mt_kahypar::ds {
 
         // ! Only for testing
         bool checkAllFalse() {
-            ASSERT(isInitialized());
             return std::all_of(_data.begin(),_data.end(), [&](const CAtomic<bool>& flag){return !flag.load(std::memory_order_relaxed);});
         }
 
     private:
-        parallel::scalable_vector<CAtomic<bool>> _data;
-        bool _initialized;
+        Array<CAtomic<bool>> _data;
     };
 
 } // namespace mt_kahypar::ds

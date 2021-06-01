@@ -38,12 +38,12 @@ class DoNothingRefiner final : public IRefiner {
   DoNothingRefiner & operator= (DoNothingRefiner &&) = delete;
 
  private:
-  void initializeImpl(PartitionedHypergraph&) override final { }
+  void initializeImpl(PartitionedHypergraph&) final { }
 
   bool refineImpl(PartitionedHypergraph&,
                   const parallel::scalable_vector<HypernodeID>&,
                   kahypar::Metrics &,
-                  const double) override final {
+                  const double) final {
     return false;
   }
 };
@@ -62,11 +62,13 @@ class DoNothingRefiner final : public IRefiner {
         bool refineImpl(PartitionedHypergraph&,
                         const parallel::scalable_vector<HypernodeID>&,
                         metrics::ThreadSafeMetrics &,
-                        const double) override final {
+                        const double,
+                        ds::StreamingVector<HypernodeID>&) final {
             return false;
         }
 
-        void resetForGroup(ds::ContractionGroupID groupID) override final { }
+        void resetForGroup(ds::ContractionGroupID) final {
+        }
     };
 
 }  // namespace kahypar

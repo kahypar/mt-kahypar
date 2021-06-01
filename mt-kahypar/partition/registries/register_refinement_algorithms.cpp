@@ -40,12 +40,13 @@
     return new refiner(hypergraph, context, task_group_id);                                                            \
   })
 
-#define REGISTER_ASYNC_LP_REFINER(id, refiner, t)                                                                     \
-  static kahypar::meta::Registrar<AsyncLPRefinerFactory> JOIN(register_ ## refiner, t)(                               \
+#define REGISTER_ASYNC_LP_REFINER(id, refiner, t)                                                                      \
+  static kahypar::meta::Registrar<AsyncLPRefinerFactory> JOIN(register_ ## refiner, t)(                                \
     id,                                                                                                                \
     [](Hypergraph& hypergraph, const Context& context, const TaskGroupID task_group_id,                                \
-    ds::GroupLockManager *lockManager) -> IAsyncRefiner* {                                                            \
-    return new refiner(hypergraph, context, task_group_id, lockManager);                                               \
+    ds::GroupLockManager *lockManager, ds::ThreadSafeFlagArray<HypernodeID>& node_anti_duplicator,                     \
+    ds::ThreadSafeFlagArray<HyperedgeID>& edge_anti_duplicator) -> IAsyncRefiner* {                                    \
+    return new refiner(hypergraph, context, task_group_id, lockManager, node_anti_duplicator, edge_anti_duplicator);   \
   })
 
 #define REGISTER_FM_REFINER(id, refiner, t)                                                                            \

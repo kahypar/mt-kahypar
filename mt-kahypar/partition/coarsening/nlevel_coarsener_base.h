@@ -39,7 +39,7 @@ class NLevelCoarsenerBase {
  private:
 
   static constexpr bool debug = false;
-  static constexpr bool enable_heavy_assert = false;
+  static constexpr bool enable_heavy_assert = true;
 
   using ParallelHyperedgeVector = parallel::scalable_vector<parallel::scalable_vector<ParallelHyperedge>>;
 
@@ -100,20 +100,24 @@ class NLevelCoarsenerBase {
   PartitionedHypergraph&& doAsynchronousUncoarsen(std::unique_ptr<IRefiner>& label_propagation,
                                                   std::unique_ptr<IRefiner>& fm);
 
-  void uncoarsenAsyncTask(ds::TreeGroupPool* pool,
-                          tbb::task_group& uncoarsen_tg,
-                          CAtomic<size_t>& total_uncontractions,
-                          metrics::ThreadSafeMetrics& current_metrics,
-                          bool force_measure_timings);
+  void uncoarsenAsyncTask(ds::TreeGroupPool *pool, tbb::task_group &uncoarsen_tg,
+                          CAtomic<size_t> &total_uncontractions,
+                          metrics::ThreadSafeMetrics &current_metrics, bool force_measure_timings,
+                          ds::StreamingVector <HypernodeID> &moved_nodes,
+                          ds::ThreadSafeFlagArray <HypernodeID> &node_anti_duplicator,
+                          ds::ThreadSafeFlagArray <HyperedgeID> &edge_anti_duplicator);
 
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE bool uncontractGroupAsyncSubtask(const ds::ContractionGroup &group,
                                    ds::ContractionGroupID groupID,
                                    CAtomic<size_t> &total_uncontractions);
 
-  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE bool refineGroupAsyncSubtask(const ds::ContractionGroup& group,
-                               ds::ContractionGroupID groupID,
-                               metrics::ThreadSafeMetrics& current_metrics,
-                               bool force_measure_timings);
+  MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE bool
+  refineGroupAsyncSubtask(const ds::ContractionGroup &group, ds::ContractionGroupID groupID,
+                          metrics::ThreadSafeMetrics &current_metrics,
+                          bool force_measure_timings,
+                          ds::StreamingVector <HypernodeID> &moved_nodes,
+                          ds::ThreadSafeFlagArray <HypernodeID> &node_anti_duplicator,
+                          ds::ThreadSafeFlagArray <HyperedgeID> &edge_anti_duplicator);
 
  protected:
   kahypar::Metrics computeMetrics(PartitionedHypergraph& phg) {
@@ -151,7 +155,9 @@ class NLevelCoarsenerBase {
   void localizedRefineForAsync(PartitionedHypergraph &partitioned_hypergraph,
                                const parallel::scalable_vector <HypernodeID> &refinement_nodes,
                                IAsyncRefiner *async_lp, ds::ContractionGroupID group_id,
-                               metrics::ThreadSafeMetrics &current_metrics, const bool force_measure_timings);
+                               metrics::ThreadSafeMetrics &current_metrics,
+                               const bool force_measure_timings,
+                               ds::StreamingVector <HypernodeID> &moved_nodes);
 
   void globalRefine(PartitionedHypergraph& partitioned_hypergraph,
                     std::unique_ptr<IRefiner>& fm,
