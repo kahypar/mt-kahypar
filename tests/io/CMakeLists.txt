@@ -6,3 +6,7 @@ target_sources(mt_kahypar_fast_tests PRIVATE
 target_sources(mt_kahypar_strong_tests PRIVATE
         hypergraph_io_test.cc
         )
+
+target_sources(mt_kahypar_strong_async_tests PRIVATE
+        hypergraph_io_test.cc
+        )

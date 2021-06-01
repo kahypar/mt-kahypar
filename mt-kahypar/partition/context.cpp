@@ -400,14 +400,6 @@ namespace mt_kahypar {
                   partition.k,
                   partition.max_part_weights.size());
     }
-
-    if (uncoarsening.use_asynchronous_uncoarsening && partition.paradigm == Paradigm::multilevel) {
-        ALGO_SWITCH("Asynchronous uncoarsening only works with the n-level paradigm."
-                    << "Do you wish to disable asynchronous uncoarsening (Y/N)?",
-                    "Asynchronous uncoarsening only works with the n-level paradigm!",
-                    uncoarsening.use_asynchronous_uncoarsening,
-                    false);
-    }
   }
 
   std::ostream & operator<< (std::ostream& str, const Context& context) {

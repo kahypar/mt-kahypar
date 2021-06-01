@@ -11,10 +11,19 @@ set_property(TARGET MtKaHyParStrong PROPERTY CXX_STANDARD 17)
 set_property(TARGET MtKaHyParStrong PROPERTY CXX_STANDARD_REQUIRED ON)
 target_compile_definitions(MtKaHyParStrong PUBLIC USE_STRONG_PARTITIONER)
 
+add_executable(MtKaHyParStrongAsync kahypar.cc)
+target_link_libraries(MtKaHyParStrongAsync ${Boost_LIBRARIES})
+target_link_libraries(MtKaHyParStrongAsync pthread)
+set_property(TARGET MtKaHyParStrongAsync PROPERTY CXX_STANDARD 17)
+set_property(TARGET MtKaHyParStrongAsync PROPERTY CXX_STANDARD_REQUIRED ON)
+target_compile_definitions(MtKaHyParStrongAsync PUBLIC USE_STRONG_PARTITIONER)
+target_compile_definitions(MtKaHyParStrongAsync PUBLIC USE_ASYNC_UNCOARSENING)
+
 if(ENABLE_PROFILE MATCHES ON)
   target_link_libraries(MtKaHyParFast ${PROFILE_FLAGS})
   target_link_libraries(MtKaHyParStrong ${PROFILE_FLAGS})
+  target_link_libraries(MtKaHyParStrongAsync ${PROFILE_FLAGS})
 endif()
 
 
-set(TARGETS_WANTING_ALL_SOURCES ${TARGETS_WANTING_ALL_SOURCES} MtKaHyParFast MtKaHyParStrong PARENT_SCOPE)
+set(TARGETS_WANTING_ALL_SOURCES ${TARGETS_WANTING_ALL_SOURCES} MtKaHyParFast MtKaHyParStrong MtKaHyParStrongAsync PARENT_SCOPE)

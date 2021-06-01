@@ -210,7 +210,11 @@ struct SharedMemoryParameters {
 std::ostream & operator<< (std::ostream& str, const SharedMemoryParameters& params);
 
 struct UncoarseningParameters {
-    bool use_asynchronous_uncoarsening = false;
+#ifdef USE_ASYNC_UNCOARSENING
+        bool use_asynchronous_uncoarsening = true;
+#else
+        bool use_asynchronous_uncoarsening = false;
+#endif
 };
 
 std::ostream & operator<< (std::ostream& str, const UncoarseningParameters& params);

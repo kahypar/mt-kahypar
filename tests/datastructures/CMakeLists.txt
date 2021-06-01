@@ -13,7 +13,7 @@ target_sources(mt_kahypar_fast_tests PRIVATE
         pin_count_in_part_test.cc
 )
 
-target_sources(mt_kahypar_strong_tests PRIVATE
+set (StrongTestsDatastructuresSources
         dynamic_hypergraph_test.cc
         partitioned_hypergraph_test.cc
         delta_partitioned_hypergraph_test.cc
@@ -22,11 +22,17 @@ target_sources(mt_kahypar_strong_tests PRIVATE
         gain_updates_test.cc
         incident_net_array_test.cc
         nlevel_smoke_test.cc
-        group_pool_test.cc
-        uncontraction_group_tree_test.cpp
-        async_nlevel_smoke_test.cc
         smoke_test_common.cc
+        )
+
+set(StrongAsyncTestsDatastructuresSources
+        uncontraction_group_tree_test.cpp
+        group_pool_test.cc
+        async_nlevel_smoke_test.cc
         lock_manager_test.cc
         async_common_test.cc
-)
+        )
+
+target_sources(mt_kahypar_strong_tests PRIVATE ${StrongTestsDatastructuresSources})
+target_sources(mt_kahypar_strong_async_tests PRIVATE ${StrongTestsDatastructuresSources} ${StrongAsyncTestsDatastructuresSources})
 

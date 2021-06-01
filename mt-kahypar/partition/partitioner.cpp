@@ -138,7 +138,7 @@ namespace mt_kahypar {
       parallel::MemoryPool::instance().reset();
       parallel::MemoryPool::instance().release_mem_group("Preprocessing");
 
-      if ( context.partition.paradigm == Paradigm::nlevel ) {
+      if ( context.partition.paradigm == Paradigm::nlevel) {
         // Workaround: reset() function of hypergraph reinserts all removed
         // hyperedges to incident net lists of each vertex again.
         large_he_remover.removeLargeHyperedgesInNLevelVCycle(hypergraph);
