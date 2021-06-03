@@ -39,13 +39,15 @@
 #include "mt-kahypar/utils/timer.h"
 
 #include "mt-kahypar/datastructures/async/async_common.h"
+#include "mt-kahypar/datastructures/gain_cache.h"
 
 
 namespace mt_kahypar {
 namespace ds {
 
 template <typename Hypergraph = Mandatory,
-          typename HypergraphFactory = Mandatory>
+          typename HypergraphFactory = Mandatory,
+          typename GainCache = Mandatory>
 class PartitionedHypergraph {
 private:
   static_assert(!Hypergraph::is_partitioned,  "Only unpartitioned hypergraphs are allowed");
@@ -87,17 +89,14 @@ private:
         "Refinement", "part_ids", hypergraph.initialNumNodes(), false, false),
     _pins_in_part(hypergraph.initialNumEdges(), k, hypergraph.maxEdgeSize(), false),
     _connectivity_set(hypergraph.initialNumEdges(), k, false),
-    _move_to_penalty(
-        "Refinement", "move_to_penalty", size_t(hypergraph.initialNumNodes()) * size_t(k + 1), true, false),
-    _move_from_benefit(
-        "Refinement", "move_from_benefit", hypergraph.initialNumNodes(), true, false),
+    _gain_cache(hypergraph.initialNumNodes(), k),
     _pin_count_update_ownership(
         "Refinement", "pin_count_update_ownership", hypergraph.initialNumEdges(), true, false) {
     _part_ids.assign(hypergraph.initialNumNodes(), kInvalidPartition, false);
   }
 
   explicit PartitionedHypergraph(const PartitionID k,
-                                 const TaskGroupID,
+                                 const TaskGroupID task_group_id,
                                  Hypergraph& hypergraph) :
     _is_gain_cache_initialized(false),
     _k(k),
@@ -106,8 +105,7 @@ private:
     _part_ids(),
     _pins_in_part(),
     _connectivity_set(0, 0),
-    _move_to_penalty(),
-    _move_from_benefit(),
+    _gain_cache(task_group_id),
     _pin_count_update_ownership() {
     tbb::parallel_invoke([&] {
       _part_ids.resize(
@@ -118,11 +116,7 @@ private:
     }, [&] {
       _connectivity_set = ConnectivitySets(hypergraph.initialNumEdges(), k);
     }, [&] {
-      _move_to_penalty.resize(
-        "Refinement", "move_to_penalty", size_t(hypergraph.initialNumNodes()) * size_t(k + 1), true);
-    }, [&] {
-      _move_from_benefit.resize(
-        "Refinement", "move_from_benefit", hypergraph.initialNumNodes(), true);
+      _gain_cache.parallel_resize(hypergraph.initialNumNodes(),k);
     }, [&] {
       _pin_count_update_ownership.resize(
         "Refinement", "pin_count_update_ownership", hypergraph.initialNumEdges(), true);
@@ -1011,8 +1005,7 @@ private:
     parent->addChild("Part Weights", sizeof(CAtomic<HypernodeWeight>) * _k);
     parent->addChild("Part IDs", sizeof(PartitionID) * _hg->initialNumNodes());
     parent->addChild("Pin Count In Part", _pins_in_part.size_in_bytes());
-    parent->addChild("Move From Benefit", sizeof(HyperedgeWeight) * _move_from_benefit.size());
-    parent->addChild("Move To Penalty", sizeof(HyperedgeWeight) * _move_to_penalty.size());
+    parent->addChild("Gain Cache", _gain_cache.size_in_bytes());
     parent->addChild("HE Ownership", sizeof(SpinLock) * _hg->initialNumNodes());
   }
 
@@ -1225,8 +1218,7 @@ private:
     ASSERT(u < initialNumNodes(), "Hypernode" << u << "does not exist");
     ASSERT(nodeIsEnabled(u), "Hypernode" << u << "is disabled");
     ASSERT(p != kInvalidPartition && p < _k);
-    ASSERT(penalty_index(u, p) < _move_to_penalty.size());
-    ASSERT(u < _move_from_benefit.size());
+    ASSERT(_gain_cache.isValidEntry(u,p));
   }
 
   // ! Updates pin count in part using a spinlock.
@@ -1289,11 +1281,15 @@ private:
   // ! For each hyperedge, _connectivity_set stores the set of blocks that the hyperedge spans
   ConnectivitySets _connectivity_set;
 
-  // ! For each node and block, the sum of incident edge weights with zero pins in that part
-  Array< CAtomic<HyperedgeWeight> > _move_to_penalty;
+//  // ! For each node and block, the sum of incident edge weights with zero pins in that part
+//  Array< CAtomic<HyperedgeWeight> > _move_to_penalty;
+//
+//  // ! For each node and block, the sum of incident edge weights with exactly one pin in that part
+//  Array< CAtomic<HyperedgeWeight> > _move_from_benefit;
 
-  // ! For each node and block, the sum of incident edge weights with exactly one pin in that part
-  Array< CAtomic<HyperedgeWeight> > _move_from_benefit;
+  // ! Gain-cache that is kept up to date by uncontraction and move operations (with eventual correctness) and is used
+  // ! to determine the best move
+  GainCache _gain_cache;
 
   // ! In order to update the pin count of a hyperedge thread-safe, a thread must acquire
   // ! the ownership of a hyperedge via a CAS operation.

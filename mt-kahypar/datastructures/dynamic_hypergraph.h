@@ -45,7 +45,8 @@ namespace ds {
 // Forward
 class DynamicHypergraphFactory;
 template <typename Hypergraph,
-          typename HypergraphFactory>
+          typename HypergraphFactory,
+          typename GainCache>
 class PartitionedHypergraph;
 
 
