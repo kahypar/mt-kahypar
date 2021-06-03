@@ -312,81 +312,58 @@ namespace mt_kahypar {
 
     // swap_prefix[index(p1,p2)] stores the first position of moves to revert out of the sequence of moves from p1 to p2
     vec<size_t> swap_prefix(max_key, 0);
-    vec<int64_t> part_weight_deltas(k, 0);
+    vec<HypernodeWeight> part_weight_deltas(k, 0);
 
     tbb::parallel_for(0UL, relevant_block_pairs.size(), [&](size_t bp_index) {
       // sort both directions by gain (alternative: gain / weight?)
-      auto[p1, p2] = relevant_block_pairs[bp_index];
-      auto comp = [&](const Move& m1, const Move& m2) {
-        return m1.gain > m2.gain || (m1.gain == m2.gain && m1.node < m2.node);
+      auto sort_by_gain_and_prefix_sum_node_weights = [&](PartitionID p1, PartitionID p2) {
+        size_t begin = positions[index(p1, p2)], end = positions[index(p1, p2) + 1];
+        auto comp = [&](const Move& m1, const Move& m2) {
+          return m1.gain > m2.gain || (m1.gain == m2.gain && m1.node < m2.node);
+        };
+        tbb::parallel_sort(sorted_moves.begin() + begin, sorted_moves.begin() + end, comp);
+        tbb::parallel_for(begin, end, [&](size_t pos) {
+          cumulative_node_weights[pos] = phg.nodeWeight(sorted_moves[pos].node);
+        });
+        parallel_prefix_sum(cumulative_node_weights.begin() + begin, cumulative_node_weights.begin() + end,
+                            cumulative_node_weights.begin() + begin, std::plus<>(), 0);
       };
-      const auto b = sorted_moves.begin();
-      size_t i = positions[index(p1, p2)], i_last = positions[index(p1, p2) + 1],
-              j = positions[index(p2, p1)], j_last = positions[index(p2, p1) + 1];
-      std::sort(b + i, b + i_last, comp);
-      std::sort(b + j, b + j_last, comp);
+
+      const auto& bp = relevant_block_pairs[bp_index];
+      tbb::parallel_invoke([&] {
+        sort_by_gain_and_prefix_sum_node_weights(bp.first, bp.second);
+      }, [&] {
+        sort_by_gain_and_prefix_sum_node_weights(bp.second, bp.first);
+      });
+    });
+
+    for (const auto& [p1,p2] : relevant_block_pairs) {
+      HypernodeWeight lb_p1 = (phg.partWeight(p1) + part_weight_deltas[p1]) - context.partition.max_part_weights[p1],
+                      ub_p2 = context.partition.max_part_weights[p2] - (phg.partWeight(p2) + part_weight_deltas[p2]);
+
+      size_t p1_begin = positions[index(p1, p2)], p1_end = positions[index(p1, p2) + 1],
+             p2_begin = positions[index(p2, p1)], p2_end = positions[index(p2, p1) + 1];
+
+      auto balance = [&](size_t p1_ind, size_t p2_ind) {
+        const auto a = (p1_ind == p1_begin - 1) ? 0 : cumulative_node_weights[p1_ind];
+        const auto b = (p2_ind == p2_begin - 1) ? 0 : cumulative_node_weights[p2_ind];
+        return a - b;
+      };
+
+      LOG << V(p1) << V(p2) << V(p1_begin) << V(p1_end) << V(p2_begin) << V(p2_begin) << (lb_p1) << V(ub_p2);
+
+      auto best_prefix = findBestPrefixesRecursive(p1_begin, p1_end, p2_begin, p2_end,
+                                                   p1_begin - 1, p2_begin - 1, lb_p1, ub_p2);
 
 
-      // get balanced swap prefix
-      HypernodeWeight budget_p1 = context.partition.max_part_weights[p1] - phg.partWeight(p1),
-                      budget_p2 = context.partition.max_part_weights[p2] - phg.partWeight(p2);
-      HypernodeWeight slack_p1 = budget_p1 / std::max(1UL, involvements[p1]),
-                      slack_p2 = budget_p2 / std::max(1UL, involvements[p2]);
-
-      int64_t balance = 0;
-      std::tuple<size_t, size_t, int64_t> best{0, 0, 0};
-
-      /*
-       * this can be parallelized as follows.
-       * 1. prefix sums of node weights over both move sequences
-       * 2. pick middle of larger sequence, binary search for its prefix sum in the smaller sequence
-       * 3. search for prefixes independently in both halves, and pick the better one
-       *
-       * in most cases we're expecting to take roughly as many moves as the size of the shorter sequence, from each of the sequences.
-       * can we bias the search towards that?
-       */
-
-      // gain > 0 first. alternate depending on balance
-      while (i < i_last && sorted_moves[i].gain > 0 && j < j_last && sorted_moves[j].gain > 0) {
-        if (balance < 0 || (balance == 0 && sorted_moves[i].gain > sorted_moves[j].gain)) {
-          // perform next move from p1 to p2
-          balance += phg.nodeWeight(sorted_moves[i++].node);
-        } else {
-          // perform next move from p2 to p1
-          balance -= phg.nodeWeight(sorted_moves[j++].node);
-        }
-
-        if (-balance <= slack_p1 && balance <= slack_p2) {
-          best = {i, j, balance};
-        }
-      }
-
-      // if one sequence is depleted or gain == 0. only do rebalancing in the other direction
-      if (j == j_last || sorted_moves[j].gain == 0) {
-        while (i < i_last && balance <= slack_p2 && (balance < 0 || sorted_moves[i].gain > 0)) {
-          balance += phg.nodeWeight(sorted_moves[i++].node);
-          if (-balance <= slack_p1 && balance <= slack_p2) {
-            best = {i, j, balance};
-          }
-        }
-      }
-      if (i == i_last || sorted_moves[i].gain == 0) {
-        while (j < j_last && -balance <= slack_p1 && (balance > 0 || sorted_moves[j].gain > 0)) {
-          balance -= phg.nodeWeight(sorted_moves[j++].node);
-          if (-balance <= slack_p1 && balance <= slack_p2) {
-            best = {i, j, balance};
-          }
-        }
-      }
-
-      swap_prefix[index(p1, p2)] = std::get<0>(best);
-      swap_prefix[index(p2, p1)] = std::get<1>(best);
-      int64_t best_balance = std::get<2>(best);
-
-      // balance < 0 --> p1 got more weight, balance > 0 --> p2 got more weight
+      swap_prefix[index(p1, p2)] = best_prefix.first;
+      swap_prefix[index(p2, p1)] = best_prefix.second;
+      HypernodeWeight best_balance = balance(best_prefix.first - 1, best_prefix.second - 1);
+      LOG << V(best_prefix.first) << V(best_prefix.second) << V(best_balance);
       __atomic_fetch_add(&part_weight_deltas[p1], best_balance, __ATOMIC_RELAXED);
       __atomic_fetch_sub(&part_weight_deltas[p2], best_balance, __ATOMIC_RELAXED);
-    });
+    }
+    LOG << "block-pair handling done";
 
     moves.clear();
     Gain actual_gain = applyMovesIf(phg, sorted_moves, num_moves, [&](size_t pos) {
@@ -418,13 +395,68 @@ namespace mt_kahypar {
     return actual_gain;
   }
 
+  std::pair<size_t, size_t> DeterministicLabelPropagationRefiner::findBestPrefixesRecursive(
+          size_t p1_begin, size_t p1_end, size_t p2_begin, size_t p2_end,
+          size_t p1_invalid, size_t p2_invalid,
+          HypernodeWeight lb_p1, HypernodeWeight ub_p2)
+  {
+    auto balance = [&](size_t p1_ind, size_t p2_ind) {
+      const auto a = (p1_ind == p1_invalid) ? 0 : cumulative_node_weights[p1_ind];
+      const auto b = (p2_ind == p2_invalid) ? 0 : cumulative_node_weights[p2_ind];
+      return a - b;
+    };
+
+    auto is_feasible = [&](size_t p1_ind, size_t p2_ind) {
+      const HypernodeWeight bal = balance(p1_ind, p2_ind);
+      return lb_p1 <= bal && bal <= ub_p2;
+    };
+
+    const size_t n_p1 = p1_end - p1_begin, n_p2 = p2_end - p2_begin;
+
+    static constexpr size_t sequential_cutoff = 5000;
+    if (n_p1 < sequential_cutoff && n_p2 < sequential_cutoff) {
+      while (true) {
+        if (is_feasible(p1_end - 1, p2_end - 1)) { return std::make_pair(p1_end, p2_end); }
+        if (balance(p1_end - 1, p2_end - 1) < 0) {
+          if (p2_end == p2_begin) { break; }
+          p2_end--;
+        } else {
+          if (p1_end == p1_begin) { break; }
+          p1_end--;
+        }
+      }
+      return std::make_pair(invalid_pos, invalid_pos);
+    }
+
+    const auto c = cumulative_node_weights.begin();
+    if (n_p1 > n_p2) {
+      size_t p1_mid = p1_begin + n_p1 / 2;
+      auto p2_match_it = std::lower_bound(c + p2_begin, c + p2_end, cumulative_node_weights[p1_mid]);
+      size_t p2_match = std::distance(cumulative_node_weights.begin(), p2_match_it);
+
+      // TODO apply pruning
+      // i.e. if p1_mid cannot be compensated, don't recurse on the tail range
+      // could also binary search for the end of a range + slack and discard everything behind that
+
+      tbb::parallel_invoke([&] {
+        findBestPrefixesRecursive(p1_begin, p1_mid, p2_begin, p2_match, p1_invalid, p2_invalid, lb_p1, ub_p2);
+      }, [&] {
+        findBestPrefixesRecursive(p1_mid, p1_end, p2_match, p2_end, p1_invalid, p2_invalid, lb_p1, ub_p2);
+      });
+
+    } else {
+
+    }
+
+  }
+
   Gain DeterministicLabelPropagationRefiner::applyMovesSortedByGainWithRecalculation(PartitionedHypergraph& phg) {
     if (last_recalc_round.empty() || ++recalc_round == std::numeric_limits<uint32_t>::max()) {
       last_recalc_round.assign(max_num_edges, CAtomic<uint32_t>(0));
     }
-    constexpr MoveID invalid_pos = std::numeric_limits<MoveID>::max();
+    constexpr MoveID invalid_move_id = std::numeric_limits<MoveID>::max();
     if (move_pos_of_node.empty()) {
-      move_pos_of_node.resize(max_num_nodes, invalid_pos);
+      move_pos_of_node.resize(max_num_nodes, invalid_move_id);
     }
 
     const size_t num_moves = moves.size();
@@ -437,7 +469,7 @@ namespace mt_kahypar {
       moves[pos].gain = 0;
     });
 
-    auto was_node_moved_in_this_round = [&](HypernodeID u) { return move_pos_of_node[u] != invalid_pos; };
+    auto was_node_moved_in_this_round = [&](HypernodeID u) { return move_pos_of_node[u] != invalid_move_id; };
 
     // recalculate gains
     tbb::parallel_for(0UL, num_moves, [&](size_t pos) {
@@ -509,7 +541,7 @@ namespace mt_kahypar {
 #endif
 
     // remove markers again
-    tbb::parallel_for(0UL, num_moves, [&](size_t pos) { move_pos_of_node[moves[pos].node] = invalid_pos; });
+    tbb::parallel_for(0UL, num_moves, [&](size_t pos) { move_pos_of_node[moves[pos].node] = invalid_move_id; });
 
     // calculate number of overloaded blocks
     size_t num_overloaded_blocks_before_pass = 0, num_overloaded_blocks = 0;

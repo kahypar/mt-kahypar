@@ -36,6 +36,7 @@ public:
       context(context),
       compute_gains(context.partition.k),
       moves(hypergraph.initialNumNodes()),   // TODO make smaller --> max round size
+      cumulative_node_weights(hypergraph.initialNumNodes()),
       sorted_moves(hypergraph.initialNumNodes()),
       prng(context.partition.seed),
       active_nodes(0),
@@ -52,6 +53,7 @@ public:
   
 private:
   static constexpr bool debug = false;
+  static constexpr size_t invalid_pos = std::numeric_limits<size_t>::max();
 
   bool refineImpl(PartitionedHypergraph& hypergraph, const vec<HypernodeID>& refinement_nodes,
                   kahypar::Metrics& best_metrics, double) final ;
@@ -65,6 +67,12 @@ private:
   Gain performMoveWithAttributedGain(PartitionedHypergraph& phg, const Move& m, bool activate_neighbors);
   template<typename Predicate>
   Gain applyMovesIf(PartitionedHypergraph& phg, const vec<Move>& moves, size_t end, Predicate&& predicate);
+
+
+  std::pair<size_t, size_t> findBestPrefixesRecursive(
+          size_t p1_begin, size_t p1_end, size_t p2_begin, size_t p2_end,
+          size_t p1_inv, size_t p2_inv,
+          HypernodeWeight lb_p1, HypernodeWeight ub_p2);
 
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
   void calculateAndSaveBestMove(PartitionedHypergraph& phg, HypernodeID u) {
@@ -89,6 +97,7 @@ private:
   const Context& context;
   tbb::enumerable_thread_specific<Km1GainComputer> compute_gains;
   ds::BufferedVector<Move> moves;
+  vec<HypernodeWeight> cumulative_node_weights;
   vec<Move> sorted_moves;
 
   std::mt19937 prng;
