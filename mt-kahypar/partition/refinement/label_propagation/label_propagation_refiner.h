@@ -43,10 +43,8 @@ class LabelPropagationRefiner final : public IRefiner {
 
  public:
   explicit LabelPropagationRefiner(Hypergraph& hypergraph,
-                                   const Context& context,
-                                   const TaskGroupID task_group_id) :
+                                   const Context& context) :
     _context(context),
-    _task_group_id(task_group_id),
     _current_num_nodes(kInvalidHypernode),
     _current_num_edges(kInvalidHyperedge),
     _gain(context),
@@ -165,7 +163,6 @@ class LabelPropagationRefiner final : public IRefiner {
   }
 
   const Context& _context;
-  const TaskGroupID _task_group_id;
   HypernodeID _current_num_nodes;
   HyperedgeID _current_num_edges;
   GainCalculator _gain;

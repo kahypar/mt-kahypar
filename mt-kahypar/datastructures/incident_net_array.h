@@ -223,7 +223,7 @@ class IncidentNetArray {
   // ! be processed.
   void restoreIncidentNets(const HypernodeID u);
 
-  IncidentNetArray copy(const TaskGroupID);
+  IncidentNetArray copy(parallel_tag_t);
 
   IncidentNetArray copy();
 

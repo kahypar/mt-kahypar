@@ -25,7 +25,7 @@
 #include "kahypar/definitions.h"
 #include "mt-kahypar/definitions.h"
 #include "mt-kahypar/parallel/hardware_topology.h"
-#include "mt-kahypar/parallel/tbb_numa_arena.h"
+#include "mt-kahypar/parallel/tbb_initializer.h"
 #include "tests/parallel/topology_mock.h"
 
 using ::testing::Test;
@@ -39,7 +39,7 @@ template<typename HyperGraph, typename HyperGraphFactory>
 class HypergraphFixture : public Test {
  public:
   HypergraphFixture() :
-    hypergraph(HyperGraphFactory::construct(TBBNumaArena::GLOBAL_TASK_GROUP,
+    hypergraph(HyperGraphFactory::construct(
       7 , 4, { {0, 2}, {0, 1, 3, 4}, {3, 4, 6}, {2, 5, 6} }, nullptr, nullptr, true)) {
   }
 

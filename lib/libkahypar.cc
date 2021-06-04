@@ -176,8 +176,7 @@ void mt_kahypar_partition(const mt_kahypar_hypernode_id_t num_vertices,
 
   // Contruct Hypergraph
   mt_kahypar::Hypergraph hypergraph = mt_kahypar::HypergraphFactory::construct(
-    mt_kahypar::TBBNumaArena::GLOBAL_TASK_GROUP, num_vertices, num_hyperedges,
-    edge_vector, hyperedge_weights, vertex_weights);
+    num_vertices, num_hyperedges, edge_vector, hyperedge_weights, vertex_weights);
 
   // Initialize Memory Pool
   if ( mt_kahypar::parallel::MemoryPool::instance().isInitialized() ) {

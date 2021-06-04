@@ -56,9 +56,9 @@ class ATwoWayFmRefiner : public Test {
 
     // Read hypergraph
     hypergraph = io::readHypergraphFile(
-      "../tests/instances/contracted_ibm01.hgr", TBBNumaArena::GLOBAL_TASK_GROUP);
+      "../tests/instances/contracted_ibm01.hgr");
     partitioned_hypergraph = PartitionedHypergraph(
-      context.partition.k, TBBNumaArena::GLOBAL_TASK_GROUP, hypergraph);
+      context.partition.k, hypergraph, parallel_tag_t());
     context.setupPartWeights(hypergraph.totalWeight());
     initialPartition();
 
@@ -68,7 +68,7 @@ class ATwoWayFmRefiner : public Test {
   void initialPartition() {
     Context ip_context(context);
     ip_context.refinement.label_propagation.algorithm = LabelPropagationAlgorithm::do_nothing;
-    InitialPartitioningDataContainer ip_data(partitioned_hypergraph, ip_context, TBBNumaArena::GLOBAL_TASK_GROUP);
+    InitialPartitioningDataContainer ip_data(partitioned_hypergraph, ip_context);
     BFSInitialPartitioner& initial_partitioner = *new(tbb::task::allocate_root())
       BFSInitialPartitioner(InitialPartitioningAlgorithm::bfs, ip_data, ip_context, 420);
     tbb::task::spawn_root_and_wait(initial_partitioner);

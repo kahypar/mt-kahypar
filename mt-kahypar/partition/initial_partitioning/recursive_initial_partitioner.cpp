@@ -48,7 +48,7 @@
  * best partition of both recursions and further bisect each block of the partition to obtain a 4-way
  * partition and continue uncontraction with 2 threads until 8 * c hypernodes. This is repeated until
  * we obtain a k-way partition of the hypergraph.
- * Note, the recursive initial partitioner is written in TBBNumaArena continuation style. The TBBNumaArena continuation
+ * Note, the recursive initial partitioner is written in TBBInitializer continuation style. The TBBInitializer continuation
  * style is especially useful for recursive patterns. Each task defines its continuation task. A continuation
  * task defines how computation should continue, if all its child tasks are completed. As a consequence,
  * tasks can be spawned without waiting for their completion, because the continuation task is automatically
@@ -122,16 +122,14 @@ namespace mt_kahypar {
   class RecursiveChildContinuationTask : public tbb::task {
 
   public:
-    RecursiveChildContinuationTask(RecursivePartitionResult& result,
-                                   const TaskGroupID task_group_id) :
+    RecursiveChildContinuationTask(RecursivePartitionResult& result) :
             _coarsener(nullptr),
             _sparsifier(nullptr),
-            _result(result),
-            _task_group_id(task_group_id) {
+            _result(result) {
       _coarsener = CoarsenerFactory::getInstance().createObject(
-              _result.context.coarsening.algorithm, _result.hypergraph, _result.context, _task_group_id, false);
+              _result.context.coarsening.algorithm, _result.hypergraph, _result.context, false);
       _sparsifier = HypergraphSparsifierFactory::getInstance().createObject(
-              _result.context.sparsification.similiar_net_combiner_strategy, _result.context, _task_group_id);
+              _result.context.sparsification.similiar_net_combiner_strategy, _result.context);
     }
 
     tbb::task* execute() override {
@@ -147,11 +145,11 @@ namespace mt_kahypar {
       std::unique_ptr<IRefiner> label_propagation =
               LabelPropagationFactory::getInstance().createObject(
                       _result.context.refinement.label_propagation.algorithm, _result.hypergraph,
-                      _result.context, _task_group_id);
+                      _result.context);
       std::unique_ptr<IRefiner> fm =
               FMFactory::getInstance().createObject(
                       _result.context.refinement.fm.algorithm, _result.hypergraph,
-                      _result.context, _task_group_id);
+                      _result.context);
       _result.partitioned_hypergraph = _coarsener->uncoarsen(label_propagation, fm);
 
       // Compute metrics
@@ -166,7 +164,6 @@ namespace mt_kahypar {
 
   private:
     RecursivePartitionResult& _result;
-    const TaskGroupID _task_group_id;
   };
 
   /*!
@@ -179,12 +176,10 @@ namespace mt_kahypar {
   public:
     BisectionContinuationTask(PartitionedHypergraph& hypergraph,
                               const Context& context,
-                              const TaskGroupID task_group_id,
                               const HyperedgeWeight current_objective,
                               const PartitionID num_bisections) :
             _hg(hypergraph),
             _context(context),
-            _task_group_id(task_group_id),
             _current_objective(current_objective),
             _results() {
       _results.reserve(num_bisections);
@@ -235,7 +230,6 @@ namespace mt_kahypar {
   private:
     PartitionedHypergraph& _hg;
     const Context& _context;
-    const TaskGroupID _task_group_id;
     const HyperedgeWeight _current_objective;
 
   public:
@@ -251,11 +245,9 @@ namespace mt_kahypar {
 
   public:
     BisectionTask(PartitionedHypergraph& hypergraph,
-                  const TaskGroupID task_group_id,
                   const PartitionID block,
                   RecursivePartitionResult& result) :
             _hg(hypergraph),
-            _task_group_id(task_group_id),
             _block(block),
             _result(result) { }
 
@@ -273,17 +265,17 @@ namespace mt_kahypar {
 
       // Extract Block of Hypergraph
       bool cut_net_splitting = _result.context.partition.objective == kahypar::Objective::km1;
-      auto tmp_hypergraph = _hg.extract(_task_group_id, _block, cut_net_splitting);
+      auto tmp_hypergraph = _hg.extract(_block, cut_net_splitting);
       _result.hypergraph = std::move(tmp_hypergraph.first);
       _result.mapping = std::move(tmp_hypergraph.second);
       _result.partitioned_hypergraph = PartitionedHypergraph(
-              2, _task_group_id, _result.hypergraph);
+              2, _result.hypergraph, parallel_tag_t());
 
       if ( _result.hypergraph.initialNumNodes() > 0 ) {
         // Spawn Initial Partitioner
         PoolInitialPartitionerContinuation& ip_continuation = *new(allocate_continuation())
                 PoolInitialPartitionerContinuation(
-                _result.partitioned_hypergraph, _result.context, _task_group_id);
+                _result.partitioned_hypergraph, _result.context);
         spawn_initial_partitioner(ip_continuation);
       }
       return nullptr;
@@ -291,7 +283,6 @@ namespace mt_kahypar {
 
   private:
     PartitionedHypergraph& _hg;
-    const TaskGroupID _task_group_id;
     const PartitionID _block;
     RecursivePartitionResult& _result;
   };
@@ -312,13 +303,11 @@ namespace mt_kahypar {
                               PartitionedHypergraph& hypergraph,
                               const Context& context,
                               const bool top_level,
-                              const TaskGroupID task_group_id,
                               const bool was_recursion) :
             _original_hypergraph_info(original_hypergraph_info),
             _hg(hypergraph),
             _context(context),
             _top_level(top_level),
-            _task_group_id(task_group_id),
             _was_recursion(was_recursion) { }
 
     RecursivePartitionResult r1;
@@ -356,7 +345,7 @@ namespace mt_kahypar {
         ASSERT(part_id != kInvalidPartition && part_id < _hg.k());
         _hg.setOnlyNodePart(hn, part_id);
       });
-      _hg.initializePartition(_task_group_id);
+      _hg.initializePartition();
 
       // The hypergraph is now partitioned into the number of blocks of the recursive context (best.context.partition.k).
       // Based on wheter we reduced k in recursion, we have to bisect the blocks of the partition
@@ -369,12 +358,12 @@ namespace mt_kahypar {
       bool perform_bisections = !_top_level && _context.shared_memory.num_threads < (size_t)_context.partition.k;
       if (perform_bisections) {
         BisectionContinuationTask& bisection_continuation = *new(allocate_continuation())
-                BisectionContinuationTask(_hg, _context, _task_group_id,
+                BisectionContinuationTask(_hg, _context,
                                           best.objective, _context.partition.k / 2);
         bisection_continuation.set_ref_count(_context.partition.k / 2 );
         for (PartitionID block = 0; block < _context.partition.k / 2; ++block) {
           tbb::task::spawn(*new(bisection_continuation.allocate_child()) BisectionTask(
-                  _hg, _task_group_id, block, bisection_continuation._results[block]));
+                  _hg, block, bisection_continuation._results[block]));
         }
       }
       return nullptr;
@@ -385,7 +374,6 @@ namespace mt_kahypar {
     PartitionedHypergraph& _hg;
     const Context& _context;
     const bool _top_level;
-    const TaskGroupID _task_group_id;
     const bool _was_recursion;
   };
 
@@ -401,13 +389,11 @@ namespace mt_kahypar {
     RecursiveTask(const OriginalHypergraphInfo original_hypergraph_info,
                   PartitionedHypergraph& hypergraph,
                   const Context& context,
-                  const bool top_level,
-                  const TaskGroupID task_group_id) :
+                  const bool top_level) :
             _original_hypergraph_info(original_hypergraph_info),
             _hg(hypergraph),
             _context(context),
-            _top_level(top_level),
-            _task_group_id(task_group_id) { }
+            _top_level(top_level) { }
 
     tbb::task* execute() override ;
 
@@ -416,7 +402,6 @@ namespace mt_kahypar {
     PartitionedHypergraph& _hg;
     const Context& _context;
     const bool _top_level;
-    const TaskGroupID _task_group_id;
   };
 
 
@@ -432,7 +417,6 @@ namespace mt_kahypar {
                        const Context& context,
                        RecursivePartitionResult& result,
                        const bool top_level,
-                       const TaskGroupID task_group_id,
                        const size_t num_threads,
                        const size_t recursion_number,
                        const double degree_of_parallelism) :
@@ -441,7 +425,6 @@ namespace mt_kahypar {
             _context(context),
             _result(result),
             _top_level(top_level),
-            _task_group_id(task_group_id),
             _num_threads(num_threads),
             _recursion_number(recursion_number),
             _degree_of_parallelism(degree_of_parallelism) { }
@@ -449,7 +432,7 @@ namespace mt_kahypar {
     tbb::task* execute() override {
       // Copy hypergraph
       _result = RecursivePartitionResult(setupRecursiveContext());
-      _result.hypergraph = _hg.hypergraph().copy(_task_group_id);
+      _result.hypergraph = _hg.hypergraph().copy(parallel_tag_t());
 
       DBG << "Perform recursive multilevel partitioner call with"
           << "k =" << _result.context.partition.k << ","
@@ -458,7 +441,7 @@ namespace mt_kahypar {
           << "rep =" << _result.context.initial_partitioning.runs;
 
       RecursiveChildContinuationTask& child_continuation = *new(allocate_continuation())
-              RecursiveChildContinuationTask(_result, _task_group_id);
+              RecursiveChildContinuationTask(_result);
 
       // Coarsening
       child_continuation._coarsener->coarsen();
@@ -482,7 +465,7 @@ namespace mt_kahypar {
     void recursivePartition(PartitionedHypergraph& partitioned_hypergraph,
                             RecursiveChildContinuationTask& child_continuation) {
       RecursiveTask& recursive_task = *new(child_continuation.allocate_child()) RecursiveTask(
-              _original_hypergraph_info, partitioned_hypergraph, _result.context, false, _task_group_id);
+              _original_hypergraph_info, partitioned_hypergraph, _result.context, false);
       child_continuation.set_ref_count(1);
       tbb::task::spawn(recursive_task);
     }
@@ -537,7 +520,6 @@ namespace mt_kahypar {
     const Context& _context;
     RecursivePartitionResult& _result;
     const bool _top_level;
-    const TaskGroupID _task_group_id;
     const size_t _num_threads;
     const size_t _recursion_number;
     const double _degree_of_parallelism;
@@ -551,7 +533,7 @@ namespace mt_kahypar {
       ASSERT(_context.partition.k == 2);
       ASSERT(_context.partition.max_part_weights.size() == 2);
       PoolInitialPartitionerContinuation& ip_continuation = *new(allocate_continuation())
-              PoolInitialPartitionerContinuation(_hg, _context, _task_group_id);
+              PoolInitialPartitionerContinuation(_hg, _context);
       spawn_initial_partitioner(ip_continuation);
     } else {
       // We do parallel recursion, if the contract limit is equal to 2 * p * t
@@ -563,25 +545,24 @@ namespace mt_kahypar {
         // Perform parallel recursion
         size_t num_threads_1 = std::ceil(((double) std::max(_context.shared_memory.num_threads, 2UL)) / 2.0);
         size_t num_threads_2 = std::floor(((double) std::max(_context.shared_memory.num_threads, 2UL)) / 2.0);
-        auto tbb_recursion_task_groups = TBBNumaArena::instance().create_tbb_task_groups_for_recursion();
 
         RecursiveContinuationTask& recursive_continuation = *new(allocate_continuation())
-                RecursiveContinuationTask(_original_hypergraph_info, _hg, _context, _top_level, _task_group_id, true);
+                RecursiveContinuationTask(_original_hypergraph_info, _hg, _context, _top_level, true);
         RecursiveChildTask& recursion_0 = *new(recursive_continuation.allocate_child()) RecursiveChildTask(
                 _original_hypergraph_info, _hg, _context, recursive_continuation.r1,
-                _top_level, tbb_recursion_task_groups.first, num_threads_1, 0, 0.5);
+                _top_level, num_threads_1, 0, 0.5);
         RecursiveChildTask& recursion_1 = *new(recursive_continuation.allocate_child()) RecursiveChildTask(
                 _original_hypergraph_info, _hg, _context, recursive_continuation.r2,
-                _top_level, tbb_recursion_task_groups.second, num_threads_2, 0, 0.5);
+                _top_level, num_threads_2, 0, 0.5);
         recursive_continuation.set_ref_count(2);
         tbb::task::spawn(recursion_1);
         tbb::task::spawn(recursion_0);
       } else {
         RecursiveContinuationTask& recursive_continuation = *new(allocate_continuation())
-                RecursiveContinuationTask(_original_hypergraph_info, _hg, _context, _top_level, _task_group_id, false);
+                RecursiveContinuationTask(_original_hypergraph_info, _hg, _context, _top_level, false);
         RecursiveChildTask& recursion = *new(recursive_continuation.allocate_child()) RecursiveChildTask(
                 _original_hypergraph_info, _hg, _context, recursive_continuation.r1,
-                _top_level, _task_group_id, _context.shared_memory.num_threads, 0, 1.0);
+                _top_level, _context.shared_memory.num_threads, 0, 1.0);
         recursive_continuation.set_ref_count(1);
         tbb::task::spawn(recursion);
       }
@@ -599,7 +580,7 @@ namespace mt_kahypar {
 
     RecursiveTask& root_recursive_task = *new(tbb::task::allocate_root()) RecursiveTask(
             OriginalHypergraphInfo { _context.partition.k, _context.partition.epsilon },
-            _hg, _context, _top_level, _task_group_id);
+            _hg, _context, _top_level);
     tbb::task::spawn_root_and_wait(root_recursive_task);
 
     if (_top_level) {

@@ -54,7 +54,7 @@ TEST(StrategyTests, FindNextMove) {
   Context context;
   context.partition.k = k;
   context.partition.epsilon = 0.03;
-  Hypergraph hg = io::readHypergraphFile("../tests/instances/contracted_ibm01.hgr", 0, true);
+  Hypergraph hg = io::readHypergraphFile("../tests/instances/contracted_ibm01.hgr", true);
   context.setupPartWeights(hg.totalWeight());
   PartitionedHypergraph phg = PartitionedHypergraph(k, hg);
   for (PartitionID i = 0; i < k; ++i) {
@@ -66,8 +66,8 @@ TEST(StrategyTests, FindNextMove) {
   for (HypernodeID u : hg.nodes()) {
     phg.setOnlyNodePart(u, distr(rng));
   }
-  phg.initializePartition(0);
-    phg.initializeGainCache();
+  phg.initializePartition();
+  phg.initializeGainCache();
 
 
   context.refinement.fm.algorithm = FMAlgorithm::fm_gain_delta; // use this one because it allocates the most memory in shared data!
@@ -102,7 +102,7 @@ TEST(StrategyTests, DeltaUpdatesWork) {
   Context context;
   context.partition.k = k;
   context.partition.epsilon = 0.03;
-  Hypergraph hg = io::readHypergraphFile("../tests/instances/contracted_ibm01.hgr", 0, true);
+  Hypergraph hg = io::readHypergraphFile("../tests/instances/contracted_ibm01.hgr", true);
   context.setupPartWeights(hg.totalWeight());
   PartitionedHypergraph phg = PartitionedHypergraph(k, hg);
   for (PartitionID i = 0; i < k; ++i) {
@@ -114,7 +114,7 @@ TEST(StrategyTests, DeltaUpdatesWork) {
   for (HypernodeID u : hg.nodes()) {
     phg.setOnlyNodePart(u, distr(rng));
   }
-  phg.initializePartition(0);
+  phg.initializePartition();
     phg.initializeGainCache();
 
   context.refinement.fm.algorithm = FMAlgorithm::fm_gain_delta; // use this one because it allocates the most memory in shared data!

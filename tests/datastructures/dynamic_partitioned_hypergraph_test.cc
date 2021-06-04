@@ -20,7 +20,7 @@
 
 
 #include <atomic>
-#include <mt-kahypar/parallel/tbb_numa_arena.h>
+#include <mt-kahypar/parallel/tbb_initializer.h>
 
 #include "gmock/gmock.h"
 
@@ -52,9 +52,9 @@ class APartitionedHypergraph : public Test {
  using Hypergraph = typename TypeTraits::Hypergraph;
 
   APartitionedHypergraph() :
-    hypergraph(Factory::construct(TBBNumaArena::GLOBAL_TASK_GROUP,
+    hypergraph(Factory::construct(
       7 , 4, { {0, 2}, {0, 1, 3, 4}, {3, 4, 6}, {2, 5, 6} })),
-    partitioned_hypergraph(3, TBBNumaArena::GLOBAL_TASK_GROUP, hypergraph) {
+    partitioned_hypergraph(3, hypergraph, parallel_tag_t()) {
     initializePartition();
   }
 

@@ -37,7 +37,7 @@
 
 /** RecursiveBisectionInitialPartitioner Implementation Details
   *
-  * Note, the recursive bisection initial partitioner is written in TBBNumaArena continuation style. The TBBNumaArena
+  * Note, the recursive bisection initial partitioner is written in TBBInitializer continuation style. The TBBInitializer
   * continuation style is especially useful for recursive patterns. Each task defines its continuation
   * task. A continuation task defines how computation should continue, if all its child tasks are completed.
   * As a consequence, tasks can be spawned without waiting for their completion, because the continuation
@@ -103,14 +103,12 @@ namespace mt_kahypar {
                                             Hypergraph&& rb_hypergraph,
                                             parallel::scalable_vector<HypernodeID>&& mapping,
                                             const PartitionID k,
-                                            const TaskGroupID task_group_id,
                                             const PartitionID part_id) :
             _original_hg(original_hypergraph),
             _context(std::move(context)),
             _rb_hg(std::move(rb_hypergraph)),
-            _rb_partitioned_hg(k, task_group_id, _rb_hg),
+            _rb_partitioned_hg(k, _rb_hg, parallel_tag_t()),
             _mapping(std::move(mapping)),
-            _task_group_id(task_group_id),
             _part_id(part_id) { }
 
     tbb::task* execute() override {
@@ -146,7 +144,6 @@ namespace mt_kahypar {
     Hypergraph _rb_hg;
     PartitionedHypergraph _rb_partitioned_hg;
     const parallel::scalable_vector<HypernodeID> _mapping;
-    const TaskGroupID _task_group_id;
     const PartitionID _part_id;
   };
 
@@ -159,19 +156,17 @@ namespace mt_kahypar {
     MultilevelBisectionTask(PartitionedHypergraph& original_hypergraph,
                             Hypergraph& bisection_hypergraph,
                             PartitionedHypergraph& bisection_partitioned_hypergraph,
-                            const Context& bisection_context,
-                            const TaskGroupID task_group_id) :
+                            const Context& bisection_context) :
             _original_hg(original_hypergraph),
             _bisection_hg(bisection_hypergraph),
             _bisection_partitioned_hg(bisection_partitioned_hypergraph),
-            _bisection_context(bisection_context),
-            _task_group_id(task_group_id) {}
+            _bisection_context(bisection_context) {}
 
     tbb::task* execute() override {
       // Bisect hypergraph with parallel multilevel bisection
-      _bisection_hg = _original_hg.hypergraph().copy(_task_group_id);
+      _bisection_hg = _original_hg.hypergraph().copy(parallel_tag_t());
       multilevel::partition_async(_bisection_hg, _bisection_partitioned_hg,
-                                  _bisection_context, false, _task_group_id, this);
+                                  _bisection_context, false, this);
       return nullptr;
     }
 
@@ -180,7 +175,6 @@ namespace mt_kahypar {
     Hypergraph& _bisection_hg;
     PartitionedHypergraph& _bisection_partitioned_hg;
     const Context& _bisection_context;
-    const TaskGroupID _task_group_id;
   };
 
   /*!
@@ -195,14 +189,12 @@ namespace mt_kahypar {
                                 const Context& context,
                                 const PartitionID block,
                                 const BlockRange range,
-                                const TaskGroupID task_group_id,
                                 const double degree_of_parallelism) :
             _original_hypergraph_info(original_hypergraph_info),
             _hg(hypergraph),
             _context(context),
             _block(block),
             _range(range),
-            _task_group_id(task_group_id),
             _degree_of_parallelism(degree_of_parallelism) { }
 
     tbb::task* execute() override ;
@@ -233,7 +225,6 @@ namespace mt_kahypar {
     const Context _context;
     const PartitionID _block;
     const BlockRange _range;
-    const TaskGroupID _task_group_id;
     const double _degree_of_parallelism;
   };
 
@@ -248,15 +239,13 @@ namespace mt_kahypar {
   public:
     MultilevelBisectionContinuationTask(const OriginalHypergraphInfo original_hypergraph_info,
                                         PartitionedHypergraph& hypergraph,
-                                        const Context& context,
-                                        const TaskGroupID task_group_id) :
+                                        const Context& context) :
             _bisection_hg(),
             _bisection_partitioned_hg(),
             _bisection_context(),
             _original_hypergraph_info(original_hypergraph_info),
             _hg(hypergraph),
-            _context(context),
-            _task_group_id(task_group_id) {
+            _context(context) {
       _bisection_context = setupBisectionContext(_hg.hypergraph(), _context);
     }
 
@@ -274,7 +263,7 @@ namespace mt_kahypar {
           _hg.setOnlyNodePart(hn, block_1);
         }
       });
-      _hg.initializePartition(_task_group_id);
+      _hg.initializePartition();
 
       ASSERT(metrics::objective(_bisection_partitioned_hg, _context.partition.objective) ==
              metrics::objective(_hg, _context.partition.objective));
@@ -293,12 +282,11 @@ namespace mt_kahypar {
             << "Parallel Recursion 0: k =" << num_blocks_part_0 << "\n"
             << "Parallel Recursion 1: k =" << num_blocks_part_1;
 
-        auto tbb_recursion_task_groups = TBBNumaArena::instance().create_tbb_task_groups_for_recursion();
         DoNothingContinuation& recursive_continuation = *new(allocate_continuation()) DoNothingContinuation();
         RecursiveBisectionChildTask& recursion_0 = *new(recursive_continuation.allocate_child()) RecursiveBisectionChildTask(
-                _original_hypergraph_info, _hg, _context, 0, range_0, tbb_recursion_task_groups.first, 0.5);
+                _original_hypergraph_info, _hg, _context, 0, range_0, 0.5);
         RecursiveBisectionChildTask& recursion_1 = *new(recursive_continuation.allocate_child()) RecursiveBisectionChildTask(
-                _original_hypergraph_info, _hg, _context, num_blocks_part_0, range_1, tbb_recursion_task_groups.second, 0.5);
+                _original_hypergraph_info, _hg, _context, num_blocks_part_0, range_1, 0.5);
         recursive_continuation.set_ref_count(2);
         tbb::task::spawn(recursion_1);
         tbb::task::spawn(recursion_0);
@@ -310,7 +298,7 @@ namespace mt_kahypar {
             << "Recursion 0: k =" << num_blocks_part_0;
         DoNothingContinuation& recursive_continuation = *new(allocate_continuation()) DoNothingContinuation();
         RecursiveBisectionChildTask& recursion_0 = *new(recursive_continuation.allocate_child()) RecursiveBisectionChildTask(
-                _original_hypergraph_info, _hg, _context, 0, range_0, _task_group_id, 1.0);
+                _original_hypergraph_info, _hg, _context, 0, range_0, 1.0);
         recursive_continuation.set_ref_count(1);
         tbb::task::spawn(recursion_0);
       }
@@ -392,7 +380,6 @@ namespace mt_kahypar {
     const OriginalHypergraphInfo _original_hypergraph_info;
     PartitionedHypergraph& _hg;
     const Context& _context;
-    const TaskGroupID _task_group_id;
   };
 
 
@@ -405,24 +392,21 @@ namespace mt_kahypar {
   public:
     RecursiveMultilevelBisectionTask(const OriginalHypergraphInfo original_hypergraph_info,
                                      PartitionedHypergraph& hypergraph,
-                                     const Context& context,
-                                     const TaskGroupID task_group_id) :
+                                     const Context& context) :
             _original_hypergraph_info(original_hypergraph_info),
             _hg(hypergraph),
-            _context(context),
-            _task_group_id(task_group_id) { }
+            _context(context) { }
 
     tbb::task* execute() override {
       ASSERT(_context.partition.k >= 2);
       MultilevelBisectionContinuationTask& bisection_continuation_task = *new(allocate_continuation())
-              MultilevelBisectionContinuationTask(_original_hypergraph_info, _hg, _context, _task_group_id);
+              MultilevelBisectionContinuationTask(_original_hypergraph_info, _hg, _context);
       bisection_continuation_task.set_ref_count(1);
       tbb::task::spawn(*new(bisection_continuation_task.allocate_child())
               MultilevelBisectionTask(
               _hg, bisection_continuation_task._bisection_hg,
               bisection_continuation_task._bisection_partitioned_hg,
-              bisection_continuation_task._bisection_context,
-              _task_group_id));
+              bisection_continuation_task._bisection_context));
       return nullptr;
     }
 
@@ -430,7 +414,6 @@ namespace mt_kahypar {
     const OriginalHypergraphInfo _original_hypergraph_info;
     PartitionedHypergraph& _hg;
     const Context& _context;
-    const TaskGroupID _task_group_id;
   };
 
 
@@ -441,7 +424,7 @@ namespace mt_kahypar {
     // Extracts the block of the hypergraph which we recursively want to partition as
     // seperate unpartitioned hypergraph.
     bool cut_net_splitting = _context.partition.objective == kahypar::Objective::km1;
-    auto copy_hypergraph = _hg.extract(_task_group_id, _block, cut_net_splitting);
+    auto copy_hypergraph = _hg.extract(_block, cut_net_splitting);
     Hypergraph& rb_hypergraph = copy_hypergraph.first;
     auto& mapping = copy_hypergraph.second;
 
@@ -450,12 +433,12 @@ namespace mt_kahypar {
     if ( rb_hypergraph.initialNumNodes() > 0 ) {
       RecursiveBisectionChildContinuationTask& child_continuation = *new(allocate_continuation())
               RecursiveBisectionChildContinuationTask(_hg, std::move(rb_context),
-                                                      std::move(rb_hypergraph), std::move(mapping), k, _task_group_id, _block);
+                                                      std::move(rb_hypergraph), std::move(mapping), k, _block);
       RecursiveMultilevelBisectionTask& recursion = *new(child_continuation.allocate_child())
               RecursiveMultilevelBisectionTask(
               _original_hypergraph_info,
               child_continuation.recursivePartitionedHypergraph(),
-              child_continuation.recursiveContext(), _task_group_id);
+              child_continuation.recursiveContext());
       child_continuation.set_ref_count(1);
       tbb::task::spawn(recursion);
     }
@@ -465,12 +448,10 @@ namespace mt_kahypar {
 
   RecursiveBisectionInitialPartitioner::RecursiveBisectionInitialPartitioner(PartitionedHypergraph& hypergraph,
                                                                              const Context& context,
-                                                                             const bool top_level,
-                                                                             const TaskGroupID task_group_id) :
+                                                                             const bool top_level) :
     _hg(hypergraph),
     _context(context),
-    _top_level(top_level),
-    _task_group_id(task_group_id) { }
+    _top_level(top_level) { }
 
   void RecursiveBisectionInitialPartitioner::initialPartitionImpl() {
     if (_top_level) {
@@ -480,8 +461,7 @@ namespace mt_kahypar {
     }
 
     RecursiveMultilevelBisectionTask& root_bisection_task = *new(tbb::task::allocate_root()) RecursiveMultilevelBisectionTask(
-            OriginalHypergraphInfo { _hg.totalWeight(), _context.partition.k, _context.partition.epsilon },
-            _hg, _context, _task_group_id);
+            OriginalHypergraphInfo { _hg.totalWeight(), _context.partition.k, _context.partition.epsilon }, _hg, _context);
     tbb::task::spawn_root_and_wait(root_bisection_task);
 
     if (_top_level) {

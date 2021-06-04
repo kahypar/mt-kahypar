@@ -41,11 +41,9 @@ class MultiTryKWayFM final : public IRefiner {
 public:
 
   MultiTryKWayFM(const Hypergraph& hypergraph,
-                 const Context& c,
-                 const TaskGroupID taskGroupID) :
+                 const Context& c) :
     initial_num_nodes(hypergraph.initialNumNodes()),
     context(c),
-    taskGroupID(taskGroupID),
     sharedData(hypergraph.initialNumNodes(), context),
     globalRollback(hypergraph, context),
     ets_fm([&] { return constructLocalizedKWayFMSearch(); })
@@ -83,7 +81,6 @@ public:
   bool enable_light_fm = false;
   const HypernodeID initial_num_nodes;
   const Context& context;
-  const TaskGroupID taskGroupID;
   FMSharedData sharedData;
   GlobalRollback globalRollback;
   tbb::enumerable_thread_specific<LocalizedKWayFM<FMStrategy>> ets_fm;
