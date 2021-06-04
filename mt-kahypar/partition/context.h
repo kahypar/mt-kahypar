@@ -160,6 +160,7 @@ std::ostream& operator<<(std::ostream& out, const NLevelGlobalFMParameters& para
 struct DeterministicRefinementParameters {
   size_t num_sub_rounds_sync_lp = 5;
   bool use_active_node_set = false;
+  bool recalculate_gains_on_second_apply = false;
 };
 
 std::ostream& operator<<(std::ostream& out, const DeterministicRefinementParameters& params);

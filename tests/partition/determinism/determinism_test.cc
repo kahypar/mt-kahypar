@@ -73,6 +73,7 @@ namespace mt_kahypar {
       context.refinement.deterministic_refinement.num_sub_rounds_sync_lp = 2;
       context.refinement.label_propagation.maximum_iterations = 5;
       context.refinement.deterministic_refinement.use_active_node_set = false;
+      context.refinement.deterministic_refinement.recalculate_gains_on_second_apply = false;
 
       context.partition.objective = kahypar::Objective::km1;
 
@@ -190,6 +191,11 @@ namespace mt_kahypar {
   }
 
   TEST_F(DeterminismTest, Refinement) {
+    performRepeatedRefinement();
+  }
+
+  TEST_F(DeterminismTest, RefinementWithSecondaryGainRecalculation) {
+    context.refinement.deterministic_refinement.recalculate_gains_on_second_apply = true;
     performRepeatedRefinement();
   }
 
