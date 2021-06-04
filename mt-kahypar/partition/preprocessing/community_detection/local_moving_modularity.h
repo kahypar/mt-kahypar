@@ -141,7 +141,7 @@ class ParallelLocalMovingModularity {
 
     // changing communities and volumes in parallel causes non-determinism in debug mode
 
-
+    unused(best_weight_to);
     HEAVY_PREPROCESSING_ASSERT(verifyGain(graph, communities, u, bestCluster, bestGain, weight_from, best_weight_to));
 
     return bestCluster;
