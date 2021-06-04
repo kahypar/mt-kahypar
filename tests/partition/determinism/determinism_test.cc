@@ -208,20 +208,20 @@ namespace mt_kahypar {
   }
 
   TEST_F(DeterminismTest, RefinementOnCoarseHypergraph) {
-    DeterministicMultilevelCoarsener coarsener(hypergraph, context, 0, true);
+    DeterministicMultilevelCoarsener coarsener(hypergraph, context, true);
     coarsener.coarsen();
     hypergraph = coarsener.coarsestHypergraph().copy();
     partitioned_hypergraph = PartitionedHypergraph(
-            context.partition.k, TBBNumaArena::GLOBAL_TASK_GROUP, hypergraph);
+            context.partition.k, hypergraph, parallel_tag_t());
     performRepeatedRefinement();
   }
 
   TEST_F(DeterminismTest, RefinementOnCoarseHypergraphWithSecondaryGainRecalculation) {
-    DeterministicMultilevelCoarsener coarsener(hypergraph, context, 0, true);
+    DeterministicMultilevelCoarsener coarsener(hypergraph, context, true);
     coarsener.coarsen();
     hypergraph = coarsener.coarsestHypergraph().copy();
     partitioned_hypergraph = PartitionedHypergraph(
-            context.partition.k, TBBNumaArena::GLOBAL_TASK_GROUP, hypergraph);
+            context.partition.k, hypergraph, parallel_tag_t());
     context.refinement.deterministic_refinement.recalculate_gains_on_second_apply = true;
     performRepeatedRefinement();
   }
