@@ -49,11 +49,6 @@ class TBBNumaArena {
   using ThreadPinningObserver = mt_kahypar::parallel::ThreadPinningObserver<HwTopology>;
 
  public:
-  using TaskGroupID = size_t;
-  using RecursionTaskGroups = std::pair<TaskGroupID, TaskGroupID>;
-  static TaskGroupID GLOBAL_TASK_GROUP;
-  static TaskGroupID INVALID_TASK_GROUP;
-
   TBBNumaArena(const TBBNumaArena&) = delete;
   TBBNumaArena & operator= (const TBBNumaArena &) = delete;
 
@@ -147,10 +142,5 @@ class TBBNumaArena {
   std::vector<int> _cpus;
   std::vector<std::vector<int>> _numa_node_to_cpu_id;
 };
-
-template <typename HwTopology, bool is_numa_aware>
-typename TBBNumaArena<HwTopology, is_numa_aware>::TaskGroupID TBBNumaArena<HwTopology, is_numa_aware>::GLOBAL_TASK_GROUP = 0;
-template <typename HwTopology, bool is_numa_aware>
-typename TBBNumaArena<HwTopology, is_numa_aware>::TaskGroupID TBBNumaArena<HwTopology, is_numa_aware>::INVALID_TASK_GROUP = std::numeric_limits<TaskGroupID>::max();
 }  // namespace parallel
 }  // namespace mt_kahypar

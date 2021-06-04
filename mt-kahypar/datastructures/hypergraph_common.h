@@ -29,7 +29,6 @@ namespace mt_kahypar {
 #define UI64(X) static_cast<uint64_t>(X)
 
 struct parallel_tag_t { };
-using TaskGroupID = size_t;
 using RatingType = double;
 #if KAHYPAR_USE_64_BIT_IDS
 #define ID(X) static_cast<uint64_t>(X)
