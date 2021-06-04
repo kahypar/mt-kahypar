@@ -54,6 +54,7 @@ namespace mt_kahypar {
       // Initial Partitioning
       context.initial_partitioning.mode = InitialPartitioningMode::recursive_bisection;
       context.initial_partitioning.runs = 1;
+      context.initial_partitioning.population_size = 16;
 
       context.partition.deterministic = true;
 
