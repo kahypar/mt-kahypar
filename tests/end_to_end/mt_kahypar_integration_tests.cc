@@ -74,7 +74,7 @@ class MtKaHyPar : public Test {
   }
 
   static void SetUpTestSuite() {
-    TBBNumaArena::instance(num_threads);
+    TBBInitializer::instance(num_threads);
   }
 
   Context context;

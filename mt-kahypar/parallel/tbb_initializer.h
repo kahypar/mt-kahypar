@@ -41,22 +41,22 @@ namespace parallel {
  * on specific NUMA node.
  */
 template <typename HwTopology, bool is_numa_aware>
-class TBBNumaArena {
+class TBBInitializer {
 
   static constexpr bool debug = false;
 
-  using Self = TBBNumaArena<HwTopology, is_numa_aware>;
+  using Self = TBBInitializer<HwTopology, is_numa_aware>;
   using ThreadPinningObserver = mt_kahypar::parallel::ThreadPinningObserver<HwTopology>;
 
  public:
-  TBBNumaArena(const TBBNumaArena&) = delete;
-  TBBNumaArena & operator= (const TBBNumaArena &) = delete;
+  TBBInitializer(const TBBInitializer&) = delete;
+  TBBInitializer & operator= (const TBBInitializer &) = delete;
 
-  TBBNumaArena(TBBNumaArena&&) = delete;
-  TBBNumaArena & operator= (TBBNumaArena &&) = delete;
+  TBBInitializer(TBBInitializer&&) = delete;
+  TBBInitializer & operator= (TBBInitializer &&) = delete;
 
-  static TBBNumaArena& instance(const size_t num_threads = std::thread::hardware_concurrency()) {
-    static TBBNumaArena instance(num_threads);
+  static TBBInitializer& instance(const size_t num_threads = std::thread::hardware_concurrency()) {
+    static TBBInitializer instance(num_threads);
     return instance;
   }
 
@@ -94,7 +94,7 @@ class TBBNumaArena {
   }
 
  private:
-  explicit TBBNumaArena(const int num_threads) :
+  explicit TBBInitializer(const int num_threads) :
     _num_threads(num_threads),
     _init(std::make_unique<tbb::task_scheduler_init>(num_threads)),
     _global_observer(nullptr),

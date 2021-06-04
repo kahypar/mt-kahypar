@@ -48,7 +48,7 @@
  * best partition of both recursions and further bisect each block of the partition to obtain a 4-way
  * partition and continue uncontraction with 2 threads until 8 * c hypernodes. This is repeated until
  * we obtain a k-way partition of the hypergraph.
- * Note, the recursive initial partitioner is written in TBBNumaArena continuation style. The TBBNumaArena continuation
+ * Note, the recursive initial partitioner is written in TBBInitializer continuation style. The TBBInitializer continuation
  * style is especially useful for recursive patterns. Each task defines its continuation task. A continuation
  * task defines how computation should continue, if all its child tasks are completed. As a consequence,
  * tasks can be spawned without waiting for their completion, because the continuation task is automatically

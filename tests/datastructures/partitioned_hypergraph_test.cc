@@ -19,7 +19,7 @@
  ******************************************************************************/
 
 #include <atomic>
-#include <mt-kahypar/parallel/tbb_numa_arena.h>
+#include <mt-kahypar/parallel/tbb_initializer.h>
 
 #include "gmock/gmock.h"
 

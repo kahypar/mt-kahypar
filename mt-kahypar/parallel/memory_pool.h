@@ -266,11 +266,11 @@ class MemoryPool {
   }
 
   // ! Allocates all registered memory chunks in parallel
-  template<typename TBBNumaArena>
+  template<typename TBBInitializer>
   void allocate_memory_chunks(const bool optimize_allocations = true) {
     std::unique_lock<std::shared_timed_mutex> lock(_memory_mutex);
     if ( optimize_allocations ) {
-      optimize_memory_allocations<TBBNumaArena>();
+      optimize_memory_allocations<TBBInitializer>();
     }
     const size_t num_memory_segments = _memory_chunks.size();
     tbb::parallel_for(0UL, num_memory_segments, [&](const size_t i) {
@@ -618,12 +618,12 @@ class MemoryPool {
   // ! the memory chunks of a group are not required any more
   // ! (release_memory_group), than the memory chunks are transfered
   // ! to next group.
-  template<typename TBBNumaArena>
+  template<typename TBBInitializer>
   void optimize_memory_allocations() {
     using MemGroup = std::pair<std::string, size_t>; // <Group ID, Stage>
     using MemChunk = std::pair<size_t, size_t>; // <Memory ID, Size in Bytes>
 
-    const int used_numa_nodes = TBBNumaArena::instance().num_used_numa_nodes();
+    const int used_numa_nodes = TBBInitializer::instance().num_used_numa_nodes();
     for ( int node = 0; node < used_numa_nodes; ++node ) {
       // Sort memory groups according to stage
       std::vector<MemGroup> mem_groups;

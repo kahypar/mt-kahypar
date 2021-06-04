@@ -37,7 +37,7 @@
 
 /** RecursiveBisectionInitialPartitioner Implementation Details
   *
-  * Note, the recursive bisection initial partitioner is written in TBBNumaArena continuation style. The TBBNumaArena
+  * Note, the recursive bisection initial partitioner is written in TBBInitializer continuation style. The TBBInitializer
   * continuation style is especially useful for recursive patterns. Each task defines its continuation
   * task. A continuation task defines how computation should continue, if all its child tasks are completed.
   * As a consequence, tasks can be spawned without waiting for their completion, because the continuation

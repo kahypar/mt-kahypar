@@ -26,7 +26,7 @@
 #include "mt-kahypar/parallel/stl/scalable_vector.h"
 #include "mt-kahypar/datastructures/array.h"
 #include "mt-kahypar/parallel/hardware_topology.h"
-#include "mt-kahypar/parallel/tbb_numa_arena.h"
+#include "mt-kahypar/parallel/tbb_initializer.h"
 #include "tests/parallel/topology_mock.h"
 
 using ::testing::Test;
@@ -36,7 +36,7 @@ namespace ds {
 
 using TopoMock = mt_kahypar::parallel::TopologyMock<2>;
 using HwTopology = mt_kahypar::parallel::HardwareTopology<TopoMock, parallel::topology_t, parallel::node_t>;
-using TBB = mt_kahypar::parallel::TBBNumaArena<HwTopology, false>;
+using TBB = mt_kahypar::parallel::TBBInitializer<HwTopology, false>;
 
 TEST(AArray, WritesAnValueToStrippedVector1) {
   Array<int> vec(256, 0);
