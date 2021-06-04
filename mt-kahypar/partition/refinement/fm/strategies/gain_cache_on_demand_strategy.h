@@ -35,7 +35,8 @@ namespace mt_kahypar {
                               FMSharedData& sharedData,
                               FMStats& runStats) :
             GainCacheStrategy(context, numNodes, sharedData, runStats),
-            gainCacheInitMem(context.partition.k, 0)
+            gainCacheInitMemBenefits(context.partition.k, 0),
+            gainCacheInitMemPenalties(context.partition.k, 0)
     { }
 
     // conflicting signatures. derived does not have const qualifier for PHG. base has const. compiler doesn't complain, so probably fine.
@@ -44,18 +45,19 @@ namespace mt_kahypar {
     void insertIntoPQ(PHG& phg, const HypernodeID v, const SearchID previous_search_of_v) {
       if (sharedData.nodeTracker.releasedMarker != previous_search_of_v) {
         // node is claimed for the first time in this fm round --> initialize gain cache entry
-        phg.initializeGainCacheEntry(v, gainCacheInitMem);
+        phg.initializeGainCacheEntry(v, gainCacheInitMemBenefits, gainCacheInitMemPenalties);
       }
       GainCacheStrategy::insertIntoPQ(phg, v, previous_search_of_v);
     }
 
     void memoryConsumption(utils::MemoryTreeNode *parent) const {
       GainCacheStrategy::memoryConsumption(parent);
-      parent->addChild("Initial Gain Comp", gainCacheInitMem.size() * sizeof(Gain));
+      parent->addChild("Initial Gain Comp", gainCacheInitMemPenalties.size() * sizeof(Gain));
     }
 
   private:
-    vec<Gain> gainCacheInitMem;
+    vec<Gain> gainCacheInitMemBenefits;
+    vec<Gain> gainCacheInitMemPenalties;
   };
 
 

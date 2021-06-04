@@ -263,8 +263,8 @@ class DeltaPartitionedHypergraph {
     return moveFromBenefit(u) - moveToPenalty(u, to);
   }
 
-  void initializeGainCacheEntry(const HypernodeID u, vec<Gain>& penalty_aggregator) {
-    _phg->initializeGainCacheEntry(u, penalty_aggregator);
+  void initializeGainCacheEntry(const HypernodeID u, vec<Gain>& benefit_aggregator, vec<Gain>& penalty_aggregator) {
+    _phg->initializeGainCacheEntry(u, benefit_aggregator, penalty_aggregator);
   }
 
   // ! Clears all deltas applied to the partitioned hypergraph

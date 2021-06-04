@@ -1040,7 +1040,8 @@ class DynamicHypergraph {
   template<typename Hypergraph>
   friend class CommunitySupport;
   template <typename Hypergraph,
-            typename HypergraphFactory>
+            typename HypergraphFactory,
+            typename GainCache>
   friend class PartitionedHypergraph;
 
   // ####################### Acquiring / Releasing Ownership #######################

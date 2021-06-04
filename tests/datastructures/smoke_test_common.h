@@ -10,7 +10,7 @@
 namespace mt_kahypar {
     namespace ds {
 
-        using DynamicPartitionedHypergraph = PartitionedHypergraph<DynamicHypergraph, DynamicHypergraphFactory>;
+        using DynamicPartitionedHypergraph = PartitionedHypergraph<DynamicHypergraph, DynamicHypergraphFactory, GainCache>;
 
         void verifyEqualityOfHypergraphs(const DynamicHypergraph& expected_hypergraph,
                                          const DynamicHypergraph& actual_hypergraph);

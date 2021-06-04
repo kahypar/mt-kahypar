@@ -40,11 +40,14 @@ using TBBNumaArena = mt_kahypar::parallel::TBBNumaArena<HardwareTopology, false>
 #ifdef USE_STRONG_PARTITIONER
 using Hypergraph = ds::DynamicHypergraph;
 using HypergraphFactory = ds::DynamicHypergraphFactory;
+using GainCache = ds::LightGainCache;
 #else
 using Hypergraph = ds::StaticHypergraph;
 using HypergraphFactory = ds::StaticHypergraphFactory;
+using GainCache = ds::LightGainCache;
+
 #endif
-using PartitionedHypergraph = ds::PartitionedHypergraph<Hypergraph, HypergraphFactory>;
+using PartitionedHypergraph = ds::PartitionedHypergraph<Hypergraph, HypergraphFactory, GainCache>;
 
 using HighResClockTimepoint = std::chrono::time_point<std::chrono::high_resolution_clock>;
 

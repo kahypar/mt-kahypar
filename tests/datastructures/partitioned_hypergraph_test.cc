@@ -154,11 +154,11 @@ void executeConcurrent(const F1& f1, const F2& f2) {
 using PartitionedHypergraphTestTypes =
   ::testing::Types<
           PartitionedHypergraphTypeTraits<
-                          PartitionedHypergraph<StaticHypergraph, StaticHypergraphFactory>,
+                          PartitionedHypergraph<StaticHypergraph, StaticHypergraphFactory, LightGainCache>,
                           StaticHypergraph,
                           StaticHypergraphFactory>,
           PartitionedHypergraphTypeTraits<
-                          PartitionedHypergraph<DynamicHypergraph, DynamicHypergraphFactory>,
+                          PartitionedHypergraph<DynamicHypergraph, DynamicHypergraphFactory, LightGainCache>,
                           DynamicHypergraph,
                           DynamicHypergraphFactory>>;
 
@@ -753,7 +753,7 @@ TYPED_TEST(APartitionedHypergraph, ComputesBorderNodesCorrectIfNodePartsAreSetOn
 
 using ADynamicPartitionedHypergraph = APartitionedHypergraph<
                                         PartitionedHypergraphTypeTraits<
-                                          PartitionedHypergraph<DynamicHypergraph, DynamicHypergraphFactory>,
+                                          PartitionedHypergraph<DynamicHypergraph, DynamicHypergraphFactory, LightGainCache>,
                                           DynamicHypergraph,
                                           DynamicHypergraphFactory>>;
 
