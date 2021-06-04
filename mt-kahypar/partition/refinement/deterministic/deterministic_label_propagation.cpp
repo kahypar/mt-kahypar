@@ -38,8 +38,6 @@ namespace mt_kahypar {
     const size_t num_sub_rounds = context.refinement.deterministic_refinement.num_sub_rounds_sync_lp;
     const size_t num_buckets_per_sub_round = parallel::chunking::idiv_ceil(num_buckets, num_sub_rounds);
 
-    const bool log = false && context.type == kahypar::ContextType::main;
-
     for (size_t iter = 0; iter < context.refinement.label_propagation.maximum_iterations; ++iter) {
       if (context.refinement.deterministic_refinement.use_active_node_set && ++round == 0) {
         std::fill(last_moved_in_round.begin(), last_moved_in_round.end(), CAtomic<uint32_t>(0));
@@ -64,7 +62,6 @@ namespace mt_kahypar {
         moves.clear();
 
         // calculate moves
-        auto t1 = tbb::tick_count::now();
         if (phg.k() == 2) {
           tbb::parallel_for(HypernodeID(first), HypernodeID(last), [&](const HypernodeID position) {
             assert(position < permutation.permutation.size());
@@ -77,15 +74,11 @@ namespace mt_kahypar {
           });
         }
         moves.finalize();
-        if (log) LOG << "calc moves time" << (tbb::tick_count::now() - t1).seconds();
 
         Gain sub_round_improvement = 0;
         size_t num_moves_in_sub_round = moves.size();
-        DBG << V(num_moves_in_sub_round);
         if (num_moves_in_sub_round > 0) {
-          auto t2 = tbb::tick_count::now();
           sub_round_improvement = applyMovesByMaximalPrefixesInBlockPairs(phg);
-          auto t3 = tbb::tick_count::now();
           if (sub_round_improvement > 0 && moves.size() > 0) {
             if (!context.refinement.deterministic_refinement.recalculate_gains_on_second_apply) {
               sub_round_improvement += applyMovesSortedByGainAndRevertUnbalanced(phg);
@@ -93,11 +86,7 @@ namespace mt_kahypar {
               sub_round_improvement += applyMovesSortedByGainWithRecalculation(phg);
             }
           }
-          auto t4 = tbb::tick_count::now();
-          if (log) LOG << "apply by prefix" << (t3 - t2).seconds();
-          if (log) LOG << "apply by gain and seq revert" << (t4 - t3).seconds();
         }
-        if (log) LOG << V(sub_round_improvement) << V(num_moves_in_sub_round);
         round_improvement += sub_round_improvement;
         num_moves += num_moves_in_sub_round;
       }
@@ -422,7 +411,6 @@ namespace mt_kahypar {
   }
 
   Gain DeterministicLabelPropagationRefiner::applyMovesSortedByGainWithRecalculation(PartitionedHypergraph& phg) {
-    LOG << "called gain recalc";
     if (last_recalc_round.empty() || ++recalc_round == std::numeric_limits<uint32_t>::max()) {
       last_recalc_round.assign(max_num_edges, CAtomic<uint32_t>(0));
     }

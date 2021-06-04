@@ -30,8 +30,6 @@
 
 namespace mt_kahypar::ds {
 
-  // TODO split contraction into multiple functions!
-
 
   /*!
   * This struct is used during multilevel coarsening to efficiently
@@ -466,7 +464,6 @@ namespace mt_kahypar::ds {
           if ( he_mapping.value(he) ) {
             tmp_incident_nets[pos] = he_mapping[he];
           } else {
-            // TODO this is a weird implementation of std::remove_if. does this cause weird side effects?
             std::swap(tmp_incident_nets[pos--], tmp_incident_nets[--incident_nets_end]);
           }
         }

@@ -35,7 +35,7 @@ public:
   explicit DeterministicLabelPropagationRefiner(Hypergraph& hypergraph, const Context& context, TaskGroupID ) :
       context(context),
       compute_gains(context.partition.k),
-      moves(hypergraph.initialNumNodes()),   // TODO make smaller --> max round size
+      moves(hypergraph.initialNumNodes()),
       sorted_moves(hypergraph.initialNumNodes()),
       prng(context.partition.seed),
       active_nodes(0),
@@ -49,7 +49,7 @@ public:
     }
 
   }
-  
+
 private:
   static constexpr bool debug = false;
 
