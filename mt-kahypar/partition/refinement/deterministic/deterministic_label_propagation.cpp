@@ -87,8 +87,8 @@ namespace mt_kahypar {
           sub_round_improvement = applyMovesByMaximalPrefixesInBlockPairs(phg);
           auto t3 = tbb::tick_count::now();
           if (sub_round_improvement > 0 && moves.size() > 0) {
-            // sub_round_improvement += applyMovesSortedByGainAndRevertUnbalanced(phg);
-            sub_round_improvement += applyMovesSortedByGainWithRecalculation(phg);
+            sub_round_improvement += applyMovesSortedByGainAndRevertUnbalanced(phg);
+            // sub_round_improvement += applyMovesSortedByGainWithRecalculation(phg);
           }
           auto t4 = tbb::tick_count::now();
           if (log) LOG << "apply by prefix" << (t3 - t2).seconds();
