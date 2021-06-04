@@ -247,19 +247,19 @@ size_t ParallelLocalMovingModularity::parallelNonDeterministicRound(const Graph&
 }
 
 
-template<typename Map>
-bool ParallelLocalMovingModularity::verifyGain(const Graph& graph,
-                ds::Clustering& communities,
-                const NodeID u,
-                const PartitionID to,
-                double gain,
-                const Map& icw) {
+bool ParallelLocalMovingModularity::verifyGain(const Graph& graph, const ds::Clustering& communities, const NodeID u,
+                                               const PartitionID to, double gain, double weight_from, double weight_to) {
+  if (_context.partition.deterministic) {
+    // the check is omitted, since changing the cluster volumes breaks determinism
+    return true;
+  }
+
   const PartitionID from = communities[u];
 
-  long double adjustedGain = adjustAdvancedModGain(gain, icw.get(from), _cluster_volumes[from], graph.nodeVolume(u));
+  long double adjustedGain = adjustAdvancedModGain(gain, weight_from, _cluster_volumes[from], graph.nodeVolume(u));
   const double volMultiplier = _vol_multiplier_div_by_node_vol * graph.nodeVolume(u);
-  double modGain = modularityGain(icw.get(to), _cluster_volumes[to], volMultiplier);
-  long double adjustedGainRecomputed = adjustAdvancedModGain(modGain, icw.get(from), _cluster_volumes[from], graph.nodeVolume(u));
+  double modGain = modularityGain(weight_to, _cluster_volumes[to], volMultiplier);
+  long double adjustedGainRecomputed = adjustAdvancedModGain(modGain, weight_from, _cluster_volumes[from], graph.nodeVolume(u));
   unused(adjustedGainRecomputed);
 
   if (from == to) {
@@ -277,11 +277,12 @@ bool ParallelLocalMovingModularity::verifyGain(const Graph& graph,
   long double modBeforeMove = coverageBeforeMove - expectedCoverageBeforeMove;
 
   // apply move
-  communities[u] = to;
+  ds::Clustering communities_after_move = communities;
+  communities_after_move[u] = to;
   _cluster_volumes[to] += graph.nodeVolume(u);
   _cluster_volumes[from] -= graph.nodeVolume(u);
 
-  auto accAfterMove = intraClusterWeightsAndSumOfSquaredClusterVolumes(graph, communities);
+  auto accAfterMove = intraClusterWeightsAndSumOfSquaredClusterVolumes(graph, communities_after_move);
   long double coverageAfterMove = static_cast<long double>(accAfterMove.first) / graph.totalVolume();
   long double expectedCoverageAfterMove = accAfterMove.second / dTotalVolumeSquared;
   long double modAfterMove = coverageAfterMove - expectedCoverageAfterMove;
@@ -292,8 +293,6 @@ bool ParallelLocalMovingModularity::verifyGain(const Graph& graph,
                                          << V(coverageBeforeMove) << V(expectedCoverageBeforeMove) << V(modBeforeMove)
                                          << V(coverageAfterMove) << V(expectedCoverageAfterMove) << V(modAfterMove));
 
-  // revert move
-  communities[u] = from;
   _cluster_volumes[to] -= graph.nodeVolume(u);
   _cluster_volumes[from] += graph.nodeVolume(u);
 

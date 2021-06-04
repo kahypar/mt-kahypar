@@ -65,7 +65,7 @@ namespace mt_kahypar {
       // coarsening
       context.coarsening.num_sub_rounds_deterministic = 3;
       context.coarsening.contraction_limit = 320;
-      context.coarsening.max_allowed_node_weight = std::numeric_limits<HypernodeWeight>::max();
+      context.coarsening.max_allowed_node_weight = 30;
       context.coarsening.minimum_shrink_factor = 1.0;
       context.coarsening.maximum_shrink_factor = 4.0;
 
@@ -194,11 +194,6 @@ namespace mt_kahypar {
     performRepeatedRefinement();
   }
 
-  TEST_F(DeterminismTest, RefinementWithSecondaryGainRecalculation) {
-    context.refinement.deterministic_refinement.recalculate_gains_on_second_apply = true;
-    performRepeatedRefinement();
-  }
-
   TEST_F(DeterminismTest, RefinementWithActiveNodeSet) {
     context.refinement.deterministic_refinement.use_active_node_set = true;
     performRepeatedRefinement();
@@ -209,6 +204,25 @@ namespace mt_kahypar {
     partitioned_hypergraph = PartitionedHypergraph(
             context.partition.k, hypergraph, parallel_tag_t());
     context.setupPartWeights(hypergraph.totalWeight());
+    performRepeatedRefinement();
+  }
+
+  TEST_F(DeterminismTest, RefinementOnCoarseHypergraph) {
+    DeterministicMultilevelCoarsener coarsener(hypergraph, context, 0, true);
+    coarsener.coarsen();
+    hypergraph = coarsener.coarsestHypergraph().copy();
+    partitioned_hypergraph = PartitionedHypergraph(
+            context.partition.k, TBBNumaArena::GLOBAL_TASK_GROUP, hypergraph);
+    performRepeatedRefinement();
+  }
+
+  TEST_F(DeterminismTest, RefinementOnCoarseHypergraphWithSecondaryGainRecalculation) {
+    DeterministicMultilevelCoarsener coarsener(hypergraph, context, 0, true);
+    coarsener.coarsen();
+    hypergraph = coarsener.coarsestHypergraph().copy();
+    partitioned_hypergraph = PartitionedHypergraph(
+            context.partition.k, TBBNumaArena::GLOBAL_TASK_GROUP, hypergraph);
+    context.refinement.deterministic_refinement.recalculate_gains_on_second_apply = true;
     performRepeatedRefinement();
   }
 

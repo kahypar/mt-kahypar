@@ -138,19 +138,6 @@ namespace mt_kahypar::ds {
     coarse_graph._node_volumes.resize(num_coarse_nodes);
     coarse_graph._total_volume = totalVolume();
 
-    /*
-    // alternative easier counting sort implementation
-    vec<uint32_t> bucket_bounds(num_coarse_nodes + 2, 0);
-    tbb::parallel_for(0UL, numNodes(), [&](NodeID u) {
-      __atomic_fetch_add(&bucket_bounds[get_cluster(u) + 2], 1, __ATOMIC_RELAXED);
-    });
-    parallel_prefix_sum(bucket_bounds.begin(), bucket_bounds.end(), bucket_bounds.begin(), std::plus<>(), 0);
-    tbb::parallel_for(0UL, numNodes(), [&](NodeID u) {
-      size_t pos = __atomic_fetch_add(&bucket_bounds[get_cluster(u) + 1], 1, __ATOMIC_RELAXED);
-      nodes_sorted_by_cluster[pos] = u;
-    });
-     */
-
     struct ClearList {
       vec<NodeID> used;
       vec<ArcWeight> values;
