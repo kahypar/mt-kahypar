@@ -46,7 +46,7 @@ namespace mt_kahypar {
       context.partition.mode = kahypar::Mode::direct_kway;
       context.partition.epsilon = 0.25;
       context.partition.verbose_output = false;
-      context.partition.k = 2;
+      context.partition.k = 8;
 
       // Shared Memory
       context.shared_memory.num_threads = std::thread::hardware_concurrency();
@@ -69,6 +69,11 @@ namespace mt_kahypar {
       context.coarsening.minimum_shrink_factor = 1.0;
       context.coarsening.maximum_shrink_factor = 4.0;
 
+      // refinement
+      context.refinement.deterministic_refinement.num_sub_rounds_sync_lp = 2;
+      context.refinement.label_propagation.maximum_iterations = 5;
+      context.refinement.deterministic_refinement.use_active_node_set = false;
+
       context.partition.objective = kahypar::Objective::km1;
 
       // Read hypergraph
@@ -89,6 +94,38 @@ namespace mt_kahypar {
       metrics.km1 = metrics::km1(partitioned_hypergraph);
       metrics.cut = metrics::hyperedgeCut(partitioned_hypergraph);
       metrics.imbalance = metrics::imbalance(partitioned_hypergraph, context);
+    }
+
+    void performRepeatedRefinement() {
+      initialPartition();
+      vec<PartitionID> initial_partition(hypergraph.initialNumNodes());
+      for (HypernodeID u : hypergraph.nodes()) {
+        initial_partition[u] = partitioned_hypergraph.partID(u);
+      }
+
+      vec<PartitionID> first(hypergraph.initialNumNodes());
+      for (size_t i = 0; i < num_repetitions; ++i) {
+        partitioned_hypergraph.resetPartition();
+        for (HypernodeID u : hypergraph.nodes()) {
+          partitioned_hypergraph.setNodePart(u, initial_partition[u]);
+        }
+
+        DeterministicLabelPropagationRefiner refiner(hypergraph, context, 0);
+        refiner.initialize(partitioned_hypergraph);
+        vec<HypernodeID> dummy_refinement_nodes;
+        kahypar::Metrics my_metrics = metrics;
+        refiner.refine(partitioned_hypergraph, dummy_refinement_nodes, my_metrics, 0.0);
+
+        if (i == 0) {
+          for (HypernodeID u : hypergraph.nodes()) {
+            first[u] = partitioned_hypergraph.partID(u);
+          }
+        } else {
+          for (HypernodeID u : hypergraph.nodes()) {
+            ASSERT_EQ(first[u], partitioned_hypergraph.partID(u));
+          }
+        }
+      }
     }
 
     Hypergraph hypergraph;
@@ -153,38 +190,20 @@ namespace mt_kahypar {
   }
 
   TEST_F(DeterminismTest, Refinement) {
-    initialPartition();
-    vec<PartitionID> initial_partition(hypergraph.initialNumNodes());
-    for (HypernodeID u : hypergraph.nodes()) {
-      initial_partition[u] = partitioned_hypergraph.partID(u);
-    }
+    performRepeatedRefinement();
+  }
 
-    vec<PartitionID> first(hypergraph.initialNumNodes());
-    for (size_t i = 0; i < num_repetitions; ++i) {
-      partitioned_hypergraph.resetPartition();
-      for (HypernodeID u : hypergraph.nodes()) {
-        partitioned_hypergraph.setNodePart(u, initial_partition[u]);
-      }
+  TEST_F(DeterminismTest, RefinementWithActiveNodeSet) {
+    context.refinement.deterministic_refinement.use_active_node_set = true;
+    performRepeatedRefinement();
+  }
 
-      DeterministicLabelPropagationRefiner refiner(hypergraph, context, 0);
-      refiner.initialize(partitioned_hypergraph);
-      vec<HypernodeID> dummy_refinement_nodes;
-      kahypar::Metrics my_metrics = metrics;
-      refiner.refine(partitioned_hypergraph, dummy_refinement_nodes, my_metrics, 0.0);
-
-      if (i == 0) {
-        for (HypernodeID u : hypergraph.nodes()) {
-          first[u] = partitioned_hypergraph.partID(u);
-        }
-      } else {
-        for (HypernodeID u : hypergraph.nodes()) {
-          ASSERT_EQ(first[u], partitioned_hypergraph.partID(u));
-        }
-      }
-
-    }
-
-
+  TEST_F(DeterminismTest, RefinementK2) {
+    context.partition.k = 2;
+    partitioned_hypergraph = PartitionedHypergraph(
+            context.partition.k, TBBNumaArena::GLOBAL_TASK_GROUP, hypergraph);
+    context.setupPartWeights(hypergraph.totalWeight());
+    performRepeatedRefinement();
   }
 
 }  // namespace mt_kahypar
