@@ -58,16 +58,9 @@ class ParallelLocalMovingModularity {
           _max_degree(numNodes),
           _vertex_degree_sampling_threshold(context.preprocessing.community_detection.vertex_degree_sampling_threshold),
           _cluster_volumes(numNodes),
-    // _local_small_incident_cluster_weight(0),
-    /*
-    _local_large_incident_cluster_weight([&] {
-      return construct_large_incident_cluster_weight_map();
-    }),
-     */
-    non_sampling_incident_cluster_weights(numNodes),
+          non_sampling_incident_cluster_weights(numNodes),
           _disable_randomization(disable_randomization),
-    // non_sampling_incident_cluster_weights(numNodes),
-    prng(context.partition.seed),
+          prng(context.partition.seed),
           volume_updates_to(0),
           volume_updates_from(0)
   { }
@@ -130,6 +123,7 @@ class ParallelLocalMovingModularity {
 
     const double volMultiplier = _vol_multiplier_div_by_node_vol * volU;
     double bestGain = weight_from - volMultiplier * (volume_from - volU);
+    double best_weight_to = weight_from;
     for (const auto to : used) {
       // if from == to, we would have to remove volU from volume_to as well.
       // just skip it. it has (adjusted) gain zero.
@@ -138,6 +132,7 @@ class ParallelLocalMovingModularity {
         if (gain > bestGain) {
           bestCluster = to;
           bestGain = gain;
+          best_weight_to = weights[to];
         }
       }
       weights[to] = 0.0;
@@ -145,8 +140,9 @@ class ParallelLocalMovingModularity {
     used.clear();
 
     // changing communities and volumes in parallel causes non-determinism in debug mode
-    // TODO integrate somewhere else
-    // HEAVY_PREPROCESSING_ASSERT(verifyGain(graph, communities, u, bestCluster, bestGain, incident_cluster_weights));
+
+
+    HEAVY_PREPROCESSING_ASSERT(verifyGain(graph, communities, u, bestCluster, bestGain, weight_from, best_weight_to));
 
     return bestCluster;
   }
@@ -168,8 +164,9 @@ class ParallelLocalMovingModularity {
         volume_node * (volume_from - volume_node));
   }
 
-  template<typename Map>
-  bool verifyGain(const Graph& graph, ds::Clustering& communities, NodeID u, PartitionID to, double gain, const Map& icw);
+
+  bool verifyGain(const Graph& graph, const ds::Clustering& communities, NodeID u, PartitionID to, double gain,
+                  double weight_from, double weight_to);
 
   static std::pair<ArcWeight, ArcWeight> intraClusterWeightsAndSumOfSquaredClusterVolumes(const Graph& graph, const ds::Clustering& communities);
 
@@ -179,12 +176,9 @@ class ParallelLocalMovingModularity {
   double _reciprocal_total_volume = 0.0;
   double _vol_multiplier_div_by_node_vol = 0.0;
   vec<parallel::AtomicWrapper<ArcWeight>> _cluster_volumes;
-  // tbb::enumerable_thread_specific<CacheEfficientIncidentClusterWeights> _local_small_incident_cluster_weight;
-  // tbb::enumerable_thread_specific<LargeIncidentClusterWeights> _local_large_incident_cluster_weight;
   tbb::enumerable_thread_specific<ClearList> non_sampling_incident_cluster_weights;
   const bool _disable_randomization;
 
-  // tbb::enumerable_thread_specific<ds::SparseMap<PartitionID, ArcWeight>> non_sampling_incident_cluster_weights;
   utils::ParallelPermutation<HypernodeID> permutation;
   std::mt19937 prng;
 
