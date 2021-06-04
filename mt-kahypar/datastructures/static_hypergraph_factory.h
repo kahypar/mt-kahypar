@@ -26,8 +26,7 @@
 #include "mt-kahypar/parallel/atomic_wrapper.h"
 
 
-namespace mt_kahypar {
-namespace ds {
+namespace mt_kahypar::ds {
 
 class StaticHypergraphFactory {
 
@@ -44,8 +43,7 @@ class StaticHypergraphFactory {
                                     const HypernodeWeight* hypernode_weight = nullptr,
                                     const bool stable_construction_of_incident_edges = false);
 
-  static std::pair<StaticHypergraph,
-          parallel::scalable_vector<HypernodeID> > compactify(const StaticHypergraph&) {
+  static std::pair<StaticHypergraph, vec<HypernodeID>> compactify(const StaticHypergraph&) {
     ERROR("Compactify not implemented for static hypergraph.");
   }
 
@@ -53,5 +51,4 @@ class StaticHypergraphFactory {
   StaticHypergraphFactory() { }
 };
 
-} // namespace ds
 } // namespace mt_kahypar

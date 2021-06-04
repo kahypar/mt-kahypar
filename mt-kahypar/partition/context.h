@@ -57,9 +57,8 @@ struct PartitioningParameters {
   bool enable_progress_bar = false;
   bool sp_process_output = false;
   bool csv_output = false;
-  bool write_partition_file = true;
-
-  int snapshot_interval = std::numeric_limits<int>::max();
+  bool write_partition_file = false;
+  bool deterministic = false;
 
   std::string graph_filename { };
   std::string graph_partition_output_folder {};
@@ -73,8 +72,10 @@ std::ostream & operator<< (std::ostream& str, const PartitioningParameters& para
 struct CommunityDetectionParameters {
   LouvainEdgeWeight edge_weight_function = LouvainEdgeWeight::UNDEFINED;
   uint32_t max_pass_iterations = std::numeric_limits<uint32_t>::max();
+  bool low_memory_contraction = false;
   long double min_vertex_move_fraction = std::numeric_limits<long double>::max();
   size_t vertex_degree_sampling_threshold = std::numeric_limits<size_t>::max();
+  size_t num_sub_rounds_deterministic = 16;
 };
 
 std::ostream & operator<< (std::ostream& str, const CommunityDetectionParameters& params);
@@ -107,6 +108,7 @@ struct CoarseningParameters {
   double minimum_shrink_factor = std::numeric_limits<double>::max();
   double maximum_shrink_factor = std::numeric_limits<double>::max();
   size_t vertex_degree_sampling_threshold = std::numeric_limits<size_t>::max();
+  size_t num_sub_rounds_deterministic = 16;
 
   // Those will be determined dynamically
   HypernodeWeight max_allowed_node_weight = 0;
@@ -155,9 +157,18 @@ struct NLevelGlobalFMParameters {
 
 std::ostream& operator<<(std::ostream& out, const NLevelGlobalFMParameters& params);
 
+struct DeterministicRefinementParameters {
+  size_t num_sub_rounds_sync_lp = 5;
+  bool use_active_node_set = false;
+  bool recalculate_gains_on_second_apply = false;
+};
+
+std::ostream& operator<<(std::ostream& out, const DeterministicRefinementParameters& params);
+
 struct RefinementParameters {
   LabelPropagationParameters label_propagation;
   FMParameters fm;
+  DeterministicRefinementParameters deterministic_refinement;
   NLevelGlobalFMParameters global_fm;
   bool refine_until_no_improvement = false;
   size_t max_batch_size = std::numeric_limits<size_t>::max();
@@ -196,12 +207,14 @@ struct InitialPartitioningParameters {
   bool remove_degree_zero_hns_before_ip = false;
   size_t lp_maximum_iterations = 1;
   size_t lp_initial_block_size = 1;
+  size_t population_size = 16;
 };
 
 std::ostream & operator<< (std::ostream& str, const InitialPartitioningParameters& params);
 
 struct SharedMemoryParameters {
   size_t num_threads = 1;
+  size_t static_balancing_work_packages = 128;
   bool use_localized_random_shuffle = false;
   size_t shuffle_block_size = 2;
   double degree_of_parallelism = 1.0;
@@ -221,6 +234,7 @@ class Context {
   kahypar::ContextType type = kahypar::ContextType::main;
 
   std::string algorithm_name = "Mt-KaHyPar";
+  mutable size_t initial_km1 = std::numeric_limits<size_t>::max();
 
   Context() { }
 

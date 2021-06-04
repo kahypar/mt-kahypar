@@ -287,7 +287,6 @@ class Array {
     if ( _data || _underlying_data ) {
       ERROR("Memory of vector already allocated");
     }
-
     allocate_data(size);
     assign(size, init_value, assign_parallel);
   }

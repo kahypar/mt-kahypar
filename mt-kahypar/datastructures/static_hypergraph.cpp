@@ -28,10 +28,7 @@
 
 #include <tbb/parallel_reduce.h>
 
-
 namespace mt_kahypar::ds {
-
-  // TODO split contraction into multiple functions!
 
 
   /*!
@@ -63,7 +60,7 @@ namespace mt_kahypar::ds {
       allocateTmpContractionBuffer();
     }
 
-    // AUXILLIARY BUFFERS - Reused during multilevel hierarchy to prevent expensive allocations
+    // Auxiliary buffers - reused during multilevel hierarchy to prevent expensive allocations
     Array<size_t>& mapping = _tmp_contraction_buffer->mapping;
     Array<Hypernode>& tmp_hypernodes = _tmp_contraction_buffer->tmp_hypernodes;
     IncidentNets& tmp_incident_nets = _tmp_contraction_buffer->tmp_incident_nets;
@@ -124,7 +121,6 @@ namespace mt_kahypar::ds {
       ASSERT(hn < communities.size());
       return communities[hn];
     };
-
 
     doParallelForAllNodes([&](const HypernodeID& hn) {
       const HypernodeID coarse_hn = map_to_coarse_hypergraph(hn);
@@ -338,7 +334,7 @@ namespace mt_kahypar::ds {
       auto& hyperedge_bucket = hyperedge_hash_map.getBucket(bucket);
       std::sort(hyperedge_bucket.begin(), hyperedge_bucket.end(),
                 [&](const ContractedHyperedgeInformation& lhs, const ContractedHyperedgeInformation& rhs) {
-                  return lhs.hash < rhs.hash || (lhs.hash == rhs.hash && lhs.size < rhs.size);
+                  return std::tie(lhs.hash, lhs.size, lhs.he) < std::tie(rhs.hash, rhs.size, rhs.he);
                 });
 
       // Parallel Hyperedge Detection

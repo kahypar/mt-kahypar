@@ -44,12 +44,13 @@ class LabelPropagationInitialPartitioner : public tbb::task {
   LabelPropagationInitialPartitioner(const InitialPartitioningAlgorithm,
                                       InitialPartitioningDataContainer& ip_data,
                                       const Context& context,
-                                      const int seed) :
+                                      const int seed, const int tag) :
     _ip_data(ip_data),
     _context(context),
     _valid_blocks(context.partition.k),
     _tmp_scores(context.partition.k),
-    _rng(seed) { }
+    _rng(seed),
+    _tag(tag) { }
 
   tbb::task* execute() override ;
 
@@ -94,6 +95,7 @@ class LabelPropagationInitialPartitioner : public tbb::task {
   kahypar::ds::FastResetFlagArray<> _valid_blocks;
   parallel::scalable_vector<Gain> _tmp_scores;
   std::mt19937 _rng;
+  const int _tag;
 };
 
 
