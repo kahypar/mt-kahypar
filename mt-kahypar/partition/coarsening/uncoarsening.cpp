@@ -24,7 +24,7 @@ namespace mt_kahypar {
 
     // Construct top level partitioned hypergraph (memory is taken from memory pool)
     _partitioned_hg = PartitionedHypergraph(
-            _context.partition.k, _task_group_id, _hg);
+            _context.partition.k, _hg, parallel_tag_t());
 
     // Construct partitioned hypergraphs parallel
     tbb::task_group group;
@@ -32,7 +32,7 @@ namespace mt_kahypar {
     for (size_t i = 0; i < _hierarchy.size(); ++i) {
       group.run([&, i] {
         _hierarchy[i].contractedPartitionedHypergraph() = PartitionedHypergraph(
-                _context.partition.k, _task_group_id, _hierarchy[i].contractedHypergraph());
+                _context.partition.k, _hierarchy[i].contractedHypergraph(), parallel_tag_t());
       });
     }
     group.wait();
@@ -56,7 +56,7 @@ namespace mt_kahypar {
     auto compactification = HypergraphFactory::compactify(_hg);
     _compactified_hg = std::move(compactification.first);
     _compactified_hn_mapping = std::move(compactification.second);
-    _compactified_phg = PartitionedHypergraph(_context.partition.k, _task_group_id, _compactified_hg);
+    _compactified_phg = PartitionedHypergraph(_context.partition.k, _compactified_hg, parallel_tag_t());
     utils::Timer::instance().stop_timer("compactify_hypergraph");
 
     // Create n-level batch uncontraction hierarchy
@@ -85,7 +85,7 @@ namespace mt_kahypar {
     ASSERT(!_is_finalized);
     Hypergraph& current_hg = currentHypergraph();
     ASSERT(current_hg.initialNumNodes() == communities.size());
-    Hypergraph contracted_hg = current_hg.contract(communities, _task_group_id);
+    Hypergraph contracted_hg = current_hg.contract(communities);
     const HighResClockTimepoint round_end = std::chrono::high_resolution_clock::now();
     const double elapsed_time = std::chrono::duration<double>(round_end - round_start).count();
     _hierarchy.emplace_back(std::move(contracted_hg), std::move(communities), elapsed_time);
@@ -123,7 +123,7 @@ namespace mt_kahypar {
         ASSERT(block != kInvalidPartition && block < representative_hg.k());
         representative_hg.setOnlyNodePart(hn, block);
       });
-      representative_hg.initializePartition(_task_group_id);
+      representative_hg.initializePartition();
 
       ASSERT(metrics::objective(representative_hg, _context.partition.objective) ==
              metrics::objective(contracted_hg, _context.partition.objective),
@@ -209,7 +209,7 @@ namespace mt_kahypar {
 
     // Project partition from compactified hypergraph to original hypergraph
     utils::Timer::instance().start_timer("initialize_partition", "Initialize Partition");
-    _phg = PartitionedHypergraph(_context.partition.k, _task_group_id, _hg);
+    _phg = PartitionedHypergraph(_context.partition.k, _hg, parallel_tag_t());
     _phg.doParallelForAllNodes([&](const HypernodeID hn) {
       ASSERT(static_cast<size_t>(hn) < _compactified_hn_mapping.size());
       const HypernodeID compactified_hn = _compactified_hn_mapping[hn];
@@ -217,7 +217,7 @@ namespace mt_kahypar {
       ASSERT(block_id != kInvalidPartition && block_id < _context.partition.k);
       _phg.setOnlyNodePart(hn, block_id);
     });
-    _phg.initializePartition(_task_group_id);
+    _phg.initializePartition();
 
     if ( _context.refinement.fm.algorithm == FMAlgorithm::fm_gain_cache ) {
       _phg.initializeGainCache();

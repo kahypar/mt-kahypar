@@ -50,7 +50,7 @@ class ALouvain : public ds::HypergraphFixture<Hypergraph, HypergraphFactory> {
 
     graph = std::make_unique<Graph>(hypergraph, LouvainEdgeWeight::uniform);
     karate_club_hg = io::readHypergraphFile(
-      context.partition.graph_filename, TBBNumaArena::GLOBAL_TASK_GROUP);
+      context.partition.graph_filename);
     karate_club_graph = std::make_unique<Graph>(karate_club_hg, LouvainEdgeWeight::uniform);
   }
 

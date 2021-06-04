@@ -158,7 +158,7 @@ namespace mt_kahypar::ds {
     hypergraph._hypernodes.back() = StaticHypergraph::Hypernode(hypergraph._incident_nets.size());
     hypergraph._hyperedges.back() = StaticHypergraph::Hyperedge(hypergraph._incidence_array.size());
 
-    hypergraph.computeAndSetTotalNodeWeight(0);
+    hypergraph.computeAndSetTotalNodeWeight(parallel_tag_t());
 
     utils::Timer::instance().stop_timer("setup_hypergraph");
     return hypergraph;

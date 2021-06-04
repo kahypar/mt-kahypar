@@ -63,9 +63,8 @@ namespace mt_kahypar {
 
 
   PoolInitialPartitionerContinuation::PoolInitialPartitionerContinuation(PartitionedHypergraph& hypergraph,
-                                     const Context& context,
-                                     const TaskGroupID task_group_id) :
-          _ip_data(hypergraph, context, task_group_id),
+                                                                         const Context& context) :
+          _ip_data(hypergraph, context),
           _context(context),
           _ip_task_lists(context.shared_memory.num_threads) {
 
@@ -113,15 +112,13 @@ namespace mt_kahypar {
   }
 
   PoolInitialPartitioner::PoolInitialPartitioner(PartitionedHypergraph& hypergraph,
-                         const Context& context,
-                         const TaskGroupID task_group_id) :
+                         const Context& context) :
           _hg(hypergraph),
-          _context(context),
-          _task_group_id(task_group_id) { }
+          _context(context) { }
 
   tbb::task* PoolInitialPartitioner::execute() {
     PoolInitialPartitionerContinuation& ip_continuation = *new(allocate_continuation())
-            PoolInitialPartitionerContinuation(_hg, _context, _task_group_id);
+            PoolInitialPartitionerContinuation(_hg, _context);
     spawn_initial_partitioner(ip_continuation);
     return nullptr;
   }

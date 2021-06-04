@@ -35,12 +35,10 @@ class RecursiveInitialPartitioner: public IInitialPartitioner {
  public:
   RecursiveInitialPartitioner(PartitionedHypergraph& hypergraph,
                                const Context& context,
-                               const bool top_level,
-                               const TaskGroupID task_group_id) :
+                               const bool top_level) :
     _hg(hypergraph),
     _context(context),
-    _top_level(top_level),
-    _task_group_id(task_group_id) { }
+    _top_level(top_level){ }
 
   RecursiveInitialPartitioner(const RecursiveInitialPartitioner&) = delete;
   RecursiveInitialPartitioner(RecursiveInitialPartitioner&&) = delete;
@@ -54,7 +52,6 @@ class RecursiveInitialPartitioner: public IInitialPartitioner {
   PartitionedHypergraph& _hg;
   const Context& _context;
   const bool _top_level;
-  const TaskGroupID _task_group_id;
 };
 
 }  // namespace mt_kahypar

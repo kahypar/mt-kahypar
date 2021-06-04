@@ -26,13 +26,12 @@
 #include "mt-kahypar/partition/initial_partitioning/recursive_initial_partitioner.h"
 #include "mt-kahypar/partition/initial_partitioning/recursive_bisection_initial_partitioner.h"
 
-#define REGISTER_INITIAL_PARTITIONER(id, partitioner)                                                          \
-  static kahypar::meta::Registrar<InitialPartitionerFactory> register_ ## partitioner(                         \
-    id,                                                                                                        \
-    [](PartitionedHypergraph& hypergraph, const Context& context,                                            \
-       const bool top_level, const TaskGroupID task_group_id)                                                  \
-    -> IInitialPartitioner* {                                                                                  \
-    return new partitioner(hypergraph, context, top_level, task_group_id);                                     \
+#define REGISTER_INITIAL_PARTITIONER(id, partitioner)                                           \
+  static kahypar::meta::Registrar<InitialPartitionerFactory> register_ ## partitioner(          \
+    id,                                                                                         \
+    [](PartitionedHypergraph& hypergraph, const Context& context, const bool top_level)         \
+    -> IInitialPartitioner* {                                                                   \
+    return new partitioner(hypergraph, context, top_level);                                     \
   })
 
 namespace mt_kahypar {

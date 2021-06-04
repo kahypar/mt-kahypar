@@ -130,7 +130,7 @@ namespace mt_kahypar::ds {
     auto get_cluster = [&](NodeID u) { assert(u < communities.size()); return communities[u]; };
     vec<NodeID> nodes_sorted_by_cluster(std::move(mapping));    // reuse memory from mapping since it's no longer needed
     auto cluster_bounds = parallel::counting_sort(nodes(), nodes_sorted_by_cluster, num_coarse_nodes,
-                                                  get_cluster, TBBNumaArena::instance().total_number_of_threads());
+                                                  get_cluster, TBBInitializer::instance().total_number_of_threads());
 
     Graph coarse_graph;
     coarse_graph._num_nodes = num_coarse_nodes;

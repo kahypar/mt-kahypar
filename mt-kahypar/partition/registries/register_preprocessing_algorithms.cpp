@@ -30,9 +30,9 @@
 #define REGISTER_HYPERGRAPH_SPARSIFIER(id, sparsifier)                                      \
   static kahypar::meta::Registrar<HypergraphSparsifierFactory> register_ ## sparsifier(     \
     id,                                                                                     \
-    [](const Context& context, const TaskGroupID task_group_id)                             \
+    [](const Context& context)                                                              \
     -> IHypergraphSparsifier* {                                                             \
-    return new sparsifier(context, task_group_id);                                          \
+    return new sparsifier(context);                                                         \
   })
 
 namespace mt_kahypar {

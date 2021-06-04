@@ -134,7 +134,7 @@ DynamicHypergraph DynamicHypergraphFactory::construct(const HypernodeID num_hype
   });
 
   // Compute total weight of hypergraph
-  hypergraph.updateTotalWeight(0);
+  hypergraph.updateTotalWeight(parallel_tag_t());
   utils::Timer::instance().stop_timer("setup_hypergraph");
   return hypergraph;
 }
@@ -206,8 +206,8 @@ DynamicHypergraphFactory::compactify(const DynamicHypergraph& hypergraph) {
 
   // Construct compactified hypergraph
   utils::Timer::instance().start_timer("construct_compactified_hypergraph", "Construct Compactified Hypergraph");
-  DynamicHypergraph compactified_hypergraph = DynamicHypergraphFactory::construct(num_hypernodes, num_hyperedges,
-    edge_vector, hyperedge_weights.data(), hypernode_weights.data());
+  DynamicHypergraph compactified_hypergraph = DynamicHypergraphFactory::construct(
+    num_hypernodes, num_hyperedges, edge_vector, hyperedge_weights.data(), hypernode_weights.data());
   compactified_hypergraph._removed_degree_zero_hn_weight = hypergraph._removed_degree_zero_hn_weight;
   compactified_hypergraph._total_weight += hypergraph._removed_degree_zero_hn_weight;
   utils::Timer::instance().stop_timer("construct_compactified_hypergraph");

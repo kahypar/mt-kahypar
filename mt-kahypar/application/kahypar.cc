@@ -53,19 +53,18 @@ int main(int argc, char* argv[]) {
     context.shared_memory.num_threads = num_available_cpus;
   }
 
+  // Initialize TBB task arenas on numa nodes
+  mt_kahypar::TBBInitializer::instance(context.shared_memory.num_threads);
 
-  // task scheduler and thread pinning
-  mt_kahypar::TBBNumaArena::instance(context.shared_memory.num_threads);
-
-  // interleave memory allocations across numa nodes (if multiple used)
-  hwloc_cpuset_t cpuset = mt_kahypar::TBBNumaArena::instance().used_cpuset();
+  // We set the membind policy to interleaved allocations in order to
+  // distribute allocations evenly across NUMA nodes
+  hwloc_cpuset_t cpuset = mt_kahypar::TBBInitializer::instance().used_cpuset();
   mt_kahypar::parallel::HardwareTopology<>::instance().activate_interleaved_membind_policy(cpuset);
   hwloc_bitmap_free(cpuset);
 
   // Read Hypergraph
   mt_kahypar::Hypergraph hypergraph = mt_kahypar::io::readHypergraphFile(
       context.partition.graph_filename,
-      mt_kahypar::TBBNumaArena::GLOBAL_TASK_GROUP,
       context.preprocessing.stable_construction_of_incident_edges);
 
   // Initialize Memory Pool
@@ -94,6 +93,6 @@ int main(int argc, char* argv[]) {
   }
 
   mt_kahypar::parallel::MemoryPool::instance().free_memory_chunks();
-  mt_kahypar::TBBNumaArena::instance().terminate();
+  mt_kahypar::TBBInitializer::instance().terminate();
   return 0;
 }

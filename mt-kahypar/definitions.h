@@ -21,7 +21,7 @@
 
 #include <chrono>
 #include "mt-kahypar/parallel/hardware_topology.h"
-#include "mt-kahypar/parallel/tbb_numa_arena.h"
+#include "mt-kahypar/parallel/tbb_initializer.h"
 #ifdef USE_STRONG_PARTITIONER
 #include "mt-kahypar/datastructures/dynamic_hypergraph.h"
 #include "mt-kahypar/datastructures/dynamic_hypergraph_factory.h"
@@ -34,7 +34,7 @@
 namespace mt_kahypar {
 
 using HardwareTopology = mt_kahypar::parallel::HardwareTopology<>;
-using TBBNumaArena = mt_kahypar::parallel::TBBNumaArena<HardwareTopology, false>;
+using TBBInitializer = mt_kahypar::parallel::TBBInitializer<HardwareTopology, false>;
 
 
 #ifdef USE_STRONG_PARTITIONER

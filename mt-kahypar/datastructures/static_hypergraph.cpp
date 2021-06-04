@@ -52,9 +52,7 @@ namespace mt_kahypar::ds {
    * \param communities Community structure that should be contracted
    * \param task_group_id Task Group ID
    */
-  StaticHypergraph StaticHypergraph::contract(
-          parallel::scalable_vector<HypernodeID>& communities,
-          const TaskGroupID /* task_group_id */) {
+  StaticHypergraph StaticHypergraph::contract(parallel::scalable_vector<HypernodeID>& communities) {
 
     ASSERT(communities.size() == _num_hypernodes);
 
@@ -510,7 +508,7 @@ namespace mt_kahypar::ds {
 
 
   // ! Copy static hypergraph in parallel
-  StaticHypergraph StaticHypergraph::copy(const TaskGroupID /* task_group_id */) {
+  StaticHypergraph StaticHypergraph::copy(parallel_tag_t) {
     StaticHypergraph hypergraph;
 
     hypergraph._num_hypernodes = _num_hypernodes;
@@ -589,7 +587,7 @@ namespace mt_kahypar::ds {
   }
 
   // ! Computes the total node weight of the hypergraph
-  void StaticHypergraph::computeAndSetTotalNodeWeight(const TaskGroupID) {
+  void StaticHypergraph::computeAndSetTotalNodeWeight(parallel_tag_t) {
     _total_weight = tbb::parallel_reduce(tbb::blocked_range<HypernodeID>(ID(0), _num_hypernodes), 0,
                                          [this](const tbb::blocked_range<HypernodeID>& range, HypernodeWeight init) {
                                            HypernodeWeight weight = init;

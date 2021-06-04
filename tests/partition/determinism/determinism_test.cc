@@ -78,16 +78,16 @@ namespace mt_kahypar {
       context.partition.objective = kahypar::Objective::km1;
 
       // Read hypergraph
-      hypergraph = io::readHypergraphFile(context.partition.graph_filename, TBBNumaArena::GLOBAL_TASK_GROUP, true);
+      hypergraph = io::readHypergraphFile(context.partition.graph_filename, true);
       partitioned_hypergraph = PartitionedHypergraph(
-              context.partition.k, TBBNumaArena::GLOBAL_TASK_GROUP, hypergraph);
+              context.partition.k, hypergraph, parallel_tag_t());
       context.setupPartWeights(hypergraph.totalWeight());
     }
 
     void initialPartition() {
       Context ip_context(context);
       ip_context.refinement.label_propagation.algorithm = LabelPropagationAlgorithm::do_nothing;
-      InitialPartitioningDataContainer ip_data(partitioned_hypergraph, ip_context, TBBNumaArena::GLOBAL_TASK_GROUP);
+      InitialPartitioningDataContainer ip_data(partitioned_hypergraph, ip_context);
       BFSInitialPartitioner& initial_partitioner = *new(tbb::task::allocate_root())
       BFSInitialPartitioner(InitialPartitioningAlgorithm::bfs, ip_data, ip_context, 420, 0);
       tbb::task::spawn_root_and_wait(initial_partitioner);
@@ -111,7 +111,7 @@ namespace mt_kahypar {
           partitioned_hypergraph.setNodePart(u, initial_partition[u]);
         }
 
-        DeterministicLabelPropagationRefiner refiner(hypergraph, context, 0);
+        DeterministicLabelPropagationRefiner refiner(hypergraph, context);
         refiner.initialize(partitioned_hypergraph);
         vec<HypernodeID> dummy_refinement_nodes;
         kahypar::Metrics my_metrics = metrics;
@@ -162,7 +162,7 @@ namespace mt_kahypar {
   TEST_F(DeterminismTest, Coarsening) {
     Hypergraph first;
     for (size_t i = 0; i < num_repetitions; ++i) {
-      DeterministicMultilevelCoarsener coarsener(hypergraph, context, 0, true);
+      DeterministicMultilevelCoarsener coarsener(hypergraph, context, true);
       coarsener.coarsen();
       if (i == 0) {
         first = coarsener.coarsestHypergraph().copy();
@@ -207,7 +207,7 @@ namespace mt_kahypar {
   TEST_F(DeterminismTest, RefinementK2) {
     context.partition.k = 2;
     partitioned_hypergraph = PartitionedHypergraph(
-            context.partition.k, TBBNumaArena::GLOBAL_TASK_GROUP, hypergraph);
+            context.partition.k, hypergraph, parallel_tag_t());
     context.setupPartWeights(hypergraph.totalWeight());
     performRepeatedRefinement();
   }

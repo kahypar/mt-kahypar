@@ -104,13 +104,11 @@ class MultilevelCoarsenerBase {
  public:
   MultilevelCoarsenerBase(Hypergraph& hypergraph,
                           const Context& context,
-                          const TaskGroupID task_group_id,
                           const bool top_level) :
           _is_finalized(false),
           _hg(hypergraph),
           _partitioned_hg(),
           _context(context),
-          _task_group_id(task_group_id),
           _top_level(top_level),
           _hierarchy() {
     size_t estimated_number_of_levels = 1UL;
@@ -186,7 +184,6 @@ class MultilevelCoarsenerBase {
   Hypergraph& _hg;
   PartitionedHypergraph _partitioned_hg;
   const Context& _context;
-  const TaskGroupID _task_group_id;
   const bool _top_level;
   vec<Level> _hierarchy;
 };
