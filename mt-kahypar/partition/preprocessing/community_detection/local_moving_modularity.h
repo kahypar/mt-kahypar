@@ -105,15 +105,6 @@ class ParallelLocalMovingModularity {
   MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE PartitionID computeMaxGainCluster(const Graph& graph,
                                                                        const ds::Clustering& communities,
                                                                        const NodeID u) {
-    /*
-    if ( ratingsFitIntoSmallSparseMap(graph, u) ) {
-      return computeMaxGainCluster(graph, communities, u, _local_small_incident_cluster_weight.local());
-    } else {
-      LargeIncidentClusterWeights& large_incident_cluster_weight = _local_large_incident_cluster_weight.local();
-      large_incident_cluster_weight.setMaxSize(3UL * std::min(_max_degree, _vertex_degree_sampling_threshold));
-      return computeMaxGainCluster(graph, communities, u, large_incident_cluster_weight);
-    }
-    */
     return computeMaxGainCluster(graph, communities, u, non_sampling_incident_cluster_weights.local());
   }
 
