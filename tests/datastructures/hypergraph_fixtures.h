@@ -18,6 +18,8 @@
  *
  ******************************************************************************/
 
+#pragma once
+
 #include "gmock/gmock.h"
 
 #include "kahypar/definitions.h"
