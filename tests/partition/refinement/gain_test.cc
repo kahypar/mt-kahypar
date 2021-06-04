@@ -36,7 +36,7 @@ namespace mt_kahypar {
   public:
 
     GainComputerTest() :
-            hg(HypergraphFactory::construct(TBBNumaArena::GLOBAL_TASK_GROUP,
+            hg(HypergraphFactory::construct(
                                             7, 4,
                                             {{0, 2},
                                                    {0, 1, 3, 4},
@@ -46,7 +46,7 @@ namespace mt_kahypar {
             gain(K) {
       context.partition.k = K;
       context.partition.max_part_weights.assign(K, std::numeric_limits<HypernodeWeight>::max());
-      phg = PartitionedHypergraph(K, TBBNumaArena::GLOBAL_TASK_GROUP, hg);
+      phg = PartitionedHypergraph(K, hg, parallel_tag_t());
     }
 
     void assignPartitionIDs(const std::vector<PartitionID>& part_ids) {
@@ -136,4 +136,4 @@ namespace mt_kahypar {
     ASSERT_EQ(3, to);
     ASSERT_EQ(0, g);
   }
-} // namespace 
+} // namespace

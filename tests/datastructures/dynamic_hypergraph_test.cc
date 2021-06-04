@@ -149,7 +149,7 @@ TEST_F(ADynamicHypergraph, ModifiesNodeWeight) {
   hypergraph.setNodeWeight(6, 2);
   ASSERT_EQ(2, hypergraph.nodeWeight(0));
   ASSERT_EQ(2, hypergraph.nodeWeight(6));
-  hypergraph.updateTotalWeight(TBBNumaArena::GLOBAL_TASK_GROUP);
+  hypergraph.updateTotalWeight(parallel_tag_t());
   ASSERT_EQ(9, hypergraph.totalWeight());
 }
 
@@ -250,7 +250,7 @@ TEST_F(ADynamicHypergraph, RemovesAHyperedgeFromTheHypergraph4) {
 }
 
 TEST_F(ADynamicHypergraph, ComparesStatsIfCopiedParallel) {
-  DynamicHypergraph copy_hg = hypergraph.copy(TBBNumaArena::GLOBAL_TASK_GROUP);
+  DynamicHypergraph copy_hg = hypergraph.copy(parallel_tag_t());
   ASSERT_EQ(hypergraph.initialNumNodes(), copy_hg.initialNumNodes());
   ASSERT_EQ(hypergraph.initialNumEdges(), copy_hg.initialNumEdges());
   ASSERT_EQ(hypergraph.initialNumPins(), copy_hg.initialNumPins());
@@ -270,7 +270,7 @@ TEST_F(ADynamicHypergraph, ComparesStatsIfCopiedSequential) {
 }
 
 TEST_F(ADynamicHypergraph, ComparesIncidentNetsIfCopiedParallel) {
-  DynamicHypergraph copy_hg = hypergraph.copy(TBBNumaArena::GLOBAL_TASK_GROUP);
+  DynamicHypergraph copy_hg = hypergraph.copy(parallel_tag_t());
   verifyIncidentNets(copy_hg, 0, { 0, 1 });
   verifyIncidentNets(copy_hg, 1, { 1 });
   verifyIncidentNets(copy_hg, 2, { 0, 3 });
@@ -292,7 +292,7 @@ TEST_F(ADynamicHypergraph, ComparesIncidentNetsIfCopiedSequential) {
 }
 
 TEST_F(ADynamicHypergraph, ComparesPinsOfHyperedgesIfCopiedParallel) {
-  DynamicHypergraph copy_hg = hypergraph.copy(TBBNumaArena::GLOBAL_TASK_GROUP);
+  DynamicHypergraph copy_hg = hypergraph.copy(parallel_tag_t());
   verifyPins(copy_hg, { 0, 1, 2, 3 },
     { {0, 2}, {0, 1, 3, 4}, {3, 4, 6}, {2, 5, 6} });
 }
@@ -305,7 +305,7 @@ TEST_F(ADynamicHypergraph, ComparesPinsOfHyperedgesIfCopiedSequential) {
 
 TEST_F(ADynamicHypergraph, ComparesCommunityIdsIfCopiedParallel) {
   assignCommunityIds();
-  DynamicHypergraph copy_hg = hypergraph.copy(TBBNumaArena::GLOBAL_TASK_GROUP);
+  DynamicHypergraph copy_hg = hypergraph.copy(parallel_tag_t());
   ASSERT_EQ(hypergraph.communityID(0), copy_hg.communityID(0));
   ASSERT_EQ(hypergraph.communityID(1), copy_hg.communityID(1));
   ASSERT_EQ(hypergraph.communityID(2), copy_hg.communityID(2));
@@ -1410,7 +1410,7 @@ TEST_F(ADynamicHypergraph, GeneratesACompactifiedHypergraph1) {
   }
   hypergraph.removeSinglePinAndParallelHyperedges();
 
-  auto res = DynamicHypergraphFactory::compactify(TBBNumaArena::GLOBAL_TASK_GROUP, hypergraph);
+  auto res = DynamicHypergraphFactory::compactify(hypergraph);
   DynamicHypergraph& compactified_hg = res.first;
   ASSERT_EQ(6, compactified_hg.initialNumNodes());
   ASSERT_EQ(3, compactified_hg.initialNumEdges());
@@ -1428,7 +1428,7 @@ TEST_F(ADynamicHypergraph, GeneratesACompactifiedHypergraph2) {
   }
   hypergraph.removeSinglePinAndParallelHyperedges();
 
-  auto res = DynamicHypergraphFactory::compactify(TBBNumaArena::GLOBAL_TASK_GROUP, hypergraph);
+  auto res = DynamicHypergraphFactory::compactify(hypergraph);
   DynamicHypergraph& compactified_hg = res.first;
   ASSERT_EQ(3, compactified_hg.initialNumNodes());
   ASSERT_EQ(1, compactified_hg.initialNumEdges());

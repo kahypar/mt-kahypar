@@ -77,13 +77,13 @@ void executeConcurrent(const F1& f1, const F2& f2, const F3& f3) {
 }
 
 TEST_F(ASparsifierHypergraph, HasCorrectNumNodesAndEdges) {
-  SparsifierHyperGraph s_hg(hypergraph, TBBNumaArena::GLOBAL_TASK_GROUP);
+  SparsifierHyperGraph s_hg(hypergraph);
   ASSERT_EQ(7, s_hg.numNodes());
   ASSERT_EQ(4, s_hg.numEdges());
 }
 
 TEST_F(ASparsifierHypergraph, HasCorrectNodeWeights) {
-  SparsifierHyperGraph s_hg(hypergraph, TBBNumaArena::GLOBAL_TASK_GROUP);
+  SparsifierHyperGraph s_hg(hypergraph);
   ASSERT_EQ(1, s_hg.nodeWeight(0));
   ASSERT_EQ(1, s_hg.nodeWeight(1));
   ASSERT_EQ(1, s_hg.nodeWeight(2));
@@ -94,7 +94,7 @@ TEST_F(ASparsifierHypergraph, HasCorrectNodeWeights) {
 }
 
 TEST_F(ASparsifierHypergraph, HasCorrectNodesDegrees) {
-  SparsifierHyperGraph s_hg(hypergraph, TBBNumaArena::GLOBAL_TASK_GROUP);
+  SparsifierHyperGraph s_hg(hypergraph);
   ASSERT_EQ(2, s_hg.nodeDegree(0));
   ASSERT_EQ(1, s_hg.nodeDegree(1));
   ASSERT_EQ(2, s_hg.nodeDegree(2));
@@ -105,7 +105,7 @@ TEST_F(ASparsifierHypergraph, HasCorrectNodesDegrees) {
 }
 
 TEST_F(ASparsifierHypergraph, HasCorrectEdgeWeight) {
-  SparsifierHyperGraph s_hg(hypergraph, TBBNumaArena::GLOBAL_TASK_GROUP);
+  SparsifierHyperGraph s_hg(hypergraph);
   ASSERT_EQ(1, s_hg.edgeWeight(0));
   ASSERT_EQ(1, s_hg.edgeWeight(1));
   ASSERT_EQ(1, s_hg.edgeWeight(2));
@@ -113,27 +113,27 @@ TEST_F(ASparsifierHypergraph, HasCorrectEdgeWeight) {
 }
 
 TEST_F(ASparsifierHypergraph, HasCorrectPins1) {
-  SparsifierHyperGraph s_hg(hypergraph, TBBNumaArena::GLOBAL_TASK_GROUP);
+  SparsifierHyperGraph s_hg(hypergraph);
   verifyPinsOfSparsifiedHypergraph(s_hg, ID(0), {0, 2});
 }
 
 TEST_F(ASparsifierHypergraph, HasCorrectPins2) {
-  SparsifierHyperGraph s_hg(hypergraph, TBBNumaArena::GLOBAL_TASK_GROUP);
+  SparsifierHyperGraph s_hg(hypergraph);
   verifyPinsOfSparsifiedHypergraph(s_hg, ID(1), {0, 1, 3, 4});
 }
 
 TEST_F(ASparsifierHypergraph, HasCorrectPins3) {
-  SparsifierHyperGraph s_hg(hypergraph, TBBNumaArena::GLOBAL_TASK_GROUP);
+  SparsifierHyperGraph s_hg(hypergraph);
   verifyPinsOfSparsifiedHypergraph(s_hg, ID(2), {3, 4, 6});
 }
 
 TEST_F(ASparsifierHypergraph, HasCorrectPins4) {
-  SparsifierHyperGraph s_hg(hypergraph, TBBNumaArena::GLOBAL_TASK_GROUP);
+  SparsifierHyperGraph s_hg(hypergraph);
   verifyPinsOfSparsifiedHypergraph(s_hg, ID(3), {2, 5, 6});
 }
 
 TEST_F(ASparsifierHypergraph, ContractsTwoVertices1) {
-  SparsifierHyperGraph s_hg(hypergraph, TBBNumaArena::GLOBAL_TASK_GROUP);
+  SparsifierHyperGraph s_hg(hypergraph);
   s_hg.contract(0, 2);
   ASSERT_EQ(1, s_hg.numRemovedNodes());
   ASSERT_EQ(2, s_hg.nodeWeight(0));
@@ -148,7 +148,7 @@ TEST_F(ASparsifierHypergraph, ContractsTwoVertices1) {
 }
 
 TEST_F(ASparsifierHypergraph, ContractsTwoVertices2) {
-  SparsifierHyperGraph s_hg(hypergraph, TBBNumaArena::GLOBAL_TASK_GROUP);
+  SparsifierHyperGraph s_hg(hypergraph);
   s_hg.contract(3, 4);
   ASSERT_EQ(1, s_hg.numRemovedNodes());
   ASSERT_EQ(2, s_hg.nodeWeight(3));
@@ -163,7 +163,7 @@ TEST_F(ASparsifierHypergraph, ContractsTwoVertices2) {
 }
 
 TEST_F(ASparsifierHypergraph, ContractsSeveralVertices1) {
-  SparsifierHyperGraph s_hg(hypergraph, TBBNumaArena::GLOBAL_TASK_GROUP);
+  SparsifierHyperGraph s_hg(hypergraph);
   s_hg.contract(0, 2);
   s_hg.contract(3, 4);
   ASSERT_EQ(2, s_hg.numRemovedNodes());
@@ -177,7 +177,7 @@ TEST_F(ASparsifierHypergraph, ContractsSeveralVertices1) {
 }
 
 TEST_F(ASparsifierHypergraph, ContractsSeveralVertices2) {
-  SparsifierHyperGraph s_hg(hypergraph, TBBNumaArena::GLOBAL_TASK_GROUP);
+  SparsifierHyperGraph s_hg(hypergraph);
   s_hg.contract(0, 2);
   s_hg.contract(0, 1);
   ASSERT_EQ(2, s_hg.numRemovedNodes());
@@ -190,7 +190,7 @@ TEST_F(ASparsifierHypergraph, ContractsSeveralVertices2) {
 }
 
 TEST_F(ASparsifierHypergraph, ContractsSeveralVerticesConcurrently1) {
-  SparsifierHyperGraph s_hg(hypergraph, TBBNumaArena::GLOBAL_TASK_GROUP);
+  SparsifierHyperGraph s_hg(hypergraph);
   executeConcurrent([&] {
     s_hg.contract(0, 2);
   }, [&] {
@@ -207,7 +207,7 @@ TEST_F(ASparsifierHypergraph, ContractsSeveralVerticesConcurrently1) {
 }
 
 TEST_F(ASparsifierHypergraph, ContractsSeveralVerticesConcurrently2) {
-  SparsifierHyperGraph s_hg(hypergraph, TBBNumaArena::GLOBAL_TASK_GROUP);
+  SparsifierHyperGraph s_hg(hypergraph);
   executeConcurrent([&] {
     s_hg.contract(0, 2);
   }, [&] {
@@ -227,7 +227,7 @@ TEST_F(ASparsifierHypergraph, ContractsSeveralVerticesConcurrently2) {
 }
 
 TEST_F(ASparsifierHypergraph, ContractsSeveralVerticesConcurrently3) {
-  SparsifierHyperGraph s_hg(hypergraph, TBBNumaArena::GLOBAL_TASK_GROUP);
+  SparsifierHyperGraph s_hg(hypergraph);
   executeConcurrent([&] {
     s_hg.contract(0, 2);
     s_hg.contract(0, 1);
@@ -248,7 +248,7 @@ TEST_F(ASparsifierHypergraph, ContractsSeveralVerticesConcurrently3) {
 }
 
 TEST_F(ASparsifierHypergraph, ModifiesEdgeWeight1) {
-  SparsifierHyperGraph s_hg(hypergraph, TBBNumaArena::GLOBAL_TASK_GROUP);
+  SparsifierHyperGraph s_hg(hypergraph);
   s_hg.setEdgeWeight(0, 3);
   ASSERT_EQ(3, s_hg.edgeWeight(0));
 
@@ -257,7 +257,7 @@ TEST_F(ASparsifierHypergraph, ModifiesEdgeWeight1) {
 }
 
 TEST_F(ASparsifierHypergraph, ModifiesEdgeWeight2) {
-  SparsifierHyperGraph s_hg(hypergraph, TBBNumaArena::GLOBAL_TASK_GROUP);
+  SparsifierHyperGraph s_hg(hypergraph);
   s_hg.setEdgeWeight(2, 4);
   ASSERT_EQ(4, s_hg.edgeWeight(2));
 
@@ -266,7 +266,7 @@ TEST_F(ASparsifierHypergraph, ModifiesEdgeWeight2) {
 }
 
 TEST_F(ASparsifierHypergraph, ModifiesEdgeWeightConcurrently) {
-  SparsifierHyperGraph s_hg(hypergraph, TBBNumaArena::GLOBAL_TASK_GROUP);
+  SparsifierHyperGraph s_hg(hypergraph);
   s_hg.setEdgeWeight(2, 4);
   executeConcurrent([&] {
     s_hg.setEdgeWeight(0, 2);
@@ -286,7 +286,7 @@ TEST_F(ASparsifierHypergraph, ModifiesEdgeWeightConcurrently) {
 }
 
 TEST_F(ASparsifierHypergraph, RemovesAHyperedge1) {
-  SparsifierHyperGraph s_hg(hypergraph, TBBNumaArena::GLOBAL_TASK_GROUP);
+  SparsifierHyperGraph s_hg(hypergraph);
   s_hg.remove(0);
   ASSERT_EQ(1, s_hg.nodeDegree(0));
   ASSERT_EQ(1, s_hg.nodeDegree(2));
@@ -298,7 +298,7 @@ TEST_F(ASparsifierHypergraph, RemovesAHyperedge1) {
 }
 
 TEST_F(ASparsifierHypergraph, RemovesAHyperedge2) {
-  SparsifierHyperGraph s_hg(hypergraph, TBBNumaArena::GLOBAL_TASK_GROUP);
+  SparsifierHyperGraph s_hg(hypergraph);
   s_hg.remove(1);
   ASSERT_EQ(1, s_hg.nodeDegree(0));
   ASSERT_EQ(0, s_hg.nodeDegree(1));
@@ -312,7 +312,7 @@ TEST_F(ASparsifierHypergraph, RemovesAHyperedge2) {
 }
 
 TEST_F(ASparsifierHypergraph, RemovesHyperedgesConcurrently) {
-  SparsifierHyperGraph s_hg(hypergraph, TBBNumaArena::GLOBAL_TASK_GROUP);
+  SparsifierHyperGraph s_hg(hypergraph);
   executeConcurrent([&] {
     s_hg.remove(2);
   }, [&] {
@@ -333,7 +333,7 @@ TEST_F(ASparsifierHypergraph, RemovesHyperedgesConcurrently) {
 }
 
 TEST_F(ASparsifierHypergraph, ReplacesAHyperedge1) {
-  SparsifierHyperGraph s_hg(hypergraph, TBBNumaArena::GLOBAL_TASK_GROUP);
+  SparsifierHyperGraph s_hg(hypergraph);
   parallel::scalable_vector<HyperedgeID> edge = { 4, 5, 6 };
   s_hg.replace(1, std::move(edge));
   ASSERT_EQ(1, s_hg.nodeDegree(0));
@@ -350,7 +350,7 @@ TEST_F(ASparsifierHypergraph, ReplacesAHyperedge1) {
 }
 
 TEST_F(ASparsifierHypergraph, ReplacesAHyperedge2) {
-  SparsifierHyperGraph s_hg(hypergraph, TBBNumaArena::GLOBAL_TASK_GROUP);
+  SparsifierHyperGraph s_hg(hypergraph);
   parallel::scalable_vector<HyperedgeID> edge = { 0, 1, 2, 3, 4, 5, 6 };
   s_hg.replace(3, std::move(edge));
   ASSERT_EQ(3, s_hg.nodeDegree(0));
@@ -367,7 +367,7 @@ TEST_F(ASparsifierHypergraph, ReplacesAHyperedge2) {
 }
 
 TEST_F(ASparsifierHypergraph, ReplacesAHyperedgesConcurrently) {
-  SparsifierHyperGraph s_hg(hypergraph, TBBNumaArena::GLOBAL_TASK_GROUP);
+  SparsifierHyperGraph s_hg(hypergraph);
   executeConcurrent([&] {
     parallel::scalable_vector<HyperedgeID> edge = { 0, 4, 6 };
     s_hg.replace(1, std::move(edge));
@@ -389,7 +389,7 @@ TEST_F(ASparsifierHypergraph, ReplacesAHyperedgesConcurrently) {
 }
 
 TEST_F(ASparsifierHypergraph, ExecutesMixedModificationsConcurrently1) {
-  SparsifierHyperGraph s_hg(hypergraph, TBBNumaArena::GLOBAL_TASK_GROUP);
+  SparsifierHyperGraph s_hg(hypergraph);
   executeConcurrent([&] {
     parallel::scalable_vector<HyperedgeID> edge = { 0, 4, 6 };
     s_hg.replace(1, std::move(edge));
@@ -410,7 +410,7 @@ TEST_F(ASparsifierHypergraph, ExecutesMixedModificationsConcurrently1) {
 }
 
 TEST_F(ASparsifierHypergraph, ExecutesMixedModificationsConcurrently2) {
-  SparsifierHyperGraph s_hg(hypergraph, TBBNumaArena::GLOBAL_TASK_GROUP);
+  SparsifierHyperGraph s_hg(hypergraph);
   executeConcurrent([&] {
     s_hg.remove(3);
   }, [&] {
@@ -430,7 +430,7 @@ TEST_F(ASparsifierHypergraph, ExecutesMixedModificationsConcurrently2) {
 }
 
 TEST_F(ASparsifierHypergraph, ExecutesMixedModificationsConcurrently3) {
-  SparsifierHyperGraph s_hg(hypergraph, TBBNumaArena::GLOBAL_TASK_GROUP);
+  SparsifierHyperGraph s_hg(hypergraph);
   executeConcurrent([&] {
     s_hg.remove(3);
   }, [&] {
@@ -451,13 +451,12 @@ TEST_F(ASparsifierHypergraph, ExecutesMixedModificationsConcurrently3) {
 }
 
 TEST_F(ASparsifierHypergraph, SparsifiesHypergraphWithDisabledHypernodes) {
-  Hypergraph degree_zero_hg = HypergraphFactory::construct(
-    TBBNumaArena::GLOBAL_TASK_GROUP, 7, 2,
+  Hypergraph degree_zero_hg = HypergraphFactory::construct(7, 2,
     { { 3, 4, 5 }, {4, 5, 6} } );
   degree_zero_hg.removeHypernode(1);
   degree_zero_hg.removeHypernode(2);
 
-  SparsifierHyperGraph s_hg(degree_zero_hg, TBBNumaArena::GLOBAL_TASK_GROUP);
+  SparsifierHyperGraph s_hg(degree_zero_hg);
   ASSERT_EQ(2, s_hg.numRemovedNodes());
   Hypergraph hg = s_hg.sparsify();
   ASSERT_EQ(5, hg.initialNumNodes());
@@ -466,12 +465,11 @@ TEST_F(ASparsifierHypergraph, SparsifiesHypergraphWithDisabledHypernodes) {
 }
 
 TEST_F(ASparsifierHypergraph, SparsifiesHypergraphWithDisabledHyperedges) {
-  Hypergraph single_pin_hg = HypergraphFactory::construct(
-    TBBNumaArena::GLOBAL_TASK_GROUP, 7, 3,
+  Hypergraph single_pin_hg = HypergraphFactory::construct(7, 3,
     { {0}, { 3, 4, 5 }, {4, 5, 6} } );
   single_pin_hg.removeEdge(0);
 
-  SparsifierHyperGraph s_hg(single_pin_hg, TBBNumaArena::GLOBAL_TASK_GROUP);
+  SparsifierHyperGraph s_hg(single_pin_hg);
   Hypergraph hg = s_hg.sparsify();
   ASSERT_EQ(2, hg.initialNumEdges());
   verifyPins(hg, {0, 1},
@@ -479,14 +477,13 @@ TEST_F(ASparsifierHypergraph, SparsifiesHypergraphWithDisabledHyperedges) {
 }
 
 TEST_F(ASparsifierHypergraph, SparsifiesHypergraphWithDisabledHypernodesAndHyperedges) {
-  Hypergraph single_pin_hg = HypergraphFactory::construct(
-    TBBNumaArena::GLOBAL_TASK_GROUP, 7, 3,
+  Hypergraph single_pin_hg = HypergraphFactory::construct(7, 3,
     { {0}, { 3, 4, 5 }, {4, 5, 6} } );
   single_pin_hg.removeEdge(0);
   single_pin_hg.removeHypernode(1);
   single_pin_hg.removeHypernode(2);
 
-  SparsifierHyperGraph s_hg(single_pin_hg, TBBNumaArena::GLOBAL_TASK_GROUP);
+  SparsifierHyperGraph s_hg(single_pin_hg);
   ASSERT_EQ(2, s_hg.numRemovedNodes());
   Hypergraph hg = s_hg.sparsify();
   ASSERT_EQ(5, hg.initialNumNodes());

@@ -56,7 +56,7 @@ class InitialPartitionerRootTaskT : public tbb::task {
                               const Context& context,
                               const InitialPartitioningAlgorithm algorithm,
                               const size_t runs) :
-    _ip_data(hypergraph, context, TBBNumaArena::GLOBAL_TASK_GROUP),
+    _ip_data(hypergraph, context),
     _context(context),
     _algorithm(algorithm),
     _runs(runs) {}
@@ -98,7 +98,7 @@ class AFlatInitialPartitionerTest : public Test {
     hypergraph = io::readHypergraphFile(
       "../tests/instances/test_instance.hgr", TBBNumaArena::GLOBAL_TASK_GROUP);
     partitioned_hypergraph = PartitionedHypergraph(
-      context.partition.k, TBBNumaArena::GLOBAL_TASK_GROUP, hypergraph);
+      context.partition.k, hypergraph, parallel_tag_t());
     context.setupPartWeights(hypergraph.totalWeight());
     context.refinement.label_propagation.algorithm = LabelPropagationAlgorithm::do_nothing;
     context.initial_partitioning.refinement.label_propagation.algorithm = LabelPropagationAlgorithm::do_nothing;

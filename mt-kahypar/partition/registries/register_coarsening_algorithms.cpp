@@ -25,21 +25,21 @@
 #include "mt-kahypar/partition/factories.h"
 
 
-#define REGISTER_DISPATCHED_COARSENER(id, dispatcher, ...)                                                      \
-  static kahypar::meta::Registrar<CoarsenerFactory> register_ ## dispatcher(                                    \
-    id,                                                                                                         \
-    [](Hypergraph& hypergraph, const Context& context, const TaskGroupID task_group_id, const bool top_level) { \
-    return dispatcher::create(                                                                                  \
-      std::forward_as_tuple(hypergraph, context, task_group_id, top_level),                                     \
-      __VA_ARGS__                                                                                               \
-      );                                                                                                        \
+#define REGISTER_DISPATCHED_COARSENER(id, dispatcher, ...)                                      \
+  static kahypar::meta::Registrar<CoarsenerFactory> register_ ## dispatcher(                    \
+    id,                                                                                         \
+    [](Hypergraph& hypergraph, const Context& context, const bool top_level) {                  \
+    return dispatcher::create(                                                                  \
+      std::forward_as_tuple(hypergraph, context, top_level),                                    \
+      __VA_ARGS__                                                                               \
+      );                                                                                        \
   })
 
-#define REGISTER_COARSENER(id, coarsener)                                                                                        \
-  static kahypar::meta::Registrar<CoarsenerFactory> register_ ## coarsener(                                                      \
-    id,                                                                                                                          \
-    [](Hypergraph& hypergraph, const Context& context, const TaskGroupID task_group_id, const bool top_level) -> ICoarsener* {   \
-    return new coarsener(hypergraph, context, task_group_id, top_level);                                                         \
+#define REGISTER_COARSENER(id, coarsener)                                                       \
+  static kahypar::meta::Registrar<CoarsenerFactory> register_ ## coarsener(                     \
+    id,                                                                                         \
+    [](Hypergraph& hypergraph, const Context& context, const bool top_level) -> ICoarsener* {   \
+    return new coarsener(hypergraph, context, top_level);                                       \
   })
 
 

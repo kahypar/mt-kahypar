@@ -34,14 +34,14 @@ class AGainPolicy : public Test {
   using GainCalculator = GainPolicy<PartitionedHypergraph>;
 
   AGainPolicy() :
-    hg(HypergraphFactory::construct(TBBNumaArena::GLOBAL_TASK_GROUP,
+    hg(HypergraphFactory::construct(
       7 , 4, { {0, 2}, {0, 1, 3, 4}, {3, 4, 6}, {2, 5, 6} })),
     context(),
     gain(nullptr) {
     context.partition.k = K;
     context.partition.max_part_weights.assign(K, std::numeric_limits<HypernodeWeight>::max());
     gain = std::make_unique<GainCalculator>(context, true  /* disable randomization */);
-    hypergraph = PartitionedHypergraph(K, TBBNumaArena::GLOBAL_TASK_GROUP, hg);
+    hypergraph = PartitionedHypergraph(K, hg, parallel_tag_t());
   }
 
   void assignPartitionIDs(const std::vector<PartitionID>& part_ids) {

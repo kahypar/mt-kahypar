@@ -59,7 +59,7 @@ class APoolInitialPartitionerTest : public Test {
     hypergraph = io::readHypergraphFile(
       "../tests/instances/test_instance.hgr", TBBNumaArena::GLOBAL_TASK_GROUP);
     partitioned_hypergraph = PartitionedHypergraph(
-      context.partition.k, TBBNumaArena::GLOBAL_TASK_GROUP, hypergraph);
+      context.partition.k, hypergraph, parallel_tag_t());
     context.setupPartWeights(hypergraph.totalWeight());
     utils::Timer::instance().disable();
   }
@@ -90,7 +90,7 @@ TYPED_TEST_CASE(APoolInitialPartitionerTest, TestConfigs);
 
 TYPED_TEST(APoolInitialPartitionerTest, HasValidImbalance) {
   PoolInitialPartitioner& initial_partitioner = *new(tbb::task::allocate_root())
-    PoolInitialPartitioner(this->partitioned_hypergraph, this->context, TBBNumaArena::GLOBAL_TASK_GROUP);
+    PoolInitialPartitioner(this->partitioned_hypergraph, this->context);
   tbb::task::spawn_root_and_wait(initial_partitioner);
 
   ASSERT_LE(metrics::imbalance(this->partitioned_hypergraph, this->context),
@@ -99,7 +99,7 @@ TYPED_TEST(APoolInitialPartitionerTest, HasValidImbalance) {
 
 TYPED_TEST(APoolInitialPartitionerTest, AssginsEachHypernode) {
   PoolInitialPartitioner& initial_partitioner = *new(tbb::task::allocate_root())
-    PoolInitialPartitioner(this->partitioned_hypergraph, this->context, TBBNumaArena::GLOBAL_TASK_GROUP);
+    PoolInitialPartitioner(this->partitioned_hypergraph, this->context);
   tbb::task::spawn_root_and_wait(initial_partitioner);
 
   for ( const HypernodeID& hn : this->partitioned_hypergraph.nodes() ) {
@@ -109,7 +109,7 @@ TYPED_TEST(APoolInitialPartitionerTest, AssginsEachHypernode) {
 
 TYPED_TEST(APoolInitialPartitionerTest, HasNoSignificantLowPartitionWeights) {
   PoolInitialPartitioner& initial_partitioner = *new(tbb::task::allocate_root())
-    PoolInitialPartitioner(this->partitioned_hypergraph, this->context, TBBNumaArena::GLOBAL_TASK_GROUP);
+    PoolInitialPartitioner(this->partitioned_hypergraph, this->context);
   tbb::task::spawn_root_and_wait(initial_partitioner);
 
   // Each block should have a weight greater or equal than 20% of the average

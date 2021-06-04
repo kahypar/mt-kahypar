@@ -40,9 +40,9 @@ class ADeltaPartitionedHypergraph : public Test {
  public:
 
   ADeltaPartitionedHypergraph() :
-    hg(mt_kahypar::HypergraphFactory::construct(TBBNumaArena::GLOBAL_TASK_GROUP,
+    hg(mt_kahypar::HypergraphFactory::construct(
       7 , 4, { {0, 2}, {0, 1, 3, 4}, {3, 4, 6}, {2, 5, 6} })),
-    phg(3, TBBNumaArena::GLOBAL_TASK_GROUP, hg),
+    phg(3, hg, parallel_tag_t()),
     delta_phg(3) {
     phg.setOnlyNodePart(0, 0);
     phg.setOnlyNodePart(1, 0);
@@ -51,7 +51,7 @@ class ADeltaPartitionedHypergraph : public Test {
     phg.setOnlyNodePart(4, 1);
     phg.setOnlyNodePart(5, 2);
     phg.setOnlyNodePart(6, 2);
-    phg.initializePartition(TBBNumaArena::GLOBAL_TASK_GROUP);
+    phg.initializePartition();
     phg.initializeGainCache();
     delta_phg.setPartitionedHypergraph(&phg);
   }

@@ -73,9 +73,8 @@ class MultilevelCoarsener : public ICoarsener,
  public:
   MultilevelCoarsener(Hypergraph& hypergraph,
                       const Context& context,
-                      const TaskGroupID task_group_id,
                       const bool top_level) :
-    Base(hypergraph, context, task_group_id, top_level),
+    Base(hypergraph, context, top_level),
     _rater(hypergraph, context),
     _current_vertices(),
     _matching_state(),
@@ -468,7 +467,6 @@ class MultilevelCoarsener : public ICoarsener,
   }
 
   using Base::_context;
-  using Base::_task_group_id;
   Rater _rater;
   parallel::scalable_vector<HypernodeID> _current_vertices;
   parallel::scalable_vector<AtomicMatchingState> _matching_state;

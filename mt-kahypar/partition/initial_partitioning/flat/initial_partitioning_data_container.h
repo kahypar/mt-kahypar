@@ -169,7 +169,6 @@ class InitialPartitioningDataContainer {
 
     LocalInitialPartitioningHypergraph(Hypergraph& hypergraph,
                                        const Context& context,
-                                       const TaskGroupID task_group_id,
                                        GlobalInitialPartitioningStats& global_stats,
                                        const bool disable_fm) :
       _partitioned_hypergraph(context.partition.k, hypergraph),
@@ -194,7 +193,7 @@ class InitialPartitioningDataContainer {
       } else if ( _context.refinement.label_propagation.algorithm != LabelPropagationAlgorithm::do_nothing ) {
         // In case of a direct-kway initial partition we instantiate the LP refiner
         _label_propagation = LabelPropagationFactory::getInstance().createObject(
-          _context.refinement.label_propagation.algorithm, hypergraph, _context, task_group_id);
+          _context.refinement.label_propagation.algorithm, hypergraph, _context);
       }
     }
 
@@ -330,11 +329,9 @@ class InitialPartitioningDataContainer {
  public:
   InitialPartitioningDataContainer(PartitionedHypergraph& hypergraph,
                                     const Context& context,
-                                    const TaskGroupID task_group_id,
                                     const bool disable_fm = false) :
     _partitioned_hg(hypergraph),
     _context(context),
-    _task_group_id(task_group_id),
     _disable_fm(disable_fm),
     _global_stats(context),
     _local_hg([&] {
@@ -515,7 +512,7 @@ class InitialPartitioningDataContainer {
       ASSERT(part_id != kInvalidPartition && part_id < _partitioned_hg.k());
       _partitioned_hg.setOnlyNodePart(hn, part_id);
     });
-    _partitioned_hg.initializePartition(_task_group_id);
+    _partitioned_hg.initializePartition();
 
     utils::InitialPartitioningStats::instance().add_initial_partitioning_result(
       best->_result._algorithm, number_of_threads, stats);
@@ -526,12 +523,11 @@ class InitialPartitioningDataContainer {
  private:
   LocalInitialPartitioningHypergraph construct_local_partitioned_hypergraph() {
     return LocalInitialPartitioningHypergraph(
-      _partitioned_hg.hypergraph(), _context, _task_group_id, _global_stats, _disable_fm);
+      _partitioned_hg.hypergraph(), _context, _global_stats, _disable_fm);
   }
 
   PartitionedHypergraph& _partitioned_hg;
   Context _context;
-  const TaskGroupID _task_group_id;
   const bool _disable_fm;
 
   GlobalInitialPartitioningStats _global_stats;

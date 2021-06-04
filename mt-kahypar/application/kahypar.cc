@@ -66,7 +66,6 @@ int main(int argc, char* argv[]) {
   // Read Hypergraph
   mt_kahypar::Hypergraph hypergraph = mt_kahypar::io::readHypergraphFile(
       context.partition.graph_filename,
-      mt_kahypar::TBBNumaArena::GLOBAL_TASK_GROUP,
       context.preprocessing.stable_construction_of_incident_edges);
 
   // Initialize Memory Pool

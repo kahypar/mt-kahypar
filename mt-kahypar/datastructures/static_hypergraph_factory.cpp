@@ -30,7 +30,6 @@
 namespace mt_kahypar::ds {
 
   StaticHypergraph StaticHypergraphFactory::construct(
-          const TaskGroupID task_group_id,
           const HypernodeID num_hypernodes,
           const HyperedgeID num_hyperedges,
           const HyperedgeVector& edge_vector,
@@ -159,7 +158,7 @@ namespace mt_kahypar::ds {
     hypergraph._hypernodes.back() = StaticHypergraph::Hypernode(hypergraph._incident_nets.size());
     hypergraph._hyperedges.back() = StaticHypergraph::Hyperedge(hypergraph._incidence_array.size());
 
-    hypergraph.computeAndSetTotalNodeWeight(task_group_id);
+    hypergraph.computeAndSetTotalNodeWeight(parallel_tag_t());
 
     utils::Timer::instance().stop_timer("setup_hypergraph");
     return hypergraph;
