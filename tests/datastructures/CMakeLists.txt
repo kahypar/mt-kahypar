@@ -31,8 +31,16 @@ set(StrongAsyncTestsDatastructuresSources
         async_nlevel_smoke_test.cc
         lock_manager_test.cc
         async_common_test.cc
+        dynamic_hypergraph_test.cc
+        partitioned_hypergraph_test.cc
+        delta_partitioned_hypergraph_test.cc
+        partitioned_hypergraph_smoke_test.cc
+        contraction_tree_test.cc
+        gain_updates_test.cc
+        incident_net_array_test.cc
+        smoke_test_common.cc
         )
 
 target_sources(mt_kahypar_strong_tests PRIVATE ${StrongTestsDatastructuresSources})
-target_sources(mt_kahypar_strong_async_tests PRIVATE ${StrongTestsDatastructuresSources} ${StrongAsyncTestsDatastructuresSources})
+target_sources(mt_kahypar_strong_async_tests PRIVATE ${StrongAsyncTestsDatastructuresSources})
 

@@ -666,7 +666,7 @@ namespace mt_kahypar {
   NLevelCoarsenerBase::uncontractGroupAsyncSubtask(const ds::ContractionGroup &group, ds::ContractionGroupID groupID,
                                                    CAtomic<size_t> &total_uncontractions) {
 
-      // Attempt to acquire locks for representative and contracted nodes in the group. If any of the locks cannot be
+      // Attempt to acquire lock for representative of the group. If the lock cannot be
       // acquired, revert to previous state and attempt to pick an id again
       bool acquired = _lock_manager_for_async->tryToAcquireLock(group.getRepresentative(),groupID);
       if (!acquired) {
@@ -676,7 +676,7 @@ namespace mt_kahypar {
 
       _phg.uncontract(group);
 
-      // Release locks (They will be reacquired for refinement)
+      // Release lock (Locks will be reacquired for moves during refinement)
       _lock_manager_for_async->strongReleaseLock(group.getRepresentative(), groupID);
 
       total_uncontractions.fetch_add(group.size(), std::memory_order_acq_rel);
@@ -729,7 +729,6 @@ namespace mt_kahypar {
           thread_local std::unique_ptr<IAsyncRefiner> localLPRefiner;
 
           if (!localLPRefiner) {
-//              std::cout << "new refiner for thread " << std::this_thread::get_id() << std::endl;
               localLPRefiner = AsyncLPRefinerFactory::getInstance().createObject(
                       _context.refinement.label_propagation.algorithm,
                       _phg.hypergraph(),
@@ -823,7 +822,7 @@ namespace mt_kahypar {
       // todo mlaupichler: Reset this to use the check:
       //  Always initializing gain cache in order to develop gain cache handling in LP
 //      if ( _context.refinement.fm.algorithm == FMAlgorithm::fm_gain_cache ) {
-//          _phg.initializeGainCache();
+          _phg.initializeGainCache();
 //      }
 
       ASSERT(metrics::objective(_compactified_phg, _context.partition.objective) ==
@@ -892,18 +891,10 @@ namespace mt_kahypar {
                   _context.partition.mode, _context.partition.objective));
           uncontraction_progress += num_uncontractions;
 
-          // Recompute benefits for moved nodes
-          auto collect_moved_nodes = moved_nodes.copy_parallel();
-          tbb::parallel_for(0UL, collect_moved_nodes.size(), [&](size_t j) {
-              auto hn = collect_moved_nodes[j];
-              _phg.recomputeMoveFromBenefit(hn);
-          });
-          moved_nodes.clear_parallel();
-
           HEAVY_REFINEMENT_ASSERT(node_anti_duplicator->checkAllFalse());
           HEAVY_REFINEMENT_ASSERT(edge_anti_duplicator->checkAllFalse());
           HEAVY_REFINEMENT_ASSERT(_hg.verifyIncidenceArrayAndIncidentNets());
-//          HEAVY_REFINEMENT_ASSERT(_phg.checkTrackedPartitionInformation());
+          HEAVY_REFINEMENT_ASSERT(_phg.checkTrackedPartitionInformation());
           HEAVY_REFINEMENT_ASSERT(metrics::objective(_phg, _context.partition.objective) ==
                                   current_metrics.getMetric(kahypar::Mode::direct_kway, _context.partition.objective),
                                   V(current_metrics.getMetric(kahypar::Mode::direct_kway, _context.partition.objective))
@@ -920,7 +911,7 @@ namespace mt_kahypar {
               _removed_hyperedges_batches.pop_back();
               utils::Timer::instance().stop_timer("restore_single_pin_and_parallel_nets", force_measure_timings);
               HEAVY_REFINEMENT_ASSERT(_hg.verifyIncidenceArrayAndIncidentNets());
-//              HEAVY_REFINEMENT_ASSERT(_phg.checkTrackedPartitionInformation());
+              HEAVY_REFINEMENT_ASSERT(_phg.checkTrackedPartitionInformation());
 
               // Perform refinement on all vertices
               const double time_limit = refinementTimeLimit(_context, _round_coarsening_times.back());

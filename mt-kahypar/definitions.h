@@ -40,7 +40,11 @@ using TBBNumaArena = mt_kahypar::parallel::TBBNumaArena<HardwareTopology, false>
 #ifdef USE_STRONG_PARTITIONER
 using Hypergraph = ds::DynamicHypergraph;
 using HypergraphFactory = ds::DynamicHypergraphFactory;
+#ifdef USE_ASYNC_UNCOARSENING
+using GainCache = ds::HeavyGainCache;
+#else
 using GainCache = ds::LightGainCache;
+#endif
 #else
 using Hypergraph = ds::StaticHypergraph;
 using HypergraphFactory = ds::StaticHypergraphFactory;

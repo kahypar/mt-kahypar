@@ -228,7 +228,7 @@ public:
         if ( pin_count_in_part_after == 2 ) {
             // u might be replaced by an other vertex in the batch
             // => search for other pin of the corresponding block and
-            // substract edge weight.
+            // subtract edge weight.
             for ( auto it = pins.begin(); it != pins.end(); ++it ) {
                 const HypernodeID& pin = *it;
                 if ( pin != v && _hg_query_funcs->part_id(pin) == block ) {
@@ -303,6 +303,183 @@ private:
     MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
     bool isValidEntry(const HypernodeID u, const PartitionID) const {
         return u < size();
+    }
+
+    // ! Total number of nodes that penalties are stored for
+    HypernodeID _num_nodes;
+
+    // ! Number of partitions that penalties are stored for
+    PartitionID _k;
+
+    // ! Functions used to query information about the current state of the hypergraph
+    HGQueryFunctions* _hg_query_funcs;
+
+    // ! For each node and block, the sum of weights of incident edges with exactly one pin in that block
+    Array< CAtomic<HyperedgeWeight> > _move_from_benefit;
+
+};
+
+class FullBenefitCache {
+
+public:
+
+    FullBenefitCache() = default;
+
+    FullBenefitCache(const TaskGroupID, HGQueryFunctions* hg_query_funcs) :
+            _num_nodes(0),
+            _k(kInvalidPartition),
+            _hg_query_funcs(hg_query_funcs),
+            _move_from_benefit() {}
+
+    FullBenefitCache(const std::string& group, const std::string& key, const HypernodeID num_nodes, const PartitionID k, HGQueryFunctions* hg_query_funcs) :
+            _num_nodes(num_nodes),
+            _k(k),
+            _hg_query_funcs(hg_query_funcs),
+            _move_from_benefit(group, key, size_t(num_nodes) * size_t(k), true, false) {}
+
+    FullBenefitCache(const FullBenefitCache&) = delete;
+    FullBenefitCache & operator= (const FullBenefitCache &) = delete;
+    FullBenefitCache(FullBenefitCache&& other)  noexcept = default;
+    FullBenefitCache & operator= (FullBenefitCache&& other)  noexcept = default;
+
+    void assignHGQueryFunctions(HGQueryFunctions* hg_query_funcs) {
+        _hg_query_funcs = hg_query_funcs;
+    }
+
+    void resize(const std::string& group, const std::string& key, const HypernodeID num_nodes, const PartitionID k) {
+        ASSERT(_num_nodes == 0 && _k == kInvalidPartition);
+        _num_nodes = num_nodes;
+        _k = k;
+        _move_from_benefit.resize(group, key, size_t(num_nodes) * size_t(k), true);
+    }
+
+    size_t size_in_bytes() const {
+        return sizeof(CAtomic<HyperedgeWeight>) * _move_from_benefit.size();
+    }
+
+    size_t size() const {
+        return _move_from_benefit.size();
+    }
+
+    MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
+    HyperedgeWeight moveFromBenefit(const HypernodeID u, std::memory_order m = std::memory_order_relaxed) const {
+        return _move_from_benefit[benefit_index(u, _hg_query_funcs->part_id(u))].load(m);
+    }
+
+    MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
+    void storeRecomputedMoveFromBenefits(const HypernodeID u, vec<HyperedgeWeight>& benefit_aggregator, std::memory_order m = std::memory_order_relaxed) {
+        for (PartitionID i = 0; i < _k; ++i) {
+            _move_from_benefit[benefit_index(u,i)].store(benefit_aggregator[i], m);
+        }
+    }
+
+    MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
+    void initializeEntry(const HypernodeID u, vec<HyperedgeWeight>& benefit_aggregator) {
+        for (PartitionID i = 0; i < _k; ++i) {
+            _move_from_benefit[benefit_index(u,i)].store(benefit_aggregator[i], std::memory_order_relaxed);
+            // Reset entry to zero
+            benefit_aggregator[i] = 0;
+        }
+    }
+
+    template<class PinIteratorT>
+    MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
+    void updateForUncontractCaseOne(const HyperedgeWeight we, const HypernodeID v, const PartitionID block,
+                                    const HypernodeID pin_count_in_part_after, IteratorRange<PinIteratorT> pins) {
+        // In this case, u and v are incident to hyperedge he after uncontraction
+        if ( pin_count_in_part_after == 2 ) {
+            // u might be replaced by an other vertex in the batch
+            // => search for other pin of the corresponding block and
+            // subtract edge weight.
+            for ( const auto& pin : pins) {
+                // Reduce benefits for all pins in he for this block (except v as it never had the benefit added)
+                if ( pin != v) {
+                    _move_from_benefit[benefit_index(pin, block)].sub_fetch(we, std::memory_order_relaxed);
+                }
+            }
+        }
+    }
+
+    MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
+    void updateForUncontractCaseTwo(const HyperedgeWeight we, const HypernodeID u, const HypernodeID v,
+                                    const PartitionID block, const HypernodeID pin_count_in_block) {
+        // In this case, u is replaced by v in hyperedge he
+        // => Pin counts of hyperedge he does not change
+        // Since u is no longer incident to hyperedge he its contribution for decreasing
+        // the connectivity of he is shifted to vertex v => b(u) -= w(e), b(v) += w(e).
+        if ( pin_count_in_block == 1 ) {
+            // Benefit for all pins in the hyperedge still exists, only now u is no longer in the HE but v is so transfer
+            // benefit
+            _move_from_benefit[benefit_index(u,block)].sub_fetch(we, std::memory_order_relaxed);
+            _move_from_benefit[benefit_index(v,block)].add_fetch(we, std::memory_order_relaxed);
+        }
+    }
+
+    MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
+    void updateForRestoringSinglePinNet(const HyperedgeWeight we, const HypernodeID single_pin_in_he, const PartitionID block) {
+        _move_from_benefit[benefit_index(single_pin_in_he, block)].add_fetch(
+                we, std::memory_order_relaxed);
+    }
+
+    template<class PinIteratorT>
+    MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
+    void updateForMove(const HyperedgeWeight we, IteratorRange<PinIteratorT> pins,
+                       const PartitionID from, const HypernodeID pin_count_in_from_part_after,
+                       const PartitionID to, const HypernodeID pin_count_in_to_part_after) {
+        if (pin_count_in_from_part_after == 0) {
+            doForEnabledPins(pins,[&](HypernodeID u){
+                nodeGainAssertions(u, from);
+                _move_from_benefit[benefit_index(u, from)].sub_fetch(we, std::memory_order_relaxed);
+            });
+        } else if (pin_count_in_from_part_after == 1) {
+            doForEnabledPins(pins,[&](HypernodeID u) {
+                nodeGainAssertions(u, from);
+                _move_from_benefit[benefit_index(u, from)].fetch_add(we, std::memory_order_relaxed);
+            });
+        }
+
+        if (pin_count_in_to_part_after == 1) {
+            doForEnabledPins(pins,[&](HypernodeID u) {
+                nodeGainAssertions(u, to);
+                _move_from_benefit[benefit_index(u, to)].fetch_add(we, std::memory_order_relaxed);
+            });
+        } else if (pin_count_in_to_part_after == 2) {
+            doForEnabledPins(pins,[&](HypernodeID u) {
+                nodeGainAssertions(u, to);
+                _move_from_benefit[benefit_index(u, to)].fetch_sub(we, std::memory_order_relaxed);
+            });
+        }
+    }
+
+private:
+
+    MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
+    size_t benefit_index(const HypernodeID u, const PartitionID p) const {
+        return size_t(u) * size_t(_k)  + size_t(p);
+    }
+
+    template<typename PinIteratorT, typename F>
+    MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
+    void doForEnabledPins(IteratorRange<PinIteratorT> pins, const F& f) {
+        for (HypernodeID u : pins) {
+            if (!_hg_query_funcs->is_node_enabled(u)) continue;
+            f(u);
+        }
+    }
+
+    MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
+    void nodeGainAssertions(const HypernodeID u, const PartitionID p) const {
+        unused(u);
+        unused(p);
+        ASSERT(u < _num_nodes, "Hypernode" << u << "does not exist");
+        ASSERT(_hg_query_funcs->is_node_enabled(u), "Hypernode" << u << "is disabled");
+        ASSERT(p != kInvalidPartition && p < _k);
+        ASSERT(isValidEntry(u,p));
+    }
+
+    MT_KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
+    bool isValidEntry(const HypernodeID u, const PartitionID p) const {
+        return benefit_index(u, p) < size();
     }
 
     // ! Total number of nodes that penalties are stored for
@@ -491,5 +668,6 @@ private:
 };
 
 using LightGainCache = GainCacheFacade<AggregatedBenefitCache,FullPenaltyCache>;
+using HeavyGainCache = GainCacheFacade<FullBenefitCache, FullPenaltyCache>;
 
 } // namespace mt_kahypar::ds
