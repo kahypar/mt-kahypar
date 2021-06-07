@@ -402,6 +402,12 @@ namespace mt_kahypar {
           HypernodeWeight lb_p1, HypernodeWeight ub_p2)
   {
     auto balance = [&](size_t p1_ind, size_t p2_ind) {
+      assert(p1_ind < p1_end);
+      assert(p2_ind < p2_end);
+      assert(p1_ind >= p1_invalid);
+      assert(p2_ind >= p2_invalid);
+      assert(p1_ind < cumulative_node_weights.size());
+      assert(p2_ind < cumulative_node_weights.size());
       const auto a = (p1_ind == p1_invalid) ? 0 : cumulative_node_weights[p1_ind];
       const auto b = (p2_ind == p2_invalid) ? 0 : cumulative_node_weights[p2_ind];
       return a - b;
@@ -439,10 +445,10 @@ namespace mt_kahypar {
         // no need to search left range
         return findBestPrefixesRecursive(p1_mid + 1, p1_end, p2_match + 1, p2_end, p1_invalid, p2_invalid, lb_p1, ub_p2);
       }
-
-      // TODO apply pruning
-      // i.e. if p1_mid cannot be compensated, don't recurse on the tail range
-      // could also binary search for the end of a range + slack and discard everything behind that
+      if (p2_match == p2_end && balance(p1_mid, p2_end - 1) > ub_p2) {
+        // p1_mid cannot be compensated --> no need to search right range
+        return findBestPrefixesRecursive(p1_begin, p1_mid, p2_begin, p2_match, p1_invalid, p2_invalid, lb_p1, ub_p2);
+      }
 
       std::pair<size_t, size_t> left, right;
       tbb::parallel_invoke([&] {
