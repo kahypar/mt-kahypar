@@ -353,7 +353,7 @@ namespace mt_kahypar {
 
       auto best_prefix = findBestPrefixesRecursive(p1_begin, p1_end, p2_begin, p2_end,
                                                    p1_begin - 1, p2_begin - 1, lb_p1, ub_p2);
-      assert(best_prefix == findBestPrefixesSequentially(p1_begin, p1_end, p2_begin, p2_end, lb_p1, ub_p2));
+      assert(best_prefix == findBestPrefixesSequentially(phg, p1_begin, p1_end, p2_begin, p2_end, lb_p1, ub_p2));
 
       swap_prefix[index(p1, p2)] = best_prefix.first;
       swap_prefix[index(p2, p1)] = best_prefix.second;
@@ -479,9 +479,46 @@ namespace mt_kahypar {
   }
 
   std::pair<size_t, size_t> DeterministicLabelPropagationRefiner::findBestPrefixesSequentially(
-          size_t p1_begin, size_t p1_end, size_t p2_begin, size_t p2_end, HypernodeWeight lb_p1, HypernodeWeight ub_p2)
+          const PartitionedHypergraph& phg, size_t p1_begin, size_t p1_end, 
+          size_t p2_begin, size_t p2_end, HypernodeWeight lb_p1, HypernodeWeight ub_p2)
   {
 
+    int64_t balance = 0;
+    std::pair<size_t, size_t> best{0, 0};
+
+    // gain > 0 first. alternate depending on balance
+    while (p1_begin < p1_end && p2_begin < p2_end) {
+      if (balance < 0) {
+        // perform next move from p1 to p2
+        balance += phg.nodeWeight(sorted_moves[p1_begin++].node);
+      } else {
+        // perform next move from p2 to p1
+        balance -= phg.nodeWeight(sorted_moves[p2_begin++].node);
+      }
+
+      if (balance <= ub_p2 && balance >= lb_p1) {
+        best = {p1_begin, p2_end};
+      }
+    }
+
+    // if one sequence is depleted or gain == 0. only do rebalancing in the other direction
+    if (p2_begin == p2_end) {
+      while (p1_begin < p1_end && balance <= ub_p2) {
+        balance += phg.nodeWeight(sorted_moves[p1_begin++].node);
+        if (balance <= ub_p2 && balance >= lb_p1) {
+          best = {p1_begin, p2_end};
+        }
+      }
+    }
+    if (p1_begin == p1_end) {
+      while (p2_begin < p2_end && balance >= lb_p1) {
+        balance -= phg.nodeWeight(sorted_moves[p2_begin++].node);
+        if (balance <= ub_p2 && balance >= lb_p1) {
+          best = {p1_begin, p2_end};
+        }
+      }
+    }
+    return best;
   }
 
   Gain DeterministicLabelPropagationRefiner::applyMovesSortedByGainWithRecalculation(PartitionedHypergraph& phg) {
