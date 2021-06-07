@@ -435,16 +435,23 @@ namespace mt_kahypar {
       auto p2_match_it = std::lower_bound(c + p2_begin, c + p2_end, cumulative_node_weights[p1_mid]);
       size_t p2_match = std::distance(cumulative_node_weights.begin(), p2_match_it);
 
+      if (p2_match != p2_end && p1_mid != p1_end && is_feasible(p1_mid, p2_match)) {
+        // no need to search left range
+        return findBestPrefixesRecursive(p1_mid + 1, p1_end, p2_match + 1, p2_end, p1_invalid, p2_invalid, lb_p1, ub_p2);
+      }
+
       // TODO apply pruning
       // i.e. if p1_mid cannot be compensated, don't recurse on the tail range
       // could also binary search for the end of a range + slack and discard everything behind that
 
+      std::pair<size_t, size_t> left, right;
       tbb::parallel_invoke([&] {
-        findBestPrefixesRecursive(p1_begin, p1_mid, p2_begin, p2_match, p1_invalid, p2_invalid, lb_p1, ub_p2);
+        left = findBestPrefixesRecursive(p1_begin, p1_mid, p2_begin, p2_match, p1_invalid, p2_invalid, lb_p1, ub_p2);
       }, [&] {
-        findBestPrefixesRecursive(p1_mid, p1_end, p2_match, p2_end, p1_invalid, p2_invalid, lb_p1, ub_p2);
+        right = findBestPrefixesRecursive(p1_mid, p1_end, p2_match, p2_end, p1_invalid, p2_invalid, lb_p1, ub_p2);
       });
 
+      return right.first != invalid_pos ? right : left;
     } else {
 
     }
