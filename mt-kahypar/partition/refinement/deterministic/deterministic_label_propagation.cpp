@@ -456,12 +456,29 @@ namespace mt_kahypar {
       }, [&] {
         right = findBestPrefixesRecursive(p1_mid, p1_end, p2_match, p2_end, p1_invalid, p2_invalid, lb_p1, ub_p2);
       });
-
       return right.first != invalid_pos ? right : left;
     } else {
+      size_t p2_mid = p2_begin + n_p2 / 2;
+      auto p1_match_it = std::lower_bound(c + p1_begin, c + p1_end, cumulative_node_weights[p2_mid]);
+      size_t p1_match = std::distance(cumulative_node_weights.begin(), p1_match_it);
 
+      if (p1_match != p1_end && p2_mid != p2_end && is_feasible(p1_match, p2_mid)) {
+        // no need to search left range
+        return findBestPrefixesRecursive(p1_match + 1, p1_end, p2_mid + 1, p2_end, p1_invalid, p2_invalid, lb_p1, ub_p2);
+      }
+      if (p1_match == p1_end && balance(p1_end - 1, p2_mid) < lb_p1) {
+        // p2_mid cannot be compensated --> no need to search right range
+        return findBestPrefixesRecursive(p1_begin, p1_match, p2_begin, p2_mid, p1_invalid, p2_invalid, lb_p1, ub_p2);
+      }
+
+      std::pair<size_t, size_t> left, right;
+      tbb::parallel_invoke([&] {
+        left = findBestPrefixesRecursive(p1_begin, p1_match, p2_begin, p2_mid, p1_invalid, p2_invalid, lb_p1, ub_p2);
+      }, [&] {
+        right = findBestPrefixesRecursive(p1_match, p1_end, p2_mid, p2_end, p1_invalid, p2_invalid, lb_p1, ub_p2);
+      });
+      return right.first != invalid_pos ? right : left;
     }
-
   }
 
   Gain DeterministicLabelPropagationRefiner::applyMovesSortedByGainWithRecalculation(PartitionedHypergraph& phg) {
